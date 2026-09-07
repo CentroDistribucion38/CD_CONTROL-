@@ -2,12 +2,14 @@
  * Login por USUARIO, no por correo.
  *
  * Supabase Auth exige un correo internamente, así que CONTROL le arma uno
- * sintético a partir del usuario: "jperez" → "jperez@cdcontrol.co".
+ * sintético a partir del usuario: "jperez" → "jperez@cdcontrol.local".
  * Ese correo nunca se muestra ni recibe nada; el usuario solo conoce su
  * nombre de usuario.
  *
- * OJO: el dominio debe tener un TLD publico valido — Supabase rechaza ".local".
- * No hace falta que el dominio sea tuyo: con «Confirm email» apagado no se envia nada.
+ * OJO: el dominio debe tener un TLD público válido. Supabase rechaza cosas
+ * como ".local" o ".invalid". No hace falta que el dominio sea tuyo ni que
+ * exista buzón: con «Confirm email» apagado nunca se envía ningún correo.
+ * Este es el único lugar donde se define.
  */
 export const DOMINIO_INTERNO = "cdcontrol.co";
 
@@ -20,8 +22,14 @@ export function normalizarUsuario(valor: string): string {
     .replace(/[^a-z0-9._-]/g, "");
 }
 
-export function correoDeUsuario(usuario: string): string {
-  return `${normalizarUsuario(usuario)}@${DOMINIO_INTERNO}`;
+/**
+ * Acepta las dos formas: "admin" o "admin@cdcontrol.co".
+ * Si ya viene un correo completo se respeta tal cual.
+ */
+export function correoDeUsuario(valor: string): string {
+  const limpio = valor.trim().toLowerCase();
+  if (limpio.includes("@")) return limpio;
+  return `${normalizarUsuario(limpio)}@${DOMINIO_INTERNO}`;
 }
 
 export function usuarioDeCorreo(correo: string | null | undefined): string {
@@ -29,4 +37,4 @@ export function usuarioDeCorreo(correo: string | null | undefined): string {
   return correo.split("@")[0];
 }
 
-export const USUARIO_PATRON = "[a-zA-Z0-9._-]{3,30}";
+export const USUARIO_PATRON = "[a-zA-Z0-9._@-]{3,60}";

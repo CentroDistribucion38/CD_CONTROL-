@@ -37,7 +37,10 @@ function Formulario() {
     setError(null);
 
     const supabase = createClient();
-    const limpio = normalizarUsuario(usuario);
+    const escrito = usuario.trim();
+    const limpio = escrito.includes("@")
+      ? escrito.toLowerCase()
+      : normalizarUsuario(escrito);
 
     if (!limpio) {
       setError("Escribe un usuario válido.");
@@ -59,7 +62,12 @@ function Formulario() {
       const { data, error } = await supabase.auth.signUp({
         email: correoDeUsuario(limpio),
         password: clave,
-        options: { data: { usuario: limpio, nombre: nombre.trim() || limpio } },
+        options: {
+          data: {
+            usuario: limpio.split("@")[0],
+            nombre: nombre.trim() || limpio.split("@")[0],
+          },
+        },
       });
 
       if (error) {
@@ -116,8 +124,8 @@ function Formulario() {
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               pattern={USUARIO_PATRON}
-              title="Entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo."
-              placeholder="jperez"
+              title="Tu nombre de usuario, por ejemplo: admin"
+              placeholder="admin"
               autoCapitalize="none"
               autoCorrect="off"
               autoComplete="username"
