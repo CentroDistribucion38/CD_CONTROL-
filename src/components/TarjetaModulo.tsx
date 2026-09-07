@@ -21,10 +21,10 @@ export function TarjetaModulo({
     <>
       <div
         className="relative h-[120px] sm:h-[82px]"
-        style={{ background: m.activo ? m.fondo : "#16243A" }}
+        style={{ background: m.activo ? m.fondo : "#EDF1F7" }}
       >
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-70 transition-opacity group-hover:opacity-90"
+          className="absolute inset-0 bg-cover bg-center opacity-90 transition-opacity group-hover:opacity-100"
           style={{ backgroundImage: `url(${m.imagen})` }}
           aria-hidden
         />
@@ -74,7 +74,7 @@ export function TarjetaModulo({
               style={{ background: m.acento }}
               aria-hidden
             >
-              <ChevronRight size={15} color="#071A2E" />
+              <ChevronRight size={15} color="#FFFFFF" />
             </span>
           )}
         </div>
@@ -98,7 +98,7 @@ export function TarjetaModulo({
   }
 
   return (
-    <Link href={m.ruta} className={`${clases} hover:border-bv-azul`} style={estilo}>
+    <Link href={m.ruta} className={`${clases} hover:border-bv-azul hover:shadow-md`} style={estilo}>
       {contenido}
     </Link>
   );

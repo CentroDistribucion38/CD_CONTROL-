@@ -1,16 +1,25 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------
+   Paleta clara. Los nombres de las variables se mantienen para no tener
+   que tocar los componentes: solo cambian los valores.
+     bv-tinta   → fondo de la página
+     bv-panel   → fondo de tarjetas y menús
+     bv-linea   → bordes
+     bv-texto   → texto principal
+     bv-texto-2 → texto secundario
+   --------------------------------------------------------------------- */
+
 @theme {
   --color-bv-azul: #0060b0;
   --color-bv-azul-oscuro: #004a8a;
-  --color-bv-tinta: #071a2e;
-  --color-bv-panel: #0e2440;
-  --color-bv-linea: #1d4676;
-  --color-bv-texto: #ffffff;
-  --color-bv-texto-2: #8faac6;
-  --color-bv-alerta: #f2b01e;
-  --color-bv-ok: #5ecb8c;
-  --color-bv-claro: #f7f9fc;
+  --color-bv-tinta: #f4f7fb;
+  --color-bv-panel: #ffffff;
+  --color-bv-linea: #dbe4f0;
+  --color-bv-texto: #0b1f35;
+  --color-bv-texto-2: #5a7192;
+  --color-bv-alerta: #b26a00;
+  --color-bv-ok: #16794a;
 
   --radius-bv: 12px;
   --radius-bv-sm: 6px;
@@ -19,17 +28,17 @@
 :root {
   --bv-azul: #0060b0;
   --bv-azul-oscuro: #004a8a;
-  --bv-tinta: #071a2e;
-  --bv-panel: #0e2440;
-  --bv-linea: #1d4676;
-  --bv-texto: #ffffff;
-  --bv-texto-2: #8faac6;
-  --bv-alerta: #f2b01e;
+  --bv-tinta: #f4f7fb;
+  --bv-panel: #ffffff;
+  --bv-linea: #dbe4f0;
+  --bv-texto: #0b1f35;
+  --bv-texto-2: #5a7192;
+  --bv-alerta: #b26a00;
 
   --bv-radio: 12px;
   --bv-radio-sm: 6px;
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -40,7 +49,7 @@ body {
 
 /* --- Superficies ---------------------------------------------------- */
 .tarjeta {
-  @apply rounded-xl border border-bv-linea bg-bv-panel p-5;
+  @apply rounded-xl border border-bv-linea bg-bv-panel p-5 shadow-sm;
 }
 
 /* --- Botones -------------------------------------------------------- */
@@ -56,20 +65,17 @@ body {
 }
 
 .btn-secundario {
-  @apply border border-bv-linea bg-transparent text-bv-texto-2 hover:border-bv-azul hover:text-white;
+  @apply border border-bv-linea bg-white text-bv-texto hover:border-bv-azul hover:text-bv-azul;
 }
 
 .btn-peligro {
-  @apply border border-bv-linea bg-transparent text-bv-texto-2 hover:border-red-400 hover:text-red-300;
+  @apply border border-bv-linea bg-white text-bv-texto-2 hover:border-red-400 hover:text-red-600;
 }
 
 /* --- Formularios ---------------------------------------------------- */
-.campo {
-  @apply w-full rounded-lg border border-bv-linea bg-bv-tinta px-3 py-2 text-sm text-white outline-none placeholder:text-bv-texto-2/60 focus:border-bv-azul focus:ring-2 focus:ring-bv-azul/30;
-}
-
+.campo,
 .campo-claro {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-bv-azul focus:ring-2 focus:ring-bv-azul/20;
+  @apply w-full rounded-lg border border-bv-linea bg-white px-3 py-2 text-sm text-bv-texto outline-none placeholder:text-bv-texto-2/60 focus:border-bv-azul focus:ring-2 focus:ring-bv-azul/20;
 }
 
 .etiqueta {
@@ -86,7 +92,11 @@ body {
 }
 
 .tabla td {
-  @apply border-b border-bv-linea/40 px-3 py-2 text-bv-texto;
+  @apply border-b border-bv-linea/70 px-3 py-2 text-bv-texto;
+}
+
+.tabla tbody tr:hover td {
+  @apply bg-bv-tinta;
 }
 
 /* --- Accesibilidad -------------------------------------------------- */

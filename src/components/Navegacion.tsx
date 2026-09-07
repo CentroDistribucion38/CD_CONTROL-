@@ -33,7 +33,7 @@ export function Navegacion({ nombre, rol }: { nombre: string; rol: string }) {
       <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
         <Link
           href="/inicio"
-          className="rounded-lg px-3 py-2 text-sm text-bv-texto-2 transition hover:bg-white/5 hover:text-white"
+          className="rounded-lg px-3 py-2 text-sm text-bv-texto-2 transition hover:bg-bv-tinta hover:text-bv-texto"
         >
           ← Todos los módulos
         </Link>
@@ -51,8 +51,8 @@ export function Navegacion({ nombre, rol }: { nombre: string; rol: string }) {
                   href={s.ruta}
                   className={`block rounded-lg px-3 py-2 text-sm transition ${
                     activo
-                      ? "bg-white/10 font-medium text-white"
-                      : "text-bv-texto-2 hover:bg-white/5 hover:text-white"
+                      ? "bg-bv-tinta font-medium text-bv-azul"
+                      : "text-bv-texto-2 hover:bg-bv-tinta hover:text-bv-texto"
                   }`}
                 >
                   {s.nombre}
@@ -74,7 +74,7 @@ export function Navegacion({ nombre, rol }: { nombre: string; rol: string }) {
                   <Link
                     key={m.id}
                     href={m.ruta}
-                    className="block rounded-lg px-3 py-2 text-sm text-bv-texto-2 transition hover:bg-white/5 hover:text-white"
+                    className="block rounded-lg px-3 py-2 text-sm text-bv-texto-2 transition hover:bg-bv-tinta hover:text-bv-texto"
                   >
                     {m.nombre}
                   </Link>

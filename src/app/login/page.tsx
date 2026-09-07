@@ -72,7 +72,7 @@ function Formulario() {
         {/* Columna informativa — oculta en móvil */}
         <section
           className="hidden flex-col justify-center px-12 md:flex"
-          style={{ background: "#F7F9FC" }}
+          style={{ background: "#FFFFFF" }}
         >
           <p
             className="text-[11px] font-medium tracking-[0.14em]"
@@ -82,7 +82,7 @@ function Formulario() {
           </p>
           <h1
             className="mt-3 max-w-md text-[34px] font-medium leading-tight tracking-[-0.02em]"
-            style={{ color: "var(--bv-tinta)" }}
+            style={{ color: "var(--bv-texto)" }}
           >
             Una sola plataforma para toda la bodega
           </h1>
@@ -101,7 +101,7 @@ function Formulario() {
               <div key={d.t}>
                 <p
                   className="text-[26px] font-medium"
-                  style={{ color: "var(--bv-tinta)" }}
+                  style={{ color: "var(--bv-texto)" }}
                 >
                   {d.n}
                 </p>
@@ -170,8 +170,7 @@ function Formulario() {
                   />
                   {error && (
                     <p
-                      className="mt-2 text-[12px] leading-[1.5]"
-                      style={{ color: "var(--bv-alerta)" }}
+                      className="mt-2 text-[12px] leading-[1.5] text-red-600"
                       role="alert"
                     >
                       {error}

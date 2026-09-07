@@ -31,7 +31,7 @@ export default async function NuevaQuiebraPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <header>
-        <Link href="/quiebra" className="text-xs text-bv-texto-2 hover:text-white">
+        <Link href="/quiebra" className="text-xs text-bv-texto-2 hover:text-bv-azul">
           ← Quiebra
         </Link>
         <h1 className="mt-1 text-[24px] font-medium tracking-[-0.02em]">
@@ -52,7 +52,7 @@ export default async function NuevaQuiebraPage() {
             Cárgalos en{" "}
             <Link
               href={!productos?.length ? "/inventario/productos" : "/inventario/bodegas"}
-              className="underline hover:text-white"
+              className="underline hover:text-bv-azul"
             >
               Inventario →{" "}
               {!productos?.length ? "Productos" : "Bodegas"}

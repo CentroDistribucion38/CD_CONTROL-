@@ -6,11 +6,9 @@
  */
 export function BarraSuperior({
   usuario,
-  subtitulo = "Centro de distribución Ag01",
   turno,
 }: {
   usuario: string;
-  subtitulo?: string;
   turno?: string;
 }) {
   return (
@@ -26,14 +24,9 @@ export function BarraSuperior({
           aria-label="Bavaria"
         />
         <span className="h-[30px] w-px" style={{ background: "#3E8AC9" }} />
-        <div>
-          <p className="text-[16px] font-medium tracking-[0.06em] text-white">
-            CONTROL
-          </p>
-          <p className="mt-px text-[11px]" style={{ color: "#BBD8F0" }}>
-            {subtitulo}
-          </p>
-        </div>
+        <p className="text-[16px] font-medium tracking-[0.06em] text-white">
+          CONTROL
+        </p>
       </div>
 
       <div className="flex items-center gap-3">

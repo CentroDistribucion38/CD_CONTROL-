@@ -26,9 +26,9 @@ type Fila = {
 };
 
 const ESTILO_ESTADO: Record<string, string> = {
-  reportada: "bg-bv-alerta/15 text-bv-alerta",
-  aprobada: "bg-emerald-400/15 text-emerald-300",
-  rechazada: "bg-slate-400/15 text-slate-300",
+  reportada: "bg-amber-100 text-amber-800",
+  aprobada: "bg-emerald-100 text-emerald-800",
+  rechazada: "bg-slate-100 text-slate-600",
 };
 
 export default async function QuiebraPage({
@@ -135,7 +135,7 @@ export default async function QuiebraPage({
             className={`rounded-lg border px-3 py-1.5 text-[13px] transition ${
               filtro === f.clave
                 ? "border-bv-azul bg-bv-azul text-white"
-                : "border-bv-linea text-bv-texto-2 hover:text-white"
+                : "border-bv-linea bg-white text-bv-texto-2 hover:text-bv-azul"
             }`}
           >
             {f.texto}

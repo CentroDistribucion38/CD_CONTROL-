@@ -49,8 +49,8 @@ export const MODULOS: Modulo[] = [
     eyebrow: "AVERÍAS",
     descripcion:
       "Reporte de producto averiado, aprobación del supervisor y descarga automática del inventario.",
-    acento: "#F2B01E",
-    fondo: "#3A2E0C",
+    acento: "#B26A00",
+    fondo: "#FBEFD6",
     imagen: "/modulos/quiebra.jpg",
     ruta: "/quiebra",
     activo: true,
@@ -66,8 +66,8 @@ export const MODULOS: Modulo[] = [
     eyebrow: "STOCK",
     descripcion:
       "Catálogo, kardex de movimientos, existencias por bodega y conteos físicos.",
-    acento: "#4FA3E8",
-    fondo: "#123863",
+    acento: "#0060B0",
+    fondo: "#E2EDF9",
     imagen: "/modulos/inventario.jpg",
     ruta: "/inventario",
     activo: true,

@@ -20,7 +20,7 @@ export default async function CausasPage() {
   return (
     <div className="space-y-6">
       <header>
-        <Link href="/quiebra" className="text-xs text-bv-texto-2 hover:text-white">
+        <Link href="/quiebra" className="text-xs text-bv-texto-2 hover:text-bv-azul">
           ← Quiebra
         </Link>
         <h1 className="mt-1 text-[24px] font-medium tracking-[-0.02em]">Causas</h1>
