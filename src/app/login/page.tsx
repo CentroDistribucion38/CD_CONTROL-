@@ -5,18 +5,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario, normalizarUsuario, USUARIO_PATRON } from "@/lib/auth";
 import { avanzarConTeclado } from "@/lib/teclado";
+import { BarraSuperior } from "@/components/BarraSuperior";
+
+/**
+ * Nunca se muestra el error crudo de Supabase ni se dice cuál de los dos
+ * campos falló: eso confirmaría qué usuarios existen.
+ */
+const ERROR_CREDENCIALES =
+  "Usuario o contraseña incorrectos. Verifica e intenta de nuevo.";
 
 function traducirError(mensaje: string): string {
   const m = mensaje.toLowerCase();
-  if (m.includes("invalid login credentials"))
-    return "Usuario o contraseña incorrectos.";
-  if (m.includes("already registered") || m.includes("already been registered"))
-    return "Ese usuario ya existe.";
-  if (m.includes("password should be at least"))
-    return "La contraseña debe tener al menos 6 caracteres.";
   if (m.includes("email not confirmed"))
-    return "La cuenta está sin confirmar. Pídele al administrador que desactive la confirmación por correo en Supabase.";
-  return mensaje;
+    return "Tu cuenta está pendiente de activación. Habla con tu supervisor.";
+  if (m.includes("rate limit"))
+    return "Demasiados intentos. Espera un momento y vuelve a probar.";
+  return ERROR_CREDENCIALES;
 }
 
 function Formulario() {
@@ -24,10 +28,8 @@ function Formulario() {
   const params = useSearchParams();
   const siguiente = params.get("next") ?? "/inicio";
 
-  const [modo, setModo] = useState<"entrar" | "registrar">("entrar");
   const [usuario, setUsuario] = useState("");
   const [clave, setClave] = useState("");
-  const [nombre, setNombre] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,150 +38,161 @@ function Formulario() {
     setCargando(true);
     setError(null);
 
-    const supabase = createClient();
     const escrito = usuario.trim();
     const limpio = escrito.includes("@")
       ? escrito.toLowerCase()
       : normalizarUsuario(escrito);
 
     if (!limpio) {
-      setError("Escribe un usuario válido.");
+      setError(ERROR_CREDENCIALES);
       setCargando(false);
       return;
     }
 
-    if (modo === "entrar") {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: correoDeUsuario(limpio),
-        password: clave,
-      });
-      if (error) setError(traducirError(error.message));
-      else {
-        router.push(siguiente);
-        router.refresh();
-      }
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: correoDeUsuario(limpio),
+      password: clave,
+    });
+
+    if (error) {
+      setError(traducirError(error.message));
+      setCargando(false);
     } else {
-      const { data, error } = await supabase.auth.signUp({
-        email: correoDeUsuario(limpio),
-        password: clave,
-        options: {
-          data: {
-            usuario: limpio.split("@")[0],
-            nombre: nombre.trim() || limpio.split("@")[0],
-          },
-        },
-      });
-
-      if (error) {
-        setError(traducirError(error.message));
-      } else if (data.session) {
-        router.push("/inicio");
-        router.refresh();
-      } else {
-        setError(
-          "Cuenta creada, pero quedó pendiente de confirmación. Desactiva «Confirm email» en Supabase → Authentication → Providers → Email y vuelve a entrar."
-        );
-      }
+      router.push(siguiente);
+      router.refresh();
     }
-
-    setCargando(false);
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-tinta-900 text-sm font-bold text-white">
-            C
-          </div>
-          <h1 className="text-xl font-semibold tracking-wide">CONTROL</h1>
-          <p className="mt-1 text-sm text-tinta-500">
-            {modo === "entrar" ? "Ingresa a tu cuenta" : "Crea tu cuenta"}
-          </p>
-        </div>
+    <div className="flex min-h-screen flex-col">
+      <BarraSuperior usuario={usuario || "??"} />
 
-        <form
-          onSubmit={enviar}
-          onKeyDown={avanzarConTeclado}
-          className="tarjeta space-y-4"
+      <div className="grid flex-1 md:grid-cols-2">
+        {/* Columna informativa — oculta en móvil */}
+        <section
+          className="hidden flex-col justify-center px-12 md:flex"
+          style={{ background: "#F7F9FC" }}
         >
-          {modo === "registrar" && (
-            <div>
-              <label className="etiqueta">Nombre completo</label>
-              <input
-                className="campo"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Juan Pérez"
-                autoFocus={modo === "registrar"}
-                required
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="etiqueta">Usuario</label>
-            <input
-              className="campo lowercase"
-              value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
-              pattern={USUARIO_PATRON}
-              title="Tu nombre de usuario, por ejemplo: admin"
-              placeholder="admin"
-              autoCapitalize="none"
-              autoCorrect="off"
-              autoComplete="username"
-              autoFocus={modo === "entrar"}
-              required
-            />
-          </div>
-
-          <div>
-            <label className="etiqueta">Contraseña</label>
-            <input
-              type="password"
-              className="campo"
-              value={clave}
-              onChange={(e) => setClave(e.target.value)}
-              minLength={6}
-              autoComplete={
-                modo === "entrar" ? "current-password" : "new-password"
-              }
-              required
-            />
-          </div>
-
-          {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
-          <button className="btn-primario w-full" disabled={cargando}>
-            {cargando
-              ? "Procesando…"
-              : modo === "entrar"
-                ? "Entrar"
-                : "Registrarme"}
-          </button>
-
-          <button
-            type="button"
-            className="w-full text-center text-sm text-tinta-500 hover:text-tinta-900"
-            onClick={() => {
-              setModo(modo === "entrar" ? "registrar" : "entrar");
-              setError(null);
-            }}
+          <p
+            className="text-[11px] font-medium tracking-[0.14em]"
+            style={{ color: "var(--bv-azul)" }}
           >
-            {modo === "entrar"
-              ? "¿No tienes cuenta? Regístrate"
-              : "Ya tengo cuenta"}
-          </button>
-        </form>
+            OPERACIÓN LOGÍSTICA
+          </p>
+          <h1
+            className="mt-3 max-w-md text-[34px] font-medium leading-tight tracking-[-0.02em]"
+            style={{ color: "var(--bv-tinta)" }}
+          >
+            Una sola plataforma para toda la bodega
+          </h1>
+          <p className="mt-4 max-w-md text-[13px] leading-[1.6] text-slate-600">
+            Recibo, almacenamiento, inventario, averías y despacho en el mismo
+            lugar. Lo que se registra en piso queda disponible al instante para
+            quien tiene que decidir.
+          </p>
 
-        <p className="mt-6 text-center text-xs text-tinta-400">
-          El primer usuario registrado queda como administrador.
-        </p>
+          <div className="mt-8 flex gap-10 border-t border-slate-200 pt-6">
+            {[
+              { n: "6", t: "módulos" },
+              { n: "3", t: "roles" },
+              { n: "1", t: "sesión" },
+            ].map((d) => (
+              <div key={d.t}>
+                <p
+                  className="text-[26px] font-medium"
+                  style={{ color: "var(--bv-tinta)" }}
+                >
+                  {d.n}
+                </p>
+                <p className="text-[12px] text-slate-500">{d.t}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Tarjeta de acceso */}
+        <section
+          className="flex items-center justify-center px-6 py-12"
+          style={{ background: "var(--bv-tinta)" }}
+        >
+          <div className="w-full max-w-sm">
+            <div
+              className="overflow-hidden rounded-[12px] border"
+              style={{
+                borderColor: "var(--bv-linea)",
+                background: "var(--bv-panel)",
+              }}
+            >
+              <div className="px-6 py-4" style={{ background: "var(--bv-azul)" }}>
+                <h2 className="text-[16px] font-medium text-white">
+                  Iniciar sesión
+                </h2>
+              </div>
+
+              <form
+                onSubmit={enviar}
+                onKeyDown={avanzarConTeclado}
+                className="space-y-4 p-6"
+              >
+                <div>
+                  <label className="etiqueta" htmlFor="usuario">
+                    Usuario
+                  </label>
+                  <input
+                    id="usuario"
+                    className="campo"
+                    value={usuario}
+                    onChange={(e) => setUsuario(e.target.value)}
+                    pattern={USUARIO_PATRON}
+                    title="Tu nombre de usuario, por ejemplo: admin"
+                    placeholder="admin"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoComplete="username"
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="etiqueta" htmlFor="clave">
+                    Contraseña
+                  </label>
+                  <input
+                    id="clave"
+                    type="password"
+                    className="campo"
+                    value={clave}
+                    onChange={(e) => setClave(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+                  {error && (
+                    <p
+                      className="mt-2 text-[12px] leading-[1.5]"
+                      style={{ color: "var(--bv-alerta)" }}
+                      role="alert"
+                    >
+                      {error}
+                    </p>
+                  )}
+                </div>
+
+                <button className="btn-primario w-full" disabled={cargando}>
+                  {cargando ? "Accediendo…" : "Acceder"}
+                </button>
+              </form>
+            </div>
+
+            <p
+              className="mt-5 text-center text-[12px]"
+              style={{ color: "var(--bv-texto-2)" }}
+            >
+              ¿Olvidaste la contraseña? Habla con tu supervisor.
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   );

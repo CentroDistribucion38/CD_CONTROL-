@@ -1,65 +1,105 @@
 @import "tailwindcss";
 
 @theme {
-  --color-tinta-50: #f6f7f8;
-  --color-tinta-100: #eceef1;
-  --color-tinta-200: #d6dae1;
-  --color-tinta-300: #b2bac6;
-  --color-tinta-400: #8794a6;
-  --color-tinta-500: #67748a;
-  --color-tinta-600: #525d72;
-  --color-tinta-700: #434c5d;
-  --color-tinta-800: #3a414e;
-  --color-tinta-900: #1c2027;
-  --color-acento-500: #0f766e;
-  --color-acento-600: #0d5f59;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-bv-azul: #0060b0;
+  --color-bv-azul-oscuro: #004a8a;
+  --color-bv-tinta: #071a2e;
+  --color-bv-panel: #0e2440;
+  --color-bv-linea: #1d4676;
+  --color-bv-texto: #ffffff;
+  --color-bv-texto-2: #8faac6;
+  --color-bv-alerta: #f2b01e;
+  --color-bv-ok: #5ecb8c;
+  --color-bv-claro: #f7f9fc;
+
+  --radius-bv: 12px;
+  --radius-bv-sm: 6px;
 }
 
 :root {
-  color-scheme: light;
+  --bv-azul: #0060b0;
+  --bv-azul-oscuro: #004a8a;
+  --bv-tinta: #071a2e;
+  --bv-panel: #0e2440;
+  --bv-linea: #1d4676;
+  --bv-texto: #ffffff;
+  --bv-texto-2: #8faac6;
+  --bv-alerta: #f2b01e;
+
+  --bv-radio: 12px;
+  --bv-radio-sm: 6px;
+
+  color-scheme: dark;
 }
 
 html,
 body {
-  background: var(--color-tinta-50);
-  color: var(--color-tinta-900);
+  background: var(--bv-tinta);
+  color: var(--bv-texto);
 }
 
+/* --- Superficies ---------------------------------------------------- */
 .tarjeta {
-  @apply rounded-xl border border-tinta-200 bg-white p-5 shadow-sm;
+  @apply rounded-xl border border-bv-linea bg-bv-panel p-5;
 }
 
+/* --- Botones -------------------------------------------------------- */
 .btn,
 .btn-primario,
-.btn-secundario {
+.btn-secundario,
+.btn-peligro {
   @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50;
 }
 
 .btn-primario {
-  @apply bg-tinta-900 text-white hover:bg-tinta-800;
+  @apply bg-bv-azul text-white hover:bg-bv-azul-oscuro;
 }
 
 .btn-secundario {
-  @apply border border-tinta-300 bg-white text-tinta-800 hover:bg-tinta-100;
+  @apply border border-bv-linea bg-transparent text-bv-texto-2 hover:border-bv-azul hover:text-white;
 }
 
+.btn-peligro {
+  @apply border border-bv-linea bg-transparent text-bv-texto-2 hover:border-red-400 hover:text-red-300;
+}
+
+/* --- Formularios ---------------------------------------------------- */
 .campo {
-  @apply w-full rounded-lg border border-tinta-300 bg-white px-3 py-2 text-sm outline-none focus:border-acento-500 focus:ring-2 focus:ring-acento-500/20;
+  @apply w-full rounded-lg border border-bv-linea bg-bv-tinta px-3 py-2 text-sm text-white outline-none placeholder:text-bv-texto-2/60 focus:border-bv-azul focus:ring-2 focus:ring-bv-azul/30;
+}
+
+.campo-claro {
+  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-bv-azul focus:ring-2 focus:ring-bv-azul/20;
 }
 
 .etiqueta {
-  @apply mb-1 block text-xs font-medium uppercase tracking-wide text-tinta-500;
+  @apply mb-1 block text-[11px] font-medium uppercase tracking-[0.14em] text-bv-texto-2;
 }
 
+/* --- Tablas --------------------------------------------------------- */
 .tabla {
   @apply w-full border-collapse text-sm;
 }
 
 .tabla th {
-  @apply border-b border-tinta-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-tinta-500;
+  @apply border-b border-bv-linea px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.14em] text-bv-texto-2;
 }
 
 .tabla td {
-  @apply border-b border-tinta-100 px-3 py-2;
+  @apply border-b border-bv-linea/40 px-3 py-2 text-bv-texto;
+}
+
+/* --- Accesibilidad -------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--bv-azul);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

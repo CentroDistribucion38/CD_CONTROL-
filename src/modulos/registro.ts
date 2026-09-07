@@ -1,16 +1,19 @@
 /**
  * REGISTRO DE MÓDULOS DE CONTROL
  * ------------------------------------------------------------------
- * Única fuente de verdad de la plataforma. El lanzador de /inicio y el
- * menú lateral se dibujan a partir de este archivo.
+ * Única fuente de verdad de la plataforma. La portada (/inicio) y el menú
+ * lateral se dibujan a partir de este archivo. No hay lista de módulos
+ * escrita a mano en ningún componente.
  *
- * Para agregar un módulo nuevo:
- *   1. Crea la carpeta  src/app/(app)/<ruta>/
- *   2. Crea la carpeta  src/modulos/<id>/  con sus acciones y lógica
- *   3. Agrega su SQL en supabase/modulos/<id>.sql
- *   4. Agrega una entrada aquí con activo: true
+ * Para agregar un módulo:
+ *   1. Agrega su entrada aquí con activo: true
+ *   2. Crea las rutas en   src/app/(app)/<ruta>/
+ *   3. Crea la lógica en   src/modulos/<id>/acciones.ts
+ *   4. Crea el SQL en      supabase/modulos/<id>.sql
  *
- * Nada más. El menú, el lanzador y los permisos salen de acá.
+ * activo  → el módulo existe y se puede entrar
+ * oculto  → existe y funciona, pero no aparece en la portada ni en el menú
+ *           (sigue accesible por URL; útil para módulos de soporte)
  */
 
 export type Rol = "admin" | "supervisor" | "operador";
@@ -23,27 +26,49 @@ export type Seccion = {
 export type Modulo = {
   id: string;
   nombre: string;
+  /** Etiqueta corta en mayúsculas sobre el nombre */
+  eyebrow: string;
   descripcion: string;
-  /** Dos o tres letras para el mosaico de /inicio */
-  sigla: string;
-  /** Clase de color Tailwind para el mosaico */
-  color: string;
+  /** Color de acento: etiqueta y círculo de la flecha */
+  acento: string;
+  /** Color de respaldo y mezcla de la zona de imagen */
+  fondo: string;
+  /** Ruta de la foto en /public. Si no existe, se ve solo el fondo. */
+  imagen: string;
   ruta: string;
-  /** false = se muestra en gris como "próximamente" y no es navegable */
   activo: boolean;
-  /** Roles que pueden verlo. Vacío = todos los autenticados. */
+  oculto?: boolean;
   roles?: Rol[];
   secciones: Seccion[];
 };
 
 export const MODULOS: Modulo[] = [
   {
+    id: "quiebra",
+    nombre: "Quiebra",
+    eyebrow: "AVERÍAS",
+    descripcion:
+      "Reporte de producto averiado, aprobación del supervisor y descarga automática del inventario.",
+    acento: "#F2B01E",
+    fondo: "#3A2E0C",
+    imagen: "/modulos/quiebra.jpg",
+    ruta: "/quiebra",
+    activo: true,
+    secciones: [
+      { nombre: "Reportes", ruta: "/quiebra" },
+      { nombre: "Reportar avería", ruta: "/quiebra/nueva" },
+      { nombre: "Causas", ruta: "/quiebra/causas" },
+    ],
+  },
+  {
     id: "inventario",
     nombre: "Inventario",
+    eyebrow: "STOCK",
     descripcion:
-      "Catálogo, kardex de movimientos, existencias por bodega y conteos físicos con ajuste automático.",
-    sigla: "IN",
-    color: "bg-acento-500",
+      "Catálogo, kardex de movimientos, existencias por bodega y conteos físicos.",
+    acento: "#4FA3E8",
+    fondo: "#123863",
+    imagen: "/modulos/inventario.jpg",
     ruta: "/inventario",
     activo: true,
     secciones: [
@@ -55,85 +80,17 @@ export const MODULOS: Modulo[] = [
     ],
   },
 
-  // --- Catálogo de módulos por construir ------------------------------
-  // Están declarados para que se vean en el menú como "Próximamente".
-  // Cuando construyas uno, cambia activo: true y llena sus secciones.
-  // Borra sin miedo los que no vayas a usar.
-  {
-    id: "recibo",
-    nombre: "Recibo",
-    descripcion: "Recepción contra orden de compra, inspección y novedades.",
-    sigla: "RC",
-    color: "bg-sky-600",
-    ruta: "/recibo",
-    activo: false,
-    secciones: [],
-  },
-  {
-    id: "almacenamiento",
-    nombre: "Almacenamiento",
-    descripcion: "Ubicaciones, posiciones, reubicación y mapa de bodega.",
-    sigla: "AL",
-    color: "bg-violet-600",
-    ruta: "/almacenamiento",
-    activo: false,
-    secciones: [],
-  },
-  {
-    id: "picking",
-    nombre: "Picking",
-    descripcion: "Órdenes de separación, rutas de recolección y confirmación.",
-    sigla: "PK",
-    color: "bg-amber-600",
-    ruta: "/picking",
-    activo: false,
-    secciones: [],
-  },
-  {
-    id: "despacho",
-    nombre: "Despacho",
-    descripcion: "Consolidación, cargue, remisiones y entrega al transportador.",
-    sigla: "DP",
-    color: "bg-rose-600",
-    ruta: "/despacho",
-    activo: false,
-    secciones: [],
-  },
-  {
-    id: "compras",
-    nombre: "Compras",
-    descripcion: "Solicitudes, órdenes de compra y seguimiento a proveedores.",
-    sigla: "CO",
-    color: "bg-emerald-700",
-    ruta: "/compras",
-    activo: false,
-    secciones: [],
-  },
-  {
-    id: "mantenimiento",
-    nombre: "Mantenimiento",
-    descripcion: "Equipos, planes preventivos y órdenes de trabajo.",
-    sigla: "MT",
-    color: "bg-indigo-600",
-    ruta: "/mantenimiento",
-    activo: false,
-    secciones: [],
-  },
-  {
-    id: "usuarios",
-    nombre: "Usuarios",
-    descripcion: "Personas, roles y permisos de la plataforma.",
-    sigla: "US",
-    color: "bg-tinta-700",
-    ruta: "/usuarios",
-    activo: false,
-    roles: ["admin"],
-    secciones: [],
-  },
 ];
 
+/** Módulos que se pueden usar. */
 export const modulosActivos = () => MODULOS.filter((m) => m.activo);
 
+/** Módulos que se muestran en portada y menú. */
+export function modulosVisibles(rol: string): Modulo[] {
+  return MODULOS.filter((m) => !m.oculto && puedeVer(m, rol));
+}
+
+/** Encuentra el módulo al que pertenece una ruta (incluidos los ocultos). */
 export function moduloPorRuta(pathname: string): Modulo | undefined {
   return MODULOS.filter((m) => m.activo)
     .filter((m) => pathname === m.ruta || pathname.startsWith(`${m.ruta}/`))

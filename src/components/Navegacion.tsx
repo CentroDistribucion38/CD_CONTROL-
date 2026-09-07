@@ -3,12 +3,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { MODULOS, moduloPorRuta, puedeVer } from "@/modulos/registro";
+import { moduloPorRuta, modulosVisibles } from "@/modulos/registro";
 
+/**
+ * Menú lateral. Solo aparece cuando estás dentro de un módulo: en la portada
+ * estorba, porque la portada YA es el selector de módulos.
+ */
 export function Navegacion({ nombre, rol }: { nombre: string; rol: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const actual = moduloPorRuta(pathname);
+
+  if (!actual) return null;
 
   async function salir() {
     const supabase = createClient();
@@ -17,79 +23,76 @@ export function Navegacion({ nombre, rol }: { nombre: string; rol: string }) {
     router.refresh();
   }
 
-  const visibles = MODULOS.filter((m) => m.activo && puedeVer(m, rol));
+  const visibles = modulosVisibles(rol);
 
   return (
-    <aside className="flex w-full shrink-0 flex-col border-b border-tinta-200 bg-white md:h-screen md:w-64 md:border-r md:border-b-0">
-      <Link href="/inicio" className="flex items-center gap-2 px-5 py-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-tinta-900 text-xs font-bold text-white">
-          C
-        </div>
-        <span className="text-sm font-semibold tracking-wide">CONTROL</span>
-      </Link>
-
-      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 pb-3">
-        <div className="space-y-1">
-          <Link
-            href="/inicio"
-            className={`block rounded-lg px-3 py-2 text-sm transition ${
-              pathname === "/inicio"
-                ? "bg-tinta-100 font-medium text-tinta-900"
-                : "text-tinta-600 hover:bg-tinta-50"
-            }`}
-          >
-            Inicio
-          </Link>
-        </div>
+    <aside
+      className="flex w-full shrink-0 flex-col border-b md:h-auto md:w-60 md:border-r md:border-b-0"
+      style={{ borderColor: "var(--bv-linea)", background: "var(--bv-panel)" }}
+    >
+      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
+        <Link
+          href="/inicio"
+          className="rounded-lg px-3 py-2 text-sm text-bv-texto-2 transition hover:bg-white/5 hover:text-white"
+        >
+          ← Todos los módulos
+        </Link>
 
         <div>
-          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-tinta-400">
-            Módulos
+          <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-bv-texto-2">
+            {actual.nombre}
           </p>
           <div className="space-y-1">
-            {visibles.map((m) => {
-              const esActual = actual?.id === m.id;
+            {actual.secciones.map((s) => {
+              const activo = pathname === s.ruta;
               return (
-                <div key={m.id}>
-                  <Link
-                    href={m.ruta}
-                    className={`block rounded-lg px-3 py-2 text-sm transition ${
-                      esActual
-                        ? "bg-tinta-100 font-medium text-tinta-900"
-                        : "text-tinta-600 hover:bg-tinta-50"
-                    }`}
-                  >
-                    {m.nombre}
-                  </Link>
-
-                  {esActual && m.secciones.length > 0 && (
-                    <div className="mt-1 ml-3 border-l border-tinta-200 pl-3">
-                      {m.secciones.map((s) => (
-                        <Link
-                          key={s.ruta}
-                          href={s.ruta}
-                          className={`block rounded-md px-2 py-1.5 text-sm transition ${
-                            pathname === s.ruta
-                              ? "font-medium text-tinta-900"
-                              : "text-tinta-500 hover:text-tinta-900"
-                          }`}
-                        >
-                          {s.nombre}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <Link
+                  key={s.ruta}
+                  href={s.ruta}
+                  className={`block rounded-lg px-3 py-2 text-sm transition ${
+                    activo
+                      ? "bg-white/10 font-medium text-white"
+                      : "text-bv-texto-2 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  {s.nombre}
+                </Link>
               );
             })}
           </div>
         </div>
+
+        {visibles.filter((m) => m.activo && m.id !== actual.id).length > 0 && (
+          <div>
+            <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-bv-texto-2">
+              Otros módulos
+            </p>
+            <div className="space-y-1">
+              {visibles
+                .filter((m) => m.activo && m.id !== actual.id)
+                .map((m) => (
+                  <Link
+                    key={m.id}
+                    href={m.ruta}
+                    className="block rounded-lg px-3 py-2 text-sm text-bv-texto-2 transition hover:bg-white/5 hover:text-white"
+                  >
+                    {m.nombre}
+                  </Link>
+                ))}
+            </div>
+          </div>
+        )}
       </nav>
 
-      <div className="border-t border-tinta-200 px-5 py-4">
+      <div className="border-t px-5 py-4" style={{ borderColor: "var(--bv-linea)" }}>
         <p className="truncate text-sm font-medium">{nombre}</p>
-        <p className="mb-2 text-xs uppercase tracking-wide text-tinta-400">{rol}</p>
-        <button onClick={salir} className="text-xs text-tinta-500 hover:text-tinta-900">
+        <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-bv-texto-2">
+          {rol}
+        </p>
+        <button
+          onClick={salir}
+          className="text-xs text-bv-texto-2 transition hover:text-white"
+        >
           Cerrar sesión
         </button>
       </div>

@@ -1,10 +1,49 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { MODULOS, puedeVer } from "@/modulos/registro";
+import { modulosVisibles } from "@/modulos/registro";
+import { TarjetaModulo, type DatoPie } from "@/components/TarjetaModulo";
+import { fmtNum } from "@/lib/formato";
 
 export const dynamic = "force-dynamic";
 
-export default async function InicioPage() {
+/**
+ * Datos del pie de cada tarjeta. Cada consulta va aislada: si una falla o el
+ * módulo todavía no tiene tablas, esa tarjeta se queda sin dato y la portada
+ * sigue funcionando.
+ */
+async function datosPorModulo(): Promise<Record<string, DatoPie>> {
+  const supabase = await createClient();
+  const datos: Record<string, DatoPie> = {};
+
+  const [productos, quiebrasPendientes, existencias] = await Promise.allSettled([
+    supabase.from("productos").select("*", { count: "exact", head: true }).eq("activo", true),
+    supabase.from("quiebras").select("*", { count: "exact", head: true }).eq("estado", "reportada"),
+    supabase.from("v_existencias").select("cantidad"),
+  ]);
+
+  if (productos.status === "fulfilled" && productos.value.count !== null) {
+    datos.inventario = { texto: `${fmtNum(productos.value.count)} materiales` };
+  }
+
+  if (quiebrasPendientes.status === "fulfilled" && quiebrasPendientes.value.count !== null) {
+    const n = quiebrasPendientes.value.count;
+    datos.quiebra =
+      n > 0
+        ? { texto: `${n} por aprobar`, enAlerta: true }
+        : { texto: "Sin pendientes" };
+  }
+
+  if (existencias.status === "fulfilled" && existencias.value.data) {
+    const total = existencias.value.data.reduce(
+      (a, f) => a + Number((f as { cantidad: number }).cantidad ?? 0),
+      0
+    );
+    datos.__unidades = { texto: fmtNum(total) };
+  }
+
+  return datos;
+}
+
+export default async function PortadaPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,61 +56,35 @@ export default async function InicioPage() {
     .single();
 
   const rol = perfil?.rol ?? "operador";
-  const modulos = MODULOS.filter((m) => puedeVer(m, rol));
+  const modulos = modulosVisibles(rol);
+  const datos = await datosPorModulo();
+
+  const unidades = datos.__unidades?.texto;
+  const pendientes = datos.quiebra?.enAlerta ? datos.quiebra.texto : null;
+
+  const resumen = [
+    unidades ? `${unidades} unidades en existencia` : null,
+    pendientes ? `${pendientes.replace(" por aprobar", "")} averías por aprobar` : null,
+  ].filter(Boolean);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Menú principal</h1>
-        <p className="text-sm text-tinta-500">
-          {(perfil?.nombre ?? "").split(" ")[0] || "Bienvenido"} ·{" "}
-          <span className="uppercase tracking-wide">{rol}</span>
-        </p>
+    <div className="mx-auto max-w-6xl">
+      <header className="mb-6">
+        <h1 className="text-[22px] font-medium">
+          Selecciona el módulo con el que vas a trabajar
+        </h1>
+        {resumen.length > 0 && (
+          <p className="mt-1 text-[13px]" style={{ color: "var(--bv-texto-2)" }}>
+            {resumen.join(" · ")}
+          </p>
+        )}
       </header>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {modulos.map((m) => {
-          const interior = (
-            <>
-              <span className="text-2xl font-bold tracking-tight opacity-90">
-                {m.sigla}
-              </span>
-              <span className="mt-auto text-sm font-semibold leading-tight">
-                {m.nombre}
-              </span>
-              <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug opacity-75">
-                {m.activo ? m.descripcion : "Próximamente"}
-              </span>
-            </>
-          );
-
-          const base =
-            "flex aspect-square flex-col rounded-xl p-4 text-white shadow-sm transition";
-
-          return m.activo ? (
-            <Link
-              key={m.id}
-              href={m.ruta}
-              className={`${base} ${m.color} hover:-translate-y-0.5 hover:shadow-md`}
-            >
-              {interior}
-            </Link>
-          ) : (
-            <div
-              key={m.id}
-              className={`${base} bg-tinta-300 cursor-not-allowed`}
-              aria-disabled
-            >
-              {interior}
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {modulos.map((m) => (
+          <TarjetaModulo key={m.id} m={m} dato={datos[m.id]} />
+        ))}
       </div>
-
-      <p className="text-xs text-tinta-400">
-        Los módulos se declaran en <code>src/modulos/registro.ts</code>. Agrega uno
-        nuevo ahí y aparece en este menú.
-      </p>
     </div>
   );
 }
