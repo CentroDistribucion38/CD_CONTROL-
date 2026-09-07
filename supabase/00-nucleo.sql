@@ -18,24 +18,47 @@ exception when duplicate_object then null; end $$;
 -- ---------------------------------------------------------------------
 create table if not exists public.perfiles (
   id        uuid primary key references auth.users(id) on delete cascade,
+  usuario   text,
   nombre    text not null default '',
   rol       rol_usuario not null default 'operador',
   activo    boolean not null default true,
   creado_en timestamptz not null default now()
 );
 
+-- Por si la tabla ya existía sin la columna (versión anterior del esquema)
+alter table public.perfiles add column if not exists usuario text;
+
+-- Rellena el usuario de perfiles antiguos a partir del correo interno
+update public.perfiles p
+   set usuario = split_part(u.email, '@', 1)
+  from auth.users u
+ where u.id = p.id and p.usuario is null;
+
+create unique index if not exists perfiles_usuario_key
+  on public.perfiles (lower(usuario)) where usuario is not null;
+
 -- Alta automática de perfil al registrarse. El PRIMER usuario queda admin.
+-- El login es por USUARIO: la app arma un correo interno <usuario>@cdcontrol.local
+-- que Supabase Auth necesita, pero que el usuario nunca ve.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_usuario text;
 begin
-  insert into public.perfiles (id, nombre, rol)
+  v_usuario := lower(coalesce(
+    nullif(new.raw_user_meta_data->>'usuario', ''),
+    split_part(new.email, '@', 1)
+  ));
+
+  insert into public.perfiles (id, usuario, nombre, rol)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'nombre', split_part(new.email, '@', 1)),
+    v_usuario,
+    coalesce(nullif(new.raw_user_meta_data->>'nombre', ''), v_usuario),
     case
       when (select count(*) from public.perfiles) = 0 then 'admin'::rol_usuario
       else 'operador'::rol_usuario

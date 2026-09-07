@@ -1,9 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { correoDeUsuario, normalizarUsuario, USUARIO_PATRON } from "@/lib/auth";
+
+function traducirError(mensaje: string): string {
+  const m = mensaje.toLowerCase();
+  if (m.includes("invalid login credentials"))
+    return "Usuario o contraseña incorrectos.";
+  if (m.includes("already registered") || m.includes("already been registered"))
+    return "Ese usuario ya existe.";
+  if (m.includes("password should be at least"))
+    return "La contraseña debe tener al menos 6 caracteres.";
+  if (m.includes("email not confirmed"))
+    return "La cuenta está sin confirmar. Pídele al administrador que desactive la confirmación por correo en Supabase.";
+  return mensaje;
+}
 
 function Formulario() {
   const router = useRouter();
@@ -11,42 +24,53 @@ function Formulario() {
   const siguiente = params.get("next") ?? "/inicio";
 
   const [modo, setModo] = useState<"entrar" | "registrar">("entrar");
-  const [correo, setCorreo] = useState("");
+  const [usuario, setUsuario] = useState("");
   const [clave, setClave] = useState("");
   const [nombre, setNombre] = useState("");
   const [cargando, setCargando] = useState(false);
-  const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setCargando(true);
     setError(null);
-    setMensaje(null);
 
     const supabase = createClient();
+    const limpio = normalizarUsuario(usuario);
+
+    if (!limpio) {
+      setError("Escribe un usuario válido.");
+      setCargando(false);
+      return;
+    }
 
     if (modo === "entrar") {
       const { error } = await supabase.auth.signInWithPassword({
-        email: correo,
+        email: correoDeUsuario(limpio),
         password: clave,
       });
-      if (error) setError(error.message);
+      if (error) setError(traducirError(error.message));
       else {
         router.push(siguiente);
         router.refresh();
       }
     } else {
-      const { error } = await supabase.auth.signUp({
-        email: correo,
+      const { data, error } = await supabase.auth.signUp({
+        email: correoDeUsuario(limpio),
         password: clave,
-        options: {
-          data: { nombre },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { data: { usuario: limpio, nombre: nombre.trim() || limpio } },
       });
-      if (error) setError(error.message);
-      else setMensaje("Cuenta creada. Revisa tu correo para confirmarla.");
+
+      if (error) {
+        setError(traducirError(error.message));
+      } else if (data.session) {
+        router.push("/inicio");
+        router.refresh();
+      } else {
+        setError(
+          "Cuenta creada, pero quedó pendiente de confirmación. Desactiva «Confirm email» en Supabase → Authentication → Providers → Email y vuelve a entrar."
+        );
+      }
     }
 
     setCargando(false);
@@ -68,23 +92,29 @@ function Formulario() {
         <form onSubmit={enviar} className="tarjeta space-y-4">
           {modo === "registrar" && (
             <div>
-              <label className="etiqueta">Nombre</label>
+              <label className="etiqueta">Nombre completo</label>
               <input
                 className="campo"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
+                placeholder="Juan Pérez"
                 required
               />
             </div>
           )}
 
           <div>
-            <label className="etiqueta">Correo</label>
+            <label className="etiqueta">Usuario</label>
             <input
-              type="email"
-              className="campo"
-              value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
+              className="campo lowercase"
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
+              pattern={USUARIO_PATRON}
+              title="Entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo."
+              placeholder="jperez"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="username"
               required
             />
           </div>
@@ -97,6 +127,9 @@ function Formulario() {
               value={clave}
               onChange={(e) => setClave(e.target.value)}
               minLength={6}
+              autoComplete={
+                modo === "entrar" ? "current-password" : "new-password"
+              }
               required
             />
           </div>
@@ -104,11 +137,6 @@ function Formulario() {
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
-            </p>
-          )}
-          {mensaje && (
-            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              {mensaje}
             </p>
           )}
 
@@ -126,7 +154,6 @@ function Formulario() {
             onClick={() => {
               setModo(modo === "entrar" ? "registrar" : "entrar");
               setError(null);
-              setMensaje(null);
             }}
           >
             {modo === "entrar"
