@@ -26,6 +26,19 @@ type Resumen = {
 const nf = new Intl.NumberFormat("es-CO");
 const LOTE = 500;
 
+/** El error crudo de PostgREST no le dice nada a quien está importando. */
+function traducir(mensaje: string, tabla: string): string {
+  const m = mensaje.toLowerCase();
+  if (m.includes("does not exist") || m.includes("schema cache") || m.includes("relation")) {
+    return `Falta crear las tablas del módulo en Supabase. Abre el SQL Editor y ejecuta ` +
+           `supabase/modulos/quiebra.sql — no existe "${tabla}".`;
+  }
+  if (m.includes("row-level security") || m.includes("permission")) {
+    return "Tu usuario no tiene permiso para importar. Se necesita rol de supervisor o administrador.";
+  }
+  return mensaje;
+}
+
 export default function ImportarPage() {
   const router = useRouter();
   const [leyendo, setLeyendo] = useState(false);
@@ -85,12 +98,17 @@ export default function ImportarPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       // 1. Se borra SOLO el rango de fechas que trae el archivo, para que un
-      //    archivo parcial no arrase con el histórico anterior.
-      const { error: eLimpiar } = await supabase.rpc("quiebra_limpiar_rango", {
-        p_desde: resumen.desde,
-        p_hasta: resumen.hasta,
-      });
-      if (eLimpiar) throw new Error(eLimpiar.message);
+      //    archivo parcial no arrase con el histórico anterior. Se hace con la
+      //    API directa: las políticas RLS ya restringen esto a supervisores,
+      //    así que no hace falta una función en la base.
+      for (const tabla of ["quiebra_bajas", "quiebra_produccion"]) {
+        const { error } = await supabase
+          .from(tabla)
+          .delete()
+          .gte("fecha", resumen.desde)
+          .lte("fecha", resumen.hasta);
+        if (error) throw new Error(traducir(error.message, tabla));
+      }
 
       // 2. Bitácora de la carga
       const { data: carga, error: eCarga } = await supabase
@@ -105,7 +123,7 @@ export default function ImportarPage() {
         })
         .select("id")
         .single();
-      if (eCarga) throw new Error(eCarga.message);
+      if (eCarga) throw new Error(traducir(eCarga.message, "quiebra_cargas"));
 
       // 3. Inserción por lotes
       const total = resumen.bajas.length + resumen.produccion.length;
@@ -114,14 +132,14 @@ export default function ImportarPage() {
       for (let i = 0; i < resumen.bajas.length; i += LOTE) {
         const trozo = resumen.bajas.slice(i, i + LOTE).map((f) => ({ ...f, carga_id: carga.id }));
         const { error } = await supabase.from("quiebra_bajas").insert(trozo);
-        if (error) throw new Error(error.message);
+        if (error) throw new Error(traducir(error.message, "quiebra_bajas"));
         hechas += trozo.length;
         setAvance(Math.round((hechas / total) * 100));
       }
       for (let i = 0; i < resumen.produccion.length; i += LOTE) {
         const trozo = resumen.produccion.slice(i, i + LOTE).map((f) => ({ ...f, carga_id: carga.id }));
         const { error } = await supabase.from("quiebra_produccion").insert(trozo);
-        if (error) throw new Error(error.message);
+        if (error) throw new Error(traducir(error.message, "quiebra_produccion"));
         hechas += trozo.length;
         setAvance(Math.round((hechas / total) * 100));
       }
