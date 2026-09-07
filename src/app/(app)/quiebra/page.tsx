@@ -106,9 +106,19 @@ export default async function QuiebraPage({
             Producto averiado reportado en piso
           </p>
         </div>
-        <Link href="/quiebra/nueva" className="btn-primario">
-          Reportar avería
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/tableros/quiebra.html"
+            target="_blank"
+            rel="noopener"
+            className="btn-secundario"
+          >
+            Tablero de quiebra
+          </a>
+          <Link href="/quiebra/nueva" className="btn-primario">
+            Reportar avería
+          </Link>
+        </div>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
