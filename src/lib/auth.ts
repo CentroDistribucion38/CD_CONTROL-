@@ -2,14 +2,14 @@
  * Login por USUARIO, no por correo.
  *
  * Supabase Auth exige un correo internamente, así que CONTROL le arma uno
- * sintético a partir del usuario: "jperez" → "jperez@cdcontrol.local".
+ * sintético a partir del usuario: "jperez" → "jperez@cdcontrol.co".
  * Ese correo nunca se muestra ni recibe nada; el usuario solo conoce su
  * nombre de usuario.
  *
- * Si Supabase llegara a rechazar el dominio, cambia DOMINIO_INTERNO por
- * cualquier otro (p. ej. "cdcontrol.app"). Es el único lugar donde se define.
+ * OJO: el dominio debe tener un TLD publico valido — Supabase rechaza ".local".
+ * No hace falta que el dominio sea tuyo: con «Confirm email» apagado no se envia nada.
  */
-export const DOMINIO_INTERNO = "cdcontrol.local";
+export const DOMINIO_INTERNO = "cdcontrol.co";
 
 /** Minúsculas, sin espacios, solo letras, números, punto, guion y guion bajo. */
 export function normalizarUsuario(valor: string): string {
