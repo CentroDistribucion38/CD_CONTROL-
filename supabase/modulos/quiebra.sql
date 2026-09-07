@@ -1,266 +1,202 @@
 -- =====================================================================
--- CONTROL · MÓDULO QUIEBRA (producto averiado)
--- Requiere: supabase/00-nucleo.sql y supabase/modulos/inventario.sql
+-- CONTROL · MÓDULO QUIEBRA (rotura de envase retornable)
+-- Requiere: supabase/00-nucleo.sql
 -- Supabase → SQL Editor → New query → pegar → Run. Es idempotente.
 --
--- Flujo: el operario REPORTA la avería → un supervisor la APRUEBA →
--- al aprobarse se genera la salida de inventario. Mientras esté
--- reportada no toca existencias.
+-- El módulo se alimenta de dos hojas del maestro:
+--   BAJA MB51 → bajas de SAP (la pérdida)
+--   ZPREC     → producción (el denominador)
+-- La quiebra es pérdida / producción, medida contra una meta mensual.
+--
+-- Cada importación REEMPLAZA POR RANGO: borra solo las fechas que trae
+-- el archivo y vuelve a insertarlas. Así un archivo parcial no borra el
+-- histórico anterior y volver a subir el mismo maestro no duplica nada.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. Tipos
+-- 0. Limpieza del módulo anterior (reporte manual de averías)
+--    Se reemplazó por el flujo de importación. Si nunca lo usaste, no
+--    pierdes nada; si tenías datos ahí, respáldalos antes de correr esto.
 -- ---------------------------------------------------------------------
-do $$ begin
-  create type estado_quiebra as enum ('reportada', 'aprobada', 'rechazada');
-exception when duplicate_object then null; end $$;
+drop function if exists public.aprobar_quiebra(uuid, text);
+drop function if exists public.rechazar_quiebra(uuid, text);
+drop view if exists public.v_quiebras;
+drop view if exists public.v_quiebras_por_causa;
+drop view if exists public.v_quiebras_por_producto;
+drop table if exists public.conteo_lineas_quiebra;
+drop table if exists public.quiebras;
+drop table if exists public.causas_quiebra;
+drop type if exists estado_quiebra;
 
 -- ---------------------------------------------------------------------
--- 2. Catálogo de causas — se administra desde la app, sin tocar SQL
+-- 1. Registro de cargas — la bitácora de quién subió qué
 -- ---------------------------------------------------------------------
-create table if not exists public.causas_quiebra (
-  id        uuid primary key default gen_random_uuid(),
-  codigo    text not null unique,
-  nombre    text not null,
-  activo    boolean not null default true,
-  creado_en timestamptz not null default now()
+create table if not exists public.quiebra_cargas (
+  id                uuid primary key default gen_random_uuid(),
+  archivo           text,
+  desde             date not null,
+  hasta             date not null,
+  filas_bajas       integer not null default 0,
+  filas_produccion  integer not null default 0,
+  cargado_por       uuid references public.perfiles(id) on delete set null,
+  cargado_en        timestamptz not null default now()
 );
 
-insert into public.causas_quiebra (codigo, nombre) values
-  ('GOLPE',     'Golpe o caída en manipulación'),
-  ('MONTAC',    'Daño con montacargas o estibador'),
-  ('ESTIBA',    'Mal estibado o estiba colapsada'),
-  ('EMPAQUE',   'Empaque defectuoso de fábrica'),
-  ('DERRAME',   'Derrame o rotura de contenido'),
-  ('TRANSPORT', 'Daño en transporte'),
-  ('ALMACEN',   'Deterioro por condiciones de almacenamiento'),
-  ('OTRO',      'Otra causa')
-on conflict (codigo) do nothing;
+create index if not exists quiebra_cargas_fecha_idx on public.quiebra_cargas (cargado_en desc);
 
 -- ---------------------------------------------------------------------
--- 3. Quiebras
+-- 2. Bajas (hoja BAJA MB51)
+--    cantidad se guarda NETA y en positivo: los reversos de SAP vienen
+--    con cantidad positiva y aquí entran en negativo, así la suma resta.
 -- ---------------------------------------------------------------------
-create sequence if not exists public.quiebras_consecutivo_seq;
-
-create table if not exists public.quiebras (
-  id              uuid primary key default gen_random_uuid(),
-  consecutivo     text not null unique
-                    default 'QB-' || lpad(nextval('public.quiebras_consecutivo_seq')::text, 6, '0'),
-  producto_id     uuid not null references public.productos(id) on delete restrict,
-  bodega_id       uuid not null references public.bodegas(id) on delete restrict,
-  causa_id        uuid references public.causas_quiebra(id) on delete set null,
-  cantidad        numeric(14,3) not null check (cantidad > 0),
-  lote            text,
-  nota            text,
-  estado          estado_quiebra not null default 'reportada',
-
-  reportado_por   uuid references public.perfiles(id) on delete set null,
-  reportado_en    timestamptz not null default now(),
-
-  resuelto_por    uuid references public.perfiles(id) on delete set null,
-  resuelto_en     timestamptz,
-  nota_resolucion text,
-
-  movimiento_id   uuid references public.movimientos(id) on delete set null
+create table if not exists public.quiebra_bajas (
+  id           bigserial primary key,
+  fecha        date not null,
+  documento    text,
+  material     text,
+  denominacion text,
+  causal       text not null default 'Otros',
+  causal_sap   text,
+  almacen      text,
+  cmv          integer,
+  cantidad     numeric(16,3) not null,
+  carga_id     uuid references public.quiebra_cargas(id) on delete set null
 );
 
-create index if not exists quiebras_estado_idx   on public.quiebras (estado, reportado_en desc);
-create index if not exists quiebras_producto_idx on public.quiebras (producto_id);
-create index if not exists quiebras_fecha_idx    on public.quiebras (reportado_en desc);
+create index if not exists quiebra_bajas_fecha_idx    on public.quiebra_bajas (fecha);
+create index if not exists quiebra_bajas_causal_idx   on public.quiebra_bajas (causal);
+create index if not exists quiebra_bajas_almacen_idx  on public.quiebra_bajas (almacen);
+create index if not exists quiebra_bajas_material_idx on public.quiebra_bajas (material);
 
 -- ---------------------------------------------------------------------
--- 4. Aprobar / rechazar
+-- 3. Producción (hoja ZPREC)
 -- ---------------------------------------------------------------------
+create table if not exists public.quiebra_produccion (
+  id           bigserial primary key,
+  fecha        date not null,
+  centro       text,
+  linea        integer,
+  volumen      text,
+  material     text,
+  descripcion  text,
+  orden        text,
+  cantidad     numeric(16,3) not null,
+  cantidad_hl  numeric(16,3),
+  tipo         text,
+  carga_id     uuid references public.quiebra_cargas(id) on delete set null
+);
 
--- Aprueba la quiebra y descuenta el producto del inventario.
-create or replace function public.aprobar_quiebra(
-  p_quiebra_id uuid,
-  p_nota       text default null
-)
-returns uuid
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  q            public.quiebras%rowtype;
-  v_movimiento uuid;
-  v_costo      numeric(14,2);
-begin
-  if not public.es_editor() then
-    raise exception 'Solo un supervisor o administrador puede aprobar una quiebra';
-  end if;
+create index if not exists quiebra_prod_fecha_idx on public.quiebra_produccion (fecha);
+create index if not exists quiebra_prod_linea_idx on public.quiebra_produccion (linea);
 
-  select * into q from public.quiebras where id = p_quiebra_id for update;
+-- ---------------------------------------------------------------------
+-- 4. Metas mensuales — editables desde la app
+-- ---------------------------------------------------------------------
+create table if not exists public.quiebra_metas (
+  anio  integer not null,
+  mes   integer not null check (mes between 1 and 12),
+  meta  numeric(6,5) not null,
+  primary key (anio, mes)
+);
 
-  if q.id is null then
-    raise exception 'La quiebra no existe';
-  end if;
-  if q.estado <> 'reportada' then
-    raise exception 'La quiebra ya fue % y no se puede volver a procesar', q.estado;
-  end if;
+insert into public.quiebra_metas (anio, mes, meta) values
+  (2026,1,0.0173),(2026,2,0.0433),(2026,3,0.0108),(2026,4,0.0108),
+  (2026,5,0.0109),(2026,6,0.0164),(2026,7,0.0142),(2026,8,0.0119),
+  (2026,9,0.0168),(2026,10,0.0192),(2026,11,0.0212),(2026,12,0.0289)
+on conflict (anio, mes) do nothing;
 
-  select costo_unitario into v_costo from public.productos where id = q.producto_id;
-
-  insert into public.movimientos
-    (tipo, producto_id, bodega_id, cantidad, costo_unitario, referencia, nota, usuario_id)
-  values
-    ('salida', q.producto_id, q.bodega_id, q.cantidad, coalesce(v_costo, 0),
-     q.consecutivo, 'Salida por quiebra (producto averiado)', auth.uid())
-  returning id into v_movimiento;
-
-  update public.quiebras
-     set estado          = 'aprobada',
-         resuelto_por    = auth.uid(),
-         resuelto_en     = now(),
-         nota_resolucion = p_nota,
-         movimiento_id   = v_movimiento
-   where id = p_quiebra_id;
-
-  return v_movimiento;
-end $$;
-
--- Rechaza la quiebra. No toca inventario.
-create or replace function public.rechazar_quiebra(
-  p_quiebra_id uuid,
-  p_nota       text default null
-)
+-- ---------------------------------------------------------------------
+-- 5. Reemplazo por rango — el corazón de la importación
+--    Borra únicamente las fechas que trae el archivo.
+-- ---------------------------------------------------------------------
+create or replace function public.quiebra_limpiar_rango(p_desde date, p_hasta date)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_estado estado_quiebra;
 begin
   if not public.es_editor() then
-    raise exception 'Solo un supervisor o administrador puede rechazar una quiebra';
+    raise exception 'Solo un supervisor o administrador puede importar';
   end if;
-
-  select estado into v_estado from public.quiebras where id = p_quiebra_id for update;
-
-  if v_estado is null then
-    raise exception 'La quiebra no existe';
-  end if;
-  if v_estado <> 'reportada' then
-    raise exception 'La quiebra ya fue % y no se puede volver a procesar', v_estado;
-  end if;
-
-  update public.quiebras
-     set estado          = 'rechazada',
-         resuelto_por    = auth.uid(),
-         resuelto_en     = now(),
-         nota_resolucion = p_nota
-   where id = p_quiebra_id;
+  delete from public.quiebra_bajas      where fecha between p_desde and p_hasta;
+  delete from public.quiebra_produccion where fecha between p_desde and p_hasta;
 end $$;
 
 -- ---------------------------------------------------------------------
--- 5. Vistas de reporte
+-- 6. Vistas de lectura para el tablero
 -- ---------------------------------------------------------------------
-create or replace view public.v_quiebras as
-select
-  q.id,
-  q.consecutivo,
-  q.estado,
-  q.cantidad,
-  q.lote,
-  q.nota,
-  q.reportado_en,
-  q.resuelto_en,
-  q.nota_resolucion,
-  p.sku,
-  p.nombre                                   as producto,
-  p.unidad,
-  p.costo_unitario,
-  round(q.cantidad * p.costo_unitario, 2)    as valor_perdido,
-  b.codigo                                   as bodega_codigo,
-  b.nombre                                   as bodega,
-  c.codigo                                   as causa_codigo,
-  c.nombre                                   as causa,
-  rep.nombre                                 as reportado_por,
-  res.nombre                                 as resuelto_por
-from public.quiebras q
-join public.productos p       on p.id = q.producto_id
-join public.bodegas   b       on b.id = q.bodega_id
-left join public.causas_quiebra c on c.id = q.causa_id
-left join public.perfiles rep on rep.id = q.reportado_por
-left join public.perfiles res on res.id = q.resuelto_por;
 
--- Pérdida acumulada por causa (solo lo aprobado)
-create or replace view public.v_quiebras_por_causa as
+-- Día: producción, pérdida y porcentaje
+create or replace view public.v_quiebra_dia as
+with p as (select fecha, sum(cantidad) prod from public.quiebra_produccion group by 1),
+     b as (select fecha, sum(cantidad) perd from public.quiebra_bajas      group by 1)
 select
-  coalesce(c.nombre, 'Sin causa')         as causa,
-  count(*)                                as casos,
-  sum(q.cantidad)                         as unidades,
-  round(sum(q.cantidad * p.costo_unitario), 2) as valor_perdido
-from public.quiebras q
-join public.productos p on p.id = q.producto_id
-left join public.causas_quiebra c on c.id = q.causa_id
-where q.estado = 'aprobada'
-group by 1
-order by 4 desc;
+  coalesce(p.fecha, b.fecha)                       as fecha,
+  coalesce(p.prod, 0)                              as produccion,
+  coalesce(b.perd, 0)                              as perdida,
+  case when coalesce(p.prod,0) > 0
+       then coalesce(b.perd,0) / p.prod end        as pct
+from p full outer join b on b.fecha = p.fecha;
 
--- Pérdida acumulada por producto (solo lo aprobado)
-create or replace view public.v_quiebras_por_producto as
+-- Mes: contra la meta
+create or replace view public.v_quiebra_mes as
+with p as (select date_trunc('month',fecha)::date m, sum(cantidad) prod
+             from public.quiebra_produccion group by 1),
+     b as (select date_trunc('month',fecha)::date m, sum(cantidad) perd
+             from public.quiebra_bajas group by 1)
 select
-  p.sku,
-  p.nombre                                as producto,
-  p.unidad,
-  count(*)                                as casos,
-  sum(q.cantidad)                         as unidades,
-  round(sum(q.cantidad * p.costo_unitario), 2) as valor_perdido
-from public.quiebras q
-join public.productos p on p.id = q.producto_id
-where q.estado = 'aprobada'
-group by 1, 2, 3
-order by 6 desc;
+  coalesce(p.m, b.m)                                as mes,
+  extract(year  from coalesce(p.m, b.m))::int       as anio,
+  extract(month from coalesce(p.m, b.m))::int       as num_mes,
+  coalesce(p.prod, 0)                               as produccion,
+  coalesce(b.perd, 0)                               as perdida,
+  case when coalesce(p.prod,0) > 0
+       then coalesce(b.perd,0) / p.prod end         as pct,
+  mt.meta
+from p full outer join b on b.m = p.m
+left join public.quiebra_metas mt
+  on mt.anio = extract(year  from coalesce(p.m,b.m))::int
+ and mt.mes  = extract(month from coalesce(p.m,b.m))::int;
+
+-- Causal
+create or replace view public.v_quiebra_causal as
+select causal, sum(cantidad) as unidades, count(*) as movimientos
+from public.quiebra_bajas group by causal order by 2 desc;
+
+-- Material
+create or replace view public.v_quiebra_material as
+select material, max(denominacion) as denominacion,
+       sum(cantidad) as unidades, count(*) as movimientos
+from public.quiebra_bajas group by material order by 3 desc;
+
+-- Almacén
+create or replace view public.v_quiebra_almacen as
+select almacen, sum(cantidad) as unidades, count(*) as movimientos
+from public.quiebra_bajas group by almacen order by 2 desc;
 
 -- ---------------------------------------------------------------------
--- 6. RLS
+-- 7. RLS — todos leen, solo editores importan
 -- ---------------------------------------------------------------------
-alter table public.causas_quiebra enable row level security;
-alter table public.quiebras       enable row level security;
+alter table public.quiebra_cargas     enable row level security;
+alter table public.quiebra_bajas      enable row level security;
+alter table public.quiebra_produccion enable row level security;
+alter table public.quiebra_metas      enable row level security;
 
--- Causas: todos leen, solo editores administran
-drop policy if exists causas_quiebra_select on public.causas_quiebra;
-create policy causas_quiebra_select on public.causas_quiebra
-  for select to authenticated using (true);
-
-drop policy if exists causas_quiebra_write on public.causas_quiebra;
-create policy causas_quiebra_write on public.causas_quiebra
-  for all to authenticated
-  using (public.es_editor()) with check (public.es_editor());
-
--- Quiebras: todos leen
-drop policy if exists quiebras_select on public.quiebras;
-create policy quiebras_select on public.quiebras
-  for select to authenticated using (true);
-
--- Cualquier usuario autenticado REPORTA, siempre a su propio nombre
--- y siempre en estado 'reportada'. No puede auto-aprobarse.
-drop policy if exists quiebras_insert on public.quiebras;
-create policy quiebras_insert on public.quiebras
-  for insert to authenticated
-  with check (
-    estado = 'reportada'
-    and reportado_por = auth.uid()
-    and movimiento_id is null
-    and resuelto_por is null
-  );
-
--- Corregir una quiebra propia mientras siga pendiente
-drop policy if exists quiebras_update_propia on public.quiebras;
-create policy quiebras_update_propia on public.quiebras
-  for update to authenticated
-  using (reportado_por = auth.uid() and estado = 'reportada')
-  with check (estado = 'reportada');
-
--- Aprobar y rechazar pasan por las funciones security definer de arriba,
--- que verifican el rol. No se abre update general a supervisores para que
--- nadie pueda cambiar un estado sin generar el movimiento correspondiente.
+do $$
+declare t text;
+begin
+  foreach t in array array['quiebra_cargas','quiebra_bajas','quiebra_produccion','quiebra_metas'] loop
+    execute format('drop policy if exists %I on public.%I', t||'_select', t);
+    execute format('create policy %I on public.%I for select to authenticated using (true)', t||'_select', t);
+    execute format('drop policy if exists %I on public.%I', t||'_write', t);
+    execute format(
+      'create policy %I on public.%I for all to authenticated using (public.es_editor()) with check (public.es_editor())',
+      t||'_write', t);
+  end loop;
+end $$;
 
 grant select on
-  public.v_quiebras,
-  public.v_quiebras_por_causa,
-  public.v_quiebras_por_producto
+  public.v_quiebra_dia, public.v_quiebra_mes, public.v_quiebra_causal,
+  public.v_quiebra_material, public.v_quiebra_almacen
 to authenticated;

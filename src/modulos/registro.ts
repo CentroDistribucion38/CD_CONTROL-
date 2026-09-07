@@ -48,16 +48,15 @@ export const MODULOS: Modulo[] = [
     nombre: "Quiebra",
     eyebrow: "AVERÍAS",
     descripcion:
-      "Reporte de producto averiado, aprobación del supervisor y descarga automática del inventario.",
+      "Rotura de envase retornable medida contra producción, importada del maestro de SAP.",
     acento: "#B26A00",
     fondo: "#FBEFD6",
     imagen: "/modulos/quiebra.jpg",
     ruta: "/quiebra",
     activo: true,
     secciones: [
-      { nombre: "Reportes", ruta: "/quiebra" },
-      { nombre: "Reportar avería", ruta: "/quiebra/nueva" },
-      { nombre: "Causas", ruta: "/quiebra/causas" },
+      { nombre: "Tablero", ruta: "/quiebra" },
+      { nombre: "Importar", ruta: "/quiebra/importar" },
     ],
   },
   {
