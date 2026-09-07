@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { registrarMovimiento } from "@/modulos/inventario/acciones";
+import { avanzarConTeclado } from "@/lib/teclado";
 
 type Opcion = { id: string; etiqueta: string };
 
@@ -15,7 +16,11 @@ export function FormMovimiento({
   const [tipo, setTipo] = useState("entrada");
 
   return (
-    <form action={registrarMovimiento} className="tarjeta grid gap-4 md:grid-cols-4">
+    <form
+      action={registrarMovimiento}
+      onKeyDown={avanzarConTeclado}
+      className="tarjeta grid gap-4 md:grid-cols-4"
+    >
       <div>
         <label className="etiqueta">Tipo *</label>
         <select

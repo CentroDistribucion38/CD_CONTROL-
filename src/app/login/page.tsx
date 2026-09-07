@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario, normalizarUsuario, USUARIO_PATRON } from "@/lib/auth";
+import { avanzarConTeclado } from "@/lib/teclado";
 
 function traducirError(mensaje: string): string {
   const m = mensaje.toLowerCase();
@@ -89,7 +90,11 @@ function Formulario() {
           </p>
         </div>
 
-        <form onSubmit={enviar} className="tarjeta space-y-4">
+        <form
+          onSubmit={enviar}
+          onKeyDown={avanzarConTeclado}
+          className="tarjeta space-y-4"
+        >
           {modo === "registrar" && (
             <div>
               <label className="etiqueta">Nombre completo</label>
@@ -98,6 +103,7 @@ function Formulario() {
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder="Juan Pérez"
+                autoFocus={modo === "registrar"}
                 required
               />
             </div>
@@ -115,6 +121,7 @@ function Formulario() {
               autoCapitalize="none"
               autoCorrect="off"
               autoComplete="username"
+              autoFocus={modo === "entrar"}
               required
             />
           </div>
