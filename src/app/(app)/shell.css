@@ -23,8 +23,8 @@
   height: 70px;
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 0 30px;
+  gap: 22px;
+  padding: 0 30px 0 0;
   background: var(--sh-tinta);
   color: #fff;
   font-family: var(--sh-texto);
@@ -52,14 +52,26 @@
 }
 .sh-barra > * { position: relative }
 
-.sh-barra img { width: 38px; height: 38px; display: block }
-.sh-barra .div { width: 1px; height: 26px; background: rgba(255,255,255,.25) }
-.sh-barra .wm {
-  font-family: var(--sh-titulo);
-  font-weight: 800;
-  font-size: 14px;
-  letter-spacing: .22em;
+/* El logo ocupa 64px, lo mismo que el riel: la columna de la izquierda se
+   lee como una sola pieza de arriba a abajo. */
+.sh-barra .esquina {
+  width: 64px; height: 100%;
+  display: grid; place-items: center; flex: none;
+  border-right: 1px solid rgba(255,255,255,.08);
 }
+.sh-barra .esquina img { width: 36px; height: 36px; display: block }
+
+.sh-barra .ruta { display: flex; align-items: center; gap: 10px; font-size: 14px; min-width: 0 }
+.sh-barra .ruta .wm {
+  font-family: var(--sh-titulo); font-weight: 800; font-size: 13.5px;
+  letter-spacing: .2em; color: #7E97B5; white-space: nowrap;
+}
+.sh-barra .ruta .modulo {
+  font-family: var(--sh-titulo); font-weight: 800; letter-spacing: .02em;
+  color: #fff; white-space: nowrap;
+}
+.sh-barra .ruta .hoja { color: #A9C2DE; font-weight: 500; white-space: nowrap }
+.sh-barra .ruta .sep { width: 14px; height: 14px; stroke: rgba(255,255,255,.4); fill: none; flex: none }
 .sh-barra .der {
   margin-left: auto;
   display: flex;
@@ -122,11 +134,8 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   /* El <main> del cascarón trae relleno para las páginas de los módulos.
      La portada lo anula para poder llegar a los bordes: el filo del pie
      tiene que cruzar la pantalla completa. */
-  margin: -20px;
+  margin: -26px -30px -40px;
   padding: 38px 30px 0;
-}
-@media (min-width: 768px) {
-  .sh-portada { margin: -32px }
 }
 
 .sh-titulo {
@@ -307,7 +316,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   .sh-barra img { width: 34px; height: 34px }
   .sh-barra .der .turno { display: none }
 
-  .sh-portada { padding: 26px 20px 0 }
+  .sh-portada { margin: -18px -18px -30px; padding: 26px 20px 0 }
   .sh-titulo { flex-direction: column; align-items: flex-start; gap: 10px }
   .sh-firma { padding-bottom: 0 }
 
@@ -357,72 +366,194 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 .sh[data-grande="si"] .sh-datos span,
 .sh[data-grande="si"] .pf-reglas li { font-size: 14px }
 
-/* ====================== Riel lateral de módulos ======================
-   Colapsado a 64px; se abre al pasar el mouse por encima, flotando sobre
-   el contenido para no reacomodar la página. */
-.sh-lado { position: relative; z-index: 20; width: 64px; flex: none }
+/* ====================== Cuerpo: riel + contenido ====================== */
+.sh-marco {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  transition: grid-template-columns .18s ease;
+  flex: 1;
+  min-height: 0;
+}
+.sh-marco.anclado { grid-template-columns: 236px 1fr }
+.sh-marco.sin-riel { grid-template-columns: 1fr }
+.sh-main { padding: 26px 30px 40px; min-width: 0; display: flex; flex-direction: column }
+
+/* ---------- Riel de módulos ---------- */
+.sh-lado { position: relative; z-index: 20; width: 64px }
+
 .sh-lado .riel {
-  position: absolute;
-  top: 0; left: 0; bottom: 0;
+  position: fixed;
+  top: 70px; left: 0; bottom: 0;
   width: 64px;
   overflow: hidden;
-  background: var(--sh-papel);
-  border-right: 1px solid var(--sh-linea);
-  padding: 14px 0 24px;
+  background: var(--sh-tinta);
+  border-right: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 10px;
   transition: width .18s ease, box-shadow .18s ease;
 }
 .sh-lado:hover .riel,
-.sh-lado:focus-within .riel { width: 236px; box-shadow: 22px 0 44px -30px rgba(4,32,63,.5) }
+.sh-lado:focus-within .riel,
+.sh-marco.anclado .sh-lado .riel { width: 236px }
+.sh-lado:hover .riel,
+.sh-lado:focus-within .riel { box-shadow: 26px 0 50px -32px rgba(4,32,63,.85) }
 
-.sh-lado a { white-space: nowrap; text-decoration: none }
-.sh-lado .grupo { white-space: nowrap }
-.sh-lado .texto { opacity: 0; transition: opacity .12s ease }
+.sh-lado .texto { opacity: 0; transition: opacity .12s ease; white-space: nowrap }
 .sh-lado:hover .texto,
-.sh-lado:focus-within .texto { opacity: 1 }
-
-.sh-lado .volver {
-  display: flex; align-items: center; gap: 14px; padding: 10px 0 16px 21px;
-  font-size: 13.5px; font-weight: 600; color: var(--sh-azul);
-}
-.sh-lado .volver:hover { color: var(--sh-rojo) }
-.sh-lado .volver svg { width: 20px; height: 20px; flex: none }
+.sh-lado:focus-within .texto,
+.sh-marco.anclado .sh-lado .texto { opacity: 1 }
 
 .sh-lado .grupo {
-  padding: 0 0 6px 21px; margin-top: 14px; font-size: 11px; font-weight: 600;
-  letter-spacing: .14em; color: #93A3B6; height: 16px; opacity: 0; transition: opacity .12s;
+  padding: 0 0 8px 22px; margin-top: 20px; font-size: 10.5px; font-weight: 600;
+  letter-spacing: .16em; color: #6F87A5; opacity: 0; transition: opacity .12s; height: 14px;
 }
 .sh-lado:hover .grupo,
-.sh-lado:focus-within .grupo { opacity: 1 }
+.sh-lado:focus-within .grupo,
+.sh-marco.anclado .sh-lado .grupo { opacity: 1 }
 
-.sh-lado a.item {
-  display: flex; align-items: center; gap: 14px; padding: 11px 0 11px 18px;
-  font-size: 14.5px; font-weight: 500; color: var(--sh-tinta);
+.sh-lado .riel a {
+  position: relative;
+  display: flex; align-items: center; gap: 16px;
+  height: 46px; padding-left: 19px;
+  font-size: 14.5px; font-weight: 500; color: #A9C2DE; text-decoration: none;
   border-left: 3px solid transparent;
+  flex: none;
 }
-.sh-lado a.item:hover { background: #F1F5FA }
-.sh-lado a.item svg { width: 20px; height: 20px; color: var(--sh-gris); flex: none }
-.sh-lado a.item.modulo.on { border-left-color: var(--sh-rojo); background: #F7F9FC; font-weight: 700 }
-.sh-lado a.item.modulo.on svg { color: var(--sh-rojo) }
+.sh-lado .riel a:hover { background: rgba(255,255,255,.06); color: #fff }
+.sh-lado .riel a svg {
+  width: 22px; height: 22px; stroke: #7E97B5; stroke-width: 1.7; fill: none; flex: none;
+}
+.sh-lado .riel a:hover svg { stroke: #D6E4F4 }
 
-/* las pantallas del módulo actual van sangradas debajo */
-.sh-lado a.item.hijo { padding-left: 34px; font-size: 14px }
-.sh-lado a.item.hijo svg { width: 17px; height: 17px }
-.sh-lado a.item.hijo.on { background: #EEF3F9; font-weight: 600; color: var(--sh-azul) }
-.sh-lado a.item.hijo.on svg { color: var(--sh-azul) }
+.sh-lado .riel a.volver { height: 44px; margin-top: 14px; color: #7E97B5; font-weight: 600; font-size: 13.5px }
+.sh-lado .riel a.volver svg { width: 20px; height: 20px }
 
-/* En pantallas medianas y chicas el riel no cabe: pasa a fila de pestañas. */
+.sh-lado .riel a.modulo.on {
+  color: #fff; font-weight: 700; background: rgba(228,0,43,.14); border-left-color: var(--sh-rojo);
+}
+.sh-lado .riel a.modulo.on svg { stroke: var(--sh-rojo) }
+
+.sh-lado .riel a.hijo { padding-left: 38px; height: 42px; font-size: 14px }
+.sh-lado .riel a.hijo svg { width: 18px; height: 18px }
+.sh-lado .riel a.hijo.on { color: #fff; font-weight: 600; background: rgba(255,255,255,.07) }
+.sh-lado .riel a.hijo.on svg { stroke: #fff }
+.sh-lado .riel a.hijo.on::before {
+  content: ""; position: absolute; left: 29px; top: 11px; bottom: 11px;
+  width: 2px; background: var(--sh-rojo); border-radius: 2px;
+}
+
+/* Con el riel cerrado, el nombre aparece en un globo: un ícono suelto no
+   le dice nada a quien entra por primera vez. */
+.sh-lado .riel a .globo {
+  position: absolute; left: 70px;
+  background: #0A2F55; color: #fff; font-size: 12.5px; font-weight: 500;
+  padding: 6px 11px; border-radius: 2px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity .1s;
+  box-shadow: 0 10px 24px -12px rgba(0,0,0,.7);
+}
+.sh-lado .riel a:hover .globo { opacity: 1 }
+.sh-lado:hover .globo,
+.sh-lado:focus-within .globo,
+.sh-marco.anclado .globo { display: none }
+
+/* ---------- Sello de marca al pie del riel ---------- */
+.sh-lado .pie-riel { margin-top: auto; display: flex; flex-direction: column; justify-content: flex-end; min-height: 0 }
+.sh-lado .vertical {
+  writing-mode: vertical-rl; transform: rotate(180deg); align-self: center;
+  font-family: var(--sh-titulo); font-weight: 800; font-size: 12.5px; letter-spacing: .34em;
+  color: rgba(255,255,255,.28); padding: 20px 0;
+}
+.sh-lado:hover .vertical,
+.sh-lado:focus-within .vertical,
+.sh-marco.anclado .vertical { display: none }
+
+.sh-lado .sello {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 14px; justify-content: center;
+  margin: 0 10px 12px; padding: 14px 0; border-radius: 3px; background: rgba(255,255,255,.05);
+}
+.sh-lado .sello .tajo {
+  display: none; position: absolute; top: -30%; bottom: -30%; right: -16px; width: 54px;
+  background: var(--sh-rojo); opacity: .9; transform: skewX(-26deg);
+}
+.sh-lado .sello img { width: 34px; height: 34px; flex: none; position: relative }
+.sh-lado .sello .letras { position: relative; line-height: 1.25; display: none }
+.sh-lado:hover .sello,
+.sh-lado:focus-within .sello,
+.sh-marco.anclado .sello { justify-content: flex-start; padding: 14px 12px }
+.sh-lado:hover .sello .tajo,
+.sh-lado:focus-within .sello .tajo,
+.sh-marco.anclado .sello .tajo { display: block }
+.sh-lado:hover .sello .letras,
+.sh-lado:focus-within .sello .letras,
+.sh-marco.anclado .sello .letras { display: block }
+.sh-lado .sello .letras b {
+  display: block; font-family: var(--sh-titulo); font-weight: 900; font-size: 17px;
+  letter-spacing: .02em; color: #fff;
+}
+.sh-lado .sello .letras span { font-size: 11.5px; color: #8FB6E8; letter-spacing: .04em }
+
+/* ---------- Anclar ---------- */
+.sh-lado .anclar {
+  display: flex; align-items: center; gap: 16px; height: 44px; padding-left: 19px;
+  border: 0; background: none; color: #7E97B5; font: 600 13px var(--sh-texto); cursor: pointer;
+  border-top: 1px solid rgba(255,255,255,.08); flex: none;
+}
+.sh-lado .anclar:hover { color: #fff; background: rgba(255,255,255,.06) }
+.sh-lado .anclar svg {
+  width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.9; fill: none; flex: none;
+  transition: transform .18s;
+}
+.sh-marco.anclado .anclar svg { transform: rotate(180deg) }
+
+/* ---------- Pantallas medianas y chicas ---------- */
 @media (max-width: 1180px) {
+  .sh-marco, .sh-marco.anclado, .sh-marco.sin-riel { grid-template-columns: 1fr }
   .sh-lado { width: auto }
   .sh-lado .riel {
-    position: static; width: 100%; display: flex; overflow-x: auto;
-    padding: 0; border-right: 0; border-bottom: 1px solid var(--sh-linea);
+    position: static; width: 100%; flex-direction: row; overflow-x: auto; padding: 0;
+    border-right: 0; border-bottom: 1px solid rgba(255,255,255,.08);
   }
   .sh-lado:hover .riel, .sh-lado:focus-within .riel { width: 100%; box-shadow: none }
-  .sh-lado .volver, .sh-lado .grupo { display: none }
+  .sh-lado .anclar,
+  .sh-lado .riel a.volver,
+  .sh-lado .riel a .globo,
+  .sh-lado .pie-riel,
+  .sh-lado .grupo { display: none }
   .sh-lado .texto { opacity: 1 }
-  .sh-lado a.item {
-    border-left: 0; border-bottom: 3px solid transparent; padding: 14px 18px; flex: none;
-  }
-  .sh-lado a.item.hijo { padding-left: 18px }
-  .sh-lado a.item.modulo.on, .sh-lado a.item.hijo.on { border-bottom-color: var(--sh-rojo) }
+  .sh-lado .riel a { border-left: 0; border-bottom: 3px solid transparent; padding: 0 18px }
+  .sh-lado .riel a.hijo { padding-left: 18px }
+  .sh-lado .riel a.hijo.on::before { display: none }
+  .sh-lado .riel a.modulo.on,
+  .sh-lado .riel a.hijo.on { border-bottom-color: var(--sh-rojo) }
 }
+
+@media (max-width: 720px) {
+  .sh-main { padding: 18px 18px 30px }
+  .sh-barra { gap: 14px; padding-right: 16px }
+  .sh-barra .esquina { width: 56px }
+  .sh-barra .ruta .wm { display: none }
+  .sh-barra .ruta .sep:first-of-type { display: none }
+}
+
+/* ====================== Texto grande (equipos de piso) ======================
+   Se activa desde Mi perfil › Preferencias. Sube el tamaño base de la app;
+   como casi todo está en px no hereda solo, así que se tocan las piezas que
+   de verdad se leen y se tocan con guantes: tablas, campos y botones. */
+.sh[data-grande="si"] { font-size: 17px }
+.sh[data-grande="si"] .tabla th,
+.sh[data-grande="si"] .tabla td,
+.sh[data-grande="si"] .qb tbody td { font-size: 15px; padding-top: 12px; padding-bottom: 12px }
+.sh[data-grande="si"] .campo,
+.sh[data-grande="si"] .pf-campo input,
+.sh[data-grande="si"] .pf-campo select,
+.sh[data-grande="si"] .qb .disparo { height: 54px; font-size: 17px }
+.sh[data-grande="si"] .btn-primario,
+.sh[data-grande="si"] .btn-secundario,
+.sh[data-grande="si"] .pf-btn,
+.sh[data-grande="si"] .qb .chip { min-height: 54px; font-size: 16px }
+.sh[data-grande="si"] .etiqueta,
+.sh[data-grande="si"] .pf-campo label { font-size: 15px }
+.sh[data-grande="si"] .sh-datos span,
+.sh[data-grande="si"] .pf-reglas li { font-size: 14px }

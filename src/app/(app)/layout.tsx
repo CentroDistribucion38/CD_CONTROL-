@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BarraSuperior } from "@/components/BarraSuperior";
-import { Navegacion } from "@/components/Navegacion";
+import { Marco } from "@/components/Marco";
 import "./shell.css";
 
 function turnoActual(): string {
@@ -47,10 +47,7 @@ export default async function AppLayout({
   return (
     <div className="sh flex min-h-screen flex-col" data-grande={perfil?.texto_grande === true ? "si" : undefined}>
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
-      <div className="flex flex-1 flex-col md:flex-row">
-        <Navegacion nombre={nombre} rol={rol} />
-        <main className="flex-1 overflow-x-hidden p-5 md:p-8">{children}</main>
-      </div>
+      <Marco rol={rol}>{children}</Marco>
     </div>
   );
 }

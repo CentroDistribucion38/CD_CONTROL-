@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { AccionesApp } from "./AccionesApp";
+import { Ruta } from "./Ruta";
 
 /**
- * Barra superior de la app. Azul profundo con la trama de rombos y el filo
- * rojo debajo: el mismo lenguaje de la pantalla de acceso, para que entrar
- * a CONTROL no se sienta como pasar a otra aplicación.
+ * Barra superior. Azul profundo con la trama de rombos y el filo rojo: el
+ * mismo lenguaje de la pantalla de acceso, para que entrar a CONTROL no se
+ * sienta como pasar a otra aplicación.
  *
- * El logo es /public/marca/logo-b.png (el escudo, con fondo transparente).
+ * El logo ocupa una celda de 64px que se alinea con el riel de módulos de
+ * abajo, así la columna de la izquierda se lee como una sola pieza.
  */
 export function BarraSuperior({
   usuario,
@@ -26,10 +28,12 @@ export function BarraSuperior({
 
   return (
     <header className="sh-barra">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/marca/logo-b.png" alt="Bavaria" />
-      <div className="div" />
-      <div className="wm">CONTROL</div>
+      <Link href="/inicio" className="esquina" aria-label="Ir a los módulos">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/marca/logo-b.png" alt="Bavaria" />
+      </Link>
+
+      <Ruta />
 
       <div className="der">
         {turno && <span className="turno">{turno}</span>}
