@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario, normalizarUsuario } from "@/lib/auth";
 import { modulosActivos } from "@/modulos/registro";
+import { AccionesApp } from "@/components/AccionesApp";
 import "./acceso.css";
 
 /**
@@ -224,17 +225,22 @@ function Formulario() {
                 <span>
                   <b>CD38</b>
                 </span>
-                {ayuda ? (
-                  <span>Pídele el usuario a tu supervisor.</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="pedir"
-                    onClick={() => setAyuda(true)}
-                  >
-                    ¿Sin acceso?
-                  </button>
-                )}
+                <span
+                  style={{ display: "flex", gap: 16, alignItems: "center" }}
+                >
+                  <AccionesApp variante="enlace" />
+                  {ayuda ? (
+                    <span>Pídele el usuario a tu supervisor.</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="pedir"
+                      onClick={() => setAyuda(true)}
+                    >
+                      ¿Sin acceso?
+                    </button>
+                  )}
+                </span>
               </div>
             </>
           )}

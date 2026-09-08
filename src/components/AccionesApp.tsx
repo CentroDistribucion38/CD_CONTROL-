@@ -34,7 +34,17 @@ function yaInstalada(): boolean {
   );
 }
 
-export function AccionesApp() {
+/**
+ * "barra"  → botones redondos, para la barra superior de la app.
+ * "enlace" → un enlace discreto, para el pie de la pantalla de acceso
+ *            (ahí todavía no hay barra superior y es donde la gente
+ *            llega por primera vez desde el celular).
+ */
+export function AccionesApp({
+  variante = "barra",
+}: {
+  variante?: "barra" | "enlace";
+}) {
   const [evento, setEvento] = useState<EventoInstalar | null>(null);
   const [enIOS, setEnIOS] = useState(false);
   const [instalada, setInstalada] = useState(true);
@@ -130,6 +140,19 @@ export function AccionesApp() {
 
   const puedeInstalar = !instalada && (evento !== null || enIOS);
 
+  // ---- variante de la pantalla de acceso ------------------------------
+  if (variante === "enlace") {
+    if (!puedeInstalar) return null;
+    return (
+      <>
+        <button type="button" className="pedir" onClick={instalar}>
+          Instalar app
+        </button>
+        {verPasos && <PasosIOS cerrar={() => setVerPasos(false)} />}
+      </>
+    );
+  }
+
   return (
     <>
       {hayNueva && (
@@ -159,40 +182,41 @@ export function AccionesApp() {
         </button>
       )}
 
-      {verPasos && (
-        <div
-          role="dialog"
-          aria-label="Cómo instalar en iPhone"
-          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
-          style={{ background: "rgba(4,32,63,.45)" }}
-          onClick={() => setVerPasos(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-[12px] bg-white p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="text-[16px] font-medium">Instalar en iPhone</h2>
-              <button
-                type="button"
-                onClick={() => setVerPasos(false)}
-                aria-label="Cerrar"
-                className="text-bv-texto-2"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <ol className="mt-3 space-y-2 text-[13px] leading-[1.6] text-slate-600">
-              <li>1. Toca el botón <b>Compartir</b> de Safari (el cuadro con la flecha).</li>
-              <li>2. Baja y elige <b>Agregar a pantalla de inicio</b>.</li>
-              <li>3. Confirma con <b>Agregar</b>.</li>
-            </ol>
-            <p className="mt-3 text-[12px] text-bv-texto-2">
-              Safari es el único navegador del iPhone que puede hacerlo.
-            </p>
-          </div>
-        </div>
-      )}
+      {verPasos && <PasosIOS cerrar={() => setVerPasos(false)} />}
     </>
+  );
+}
+
+/** iOS no tiene beforeinstallprompt: el camino toca explicarlo. */
+function PasosIOS({ cerrar }: { cerrar: () => void }) {
+  return (
+    <div
+      role="dialog"
+      aria-label="Cómo instalar en iPhone"
+      className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+      style={{ background: "rgba(4,32,63,.45)" }}
+      onClick={cerrar}
+    >
+      <div
+        className="w-full max-w-sm rounded-[12px] bg-white p-5"
+        style={{ color: "#0b1f35" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-[16px] font-medium">Instalar en iPhone</h2>
+          <button type="button" onClick={cerrar} aria-label="Cerrar">
+            <X size={18} />
+          </button>
+        </div>
+        <ol className="mt-3 space-y-2 text-[13px] leading-[1.6] text-slate-600">
+          <li>1. Toca el botón <b>Compartir</b> de Safari (el cuadro con la flecha).</li>
+          <li>2. Baja y elige <b>Agregar a pantalla de inicio</b>.</li>
+          <li>3. Confirma con <b>Agregar</b>.</li>
+        </ol>
+        <p className="mt-3 text-[12px] text-slate-500">
+          Safari es el único navegador del iPhone que puede hacerlo.
+        </p>
+      </div>
+    </div>
   );
 }

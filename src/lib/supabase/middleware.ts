@@ -1,7 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const RUTAS_PUBLICAS = ["/login", "/auth"];
+/**
+ * Rutas que se sirven sin sesión. Las tres últimas son las que necesita el
+ * navegador para poder instalar CONTROL como app: si se les responde con la
+ * redirección al login, llega HTML donde se esperaba un manifest o un
+ * service worker, y el navegador simplemente no ofrece instalarla.
+ *
+ * Se repiten en el matcher de src/middleware.ts (allí ni siquiera entran
+ * aquí); esto es el respaldo por si ese filtro cambia.
+ */
+const RUTAS_PUBLICAS = [
+  "/login",
+  "/auth",
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/api/version",
+];
 
 export async function actualizarSesion(request: NextRequest) {
   let response = NextResponse.next({ request });
