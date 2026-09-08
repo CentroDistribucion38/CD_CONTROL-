@@ -399,3 +399,11 @@
   .qb thead th { padding: 6px 16px; font-size: 9.5px }
   .qb .nota-pie { font-size: 10.5px }
 }
+
+/* Solo mientras se rasteriza el informe: se ensancha el contenido para que
+   el PDF salga con la versión de escritorio y no con la apilada del celular. */
+body.capturando .sh-lado { display: none }
+body.capturando .sh-marco,
+body.capturando .sh-marco.anclado { grid-template-columns: 0 1fr }
+body.capturando .sh-main { width: 1900px; max-width: none }
+body.capturando .qb .acciones-informe { visibility: hidden }

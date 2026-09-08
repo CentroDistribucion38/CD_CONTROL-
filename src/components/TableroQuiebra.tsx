@@ -163,7 +163,7 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
       </div>
 
       {/* ---------------- Encabezado ---------------- */}
-      <section className="cabeza">
+      <section className="cabeza" data-parte="cabeza">
         <div className="texto">
           <div className="ojo">ENVASE RETORNABLE · AG01</div>
           <h1>Quiebra de envase</h1>
@@ -178,6 +178,7 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
           armar={() => construirInforme({
             desde, hasta, pct, meta, pp, sobre, total, perdida, exceso,
             prodMes, perdMes, metaDe, bajas: bj, causales, almacenes,
+            filtros: resumenFiltros(almacen, linea, causales, apagadas),
           })}
         />
         <div className={"kpi" + (sobre ? "" : " bajo")}>
@@ -259,7 +260,7 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
       </section>
 
       {/* ---------------- Cifras ---------------- */}
-      <section className="cifras">
+      <section className="cifras" data-parte="cifras">
         <div className="cifra">
           <div className="rot">ENVASE PRODUCIDO</div>
           <div className="n">{nf.format(total)}</div>
@@ -280,7 +281,7 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
       </section>
 
       {/* ---------------- Fila 1 ---------------- */}
-      <section className="tarjetas">
+      <section className="tarjetas" data-parte="graficos1">
         <div className="tarjeta">
           <div className="cab">
             <div>
@@ -333,7 +334,7 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
       </section>
 
       {/* ---------------- Fila 2 ---------------- */}
-      <section className="tarjetas dos">
+      <section className="tarjetas dos" data-parte="graficos2">
         <TarjetaDia bajas={bj} prod={pr} meta={meta} />
 
         <div className="tarjeta">
@@ -355,7 +356,7 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
       </section>
 
       {/* ---------------- Fila 3 ---------------- */}
-      <section className="tarjetas pareja">
+      <section className="tarjetas pareja" data-parte="tablas">
         <div className="tarjeta">
           <div className="cab"><div><h2>Quiebra por envase</h2><p>Top 8 del período</p></div></div>
           <div className="cuerpo tabla">
@@ -935,34 +936,174 @@ function TablaMes({ prodMes, perdMes, metaDe }: {
 
 /* ==================== Informe: PDF y copiar ==================== */
 
+/** Los bloques del tablero que van al informe, en orden. */
+const PARTES = ["cabeza", "cifras", "graficos1", "graficos2", "tablas"];
+
+type Foto = { url: string; an: number; al: number };
+
+/**
+ * Fotografía cada bloque del tablero. Se hace sobre lo que está en pantalla
+ * a propósito: así el informe SIEMPRE coincide con lo que la persona está
+ * viendo, con sus filtros, y no puede desfasarse de una copia aparte.
+ *
+ * Durante la captura se ensancha el contenido a 1900px: si se rasteriza tal
+ * cual en un celular, el PDF sale con la versión apilada y las gráficas
+ * ilegibles.
+ */
+async function fotografiar(): Promise<Foto[]> {
+  const html2canvas = (await import("html2canvas")).default;
+  document.body.classList.add("capturando");
+  // Un respiro para que el navegador aplique el ancho antes de medir.
+  await new Promise((r) => setTimeout(r, 150));
+
+  const salida: Foto[] = [];
+  try {
+    for (const nombre of PARTES) {
+      const el = document.querySelector<HTMLElement>(`[data-parte="${nombre}"]`);
+      if (!el) continue;
+      const lienzo = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: "#FFFFFF",
+        logging: false,
+        useCORS: true,
+        windowWidth: 2000,
+        width: el.getBoundingClientRect().width,
+        onclone: (doc) =>
+          doc.querySelectorAll(".acciones-informe").forEach((e) => e.remove()),
+      });
+      salida.push({ url: lienzo.toDataURL("image/png"), an: lienzo.width, al: lienzo.height });
+    }
+  } finally {
+    document.body.classList.remove("capturando");
+  }
+  return salida;
+}
+
+/** Una línea que dice con qué filtros se sacó el informe. */
+function resumenFiltros(
+  almacen: string, linea: string, causales: string[], apagadas: Set<string>
+): string {
+  const fuera = causales.filter((c) => apagadas.has(c));
+  return (
+    `Almacén ${almacen || "Todos"} · Línea ${linea ? `Línea ${linea}` : "Todas"} · ` +
+    (fuera.length ? `Causales excluidas: ${fuera.join(", ")}` : "Todas las causales")
+  );
+}
+
+function selloFecha(): string {
+  const f = new Date();
+  return (
+    "Generado " +
+    f.toLocaleDateString("es-CO") +
+    " " +
+    f.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+  );
+}
+
 /**
  * Dos formas de sacar el tablero de la pantalla:
  *
- *  · Generar PDF — abre el diálogo de impresión del navegador. La hoja usa
- *    el mismo tablero con estilos de papel (@media print en quiebra.css),
- *    así que lo impreso es exactamente lo que se está viendo, filtros
- *    incluidos, y no una copia que se puede desactualizar.
+ *  · Generar PDF — arma un A4 horizontal paginado, con encabezado en cada
+ *    página (marca, período y filtros) y numeración al pie. Se descarga
+ *    directo, sin pasar por el diálogo de impresión.
  *
- *  · Copiar informe — deja en el portapapeles una tabla lista para pegar en
- *    un correo o en Word. Va como HTML y como texto plano: el que reciba
- *    decide. Es el formato en que de verdad se manda esto a diario.
+ *  · Copiar informe — deja el tablero en el portapapeles listo para pegar
+ *    en un correo. Es el formato en que de verdad se manda esto a diario.
  */
-function AccionesInforme({ armar }: { armar: () => { html: string; texto: string } }) {
+function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[]; nombre: string } }) {
   const [estado, setEstado] = useState<"" | "listo" | "mal">("");
-  const [copiando, setCopiando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const [trabajando, setTrabajando] = useState<"" | "pdf" | "copia">("");
 
   useEffect(() => {
     if (!estado) return;
-    const t = setTimeout(() => setEstado(""), 3200);
+    const t = setTimeout(() => setEstado(""), 3600);
     return () => clearTimeout(t);
   }, [estado]);
 
-  async function copiar() {
-    setCopiando(true);
-    const { html, texto } = armar();
+  function fallo(msg: string) {
+    setAviso(msg);
+    setEstado("mal");
+  }
+
+  async function generarPdf() {
+    setTrabajando("pdf");
     try {
-      // El portapapeles enriquecido solo existe en HTTPS y en navegadores
-      // nuevos; si no está, se cae al texto plano, que sirve igual.
+      const { enc, nombre } = armar();
+      const fotos = await fotografiar();
+      if (!fotos.length) throw new Error("no se pudo leer el tablero");
+
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const ANCHO = 297, ALTO = 210, M = 10;
+      const util = ANCHO - M * 2;
+
+      const logo = document.querySelector<HTMLImageElement>(".sh-barra .esquina img")?.src;
+
+      function cabecera(): number {
+        if (logo) { try { pdf.addImage(logo, "PNG", M, M - 1, 8.5, 8.5); } catch {} }
+        pdf.setTextColor(4, 32, 63);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(11);
+        pdf.text(enc[0], M + 11, M + 3);
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(91, 107, 127);
+        pdf.text(enc[1], M + 11, M + 7);
+        pdf.setDrawColor(228, 0, 43);
+        pdf.setLineWidth(0.7);
+        pdf.line(M, M + 10, ANCHO - M, M + 10);
+        return M + 14;
+      }
+
+      let y = cabecera();
+      for (const im of fotos) {
+        const alto = (im.al / im.an) * util;
+        if (y + alto > ALTO - M - 5) { pdf.addPage(); y = cabecera(); }
+        pdf.addImage(im.url, "PNG", M, y, util, alto, undefined, "FAST");
+        y += alto + 4;
+      }
+
+      const sello = selloFecha();
+      const n = pdf.getNumberOfPages();
+      for (let i = 1; i <= n; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(140, 152, 168);
+        pdf.text(sello + " · CONTROL", M, ALTO - 4.5);
+        pdf.text(`Página ${i} de ${n}`, ANCHO - M, ALTO - 4.5, { align: "right" });
+      }
+
+      pdf.save(nombre);
+      setAviso("PDF generado.");
+      setEstado("listo");
+    } catch (e) {
+      // Si el navegador no puede rasterizar, al menos queda la impresión del
+      // navegador, que usa los estilos de papel de quiebra.css.
+      fallo("No se pudo armar el PDF. Se abrirá la impresión del navegador.");
+      setTimeout(() => window.print(), 900);
+      void e;
+    }
+    setTrabajando("");
+  }
+
+  async function copiar() {
+    setTrabajando("copia");
+    try {
+      const { texto, enc } = armar();
+      const fotos = await fotografiar();
+
+      const html =
+        `<div style="font:14px Arial;color:#04203F;width:900px">` +
+        `<h2 style="font:bold 20px Arial;margin:0 0 2px">${enc[0]}</h2>` +
+        `<p style="margin:0 0 4px;color:#5B6B7F;font-size:12px">${enc[1]}</p>` +
+        `<div style="border-top:3px solid #E4002B;margin:10px 0 14px"></div>` +
+        fotos.map((im) =>
+          `<div style="margin-bottom:14px"><img src="${im.url}" width="900" ` +
+          `style="width:900px;max-width:100%;display:block"></div>`).join("") +
+        `<p style="margin-top:10px;font-size:11px;color:#5B6B7F">${selloFecha()} desde CONTROL ` +
+        `· la quiebra es neta: los reversos con cantidad positiva restan.</p></div>`;
+
       if (navigator.clipboard && "write" in navigator.clipboard && typeof ClipboardItem !== "undefined") {
         await navigator.clipboard.write([
           new ClipboardItem({
@@ -971,37 +1112,40 @@ function AccionesInforme({ armar }: { armar: () => { html: string; texto: string
           }),
         ]);
       } else {
+        // Fuera de HTTPS no hay portapapeles enriquecido: va el texto, que
+        // sirve igual para pegar en un correo.
         await navigator.clipboard.writeText(texto);
       }
+      setAviso("Informe copiado. Pégalo en el correo.");
       setEstado("listo");
     } catch {
-      setEstado("mal");
+      fallo("El navegador no dejó copiar. Usa Generar PDF.");
     }
-    setCopiando(false);
+    setTrabajando("");
   }
 
   return (
     <>
       <div className="acciones-informe">
-        <button type="button" className="accion" onClick={() => window.print()}>
+        <button type="button" className="accion" onClick={generarPdf} disabled={!!trabajando}>
           <svg viewBox="0 0 24 24">
             <path d="M8 3.5h5.5L18 8v12.5H6V3.5z" />
             <path d="M13.5 3.5V8H18" />
             <path d="M9.5 15.5h5M9.5 12.5h3" />
           </svg>
-          Generar PDF
+          {trabajando === "pdf" ? "Generando…" : "Generar PDF"}
         </button>
         <button
           type="button"
           className={"accion" + (estado === "listo" ? " listo" : "")}
           onClick={copiar}
-          disabled={copiando}
+          disabled={!!trabajando}
         >
           <svg viewBox="0 0 24 24">
             <rect x="9" y="9" width="11.5" height="11.5" rx="2" />
             <path d="M15 6.5V5.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h1" />
           </svg>
-          {estado === "listo" ? "Copiado" : "Copiar informe"}
+          {trabajando === "copia" ? "Preparando…" : "Copiar informe"}
         </button>
       </div>
 
@@ -1012,9 +1156,7 @@ function AccionesInforme({ armar }: { armar: () => { html: string; texto: string
               ? <path d="M5 12.5l4.5 4.5L19 7" />
               : <path d="M6 6l12 12M18 6L6 18" />}
           </svg>
-          {estado === "listo"
-            ? "Informe copiado. Pégalo en el correo."
-            : "El navegador no dejó copiar. Usa Generar PDF."}
+          {aviso}
         </div>
       )}
     </>
@@ -1028,11 +1170,15 @@ type DatosInforme = {
   prodMes: Map<number, number>; perdMes: Map<number, number>;
   metaDe: (m: number) => number;
   bajas: Baja[]; causales: string[]; almacenes: string[];
+  filtros: string;
 };
 
-/** Arma el informe con estilos en línea: los correos ignoran las hojas CSS. */
-function construirInforme(d: DatosInforme): { html: string; texto: string } {
-  const LIN = "1px solid #D5DCE5";
+/**
+ * Arma el encabezado, el nombre del archivo y la versión en texto plano del
+ * informe. El texto plano importa: quien reciba el correo en el celular, o
+ * con las imágenes bloqueadas, igual tiene que poder leer las cifras.
+ */
+function construirInforme(d: DatosInforme): { texto: string; enc: string[]; nombre: string } {
   const meses = [...d.prodMes.keys()].sort((a, b) => a - b);
   const periodo = `${bonita(d.desde)} — ${bonita(d.hasta)}`;
 
@@ -1055,96 +1201,46 @@ function construirInforme(d: DatosInforme): { html: string; texto: string } {
   const envases = [...mapMat.entries()].filter((x) => x[1].v > 0)
     .sort((a, b) => b[1].v - a[1].v).slice(0, 8);
 
-  const cabecera = (t: string) =>
-    `<th style="background:#04203F;color:#fff;padding:7px 10px;font:700 11px Arial;letter-spacing:.06em;text-align:left">${t}</th>`;
-  const cabeceraN = (t: string) =>
-    `<th style="background:#04203F;color:#fff;padding:7px 10px;font:700 11px Arial;letter-spacing:.06em;text-align:right">${t}</th>`;
-  const celda = (t: string, der = false, i = 0) =>
-    `<td style="border-bottom:${LIN};padding:6px 10px;font:13px Arial;text-align:${der ? "right" : "left"};background:${i % 2 ? "#F7F9FC" : "#fff"}">${t}</td>`;
-
-  const tablaPorcentaje = (titulo: string, filas: { n: string; v: number }[]) =>
-    `<h3 style="font:700 14px Arial;color:#04203F;margin:18px 0 6px">${titulo}</h3>` +
-    `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse">` +
-    filas.map((f, i) =>
-      `<tr>${celda(f.n, false, i)}${celda(d.perdida > 0 ? pf(f.v / d.perdida, 1) : "—", true, i)}</tr>`
-    ).join("") + `</table>`;
-
-  const html =
-    `<div style="font:14px Arial;color:#04203F;max-width:760px">` +
-    `<h2 style="font:900 22px Arial;margin:0 0 2px">Quiebra de envase · Ag01</h2>` +
-    `<p style="margin:0 0 14px;color:#5B6B7F;font-size:13px">Centro de Distribución 38 · Bavaria BAQ<br>Período: ${periodo}</p>` +
-
-    `<table cellspacing="0" cellpadding="12" style="border-collapse:collapse;background:${d.sobre ? "#E4002B" : "#0F7A4A"};color:#fff">` +
-    `<tr><td><span style="font-size:11px;letter-spacing:.12em">QUIEBRA DEL PERÍODO</span><br>` +
-    `<span style="font:900 30px Arial">${pf(d.pct)}</span><br>` +
-    `<span style="font-size:12px">Meta ${pf(d.meta)} · ${d.pp >= 0 ? "+" : "−"}${Math.abs(d.pp).toFixed(2).replace(".", ",")} pp ${d.sobre ? "sobre" : "bajo"} la meta</span>` +
-    `</td></tr></table>` +
-
-    `<table cellspacing="0" cellpadding="8" style="border-collapse:collapse;margin-top:14px;font:13px Arial">` +
-    [["ENVASE PRODUCIDO", nf.format(d.total), "unidades"],
-     ["ENVASE ROTO", nf.format(d.perdida), "neto de reversos"],
-     [d.exceso > 0 ? "EXCESO SOBRE META" : "MARGEN BAJO LA META", nf.format(Math.abs(d.exceso)),
-      d.exceso > 0 ? "unidades por encima de lo permitido" : "unidades por debajo de lo permitido"]]
-      .map(([r, n, u]) =>
-        `<tr><td style="border-bottom:${LIN};color:#5B6B7F;font-size:11px;letter-spacing:.06em">${r}</td>` +
-        `<td style="border-bottom:${LIN};text-align:right;font:700 15px Arial">${n}</td>` +
-        `<td style="border-bottom:${LIN};color:#5B6B7F;font-size:12px">${u}</td></tr>`).join("") +
-    `</table>` +
-
-    `<h3 style="font:700 14px Arial;margin:20px 0 6px">Detalle mensual</h3>` +
-    `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse">` +
-    `<tr>${cabecera("MES")}${cabeceraN("PRODUCCIÓN")}${cabeceraN("QUIEBRA")}${cabeceraN("%")}${cabeceraN("META")}</tr>` +
-    meses.map((m, i) => {
-      const p = d.prodMes.get(m) ?? 0, q = d.perdMes.get(m) ?? 0;
-      const pc = p ? q / p : 0, mt = d.metaDe(m);
-      return `<tr>${celda(MESES[m - 1], false, i)}${celda(nf.format(p), true, i)}` +
-             `${celda(nf.format(q), true, i)}` +
-             `${celda(`${pc > mt ? "▲" : "▼"} ${pf(pc)}`, true, i)}${celda(pf(mt), true, i)}</tr>`;
-    }).join("") + `</table>` +
-
-    tablaPorcentaje("Participación por causal", porCausal) +
-    tablaPorcentaje("Participación por almacén", porAlmacen) +
-
-    `<h3 style="font:700 14px Arial;margin:20px 0 6px">Quiebra por envase</h3>` +
-    `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse">` +
-    `<tr>${cabecera("ENVASE")}${cabeceraN("UNIDADES")}${cabeceraN("PART.")}</tr>` +
-    envases.map(([cod, x], i) =>
-      `<tr>${celda(`${x.den} ${cod}`, false, i)}${celda(nf.format(x.v), true, i)}` +
-      `${celda(d.perdida > 0 ? pf(x.v / d.perdida, 1) : "—", true, i)}</tr>`).join("") +
-    `</table>` +
-
-    `<p style="margin:18px 0 0;color:#5B6B7F;font-size:12px">Generado desde CONTROL · la quiebra es neta: los reversos con cantidad positiva restan.</p>` +
-    `</div>`;
+  const parte = (v: number) => (d.perdida > 0 ? pf(v / d.perdida, 1) : "—");
 
   const texto = [
-    `QUIEBRA DE ENVASE · Ag01`,
-    `Centro de Distribución 38 · Bavaria BAQ`,
+    "QUIEBRA DE ENVASE · AG01",
+    "Centro de Distribución 38 · Bavaria BAQ",
     `Período: ${periodo}`,
-    ``,
-    `Quiebra del período: ${pf(d.pct)}  (meta ${pf(d.meta)}, ${d.pp >= 0 ? "+" : "−"}${Math.abs(d.pp).toFixed(2).replace(".", ",")} pp ${d.sobre ? "sobre" : "bajo"})`,
+    d.filtros,
+    "",
+    `Quiebra del período: ${pf(d.pct)} (meta ${pf(d.meta)}, ` +
+      `${d.pp >= 0 ? "+" : "−"}${Math.abs(d.pp).toFixed(2).replace(".", ",")} pp ` +
+      `${d.sobre ? "sobre" : "bajo"} la meta)`,
     `Envase producido: ${nf.format(d.total)} unidades`,
     `Envase roto: ${nf.format(d.perdida)} unidades (neto de reversos)`,
     `${d.exceso > 0 ? "Exceso sobre meta" : "Margen bajo la meta"}: ${nf.format(Math.abs(d.exceso))} unidades`,
-    ``,
-    `DETALLE MENSUAL`,
+    "",
+    "DETALLE MENSUAL",
     ...meses.map((m) => {
       const p = d.prodMes.get(m) ?? 0, q = d.perdMes.get(m) ?? 0;
-      const pc = p ? q / p : 0;
-      return `  ${MESES[m - 1]}  producción ${nf.format(p)}  quiebra ${nf.format(q)}  ${pf(pc)}  (meta ${pf(d.metaDe(m))})`;
+      return `  ${MESES[m - 1]}  |  producción ${nf.format(p)}  |  quiebra ${nf.format(q)}` +
+             `  |  ${pf(p ? q / p : 0)}  |  meta ${pf(d.metaDe(m))}`;
     }),
-    ``,
-    `PARTICIPACIÓN POR CAUSAL`,
-    ...porCausal.map((c) => `  ${c.n}: ${d.perdida > 0 ? pf(c.v / d.perdida, 1) : "—"}`),
-    ``,
-    `PARTICIPACIÓN POR ALMACÉN`,
-    ...porAlmacen.map((a) => `  ${a.n}: ${d.perdida > 0 ? pf(a.v / d.perdida, 1) : "—"}`),
-    ``,
-    `QUIEBRA POR ENVASE`,
-    ...envases.map(([cod, x]) =>
-      `  ${x.den} (${cod}): ${nf.format(x.v)}  ${d.perdida > 0 ? pf(x.v / d.perdida, 1) : "—"}`),
-    ``,
-    `Generado desde CONTROL · la quiebra es neta: los reversos con cantidad positiva restan.`,
+    "",
+    "PARTICIPACIÓN POR CAUSAL",
+    ...porCausal.map((c) => `  ${c.n}  |  ${parte(c.v)}`),
+    "",
+    "PARTICIPACIÓN POR ALMACÉN",
+    ...porAlmacen.map((a) => `  ${a.n}  |  ${parte(a.v)}`),
+    "",
+    "QUIEBRA POR ENVASE",
+    ...envases.map(([cod, x]) => `  ${x.den} (${cod})  |  ${nf.format(x.v)}  |  ${parte(x.v)}`),
+    "",
+    `${selloFecha()} desde CONTROL · la quiebra es neta: los reversos con cantidad positiva restan.`,
   ].join("\n");
 
-  return { html, texto };
+  return {
+    texto,
+    enc: [
+      "Quiebra de envase · Ag01",
+      `Centro de Distribución 38 · Bavaria BAQ · ${periodo} · ${d.filtros}`,
+    ],
+    nombre: `quiebra-ag01-${d.desde}-a-${d.hasta}.pdf`,
+  };
 }
