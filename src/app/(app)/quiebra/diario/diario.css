@@ -59,6 +59,20 @@
 .qd .qd-mando .calendario .disparo .ico { width: 18px; height: 18px }
 .qd .qd-mando .calendario .panel { left: auto; right: 0 }
 
+/* ---------- Interruptor de alcance ---------- */
+.qd .qd-alcance {
+  display: flex; flex: none; margin-left: 6px;
+  border: 1.5px solid #EDF1F6; background: #FAFBFD; border-radius: 10px; overflow: hidden;
+}
+.qd .qd-alcance button {
+  height: 46px; padding: 0 15px; border: 0; background: none; cursor: pointer;
+  font: 600 14px var(--qb-texto); color: var(--qb-gris); white-space: nowrap;
+}
+.qd .qd-alcance button + button { border-left: 1.5px solid #EDF1F6 }
+.qd .qd-alcance button:hover { color: var(--qb-tinta) }
+.qd .qd-alcance button.on { background: var(--qb-tinta); color: #fff }
+.qd .qd-alcance button:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: -3px }
+
 .qd .qd-pastillas { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0 }
 .qd .qd-p {
   width: 42px; height: 50px; flex: none; padding: 0;
@@ -77,6 +91,8 @@
 .qd .qd-p.vacio .n { color: #C6D0DC }
 .qd .qd-p.vacio .pt { background: #E4E9EF }
 .qd .qd-p:hover { border-color: #9FB4CC }
+/* Los días que entran en la semana que se está mirando. */
+.qd .qd-p.dentro { background: #F1F6FC; border-color: #BBD1EA }
 .qd .qd-p.hoy .n { text-decoration: underline; text-underline-offset: 2px }
 .qd .qd-p.sel {
   background: var(--qb-tinta); border-color: var(--qb-tinta);
@@ -358,8 +374,10 @@
   /* Los mandos arriba en su propia fila, las pastillas debajo repartidas
      a lo ancho, y la leyenda al final. Nada se sale de la pantalla. */
   .qd .qd-dias { gap: 14px; padding: 14px 14px 16px }
-  .qd .qd-mando { width: 100% }
+  .qd .qd-mando { width: 100%; flex-wrap: wrap }
   .qd .qd-hoy { flex: 1 }
+  .qd .qd-alcance { width: 100%; margin-left: 0 }
+  .qd .qd-alcance button { flex: 1 }
   .qd .qd-pastillas { width: 100%; flex: none; gap: 5px }
   .qd .qd-p { flex: 1 1 40px; width: auto; height: 46px }
   .qd .qd-ley { width: 100%; gap: 14px; font-size: 12.5px }

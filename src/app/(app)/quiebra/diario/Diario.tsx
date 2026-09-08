@@ -25,7 +25,7 @@ import {
   CAUSALES,
   NOMBRE_HOJA,
   leerMes,
-  type MesDiario,
+  type DatosDiario,
 } from "@/modulos/quiebra/diario";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -68,6 +68,30 @@ function correr(f: string, paso: number): string {
   const { a, m, d } = partes(f);
   return new Date(Date.UTC(a, m, d + paso)).toISOString().slice(0, 10);
 }
+
+/** El lunes de la semana de esa fecha. La semana aquí empieza en lunes. */
+function lunesDe(f: string): string {
+  const { a, m, d } = partes(f);
+  const dow = (new Date(Date.UTC(a, m, d)).getUTCDay() + 6) % 7; // 0 = lunes
+  return correr(f, -dow);
+}
+
+/** Qué se está mirando: un día, su semana, o el mes completo. */
+type Alcance = "dia" | "semana" | "mes";
+
+const ALCANCES: { v: Alcance; t: string }[] = [
+  { v: "dia", t: "Día" },
+  { v: "semana", t: "Semana" },
+  { v: "mes", t: "Mes" },
+];
+
+/** "22 – 28 sep 2026", y si la semana se monta en dos meses, los dos. */
+function rangoBonito(desde: string, hasta: string): string {
+  const a = partes(desde), b = partes(hasta);
+  if (a.m === b.m && a.a === b.a) return `${a.d} – ${b.d} ${MESES[a.m].toLowerCase()} ${a.a}`;
+  const ini = `${a.d} ${MESES[a.m].toLowerCase()}${a.a !== b.a ? ` ${a.a}` : ""}`;
+  return `${ini} – ${b.d} ${MESES[b.m].toLowerCase()} ${b.a}`;
+}
 /**
  * Lee un número escrito como se escribe aquí: 12.400 son doce mil
  * cuatrocientos y 12,5 son doce y medio. Si el punto no está separando
@@ -104,7 +128,7 @@ type Form = {
 
 const VACIO: Form = { le_produccion: "", le_baja: "", produccion: "", nota: "", causales: {} };
 
-function formDe(datos: MesDiario, fecha: string): Form {
+function formDe(datos: DatosDiario, fecha: string): Form {
   const m = datos.manual[fecha];
   if (!m) return { ...VACIO, causales: {} };
   const causales: Record<string, string> = {};
@@ -138,7 +162,7 @@ type Dia = {
 /* =================================================================== */
 
 type Props = {
-  inicial: MesDiario;
+  inicial: DatosDiario;
   fechaInicial: string;
   esEditor: boolean;
   hoy: string;
@@ -207,7 +231,13 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const leBaja = aNumero(form.le_baja);
   const lePct = leProd && leProd > 0 && leBaja != null ? leBaja / leProd : null;
 
-  const meta = datos.meta;
+  /* La meta es POR MES, así que una semana a caballo entre dos meses
+     tiene dos. metaDe() resuelve la del día. */
+  const metaDe = useCallback(
+    (f: string): number | null => datos.metas[f.slice(0, 7)] ?? null,
+    [datos.metas]
+  );
+  const meta = metaDe(fecha);
   const sobreMetaDia = pct != null && meta != null && pct > meta;
 
   const valorCausal = useCallback(
@@ -221,18 +251,13 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   );
 
   /* ===================================================================
-     EL MES RESUELTO. Cada día con la cifra que manda. El día que se está
-     editando entra con lo que hay en las casillas AHORA, no con lo
-     guardado: por eso el tablero se mueve mientras se teclea.
+     RESOLVER UN DÍA. Cada día con la cifra que MANDA: lo escrito si hay,
+     si no lo de SAP. El día que se está editando se resuelve con lo que
+     hay en las casillas AHORA, no con lo guardado: por eso el tablero
+     entero se mueve mientras se teclea.
      =================================================================== */
-  const dias: Dia[] = useMemo(() => {
-    const a = Number(datos.mes.slice(0, 4));
-    const m = Number(datos.mes.slice(5, 7)) - 1;
-    const total = diasDelMes(a, m);
-    const out: Dia[] = [];
-
-    for (let i = 1; i <= total; i++) {
-      const f = aTexto(a, m, i);
+  const resolver = useCallback(
+    (f: string): Dia => {
       const s = datos.sap[f];
       const mn = datos.manual[f];
 
@@ -243,14 +268,12 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           if (v != null && v !== 0) cs[c] = v;
         }
         const p = prod ?? 0, b = baja ?? 0;
-        out.push({
+        return {
           fecha: f, produccion: p, baja: b,
           pct: p > 0 ? b / p : null,
           causales: cs,
-          origen: escProd != null || hayCausalEscrita || manual ? "escrito"
-                : s ? "sap" : "vacio",
-        });
-        continue;
+          origen: escProd != null || hayCausalEscrita || manual ? "escrito" : s ? "sap" : "vacio",
+        };
       }
 
       const hayEsc = !!mn && (mn.produccion != null || Object.keys(mn.causales).length > 0);
@@ -259,34 +282,107 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
       const b = Object.keys(mn?.causales ?? {}).length > 0
         ? Object.values(mn!.causales).reduce((x, y) => x + y, 0)
         : s?.baja ?? 0;
-      out.push({
+      return {
         fecha: f, produccion: p, baja: b,
         pct: p > 0 ? b / p : null,
         causales: cs,
         origen: hayEsc ? "escrito" : s ? "sap" : "vacio",
-      });
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datos, fecha, prod, baja, escProd, hayCausalEscrita, manual, valorCausal]);
+      };
+    },
+    [datos, fecha, prod, baja, escProd, hayCausalEscrita, manual, valorCausal]
+  );
 
-  /* ---- totales del mes ---- */
+  /* ---- los días del mes en foco: son los del selector ---- */
+  const dias: Dia[] = useMemo(() => {
+    const a = Number(datos.mes.slice(0, 4));
+    const m = Number(datos.mes.slice(5, 7)) - 1;
+    const total = diasDelMes(a, m);
+    return Array.from({ length: total }, (_, i) => resolver(aTexto(a, m, i + 1)));
+  }, [datos.mes, resolver]);
+
+  /* ===================================================================
+     EL ALCANCE. Es lo que decide qué cubren el número grande, las cifras,
+     las gráficas y la tabla: el día, su semana o el mes.
+     La semana empieza en lunes y puede montarse en dos meses; por eso
+     leerMes() trae una semana de más a cada lado.
+     =================================================================== */
+  const [alcance, setAlcance] = useState<Alcance>("dia");
+
+  const [desdeA, hastaA] = useMemo((): [string, string] => {
+    if (alcance === "dia") return [fecha, fecha];
+    if (alcance === "semana") {
+      const l = lunesDe(fecha);
+      return [l, correr(l, 6)];
+    }
+    const a = Number(datos.mes.slice(0, 4)), m = Number(datos.mes.slice(5, 7)) - 1;
+    return [aTexto(a, m, 1), aTexto(a, m, diasDelMes(a, m))];
+  }, [alcance, fecha, datos.mes]);
+
+  const diasAlcance: Dia[] = useMemo(() => {
+    const out: Dia[] = [];
+    for (let f = desdeA; f <= hastaA; f = correr(f, 1)) out.push(resolver(f));
+    return out;
+  }, [desdeA, hastaA, resolver]);
+
+  /* Las gráficas y la tabla del alcance "día" muestran el MES con ese día
+     resaltado: una sola barra no es una gráfica. */
+  const diasGrafico = alcance === "dia" ? dias : diasAlcance;
+
+  /* ---- totales del alcance ---- */
+  const prodA = diasAlcance.reduce((s, d) => s + d.produccion, 0);
+  const bajaA = diasAlcance.reduce((s, d) => s + d.baja, 0);
+  const pctA = prodA > 0 ? bajaA / prodA : null;
+
+  /* Meta del alcance: ponderada por producción, no promediada. Un día de
+     9.000 cajas no pesa lo mismo que uno de 200.000, y en una semana que
+     cruza de mes las dos metas son distintas. */
+  const metaA = useMemo(() => {
+    let num = 0, den = 0;
+    for (const d of diasAlcance) {
+      const mt = metaDe(d.fecha);
+      if (mt == null || d.produccion <= 0) continue;
+      num += d.produccion * mt;
+      den += d.produccion;
+    }
+    return den > 0 ? num / den : metaDe(fecha);
+  }, [diasAlcance, metaDe, fecha]);
+
+  const sobreA = pctA != null && metaA != null && pctA > metaA;
+  const ppA = pctA != null && metaA != null ? (pctA - metaA) * 100 : null;
+  const permitido = metaA != null ? prodA * metaA : null;
+  const exceso = permitido != null ? bajaA - permitido : null;
+
+  /* ---- el mes, que se muestra siempre como contexto ---- */
   const prodMes = dias.reduce((s, d) => s + d.produccion, 0);
   const bajaMes = dias.reduce((s, d) => s + d.baja, 0);
   const pctMes = prodMes > 0 ? bajaMes / prodMes : null;
-  const sobreMes = pctMes != null && meta != null && pctMes > meta;
-  const ppMes = pctMes != null && meta != null ? (pctMes - meta) * 100 : null;
-  const permitido = meta != null ? prodMes * meta : null;
-  const exceso = permitido != null ? bajaMes - permitido : null;
+  const metaMes = datos.metas[datos.mes.slice(0, 7)] ?? null;
+  const sobreMes = pctMes != null && metaMes != null && pctMes > metaMes;
 
-  const causalesMes = useMemo(
+  const causalesA = useMemo(
     () => CAUSALES.map((c) => ({
       nom: c,
-      v: dias.reduce((s, d) => s + (d.causales[c] ?? 0), 0),
+      v: diasAlcance.reduce((s, d) => s + (d.causales[c] ?? 0), 0),
       col: color(c),
     })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v),
-    [dias]
+    [diasAlcance]
   );
+
+  /* Qué días quedan dentro del alcance: el selector los tiñe cuando es
+     una semana (en "mes" serían todos y sería ruido). */
+  const enAlcance = useMemo(() => {
+    if (alcance !== "semana") return new Set<string>();
+    const s = new Set<string>();
+    for (let f = desdeA; f <= hastaA; f = correr(f, 1)) s.add(f);
+    return s;
+  }, [alcance, desdeA, hastaA]);
+
+  const rotAlcance = alcance === "dia" ? "QUIEBRA DEL DÍA"
+                   : alcance === "semana" ? "QUIEBRA DE LA SEMANA"
+                   : "QUIEBRA DEL MES";
+  const pieAlcance = alcance === "dia" ? bonita(fecha)
+                   : alcance === "semana" ? rangoBonito(desdeA, hastaA)
+                   : `${MESES_LARGO[Number(datos.mes.slice(5, 7)) - 1]} ${datos.mes.slice(0, 4)}`;
 
   const conDato = dias.filter((d) => d.origen !== "vacio").length;
   const escritos = dias.filter((d) => d.origen === "escrito").length;
@@ -398,18 +494,18 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </p>
         </div>
         {/* El color sigue la meta, igual que en el tablero del periodo: rojo
-            si el día se pasó, verde si quedó dentro. */}
-        <div className={"kpi" + (sobreMetaDia ? "" : " bajo")}>
+            si se pasó, verde si quedó dentro. */}
+        <div className={"kpi" + (sobreA ? "" : " bajo")}>
           <div className="corte" />
-          <div className="rot">QUIEBRA DEL DÍA</div>
+          <div className="rot">{rotAlcance}</div>
           <div className="num">
-            {pct == null || !Number.isFinite(pct)
+            {pctA == null || !Number.isFinite(pctA)
               ? "—"
-              : <>{(pct * 100).toFixed(2).replace(".", ",")}<span className="pc">%</span></>}
+              : <>{(pctA * 100).toFixed(2).replace(".", ",")}<span className="pc">%</span></>}
           </div>
           <div className="pie">
-            <span>{bonita(fecha)}</span>
-            {meta != null && <span className="delta">Meta {pf(meta)}</span>}
+            <span>{pieAlcance}</span>
+            {metaA != null && <span className="delta">Meta {pf(metaA)}</span>}
           </div>
         </div>
       </section>
@@ -418,31 +514,41 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
       <TiraMes
         dias={dias} fecha={fecha} hoy={hoy} datos={datos}
         elegir={irA} cargando={cargando}
+        alcance={alcance} cambiarAlcance={setAlcance} enAlcance={enAlcance}
       />
 
       {/* ====================== Cifras del mes ====================== */}
       <section className="cifras cuatro">
         <div className="cifra">
           <div className="rot">ENVASE PRODUCIDO</div>
-          <div className="n">{nf.format(prodMes)}</div>
-          <div className="u">cajas del mes · {conDato} de {dias.length} días con dato</div>
+          <div className="n">{nf.format(prodA)}</div>
+          <div className="u">
+            cajas {alcance === "dia" ? "del día" : alcance === "semana" ? "de la semana" : "del mes"}
+            {alcance !== "dia" && <> · {diasAlcance.filter((d) => d.origen !== "vacio").length} de {diasAlcance.length} días con dato</>}
+          </div>
         </div>
         <div className="cifra">
           <div className="rot">ENVASE ROTO</div>
-          <div className="n">{nf.format(bajaMes)}</div>
+          <div className="n">{nf.format(bajaA)}</div>
           <div className="u">
-            cajas del mes
-            {escritos > 0 && <span className="qd-sello escrito">{escritos} día{escritos > 1 ? "s" : ""} a mano</span>}
+            cajas
+            {(() => {
+              const esc = diasAlcance.filter((d) => d.origen === "escrito").length;
+              return esc > 0
+                ? <span className="qd-sello escrito">{esc} día{esc > 1 ? "s" : ""} a mano</span>
+                : null;
+            })()}
           </div>
         </div>
-        {/* El número grande de arriba es el DÍA; el del mes va aquí, que es
-            donde se compara contra la meta y contra el acumulado. */}
-        <div className={"cifra" + (meta == null || pctMes == null ? "" : sobreMes ? " alerta" : " buena")}>
-          <div className="rot">QUIEBRA DEL MES</div>
+        {/* El mes acumulado se muestra SIEMPRE, aunque se esté mirando un
+            día o una semana: es la cifra que se reporta y no se puede
+            perder de vista por estar mirando el detalle. */}
+        <div className={"cifra" + (metaMes == null || pctMes == null ? "" : sobreMes ? " alerta" : " buena")}>
+          <div className="rot">ACUMULADO DEL MES</div>
           <div className="n">{pf(pctMes)}</div>
           <div className="u">
-            {meta != null
-              ? <>meta {pf(meta)}{ppMes != null && <> · {ppMes >= 0 ? "+" : "−"}{Math.abs(ppMes).toFixed(2).replace(".", ",")} pp</>}</>
+            {metaMes != null
+              ? <>meta {pf(metaMes)} · {nf.format(bajaMes)} de {nf.format(prodMes)} cajas</>
               : "no hay meta cargada para este mes"}
           </div>
         </div>
@@ -452,6 +558,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
             <div className="n">{nf.format(Math.abs(Math.round(exceso)))}</div>
             <div className="u">
               cajas {exceso > 0 ? "por encima" : "por debajo"} de lo permitido
+              {ppA != null && <> · {ppA >= 0 ? "+" : "−"}{Math.abs(ppA).toFixed(2).replace(".", ",")} pp</>}
             </div>
           </div>
         ) : (
@@ -477,7 +584,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </div>
           <div className="cuerpo">
             <div className="qd-lienzo">
-              <GraficoDias dias={dias} meta={meta} sel={fecha} elegir={irA} />
+              <GraficoDias dias={diasGrafico} metaDe={metaDe} sel={fecha} elegir={irA} />
             </div>
             <div className="leyenda abajo">
               <span><i style={{ background: "#0B4EA2" }} /> Bajo meta</span>
@@ -547,13 +654,13 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </div>
           <div className="cuerpo">
             <div className="qd-lienzo">
-              <ApiladoDias dias={dias} sel={fecha} />
+              <ApiladoDias dias={diasGrafico} sel={fecha} />
             </div>
             <div className="leyenda abajo">
-              {causalesMes.map((c) => (
+              {causalesA.map((c) => (
                 <span key={c.nom}><i style={{ background: c.col }} /> {c.nom}</span>
               ))}
-              {!causalesMes.length && <span>Sin pérdida registrada en el mes.</span>}
+              {!causalesA.length && <span>Sin pérdida registrada.</span>}
             </div>
           </div>
         </div>
@@ -562,11 +669,11 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           <div className="cab">
             <div>
               <h2>De dónde sale la quiebra</h2>
-              <p>Participación en el mes</p>
+              <p>Participación en {alcance === "dia" ? "el día" : alcance === "semana" ? "la semana" : "el mes"}</p>
             </div>
           </div>
           <div className="cuerpo">
-            <Barras datos={causalesMes} total={bajaMes} />
+            <Barras datos={causalesA} total={bajaA} />
           </div>
         </div>
       </section>
@@ -689,7 +796,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </div>
         </div>
         <div className="cuerpo tabla qd-tabla-dias">
-          <TablaDias dias={dias} meta={meta} sel={fecha} hoy={hoy} elegir={irA} />
+          <TablaDias dias={diasGrafico} metaDe={metaDe} sel={fecha} hoy={hoy} elegir={irA} />
         </div>
       </section>
 
@@ -748,13 +855,17 @@ function Barras({ datos, total }: { datos: { nom: string; v: number; col: string
    producción mínima no aplasten el mes entero. Lo que se sale va al
    tope con una punta.
    ============================================================ */
-function GraficoDias({ dias, meta, sel, elegir }: {
-  dias: Dia[]; meta: number | null; sel: string; elegir: (f: string) => void;
+function GraficoDias({ dias, metaDe, sel, elegir }: {
+  dias: Dia[]; metaDe: (f: string) => number | null; sel: string; elegir: (f: string) => void;
 }) {
   const conPct = dias.filter((d) => d.pct != null);
   const orden = conPct.map((d) => d.pct!).sort((a, b) => a - b);
   const p95 = orden[Math.min(Math.max(0, orden.length - 1), Math.floor(orden.length * 0.95))] || 0.01;
-  const max = Math.max((meta ?? 0) * 1.6, p95) * 1.14 || 0.01;
+  /* La meta es mensual: si el rango cruza de mes hay dos, y la línea de
+     meta se dibuja por tramo en vez de una sola recta mentirosa. */
+  const metas = dias.map((d) => metaDe(d.fecha));
+  const metaMax = Math.max(0, ...metas.filter((m): m is number => m != null));
+  const max = Math.max(metaMax * 1.6, p95) * 1.14 || 0.01;
   const fuera = conPct.filter((d) => d.pct! > max).length;
 
   const W = 1000, H = 420, m = { t: 28, r: 14, b: 48, l: 104 };
@@ -778,9 +889,15 @@ function GraficoDias({ dias, meta, sel, elegir }: {
         );
       })}
 
-      {meta != null && (
-        <line x1={m.l} x2={W - m.r} y1={y(meta)} y2={y(meta)} className="meta" />
-      )}
+      {dias.map((d, i) => {
+        const mt = metas[i];
+        if (mt == null) return null;
+        return (
+          <line key={"m" + d.fecha} className="meta"
+                x1={m.l + paso * i} x2={m.l + paso * (i + 1)}
+                y1={y(mt)} y2={y(mt)} />
+        );
+      })}
 
       {dias.map((d, i) => {
         const px = m.l + paso * i + (paso - an) / 2;
@@ -788,7 +905,8 @@ function GraficoDias({ dias, meta, sel, elegir }: {
         const vacio = d.pct == null;
         const corta = !vacio && d.pct! > max;
         const yv = vacio ? m.t + ih : y(d.pct!);
-        const sobre = meta != null && !vacio && d.pct! > meta;
+        const mt = metas[i];
+        const sobre = mt != null && !vacio && d.pct! > mt;
         return (
           <g key={d.fecha} className="qd-barra" onClick={() => elegir(d.fecha)}>
             {/* zona de toque: la barra sola es muy delgada para el dedo */}
@@ -887,8 +1005,9 @@ function ApiladoDias({ dias, sel }: { dias: Dia[]; sel: string }) {
 }
 
 /* ==================== Tabla del mes ==================== */
-function TablaDias({ dias, meta, sel, hoy, elegir }: {
-  dias: Dia[]; meta: number | null; sel: string; hoy: string; elegir: (f: string) => void;
+function TablaDias({ dias, metaDe, sel, hoy, elegir }: {
+  dias: Dia[]; metaDe: (f: string) => number | null; sel: string; hoy: string;
+  elegir: (f: string) => void;
 }) {
   return (
     <table>
@@ -904,6 +1023,7 @@ function TablaDias({ dias, meta, sel, hoy, elegir }: {
       </thead>
       <tbody>
         {dias.map((d) => {
+          const meta = metaDe(d.fecha);
           const encima = meta != null && d.pct != null && d.pct > meta;
           return (
             <tr key={d.fecha}
@@ -940,9 +1060,10 @@ function TablaDias({ dias, meta, sel, hoy, elegir }: {
    cae en el último del mes anterior). Para saltar varios meses está el
    botón del calendario: sin él habría que dar treinta clics.
    ==================================================== */
-function TiraMes({ dias, fecha, hoy, datos, elegir, cargando }: {
-  dias: Dia[]; fecha: string; hoy: string; datos: MesDiario;
+function TiraMes({ dias, fecha, hoy, datos, elegir, cargando, alcance, cambiarAlcance, enAlcance }: {
+  dias: Dia[]; fecha: string; hoy: string; datos: DatosDiario;
   elegir: (f: string) => void; cargando: boolean;
+  alcance: Alcance; cambiarAlcance: (a: Alcance) => void; enAlcance: Set<string>;
 }) {
   return (
     <section className={"qd-dias" + (cargando ? " cargando" : "")}>
@@ -957,6 +1078,20 @@ function TiraMes({ dias, fecha, hoy, datos, elegir, cargando }: {
         </button>
         <button type="button" className="qd-hoy" onClick={() => elegir(hoy)}>Hoy</button>
         <ElegirDia fecha={fecha} datos={datos} hoy={hoy} elegir={elegir} />
+
+        {/* Qué se mira: el día, su semana o el mes. Cambia el número
+            grande, las cifras, las gráficas y la tabla; el día elegido y
+            la hoja de abajo no se mueven. */}
+        <div className="qd-alcance" role="group" aria-label="Qué se está mirando">
+          {ALCANCES.map((a) => (
+            <button key={a.v} type="button"
+                    className={alcance === a.v ? "on" : ""}
+                    aria-pressed={alcance === a.v}
+                    onClick={() => cambiarAlcance(a.v)}>
+              {a.t}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="qd-pastillas">
@@ -969,6 +1104,7 @@ function TiraMes({ dias, fecha, hoy, datos, elegir, cargando }: {
               d.fecha === fecha ? "sel" : "",
               d.origen,
               d.fecha === hoy ? "hoy" : "",
+              enAlcance.has(d.fecha) ? "dentro" : "",
             ].filter(Boolean).join(" ")}
             onClick={() => elegir(d.fecha)}
             aria-current={d.fecha === fecha ? "true" : undefined}
@@ -1034,7 +1170,7 @@ function Linea({ nombre, ayuda, punto, sap, valor, cambiar, efectivo, editable, 
 
 /* ==================== Calendario de un solo día ==================== */
 function ElegirDia({ fecha, datos, hoy, elegir }: {
-  fecha: string; datos: MesDiario; hoy: string; elegir: (f: string) => void;
+  fecha: string; datos: DatosDiario; hoy: string; elegir: (f: string) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
   const caja = useRef<HTMLDivElement>(null);

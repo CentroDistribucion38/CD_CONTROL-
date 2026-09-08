@@ -33,7 +33,7 @@ export default async function DiarioPage({
     // se entra en blanco y el aviso al guardar dice qué SQL falta.
     leerMes(supabase, `${fecha.slice(0, 7)}-01`).catch(() => ({
       mes: `${fecha.slice(0, 7)}-01`,
-      meta: null,
+      metas: {},
       sap: {},
       manual: {},
       autores: {},

@@ -1,5 +1,5 @@
 /**
- * TABLERO DIARIO — datos de un mes.
+ * TABLERO DIARIO — datos de un mes, con orillas.
  *
  * Dos capas que nunca se mezclan en la base:
  *   · SAP        — v_quiebra_dia / v_quiebra_dia_causal, salen de lo importado.
@@ -10,8 +10,12 @@
  * 11.980". La comparación es el punto: si se botara el dato de SAP, el
  * tablero diario sería un cuaderno, no un control.
  *
- * Se trae el MES completo de una sola vez (31 días × 7 causales ≈ 220
- * filas): moverse de día queda instantáneo y sin ir al servidor.
+ * POR QUÉ SE TRAEN DÍAS DE MÁS
+ * El tablero se puede ver por día, por SEMANA o por mes. Una semana se
+ * monta en dos meses (el lunes 29 de septiembre y el domingo 5 de
+ * octubre son la misma semana), así que trayendo justo el mes la semana
+ * de las orillas quedaría cortada y el porcentaje saldría mal. Se traen
+ * siete días antes y siete después: son ~44 días × 7 causales, nada.
  */
 
 /** Orden fijo, el mismo de la hoja QUIEBRA DIARIA del maestro. */
@@ -54,15 +58,23 @@ export type DiaManual = {
   causales: Record<string, number>;
 };
 
-export type MesDiario = {
-  /** Primer día del mes, AAAA-MM-01 */
+export type DatosDiario = {
+  /** Primer día del mes en foco, AAAA-MM-01 */
   mes: string;
-  meta: number | null;
+  /** Metas por mes: "2026-09" → 0.0168. Una semana a caballo entre dos
+   *  meses tiene DOS metas, así que no puede ser un solo número. */
+  metas: Record<string, number>;
   sap: Record<string, DiaSap>;
   manual: Record<string, DiaManual>;
   /** id → usuario, para poder decir quién escribió */
   autores: Record<string, string>;
 };
+
+/** Corre días sobre un AAAA-MM-DD sin líos de zona horaria. */
+export function correrDias(f: string, paso: number): string {
+  const a = Number(f.slice(0, 4)), m = Number(f.slice(5, 7)) - 1, d = Number(f.slice(8, 10));
+  return new Date(Date.UTC(a, m, d + paso)).toISOString().slice(0, 10);
+}
 
 const finDeMes = (mes: string) => {
   const a = Number(mes.slice(0, 4));
@@ -70,6 +82,9 @@ const finDeMes = (mes: string) => {
   const ultimo = new Date(Date.UTC(a, m, 0)).getUTCDate();
   return `${mes.slice(0, 7)}-${String(ultimo).padStart(2, "0")}`;
 };
+
+/** Los días que se traen: el mes más una semana a cada lado. */
+export const ORILLA = 7;
 
 /**
  * Lo único que se le pide al cliente de Supabase es saber consultar. Se
@@ -81,27 +96,27 @@ const finDeMes = (mes: string) => {
 type Cliente = { from: (tabla: string) => any };
 
 /**
- * Lee un mes. Sirve igual en el servidor (primera carga) y en el
- * navegador (al cambiar de mes o después de guardar), porque los dos
- * clientes de Supabase tienen la misma forma.
+ * Lee el mes con sus orillas. Sirve igual en el servidor (primera carga)
+ * y en el navegador (al cambiar de mes o después de guardar), porque los
+ * dos clientes de Supabase tienen la misma forma.
  */
-export async function leerMes(supabase: Cliente, mes: string): Promise<MesDiario> {
-  const desde = `${mes.slice(0, 7)}-01`;
-  const hasta = finDeMes(mes);
-  const anio = Number(mes.slice(0, 4));
-  const numMes = Number(mes.slice(5, 7));
+export async function leerMes(supabase: Cliente, mes: string): Promise<DatosDiario> {
+  const primero = `${mes.slice(0, 7)}-01`;
+  const desde = correrDias(primero, -ORILLA);
+  const hasta = correrDias(finDeMes(mes), ORILLA);
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const q = supabase as any;
 
-  const [dias, causales, cab, det, meta] = await Promise.all([
+  const [dias, causales, cab, det, metas] = await Promise.all([
     q.from("v_quiebra_dia").select("fecha, produccion, perdida").gte("fecha", desde).lte("fecha", hasta),
     q.from("v_quiebra_dia_causal").select("fecha, causal, unidades").gte("fecha", desde).lte("fecha", hasta),
     q.from("quiebra_diario")
       .select("fecha, le_produccion, le_baja, produccion, nota, actualizado_en, actualizado_por")
       .gte("fecha", desde).lte("fecha", hasta),
     q.from("quiebra_diario_causal").select("fecha, causal, cantidad").gte("fecha", desde).lte("fecha", hasta),
-    q.from("quiebra_metas").select("meta").eq("anio", anio).eq("mes", numMes).maybeSingle(),
+    // Son doce filas por año: no vale la pena filtrar.
+    q.from("quiebra_metas").select("anio, mes, meta"),
   ]);
 
   const sap: Record<string, DiaSap> = {};
@@ -136,6 +151,11 @@ export async function leerMes(supabase: Cliente, mes: string): Promise<MesDiario
     if (d) d.causales[c.causal] = Number(c.cantidad) || 0;
   }
 
+  const mapaMetas: Record<string, number> = {};
+  for (const m of (metas.data ?? []) as { anio: number; mes: number; meta: number }[]) {
+    mapaMetas[`${m.anio}-${String(m.mes).padStart(2, "0")}`] = Number(m.meta);
+  }
+
   // Quién escribió cada día. Sin esto, "editado el 3 sep" no dice nada.
   const ids = [...new Set(Object.values(manual).map((m) => m.actualizado_por).filter(Boolean))] as string[];
   const autores: Record<string, string> = {};
@@ -146,13 +166,7 @@ export async function leerMes(supabase: Cliente, mes: string): Promise<MesDiario
     }
   }
 
-  return {
-    mes: desde,
-    meta: meta.data ? Number((meta.data as { meta: number }).meta) : null,
-    sap,
-    manual,
-    autores,
-  };
+  return { mes: primero, metas: mapaMetas, sap, manual, autores };
 }
 
 const num = (v: unknown) => (v == null || v === "" ? null : Number(v));
