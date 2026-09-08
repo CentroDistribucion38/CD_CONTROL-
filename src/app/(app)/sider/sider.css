@@ -376,7 +376,7 @@
      nunca en auto-fit, que decide el número por su cuenta y deja el
      resto al aire. (Se probó con auto-fit y "span 2": el resultado fue
      media fila gris.) */
-  display: grid; grid-template-columns: repeat(6, 1fr);
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1px; margin: 0; background: var(--sd-linea);
   border: 1px solid var(--sd-linea); border-radius: 4px; overflow: hidden;
 }
@@ -436,7 +436,7 @@
 /* En pantallas medianas seis columnas dejan la dirección en una
    tirita; tres filas de dos, y la cuenta sigue exacta. */
 @media (max-width: 1240px) {
-  .sd .ct-revision { grid-template-columns: repeat(3, 1fr) }
+  .sd .ct-revision { grid-template-columns: repeat(3, minmax(0, 1fr)) }
 }
 
 /* ====================== Celular: que TODO quepa ======================
@@ -508,7 +508,7 @@
   .sd .ct-camara svg { width: 20px; height: 20px }
 
   /* ---- Confirmar ---- */
-  .sd .ct-revision { grid-template-columns: 1fr 1fr }
+  .sd .ct-revision { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .sd .ct-revision > div { padding: 8px 11px }
   .sd .ct-revision dt { font-size: 9.5px; letter-spacing: .08em }
   .sd .ct-revision dd { font-size: 13.5px; margin-top: 3px; line-height: 1.25 }
@@ -602,7 +602,7 @@
 }
 
 .sd .tr-cifras {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 0;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0;
   background: #EDF1F6; border: 1px solid #EDF1F6; border-radius: 3px; overflow: hidden;
 }
 .sd .tr-cifras > div { background: #FAFBFD; padding: 7px 9px }
@@ -702,4 +702,238 @@
      regla que esconde los nombres es para los seis de la salida. */
   .sd .tr-pasos { max-width: none }
   .sd .tr-pasos li button span { display: block }
+}
+
+/* ====================== Seguimiento ====================== */
+.sd .sg-barra { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap }
+.sd .sg-barra label { display: flex; flex-direction: column; gap: 6px }
+.sd .sg-barra label span { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; color: var(--sd-gris) }
+.sd .sg-barra select { height: 44px; min-width: 190px }
+.sd .sg-pes { display: flex; gap: 3px; background: #E7ECF3; border-radius: 3px; padding: 3px }
+.sd .sg-pes button {
+  border: 0; background: none; cursor: pointer; border-radius: 2px; padding: 0 15px; height: 38px;
+  font: 700 13px var(--sd-titulo); color: var(--sd-gris);
+}
+.sd .sg-pes button.aqui { background: #fff; color: var(--sd-acento-hondo); box-shadow: 0 1px 2px rgba(4,32,63,.12) }
+.sd .sg-pes button:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: -1px }
+.sd .sg-barra .btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none }
+.sd .btn .ic { width: 16px; height: 16px; flex: none }
+.sd .sg-barra > .btn:last-child { margin-left: auto }
+
+/* La tabla se desplaza dentro de su caja, igual que las listas del
+   formulario: quince CD nunca van a caber en una pantalla, y lo que no
+   puede pasar es que se mueva la página entera. */
+/* Medido sin la tabla: 540 px en el PC grande, 555 en el portátil, 637
+   en tableta. Se descuenta 570 y sobra un dedo en todas. */
+.sd .sg-marco { max-height: max(200px, calc(100dvh - 570px)); overflow: auto }
+.sd .sg-marco.chico { max-height: max(180px, calc(100dvh - 560px)) }
+.sd .sg-tabla { min-width: 720px }
+.sd .sg-tabla tfoot td {
+  position: sticky; bottom: 0; background: #FDF0D5; font-weight: 700;
+  border-top: 2px solid var(--sd-oro); font-variant-numeric: tabular-nums;
+}
+.sd .sg-marco thead th { background: #FAFBFD }
+.sd td.apagado, .sd .apagado { color: #A9B6C6 }
+
+.sd .sg-pct { font-family: var(--sd-titulo); font-weight: 800; font-size: 14.5px }
+.sd .sg-pct.bien { color: var(--sd-verde) }
+.sd .sg-pct.mal  { color: var(--sd-rojo) }
+.sd .sg-pct.nulo { color: #A9B6C6 }
+
+.sd .sg-aparte {
+  margin: 0; padding: 11px 26px; font-size: 12.5px; color: #6B5518;
+  background: #FFF8E6; border-top: 1px solid #F0D89B;
+}
+.sd .sg-fuentes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start }
+
+/* El KPI se pone en tono de alerta cuando el mes va corto de meta. El
+   color dice algo, no decora. */
+.sd .kpi.corto { background: #8A2033 }
+.sd .kpi.corto .chip { color: #8A2033 }
+
+/* ====================== El ojito ====================== */
+.sd th.ojo-col, .sd td.ojo-col { width: 74px; text-align: center }
+.sd .ev-ojo {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 999px;
+  padding: 4px 9px 4px 7px; color: var(--sd-acento);
+}
+.sd .ev-ojo:hover { border-color: var(--sd-acento); background: #F1FAFB }
+.sd .ev-ojo svg { width: 17px; height: 17px }
+.sd .ev-ojo i {
+  font-style: normal; font-family: var(--sd-titulo); font-weight: 800;
+  font-size: 11.5px; color: var(--sd-tinta);
+}
+.sd .ev-ojo.vacio { color: #B4C0CE }
+.sd .ev-ojo.vacio i { color: #B4C0CE }
+.sd .ev-ojo:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: 2px }
+
+.sd .ev-fondo {
+  position: fixed; inset: 0; z-index: 60; background: rgba(4,32,63,.62);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.sd .ev-hoja {
+  background: var(--sd-papel); border-radius: 5px; width: min(1080px, 100%);
+  max-height: calc(100dvh - 48px); display: flex; flex-direction: column; overflow: hidden;
+}
+.sd .ev-hoja header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 18px 22px 16px; background: var(--sd-tinta); color: #fff;
+}
+.sd .ev-hoja header .rot { font-size: 10.5px; font-weight: 700; letter-spacing: .14em; opacity: .6 }
+.sd .ev-hoja header h2 {
+  font-family: var(--sd-titulo); font-weight: 900; font-size: 27px;
+  letter-spacing: .03em; margin: 3px 0 0;
+}
+.sd .ev-hoja header p { margin: 4px 0 0; font-size: 12.5px; opacity: .78 }
+.sd .ev-cerrar {
+  flex: none; width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer;
+  border: 0; border-radius: 3px; background: rgba(255,255,255,.14); color: #fff;
+}
+.sd .ev-cerrar:hover { background: rgba(255,255,255,.26) }
+.sd .ev-cerrar svg { width: 17px; height: 17px }
+
+/* min-width: 0 en los hijos y minmax(0,1fr) en las columnas: "1fr" NO
+   baja del ancho mínimo de su contenido, así que una rejilla de dos
+   columnas con una fecha larga adentro se niega a encogerse y empuja
+   todo. Medido en 390 px: la hoja medía 390 pero .ev-forms adentro
+   medía 422, y el modal se desplazaba de lado. */
+.sd .ev-cuerpo { overflow-y: auto; padding: 16px 22px 22px; display: grid; gap: 16px }
+.sd .ev-cuerpo > * { min-width: 0 }
+.sd .ev-rot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .13em; color: var(--sd-gris);
+  margin-bottom: 8px;
+}
+.sd .ev-rot em { font-style: normal; letter-spacing: 0; font-size: 12px; font-weight: 600 }
+
+.sd .ev-forms dl {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0;
+  background: var(--sd-linea); border: 1px solid var(--sd-linea); border-radius: 4px; overflow: hidden;
+}
+.sd .ev-forms dl > div { background: #fff; padding: 10px 13px; min-width: 0 }
+.sd .ev-forms dl > div.ancho { grid-column: span 2 }
+.sd .ev-forms dt { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--sd-gris); text-transform: uppercase }
+.sd .ev-forms dd {
+  margin: 4px 0 0; font-family: var(--sd-titulo); font-weight: 800; font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.sd .ev-forms dd.fuerte { font-size: 19px; letter-spacing: .03em }
+.sd .ev-forms dd.suave { font-family: var(--sd-texto); font-weight: 500; font-size: 12.5px; color: #2C4361 }
+.sd .ev-forms dd em {
+  display: block; font-family: var(--sd-texto); font-style: normal; font-weight: 500;
+  font-size: 11.5px; color: var(--sd-gris); margin-top: 2px;
+}
+
+.sd .ev-punta { border: 1px solid var(--sd-linea); border-radius: 4px; padding: 13px 15px; background: #fff }
+.sd .ev-donde {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: #F1FAFB; border: 1px solid #C9E4E8; border-radius: 3px; padding: 9px 12px;
+}
+.sd .ev-donde b { display: block; font-size: 13px; font-weight: 700 }
+.sd .ev-donde span { display: block; font-size: 11.5px; color: var(--sd-gris); font-variant-numeric: tabular-nums }
+.sd .ev-cuando { margin-left: auto; text-align: right }
+.sd .ev-mapa {
+  flex: none; font-size: 12px; font-weight: 600; color: var(--sd-acento); text-decoration: none;
+  border: 1.5px solid #9FD3D9; border-radius: 999px; padding: 5px 12px; background: #fff;
+}
+.sd .ev-mapa:hover { background: var(--sd-acento); color: #fff; border-color: var(--sd-acento) }
+.sd .ev-nota { margin: 9px 0 0; font-size: 12.5px; color: #2C4361 }
+
+.sd .ev-fotos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 11px }
+.sd .ev-fotos figure { margin: 0 }
+.sd .ev-fotos img {
+  width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; cursor: zoom-in;
+  border: 1px solid var(--sd-linea); border-radius: 3px; background: #EEF1F5;
+}
+.sd .ev-fotos figcaption {
+  margin-top: 5px; font-size: 11.5px; font-weight: 600; display: flex;
+  justify-content: space-between; gap: 8px;
+}
+.sd .ev-fotos figcaption em { font-style: normal; font-weight: 500; color: #93A3B6 }
+.sd .ev-rota {
+  aspect-ratio: 4/3; display: grid; place-items: center; font-size: 12px; color: #A9B6C6;
+  border: 1.5px dashed var(--sd-linea); border-radius: 3px; background: #FAFBFD;
+}
+.sd .ev-fotos figure.falta figcaption { color: #C6D0DC }
+.sd .ev-cargando { font-size: 13px; color: var(--sd-gris); padding: 14px 2px }
+
+.sd .ev-lupa {
+  position: fixed; inset: 0; z-index: 70; background: rgba(4,32,63,.9); cursor: zoom-out;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px;
+}
+.sd .ev-lupa img { max-width: 100%; max-height: calc(100dvh - 90px); object-fit: contain; border-radius: 3px }
+.sd .ev-lupa span { font-size: 12.5px; color: rgba(255,255,255,.75) }
+
+/* ====================== El botón de exportar ====================== */
+.sd .ex-caja { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap }
+.sd .ex-mes { display: flex; flex-direction: column; gap: 5px }
+.sd .ex-mes span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; color: var(--sd-gris) }
+.sd .ex-mes select { height: 40px; min-width: 168px }
+.sd .ex-fotos { display: flex; align-items: center; gap: 6px; height: 40px; font-size: 12.5px; color: #2C4361 }
+.sd .ex-fotos input { width: 17px; height: 17px; accent-color: var(--sd-acento) }
+.sd .ex-btn {
+  height: 40px; display: inline-flex; align-items: center; gap: 8px;
+  text-decoration: none; padding: 0 16px;
+}
+
+@media (max-width: 900px) {
+  .sd .sg-fuentes { grid-template-columns: 1fr }
+  .sd .sg-barra > .btn:last-child { margin-left: 0 }
+  .sd .sg-barra { gap: 8px }
+  .sd .sg-barra label { flex: 1 1 130px }
+  .sd .sg-barra > .btn { flex: 1 1 120px; justify-content: center }
+  .sd .sg-pes { flex: 1 1 100%; order: 3 }
+  .sd .sg-pes button { flex: 1 1 0; padding: 0 8px; height: 34px; font-size: 12px }
+  .sd .sg-barra select { height: 40px; min-width: 0; width: 100% }
+
+  /* El párrafo que explica el BU y el % se lee una vez; en el celular se
+     llevaba 110 px de los 844, y la tabla es lo que se viene a ver. Se
+     deja en dos renglones, no se borra. */
+  .sd .sg-tabla ~ *, .sd .tarjeta .cab p {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
+  .sd .sg-aparte {
+    padding: 9px 14px; font-size: 11.5px;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  }
+  /* Medido con el celular ya apretado: el resto ocupa ~500 px. */
+  .sd .sg-marco { max-height: max(160px, calc(100dvh - 562px)) }
+  /* En "de dónde sale" hay DOS tablas apiladas, así que cada una se queda
+     con la mitad de lo que sobra. Dos renglones y pico por tabla no es
+     mucho, pero se desplaza adentro y la página no se mueve — que es la
+     regla; y esta vista es un "de dónde salió esto", no la principal. */
+  .sd .sg-marco.chico { max-height: max(112px, calc(50dvh - 250px)) }
+
+  .sd .ev-fondo { padding: 0 }
+  .sd .ev-hoja { max-height: 100dvh; border-radius: 0; width: 100% }
+  .sd .ev-hoja header { padding: 13px 15px 12px }
+  .sd .ev-hoja header h2 { font-size: 22px }
+  .sd .ev-cuerpo { padding: 12px 14px 18px; gap: 12px }
+  /* Dos columnas: en cuatro, "3.442.118" no cabe en un celular. */
+  .sd .ev-forms dl { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .sd .ev-forms dl > div.ancho { grid-column: 1 / -1 }
+  .sd .ev-donde { gap: 8px }
+  .sd .ev-cuando { margin-left: 0; text-align: left }
+  .sd .ev-punta { padding: 11px 12px }
+
+  .sd .ex-caja { width: 100% }
+  .sd .ex-mes { flex: 1 1 140px }
+  .sd .ex-mes select { min-width: 0; width: 100% }
+}
+
+/* ====================== Cargar ZLDE ====================== */
+.sd .zl-suelta { padding: 0 26px 22px }
+.sd .zl-ojo { margin: 11px 0 0; font-size: 12.5px; color: var(--sd-gris); max-width: 86ch }
+.sd .zl-mapa {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px; padding: 0 26px 22px;
+}
+.sd .zl-mapa label { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.sd .zl-mapa span { font-size: 11.5px; font-weight: 600; color: #2C4361 }
+.sd .zl-mapa select, .sd .zl-mapa input { height: 42px; width: 100% }
+.sd .zl-mapa input[type="month"] { padding: 0 11px; font: 500 14px var(--sd-texto) }
+@media (max-width: 900px) {
+  .sd .zl-suelta, .sd .zl-mapa { padding-left: 14px; padding-right: 14px }
+  .sd .zl-mapa { grid-template-columns: 1fr }
 }

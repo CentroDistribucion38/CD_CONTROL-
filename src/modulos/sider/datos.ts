@@ -9,67 +9,17 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import type { Origen, Sku, Viaje, FilaSeguimiento, FotoGuardada, Certificacion } from "./comun";
+import { ORDEN_RANURA } from "./comun";
 
-export const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-export const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio",
-                            "agosto","septiembre","octubre","noviembre","diciembre"];
+/* Se re-exporta para no obligar a nadie a cambiar de import; lo nuevo
+   que sea de cliente debe tomarlo de ./comun directamente. */
+export * from "./comun";
+export type { Origen, Sku, Viaje, FilaSeguimiento, FotoGuardada, Certificacion };
 
-export type Origen = {
-  planta: string;
-  cd_origen: string;
-  activo: boolean;
-  orden: number | null;
-};
 
-export type Sku = {
-  sku: string;
-  descripcion: string;
-  clase: string | null;
-  cajas_x_estiba: number | null;
-  unidades_x_caja: number | null;
-  hl_x_unidad: number | null;
-  activo: boolean;
-};
 
-export type Viaje = {
-  id: string;
-  placa: string;
-  planta: string;
-  cd_origen: string;
-  cd_destino: string;
-  sku: string;
-  descripcion: string;
-  tipo_envase: string | null;
-  estibas: number;
-  estado: "en_transito" | "recibido" | "anulado";
-  observacion: string | null;
-  creado_por: string | null;
-  creado_en: string;
-  fecha: string;
-  num_mes: number;
-  semana: number;
-  anio: number;
-  sider: number;
-  cajas: number | null;
-  unidades: number | null;
-  hl: number | null;
-  faltan_factores: boolean;
-  cert_salida_id: string | null;
-  salida_en: string | null;
-  salida_lat: number | null;
-  salida_lng: number | null;
-  salida_precision: number | null;
-  salida_direccion: string | null;
-  cert_llegada_id: string | null;
-  llegada_en: string | null;
-  llegada_lat: number | null;
-  llegada_lng: number | null;
-  llegada_precision: number | null;
-  llegada_direccion: string | null;
-  fotos_salida: number;
-  fotos_llegada: number;
-  en_camino: string | null;
-};
+
 
 /** El maestro: es lo que llena las listas desplegables del formulario. */
 export async function maestroSider() {
@@ -133,3 +83,99 @@ export async function nombresDe(ids: (string | null)[]) {
   }
   return out;
 }
+
+/* =====================================================================
+   SEGUIMIENTO — el informe de tres tablas
+   ===================================================================== */
+
+
+/** Los meses que tienen algo: ZLDE cargado o viajes certificados. */
+export async function mesesSeguimiento() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_sider_seguimiento")
+    .select("mes")
+    .order("mes", { ascending: false });
+  const meses = [...new Set(((data ?? []) as { mes: string }[]).map((f) => f.mes))];
+  return { meses, falta: !!error };
+}
+
+export async function seguimientoSider(mes: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_sider_seguimiento")
+    .select("*")
+    .eq("mes", mes)
+    .order("hl_recibido", { ascending: false });
+  return { filas: (data ?? []) as unknown as FilaSeguimiento[], falta: !!error };
+}
+
+/* =====================================================================
+   LA EVIDENCIA DE UN VIAJE — el ojito
+   ===================================================================== */
+
+
+
+/**
+ * Las dos puntas de un viaje con sus fotos, listas para mostrar.
+ *
+ * El bucket es privado a propósito —son placas con hora y coordenadas—
+ * así que las fotos no tienen URL fija: se firma una que vale un rato.
+ * Diez minutos alcanza para mirarlas y no alcanza para que el enlace
+ * ande circulando por WhatsApp una semana después.
+ */
+const MINUTOS_FIRMA = 10;
+
+export async function evidenciaDeViaje(viajeId: string) {
+  const supabase = await createClient();
+
+  const { data: certs, error } = await supabase
+    .from("sider_certificaciones")
+    .select("id, punta, lat, lng, precision_m, ubicado_en, direccion, nota, hecha_por, hecha_en")
+    .eq("viaje_id", viajeId)
+    .order("hecha_en");
+  if (error) return { puntas: [] as Certificacion[], falta: true };
+
+  const ids = (certs ?? []).map((c: { id: string }) => c.id);
+  const { data: fotos } = ids.length
+    ? await supabase
+        .from("sider_fotos")
+        .select("certificacion_id, ranura, ruta, bytes, ancho, alto, subida_en")
+        .in("certificacion_id", ids)
+    : { data: [] };
+
+  type FilaFoto = {
+    certificacion_id: string; ranura: FotoGuardada["ranura"]; ruta: string;
+    bytes: number | null; ancho: number | null; alto: number | null; subida_en: string;
+  };
+  const lista = (fotos ?? []) as FilaFoto[];
+
+  /* Una sola llamada para todas las rutas en vez de una por foto: seis
+     fotos son seis viajes de ida y vuelta que se sienten al abrir. */
+  const firmadas = new Map<string, string>();
+  if (lista.length) {
+    const { data: urls } = await supabase.storage
+      .from("sider")
+      .createSignedUrls(lista.map((f) => f.ruta), MINUTOS_FIRMA * 60);
+    for (const u of (urls ?? []) as { path: string | null; signedUrl: string }[]) {
+      if (u.path) firmadas.set(u.path, u.signedUrl);
+    }
+  }
+
+  const puntas = ((certs ?? []) as Omit<Certificacion, "fotos">[]).map((c) => ({
+    ...c,
+    fotos: lista
+      .filter((f) => f.certificacion_id === c.id)
+      .map((f) => ({
+        ranura: f.ranura, ruta: f.ruta, bytes: f.bytes, ancho: f.ancho, alto: f.alto,
+        subida_en: f.subida_en, url: firmadas.get(f.ruta) ?? null,
+      }))
+      /* Siempre en el mismo orden —izquierdo, derecho, placa— y no en el
+         que las subieron: comparar dos viajes es imposible si las fotos
+         cambian de sitio. */
+      .sort((a, b) => ORDEN_RANURA.indexOf(a.ranura) - ORDEN_RANURA.indexOf(b.ranura)),
+  }));
+
+  return { puntas, falta: false };
+}
+

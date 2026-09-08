@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { viajesSider, nombresDe, MESES_LARGO } from "@/modulos/sider/datos";
 import "./sider.css";
+import { OjoEvidencia } from "./Evidencia";
+import { BotonExportar } from "./Exportar";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +67,7 @@ export default async function FuentePrincipalPage() {
             <b>Base de Datos</b> del archivo, pero de las 16 columnas solo se guardan las
             cinco que alguien teclea — placa, origen, material, estibas y cuándo — y las
             once restantes se calculan al leer, con las mismas fórmulas.{" "}
-            {esEditor && <Link href="/sider/certificar">Certificar un vehículo</Link>}
+            <Link href="/sider/seguimiento">Ver el seguimiento del mes</Link>
           </p>
         </div>
         <div className="kpi">
@@ -113,8 +115,10 @@ export default async function FuentePrincipalPage() {
             <p>
               Las columnas en gris no se guardan: se calculan del material y las estibas
               cada vez que se leen, así que nunca pueden quedar desfasadas de su fórmula.
+              El ojo de cada fila abre sus fotos y lo que se llenó en el formulario.
             </p>
           </div>
+          <BotonExportar />
         </div>
         <div className="marco">
           <table>
@@ -132,6 +136,7 @@ export default async function FuentePrincipalPage() {
                 <th>Llegada</th>
                 <th>Estado</th>
                 <th>Quién</th>
+                <th className="ojo-col">Evidencia</th>
               </tr>
             </thead>
             <tbody>
@@ -172,11 +177,12 @@ export default async function FuentePrincipalPage() {
                     </span>
                   </td>
                   <td>{v.creado_por ? nombres[v.creado_por] ?? "—" : "—"}</td>
+                  <td className="ojo-col"><OjoEvidencia viaje={v} nombres={nombres} /></td>
                 </tr>
               ))}
               {!viajes.length && (
                 <tr>
-                  <td className="vacio" colSpan={12}>
+                  <td className="vacio" colSpan={13}>
                     Todavía no hay viajes certificados.
                     {esEditor && <> <Link href="/sider/certificar">Certifica el primero</Link>.</>}
                   </td>
