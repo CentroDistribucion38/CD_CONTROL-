@@ -1,0 +1,300 @@
+/* ---------------------------------------------------------------------
+   Quiebra diaria. Se monta encima de quiebra.css: la página lleva las dos
+   clases (.qb .qd), así reutiliza colores, tarjetas, cifras y calendario,
+   y aquí solo va lo propio del diario, con el prefijo .qd-.
+   --------------------------------------------------------------------- */
+
+/* La hoja tiene cuatro cifras arriba, no tres. */
+.qb .cifras.cuatro { grid-template-columns: repeat(4, 1fr) }
+
+/* ====================== Selector de día ====================== */
+.qd .qd-paso { display: flex; align-items: center; gap: 4px }
+.qd .qd-paso button {
+  width: 42px; height: 42px; flex: none;
+  border: 1.5px solid var(--qb-linea); background: #fff; border-radius: 2px;
+  cursor: pointer; display: grid; place-items: center;
+}
+.qd .qd-paso button:hover { border-color: var(--qb-rojo) }
+.qd .qd-paso button:hover svg { stroke: var(--qb-rojo) }
+.qd .qd-paso button svg { width: 16px; height: 16px; stroke: var(--qb-tinta); stroke-width: 2.3; fill: none }
+.qd .qd-paso button:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: 2px }
+
+.qd .qd-dia-actual {
+  display: flex; align-items: baseline; gap: 8px; padding: 0 14px;
+  min-width: 168px; justify-content: center;
+}
+.qd .qd-dia-actual .d {
+  font-family: var(--qb-titulo); font-weight: 900; font-size: 30px;
+  letter-spacing: -.04em; line-height: 1;
+}
+.qd .qd-dia-actual .m { font-size: 13.5px; color: var(--qb-gris) }
+
+/* Un día escrito a mano se marca también dentro del calendario. */
+.qd .dias button.escrito::after {
+  content: ""; position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--qb-rojo);
+}
+.qd .dias button.punta.escrito::after { background: #fff }
+
+/* ====================== Tira del mes ====================== */
+.qd .qd-tira { border-top: 1px solid var(--qb-linea); background: #FAFBFD; padding: 14px 22px 16px }
+.qd .qd-tira.cargando { opacity: .45; pointer-events: none }
+.qd .qd-tira-rot {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .14em;
+  color: var(--qb-gris); text-transform: uppercase; margin-bottom: 10px;
+}
+.qd .qd-leyenda { display: flex; gap: 14px; letter-spacing: 0; text-transform: none; font-weight: 500 }
+.qd .qd-leyenda span { display: inline-flex; align-items: center; gap: 6px }
+.qd .qd-leyenda i { width: 9px; height: 9px; border-radius: 2px; display: inline-block }
+.qd .qd-leyenda i.p-esc { background: var(--qb-rojo) }
+.qd .qd-leyenda i.p-sap { background: #8FA6C0 }
+.qd .qd-leyenda i.p-no { background: #DFE5EC }
+
+.qd .qd-celdas { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px }
+.qd .qd-celda {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 2px 6px; border: 1.5px solid transparent; border-radius: 2px;
+  background: #fff; cursor: pointer; overflow: hidden;
+}
+.qd .qd-celda .d { font-family: var(--qb-titulo); font-weight: 800; font-size: 13px; line-height: 1 }
+.qd .qd-celda .q {
+  font-size: 10.5px; color: var(--qb-gris); font-variant-numeric: tabular-nums;
+  line-height: 1; white-space: nowrap;
+}
+/* La barrita de arriba dice de dónde salió el dato del día. */
+.qd .qd-celda::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #DFE5EC;
+}
+.qd .qd-celda.sap::before { background: #8FA6C0 }
+.qd .qd-celda.esc::before { background: var(--qb-rojo) }
+.qd .qd-celda.no { background: #F4F6F9 }
+.qd .qd-celda.no .d { color: #A9B6C6 }
+.qd .qd-celda.sobre .q { color: var(--qb-rojo); font-weight: 600 }
+.qd .qd-celda.futuro { opacity: .5 }
+.qd .qd-celda:hover { border-color: #B9C4D2 }
+.qd .qd-celda.hoy .d { text-decoration: underline; text-underline-offset: 2px }
+.qd .qd-celda.sel { border-color: var(--qb-tinta); background: var(--qb-tinta) }
+.qd .qd-celda.sel .d { color: #fff }
+.qd .qd-celda.sel .q { color: rgba(255,255,255,.75) }
+.qd .qd-celda.sel.sobre .q { color: #FF9AAC }
+.qd .qd-celda:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: 1px }
+
+/* ====================== Sellos en las cifras ====================== */
+.qd .qd-sello {
+  display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 2px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  vertical-align: 1px;
+}
+.qd .qd-sello.escrito { background: #FDE7EB; color: #A4102A }
+.qd .qd-sello.sap { background: #EAF0F7; color: #2C4361 }
+.qd .qd-sello.falta { background: #F4F6F9; color: #93A3B6 }
+
+/* ====================== La hoja editable ====================== */
+.qd .qd-hoja .cab { align-items: flex-start }
+.qd .qd-firma {
+  text-align: right; font-size: 12.5px; color: var(--qb-gris); line-height: 1.5;
+  border-left: 3px solid var(--qb-rojo); padding-left: 12px; flex: none;
+}
+.qd .qd-firma b { display: block; color: var(--qb-tinta); font-weight: 700; font-size: 12px }
+
+.qd .qd-tabla { border-top: 1px solid var(--qb-linea) }
+
+.qd .qd-cab,
+.qd .qd-linea {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px 158px 118px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 26px;
+}
+.qd .qd-cab {
+  height: 38px; background: #FAFBFD; border-bottom: 1px solid var(--qb-linea);
+  font-size: 11px; font-weight: 600; letter-spacing: .12em; color: #93A3B6; text-transform: uppercase;
+}
+.qd .qd-cab .num { text-align: right }
+
+.qd .qd-grupo {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 16px 26px 8px;
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 13px;
+  letter-spacing: .04em; text-transform: uppercase; color: #2C4361;
+}
+.qd .qd-pista {
+  font-family: var(--qb-texto); font-weight: 500; font-size: 12px; letter-spacing: 0;
+  text-transform: none; color: var(--qb-gris);
+}
+
+.qd .qd-linea { min-height: 48px; border-bottom: 1px solid #EDF1F6 }
+.qd .qd-linea:hover { background: #FAFBFD }
+.qd .qd-linea.tocada { background: #FFFBFC }
+
+.qd .qd-nom { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 14px }
+.qd .qd-nom > span { min-width: 0 }
+.qd .qd-nom em {
+  display: block; font-style: normal; font-size: 11.5px; color: #93A3B6; margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.qd .qd-punto { width: 10px; height: 10px; border-radius: 2px; flex: none }
+
+.qd .qd-linea .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.qd .qd-linea .num.sap { color: var(--qb-gris); font-size: 14px }
+.qd .qd-linea .num.vale { font-family: var(--qb-titulo); font-weight: 800; font-size: 15px }
+.qd .qd-linea .num.vale.difiere { color: var(--qb-rojo) }
+.qd .qd-linea .num.vale.mal { color: var(--qb-rojo) }
+
+/* ---------- La casilla ---------- */
+.qd .qd-caja { position: relative; display: flex; align-items: center }
+.qd .qd-caja input {
+  width: 100%; height: 38px; padding: 0 30px 0 12px;
+  font: 500 14.5px var(--qb-texto); color: var(--qb-tinta);
+  text-align: right; font-variant-numeric: tabular-nums;
+  background: #F7F9FC; border: 1.5px solid var(--qb-linea); border-radius: 2px;
+}
+.qd .qd-caja input::placeholder { color: #B4C0CE; font-weight: 400 }
+.qd .qd-caja input:hover:not(:disabled) { border-color: #B9C4D2 }
+.qd .qd-caja input:focus {
+  outline: none; background: #fff; border-color: var(--qb-azul);
+  box-shadow: 0 0 0 3px rgba(11,78,162,.14);
+}
+.qd .qd-caja input:disabled { background: #EEF1F5; color: var(--qb-gris); cursor: not-allowed }
+.qd .qd-linea.tocada .qd-caja input { background: #fff; border-color: #F0B7C2 }
+
+.qd .qd-x {
+  position: absolute; right: 3px; width: 26px; height: 26px; border: 0; background: none;
+  border-radius: 2px; color: #93A3B6; cursor: pointer; display: grid; place-items: center;
+}
+.qd .qd-x:hover { color: var(--qb-rojo) }
+.qd .qd-x svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2.2; fill: none }
+.qd .qd-x:focus-visible { outline: 2px solid var(--qb-azul); outline-offset: 1px }
+
+/* ---------- Totales ---------- */
+.qd .qd-linea.total { background: #FAFBFD; min-height: 46px }
+.qd .qd-linea.total .qd-nom { font-size: 14px }
+.qd .qd-linea.total .num.esc { font-weight: 600; color: var(--qb-tinta) }
+.qd .qd-linea.total.pct .num.vale { font-size: 17px }
+
+/* ---------- Nota ---------- */
+.qd .qd-nota { padding: 20px 26px; border-top: 1px solid var(--qb-linea) }
+.qd .qd-nota label { display: block; font-size: 12px; font-weight: 600; color: #2C4361; margin-bottom: 7px }
+.qd .qd-nota textarea {
+  width: 100%; padding: 10px 12px; resize: vertical;
+  font: 500 14px var(--qb-texto); color: var(--qb-tinta);
+  background: #F7F9FC; border: 1.5px solid var(--qb-linea); border-radius: 2px;
+}
+.qd .qd-nota textarea:focus {
+  outline: none; background: #fff; border-color: var(--qb-azul);
+  box-shadow: 0 0 0 3px rgba(11,78,162,.14);
+}
+.qd .qd-nota textarea:disabled { background: #EEF1F5; color: var(--qb-gris) }
+
+/* ---------- Botonera ---------- */
+.qd .qd-acciones {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 18px 26px; background: #FAFBFD; border-top: 1px solid var(--qb-linea);
+}
+.qd .qd-btn {
+  height: 44px; padding: 0 24px; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--qb-rojo); color: #fff;
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 14px;
+}
+.qd .qd-btn:hover:not(:disabled) { background: #FF1C38 }
+.qd .qd-btn:disabled { background: #B4C0CE; cursor: not-allowed }
+.qd .qd-btn:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: 2px }
+.qd .qd-btn.plano {
+  background: none; color: var(--qb-gris); padding: 0 6px;
+  font-family: var(--qb-texto); font-weight: 600; font-size: 13.5px;
+}
+.qd .qd-btn.plano:hover:not(:disabled) { background: none; color: var(--qb-rojo) }
+.qd .qd-btn.plano:disabled { background: none; color: #C6D0DC }
+
+.qd .qd-estado { margin-left: auto; font-size: 13px; color: var(--qb-gris) }
+.qd .qd-estado.sucio { color: var(--qb-rojo); font-weight: 600 }
+
+.qd .qd-aviso {
+  padding: 13px 26px; font-size: 13.5px; border-top: 1px solid var(--qb-linea);
+}
+.qd .qd-aviso.mal { background: #FDECEB; color: #A4271C }
+.qd .qd-aviso.bien { background: #E9F6EF; color: #14653F }
+
+/* ====================== Cuadre ====================== */
+.qd .qd-checks { list-style: none; margin: 0; padding: 0 }
+.qd .qd-checks li {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 0; border-bottom: 1px solid #EDF1F6; font-size: 13.5px; line-height: 1.45;
+}
+.qd .qd-checks li:last-child { border-bottom: 0 }
+.qd .qd-checks li i {
+  width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 5px; background: #C6D0DC;
+}
+/* Los estados llevan prefijo propio a propósito: una clase suelta como
+   .ojo ya existe en quiebra.css (el rótulo chiquito en mayúsculas) y le
+   metía negrita y espaciado a estas frases. */
+.qd .qd-checks li.qd-grave i { background: var(--qb-rojo) }
+.qd .qd-checks li.qd-grave span { color: #7A1226 }
+.qd .qd-checks li.qd-ojo i { background: var(--qb-oro) }
+.qd .qd-checks li.qd-ok i { background: #0F7A4A }
+.qd .qd-sin { font-size: 13.5px; color: var(--qb-gris); margin: 8px 0 }
+
+/* ====================== Tableta ====================== */
+@media (max-width: 1180px) {
+  /* Dos y dos. quiebra.css quita el borde derecho a esta altura porque
+     allá las cifras quedan en una sola columna; aquí hay dos, así que la
+     raya del medio se vuelve a poner y se quita la de abajo de la
+     penúltima para que el bloque no quede con media línea colgando. */
+  .qb .cifras.cuatro { grid-template-columns: 1fr 1fr }
+  .qd .cifras.cuatro .cifra:nth-child(odd) { border-right: 1px solid var(--qb-linea) }
+  .qd .cifras.cuatro .cifra:nth-last-child(2) { border-bottom: 0 }
+  .qd .qd-linea .num.sap { font-size: 13.5px }
+}
+
+/* ====================== Celular ====================== */
+@media (max-width: 760px) {
+  .qb .cifras.cuatro { grid-template-columns: 1fr }
+  .qd .cifras.cuatro .cifra:nth-child(odd) { border-right: 0 }
+  .qd .cifras.cuatro .cifra:nth-last-child(2) { border-bottom: 1px solid var(--qb-linea) }
+
+  /* La cabecera de la tarjeta es flex con space-between: al lado de la
+     firma, el párrafo quedaba en una columna de una palabra por línea. */
+  .qd .tarjeta .cab { flex-direction: column; gap: 12px }
+
+  .qd .qd-paso { width: 100%; justify-content: space-between }
+  .qd .qd-dia-actual { min-width: 0 }
+  .qd .qd-tira { padding: 14px 16px }
+  .qd .qd-celdas { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)) }
+  .qd .qd-celda .q { font-size: 9.5px }
+
+  .qd .qd-firma { text-align: left; margin-top: 4px }
+
+  /* La rejilla de cuatro columnas no cabe: cada concepto pasa a ser su
+     propio bloque, con las tres cifras en fila debajo del nombre. Así no
+     hay desplazamiento horizontal en el celular. */
+  .qd .qd-cab { display: none }
+  .qd .qd-linea {
+    grid-template-columns: 1fr 1.35fr 1fr;
+    grid-template-areas: "nom nom nom" "sap esc vale";
+    /* Las tres van pegadas arriba: si se centran, el rótulo de la casilla
+       (que es más alta) queda a distinta altura que los otros dos. */
+    align-items: start;
+    gap: 6px 10px;
+    padding: 12px 16px 14px;
+  }
+  .qd .qd-grupo { padding: 14px 16px 6px }
+  .qd .qd-nom { grid-area: nom; margin-bottom: 3px }
+  .qd .qd-linea .num.sap { grid-area: sap }
+  .qd .qd-linea .num.esc { grid-area: esc }
+  .qd .qd-linea .num.vale { grid-area: vale }
+  .qd .qd-linea .num { text-align: left; position: relative; padding-top: 15px; min-width: 0 }
+  .qd .qd-linea .num::before {
+    position: absolute; top: 0; left: 0;
+    font-size: 10px; font-weight: 600; letter-spacing: .1em; color: #A9B6C6; text-transform: uppercase;
+  }
+  .qd .qd-linea .num.sap::before { content: "SAP" }
+  .qd .qd-linea .num.esc::before { content: "Escrito" }
+  .qd .qd-linea .num.vale::before { content: "Vale" }
+  .qd .qd-caja input { text-align: left; padding: 0 30px 0 10px; height: 40px }
+
+  .qd .qd-nota, .qd .qd-acciones, .qd .qd-aviso { padding-left: 16px; padding-right: 16px }
+  .qd .qd-btn { flex: 1 1 auto }
+  .qd .qd-estado { margin-left: 0; width: 100% }
+}

@@ -68,12 +68,21 @@ const IconoConteos = () => (
   </svg>
 );
 
+const IconoDia = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
+    <path d="M9 14.5h6" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   quiebra: IconoQuiebra,
   inventario: IconoInventario,
 };
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/quiebra": IconoTablero,
+  "/quiebra/diario": IconoDia,
   "/quiebra/importar": IconoImportar,
   "/inventario": IconoLista,
   "/inventario/productos": IconoCaja,

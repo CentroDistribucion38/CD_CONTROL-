@@ -170,7 +170,8 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
           <p className="sub">
             Rotura medida contra la producción del período.
             {ultimaCarga && <> Datos del {bonita(ultimaCarga.desde)} al {bonita(ultimaCarga.hasta)}.</>}
-            {esEditor && <> <Link href="/quiebra/importar">Actualizar</Link></>}
+            {" "}<Link href="/quiebra/diario">Ver el día a día</Link>
+            {esEditor && <> · <Link href="/quiebra/importar">Actualizar</Link></>}
           </p>
         </div>
         <div className="lado-derecho">
