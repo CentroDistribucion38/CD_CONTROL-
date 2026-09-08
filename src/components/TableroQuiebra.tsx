@@ -654,7 +654,7 @@ function Barras({ datos, total }: {
 function GraficoMes({ prodMes, perdMes, metaDe }: {
   prodMes: Map<number, number>; perdMes: Map<number, number>; metaDe: (m: number) => number;
 }) {
-  const W = 720, H = 300, m = { t: 20, r: 12, b: 32, l: 46 };
+  const W = 720, H = 300, m = { t: 20, r: 12, b: 32, l: 64 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const meses = [...prodMes.keys()].sort((a, b) => a - b);
   const filas = meses.map((mm) => {
@@ -667,7 +667,7 @@ function GraficoMes({ prodMes, perdMes, metaDe }: {
   const an = Math.min(34, paso * 0.42);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="grafico" role="img"
+    <svg viewBox={`0 0 ${W} ${H}`} className="grafico g-mes" role="img"
          aria-label="Quiebra mensual contra la meta">
       {[0, 1, 2, 3, 4].map((i) => {
         const v = (max * i) / 4;
@@ -719,7 +719,7 @@ function TarjetaDia({ bajas, prod, meta }: { bajas: Baja[]; prod: Produccion[]; 
   const max = Math.max(meta * 1.6, p95) * 1.12 || 0.01;
   const fuera = filas.filter((x) => x.pct > max).length;
 
-  const W = 1000, H = 250, m = { t: 14, r: 12, b: 28, l: 46 };
+  const W = 1000, H = 250, m = { t: 14, r: 12, b: 28, l: 88 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const y = (v: number) => m.t + ih - (Math.min(v, max) / max) * ih;
   const paso = iw / Math.max(1, filas.length);
@@ -741,7 +741,7 @@ function TarjetaDia({ bajas, prod, meta }: { bajas: Baja[]; prod: Produccion[]; 
         </div>
       </div>
       <div className="cuerpo">
-        <svg viewBox={`0 0 ${W} ${H}`} className="grafico" role="img" aria-label="Quiebra diaria">
+        <svg viewBox={`0 0 ${W} ${H}`} className="grafico g-dia" role="img" aria-label="Quiebra diaria">
           {[0, 1, 2, 3, 4].map((i) => {
             const v = (max * i) / 4;
             return (
@@ -794,7 +794,7 @@ function TarjetaDia({ bajas, prod, meta }: { bajas: Baja[]; prod: Produccion[]; 
 
 /* ==================== Composición apilada ==================== */
 function GraficoApilado({ bajas, causales }: { bajas: Baja[]; causales: string[] }) {
-  const W = 620, H = 290, m = { t: 14, r: 10, b: 30, l: 52 };
+  const W = 620, H = 290, m = { t: 14, r: 10, b: 30, l: 66 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const meses = [...new Set(bajas.map((b) => mesDe(b.fecha)))].sort((a, b) => a - b);
   const cs = causales.filter((c) => bajas.some((b) => b.causal === c));
@@ -813,7 +813,7 @@ function GraficoApilado({ bajas, causales }: { bajas: Baja[]; causales: string[]
     v >= 1e6 ? (v / 1e6).toFixed(1).replace(".", ",") + "M" : Math.round(v / 1e3) + "k";
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="grafico" role="img"
+    <svg viewBox={`0 0 ${W} ${H}`} className="grafico g-apilado" role="img"
          aria-label="Composición mensual por causal">
       {[0, 1, 2, 3].map((i) => {
         const v = (max * i) / 3;

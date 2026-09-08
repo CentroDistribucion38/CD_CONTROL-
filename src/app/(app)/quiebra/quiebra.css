@@ -567,3 +567,23 @@ body.capturando .qb .acciones-informe { visibility: hidden }
   .qb .btn { width: 100% }
   .qb .soltar { padding: 34px 18px }
 }
+
+/* ====================== Gráficas en pantallas chicas ======================
+   El SVG se encoge con el ancho y arrastra su texto: en un celular las
+   etiquetas quedan a la mitad de tamaño y no se leen. Como el tamaño de
+   fuente va en unidades del viewBox, se sube aquí para compensar el
+   encogimiento. Cada gráfica tiene su propio viewBox, por eso van
+   distintos números. */
+@media (max-width: 720px) {
+  .qb .grafico { height: 230px }
+
+  .qb .g-mes .eje, .qb .g-mes .val { font-size: 22px }
+  .qb .g-dia .eje, .qb .g-dia .val { font-size: 28px }
+  .qb .g-apilado .eje, .qb .g-apilado .val { font-size: 20px }
+
+  /* con la letra más grande, el % encima de cada barra ya no cabe */
+  .qb .g-mes .val { display: none }
+
+  .qb .grafico .rejilla { stroke-width: 1.6 }
+  .qb .grafico .meta { stroke-width: 3 }
+}

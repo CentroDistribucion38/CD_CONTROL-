@@ -380,6 +380,10 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 }
 .sh-marco.anclado { grid-template-columns: 236px 1fr }
 .sh-marco.sin-riel { grid-template-columns: 1fr }
+/* Sin esto, una columna 1fr no puede achicarse por debajo del contenido y
+   basta con que el riel se vuelva fila de pestañas para que TODA la página
+   se ensanche y aparezca el desplazamiento horizontal. */
+.sh-marco > * { min-width: 0 }
 .sh-main { padding: 26px 30px 40px; min-width: 0; display: flex; flex-direction: column }
 
 /* ---------- Riel de módulos ---------- */
@@ -514,9 +518,10 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 /* ---------- Pantallas medianas y chicas ---------- */
 @media (max-width: 1180px) {
   .sh-marco, .sh-marco.anclado, .sh-marco.sin-riel { grid-template-columns: 1fr }
-  .sh-lado { width: auto }
+  .sh-lado { width: auto; min-width: 0 }
   .sh-lado .riel {
-    position: static; width: 100%; flex-direction: row; overflow-x: auto; padding: 0;
+    position: static; width: 100%; max-width: 100%; flex-direction: row;
+    overflow-x: auto; overflow-y: hidden; padding: 0;
     border-right: 0; border-bottom: 1px solid rgba(255,255,255,.08);
   }
   .sh-lado:hover .riel, .sh-lado:focus-within .riel { width: 100%; box-shadow: none }
@@ -533,12 +538,18 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   .sh-lado .riel a.hijo.on { border-bottom-color: var(--sh-rojo) }
 }
 
+@media (max-width: 900px) {
+  /* El turno no es crítico y le quita el aire a las migas de pan. */
+  .sh-barra .der .turno { display: none }
+}
+
 @media (max-width: 720px) {
   .sh-main { padding: 18px 18px 30px }
   .sh-barra { gap: 14px; padding-right: 16px }
   .sh-barra .esquina { width: 56px }
   .sh-barra .ruta .wm { display: none }
   .sh-barra .ruta .sep:first-of-type { display: none }
+  .sh-barra .der { gap: 10px }
 }
 
 /* ====================== Texto grande (equipos de piso) ======================
