@@ -15,6 +15,11 @@
   --acc-linea:     #D5DCE5;
   /* desplazamiento del corte = alto * tan(26°) */
   --acc-corte: 24.4vh;
+  /* Dónde cruza el corte a media altura. Es 56% en pantallas anchas, pero
+     nunca tan a la derecha como para que los filos rojos se le monten a la
+     esquina de la tarjeta: 408 de tarjeta + 168 que avanza el corte hacia
+     arriba + 40 de aire = 616. */
+  --acc-base: min(56%, calc(93.5% - 616px));
 
   --acc-titulo: "Archivo", "Archivo Fallback", system-ui, sans-serif;
   --acc-texto:  "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -58,8 +63,8 @@
     var(--acc-tinta);
   clip-path: polygon(
     0 0,
-    calc(56% + var(--acc-corte)) 0,
-    calc(56% - var(--acc-corte)) 100%,
+    calc(var(--acc-base) + var(--acc-corte)) 0,
+    calc(var(--acc-base) - var(--acc-corte)) 100%,
     0 100%
   );
 }
@@ -82,10 +87,10 @@
   inset: 0;
   background: var(--acc-rojo);
   clip-path: polygon(
-    calc(56% + var(--acc-corte)) 0,
-    calc(56% + var(--acc-corte) + 26px) 0,
-    calc(56% - var(--acc-corte) + 26px) 100%,
-    calc(56% - var(--acc-corte)) 100%
+    calc(var(--acc-base) + var(--acc-corte)) 0,
+    calc(var(--acc-base) + var(--acc-corte) + 26px) 0,
+    calc(var(--acc-base) - var(--acc-corte) + 26px) 100%,
+    calc(var(--acc-base) - var(--acc-corte)) 100%
   );
 }
 
@@ -97,19 +102,19 @@
 }
 .acc-filo.a {
   clip-path: polygon(
-    calc(56% + var(--acc-corte) + 40px) 0,
-    calc(56% + var(--acc-corte) + 45px) 0,
-    calc(56% - var(--acc-corte) + 45px) 100%,
-    calc(56% - var(--acc-corte) + 40px) 100%
+    calc(var(--acc-base) + var(--acc-corte) + 40px) 0,
+    calc(var(--acc-base) + var(--acc-corte) + 45px) 0,
+    calc(var(--acc-base) - var(--acc-corte) + 45px) 100%,
+    calc(var(--acc-base) - var(--acc-corte) + 40px) 100%
   );
 }
 .acc-filo.b {
   opacity: 0.3;
   clip-path: polygon(
-    calc(56% + var(--acc-corte) + 56px) 0,
-    calc(56% + var(--acc-corte) + 58px) 0,
-    calc(56% - var(--acc-corte) + 58px) 100%,
-    calc(56% - var(--acc-corte) + 56px) 100%
+    calc(var(--acc-base) + var(--acc-corte) + 56px) 0,
+    calc(var(--acc-base) + var(--acc-corte) + 58px) 0,
+    calc(var(--acc-base) - var(--acc-corte) + 58px) 100%,
+    calc(var(--acc-base) - var(--acc-corte) + 56px) 100%
   );
 }
 
