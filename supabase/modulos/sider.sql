@@ -220,7 +220,22 @@ create index if not exists sider_fotos_cert_idx on public.sider_fotos (certifica
 --    calculadas en vez de guardadas. En la app esta es la pantalla
 --    "Fuente principal": donde llega toda la información.
 -- ---------------------------------------------------------------------
-create or replace view public.v_sider_viajes as
+-- OJO: drop y luego create, NO "create or replace view".
+-- "create or replace view" solo permite AGREGAR columnas al final: no
+-- deja meter una en el medio ni renombrar ninguna. Cuando se agregaron
+-- salida_direccion y llegada_direccion —que van pegadas a su precisión,
+-- que es donde se leen, y no arrumadas al final— una base que YA tenía
+-- la vista vieja se caía con:
+--   ERROR 42P16: cannot change name of view column "cert_llegada_id"
+--                to "salida_direccion"
+-- que es Postgres comparando la vista vieja contra la nueva columna por
+-- columna y encontrando la primera que se corrió de puesto.
+--
+-- Botarla no pierde nada: una vista no guarda filas, es una consulta con
+-- nombre. Los datos están en sider_viajes y sider_certificaciones, que
+-- no se tocan. El grant de más abajo la vuelve a dejar legible.
+drop view if exists public.v_sider_viajes;
+create view public.v_sider_viajes as
 with p as (select valor as estibas_sider from public.sider_parametros where clave = 'estibas_por_sider')
 select
   v.id,
