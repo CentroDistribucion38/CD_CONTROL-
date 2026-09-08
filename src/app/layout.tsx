@@ -8,14 +8,14 @@ export const metadata: Metadata = {
    * app (del manifest) con el título de la página. Si los dos dicen lo
    * mismo, no lo repite. Por eso los tres nombres van idénticos.
    */
-  title: "CONTROL CD38",
+  title: "CD38",
   description: "Plataforma modular de gestión operativa · Centro de Distribución 38",
-  applicationName: "CONTROL CD38",
+  applicationName: "CD38",
   // Para que en iPhone/iPad "Agregar a pantalla de inicio" abra sin la
   // barra de Safari y con el nombre corto.
   appleWebApp: {
     capable: true,
-    title: "CONTROL CD38",
+    title: "CD38",
     statusBarStyle: "black-translucent",
   },
 };
