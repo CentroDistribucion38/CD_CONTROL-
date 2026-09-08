@@ -389,3 +389,110 @@
   margin-top: 7px; max-width: 72ch;
 }
 .sd .ct-revision > div.ancho { grid-column: 1 / -1 }
+
+/* ====================== Celular: que TODO quepa ======================
+   Esto se llena de pie al lado de un vehículo, con una mano. Bajar para
+   encontrar el botón con el pulgar es exactamente lo que no puede pasar.
+
+   Medido antes de tocar nada, en 390×844: cinco de los seis pasos
+   obligaban a bajar, y el peor —Origen— pedía 923 px porque los 16 CD
+   iban en una sola columna. La idea de aquí en adelante es que la PÁGINA
+   no se desplace: lo que crece es la lista, y se desplaza dentro de su
+   propia caja.
+   ==================================================================== */
+@media (max-width: 900px) {
+  .sd { gap: 10px }
+
+  /* ---- El camino: solo el número, y el nombre solo del paso actual ---- */
+  .sd .ct-pasos { padding: 5px; gap: 2px }
+  .sd .ct-pasos li { min-width: 0 }
+  .sd .ct-pasos button { padding: 6px 2px; gap: 3px; font-size: 10.5px }
+  .sd .ct-pasos button i { width: 24px; height: 24px; font-size: 12px; border-width: 1.5px }
+  .sd .ct-pasos li button span { display: none }
+  .sd .ct-pasos li.aqui button span { display: block }
+
+  /* ---- El cuerpo del paso ---- */
+  .sd .ct-paso { padding: 16px 14px 14px }
+  .sd .ct-paso h2 { font-size: 21px }
+  .sd .ct-dice { margin: 6px 0 14px; font-size: 12.5px; line-height: 1.4 }
+  .sd .ct-botones { margin-top: 14px; gap: 10px }
+  .sd .btn { height: 50px; font-size: 15px }
+
+  /* ---- Las listas se desplazan DENTRO de su caja, no la página ----
+     Dos columnas: con 16 orígenes, una sola columna es una lista de un
+     metro. Y el alto en dvh se acomoda solo al teclado y a la barra del
+     navegador, que en el celular aparecen y desaparecen. */
+  .sd .ct-opciones {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    max-height: 46dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Aire abajo para que la última fila no quede pegada al borde y
+       parezca que ahí se acaba la lista. */
+    padding-bottom: 4px;
+  }
+  /* Un velo abajo para que se vea que la lista sigue. Sin él, la fila
+     cortada parece un error de dibujo y no un "hay más". */
+  .sd .ct-opciones {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+  }
+  .sd .ct-op { min-height: 60px; padding: 10px 11px }
+  .sd .ct-op b { font-size: 13.5px }
+  .sd .ct-op span { font-size: 11px }
+
+  /* ---- Ubicación ---- */
+  .sd .ct-grande { min-height: 62px; font-size: 16px }
+  .sd .ct-ubi { padding: 14px 15px }
+  .sd .ct-ubi .coord { font-size: 19px; margin-top: 5px }
+  .sd .ct-ubi .pre { font-size: 12.5px }
+  .sd .ct-ubi .ojo { font-size: 12.5px; margin-top: 9px }
+  .sd .ct-dir { margin-top: 12px }
+  .sd .ct-dir input { height: 44px; font-size: 14.5px }
+  .sd .ct-dir .pie { display: none }
+
+  /* ---- Carga ---- */
+  .sd .ct-campos { gap: 11px }
+  .sd .ct-campos input { height: 52px; font-size: 19px }
+  .sd .ct-campos label.ancho input { height: 42px }
+
+  /* ---- Fotos: las tres en una fila, que se vean de un golpe ---- */
+  .sd .ct-fotos { grid-template-columns: repeat(3, 1fr); gap: 8px }
+  .sd .ct-foto button { padding: 10px 6px; gap: 5px }
+  .sd .ct-foto.lista button { padding: 5px }
+  .sd .ct-foto b { font-size: 12px; text-align: center; line-height: 1.15 }
+  /* La ayuda de cada ranura sobra cuando ya se ve el nombre y la foto.
+     Ojo: se apunta a .ct-ayuda y no a "span" a secas, porque el ícono de
+     la cámara también es un span y desaparecía con él. */
+  .sd .ct-foto .ct-ayuda { display: none }
+  .sd .ct-camara { width: 42px; height: 42px }
+  .sd .ct-camara svg { width: 20px; height: 20px }
+
+  /* ---- Confirmar ---- */
+  .sd .ct-revision { grid-template-columns: 1fr 1fr }
+  .sd .ct-revision > div { padding: 8px 11px }
+  .sd .ct-revision dt { font-size: 9.5px; letter-spacing: .08em }
+  .sd .ct-revision dd { font-size: 13.5px; margin-top: 3px; line-height: 1.25 }
+  .sd .ct-revision dd.fuerte { font-size: 17px }
+  .sd .ct-revision dd em { font-size: 11px; margin-top: 1px }
+
+  /* ---- El tiquete: en dos filas de tres, chiquito ---- */
+  .sd .ct-tiquete { padding: 12px 14px 13px }
+  .sd .ct-tiquete .cifras-t { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px }
+  .sd .ct-tiquete .cifras-t b { font-size: 18px }
+  .sd .ct-tiquete .cifras-t span { font-size: 10px }
+  .sd .ct-tiquete .ojo { font-size: 12px; margin-top: 10px }
+
+  /* ---- El encabezado de la página ocupa una pantalla entera él solo ---- */
+  .sd .cabeza h1 { font-size: 26px }
+  .sd .cabeza .sub { font-size: 12.5px; margin-top: 6px }
+}
+
+/* En pantallas bajas de verdad (celular apaisado, o con el teclado
+   abierto) la lista tiene que ceder más todavía. */
+@media (max-width: 900px) and (max-height: 700px) {
+  .sd .ct-opciones { max-height: 38dvh }
+  .sd .ct-paso h2 { font-size: 19px }
+  .sd .ct-dice { display: none }
+}

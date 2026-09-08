@@ -518,7 +518,10 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
                   {ubi ? `${ubi.lat.toFixed(5)}, ${ubi.lng.toFixed(5)} · ±${Math.round(ubi.precision)} m` : "—"}
                 </em>
               </dd></div>
-              <div><dt>Fotos</dt><dd>3 de 3</dd></div>
+              <div className="ancho"><dt>Fotos</dt><dd>
+                {RANURAS.length - faltanFotos.length} de {RANURAS.length}
+                {!!faltanFotos.length && <em>Faltan: {faltanFotos.map((r) => r.t.toLowerCase()).join(", ")}</em>}
+              </dd></div>
             </dl>
             <div className="ct-botones">
               <button type="button" className="btn" onClick={certificar} disabled={!listo || enviando}>
@@ -608,7 +611,7 @@ function Ranurita({ r, foto, tomar }: {
           </span>
         )}
         <b>{r.t}</b>
-        <span>{foto ? "Tocar para repetir" : r.d}</span>
+        <span className="ct-ayuda">{foto ? "Tocar para repetir" : r.d}</span>
       </button>
     </div>
   );
