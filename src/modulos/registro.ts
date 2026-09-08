@@ -33,6 +33,11 @@ export type Modulo = {
   acento: string;
   /** Color de respaldo y mezcla de la zona de imagen */
   fondo: string;
+  /**
+   * Dos o tres palabras que digan qué hay adentro. Si no se ponen, la
+   * portada usa los nombres de las primeras secciones.
+   */
+  etiquetas?: string[];
   /** Ruta de la foto en /public. Si no existe, se ve solo el fondo. */
   imagen: string;
   ruta: string;
@@ -49,8 +54,9 @@ export const MODULOS: Modulo[] = [
     eyebrow: "AVERÍAS",
     descripcion:
       "Rotura de envase retornable medida contra producción, importada del maestro de SAP.",
-    acento: "#B26A00",
+    acento: "#E4002B",
     fondo: "#FBEFD6",
+    etiquetas: ["Meta mensual 1,6%", "Histórico por día"],
     imagen: "/modulos/quiebra.jpg",
     ruta: "/quiebra",
     activo: true,
@@ -65,8 +71,9 @@ export const MODULOS: Modulo[] = [
     eyebrow: "STOCK",
     descripcion:
       "Catálogo, kardex de movimientos, existencias por bodega y conteos físicos.",
-    acento: "#0060B0",
+    acento: "#E9A81F",
     fondo: "#E2EDF9",
+    etiquetas: ["Kardex", "Conteos físicos"],
     imagen: "/modulos/inventario.jpg",
     ruta: "/inventario",
     activo: true,

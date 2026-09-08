@@ -1,48 +1,18 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { modulosVisibles } from "@/modulos/registro";
-import { TarjetaModulo, type DatoPie } from "@/components/TarjetaModulo";
-import { fmtNum } from "@/lib/formato";
+import { PieApp } from "@/components/PieApp";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Datos del pie de cada tarjeta. Cada consulta va aislada: si una falla o el
- * módulo todavía no tiene tablas, esa tarjeta se queda sin dato y la portada
- * sigue funcionando.
+ * Portada: el selector de módulos. Es lo primero que ve la gente al entrar,
+ * así que no lleva menú lateral ni resúmenes — solo las puertas de entrada,
+ * grandes y sin que haya que leer nada para saber dónde tocar.
+ *
+ * Los módulos salen de src/modulos/registro.ts; aquí no hay ninguna lista
+ * escrita a mano.
  */
-async function datosPorModulo(): Promise<Record<string, DatoPie>> {
-  const supabase = await createClient();
-  const datos: Record<string, DatoPie> = {};
-
-  const [productos, quiebrasPendientes, existencias] = await Promise.allSettled([
-    supabase.from("productos").select("*", { count: "exact", head: true }).eq("activo", true),
-    supabase.from("quiebras").select("*", { count: "exact", head: true }).eq("estado", "reportada"),
-    supabase.from("v_existencias").select("cantidad"),
-  ]);
-
-  if (productos.status === "fulfilled" && productos.value.count !== null) {
-    datos.inventario = { texto: `${fmtNum(productos.value.count)} materiales` };
-  }
-
-  if (quiebrasPendientes.status === "fulfilled" && quiebrasPendientes.value.count !== null) {
-    const n = quiebrasPendientes.value.count;
-    datos.quiebra =
-      n > 0
-        ? { texto: `${n} por aprobar`, enAlerta: true }
-        : { texto: "Sin pendientes" };
-  }
-
-  if (existencias.status === "fulfilled" && existencias.value.data) {
-    const total = existencias.value.data.reduce(
-      (a, f) => a + Number((f as { cantidad: number }).cantidad ?? 0),
-      0
-    );
-    datos.__unidades = { texto: fmtNum(total) };
-  }
-
-  return datos;
-}
-
 export default async function PortadaPage() {
   const supabase = await createClient();
   const {
@@ -51,40 +21,75 @@ export default async function PortadaPage() {
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("nombre, rol")
+    .select("rol")
     .eq("id", user!.id)
     .single();
 
-  const rol = perfil?.rol ?? "operador";
-  const modulos = modulosVisibles(rol);
-  const datos = await datosPorModulo();
-
-  const unidades = datos.__unidades?.texto;
-  const pendientes = datos.quiebra?.enAlerta ? datos.quiebra.texto : null;
-
-  const resumen = [
-    unidades ? `${unidades} unidades en existencia` : null,
-    pendientes ? `${pendientes.replace(" por aprobar", "")} averías por aprobar` : null,
-  ].filter(Boolean);
+  const modulos = modulosVisibles(perfil?.rol ?? "operador");
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <header className="mb-6">
-        <h1 className="text-[22px] font-medium">
-          Selecciona el módulo con el que vas a trabajar
-        </h1>
-        {resumen.length > 0 && (
-          <p className="mt-1 text-[13px]" style={{ color: "var(--bv-texto-2)" }}>
-            {resumen.join(" · ")}
-          </p>
-        )}
-      </header>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {modulos.map((m) => (
-          <TarjetaModulo key={m.id} m={m} dato={datos[m.id]} />
-        ))}
+    <div className="sh-portada">
+      <div className="sh-titulo">
+        <h1>Selecciona el módulo con el que vas a trabajar</h1>
+        <p className="sh-firma">Centro de Distribución 38 · Bavaria BAQ</p>
       </div>
+
+      <div className={"sh-mosaico" + (modulos.length === 1 ? " uno" : "")}>
+        {modulos.map((m) => {
+          // Si no se definieron etiquetas, se muestran las primeras secciones.
+          const etiquetas =
+            m.etiquetas ?? m.secciones.slice(0, 2).map((s) => s.nombre);
+
+          return (
+            <Link
+              key={m.id}
+              href={m.ruta}
+              className="sh-modulo"
+              style={
+                {
+                  "--acento": m.acento,
+                  // El oro es claro: una flecha blanca encima no se lee.
+                  "--flecha": esClaro(m.acento) ? "#04203F" : "#fff",
+                } as React.CSSProperties
+              }
+            >
+              <div className="sh-riel" />
+              <div className="sh-cinta" />
+              <div className="sh-codigo">{m.eyebrow}</div>
+              <h2>{m.nombre}</h2>
+
+              {etiquetas.length > 0 && (
+                <div className="sh-datos">
+                  {etiquetas.map((e) => (
+                    <span key={e}>{e}</span>
+                  ))}
+                </div>
+              )}
+
+              <div className="sh-abrir">
+                Abrir módulo
+                <i>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h13M12 5l7 7-7 7" />
+                  </svg>
+                </i>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      <PieApp />
     </div>
   );
+}
+
+/** Luminancia aproximada, para decidir el color de la flecha. */
+function esClaro(hex: string): boolean {
+  const c = hex.replace("#", "");
+  if (c.length !== 6) return false;
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62;
 }

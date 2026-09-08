@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BarraSuperior } from "@/components/BarraSuperior";
 import { Navegacion } from "@/components/Navegacion";
+import "./shell.css";
 
 function turnoActual(): string {
   const ahora = new Date();
@@ -44,7 +45,7 @@ export default async function AppLayout({
   const rol = perfil?.rol ?? "operador";
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="sh flex min-h-screen flex-col">
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
       <div className="flex flex-1 flex-col md:flex-row">
         <Navegacion nombre={nombre} rol={rol} />

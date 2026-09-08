@@ -1,0 +1,334 @@
+/* ---------------------------------------------------------------------
+   Cascarón de la app: barra superior oscura y portada de módulos.
+   Prefijo .sh- para no chocar con nada del resto de la aplicación.
+   --------------------------------------------------------------------- */
+
+.sh {
+  --sh-tinta:     #04203F;
+  --sh-azul:      #0B4EA2;
+  --sh-rojo:      #E4002B;
+  --sh-hueso:     #EEF1F5;
+  --sh-papel:     #FFFFFF;
+  --sh-gris:      #5B6B7F;
+  --sh-linea:     #D5DCE5;
+
+  --sh-titulo: "Archivo", system-ui, sans-serif;
+  --sh-texto:  "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ====================== Barra superior ====================== */
+.sh-barra {
+  position: relative;
+  flex: none;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 30px;
+  background: var(--sh-tinta);
+  color: #fff;
+  font-family: var(--sh-texto);
+}
+/* filo rojo: el mismo gesto del acceso */
+.sh-barra::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 3px;
+  background: var(--sh-rojo);
+}
+/* la trama de rombos del acceso, ahora solo aquí */
+.sh-barra::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .3;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(64deg, rgba(255,255,255,.5) 0 1px, transparent 1px 74px),
+    repeating-linear-gradient(-64deg, rgba(255,255,255,.28) 0 1px, transparent 1px 74px);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 68%, transparent 92%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 68%, transparent 92%);
+}
+.sh-barra > * { position: relative }
+
+.sh-barra img { width: 38px; height: 38px; display: block }
+.sh-barra .div { width: 1px; height: 26px; background: rgba(255,255,255,.25) }
+.sh-barra .wm {
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: .22em;
+}
+.sh-barra .der {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13.5px;
+  color: #A9C2DE;
+}
+.sh-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--sh-rojo);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: .04em;
+  flex: none;
+}
+
+/* botones de instalar / actualizar, sobre fondo oscuro */
+.sh-boton {
+  display: grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.28);
+  background: transparent;
+  color: #C9DCF0;
+  cursor: pointer;
+  flex: none;
+  transition: border-color .14s, color .14s, background .14s;
+}
+.sh-boton:hover { border-color: rgba(255,255,255,.6); color: #fff }
+.sh-boton:focus-visible { outline: 2px solid #fff; outline-offset: 2px }
+.sh-boton.nuevo {
+  border-color: var(--sh-rojo);
+  background: var(--sh-rojo);
+  color: #fff;
+}
+.sh-gira { animation: sh-girar .9s linear infinite }
+@keyframes sh-girar { to { transform: rotate(360deg) } }
+
+/* ====================== Portada de módulos ====================== */
+.sh-portada {
+  font-family: var(--sh-texto);
+  color: var(--sh-tinta);
+  display: flex;
+  flex-direction: column;
+  /* la barra mide 70px; esto hace que la portada llene la pantalla */
+  min-height: calc(100dvh - 70px);
+  /* El <main> del cascarón trae relleno para las páginas de los módulos.
+     La portada lo anula para poder llegar a los bordes: el filo del pie
+     tiene que cruzar la pantalla completa. */
+  margin: -20px;
+  padding: 38px 30px 0;
+}
+@media (min-width: 768px) {
+  .sh-portada { margin: -32px }
+}
+
+.sh-titulo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+.sh-titulo h1 {
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: clamp(26px, 2.6vw, 36px);
+  letter-spacing: -.03em;
+  margin: 0;
+  text-wrap: balance;
+}
+.sh-firma {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: .055em;
+  color: var(--sh-gris);
+  padding-bottom: 5px;
+  margin: 0;
+  flex: none;
+}
+.sh-firma::before {
+  content: "";
+  width: 24px; height: 3px;
+  background: var(--sh-rojo);
+  flex: none;
+}
+
+.sh-mosaico {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22px;
+  height: min(480px, 60vh);
+  min-height: 330px;
+  margin: auto 0;
+}
+/* un solo módulo no se estira a media pantalla */
+.sh-mosaico.uno { grid-template-columns: minmax(0, 620px) }
+
+.sh-modulo {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 44px 40px 40px 46px;
+  background: var(--sh-papel);
+  border: 1px solid var(--sh-linea);
+  border-radius: 3px;
+  text-decoration: none;
+  color: var(--sh-tinta);
+  box-shadow: 0 18px 42px -34px rgba(4,32,63,.55);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.sh-modulo:hover {
+  transform: translateY(-4px);
+  border-color: var(--acento);
+  box-shadow: 0 30px 56px -34px rgba(4,32,63,.6);
+}
+.sh-modulo:focus-visible { outline: 3px solid var(--sh-azul); outline-offset: 3px }
+
+.sh-riel {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 5px;
+  background: var(--acento);
+}
+.sh-cinta {
+  position: absolute;
+  top: 46px; right: -104px;
+  width: 290px; height: 46px;
+  background: var(--acento);
+  transform: rotate(52deg);
+  transition: top .18s ease, right .18s ease;
+}
+.sh-modulo:hover .sh-cinta { top: 36px; right: -94px }
+
+.sh-codigo {
+  position: absolute;
+  top: 34px; left: 46px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  color: var(--sh-gris);
+}
+
+.sh-modulo h2 {
+  position: relative;
+  font-family: var(--sh-titulo);
+  font-weight: 900;
+  font-size: clamp(40px, 4.4vw, 68px);
+  line-height: .88;
+  letter-spacing: -.045em;
+  margin: 0;
+}
+
+.sh-datos {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 26px;
+}
+.sh-datos span {
+  border: 1px solid var(--sh-linea);
+  padding: 6px 12px;
+  border-radius: 2px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #2C4361;
+}
+
+.sh-abrir {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: .02em;
+}
+.sh-abrir i {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: var(--acento);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.sh-abrir svg {
+  width: 17px; height: 17px;
+  stroke: var(--flecha, #fff);
+  stroke-width: 2.4;
+  fill: none;
+}
+
+/* ====================== Pie ====================== */
+.sh-pie {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 30px -30px 0;
+  padding: 16px 30px;
+  font-size: 12.5px;
+  color: var(--sh-gris);
+  border-top: 1px solid var(--sh-linea);
+}
+.sh-pie b { font-weight: 600; color: #2C4361 }
+.sh-pie button {
+  color: var(--sh-azul);
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 12.5px;
+  background: none;
+  border: 0;
+  border-bottom: 1.5px solid rgba(11,78,162,.3);
+  padding-bottom: 1px;
+  cursor: pointer;
+}
+.sh-pie button:hover { color: var(--sh-rojo); border-bottom-color: var(--sh-rojo) }
+.sh-pie button:focus-visible { outline: 2px solid var(--sh-azul); outline-offset: 3px }
+
+/* ====================== Celular y tableta ====================== */
+@media (max-width: 900px) {
+  .sh-barra { padding: 0 18px; gap: 14px }
+  .sh-barra img { width: 34px; height: 34px }
+  .sh-barra .der .turno { display: none }
+
+  .sh-portada { padding: 26px 20px 0 }
+  .sh-titulo { flex-direction: column; align-items: flex-start; gap: 10px }
+  .sh-firma { padding-bottom: 0 }
+
+  .sh-mosaico {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    height: auto;
+    min-height: 0;
+  }
+  .sh-mosaico.uno { grid-template-columns: 1fr }
+
+  .sh-modulo {
+    justify-content: flex-start;
+    padding: 26px 24px 28px 30px;
+  }
+  .sh-modulo h2 { font-size: clamp(38px, 10vw, 52px) }
+  /* el rótulo pasa al flujo: absoluto choca con el título */
+  .sh-codigo { position: static; margin-bottom: 12px }
+  .sh-cinta { top: 30px; right: -118px; width: 250px; height: 44px }
+
+  .sh-pie {
+    margin: 26px -20px 0;
+    padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-modulo, .sh-cinta, .sh-boton { transition: none !important }
+  .sh-gira { animation: none !important }
+}

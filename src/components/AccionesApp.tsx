@@ -162,10 +162,9 @@ export function AccionesApp({
           disabled={recargando}
           title="Hay una versión nueva. Toca para actualizar."
           aria-label="Actualizar a la versión nueva"
-          className="flex h-[26px] w-[26px] items-center justify-center rounded-full border transition-colors"
-          style={{ borderColor: "#E4002B", color: "#E4002B", background: "#fff5f6" }}
+          className="sh-boton nuevo"
         >
-          <RefreshCw size={13} className={recargando ? "animate-spin" : ""} />
+          <RefreshCw size={14} className={recargando ? "sh-gira" : ""} />
         </button>
       )}
 
@@ -175,10 +174,9 @@ export function AccionesApp({
           onClick={instalar}
           title="Instalar CONTROL en este dispositivo"
           aria-label="Instalar CONTROL"
-          className="flex h-[26px] w-[26px] items-center justify-center rounded-full border"
-          style={{ borderColor: "var(--bv-linea)", color: "var(--bv-texto-2)" }}
+          className="sh-boton"
         >
-          <Download size={13} />
+          <Download size={14} />
         </button>
       )}
 
