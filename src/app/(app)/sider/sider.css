@@ -369,3 +369,23 @@
   .sd .ct-botones .btn { flex: 1 1 auto }
   .sd .ct-tiquete { padding: 16px }
 }
+
+/* La dirección debajo de la ubicación. Es texto descriptivo y editable;
+   la evidencia dura (lat, lng, precisión) va arriba y no se toca. */
+.sd .ct-dir { display: block; margin-top: 16px; max-width: 620px }
+.sd .ct-dir > span { display: block; font-size: 12.5px; font-weight: 600; color: #2C4361; margin-bottom: 7px }
+.sd .ct-dir > span em { font-style: normal; font-weight: 500; color: var(--sd-gris) }
+.sd .ct-dir input {
+  width: 100%; height: 48px; padding: 0 13px;
+  font: 500 15px var(--sd-texto); color: var(--sd-tinta);
+  background: #F7F9FC; border: 1.5px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .ct-dir input:focus {
+  outline: none; background: #fff; border-color: var(--sd-acento);
+  box-shadow: 0 0 0 3px rgba(11,114,133,.16);
+}
+.sd .ct-dir .pie {
+  display: block; font-style: normal; font-size: 12px; color: var(--sd-gris);
+  margin-top: 7px; max-width: 72ch;
+}
+.sd .ct-revision > div.ancho { grid-column: 1 / -1 }

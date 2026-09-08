@@ -171,6 +171,12 @@ create table if not exists public.sider_certificaciones (
   -- Cuándo lo dijo el GPS del teléfono, que no es lo mismo que cuándo
   -- llegó la fila a la base.
   ubicado_en   timestamptz,
+  -- La dirección es la TRADUCCIÓN del punto, no el punto. La resuelve un
+  -- servicio de mapas a partir de lat/lng y puede fallar, quedar en la
+  -- calle de al lado o no existir; por eso se guarda ADEMÁS de las
+  -- coordenadas y nunca en vez de ellas. La evidencia son lat, lng y la
+  -- precisión: eso no depende de que un tercero responda.
+  direccion    text,
   nota         text,
   hecha_por    uuid references public.perfiles(id) on delete set null,
   hecha_en     timestamptz not null default now(),
@@ -179,6 +185,9 @@ create table if not exists public.sider_certificaciones (
 );
 
 create index if not exists sider_cert_viaje_idx on public.sider_certificaciones (viaje_id);
+
+-- Por si la tabla ya existía sin la columna.
+alter table public.sider_certificaciones add column if not exists direccion text;
 
 -- ---------------------------------------------------------------------
 -- 4. Las tres fotos por punta
@@ -255,11 +264,13 @@ select
   cs.lat          as salida_lat,
   cs.lng          as salida_lng,
   cs.precision_m  as salida_precision,
+  cs.direccion    as salida_direccion,
   cl.id           as cert_llegada_id,
   cl.hecha_en     as llegada_en,
   cl.lat          as llegada_lat,
   cl.lng          as llegada_lng,
   cl.precision_m  as llegada_precision,
+  cl.direccion    as llegada_direccion,
   (select count(*) from public.sider_fotos f where f.certificacion_id = cs.id) as fotos_salida,
   (select count(*) from public.sider_fotos f where f.certificacion_id = cl.id) as fotos_llegada,
   -- Cuánto lleva en el camino: la pregunta del tablero de tránsito.
@@ -285,7 +296,8 @@ create or replace function public.sider_certificar_salida(
   p_lng         numeric,
   p_precision_m numeric,
   p_ubicado_en  timestamptz,
-  p_nota        text default null
+  p_nota        text default null,
+  p_direccion   text default null
 )
 returns table (viaje_id uuid, certificacion_id uuid)
 language plpgsql
@@ -308,9 +320,10 @@ begin
   returning id into v_viaje;
 
   insert into public.sider_certificaciones
-    (viaje_id, punta, lat, lng, precision_m, ubicado_en, nota, hecha_por)
+    (viaje_id, punta, lat, lng, precision_m, ubicado_en, direccion, nota, hecha_por)
   values
     (v_viaje, 'salida', p_lat, p_lng, p_precision_m, p_ubicado_en,
+     nullif(btrim(coalesce(p_direccion, '')), ''),
      nullif(btrim(coalesce(p_nota, '')), ''), auth.uid())
   returning id into v_cert;
 
@@ -323,7 +336,8 @@ create or replace function public.sider_certificar_llegada(
   p_lng         numeric,
   p_precision_m numeric,
   p_ubicado_en  timestamptz,
-  p_nota        text default null
+  p_nota        text default null,
+  p_direccion   text default null
 )
 returns uuid
 language plpgsql
@@ -356,9 +370,10 @@ begin
   end if;
 
   insert into public.sider_certificaciones
-    (viaje_id, punta, lat, lng, precision_m, ubicado_en, nota, hecha_por)
+    (viaje_id, punta, lat, lng, precision_m, ubicado_en, direccion, nota, hecha_por)
   values
     (p_viaje_id, 'llegada', p_lat, p_lng, p_precision_m, p_ubicado_en,
+     nullif(btrim(coalesce(p_direccion, '')), ''),
      nullif(btrim(coalesce(p_nota, '')), ''), auth.uid())
   returning id into v_cert;
 
@@ -439,11 +454,17 @@ end $$;
 
 grant select on public.v_sider_viajes to authenticated;
 grant execute on function
-  public.sider_certificar_salida(text, text, text, numeric, numeric, numeric, numeric, timestamptz, text)
+  public.sider_certificar_salida(text, text, text, numeric, numeric, numeric, numeric, timestamptz, text, text)
 to authenticated;
 grant execute on function
-  public.sider_certificar_llegada(uuid, numeric, numeric, numeric, timestamptz, text)
+  public.sider_certificar_llegada(uuid, numeric, numeric, numeric, timestamptz, text, text)
 to authenticated;
+
+-- La firma vieja (sin dirección) queda regada si ya se corrió este
+-- archivo antes: se quita para que no haya dos funciones con el mismo
+-- nombre y PostgREST no tenga que adivinar cuál llamar.
+drop function if exists public.sider_certificar_salida(text, text, text, numeric, numeric, numeric, numeric, timestamptz, text);
+drop function if exists public.sider_certificar_llegada(uuid, numeric, numeric, numeric, timestamptz, text);
 grant execute on function public.sider_quitar_origen(text) to authenticated;
 grant execute on function public.sider_quitar_sku(text)    to authenticated;
 

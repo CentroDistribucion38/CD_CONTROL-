@@ -44,6 +44,42 @@ const RANURAS = [
 type Ranura = (typeof RANURAS)[number]["id"];
 
 type Ubicacion = { lat: number; lng: number; precision: number; en: string };
+
+/**
+ * Traduce el punto a una dirección. Se usa Nominatim de OpenStreetMap
+ * porque no pide llave ni cuenta; si no responde, no pasa nada grave: la
+ * evidencia son las coordenadas y la precisión, y esas ya están. La
+ * dirección es para que un humano sepa de qué sitio se está hablando sin
+ * abrir un mapa.
+ */
+async function buscarDireccion(lat: number, lng: number): Promise<string | null> {
+  try {
+    const u = new URL("https://nominatim.openstreetmap.org/reverse");
+    u.searchParams.set("format", "jsonv2");
+    u.searchParams.set("lat", String(lat));
+    u.searchParams.set("lon", String(lng));
+    // 18 = nivel de calle. Más detalle devuelve el número de una casa que
+    // muchas veces no existe en el mapa; menos, devuelve el barrio entero.
+    u.searchParams.set("zoom", "18");
+    u.searchParams.set("addressdetails", "1");
+    u.searchParams.set("accept-language", "es");
+    const r = await fetch(u, { headers: { Accept: "application/json" } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const a = j?.address ?? {};
+    /* Se arma corto y útil: vía, barrio, ciudad. El display_name de
+       Nominatim trae hasta el país y el código postal y no cabe en la
+       banda de la foto. */
+    const partes = [
+      [a.road, a.house_number].filter(Boolean).join(" "),
+      a.neighbourhood || a.suburb || a.quarter,
+      a.city || a.town || a.village || a.municipality,
+    ].filter(Boolean);
+    return partes.length ? partes.join(", ") : (j?.display_name ?? null);
+  } catch {
+    return null;
+  }
+}
 type Foto = { blob: Blob; url: string; ancho: number; alto: number };
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -68,6 +104,8 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
   const [ubi, setUbi] = useState<Ubicacion | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [errUbi, setErrUbi] = useState<string | null>(null);
+  const [direccion, setDireccion] = useState("");
+  const [buscandoDir, setBuscandoDir] = useState(false);
 
   const [planta, setPlanta] = useState("");
   const [sku, setSku] = useState("");
@@ -106,13 +144,22 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
     setErrUbi(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setUbi({
+        const u = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           precision: pos.coords.accuracy,
           en: new Date(pos.timestamp).toISOString(),
-        });
+        };
+        setUbi(u);
         setBuscando(false);
+        // La dirección se busca aparte y no bloquea: si el servicio no
+        // responde, la certificación sigue valiendo con las coordenadas.
+        setBuscandoDir(true);
+        setDireccion("");
+        buscarDireccion(u.lat, u.lng).then((d) => {
+          if (d) setDireccion(d);
+          setBuscandoDir(false);
+        });
       },
       (e) => {
         setBuscando(false);
@@ -137,6 +184,7 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
       const foto = await sellar(archivo, {
         placa: placa.trim().toUpperCase() || "SIN PLACA",
         ubi,
+        direccion: direccion.trim(),
         etiqueta: RANURAS.find((r) => r.id === ranura)!.t,
       });
       setFotos((f) => {
@@ -169,6 +217,7 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
       p_precision_m: Math.round(ubi.precision),
       p_ubicado_en: ubi.en,
       p_nota: nota.trim() || null,
+      p_direccion: direccion.trim() || null,
     });
 
     if (error) {
@@ -316,6 +365,23 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
                     <p className="ojo">Aceptable, pero si puedes salir a cielo abierto mejora.</p>
                   )}
                 </div>
+
+                <label className="ct-dir">
+                  <span>
+                    Dirección
+                    {buscandoDir && <em> · buscándola…</em>}
+                    {!buscandoDir && !direccion && <em> · no se pudo resolver, escríbela</em>}
+                  </span>
+                  <input
+                    value={direccion}
+                    placeholder={buscandoDir ? "Buscando la dirección…" : "Cra 38 #45-12, El Bosque, Barranquilla"}
+                    onChange={(e) => setDireccion(e.target.value)}
+                  />
+                  <em className="pie">
+                    Sale del punto y se puede corregir. Lo que prueba dónde se hizo son las
+                    coordenadas y la precisión, no este texto: por eso se guardan las dos cosas.
+                  </em>
+                </label>
                 <div className="ct-botones">
                   <button type="button" className="btn" onClick={() => setPaso(1)}>Seguir</button>
                   <button type="button" className="btn plano" onClick={pedirUbicacion} disabled={buscando}>
@@ -446,7 +512,12 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
               <div><dt>CD origen</dt><dd>{origenes.find((o) => o.planta === planta)?.cd_origen ?? "—"}</dd></div>
               <div><dt>Material</dt><dd>{mat?.descripcion ?? "—"}<em>{sku}</em></dd></div>
               <div><dt>Estibas</dt><dd>{nEst ? nf2.format(nEst) : "—"}</dd></div>
-              <div><dt>Ubicación</dt><dd>{ubi ? `${ubi.lat.toFixed(5)}, ${ubi.lng.toFixed(5)}` : "—"}<em>±{ubi ? Math.round(ubi.precision) : "—"} m</em></dd></div>
+              <div className="ancho"><dt>Dónde</dt><dd>
+                {direccion || (ubi ? `${ubi.lat.toFixed(5)}, ${ubi.lng.toFixed(5)}` : "—")}
+                <em>
+                  {ubi ? `${ubi.lat.toFixed(5)}, ${ubi.lng.toFixed(5)} · ±${Math.round(ubi.precision)} m` : "—"}
+                </em>
+              </dd></div>
               <div><dt>Fotos</dt><dd>3 de 3</dd></div>
             </dl>
             <div className="ct-botones">
@@ -551,7 +622,7 @@ function Ranurita({ r, foto, tomar }: {
    ==================================================== */
 async function sellar(
   archivo: File,
-  d: { placa: string; ubi: Ubicacion | null; etiqueta: string }
+  d: { placa: string; ubi: Ubicacion | null; direccion: string; etiqueta: string }
 ): Promise<Foto> {
   const img = await new Promise<HTMLImageElement>((ok, mal) => {
     const i = new Image();
@@ -593,6 +664,21 @@ async function sellar(
     `${ahora.toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}` +
     (d.ubi ? `  ·  ${d.ubi.lat.toFixed(5)}, ${d.ubi.lng.toFixed(5)}  ±${Math.round(d.ubi.precision)} m` : "  ·  sin ubicación");
   c.fillText(abajo, p, al - alto + p * 0.6 + g1 * 1.25);
+
+  /* La dirección va a la derecha del mismo renglón si cabe; si no, se
+     recorta. Un texto que se sale del lienzo no se ve, y peor: parece
+     que la foto quedó cortada. */
+  if (d.direccion) {
+    const libre = an - p * 2 - c.measureText(abajo).width - p;
+    if (libre > g2 * 6) {
+      let t = d.direccion;
+      while (c.measureText(t).width > libre && t.length > 4) t = t.slice(0, -2);
+      if (t !== d.direccion) t = t.slice(0, -1) + "…";
+      c.textAlign = "right";
+      c.fillText(t, an - p, al - alto + p * 0.6 + g1 * 1.25);
+      c.textAlign = "left";
+    }
+  }
 
   const blob = await new Promise<Blob>((ok) =>
     lienzo.toBlob((b) => ok(b!), "image/jpeg", 0.86)
