@@ -56,6 +56,22 @@ create table if not exists public.quiebra_diario_causal (
 create index if not exists quiebra_diario_causal_fecha_idx
   on public.quiebra_diario_causal (fecha);
 
+-- Solo las siete causales que existen. Es la MISMA lista cerrada a la que
+-- normaliza la importación (normalizarCausal), donde todo lo desconocido
+-- cae en "Otros".
+--
+-- Sin esta reja, una causal mal escrita se guardaba igual y quedaba
+-- sumando al total del día sin salir en ninguna fila de la pantalla: la
+-- cifra no cuadraba y no había dónde verlo. Es mejor que reviente aquí.
+-- Si algún día se agrega una causal en el código, hay que agregarla acá.
+alter table public.quiebra_diario_causal
+  drop constraint if exists quiebra_diario_causal_conocida;
+alter table public.quiebra_diario_causal
+  add constraint quiebra_diario_causal_conocida check (causal in (
+    'Sorting distribución', 'Presorting', 'Rotura máquina', 'Rotura depósito',
+    'Sorting envase', 'Lavado / extrasucio', 'Otros'
+  ));
+
 -- ---------------------------------------------------------------------
 -- 3. Vistas de lectura
 -- ---------------------------------------------------------------------
@@ -126,6 +142,8 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_raras text;
 begin
   if not public.es_editor() then
     raise exception 'Solo un supervisor o administrador puede editar el diario';
@@ -146,6 +164,18 @@ begin
   delete from public.quiebra_diario_causal where fecha = p_fecha;
 
   if p_causales is not null and jsonb_typeof(p_causales) = 'object' then
+    -- Se avisa con nombre y apellido antes de que reviente la reja de la
+    -- tabla: "violates check constraint" no le dice nada a nadie.
+    select string_agg(k, ', ') into v_raras
+    from jsonb_each(p_causales) as e(k, v)
+    where k not in (
+      'Sorting distribución', 'Presorting', 'Rotura máquina', 'Rotura depósito',
+      'Sorting envase', 'Lavado / extrasucio', 'Otros'
+    );
+    if v_raras is not null then
+      raise exception 'Causal desconocida: %. La app y la base están desfasadas.', v_raras;
+    end if;
+
     insert into public.quiebra_diario_causal (fecha, causal, cantidad)
     select p_fecha, k, (v #>> '{}')::numeric
     from jsonb_each(p_causales) as e(k, v)
