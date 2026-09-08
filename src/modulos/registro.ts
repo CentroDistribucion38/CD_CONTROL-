@@ -67,6 +67,25 @@ export const MODULOS: Modulo[] = [
     ],
   },
   {
+    id: "sider",
+    nombre: "Sider Certificado",
+    eyebrow: "ENVASE EN TRÁNSITO",
+    descripcion:
+      "Certificación de vehículos con ubicación y evidencia fotográfica, en la salida del CD origen y en la llegada a Barranquilla.",
+    acento: "#0B7285",
+    fondo: "#DFF1F3",
+    etiquetas: ["Certificar salida y llegada", "Vehículos en tránsito"],
+    imagen: "/modulos/sider.jpg",
+    ruta: "/sider",
+    activo: true,
+    secciones: [
+      { nombre: "Fuente principal", ruta: "/sider" },
+      { nombre: "Certificar", ruta: "/sider/certificar" },
+      { nombre: "En tránsito", ruta: "/sider/transito" },
+      { nombre: "Maestro", ruta: "/sider/maestro" },
+    ],
+  },
+  {
     id: "inventario",
     nombre: "Inventario",
     eyebrow: "STOCK",

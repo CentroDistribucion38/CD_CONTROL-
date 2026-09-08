@@ -76,11 +76,44 @@ const IconoDia = () => (
   </svg>
 );
 
+const IconoSider = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M2.5 7.5h11v9h-11z" />
+    <path d="M13.5 10.5h4l3 3v3h-7z" />
+    <circle cx="6.5" cy="18" r="1.6" />
+    <circle cx="17" cy="18" r="1.6" />
+  </svg>
+);
+const IconoUbicacion = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" />
+    <circle cx="12" cy="10" r="2.6" />
+  </svg>
+);
+const IconoRuta = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M6 20V9a3 3 0 0 1 3-3h6a3 3 0 0 0 3-3" />
+    <circle cx="6" cy="20" r="1.8" />
+    <circle cx="18" cy="4" r="1.8" />
+  </svg>
+);
+const IconoLlave = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <circle cx="8" cy="8" r="4" />
+    <path d="M11 11l8 8M16 16l-2 2M19 19l-2 2" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   quiebra: IconoQuiebra,
+  sider: IconoSider,
   inventario: IconoInventario,
 };
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
+  "/sider": IconoLista,
+  "/sider/certificar": IconoUbicacion,
+  "/sider/transito": IconoRuta,
+  "/sider/maestro": IconoLlave,
   "/quiebra": IconoTablero,
   "/quiebra/diario": IconoDia,
   "/quiebra/importar": IconoImportar,

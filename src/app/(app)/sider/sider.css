@@ -1,0 +1,220 @@
+/* ---------------------------------------------------------------------
+   Sider Certificado. Todo cuelga de .sd para no pisar nada de la app.
+   Comparte el lenguaje visual de Quiebra pero con su propio acento: el
+   módulo se reconoce por el color antes de leer el título.
+   --------------------------------------------------------------------- */
+
+.sd {
+  --sd-tinta: #04203F;
+  --sd-acento: #0B7285;
+  --sd-acento-hondo: #075661;
+  --sd-rojo: #E4002B;
+  --sd-oro: #E9A81F;
+  --sd-verde: #0F7A4A;
+  --sd-papel: #FFF;
+  --sd-gris: #5B6B7F;
+  --sd-linea: #D5DCE5;
+
+  --sd-titulo: "Archivo", system-ui, sans-serif;
+  --sd-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+
+  font-family: var(--sd-texto);
+  color: var(--sd-tinta);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.sd *, .sd *::before, .sd *::after { box-sizing: border-box }
+
+/* ====================== Encabezado ====================== */
+.sd .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 26px; align-items: stretch }
+.sd .cabeza h1 {
+  font-family: var(--sd-titulo); font-weight: 900;
+  font-size: clamp(30px, 3.4vw, 44px); letter-spacing: -.04em; margin: 0;
+}
+.sd .cabeza .sub { margin: 10px 0 0; font-size: 14px; color: var(--sd-gris); max-width: 62ch }
+.sd .cabeza .sub a {
+  color: var(--sd-acento); font-weight: 600; text-decoration: none;
+  border-bottom: 1.5px solid rgba(11,114,133,.35);
+}
+.sd .cabeza .sub a:hover { border-bottom-color: var(--sd-acento) }
+
+.sd .kpi {
+  position: relative; overflow: hidden; border-radius: 12px;
+  background: var(--sd-acento); color: #fff;
+  padding: 24px 30px 22px; min-width: 320px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.sd .kpi .corte {
+  position: absolute; top: -20%; bottom: -20%; right: -30px; width: 44%;
+  background: rgba(0,0,0,.16); transform: skewX(-26deg);
+}
+.sd .kpi .rot { position: relative; font-size: 11.5px; font-weight: 600; letter-spacing: .16em; opacity: .9 }
+.sd .kpi .num {
+  position: relative; font-family: var(--sd-titulo); font-weight: 900;
+  font-size: clamp(46px, 5vw, 66px); line-height: .9; letter-spacing: -.05em; margin-top: 8px;
+}
+.sd .kpi .num .u { font-size: .34em; margin-left: 6px; letter-spacing: 0 }
+.sd .kpi .pie {
+  position: relative; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-top: 14px; font-size: 13.5px; flex-wrap: wrap;
+}
+.sd .kpi .chip {
+  background: #fff; color: var(--sd-acento-hondo); font-family: var(--sd-titulo);
+  font-weight: 800; font-size: 12.5px; padding: 7px 15px; border-radius: 999px;
+}
+
+/* ====================== Cifras ====================== */
+.sd .cifras {
+  display: grid; grid-template-columns: repeat(4, 1fr); background: var(--sd-papel);
+  border: 1px solid var(--sd-linea); border-radius: 3px; overflow: hidden;
+}
+.sd .cifra { padding: 20px 24px; border-right: 1px solid var(--sd-linea) }
+.sd .cifra:last-child { border-right: 0 }
+.sd .cifra .rot { font-size: 11.5px; font-weight: 600; letter-spacing: .14em; color: var(--sd-gris) }
+.sd .cifra .n {
+  font-family: var(--sd-titulo); font-weight: 900; font-size: 32px;
+  letter-spacing: -.04em; margin-top: 8px;
+}
+.sd .cifra .u { margin-top: 4px; font-size: 12.5px; color: var(--sd-gris) }
+
+/* ====================== Tarjetas ====================== */
+.sd .tarjeta {
+  background: var(--sd-papel); border: 1px solid var(--sd-linea);
+  border-radius: 3px; display: flex; flex-direction: column; min-width: 0;
+}
+.sd .tarjeta .cab {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 20px; padding: 22px 26px 16px; flex-wrap: wrap;
+}
+.sd .tarjeta h2 {
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 18px;
+  letter-spacing: -.02em; margin: 0;
+}
+.sd .tarjeta .cab p { margin: 5px 0 0; font-size: 13.5px; color: var(--sd-gris); max-width: 74ch }
+
+/* ====================== Tabla ====================== */
+.sd .marco { overflow-x: auto; border-top: 1px solid var(--sd-linea) }
+.sd table { width: 100%; border-collapse: collapse; min-width: 1080px }
+.sd thead th {
+  padding: 10px 16px; font-size: 11px; font-weight: 600; letter-spacing: .12em;
+  color: #93A3B6; text-align: left; text-transform: uppercase; white-space: nowrap;
+  background: #FAFBFD; border-bottom: 1px solid var(--sd-linea);
+  position: sticky; top: 0; z-index: 2;
+}
+.sd tbody td { padding: 11px 16px; border-bottom: 1px solid #EDF1F6; font-size: 13.5px; vertical-align: middle }
+.sd tbody tr:last-child td { border-bottom: 0 }
+.sd tbody tr:hover { background: #F7F9FC }
+.sd td.num, .sd th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.sd td.vacio { text-align: center; color: var(--sd-gris); padding: 40px 16px }
+.sd td .cod { font-size: 11.5px; color: #93A3B6; margin-top: 2px }
+.sd td.placa {
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 14.5px; letter-spacing: .04em;
+}
+
+/* ====================== Marcas de estado ====================== */
+.sd .sello {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
+}
+.sd .sello i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none }
+.sd .sello.transito { background: #FFF6E6; color: #8A6100 }
+.sd .sello.recibido { background: #E9F6EF; color: #14653F }
+.sd .sello.anulado  { background: #F4F6F9; color: #93A3B6 }
+.sd .sello.falta    { background: #FDECEB; color: #A4271C }
+
+/* ====================== Aviso de módulo sin crear ====================== */
+.sd .sin-tablas {
+  background: #FFF8E6; border: 1px solid #F0D89B; border-radius: 3px; padding: 22px 26px;
+}
+.sd .sin-tablas h2 { font-family: var(--sd-titulo); font-weight: 800; font-size: 18px; margin: 0 }
+.sd .sin-tablas p { margin: 8px 0 0; font-size: 14px; color: #6B5518; max-width: 74ch }
+.sd .sin-tablas code {
+  background: #fff; border: 1px solid #E6D3A0; border-radius: 2px; padding: 2px 7px;
+  font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ====================== Maestro ====================== */
+.sd .m-rejilla { display: grid; grid-template-columns: 1fr 1.35fr; gap: 20px; align-items: start }
+
+.sd .m-fila { display: grid; gap: 10px; padding: 14px 26px; border-bottom: 1px solid #EDF1F6 }
+.sd .m-fila.origen { grid-template-columns: 1fr 1.2fr auto }
+.sd .m-fila.sku { grid-template-columns: 96px 1fr repeat(3, 92px) auto }
+.sd .m-fila.cab {
+  background: #FAFBFD; border-bottom: 1px solid var(--sd-linea); padding-top: 10px; padding-bottom: 10px;
+  font-size: 11px; font-weight: 600; letter-spacing: .1em; color: #93A3B6; text-transform: uppercase;
+}
+.sd .m-fila.apagada { background: #FAFBFD }
+.sd .m-fila.apagada input { color: #A9B6C6 }
+
+.sd input[type="text"], .sd input[type="number"], .sd select {
+  width: 100%; height: 40px; padding: 0 11px;
+  font: 500 14px var(--sd-texto); color: var(--sd-tinta);
+  background: #F7F9FC; border: 1.5px solid var(--sd-linea); border-radius: 2px;
+}
+.sd input.num { text-align: right; font-variant-numeric: tabular-nums }
+.sd input:focus, .sd select:focus {
+  outline: none; background: #fff; border-color: var(--sd-acento);
+  box-shadow: 0 0 0 3px rgba(11,114,133,.16);
+}
+.sd input:disabled { background: #EEF1F5; color: var(--sd-gris) }
+.sd input.tocada { background: #F1FAFB; border-color: #8FC7CF; font-weight: 600 }
+
+.sd .m-quitar {
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center;
+  border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 2px;
+  color: var(--sd-gris); cursor: pointer;
+}
+.sd .m-quitar:hover { border-color: var(--sd-rojo); color: var(--sd-rojo) }
+.sd .m-quitar svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2; fill: none }
+
+.sd .acciones {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 18px 26px; background: #FAFBFD; border-top: 1px solid var(--sd-linea);
+}
+.sd .btn {
+  height: 44px; padding: 0 22px; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--sd-acento); color: #fff;
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 14px;
+}
+.sd .btn:hover:not(:disabled) { background: var(--sd-acento-hondo) }
+.sd .btn:disabled { background: #B4C0CE; cursor: not-allowed }
+.sd .btn:focus-visible { outline: 3px solid var(--sd-tinta); outline-offset: 2px }
+.sd .btn.plano {
+  background: none; color: var(--sd-gris); padding: 0 6px;
+  font-family: var(--sd-texto); font-weight: 600; font-size: 13.5px;
+}
+.sd .btn.plano:hover:not(:disabled) { background: none; color: var(--sd-acento) }
+.sd .btn.plano:disabled { background: none; color: #C6D0DC }
+.sd .estado { margin-left: auto; font-size: 12.5px; color: var(--sd-gris) }
+.sd .estado.sucio { color: var(--sd-acento); font-weight: 600 }
+
+.sd .aviso { padding: 13px 26px; font-size: 13.5px; border-top: 1px solid var(--sd-linea) }
+.sd .aviso.mal { background: #FDECEB; color: #A4271C }
+.sd .aviso.bien { background: #E9F6EF; color: #14653F }
+.sd .nota-pie { font-size: 12.5px; color: var(--sd-gris); padding: 2px; max-width: 110ch }
+
+/* ====================== Pantallas medianas y chicas ====================== */
+@media (max-width: 1180px) {
+  .sd .cabeza { grid-template-columns: 1fr }
+  .sd .kpi { min-width: 0 }
+  .sd .cifras { grid-template-columns: 1fr 1fr }
+  .sd .cifra:nth-child(-n+2) { border-bottom: 1px solid var(--sd-linea) }
+  .sd .cifra:nth-child(2n) { border-right: 0 }
+  .sd .m-rejilla { grid-template-columns: 1fr }
+}
+@media (max-width: 760px) {
+  .sd .cifras { grid-template-columns: 1fr }
+  .sd .cifra { border-right: 0; border-bottom: 1px solid var(--sd-linea) }
+  .sd .cifra:last-child { border-bottom: 0 }
+  .sd .tarjeta .cab, .sd .acciones, .sd .aviso { padding-left: 16px; padding-right: 16px }
+  /* Las filas del maestro se parten en bloques: la rejilla no cabe. */
+  .sd .m-fila { padding: 14px 16px }
+  .sd .m-fila.origen { grid-template-columns: 1fr auto }
+  .sd .m-fila.sku { grid-template-columns: 1fr 1fr; }
+  .sd .m-fila.sku .ancho { grid-column: 1 / -1 }
+  .sd .m-fila.cab { display: none }
+  .sd .btn { flex: 1 1 auto }
+  .sd .estado { margin-left: 0; width: 100% }
+}
