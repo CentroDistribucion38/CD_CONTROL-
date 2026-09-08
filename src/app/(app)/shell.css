@@ -548,7 +548,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 @media (max-width: 900px) {
   /* El turno no es crítico y le quita el aire a las migas de pan. */
   .sh-barra .der .turno { display: none }
-  .sh { --sh-aire: 12px }
+  .sh { --sh-aire: 24px }
 }
 
 @media (max-width: 720px) {

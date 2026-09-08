@@ -15,6 +15,10 @@
   --acc-linea:     #D5DCE5;
   /* desplazamiento del corte = alto * tan(26°) */
   --acc-corte: 24.4vh;
+  /* Aire arriba. Instalada en el celular la app corre a pantalla completa
+     y la marca se mete debajo del reloj y la señal; y en Safari el área
+     segura del sistema vale 0, así que además hace falta aire propio. */
+  --acc-aire: 0px;
   /* Dónde cruza el corte a media altura. Es 56% en pantallas anchas, pero
      nunca tan a la derecha como para que los filos rojos se le monten a la
      esquina de la tarjeta: 408 de tarjeta + 168 que avanza el corte hacia
@@ -133,7 +137,7 @@
 /* ---------- Marca ---------- */
 .acc-marca {
   position: absolute;
-  top: 34px;
+  top: calc(34px + env(safe-area-inset-top));
   left: 52px;
   z-index: 5;
   display: flex;
@@ -437,9 +441,10 @@
     position: relative;
     inset: auto;
     display: block;
-    padding: 28px 24px 0;
+    padding: calc(28px + var(--acc-aire) + env(safe-area-inset-top)) 24px 0;
     flex: none;
   }
+  .acc { --acc-aire: 24px }
   .acc-izq { position: fixed; clip-path: none }
   .acc-banda,
   .acc-filo { display: none }
@@ -474,7 +479,7 @@
 /* Celular: mismas piezas, medidas más apretadas y áreas seguras. */
 @media (max-width: 640px) {
   .acc-hero {
-    padding: 22px 18px 0;
+    padding: calc(22px + var(--acc-aire) + env(safe-area-inset-top)) 18px 0;
     padding-left: calc(18px + env(safe-area-inset-left));
     padding-right: calc(18px + env(safe-area-inset-right));
   }
