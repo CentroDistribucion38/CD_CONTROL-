@@ -35,7 +35,8 @@ export default async function DiarioPage({
     // cambia el rango a lo que se quiera.
     leerRango(supabase, ...rangoDelMes(fecha)).catch(() => {
       const [d, h] = rangoDelMes(fecha);
-      return { desde: d, hasta: h, metas: {}, sap: {}, manual: {}, autores: {} };
+      return { desde: d, hasta: h, metas: {}, sap: {}, manual: {}, autores: {},
+               anio: Number(fecha.slice(0, 4)), meses: [] };
     }),
   ]);
 

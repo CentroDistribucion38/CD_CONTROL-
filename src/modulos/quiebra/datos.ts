@@ -17,6 +17,16 @@ export type Produccion = {
 
 export type Meta = { anio: number; mes: number; meta: number };
 
+/** Un mes del año ya resuelto (lo escrito a mano sobre lo importado). */
+export type MesAnio = {
+  anio: number;
+  num_mes: number;
+  produccion: number;
+  baja: number;
+  pct: number | null;
+  dias_escritos: number;
+};
+
 export type Carga = {
   archivo: string | null;
   desde: string;
@@ -59,7 +69,7 @@ async function traerTodo<T>(
 export async function datosQuiebra() {
   const supabase = await createClient();
 
-  const [bajas, produccion, metas, cargas] = await Promise.all([
+  const [bajas, produccion, metas, cargas, anios] = await Promise.all([
     traerTodo<Baja>(
       "quiebra_bajas",
       "fecha, causal, almacen, material, denominacion, cantidad",
@@ -72,6 +82,15 @@ export async function datosQuiebra() {
       .select("archivo, desde, hasta, filas_bajas, filas_produccion, cargado_en")
       .order("cargado_en", { ascending: false })
       .limit(1),
+    // La tabla del año, la misma que muestra el tablero diario. Sale de
+    // la MISMA vista para que las dos pantallas no puedan discrepar. Si
+    // el módulo diario todavía no está creado en Supabase, la consulta
+    // falla y la tabla simplemente no se dibuja.
+    supabase
+      .from("v_quiebra_diario_mes")
+      .select("anio, num_mes, produccion, baja, pct, dias_escritos")
+      .order("anio")
+      .order("num_mes"),
   ]);
 
   return {
@@ -79,5 +98,6 @@ export async function datosQuiebra() {
     produccion,
     metas: (metas.data ?? []) as Meta[],
     ultimaCarga: (cargas.data?.[0] ?? null) as Carga | null,
+    meses: (anios.data ?? []) as unknown as MesAnio[],
   };
 }

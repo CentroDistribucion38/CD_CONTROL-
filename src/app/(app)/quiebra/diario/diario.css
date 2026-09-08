@@ -193,91 +193,126 @@
 }
 .qd .qd-fila-dia.sel:hover { background: #FDE7EB }
 
-/* ====================== La hoja editable ====================== */
+/* ====================== La rejilla (espejo del Excel) ======================
+   Un día por columna. Con 31 columnas no hay ancho que alcance, así que
+   la rejilla se desliza de lado DENTRO de su tarjeta y la primera
+   columna —el nombre del concepto— se queda pegada: sin eso, al llegar
+   al día 20 ya no se sabe qué fila se está llenando.
+   ========================================================================= */
 .qd .qd-hoja .cab { align-items: flex-start }
-.qd .qd-firma {
-  text-align: right; font-size: 12.5px; color: var(--qb-gris); line-height: 1.5;
-  border-left: 3px solid var(--qb-rojo); padding-left: 12px; flex: none;
-}
-.qd .qd-firma b { display: block; color: var(--qb-tinta); font-weight: 700; font-size: 12px }
 
-.qd .qd-tabla { border-top: 1px solid var(--qb-linea) }
+.qd .rj-marco {
+  overflow: auto; max-height: 70vh;
+  border-top: 1px solid var(--qb-linea);
+  -webkit-overflow-scrolling: touch;
+}
+.qd table.rj { border-collapse: separate; border-spacing: 0; width: auto; min-width: 100% }
 
-.qd .qd-cab,
-.qd .qd-linea {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 118px 158px 118px;
-  align-items: center;
-  gap: 10px;
-  padding: 0 26px;
+.qd .rj th, .qd .rj td {
+  border-right: 1px solid #EDF1F6; border-bottom: 1px solid #EDF1F6;
+  padding: 0; margin: 0; background: #fff;
 }
-.qd .qd-cab {
-  height: 38px; background: #FAFBFD; border-bottom: 1px solid var(--qb-linea);
-  font-size: 11px; font-weight: 600; letter-spacing: .12em; color: #93A3B6; text-transform: uppercase;
-}
-.qd .qd-cab .num { text-align: right }
+.qd .rj .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
 
-.qd .qd-grupo {
-  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
-  padding: 16px 26px 8px;
-  font-family: var(--qb-titulo); font-weight: 800; font-size: 13px;
-  letter-spacing: .04em; text-transform: uppercase; color: #2C4361;
+/* ---------- La columna de conceptos, pegada a la izquierda ---------- */
+.qd .rj th.rot {
+  position: sticky; left: 0; z-index: 3;
+  min-width: 178px; max-width: 178px; text-align: left;
+  padding: 9px 14px; background: #FAFBFD;
+  font: 600 13.5px var(--qb-texto); color: var(--qb-tinta);
+  border-right: 1px solid var(--qb-linea);
 }
-.qd .qd-pista {
-  font-family: var(--qb-texto); font-weight: 500; font-size: 12px; letter-spacing: 0;
-  text-transform: none; color: var(--qb-gris);
+.qd .rj th.rot em {
+  display: block; font-style: normal; font-size: 11px; color: #93A3B6; margin-top: 1px;
 }
 
-.qd .qd-linea { min-height: 48px; border-bottom: 1px solid #EDF1F6 }
-.qd .qd-linea:hover { background: #FAFBFD }
-.qd .qd-linea.tocada { background: #FFFBFC }
-
-.qd .qd-nom { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 14px }
-.qd .qd-nom > span { min-width: 0 }
-.qd .qd-nom em {
-  display: block; font-style: normal; font-size: 11.5px; color: #93A3B6; margin-top: 1px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* ---------- La fila de días, pegada arriba ---------- */
+.qd .rj thead th {
+  position: sticky; top: 0; z-index: 4; background: #FAFBFD;
+  border-bottom: 1px solid var(--qb-linea);
 }
-.qd .qd-punto { width: 10px; height: 10px; border-radius: 2px; flex: none }
+.qd .rj thead th.rot { z-index: 5 }
+.qd .rj thead th button {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  width: 100%; min-width: 96px; padding: 8px 6px;
+  border: 0; background: none; cursor: pointer;
+}
+.qd .rj thead th button b {
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 14px; color: var(--qb-tinta);
+}
+.qd .rj thead th button span { font-size: 10.5px; color: #93A3B6 }
+.qd .rj thead th button:hover b { color: var(--qb-rojo) }
 
-.qd .qd-linea .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
-.qd .qd-linea .num.sap { color: var(--qb-gris); font-size: 14px }
-.qd .qd-linea .num.vale { font-family: var(--qb-titulo); font-weight: 800; font-size: 15px }
-.qd .qd-linea .num.vale.difiere { color: var(--qb-rojo) }
-.qd .qd-linea .num.vale.mal { color: var(--qb-rojo) }
+/* El día abierto, marcado de arriba abajo. */
+.qd .rj .aqui { background: #FDF0F3 }
+.qd .rj thead th.aqui { background: #FDE7EB }
+.qd .rj thead th.aqui button b { color: var(--qb-rojo) }
 
-/* ---------- La casilla ---------- */
-.qd .qd-caja { position: relative; display: flex; align-items: center }
-.qd .qd-caja input {
-  width: 100%; height: 38px; padding: 0 30px 0 12px;
-  font: 500 14.5px var(--qb-texto); color: var(--qb-tinta);
+/* ---------- Filas calculadas ---------- */
+.qd .rj tr.calc td { background: #FAFBFD; padding: 9px 10px; font-size: 12.5px; color: #2C4361 }
+.qd .rj tr.calc td.aqui { background: #FDF0F3 }
+.qd .rj tr.pct td { font-family: var(--qb-titulo); font-weight: 800; font-size: 13.5px }
+.qd .rj tr.pct td.sobre { color: var(--qb-rojo) }
+.qd .rj tr.pct td.bajo { color: #0F7A4A }
+
+/* ---------- La columna Total, pegada a la derecha ---------- */
+.qd .rj .total {
+  position: sticky; right: 0; z-index: 3;
+  background: #F4F7FB; border-left: 1px solid var(--qb-linea);
+  padding: 9px 14px; min-width: 116px;
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 13.5px;
+}
+.qd .rj thead th.total { z-index: 5 }
+
+/* ---------- Las casillas ---------- */
+.qd .rj td.cel { padding: 3px }
+.qd .rj td.cel input {
+  width: 100%; min-width: 96px; height: 34px; padding: 0 8px;
+  font: 500 13px var(--qb-texto); color: var(--qb-tinta);
   text-align: right; font-variant-numeric: tabular-nums;
-  background: #F7F9FC; border: 1.5px solid var(--qb-linea); border-radius: 2px;
+  background: #fff; border: 1.5px solid transparent; border-radius: 3px;
 }
-.qd .qd-caja input::placeholder { color: #B4C0CE; font-weight: 400 }
-.qd .qd-caja input:hover:not(:disabled) { border-color: #B9C4D2 }
-.qd .qd-caja input:focus {
-  outline: none; background: #fff; border-color: var(--qb-azul);
-  box-shadow: 0 0 0 3px rgba(11,78,162,.14);
+.qd .rj td.cel input::placeholder { color: #BCC7D4; font-weight: 400 }
+.qd .rj td.cel input:hover:not(:disabled) { border-color: #D9E2EC }
+.qd .rj td.cel input:focus {
+  outline: none; border-color: var(--qb-azul);
+  box-shadow: 0 0 0 3px rgba(11,78,162,.16); position: relative; z-index: 2;
 }
-.qd .qd-caja input:disabled { background: #EEF1F5; color: var(--qb-gris); cursor: not-allowed }
-.qd .qd-linea.tocada .qd-caja input { background: #fff; border-color: #F0B7C2 }
-
-.qd .qd-x {
-  position: absolute; right: 3px; width: 26px; height: 26px; border: 0; background: none;
-  border-radius: 2px; color: #93A3B6; cursor: pointer; display: grid; place-items: center;
+.qd .rj td.cel input:disabled { background: transparent; color: var(--qb-gris) }
+/* Una casilla escrita a mano se ve sin buscarla. */
+.qd .rj td.cel.tocada input { background: #FFF6F8; border-color: #F0B7C2; font-weight: 600 }
+/* Y si además se aparta de SAP, con más razón. */
+.qd .rj td.cel.difiere input { border-color: var(--qb-rojo) }
+/* El total de un día que tiene desglose: se calcula, no se escribe. */
+.qd .rj td.sumado {
+  padding: 9px 10px; background: #F7F9FC; color: #2C4361;
+  font-weight: 600; font-size: 12.5px; text-align: right;
 }
-.qd .qd-x:hover { color: var(--qb-rojo) }
-.qd .qd-x svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2.2; fill: none }
-.qd .qd-x:focus-visible { outline: 2px solid var(--qb-azul); outline-offset: 1px }
 
-/* ---------- Totales ---------- */
-.qd .qd-linea.total { background: #FAFBFD; min-height: 46px }
-.qd .qd-linea.total .qd-nom { font-size: 14px }
-.qd .qd-linea.total .num.esc { font-weight: 600; color: var(--qb-tinta) }
-.qd .qd-linea.total.pct .num.vale { font-size: 17px }
+/* ---------- Separador del desglose ---------- */
+.qd .rj tr.rj-sep th {
+  position: sticky; left: 0; z-index: 3;
+  min-width: 0; max-width: none; text-align: left;
+  padding: 14px 14px 8px; background: #FAFBFD;
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 12.5px;
+  letter-spacing: .06em; text-transform: uppercase; color: #2C4361;
+  border-top: 1px solid var(--qb-linea);
+}
+.qd .rj tr.rj-sep th em {
+  display: block; font-family: var(--qb-texto); font-style: normal; font-weight: 500;
+  font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--qb-gris);
+  margin-top: 4px; max-width: 88ch;
+}
+.qd .rj tr.rj-causal th.rot { font-weight: 500; font-size: 13px }
 
-/* ---------- Nota ---------- */
+.qd .rj-mas {
+  display: block; margin-top: 4px; padding: 0; border: 0; background: none;
+  font: 600 11.5px var(--qb-texto); color: var(--qb-azul); cursor: pointer;
+}
+.qd .rj-mas:hover { color: var(--qb-rojo) }
+.qd .rj-vacio { padding: 26px; font-size: 14px; color: var(--qb-gris) }
+
+/* ====================== Nota y LE del día ====================== */
 .qd .qd-nota { padding: 20px 26px; border-top: 1px solid var(--qb-linea) }
 .qd .qd-nota label { display: block; font-size: 12px; font-weight: 600; color: #2C4361; margin-bottom: 7px }
 .qd .qd-nota textarea {
@@ -289,7 +324,27 @@
   outline: none; background: #fff; border-color: var(--qb-azul);
   box-shadow: 0 0 0 3px rgba(11,78,162,.14);
 }
-.qd .qd-nota textarea:disabled { background: #EEF1F5; color: var(--qb-gris) }
+.qd .qd-le {
+  display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-top: 16px;
+}
+.qd .qd-le .rot {
+  font-size: 11px; font-weight: 600; letter-spacing: .12em;
+  color: #93A3B6; text-transform: uppercase; padding-bottom: 12px;
+}
+.qd .qd-le label { display: flex; flex-direction: column; gap: 6px; margin: 0; font-size: 12px }
+.qd .qd-le input {
+  width: 132px; height: 40px; padding: 0 11px; text-align: right;
+  font: 500 14px var(--qb-texto); color: var(--qb-tinta);
+  font-variant-numeric: tabular-nums;
+  background: #F7F9FC; border: 1.5px solid var(--qb-linea); border-radius: 2px;
+}
+.qd .qd-le input:focus {
+  outline: none; background: #fff; border-color: var(--qb-azul);
+  box-shadow: 0 0 0 3px rgba(11,78,162,.14);
+}
+.qd .qd-le b {
+  font-family: var(--qb-titulo); font-weight: 900; font-size: 20px; padding-bottom: 8px;
+}
 
 /* ---------- Botonera ---------- */
 .qd .qd-acciones {
@@ -311,8 +366,6 @@
 .qd .qd-btn.plano:hover:not(:disabled) { background: none; color: var(--qb-rojo) }
 .qd .qd-btn.plano:disabled { background: none; color: #C6D0DC }
 
-/* Vive en dos sitios: en la cabecera de la hoja y en la botonera cuando
-   es de solo lectura. En los dos casos se va al extremo derecho. */
 .qd .qd-estado {
   margin-left: auto; flex: none; font-size: 12.5px; color: var(--qb-gris);
   white-space: nowrap; padding-top: 4px;
@@ -323,9 +376,7 @@
 .qd .qd-estado.sucio { color: var(--qb-rojo); font-weight: 600 }
 .qd .qd-hoja .cab .qd-estado.sucio { border-color: #F0B7C2; background: #FFF6F7 }
 
-.qd .qd-aviso {
-  padding: 13px 26px; font-size: 13.5px; border-top: 1px solid var(--qb-linea);
-}
+.qd .qd-aviso { padding: 13px 26px; font-size: 13.5px; border-top: 1px solid var(--qb-linea) }
 .qd .qd-aviso.mal { background: #FDECEB; color: #A4271C }
 .qd .qd-aviso.bien { background: #E9F6EF; color: #14653F }
 

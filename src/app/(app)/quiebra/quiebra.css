@@ -587,3 +587,47 @@ body.capturando .qb .acciones-informe { visibility: hidden }
   .qb .grafico .rejilla { stroke-width: 1.6 }
   .qb .grafico .meta { stroke-width: 3 }
 }
+
+/* ====================== La tabla del año ======================
+   La segunda tabla de la hoja SIMULADOR: meses en columnas y Total al
+   final. Vive en quiebra.css porque la usan los dos tableros.
+   ============================================================== */
+.qb .an-marco { overflow-x: auto; border-top: 1px solid var(--qb-linea) }
+.qb table.an { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 900px }
+.qb .an th, .qb .an td {
+  border-right: 1px solid #EDF1F6; border-bottom: 1px solid #EDF1F6;
+  padding: 10px 12px; background: #fff; font-size: 13px;
+}
+.qb .an .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.qb .an th.rot {
+  position: sticky; left: 0; z-index: 2; text-align: left;
+  min-width: 132px; background: #FAFBFD;
+  font: 600 13px var(--qb-texto); color: var(--qb-tinta);
+  border-right: 1px solid var(--qb-linea);
+}
+.qb .an thead th {
+  position: sticky; top: 0; z-index: 3; background: #FAFBFD;
+  font: 600 11.5px var(--qb-texto); color: #93A3B6;
+  letter-spacing: .1em; text-transform: uppercase;
+  border-bottom: 1px solid var(--qb-linea);
+}
+.qb .an thead th.rot { z-index: 4 }
+/* El mes que se está mirando, marcado de arriba abajo. */
+.qb .an .aqui { background: #FDF0F3 }
+.qb .an thead th.aqui { background: #FDE7EB; color: var(--qb-rojo) }
+.qb .an tr.metas td { background: #FFFCF2; color: #7A5A05; font-weight: 600 }
+.qb .an tr.metas td.aqui { background: #FDF0F3 }
+.qb .an tr.pct td { font-family: var(--qb-titulo); font-weight: 800; font-size: 13.5px }
+.qb .an tr.pct td.sobre { color: var(--qb-rojo) }
+.qb .an tr.pct td.bajo { color: #0F7A4A }
+.qb .an .total {
+  position: sticky; right: 0; z-index: 2;
+  background: #F4F7FB; border-left: 1px solid var(--qb-linea);
+  font-family: var(--qb-titulo); font-weight: 800; min-width: 116px;
+}
+.qb .an thead th.total { z-index: 4 }
+/* Un puntico rojo: ese mes tiene días escritos a mano. */
+.qb .an .mano {
+  display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--qb-rojo); margin-left: 6px; vertical-align: 2px;
+}

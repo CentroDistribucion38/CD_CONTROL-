@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { Baja, Produccion, Meta, Carga } from "@/modulos/quiebra/datos";
+import type { Baja, Produccion, Meta, Carga, MesAnio } from "@/modulos/quiebra/datos";
 import { Calendario, useAfuera } from "@/components/CalendarioRango";
+import { TablaAnio } from "@/components/TablaAnio";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio",
@@ -51,9 +52,11 @@ type Props = {
   metas: Meta[];
   ultimaCarga: Carga | null;
   esEditor: boolean;
+  /** El año mes por mes, ya con lo escrito a mano del diario aplicado. */
+  meses?: MesAnio[];
 };
 
-export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor }: Props) {
+export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor, meses = [] }: Props) {
   /* ------------------------ catálogos ------------------------ */
   const causales = useMemo(() => {
     const m = new Map<string, number>();
@@ -122,6 +125,18 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
     for (const [m, v] of prodMes) { a += v * metaDe(m); t += v; }
     return t ? a / t : 0.016;
   }, [prodMes, metas]);
+
+  /* La tabla del año usa el año del último día del filtro, y las metas
+     con la misma llave "AAAA-MM" que espera el componente compartido. */
+  const anioTabla = useMemo(() => {
+    const a = Number((hasta || maxF || "").slice(0, 4));
+    return Number.isFinite(a) && a > 2000 ? a : null;
+  }, [hasta, maxF]);
+  const mapaMetas = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const x of metas) m[`${x.anio}-${String(x.mes).padStart(2, "0")}`] = Number(x.meta);
+    return m;
+  }, [metas]);
 
   const exceso = Math.round(total * ((pct ?? 0) - meta));
   const sobre = pct != null && pct > meta;
@@ -372,6 +387,26 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
           </div>
         </div>
       </section>
+
+      {/* ---------------- El año mes por mes ---------------- */}
+      {anioTabla != null && (
+        <section className="tarjeta">
+          <div className="cab">
+            <div>
+              <h2>El año mes por mes</h2>
+              <p>
+                Con lo escrito a mano del diario aplicado, no solo lo importado.{" "}
+                <Link href="/quiebra/diario">Escribirlo en el diario</Link>
+              </p>
+            </div>
+          </div>
+          <TablaAnio
+            anio={anioTabla}
+            meses={meses.filter((m) => m.anio === anioTabla)}
+            metas={mapaMetas}
+          />
+        </section>
+      )}
 
       <p className="nota-pie">
         {nf.format(bj.length)} de {nf.format(bajas.length)} movimientos de baja y{" "}

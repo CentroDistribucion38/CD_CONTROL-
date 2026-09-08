@@ -52,6 +52,8 @@ export type DiaManual = {
   le_produccion: number | null;
   le_baja: number | null;
   produccion: number | null;
+  /** Baja total escrita sin repartir por causal. El desglose le gana. */
+  baja: number | null;
   nota: string | null;
   actualizado_en: string | null;
   actualizado_por: string | null;
@@ -69,6 +71,18 @@ export type DatosDiario = {
   manual: Record<string, DiaManual>;
   /** id → usuario, para poder decir quién escribió */
   autores: Record<string, string>;
+  /** El año del rango, mes por mes, ya resuelto. Es la segunda tabla de
+   *  la hoja SIMULADOR. */
+  anio: number;
+  meses: MesResumen[];
+};
+
+export type MesResumen = {
+  num_mes: number;
+  produccion: number;
+  baja: number;
+  pct: number | null;
+  dias_escritos: number;
 };
 
 /** Corre días sobre un AAAA-MM-DD sin líos de zona horaria. */
@@ -123,15 +137,19 @@ export async function leerRango(
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const q = supabase as any;
 
-  const [dias, causales, cab, det, metas] = await Promise.all([
+  const [dias, causales, cab, det, metas, resumen] = await Promise.all([
     q.from("v_quiebra_dia").select("fecha, produccion, perdida").gte("fecha", desde).lte("fecha", hasta),
     q.from("v_quiebra_dia_causal").select("fecha, causal, unidades").gte("fecha", desde).lte("fecha", hasta),
     q.from("quiebra_diario")
-      .select("fecha, le_produccion, le_baja, produccion, nota, actualizado_en, actualizado_por")
+      .select("fecha, le_produccion, le_baja, produccion, baja, nota, actualizado_en, actualizado_por")
       .gte("fecha", desde).lte("fecha", hasta),
     q.from("quiebra_diario_causal").select("fecha, causal, cantidad").gte("fecha", desde).lte("fecha", hasta),
     // Son doce filas por año: no vale la pena filtrar.
     q.from("quiebra_metas").select("anio, mes, meta"),
+    // El año completo, mes por mes. Doce filas.
+    q.from("v_quiebra_diario_mes")
+      .select("anio, num_mes, produccion, baja, pct, dias_escritos")
+      .eq("anio", Number(hastaPedido.slice(0, 4))),
   ]);
 
   const sap: Record<string, DiaSap> = {};
@@ -155,6 +173,7 @@ export async function leerRango(
       le_produccion: num(m.le_produccion),
       le_baja: num(m.le_baja),
       produccion: num(m.produccion),
+      baja: num(m.baja),
       nota: m.nota ?? null,
       actualizado_en: m.actualizado_en ?? null,
       actualizado_por: m.actualizado_por ?? null,
@@ -181,7 +200,21 @@ export async function leerRango(
     }
   }
 
-  return { desde: desdePedido, hasta: hastaPedido, metas: mapaMetas, sap, manual, autores };
+  const anio = Number(hastaPedido.slice(0, 4));
+  const meses: MesResumen[] = ((resumen.data ?? []) as MesResumen[])
+    .map((m) => ({
+      num_mes: Number(m.num_mes),
+      produccion: Number(m.produccion) || 0,
+      baja: Number(m.baja) || 0,
+      pct: m.pct == null ? null : Number(m.pct),
+      dias_escritos: Number(m.dias_escritos) || 0,
+    }))
+    .sort((a, b) => a.num_mes - b.num_mes);
+
+  return {
+    desde: desdePedido, hasta: hastaPedido,
+    metas: mapaMetas, sap, manual, autores, anio, meses,
+  };
 }
 
 const num = (v: unknown) => (v == null || v === "" ? null : Number(v));

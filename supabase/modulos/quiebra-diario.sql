@@ -36,10 +36,18 @@ create table if not exists public.quiebra_diario (
   le_produccion   numeric(16,3),
   le_baja         numeric(16,3),
   produccion      numeric(16,3),
+  -- Baja TOTAL del día escrita a mano, sin repartir por causal. La hoja
+  -- SIMULADOR solo tiene un "Losses T1" por día, así que hay que poder
+  -- escribir el total suelto. Si además se escribe el desglose por
+  -- causal, el desglose gana: es más específico.
+  baja            numeric(16,3),
   nota            text,
   actualizado_por uuid references public.perfiles(id) on delete set null,
   actualizado_en  timestamptz not null default now()
 );
+
+-- Por si la tabla ya existía sin la columna.
+alter table public.quiebra_diario add column if not exists baja numeric(16,3);
 
 -- ---------------------------------------------------------------------
 -- 2. La pérdida del día, abierta por causal
@@ -97,7 +105,8 @@ with sap as (
 manual as (
   select d.fecha, d.le_produccion, d.le_baja, d.produccion, d.nota,
          d.actualizado_por, d.actualizado_en,
-         (select sum(c.cantidad) from public.quiebra_diario_causal c where c.fecha = d.fecha) as baja_manual,
+         d.baja as baja_total,
+         (select sum(c.cantidad) from public.quiebra_diario_causal c where c.fecha = d.fecha) as baja_causales,
          (select count(*)        from public.quiebra_diario_causal c where c.fecha = d.fecha) as causales_manuales
   from public.quiebra_diario d
 )
@@ -106,22 +115,43 @@ select
   s.sap_produccion,
   s.sap_baja,
   m.produccion                                           as manual_produccion,
-  m.baja_manual                                          as manual_baja,
+  m.baja_total                                           as manual_baja_total,
+  m.baja_causales                                        as manual_baja_causales,
+  coalesce(m.baja_causales, m.baja_total)                as manual_baja,
   m.le_produccion,
   m.le_baja,
   m.nota,
   m.actualizado_por,
   m.actualizado_en,
   coalesce(m.causales_manuales, 0)                       as causales_manuales,
-  -- Manda lo escrito a mano; si no hay, lo de SAP.
-  coalesce(m.produccion,  s.sap_produccion, 0)           as produccion,
-  coalesce(m.baja_manual, s.sap_baja, 0)                 as baja,
+  -- Tres niveles, de lo más específico a lo más general:
+  --   desglose por causal  >  total escrito a mano  >  lo de SAP
+  coalesce(m.produccion, s.sap_produccion, 0)                            as produccion,
+  coalesce(m.baja_causales, m.baja_total, s.sap_baja, 0)                 as baja,
   case when coalesce(m.produccion, s.sap_produccion, 0) > 0
-       then coalesce(m.baja_manual, s.sap_baja, 0)
+       then coalesce(m.baja_causales, m.baja_total, s.sap_baja, 0)
           / coalesce(m.produccion, s.sap_produccion)
-  end                                                    as pct
+  end                                                                    as pct
 from sap s
 full join manual m on m.fecha = s.fecha;
+
+-- El año mes por mes, ya con lo escrito aplicado. Es la segunda tabla
+-- de la hoja SIMULADOR: METAS / Producción / Losses / % Losses.
+create or replace view public.v_quiebra_diario_mes as
+select
+  date_trunc('month', fecha)::date            as mes,
+  extract(year  from fecha)::int              as anio,
+  extract(month from fecha)::int              as num_mes,
+  sum(produccion)                             as produccion,
+  sum(baja)                                   as baja,
+  case when sum(produccion) > 0
+       then sum(baja) / sum(produccion) end   as pct,
+  count(*) filter (where causales_manuales > 0
+                      or manual_produccion is not null
+                      or manual_baja_total is not null) as dias_escritos
+from public.v_quiebra_diario
+where fecha is not null
+group by 1, 2, 3;
 
 -- ---------------------------------------------------------------------
 -- 4. Guardar un día — una sola llamada, todo o nada
@@ -135,7 +165,8 @@ create or replace function public.quiebra_diario_guardar(
   p_le_baja       numeric,
   p_produccion    numeric,
   p_nota          text,
-  p_causales      jsonb
+  p_causales      jsonb,
+  p_baja          numeric default null
 )
 returns void
 language plpgsql
@@ -150,13 +181,15 @@ begin
   end if;
 
   insert into public.quiebra_diario as d
-    (fecha, le_produccion, le_baja, produccion, nota, actualizado_por, actualizado_en)
+    (fecha, le_produccion, le_baja, produccion, baja, nota, actualizado_por, actualizado_en)
   values
-    (p_fecha, p_le_produccion, p_le_baja, p_produccion, nullif(btrim(p_nota), ''), auth.uid(), now())
+    (p_fecha, p_le_produccion, p_le_baja, p_produccion, p_baja,
+     nullif(btrim(p_nota), ''), auth.uid(), now())
   on conflict (fecha) do update set
     le_produccion   = excluded.le_produccion,
     le_baja         = excluded.le_baja,
     produccion      = excluded.produccion,
+    baja            = excluded.baja,
     nota            = excluded.nota,
     actualizado_por = excluded.actualizado_por,
     actualizado_en  = excluded.actualizado_en;
@@ -187,8 +220,114 @@ begin
   delete from public.quiebra_diario d
    where d.fecha = p_fecha
      and d.le_produccion is null and d.le_baja is null
-     and d.produccion is null and d.nota is null
+     and d.produccion is null and d.baja is null and d.nota is null
      and not exists (select 1 from public.quiebra_diario_causal c where c.fecha = d.fecha);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 4b. Guardar VARIOS días de un golpe — la rejilla del mes
+--     Llega como un arreglo:
+--       [{"fecha":"2026-08-01","produccion":3442118,"baja":55000,
+--         "causales":{"Presorting":1200}}, ...]
+--     Todo o nada: si un día revienta, no se guarda ninguno. La rejilla
+--     deja tocar treinta días antes de darle a Guardar, y guardar la
+--     mitad sería peor que no guardar nada.
+--
+--     Solo se tocan las claves que vengan. Un día que traiga
+--     "produccion": null borra ese dato manual; un día que no traiga la
+--     clave "produccion" la deja como estaba.
+-- ---------------------------------------------------------------------
+create or replace function public.quiebra_diario_guardar_lote(p_dias jsonb)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_dia   jsonb;
+  v_fecha date;
+  v_n     integer := 0;
+  v_raras text;
+begin
+  if not public.es_editor() then
+    raise exception 'Solo un supervisor o administrador puede editar el diario';
+  end if;
+  if p_dias is null or jsonb_typeof(p_dias) <> 'array' then
+    raise exception 'Se esperaba un arreglo de días';
+  end if;
+
+  for v_dia in select * from jsonb_array_elements(p_dias) loop
+    v_fecha := (v_dia->>'fecha')::date;
+    if v_fecha is null then
+      raise exception 'Un día del lote llegó sin fecha';
+    end if;
+
+    -- Las causales se validan ANTES de escribir nada, para que el error
+    -- salga con nombre y apellido y no como "violates check constraint".
+    if v_dia ? 'causales' and jsonb_typeof(v_dia->'causales') = 'object' then
+      select string_agg(k, ', ') into v_raras
+      from jsonb_each(v_dia->'causales') as e(k, v)
+      where k not in (
+        'Sorting distribución', 'Presorting', 'Rotura máquina', 'Rotura depósito',
+        'Sorting envase', 'Lavado / extrasucio', 'Otros'
+      );
+      if v_raras is not null then
+        raise exception 'Causal desconocida en %: %. La app y la base están desfasadas.',
+          v_fecha, v_raras;
+      end if;
+    end if;
+
+    insert into public.quiebra_diario as d
+      (fecha, le_produccion, le_baja, produccion, baja, nota, actualizado_por, actualizado_en)
+    values (
+      v_fecha,
+      nullif(v_dia->>'le_produccion', '')::numeric,
+      nullif(v_dia->>'le_baja', '')::numeric,
+      nullif(v_dia->>'produccion', '')::numeric,
+      nullif(v_dia->>'baja', '')::numeric,
+      nullif(btrim(coalesce(v_dia->>'nota', '')), ''),
+      auth.uid(), now()
+    )
+    on conflict (fecha) do update set
+      le_produccion   = case when v_dia ? 'le_produccion'
+                             then nullif(v_dia->>'le_produccion', '')::numeric
+                             else d.le_produccion end,
+      le_baja         = case when v_dia ? 'le_baja'
+                             then nullif(v_dia->>'le_baja', '')::numeric
+                             else d.le_baja end,
+      produccion      = case when v_dia ? 'produccion'
+                             then nullif(v_dia->>'produccion', '')::numeric
+                             else d.produccion end,
+      baja            = case when v_dia ? 'baja'
+                             then nullif(v_dia->>'baja', '')::numeric
+                             else d.baja end,
+      nota            = case when v_dia ? 'nota'
+                             then nullif(btrim(coalesce(v_dia->>'nota', '')), '')
+                             else d.nota end,
+      actualizado_por = auth.uid(),
+      actualizado_en  = now();
+
+    if v_dia ? 'causales' then
+      delete from public.quiebra_diario_causal where fecha = v_fecha;
+      if jsonb_typeof(v_dia->'causales') = 'object' then
+        insert into public.quiebra_diario_causal (fecha, causal, cantidad)
+        select v_fecha, k, (v #>> '{}')::numeric
+        from jsonb_each(v_dia->'causales') as e(k, v)
+        where v is not null and jsonb_typeof(v) = 'number';
+      end if;
+    end if;
+
+    v_n := v_n + 1;
+  end loop;
+
+  -- Los días que quedaron sin nada escrito no tienen por qué ocupar
+  -- fila: así "borrar todo" devuelve el día a ser lo que dice SAP.
+  delete from public.quiebra_diario d
+   where d.le_produccion is null and d.le_baja is null
+     and d.produccion is null and d.baja is null and d.nota is null
+     and not exists (select 1 from public.quiebra_diario_causal c where c.fecha = d.fecha);
+
+  return v_n;
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -210,5 +349,10 @@ begin
   end loop;
 end $$;
 
-grant select on public.v_quiebra_dia_causal, public.v_quiebra_diario to authenticated;
-grant execute on function public.quiebra_diario_guardar(date, numeric, numeric, numeric, text, jsonb) to authenticated;
+grant select on
+  public.v_quiebra_dia_causal, public.v_quiebra_diario, public.v_quiebra_diario_mes
+to authenticated;
+grant execute on function
+  public.quiebra_diario_guardar(date, numeric, numeric, numeric, text, jsonb, numeric)
+to authenticated;
+grant execute on function public.quiebra_diario_guardar_lote(jsonb) to authenticated;

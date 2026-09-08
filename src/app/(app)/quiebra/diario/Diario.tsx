@@ -29,6 +29,8 @@ import {
   type DatosDiario,
 } from "@/modulos/quiebra/diario";
 import { Calendario } from "@/components/CalendarioRango";
+import { TablaAnio } from "@/components/TablaAnio";
+import { Rejilla, type ColumnaDia, type Campo } from "./Rejilla";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio",
@@ -115,37 +117,48 @@ const texto = (v: number | null | undefined) =>
   v == null ? "" : String(Math.round(v * 1000) / 1000).replace(".", ",");
 
 /* ===================================================================
-   Estado del formulario. Se guarda como TEXTO, no como número, porque
-   mientras se teclea "1.2" todavía no es un número y convertirlo a cada
-   letra pelea con el cursor.
+   LO QUE HAY ESCRITO EN LAS CASILLAS.
+
+   Se guarda como TEXTO, no como número: mientras se teclea "1.2" todavía
+   no es un número, y convertirlo en cada letra pelea con el cursor.
+
+   Un día entra al mapa la primera vez que se le toca una casilla, y
+   entra COMPLETO (sembrado con lo que ya estaba guardado). Así comparar
+   "lo que hay" contra "lo que estaba" es comparar dos objetos de la
+   misma forma, sin tener que adivinar qué campos se tocaron.
    =================================================================== */
-type Form = {
+type Edicion = {
+  produccion: string;
+  baja: string;
   le_produccion: string;
   le_baja: string;
-  produccion: string;
   nota: string;
   causales: Record<string, string>;
 };
 
-const VACIO: Form = { le_produccion: "", le_baja: "", produccion: "", nota: "", causales: {} };
+const VACIA: Edicion = {
+  produccion: "", baja: "", le_produccion: "", le_baja: "", nota: "", causales: {},
+};
 
-function formDe(datos: DatosDiario, fecha: string): Form {
+function guardadoDe(datos: DatosDiario, fecha: string): Edicion {
   const m = datos.manual[fecha];
-  if (!m) return { ...VACIO, causales: {} };
+  if (!m) return { ...VACIA, causales: {} };
   const causales: Record<string, string> = {};
   for (const c of CAUSALES) if (m.causales[c] != null) causales[c] = texto(m.causales[c]);
   return {
+    produccion: texto(m.produccion),
+    baja: texto(m.baja),
     le_produccion: texto(m.le_produccion),
     le_baja: texto(m.le_baja),
-    produccion: texto(m.produccion),
     nota: m.nota ?? "",
     causales,
   };
 }
 
-const igualForm = (a: Form, b: Form) =>
+const igualEdicion = (a: Edicion, b: Edicion) =>
+  a.produccion === b.produccion && a.baja === b.baja &&
   a.le_produccion === b.le_produccion && a.le_baja === b.le_baja &&
-  a.produccion === b.produccion && a.nota === b.nota &&
+  a.nota === b.nota &&
   CAUSALES.every((c) => (a.causales[c] ?? "") === (b.causales[c] ?? ""));
 
 /* ===================================================================
@@ -188,13 +201,46 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
 
-  const [form, setForm] = useState<Form>(() => formDe(inicial, fechaInicial));
-  const original = useMemo(() => formDe(datos, fecha), [datos, fecha]);
-  const sucio = !igualForm(form, original);
+  /** Mapa fecha → lo escrito. Solo los días tocados están aquí. */
+  const [edits, setEdits] = useState<Record<string, Edicion>>({});
+  const [verDesglose, setVerDesglose] = useState(false);
+
+  /** Lo que hay en las casillas de un día: lo tocado, o lo guardado. */
+  const actual = useCallback(
+    (f: string): Edicion => edits[f] ?? guardadoDe(datos, f),
+    [edits, datos]
+  );
+
+  /** Los días cuyo contenido se aparta de lo guardado. */
+  const tocados = useMemo(
+    () => Object.keys(edits).filter((f) => !igualEdicion(edits[f], guardadoDe(datos, f))).sort(),
+    [edits, datos]
+  );
+  const sucio = tocados.length > 0;
+
+  const escribir = useCallback((f: string, campo: Campo, valor: string) => {
+    setEdits((prev) => {
+      const base = prev[f] ?? guardadoDe(datos, f);
+      const n: Edicion = { ...base, causales: { ...base.causales } };
+      if (campo === "produccion") n.produccion = valor;
+      else if (campo === "baja") n.baja = valor;
+      else n.causales[campo.causal] = valor;
+      return { ...prev, [f]: n };
+    });
+  }, [datos]);
+
+  const escribirCampo = useCallback((f: string, campo: "le_produccion" | "le_baja" | "nota", valor: string) => {
+    setEdits((prev) => {
+      const base = prev[f] ?? guardadoDe(datos, f);
+      return { ...prev, [f]: { ...base, causales: { ...base.causales }, [campo]: valor } };
+    });
+  }, [datos]);
 
   const avisarSucio = useCallback(
-    () => !sucio || confirm("Hay cambios sin guardar en este día. ¿Salir de todos modos?"),
-    [sucio]
+    () => !sucio || confirm(
+      `Hay ${tocados.length} día${tocados.length > 1 ? "s" : ""} sin guardar. ¿Salir de todos modos?`
+    ),
+    [sucio, tocados.length]
   );
 
   /** Trae otro rango del servidor. */
@@ -207,7 +253,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
         setDatos(nuevo);
         setFecha(anclaNueva);
         setElegidos(marcar);
-        setForm(formDe(nuevo, anclaNueva));
+        setEdits({});
       } catch {
         setAviso({ mal: true, texto: "No se pudo leer el período. Revisa la conexión." });
       } finally {
@@ -241,7 +287,6 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
       }
       setFecha(f);
       setElegidos(new Set([f]));
-      setForm(formDe(datos, f));
     },
     [avisarSucio, datos, traer]
   );
@@ -265,34 +310,83 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     []
   );
 
-  /* ---- el día seleccionado, con lo que hay escrito en las casillas ---- */
+  /* ===================================================================
+     RESOLVER UN DÍA — las tres capas, de lo más específico a lo general:
+        desglose por causal  >  total escrito a mano  >  lo de SAP
+     Se resuelve con lo que hay en las CASILLAS, no con lo guardado: por
+     eso el tablero entero se mueve mientras se teclea, y se ve el efecto
+     de la cifra antes de darle a Guardar.
+     =================================================================== */
+  const resolver = useCallback(
+    (f: string): Dia => {
+      const s = datos.sap[f];
+      const e = actual(f);
+
+      const prodEsc = aNumero(e.produccion);
+      const totEsc = aNumero(e.baja);
+
+      const cs: Record<string, number> = {};
+      let hayDesglose = false;
+      for (const c of CAUSALES) {
+        const v = aNumero(e.causales[c] ?? "");
+        if (v != null) { cs[c] = v; hayDesglose = true; }
+      }
+
+      const produccion = prodEsc ?? s?.produccion ?? 0;
+      const baja = hayDesglose
+        ? CAUSALES.reduce((x, c) => x + (cs[c] ?? 0), 0)
+        : totEsc ?? s?.baja ?? 0;
+
+      /* La mezcla por causal: si hay desglose escrito, es ese. Si se
+         escribió solo el total, se reparte con las MISMAS proporciones
+         que reportó SAP — son información real — de modo que las barras
+         sumen el total escrito en vez de contradecirlo. Si SAP tampoco
+         tiene mezcla, no se inventa ninguna. */
+      let causales: Record<string, number> = {};
+      if (hayDesglose) {
+        causales = cs;
+      } else if (s && s.baja !== 0 && Object.keys(s.causales).length) {
+        const k = baja / s.baja;
+        for (const [cc, v] of Object.entries(s.causales)) causales[cc] = v * k;
+      }
+
+      const escrito = prodEsc != null || totEsc != null || hayDesglose;
+      return {
+        fecha: f, produccion, baja,
+        pct: produccion > 0 ? baja / produccion : null,
+        causales,
+        origen: escrito ? "escrito" : s ? "sap" : "vacio",
+      };
+    },
+    [datos, actual]
+  );
+
+  /* ---- el día abierto: para la ficha que compara contra SAP ---- */
   const sap = datos.sap[fecha];
   const manual = datos.manual[fecha];
+  const eAbierto = actual(fecha);
 
   const sapProd = sap?.produccion ?? null;
   const sapBaja = sap ? sap.baja : null;
 
-  const escProd = aNumero(form.produccion);
-  const escCausal = useCallback(
-    (c: string) => aNumero(form.causales[c] ?? ""),
-    [form.causales]
-  );
-  const hayCausalEscrita = CAUSALES.some((c) => escCausal(c) != null);
+  const escProd = aNumero(eAbierto.produccion);
+  const escTot = aNumero(eAbierto.baja);
+  const hayCausalEscrita = CAUSALES.some((c) => aNumero(eAbierto.causales[c] ?? "") != null);
   const escBaja = hayCausalEscrita
-    ? CAUSALES.reduce((s, c) => s + (escCausal(c) ?? 0), 0)
-    : null;
+    ? CAUSALES.reduce((x, c) => x + (aNumero(eAbierto.causales[c] ?? "") ?? 0), 0)
+    : escTot;
 
-  // Manda lo escrito; si no hay nada escrito, lo de SAP.
-  const prod = escProd ?? sapProd;
-  const baja = escBaja ?? sapBaja;
-  const pct = prod && prod > 0 && baja != null ? baja / prod : null;
+  const diaAbierto = resolver(fecha);
+  const prod = diaAbierto.produccion || null;
+  const baja = diaAbierto.baja;
+  const pct = diaAbierto.pct;
 
-  const leProd = aNumero(form.le_produccion);
-  const leBaja = aNumero(form.le_baja);
+  const leProd = aNumero(eAbierto.le_produccion);
+  const leBaja = aNumero(eAbierto.le_baja);
   const lePct = leProd && leProd > 0 && leBaja != null ? leBaja / leProd : null;
 
-  /* La meta es POR MES, así que una semana a caballo entre dos meses
-     tiene dos. metaDe() resuelve la del día. */
+  /* La meta es POR MES, así que un rango a caballo entre dos meses tiene
+     dos. metaDe() resuelve la del día. */
   const metaDe = useCallback(
     (f: string): number | null => datos.metas[f.slice(0, 7)] ?? null,
     [datos.metas]
@@ -302,54 +396,12 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
 
   const valorCausal = useCallback(
     (c: string): number | null => {
-      const e = escCausal(c);
+      const e = aNumero(actual(fecha).causales[c] ?? "");
       if (e != null) return e;
-      if (hayCausalEscrita) return 0; // desglose abierto a mano: lo vacío es cero
-      return sap?.causales[c] ?? null;
+      if (hayCausalEscrita) return 0;
+      return diaAbierto.causales[c] ?? null;
     },
-    [escCausal, hayCausalEscrita, sap]
-  );
-
-  /* ===================================================================
-     RESOLVER UN DÍA. Cada día con la cifra que MANDA: lo escrito si hay,
-     si no lo de SAP. El día que se está editando se resuelve con lo que
-     hay en las casillas AHORA, no con lo guardado: por eso el tablero
-     entero se mueve mientras se teclea.
-     =================================================================== */
-  const resolver = useCallback(
-    (f: string): Dia => {
-      const s = datos.sap[f];
-      const mn = datos.manual[f];
-
-      if (f === fecha) {
-        const cs: Record<string, number> = {};
-        for (const c of CAUSALES) {
-          const v = valorCausal(c);
-          if (v != null && v !== 0) cs[c] = v;
-        }
-        const p = prod ?? 0, b = baja ?? 0;
-        return {
-          fecha: f, produccion: p, baja: b,
-          pct: p > 0 ? b / p : null,
-          causales: cs,
-          origen: escProd != null || hayCausalEscrita || manual ? "escrito" : s ? "sap" : "vacio",
-        };
-      }
-
-      const hayEsc = !!mn && (mn.produccion != null || Object.keys(mn.causales).length > 0);
-      const p = mn?.produccion ?? s?.produccion ?? 0;
-      const cs = hayEsc && Object.keys(mn!.causales).length > 0 ? mn!.causales : (s?.causales ?? {});
-      const b = Object.keys(mn?.causales ?? {}).length > 0
-        ? Object.values(mn!.causales).reduce((x, y) => x + y, 0)
-        : s?.baja ?? 0;
-      return {
-        fecha: f, produccion: p, baja: b,
-        pct: p > 0 ? b / p : null,
-        causales: cs,
-        origen: hayEsc ? "escrito" : s ? "sap" : "vacio",
-      };
-    },
-    [datos, fecha, prod, baja, escProd, hayCausalEscrita, manual, valorCausal]
+    [actual, fecha, hayCausalEscrita, diaAbierto]
   );
 
   /* ===================================================================
@@ -454,6 +506,41 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     return null;
   }, [todoElRango, nSel, elegidos, fecha, datos.desde, datos.hasta]);
 
+  /* ---- lo que la rejilla necesita de cada columna ---- */
+  const columnas: ColumnaDia[] = useMemo(
+    () => diasRango.map((d) => {
+      const e = actual(d.fecha);
+      const s = datos.sap[d.fecha];
+      const causalesEsc: Record<string, string> = {};
+      let hayDesglose = false;
+      const causalVale: Record<string, number | null> = {};
+      for (const c of CAUSALES) {
+        const t = e.causales[c] ?? "";
+        causalesEsc[c] = t;
+        if (aNumero(t) != null) hayDesglose = true;
+      }
+      for (const c of CAUSALES) {
+        const v = aNumero(e.causales[c] ?? "");
+        causalVale[c] = v != null ? v : hayDesglose ? 0 : (s?.causales[c] ?? null);
+      }
+      return {
+        fecha: d.fecha,
+        produccion: d.produccion,
+        baja: d.baja,
+        pct: d.pct,
+        meta: metaDe(d.fecha),
+        sapProduccion: s?.produccion ?? null,
+        sapBaja: s ? s.baja : null,
+        produccionEsc: e.produccion,
+        bajaEsc: e.baja,
+        causalesEsc,
+        hayDesglose,
+        causalVale,
+      };
+    }),
+    [diasRango, actual, datos.sap, metaDe]
+  );
+
   const rotSel = todoElRango ? "QUIEBRA DEL PERÍODO"
                : nSel === 1 ? "QUIEBRA DEL DÍA"
                : `QUIEBRA DE ${nSel} DÍAS`;
@@ -503,7 +590,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
       out.push({ estado: "ojo", texto: `La baja escrita se aparta de SAP en ${nf.format(Math.abs(dif))} cajas (${dif > 0 ? "más" : "menos"}). Manda la escrita.` });
     }
     if (hayCausalEscrita && sap) {
-      const faltan = CAUSALES.filter((c) => (sap.causales[c] ?? 0) > 0 && escCausal(c) == null);
+      const faltan = CAUSALES.filter((c) => (sap.causales[c] ?? 0) > 0 && aNumero(eAbierto.causales[c] ?? "") == null);
       if (faltan.length) {
         out.push({ estado: "ojo", texto: `SAP tiene ${faltan.join(", ")} en este día y quedaron en cero al escribir el desglose a mano.` });
       }
@@ -523,32 +610,44 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     if (out.length === 0) out.push({ estado: "ok", texto: "El día cuadra." });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prod, baja, escProd, escBaja, sapProd, sapBaja, pct, meta, leProd, form, sap, manual]);
+  }, [prod, baja, escProd, escBaja, sapProd, sapBaja, pct, meta, leProd, eAbierto, sap, manual]);
 
-  /* ---- guardar ---- */
+  /* ===================================================================
+     GUARDAR. Se manda TODO lo tocado en una sola llamada y es todo o
+     nada: la rejilla deja tocar treinta días antes de guardar, y
+     guardar la mitad sería peor que no guardar nada.
+     =================================================================== */
   async function guardar() {
+    if (!tocados.length) return;
     setGuardando(true);
     setAviso(null);
-    const causales: Record<string, number> = {};
-    for (const c of CAUSALES) {
-      const v = escCausal(c);
-      if (v != null) causales[c] = v;
-    }
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const { error } = await (supabase as any).rpc("quiebra_diario_guardar", {
-      p_fecha: fecha,
-      p_le_produccion: leProd,
-      p_le_baja: leBaja,
-      p_produccion: escProd,
-      p_nota: form.nota.trim() || null,
-      p_causales: causales,
+
+    const lote = tocados.map((f) => {
+      const e = edits[f];
+      const causales: Record<string, number> = {};
+      for (const c of CAUSALES) {
+        const v = aNumero(e.causales[c] ?? "");
+        if (v != null) causales[c] = v;
+      }
+      return {
+        fecha: f,
+        produccion: aNumero(e.produccion),
+        baja: aNumero(e.baja),
+        le_produccion: aNumero(e.le_produccion),
+        le_baja: aNumero(e.le_baja),
+        nota: e.nota.trim() || null,
+        causales,
+      };
     });
+
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const { error } = await (supabase as any).rpc("quiebra_diario_guardar_lote", { p_dias: lote });
 
     if (error) {
       const m = error.message.toLowerCase();
       setAviso({
         mal: true,
-        texto: m.includes("does not exist") || m.includes("schema cache")
+        texto: m.includes("does not exist") || m.includes("schema cache") || m.includes("function")
           ? "Falta crear las tablas del diario en Supabase: ejecuta supabase/modulos/quiebra-diario.sql en el SQL Editor."
           : m.includes("supervisor") || m.includes("row-level security") || m.includes("permission")
             ? "Tu usuario no tiene permiso para editar el diario. Se necesita rol de supervisor o administrador."
@@ -561,22 +660,33 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     try {
       const nuevo = await leerRango(supabase, datos.desde, datos.hasta);
       setDatos(nuevo);
-      setForm(formDe(nuevo, fecha));
-      setAviso({ mal: false, texto: "Día guardado." });
+      setEdits({});
+      setAviso({
+        mal: false,
+        texto: `${lote.length} día${lote.length > 1 ? "s" : ""} guardado${lote.length > 1 ? "s" : ""}.`,
+      });
     } catch {
       setAviso({ mal: false, texto: "Guardado, pero no se pudo refrescar la pantalla." });
     }
     setGuardando(false);
   }
 
-  function limpiarTodo() {
-    if (!confirm("Se borra todo lo escrito a mano en este día y vuelve a mandar lo importado de SAP. ¿Seguir?")) return;
-    setForm({ ...VACIO, causales: {} });
-  }
+  /** Deshace lo tocado sin guardar. */
+  const deshacer = () => setEdits({});
 
-  const editar = (parche: Partial<Form>) => setForm((f) => ({ ...f, ...parche }));
-  const editarCausal = (c: string, v: string) =>
-    setForm((f) => ({ ...f, causales: { ...f.causales, [c]: v } }));
+  /** Devuelve los días marcados a lo que dice SAP: borra su dato manual. */
+  function volverASap() {
+    const objetivo = diasSel.map((d) => d.fecha);
+    if (!confirm(
+      `Se borra lo escrito a mano en ${objetivo.length} día${objetivo.length > 1 ? "s" : ""} ` +
+      `y vuelve a mandar lo importado de SAP. Hay que darle a Guardar para que quede. ¿Seguir?`
+    )) return;
+    setEdits((prev) => {
+      const n = { ...prev };
+      for (const f of objetivo) n[f] = { ...VACIA, causales: {} };
+      return n;
+    });
+  }
 
   const autor = manual?.actualizado_por ? datos.autores[manual.actualizado_por] : null;
   return (
@@ -777,107 +887,75 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
         </div>
       </section>
 
-      {/* ====================== La hoja editable ====================== */}
+      {/* ====================== La rejilla ====================== */}
       <section className="tarjeta qd-hoja">
         <div className="cab">
           <div>
-            <h2>Escribir el día · {bonita(fecha)}</h2>
+            <h2>La hoja del período</h2>
             <p>
-              La columna <b>SAP</b> es lo importado y no se toca. La columna <b>Escrito</b> es
-              tuya: lo que escribas manda sobre SAP, y dejarlo en blanco es volver a SAP.
-              El tablero de arriba se mueve mientras escribes.
+              El espejo de <b>QUIEBRA DIARIA</b>: un día por columna. Las casillas
+              blancas se escriben y lo escrito manda sobre SAP; en gris, debajo, está
+              lo que dice el maestro. Dejar una casilla en blanco es volver a SAP.
             </p>
           </div>
           <div className={"qd-estado" + (sucio ? " sucio" : "")}>
-            {sucio ? "Cambios sin guardar" : "Todo guardado"}
+            {sucio
+              ? `${tocados.length} día${tocados.length > 1 ? "s" : ""} sin guardar`
+              : "Todo guardado"}
           </div>
         </div>
 
-        <div className="qd-tabla">
-          <div className="qd-cab">
-            <span>Concepto</span>
-            <span className="num">SAP</span>
-            <span className="num">Escrito</span>
-            <span className="num">Vale</span>
-          </div>
-
-          <div className="qd-grupo">Real del día</div>
-
-          <Linea nombre="Producción" ayuda="cajas producidas" sap={sapProd}
-                 valor={form.produccion} cambiar={(v) => editar({ produccion: v })}
-                 efectivo={prod} editable={esEditor} />
-
-          <div className="qd-grupo">
-            Pérdida por causal
-            <span className="qd-pista">
-              {hayCausalEscrita
-                ? "Escribiendo el desglose a mano: lo que dejes en blanco cuenta como cero."
-                : "En blanco = tal cual lo importado."}
-            </span>
-          </div>
-
-          {CAUSALES.map((c) => (
-            <Linea key={c} nombre={NOMBRE_HOJA[c] ?? c} ayuda={NOMBRE_HOJA[c] ? c : undefined}
-                   punto={color(c)} sap={sap?.causales[c] ?? null}
-                   valor={form.causales[c] ?? ""} cambiar={(v) => editarCausal(c, v)}
-                   efectivo={valorCausal(c)} editable={esEditor} />
-          ))}
-
-          <div className="qd-linea total">
-            <div className="qd-nom"><b>Total baja del día</b></div>
-            <div className="num sap">{sapBaja == null ? "—" : nf.format(sapBaja)}</div>
-            <div className="num esc">{escBaja == null ? "—" : nf.format(escBaja)}</div>
-            <div className="num vale">{baja == null ? "—" : nf.format(baja)}</div>
-          </div>
-
-          <div className="qd-linea total pct">
-            <div className="qd-nom"><b>Quiebra del día</b></div>
-            <div className="num sap">
-              {sapProd && sapProd > 0 && sapBaja != null ? pf(sapBaja / sapProd) : "—"}
-            </div>
-            <div className="num esc">
-              {escProd && escProd > 0 && escBaja != null ? pf(escBaja / escProd) : "—"}
-            </div>
-            <div className={"num vale" + (sobreMetaDia ? " mal" : "")}>{pf(pct)}</div>
-          </div>
-
-          <div className="qd-grupo">
-            LE del día
-            <span className="qd-pista">Lo que el plan decía. Solo se escribe a mano.</span>
-          </div>
-
-          <Linea nombre="Producción LE" sap={null} valor={form.le_produccion}
-                 cambiar={(v) => editar({ le_produccion: v })} efectivo={leProd}
-                 editable={esEditor} soloEscrito />
-          <Linea nombre="Baja LE" sap={null} valor={form.le_baja}
-                 cambiar={(v) => editar({ le_baja: v })} efectivo={leBaja}
-                 editable={esEditor} soloEscrito />
-          <div className="qd-linea total">
-            <div className="qd-nom"><b>Quiebra LE</b></div>
-            <div className="num sap">—</div>
-            <div className="num esc">{pf(lePct)}</div>
-            <div className="num vale">{pf(lePct)}</div>
-          </div>
-        </div>
-
-        <div className="qd-nota">
-          <label htmlFor="qd-nota">Nota del día</label>
-          <textarea id="qd-nota" rows={2}
-                    placeholder="Por qué se escribió a mano, qué turno faltaba, a quién se le pidió el dato…"
-                    value={form.nota} disabled={!esEditor}
-                    onChange={(e) => editar({ nota: e.target.value })} />
-        </div>
+        <Rejilla
+          cols={columnas}
+          editable={esEditor}
+          abierto={fecha}
+          escribir={escribir}
+          abrir={irA}
+          mostrarDesglose={verDesglose}
+          alternarDesglose={() => setVerDesglose((v) => !v)}
+        />
 
         {esEditor ? (
-          <div className="qd-acciones">
-            <button type="button" className="qd-btn" disabled={!sucio || guardando} onClick={guardar}>
-              {guardando ? "Guardando…" : "Guardar el día"}
-            </button>
-            <button type="button" className="qd-btn plano" disabled={!sucio || guardando}
-                    onClick={() => setForm(original)}>Deshacer</button>
-            <button type="button" className="qd-btn plano" disabled={guardando}
-                    onClick={limpiarTodo}>Volver a lo de SAP</button>
-          </div>
+          <>
+            <div className="qd-nota">
+              <label htmlFor="qd-nota">Nota del {bonita(fecha)}</label>
+              <textarea id="qd-nota" rows={2}
+                        placeholder="Por qué se escribió a mano, qué turno faltaba, a quién se le pidió el dato…"
+                        value={eAbierto.nota}
+                        onChange={(e) => escribirCampo(fecha, "nota", e.target.value)} />
+              <div className="qd-le">
+                <span className="rot">LE del día</span>
+                <label>
+                  Producción
+                  <input inputMode="decimal" value={eAbierto.le_produccion}
+                         onChange={(e) => escribirCampo(fecha, "le_produccion", e.target.value)} />
+                </label>
+                <label>
+                  Baja
+                  <input inputMode="decimal" value={eAbierto.le_baja}
+                         onChange={(e) => escribirCampo(fecha, "le_baja", e.target.value)} />
+                </label>
+                <b>{pf(lePct)}</b>
+              </div>
+            </div>
+
+            <div className="qd-acciones">
+              <button type="button" className="qd-btn" disabled={!sucio || guardando}
+                      onClick={guardar}>
+                {guardando
+                  ? "Guardando…"
+                  : sucio
+                    ? `Guardar ${tocados.length} día${tocados.length > 1 ? "s" : ""}`
+                    : "Guardar"}
+              </button>
+              <button type="button" className="qd-btn plano" disabled={!sucio || guardando}
+                      onClick={deshacer}>Deshacer</button>
+              <button type="button" className="qd-btn plano" disabled={guardando}
+                      onClick={volverASap}>
+                Volver a lo de SAP{nSel > 1 ? ` (${nSel} días)` : ""}
+              </button>
+            </div>
+          </>
         ) : (
           <div className="qd-acciones">
             <span className="qd-estado">Solo lectura. Escribir el diario requiere rol de supervisor.</span>
@@ -886,25 +964,33 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
         {aviso && <div className={"qd-aviso" + (aviso.mal ? " mal" : " bien")}>{aviso.texto}</div>}
       </section>
 
-      {/* ====================== Detalle del mes ====================== */}
+      {/* ====================== El año, mes por mes ====================== */}
       <section className="tarjeta">
         <div className="cab">
           <div>
-            <h2>Detalle día por día</h2>
-            <p>Producción, baja, quiebra y de dónde salió cada cifra</p>
+            <h2>El año mes por mes</h2>
+            <p>
+              La segunda tabla de la hoja, ya con lo escrito a mano aplicado. La misma
+              que sale en el tablero del periodo, y sale de la misma vista para que no
+              puedan discrepar.
+            </p>
           </div>
         </div>
-        <div className="cuerpo tabla qd-tabla-dias">
-          <TablaDias dias={diasRango} metaDe={metaDe} elegidos={elegidos} ancla={fecha}
-                     hoy={hoy} alternar={alternar} abrir={irA} />
-        </div>
+        <TablaAnio
+          anio={datos.anio}
+          meses={datos.meses}
+          metas={datos.metas}
+          resaltar={Number(fecha.slice(5, 7))}
+        />
       </section>
 
       <p className="nota-pie">
-        Importar el maestro vuelve a llenar la columna de SAP de todos los días del archivo.
-        Lo escrito a mano vive en otra tabla y no se toca: por eso un día editado sigue
-        editado después de importar, y por eso la pantalla muestra las dos cifras cuando se
-        apartan. Para devolver un día a lo que dice SAP, usa <b>Volver a lo de SAP</b>.
+        Importar el maestro vuelve a llenar lo de SAP en todos los días del archivo. Lo
+        escrito a mano vive en otra tabla y no se toca: por eso un día editado sigue
+        editado después de importar, y por eso la casilla muestra en gris lo que dice el
+        maestro cuando se apartan. Tres capas, de lo más específico a lo más general:
+        el desglose por causal manda sobre el total escrito, y el total escrito sobre lo
+        importado. Para devolver días a SAP, márcalos y usa <b>Volver a lo de SAP</b>.
       </p>
     </div>
   );
@@ -1107,61 +1193,6 @@ function ApiladoDias({ dias, elegidos }: { dias: Dia[]; elegidos: Set<string> })
   );
 }
 
-/* ==================== Tabla del mes ==================== */
-function TablaDias({ dias, metaDe, elegidos, ancla, hoy, alternar, abrir }: {
-  dias: Dia[]; metaDe: (f: string) => number | null;
-  elegidos: Set<string>; ancla: string; hoy: string;
-  alternar: (f: string) => void; abrir: (f: string) => void;
-}) {
-  return (
-    <table>
-      <thead>
-        <tr>
-          <th className="tic"><span className="sr">Marcado</span></th>
-          <th>Día</th>
-          <th className="num">Producción</th>
-          <th className="num">Baja</th>
-          <th className="num">Quiebra</th>
-          <th className="num">Meta</th>
-          <th>Origen</th>
-        </tr>
-      </thead>
-      <tbody>
-        {dias.map((d) => {
-          const meta = metaDe(d.fecha);
-          const encima = meta != null && d.pct != null && d.pct > meta;
-          return (
-            <tr key={d.fecha}
-                className={"qd-fila-dia" + (elegidos.has(d.fecha) ? " sel" : "")
-                           + (d.fecha === ancla ? " ancla" : "") + (d.fecha > hoy ? " futuro" : "")}
-                onClick={() => alternar(d.fecha)}
-                onDoubleClick={() => abrir(d.fecha)}>
-              <td className="tic">
-                <input type="checkbox" checked={elegidos.has(d.fecha)} readOnly tabIndex={-1}
-                       aria-label={`Marcar ${bonita(d.fecha)}`} />
-              </td>
-              <td className="mes">
-                {partes(d.fecha).d} {MESES[partes(d.fecha).m].toLowerCase()}
-              </td>
-              <td className="num">{d.produccion ? nf.format(d.produccion) : "—"}</td>
-              <td className="num">{d.baja ? nf.format(d.baja) : "—"}</td>
-              <td className={"num " + (d.pct == null ? "" : encima ? "sobre" : "bajo")}>
-                {d.pct == null ? "—" : `${encima ? "▲" : "▼"} ${pf(d.pct)}`}
-              </td>
-              <td className="num meta">{pf(meta)}</td>
-              <td>
-                {d.origen === "escrito" && <span className="qd-sello escrito">a mano</span>}
-                {d.origen === "sap" && <span className="qd-sello sap">SAP</span>}
-                {d.origen === "vacio" && <span className="qd-sello falta">sin dato</span>}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
 /* ==================== La barra de días ====================
    El calendario fija el RANGO (1 ago → 31 ago). Las pastillas son los
    días de ese rango: tocarlas marca y desmarca, y se pueden marcar uno,
@@ -1253,48 +1284,5 @@ function TiraMes({
         <b>{marcados} de {dias.length} marcados</b>
       </div>
     </section>
-  );
-}
-
-/* ==================== Una fila de la hoja ==================== */
-function Linea({ nombre, ayuda, punto, sap, valor, cambiar, efectivo, editable, soloEscrito }: {
-  nombre: string;
-  ayuda?: string;
-  punto?: string;
-  sap: number | null;
-  valor: string;
-  cambiar: (v: string) => void;
-  efectivo: number | null;
-  editable: boolean;
-  soloEscrito?: boolean;
-}) {
-  const escrito = valor.trim() !== "";
-  const difiere = escrito && sap != null && Math.abs((aNumero(valor) ?? 0) - sap) > 0.5;
-
-  return (
-    <div className={"qd-linea" + (escrito ? " tocada" : "")}>
-      <div className="qd-nom">
-        {punto && <i className="qd-punto" style={{ background: punto }} />}
-        <span>{nombre}{ayuda && <em>{ayuda}</em>}</span>
-      </div>
-      <div className="num sap">{soloEscrito ? "—" : sap == null ? "—" : nf.format(sap)}</div>
-      <div className="num esc">
-        <div className="qd-caja">
-          <input inputMode="decimal" value={valor} disabled={!editable}
-                 placeholder={soloEscrito ? "—" : sap == null ? "—" : nf.format(sap)}
-                 onChange={(e) => cambiar(e.target.value)}
-                 aria-label={`${nombre}, valor escrito a mano`} />
-          {escrito && editable && (
-            <button type="button" className="qd-x" onClick={() => cambiar("")}
-                    aria-label={`Borrar lo escrito en ${nombre}`}>
-              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
-            </button>
-          )}
-        </div>
-      </div>
-      <div className={"num vale" + (difiere ? " difiere" : "")}>
-        {efectivo == null ? "—" : nf.format(efectivo)}
-      </div>
-    </div>
   );
 }

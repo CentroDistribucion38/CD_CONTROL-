@@ -25,6 +25,7 @@ export default async function QuiebraPage() {
       metas={datos.metas}
       ultimaCarga={datos.ultimaCarga}
       esEditor={esEditor}
+      meses={datos.meses}
     />
   );
 }
