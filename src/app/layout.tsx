@@ -3,14 +3,19 @@ import { RegistrarSW } from "@/components/RegistrarSW";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CONTROL",
+  /**
+   * El título de la ventana lo arma el navegador juntando el nombre de la
+   * app (del manifest) con el título de la página. Si los dos dicen lo
+   * mismo, no lo repite. Por eso los tres nombres van idénticos.
+   */
+  title: "CONTROL CD38",
   description: "Plataforma modular de gestión operativa · Centro de Distribución 38",
-  applicationName: "CONTROL",
+  applicationName: "CONTROL CD38",
   // Para que en iPhone/iPad "Agregar a pantalla de inicio" abra sin la
   // barra de Safari y con el nombre corto.
   appleWebApp: {
     capable: true,
-    title: "CONTROL",
+    title: "CONTROL CD38",
     statusBarStyle: "black-translucent",
   },
 };

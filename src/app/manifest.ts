@@ -7,8 +7,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CONTROL · Centro de Distribución 38",
-    short_name: "CONTROL",
+    name: "CONTROL CD38",
+    short_name: "CONTROL CD38",
     description: "Plataforma operativa del CD38 — Bavaria BAQ",
     start_url: "/inicio",
     scope: "/",
