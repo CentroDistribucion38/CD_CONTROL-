@@ -176,8 +176,7 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
         <div className="lado-derecho">
         <AccionesInforme
           armar={() => construirInforme({
-            desde, hasta, pct, meta, pp, sobre, total, perdida, exceso,
-            prodMes, perdMes, metaDe, bajas: bj, causales, almacenes,
+            desde, hasta,
             filtros: resumenFiltros(almacen, linea, causales, apagadas),
           })}
         />
@@ -1098,10 +1097,10 @@ async function componerHojas(fotos: Foto[], enc: string[]): Promise<string[]> {
   });
 }
 
-function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[]; nombre: string } }) {
+function AccionesInforme({ armar }: { armar: () => { enc: string[]; nombre: string } }) {
   const [estado, setEstado] = useState<"" | "listo" | "mal">("");
   const [aviso, setAviso] = useState("");
-  const [trabajando, setTrabajando] = useState<"" | "pdf" | "copia">("");
+  const [generando, setGenerando] = useState(false);
 
   useEffect(() => {
     if (!estado) return;
@@ -1124,7 +1123,7 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
   }
 
   async function generarPdf() {
-    setTrabajando("pdf");
+    setGenerando(true);
     try {
       const { enc, nombre } = armar();
       const hojas = await prepararHojas(enc);
@@ -1147,122 +1146,19 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
       setTimeout(() => window.print(), 900);
       void e;
     }
-    setTrabajando("");
-  }
-
-  /** Lo que se pega en el correo: las MISMAS hojas del PDF, una debajo de otra. */
-  function armarHtml(enc: string[], hojas: string[]): string {
-    return (
-      `<div style="font:14px Arial;color:#04203F">` +
-      hojas.map((h) =>
-        `<div style="margin-bottom:16px"><img src="${h}" width="1000" ` +
-        `style="width:1000px;max-width:100%;display:block;border:1px solid #D5DCE5" ` +
-        `alt="${enc[0]}"></div>`).join("") +
-      `</div>`
-    );
-  }
-
-  /** Último recurso: si no hay portapapeles, al menos queda el archivo. */
-  function descargarHtml(enc: string[], html: string) {
-    const doc = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">` +
-                `<title>${enc[0]}</title></head><body>${html}</body></html>`;
-    const url = URL.createObjectURL(new Blob([doc], { type: "text/html" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "informe-quiebra.html";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-  }
-
-  /**
-   * OJO: esta función NO puede ser async.
-   *
-   * El navegador solo permite escribir en el portapapeles mientras dura el
-   * gesto de la persona. Componer las hojas toma varios segundos, así que
-   * si se hace `await` antes de llamar a clipboard.write, para cuando llega
-   * la escritura el permiso ya venció y la copia se bloquea sin decir nada.
-   * Por eso write() se llama de una, y lo que recibe son PROMESAS que se
-   * resuelven después con las hojas.
-   */
-  function copiar() {
-    const { texto, enc } = armar();
-    setTrabajando("copia");
-
-    const puedeRico =
-      typeof ClipboardItem !== "undefined" &&
-      !!navigator.clipboard &&
-      "write" in navigator.clipboard;
-
-    let htmlListo = "";
-    const blobHtml = prepararHojas(enc)
-      .then((hojas) => {
-        htmlListo = armarHtml(enc, hojas);
-        return new Blob([htmlListo], { type: "text/html" });
-      })
-      .finally(() => setTrabajando(""));
-
-    const listo = (msg: string) => { setAviso(msg); setEstado("listo"); };
-
-    // Si el portapapeles enriquecido falla, se intenta el texto plano, que
-    // tiene todas las cifras. Y si tampoco, se baja el archivo.
-    const deRespaldo = async (motivo: string) => {
-      try {
-        await navigator.clipboard.writeText(texto);
-        listo("Se copió el informe en texto: las imágenes no cupieron.");
-      } catch {
-        try {
-          await blobHtml;
-          descargarHtml(enc, htmlListo);
-          fallo(`No se pudo copiar (${motivo}). Se descargó el informe como archivo.`);
-        } catch {
-          fallo(`No se pudo copiar ni descargar el informe (${motivo}).`);
-        }
-      }
-    };
-
-    if (!puedeRico) {
-      void deRespaldo("este navegador no tiene portapapeles enriquecido");
-      return;
-    }
-
-    navigator.clipboard
-      .write([
-        new ClipboardItem({
-          "text/html": blobHtml,
-          // El texto plano viaja al lado: si el correo bloquea imágenes,
-          // igual quedan las cifras.
-          "text/plain": new Blob([texto], { type: "text/plain" }),
-        }),
-      ])
-      .then(() => listo("Hojas del informe copiadas. Pégalas en el correo."))
-      .catch((e: unknown) => {
-        const nombre = e instanceof Error ? e.name : "error";
-        void deRespaldo(nombre);
-      });
+    setGenerando(false);
   }
 
   return (
     <>
       <div className="acciones-informe">
-        <button type="button" className="accion" onClick={generarPdf} disabled={!!trabajando}>
+        <button type="button" className="accion" onClick={generarPdf} disabled={generando}>
           <svg viewBox="0 0 24 24">
             <path d="M8 3.5h5.5L18 8v12.5H6V3.5z" />
             <path d="M13.5 3.5V8H18" />
             <path d="M9.5 15.5h5M9.5 12.5h3" />
           </svg>
-          {trabajando === "pdf" ? "Generando…" : "Generar PDF"}
-        </button>
-        <button
-          type="button"
-          className={"accion" + (estado === "listo" ? " listo" : "")}
-          onClick={copiar}
-          disabled={!!trabajando}
-        >
-          <svg viewBox="0 0 24 24">
-            <rect x="9" y="9" width="11.5" height="11.5" rx="2" />
-            <path d="M15 6.5V5.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h1" />
-          </svg>
-          {trabajando === "copia" ? "Preparando…" : "Copiar informe"}
+          {generando ? "Generando…" : "Generar PDF"}
         </button>
       </div>
 
@@ -1282,78 +1178,13 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
 
 type DatosInforme = {
   desde: string; hasta: string;
-  pct: number | null; meta: number; pp: number; sobre: boolean;
-  total: number; perdida: number; exceso: number;
-  prodMes: Map<number, number>; perdMes: Map<number, number>;
-  metaDe: (m: number) => number;
-  bajas: Baja[]; causales: string[]; almacenes: string[];
   filtros: string;
 };
 
-/**
- * Arma el encabezado, el nombre del archivo y la versión en texto plano del
- * informe. El texto plano importa: quien reciba el correo en el celular, o
- * con las imágenes bloqueadas, igual tiene que poder leer las cifras.
- */
-function construirInforme(d: DatosInforme): { texto: string; enc: string[]; nombre: string } {
-  const meses = [...d.prodMes.keys()].sort((a, b) => a - b);
+/** Encabezado que se repite en cada hoja, y el nombre del archivo. */
+function construirInforme(d: DatosInforme): { enc: string[]; nombre: string } {
   const periodo = `${bonita(d.desde)} — ${bonita(d.hasta)}`;
-
-  const porCausal = d.causales.map((c) => ({
-    n: c,
-    v: d.bajas.filter((b) => b.causal === c).reduce((a, b) => a + Number(b.cantidad), 0),
-  }));
-  const porAlmacen = d.almacenes.map((a) => ({
-    n: a,
-    v: d.bajas.filter((b) => b.almacen === a).reduce((x, b) => x + Number(b.cantidad), 0),
-  })).sort((x, y) => y.v - x.v);
-
-  const mapMat = new Map<string, { den: string; v: number }>();
-  for (const b of d.bajas) {
-    const k = b.material ?? "—";
-    const a = mapMat.get(k) ?? { den: b.denominacion ?? k, v: 0 };
-    a.v += Number(b.cantidad);
-    mapMat.set(k, a);
-  }
-  const envases = [...mapMat.entries()].filter((x) => x[1].v > 0)
-    .sort((a, b) => b[1].v - a[1].v).slice(0, 8);
-
-  const parte = (v: number) => (d.perdida > 0 ? pf(v / d.perdida, 1) : "—");
-
-  const texto = [
-    "QUIEBRA DE ENVASE · AG01",
-    "Centro de Distribución 38 · Bavaria BAQ",
-    `Período: ${periodo}`,
-    d.filtros,
-    "",
-    `Quiebra del período: ${pf(d.pct)} (meta ${pf(d.meta)}, ` +
-      `${d.pp >= 0 ? "+" : "−"}${Math.abs(d.pp).toFixed(2).replace(".", ",")} pp ` +
-      `${d.sobre ? "sobre" : "bajo"} la meta)`,
-    `Envase producido: ${nf.format(d.total)} unidades`,
-    `Envase roto: ${nf.format(d.perdida)} unidades (neto de reversos)`,
-    `${d.exceso > 0 ? "Exceso sobre meta" : "Margen bajo la meta"}: ${nf.format(Math.abs(d.exceso))} unidades`,
-    "",
-    "DETALLE MENSUAL",
-    ...meses.map((m) => {
-      const p = d.prodMes.get(m) ?? 0, q = d.perdMes.get(m) ?? 0;
-      return `  ${MESES[m - 1]}  |  producción ${nf.format(p)}  |  quiebra ${nf.format(q)}` +
-             `  |  ${pf(p ? q / p : 0)}  |  meta ${pf(d.metaDe(m))}`;
-    }),
-    "",
-    "PARTICIPACIÓN POR CAUSAL",
-    ...porCausal.map((c) => `  ${c.n}  |  ${parte(c.v)}`),
-    "",
-    "PARTICIPACIÓN POR ALMACÉN",
-    ...porAlmacen.map((a) => `  ${a.n}  |  ${parte(a.v)}`),
-    "",
-    "QUIEBRA POR ENVASE",
-    ...envases.map(([cod, x]) => `  ${x.den} (${cod})  |  ${nf.format(x.v)}  |  ${parte(x.v)}`),
-    "",
-    `${selloFecha()} desde CONTROL · la quiebra es neta: los reversos con cantidad positiva restan.`,
-  ].join("\n");
-
   return {
-    texto,
     enc: [
       "Quiebra de envase · Ag01",
       `Centro de Distribución 38 · Bavaria BAQ · ${periodo} · ${d.filtros}`,

@@ -86,13 +86,34 @@ const col = (f: Cruda, ...nombres: string[]) => {
   return undefined;
 };
 
-export function leerBajas(filas: Cruda[]): { filas: FilaBaja[]; descartadas: number } {
+/** Una fila que no entró, para poder mostrar POR QUÉ y no solo cuántas. */
+export type Descarte = { hoja: string; fila: number; motivo: string; detalle: string };
+
+/** Cuántos ejemplos se guardan: alcanzan para entender el patrón. */
+const TOPE_EJEMPLOS = 30;
+
+export function leerBajas(
+  filas: Cruda[]
+): { filas: FilaBaja[]; descartadas: number; ejemplos: Descarte[] } {
   const out: FilaBaja[] = [];
+  const ejemplos: Descarte[] = [];
   let descartadas = 0;
-  for (const f of filas) {
+  for (const [i, f] of filas.entries()) {
     const fecha = aFecha(col(f, "Fe.contab.", "Fe.contab", "Fecha contabilización", "Fecha"));
     const cant = num(col(f, "Cantidad"));
-    if (!fecha || cant === 0) { descartadas++; continue; }
+    if (!fecha || cant === 0) {
+      descartadas++;
+      if (ejemplos.length < TOPE_EJEMPLOS) {
+        ejemplos.push({
+          hoja: HOJA_BAJAS,
+          // +2: la primera fila del Excel son los encabezados.
+          fila: i + 2,
+          motivo: !fecha ? "sin fecha" : "cantidad en cero",
+          detalle: txt(col(f, "Material")) ?? txt(col(f, "Doc.mat.", "Documento")) ?? "—",
+        });
+      }
+      continue;
+    }
     const causalSap = txt(col(f, "Texto cab.documento", "Texto cab. documento"));
     out.push({
       fecha,
@@ -108,16 +129,30 @@ export function leerBajas(filas: Cruda[]): { filas: FilaBaja[]; descartadas: num
       cantidad: -cant,
     });
   }
-  return { filas: out, descartadas };
+  return { filas: out, descartadas, ejemplos };
 }
 
-export function leerProduccion(filas: Cruda[]): { filas: FilaProduccion[]; descartadas: number } {
+export function leerProduccion(
+  filas: Cruda[]
+): { filas: FilaProduccion[]; descartadas: number; ejemplos: Descarte[] } {
   const out: FilaProduccion[] = [];
+  const ejemplos: Descarte[] = [];
   let descartadas = 0;
-  for (const f of filas) {
+  for (const [i, f] of filas.entries()) {
     const fecha = aFecha(col(f, "Fe.Cont", "Fe.Cont.", "Fecha"));
     const cant = num(col(f, "Cantidad"));
-    if (!fecha || cant === 0) { descartadas++; continue; }
+    if (!fecha || cant === 0) {
+      descartadas++;
+      if (ejemplos.length < TOPE_EJEMPLOS) {
+        ejemplos.push({
+          hoja: HOJA_PROD,
+          fila: i + 2,
+          motivo: !fecha ? "sin fecha" : "cantidad en cero",
+          detalle: txt(col(f, "Orden")) ?? txt(col(f, "Material")) ?? "—",
+        });
+      }
+      continue;
+    }
     out.push({
       fecha,
       centro: txt(col(f, "Centro")),
@@ -130,5 +165,5 @@ export function leerProduccion(filas: Cruda[]): { filas: FilaProduccion[]; desca
       cantidad_hl: num(col(f, "Cantidad HL")) || null,
     });
   }
-  return { filas: out, descartadas };
+  return { filas: out, descartadas, ejemplos };
 }

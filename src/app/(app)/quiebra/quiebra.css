@@ -407,3 +407,163 @@ body.capturando .sh-marco,
 body.capturando .sh-marco.anclado { grid-template-columns: 0 1fr }
 body.capturando .sh-main { width: 1900px; max-width: none }
 body.capturando .qb .acciones-informe { visibility: hidden }
+
+/* ====================== Importar el maestro ====================== */
+.qb .cabeza-simple { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px }
+.qb .cabeza-simple h1 {
+  font-family: var(--qb-titulo); font-weight: 900;
+  font-size: clamp(28px, 3vw, 38px); letter-spacing: -.04em; margin: 8px 0 0;
+}
+.qb .cabeza-simple .sub { margin: 9px 0 0; font-size: 14.5px; color: var(--qb-gris) }
+.qb .firma { font-size: 13.5px; color: var(--qb-gris); margin: 0; padding-bottom: 4px }
+
+.qb .importar { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start }
+.qb .importar .columna { display: flex; flex-direction: column; gap: 20px; min-width: 0 }
+
+/* ---------- Zona para soltar el archivo ---------- */
+.qb .soltar {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 46px 24px; cursor: pointer; text-align: center;
+  border: 2px dashed #C3CEDB; border-radius: 3px; background: #FAFBFD;
+  transition: border-color .14s, background .14s;
+}
+.qb .soltar:hover, .qb .soltar:focus-visible {
+  border-color: var(--qb-rojo); background: #FFF7F8; outline: none;
+}
+.qb .soltar.encima { border-color: var(--qb-rojo); background: #FFEFF2 }
+.qb .soltar .nube {
+  width: 38px; height: 38px; stroke: var(--qb-rojo); stroke-width: 1.7; fill: none;
+  stroke-linecap: round; stroke-linejoin: round; margin-bottom: 4px;
+}
+.qb .soltar b { font-family: var(--qb-titulo); font-weight: 800; font-size: 17px }
+.qb .soltar span { font-size: 13.5px; color: var(--qb-gris) }
+.qb .soltar u { color: var(--qb-azul); text-decoration-thickness: 1.5px }
+
+/* ---------- Ficha del archivo elegido ---------- */
+.qb .ficha {
+  display: flex; align-items: center; gap: 14px; padding: 16px;
+  border: 1px solid var(--qb-linea); border-radius: 3px; background: #fff;
+}
+.qb .ficha .icono {
+  width: 42px; height: 42px; flex: none; display: grid; place-items: center;
+  border-radius: 2px; background: #FFF1F3;
+}
+.qb .ficha .icono svg {
+  width: 22px; height: 22px; stroke: var(--qb-rojo); stroke-width: 1.6; fill: none;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.qb .ficha .datos { min-width: 0 }
+.qb .ficha .datos b { display: block; font-size: 15px; font-weight: 600; word-break: break-word }
+.qb .ficha .datos span { font-size: 12.5px; color: var(--qb-gris) }
+.qb .ficha .quitar {
+  margin-left: auto; width: 34px; height: 34px; flex: none;
+  border: 1px solid var(--qb-linea); background: none; border-radius: 2px; cursor: pointer;
+  display: grid; place-items: center;
+}
+.qb .ficha .quitar:hover { border-color: var(--qb-rojo) }
+.qb .ficha .quitar svg { width: 14px; height: 14px; stroke: var(--qb-gris); stroke-width: 2.2; fill: none }
+.qb .ficha .quitar:hover svg { stroke: var(--qb-rojo) }
+
+/* ---------- Revisión antes de confirmar ---------- */
+.qb .revision { margin-top: 18px; display: flex; flex-direction: column; gap: 2px }
+.qb .rotulo-rev { font-family: var(--qb-titulo); font-weight: 800; font-size: 15.5px; margin-bottom: 12px }
+
+.qb .conteos {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--qb-linea); border-radius: 3px; overflow: hidden; margin-bottom: 14px;
+}
+.qb .conteo { padding: 16px 20px; border-right: 1px solid var(--qb-linea) }
+.qb .conteo:last-child { border-right: 0 }
+.qb .conteo .rot { font-size: 11px; font-weight: 600; letter-spacing: .14em; color: var(--qb-gris) }
+.qb .conteo b {
+  display: block; font-family: var(--qb-titulo); font-weight: 900;
+  font-size: 30px; letter-spacing: -.03em; margin-top: 6px;
+}
+.qb .conteo b.fecha { font-size: 19px; letter-spacing: -.01em }
+.qb .conteo .u { display: block; margin-top: 4px; font-size: 12.5px; color: var(--qb-gris) }
+
+.qb .revision .linea {
+  display: flex; align-items: flex-start; gap: 11px; padding: 11px 14px;
+  font-size: 14px; border-radius: 2px; flex-wrap: wrap;
+}
+.qb .revision .marca {
+  width: 19px; height: 19px; flex: none; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; margin-top: 1px;
+}
+.qb .revision .ok { background: #F4F8F5 }
+.qb .revision .ok .marca { background: #1F8A4C }
+.qb .revision .aviso { background: #FFF6F7; color: #7A1226 }
+.qb .revision .aviso .marca { background: var(--qb-rojo) }
+.qb .revision .neutra { background: #F7F9FC; color: #2C4361 }
+.qb .revision .neutra .marca { background: #9AA9BB }
+.qb .revision .mala { background: #FDECEB; color: #A4271C }
+.qb .revision .mala .marca { background: #A4271C }
+
+.qb .ver-descartes {
+  margin-left: 8px; border: 0; background: none; padding: 0; cursor: pointer;
+  color: var(--qb-azul); font: 600 13.5px var(--qb-texto);
+  border-bottom: 1.5px solid rgba(11,78,162,.3);
+}
+.qb .ver-descartes:hover { color: var(--qb-rojo); border-bottom-color: var(--qb-rojo) }
+
+.qb .descartes { margin-top: 10px; border: 1px solid var(--qb-linea); border-radius: 2px; overflow: auto; max-height: 260px }
+.qb .descartes table { font-size: 13px }
+.qb .descartes thead th { position: sticky; top: 0 }
+
+/* ---------- Barra de avance ---------- */
+.qb .avance { margin-top: 16px }
+.qb .avance .pista { height: 6px; border-radius: 99px; background: #EDF1F6; overflow: hidden }
+.qb .avance .relleno { height: 100%; background: var(--qb-rojo); transition: width .2s }
+.qb .avance p { margin: 7px 0 0; font-size: 13px; color: var(--qb-gris) }
+
+/* ---------- Guía lateral ---------- */
+.qb .guia .hoja-req { padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--qb-linea) }
+.qb .guia .hoja-req:last-of-type { border-bottom: 0; margin-bottom: 8px }
+.qb .guia .titulo-hoja {
+  display: flex; align-items: center; gap: 10px; font-size: 13.5px;
+  color: var(--qb-gris); margin-bottom: 12px; flex-wrap: wrap;
+}
+.qb .guia .chapa {
+  background: var(--qb-rojo); color: #fff; font-family: var(--qb-titulo); font-weight: 800;
+  font-size: 12px; letter-spacing: .04em; padding: 5px 10px; border-radius: 2px;
+}
+.qb .guia .chapa.oro { background: var(--qb-oro); color: var(--qb-tinta) }
+.qb .guia ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px }
+.qb .guia li { font-size: 13.5px; color: #2C4361; padding-left: 16px; position: relative; line-height: 1.45 }
+.qb .guia li::before {
+  content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--qb-linea);
+}
+.qb .guia li b { font-weight: 600; color: var(--qb-tinta) }
+.qb .guia .pista-guia { font-size: 12.5px; color: var(--qb-gris); line-height: 1.5; padding-top: 4px; margin: 0 }
+
+/* ---------- Acciones ---------- */
+.qb .acciones {
+  display: flex; align-items: center; gap: 14px; padding: 18px 26px;
+  background: #FAFBFD; border-top: 1px solid var(--qb-linea); flex-wrap: wrap;
+}
+.qb .btn {
+  height: 46px; padding: 0 24px; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--qb-rojo); color: #fff;
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 14.5px;
+}
+.qb .btn:hover { background: #FF1C38 }
+.qb .btn:disabled { background: #94A3B4; cursor: progress }
+.qb .btn.plano {
+  background: none; color: var(--qb-gris); font-family: var(--qb-texto);
+  font-weight: 600; padding: 0 8px;
+}
+.qb .btn.plano:hover { color: var(--qb-tinta); background: none }
+
+@media (max-width: 1100px) {
+  .qb .importar { grid-template-columns: 1fr }
+  .qb .cabeza-simple { flex-direction: column; align-items: flex-start; gap: 10px }
+}
+@media (max-width: 720px) {
+  .qb .conteos { grid-template-columns: 1fr }
+  .qb .conteo { border-right: 0; border-bottom: 1px solid var(--qb-linea) }
+  .qb .conteo:last-child { border-bottom: 0 }
+  .qb .acciones { padding: 16px 18px; flex-direction: column; align-items: stretch }
+  .qb .btn { width: 100% }
+  .qb .soltar { padding: 34px 18px }
+}

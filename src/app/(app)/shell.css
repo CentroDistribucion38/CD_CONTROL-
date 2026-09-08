@@ -20,7 +20,11 @@
 .sh-barra {
   position: relative;
   flex: none;
-  height: 70px;
+  /* Instalada en el celular, la app corre a pantalla completa y el azul se
+     mete debajo del reloj y la batería. El área segura del sistema se suma
+     como relleno para que la barra empiece justo abajo de ellos. */
+  height: calc(70px + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
   display: flex;
   align-items: center;
   gap: 22px;
@@ -130,7 +134,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   display: flex;
   flex-direction: column;
   /* la barra mide 70px; esto hace que la portada llene la pantalla */
-  min-height: calc(100dvh - 70px);
+  min-height: calc(100dvh - 70px - env(safe-area-inset-top));
   /* El <main> del cascarón trae relleno para las páginas de los módulos.
      La portada lo anula para poder llegar a los bordes: el filo del pie
      tiene que cruzar la pantalla completa. */
@@ -383,7 +387,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 
 .sh-lado .riel {
   position: fixed;
-  top: 70px; left: 0; bottom: 0;
+  top: calc(70px + env(safe-area-inset-top)); left: 0; bottom: 0;
   width: 64px;
   overflow: hidden;
   background: var(--sh-tinta);
