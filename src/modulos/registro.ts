@@ -74,14 +74,18 @@ export const MODULOS: Modulo[] = [
       "Certificación de vehículos con ubicación y evidencia fotográfica, en la salida del CD origen y en la llegada a Barranquilla.",
     acento: "#0B7285",
     fondo: "#DFF1F3",
-    etiquetas: ["Certificar salida y llegada", "Vehículos en tránsito"],
+    etiquetas: ["Maestro editable", "Certificación en dos puntas"],
     imagen: "/modulos/sider.jpg",
     ruta: "/sider",
     activo: true,
+    // OJO: aquí solo van secciones que YA tienen su página. Registrar una
+    // ruta que no existe pone un enlace en el menú que lleva a un 404, y
+    // quien lo toca no tiene forma de saber que es una pantalla pendiente
+    // y no una app rota. "Certificar" y "En tránsito" vuelven cuando
+    // existan src/app/(app)/sider/certificar y .../transito.
     secciones: [
       { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Certificar", ruta: "/sider/certificar" },
-      { nombre: "En tránsito", ruta: "/sider/transito" },
       { nombre: "Maestro", ruta: "/sider/maestro" },
     ],
   },
@@ -107,6 +111,22 @@ export const MODULOS: Modulo[] = [
   },
 
 ];
+
+/**
+ * Todas las rutas que el registro promete. El chequeo de que existan vive
+ * en scripts/rutas.mjs y corre en cada build: una sección registrada sin
+ * su carpeta en src/app/(app)/ es un enlace a un 404, y el que lo toca no
+ * puede distinguir "pantalla pendiente" de "app rota".
+ */
+export function rutasRegistradas(): string[] {
+  const out: string[] = [];
+  for (const m of MODULOS) {
+    if (!m.activo) continue;
+    out.push(m.ruta);
+    for (const s of m.secciones) out.push(s.ruta);
+  }
+  return [...new Set(out)];
+}
 
 /** Módulos que se pueden usar. */
 export const modulosActivos = () => MODULOS.filter((m) => m.activo);

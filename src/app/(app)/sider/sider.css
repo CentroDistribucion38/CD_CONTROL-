@@ -218,3 +218,154 @@
   .sd .btn { flex: 1 1 auto }
   .sd .estado { margin-left: 0; width: 100% }
 }
+
+/* ====================== Certificar: la secuencia ======================
+   Un paso por pantalla. Quien llena esto está de pie al lado de un
+   vehículo con el teléfono en una mano: los blancos de toque son
+   grandes a propósito y no hay que buscar dónde quedó uno.
+   ====================================================================== */
+.sd .ct-pasos {
+  display: flex; list-style: none; margin: 0; padding: 0; gap: 6px;
+  background: var(--sd-papel); border: 1px solid var(--sd-linea);
+  border-radius: 3px; padding: 8px; overflow-x: auto;
+}
+.sd .ct-pasos li { flex: 1 1 0; min-width: 92px }
+.sd .ct-pasos button {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 6px; border: 0; background: none; cursor: pointer; border-radius: 3px;
+  font: 600 12.5px var(--sd-texto); color: var(--sd-gris);
+}
+.sd .ct-pasos button i {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  border: 1.8px solid var(--sd-linea); background: #fff;
+  font-style: normal; font-size: 13px; font-weight: 800; color: var(--sd-gris);
+}
+.sd .ct-pasos li.listo button i {
+  background: var(--sd-acento); border-color: var(--sd-acento); color: #fff;
+}
+.sd .ct-pasos li.aqui button { background: #F1FAFB; color: var(--sd-acento-hondo) }
+.sd .ct-pasos li.aqui button i { border-color: var(--sd-acento); color: var(--sd-acento) }
+.sd .ct-pasos li.aqui.listo button i { color: #fff }
+.sd .ct-pasos button:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: -2px }
+
+.sd .ct-paso { padding: 30px 30px 26px }
+.sd .ct-paso h2 {
+  font-family: var(--sd-titulo); font-weight: 900;
+  font-size: clamp(24px, 3vw, 32px); letter-spacing: -.03em; margin: 0;
+}
+.sd .ct-dice { margin: 10px 0 22px; font-size: 14px; color: var(--sd-gris); max-width: 68ch }
+.sd .ct-suelto { margin-top: 16px; border-top: 0; border-radius: 2px }
+
+.sd .ct-grande {
+  width: 100%; min-height: 72px; border: 0; border-radius: 4px; cursor: pointer;
+  background: var(--sd-acento); color: #fff;
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 17px;
+}
+.sd .ct-grande:hover:not(:disabled) { background: var(--sd-acento-hondo) }
+.sd .ct-grande:disabled { background: #B4C0CE; cursor: not-allowed }
+
+/* ---------- Ubicación ---------- */
+.sd .ct-ubi {
+  border: 1.5px solid #9FD3D9; background: #F1FAFB; border-radius: 4px; padding: 20px 22px;
+}
+.sd .ct-ubi.regular { border-color: #F0D89B; background: #FFF8E6 }
+.sd .ct-ubi.mala { border-color: #F3C9D2; background: #FFF6F7 }
+.sd .ct-ubi .rot { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: var(--sd-gris) }
+.sd .ct-ubi .coord {
+  font-family: var(--sd-titulo); font-weight: 900; font-size: 24px;
+  letter-spacing: -.02em; margin-top: 8px;
+}
+.sd .ct-ubi .pre { margin-top: 6px; font-size: 13.5px; color: #2C4361 }
+.sd .ct-ubi .ojo { margin: 12px 0 0; font-size: 13.5px; color: #7A5A05 }
+.sd .ct-ubi.mala .ojo { color: #7A1226 }
+
+.sd .ct-botones { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 22px }
+
+/* ---------- Opciones grandes ---------- */
+.sd .ct-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 10px }
+.sd .ct-op {
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: left;
+  min-height: 68px; padding: 14px 16px; cursor: pointer;
+  border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 4px;
+}
+.sd .ct-op b { font-family: var(--sd-titulo); font-weight: 800; font-size: 15px; line-height: 1.15 }
+.sd .ct-op span { font-size: 12.5px; color: var(--sd-gris) }
+.sd .ct-op:hover { border-color: var(--sd-acento); background: #F7FCFD }
+.sd .ct-op.on { border-color: var(--sd-acento); background: var(--sd-acento); color: #fff }
+.sd .ct-op.on span { color: rgba(255,255,255,.8) }
+.sd .ct-op.falta { border-left: 4px solid var(--sd-oro) }
+.sd .ct-op:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: 2px }
+
+/* ---------- Campos ---------- */
+.sd .ct-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 620px }
+.sd .ct-campos label { display: flex; flex-direction: column; gap: 7px }
+.sd .ct-campos label.ancho { grid-column: 1 / -1 }
+.sd .ct-campos span { font-size: 12.5px; font-weight: 600; color: #2C4361 }
+.sd .ct-campos input {
+  height: 58px; padding: 0 14px; font: 600 20px var(--sd-texto); color: var(--sd-tinta);
+  background: #F7F9FC; border: 1.5px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .ct-campos label.ancho input { height: 46px; font-size: 15px; font-weight: 500 }
+.sd .ct-campos input:focus {
+  outline: none; background: #fff; border-color: var(--sd-acento);
+  box-shadow: 0 0 0 3px rgba(11,114,133,.16);
+}
+
+/* ---------- Fotos ---------- */
+.sd .ct-fotos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px }
+.sd .ct-foto button {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 18px 14px; cursor: pointer; overflow: hidden;
+  border: 2px dashed var(--sd-linea); background: #FAFBFD; border-radius: 4px;
+}
+.sd .ct-foto button:hover { border-color: var(--sd-acento); background: #F7FCFD }
+.sd .ct-foto.lista button { border-style: solid; border-color: var(--sd-acento); background: #fff; padding: 8px }
+.sd .ct-foto img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 3px; display: block }
+.sd .ct-foto b { font-family: var(--sd-titulo); font-weight: 800; font-size: 14.5px }
+.sd .ct-foto span { font-size: 12px; color: var(--sd-gris); text-align: center }
+.sd .ct-camara {
+  width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
+  background: #EAF4F6;
+}
+.sd .ct-camara svg { width: 28px; height: 28px; stroke: var(--sd-acento); stroke-width: 1.7 }
+
+/* ---------- Revisión ---------- */
+.sd .ct-revision {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px; margin: 0; background: var(--sd-linea);
+  border: 1px solid var(--sd-linea); border-radius: 4px; overflow: hidden;
+}
+.sd .ct-revision > div { background: #fff; padding: 14px 16px }
+.sd .ct-revision dt { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--sd-gris); text-transform: uppercase }
+.sd .ct-revision dd {
+  margin: 6px 0 0; font-family: var(--sd-titulo); font-weight: 800; font-size: 16px;
+}
+.sd .ct-revision dd.fuerte { font-size: 22px; letter-spacing: .03em }
+.sd .ct-revision dd em {
+  display: block; font-family: var(--sd-texto); font-style: normal; font-weight: 500;
+  font-size: 12px; color: var(--sd-gris); margin-top: 2px;
+}
+
+/* ---------- El tiquete ---------- */
+.sd .ct-tiquete {
+  background: var(--sd-tinta); color: #fff; border-radius: 4px; padding: 18px 24px 20px;
+}
+.sd .ct-tiquete .rot { font-size: 11px; font-weight: 700; letter-spacing: .14em; opacity: .6 }
+.sd .ct-tiquete .cifras-t {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 14px; margin-top: 12px;
+}
+.sd .ct-tiquete .cifras-t b {
+  display: block; font-family: var(--sd-titulo); font-weight: 900; font-size: 24px;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.sd .ct-tiquete .cifras-t span { font-size: 11.5px; opacity: .65 }
+.sd .ct-tiquete .ojo { margin: 14px 0 0; font-size: 13px; color: #FFD79B; max-width: 78ch }
+
+@media (max-width: 760px) {
+  .sd .ct-paso { padding: 22px 16px 20px }
+  .sd .ct-campos { grid-template-columns: 1fr }
+  .sd .ct-opciones { grid-template-columns: 1fr }
+  .sd .ct-botones .btn { flex: 1 1 auto }
+  .sd .ct-tiquete { padding: 16px }
+}

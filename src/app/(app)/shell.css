@@ -187,8 +187,14 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 22px;
-  height: min(480px, 60vh);
-  min-height: 330px;
+  /* Alto por FILA, no del grid entero.
+     Antes esto decía height: min(480px, 60vh), que era el alto de TODO el
+     mosaico. Con dos módulos daba lo mismo porque cabían en una fila;
+     al llegar el tercero el grid se partió en dos filas, las 480px se
+     repartieron, cada tarjeta quedó de 230 y el contenido se desbordó
+     hacia arriba montándose sobre el rótulo. Un alto por fila crece con
+     los módulos que haya. */
+  grid-auto-rows: minmax(300px, auto);
   margin: auto 0;
 }
 /* un solo módulo no se estira a media pantalla */
@@ -200,7 +206,11 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 44px 40px 40px 46px;
+  /* El relleno de arriba le RESERVA la banda al rótulo. El rótulo va
+     absoluto y el contenido centrado; si el contenido pudiera subir por
+     encima de 74px se le montaría encima, y centrar no respeta nada que
+     esté fuera de la caja de contenido. */
+  padding: 74px 40px 40px 46px;
   background: var(--sh-papel);
   border: 1px solid var(--sh-linea);
   border-radius: 3px;

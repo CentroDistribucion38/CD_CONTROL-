@@ -5,7 +5,7 @@
   "description": "CONTROL — plataforma modular de gestión operativa (Next.js + Supabase + Vercel)",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/rutas.mjs && next build",
     "start": "next start",
     "lint": "next lint"
   },
