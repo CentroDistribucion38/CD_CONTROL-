@@ -4,10 +4,7 @@
    y aquí solo va lo propio del diario, con el prefijo .qd-.
    --------------------------------------------------------------------- */
 
-/* La hoja tiene cuatro cifras arriba, no tres. */
-.qb .cifras.cuatro { grid-template-columns: repeat(4, 1fr) }
-
-/* ====================== Selector de día ====================== */
+/* ====================== Selector de mes y de día ====================== */
 .qd .qd-paso { display: flex; align-items: center; gap: 4px }
 .qd .qd-paso button {
   width: 42px; height: 42px; flex: none;
@@ -19,15 +16,16 @@
 .qd .qd-paso button svg { width: 16px; height: 16px; stroke: var(--qb-tinta); stroke-width: 2.3; fill: none }
 .qd .qd-paso button:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: 2px }
 
-.qd .qd-dia-actual {
-  display: flex; align-items: baseline; gap: 8px; padding: 0 14px;
-  min-width: 168px; justify-content: center;
+.qd .qd-mes-actual {
+  display: grid; place-items: center; height: 42px; padding: 0 16px; min-width: 172px;
+  border: 1.5px solid var(--qb-linea); background: #F7F9FC; border-radius: 2px;
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 15px;
+  text-transform: capitalize; white-space: nowrap;
 }
-.qd .qd-dia-actual .d {
-  font-family: var(--qb-titulo); font-weight: 900; font-size: 30px;
-  letter-spacing: -.04em; line-height: 1;
-}
-.qd .qd-dia-actual .m { font-size: 13.5px; color: var(--qb-gris) }
+/* El calendario va entre las dos flechas: sin esto se estira y las
+   descuadra en pantallas angostas. */
+.qd .qd-paso .calendario { min-width: 0 }
+.qd .qd-paso .disparo.ancho { min-width: 236px }
 
 /* Un día escrito a mano se marca también dentro del calendario. */
 .qd .dias button.escrito::after {
@@ -89,6 +87,61 @@
 .qd .qd-sello.escrito { background: #FDE7EB; color: #A4102A }
 .qd .qd-sello.sap { background: #EAF0F7; color: #2C4361 }
 .qd .qd-sello.falta { background: #F4F6F9; color: #93A3B6 }
+.qd td .qd-sello { margin-left: 0 }
+
+/* ====================== Gráficos del mes ====================== */
+/* Alto AUTOMÁTICO, no fijo. El SVG tiene viewBox: si además se le fija un
+   alto en píxeles que no cuadra con la proporción del viewBox, el dibujo
+   se encoge y queda flotando en un hueco blanco (fue justo lo que pasó en
+   el celular). Con height:auto el alto sale de la proporción y no hay
+   hueco en ningún ancho. */
+.qd .grafico.g-dias, .qd .grafico.g-apilado-dias { height: auto }
+/* El texto del SVG está en unidades del viewBox: se achica con el gráfico.
+   A 17 unidades queda en ~13 px reales con la tarjeta del escritorio. */
+.qd .grafico.g-dias .eje, .qd .grafico.g-apilado-dias .eje { font-size: 17px }
+
+.qd .qd-lienzo { min-width: 0 }
+.qd .qd-barra { cursor: pointer }
+.qd .qd-barra:hover rect:first-child { fill: rgba(4,32,63,.05) }
+/* El día seleccionado se lee sin buscarlo. */
+.qd .grafico .eje.sel { fill: var(--qb-rojo); font-weight: 700 }
+/* Treinta y un números no caben en el celular: se dejan los múltiplos de 5. */
+.qd .leyenda i.qd-i-esc {
+  background: #fff; border: 1.6px solid var(--qb-tinta); border-radius: 1px;
+}
+
+/* ====================== Cifras chicas del día ====================== */
+.qd .qd-mini {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  border: 1px solid var(--qb-linea); border-radius: 3px; overflow: hidden;
+  margin-bottom: 4px;
+}
+.qd .qd-mini-c {
+  padding: 14px 16px; position: relative;
+  border-right: 1px solid var(--qb-linea); border-bottom: 1px solid var(--qb-linea);
+}
+.qd .qd-mini-c:nth-child(2n) { border-right: 0 }
+.qd .qd-mini-c:nth-last-child(-n+2) { border-bottom: 0 }
+.qd .qd-mini-c .rot { font-size: 10.5px; font-weight: 600; letter-spacing: .12em; color: var(--qb-gris) }
+.qd .qd-mini-c .n {
+  font-family: var(--qb-titulo); font-weight: 900; font-size: 26px;
+  letter-spacing: -.03em; margin-top: 6px;
+}
+.qd .qd-mini-c .u { margin-top: 3px; font-size: 12px; color: var(--qb-gris) }
+.qd .qd-mini-c.alerta { background: #FFF6F7 }
+.qd .qd-mini-c.alerta .n { color: var(--qb-rojo) }
+.qd .qd-mini-c.buena { background: #F2FAF6 }
+.qd .qd-mini-c.buena .n { color: #0F7A4A }
+
+/* ====================== Tabla del mes ====================== */
+/* Treinta y un filas empujan la página entera: la tabla se desplaza sola. */
+.qd .qd-tabla-dias { max-height: 460px; overflow-y: auto }
+.qd .qd-tabla-dias thead th { position: sticky; top: 0; z-index: 2 }
+.qd .qd-fila-dia { cursor: pointer }
+.qd .qd-fila-dia.futuro td { color: #A9B6C6 }
+.qd .qd-fila-dia.sel { background: #FDF0F3 }
+.qd .qd-fila-dia.sel td:first-child { box-shadow: inset 3px 0 0 var(--qb-rojo) }
+.qd .qd-fila-dia.sel:hover { background: #FDE7EB }
 
 /* ====================== La hoja editable ====================== */
 .qd .qd-hoja .cab { align-items: flex-start }
@@ -208,8 +261,17 @@
 .qd .qd-btn.plano:hover:not(:disabled) { background: none; color: var(--qb-rojo) }
 .qd .qd-btn.plano:disabled { background: none; color: #C6D0DC }
 
-.qd .qd-estado { margin-left: auto; font-size: 13px; color: var(--qb-gris) }
+/* Vive en dos sitios: en la cabecera de la hoja y en la botonera cuando
+   es de solo lectura. En los dos casos se va al extremo derecho. */
+.qd .qd-estado {
+  margin-left: auto; flex: none; font-size: 12.5px; color: var(--qb-gris);
+  white-space: nowrap; padding-top: 4px;
+}
+.qd .qd-hoja .cab .qd-estado {
+  border: 1.5px solid var(--qb-linea); border-radius: 2px; padding: 7px 12px; background: #FAFBFD;
+}
 .qd .qd-estado.sucio { color: var(--qb-rojo); font-weight: 600 }
+.qd .qd-hoja .cab .qd-estado.sucio { border-color: #F0B7C2; background: #FFF6F7 }
 
 .qd .qd-aviso {
   padding: 13px 26px; font-size: 13.5px; border-top: 1px solid var(--qb-linea);
@@ -238,28 +300,34 @@
 
 /* ====================== Tableta ====================== */
 @media (max-width: 1180px) {
-  /* Dos y dos. quiebra.css quita el borde derecho a esta altura porque
-     allá las cifras quedan en una sola columna; aquí hay dos, así que la
-     raya del medio se vuelve a poner y se quita la de abajo de la
-     penúltima para que el bloque no quede con media línea colgando. */
-  .qb .cifras.cuatro { grid-template-columns: 1fr 1fr }
-  .qd .cifras.cuatro .cifra:nth-child(odd) { border-right: 1px solid var(--qb-linea) }
-  .qd .cifras.cuatro .cifra:nth-last-child(2) { border-bottom: 0 }
   .qd .qd-linea .num.sap { font-size: 13.5px }
+
 }
 
 /* ====================== Celular ====================== */
 @media (max-width: 760px) {
-  .qb .cifras.cuatro { grid-template-columns: 1fr }
-  .qd .cifras.cuatro .cifra:nth-child(odd) { border-right: 0 }
-  .qd .cifras.cuatro .cifra:nth-last-child(2) { border-bottom: 1px solid var(--qb-linea) }
-
   /* La cabecera de la tarjeta es flex con space-between: al lado de la
-     firma, el párrafo quedaba en una columna de una palabra por línea. */
+     firma o del estado, el párrafo quedaba en una columna de una palabra
+     por línea. */
   .qd .tarjeta .cab { flex-direction: column; gap: 12px }
+  .qd .qd-hoja .cab .qd-estado { margin-left: 0; align-self: flex-start }
+
+  /* Un mes de barras en 292 px queda en un gráfico de 123 px de alto y con
+     letra de 8 px: ilegible. En vez de encogerlo, el gráfico conserva su
+     tamaño y se desliza DENTRO de su tarjeta. La página sigue sin
+     desplazamiento horizontal, que es lo que no se puede tocar. */
+  .qd .qd-lienzo { overflow-x: auto; -webkit-overflow-scrolling: touch }
+  .qd .qd-lienzo > svg { min-width: 640px }
+
+
+  .qd .qd-mini { grid-template-columns: 1fr 1fr }
+  .qd .qd-mini-c .n { font-size: 22px }
 
   .qd .qd-paso { width: 100%; justify-content: space-between }
-  .qd .qd-dia-actual { min-width: 0 }
+  .qd .sel { width: 100% }
+  .qd .qd-mes-actual { min-width: 0; flex: 1 }
+  .qd .qd-paso .calendario { flex: 1 }
+  .qd .qd-paso .disparo.ancho { min-width: 0; width: 100% }
   .qd .qd-tira { padding: 14px 16px }
   .qd .qd-celdas { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)) }
   .qd .qd-celda .q { font-size: 9.5px }
@@ -296,5 +364,6 @@
 
   .qd .qd-nota, .qd .qd-acciones, .qd .qd-aviso { padding-left: 16px; padding-right: 16px }
   .qd .qd-btn { flex: 1 1 auto }
-  .qd .qd-estado { margin-left: 0; width: 100% }
+  .qd .qd-acciones .qd-estado { margin-left: 0; width: 100%; white-space: normal }
+  .qd .qd-tabla-dias { max-height: 380px }
 }

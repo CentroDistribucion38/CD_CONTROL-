@@ -3,8 +3,11 @@
 /**
  * QUIEBRA DIARIA — el segundo tablero.
  *
- * Es la hoja QUIEBRA DIARIA del maestro, pero viva: se para en UN día,
- * trae lo que haya en la base y deja escribir lo que falte.
+ * Es el mismo tablero de siempre, pero de la hoja QUIEBRA DIARIA: el mes
+ * abierto día por día, con la meta, el Pareto de causales y el detalle,
+ * y con UN día seleccionado que se puede escribir a mano abajo. Todo el
+ * tablero se recalcula mientras se teclea, así se ve el efecto de la
+ * cifra antes de guardarla.
  *
  * La regla de oro, que se ve en toda la pantalla:
  *   SAP y lo escrito a mano son DOS columnas, no una.
@@ -30,6 +33,8 @@ const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio",
                      "agosto","septiembre","octubre","noviembre","diciembre"];
 const DIAS_SEM = ["L","M","M","J","V","S","D"];
 
+/** El color va atado al NOMBRE de la causal, igual que en el otro tablero:
+ *  si mañana una causal sube o baja en el ranking, no se le cambia el color. */
 const COLOR_CAUSAL: Record<string, string> = {
   "Sorting distribución": "#E4002B",
   "Presorting": "#B8001F",
@@ -39,6 +44,7 @@ const COLOR_CAUSAL: Record<string, string> = {
   "Otros": "#9AA9BB",
   "Rotura depósito": "#C6D0DC",
 };
+const color = (c: string) => COLOR_CAUSAL[c] ?? "#7E8CA0";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const pf = (v: number | null | undefined, d = 2) =>
@@ -60,7 +66,12 @@ const mesDe = (f: string) => `${f.slice(0, 7)}-01`;
 /** Corre un día sin pasar por Date y sin líos de zona horaria. */
 function correr(f: string, paso: number): string {
   const { a, m, d } = partes(f);
-  const t = new Date(Date.UTC(a, m, d + paso));
+  return new Date(Date.UTC(a, m, d + paso)).toISOString().slice(0, 10);
+}
+/** Corre un mes y devuelve su primer día. */
+function correrMes(mes: string, paso: number): string {
+  const a = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7)) - 1;
+  const t = new Date(Date.UTC(a, m + paso, 1));
   return t.toISOString().slice(0, 10);
 }
 
@@ -75,13 +86,9 @@ function aNumero(s: string): number | null {
   const limpio = t.replace(/[^\d.,-]/g, "");
   if (limpio === "" || limpio === "-") return null;
   let normal: string;
-  if (limpio.includes(",")) {
-    normal = limpio.replace(/\./g, "").replace(",", ".");
-  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(limpio)) {
-    normal = limpio.replace(/\./g, "");
-  } else {
-    normal = limpio;
-  }
+  if (limpio.includes(",")) normal = limpio.replace(/\./g, "").replace(",", ".");
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(limpio)) normal = limpio.replace(/\./g, "");
+  else normal = limpio;
   const n = Number(normal);
   return Number.isFinite(n) ? n : null;
 }
@@ -90,10 +97,9 @@ const texto = (v: number | null | undefined) =>
   v == null ? "" : String(Math.round(v * 1000) / 1000).replace(".", ",");
 
 /* ===================================================================
-   Estado del formulario: lo que hay escrito en las casillas.
-   Se guarda como TEXTO, no como número, porque mientras se teclea
-   "1.2" todavía no es un número y convertirlo a cada letra pelea con
-   el cursor.
+   Estado del formulario. Se guarda como TEXTO, no como número, porque
+   mientras se teclea "1.2" todavía no es un número y convertirlo a cada
+   letra pelea con el cursor.
    =================================================================== */
 type Form = {
   le_produccion: string;
@@ -124,6 +130,18 @@ const igualForm = (a: Form, b: Form) =>
   a.produccion === b.produccion && a.nota === b.nota &&
   CAUSALES.every((c) => (a.causales[c] ?? "") === (b.causales[c] ?? ""));
 
+/* ===================================================================
+   Un día ya resuelto: qué cifra manda y de dónde salió.
+   =================================================================== */
+type Dia = {
+  fecha: string;
+  produccion: number;
+  baja: number;
+  pct: number | null;
+  causales: Record<string, number>;
+  origen: "escrito" | "sap" | "vacio";
+};
+
 /* =================================================================== */
 
 type Props = {
@@ -145,7 +163,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const original = useMemo(() => formDe(datos, fecha), [datos, fecha]);
   const sucio = !igualForm(form, original);
 
-  /* ---- cambiar de día: si el mes cambia, traer el mes nuevo ---- */
+  /* ---- moverse: si cambia el mes, se trae el mes nuevo ---- */
   const irA = useCallback(
     async (f: string) => {
       if (sucio && !confirm("Hay cambios sin guardar en este día. ¿Salir de todos modos?")) return;
@@ -158,9 +176,10 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           setForm(formDe(nuevo, f));
         } catch {
           setAviso({ mal: true, texto: "No se pudo leer el mes. Revisa la conexión." });
-        } finally {
           setCargando(false);
+          return;
         }
+        setCargando(false);
       } else {
         setForm(formDe(datos, f));
       }
@@ -169,7 +188,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     [datos, supabase, sucio]
   );
 
-  /* ---- lo que hay para este día ---- */
+  /* ---- el día seleccionado, con lo que hay escrito en las casillas ---- */
   const sap = datos.sap[fecha];
   const manual = datos.manual[fecha];
 
@@ -177,7 +196,10 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const sapBaja = sap ? sap.baja : null;
 
   const escProd = aNumero(form.produccion);
-  const escCausal = (c: string) => aNumero(form.causales[c] ?? "");
+  const escCausal = useCallback(
+    (c: string) => aNumero(form.causales[c] ?? ""),
+    [form.causales]
+  );
   const hayCausalEscrita = CAUSALES.some((c) => escCausal(c) != null);
   const escBaja = hayCausalEscrita
     ? CAUSALES.reduce((s, c) => s + (escCausal(c) ?? 0), 0)
@@ -193,20 +215,92 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const lePct = leProd && leProd > 0 && leBaja != null ? leBaja / leProd : null;
 
   const meta = datos.meta;
-  const sobreMeta = pct != null && meta != null && pct > meta;
+  const sobreMetaDia = pct != null && meta != null && pct > meta;
 
-  /* ---- el valor efectivo de cada causal (escrito o SAP) ---- */
-  const valorCausal = (c: string): number | null => {
-    const e = escCausal(c);
-    if (e != null) return e;
-    if (hayCausalEscrita) return 0; // si se abrió el desglose a mano, lo no escrito es cero
-    return sap?.causales[c] ?? null;
-  };
+  const valorCausal = useCallback(
+    (c: string): number | null => {
+      const e = escCausal(c);
+      if (e != null) return e;
+      if (hayCausalEscrita) return 0; // desglose abierto a mano: lo vacío es cero
+      return sap?.causales[c] ?? null;
+    },
+    [escCausal, hayCausalEscrita, sap]
+  );
 
-  /* ---- validaciones: el "para que todo quede igual" ---- */
+  /* ===================================================================
+     EL MES RESUELTO. Cada día con la cifra que manda. El día que se está
+     editando entra con lo que hay en las casillas AHORA, no con lo
+     guardado: por eso el tablero se mueve mientras se teclea.
+     =================================================================== */
+  const dias: Dia[] = useMemo(() => {
+    const a = Number(datos.mes.slice(0, 4));
+    const m = Number(datos.mes.slice(5, 7)) - 1;
+    const total = diasDelMes(a, m);
+    const out: Dia[] = [];
+
+    for (let i = 1; i <= total; i++) {
+      const f = aTexto(a, m, i);
+      const s = datos.sap[f];
+      const mn = datos.manual[f];
+
+      if (f === fecha) {
+        const cs: Record<string, number> = {};
+        for (const c of CAUSALES) {
+          const v = valorCausal(c);
+          if (v != null && v !== 0) cs[c] = v;
+        }
+        const p = prod ?? 0, b = baja ?? 0;
+        out.push({
+          fecha: f, produccion: p, baja: b,
+          pct: p > 0 ? b / p : null,
+          causales: cs,
+          origen: escProd != null || hayCausalEscrita || manual ? "escrito"
+                : s ? "sap" : "vacio",
+        });
+        continue;
+      }
+
+      const hayEsc = !!mn && (mn.produccion != null || Object.keys(mn.causales).length > 0);
+      const p = mn?.produccion ?? s?.produccion ?? 0;
+      const cs = hayEsc && Object.keys(mn!.causales).length > 0 ? mn!.causales : (s?.causales ?? {});
+      const b = Object.keys(mn?.causales ?? {}).length > 0
+        ? Object.values(mn!.causales).reduce((x, y) => x + y, 0)
+        : s?.baja ?? 0;
+      out.push({
+        fecha: f, produccion: p, baja: b,
+        pct: p > 0 ? b / p : null,
+        causales: cs,
+        origen: hayEsc ? "escrito" : s ? "sap" : "vacio",
+      });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datos, fecha, prod, baja, escProd, hayCausalEscrita, manual, valorCausal]);
+
+  /* ---- totales del mes ---- */
+  const prodMes = dias.reduce((s, d) => s + d.produccion, 0);
+  const bajaMes = dias.reduce((s, d) => s + d.baja, 0);
+  const pctMes = prodMes > 0 ? bajaMes / prodMes : null;
+  const sobreMes = pctMes != null && meta != null && pctMes > meta;
+  const ppMes = pctMes != null && meta != null ? (pctMes - meta) * 100 : null;
+  const permitido = meta != null ? prodMes * meta : null;
+  const exceso = permitido != null ? bajaMes - permitido : null;
+
+  const causalesMes = useMemo(
+    () => CAUSALES.map((c) => ({
+      nom: c,
+      v: dias.reduce((s, d) => s + (d.causales[c] ?? 0), 0),
+      col: color(c),
+    })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v),
+    [dias]
+  );
+
+  const conDato = dias.filter((d) => d.origen !== "vacio").length;
+  const escritos = dias.filter((d) => d.origen === "escrito").length;
+
+  /* ---- cuadre del día ---- */
   const chequeos = useMemo(() => {
     const out: { estado: "grave" | "ojo" | "ok"; texto: string }[] = [];
-
     if (prod == null || prod === 0) {
       out.push({ estado: "grave", texto: "Sin producción del día no se puede calcular la quiebra. Escríbela abajo." });
     }
@@ -215,40 +309,26 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     }
     if (escProd != null && sapProd != null && Math.abs(escProd - sapProd) > 0.5) {
       const dif = escProd - sapProd;
-      out.push({
-        estado: "ojo",
-        texto: `La producción escrita se aparta de SAP en ${nf.format(Math.abs(dif))} cajas (${dif > 0 ? "más" : "menos"}). Manda la escrita.`,
-      });
+      out.push({ estado: "ojo", texto: `La producción escrita se aparta de SAP en ${nf.format(Math.abs(dif))} cajas (${dif > 0 ? "más" : "menos"}). Manda la escrita.` });
     }
     if (escBaja != null && sapBaja != null && Math.abs(escBaja - sapBaja) > 0.5) {
       const dif = escBaja - sapBaja;
-      out.push({
-        estado: "ojo",
-        texto: `La baja escrita se aparta de SAP en ${nf.format(Math.abs(dif))} cajas (${dif > 0 ? "más" : "menos"}). Manda la escrita.`,
-      });
+      out.push({ estado: "ojo", texto: `La baja escrita se aparta de SAP en ${nf.format(Math.abs(dif))} cajas (${dif > 0 ? "más" : "menos"}). Manda la escrita.` });
     }
     if (hayCausalEscrita && sap) {
       const faltan = CAUSALES.filter((c) => (sap.causales[c] ?? 0) > 0 && escCausal(c) == null);
       if (faltan.length) {
-        out.push({
-          estado: "ojo",
-          texto: `SAP tiene ${faltan.join(", ")} en este día y quedaron en cero al escribir el desglose a mano.`,
-        });
+        out.push({ estado: "ojo", texto: `SAP tiene ${faltan.join(", ")} en este día y quedaron en cero al escribir el desglose a mano.` });
       }
     }
     if (pct != null && meta != null) {
-      out.push(
-        pct > meta
-          ? { estado: "grave", texto: `El día cerró en ${pf(pct)}, por encima de la meta de ${pf(meta)}.` }
-          : { estado: "ok", texto: `El día cerró en ${pf(pct)}, dentro de la meta de ${pf(meta)}.` }
-      );
+      out.push(pct > meta
+        ? { estado: "grave", texto: `El día cerró en ${pf(pct)}, por encima de la meta de ${pf(meta)}.` }
+        : { estado: "ok", texto: `El día cerró en ${pf(pct)}, dentro de la meta de ${pf(meta)}.` });
     }
     if (leProd != null && prod != null && prod > 0) {
       const dif = prod - leProd;
-      out.push({
-        estado: "ojo",
-        texto: `Producción real ${dif >= 0 ? "por encima" : "por debajo"} del LE en ${nf.format(Math.abs(dif))} cajas.`,
-      });
+      out.push({ estado: "ojo", texto: `Producción real ${dif >= 0 ? "por encima" : "por debajo"} del LE en ${nf.format(Math.abs(dif))} cajas.` });
     }
     if (!sap && !manual) {
       out.push({ estado: "ojo", texto: "Este día no tiene nada: ni importado ni escrito." });
@@ -270,8 +350,8 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const { error } = await (supabase as any).rpc("quiebra_diario_guardar", {
       p_fecha: fecha,
-      p_le_produccion: aNumero(form.le_produccion),
-      p_le_baja: aNumero(form.le_baja),
+      p_le_produccion: leProd,
+      p_le_baja: leBaja,
       p_produccion: escProd,
       p_nota: form.nota.trim() || null,
       p_causales: causales,
@@ -312,92 +392,231 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     setForm((f) => ({ ...f, causales: { ...f.causales, [c]: v } }));
 
   const autor = manual?.actualizado_por ? datos.autores[manual.actualizado_por] : null;
-  const { a: anioSel, m: mesSel } = partes(fecha);
+  const mesAnio = Number(datos.mes.slice(0, 4));
+  const mesNum = Number(datos.mes.slice(5, 7)) - 1;
 
   return (
     <div className="qb qd">
-      {/* ====================== Cabeza ====================== */}
-      <header className="cabeza">
+      {/* ====================== Encabezado ====================== */}
+      <section className="cabeza">
         <div className="texto">
-          <div className="ojo">QUIEBRA · DIARIO</div>
+          <div className="ojo">ENVASE RETORNABLE · AG01 · DIARIO</div>
           <h1>Quiebra diaria</h1>
           <p className="sub">
-            El día a día de la hoja <b>QUIEBRA DIARIA</b>. Trae lo importado de SAP y deja
-            escribir a mano lo que todavía no llega. Lo escrito manda y la importación no
-            lo borra. <Link href="/quiebra">Ver el tablero del periodo</Link>
+            La hoja <b>QUIEBRA DIARIA</b> del maestro, abierta día por día. Trae lo
+            importado de SAP y deja escribir a mano lo que todavía no llega; lo escrito
+            manda y la importación no lo borra.{" "}
+            <Link href="/quiebra">Ver el tablero del periodo</Link>
           </p>
         </div>
-        <div className={"kpi" + (sobreMeta ? "" : " bajo")}>
-          <span className="corte" />
-          <div className="rot">QUIEBRA DEL DÍA</div>
-          <div className="num">{pf(pct)}</div>
+        <div className={"kpi" + (sobreMes ? "" : " bajo")}>
+          <div className="corte" />
+          <div className="rot">QUIEBRA DE {MESES_LARGO[mesNum].toUpperCase()}</div>
+          <div className="num">{pf(pctMes)}</div>
           <div className="pie">
-            <b>{bonita(fecha)}</b>
-            {meta != null && <span className="delta">Meta {pf(meta)}</span>}
+            <span>Meta <b>{pf(meta)}</b></span>
+            {ppMes != null && (
+              <span className="delta">
+                {ppMes >= 0 ? "+" : "−"}{Math.abs(ppMes).toFixed(2).replace(".", ",")} pp{" "}
+                {sobreMes ? "sobre" : "bajo"} la meta
+              </span>
+            )}
           </div>
         </div>
-      </header>
-
-      {/* ====================== Selector de día ====================== */}
-      <section className="filtros qd-sel">
-        <div className="arriba">
-          <div className="qd-paso">
-            <button type="button" aria-label="Día anterior" onClick={() => irA(correr(fecha, -1))}>
-              <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
-            </button>
-            <div className="qd-dia-actual">
-              <span className="d">{partes(fecha).d}</span>
-              <span className="m">{MESES_LARGO[mesSel]} {anioSel}</span>
-            </div>
-            <button type="button" aria-label="Día siguiente" onClick={() => irA(correr(fecha, 1))}>
-              <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6" /></svg>
-            </button>
-          </div>
-
-          <ElegirDia fecha={fecha} datos={datos} hoy={hoy} elegir={irA} />
-
-          <button type="button" className="limpiar" onClick={() => irA(hoy)}>
-            Ir a hoy
-          </button>
-        </div>
-
-        <TiraMes datos={datos} fecha={fecha} hoy={hoy} elegir={irA} cargando={cargando} />
       </section>
 
-      {/* ====================== Cifras del día ====================== */}
-      <section className="cifras cuatro">
-        <Cifra rot="PRODUCCIÓN" n={prod == null ? "—" : nf.format(prod)} u="cajas del día"
-               marca={escProd != null ? "escrito" : sap ? "sap" : "falta"} />
-        <Cifra rot="BAJA" n={baja == null ? "—" : nf.format(baja)} u="cajas perdidas"
-               marca={escBaja != null ? "escrito" : sap ? "sap" : "falta"} />
-        <Cifra rot="QUIEBRA" n={pf(pct)} u={meta != null ? `meta ${pf(meta)}` : "sin meta cargada"}
-               tono={pct == null || meta == null ? undefined : pct > meta ? "alerta" : "buena"} />
-        <Cifra rot="LE DEL DÍA" n={pf(lePct)} u={leBaja != null ? `${nf.format(leBaja)} cajas de plan` : "sin LE escrito"} />
+      {/* ====================== Mes y día ====================== */}
+      <section className="filtros qd-sel">
+        <div className="arriba">
+          <div className="sel">
+            <label>Mes</label>
+            <div className="qd-paso">
+              <button type="button" aria-label="Mes anterior"
+                      onClick={() => irA(correrMes(datos.mes, -1))}>
+                <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
+              </button>
+              <div className="qd-mes-actual">{MESES_LARGO[mesNum]} {mesAnio}</div>
+              <button type="button" aria-label="Mes siguiente"
+                      onClick={() => irA(correrMes(datos.mes, 1))}>
+                <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="sel">
+            <label>Día</label>
+            <div className="qd-paso">
+              <button type="button" aria-label="Día anterior" onClick={() => irA(correr(fecha, -1))}>
+                <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
+              </button>
+              <ElegirDia fecha={fecha} datos={datos} hoy={hoy} elegir={irA} />
+              <button type="button" aria-label="Día siguiente" onClick={() => irA(correr(fecha, 1))}>
+                <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="button" className="limpiar" onClick={() => irA(hoy)}>Ir a hoy</button>
+        </div>
+
+        <TiraMes dias={dias} fecha={fecha} hoy={hoy} meta={meta}
+                 elegir={irA} cargando={cargando} />
+      </section>
+
+      {/* ====================== Cifras del mes ====================== */}
+      <section className="cifras">
+        <div className="cifra">
+          <div className="rot">ENVASE PRODUCIDO</div>
+          <div className="n">{nf.format(prodMes)}</div>
+          <div className="u">cajas del mes · {conDato} de {dias.length} días con dato</div>
+        </div>
+        <div className="cifra">
+          <div className="rot">ENVASE ROTO</div>
+          <div className="n">{nf.format(bajaMes)}</div>
+          <div className="u">
+            cajas del mes
+            {escritos > 0 && <span className="qd-sello escrito">{escritos} día{escritos > 1 ? "s" : ""} a mano</span>}
+          </div>
+        </div>
+        {exceso != null ? (
+          <div className={"cifra " + (exceso > 0 ? "alerta" : "buena")}>
+            <div className="rot">{exceso > 0 ? "EXCESO SOBRE META" : "MARGEN BAJO LA META"}</div>
+            <div className="n">{nf.format(Math.abs(Math.round(exceso)))}</div>
+            <div className="u">
+              cajas {exceso > 0 ? "por encima" : "por debajo"} de lo permitido ({pf(meta)})
+            </div>
+          </div>
+        ) : (
+          <div className="cifra">
+            <div className="rot">META DEL MES</div>
+            <div className="n">—</div>
+            <div className="u">no hay meta cargada para este mes</div>
+          </div>
+        )}
+      </section>
+
+      {/* ====================== Fila 1: el día por día ====================== */}
+      <section className="tarjetas">
+        <div className="tarjeta">
+          <div className="cab">
+            <div>
+              <h2>Quiebra día por día</h2>
+              <p>
+                Porcentaje sobre la producción del día · toca una barra para
+                pararte en ese día
+              </p>
+            </div>
+          </div>
+          <div className="cuerpo">
+            <div className="qd-lienzo">
+              <GraficoDias dias={dias} meta={meta} sel={fecha} elegir={irA} />
+            </div>
+            <div className="leyenda abajo">
+              <span><i style={{ background: "#0B4EA2" }} /> Bajo meta</span>
+              <span><i style={{ background: "#E4002B" }} /> Sobre meta</span>
+              <span><i className="meta" /> Meta del mes</span>
+              <span><i className="qd-i-esc" /> Escrito a mano</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="tarjeta">
+          <div className="cab">
+            <div>
+              <h2>El día seleccionado</h2>
+              <p>{bonita(fecha)}</p>
+            </div>
+            {manual && (
+              <div className="qd-firma">
+                <b>Editado a mano</b>
+                <span>
+                  {autor ? `${autor} · ` : ""}
+                  {manual.actualizado_en
+                    ? new Date(manual.actualizado_en).toLocaleString("es-CO", {
+                        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                      })
+                    : ""}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="cuerpo doble">
+            <div className="qd-mini">
+              <Mini rot="PRODUCCIÓN" n={prod == null ? "—" : nf.format(prod)} u="cajas"
+                    marca={escProd != null ? "escrito" : sap ? "sap" : "falta"} />
+              <Mini rot="BAJA" n={baja == null ? "—" : nf.format(baja)} u="cajas"
+                    marca={escBaja != null ? "escrito" : sap ? "sap" : "falta"} />
+              <Mini rot="QUIEBRA" n={pf(pct)} u={meta != null ? `meta ${pf(meta)}` : "sin meta"}
+                    tono={pct == null || meta == null ? undefined : pct > meta ? "alerta" : "buena"} />
+              <Mini rot="LE DEL DÍA" n={pf(lePct)}
+                    u={leBaja != null ? `${nf.format(leBaja)} cajas de plan` : "sin LE escrito"} />
+            </div>
+            <ul className="qd-checks">
+              {chequeos.map((c, i) => (
+                <li key={i} className={"qd-" + c.estado}><i /><span>{c.texto}</span></li>
+              ))}
+            </ul>
+            <div className="parte abajo-parte">
+              <div className="rotulo">De dónde salió la pérdida del día</div>
+              <Barras
+                datos={CAUSALES.map((c) => ({ nom: c, v: valorCausal(c) ?? 0, col: color(c) }))
+                  .filter((x) => x.v > 0).sort((a, b) => b.v - a.v)}
+                total={baja ?? 0}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ====================== Fila 2: de dónde sale ====================== */}
+      <section className="tarjetas dos">
+        <div className="tarjeta">
+          <div className="cab">
+            <div>
+              <h2>Composición día por día</h2>
+              <p>Cajas rotas por causal</p>
+            </div>
+          </div>
+          <div className="cuerpo">
+            <div className="qd-lienzo">
+              <ApiladoDias dias={dias} sel={fecha} />
+            </div>
+            <div className="leyenda abajo">
+              {causalesMes.map((c) => (
+                <span key={c.nom}><i style={{ background: c.col }} /> {c.nom}</span>
+              ))}
+              {!causalesMes.length && <span>Sin pérdida registrada en el mes.</span>}
+            </div>
+          </div>
+        </div>
+
+        <div className="tarjeta">
+          <div className="cab">
+            <div>
+              <h2>De dónde sale la quiebra</h2>
+              <p>Participación en el mes</p>
+            </div>
+          </div>
+          <div className="cuerpo">
+            <Barras datos={causalesMes} total={bajaMes} />
+          </div>
+        </div>
       </section>
 
       {/* ====================== La hoja editable ====================== */}
       <section className="tarjeta qd-hoja">
         <div className="cab">
           <div>
-            <h2>Detalle del día</h2>
+            <h2>Escribir el día · {bonita(fecha)}</h2>
             <p>
               La columna <b>SAP</b> es lo importado y no se toca. La columna <b>Escrito</b> es
               tuya: lo que escribas manda sobre SAP, y dejarlo en blanco es volver a SAP.
+              El tablero de arriba se mueve mientras escribes.
             </p>
           </div>
-          {manual && (
-            <div className="qd-firma">
-              <b>Editado a mano</b>
-              <span>
-                {autor ? `${autor} · ` : ""}
-                {manual.actualizado_en
-                  ? new Date(manual.actualizado_en).toLocaleString("es-CO", {
-                      day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-                    })
-                  : ""}
-              </span>
-            </div>
-          )}
+          <div className={"qd-estado" + (sucio ? " sucio" : "")}>
+            {sucio ? "Cambios sin guardar" : "Todo guardado"}
+          </div>
         </div>
 
         <div className="qd-tabla">
@@ -410,15 +629,9 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
 
           <div className="qd-grupo">Real del día</div>
 
-          <Linea
-            nombre="Producción"
-            ayuda="cajas producidas"
-            sap={sapProd}
-            valor={form.produccion}
-            cambiar={(v) => editar({ produccion: v })}
-            efectivo={prod}
-            editable={esEditor}
-          />
+          <Linea nombre="Producción" ayuda="cajas producidas" sap={sapProd}
+                 valor={form.produccion} cambiar={(v) => editar({ produccion: v })}
+                 efectivo={prod} editable={esEditor} />
 
           <div className="qd-grupo">
             Pérdida por causal
@@ -430,17 +643,10 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </div>
 
           {CAUSALES.map((c) => (
-            <Linea
-              key={c}
-              nombre={NOMBRE_HOJA[c] ?? c}
-              ayuda={NOMBRE_HOJA[c] ? c : undefined}
-              punto={COLOR_CAUSAL[c]}
-              sap={sap?.causales[c] ?? null}
-              valor={form.causales[c] ?? ""}
-              cambiar={(v) => editarCausal(c, v)}
-              efectivo={valorCausal(c)}
-              editable={esEditor}
-            />
+            <Linea key={c} nombre={NOMBRE_HOJA[c] ?? c} ayuda={NOMBRE_HOJA[c] ? c : undefined}
+                   punto={color(c)} sap={sap?.causales[c] ?? null}
+                   valor={form.causales[c] ?? ""} cambiar={(v) => editarCausal(c, v)}
+                   efectivo={valorCausal(c)} editable={esEditor} />
           ))}
 
           <div className="qd-linea total">
@@ -458,7 +664,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
             <div className="num esc">
               {escProd && escProd > 0 && escBaja != null ? pf(escBaja / escProd) : "—"}
             </div>
-            <div className={"num vale" + (sobreMeta ? " mal" : "")}>{pf(pct)}</div>
+            <div className={"num vale" + (sobreMetaDia ? " mal" : "")}>{pf(pct)}</div>
           </div>
 
           <div className="qd-grupo">
@@ -467,9 +673,11 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </div>
 
           <Linea nombre="Producción LE" sap={null} valor={form.le_produccion}
-                 cambiar={(v) => editar({ le_produccion: v })} efectivo={leProd} editable={esEditor} soloEscrito />
+                 cambiar={(v) => editar({ le_produccion: v })} efectivo={leProd}
+                 editable={esEditor} soloEscrito />
           <Linea nombre="Baja LE" sap={null} valor={form.le_baja}
-                 cambiar={(v) => editar({ le_baja: v })} efectivo={leBaja} editable={esEditor} soloEscrito />
+                 cambiar={(v) => editar({ le_baja: v })} efectivo={leBaja}
+                 editable={esEditor} soloEscrito />
           <div className="qd-linea total">
             <div className="qd-nom"><b>Quiebra LE</b></div>
             <div className="num sap">—</div>
@@ -480,34 +688,23 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
 
         <div className="qd-nota">
           <label htmlFor="qd-nota">Nota del día</label>
-          <textarea
-            id="qd-nota"
-            rows={2}
-            placeholder="Por qué se escribió a mano, qué turno faltaba, a quién se le pidió el dato…"
-            value={form.nota}
-            disabled={!esEditor}
-            onChange={(e) => editar({ nota: e.target.value })}
-          />
+          <textarea id="qd-nota" rows={2}
+                    placeholder="Por qué se escribió a mano, qué turno faltaba, a quién se le pidió el dato…"
+                    value={form.nota} disabled={!esEditor}
+                    onChange={(e) => editar({ nota: e.target.value })} />
         </div>
 
-        {esEditor && (
+        {esEditor ? (
           <div className="qd-acciones">
             <button type="button" className="qd-btn" disabled={!sucio || guardando} onClick={guardar}>
               {guardando ? "Guardando…" : "Guardar el día"}
             </button>
             <button type="button" className="qd-btn plano" disabled={!sucio || guardando}
-                    onClick={() => setForm(original)}>
-              Deshacer
-            </button>
-            <button type="button" className="qd-btn plano" disabled={guardando} onClick={limpiarTodo}>
-              Volver a lo de SAP
-            </button>
-            <span className={"qd-estado" + (sucio ? " sucio" : "")}>
-              {sucio ? "Hay cambios sin guardar" : "Todo guardado"}
-            </span>
+                    onClick={() => setForm(original)}>Deshacer</button>
+            <button type="button" className="qd-btn plano" disabled={guardando}
+                    onClick={limpiarTodo}>Volver a lo de SAP</button>
           </div>
-        )}
-        {!esEditor && (
+        ) : (
           <div className="qd-acciones">
             <span className="qd-estado">Solo lectura. Escribir el diario requiere rol de supervisor.</span>
           </div>
@@ -515,63 +712,299 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
         {aviso && <div className={"qd-aviso" + (aviso.mal ? " mal" : " bien")}>{aviso.texto}</div>}
       </section>
 
-      {/* ====================== Cuadre y mezcla ====================== */}
-      <div className="tarjetas pareja">
-        <section className="tarjeta">
-          <div className="cab">
-            <div>
-              <h2>Cuadre</h2>
-              <p>Lo que hay que mirar antes de dar el día por bueno.</p>
-            </div>
+      {/* ====================== Detalle del mes ====================== */}
+      <section className="tarjeta">
+        <div className="cab">
+          <div>
+            <h2>Detalle día por día</h2>
+            <p>Producción, baja, quiebra y de dónde salió cada cifra</p>
           </div>
-          <div className="cuerpo">
-            <ul className="qd-checks">
-              {chequeos.map((c, i) => (
-                <li key={i} className={"qd-" + c.estado}>
-                  <i />
-                  <span>{c.texto}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        <section className="tarjeta">
-          <div className="cab">
-            <div>
-              <h2>Mezcla del día</h2>
-              <p>Con qué se armó la pérdida, ya con lo escrito aplicado.</p>
-            </div>
-          </div>
-          <div className="cuerpo">
-            {baja && baja > 0 ? (
-              CAUSALES.map((c) => {
-                const v = valorCausal(c) ?? 0;
-                if (v <= 0) return null;
-                return (
-                  <div className="fila" key={c}>
-                    <div className="nom">{c}</div>
-                    <div className="pista">
-                      <div className="relleno"
-                           style={{ width: `${Math.min(100, (v / baja) * 100)}%`, background: COLOR_CAUSAL[c] }} />
-                    </div>
-                    <div className="pct">{((v / baja) * 100).toFixed(0)}%</div>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="qd-sin">Sin pérdida registrada en el día.</p>
-            )}
-          </div>
-        </section>
-      </div>
+        </div>
+        <div className="cuerpo tabla qd-tabla-dias">
+          <TablaDias dias={dias} meta={meta} sel={fecha} hoy={hoy} elegir={irA} />
+        </div>
+      </section>
 
       <p className="nota-pie">
         Importar el maestro vuelve a llenar la columna de SAP de todos los días del archivo.
         Lo escrito a mano vive en otra tabla y no se toca: por eso un día editado sigue
-        editado después de importar, y por eso la pantalla muestra las dos cifras cuando
-        se apartan. Para devolver un día a lo que dice SAP, usa <b>Volver a lo de SAP</b>.
+        editado después de importar, y por eso la pantalla muestra las dos cifras cuando se
+        apartan. Para devolver un día a lo que dice SAP, usa <b>Volver a lo de SAP</b>.
       </p>
+    </div>
+  );
+}
+
+/* ==================== Cifra chica ==================== */
+function Mini({ rot, n, u, tono, marca }: {
+  rot: string; n: string; u: string;
+  tono?: "alerta" | "buena";
+  marca?: "escrito" | "sap" | "falta";
+}) {
+  return (
+    <div className={"qd-mini-c" + (tono ? " " + tono : "")}>
+      <div className="rot">{rot}</div>
+      <div className="n">{n}</div>
+      <div className="u">
+        {u}
+        {marca === "escrito" && <span className="qd-sello escrito">a mano</span>}
+        {marca === "sap" && <span className="qd-sello sap">SAP</span>}
+        {marca === "falta" && <span className="qd-sello falta">sin dato</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ==================== Barras horizontales ==================== */
+function Barras({ datos, total }: { datos: { nom: string; v: number; col: string }[]; total: number }) {
+  const max = Math.max(1, ...datos.map((d) => d.v));
+  return (
+    <>
+      {datos.map((d) => (
+        <div className="fila" key={d.nom}>
+          <div className="nom" title={d.nom}>{d.nom}</div>
+          <div className="pista">
+            <div className="relleno"
+                 style={{ width: `${Math.max(0, (d.v / max) * 100)}%`, background: d.col }} />
+          </div>
+          <div className="pct">{total > 0 ? pf(d.v / total, 1) : "—"}</div>
+        </div>
+      ))}
+      {!datos.length && <p className="nota-pie">Sin pérdida registrada.</p>}
+    </>
+  );
+}
+
+/* ==================== Quiebra día por día ====================
+   Misma escala del otro tablero: percentil 95 para que dos días de
+   producción mínima no aplasten el mes entero. Lo que se sale va al
+   tope con una punta.
+   ============================================================ */
+function GraficoDias({ dias, meta, sel, elegir }: {
+  dias: Dia[]; meta: number | null; sel: string; elegir: (f: string) => void;
+}) {
+  const conPct = dias.filter((d) => d.pct != null);
+  const orden = conPct.map((d) => d.pct!).sort((a, b) => a - b);
+  const p95 = orden[Math.min(Math.max(0, orden.length - 1), Math.floor(orden.length * 0.95))] || 0.01;
+  const max = Math.max((meta ?? 0) * 1.6, p95) * 1.14 || 0.01;
+  const fuera = conPct.filter((d) => d.pct! > max).length;
+
+  const W = 1000, H = 420, m = { t: 28, r: 14, b: 48, l: 104 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const y = (v: number) => m.t + ih - (Math.min(v, max) / max) * ih;
+  const paso = iw / Math.max(1, dias.length);
+  const an = Math.max(3, Math.min(20, paso * 0.6));
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="grafico g-dias" role="img"
+         aria-label="Quiebra día por día del mes">
+      {[0, 1, 2, 3, 4].map((i) => {
+        const v = (max * i) / 4;
+        return (
+          <g key={i}>
+            <line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} className="rejilla" />
+            <text x={m.l - 12} y={y(v) + 6} className="eje" textAnchor="end">
+              {pf(v, 1)}{i === 4 ? "+" : ""}
+            </text>
+          </g>
+        );
+      })}
+
+      {meta != null && (
+        <line x1={m.l} x2={W - m.r} y1={y(meta)} y2={y(meta)} className="meta" />
+      )}
+
+      {dias.map((d, i) => {
+        const px = m.l + paso * i + (paso - an) / 2;
+        const esSel = d.fecha === sel;
+        const vacio = d.pct == null;
+        const corta = !vacio && d.pct! > max;
+        const yv = vacio ? m.t + ih : y(d.pct!);
+        const sobre = meta != null && !vacio && d.pct! > meta;
+        return (
+          <g key={d.fecha} className="qd-barra" onClick={() => elegir(d.fecha)}>
+            {/* zona de toque: la barra sola es muy delgada para el dedo */}
+            <rect x={m.l + paso * i} y={m.t} width={paso} height={ih}
+                  fill={esSel ? "rgba(4,32,63,.08)" : "transparent"} />
+            {!vacio && (
+              <rect x={px} y={yv} width={an} height={Math.max(1.5, m.t + ih - yv)}
+                    fill={sobre ? "#E4002B" : "#0B4EA2"}
+                    stroke={d.origen === "escrito" ? "#04203F" : "none"}
+                    strokeWidth={d.origen === "escrito" ? 1.6 : 0}>
+                <title>{`${d.fecha}${d.origen === "escrito" ? " · escrito a mano" : ""}\nQuiebra ${pf(d.pct)}${corta ? " (fuera de escala)" : ""}\n${nf.format(d.baja)} de ${nf.format(d.produccion)} cajas`}</title>
+              </rect>
+            )}
+            {corta && (
+              <path d={`M${px - 2} ${yv} L${px + an / 2} ${yv - 10} L${px + an + 2} ${yv} Z`}
+                    fill="#E4002B" />
+            )}
+            <text x={m.l + paso * i + paso / 2} y={H - 16}
+                  className={"eje" + (esSel ? " sel" : "") + (partes(d.fecha).d % 5 ? " menor" : "")}
+                  textAnchor="middle">
+              {partes(d.fecha).d}
+            </text>
+          </g>
+        );
+      })}
+
+      {fuera > 0 && (
+        <text x={W - m.r} y={m.t - 8} className="eje" textAnchor="end">
+          {fuera} día{fuera > 1 ? "s" : ""} fuera de escala
+        </text>
+      )}
+    </svg>
+  );
+}
+
+/* ==================== Composición apilada por día ==================== */
+function ApiladoDias({ dias, sel }: { dias: Dia[]; sel: string }) {
+  const W = 1000, H = 380, m = { t: 24, r: 12, b: 46, l: 96 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const cs = CAUSALES.filter((c) => dias.some((d) => (d.causales[c] ?? 0) > 0));
+  const max = Math.max(1, ...dias.map((d) => d.baja)) * 1.12;
+  const y = (v: number) => m.t + ih - (v / max) * ih;
+  const paso = iw / Math.max(1, dias.length);
+  const an = Math.max(3, Math.min(20, paso * 0.6));
+
+  const etiqueta = (v: number) =>
+    v >= 1e6 ? (v / 1e6).toFixed(1).replace(".", ",") + "M"
+             : v >= 1e3 ? Math.round(v / 1e3) + "k" : String(Math.round(v));
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="grafico g-apilado-dias" role="img"
+         aria-label="Composición diaria por causal">
+      {[0, 1, 2, 3].map((i) => {
+        const v = (max * i) / 3;
+        return (
+          <g key={i}>
+            <line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} className="rejilla" />
+            <text x={m.l - 12} y={y(v) + 6} className="eje" textAnchor="end">{etiqueta(v)}</text>
+          </g>
+        );
+      })}
+      {dias.map((d, i) => {
+        const x = m.l + paso * i + (paso - an) / 2;
+        let ac = 0;
+        return (
+          <g key={d.fecha}>
+            {d.fecha === sel && (
+              <rect x={m.l + paso * i} y={m.t} width={paso} height={ih} fill="rgba(4,32,63,.08)" />
+            )}
+            {cs.map((c) => {
+              const v = d.causales[c] ?? 0;
+              if (v <= 0) return null;
+              const y0 = y(ac + v), h = Math.max(1, y(ac) - y0 - 1.2);
+              ac += v;
+              return (
+                <rect key={c} x={x} y={y0} width={an} height={h} fill={color(c)}>
+                  <title>{`${d.fecha} · ${c}\n${nf.format(v)} cajas`}</title>
+                </rect>
+              );
+            })}
+            <text x={m.l + paso * i + paso / 2} y={H - 15}
+                  className={"eje" + (d.fecha === sel ? " sel" : "") + (partes(d.fecha).d % 5 ? " menor" : "")}
+                  textAnchor="middle">
+              {partes(d.fecha).d}
+            </text>
+          </g>
+        );
+      })}
+      {!cs.length && (
+        <text x={W / 2} y={H / 2} className="eje" textAnchor="middle">
+          Sin pérdida registrada en el mes
+        </text>
+      )}
+    </svg>
+  );
+}
+
+/* ==================== Tabla del mes ==================== */
+function TablaDias({ dias, meta, sel, hoy, elegir }: {
+  dias: Dia[]; meta: number | null; sel: string; hoy: string; elegir: (f: string) => void;
+}) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>Día</th>
+          <th className="num">Producción</th>
+          <th className="num">Baja</th>
+          <th className="num">Quiebra</th>
+          <th className="num">Meta</th>
+          <th>Origen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {dias.map((d) => {
+          const encima = meta != null && d.pct != null && d.pct > meta;
+          return (
+            <tr key={d.fecha}
+                className={"qd-fila-dia" + (d.fecha === sel ? " sel" : "") + (d.fecha > hoy ? " futuro" : "")}
+                onClick={() => elegir(d.fecha)}>
+              <td className="mes">
+                {partes(d.fecha).d} {MESES[partes(d.fecha).m].toLowerCase()}
+              </td>
+              <td className="num">{d.produccion ? nf.format(d.produccion) : "—"}</td>
+              <td className="num">{d.baja ? nf.format(d.baja) : "—"}</td>
+              <td className={"num " + (d.pct == null ? "" : encima ? "sobre" : "bajo")}>
+                {d.pct == null ? "—" : `${encima ? "▲" : "▼"} ${pf(d.pct)}`}
+              </td>
+              <td className="num meta">{pf(meta)}</td>
+              <td>
+                {d.origen === "escrito" && <span className="qd-sello escrito">a mano</span>}
+                {d.origen === "sap" && <span className="qd-sello sap">SAP</span>}
+                {d.origen === "vacio" && <span className="qd-sello falta">sin dato</span>}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+/* ==================== Tira del mes ====================
+   De un vistazo: qué días tienen dato, cuáles están escritos a mano y
+   cuáles están en blanco. Es la respuesta a "¿qué me falta reportar?".
+   ==================================================== */
+function TiraMes({ dias, fecha, hoy, meta, elegir, cargando }: {
+  dias: Dia[]; fecha: string; hoy: string; meta: number | null;
+  elegir: (f: string) => void; cargando: boolean;
+}) {
+  return (
+    <div className={"qd-tira" + (cargando ? " cargando" : "")}>
+      <div className="qd-tira-rot">
+        Días del mes
+        <span className="qd-leyenda">
+          <span><i className="p-esc" />escrito</span>
+          <span><i className="p-sap" />importado</span>
+          <span><i className="p-no" />en blanco</span>
+        </span>
+      </div>
+      <div className="qd-celdas">
+        {dias.map((d) => {
+          const sobre = d.pct != null && meta != null && d.pct > meta;
+          return (
+            <button
+              key={d.fecha}
+              type="button"
+              className={[
+                "qd-celda",
+                d.fecha === fecha ? "sel" : "",
+                d.origen === "escrito" ? "esc" : d.origen === "sap" ? "sap" : "no",
+                sobre ? "sobre" : "",
+                d.fecha === hoy ? "hoy" : "",
+                d.fecha > hoy ? "futuro" : "",
+              ].filter(Boolean).join(" ")}
+              onClick={() => elegir(d.fecha)}
+              title={`${bonita(d.fecha)}${d.pct != null ? ` · ${pf(d.pct)}` : ""}${d.origen === "escrito" ? " · escrito a mano" : ""}`}
+            >
+              <span className="d">{partes(d.fecha).d}</span>
+              <span className="q">{d.pct == null ? "·" : pf(d.pct, 1)}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -595,22 +1028,15 @@ function Linea({ nombre, ayuda, punto, sap, valor, cambiar, efectivo, editable, 
     <div className={"qd-linea" + (escrito ? " tocada" : "")}>
       <div className="qd-nom">
         {punto && <i className="qd-punto" style={{ background: punto }} />}
-        <span>
-          {nombre}
-          {ayuda && <em>{ayuda}</em>}
-        </span>
+        <span>{nombre}{ayuda && <em>{ayuda}</em>}</span>
       </div>
       <div className="num sap">{soloEscrito ? "—" : sap == null ? "—" : nf.format(sap)}</div>
       <div className="num esc">
         <div className="qd-caja">
-          <input
-            inputMode="decimal"
-            value={valor}
-            disabled={!editable}
-            placeholder={soloEscrito ? "—" : sap == null ? "—" : nf.format(sap)}
-            onChange={(e) => cambiar(e.target.value)}
-            aria-label={`${nombre}, valor escrito a mano`}
-          />
+          <input inputMode="decimal" value={valor} disabled={!editable}
+                 placeholder={soloEscrito ? "—" : sap == null ? "—" : nf.format(sap)}
+                 onChange={(e) => cambiar(e.target.value)}
+                 aria-label={`${nombre}, valor escrito a mano`} />
           {escrito && editable && (
             <button type="button" className="qd-x" onClick={() => cambiar("")}
                     aria-label={`Borrar lo escrito en ${nombre}`}>
@@ -621,81 +1047,6 @@ function Linea({ nombre, ayuda, punto, sap, valor, cambiar, efectivo, editable, 
       </div>
       <div className={"num vale" + (difiere ? " difiere" : "")}>
         {efectivo == null ? "—" : nf.format(efectivo)}
-      </div>
-    </div>
-  );
-}
-
-/* ==================== Cifra grande ==================== */
-function Cifra({ rot, n, u, tono, marca }: {
-  rot: string; n: string; u: string;
-  tono?: "alerta" | "buena";
-  marca?: "escrito" | "sap" | "falta";
-}) {
-  return (
-    <div className={"cifra" + (tono ? " " + tono : "")}>
-      <div className="rot">{rot}</div>
-      <div className="n">{n}</div>
-      <div className="u">
-        {u}
-        {marca === "escrito" && <span className="qd-sello escrito">a mano</span>}
-        {marca === "sap" && <span className="qd-sello sap">SAP</span>}
-        {marca === "falta" && <span className="qd-sello falta">sin dato</span>}
-      </div>
-    </div>
-  );
-}
-
-/* ==================== Tira del mes ====================
-   De un vistazo: qué días tienen dato, cuáles están escritos a mano y
-   cuáles están en blanco. Es la respuesta a "¿qué me falta reportar?".
-   ==================================================== */
-function TiraMes({ datos, fecha, hoy, elegir, cargando }: {
-  datos: MesDiario; fecha: string; hoy: string;
-  elegir: (f: string) => void; cargando: boolean;
-}) {
-  const a = Number(datos.mes.slice(0, 4));
-  const m = Number(datos.mes.slice(5, 7)) - 1;
-  const total = diasDelMes(a, m);
-
-  return (
-    <div className={"qd-tira" + (cargando ? " cargando" : "")}>
-      <div className="qd-tira-rot">
-        {MESES_LARGO[m]} {a}
-        <span className="qd-leyenda">
-          <span><i className="p-esc" />escrito</span>
-          <span><i className="p-sap" />importado</span>
-          <span><i className="p-no" />en blanco</span>
-        </span>
-      </div>
-      <div className="qd-celdas">
-        {Array.from({ length: total }).map((_, i) => {
-          const f = aTexto(a, m, i + 1);
-          const esc = !!datos.manual[f];
-          const s = datos.sap[f];
-          const tiene = !!s && (s.produccion > 0 || s.baja !== 0);
-          const p = s && s.produccion > 0 ? s.baja / s.produccion : null;
-          const sobre = p != null && datos.meta != null && p > datos.meta;
-          return (
-            <button
-              key={f}
-              type="button"
-              className={[
-                "qd-celda",
-                f === fecha ? "sel" : "",
-                esc ? "esc" : tiene ? "sap" : "no",
-                sobre ? "sobre" : "",
-                f === hoy ? "hoy" : "",
-                f > hoy ? "futuro" : "",
-              ].filter(Boolean).join(" ")}
-              onClick={() => elegir(f)}
-              title={`${bonita(f)}${p != null ? ` · ${pf(p)}` : ""}${esc ? " · escrito a mano" : ""}`}
-            >
-              <span className="d">{i + 1}</span>
-              <span className="q">{p == null ? "·" : pf(p, 1)}</span>
-            </button>
-          );
-        })}
       </div>
     </div>
   );
@@ -727,71 +1078,67 @@ function ElegirDia({ fecha, datos, hoy, elegir }: {
 
   const { a, m } = vista;
   const hueco = primerDia(a, m);
-  const dias = diasDelMes(a, m);
+  const total = diasDelMes(a, m);
   const mover = (paso: number) => {
     const t = new Date(Date.UTC(a, m + paso, 1));
     setVista({ a: t.getUTCFullYear(), m: t.getUTCMonth(), d: 1 });
   };
 
   return (
-    <div className="sel">
-      <label>Día</label>
-      <div className="calendario" ref={caja}>
-        <button type="button" className="disparo ancho" aria-expanded={abierto}
-                onClick={() => setAbierto((v) => !v)}>
-          <svg className="ico" viewBox="0 0 24 24" fill="none" strokeLinecap="round">
-            <rect x="3" y="5" width="18" height="16" rx="2" />
-            <path d="M3 10h18M8 3v4M16 3v4" />
-          </svg>
-          <span className="txt">{bonita(fecha)}</span>
-          <svg className="flecha" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
-        </button>
+    <div className="calendario" ref={caja}>
+      <button type="button" className="disparo ancho" aria-expanded={abierto}
+              onClick={() => setAbierto((v) => !v)}>
+        <svg className="ico" viewBox="0 0 24 24" fill="none" strokeLinecap="round">
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 10h18M8 3v4M16 3v4" />
+        </svg>
+        <span className="txt">{bonita(fecha)}</span>
+        <svg className="flecha" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
 
-        {abierto && (
-          <div className="panel">
-            <div className="cal-cuerpo">
-              <div className="meses">
-                <div className="mes">
-                  <div className="mes-cab">
-                    <button type="button" aria-label="Mes anterior" onClick={() => mover(-1)}>
-                      <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
-                    </button>
-                    <div className="titulo-mes">{MESES_LARGO[m]} {a}</div>
-                    <button type="button" aria-label="Mes siguiente" onClick={() => mover(1)}>
-                      <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6" /></svg>
-                    </button>
-                  </div>
-                  <div className="semana">{DIAS_SEM.map((d, i) => <span key={i}>{d}</span>)}</div>
-                  <div className="dias">
-                    {Array.from({ length: hueco }).map((_, i) => <span key={"h" + i} />)}
-                    {Array.from({ length: dias }).map((_, i) => {
-                      const f = aTexto(a, m, i + 1);
-                      const mismoMes = datos.mes === `${f.slice(0, 7)}-01`;
-                      const marca = mismoMes && datos.manual[f] ? " escrito" : "";
-                      return (
-                        <button key={f} type="button"
-                                className={(f === fecha ? "punta inicio fin" : "") + (f === hoy ? " hoy" : "") + marca}
-                                onClick={() => { setAbierto(false); elegir(f); }}>
-                          {i + 1}
-                        </button>
-                      );
-                    })}
-                  </div>
+      {abierto && (
+        <div className="panel">
+          <div className="cal-cuerpo">
+            <div className="meses">
+              <div className="mes">
+                <div className="mes-cab">
+                  <button type="button" aria-label="Mes anterior" onClick={() => mover(-1)}>
+                    <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
+                  </button>
+                  <div className="titulo-mes">{MESES_LARGO[m]} {a}</div>
+                  <button type="button" aria-label="Mes siguiente" onClick={() => mover(1)}>
+                    <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6" /></svg>
+                  </button>
+                </div>
+                <div className="semana">{DIAS_SEM.map((d, i) => <span key={i}>{d}</span>)}</div>
+                <div className="dias">
+                  {Array.from({ length: hueco }).map((_, i) => <span key={"h" + i} />)}
+                  {Array.from({ length: total }).map((_, i) => {
+                    const f = aTexto(a, m, i + 1);
+                    const mismoMes = datos.mes === `${f.slice(0, 7)}-01`;
+                    const marca = mismoMes && datos.manual[f] ? " escrito" : "";
+                    return (
+                      <button key={f} type="button"
+                              className={(f === fecha ? "punta inicio fin" : "") + (f === hoy ? " hoy" : "") + marca}
+                              onClick={() => { setAbierto(false); elegir(f); }}>
+                        {i + 1}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-            <div className="cal-pie">
-              <div className="resumen">Un día a la vez. <b>{MESES[m]}</b> {a}</div>
-              <div className="btns">
-                <button type="button" className="cancelar" onClick={() => setAbierto(false)}>Cerrar</button>
-                <button type="button" className="aplicar" onClick={() => { setAbierto(false); elegir(hoy); }}>
-                  Hoy
-                </button>
-              </div>
+          </div>
+          <div className="cal-pie">
+            <div className="resumen">Un día a la vez. <b>{MESES[m]}</b> {a}</div>
+            <div className="btns">
+              <button type="button" className="cancelar" onClick={() => setAbierto(false)}>Cerrar</button>
+              <button type="button" className="aplicar"
+                      onClick={() => { setAbierto(false); elegir(hoy); }}>Hoy</button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
