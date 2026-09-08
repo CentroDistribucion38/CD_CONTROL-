@@ -4,6 +4,12 @@
    --------------------------------------------------------------------- */
 
 .sh {
+  /* Aire extra arriba de la barra. En escritorio no hace falta; en el
+     celular sí, porque el área segura del sistema vale 0 en Safari y la
+     barra queda pegada al borde de la pantalla: se lee como si estuviera
+     cruzada con el reloj. */
+  --sh-aire: 0px;
+
   --sh-tinta:     #04203F;
   --sh-azul:      #0B4EA2;
   --sh-rojo:      #E4002B;
@@ -22,9 +28,10 @@
   flex: none;
   /* Instalada en el celular, la app corre a pantalla completa y el azul se
      mete debajo del reloj y la batería. El área segura del sistema se suma
-     como relleno para que la barra empiece justo abajo de ellos. */
-  height: calc(70px + env(safe-area-inset-top));
-  padding-top: env(safe-area-inset-top);
+     como relleno para que el contenido de la barra empiece abajo de ellos.
+     El azul sí llega hasta el borde, para que no quede una franja clara. */
+  height: calc(70px + var(--sh-aire) + env(safe-area-inset-top));
+  padding-top: calc(var(--sh-aire) + env(safe-area-inset-top));
   display: flex;
   align-items: center;
   gap: 22px;
@@ -134,7 +141,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   display: flex;
   flex-direction: column;
   /* la barra mide 70px; esto hace que la portada llene la pantalla */
-  min-height: calc(100dvh - 70px - env(safe-area-inset-top));
+  min-height: calc(100dvh - 70px - var(--sh-aire) - env(safe-area-inset-top));
   /* El <main> del cascarón trae relleno para las páginas de los módulos.
      La portada lo anula para poder llegar a los bordes: el filo del pie
      tiene que cruzar la pantalla completa. */
@@ -391,7 +398,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 
 .sh-lado .riel {
   position: fixed;
-  top: calc(70px + env(safe-area-inset-top)); left: 0; bottom: 0;
+  top: calc(70px + var(--sh-aire) + env(safe-area-inset-top)); left: 0; bottom: 0;
   width: 64px;
   overflow: hidden;
   background: var(--sh-tinta);
@@ -541,6 +548,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 @media (max-width: 900px) {
   /* El turno no es crítico y le quita el aire a las migas de pan. */
   .sh-barra .der .turno { display: none }
+  .sh { --sh-aire: 12px }
 }
 
 @media (max-width: 720px) {
