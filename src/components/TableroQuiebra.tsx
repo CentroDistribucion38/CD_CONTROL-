@@ -506,7 +506,7 @@ function TablaMateriales({ bajas, total }: { bajas: Baja[]; total: number }) {
   const top = [...map.entries()].filter((x) => x[1].v > 0).sort((a, b) => b[1].v - a[1].v).slice(0, 8);
   const mx = top[0]?.[1].v ?? 1;
   return (
-    <table>
+    <table className="tabla">
       <tbody>
         <tr><th>Envase</th><th className="n">Unidades</th><th className="n">Part.</th><th style={{ width: 84 }} /></tr>
         {top.map(([cod, x]) => (
@@ -529,7 +529,7 @@ function TablaAlmacen({ bajas, total }: { bajas: Baja[]; total: number }) {
   const d = [...map.entries()].filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
   const mx = d[0]?.[1] ?? 1;
   return (
-    <table>
+    <table className="tabla">
       <tbody>
         <tr><th>Almacén</th><th className="n">Unidades</th><th className="n">Part.</th></tr>
         {d.map(([a, v]) => (
@@ -551,7 +551,7 @@ function TablaMes({ prodMes, perdMes, metaDe }: {
   const meses = [...prodMes.keys()].sort((a, b) => a - b);
   return (
     <div style={{ overflowX: "auto" }}>
-      <table>
+      <table className="tabla">
         <tbody>
           <tr><th>Mes</th><th className="n">Producción</th><th className="n">Quiebra</th><th className="n">%</th><th className="n">Meta</th></tr>
           {meses.map((mm) => {

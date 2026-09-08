@@ -1,0 +1,510 @@
+/* ---------------------------------------------------------------------
+   Pantalla de acceso de CONTROL.
+   Todo va con el prefijo .acc- para que no toque nada del resto de la app.
+   Tres tamaños: escritorio (corte diagonal), tableta y celular (apilado).
+   --------------------------------------------------------------------- */
+
+.acc {
+  --acc-tinta:     #04203F;
+  --acc-azul:      #0B4EA2;
+  --acc-rojo:      #E4002B;
+  --acc-rojo-vivo: #FF1C38;
+  --acc-hueso:     #EEF1F5;
+  --acc-papel:     #FFFFFF;
+  --acc-gris:      #5B6B7F;
+  --acc-linea:     #D5DCE5;
+  /* desplazamiento del corte = alto * tan(26°) */
+  --acc-corte: 24.4vh;
+
+  --acc-titulo: "Archivo", "Archivo Fallback", system-ui, sans-serif;
+  --acc-texto:  "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  font-family: var(--acc-texto);
+  color: var(--acc-tinta);
+  -webkit-font-smoothing: antialiased;
+}
+
+.acc *,
+.acc *::before,
+.acc *::after { box-sizing: border-box; }
+
+/* ---------- Campos y corte diagonal ---------- */
+.acc-escena {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background: var(--acc-hueso);
+}
+
+/* En escritorio la zona azul ocupa toda la escena; al apilarse pasa a ser
+   una franja de alto propio y todo lo demás fluye debajo de ella. */
+.acc-hero {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.acc-fondo { position: absolute; inset: 0; z-index: 0 }
+
+.acc-izq {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 12% 8%, #0A3A6E 0%, transparent 60%),
+    var(--acc-tinta);
+  clip-path: polygon(
+    0 0,
+    calc(56% + var(--acc-corte)) 0,
+    calc(56% - var(--acc-corte)) 100%,
+    0 100%
+  );
+}
+
+/* trama de estibas: líneas isométricas muy tenues */
+.acc-izq::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.16;
+  background-image:
+    repeating-linear-gradient(64deg, rgba(255,255,255,.5) 0 1px, transparent 1px 74px),
+    repeating-linear-gradient(-64deg, rgba(255,255,255,.28) 0 1px, transparent 1px 74px);
+  -webkit-mask-image: linear-gradient(105deg, #000 10%, transparent 78%);
+  mask-image: linear-gradient(105deg, #000 10%, transparent 78%);
+}
+
+.acc-banda {
+  position: absolute;
+  inset: 0;
+  background: var(--acc-rojo);
+  clip-path: polygon(
+    calc(56% + var(--acc-corte)) 0,
+    calc(56% + var(--acc-corte) + 26px) 0,
+    calc(56% - var(--acc-corte) + 26px) 100%,
+    calc(56% - var(--acc-corte)) 100%
+  );
+}
+
+.acc-filo {
+  position: absolute;
+  inset: 0;
+  background: var(--acc-rojo);
+  opacity: 0.55;
+}
+.acc-filo.a {
+  clip-path: polygon(
+    calc(56% + var(--acc-corte) + 40px) 0,
+    calc(56% + var(--acc-corte) + 45px) 0,
+    calc(56% - var(--acc-corte) + 45px) 100%,
+    calc(56% - var(--acc-corte) + 40px) 100%
+  );
+}
+.acc-filo.b {
+  opacity: 0.3;
+  clip-path: polygon(
+    calc(56% + var(--acc-corte) + 56px) 0,
+    calc(56% + var(--acc-corte) + 58px) 0,
+    calc(56% - var(--acc-corte) + 58px) 100%,
+    calc(56% - var(--acc-corte) + 56px) 100%
+  );
+}
+
+/* entrada única al cargar: el corte barre una vez */
+.acc-izq,
+.acc-banda,
+.acc-filo { animation: acc-barrido .85s cubic-bezier(.2,.8,.2,1) both; }
+.acc-banda { animation-delay: .05s }
+.acc-filo.a { animation-delay: .09s }
+.acc-filo.b { animation-delay: .13s }
+@keyframes acc-barrido {
+  from { transform: translateX(-14%) }
+  to   { transform: none }
+}
+
+/* ---------- Marca ---------- */
+.acc-marca {
+  position: absolute;
+  top: 34px;
+  left: 52px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #fff;
+}
+.acc-marca img {
+  width: 46px;
+  height: 46px;
+  display: block;
+  filter: drop-shadow(0 0 18px rgba(228,0,43,.45));
+}
+.acc-marca .nombre {
+  font-family: var(--acc-titulo);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: .22em;
+}
+.acc-marca .barra {
+  width: 1px;
+  height: 26px;
+  background: rgba(255,255,255,.28);
+}
+
+/* ---------- Discurso ---------- */
+.acc-discurso {
+  position: relative;
+  z-index: 4;
+  padding: 0 0 0 52px;
+  max-width: 47vw;
+  color: #fff;
+}
+.acc-discurso h1 {
+  font-family: var(--acc-titulo);
+  font-weight: 900;
+  line-height: .84;
+  font-size: clamp(46px, 6.8vw, 112px);
+  letter-spacing: -.045em;
+  margin: 0;
+}
+.acc-discurso h1 .l1 { display: block }
+.acc-discurso h1 .l2 {
+  display: flex;
+  align-items: center;
+  gap: .16em;
+  margin-top: .1em;
+  font-size: .5em;
+  letter-spacing: -.02em;
+}
+/* TEAM en contorno: deja respirar el bloque rojo */
+.acc-contorno {
+  color: transparent;
+  -webkit-text-stroke: 2.5px rgba(255,255,255,.9);
+}
+/* BAQ sobre un paralelogramo al mismo ángulo que el corte de la pantalla */
+.acc-baq {
+  position: relative;
+  display: inline-block;
+  padding: .1em .3em .16em;
+  transform: skewX(-26deg);
+  background: var(--acc-rojo);
+  box-shadow: 0 12px 34px -12px rgba(228,0,43,.75);
+}
+.acc-baq span {
+  display: inline-block;
+  transform: skewX(26deg);
+  color: #fff;
+}
+
+.acc-firma {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: .055em;
+  color: #9FBEDE;
+}
+.acc-firma::before {
+  content: "";
+  width: 26px;
+  height: 3px;
+  background: var(--acc-rojo);
+  flex: none;
+}
+
+.acc-modulos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 30px;
+  max-width: 36ch;
+}
+.acc-modulos span {
+  border: 1px solid rgba(255,255,255,.22);
+  padding: 7px 13px;
+  border-radius: 2px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #D6E4F4;
+}
+.acc-modulos span.activo {
+  background: var(--acc-rojo);
+  border-color: var(--acc-rojo);
+  color: #fff;
+}
+
+/* ---------- Tarjeta de acceso ---------- */
+.acc-tarjeta {
+  position: relative;
+  z-index: 6;
+  margin-left: auto;
+  margin-right: 6.5vw;
+  width: min(408px, 90vw);
+  background: var(--acc-papel);
+  border: 1px solid var(--acc-linea);
+  border-radius: 3px;
+  box-shadow: 0 30px 70px -30px rgba(4,32,63,.45);
+  animation: acc-sube .7s .25s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes acc-sube {
+  from { opacity: 0; transform: translateY(18px) }
+  to   { opacity: 1; transform: none }
+}
+.acc-tarjeta::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--acc-rojo);
+}
+
+.acc-cabeza { padding: 34px 34px 6px }
+.acc-cabeza h2 {
+  font-family: var(--acc-titulo);
+  font-weight: 800;
+  font-size: 25px;
+  letter-spacing: -.02em;
+  margin: 0;
+}
+.acc-cabeza .sub {
+  margin: 7px 0 0;
+  font-size: 14px;
+  color: var(--acc-gris);
+}
+
+.acc-form { padding: 22px 34px 30px }
+.acc-campo { margin-bottom: 16px }
+.acc-campo label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 7px;
+  color: #2C4361;
+}
+.acc-caja {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.acc-caja input {
+  width: 100%;
+  height: 50px;
+  padding: 0 14px;
+  font: 500 16px/1 var(--acc-texto);
+  color: var(--acc-tinta);
+  background: #F7F9FC;
+  border: 1.5px solid var(--acc-linea);
+  border-radius: 2px;
+  transition: border-color .12s, background .12s;
+}
+.acc-caja input::placeholder { color: #9AA9BB; font-weight: 400 }
+.acc-caja input:hover { border-color: #B9C4D2 }
+.acc-caja input:focus {
+  outline: none;
+  background: #fff;
+  border-color: var(--acc-azul);
+  box-shadow: 0 0 0 3px rgba(11,78,162,.14);
+}
+.acc-caja input[type="password"],
+.acc-caja input#clave { padding-right: 56px }
+
+.acc-ver {
+  position: absolute;
+  right: 6px;
+  height: 38px;
+  width: 44px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--acc-gris);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 2px;
+}
+.acc-ver:hover { color: var(--acc-azul) }
+.acc-ver:focus-visible { outline: 2px solid var(--acc-azul); outline-offset: 2px }
+
+.acc-aviso {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #B00020;
+}
+.acc-campo.malo .acc-caja input {
+  border-color: #B00020;
+  background: #FFF6F7;
+}
+
+.acc-entrar {
+  width: 100%;
+  height: 52px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  background: var(--acc-rojo);
+  color: #fff;
+  font-family: var(--acc-titulo);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: .01em;
+  transition: background .14s, transform .06s;
+}
+.acc-entrar:hover { background: var(--acc-rojo-vivo) }
+.acc-entrar:active { transform: translateY(1px) }
+.acc-entrar:focus-visible { outline: 3px solid var(--acc-azul); outline-offset: 2px }
+.acc-entrar[disabled] { background: #94A3B4; cursor: progress }
+
+.acc-pie {
+  padding: 16px 34px;
+  border-top: 1px solid var(--acc-linea);
+  background: #FAFBFD;
+  font-size: 12.5px;
+  color: var(--acc-gris);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.acc-pie b { font-weight: 600; color: #2C4361 }
+.acc-pie .pedir {
+  color: var(--acc-azul);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1.5px solid rgba(11,78,162,.3);
+  padding-bottom: 1px;
+  background: none;
+  border-left: 0; border-right: 0; border-top: 0;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+.acc-pie .pedir:hover { color: var(--acc-rojo); border-bottom-color: var(--acc-rojo) }
+.acc-pie .pedir:focus-visible { outline: 2px solid var(--acc-azul); outline-offset: 3px }
+
+.acc-listo {
+  padding: 52px 34px;
+  text-align: center;
+}
+.acc-listo .tic {
+  width: 52px; height: 52px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: var(--acc-rojo);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 26px;
+  font-family: var(--acc-titulo);
+}
+.acc-listo h3 {
+  font-family: var(--acc-titulo);
+  font-weight: 800;
+  font-size: 20px;
+  margin: 0;
+}
+.acc-listo p { margin: 8px 0 0; font-size: 14px; color: var(--acc-gris) }
+
+/* =====================================================================
+   TABLETA Y CELULAR — y escritorios muy bajitos, donde el corte diagonal
+   no cabe. El azul pasa a cubrir toda la pantalla (nada de vacío gris
+   abajo), desaparece la franja diagonal y el corte rojo queda como un
+   trazo que cruza por detrás del borde superior de la tarjeta.
+   ===================================================================== */
+@media (max-width: 1024px), (max-height: 660px) {
+  .acc-escena {
+    position: relative;
+    inset: auto;
+    min-height: 100dvh;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: visible;
+    background: var(--acc-tinta);
+  }
+
+  /* El bloque azul deja de recortarse y se fija al fondo de la pantalla. */
+  .acc-hero {
+    position: relative;
+    inset: auto;
+    display: block;
+    padding: 28px 24px 0;
+    flex: none;
+  }
+  .acc-izq { position: fixed; clip-path: none }
+  .acc-banda,
+  .acc-filo { display: none }
+
+  .acc-marca { position: relative; top: 0; left: 0; padding: 0 }
+  .acc-discurso { padding: 34px 0 0; max-width: none }
+  .acc-discurso h1 { font-size: clamp(40px, 9.4vw, 64px) }
+  .acc-contorno { -webkit-text-stroke-width: 2px }
+  .acc-firma { margin-top: 20px; font-size: 13.5px }
+  .acc-modulos { margin-top: 26px; max-width: none }
+
+  .acc-tarjeta {
+    width: auto;
+    margin: 64px 24px 46px;
+    align-self: stretch;
+    flex: none;
+  }
+  /* el trazo rojo que cruza por encima de la tarjeta */
+  .acc-tarjeta::after {
+    content: "";
+    position: absolute;
+    left: -7vw;
+    top: -26px;
+    width: 68%;
+    height: 14px;
+    background: var(--acc-rojo);
+    transform: rotate(-4deg);
+    transform-origin: left center;
+  }
+}
+
+/* Celular: mismas piezas, medidas más apretadas y áreas seguras. */
+@media (max-width: 640px) {
+  .acc-hero {
+    padding: 22px 18px 0;
+    padding-left: calc(18px + env(safe-area-inset-left));
+    padding-right: calc(18px + env(safe-area-inset-right));
+  }
+  .acc-marca { gap: 12px }
+  .acc-marca img { width: 38px; height: 38px }
+  .acc-marca .nombre { font-size: 13px; letter-spacing: .2em }
+  .acc-marca .barra { height: 22px }
+
+  .acc-discurso { padding-top: 28px }
+  .acc-discurso h1 { font-size: clamp(34px, 12vw, 52px) }
+  .acc-contorno { -webkit-text-stroke-width: 1.7px }
+  .acc-firma { margin-top: 16px; font-size: 12.5px; gap: 9px }
+  .acc-firma::before { width: 20px; height: 2px }
+  .acc-modulos { margin-top: 20px; gap: 6px }
+  .acc-modulos span { padding: 6px 11px; font-size: 12px }
+
+  .acc-tarjeta {
+    margin: 52px 16px calc(34px + env(safe-area-inset-bottom));
+  }
+  .acc-tarjeta::after { top: -22px; height: 11px; left: -9vw; width: 74% }
+
+  .acc-cabeza { padding: 26px 22px 4px }
+  .acc-cabeza h2 { font-size: 22px }
+  .acc-cabeza .sub { font-size: 13.5px }
+  .acc-form { padding: 18px 22px 24px }
+  .acc-pie { padding: 14px 22px; flex-wrap: wrap }
+  .acc-listo { padding: 44px 22px }
+}
+
+/* Pantallas muy angostas: que el pie no se parta feo */
+@media (max-width: 360px) {
+  .acc-discurso h1 .l2 { flex-wrap: wrap; gap: .1em }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acc-escena *,
+  .acc-escena { animation: none !important; transition: none !important }
+}
