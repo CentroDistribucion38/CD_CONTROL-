@@ -148,6 +148,20 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
 
   return (
     <div className="qb">
+      {/* Solo sale en el papel: el PDF no lleva la barra de la app. */}
+      <div className="hoja-impresa">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/marca/logo-b.png" alt="" />
+        <div>
+          <b>CD38 · CONTROL</b>
+          <span>Centro de Distribución 38 · Bavaria BAQ</span>
+        </div>
+        <div className="sello-fecha">
+          Quiebra de envase<br />
+          {bonita(desde)} — {bonita(hasta)}
+        </div>
+      </div>
+
       {/* ---------------- Encabezado ---------------- */}
       <section className="cabeza">
         <div className="texto">
@@ -159,6 +173,13 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
             {esEditor && <> <Link href="/quiebra/importar">Actualizar</Link></>}
           </p>
         </div>
+        <div className="lado-derecho">
+        <AccionesInforme
+          armar={() => construirInforme({
+            desde, hasta, pct, meta, pp, sobre, total, perdida, exceso,
+            prodMes, perdMes, metaDe, bajas: bj, causales, almacenes,
+          })}
+        />
         <div className={"kpi" + (sobre ? "" : " bajo")}>
           <div className="corte" />
           <div className="rot">QUIEBRA DEL PERÍODO</div>
@@ -170,6 +191,7 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
               {sobre ? "sobre" : "bajo"} la meta
             </span>
           </div>
+        </div>
         </div>
       </section>
 
@@ -909,4 +931,220 @@ function TablaMes({ prodMes, perdMes, metaDe }: {
       </tbody>
     </table>
   );
+}
+
+/* ==================== Informe: PDF y copiar ==================== */
+
+/**
+ * Dos formas de sacar el tablero de la pantalla:
+ *
+ *  · Generar PDF — abre el diálogo de impresión del navegador. La hoja usa
+ *    el mismo tablero con estilos de papel (@media print en quiebra.css),
+ *    así que lo impreso es exactamente lo que se está viendo, filtros
+ *    incluidos, y no una copia que se puede desactualizar.
+ *
+ *  · Copiar informe — deja en el portapapeles una tabla lista para pegar en
+ *    un correo o en Word. Va como HTML y como texto plano: el que reciba
+ *    decide. Es el formato en que de verdad se manda esto a diario.
+ */
+function AccionesInforme({ armar }: { armar: () => { html: string; texto: string } }) {
+  const [estado, setEstado] = useState<"" | "listo" | "mal">("");
+  const [copiando, setCopiando] = useState(false);
+
+  useEffect(() => {
+    if (!estado) return;
+    const t = setTimeout(() => setEstado(""), 3200);
+    return () => clearTimeout(t);
+  }, [estado]);
+
+  async function copiar() {
+    setCopiando(true);
+    const { html, texto } = armar();
+    try {
+      // El portapapeles enriquecido solo existe en HTTPS y en navegadores
+      // nuevos; si no está, se cae al texto plano, que sirve igual.
+      if (navigator.clipboard && "write" in navigator.clipboard && typeof ClipboardItem !== "undefined") {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([texto], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(texto);
+      }
+      setEstado("listo");
+    } catch {
+      setEstado("mal");
+    }
+    setCopiando(false);
+  }
+
+  return (
+    <>
+      <div className="acciones-informe">
+        <button type="button" className="accion" onClick={() => window.print()}>
+          <svg viewBox="0 0 24 24">
+            <path d="M8 3.5h5.5L18 8v12.5H6V3.5z" />
+            <path d="M13.5 3.5V8H18" />
+            <path d="M9.5 15.5h5M9.5 12.5h3" />
+          </svg>
+          Generar PDF
+        </button>
+        <button
+          type="button"
+          className={"accion" + (estado === "listo" ? " listo" : "")}
+          onClick={copiar}
+          disabled={copiando}
+        >
+          <svg viewBox="0 0 24 24">
+            <rect x="9" y="9" width="11.5" height="11.5" rx="2" />
+            <path d="M15 6.5V5.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h1" />
+          </svg>
+          {estado === "listo" ? "Copiado" : "Copiar informe"}
+        </button>
+      </div>
+
+      {estado && (
+        <div className={"qb-aviso-copia" + (estado === "mal" ? " mal" : "")} role="status">
+          <svg viewBox="0 0 24 24">
+            {estado === "listo"
+              ? <path d="M5 12.5l4.5 4.5L19 7" />
+              : <path d="M6 6l12 12M18 6L6 18" />}
+          </svg>
+          {estado === "listo"
+            ? "Informe copiado. Pégalo en el correo."
+            : "El navegador no dejó copiar. Usa Generar PDF."}
+        </div>
+      )}
+    </>
+  );
+}
+
+type DatosInforme = {
+  desde: string; hasta: string;
+  pct: number | null; meta: number; pp: number; sobre: boolean;
+  total: number; perdida: number; exceso: number;
+  prodMes: Map<number, number>; perdMes: Map<number, number>;
+  metaDe: (m: number) => number;
+  bajas: Baja[]; causales: string[]; almacenes: string[];
+};
+
+/** Arma el informe con estilos en línea: los correos ignoran las hojas CSS. */
+function construirInforme(d: DatosInforme): { html: string; texto: string } {
+  const LIN = "1px solid #D5DCE5";
+  const meses = [...d.prodMes.keys()].sort((a, b) => a - b);
+  const periodo = `${bonita(d.desde)} — ${bonita(d.hasta)}`;
+
+  const porCausal = d.causales.map((c) => ({
+    n: c,
+    v: d.bajas.filter((b) => b.causal === c).reduce((a, b) => a + Number(b.cantidad), 0),
+  }));
+  const porAlmacen = d.almacenes.map((a) => ({
+    n: a,
+    v: d.bajas.filter((b) => b.almacen === a).reduce((x, b) => x + Number(b.cantidad), 0),
+  })).sort((x, y) => y.v - x.v);
+
+  const mapMat = new Map<string, { den: string; v: number }>();
+  for (const b of d.bajas) {
+    const k = b.material ?? "—";
+    const a = mapMat.get(k) ?? { den: b.denominacion ?? k, v: 0 };
+    a.v += Number(b.cantidad);
+    mapMat.set(k, a);
+  }
+  const envases = [...mapMat.entries()].filter((x) => x[1].v > 0)
+    .sort((a, b) => b[1].v - a[1].v).slice(0, 8);
+
+  const cabecera = (t: string) =>
+    `<th style="background:#04203F;color:#fff;padding:7px 10px;font:700 11px Arial;letter-spacing:.06em;text-align:left">${t}</th>`;
+  const cabeceraN = (t: string) =>
+    `<th style="background:#04203F;color:#fff;padding:7px 10px;font:700 11px Arial;letter-spacing:.06em;text-align:right">${t}</th>`;
+  const celda = (t: string, der = false, i = 0) =>
+    `<td style="border-bottom:${LIN};padding:6px 10px;font:13px Arial;text-align:${der ? "right" : "left"};background:${i % 2 ? "#F7F9FC" : "#fff"}">${t}</td>`;
+
+  const tablaPorcentaje = (titulo: string, filas: { n: string; v: number }[]) =>
+    `<h3 style="font:700 14px Arial;color:#04203F;margin:18px 0 6px">${titulo}</h3>` +
+    `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse">` +
+    filas.map((f, i) =>
+      `<tr>${celda(f.n, false, i)}${celda(d.perdida > 0 ? pf(f.v / d.perdida, 1) : "—", true, i)}</tr>`
+    ).join("") + `</table>`;
+
+  const html =
+    `<div style="font:14px Arial;color:#04203F;max-width:760px">` +
+    `<h2 style="font:900 22px Arial;margin:0 0 2px">Quiebra de envase · Ag01</h2>` +
+    `<p style="margin:0 0 14px;color:#5B6B7F;font-size:13px">Centro de Distribución 38 · Bavaria BAQ<br>Período: ${periodo}</p>` +
+
+    `<table cellspacing="0" cellpadding="12" style="border-collapse:collapse;background:${d.sobre ? "#E4002B" : "#0F7A4A"};color:#fff">` +
+    `<tr><td><span style="font-size:11px;letter-spacing:.12em">QUIEBRA DEL PERÍODO</span><br>` +
+    `<span style="font:900 30px Arial">${pf(d.pct)}</span><br>` +
+    `<span style="font-size:12px">Meta ${pf(d.meta)} · ${d.pp >= 0 ? "+" : "−"}${Math.abs(d.pp).toFixed(2).replace(".", ",")} pp ${d.sobre ? "sobre" : "bajo"} la meta</span>` +
+    `</td></tr></table>` +
+
+    `<table cellspacing="0" cellpadding="8" style="border-collapse:collapse;margin-top:14px;font:13px Arial">` +
+    [["ENVASE PRODUCIDO", nf.format(d.total), "unidades"],
+     ["ENVASE ROTO", nf.format(d.perdida), "neto de reversos"],
+     [d.exceso > 0 ? "EXCESO SOBRE META" : "MARGEN BAJO LA META", nf.format(Math.abs(d.exceso)),
+      d.exceso > 0 ? "unidades por encima de lo permitido" : "unidades por debajo de lo permitido"]]
+      .map(([r, n, u]) =>
+        `<tr><td style="border-bottom:${LIN};color:#5B6B7F;font-size:11px;letter-spacing:.06em">${r}</td>` +
+        `<td style="border-bottom:${LIN};text-align:right;font:700 15px Arial">${n}</td>` +
+        `<td style="border-bottom:${LIN};color:#5B6B7F;font-size:12px">${u}</td></tr>`).join("") +
+    `</table>` +
+
+    `<h3 style="font:700 14px Arial;margin:20px 0 6px">Detalle mensual</h3>` +
+    `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse">` +
+    `<tr>${cabecera("MES")}${cabeceraN("PRODUCCIÓN")}${cabeceraN("QUIEBRA")}${cabeceraN("%")}${cabeceraN("META")}</tr>` +
+    meses.map((m, i) => {
+      const p = d.prodMes.get(m) ?? 0, q = d.perdMes.get(m) ?? 0;
+      const pc = p ? q / p : 0, mt = d.metaDe(m);
+      return `<tr>${celda(MESES[m - 1], false, i)}${celda(nf.format(p), true, i)}` +
+             `${celda(nf.format(q), true, i)}` +
+             `${celda(`${pc > mt ? "▲" : "▼"} ${pf(pc)}`, true, i)}${celda(pf(mt), true, i)}</tr>`;
+    }).join("") + `</table>` +
+
+    tablaPorcentaje("Participación por causal", porCausal) +
+    tablaPorcentaje("Participación por almacén", porAlmacen) +
+
+    `<h3 style="font:700 14px Arial;margin:20px 0 6px">Quiebra por envase</h3>` +
+    `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse">` +
+    `<tr>${cabecera("ENVASE")}${cabeceraN("UNIDADES")}${cabeceraN("PART.")}</tr>` +
+    envases.map(([cod, x], i) =>
+      `<tr>${celda(`${x.den} ${cod}`, false, i)}${celda(nf.format(x.v), true, i)}` +
+      `${celda(d.perdida > 0 ? pf(x.v / d.perdida, 1) : "—", true, i)}</tr>`).join("") +
+    `</table>` +
+
+    `<p style="margin:18px 0 0;color:#5B6B7F;font-size:12px">Generado desde CONTROL · la quiebra es neta: los reversos con cantidad positiva restan.</p>` +
+    `</div>`;
+
+  const texto = [
+    `QUIEBRA DE ENVASE · Ag01`,
+    `Centro de Distribución 38 · Bavaria BAQ`,
+    `Período: ${periodo}`,
+    ``,
+    `Quiebra del período: ${pf(d.pct)}  (meta ${pf(d.meta)}, ${d.pp >= 0 ? "+" : "−"}${Math.abs(d.pp).toFixed(2).replace(".", ",")} pp ${d.sobre ? "sobre" : "bajo"})`,
+    `Envase producido: ${nf.format(d.total)} unidades`,
+    `Envase roto: ${nf.format(d.perdida)} unidades (neto de reversos)`,
+    `${d.exceso > 0 ? "Exceso sobre meta" : "Margen bajo la meta"}: ${nf.format(Math.abs(d.exceso))} unidades`,
+    ``,
+    `DETALLE MENSUAL`,
+    ...meses.map((m) => {
+      const p = d.prodMes.get(m) ?? 0, q = d.perdMes.get(m) ?? 0;
+      const pc = p ? q / p : 0;
+      return `  ${MESES[m - 1]}  producción ${nf.format(p)}  quiebra ${nf.format(q)}  ${pf(pc)}  (meta ${pf(d.metaDe(m))})`;
+    }),
+    ``,
+    `PARTICIPACIÓN POR CAUSAL`,
+    ...porCausal.map((c) => `  ${c.n}: ${d.perdida > 0 ? pf(c.v / d.perdida, 1) : "—"}`),
+    ``,
+    `PARTICIPACIÓN POR ALMACÉN`,
+    ...porAlmacen.map((a) => `  ${a.n}: ${d.perdida > 0 ? pf(a.v / d.perdida, 1) : "—"}`),
+    ``,
+    `QUIEBRA POR ENVASE`,
+    ...envases.map(([cod, x]) =>
+      `  ${x.den} (${cod}): ${nf.format(x.v)}  ${d.perdida > 0 ? pf(x.v / d.perdida, 1) : "—"}`),
+    ``,
+    `Generado desde CONTROL · la quiebra es neta: los reversos con cantidad positiva restan.`,
+  ].join("\n");
+
+  return { html, texto };
 }

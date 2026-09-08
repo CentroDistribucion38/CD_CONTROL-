@@ -321,3 +321,81 @@
   .qb .mes { width: 100% }
   .qb .mes.segundo { display: none }
 }
+
+/* ====================== Informe: PDF y copiar ====================== */
+.qb .lado-derecho { display: flex; flex-direction: column; gap: 12px; align-items: stretch }
+.qb .acciones-informe { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap }
+.qb .accion {
+  display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 16px; cursor: pointer;
+  background: #fff; border: 1.5px solid var(--qb-linea); border-radius: 2px;
+  font: 600 13.5px var(--qb-texto); color: var(--qb-tinta);
+}
+.qb .accion:hover { border-color: var(--qb-rojo); color: var(--qb-rojo) }
+.qb .accion:hover svg { stroke: var(--qb-rojo) }
+.qb .accion svg {
+  width: 17px; height: 17px; stroke: var(--qb-gris); stroke-width: 1.8; fill: none;
+  stroke-linecap: round; stroke-linejoin: round; flex: none;
+}
+.qb .accion:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: 2px }
+.qb .accion.listo { border-color: var(--qb-rojo); color: var(--qb-rojo) }
+.qb .accion[disabled] { opacity: .6; cursor: progress }
+
+.qb-aviso-copia {
+  position: fixed; right: 26px; bottom: 26px; z-index: 80;
+  display: flex; align-items: center; gap: 11px;
+  background: #04203F; color: #fff; padding: 14px 18px; border-radius: 3px; font-size: 14px;
+  box-shadow: 0 22px 44px -20px rgba(4,32,63,.7);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+.qb-aviso-copia svg { width: 18px; height: 18px; stroke: #fff; stroke-width: 2.4; fill: none; flex: none }
+.qb-aviso-copia.mal { background: #8E0018 }
+
+/* Encabezado que solo existe en el papel. */
+.qb .hoja-impresa { display: none }
+
+@media print {
+  @page { size: A4 landscape; margin: 12mm }
+  body { background: #fff }
+  .sh-barra, .sh-lado, .qb .filtros, .qb .acciones-informe, .qb-aviso-copia { display: none !important }
+  .sh-marco, .sh-marco.anclado { display: block !important; grid-template-columns: 1fr !important }
+  .sh-main { padding: 0 !important; display: block !important }
+  .qb { gap: 10px }
+  .qb > section { margin-bottom: 10px }
+
+  .qb .hoja-impresa {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 14px; margin-bottom: 16px; border-bottom: 3px solid var(--qb-rojo);
+  }
+  .qb .hoja-impresa img { width: 34px; height: 34px }
+  .qb .hoja-impresa b { display: block; font-family: var(--qb-titulo); font-weight: 900; font-size: 17px }
+  .qb .hoja-impresa span { font-size: 12px; color: var(--qb-gris) }
+  .qb .hoja-impresa .sello-fecha { margin-left: auto; text-align: right; font-size: 11px; color: var(--qb-gris) }
+
+  .qb .tarjeta, .qb .cifras, .qb .kpi { break-inside: avoid; box-shadow: none }
+  .qb .tarjetas { gap: 10px }
+  .qb .cabeza { grid-template-columns: 1fr 320px; gap: 18px; margin-bottom: 4px }
+  .qb .cabeza h1 { font-size: 30px }
+  .qb .cabeza .sub { font-size: 11.5px }
+  .qb .lado-derecho { width: 320px }
+  .qb .kpi { min-width: 0; padding: 16px 22px }
+  .qb .kpi .num { font-size: 46px }
+  .qb .cifra { padding: 14px 18px }
+  .qb .cifra .n { font-size: 26px }
+  .qb .tarjeta .cab { padding: 11px 16px 7px }
+  .qb .tarjeta .cab p { font-size: 11px; margin-top: 3px }
+  .qb .cuerpo { padding: 2px 16px 10px }
+  .qb .grafico { height: 142px }
+  .qb .leyenda { font-size: 10px; padding-top: 8px }
+  .qb .leyenda.abajo { padding-top: 8px; gap: 6px 12px }
+  .qb .fila { padding: 3px 0; grid-template-columns: 120px 1fr 40px }
+  .qb .fila .pista { height: 13px }
+  .qb .fila .nom, .qb .fila .pct { font-size: 11px }
+  .qb .cuerpo.doble { gap: 12px }
+  .qb .cuerpo.doble .parte + .parte { padding-top: 10px }
+  .qb .cuerpo.doble .rotulo { font-size: 10px; margin-bottom: 5px }
+  .qb .tarjeta h2 { font-size: 15px }
+  .qb tbody td { padding: 5px 16px; font-size: 11px }
+  .qb tbody td .cod { font-size: 9.5px }
+  .qb thead th { padding: 6px 16px; font-size: 9.5px }
+  .qb .nota-pie { font-size: 10.5px }
+}
