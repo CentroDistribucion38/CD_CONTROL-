@@ -119,7 +119,12 @@ function Hoja({ viaje, nombres, cerrar }: {
     <div className="ev-fondo" onClick={cerrar} role="dialog" aria-modal="true">
       <div className="ev-hoja" onClick={(e) => e.stopPropagation()}>
         <header>
-          <div>
+          {/* El logo del archivo, no dibujado con código. Es el mismo
+              /marca/logo-b.png que usan la barra y el login, así que el
+              día que se cambie el archivo cambia en todas partes. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="ev-logo" src="/marca/logo-b.png" alt="Bavaria" />
+          <div className="ev-quien">
             <div className="rot">EVIDENCIA DEL VIAJE</div>
             <h2>{viaje.placa}</h2>
             <p>

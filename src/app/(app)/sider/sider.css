@@ -777,9 +777,14 @@
   max-height: calc(100dvh - 48px); display: flex; flex-direction: column; overflow: hidden;
 }
 .sd .ev-hoja header {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  display: flex; align-items: flex-start; gap: 16px;
   padding: 18px 22px 16px; background: var(--sd-tinta); color: #fff;
 }
+/* El logo va con la placa, no suelto en una esquina: lo que se comparte
+   por WhatsApp de esta pantalla es una captura, y la captura tiene que
+   decir de quién es sin que nadie lo explique. */
+.sd .ev-logo { width: 46px; height: 46px; flex: none; object-fit: contain; margin-top: 2px }
+.sd .ev-quien { flex: 1 1 auto; min-width: 0 }
 .sd .ev-hoja header .rot { font-size: 10.5px; font-weight: 700; letter-spacing: .14em; opacity: .6 }
 .sd .ev-hoja header h2 {
   font-family: var(--sd-titulo); font-weight: 900; font-size: 27px;
@@ -907,7 +912,8 @@
 
   .sd .ev-fondo { padding: 0 }
   .sd .ev-hoja { max-height: 100dvh; border-radius: 0; width: 100% }
-  .sd .ev-hoja header { padding: 13px 15px 12px }
+  .sd .ev-hoja header { padding: 12px 14px 11px; gap: 11px }
+  .sd .ev-logo { width: 36px; height: 36px }
   .sd .ev-hoja header h2 { font-size: 22px }
   .sd .ev-cuerpo { padding: 12px 14px 18px; gap: 12px }
   /* Dos columnas: en cuatro, "3.442.118" no cabe en un celular. */
