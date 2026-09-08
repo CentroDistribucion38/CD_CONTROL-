@@ -1087,41 +1087,95 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
     setTrabajando("");
   }
 
-  async function copiar() {
+  function armarHtml(enc: string[], fotos: Foto[]): string {
+    return (
+      `<div style="font:14px Arial;color:#04203F;width:900px">` +
+      `<h2 style="font:bold 20px Arial;margin:0 0 2px">${enc[0]}</h2>` +
+      `<p style="margin:0 0 4px;color:#5B6B7F;font-size:12px">${enc[1]}</p>` +
+      `<div style="border-top:3px solid #E4002B;margin:10px 0 14px"></div>` +
+      fotos.map((im) =>
+        `<div style="margin-bottom:14px"><img src="${im.url}" width="900" ` +
+        `style="width:900px;max-width:100%;display:block"></div>`).join("") +
+      `<p style="margin-top:10px;font-size:11px;color:#5B6B7F">${selloFecha()} desde CONTROL ` +
+      `· la quiebra es neta: los reversos con cantidad positiva restan.</p></div>`
+    );
+  }
+
+  /** Último recurso: si no hay portapapeles, al menos queda el archivo. */
+  function descargarHtml(enc: string[], html: string) {
+    const doc = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">` +
+                `<title>${enc[0]}</title></head><body>${html}</body></html>`;
+    const url = URL.createObjectURL(new Blob([doc], { type: "text/html" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "informe-quiebra.html";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  /**
+   * OJO: esta función NO puede ser async.
+   *
+   * El navegador solo permite escribir en el portapapeles mientras dure el
+   * gesto de la persona. Fotografiar el tablero toma varios segundos, así
+   * que si se hace `await` antes de llamar a clipboard.write, para cuando
+   * llega la escritura el permiso ya venció y la copia se bloquea sin
+   * decir nada. Por eso write() se llama de una, y lo que recibe son
+   * PROMESAS que se resuelven después con las fotos.
+   */
+  function copiar() {
+    const { texto, enc } = armar();
     setTrabajando("copia");
-    try {
-      const { texto, enc } = armar();
-      const fotos = await fotografiar();
 
-      const html =
-        `<div style="font:14px Arial;color:#04203F;width:900px">` +
-        `<h2 style="font:bold 20px Arial;margin:0 0 2px">${enc[0]}</h2>` +
-        `<p style="margin:0 0 4px;color:#5B6B7F;font-size:12px">${enc[1]}</p>` +
-        `<div style="border-top:3px solid #E4002B;margin:10px 0 14px"></div>` +
-        fotos.map((im) =>
-          `<div style="margin-bottom:14px"><img src="${im.url}" width="900" ` +
-          `style="width:900px;max-width:100%;display:block"></div>`).join("") +
-        `<p style="margin-top:10px;font-size:11px;color:#5B6B7F">${selloFecha()} desde CONTROL ` +
-        `· la quiebra es neta: los reversos con cantidad positiva restan.</p></div>`;
+    const puedeRico =
+      typeof ClipboardItem !== "undefined" &&
+      !!navigator.clipboard &&
+      "write" in navigator.clipboard;
 
-      if (navigator.clipboard && "write" in navigator.clipboard && typeof ClipboardItem !== "undefined") {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            "text/html": new Blob([html], { type: "text/html" }),
-            "text/plain": new Blob([texto], { type: "text/plain" }),
-          }),
-        ]);
-      } else {
-        // Fuera de HTTPS no hay portapapeles enriquecido: va el texto, que
-        // sirve igual para pegar en un correo.
+    let htmlListo = "";
+    const blobHtml = fotografiar()
+      .then((fotos) => {
+        htmlListo = armarHtml(enc, fotos);
+        return new Blob([htmlListo], { type: "text/html" });
+      })
+      .finally(() => setTrabajando(""));
+
+    const listo = (msg: string) => { setAviso(msg); setEstado("listo"); };
+
+    // Si el portapapeles enriquecido falla, se intenta el texto plano, que
+    // tiene todas las cifras. Y si tampoco, se baja el archivo.
+    const deRespaldo = async (motivo: string) => {
+      try {
         await navigator.clipboard.writeText(texto);
+        listo("Se copió el informe en texto. Las imágenes no cupieron.");
+      } catch {
+        try {
+          await blobHtml;
+          descargarHtml(enc, htmlListo);
+          fallo(`No se pudo copiar (${motivo}). Se descargó el informe como archivo.`);
+        } catch {
+          fallo(`No se pudo copiar ni descargar el informe (${motivo}).`);
+        }
       }
-      setAviso("Informe copiado. Pégalo en el correo.");
-      setEstado("listo");
-    } catch {
-      fallo("El navegador no dejó copiar. Usa Generar PDF.");
+    };
+
+    if (!puedeRico) {
+      void deRespaldo("este navegador no tiene portapapeles enriquecido");
+      return;
     }
-    setTrabajando("");
+
+    navigator.clipboard
+      .write([
+        new ClipboardItem({
+          "text/html": blobHtml,
+          "text/plain": new Blob([texto], { type: "text/plain" }),
+        }),
+      ])
+      .then(() => listo("Informe copiado. Pégalo en el correo."))
+      .catch((e: unknown) => {
+        const nombre = e instanceof Error ? e.name : "error";
+        void deRespaldo(nombre);
+      });
   }
 
   return (
