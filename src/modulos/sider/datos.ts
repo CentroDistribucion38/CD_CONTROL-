@@ -59,11 +59,13 @@ export type Viaje = {
   salida_lat: number | null;
   salida_lng: number | null;
   salida_precision: number | null;
+  salida_direccion: string | null;
   cert_llegada_id: string | null;
   llegada_en: string | null;
   llegada_lat: number | null;
   llegada_lng: number | null;
   llegada_precision: number | null;
+  llegada_direccion: string | null;
   fotos_salida: number;
   fotos_llegada: number;
   en_camino: string | null;
@@ -96,6 +98,26 @@ export async function viajesSider(limite = 500) {
     .select("*")
     .order("creado_en", { ascending: false })
     .limit(limite);
+  return { viajes: (data ?? []) as unknown as Viaje[], falta: !!error };
+}
+
+/**
+ * Los que van en camino. Se filtra en la base y no aquí: traer todos los
+ * viajes para descartar el 90% en el navegador es trabajo que alguien
+ * paga en espera, y el día que haya diez mil filas se nota.
+ *
+ * Ordenados por hora de salida ASCENDENTE a propósito: el que salió
+ * primero es el que está por llegar, y ese es el que se busca al abrir
+ * esta pantalla. El más reciente no le sirve a nadie aquí.
+ */
+export async function viajesEnTransito() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_sider_viajes")
+    .select("*")
+    .eq("estado", "en_transito")
+    .order("salida_en", { ascending: true, nullsFirst: false })
+    .limit(500);
   return { viajes: (data ?? []) as unknown as Viaje[], falta: !!error };
 }
 

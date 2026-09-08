@@ -22,7 +22,7 @@
   color: var(--sd-tinta);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
   min-width: 0;
 }
 .sd *, .sd *::before, .sd *::after { box-sizing: border-box }
@@ -31,9 +31,9 @@
 .sd .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 26px; align-items: stretch }
 .sd .cabeza h1 {
   font-family: var(--sd-titulo); font-weight: 900;
-  font-size: clamp(30px, 3.4vw, 44px); letter-spacing: -.04em; margin: 0;
+  font-size: clamp(26px, 2.6vw, 34px); letter-spacing: -.04em; margin: 0;
 }
-.sd .cabeza .sub { margin: 10px 0 0; font-size: 14px; color: var(--sd-gris); max-width: 62ch }
+.sd .cabeza .sub { margin: 7px 0 0; font-size: 13px; line-height: 1.45; color: var(--sd-gris); max-width: 78ch }
 .sd .cabeza .sub a {
   color: var(--sd-acento); font-weight: 600; text-decoration: none;
   border-bottom: 1.5px solid rgba(11,114,133,.35);
@@ -227,16 +227,16 @@
 .sd .ct-pasos {
   display: flex; list-style: none; margin: 0; padding: 0; gap: 6px;
   background: var(--sd-papel); border: 1px solid var(--sd-linea);
-  border-radius: 3px; padding: 8px; overflow-x: auto;
+  border-radius: 3px; padding: 6px; overflow-x: auto;
 }
-.sd .ct-pasos li { flex: 1 1 0; min-width: 92px }
+.sd .ct-pasos li { flex: 1 1 0; min-width: 84px }
 .sd .ct-pasos button {
   width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 10px 6px; border: 0; background: none; cursor: pointer; border-radius: 3px;
-  font: 600 12.5px var(--sd-texto); color: var(--sd-gris);
+  padding: 7px 6px; border: 0; background: none; cursor: pointer; border-radius: 3px;
+  font: 600 12px var(--sd-texto); color: var(--sd-gris);
 }
 .sd .ct-pasos button i {
-  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center;
   border: 1.8px solid var(--sd-linea); background: #fff;
   font-style: normal; font-size: 13px; font-weight: 800; color: var(--sd-gris);
 }
@@ -248,16 +248,16 @@
 .sd .ct-pasos li.aqui.listo button i { color: #fff }
 .sd .ct-pasos button:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: -2px }
 
-.sd .ct-paso { padding: 30px 30px 26px }
+.sd .ct-paso { padding: 20px 24px 18px }
 .sd .ct-paso h2 {
   font-family: var(--sd-titulo); font-weight: 900;
-  font-size: clamp(24px, 3vw, 32px); letter-spacing: -.03em; margin: 0;
+  font-size: clamp(21px, 2.2vw, 27px); letter-spacing: -.03em; margin: 0;
 }
-.sd .ct-dice { margin: 10px 0 22px; font-size: 14px; color: var(--sd-gris); max-width: 68ch }
+.sd .ct-dice { margin: 7px 0 14px; font-size: 13px; line-height: 1.45; color: var(--sd-gris); max-width: 78ch }
 .sd .ct-suelto { margin-top: 16px; border-top: 0; border-radius: 2px }
 
 .sd .ct-grande {
-  width: 100%; min-height: 72px; border: 0; border-radius: 4px; cursor: pointer;
+  width: 100%; max-width: 520px; min-height: 66px; border: 0; border-radius: 4px; cursor: pointer;
   background: var(--sd-acento); color: #fff;
   font-family: var(--sd-titulo); font-weight: 800; font-size: 17px;
 }
@@ -279,10 +279,28 @@
 .sd .ct-ubi .ojo { margin: 12px 0 0; font-size: 13.5px; color: #7A5A05 }
 .sd .ct-ubi.mala .ojo { color: #7A1226 }
 
-.sd .ct-botones { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 22px }
+.sd .ct-botones { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 16px }
 
 /* ---------- Opciones grandes ---------- */
-.sd .ct-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 10px }
+/* La lista se desplaza DENTRO de su caja, no la página. Es la regla que
+   hace que quepa en cualquier pantalla y no solo en la del que la probó:
+   el resto del paso —título, botón, tiquete— tiene alto conocido, así
+   que lo único que puede crecer sin techo es esto, y aquí se le pone.
+
+   El 470 no es un número bonito: es lo que miden juntas la cabeza, el
+   camino de pasos, el título, el tiquete y los bordes de la app. Medido,
+   no calculado a ojo. Y va en dvh para que en el celular se acomode solo
+   cuando aparecen el teclado y la barra del navegador. */
+.sd .ct-opciones {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 10px;
+  max-height: max(170px, calc(100dvh - 560px));
+  overflow-y: auto;
+  padding-bottom: 4px;
+  /* Un velo abajo para que se vea que la lista sigue. Sin él, la fila
+     cortada parece un error de dibujo y no un "hay más". */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+}
 .sd .ct-op {
   display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: left;
   min-height: 68px; padding: 14px 16px; cursor: pointer;
@@ -313,8 +331,12 @@
 
 /* ---------- Fotos ---------- */
 .sd .ct-fotos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px }
+/* Las tres del mismo alto aunque el nombre de una ocupe un renglón y el
+   de otra dos: tres cajas de alturas distintas se leen como un error. */
+.sd .ct-foto { display: flex }
 .sd .ct-foto button {
   width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  justify-content: flex-start;
   padding: 18px 14px; cursor: pointer; overflow: hidden;
   border: 2px dashed var(--sd-linea); background: #FAFBFD; border-radius: 4px;
 }
@@ -331,7 +353,15 @@
 
 /* ---------- Revisión ---------- */
 .sd .ct-revision {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  /* OJO: las divisiones de esta rejilla son el FONDO viéndose por los
+     huecos de 1 px entre celdas. Eso solo funciona si la rejilla queda
+     exactamente llena: si sobra un hueco, no se ve un espacio vacío
+     sino un bloque gris, que parece un error de dibujo. Son seis
+     casillas, así que las columnas van en número exacto —6, 3 o 2— y
+     nunca en auto-fit, que decide el número por su cuenta y deja el
+     resto al aire. (Se probó con auto-fit y "span 2": el resultado fue
+     media fila gris.) */
+  display: grid; grid-template-columns: repeat(6, 1fr);
   gap: 1px; margin: 0; background: var(--sd-linea);
   border: 1px solid var(--sd-linea); border-radius: 4px; overflow: hidden;
 }
@@ -348,19 +378,19 @@
 
 /* ---------- El tiquete ---------- */
 .sd .ct-tiquete {
-  background: var(--sd-tinta); color: #fff; border-radius: 4px; padding: 18px 24px 20px;
+  background: var(--sd-tinta); color: #fff; border-radius: 4px; padding: 12px 20px 14px;
 }
 .sd .ct-tiquete .rot { font-size: 11px; font-weight: 700; letter-spacing: .14em; opacity: .6 }
 .sd .ct-tiquete .cifras-t {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
-  gap: 14px; margin-top: 12px;
+  gap: 14px; margin-top: 8px;
 }
 .sd .ct-tiquete .cifras-t b {
-  display: block; font-family: var(--sd-titulo); font-weight: 900; font-size: 24px;
+  display: block; font-family: var(--sd-titulo); font-weight: 900; font-size: 21px;
   letter-spacing: -.03em; font-variant-numeric: tabular-nums;
 }
 .sd .ct-tiquete .cifras-t span { font-size: 11.5px; opacity: .65 }
-.sd .ct-tiquete .ojo { margin: 14px 0 0; font-size: 13px; color: #FFD79B; max-width: 78ch }
+.sd .ct-tiquete .ojo { margin: 10px 0 0; font-size: 12.5px; color: #FFD79B; max-width: 90ch }
 
 @media (max-width: 760px) {
   .sd .ct-paso { padding: 22px 16px 20px }
@@ -388,7 +418,11 @@
   display: block; font-style: normal; font-size: 12px; color: var(--sd-gris);
   margin-top: 7px; max-width: 72ch;
 }
-.sd .ct-revision > div.ancho { grid-column: 1 / -1 }
+/* En pantallas medianas seis columnas dejan la dirección en una
+   tirita; tres filas de dos, y la cuenta sigue exacta. */
+@media (max-width: 1240px) {
+  .sd .ct-revision { grid-template-columns: repeat(3, 1fr) }
+}
 
 /* ====================== Celular: que TODO quepa ======================
    Esto se llena de pie al lado de un vehículo, con una mano. Bajar para
@@ -425,18 +459,7 @@
   .sd .ct-opciones {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-    max-height: 46dvh;
-    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    /* Aire abajo para que la última fila no quede pegada al borde y
-       parezca que ahí se acaba la lista. */
-    padding-bottom: 4px;
-  }
-  /* Un velo abajo para que se vea que la lista sigue. Sin él, la fila
-     cortada parece un error de dibujo y no un "hay más". */
-  .sd .ct-opciones {
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
   }
   .sd .ct-op { min-height: 60px; padding: 10px 11px }
   .sd .ct-op b { font-size: 13.5px }
@@ -486,13 +509,182 @@
 
   /* ---- El encabezado de la página ocupa una pantalla entera él solo ---- */
   .sd .cabeza h1 { font-size: 26px }
-  .sd .cabeza .sub { font-size: 12.5px; margin-top: 6px }
+  .sd .cabeza .sub {
+    font-size: 12.5px; margin-top: 6px;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
+  .sd .ct-tiquete .cifras-t b { font-size: 16px }
 }
 
 /* En pantallas bajas de verdad (celular apaisado, o con el teclado
    abierto) la lista tiene que ceder más todavía. */
-@media (max-width: 900px) and (max-height: 700px) {
-  .sd .ct-opciones { max-height: 38dvh }
+@media (max-width: 900px) and (max-height: 800px) {
   .sd .ct-paso h2 { font-size: 19px }
   .sd .ct-dice { display: none }
+}
+
+/* ====================== En tránsito ======================
+   Tarjetas y no una tabla, por lo que se hace aquí: el que recibe busca
+   UN vehículo —el que acaba de entrar por la puerta— entre los que
+   vienen en camino. En una tabla de doce columnas eso es recorrer una
+   fila con el dedo; en una tarjeta la placa es lo más grande que hay.
+   ======================================================== */
+.sd .tr-alertas {
+  display: flex; flex-wrap: wrap; gap: 8px 26px;
+  background: #FFF8E6; border: 1px solid #F0D89B; border-radius: 3px; padding: 13px 20px;
+}
+.sd .tr-alertas p { margin: 0; font-size: 13px; color: #6B5518 }
+.sd .tr-alertas b { font-family: var(--sd-titulo); font-weight: 900; font-size: 15px }
+
+.sd .tr-busca { position: relative; display: flex; align-items: center; gap: 12px }
+.sd .tr-busca input {
+  flex: 1 1 auto; height: 46px; padding: 0 14px;
+  font: 500 15px var(--sd-texto); color: var(--sd-tinta);
+  background: var(--sd-papel); border: 1.5px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .tr-busca input:focus {
+  outline: none; border-color: var(--sd-acento); box-shadow: 0 0 0 3px rgba(11,114,133,.16);
+}
+.sd .tr-busca span { font-size: 12.5px; color: var(--sd-gris); white-space: nowrap }
+
+.sd .tr-rejilla {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px;
+  align-content: start;
+  /* 416 es lo que miden juntas la cabeza, las alertas, el buscador y los
+     bordes de la app en el PC —medido, no estimado—; se descuenta 430 para
+     dejar un dedo de aire. En el celular el bloque de KPI se apila debajo
+     del título y el mismo armazón pasa a medir ~520, así que allá el
+     descuento es otro: ver el bloque de abajo. Con un solo número, o
+     sobraba una franja blanca en el PC o se salía en el celular. */
+  max-height: max(200px, calc(100dvh - 430px));
+  overflow-y: auto;
+  padding-bottom: 4px;
+  /* El velo avisa que la lista sigue. Sin él, la tarjeta cortada abajo
+     parece un error de dibujo. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+}
+.sd .tr-vh {
+  display: flex; flex-direction: column; gap: 9px;
+  background: var(--sd-papel); border: 1px solid var(--sd-linea);
+  /* La franja de color al borde dice el estado antes de leer nada. */
+  border-left: 4px solid var(--sd-acento); border-radius: 3px; padding: 14px 16px 13px;
+}
+.sd .tr-vh.largo { border-left-color: var(--sd-oro) }
+.sd .tr-vh header { display: flex; align-items: center; justify-content: space-between; gap: 12px }
+.sd .tr-vh .placa {
+  font-family: var(--sd-titulo); font-weight: 900; font-size: 25px; letter-spacing: .03em;
+}
+
+.sd .tr-ruta { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #2C4361 }
+.sd .tr-ruta b { font-family: var(--sd-titulo); font-weight: 800; font-size: 13.5px }
+.sd .tr-ruta svg { width: 26px; height: 8px; flex: none; color: var(--sd-gris) }
+
+.sd .tr-mat { margin: 0; font-size: 13.5px; font-weight: 600 }
+.sd .tr-mat em {
+  display: block; font-style: normal; font-weight: 500; font-size: 11.5px;
+  color: var(--sd-gris); margin-top: 1px;
+}
+
+.sd .tr-cifras {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 0;
+  background: #EDF1F6; border: 1px solid #EDF1F6; border-radius: 3px; overflow: hidden;
+}
+.sd .tr-cifras > div { background: #FAFBFD; padding: 7px 9px }
+.sd .tr-cifras dt { font-size: 9.5px; font-weight: 700; letter-spacing: .09em; color: #93A3B6; text-transform: uppercase }
+.sd .tr-cifras dd {
+  margin: 2px 0 0; font-family: var(--sd-titulo); font-weight: 800; font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sd .tr-vh footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: auto }
+.sd .tr-salio { font-size: 12px; color: #2C4361; min-width: 0 }
+.sd .tr-salio em {
+  display: block; font-style: normal; font-size: 11px; color: var(--sd-gris); margin-top: 2px;
+}
+.sd .tr-salio em b { font-weight: 700 }
+.sd .tr-salio em b.mal { color: #A4271C }
+.sd .tr-vh footer .btn { height: 38px; padding: 0 15px; font-size: 12.5px; flex: none }
+.sd .tr-ojo { margin: 0; font-size: 12px; color: #7A5A05; background: #FFF8E6; padding: 8px 10px; border-radius: 3px }
+
+.sd .tr-vacio {
+  grid-column: 1 / -1; text-align: center; color: var(--sd-gris); font-size: 14px;
+  background: var(--sd-papel); border: 1px dashed var(--sd-linea); border-radius: 3px; padding: 40px 20px;
+}
+
+/* ---------- Certificar la llegada ---------- */
+.sd .tr-quien {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+}
+.sd .tr-quien > div { min-width: 0 }
+.sd .tr-quien .btn.plano { padding: 0 }
+.sd .tr-llegada .ct-dice { margin-bottom: 16px }
+/* Dos columnas en el PC: la ubicación a la izquierda y las fotos a la
+   derecha, para que las dos cosas que faltan se vean a la vez y no haya
+   que bajar de una a otra. */
+.sd .tr-pasos { max-width: 360px }
+.sd .tr-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start }
+.sd .tr-dos .ct-dir { margin-top: 12px; max-width: none }
+.sd .tr-rot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; color: var(--sd-gris); margin-bottom: 9px;
+}
+.sd .tr-rot em { font-style: normal; letter-spacing: 0; font-weight: 600; font-size: 12px }
+.sd .tr-dos .ct-fotos { grid-template-columns: repeat(3, 1fr); gap: 9px }
+
+/* La llegada tiene que caber en una pantalla igual que la salida, y aquí
+   hay dos columnas peleando por el mismo alto. Medido con el GPS activo
+   se salía 122 px, y todo lo que sobraba era texto que en esta pantalla
+   ya no hace falta:
+
+   · El párrafo que explica que la dirección es descriptiva y las
+     coordenadas son la evidencia se lee en la salida; repetirlo en la
+     llegada es decirlo dos veces al mismo señor.
+   · La ayuda de cada ranura ("el lado completo del vehículo") sobra
+     cuando el nombre de la ranura ya está debajo del ícono.
+   Ninguna de las dos es información que se pierda: es información
+   repetida. */
+.sd .tr-llegada .ct-dir .pie { display: none }
+.sd .tr-llegada .ct-ubi { padding: 14px 16px }
+.sd .tr-llegada .ct-ubi .coord { font-size: 20px; margin-top: 6px }
+.sd .tr-llegada .ct-dir input { height: 44px }
+.sd .tr-llegada .ct-foto button { padding: 12px 10px; gap: 6px }
+.sd .tr-llegada .ct-foto .ct-ayuda { display: none }
+.sd .tr-llegada .ct-camara { width: 46px; height: 46px }
+.sd .tr-llegada .ct-camara svg { width: 22px; height: 22px }
+.sd .tr-llegada .ct-botones { margin-top: 10px }
+.sd .tr-llegada .ct-dice { margin-bottom: 12px }
+.sd .tr-llegada .tr-rot { margin-bottom: 7px }
+
+@media (max-width: 900px) {
+  .sd .cabeza { gap: 12px }
+  .sd .kpi { padding: 13px 16px 12px }
+  .sd .kpi .num { font-size: 34px; margin-top: 4px }
+  .sd .kpi .pie { margin-top: 8px; font-size: 12.5px }
+  .sd .tr-alertas { padding: 10px 14px; gap: 6px }
+  .sd .tr-alertas p { font-size: 12px }
+  .sd .tr-rejilla { grid-template-columns: 1fr; gap: 9px; max-height: max(200px, calc(100dvh - 530px)) }
+  .sd .tr-vh { padding: 10px 12px 11px; gap: 6px }
+  .sd .tr-vh .placa { font-size: 20px }
+  .sd .tr-cifras > div { padding: 5px 7px }
+  .sd .tr-mat { font-size: 12.5px }
+  .sd .tr-ruta { font-size: 12px }
+  .sd .tr-ojo { font-size: 11.5px; padding: 6px 8px }
+  .sd .tr-cifras dd { font-size: 13.5px }
+  .sd .tr-vh footer { flex-direction: column; align-items: stretch; gap: 9px }
+  .sd .tr-vh footer .btn { height: 42px; width: 100% }
+  .sd .tr-dos { grid-template-columns: 1fr; gap: 14px }
+  .sd .tr-busca input { height: 42px; font-size: 14px }
+
+  /* En una fila, "← Volver al tránsito" se partía en cuatro renglones
+     apretados contra el borde y le quitaba ancho al título. Va arriba,
+     en su propio renglón: column-reverse porque en el marcado el enlace
+     va después del título, y el título es lo que se lee primero. */
+  .sd .tr-quien { flex-direction: column-reverse; align-items: flex-start; gap: 4px }
+  .sd .tr-quien .btn.plano { white-space: nowrap }
+
+  /* El camino de la llegada tiene dos pasos: caben los dos nombres. La
+     regla que esconde los nombres es para los seis de la salida. */
+  .sd .tr-pasos { max-width: none }
+  .sd .tr-pasos li button span { display: block }
 }

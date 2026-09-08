@@ -81,11 +81,11 @@ export const MODULOS: Modulo[] = [
     // OJO: aquí solo van secciones que YA tienen su página. Registrar una
     // ruta que no existe pone un enlace en el menú que lleva a un 404, y
     // quien lo toca no tiene forma de saber que es una pantalla pendiente
-    // y no una app rota. "Certificar" y "En tránsito" vuelven cuando
-    // existan src/app/(app)/sider/certificar y .../transito.
+    // y no una app rota. scripts/rutas.mjs revienta el build si pasa.
     secciones: [
       { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Certificar", ruta: "/sider/certificar" },
+      { nombre: "En tránsito", ruta: "/sider/transito" },
       { nombre: "Maestro", ruta: "/sider/maestro" },
     ],
   },
