@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario } from "@/lib/auth";
+import { Eye, EyeOff } from "lucide-react";
 
 type Modulo = { id: string; nombre: string; ruta: string };
 
@@ -258,6 +259,53 @@ function Cuenta(p: Props & { alGuardar: () => void }) {
   );
 }
 
+/**
+ * Campo de contraseña con ojito. Cada uno maneja su propio estado: en un
+ * equipo de piso conviene poder destapar solo el que se está escribiendo,
+ * no los tres a la vez.
+ */
+function CampoClave({
+  id,
+  etiqueta,
+  valor,
+  cambiar,
+  autoComplete,
+  ancho,
+}: {
+  id: string;
+  etiqueta: string;
+  valor: string;
+  cambiar: (v: string) => void;
+  autoComplete: string;
+  ancho?: boolean;
+}) {
+  const [ver, setVer] = useState(false);
+  return (
+    <div className={"pf-campo" + (ancho ? " ancho" : "")}>
+      <label htmlFor={id}>{etiqueta}</label>
+      <div className="pf-caja">
+        <input
+          id={id}
+          type={ver ? "text" : "password"}
+          autoComplete={autoComplete}
+          value={valor}
+          onChange={(e) => cambiar(e.target.value)}
+          placeholder="••••••••"
+        />
+        <button
+          type="button"
+          className="pf-ojo"
+          onClick={() => setVer((v) => !v)}
+          aria-label={ver ? "Ocultar la contraseña" : "Mostrar la contraseña"}
+          title={ver ? "Ocultar" : "Mostrar"}
+        >
+          {ver ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ==================== Seguridad ==================== */
 function Seguridad(p: Props) {
   const router = useRouter();
@@ -343,39 +391,28 @@ function Seguridad(p: Props) {
       <div className="pf-bloque">
         <h3>Cambiar contraseña</h3>
         <div className="pf-rejilla">
-          <div className="pf-campo ancho">
-            <label htmlFor="actual">Contraseña actual</label>
-            <input
-              id="actual"
-              type="password"
-              autoComplete="current-password"
-              value={actual}
-              onChange={(e) => setActual(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-          <div className="pf-campo">
-            <label htmlFor="nueva">Nueva contraseña</label>
-            <input
-              id="nueva"
-              type="password"
-              autoComplete="new-password"
-              value={nueva}
-              onChange={(e) => setNueva(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-          <div className="pf-campo">
-            <label htmlFor="rep">Repite la nueva</label>
-            <input
-              id="rep"
-              type="password"
-              autoComplete="new-password"
-              value={rep}
-              onChange={(e) => setRep(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
+          <CampoClave
+            id="actual"
+            etiqueta="Contraseña actual"
+            valor={actual}
+            cambiar={setActual}
+            autoComplete="current-password"
+            ancho
+          />
+          <CampoClave
+            id="nueva"
+            etiqueta="Nueva contraseña"
+            valor={nueva}
+            cambiar={setNueva}
+            autoComplete="new-password"
+          />
+          <CampoClave
+            id="rep"
+            etiqueta="Repite la nueva"
+            valor={rep}
+            cambiar={setRep}
+            autoComplete="new-password"
+          />
         </div>
 
         <ul className="pf-reglas">

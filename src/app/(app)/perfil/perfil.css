@@ -334,3 +334,22 @@
   .pf-nav button svg { display: none }
   .pf-nav button { font-size: 13px }
 }
+
+/* ---------- Ojito para ver la contraseña ---------- */
+.pf-caja { position: relative; display: flex; align-items: center }
+.pf-caja input { padding-right: 46px }
+.pf-ojo {
+  position: absolute;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  background: none;
+  border-radius: 2px;
+  color: var(--sh-gris);
+  cursor: pointer;
+}
+.pf-ojo:hover { color: var(--sh-azul) }
+.pf-ojo:focus-visible { outline: 2px solid var(--sh-azul); outline-offset: 1px }
