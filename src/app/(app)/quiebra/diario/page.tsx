@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { leerMes } from "@/modulos/quiebra/diario";
+import { leerRango, rangoDelMes } from "@/modulos/quiebra/diario";
 import "../quiebra.css";
 import "./diario.css";
 import { Diario } from "./Diario";
@@ -31,13 +31,12 @@ export default async function DiarioPage({
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     // Si todavía no se ha creado la tabla del diario, no se cae la página:
     // se entra en blanco y el aviso al guardar dice qué SQL falta.
-    leerMes(supabase, `${fecha.slice(0, 7)}-01`).catch(() => ({
-      mes: `${fecha.slice(0, 7)}-01`,
-      metas: {},
-      sap: {},
-      manual: {},
-      autores: {},
-    })),
+    // Arranca con el MES de la fecha pedida. Desde ahí el calendario
+    // cambia el rango a lo que se quiera.
+    leerRango(supabase, ...rangoDelMes(fecha)).catch(() => {
+      const [d, h] = rangoDelMes(fecha);
+      return { desde: d, hasta: h, metas: {}, sap: {}, manual: {}, autores: {} };
+    }),
   ]);
 
   const esEditor = perfil?.rol === "admin" || perfil?.rol === "supervisor";

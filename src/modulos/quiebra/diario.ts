@@ -59,8 +59,9 @@ export type DiaManual = {
 };
 
 export type DatosDiario = {
-  /** Primer día del mes en foco, AAAA-MM-01 */
-  mes: string;
+  /** El rango cargado, tal como se pidió. */
+  desde: string;
+  hasta: string;
   /** Metas por mes: "2026-09" → 0.0168. Una semana a caballo entre dos
    *  meses tiene DOS metas, así que no puede ser un solo número. */
   metas: Record<string, number>;
@@ -83,7 +84,12 @@ const finDeMes = (mes: string) => {
   return `${mes.slice(0, 7)}-${String(ultimo).padStart(2, "0")}`;
 };
 
-/** Los días que se traen: el mes más una semana a cada lado. */
+/**
+ * Se cargan siete días de más a cada lado del rango pedido. Sirven para
+ * el atajo "la semana de este día" cuando el día está en la orilla: la
+ * semana del 1 de septiembre empieza el 31 de agosto, que está fuera del
+ * rango pero hace falta para que el porcentaje de esa semana sea real.
+ */
 export const ORILLA = 7;
 
 /**
@@ -95,15 +101,24 @@ export const ORILLA = 7;
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 type Cliente = { from: (tabla: string) => any };
 
+/** El mes completo de una fecha, como rango. */
+export function rangoDelMes(f: string): [string, string] {
+  const primero = `${f.slice(0, 7)}-01`;
+  return [primero, finDeMes(primero)];
+}
+
 /**
- * Lee el mes con sus orillas. Sirve igual en el servidor (primera carga)
- * y en el navegador (al cambiar de mes o después de guardar), porque los
- * dos clientes de Supabase tienen la misma forma.
+ * Lee un rango con sus orillas. Sirve igual en el servidor (primera
+ * carga) y en el navegador (al cambiar el rango o después de guardar),
+ * porque los dos clientes de Supabase tienen la misma forma.
  */
-export async function leerMes(supabase: Cliente, mes: string): Promise<DatosDiario> {
-  const primero = `${mes.slice(0, 7)}-01`;
-  const desde = correrDias(primero, -ORILLA);
-  const hasta = correrDias(finDeMes(mes), ORILLA);
+export async function leerRango(
+  supabase: Cliente,
+  desdePedido: string,
+  hastaPedido: string
+): Promise<DatosDiario> {
+  const desde = correrDias(desdePedido, -ORILLA);
+  const hasta = correrDias(hastaPedido, ORILLA);
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const q = supabase as any;
@@ -166,7 +181,7 @@ export async function leerMes(supabase: Cliente, mes: string): Promise<DatosDiar
     }
   }
 
-  return { mes: primero, metas: mapaMetas, sap, manual, autores };
+  return { desde: desdePedido, hasta: hastaPedido, metas: mapaMetas, sap, manual, autores };
 }
 
 const num = (v: unknown) => (v == null || v === "" ? null : Number(v));

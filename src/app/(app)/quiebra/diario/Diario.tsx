@@ -24,9 +24,11 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CAUSALES,
   NOMBRE_HOJA,
-  leerMes,
+  leerRango,
+  rangoDelMes,
   type DatosDiario,
 } from "@/modulos/quiebra/diario";
+import { Calendario } from "@/components/CalendarioRango";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio",
@@ -76,16 +78,15 @@ function lunesDe(f: string): string {
   return correr(f, -dow);
 }
 
-/** Qué se está mirando: un día, su semana, o el mes completo. */
-type Alcance = "dia" | "semana" | "mes";
+/** Atajos para marcar días de un golpe. Marcar a mano también vale. */
+type Atajo = "dia" | "semana" | "todos";
 
-const ALCANCES: { v: Alcance; t: string }[] = [
-  { v: "dia", t: "Día" },
-  { v: "semana", t: "Semana" },
-  { v: "mes", t: "Mes" },
-];
+const bonitaCorta = (f: string) => {
+  const { m, d } = partes(f);
+  return `${d} ${MESES[m].toLowerCase()}`;
+};
 
-/** "22 – 28 sep 2026", y si la semana se monta en dos meses, los dos. */
+/** "22 – 28 sep 2026", y si el rango se monta en dos meses, los dos. */
 function rangoBonito(desde: string, hasta: string): string {
   const a = partes(desde), b = partes(hasta);
   if (a.m === b.m && a.a === b.a) return `${a.d} – ${b.d} ${MESES[a.m].toLowerCase()} ${a.a}`;
@@ -171,7 +172,18 @@ type Props = {
 export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [datos, setDatos] = useState(inicial);
+  /**
+   * Tres cosas distintas, y conviene no confundirlas:
+   *  · datos.desde/hasta — el RANGO que está en pantalla. Manda en las
+   *    pastillas, las gráficas y la tabla.
+   *  · elegidos          — los días MARCADOS dentro de ese rango. Mandan
+   *    en el número grande, las cifras y el Pareto. Pueden ser uno,
+   *    varios o ninguno (ninguno = todo el rango).
+   *  · fecha             — el día que está abierto en la hoja de abajo.
+   *    A mano se escribe UN día, así que la hoja necesita uno solo.
+   */
   const [fecha, setFecha] = useState(fechaInicial);
+  const [elegidos, setElegidos] = useState<Set<string>>(() => new Set([fechaInicial]));
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
@@ -180,29 +192,77 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const original = useMemo(() => formDe(datos, fecha), [datos, fecha]);
   const sucio = !igualForm(form, original);
 
-  /* ---- moverse: si cambia el mes, se trae el mes nuevo ---- */
-  const irA = useCallback(
-    async (f: string) => {
-      if (sucio && !confirm("Hay cambios sin guardar en este día. ¿Salir de todos modos?")) return;
+  const avisarSucio = useCallback(
+    () => !sucio || confirm("Hay cambios sin guardar en este día. ¿Salir de todos modos?"),
+    [sucio]
+  );
+
+  /** Trae otro rango del servidor. */
+  const traer = useCallback(
+    async (d: string, h: string, anclaNueva: string, marcar: Set<string>) => {
+      setCargando(true);
       setAviso(null);
-      if (mesDe(f) !== datos.mes) {
-        setCargando(true);
-        try {
-          const nuevo = await leerMes(supabase, mesDe(f));
-          setDatos(nuevo);
-          setForm(formDe(nuevo, f));
-        } catch {
-          setAviso({ mal: true, texto: "No se pudo leer el mes. Revisa la conexión." });
-          setCargando(false);
-          return;
-        }
+      try {
+        const nuevo = await leerRango(supabase, d, h);
+        setDatos(nuevo);
+        setFecha(anclaNueva);
+        setElegidos(marcar);
+        setForm(formDe(nuevo, anclaNueva));
+      } catch {
+        setAviso({ mal: true, texto: "No se pudo leer el período. Revisa la conexión." });
+      } finally {
         setCargando(false);
-      } else {
-        setForm(formDe(datos, f));
+      }
+    },
+    [supabase]
+  );
+
+  /** Cambia el rango en pantalla. Si el día abierto se queda afuera, la
+   *  hoja se pasa al primer día del rango nuevo. */
+  const cambiarRango = useCallback(
+    (d: string, h: string) => {
+      if (!avisarSucio()) return;
+      const ancla = fecha >= d && fecha <= h ? fecha : d;
+      traer(d, h, ancla, new Set([ancla]));
+    },
+    [avisarSucio, fecha, traer]
+  );
+
+  /** Abre un día en la hoja. Si cae fuera del rango, el rango se corre a
+   *  su mes: si no, se estaría editando algo que no se ve. */
+  const irA = useCallback(
+    (f: string) => {
+      if (!avisarSucio()) return;
+      setAviso(null);
+      if (f < datos.desde || f > datos.hasta) {
+        const [d, h] = rangoDelMes(f);
+        traer(d, h, f, new Set([f]));
+        return;
       }
       setFecha(f);
+      setElegidos(new Set([f]));
+      setForm(formDe(datos, f));
     },
-    [datos, supabase, sucio]
+    [avisarSucio, datos, traer]
+  );
+
+  /** Marca o desmarca un día sin cambiar el que está abierto en la hoja,
+   *  salvo que sea el primero que se marca. */
+  const alternar = useCallback(
+    (f: string) => {
+      setElegidos((prev) => {
+        const n = new Set(prev);
+        if (n.has(f)) {
+          // Nunca se quedan cero marcados por accidente: el último no se
+          // puede desmarcar tocándolo.
+          if (n.size > 1) n.delete(f);
+        } else {
+          n.add(f);
+        }
+        return n;
+      });
+    },
+    []
   );
 
   /* ---- el día seleccionado, con lo que hay escrito en las casillas ---- */
@@ -292,100 +352,138 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     [datos, fecha, prod, baja, escProd, hayCausalEscrita, manual, valorCausal]
   );
 
-  /* ---- los días del mes en foco: son los del selector ---- */
-  const dias: Dia[] = useMemo(() => {
-    const a = Number(datos.mes.slice(0, 4));
-    const m = Number(datos.mes.slice(5, 7)) - 1;
-    const total = diasDelMes(a, m);
-    return Array.from({ length: total }, (_, i) => resolver(aTexto(a, m, i + 1)));
-  }, [datos.mes, resolver]);
+  /* ===================================================================
+     EL RANGO EN PANTALLA. Todos los días de datos.desde..datos.hasta.
+     Es lo que dibujan las pastillas, las gráficas y la tabla.
+     =================================================================== */
+  const diasRango: Dia[] = useMemo(() => {
+    const out: Dia[] = [];
+    for (let f = datos.desde; f <= datos.hasta; f = correr(f, 1)) out.push(resolver(f));
+    return out;
+  }, [datos.desde, datos.hasta, resolver]);
 
   /* ===================================================================
-     EL ALCANCE. Es lo que decide qué cubren el número grande, las cifras,
-     las gráficas y la tabla: el día, su semana o el mes.
-     La semana empieza en lunes y puede montarse en dos meses; por eso
-     leerMes() trae una semana de más a cada lado.
+     LOS DÍAS MARCADOS. Mandan en el número grande, las cifras y el
+     Pareto. Sin nada marcado se toma el rango completo, porque una
+     pantalla en cero no le dice nada a nadie.
      =================================================================== */
-  const [alcance, setAlcance] = useState<Alcance>("dia");
+  const diasSel: Dia[] = useMemo(() => {
+    const dentro = diasRango.filter((d) => elegidos.has(d.fecha));
+    return dentro.length ? dentro : diasRango;
+  }, [diasRango, elegidos]);
 
-  const [desdeA, hastaA] = useMemo((): [string, string] => {
-    if (alcance === "dia") return [fecha, fecha];
-    if (alcance === "semana") {
-      const l = lunesDe(fecha);
-      return [l, correr(l, 6)];
-    }
-    const a = Number(datos.mes.slice(0, 4)), m = Number(datos.mes.slice(5, 7)) - 1;
-    return [aTexto(a, m, 1), aTexto(a, m, diasDelMes(a, m))];
-  }, [alcance, fecha, datos.mes]);
+  const nSel = diasSel.length;
+  const todoElRango = nSel === diasRango.length;
 
-  const diasAlcance: Dia[] = useMemo(() => {
-    const out: Dia[] = [];
-    for (let f = desdeA; f <= hastaA; f = correr(f, 1)) out.push(resolver(f));
-    return out;
-  }, [desdeA, hastaA, resolver]);
-
-  /* Las gráficas y la tabla del alcance "día" muestran el MES con ese día
-     resaltado: una sola barra no es una gráfica. */
-  const diasGrafico = alcance === "dia" ? dias : diasAlcance;
-
-  /* ---- totales del alcance ---- */
-  const prodA = diasAlcance.reduce((s, d) => s + d.produccion, 0);
-  const bajaA = diasAlcance.reduce((s, d) => s + d.baja, 0);
+  /* ---- totales de lo marcado ---- */
+  const prodA = diasSel.reduce((s, d) => s + d.produccion, 0);
+  const bajaA = diasSel.reduce((s, d) => s + d.baja, 0);
   const pctA = prodA > 0 ? bajaA / prodA : null;
 
-  /* Meta del alcance: ponderada por producción, no promediada. Un día de
-     9.000 cajas no pesa lo mismo que uno de 200.000, y en una semana que
-     cruza de mes las dos metas son distintas. */
+  /* Meta de lo marcado: ponderada por producción, no promediada. Un día
+     de 9.000 cajas no pesa lo mismo que uno de 200.000, y un rango que
+     cruza de mes tiene metas distintas. Es la misma regla del tablero
+     del periodo. */
   const metaA = useMemo(() => {
     let num = 0, den = 0;
-    for (const d of diasAlcance) {
+    for (const d of diasSel) {
       const mt = metaDe(d.fecha);
       if (mt == null || d.produccion <= 0) continue;
       num += d.produccion * mt;
       den += d.produccion;
     }
     return den > 0 ? num / den : metaDe(fecha);
-  }, [diasAlcance, metaDe, fecha]);
+  }, [diasSel, metaDe, fecha]);
 
   const sobreA = pctA != null && metaA != null && pctA > metaA;
   const ppA = pctA != null && metaA != null ? (pctA - metaA) * 100 : null;
   const permitido = metaA != null ? prodA * metaA : null;
   const exceso = permitido != null ? bajaA - permitido : null;
 
-  /* ---- el mes, que se muestra siempre como contexto ---- */
-  const prodMes = dias.reduce((s, d) => s + d.produccion, 0);
-  const bajaMes = dias.reduce((s, d) => s + d.baja, 0);
-  const pctMes = prodMes > 0 ? bajaMes / prodMes : null;
-  const metaMes = datos.metas[datos.mes.slice(0, 7)] ?? null;
-  const sobreMes = pctMes != null && metaMes != null && pctMes > metaMes;
+  /* ---- el rango completo, que se muestra siempre como contexto ---- */
+  const prodRango = diasRango.reduce((s, d) => s + d.produccion, 0);
+  const bajaRango = diasRango.reduce((s, d) => s + d.baja, 0);
+  const pctRango = prodRango > 0 ? bajaRango / prodRango : null;
+  const metaRango = useMemo(() => {
+    let num = 0, den = 0;
+    for (const d of diasRango) {
+      const mt = metaDe(d.fecha);
+      if (mt == null || d.produccion <= 0) continue;
+      num += d.produccion * mt; den += d.produccion;
+    }
+    return den > 0 ? num / den : null;
+  }, [diasRango, metaDe]);
+  const sobreRango = pctRango != null && metaRango != null && pctRango > metaRango;
 
   const causalesA = useMemo(
     () => CAUSALES.map((c) => ({
       nom: c,
-      v: diasAlcance.reduce((s, d) => s + (d.causales[c] ?? 0), 0),
+      v: diasSel.reduce((s, d) => s + (d.causales[c] ?? 0), 0),
       col: color(c),
     })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v),
-    [diasAlcance]
+    [diasSel]
   );
 
-  /* Qué días quedan dentro del alcance: el selector los tiñe cuando es
-     una semana (en "mes" serían todos y sería ruido). */
-  const enAlcance = useMemo(() => {
-    if (alcance !== "semana") return new Set<string>();
-    const s = new Set<string>();
-    for (let f = desdeA; f <= hastaA; f = correr(f, 1)) s.add(f);
-    return s;
-  }, [alcance, desdeA, hastaA]);
+  /* ---- atajos de marcado ---- */
+  const marcarAtajo = useCallback(
+    (a: Atajo) => {
+      if (a === "dia") { setElegidos(new Set([fecha])); return; }
+      if (a === "todos") { setElegidos(new Set(diasRango.map((d) => d.fecha))); return; }
+      const l = lunesDe(fecha);
+      const n = new Set<string>();
+      for (let i = 0; i < 7; i++) {
+        const f = correr(l, i);
+        if (f >= datos.desde && f <= datos.hasta) n.add(f);
+      }
+      setElegidos(n.size ? n : new Set([fecha]));
+    },
+    [fecha, diasRango, datos.desde, datos.hasta]
+  );
 
-  const rotAlcance = alcance === "dia" ? "QUIEBRA DEL DÍA"
-                   : alcance === "semana" ? "QUIEBRA DE LA SEMANA"
-                   : "QUIEBRA DEL MES";
-  const pieAlcance = alcance === "dia" ? bonita(fecha)
-                   : alcance === "semana" ? rangoBonito(desdeA, hastaA)
-                   : `${MESES_LARGO[Number(datos.mes.slice(5, 7)) - 1]} ${datos.mes.slice(0, 4)}`;
+  /** Cuál atajo está puesto ahora mismo, para prender su botón. */
+  const atajoActivo: Atajo | null = useMemo(() => {
+    if (todoElRango) return "todos";
+    if (nSel === 1 && elegidos.has(fecha)) return "dia";
+    const l = lunesDe(fecha);
+    const semana = new Set<string>();
+    for (let i = 0; i < 7; i++) {
+      const f = correr(l, i);
+      if (f >= datos.desde && f <= datos.hasta) semana.add(f);
+    }
+    if (semana.size === nSel && [...semana].every((f) => elegidos.has(f))) return "semana";
+    return null;
+  }, [todoElRango, nSel, elegidos, fecha, datos.desde, datos.hasta]);
 
-  const conDato = dias.filter((d) => d.origen !== "vacio").length;
-  const escritos = dias.filter((d) => d.origen === "escrito").length;
+  const rotSel = todoElRango ? "QUIEBRA DEL PERÍODO"
+               : nSel === 1 ? "QUIEBRA DEL DÍA"
+               : `QUIEBRA DE ${nSel} DÍAS`;
+  /* Días sueltos NO son un rango: decir "3 – 25 sep" cuando lo marcado
+     es 3, 5, 11 y 25 es mentira. Si son seguidos va el rango; si no, van
+     listados, y si son muchos se dice entre cuáles caen. */
+  const pieSel = useMemo(() => {
+    if (todoElRango) return rangoBonito(datos.desde, datos.hasta);
+    if (nSel === 1) return bonita(diasSel[0].fecha);
+    const primero = diasSel[0].fecha, ultimo = diasSel[nSel - 1].fecha;
+    let seguidos = true;
+    for (let i = 1; i < nSel; i++) {
+      if (diasSel[i].fecha !== correr(diasSel[i - 1].fecha, 1)) { seguidos = false; break; }
+    }
+    if (seguidos) return rangoBonito(primero, ultimo);
+    if (nSel <= 5) {
+      const ds = diasSel.map((d) => partes(d.fecha).d);
+      const mismoMes = diasSel.every((d) => d.fecha.slice(0, 7) === primero.slice(0, 7));
+      const lista = ds.slice(0, -1).join(", ") + " y " + ds[ds.length - 1];
+      return mismoMes
+        ? `${lista} de ${MESES_LARGO[partes(primero).m]}`
+        : diasSel.map((d) => bonitaCorta(d.fecha)).join(" · ");
+    }
+    return `${nSel} días entre el ${partes(primero).d} y el ${partes(ultimo).d} de ${MESES_LARGO[partes(ultimo).m]}`;
+  }, [todoElRango, nSel, diasSel, datos.desde, datos.hasta]);
+  const cajasDe = todoElRango ? "cajas del período"
+                : nSel === 1 ? "cajas del día"
+                : `cajas de ${nSel} días`;
+
+
 
   /* ---- cuadre del día ---- */
   const chequeos = useMemo(() => {
@@ -461,7 +559,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
     }
 
     try {
-      const nuevo = await leerMes(supabase, datos.mes);
+      const nuevo = await leerRango(supabase, datos.desde, datos.hasta);
       setDatos(nuevo);
       setForm(formDe(nuevo, fecha));
       setAviso({ mal: false, texto: "Día guardado." });
@@ -497,14 +595,14 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
             si se pasó, verde si quedó dentro. */}
         <div className={"kpi" + (sobreA ? "" : " bajo")}>
           <div className="corte" />
-          <div className="rot">{rotAlcance}</div>
+          <div className="rot">{rotSel}</div>
           <div className="num">
             {pctA == null || !Number.isFinite(pctA)
               ? "—"
               : <>{(pctA * 100).toFixed(2).replace(".", ",")}<span className="pc">%</span></>}
           </div>
           <div className="pie">
-            <span>{pieAlcance}</span>
+            <span>{pieSel}</span>
             {metaA != null && <span className="delta">Meta {pf(metaA)}</span>}
           </div>
         </div>
@@ -512,9 +610,10 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
 
       {/* ====================== Los días del mes ====================== */}
       <TiraMes
-        dias={dias} fecha={fecha} hoy={hoy} datos={datos}
-        elegir={irA} cargando={cargando}
-        alcance={alcance} cambiarAlcance={setAlcance} enAlcance={enAlcance}
+        dias={diasRango} ancla={fecha} hoy={hoy} datos={datos}
+        elegidos={elegidos} cargando={cargando}
+        abrir={irA} alternar={alternar} cambiarRango={cambiarRango}
+        atajo={atajoActivo} marcarAtajo={marcarAtajo}
       />
 
       {/* ====================== Cifras del mes ====================== */}
@@ -523,8 +622,8 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           <div className="rot">ENVASE PRODUCIDO</div>
           <div className="n">{nf.format(prodA)}</div>
           <div className="u">
-            cajas {alcance === "dia" ? "del día" : alcance === "semana" ? "de la semana" : "del mes"}
-            {alcance !== "dia" && <> · {diasAlcance.filter((d) => d.origen !== "vacio").length} de {diasAlcance.length} días con dato</>}
+            {cajasDe}
+            {nSel > 1 && <> · {diasSel.filter((d) => d.origen !== "vacio").length} de {nSel} con dato</>}
           </div>
         </div>
         <div className="cifra">
@@ -533,23 +632,23 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           <div className="u">
             cajas
             {(() => {
-              const esc = diasAlcance.filter((d) => d.origen === "escrito").length;
+              const esc = diasSel.filter((d) => d.origen === "escrito").length;
               return esc > 0
                 ? <span className="qd-sello escrito">{esc} día{esc > 1 ? "s" : ""} a mano</span>
                 : null;
             })()}
           </div>
         </div>
-        {/* El mes acumulado se muestra SIEMPRE, aunque se esté mirando un
-            día o una semana: es la cifra que se reporta y no se puede
-            perder de vista por estar mirando el detalle. */}
-        <div className={"cifra" + (metaMes == null || pctMes == null ? "" : sobreMes ? " alerta" : " buena")}>
-          <div className="rot">ACUMULADO DEL MES</div>
-          <div className="n">{pf(pctMes)}</div>
+        {/* El período completo se muestra SIEMPRE, aunque haya días
+            marcados: es la cifra que se reporta y no se puede perder de
+            vista por estar mirando el detalle. */}
+        <div className={"cifra" + (metaRango == null || pctRango == null ? "" : sobreRango ? " alerta" : " buena")}>
+          <div className="rot">ACUMULADO DEL PERÍODO</div>
+          <div className="n">{pf(pctRango)}</div>
           <div className="u">
-            {metaMes != null
-              ? <>meta {pf(metaMes)} · {nf.format(bajaMes)} de {nf.format(prodMes)} cajas</>
-              : "no hay meta cargada para este mes"}
+            {metaRango != null
+              ? <>meta {pf(metaRango)} · {nf.format(bajaRango)} de {nf.format(prodRango)} cajas</>
+              : "no hay metas cargadas para este período"}
           </div>
         </div>
         {exceso != null ? (
@@ -584,7 +683,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </div>
           <div className="cuerpo">
             <div className="qd-lienzo">
-              <GraficoDias dias={diasGrafico} metaDe={metaDe} sel={fecha} elegir={irA} />
+              <GraficoDias dias={diasRango} metaDe={metaDe} elegidos={elegidos} ancla={fecha} elegir={alternar} />
             </div>
             <div className="leyenda abajo">
               <span><i style={{ background: "#0B4EA2" }} /> Bajo meta</span>
@@ -654,7 +753,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </div>
           <div className="cuerpo">
             <div className="qd-lienzo">
-              <ApiladoDias dias={diasGrafico} sel={fecha} />
+              <ApiladoDias dias={diasRango} elegidos={elegidos} />
             </div>
             <div className="leyenda abajo">
               {causalesA.map((c) => (
@@ -669,7 +768,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           <div className="cab">
             <div>
               <h2>De dónde sale la quiebra</h2>
-              <p>Participación en {alcance === "dia" ? "el día" : alcance === "semana" ? "la semana" : "el mes"}</p>
+              <p>Participación en {todoElRango ? "el período" : nSel === 1 ? "el día" : `los ${nSel} días`}</p>
             </div>
           </div>
           <div className="cuerpo">
@@ -796,7 +895,8 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           </div>
         </div>
         <div className="cuerpo tabla qd-tabla-dias">
-          <TablaDias dias={diasGrafico} metaDe={metaDe} sel={fecha} hoy={hoy} elegir={irA} />
+          <TablaDias dias={diasRango} metaDe={metaDe} elegidos={elegidos} ancla={fecha}
+                     hoy={hoy} alternar={alternar} abrir={irA} />
         </div>
       </section>
 
@@ -855,8 +955,9 @@ function Barras({ datos, total }: { datos: { nom: string; v: number; col: string
    producción mínima no aplasten el mes entero. Lo que se sale va al
    tope con una punta.
    ============================================================ */
-function GraficoDias({ dias, metaDe, sel, elegir }: {
-  dias: Dia[]; metaDe: (f: string) => number | null; sel: string; elegir: (f: string) => void;
+function GraficoDias({ dias, metaDe, elegidos, ancla, elegir }: {
+  dias: Dia[]; metaDe: (f: string) => number | null;
+  elegidos: Set<string>; ancla: string; elegir: (f: string) => void;
 }) {
   const conPct = dias.filter((d) => d.pct != null);
   const orden = conPct.map((d) => d.pct!).sort((a, b) => a - b);
@@ -901,7 +1002,8 @@ function GraficoDias({ dias, metaDe, sel, elegir }: {
 
       {dias.map((d, i) => {
         const px = m.l + paso * i + (paso - an) / 2;
-        const esSel = d.fecha === sel;
+        const esSel = elegidos.has(d.fecha);
+        const esAncla = d.fecha === ancla;
         const vacio = d.pct == null;
         const corta = !vacio && d.pct! > max;
         const yv = vacio ? m.t + ih : y(d.pct!);
@@ -925,7 +1027,8 @@ function GraficoDias({ dias, metaDe, sel, elegir }: {
                     fill="#E4002B" />
             )}
             <text x={m.l + paso * i + paso / 2} y={H - 16}
-                  className={"eje" + (esSel ? " sel" : "") + (partes(d.fecha).d % 5 ? " menor" : "")}
+                  className={"eje" + (esSel ? " sel" : "") + (esAncla ? " ancla" : "")
+                             + (partes(d.fecha).d % 5 ? " menor" : "")}
                   textAnchor="middle">
               {partes(d.fecha).d}
             </text>
@@ -943,7 +1046,7 @@ function GraficoDias({ dias, metaDe, sel, elegir }: {
 }
 
 /* ==================== Composición apilada por día ==================== */
-function ApiladoDias({ dias, sel }: { dias: Dia[]; sel: string }) {
+function ApiladoDias({ dias, elegidos }: { dias: Dia[]; elegidos: Set<string> }) {
   const W = 1000, H = 380, m = { t: 24, r: 12, b: 46, l: 96 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const cs = CAUSALES.filter((c) => dias.some((d) => (d.causales[c] ?? 0) > 0));
@@ -973,7 +1076,7 @@ function ApiladoDias({ dias, sel }: { dias: Dia[]; sel: string }) {
         let ac = 0;
         return (
           <g key={d.fecha}>
-            {d.fecha === sel && (
+            {elegidos.has(d.fecha) && (
               <rect x={m.l + paso * i} y={m.t} width={paso} height={ih} fill="rgba(4,32,63,.08)" />
             )}
             {cs.map((c) => {
@@ -988,7 +1091,7 @@ function ApiladoDias({ dias, sel }: { dias: Dia[]; sel: string }) {
               );
             })}
             <text x={m.l + paso * i + paso / 2} y={H - 15}
-                  className={"eje" + (d.fecha === sel ? " sel" : "") + (partes(d.fecha).d % 5 ? " menor" : "")}
+                  className={"eje" + (elegidos.has(d.fecha) ? " sel" : "") + (partes(d.fecha).d % 5 ? " menor" : "")}
                   textAnchor="middle">
               {partes(d.fecha).d}
             </text>
@@ -1005,14 +1108,16 @@ function ApiladoDias({ dias, sel }: { dias: Dia[]; sel: string }) {
 }
 
 /* ==================== Tabla del mes ==================== */
-function TablaDias({ dias, metaDe, sel, hoy, elegir }: {
-  dias: Dia[]; metaDe: (f: string) => number | null; sel: string; hoy: string;
-  elegir: (f: string) => void;
+function TablaDias({ dias, metaDe, elegidos, ancla, hoy, alternar, abrir }: {
+  dias: Dia[]; metaDe: (f: string) => number | null;
+  elegidos: Set<string>; ancla: string; hoy: string;
+  alternar: (f: string) => void; abrir: (f: string) => void;
 }) {
   return (
     <table>
       <thead>
         <tr>
+          <th className="tic"><span className="sr">Marcado</span></th>
           <th>Día</th>
           <th className="num">Producción</th>
           <th className="num">Baja</th>
@@ -1027,8 +1132,14 @@ function TablaDias({ dias, metaDe, sel, hoy, elegir }: {
           const encima = meta != null && d.pct != null && d.pct > meta;
           return (
             <tr key={d.fecha}
-                className={"qd-fila-dia" + (d.fecha === sel ? " sel" : "") + (d.fecha > hoy ? " futuro" : "")}
-                onClick={() => elegir(d.fecha)}>
+                className={"qd-fila-dia" + (elegidos.has(d.fecha) ? " sel" : "")
+                           + (d.fecha === ancla ? " ancla" : "") + (d.fecha > hoy ? " futuro" : "")}
+                onClick={() => alternar(d.fecha)}
+                onDoubleClick={() => abrir(d.fecha)}>
+              <td className="tic">
+                <input type="checkbox" checked={elegidos.has(d.fecha)} readOnly tabIndex={-1}
+                       aria-label={`Marcar ${bonita(d.fecha)}`} />
+              </td>
               <td className="mes">
                 {partes(d.fecha).d} {MESES[partes(d.fecha).m].toLowerCase()}
               </td>
@@ -1051,75 +1162,95 @@ function TablaDias({ dias, metaDe, sel, hoy, elegir }: {
   );
 }
 
-/* ==================== Los días del mes ====================
-   Una sola fila de pastillas: el día, y debajo un punto que dice de
-   dónde salió su cifra. Es la respuesta a "¿qué me falta reportar?"
-   sin ocupar media pantalla.
+/* ==================== La barra de días ====================
+   El calendario fija el RANGO (1 ago → 31 ago). Las pastillas son los
+   días de ese rango: tocarlas marca y desmarca, y se pueden marcar uno,
+   varios o todos. Los atajos marcan de un golpe.
 
-   Las flechas mueven de a un día y pasan de mes solas (del 1 para atrás
-   cae en el último del mes anterior). Para saltar varios meses está el
-   botón del calendario: sin él habría que dar treinta clics.
+   Marcar (un toque) y ABRIR en la hoja (doble toque) son dos cosas
+   distintas a propósito: marcar cinco días para ver su porcentaje no
+   debería cambiar el día que se está escribiendo abajo.
    ==================================================== */
-function TiraMes({ dias, fecha, hoy, datos, elegir, cargando, alcance, cambiarAlcance, enAlcance }: {
-  dias: Dia[]; fecha: string; hoy: string; datos: DatosDiario;
-  elegir: (f: string) => void; cargando: boolean;
-  alcance: Alcance; cambiarAlcance: (a: Alcance) => void; enAlcance: Set<string>;
+function TiraMes({
+  dias, ancla, hoy, datos, elegidos, cargando,
+  abrir, alternar, cambiarRango, atajo, marcarAtajo,
+}: {
+  dias: Dia[]; ancla: string; hoy: string; datos: DatosDiario;
+  elegidos: Set<string>; cargando: boolean;
+  abrir: (f: string) => void;
+  alternar: (f: string) => void;
+  cambiarRango: (d: string, h: string) => void;
+  atajo: Atajo | null;
+  marcarAtajo: (a: Atajo) => void;
 }) {
+  const marcados = dias.filter((d) => elegidos.has(d.fecha)).length;
+  const minF = dias.length ? correr(datos.desde, -400) : datos.desde;
+  const maxF = correr(hoy, 400);
+
   return (
     <section className={"qd-dias" + (cargando ? " cargando" : "")}>
       <div className="qd-mando">
-        <button type="button" className="qd-flecha" aria-label="Día anterior"
-                onClick={() => elegir(correr(fecha, -1))}>
-          <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
+        {/* El mismo control del tablero del periodo, con su rótulo. */}
+        <div className="sel">
+          <label>Período</label>
+          <Calendario
+            desde={datos.desde} hasta={datos.hasta}
+            minF={minF} maxF={maxF}
+            aplicar={cambiarRango}
+          />
+        </div>
+        <button type="button" className="qd-hoy"
+                onClick={() => cambiarRango(...rangoDelMes(hoy))}>
+          Este mes
         </button>
-        <button type="button" className="qd-flecha" aria-label="Día siguiente"
-                onClick={() => elegir(correr(fecha, 1))}>
-          <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6" /></svg>
-        </button>
-        <button type="button" className="qd-hoy" onClick={() => elegir(hoy)}>Hoy</button>
-        <ElegirDia fecha={fecha} datos={datos} hoy={hoy} elegir={elegir} />
+      </div>
 
-        {/* Qué se mira: el día, su semana o el mes. Cambia el número
-            grande, las cifras, las gráficas y la tabla; el día elegido y
-            la hoja de abajo no se mueven. */}
-        <div className="qd-alcance" role="group" aria-label="Qué se está mirando">
-          {ALCANCES.map((a) => (
-            <button key={a.v} type="button"
-                    className={alcance === a.v ? "on" : ""}
-                    aria-pressed={alcance === a.v}
-                    onClick={() => cambiarAlcance(a.v)}>
-              {a.t}
+      <div className="qd-atajos" role="group" aria-label="Marcar días">
+        <span className="rot">Marcar</span>
+        {([["dia", "El día"], ["semana", "Su semana"], ["todos", "Todos"]] as [Atajo, string][])
+          .map(([v, t]) => (
+            <button key={v} type="button"
+                    className={atajo === v ? "on" : ""}
+                    aria-pressed={atajo === v}
+                    onClick={() => marcarAtajo(v)}>
+              {t}
             </button>
           ))}
-        </div>
       </div>
 
       <div className="qd-pastillas">
-        {dias.map((d) => (
-          <button
-            key={d.fecha}
-            type="button"
-            className={[
-              "qd-p",
-              d.fecha === fecha ? "sel" : "",
-              d.origen,
-              d.fecha === hoy ? "hoy" : "",
-              enAlcance.has(d.fecha) ? "dentro" : "",
-            ].filter(Boolean).join(" ")}
-            onClick={() => elegir(d.fecha)}
-            aria-current={d.fecha === fecha ? "true" : undefined}
-            title={`${bonita(d.fecha)}${d.pct != null ? ` · ${pf(d.pct)}` : " · sin dato"}${d.origen === "escrito" ? " · escrito a mano" : ""}`}
-          >
-            <span className="n">{partes(d.fecha).d}</span>
-            <span className="pt" />
-          </button>
-        ))}
+        {dias.map((d) => {
+          const marcado = elegidos.has(d.fecha);
+          return (
+            <button
+              key={d.fecha}
+              type="button"
+              className={[
+                "qd-p",
+                marcado ? "sel" : "",
+                d.fecha === ancla ? "ancla" : "",
+                d.origen,
+                d.fecha === hoy ? "hoy" : "",
+              ].filter(Boolean).join(" ")}
+              aria-pressed={marcado}
+              onClick={() => alternar(d.fecha)}
+              onDoubleClick={() => abrir(d.fecha)}
+              title={`${bonita(d.fecha)}${d.pct != null ? ` · ${pf(d.pct)}` : " · sin dato"}` +
+                     `${d.origen === "escrito" ? " · escrito a mano" : ""}` +
+                     `\nUn toque marca o desmarca · doble toque lo abre para escribir`}
+            >
+              <span className="n">{partes(d.fecha).d}</span>
+              <span className="pt" />
+            </button>
+          );
+        })}
       </div>
 
       <div className="qd-ley">
         <span><i className="esc" />escrito</span>
         <span><i className="sap" />importado</span>
         <span><i className="no" />en blanco</span>
+        <b>{marcados} de {dias.length} marcados</b>
       </div>
     </section>
   );
@@ -1164,97 +1295,6 @@ function Linea({ nombre, ayuda, punto, sap, valor, cambiar, efectivo, editable, 
       <div className={"num vale" + (difiere ? " difiere" : "")}>
         {efectivo == null ? "—" : nf.format(efectivo)}
       </div>
-    </div>
-  );
-}
-
-/* ==================== Calendario de un solo día ==================== */
-function ElegirDia({ fecha, datos, hoy, elegir }: {
-  fecha: string; datos: DatosDiario; hoy: string; elegir: (f: string) => void;
-}) {
-  const [abierto, setAbierto] = useState(false);
-  const caja = useRef<HTMLDivElement>(null);
-  const [vista, setVista] = useState(() => partes(fecha));
-
-  useEffect(() => { if (abierto) setVista(partes(fecha)); }, [abierto, fecha]);
-
-  useEffect(() => {
-    if (!abierto) return;
-    const clic = (e: MouseEvent) => {
-      if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false);
-    };
-    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierto(false); };
-    document.addEventListener("mousedown", clic);
-    document.addEventListener("keydown", tecla);
-    return () => {
-      document.removeEventListener("mousedown", clic);
-      document.removeEventListener("keydown", tecla);
-    };
-  }, [abierto]);
-
-  const { a, m } = vista;
-  const hueco = primerDia(a, m);
-  const total = diasDelMes(a, m);
-  const mover = (paso: number) => {
-    const t = new Date(Date.UTC(a, m + paso, 1));
-    setVista({ a: t.getUTCFullYear(), m: t.getUTCMonth(), d: 1 });
-  };
-
-  return (
-    <div className="calendario" ref={caja}>
-      <button type="button" className="disparo ancho" aria-expanded={abierto}
-              onClick={() => setAbierto((v) => !v)}>
-        <svg className="ico" viewBox="0 0 24 24" fill="none" strokeLinecap="round">
-          <rect x="3" y="5" width="18" height="16" rx="2" />
-          <path d="M3 10h18M8 3v4M16 3v4" />
-        </svg>
-        <span className="txt">{bonita(fecha)}</span>
-        <svg className="flecha" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
-      </button>
-
-      {abierto && (
-        <div className="panel">
-          <div className="cal-cuerpo">
-            <div className="meses">
-              <div className="mes">
-                <div className="mes-cab">
-                  <button type="button" aria-label="Mes anterior" onClick={() => mover(-1)}>
-                    <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
-                  </button>
-                  <div className="titulo-mes">{MESES_LARGO[m]} {a}</div>
-                  <button type="button" aria-label="Mes siguiente" onClick={() => mover(1)}>
-                    <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6" /></svg>
-                  </button>
-                </div>
-                <div className="semana">{DIAS_SEM.map((d, i) => <span key={i}>{d}</span>)}</div>
-                <div className="dias">
-                  {Array.from({ length: hueco }).map((_, i) => <span key={"h" + i} />)}
-                  {Array.from({ length: total }).map((_, i) => {
-                    const f = aTexto(a, m, i + 1);
-                    const mismoMes = datos.mes === `${f.slice(0, 7)}-01`;
-                    const marca = mismoMes && datos.manual[f] ? " escrito" : "";
-                    return (
-                      <button key={f} type="button"
-                              className={(f === fecha ? "punta inicio fin" : "") + (f === hoy ? " hoy" : "") + marca}
-                              onClick={() => { setAbierto(false); elegir(f); }}>
-                        {i + 1}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="cal-pie">
-            <div className="resumen">Un día a la vez. <b>{MESES[m]}</b> {a}</div>
-            <div className="btns">
-              <button type="button" className="cancelar" onClick={() => setAbierto(false)}>Cerrar</button>
-              <button type="button" className="aplicar"
-                      onClick={() => { setAbierto(false); elegir(hoy); }}>Hoy</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
