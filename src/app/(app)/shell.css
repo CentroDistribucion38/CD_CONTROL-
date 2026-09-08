@@ -356,3 +356,73 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 .sh[data-grande="si"] .pf-campo label { font-size: 15px }
 .sh[data-grande="si"] .sh-datos span,
 .sh[data-grande="si"] .pf-reglas li { font-size: 14px }
+
+/* ====================== Riel lateral de módulos ======================
+   Colapsado a 64px; se abre al pasar el mouse por encima, flotando sobre
+   el contenido para no reacomodar la página. */
+.sh-lado { position: relative; z-index: 20; width: 64px; flex: none }
+.sh-lado .riel {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 64px;
+  overflow: hidden;
+  background: var(--sh-papel);
+  border-right: 1px solid var(--sh-linea);
+  padding: 14px 0 24px;
+  transition: width .18s ease, box-shadow .18s ease;
+}
+.sh-lado:hover .riel,
+.sh-lado:focus-within .riel { width: 236px; box-shadow: 22px 0 44px -30px rgba(4,32,63,.5) }
+
+.sh-lado a { white-space: nowrap; text-decoration: none }
+.sh-lado .grupo { white-space: nowrap }
+.sh-lado .texto { opacity: 0; transition: opacity .12s ease }
+.sh-lado:hover .texto,
+.sh-lado:focus-within .texto { opacity: 1 }
+
+.sh-lado .volver {
+  display: flex; align-items: center; gap: 14px; padding: 10px 0 16px 21px;
+  font-size: 13.5px; font-weight: 600; color: var(--sh-azul);
+}
+.sh-lado .volver:hover { color: var(--sh-rojo) }
+.sh-lado .volver svg { width: 20px; height: 20px; flex: none }
+
+.sh-lado .grupo {
+  padding: 0 0 6px 21px; margin-top: 14px; font-size: 11px; font-weight: 600;
+  letter-spacing: .14em; color: #93A3B6; height: 16px; opacity: 0; transition: opacity .12s;
+}
+.sh-lado:hover .grupo,
+.sh-lado:focus-within .grupo { opacity: 1 }
+
+.sh-lado a.item {
+  display: flex; align-items: center; gap: 14px; padding: 11px 0 11px 18px;
+  font-size: 14.5px; font-weight: 500; color: var(--sh-tinta);
+  border-left: 3px solid transparent;
+}
+.sh-lado a.item:hover { background: #F1F5FA }
+.sh-lado a.item svg { width: 20px; height: 20px; color: var(--sh-gris); flex: none }
+.sh-lado a.item.modulo.on { border-left-color: var(--sh-rojo); background: #F7F9FC; font-weight: 700 }
+.sh-lado a.item.modulo.on svg { color: var(--sh-rojo) }
+
+/* las pantallas del módulo actual van sangradas debajo */
+.sh-lado a.item.hijo { padding-left: 34px; font-size: 14px }
+.sh-lado a.item.hijo svg { width: 17px; height: 17px }
+.sh-lado a.item.hijo.on { background: #EEF3F9; font-weight: 600; color: var(--sh-azul) }
+.sh-lado a.item.hijo.on svg { color: var(--sh-azul) }
+
+/* En pantallas medianas y chicas el riel no cabe: pasa a fila de pestañas. */
+@media (max-width: 1180px) {
+  .sh-lado { width: auto }
+  .sh-lado .riel {
+    position: static; width: 100%; display: flex; overflow-x: auto;
+    padding: 0; border-right: 0; border-bottom: 1px solid var(--sh-linea);
+  }
+  .sh-lado:hover .riel, .sh-lado:focus-within .riel { width: 100%; box-shadow: none }
+  .sh-lado .volver, .sh-lado .grupo { display: none }
+  .sh-lado .texto { opacity: 1 }
+  .sh-lado a.item {
+    border-left: 0; border-bottom: 3px solid transparent; padding: 14px 18px; flex: none;
+  }
+  .sh-lado a.item.hijo { padding-left: 18px }
+  .sh-lado a.item.modulo.on, .sh-lado a.item.hijo.on { border-bottom-color: var(--sh-rojo) }
+}

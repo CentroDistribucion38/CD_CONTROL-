@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { datosQuiebra } from "@/modulos/quiebra/datos";
+import "./quiebra.css";
 import { TableroQuiebra } from "@/components/TableroQuiebra";
 
 export const dynamic = "force-dynamic";

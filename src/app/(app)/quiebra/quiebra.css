@@ -1,0 +1,323 @@
+/* ---------------------------------------------------------------------
+   Tablero de Quiebra.
+   Todo cuelga de .qb para no pisar los estilos generales de la app: hay
+   clases con nombres comunes (tabla, cifras, filtros) que ya existen en
+   globals.css con otra pinta.
+   --------------------------------------------------------------------- */
+
+.qb {
+  --qb-tinta: #04203F;
+  --qb-azul: #0B4EA2;
+  --qb-rojo: #E4002B;
+  --qb-hondo: #B8001F;
+  --qb-oro: #E9A81F;
+  --qb-papel: #FFF;
+  --qb-gris: #5B6B7F;
+  --qb-linea: #D5DCE5;
+
+  --qb-titulo: "Archivo", system-ui, sans-serif;
+  --qb-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+
+  font-family: var(--qb-texto);
+  color: var(--qb-tinta);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.qb *, .qb *::before, .qb *::after { box-sizing: border-box }
+
+/* ====================== Encabezado con el número grande ====================== */
+.qb .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 26px; align-items: stretch }
+.qb .cabeza .texto { padding: 4px 0 }
+.qb .ojo { font-size: 12px; font-weight: 600; letter-spacing: .16em; color: var(--qb-gris) }
+.qb .cabeza h1 {
+  font-family: var(--qb-titulo);
+  font-weight: 900;
+  font-size: clamp(30px, 3.4vw, 44px);
+  letter-spacing: -.04em;
+  margin: 8px 0 0;
+}
+.qb .cabeza .sub { margin: 10px 0 0; font-size: 14px; color: var(--qb-gris); max-width: 52ch }
+.qb .cabeza .sub a {
+  color: var(--qb-azul); font-weight: 600; text-decoration: none;
+  border-bottom: 1.5px solid rgba(11,78,162,.3);
+}
+.qb .cabeza .sub a:hover { color: var(--qb-rojo); border-bottom-color: var(--qb-rojo) }
+
+.qb .kpi {
+  position: relative; overflow: hidden;
+  background: var(--qb-rojo); color: #fff; border-radius: 3px;
+  padding: 26px 34px 24px 30px; min-width: 330px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.qb .kpi.bajo { background: #0F7A4A }
+.qb .kpi .corte {
+  position: absolute; top: -20%; bottom: -20%; right: -14px; width: 96px;
+  background: rgba(0,0,0,.16); transform: skewX(-26deg);
+}
+.qb .kpi .rot { position: relative; font-size: 11.5px; font-weight: 600; letter-spacing: .16em; opacity: .85 }
+.qb .kpi .num {
+  position: relative; font-family: var(--qb-titulo); font-weight: 900;
+  font-size: clamp(52px, 5.4vw, 74px); line-height: .9; letter-spacing: -.05em; margin-top: 8px;
+}
+.qb .kpi .pie { position: relative; display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: 13.5px; flex-wrap: wrap }
+.qb .kpi .pie b { font-weight: 600 }
+.qb .kpi .delta {
+  background: #fff; color: var(--qb-rojo); font-family: var(--qb-titulo);
+  font-weight: 800; font-size: 12.5px; padding: 5px 11px; border-radius: 2px;
+}
+.qb .kpi.bajo .delta { color: #0F7A4A }
+
+/* ====================== Filtros ====================== */
+.qb .filtros { background: var(--qb-papel); border: 1px solid var(--qb-linea); border-radius: 3px }
+.qb .filtros .arriba { display: flex; align-items: flex-end; gap: 16px; padding: 18px 22px; flex-wrap: wrap }
+.qb .sel { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.qb .sel label { font-size: 12px; font-weight: 600; color: #2C4361; letter-spacing: .02em }
+
+.qb .desplegable, .qb .calendario { position: relative }
+.qb .disparo {
+  display: flex; align-items: center; gap: 10px; height: 42px; min-width: 136px; padding: 0 12px;
+  font: 500 14.5px var(--qb-texto); color: var(--qb-tinta); background: #F7F9FC;
+  border: 1.5px solid var(--qb-linea); border-radius: 2px; cursor: pointer; text-align: left;
+}
+.qb .disparo:hover { border-color: #B9C4D2 }
+.qb .disparo[aria-expanded="true"] {
+  background: #fff; border-color: var(--qb-azul); box-shadow: 0 0 0 3px rgba(11,78,162,.14);
+}
+.qb .disparo:focus-visible { outline: none; border-color: var(--qb-azul); box-shadow: 0 0 0 3px rgba(11,78,162,.14) }
+.qb .disparo .flecha { margin-left: auto; width: 14px; height: 14px; stroke: var(--qb-gris); stroke-width: 2.2; fill: none; transition: transform .14s; flex: none }
+.qb .disparo[aria-expanded="true"] .flecha { transform: rotate(180deg) }
+.qb .disparo .ico { width: 16px; height: 16px; stroke: var(--qb-gris); stroke-width: 1.8; fill: none; flex: none }
+.qb .disparo.ancho { min-width: 250px }
+.qb .disparo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+.qb .opciones {
+  position: absolute; top: calc(100% + 6px); left: 0; min-width: 100%; z-index: 30;
+  background: #fff; border: 1px solid var(--qb-linea); border-radius: 3px;
+  overflow: auto; max-height: 264px; box-shadow: 0 24px 48px -24px rgba(4,32,63,.5); padding: 4px 0;
+}
+.qb .opciones::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--qb-rojo) }
+.qb .opciones button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border: 0;
+  background: none; font: 500 14.5px var(--qb-texto); color: var(--qb-tinta); cursor: pointer;
+  text-align: left; white-space: nowrap; border-left: 3px solid transparent;
+}
+.qb .opciones button:first-child { margin-top: 3px }
+.qb .opciones button:hover { background: #F1F5FA }
+.qb .opciones button .tic { width: 14px; height: 14px; stroke: var(--qb-rojo); stroke-width: 2.6; fill: none; opacity: 0; flex: none }
+.qb .opciones button.elegida { font-weight: 600; border-left-color: var(--qb-rojo); background: #FAFBFD }
+.qb .opciones button.elegida .tic { opacity: 1 }
+
+/* ---------- Calendario ---------- */
+.qb .calendario .panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+  background: #fff; border: 1px solid var(--qb-linea); border-radius: 3px; overflow: hidden;
+  box-shadow: 0 28px 56px -24px rgba(4,32,63,.5);
+}
+.qb .calendario .panel::before { content: ""; display: block; height: 3px; background: var(--qb-rojo) }
+.qb .cal-cuerpo { display: flex }
+
+.qb .atajos { width: 170px; border-right: 1px solid var(--qb-linea); padding: 12px 0; background: #FAFBFD; flex: none }
+.qb .atajos button {
+  display: block; width: 100%; text-align: left; padding: 9px 18px; border: 0; background: none;
+  font: 500 13.5px var(--qb-texto); color: var(--qb-tinta); cursor: pointer; border-left: 3px solid transparent;
+}
+.qb .atajos button:hover { background: #F1F5FA }
+.qb .atajos button.on { border-left-color: var(--qb-rojo); background: #fff; font-weight: 600 }
+
+.qb .meses { display: flex; gap: 26px; padding: 16px 20px }
+.qb .mes { width: 224px }
+.qb .mes-cab { display: flex; align-items: center; justify-content: space-between; height: 30px; margin-bottom: 8px }
+.qb .mes-cab .titulo-mes { font-family: var(--qb-titulo); font-weight: 800; font-size: 14.5px; letter-spacing: -.01em }
+.qb .mes-cab button {
+  width: 28px; height: 28px; border: 1px solid var(--qb-linea); background: #fff; border-radius: 2px;
+  cursor: pointer; display: grid; place-items: center;
+}
+.qb .mes-cab button:hover { border-color: var(--qb-rojo) }
+.qb .mes-cab button svg { width: 13px; height: 13px; stroke: var(--qb-tinta); stroke-width: 2.3; fill: none }
+.qb .mes-cab .hueco { width: 28px }
+
+.qb .semana, .qb .dias { display: grid; grid-template-columns: repeat(7, 1fr) }
+.qb .semana span { text-align: center; font-size: 11px; font-weight: 600; color: #93A3B6; padding-bottom: 6px }
+.qb .dias button {
+  height: 32px; border: 0; background: none; cursor: pointer;
+  font: 500 13px var(--qb-texto); color: var(--qb-tinta); position: relative;
+}
+.qb .dias button.fuera { color: #C6D0DC; cursor: default }
+.qb .dias button:hover:not(.fuera):not(.punta) { background: #EDF1F6 }
+.qb .dias button.dentro { background: #FDE7EB }
+.qb .dias button.punta { background: var(--qb-rojo); color: #fff; font-weight: 700 }
+.qb .dias button.inicio { border-radius: 2px 0 0 2px }
+.qb .dias button.fin { border-radius: 0 2px 2px 0 }
+
+.qb .cal-pie {
+  display: flex; align-items: center; gap: 14px; padding: 14px 20px;
+  border-top: 1px solid var(--qb-linea); background: #FAFBFD; flex-wrap: wrap;
+}
+.qb .cal-pie .resumen { font-size: 13.5px; color: var(--qb-gris) }
+.qb .cal-pie .resumen b { color: var(--qb-tinta); font-weight: 600 }
+.qb .cal-pie .btns { margin-left: auto; display: flex; gap: 10px }
+.qb .cal-pie .aplicar {
+  height: 38px; padding: 0 20px; border: 0; border-radius: 2px; background: var(--qb-rojo);
+  color: #fff; font-family: var(--qb-titulo); font-weight: 800; font-size: 13.5px; cursor: pointer;
+}
+.qb .cal-pie .aplicar:hover { background: #FF1C38 }
+.qb .cal-pie .cancelar {
+  height: 38px; padding: 0 8px; border: 0; background: none; color: var(--qb-gris);
+  font: 600 13.5px var(--qb-texto); cursor: pointer;
+}
+.qb .cal-pie .cancelar:hover { color: var(--qb-tinta) }
+
+.qb .filtros .limpiar {
+  margin-left: auto; height: 42px; padding: 0 18px; border: 1.5px solid var(--qb-linea);
+  background: none; border-radius: 2px; font: 600 14px var(--qb-texto); color: var(--qb-gris); cursor: pointer;
+}
+.qb .filtros .limpiar:hover { border-color: var(--qb-rojo); color: var(--qb-rojo) }
+
+.qb .causales {
+  display: flex; align-items: center; gap: 10px; padding: 14px 22px;
+  border-top: 1px solid var(--qb-linea); background: #FAFBFD; flex-wrap: wrap;
+}
+.qb .causales .rot { font-size: 12px; font-weight: 600; color: #2C4361; margin-right: 4px }
+.qb .chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 13px;
+  border: 1.5px solid var(--qb-linea); background: #fff; border-radius: 2px;
+  font-size: 13px; font-weight: 500; color: var(--qb-tinta); cursor: pointer;
+}
+.qb .chip i { width: 9px; height: 9px; border-radius: 50%; flex: none }
+.qb .chip.off { color: #9AA9BB; background: #F4F6F9 }
+.qb .chip.off i { opacity: .35 }
+
+/* ====================== Cifras ====================== */
+.qb .cifras {
+  display: grid; grid-template-columns: repeat(3, 1fr); background: var(--qb-papel);
+  border: 1px solid var(--qb-linea); border-radius: 3px; overflow: hidden;
+}
+.qb .cifra { padding: 22px 26px; border-right: 1px solid var(--qb-linea); position: relative }
+.qb .cifra:last-child { border-right: 0 }
+.qb .cifra .rot { font-size: 11.5px; font-weight: 600; letter-spacing: .14em; color: var(--qb-gris) }
+.qb .cifra .n { font-family: var(--qb-titulo); font-weight: 900; font-size: 38px; letter-spacing: -.04em; margin-top: 10px }
+.qb .cifra .u { margin-top: 4px; font-size: 13px; color: var(--qb-gris) }
+.qb .cifra.alerta { background: #FFF6F7 }
+.qb .cifra.alerta .n { color: var(--qb-rojo) }
+.qb .cifra.alerta::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--qb-rojo) }
+.qb .cifra.buena { background: #F2FAF6 }
+.qb .cifra.buena .n { color: #0F7A4A }
+.qb .cifra.buena::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #0F7A4A }
+
+/* ====================== Gráficos ====================== */
+.qb .tarjetas { display: grid; grid-template-columns: 1.45fr 1fr; gap: 20px; align-items: stretch }
+.qb .tarjetas.dos { grid-template-columns: 1.6fr 1fr }
+.qb .tarjetas.pareja { grid-template-columns: 1fr 1fr }
+
+.qb .tarjeta {
+  background: var(--qb-papel); border: 1px solid var(--qb-linea); border-radius: 3px;
+  display: flex; flex-direction: column; min-width: 0;
+}
+.qb .tarjeta .cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 26px 16px }
+.qb .tarjeta h2 { font-family: var(--qb-titulo); font-weight: 800; font-size: 18px; letter-spacing: -.02em; margin: 0 }
+.qb .tarjeta .cab p { margin: 5px 0 0; font-size: 13.5px; color: var(--qb-gris) }
+
+.qb .leyenda { display: flex; gap: 14px; font-size: 12.5px; color: var(--qb-gris); white-space: nowrap; padding-top: 4px }
+.qb .leyenda span { display: inline-flex; align-items: center; gap: 7px }
+.qb .leyenda i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; flex: none }
+.qb .leyenda i.meta { width: 16px; height: 0; border-top: 2px dashed #8494A8; border-radius: 0 }
+.qb .leyenda.abajo {
+  flex-wrap: wrap; gap: 10px 16px; padding-top: 16px; margin-top: auto;
+  white-space: normal; border-top: 1px solid #EDF1F6;
+}
+
+.qb .cuerpo { padding: 6px 26px 22px; flex: 1; display: flex; flex-direction: column; justify-content: flex-start }
+.qb .grafico { width: 100%; height: 252px; display: block }
+.qb .grafico .rejilla { stroke: #E7ECF2; stroke-width: 1 }
+.qb .grafico .meta { stroke: #8494A8; stroke-width: 2; stroke-dasharray: 5 4 }
+.qb .grafico .eje { font: 500 11.5px var(--qb-texto); fill: #8494A8 }
+.qb .grafico .val { font: 700 11.5px var(--qb-titulo); fill: #2C4361 }
+
+.qb .fila { display: grid; grid-template-columns: 132px 1fr 46px; align-items: center; gap: 12px; padding: 9px 0 }
+.qb .fila .nom { font-size: 13px; color: #2C4361; text-align: right; overflow: hidden; text-overflow: ellipsis }
+.qb .fila .pista { height: 20px; background: #F1F4F8; border-radius: 2px; overflow: hidden }
+.qb .fila .relleno { height: 100%; border-radius: 2px }
+.qb .fila .pct { font-family: var(--qb-titulo); font-weight: 800; font-size: 13px; text-align: right }
+
+.qb .cuerpo.doble { justify-content: flex-start; gap: 22px }
+.qb .cuerpo.doble .parte + .parte { border-top: 1px solid var(--qb-linea); padding-top: 16px }
+.qb .cuerpo.doble .abajo-parte { margin-top: auto }
+.qb .cuerpo.doble .rotulo { font-size: 11.5px; font-weight: 600; letter-spacing: .14em; color: #93A3B6; margin-bottom: 8px }
+
+/* ====================== Tablas ====================== */
+.qb .cuerpo.tabla { padding: 0; justify-content: flex-start; overflow-x: auto }
+.qb table { width: 100%; border-collapse: collapse }
+.qb thead th {
+  padding: 10px 22px; font-size: 11px; font-weight: 600; letter-spacing: .12em; color: #93A3B6;
+  text-align: left; border-bottom: 1px solid var(--qb-linea); background: #FAFBFD; text-transform: uppercase;
+  white-space: nowrap;
+}
+.qb tbody td { padding: 12px 22px; border-bottom: 1px solid #EDF1F6; font-size: 14px; vertical-align: middle }
+.qb tbody tr:last-child td { border-bottom: 0 }
+.qb tbody tr:hover { background: #F7F9FC }
+.qb td.num, .qb th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.qb td.num { font-weight: 500 }
+.qb td .nom { font-weight: 500; line-height: 1.25 }
+.qb td .cod { font-size: 12px; color: #93A3B6; margin-top: 2px }
+.qb td.mes { font-family: var(--qb-titulo); font-weight: 800 }
+.qb td.sobre { color: var(--qb-rojo); font-weight: 600 }
+.qb td.bajo { color: var(--qb-azul); font-weight: 600 }
+.qb td.meta { color: var(--qb-gris) }
+.qb td.mini { width: 96px; padding-left: 0 }
+.qb td.mini .pista { height: 8px; background: #EDF1F6; border-radius: 2px; overflow: hidden }
+.qb td.mini .relleno { height: 100%; background: var(--qb-rojo) }
+.qb td.vacio { text-align: center; color: var(--qb-gris); padding: 34px 22px }
+
+.qb .nota-pie { font-size: 12.5px; color: var(--qb-gris); padding: 2px 2px 0; max-width: 110ch }
+
+/* ====================== Sin datos ====================== */
+.qb .vacio-total {
+  background: var(--qb-papel); border: 1px solid var(--qb-linea); border-radius: 3px;
+  text-align: center; padding: 56px 24px;
+}
+.qb .vacio-total h2 { font-family: var(--qb-titulo); font-weight: 800; font-size: 20px; margin: 0 }
+.qb .vacio-total p { margin: 10px auto 20px; max-width: 46ch; font-size: 14px; color: var(--qb-gris) }
+.qb .vacio-total a {
+  display: inline-block; height: 46px; line-height: 46px; padding: 0 24px; border-radius: 2px;
+  background: var(--qb-rojo); color: #fff; font-family: var(--qb-titulo); font-weight: 800;
+  font-size: 14.5px; text-decoration: none;
+}
+
+/* ====================== Pantallas medianas y chicas ====================== */
+@media (max-width: 1180px) {
+  .qb .cabeza { grid-template-columns: 1fr }
+  .qb .kpi { min-width: 0 }
+  .qb .tarjetas, .qb .tarjetas.dos, .qb .tarjetas.pareja { grid-template-columns: 1fr }
+  .qb .cifras { grid-template-columns: 1fr }
+  .qb .cifra { border-right: 0; border-bottom: 1px solid var(--qb-linea) }
+  .qb .cifra:last-child { border-bottom: 0 }
+}
+
+@media (max-width: 720px) {
+  .qb .filtros .arriba { padding: 16px }
+  .qb .disparo, .qb .disparo.ancho { min-width: 0; width: 100% }
+  .qb .sel { width: 100% }
+  .qb .filtros .limpiar { margin-left: 0; width: 100% }
+  .qb .causales { padding: 14px 16px }
+  .qb .cifra { padding: 18px 18px }
+  .qb .cifra .n { font-size: 32px }
+  .qb .tarjeta .cab { padding: 18px 18px 12px }
+  .qb .cuerpo { padding: 6px 18px 18px }
+  .qb .fila { grid-template-columns: 104px 1fr 44px; gap: 9px }
+  .qb thead th, .qb tbody td { padding-left: 16px; padding-right: 16px }
+
+  /* el calendario de dos meses no cabe: uno solo y los atajos arriba */
+  .qb .calendario .panel { left: 0; right: 0; width: auto }
+  .qb .cal-cuerpo { flex-direction: column }
+  .qb .atajos {
+    width: 100%; border-right: 0; border-bottom: 1px solid var(--qb-linea);
+    display: flex; overflow-x: auto; padding: 8px;
+  }
+  .qb .atajos button { width: auto; white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; padding: 7px 12px }
+  .qb .atajos button.on { border-left: 0; border-bottom-color: var(--qb-rojo) }
+  .qb .meses { padding: 14px }
+  .qb .mes { width: 100% }
+  .qb .mes.segundo { display: none }
+}
