@@ -943,3 +943,12 @@
   .sd .zl-suelta, .sd .zl-mapa { padding-left: 14px; padding-right: 14px }
   .sd .zl-mapa { grid-template-columns: 1fr }
 }
+
+/* Lo que leyó del archivo: una línea, no un formulario. El formulario
+   solo aparece si se equivocó o si alguien quiere corregirlo. */
+.sd .zl-leyo {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: #F1FAFB; border: 1px solid #9FD3D9; border-radius: 3px; padding: 12px 18px;
+}
+.sd .zl-leyo p { margin: 0; font-size: 13px; color: #17505C; flex: 1 1 320px }
+.sd .zl-leyo .btn.plano { flex: none }

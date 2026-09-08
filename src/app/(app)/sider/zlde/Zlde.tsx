@@ -36,22 +36,14 @@ const PISTAS = {
 const limpia = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
-function adivina(cols: string[], pistas: string[]): number {
-  /* Primero exacto, después "empieza por", y solo al final "contiene":
-     buscar "contiene" de una vez hace que "hl" encuentre "Hl x unidad". */
-  for (const p of pistas) {
-    const i = cols.findIndex((c) => limpia(c) === p);
-    if (i >= 0) return i;
-  }
-  for (const p of pistas) {
-    const i = cols.findIndex((c) => limpia(c).startsWith(p));
-    if (i >= 0) return i;
-  }
-  for (const p of pistas) {
-    const i = cols.findIndex((c) => limpia(c).includes(p));
-    if (i >= 0) return i;
-  }
-  return -1;
+function pista(col: string, pistas: string[]): number {
+  const c = limpia(col);
+  /* Exacto vale más que "empieza por", y eso más que "contiene": buscar
+     "contiene" de una vez hace que "hl" encuentre "Hl x unidad". */
+  for (const p of pistas) if (c === p) return 6;
+  for (const p of pistas) if (c.startsWith(p)) return 4;
+  for (const p of pistas) if (c.includes(p)) return 2;
+  return 0;
 }
 
 /** "1.234,5" y "1,234.5" son el mismo número escrito por dos SAP. */
@@ -74,6 +66,76 @@ function aNumero(v: unknown): number | null {
 
 type Hoja = { nombre: string; filas: unknown[][] };
 type Fila = { cd_origen: string; hl: number };
+type Eleccion = { iHoja: number; iCab: number; colCd: number; colHl: number; puntos: number };
+
+/* Cuántas filas se miran para juzgar un candidato. Con 60 ya se distingue
+   una hoja de datos de una portada, y no se paga leer diez mil. */
+const MUESTRA = 60;
+
+/**
+ * QUÉ HOJA Y QUÉ COLUMNAS — decidido por los DATOS.
+ *
+ * La primera versión escogía la hoja por el nombre y, si no encontraba
+ * ninguna con "zlde", se quedaba con la primera que tuviera filas. En un
+ * libro que empieza con una Portada eso significaba escoger la Portada,
+ * dejar las columnas en blanco y pasarle el problema al que subió el
+ * archivo. Eso no es adivinar: es rendirse y disimular.
+ *
+ * Ahora se prueba cada hoja, cada fila de encabezado y cada par de
+ * columnas, y gana el que de verdad TIENE los datos: filas con un texto
+ * que parece un CD y, al lado, un número. Una portada saca cero porque
+ * no tiene ninguna, por bonitos que sean sus encabezados.
+ */
+function detectar(hojas: Hoja[]): Eleccion {
+  let mejor: Eleccion = { iHoja: 0, iCab: 0, colCd: -1, colHl: -1, puntos: -1 };
+
+  hojas.forEach((h, iHoja) => {
+    // Un empujón si la hoja se llama como uno espera, pero no manda.
+    const nombre = limpia(h.nombre);
+    const bono = nombre.includes("zlde") ? 14
+               : /fuente|base|datos|movimiento/.test(nombre) ? 6
+               : /portada|resumen|instruc|leeme/.test(nombre) ? -12 : 0;
+
+    const hasta = Math.min(14, h.filas.length - 1);
+    for (let iCab = 0; iCab <= hasta; iCab++) {
+      const cab = (h.filas[iCab] ?? []).map((x) => String(x ?? ""));
+      if (cab.filter((c) => c.trim()).length < 2) continue;
+
+      const fin = Math.min(h.filas.length, iCab + 1 + MUESTRA);
+      const anchoMax = Math.min(cab.length, 40);
+
+      for (let cCd = 0; cCd < anchoMax; cCd++) {
+        for (let cHl = 0; cHl < anchoMax; cHl++) {
+          if (cCd === cHl) continue;
+          const pCd = pista(cab[cCd] ?? "", PISTAS.cd);
+          const pHl = pista(cab[cHl] ?? "", PISTAS.hl);
+          /* Sin ninguna señal en los encabezados no vale la pena probar
+             el par: si no, con veinte columnas se prueban cuatrocientas
+             combinaciones por fila y gana cualquiera por azar. */
+          if (pCd === 0 && pHl === 0) continue;
+
+          let buenas = 0;
+          for (let f = iCab + 1; f < fin; f++) {
+            const fila = h.filas[f] ?? [];
+            const cd = String(fila[cCd] ?? "").trim();
+            // Un CD es texto, no un número: así una columna de cifras no
+            // se hace pasar por la de nombres.
+            if (!cd || aNumero(cd) != null) continue;
+            if (/^(total|gran total|total general|suma)/i.test(limpia(cd))) continue;
+            if (aNumero(fila[cHl]) == null) continue;
+            buenas++;
+          }
+          if (!buenas) continue;
+
+          const puntos = buenas * 3 + pCd * 2 + pHl * 2 + bono;
+          if (puntos > mejor.puntos) mejor = { iHoja, iCab, colCd: cCd, colHl: cHl, puntos };
+        }
+      }
+    }
+  });
+
+  return mejor;
+}
 
 export function Zlde({ origenes, ultimos }: {
   origenes: { cd_origen: string; activo: boolean }[];
@@ -95,6 +157,12 @@ export function Zlde({ origenes, ultimos }: {
   });
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
+  /* El mapeo empieza ESCONDIDO. Si acertó, subir el archivo y darle
+     guardar es todo; si no, se abre. Un formulario de cinco listas
+     delante de alguien que solo quería subir un archivo es trabajo que
+     yo no supe hacer y le pasé a él. */
+  const [verMapa, setVerMapa] = useState(false);
+  const [acerto, setAcerto] = useState(false);
 
   const hoja = hojas[iHoja];
   const cols = useMemo<string[]>(() => {
@@ -144,33 +212,38 @@ export function Zlde({ origenes, ultimos }: {
         setAviso({ mal: true, texto: "Ese archivo no tiene ninguna hoja con datos." });
         return;
       }
-      /* Se arranca en la hoja que más se parezca a ZLDE, y si ninguna,
-         en la primera con datos. */
-      const i = Math.max(0, hs.findIndex((h) => limpia(h.nombre).includes("zlde")));
       setHojas(hs);
-      elegir(hs, i);
+      const d = detectar(hs);
+      setIHoja(d.iHoja);
+      setICab(d.iCab);
+      setColCd(d.colCd);
+      setColHl(d.colHl);
+      const bien = d.colCd >= 0 && d.colHl >= 0;
+      setAcerto(bien);
+      /* Si no encontró nada, el mapeo se abre solo: no tiene sentido
+         esconder lo único que puede arreglar el problema. */
+      setVerMapa(!bien);
+      if (!bien) {
+        setAviso({
+          mal: true,
+          texto: "No reconocí ninguna hoja con CD de origen y hectolitros. " +
+                 "Escoge la hoja y las dos columnas abajo.",
+        });
+      }
     } catch {
       setAviso({ mal: true, texto: "No se pudo leer ese archivo. Tiene que ser .xlsx, .xls o .csv." });
     }
   }
 
-  /* Al cambiar de hoja se busca el encabezado y se vuelve a adivinar: si
-     se dejaran las columnas de la hoja anterior, los índices apuntarían
-     a otra cosa y el resultado sería basura con cara de dato. */
+  /* Cuando alguien cambia de hoja a mano se vuelve a detectar DENTRO de
+     esa hoja: si se dejaran las columnas de la hoja anterior, los índices
+     apuntarían a otra cosa y el resultado sería basura con cara de dato. */
   function elegir(hs: Hoja[], i: number) {
+    const d = detectar([hs[i]]);
     setIHoja(i);
-    const h = hs[i];
-    let mejor = 0, puntos = -1;
-    for (let f = 0; f < Math.min(12, h.filas.length); f++) {
-      const c = (h.filas[f] ?? []).map((x) => String(x ?? ""));
-      const p = (adivina(c, PISTAS.cd) >= 0 ? 2 : 0) + (adivina(c, PISTAS.hl) >= 0 ? 2 : 0)
-              + c.filter((x) => x.trim()).length / 100;
-      if (p > puntos) { puntos = p; mejor = f; }
-    }
-    setICab(mejor);
-    const c = (h.filas[mejor] ?? []).map((x) => String(x ?? ""));
-    setColCd(adivina(c, PISTAS.cd));
-    setColHl(adivina(c, PISTAS.hl));
+    setICab(d.iCab);
+    setColCd(d.colCd);
+    setColHl(d.colHl);
   }
 
   async function guardar() {
@@ -207,7 +280,7 @@ export function Zlde({ origenes, ultimos }: {
       <section className="tarjeta">
         <div className="cab">
           <div>
-            <h2>1 · El archivo de ZLDE</h2>
+            <h2>El archivo de ZLDE</h2>
             <p>
               El pivote de ZLDE con <b>Planta = Barranquilla</b> y <b>Clase = EER</b>,
               agrupado por CD de origen. Sirve el .xlsx tal como sale, o un .csv.
@@ -223,24 +296,43 @@ export function Zlde({ origenes, ultimos }: {
             {archivo ? `Cambiar archivo · ${archivo}` : "Escoger el archivo de ZLDE"}
           </button>
           <p className="zl-ojo">
-            Lee los encabezados y adivina las columnas, pero no adivina bien siempre: en el
-            paso 2 se puede corregir. Nada se guarda hasta que lo apruebes.
+            Busca la hoja y las columnas por los datos que tienen, no por cómo se llamen.
+            Si se equivoca se corrige, y nada se guarda hasta que lo apruebes.
           </p>
         </div>
       </section>
 
-      {/* ---------- El mapeo ---------- */}
-      {!!hojas.length && (
+      {/* ---------- Qué leyó ---------- */}
+      {!!hojas.length && acerto && !verMapa && (
+        <section className="zl-leyo">
+          <p>
+            <b>Leí la hoja «{hoja?.nombre}»</b>, el CD de origen en «{cols[colCd]}» y los
+            hectolitros en «{cols[colHl]}». Si está bien, no tienes que tocar nada más:
+            revisa la tabla y guarda.
+          </p>
+          <button type="button" className="btn plano" onClick={() => setVerMapa(true)}>
+            Cambiar lo que leyó
+          </button>
+        </section>
+      )}
+
+      {/* ---------- El mapeo, solo si hace falta ---------- */}
+      {!!hojas.length && verMapa && (
         <section className="tarjeta">
           <div className="cab">
             <div>
-              <h2>2 · Qué columna es qué</h2>
+              <h2>Qué columna es qué</h2>
               <p>
                 Si el export cambió de forma, aquí se arregla sin tocar código. Los CD que
                 no estén en el maestro se van a guardar igual, marcados, para que se vean
                 en el seguimiento y no se pierdan.
               </p>
             </div>
+            {acerto && (
+              <button type="button" className="btn plano" onClick={() => setVerMapa(false)}>
+                Listo
+              </button>
+            )}
           </div>
           <div className="zl-mapa">
             <label>
@@ -256,9 +348,18 @@ export function Zlde({ origenes, ultimos }: {
               <select value={iCab} onChange={(e) => {
                 const f = Number(e.target.value);
                 setICab(f);
-                const c = (hoja.filas[f] ?? []).map((x) => String(x ?? ""));
-                setColCd(adivina(c, PISTAS.cd));
-                setColHl(adivina(c, PISTAS.hl));
+                /* Con el encabezado fijado a mano, se buscan las columnas
+                   solo con esa fila: los índices de la fila anterior
+                   apuntarían a otras columnas. */
+                const cab = (hoja.filas[f] ?? []).map((x) => String(x ?? ""));
+                let cd = -1, hl = -1, pc = 0, ph = 0;
+                cab.forEach((c, i) => {
+                  const a = pista(c, PISTAS.cd), b = pista(c, PISTAS.hl);
+                  if (a > pc) { pc = a; cd = i; }
+                  if (b > ph) { ph = b; hl = i; }
+                });
+                setColCd(cd);
+                setColHl(hl);
               }}>
                 {hoja.filas.slice(0, 15).map((f, i) => (
                   <option key={i} value={i}>
@@ -294,7 +395,7 @@ export function Zlde({ origenes, ultimos }: {
         <section className="tarjeta">
           <div className="cab">
             <div>
-              <h2>3 · Lo que va a quedar</h2>
+              <h2>Lo que va a quedar</h2>
               <p>
                 {filas.length
                   ? <>Se van a guardar <b>{filas.length} CD</b> con{" "}
