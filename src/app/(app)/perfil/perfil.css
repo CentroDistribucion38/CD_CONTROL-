@@ -1,0 +1,336 @@
+/* ---------------------------------------------------------------------
+   Mi perfil. Usa los colores del cascarón (.sh) y agrega lo suyo con
+   el prefijo .pf-.
+   --------------------------------------------------------------------- */
+
+.pf {
+  font-family: var(--sh-texto);
+  color: var(--sh-tinta);
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 70px);
+  /* el <main> del cascarón trae relleno; aquí se maneja el propio */
+  margin: -20px;
+  padding: 26px 30px 0;
+}
+@media (min-width: 768px) { .pf { margin: -32px } }
+
+.pf-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--sh-azul);
+  text-decoration: none;
+  margin-bottom: 18px;
+  align-self: flex-start;
+}
+.pf-volver:hover { color: var(--sh-rojo) }
+.pf-volver svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2.2; fill: none }
+
+.pf-cuerpo {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 22px;
+  align-items: start;
+  max-width: 1240px;
+}
+
+/* ---------- Navegación de secciones ---------- */
+.pf-nav {
+  background: var(--sh-papel);
+  border: 1px solid var(--sh-linea);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pf-quien {
+  padding: 22px 20px;
+  border-bottom: 1px solid var(--sh-linea);
+  background: #FAFBFD;
+  display: flex;
+  gap: 13px;
+  align-items: center;
+}
+.pf-quien .ini {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--sh-rojo);
+  color: #fff;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: 15px;
+}
+.pf-quien .nom { font-family: var(--sh-titulo); font-weight: 800; font-size: 15px }
+.pf-quien .usr { font-size: 12.5px; color: var(--sh-gris); margin-top: 2px }
+
+.pf-nav button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border: 0;
+  background: none;
+  font: 500 14.5px var(--sh-texto);
+  color: var(--sh-tinta);
+  cursor: pointer;
+  text-align: left;
+  border-left: 3px solid transparent;
+}
+.pf-nav button:hover { background: #F1F5FA }
+.pf-nav button svg {
+  width: 17px; height: 17px;
+  stroke: var(--sh-gris);
+  stroke-width: 1.9;
+  fill: none;
+  flex: none;
+}
+.pf-nav button.on {
+  border-left-color: var(--sh-rojo);
+  background: #F7F9FC;
+  font-weight: 600;
+}
+.pf-nav button.on svg { stroke: var(--sh-rojo) }
+.pf-nav button:focus-visible { outline: 2px solid var(--sh-azul); outline-offset: -2px }
+
+/* ---------- Paneles ---------- */
+.pf-panel {
+  background: var(--sh-papel);
+  border: 1px solid var(--sh-linea);
+  border-radius: 3px;
+}
+.pf-panel h2 {
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -.02em;
+  margin: 0;
+}
+.pf-cab { padding: 26px 30px 20px; border-bottom: 1px solid var(--sh-linea) }
+.pf-cab p { margin: 6px 0 0; font-size: 14px; color: var(--sh-gris); max-width: 60ch }
+
+.pf-bloque { padding: 26px 30px; border-bottom: 1px solid var(--sh-linea) }
+.pf-bloque:last-of-type { border-bottom: 0 }
+.pf-bloque h3 {
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: 15.5px;
+  margin: 0 0 18px;
+}
+
+.pf-rejilla {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 22px;
+  max-width: 640px;
+}
+.pf-campo { display: flex; flex-direction: column; min-width: 0 }
+.pf-campo.ancho { grid-column: 1 / -1 }
+.pf-campo label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 7px;
+  color: #2C4361;
+}
+.pf-campo input,
+.pf-campo select {
+  height: 46px;
+  padding: 0 13px;
+  font: 500 15px var(--sh-texto);
+  color: var(--sh-tinta);
+  background: #F7F9FC;
+  border: 1.5px solid var(--sh-linea);
+  border-radius: 2px;
+  width: 100%;
+}
+.pf-campo input:focus,
+.pf-campo select:focus {
+  outline: none;
+  background: #fff;
+  border-color: var(--sh-azul);
+  box-shadow: 0 0 0 3px rgba(11,78,162,.14);
+}
+.pf-campo input:disabled {
+  background: #EEF1F5;
+  color: var(--sh-gris);
+  cursor: not-allowed;
+}
+.pf-nota { margin-top: 6px; font-size: 12.5px; color: var(--sh-gris) }
+
+.pf-reglas {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pf-reglas li {
+  border: 1px solid var(--sh-linea);
+  padding: 6px 12px;
+  border-radius: 2px;
+  font-size: 12.5px;
+  color: #2C4361;
+}
+/* una regla que ya se cumple deja de ser un pendiente */
+.pf-reglas li.ok {
+  border-color: #B7E0CB;
+  background: #EFF9F3;
+  color: #14653F;
+}
+
+.pf-acciones {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 30px;
+  background: #FAFBFD;
+  border-top: 1px solid var(--sh-linea);
+  flex-wrap: wrap;
+}
+.pf-btn {
+  height: 46px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  background: var(--sh-rojo);
+  color: #fff;
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: 14.5px;
+}
+.pf-btn:hover { background: #FF1C38 }
+.pf-btn:disabled { background: #94A3B4; cursor: not-allowed }
+.pf-btn:focus-visible { outline: 3px solid var(--sh-azul); outline-offset: 2px }
+.pf-btn.plano {
+  background: none;
+  color: var(--sh-gris);
+  font-family: var(--sh-texto);
+  font-weight: 600;
+  padding: 0 6px;
+}
+.pf-btn.plano:hover { color: var(--sh-tinta); background: none }
+.pf-btn.plano:disabled { background: none; color: #B4C0CE }
+
+/* ---------- Interruptores ---------- */
+.pf-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--sh-linea);
+  cursor: pointer;
+}
+.pf-switch:last-child { border-bottom: 0; padding-bottom: 0 }
+.pf-switch input {
+  width: 44px; height: 26px;
+  margin-top: 2px;
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background: #C6D0DC;
+  border: 0;
+  border-radius: 20px;
+  position: relative;
+  cursor: pointer;
+  transition: background .15s;
+  padding: 0;
+}
+.pf-switch input::after {
+  content: "";
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s;
+}
+.pf-switch input:checked { background: var(--sh-rojo) }
+.pf-switch input:checked::after { transform: translateX(18px) }
+.pf-switch input:focus-visible { outline: 2px solid var(--sh-azul); outline-offset: 2px }
+.pf-switch b { font-weight: 600; font-size: 14.5px }
+.pf-switch p { font-size: 13px; color: var(--sh-gris); margin: 3px 0 0; max-width: 52ch }
+
+/* ---------- Avisos ---------- */
+.pf-aviso {
+  display: flex;
+  gap: 12px;
+  padding: 15px 17px;
+  background: #FFF6F7;
+  border: 1px solid #F3C9D2;
+  border-radius: 2px;
+  font-size: 13.5px;
+  color: #7A1226;
+  max-width: 640px;
+}
+.pf-aviso svg {
+  width: 18px; height: 18px;
+  stroke: var(--sh-rojo);
+  stroke-width: 2;
+  fill: none;
+  flex: none;
+  margin-top: 1px;
+}
+.pf-mensaje {
+  border-radius: 2px;
+  padding: 10px 14px;
+  font-size: 13px;
+  max-width: 640px;
+}
+.pf-mensaje.mal { background: #FDECEB; color: #A4271C }
+.pf-mensaje.bien { background: #E9F6EF; color: #14653F }
+
+/* ---------- Pie ---------- */
+.pf-pie {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 30px -30px 0;
+  padding: 16px 30px;
+  font-size: 12.5px;
+  color: var(--sh-gris);
+  border-top: 1px solid var(--sh-linea);
+}
+.pf-pie b { font-weight: 600; color: #2C4361 }
+
+/* ---------- Celular y tableta ---------- */
+@media (max-width: 860px) {
+  .pf { padding: 18px 18px 0 }
+  .pf-cuerpo { grid-template-columns: 1fr; gap: 16px }
+  /* la ficha de quién eres ya está en la barra: aquí sobra */
+  .pf-quien { display: none }
+  /* las tres secciones como pestañas de igual ancho, sin scroll lateral */
+  .pf-nav { display: grid; grid-template-columns: repeat(3, 1fr) }
+  .pf-nav button {
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+    justify-content: center;
+    padding: 14px 4px;
+    font-size: 13.5px;
+    gap: 7px;
+  }
+  .pf-nav button.on { border-bottom-color: var(--sh-rojo) }
+
+  .pf-rejilla { grid-template-columns: 1fr; gap: 16px }
+  .pf-bloque, .pf-cab { padding: 22px 20px }
+  .pf-acciones { flex-direction: column; align-items: stretch; gap: 10px; padding: 18px 20px }
+  .pf-btn { width: 100% }
+  .pf-btn.plano { padding: 6px 0 }
+  .pf-switch p { max-width: none }
+
+  .pf-pie {
+    margin: 26px -18px 0;
+    padding: 16px 18px calc(16px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 430px) {
+  /* con ícono, "Preferencias" no cabe */
+  .pf-nav button svg { display: none }
+  .pf-nav button { font-size: 13px }
+}

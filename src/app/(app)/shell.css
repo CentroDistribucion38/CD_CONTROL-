@@ -80,7 +80,13 @@
   font-size: 13px;
   letter-spacing: .04em;
   flex: none;
+  /* es un enlace a Mi perfil: el borde blanco lo delata sin texto */
+  text-decoration: none;
+  border: 2px solid rgba(255,255,255,.9);
+  transition: border-color .14s, transform .14s;
 }
+a.sh-avatar:hover { border-color: #fff; transform: scale(1.06) }
+a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 
 /* botones de instalar / actualizar, sobre fondo oscuro */
 .sh-boton {
@@ -332,3 +338,21 @@
   .sh-modulo, .sh-cinta, .sh-boton { transition: none !important }
   .sh-gira { animation: none !important }
 }
+
+/* ====================== Texto grande (equipos de piso) ======================
+   Se activa desde Mi perfil › Preferencias. Sube el tamaño base de la app;
+   como casi todo está en px no hereda solo, así que se tocan las piezas que
+   de verdad se leen y se tocan con guantes: tablas, campos y botones. */
+.sh[data-grande="si"] { font-size: 17px }
+.sh[data-grande="si"] .tabla th,
+.sh[data-grande="si"] .tabla td { font-size: 15px; padding-top: 12px; padding-bottom: 12px }
+.sh[data-grande="si"] .campo,
+.sh[data-grande="si"] .pf-campo input,
+.sh[data-grande="si"] .pf-campo select { height: 54px; font-size: 17px }
+.sh[data-grande="si"] .btn-primario,
+.sh[data-grande="si"] .btn-secundario,
+.sh[data-grande="si"] .pf-btn { min-height: 54px; font-size: 16px }
+.sh[data-grande="si"] .etiqueta,
+.sh[data-grande="si"] .pf-campo label { font-size: 15px }
+.sh[data-grande="si"] .sh-datos span,
+.sh[data-grande="si"] .pf-reglas li { font-size: 14px }

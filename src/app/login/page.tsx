@@ -79,7 +79,24 @@ function Formulario() {
     }
 
     setEntro(true);
-    router.push(siguiente);
+
+    // Si la persona eligió un módulo de arranque en Mi perfil, se abre ese.
+    // El parámetro ?next= manda: significa que la traía una ruta concreta.
+    let destino = siguiente;
+    if (!params.get("next")) {
+      const { data: usuarioActual } = await supabase.auth.getUser();
+      if (usuarioActual.user) {
+        const { data: perfil } = await supabase
+          .from("perfiles")
+          .select("modulo_inicio")
+          .eq("id", usuarioActual.user.id)
+          .single();
+        const inicio = (perfil as { modulo_inicio?: string } | null)?.modulo_inicio;
+        if (inicio) destino = inicio;
+      }
+    }
+
+    router.push(destino);
     router.refresh();
   }
 

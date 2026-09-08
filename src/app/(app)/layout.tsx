@@ -37,7 +37,7 @@ export default async function AppLayout({
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("usuario, nombre, rol")
+    .select("*")
     .eq("id", user.id)
     .single();
 
@@ -45,7 +45,7 @@ export default async function AppLayout({
   const rol = perfil?.rol ?? "operador";
 
   return (
-    <div className="sh flex min-h-screen flex-col">
+    <div className="sh flex min-h-screen flex-col" data-grande={perfil?.texto_grande === true ? "si" : undefined}>
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
       <div className="flex flex-1 flex-col md:flex-row">
         <Navegacion nombre={nombre} rol={rol} />

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AccionesApp } from "./AccionesApp";
 
 /**
@@ -33,9 +34,14 @@ export function BarraSuperior({
       <div className="der">
         {turno && <span className="turno">{turno}</span>}
         <AccionesApp />
-        <div className="sh-avatar" title={usuario} aria-label={usuario}>
+        <Link
+          href="/perfil"
+          className="sh-avatar"
+          title={`${usuario} — Mi perfil`}
+          aria-label={`${usuario}. Ir a mi perfil`}
+        >
           {iniciales}
-        </div>
+        </Link>
       </div>
     </header>
   );
