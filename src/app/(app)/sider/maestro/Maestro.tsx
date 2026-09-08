@@ -153,18 +153,20 @@ export function Maestro({
 
   return (
     <>
+      {/* Un aviso, no el tema de la pantalla. Antes usaba .sin-tablas —el
+          panel gordo de "falta crear el módulo en Supabase"— y se llevaba
+          media pantalla para decir algo que se lee en tres segundos. Los
+          nombres siguen ahí, porque saber CUÁLES es la mitad del aviso;
+          lo que se fue es el tamaño. */}
       {!!sinFactores.length && (
-        <section className="sin-tablas">
-          <h2>{sinFactores.length} material{sinFactores.length > 1 ? "es" : ""} sin factores</h2>
+        <section className="m-faltan">
           <p>
-            A estos les falta cajas por estiba, unidades por caja o HL por unidad, así que
-            de ellos no se pueden calcular cajas, unidades ni hectolitros — y en el Excel
-            daban error. Están en null a propósito: poner un 1 sería inventarse el dato.
-            Si de verdad viajan, complétalos aquí; si no viajan, desactívalos.
+            <b>{sinFactores.length} material{sinFactores.length > 1 ? "es" : ""} sin factores</b>
+            {" — "}sin cajas por estiba, unidades por caja o HL por unidad no se pueden
+            calcular cajas, unidades ni HL. Están en null a propósito: poner un 1 sería
+            inventarse el dato. Complétalos si viajan, desactívalos si no.
           </p>
-          <p>
-            <b>{sinFactores.map((s) => s.descripcion).join(" · ")}</b>
-          </p>
+          <p className="cuales">{sinFactores.map((s) => s.descripcion).join(" · ")}</p>
         </section>
       )}
 
