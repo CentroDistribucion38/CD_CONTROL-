@@ -1010,6 +1010,94 @@ function selloFecha(): string {
  *  · Copiar informe — deja el tablero en el portapapeles listo para pegar
  *    en un correo. Es el formato en que de verdad se manda esto a diario.
  */
+/* ---------- Composición de las hojas ----------
+   Las hojas se dibujan una sola vez y sirven para las dos salidas: el PDF
+   mete cada hoja como página y el portapapeles pega esas mismas imágenes.
+   Así lo que se descarga y lo que se pega son idénticos, no dos armados
+   parecidos que pueden separarse con el tiempo. */
+
+/** A4 horizontal a 6 px por milímetro: nítido al imprimir y liviano al pegar. */
+const PX_MM = 6;
+const HOJA = { ancho: 297 * PX_MM, alto: 210 * PX_MM, margen: 10 * PX_MM };
+
+const TIPO = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+
+function cargarImagen(url: string): Promise<HTMLImageElement> {
+  return new Promise((ok, mal) => {
+    const im = new Image();
+    im.onload = () => ok(im);
+    im.onerror = () => mal(new Error("no cargó " + url));
+    im.src = url;
+  });
+}
+
+/**
+ * Reparte los bloques del tablero en hojas A4 y devuelve cada hoja como
+ * imagen, con el encabezado repetido y el pie numerado.
+ */
+async function componerHojas(fotos: Foto[], enc: string[]): Promise<string[]> {
+  const { ancho, alto, margen: M } = HOJA;
+  const util = ancho - M * 2;
+  const yInicio = M + 84;
+  const yTope = alto - M - 30;
+
+  let logo: HTMLImageElement | null = null;
+  try { logo = await cargarImagen("/marca/logo-b.png"); } catch { /* sin logo se sigue */ }
+
+  // 1. repartir: un bloque no se parte a la mitad entre dos hojas
+  const hojas: { im: HTMLImageElement; y: number; alto: number }[][] = [];
+  let actual: { im: HTMLImageElement; y: number; alto: number }[] = [];
+  let y = yInicio;
+
+  for (const f of fotos) {
+    const im = await cargarImagen(f.url);
+    const h = (f.al / f.an) * util;
+    if (y + h > yTope && actual.length) { hojas.push(actual); actual = []; y = yInicio; }
+    actual.push({ im, y, alto: h });
+    y += h + 24;
+  }
+  if (actual.length) hojas.push(actual);
+  if (!hojas.length) return [];
+
+  // 2. dibujar
+  const sello = selloFecha() + " · CONTROL";
+  return hojas.map((bloques, i) => {
+    const c = document.createElement("canvas");
+    c.width = ancho;
+    c.height = alto;
+    const g = c.getContext("2d")!;
+
+    g.fillStyle = "#FFFFFF";
+    g.fillRect(0, 0, ancho, alto);
+
+    // --- encabezado
+    if (logo) g.drawImage(logo, M, M - 6, 51, 51);
+    g.fillStyle = "#04203F";
+    g.font = `700 26px ${TIPO}`;
+    g.textBaseline = "alphabetic";
+    g.fillText(enc[0], M + 66, M + 22);
+    g.fillStyle = "#5B6B7F";
+    g.font = `400 17px ${TIPO}`;
+    g.fillText(enc[1], M + 66, M + 46);
+    g.fillStyle = "#E4002B";
+    g.fillRect(M, M + 60, util, 3);
+
+    // --- bloques
+    for (const b of bloques) g.drawImage(b.im, M, b.y, util, b.alto);
+
+    // --- pie
+    g.fillStyle = "#8C98A8";
+    g.font = `400 16px ${TIPO}`;
+    g.textAlign = "left";
+    g.fillText(sello, M, alto - M - 4);
+    g.textAlign = "right";
+    g.fillText(`Página ${i + 1} de ${hojas.length}`, ancho - M, alto - M - 4);
+    g.textAlign = "left";
+
+    return c.toDataURL("image/png");
+  });
+}
+
 function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[]; nombre: string } }) {
   const [estado, setEstado] = useState<"" | "listo" | "mal">("");
   const [aviso, setAviso] = useState("");
@@ -1026,56 +1114,31 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
     setEstado("mal");
   }
 
+  /** Prepara las hojas una sola vez y las guarda para las dos salidas. */
+  async function prepararHojas(enc: string[]): Promise<string[]> {
+    const fotos = await fotografiar();
+    if (!fotos.length) throw new Error("no se pudo leer el tablero");
+    const hojas = await componerHojas(fotos, enc);
+    if (!hojas.length) throw new Error("no se pudo componer el informe");
+    return hojas;
+  }
+
   async function generarPdf() {
     setTrabajando("pdf");
     try {
       const { enc, nombre } = armar();
-      const fotos = await fotografiar();
-      if (!fotos.length) throw new Error("no se pudo leer el tablero");
+      const hojas = await prepararHojas(enc);
 
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const ANCHO = 297, ALTO = 210, M = 10;
-      const util = ANCHO - M * 2;
-
-      const logo = document.querySelector<HTMLImageElement>(".sh-barra .esquina img")?.src;
-
-      function cabecera(): number {
-        if (logo) { try { pdf.addImage(logo, "PNG", M, M - 1, 8.5, 8.5); } catch {} }
-        pdf.setTextColor(4, 32, 63);
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(11);
-        pdf.text(enc[0], M + 11, M + 3);
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(7.5);
-        pdf.setTextColor(91, 107, 127);
-        pdf.text(enc[1], M + 11, M + 7);
-        pdf.setDrawColor(228, 0, 43);
-        pdf.setLineWidth(0.7);
-        pdf.line(M, M + 10, ANCHO - M, M + 10);
-        return M + 14;
-      }
-
-      let y = cabecera();
-      for (const im of fotos) {
-        const alto = (im.al / im.an) * util;
-        if (y + alto > ALTO - M - 5) { pdf.addPage(); y = cabecera(); }
-        pdf.addImage(im.url, "PNG", M, y, util, alto, undefined, "FAST");
-        y += alto + 4;
-      }
-
-      const sello = selloFecha();
-      const n = pdf.getNumberOfPages();
-      for (let i = 1; i <= n; i++) {
-        pdf.setPage(i);
-        pdf.setFontSize(7.5);
-        pdf.setTextColor(140, 152, 168);
-        pdf.text(sello + " · CONTROL", M, ALTO - 4.5);
-        pdf.text(`Página ${i} de ${n}`, ANCHO - M, ALTO - 4.5, { align: "right" });
-      }
-
+      hojas.forEach((hoja, i) => {
+        if (i > 0) pdf.addPage();
+        // La hoja ya trae encabezado y pie dibujados: entra completa.
+        pdf.addImage(hoja, "PNG", 0, 0, 297, 210, undefined, "FAST");
+      });
       pdf.save(nombre);
-      setAviso("PDF generado.");
+
+      setAviso(`PDF de ${hojas.length} hoja${hojas.length > 1 ? "s" : ""} generado.`);
       setEstado("listo");
     } catch (e) {
       // Si el navegador no puede rasterizar, al menos queda la impresión del
@@ -1087,17 +1150,15 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
     setTrabajando("");
   }
 
-  function armarHtml(enc: string[], fotos: Foto[]): string {
+  /** Lo que se pega en el correo: las MISMAS hojas del PDF, una debajo de otra. */
+  function armarHtml(enc: string[], hojas: string[]): string {
     return (
-      `<div style="font:14px Arial;color:#04203F;width:900px">` +
-      `<h2 style="font:bold 20px Arial;margin:0 0 2px">${enc[0]}</h2>` +
-      `<p style="margin:0 0 4px;color:#5B6B7F;font-size:12px">${enc[1]}</p>` +
-      `<div style="border-top:3px solid #E4002B;margin:10px 0 14px"></div>` +
-      fotos.map((im) =>
-        `<div style="margin-bottom:14px"><img src="${im.url}" width="900" ` +
-        `style="width:900px;max-width:100%;display:block"></div>`).join("") +
-      `<p style="margin-top:10px;font-size:11px;color:#5B6B7F">${selloFecha()} desde CONTROL ` +
-      `· la quiebra es neta: los reversos con cantidad positiva restan.</p></div>`
+      `<div style="font:14px Arial;color:#04203F">` +
+      hojas.map((h) =>
+        `<div style="margin-bottom:16px"><img src="${h}" width="1000" ` +
+        `style="width:1000px;max-width:100%;display:block;border:1px solid #D5DCE5" ` +
+        `alt="${enc[0]}"></div>`).join("") +
+      `</div>`
     );
   }
 
@@ -1116,12 +1177,12 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
   /**
    * OJO: esta función NO puede ser async.
    *
-   * El navegador solo permite escribir en el portapapeles mientras dure el
-   * gesto de la persona. Fotografiar el tablero toma varios segundos, así
-   * que si se hace `await` antes de llamar a clipboard.write, para cuando
-   * llega la escritura el permiso ya venció y la copia se bloquea sin
-   * decir nada. Por eso write() se llama de una, y lo que recibe son
-   * PROMESAS que se resuelven después con las fotos.
+   * El navegador solo permite escribir en el portapapeles mientras dura el
+   * gesto de la persona. Componer las hojas toma varios segundos, así que
+   * si se hace `await` antes de llamar a clipboard.write, para cuando llega
+   * la escritura el permiso ya venció y la copia se bloquea sin decir nada.
+   * Por eso write() se llama de una, y lo que recibe son PROMESAS que se
+   * resuelven después con las hojas.
    */
   function copiar() {
     const { texto, enc } = armar();
@@ -1133,9 +1194,9 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
       "write" in navigator.clipboard;
 
     let htmlListo = "";
-    const blobHtml = fotografiar()
-      .then((fotos) => {
-        htmlListo = armarHtml(enc, fotos);
+    const blobHtml = prepararHojas(enc)
+      .then((hojas) => {
+        htmlListo = armarHtml(enc, hojas);
         return new Blob([htmlListo], { type: "text/html" });
       })
       .finally(() => setTrabajando(""));
@@ -1147,7 +1208,7 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
     const deRespaldo = async (motivo: string) => {
       try {
         await navigator.clipboard.writeText(texto);
-        listo("Se copió el informe en texto. Las imágenes no cupieron.");
+        listo("Se copió el informe en texto: las imágenes no cupieron.");
       } catch {
         try {
           await blobHtml;
@@ -1168,10 +1229,12 @@ function AccionesInforme({ armar }: { armar: () => { texto: string; enc: string[
       .write([
         new ClipboardItem({
           "text/html": blobHtml,
+          // El texto plano viaja al lado: si el correo bloquea imágenes,
+          // igual quedan las cifras.
           "text/plain": new Blob([texto], { type: "text/plain" }),
         }),
       ])
-      .then(() => listo("Informe copiado. Pégalo en el correo."))
+      .then(() => listo("Hojas del informe copiadas. Pégalas en el correo."))
       .catch((e: unknown) => {
         const nombre = e instanceof Error ? e.name : "error";
         void deRespaldo(nombre);
