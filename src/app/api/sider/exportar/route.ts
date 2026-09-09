@@ -1,6 +1,7 @@
 /**
- * EXPORTAR SIDER CERTIFICADO — un .xlsx con portada, la base, el
- * seguimiento, la evidencia y las fotos incrustadas.
+ * EXPORTAR SIDER CERTIFICADO — se rellena la plantilla de
+ * public/plantillas/sider.xlsx: portada, base, panel de consulta,
+ * evidencia y fotos incrustadas.
  *
  * POR QUÉ EN EL SERVIDOR
  * Las fotos viven en un bucket privado. Armar esto en el navegador
@@ -97,7 +98,7 @@ export async function GET(req: Request) {
     ? `${MESES_LARGO[Number(mes.slice(5, 7)) - 1]} ${mes.slice(0, 4)}`
     : "Todo el histórico";
 
-  const { wb, recortadas } = await armarLibro({
+  const { archivo, recortadas } = await armarLibro({
     titulo,
     quien: user.email ?? "—",
     viajes, seg, certs, fotos, nombres,
@@ -110,13 +111,12 @@ export async function GET(req: Request) {
       : null,
   });
 
-  const salida = await wb.xlsx.writeBuffer();
   const nombre = `Sider Certificado ${mes ?? "historico"}.xlsx`;
-  return new NextResponse(salida as ArrayBuffer, {
+  return new NextResponse(new Uint8Array(archivo), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${nombre}"; filename*=UTF-8''${encodeURIComponent(nombre)}`,
-      "Content-Length": String((salida as ArrayBuffer).byteLength),
+      "Content-Length": String(archivo.byteLength),
       "Cache-Control": "no-store",
       /* Si se recortaron fotos hay que poder saberlo sin abrir el
          archivo: se dice en una cabecera y también en la hoja. */

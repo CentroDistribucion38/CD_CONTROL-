@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_VERSION: VERSION,
   },
+  /* El export de Sider ABRE public/plantillas/sider.xlsx en el servidor.
+     Vercel solo empaqueta los archivos que ve importados, y una ruta
+     armada con path.join no se ve: sin esto la exportación revienta en
+     producción y funciona en local, que es la peor combinación. */
+  outputFileTracingIncludes: {
+    "/api/sider/exportar": ["./public/plantillas/**", "./public/marca/**"],
+  },
 };
 
 export default nextConfig;
