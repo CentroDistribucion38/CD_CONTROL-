@@ -10,13 +10,13 @@
      cruzada con el reloj. */
   --sh-aire: 0px;
 
-  --sh-tinta:     #04203F;
-  --sh-azul:      #0B4EA2;
+  --sh-tinta:     var(--c-04203f);
+  --sh-azul:      var(--c-0b4ea2);
   --sh-rojo:      #E4002B;
-  --sh-hueso:     #EEF1F5;
+  --sh-hueso:     var(--c-eef1f5);
   --sh-papel:     #FFFFFF;
-  --sh-gris:      #5B6B7F;
-  --sh-linea:     #D5DCE5;
+  --sh-gris:      var(--c-5b6b7f);
+  --sh-linea:     var(--c-d5dce5);
 
   --sh-titulo: "Archivo", system-ui, sans-serif;
   --sh-texto:  "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -75,13 +75,13 @@
 .sh-barra .ruta { display: flex; align-items: center; gap: 10px; font-size: 14px; min-width: 0 }
 .sh-barra .ruta .wm {
   font-family: var(--sh-titulo); font-weight: 800; font-size: 13.5px;
-  letter-spacing: .2em; color: #7E97B5; white-space: nowrap;
+  letter-spacing: .2em; color: var(--c-7e97b5); white-space: nowrap;
 }
 .sh-barra .ruta .modulo {
   font-family: var(--sh-titulo); font-weight: 800; letter-spacing: .02em;
   color: #fff; white-space: nowrap;
 }
-.sh-barra .ruta .hoja { color: #A9C2DE; font-weight: 500; white-space: nowrap }
+.sh-barra .ruta .hoja { color: var(--c-a9c2de); font-weight: 500; white-space: nowrap }
 .sh-barra .ruta .sep { width: 14px; height: 14px; stroke: rgba(255,255,255,.4); fill: none; flex: none }
 .sh-barra .der {
   margin-left: auto;
@@ -89,7 +89,7 @@
   align-items: center;
   gap: 14px;
   font-size: 13.5px;
-  color: #A9C2DE;
+  color: var(--c-a9c2de);
 }
 .sh-avatar {
   width: 36px; height: 36px;
@@ -119,7 +119,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,.28);
   background: transparent;
-  color: #C9DCF0;
+  color: var(--c-c9dcf0);
   cursor: pointer;
   flex: none;
   transition: border-color .14s, color .14s, background .14s;
@@ -274,7 +274,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   border-radius: 2px;
   font-size: 12.5px;
   font-weight: 500;
-  color: #2C4361;
+  color: var(--c-2c4361);
 }
 
 .sh-abrir {
@@ -316,7 +316,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   color: var(--sh-gris);
   border-top: 1px solid var(--sh-linea);
 }
-.sh-pie b { font-weight: 600; color: #2C4361 }
+.sh-pie b { font-weight: 600; color: var(--c-2c4361) }
 .sh-pie button {
   color: var(--sh-azul);
   font-weight: 600;
@@ -431,7 +431,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 
 .sh-lado .grupo {
   padding: 0 0 8px 22px; margin-top: 20px; font-size: 10.5px; font-weight: 600;
-  letter-spacing: .16em; color: #6F87A5; opacity: 0; transition: opacity .12s; height: 14px;
+  letter-spacing: .16em; color: var(--c-6f87a5); opacity: 0; transition: opacity .12s; height: 14px;
 }
 .sh-lado:hover .grupo,
 .sh-lado:focus-within .grupo,
@@ -441,17 +441,17 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   position: relative;
   display: flex; align-items: center; gap: 16px;
   height: 46px; padding-left: 19px;
-  font-size: 14.5px; font-weight: 500; color: #A9C2DE; text-decoration: none;
+  font-size: 14.5px; font-weight: 500; color: var(--c-a9c2de); text-decoration: none;
   border-left: 3px solid transparent;
   flex: none;
 }
 .sh-lado .riel a:hover { background: rgba(255,255,255,.06); color: #fff }
 .sh-lado .riel a svg {
-  width: 22px; height: 22px; stroke: #7E97B5; stroke-width: 1.7; fill: none; flex: none;
+  width: 22px; height: 22px; stroke: var(--c-7e97b5); stroke-width: 1.7; fill: none; flex: none;
 }
-.sh-lado .riel a:hover svg { stroke: #D6E4F4 }
+.sh-lado .riel a:hover svg { stroke: var(--c-d6e4f4) }
 
-.sh-lado .riel a.volver { height: 44px; margin-top: 14px; color: #7E97B5; font-weight: 600; font-size: 13.5px }
+.sh-lado .riel a.volver { height: 44px; margin-top: 14px; color: var(--c-7e97b5); font-weight: 600; font-size: 13.5px }
 .sh-lado .riel a.volver svg { width: 20px; height: 20px }
 
 .sh-lado .riel a.modulo.on {
@@ -472,7 +472,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
    le dice nada a quien entra por primera vez. */
 .sh-lado .riel a .globo {
   position: absolute; left: 70px;
-  background: #0A2F55; color: #fff; font-size: 12.5px; font-weight: 500;
+  background: var(--c-0a2f55); color: #fff; font-size: 12.5px; font-weight: 500;
   padding: 6px 11px; border-radius: 2px; white-space: nowrap;
   opacity: 0; pointer-events: none; transition: opacity .1s;
   box-shadow: 0 10px 24px -12px rgba(0,0,0,.7);
@@ -517,12 +517,12 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   display: block; font-family: var(--sh-titulo); font-weight: 900; font-size: 17px;
   letter-spacing: .02em; color: #fff;
 }
-.sh-lado .sello .letras span { font-size: 11.5px; color: #8FB6E8; letter-spacing: .04em }
+.sh-lado .sello .letras span { font-size: 11.5px; color: var(--c-8fb6e8); letter-spacing: .04em }
 
 /* ---------- Anclar ---------- */
 .sh-lado .anclar {
   display: flex; align-items: center; gap: 16px; height: 44px; padding-left: 19px;
-  border: 0; background: none; color: #7E97B5; font: 600 13px var(--sh-texto); cursor: pointer;
+  border: 0; background: none; color: var(--c-7e97b5); font: 600 13px var(--sh-texto); cursor: pointer;
   border-top: 1px solid rgba(255,255,255,.08); flex: none;
 }
 .sh-lado .anclar:hover { color: #fff; background: rgba(255,255,255,.06) }

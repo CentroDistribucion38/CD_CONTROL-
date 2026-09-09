@@ -1,5 +1,246 @@
 @import "tailwindcss";
 
+/* =====================================================================
+   LA PALETA — un solo lugar donde vive el color
+   =====================================================================
+
+   Cada tono de marca de la aplicación es una variable. El nombre del
+   token ES su valor en el tema oficial: --c-2c4361 vale #2C4361. Así,
+   leyendo cualquier hoja de estilos, se sabe de qué color se habla sin
+   venir a buscar la tabla.
+
+   Cambiar de tema es cambiar los VALORES, nunca las hojas. Un tema nuevo
+   se escribe repitiendo este bloque bajo otro [data-tema="..."].
+
+   CÓMO SE CALCULÓ EL TEMA ÁMBAR
+   No se eligieron los colores a ojo. Cada tono se convirtió a OKLCH, se
+   le dejó EXACTAMENTE el mismo lightness y se le giró el tono al de
+   #FFC000 (84,6°). Al conservar el lightness se conserva el contraste:
+   donde había texto blanco sobre azul y se leía, ahora hay texto blanco
+   sobre ámbar oscuro y se lee igual de bien. Cuatro tonos se retocaron a
+   mano —van marcados con ←— para que el #FFC000 de verdad aparezca en
+   las superficies oscuras, que es donde luce.
+
+   LO QUE NO CAMBIA EN NINGÚN TEMA
+   El rojo de Bavaria, el verde de "cumple" y el ámbar de "ojo con esto"
+   son SEMÁFORO, no decoración: significan algo. Si cambiaran de tema en
+   tema, el rojo dejaría de querer decir rojo. Por eso quedaron fuera.
+   El logo tampoco se toca: es una imagen, no un color.
+   --------------------------------------------------------------------- */
+
+:root {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff: #fdfdff;  /* 1× */
+  --c-fbfbfe: #fbfbfe;  /* 1× */
+  --c-fafbfd: #fafbfd; /* 35× */
+  --c-f7fcfd: #f7fcfd;  /* 2× */
+  --c-f7f9fc: #f7f9fc; /* 16× */
+  --c-f4f7fb: #f4f7fb;  /* 4× */
+  --c-f4f6f9: #f4f6f9;  /* 3× */
+  --c-f2f5f9: #f2f5f9;  /* 1× */
+  --c-f1f5fa: #f1f5fa;  /* 3× */
+  --c-f1f4f8: #f1f4f8;  /* 1× */
+  --c-f1f3f6: #f1f3f6;  /* 1× */
+  --c-eef3f9: #eef3f9;  /* 1× */
+  --c-f2f1fc: #f2f1fc;  /* 1× */
+  --c-eaf4f6: #eaf4f6;  /* 1× */
+  --c-eef1f5: #eef1f5;  /* 6× */
+  --c-edf1f6: #edf1f6; /* 18× */
+  --c-eaf0f7: #eaf0f7;  /* 1× */
+  --c-edeff4: #edeff4;  /* 1× */
+  --c-e7ecf3: #e7ecf3;  /* 2× */
+  --c-e7ecf2: #e7ecf2;  /* 1× */
+  --c-e4e9ef: #e4e9ef;  /* 1× */
+
+  /* Bordes */
+  --c-dce8f6: #dce8f6;  /* 1× */
+  --c-dbe4f0: #dbe4f0;  /* 2× */
+  --c-d6e4f4: #d6e4f4;  /* 2× */
+  --c-dce2e9: #dce2e9;  /* 1× */
+  --c-d9e2ec: #d9e2ec;  /* 1× */
+  --c-c9e4e8: #c9e4e8;  /* 1× */
+  --c-d5dce5: #d5dce5;  /* 6× */
+  --c-c9dcf0: #c9dcf0;  /* 1× */
+  --c-c6d3e2: #c6d3e2;  /* 1× */
+  --c-c6d0dc: #c6d0dc; /* 10× */
+  --c-c3cedb: #c3cedb;  /* 1× */
+  --c-9fd3d9: #9fd3d9;  /* 3× */
+  --c-bcc7d4: #bcc7d4;  /* 1× */
+  --c-b9c4d2: #b9c4d2;  /* 4× */
+  --c-a9c2de: #a9c2de;  /* 3× */
+  --c-b4c0ce: #b4c0ce;  /* 7× */
+  --c-8fc7cf: #8fc7cf;  /* 1× */
+  --c-9fbede: #9fbede;  /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6: #a9b6c6;  /* 8× */
+  --c-8fb6e8: #8fb6e8;  /* 1× */
+  --c-9fb4cc: #9fb4cc;  /* 1× */
+  --c-9aa9bb: #9aa9bb;  /* 3× */
+  --c-94a3b4: #94a3b4;  /* 3× */
+  --c-93a3b6: #93a3b6; /* 24× */
+  --c-7e97b5: #7e97b5;  /* 4× */
+  --c-8494a8: #8494a8;  /* 3× */
+  --c-4c93ea: #4c93ea;  /* 1× */
+  --c-7d8ca0: #7d8ca0;  /* 1× */
+  --c-6f87a5: #6f87a5;  /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4: #3e7bc4;  /* 1× */
+  --c-1f6fd0: #1f6fd0;  /* 1× */
+  --c-5a7192: #5a7192;  /* 2× */
+  --c-2e6fbe: #2e6fbe;  /* 1× */
+  --c-5b6b7f: #5b6b7f;  /* 8× */
+  --c-0b7285: #0b7285;  /* 1× */
+  --c-0060b0: #0060b0;  /* 2× */
+  --c-4c3bcf: #4c3bcf;  /* 1× */
+  --c-0b4ea2: #0b4ea2;  /* 3× */
+  --c-075661: #075661;  /* 1× */
+  --c-004a8a: #004a8a;  /* 2× */
+  --c-17505c: #17505c;  /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b: #372a9b;  /* 1× */
+  --c-2c4361: #2c4361; /* 29× */
+  --c-0a3a6e: #0a3a6e;  /* 1× */
+  --c-0a2f55: #0a2f55;  /* 1× */
+  --c-04203f: #04203f;  /* 6× */
+  --c-0b1f35: #0b1f35;  /* 2× */
+
+  /* Translúcidos. Los que se VEN como color: el velo del visor de fotos
+     y el subrayado de los enlaces. Las sombras se quedaron en duro a
+     propósito: una sombra es una sombra en cualquier tema. */
+  --c-velo:       rgba(4,32,63,.62);
+  --c-velo-hondo: rgba(4,32,63,.90);
+  --c-raya:       rgba(11,114,133,.35);
+  --c-degrade:    rgba(139,155,179,.40);
+}
+
+/* ---------------------------------------------------------------------
+   TEMA ÁMBAR — la referencia que pediste: RGB 255,192,0 = #FFC000.
+   Se aplica en .sh, que es el cascarón: todo lo que se pinta adentro
+   —barra, menú, módulos— hereda estos valores. La pantalla de acceso
+   queda por fuera a propósito: ahí todavía no se sabe quién entra.
+   --------------------------------------------------------------------- */
+
+[data-tema="ambar"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff: #fefdfb;  /* 1× */
+  --c-fbfbfe: #fdfbf8;  /* 1× */
+  --c-fafbfd: #fcfbf9; /* 35× */
+  --c-f7fcfd: #fdfbf7;  /* 2× */
+  --c-f7f9fc: #faf9f5; /* 16× */
+  --c-f4f7fb: #f9f6f2;  /* 4× */
+  --c-f4f6f9: #f7f6f2;  /* 3× */
+  --c-f2f5f9: #f7f4f0;  /* 1× */
+  --c-f1f5fa: #f7f4ef;  /* 3× */
+  --c-f1f4f8: #f6f3ef;  /* 1× */
+  --c-f1f3f6: #f4f3ef;  /* 1× */
+  --c-eef3f9: #f5f2eb;  /* 1× */
+  --c-f2f1fc: #f7f2e8;  /* 1× */
+  --c-eaf4f6: #f5f1ea;  /* 1× */
+  --c-eef1f5: #f3f0ec;  /* 6× */
+  --c-edf1f6: #f3f0eb; /* 18× */
+  --c-eaf0f7: #f3efe7;  /* 1× */
+  --c-edeff4: #f1efea;  /* 1× */
+  --c-e7ecf3: #efebe4;  /* 2× */
+  --c-e7ecf2: #eeebe4;  /* 1× */
+  --c-e4e9ef: #ebe8e1;  /* 1× */
+
+  /* Bordes */
+  --c-dce8f6: #eee6d6;  /* 1× */
+  --c-dbe4f0: #e9e2d5;  /* 2× */
+  --c-d6e4f4: #ebe1cf;  /* 2× */
+  --c-dce2e9: #e5e1d9;  /* 1× */
+  --c-d9e2ec: #e6e0d5;  /* 1× */
+  --c-c9e4e8: #e7ddc9;  /* 1× */
+  --c-d5dce5: #e0dbd1;  /* 6× */
+  --c-c9dcf0: #ffcf4d;  /* 1× ← */
+  --c-c6d3e2: #d9d1bf;  /* 1× */
+  --c-c6d0dc: #d5cec1; /* 10× */
+  --c-c3cedb: #d3ccbd;  /* 1× */
+  --c-9fd3d9: #d9c6a0;  /* 3× */
+  --c-bcc7d4: #ccc5b6;  /* 1× */
+  --c-b9c4d2: #cac2b2;  /* 4× */
+  --c-a9c2de: #e8d2a3;  /* 3× ← */
+  --c-b4c0ce: #c6beae;  /* 7× */
+  --c-8fc7cf: #cdb991;  /* 1× */
+  --c-9fbede: #cbb891;  /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6: #bdb4a2;  /* 8× */
+  --c-8fb6e8: #ffc000;  /* 1× ← */
+  --c-9fb4cc: #beb094;  /* 1× */
+  --c-9aa9bb: #b1a692;  /* 3× */
+  --c-94a3b4: #aaa08c;  /* 3× */
+  --c-93a3b6: #aba08a; /* 24× */
+  --c-7e97b5: #b59a63;  /* 4× ← */
+  --c-8494a8: #9c917a;  /* 3× */
+  --c-4c93ea: #b88900;  /* 1× */
+  --c-7d8ca0: #958973;  /* 1× */
+  --c-6f87a5: #948360;  /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4: #9a7200;  /* 1× */
+  --c-1f6fd0: #8f6b00;  /* 1× */
+  --c-5a7192: #806d47;  /* 2× */
+  --c-2e6fbe: #8d6800;  /* 1× */
+  --c-5b6b7f: #746851;  /* 8× */
+  --c-0b7285: #7d6122;  /* 1× */
+  --c-0060b0: #7a5a00;  /* 2× */
+  --c-4c3bcf: #755600;  /* 1× */
+  --c-0b4ea2: #694d00;  /* 3× */
+  --c-075661: #5e4919;  /* 1× */
+  --c-004a8a: #5f4500;  /* 2× */
+  --c-17505c: #57451e;  /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b: #563f00;  /* 1× */
+  --c-2c4361: #503f19; /* 29× */
+  --c-0a3a6e: #4c3700;  /* 1× */
+  --c-0a2f55: #3d2b00;  /* 1× */
+  --c-04203f: #2b1d00;  /* 6× */
+  --c-0b1f35: #291c00;  /* 2× */
+
+  /* Translúcidos */
+  --c-velo:       rgba(43,29,0,.62);
+  --c-velo-hondo: rgba(43,29,0,.90);
+  --c-raya:       rgba(125,97,34,.35);
+  --c-degrade:    rgba(171,160,138,.40);
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     así que hay que volver a declararlos aquí para que tomen los valores
+     de arriba. Es el mismo texto: cambia contra qué se resuelve. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo se vuelven a fijar AQUÍ. Una variable con
+     var() adentro se resuelve en el elemento donde se declara, no donde
+     se usa: `body { color: var(--bv-texto) }` ya quedó resuelto en el
+     body —que está por fuera de este bloque— con el valor oficial. Todo
+     texto que solo hereda su color se veía azul en tema ámbar. Se probó:
+     el h2 de Preferencias salía #0b1f35 en los dos temas. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+/* El fondo del body, por el rebote del celular: cuando se arrastra más
+   allá del final, asoma el body y se vería la franja del otro tema. */
+body:has(.sh[data-tema="ambar"]) { background: #f9f6f2 }
+
+
 /* ---------------------------------------------------------------------
    Paleta clara. Los nombres de las variables se mantienen para no tener
    que tocar los componentes: solo cambian los valores.
@@ -27,13 +268,13 @@
 }
 
 :root {
-  --bv-azul: #0060b0;
-  --bv-azul-oscuro: #004a8a;
-  --bv-tinta: #f4f7fb;
+  --bv-azul: var(--c-0060b0);
+  --bv-azul-oscuro: var(--c-004a8a);
+  --bv-tinta: var(--c-f4f7fb);
   --bv-panel: #ffffff;
-  --bv-linea: #dbe4f0;
-  --bv-texto: #0b1f35;
-  --bv-texto-2: #5a7192;
+  --bv-linea: var(--c-dbe4f0);
+  --bv-texto: var(--c-0b1f35);
+  --bv-texto-2: var(--c-5a7192);
   --bv-alerta: #b26a00;
 
   --sombra-suave: 0 1px 2px rgba(16,32,58,.05), 0 10px 24px -14px rgba(16,32,58,.28);
@@ -129,11 +370,11 @@ body {
     linear-gradient(116deg,rgba(226,0,15,0) 58%,rgba(226,0,15,.014) 66%,rgba(226,0,15,.028) 71%,
       rgba(226,0,15,.055) 76%,rgba(226,0,15,.082) 79%,rgba(226,0,15,.106) 81%,
       rgba(226,0,15,.132) 85%,rgba(226,0,15,.152) 89%,rgba(226,0,15,.170) 100%),
-    linear-gradient(92deg,#fff 0%,#fdfdff 58%,#fbfbfe 100%);
+    linear-gradient(92deg,#fff 0%,var(--c-fdfdff) 58%,var(--c-fbfbfe) 100%);
   box-shadow:0 1px 2px rgba(15,31,56,.05),0 14px 34px -24px rgba(15,31,56,.55)}
 .banda .titulo{position:relative;flex:1;min-width:300px;padding-left:16px}
 .banda .titulo::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:3px;
-  background:linear-gradient(180deg,#e2313c 0%,#e2313c 34%,rgba(139,155,179,.40) 100%)}
+  background:linear-gradient(180deg,#e2313c 0%,#e2313c 34%,var(--c-degrade) 100%)}
 .banda .eyebrow{font-size:10px;font-weight:600;letter-spacing:.20em;text-transform:uppercase;
   color:var(--bv-texto-2);margin:0 0 6px}
 .banda h1{font-size:24px;font-weight:700;letter-spacing:-.022em;line-height:1.1;margin:0}
@@ -207,11 +448,11 @@ body {
 
 .bloque svg{display:block;width:100%;height:auto;overflow:visible}
 .eje{font-size:10.5px;fill:var(--bv-texto-2)}
-.gridline{stroke:#eef3f9;stroke-width:1}
+.gridline{stroke:var(--c-eef3f9);stroke-width:1}
 .dato{font-size:10.5px;font-weight:600}
 .cod{color:var(--bv-texto-2);font-size:10.5px}
 .barrita{height:5px;border-radius:99px;min-width:3px;
-  background:linear-gradient(90deg,#4c93ea 0%,#1f6fd0 100%)}
+  background:linear-gradient(90deg,var(--c-4c93ea) 0%,var(--c-1f6fd0) 100%)}
 .vacio{padding:34px 0;text-align:center;color:var(--bv-texto-2);font-size:13px}
 .pie{font-size:11.5px;color:var(--bv-texto-2);margin:6px 0 0}
 

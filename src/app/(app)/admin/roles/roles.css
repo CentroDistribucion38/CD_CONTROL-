@@ -2,8 +2,8 @@
    Roles. Cuelga de .rl para no pisar nada de la app.
    --------------------------------------------------------------------- */
 .rl {
-  --rl-tinta: #04203F; --rl-acento: #4C3BCF; --rl-hondo: #372a9b;
-  --rl-gris: #5B6B7F; --rl-linea: #D5DCE5; --rl-papel: #FFF;
+  --rl-tinta: var(--c-04203f); --rl-acento: var(--c-4c3bcf); --rl-hondo: var(--c-372a9b);
+  --rl-gris: var(--c-5b6b7f); --rl-linea: var(--c-d5dce5); --rl-papel: #FFF;
   --rl-verde: #0F7A4A; --rl-rojo: #E4002B; --rl-oro: #E9A81F;
   --rl-titulo: "Archivo", system-ui, sans-serif;
   --rl-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
@@ -35,7 +35,7 @@
   font-family: var(--rl-titulo); font-weight: 800; font-size: 13.5px;
 }
 .rl .btn:hover:not(:disabled) { background: var(--rl-hondo) }
-.rl .btn:disabled { background: #B4C0CE; cursor: not-allowed }
+.rl .btn:disabled { background: var(--c-b4c0ce); cursor: not-allowed }
 .rl .btn.plano {
   background: none; color: var(--rl-gris); padding: 0 6px;
   font-family: var(--rl-texto); font-weight: 600; font-size: 13px;
@@ -45,7 +45,7 @@
 .rl input {
   width: 100%; height: 40px; padding: 0 11px;
   font: 500 14px var(--rl-texto); color: var(--rl-tinta);
-  background: #F7F9FC; border: 1.5px solid var(--rl-linea); border-radius: 2px;
+  background: var(--c-f7f9fc); border: 1.5px solid var(--rl-linea); border-radius: 2px;
 }
 .rl input:focus {
   outline: none; background: #fff; border-color: var(--rl-acento);
@@ -71,10 +71,10 @@
 .rl .rl-roles { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rl-linea) }
 .rl .rl-roles button {
   width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
-  padding: 11px 20px; border-bottom: 1px solid #EDF1F6; display: block;
+  padding: 11px 20px; border-bottom: 1px solid var(--c-edf1f6); display: block;
 }
-.rl .rl-roles button:hover { background: #F7F9FC }
-.rl .rl-roles button.aqui { background: #F2F1FC; box-shadow: inset 3px 0 0 var(--rl-acento) }
+.rl .rl-roles button:hover { background: var(--c-f7f9fc) }
+.rl .rl-roles button.aqui { background: var(--c-f2f1fc); box-shadow: inset 3px 0 0 var(--rl-acento) }
 .rl .rl-roles b {
   display: flex; align-items: center; gap: 7px;
   font-family: var(--rl-titulo); font-weight: 800; font-size: 14.5px;
@@ -89,7 +89,7 @@
   display: grid; gap: 10px; padding: 0 20px 16px; border-bottom: 1px solid var(--rl-linea);
 }
 .rl .rl-nuevo label { display: flex; flex-direction: column; gap: 5px }
-.rl .rl-nuevo span { font-size: 11.5px; font-weight: 600; color: #2C4361 }
+.rl .rl-nuevo span { font-size: 11.5px; font-weight: 600; color: var(--c-2c4361) }
 .rl .rl-nuevo em {
   font-style: normal; font-size: 11px; color: var(--rl-gris);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -111,7 +111,7 @@
 .rl .rl-modulo:last-child { border-bottom: 0 }
 .rl .rl-modulo header {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  padding: 9px 20px 9px 17px; background: #FAFBFD; border-left: 3px solid;
+  padding: 9px 20px 9px 17px; background: var(--c-fafbfd); border-left: 3px solid;
   position: sticky; top: 0; z-index: 2;
 }
 .rl .rl-modulo header b { font-family: var(--rl-titulo); font-weight: 800; font-size: 13.5px }
@@ -127,26 +127,26 @@
 .rl .rl-modulo ul { list-style: none; margin: 0; padding: 0 }
 .rl .rl-modulo li {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 9px 20px; border-bottom: 1px solid #F2F5F9;
+  padding: 9px 20px; border-bottom: 1px solid var(--c-f2f5f9);
 }
 .rl .rl-modulo li:last-child { border-bottom: 0 }
 .rl .rl-sec { min-width: 0 }
 .rl .rl-sec b { display: block; font-size: 13.5px; font-weight: 600 }
 .rl .rl-sec em {
-  font-style: normal; font-size: 11px; color: #93A3B6;
+  font-style: normal; font-size: 11px; color: var(--c-93a3b6);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* Los tres niveles como un solo control: se ve cuál está puesto sin
    leer, y se cambia con un toque. */
-.rl .rl-niveles { display: flex; flex: none; background: #EEF1F5; border-radius: 3px; padding: 2px }
+.rl .rl-niveles { display: flex; flex: none; background: var(--c-eef1f5); border-radius: 3px; padding: 2px }
 .rl .rl-n {
   border: 0; background: none; cursor: pointer; border-radius: 2px;
   font: 700 11.5px var(--rl-titulo); color: var(--rl-gris); padding: 5px 11px; white-space: nowrap;
 }
 .rl .rl-n:hover { color: var(--rl-tinta) }
 .rl .rl-n.aqui { background: #fff; box-shadow: 0 1px 2px rgba(4,32,63,.14) }
-.rl .rl-ninguno.aqui { color: #93A3B6 }
+.rl .rl-ninguno.aqui { color: var(--c-93a3b6) }
 .rl .rl-ver.aqui     { color: var(--rl-acento) }
 .rl .rl-editar.aqui  { color: var(--rl-verde) }
 .rl .rl-n:focus-visible { outline: 3px solid var(--rl-acento); outline-offset: -1px }
@@ -154,7 +154,7 @@
 .rl .rl-vacio { margin: 0; padding: 24px 20px; font-size: 13px; color: var(--rl-gris) }
 .rl .rl-pie {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding: 12px 20px; background: #FAFBFD; border-top: 1px solid var(--rl-linea);
+  padding: 12px 20px; background: var(--c-fafbfd); border-top: 1px solid var(--rl-linea);
 }
 .rl .rl-pie span { font-size: 11.5px; color: var(--rl-gris) }
 

@@ -49,14 +49,14 @@
 }
 .qd .qd-atajos .rot {
   font-size: 11px; font-weight: 600; letter-spacing: .12em;
-  color: #93A3B6; text-transform: uppercase; margin-right: 4px;
+  color: var(--c-93a3b6); text-transform: uppercase; margin-right: 4px;
 }
 .qd .qd-atajos button {
   height: 36px; padding: 0 14px; cursor: pointer; white-space: nowrap;
-  border: 1.5px solid #EDF1F6; background: #FAFBFD; border-radius: 8px;
+  border: 1.5px solid var(--c-edf1f6); background: var(--c-fafbfd); border-radius: 8px;
   font: 600 13.5px var(--qb-texto); color: var(--qb-gris);
 }
-.qd .qd-atajos button:hover { color: var(--qb-tinta); border-color: #C6D3E2 }
+.qd .qd-atajos button:hover { color: var(--qb-tinta); border-color: var(--c-c6d3e2) }
 .qd .qd-atajos button.on { background: var(--qb-tinta); border-color: var(--qb-tinta); color: #fff }
 .qd .qd-atajos button:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: 2px }
 
@@ -64,20 +64,20 @@
 .qd .qd-p {
   width: 42px; height: 50px; flex: none; padding: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  background: #fff; border: 1.5px solid #DCE8F6; border-radius: 10px; cursor: pointer;
+  background: #fff; border: 1.5px solid var(--c-dce8f6); border-radius: 10px; cursor: pointer;
 }
 .qd .qd-p .n {
   font-family: var(--qb-titulo); font-weight: 800; font-size: 17px;
   line-height: 1; color: var(--qb-tinta);
 }
 /* El punto dice de dónde salió la cifra del día. */
-.qd .qd-p .pt { width: 7px; height: 7px; border-radius: 50%; background: #3E7BC4 }
+.qd .qd-p .pt { width: 7px; height: 7px; border-radius: 50%; background: var(--c-3e7bc4) }
 .qd .qd-p.escrito { border-color: #F6C6D1 }
 .qd .qd-p.escrito .pt { background: var(--qb-rojo) }
-.qd .qd-p.vacio { border-color: #F1F3F6 }
-.qd .qd-p.vacio .n { color: #C6D0DC }
-.qd .qd-p.vacio .pt { background: #E4E9EF }
-.qd .qd-p:hover { border-color: #9FB4CC }
+.qd .qd-p.vacio { border-color: var(--c-f1f3f6) }
+.qd .qd-p.vacio .n { color: var(--c-c6d0dc) }
+.qd .qd-p.vacio .pt { background: var(--c-e4e9ef) }
+.qd .qd-p:hover { border-color: var(--c-9fb4cc) }
 /* El día que está ABIERTO en la hoja de abajo lleva un anillo rojo. Es
    distinto de estar marcado: marcados pueden ser varios, abierto hay
    uno solo. */
@@ -98,8 +98,8 @@
 .qd .qd-ley span { display: inline-flex; align-items: center; gap: 7px }
 .qd .qd-ley i { width: 9px; height: 9px; border-radius: 50%; flex: none }
 .qd .qd-ley i.esc { background: var(--qb-rojo) }
-.qd .qd-ley i.sap { background: #2E6FBE }
-.qd .qd-ley i.no { background: #DCE2E9 }
+.qd .qd-ley i.sap { background: var(--c-2e6fbe) }
+.qd .qd-ley i.no { background: var(--c-dce2e9) }
 .qd .qd-ley b {
   font-family: var(--qb-titulo); font-weight: 800; font-size: 12.5px; color: var(--qb-tinta);
   padding-left: 14px; border-left: 1px solid var(--qb-linea);
@@ -119,8 +119,8 @@
   vertical-align: 1px;
 }
 .qd .qd-sello.escrito { background: #FDE7EB; color: #A4102A }
-.qd .qd-sello.sap { background: #EAF0F7; color: #2C4361 }
-.qd .qd-sello.falta { background: #F4F6F9; color: #93A3B6 }
+.qd .qd-sello.sap { background: var(--c-eaf0f7); color: var(--c-2c4361) }
+.qd .qd-sello.falta { background: var(--c-f4f6f9); color: var(--c-93a3b6) }
 .qd td .qd-sello { margin-left: 0 }
 
 /* ====================== Gráficos del mes ====================== */
@@ -173,7 +173,7 @@
 .qd .qd-tabla-dias { max-height: 460px; overflow-y: auto }
 .qd .qd-tabla-dias thead th { position: sticky; top: 0; z-index: 2 }
 .qd .qd-fila-dia { cursor: pointer }
-.qd .qd-fila-dia.futuro td { color: #A9B6C6 }
+.qd .qd-fila-dia.futuro td { color: var(--c-a9b6c6) }
 .qd .qd-fila-dia.sel { background: #FDF0F3 }
 .qd .qd-fila-dia.sel td:first-child { box-shadow: inset 3px 0 0 var(--qb-rojo) }
 .qd .qd-fila-dia.ancla td.mes { font-weight: 900 }
@@ -209,7 +209,7 @@
 .qd table.rj { border-collapse: separate; border-spacing: 0; width: auto; min-width: 100% }
 
 .qd .rj th, .qd .rj td {
-  border-right: 1px solid #EDF1F6; border-bottom: 1px solid #EDF1F6;
+  border-right: 1px solid var(--c-edf1f6); border-bottom: 1px solid var(--c-edf1f6);
   padding: 0; margin: 0; background: #fff;
 }
 .qd .rj .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
@@ -218,17 +218,17 @@
 .qd .rj th.rot {
   position: sticky; left: 0; z-index: 3;
   min-width: 178px; max-width: 178px; text-align: left;
-  padding: 9px 14px; background: #FAFBFD;
+  padding: 9px 14px; background: var(--c-fafbfd);
   font: 600 13.5px var(--qb-texto); color: var(--qb-tinta);
   border-right: 1px solid var(--qb-linea);
 }
 .qd .rj th.rot em {
-  display: block; font-style: normal; font-size: 11px; color: #93A3B6; margin-top: 1px;
+  display: block; font-style: normal; font-size: 11px; color: var(--c-93a3b6); margin-top: 1px;
 }
 
 /* ---------- La fila de días, pegada arriba ---------- */
 .qd .rj thead th {
-  position: sticky; top: 0; z-index: 4; background: #FAFBFD;
+  position: sticky; top: 0; z-index: 4; background: var(--c-fafbfd);
   border-bottom: 1px solid var(--qb-linea);
 }
 .qd .rj thead th.rot { z-index: 5 }
@@ -240,7 +240,7 @@
 .qd .rj thead th button b {
   font-family: var(--qb-titulo); font-weight: 800; font-size: 14px; color: var(--qb-tinta);
 }
-.qd .rj thead th button span { font-size: 10.5px; color: #93A3B6 }
+.qd .rj thead th button span { font-size: 10.5px; color: var(--c-93a3b6) }
 .qd .rj thead th button:hover b { color: var(--qb-rojo) }
 
 /* El día abierto, marcado de arriba abajo. */
@@ -249,7 +249,7 @@
 .qd .rj thead th.aqui button b { color: var(--qb-rojo) }
 
 /* ---------- Filas calculadas ---------- */
-.qd .rj tr.calc td { background: #FAFBFD; padding: 9px 10px; font-size: 12.5px; color: #2C4361 }
+.qd .rj tr.calc td { background: var(--c-fafbfd); padding: 9px 10px; font-size: 12.5px; color: var(--c-2c4361) }
 .qd .rj tr.calc td.aqui { background: #FDF0F3 }
 .qd .rj tr.pct td { font-family: var(--qb-titulo); font-weight: 800; font-size: 13.5px }
 .qd .rj tr.pct td.sobre { color: var(--qb-rojo) }
@@ -258,7 +258,7 @@
 /* ---------- La columna Total, pegada a la derecha ---------- */
 .qd .rj .total {
   position: sticky; right: 0; z-index: 3;
-  background: #F4F7FB; border-left: 1px solid var(--qb-linea);
+  background: var(--c-f4f7fb); border-left: 1px solid var(--qb-linea);
   padding: 9px 14px; min-width: 116px;
   font-family: var(--qb-titulo); font-weight: 800; font-size: 13.5px;
 }
@@ -272,8 +272,8 @@
   text-align: right; font-variant-numeric: tabular-nums;
   background: #fff; border: 1.5px solid transparent; border-radius: 3px;
 }
-.qd .rj td.cel input::placeholder { color: #BCC7D4; font-weight: 400 }
-.qd .rj td.cel input:hover:not(:disabled) { border-color: #D9E2EC }
+.qd .rj td.cel input::placeholder { color: var(--c-bcc7d4); font-weight: 400 }
+.qd .rj td.cel input:hover:not(:disabled) { border-color: var(--c-d9e2ec) }
 .qd .rj td.cel input:focus {
   outline: none; border-color: var(--qb-azul);
   box-shadow: 0 0 0 3px rgba(11,78,162,.16); position: relative; z-index: 2;
@@ -285,7 +285,7 @@
 .qd .rj td.cel.difiere input { border-color: var(--qb-rojo) }
 /* El total de un día que tiene desglose: se calcula, no se escribe. */
 .qd .rj td.sumado {
-  padding: 9px 10px; background: #F7F9FC; color: #2C4361;
+  padding: 9px 10px; background: var(--c-f7f9fc); color: var(--c-2c4361);
   font-weight: 600; font-size: 12.5px; text-align: right;
 }
 
@@ -293,9 +293,9 @@
 .qd .rj tr.rj-sep th {
   position: sticky; left: 0; z-index: 3;
   min-width: 0; max-width: none; text-align: left;
-  padding: 14px 14px 8px; background: #FAFBFD;
+  padding: 14px 14px 8px; background: var(--c-fafbfd);
   font-family: var(--qb-titulo); font-weight: 800; font-size: 12.5px;
-  letter-spacing: .06em; text-transform: uppercase; color: #2C4361;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--c-2c4361);
   border-top: 1px solid var(--qb-linea);
 }
 .qd .rj tr.rj-sep th em {
@@ -314,11 +314,11 @@
 
 /* ====================== Nota y LE del día ====================== */
 .qd .qd-nota { padding: 20px 26px; border-top: 1px solid var(--qb-linea) }
-.qd .qd-nota label { display: block; font-size: 12px; font-weight: 600; color: #2C4361; margin-bottom: 7px }
+.qd .qd-nota label { display: block; font-size: 12px; font-weight: 600; color: var(--c-2c4361); margin-bottom: 7px }
 .qd .qd-nota textarea {
   width: 100%; padding: 10px 12px; resize: vertical;
   font: 500 14px var(--qb-texto); color: var(--qb-tinta);
-  background: #F7F9FC; border: 1.5px solid var(--qb-linea); border-radius: 2px;
+  background: var(--c-f7f9fc); border: 1.5px solid var(--qb-linea); border-radius: 2px;
 }
 .qd .qd-nota textarea:focus {
   outline: none; background: #fff; border-color: var(--qb-azul);
@@ -329,14 +329,14 @@
 }
 .qd .qd-le .rot {
   font-size: 11px; font-weight: 600; letter-spacing: .12em;
-  color: #93A3B6; text-transform: uppercase; padding-bottom: 12px;
+  color: var(--c-93a3b6); text-transform: uppercase; padding-bottom: 12px;
 }
 .qd .qd-le label { display: flex; flex-direction: column; gap: 6px; margin: 0; font-size: 12px }
 .qd .qd-le input {
   width: 132px; height: 40px; padding: 0 11px; text-align: right;
   font: 500 14px var(--qb-texto); color: var(--qb-tinta);
   font-variant-numeric: tabular-nums;
-  background: #F7F9FC; border: 1.5px solid var(--qb-linea); border-radius: 2px;
+  background: var(--c-f7f9fc); border: 1.5px solid var(--qb-linea); border-radius: 2px;
 }
 .qd .qd-le input:focus {
   outline: none; background: #fff; border-color: var(--qb-azul);
@@ -349,7 +349,7 @@
 /* ---------- Botonera ---------- */
 .qd .qd-acciones {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding: 18px 26px; background: #FAFBFD; border-top: 1px solid var(--qb-linea);
+  padding: 18px 26px; background: var(--c-fafbfd); border-top: 1px solid var(--qb-linea);
 }
 .qd .qd-btn {
   height: 44px; padding: 0 24px; border: 0; border-radius: 2px; cursor: pointer;
@@ -357,21 +357,21 @@
   font-family: var(--qb-titulo); font-weight: 800; font-size: 14px;
 }
 .qd .qd-btn:hover:not(:disabled) { background: #FF1C38 }
-.qd .qd-btn:disabled { background: #B4C0CE; cursor: not-allowed }
+.qd .qd-btn:disabled { background: var(--c-b4c0ce); cursor: not-allowed }
 .qd .qd-btn:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: 2px }
 .qd .qd-btn.plano {
   background: none; color: var(--qb-gris); padding: 0 6px;
   font-family: var(--qb-texto); font-weight: 600; font-size: 13.5px;
 }
 .qd .qd-btn.plano:hover:not(:disabled) { background: none; color: var(--qb-rojo) }
-.qd .qd-btn.plano:disabled { background: none; color: #C6D0DC }
+.qd .qd-btn.plano:disabled { background: none; color: var(--c-c6d0dc) }
 
 .qd .qd-estado {
   margin-left: auto; flex: none; font-size: 12.5px; color: var(--qb-gris);
   white-space: nowrap; padding-top: 4px;
 }
 .qd .qd-hoja .cab .qd-estado {
-  border: 1.5px solid var(--qb-linea); border-radius: 2px; padding: 7px 12px; background: #FAFBFD;
+  border: 1.5px solid var(--qb-linea); border-radius: 2px; padding: 7px 12px; background: var(--c-fafbfd);
 }
 .qd .qd-estado.sucio { color: var(--qb-rojo); font-weight: 600 }
 .qd .qd-hoja .cab .qd-estado.sucio { border-color: #F0B7C2; background: #FFF6F7 }
@@ -384,11 +384,11 @@
 .qd .qd-checks { list-style: none; margin: 0; padding: 0 }
 .qd .qd-checks li {
   display: flex; gap: 12px; align-items: flex-start;
-  padding: 12px 0; border-bottom: 1px solid #EDF1F6; font-size: 13.5px; line-height: 1.45;
+  padding: 12px 0; border-bottom: 1px solid var(--c-edf1f6); font-size: 13.5px; line-height: 1.45;
 }
 .qd .qd-checks li:last-child { border-bottom: 0 }
 .qd .qd-checks li i {
-  width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 5px; background: #C6D0DC;
+  width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 5px; background: var(--c-c6d0dc);
 }
 /* Los estados llevan prefijo propio a propósito: una clase suelta como
    .ojo ya existe en quiebra.css (el rótulo chiquito en mayúsculas) y le
@@ -477,7 +477,7 @@
   .qd .qd-linea .num { text-align: left; position: relative; padding-top: 15px; min-width: 0 }
   .qd .qd-linea .num::before {
     position: absolute; top: 0; left: 0;
-    font-size: 10px; font-weight: 600; letter-spacing: .1em; color: #A9B6C6; text-transform: uppercase;
+    font-size: 10px; font-weight: 600; letter-spacing: .1em; color: var(--c-a9b6c6); text-transform: uppercase;
   }
   .qd .qd-linea .num.sap::before { content: "SAP" }
   .qd .qd-linea .num.esc::before { content: "Escrito" }

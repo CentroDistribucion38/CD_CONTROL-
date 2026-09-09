@@ -6,14 +6,14 @@
    --------------------------------------------------------------------- */
 
 .qb {
-  --qb-tinta: #04203F;
-  --qb-azul: #0B4EA2;
+  --qb-tinta: var(--c-04203f);
+  --qb-azul: var(--c-0b4ea2);
   --qb-rojo: #E4002B;
   --qb-hondo: #B8001F;
   --qb-oro: #E9A81F;
   --qb-papel: #FFF;
-  --qb-gris: #5B6B7F;
-  --qb-linea: #D5DCE5;
+  --qb-gris: var(--c-5b6b7f);
+  --qb-linea: var(--c-d5dce5);
 
   --qb-titulo: "Archivo", system-ui, sans-serif;
   --qb-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
@@ -73,15 +73,15 @@
 .qb .filtros { background: var(--qb-papel); border: 1px solid var(--qb-linea); border-radius: 3px }
 .qb .filtros .arriba { display: flex; align-items: flex-end; gap: 16px; padding: 18px 22px; flex-wrap: wrap }
 .qb .sel { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
-.qb .sel label { font-size: 12px; font-weight: 600; color: #2C4361; letter-spacing: .02em }
+.qb .sel label { font-size: 12px; font-weight: 600; color: var(--c-2c4361); letter-spacing: .02em }
 
 .qb .desplegable, .qb .calendario { position: relative }
 .qb .disparo {
   display: flex; align-items: center; gap: 10px; height: 42px; min-width: 136px; padding: 0 12px;
-  font: 500 14.5px var(--qb-texto); color: var(--qb-tinta); background: #F7F9FC;
+  font: 500 14.5px var(--qb-texto); color: var(--qb-tinta); background: var(--c-f7f9fc);
   border: 1.5px solid var(--qb-linea); border-radius: 2px; cursor: pointer; text-align: left;
 }
-.qb .disparo:hover { border-color: #B9C4D2 }
+.qb .disparo:hover { border-color: var(--c-b9c4d2) }
 .qb .disparo[aria-expanded="true"] {
   background: #fff; border-color: var(--qb-azul); box-shadow: 0 0 0 3px rgba(11,78,162,.14);
 }
@@ -104,9 +104,9 @@
   text-align: left; white-space: nowrap; border-left: 3px solid transparent;
 }
 .qb .opciones button:first-child { margin-top: 3px }
-.qb .opciones button:hover { background: #F1F5FA }
+.qb .opciones button:hover { background: var(--c-f1f5fa) }
 .qb .opciones button .tic { width: 14px; height: 14px; stroke: var(--qb-rojo); stroke-width: 2.6; fill: none; opacity: 0; flex: none }
-.qb .opciones button.elegida { font-weight: 600; border-left-color: var(--qb-rojo); background: #FAFBFD }
+.qb .opciones button.elegida { font-weight: 600; border-left-color: var(--qb-rojo); background: var(--c-fafbfd) }
 .qb .opciones button.elegida .tic { opacity: 1 }
 
 /* ---------- Calendario ---------- */
@@ -118,12 +118,12 @@
 .qb .calendario .panel::before { content: ""; display: block; height: 3px; background: var(--qb-rojo) }
 .qb .cal-cuerpo { display: flex }
 
-.qb .atajos { width: 170px; border-right: 1px solid var(--qb-linea); padding: 12px 0; background: #FAFBFD; flex: none }
+.qb .atajos { width: 170px; border-right: 1px solid var(--qb-linea); padding: 12px 0; background: var(--c-fafbfd); flex: none }
 .qb .atajos button {
   display: block; width: 100%; text-align: left; padding: 9px 18px; border: 0; background: none;
   font: 500 13.5px var(--qb-texto); color: var(--qb-tinta); cursor: pointer; border-left: 3px solid transparent;
 }
-.qb .atajos button:hover { background: #F1F5FA }
+.qb .atajos button:hover { background: var(--c-f1f5fa) }
 .qb .atajos button.on { border-left-color: var(--qb-rojo); background: #fff; font-weight: 600 }
 
 .qb .meses { display: flex; gap: 26px; padding: 16px 20px }
@@ -139,13 +139,13 @@
 .qb .mes-cab .hueco { width: 28px }
 
 .qb .semana, .qb .dias { display: grid; grid-template-columns: repeat(7, 1fr) }
-.qb .semana span { text-align: center; font-size: 11px; font-weight: 600; color: #93A3B6; padding-bottom: 6px }
+.qb .semana span { text-align: center; font-size: 11px; font-weight: 600; color: var(--c-93a3b6); padding-bottom: 6px }
 .qb .dias button {
   height: 32px; border: 0; background: none; cursor: pointer;
   font: 500 13px var(--qb-texto); color: var(--qb-tinta); position: relative;
 }
-.qb .dias button.fuera { color: #C6D0DC; cursor: default }
-.qb .dias button:hover:not(.fuera):not(.punta) { background: #EDF1F6 }
+.qb .dias button.fuera { color: var(--c-c6d0dc); cursor: default }
+.qb .dias button:hover:not(.fuera):not(.punta) { background: var(--c-edf1f6) }
 .qb .dias button.dentro { background: #FDE7EB }
 .qb .dias button.punta { background: var(--qb-rojo); color: #fff; font-weight: 700 }
 .qb .dias button.inicio { border-radius: 2px 0 0 2px }
@@ -153,7 +153,7 @@
 
 .qb .cal-pie {
   display: flex; align-items: center; gap: 14px; padding: 14px 20px;
-  border-top: 1px solid var(--qb-linea); background: #FAFBFD; flex-wrap: wrap;
+  border-top: 1px solid var(--qb-linea); background: var(--c-fafbfd); flex-wrap: wrap;
 }
 .qb .cal-pie .resumen { font-size: 13.5px; color: var(--qb-gris) }
 .qb .cal-pie .resumen b { color: var(--qb-tinta); font-weight: 600 }
@@ -177,16 +177,16 @@
 
 .qb .causales {
   display: flex; align-items: center; gap: 10px; padding: 14px 22px;
-  border-top: 1px solid var(--qb-linea); background: #FAFBFD; flex-wrap: wrap;
+  border-top: 1px solid var(--qb-linea); background: var(--c-fafbfd); flex-wrap: wrap;
 }
-.qb .causales .rot { font-size: 12px; font-weight: 600; color: #2C4361; margin-right: 4px }
+.qb .causales .rot { font-size: 12px; font-weight: 600; color: var(--c-2c4361); margin-right: 4px }
 .qb .chip {
   display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 13px;
   border: 1.5px solid var(--qb-linea); background: #fff; border-radius: 2px;
   font-size: 13px; font-weight: 500; color: var(--qb-tinta); cursor: pointer;
 }
 .qb .chip i { width: 9px; height: 9px; border-radius: 50%; flex: none }
-.qb .chip.off { color: #9AA9BB; background: #F4F6F9 }
+.qb .chip.off { color: var(--c-9aa9bb); background: var(--c-f4f6f9) }
 .qb .chip.off i { opacity: .35 }
 
 /* ====================== Cifras ====================== */
@@ -222,51 +222,51 @@
 .qb .leyenda { display: flex; gap: 14px; font-size: 12.5px; color: var(--qb-gris); white-space: nowrap; padding-top: 4px }
 .qb .leyenda span { display: inline-flex; align-items: center; gap: 7px }
 .qb .leyenda i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; flex: none }
-.qb .leyenda i.meta { width: 16px; height: 0; border-top: 2px dashed #8494A8; border-radius: 0 }
+.qb .leyenda i.meta { width: 16px; height: 0; border-top: 2px dashed var(--c-8494a8); border-radius: 0 }
 .qb .leyenda.abajo {
   flex-wrap: wrap; gap: 10px 16px; padding-top: 16px; margin-top: auto;
-  white-space: normal; border-top: 1px solid #EDF1F6;
+  white-space: normal; border-top: 1px solid var(--c-edf1f6);
 }
 
 .qb .cuerpo { padding: 6px 26px 22px; flex: 1; display: flex; flex-direction: column; justify-content: flex-start }
 .qb .grafico { width: 100%; height: 252px; display: block }
-.qb .grafico .rejilla { stroke: #E7ECF2; stroke-width: 1 }
-.qb .grafico .meta { stroke: #8494A8; stroke-width: 2; stroke-dasharray: 5 4 }
-.qb .grafico .eje { font: 500 11.5px var(--qb-texto); fill: #8494A8 }
-.qb .grafico .val { font: 700 11.5px var(--qb-titulo); fill: #2C4361 }
+.qb .grafico .rejilla { stroke: var(--c-e7ecf2); stroke-width: 1 }
+.qb .grafico .meta { stroke: var(--c-8494a8); stroke-width: 2; stroke-dasharray: 5 4 }
+.qb .grafico .eje { font: 500 11.5px var(--qb-texto); fill: var(--c-8494a8) }
+.qb .grafico .val { font: 700 11.5px var(--qb-titulo); fill: var(--c-2c4361) }
 
 .qb .fila { display: grid; grid-template-columns: 132px 1fr 46px; align-items: center; gap: 12px; padding: 9px 0 }
-.qb .fila .nom { font-size: 13px; color: #2C4361; text-align: right; overflow: hidden; text-overflow: ellipsis }
-.qb .fila .pista { height: 20px; background: #F1F4F8; border-radius: 2px; overflow: hidden }
+.qb .fila .nom { font-size: 13px; color: var(--c-2c4361); text-align: right; overflow: hidden; text-overflow: ellipsis }
+.qb .fila .pista { height: 20px; background: var(--c-f1f4f8); border-radius: 2px; overflow: hidden }
 .qb .fila .relleno { height: 100%; border-radius: 2px }
 .qb .fila .pct { font-family: var(--qb-titulo); font-weight: 800; font-size: 13px; text-align: right }
 
 .qb .cuerpo.doble { justify-content: flex-start; gap: 22px }
 .qb .cuerpo.doble .parte + .parte { border-top: 1px solid var(--qb-linea); padding-top: 16px }
 .qb .cuerpo.doble .abajo-parte { margin-top: auto }
-.qb .cuerpo.doble .rotulo { font-size: 11.5px; font-weight: 600; letter-spacing: .14em; color: #93A3B6; margin-bottom: 8px }
+.qb .cuerpo.doble .rotulo { font-size: 11.5px; font-weight: 600; letter-spacing: .14em; color: var(--c-93a3b6); margin-bottom: 8px }
 
 /* ====================== Tablas ====================== */
 .qb .cuerpo.tabla { padding: 0; justify-content: flex-start; overflow-x: auto }
 .qb table { width: 100%; border-collapse: collapse }
 .qb thead th {
-  padding: 10px 22px; font-size: 11px; font-weight: 600; letter-spacing: .12em; color: #93A3B6;
-  text-align: left; border-bottom: 1px solid var(--qb-linea); background: #FAFBFD; text-transform: uppercase;
+  padding: 10px 22px; font-size: 11px; font-weight: 600; letter-spacing: .12em; color: var(--c-93a3b6);
+  text-align: left; border-bottom: 1px solid var(--qb-linea); background: var(--c-fafbfd); text-transform: uppercase;
   white-space: nowrap;
 }
-.qb tbody td { padding: 12px 22px; border-bottom: 1px solid #EDF1F6; font-size: 14px; vertical-align: middle }
+.qb tbody td { padding: 12px 22px; border-bottom: 1px solid var(--c-edf1f6); font-size: 14px; vertical-align: middle }
 .qb tbody tr:last-child td { border-bottom: 0 }
-.qb tbody tr:hover { background: #F7F9FC }
+.qb tbody tr:hover { background: var(--c-f7f9fc) }
 .qb td.num, .qb th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
 .qb td.num { font-weight: 500 }
 .qb td .nom { font-weight: 500; line-height: 1.25 }
-.qb td .cod { font-size: 12px; color: #93A3B6; margin-top: 2px }
+.qb td .cod { font-size: 12px; color: var(--c-93a3b6); margin-top: 2px }
 .qb td.mes { font-family: var(--qb-titulo); font-weight: 800 }
 .qb td.sobre { color: var(--qb-rojo); font-weight: 600 }
 .qb td.bajo { color: var(--qb-azul); font-weight: 600 }
 .qb td.meta { color: var(--qb-gris) }
 .qb td.mini { width: 96px; padding-left: 0 }
-.qb td.mini .pista { height: 8px; background: #EDF1F6; border-radius: 2px; overflow: hidden }
+.qb td.mini .pista { height: 8px; background: var(--c-edf1f6); border-radius: 2px; overflow: hidden }
 .qb td.mini .relleno { height: 100%; background: var(--qb-rojo) }
 .qb td.vacio { text-align: center; color: var(--qb-gris); padding: 34px 22px }
 
@@ -343,7 +343,7 @@
 .qb-aviso-copia {
   position: fixed; right: 26px; bottom: 26px; z-index: 80;
   display: flex; align-items: center; gap: 11px;
-  background: #04203F; color: #fff; padding: 14px 18px; border-radius: 3px; font-size: 14px;
+  background: var(--c-04203f); color: #fff; padding: 14px 18px; border-radius: 3px; font-size: 14px;
   box-shadow: 0 22px 44px -20px rgba(4,32,63,.7);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
 }
@@ -424,7 +424,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 .qb .soltar {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   padding: 46px 24px; cursor: pointer; text-align: center;
-  border: 2px dashed #C3CEDB; border-radius: 3px; background: #FAFBFD;
+  border: 2px dashed var(--c-c3cedb); border-radius: 3px; background: var(--c-fafbfd);
   transition: border-color .14s, background .14s;
 }
 .qb .soltar:hover, .qb .soltar:focus-visible {
@@ -494,8 +494,8 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 .qb .revision .ok .marca { background: #1F8A4C }
 .qb .revision .aviso { background: #FFF6F7; color: #7A1226 }
 .qb .revision .aviso .marca { background: var(--qb-rojo) }
-.qb .revision .neutra { background: #F7F9FC; color: #2C4361 }
-.qb .revision .neutra .marca { background: #9AA9BB }
+.qb .revision .neutra { background: var(--c-f7f9fc); color: var(--c-2c4361) }
+.qb .revision .neutra .marca { background: var(--c-9aa9bb) }
 .qb .revision .mala { background: #FDECEB; color: #A4271C }
 .qb .revision .mala .marca { background: #A4271C }
 
@@ -512,7 +512,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 
 /* ---------- Barra de avance ---------- */
 .qb .avance { margin-top: 16px }
-.qb .avance .pista { height: 6px; border-radius: 99px; background: #EDF1F6; overflow: hidden }
+.qb .avance .pista { height: 6px; border-radius: 99px; background: var(--c-edf1f6); overflow: hidden }
 .qb .avance .relleno { height: 100%; background: var(--qb-rojo); transition: width .2s }
 .qb .avance p { margin: 7px 0 0; font-size: 13px; color: var(--qb-gris) }
 
@@ -529,7 +529,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 }
 .qb .guia .chapa.oro { background: var(--qb-oro); color: var(--qb-tinta) }
 .qb .guia ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px }
-.qb .guia li { font-size: 13.5px; color: #2C4361; padding-left: 16px; position: relative; line-height: 1.45 }
+.qb .guia li { font-size: 13.5px; color: var(--c-2c4361); padding-left: 16px; position: relative; line-height: 1.45 }
 .qb .guia li::before {
   content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px;
   border-radius: 50%; background: var(--qb-linea);
@@ -540,7 +540,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 /* ---------- Acciones ---------- */
 .qb .acciones {
   display: flex; align-items: center; gap: 14px; padding: 18px 26px;
-  background: #FAFBFD; border-top: 1px solid var(--qb-linea); flex-wrap: wrap;
+  background: var(--c-fafbfd); border-top: 1px solid var(--qb-linea); flex-wrap: wrap;
 }
 .qb .btn {
   height: 46px; padding: 0 24px; border: 0; border-radius: 2px; cursor: pointer;
@@ -548,7 +548,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
   font-family: var(--qb-titulo); font-weight: 800; font-size: 14.5px;
 }
 .qb .btn:hover { background: #FF1C38 }
-.qb .btn:disabled { background: #94A3B4; cursor: progress }
+.qb .btn:disabled { background: var(--c-94a3b4); cursor: progress }
 .qb .btn.plano {
   background: none; color: var(--qb-gris); font-family: var(--qb-texto);
   font-weight: 600; padding: 0 8px;
@@ -595,19 +595,19 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 .qb .an-marco { overflow-x: auto; border-top: 1px solid var(--qb-linea) }
 .qb table.an { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 900px }
 .qb .an th, .qb .an td {
-  border-right: 1px solid #EDF1F6; border-bottom: 1px solid #EDF1F6;
+  border-right: 1px solid var(--c-edf1f6); border-bottom: 1px solid var(--c-edf1f6);
   padding: 10px 12px; background: #fff; font-size: 13px;
 }
 .qb .an .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
 .qb .an th.rot {
   position: sticky; left: 0; z-index: 2; text-align: left;
-  min-width: 132px; background: #FAFBFD;
+  min-width: 132px; background: var(--c-fafbfd);
   font: 600 13px var(--qb-texto); color: var(--qb-tinta);
   border-right: 1px solid var(--qb-linea);
 }
 .qb .an thead th {
-  position: sticky; top: 0; z-index: 3; background: #FAFBFD;
-  font: 600 11.5px var(--qb-texto); color: #93A3B6;
+  position: sticky; top: 0; z-index: 3; background: var(--c-fafbfd);
+  font: 600 11.5px var(--qb-texto); color: var(--c-93a3b6);
   letter-spacing: .1em; text-transform: uppercase;
   border-bottom: 1px solid var(--qb-linea);
 }
@@ -622,7 +622,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 .qb .an tr.pct td.bajo { color: #0F7A4A }
 .qb .an .total {
   position: sticky; right: 0; z-index: 2;
-  background: #F4F7FB; border-left: 1px solid var(--qb-linea);
+  background: var(--c-f4f7fb); border-left: 1px solid var(--qb-linea);
   font-family: var(--qb-titulo); font-weight: 800; min-width: 116px;
 }
 .qb .an thead th.total { z-index: 4 }

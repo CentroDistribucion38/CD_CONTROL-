@@ -9,6 +9,37 @@ import { Eye, EyeOff } from "lucide-react";
 
 type Modulo = { id: string; nombre: string; ruta: string };
 
+export type Tema = "oficial" | "ambar";
+
+/**
+ * Los temas que existen. Cada uno trae SUS PROPIAS muestras de color en
+ * duro y no leídas de las variables, a propósito: la tarjeta del tema
+ * ámbar tiene que verse ámbar mientras la aplicación todavía está en
+ * azul, que es justo el momento en que uno lo está eligiendo.
+ */
+const TEMAS: {
+  id: Tema;
+  nombre: string;
+  nota: string;
+  barra: string;
+  muestras: string[];
+}[] = [
+  {
+    id: "oficial",
+    nombre: "Oficial",
+    nota: "El azul de CONTROL. Es el que ve todo el mundo si no cambia nada.",
+    barra: "#04203F",
+    muestras: ["#04203F", "#2C4361", "#0060B0", "#93A3B6", "#EDF1F6"],
+  },
+  {
+    id: "ambar",
+    nombre: "Ámbar",
+    nota: "La misma pantalla en cálido, construida sobre el 255·192·0.",
+    barra: "#2B1D00",
+    muestras: ["#2B1D00", "#503F19", "#FFC000", "#ABA08A", "#F3F0EB"],
+  },
+];
+
 type Props = {
   id: string;
   usuario: string;
@@ -18,6 +49,7 @@ type Props = {
   turno: string;
   moduloInicio: string;
   textoGrande: boolean;
+  tema: Tema;
   ultimoIngreso: string | null;
   modulos: Modulo[];
 };
@@ -485,10 +517,27 @@ function Seguridad(p: Props) {
 function Preferencias(p: Props & { alGuardar: () => void }) {
   const [inicio, setInicio] = useState(p.moduloInicio);
   const [grande, setGrande] = useState(p.textoGrande);
+  const [tema, setTema] = useState<Tema>(p.tema);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
 
-  const cambio = inicio !== p.moduloInicio || grande !== p.textoGrande;
+  const cambio =
+    inicio !== p.moduloInicio || grande !== p.textoGrande || tema !== p.tema;
+
+  /**
+   * El tema se aplica al tocarlo, antes de guardar: elegir un color a
+   * ciegas y descubrir cómo quedó después de guardar no es elegir. Se
+   * escribe el mismo atributo que pone el servidor, así que lo que se ve
+   * aquí es exactamente lo que quedará. Si se sale sin guardar, la
+   * próxima carga vuelve a lo que dice la base: no queda a medias.
+   */
+  function verlo(t: Tema) {
+    setTema(t);
+    const sh = document.querySelector(".sh") as HTMLElement | null;
+    if (!sh) return;
+    if (t === "ambar") sh.dataset.tema = "ambar";
+    else delete sh.dataset.tema;
+  }
 
   async function guardar() {
     setGuardando(true);
@@ -496,7 +545,7 @@ function Preferencias(p: Props & { alGuardar: () => void }) {
     const supabase = createClient();
     const { error } = await supabase
       .from("perfiles")
-      .update({ modulo_inicio: inicio === "" ? null : inicio, texto_grande: grande })
+      .update({ modulo_inicio: inicio === "" ? null : inicio, texto_grande: grande, tema })
       .eq("id", p.id);
 
     setAviso(
@@ -532,6 +581,48 @@ function Preferencias(p: Props & { alGuardar: () => void }) {
               ))}
             </select>
           </div>
+        </div>
+      </div>
+
+      <div className="pf-bloque">
+        <h3>Tema de color</h3>
+        <p className="pf-nota" style={{ maxWidth: "62ch", marginBottom: 14 }}>
+          Solo cambian los colores. Los datos, los permisos y las cifras son
+          los mismos: dos personas con temas distintos ven exactamente lo
+          mismo.
+        </p>
+
+        <div className="pf-temas" role="radiogroup" aria-label="Tema de color">
+          {TEMAS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="radio"
+              aria-checked={tema === t.id}
+              className={"pf-tema" + (tema === t.id ? " on" : "")}
+              onClick={() => verlo(t.id)}
+            >
+              <span className="lienzo" style={{ background: t.muestras[4] }}>
+                <span className="barra" style={{ background: t.barra }}>
+                  <i style={{ background: t.muestras[2] }} />
+                </span>
+                <span className="cuerpo">
+                  <b style={{ background: t.muestras[1] }} />
+                  <b style={{ background: t.muestras[3] }} />
+                  <b style={{ background: t.muestras[3], width: "42%" }} />
+                </span>
+              </span>
+              <span className="pf-tema-pie">
+                <b>{t.nombre}</b>
+                <span className="tonos" aria-hidden="true">
+                  {t.muestras.map((c) => (
+                    <i key={c} style={{ background: c }} />
+                  ))}
+                </span>
+              </span>
+              <span className="nota">{t.nota}</span>
+            </button>
+          ))}
         </div>
       </div>
 

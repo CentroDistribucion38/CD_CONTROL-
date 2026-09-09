@@ -5,14 +5,14 @@
    --------------------------------------------------------------------- */
 
 .acc {
-  --acc-tinta:     #04203F;
-  --acc-azul:      #0B4EA2;
+  --acc-tinta:     var(--c-04203f);
+  --acc-azul:      var(--c-0b4ea2);
   --acc-rojo:      #E4002B;
   --acc-rojo-vivo: #FF1C38;
-  --acc-hueso:     #EEF1F5;
+  --acc-hueso:     var(--c-eef1f5);
   --acc-papel:     #FFFFFF;
-  --acc-gris:      #5B6B7F;
-  --acc-linea:     #D5DCE5;
+  --acc-gris:      var(--c-5b6b7f);
+  --acc-linea:     var(--c-d5dce5);
   /* desplazamiento del corte = alto * tan(26°) */
   --acc-corte: 24.4vh;
   /* Aire arriba. Instalada en el celular la app corre a pantalla completa
@@ -63,7 +63,7 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 90% at 12% 8%, #0A3A6E 0%, transparent 60%),
+    radial-gradient(120% 90% at 12% 8%, var(--c-0a3a6e) 0%, transparent 60%),
     var(--acc-tinta);
   clip-path: polygon(
     0 0,
@@ -216,7 +216,7 @@
   font-size: 14.5px;
   font-weight: 500;
   letter-spacing: .055em;
-  color: #9FBEDE;
+  color: var(--c-9fbede);
 }
 .acc-firma::before {
   content: "";
@@ -239,7 +239,7 @@
   border-radius: 2px;
   font-size: 12.5px;
   font-weight: 500;
-  color: #D6E4F4;
+  color: var(--c-d6e4f4);
 }
 .acc-modulos span.activo {
   background: var(--acc-rojo);
@@ -293,7 +293,7 @@
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 7px;
-  color: #2C4361;
+  color: var(--c-2c4361);
 }
 .acc-caja {
   position: relative;
@@ -306,13 +306,13 @@
   padding: 0 14px;
   font: 500 16px/1 var(--acc-texto);
   color: var(--acc-tinta);
-  background: #F7F9FC;
+  background: var(--c-f7f9fc);
   border: 1.5px solid var(--acc-linea);
   border-radius: 2px;
   transition: border-color .12s, background .12s;
 }
-.acc-caja input::placeholder { color: #9AA9BB; font-weight: 400 }
-.acc-caja input:hover { border-color: #B9C4D2 }
+.acc-caja input::placeholder { color: var(--c-9aa9bb); font-weight: 400 }
+.acc-caja input:hover { border-color: var(--c-b9c4d2) }
 .acc-caja input:focus {
   outline: none;
   background: #fff;
@@ -367,12 +367,12 @@
 .acc-entrar:hover { background: var(--acc-rojo-vivo) }
 .acc-entrar:active { transform: translateY(1px) }
 .acc-entrar:focus-visible { outline: 3px solid var(--acc-azul); outline-offset: 2px }
-.acc-entrar[disabled] { background: #94A3B4; cursor: progress }
+.acc-entrar[disabled] { background: var(--c-94a3b4); cursor: progress }
 
 .acc-pie {
   padding: 16px 34px;
   border-top: 1px solid var(--acc-linea);
-  background: #FAFBFD;
+  background: var(--c-fafbfd);
   font-size: 12.5px;
   color: var(--acc-gris);
   display: flex;
@@ -380,7 +380,7 @@
   align-items: center;
   gap: 12px;
 }
-.acc-pie b { font-weight: 600; color: #2C4361 }
+.acc-pie b { font-weight: 600; color: var(--c-2c4361) }
 .acc-pie .pedir {
   color: var(--acc-azul);
   font-weight: 600;

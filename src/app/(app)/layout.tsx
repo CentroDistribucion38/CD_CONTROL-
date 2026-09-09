@@ -55,7 +55,15 @@ export default async function AppLayout({
   ].filter((r) => permisos.puedeVer(r));
 
   return (
-    <div className="sh flex min-h-screen flex-col" data-grande={perfil?.texto_grande === true ? "si" : undefined}>
+    /* El tema se resuelve AQUÍ, en el servidor, y baja ya puesto en el
+       atributo. Si se resolviera en el navegador, la página se pintaría
+       un instante con el tema oficial y luego saltaría al de la persona:
+       ese parpadeo se ve feo y en un equipo de piso se ve peor. */
+    <div
+      className="sh flex min-h-screen flex-col"
+      data-grande={perfil?.texto_grande === true ? "si" : undefined}
+      data-tema={perfil?.tema === "ambar" ? "ambar" : undefined}
+    >
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
       <Marco rol={rol} permitidas={permitidas}>{children}</Marco>
     </div>

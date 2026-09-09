@@ -46,7 +46,7 @@
 .pf-quien {
   padding: 22px 20px;
   border-bottom: 1px solid var(--sh-linea);
-  background: #FAFBFD;
+  background: var(--c-fafbfd);
   display: flex;
   gap: 13px;
   align-items: center;
@@ -80,7 +80,7 @@
   text-align: left;
   border-left: 3px solid transparent;
 }
-.pf-nav button:hover { background: #F1F5FA }
+.pf-nav button:hover { background: var(--c-f1f5fa) }
 .pf-nav button svg {
   width: 17px; height: 17px;
   stroke: var(--sh-gris);
@@ -90,7 +90,7 @@
 }
 .pf-nav button.on {
   border-left-color: var(--sh-rojo);
-  background: #F7F9FC;
+  background: var(--c-f7f9fc);
   font-weight: 600;
 }
 .pf-nav button.on svg { stroke: var(--sh-rojo) }
@@ -133,7 +133,7 @@
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 7px;
-  color: #2C4361;
+  color: var(--c-2c4361);
 }
 .pf-campo input,
 .pf-campo select {
@@ -141,7 +141,7 @@
   padding: 0 13px;
   font: 500 15px var(--sh-texto);
   color: var(--sh-tinta);
-  background: #F7F9FC;
+  background: var(--c-f7f9fc);
   border: 1.5px solid var(--sh-linea);
   border-radius: 2px;
   width: 100%;
@@ -154,7 +154,7 @@
   box-shadow: 0 0 0 3px rgba(11,78,162,.14);
 }
 .pf-campo input:disabled {
-  background: #EEF1F5;
+  background: var(--c-eef1f5);
   color: var(--sh-gris);
   cursor: not-allowed;
 }
@@ -173,7 +173,7 @@
   padding: 6px 12px;
   border-radius: 2px;
   font-size: 12.5px;
-  color: #2C4361;
+  color: var(--c-2c4361);
 }
 /* una regla que ya se cumple deja de ser un pendiente */
 .pf-reglas li.ok {
@@ -187,7 +187,7 @@
   align-items: center;
   gap: 14px;
   padding: 20px 30px;
-  background: #FAFBFD;
+  background: var(--c-fafbfd);
   border-top: 1px solid var(--sh-linea);
   flex-wrap: wrap;
 }
@@ -204,7 +204,7 @@
   font-size: 14.5px;
 }
 .pf-btn:hover { background: #FF1C38 }
-.pf-btn:disabled { background: #94A3B4; cursor: not-allowed }
+.pf-btn:disabled { background: var(--c-94a3b4); cursor: not-allowed }
 .pf-btn:focus-visible { outline: 3px solid var(--sh-azul); outline-offset: 2px }
 .pf-btn.plano {
   background: none;
@@ -214,7 +214,7 @@
   padding: 0 6px;
 }
 .pf-btn.plano:hover { color: var(--sh-tinta); background: none }
-.pf-btn.plano:disabled { background: none; color: #B4C0CE }
+.pf-btn.plano:disabled { background: none; color: var(--c-b4c0ce) }
 
 /* ---------- Interruptores ---------- */
 .pf-switch {
@@ -232,7 +232,7 @@
   flex: none;
   appearance: none;
   -webkit-appearance: none;
-  background: #C6D0DC;
+  background: var(--c-c6d0dc);
   border: 0;
   border-radius: 20px;
   position: relative;
@@ -296,7 +296,7 @@
   color: var(--sh-gris);
   border-top: 1px solid var(--sh-linea);
 }
-.pf-pie b { font-weight: 600; color: #2C4361 }
+.pf-pie b { font-weight: 600; color: var(--c-2c4361) }
 
 /* ---------- Celular y tableta ---------- */
 @media (max-width: 860px) {
@@ -352,3 +352,94 @@
 }
 .pf-ojo:hover { color: var(--sh-azul) }
 .pf-ojo:focus-visible { outline: 2px solid var(--sh-azul); outline-offset: 1px }
+
+/* ---------- Tema de color ------------------------------------------
+   Cada tarjeta es una MAQUETA de la pantalla, no un cuadrito de color:
+   la barra oscura arriba, el acento, el texto y el fondo, en la misma
+   proporción en que se van a ver. Con cinco cuadritos sueltos uno no
+   sabe cuál va a ocupar media pantalla y cuál es una línea.
+   Los colores van en el HTML, en duro: la tarjeta del ámbar tiene que
+   verse ámbar mientras la aplicación todavía está en azul.
+   ------------------------------------------------------------------- */
+.pf-temas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+.pf-tema {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  padding: 12px 12px 13px;
+  border: 1px solid var(--sh-linea);
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color .14s, box-shadow .14s;
+}
+.pf-tema:hover { border-color: var(--c-a9b6c6) }
+.pf-tema.on {
+  border-color: var(--sh-tinta);
+  box-shadow: 0 0 0 2px var(--sh-tinta) inset;
+}
+.pf-tema:focus-visible { outline: 3px solid var(--sh-rojo); outline-offset: 2px }
+
+/* la maqueta */
+.pf-tema .lienzo {
+  display: block;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.08);
+}
+.pf-tema .barra {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 22px;
+  padding: 0 7px;
+}
+.pf-tema .barra i { width: 9px; height: 9px; border-radius: 50%; display: block }
+.pf-tema .cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 10px 13px;
+}
+.pf-tema .cuerpo b { display: block; height: 5px; border-radius: 2px; width: 100% }
+.pf-tema .cuerpo b:nth-child(2) { width: 72% }
+
+.pf-tema-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pf-tema-pie b {
+  font-family: var(--sh-titulo);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--sh-tinta);
+}
+.pf-tema-pie .tonos { display: flex; gap: 3px }
+.pf-tema-pie .tonos i {
+  width: 11px; height: 11px; border-radius: 2px; display: block;
+  border: 1px solid rgba(0,0,0,.10);
+}
+.pf-tema .nota {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sh-gris);
+}
+
+/* La marca de "este es el tuyo" no puede ser solo el borde: en una
+   pantalla de piso con reflejo, un borde no se ve. Va también el
+   nombre en negrita y un punto. */
+.pf-tema.on .pf-tema-pie b::after {
+  content: " ·";
+  color: var(--sh-rojo);
+  font-size: 18px;
+  line-height: 0;
+}

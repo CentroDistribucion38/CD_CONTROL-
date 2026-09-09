@@ -37,6 +37,7 @@ export default async function PerfilPage() {
       turno={p.turno_habitual == null ? "" : String(p.turno_habitual)}
       moduloInicio={p.modulo_inicio == null ? "" : String(p.modulo_inicio)}
       textoGrande={p.texto_grande === true}
+      tema={p.tema === "ambar" ? "ambar" : "oficial"}
       ultimoIngreso={user.last_sign_in_at ?? null}
       modulos={modulosVisibles(String(p.rol ?? "operador")).map((m) => ({
         id: m.id,
