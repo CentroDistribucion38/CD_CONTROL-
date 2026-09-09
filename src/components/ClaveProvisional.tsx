@@ -4,7 +4,7 @@
  * LA PUERTA CERRADA HASTA QUE CAMBIE LA CLAVE.
  *
  * Cuando un administrador crea un usuario, la plataforma sugiere una
- * clave de cuatro dígitos. Cuatro dígitos son diez mil combinaciones:
+ * clave de seis dígitos. Seis dígitos son un millón de combinaciones:
  * como clave de un rato está bien, como clave permanente se adivina.
  *
  * Así que el aviso no es un consejo en pantalla —esos se cierran y se
@@ -67,7 +67,7 @@ export function ClaveProvisional({ id, nombre }: { id: string; nombre: string })
         <p className="cp-ojo">PRIMER INGRESO</p>
         <h1>Cambia tu clave, {nombre.split(" ")[0]}</h1>
         <p className="cp-dice">
-          La que te dieron son cuatro dígitos y sirvió para entrar una vez. Elige
+          La que te dieron son seis dígitos y sirvió para entrar una vez. Elige
           una tuya y sigues. <b>Nadie más la ve, ni el administrador.</b>
         </p>
 

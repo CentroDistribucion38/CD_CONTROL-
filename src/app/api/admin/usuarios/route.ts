@@ -34,14 +34,27 @@ import { correoDeUsuario, normalizarUsuario } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-/** Cuántos dígitos tiene la clave que sugiere la plataforma. */
-const DIGITOS = 4;
+/**
+ * Cuántos dígitos tiene la clave que sugiere la plataforma.
+ *
+ * SEIS, y no cuatro, porque Supabase RECHAZA las claves de menos de
+ * seis caracteres: "Password should be at least 6 characters". Con
+ * cuatro, createUser fallaba y quedaba la cuenta a medias. No es una
+ * preferencia, es el mínimo del proveedor.
+ *
+ * De paso son un millón de combinaciones en vez de diez mil, y seis
+ * dígitos se dictan por teléfono igual de fácil que cuatro.
+ *
+ * Si un día se sube el mínimo en Authentication → Policies, hay que
+ * subir esto también: el error de abajo lo dice con todas las letras.
+ */
+const DIGITOS = 6;
 
 /**
  * Una clave de DIGITOS dígitos, uniforme y sin sesgo.
  * randomInt(min, max) del módulo crypto: no es Math.random, y el rango
  * se pide completo para que el 0 inicial no se pierda ("0417" es una
- * clave válida y descartarla quitaría mil combinaciones de diez mil).
+ * clave válida y descartarla quitaría cien mil de un millón).
  */
 function claveSugerida(): string {
   const tope = 10 ** DIGITOS;
@@ -70,6 +83,24 @@ async function buscarPorCorreo(
     if (data.users.length < 200) return null;
   }
   return null;
+}
+
+/**
+ * Supabase contesta "Password should be at least 6 characters" cuando la
+ * clave es más corta que el mínimo del proyecto. Ese mensaje en inglés,
+ * crudo, no le dice a nadie qué hacer: lo que hay que cambiar es la
+ * constante DIGITOS de arriba, y eso es lo que dice esta traducción.
+ */
+function porQueLaClave(mensaje: string, usuario: string): string {
+  if (/at least \d+ characters/i.test(mensaje)) {
+    const min = mensaje.match(/at least (\d+)/i)?.[1] ?? "6";
+    return (
+      `Supabase pide claves de al menos ${min} caracteres y la plataforma está ` +
+      `generando de ${DIGITOS}. Sube DIGITOS en src/app/api/admin/usuarios/route.ts ` +
+      `a ${min} o más, o baja el mínimo en Supabase → Authentication → Policies.`
+    );
+  }
+  return `No se pudo crear la cuenta de "${usuario}": ${mensaje}`;
 }
 
 export async function POST(req: Request) {
@@ -186,7 +217,7 @@ export async function POST(req: Request) {
     const yaExiste = m.includes("already") || m.includes("registered");
     if (!yaExiste) {
       return NextResponse.json(
-        { error: `No se pudo crear la cuenta: ${eAuth?.message ?? "error desconocido"}` },
+        { error: porQueLaClave(eAuth?.message ?? "error desconocido", usuario) },
         { status: 400 }
       );
     }
@@ -218,10 +249,7 @@ export async function POST(req: Request) {
       password: clave, email_confirm: true,
     });
     if (eClave) {
-      return NextResponse.json(
-        { error: `La cuenta de "${usuario}" existe pero no se le pudo poner clave: ${eClave.message}` },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: porQueLaClave(eClave.message, usuario) }, { status: 500 });
     }
     idCuenta = suya;
   }

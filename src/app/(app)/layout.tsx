@@ -52,8 +52,8 @@ export default async function AppLayout({
      aviso dentro de cada pantalla: un aviso se cierra y se olvida, y
      escribir otra URL a mano lo saltaría. Esto reemplaza la aplicación
      entera hasta que la clave cambie.
-     Cuatro dígitos son diez mil combinaciones; como clave permanente se
-     adivina, así que no puede quedar por descuido. */
+     Seis dígitos son un millón de combinaciones; como clave permanente se
+     adivina igual, así que no puede quedar por descuido. */
   if (perfil?.clave_provisional === true) {
     return (
       <div className="sh flex min-h-screen flex-col"

@@ -14,7 +14,7 @@ alter table public.perfiles
   -- primer ingreso y nada más. Mientras esto esté en true, la
   -- aplicación no deja pasar a ningún módulo: obliga a cambiarla.
   --
-  -- Cuatro dígitos son diez mil combinaciones. Como clave de un rato
+  -- Seis dígitos son un millón de combinaciones. Como clave de un rato
   -- está bien; como clave permanente se adivina. Por eso el bloqueo no
   -- es un consejo en pantalla: es la condición para entrar.
   add column if not exists clave_provisional boolean not null default false,
