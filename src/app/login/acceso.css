@@ -7,8 +7,24 @@
 .acc {
   --acc-tinta:     var(--c-04203f);
   --acc-azul:      var(--c-0b4ea2);
-  --acc-rojo:      #E4002B;
-  --acc-rojo-vivo: #FF1C38;
+  /* El acento de la entrada es el DEL TEMA, no el rojo en duro.
+     El login no sabe quién va a entrar, así que se pinta con el tema de
+     la última persona que entró en ese equipo (lo recuerda el navegador,
+     no la base). Un equipo nuevo abre en oficial.
+     --acc-rojo-txt va con el acento: sobre ámbar el blanco no se lee. */
+  --acc-rojo:      var(--c-marca);
+  --acc-rojo-vivo: var(--c-marca-vivo);
+  --acc-rojo-txt:  var(--c-marca-txt);
+  /* El halo del BAQ y del logo. Se saca del acento con color-mix en
+     vez de un rgba() en duro: un rgba() habría que escribirlo siete
+     veces y en el tema ámbar quedaría un resplandor rojo. */
+  --acc-rojo-halo: color-mix(in srgb, var(--c-marca) 65%, transparent);
+
+  /* El campo oscuro de la izquierda. Es más claro que la barra de la
+     app a propósito —ahí va el discurso de la marca y necesita aire—,
+     así que cada tema lo pone aparte en vez de reusar su tinta. */
+  --acc-izq-fondo: var(--acc-tinta);
+  --acc-izq-halo:  var(--c-0a3a6e);
   --acc-hueso:     var(--c-eef1f5);
   --acc-papel:     #FFFFFF;
   --acc-gris:      var(--c-5b6b7f);
@@ -63,8 +79,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 90% at 12% 8%, var(--c-0a3a6e) 0%, transparent 60%),
-    var(--acc-tinta);
+    radial-gradient(120% 90% at 12% 8%, var(--acc-izq-halo) 0%, transparent 60%),
+    var(--acc-izq-fondo);
   clip-path: polygon(
     0 0,
     calc(var(--acc-base) + var(--acc-corte)) 0,
@@ -149,7 +165,7 @@
   width: 46px;
   height: 46px;
   display: block;
-  filter: drop-shadow(0 0 18px rgba(228,0,43,.45));
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--c-marca) 45%, transparent));
 }
 .acc-marca .nombre {
   font-family: var(--acc-titulo);
@@ -200,12 +216,12 @@
   padding: .1em .3em .16em;
   transform: skewX(-26deg);
   background: var(--acc-rojo);
-  box-shadow: 0 12px 34px -12px rgba(228,0,43,.75);
+  box-shadow: 0 12px 34px -12px var(--acc-rojo-halo);
 }
 .acc-baq span {
   display: inline-block;
   transform: skewX(26deg);
-  color: #fff;
+  color: var(--acc-rojo-txt);
 }
 
 .acc-firma {
@@ -244,7 +260,7 @@
 .acc-modulos span.activo {
   background: var(--acc-rojo);
   border-color: var(--acc-rojo);
-  color: #fff;
+  color: var(--acc-rojo-txt);
 }
 
 /* ---------- Tarjeta de acceso ---------- */
@@ -357,7 +373,7 @@
   border-radius: 2px;
   cursor: pointer;
   background: var(--acc-rojo);
-  color: #fff;
+  color: var(--acc-rojo-txt);
   font-family: var(--acc-titulo);
   font-weight: 800;
   font-size: 16px;

@@ -4,6 +4,7 @@ import { BarraSuperior } from "@/components/BarraSuperior";
 import { Marco } from "@/components/Marco";
 import { misPermisos } from "@/lib/permisos";
 import { ClaveProvisional } from "@/components/ClaveProvisional";
+import { RecordarTema } from "@/components/RecordarTema";
 import "./shell.css";
 
 function turnoActual(): string {
@@ -83,6 +84,9 @@ export default async function AppLayout({
         perfil?.tema && perfil.tema !== "oficial" ? String(perfil.tema) : undefined
       }
     >
+      {/* Deja anotado el tema en este equipo para que la pantalla de
+          entrada se pinte igual la próxima vez. */}
+      <RecordarTema tema={String(perfil?.tema ?? "oficial")} />
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
       <Marco rol={rol} permitidas={permitidas}>{children}</Marco>
     </div>

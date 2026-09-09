@@ -1248,3 +1248,36 @@ body {
   --sh-trama: none;
   --sh-trama-op: 0;
 }
+
+/* =====================================================================
+   LA PANTALLA DE ENTRADA, POR TEMA
+   =====================================================================
+   El login no sabe quién va a entrar, así que se pinta con el tema de la
+   última persona que entró EN ESE EQUIPO. Lo recuerda el navegador, no
+   la base: es una preferencia del equipo, no un dato de nadie.
+
+   Casi todo sale solo, porque acceso.css lee --c-marca y los neutros del
+   tema. Lo único aparte es el campo oscuro de la izquierda: ahí va el
+   discurso de la marca y necesita ser MÁS CLARO que la barra de la app,
+   que es casi negra. Si reusara la tinta del tema, en negro y en halo el
+   discurso quedaría sobre un fondo plano sin relieve.
+   --------------------------------------------------------------------- */
+/* OJO CON EL SELECTOR: va .acc[data-tema=...] y no [data-tema=...] a
+   secas, por lo mismo que las barras van con .sh delante. acceso.css
+   declara --acc-izq-fondo en .acc, y .acc y [data-tema] tienen LA MISMA
+   especificidad: gana la que cargue de última, y ese orden lo decide el
+   empaquetador. Medido: sin el .acc, los tres temas salían con la tinta
+   de la barra en vez del grafito. */
+.acc[data-tema="negro"] {
+  --acc-izq-fondo: #1F1F1F;
+  --acc-izq-halo:  #3A3A3A;
+}
+/* Grafito, tal cual tu mockup del login. */
+.acc[data-tema="gris"] {
+  --acc-izq-fondo: #262626;
+  --acc-izq-halo:  #3A3A3A;
+}
+.acc[data-tema="halo"] {
+  --acc-izq-fondo: #171717;
+  --acc-izq-halo:  #4A2A00;
+}
