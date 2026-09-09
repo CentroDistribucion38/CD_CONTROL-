@@ -28,7 +28,7 @@
  * botón aquí es comodidad, no seguridad.
  */
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -261,7 +261,8 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor }: {
               const anulado = v.estado === "anulado";
               const editando = edit?.id === v.id;
               return (
-                <tr key={v.id} className={anulado ? "vj-nulo" : undefined}>
+                <Fragment key={v.id}>
+                <tr className={anulado ? "vj-nulo" : undefined}>
                   <td className="placa">{v.placa}</td>
                   <td>
                     <div>{v.cd_origen}</div>
@@ -325,68 +326,69 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor }: {
                     </td>
                   )}
                 </tr>
+
+                {/* La fila de corrección, justo debajo de la suya. Un modal
+                    taparía la tabla y con ella el contexto de lo que se está
+                    corrigiendo. */}
+                {editando && edit && (
+                  <tr className="vj-form">
+                    <td colSpan={columnas}>
+                      <div className="vj-editor">
+                        <p className="vj-rot">
+                          Corregir lo que se tecleó
+                          <em>Las cifras se recalculan solas. Las horas y las fotos no se tocan.</em>
+                        </p>
+                        <div className="vj-campos">
+                          <label>
+                            <span>Placa</span>
+                            <input value={edit.placa} maxLength={12}
+                                   onChange={(e) => setEdit({ ...edit, placa: e.target.value.toUpperCase() })} />
+                          </label>
+                          <label>
+                            <span>CD origen</span>
+                            <select value={edit.planta}
+                                    onChange={(e) => setEdit({ ...edit, planta: e.target.value })}>
+                              {origenes.map((o) => (
+                                <option key={o.planta} value={o.planta}>{o.cd_origen}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="ancho">
+                            <span>Material</span>
+                            <select value={edit.sku}
+                                    onChange={(e) => setEdit({ ...edit, sku: e.target.value })}>
+                              {skus.map((s) => (
+                                <option key={s.sku} value={s.sku}>{s.descripcion} · {s.sku}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>Estibas</span>
+                            <input value={edit.estibas} inputMode="decimal"
+                                   onChange={(e) => setEdit({ ...edit, estibas: e.target.value })} />
+                          </label>
+                          <label className="ancho">
+                            <span>Observación <em>(opcional)</em></span>
+                            <input value={edit.observacion} maxLength={200}
+                                   placeholder="Llegó con dos estibas menos, sello roto…"
+                                   onChange={(e) => setEdit({ ...edit, observacion: e.target.value })} />
+                          </label>
+                        </div>
+                        <div className="vj-botones">
+                          <button type="button" className="btn" onClick={guardar} disabled={ocupado}>
+                            {ocupado ? "Guardando…" : "Guardar la corrección"}
+                          </button>
+                          <button type="button" className="btn plano" onClick={() => setEdit(null)} disabled={ocupado}>
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
-
-            {/* La fila de corrección, justo debajo de la suya. Un modal
-                taparía la tabla y con ella el contexto de lo que se está
-                corrigiendo. */}
-            {edit && filtrados.some((v) => v.id === edit.id) && (
-              <tr className="vj-form">
-                <td colSpan={columnas}>
-                  <div className="vj-editor">
-                    <p className="vj-rot">
-                      Corregir lo que se tecleó
-                      <em>Las cifras se recalculan solas. Las horas y las fotos no se tocan.</em>
-                    </p>
-                    <div className="vj-campos">
-                      <label>
-                        <span>Placa</span>
-                        <input value={edit.placa} maxLength={12}
-                               onChange={(e) => setEdit({ ...edit, placa: e.target.value.toUpperCase() })} />
-                      </label>
-                      <label>
-                        <span>CD origen</span>
-                        <select value={edit.planta}
-                                onChange={(e) => setEdit({ ...edit, planta: e.target.value })}>
-                          {origenes.map((o) => (
-                            <option key={o.planta} value={o.planta}>{o.cd_origen}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="ancho">
-                        <span>Material</span>
-                        <select value={edit.sku}
-                                onChange={(e) => setEdit({ ...edit, sku: e.target.value })}>
-                          {skus.map((s) => (
-                            <option key={s.sku} value={s.sku}>{s.descripcion} · {s.sku}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span>Estibas</span>
-                        <input value={edit.estibas} inputMode="decimal"
-                               onChange={(e) => setEdit({ ...edit, estibas: e.target.value })} />
-                      </label>
-                      <label className="ancho">
-                        <span>Observación <em>(opcional)</em></span>
-                        <input value={edit.observacion} maxLength={200}
-                               placeholder="Llegó con dos estibas menos, sello roto…"
-                               onChange={(e) => setEdit({ ...edit, observacion: e.target.value })} />
-                      </label>
-                    </div>
-                    <div className="vj-botones">
-                      <button type="button" className="btn" onClick={guardar} disabled={ocupado}>
-                        {ocupado ? "Guardando…" : "Guardar la corrección"}
-                      </button>
-                      <button type="button" className="btn plano" onClick={() => setEdit(null)} disabled={ocupado}>
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            )}
 
             {!filtrados.length && (
               <tr>
