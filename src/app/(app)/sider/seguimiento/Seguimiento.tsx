@@ -33,7 +33,7 @@
  * total 8.359/246.268 = 3,4%. Las once filas cuadran.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { type FilaSeguimiento, MESES_LARGO } from "@/modulos/sider/comun";
@@ -61,6 +61,133 @@ type Vista = "zlde" | "certifico" | "informe";
 type Orden = { col: string; desc: boolean };
 
 const num = (x: unknown) => Number(x ?? 0);
+
+
+const MESES_CORTO = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+
+/**
+ * EL MES, EN CALENDARIO.
+ *
+ * Era un <select> con la lista de meses cargados. Funcionaba, pero
+ * obligaba a leer una lista para saber de qué meses hay datos, y en el
+ * celular abría la rueda del sistema. Un año de doce casillas se ve de
+ * un golpe: las que tienen datos se pueden tocar, las que no están
+ * apagadas, y así la pantalla CONTESTA "de qué meses hay algo" sin que
+ * haya que preguntar.
+ *
+ * Sigue el mismo patrón del calendario de Quiebra —panel colgado con su
+ * filo de color arriba, cabecera con flechas— para que no parezcan dos
+ * aplicaciones distintas.
+ *
+ * Los meses vienen de la base, no de un rango inventado: si el archivo
+ * más viejo es de mayo, las flechas no dejan salirse de ahí.
+ */
+function MesCalendario({ mes, meses, alElegir }: {
+  /** "2026-08-01" */
+  mes: string;
+  /** Todos los meses con datos, como "2026-08-01". */
+  meses: string[];
+  alElegir: (aaaamm: string) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const caja = useRef<HTMLDivElement>(null);
+
+  /* Los que tienen datos, como "2026-08", y los años que existen. */
+  const hay = useMemo(() => new Set(meses.map((m) => m.slice(0, 7))), [meses]);
+  const anios = useMemo(() => {
+    const a = [...new Set(meses.map((m) => Number(m.slice(0, 4))))].sort();
+    return a.length ? a : [new Date().getFullYear()];
+  }, [meses]);
+
+  const anioDelMes = Number(mes.slice(0, 4)) || anios[anios.length - 1];
+  const [anio, setAnio] = useState(anioDelMes);
+  /* Si cambia el mes por fuera —una URL pegada, el botón de atrás— el
+     panel tiene que abrirse en el año de ese mes, no en el último que
+     se estuvo mirando. */
+  useEffect(() => { setAnio(anioDelMes) }, [anioDelMes]);
+
+  /* Cerrar tocando fuera y con Escape. Sin esto el panel queda abierto
+     tapando la tabla, y en un celular no hay forma de quitarlo. */
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => {
+      if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false);
+    };
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierto(false) };
+    document.addEventListener("mousedown", fuera);
+    document.addEventListener("keydown", tecla);
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      document.removeEventListener("keydown", tecla);
+    };
+  }, [abierto]);
+
+  const puedeAntes = anio > anios[0];
+  const puedeDespues = anio < anios[anios.length - 1];
+  const rotulo = `${MESES_LARGO[Number(mes.slice(5, 7)) - 1]} ${mes.slice(0, 4)}`;
+
+  return (
+    <div className="sel sg-mes" ref={caja}>
+      <span>Mes</span>
+      <button
+        type="button"
+        className={"mes-campo" + (abierto ? " abierta" : "")}
+        onClick={() => setAbierto((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={abierto}
+      >
+        <span>{rotulo}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3.5" y="5" width="17" height="15" rx="2" />
+          <path d="M3.5 10h17M8 3.5v3M16 3.5v3" />
+        </svg>
+      </button>
+
+      {abierto && (
+        <div className="mes-panel" role="dialog" aria-label="Elegir el mes">
+          <div className="mes-anio">
+            <button type="button" onClick={() => setAnio((a) => a - 1)}
+                    disabled={!puedeAntes} aria-label="Año anterior">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" /></svg>
+            </button>
+            <b>{anio}</b>
+            <button type="button" onClick={() => setAnio((a) => a + 1)}
+                    disabled={!puedeDespues} aria-label="Año siguiente">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6" /></svg>
+            </button>
+          </div>
+
+          <div className="mes-doce">
+            {MESES_CORTO.map((corto, i) => {
+              const clave = `${anio}-${String(i + 1).padStart(2, "0")}`;
+              const tiene = hay.has(clave);
+              const aqui = clave === mes.slice(0, 7);
+              return (
+                <button
+                  key={clave}
+                  type="button"
+                  className={(aqui ? "aqui " : "") + (tiene ? "" : "mes-nada")}
+                  disabled={!tiene}
+                  aria-current={aqui ? "true" : undefined}
+                  title={tiene ? undefined : `No hay nada cargado de ${MESES_LARGO[i]} ${anio}`}
+                  onClick={() => { setAbierto(false); alElegir(clave) }}
+                >
+                  {corto}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mes-pie">
+            {hay.size === 1
+              ? "Solo hay un mes cargado."
+              : `${hay.size} meses cargados. Los apagados no tienen nada.`}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
   filas: FilaSeguimiento[];
@@ -250,17 +377,11 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
           el informe no se mueve, porque el indicador es eso. */}
       <section className="sg-filtros">
         <div className="arriba">
-          <label className="sel">
-            <span>Mes</span>
-            <select value={mes.slice(0, 7)}
-                    onChange={(e) => router.push(`/sider/seguimiento?mes=${e.target.value}`)}>
-              {meses.map((m) => (
-                <option key={m} value={m.slice(0, 7)}>
-                  {MESES_LARGO[Number(m.slice(5, 7)) - 1]} {m.slice(0, 4)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <MesCalendario
+            mes={mes}
+            meses={meses}
+            alElegir={(aaaamm) => router.push(`/sider/seguimiento?mes=${aaaamm}`)}
+          />
           <label className="sel">
             <span>CD de origen</span>
             <select value={cd} onChange={(e) => setCd(e.target.value)}>
