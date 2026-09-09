@@ -21,6 +21,15 @@ export type Rol = "admin" | "supervisor" | "operador";
 export type Seccion = {
   nombre: string;
   ruta: string;
+  /**
+   * Existe, funciona y SIGUE teniendo permiso propio en /admin/roles,
+   * pero no se lista en el menú lateral. Es para las pantallas a las que
+   * se entra desde otra pantalla y no por el menú: repetirlas arriba las
+   * hace parecer dos cosas distintas.
+   * OJO: quitarla del registro en vez de ocultarla sería otra cosa —
+   * perdería su casilla de permisos y nadie podría volver a darla.
+   */
+  oculto?: boolean;
 };
 
 export type Modulo = {
@@ -87,7 +96,9 @@ export const MODULOS: Modulo[] = [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
-      { nombre: "Importar", ruta: "/sider/importar" },
+      /* Se entra por el botón Importar de Seguimiento, que es donde se
+         necesita. En el menú era el mismo destino dicho dos veces. */
+      { nombre: "Importar", ruta: "/sider/importar", oculto: true },
       { nombre: "Maestro", ruta: "/sider/maestro" },
     ],
   },

@@ -143,7 +143,7 @@ export function Navegacion({ rol, permitidas, anclado, alternar }: {
   const visibles = modulosVisibles(rol).filter(
     (m) => deja.has(m.ruta) || m.secciones.some((s) => deja.has(s.ruta))
   );
-  const secciones = actual.secciones.filter((s) => deja.has(s.ruta));
+  const secciones = actual.secciones.filter((s) => !s.oculto && deja.has(s.ruta));
   const IconoActual = ICONO_MODULO[actual.id] ?? IconoLista;
 
   return (
