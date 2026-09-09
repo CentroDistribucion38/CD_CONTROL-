@@ -139,6 +139,21 @@
   --c-marca-filo: #e2313c;
   --c-marca-velo: rgba(228,0,43,.14);
   --c-oro:        #e9a81f;   /* "ojo con esto" */
+
+  /* La alarma del KPI: "el mes va corto de meta". Sigue siendo roja en
+     todos los temas porque significa algo, pero cada tema la lleva a la
+     temperatura de su mundo y, sobre todo, SATURADA. El #8A2033 de
+     siempre tiene el croma en 0,14 y sobre papel cálido se veía apagado
+     y medio morado; estos van en el 94% del máximo de su tono. */
+  --c-alarma:     #8a2033;
+  --c-alarma-txt: #ffffff;
+
+  /* La franja oscura que agrupa columnas en las tablas —VEHÍCULOS,
+     HECTOLITROS—. No se deriva del acento: en el tema ámbar el acento
+     oscurecido da oliva, y una franja oliva al lado de una gris se ve
+     como un error, no como un diseño. Cada tema lleva su propio azul
+     oscuro; en ámbar es el grafito, que es el que tú elegiste. */
+  --c-grupo:      #075661;
 }
 
 /* --- Tinta y ámbar ------------------------------------------------- */
@@ -158,6 +173,9 @@
   --c-marca-filo: #f0b429;
   --c-marca-velo: rgba(240,180,41,.16);
   --c-oro:        #0b4ea2;   /* "ojo con esto" */
+  --c-alarma:     #a6143b;
+  --c-alarma-txt: #ffffff;
+  --c-grupo:      #0a3a6e;
 
   /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
      que está por FUERA de este bloque, así que hay que volver a
@@ -279,6 +297,9 @@
   --c-marca-filo: #12a4a0;
   --c-marca-velo: rgba(18,164,160,.18);
   --c-oro:        #f0b429;   /* "ojo con esto" */
+  --c-alarma:     #a51448;
+  --c-alarma-txt: #ffffff;
+  --c-grupo:      #0e7490;
 
   /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
      que está por FUERA de este bloque, así que hay que volver a
@@ -400,6 +421,9 @@
   --c-marca-filo: #ffc000;
   --c-marca-velo: rgba(255,192,0,.16);
   --c-oro:        #8c6d00;   /* "ojo con esto" */
+  --c-alarma:     #ae1519;
+  --c-alarma-txt: #ffffff;
+  --c-grupo:      #3c4451;
 
   /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
      que está por FUERA de este bloque, así que hay que volver a

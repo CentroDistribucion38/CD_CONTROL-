@@ -8,7 +8,14 @@
   --sd-tinta: var(--c-04203f);
   --sd-acento: var(--c-0b7285);
   --sd-acento-hondo: var(--c-075661);
-  --sd-rojo: #E4002B;
+  /* DOS ROJOS, no uno. --sd-marca es el acento: el paso activo, las
+     barritas, los hovers, y cambia con el tema. --sd-mal es semáforo:
+     "este porcentaje está por debajo", y NO cambia nunca, porque si
+     cambiara dejaría de querer decir nada. Eran la misma variable y en
+     el tema ámbar el paso activo salía rojo en vez de ámbar. */
+  --sd-marca: var(--c-marca);
+  --sd-marca-txt: var(--c-marca-txt);
+  --sd-mal: #E4002B;
   --sd-oro: var(--c-oro);
   --sd-verde: #0F7A4A;
   --sd-papel: #FFF;
@@ -28,12 +35,16 @@
 .sd *, .sd *::before, .sd *::after { box-sizing: border-box }
 
 /* ====================== Encabezado ====================== */
-.sd .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 26px; align-items: stretch }
+.sd .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: stretch }
+/* Medida a la baja a propósito. La cabecera pesaba 213 px en el PC de
+   los 1010 de alto, y cada pixel que se lleva arriba es un pixel que la
+   tabla no tiene. Con el título en 27, la bajada en dos líneas y el KPI
+   en 116, la cabecera baja a 148 y esos 65 px se los queda la tabla. */
 .sd .cabeza h1 {
   font-family: var(--sd-titulo); font-weight: 900;
-  font-size: clamp(26px, 2.6vw, 34px); letter-spacing: -.04em; margin: 0;
+  font-size: clamp(23px, 2.05vw, 27px); letter-spacing: -.04em; margin: 0;
 }
-.sd .cabeza .sub { margin: 7px 0 0; font-size: 13px; line-height: 1.45; color: var(--sd-gris); max-width: 78ch }
+.sd .cabeza .sub { margin: 5px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--sd-gris); max-width: 74ch }
 .sd .cabeza .sub a {
   color: var(--sd-acento); font-weight: 600; text-decoration: none;
   border-bottom: 1.5px solid var(--c-raya);
@@ -43,26 +54,32 @@
 .sd .kpi {
   position: relative; overflow: hidden; border-radius: 12px;
   background: var(--sd-acento); color: #fff;
-  padding: 24px 30px 22px; min-width: 320px;
+  padding: 15px 22px 14px; min-width: 300px;
   display: flex; flex-direction: column; justify-content: center;
 }
 .sd .kpi .corte {
   position: absolute; top: -20%; bottom: -20%; right: -30px; width: 44%;
   background: rgba(0,0,0,.16); transform: skewX(-26deg);
 }
-.sd .kpi .rot { position: relative; font-size: 11.5px; font-weight: 600; letter-spacing: .16em; opacity: .9 }
+.sd .kpi .rot { position: relative; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; opacity: .9 }
 .sd .kpi .num {
   position: relative; font-family: var(--sd-titulo); font-weight: 900;
-  font-size: clamp(46px, 5vw, 66px); line-height: .9; letter-spacing: -.05em; margin-top: 8px;
+  font-size: clamp(34px, 3.4vw, 46px); line-height: .9; letter-spacing: -.05em; margin-top: 5px;
 }
 .sd .kpi .num .u { font-size: .34em; margin-left: 6px; letter-spacing: 0 }
+/* El `color: inherit` no es de adorno. globals.css tiene una clase .pie
+   suelta —el pie de las tarjetas de Quiebra— con color de texto gris
+   azulado, y el KPI de aquí también se llama .pie: una clase puesta en
+   el propio elemento le gana a lo heredado, así que "Meta 10%" salía
+   gris azulado sobre el rojo del KPI, a 1,80:1. Se vio midiendo. */
 .sd .kpi .pie {
-  position: relative; display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-top: 14px; font-size: 13.5px; flex-wrap: wrap;
+  position: relative; color: inherit;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-top: 9px; font-size: 12.5px; flex-wrap: wrap;
 }
 .sd .kpi .chip {
   background: #fff; color: var(--sd-acento-hondo); font-family: var(--sd-titulo);
-  font-weight: 800; font-size: 12.5px; padding: 7px 15px; border-radius: 999px;
+  font-weight: 800; font-size: 11.5px; padding: 5px 12px; border-radius: 999px;
 }
 
 /* ====================== Cifras ====================== */
@@ -185,7 +202,7 @@
   border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 2px;
   color: var(--sd-gris); cursor: pointer;
 }
-.sd .m-quitar:hover { border-color: var(--sd-rojo); color: var(--sd-rojo) }
+.sd .m-quitar:hover { border-color: var(--sd-marca); color: var(--sd-marca) }
 .sd .m-quitar svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2; fill: none }
 
 .sd .acciones {
@@ -756,8 +773,13 @@
    puede pasar es que se mueva la página entera. */
 /* Medido sin la tabla: 540 px en el PC grande, 555 en el portátil, 637
    en tableta. Se descuenta 570 y sobra un dedo en todas. */
-.sd .sg-marco { max-height: max(150px, calc(100dvh - 655px)); overflow: auto }
-.sd .sg-marco.chico { max-height: max(180px, calc(100dvh - 560px)) }
+/* El presupuesto de alto de la tabla. El número que se resta es todo lo
+   que va ARRIBA de ella: cabecera, filtros, cadena y encabezado de la
+   tarjeta. Se midió pieza por pieza en cinco pantallas, no se estimó.
+   Al compactar la cabecera de 213 a 162 px se restan 51 menos, y esos
+   51 px se los queda la tabla: en el PC pasa de 355 a 406 px de alto. */
+.sd .sg-marco { max-height: max(150px, calc(100dvh - 604px)); overflow: auto }
+.sd .sg-marco.chico { max-height: max(180px, calc(100dvh - 509px)) }
 .sd .sg-tabla { min-width: 720px }
 .sd .sg-tabla tfoot td {
   position: sticky; bottom: 0; background: #FDF0D5; font-weight: 700;
@@ -768,7 +790,7 @@
 
 .sd .sg-pct { font-family: var(--sd-titulo); font-weight: 800; font-size: 14.5px }
 .sd .sg-pct.bien { color: var(--sd-verde) }
-.sd .sg-pct.mal  { color: var(--sd-rojo) }
+.sd .sg-pct.mal  { color: var(--sd-mal) }
 .sd .sg-pct.nulo { color: var(--c-a9b6c6) }
 
 .sd .sg-aparte {
@@ -779,8 +801,8 @@
 
 /* El KPI se pone en tono de alerta cuando el mes va corto de meta. El
    color dice algo, no decora. */
-.sd .kpi.corto { background: #8A2033 }
-.sd .kpi.corto .chip { color: #8A2033 }
+.sd .kpi.corto { background: var(--c-alarma); color: var(--c-alarma-txt) }
+.sd .kpi.corto .chip { color: var(--c-alarma) }
 
 /* ====================== El ojito ====================== */
 .sd th.ojo-col, .sd td.ojo-col { width: 74px; text-align: center }
@@ -1043,7 +1065,7 @@
   color: #fff; padding: 5px 8px; border-bottom: 0;
 }
 .sd .sg-grupo th.vh { background: var(--c-5b6b7f) }
-.sd .sg-grupo th.hl { background: var(--sd-acento-hondo) }
+.sd .sg-grupo th.hl { background: var(--c-grupo) }
 .sd .sg-grupo th.hueco { background: transparent }
 /* La raya que separa los dos bloques, para que la vista no se pierda a
    mitad de un renglón de diez números. */
@@ -1123,8 +1145,8 @@
   font-variant-numeric: tabular-nums;
 }
 .sd .sg-cifra.bien  b { color: var(--sd-verde) }
-.sd .sg-cifra.medio b { color: #B87400 }
-.sd .sg-cifra.mal   b { color: var(--sd-rojo) }
+.sd .sg-cifra.medio b { color: #965D00 }
+.sd .sg-cifra.mal   b { color: var(--sd-mal) }
 .sd .sg-cifra.nulo  b { color: var(--c-a9b6c6) }
 /* En el celular las cuatro cifras siguen en UNA fila. En dos por dos
    medían 95 px; en una, 50. Esos 45 px son un CD más a la vista, y la
@@ -1137,7 +1159,10 @@
 
 /* El semáforo de tres bandas de tu hoja. La de en medio faltaba: un
    5,3% salía rojo igual que un 0%, y en el Excel es naranja. */
-.sd .sg-pct.medio { color: #B87400 }
+/* El naranja del semáforo, oscurecido: #B87400 sobre blanco daba
+   3,79:1 y no llega a 4,5. Es un número que alguien lee para decidir,
+   no una etiqueta de adorno. #965D00 da 5,44:1 y sigue siendo naranja. */
+.sd .sg-pct.medio { color: #965D00 }
 
 /* Ordenar tocando el encabezado. El orden de los CD en la hoja es el
    que quedó escrito a mano; así cada uno lo pone como necesite. */
@@ -1265,7 +1290,7 @@
 /* La pestaña de ZLDE se ahorra el encabezado de tarjeta, así que su
    tabla se queda con lo que sobra. En la pantalla de 1010 de alto -la
    de él- las quince filas caben completas, que es el punto. */
-.sd .sg-marco.holgado { max-height: max(150px, calc(100dvh - 655px)) }
+.sd .sg-marco.holgado { max-height: max(150px, calc(100dvh - 604px)) }
 @media (max-width: 900px) {
   .sd .sg-marco.holgado { max-height: max(170px, calc(100dvh - 540px)) }
 }
@@ -1307,7 +1332,7 @@
   background: none; border-radius: 2px; font: 600 14px var(--sd-texto);
   color: var(--sd-gris); cursor: pointer;
 }
-.sd .sg-filtros .limpiar:hover { border-color: var(--sd-rojo); color: var(--sd-rojo) }
+.sd .sg-filtros .limpiar:hover { border-color: var(--sd-marca); color: var(--sd-marca) }
 .sd .sg-filtros .limpiar:disabled { opacity: .45; cursor: default; border-color: var(--sd-linea) }
 
 /* ---- La cadena de tres pasos ----
@@ -1330,8 +1355,8 @@
   font-style: normal; font-size: 12.5px; color: var(--sd-gris);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sd .sg-paso.on { border-color: var(--sd-rojo); box-shadow: 0 0 0 3px rgba(228,0,43,.12) }
-.sd .sg-paso.on .bolita { background: var(--sd-rojo); color: #fff }
+.sd .sg-paso.on { border-color: var(--sd-marca); box-shadow: 0 0 0 3px var(--c-marca-velo) }
+.sd .sg-paso.on .bolita { background: var(--sd-marca); color: var(--sd-marca-txt) }
 .sd .sg-paso:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: 2px }
 .sd .sg-cadena .hilo { flex: none; width: 34px; height: 2px; background: var(--sd-linea) }
 
@@ -1353,8 +1378,8 @@
   font-variant-numeric: tabular-nums;
 }
 .sd .sg-panel .resumen .bien b { color: var(--sd-verde) }
-.sd .sg-panel .resumen .medio b { color: #B87400 }
-.sd .sg-panel .resumen .mal b { color: var(--sd-rojo) }
+.sd .sg-panel .resumen .medio b { color: #965D00 }
+.sd .sg-panel .resumen .mal b { color: var(--sd-mal) }
 
 /* La chapa gris de "no aplica sider": marca sin gritar. */
 .sd .chapa-gris {
@@ -1368,7 +1393,7 @@
    número, y eso es lo que hace que una tabla de quince filas se lea. */
 .sd td.mini { width: 120px; padding-left: 0; padding-right: 26px }
 .sd td.mini .pista { height: 7px; background: var(--c-edf1f6); border-radius: 2px; overflow: hidden }
-.sd td.mini .relleno { height: 100%; background: var(--sd-rojo) }
+.sd td.mini .relleno { height: 100%; background: var(--sd-marca) }
 .sd tr.fuera td.mini .relleno { background: var(--c-c6d0dc) }
 
 /* El total en tinta: cierra la tabla y no se confunde con una fila más. */
@@ -1376,7 +1401,13 @@
   background: var(--sd-tinta); color: #fff; font-weight: 600; padding: 12px 26px;
   border-bottom: 0; font-size: 14px; position: sticky; bottom: 0;
 }
+/* El primer cuadro del total tiene que ser del MISMO tinta que el resto
+   de la fila. La regla de la columna congelada le ponía crema —la que
+   usan las otras tablas— y le pesa más por el :first-child, así que
+   encima quedaba el texto blanco del total: "Total general" en blanco
+   sobre crema, a 1,13:1. Se veía en pantalla y en la medición. */
 .sd .sg-panel tfoot tr.total td:first-child { font: 800 14px var(--sd-titulo) }
+.sd .sg-panel .sg-tabla.ancha tfoot tr.total td:first-child { background: var(--sd-tinta) }
 .sd .sg-panel tfoot tr.total td.mini .pista { background: rgba(255,255,255,.18) }
 .sd .sg-panel tfoot tr.total td.mini .relleno { background: #fff }
 
@@ -1400,25 +1431,25 @@
 }
 
 /* La columna derecha de la cabecera: las acciones encima del KPI. */
-.sd .sg-der { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; min-width: 0 }
+.sd .sg-der { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0 }
 .sd .acciones-informe { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end }
 .sd .accion {
-  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+  display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 13px;
   border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 2px;
   font: 600 13px var(--sd-texto); color: var(--sd-tinta); cursor: pointer; text-decoration: none;
   white-space: nowrap;
 }
-.sd .accion:hover { border-color: var(--sd-rojo); color: var(--sd-rojo) }
-.sd .accion:hover svg { stroke: var(--sd-rojo) }
+.sd .accion:hover { border-color: var(--sd-marca); color: var(--sd-marca) }
+.sd .accion:hover svg { stroke: var(--sd-marca) }
 .sd .accion svg {
   width: 15px; height: 15px; stroke: var(--sd-gris); stroke-width: 1.8; fill: none;
   stroke-linecap: round; stroke-linejoin: round; flex: none;
 }
 .sd .cabeza .ojo {
-  font-size: 11px; font-weight: 700; letter-spacing: .16em; color: var(--c-93a3b6); margin-bottom: 4px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .15em; color: var(--c-93a3b6); margin-bottom: 3px;
 }
 .sd .kpi .delta {
-  background: #fff; color: var(--sd-rojo); font: 800 11.5px var(--sd-titulo);
+  background: #fff; color: var(--c-alarma); font: 800 11.5px var(--sd-titulo);
   padding: 4px 9px; border-radius: 2px;
 }
 .sd .kpi:not(.corto) .delta { color: var(--sd-verde) }
@@ -1438,9 +1469,40 @@
 @media (max-width: 900px) {
   /* Encabezado: el rótulo y el título en una línea corta, el KPI a lo ancho. */
   .sd .cabeza .ojo { font-size: 10px; letter-spacing: .12em; margin-bottom: 2px }
-  .sd .kpi .num { font-size: 38px }
-  .sd .kpi { padding: 12px 18px 12px 14px }
-  .sd .kpi .pie { margin-top: 6px; gap: 8px; font-size: 12px }
+  /* En el celular el KPI se acuesta: el número a la izquierda y la meta
+     con su pastilla a la derecha, en la misma línea. Apilado medía 177
+     px de los 740 de un celular chico —casi una cuarta parte de la
+     pantalla para tres datos— y la tabla no cabía. Acostado mide 72. */
+  /* EL KPI DEL CELULAR, MEDIDO.
+     Aquí al lado hay una regla que pone las acciones en columna a la
+     izquierda y el KPI a la derecha, y eso le deja al KPI 137 px. En 137
+     px no caben el número y la pastilla lado a lado: la pastilla pide
+     115 y se montaba ENCIMA del número —se vio midiendo posiciones, no
+     mirando—. Así que aquí va todo en columna, cada cosa en su renglón.
+
+     Y se quita "Meta 10%": la meta ya está dicha arriba en el
+     encabezado del informe ("BU MTD = 10% de lo recibido") y la
+     pastilla dice "10 pp por debajo", que la implica. Con esos tres
+     datos en 137 px no cabe ninguno bien; con dos, los dos se leen. */
+  .sd .kpi {
+    display: grid; grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "rot" "num" "pie";
+    align-items: start; row-gap: 1px;
+    padding: 8px 13px 9px;
+  }
+  /* Nada de esto puede pasar a dos líneas: en un celular de 360 el
+     rótulo se partía en TRES renglones. */
+  .sd .kpi .rot {
+    grid-area: rot; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 9.5px; letter-spacing: .08em;
+  }
+  .sd .kpi .num { grid-area: num; font-size: 30px; margin-top: 0 }
+  .sd .kpi .pie {
+    grid-area: pie; margin-top: 1px; gap: 6px; font-size: 11px;
+    justify-content: flex-start; flex-wrap: nowrap; min-width: 0;
+  }
+  .sd .kpi .pie > span:first-child { display: none }
+  .sd .kpi .delta { white-space: nowrap; flex: none; font-size: 10px; padding: 2px 6px }
   .sd .accion { height: 34px; font-size: 12.5px }
 
   /* Filtros: cuatro selects de dos en dos, sin aire de sobra, y
@@ -1471,12 +1533,12 @@
 
   /* El informe lleva encima la fila de grupos y debajo la nota de los
      CD excluidos, así que le queda menos que a las otras dos. */
-  .sd .sg-marco { max-height: max(130px, calc(100dvh - 665px)) }
-  .sd .sg-marco.holgado { max-height: max(140px, calc(100dvh - 608px)) }
+  .sd .sg-marco { max-height: max(130px, calc(100dvh - 644px)) }
+  .sd .sg-marco.holgado { max-height: max(140px, calc(100dvh - 587px)) }
 }
 @media (max-width: 900px) and (max-height: 780px) {
-  .sd .sg-marco { max-height: max(80px, calc(100dvh - 695px)) }
-  .sd .sg-marco.holgado { max-height: max(110px, calc(100dvh - 620px)) }
+  .sd .sg-marco { max-height: max(100px, calc(100dvh - 635px)) }
+  .sd .sg-marco.holgado { max-height: max(130px, calc(100dvh - 605px)) }
 }
 
 /* En el celular las dos acciones van AL LADO del KPI, no encima: en
