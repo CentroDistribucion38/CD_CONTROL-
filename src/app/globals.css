@@ -664,10 +664,17 @@ body {
    familia del tema, para que la portada se vea de una pieza sin que los
    módulos se confundan entre ellos.
 
-   Se reparten en una banda de ±40° alrededor del acento del tema, y el
-   lightness se reparte al REVÉS que el tono: así dos módulos vecinos
-   nunca quedan iguales de tono y de claridad a la vez. En los temas
-   cálidos el lightness sube, porque amarillo oscuro es barro.
+   CADA COLOR VA EN SU PUNTO MÁS SATURADO, no en una claridad fija. El
+   primer intento los metió en una banda estrecha con el croma tope en
+   0,12 y salieron muertos: salmón, ocre y oliva. El croma máximo que
+   aguanta sRGB depende del tono Y de la claridad, así que forzar la
+   claridad mata el color. Ahora se busca la cresta —dónde ese tono da
+   más croma— y se toma el 93% de ella.
+
+   Los tonos cálidos tienen su cresta entre 0,63 y 0,86 de claridad y
+   ahí se ven vivos: rojo, naranja, ámbar, lima. Los fríos la tienen en
+   0,88-0,90, que ya es neón de resaltador; a esos se les pone techo y
+   se les reparte la claridad a mano, o dos vecinos salen iguales.
 
    Cada color va con la flecha que se lee encima —la de más contraste de
    las dos—, y todas pasan 3:1, que es el mínimo para un dibujo.
@@ -678,22 +685,22 @@ body {
    --------------------------------------------------------------------- */
 
 [data-tema="tinta"] {
-  --c-mod-quiebra: #ffad8d;      --c-mod-quiebra-txt: #04203f;
-  --c-mod-sider: #e0a054;        --c-mod-sider-txt: #04203f;
-  --c-mod-admin: #b59900;        --c-mod-admin-txt: #04203f;
-  --c-mod-inventario: #799137;   --c-mod-inventario-txt: #04203f;
+  --c-mod-quiebra: #f72735;      --c-mod-quiebra-txt: #04203f;
+  --c-mod-sider: #f97d25;        --c-mod-sider-txt: #04203f;
+  --c-mod-admin: #fcc231;        --c-mod-admin-txt: #04203f;
+  --c-mod-inventario: #c6df32;   --c-mod-inventario-txt: #04203f;
 }
 [data-tema="pizarra"] {
-  --c-mod-quiebra: #00bd60;      --c-mod-quiebra-txt: #0b2e33;
-  --c-mod-sider: #00a18b;        --c-mod-sider-txt: #0b2e33;
-  --c-mod-admin: #008691;        --c-mod-admin-txt: #fff;
-  --c-mod-inventario: #006c93;   --c-mod-inventario-txt: #fff;
+  --c-mod-quiebra: #2fd173;      --c-mod-quiebra-txt: #0b2e33;
+  --c-mod-sider: #29b499;        --c-mod-sider-txt: #0b2e33;
+  --c-mod-admin: #229aa0;        --c-mod-admin-txt: #0b2e33;
+  --c-mod-inventario: #1b80a1;   --c-mod-inventario-txt: #fff;
 }
 [data-tema="ambar"] {
-  --c-mod-quiebra: #ffad89;      --c-mod-quiebra-txt: #23262c;
-  --c-mod-sider: #dea152;        --c-mod-sider-txt: #23262c;
-  --c-mod-admin: #b29a00;        --c-mod-admin-txt: #23262c;
-  --c-mod-inventario: #76923a;   --c-mod-inventario-txt: #23262c;
+  --c-mod-quiebra: #f72735;      --c-mod-quiebra-txt: #fff;
+  --c-mod-sider: #f97d25;        --c-mod-sider-txt: #23262c;
+  --c-mod-admin: #fcc231;        --c-mod-admin-txt: #23262c;
+  --c-mod-inventario: #c6df32;   --c-mod-inventario-txt: #23262c;
 }
 
 /* =====================================================================
