@@ -601,3 +601,184 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 .sh[data-grande="si"] .pf-campo label { font-size: 15px }
 .sh[data-grande="si"] .sh-datos span,
 .sh[data-grande="si"] .pf-reglas li { font-size: 14px }
+
+/* ============================================================================
+   LA PUERTA CERRADA: CAMBIAR LA CLAVE PROVISIONAL
+   ---------------------------------------------------------------------------
+   Vive AQUÍ, en el cascarón, y no en su propia hoja: la pantalla se dibuja
+   desde (app)/layout.tsx reemplazando la aplicación entera, y esta hoja es la
+   única que existe seguro en ese momento. Una hoja aparte que el layout no
+   importe sale sin estilos, que es exactamente el error que ya nos pasó con
+   el aviso de ubicación en Certificar.
+
+   Todas las clases van con prefijo cp- por la misma razón que las del
+   calendario van con mes-: globals.css tiene clases sueltas y sin dueño
+   (.pie, .vacio, .campo, .panel) que se cuelan en cualquier pantalla.
+
+   El acento NUNCA se usa como color de texto: en ámbar (#FFC000) sobre
+   blanco da 1,7:1 y no se lee. El acento va de FONDO —con --c-marca-txt
+   encima, que es el par pensado para eso— o de raya.
+   ========================================================================== */
+.cp {
+  height: 100dvh;
+  overflow-y: auto;            /* la página no rueda; rueda esta caja */
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(1100px 520px at 50% -10%, var(--c-marca-velo), transparent 70%),
+    var(--bv-tinta);
+}
+
+.cp-caja {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  background: var(--bv-panel, #fff);
+  border: 1px solid var(--bv-linea);
+  border-radius: 16px;
+  padding: 32px 30px 30px;
+  box-shadow: 0 18px 44px rgba(4, 32, 63, .10), 0 2px 6px rgba(4, 32, 63, .05);
+  overflow: hidden;
+}
+/* La raya del tema arriba: es lo único que dice de qué color va la casa. */
+.cp-caja::before {
+  content: "";
+  position: absolute; inset: 0 0 auto 0; height: 4px;
+  background: var(--c-marca);
+}
+
+.cp-ojo {
+  margin: 0 0 8px;
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--bv-texto-2);
+  display: flex; align-items: center; gap: 8px;
+}
+.cp-ojo::before {
+  content: ""; width: 16px; height: 3px; border-radius: 2px;
+  background: var(--c-marca);
+}
+
+.cp-caja h1 {
+  margin: 0 0 10px;
+  font-size: 25px; font-weight: 700; line-height: 1.2;
+  letter-spacing: -.01em;
+  color: var(--bv-texto);
+  text-wrap: balance;
+}
+
+.cp-dice {
+  margin: 0 0 22px;
+  font-size: 13px; line-height: 1.55;
+  color: var(--bv-texto-2);
+}
+.cp-dice b { color: var(--bv-texto); font-weight: 600 }
+
+.cp-campos { display: grid; gap: 14px }
+.cp-campos label { display: block }
+.cp-campos label > span {
+  display: block; margin-bottom: 6px;
+  font-size: 12px; font-weight: 600;
+  color: var(--bv-texto);
+}
+.cp-campos input {
+  width: 100%; height: 46px;
+  padding: 0 14px;
+  font-size: 15px; font-family: inherit;
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+  border: 1px solid var(--bv-linea);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color .12s, box-shadow .12s, background .12s;
+}
+.cp-campos input:focus {
+  background: #fff;
+  border-color: var(--c-marca-filo);
+  box-shadow: 0 0 0 3px var(--c-marca-velo);
+}
+
+/* El campo con el ojo. El botón va DENTRO, y el input le deja el sitio
+   con padding-right: si fuera position:absolute encima, el texto largo
+   pasaría por debajo del ícono. */
+.cp-caja-clave { position: relative }
+.cp-caja-clave input { padding-right: 46px }
+.cp-caja-clave button {
+  position: absolute; top: 0; right: 0;
+  width: 44px; height: 46px;
+  display: grid; place-items: center;
+  background: none; border: 0; cursor: pointer;
+  color: var(--bv-texto-2);
+  border-radius: 0 10px 10px 0;
+}
+.cp-caja-clave button:hover { color: var(--bv-texto) }
+.cp-caja-clave button:focus-visible {
+  outline: 2px solid var(--c-marca-filo); outline-offset: -2px;
+}
+
+.cp-reglas {
+  list-style: none;
+  margin: 16px 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 6px 8px;
+}
+.cp-reglas li {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 500;
+  color: var(--c-5b6b7f);
+  background: var(--bv-tinta);
+  border: 1px solid var(--bv-linea);
+  border-radius: 99px;
+  padding: 5px 11px 5px 9px;
+}
+.cp-reglas li::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: #cbd5e1;
+}
+/* El verde del "ya cumple" es fijo en los cuatro temas: quiere decir
+   "correcto", no "esta app es verde". #146C43 da 5,6:1 sobre blanco. */
+.cp-reglas li.ok {
+  color: #146c43;
+  background: #e8f5ee;
+  border-color: #bfe0cd;
+}
+.cp-reglas li.ok::before { background: #146c43 }
+
+.cp-mal {
+  margin: 14px 0 0;
+  font-size: 12.5px; font-weight: 500; line-height: 1.45;
+  color: var(--c-alarma);
+  background: var(--bv-tinta);
+  border: 1px solid var(--c-alarma);
+  border-left-width: 3px;
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+
+.cp-btn {
+  margin-top: 20px;
+  width: 100%; min-height: 46px;
+  font-size: 14.5px; font-weight: 600; font-family: inherit;
+  color: var(--c-marca-txt);
+  background: var(--c-marca);
+  border: 0; border-radius: 10px;
+  cursor: pointer;
+  transition: background .12s, transform .06s;
+}
+.cp-btn:hover:not(:disabled) { background: var(--c-marca-vivo) }
+.cp-btn:active:not(:disabled) { transform: translateY(1px) }
+.cp-btn:focus-visible { outline: 2px solid var(--bv-texto); outline-offset: 2px }
+.cp-btn:disabled { opacity: .45; cursor: not-allowed }
+
+@media (max-width: 480px) {
+  .cp { padding: 14px; place-items: start center }
+  .cp-caja { padding: 26px 20px 24px; border-radius: 14px }
+  .cp-caja h1 { font-size: 22px }
+}
+
+/* Texto grande (equipos de piso). */
+.sh[data-grande="si"] .cp-campos input,
+.sh[data-grande="si"] .cp-caja-clave button { height: 54px }
+.sh[data-grande="si"] .cp-btn { min-height: 54px; font-size: 16px }
+.sh[data-grande="si"] .cp-reglas li { font-size: 13px }
+.sh[data-grande="si"] .cp-dice { font-size: 14.5px }

@@ -1,0 +1,167 @@
+/* ---------------------------------------------------------------------
+   Administración · Usuarios. Cuelga de .us dentro de .rl, así que
+   hereda los tokens y los botones de roles.css en vez de repetirlos.
+   --------------------------------------------------------------------- */
+
+/* El aviso de que falta la llave del servidor. Ámbar y no rojo: no está
+   roto, falta un paso de instalación. */
+.us .us-aviso {
+  background: #FFF8E6; border: 1px solid #F0D89B; border-left-width: 4px;
+  border-radius: 3px; padding: 14px 18px; color: #6B5518;
+}
+.us .us-aviso b { display: block; font-size: 14px; color: #5A4610 }
+.us .us-aviso p { margin: 7px 0 0; font-size: 13px; line-height: 1.5; max-width: 84ch }
+.us .us-aviso code {
+  font: 600 12.5px ui-monospace, monospace; background: #FDF0D5;
+  padding: 1px 5px; border-radius: 2px;
+}
+
+/* ---------- La clave recién generada ----------
+   Grande y sola, porque hay que dictarla en voz alta y aparece una sola
+   vez. Si fuera un renglón más de la tabla, se pasaría de largo. */
+.us .us-clave {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  flex-wrap: wrap;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  border-left: 4px solid var(--rl-verde); border-radius: 3px; padding: 16px 20px;
+}
+.us .us-clave .rot {
+  margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .15em;
+  color: var(--rl-gris);
+}
+.us .us-clave .num {
+  margin: 4px 0 0; font-family: var(--rl-titulo); font-weight: 900;
+  font-size: clamp(38px, 6vw, 54px); letter-spacing: .12em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.us .us-clave .dice { margin: 8px 0 0; font-size: 13px; line-height: 1.5; max-width: 70ch }
+.us .us-clave .ojo {
+  margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: #6B5518; max-width: 70ch;
+}
+
+/* ---------- El formulario ---------- */
+.us .us-form { border-top: 1px solid var(--rl-linea); padding: 16px 20px 18px }
+.us .us-campos {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px 16px;
+}
+.us .us-campos .ancho { grid-column: 1 / -1 }
+.us .us-campos label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.us .us-campos span { font-size: 11.5px; font-weight: 600; color: var(--c-2c4361) }
+.us .us-campos em {
+  font-style: normal; font-size: 11.5px; color: var(--rl-gris);
+}
+.us .us-campos em.bien { color: var(--rl-verde); font-weight: 600 }
+.us .us-campos em.mal  { color: var(--rl-rojo);  font-weight: 600 }
+.us .us-campos select {
+  width: 100%; height: 40px; padding: 0 10px;
+  font: 500 14px var(--rl-texto); color: var(--rl-tinta);
+  background: var(--c-f7f9fc); border: 1.5px solid var(--rl-linea); border-radius: 2px;
+  cursor: pointer;
+}
+
+/* ---------- La pantalla extra ---------- */
+.us .us-extra { margin-top: 18px; border-top: 1px solid var(--rl-linea); padding-top: 14px }
+.us .us-rot { margin: 0; font-family: var(--rl-titulo); font-weight: 800; font-size: 14px }
+.us .us-rot em { font-style: normal; font-weight: 500; color: var(--rl-gris); font-size: 12.5px }
+.us .us-dice { margin: 5px 0 12px; font-size: 12.5px; line-height: 1.45; color: var(--rl-gris); max-width: 78ch }
+/* El min() es el que evita que en un celular la rejilla empuje una
+   columna de 240px dentro de una caja de 230 y saque una barra de
+   desplazamiento horizontal donde no debe haber ninguna. */
+.us .us-modulos {
+  display: grid; gap: 12px; align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+}
+.us .us-mod { border: 1px solid var(--rl-linea); border-radius: 3px; padding: 10px 12px 8px }
+.us .us-mod > b {
+  display: block; font-family: var(--rl-titulo); font-weight: 800; font-size: 12.5px;
+  border-left: 3px solid; padding-left: 8px; margin-bottom: 8px;
+}
+.us .us-sec {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 4px 0; font-size: 12.5px;
+}
+.us .us-sec > span { min-width: 0; overflow-wrap: anywhere }
+.us .us-niveles { display: flex; gap: 3px; flex: none }
+/* Estos dos botones se tocan con guantes en una tablet de patio. 24px de
+   alto es un blanco imposible; el mínimo aquí es 30 en escritorio y 38
+   en pantalla chica, que es donde de verdad se usan con el dedo. */
+.us .us-niveles button {
+  border: 1px solid var(--rl-linea); background: var(--c-f7f9fc); cursor: pointer;
+  border-radius: 2px; padding: 0 11px; min-height: 30px; min-width: 46px;
+  font: 600 11.5px var(--rl-texto);
+  color: var(--rl-gris);
+}
+.us .us-niveles button:hover { border-color: var(--rl-acento); color: var(--rl-acento) }
+.us .us-niveles button.on {
+  background: var(--rl-acento); border-color: var(--rl-acento); color: #fff;
+}
+.us .us-niveles button:focus-visible { outline: 3px solid var(--rl-acento); outline-offset: 2px }
+
+.us .us-mal {
+  margin: 14px 0 0; padding: 11px 14px; border-radius: 3px;
+  background: #FDECEB; color: #A4271C; font-size: 13px;
+}
+.us .us-acciones { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap }
+
+/* ---------- La lista ---------- */
+.us .us-marco { overflow-x: auto; border-top: 1px solid var(--rl-linea) }
+.us .us-tabla { width: 100%; border-collapse: collapse; min-width: 620px }
+.us .us-tabla th {
+  text-align: left; padding: 9px 20px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--rl-gris);
+  background: var(--c-fafbfd); border-bottom: 1px solid var(--rl-linea);
+  white-space: nowrap;
+}
+.us .us-tabla td {
+  padding: 10px 20px; font-size: 13.5px; border-bottom: 1px solid var(--c-edf1f6);
+  vertical-align: middle;
+}
+.us .us-tabla tr:last-child td { border-bottom: 0 }
+.us .us-tabla td.cod { font-family: ui-monospace, monospace; font-size: 12.5px }
+/* --c-a9b6c6 sobre blanco da 2,06:1 y "Todavía no hay nadie." no se
+   leía. Un texto apagado sigue siendo texto: --c-5b6b7f da 5,3:1 en el
+   oficial y 4,87:1 en ámbar, que es el peor de los cuatro temas. */
+.us .us-tabla .apagado { color: var(--c-5b6b7f) }
+
+.us .us-chapa {
+  display: inline-flex; align-items: center; gap: 5px; margin: 2px 4px 2px 0;
+  background: var(--c-f2f1fc); border-radius: 2px; padding: 3px 8px;
+  font-size: 11.5px; font-weight: 600;
+}
+/* El "ver"/"editar" de la chapa NO se aclara con un gris.
+   Los --c-* se templan con el tema: --c-5b6b7f es #5b6b7f en el oficial
+   pero #6b7280 en ámbar, y sobre el fondo de la chapa —que también se
+   templa— cae a 4,34:1 en un texto de 11,5px. Poner un gris "fijo"
+   aquí es una auditoría de contraste por cada tema nuevo.
+   Así que hereda el color de la chapa (13:1 en los cuatro) y se
+   distingue por peso y espaciado, que no tienen contraste que auditar. */
+.us .us-chapa em {
+  font-style: normal; font-weight: 500; text-transform: lowercase;
+  letter-spacing: .02em;
+  padding-left: 6px; border-left: 1px solid var(--rl-linea);
+}
+
+.us .us-estado {
+  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+  border-radius: 999px; padding: 3px 10px;
+}
+.us .us-estado.bien { background: #E9F6EF; color: #14653F }
+.us .us-estado.ojo  { background: #FFF8E6; color: #6B5518 }
+.us .us-estado.mal  { background: #FDECEB; color: #A4271C }
+
+@media (max-width: 700px) {
+  .us .us-form { padding: 14px }
+  .us .us-tabla th, .us .us-tabla td { padding: 9px 14px }
+  .us .us-clave { flex-direction: column; align-items: flex-start }
+  /* En el celular la fila se parte: el nombre de la pantalla arriba y
+     los dos botones abajo, del ancho del dedo. Apretados a la derecha
+     en 360px quedaban en 42x24. */
+  .us .us-sec {
+    flex-wrap: wrap; justify-content: flex-start; gap: 4px 10px;
+    padding: 7px 0; border-bottom: 1px solid var(--c-edf1f6);
+  }
+  .us .us-sec > span { flex: 1 0 100% }
+  .us .us-mod .us-sec:last-child { border-bottom: 0 }
+  .us .us-niveles button { min-height: 38px; min-width: 62px; font-size: 12.5px }
+}

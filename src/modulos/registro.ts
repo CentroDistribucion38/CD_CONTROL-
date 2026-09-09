@@ -107,15 +107,16 @@ export const MODULOS: Modulo[] = [
     nombre: "Administración",
     eyebrow: "PLATAFORMA",
     descripcion:
-      "Roles y permisos: quién ve qué pantalla y quién puede modificar. Los roles son datos, no código.",
+      "Usuarios, roles y permisos: quién entra, quién ve qué pantalla y quién puede modificar. Los roles son datos, no código.",
     acento: "#4C3BCF",
     fondo: "#EDEBFA",
-    etiquetas: ["Roles por sección", "Ver o editar"],
+    etiquetas: ["Crear usuarios", "Roles por sección"],
     imagen: "/modulos/admin.jpg",
     ruta: "/admin/roles",
     activo: true,
     secciones: [
       { nombre: "Roles", ruta: "/admin/roles" },
+      { nombre: "Usuarios", ruta: "/admin/usuarios" },
     ],
   },
   {

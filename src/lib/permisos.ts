@@ -57,12 +57,21 @@ export async function misPermisos(): Promise<Permisos> {
   if (!user) return NADA;
 
   const [perfilR, rolesR, permisosR] = await Promise.all([
-    supabase.from("perfiles").select("rol, activo").eq("id", user.id).single(),
+    supabase.from("perfiles").select("rol, activo, permisos_extra").eq("id", user.id).single(),
     supabase.from("roles").select("clave, nombre, manda"),
     supabase.from("rol_permisos").select("rol, seccion, nivel"),
   ]);
 
   const rol = (perfilR.data?.rol as string) ?? "operador";
+  /* LOS PERMISOS DE ESTA PERSONA EN PARTICULAR, encima de los de su rol.
+     Existen para la excepción: el de portería que además revisa el
+     maestro. Sin esto habría que inventarle un rol para él solo, y la
+     lista de roles se vuelve una lista de personas.
+     SUMAN Y NUNCA RESTAN: quitar un permiso se hace en el rol, que es
+     donde se ve a quién más afecta. Si la columna todavía no existe
+     —falta correr 03-usuarios.sql— queda vacío y todo sigue igual. */
+  const extra = (perfilR.data as { permisos_extra?: Record<string, Nivel> } | null)
+    ?.permisos_extra ?? {};
 
   /* Si las tablas no están, se cae del lado de ANTES: admin y supervisor
      editan, el resto mira. Es lo que hacía es_editor() y evita que un
@@ -88,7 +97,14 @@ export async function misPermisos(): Promise<Permisos> {
     if (p.rol === rol) mapa.set(p.seccion, p.nivel);
   }
 
-  const nivel = (ruta: string): Nivel => (manda ? "editar" : mapa.get(ruta) ?? "ninguno");
+  /* El más alto de los dos: el del rol y el extra de la persona. */
+  const PESO: Record<Nivel, number> = { ninguno: 0, ver: 1, editar: 2 };
+  const nivel = (ruta: string): Nivel => {
+    if (manda) return "editar";
+    const delRol = mapa.get(ruta) ?? "ninguno";
+    const suyo = extra[ruta] ?? "ninguno";
+    return PESO[suyo] > PESO[delRol] ? suyo : delRol;
+  };
   const puedeVer = (ruta: string) => nivel(ruta) !== "ninguno";
   const puedeEditar = (ruta: string) => nivel(ruta) === "editar";
 

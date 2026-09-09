@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BarraSuperior } from "@/components/BarraSuperior";
 import { Marco } from "@/components/Marco";
 import { misPermisos } from "@/lib/permisos";
+import { ClaveProvisional } from "@/components/ClaveProvisional";
 import "./shell.css";
 
 function turnoActual(): string {
@@ -45,6 +46,22 @@ export default async function AppLayout({
   const nombre = perfil?.nombre || perfil?.usuario || "Usuario";
   const rol = perfil?.rol ?? "operador";
 
+  /* CLAVE PROVISIONAL: la puerta cerrada.
+     Va AQUÍ, en el cascarón que envuelve todas las rutas, y no en un
+     aviso dentro de cada pantalla: un aviso se cierra y se olvida, y
+     escribir otra URL a mano lo saltaría. Esto reemplaza la aplicación
+     entera hasta que la clave cambie.
+     Cuatro dígitos son diez mil combinaciones; como clave permanente se
+     adivina, así que no puede quedar por descuido. */
+  if (perfil?.clave_provisional === true) {
+    return (
+      <div className="sh flex min-h-screen flex-col"
+           data-tema={perfil?.tema === "oficial" ? undefined : perfil?.tema}>
+        <ClaveProvisional id={user.id} nombre={nombre} />
+      </div>
+    );
+  }
+
   /* Qué rutas puede ver esta persona. Se resuelve UNA vez aquí y baja al
      menú: si cada pantalla lo consultara por su cuenta serían quince
      consultas para dibujar una barra lateral. */
@@ -62,7 +79,9 @@ export default async function AppLayout({
     <div
       className="sh flex min-h-screen flex-col"
       data-grande={perfil?.texto_grande === true ? "si" : undefined}
-      data-tema={perfil?.tema === "ambar" ? "ambar" : undefined}
+      data-tema={
+        perfil?.tema && perfil.tema !== "oficial" ? String(perfil.tema) : undefined
+      }
     >
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
       <Marco rol={rol} permitidas={permitidas}>{children}</Marco>
