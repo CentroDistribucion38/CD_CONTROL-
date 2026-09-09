@@ -95,10 +95,27 @@ export function Usuarios({ gente, roles, catalogo, hayLlave }: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nombre, usuario, rol, permisos_extra: extra }),
     });
-    const j = await r.json().catch(() => ({ error: "El servidor no contestó." }));
+    const j = await r.json().catch(() => ({} as Record<string, string>));
     setCreando(false);
     if (!r.ok) return setMal(j.error ?? "No se pudo crear.");
-    setReciente({ usuario: j.usuario, nombre: j.nombre, clave: j.clave });
+
+    /* UN 200 NO ALCANZA. Vercel devuelve 200 con el cuerpo vacío cuando
+       la función se corta a mitad de respuesta, y entonces j.nombre es
+       undefined: la pantalla reventaba entera al escribirlo en
+       mayúsculas, y con ella se perdía la clave.
+       Lo grave no es el error, es que la cuenta PUEDE haber quedado
+       creada: el corte pasa después de crearla. Por eso esto no dice
+       "no se pudo" —sería mentira— sino que hay que ir a mirar. */
+    if (!j.clave || !j.usuario) {
+      router.refresh();
+      return setMal(
+        "El servidor cortó la respuesta y la clave no llegó. La cuenta " +
+        "PUEDE haber quedado creada: búscala en la lista de abajo. Si está, " +
+        "no la vuelvas a crear — genérale una clave nueva. Si no está, " +
+        "vuelve a intentarlo."
+      );
+    }
+    setReciente({ usuario: j.usuario, nombre: j.nombre || j.usuario, clave: j.clave });
     setAbierto(false);
     limpiar();
     router.refresh();
@@ -145,7 +162,11 @@ export function Usuarios({ gente, roles, catalogo, hayLlave }: {
       {reciente && (
         <section className="us-clave" role="status">
           <div>
-            <p className="rot">CLAVE PROVISIONAL DE {reciente.nombre.toUpperCase()}</p>
+            {/* Con ?? por si acaso: esta tarjeta lleva la única copia de
+                la clave, y si revienta al dibujarse se pierde. */}
+            <p className="rot">
+              CLAVE PROVISIONAL DE {(reciente.nombre ?? reciente.usuario ?? "").toUpperCase()}
+            </p>
             <p className="num">{reciente.clave}</p>
             <p className="dice">
               Entra con el usuario <b>{reciente.usuario}</b> y esta clave. La
