@@ -1,16 +1,33 @@
 "use client";
 
 /**
- * SEGUIMIENTO — las tres tablas de la hoja "Seguimiento".
+ * SEGUIMIENTO — las tres tablas de tu hoja, cada una por separado.
+ * ------------------------------------------------------------------
+ * En el Excel son tres cosas encadenadas, y el orden ES el proceso:
  *
- * En el Excel eran tres cosas separadas: un pivote de ZLDE, un pivote de
- * la hoja "Base de Datos", y a mano una tabla que restaba las dos. Aquí
- * el informe es la tabla principal —es la pregunta que alguien viene a
- * hacer— y las dos fuentes van debajo, para poder contestar la siguiente
- * pregunta, que siempre es "de dónde sale ese número".
+ *   1 · LO QUE LLEGÓ        pivote de ZLDE (Planta = Barranquilla,
+ *                           Clase = EER) por CD de origen.
+ *   2 · LO QUE SE CERTIFICÓ pivote de la Base de Datos por CD de
+ *                           origen. Hoy sale de la Fuente principal.
+ *   3 · EL INFORME          se calcula de las dos anteriores.
+ *
+ * Van en TRES pestañas, en ese orden, y no mezcladas: cada una es una
+ * pregunta distinta —qué llegó, qué se certificó, cómo vamos— y cada una
+ * trae sus propios filtros y sus propias cifras arriba. Apiladas en una
+ * sola página serían tres pantallas de desplazamiento, y la regla de
+ * este módulo es que la página no se mueva.
+ *
+ * EL SEMÁFORO DEL % ES EL TUYO, leído del formato condicional de la
+ * hoja (W5:W15), no inventado:
+ *      < 5%   rojo
+ *   5% a 9%   naranja
+ *      > 9%   verde
+ * Antes estaba con un solo corte en la meta del 10%, y un 5,3% salía
+ * rojo igual que un 0%. En tu hoja el 5,3% es naranja.
  *
  * LAS CUENTAS, verificadas contra el informe de agosto:
  *   BU MTD          = HL recibido × meta          (la meta es 10%)
+ *   % Cumplimiento  = Real MTD ÷ BU MTD           (llegar al BU es 100%)
  *   % Certificación = Real MTD ÷ HL recibido      (NO contra el BU)
  * Curumani 697/3.937 = 17,7% · Turbaco 2.462/31.042 = 7,9% ·
  * total 8.359/246.268 = 3,4%. Las once filas cuadran.
@@ -27,15 +44,22 @@ const nf1 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
    lado de un "1,4%" y la columna deja de leerse como una columna. */
 const nfp = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-const pctTexto = (p: number | null) =>
-  p == null ? "—" : `${nfp.format(p * 100)}%`;
+const pctTexto = (p: number | null) => (p == null ? "—" : `${nfp.format(p * 100)}%`);
 
-/* Verde o rojo según su propio umbral: el de certificación es la meta
-   (10%), el de cumplimiento es el 100% —cumplir es llegar al BU—. Con un
-   solo umbral para los dos, la columna de cumplimiento salía verde con
-   un 11%. */
-const clase = (p: number | null, umbral: number) =>
-  p == null ? " nulo" : p >= umbral ? " bien" : " mal";
+/** El semáforo de tu hoja: rojo por debajo del 5%, naranja hasta el 9%, verde arriba. */
+function semaforo(p: number | null): string {
+  if (p == null) return " nulo";
+  if (p < 0.05) return " mal";
+  if (p <= 0.09) return " medio";
+  return " bien";
+}
+/** Cumplir es llegar al BU: el corte es el 100%, no la meta. */
+const cumple = (p: number | null) => (p == null ? " nulo" : p >= 1 ? " bien" : p >= 0.5 ? " medio" : " mal");
+
+type Vista = "llego" | "certifico" | "informe";
+type Orden = { col: string; desc: boolean };
+
+const num = (x: unknown) => Number(x ?? 0);
 
 export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
   filas: FilaSeguimiento[];
@@ -45,12 +69,12 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
   esEditor: boolean;
 }) {
   const router = useRouter();
-  /* PESTAÑAS y no un "ver más" que apila. Con las tres tablas una debajo
-     de otra la página medía 1.2 pantallas de más en el celular y media en
-     el PC —medido—, y la regla de este módulo es que la página no se
-     desplace. Además son dos preguntas distintas: "cómo vamos" y "de
-     dónde sale ese número". Cada una en su vista. */
-  const [vista, setVista] = useState<"informe" | "fuentes">("informe");
+  /* Arranca en el informe: es la pregunta que alguien viene a hacer. Las
+     dos fuentes están al lado para contestar la siguiente, que siempre
+     es "de dónde sale ese número". */
+  const [vista, setVista] = useState<Vista>("informe");
+  const [cd, setCd] = useState("");
+  const [orden, setOrden] = useState<Orden>({ col: "hl_recibido", desc: true });
 
   const meta = filas[0]?.meta ?? 0.1;
 
@@ -72,40 +96,73 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
     return { dentro: d, fuera: f, huerfanos: h };
   }, [filas]);
 
+  /** El filtro de CD aplica a las tres tablas: es el mismo eje. */
+  const filtra = (xs: FilaSeguimiento[]) => (cd ? xs.filter((x) => x.cd_origen === cd) : xs);
+
+  /* El orden lo elige quien mira, tocando el encabezado. En tu hoja el
+     orden de los CD es el que quedó escrito a mano; aquí cada uno lo
+     pone como necesite y no hay que adivinar cuál era. */
+  const ordena = (xs: FilaSeguimiento[]) => {
+    const k = orden.col as keyof FilaSeguimiento;
+    return [...xs].sort((a, b) => {
+      const va = a[k], vb = b[k];
+      const cmp = typeof va === "string" || typeof vb === "string"
+        ? String(va ?? "").localeCompare(String(vb ?? ""))
+        : num(va) - num(vb);
+      return orden.desc ? -cmp : cmp;
+    });
+  };
+
+  const suma = (xs: FilaSeguimiento[], k: keyof FilaSeguimiento) =>
+    xs.reduce((s, f) => s + num(f[k]), 0);
+
+  const conCd = filtra(dentro);
   const tot = useMemo(() => {
-    const su = (k: keyof FilaSeguimiento) => dentro.reduce((s, f) => s + Number(f[k] ?? 0), 0);
-    const recibido = su("hl_recibido"), bu = su("bu_mtd"), real = su("real_mtd");
-    const vhRec = su("vh_recibidos"), vhBu = su("vh_bu_mtd"), vhReal = su("vh_real_mtd");
+    const recibido = suma(conCd, "hl_recibido"), bu = suma(conCd, "bu_mtd"), real = suma(conCd, "real_mtd");
+    const vhRec = suma(conCd, "vh_recibidos"), vhBu = suma(conCd, "vh_bu_mtd"), vhReal = suma(conCd, "vh_real_mtd");
     return {
-      recibido, bu, real, viajes: su("viajes"), vhRec, vhBu, vhReal,
+      recibido, bu, real, vhRec, vhBu, vhReal,
+      viajes: suma(conCd, "viajes"), estibas: suma(conCd, "estibas"), lineas: suma(conCd, "lineas_zlde"),
       pctVh: vhBu > 0 ? vhReal / vhBu : null,
       pctCumpl: bu > 0 ? real / bu : null,
       pct: recibido > 0 ? real / recibido : null,
     };
-  }, [dentro]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conCd]);
 
-  /* Para la tabla de "lo que se certificó": solo los que certificaron
-     algo. Una lista de quince ceros no es una fuente, es ruido. */
-  const certificaron = useMemo(
-    () => filas.filter((f) => Number(f.real_mtd) > 0)
-               .sort((a, b) => Number(b.real_mtd) - Number(a.real_mtd)),
-    [filas]
+  /* Todo lo que llegó, aplique sider o no: la tabla 1 es el pivote de
+     ZLDE tal cual, y en tu hoja también salen los quince. */
+  const llego = ordena(filtra(filas).filter((f) => num(f.hl_recibido) > 0));
+  const certifico = ordena(filtra(filas).filter((f) => num(f.real_mtd) > 0 || num(f.viajes) > 0));
+
+  /** ZLDE cargado pero nada certificado: falta la otra mitad del informe. */
+  const faltaBase = tot.recibido > 0 && tot.real === 0;
+
+  const cabecera = (col: string, texto: string, alDerecho = true) => (
+    <th className={(alDerecho ? "num " : "") + "sg-orden" + (orden.col === col ? " aqui" : "")}
+        onClick={() => setOrden((o) => ({ col, desc: o.col === col ? !o.desc : true }))}
+        role="button" tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setOrden((o) => ({ col, desc: o.col === col ? !o.desc : true })); }}>
+      {texto}<i>{orden.col === col ? (orden.desc ? "▾" : "▴") : ""}</i>
+    </th>
   );
-  const conRecibido = useMemo(
-    () => filas.filter((f) => Number(f.hl_recibido) > 0)
-               .sort((a, b) => Number(b.hl_recibido) - Number(a.hl_recibido)),
-    [filas]
+
+  const cifra = (rot: string, valor: string, tono?: string) => (
+    <div className={"sg-cifra" + (tono ?? "")} key={rot}>
+      <span>{rot}</span>
+      <b>{valor}</b>
+    </div>
   );
+
+  const cds = [...new Set(filas.map((f) => f.cd_origen))].sort();
 
   return (
     <>
       <div className="sg-barra">
         <label>
           <span>Mes</span>
-          <select
-            value={mes.slice(0, 7)}
-            onChange={(e) => router.push(`/sider/seguimiento?mes=${e.target.value}`)}
-          >
+          <select value={mes.slice(0, 7)}
+                  onChange={(e) => router.push(`/sider/seguimiento?mes=${e.target.value}`)}>
             {meses.map((m) => (
               <option key={m} value={m.slice(0, 7)}>
                 {MESES_LARGO[Number(m.slice(5, 7)) - 1]} {m.slice(0, 4)}
@@ -113,13 +170,23 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
             ))}
           </select>
         </label>
+        <label>
+          <span>CD</span>
+          <select value={cd} onChange={(e) => setCd(e.target.value)}>
+            <option value="">todos</option>
+            {cds.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        {/* Las tres pestañas EN EL ORDEN DEL PROCESO, numeradas: lo que
+            llegó, lo que se certificó, y el informe que sale de las dos.
+            El número no decora — dice que la tercera no existe sin las
+            dos primeras. */}
         <div className="sg-pes" role="tablist">
-          <button type="button" role="tab" aria-selected={vista === "informe"}
-                  className={vista === "informe" ? "aqui" : ""}
-                  onClick={() => setVista("informe")}>El informe</button>
-          <button type="button" role="tab" aria-selected={vista === "fuentes"}
-                  className={vista === "fuentes" ? "aqui" : ""}
-                  onClick={() => setVista("fuentes")}>De dónde sale</button>
+          {([["llego", "1 · Llegó"], ["certifico", "2 · Certificado"], ["informe", "3 · Informe"]] as const)
+            .map(([v, t]) => (
+              <button key={v} type="button" role="tab" aria-selected={vista === v}
+                      className={vista === v ? "aqui" : ""} onClick={() => setVista(v)}>{t}</button>
+            ))}
         </div>
         <a className="btn" href={`/api/sider/exportar?mes=${mes.slice(0, 7)}`}>
           <svg viewBox="0 0 24 24" aria-hidden="true" className="ic">
@@ -127,7 +194,7 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
                   fill="none" stroke="currentColor" strokeWidth="1.8"
                   strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Exportar a Excel
+          Exportar<span className="rotulo-largo"> a Excel</span>
         </a>
       </div>
 
@@ -141,202 +208,261 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
             {esEditor && <Link href="/sider/maestro">Arreglarlo en el maestro</Link>}
           </p>
           <p className="cuales">
-            {huerfanos.map((h) => `${h.cd_origen} (${nf.format(Number(h.hl_recibido))} HL)`).join(" · ")}
+            {huerfanos.map((h) => `${h.cd_origen} (${nf.format(num(h.hl_recibido))} HL)`).join(" · ")}
           </p>
         </section>
       )}
 
-      {/* ============ EL INFORME ============ */}
-      {vista === "informe" && (
-      <section className="tarjeta">
-        <div className="cab">
-          <div>
-            <h2>Sider certificado · {nombreMes}</h2>
-            {/* Corto a propósito: cada renglón de texto aquí es un CD
-                menos a la vista, y la tabla ya se explica sola. */}
-            <p>
-              <b>BU MTD</b> = {nf.format(meta * 100)}% de lo recibido ·{" "}
-              <b>% Cumpl.</b> = Real ÷ BU · <b>% Certificación</b> = Real ÷ recibido, que es
-              el número del informe.
-            </p>
-          </div>
-        </div>
-        <div className="marco sg-marco">
-          <table className="sg-tabla ancha">
-            <thead>
-              {/* Los dos bloques, cada uno bajo su rótulo: sin esta fila
-                  son nueve columnas seguidas de números y no hay forma
-                  de saber cuál BU pertenece a cuál. */}
-              <tr className="sg-grupo">
-                <th className="hueco" />
-                <th className="vh" colSpan={4}>Vehículos</th>
-                <th className="hl" colSpan={5}>Hectolitros</th>
-              </tr>
-              <tr>
-                <th>Centro de Origen</th>
-                <th className="num corta">Vh Recibidos</th>
-                <th className="num">BU MTD</th>
-                <th className="num">Real MTD</th>
-                <th className="num">% Cumpl.</th>
-                <th className="num corta">HL EER Recibido</th>
-                <th className="num">BU MTD</th>
-                <th className="num">Real MTD</th>
-                <th className="num">% Cumpl.</th>
-                <th className="num">% Certificación</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dentro.map((f) => {
-                const p = f.pct_certificacion == null ? null : Number(f.pct_certificacion);
-                const pc = f.pct_cumplimiento == null ? null : Number(f.pct_cumplimiento);
-                const pv = f.pct_cumplimiento_vh == null ? null : Number(f.pct_cumplimiento_vh);
-                return (
-                  <tr key={f.cd_origen}>
-                    <td>{f.cd_origen}</td>
-                    <td className="num corta">{nf1.format(Number(f.vh_recibidos))}</td>
-                    <td className="num">{nf1.format(Number(f.vh_bu_mtd))}</td>
-                    <td className="num">{nf1.format(Number(f.vh_real_mtd))}</td>
-                    <td className={"num sg-pct" + clase(pv, 1)}>{pctTexto(pv)}</td>
-                    <td className="num corta">{nf.format(Number(f.hl_recibido))}</td>
-                    <td className="num">{nf.format(Number(f.bu_mtd))}</td>
-                    <td className="num">{nf.format(Number(f.real_mtd))}</td>
-                    <td className={"num sg-pct" + clase(pc, 1)}>{pctTexto(pc)}</td>
-                    <td className={"num sg-pct" + clase(p, meta)}>{pctTexto(p)}</td>
-                  </tr>
-                );
-              })}
-              {!dentro.length && (
-                <tr><td className="vacio" colSpan={10}>Este mes no tiene nada cargado.</td></tr>
-              )}
-            </tbody>
-            {!!dentro.length && (
-              <tfoot>
-                <tr>
-                  <td>Total general</td>
-                  <td className="num corta">{nf1.format(tot.vhRec)}</td>
-                  <td className="num">{nf1.format(tot.vhBu)}</td>
-                  <td className="num">{nf1.format(tot.vhReal)}</td>
-                  <td className={"num sg-pct" + clase(tot.pctVh, 1)}>{pctTexto(tot.pctVh)}</td>
-                  <td className="num corta">{nf.format(tot.recibido)}</td>
-                  <td className="num">{nf.format(tot.bu)}</td>
-                  <td className="num">{nf.format(tot.real)}</td>
-                  <td className={"num sg-pct" + clase(tot.pctCumpl, 1)}>{pctTexto(tot.pctCumpl)}</td>
-                  <td className={"num sg-pct" + clase(tot.pct, meta)}>{pctTexto(tot.pct)}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-        {!!fuera.length && (
-          <p className="sg-aparte">
-            Fuera del total, por estar marcados <b>no aplica sider</b> en el maestro:{" "}
-            {fuera.map((f) => `${f.cd_origen} (${nf.format(Number(f.hl_recibido))} HL)`).join(" · ")}.
-            {" "}Son {nf.format(fuera.reduce((s, f) => s + Number(f.hl_recibido), 0))} HL que no
-            cuentan ni arriba ni abajo — y se muestran para que se sepa.
+      {/* Sin la segunda mitad el informe es una columna de ceros, y un
+          cero se lee como "no certificaron nada" cuando lo cierto es
+          "todavía no lo cargaste". */}
+      {faltaBase && (
+        <section className="m-faltan">
+          <p>
+            <b>Llegó ZLDE pero no hay nada certificado en {nombreMes}</b> — el informe va a
+            salir en 0% hasta que entre la otra mitad.{" "}
+            {esEditor
+              ? <><Link href="/sider/importar">Importa la pestaña «Base de datos»</Link> con los
+                  viajes de ese mes, o certifícalos desde{" "}
+                  <Link href="/sider/certificar">Certificar</Link>.</>
+              : "Pídele a un supervisor que importe la base de datos del mes."}
           </p>
-        )}
-      </section>
+        </section>
       )}
 
-      {/* ============ LAS DOS FUENTES ============ */}
-      {vista === "fuentes" && (
-        <div className="sg-fuentes">
-          <section className="tarjeta">
-            <div className="cab">
-              <div>
-                <h2>1 · Lo que llegó</h2>
-                <p>
-                  De <b>ZLDE</b>, con Planta = Barranquilla y Clase = EER, agrupado por CD
-                  de origen. Es la columna <b>HL EER Recibido</b>.
-                </p>
-              </div>
+      {/* ============ 1 · LO QUE LLEGÓ ============ */}
+      {vista === "llego" && (
+        <section className="tarjeta">
+          <div className="cab">
+            <div>
+              <h2>1 · Lo que llegó · {nombreMes}</h2>
+              <p>
+                El pivote de <b>ZLDE</b> con Planta = Barranquilla y Clase = EER, por CD de
+                origen. Es la columna <b>HL EER Recibido</b> del informe, y lo único que no
+                sale de la app: se{" "}
+                {esEditor ? <Link href="/sider/importar">importa</Link> : "importa"} de SAP.
+              </p>
             </div>
-            <div className="marco sg-marco chico">
-              <table>
-                <thead>
-                  <tr><th>CD de origen</th><th className="num">Hectolitros</th></tr>
-                </thead>
-                <tbody>
-                  {conRecibido.map((f) => (
-                    <tr key={f.cd_origen}>
-                      <td className={f.aplica_sider ? undefined : "apagado"}>
-                        {f.cd_origen}
-                        {!f.aplica_sider && <div className="cod">no aplica sider</div>}
-                        {f.fuera_del_maestro && <div className="cod">fuera del maestro</div>}
-                      </td>
-                      <td className="num">{nf1.format(Number(f.hl_recibido))}</td>
-                    </tr>
-                  ))}
-                  {!conRecibido.length && (
-                    <tr><td className="vacio" colSpan={2}>No hay ZLDE cargado de este mes.</td></tr>
-                  )}
-                </tbody>
-                {!!conRecibido.length && (
-                  <tfoot>
-                    <tr>
-                      <td>Total general</td>
-                      <td className="num">
-                        {nf1.format(conRecibido.reduce((s, f) => s + Number(f.hl_recibido), 0))}
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
-          </section>
-
-          <section className="tarjeta">
-            <div className="cab">
-              <div>
-                <h2>2 · Lo que se certificó</h2>
-                <p>
-                  De nuestra <Link href="/sider">Fuente principal</Link>: los HL de los
-                  viajes de ese mes que no están anulados. Es la columna <b>Real MTD</b>.
-                  Antes esto era la hoja <b>Base de Datos</b> que alguien llenaba a mano.
-                </p>
-              </div>
-            </div>
-            <div className="marco sg-marco chico">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Centro de Origen</th>
-                    <th className="num">Viajes</th>
-                    <th className="num">Estibas</th>
-                    <th className="num">HL</th>
+          </div>
+          <div className="sg-cifras">
+            {cifra("HL EER RECIBIDO", nf.format(suma(filtra(filas), "hl_recibido")))}
+            {cifra("VEHÍCULOS", nf1.format(suma(filtra(filas), "vh_recibidos")))}
+            {cifra("CD CON MOVIMIENTO", String(llego.length))}
+            {cifra("LÍNEAS DE SAP", nf.format(suma(filtra(filas), "lineas_zlde")))}
+          </div>
+          <div className="marco sg-marco">
+            <table className="sg-tabla">
+              <thead>
+                <tr>
+                  {cabecera("cd_origen", "Centro de Origen", false)}
+                  {cabecera("vh_recibidos", "Vehículos")}
+                  {cabecera("hl_recibido", "Hectolitros")}
+                  {cabecera("lineas_zlde", "Líneas de SAP")}
+                </tr>
+              </thead>
+              <tbody>
+                {llego.map((f) => (
+                  <tr key={f.cd_origen}>
+                    <td className={f.aplica_sider && !f.fuera_del_maestro ? undefined : "apagado"}>
+                      {f.cd_origen}
+                      {!f.aplica_sider && <div className="cod">no aplica sider</div>}
+                      {f.fuera_del_maestro && <div className="cod">fuera del maestro</div>}
+                    </td>
+                    <td className="num">{nf1.format(num(f.vh_recibidos))}</td>
+                    <td className="num">{nf1.format(num(f.hl_recibido))}</td>
+                    <td className="num cod">{nf.format(num(f.lineas_zlde))}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {certificaron.map((f) => (
+                ))}
+                {!llego.length && (
+                  <tr><td className="vacio" colSpan={4}>
+                    No hay ZLDE cargado de {nombreMes}.
+                    {esEditor && <> <Link href="/sider/importar">Impórtalo</Link>.</>}
+                  </td></tr>
+                )}
+              </tbody>
+              {!!llego.length && (
+                <tfoot>
+                  <tr>
+                    <td>Total general</td>
+                    <td className="num">{nf1.format(suma(llego, "vh_recibidos"))}</td>
+                    <td className="num">{nf1.format(suma(llego, "hl_recibido"))}</td>
+                    <td className="num">{nf.format(suma(llego, "lineas_zlde"))}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* ============ 2 · LO QUE SE CERTIFICÓ ============ */}
+      {vista === "certifico" && (
+        <section className="tarjeta">
+          <div className="cab">
+            <div>
+              <h2>2 · Lo que se certificó · {nombreMes}</h2>
+              <p>
+                Los viajes de <Link href="/sider">la Fuente principal</Link> de ese mes que no
+                están anulados, por CD de origen. Es la columna <b>Real MTD</b>. Antes era la
+                hoja <b>Base de Datos</b> que alguien llenaba a mano; ahora sale de lo que se
+                certifica en la app y de lo que se{" "}
+                {esEditor ? <Link href="/sider/importar">importa</Link> : "importa"} de esa hoja.
+              </p>
+            </div>
+          </div>
+          <div className="sg-cifras">
+            {cifra("REAL MTD (HL)", nf.format(suma(filtra(filas), "real_mtd")))}
+            {cifra("VIAJES", nf.format(suma(filtra(filas), "viajes")))}
+            {cifra("ESTIBAS", nf1.format(suma(filtra(filas), "estibas")))}
+            {cifra("VEHÍCULOS", nf1.format(suma(filtra(filas), "vh_real_mtd")))}
+          </div>
+          <div className="marco sg-marco">
+            <table className="sg-tabla">
+              <thead>
+                <tr>
+                  {cabecera("cd_origen", "Centro de Origen", false)}
+                  {cabecera("viajes", "Viajes")}
+                  {cabecera("estibas", "Estibas")}
+                  {cabecera("vh_real_mtd", "Vehículos")}
+                  {cabecera("real_mtd", "Hectolitros")}
+                </tr>
+              </thead>
+              <tbody>
+                {certifico.map((f) => (
+                  <tr key={f.cd_origen}>
+                    <td>{f.cd_origen}</td>
+                    <td className="num">{nf.format(num(f.viajes))}</td>
+                    <td className="num">{nf1.format(num(f.estibas))}</td>
+                    <td className="num">{nf1.format(num(f.vh_real_mtd))}</td>
+                    <td className="num">{nf.format(num(f.real_mtd))}</td>
+                  </tr>
+                ))}
+                {!certifico.length && (
+                  <tr><td className="vacio" colSpan={5}>
+                    Nadie certificó nada en {nombreMes}.
+                    {esEditor && <> <Link href="/sider/importar">Importa la base de datos</Link> o{" "}
+                      <Link href="/sider/certificar">certifica un viaje</Link>.</>}
+                  </td></tr>
+                )}
+              </tbody>
+              {!!certifico.length && (
+                <tfoot>
+                  <tr>
+                    <td>Total general</td>
+                    <td className="num">{nf.format(suma(certifico, "viajes"))}</td>
+                    <td className="num">{nf1.format(suma(certifico, "estibas"))}</td>
+                    <td className="num">{nf1.format(suma(certifico, "vh_real_mtd"))}</td>
+                    <td className="num">{nf.format(suma(certifico, "real_mtd"))}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* ============ 3 · EL INFORME ============ */}
+      {vista === "informe" && (
+        <section className="tarjeta">
+          <div className="cab">
+            <div>
+              <h2>3 · Sider certificado · {nombreMes}</h2>
+              <p>
+                <b>BU MTD</b> = {nf.format(meta * 100)}% de lo recibido ·{" "}
+                <b>% Cumpl.</b> = Real ÷ BU · <b>% Certificación</b> = Real ÷ recibido, que es
+                el número del informe.
+              </p>
+            </div>
+          </div>
+          <div className="sg-cifras">
+            {cifra("% CERTIFICACIÓN", pctTexto(tot.pct), semaforo(tot.pct))}
+            {cifra("% CUMPLIMIENTO", pctTexto(tot.pctCumpl), cumple(tot.pctCumpl))}
+            {cifra("HL EER RECIBIDO", nf.format(tot.recibido))}
+            {cifra("REAL MTD", nf.format(tot.real))}
+          </div>
+          <div className="marco sg-marco">
+            <table className="sg-tabla ancha">
+              <thead>
+                {/* Los dos bloques, cada uno bajo su rótulo: sin esta fila
+                    son nueve columnas seguidas de números y no hay forma
+                    de saber cuál BU pertenece a cuál. */}
+                <tr className="sg-grupo">
+                  <th className="hueco" />
+                  <th className="vh" colSpan={4}>Vehículos</th>
+                  <th className="hl" colSpan={5}>Hectolitros</th>
+                </tr>
+                <tr>
+                  {cabecera("cd_origen", "Centro de Origen", false)}
+                  <th className="num corta sg-orden" onClick={() => setOrden({ col: "vh_recibidos", desc: true })}>Vh Recibidos</th>
+                  {cabecera("vh_bu_mtd", "BU MTD")}
+                  {cabecera("vh_real_mtd", "Real MTD")}
+                  {cabecera("pct_cumplimiento_vh", "% Cumpl.")}
+                  <th className="num corta sg-orden" onClick={() => setOrden({ col: "hl_recibido", desc: true })}>HL EER Recibido</th>
+                  {cabecera("bu_mtd", "BU MTD")}
+                  {cabecera("real_mtd", "Real MTD")}
+                  {cabecera("pct_cumplimiento", "% Cumpl.")}
+                  {cabecera("pct_certificacion", "% Certificación")}
+                </tr>
+              </thead>
+              <tbody>
+                {ordena(conCd).map((f) => {
+                  const p = f.pct_certificacion == null ? null : Number(f.pct_certificacion);
+                  const pc = f.pct_cumplimiento == null ? null : Number(f.pct_cumplimiento);
+                  const pv = f.pct_cumplimiento_vh == null ? null : Number(f.pct_cumplimiento_vh);
+                  return (
                     <tr key={f.cd_origen}>
                       <td>{f.cd_origen}</td>
-                      <td className="num">{f.viajes}</td>
-                      <td className="num">{nf1.format(Number(f.estibas))}</td>
-                      <td className="num">{nf.format(Number(f.real_mtd))}</td>
+                      <td className="num corta">{nf1.format(num(f.vh_recibidos))}</td>
+                      <td className="num">{nf1.format(num(f.vh_bu_mtd))}</td>
+                      <td className="num">{nf1.format(num(f.vh_real_mtd))}</td>
+                      <td className={"num sg-pct" + cumple(pv)}>{pctTexto(pv)}</td>
+                      <td className="num corta">{nf.format(num(f.hl_recibido))}</td>
+                      <td className="num">{nf.format(num(f.bu_mtd))}</td>
+                      <td className="num">{nf.format(num(f.real_mtd))}</td>
+                      <td className={"num sg-pct" + cumple(pc)}>{pctTexto(pc)}</td>
+                      <td className={"num sg-pct" + semaforo(p)}>{pctTexto(p)}</td>
                     </tr>
-                  ))}
-                  {!certificaron.length && (
-                    <tr><td className="vacio" colSpan={4}>Nadie certificó nada este mes.</td></tr>
-                  )}
-                </tbody>
-                {!!certificaron.length && (
-                  <tfoot>
-                    <tr>
-                      <td>Total general</td>
-                      <td className="num">{certificaron.reduce((s, f) => s + Number(f.viajes), 0)}</td>
-                      <td className="num">
-                        {nf1.format(certificaron.reduce((s, f) => s + Number(f.estibas), 0))}
-                      </td>
-                      <td className="num">
-                        {nf.format(certificaron.reduce((s, f) => s + Number(f.real_mtd), 0))}
-                      </td>
-                    </tr>
-                  </tfoot>
+                  );
+                })}
+                {!conCd.length && (
+                  <tr><td className="vacio" colSpan={10}>Este mes no tiene nada cargado.</td></tr>
                 )}
-              </table>
-            </div>
-          </section>
-        </div>
+              </tbody>
+              {!!conCd.length && (
+                <tfoot>
+                  <tr>
+                    <td>Total general</td>
+                    <td className="num corta">{nf1.format(tot.vhRec)}</td>
+                    <td className="num">{nf1.format(tot.vhBu)}</td>
+                    <td className="num">{nf1.format(tot.vhReal)}</td>
+                    <td className={"num sg-pct" + cumple(tot.pctVh)}>{pctTexto(tot.pctVh)}</td>
+                    <td className="num corta">{nf.format(tot.recibido)}</td>
+                    <td className="num">{nf.format(tot.bu)}</td>
+                    <td className="num">{nf.format(tot.real)}</td>
+                    <td className={"num sg-pct" + cumple(tot.pctCumpl)}>{pctTexto(tot.pctCumpl)}</td>
+                    <td className={"num sg-pct" + semaforo(tot.pct)}>{pctTexto(tot.pct)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+          {/* Plegada: son 2.218 HL de cuatro CD que nadie consulta todos
+              los días, y desplegada se llevaba 61 px de tabla. Lo que no
+              puede pasar es que desaparezcan sin decir por qué. */}
+          {!!fuera.length && !cd && (
+            <details className="sg-aparte-det">
+              <summary>
+                {fuera.length} CD fuera del total ·{" "}
+                {nf.format(suma(fuera, "hl_recibido"))} HL marcados <b>no aplica sider</b>
+              </summary>
+              <p>
+                {fuera.map((f) => `${f.cd_origen} (${nf.format(num(f.hl_recibido))} HL)`).join(" · ")}.
+                {" "}No cuentan ni arriba ni abajo, y se muestran para que se sepa. Se cambia
+                en el <Link href="/sider/maestro">maestro</Link>.
+              </p>
+            </details>
+          )}
+        </section>
       )}
     </>
   );
