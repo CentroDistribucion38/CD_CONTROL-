@@ -41,6 +41,7 @@ export default async function UsuariosPage() {
   }
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   const [gente, roles] = await Promise.all([
     supabase
       .from("perfiles")
@@ -92,6 +93,7 @@ export default async function UsuariosPage() {
           roles={(roles.data ?? []) as never[]}
           catalogo={catalogo}
           hayLlave={hayLlaveDeServicio()}
+          yo={user?.id ?? ""}
         />
       )}
     </div>

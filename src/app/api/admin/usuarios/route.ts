@@ -315,3 +315,95 @@ export async function POST(req: Request) {
      administrador que la va a dictar, en este momento. */
   return NextResponse.json({ usuario, nombre, rol, clave, digitos: DIGITOS });
 }
+
+/**
+ * GENERARLE UNA CLAVE NUEVA A ALGUIEN QUE YA EXISTE.
+ *
+ * Hace falta porque la clave sale UNA vez y no se guarda en ninguna
+ * parte nuestra. Si el administrador no alcanzó a dictarla —o la
+ * creación se cortó a mitad y nunca la vio— no hay de dónde sacarla: la
+ * única salida es poner otra. Sin esto, esa persona quedaba con una
+ * cuenta a la que nadie puede entrar y un usuario ocupado para siempre.
+ *
+ * La nueva nace PROVISIONAL otra vez: quien entre con ella tiene que
+ * cambiarla antes de llegar a ninguna pantalla, igual que la primera.
+ *
+ * El mismo orden de siempre: sesión → manda → recién ahí la llave.
+ */
+export async function PATCH(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Sin sesión." }, { status: 401 });
+
+  const permisos = await misPermisos();
+  if (!permisos.manda) {
+    return NextResponse.json(
+      { error: "Generar claves requiere un rol que administre la plataforma." },
+      { status: 403 }
+    );
+  }
+
+  const admin = clienteDeServicio();
+  if (!admin) {
+    return NextResponse.json(
+      { error: "Falta la variable SUPABASE_SERVICE_ROLE_KEY en el servidor." },
+      { status: 503 }
+    );
+  }
+
+  let cuerpo: { id?: string };
+  try { cuerpo = await req.json() } catch {
+    return NextResponse.json({ error: "No llegó a quién." }, { status: 400 });
+  }
+  const id = (cuerpo.id ?? "").trim();
+  if (!id) return NextResponse.json({ error: "Falta decir a quién." }, { status: 400 });
+
+  const { data: quien } = await admin
+    .from("perfiles").select("id, usuario, nombre").eq("id", id).maybeSingle();
+  if (!quien) {
+    return NextResponse.json({ error: "Esa persona ya no está." }, { status: 404 });
+  }
+
+  /* A UNO MISMO NO. Cambiarse la propia clave por una de seis dígitos y
+     quedar marcado como provisional es encerrarse afuera de la sesión
+     que se está usando para administrar. Para la propia contraseña está
+     Mi perfil, que pide la actual. */
+  if (id === user.id) {
+    return NextResponse.json(
+      { error: "Para cambiar tu propia clave usa Mi perfil, no esto." },
+      { status: 400 }
+    );
+  }
+
+  const clave = claveSugerida();
+  const { error: eClave } = await admin.auth.admin.updateUserById(id, {
+    password: clave, email_confirm: true,
+  });
+  if (eClave) {
+    return NextResponse.json(
+      { error: porQueLaClave(eClave.message, quien.usuario ?? "") },
+      { status: 500 }
+    );
+  }
+
+  /* La marca se prende DESPUÉS de que la clave ya cambió. Al revés, si
+     el cambio fallara quedaría alguien obligado a cambiar una clave que
+     sigue siendo la vieja. */
+  const { error: eMarca } = await admin
+    .from("perfiles").update({ clave_provisional: true }).eq("id", id);
+  if (eMarca) {
+    return NextResponse.json(
+      {
+        error:
+          `La clave de "${quien.usuario}" SÍ cambió, pero no se pudo marcar como ` +
+          `provisional: ${eMarca.message}. Dísela igual y pídele que la cambie.`,
+        usuario: quien.usuario, nombre: quien.nombre, clave, digitos: DIGITOS,
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    usuario: quien.usuario, nombre: quien.nombre, clave, digitos: DIGITOS,
+  });
+}

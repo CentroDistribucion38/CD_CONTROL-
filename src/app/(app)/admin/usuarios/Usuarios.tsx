@@ -42,11 +42,13 @@ function proponer(nombre: string): string {
   return normalizarUsuario(partes[0][0] + partes[partes.length - 1]);
 }
 
-export function Usuarios({ gente, roles, catalogo, hayLlave }: {
+export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
   gente: Persona[];
   roles: Rol[];
   catalogo: Modulo[];
   hayLlave: boolean;
+  /** Quién está mirando: a uno mismo no se le genera clave desde aquí. */
+  yo: string;
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -85,6 +87,40 @@ export function Usuarios({ gente, roles, catalogo, hayLlave }: {
   function limpiar() {
     setNombre(""); setUsuario(""); setTocado(false); setExtra({});
     setLibre(null); setMal(null);
+  }
+
+  /* GENERARLE UNA CLAVE NUEVA a alguien que ya existe.
+     La clave sale una sola vez y no se guarda: si no se alcanzó a
+     dictar, esta es la única salida. Sin esto quedaba una cuenta a la
+     que nadie puede entrar y un usuario ocupado para siempre. */
+  const [regenerando, setRegenerando] = useState<string | null>(null);
+  async function nuevaClave(p: Persona) {
+    setMal(null); setRegenerando(p.id);
+    const r = await fetch("/api/admin/usuarios", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: p.id }),
+    });
+    const j = await r.json().catch(() => ({} as Record<string, string>));
+    setRegenerando(null);
+    /* Si la clave SÍ cambió pero algo más falló, el servidor la manda
+       igual: perderla por un error posterior dejaría a la persona sin
+       poder entrar y sin que nadie sepa con qué. */
+    if (j.clave) setReciente({ usuario: j.usuario, nombre: j.nombre || j.usuario, clave: j.clave });
+    if (!r.ok) {
+      setMal(j.error ?? "No se pudo generar la clave.");
+    } else if (!j.clave) {
+      /* 200 con el cuerpo vacío: Vercel corta la respuesta a mitad. Sin
+         esto el botón no hacía absolutamente nada y no había forma de
+         saber si la clave cambió o no. Y sí puede haber cambiado: el
+         corte pasa después. */
+      setMal(
+        `El servidor cortó la respuesta y la clave no llegó. Es posible que SÍ ` +
+        `haya cambiado, así que la anterior puede que ya no sirva: vuelve a darle ` +
+        `"Nueva clave" a ${p.nombre || p.usuario} y usa la que salga.`
+      );
+    }
+    router.refresh();
   }
 
   async function crear() {
@@ -157,6 +193,14 @@ export function Usuarios({ gente, roles, catalogo, hayLlave }: {
           </p>
         </section>
       )}
+
+      {/* EL AVISO DE ERROR VA AQUÍ y no dentro del formulario.
+          Estaba adentro, y el formulario está cerrado casi siempre: al
+          darle "Nueva clave" desde la lista, un error se escribía en un
+          sitio que nadie estaba viendo y el botón parecía no hacer
+          nada. Medido: 403 y 200-vacío no mostraban absolutamente
+          nada. */}
+      {mal && <p className="us-mal suelto" role="alert">{mal}</p>}
 
       {/* La clave recién generada. Grande, para dictarla. */}
       {reciente && (
@@ -268,8 +312,6 @@ export function Usuarios({ gente, roles, catalogo, hayLlave }: {
               </div>
             </div>
 
-            {mal && <p className="us-mal" role="alert">{mal}</p>}
-
             <div className="us-acciones">
               <button type="button" className="btn" onClick={crear} disabled={!puede || creando}>
                 {creando ? "Creando…" : "Crear y generar la clave"}
@@ -286,7 +328,7 @@ export function Usuarios({ gente, roles, catalogo, hayLlave }: {
             <thead>
               <tr>
                 <th>Nombre</th><th>Usuario</th><th>Rol</th>
-                <th>Pantallas extra</th><th>Estado</th>
+                <th>Pantallas extra</th><th>Estado</th><th className="us-acc">Clave</th>
               </tr>
             </thead>
             <tbody>
@@ -313,11 +355,23 @@ export function Usuarios({ gente, roles, catalogo, hayLlave }: {
                           ? <span className="us-estado ojo">clave provisional</span>
                           : <span className="us-estado bien">al día</span>}
                     </td>
+                    <td className="us-acc">
+                      {p.id === yo ? (
+                        /* A uno mismo no: sería encerrarse afuera de la
+                           sesión con la que se está administrando. */
+                        <span className="apagado">eres tú</span>
+                      ) : (
+                        <button type="button" className="us-mini" disabled={!hayLlave || !!regenerando}
+                                onClick={() => nuevaClave(p)}>
+                          {regenerando === p.id ? "Generando…" : "Nueva clave"}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
               {gente.length === 0 && (
-                <tr><td colSpan={5} className="apagado">Todavía no hay nadie.</td></tr>
+                <tr><td colSpan={6} className="apagado">Todavía no hay nadie.</td></tr>
               )}
             </tbody>
           </table>
