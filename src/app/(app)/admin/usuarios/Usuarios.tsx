@@ -120,10 +120,18 @@ export function Usuarios({ gente, roles, catalogo, hayLlave }: {
         <section className="us-aviso">
           <b>Falta la llave del servidor para poder crear cuentas.</b>
           <p>
-            Se pone una vez: en Supabase, <b>Project Settings → API → service_role</b>;
-            en Vercel, <b>Settings → Environment Variables</b>, con el nombre{" "}
-            <code>SUPABASE_SERVICE_ROLE_KEY</code>, y un redeploy. En local, la misma
-            línea en <code>.env.local</code>.
+            Se pone una vez. En Supabase: <b>Settings → API Keys</b>, y copia la
+            llave <b>secreta</b> — la nueva empieza por <code>sb_secret_</code>, y si
+            todavía usas la vieja es la <code>service_role</code>. Sirve cualquiera
+            de las dos. <em>Ojo: la página «Settings → API» ya no existe, Supabase la
+            renombró.</em>
+          </p>
+          <p>
+            En Vercel: <b>Settings → Environment Variables</b>, con el nombre{" "}
+            <code>SUPABASE_SERVICE_ROLE_KEY</code>, marcando los tres entornos, y
+            después <b>Deployments → ⋯ → Redeploy</b>: una variable nueva no entra al
+            despliegue que ya está corriendo. En local, la misma línea en{" "}
+            <code>.env.local</code> y reiniciar <code>npm run dev</code>.
           </p>
           <p>
             Esa llave se salta todos los permisos de la base, así que va solo en
