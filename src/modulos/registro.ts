@@ -166,11 +166,30 @@ export function modulosVisibles(rol: string): Modulo[] {
   return MODULOS.filter((m) => !m.oculto && puedeVer(m, rol));
 }
 
-/** Encuentra el módulo al que pertenece una ruta (incluidos los ocultos). */
+/**
+ * Encuentra el módulo al que pertenece una ruta (incluidos los ocultos).
+ *
+ * Mira la ruta del módulo Y LA DE SUS SECCIONES. Antes solo miraba la del
+ * módulo, y eso dejaba pantallas huérfanas: Administración entra por
+ * /admin/roles, que NO es prefijo de /admin/usuarios, así que Usuarios se
+ * quedaba sin módulo. Sin módulo no hay migas de pan y —peor— Marco no
+ * dibuja el riel: la pantalla quedaba sin ninguna forma de salir, y en la
+ * app instalada no hay botón de atrás del navegador que te salve.
+ *
+ * Gana la coincidencia MÁS LARGA, para que un módulo que cuelgue de otro
+ * no se lo robe.
+ */
 export function moduloPorRuta(pathname: string): Modulo | undefined {
-  return MODULOS.filter((m) => m.activo)
-    .filter((m) => pathname === m.ruta || pathname.startsWith(`${m.ruta}/`))
-    .sort((a, b) => b.ruta.length - a.ruta.length)[0];
+  let mejor: Modulo | undefined;
+  let largo = -1;
+  for (const m of MODULOS) {
+    if (!m.activo) continue;
+    for (const r of [m.ruta, ...m.secciones.map((s) => s.ruta)]) {
+      if (pathname !== r && !pathname.startsWith(`${r}/`)) continue;
+      if (r.length > largo) { largo = r.length; mejor = m }
+    }
+  }
+  return mejor;
 }
 
 export function puedeVer(modulo: Modulo, rol: string): boolean {

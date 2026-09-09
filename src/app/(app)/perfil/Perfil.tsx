@@ -157,9 +157,23 @@ const NOMBRE_ROL: Record<string, string> = {
 function traducir(mensaje: string): string {
   const m = mensaje.toLowerCase();
   if (m.includes("column") || m.includes("schema cache")) {
+    /* PostgREST dice cuál columna falta; el mensaje anterior se la
+       guardaba y dejaba adivinando. Con el nombre se sabe de una si es
+       una columna del perfil o de otra cosa. */
+    const cual = mensaje.match(/'([a-z_]+)' column/i)?.[1];
     return (
-      "Faltan las columnas del perfil en Supabase. Abre el SQL Editor y " +
-      "ejecuta supabase/01-perfil.sql."
+      `Falta la columna ${cual ? `«${cual}» ` : ""}del perfil en Supabase. ` +
+      "Abre el SQL Editor y ejecuta supabase/01-perfil.sql. Se puede correr " +
+      "varias veces sin romper nada."
+    );
+  }
+  /* El tema elegido no está en la lista que acepta la base. Pasa al
+     agregar temas nuevos sin correr su migración: la pantalla ya los
+     muestra y la base todavía no los conoce. */
+  if (m.includes("perfiles_tema_valido")) {
+    return (
+      "Ese tema todavía no está permitido en la base. Abre el SQL Editor y " +
+      "ejecuta supabase/migraciones/2026-09-temas-gris.sql."
     );
   }
   if (m.includes("row-level security") || m.includes("permission")) {
