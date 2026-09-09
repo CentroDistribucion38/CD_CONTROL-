@@ -67,21 +67,36 @@ security definer
 set search_path = public
 as $$
 begin
+  -- El administrador sí puede cambiarlos.
   if public.mi_rol() = 'admin' then
     return new;
   end if;
+
   if new.rol is distinct from old.rol
      or new.usuario is distinct from old.usuario
      or new.activo is distinct from old.activo
-     or new.bodega is distinct from old.bodega
-     or new.permisos_extra is distinct from old.permisos_extra then
-    raise exception 'Solo el administrador puede cambiar usuario, rol, bodega, estado o permisos.';
+     or new.bodega is distinct from old.bodega then
+    raise exception 'Solo el administrador puede cambiar usuario, rol, bodega o estado.';
   end if;
-  -- La clave provisional sí la puede APAGAR uno mismo: es justo lo que
-  -- pasa cuando cambia su contraseña. Prenderla es del administrador.
-  if new.clave_provisional and not old.clave_provisional then
+
+  -- Las dos columnas de 03-usuarios.sql se comparan por jsonb y no por
+  -- nombre. Escrito como `new.permisos_extra`, esta función NO COMPILA si
+  -- la columna todavía no existe, y entonces 01 y 03 tendrían que correrse
+  -- en un orden exacto. Por jsonb, si la columna no está, los dos lados
+  -- dan null, null no es distinto de null, y no pasa nada. Así el orden
+  -- deja de importar y no hay dos copias del disparador que se pisen: era
+  -- eso lo que hacía que correr 01 despues de 03 borrara la proteccion.
+  if to_jsonb(new)->'permisos_extra' is distinct from to_jsonb(old)->'permisos_extra' then
+    raise exception 'Solo el administrador puede cambiar los permisos.';
+  end if;
+
+  -- La clave provisional se puede APAGAR uno mismo —es lo que pasa al
+  -- cambiar la contraseña— pero no prender.
+  if coalesce((to_jsonb(new)->>'clave_provisional')::boolean, false)
+     and not coalesce((to_jsonb(old)->>'clave_provisional')::boolean, false) then
     raise exception 'Solo el administrador puede marcar una clave como provisional.';
   end if;
+
   return new;
 end;
 $$;

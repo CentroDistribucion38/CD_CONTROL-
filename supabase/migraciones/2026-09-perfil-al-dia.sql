@@ -1,36 +1,26 @@
--- ---------------------------------------------------------------------
--- Campos de "Mi perfil".
--- Se puede correr varias veces sin romper nada.
+-- =====================================================================
+-- PONER AL DÍA EL PERFIL: columnas, los siete temas y la protección
+-- =====================================================================
+-- Se puede correr varias veces sin romper nada, y no importa qué hayas
+-- corrido antes.
 --
--- Qué NO se agrega aquí a propósito:
---   · usuario y rol ya existen y solo los cambia el administrador.
---   · la contraseña la maneja auth.users, no esta tabla.
+-- Reemplaza tener que correr 01-perfil.sql y la migración de los temas
+-- por separado. Va todo junto a propósito: correr 01-perfil.sql suelto
+-- REVERTÍA la protección que agregó 03-usuarios.sql, porque los dos
+-- archivos traían su propia copia del disparador y la de 01 era vieja.
+-- Aquí va una sola, y está escrita para que el orden ya no importe.
+-- =====================================================================
+
+begin;
+
 -- ---------------------------------------------------------------------
-
+-- 1. Las columnas del perfil.
+-- ---------------------------------------------------------------------
 alter table public.perfiles
-  -- Dato informativo. Hoy solo hay una bodega; queda como columna para el
-  -- día que CONTROL cubra más de un centro.
   add column if not exists bodega text not null default 'Ag01 — Barranquilla',
-
-  -- 1, 2 o 3. Nulo = la persona no lo ha dicho.
   add column if not exists turno_habitual smallint,
-
-  -- Qué abrir al entrar: null = mostrar el selector de módulos.
   add column if not exists modulo_inicio text,
-
-  -- Tablas y botones más grandes en los equipos de piso.
   add column if not exists texto_grande boolean not null default false,
-
-  -- Qué colores ve esta persona. El tema solo cambia COLOR: ni un dato,
-  -- ni un permiso, ni una cifra dependen de él, así que dos personas
-  -- viendo temas distintos ven exactamente lo mismo.
-  --   oficial   el azul marino y el rojo de siempre
-  --   tinta     el mismo azul marino, acento en ámbar
-  --   pizarra   pizarra y turquesa
-  --   ambar     grafito y ámbar sobre papel cálido
-  --   negro     negro plano y ámbar
-  --   gris      gris claro y ámbar (la única barra clara)
-  --   halo      negro con resplandor rojo y ámbar
   add column if not exists tema text not null default 'oficial';
 
 alter table public.perfiles
@@ -39,9 +29,11 @@ alter table public.perfiles
   add constraint perfiles_turno_habitual_valido
   check (turno_habitual is null or turno_habitual between 1 and 3);
 
--- Que no entre un tema que no existe: si mañana alguien escribe
--- 'morado' por API, la pantalla se quedaría sin colores. Al agregar un
--- tema nuevo hay que agregarlo también aquí y en TEMAS de Perfil.tsx.
+-- ---------------------------------------------------------------------
+-- 2. Los SIETE temas. El color vive en globals.css, no aquí: esta regla
+--    existe nada más para que un valor escrito a mano no deje a alguien
+--    con la aplicación sin colores.
+-- ---------------------------------------------------------------------
 alter table public.perfiles
   drop constraint if exists perfiles_tema_valido;
 alter table public.perfiles
@@ -50,9 +42,7 @@ alter table public.perfiles
                   'negro', 'gris', 'halo'));
 
 -- ---------------------------------------------------------------------
--- Cada quien edita SOLO su propio perfil, y solo estas columnas: el
--- disparador rechaza cualquier intento de auto-ascenderse de rol o de
--- cambiarse el usuario desde la pantalla de perfil.
+-- 3. La protección de las columnas que solo toca el administrador.
 -- ---------------------------------------------------------------------
 create or replace function public.perfil_campos_protegidos()
 returns trigger
@@ -100,9 +90,32 @@ create trigger perfiles_protege_campos
   before update on public.perfiles
   for each row execute function public.perfil_campos_protegidos();
 
-drop policy if exists "perfil propio: actualizar" on public.perfiles;
-create policy "perfil propio: actualizar"
-  on public.perfiles for update
-  to authenticated
-  using (id = auth.uid())
-  with check (id = auth.uid());
+commit;
+
+-- ---------------------------------------------------------------------
+-- Comprobación. Si algo falta, revienta aquí con el nombre.
+-- ---------------------------------------------------------------------
+do $comp$
+declare
+  falta text;
+begin
+  select string_agg(c, ', ') into falta
+  from unnest(array['bodega','turno_habitual','modulo_inicio','texto_grande','tema']) c
+  where not exists (
+    select 1 from information_schema.columns
+     where table_schema='public' and table_name='perfiles' and column_name=c);
+  if falta is not null then
+    raise exception 'listo: FALTAN columnas: %', falta;
+  end if;
+
+  if not exists (select 1 from pg_constraint where conname='perfiles_tema_valido') then
+    raise exception 'listo: falta la regla de los temas';
+  end if;
+
+  if not exists (select 1 from pg_trigger where tgname='perfiles_protege_campos') then
+    raise exception 'listo: falta el disparador de columnas protegidas';
+  end if;
+
+  raise notice 'listo: columnas, los siete temas y la proteccion quedaron puestos';
+end
+$comp$;
