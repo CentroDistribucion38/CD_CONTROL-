@@ -1168,3 +1168,8 @@
   .sd .sg-aparte-det > summary { padding: 6px 14px; font-size: 11.5px }
   .sd .sg-cifra { padding: 5px 8px }
 }
+
+/* El visto de la pestaña: esa hoja se encontró y va a entrar al
+   guardar. Las dos pestañas revisan el MISMO archivo, no son dos
+   importaciones. */
+.sd .im-pes button em { font-style: normal; color: var(--sd-verde); font-weight: 900 }

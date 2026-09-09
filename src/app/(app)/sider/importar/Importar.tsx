@@ -129,58 +129,97 @@ export function Importar({ maestro, zldeCargado, importados }: {
     [maestro.origenes]
   );
 
+  /**
+   * GUARDAR LAS DOS HOJAS DE UNA.
+   *
+   * Antes cada pestaña guardaba lo suyo, y guardar una sola es la mitad
+   * del informe: con ZLDE cargado y la base sin cargar, el Real MTD sale
+   * en cero y el % de certificación en 0,0% de punta a punta. Pasó, y
+   * desde afuera parece que nadie certificó nada.
+   *
+   * Las dos son el MISMO archivo y el mismo mes, así que se guardan
+   * juntas y se cuenta qué quedó de cada una. Si el libro solo trae una
+   * de las dos hojas, se guarda esa y se dice cuál faltó.
+   */
+  const traduce = (m: string) =>
+    /does not exist|schema cache|function/i.test(m)
+      ? "Falta correr supabase/modulos/sider.sql en Supabase: creció con los dos importadores."
+      : m;
+
   async function guardar() {
     setGuardando(true);
     setAviso(null);
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const cli = supabase as any;
-    const { data, error } =
-      cual === "zlde"
-        ? await cli.rpc("sider_zlde_importar", { p_filas: zl?.filas ?? [] })
-        : await cli.rpc("sider_viajes_importar", {
-            p_filas: (bd?.filas ?? []).map((f) => ({
-              fecha: f.fecha, planta: f.planta, sku: f.sku,
-              estibas: f.estibas, placa: f.placa,
-            })),
-          });
-    setGuardando(false);
-    if (error) {
-      setAviso({
-        mal: true,
-        texto: /does not exist|schema cache|function/i.test(error.message)
-          ? "Falta correr supabase/modulos/sider.sql en Supabase: creció con los dos importadores."
-          : error.message,
-      });
-      return;
+    const partes: string[] = [];
+    const fallos: string[] = [];
+
+    if (zl?.filas.length) {
+      const { data, error } = await cli.rpc("sider_zlde_importar", { p_filas: zl.filas });
+      if (error) fallos.push(`ZLDE: ${traduce(error.message)}`);
+      else partes.push(
+        `${data?.filas ?? 0} filas de ZLDE en ${(data?.meses ?? []).map(nombreMes).join(", ")}`
+      );
     }
-    const meses = (data?.meses ?? []).map(nombreMes).join(", ");
+    if (bd?.filas.length) {
+      const { data, error } = await cli.rpc("sider_viajes_importar", {
+        p_filas: bd.filas.map((f) => ({
+          fecha: f.fecha, planta: f.planta, sku: f.sku,
+          estibas: f.estibas, placa: f.placa,
+        })),
+      });
+      if (error) fallos.push(`Base de datos: ${traduce(error.message)}`);
+      else partes.push(
+        `${data?.filas ?? 0} viajes en ${(data?.meses ?? []).map(nombreMes).join(", ")}` +
+        (data?.borrados ? ` (se reemplazaron ${data.borrados})` : "")
+      );
+    }
+
+    setGuardando(false);
+    if (fallos.length) { setAviso({ mal: true, texto: fallos.join(" · ") }); return; }
     setAviso({
       mal: false,
-      texto: cual === "zlde"
-        ? `Quedaron ${data?.filas ?? 0} filas de ZLDE en ${meses}.`
-        : `Quedaron ${data?.filas ?? 0} viajes importados en ${meses}` +
-          (data?.borrados ? `, y se reemplazaron los ${data.borrados} que ya había.` : "."),
+      texto: `Quedaron ${partes.join(" y ")}.` +
+        (zl?.filas.length && bd?.filas.length
+          ? " El seguimiento ya tiene las dos puntas."
+          : " Ojo: este archivo solo traía una de las dos hojas, así que el informe " +
+            "va a salir a medias hasta que entre la otra."),
     });
     router.refresh();
   }
 
-  const listo = cual === "zlde" ? !!zl?.filas.length : !!bd?.filas.length;
+  /* El botón guarda LAS DOS, así que se habilita si cualquiera de las
+     dos leyó algo, no solo la pestaña que está abierta. */
+  const cuantas = (zl?.filas.length ? 1 : 0) + (bd?.filas.length ? 1 : 0);
+  const listo = cuantas > 0;
+  const rotuloGuardar =
+    cuantas === 2 ? "Guardar las dos hojas"
+    : zl?.filas.length ? "Guardar ZLDE"
+    : bd?.filas.length ? "Guardar la base"
+    : "Guardar";
 
   return (
     <>
       {/* ---------- Qué se importa ---------- */}
       <div className="im-pes" role="tablist">
+        {/* El visto dice que ESA hoja se encontró en el archivo y va a
+            entrar al guardar. Las dos pestañas son para revisar lo que
+            leyó de cada una, no dos importaciones distintas. */}
         <button type="button" role="tab" aria-selected={cual === "zlde"}
                 className={cual === "zlde" ? "act" : ""}
                 onClick={() => { setCual("zlde"); setAviso(null); }}>
-          ZLDE
-          <span>lo que llegó, de SAP</span>
+          ZLDE {!!zl?.filas.length && <em>✓</em>}
+          <span>{zl?.filas.length
+            ? `${zl.filas.length} filas · ${nf.format(zl.filas.reduce((a, f) => a + f.hl, 0))} HL`
+            : "lo que llegó, de SAP"}</span>
         </button>
         <button type="button" role="tab" aria-selected={cual === "base"}
                 className={cual === "base" ? "act" : ""}
                 onClick={() => { setCual("base"); setAviso(null); }}>
-          Base de datos
-          <span>los viajes que ya pasaron</span>
+          Base de datos {!!bd?.filas.length && <em>✓</em>}
+          <span>{bd?.filas.length
+            ? `${bd.filas.length} viajes`
+            : "los viajes que ya pasaron"}</span>
         </button>
       </div>
 
@@ -240,7 +279,7 @@ export function Importar({ maestro, zldeCargado, importados }: {
             </label>
           )}
           <button type="button" className="btn" disabled={!listo || guardando} onClick={guardar}>
-            {guardando ? "Guardando…" : "Guardar"}
+            {guardando ? "Guardando…" : rotuloGuardar}
           </button>
         </div>
       )}

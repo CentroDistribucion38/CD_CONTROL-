@@ -170,10 +170,13 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
             ))}
           </select>
         </label>
+        {/* "CD de origen" y no "CD": Barranquilla no está en esta lista y
+            no debe estar —es el destino, ahí llega todo—. Con el rótulo
+            corto la primera pregunta es siempre por qué no sale. */}
         <label>
-          <span>CD</span>
+          <span>CD de origen</span>
           <select value={cd} onChange={(e) => setCd(e.target.value)}>
-            <option value="">todos</option>
+            <option value="">todos los orígenes</option>
             {cds.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
