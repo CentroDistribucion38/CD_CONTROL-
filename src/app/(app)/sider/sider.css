@@ -267,6 +267,33 @@
 .sd .ct-pasos li.aqui.listo button i { color: #fff }
 .sd .ct-pasos button:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: -2px }
 
+/* Paso trancado: todavía no se llega a él. El círculo va PUNTEADO, no
+   solo gris: en una pantalla de piso con reflejo, gris contra gris no se
+   distingue de "ya lo hice", y el punteado se lee sin depender del
+   color. El por qué lo dice la banda de abajo. */
+.sd .ct-pasos li.trancado button { cursor: not-allowed; opacity: .5 }
+.sd .ct-pasos li.trancado button i {
+  border-style: dashed;
+  border-width: 1.6px;
+  background: var(--c-fafbfd);
+}
+
+/* El aviso de por qué está trancado. Va debajo del camino de pasos, no
+   dentro del paso: explica los OTROS pasos, no el que se está viendo. */
+.sd .ct-tranca {
+  margin: 10px 0 0;
+  padding: 11px 14px;
+  border-left: 4px solid var(--sd-oro);
+  border-radius: 3px;
+  /* En duro y no como token: el ámbar de "ojo con esto" es semáforo, no
+     decoración, y por eso quedó fuera de la paleta de temas. */
+  background: #FFF8E6;
+  color: #6B5518;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.sd .ct-tranca b { font-weight: 700 }
+
 .sd .ct-paso { padding: 20px 24px 18px }
 .sd .ct-paso h2 {
   font-family: var(--sd-titulo); font-weight: 900;

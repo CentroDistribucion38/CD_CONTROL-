@@ -196,19 +196,65 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
   ];
   const listo = pasos.slice(0, 5).every((p) => p.ok);
 
+  /**
+   * A UN PASO SOLO SE LLEGA SI LOS ANTERIORES ESTÁN LISTOS.
+   *
+   * Los números de arriba eran botones sin condición: se podía tocar
+   * "2 Origen" y saltarse la ubicación. Guardar nunca fue posible sin
+   * ella —certificar() se devuelve sin ubi y la función de la base la
+   * exige—, pero dejar avanzar y frenar al final es la peor forma de
+   * pedir algo: la persona llena cinco pantallas para enterarse en la
+   * sexta de que tenía que empezar por el GPS.
+   *
+   * Y la ubicación no es un campo más: es LO QUE PRUEBA que quien
+   * certificó estaba parado al lado del vehículo. Sin ella la
+   * certificación no es evidencia de nada, así que es requisito duro,
+   * no una recomendación.
+   */
+  const alcanzable = (i: number) => i === 0 || pasos.slice(0, i).every((p) => p.ok);
+  const porque = (i: number) => {
+    if (alcanzable(i)) return undefined;
+    const primero = pasos.slice(0, i).findIndex((p) => !p.ok);
+    return primero === 0
+      ? "Primero activa tu ubicación: sin ella la certificación no prueba nada."
+      : `Primero completa el paso ${primero + 1}: ${pasos[primero].t}.`;
+  };
+
   return (
     <>
       {/* ---------- El camino ---------- */}
       <ol className="ct-pasos">
-        {pasos.map((p, i) => (
-          <li key={p.t} className={(i === paso ? "aqui " : "") + (p.ok ? "listo" : "")}>
-            <button type="button" onClick={() => setPaso(i)} disabled={enviando}>
-              <i>{p.ok ? "✓" : i + 1}</i>
-              <span>{p.t}</span>
-            </button>
-          </li>
-        ))}
+        {pasos.map((p, i) => {
+          const puede = alcanzable(i);
+          const razon = porque(i);
+          return (
+            <li
+              key={p.t}
+              className={(i === paso ? "aqui " : "") + (p.ok ? "listo " : "") + (puede ? "" : "trancado")}
+            >
+              <button
+                type="button"
+                onClick={() => setPaso(i)}
+                disabled={enviando || !puede}
+                title={razon}
+                aria-label={razon ? `${p.t} — ${razon}` : p.t}
+              >
+                <i>{p.ok ? "✓" : i + 1}</i>
+                <span>{p.t}</span>
+              </button>
+            </li>
+          );
+        })}
       </ol>
+
+      {/* Que se DIGA por qué está trancado. Un botón gris sin explicación
+          se lee como una app rota, no como un requisito. */}
+      {!ubi && (
+        <p className="ct-tranca">
+          <b>La ubicación es obligatoria.</b> Los demás pasos se abren cuando la
+          actives: es lo que prueba que estabas al lado del vehículo.
+        </p>
+      )}
 
       <section className="tarjeta ct">
         {/* ================= 0 · Ubicación ================= */}

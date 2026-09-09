@@ -18,7 +18,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Viaje } from "@/modulos/sider/datos";
+import type { Viaje } from "@/modulos/sider/comun";
 import {
   RANURAS, type Ranura, type Foto,
   usePosicion, TarjetaUbicacion, CampoDireccion, Ranurita,
@@ -300,19 +300,45 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
     { t: "Fotos", ok: faltanFotos.length === 0 },
   ];
 
+  /* La misma regla que en la salida: a un paso solo se llega si los
+     anteriores están listos, y la ubicación es requisito duro porque es
+     lo que prueba que quien certificó estaba ahí. */
+  const alcanzable = (i: number) => i === 0 || pasos.slice(0, i).every((p) => p.ok);
+
   return (
     <>
       <ol className="ct-pasos tr-pasos">
-        {pasos.map((p, i) => (
-          <li key={p.t} className={(i === paso ? "aqui " : "") + (p.ok ? "listo" : "")}>
-            <button type="button" onClick={() => setPaso(i)}
-                    disabled={enviando || (i === 1 && !pos.ubi)}>
-              <i>{p.ok ? "✓" : i + 1}</i>
-              <span>{p.t}</span>
-            </button>
-          </li>
-        ))}
+        {pasos.map((p, i) => {
+          const abierto = alcanzable(i);
+          const razon = abierto
+            ? undefined
+            : "Primero activa tu ubicación: sin ella la certificación no prueba nada.";
+          return (
+            <li
+              key={p.t}
+              className={(i === paso ? "aqui " : "") + (p.ok ? "listo " : "") + (abierto ? "" : "trancado")}
+            >
+              <button
+                type="button"
+                onClick={() => setPaso(i)}
+                disabled={enviando || !abierto}
+                title={razon}
+                aria-label={razon ? `${p.t} — ${razon}` : p.t}
+              >
+                <i>{p.ok ? "✓" : i + 1}</i>
+                <span>{p.t}</span>
+              </button>
+            </li>
+          );
+        })}
       </ol>
+
+      {!pos.ubi && (
+        <p className="ct-tranca">
+          <b>La ubicación es obligatoria.</b> Las fotos se abren cuando la actives:
+          es lo que prueba que el vehículo llegó a donde dice.
+        </p>
+      )}
 
       <section className="tarjeta ct">
         <div className="ct-paso tr-llegada">
