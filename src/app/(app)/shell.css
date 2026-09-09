@@ -799,3 +799,15 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 .sh[data-grande="si"] .cp-btn { min-height: 54px; font-size: 16px }
 .sh[data-grande="si"] .cp-reglas li { font-size: 13px }
 .sh[data-grande="si"] .cp-dice { font-size: 14.5px }
+
+/* ---------- El celular respira: la puerta cerrada ----------
+   Medido a 360x640: el rótulo iba en 10,5px y las reglas en 11,5. */
+@media (max-width: 700px) {
+  .cp-ojo    { font-size: 11.5px; letter-spacing: .14em }
+  .cp-dice   { font-size: 14px; line-height: 1.6 }
+  .cp-reglas li { font-size: 12.5px; padding: 7px 13px 7px 11px }
+  .cp-campos label > span { font-size: 13px }
+  .cp-campos input { height: 50px; font-size: 16px }
+  .cp-caja-clave button { height: 50px; width: 48px }
+  .cp-btn { min-height: 50px; font-size: 15.5px }
+}

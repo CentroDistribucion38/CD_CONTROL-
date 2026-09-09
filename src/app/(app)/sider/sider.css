@@ -849,7 +849,10 @@
   .sd .tr-ojo { font-size: 11.5px; padding: 6px 8px }
   .sd .tr-cifras dd { font-size: 13.5px }
   .sd .tr-vh footer { flex-direction: column; align-items: stretch; gap: 9px }
-  .sd .tr-vh footer .btn { height: 42px; width: 100% }
+  /* 46 y no 42: es el boton que se toca con guante en el patio, y
+     .sd .btn { height: 46px } de mas abajo pierde contra este selector,
+     que pesa mas. Se pone aqui para que no dependa del orden. */
+  .sd .tr-vh footer .btn { height: 46px; width: 100%; font-size: 14px }
   .sd .tr-dos { grid-template-columns: 1fr; gap: 14px }
   .sd .tr-busca input { height: 42px; font-size: 14px }
 
@@ -1891,6 +1894,20 @@
    pantalla; ya nos costó dos veces.
    ===================================================================== */
 
+/* ---------- La caja que rueda ----------
+   En escritorio los filtros se quedan quietos y rueda la TABLA: con
+   cientos de viajes, tener que subir hasta arriba para cambiar un
+   filtro es peor que la barra de desplazamiento.
+   El descuento está MEDIDO en el arnés: es lo que ocupan la cabeza, las
+   cifras, la cabecera de la tarjeta, los filtros y la cuenta. */
+.sd .vj-cuerpo { display: flex; flex-direction: column; min-width: 0 }
+.sd .marco {
+  max-height: max(200px, calc(100dvh - 300px));
+  overflow-y: auto;
+}
+/* El botón de plegar solo existe en pantalla chica. */
+.sd .vj-abrir { display: none }
+
 /* ---------- La fila de filtros ---------- */
 .sd .vj-filtros {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px;
@@ -2071,6 +2088,38 @@
 .sd .vj-caja .vj-mal { margin: 12px 0 0 }
 
 @media (max-width: 900px) {
+  /* Rueda el CUERPO entero —filtros, cuenta y tabla—, no la tabla sola.
+     Con los filtros abiertos y quietos quedaban 39px para la tabla en
+     una pantalla de 640: no cabía ni media fila. Medido. */
+  .sd .vj-cuerpo {
+    max-height: max(160px, calc(100dvh - 300px));
+    overflow-y: auto;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+  }
+  .sd .marco { max-height: none; overflow-y: visible }
+  .sd .vj-filtros.plegado { display: none }
+  .sd .vj-abrir {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: 12px 16px 0; min-height: 46px; padding: 0 14px;
+    background: var(--sd-papel); border: 1.5px solid var(--sd-linea); border-radius: 3px;
+    font: 700 14px var(--sd-titulo); color: var(--sd-tinta); cursor: pointer;
+  }
+  .sd .vj-abrir svg {
+    width: 18px; height: 18px; flex: none; fill: none; stroke: var(--sd-gris);
+    stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+    transition: transform .15s;
+  }
+  .sd .vj-abrir[aria-expanded="true"] svg { transform: rotate(180deg) }
+  /* LA COLUMNA DE ACCIONES SE DESPEGA en pantalla chica. Pegada a la
+     derecha se comía 130px de los 360: entre la placa a la izquierda y
+     los botones clavados a la derecha quedaban ciento cincuenta pixeles
+     de tabla, las celdas del medio se partían en palabras sueltas y las
+     filas crecían cinco renglones con el medio en blanco.
+     Suelta, la tabla rueda de corrido y se lee columna por columna,
+     que es como se lee una tabla en un teléfono. */
+  .sd .vj-acc-col { position: static; border-left: 0 }
+  .sd .marco:has(.vj-acc-col) table { min-width: 1180px }
   .sd .vj-filtros { padding: 12px 16px 0; gap: 10px }
   .sd .vj-buscar { flex: 1 1 100%; max-width: none }
   .sd .vj-cuenta { padding: 8px 16px 10px }
@@ -2118,4 +2167,55 @@
 .sd .ex-todo.on em {
   font-style: normal; font-weight: 500; font-size: 11.5px; color: var(--sd-acento);
   text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* =====================================================================
+   EL CELULAR RESPIRA
+   =====================================================================
+   Medido a 360x640 y 390x844, no calculado a ojo. Lo que salía apretado:
+   letra de 9,5px en los rótulos de las tarjetas, cabeceras de tabla en
+   11, y blancos de toque de 27px donde el dedo necesita 44.
+
+   La regla de fondo: en el celular crece el CONTENIDO —filas, tarjetas,
+   chapas— y NO el armazón. Las cajas que ruedan por dentro se comen el
+   alto extra; la cabeza y los filtros, si crecieran, empujarían la caja
+   fuera de la pantalla, que es justo lo que no puede pasar.
+   ===================================================================== */
+@media (max-width: 700px) {
+  /* ---- Texto que era ilegible de tan chico ---- */
+  .sd .tr-cifras dt      { font-size: 11px; letter-spacing: .07em }
+  .sd .tr-cifras dd      { font-size: 16px }
+  .sd .kpi .rot          { font-size: 11px }
+  .sd thead th           { font-size: 11.5px; padding: 11px 14px }
+  .sd tbody td           { font-size: 14px; padding: 14px 14px }
+  .sd td .cod            { font-size: 12.5px; margin-top: 3px }
+  .sd .sello             { font-size: 12px; padding: 4px 11px }
+  .sd .vj-cuenta         { font-size: 13px }
+  .sd .vj-obs            { font-size: 12.5px; line-height: 1.45; margin-top: 6px }
+  .sd .tr-mat em,
+  .sd .tr-salio em       { font-size: 12.5px; line-height: 1.5 }
+  .sd .tr-ojo            { font-size: 12.5px; line-height: 1.5 }
+
+  /* ---- Blancos de toque: 44px es lo que pide un dedo con guante ---- */
+  .sd .vj-filtros input,
+  .sd .vj-filtros select,
+  .sd .vj-filtros .btn.plano { height: 44px; font-size: 15px }
+  .sd .tr-filtros input,
+  .sd .tr-filtros select,
+  .sd .tr-filtros .btn.plano { height: 44px; font-size: 15px }
+  .sd .tr-abrir              { min-height: 46px }
+  .sd .vj-mini               { min-height: 44px; padding: 0 16px; font-size: 13px }
+  .sd .ev-ojo                { min-width: 44px; min-height: 44px }
+  .sd .btn                   { height: 46px }
+  .sd .vj-campos input,
+  .sd .vj-campos select      { height: 46px; font-size: 15px }
+
+  /* ---- Aire entre las piezas ---- */
+  .sd { gap: 16px }
+  .sd .tarjeta .cab   { padding: 18px 16px 14px; gap: 14px }
+  .sd .tr-vh          { padding: 14px 14px 13px; gap: 9px }
+  .sd .tr-rejilla     { gap: 12px }
+  .sd .tr-grupos      { gap: 18px }
+  .sd .vj-editor      { padding: 16px }
+  .sd .vj-campos      { gap: 14px }
 }

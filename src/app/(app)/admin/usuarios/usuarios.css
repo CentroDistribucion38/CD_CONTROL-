@@ -193,3 +193,34 @@
 /* El aviso cuando va suelto —fuera del formulario— necesita su propio
    margen: dentro lo daba el padding del formulario. */
 .us .us-mal.suelto { margin: 0 }
+
+/* ---------- El celular respira ----------
+   Medido a 360x640: las cabeceras iban en 10,5px y las chapas y los
+   sellos en 11,5, que en una pantalla de mano no se leen de corrido.
+   Los botones iban en 38 y 40 donde el dedo necesita 44. */
+@media (max-width: 700px) {
+  .us .us-tabla th      { font-size: 11.5px; padding: 11px 14px }
+  .us .us-tabla td      { font-size: 14px; padding: 13px 14px }
+  .us .us-tabla td.cod  { font-size: 13px }
+  .us .us-chapa         { font-size: 12.5px; padding: 4px 10px; margin: 3px 5px 3px 0 }
+  .us .us-estado        { font-size: 12.5px; padding: 4px 11px }
+  .us .us-mini          { min-height: 44px; padding: 0 16px; font-size: 13px }
+  .us .us-campos em     { font-size: 12.5px }
+  .us .us-dice          { font-size: 13px; line-height: 1.55 }
+  .us .us-clave .dice,
+  .us .us-clave .ojo    { font-size: 13.5px; line-height: 1.55 }
+  .us .us-aviso p       { font-size: 13.5px; line-height: 1.6 }
+  .us .us-form          { padding: 16px }
+  .us .us-campos        { gap: 16px }
+}
+/* .rl .btn va en 40px y pesa igual que .us .btn: se le pone .us .rl
+   delante para no depender del orden de los archivos, que es la trampa
+   que ya me mordió con .sh, con .acc y con .cod. */
+@media (max-width: 700px) {
+  .rl.us .btn, .us .cab .btn, .us .us-acciones .btn { height: 46px; font-size: 14.5px }
+}
+
+/* La lista rueda dentro de su caja. No la tenía: con veinte personas la
+   página entera rodaba, y en 360x640 se salía de la pantalla. El
+   descuento está medido en el arnés. */
+.us .us-marco { max-height: max(200px, calc(100dvh - 330px)) ; overflow-y: auto }

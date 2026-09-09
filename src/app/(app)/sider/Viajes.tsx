@@ -87,6 +87,12 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor }: {
     estibas: string; observacion: string;
   }>(null);
   const [anular, setAnular] = useState<null | { v: Viaje; motivo: string }>(null);
+  /* En el celular los filtros arrancan PLEGADOS. Desplegados, con la
+     cabeza y las cifras encima, dejaban 39px para la tabla en una
+     pantalla de 640: no cabía ni media fila. En escritorio no se
+     pliegan nunca —ahí sobra el sitio— y eso lo decide el CSS, que es
+     quien sabe de qué tamaño es la pantalla. */
+  const [verFiltros, setVerFiltros] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
 
@@ -180,8 +186,19 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor }: {
 
   return (
     <>
+      {/* En el celular ruedan JUNTOS los filtros, la cuenta y la tabla,
+          dentro de .vj-cuerpo. En escritorio no: allá los filtros se
+          quedan quietos y rueda solo la tabla, que es lo cómodo con
+          cientos de viajes. */}
+      <div className="vj-cuerpo">
+      <button type="button" className="vj-abrir" aria-expanded={verFiltros}
+              onClick={() => setVerFiltros((v) => !v)}>
+        {hayFiltro ? `Filtrando · ${filtrados.length} de ${viajes.length}` : "Filtrar"}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+
       {/* ---------- Los filtros ---------- */}
-      <div className="vj-filtros">
+      <div className={"vj-filtros" + (verFiltros ? "" : " plegado")}>
         <label className="vj-buscar">
           <span>Placa</span>
           <input
@@ -407,6 +424,7 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor }: {
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* ---------- Anular ---------- */}
