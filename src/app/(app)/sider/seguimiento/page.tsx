@@ -64,26 +64,56 @@ export default async function SeguimientoPage({
 
   return (
     <div className="sd">
+      {/* La cabecera del mockup: rótulo arriba, título, y las dos
+          acciones con el KPI a la derecha. El KPI lleva la distancia a
+          la meta en pastilla —"6,6 pp por debajo"— porque un 3,4% suelto
+          no dice si eso está bien o mal. */}
       <section className="cabeza">
         <div>
+          <p className="ojo">ENVASE CERTIFICADO · CD38 AG01 BARRANQUILLA</p>
           <h1>Seguimiento</h1>
           <p className="sub">
             Cuánto del envase que llegó a Barranquilla vino certificado. Son tres tablas
             encadenadas: lo que <b>ZLDE</b> dice que llegó, lo que{" "}
-            <Link href="/sider">nuestra Fuente principal</Link> dice que se certificó, y
-            el informe que sale de las dos.
+            <Link href="/sider">la Fuente principal</Link> dice que se certificó, y el
+            informe que sale de las dos.
           </p>
         </div>
-        <div className={"kpi" + (pct != null && pct < meta ? " corto" : "")}>
-          <div className="corte" />
-          <div className="rot">% CERTIFICACIÓN · {nombreMes.toUpperCase()}</div>
-          <div className="num">
-            {pct == null ? "—" : (pct * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })}
-            <span className="u">%</span>
+        <div className="sg-der">
+          <div className="acciones-informe">
+            {esEditor && (
+              <Link className="accion" href="/sider/importar">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 14.5V3.5M8.5 7L12 3.5 15.5 7" />
+                  <path d="M4 14v4.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V14" />
+                </svg>
+                Importar
+              </Link>
+            )}
+            <a className="accion" href={`/api/sider/exportar?mes=${(mes ?? "").slice(0, 7)}`}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3.5V14M8.5 10.5L12 14l3.5-3.5" />
+                <path d="M4 15v3.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V15" />
+              </svg>
+              Exportar a Excel
+            </a>
           </div>
-          <div className="pie">
-            <span>meta {(meta * 100).toLocaleString("es-CO", { maximumFractionDigits: 0 })}%</span>
-            {esEditor && <Link href="/sider/importar" className="chip">Importar</Link>}
+          <div className={"kpi" + (pct != null && pct < meta ? " corto" : "")}>
+            <div className="corte" />
+            <div className="rot">CERTIFICACIÓN · {nombreMes.toUpperCase()}</div>
+            <div className="num">
+              {pct == null ? "—" : (pct * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })}
+              <span className="u">%</span>
+            </div>
+            <div className="pie">
+              <span>Meta <b>{(meta * 100).toLocaleString("es-CO", { maximumFractionDigits: 0 })}%</b></span>
+              {pct != null && (
+                <span className="delta">
+                  {Math.abs((pct - meta) * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })} pp
+                  {pct < meta ? " por debajo" : " por encima"}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </section>

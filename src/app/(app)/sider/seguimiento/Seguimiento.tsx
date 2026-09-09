@@ -214,50 +214,90 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
 
   const cds = [...new Set(filas.map((f) => f.cd_origen))].sort();
 
+  /* Los valores con los que SIEMPRE arranca la vista. Restablecer
+     vuelve a ellos, y son los del pivote: Barranquilla y EER. */
+  const PORDEFECTO = { cd: "", planta: "Barranquilla", clase: "EER" };
+  const tocado = cd !== PORDEFECTO.cd || planta !== PORDEFECTO.planta || clase !== PORDEFECTO.clase;
+  const restablecer = () => { setCd(PORDEFECTO.cd); setPlanta(PORDEFECTO.planta); setClase(PORDEFECTO.clase); };
+
+  /** La barra proporcional: el ancho es contra el mayor de la tabla. */
+  const barra = (v: number, max: number, fuera = false) => (
+    <td className="mini">
+      <div className="pista">
+        <div className="relleno" style={{ width: `${max > 0 ? Math.max(2, (v / max) * 100) : 0}%` }} />
+      </div>
+    </td>
+  );
+
+  const maxZ = Math.max(1, ...zl.map((f) => f.hl));
+  const maxC = Math.max(1, ...certifico.map((f) => num(f.real_mtd)));
+  const maxI = Math.max(1, ...conCd.map((f) => num(f.hl_recibido)));
+
+  const paso = (v: Vista, n: number, titulo: string, pie: string) => (
+    <button type="button" role="tab" aria-selected={vista === v} key={v}
+            className={"sg-paso" + (vista === v ? " on" : "")} onClick={() => setVista(v)}>
+      <span className="bolita">{n}</span>
+      <span className="txt"><b>{titulo}</b><i>{pie}</i></span>
+    </button>
+  );
+
   return (
     <>
-      <div className="sg-barra">
-        <label>
-          <span>Mes</span>
-          <select value={mes.slice(0, 7)}
-                  onChange={(e) => router.push(`/sider/seguimiento?mes=${e.target.value}`)}>
-            {meses.map((m) => (
-              <option key={m} value={m.slice(0, 7)}>
-                {MESES_LARGO[Number(m.slice(5, 7)) - 1]} {m.slice(0, 4)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {/* "CD de origen" y no "CD": Barranquilla no está en esta lista y
-            no debe estar —es el destino, ahí llega todo—. Con el rótulo
-            corto la primera pregunta es siempre por qué no sale. */}
-        <label>
-          <span>CD de origen</span>
-          <select value={cd} onChange={(e) => setCd(e.target.value)}>
-            <option value="">todos los orígenes</option>
-            {cds.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
-        {/* Las tres pestañas EN EL ORDEN DEL PROCESO, numeradas: lo que
-            llegó, lo que se certificó, y el informe que sale de las dos.
-            El número no decora — dice que la tercera no existe sin las
-            dos primeras. */}
-        <div className="sg-pes" role="tablist">
-          {([["zlde", "1 · ZLDE"], ["certifico", "2 · Certificado"], ["informe", "3 · Informe"]] as const)
-            .map(([v, t]) => (
-              <button key={v} type="button" role="tab" aria-selected={vista === v}
-                      className={vista === v ? "aqui" : ""} onClick={() => setVista(v)}>{t}</button>
-            ))}
+      {/* ---------- Los filtros ----------
+          Los cuatro en una tarjeta, con Restablecer al final: la vista
+          SIEMPRE se genera en Barranquilla + EER, y ese botón dice a
+          dónde se vuelve. Mover planta o clase cambia la tabla de ZLDE;
+          el informe no se mueve, porque el indicador es eso. */}
+      <section className="sg-filtros">
+        <div className="arriba">
+          <label className="sel">
+            <span>Mes</span>
+            <select value={mes.slice(0, 7)}
+                    onChange={(e) => router.push(`/sider/seguimiento?mes=${e.target.value}`)}>
+              {meses.map((m) => (
+                <option key={m} value={m.slice(0, 7)}>
+                  {MESES_LARGO[Number(m.slice(5, 7)) - 1]} {m.slice(0, 4)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="sel">
+            <span>CD de origen</span>
+            <select value={cd} onChange={(e) => setCd(e.target.value)}>
+              <option value="">Todos los orígenes</option>
+              {cds.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          <label className="sel">
+            <span>Planta</span>
+            <select value={planta} onChange={(e) => setPlanta(e.target.value)}>
+              <option value="">Todas</option>
+              {plantas.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </label>
+          <label className="sel">
+            <span>Clase</span>
+            <select value={clase} onChange={(e) => setClase(e.target.value)}>
+              <option value="">Todas</option>
+              {clases.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </label>
+          <button type="button" className="limpiar" disabled={!tocado} onClick={restablecer}>
+            Restablecer
+          </button>
         </div>
-        <a className="btn" href={`/api/sider/exportar?mes=${mes.slice(0, 7)}`}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="ic">
-            <path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
-                  fill="none" stroke="currentColor" strokeWidth="1.8"
-                  strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Exportar<span className="rotulo-largo"> a Excel</span>
-        </a>
-      </div>
+      </section>
+
+      {/* ---------- La cadena ----------
+          El hilo entre uno y otro dice que se encadenan: la tercera no
+          existe sin las dos primeras. */}
+      <section className="sg-cadena" role="tablist">
+        {paso("zlde", 1, "ZLDE", "Lo que llegó")}
+        <span className="hilo" />
+        {paso("certifico", 2, "Certificado", "Fuente principal")}
+        <span className="hilo" />
+        {paso("informe", 3, "Informe", "Lo que sale de las dos")}
+      </section>
 
       {!!huerfanos.length && (
         <section className="m-faltan">
@@ -274,9 +314,6 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
         </section>
       )}
 
-      {/* Sin la segunda mitad el informe es una columna de ceros, y un
-          cero se lee como "no certificaron nada" cuando lo cierto es
-          "todavía no lo cargaste". */}
       {faltaBase && (
         <section className="m-faltan">
           <p>
@@ -291,74 +328,53 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
         </section>
       )}
 
-      {/* ============ 1 · ZLDE ============
-           El pivote tal cual: los dos segmentadores arriba —planta y
-           clase—, las etiquetas de fila por CD, y el total abajo. Con
-           Barranquilla + EER da los 248.486,118 de tu hoja.
-
-           COMPACTA a propósito: quince CD tienen que caber en la vista
-           sin desplazar nada, y con el alto normal de fila no caben.
-           Aquí la fila mide 26 px en vez de 38. */}
+      {/* ============ 1 · ZLDE ============ */}
       {vista === "zlde" && (
-        <section className="tarjeta">
-          {/* TÍTULO, SEGMENTADORES Y CIFRAS EN UNA SOLA FRANJA.
-              El título y el párrafo aparte se llevaban 138 px, y esos
-              px son cinco CD menos a la vista: la tabla son quince
-              filas y tienen que verse completas. Mover un segmentador y
-              ver el total moverse al lado es, además, lo que hace que
-              se le crea al número. */}
-          <div className="sg-seg">
-            <h2>1 · ZLDE · {nombreMes}</h2>
-            <label>
-              <span>Planta</span>
-              <select value={planta} onChange={(e) => setPlanta(e.target.value)}>
-                <option value="">todas</option>
-                {plantas.map((x) => <option key={x} value={x}>{x}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Clase</span>
-              <select value={clase} onChange={(e) => setClase(e.target.value)}>
-                <option value="">todas</option>
-                {clases.map((x) => <option key={x} value={x}>{x}</option>)}
-              </select>
-            </label>
-            <div className="sg-seg-cifras">
+        <section className="tarjeta sg-panel">
+          <div className="cab-tabla">
+            <div>
+              <h2>ZLDE · {nombreMes}</h2>
+              <p>
+                Envase recibido en planta {planta || "cualquiera"}, clase {clase || "cualquiera"}
+              </p>
+            </div>
+            <div className="resumen">
               <div><span>HECTOLITROS</span><b>{nf1.format(totZ.hl)}</b></div>
               <div><span>VEHÍCULOS</span><b>{nf1.format(totZ.vh)}</b></div>
-              <div><span>CD</span><b>{zl.length}</b></div>
+              <div><span>CD DE ORIGEN</span><b>{zl.length}</b></div>
               <div><span>LÍNEAS DE SAP</span><b>{nf.format(totZ.lineas)}</b></div>
             </div>
           </div>
-
-          {/* Esta pestaña tiene menos encabezado que las otras dos, así
-              que su tabla puede ser más alta: el techo se calcula aparte
-              en vez de compartir el de las demás. */}
           <div className="marco sg-marco holgado">
             <table className="sg-tabla apretada">
               <thead>
                 <tr>
-                  {cabZ("cd_origen", "Centro de Origen", false)}
+                  {cabZ("cd_origen", "Centro de origen", false)}
                   {cabZ("vh_recibidos", "Vehículos")}
                   {cabZ("hl", "Hectolitros")}
+                  <th className="mini" />
                   {cabZ("lineas", "Líneas de SAP")}
                 </tr>
               </thead>
               <tbody>
-                {zl.map((f) => (
-                  <tr key={f.cd_origen}>
-                    <td className={noAplica.has(f.cd_origen) || fueraDelMaestro.has(f.cd_origen) ? "apagado" : undefined}>
-                      {f.cd_origen}
-                      {noAplica.has(f.cd_origen) && <em className="sg-marca">no aplica sider</em>}
-                      {fueraDelMaestro.has(f.cd_origen) && <em className="sg-marca">fuera del maestro</em>}
-                    </td>
-                    <td className="num">{nf1.format(f.vh_recibidos)}</td>
-                    <td className="num">{nf1.format(f.hl)}</td>
-                    <td className="num cod">{nf.format(f.lineas)}</td>
-                  </tr>
-                ))}
+                {zl.map((f) => {
+                  const fuera = noAplica.has(f.cd_origen) || fueraDelMaestro.has(f.cd_origen);
+                  return (
+                    <tr key={f.cd_origen} className={fuera ? "fuera" : undefined}>
+                      <td>
+                        {f.cd_origen}
+                        {noAplica.has(f.cd_origen) && <i className="chapa-gris">NO APLICA SIDER</i>}
+                        {fueraDelMaestro.has(f.cd_origen) && <i className="chapa-gris">FUERA DEL MAESTRO</i>}
+                      </td>
+                      <td className="num">{nf1.format(f.vh_recibidos)}</td>
+                      <td className="num fuerte">{nf1.format(f.hl)}</td>
+                      {barra(f.hl, maxZ, fuera)}
+                      <td className="num">{nf.format(f.lineas)}</td>
+                    </tr>
+                  );
+                })}
                 {!zl.length && (
-                  <tr><td className="vacio" colSpan={4}>
+                  <tr><td className="vacio" colSpan={5}>
                     {zlde.length
                       ? "Nada con esa planta y esa clase en este mes."
                       : <>No hay ZLDE cargado de {nombreMes}.{esEditor && <> <Link href="/sider/importar">Impórtalo</Link>.</>}</>}
@@ -367,10 +383,11 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
               </tbody>
               {!!zl.length && (
                 <tfoot>
-                  <tr>
+                  <tr className="total">
                     <td>Total general</td>
                     <td className="num">{nf1.format(totZ.vh)}</td>
                     <td className="num">{nf1.format(totZ.hl)}</td>
+                    <td className="mini" />
                     <td className="num">{nf.format(totZ.lineas)}</td>
                   </tr>
                 </tfoot>
@@ -380,36 +397,34 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
         </section>
       )}
 
-      {/* ============ 2 · LO QUE SE CERTIFICÓ ============ */}
+      {/* ============ 2 · CERTIFICADO ============ */}
       {vista === "certifico" && (
-        <section className="tarjeta">
-          <div className="cab">
+        <section className="tarjeta sg-panel">
+          <div className="cab-tabla">
             <div>
-              <h2>2 · Lo que se certificó · {nombreMes}</h2>
+              <h2>Certificado · {nombreMes}</h2>
               <p>
-                Los viajes de <Link href="/sider">la Fuente principal</Link> de ese mes que no
-                están anulados, por CD de origen. Es la columna <b>Real MTD</b>. Antes era la
-                hoja <b>Base de Datos</b> que alguien llenaba a mano; ahora sale de lo que se
-                certifica en la app y de lo que se{" "}
-                {esEditor ? <Link href="/sider/importar">importa</Link> : "importa"} de esa hoja.
+                Los viajes de <Link href="/sider">la Fuente principal</Link> que no están
+                anulados. Es la columna <b>Real MTD</b> del informe.
               </p>
             </div>
+            <div className="resumen">
+              <div><span>REAL MTD (HL)</span><b>{nf.format(suma(filtra(filas), "real_mtd"))}</b></div>
+              <div><span>VIAJES</span><b>{nf.format(suma(filtra(filas), "viajes"))}</b></div>
+              <div><span>ESTIBAS</span><b>{nf1.format(suma(filtra(filas), "estibas"))}</b></div>
+              <div><span>VEHÍCULOS</span><b>{nf1.format(suma(filtra(filas), "vh_real_mtd"))}</b></div>
+            </div>
           </div>
-          <div className="sg-cifras">
-            {cifra("REAL MTD (HL)", nf.format(suma(filtra(filas), "real_mtd")))}
-            {cifra("VIAJES", nf.format(suma(filtra(filas), "viajes")))}
-            {cifra("ESTIBAS", nf1.format(suma(filtra(filas), "estibas")))}
-            {cifra("VEHÍCULOS", nf1.format(suma(filtra(filas), "vh_real_mtd")))}
-          </div>
-          <div className="marco sg-marco">
-            <table className="sg-tabla">
+          <div className="marco sg-marco holgado">
+            <table className="sg-tabla apretada">
               <thead>
                 <tr>
-                  {cabecera("cd_origen", "Centro de Origen", false)}
+                  {cabecera("cd_origen", "Centro de origen", false)}
                   {cabecera("viajes", "Viajes")}
                   {cabecera("estibas", "Estibas")}
                   {cabecera("vh_real_mtd", "Vehículos")}
                   {cabecera("real_mtd", "Hectolitros")}
+                  <th className="mini" />
                 </tr>
               </thead>
               <tbody>
@@ -419,11 +434,12 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
                     <td className="num">{nf.format(num(f.viajes))}</td>
                     <td className="num">{nf1.format(num(f.estibas))}</td>
                     <td className="num">{nf1.format(num(f.vh_real_mtd))}</td>
-                    <td className="num">{nf.format(num(f.real_mtd))}</td>
+                    <td className="num fuerte">{nf.format(num(f.real_mtd))}</td>
+                    {barra(num(f.real_mtd), maxC)}
                   </tr>
                 ))}
                 {!certifico.length && (
-                  <tr><td className="vacio" colSpan={5}>
+                  <tr><td className="vacio" colSpan={6}>
                     Nadie certificó nada en {nombreMes}.
                     {esEditor && <> <Link href="/sider/importar">Importa la base de datos</Link> o{" "}
                       <Link href="/sider/certificar">certifica un viaje</Link>.</>}
@@ -432,12 +448,13 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
               </tbody>
               {!!certifico.length && (
                 <tfoot>
-                  <tr>
+                  <tr className="total">
                     <td>Total general</td>
                     <td className="num">{nf.format(suma(certifico, "viajes"))}</td>
                     <td className="num">{nf1.format(suma(certifico, "estibas"))}</td>
                     <td className="num">{nf1.format(suma(certifico, "vh_real_mtd"))}</td>
                     <td className="num">{nf.format(suma(certifico, "real_mtd"))}</td>
+                    <td className="mini" />
                   </tr>
                 </tfoot>
               )}
@@ -448,29 +465,29 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
 
       {/* ============ 3 · EL INFORME ============ */}
       {vista === "informe" && (
-        <section className="tarjeta">
-          <div className="cab">
+        <section className="tarjeta sg-panel">
+          <div className="cab-tabla">
             <div>
-              <h2>3 · Sider certificado · {nombreMes}</h2>
+              <h2>Informe · {nombreMes}</h2>
               <p>
                 <b>BU MTD</b> = {nf.format(meta * 100)}% de lo recibido ·{" "}
-                <b>% Cumpl.</b> = Real ÷ BU · <b>% Certificación</b> = Real ÷ recibido, que es
-                el número del informe.
+                <b>% Cumpl.</b> = Real ÷ BU · <b>% Certificación</b> = Real ÷ recibido
               </p>
             </div>
-          </div>
-          <div className="sg-cifras">
-            {cifra("% CERTIFICACIÓN", pctTexto(tot.pct), semaforo(tot.pct))}
-            {cifra("% CUMPLIMIENTO", pctTexto(tot.pctCumpl), cumple(tot.pctCumpl))}
-            {cifra("HL EER RECIBIDO", nf.format(tot.recibido))}
-            {cifra("REAL MTD", nf.format(tot.real))}
+            <div className="resumen">
+              <div className={semaforo(tot.pct).trim()}>
+                <span>% CERTIFICACIÓN</span><b>{pctTexto(tot.pct)}</b>
+              </div>
+              <div className={cumple(tot.pctCumpl).trim()}>
+                <span>% CUMPLIMIENTO</span><b>{pctTexto(tot.pctCumpl)}</b>
+              </div>
+              <div><span>HL EER RECIBIDO</span><b>{nf.format(tot.recibido)}</b></div>
+              <div><span>REAL MTD</span><b>{nf.format(tot.real)}</b></div>
+            </div>
           </div>
           <div className="marco sg-marco">
-            <table className="sg-tabla ancha">
+            <table className="sg-tabla ancha apretada">
               <thead>
-                {/* Los dos bloques, cada uno bajo su rótulo: sin esta fila
-                    son nueve columnas seguidas de números y no hay forma
-                    de saber cuál BU pertenece a cuál. */}
                 <tr className="sg-grupo">
                   <th className="hueco" />
                   <th className="vh" colSpan={4}>Vehículos</th>
@@ -478,11 +495,11 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
                 </tr>
                 <tr>
                   {cabecera("cd_origen", "Centro de Origen", false)}
-                  <th className="num corta sg-orden" onClick={() => setOrden({ col: "vh_recibidos", desc: true })}>Vh Recibidos</th>
+                  {cabecera("vh_recibidos", "Vh Recibidos")}
                   {cabecera("vh_bu_mtd", "BU MTD")}
                   {cabecera("vh_real_mtd", "Real MTD")}
                   {cabecera("pct_cumplimiento_vh", "% Cumpl.")}
-                  <th className="num corta sg-orden" onClick={() => setOrden({ col: "hl_recibido", desc: true })}>HL EER Recibido</th>
+                  {cabecera("hl_recibido", "HL EER Recibido")}
                   {cabecera("bu_mtd", "BU MTD")}
                   {cabecera("real_mtd", "Real MTD")}
                   {cabecera("pct_cumplimiento", "% Cumpl.")}
@@ -515,25 +532,22 @@ export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
               </tbody>
               {!!conCd.length && (
                 <tfoot>
-                  <tr>
+                  <tr className="total">
                     <td>Total general</td>
                     <td className="num corta">{nf1.format(tot.vhRec)}</td>
                     <td className="num">{nf1.format(tot.vhBu)}</td>
                     <td className="num">{nf1.format(tot.vhReal)}</td>
-                    <td className={"num sg-pct" + cumple(tot.pctVh)}>{pctTexto(tot.pctVh)}</td>
+                    <td className="num">{pctTexto(tot.pctVh)}</td>
                     <td className="num corta">{nf.format(tot.recibido)}</td>
                     <td className="num">{nf.format(tot.bu)}</td>
                     <td className="num">{nf.format(tot.real)}</td>
-                    <td className={"num sg-pct" + cumple(tot.pctCumpl)}>{pctTexto(tot.pctCumpl)}</td>
-                    <td className={"num sg-pct" + semaforo(tot.pct)}>{pctTexto(tot.pct)}</td>
+                    <td className="num">{pctTexto(tot.pctCumpl)}</td>
+                    <td className="num">{pctTexto(tot.pct)}</td>
                   </tr>
                 </tfoot>
               )}
             </table>
           </div>
-          {/* Plegada: son 2.218 HL de cuatro CD que nadie consulta todos
-              los días, y desplegada se llevaba 61 px de tabla. Lo que no
-              puede pasar es que desaparezcan sin decir por qué. */}
           {!!fuera.length && !cd && (
             <details className="sg-aparte-det">
               <summary>
