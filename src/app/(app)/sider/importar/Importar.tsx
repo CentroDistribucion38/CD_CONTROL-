@@ -98,16 +98,42 @@ export function Importar({ maestro, zldeCargado, importados }: {
     }
   }
 
-  /* ---------- ZLDE: resumen por mes ---------- */
+  /* ---------- ZLDE: resumen por mes ----------
+     Las filas vienen por DÍA. Aquí se resumen por mes, que es como se
+     revisa un archivo antes de guardarlo: "trajo mayo, junio, julio y
+     agosto". Los CD se cuentan distintos, no sumando filas, porque el
+     mismo CD aparece ahora en varios días del mes. */
+  const mesDeFila = (fecha: string) => `${fecha.slice(0, 7)}-01`;
   const porMesZlde = useMemo(() => {
     if (!zl) return [];
-    const m = new Map<string, { cd: number; hl: number; vh: number; lineas: number }>();
+    const m = new Map<string, { cds: Set<string>; dias: Set<string>; hl: number; vh: number; lineas: number }>();
     for (const f of zl.filas) {
-      const a = m.get(f.mes) ?? { cd: 0, hl: 0, vh: 0, lineas: 0 };
-      a.cd++; a.hl += f.hl; a.vh += f.vh; a.lineas += f.lineas;
-      m.set(f.mes, a);
+      const k = mesDeFila(f.fecha);
+      const a = m.get(k) ?? { cds: new Set<string>(), dias: new Set<string>(), hl: 0, vh: 0, lineas: 0 };
+      a.cds.add(f.cd_origen); a.dias.add(f.fecha);
+      a.hl += f.hl; a.vh += f.vh; a.lineas += f.lineas;
+      m.set(k, a);
     }
-    return [...m].map(([mes, v]) => ({ mes, ...v })).sort((a, b) => a.mes.localeCompare(b.mes));
+    return [...m]
+      .map(([mes, v]) => ({ mes, cd: v.cds.size, dias: v.dias.size, hl: v.hl, vh: v.vh, lineas: v.lineas }))
+      .sort((a, b) => a.mes.localeCompare(b.mes));
+  }, [zl]);
+
+  /* Para la tabla del detalle: por mes y CD, no por día. Un mes trae
+     unos cientos de filas por día y esto es una VISTA PREVIA para
+     revisar antes de guardar; trescientas filas no se revisan. */
+  const zldePorMesCd = useMemo(() => {
+    if (!zl) return [];
+    const m = new Map<string, { mes: string; cd_origen: string; hl: number; vh: number; dias: number }>();
+    for (const f of zl.filas) {
+      const mes = mesDeFila(f.fecha);
+      const k = mes + "\u0000" + f.cd_origen;
+      const a = m.get(k) ?? { mes, cd_origen: f.cd_origen, hl: 0, vh: 0, dias: 0 };
+      a.hl += f.hl; a.vh += f.vh; a.dias++;
+      m.set(k, a);
+    }
+    return [...m.values()].sort((a, b) =>
+      a.mes === b.mes ? b.hl - a.hl : a.mes.localeCompare(b.mes));
   }, [zl]);
 
   /* ---------- Base: resumen por mes ---------- */
@@ -361,15 +387,16 @@ export function Importar({ maestro, zldeCargado, importados }: {
             <div className="marco sg-marco im-tabla">
               <table>
                 <thead>
-                  <tr><th>Mes</th><th>CD de origen</th><th className="num">Vh</th><th className="num">HL</th></tr>
+                  <tr><th>Mes</th><th>CD de origen</th><th className="num">Días</th><th className="num">Vh</th><th className="num">HL</th></tr>
                 </thead>
                 <tbody>
-                  {zl.filas.map((f) => (
+                  {zldePorMesCd.map((f) => (
                     <tr key={`${f.mes}${f.cd_origen}`}>
                       <td className="cod">{nombreMes(f.mes)}</td>
                       <td className={conocidos.has(limpia(f.cd_origen)) ? undefined : "apagado"}>
                         {f.cd_origen}
                       </td>
+                      <td className="num">{f.dias}</td>
                       <td className="num">{nf.format(f.vh)}</td>
                       <td className="num">{nf.format(f.hl)}</td>
                     </tr>

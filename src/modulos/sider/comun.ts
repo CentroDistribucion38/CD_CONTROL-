@@ -11,6 +11,55 @@
  */
 
 export const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+/* =====================================================================
+   CÓMO SE LLAMA UN RANGO DE FECHAS
+   Una sola función, usada por el título, por el KPI, por el nombre del
+   archivo de Excel y por el campo del calendario: si cada sitio armara
+   su propio texto, el mismo rango se llamaría de tres formas distintas
+   en la misma pantalla.
+   ===================================================================== */
+
+/** Del 1 al último día de ese mes. */
+export function mesCompleto(aaaamm: string): { desde: string; hasta: string } {
+  const [a, m] = aaaamm.split("-").map(Number);
+  const fin = new Date(a, m, 0).getDate();
+  return { desde: `${aaaamm}-01`, hasta: `${aaaamm}-${String(fin).padStart(2, "0")}` };
+}
+
+/** ¿El rango es exactamente un mes completo? */
+export function esMesCompleto(desde: string, hasta: string): boolean {
+  if (desde.slice(0, 7) !== hasta.slice(0, 7)) return false;
+  const m = mesCompleto(desde.slice(0, 7));
+  return desde === m.desde && hasta === m.hasta;
+}
+
+/** ¿El rango es exactamente un año completo? */
+export function esAnioCompleto(desde: string, hasta: string): boolean {
+  const a = desde.slice(0, 4);
+  return hasta.slice(0, 4) === a && desde === `${a}-01-01` && hasta === `${a}-12-31`;
+}
+
+/**
+ * El nombre del rango, dicho como lo diría una persona:
+ *   un día        "11 de agosto de 2026"
+ *   un mes        "agosto 2026"
+ *   un año        "todo 2026"
+ *   dentro de un mes  "3 al 17 de agosto de 2026"
+ *   a caballo     "28 de julio al 4 de agosto de 2026"
+ *   entre años    "15 de diciembre de 2025 al 3 de enero de 2026"
+ */
+export function nombreRango(desde: string, hasta: string): string {
+  if (!desde || !hasta) return "—";
+  const d = desde.split("-").map(Number), h = hasta.split("-").map(Number);
+  const mesDe = (i: number) => MESES_LARGO[i - 1];
+  if (desde === hasta) return `${d[2]} de ${mesDe(d[1])} de ${d[0]}`;
+  if (esAnioCompleto(desde, hasta)) return `todo ${d[0]}`;
+  if (esMesCompleto(desde, hasta)) return `${mesDe(d[1])} ${d[0]}`;
+  if (d[0] === h[0] && d[1] === h[1]) return `${d[2]} al ${h[2]} de ${mesDe(d[1])} de ${d[0]}`;
+  if (d[0] === h[0]) return `${d[2]} de ${mesDe(d[1])} al ${h[2]} de ${mesDe(h[1])} de ${d[0]}`;
+  return `${d[2]} de ${mesDe(d[1])} de ${d[0]} al ${h[2]} de ${mesDe(h[1])} de ${h[0]}`;
+}
+
 export const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio",
                             "agosto","septiembre","octubre","noviembre","diciembre"];
 

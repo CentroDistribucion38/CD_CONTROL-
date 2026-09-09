@@ -664,6 +664,48 @@ end $$;
 -- 401 líneas detrás de los 56.538 HL de Galapa es otra cosa que una.
 alter table public.sider_zlde add column if not exists lineas integer not null default 0;
 
+-- ---------------------------------------------------------------------
+-- EL DÍA, NO EL MES.
+--
+-- Se guardaba una fila por MES porque el informe es MTD y el día no
+-- hacía falta. Pero el archivo de ZLDE trae la fecha EN CADA LÍNEA —el
+-- lector ya la busca para saber de qué mes es— y esa fecha se estaba
+-- botando al resumir. Guardándola, el seguimiento se puede pedir por un
+-- día, por un rango cualquiera, por un mes o por un año, y el mes deja
+-- de ser el único corte posible.
+--
+-- Sigue siendo diminuto: las 45.374 líneas de un mes se vuelven unos
+-- cientos de filas por día, CD, planta y clase, no decenas de miles.
+--
+-- La columna mes SE QUEDA, derivada de fecha: agrupar por mes es la
+-- consulta más común y tenerla ya calculada evita un date_trunc por
+-- fila en cada informe.
+-- ---------------------------------------------------------------------
+alter table public.sider_zlde add column if not exists fecha date;
+-- Lo ya cargado tenía el primer día del mes: ese es su fecha.
+update public.sider_zlde set fecha = mes where fecha is null;
+alter table public.sider_zlde alter column fecha set not null;
+
+-- La llave pasa del mes al día. Se hace en un bloque guardado porque
+-- este archivo se corre varias veces y la segunda vez ya está hecho.
+do $$ begin
+  if exists (
+    select 1 from pg_constraint c
+     where c.conrelid = 'public.sider_zlde'::regclass and c.contype = 'p'
+       and (select array_agg(a.attname::text order by a.attname)
+              from unnest(c.conkey) k join pg_attribute a
+                on a.attrelid = c.conrelid and a.attnum = k)
+           = array['cd_origen','clase','mes','planta']
+  ) then
+    alter table public.sider_zlde drop constraint sider_zlde_pkey;
+    alter table public.sider_zlde add primary key (fecha, cd_origen, planta, clase);
+  end if;
+end $$;
+
+-- El seguimiento pide rangos de fechas: sin este índice, cada consulta
+-- lee la tabla entera.
+create index if not exists sider_zlde_fecha on public.sider_zlde (fecha);
+
 -- Cuatro CD salían del informe de agosto (Cúcuta, San Andrés, Caucasia,
 -- KACartagena). En vez de escribir esos cuatro nombres en el código, la
 -- razón se guarda como dato: un CD que no despacha sider se marca y el
@@ -700,8 +742,27 @@ on conflict (clave) do nothing;
 -- aparece en ZLDE sin certificar nada es justo el que hay que perseguir.
 -- Con un join normal, uno de los dos casos se caería en silencio.
 -- ---------------------------------------------------------------------
+/* DEJA DE SER UNA VISTA Y PASA A SER UNA FUNCIÓN CON RANGO.
+   Una vista no recibe parámetros, así que el informe estaba clavado al
+   mes: era la única unidad que se podía pedir. Con la fecha guardada por
+   día, el corte lo elige quien mira —un día, una semana, del 3 al 17, un
+   mes, un año— y eso solo cabe en una función.
+   Sigue siendo security invoker (el default): la función no salta el RLS,
+   lee con los permisos de quien pregunta, igual que la vista. */
 drop view if exists public.v_sider_seguimiento;
-create view public.v_sider_seguimiento as
+drop function if exists public.sider_seguimiento(date, date);
+
+create or replace function public.sider_seguimiento(p_desde date, p_hasta date)
+returns table (
+  cd_origen text, planta text, aplica_sider boolean, fuera_del_maestro boolean,
+  vh_recibidos numeric, vh_bu_mtd numeric, vh_real_mtd numeric, pct_cumplimiento_vh numeric,
+  hl_recibido numeric, bu_mtd numeric, real_mtd numeric,
+  pct_cumplimiento numeric, pct_certificacion numeric,
+  viajes bigint, estibas numeric, lineas_zlde bigint, meta numeric
+)
+language sql
+stable
+as $$
 with m as (select valor as meta from public.sider_parametros where clave = 'meta_certificacion'),
 recibido as (
   /* EL INDICADOR ES ESO: envase retornable que llegó a Barranquilla. No
@@ -709,16 +770,16 @@ recibido as (
      % de certificación, y es el mismo filtro que tiene tu pivote—. La
      pantalla de ZLDE sí deja moverlo para explorar; el informe no, o
      dejaría de ser el informe. */
-  select z.mes, z.cd_origen,
+  select z.cd_origen,
          sum(z.hl) as hl, sum(z.vh_recibidos) as vh_recibidos, sum(z.lineas) as lineas
     from public.sider_zlde z
    where lower(btrim(z.planta)) = 'barranquilla'
      and lower(btrim(z.clase))  = 'eer'
-   group by 1, 2
+     and z.fecha between p_desde and p_hasta
+   group by 1
 ),
 certificado as (
-  select date_trunc('month', v.fecha)::date as mes,
-         v.cd_origen,
+  select v.cd_origen,
          sum(coalesce(v.hl, 0))    as hl,
          count(*)                  as viajes,
          sum(v.estibas)            as estibas,
@@ -731,10 +792,14 @@ certificado as (
   -- quedó certificada con su ubicación y sus fotos, y es lo que la hoja
   -- "Base de Datos" registraba al despachar.
   where v.estado <> 'anulado'
-  group by 1, 2
+    /* El rango es de FECHAS, y v.fecha es un timestamptz: el día de
+       cierre entra completo con < hasta+1, no con <= hasta, que se
+       comería las horas de ese día. */
+    and v.fecha >= p_desde::timestamptz
+    and v.fecha <  (p_hasta + 1)::timestamptz
+  group by 1
 )
 select
-  coalesce(r.mes, c.mes)                    as mes,
   coalesce(r.cd_origen, c.cd_origen)        as cd_origen,
   o.planta,
   coalesce(o.aplica_sider, true)            as aplica_sider,
@@ -778,8 +843,35 @@ select
   coalesce(r.lineas, 0)                     as lineas_zlde,
   (select meta from m)                      as meta
 from recibido r
-full join certificado c on c.mes = r.mes and c.cd_origen = r.cd_origen
-left join public.sider_origenes o on o.cd_origen = coalesce(r.cd_origen, c.cd_origen);
+full join certificado c on c.cd_origen = r.cd_origen
+left join public.sider_origenes o on o.cd_origen = coalesce(r.cd_origen, c.cd_origen)
+$$;
+
+-- ---------------------------------------------------------------------
+-- QUÉ DÍAS TIENEN ALGO.
+-- El calendario necesita saberlo para apagar los días vacíos: un
+-- calendario que deja tocar cualquier día y contesta "no hay nada" hace
+-- buscar a ciegas. Se contestan las dos puntas por separado, porque un
+-- día puede tener ZLDE y no viajes o al revés, y las dos cosas son
+-- información.
+-- ---------------------------------------------------------------------
+create or replace view public.v_sider_dias as
+with z as (
+  select fecha, sum(hl) as hl_zlde
+    from public.sider_zlde
+   group by 1
+),
+c as (
+  select coalesce(v.fecha::date, v.creado_en::date) as fecha, count(*) as viajes
+    from public.sider_viajes v
+   where v.estado <> 'anulado'
+   group by 1
+)
+select coalesce(z.fecha, c.fecha)   as fecha,
+       coalesce(z.hl_zlde, 0)       as hl_zlde,
+       coalesce(c.viajes, 0)::int   as viajes
+  from z
+  full join c on c.fecha = z.fecha;
 
 -- ---------------------------------------------------------------------
 -- 10. IMPORTAR
@@ -819,14 +911,22 @@ begin
     raise exception 'No llegó ninguna fila que guardar';
   end if;
 
-  select array_agg(distinct date_trunc('month', (f->>'mes')::date)::date)
+  /* SE BORRA POR MES, AUNQUE SE GUARDE POR DÍA.
+     Importar un mes REEMPLAZA ese mes: si se borrara solo por los días
+     que trae el archivo, un archivo corregido al que le falta el día 7
+     dejaría vivo el día 7 viejo, y el total del mes saldría con datos de
+     dos importaciones distintas. Se borra el mes completo y se vuelve a
+     escribir. */
+  select array_agg(distinct date_trunc('month', (f->>'fecha')::date)::date)
     into v_meses
     from jsonb_array_elements(p_filas) f;
 
   delete from public.sider_zlde where mes = any(v_meses);
 
-  insert into public.sider_zlde (mes, cd_origen, planta, clase, hl, vh_recibidos, lineas, importado_por)
-  select date_trunc('month', (f->>'mes')::date)::date,
+  insert into public.sider_zlde
+    (fecha, mes, cd_origen, planta, clase, hl, vh_recibidos, lineas, importado_por)
+  select (f->>'fecha')::date,
+         date_trunc('month', (f->>'fecha')::date)::date,
          btrim(f->>'cd_origen'),
          coalesce(nullif(btrim(f->>'planta'), ''), 'sin planta'),
          coalesce(nullif(btrim(f->>'clase'),  ''), 'sin clase'),
@@ -838,7 +938,7 @@ begin
   where btrim(coalesce(f->>'cd_origen', '')) <> ''
   -- Si el archivo trae la misma combinación dos veces, se suman en vez
   -- de que la segunda tumbe a la primera sin avisar.
-  on conflict (mes, cd_origen, planta, clase) do update
+  on conflict (fecha, cd_origen, planta, clase) do update
      set hl           = public.sider_zlde.hl           + excluded.hl,
          vh_recibidos = public.sider_zlde.vh_recibidos + excluded.vh_recibidos,
          lineas       = public.sider_zlde.lineas       + excluded.lineas;
@@ -906,6 +1006,7 @@ drop policy if exists sider_zlde_write on public.sider_zlde;
 create policy sider_zlde_write on public.sider_zlde for all to authenticated
   using (public.es_editor()) with check (public.es_editor());
 
-grant select on public.v_sider_seguimiento to authenticated;
+grant select on public.v_sider_dias to authenticated;
+grant execute on function public.sider_seguimiento(date, date) to authenticated;
 grant execute on function public.sider_zlde_importar(jsonb)   to authenticated;
 grant execute on function public.sider_viajes_importar(jsonb) to authenticated;

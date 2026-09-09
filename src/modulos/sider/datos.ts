@@ -90,42 +90,76 @@ export async function nombresDe(ids: (string | null)[]) {
 
 
 /** Los meses que tienen algo: ZLDE cargado o viajes certificados. */
-export async function mesesSeguimiento() {
+/**
+ * QUÉ DÍAS TIENEN ALGO.
+ *
+ * El calendario los necesita para apagar los vacíos: uno que deja tocar
+ * cualquier día y después contesta "no hay nada" obliga a buscar a
+ * ciegas. Se traen las dos puntas por separado —un día puede tener ZLDE
+ * y no viajes, o al revés— porque las dos cosas son información.
+ */
+export async function diasConDatos() {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("v_sider_seguimiento")
-    .select("mes")
-    .order("mes", { ascending: false });
-  const meses = [...new Set(((data ?? []) as { mes: string }[]).map((f) => f.mes))];
-  return { meses, falta: !!error };
+    .from("v_sider_dias")
+    .select("fecha, hl_zlde, viajes")
+    .order("fecha", { ascending: false })
+    .limit(4000);
+  return { dias: (data ?? []) as unknown as DiaConDatos[], falta: !!error };
 }
 
-export async function seguimientoSider(mes: string) {
+export type DiaConDatos = { fecha: string; hl_zlde: number; viajes: number };
+
+/**
+ * El informe de un RANGO de fechas, las dos puntas incluidas.
+ *
+ * Era una vista clavada al mes. Una vista no recibe parámetros, así que
+ * el mes era el único corte posible; ahora es una función y el corte lo
+ * elige quien mira: un día, del 3 al 17, un mes, un año.
+ */
+export async function seguimientoSider(desde: string, hasta: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("v_sider_seguimiento")
-    .select("*")
-    .eq("mes", mes)
-    .order("hl_recibido", { ascending: false });
-  return { filas: (data ?? []) as unknown as FilaSeguimiento[], falta: !!error };
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const cli = supabase as any;
+  const { data, error } = await cli.rpc("sider_seguimiento", { p_desde: desde, p_hasta: hasta });
+  const filas = (data ?? []) as unknown as FilaSeguimiento[];
+  /* La función no ordena: ordenar en SQL obliga a materializar todo el
+     resultado del lado del servidor para nada, siendo quince filas. */
+  filas.sort((a, b) => Number(b.hl_recibido) - Number(a.hl_recibido));
+  return { filas, falta: !!error };
 }
 
 /**
- * El ZLDE crudo del mes, sin filtrar: una fila por CD, planta y clase.
+ * El ZLDE crudo del rango, sin filtrar: una fila por CD, planta y clase.
  *
  * La pantalla lo filtra por planta y por clase igual que los
- * segmentadores del pivote. El informe NO usa esto: usa la vista, que
+ * segmentadores del pivote. El informe NO usa esto: usa la función, que
  * se queda clavada en Barranquilla y EER porque eso ES el indicador.
+ *
+ * Viene por día y se suma aquí por CD, planta y clase: la tabla de la
+ * pantalla es un pivote por CD, y traer los días para volver a sumarlos
+ * en el navegador sería traer cien veces lo que se necesita.
  */
-export async function zldeDelMes(mes: string) {
+export async function zldeDelRango(desde: string, hasta: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("sider_zlde")
     .select("cd_origen, planta, clase, hl, vh_recibidos, lineas")
-    .eq("mes", mes)
-    .order("hl", { ascending: false })
-    .limit(5000);
-  return { filas: (data ?? []) as unknown as FilaZldeCruda[], falta: !!error };
+    .gte("fecha", desde)
+    .lte("fecha", hasta)
+    .limit(20000);
+
+  const m = new Map<string, FilaZldeCruda>();
+  for (const f of (data ?? []) as unknown as FilaZldeCruda[]) {
+    const k = `${f.cd_origen}\u0000${f.planta}\u0000${f.clase}`;
+    const a = m.get(k) ?? { ...f, hl: 0, vh_recibidos: 0, lineas: 0 };
+    a.hl += Number(f.hl);
+    a.vh_recibidos += Number(f.vh_recibidos);
+    a.lineas += Number(f.lineas);
+    m.set(k, a);
+  }
+  const filas = [...m.values()].sort((a, b) => b.hl - a.hl);
+  return { filas, falta: !!error };
 }
 
 export type FilaZldeCruda = {

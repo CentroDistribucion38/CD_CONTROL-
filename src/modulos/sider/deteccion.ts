@@ -109,7 +109,8 @@ export function aFecha(v: unknown): Date | null {
 export const mesDe = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 
-const iso = (d: Date) =>
+/** El día, en el "2026-08-11" que espera Postgres. */
+export const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const entero = (x: number) => Math.abs(x - Math.round(x)) < 1e-6;
@@ -189,7 +190,17 @@ function columnaDeFechas(c: Cuerpo, w: number) {
 /* ==================== ZLDE ==================== */
 
 export type FilaZlde = {
-  mes: string; cd_origen: string; planta: string; clase: string;
+  /**
+   * EL DÍA, no el mes. El archivo trae la fecha en cada línea y antes se
+   * resumía por mes: el día se botaba aquí mismo. Guardándolo, el
+   * seguimiento se puede pedir por un día, por un rango cualquiera, por
+   * un mes o por un año. El mes lo deriva Postgres de esta fecha.
+   *
+   * No crece tanto como parece: las 45.374 líneas de un mes se vuelven
+   * unos cientos de filas por día, CD, planta y clase.
+   */
+  fecha: string;
+  cd_origen: string; planta: string; clase: string;
   hl: number; vh: number; lineas: number;
 };
 
@@ -367,7 +378,7 @@ export function leerZlde(
     const sinF = s.hl_x_unidad == null || s.unidades_x_caja == null || s.cajas_x_estiba == null;
     if (sinF) d.sinFactores++;
 
-    const k = [mesDe(fecha), cd, laPlanta, laClase].join("\u0000");
+    const k = [iso(fecha), cd, laPlanta, laClase].join("\u0000");
     const a = acum.get(k) ?? { hl: 0, vh: 0, lineas: 0 };
     if (!sinF) {
       a.hl += cant * s.hl_x_unidad!;
@@ -379,10 +390,10 @@ export function leerZlde(
   }
 
   const filas = [...acum].map(([k, v]) => {
-    const [mes, cd_origen, laPlanta, laClase] = k.split("\u0000");
-    return { mes, cd_origen, planta: laPlanta, clase: laClase,
+    const [fecha, cd_origen, laPlanta, laClase] = k.split("\u0000");
+    return { fecha, cd_origen, planta: laPlanta, clase: laClase,
              hl: +v.hl.toFixed(3), vh: +v.vh.toFixed(4), lineas: v.lineas };
-  }).sort((a, b) => (a.mes === b.mes ? b.hl - a.hl : a.mes.localeCompare(b.mes)));
+  }).sort((a, b) => (a.fecha === b.fecha ? b.hl - a.hl : a.fecha.localeCompare(b.fecha)));
 
   return {
     iHoja: e.iHoja, hoja: h.nombre, iCab: e.iCab,

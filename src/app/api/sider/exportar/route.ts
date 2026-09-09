@@ -20,7 +20,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { MESES_LARGO, type Viaje, type FilaSeguimiento } from "@/modulos/sider/comun";
+import { nombreRango, mesCompleto, type Viaje, type FilaSeguimiento } from "@/modulos/sider/comun";
 import { armarLibro, type FilaCert, type FilaFoto } from "@/modulos/sider/libro";
 
 export const dynamic = "force-dynamic";
@@ -34,20 +34,34 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "sin sesión" }, { status: 401 });
 
   const url = new URL(req.url);
-  const mesParam = url.searchParams.get("mes"); // "2026-08"
   const conFotos = url.searchParams.get("fotos") !== "no";
-  const mes = mesParam && /^\d{4}-\d{2}$/.test(mesParam) ? mesParam : null;
+
+  /* EL MISMO RANGO QUE SE ESTÁ VIENDO, no el mes suelto. Exportar tiene
+     que dar el archivo de lo que está en pantalla; si aquí llegara solo
+     el mes, alguien que mira del 3 al 17 se llevaría agosto completo y
+     no se enteraría. Se sigue aceptando ?mes= —la forma vieja— para no
+     romper un enlace guardado. */
+  const F = /^\d{4}-\d{2}-\d{2}$/;
+  const qd = url.searchParams.get("desde"), qh = url.searchParams.get("hasta");
+  const qm = url.searchParams.get("mes");
+  let rango: { desde: string; hasta: string } | null = null;
+  if (qd && qh && F.test(qd) && F.test(qh)) {
+    rango = qd <= qh ? { desde: qd, hasta: qh } : { desde: qh, hasta: qd };
+  } else if (qm && /^\d{4}-\d{2}$/.test(qm)) {
+    rango = mesCompleto(qm);
+  }
 
   /* ---------- Los viajes ---------- */
   let q = supabase.from("v_sider_viajes").select("*").order("creado_en", { ascending: false });
-  if (mes) {
+  if (rango) {
     /* El filtro es por FECHA del viaje —la de la salida— y no por
        creado_en: un viaje que se despachó el 31 y se registró el 1 es
-       del mes en que salió. */
-    const desde = `${mes}-01`;
-    const [a, m] = mes.split("-").map(Number);
-    const hasta = m === 12 ? `${a + 1}-01-01` : `${a}-${String(m + 1).padStart(2, "0")}-01`;
-    q = q.gte("fecha", desde).lt("fecha", hasta);
+       del mes en que salió.
+       El día de cierre entra completo: < hasta+1, no <= hasta, que se
+       comería las horas de ese día. */
+    const [a, m, d] = rango.hasta.split("-").map(Number);
+    const finExclusivo = new Date(Date.UTC(a, m - 1, d + 1)).toISOString().slice(0, 10);
+    q = q.gte("fecha", rango.desde).lt("fecha", finExclusivo);
   }
   const { data: crudos, error } = await q.limit(2000);
   if (error) {
@@ -58,12 +72,14 @@ export async function GET(req: Request) {
   }
   const viajes = (crudos ?? []) as unknown as Viaje[];
 
-  /* ---------- El seguimiento del mes ---------- */
-  const { data: segCrudo } = mes
-    ? await supabase.from("v_sider_seguimiento").select("*").eq("mes", `${mes}-01`)
-        .order("hl_recibido", { ascending: false })
+  /* ---------- El seguimiento del rango ---------- */
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const cli = supabase as any;
+  const { data: segCrudo } = rango
+    ? await cli.rpc("sider_seguimiento", { p_desde: rango.desde, p_hasta: rango.hasta })
     : { data: [] };
-  const seg = (segCrudo ?? []) as unknown as FilaSeguimiento[];
+  const seg = ((segCrudo ?? []) as unknown as FilaSeguimiento[])
+    .sort((a, b) => Number(b.hl_recibido) - Number(a.hl_recibido));
 
   /* ---------- Quién hizo cada cosa ---------- */
   const ids = [...new Set(viajes.map((v) => v.creado_por).filter(Boolean))] as string[];
@@ -106,9 +122,7 @@ export async function GET(req: Request) {
     }
   }
 
-  const titulo = mes
-    ? `${MESES_LARGO[Number(mes.slice(5, 7)) - 1]} ${mes.slice(0, 4)}`
-    : "Todo el histórico";
+  const titulo = rango ? nombreRango(rango.desde, rango.hasta) : "Todo el histórico";
 
   const { archivo, recortadas } = await armarLibro({
     titulo,
@@ -123,7 +137,17 @@ export async function GET(req: Request) {
       : null,
   });
 
-  const nombre = `Sider Certificado ${mes ?? "historico"}.xlsx`;
+  /* El nombre del archivo lleva el rango: dos exportaciones distintas no
+     pueden llamarse igual, o la segunda tapa la primera en Descargas. */
+  const trozo = rango
+    ? (rango.desde === rango.hasta ? rango.desde
+       : rango.desde.slice(0, 7) === rango.hasta.slice(0, 7)
+         && rango.desde.endsWith("-01")
+         && rango.hasta === mesCompleto(rango.desde.slice(0, 7)).hasta
+           ? rango.desde.slice(0, 7)
+           : `${rango.desde} a ${rango.hasta}`)
+    : "historico";
+  const nombre = `Sider Certificado ${trozo}.xlsx`;
   return new NextResponse(new Uint8Array(archivo), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

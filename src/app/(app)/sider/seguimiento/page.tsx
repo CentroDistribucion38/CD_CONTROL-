@@ -1,29 +1,51 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
-import { mesesSeguimiento, seguimientoSider, zldeDelMes, MESES_LARGO } from "@/modulos/sider/datos";
+import { diasConDatos, seguimientoSider, zldeDelRango } from "@/modulos/sider/datos";
+import { mesCompleto, nombreRango } from "@/modulos/sider/comun";
 import "../sider.css";
 import { Seguimiento } from "./Seguimiento";
 
 export const dynamic = "force-dynamic";
 
-/** El mes de la URL, o el más reciente que tenga algo. */
-function normaliza(mes: string | undefined, disponibles: string[]): string | null {
-  if (mes && /^\d{4}-\d{2}$/.test(mes)) return `${mes}-01`;
-  return disponibles[0] ?? null;
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * EL RANGO QUE SE VA A MIRAR.
+ *
+ * De la URL, y si no viene, el último mes que tenga algo. Se acepta
+ * también ?mes=2026-08 —la forma vieja— para que un enlace guardado o
+ * un favorito no lleve a una pantalla vacía.
+ *
+ * Las dos fechas se ordenan: alguien que escriba desde=31 y hasta=1 en
+ * la URL vería el informe en blanco y creería que no hay datos.
+ */
+function normaliza(
+  q: { desde?: string; hasta?: string; mes?: string },
+  dias: string[]
+): { desde: string; hasta: string } | null {
+  if (q.desde && q.hasta && FECHA.test(q.desde) && FECHA.test(q.hasta)) {
+    return q.desde <= q.hasta
+      ? { desde: q.desde, hasta: q.hasta }
+      : { desde: q.hasta, hasta: q.desde };
+  }
+  if (q.desde && FECHA.test(q.desde)) return { desde: q.desde, hasta: q.desde };
+  if (q.mes && /^\d{4}-\d{2}$/.test(q.mes)) return mesCompleto(q.mes);
+  /* Sin nada en la URL: el mes del día más reciente con datos. */
+  return dias.length ? mesCompleto(dias[0].slice(0, 7)) : null;
 }
 
 export default async function SeguimientoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string }>;
+  searchParams: Promise<{ desde?: string; hasta?: string; mes?: string }>;
 }) {
-  const { mes: pedido } = await searchParams;
+  const q = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const [{ data: perfil }, { meses, falta }] = await Promise.all([
+  const [{ data: perfil }, { dias, falta }] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
-    mesesSeguimiento(),
+    diasConDatos(),
   ]);
   /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
      global: un rol puede certificar y no tocar el maestro. */
@@ -44,13 +66,16 @@ export default async function SeguimientoPage({
     );
   }
 
-  const mes = normaliza(pedido, meses);
-  /* Dos consultas y no una: el informe sale de la vista —clavada en
+  const rango = normaliza(q, dias.map((d) => d.fecha));
+  /* Dos consultas y no una: el informe sale de la función —clavada en
      Barranquilla y EER, porque eso es el indicador— y la pantalla de
      ZLDE sale de la tabla cruda, para poder mover planta y clase como
      los segmentadores del pivote. */
-  const [{ filas }, { filas: zlde }] = mes
-    ? await Promise.all([seguimientoSider(mes), zldeDelMes(mes)])
+  const [{ filas }, { filas: zlde }] = rango
+    ? await Promise.all([
+        seguimientoSider(rango.desde, rango.hasta),
+        zldeDelRango(rango.desde, rango.hasta),
+      ])
     : [{ filas: [] }, { filas: [] }];
 
   const dentro = filas.filter((f) => f.aplica_sider);
@@ -58,9 +83,7 @@ export default async function SeguimientoPage({
   const real = dentro.reduce((s, f) => s + Number(f.real_mtd), 0);
   const meta = filas[0]?.meta ?? 0.1;
   const pct = recibido > 0 ? real / recibido : null;
-  const nombreMes = mes
-    ? `${MESES_LARGO[Number(mes.slice(5, 7)) - 1]} ${mes.slice(0, 4)}`
-    : "—";
+  const nombreMes = rango ? nombreRango(rango.desde, rango.hasta) : "—";
 
   return (
     <div className="sd">
@@ -90,7 +113,8 @@ export default async function SeguimientoPage({
                 Importar
               </Link>
             )}
-            <a className="accion" href={`/api/sider/exportar?mes=${(mes ?? "").slice(0, 7)}`}>
+            <a className="accion"
+               href={`/api/sider/exportar?desde=${rango?.desde ?? ""}&hasta=${rango?.hasta ?? ""}`}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 3.5V14M8.5 10.5L12 14l3.5-3.5" />
                 <path d="M4 15v3.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V15" />
@@ -118,7 +142,7 @@ export default async function SeguimientoPage({
         </div>
       </section>
 
-      {!mes ? (
+      {!rango ? (
         <section className="sin-tablas">
           <h2>Todavía no hay nada que seguir</h2>
           <p>
@@ -133,8 +157,9 @@ export default async function SeguimientoPage({
         <Seguimiento
           filas={filas}
           zlde={zlde}
-          mes={mes}
-          meses={meses}
+          desde={rango.desde}
+          hasta={rango.hasta}
+          dias={dias}
           nombreMes={nombreMes}
           esEditor={esEditor}
         />

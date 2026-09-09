@@ -1328,27 +1328,30 @@
   outline: none; border-color: var(--sd-acento); box-shadow: 0 0 0 3px rgba(11,78,162,.14);
 }
 /* ---------------------------------------------------------------------
-   EL MES, EN CALENDARIO
+   EL PERIODO, EN CALENDARIO
+   Un día, del 3 al 17, un mes, un año. Tres modos porque son tres
+   preguntas distintas.
+
    TODAS las clases van con prefijo mes-, y no es manía: la primera
-   versión usaba .campo, .panel y .vacio, y las tres ya existen sueltas
+   versión usaba .campo, .panel y .vacio, y las tres ya existen SUELTAS
    en globals.css. .vacio es el "estado vacío" de Quiebra y trae
-   padding: 34px 0, así que los meses sin datos medían 70 px de alto
+   padding: 34px 0, así que los días sin datos medían 70 px de alto
    contra 38 los otros y la rejilla salía descuadrada. Se vio midiendo
    los rectángulos, no mirando.
-   El campo se ve igual que los otros tres filtros a propósito: es el
-   mismo tipo de cosa y no tiene por qué anunciarse distinto. Lo que
-   cambia es lo que pasa al tocarlo.
+
    El panel va COLGADO (absolute) para que abrirlo no empuje la tabla:
-   la regla de este módulo es que la página no se mueva, y un panel que
-   ocupa sitio la movería 200 px cada vez que alguien busca un mes.
+   la regla de este módulo es que la página no se mueva.
    --------------------------------------------------------------------- */
 .sd .sg-mes { position: relative }
 .sd .sg-mes .mes-campo {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  height: 42px; min-width: 178px; max-width: 230px; padding: 0 10px 0 12px;
+  height: 42px; min-width: 200px; max-width: 260px; padding: 0 10px 0 12px;
   font: 500 14.5px var(--sd-texto); color: var(--sd-tinta); background: var(--c-f7f9fc);
   border: 1.5px solid var(--sd-linea); border-radius: 2px; cursor: pointer;
   text-align: left;
+}
+.sd .sg-mes .mes-campo > span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .sd .sg-mes .mes-campo:hover { border-color: var(--c-b9c4d2) }
 .sd .sg-mes .mes-campo.abierta { border-color: var(--sd-acento); background: #fff }
@@ -1363,7 +1366,7 @@
 
 .sd .sg-mes .mes-panel {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
-  width: 258px; max-width: calc(100vw - 24px); overflow: hidden;
+  width: 428px; max-width: calc(100vw - 24px); overflow: hidden;
   background: #fff; border: 1px solid var(--sd-linea); border-radius: 3px;
   box-shadow: 0 24px 48px -24px rgba(4,32,63,.5);
 }
@@ -1372,16 +1375,52 @@
   content: ""; display: block; height: 3px; background: var(--sd-marca);
 }
 
+/* Días · Meses · Años */
+.sd .sg-mes .mes-modos {
+  display: flex; gap: 2px; padding: 8px 10px 0;
+  border-bottom: 1px solid var(--sd-linea);
+}
+.sd .sg-mes .mes-modos button {
+  border: 0; background: none; cursor: pointer; padding: 7px 12px 8px;
+  font: 600 12.5px var(--sd-texto); color: var(--sd-gris);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.sd .sg-mes .mes-modos button:hover { color: var(--sd-tinta) }
+.sd .sg-mes .mes-modos button.act {
+  color: var(--sd-tinta); border-bottom-color: var(--sd-marca); font-weight: 700;
+}
+.sd .sg-mes .mes-modos button:focus-visible { outline: 3px solid var(--sd-marca); outline-offset: -3px }
+
+.sd .sg-mes .mes-cuerpo { display: flex; align-items: stretch }
+
+/* Los atajos, a la izquierda, como en Quiebra. */
+.sd .sg-mes .mes-atajos {
+  width: 132px; flex: none; padding: 8px 0;
+  border-right: 1px solid var(--sd-linea); background: var(--c-fafbfd);
+}
+.sd .sg-mes .mes-atajos button {
+  display: block; width: 100%; text-align: left;
+  border: 0; border-left: 3px solid transparent; background: none; cursor: pointer;
+  padding: 8px 10px 8px 12px; font: 500 12.5px var(--sd-texto); color: var(--sd-tinta);
+}
+.sd .sg-mes .mes-atajos button:hover { background: var(--c-f1f5fa) }
+.sd .sg-mes .mes-atajos button.on {
+  border-left-color: var(--sd-marca); background: #fff; font-weight: 700;
+}
+.sd .sg-mes .mes-atajos button:focus-visible { outline: 3px solid var(--sd-marca); outline-offset: -3px }
+
+.sd .sg-mes .mes-lado { flex: 1 1 auto; min-width: 0; padding: 8px 10px 10px }
+
 .sd .sg-mes .mes-anio {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 12px 6px;
+  padding: 2px 2px 8px;
 }
 .sd .sg-mes .mes-anio b {
-  font-family: var(--sd-titulo); font-weight: 800; font-size: 15px; letter-spacing: -.01em;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 14.5px; letter-spacing: -.01em;
+  text-transform: capitalize; font-variant-numeric: tabular-nums;
 }
 .sd .sg-mes .mes-anio button {
-  width: 28px; height: 28px; display: grid; place-items: center;
+  width: 28px; height: 28px; display: grid; place-items: center; flex: none;
   border: 1px solid var(--sd-linea); border-radius: 2px; background: #fff; cursor: pointer;
 }
 .sd .sg-mes .mes-anio button:hover:not(:disabled) { border-color: var(--sd-marca) }
@@ -1391,32 +1430,90 @@
   stroke-linecap: round; stroke-linejoin: round;
 }
 
-/* Doce casillas, cuatro por fila: el año entero de un golpe. */
-.sd .sg-mes .mes-doce { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 2px 10px 8px }
+.sd .sg-mes .mes-semana, .sd .sg-mes .mes-dias {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+}
+.sd .sg-mes .mes-semana span {
+  text-align: center; font: 700 10px var(--sd-texto); letter-spacing: .06em;
+  color: var(--c-93a3b6); padding-bottom: 4px;
+}
+.sd .sg-mes .mes-dias button {
+  height: 32px; border: 0; background: none; cursor: pointer;
+  font: 500 12.5px var(--sd-texto); color: var(--sd-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.sd .sg-mes .mes-dias button.finde { color: var(--sd-gris) }
+.sd .sg-mes .mes-dias button:hover:not(:disabled):not(.punta) { background: var(--c-edf1f6) }
+/* El relleno del rango y sus dos puntas: se lee de un golpe dónde
+   empieza y dónde acaba lo elegido. */
+.sd .sg-mes .mes-dias button.dentro { background: var(--c-marca-velo) }
+.sd .sg-mes .mes-dias button.punta {
+  background: var(--sd-marca); color: var(--sd-marca-txt); font-weight: 800; border-radius: 2px;
+}
+/* Un día sin datos no se esconde: se muestra APAGADO. Esconderlo dejaría
+   huecos en la rejilla y nadie sabría si falta el día o la app. */
+.sd .sg-mes .mes-dias button.mes-nada {
+  color: var(--c-c6d0dc); cursor: not-allowed;
+  text-decoration: line-through; text-decoration-thickness: 1px;
+}
+.sd .sg-mes .mes-dias button:focus-visible { outline: 3px solid var(--sd-marca); outline-offset: -3px }
+
+/* Doce casillas: el año entero de un golpe. */
+.sd .sg-mes .mes-doce { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px }
 .sd .sg-mes .mes-doce button {
-  height: 38px; border: 1px solid transparent; border-radius: 2px;
+  height: 40px; border: 1px solid transparent; border-radius: 2px;
   background: var(--c-f7f9fc); cursor: pointer;
-  font: 600 13px var(--sd-texto); color: var(--sd-tinta);
-  text-transform: capitalize;
+  font: 600 13px var(--sd-texto); color: var(--sd-tinta); text-transform: capitalize;
 }
-.sd .sg-mes .mes-doce button:hover:not(:disabled) { border-color: var(--sd-marca); background: #fff }
-.sd .sg-mes .mes-doce button.aqui {
-  background: var(--sd-marca); color: var(--sd-marca-txt); border-color: var(--sd-marca);
-  font-weight: 800;
+.sd .sg-mes .mes-doce button:hover:not(:disabled):not(.punta) {
+  border-color: var(--sd-marca); background: #fff;
 }
-/* Un mes sin datos no se esconde: se muestra APAGADO. Esconderlo dejaría
-   nueve casillas y un hueco, y nadie sabría si falta el mes o la app. */
+.sd .sg-mes .mes-doce button.dentro { background: var(--c-marca-velo) }
+.sd .sg-mes .mes-doce button.punta {
+  background: var(--sd-marca); color: var(--sd-marca-txt);
+  border-color: var(--sd-marca); font-weight: 800;
+}
 .sd .sg-mes .mes-doce button.mes-nada {
   background: transparent; color: var(--c-c6d0dc); cursor: not-allowed;
   text-decoration: line-through; text-decoration-thickness: 1px;
 }
 .sd .sg-mes .mes-doce button:focus-visible { outline: 3px solid var(--sd-marca); outline-offset: -2px }
 
-.sd .sg-mes .mes-pie {
-  margin: 0; padding: 8px 12px; font-size: 11.5px; color: var(--sd-gris);
-  border-top: 1px solid var(--sd-linea); background: var(--c-fafbfd);
+/* Los años: solo los que tienen algo, así que no hacen falta flechas. */
+.sd .sg-mes .mes-anios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px }
+.sd .sg-mes .mes-anios button {
+  height: 44px; border: 1px solid transparent; border-radius: 2px;
+  background: var(--c-f7f9fc); cursor: pointer;
+  font: 800 15px var(--sd-titulo); color: var(--sd-tinta); font-variant-numeric: tabular-nums;
 }
+.sd .sg-mes .mes-anios button:hover:not(.punta) { border-color: var(--sd-marca); background: #fff }
+.sd .sg-mes .mes-anios button.punta {
+  background: var(--sd-marca); color: var(--sd-marca-txt); border-color: var(--sd-marca);
+}
+.sd .sg-mes .mes-anios button:focus-visible { outline: 3px solid var(--sd-marca); outline-offset: -2px }
 
+.sd .sg-mes .mes-pie { margin: 0; padding: 8px 2px 0; font-size: 12px; color: var(--sd-gris) }
+
+/* El pie: lo elegido dicho con palabras, y los dos botones. Nada se
+   aplica hasta que se toca Aplicar. */
+.sd .sg-mes .mes-pie-cal {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px; border-top: 1px solid var(--sd-linea); background: var(--c-fafbfd);
+}
+.sd .sg-mes .mes-pie-cal .dice { flex: 1 1 auto; min-width: 0; font-size: 12.5px; color: var(--sd-gris) }
+.sd .sg-mes .mes-pie-cal .dice b { color: var(--sd-tinta); font-weight: 700 }
+.sd .sg-mes .mes-pie-cal .btns { display: flex; gap: 8px; flex: none }
+.sd .sg-mes .mes-pie-cal .aplicar {
+  height: 34px; padding: 0 16px; border: 0; border-radius: 2px;
+  background: var(--sd-marca); color: var(--sd-marca-txt);
+  font: 800 13px var(--sd-titulo); cursor: pointer;
+}
+.sd .sg-mes .mes-pie-cal .aplicar:disabled { opacity: .45; cursor: not-allowed }
+.sd .sg-mes .mes-pie-cal .cancelar {
+  height: 34px; padding: 0 10px; border: 0; background: none;
+  font: 600 13px var(--sd-texto); color: var(--sd-gris); cursor: pointer;
+}
+.sd .sg-mes .mes-pie-cal .cancelar:hover { color: var(--sd-tinta) }
 
 .sd .sg-filtros .limpiar {
   margin-left: auto; height: 42px; padding: 0 18px; border: 1.5px solid var(--sd-linea);
@@ -1520,7 +1617,29 @@
      que un panel de 258 anclado a su derecha quedaba en x = -82, fuera
      de la pantalla. Anclado a la izquierda y con el ancho tomado del
      viewport, cabe siempre. */
-  .sd .sg-mes .mes-panel { left: 0; right: auto; width: min(300px, calc(100vw - 40px)) }
+  /* El panel se ancla a la izquierda y toma el ancho de la pantalla.
+     Medido en un celular de 360: el campo cae en la columna izquierda y
+     mide 155 px, así que un panel anclado a su derecha quedaba en
+     x = -82, fuera de la pantalla.
+     Y los atajos se van ARRIBA, en fila: 132 px de columna sobre 320 de
+     panel dejaban 188 para siete columnas de días, 26 px cada una. */
+  /* El 58 no es un numero bonito: el campo arranca a 43 px del borde
+     izquierdo de la pantalla (el relleno de la tarjeta), asi que un
+     panel anclado a su izquierda con 100vw - 32 se salia 11 px por la
+     derecha. Medido, no estimado. */
+  .sd .sg-mes .mes-panel { left: 0; right: auto; width: min(340px, calc(100vw - 58px)) }
+  .sd .sg-mes .mes-cuerpo { flex-direction: column }
+  .sd .sg-mes .mes-atajos {
+    width: auto; display: flex; gap: 4px; overflow-x: auto; padding: 8px 10px;
+    border-right: 0; border-bottom: 1px solid var(--sd-linea);
+  }
+  .sd .sg-mes .mes-atajos button {
+    width: auto; flex: none; white-space: nowrap; border-left: 0;
+    border: 1px solid var(--sd-linea); border-radius: 999px; padding: 6px 12px;
+    background: #fff;
+  }
+  .sd .sg-mes .mes-atajos button.on { border-color: var(--sd-marca) }
+  .sd .sg-mes .mes-dias button { height: 36px }
   .sd .sg-mes .mes-doce button { height: 42px; font-size: 13.5px }
   .sd .sg-filtros .limpiar { margin-left: 0; flex: 1 1 100%; height: 38px }
   .sd .sg-panel .cab-tabla { padding: 12px 14px; gap: 12px }
