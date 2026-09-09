@@ -67,6 +67,12 @@ security definer
 set search_path = public
 as $$
 begin
+  -- Sin sesión no hay nadie a quien impedirle nada: es el servidor
+  -- escribiendo con la llave de servicio. Ver la explicación de arriba.
+  if auth.uid() is null then
+    return new;
+  end if;
+
   -- El administrador sí puede cambiarlos.
   if public.mi_rol() = 'admin' then
     return new;
