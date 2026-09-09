@@ -76,21 +76,33 @@ export async function GET(req: Request) {
   }
 
   /* ---------- Las certificaciones y sus fotos ---------- */
+  /* POR TANDAS. Un .in() con dos mil UUID arma una URL de setenta kilos
+     y el servidor la rechaza —o peor, la corta— sin decir por qué: el
+     export saldría sin evidencia y sin avisar. De trescientos en
+     trescientos son siete llamadas cortas y siempre cabe. */
   const idsViaje = viajes.map((v) => v.id);
+  const TANDA = 300;
+  const enTandas = async <T,>(ids: string[], col: string, tabla: string, cols: string) => {
+    const out: T[] = [];
+    for (let i = 0; i < ids.length; i += TANDA) {
+      const { data } = await supabase.from(tabla).select(cols).in(col, ids.slice(i, i + TANDA));
+      out.push(...((data ?? []) as T[]));
+    }
+    return out;
+  };
+
   let certs: FilaCert[] = [];
   let fotos: FilaFoto[] = [];
   if (idsViaje.length) {
-    const { data: c } = await supabase
-      .from("sider_certificaciones")
-      .select("id, viaje_id, punta, lat, lng, precision_m, direccion, nota, hecha_por, hecha_en")
-      .in("viaje_id", idsViaje);
-    certs = (c ?? []) as FilaCert[];
+    certs = await enTandas<FilaCert>(
+      idsViaje, "viaje_id", "sider_certificaciones",
+      "id, viaje_id, punta, lat, lng, precision_m, direccion, nota, hecha_por, hecha_en"
+    );
     if (certs.length) {
-      const { data: f } = await supabase
-        .from("sider_fotos")
-        .select("certificacion_id, ranura, ruta")
-        .in("certificacion_id", certs.map((x) => x.id));
-      fotos = (f ?? []) as FilaFoto[];
+      fotos = await enTandas<FilaFoto>(
+        certs.map((x) => x.id), "certificacion_id", "sider_fotos",
+        "certificacion_id, ranura, ruta"
+      );
     }
   }
 
