@@ -28,7 +28,16 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const PISTAS = {
   cd: ["cd origen", "centro de origen", "centro origen", "cd de origen", "planta origen",
        "etiquetas de fila", "cd", "origen"],
-  hl: ["hectolitros", "hl", "suma de hectolitros", "suma de hl", "hl eer", "cantidad"],
+  /* SOLO palabras que de verdad dicen hectolitros.
+     Aquí estaba "cantidad", con el mismo puntaje que "hectolitros", y en
+     un archivo que trae las dos columnas ganaba la que estuviera más a la
+     izquierda. Salieron 514.248.432 HL en vez de 248.486: cantidad son
+     UNIDADES. Un número dos mil veces más grande se nota; uno cuatro
+     veces más grande se guarda y nadie lo ve. Por eso ya no se adivina
+     con palabras vagas: si el encabezado no dice hectolitros o HL, que
+     lo escoja una persona. */
+  hl: ["hectolitros", "suma de hectolitros", "hl", "suma de hl", "hl eer",
+       "hectolitros eer", "total hl"],
   planta: ["planta", "cd destino", "centro"],
   clase: ["clase", "tipo", "familia"],
 };
@@ -46,22 +55,52 @@ function pista(col: string, pistas: string[]): number {
   return 0;
 }
 
-/** "1.234,5" y "1,234.5" son el mismo número escrito por dos SAP. */
-function aNumero(v: unknown): number | null {
+/**
+ * "1.234,5" y "1,234.5" son el mismo número escrito por dos SAP.
+ *
+ * El caso difícil es el punto SOLO: "28.700" son 28.700 en español y 28,7
+ * en inglés, y por el texto no hay forma de saberlo. Se decide por la
+ * COLUMNA entera —ver comaDecimal()— porque una columna no mezcla las dos
+ * convenciones: o toda viene de un SAP en español o toda de uno en
+ * inglés. Sin eso, "248.486" se leía como 248,486 y el total salía mil
+ * veces más chico sin que nada avisara.
+ */
+function aNumero(v: unknown, puntoEsDeMiles = false): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v !== "string") return null;
   let t = v.trim().replace(/\s|HL/gi, "");
   if (!t) return null;
   const coma = t.lastIndexOf(","), punto = t.lastIndexOf(".");
   if (coma >= 0 && punto >= 0) {
-    // El último separador es el decimal; el otro es de miles.
+    // Con los dos, el ÚLTIMO es el decimal y el otro es de miles.
     t = coma > punto ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, "");
   } else if (coma >= 0) {
-    // Con una sola coma: decimal si deja dos o menos dígitos detrás.
-    t = t.length - coma - 1 <= 3 && !/,\d{3}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "");
+    // Con una sola coma: decimal si no deja exactamente tres dígitos detrás.
+    t = /,\d{3}$/.test(t) ? t.replace(/,/g, "") : t.replace(",", ".");
+  } else if (punto >= 0) {
+    // Dos puntos o más: son de miles, sin discusión.
+    const cuantos = (t.match(/\./g) || []).length;
+    if (cuantos > 1 || (puntoEsDeMiles && /\.\d{3}$/.test(t))) t = t.replace(/\./g, "");
   }
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * ¿En esta columna el decimal es la coma? Se mira la columna entera: si
+ * alguna celda trae coma, el punto de las demás es de miles. Es la única
+ * forma honesta de resolver "28.700", que sola es ambigua.
+ */
+function comaDecimal(filas: unknown[][], desde: number, col: number): boolean {
+  let conComa = 0, puntoRaro = 0;
+  for (let f = desde; f < Math.min(filas.length, desde + 200); f++) {
+    const t = String((filas[f] ?? [])[col] ?? "");
+    if (!t.trim()) continue;
+    if (t.includes(",")) conComa++;
+    // Un punto que NO deja tres dígitos detrás solo puede ser decimal.
+    else if (/\.\d{1,2}$|\.\d{4,}$/.test(t)) puntoRaro++;
+  }
+  return conComa > 0 && puntoRaro === 0;
 }
 
 type Hoja = { nombre: string; filas: unknown[][] };
@@ -179,11 +218,14 @@ export function Zlde({ origenes, ultimos }: {
 
   const filas = useMemo<Fila[]>(() => {
     if (!hoja || colCd < 0 || colHl < 0) return [];
+    /* La convención de la columna se decide UNA vez, no celda por celda:
+       una columna no mezcla español con inglés. */
+    const miles = comaDecimal(hoja.filas, iCab + 1, colHl);
     const acum = new Map<string, number>();
     for (let i = iCab + 1; i < hoja.filas.length; i++) {
       const f = hoja.filas[i] ?? [];
       const cd = String(f[colCd] ?? "").trim();
-      const hl = aNumero(f[colHl]);
+      const hl = aNumero(f[colHl], miles);
       if (!cd || hl == null) continue;
       /* Las filas de total del pivote se cuelan y duplicarían todo. */
       if (/^(total|gran total|total general|suma)/i.test(limpia(cd))) continue;
@@ -404,6 +446,20 @@ export function Zlde({ origenes, ultimos }: {
                      que ya no aparece es un CD que dejó de tener movimiento.</>
                   : "Escoge las dos columnas para ver el resultado."}
               </p>
+              {/* DE DÓNDE SALE ESTE NÚMERO, siempre a la vista y no solo
+                  cuando el mapeo está escondido. Una vez leyó la columna
+                  "Cantidad" en vez de "Hectolitros" y salieron 514
+                  millones de HL: se cachó porque el número era absurdo. Si
+                  hubiera sido cuatro veces más grande en vez de dos mil,
+                  se guardaba y nadie lo veía. */}
+              {!!filas.length && (
+                <p className="zl-deDonde">
+                  Sale de la hoja <b>«{hoja?.nombre}»</b>, con el CD en{" "}
+                  <b>«{cols[colCd]}»</b> y los hectolitros en <b>«{cols[colHl]}»</b>.
+                  {" "}<button type="button" className="zl-enlace"
+                               onClick={() => setVerMapa(true)}>No es esa columna</button>
+                </p>
+              )}
             </div>
             <button type="button" className="btn" disabled={!filas.length || guardando}
                     onClick={guardar}>
