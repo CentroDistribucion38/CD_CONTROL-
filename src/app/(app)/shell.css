@@ -30,6 +30,21 @@
     repeating-linear-gradient(-64deg, rgba(255,255,255,.28) 0 1px, transparent 1px 74px);
   --sh-trama-op:   .3;
   --sh-trama-tapa: linear-gradient(90deg, transparent 0%, #000 22%, #000 68%, transparent 92%);
+  --sh-trama-medida: auto;
+  --sh-filo-alto:  3px;
+  --sh-barra-borde: 0 solid transparent;
+
+  /* ---- El texto de la barra ----
+     Estaba en blanco en duro porque la barra siempre había sido oscura.
+     El tema "gris" la lleva CLARA, y sobre #D9D9D9 el blanco no se ve.
+     El valor por defecto es el blanco de siempre, así que los cuatro
+     temas que ya existían no cambian ni un pixel. */
+  --sh-barra-txt:   #ffffff;
+  --sh-barra-txt-2: var(--c-a9c2de);
+  --sh-barra-wm:    var(--c-7e97b5);
+  --sh-barra-sep:   rgba(255,255,255,.4);
+  --sh-barra-filo:  rgba(255,255,255,.08);
+  --sh-avatar-filo: rgba(255,255,255,.9);
 
   --sh-titulo: "Archivo", system-ui, sans-serif;
   --sh-texto:  "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -50,7 +65,8 @@
   gap: 22px;
   padding: 0 30px 0 0;
   background: var(--sh-barra-fondo);
-  color: #fff;
+  border-bottom: var(--sh-barra-borde);
+  color: var(--sh-barra-txt);
   font-family: var(--sh-texto);
 }
 /* filo rojo: el mismo gesto del acceso */
@@ -58,7 +74,7 @@
   content: "";
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  height: 3px;
+  height: var(--sh-filo-alto);
   background: var(--sh-filo);
 }
 /* La trama. Cuál es la pone el tema; aquí solo se dibuja. */
@@ -69,6 +85,7 @@
   opacity: var(--sh-trama-op);
   pointer-events: none;
   background-image: var(--sh-trama);
+  background-size: var(--sh-trama-medida);
   -webkit-mask-image: var(--sh-trama-tapa);
   mask-image: var(--sh-trama-tapa);
 }
@@ -79,28 +96,28 @@
 .sh-barra .esquina {
   width: 64px; height: 100%;
   display: grid; place-items: center; flex: none;
-  border-right: 1px solid rgba(255,255,255,.08);
+  border-right: 1px solid var(--sh-barra-filo);
 }
 .sh-barra .esquina img { width: 36px; height: 36px; display: block }
 
 .sh-barra .ruta { display: flex; align-items: center; gap: 10px; font-size: 14px; min-width: 0 }
 .sh-barra .ruta .wm {
   font-family: var(--sh-titulo); font-weight: 800; font-size: 13.5px;
-  letter-spacing: .2em; color: var(--c-7e97b5); white-space: nowrap;
+  letter-spacing: .2em; color: var(--sh-barra-wm); white-space: nowrap;
 }
 .sh-barra .ruta .modulo {
   font-family: var(--sh-titulo); font-weight: 800; letter-spacing: .02em;
-  color: #fff; white-space: nowrap;
+  color: var(--sh-barra-txt); white-space: nowrap;
 }
-.sh-barra .ruta .hoja { color: var(--c-a9c2de); font-weight: 500; white-space: nowrap }
-.sh-barra .ruta .sep { width: 14px; height: 14px; stroke: rgba(255,255,255,.4); fill: none; flex: none }
+.sh-barra .ruta .hoja { color: var(--sh-barra-txt-2); font-weight: 500; white-space: nowrap }
+.sh-barra .ruta .sep { width: 14px; height: 14px; stroke: var(--sh-barra-sep); fill: none; flex: none }
 .sh-barra .der {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 14px;
   font-size: 13.5px;
-  color: var(--c-a9c2de);
+  color: var(--sh-barra-txt-2);
 }
 .sh-avatar {
   width: 36px; height: 36px;
@@ -116,7 +133,7 @@
   flex: none;
   /* es un enlace a Mi perfil: el borde blanco lo delata sin texto */
   text-decoration: none;
-  border: 2px solid rgba(255,255,255,.9);
+  border: 2px solid var(--sh-avatar-filo);
   transition: border-color .14s, transform .14s;
 }
 a.sh-avatar:hover { border-color: #fff; transform: scale(1.06) }

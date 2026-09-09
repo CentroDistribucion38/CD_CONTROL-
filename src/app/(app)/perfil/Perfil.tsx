@@ -9,7 +9,9 @@ import { Eye, EyeOff } from "lucide-react";
 
 type Modulo = { id: string; nombre: string; ruta: string };
 
-export type Tema = "oficial" | "tinta" | "pizarra" | "ambar";
+export type Tema =
+  | "oficial" | "tinta" | "pizarra" | "ambar"
+  | "negro" | "gris" | "halo";
 
 /**
  * Los temas que existen. Al agregar uno hay que tocar tres sitios: aquí,
@@ -44,6 +46,11 @@ const ROMBOS =
 const RAYAS =
   "repeating-linear-gradient(90deg,rgba(255,255,255,.10) 0 1px,transparent 1px 7px)";
 const DE_ABAJO = "linear-gradient(180deg,transparent 0%,#000 100%)";
+/* Las tramas de los tres temas en gris. Van más apretadas que en la
+   aplicación porque la maqueta mide 1/8 de la barra real: con el paso
+   original solo cabría una raya y no se leería como trama. */
+const DIAGONAL = "repeating-linear-gradient(116deg,rgba(255,192,0,.16) 0 1px,transparent 1px 7px)";
+const PUNTOS = "radial-gradient(rgba(0,0,0,.14) .9px,transparent 1px)";
 
 const TEMAS: Ficha[] = [
   {
@@ -92,6 +99,37 @@ const TEMAS: Ficha[] = [
       "radial-gradient(150px 70px at 92% -34%,rgba(255,192,0,.14) 0%,transparent 66%),#1B1D22",
     filo: "#FFC000",
     muestras: ["#23262C", "#3A3B3F", "#FFC000", "#6B7280", "#F4F4F1"],
+  },
+
+  {
+    id: "negro",
+    nombre: "Negro y ámbar",
+    nota: "Negro plano con rayas diagonales muy finas en ámbar. El rojo queda solo para lo que hay que mirar.",
+    barra: "#0D0D0D",
+    filo: "#FFC000",
+    trama: DIAGONAL,
+    tramaOp: 0.9,
+    muestras: ["#0D0D0D", "#383838", "#FFC000", "#A1A1A1", "#F1F1F1"],
+  },
+  {
+    id: "gris",
+    nombre: "Gris claro y ámbar",
+    nota: "La única barra CLARA: gris con puntos y el filo en ámbar. El menú de la izquierda sigue oscuro.",
+    barra: "#D9D9D9",
+    filo: "#FFC000",
+    trama: PUNTOS,
+    tramaOp: 0.55,
+    muestras: ["#141414", "#414141", "#FFC000", "#A1A1A1", "#EDEDED"],
+  },
+  {
+    id: "halo",
+    nombre: "Negro con halo",
+    nota: "Negro puro con un resplandor rojo abajo y uno ámbar arriba, y el filo en degradado de rojo a ámbar.",
+    barra:
+      "radial-gradient(120px 55px at 12% 130%,rgba(255,0,0,.30) 0%,transparent 70%)," +
+      "radial-gradient(150px 70px at 88% -30%,rgba(255,192,0,.35) 0%,transparent 72%),#000000",
+    filo: "linear-gradient(90deg,#FF0000 0%,#FFC000 100%)",
+    muestras: ["#111111", "#393939", "#FFC000", "#A1A1A1", "#F1F1F1"],
   },
 ];
 

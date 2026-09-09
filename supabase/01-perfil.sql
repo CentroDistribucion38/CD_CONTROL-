@@ -43,7 +43,8 @@ alter table public.perfiles
   drop constraint if exists perfiles_tema_valido;
 alter table public.perfiles
   add constraint perfiles_tema_valido
-  check (tema in ('oficial', 'tinta', 'pizarra', 'ambar'));
+  check (tema in ('oficial', 'tinta', 'pizarra', 'ambar',
+                  'negro', 'gris', 'halo'));
 
 -- ---------------------------------------------------------------------
 -- Cada quien edita SOLO su propio perfil, y solo estas columnas: el

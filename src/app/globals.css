@@ -448,11 +448,413 @@
   background: var(--bv-tinta);
 }
 
+[data-tema="negro"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:   #fcfcfc;   /* 1× */
+  --c-fbfbfe:   #f9f9f9;   /* 1× */
+  --c-fafbfd:   #f8f8f8;   /* 35× */
+  --c-f7fcfd:   #f8f8f8;   /* 2× */
+  --c-f7f9fc:   #f5f5f5;   /* 16× */
+  --c-f4f7fb:   #f1f1f1;   /* 4×   ← tuyo */
+  --c-f4f6f9:   #f1f1f1;   /* 3× */
+  --c-f2f5f9:   #f1f1f1;   /* 1× */
+  --c-f1f5fa:   #f1f1f1;   /* 3× */
+  --c-f1f4f8:   #f1f1f1;   /* 1× */
+  --c-f1f3f6:   #f1f1f1;   /* 1× */
+  --c-eef3f9:   #f1f1f1;   /* 1× */
+  --c-f2f1fc:   #f1f1f1;   /* 1× */
+  --c-eaf4f6:   #f1f1f1;   /* 1× */
+  --c-eef1f5:   #f1f1f1;   /* 6×   ← tuyo */
+  --c-edf1f6:   #f1f1f1;   /* 18× */
+  --c-eaf0f7:   #efefef;   /* 1× */
+  --c-edeff4:   #efefef;   /* 1× */
+  --c-e7ecf3:   #ebebeb;   /* 2× */
+  --c-e7ecf2:   #ebebeb;   /* 1× */
+  --c-e4e9ef:   #e8e8e8;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:   #e6e6e6;   /* 1× */
+  --c-dbe4f0:   #e2e2e2;   /* 2× */
+  --c-d6e4f4:   #e1e1e1;   /* 2× */
+  --c-dce2e9:   #e0e0e0;   /* 1× */
+  --c-d9e2ec:   #dfdfdf;   /* 1× */
+  --c-c9e4e8:   #dcdcdc;   /* 1× */
+  --c-d5dce5:   #d9d9d9;   /* 6×   ← tuyo */
+  --c-c9dcf0:   #d7d7d7;   /* 1× */
+  --c-c6d3e2:   #d0d0d0;   /* 1× */
+  --c-c6d0dc:   #cdcdcd;   /* 10× */
+  --c-c3cedb:   #cbcbcb;   /* 1× */
+  --c-9fd3d9:   #c7c7c7;   /* 3× */
+  --c-bcc7d4:   #c4c4c4;   /* 1× */
+  --c-b9c4d2:   #c1c1c1;   /* 4× */
+  --c-a9c2de:   #bebebe;   /* 3× */
+  --c-b4c0ce:   #bdbdbd;   /* 7× */
+  --c-8fc7cf:   #bbbbbb;   /* 1× */
+  --c-9fbede:   #b9b9b9;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:   #b4b4b4;   /* 8× */
+  --c-8fb6e8:   #b2b2b2;   /* 1× */
+  --c-9fb4cc:   #b1b1b1;   /* 1× */
+  --c-9aa9bb:   #a7a7a7;   /* 3× */
+  --c-94a3b4:   #a1a1a1;   /* 3× */
+  --c-93a3b6:   #a1a1a1;   /* 24× */
+  --c-7e97b5:   #959595;   /* 4× */
+  --c-8494a8:   #939393;   /* 3× */
+  --c-4c93ea:   #929292;   /* 1× */
+  --c-7d8ca0:   #8b8b8b;   /* 1× */
+  --c-6f87a5:   #868686;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:   #7b7b7b;   /* 1× */
+  --c-1f6fd0:   #727272;   /* 1× */
+  --c-5a7192:   #717171;   /* 2× */
+  --c-2e6fbe:   #707070;   /* 1× */
+  --c-5b6b7f:   #6b6b6b;   /* 8×   ← tuyo */
+  --c-0b7285:   #666666;   /* 1× */
+  --c-0060b0:   #5f5f5f;   /* 2× */
+  --c-4c3bcf:   #595959;   /* 1× */
+  --c-0b4ea2:   #4d4d4d;   /* 3×   ← tuyo */
+  --c-075661:   #454545;   /* 1× */
+  --c-004a8a:   #424242;   /* 2× */
+  --c-17505c:   #404040;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:   #393939;   /* 1× */
+  --c-2c4361:   #383838;   /* 29× */
+  --c-0a3a6e:   #2e2e2e;   /* 1× */
+  --c-0a2f55:   #1f1f1f;   /* 1× */
+  --c-04203f:   #0d0d0d;   /* 6×   ← tuyo */
+  --c-0b1f35:   #0c0c0c;   /* 2× */
+
+  /* Translúcidos */
+
+  /* Translúcidos */
+  --c-velo:       rgba(13,13,13,.62);
+  --c-velo-hondo: rgba(13,13,13,.90);
+  --c-raya:       rgba(255,192,0,.35);
+  --c-degrade:    rgba(150,150,150,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. */
+  --c-marca:      #ffc000;   /* ← tuyo */
+  --c-marca-txt:  #0d0d0d;
+  --c-marca-vivo: #ffd24d;   /* hover */
+  --c-marca-hondo: #d9a300;
+  --c-marca-filo: #ffc000;
+  --c-marca-velo: rgba(255,192,0,.16);
+
+  /* Tu #FF0000 es el "ojo con esto" de estos tres temas. Va tal cual
+     donde es MANCHA —el avatar, el tajo del sello, la marca de una
+     cifra en alerta—, que es como lo usaste en el mockup. */
+  --c-oro:        #ff0000;   /* ← tuyo */
+
+  /* La alarma del KPI —"el mes va corto de meta"— lleva texto blanco
+     encima. #FF0000 con blanco da 4,00:1 y no pasa 4,5:1, así que aquí
+     va el mismo rojo un paso más hondo: 5,9:1 y se lee como el mismo
+     color. Es el único sitio donde tu rojo no va literal, y es porque
+     ahí es texto y no mancha. */
+  --c-alarma:     #c00000;
+  --c-alarma-txt: #ffffff;
+
+  /* La franja que agrupa columnas en las tablas. Gris oscuro, como
+     todo lo demás de estos temas. */
+  --c-grupo:      #3a3a3a;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque: hay que volver a declararlos. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+[data-tema="gris"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:   #fbfbfb;   /* 1× */
+  --c-fbfbfe:   #f7f7f7;   /* 1× */
+  --c-fafbfd:   #f6f6f6;   /* 35× */
+  --c-f7fcfd:   #f6f6f6;   /* 2× */
+  --c-f7f9fc:   #f2f2f2;   /* 16× */
+  --c-f4f7fb:   #ededed;   /* 4×   ← tuyo */
+  --c-f4f6f9:   #ededed;   /* 3× */
+  --c-f2f5f9:   #ededed;   /* 1× */
+  --c-f1f5fa:   #ededed;   /* 3× */
+  --c-f1f4f8:   #ededed;   /* 1× */
+  --c-f1f3f6:   #ededed;   /* 1× */
+  --c-eef3f9:   #ededed;   /* 1× */
+  --c-f2f1fc:   #ededed;   /* 1× */
+  --c-eaf4f6:   #ededed;   /* 1× */
+  --c-eef1f5:   #ededed;   /* 6×   ← tuyo */
+  --c-edf1f6:   #ededed;   /* 18× */
+  --c-eaf0f7:   #ececec;   /* 1× */
+  --c-edeff4:   #ebebeb;   /* 1× */
+  --c-e7ecf3:   #e8e8e8;   /* 2× */
+  --c-e7ecf2:   #e8e8e8;   /* 1× */
+  --c-e4e9ef:   #e5e5e5;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:   #e3e3e3;   /* 1× */
+  --c-dbe4f0:   #e0e0e0;   /* 2× */
+  --c-d6e4f4:   #e0e0e0;   /* 2× */
+  --c-dce2e9:   #dfdfdf;   /* 1× */
+  --c-d9e2ec:   #dedede;   /* 1× */
+  --c-c9e4e8:   #dcdcdc;   /* 1× */
+  --c-d5dce5:   #d9d9d9;   /* 6×   ← tuyo */
+  --c-c9dcf0:   #d7d7d7;   /* 1× */
+  --c-c6d3e2:   #d0d0d0;   /* 1× */
+  --c-c6d0dc:   #cdcdcd;   /* 10× */
+  --c-c3cedb:   #cbcbcb;   /* 1× */
+  --c-9fd3d9:   #c7c7c7;   /* 3× */
+  --c-bcc7d4:   #c4c4c4;   /* 1× */
+  --c-b9c4d2:   #c1c1c1;   /* 4× */
+  --c-a9c2de:   #bebebe;   /* 3× */
+  --c-b4c0ce:   #bdbdbd;   /* 7× */
+  --c-8fc7cf:   #bbbbbb;   /* 1× */
+  --c-9fbede:   #b9b9b9;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:   #b4b4b4;   /* 8× */
+  --c-8fb6e8:   #b2b2b2;   /* 1× */
+  --c-9fb4cc:   #b1b1b1;   /* 1× */
+  --c-9aa9bb:   #a7a7a7;   /* 3× */
+  --c-94a3b4:   #a1a1a1;   /* 3× */
+  --c-93a3b6:   #a1a1a1;   /* 24× */
+  --c-7e97b5:   #959595;   /* 4× */
+  --c-8494a8:   #939393;   /* 3× */
+  --c-4c93ea:   #929292;   /* 1× */
+  --c-7d8ca0:   #8b8b8b;   /* 1× */
+  --c-6f87a5:   #868686;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:   #7b7b7b;   /* 1× */
+  --c-1f6fd0:   #727272;   /* 1× */
+  --c-5a7192:   #717171;   /* 2× */
+  --c-2e6fbe:   #707070;   /* 1× */
+  --c-5b6b7f:   #6b6b6b;   /* 8×   ← tuyo */
+  --c-0b7285:   #686868;   /* 1× */
+  --c-0060b0:   #636363;   /* 2× */
+  --c-4c3bcf:   #5f5f5f;   /* 1× */
+  --c-0b4ea2:   #575757;   /* 3×   ← tuyo */
+  --c-075661:   #4f4f4f;   /* 1× */
+  --c-004a8a:   #4c4c4c;   /* 2× */
+  --c-17505c:   #494949;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:   #424242;   /* 1× */
+  --c-2c4361:   #414141;   /* 29× */
+  --c-0a3a6e:   #373737;   /* 1× */
+  --c-0a2f55:   #272727;   /* 1× */
+  --c-04203f:   #141414;   /* 6×   ← tuyo */
+  --c-0b1f35:   #131313;   /* 2× */
+
+  /* Translúcidos */
+
+  /* Translúcidos */
+  --c-velo:       rgba(20,20,20,.62);
+  --c-velo-hondo: rgba(20,20,20,.90);
+  --c-raya:       rgba(255,192,0,.35);
+  --c-degrade:    rgba(150,150,150,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. */
+  --c-marca:      #ffc000;   /* ← tuyo */
+  --c-marca-txt:  #141414;
+  --c-marca-vivo: #ffd24d;   /* hover */
+  --c-marca-hondo: #d9a300;
+  --c-marca-filo: #ffc000;
+  --c-marca-velo: rgba(255,192,0,.18);
+
+  /* Tu #FF0000 es el "ojo con esto" de estos tres temas. Va tal cual
+     donde es MANCHA —el avatar, el tajo del sello, la marca de una
+     cifra en alerta—, que es como lo usaste en el mockup. */
+  --c-oro:        #ff0000;   /* ← tuyo */
+
+  /* La alarma del KPI —"el mes va corto de meta"— lleva texto blanco
+     encima. #FF0000 con blanco da 4,00:1 y no pasa 4,5:1, así que aquí
+     va el mismo rojo un paso más hondo: 5,9:1 y se lee como el mismo
+     color. Es el único sitio donde tu rojo no va literal, y es porque
+     ahí es texto y no mancha. */
+  --c-alarma:     #c00000;
+  --c-alarma-txt: #ffffff;
+
+  /* La franja que agrupa columnas en las tablas. Gris oscuro, como
+     todo lo demás de estos temas. */
+  --c-grupo:      #3f3f3f;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque: hay que volver a declararlos. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+[data-tema="halo"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:   #fcfcfc;   /* 1× */
+  --c-fbfbfe:   #f9f9f9;   /* 1× */
+  --c-fafbfd:   #f8f8f8;   /* 35× */
+  --c-f7fcfd:   #f8f8f8;   /* 2× */
+  --c-f7f9fc:   #f5f5f5;   /* 16× */
+  --c-f4f7fb:   #f1f1f1;   /* 4×   ← tuyo */
+  --c-f4f6f9:   #f1f1f1;   /* 3× */
+  --c-f2f5f9:   #f1f1f1;   /* 1× */
+  --c-f1f5fa:   #f1f1f1;   /* 3× */
+  --c-f1f4f8:   #f1f1f1;   /* 1× */
+  --c-f1f3f6:   #f1f1f1;   /* 1× */
+  --c-eef3f9:   #f1f1f1;   /* 1× */
+  --c-f2f1fc:   #f1f1f1;   /* 1× */
+  --c-eaf4f6:   #f1f1f1;   /* 1× */
+  --c-eef1f5:   #f1f1f1;   /* 6×   ← tuyo */
+  --c-edf1f6:   #f1f1f1;   /* 18× */
+  --c-eaf0f7:   #efefef;   /* 1× */
+  --c-edeff4:   #efefef;   /* 1× */
+  --c-e7ecf3:   #ebebeb;   /* 2× */
+  --c-e7ecf2:   #ebebeb;   /* 1× */
+  --c-e4e9ef:   #e8e8e8;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:   #e6e6e6;   /* 1× */
+  --c-dbe4f0:   #e2e2e2;   /* 2× */
+  --c-d6e4f4:   #e1e1e1;   /* 2× */
+  --c-dce2e9:   #e0e0e0;   /* 1× */
+  --c-d9e2ec:   #dfdfdf;   /* 1× */
+  --c-c9e4e8:   #dcdcdc;   /* 1× */
+  --c-d5dce5:   #d9d9d9;   /* 6×   ← tuyo */
+  --c-c9dcf0:   #d7d7d7;   /* 1× */
+  --c-c6d3e2:   #d0d0d0;   /* 1× */
+  --c-c6d0dc:   #cdcdcd;   /* 10× */
+  --c-c3cedb:   #cbcbcb;   /* 1× */
+  --c-9fd3d9:   #c7c7c7;   /* 3× */
+  --c-bcc7d4:   #c4c4c4;   /* 1× */
+  --c-b9c4d2:   #c1c1c1;   /* 4× */
+  --c-a9c2de:   #bebebe;   /* 3× */
+  --c-b4c0ce:   #bdbdbd;   /* 7× */
+  --c-8fc7cf:   #bbbbbb;   /* 1× */
+  --c-9fbede:   #b9b9b9;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:   #b4b4b4;   /* 8× */
+  --c-8fb6e8:   #b2b2b2;   /* 1× */
+  --c-9fb4cc:   #b1b1b1;   /* 1× */
+  --c-9aa9bb:   #a7a7a7;   /* 3× */
+  --c-94a3b4:   #a1a1a1;   /* 3× */
+  --c-93a3b6:   #a1a1a1;   /* 24× */
+  --c-7e97b5:   #959595;   /* 4× */
+  --c-8494a8:   #939393;   /* 3× */
+  --c-4c93ea:   #929292;   /* 1× */
+  --c-7d8ca0:   #8b8b8b;   /* 1× */
+  --c-6f87a5:   #868686;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:   #7b7b7b;   /* 1× */
+  --c-1f6fd0:   #727272;   /* 1× */
+  --c-5a7192:   #717171;   /* 2× */
+  --c-2e6fbe:   #707070;   /* 1× */
+  --c-5b6b7f:   #6b6b6b;   /* 8×   ← tuyo */
+  --c-0b7285:   #666666;   /* 1× */
+  --c-0060b0:   #5f5f5f;   /* 2× */
+  --c-4c3bcf:   #595959;   /* 1× */
+  --c-0b4ea2:   #4d4d4d;   /* 3×   ← tuyo */
+  --c-075661:   #464646;   /* 1× */
+  --c-004a8a:   #434343;   /* 2× */
+  --c-17505c:   #414141;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:   #3a3a3a;   /* 1× */
+  --c-2c4361:   #393939;   /* 29× */
+  --c-0a3a6e:   #303030;   /* 1× */
+  --c-0a2f55:   #222222;   /* 1× */
+  --c-04203f:   #111111;   /* 6×   ← tuyo */
+  --c-0b1f35:   #101010;   /* 2× */
+
+  /* Translúcidos */
+
+  /* Translúcidos */
+  --c-velo:       rgba(17,17,17,.62);
+  --c-velo-hondo: rgba(17,17,17,.90);
+  --c-raya:       rgba(255,192,0,.35);
+  --c-degrade:    rgba(150,150,150,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. */
+  --c-marca:      #ffc000;   /* ← tuyo */
+  --c-marca-txt:  #111111;
+  --c-marca-vivo: #ffd24d;   /* hover */
+  --c-marca-hondo: #d9a300;
+  --c-marca-filo: #ffc000;
+  --c-marca-velo: rgba(255,192,0,.18);
+
+  /* Tu #FF0000 es el "ojo con esto" de estos tres temas. Va tal cual
+     donde es MANCHA —el avatar, el tajo del sello, la marca de una
+     cifra en alerta—, que es como lo usaste en el mockup. */
+  --c-oro:        #ff0000;   /* ← tuyo */
+
+  /* La alarma del KPI —"el mes va corto de meta"— lleva texto blanco
+     encima. #FF0000 con blanco da 4,00:1 y no pasa 4,5:1, así que aquí
+     va el mismo rojo un paso más hondo: 5,9:1 y se lee como el mismo
+     color. Es el único sitio donde tu rojo no va literal, y es porque
+     ahí es texto y no mancha. */
+  --c-alarma:     #c00000;
+  --c-alarma-txt: #ffffff;
+
+  /* La franja que agrupa columnas en las tablas. Gris oscuro, como
+     todo lo demás de estos temas. */
+  --c-grupo:      #3a3a3a;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque: hay que volver a declararlos. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
 /* El fondo del body, por el rebote del celular: cuando se arrastra más
    allá del final, asoma el body y se vería la franja del otro tema. */
 body:has(.sh[data-tema="tinta"])   { background: #f4f7fb }
 body:has(.sh[data-tema="pizarra"]) { background: #f2f6f6 }
 body:has(.sh[data-tema="ambar"])   { background: #f7f7f3 }
+body:has(.sh[data-tema="negro"])   { background: #f1f1f1 }
+body:has(.sh[data-tema="gris"])    { background: #ededed }
+body:has(.sh[data-tema="halo"])    { background: #f1f1f1 }
 
 
 /* ---------------------------------------------------------------------
@@ -726,6 +1128,16 @@ body {
   --c-mod-admin: #fcc231;        --c-mod-admin-txt: #23262c;
   --c-mod-inventario: #c6df32;   --c-mod-inventario-txt: #23262c;
 }
+/* Negro, gris y halo tienen DOS colores y nada más: tu #FFC000 y tu
+   #FF0000. En vez de traerles verdes y azules de otro mundo, los cuatro
+   módulos se reparten la rampa entre esos dos. Siguen distinguiéndose
+   uno de otro y ninguno se sale del tema. */
+[data-tema="negro"], [data-tema="gris"], [data-tema="halo"] {
+  --c-mod-quiebra: #ff0000;      --c-mod-quiebra-txt: #fff;
+  --c-mod-sider: #ff6a00;        --c-mod-sider-txt: #fff;
+  --c-mod-admin: #ff9800;        --c-mod-admin-txt: #171717;
+  --c-mod-inventario: #ffc000;   --c-mod-inventario-txt: #171717;
+}
 
 /* =====================================================================
    LA TRAMA DE LA BARRA, POR TEMA
@@ -782,4 +1194,57 @@ body {
     radial-gradient(560px 190px at 14% 130%, rgba(255,192,0,.26) 0%, transparent 72%),
     radial-gradient(680px 230px at 92% -34%, rgba(255,192,0,.14) 0%, transparent 66%),
     #1B1D22;
+}
+
+/* 1 · Negro y ámbar — negro plano y rayas diagonales muy finas en ámbar,
+   con el filo en ámbar. Tal cual el mockup. */
+.sh[data-tema="negro"] {
+  --sh-barra-fondo: #0D0D0D;
+  --sh-filo: #FFC000;
+  --sh-trama: repeating-linear-gradient(116deg, rgba(255,192,0,.10) 0 2px, transparent 2px 18px);
+  --sh-trama-op: .35;
+  --sh-trama-tapa: none;
+}
+
+/* 2 · Gris claro y ámbar — LA ÚNICA BARRA CLARA de la plataforma, y por
+   eso el tema que más piezas mueve: el texto de la barra estaba en
+   blanco en duro y sobre #D9D9D9 no se veía. Las variables --sh-barra-*
+   existen para esto y su valor por defecto es el blanco de siempre, así
+   que ningún otro tema cambia.
+   El riel de la izquierda SIGUE oscuro, como en tu mockup: se aclara la
+   barra, no la navegación. */
+.sh[data-tema="gris"] {
+  --sh-barra-fondo: #D9D9D9;
+  --sh-barra-borde: 1px solid #C4C4C4;
+  --sh-filo: #FFC000;
+  --sh-filo-alto: 4px;
+  --sh-trama: radial-gradient(rgba(0,0,0,.10) 1.1px, transparent 1.2px);
+  --sh-trama-medida: 16px 16px;
+  --sh-trama-op: .5;
+  --sh-trama-tapa: none;
+
+  --sh-barra-txt:   #141414;
+  /* Tus dos grises de texto bajan un paso cada uno. Es el único sitio
+     donde este tema no va literal al mockup, y es porque medido no se
+     leía: tu #7A7A7A sobre #D9D9D9 da 3,04:1 en un texto de 13,5px, y
+     el mínimo para leer es 4,5:1. #5E5E5E da 4,59 y #4F4F4F da 5,80.
+     Se bajaron LOS DOS para no perder la jerarquía que tenías: el
+     "CONTROL" sigue más claro que la hoja de la ruta. */
+  --sh-barra-txt-2: #4F4F4F;
+  --sh-barra-wm:    #5E5E5E;
+  --sh-barra-sep:   #7A7A7A;
+  --sh-barra-filo:  #BFBFBF;
+  --sh-avatar-filo: #D9D9D9;
+}
+
+/* 3 · Negro con halo ámbar y rojo — negro puro con los dos resplandores,
+   sin trama, y el filo en degradado de rojo a ámbar. */
+.sh[data-tema="halo"] {
+  --sh-barra-fondo:
+    radial-gradient(520px 190px at 12% 130%, rgba(255,0,0,.30) 0%, transparent 70%),
+    radial-gradient(700px 240px at 88% -30%, rgba(255,192,0,.35) 0%, transparent 72%),
+    #000000;
+  --sh-filo: linear-gradient(90deg, #FF0000 0%, #FFC000 100%);
+  --sh-trama: none;
+  --sh-trama-op: 0;
 }
