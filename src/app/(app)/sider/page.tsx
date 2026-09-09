@@ -49,6 +49,19 @@ export default async function FuentePrincipalPage() {
      no, y ese desacuerdo entre dos pantallas del mismo módulo es peor
      que cualquiera de los dos números por separado. */
   const vivos = viajes.filter((v) => v.estado !== "anulado");
+
+  /* Los días que tienen viajes, para que el calendario de Exportar apague
+     los vacíos. Salen de los viajes YA cargados y no de otra consulta:
+     así los días encendidos son exactamente los que se van a exportar, y
+     no se paga un viaje más a la base por dibujar un calendario. */
+  const porDia = new Map<string, number>();
+  for (const v of vivos) {
+    const d = String(v.fecha).slice(0, 10);
+    porDia.set(d, (porDia.get(d) ?? 0) + 1);
+  }
+  const diasConViajes = [...porDia.entries()]
+    .map(([fecha, n]) => ({ fecha, hl_zlde: 0, viajes: n }))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
   const enTransito = vivos.filter((v) => v.estado === "en_transito");
   const totalHl = vivos.reduce((s, v) => s + Number(v.hl ?? 0), 0);
   const totalSider = vivos.reduce((s, v) => s + Number(v.sider ?? 0), 0);
@@ -118,7 +131,7 @@ export default async function FuentePrincipalPage() {
               El ojo de cada fila abre sus fotos y lo que se llenó en el formulario.
             </p>
           </div>
-          <BotonExportar />
+          <BotonExportar dias={diasConViajes} />
         </div>
         <Viajes
           viajes={viajes}

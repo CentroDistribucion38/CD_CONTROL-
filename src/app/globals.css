@@ -1281,3 +1281,70 @@ body {
   --acc-izq-fondo: #171717;
   --acc-izq-halo:  #4A2A00;
 }
+
+/* =====================================================================
+   CONFIRMAR — el reemplazo de window.confirm()
+   =====================================================================
+   Vive en globals.css y no en la hoja de un módulo porque lo usan
+   Roles, Maestro, Quiebra y Sider: una copia por módulo son cuatro
+   sitios donde se desincroniza.
+   Se viste con los tokens del tema, así que los siete lo pintan solos.
+   ===================================================================== */
+.cf-velo {
+  position: fixed; inset: 0; z-index: 90;
+  background: var(--c-velo);
+  display: grid; place-items: center; padding: 20px;
+  overflow-y: auto;
+  animation: cf-entra .12s ease-out;
+}
+@keyframes cf-entra { from { opacity: 0 } to { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .cf-velo { animation: none } }
+
+.cf-caja {
+  width: 100%; max-width: 440px;
+  background: #fff;
+  border-radius: 3px;
+  /* El filo de arriba dice de qué se trata antes de leer: el acento del
+     tema para lo normal, rojo para lo que destruye. */
+  border-top: 4px solid var(--c-marca);
+  padding: 24px 26px 20px;
+  box-shadow: 0 24px 60px rgba(4, 32, 63, .32);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  color: var(--c-04203f);
+}
+.cf-caja.peligro { border-top-color: #E4002B }
+
+.cf-caja h2 {
+  margin: 0; font-family: "Archivo", system-ui, sans-serif;
+  font-weight: 800; font-size: 19px; line-height: 1.25; letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.cf-dice {
+  margin: 10px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--c-2c4361);
+}
+.cf-dice b { font-weight: 600 }
+
+.cf-botones {
+  display: flex; justify-content: flex-end; gap: 10px;
+  margin-top: 20px; flex-wrap: wrap;
+}
+.cf-btn {
+  min-height: 42px; padding: 0 20px; border: 0; border-radius: 2px; cursor: pointer;
+  font-family: "Archivo", system-ui, sans-serif; font-weight: 800; font-size: 14px;
+  background: var(--c-marca); color: var(--c-marca-txt);
+}
+.cf-btn:hover { background: var(--c-marca-vivo) }
+.cf-btn.mal { background: #E4002B; color: #fff }
+.cf-btn.mal:hover { background: #B8001F }
+.cf-btn.plano {
+  background: none; color: var(--c-5b6b7f);
+  border: 1px solid var(--c-d5dce5); font-weight: 600;
+}
+.cf-btn.plano:hover { background: var(--c-f7f9fc); color: var(--c-04203f) }
+.cf-btn:focus-visible { outline: 3px solid var(--c-04203f); outline-offset: 2px }
+
+@media (max-width: 480px) {
+  .cf-caja { padding: 20px 18px 18px }
+  .cf-botones { flex-direction: column-reverse }
+  .cf-btn { width: 100% }
+}

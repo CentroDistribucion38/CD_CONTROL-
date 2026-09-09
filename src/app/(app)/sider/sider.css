@@ -2085,3 +2085,37 @@
 .sh[data-grande="si"] .sd .vj-mini { min-height: 44px; font-size: 13.5px }
 .sh[data-grande="si"] .sd .vj-campos input,
 .sh[data-grande="si"] .sd .vj-campos select { height: 48px; font-size: 16px }
+
+/* ---------- Exportar: el rango ----------
+   Era un <select> de meses porque el corte era el mes. Ahora es el mismo
+   calendario de Seguimiento: días, meses o años, y los días sin viajes
+   apagados. Un archivo vacío que uno pide sin saberlo es peor que no
+   poder pedirlo. */
+.sd .ex-mes { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.sd .ex-rot {
+  font-size: 11px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--c-5b6b7f);
+}
+/* "Todo el histórico" no es un rango: es la ausencia de uno, y por eso
+   es un botón aparte y no una opción más del calendario. Un calendario
+   que tuviera que representar "todo" tendría que inventarse una fecha
+   de inicio. */
+.sd .ex-todo {
+  align-self: flex-end;
+  min-height: 38px; padding: 0 13px;
+  font: 600 12.5px var(--sd-texto); color: var(--sd-gris);
+  background: var(--c-f7f9fc); border: 1px solid var(--sd-linea);
+  border-radius: 2px; cursor: pointer; white-space: nowrap;
+}
+.sd .ex-todo:hover { border-color: var(--sd-acento); color: var(--sd-acento) }
+.sd .ex-todo:focus-visible { outline: 2px solid var(--sd-acento); outline-offset: 2px }
+.sd .ex-todo.on {
+  align-self: stretch;
+  display: flex; align-items: center; gap: 10px;
+  border-color: var(--sd-acento); color: var(--sd-tinta);
+  background: var(--sd-papel); font-weight: 700; min-height: 42px;
+}
+.sd .ex-todo.on em {
+  font-style: normal; font-weight: 500; font-size: 11.5px; color: var(--sd-acento);
+  text-decoration: underline; text-underline-offset: 2px;
+}

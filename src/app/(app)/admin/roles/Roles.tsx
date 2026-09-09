@@ -16,6 +16,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { useConfirmar } from "@/components/Confirmar";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -52,6 +53,9 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
+  /* Reemplaza a window.confirm(): el cuadro gris del sistema sale con el
+     dominio encima y sin los colores de la plataforma. */
+  const [pedir, dialogo] = useConfirmar();
   const [cual, setCual] = useState(roles[0]?.clave ?? "");
   const [nuevo, setNuevo] = useState(false);
   const [nombreNuevo, setNombreNuevo] = useState("");
@@ -69,8 +73,14 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
 
   const rol = roles.find((r) => r.clave === cual);
 
-  function cambiarRol(clave: string) {
-    if (sucio && !confirm("Hay cambios sin guardar en este rol. ¿Los pierdes?")) return;
+  async function cambiarRol(clave: string) {
+    if (sucio && !(await pedir({
+      titulo: "Hay cambios sin guardar en este rol",
+      dice: "Si cambias de rol ahora, lo que marcaste se pierde.",
+      confirmar: "Cambiar y perderlos",
+      cancelar: "Seguir aquí",
+      peligro: true,
+    }))) return;
     const m: Record<string, Nivel> = {};
     for (const p of permisos) if (p.rol === clave) m[p.seccion] = p.nivel;
     setCual(clave);
@@ -148,7 +158,13 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
 
   async function borrar() {
     if (!rol) return;
-    if (!confirm(`¿Borrar el rol "${rol.nombre}"? Esto no se puede deshacer.`)) return;
+    if (!(await pedir({
+      titulo: `¿Borrar el rol «${rol.nombre}»?`,
+      dice: <>Esto <b>no se puede deshacer</b>. Quien tenga este rol se queda sin
+            ninguno hasta que le asignes otro.</>,
+      confirmar: "Borrar el rol",
+      peligro: true,
+    }))) return;
     setGuardando(true);
     setAviso(null);
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -171,145 +187,148 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
   const marcadas = Object.values(marcado).filter((n) => n !== "ninguno").length;
 
   return (
-    <div className="rl-rejilla">
-      {/* ---------- Los roles ---------- */}
-      <section className="tarjeta rl-lista">
-        <div className="cab">
-          <div><h2>Los roles</h2></div>
-          <button type="button" className="btn plano" onClick={() => setNuevo((v) => !v)}>
-            {nuevo ? "Cancelar" : "+ Nuevo rol"}
-          </button>
-        </div>
-
-        {nuevo && (
-          <div className="rl-nuevo">
-            <label>
-              <span>Nombre</span>
-              <input value={nombreNuevo} autoFocus placeholder="Portería"
-                     onChange={(e) => setNombreNuevo(e.target.value)} />
-              {!!nombreNuevo.trim() && <em>clave: {aClave(nombreNuevo) || "—"}</em>}
-            </label>
-            <label>
-              <span>Para qué es (opcional)</span>
-              <input value={descNueva} placeholder="Ve qué vehículos vienen en camino"
-                     onChange={(e) => setDescNueva(e.target.value)} />
-            </label>
-            <button type="button" className="btn" disabled={!nombreNuevo.trim() || guardando}
-                    onClick={crear}>Crear</button>
+    <>
+      {dialogo}
+        <div className="rl-rejilla">
+        {/* ---------- Los roles ---------- */}
+        <section className="tarjeta rl-lista">
+          <div className="cab">
+            <div><h2>Los roles</h2></div>
+            <button type="button" className="btn plano" onClick={() => setNuevo((v) => !v)}>
+              {nuevo ? "Cancelar" : "+ Nuevo rol"}
+            </button>
           </div>
-        )}
-
-        <ul className="rl-roles">
-          {roles.map((r) => (
-            <li key={r.clave}>
-              <button type="button" className={r.clave === cual ? "aqui" : ""}
-                      onClick={() => cambiarRol(r.clave)}>
-                <b>
-                  {r.nombre}
-                  {r.manda && <i className="rl-manda" title="Administra la plataforma">manda</i>}
-                </b>
-                <span>
-                  {cuantos[r.clave] ?? 0} usuario{(cuantos[r.clave] ?? 0) === 1 ? "" : "s"}
-                  {" · "}
-                  {r.manda ? "todas las pantallas" : `${cuenta[r.clave] ?? 0} de ${total} pantallas`}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* ---------- Las pantallas del rol escogido ---------- */}
-      <section className="tarjeta rl-matriz">
-        <div className="cab">
-          <div>
-            <h2>Qué ve {rol?.nombre ?? "—"}</h2>
-            <p>
-              {rol?.manda
-                ? "Este rol administra la plataforma: puede todo, en todas las pantallas, y es el único que entra aquí. No se le marcan permisos porque no tendría sentido quitarle uno."
-                : rol?.descripcion || "Marca pantalla por pantalla. Lo que quede en «sin acceso» no aparece ni en el menú."}
-            </p>
-          </div>
-          {!rol?.manda && (
-            <div className="rl-acciones">
-              <span className="rl-cuenta">{marcadas} de {total}</span>
-              <button type="button" className="btn" disabled={!sucio || guardando} onClick={guardar}>
-                {guardando ? "Guardando…" : sucio ? "Guardar cambios" : "Sin cambios"}
-              </button>
+  
+          {nuevo && (
+            <div className="rl-nuevo">
+              <label>
+                <span>Nombre</span>
+                <input value={nombreNuevo} autoFocus placeholder="Portería"
+                       onChange={(e) => setNombreNuevo(e.target.value)} />
+                {!!nombreNuevo.trim() && <em>clave: {aClave(nombreNuevo) || "—"}</em>}
+              </label>
+              <label>
+                <span>Para qué es (opcional)</span>
+                <input value={descNueva} placeholder="Ve qué vehículos vienen en camino"
+                       onChange={(e) => setDescNueva(e.target.value)} />
+              </label>
+              <button type="button" className="btn" disabled={!nombreNuevo.trim() || guardando}
+                      onClick={crear}>Crear</button>
             </div>
           )}
-        </div>
-
-        {rol?.manda ? (
-          <p className="rl-vacio">
-            Para quitarle el mando, primero marca otro rol como administrador — la
-            plataforma no deja quedarse sin ninguno.
-          </p>
-        ) : (
-          <div className="rl-cuerpo">
-            {catalogo.map((m) => {
-              const niveles = m.secciones.map((s) => marcado[s.ruta] ?? "ninguno");
-              const todas = (n: Nivel) => niveles.every((x) => x === n);
-              return (
-                <div key={m.id} className="rl-modulo">
-                  <header style={{ borderLeftColor: m.acento }}>
-                    <b>{m.nombre}</b>
-                    <div className="rl-todo">
-                      {NIVELES.map((n) => (
-                        <button key={n.v} type="button"
-                                className={todas(n.v) ? "aqui" : ""}
-                                onClick={() => ponerModulo(m, n.v)}>
-                          {n.t}
-                        </button>
-                      ))}
-                    </div>
-                  </header>
-                  <ul>
-                    {m.secciones.map((s) => {
-                      const actual = marcado[s.ruta] ?? "ninguno";
-                      return (
-                        <li key={s.ruta}>
-                          <div className="rl-sec">
-                            <b>{s.nombre}</b>
-                            <em>{s.ruta}</em>
-                          </div>
-                          <div className="rl-niveles" role="radiogroup" aria-label={s.nombre}>
-                            {NIVELES.map((n) => (
-                              <button
-                                key={n.v} type="button" role="radio"
-                                aria-checked={actual === n.v}
-                                title={n.d}
-                                className={"rl-n rl-" + n.v + (actual === n.v ? " aqui" : "")}
-                                onClick={() => poner(s.ruta, n.v)}
-                              >
-                                {n.t}
-                              </button>
-                            ))}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              );
-            })}
+  
+          <ul className="rl-roles">
+            {roles.map((r) => (
+              <li key={r.clave}>
+                <button type="button" className={r.clave === cual ? "aqui" : ""}
+                        onClick={() => cambiarRol(r.clave)}>
+                  <b>
+                    {r.nombre}
+                    {r.manda && <i className="rl-manda" title="Administra la plataforma">manda</i>}
+                  </b>
+                  <span>
+                    {cuantos[r.clave] ?? 0} usuario{(cuantos[r.clave] ?? 0) === 1 ? "" : "s"}
+                    {" · "}
+                    {r.manda ? "todas las pantallas" : `${cuenta[r.clave] ?? 0} de ${total} pantallas`}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+  
+        {/* ---------- Las pantallas del rol escogido ---------- */}
+        <section className="tarjeta rl-matriz">
+          <div className="cab">
+            <div>
+              <h2>Qué ve {rol?.nombre ?? "—"}</h2>
+              <p>
+                {rol?.manda
+                  ? "Este rol administra la plataforma: puede todo, en todas las pantallas, y es el único que entra aquí. No se le marcan permisos porque no tendría sentido quitarle uno."
+                  : rol?.descripcion || "Marca pantalla por pantalla. Lo que quede en «sin acceso» no aparece ni en el menú."}
+              </p>
+            </div>
+            {!rol?.manda && (
+              <div className="rl-acciones">
+                <span className="rl-cuenta">{marcadas} de {total}</span>
+                <button type="button" className="btn" disabled={!sucio || guardando} onClick={guardar}>
+                  {guardando ? "Guardando…" : sucio ? "Guardar cambios" : "Sin cambios"}
+                </button>
+              </div>
+            )}
           </div>
-        )}
-
-        {aviso && <div className={"aviso" + (aviso.mal ? " mal" : " bien")}>{aviso.texto}</div>}
-
-        {!!rol && !rol.sistema && (
-          <div className="rl-pie">
-            <button type="button" className="btn plano peligro" onClick={borrar} disabled={guardando}>
-              Borrar el rol «{rol.nombre}»
-            </button>
-            <span>
-              Solo si no tiene usuarios. Los roles de sistema no se pueden borrar.
-            </span>
-          </div>
-        )}
-      </section>
-    </div>
+  
+          {rol?.manda ? (
+            <p className="rl-vacio">
+              Para quitarle el mando, primero marca otro rol como administrador — la
+              plataforma no deja quedarse sin ninguno.
+            </p>
+          ) : (
+            <div className="rl-cuerpo">
+              {catalogo.map((m) => {
+                const niveles = m.secciones.map((s) => marcado[s.ruta] ?? "ninguno");
+                const todas = (n: Nivel) => niveles.every((x) => x === n);
+                return (
+                  <div key={m.id} className="rl-modulo">
+                    <header style={{ borderLeftColor: m.acento }}>
+                      <b>{m.nombre}</b>
+                      <div className="rl-todo">
+                        {NIVELES.map((n) => (
+                          <button key={n.v} type="button"
+                                  className={todas(n.v) ? "aqui" : ""}
+                                  onClick={() => ponerModulo(m, n.v)}>
+                            {n.t}
+                          </button>
+                        ))}
+                      </div>
+                    </header>
+                    <ul>
+                      {m.secciones.map((s) => {
+                        const actual = marcado[s.ruta] ?? "ninguno";
+                        return (
+                          <li key={s.ruta}>
+                            <div className="rl-sec">
+                              <b>{s.nombre}</b>
+                              <em>{s.ruta}</em>
+                            </div>
+                            <div className="rl-niveles" role="radiogroup" aria-label={s.nombre}>
+                              {NIVELES.map((n) => (
+                                <button
+                                  key={n.v} type="button" role="radio"
+                                  aria-checked={actual === n.v}
+                                  title={n.d}
+                                  className={"rl-n rl-" + n.v + (actual === n.v ? " aqui" : "")}
+                                  onClick={() => poner(s.ruta, n.v)}
+                                >
+                                  {n.t}
+                                </button>
+                              ))}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+  
+          {aviso && <div className={"aviso" + (aviso.mal ? " mal" : " bien")}>{aviso.texto}</div>}
+  
+          {!!rol && !rol.sistema && (
+            <div className="rl-pie">
+              <button type="button" className="btn plano peligro" onClick={borrar} disabled={guardando}>
+                Borrar el rol «{rol.nombre}»
+              </button>
+              <span>
+                Solo si no tiene usuarios. Los roles de sistema no se pueden borrar.
+              </span>
+            </div>
+          )}
+        </section>
+      </div>
+    </>
   );
 }
 

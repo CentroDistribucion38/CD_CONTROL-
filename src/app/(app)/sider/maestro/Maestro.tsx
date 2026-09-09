@@ -21,6 +21,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { useConfirmar } from "@/components/Confirmar";
 import { createClient } from "@/lib/supabase/client";
 import type { Origen, Sku } from "@/modulos/sider/datos";
 
@@ -49,6 +50,9 @@ export function Maestro({
   esEditor: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  /* Reemplaza a window.confirm(): el cuadro gris del sistema sale con el
+     dominio encima y sin los colores de la plataforma. */
+  const [pedir, dialogo] = useConfirmar();
   const [origenes, setOrigenes] = useState<FilaOrigen[]>(origIni);
   const [skus, setSkus] = useState<FilaSku[]>(skusIni);
   const [estibas, setEstibas] = useState(String(estibasPorSider));
@@ -84,7 +88,13 @@ export function Maestro({
       else setSkus((xs) => xs.filter((_, k) => k !== i));
       return;
     }
-    if (!confirm(`¿Quitar "${clave}" del maestro?`)) return;
+    if (!(await pedir({
+      titulo: `¿Quitar «${clave}» del maestro?`,
+      dice: <>Si ya lo usó algún viaje no se borra: se <b>desactiva</b>, deja de
+            salir en las listas y el histórico se sigue leyendo.</>,
+      confirmar: "Quitarlo",
+      peligro: true,
+    }))) return;
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const cli = supabase as any;
     const { data, error } =
@@ -153,6 +163,7 @@ export function Maestro({
 
   return (
     <>
+      {dialogo}
       {/* Un aviso, no el tema de la pantalla. Antes usaba .sin-tablas —el
           panel gordo de "falta crear el módulo en Supabase"— y se llevaba
           media pantalla para decir algo que se lee en tres segundos. Los

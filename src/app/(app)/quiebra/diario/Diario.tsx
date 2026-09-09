@@ -19,6 +19,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useConfirmar } from "@/components/Confirmar";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -183,6 +184,9 @@ type Props = {
 };
 
 export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
+  /* Reemplaza a window.confirm(): el cuadro gris del sistema sale con el
+     dominio encima y sin los colores de la plataforma. */
+  const [pedir, dialogo] = useConfirmar();
   const supabase = useMemo(() => createClient(), []);
   const [datos, setDatos] = useState(inicial);
   /**
@@ -237,10 +241,14 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   }, [datos]);
 
   const avisarSucio = useCallback(
-    () => !sucio || confirm(
-      `Hay ${tocados.length} día${tocados.length > 1 ? "s" : ""} sin guardar. ¿Salir de todos modos?`
-    ),
-    [sucio, tocados.length]
+    async () => !sucio || (await pedir({
+      titulo: `Hay ${tocados.length} día${tocados.length > 1 ? "s" : ""} sin guardar`,
+      dice: "Si te mueves de aquí, lo que escribiste se pierde.",
+      confirmar: "Salir y perderlos",
+      cancelar: "Seguir aquí",
+      peligro: true,
+    })),
+    [sucio, tocados.length, pedir]
   );
 
   /** Trae otro rango del servidor. */
@@ -266,8 +274,8 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   /** Cambia el rango en pantalla. Si el día abierto se queda afuera, la
    *  hoja se pasa al primer día del rango nuevo. */
   const cambiarRango = useCallback(
-    (d: string, h: string) => {
-      if (!avisarSucio()) return;
+    async (d: string, h: string) => {
+      if (!(await avisarSucio())) return;
       const ancla = fecha >= d && fecha <= h ? fecha : d;
       traer(d, h, ancla, new Set([ancla]));
     },
@@ -277,8 +285,8 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   /** Abre un día en la hoja. Si cae fuera del rango, el rango se corre a
    *  su mes: si no, se estaría editando algo que no se ve. */
   const irA = useCallback(
-    (f: string) => {
-      if (!avisarSucio()) return;
+    async (f: string) => {
+      if (!(await avisarSucio())) return;
       setAviso(null);
       if (f < datos.desde || f > datos.hasta) {
         const [d, h] = rangoDelMes(f);
@@ -675,12 +683,15 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const deshacer = () => setEdits({});
 
   /** Devuelve los días marcados a lo que dice SAP: borra su dato manual. */
-  function volverASap() {
+  async function volverASap() {
     const objetivo = diasSel.map((d) => d.fecha);
-    if (!confirm(
-      `Se borra lo escrito a mano en ${objetivo.length} día${objetivo.length > 1 ? "s" : ""} ` +
-      `y vuelve a mandar lo importado de SAP. Hay que darle a Guardar para que quede. ¿Seguir?`
-    )) return;
+    if (!(await pedir({
+      titulo: `Volver a lo que dice SAP en ${objetivo.length} día${objetivo.length > 1 ? "s" : ""}`,
+      dice: <>Se borra lo escrito a mano y vuelve a mandar lo importado. Todavía
+            hay que darle a <b>Guardar</b> para que quede.</>,
+      confirmar: "Volver a SAP",
+      peligro: true,
+    }))) return;
     setEdits((prev) => {
       const n = { ...prev };
       for (const f of objetivo) n[f] = { ...VACIA, causales: {} };
@@ -691,6 +702,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
   const autor = manual?.actualizado_por ? datos.autores[manual.actualizado_por] : null;
   return (
     <div className="qb qd">
+      {dialogo}
       {/* ====================== Encabezado ====================== */}
       <section className="cabeza">
         <div className="texto">

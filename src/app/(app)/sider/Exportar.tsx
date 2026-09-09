@@ -14,26 +14,36 @@
  * no reacciona se toca tres veces.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Rango, type Dia } from "./seguimiento/Rango";
+import { mesCompleto } from "@/modulos/sider/comun";
 
-const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio",
-               "agosto","septiembre","octubre","noviembre","diciembre"];
+export function BotonExportar({ mes: fijo, dias = [] }: {
+  /** Un rango fijo, cuando quien llama ya sabe cuál (Seguimiento). */
+  mes?: string;
+  /** Los días que de verdad tienen viajes, para apagar los vacíos. */
+  dias?: Dia[];
+}) {
+  /* EL RANGO ARRANCA EN EL ÚLTIMO MES CON DATOS, no en el mes de hoy.
+     Con el mes de hoy, un 2 de octubre sin viajes todavía ofrecía
+     exportar un archivo vacío. */
+  const inicial = useMemo(() => {
+    if (fijo) return mesCompleto(fijo);
+    const ultimo = dias.length ? dias[dias.length - 1].fecha : null;
+    if (!ultimo) {
+      const h = new Date();
+      return mesCompleto(`${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}`);
+    }
+    return mesCompleto(ultimo.slice(0, 7));
+  }, [fijo, dias]);
 
-/** Los últimos doce meses, más "todo". */
-function opcionesMes() {
-  const hoy = new Date();
-  const out: { v: string; t: string }[] = [{ v: "", t: "Todo el histórico" }];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
-    const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    out.push({ v, t: `${MESES[d.getMonth()]} ${d.getFullYear()}` });
-  }
-  return out;
-}
-
-export function BotonExportar({ mes: fijo }: { mes?: string }) {
-  const opciones = opcionesMes();
-  const [mes, setMes] = useState(fijo ?? opciones[1]?.v ?? "");
+  const [desde, setDesde] = useState(inicial.desde);
+  const [hasta, setHasta] = useState(inicial.hasta);
+  /* "Todo el histórico" no es un rango: es la ausencia de uno, y por eso
+     va aparte y no como una opción más del calendario. Un calendario que
+     tuviera que representar "todo" tendría que inventarse una fecha de
+     inicio. */
+  const [todo, setTodo] = useState(false);
   const [fotos, setFotos] = useState(true);
   const [bajando, setBajando] = useState(false);
 
@@ -47,18 +57,33 @@ export function BotonExportar({ mes: fijo }: { mes?: string }) {
   }, [bajando]);
 
   const url = `/api/sider/exportar?${new URLSearchParams({
-    ...(mes ? { mes } : {}),
+    ...(todo ? {} : { desde, hasta }),
     ...(fotos ? {} : { fotos: "no" }),
   })}`;
 
   return (
     <div className="ex-caja">
-      <label className="ex-mes">
-        <span>Exportar</span>
-        <select value={mes} onChange={(e) => setMes(e.target.value)}>
-          {opciones.map((o) => <option key={o.v || "todo"} value={o.v}>{o.t}</option>)}
-        </select>
-      </label>
+      <div className="ex-mes">
+        <span className="ex-rot">Exportar</span>
+        {todo ? (
+          <button type="button" className="ex-todo on" onClick={() => setTodo(false)}>
+            Todo el histórico
+            <em>cambiar</em>
+          </button>
+        ) : (
+          <Rango
+            desde={desde}
+            hasta={hasta}
+            dias={dias}
+            alElegir={(d, h) => { setDesde(d); setHasta(h) }}
+          />
+        )}
+      </div>
+      {!todo && (
+        <button type="button" className="ex-todo" onClick={() => setTodo(true)}>
+          Todo el histórico
+        </button>
+      )}
       <label className="ex-fotos" title="Sin fotos el archivo pesa mucho menos">
         <input type="checkbox" checked={fotos} onChange={(e) => setFotos(e.target.checked)} />
         <span>con fotos</span>
