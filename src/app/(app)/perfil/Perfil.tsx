@@ -86,8 +86,10 @@ const TEMAS: Ficha[] = [
   {
     id: "ambar",
     nombre: "Ámbar sobre blanco",
-    nota: "Grafito y ámbar sobre papel cálido, sin trama. Construido sobre el 255·192·0.",
-    barra: "#23262C",
+    nota: "Grafito y ámbar sobre papel cálido, con los dos resplandores. Construido sobre el 255·192·0.",
+    barra:
+      "radial-gradient(120px 60px at 14% 130%,rgba(255,192,0,.26) 0%,transparent 72%)," +
+      "radial-gradient(150px 70px at 92% -34%,rgba(255,192,0,.14) 0%,transparent 66%),#1B1D22",
     filo: "#FFC000",
     muestras: ["#23262C", "#3A3B3F", "#FFC000", "#6B7280", "#F4F4F1"],
   },

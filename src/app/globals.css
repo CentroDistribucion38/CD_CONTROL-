@@ -702,11 +702,18 @@ body {
    La barra oscura es lo primero que se ve al entrar, así que cada tema
    la viste distinto. Se declaran aquí y no en shell.css porque son
    decisiones DEL TEMA, no del cascarón: shell.css solo las dibuja.
+
+   OJO CON EL SELECTOR: va .sh[data-tema=...] y no [data-tema=...] a
+   secas. shell.css declara estas mismas variables en .sh, y .sh y
+   [data-tema] tienen LA MISMA especificidad: gana la que cargue de
+   última, y ese orden lo decide el empaquetador y cambia entre builds.
+   Con .sh delante la del tema pesa más siempre. Se probó: sin esto,
+   pizarra y ámbar salían con los rombos del tema oficial.
    --------------------------------------------------------------------- */
 
 /* Tinta y ámbar — el mismo azul marino, con rayas verticales que se
    desvanecen hacia arriba y el filo en ámbar. */
-[data-tema="tinta"] {
+.sh[data-tema="tinta"] {
   --sh-trama: repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 9px);
   --sh-trama-op: .55;
   --sh-trama-tapa: linear-gradient(180deg, transparent 0%, #000 100%);
@@ -718,7 +725,7 @@ body {
 
 /* Pizarra y turquesa — los dos resplandores y el filo en degradado, tal
    como lo mandaste. */
-[data-tema="pizarra"] {
+.sh[data-tema="pizarra"] {
   --sh-trama: repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 9px);
   --sh-trama-op: .5;
   --sh-trama-tapa: linear-gradient(180deg, transparent 0%, #000 100%);
@@ -730,9 +737,18 @@ body {
     rgba(18,164,160,0) 0%, #12A4A0 30%, #0E7490 70%, rgba(14,116,144,0) 100%);
 }
 
-/* Ámbar sobre blanco — lisa. El grafito no necesita trama: el ámbar del
-   filo ya carga toda la fuerza, y una trama encima lo ensucia. */
-[data-tema="ambar"] {
+/* Ámbar sobre blanco — la textura 1: los dos resplandores, sin rayas.
+   El grafito es casi negro y una trama de líneas encima lo ensucia; los
+   resplandores en cambio le dan hondura sin dibujarle nada. Los alfas
+   van mucho más bajos que en pizarra (.26 y .14 contra .55) porque el
+   ámbar sobre grafito pesa más que el turquesa sobre pizarra: con .55
+   el resplandor se comía la barra, y con el ocre a .40 el lado derecho
+   salía verdoso y sucio. */
+.sh[data-tema="ambar"] {
   --sh-trama: none;
   --sh-trama-op: 0;
+  --sh-barra-fondo:
+    radial-gradient(560px 190px at 14% 130%, rgba(255,192,0,.26) 0%, transparent 72%),
+    radial-gradient(680px 230px at 92% -34%, rgba(255,192,0,.14) 0%, transparent 66%),
+    #1B1D22;
 }
