@@ -356,7 +356,7 @@
   background: var(--qb-rojo); color: #fff;
   font-family: var(--qb-titulo); font-weight: 800; font-size: 14px;
 }
-.qd .qd-btn:hover:not(:disabled) { background: #FF1C38 }
+.qd .qd-btn:hover:not(:disabled) { background: var(--c-marca-vivo) }
 .qd .qd-btn:disabled { background: var(--c-b4c0ce); cursor: not-allowed }
 .qd .qd-btn:focus-visible { outline: 3px solid var(--qb-azul); outline-offset: 2px }
 .qd .qd-btn.plano {

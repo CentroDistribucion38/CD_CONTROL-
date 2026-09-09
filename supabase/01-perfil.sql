@@ -21,10 +21,13 @@ alter table public.perfiles
   -- Tablas y botones más grandes en los equipos de piso.
   add column if not exists texto_grande boolean not null default false,
 
-  -- Qué colores ve esta persona. 'oficial' es el azul de siempre;
-  -- 'ambar' es la paleta construida sobre #FFC000. El tema solo cambia
-  -- COLOR: ni un dato, ni un permiso, ni una cifra dependen de él, así
-  -- que dos personas viendo temas distintos ven exactamente lo mismo.
+  -- Qué colores ve esta persona. El tema solo cambia COLOR: ni un dato,
+  -- ni un permiso, ni una cifra dependen de él, así que dos personas
+  -- viendo temas distintos ven exactamente lo mismo.
+  --   oficial   el azul marino y el rojo de siempre
+  --   tinta     el mismo azul marino, acento en ámbar
+  --   pizarra   pizarra y turquesa
+  --   ambar     grafito y ámbar sobre papel cálido
   add column if not exists tema text not null default 'oficial';
 
 alter table public.perfiles
@@ -34,12 +37,13 @@ alter table public.perfiles
   check (turno_habitual is null or turno_habitual between 1 and 3);
 
 -- Que no entre un tema que no existe: si mañana alguien escribe
--- 'morado' por API, la pantalla se quedaría sin colores.
+-- 'morado' por API, la pantalla se quedaría sin colores. Al agregar un
+-- tema nuevo hay que agregarlo también aquí y en TEMAS de Perfil.tsx.
 alter table public.perfiles
   drop constraint if exists perfiles_tema_valido;
 alter table public.perfiles
   add constraint perfiles_tema_valido
-  check (tema in ('oficial', 'ambar'));
+  check (tema in ('oficial', 'tinta', 'pizarra', 'ambar'));
 
 -- ---------------------------------------------------------------------
 -- Cada quien edita SOLO su propio perfil, y solo estas columnas: el

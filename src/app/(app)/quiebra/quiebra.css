@@ -8,9 +8,9 @@
 .qb {
   --qb-tinta: var(--c-04203f);
   --qb-azul: var(--c-0b4ea2);
-  --qb-rojo: #E4002B;
-  --qb-hondo: #B8001F;
-  --qb-oro: #E9A81F;
+  --qb-rojo: var(--c-marca);
+  --qb-hondo: var(--c-marca-hondo);
+  --qb-oro: var(--c-oro);
   --qb-papel: #FFF;
   --qb-gris: var(--c-5b6b7f);
   --qb-linea: var(--c-d5dce5);
@@ -47,7 +47,7 @@
 
 .qb .kpi {
   position: relative; overflow: hidden;
-  background: var(--qb-rojo); color: #fff; border-radius: 3px;
+  background: var(--qb-rojo); color: var(--c-marca-txt); border-radius: 3px;
   padding: 26px 34px 24px 30px; min-width: 330px;
   display: flex; flex-direction: column; justify-content: center;
 }
@@ -147,7 +147,7 @@
 .qb .dias button.fuera { color: var(--c-c6d0dc); cursor: default }
 .qb .dias button:hover:not(.fuera):not(.punta) { background: var(--c-edf1f6) }
 .qb .dias button.dentro { background: #FDE7EB }
-.qb .dias button.punta { background: var(--qb-rojo); color: #fff; font-weight: 700 }
+.qb .dias button.punta { background: var(--qb-rojo); color: var(--c-marca-txt); font-weight: 700 }
 .qb .dias button.inicio { border-radius: 2px 0 0 2px }
 .qb .dias button.fin { border-radius: 0 2px 2px 0 }
 
@@ -160,9 +160,9 @@
 .qb .cal-pie .btns { margin-left: auto; display: flex; gap: 10px }
 .qb .cal-pie .aplicar {
   height: 38px; padding: 0 20px; border: 0; border-radius: 2px; background: var(--qb-rojo);
-  color: #fff; font-family: var(--qb-titulo); font-weight: 800; font-size: 13.5px; cursor: pointer;
+  color: var(--c-marca-txt); font-family: var(--qb-titulo); font-weight: 800; font-size: 13.5px; cursor: pointer;
 }
-.qb .cal-pie .aplicar:hover { background: #FF1C38 }
+.qb .cal-pie .aplicar:hover { background: var(--c-marca-vivo) }
 .qb .cal-pie .cancelar {
   height: 38px; padding: 0 8px; border: 0; background: none; color: var(--qb-gris);
   font: 600 13.5px var(--qb-texto); cursor: pointer;
@@ -547,7 +547,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
   background: var(--qb-rojo); color: #fff;
   font-family: var(--qb-titulo); font-weight: 800; font-size: 14.5px;
 }
-.qb .btn:hover { background: #FF1C38 }
+.qb .btn:hover { background: var(--c-marca-vivo) }
 .qb .btn:disabled { background: var(--c-94a3b4); cursor: progress }
 .qb .btn.plano {
   background: none; color: var(--qb-gris); font-family: var(--qb-texto);

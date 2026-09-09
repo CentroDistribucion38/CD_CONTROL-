@@ -4,7 +4,7 @@
 .rl {
   --rl-tinta: var(--c-04203f); --rl-acento: var(--c-4c3bcf); --rl-hondo: var(--c-372a9b);
   --rl-gris: var(--c-5b6b7f); --rl-linea: var(--c-d5dce5); --rl-papel: #FFF;
-  --rl-verde: #0F7A4A; --rl-rojo: #E4002B; --rl-oro: #E9A81F;
+  --rl-verde: #0F7A4A; --rl-rojo: #E4002B; --rl-oro: var(--c-oro);
   --rl-titulo: "Archivo", system-ui, sans-serif;
   --rl-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   font-family: var(--rl-texto); color: var(--rl-tinta);

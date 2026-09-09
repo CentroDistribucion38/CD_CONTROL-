@@ -9,7 +9,7 @@
   --sd-acento: var(--c-0b7285);
   --sd-acento-hondo: var(--c-075661);
   --sd-rojo: #E4002B;
-  --sd-oro: #E9A81F;
+  --sd-oro: var(--c-oro);
   --sd-verde: #0F7A4A;
   --sd-papel: #FFF;
   --sd-gris: var(--c-5b6b7f);

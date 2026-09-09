@@ -12,11 +12,24 @@
 
   --sh-tinta:     var(--c-04203f);
   --sh-azul:      var(--c-0b4ea2);
-  --sh-rojo:      #E4002B;
+  --sh-rojo:      var(--c-marca);
   --sh-hueso:     var(--c-eef1f5);
   --sh-papel:     #FFFFFF;
   --sh-gris:      var(--c-5b6b7f);
   --sh-linea:     var(--c-d5dce5);
+
+  /* ---- La barra oscura, por piezas, para que cada tema la vista ----
+     El fondo, el filo de abajo y la trama son variables porque cada
+     tema los quiere distintos: el oficial lleva rombos, pizarra lleva
+     resplandores y rayas verticales, ámbar va lisa. Si estuvieran en
+     duro, un tema nuevo obligaría a repetir toda la regla. */
+  --sh-barra-fondo: var(--sh-tinta);
+  --sh-filo:        var(--sh-rojo);
+  --sh-trama:
+    repeating-linear-gradient(64deg,  rgba(255,255,255,.50) 0 1px, transparent 1px 74px),
+    repeating-linear-gradient(-64deg, rgba(255,255,255,.28) 0 1px, transparent 1px 74px);
+  --sh-trama-op:   .3;
+  --sh-trama-tapa: linear-gradient(90deg, transparent 0%, #000 22%, #000 68%, transparent 92%);
 
   --sh-titulo: "Archivo", system-ui, sans-serif;
   --sh-texto:  "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -36,7 +49,7 @@
   align-items: center;
   gap: 22px;
   padding: 0 30px 0 0;
-  background: var(--sh-tinta);
+  background: var(--sh-barra-fondo);
   color: #fff;
   font-family: var(--sh-texto);
 }
@@ -46,20 +59,18 @@
   position: absolute;
   left: 0; right: 0; bottom: 0;
   height: 3px;
-  background: var(--sh-rojo);
+  background: var(--sh-filo);
 }
-/* la trama de rombos del acceso, ahora solo aquí */
+/* La trama. Cuál es la pone el tema; aquí solo se dibuja. */
 .sh-barra::before {
   content: "";
   position: absolute;
   inset: 0;
-  opacity: .3;
+  opacity: var(--sh-trama-op);
   pointer-events: none;
-  background-image:
-    repeating-linear-gradient(64deg, rgba(255,255,255,.5) 0 1px, transparent 1px 74px),
-    repeating-linear-gradient(-64deg, rgba(255,255,255,.28) 0 1px, transparent 1px 74px);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 68%, transparent 92%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 68%, transparent 92%);
+  background-image: var(--sh-trama);
+  -webkit-mask-image: var(--sh-trama-tapa);
+  mask-image: var(--sh-trama-tapa);
 }
 .sh-barra > * { position: relative }
 
@@ -95,7 +106,7 @@
   width: 36px; height: 36px;
   border-radius: 50%;
   background: var(--sh-rojo);
-  color: #fff;
+  color: var(--c-marca-txt);
   display: grid;
   place-items: center;
   font-family: var(--sh-titulo);
@@ -129,7 +140,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 .sh-boton.nuevo {
   border-color: var(--sh-rojo);
   background: var(--sh-rojo);
-  color: #fff;
+  color: var(--c-marca-txt);
 }
 .sh-gira { animation: sh-girar .9s linear infinite }
 @keyframes sh-girar { to { transform: rotate(360deg) } }
@@ -455,7 +466,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 .sh-lado .riel a.volver svg { width: 20px; height: 20px }
 
 .sh-lado .riel a.modulo.on {
-  color: #fff; font-weight: 700; background: rgba(228,0,43,.14); border-left-color: var(--sh-rojo);
+  color: #fff; font-weight: 700; background: var(--c-marca-velo); border-left-color: var(--sh-rojo);
 }
 .sh-lado .riel a.modulo.on svg { stroke: var(--sh-rojo) }
 

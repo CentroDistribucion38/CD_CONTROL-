@@ -9,34 +9,87 @@ import { Eye, EyeOff } from "lucide-react";
 
 type Modulo = { id: string; nombre: string; ruta: string };
 
-export type Tema = "oficial" | "ambar";
+export type Tema = "oficial" | "tinta" | "pizarra" | "ambar";
 
 /**
- * Los temas que existen. Cada uno trae SUS PROPIAS muestras de color en
- * duro y no leídas de las variables, a propósito: la tarjeta del tema
- * ámbar tiene que verse ámbar mientras la aplicación todavía está en
- * azul, que es justo el momento en que uno lo está eligiendo.
+ * Los temas que existen. Al agregar uno hay que tocar tres sitios: aquí,
+ * el bloque [data-tema] de globals.css y el CHECK de perfiles.tema en
+ * supabase/01-perfil.sql. Son tres porque cada uno protege algo
+ * distinto: el selector, los colores y que no entre un tema inventado.
+ *
+ * Los colores de cada tarjeta van EN DURO y no leídos de las variables,
+ * a propósito: la tarjeta del tema pizarra tiene que verse pizarra
+ * mientras la aplicación todavía está en azul, que es justo el momento
+ * en que uno lo está eligiendo.
  */
-const TEMAS: {
+type Ficha = {
   id: Tema;
   nombre: string;
   nota: string;
+  /** El fondo de la barra oscura de la maqueta. */
   barra: string;
-  muestras: string[];
-}[] = [
+  /** El filo de abajo: acento del tema. */
+  filo: string;
+  /** La trama de la barra, la misma del tema. */
+  trama?: string;
+  tramaOp?: number;
+  tramaTapa?: string;
+  /** tinta · ink · acento · texto apagado · papel */
+  muestras: [string, string, string, string, string];
+};
+
+const ROMBOS =
+  "repeating-linear-gradient(64deg,rgba(255,255,255,.5) 0 1px,transparent 1px 26px)," +
+  "repeating-linear-gradient(-64deg,rgba(255,255,255,.28) 0 1px,transparent 1px 26px)";
+const RAYAS =
+  "repeating-linear-gradient(90deg,rgba(255,255,255,.10) 0 1px,transparent 1px 7px)";
+const DE_ABAJO = "linear-gradient(180deg,transparent 0%,#000 100%)";
+
+const TEMAS: Ficha[] = [
   {
     id: "oficial",
     nombre: "Oficial",
-    nota: "El azul de CONTROL. Es el que ve todo el mundo si no cambia nada.",
+    nota: "El azul marino y el rojo de siempre. Es el que ve todo el mundo si no cambia nada.",
     barra: "#04203F",
-    muestras: ["#04203F", "#2C4361", "#0060B0", "#93A3B6", "#EDF1F6"],
+    filo: "#E4002B",
+    trama: ROMBOS,
+    tramaOp: 0.3,
+    tramaTapa: "linear-gradient(90deg,transparent 0%,#000 22%,#000 68%,transparent 92%)",
+    muestras: ["#04203F", "#2C4361", "#E4002B", "#93A3B6", "#EDF1F5"],
+  },
+  {
+    id: "tinta",
+    nombre: "Tinta y ámbar",
+    nota: "El mismo azul marino, con el acento en ámbar. Cambia solo el acento; el resto es igual al oficial.",
+    barra:
+      "radial-gradient(120px 60px at 12% 130%,rgba(240,180,41,.22) 0%,transparent 72%)," +
+      "radial-gradient(150px 70px at 90% -30%,rgba(11,78,162,.45) 0%,transparent 72%),#04203F",
+    filo: "#F0B429",
+    trama: RAYAS,
+    tramaOp: 0.55,
+    tramaTapa: DE_ABAJO,
+    muestras: ["#04203F", "#2C4361", "#F0B429", "#93A3B6", "#EDF1F5"],
+  },
+  {
+    id: "pizarra",
+    nombre: "Pizarra y turquesa",
+    nota: "Pizarra oscura con dos resplandores y el filo en degradado.",
+    barra:
+      "radial-gradient(130px 60px at 14% 130%,rgba(18,164,160,.55) 0%,transparent 72%)," +
+      "radial-gradient(160px 70px at 88% -30%,rgba(14,116,144,.55) 0%,transparent 72%),#051417",
+    filo: "linear-gradient(90deg,rgba(18,164,160,0) 0%,#12A4A0 30%,#0E7490 70%,rgba(14,116,144,0) 100%)",
+    trama: RAYAS,
+    tramaOp: 0.5,
+    tramaTapa: DE_ABAJO,
+    muestras: ["#0B2E33", "#3E4E52", "#12A4A0", "#5A6E71", "#EEF3F3"],
   },
   {
     id: "ambar",
-    nombre: "Ámbar",
-    nota: "La misma pantalla en cálido, construida sobre el 255·192·0.",
-    barra: "#2B1D00",
-    muestras: ["#2B1D00", "#503F19", "#FFC000", "#ABA08A", "#F3F0EB"],
+    nombre: "Ámbar sobre blanco",
+    nota: "Grafito y ámbar sobre papel cálido, sin trama. Construido sobre el 255·192·0.",
+    barra: "#23262C",
+    filo: "#FFC000",
+    muestras: ["#23262C", "#3A3B3F", "#FFC000", "#6B7280", "#F4F4F1"],
   },
 ];
 
@@ -535,8 +588,8 @@ function Preferencias(p: Props & { alGuardar: () => void }) {
     setTema(t);
     const sh = document.querySelector(".sh") as HTMLElement | null;
     if (!sh) return;
-    if (t === "ambar") sh.dataset.tema = "ambar";
-    else delete sh.dataset.tema;
+    if (t === "oficial") delete sh.dataset.tema;
+    else sh.dataset.tema = t;
   }
 
   async function guardar() {
@@ -602,9 +655,24 @@ function Preferencias(p: Props & { alGuardar: () => void }) {
               className={"pf-tema" + (tema === t.id ? " on" : "")}
               onClick={() => verlo(t.id)}
             >
+              {/* La maqueta: barra oscura con su trama y su filo, y
+                  debajo el papel del tema con tres renglones. Es la
+                  pantalla en pequeño, no un cuadrito de color. */}
               <span className="lienzo" style={{ background: t.muestras[4] }}>
                 <span className="barra" style={{ background: t.barra }}>
+                  {t.trama && (
+                    <span
+                      className="trama"
+                      style={{
+                        backgroundImage: t.trama,
+                        opacity: t.tramaOp,
+                        maskImage: t.tramaTapa,
+                        WebkitMaskImage: t.tramaTapa,
+                      }}
+                    />
+                  )}
                   <i style={{ background: t.muestras[2] }} />
+                  <span className="filo" style={{ background: t.filo }} />
                 </span>
                 <span className="cuerpo">
                   <b style={{ background: t.muestras[1] }} />

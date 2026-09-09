@@ -9,210 +9,159 @@
    leyendo cualquier hoja de estilos, se sabe de qué color se habla sin
    venir a buscar la tabla.
 
-   Cambiar de tema es cambiar los VALORES, nunca las hojas. Un tema nuevo
-   se escribe repitiendo este bloque bajo otro [data-tema="..."].
+   Cambiar de tema es cambiar los VALORES, nunca las hojas.
 
-   CÓMO SE CALCULÓ EL TEMA ÁMBAR
-   No se eligieron los colores a ojo. Cada tono se convirtió a OKLCH, se
-   le dejó EXACTAMENTE el mismo lightness y se le giró el tono al de
-   #FFC000 (84,6°). Al conservar el lightness se conserva el contraste:
-   donde había texto blanco sobre azul y se leía, ahora hay texto blanco
-   sobre ámbar oscuro y se lee igual de bien. Cuatro tonos se retocaron a
-   mano —van marcados con ←— para que el #FFC000 de verdad aparezca en
-   las superficies oscuras, que es donde luce.
+   LOS CUATRO TEMAS
+     oficial   El azul marino y el rojo de siempre. El que ve todo el
+               mundo si no cambia nada.
+     tinta     El mismo azul marino, con el acento en ámbar. Los neutros
+               son idénticos al oficial: solo cambia el acento.
+     pizarra   Pizarra y turquesa.
+     ambar     Grafito y ámbar sobre papel cálido.
+
+   CÓMO SE ARMARON
+   Los tonos que elegiste van tal cual, como ANCLAS —van marcados con
+   «← tuyo»—. Los otros sesenta y tres se derivan de ellas: cada uno
+   conserva EXACTAMENTE su lightness y solo se le mueve el tono y el
+   croma, interpolados entre tus anclas. Al conservar el lightness se
+   conserva el contraste, así que ningún texto se vuelve ilegible al
+   cambiar de tema.
+
+   EL ACENTO Y SU TEXTO VAN JUNTOS
+   --c-marca y --c-marca-txt son un par. Un acento claro necesita texto
+   oscuro; separarlos es como se termina con blanco sobre amarillo. En
+   los tres temas tuyos el texto sobre el acento es la tinta del propio
+   tema, y los cuatro pares pasan 4,5:1 —el turquesa con blanco daba
+   3,07:1 y no pasaba, por eso lleva su tinta encima—.
 
    LO QUE NO CAMBIA EN NINGÚN TEMA
-   El rojo de Bavaria, el verde de "cumple" y el ámbar de "ojo con esto"
-   son SEMÁFORO, no decoración: significan algo. Si cambiaran de tema en
-   tema, el rojo dejaría de querer decir rojo. Por eso quedaron fuera.
-   El logo tampoco se toca: es una imagen, no un color.
+   El verde de "cumple", el rojo de "por encima de la meta" y el vino de
+   "el mes va corto" son SEMÁFORO: significan algo. Si cambiaran de tema
+   en tema el color dejaría de decir nada. El logo tampoco se toca: es
+   una imagen, no un color.
    --------------------------------------------------------------------- */
 
 :root {
 
   /* Fondos y líneas muy claras */
-  --c-fdfdff: #fdfdff;  /* 1× */
-  --c-fbfbfe: #fbfbfe;  /* 1× */
-  --c-fafbfd: #fafbfd; /* 35× */
-  --c-f7fcfd: #f7fcfd;  /* 2× */
-  --c-f7f9fc: #f7f9fc; /* 16× */
-  --c-f4f7fb: #f4f7fb;  /* 4× */
-  --c-f4f6f9: #f4f6f9;  /* 3× */
-  --c-f2f5f9: #f2f5f9;  /* 1× */
-  --c-f1f5fa: #f1f5fa;  /* 3× */
-  --c-f1f4f8: #f1f4f8;  /* 1× */
-  --c-f1f3f6: #f1f3f6;  /* 1× */
-  --c-eef3f9: #eef3f9;  /* 1× */
-  --c-f2f1fc: #f2f1fc;  /* 1× */
-  --c-eaf4f6: #eaf4f6;  /* 1× */
-  --c-eef1f5: #eef1f5;  /* 6× */
-  --c-edf1f6: #edf1f6; /* 18× */
-  --c-eaf0f7: #eaf0f7;  /* 1× */
-  --c-edeff4: #edeff4;  /* 1× */
-  --c-e7ecf3: #e7ecf3;  /* 2× */
-  --c-e7ecf2: #e7ecf2;  /* 1× */
-  --c-e4e9ef: #e4e9ef;  /* 1× */
+  --c-fdfdff:     #fdfdff;   /* 1× */
+  --c-fbfbfe:     #fbfbfe;   /* 1× */
+  --c-fafbfd:     #fafbfd;   /* 35× */
+  --c-f7fcfd:     #f7fcfd;   /* 2× */
+  --c-f7f9fc:     #f7f9fc;   /* 16× */
+  --c-f4f7fb:     #f4f7fb;   /* 4× */
+  --c-f4f6f9:     #f4f6f9;   /* 3× */
+  --c-f2f5f9:     #f2f5f9;   /* 1× */
+  --c-f1f5fa:     #f1f5fa;   /* 3× */
+  --c-f1f4f8:     #f1f4f8;   /* 1× */
+  --c-f1f3f6:     #f1f3f6;   /* 1× */
+  --c-eef3f9:     #eef3f9;   /* 1× */
+  --c-f2f1fc:     #f2f1fc;   /* 1× */
+  --c-eaf4f6:     #eaf4f6;   /* 1× */
+  --c-eef1f5:     #eef1f5;   /* 6× */
+  --c-edf1f6:     #edf1f6;   /* 18× */
+  --c-eaf0f7:     #eaf0f7;   /* 1× */
+  --c-edeff4:     #edeff4;   /* 1× */
+  --c-e7ecf3:     #e7ecf3;   /* 2× */
+  --c-e7ecf2:     #e7ecf2;   /* 1× */
+  --c-e4e9ef:     #e4e9ef;   /* 1× */
 
   /* Bordes */
-  --c-dce8f6: #dce8f6;  /* 1× */
-  --c-dbe4f0: #dbe4f0;  /* 2× */
-  --c-d6e4f4: #d6e4f4;  /* 2× */
-  --c-dce2e9: #dce2e9;  /* 1× */
-  --c-d9e2ec: #d9e2ec;  /* 1× */
-  --c-c9e4e8: #c9e4e8;  /* 1× */
-  --c-d5dce5: #d5dce5;  /* 6× */
-  --c-c9dcf0: #c9dcf0;  /* 1× */
-  --c-c6d3e2: #c6d3e2;  /* 1× */
-  --c-c6d0dc: #c6d0dc; /* 10× */
-  --c-c3cedb: #c3cedb;  /* 1× */
-  --c-9fd3d9: #9fd3d9;  /* 3× */
-  --c-bcc7d4: #bcc7d4;  /* 1× */
-  --c-b9c4d2: #b9c4d2;  /* 4× */
-  --c-a9c2de: #a9c2de;  /* 3× */
-  --c-b4c0ce: #b4c0ce;  /* 7× */
-  --c-8fc7cf: #8fc7cf;  /* 1× */
-  --c-9fbede: #9fbede;  /* 1× */
+  --c-dce8f6:     #dce8f6;   /* 1× */
+  --c-dbe4f0:     #dbe4f0;   /* 2× */
+  --c-d6e4f4:     #d6e4f4;   /* 2× */
+  --c-dce2e9:     #dce2e9;   /* 1× */
+  --c-d9e2ec:     #d9e2ec;   /* 1× */
+  --c-c9e4e8:     #c9e4e8;   /* 1× */
+  --c-d5dce5:     #d5dce5;   /* 6× */
+  --c-c9dcf0:     #c9dcf0;   /* 1× */
+  --c-c6d3e2:     #c6d3e2;   /* 1× */
+  --c-c6d0dc:     #c6d0dc;   /* 10× */
+  --c-c3cedb:     #c3cedb;   /* 1× */
+  --c-9fd3d9:     #9fd3d9;   /* 3× */
+  --c-bcc7d4:     #bcc7d4;   /* 1× */
+  --c-b9c4d2:     #b9c4d2;   /* 4× */
+  --c-a9c2de:     #a9c2de;   /* 3× */
+  --c-b4c0ce:     #b4c0ce;   /* 7× */
+  --c-8fc7cf:     #8fc7cf;   /* 1× */
+  --c-9fbede:     #9fbede;   /* 1× */
 
   /* Texto apagado */
-  --c-a9b6c6: #a9b6c6;  /* 8× */
-  --c-8fb6e8: #8fb6e8;  /* 1× */
-  --c-9fb4cc: #9fb4cc;  /* 1× */
-  --c-9aa9bb: #9aa9bb;  /* 3× */
-  --c-94a3b4: #94a3b4;  /* 3× */
-  --c-93a3b6: #93a3b6; /* 24× */
-  --c-7e97b5: #7e97b5;  /* 4× */
-  --c-8494a8: #8494a8;  /* 3× */
-  --c-4c93ea: #4c93ea;  /* 1× */
-  --c-7d8ca0: #7d8ca0;  /* 1× */
-  --c-6f87a5: #6f87a5;  /* 1× */
+  --c-a9b6c6:     #a9b6c6;   /* 8× */
+  --c-8fb6e8:     #8fb6e8;   /* 1× */
+  --c-9fb4cc:     #9fb4cc;   /* 1× */
+  --c-9aa9bb:     #9aa9bb;   /* 3× */
+  --c-94a3b4:     #94a3b4;   /* 3× */
+  --c-93a3b6:     #93a3b6;   /* 24× */
+  --c-7e97b5:     #7e97b5;   /* 4× */
+  --c-8494a8:     #8494a8;   /* 3× */
+  --c-4c93ea:     #4c93ea;   /* 1× */
+  --c-7d8ca0:     #7d8ca0;   /* 1× */
+  --c-6f87a5:     #6f87a5;   /* 1× */
 
   /* Acentos y texto secundario */
-  --c-3e7bc4: #3e7bc4;  /* 1× */
-  --c-1f6fd0: #1f6fd0;  /* 1× */
-  --c-5a7192: #5a7192;  /* 2× */
-  --c-2e6fbe: #2e6fbe;  /* 1× */
-  --c-5b6b7f: #5b6b7f;  /* 8× */
-  --c-0b7285: #0b7285;  /* 1× */
-  --c-0060b0: #0060b0;  /* 2× */
-  --c-4c3bcf: #4c3bcf;  /* 1× */
-  --c-0b4ea2: #0b4ea2;  /* 3× */
-  --c-075661: #075661;  /* 1× */
-  --c-004a8a: #004a8a;  /* 2× */
-  --c-17505c: #17505c;  /* 2× */
+  --c-3e7bc4:     #3e7bc4;   /* 1× */
+  --c-1f6fd0:     #1f6fd0;   /* 1× */
+  --c-5a7192:     #5a7192;   /* 2× */
+  --c-2e6fbe:     #2e6fbe;   /* 1× */
+  --c-5b6b7f:     #5b6b7f;   /* 8× */
+  --c-0b7285:     #0b7285;   /* 1× */
+  --c-0060b0:     #0060b0;   /* 2× */
+  --c-4c3bcf:     #4c3bcf;   /* 1× */
+  --c-0b4ea2:     #0b4ea2;   /* 3× */
+  --c-075661:     #075661;   /* 1× */
+  --c-004a8a:     #004a8a;   /* 2× */
+  --c-17505c:     #17505c;   /* 2× */
 
   /* Tintas oscuras */
-  --c-372a9b: #372a9b;  /* 1× */
-  --c-2c4361: #2c4361; /* 29× */
-  --c-0a3a6e: #0a3a6e;  /* 1× */
-  --c-0a2f55: #0a2f55;  /* 1× */
-  --c-04203f: #04203f;  /* 6× */
-  --c-0b1f35: #0b1f35;  /* 2× */
+  --c-372a9b:     #372a9b;   /* 1× */
+  --c-2c4361:     #2c4361;   /* 29× */
+  --c-0a3a6e:     #0a3a6e;   /* 1× */
+  --c-0a2f55:     #0a2f55;   /* 1× */
+  --c-04203f:     #04203f;   /* 6× */
+  --c-0b1f35:     #0b1f35;   /* 2× */
 
-  /* Translúcidos. Los que se VEN como color: el velo del visor de fotos
-     y el subrayado de los enlaces. Las sombras se quedaron en duro a
-     propósito: una sombra es una sombra en cualquier tema. */
+  /* Translúcidos */
   --c-velo:       rgba(4,32,63,.62);
   --c-velo-hondo: rgba(4,32,63,.90);
   --c-raya:       rgba(11,114,133,.35);
   --c-degrade:    rgba(139,155,179,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. Van
+     juntos a propósito: un acento claro necesita texto oscuro,
+     y separarlos es como se termina con blanco sobre amarillo. */
+  --c-marca:      #e4002b;
+  --c-marca-txt:  #ffffff;
+  /* Estos dos van con el hex de siempre, no con el derivado: el tema
+     oficial tiene que quedar idéntico al que ya estaba. */
+  --c-marca-vivo: #ff1c38;   /* hover */
+  --c-marca-hondo: #b8001f;
+  --c-marca-filo: #e2313c;
+  --c-marca-velo: rgba(228,0,43,.14);
+  --c-oro:        #e9a81f;   /* "ojo con esto" */
 }
 
-/* ---------------------------------------------------------------------
-   TEMA ÁMBAR — la referencia que pediste: RGB 255,192,0 = #FFC000.
-   Se aplica en .sh, que es el cascarón: todo lo que se pinta adentro
-   —barra, menú, módulos— hereda estos valores. La pantalla de acceso
-   queda por fuera a propósito: ahí todavía no se sabe quién entra.
-   --------------------------------------------------------------------- */
+/* --- Tinta y ámbar ------------------------------------------------- */
+[data-tema="tinta"] {
+  /* Los neutros son los MISMOS del oficial: en este tema solo
+     cambia el acento, y por eso no hay que redeclarar los 68
+     tonos. Menos texto que mantener, y una diferencia menos
+     que se pueda desincronizar. */
 
-[data-tema="ambar"] {
-
-  /* Fondos y líneas muy claras */
-  --c-fdfdff: #fefdfb;  /* 1× */
-  --c-fbfbfe: #fdfbf8;  /* 1× */
-  --c-fafbfd: #fcfbf9; /* 35× */
-  --c-f7fcfd: #fdfbf7;  /* 2× */
-  --c-f7f9fc: #faf9f5; /* 16× */
-  --c-f4f7fb: #f9f6f2;  /* 4× */
-  --c-f4f6f9: #f7f6f2;  /* 3× */
-  --c-f2f5f9: #f7f4f0;  /* 1× */
-  --c-f1f5fa: #f7f4ef;  /* 3× */
-  --c-f1f4f8: #f6f3ef;  /* 1× */
-  --c-f1f3f6: #f4f3ef;  /* 1× */
-  --c-eef3f9: #f5f2eb;  /* 1× */
-  --c-f2f1fc: #f7f2e8;  /* 1× */
-  --c-eaf4f6: #f5f1ea;  /* 1× */
-  --c-eef1f5: #f3f0ec;  /* 6× */
-  --c-edf1f6: #f3f0eb; /* 18× */
-  --c-eaf0f7: #f3efe7;  /* 1× */
-  --c-edeff4: #f1efea;  /* 1× */
-  --c-e7ecf3: #efebe4;  /* 2× */
-  --c-e7ecf2: #eeebe4;  /* 1× */
-  --c-e4e9ef: #ebe8e1;  /* 1× */
-
-  /* Bordes */
-  --c-dce8f6: #eee6d6;  /* 1× */
-  --c-dbe4f0: #e9e2d5;  /* 2× */
-  --c-d6e4f4: #ebe1cf;  /* 2× */
-  --c-dce2e9: #e5e1d9;  /* 1× */
-  --c-d9e2ec: #e6e0d5;  /* 1× */
-  --c-c9e4e8: #e7ddc9;  /* 1× */
-  --c-d5dce5: #e0dbd1;  /* 6× */
-  --c-c9dcf0: #ffcf4d;  /* 1× ← */
-  --c-c6d3e2: #d9d1bf;  /* 1× */
-  --c-c6d0dc: #d5cec1; /* 10× */
-  --c-c3cedb: #d3ccbd;  /* 1× */
-  --c-9fd3d9: #d9c6a0;  /* 3× */
-  --c-bcc7d4: #ccc5b6;  /* 1× */
-  --c-b9c4d2: #cac2b2;  /* 4× */
-  --c-a9c2de: #e8d2a3;  /* 3× ← */
-  --c-b4c0ce: #c6beae;  /* 7× */
-  --c-8fc7cf: #cdb991;  /* 1× */
-  --c-9fbede: #cbb891;  /* 1× */
-
-  /* Texto apagado */
-  --c-a9b6c6: #bdb4a2;  /* 8× */
-  --c-8fb6e8: #ffc000;  /* 1× ← */
-  --c-9fb4cc: #beb094;  /* 1× */
-  --c-9aa9bb: #b1a692;  /* 3× */
-  --c-94a3b4: #aaa08c;  /* 3× */
-  --c-93a3b6: #aba08a; /* 24× */
-  --c-7e97b5: #b59a63;  /* 4× ← */
-  --c-8494a8: #9c917a;  /* 3× */
-  --c-4c93ea: #b88900;  /* 1× */
-  --c-7d8ca0: #958973;  /* 1× */
-  --c-6f87a5: #948360;  /* 1× */
-
-  /* Acentos y texto secundario */
-  --c-3e7bc4: #9a7200;  /* 1× */
-  --c-1f6fd0: #8f6b00;  /* 1× */
-  --c-5a7192: #806d47;  /* 2× */
-  --c-2e6fbe: #8d6800;  /* 1× */
-  --c-5b6b7f: #746851;  /* 8× */
-  --c-0b7285: #7d6122;  /* 1× */
-  --c-0060b0: #7a5a00;  /* 2× */
-  --c-4c3bcf: #755600;  /* 1× */
-  --c-0b4ea2: #694d00;  /* 3× */
-  --c-075661: #5e4919;  /* 1× */
-  --c-004a8a: #5f4500;  /* 2× */
-  --c-17505c: #57451e;  /* 2× */
-
-  /* Tintas oscuras */
-  --c-372a9b: #563f00;  /* 1× */
-  --c-2c4361: #503f19; /* 29× */
-  --c-0a3a6e: #4c3700;  /* 1× */
-  --c-0a2f55: #3d2b00;  /* 1× */
-  --c-04203f: #2b1d00;  /* 6× */
-  --c-0b1f35: #291c00;  /* 2× */
-
-  /* Translúcidos */
-  --c-velo:       rgba(43,29,0,.62);
-  --c-velo-hondo: rgba(43,29,0,.90);
-  --c-raya:       rgba(125,97,34,.35);
-  --c-degrade:    rgba(171,160,138,.40);
+  /* El acento de marca y el texto que va ENCIMA de él. Van
+     juntos a propósito: un acento claro necesita texto oscuro,
+     y separarlos es como se termina con blanco sobre amarillo. */
+  --c-marca:      #f0b429;
+  --c-marca-txt:  #04203f;
+  --c-marca-vivo: #ffc859;   /* hover */
+  --c-marca-hondo: #d19900;
+  --c-marca-filo: #f0b429;
+  --c-marca-velo: rgba(240,180,41,.16);
+  --c-oro:        #0b4ea2;   /* "ojo con esto" */
 
   /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
-     así que hay que volver a declararlos aquí para que tomen los valores
-     de arriba. Es el mismo texto: cambia contra qué se resuelve. */
+     que está por FUERA de este bloque, así que hay que volver a
+     declararlos aquí. Es el mismo texto: cambia contra qué se resuelve. */
   --color-bv-azul:        var(--c-0060b0);
   --color-bv-azul-oscuro: var(--c-004a8a);
   --color-bv-tinta:       var(--c-f4f7fb);
@@ -226,19 +175,260 @@
   --bv-texto:             var(--c-0b1f35);
   --bv-texto-2:           var(--c-5a7192);
 
-  /* Y el color y el fondo se vuelven a fijar AQUÍ. Una variable con
-     var() adentro se resuelve en el elemento donde se declara, no donde
-     se usa: `body { color: var(--bv-texto) }` ya quedó resuelto en el
-     body —que está por fuera de este bloque— con el valor oficial. Todo
-     texto que solo hereda su color se veía azul en tema ámbar. Se probó:
-     el h2 de Preferencias salía #0b1f35 en los dos temas. */
+  /* Y el color y el fondo, por lo mismo: `body { color: var(--bv-texto) }`
+     ya quedó resuelto en el body con el valor oficial, así que todo texto
+     que solo HEREDA su color se veía del tema anterior. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+/* --- Pizarra y turquesa -------------------------------------------- */
+[data-tema="pizarra"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:     #fcfefe;   /* 1× */
+  --c-fbfbfe:     #f9fcfc;   /* 1× */
+  --c-fafbfd:     #f9fcfc;   /* 35× */
+  --c-f7fcfd:     #f8fcfc;   /* 2× */
+  --c-f7f9fc:     #f6fafa;   /* 16× */
+  --c-f4f7fb:     #f3f8f8;   /* 4× */
+  --c-f4f6f9:     #f3f7f7;   /* 3× */
+  --c-f2f5f9:     #f1f6f6;   /* 1× */
+  --c-f1f5fa:     #f0f6f6;   /* 3× */
+  --c-f1f4f8:     #f0f5f5;   /* 1× */
+  --c-f1f3f6:     #f0f4f4;   /* 1× */
+  --c-eef3f9:     #edf4f4;   /* 1× */
+  --c-f2f1fc:     #eaf5f5;   /* 1× */
+  --c-eaf4f6:     #ebf4f4;   /* 1× */
+  --c-eef1f5:     #eef3f3;   /* 6× ← tuyo */
+  --c-edf1f6:     #ecf2f2;   /* 18× */
+  --c-eaf0f7:     #e8f1f1;   /* 1× */
+  --c-edeff4:     #ebf0f0;   /* 1× */
+  --c-e7ecf3:     #e5eeee;   /* 2× */
+  --c-e7ecf2:     #e6eded;   /* 1× */
+  --c-e4e9ef:     #e3eaea;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:     #d9ebeb;   /* 1× */
+  --c-dbe4f0:     #d8e7e7;   /* 2× */
+  --c-d6e4f4:     #d2e7e7;   /* 2× */
+  --c-dce2e9:     #dae3e3;   /* 1× */
+  --c-d9e2ec:     #d7e4e4;   /* 1× */
+  --c-c9e4e8:     #cce4e4;   /* 1× */
+  --c-d5dce5:     #d3dede;   /* 6× ← tuyo */
+  --c-c9dcf0:     #c4e0e0;   /* 1× */
+  --c-c6d3e2:     #c2d6d6;   /* 1× */
+  --c-c6d0dc:     #c3d2d3;   /* 10× */
+  --c-c3cedb:     #c0d1d1;   /* 1× */
+  --c-9fd3d9:     #a7d2d3;   /* 3× */
+  --c-bcc7d4:     #b9caca;   /* 1× */
+  --c-b9c4d2:     #b6c7c7;   /* 4× */
+  --c-a9c2de:     #a3c7c9;   /* 3× */
+  --c-b4c0ce:     #b1c3c3;   /* 7× */
+  --c-8fc7cf:     #8fc8c5;   /* 1× */
+  --c-9fbede:     #90c7c3;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:     #a6b9ba;   /* 8× */
+  --c-8fb6e8:     #6fc4c0;   /* 1× */
+  --c-9fb4cc:     #9ab8ba;   /* 1× */
+  --c-9aa9bb:     #97acae;   /* 3× */
+  --c-94a3b4:     #92a6a7;   /* 3× */
+  --c-93a3b6:     #90a6a8;   /* 24× */
+  --c-7e97b5:     #799c9f;   /* 4× */
+  --c-8494a8:     #819799;   /* 3× */
+  --c-4c93ea:     #00a7a3;   /* 1× */
+  --c-7d8ca0:     #7a8f92;   /* 1× */
+  --c-6f87a5:     #6b8c90;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:     #008c88;   /* 1× */
+  --c-1f6fd0:     #00827f;   /* 1× */
+  --c-5a7192:     #447b78;   /* 2× */
+  --c-2e6fbe:     #00807c;   /* 1× */
+  --c-5b6b7f:     #5a6e71;   /* 8× ← tuyo */
+  --c-0b7285:     #007572;   /* 1× */
+  --c-0060b0:     #006f6c;   /* 2× */
+  --c-4c3bcf:     #006a67;   /* 1× */
+  --c-0b4ea2:     #0e7490;   /* 3× ← tuyo */
+  --c-075661:     #065856;   /* 1× */
+  --c-004a8a:     #005653;   /* 2× */
+  --c-17505c:     #155250;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:     #004e4c;   /* 1× */
+  --c-2c4361:     #0e4c4a;   /* 29× */
+  --c-0a3a6e:     #004442;   /* 1× */
+  --c-0a2f55:     #003735;   /* 1× */
+  --c-04203f:     #0b2e33;   /* 6× ← tuyo */
+  --c-0b1f35:     #0b2226;   /* 2× */
+
+  /* Translúcidos */
+  --c-velo:       rgba(11,46,51,.62);
+  --c-velo-hondo: rgba(11,46,51,.90);
+  --c-raya:       rgba(0,117,114,.35);
+  --c-degrade:    rgba(144,166,168,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. Van
+     juntos a propósito: un acento claro necesita texto oscuro,
+     y separarlos es como se termina con blanco sobre amarillo. */
+  --c-marca:      #12a4a0;
+  --c-marca-txt:  #0b2e33;
+  --c-marca-vivo: #34b7b2;   /* hover */
+  --c-marca-hondo: #008784;
+  --c-marca-filo: #12a4a0;
+  --c-marca-velo: rgba(18,164,160,.18);
+  --c-oro:        #f0b429;   /* "ojo con esto" */
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque, así que hay que volver a
+     declararlos aquí. Es el mismo texto: cambia contra qué se resuelve. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo: `body { color: var(--bv-texto) }`
+     ya quedó resuelto en el body con el valor oficial, así que todo texto
+     que solo HEREDA su color se veía del tema anterior. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+/* --- Ámbar sobre blanco -------------------------------------------- */
+[data-tema="ambar"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:     #fdfdfc;   /* 1× */
+  --c-fbfbfe:     #fbfbf9;   /* 1× */
+  --c-fafbfd:     #fbfbfa;   /* 35× */
+  --c-f7fcfd:     #fbfbf8;   /* 2× */
+  --c-f7f9fc:     #f9f9f7;   /* 16× */
+  --c-f4f7fb:     #f7f7f4;   /* 4× */
+  --c-f4f6f9:     #f6f6f4;   /* 3× */
+  --c-f2f5f9:     #f5f5f2;   /* 1× */
+  --c-f1f5fa:     #f5f5f1;   /* 3× */
+  --c-f1f4f8:     #f4f4f1;   /* 1× */
+  --c-f1f3f6:     #f3f3f1;   /* 1× */
+  --c-eef3f9:     #f3f3ee;   /* 1× */
+  --c-f2f1fc:     #f3f3ec;   /* 1× */
+  --c-eaf4f6:     #f2f2ed;   /* 1× */
+  --c-eef1f5:     #f4f4f1;   /* 6× ← tuyo */
+  --c-edf1f6:     #f1f1ed;   /* 18× */
+  --c-eaf0f7:     #f0f0ea;   /* 1× */
+  --c-edeff4:     #efefec;   /* 1× */
+  --c-e7ecf3:     #ecece7;   /* 2× */
+  --c-e7ecf2:     #ecece7;   /* 1× */
+  --c-e4e9ef:     #e9e9e4;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:     #e7e7dc;   /* 1× */
+  --c-dbe4f0:     #e4e4db;   /* 2× */
+  --c-d6e4f4:     #e3e3d6;   /* 2× */
+  --c-dce2e9:     #e2e2dc;   /* 1× */
+  --c-d9e2ec:     #e1e1d9;   /* 1× */
+  --c-c9e4e8:     #dfdfd1;   /* 1× */
+  --c-d5dce5:     #dfdfd8;   /* 6× ← tuyo */
+  --c-c9dcf0:     #dadbcb;   /* 1× */
+  --c-c6d3e2:     #d0d3c8;   /* 1× */
+  --c-c6d0dc:     #cdd0c7;   /* 10× */
+  --c-c3cedb:     #cacec5;   /* 1× */
+  --c-9fd3d9:     #c0cdb6;   /* 3× */
+  --c-bcc7d4:     #c2c8bf;   /* 1× */
+  --c-b9c4d2:     #bec5bc;   /* 4× */
+  --c-a9c2de:     #b4c5b3;   /* 3× */
+  --c-b4c0ce:     #b9c1b9;   /* 7× */
+  --c-8fc7cf:     #cdb991;   /* 1× */
+  --c-9fbede:     #cbb891;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:     #acb8b0;   /* 8× */
+  --c-8fb6e8:     #ccaf74;   /* 1× */
+  --c-9fb4cc:     #a4b7ad;   /* 1× */
+  --c-9aa9bb:     #9baca7;   /* 3× */
+  --c-94a3b4:     #95a5a3;   /* 3× */
+  --c-93a3b6:     #94a6a3;   /* 24× */
+  --c-7e97b5:     #7d9b9d;   /* 4× */
+  --c-8494a8:     #839799;   /* 3× */
+  --c-4c93ea:     #b88900;   /* 1× */
+  --c-7d8ca0:     #7c8e93;   /* 1× */
+  --c-6f87a5:     #708a94;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:     #9a7200;   /* 1× */
+  --c-1f6fd0:     #8f6b00;   /* 1× */
+  --c-5a7192:     #806d47;   /* 2× */
+  --c-2e6fbe:     #8d6800;   /* 1× */
+  --c-5b6b7f:     #6b7280;   /* 8× ← tuyo */
+  --c-0b7285:     #7d6122;   /* 1× */
+  --c-0060b0:     #7a5a00;   /* 2× */
+  --c-4c3bcf:     #755600;   /* 1× */
+  --c-0b4ea2:     #3c4451;   /* 3× ← tuyo */
+  --c-075661:     #5e4919;   /* 1× */
+  --c-004a8a:     #5f4500;   /* 2× */
+  --c-17505c:     #57451e;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:     #563f00;   /* 1× */
+  --c-2c4361:     #503f19;   /* 29× */
+  --c-0a3a6e:     #4c3700;   /* 1× */
+  --c-0a2f55:     #3d2b00;   /* 1× */
+  --c-04203f:     #23262c;   /* 6× ← tuyo */
+  --c-0b1f35:     #1c1e23;   /* 2× */
+
+  /* Translúcidos */
+  --c-velo:       rgba(35,38,44,.62);
+  --c-velo-hondo: rgba(35,38,44,.90);
+  --c-raya:       rgba(125,97,34,.35);
+  --c-degrade:    rgba(148,166,163,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. Van
+     juntos a propósito: un acento claro necesita texto oscuro,
+     y separarlos es como se termina con blanco sobre amarillo. */
+  --c-marca:      #ffc000;
+  --c-marca-txt:  #23262c;
+  --c-marca-vivo: #ffd98a;   /* hover */
+  --c-marca-hondo: #dda600;
+  --c-marca-filo: #ffc000;
+  --c-marca-velo: rgba(255,192,0,.16);
+  --c-oro:        #8c6d00;   /* "ojo con esto" */
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque, así que hay que volver a
+     declararlos aquí. Es el mismo texto: cambia contra qué se resuelve. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo: `body { color: var(--bv-texto) }`
+     ya quedó resuelto en el body con el valor oficial, así que todo texto
+     que solo HEREDA su color se veía del tema anterior. */
   color: var(--bv-texto);
   background: var(--bv-tinta);
 }
 
 /* El fondo del body, por el rebote del celular: cuando se arrastra más
    allá del final, asoma el body y se vería la franja del otro tema. */
-body:has(.sh[data-tema="ambar"]) { background: #f9f6f2 }
+body:has(.sh[data-tema="tinta"])   { background: #f4f7fb }
+body:has(.sh[data-tema="pizarra"]) { background: #f2f6f6 }
+body:has(.sh[data-tema="ambar"])   { background: #f7f7f3 }
 
 
 /* ---------------------------------------------------------------------
@@ -374,7 +564,7 @@ body {
   box-shadow:0 1px 2px rgba(15,31,56,.05),0 14px 34px -24px rgba(15,31,56,.55)}
 .banda .titulo{position:relative;flex:1;min-width:300px;padding-left:16px}
 .banda .titulo::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:3px;
-  background:linear-gradient(180deg,#e2313c 0%,#e2313c 34%,var(--c-degrade) 100%)}
+  background:linear-gradient(180deg,var(--c-marca-filo) 0%,var(--c-marca-filo) 34%,var(--c-degrade) 100%)}
 .banda .eyebrow{font-size:10px;font-weight:600;letter-spacing:.20em;text-transform:uppercase;
   color:var(--bv-texto-2);margin:0 0 6px}
 .banda h1{font-size:24px;font-weight:700;letter-spacing:-.022em;line-height:1.1;margin:0}
@@ -465,3 +655,84 @@ body {
 }
 .tabla tbody tr:last-child td { border-bottom: 0 }
 .tabla td { vertical-align: middle }
+
+/* =====================================================================
+   EL COLOR DE CADA MÓDULO EN LA PORTADA
+   =====================================================================
+   Las tarjetas de la portada llevan el color de su módulo. En el tema
+   oficial es el del registro; en los demás se recalcula DENTRO de la
+   familia del tema, para que la portada se vea de una pieza sin que los
+   módulos se confundan entre ellos.
+
+   Se reparten en una banda de ±40° alrededor del acento del tema, y el
+   lightness se reparte al REVÉS que el tono: así dos módulos vecinos
+   nunca quedan iguales de tono y de claridad a la vez. En los temas
+   cálidos el lightness sube, porque amarillo oscuro es barro.
+
+   Cada color va con la flecha que se lee encima —la de más contraste de
+   las dos—, y todas pasan 3:1, que es el mínimo para un dibujo.
+
+   Un módulo nuevo que nadie haya pintado aquí se queda con el color de
+   su registro: se ve fuera de tono, no invisible. La portada usa
+   var(--c-mod-<id>, <el del registro>).
+   --------------------------------------------------------------------- */
+
+[data-tema="tinta"] {
+  --c-mod-quiebra: #ffad8d;      --c-mod-quiebra-txt: #04203f;
+  --c-mod-sider: #e0a054;        --c-mod-sider-txt: #04203f;
+  --c-mod-admin: #b59900;        --c-mod-admin-txt: #04203f;
+  --c-mod-inventario: #799137;   --c-mod-inventario-txt: #04203f;
+}
+[data-tema="pizarra"] {
+  --c-mod-quiebra: #00bd60;      --c-mod-quiebra-txt: #0b2e33;
+  --c-mod-sider: #00a18b;        --c-mod-sider-txt: #0b2e33;
+  --c-mod-admin: #008691;        --c-mod-admin-txt: #fff;
+  --c-mod-inventario: #006c93;   --c-mod-inventario-txt: #fff;
+}
+[data-tema="ambar"] {
+  --c-mod-quiebra: #ffad89;      --c-mod-quiebra-txt: #23262c;
+  --c-mod-sider: #dea152;        --c-mod-sider-txt: #23262c;
+  --c-mod-admin: #b29a00;        --c-mod-admin-txt: #23262c;
+  --c-mod-inventario: #76923a;   --c-mod-inventario-txt: #23262c;
+}
+
+/* =====================================================================
+   LA TRAMA DE LA BARRA, POR TEMA
+   =====================================================================
+   La barra oscura es lo primero que se ve al entrar, así que cada tema
+   la viste distinto. Se declaran aquí y no en shell.css porque son
+   decisiones DEL TEMA, no del cascarón: shell.css solo las dibuja.
+   --------------------------------------------------------------------- */
+
+/* Tinta y ámbar — el mismo azul marino, con rayas verticales que se
+   desvanecen hacia arriba y el filo en ámbar. */
+[data-tema="tinta"] {
+  --sh-trama: repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 9px);
+  --sh-trama-op: .55;
+  --sh-trama-tapa: linear-gradient(180deg, transparent 0%, #000 100%);
+  --sh-barra-fondo:
+    radial-gradient(600px 200px at 12% 130%, rgba(240,180,41,.20) 0%, transparent 72%),
+    radial-gradient(700px 240px at 90% -30%, rgba(11,78,162,.45) 0%, transparent 72%),
+    var(--c-04203f);
+}
+
+/* Pizarra y turquesa — los dos resplandores y el filo en degradado, tal
+   como lo mandaste. */
+[data-tema="pizarra"] {
+  --sh-trama: repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 9px);
+  --sh-trama-op: .5;
+  --sh-trama-tapa: linear-gradient(180deg, transparent 0%, #000 100%);
+  --sh-barra-fondo:
+    radial-gradient(560px 190px at 14% 130%, rgba(18,164,160,.55) 0%, transparent 72%),
+    radial-gradient(680px 230px at 88% -30%, rgba(14,116,144,.55) 0%, transparent 72%),
+    #051417;
+  --sh-filo: linear-gradient(90deg,
+    rgba(18,164,160,0) 0%, #12A4A0 30%, #0E7490 70%, rgba(14,116,144,0) 100%);
+}
+
+/* Ámbar sobre blanco — lisa. El grafito no necesita trama: el ámbar del
+   filo ya carga toda la fuerza, y una trama encima lo ensucia. */
+[data-tema="ambar"] {
+  --sh-trama: none;
+  --sh-trama-op: 0;
+}

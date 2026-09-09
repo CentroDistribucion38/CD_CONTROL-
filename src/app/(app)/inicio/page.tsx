@@ -39,9 +39,18 @@ export default async function PortadaPage() {
               className="sh-modulo"
               style={
                 {
-                  "--acento": m.acento,
-                  // El oro es claro: una flecha blanca encima no se lee.
-                  "--flecha": esClaro(m.acento) ? "#04203F" : "#fff",
+                  /* El color del módulo, con el del tema por delante. El
+                     registro queda como RESPALDO: un módulo nuevo que
+                     nadie haya pintado en globals.css se ve fuera de
+                     tono, no invisible. */
+                  "--acento": `var(--c-mod-${m.id}, ${m.acento})`,
+                  /* La flecha va emparejada con el color, no calculada
+                     aquí: desde que el color lo pone el tema, este código
+                     ya no sabe cuál es y adivinaría. El oro es claro y
+                     una flecha blanca encima no se lee. */
+                  "--flecha": `var(--c-mod-${m.id}-txt, ${
+                    esClaro(m.acento) ? "#04203F" : "#fff"
+                  })`,
                 } as React.CSSProperties
               }
             >

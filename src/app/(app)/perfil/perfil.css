@@ -55,7 +55,7 @@
   width: 44px; height: 44px;
   border-radius: 50%;
   background: var(--sh-rojo);
-  color: #fff;
+  color: var(--c-marca-txt);
   flex: none;
   display: grid;
   place-items: center;
@@ -198,12 +198,12 @@
   border-radius: 2px;
   cursor: pointer;
   background: var(--sh-rojo);
-  color: #fff;
+  color: var(--c-marca-txt);
   font-family: var(--sh-titulo);
   font-weight: 800;
   font-size: 14.5px;
 }
-.pf-btn:hover { background: #FF1C38 }
+.pf-btn:hover { background: var(--c-marca-vivo) }
 .pf-btn:disabled { background: var(--c-94a3b4); cursor: not-allowed }
 .pf-btn:focus-visible { outline: 3px solid var(--sh-azul); outline-offset: 2px }
 .pf-btn.plano {
@@ -395,13 +395,25 @@
   border: 1px solid rgba(0,0,0,.08);
 }
 .pf-tema .barra {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  height: 22px;
+  height: 24px;
   padding: 0 7px;
+  background-size: cover;
 }
-.pf-tema .barra i { width: 9px; height: 9px; border-radius: 50%; display: block }
+.pf-tema .barra .trama {
+  position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit;
+}
+.pf-tema .barra i {
+  position: relative;
+  width: 9px; height: 9px; border-radius: 50%; display: block;
+}
+/* El filo de abajo: en la aplicación de verdad son 3px y es lo que más
+   dice de qué tema es. Aquí van 2, en proporción. */
+.pf-tema .barra .filo { position: absolute; left: 0; right: 0; bottom: 0; height: 2px }
 .pf-tema .cuerpo {
   display: flex;
   flex-direction: column;
