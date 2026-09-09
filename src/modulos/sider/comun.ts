@@ -94,6 +94,10 @@ export type Viaje = {
   /** Vino de un archivo, no de una certificación: no tiene evidencia. */
   importado: boolean;
   observacion: string | null;
+  /** Solo cuando estado = 'anulado'. Quién, cuándo y por qué. */
+  motivo_anulacion: string | null;
+  anulado_en: string | null;
+  anulado_por: string | null;
   creado_por: string | null;
   creado_en: string;
   fecha: string;

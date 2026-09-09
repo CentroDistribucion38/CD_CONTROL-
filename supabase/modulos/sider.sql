@@ -362,7 +362,19 @@ select
   coalesce(cl.fotos, 0)::int                    as fotos_llegada,
   -- Cuánto lleva en el camino: la pregunta del tablero de tránsito.
   case when cs.hecha_en is not null
-       then coalesce(cl.hecha_en, now()) - cs.hecha_en end        as en_camino
+       then coalesce(cl.hecha_en, now()) - cs.hecha_en end        as en_camino,
+
+  -- El rastro de la anulación: quién, cuándo y por qué. Sin esto, un
+  -- viaje anulado no le puede responder a nadie en tres meses.
+  -- Van AL FINAL de la lista y no junto a v.observacion, que es donde
+  -- se leerían mejor, porque «create or replace view» solo admite
+  -- agregar columnas al final: metidas en el medio habría que botar la
+  -- vista, y para botarla hay que botar antes la función de
+  -- seguimiento que la usa. Una migración que rehace media base para
+  -- mover una columna de sitio es una migración que puede salir mal.
+  v.motivo_anulacion,
+  v.anulado_en,
+  v.anulado_por
 from public.sider_viajes v
 -- LEFT y no INNER aunque la llave ajena garantice que siempre hay
 -- pareja: con INNER, Postgres tiene que suponer que el join puede botar
@@ -467,7 +479,20 @@ begin
      nullif(btrim(coalesce(p_nota, '')), ''), auth.uid())
   returning id into v_cert;
 
-  update public.sider_viajes set estado = 'recibido' where id = p_viaje_id;
+  /* La observación de la llegada sube también al VIAJE, que es lo que
+     lee la Fuente principal. Estaba solo en la certificación, y ahí no
+     la ve nadie: quien escribe "llegó con dos estibas menos" lo escribe
+     para que aparezca al lado de la fila, no enterrado en el detalle de
+     la evidencia.
+     No se agrega un segundo campo "observación" en la pantalla: dos
+     campos con el mismo nombre y distinto destino son una trampa. Es el
+     mismo texto, en los dos sitios.
+     Solo pisa lo que hubiera si viene con algo: certificar sin nota no
+     puede borrar una observación que el administrador ya corrigió. */
+  update public.sider_viajes
+     set estado = 'recibido',
+         observacion = coalesce(nullif(btrim(coalesce(p_nota, '')), ''), observacion)
+   where id = p_viaje_id;
   return v_cert;
 end $$;
 

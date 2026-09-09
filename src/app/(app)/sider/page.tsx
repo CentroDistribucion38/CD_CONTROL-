@@ -1,42 +1,30 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
-import { viajesSider, nombresDe, MESES_LARGO } from "@/modulos/sider/datos";
+import { viajesSider, maestroSider, nombresDe } from "@/modulos/sider/datos";
 import "./sider.css";
-import { OjoEvidencia } from "./Evidencia";
 import { BotonExportar } from "./Exportar";
+import { Viajes } from "./Viajes";
 
 export const dynamic = "force-dynamic";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 
-const hora = (s: string | null) =>
-  s ? new Date(s).toLocaleString("es-CO", {
-        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-      }) : "—";
-
-/** "3 h 40 min": el intervalo de Postgres llega como texto. */
-function enCamino(iv: string | null): string {
-  if (!iv) return "—";
-  const m = iv.match(/(?:(\d+) days? )?(\d+):(\d+):/);
-  if (!m) return iv;
-  const d = Number(m[1] ?? 0), h = Number(m[2]), mi = Number(m[3]);
-  if (d > 0) return `${d} d ${h} h`;
-  if (h > 0) return `${h} h ${mi} min`;
-  return `${mi} min`;
-}
-
 export default async function FuentePrincipalPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const [{ data: perfil }, { viajes, falta }] = await Promise.all([
-    supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
+  /* El maestro se trae para los desplegables de la corrección: quien
+     corrige un viaje escoge de la MISMA lista de la que escogió quien
+     lo certificó, no escribe el nombre a mano. */
+  const [{ viajes, falta }, maestro, permisos] = await Promise.all([
     viajesSider(),
+    maestroSider(),
+    misPermisos(),
   ]);
   /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
      global: un rol puede certificar y no tocar el maestro. */
-  const esEditor = (await misPermisos()).puedeEditar("/sider");
+  const esEditor = permisos.puedeEditar("/sider");
   const nombres = await nombresDe(viajes.map((v) => v.creado_por));
 
   if (falta) {
@@ -55,10 +43,17 @@ export default async function FuentePrincipalPage() {
     );
   }
 
-  const enTransito = viajes.filter((v) => v.estado === "en_transito");
-  const totalHl = viajes.reduce((s, v) => s + Number(v.hl ?? 0), 0);
-  const totalSider = viajes.reduce((s, v) => s + Number(v.sider ?? 0), 0);
-  const sinFactores = viajes.filter((v) => v.faltan_factores).length;
+  /* Los KPI cuentan los viajes VIVOS. Un viaje anulado no movió envase,
+     y sumarlo diría que sí: es el error que la anulación existe para
+     evitar. El seguimiento del mes ya los descartaba en la base; aquí
+     no, y ese desacuerdo entre dos pantallas del mismo módulo es peor
+     que cualquiera de los dos números por separado. */
+  const vivos = viajes.filter((v) => v.estado !== "anulado");
+  const enTransito = vivos.filter((v) => v.estado === "en_transito");
+  const totalHl = vivos.reduce((s, v) => s + Number(v.hl ?? 0), 0);
+  const totalSider = vivos.reduce((s, v) => s + Number(v.sider ?? 0), 0);
+  const sinFactores = vivos.filter((v) => v.faltan_factores).length;
+  const anulados = viajes.length - vivos.length;
 
   return (
     <div className="sd">
@@ -76,7 +71,7 @@ export default async function FuentePrincipalPage() {
         <div className="kpi">
           <div className="corte" />
           <div className="rot">VEHÍCULOS EN TRÁNSITO</div>
-          <div className="num">{enTransito.length}<span className="u">de {viajes.length}</span></div>
+          <div className="num">{enTransito.length}<span className="u">de {vivos.length}</span></div>
           <div className="pie">
             <span>{nf2.format(totalSider)} sider certificados</span>
             <Link href="/sider/transito" className="chip">Ver el tránsito</Link>
@@ -87,8 +82,10 @@ export default async function FuentePrincipalPage() {
       <section className="cifras">
         <div className="cifra">
           <div className="rot">VIAJES</div>
-          <div className="n">{nf.format(viajes.length)}</div>
-          <div className="u">certificados en el sistema</div>
+          <div className="n">{nf.format(vivos.length)}</div>
+          <div className="u">
+            {anulados ? `certificados · ${anulados} anulado${anulados === 1 ? "" : "s"} aparte` : "certificados en el sistema"}
+          </div>
         </div>
         <div className="cifra">
           <div className="rot">HECTOLITROS</div>
@@ -97,7 +94,7 @@ export default async function FuentePrincipalPage() {
         </div>
         <div className="cifra">
           <div className="rot">PLACAS</div>
-          <div className="n">{new Set(viajes.map((v) => v.placa)).size}</div>
+          <div className="n">{new Set(vivos.map((v) => v.placa)).size}</div>
           <div className="u">vehículos distintos</div>
         </div>
         <div className="cifra">
@@ -123,83 +120,14 @@ export default async function FuentePrincipalPage() {
           </div>
           <BotonExportar />
         </div>
-        <div className="marco">
-          <table>
-            <thead>
-              <tr>
-                <th>Placa</th>
-                <th>CD origen</th>
-                <th>Material</th>
-                <th className="num">Estibas</th>
-                <th className="num">Sider</th>
-                <th className="num">Cajas</th>
-                <th className="num">Unidades</th>
-                <th className="num">HL</th>
-                <th>Salida</th>
-                <th>Llegada</th>
-                <th>Estado</th>
-                <th>Quién</th>
-                <th className="ojo-col">Evidencia</th>
-              </tr>
-            </thead>
-            <tbody>
-              {viajes.map((v) => (
-                <tr key={v.id}>
-                  <td className="placa">{v.placa}</td>
-                  <td>
-                    <div>{v.cd_origen}</div>
-                    <div className="cod">
-                      {MESES_LARGO[v.num_mes - 1]} {v.anio} · sem {v.semana}
-                    </div>
-                  </td>
-                  <td>
-                    <div>{v.descripcion}</div>
-                    <div className="cod">{v.sku}{v.tipo_envase ? ` · ${v.tipo_envase}` : ""}</div>
-                  </td>
-                  <td className="num">{nf2.format(v.estibas)}</td>
-                  <td className="num">{nf2.format(v.sider)}</td>
-                  <td className="num">{v.cajas == null ? "—" : nf.format(v.cajas)}</td>
-                  <td className="num">{v.unidades == null ? "—" : nf.format(v.unidades)}</td>
-                  <td className="num">{v.hl == null ? "—" : nf2.format(v.hl)}</td>
-                  {/* Un viaje IMPORTADO no dice "0/3 fotos": nunca las tuvo
-                      y nunca las va a tener, y un rojo ahí sería una
-                      alarma que nadie puede apagar. Dice de dónde vino. */}
-                  <td>
-                    <div>{v.importado ? "—" : hora(v.salida_en)}</div>
-                    <div className="cod">{v.importado ? "sin evidencia" : `${v.fotos_salida}/3 fotos`}</div>
-                  </td>
-                  <td>
-                    <div>{v.importado ? "—" : hora(v.llegada_en)}</div>
-                    <div className="cod">
-                      {v.importado ? "sin evidencia"
-                        : v.estado === "en_transito" ? enCamino(v.en_camino)
-                        : `${v.fotos_llegada}/3 fotos`}
-                    </div>
-                  </td>
-                  <td>
-                    <span className={"sello " + (v.faltan_factores ? "falta" : v.importado ? "importado" : v.estado === "recibido" ? "recibido" : v.estado === "anulado" ? "anulado" : "transito")}>
-                      <i />
-                      {v.faltan_factores ? "sin factores"
-                        : v.importado ? "importado"
-                        : v.estado === "recibido" ? "recibido"
-                        : v.estado === "anulado" ? "anulado" : "en tránsito"}
-                    </span>
-                  </td>
-                  <td>{v.creado_por ? nombres[v.creado_por] ?? "—" : "—"}</td>
-                  <td className="ojo-col"><OjoEvidencia viaje={v} nombres={nombres} /></td>
-                </tr>
-              ))}
-              {!viajes.length && (
-                <tr>
-                  <td className="vacio" colSpan={13}>
-                    Todavía no hay viajes certificados.
-                    {esEditor && <> <Link href="/sider/certificar">Certifica el primero</Link>.</>}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Viajes
+          viajes={viajes}
+          nombres={nombres}
+          origenes={maestro.origenes.filter((o) => o.activo).map((o) => ({ planta: o.planta, cd_origen: o.cd_origen }))}
+          skus={maestro.skus.filter((k) => k.activo).map((k) => ({ sku: k.sku, descripcion: k.descripcion }))}
+          manda={permisos.manda}
+          esEditor={esEditor}
+        />
       </section>
 
       <p className="nota-pie">

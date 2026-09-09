@@ -113,7 +113,12 @@
 
 /* ====================== Tabla ====================== */
 .sd .marco { overflow-x: auto; border-top: 1px solid var(--sd-linea) }
+/* 1080 era el ancho con trece columnas. Con la de acciones son
+   catorce, y con el mismo mínimo todas se estrujaban: el material
+   partía en tres renglones y la observación en palabras de una letra.
+   La caja rueda en horizontal, que es para lo que está. */
 .sd table { width: 100%; border-collapse: collapse; min-width: 1080px }
+.sd .marco:has(.vj-acc-col) table { min-width: 1320px }
 .sd thead th {
   padding: 10px 16px; font-size: 11px; font-weight: 600; letter-spacing: .12em;
   color: var(--c-93a3b6); text-align: left; text-transform: uppercase; white-space: nowrap;
@@ -610,22 +615,84 @@
 }
 .sd .tr-busca span { font-size: 12.5px; color: var(--sd-gris); white-space: nowrap }
 
-.sd .tr-rejilla {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px;
-  align-content: start;
-  /* 416 es lo que miden juntas la cabeza, las alertas, el buscador y los
-     bordes de la app en el PC —medido, no estimado—; se descuenta 430 para
-     dejar un dedo de aire. En el celular el bloque de KPI se apila debajo
-     del título y el mismo armazón pasa a medir ~520, así que allá el
-     descuento es otro: ver el bloque de abajo. Con un solo número, o
-     sobraba una franja blanca en el PC o se salía en el celular. */
-  max-height: max(200px, calc(100dvh - 430px));
+/* LA CAJA QUE RUEDA es esta, no cada rejilla: los vehículos van
+   agrupados por CD origen y si rodara cada grupo por su lado saldrían
+   tres barras en la misma pantalla y ninguna diría cuánto falta.
+   El número del descuento está MEDIDO en el arnés, no estimado: es lo
+   que ocupan juntas la cabeza, las alertas, la fila de filtros y los
+   bordes de la app. En el celular el bloque de KPI se apila debajo del
+   título y el armazón crece, así que allá el descuento es otro. */
+.sd .tr-cuerpo { display: flex; flex-direction: column; gap: 14px; min-height: 0 }
+.sd .tr-grupos {
+  max-height: max(200px, calc(100dvh - 470px));
   overflow-y: auto;
   padding-bottom: 4px;
+  display: flex; flex-direction: column; gap: 14px;
   /* El velo avisa que la lista sigue. Sin él, la tarjeta cortada abajo
      parece un error de dibujo. */
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+}
+.sd .tr-rejilla {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px;
+  align-content: start;
+}
+
+/* ---------- El encabezado de cada CD origen ----------
+   Se queda pegado arriba al rodar: con veinte tarjetas, saber de qué
+   centro es la que se está mirando importa más que el pixel que ocupa. */
+.sd .tr-grupo-cab {
+  position: sticky; top: 0; z-index: 3;
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px;
+  margin: 0 0 9px; padding: 6px 2px 7px;
+  /* Opaco y el MISMO de la página: es lo que pasa por debajo al rodar.
+     Con un fondo distinto se vería una franja de otro color, y
+     translúcido dejaría leer las tarjetas a través del título.
+     --bv-tinta es el fondo de la app y se templa con el tema, así que
+     esto sigue bien en los siete. */
+  background: var(--bv-tinta);
+  border-bottom: 2px solid var(--sd-acento);
+}
+.sd .tr-grupo-cab b {
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 15px; letter-spacing: -.01em;
+}
+.sd .tr-grupo-cab span { font-size: 12.5px; color: var(--sd-gris) }
+.sd .tr-grupo-cab .tr-tarde {
+  font-style: normal; font-size: 11.5px; font-weight: 700; color: #8A5A00;
+  background: #FFF3D6; border-radius: 99px; padding: 2px 9px; margin-left: auto;
+}
+
+/* ---------- La fila de filtros ---------- */
+.sd .tr-filtros {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px;
+}
+.sd .tr-filtros label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.sd .tr-filtros label > span {
+  font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--c-5b6b7f);
+}
+.sd .tr-filtros input,
+.sd .tr-filtros select {
+  height: 42px; padding: 0 12px; min-width: 0;
+  font: 500 14px var(--sd-texto); color: var(--sd-tinta);
+  background: var(--sd-papel); border: 1.5px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .tr-filtros select { cursor: pointer }
+.sd .tr-filtros input:focus,
+.sd .tr-filtros select:focus {
+  outline: none; border-color: var(--sd-acento); box-shadow: 0 0 0 3px rgba(11,114,133,.16);
+}
+.sd .tr-placa { flex: 1 1 180px; max-width: 260px }
+.sd .tr-filtros .btn.plano { height: 42px }
+.sd .tr-cuenta { font-size: 12.5px; color: var(--sd-gris); white-space: nowrap; padding-bottom: 12px }
+/* El botón de plegar solo existe en pantalla chica: en escritorio los
+   filtros están siempre a la vista y un botón para abrirlos sería un
+   clic de más para algo que ya se ve. */
+.sd .tr-abrir { display: none }
+
+.sd .tr-enlace {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit;
+  color: var(--sd-acento); text-decoration: underline; text-underline-offset: 2px;
 }
 .sd .tr-vh {
   display: flex; flex-direction: column; gap: 9px;
@@ -726,7 +793,54 @@
   .sd .kpi .pie { margin-top: 8px; font-size: 12.5px }
   .sd .tr-alertas { padding: 10px 14px; gap: 6px }
   .sd .tr-alertas p { font-size: 12px }
-  .sd .tr-rejilla { grid-template-columns: 1fr; gap: 9px; max-height: max(200px, calc(100dvh - 530px)) }
+  /* En el celular el que rueda sigue siendo .tr-grupos; la rejilla pasa
+     a una columna. El descuento es mayor que en el PC porque el bloque
+     de KPI se apila debajo del título y los filtros se parten en dos
+     renglones. Medido en el arnés a 360x640. */
+  /* LOS FILTROS EN DOS COLUMNAS. Apilados a lo ancho medían 278px de
+     los 640 de un celular, y con la cabeza y las alertas no quedaba
+     sitio ni para una tarjeta: la caja se salía de la pantalla. En dos
+     columnas miden ~200. Medido, no estimado.
+     La placa ocupa las dos: es el filtro que más se usa y el único
+     donde se escribe. */
+  .sd .tr-abrir {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%; min-height: 42px; padding: 0 14px;
+    background: var(--sd-papel); border: 1.5px solid var(--sd-linea); border-radius: 3px;
+    font: 700 13.5px var(--sd-titulo); color: var(--sd-tinta); cursor: pointer;
+  }
+  .sd .tr-abrir svg {
+    width: 18px; height: 18px; flex: none; fill: none;
+    stroke: var(--sd-gris); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+    transition: transform .15s;
+  }
+  .sd .tr-abrir[aria-expanded="true"] svg { transform: rotate(180deg) }
+  .sd .tr-filtros.plegado { display: none }
+  .sd .tr-filtros {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px;
+    align-items: end;
+  }
+  .sd .tr-filtros > label:first-child { grid-column: 1 / -1 }
+  .sd .tr-placa { max-width: none }
+  .sd .tr-filtros .btn.plano { justify-self: start }
+  /* 150 y no 200: en 360x640 no hay 200px libres despues de la cabeza,
+     las alertas y los filtros. Con 150 entra una tarjeta y la caja
+     rueda por dentro, que es lo correcto; con 200 se salia la caja de
+     la pantalla, que no lo es. */
+  /* Rueda el CUERPO, no la lista: así los filtros abiertos se van
+     desplazando con el dedo en vez de robarle sitio a las tarjetas.
+     El 300 sale de medir: cabeza 112 + alertas 127 + los rellenos de
+     la app. Con el suelo de 150 entra siempre al menos una tarjeta. */
+  .sd .tr-cuerpo {
+    max-height: max(150px, calc(100dvh - 300px));
+    overflow-y: auto; padding-bottom: 4px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+  }
+  .sd .tr-grupos { max-height: none; overflow: visible; mask-image: none; -webkit-mask-image: none }
+  .sd .tr-rejilla { grid-template-columns: 1fr; gap: 9px }
+  .sd .tr-grupo-cab { margin-bottom: 7px }
+  .sd .tr-grupo-cab b { font-size: 14px }
   .sd .tr-vh { padding: 10px 12px 11px; gap: 6px }
   .sd .tr-vh .placa { font-size: 20px }
   .sd .tr-cifras > div { padding: 5px 7px }
@@ -1768,3 +1882,206 @@
   .sd .sg-der .accion { flex: 1 1 0; padding: 0 10px; font-size: 12px }
   .sd .sg-der .kpi { flex: 1 1 auto; min-width: 0 }
 }
+
+/* =====================================================================
+   FUENTE PRINCIPAL · FILTROS Y CORRECCIÓN
+   =====================================================================
+   Todas las clases van con prefijo vj-. globals.css tiene clases sueltas
+   y sin dueño —.pie, .vacio, .campo, .panel— que se cuelan en cualquier
+   pantalla; ya nos costó dos veces.
+   ===================================================================== */
+
+/* ---------- La fila de filtros ---------- */
+.sd .vj-filtros {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px;
+  padding: 14px 26px 0;
+}
+.sd .vj-filtros label { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.sd .vj-filtros label > span {
+  font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  /* --c-93a3b6 da 2,5:1 y a 11px no se lee. --c-5b6b7f da 5,3:1 en el
+     tema oficial y 4,9 en el peor de los siete. Medido. */
+  color: var(--c-5b6b7f);
+}
+.sd .vj-filtros input,
+.sd .vj-filtros select {
+  height: 38px; padding: 0 11px; min-width: 0;
+  font: 500 13.5px var(--sd-texto); color: var(--sd-tinta);
+  background: var(--c-f7f9fc); border: 1px solid var(--sd-linea); border-radius: 2px;
+}
+.sd .vj-filtros select { cursor: pointer; padding-right: 26px }
+.sd .vj-filtros input:focus,
+.sd .vj-filtros select:focus {
+  outline: none; background: #fff;
+  border-color: var(--sd-acento); box-shadow: 0 0 0 3px var(--c-raya);
+}
+/* La placa es el filtro que más se usa —se busca un camión concreto— y
+   por eso es el que lleva ancho propio y va primero. */
+.sd .vj-buscar { flex: 1 1 220px; max-width: 300px }
+.sd .vj-filtros .btn.plano { height: 38px; align-self: flex-end }
+
+.sd .vj-cuenta {
+  margin: 0; padding: 10px 26px 12px;
+  font-size: 12.5px; color: var(--sd-gris);
+}
+.sd .vj-cuenta b { color: var(--sd-tinta); font-weight: 700 }
+.sd .vj-anul { color: var(--c-5b6b7f) }
+
+.sd .vj-mal {
+  margin: 0 26px 12px; padding: 11px 14px; border-radius: 2px;
+  background: #FDECEB; color: #A4271C; font-size: 13px; line-height: 1.45;
+  border-left: 3px solid #A4271C;
+}
+.sd .vj-enlace {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: var(--sd-acento); text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------- Una fila anulada ----------
+   Se ve APAGADA, no tachada: el tachado sobre una tabla de cifras se
+   confunde con las líneas de la propia tabla. */
+.sd tbody tr.vj-nulo td { background: var(--c-fafbfd); color: var(--c-5b6b7f) }
+.sd tbody tr.vj-nulo .placa { color: var(--c-5b6b7f) }
+/* El motivo hereda .cod, que va en --c-93a3b6: sobre la fila apagada de
+   un anulado eso cae a 2,4:1. Aquí se pisa: el motivo de una anulación
+   es justo lo que hay que poder leer. */
+/* .cod.vj-motivo y no .vj-motivo a secas: .sd td .cod pesa (0,2,1) y
+   .sd .vj-motivo (0,2,0), así que perdía. Con las dos clases pesa
+   (0,3,1) y gana siempre, sin depender del orden del archivo —que es
+   justo la trampa que ya me mordió con .sh y con .acc—. */
+.sd td .cod.vj-motivo { margin-top: 3px; max-width: 22ch; color: var(--c-5b6b7f) }
+
+/* La observación, pegada a la llegada, que es cuando se escribe.
+   El min-width es para que la columna de Llegada no se estruje: sin él,
+   una nota larga la partía en palabras sueltas de un carácter y la fila
+   crecía cinco renglones. */
+.sd .vj-obs {
+  margin-top: 4px; max-width: 30ch; min-width: 15ch;
+  font-size: 11.5px; line-height: 1.35; color: var(--c-2c4361);
+  padding-left: 7px; border-left: 2px solid var(--sd-oro);
+}
+
+/* ---------- Los dos botones de cada fila ---------- */
+/* La columna de acciones se queda PEGADA a la derecha. Con catorce
+   columnas la tabla mide más que la pantalla y "Corregir" quedaba
+   siempre fuera: había que rodar a la derecha en cada fila para llegar
+   a un botón que se usa en todas. Pegada, está siempre a mano y la
+   tabla sigue rodando por debajo.
+   El fondo tiene que ser OPACO —es lo que pasa por debajo— y la línea
+   de la izquierda es la que dice dónde termina la tabla y empieza la
+   columna fija; sin ella parece que los botones flotan sobre los
+   números. */
+.sd .vj-acc-col {
+  white-space: nowrap; text-align: right;
+  position: sticky; right: 0; z-index: 1;
+  background: var(--sd-papel);
+  border-left: 1px solid var(--sd-linea);
+}
+.sd thead th.vj-acc-col { background: var(--c-fafbfd); z-index: 3 }
+.sd tbody tr.vj-nulo td.vj-acc-col { background: var(--c-fafbfd) }
+.sd .vj-acciones { display: flex; gap: 5px; justify-content: flex-end }
+/* 30px de alto en escritorio y 38 en pantalla chica: esta tabla se
+   consulta también desde una tablet de patio. */
+.sd .vj-mini {
+  min-height: 30px; padding: 0 11px;
+  font: 600 11.5px var(--sd-texto); color: var(--sd-gris);
+  background: var(--c-f7f9fc); border: 1px solid var(--sd-linea);
+  border-radius: 2px; cursor: pointer; white-space: nowrap;
+}
+.sd .vj-mini:hover:not(:disabled) { border-color: var(--sd-acento); color: var(--sd-acento) }
+.sd .vj-mini.mal:hover:not(:disabled) { border-color: #A4271C; color: #A4271C }
+.sd .vj-mini:disabled { opacity: .45; cursor: not-allowed }
+.sd .vj-mini:focus-visible { outline: 2px solid var(--sd-acento); outline-offset: 2px }
+
+/* ---------- La fila que se abre para corregir ----------
+   Va DEBAJO de su propia fila y no en una ventana encima: un modal
+   taparía la tabla, y con ella el contexto de lo que se corrige. */
+.sd tr.vj-form td { background: var(--c-f7f9fc); padding: 0 }
+.sd .vj-editor {
+  padding: 16px 26px 18px;
+  border-left: 3px solid var(--sd-acento);
+}
+.sd .vj-rot {
+  margin: 0 0 12px; font-family: var(--sd-titulo); font-weight: 800; font-size: 14px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px;
+}
+.sd .vj-rot em {
+  font-style: normal; font-family: var(--sd-texto); font-weight: 500;
+  font-size: 12.5px; color: var(--sd-gris);
+}
+.sd .vj-campos {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 12px 14px; max-width: 900px;
+}
+.sd .vj-campos label { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.sd .vj-campos label.ancho { grid-column: 1 / -1 }
+.sd .vj-campos span { font-size: 12px; font-weight: 600; color: var(--c-2c4361) }
+.sd .vj-campos span em { font-style: normal; font-weight: 500; color: var(--sd-gris) }
+.sd .vj-campos input,
+.sd .vj-campos select {
+  height: 40px; padding: 0 11px; width: 100%;
+  font: 500 14px var(--sd-texto); color: var(--sd-tinta);
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 2px;
+}
+.sd .vj-campos input:focus,
+.sd .vj-campos select:focus {
+  outline: none; border-color: var(--sd-acento); box-shadow: 0 0 0 3px var(--c-raya);
+}
+.sd .vj-botones { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap }
+
+/* ---------- Anular ---------- */
+.sd .vj-velo {
+  position: fixed; inset: 0; z-index: 60;
+  background: var(--c-velo);
+  display: grid; place-items: center; padding: 20px;
+  overflow-y: auto;
+}
+.sd .vj-caja {
+  width: 100%; max-width: 460px;
+  background: var(--sd-papel); border-radius: 3px;
+  border-top: 4px solid var(--sd-mal);
+  padding: 24px 26px 22px;
+  box-shadow: 0 24px 60px rgba(4,32,63,.30);
+}
+.sd .vj-ojo {
+  margin: 0 0 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .16em;
+  color: var(--sd-gris);
+}
+.sd .vj-caja h3 {
+  margin: 0 0 10px; font-family: var(--sd-titulo); font-weight: 800; font-size: 19px;
+}
+.sd .vj-dice { margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: var(--c-2c4361) }
+.sd .vj-motivo-campo { display: flex; flex-direction: column; gap: 6px }
+.sd .vj-motivo-campo span { font-size: 12px; font-weight: 600 }
+.sd .vj-motivo-campo input {
+  height: 42px; padding: 0 12px;
+  font: 500 14px var(--sd-texto); color: var(--sd-tinta);
+  background: var(--c-f7f9fc); border: 1.5px solid var(--sd-linea); border-radius: 2px;
+}
+.sd .vj-motivo-campo input:focus {
+  outline: none; background: #fff; border-color: var(--sd-mal);
+  box-shadow: 0 0 0 3px rgba(228,0,43,.14);
+}
+.sd .vj-motivo-campo em {
+  font-style: normal; font-size: 11.5px; color: var(--sd-gris); line-height: 1.4;
+}
+.sd .vj-caja .btn.mal { background: var(--sd-mal); color: #fff }
+.sd .vj-caja .btn.mal:hover:not(:disabled) { background: #B8001F }
+.sd .vj-caja .vj-mal { margin: 12px 0 0 }
+
+@media (max-width: 900px) {
+  .sd .vj-filtros { padding: 12px 16px 0; gap: 10px }
+  .sd .vj-buscar { flex: 1 1 100%; max-width: none }
+  .sd .vj-cuenta { padding: 8px 16px 10px }
+  .sd .vj-mal { margin: 0 16px 10px }
+  .sd .vj-editor { padding: 14px 16px 16px }
+  .sd .vj-mini { min-height: 38px; padding: 0 14px; font-size: 12.5px }
+}
+
+/* Texto grande (equipos de piso). */
+.sh[data-grande="si"] .sd .vj-filtros input,
+.sh[data-grande="si"] .sd .vj-filtros select { height: 46px; font-size: 15px }
+.sh[data-grande="si"] .sd .vj-mini { min-height: 44px; font-size: 13.5px }
+.sh[data-grande="si"] .sd .vj-campos input,
+.sh[data-grande="si"] .sd .vj-campos select { height: 48px; font-size: 16px }

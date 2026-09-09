@@ -71,16 +71,67 @@ export function Transito({ viajes, nombres, esEditor, trabados, sinEvidencia, ca
 
   /** El viaje abierto para certificar la llegada. */
   const [abierto, setAbierto] = useState<Viaje | null>(null);
-  const [busca, setBusca] = useState("");
+  const [f, setF] = useState({ placa: "", origen: "", desde: "", hasta: "" });
+  /* En el celular los filtros arrancan PLEGADOS. Desplegados miden 207px
+     de los 640 de la pantalla y, con la cabeza y las alertas, no queda
+     sitio ni para media tarjeta: quien abre esta pantalla en el patio
+     quiere ver qué viene, no cuatro campos vacíos.
+     En escritorio no se pliegan nunca —ahí sobra el sitio— y este
+     estado no los toca: eso lo decide el CSS, que es quien sabe de qué
+     tamaño es la pantalla. */
+  const [verFiltros, setVerFiltros] = useState(false);
+
+  /* Los orígenes que DE VERDAD tienen algo en camino. Ofrecer los 16 del
+     maestro cuando solo cinco tienen vehículos hace buscar en una lista
+     donde la mayoría de opciones no devuelve nada. */
+  const listaOrigenes = useMemo(
+    () => [...new Set(viajes.map((v) => v.cd_origen))].sort((a, b) => a.localeCompare(b, "es")),
+    [viajes]
+  );
 
   const filtrados = useMemo(() => {
-    const q = busca.trim().toUpperCase();
-    if (!q) return viajes;
-    return viajes.filter((v) =>
-      v.placa.includes(q) ||
-      v.cd_origen.toUpperCase().includes(q) ||
-      v.descripcion.toUpperCase().includes(q));
-  }, [viajes, busca]);
+    const p = f.placa.trim().toUpperCase();
+    return viajes.filter((v) => {
+      if (p && !v.placa.toUpperCase().includes(p)) return false;
+      if (f.origen && v.cd_origen !== f.origen) return false;
+      /* La fecha que se filtra es la de SALIDA, no la de creación: es la
+         que le importa a quien pregunta "¿qué salió el martes y todavía
+         no llega?". Se compara en texto YYYY-MM-DD contra la fecha local
+         del vehículo; comparar objetos Date arrastraría la hora y el
+         día completo "hasta" se quedaría por fuera. */
+      if (f.desde || f.hasta) {
+        if (!v.salida_en) return false;
+        const d = new Date(v.salida_en);
+        const dia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (f.desde && dia < f.desde) return false;
+        if (f.hasta && dia > f.hasta) return false;
+      }
+      return true;
+    });
+  }, [viajes, f]);
+
+  const hayFiltro = !!f.placa.trim() || !!f.origen || !!f.desde || !!f.hasta;
+
+  /* AGRUPADAS POR CD ORIGEN, que era el problema: veinte tarjetas
+     sueltas en una rejilla no dejan ver que doce vienen de Galapa.
+     Los grupos van ordenados por el vehículo que lleva MÁS tiempo en
+     camino, no por nombre: el que está por llegar —o el que se trabó—
+     es el que hay que atender, y ese tiene que quedar arriba. */
+  const grupos = useMemo(() => {
+    const m = new Map<string, Viaje[]>();
+    for (const v of filtrados) {
+      const g = m.get(v.cd_origen);
+      if (g) g.push(v); else m.set(v.cd_origen, [v]);
+    }
+    return [...m.entries()]
+      .map(([cd, vs]) => ({
+        cd,
+        viajes: vs,
+        horas: Math.max(...vs.map((v) => horasEnCamino(v.en_camino))),
+        hl: vs.reduce((s, v) => s + Number(v.hl ?? 0), 0),
+      }))
+      .sort((a, b) => b.horas - a.horas);
+  }, [filtrados]);
 
   /* Certificando no se dibuja la cabeza: la pantalla es de un vehículo,
      no del tablero, y el título del paso ya dice de cuál. */
@@ -116,21 +167,75 @@ export function Transito({ viajes, nombres, esEditor, trabados, sinEvidencia, ca
         </section>
       )}
 
-      {viajes.length > 6 && (
-        <div className="tr-busca">
-          <input
-            value={busca}
-            placeholder="Buscar por placa, CD origen o material"
-            onChange={(e) => setBusca(e.target.value)}
-          />
-          {!!busca && (
-            <span>{filtrados.length} de {viajes.length}</span>
+      {/* EN EL CELULAR ruedan JUNTOS los filtros y la lista, dentro de
+          .tr-cuerpo. En escritorio no: allá los filtros se quedan
+          quietos y rueda solo la lista, que es lo cómodo con cien
+          vehículos. En un celular no cabe nada quieto —cabeza, alertas
+          y filtros abiertos suman 488px de los 640— y fijar los filtros
+          dejaba la lista en sesenta pixeles. */}
+      <div className="tr-cuerpo">
+      {viajes.length > 1 && (
+        <button type="button" className="tr-abrir" aria-expanded={verFiltros}
+                onClick={() => setVerFiltros((v) => !v)}>
+          {hayFiltro ? `Filtrando · ${filtrados.length} de ${viajes.length}` : "Filtrar"}
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+      )}
+
+      {viajes.length > 1 && (
+        <div className={"tr-filtros" + (verFiltros ? "" : " plegado")}>
+          <label className="tr-placa">
+            <span>Placa</span>
+            <input value={f.placa} placeholder="Parte de la placa"
+                   onChange={(e) => setF({ ...f, placa: e.target.value })} />
+          </label>
+          <label>
+            <span>CD origen</span>
+            <select value={f.origen} onChange={(e) => setF({ ...f, origen: e.target.value })}>
+              <option value="">Todos los orígenes</option>
+              {listaOrigenes.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </label>
+          {/* Fecha de SALIDA. Con input type=date, que abre el calendario
+              del propio sistema: en el celular sale el selector nativo,
+              que se toca mejor con guantes que cualquier rejilla que
+              dibujemos nosotros, y no hay que mantenerla. */}
+          <label>
+            <span>Salió desde</span>
+            <input type="date" value={f.desde} max={f.hasta || undefined}
+                   onChange={(e) => setF({ ...f, desde: e.target.value })} />
+          </label>
+          <label>
+            <span>Hasta</span>
+            <input type="date" value={f.hasta} min={f.desde || undefined}
+                   onChange={(e) => setF({ ...f, hasta: e.target.value })} />
+          </label>
+          <button type="button" className="btn plano" disabled={!hayFiltro}
+                  onClick={() => setF({ placa: "", origen: "", desde: "", hasta: "" })}>
+            Limpiar
+          </button>
+          {hayFiltro && (
+            <span className="tr-cuenta">{filtrados.length} de {viajes.length}</span>
           )}
         </div>
       )}
 
-      <div className="tr-rejilla">
-        {filtrados.map((v) => {
+      {/* UNA sola caja que rueda, con los grupos adentro. Si rodara cada
+          grupo por su lado saldrían tres barras de desplazamiento en la
+          misma pantalla y ninguna diría cuánto falta por ver. */}
+      <div className="tr-grupos">
+      {grupos.map((g) => (
+        <section key={g.cd} className="tr-grupo">
+          <h2 className="tr-grupo-cab">
+            <b>{g.cd}</b>
+            <span>
+              {g.viajes.length} {g.viajes.length === 1 ? "vehículo" : "vehículos"}
+              {g.hl > 0 && <> · {nf.format(g.hl)} HL</>}
+            </span>
+            {g.horas > HORAS_LARGAS && <em className="tr-tarde">el más viejo lleva {Math.floor(g.horas)} h</em>}
+          </h2>
+          <div className="tr-rejilla">
+        {g.viajes.map((v) => {
           const largo = horasEnCamino(v.en_camino) > HORAS_LARGAS;
           const faltanFotos = v.fotos_salida < 3;
           return (
@@ -190,14 +295,24 @@ export function Transito({ viajes, nombres, esEditor, trabados, sinEvidencia, ca
             </article>
           );
         })}
-
-        {!filtrados.length && (
-          <div className="tr-vacio">
-            {viajes.length
-              ? <>Ninguno coincide con <b>{busca}</b>.</>
-              : "No hay vehículos en tránsito. Cuando alguien certifique una salida, aparece aquí."}
           </div>
-        )}
+        </section>
+      ))}
+      </div>
+
+      {!filtrados.length && (
+        <div className="tr-vacio">
+          {viajes.length ? (
+            <>Ningún vehículo coincide con el filtro.{" "}
+              <button type="button" className="tr-enlace"
+                      onClick={() => setF({ placa: "", origen: "", desde: "", hasta: "" })}>
+                Quitar el filtro
+              </button></>
+          ) : (
+            "No hay vehículos en tránsito. Cuando alguien certifique una salida, aparece aquí."
+          )}
+        </div>
+      )}
       </div>
     </>
   );
