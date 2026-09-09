@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { moduloPorRuta, modulosVisibles } from "@/modulos/registro";
+import { moduloPorRuta } from "@/modulos/registro";
 
 /**
  * Riel lateral de módulos. Colapsado en 64px, se abre al pasar el mouse o
@@ -125,8 +125,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/conteos": IconoConteos,
 };
 
-export function Navegacion({ rol, permitidas, anclado, alternar }: {
-  rol: string;
+export function Navegacion({ permitidas, anclado, alternar }: {
   /** Las rutas que esta persona puede ver. Vienen del layout ya resueltas. */
   permitidas: string[];
   anclado: boolean;
@@ -140,9 +139,6 @@ export function Navegacion({ rol, permitidas, anclado, alternar }: {
   /* Solo lo que el rol puede ver. Un enlace a una pantalla cerrada no es
      una pista de que existe: es una puerta que no abre, y quien la toca
      cree que la app está rota. */
-  const visibles = modulosVisibles(rol).filter(
-    (m) => deja.has(m.ruta) || m.secciones.some((s) => deja.has(s.ruta))
-  );
   const secciones = actual.secciones.filter((s) => !s.oculto && deja.has(s.ruta));
   const IconoActual = ICONO_MODULO[actual.id] ?? IconoLista;
 
@@ -157,7 +153,7 @@ export function Navegacion({ rol, permitidas, anclado, alternar }: {
           <span className="globo">Todos los módulos</span>
         </Link>
 
-        <div className="grupo texto">MÓDULOS</div>
+        <div className="grupo texto">ESTÁS EN</div>
 
         <Link href={actual.ruta} className="modulo on">
           <IconoActual />
@@ -181,19 +177,6 @@ export function Navegacion({ rol, permitidas, anclado, alternar }: {
             </Link>
           );
         })}
-
-        {visibles
-          .filter((m) => m.activo && m.id !== actual.id)
-          .map((m) => {
-            const Icono = ICONO_MODULO[m.id] ?? IconoLista;
-            return (
-              <Link key={m.id} href={m.ruta} className="modulo">
-                <Icono />
-                <span className="texto">{m.nombre}</span>
-                <span className="globo">{m.nombre}</span>
-              </Link>
-            );
-          })}
 
         <div className="pie-riel">
           <div className="vertical">CD38 · AG01</div>

@@ -45,7 +45,6 @@ export default async function AppLayout({
     .single();
 
   const nombre = perfil?.nombre || perfil?.usuario || "Usuario";
-  const rol = perfil?.rol ?? "operador";
 
   /* CLAVE PROVISIONAL: la puerta cerrada.
      Va AQUÍ, en el cascarón que envuelve todas las rutas, y no en un
@@ -88,7 +87,7 @@ export default async function AppLayout({
           entrada se pinte igual la próxima vez. */}
       <RecordarTema tema={String(perfil?.tema ?? "oficial")} />
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
-      <Marco rol={rol} permitidas={permitidas}>{children}</Marco>
+      <Marco permitidas={permitidas}>{children}</Marco>
     </div>
   );
 }
