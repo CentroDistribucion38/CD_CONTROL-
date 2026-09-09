@@ -37,6 +37,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { type FilaSeguimiento, MESES_LARGO } from "@/modulos/sider/comun";
+import type { FilaZldeCruda } from "@/modulos/sider/datos";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
@@ -56,13 +57,15 @@ function semaforo(p: number | null): string {
 /** Cumplir es llegar al BU: el corte es el 100%, no la meta. */
 const cumple = (p: number | null) => (p == null ? " nulo" : p >= 1 ? " bien" : p >= 0.5 ? " medio" : " mal");
 
-type Vista = "llego" | "certifico" | "informe";
+type Vista = "zlde" | "certifico" | "informe";
 type Orden = { col: string; desc: boolean };
 
 const num = (x: unknown) => Number(x ?? 0);
 
-export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
+export function Seguimiento({ filas, zlde, mes, meses, nombreMes, esEditor }: {
   filas: FilaSeguimiento[];
+  /** El ZLDE crudo del mes, sin filtrar: una fila por CD, planta y clase. */
+  zlde: FilaZldeCruda[];
   mes: string;
   meses: string[];
   nombreMes: string;
@@ -75,6 +78,14 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
   const [vista, setVista] = useState<Vista>("informe");
   const [cd, setCd] = useState("");
   const [orden, setOrden] = useState<Orden>({ col: "hl_recibido", desc: true });
+  /* Los dos segmentadores del pivote. Arrancan donde arranca tu hoja
+     —Barranquilla y EER— porque así el total da los 248.486,118 del
+     Excel; moverlos es explorar, no cambiar el indicador. */
+  const [planta, setPlanta] = useState("Barranquilla");
+  const [clase, setClase] = useState("EER");
+  const [ordenZ, setOrdenZ] = useState<{ col: keyof FilaZldeCruda; desc: boolean }>(
+    { col: "hl", desc: true }
+  );
 
   const meta = filas[0]?.meta ?? 0.1;
 
@@ -130,10 +141,57 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conCd]);
 
-  /* Todo lo que llegó, aplique sider o no: la tabla 1 es el pivote de
-     ZLDE tal cual, y en tu hoja también salen los quince. */
-  const llego = ordena(filtra(filas).filter((f) => num(f.hl_recibido) > 0));
   const certifico = ordena(filtra(filas).filter((f) => num(f.real_mtd) > 0 || num(f.viajes) > 0));
+
+  /* ---------- La pestaña de ZLDE: el pivote, con sus segmentadores ----------
+     Se agrupa por CD después de filtrar planta y clase, que es
+     exactamente lo que hace el pivote: los segmentadores recortan y las
+     etiquetas de fila agrupan lo que queda. */
+  const plantas = useMemo(
+    () => [...new Set(zlde.map((z) => z.planta))].sort(), [zlde]
+  );
+  const clases = useMemo(
+    () => [...new Set(zlde.map((z) => z.clase))].sort(), [zlde]
+  );
+  const zl = useMemo(() => {
+    const m = new Map<string, FilaZldeCruda>();
+    for (const z of zlde) {
+      if (planta && z.planta !== planta) continue;
+      if (clase && z.clase !== clase) continue;
+      if (cd && z.cd_origen !== cd) continue;
+      const a = m.get(z.cd_origen) ??
+        { cd_origen: z.cd_origen, planta, clase, hl: 0, vh_recibidos: 0, lineas: 0 };
+      a.hl += num(z.hl);
+      a.vh_recibidos += num(z.vh_recibidos);
+      a.lineas += num(z.lineas);
+      m.set(z.cd_origen, a);
+    }
+    const k = ordenZ.col;
+    return [...m.values()].sort((a, b) => {
+      const va = a[k], vb = b[k];
+      const cmp = typeof va === "string" ? String(va).localeCompare(String(vb)) : num(va) - num(vb);
+      return ordenZ.desc ? -cmp : cmp;
+    });
+  }, [zlde, planta, clase, cd, ordenZ]);
+  const totZ = {
+    hl: zl.reduce((s, f) => s + f.hl, 0),
+    vh: zl.reduce((s, f) => s + f.vh_recibidos, 0),
+    lineas: zl.reduce((s, f) => s + f.lineas, 0),
+  };
+  /** Qué CD del maestro no aplican sider, para marcarlos igual que en el informe. */
+  const noAplica = useMemo(
+    () => new Set(filas.filter((f) => !f.aplica_sider).map((f) => f.cd_origen)), [filas]
+  );
+  const fueraDelMaestro = useMemo(
+    () => new Set(filas.filter((f) => f.fuera_del_maestro).map((f) => f.cd_origen)), [filas]
+  );
+
+  const cabZ = (col: keyof FilaZldeCruda, texto: string, alDerecho = true) => (
+    <th className={(alDerecho ? "num " : "") + "sg-orden" + (ordenZ.col === col ? " aqui" : "")}
+        onClick={() => setOrdenZ((o) => ({ col, desc: o.col === col ? !o.desc : true }))}>
+      {texto}<i>{ordenZ.col === col ? (ordenZ.desc ? "▾" : "▴") : ""}</i>
+    </th>
+  );
 
   /** ZLDE cargado pero nada certificado: falta la otra mitad del informe. */
   const faltaBase = tot.recibido > 0 && tot.real === 0;
@@ -185,7 +243,7 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
             El número no decora — dice que la tercera no existe sin las
             dos primeras. */}
         <div className="sg-pes" role="tablist">
-          {([["llego", "1 · Llegó"], ["certifico", "2 · Certificado"], ["informe", "3 · Informe"]] as const)
+          {([["zlde", "1 · ZLDE"], ["certifico", "2 · Certificado"], ["informe", "3 · Informe"]] as const)
             .map(([v, t]) => (
               <button key={v} type="button" role="tab" aria-selected={vista === v}
                       className={vista === v ? "aqui" : ""} onClick={() => setVista(v)}>{t}</button>
@@ -233,63 +291,87 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
         </section>
       )}
 
-      {/* ============ 1 · LO QUE LLEGÓ ============ */}
-      {vista === "llego" && (
+      {/* ============ 1 · ZLDE ============
+           El pivote tal cual: los dos segmentadores arriba —planta y
+           clase—, las etiquetas de fila por CD, y el total abajo. Con
+           Barranquilla + EER da los 248.486,118 de tu hoja.
+
+           COMPACTA a propósito: quince CD tienen que caber en la vista
+           sin desplazar nada, y con el alto normal de fila no caben.
+           Aquí la fila mide 26 px en vez de 38. */}
+      {vista === "zlde" && (
         <section className="tarjeta">
-          <div className="cab">
-            <div>
-              <h2>1 · Lo que llegó · {nombreMes}</h2>
-              <p>
-                El pivote de <b>ZLDE</b> con Planta = Barranquilla y Clase = EER, por CD de
-                origen. Es la columna <b>HL EER Recibido</b> del informe, y lo único que no
-                sale de la app: se{" "}
-                {esEditor ? <Link href="/sider/importar">importa</Link> : "importa"} de SAP.
-              </p>
+          {/* TÍTULO, SEGMENTADORES Y CIFRAS EN UNA SOLA FRANJA.
+              El título y el párrafo aparte se llevaban 138 px, y esos
+              px son cinco CD menos a la vista: la tabla son quince
+              filas y tienen que verse completas. Mover un segmentador y
+              ver el total moverse al lado es, además, lo que hace que
+              se le crea al número. */}
+          <div className="sg-seg">
+            <h2>1 · ZLDE · {nombreMes}</h2>
+            <label>
+              <span>Planta</span>
+              <select value={planta} onChange={(e) => setPlanta(e.target.value)}>
+                <option value="">todas</option>
+                {plantas.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Clase</span>
+              <select value={clase} onChange={(e) => setClase(e.target.value)}>
+                <option value="">todas</option>
+                {clases.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </label>
+            <div className="sg-seg-cifras">
+              <div><span>HECTOLITROS</span><b>{nf1.format(totZ.hl)}</b></div>
+              <div><span>VEHÍCULOS</span><b>{nf1.format(totZ.vh)}</b></div>
+              <div><span>CD</span><b>{zl.length}</b></div>
+              <div><span>LÍNEAS DE SAP</span><b>{nf.format(totZ.lineas)}</b></div>
             </div>
           </div>
-          <div className="sg-cifras">
-            {cifra("HL EER RECIBIDO", nf.format(suma(filtra(filas), "hl_recibido")))}
-            {cifra("VEHÍCULOS", nf1.format(suma(filtra(filas), "vh_recibidos")))}
-            {cifra("CD CON MOVIMIENTO", String(llego.length))}
-            {cifra("LÍNEAS DE SAP", nf.format(suma(filtra(filas), "lineas_zlde")))}
-          </div>
-          <div className="marco sg-marco">
-            <table className="sg-tabla">
+
+          {/* Esta pestaña tiene menos encabezado que las otras dos, así
+              que su tabla puede ser más alta: el techo se calcula aparte
+              en vez de compartir el de las demás. */}
+          <div className="marco sg-marco holgado">
+            <table className="sg-tabla apretada">
               <thead>
                 <tr>
-                  {cabecera("cd_origen", "Centro de Origen", false)}
-                  {cabecera("vh_recibidos", "Vehículos")}
-                  {cabecera("hl_recibido", "Hectolitros")}
-                  {cabecera("lineas_zlde", "Líneas de SAP")}
+                  {cabZ("cd_origen", "Centro de Origen", false)}
+                  {cabZ("vh_recibidos", "Vehículos")}
+                  {cabZ("hl", "Hectolitros")}
+                  {cabZ("lineas", "Líneas de SAP")}
                 </tr>
               </thead>
               <tbody>
-                {llego.map((f) => (
+                {zl.map((f) => (
                   <tr key={f.cd_origen}>
-                    <td className={f.aplica_sider && !f.fuera_del_maestro ? undefined : "apagado"}>
+                    <td className={noAplica.has(f.cd_origen) || fueraDelMaestro.has(f.cd_origen) ? "apagado" : undefined}>
                       {f.cd_origen}
-                      {!f.aplica_sider && <div className="cod">no aplica sider</div>}
-                      {f.fuera_del_maestro && <div className="cod">fuera del maestro</div>}
+                      {noAplica.has(f.cd_origen) && <em className="sg-marca">no aplica sider</em>}
+                      {fueraDelMaestro.has(f.cd_origen) && <em className="sg-marca">fuera del maestro</em>}
                     </td>
-                    <td className="num">{nf1.format(num(f.vh_recibidos))}</td>
-                    <td className="num">{nf1.format(num(f.hl_recibido))}</td>
-                    <td className="num cod">{nf.format(num(f.lineas_zlde))}</td>
+                    <td className="num">{nf1.format(f.vh_recibidos)}</td>
+                    <td className="num">{nf1.format(f.hl)}</td>
+                    <td className="num cod">{nf.format(f.lineas)}</td>
                   </tr>
                 ))}
-                {!llego.length && (
+                {!zl.length && (
                   <tr><td className="vacio" colSpan={4}>
-                    No hay ZLDE cargado de {nombreMes}.
-                    {esEditor && <> <Link href="/sider/importar">Impórtalo</Link>.</>}
+                    {zlde.length
+                      ? "Nada con esa planta y esa clase en este mes."
+                      : <>No hay ZLDE cargado de {nombreMes}.{esEditor && <> <Link href="/sider/importar">Impórtalo</Link>.</>}</>}
                   </td></tr>
                 )}
               </tbody>
-              {!!llego.length && (
+              {!!zl.length && (
                 <tfoot>
                   <tr>
                     <td>Total general</td>
-                    <td className="num">{nf1.format(suma(llego, "vh_recibidos"))}</td>
-                    <td className="num">{nf1.format(suma(llego, "hl_recibido"))}</td>
-                    <td className="num">{nf.format(suma(llego, "lineas_zlde"))}</td>
+                    <td className="num">{nf1.format(totZ.vh)}</td>
+                    <td className="num">{nf1.format(totZ.hl)}</td>
+                    <td className="num">{nf.format(totZ.lineas)}</td>
                   </tr>
                 </tfoot>
               )}

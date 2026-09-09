@@ -189,7 +189,8 @@ function columnaDeFechas(c: Cuerpo, w: number) {
 /* ==================== ZLDE ==================== */
 
 export type FilaZlde = {
-  mes: string; cd_origen: string; hl: number; vh: number; lineas: number;
+  mes: string; cd_origen: string; planta: string; clase: string;
+  hl: number; vh: number; lineas: number;
 };
 
 export type LecturaZlde = {
@@ -342,18 +343,8 @@ export function leerZlde(
 
     const s = skus.get(limpia(crudoSku));
     if (!s) { d.sinSku++; if (desconocidos.size < 40) desconocidos.add(crudoSku); continue; }
-    /* Solo envase retornable. Cajas plásticas, barriles, estibas de
-       madera y el cilindro de CO2 viajan en el mismo camión y en el
-       mismo archivo, pero el informe es de EER. */
-    if (limpia(s.clase) !== "eer") { d.noEer++; continue; }
-    if (planta != null && e.planta >= 0
-        && limpia(f[e.planta]) !== limpia(planta)) { d.otraPlanta++; continue; }
-
     const fecha = e.fecha >= 0 ? aFecha(f[e.fecha]) : null;
     if (!fecha) { d.sinFecha++; continue; }
-    if (s.hl_x_unidad == null || s.unidades_x_caja == null || s.cajas_x_estiba == null) {
-      d.sinFactores++; continue;
-    }
     const cant = aNumero(f[e.cantidad]);
     if (cant == null || cant <= 0) continue;
 
@@ -361,18 +352,36 @@ export function leerZlde(
     if (!cd) continue;
     if (!cds.has(limpia(cd)) && sueltos.size < 40) sueltos.add(cd);
 
-    const k = `${mesDe(fecha)} ${cd}`;
+    const laPlanta = (e.planta >= 0 ? String(f[e.planta] ?? "").trim() : "") || "sin planta";
+    const laClase = (s.clase ?? "").trim() || "sin clase";
+    /* Cuántas líneas quedarían FUERA del informe, para poder decirlo. El
+       informe es de EER que llegó a Barranquilla; el resto se guarda
+       igual y la pantalla de ZLDE lo puede mirar, como los
+       segmentadores de tu pivote. */
+    if (limpia(laClase) !== "eer") d.noEer++;
+    else if (planta != null && limpia(laPlanta) !== limpia(planta)) d.otraPlanta++;
+
+    /* Sin factores no hay hectolitros que calcular: la línea se cuenta,
+       el HL queda en cero y se dice cuántas fueron. Un número inventado
+       sería peor que un cero. */
+    const sinF = s.hl_x_unidad == null || s.unidades_x_caja == null || s.cajas_x_estiba == null;
+    if (sinF) d.sinFactores++;
+
+    const k = [mesDe(fecha), cd, laPlanta, laClase].join("\u0000");
     const a = acum.get(k) ?? { hl: 0, vh: 0, lineas: 0 };
-    a.hl += cant * s.hl_x_unidad;
-    a.vh += cant / s.unidades_x_caja / s.cajas_x_estiba / m.estibasPorSider;
+    if (!sinF) {
+      a.hl += cant * s.hl_x_unidad!;
+      a.vh += cant / s.unidades_x_caja! / s.cajas_x_estiba! / m.estibasPorSider;
+    }
     a.lineas++;
     acum.set(k, a);
     usadas++;
   }
 
   const filas = [...acum].map(([k, v]) => {
-    const [mes, cd_origen] = k.split(" ");
-    return { mes, cd_origen, hl: +v.hl.toFixed(3), vh: +v.vh.toFixed(4), lineas: v.lineas };
+    const [mes, cd_origen, laPlanta, laClase] = k.split("\u0000");
+    return { mes, cd_origen, planta: laPlanta, clase: laClase,
+             hl: +v.hl.toFixed(3), vh: +v.vh.toFixed(4), lineas: v.lineas };
   }).sort((a, b) => (a.mes === b.mes ? b.hl - a.hl : a.mes.localeCompare(b.mes)));
 
   return {

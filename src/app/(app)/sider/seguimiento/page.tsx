@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
-import { mesesSeguimiento, seguimientoSider, MESES_LARGO } from "@/modulos/sider/datos";
+import { mesesSeguimiento, seguimientoSider, zldeDelMes, MESES_LARGO } from "@/modulos/sider/datos";
 import "../sider.css";
 import { Seguimiento } from "./Seguimiento";
 
@@ -45,7 +45,13 @@ export default async function SeguimientoPage({
   }
 
   const mes = normaliza(pedido, meses);
-  const { filas } = mes ? await seguimientoSider(mes) : { filas: [] };
+  /* Dos consultas y no una: el informe sale de la vista —clavada en
+     Barranquilla y EER, porque eso es el indicador— y la pantalla de
+     ZLDE sale de la tabla cruda, para poder mover planta y clase como
+     los segmentadores del pivote. */
+  const [{ filas }, { filas: zlde }] = mes
+    ? await Promise.all([seguimientoSider(mes), zldeDelMes(mes)])
+    : [{ filas: [] }, { filas: [] }];
 
   const dentro = filas.filter((f) => f.aplica_sider);
   const recibido = dentro.reduce((s, f) => s + Number(f.hl_recibido), 0);
@@ -96,6 +102,7 @@ export default async function SeguimientoPage({
       ) : (
         <Seguimiento
           filas={filas}
+          zlde={zlde}
           mes={mes}
           meses={meses}
           nombreMes={nombreMes}

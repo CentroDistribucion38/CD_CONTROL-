@@ -110,6 +110,29 @@ export async function seguimientoSider(mes: string) {
   return { filas: (data ?? []) as unknown as FilaSeguimiento[], falta: !!error };
 }
 
+/**
+ * El ZLDE crudo del mes, sin filtrar: una fila por CD, planta y clase.
+ *
+ * La pantalla lo filtra por planta y por clase igual que los
+ * segmentadores del pivote. El informe NO usa esto: usa la vista, que
+ * se queda clavada en Barranquilla y EER porque eso ES el indicador.
+ */
+export async function zldeDelMes(mes: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("sider_zlde")
+    .select("cd_origen, planta, clase, hl, vh_recibidos, lineas")
+    .eq("mes", mes)
+    .order("hl", { ascending: false })
+    .limit(5000);
+  return { filas: (data ?? []) as unknown as FilaZldeCruda[], falta: !!error };
+}
+
+export type FilaZldeCruda = {
+  cd_origen: string; planta: string; clase: string;
+  hl: number; vh_recibidos: number; lineas: number;
+};
+
 /* =====================================================================
    LA EVIDENCIA DE UN VIAJE — el ojito
    ===================================================================== */

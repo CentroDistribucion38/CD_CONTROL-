@@ -632,6 +632,34 @@ create table if not exists public.sider_zlde (
 -- Se guardan resumidos por mes y CD, que es el grano del informe: las
 -- 45.374 líneas del archivo de agosto se vuelven quince filas.
 alter table public.sider_zlde add column if not exists vh_recibidos numeric(14,4) not null default 0;
+
+-- ---------------------------------------------------------------------
+-- PLANTA Y CLASE SE GUARDAN, no se aplican y se botan.
+--
+-- Antes el importador filtraba Planta = Barranquilla y Clase = EER y
+-- guardaba solo el total: la pantalla no podía volver a filtrar porque
+-- el dato ya no estaba. En el Excel esos dos son SEGMENTADORES del
+-- pivote —se mueven y la tabla cambia—, así que aquí también tienen que
+-- poder moverse.
+--
+-- Sigue siendo diminuto: cuatro meses del archivo real son unos cientos
+-- de filas, no las 45.374 líneas de SAP.
+-- ---------------------------------------------------------------------
+alter table public.sider_zlde add column if not exists planta text not null default 'Barranquilla';
+alter table public.sider_zlde add column if not exists clase  text not null default 'EER';
+
+-- La llave pasa a incluirlas: el mismo CD puede traer EER y cajas en el
+-- mismo mes, y antes la segunda fila tumbaba a la primera.
+do $$ begin
+  if exists (
+    select 1 from pg_constraint c
+     where c.conrelid = 'public.sider_zlde'::regclass and c.contype = 'p'
+       and (select count(*) from unnest(c.conkey)) = 2
+  ) then
+    alter table public.sider_zlde drop constraint sider_zlde_pkey;
+    alter table public.sider_zlde add primary key (mes, cd_origen, planta, clase);
+  end if;
+end $$;
 -- Cuántas líneas de SAP resumió esta fila. Sirve para creerle al número:
 -- 401 líneas detrás de los 56.538 HL de Galapa es otra cosa que una.
 alter table public.sider_zlde add column if not exists lineas integer not null default 0;
@@ -676,7 +704,17 @@ drop view if exists public.v_sider_seguimiento;
 create view public.v_sider_seguimiento as
 with m as (select valor as meta from public.sider_parametros where clave = 'meta_certificacion'),
 recibido as (
-  select z.mes, z.cd_origen, z.hl, z.vh_recibidos, z.lineas from public.sider_zlde z
+  /* EL INDICADOR ES ESO: envase retornable que llegó a Barranquilla. No
+     es un número mágico escondido en una fórmula —es la definición del
+     % de certificación, y es el mismo filtro que tiene tu pivote—. La
+     pantalla de ZLDE sí deja moverlo para explorar; el informe no, o
+     dejaría de ser el informe. */
+  select z.mes, z.cd_origen,
+         sum(z.hl) as hl, sum(z.vh_recibidos) as vh_recibidos, sum(z.lineas) as lineas
+    from public.sider_zlde z
+   where lower(btrim(z.planta)) = 'barranquilla'
+     and lower(btrim(z.clase))  = 'eer'
+   group by 1, 2
 ),
 certificado as (
   select date_trunc('month', v.fecha)::date as mes,
@@ -787,18 +825,20 @@ begin
 
   delete from public.sider_zlde where mes = any(v_meses);
 
-  insert into public.sider_zlde (mes, cd_origen, hl, vh_recibidos, lineas, importado_por)
+  insert into public.sider_zlde (mes, cd_origen, planta, clase, hl, vh_recibidos, lineas, importado_por)
   select date_trunc('month', (f->>'mes')::date)::date,
          btrim(f->>'cd_origen'),
+         coalesce(nullif(btrim(f->>'planta'), ''), 'sin planta'),
+         coalesce(nullif(btrim(f->>'clase'),  ''), 'sin clase'),
          (f->>'hl')::numeric,
          coalesce((f->>'vh')::numeric, 0),
          coalesce((f->>'lineas')::integer, 0),
          auth.uid()
   from jsonb_array_elements(p_filas) f
   where btrim(coalesce(f->>'cd_origen', '')) <> ''
-  -- Si el archivo trae el mismo CD dos veces en el mismo mes, se suman
-  -- en vez de que la segunda tumbe a la primera sin avisar.
-  on conflict (mes, cd_origen) do update
+  -- Si el archivo trae la misma combinación dos veces, se suman en vez
+  -- de que la segunda tumbe a la primera sin avisar.
+  on conflict (mes, cd_origen, planta, clase) do update
      set hl           = public.sider_zlde.hl           + excluded.hl,
          vh_recibidos = public.sider_zlde.vh_recibidos + excluded.vh_recibidos,
          lineas       = public.sider_zlde.lineas       + excluded.lineas;
