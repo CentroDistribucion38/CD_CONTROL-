@@ -79,7 +79,7 @@ insert into public.rol_permisos (rol, seccion, nivel) values
   ('supervisor', '/sider/certificar',   'editar'),
   ('supervisor', '/sider/transito',     'editar'),
   ('supervisor', '/sider/seguimiento',  'ver'),
-  ('supervisor', '/sider/zlde',         'editar'),
+  ('supervisor', '/sider/importar',     'editar'),
   ('supervisor', '/sider/maestro',      'editar'),
   ('supervisor', '/inventario',         'ver'),
   ('supervisor', '/inventario/productos',    'editar'),

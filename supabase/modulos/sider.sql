@@ -147,9 +147,25 @@ create table if not exists public.sider_viajes (
   creado_en   timestamptz not null default now()
 );
 
+-- EL HISTÓRICO IMPORTADO
+-- Los 200 renglones de abril a agosto de la hoja "Base de Datos" son
+-- viajes que ya pasaron: no tienen fotos, ni GPS, ni quién certificó, y
+-- nunca los van a tener. Entran igual porque son volumen real y sin
+-- ellos el Real MTD del seguimiento arranca en cero, pero entran
+-- MARCADOS, y esa marca es la que impide que alguien los cuente como
+-- certificados con evidencia.
+--
+--   fecha      la del archivo. Un viaje importado no tiene certificación
+--              de salida de donde sacarla, y creado_en sería la fecha en
+--              que se subió el archivo: los cinco meses caerían en uno.
+--   importado  true = vino de un archivo. No se puede certificar.
+alter table public.sider_viajes add column if not exists fecha     date;
+alter table public.sider_viajes add column if not exists importado boolean not null default false;
+
 create index if not exists sider_viajes_estado_idx on public.sider_viajes (estado, creado_en desc);
 create index if not exists sider_viajes_placa_idx  on public.sider_viajes (upper(placa));
 create index if not exists sider_viajes_fecha_idx  on public.sider_viajes (creado_en desc);
+create index if not exists sider_viajes_import_idx on public.sider_viajes (importado, fecha);
 
 -- ---------------------------------------------------------------------
 -- 3. Las dos puntas: salida y llegada
@@ -259,16 +275,19 @@ select
   v.creado_por,
   v.creado_en,
 
-  -- La fecha del viaje es la de la certificación de SALIDA si ya la hay;
-  -- si no, la de creación. Así la fila no cambia de mes cuando el
-  -- vehículo llega tarde.
-  coalesce(cs.hecha_en, v.creado_en)            as fecha,
+  v.importado,
+
+  -- La fecha del viaje: la del archivo si vino importado, si no la de la
+  -- certificación de SALIDA, y en último caso la de creación. Así la
+  -- fila no cambia de mes cuando el vehículo llega tarde, y un mes
+  -- importado no se amontona en el día en que se subió el archivo.
+  coalesce(v.fecha::timestamptz, cs.hecha_en, v.creado_en)        as fecha,
   -- El NÚMERO del mes, no su nombre: to_char con TMMonth depende del
   -- idioma del servidor y salía "September". El nombre lo pone la app,
   -- que sí sabe en qué idioma está hablando.
-  extract(month from coalesce(cs.hecha_en, v.creado_en))::int     as num_mes,
-  extract(week from coalesce(cs.hecha_en, v.creado_en))::int      as semana,
-  extract(year from coalesce(cs.hecha_en, v.creado_en))::int      as anio,
+  extract(month from coalesce(v.fecha::timestamptz, cs.hecha_en, v.creado_en))::int as num_mes,
+  extract(week  from coalesce(v.fecha::timestamptz, cs.hecha_en, v.creado_en))::int as semana,
+  extract(year  from coalesce(v.fecha::timestamptz, cs.hecha_en, v.creado_en))::int as anio,
 
   -- Las cuatro cifras derivadas. Si al SKU le faltan factores quedan en
   -- null: la app dice "a este material le faltan factores" en vez de
@@ -554,12 +573,44 @@ create table if not exists public.sider_zlde (
   primary key (mes, cd_origen)
 );
 
+-- El ZLDE crudo de SAP NO trae hectolitros: trae "Cantidad", que son
+-- UNIDADES. Los HL y los vehículos salen de multiplicar por los factores
+-- del maestro, igual que las columnas que el Excel calculaba al lado:
+--   Hectolitros = Cantidad × hl_x_unidad
+--   Cajas       = Cantidad ÷ unidades_x_caja
+--   Estibas     = Cajas    ÷ cajas_x_estiba
+--   Vehículos   = Estibas  ÷ 36
+-- Se guardan resumidos por mes y CD, que es el grano del informe: las
+-- 45.374 líneas del archivo de agosto se vuelven quince filas.
+alter table public.sider_zlde add column if not exists vh_recibidos numeric(14,4) not null default 0;
+-- Cuántas líneas de SAP resumió esta fila. Sirve para creerle al número:
+-- 401 líneas detrás de los 56.538 HL de Galapa es otra cosa que una.
+alter table public.sider_zlde add column if not exists lineas integer not null default 0;
+
 -- Cuatro CD salían del informe de agosto (Cúcuta, San Andrés, Caucasia,
 -- KACartagena). En vez de escribir esos cuatro nombres en el código, la
 -- razón se guarda como dato: un CD que no despacha sider se marca y el
 -- informe lo deja fuera del total, pero lo sigue mostrando aparte. Nada
 -- desaparece sin decir por qué.
 alter table public.sider_origenes add column if not exists aplica_sider boolean not null default true;
+
+-- CUÁLES SON ESOS CUATRO. Se comprobó contra tu informe de agosto: el
+-- pivote de ZLDE suma 248.486,118 HL con los quince CD, y la tabla del
+-- informe suma 246.267,906. La diferencia son exactamente estos cuatro:
+--   Cúcuta 2.019,357 + Caucasia 154,080 + KACartagena 25,866
+--   + San Andrés 18,909 = 2.218,212
+-- Se marcan UNA sola vez y se deja la constancia en los parámetros: si
+-- mañana alguien vuelve a poner Caucasia en el total desde la app, este
+-- archivo no se lo va a deshacer la próxima vez que se corra.
+do $$ begin
+  if not exists (select 1 from public.sider_parametros where clave = 'excluidos_agosto_aplicados') then
+    update public.sider_origenes set aplica_sider = false
+     where cd_origen in ('CD OL Cúcuta Local', 'CD Unión Caucasia', 'KACartagena', 'CD OL San Andrés');
+    insert into public.sider_parametros (clave, valor, nota) values
+      ('excluidos_agosto_aplicados', 1,
+       'Marca de que ya se excluyeron del total los cuatro CD que el informe de agosto dejaba fuera. Solo existe para no volver a pisarlos: el que manda es aplica_sider en el maestro.');
+  end if;
+end $$;
 
 insert into public.sider_parametros (clave, valor, nota) values
   ('meta_certificacion', 0.10,
@@ -576,14 +627,18 @@ drop view if exists public.v_sider_seguimiento;
 create view public.v_sider_seguimiento as
 with m as (select valor as meta from public.sider_parametros where clave = 'meta_certificacion'),
 recibido as (
-  select z.mes, z.cd_origen, z.hl from public.sider_zlde z
+  select z.mes, z.cd_origen, z.hl, z.vh_recibidos, z.lineas from public.sider_zlde z
 ),
 certificado as (
   select date_trunc('month', v.fecha)::date as mes,
          v.cd_origen,
-         sum(coalesce(v.hl, 0))  as hl,
-         count(*)                as viajes,
-         sum(v.estibas)          as estibas
+         sum(coalesce(v.hl, 0))    as hl,
+         count(*)                  as viajes,
+         sum(v.estibas)            as estibas,
+         -- Vehículos equivalentes, no renglones: es lo mismo que cuenta
+         -- ZLDE del otro lado (estibas ÷ 36). Comparar renglones contra
+         -- vehículos daría un porcentaje que no significa nada.
+         sum(coalesce(v.sider, 0)) as vh
   from public.v_sider_viajes v
   -- Un viaje anulado no certificó nada. Uno en tránsito sí: la salida ya
   -- quedó certificada con su ubicación y sus fotos, y es lo que la hoja
@@ -601,36 +656,73 @@ select
   -- un CD nuevo o un nombre escrito distinto, y las dos cosas hay que
   -- verlas.
   (o.planta is null)                        as fuera_del_maestro,
+
+  -- BLOQUE 1 · VEHÍCULOS
+  coalesce(r.vh_recibidos, 0)               as vh_recibidos,
+  round(coalesce(r.vh_recibidos, 0) * (select meta from m), 4) as vh_bu_mtd,
+  coalesce(c.vh, 0)                         as vh_real_mtd,
+  case when coalesce(r.vh_recibidos, 0) * (select meta from m) > 0
+       then round(coalesce(c.vh, 0) / (r.vh_recibidos * (select meta from m)), 6)
+  end                                       as pct_cumplimiento_vh,
+
+  -- BLOQUE 2 y 3 · HECTOLITROS
+  -- En el Excel eran dos bloques con las mismas tres primeras columnas y
+  -- solo el porcentaje distinto. Aquí van las tres columnas UNA vez y
+  -- los dos porcentajes al lado, que es la misma información sin
+  -- repetirla: repetida, el día que una copia se mueva y la otra no,
+  -- nadie sabe cuál creer.
   coalesce(r.hl, 0)                         as hl_recibido,
   round(coalesce(r.hl, 0) * (select meta from m), 3) as bu_mtd,
   coalesce(c.hl, 0)                         as real_mtd,
-  coalesce(c.viajes, 0)                     as viajes,
-  coalesce(c.estibas, 0)                    as estibas,
+  -- % Cumplimiento: contra la META. Dice si se llegó a lo que tocaba.
+  case when coalesce(r.hl, 0) * (select meta from m) > 0
+       then round(coalesce(c.hl, 0) / (r.hl * (select meta from m)), 6)
+  end                                       as pct_cumplimiento,
+  -- % Certificación: contra lo RECIBIDO. Dice qué fracción del envase
+  -- que llegó vino certificada. Es el número del informe.
   -- Sin HL recibido no hay contra qué comparar: queda en null y la app
   -- lo pinta neutro. Un 0% ahí diría "no cumpliste" cuando lo cierto es
   -- "no sé".
   case when coalesce(r.hl, 0) > 0
        then round(coalesce(c.hl, 0) / r.hl, 6) end as pct_certificacion,
+
+  coalesce(c.viajes, 0)                     as viajes,
+  coalesce(c.estibas, 0)                    as estibas,
+  coalesce(r.lineas, 0)                     as lineas_zlde,
   (select meta from m)                      as meta
 from recibido r
 full join certificado c on c.mes = r.mes and c.cd_origen = r.cd_origen
 left join public.sider_origenes o on o.cd_origen = coalesce(r.cd_origen, c.cd_origen);
 
 -- ---------------------------------------------------------------------
--- Guardar un mes de ZLDE. Reemplaza el mes completo y no fila por fila:
--- el archivo de ZLDE es la foto del mes entero, así que si un CD dejó de
--- aparecer es porque ya no tiene movimiento, y actualizar solo lo que
--- llegó dejaría el viejo ahí para siempre.
+-- 10. IMPORTAR
+--
+-- Dos archivos entran a la plataforma y los dos se resumen ANTES de
+-- llegar aquí, en el navegador: el de ZLDE porque son 45.374 líneas y
+-- mandarlas crudas sería mandar veinte megas para guardar quince filas,
+-- y el de la Base de Datos porque hay que resolver el origen y el SKU
+-- contra el maestro y decir qué renglones no cuadran antes de escribir
+-- nada. Aquí llega lo ya cuadrado.
+--
+-- LOS DOS REEMPLAZAN POR MES, no fila por fila. Un archivo es la foto
+-- completa de los meses que trae: si un CD dejó de aparecer es porque ya
+-- no tiene movimiento, y actualizar solo lo que llegó dejaría el viejo
+-- ahí para siempre. Volver a subir el mismo archivo deja lo mismo.
 -- ---------------------------------------------------------------------
-create or replace function public.sider_zlde_guardar(p_mes date, p_filas jsonb)
-returns integer
+
+-- La firma vieja tomaba un mes suelto; ahora el archivo puede traer
+-- varios (el de prueba trae mayo, junio, julio y agosto). No se puede
+-- "create or replace" cambiando los argumentos: hay que botarla.
+drop function if exists public.sider_zlde_guardar(date, jsonb);
+
+create or replace function public.sider_zlde_importar(p_filas jsonb)
+returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_mes date := date_trunc('month', p_mes)::date;
-  v_fila jsonb;
+  v_meses date[];
   n integer := 0;
 begin
   if not public.es_editor() then
@@ -640,24 +732,82 @@ begin
     raise exception 'No llegó ninguna fila que guardar';
   end if;
 
-  delete from public.sider_zlde where mes = v_mes;
+  select array_agg(distinct date_trunc('month', (f->>'mes')::date)::date)
+    into v_meses
+    from jsonb_array_elements(p_filas) f;
 
-  for v_fila in select * from jsonb_array_elements(p_filas) loop
-    if btrim(coalesce(v_fila->>'cd_origen', '')) = '' then
-      raise exception 'Hay una fila sin CD de origen';
-    end if;
-    insert into public.sider_zlde (mes, cd_origen, hl, importado_por)
-    values (v_mes,
-            btrim(v_fila->>'cd_origen'),
-            (v_fila->>'hl')::numeric,
-            auth.uid())
-    -- Si el archivo trae el mismo CD dos veces, se suman en vez de que
-    -- la segunda tumbe a la primera sin avisar.
-    on conflict (mes, cd_origen) do update set hl = public.sider_zlde.hl + excluded.hl;
-    n := n + 1;
-  end loop;
+  delete from public.sider_zlde where mes = any(v_meses);
 
-  return n;
+  insert into public.sider_zlde (mes, cd_origen, hl, vh_recibidos, lineas, importado_por)
+  select date_trunc('month', (f->>'mes')::date)::date,
+         btrim(f->>'cd_origen'),
+         (f->>'hl')::numeric,
+         coalesce((f->>'vh')::numeric, 0),
+         coalesce((f->>'lineas')::integer, 0),
+         auth.uid()
+  from jsonb_array_elements(p_filas) f
+  where btrim(coalesce(f->>'cd_origen', '')) <> ''
+  -- Si el archivo trae el mismo CD dos veces en el mismo mes, se suman
+  -- en vez de que la segunda tumbe a la primera sin avisar.
+  on conflict (mes, cd_origen) do update
+     set hl           = public.sider_zlde.hl           + excluded.hl,
+         vh_recibidos = public.sider_zlde.vh_recibidos + excluded.vh_recibidos,
+         lineas       = public.sider_zlde.lineas       + excluded.lineas;
+
+  get diagnostics n = row_count;
+  return jsonb_build_object('filas', n, 'meses', to_jsonb(v_meses));
+end $$;
+
+-- ---------------------------------------------------------------------
+-- El histórico de la hoja "Base de Datos".
+--
+-- Solo borra lo IMPORTADO de esos meses. Un viaje certificado en la app,
+-- con sus fotos y su GPS, no lo puede tocar un archivo: sería borrar
+-- evidencia con un clic y sin preguntar.
+-- ---------------------------------------------------------------------
+create or replace function public.sider_viajes_importar(p_filas jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_meses date[];
+  v_borrados integer := 0;
+  n integer := 0;
+begin
+  if not public.es_editor() then
+    raise exception 'Solo un supervisor o administrador puede importar la base de datos';
+  end if;
+  if p_filas is null or jsonb_typeof(p_filas) <> 'array' or jsonb_array_length(p_filas) = 0 then
+    raise exception 'No llegó ninguna fila que guardar';
+  end if;
+
+  select array_agg(distinct date_trunc('month', (f->>'fecha')::date)::date)
+    into v_meses
+    from jsonb_array_elements(p_filas) f;
+
+  delete from public.sider_viajes
+   where importado
+     and fecha is not null
+     and date_trunc('month', fecha)::date = any(v_meses);
+  get diagnostics v_borrados = row_count;
+
+  insert into public.sider_viajes
+    (placa, planta, sku, estibas, fecha, estado, importado, observacion, creado_por)
+  select upper(btrim(f->>'placa')),
+         btrim(f->>'planta'),
+         btrim(f->>'sku'),
+         (f->>'estibas')::numeric,
+         (f->>'fecha')::date,
+         'recibido'::estado_sider,
+         true,
+         nullif(btrim(coalesce(f->>'observacion', '')), ''),
+         auth.uid()
+  from jsonb_array_elements(p_filas) f;
+
+  get diagnostics n = row_count;
+  return jsonb_build_object('filas', n, 'borrados', v_borrados, 'meses', to_jsonb(v_meses));
 end $$;
 
 alter table public.sider_zlde enable row level security;
@@ -668,4 +818,5 @@ create policy sider_zlde_write on public.sider_zlde for all to authenticated
   using (public.es_editor()) with check (public.es_editor());
 
 grant select on public.v_sider_seguimiento to authenticated;
-grant execute on function public.sider_zlde_guardar(date, jsonb) to authenticated;
+grant execute on function public.sider_zlde_importar(jsonb)   to authenticated;
+grant execute on function public.sider_viajes_importar(jsonb) to authenticated;

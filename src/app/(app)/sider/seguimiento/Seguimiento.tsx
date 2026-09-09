@@ -30,6 +30,13 @@ const nfp = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFr
 const pctTexto = (p: number | null) =>
   p == null ? "—" : `${nfp.format(p * 100)}%`;
 
+/* Verde o rojo según su propio umbral: el de certificación es la meta
+   (10%), el de cumplimiento es el 100% —cumplir es llegar al BU—. Con un
+   solo umbral para los dos, la columna de cumplimiento salía verde con
+   un 11%. */
+const clase = (p: number | null, umbral: number) =>
+  p == null ? " nulo" : p >= umbral ? " bien" : " mal";
+
 export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
   filas: FilaSeguimiento[];
   mes: string;
@@ -66,11 +73,15 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
   }, [filas]);
 
   const tot = useMemo(() => {
-    const recibido = dentro.reduce((s, f) => s + Number(f.hl_recibido), 0);
-    const bu = dentro.reduce((s, f) => s + Number(f.bu_mtd), 0);
-    const real = dentro.reduce((s, f) => s + Number(f.real_mtd), 0);
-    const viajes = dentro.reduce((s, f) => s + Number(f.viajes), 0);
-    return { recibido, bu, real, viajes, pct: recibido > 0 ? real / recibido : null };
+    const su = (k: keyof FilaSeguimiento) => dentro.reduce((s, f) => s + Number(f[k] ?? 0), 0);
+    const recibido = su("hl_recibido"), bu = su("bu_mtd"), real = su("real_mtd");
+    const vhRec = su("vh_recibidos"), vhBu = su("vh_bu_mtd"), vhReal = su("vh_real_mtd");
+    return {
+      recibido, bu, real, viajes: su("viajes"), vhRec, vhBu, vhReal,
+      pctVh: vhBu > 0 ? vhReal / vhBu : null,
+      pctCumpl: bu > 0 ? real / bu : null,
+      pct: recibido > 0 ? real / recibido : null,
+    };
   }, [dentro]);
 
   /* Para la tabla de "lo que se certificó": solo los que certificaron
@@ -141,57 +152,76 @@ export function Seguimiento({ filas, mes, meses, nombreMes, esEditor }: {
         <div className="cab">
           <div>
             <h2>Sider certificado · {nombreMes}</h2>
+            {/* Corto a propósito: cada renglón de texto aquí es un CD
+                menos a la vista, y la tabla ya se explica sola. */}
             <p>
-              <b>BU MTD</b> es el {nf.format(meta * 100)}% del HL recibido: los hectolitros
-              que deberían venir certificados. El <b>%</b> es Real contra{" "}
-              <b>recibido</b>, no contra el BU — así una fila con 17,7% dice que se
-              certificó 17,7% de lo que llegó, y no 177% de la meta.
+              <b>BU MTD</b> = {nf.format(meta * 100)}% de lo recibido ·{" "}
+              <b>% Cumpl.</b> = Real ÷ BU · <b>% Certificación</b> = Real ÷ recibido, que es
+              el número del informe.
             </p>
           </div>
         </div>
         <div className="marco sg-marco">
-          <table className="sg-tabla">
+          <table className="sg-tabla ancha">
             <thead>
+              {/* Los dos bloques, cada uno bajo su rótulo: sin esta fila
+                  son nueve columnas seguidas de números y no hay forma
+                  de saber cuál BU pertenece a cuál. */}
+              <tr className="sg-grupo">
+                <th className="hueco" />
+                <th className="vh" colSpan={4}>Vehículos</th>
+                <th className="hl" colSpan={5}>Hectolitros</th>
+              </tr>
               <tr>
                 <th>Centro de Origen</th>
-                <th className="num">HL EER Recibido</th>
+                <th className="num corta">Vh Recibidos</th>
                 <th className="num">BU MTD</th>
                 <th className="num">Real MTD</th>
-                <th className="num">Viajes</th>
+                <th className="num">% Cumpl.</th>
+                <th className="num corta">HL EER Recibido</th>
+                <th className="num">BU MTD</th>
+                <th className="num">Real MTD</th>
+                <th className="num">% Cumpl.</th>
                 <th className="num">% Certificación</th>
               </tr>
             </thead>
             <tbody>
               {dentro.map((f) => {
                 const p = f.pct_certificacion == null ? null : Number(f.pct_certificacion);
+                const pc = f.pct_cumplimiento == null ? null : Number(f.pct_cumplimiento);
+                const pv = f.pct_cumplimiento_vh == null ? null : Number(f.pct_cumplimiento_vh);
                 return (
                   <tr key={f.cd_origen}>
                     <td>{f.cd_origen}</td>
-                    <td className="num">{nf.format(Number(f.hl_recibido))}</td>
+                    <td className="num corta">{nf1.format(Number(f.vh_recibidos))}</td>
+                    <td className="num">{nf1.format(Number(f.vh_bu_mtd))}</td>
+                    <td className="num">{nf1.format(Number(f.vh_real_mtd))}</td>
+                    <td className={"num sg-pct" + clase(pv, 1)}>{pctTexto(pv)}</td>
+                    <td className="num corta">{nf.format(Number(f.hl_recibido))}</td>
                     <td className="num">{nf.format(Number(f.bu_mtd))}</td>
                     <td className="num">{nf.format(Number(f.real_mtd))}</td>
-                    <td className="num apagado">{f.viajes || "—"}</td>
-                    <td className={"num sg-pct" + (p == null ? " nulo" : p >= meta ? " bien" : " mal")}>
-                      {pctTexto(p)}
-                    </td>
+                    <td className={"num sg-pct" + clase(pc, 1)}>{pctTexto(pc)}</td>
+                    <td className={"num sg-pct" + clase(p, meta)}>{pctTexto(p)}</td>
                   </tr>
                 );
               })}
               {!dentro.length && (
-                <tr><td className="vacio" colSpan={6}>Este mes no tiene nada cargado.</td></tr>
+                <tr><td className="vacio" colSpan={10}>Este mes no tiene nada cargado.</td></tr>
               )}
             </tbody>
             {!!dentro.length && (
               <tfoot>
                 <tr>
                   <td>Total general</td>
-                  <td className="num">{nf.format(tot.recibido)}</td>
+                  <td className="num corta">{nf1.format(tot.vhRec)}</td>
+                  <td className="num">{nf1.format(tot.vhBu)}</td>
+                  <td className="num">{nf1.format(tot.vhReal)}</td>
+                  <td className={"num sg-pct" + clase(tot.pctVh, 1)}>{pctTexto(tot.pctVh)}</td>
+                  <td className="num corta">{nf.format(tot.recibido)}</td>
                   <td className="num">{nf.format(tot.bu)}</td>
                   <td className="num">{nf.format(tot.real)}</td>
-                  <td className="num">{tot.viajes || "—"}</td>
-                  <td className={"num sg-pct" + (tot.pct == null ? " nulo" : tot.pct >= meta ? " bien" : " mal")}>
-                    {pctTexto(tot.pct)}
-                  </td>
+                  <td className={"num sg-pct" + clase(tot.pctCumpl, 1)}>{pctTexto(tot.pctCumpl)}</td>
+                  <td className={"num sg-pct" + clase(tot.pct, meta)}>{pctTexto(tot.pct)}</td>
                 </tr>
               </tfoot>
             )}

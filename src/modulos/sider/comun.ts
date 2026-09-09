@@ -42,6 +42,8 @@ export type Viaje = {
   tipo_envase: string | null;
   estibas: number;
   estado: "en_transito" | "recibido" | "anulado";
+  /** Vino de un archivo, no de una certificación: no tiene evidencia. */
+  importado: boolean;
   observacion: string | null;
   creado_por: string | null;
   creado_en: string;
@@ -77,12 +79,26 @@ export type FilaSeguimiento = {
   planta: string | null;
   aplica_sider: boolean;
   fuera_del_maestro: boolean;
+  /* Bloque de VEHÍCULOS. En el Excel eran las columnas L a O.
+     Vehículos EQUIVALENTES: estibas ÷ 36, de los dos lados. Comparar
+     renglones contra vehículos daría un porcentaje sin significado. */
+  vh_recibidos: number;
+  vh_bu_mtd: number;
+  vh_real_mtd: number;
+  pct_cumplimiento_vh: number | null;
+  /* Bloque de HECTOLITROS. En el Excel eran dos bloques (P a S y T a W)
+     con las mismas tres primeras columnas y solo el porcentaje distinto:
+     aquí van las tres una vez y los dos porcentajes al lado. */
   hl_recibido: number;
   bu_mtd: number;
   real_mtd: number;
+  /** Real contra la META. Dice si se llegó a lo que tocaba. */
+  pct_cumplimiento: number | null;
+  /** Real contra lo RECIBIDO. Es el número del informe. */
+  pct_certificacion: number | null;
   viajes: number;
   estibas: number;
-  pct_certificacion: number | null;
+  lineas_zlde: number;
   meta: number;
 };
 

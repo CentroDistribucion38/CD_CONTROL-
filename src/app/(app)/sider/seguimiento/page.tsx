@@ -77,7 +77,7 @@ export default async function SeguimientoPage({
           </div>
           <div className="pie">
             <span>meta {(meta * 100).toLocaleString("es-CO", { maximumFractionDigits: 0 })}%</span>
-            {esEditor && <Link href="/sider/zlde" className="chip">Cargar ZLDE</Link>}
+            {esEditor && <Link href="/sider/importar" className="chip">Importar</Link>}
           </div>
         </div>
       </section>
@@ -89,7 +89,7 @@ export default async function SeguimientoPage({
             El seguimiento necesita las dos puntas: el <b>HL EER recibido</b> de ZLDE y los
             viajes certificados. Empieza por{" "}
             {esEditor
-              ? <Link href="/sider/zlde">cargar el archivo de ZLDE</Link>
+              ? <Link href="/sider/importar">importar el archivo de ZLDE</Link>
               : "pedirle a un supervisor que cargue el archivo de ZLDE"}.
           </p>
         </section>

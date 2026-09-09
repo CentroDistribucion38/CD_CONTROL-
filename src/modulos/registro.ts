@@ -87,7 +87,7 @@ export const MODULOS: Modulo[] = [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
-      { nombre: "Cargar ZLDE", ruta: "/sider/zlde" },
+      { nombre: "Importar", ruta: "/sider/importar" },
       { nombre: "Maestro", ruta: "/sider/maestro" },
     ],
   },

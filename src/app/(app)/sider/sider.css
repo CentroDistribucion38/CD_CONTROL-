@@ -123,6 +123,10 @@
 .sd .sello.recibido { background: #E9F6EF; color: #14653F }
 .sd .sello.anulado  { background: #F4F6F9; color: #93A3B6 }
 .sd .sello.falta    { background: #FDECEB; color: #A4271C }
+/* Importado: gris azulado, ni verde ni rojo. No está mal —es volumen
+   real y cuenta para el seguimiento— pero tampoco tiene evidencia, y
+   pintarlo igual que un certificado sería decir que sí la tiene. */
+.sd .sello.importado { background: #EDEFF4; color: #5B6B7F }
 
 /* ====================== Aviso de módulo sin crear ====================== */
 .sd .sin-tablas {
@@ -959,3 +963,115 @@
   border-bottom: 1.5px solid rgba(11,114,133,.35);
 }
 .sd .zl-enlace:hover { border-bottom-color: var(--sd-acento) }
+
+/* ===================================================================
+   IMPORTAR — las dos pestañas
+   Más altas que las del seguimiento porque llevan una segunda línea:
+   "ZLDE" y "Base de datos" no le dicen nada a quien entra por primera
+   vez, y el subtítulo es la diferencia entre escoger y adivinar.
+   =================================================================== */
+.sd .im-pes { display: flex; gap: 4px; background: #E7ECF3; border-radius: 4px; padding: 4px }
+.sd .im-pes button {
+  flex: 1 1 0; min-width: 0; border: 0; background: none; cursor: pointer; border-radius: 3px;
+  padding: 9px 14px; text-align: left; font: 800 14px var(--sd-titulo); color: var(--sd-gris);
+  display: grid; gap: 2px;
+}
+.sd .im-pes button span {
+  font: 400 11.5px/1.25 var(--sd-texto); color: #7D8CA0; overflow: hidden; text-overflow: ellipsis;
+}
+.sd .im-pes button.act { background: #fff; color: var(--sd-acento-hondo); box-shadow: 0 1px 2px rgba(4,32,63,.12) }
+.sd .im-pes button.act span { color: #5B6B7F }
+.sd .im-pes button:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: -1px }
+
+.sd .im-filtro {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 11px 26px; border-top: 1px solid var(--sd-linea); background: #FAFBFD;
+  font-size: 12.5px; color: var(--sd-gris);
+}
+.sd .im-filtro select { height: 32px; border: 1px solid var(--sd-linea); border-radius: 3px; padding: 0 8px }
+.sd .im-filtro b { color: #C6D0DC }
+
+.sd .im-detalle { border-top: 1px solid var(--sd-linea) }
+.sd .im-detalle > summary {
+  cursor: pointer; padding: 11px 26px; font-size: 12.5px; font-weight: 600;
+  color: var(--sd-acento-hondo); list-style-position: inside;
+}
+.sd .im-detalle > summary:hover { background: #FAFBFD }
+.sd .im-lista {
+  margin: 0; padding: 4px 26px 14px 44px; max-height: 200px; overflow: auto;
+  font-size: 12.5px; color: var(--sd-gris);
+}
+.sd .im-lista li { padding: 2px 0 }
+
+/* ===================================================================
+   SEGUIMIENTO — los dos bloques del informe
+   En el Excel eran tres bloques de columnas y dos estaban en #REF!. Los
+   que calculan son vehículos y hectolitros, así que se agrupan bajo su
+   propio encabezado: sin esa fila de arriba son diez columnas seguidas
+   de números y nadie sabe cuál BU es de cuál.
+   =================================================================== */
+.sd .sg-tabla.ancha { min-width: 1000px }
+.sd .sg-grupo th {
+  text-align: center; font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: #fff; padding: 5px 8px; border-bottom: 0;
+}
+.sd .sg-grupo th.vh { background: #5B6B7F }
+.sd .sg-grupo th.hl { background: var(--sd-acento-hondo) }
+.sd .sg-grupo th.hueco { background: transparent }
+/* La raya que separa los dos bloques, para que la vista no se pierda a
+   mitad de un renglón de diez números. */
+.sd .sg-tabla .corta { border-left: 2px solid #D5DCE5 }
+.sd .sg-tabla thead th.corta { border-left-color: #C6D0DC }
+
+/* La primera columna se queda quieta al desplazar de lado. Con diez
+   columnas, en el celular se ve la tabla corrida y sin el nombre del CD
+   los números no son de nadie: medido, la tabla mide 1.232 px y la caja
+   364. */
+.sd .sg-tabla.ancha th:first-child,
+.sd .sg-tabla.ancha td:first-child {
+  position: sticky; left: 0; z-index: 2; background: #fff;
+  box-shadow: 1px 0 0 var(--sd-linea);
+}
+.sd .sg-tabla.ancha thead th:first-child { background: #FAFBFD; z-index: 3 }
+.sd .sg-tabla.ancha .sg-grupo th:first-child { background: #FAFBFD }
+.sd .sg-tabla.ancha tfoot td:first-child { background: #FDF0D5; z-index: 3 }
+
+/* La barra que reemplaza a la tarjeta del archivo una vez está puesto. */
+.sd .im-barra {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: #fff; border: 1px solid var(--sd-linea); border-radius: 4px;
+  padding: 8px 10px 8px 14px;
+}
+.sd .im-arch {
+  flex: 1 1 180px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 600 13px var(--sd-titulo); color: var(--sd-tinta);
+}
+.sd .im-barra label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--sd-gris) }
+.sd .im-barra select {
+  height: 34px; max-width: 170px; border: 1px solid var(--sd-linea); border-radius: 3px; padding: 0 8px;
+}
+.sd .im-barra .btn { height: 34px }
+/* En el celular la barra se envolvía en TRES renglones y medía 165 px
+   —medido en 390 y en 360—, que es más de lo que costaba la tarjeta que
+   vino a reemplazar. En rejilla son dos: el archivo con su botón, y el
+   filtro con el de guardar. */
+@media (max-width: 640px) {
+  .sd .im-barra { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 8px 10px }
+  .sd .im-arch { grid-column: 1; align-self: center }
+  .sd .im-barra label { grid-column: 1; min-width: 0 }
+  .sd .im-barra label span { flex: none }
+  .sd .im-barra select { max-width: none; width: 100%; min-width: 0 }
+  .sd .im-barra .btn { grid-column: 2 }
+}
+
+/* La tabla del importador tiene por encima la barra del archivo, la
+   línea de qué leyó y dos plegables, así que le queda menos alto que a
+   la del seguimiento. Medido en el celular chico de 740: con el techo
+   de .chico la página se pasaba 32 px. */
+.sd .im-tabla { max-height: max(120px, calc(100dvh - 600px)) }
+
+/* Cuatro o cinco columnas cortas caben en un celular; el min-width de
+   1.080 px que necesita la Fuente principal las mandaba a desplazarse
+   de lado por nada. */
+.sd .im-tabla table { min-width: 0 }
+.sd .im-tabla th, .sd .im-tabla td { padding-left: 12px; padding-right: 12px }

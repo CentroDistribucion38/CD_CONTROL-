@@ -161,20 +161,26 @@ export default async function FuentePrincipalPage() {
                   <td className="num">{v.cajas == null ? "—" : nf.format(v.cajas)}</td>
                   <td className="num">{v.unidades == null ? "—" : nf.format(v.unidades)}</td>
                   <td className="num">{v.hl == null ? "—" : nf2.format(v.hl)}</td>
+                  {/* Un viaje IMPORTADO no dice "0/3 fotos": nunca las tuvo
+                      y nunca las va a tener, y un rojo ahí sería una
+                      alarma que nadie puede apagar. Dice de dónde vino. */}
                   <td>
-                    <div>{hora(v.salida_en)}</div>
-                    <div className="cod">{v.fotos_salida}/3 fotos</div>
+                    <div>{v.importado ? "—" : hora(v.salida_en)}</div>
+                    <div className="cod">{v.importado ? "sin evidencia" : `${v.fotos_salida}/3 fotos`}</div>
                   </td>
                   <td>
-                    <div>{hora(v.llegada_en)}</div>
+                    <div>{v.importado ? "—" : hora(v.llegada_en)}</div>
                     <div className="cod">
-                      {v.estado === "en_transito" ? enCamino(v.en_camino) : `${v.fotos_llegada}/3 fotos`}
+                      {v.importado ? "sin evidencia"
+                        : v.estado === "en_transito" ? enCamino(v.en_camino)
+                        : `${v.fotos_llegada}/3 fotos`}
                     </div>
                   </td>
                   <td>
-                    <span className={"sello " + (v.faltan_factores ? "falta" : v.estado === "recibido" ? "recibido" : v.estado === "anulado" ? "anulado" : "transito")}>
+                    <span className={"sello " + (v.faltan_factores ? "falta" : v.importado ? "importado" : v.estado === "recibido" ? "recibido" : v.estado === "anulado" ? "anulado" : "transito")}>
                       <i />
                       {v.faltan_factores ? "sin factores"
+                        : v.importado ? "importado"
                         : v.estado === "recibido" ? "recibido"
                         : v.estado === "anulado" ? "anulado" : "en tránsito"}
                     </span>

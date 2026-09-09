@@ -314,17 +314,23 @@ function hojaBase(
       v.unidades == null ? null : Number(v.unidades),
       v.hl == null ? null : Number(v.hl),
       new Date(v.fecha), MESES_LARGO[v.num_mes - 1], v.semana, v.anio,
-      v.estado === "en_transito" ? "en tránsito" : v.estado,
-      v.salida_en ? new Date(v.salida_en) : null, `${v.fotos_salida}/3`,
-      v.llegada_en ? new Date(v.llegada_en) : null, `${v.fotos_llegada}/3`,
+      v.importado ? "importado" : v.estado === "en_transito" ? "en tránsito" : v.estado,
+      v.salida_en ? new Date(v.salida_en) : null,
+      v.importado ? "—" : `${v.fotos_salida}/3`,
+      v.llegada_en ? new Date(v.llegada_en) : null,
+      v.importado ? "—" : `${v.fotos_llegada}/3`,
       v.creado_por ? nombres[v.creado_por] ?? "—" : "—",
       v.observacion ?? "",
     ];
     val.forEach((x, c) => { f.getCell(c + 1).value = x as ExcelJS.CellValue; });
     /* Una punta sin sus tres fotos se marca: es lo primero que alguien
-       busca cuando revisa un mes. */
-    if (v.fotos_salida < 3) alerta(f.getCell(18));
-    if (v.estado === "recibido" && v.fotos_llegada < 3) alerta(f.getCell(20));
+       busca cuando revisa un mes. Menos si el viaje vino importado de un
+       archivo: ese nunca tuvo fotos y nunca las va a tener, y una alarma
+       que nadie puede apagar deja de ser una alarma. */
+    if (!v.importado) {
+      if (v.fotos_salida < 3) alerta(f.getCell(18));
+      if (v.estado === "recibido" && v.fotos_llegada < 3) alerta(f.getCell(20));
+    }
   });
   if (!viajes.length) vaciar(h, hdr + 1, cols);
 
