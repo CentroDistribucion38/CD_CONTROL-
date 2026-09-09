@@ -48,6 +48,30 @@ function claveSugerida(): string {
   return String(randomInt(0, tope)).padStart(DIGITOS, "0");
 }
 
+/**
+ * El id de la cuenta de auth que tiene ese correo, o null.
+ *
+ * Se pagina porque listUsers devuelve 50 por página y una cuenta vieja
+ * puede estar en la tercera: pedir solo la primera y concluir "no está"
+ * sería una respuesta equivocada disfrazada de dato. El tope de 20
+ * páginas —mil cuentas— es para que un error de la API no deje esto
+ * girando para siempre.
+ */
+async function buscarPorCorreo(
+  admin: NonNullable<ReturnType<typeof clienteDeServicio>>,
+  correo: string
+): Promise<string | null> {
+  const buscado = correo.toLowerCase();
+  for (let pagina = 1; pagina <= 20; pagina++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page: pagina, perPage: 200 });
+    if (error || !data?.users?.length) return null;
+    const hallado = data.users.find((u) => (u.email ?? "").toLowerCase() === buscado);
+    if (hallado) return hallado.id;
+    if (data.users.length < 200) return null;
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
   /* ---------- 1 y 2 · quién pide, y si puede ---------- */
   const supabase = await createClient();
@@ -135,9 +159,10 @@ export async function POST(req: Request) {
   }
 
   /* ---------- Crear la cuenta ---------- */
+  const correo = correoDeUsuario(usuario);
   const clave = claveSugerida();
   const { data: creada, error: eAuth } = await admin.auth.admin.createUser({
-    email: correoDeUsuario(usuario),
+    email: correo,
     password: clave,
     /* Confirmado de entrada: CONTROL entra por usuario y el correo es
        sintético —no existe buzón—, así que esperar una confirmación
@@ -145,36 +170,102 @@ export async function POST(req: Request) {
     email_confirm: true,
   });
 
-  if (eAuth || !creada?.user) {
+  /* LA CUENTA HUÉRFANA.
+     auth.users y perfiles son dos tablas. Si la cuenta se creó y su
+     perfil no, queda una cuenta que NO SE VE en ninguna pantalla y que
+     además bloquea el usuario para siempre: usuario_libre mira
+     perfiles, dice "libre", y createUser contesta "ya existe". Ese
+     callejón sin salida es exactamente lo que pasó.
+     Aquí se ADOPTA: se le pone una clave provisional nueva y se le
+     arma el perfil. No se borra la cuenta —borrar cuentas de auth por
+     una condición deducida es demasiado filo para un caso que se
+     arregla completándola—. */
+  let idCuenta = creada?.user?.id ?? null;
+  if (!idCuenta) {
     const m = (eAuth?.message ?? "").toLowerCase();
-    return NextResponse.json(
-      {
-        error: m.includes("already")
-          ? `Ese usuario ya tiene cuenta en Supabase.`
-          : `No se pudo crear la cuenta: ${eAuth?.message ?? "error desconocido"}`,
-      },
-      { status: 400 }
-    );
+    const yaExiste = m.includes("already") || m.includes("registered");
+    if (!yaExiste) {
+      return NextResponse.json(
+        { error: `No se pudo crear la cuenta: ${eAuth?.message ?? "error desconocido"}` },
+        { status: 400 }
+      );
+    }
+
+    const suya = await buscarPorCorreo(admin, correo);
+    if (!suya) {
+      return NextResponse.json(
+        {
+          error:
+            `Supabase dice que "${usuario}" ya tiene cuenta, pero no aparece al ` +
+            `buscarla. Revísala en Authentication → Users antes de volver a intentar.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    /* Si esa cuenta YA tiene perfil, entonces sí está tomada de verdad
+       y no hay nada que adoptar. */
+    const { data: yaTiene } = await admin
+      .from("perfiles").select("id, usuario").eq("id", suya).maybeSingle();
+    if (yaTiene?.usuario) {
+      return NextResponse.json(
+        { error: `El usuario "${usuario}" ya está tomado.` },
+        { status: 409 }
+      );
+    }
+
+    const { error: eClave } = await admin.auth.admin.updateUserById(suya, {
+      password: clave, email_confirm: true,
+    });
+    if (eClave) {
+      return NextResponse.json(
+        { error: `La cuenta de "${usuario}" existe pero no se le pudo poner clave: ${eClave.message}` },
+        { status: 500 }
+      );
+    }
+    idCuenta = suya;
   }
 
   /* ---------- El perfil ----------
-     El disparador de 00-nucleo.sql ya crea una fila de perfil cuando
-     nace la cuenta, así que esto ACTUALIZA en vez de insertar. Se hace
-     con la llave de servicio porque el disparador de columnas
+     UPSERT y no update. Antes esto era un update, confiando en que el
+     disparador on_auth_user_created de 00-nucleo.sql ya hubiera creado
+     la fila. Cuando ese disparador no está —o no corrió— el update no
+     encuentra nada, Y NO DA ERROR: PostgREST devuelve éxito con cero
+     filas tocadas. La cuenta quedaba en auth.users sin perfil, invisible
+     en la pantalla y bloqueando el usuario para siempre.
+     Con upsert la fila queda escrita exista o no el disparador. Depender
+     de algo que no se comprueba fue el error; comprobarlo abajo, con
+     select(), es lo que lo cierra.
+
+     Se hace con la llave de servicio porque el disparador de columnas
      protegidas solo deja tocar rol y permisos a un admin, y aquí quien
      escribe es el servidor, no la sesión. Ya se comprobó arriba que
      quien pidió esto sí es admin. */
-  const { error: ePerfil } = await admin
+  const { data: filaPerfil, error: ePerfil } = await admin
     .from("perfiles")
-    .update({
+    .upsert({
+      id: idCuenta,
       usuario,
       nombre,
       rol,
       activo: true,
       clave_provisional: true,
       permisos_extra: extra,
-    })
-    .eq("id", creada.user.id);
+    }, { onConflict: "id" })
+    .select("id")
+    .maybeSingle();
+
+  if (!ePerfil && !filaPerfil) {
+    return NextResponse.json(
+      {
+        error:
+          `La cuenta de "${usuario}" quedó creada pero su perfil no se escribió, ` +
+          `y la base no dijo por qué. Búscala en Authentication → Users.`,
+        usuario,
+      },
+      { status: 500 }
+    );
+  }
 
   if (ePerfil) {
     /* La cuenta quedó creada y el perfil no: se dice, con el usuario, en
