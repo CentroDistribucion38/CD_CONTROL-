@@ -15,7 +15,12 @@ import { Navegacion } from "./Navegacion";
  * equipo — el monitor grande de la oficina y la tablet de piso no piden lo
  * mismo aunque entre la misma persona.
  */
-export function Marco({ rol, children }: { rol: string; children: React.ReactNode }) {
+export function Marco({ rol, permitidas, children }: {
+  rol: string;
+  /** Las rutas que esta persona puede ver, resueltas en el layout. */
+  permitidas: string[];
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const hayModulo = !!moduloPorRuta(pathname);
   const [anclado, setAnclado] = useState(false);
@@ -38,7 +43,7 @@ export function Marco({ rol, children }: { rol: string; children: React.ReactNod
 
   return (
     <div className={"sh-marco" + (hayModulo ? "" : " sin-riel") + (anclado ? " anclado" : "")}>
-      {hayModulo && <Navegacion rol={rol} anclado={anclado} alternar={alternar} />}
+      {hayModulo && <Navegacion rol={rol} permitidas={permitidas} anclado={anclado} alternar={alternar} />}
       <main className="sh-main">{children}</main>
     </div>
   );

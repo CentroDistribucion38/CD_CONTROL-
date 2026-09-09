@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { misPermisos } from "@/lib/permisos";
 import { maestroSider } from "@/modulos/sider/datos";
 import "../sider.css";
 import { Maestro } from "./Maestro";
@@ -13,7 +14,9 @@ export default async function MaestroPage() {
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     maestroSider(),
   ]);
-  const esEditor = perfil?.rol === "admin" || perfil?.rol === "supervisor";
+  /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
+     global: un rol puede certificar y no tocar el maestro. */
+  const esEditor = (await misPermisos()).puedeEditar("/sider/maestro");
 
   if (maestro.falta) {
     return (

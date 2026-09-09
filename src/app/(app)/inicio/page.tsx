@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { modulosVisibles } from "@/modulos/registro";
+import { misPermisos } from "@/lib/permisos";
 import { PieApp } from "@/components/PieApp";
 
 export const dynamic = "force-dynamic";
@@ -14,18 +13,11 @@ export const dynamic = "force-dynamic";
  * escrita a mano.
  */
 export default async function PortadaPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: perfil } = await supabase
-    .from("perfiles")
-    .select("rol")
-    .eq("id", user!.id)
-    .single();
-
-  const modulos = modulosVisibles(perfil?.rol ?? "operador");
+  /* Los módulos que este rol puede ver: si no puede entrar a ninguna de
+     sus pantallas, la tarjeta no se dibuja. Antes se leía el rol aquí y
+     se comparaba contra una lista en el código; ahora los permisos son
+     datos y se resuelven en un solo sitio. */
+  const modulos = (await misPermisos()).modulos;
 
   return (
     <div className="sh-portada">

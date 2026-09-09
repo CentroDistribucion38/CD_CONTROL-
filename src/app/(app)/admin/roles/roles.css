@@ -1,0 +1,183 @@
+/* ---------------------------------------------------------------------
+   Roles. Cuelga de .rl para no pisar nada de la app.
+   --------------------------------------------------------------------- */
+.rl {
+  --rl-tinta: #04203F; --rl-acento: #4C3BCF; --rl-hondo: #372a9b;
+  --rl-gris: #5B6B7F; --rl-linea: #D5DCE5; --rl-papel: #FFF;
+  --rl-verde: #0F7A4A; --rl-rojo: #E4002B; --rl-oro: #E9A81F;
+  --rl-titulo: "Archivo", system-ui, sans-serif;
+  --rl-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  font-family: var(--rl-texto); color: var(--rl-tinta);
+  display: flex; flex-direction: column; gap: 14px; min-width: 0;
+}
+.rl *, .rl *::before, .rl *::after { box-sizing: border-box }
+
+.rl .cabeza h1 {
+  font-family: var(--rl-titulo); font-weight: 900;
+  font-size: clamp(26px, 2.6vw, 34px); letter-spacing: -.04em; margin: 0;
+}
+.rl .cabeza .sub { margin: 7px 0 0; font-size: 13px; line-height: 1.45; color: var(--rl-gris); max-width: 84ch }
+
+.rl .tarjeta {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  border-radius: 3px; display: flex; flex-direction: column; min-width: 0;
+}
+.rl .tarjeta .cab {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; padding: 16px 20px 13px; flex-wrap: wrap;
+}
+.rl .tarjeta h2 { font-family: var(--rl-titulo); font-weight: 800; font-size: 17px; margin: 0 }
+.rl .tarjeta .cab p { margin: 5px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--rl-gris); max-width: 76ch }
+
+.rl .btn {
+  height: 40px; padding: 0 18px; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--rl-acento); color: #fff;
+  font-family: var(--rl-titulo); font-weight: 800; font-size: 13.5px;
+}
+.rl .btn:hover:not(:disabled) { background: var(--rl-hondo) }
+.rl .btn:disabled { background: #B4C0CE; cursor: not-allowed }
+.rl .btn.plano {
+  background: none; color: var(--rl-gris); padding: 0 6px;
+  font-family: var(--rl-texto); font-weight: 600; font-size: 13px;
+}
+.rl .btn.plano:hover:not(:disabled) { background: none; color: var(--rl-acento) }
+.rl .btn.plano.peligro:hover:not(:disabled) { color: var(--rl-rojo) }
+.rl input {
+  width: 100%; height: 40px; padding: 0 11px;
+  font: 500 14px var(--rl-texto); color: var(--rl-tinta);
+  background: #F7F9FC; border: 1.5px solid var(--rl-linea); border-radius: 2px;
+}
+.rl input:focus {
+  outline: none; background: #fff; border-color: var(--rl-acento);
+  box-shadow: 0 0 0 3px rgba(76,59,207,.16);
+}
+.rl .aviso { padding: 12px 20px; font-size: 13px; border-top: 1px solid var(--rl-linea) }
+.rl .aviso.mal { background: #FDECEB; color: #A4271C }
+.rl .aviso.bien { background: #E9F6EF; color: #14653F }
+.rl .sin-tablas {
+  background: #FFF8E6; border: 1px solid #F0D89B; border-radius: 3px; padding: 20px 24px;
+}
+.rl .sin-tablas h2 { font-family: var(--rl-titulo); font-weight: 800; font-size: 18px; margin: 0 }
+.rl .sin-tablas p { margin: 8px 0 0; font-size: 13.5px; color: #6B5518; max-width: 78ch }
+.rl .sin-tablas code {
+  background: #fff; border: 1px solid #E6D3A0; border-radius: 2px; padding: 2px 7px;
+  font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* La lista a la izquierda, las pantallas a la derecha. */
+.rl .rl-rejilla { display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start }
+
+/* ---------- Los roles ---------- */
+.rl .rl-roles { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rl-linea) }
+.rl .rl-roles button {
+  width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
+  padding: 11px 20px; border-bottom: 1px solid #EDF1F6; display: block;
+}
+.rl .rl-roles button:hover { background: #F7F9FC }
+.rl .rl-roles button.aqui { background: #F2F1FC; box-shadow: inset 3px 0 0 var(--rl-acento) }
+.rl .rl-roles b {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--rl-titulo); font-weight: 800; font-size: 14.5px;
+}
+.rl .rl-roles span { display: block; font-size: 11.5px; color: var(--rl-gris); margin-top: 2px }
+.rl .rl-manda {
+  font-style: normal; font-family: var(--rl-texto); font-size: 9.5px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; color: #fff;
+  background: var(--rl-acento); border-radius: 999px; padding: 2px 7px;
+}
+.rl .rl-nuevo {
+  display: grid; gap: 10px; padding: 0 20px 16px; border-bottom: 1px solid var(--rl-linea);
+}
+.rl .rl-nuevo label { display: flex; flex-direction: column; gap: 5px }
+.rl .rl-nuevo span { font-size: 11.5px; font-weight: 600; color: #2C4361 }
+.rl .rl-nuevo em {
+  font-style: normal; font-size: 11px; color: var(--rl-gris);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---------- Las pantallas ---------- */
+.rl .rl-acciones { display: flex; align-items: center; gap: 12px }
+.rl .rl-cuenta {
+  font-family: var(--rl-titulo); font-weight: 800; font-size: 13px; color: var(--rl-gris);
+  white-space: nowrap;
+}
+/* La lista se desplaza dentro de su caja y no la página: es la misma
+   regla del resto de la plataforma. */
+.rl .rl-cuerpo {
+  border-top: 1px solid var(--rl-linea);
+  max-height: max(260px, calc(100dvh - 330px)); overflow-y: auto;
+}
+.rl .rl-modulo { border-bottom: 1px solid var(--rl-linea) }
+.rl .rl-modulo:last-child { border-bottom: 0 }
+.rl .rl-modulo header {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 9px 20px 9px 17px; background: #FAFBFD; border-left: 3px solid;
+  position: sticky; top: 0; z-index: 2;
+}
+.rl .rl-modulo header b { font-family: var(--rl-titulo); font-weight: 800; font-size: 13.5px }
+.rl .rl-todo { display: flex; gap: 2px }
+.rl .rl-todo button {
+  border: 1px solid var(--rl-linea); background: #fff; cursor: pointer;
+  font: 600 10.5px var(--rl-texto); color: var(--rl-gris);
+  padding: 3px 9px; border-radius: 2px;
+}
+.rl .rl-todo button:hover { border-color: var(--rl-acento); color: var(--rl-acento) }
+.rl .rl-todo button.aqui { background: var(--rl-tinta); border-color: var(--rl-tinta); color: #fff }
+
+.rl .rl-modulo ul { list-style: none; margin: 0; padding: 0 }
+.rl .rl-modulo li {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 9px 20px; border-bottom: 1px solid #F2F5F9;
+}
+.rl .rl-modulo li:last-child { border-bottom: 0 }
+.rl .rl-sec { min-width: 0 }
+.rl .rl-sec b { display: block; font-size: 13.5px; font-weight: 600 }
+.rl .rl-sec em {
+  font-style: normal; font-size: 11px; color: #93A3B6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Los tres niveles como un solo control: se ve cuál está puesto sin
+   leer, y se cambia con un toque. */
+.rl .rl-niveles { display: flex; flex: none; background: #EEF1F5; border-radius: 3px; padding: 2px }
+.rl .rl-n {
+  border: 0; background: none; cursor: pointer; border-radius: 2px;
+  font: 700 11.5px var(--rl-titulo); color: var(--rl-gris); padding: 5px 11px; white-space: nowrap;
+}
+.rl .rl-n:hover { color: var(--rl-tinta) }
+.rl .rl-n.aqui { background: #fff; box-shadow: 0 1px 2px rgba(4,32,63,.14) }
+.rl .rl-ninguno.aqui { color: #93A3B6 }
+.rl .rl-ver.aqui     { color: var(--rl-acento) }
+.rl .rl-editar.aqui  { color: var(--rl-verde) }
+.rl .rl-n:focus-visible { outline: 3px solid var(--rl-acento); outline-offset: -1px }
+
+.rl .rl-vacio { margin: 0; padding: 24px 20px; font-size: 13px; color: var(--rl-gris) }
+.rl .rl-pie {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 20px; background: #FAFBFD; border-top: 1px solid var(--rl-linea);
+}
+.rl .rl-pie span { font-size: 11.5px; color: var(--rl-gris) }
+
+@media (max-width: 1000px) {
+  .rl .rl-rejilla { grid-template-columns: 1fr }
+  /* Medido: con la lista de roles arriba y la tarjeta de pantallas
+     abajo, todo lo que no es la lista de secciones ocupa ~630 px en un
+     celular. La lista se desplaza dentro de su caja; la página no. */
+  .rl .rl-cuerpo { max-height: max(160px, calc(100dvh - 652px)) }
+  .rl .cabeza .sub {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
+  .rl .tarjeta .cab { padding: 12px 14px 10px }
+  .rl .tarjeta .cab p {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
+  .rl .rl-roles button { padding: 9px 14px }
+  .rl .rl-modulo li { padding: 8px 14px }
+  .rl .rl-modulo header { padding: 8px 14px 8px 11px }
+  .rl .rl-pie { padding: 10px 14px }
+  .rl .rl-modulo li { flex-wrap: wrap; gap: 8px }
+  .rl .rl-niveles { width: 100% }
+  .rl .rl-n { flex: 1 1 0; padding: 7px 4px }
+  .rl .rl-modulo header { flex-wrap: wrap; gap: 8px }
+  .rl .cabeza h1 { font-size: 26px }
+}

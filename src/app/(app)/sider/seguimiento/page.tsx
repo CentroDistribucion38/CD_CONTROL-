@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { misPermisos } from "@/lib/permisos";
 import { mesesSeguimiento, seguimientoSider, MESES_LARGO } from "@/modulos/sider/datos";
 import "../sider.css";
 import { Seguimiento } from "./Seguimiento";
@@ -24,7 +25,9 @@ export default async function SeguimientoPage({
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     mesesSeguimiento(),
   ]);
-  const esEditor = perfil?.rol === "admin" || perfil?.rol === "supervisor";
+  /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
+     global: un rol puede certificar y no tocar el maestro. */
+  const esEditor = (await misPermisos()).puedeEditar("/sider/seguimiento");
 
   if (falta) {
     return (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { misPermisos } from "@/lib/permisos";
 import { maestroSider } from "@/modulos/sider/datos";
 import "../sider.css";
 import { Zlde } from "./Zlde";
@@ -13,7 +14,9 @@ export default async function ZldePage() {
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     maestroSider(),
   ]);
-  const esEditor = perfil?.rol === "admin" || perfil?.rol === "supervisor";
+  /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
+     global: un rol puede certificar y no tocar el maestro. */
+  const esEditor = (await misPermisos()).puedeEditar("/sider/zlde");
 
   /* Qué meses ya están cargados. Se agrupa acá y no en la base porque son
      unas docenas de filas y no vale una vista para esto. */

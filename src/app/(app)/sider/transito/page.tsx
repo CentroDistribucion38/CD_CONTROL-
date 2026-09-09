@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { misPermisos } from "@/lib/permisos";
 import { viajesEnTransito, nombresDe } from "@/modulos/sider/datos";
 import "../sider.css";
 import { Transito } from "./Transito";
@@ -25,7 +26,9 @@ export default async function TransitoPage() {
   ]);
   /* Ver el tránsito lo puede todo el mundo: de eso se trata, que el que
      recibe sepa qué viene. Certificar la llegada, no. */
-  const esEditor = perfil?.rol === "admin" || perfil?.rol === "supervisor";
+  /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
+     global: un rol puede certificar y no tocar el maestro. */
+  const esEditor = (await misPermisos()).puedeEditar("/sider/transito");
   const nombres = await nombresDe(viajes.map((v) => v.creado_por));
 
   if (falta) {

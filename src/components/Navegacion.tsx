@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { moduloPorRuta, modulosVisibles } from "@/modulos/registro";
@@ -124,16 +125,25 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/conteos": IconoConteos,
 };
 
-export function Navegacion({ rol, anclado, alternar }: {
+export function Navegacion({ rol, permitidas, anclado, alternar }: {
   rol: string;
+  /** Las rutas que esta persona puede ver. Vienen del layout ya resueltas. */
+  permitidas: string[];
   anclado: boolean;
   alternar: () => void;
 }) {
   const pathname = usePathname();
   const actual = moduloPorRuta(pathname);
+  const deja = useMemo(() => new Set(permitidas), [permitidas]);
   if (!actual) return null;
 
-  const visibles = modulosVisibles(rol);
+  /* Solo lo que el rol puede ver. Un enlace a una pantalla cerrada no es
+     una pista de que existe: es una puerta que no abre, y quien la toca
+     cree que la app está rota. */
+  const visibles = modulosVisibles(rol).filter(
+    (m) => deja.has(m.ruta) || m.secciones.some((s) => deja.has(s.ruta))
+  );
+  const secciones = actual.secciones.filter((s) => deja.has(s.ruta));
   const IconoActual = ICONO_MODULO[actual.id] ?? IconoLista;
 
   return (
@@ -155,7 +165,7 @@ export function Navegacion({ rol, anclado, alternar }: {
           <span className="globo">{actual.nombre}</span>
         </Link>
 
-        {actual.secciones.map((s) => {
+        {secciones.map((s) => {
           const Icono = ICONO_RUTA[s.ruta] ?? IconoTablero;
           const aqui = pathname === s.ruta;
           return (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { misPermisos } from "@/lib/permisos";
 import { viajesSider, nombresDe, MESES_LARGO } from "@/modulos/sider/datos";
 import "./sider.css";
 import { OjoEvidencia } from "./Evidencia";
@@ -33,7 +34,9 @@ export default async function FuentePrincipalPage() {
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     viajesSider(),
   ]);
-  const esEditor = perfil?.rol === "admin" || perfil?.rol === "supervisor";
+  /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
+     global: un rol puede certificar y no tocar el maestro. */
+  const esEditor = (await misPermisos()).puedeEditar("/sider");
   const nombres = await nombresDe(viajes.map((v) => v.creado_por));
 
   if (falta) {
