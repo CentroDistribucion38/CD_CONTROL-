@@ -1,39 +1,21 @@
-Simulador de CONA debajo del detalle mensual
+El simulador sigue al mes donde TERMINA el filtro
 
-QUE HACE
-- Dos cifras se escriben -CONA y % de quiebra- y dos salen de ellas:
-    Proyeccion und = CONA x %
-    Disponible     = Proyeccion - la quiebra del MES EN CURSO
-- Comprobado contra la hoja de Cristian: 85.166.358 x 2,65% da
-  2.256.908,49 -el 2.256.908 de la tabla- y 2.256.908 - 1.760.984 da
-  495.924. Siete casos probados, incluido pasarse del tope.
-
-DECISIONES
-- Lo calculado NO se guarda. Guardar una cifra que sale de otras dos es
-  guardarse el derecho a que un dia no cuadren, y ahi nadie sabe cual de
-  las tres esta mal.
-- La quiebra que se resta es la del MES EN CURSO, no la del filtro de
-  arriba, y la pantalla lo dice con el nombre del mes: el filtro sirve
-  para mirar mayo desde septiembre, y el disponible de septiembre no
-  cambia porque uno este mirando mayo. Se toma de `meses`, que ya trae lo
-  escrito a mano del diario aplicado sobre lo importado.
-- Se guarda una fila por mes y la ve todo el mundo igual: el CONA no es
-  una suposicion de quien mira, es la cifra con la que se trabaja el mes.
-  Si viviera solo en la pantalla, cada quien veria un disponible distinto
-  y ninguno seria el bueno.
-- "Guardar cambios" solo se puede tocar si de verdad cambio algo. Un
-  boton siempre vivo no dice si hay algo sin guardar.
-- El porcentaje se guarda como FRACCION (0,0265), igual que
-  quiebra_metas: dos columnas de porcentaje con escalas distintas en la
-  misma base es la forma mas facil de multiplicar por cien de mas. La
-  funcion rechaza un 2,65 con un mensaje que dice que escala espera.
-- Quien guardo sale de auth.uid() dentro de la funcion, no del cuerpo de
-  la peticion: si el id del autor viajara desde el navegador, cualquiera
-  podria guardar el CONA a nombre de otro.
-- Leer lo puede todo el que entre; escribir, solo supervisor o admin.
-  Probado con los dos roles contra Postgres 16.
-- Si la migracion no se ha corrido, la pantalla sale con el simulador en
-  blanco en vez de reventar el tablero entero.
+- Antes hablaba siempre del mes en curso. Ahora habla del mes del "hasta"
+  del filtro: de enero a agosto habla de agosto, de enero a julio habla
+  de julio. Es lo que se espera -el filtro dice hasta donde se esta
+  mirando- y el titulo lo dice con el nombre del mes.
+- El mes se lee del TEXTO de la fecha y no con Date: new Date de un
+  "2026-08-31" en un navegador al oeste de Greenwich cae el 30 a las 7 de
+  la noche, y con eso la tarjeta podria hablar del mes anterior.
+- Al cambiar de mes se recarga el CONA de ESE mes. Sin eso, mover el
+  filtro de agosto a julio dejaba el CONA de agosto encima de los datos
+  de julio: la cuenta salia con dos meses mezclados y con toda la pinta
+  de estar bien.
+- Se traen todos los meses guardados de una vez -es una fila por mes- en
+  vez de ir a buscar uno cada vez que alguien mueve el calendario.
+- Probado con cinco filtros: ene-ago resta agosto, ene-jul resta julio,
+  solo julio resta julio, ene-sep resta cero, y un mes sin nada guardado
+  no revienta.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

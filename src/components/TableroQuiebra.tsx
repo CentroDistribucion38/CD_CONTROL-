@@ -55,12 +55,18 @@ type Props = {
   esEditor: boolean;
   /** El año mes por mes, ya con lo escrito a mano del diario aplicado. */
   meses?: MesAnio[];
-  /** Lo guardado del simulador para el mes en curso, si alguien lo puso. */
-  simulador?: { cona: number; pct: number; quien: string | null; cuando: string } | null;
+  /** Lo guardado del simulador, un renglón por mes. */
+  simuladores?: Guardado[];
+};
+
+/** Lo que alguien dejó guardado para un mes. */
+type Guardado = {
+  anio: number; mes: number; cona: number; pct: number;
+  quien: string | null; cuando: string;
 };
 
 export function TableroQuiebra({
-  bajas, produccion, metas, ultimaCarga, esEditor, meses = [], simulador = null,
+  bajas, produccion, metas, ultimaCarga, esEditor, meses = [], simuladores = [],
 }: Props) {
   /* ------------------------ catálogos ------------------------ */
   const causales = useMemo(() => {
@@ -394,7 +400,7 @@ export function TableroQuiebra({
       </section>
 
       {/* ---------------- El simulador de CONA ---------------- */}
-      <Simulador guardado={simulador} meses={meses} esEditor={esEditor} />
+      <Simulador guardados={simuladores} meses={meses} esEditor={esEditor} hasta={hasta} />
 
       {/* ---------------- El año mes por mes ---------------- */}
       {anioTabla != null && (
@@ -447,24 +453,56 @@ export function TableroQuiebra({
      `meses`, que ya trae lo escrito a mano del diario aplicado sobre lo
      importado — no del subconjunto filtrado.
    ============================================================== */
-function Simulador({ guardado, meses, esEditor }: {
-  guardado: { cona: number; pct: number; quien: string | null; cuando: string } | null;
+function Simulador({ guardados, meses, esEditor, hasta }: {
+  guardados: Guardado[];
   meses: MesAnio[];
   esEditor: boolean;
+  /** El último día del filtro. Su mes es del que habla esta tarjeta. */
+  hasta: string;
 }) {
   const supabase = useMemo(() => createClient(), []);
-  const hoy = useMemo(() => new Date(), []);
-  const anio = hoy.getFullYear();
-  const mes = hoy.getMonth() + 1;
+
+  /* EL MES DEL QUE SE HABLA ES EL DEL "HASTA" DEL FILTRO, no el de hoy.
+     De enero a agosto, esta tarjeta habla de agosto; de enero a julio,
+     de julio. Es lo que se espera: el filtro dice hasta dónde se está
+     mirando, y el disponible es el de ese cierre. Se lee del texto de la
+     fecha y no con Date, para no cruzar la frontera del mes por la zona
+     horaria del navegador. */
+  const anio = Number(hasta.slice(0, 4));
+  const mes = Number(hasta.slice(5, 7));
+  const nombreMes = MESES_LARGO[mes - 1] ?? "";
+  const guardado = useMemo(
+    () => guardados.find((g) => g.anio === anio && g.mes === mes) ?? null,
+    [guardados, anio, mes]
+  );
 
   /* Se guarda como fracción y se escribe como porcentaje: la conversión
      vive AQUÍ y en un solo sitio. */
-  const [cona, setCona] = useState(guardado ? String(guardado.cona) : "");
-  const [pct, setPct] = useState(
-    guardado ? String(+(guardado.pct * 100).toFixed(4)).replace(".", ",") : ""
-  );
+  const comoTexto = (g: Guardado | null) => ({
+    cona: g ? String(g.cona) : "",
+    pct: g ? String(+(g.pct * 100).toFixed(4)).replace(".", ",") : "",
+  });
+
+  const [cona, setCona] = useState(() => comoTexto(guardado).cona);
+  const [pct, setPct] = useState(() => comoTexto(guardado).pct);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
+
+  /* Al CAMBIAR DE MES se recarga lo de ese mes. Sin esto, mover el filtro
+     de agosto a julio dejaba en pantalla el CONA de agosto encima de los
+     datos de julio: la cuenta salía con dos meses mezclados y con toda la
+     pinta de estar bien. Depende solo del mes —no de lo tecleado—, así
+     que no pisa nada mientras alguien escribe. */
+  const mesRef = useRef(`${anio}-${mes}`);
+  useEffect(() => {
+    const llave = `${anio}-${mes}`;
+    if (mesRef.current === llave) return;
+    mesRef.current = llave;
+    const t = comoTexto(guardado);
+    setCona(t.cona);
+    setPct(t.pct);
+    setAviso(null);
+  }, [anio, mes, guardado]);
 
   const nCona = Number(cona.replace(/[^\d.-]/g, ""));
   const nPct = Number(pct.replace(",", ".").replace(/[^\d.-]/g, "")) / 100;
@@ -499,17 +537,18 @@ function Simulador({ guardado, meses, esEditor }: {
       });
       return;
     }
-    setAviso({ mal: false, texto: "Guardado para " + MESES_LARGO[mes - 1] + "." });
+    setAviso({ mal: false, texto: `Guardado para ${nombreMes} de ${anio}.` });
   }
 
   return (
     <section className="tarjeta sim">
       <div className="cab">
         <div>
-          <h2>Cuánto me queda</h2>
+          <h2>Cuánto me queda en {nombreMes}</h2>
           <p>
             El CONA y el % se escriben; la proyección y el disponible se calculan
-            contra la quiebra de <b>{MESES_LARGO[mes - 1]}</b>.
+            contra la quiebra de <b>{nombreMes} de {anio}</b>, que es donde termina
+            el filtro de arriba.
           </p>
         </div>
         {guardado && (
@@ -528,7 +567,7 @@ function Simulador({ guardado, meses, esEditor }: {
             <span>CONA</span>
             {esEditor ? (
               <input inputMode="numeric" value={cona} placeholder="85166358"
-                     aria-label="CONA en unidades"
+                     aria-label={`CONA de ${nombreMes} en unidades`}
                      onChange={(e) => setCona(e.target.value)} />
             ) : <b>{hay ? nf.format(nCona) : "—"}</b>}
             <em>unidades a producir</em>
@@ -538,7 +577,7 @@ function Simulador({ guardado, meses, esEditor }: {
             <span>% Quiebra</span>
             {esEditor ? (
               <input inputMode="decimal" value={pct} placeholder="2,65"
-                     aria-label="Porcentaje de quiebra"
+                     aria-label={`Porcentaje de quiebra de ${nombreMes}`}
                      onChange={(e) => setPct(e.target.value)} />
             ) : <b>{hay ? pf(nPct) : "—"}</b>}
             <em>el tope del mes</em>
@@ -551,9 +590,9 @@ function Simulador({ guardado, meses, esEditor }: {
           </div>
 
           <div className="sim-fila calc">
-            <span>Quiebra de {MESES_LARGO[mes - 1]}</span>
+            <span>Quiebra de {nombreMes}</span>
             <b>{nf.format(Math.round(delMes))}</b>
-            <em>lo que ya se rompió</em>
+            <em>{delMes > 0 ? "lo que ya se rompió" : "todavía no hay quiebra cargada"}</em>
           </div>
         </div>
 
@@ -566,7 +605,7 @@ function Simulador({ guardado, meses, esEditor }: {
           <b>{disponible == null ? "—" : nf.format(Math.abs(disponible))}</b>
           <em>
             {disponible == null
-              ? "Escribe el CONA y el porcentaje"
+              ? `Escribe el CONA y el porcentaje de ${nombreMes}`
               : disponible < 0
                 ? "unidades por encima de lo proyectado"
                 : "unidades de quiebra antes de pasarse"}
@@ -578,11 +617,12 @@ function Simulador({ guardado, meses, esEditor }: {
         <div className="sim-pie">
           <button type="button" className="btn" onClick={guardar}
                   aria-busy={guardando} disabled={!sucio || guardando}>
-            {guardando ? "Guardando…" : sucio ? "Guardar cambios" : "Sin cambios por guardar"}
+            {guardando ? "Guardando…" : sucio ? `Guardar ${nombreMes}` : "Sin cambios por guardar"}
           </button>
           <p>
-            Se guarda para {MESES_LARGO[mes - 1]} y lo ve todo el mundo igual. Mientras
-            no guardes, lo de arriba es solo tuyo para tantear.
+            Se guarda para <b>{nombreMes} de {anio}</b> y lo ve todo el mundo igual.
+            Cada mes lleva su propio CONA: cambiar el filtro cambia el mes del que
+            habla esta tarjeta.
           </p>
         </div>
       )}

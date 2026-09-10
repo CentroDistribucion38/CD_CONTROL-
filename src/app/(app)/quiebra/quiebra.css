@@ -756,7 +756,11 @@ body.capturando .qb .acciones-informe { visibility: hidden }
   .qb .sim-total > b { font-size: 36px }
   .qb .sim-pie { padding: 0 16px 18px }
   .qb .sim .aviso { margin: 0 16px 18px }
-  .qb .sim-firma { text-align: left; white-space: normal }
+  /* La firma baja a su propio renglón: al lado del título le dejaba 150px
+     y "Cuánto me queda" se partía en dos líneas por culpa de un dato
+     secundario. */
+  .qb .sim .cab { flex-wrap: wrap }
+  .qb .sim-firma { text-align: left; white-space: normal; flex-direction: row; gap: 6px }
 }
 @media (max-width: 700px) {
   /* 16px en las cajas: por debajo de eso el celular hace zoom al enfocar

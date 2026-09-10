@@ -11,38 +11,37 @@ export default async function QuiebraPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  /* El simulador es del MES EN CURSO, no del rango que se esté mirando:
-     el disponible de septiembre no cambia porque alguien abra mayo. */
-  const hoy = new Date();
-  const anio = hoy.getFullYear();
-  const mes = hoy.getMonth() + 1;
-
-  const [{ data: perfil }, datos, { data: sim }] = await Promise.all([
+  const [{ data: perfil }, datos, { data: sims }] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     datosQuiebra(),
-    /* maybeSingle y no single: lo normal es que el mes todavía no tenga
-       CONA puesto, y eso no es un error. */
+    /* TODOS los meses guardados de una vez, no solo uno: el simulador
+       sigue al mes en que TERMINA el filtro —de enero a agosto habla de
+       agosto—, así que el mes cambia sin recargar la página. Es una fila
+       por mes: traerlas todas cuesta menos que ir a buscar una cada vez
+       que alguien mueve el calendario. */
     supabase
       .from("quiebra_simulador")
-      .select("cona, pct_quiebra, actualizado_en, perfiles:actualizado_por(nombre, usuario)")
-      .eq("anio", anio).eq("mes", mes)
-      .maybeSingle(),
+      .select("anio, mes, cona, pct_quiebra, actualizado_en, perfiles:actualizado_por(nombre, usuario)")
+      .order("anio").order("mes"),
   ]);
 
   const esEditor = perfil?.rol === "admin" || perfil?.rol === "supervisor";
 
-  /* Si la tabla todavía no existe —no se ha corrido la migración— sim
-     llega null y la pantalla sale con el simulador en blanco, que es
-     mejor que reventar el tablero entero por una tarjeta. */
-  const quien = (sim as { perfiles?: { nombre?: string; usuario?: string } } | null)?.perfiles;
-  const simulador = sim
-    ? {
-        cona: Number(sim.cona),
-        pct: Number(sim.pct_quiebra),
-        quien: quien?.nombre?.trim() || quien?.usuario || null,
-        cuando: String(sim.actualizado_en),
-      }
-    : null;
+  /* Si la tabla todavía no existe —no se ha corrido la migración— sims
+     llega null y la lista queda vacía: el simulador sale en blanco en vez
+     de reventar el tablero entero por una tarjeta. */
+  type FilaSim = {
+    anio: number; mes: number; cona: number; pct_quiebra: number;
+    actualizado_en: string; perfiles?: { nombre?: string; usuario?: string } | null;
+  };
+  const simuladores = ((sims ?? []) as unknown as FilaSim[]).map((f) => ({
+    anio: Number(f.anio),
+    mes: Number(f.mes),
+    cona: Number(f.cona),
+    pct: Number(f.pct_quiebra),
+    quien: f.perfiles?.nombre?.trim() || f.perfiles?.usuario || null,
+    cuando: String(f.actualizado_en),
+  }));
 
   return (
     <TableroQuiebra
@@ -52,7 +51,7 @@ export default async function QuiebraPage() {
       ultimaCarga={datos.ultimaCarga}
       esEditor={esEditor}
       meses={datos.meses}
-      simulador={simulador}
+      simuladores={simuladores}
     />
   );
 }
