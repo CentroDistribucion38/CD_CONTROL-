@@ -14,8 +14,11 @@
  * tabla serían cientos de imágenes firmadas para mirar una.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Viaje } from "@/modulos/sider/comun";
+import { createClient } from "@/lib/supabase/client";
+import { RANURAS, usePosicion, sellar, type Ranura } from "@/modulos/sider/evidencia";
 
 type Foto = {
   ranura: "costado_izq" | "costado_der" | "placa" | "observacion";
@@ -47,9 +50,11 @@ const fecha = (s: string | null) =>
 
 const pesa = (b: number | null) => (b == null ? "" : `${nf.format(b / 1024)} KB`);
 
-export function OjoEvidencia({ viaje, nombres }: {
+export function OjoEvidencia({ viaje, nombres, esEditor = false }: {
   viaje: Viaje;
   nombres: Record<string, string>;
+  /** Un editor puede COMPLETAR una foto que falte, desde el hueco mismo. */
+  esEditor?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const total = viaje.fotos_salida + viaje.fotos_llegada;
@@ -71,29 +76,91 @@ export function OjoEvidencia({ viaje, nombres }: {
         <i>{total}</i>
       </button>
       {abierto && (
-        <Hoja viaje={viaje} nombres={nombres} cerrar={() => setAbierto(false)} />
+        <Hoja viaje={viaje} nombres={nombres} esEditor={esEditor}
+              cerrar={() => setAbierto(false)} />
       )}
     </>
   );
 }
 
-function Hoja({ viaje, nombres, cerrar }: {
+function Hoja({ viaje, nombres, esEditor, cerrar }: {
   viaje: Viaje;
   nombres: Record<string, string>;
+  esEditor: boolean;
   cerrar: () => void;
 }) {
+  const router = useRouter();
   const [puntas, setPuntas] = useState<Punta[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [grande, setGrande] = useState<Foto | null>(null);
 
-  useEffect(() => {
-    let vivo = true;
-    fetch(`/api/sider/evidencia/${viaje.id}`)
+  const traer = useCallback(() => {
+    return fetch(`/api/sider/evidencia/${viaje.id}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j) => { if (vivo) setPuntas(j.puntas as Punta[]); })
-      .catch(() => { if (vivo) setError("No se pudo leer la evidencia de este viaje."); });
-    return () => { vivo = false; };
+      .then((j) => setPuntas(j.puntas as Punta[]))
+      .catch(() => setError("No se pudo leer la evidencia de este viaje."));
   }, [viaje.id]);
+
+  useEffect(() => { traer() }, [traer]);
+
+  /* ---------- COMPLETAR UNA FOTO QUE FALTA ----------
+     Por qué existe: la salida sube las fotos DESPUÉS de crear el viaje.
+     Si el dato se cae en el patio —que es donde siempre se cae— el viaje
+     nace con 0 de 3 y, como la llegada exige las tres de la salida, ese
+     vehículo no se puede cerrar NUNCA. El mensaje de error decía "búscalo
+     en la Fuente principal y vuelve a intentar" y no había dónde
+     intentar. Esto es ese "dónde".
+
+     LO QUE NO SE HACE, Y ES LO IMPORTANTE: la foto NO se sella con la
+     hora ni con las coordenadas de la certificación original. Eso sería
+     fabricar una prueba —diría que la tomaron el martes en Galapa cuando
+     la tomaron hoy aquí—. Se sella con la hora y el sitio de AHORA y con
+     la palabra AÑADIDA DESPUÉS quemada en la banda. Vale menos como
+     prueba, y así debe ser: se tomó después. */
+  const supabase = useMemo(() => createClient(), []);
+  const pos = usePosicion();
+  const [completando, setCompletando] = useState<string | null>(null);
+  const [malFoto, setMalFoto] = useState<string | null>(null);
+  const entradas = useRef<Record<string, HTMLInputElement | null>>({});
+
+  async function completar(p: Punta, ranura: Ranura, archivo: File) {
+    const llave = `${p.id}:${ranura}`;
+    setMalFoto(null);
+    setCompletando(llave);
+    try {
+      const foto = await sellar(archivo, {
+        placa: viaje.placa,
+        ubi: pos.ubi,
+        direccion: pos.direccion.trim(),
+        etiqueta: `${p.punta.toUpperCase()} · ${NOMBRE[ranura]} · AÑADIDA DESPUÉS`,
+      });
+
+      const ruta = `${viaje.id}/${p.punta}/${ranura}.jpg`;
+      const { error: eSubir } = await supabase.storage
+        .from("sider")
+        .upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
+      if (eSubir) throw new Error(eSubir.message);
+
+      const { error: eFila } = await supabase.from("sider_fotos").insert({
+        certificacion_id: p.id, ranura, ruta,
+        ancho: foto.ancho, alto: foto.alto, bytes: foto.blob.size,
+      });
+      /* El archivo ya está arriba; si la fila no entra, la foto existe y
+         nadie la ve. Se dice con esas palabras en vez de "error". */
+      if (eFila) throw new Error(`la imagen subió pero no quedó registrada: ${eFila.message}`);
+
+      URL.revokeObjectURL(foto.url);
+      await traer();
+      router.refresh();
+    } catch (e) {
+      setMalFoto(
+        `No se pudo completar ${NOMBRE[ranura].toLowerCase()}: ` +
+        `${e instanceof Error ? e.message : "error desconocido"}`
+      );
+    } finally {
+      setCompletando(null);
+    }
+  }
 
   /* Escape cierra: es lo que hace todo el mundo sin pensarlo. */
   const teclas = useCallback((e: KeyboardEvent) => {
@@ -187,6 +254,38 @@ function Hoja({ viaje, nombres, cerrar }: {
             </dl>
           </section>
 
+          {/* ---------- Completar lo que falte ----------
+              Una sola barra para toda la hoja, no una por hueco: el GPS
+              se pide UNA vez y sirve para las tres fotos. Solo sale si de
+              verdad falta alguna; si está completo, esto no existe. */}
+          {esEditor && puntas?.some(
+            (p) => p.fotos.filter((f) => f.ranura !== "observacion").length < 3
+          ) && (
+            <div className={"ev-completar" + (pos.ubi ? " listo" : "")}>
+              {pos.ubi ? (
+                <p>
+                  <b>Puedes completar las fotos que faltan.</b> Cada una se sella con la
+                  hora y el sitio de AHORA y con la palabra <b>AÑADIDA DESPUÉS</b>: se
+                  tomó tarde y la foto lo dice. Toca el hueco que quieras llenar.
+                </p>
+              ) : (
+                <>
+                  <p>
+                    A este viaje le faltan fotos y por eso no se puede cerrar. Para
+                    completarlas hace falta tu ubicación — es lo que prueba dónde se
+                    tomó la que vas a añadir.
+                  </p>
+                  <button type="button" className="btn" onClick={pos.pedir}
+                          disabled={pos.buscando}>
+                    {pos.buscando ? "Buscando el GPS…" : "Activar mi ubicación"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          {pos.errUbi && <div className="aviso mal">{pos.errUbi}</div>}
+          {malFoto && <div className="aviso mal">{malFoto}</div>}
+
           {/* ---------- Las dos puntas ---------- */}
           {error && <div className="aviso mal">{error}</div>}
           {!error && puntas == null && (
@@ -244,15 +343,41 @@ function Hoja({ viaje, nombres, cerrar }: {
                     sobre el total. Contando el total, una punta con dos
                     fotos y una observación daba 3 y no mostraba ningún
                     "Falta": el hueco desaparecía justo cuando había un
-                    problema anotado. */}
-                {Array.from({
-                  length: 3 - p.fotos.filter((f) => f.ranura !== "observacion").length,
-                }).map((_, i) => (
-                  <figure key={`falta${i}`} className="falta">
-                    <div className="ev-rota">Falta</div>
-                    <figcaption>—</figcaption>
-                  </figure>
-                ))}
+                    problema anotado.
+                    Y ahora cada hueco sabe CUÁL falta —no es "una de tres"
+                    genérica— para poder tomarla ahí mismo. */}
+                {RANURAS.filter((r) => !p.fotos.some((f) => f.ranura === r.id)).map((r) => {
+                  const llave = `${p.id}:${r.id}`;
+                  const ocupado = completando === llave;
+                  return (
+                    <figure key={llave} className={"falta" + (esEditor ? " tomable" : "")}>
+                      {esEditor ? (
+                        <>
+                          <input
+                            ref={(el) => { entradas.current[llave] = el }}
+                            type="file" accept="image/*" capture="environment" hidden
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) completar(p, r.id, f);
+                              e.target.value = "";
+                            }}
+                          />
+                          <button type="button" className="ev-rota ev-tomar"
+                                  disabled={ocupado || !pos.ubi}
+                                  title={pos.ubi ? `Tomar ${r.t.toLowerCase()} ahora`
+                                                 : "Primero activa tu ubicación"}
+                                  onClick={() => entradas.current[llave]?.click()}>
+                            <span aria-hidden="true">+</span>
+                            {ocupado ? "Subiendo…" : "Falta · tomarla"}
+                          </button>
+                        </>
+                      ) : (
+                        <div className="ev-rota">Falta</div>
+                      )}
+                      <figcaption>{r.t}</figcaption>
+                    </figure>
+                  );
+                })}
               </div>
             </section>
           ))}

@@ -176,7 +176,30 @@
    Si no se alcanzó a dictar, esta es la única salida: sin este botón
    quedaba una cuenta a la que nadie puede entrar y un usuario ocupado
    para siempre. */
+/* Dos botones en la misma celda: en fila, y si no caben se van a la
+   siguiente pegados a la derecha, que es donde está la columna. */
 .us .us-acc { text-align: right; white-space: nowrap }
+.us .us-acc { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; align-items: center }
+
+/* ---------- Editar en la misma fila ----------
+   La fila que se está editando se marca con un filo a la izquierda y un
+   fondo apenas distinto: con doce personas en la lista hay que saber
+   cuál se está tocando sin buscar el cursor. */
+.us .us-editando > td { background: var(--c-f7f9fc) }
+.us .us-editando > td:first-child { box-shadow: inset 3px 0 0 var(--rl-acento) }
+.us .us-campo {
+  width: 100%; min-width: 0; max-width: 220px; min-height: 36px; padding: 0 9px;
+  font: 500 14px var(--rl-texto); color: var(--rl-tinta);
+  background: #fff; border: 1.5px solid var(--rl-acento); border-radius: 2px;
+}
+.us .us-campo.cod { font-family: var(--rl-mono, ui-monospace, monospace); font-size: 13px }
+.us .us-campo:focus { outline: 3px solid var(--rl-acento); outline-offset: 1px }
+/* El botón que GUARDA se distingue del que cancela: en una fila con dos
+   botones grises del mismo tamaño uno le da al que no era. */
+.us .us-mini.fuerte {
+  background: var(--rl-acento); border-color: var(--rl-acento); color: #fff;
+}
+.us .us-mini.fuerte:hover:not(:disabled) { color: #fff; filter: brightness(1.08) }
 .us .us-mini {
   min-height: 30px; padding: 0 12px;
   font: 600 11.5px var(--rl-texto); color: var(--rl-gris);
@@ -188,6 +211,18 @@
 .us .us-mini:focus-visible { outline: 2px solid var(--rl-acento); outline-offset: 2px }
 @media (max-width: 700px) {
   .us .us-mini { min-height: 38px; padding: 0 14px; font-size: 12.5px }
+  /* 16px de letra: por debajo de eso el celular hace zoom solo al
+     enfocar el campo y la tabla se va de sitio. El .cod se repite porque
+     pesa más (0,3,0) y si no se queda en 13px, que es justo el tamaño
+     que dispara el zoom. */
+  .us .us-campo,
+  .us .us-campo.cod { min-height: 44px; font-size: 16px; max-width: none }
+  /* Los dos campos necesitan sitio para escribir un nombre completo: sin
+     esto la columna les daba 70px y se escribía a ciegas. La tabla ya
+     rueda de lado dentro de .us-marco, así que ensancharla mientras se
+     edita no rompe la pantalla. */
+  .us .us-editando > td:first-child,
+  .us .us-editando > td:nth-child(2) { min-width: 168px }
 }
 
 /* El aviso cuando va suelto —fuera del formulario— necesita su propio

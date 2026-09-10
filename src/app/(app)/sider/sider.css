@@ -1123,6 +1123,34 @@
   border: 1.5px dashed var(--sd-linea); border-radius: 3px; background: var(--c-fafbfd);
 }
 .sd .ev-fotos figure.falta figcaption { color: var(--c-c6d0dc) }
+/* El hueco que SE PUEDE llenar no se ve igual que el que solo informa:
+   uno es un botón y el otro un aviso. */
+.sd .ev-fotos figure.tomable figcaption { color: var(--sd-acento); font-weight: 700 }
+.sd .ev-tomar {
+  width: 100%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; cursor: pointer;
+  border: 1.5px dashed var(--sd-acento); color: var(--sd-acento);
+  background: var(--c-f7fcfd); font: 700 12px var(--sd-texto);
+}
+.sd .ev-tomar span {
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 26px; line-height: 1;
+}
+.sd .ev-tomar:hover:not(:disabled) { background: #E9F6F8 }
+.sd .ev-tomar:disabled { cursor: not-allowed; opacity: .5 }
+.sd .ev-tomar:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: 2px }
+
+/* La barra de completar: es un aviso con acción, así que va con el filo
+   de alarma mientras falta algo y en tono normal cuando ya se puede. */
+.sd .ev-completar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin: 0 0 14px; padding: 13px 16px; border-radius: 3px;
+  background: #FEF3F5; border: 1px solid #F3C9D2; border-left: 3px solid var(--c-alarma);
+}
+.sd .ev-completar.listo {
+  background: var(--c-f7fcfd); border-color: #C9E6EA; border-left-color: var(--sd-acento);
+}
+.sd .ev-completar p { margin: 0; flex: 1 1 260px; font-size: 13px; line-height: 1.5 }
+.sd .ev-completar .btn { flex: none }
 /* La foto de la observación es la cuarta y arranca renglón sola: si
    quedara pegada a las tres, quien revisa la contaría como una de las
    obligatorias y leería "4 de 3". El filo de alarma dice que ahí hay
@@ -1193,6 +1221,14 @@
   .sd .ev-donde { gap: 8px }
   .sd .ev-cuando { margin-left: 0; text-align: left }
   .sd .ev-punta { padding: 11px 12px }
+  /* Dos columnas y no tres: en 360px tres fotos dan 63px cada una —ni se
+     ve la placa del vehículo ni se acierta el hueco con el dedo—. Medido:
+     "Falta · tomarla" salía cortado a la mitad. */
+  .sd .ev-fotos { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .sd .ev-tomar { padding: 8px 6px; font-size: 12.5px; text-align: center }
+  .sd .ev-tomar span { font-size: 30px }
+  .sd .ev-completar { gap: 10px; padding: 11px 13px }
+  .sd .ev-completar .btn { width: 100% }
 
   .sd .ex-caja { width: 100% }
   .sd .ex-mes { flex: 1 1 140px }

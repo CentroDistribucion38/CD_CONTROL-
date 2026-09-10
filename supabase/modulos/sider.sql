@@ -282,6 +282,32 @@ create trigger sider_fotos_contar_tg
   after insert or delete or update of certificacion_id on public.sider_fotos
   for each row execute function public.sider_fotos_contar();
 
+-- La observación es SOLO de la llegada, y la base lo hace cumplir.
+-- sider_certificar_llegada() decide si la salida está probada contando
+-- FILAS de sider_fotos, no ranuras: si una salida guardara una foto de
+-- observación, un vehículo con dos fotos de verdad más la observación
+-- daría 3 y pasaría la tranca sin tener la evidencia completa. En vez
+-- de complicar esa cuenta, se impide que el caso exista.
+create or replace function public.sider_foto_ranura_de_su_punta()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.ranura not in ('costado_izq', 'costado_der', 'placa')
+     and (select c.punta from public.sider_certificaciones c
+           where c.id = new.certificacion_id) = 'salida' then
+    raise exception 'La foto de observación es de la llegada, no de la salida.';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists sider_fotos_ranura_tg on public.sider_fotos;
+create trigger sider_fotos_ranura_tg
+  before insert or update of ranura, certificacion_id on public.sider_fotos
+  for each row execute function public.sider_foto_ranura_de_su_punta();
+
 -- Poner al día lo que ya estaba. Solo toca lo que no cuadra, así que
 -- correr el archivo otra vez no reescribe la tabla entera.
 update public.sider_certificaciones c

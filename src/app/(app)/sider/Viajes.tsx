@@ -317,7 +317,7 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor }: {
                     )}
                   </td>
                   <td>{v.creado_por ? nombres[v.creado_por] ?? "—" : "—"}</td>
-                  <td className="ojo-col"><OjoEvidencia viaje={v} nombres={nombres} /></td>
+                  <td className="ojo-col"><OjoEvidencia viaje={v} nombres={nombres} esEditor={esEditor} /></td>
                   {manda && (
                     <td className="vj-acc-col">
                       {anulado ? (

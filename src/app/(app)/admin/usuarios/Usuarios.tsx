@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { normalizarUsuario } from "@/lib/auth";
+import { useConfirmar } from "@/components/Confirmar";
 
 type Persona = {
   id: string; usuario: string | null; nombre: string | null; rol: string;
@@ -123,6 +124,83 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
     router.refresh();
   }
 
+  /* ---------- EDITAR NOMBRE Y USUARIO ----------
+     Se edita EN LA MISMA FILA y no en una ventana aparte: lo que se
+     está cambiando es lo que ya se estaba mirando, y una ventana encima
+     tapa justamente el resto de la lista, que es contra lo que uno
+     compara para no repetir un usuario.
+
+     El nombre es libre. El usuario es con lo que la persona ENTRA, así
+     que si cambia se pregunta antes: nadie debería quedarse por fuera
+     porque un administrador arregló una tilde. */
+  const [editando, setEditando] = useState<string | null>(null);
+  const [edNombre, setEdNombre] = useState("");
+  const [edUsuario, setEdUsuario] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [pedir, dialogo] = useConfirmar();
+
+  function abrirEdicion(p: Persona) {
+    setMal(null);
+    setEditando(p.id);
+    setEdNombre(p.nombre ?? "");
+    setEdUsuario(p.usuario ?? "");
+  }
+
+  async function guardarEdicion(p: Persona) {
+    const nom = edNombre.trim();
+    const usu = normalizarUsuario(edUsuario);
+    if (nom.length < 3) { setMal("El nombre no puede quedar en blanco."); return }
+    if (usu.length < 3) { setMal("El usuario necesita al menos tres caracteres."); return }
+
+    const cambiaUsuario = usu !== (p.usuario ?? "");
+    if (cambiaUsuario) {
+      const ok = await pedir({
+        titulo: `¿Cambiar el usuario a "${usu}"?`,
+        dice: (
+          <>
+            <p>
+              {p.nombre || p.usuario} entra hoy con <b>{p.usuario}</b>. Si lo cambias,
+              a partir de ahora tiene que entrar con <b>{usu}</b> — la clave sigue
+              siendo la misma.
+            </p>
+            <p>Avísale antes de guardar, o no va a poder entrar mañana.</p>
+          </>
+        ),
+        confirmar: "Cambiar el usuario",
+        cancelar: "Dejarlo como está",
+      });
+      if (!ok) return;
+    }
+
+    setMal(null); setGuardando(true);
+    const r = await fetch("/api/admin/usuarios", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: p.id, nombre: nom, usuario: usu }),
+    });
+    const j = await r.json().catch(() => ({} as Record<string, string>));
+    setGuardando(false);
+
+    if (!r.ok) { setMal(j.error ?? "No se pudo guardar."); return }
+    /* Mismo cuidado que en "Nueva clave": un 200 con el cuerpo vacío es
+       una respuesta cortada, y decir "listo" ahí sería mentir. */
+    if (!j.id) {
+      setMal(
+        "El servidor cortó la respuesta y no se sabe si guardó. Recarga la " +
+        "página y mira cómo quedó antes de volver a intentar."
+      );
+      return;
+    }
+    if (j.cambioUsuario && j.eresTu) {
+      setMal(
+        `Listo. OJO: te cambiaste TU PROPIO usuario. Esta sesión sigue abierta, ` +
+        `pero la próxima vez tienes que entrar como "${usu}".`
+      );
+    }
+    setEditando(null);
+    router.refresh();
+  }
+
   async function crear() {
     setMal(null);
     setCreando(true);
@@ -169,6 +247,7 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
 
   return (
     <>
+      {dialogo}
       {!hayLlave && (
         <section className="us-aviso">
           <b>Falta la llave del servidor para poder crear cuentas.</b>
@@ -328,16 +407,29 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
             <thead>
               <tr>
                 <th>Nombre</th><th>Usuario</th><th>Rol</th>
-                <th>Pantallas extra</th><th>Estado</th><th className="us-acc">Clave</th>
+                <th>Pantallas extra</th><th>Estado</th><th className="us-acc">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {gente.map((p) => {
                 const ex = Object.entries(p.permisos_extra ?? {});
+                const enEdicion = editando === p.id;
                 return (
-                  <tr key={p.id}>
-                    <td>{p.nombre || "—"}</td>
-                    <td className="cod">{p.usuario || "—"}</td>
+                  <tr key={p.id} className={enEdicion ? "us-editando" : undefined}>
+                    <td>
+                      {enEdicion ? (
+                        <input className="us-campo" value={edNombre} autoFocus
+                               aria-label="Nombre"
+                               onChange={(e) => setEdNombre(e.target.value)} />
+                      ) : (p.nombre || "—")}
+                    </td>
+                    <td className="cod">
+                      {enEdicion ? (
+                        <input className="us-campo cod" value={edUsuario}
+                               aria-label="Usuario"
+                               onChange={(e) => setEdUsuario(normalizarUsuario(e.target.value))} />
+                      ) : (p.usuario || "—")}
+                    </td>
                     <td>{nRol(p.rol)}</td>
                     <td>
                       {ex.length === 0
@@ -356,15 +448,40 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
                           : <span className="us-estado bien">al día</span>}
                     </td>
                     <td className="us-acc">
-                      {p.id === yo ? (
-                        /* A uno mismo no: sería encerrarse afuera de la
-                           sesión con la que se está administrando. */
-                        <span className="apagado">eres tú</span>
+                      {enEdicion ? (
+                        <>
+                          <button type="button" className="us-mini fuerte" disabled={guardando}
+                                  onClick={() => guardarEdicion(p)}>
+                            {guardando ? "Guardando…" : "Guardar"}
+                          </button>
+                          <button type="button" className="us-mini" disabled={guardando}
+                                  onClick={() => { setEditando(null); setMal(null) }}>
+                            Cancelar
+                          </button>
+                        </>
                       ) : (
-                        <button type="button" className="us-mini" disabled={!hayLlave || !!regenerando}
-                                onClick={() => nuevaClave(p)}>
-                          {regenerando === p.id ? "Generando…" : "Nueva clave"}
-                        </button>
+                        <>
+                          {/* EDITAR sí es para uno mismo: corregir el
+                              propio nombre no encierra a nadie afuera, y
+                              si además se cambia el usuario, la respuesta
+                              lo advierte. */}
+                          <button type="button" className="us-mini" disabled={!hayLlave || !!editando}
+                                  onClick={() => abrirEdicion(p)}>
+                            Editar
+                          </button>
+                          {p.id === yo ? (
+                            /* La CLAVE a uno mismo no: sería encerrarse
+                               afuera de la sesión con la que se está
+                               administrando. Para eso está Mi perfil. */
+                            <span className="apagado">eres tú</span>
+                          ) : (
+                            <button type="button" className="us-mini"
+                                    disabled={!hayLlave || !!regenerando || !!editando}
+                                    onClick={() => nuevaClave(p)}>
+                              {regenerando === p.id ? "Generando…" : "Nueva clave"}
+                            </button>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>

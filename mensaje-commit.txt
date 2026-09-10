@@ -1,32 +1,47 @@
-Aire en el celular en todo el aplicativo + foto de la observacion en la llegada
+Completar fotos faltantes desde el ojito + editar usuario y clave
 
-CELULAR (las 9 hojas)
-- El auditor de densidad estaba mintiendo: al salir de un @media se comia
-  la llave de cierre dentro del selector siguiente y perdia la pila, asi
-  que contaba mis propias reglas de celular como si fueran de escritorio.
-  Reescrito con pila de bloques. De 140 faltas bajo a 0 de verdad.
-- Riel lateral 42->44px, casilla del diario 34->44px y 16px de letra (sin
-  zoom al enfocar), dias del calendario 32->40px, "+ por causal" 14->44px,
-  "Volver a modulos" 20->44px.
-- Rejilla del diario en 360px: Concepto(178)+Total(116) se comian 294 de
-  360 y no cabia ni un dia completo. Reparto nuevo 100/78/60.
-- Dos errores mios del generador, revertidos: habia estirado a 44px el
-  chulito de 14px de las opciones y la pastilla 44x26 del interruptor.
+COMPLETAR FOTOS (destraba viajes que no se podian cerrar)
+- La salida sube las fotos DESPUES de crear el viaje. Si el dato se cae
+  en el patio, el viaje nace con 0 de 3 y, como la llegada exige las tres
+  de la salida, ese vehiculo no se puede cerrar NUNCA. El mensaje de
+  error decia "buscalo en la Fuente principal y vuelve a intentar" y no
+  habia donde intentar. Esto es ese "donde".
+- Cada hueco "Falta" del ojito pasa a ser el boton para tomar esa foto, y
+  dice CUAL falta en vez de ser un hueco generico.
+- La foto NO se sella con la hora ni las coordenadas de la certificacion
+  original: eso seria fabricar una prueba. Se sella con la hora y el
+  sitio de AHORA y con la palabra ANADIDA DESPUES quemada en la banda.
+  Vale menos como prueba, y asi debe ser: se tomo despues.
+- El GPS se pide UNA vez para toda la hoja, no uno por hueco.
+- Solo lo ve un editor; el resto sigue viendo el hueco como aviso.
+- En celular las fotos del ojito pasan a dos columnas: en tres daban 63px
+  cada una y "Falta - tomarla" salia cortado.
 
-LLEGADA - OBSERVACION CON FOTO
-- La nota se movio del paso "Donde" al paso de fotos, junto a la foto que
-  la respalda, y se agrego una cuarta ranura opcional con un "+".
-- La foto va sellada igual que las otras y se sube DE ULTIMA: si se corta
-  el dato, lo que alcanza a subir son las tres obligatorias.
-- El contador sigue diciendo 3 de 3 y no 4 de 3: "fotos" cuenta solo las
-  obligatorias y la observacion vive en su propia columna foto_obs.
-- Arreglado de paso: los huecos "Falta" se contaban sobre el total, asi
-  que una punta con 2 fotos + observacion daba 3 y no mostraba el hueco.
-- Arreglado de paso: .tr-llegada .ct-foto .ct-ayuda (0,4,0) escondia la
-  ayuda de la ranura nueva en todas las pantallas.
-- Arreglado de paso: .ct-fotos usaba 1fr (=minmax(auto,1fr)) y "Costado
-  izquierdo" empujaba las ranuras a 104/92/70 saliendose de la tarjeta.
-- Arreglado de paso: esta pantalla nunca soltaba los blobs al cerrarse.
+LA OBSERVACION ES SOLO DE LA LLEGADA, Y LA BASE LO HACE CUMPLIR
+- sider_certificar_llegada() cuenta FILAS de sider_fotos, no ranuras: el
+  dia que una salida guardara una foto de observacion, un vehiculo con
+  dos fotos de verdad mas la observacion daria 3 y pasaria la tranca. En
+  vez de complicar esa cuenta -que vive en dos archivos y reescribirla
+  desde una migracion es la receta para pisar una version nueva con una
+  vieja- se impide que el caso exista, con un disparador aparte.
+- Probado contra Postgres 16 real: la observacion entra en la llegada,
+  la rechaza en la salida, y completar las tres de una salida en 0 la
+  devuelve a 3 y destraba la llegada.
+
+EDITAR USUARIO
+- El super admin edita el NOMBRE y el USUARIO desde la lista, en la misma
+  fila. No se podia hacer a mano en Supabase porque el usuario vive en
+  DOS sitios: perfiles.usuario y el correo sintetico de auth.users, que
+  no se edita desde la tabla del panel. Aqui se cambian los dos.
+- Primero auth y despues el perfil: si se cae en medio, la persona queda
+  ENTRANDO con el usuario nuevo y mostrandose con el viejo. Al reves
+  quedaria entrando con uno que nadie recuerda, es decir, por fuera.
+- Cambiar el usuario pide confirmacion, porque cambia como entra.
+- usuario_libre() dice "no" tambien cuando el dueno es la misma persona,
+  asi que solo se pregunta si el usuario de verdad cambia: si no,
+  corregir una tilde del nombre fallaria diciendo que esta tomado.
+- El rol, los permisos y la clave no se tocan aqui: cada uno donde se ven
+  sus consecuencias.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

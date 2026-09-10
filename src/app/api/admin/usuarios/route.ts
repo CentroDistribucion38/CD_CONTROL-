@@ -330,6 +330,145 @@ export async function POST(req: Request) {
  *
  * El mismo orden de siempre: sesión → manda → recién ahí la llave.
  */
+/**
+ * EDITAR EL NOMBRE Y EL USUARIO DE UNA CUENTA.
+ *
+ * Por qué esto no se podía hacer a mano en el panel de Supabase: el
+ * login de CONTROL es por USUARIO, y Supabase Auth necesita un correo,
+ * así que la plataforma arma uno sintético —<usuario>@cdcontrol.local—
+ * que nadie ve. El usuario vive entonces en DOS sitios: perfiles.usuario
+ * y auth.users.email. Cambiar solo la fila de perfiles deja la cuenta
+ * entrando con el nombre viejo y mostrándose con el nuevo; y auth.users
+ * no se edita desde la tabla del panel. Aquí se cambian los dos, en el
+ * orden que deja el menor destrozo si algo falla a mitad.
+ *
+ * EL NOMBRE es libre: es como se le dice a la persona. EL USUARIO es con
+ * lo que entra, así que cambiarlo cambia su forma de entrar — la
+ * pantalla lo advierte antes de guardar.
+ *
+ * Lo que esta ruta NO toca: el rol, los permisos y la clave. El rol y
+ * los permisos se editan donde se ven sus consecuencias; la clave tiene
+ * su propio botón, que además la vuelve provisional.
+ */
+export async function PUT(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Sin sesión." }, { status: 401 });
+
+  const permisos = await misPermisos();
+  if (!permisos.manda) {
+    return NextResponse.json(
+      { error: "Editar usuarios requiere un rol que administre la plataforma." },
+      { status: 403 }
+    );
+  }
+
+  const admin = clienteDeServicio();
+  if (!admin) {
+    return NextResponse.json(
+      { error: "Falta la variable SUPABASE_SERVICE_ROLE_KEY en el servidor." },
+      { status: 503 }
+    );
+  }
+
+  let cuerpo: { id?: string; nombre?: string; usuario?: string };
+  try { cuerpo = await req.json() } catch {
+    return NextResponse.json({ error: "No llegó nada que cambiar." }, { status: 400 });
+  }
+
+  const id = (cuerpo.id ?? "").trim();
+  const nombre = (cuerpo.nombre ?? "").trim();
+  const usuario = normalizarUsuario(cuerpo.usuario ?? "");
+
+  if (!id) return NextResponse.json({ error: "Falta decir a quién." }, { status: 400 });
+  if (nombre.length < 3) {
+    return NextResponse.json({ error: "El nombre no puede quedar en blanco." }, { status: 400 });
+  }
+  if (usuario.length < 3) {
+    return NextResponse.json(
+      { error: "El usuario necesita al menos tres caracteres: letras, números, punto, guion." },
+      { status: 400 }
+    );
+  }
+
+  const { data: antes } = await admin
+    .from("perfiles").select("id, usuario, nombre").eq("id", id).maybeSingle();
+  if (!antes) {
+    return NextResponse.json({ error: "Esa persona ya no está." }, { status: 404 });
+  }
+
+  const cambiaUsuario = (antes.usuario ?? "").toLowerCase() !== usuario.toLowerCase();
+
+  /* Que no se lo quite a otro. usuario_libre() dice "no" también cuando
+     el dueño es esta misma persona, así que solo se pregunta si de
+     verdad está cambiando: si no, corregir una tilde del NOMBRE fallaría
+     diciendo que el usuario está tomado... por él mismo. */
+  if (cambiaUsuario) {
+    const { data: libre } = await supabase.rpc("usuario_libre", { p_usuario: usuario });
+    if (libre === false) {
+      return NextResponse.json(
+        { error: `El usuario "${usuario}" ya está tomado por otra persona.` },
+        { status: 409 }
+      );
+    }
+  }
+
+  /* PRIMERO auth y DESPUÉS el perfil. Si se cae en medio:
+       · con este orden queda entrando con el usuario nuevo y mostrándose
+         con el viejo — feo, pero la persona ENTRA, y el administrador lo
+         ve y lo vuelve a guardar.
+       · al revés quedaría mostrándose con el nuevo y entrando con el
+         viejo, que nadie recuerda: esa persona se queda por fuera.
+     Se elige el que deja a alguien adentro. */
+  if (cambiaUsuario) {
+    const { error: eAuth } = await admin.auth.admin.updateUserById(id, {
+      email: correoDeUsuario(usuario),
+      email_confirm: true,
+    });
+    if (eAuth) {
+      return NextResponse.json(
+        { error: `No se pudo cambiar el usuario: ${eAuth.message}` },
+        { status: 500 }
+      );
+    }
+  }
+
+  /* Con .select(): un update que no encuentra la fila NO da error en
+     PostgREST, devuelve éxito y cero filas. Sin comprobar cuántas
+     cambiaron, la pantalla diría "listo" sin haber cambiado nada. */
+  const { data: despues, error: ePerfil } = await admin
+    .from("perfiles")
+    .update({ nombre, usuario })
+    .eq("id", id)
+    .select("id, usuario, nombre")
+    .maybeSingle();
+
+  if (ePerfil || !despues) {
+    return NextResponse.json(
+      {
+        error: cambiaUsuario
+          ? `El usuario de "${antes.nombre}" quedó como "${usuario}" para entrar, pero el ` +
+            `perfil no se pudo actualizar${ePerfil ? `: ${ePerfil.message}` : ""}. ` +
+            `Entra con "${usuario}" y vuelve a guardar aquí.`
+          : `No se pudo guardar el nombre${ePerfil ? `: ${ePerfil.message}` : ""}.`,
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    id: despues.id,
+    nombre: despues.nombre,
+    usuario: despues.usuario,
+    antes: { nombre: antes.nombre, usuario: antes.usuario },
+    cambioUsuario: cambiaUsuario,
+    /* Cambiarse a uno mismo el usuario es válido, pero la sesión sigue
+       abierta con el correo viejo y el siguiente ingreso será con el
+       nuevo. Mejor decirlo que dejar que lo descubra mañana. */
+    eresTu: id === user.id,
+  });
+}
+
 export async function PATCH(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

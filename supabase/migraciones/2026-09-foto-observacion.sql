@@ -106,7 +106,50 @@ update public.sider_certificaciones c
    and (c.fotos is distinct from x.n or c.foto_obs is distinct from x.obs);
 
 -- ---------------------------------------------------------------------
--- 5. Comprobación.
+-- 5. La observación es SOLO de la llegada, y la base lo hace cumplir.
+--
+-- No es una manía de orden. sider_certificar_llegada() decide si la
+-- salida está probada así:
+--
+--     select count(*) from sider_fotos ... where punta = 'salida' < 3
+--
+-- cuenta FILAS, no ranuras. El día que una salida guardara una foto de
+-- observación, un vehículo con dos fotos de verdad más la observación
+-- daría 3 y pasaría la tranca: se cerraría un viaje sin evidencia
+-- completa y nadie lo notaría, porque el número diría 3.
+--
+-- Se puede arreglar de dos formas: cambiando esa cuenta dentro de la
+-- función, o impidiendo que el caso exista. Se hace lo segundo porque
+-- la función vive en dos archivos y reescribirla desde aquí es la
+-- receta para pisar una versión más nueva con una vieja. Esto es un
+-- objeto pequeño, aparte, que no toca nada de lo que ya está.
+--
+-- Si algún día la salida también lleva observación con foto, hay que
+-- quitar este disparador Y arreglar esa cuenta en la función, en ese
+-- orden y las dos cosas.
+-- ---------------------------------------------------------------------
+create or replace function public.sider_foto_ranura_de_su_punta()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.ranura not in ('costado_izq', 'costado_der', 'placa')
+     and (select c.punta from public.sider_certificaciones c
+           where c.id = new.certificacion_id) = 'salida' then
+    raise exception 'La foto de observación es de la llegada, no de la salida.';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists sider_fotos_ranura_tg on public.sider_fotos;
+create trigger sider_fotos_ranura_tg
+  before insert or update of ranura, certificacion_id on public.sider_fotos
+  for each row execute function public.sider_foto_ranura_de_su_punta();
+
+-- ---------------------------------------------------------------------
+-- 6. Comprobación.
 --
 -- Debe devolver una fila con todo en 'ok'. Si alguna dice 'MAL', no
 -- sigas: avísame antes de que alguien certifique una llegada.
