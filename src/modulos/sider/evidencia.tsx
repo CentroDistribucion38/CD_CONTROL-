@@ -27,6 +27,19 @@ export const RANURAS = [
 ] as const;
 
 export type Ranura = (typeof RANURAS)[number]["id"];
+
+/* La cuarta ranura, y la única opcional. No está dentro de RANURAS a
+   propósito: RANURAS es "lo que hay que tener para que el viaje esté
+   probado" y se usa para contar lo que falta, bloquear el botón y decir
+   "3 de 3". Meter aquí la observación haría que un viaje CON problema se
+   viera menos completo que uno sin él, que es al revés de la verdad. */
+export const RANURA_OBS = {
+  id: "observacion",
+  t: "Foto de la observación",
+  d: "Lo que hay que dejar probado",
+} as const;
+export type RanuraObs = typeof RANURA_OBS.id;
+export type RanuraCualquiera = Ranura | RanuraObs;
 export type Ubicacion = { lat: number; lng: number; precision: number; en: string };
 export type Foto = { blob: Blob; url: string; ancho: number; alto: number };
 
@@ -183,6 +196,80 @@ export function CampoDireccion({ direccion, setDireccion, buscandoDir }: {
   );
 }
 
+/* ==================== La observación y su foto ====================
+   Van juntas y no en pasos distintos porque son una sola cosa: "llegó
+   con el sello roto" + la foto del sello. La nota estaba antes al lado
+   de la dirección, dos pantallas atrás de su propia prueba, y así nadie
+   relacionaba la una con la otra.
+
+   La foto es OPCIONAL aunque haya texto escrito. A veces no hay nada
+   que fotografiar —llegó tarde, el conductor no era el mismo— y trancar
+   el botón de certificar por eso deja a alguien de pie al lado del
+   vehículo peleando con el teléfono por una nota sin imagen.
+   ================================================================ */
+export function CajaObservacion({ nota, setNota, foto, tomar, quitar, punta }: {
+  nota: string;
+  setNota: (s: string) => void;
+  foto: Foto | undefined;
+  tomar: (archivo: File) => void;
+  quitar: () => void;
+  punta: "salida" | "llegada";
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="ct-obs">
+      <label>
+        <span>
+          Observación <em>· opcional</em>
+        </span>
+        <textarea
+          value={nota}
+          rows={3}
+          maxLength={400}
+          placeholder={
+            punta === "llegada"
+              ? "Algo que haya que dejar dicho de esta llegada: un sello roto, estibas golpeadas, faltantes…"
+              : "Algo que haya que dejar dicho de esta salida"
+          }
+          onChange={(e) => setNota(e.target.value)}
+        />
+      </label>
+
+      <div className={"ct-foto ct-obs-foto" + (foto ? " lista" : "")}>
+        <input
+          ref={ref}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) tomar(f);
+            e.target.value = "";
+          }}
+        />
+        <button type="button" onClick={() => ref.current?.click()}>
+          {foto ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={foto.url} alt={RANURA_OBS.t} />
+          ) : (
+            <span className="ct-mas" aria-hidden="true">+</span>
+          )}
+          <b>{foto ? RANURA_OBS.t : "Añadir foto"}</b>
+          <span className="ct-ayuda">
+            {foto ? "Tocar para repetir" : "Si se puede fotografiar"}
+          </span>
+        </button>
+        {foto && (
+          <button type="button" className="ct-quitar" onClick={quitar}>
+            Quitar la foto
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ==================== Una ranura de foto ==================== */
 export function Ranurita({ r, foto, tomar }: {
   r: (typeof RANURAS)[number];
@@ -325,15 +412,21 @@ export async function subirFotos(
     viajeId: string;
     certId: string;
     punta: "salida" | "llegada";
-    fotos: Partial<Record<Ranura, Foto>>;
+    fotos: Partial<Record<RanuraCualquiera, Foto>>;
     avance?: (t: string) => void;
   }
 ): Promise<string | null> {
+  /* La de la observación va DE ÚLTIMA, y no es cosmético: si se corta el
+     dato a mitad de la subida, lo que alcanzó a subir son las
+     obligatorias. Al revés, un viaje podría quedar con la foto del sello
+     roto y sin la placa. */
+  const cola = [...RANURAS, RANURA_OBS];
+  const cuantas = cola.filter((r) => d.fotos[r.id]).length;
   let n = 0;
-  for (const r of RANURAS) {
+  for (const r of cola) {
     const f = d.fotos[r.id];
     if (!f) continue;
-    d.avance?.(`Subiendo ${r.t.toLowerCase()}… (${n + 1} de ${RANURAS.length})`);
+    d.avance?.(`Subiendo ${r.t.toLowerCase()}… (${n + 1} de ${cuantas})`);
     const ruta = `${d.viajeId}/${d.punta}/${r.id}.jpg`;
     const { error } = await cli.storage
       .from("sider")

@@ -181,3 +181,23 @@
   .rl .rl-modulo header { flex-wrap: wrap; gap: 8px }
   .rl .cabeza h1 { font-size: 26px }
 }
+
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .rl .rl-roles span { font-size: 12px }
+  .rl .rl-manda { font-size: 11.5px }
+  .rl .rl-nuevo span { font-size: 12px }
+  .rl .rl-nuevo em { font-size: 12px }
+  .rl .rl-todo button { font-size: 12px }
+  .rl .rl-sec em { font-size: 12px }
+  .rl .rl-n { font-size: 12px }
+  .rl .rl-pie span { font-size: 12px }
+
+  /* Blancos de toque cortos */
+  .rl .btn { height: 44px }
+  .rl input { height: 44px }
+}

@@ -631,3 +631,38 @@ body.capturando .qb .acciones-informe { visibility: hidden }
   display: inline-block; width: 5px; height: 5px; border-radius: 50%;
   background: var(--qb-rojo); margin-left: 6px; vertical-align: 2px;
 }
+
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .qb .kpi .rot { font-size: 12px }
+  .qb .semana span { font-size: 12px }
+  .qb .cifra .rot { font-size: 12px }
+  .qb .grafico .eje { font-size: 12px }
+  .qb .grafico .val { font-size: 12px }
+  .qb .cuerpo.doble .rotulo { font-size: 12.5px }
+  .qb .hoja-impresa .sello-fecha { font-size: 12px }
+  .qb .cabeza .sub { font-size: 12px }
+  .qb .tarjeta .cab p { font-size: 12px }
+  .qb .leyenda { font-size: 12.5px }
+  .qb .fila .nom, .qb .fila .pct { font-size: 12px }
+  .qb tbody td { font-size: 12px }
+  .qb tbody td .cod { font-size: 12.5px }
+  .qb thead th { font-size: 12.5px }
+  .qb .nota-pie { font-size: 12px }
+  .qb .conteo .rot { font-size: 12px }
+
+  /* Blancos de toque cortos */
+  .qb .mes-cab button { height: 44px }
+  .qb .chip { height: 44px }
+  /* El generador había subido a 44px el CHULITO de la opción, que mide
+     14x14 y va dentro del botón: lo dejaba estirado. Lo que tiene que
+     crecer es el botón. */
+  .qb .opciones button { min-height: 44px }
+  /* El calendario son siete columnas: a 44px de alto seis semanas se
+     comen 264px de pantalla. 40px ya se toca bien y el mes cabe. */
+  .qb .dias button { height: 40px; font-size: 14px }
+}

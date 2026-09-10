@@ -211,9 +211,15 @@ alter table public.sider_certificaciones add column if not exists direccion text
 --    derecho y placa. Con ranura fija se sabe qué falta; con una lista
 --    suelta de adjuntos, no.
 -- ---------------------------------------------------------------------
+-- Las tres primeras son las OBLIGATORIAS: sin ellas el viaje no está
+-- probado. 'observacion' es opcional y respalda la nota de la llegada
+-- ("llegó con el sello roto"); no entra en el contador de 3 de 3 —ver
+-- sider_fotos_contar() más abajo—.
 do $$ begin
-  create type ranura_foto as enum ('costado_izq', 'costado_der', 'placa');
+  create type ranura_foto as enum ('costado_izq', 'costado_der', 'placa', 'observacion');
 exception when duplicate_object then null; end $$;
+-- Para las bases que ya existían con las tres de siempre.
+alter type ranura_foto add value if not exists 'observacion';
 
 create table if not exists public.sider_fotos (
   id                uuid primary key default gen_random_uuid(),
@@ -249,6 +255,9 @@ create index if not exists sider_fotos_cert_idx on public.sider_fotos (certifica
 -- recontar cuesta nada.
 -- ---------------------------------------------------------------------
 alter table public.sider_certificaciones add column if not exists fotos smallint not null default 0;
+-- Aparte del contador: que la observación traiga foto no puede hacer que
+-- un viaje con problemas se vea MÁS completo que uno sin ellos.
+alter table public.sider_certificaciones add column if not exists foto_obs boolean not null default false;
 
 create or replace function public.sider_fotos_contar()
 returns trigger
@@ -258,7 +267,12 @@ set search_path = public
 as $$
 begin
   update public.sider_certificaciones c
-     set fotos = (select count(*) from public.sider_fotos f where f.certificacion_id = c.id)
+     set fotos = (select count(*) from public.sider_fotos f
+                   where f.certificacion_id = c.id
+                     and f.ranura in ('costado_izq', 'costado_der', 'placa')),
+         foto_obs = exists (select 1 from public.sider_fotos f
+                             where f.certificacion_id = c.id
+                               and f.ranura not in ('costado_izq', 'costado_der', 'placa'))
    where c.id = coalesce(new.certificacion_id, old.certificacion_id);
   return null;
 end $$;
@@ -271,10 +285,17 @@ create trigger sider_fotos_contar_tg
 -- Poner al día lo que ya estaba. Solo toca lo que no cuadra, así que
 -- correr el archivo otra vez no reescribe la tabla entera.
 update public.sider_certificaciones c
-   set fotos = x.n
-  from (select c2.id, (select count(*) from public.sider_fotos f where f.certificacion_id = c2.id) as n
+   set fotos = x.n, foto_obs = x.obs
+  from (select c2.id,
+               (select count(*) from public.sider_fotos f
+                 where f.certificacion_id = c2.id
+                   and f.ranura in ('costado_izq', 'costado_der', 'placa')) as n,
+               exists (select 1 from public.sider_fotos f
+                        where f.certificacion_id = c2.id
+                          and f.ranura not in ('costado_izq', 'costado_der', 'placa')) as obs
           from public.sider_certificaciones c2) x
- where x.id = c.id and c.fotos is distinct from x.n;
+ where x.id = c.id
+   and (c.fotos is distinct from x.n or c.foto_obs is distinct from x.obs);
 
 -- ---------------------------------------------------------------------
 -- 5. FUENTE PRINCIPAL — aquí viven las once fórmulas del Excel

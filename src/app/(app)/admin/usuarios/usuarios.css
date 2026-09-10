@@ -224,3 +224,16 @@
    página entera rodaba, y en 360x640 se salía de la pantalla. El
    descuento está medido en el arnés. */
 .us .us-marco { max-height: max(200px, calc(100dvh - 330px)) ; overflow-y: auto }
+
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .us .us-clave .rot { font-size: 12px }
+  .us .us-campos span { font-size: 12px }
+
+  /* Blancos de toque cortos */
+  .us .us-campos select { height: 44px }
+}

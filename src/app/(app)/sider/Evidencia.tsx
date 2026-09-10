@@ -18,7 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Viaje } from "@/modulos/sider/comun";
 
 type Foto = {
-  ranura: "costado_izq" | "costado_der" | "placa";
+  ranura: "costado_izq" | "costado_der" | "placa" | "observacion";
   ruta: string; url: string | null;
   bytes: number | null; ancho: number | null; alto: number | null; subida_en: string;
 };
@@ -33,6 +33,7 @@ const NOMBRE: Record<string, string> = {
   costado_izq: "Costado izquierdo",
   costado_der: "Costado derecho",
   placa: "Placa",
+  observacion: "Observación",
 };
 
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -225,7 +226,7 @@ function Hoja({ viaje, nombres, cerrar }: {
               {p.nota && <p className="ev-nota">{p.nota}</p>}
               <div className="ev-fotos">
                 {p.fotos.map((f) => (
-                  <figure key={f.ruta}>
+                  <figure key={f.ruta} className={f.ranura === "observacion" ? "obs" : undefined}>
                     {f.url ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={f.url} alt={NOMBRE[f.ranura]} loading="lazy"
@@ -239,7 +240,14 @@ function Hoja({ viaje, nombres, cerrar }: {
                     </figcaption>
                   </figure>
                 ))}
-                {Array.from({ length: 3 - p.fotos.length }).map((_, i) => (
+                {/* Los huecos se cuentan sobre las TRES OBLIGATORIAS, no
+                    sobre el total. Contando el total, una punta con dos
+                    fotos y una observación daba 3 y no mostraba ningún
+                    "Falta": el hueco desaparecía justo cuando había un
+                    problema anotado. */}
+                {Array.from({
+                  length: 3 - p.fotos.filter((f) => f.ranura !== "observacion").length,
+                }).map((_, i) => (
                   <figure key={`falta${i}`} className="falta">
                     <div className="ev-rota">Falta</div>
                     <figcaption>—</figcaption>

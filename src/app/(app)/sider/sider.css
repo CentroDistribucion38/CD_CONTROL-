@@ -411,13 +411,62 @@
 .sd .ct-foto button:hover { border-color: var(--sd-acento); background: var(--c-f7fcfd) }
 .sd .ct-foto.lista button { border-style: solid; border-color: var(--sd-acento); background: #fff; padding: 8px }
 .sd .ct-foto img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 3px; display: block }
-.sd .ct-foto b { font-family: var(--sd-titulo); font-weight: 800; font-size: 14.5px }
-.sd .ct-foto span { font-size: 12px; color: var(--sd-gris); text-align: center }
+/* max-width en los dos: el button lleva overflow:hidden, así que un
+   rótulo más ancho que la ranura no se salía —se RECORTABA—, y en 360px
+   "Costado izquierdo" se leía "Costado zquierdo". Medido: el <b> daba
+   80px dentro de un botón de 71. Con esto el texto se parte y se lee
+   entero, sin depender de qué tan angosta sea la fuente que cargue. */
+.sd .ct-foto b {
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 14.5px;
+  max-width: 100%; overflow-wrap: break-word;
+}
+.sd .ct-foto span { font-size: 12px; color: var(--sd-gris); text-align: center; max-width: 100% }
 .sd .ct-camara {
   width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
   background: var(--c-eaf4f6);
 }
 .sd .ct-camara svg { width: 28px; height: 28px; stroke: var(--sd-acento); stroke-width: 1.7 }
+
+/* ---------- La observación y su foto ----------
+   Van en la MISMA caja y separadas del bloque de las tres por una línea
+   arriba: lo de arriba es obligatorio y lo de abajo no, y eso tiene que
+   verse antes de leer una palabra. La nota manda en el ancho porque es
+   lo que casi siempre se llena; la ranura del "+" va al lado, del alto
+   que le deje la nota. */
+.sd .ct-obs {
+  display: grid; grid-template-columns: 1fr 190px; gap: 14px; align-items: stretch;
+  margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--sd-linea);
+}
+.sd .ct-obs > label { display: flex; flex-direction: column; gap: 7px; min-width: 0 }
+.sd .ct-obs > label > span {
+  font-size: 11px; font-weight: 700; letter-spacing: .1em;
+  color: var(--sd-gris); text-transform: uppercase;
+}
+.sd .ct-obs > label > span em {
+  font-style: normal; font-weight: 600; letter-spacing: .04em; opacity: .75;
+}
+.sd .ct-obs textarea {
+  flex: 1; min-height: 92px; resize: vertical; padding: 11px 13px;
+  font: 500 15px var(--sd-texto); color: var(--sd-tinta);
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 4px;
+}
+.sd .ct-obs textarea::placeholder { color: var(--c-b4c0ce); font-weight: 400 }
+.sd .ct-obs textarea:focus { outline: 3px solid var(--sd-acento); outline-offset: 1px }
+
+/* El "+" en vez de la cámara: dice "añadir algo más", que es lo que es.
+   La cámara redonda de las otras tres dice "toma esta foto", y esta no
+   hay que tomarla si no hay nada que mostrar. */
+.sd .ct-obs-foto { flex-direction: column; gap: 6px }
+.sd .ct-mas {
+  width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--c-eaf4f6); color: var(--sd-acento);
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 30px; line-height: 1;
+}
+.sd .ct-quitar {
+  border: 0; background: none; cursor: pointer; padding: 4px;
+  font: 600 12.5px var(--sd-texto); color: var(--sd-gris); text-decoration: underline;
+}
+.sd .ct-quitar:hover { color: var(--c-alarma) }
 
 /* ---------- Revisión ---------- */
 .sd .ct-revision {
@@ -549,16 +598,54 @@
   .sd .ct-campos label.ancho input { height: 42px }
 
   /* ---- Fotos: las tres en una fila, que se vean de un golpe ---- */
-  .sd .ct-fotos { grid-template-columns: repeat(3, 1fr); gap: 8px }
+  /* minmax(0,1fr) y no 1fr: '1fr' es minmax(AUTO,1fr) y esa columna no
+     baja del ancho de su palabra más larga. "Costado izquierdo" empujaba
+     las tres a 104/92/70 y la de la placa se salía de la tarjeta —medido
+     en 360px—. Con minmax(0,...) las tres son terceras de verdad. */
+  .sd .ct-fotos { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
   .sd .ct-foto button { padding: 10px 6px; gap: 5px }
   .sd .ct-foto.lista button { padding: 5px }
-  .sd .ct-foto b { font-size: 12px; text-align: center; line-height: 1.15 }
+  /* "Costado izquierdo" no cabe de una pieza en un tercio de 360 y el
+     button recorta lo que sobra: mejor que parta la palabra a que se lea
+     "Costado zquierdo". */
+  .sd .ct-foto b { font-size: 12px; text-align: center; line-height: 1.15; overflow-wrap: break-word }
   /* La ayuda de cada ranura sobra cuando ya se ve el nombre y la foto.
      Ojo: se apunta a .ct-ayuda y no a "span" a secas, porque el ícono de
      la cámara también es un span y desaparecía con él. */
   .sd .ct-foto .ct-ayuda { display: none }
   .sd .ct-camara { width: 42px; height: 42px }
   .sd .ct-camara svg { width: 20px; height: 20px }
+
+  /* ---- La observación: la nota arriba, el "+" debajo ----
+     En 360px la nota junto a una ranura de 190 deja la nota en 150 y no
+     se lee lo que uno escribe. El "+" pasa a ser una barra ancha y baja,
+     que además es más fácil de acertar con el pulgar que una caja
+     cuadrada en una esquina. */
+  .sd .ct-obs { grid-template-columns: 1fr; gap: 10px; margin-top: 14px; padding-top: 14px }
+  /* 92 y no 76: con 76 y letra de 16 el cuarto renglón quedaba cortado a
+     media altura. Un texto recortado en una caja donde uno está
+     escribiendo se lee como que la aplicación perdió lo escrito. */
+  .sd .ct-obs textarea { min-height: 92px; font-size: 16px }
+  /* En rejilla y no en fila: puestos en fila, el "+", el título y la
+     ayuda iban los tres uno tras otro y la ayuda se salía por la derecha.
+     Así el "+" ocupa las dos filas a la izquierda y el texto se apila. */
+  .sd .ct-obs-foto button {
+    display: grid; grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 12px; row-gap: 1px; align-items: center;
+    padding: 9px 14px; text-align: left;
+  }
+  .sd .ct-obs-foto .ct-mas { grid-row: 1 / 3; width: 40px; height: 40px; font-size: 24px }
+  .sd .ct-obs-foto b { grid-column: 2; align-self: end; font-size: 14px; text-align: left }
+  /* Aquí la ayuda SÍ se ve: es la que explica que la foto es opcional. */
+  .sd .ct-obs-foto .ct-ayuda {
+    grid-column: 2; align-self: start; display: block; font-size: 12px; text-align: left;
+  }
+  /* Ya con foto no hay "+": la imagen manda y el texto va debajo. */
+  .sd .ct-obs-foto.lista button { grid-template-columns: minmax(0, 1fr); row-gap: 4px }
+  .sd .ct-obs-foto.lista b { grid-column: 1 }
+  .sd .ct-obs-foto.lista .ct-ayuda { grid-column: 1 }
+  .sd .ct-obs-foto img { aspect-ratio: 16/9 }
+  .sd .ct-quitar { min-height: 44px }
 
   /* ---- Confirmar ---- */
   .sd .ct-revision { grid-template-columns: repeat(2, minmax(0, 1fr)) }
@@ -778,8 +865,13 @@
 .sd .tr-llegada .ct-ubi { padding: 14px 16px }
 .sd .tr-llegada .ct-ubi .coord { font-size: 20px; margin-top: 6px }
 .sd .tr-llegada .ct-dir input { height: 44px }
-.sd .tr-llegada .ct-foto button { padding: 12px 10px; gap: 6px }
-.sd .tr-llegada .ct-foto .ct-ayuda { display: none }
+.sd .tr-llegada .ct-fotos .ct-foto button { padding: 12px 10px; gap: 6px }
+/* Se apunta a .ct-fotos y no a .ct-foto a secas: la ranura de la
+   observación también lleva .ct-foto, y con el selector viejo su ayuda
+   —la que dice que la foto es opcional— quedaba escondida en TODAS las
+   pantallas, incluso donde la regla del celular pedía verla. Pesaba
+   (0,4,0) contra (0,3,0) y ganaba sin importar el orden. */
+.sd .tr-llegada .ct-fotos .ct-ayuda { display: none }
 .sd .tr-llegada .ct-camara { width: 46px; height: 46px }
 .sd .tr-llegada .ct-camara svg { width: 22px; height: 22px }
 .sd .tr-llegada .ct-botones { margin-top: 10px }
@@ -1031,6 +1123,15 @@
   border: 1.5px dashed var(--sd-linea); border-radius: 3px; background: var(--c-fafbfd);
 }
 .sd .ev-fotos figure.falta figcaption { color: var(--c-c6d0dc) }
+/* La foto de la observación es la cuarta y arranca renglón sola: si
+   quedara pegada a las tres, quien revisa la contaría como una de las
+   obligatorias y leería "4 de 3". El filo de alarma dice que ahí hay
+   algo anotado, no que falte nada. */
+.sd .ev-fotos figure.obs { grid-column: 1 / -1 }
+.sd .ev-fotos figure.obs img {
+  aspect-ratio: 16/9; border-color: var(--c-alarma); border-width: 1.5px;
+}
+.sd .ev-fotos figure.obs figcaption { color: var(--c-alarma) }
 .sd .ev-cargando { font-size: 13px; color: var(--sd-gris); padding: 14px 2px }
 
 .sd .ev-lupa {
@@ -2218,4 +2319,69 @@
   .sd .tr-grupos      { gap: 18px }
   .sd .vj-editor      { padding: 16px }
   .sd .vj-campos      { gap: 14px }
+}
+
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .sd .kpi .chip { font-size: 12px }
+  .sd .cifra .rot { font-size: 12px }
+  .sd .m-faltan .cuales { font-size: 12px }
+  .sd .ct-ubi .rot { font-size: 12px }
+  .sd .ct-tiquete .rot { font-size: 12px }
+  .sd .ct-tiquete .cifras-t span { font-size: 12.5px }
+  .sd .ct-pasos button { font-size: 12px }
+  .sd .ct-op span { font-size: 12px }
+  .sd .ct-revision dt { font-size: 12.5px }
+  .sd .ct-revision dd em { font-size: 12px }
+  .sd .tr-grupo-cab .tr-tarde { font-size: 12px }
+  .sd .tr-mat em { font-size: 12px }
+  .sd .tr-salio em { font-size: 12px }
+  .sd .tr-rot { font-size: 12px }
+  .sd .sg-barra label span { font-size: 12px }
+  .sd .ev-ojo i { font-size: 12px }
+  .sd .ev-hoja header .rot { font-size: 12px }
+  .sd .ev-rot { font-size: 12px }
+  .sd .ev-forms dt { font-size: 11.5px }
+  .sd .ev-forms dd em { font-size: 12px }
+  .sd .ev-donde span { font-size: 12px }
+  .sd .ev-fotos figcaption { font-size: 12px }
+  .sd .ex-mes span { font-size: 12px }
+  .sd .zl-mapa span { font-size: 12px }
+  .sd .im-pes button span { font-size: 12px }
+  .sd .sg-grupo th { font-size: 11px }
+  .sd .sg-orden i { font-size: 12.5px }
+  .sd .sg-aparte-det > summary { font-size: 12px }
+  .sd .sg-seg > label > span { font-size: 11.5px }
+  .sd .sg-seg-cifras span { font-size: 12.5px }
+  .sd .sg-marca { font-size: 11.5px }
+  .sd .sg-mes .mes-semana span { font-size: 12.5px }
+  .sd .sg-panel .resumen span { font-size: 12.5px }
+  .sd .chapa-gris { font-size: 12.5px }
+  .sd .cabeza .ojo { font-size: 12px }
+  .sd .kpi .delta { font-size: 12.5px }
+  .sd .sg-filtros .sel > span { font-size: 12px }
+  .sd .sg-paso .bolita { font-size: 12px }
+  .sd .vj-ojo { font-size: 12px }
+  .sd .vj-motivo-campo em { font-size: 12px }
+  .sd .ex-todo.on em { font-size: 12px }
+
+  /* Blancos de toque cortos */
+  .sd input[type="text"], .sd input[type="number"], .sd select { height: 44px }
+  .sd .ct-campos label.ancho input { height: 44px }
+  .sd .tr-filtros input, .sd .tr-filtros select { height: 44px }
+  .sd .ex-fotos input { height: 44px }
+  .sd .ex-btn { height: 44px }
+  .sd .zl-mapa select, .sd .zl-mapa input { height: 44px }
+  .sd .im-filtro select { height: 44px }
+  .sd .sg-filtros select { height: 44px }
+  .sd .sg-mes .mes-anio button { height: 40px }
+  .sd .sg-mes .mes-dias button { height: 40px }
+  .sd .sg-mes .mes-doce button { height: 40px }
+  .sd .vj-filtros input, .sd .vj-filtros select { height: 44px }
+  .sd .vj-filtros .btn.plano { height: 44px }
+  .sd .vj-motivo-campo input { height: 44px }
 }

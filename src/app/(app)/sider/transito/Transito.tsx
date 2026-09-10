@@ -15,13 +15,13 @@
  * la salida. Solo aporta la evidencia de que llegó, y dónde.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Viaje } from "@/modulos/sider/comun";
 import {
-  RANURAS, type Ranura, type Foto,
-  usePosicion, TarjetaUbicacion, CampoDireccion, Ranurita,
+  RANURAS, RANURA_OBS, type Ranura, type RanuraCualquiera, type Foto,
+  usePosicion, TarjetaUbicacion, CampoDireccion, Ranurita, CajaObservacion,
   sellar, subirFotos, traducir,
 } from "@/modulos/sider/evidencia";
 
@@ -338,7 +338,7 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
 }) {
   const pos = usePosicion();
   const [paso, setPaso] = useState(0);
-  const [fotos, setFotos] = useState<Partial<Record<Ranura, Foto>>>({});
+  const [fotos, setFotos] = useState<Partial<Record<RanuraCualquiera, Foto>>>({});
   const [nota, setNota] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [avance, setAvance] = useState("");
@@ -363,6 +363,35 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
     } catch {
       setAviso({ mal: true, texto: "No se pudo procesar esa foto. Vuelve a tomarla." });
     }
+  }
+
+  /* La foto de la observación se sella igual que las otras —placa, hora,
+     coordenadas quemadas en la esquina—, porque si no se sellara sería la
+     única de las cuatro que no prueba dónde ni cuándo se tomó, y es
+     justamente la que alguien va a discutir. */
+  async function tomarObs(archivo: File) {
+    try {
+      const foto = await sellar(archivo, {
+        placa: viaje.placa,
+        ubi: pos.ubi,
+        direccion: pos.direccion.trim(),
+        etiqueta: `LLEGADA · OBSERVACIÓN`,
+      });
+      setFotos((f) => {
+        if (f.observacion) URL.revokeObjectURL(f.observacion.url);
+        return { ...f, observacion: foto };
+      });
+    } catch {
+      setAviso({ mal: true, texto: "No se pudo procesar esa foto. Vuelve a tomarla." });
+    }
+  }
+
+  function quitarObs() {
+    setFotos((f) => {
+      if (f.observacion) URL.revokeObjectURL(f.observacion.url);
+      const { observacion: _, ...resto } = f;
+      return resto;
+    });
   }
 
   async function certificar() {
@@ -409,6 +438,18 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
     }
     listo();
   }
+
+  /* Soltar los blobs al cerrar. Esta pantalla nunca lo hizo —la de salida
+     sí— y cada foto sellada son varios megas que se quedaban en memoria
+     hasta recargar la página. Con la cuarta ranura se nota más, así que
+     va aquí en vez de en una lista de pendientes.
+     Sin dependencias: corre UNA vez al desmontar y lee el estado del
+     momento a través de la referencia, no la copia del primer render. */
+  const fotosRef = useRef(fotos);
+  fotosRef.current = fotos;
+  useEffect(() => () => {
+    for (const f of Object.values(fotosRef.current)) if (f) URL.revokeObjectURL(f.url);
+  }, []);
 
   const pasos = [
     { t: "Dónde", ok: !!pos.ubi },
@@ -470,7 +511,8 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
                 ) : (
                   <>
                     Cada una queda sellada con la placa, la fecha, la hora y las
-                    coordenadas quemadas en la esquina.
+                    coordenadas quemadas en la esquina. Si algo llegó mal, déjalo
+                    dicho abajo y, si se puede, fotografíalo.
                   </>
                 )}
               </p>
@@ -501,21 +543,13 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
                 <>
                   <div className="tr-dos">
                     <TarjetaUbicacion ubi={pos.ubi} />
-                    <div>
-                      <CampoDireccion
-                        direccion={pos.direccion}
-                        setDireccion={pos.setDireccion}
-                        buscandoDir={pos.buscandoDir}
-                      />
-                      <label className="ct-dir">
-                        <span>Observación (opcional)</span>
-                        <input
-                          value={nota}
-                          placeholder="Algo que haya que dejar dicho de esta llegada"
-                          onChange={(e) => setNota(e.target.value)}
-                        />
-                      </label>
-                    </div>
+                    {/* La observación ya NO vive aquí: se fue al paso de
+                        las fotos, junto a la foto que la respalda. */}
+                    <CampoDireccion
+                      direccion={pos.direccion}
+                      setDireccion={pos.setDireccion}
+                      buscandoDir={pos.buscandoDir}
+                    />
                   </div>
                   <div className="ct-botones">
                     <button type="button" className="btn" onClick={() => setPaso(1)}>
@@ -538,6 +572,16 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
                   <Ranurita key={r.id} r={r} foto={fotos[r.id]} tomar={tomar} />
                 ))}
               </div>
+
+              <CajaObservacion
+                punta="llegada"
+                nota={nota}
+                setNota={setNota}
+                foto={fotos[RANURA_OBS.id]}
+                tomar={tomarObs}
+                quitar={quitarObs}
+              />
+
               <div className="ct-botones">
                 <button type="button" className="btn" onClick={certificar} disabled={!puede || enviando}>
                   {enviando ? avance || "Certificando…"

@@ -156,7 +156,11 @@ export type FilaSeguimiento = {
 };
 
 export type FotoGuardada = {
-  ranura: "costado_izq" | "costado_der" | "placa";
+  /* 'observacion' es la cuarta y única opcional: respalda la nota de la
+     punta ("llegó con el sello roto"). No entra en el conteo de 3 de 3
+     —eso lo decide sider_fotos_contar() en la base—, así que aquí solo
+     hay que saber dibujarla. */
+  ranura: "costado_izq" | "costado_der" | "placa" | "observacion";
   ruta: string;
   url: string | null;
   bytes: number | null;
@@ -179,10 +183,14 @@ export type Certificacion = {
   fotos: FotoGuardada[];
 };
 
-export const ORDEN_RANURA = ["costado_izq", "costado_der", "placa"] as const;
+/* El orden en que se MUESTRAN, no en que se subieron: comparar dos
+   viajes es imposible si las fotos cambian de sitio. La observación va de
+   última porque es la que puede no estar. */
+export const ORDEN_RANURA = ["costado_izq", "costado_der", "placa", "observacion"] as const;
 
 export const NOMBRE_RANURA: Record<string, string> = {
   costado_izq: "Costado izquierdo",
   costado_der: "Costado derecho",
   placa: "Placa",
+  observacion: "Observación",
 };

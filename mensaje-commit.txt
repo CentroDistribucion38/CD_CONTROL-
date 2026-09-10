@@ -1,0 +1,32 @@
+Aire en el celular en todo el aplicativo + foto de la observacion en la llegada
+
+CELULAR (las 9 hojas)
+- El auditor de densidad estaba mintiendo: al salir de un @media se comia
+  la llave de cierre dentro del selector siguiente y perdia la pila, asi
+  que contaba mis propias reglas de celular como si fueran de escritorio.
+  Reescrito con pila de bloques. De 140 faltas bajo a 0 de verdad.
+- Riel lateral 42->44px, casilla del diario 34->44px y 16px de letra (sin
+  zoom al enfocar), dias del calendario 32->40px, "+ por causal" 14->44px,
+  "Volver a modulos" 20->44px.
+- Rejilla del diario en 360px: Concepto(178)+Total(116) se comian 294 de
+  360 y no cabia ni un dia completo. Reparto nuevo 100/78/60.
+- Dos errores mios del generador, revertidos: habia estirado a 44px el
+  chulito de 14px de las opciones y la pastilla 44x26 del interruptor.
+
+LLEGADA - OBSERVACION CON FOTO
+- La nota se movio del paso "Donde" al paso de fotos, junto a la foto que
+  la respalda, y se agrego una cuarta ranura opcional con un "+".
+- La foto va sellada igual que las otras y se sube DE ULTIMA: si se corta
+  el dato, lo que alcanza a subir son las tres obligatorias.
+- El contador sigue diciendo 3 de 3 y no 4 de 3: "fotos" cuenta solo las
+  obligatorias y la observacion vive en su propia columna foto_obs.
+- Arreglado de paso: los huecos "Falta" se contaban sobre el total, asi
+  que una punta con 2 fotos + observacion daba 3 y no mostraba el hueco.
+- Arreglado de paso: .tr-llegada .ct-foto .ct-ayuda (0,4,0) escondia la
+  ayuda de la ranura nueva en todas las pantallas.
+- Arreglado de paso: .ct-fotos usaba 1fr (=minmax(auto,1fr)) y "Costado
+  izquierdo" empujaba las ranuras a 104/92/70 saliendose de la tarjeta.
+- Arreglado de paso: esta pantalla nunca soltaba los blobs al cerrarse.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -203,6 +203,10 @@
 
 .qd .rj-marco {
   overflow: auto; max-height: 70vh;
+  /* Contenedor de consulta: el párrafo del desglose vive en una celda
+     pegada a la izquierda que mide lo que mide la TABLA (3.000px), no
+     lo que se ve. Con esto puede pedir el ancho VISIBLE y no salirse. */
+  container-type: inline-size;
   border-top: 1px solid var(--qb-linea);
   -webkit-overflow-scrolling: touch;
 }
@@ -488,4 +492,52 @@
   .qd .qd-btn { flex: 1 1 auto }
   .qd .qd-acciones .qd-estado { margin-left: 0; width: 100%; white-space: normal }
   .qd .qd-tabla-dias { max-height: 380px }
+}
+
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .qd .qd-sello { font-size: 11px }
+  .qd .qd-mini-c .rot { font-size: 12px }
+  .qd .qd-fila-dia.ancla td.mes::after { font-size: 11px }
+  .qd .rj th.rot em { font-size: 12px }
+  .qd .rj thead th button span { font-size: 12px }
+  /* "+ por causal" va con cara de enlace y medía 14px de alto: el dedo
+     no le acierta. El relleno crece hacia afuera con margen negativo,
+     así el texto no se mueve de donde estaba. */
+  .qd .rj-mas {
+    font-size: 12px; display: inline-flex; align-items: center;
+    min-height: 44px; padding: 0 12px; margin: -2px -12px 0;
+  }
+  .qd .qd-linea .num::before { font-size: 11.5px }
+
+  /* Blancos de toque cortos */
+  .qd .qd-atajos button { height: 44px }
+  .qd .qd-le input { height: 44px }
+  .qd .qd-caja input { height: 44px }
+  /* La casilla donde se digita la cifra del día. Es el campo que más se
+     toca de la pantalla y estaba en 34px. 16px de letra además evita
+     que el celular haga zoom al enfocar. */
+  .qd .rj td.cel input { height: 44px; font-size: 16px }
+
+  /* ---- El reparto del ancho en 360px ----
+     Concepto va pegado a la izquierda y Total pegado a la derecha. Con
+     las medidas de escritorio —178 + 116— entre los dos se comían 294
+     de 360 y no quedaba sitio para NINGÚN día completo: se veía la
+     tabla y no los datos. Aquí caben dos días a la vez y las dos
+     columnas fijas siguen diciendo qué se está mirando. */
+  .qd .rj th.rot { min-width: 100px; max-width: 100px; padding: 8px 9px; font-size: 13px }
+  .qd .rj tr.rj-causal th.rot { font-size: 12.5px }
+  .qd .rj .total { min-width: 60px; padding: 8px 8px; font-size: 12.5px }
+  .qd .rj thead th button { min-width: 72px; padding: 8px 3px }
+  .qd .rj td.cel input { min-width: 72px }
+  .qd .rj tr.calc td { padding: 9px 8px }
+  /* El párrafo del desglose va dentro de una celda pegada a la
+     izquierda: sin techo se sale de la pantalla y se corta. */
+  .qd .rj tr.rj-sep th { padding: 12px 12px 7px }
+  .qd .rj tr.rj-sep th em { max-width: calc(100cqw - 26px) }
+  .qd .rj thead th.rot { font-size: 11.5px; letter-spacing: .06em }
 }

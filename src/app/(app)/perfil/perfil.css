@@ -455,3 +455,21 @@
   font-size: 18px;
   line-height: 0;
 }
+
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+
+  /* Blancos de toque cortos */
+  .pf-ojo { height: 44px }
+  /* El enlace de salida medía 20px de alto. Es la única forma de volver
+     a módulos desde el celular. */
+  .pf-volver { min-height: 44px; padding-right: 8px }
+}
+/* NOTA: aquí NO va ".pf-switch input { height: 44px }". El generador lo
+   propuso porque mide 26px, pero es la PASTILLA del interruptor —44x26
+   con una perilla de 20— y a 44 de alto queda redonda y la perilla
+   descuadrada. El blanco de toque es el <label> .pf-switch entero, que
+   con sus 15px de relleno arriba y abajo ya pasa de 44. */

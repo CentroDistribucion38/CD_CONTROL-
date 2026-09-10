@@ -811,3 +811,18 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   .cp-caja-clave button { height: 50px; width: 48px }
   .cp-btn { min-height: 50px; font-size: 15.5px }
 }
+
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .sh-lado .grupo { font-size: 12px }
+  .sh-lado .sello .letras span { font-size: 12px }
+
+  /* Blancos de toque cortos.
+     El hijo del riel quedaba en 42px: dos por debajo del mínimo, y es
+     el enlace que más se toca en toda la aplicación. */
+  .sh-lado .riel a.hijo { height: 44px }
+}
