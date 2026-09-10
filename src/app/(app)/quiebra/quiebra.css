@@ -666,3 +666,110 @@ body.capturando .qb .acciones-informe { visibility: hidden }
      comen 264px de pantalla. 40px ya se toca bien y el mes cabe. */
   .qb .dias button { height: 40px; font-size: 14px }
 }
+
+/* ====================== El simulador de CONA ======================
+   Cuatro renglones que se leen de arriba abajo: dos que se escriben, dos
+   que salen de ellos, y el disponible aparte porque es la única cifra
+   por la que alguien abre esta tarjeta. Las que se escriben llevan caja
+   y las calculadas no: se ve de un vistazo cuál es cuál sin leer nada.
+   ================================================================= */
+.qb .tarjeta.sim { margin-top: 20px }
+.qb .sim .cab { align-items: flex-start }
+.qb .sim-firma {
+  margin: 0; text-align: right; font-size: 12px; color: var(--qb-gris);
+  display: flex; flex-direction: column; gap: 1px; white-space: nowrap;
+}
+.qb .sim-firma em { font-style: normal; color: var(--c-9aa9bb) }
+
+.qb .sim-cuerpo {
+  display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px;
+  padding: 18px 26px 22px; align-items: start;
+}
+.qb .sim-filas { display: flex; flex-direction: column }
+
+.qb .sim-fila {
+  display: grid; grid-template-columns: minmax(0, 1fr) 168px;
+  grid-template-areas: "rot dato" "pie dato";
+  column-gap: 16px; align-items: center;
+  padding: 11px 0; border-bottom: 1px solid var(--qb-linea);
+}
+.qb .sim-fila:first-child { border-top: 1px solid var(--qb-linea) }
+.qb .sim-fila > span {
+  grid-area: rot; align-self: end;
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 15px; color: var(--qb-tinta);
+}
+.qb .sim-fila > em {
+  grid-area: pie; align-self: start; font-style: normal;
+  font-size: 12.5px; color: var(--qb-gris);
+}
+.qb .sim-fila > b,
+.qb .sim-fila > input { grid-area: dato }
+
+.qb .sim-fila input {
+  width: 100%; height: 44px; padding: 0 12px; text-align: right;
+  font: 700 17px var(--qb-titulo); color: var(--qb-tinta);
+  font-variant-numeric: tabular-nums;
+  background: #fff; border: 1.5px solid var(--qb-linea); border-radius: 3px;
+}
+.qb .sim-fila input:hover { border-color: var(--c-c6d3e2) }
+.qb .sim-fila input:focus { outline: 3px solid var(--qb-azul); outline-offset: 1px }
+.qb .sim-fila input::placeholder { color: var(--c-c6d0dc); font-weight: 500 }
+
+.qb .sim-fila > b {
+  text-align: right; font-family: var(--qb-titulo); font-weight: 800; font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+/* Las calculadas van en el gris de los datos que nadie escribió: es la
+   misma señal que usa la rejilla del diario. */
+.qb .sim-fila.calc { background: var(--c-fafbfd) }
+.qb .sim-fila.calc > b { color: var(--c-2c4361) }
+
+.qb .sim-total {
+  border: 2px solid var(--qb-tinta); border-radius: 4px; padding: 20px 22px;
+  display: flex; flex-direction: column; gap: 4px; background: #F1FBF5;
+}
+.qb .sim-total > span {
+  font-size: 11px; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--qb-gris);
+}
+.qb .sim-total > b {
+  font-family: var(--qb-titulo); font-weight: 800; font-size: 44px; line-height: 1;
+  letter-spacing: -.02em; color: #0F7A4A; font-variant-numeric: tabular-nums;
+}
+.qb .sim-total > em { font-style: normal; font-size: 13px; color: var(--qb-gris) }
+/* Pasado del tope: rojo, y el rótulo cambia de palabra. Un negativo en
+   verde se lee como un dato más. */
+.qb .sim-total.pasado { border-color: var(--qb-rojo); background: #FDF0F3 }
+.qb .sim-total.pasado > b { color: var(--qb-rojo) }
+
+.qb .sim-pie {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 0 26px 22px;
+}
+.qb .sim-pie p { margin: 0; flex: 1 1 260px; font-size: 12.5px; color: var(--qb-gris); line-height: 1.5 }
+.qb .sim .aviso { margin: 0 26px 22px }
+
+@media (max-width: 900px) {
+  .qb .sim-cuerpo { grid-template-columns: 1fr; gap: 14px; padding: 14px 16px 18px }
+  .qb .sim-fila { grid-template-columns: minmax(0, 1fr) 132px; column-gap: 12px }
+  .qb .sim-total { padding: 16px 18px }
+  .qb .sim-total > b { font-size: 36px }
+  .qb .sim-pie { padding: 0 16px 18px }
+  .qb .sim .aviso { margin: 0 16px 18px }
+  .qb .sim-firma { text-align: left; white-space: normal }
+}
+@media (max-width: 700px) {
+  /* 16px en las cajas: por debajo de eso el celular hace zoom al enfocar
+     y la tarjeta se va de sitio. */
+  .qb .sim-fila input { font-size: 16px; height: 46px }
+  .qb .sim-fila > span { font-size: 14px }
+  .qb .sim-fila > em { font-size: 12px }
+  .qb .sim-fila > b { font-size: 16px }
+  .qb .sim-pie .btn { width: 100% }
+}
+
+/* El botón del simulador está gris casi siempre —lo normal es que no
+   haya nada que guardar— y "cursor: progress" ahí diría que está
+   trabajando cuando no lo está. Solo mientras guarda de verdad. */
+.qb .sim-pie .btn:disabled { cursor: default }
+.qb .sim-pie .btn[aria-busy="true"] { cursor: progress }

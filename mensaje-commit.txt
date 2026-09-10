@@ -1,36 +1,39 @@
-Sider abre en Certificar, y un "+" para el siguiente vehiculo
+Simulador de CONA debajo del detalle mensual
 
-ABRIR EL MODULO DONDE SE TRABAJA
-- La tarjeta de un modulo llevaba siempre a su ruta base, que en Sider es
-  la Fuente principal: una tabla para revisar. Quien abre Sider casi
-  siempre esta al lado de un vehiculo y va a CERTIFICAR.
-- Cada modulo declara ahora con que pantalla se abre (campo "entrada").
-  La ruta base sigue siendo lo que se compara para saber en que modulo
-  estoy y lo que se pide como permiso: son dos cosas distintas y estaban
-  metidas en el mismo campo.
-- entradaDe() comprueba que la persona pueda VER esa pantalla antes de
-  mandarla ahi. De paso arregla un caso que ya estaba roto: alguien con
-  permiso para Certificar pero no para la Fuente principal tocaba el
-  modulo y caia en una pantalla que no puede abrir. Probado con los
-  cuatro casos: ve todo, no ve Certificar, solo ve En transito, no ve
-  nada.
-- "Al iniciar sesion, abrir" usa la misma resolucion: si la tarjeta abre
-  Certificar y la preferencia abriera la Fuente principal, el modulo se
-  comportaria distinto segun por donde se entre.
+QUE HACE
+- Dos cifras se escriben -CONA y % de quiebra- y dos salen de ellas:
+    Proyeccion und = CONA x %
+    Disponible     = Proyeccion - la quiebra del MES EN CURSO
+- Comprobado contra la hoja de Cristian: 85.166.358 x 2,65% da
+  2.256.908,49 -el 2.256.908 de la tabla- y 2.256.908 - 1.760.984 da
+  495.924. Siete casos probados, incluido pasarse del tope.
 
-EL "+" AL TERMINAR
-- Despues de certificar, el "+" es la accion grande de la pantalla, no un
-  boton mas en la fila: en el patio los vehiculos llegan seguidos y lo
-  normal despues de terminar uno es empezar otro.
-- Lleva el signo Y el texto. Un "+" solo obliga a adivinar que suma.
-- Dice ademas que la ubicacion ya esta tomada y que se empieza por el
-  origen, que es lo que de verdad cambia entre un vehiculo y el
-  siguiente.
-- Los dos enlaces de abajo -fuente principal, en transito- van en plano:
-  son la salida, no lo que se hace casi siempre.
-- El texto del paso final deja de esconderse en pantalla baja: la regla
-  que oculta las ayudas de cada paso lo tapaba, y ese no es una ayuda,
-  es lo unico que dice que la otra punta se cierra desde En transito.
+DECISIONES
+- Lo calculado NO se guarda. Guardar una cifra que sale de otras dos es
+  guardarse el derecho a que un dia no cuadren, y ahi nadie sabe cual de
+  las tres esta mal.
+- La quiebra que se resta es la del MES EN CURSO, no la del filtro de
+  arriba, y la pantalla lo dice con el nombre del mes: el filtro sirve
+  para mirar mayo desde septiembre, y el disponible de septiembre no
+  cambia porque uno este mirando mayo. Se toma de `meses`, que ya trae lo
+  escrito a mano del diario aplicado sobre lo importado.
+- Se guarda una fila por mes y la ve todo el mundo igual: el CONA no es
+  una suposicion de quien mira, es la cifra con la que se trabaja el mes.
+  Si viviera solo en la pantalla, cada quien veria un disponible distinto
+  y ninguno seria el bueno.
+- "Guardar cambios" solo se puede tocar si de verdad cambio algo. Un
+  boton siempre vivo no dice si hay algo sin guardar.
+- El porcentaje se guarda como FRACCION (0,0265), igual que
+  quiebra_metas: dos columnas de porcentaje con escalas distintas en la
+  misma base es la forma mas facil de multiplicar por cien de mas. La
+  funcion rechaza un 2,65 con un mensaje que dice que escala espera.
+- Quien guardo sale de auth.uid() dentro de la funcion, no del cuerpo de
+  la peticion: si el id del autor viajara desde el navegador, cualquiera
+  podria guardar el CONA a nombre de otro.
+- Leer lo puede todo el que entre; escribir, solo supervisor o admin.
+  Probado con los dos roles contra Postgres 16.
+- Si la migracion no se ha corrido, la pantalla sale con el simulador en
+  blanco en vez de reventar el tablero entero.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

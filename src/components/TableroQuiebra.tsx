@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Baja, Produccion, Meta, Carga, MesAnio } from "@/modulos/quiebra/datos";
 import { Calendario, useAfuera } from "@/components/CalendarioRango";
 import { TablaAnio } from "@/components/TablaAnio";
+import { createClient } from "@/lib/supabase/client";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio",
@@ -54,9 +55,13 @@ type Props = {
   esEditor: boolean;
   /** El año mes por mes, ya con lo escrito a mano del diario aplicado. */
   meses?: MesAnio[];
+  /** Lo guardado del simulador para el mes en curso, si alguien lo puso. */
+  simulador?: { cona: number; pct: number; quien: string | null; cuando: string } | null;
 };
 
-export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor, meses = [] }: Props) {
+export function TableroQuiebra({
+  bajas, produccion, metas, ultimaCarga, esEditor, meses = [], simulador = null,
+}: Props) {
   /* ------------------------ catálogos ------------------------ */
   const causales = useMemo(() => {
     const m = new Map<string, number>();
@@ -388,6 +393,9 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
         </div>
       </section>
 
+      {/* ---------------- El simulador de CONA ---------------- */}
+      <Simulador guardado={simulador} meses={meses} esEditor={esEditor} />
+
       {/* ---------------- El año mes por mes ---------------- */}
       {anioTabla != null && (
         <section className="tarjeta">
@@ -414,6 +422,173 @@ export function TableroQuiebra({ bajas, produccion, metas, ultimaCarga, esEditor
         del filtro actual. La quiebra es neta: los reversos con cantidad positiva restan.
       </p>
     </div>
+  );
+}
+
+/* ==================== EL SIMULADOR DE CONA ====================
+   La pregunta que responde es una sola: cuánta quiebra me queda antes de
+   pasarme del tope del mes.
+
+       CONA            se escribe    las unidades que se van a producir
+       % Quiebra       se escribe    el tope con el que se trabaja
+       Proyección und  = CONA × %    cuántas unidades me puedo permitir
+       Disponible      = Proyección − lo que ya llevo roto ESTE MES
+
+   Dos decisiones que no son de adorno:
+
+   · Lo de abajo NO se guarda. Se calcula. Guardar una cifra que sale de
+     otras dos es guardarse el derecho a que un día no cuadren, y cuando
+     eso pasa nadie sabe cuál de las tres está mal.
+
+   · La quiebra que se resta es la del MES EN CURSO, no la del filtro de
+     arriba. Es a propósito y por eso está escrito en la pantalla: el
+     filtro sirve para mirar mayo desde septiembre, y el disponible de
+     septiembre no cambia porque uno esté mirando mayo. Se toma de
+     `meses`, que ya trae lo escrito a mano del diario aplicado sobre lo
+     importado — no del subconjunto filtrado.
+   ============================================================== */
+function Simulador({ guardado, meses, esEditor }: {
+  guardado: { cona: number; pct: number; quien: string | null; cuando: string } | null;
+  meses: MesAnio[];
+  esEditor: boolean;
+}) {
+  const supabase = useMemo(() => createClient(), []);
+  const hoy = useMemo(() => new Date(), []);
+  const anio = hoy.getFullYear();
+  const mes = hoy.getMonth() + 1;
+
+  /* Se guarda como fracción y se escribe como porcentaje: la conversión
+     vive AQUÍ y en un solo sitio. */
+  const [cona, setCona] = useState(guardado ? String(guardado.cona) : "");
+  const [pct, setPct] = useState(
+    guardado ? String(+(guardado.pct * 100).toFixed(4)).replace(".", ",") : ""
+  );
+  const [guardando, setGuardando] = useState(false);
+  const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
+
+  const nCona = Number(cona.replace(/[^\d.-]/g, ""));
+  const nPct = Number(pct.replace(",", ".").replace(/[^\d.-]/g, "")) / 100;
+  const hay = cona.trim() !== "" && pct.trim() !== "" &&
+              Number.isFinite(nCona) && Number.isFinite(nPct) && nCona > 0 && nPct > 0;
+
+  const proyeccion = hay ? Math.round(nCona * nPct) : null;
+  const delMes = meses.find((m) => m.anio === anio && m.num_mes === mes)?.baja ?? 0;
+  const disponible = proyeccion == null ? null : Math.round(proyeccion - delMes);
+
+  /* "Guardar cambios" solo si de verdad cambió algo. Un botón que
+     siempre se puede tocar no dice si hay algo sin guardar. */
+  const sucio = hay && (
+    guardado == null ||
+    Math.abs(nCona - guardado.cona) > 0.005 ||
+    Math.abs(nPct - guardado.pct) > 0.000005
+  );
+
+  async function guardar() {
+    setAviso(null);
+    setGuardando(true);
+    const { error } = await supabase.rpc("quiebra_simulador_guardar", {
+      p_anio: anio, p_mes: mes, p_cona: nCona, p_pct: Number(nPct.toFixed(5)),
+    });
+    setGuardando(false);
+    if (error) {
+      setAviso({
+        mal: true,
+        texto: /does not exist|schema cache/i.test(error.message)
+          ? "Falta crear la tabla en Supabase: ejecuta supabase/migraciones/2026-09-simulador-cona.sql."
+          : error.message,
+      });
+      return;
+    }
+    setAviso({ mal: false, texto: "Guardado para " + MESES_LARGO[mes - 1] + "." });
+  }
+
+  return (
+    <section className="tarjeta sim">
+      <div className="cab">
+        <div>
+          <h2>Cuánto me queda</h2>
+          <p>
+            El CONA y el % se escriben; la proyección y el disponible se calculan
+            contra la quiebra de <b>{MESES_LARGO[mes - 1]}</b>.
+          </p>
+        </div>
+        {guardado && (
+          <p className="sim-firma">
+            Guardado{guardado.quien ? ` por ${guardado.quien}` : ""}
+            <em>{new Date(guardado.cuando).toLocaleString("es-CO", {
+              day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+            })}</em>
+          </p>
+        )}
+      </div>
+
+      <div className="sim-cuerpo">
+        <div className="sim-filas">
+          <label className="sim-fila">
+            <span>CONA</span>
+            {esEditor ? (
+              <input inputMode="numeric" value={cona} placeholder="85166358"
+                     aria-label="CONA en unidades"
+                     onChange={(e) => setCona(e.target.value)} />
+            ) : <b>{hay ? nf.format(nCona) : "—"}</b>}
+            <em>unidades a producir</em>
+          </label>
+
+          <label className="sim-fila">
+            <span>% Quiebra</span>
+            {esEditor ? (
+              <input inputMode="decimal" value={pct} placeholder="2,65"
+                     aria-label="Porcentaje de quiebra"
+                     onChange={(e) => setPct(e.target.value)} />
+            ) : <b>{hay ? pf(nPct) : "—"}</b>}
+            <em>el tope del mes</em>
+          </label>
+
+          <div className="sim-fila calc">
+            <span>Proyección und</span>
+            <b>{proyeccion == null ? "—" : nf.format(proyeccion)}</b>
+            <em>CONA × %</em>
+          </div>
+
+          <div className="sim-fila calc">
+            <span>Quiebra de {MESES_LARGO[mes - 1]}</span>
+            <b>{nf.format(Math.round(delMes))}</b>
+            <em>lo que ya se rompió</em>
+          </div>
+        </div>
+
+        {/* El disponible va aparte y grande: es la única cifra por la que
+            alguien abre esto. En rojo cuando ya se pasó del tope — un
+            número negativo en el mismo tono que los demás se lee como un
+            dato más y no como lo que es. */}
+        <div className={"sim-total" + (disponible != null && disponible < 0 ? " pasado" : "")}>
+          <span>{disponible != null && disponible < 0 ? "Pasado del tope" : "Disponible"}</span>
+          <b>{disponible == null ? "—" : nf.format(Math.abs(disponible))}</b>
+          <em>
+            {disponible == null
+              ? "Escribe el CONA y el porcentaje"
+              : disponible < 0
+                ? "unidades por encima de lo proyectado"
+                : "unidades de quiebra antes de pasarse"}
+          </em>
+        </div>
+      </div>
+
+      {esEditor && (
+        <div className="sim-pie">
+          <button type="button" className="btn" onClick={guardar}
+                  aria-busy={guardando} disabled={!sucio || guardando}>
+            {guardando ? "Guardando…" : sucio ? "Guardar cambios" : "Sin cambios por guardar"}
+          </button>
+          <p>
+            Se guarda para {MESES_LARGO[mes - 1]} y lo ve todo el mundo igual. Mientras
+            no guardes, lo de arriba es solo tuyo para tantear.
+          </p>
+        </div>
+      )}
+
+      {aviso && <div className={"aviso" + (aviso.mal ? " mal" : " bien")}>{aviso.texto}</div>}
+    </section>
   );
 }
 
