@@ -523,7 +523,15 @@ export async function subirFotos(
       .from("sider")
       .upload(ruta, f.blob, { contentType: "image/jpeg", upsert: true });
     if (error) return `la foto "${r.t}" no subió: ${error.message}`;
-    await cli.from("sider_fotos").insert({
+    /* EL ERROR DE ESTE INSERT SE ESTABA IGNORANDO, y era grave: la
+       imagen quedaba en el bucket y la FILA nunca entraba, así que la
+       foto existía y no la veía nadie —ni el ojito, ni el contador, ni
+       el Excel— y la pantalla decía "Listo". Evidencia que se pierde en
+       silencio es peor que evidencia que falta, porque nadie la busca.
+       Lo destapó la foto de la observación: sin correr la migración, la
+       base rechaza esa ranura con "invalid input value for enum
+       ranura_foto" y aquí no pasaba nada. */
+    const { error: eFila } = await cli.from("sider_fotos").insert({
       certificacion_id: d.certId,
       ranura: r.id,
       ruta,
@@ -531,6 +539,13 @@ export async function subirFotos(
       alto: f.alto,
       bytes: f.blob.size,
     });
+    if (eFila) {
+      const enum_ = /invalid input value for enum/i.test(eFila.message);
+      return enum_
+        ? `la foto "${r.t}" subió pero la base no conoce esa ranura todavía: ` +
+          `falta correr supabase/migraciones/2026-09-foto-observacion.sql en Supabase`
+        : `la foto "${r.t}" subió pero no quedó registrada: ${eFila.message}`;
+    }
     n++;
   }
   return null;
