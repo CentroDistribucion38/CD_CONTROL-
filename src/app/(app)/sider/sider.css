@@ -499,6 +499,39 @@
 .sd .ct-hueco .ct-ayuda { color: var(--c-alarma); font-weight: 700 }
 .sd .ct-hueco button:disabled { opacity: .5; cursor: not-allowed }
 
+/* ---------- Terminó: el "+" para el siguiente ----------
+   Grande y con el acento del módulo, porque después de certificar un
+   vehículo lo normal en el patio es que venga otro. Los dos enlaces de
+   abajo van en plano: son la salida, no lo que se hace casi siempre. */
+.sd .ct-otro {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 16px; row-gap: 2px; align-items: center;
+  width: 100%; margin-top: 18px; padding: 16px 20px; cursor: pointer; text-align: left;
+  border: 2px solid var(--sd-acento); border-radius: 4px;
+  background: var(--c-f7fcfd); color: var(--sd-tinta);
+}
+.sd .ct-otro:hover { background: #E9F6F8 }
+.sd .ct-otro:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: 2px }
+.sd .ct-otro > span {
+  grid-row: 1 / 3; width: 52px; height: 52px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--sd-acento); color: #fff;
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 30px; line-height: 1;
+}
+.sd .ct-otro b {
+  grid-column: 2; align-self: end;
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 17px;
+}
+.sd .ct-otro em {
+  grid-column: 2; align-self: start;
+  font-style: normal; font-size: 13px; color: var(--sd-gris);
+}
+.sd .ct-listo .ct-botones { margin-top: 14px }
+/* En pantalla baja se esconde el texto de ayuda de cada paso para que
+   quepa el formulario —regla de más abajo—, pero el del paso final no es
+   ayuda: es lo único que dice que la otra punta se cierra desde En
+   tránsito. Si se esconde, nadie se entera. */
+.sd .ct-listo .ct-dice { display: block }
+
 /* ---------- Revisión ---------- */
 .sd .ct-revision {
   /* OJO: las divisiones de esta rejilla son el FONDO viéndose por los
@@ -698,6 +731,13 @@
   .sd .ct-hueco .ct-mas { grid-row: 1 / 3; width: 38px; height: 38px; font-size: 22px }
   .sd .ct-hueco b { grid-column: 2; align-self: end; text-align: left }
   .sd .ct-hueco .ct-ayuda { grid-column: 2; align-self: start; display: block; text-align: left }
+
+  /* El "+" del final ocupa todo el ancho y no baja de 64px: es el botón
+     que más se toca de esta pantalla y se toca con guante. */
+  .sd .ct-otro { padding: 13px 15px; column-gap: 12px; min-height: 64px }
+  .sd .ct-otro > span { width: 44px; height: 44px; font-size: 26px }
+  .sd .ct-otro b { font-size: 15px }
+  .sd .ct-otro em { font-size: 12.5px }
 
   /* ---- Confirmar ---- */
   .sd .ct-revision { grid-template-columns: repeat(2, minmax(0, 1fr)) }

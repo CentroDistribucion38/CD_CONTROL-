@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { misPermisos } from "@/lib/permisos";
+import { misPermisos, entradaDe } from "@/lib/permisos";
 import { PieApp } from "@/components/PieApp";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,8 @@ export default async function PortadaPage() {
      sus pantallas, la tarjeta no se dibuja. Antes se leía el rol aquí y
      se comparaba contra una lista en el código; ahora los permisos son
      datos y se resuelven en un solo sitio. */
-  const modulos = (await misPermisos()).modulos;
+  const permisos = await misPermisos();
+  const modulos = permisos.modulos;
 
   return (
     <div className="sh-portada">
@@ -35,7 +36,9 @@ export default async function PortadaPage() {
           return (
             <Link
               key={m.id}
-              href={m.ruta}
+              /* No m.ruta: cada módulo decide con qué pantalla se abre, y
+                 entradaDe() comprueba que esta persona pueda verla. */
+              href={entradaDe(m, permisos)}
               className="sh-modulo"
               style={
                 {

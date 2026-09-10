@@ -122,6 +122,22 @@ export async function misPermisos(): Promise<Permisos> {
   };
 }
 
+/**
+ * Adónde lleva la tarjeta de un módulo PARA ESTA PERSONA.
+ *
+ * Tres intentos, en orden: la pantalla que el módulo declara como
+ * entrada, su ruta base, y —si ninguna de las dos le está abierta— la
+ * primera sección que sí. Ese tercer caso no es teórico: hoy la tarjeta
+ * llevaba siempre a la ruta base, así que alguien con permiso para
+ * Certificar pero no para la Fuente principal tocaba el módulo y caía en
+ * una pantalla que no puede abrir.
+ */
+export function entradaDe(m: Modulo, p: Permisos): string {
+  if (m.entrada && p.puedeVer(m.entrada)) return m.entrada;
+  if (p.puedeVer(m.ruta)) return m.ruta;
+  return m.secciones.find((s) => p.puedeVer(s.ruta))?.ruta ?? m.ruta;
+}
+
 /** Las secciones de un módulo que esta persona puede ver. */
 export function seccionesVisibles(m: Modulo, p: Permisos) {
   return m.secciones.filter((s) => p.puedeVer(s.ruta));

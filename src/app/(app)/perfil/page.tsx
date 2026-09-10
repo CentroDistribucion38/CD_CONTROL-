@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { modulosVisibles } from "@/modulos/registro";
+import { misPermisos, entradaDe } from "@/lib/permisos";
 import { Perfil } from "./Perfil";
 import "./perfil.css";
 
@@ -27,6 +28,14 @@ export default async function PerfilPage() {
 
   const p = (data ?? {}) as Record<string, unknown>;
 
+  /* "Al iniciar sesión, abrir" guarda una RUTA, y tiene que ser la misma
+     adonde lleva la tarjeta del módulo: si la tarjeta abre Certificar y
+     esta preferencia abre la Fuente principal, el módulo se comporta
+     distinto según por dónde se entre. entradaDe() además comprueba que
+     la persona pueda ver esa pantalla, para que nadie elija como página
+     de inicio una a la que su rol no llega. */
+  const permisos = await misPermisos();
+
   return (
     <Perfil
       id={user.id}
@@ -42,7 +51,7 @@ export default async function PerfilPage() {
       modulos={modulosVisibles(String(p.rol ?? "operador")).map((m) => ({
         id: m.id,
         nombre: m.nombre,
-        ruta: m.ruta,
+        ruta: entradaDe(m, permisos),
       }))}
     />
   );

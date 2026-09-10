@@ -49,7 +49,22 @@ export type Modulo = {
   etiquetas?: string[];
   /** Ruta de la foto en /public. Si no existe, se ve solo el fondo. */
   imagen: string;
+  /** La base del módulo. Es lo que se compara para saber "en qué módulo
+   *  estoy" y lo que se pide como permiso, NO necesariamente adonde
+   *  lleva la tarjeta. Para eso está `entrada`. */
   ruta: string;
+  /**
+   * Con qué pantalla se abre el módulo al entrar por la tarjeta.
+   *
+   * Sin esto, la tarjeta llevaba siempre a `ruta`, que en Sider es la
+   * Fuente principal —una tabla para revisar—, cuando quien entra al
+   * módulo casi siempre va a CERTIFICAR un vehículo que tiene enfrente.
+   * Se resuelve con entradaDe() y no aquí a secas porque hay que
+   * comprobar que la persona pueda ver esa pantalla: mandarla a una que
+   * su rol no incluye sería cambiar la puerta por un letrero de "no
+   * tienes permiso".
+   */
+  entrada?: string;
   activo: boolean;
   oculto?: boolean;
   roles?: Rol[];
@@ -86,6 +101,9 @@ export const MODULOS: Modulo[] = [
     etiquetas: ["Certificación en dos puntas", "% de certificación"],
     imagen: "/modulos/sider.jpg",
     ruta: "/sider",
+    /* Quien abre Sider está casi siempre al lado de un vehículo, no
+       revisando la tabla. */
+    entrada: "/sider/certificar",
     activo: true,
     // OJO: aquí solo van secciones que YA tienen su página. Registrar una
     // ruta que no existe pone un enlace en el menú que lleva a un 404, y

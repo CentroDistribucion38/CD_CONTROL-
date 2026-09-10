@@ -1,41 +1,36 @@
-Completar la salida desde la pantalla de llegada, y la clase "ct" que
-gritaba
+Sider abre en Certificar, y un "+" para el siguiente vehiculo
 
-EL AVISO QUE NO SE ENTENDIA
-- Cristian lleno las tres fotos de la LLEGADA una y otra vez y el
-  contador seguia en 0 de 3, porque las que faltaban eran las de la
-  SALIDA: otra certificacion del mismo viaje. El aviso decia "0 de 3"
-  justo encima de tres huecos que si se llenan, y se entendia -con toda
-  razon- que hablaba de esos.
-- Ahora dice de cuales habla, con la placa y el CD de origen, y trae los
-  huecos para completarlas AHI MISMO. El arreglo estaba dos pantallas
-  mas alla, en el ojito; quien esta al lado del vehiculo no navega.
-- El boton gris ahora dice POR QUE esta gris: antes, con las tres de la
-  llegada puestas, decia "Certificar la llegada de JYN245" y no hacia
+ABRIR EL MODULO DONDE SE TRABAJA
+- La tarjeta de un modulo llevaba siempre a su ruta base, que en Sider es
+  la Fuente principal: una tabla para revisar. Quien abre Sider casi
+  siempre esta al lado de un vehiculo y va a CERTIFICAR.
+- Cada modulo declara ahora con que pantalla se abre (campo "entrada").
+  La ruta base sigue siendo lo que se compara para saber en que modulo
+  estoy y lo que se pide como permiso: son dos cosas distintas y estaban
+  metidas en el mismo campo.
+- entradaDe() comprueba que la persona pueda VER esa pantalla antes de
+  mandarla ahi. De paso arregla un caso que ya estaba roto: alguien con
+  permiso para Certificar pero no para la Fuente principal tocaba el
+  modulo y caia en una pantalla que no puede abrir. Probado con los
+  cuatro casos: ve todo, no ve Certificar, solo ve En transito, no ve
   nada.
+- "Al iniciar sesion, abrir" usa la misma resolucion: si la tarjeta abre
+  Certificar y la preferencia abriera la Fuente principal, el modulo se
+  comportaria distinto segun por donde se entre.
 
-LA CLASE "ct" (esto es lo gordo)
-- globals.css define .ct como utilidad de ROTULO: 10px, mayuscula, letra
-  separada, gris. Las dos pantallas de certificacion usaban
-  className="tarjeta ct" queriendo decir "certificar". Colision de
-  nombres: la heredaba TODO el contenido de la tarjeta.
-- Resultado: cada parrafo de la salida y de la llegada salia gritando en
-  MAYUSCULA, a 10px y en gris claro. Por eso el aviso era ilegible.
-  Ninguna regla de sider.css apuntaba a .ct a secas, asi que la clase
-  solo hacia dano. Quitada.
-- Medido despues en las dos pantallas, a 360, 390 y 1440: ni una letra
-  bajo el suelo de lectura, ni un parrafo en mayuscula, y no rueda.
-
-DE PASO
-- La tira de pasos repartia el ancho entre los seis por igual: 55px cada
-  uno, y "Ubicacion" -66px- se salia por los dos lados y se recortaba a
-  "Jbicacion". Solo el paso actual lleva rotulo, asi que solo el pide
-  ancho.
-- completarFoto() y HuecoFaltante() viven en el modulo compartido: el
-  ojito y el aviso de la llegada usan UNA copia. El sellado "ANADIDA
-  DESPUES" tiene que ser identico se llene desde donde se llene.
-- .tr-huecos no comparte clase con .ct-fotos: la regla que esconde la
-  ayuda de cada ranura escondia justo la que dice "Falta - tomarla".
+EL "+" AL TERMINAR
+- Despues de certificar, el "+" es la accion grande de la pantalla, no un
+  boton mas en la fila: en el patio los vehiculos llegan seguidos y lo
+  normal despues de terminar uno es empezar otro.
+- Lleva el signo Y el texto. Un "+" solo obliga a adivinar que suma.
+- Dice ademas que la ubicacion ya esta tomada y que se empieza por el
+  origen, que es lo que de verdad cambia entre un vehiculo y el
+  siguiente.
+- Los dos enlaces de abajo -fuente principal, en transito- van en plano:
+  son la salida, no lo que se hace casi siempre.
+- El texto del paso final deja de esconderse en pantalla baja: la regla
+  que oculta las ayudas de cada paso lo tapaba, y ese no es una ayuda,
+  es lo unico que dice que la otra punta se cierra desde En transito.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -23,6 +23,7 @@
  */
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Origen, Sku } from "@/modulos/sider/datos";
@@ -443,14 +444,27 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
 
         {/* ================= Listo ================= */}
         {paso === 6 && (
-          <div className="ct-paso">
+          <div className="ct-paso ct-listo">
             <h2>Certificado</h2>
             <p className="ct-dice">
               {placa.toUpperCase()} va en tránsito. Cuando llegue a Barranquilla se
               certifica la otra punta desde <b>En tránsito</b>.
             </p>
+            {/* El "+" grande y no un botón más de la fila: en el patio los
+                vehículos llegan seguidos, así que lo normal después de
+                terminar uno es empezar otro, no irse. Lleva el signo Y el
+                texto: un "+" solo obliga a adivinar qué suma.
+                otro() no vuelve al paso 0 —la ubicación ya está tomada y
+                es la misma— sino al 1: el siguiente empieza escogiendo
+                origen, que es lo primero que de verdad cambia. */}
+            <button type="button" className="ct-otro" onClick={otro}>
+              <span aria-hidden="true">+</span>
+              <b>Certificar otro vehículo</b>
+              <em>La ubicación ya está tomada, empiezas por el origen</em>
+            </button>
             <div className="ct-botones">
-              <button type="button" className="btn" onClick={otro}>Certificar otro vehículo</button>
+              <Link href="/sider" className="btn plano">Ver la fuente principal</Link>
+              <Link href="/sider/transito" className="btn plano">Ver lo que va en camino</Link>
             </div>
           </div>
         )}
