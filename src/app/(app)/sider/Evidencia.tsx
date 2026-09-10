@@ -14,11 +14,13 @@
  * tabla serían cientos de imágenes firmadas para mirar una.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Viaje } from "@/modulos/sider/comun";
 import { createClient } from "@/lib/supabase/client";
-import { RANURAS, usePosicion, sellar, type Ranura } from "@/modulos/sider/evidencia";
+import {
+  RANURAS, HuecoFaltante, completarFoto, usePosicion, type Ranura,
+} from "@/modulos/sider/evidencia";
 
 type Foto = {
   ranura: "costado_izq" | "costado_der" | "placa" | "observacion";
@@ -121,45 +123,21 @@ function Hoja({ viaje, nombres, esEditor, cerrar }: {
   const pos = usePosicion();
   const [completando, setCompletando] = useState<string | null>(null);
   const [malFoto, setMalFoto] = useState<string | null>(null);
-  const entradas = useRef<Record<string, HTMLInputElement | null>>({});
 
   async function completar(p: Punta, ranura: Ranura, archivo: File) {
-    const llave = `${p.id}:${ranura}`;
     setMalFoto(null);
-    setCompletando(llave);
-    try {
-      const foto = await sellar(archivo, {
-        placa: viaje.placa,
-        ubi: pos.ubi,
-        direccion: pos.direccion.trim(),
-        etiqueta: `${p.punta.toUpperCase()} · ${NOMBRE[ranura]} · AÑADIDA DESPUÉS`,
-      });
-
-      const ruta = `${viaje.id}/${p.punta}/${ranura}.jpg`;
-      const { error: eSubir } = await supabase.storage
-        .from("sider")
-        .upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
-      if (eSubir) throw new Error(eSubir.message);
-
-      const { error: eFila } = await supabase.from("sider_fotos").insert({
-        certificacion_id: p.id, ranura, ruta,
-        ancho: foto.ancho, alto: foto.alto, bytes: foto.blob.size,
-      });
-      /* El archivo ya está arriba; si la fila no entra, la foto existe y
-         nadie la ve. Se dice con esas palabras en vez de "error". */
-      if (eFila) throw new Error(`la imagen subió pero no quedó registrada: ${eFila.message}`);
-
-      URL.revokeObjectURL(foto.url);
-      await traer();
-      router.refresh();
-    } catch (e) {
-      setMalFoto(
-        `No se pudo completar ${NOMBRE[ranura].toLowerCase()}: ` +
-        `${e instanceof Error ? e.message : "error desconocido"}`
-      );
-    } finally {
-      setCompletando(null);
-    }
+    setCompletando(`${p.id}:${ranura}`);
+    /* La misma completarFoto() que usa el aviso de la pantalla de
+       llegada. Una sola copia: el sellado "AÑADIDA DESPUÉS" tiene que
+       ser idéntico se llene desde donde se llene. */
+    const mal = await completarFoto(supabase, {
+      viajeId: viaje.id, certId: p.id, placa: viaje.placa,
+      punta: p.punta, ranura, ubi: pos.ubi, direccion: pos.direccion, archivo,
+    });
+    setCompletando(null);
+    if (mal) { setMalFoto(mal); return }
+    await traer();
+    router.refresh();
   }
 
   /* Escape cierra: es lo que hace todo el mundo sin pensarlo. */
@@ -346,38 +324,18 @@ function Hoja({ viaje, nombres, esEditor, cerrar }: {
                     problema anotado.
                     Y ahora cada hueco sabe CUÁL falta —no es "una de tres"
                     genérica— para poder tomarla ahí mismo. */}
-                {RANURAS.filter((r) => !p.fotos.some((f) => f.ranura === r.id)).map((r) => {
-                  const llave = `${p.id}:${r.id}`;
-                  const ocupado = completando === llave;
-                  return (
-                    <figure key={llave} className={"falta" + (esEditor ? " tomable" : "")}>
-                      {esEditor ? (
-                        <>
-                          <input
-                            ref={(el) => { entradas.current[llave] = el }}
-                            type="file" accept="image/*" capture="environment" hidden
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) completar(p, r.id, f);
-                              e.target.value = "";
-                            }}
-                          />
-                          <button type="button" className="ev-rota ev-tomar"
-                                  disabled={ocupado || !pos.ubi}
-                                  title={pos.ubi ? `Tomar ${r.t.toLowerCase()} ahora`
-                                                 : "Primero activa tu ubicación"}
-                                  onClick={() => entradas.current[llave]?.click()}>
-                            <span aria-hidden="true">+</span>
-                            {ocupado ? "Subiendo…" : "Falta · tomarla"}
-                          </button>
-                        </>
-                      ) : (
-                        <div className="ev-rota">Falta</div>
-                      )}
-                      <figcaption>{r.t}</figcaption>
-                    </figure>
-                  );
-                })}
+                {RANURAS.filter((r) => !p.fotos.some((f) => f.ranura === r.id)).map((r) => (
+                  <figure key={`${p.id}:${r.id}`} className={"falta" + (esEditor ? " tomable" : "")}>
+                    {esEditor ? (
+                      <HuecoFaltante r={r} puede={!!pos.ubi}
+                                     ocupado={completando === `${p.id}:${r.id}`}
+                                     tomar={(f) => completar(p, r.id, f)} />
+                    ) : (
+                      <div className="ev-rota">Falta</div>
+                    )}
+                    <figcaption>{r.t}</figcaption>
+                  </figure>
+                ))}
               </div>
             </section>
           ))}

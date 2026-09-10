@@ -22,7 +22,7 @@ import type { Viaje } from "@/modulos/sider/comun";
 import {
   RANURAS, RANURA_OBS, type Ranura, type RanuraCualquiera, type Foto,
   usePosicion, TarjetaUbicacion, CampoDireccion, Ranurita, CajaObservacion,
-  sellar, subirFotos, traducir,
+  HuecoFaltante, completarFoto, sellar, subirFotos, traducir,
 } from "@/modulos/sider/evidencia";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -336,6 +336,7 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
   cerrar: () => void;
   listo: () => void;
 }) {
+  const router = useRouter();
   const pos = usePosicion();
   const [paso, setPaso] = useState(0);
   const [fotos, setFotos] = useState<Partial<Record<RanuraCualquiera, Foto>>>({});
@@ -347,6 +348,53 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
   const faltanFotos = RANURAS.filter((r) => !fotos[r.id]);
   const sinEvidenciaSalida = viaje.fotos_salida < 3;
   const puede = !!pos.ubi && faltanFotos.length === 0 && !sinEvidenciaSalida;
+
+  /* ---------- LA SALIDA INCOMPLETA, ARREGLABLE DESDE AQUÍ ----------
+     Esta pantalla es donde alguien DESCUBRE que la salida quedó sin
+     fotos: llega al vehículo, llena sus tres, y el botón sigue gris.
+     Antes el aviso solo lo informaba y el arreglo estaba dos pantallas
+     más allá, en el ojito de la Fuente principal. Peor: el aviso decía
+     "0 de 3" justo encima de tres huecos que SÍ se llenan, y se entendía
+     —con toda razón— que hablaba de esos. Ahora dice de cuáles habla y
+     se pueden llenar aquí mismo. */
+  const [saliCert, setSaliCert] = useState<{ id: string; faltan: Ranura[] } | null>(null);
+  const [completando, setCompletando] = useState<Ranura | null>(null);
+  const [abrirSalida, setAbrirSalida] = useState(false);
+
+  useEffect(() => {
+    if (!sinEvidenciaSalida) { setSaliCert(null); return }
+    let vivo = true;
+    fetch(`/api/sider/evidencia/${viaje.id}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j) => {
+        if (!vivo) return;
+        type P = { id: string; punta: string; fotos: { ranura: string }[] };
+        const sal = (j.puntas as P[]).find((x) => x.punta === "salida");
+        if (!sal) { setSaliCert(null); return }
+        setSaliCert({
+          id: sal.id,
+          faltan: RANURAS.filter((r) => !sal.fotos.some((f) => f.ranura === r.id)).map((r) => r.id),
+        });
+      })
+      .catch(() => { if (vivo) setSaliCert(null) });
+    return () => { vivo = false };
+  }, [viaje.id, sinEvidenciaSalida]);
+
+  async function completarSalida(ranura: Ranura, archivo: File) {
+    if (!saliCert) return;
+    setAviso(null);
+    setCompletando(ranura);
+    const mal = await completarFoto(supabase, {
+      viajeId: viaje.id, certId: saliCert.id, placa: viaje.placa,
+      punta: "salida", ranura, ubi: pos.ubi, direccion: pos.direccion, archivo,
+    });
+    setCompletando(null);
+    if (mal) { setAviso({ mal: true, texto: mal }); return }
+    setSaliCert((c) => (c ? { ...c, faltan: c.faltan.filter((x) => x !== ranura) } : c));
+    /* refresh() vuelve a leer fotos_salida del servidor, que es lo que
+       destranca el botón de certificar. */
+    router.refresh();
+  }
 
   async function tomar(ranura: Ranura, archivo: File) {
     try {
@@ -496,7 +544,14 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
         </p>
       )}
 
-      <section className="tarjeta ct">
+      {/* Sin la clase "ct": en globals.css es una utilidad de RÓTULO
+          —10px, mayúscula, letra separada, gris— y aquí se había puesto
+          queriendo decir "certificar". Colisión de nombres: la heredaba
+          TODO el contenido de la tarjeta, así que cada párrafo de esta
+          pantalla salía gritando en mayúscula y en gris claro. Por eso
+          el aviso de "faltan las fotos de la salida" era ilegible. Las
+          clases ct-* de abajo son otras y no se tocan. */}
+      <section className="tarjeta">
         <div className="ct-paso tr-llegada">
           <div className="tr-quien">
             <div>
@@ -523,9 +578,48 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
           </div>
 
           {sinEvidenciaSalida && (
-            <div className="aviso mal ct-suelto">
-              A la salida de este viaje le faltan fotos ({viaje.fotos_salida} de 3), así
-              que no se puede cerrar. Complétalas primero.
+            <div className="tr-tranca">
+              <p className="tr-tranca-qué">
+                <b>Faltan las fotos de la SALIDA</b> — las de cuando {viaje.placa} salió
+                de <b>{viaje.cd_origen}</b>, no las de esta pantalla. Hay{" "}
+                <b>{viaje.fotos_salida} de 3</b> guardadas, y sin las tres el viaje no se
+                puede cerrar.
+              </p>
+
+              {saliCert == null ? (
+                <p className="tr-tranca-cómo">Buscando qué falta…</p>
+              ) : saliCert.faltan.length === 0 ? (
+                /* Ya están las tres pero el número de la tabla viene del
+                   servidor: se pide recargar en vez de mentir diciendo
+                   que ya se puede. */
+                <p className="tr-tranca-cómo">
+                  Ya quedaron las tres. Recarga la página para que se destranque el botón.
+                </p>
+              ) : !abrirSalida ? (
+                <button type="button" className="btn" onClick={() => setAbrirSalida(true)}>
+                  Completarlas aquí mismo
+                </button>
+              ) : (
+                <>
+                  <p className="tr-tranca-cómo">
+                    {pos.ubi ? (
+                      <>
+                        Cada una se sella con la hora y el sitio de <b>AHORA</b> y con la
+                        palabra <b>AÑADIDA DESPUÉS</b>: se toma tarde y la foto lo dice.
+                      </>
+                    ) : (
+                      <>Primero activa tu ubicación arriba: es lo que prueba dónde se tomó.</>
+                    )}
+                  </p>
+                  <div className="tr-huecos">
+                    {RANURAS.filter((r) => saliCert.faltan.includes(r.id)).map((r) => (
+                      <HuecoFaltante key={r.id} r={r} puede={!!pos.ubi}
+                                     ocupado={completando === r.id}
+                                     tomar={(f) => completarSalida(r.id, f)} />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -584,10 +678,17 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
 
               <div className="ct-botones">
                 <button type="button" className="btn" onClick={certificar} disabled={!puede || enviando}>
+                  {/* El botón dice POR QUÉ está gris. Antes, con las tres
+                      de la llegada puestas y la salida incompleta, decía
+                      "Certificar la llegada de JYN245" y no hacía nada:
+                      quien está al lado del vehículo no tenía forma de
+                      saber que el problema era de la otra punta. */}
                   {enviando ? avance || "Certificando…"
                     : faltanFotos.length
-                      ? `Faltan ${faltanFotos.length} foto${faltanFotos.length > 1 ? "s" : ""}`
-                      : `Certificar la llegada de ${viaje.placa}`}
+                      ? `Faltan ${faltanFotos.length} foto${faltanFotos.length > 1 ? "s" : ""} de esta llegada`
+                      : sinEvidenciaSalida
+                        ? "Faltan las fotos de la salida (arriba)"
+                        : `Certificar la llegada de ${viaje.placa}`}
                 </button>
                 <button type="button" className="btn plano" onClick={() => setPaso(0)} disabled={enviando}>
                   Volver

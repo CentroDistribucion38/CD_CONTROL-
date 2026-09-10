@@ -1,47 +1,41 @@
-Completar fotos faltantes desde el ojito + editar usuario y clave
+Completar la salida desde la pantalla de llegada, y la clase "ct" que
+gritaba
 
-COMPLETAR FOTOS (destraba viajes que no se podian cerrar)
-- La salida sube las fotos DESPUES de crear el viaje. Si el dato se cae
-  en el patio, el viaje nace con 0 de 3 y, como la llegada exige las tres
-  de la salida, ese vehiculo no se puede cerrar NUNCA. El mensaje de
-  error decia "buscalo en la Fuente principal y vuelve a intentar" y no
-  habia donde intentar. Esto es ese "donde".
-- Cada hueco "Falta" del ojito pasa a ser el boton para tomar esa foto, y
-  dice CUAL falta en vez de ser un hueco generico.
-- La foto NO se sella con la hora ni las coordenadas de la certificacion
-  original: eso seria fabricar una prueba. Se sella con la hora y el
-  sitio de AHORA y con la palabra ANADIDA DESPUES quemada en la banda.
-  Vale menos como prueba, y asi debe ser: se tomo despues.
-- El GPS se pide UNA vez para toda la hoja, no uno por hueco.
-- Solo lo ve un editor; el resto sigue viendo el hueco como aviso.
-- En celular las fotos del ojito pasan a dos columnas: en tres daban 63px
-  cada una y "Falta - tomarla" salia cortado.
+EL AVISO QUE NO SE ENTENDIA
+- Cristian lleno las tres fotos de la LLEGADA una y otra vez y el
+  contador seguia en 0 de 3, porque las que faltaban eran las de la
+  SALIDA: otra certificacion del mismo viaje. El aviso decia "0 de 3"
+  justo encima de tres huecos que si se llenan, y se entendia -con toda
+  razon- que hablaba de esos.
+- Ahora dice de cuales habla, con la placa y el CD de origen, y trae los
+  huecos para completarlas AHI MISMO. El arreglo estaba dos pantallas
+  mas alla, en el ojito; quien esta al lado del vehiculo no navega.
+- El boton gris ahora dice POR QUE esta gris: antes, con las tres de la
+  llegada puestas, decia "Certificar la llegada de JYN245" y no hacia
+  nada.
 
-LA OBSERVACION ES SOLO DE LA LLEGADA, Y LA BASE LO HACE CUMPLIR
-- sider_certificar_llegada() cuenta FILAS de sider_fotos, no ranuras: el
-  dia que una salida guardara una foto de observacion, un vehiculo con
-  dos fotos de verdad mas la observacion daria 3 y pasaria la tranca. En
-  vez de complicar esa cuenta -que vive en dos archivos y reescribirla
-  desde una migracion es la receta para pisar una version nueva con una
-  vieja- se impide que el caso exista, con un disparador aparte.
-- Probado contra Postgres 16 real: la observacion entra en la llegada,
-  la rechaza en la salida, y completar las tres de una salida en 0 la
-  devuelve a 3 y destraba la llegada.
+LA CLASE "ct" (esto es lo gordo)
+- globals.css define .ct como utilidad de ROTULO: 10px, mayuscula, letra
+  separada, gris. Las dos pantallas de certificacion usaban
+  className="tarjeta ct" queriendo decir "certificar". Colision de
+  nombres: la heredaba TODO el contenido de la tarjeta.
+- Resultado: cada parrafo de la salida y de la llegada salia gritando en
+  MAYUSCULA, a 10px y en gris claro. Por eso el aviso era ilegible.
+  Ninguna regla de sider.css apuntaba a .ct a secas, asi que la clase
+  solo hacia dano. Quitada.
+- Medido despues en las dos pantallas, a 360, 390 y 1440: ni una letra
+  bajo el suelo de lectura, ni un parrafo en mayuscula, y no rueda.
 
-EDITAR USUARIO
-- El super admin edita el NOMBRE y el USUARIO desde la lista, en la misma
-  fila. No se podia hacer a mano en Supabase porque el usuario vive en
-  DOS sitios: perfiles.usuario y el correo sintetico de auth.users, que
-  no se edita desde la tabla del panel. Aqui se cambian los dos.
-- Primero auth y despues el perfil: si se cae en medio, la persona queda
-  ENTRANDO con el usuario nuevo y mostrandose con el viejo. Al reves
-  quedaria entrando con uno que nadie recuerda, es decir, por fuera.
-- Cambiar el usuario pide confirmacion, porque cambia como entra.
-- usuario_libre() dice "no" tambien cuando el dueno es la misma persona,
-  asi que solo se pregunta si el usuario de verdad cambia: si no,
-  corregir una tilde del nombre fallaria diciendo que esta tomado.
-- El rol, los permisos y la clave no se tocan aqui: cada uno donde se ven
-  sus consecuencias.
+DE PASO
+- La tira de pasos repartia el ancho entre los seis por igual: 55px cada
+  uno, y "Ubicacion" -66px- se salia por los dos lados y se recortaba a
+  "Jbicacion". Solo el paso actual lleva rotulo, asi que solo el pide
+  ancho.
+- completarFoto() y HuecoFaltante() viven en el modulo compartido: el
+  ojito y el aviso de la llegada usan UNA copia. El sellado "ANADIDA
+  DESPUES" tiene que ser identico se llene desde donde se llene.
+- .tr-huecos no comparte clase con .ct-fotos: la regla que esconde la
+  ayuda de cada ranura escondia justo la que dice "Falta - tomarla".
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

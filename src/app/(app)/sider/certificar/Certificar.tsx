@@ -256,7 +256,14 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
         </p>
       )}
 
-      <section className="tarjeta ct">
+      {/* Sin la clase "ct": en globals.css es una utilidad de RÓTULO
+          —10px, mayúscula, letra separada, gris— y aquí se había puesto
+          queriendo decir "certificar". Colisión de nombres: la heredaba
+          TODO el contenido de la tarjeta, así que cada párrafo de esta
+          pantalla salía gritando en mayúscula y en gris claro. Por eso
+          el aviso de "faltan las fotos de la salida" era ilegible. Las
+          clases ct-* de abajo son otras y no se tocan. */}
+      <section className="tarjeta">
         {/* ================= 0 · Ubicación ================= */}
         {paso === 0 && (
           <div className="ct-paso">

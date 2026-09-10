@@ -468,6 +468,37 @@
 }
 .sd .ct-quitar:hover { color: var(--c-alarma) }
 
+/* ---------- La tranca de la salida incompleta ----------
+   Es un aviso CON SALIDA, no un aviso a secas: dice qué falta, de qué
+   punta, y trae los huecos para llenarlo. Va con el filo de alarma
+   porque bloquea, pero no en rojo pleno: no es un error, es trabajo
+   pendiente y aquí está la herramienta. */
+.sd .tr-tranca {
+  margin: 0 0 16px; padding: 14px 16px; border-radius: 3px;
+  background: #FEF3F5; border: 1px solid #F3C9D2; border-left: 3px solid var(--c-alarma);
+}
+.sd .tr-tranca p { margin: 0 }
+.sd .tr-tranca-qué { font-size: 14px; line-height: 1.55 }
+.sd .tr-tranca-cómo { margin-top: 8px; font-size: 13px; line-height: 1.5; color: var(--sd-gris) }
+.sd .tr-tranca .btn { margin-top: 11px }
+/* Rejilla propia y NO .ct-fotos: la regla .tr-llegada .ct-fotos
+   .ct-ayuda esconde la ayuda de cada ranura —sobra cuando ya se ve el
+   nombre y la foto—, y aquí esa ayuda es justo la que dice "Falta ·
+   tomarla". Compartir la clase la escondía. */
+.sd .tr-huecos {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px; margin-top: 12px;
+}
+
+/* El hueco que se llena después no se ve igual que la ranura que se
+   llena en su momento: el "+" en vez de la cámara, y el filo de alarma,
+   porque lo que se está arreglando es una falta. */
+.sd .ct-hueco button { border-color: var(--c-alarma); background: #FEF7F8 }
+.sd .ct-hueco button:hover:not(:disabled) { background: #FDEEF1; border-color: var(--c-alarma) }
+.sd .ct-hueco .ct-mas { background: #FBE0E6; color: var(--c-alarma) }
+.sd .ct-hueco .ct-ayuda { color: var(--c-alarma); font-weight: 700 }
+.sd .ct-hueco button:disabled { opacity: .5; cursor: not-allowed }
+
 /* ---------- Revisión ---------- */
 .sd .ct-revision {
   /* OJO: las divisiones de esta rejilla son el FONDO viéndose por los
@@ -556,7 +587,13 @@
 
   /* ---- El camino: solo el número, y el nombre solo del paso actual ---- */
   .sd .ct-pasos { padding: 5px; gap: 2px }
-  .sd .ct-pasos li { min-width: 0 }
+  /* Solo el paso ACTUAL lleva rótulo, así que solo él necesita ancho:
+     repartir a partes iguales entre seis daba 55px y "Ubicación" —62px
+     en Archivo a 12— se salía por los dos lados y el button la
+     recortaba. Los otros cinco son un círculo y no piden más. */
+  .sd .ct-pasos li { flex: 0 0 auto; min-width: 34px }
+  .sd .ct-pasos li.aqui { flex: 1 1 auto; min-width: 0 }
+  .sd .ct-pasos li.aqui button span { max-width: 100%; overflow-wrap: break-word }
   .sd .ct-pasos button { padding: 6px 2px; gap: 3px; font-size: 10.5px }
   .sd .ct-pasos button i { width: 24px; height: 24px; font-size: 12px; border-width: 1.5px }
   .sd .ct-pasos li button span { display: none }
@@ -646,6 +683,21 @@
   .sd .ct-obs-foto.lista .ct-ayuda { grid-column: 1 }
   .sd .ct-obs-foto img { aspect-ratio: 16/9 }
   .sd .ct-quitar { min-height: 44px }
+
+  /* ---- Los huecos de la salida incompleta ----
+     Uno por renglón, no tres en fila. En 360px, dentro de la caja del
+     aviso, tres columnas dan 59px cada una: no se lee "Costado
+     izquierdo" ni se acierta con el dedo. Mismo reparto que el "+" de la
+     observación: el signo a la izquierda y el texto apilado al lado. */
+  .sd .tr-huecos { grid-template-columns: 1fr; gap: 8px }
+  .sd .ct-hueco button {
+    display: grid; grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 12px; row-gap: 1px; align-items: center;
+    padding: 9px 14px; text-align: left; min-height: 56px;
+  }
+  .sd .ct-hueco .ct-mas { grid-row: 1 / 3; width: 38px; height: 38px; font-size: 22px }
+  .sd .ct-hueco b { grid-column: 2; align-self: end; text-align: left }
+  .sd .ct-hueco .ct-ayuda { grid-column: 2; align-self: start; display: block; text-align: left }
 
   /* ---- Confirmar ---- */
   .sd .ct-revision { grid-template-columns: repeat(2, minmax(0, 1fr)) }

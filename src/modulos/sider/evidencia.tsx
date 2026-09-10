@@ -196,6 +196,97 @@ export function CampoDireccion({ direccion, setDireccion, buscandoDir }: {
   );
 }
 
+/* ==================== COMPLETAR UNA FOTO QUE FALTA ====================
+   Vive aquí, y no en la pantalla que la usa, porque la usan DOS: el
+   ojito de la Fuente principal y el aviso de la pantalla de llegada. Dos
+   copias de esto serían dos sitios donde arreglar el sellado el día que
+   haga falta, y uno de los dos se quedaría sin arreglar.
+
+   LA REGLA QUE NO SE NEGOCIA: la foto NO se sella con la hora ni con las
+   coordenadas de la certificación original. Eso sería fabricar una
+   prueba —diría que la tomaron el martes en Galapa cuando la tomaron hoy
+   aquí—. Se sella con la hora y el sitio de AHORA y con la palabra
+   AÑADIDA DESPUÉS quemada en la banda. Vale menos como prueba, y así
+   debe ser: se tomó después.
+   ==================================================================== */
+export async function completarFoto(
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  cli: any,
+  d: {
+    viajeId: string; certId: string; placa: string;
+    punta: "salida" | "llegada"; ranura: Ranura;
+    ubi: Ubicacion | null; direccion: string;
+    archivo: File;
+  }
+): Promise<string | null> {
+  const nombre = RANURAS.find((r) => r.id === d.ranura)!.t;
+  let foto: Foto;
+  try {
+    foto = await sellar(d.archivo, {
+      placa: d.placa,
+      ubi: d.ubi,
+      direccion: d.direccion.trim(),
+      etiqueta: `${d.punta.toUpperCase()} · ${nombre} · AÑADIDA DESPUÉS`,
+    });
+  } catch {
+    return `No se pudo procesar esa foto. Vuelve a tomarla.`;
+  }
+
+  const ruta = `${d.viajeId}/${d.punta}/${d.ranura}.jpg`;
+  const { error: eSubir } = await cli.storage
+    .from("sider")
+    .upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
+  if (eSubir) {
+    URL.revokeObjectURL(foto.url);
+    return `No se pudo subir ${nombre.toLowerCase()}: ${eSubir.message}`;
+  }
+
+  const { error: eFila } = await cli.from("sider_fotos").insert({
+    certificacion_id: d.certId, ranura: d.ranura, ruta,
+    ancho: foto.ancho, alto: foto.alto, bytes: foto.blob.size,
+  });
+  URL.revokeObjectURL(foto.url);
+  /* El archivo YA está arriba. Si la fila no entra, la foto existe y
+     nadie la ve: se dice con esas palabras y no con un "error" pelado,
+     porque la salida es distinta —volver a intentar, no volver a
+     tomarla—. */
+  if (eFila) {
+    return `${nombre} subió como imagen pero no quedó registrada ` +
+           `(${eFila.message}). Vuelve a intentarlo.`;
+  }
+  return null;
+}
+
+/** Un hueco de foto que se puede llenar. El gemelo de Ranurita para lo
+ *  que faltó: se ve distinto porque no es lo mismo tomar la evidencia en
+ *  su momento que completarla después. */
+export function HuecoFaltante({ r, ocupado, puede, tomar }: {
+  r: (typeof RANURAS)[number];
+  ocupado: boolean;
+  /** Sin ubicación no se puede: es lo que prueba dónde se tomó. */
+  puede: boolean;
+  tomar: (archivo: File) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="ct-foto ct-hueco">
+      <input ref={ref} type="file" accept="image/*" capture="environment" hidden
+             onChange={(e) => {
+               const f = e.target.files?.[0];
+               if (f) tomar(f);
+               e.target.value = "";
+             }} />
+      <button type="button" disabled={ocupado || !puede}
+              title={puede ? `Tomar ${r.t.toLowerCase()} ahora` : "Primero activa tu ubicación"}
+              onClick={() => ref.current?.click()}>
+        <span className="ct-mas" aria-hidden="true">+</span>
+        <b>{r.t}</b>
+        <span className="ct-ayuda">{ocupado ? "Subiendo…" : "Falta · tomarla"}</span>
+      </button>
+    </div>
+  );
+}
+
 /* ==================== La observación y su foto ====================
    Van juntas y no en pasos distintos porque son una sola cosa: "llegó
    con el sello roto" + la foto del sello. La nota estaba antes al lado
