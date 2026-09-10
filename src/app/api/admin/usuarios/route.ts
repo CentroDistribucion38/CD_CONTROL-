@@ -335,7 +335,7 @@ export async function POST(req: Request) {
  *
  * Por qué esto no se podía hacer a mano en el panel de Supabase: el
  * login de CONTROL es por USUARIO, y Supabase Auth necesita un correo,
- * así que la plataforma arma uno sintético —<usuario>@cdcontrol.local—
+ * así que la plataforma arma uno sintético —<usuario>@cdcontrol.co—
  * que nadie ve. El usuario vive entonces en DOS sitios: perfiles.usuario
  * y auth.users.email. Cambiar solo la fila de perfiles deja la cuenta
  * entrando con el nombre viejo y mostrándose con el nuevo; y auth.users
