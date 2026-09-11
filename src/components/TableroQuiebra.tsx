@@ -62,6 +62,8 @@ type Props = {
 /** Lo que alguien dejó guardado para un mes. */
 type Guardado = {
   anio: number; mes: number; cona: number; pct: number;
+  /** null = no se escribió: se usa la que calcula la plataforma. */
+  baja: number | null;
   quien: string | null; cuando: string;
 };
 
@@ -481,10 +483,12 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
   const comoTexto = (g: Guardado | null) => ({
     cona: g ? String(g.cona) : "",
     pct: g ? String(+(g.pct * 100).toFixed(4)).replace(".", ",") : "",
+    baja: g && g.baja != null ? String(g.baja) : "",
   });
 
   const [cona, setCona] = useState(() => comoTexto(guardado).cona);
   const [pct, setPct] = useState(() => comoTexto(guardado).pct);
+  const [baja, setBaja] = useState(() => comoTexto(guardado).baja);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
 
@@ -501,6 +505,7 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
     const t = comoTexto(guardado);
     setCona(t.cona);
     setPct(t.pct);
+    setBaja(t.baja);
     setAviso(null);
   }, [anio, mes, guardado]);
 
@@ -510,7 +515,23 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
               Number.isFinite(nCona) && Number.isFinite(nPct) && nCona > 0 && nPct > 0;
 
   const proyeccion = hay ? Math.round(nCona * nPct) : null;
-  const delMes = meses.find((m) => m.anio === anio && m.num_mes === mes)?.baja ?? 0;
+
+  /* La quiebra del mes se puede ESCRIBIR. Si el campo va en blanco se usa
+     la que calcula la plataforma: hay meses en los que lo importado
+     todavía no está completo —falta el archivo, o faltan días del
+     diario— y entonces el disponible salía mostrando la proyección
+     entera, como si no se hubiera roto nada.
+     El blanco no es un cero: en blanco quiere decir "usa la tuya", y un
+     cero escrito quiere decir "este mes no se rompió nada". */
+  const delaApp = meses.find((m) => m.anio === anio && m.num_mes === mes)?.baja ?? 0;
+  const nBaja = Number(baja.replace(/[^\d.-]/g, ""));
+  const bajaEscrita = baja.trim() !== "" && Number.isFinite(nBaja) && nBaja >= 0;
+  const delMes = bajaEscrita ? nBaja : delaApp;
+  /* Se avisa solo cuando de verdad discrepan: ver las dos cifras cuando
+     dicen lo mismo es ruido, y verlas cuando no, es el aviso de que una
+     de las dos está desactualizada. */
+  const discrepa = bajaEscrita && Math.abs(nBaja - delaApp) >= 1;
+
   const disponible = proyeccion == null ? null : Math.round(proyeccion - delMes);
 
   /* "Guardar cambios" solo si de verdad cambió algo. Un botón que
@@ -518,7 +539,9 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
   const sucio = hay && (
     guardado == null ||
     Math.abs(nCona - guardado.cona) > 0.005 ||
-    Math.abs(nPct - guardado.pct) > 0.000005
+    Math.abs(nPct - guardado.pct) > 0.000005 ||
+    (bajaEscrita ? guardado.baja == null || Math.abs(nBaja - guardado.baja) > 0.005
+                 : guardado.baja != null)
   );
 
   async function guardar() {
@@ -526,6 +549,7 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
     setGuardando(true);
     const { error } = await supabase.rpc("quiebra_simulador_guardar", {
       p_anio: anio, p_mes: mes, p_cona: nCona, p_pct: Number(nPct.toFixed(5)),
+      p_baja: bajaEscrita ? nBaja : null,
     });
     setGuardando(false);
     if (error) {
@@ -546,8 +570,8 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
         <div>
           <h2>Cuánto me queda en {nombreMes}</h2>
           <p>
-            El CONA y el % se escriben; la proyección y el disponible se calculan
-            contra la quiebra de <b>{nombreMes} de {anio}</b>, que es donde termina
+            Las tres primeras se escriben; la proyección y el disponible se
+            calculan. Habla de <b>{nombreMes} de {anio}</b>, que es donde termina
             el filtro de arriba.
           </p>
         </div>
@@ -589,11 +613,22 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
             <em>CONA × %</em>
           </div>
 
-          <div className="sim-fila calc">
+          <label className="sim-fila">
             <span>Quiebra de {nombreMes}</span>
-            <b>{nf.format(Math.round(delMes))}</b>
-            <em>{delMes > 0 ? "lo que ya se rompió" : "todavía no hay quiebra cargada"}</em>
-          </div>
+            {esEditor ? (
+              <input inputMode="numeric" value={baja}
+                     placeholder={delaApp > 0 ? nf.format(Math.round(delaApp)) : "0"}
+                     aria-label={`Quiebra de ${nombreMes} en unidades`}
+                     onChange={(e) => setBaja(e.target.value)} />
+            ) : <b>{nf.format(Math.round(delMes))}</b>}
+            <em>
+              {!bajaEscrita
+                ? `en blanco usa la de la plataforma: ${nf.format(Math.round(delaApp))}`
+                : discrepa
+                  ? `la plataforma calcula ${nf.format(Math.round(delaApp))}`
+                  : "lo que ya se rompió"}
+            </em>
+          </label>
         </div>
 
         {/* El disponible va aparte y grande: es la única cifra por la que

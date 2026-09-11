@@ -1,21 +1,25 @@
-El simulador sigue al mes donde TERMINA el filtro
+La quiebra del mes tambien se escribe a mano
 
-- Antes hablaba siempre del mes en curso. Ahora habla del mes del "hasta"
-  del filtro: de enero a agosto habla de agosto, de enero a julio habla
-  de julio. Es lo que se espera -el filtro dice hasta donde se esta
-  mirando- y el titulo lo dice con el nombre del mes.
-- El mes se lee del TEXTO de la fecha y no con Date: new Date de un
-  "2026-08-31" en un navegador al oeste de Greenwich cae el 30 a las 7 de
-  la noche, y con eso la tarjeta podria hablar del mes anterior.
-- Al cambiar de mes se recarga el CONA de ESE mes. Sin eso, mover el
-  filtro de agosto a julio dejaba el CONA de agosto encima de los datos
-  de julio: la cuenta salia con dos meses mezclados y con toda la pinta
-  de estar bien.
-- Se traen todos los meses guardados de una vez -es una fila por mes- en
-  vez de ir a buscar uno cada vez que alguien mueve el calendario.
-- Probado con cinco filtros: ene-ago resta agosto, ene-jul resta julio,
-  solo julio resta julio, ene-sep resta cero, y un mes sin nada guardado
-  no revienta.
+- Tres campos escritos -CONA, % y quiebra del mes- y dos calculados:
+    Proyeccion und = CONA x %
+    Disponible     = Proyeccion - quiebra del mes
+- Por que hacia falta: hay meses en los que lo importado todavia no esta
+  completo -falta el archivo, o faltan dias del diario- y el disponible
+  salia mostrando la proyeccion entera, como si no se hubiera roto nada.
+- EL BLANCO NO ES UN CERO. En blanco quiere decir "usa la que sabe la
+  plataforma", y un cero escrito quiere decir "este mes no se rompio
+  nada". Si fueran lo mismo no habria forma de decir lo segundo sin que
+  la pantalla lo pisara con lo importado. Por eso la columna admite null.
+- Cuando lo escrito no coincide con lo que calcula la plataforma, la
+  pantalla muestra las dos cifras. Ver las dos cuando dicen lo mismo es
+  ruido; verlas cuando no, es el aviso de que una esta desactualizada.
+- La funcion de guardar pasa de 4 a 5 argumentos y la vieja se BORRA
+  antes: "create or replace" con otra cantidad de argumentos no
+  reemplaza, crea una segunda funcion con el mismo nombre y PostgREST
+  tiene que adivinar cual llamar. Comprobado que no queda ninguna.
+- Probado contra Postgres 16: escrita, en blanco, cero, mayor que la de
+  la app, negativa (rechazada) y con rol operador (rechazada). Y las
+  cuentas dan 495.924 exacto, el mismo numero de la hoja.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
