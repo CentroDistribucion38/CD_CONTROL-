@@ -130,7 +130,26 @@ const IconoAnalisis = () => (
   </svg>
 );
 
+const IconoRoturas = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M9 2.8h6l-.6 4.3 1.8 2.4a3 3 0 0 1 .6 1.8v8.9a1.8 1.8 0 0 1-1.8 1.8H8a1.8 1.8 0 0 1-1.8-1.8v-8.9a3 3 0 0 1 .6-1.8l1.8-2.4z" />
+    <path d="M8.4 14.2l2.4 1.6-1.1 2.1" />
+  </svg>
+);
+const IconoTolva = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M3.4 5h17.2l-5.1 8v5.4a1 1 0 0 1-.6.9l-3.4 1.5a1 1 0 0 1-1.4-.9V13z" />
+  </svg>
+);
+const IconoSello = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <circle cx="12" cy="9" r="5" />
+    <path d="M9 13.6L8 21.2l4-2 4 2-1-7.6" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
+  roturas: IconoRoturas,
   quiebra: IconoQuiebra,
   sider: IconoSider,
   inventario: IconoInventario,
@@ -155,6 +174,11 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/acciones/tablero": IconoTablero,
   "/acciones/analisis": IconoAnalisis,
   "/acciones/maestro": IconoLlave,
+  "/roturas": IconoRoturas,
+  "/roturas/visto-bueno": IconoSello,
+  "/roturas/salidas": IconoTolva,
+  "/roturas/analisis": IconoAnalisis,
+  "/roturas/maestro": IconoLlave,
 };
 
 export function Navegacion({ permitidas, anclado, alternar }: {

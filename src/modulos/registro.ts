@@ -142,6 +142,31 @@ export const MODULOS: Modulo[] = [
     ],
   },
   {
+    id: "roturas",
+    nombre: "Roturas",
+    eyebrow: "VIDRIO Y PRODUCTO ROTO",
+    descripcion:
+      "Todo lo que se rompe en la bodega, desde que el operario lo levanta del piso hasta que el vidrio sale por la puerta con las tres firmas.",
+    acento: "#0D0D0D",
+    fondo: "#FFF4DE",
+    etiquetas: ["Unidades en sitio", "Kilos a la salida"],
+    imagen: "/modulos/roturas.jpg",
+    ruta: "/roturas",
+    /* Quien abre Roturas casi siempre viene a registrar una, no a mirar
+       el informe: está de pie al lado del vidrio. */
+    entrada: "/roturas",
+    activo: true,
+    // El orden del recorrido de una rotura: se registra → ABI decide →
+    // se pesa y sale → por qué se rompe → la configuración.
+    secciones: [
+      { nombre: "En sitio", ruta: "/roturas" },
+      { nombre: "Visto bueno", ruta: "/roturas/visto-bueno" },
+      { nombre: "Salidas", ruta: "/roturas/salidas" },
+      { nombre: "Análisis", ruta: "/roturas/analisis" },
+      { nombre: "Maestro", ruta: "/roturas/maestro" },
+    ],
+  },
+  {
     id: "acciones",
     nombre: "Acciones",
     eyebrow: "CORRECTIVAS Y PREVENTIVAS",
