@@ -50,7 +50,7 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
     /* Se entra derecho a pesar. Quien abre una salida está al lado de la
        báscula con la primera tolva ya montada: devolverlo a la lista
        para que busque la que acaba de crear es un paso de más. */
-    router.push(`/roturas/salidas/${fila?.id}`);
+    router.push(`/roturas/salida/${fila?.id}`);
   }
 
   return (
@@ -140,7 +140,7 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
                 <span className={"eti " + (s.completa ? "cuenta" : "esperando")}>
                   {s.completa ? "COMPLETA" : `${s.firmas} DE 3 FIRMAS`}
                 </span>
-                <Link href={`/roturas/salidas/${s.id}`} className="btn">
+                <Link href={`/roturas/salida/${s.id}`} className="btn">
                   {s.estado === "abierta" ? "Pesar" : "Ver"}
                 </Link>
               </div>

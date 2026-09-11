@@ -899,11 +899,24 @@ begin
       from public.roles r
       cross join (values
         ('/roturas'),
-        ('/roturas/visto-bueno'),
-        ('/roturas/salidas'),
-        ('/roturas/analisis'),
-        ('/roturas/maestro')) as s(ruta)
+        -- EN SITIO: cuenta unidades
+        ('/roturas/en-sitio'),
+        ('/roturas/en-sitio/visto-bueno'),
+        ('/roturas/en-sitio/analisis'),
+        ('/roturas/en-sitio/maestro'),
+        -- SALIDA: pesa kilos
+        ('/roturas/salida'),
+        ('/roturas/salida/analisis'),
+        ('/roturas/salida/tolvas')) as s(ruta)
     on conflict (rol, seccion) do nothing;
+
+    /* Las rutas de la primera versión, cuando el módulo era un menú
+       plano. Se borran para que no queden casillas fantasma en
+       /admin/roles: un permiso sobre una pantalla que ya no existe no
+       hace nada y confunde a quien reparte los roles. */
+    delete from public.rol_permisos
+     where seccion in ('/roturas/visto-bueno', '/roturas/salidas',
+                       '/roturas/analisis', '/roturas/maestro');
   end if;
 end $$;
 

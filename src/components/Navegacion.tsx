@@ -3,7 +3,7 @@
 import { useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { moduloPorRuta } from "@/modulos/registro";
+import { moduloPorRuta, ramaDeRuta } from "@/modulos/registro";
 
 /**
  * Riel lateral de módulos. Colapsado en 64px, se abre al pasar el mouse o
@@ -148,6 +148,15 @@ const IconoSello = () => (
   </svg>
 );
 
+/* La rama en la que uno está: una bifurcación. Dice "aquí el módulo se
+   parte en dos" sin necesidad de una palabra. */
+const IconoRama = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M6 21V9a3 3 0 0 1 3-3h9M18 6l-3-3M18 6l-3 3" />
+    <circle cx="6" cy="21" r="1.6" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   roturas: IconoRoturas,
   quiebra: IconoQuiebra,
@@ -174,11 +183,13 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/acciones/tablero": IconoTablero,
   "/acciones/analisis": IconoAnalisis,
   "/acciones/maestro": IconoLlave,
-  "/roturas": IconoRoturas,
-  "/roturas/visto-bueno": IconoSello,
-  "/roturas/salidas": IconoTolva,
-  "/roturas/analisis": IconoAnalisis,
-  "/roturas/maestro": IconoLlave,
+  "/roturas/en-sitio": IconoRoturas,
+  "/roturas/en-sitio/visto-bueno": IconoSello,
+  "/roturas/en-sitio/analisis": IconoAnalisis,
+  "/roturas/en-sitio/maestro": IconoLlave,
+  "/roturas/salida": IconoTolva,
+  "/roturas/salida/analisis": IconoAnalisis,
+  "/roturas/salida/tolvas": IconoCaja,
 };
 
 export function Navegacion({ permitidas, anclado, alternar }: {
@@ -214,8 +225,24 @@ export function Navegacion({ permitidas, anclado, alternar }: {
   /* Solo lo que el rol puede ver. Un enlace a una pantalla cerrada no es
      una pista de que existe: es una puerta que no abre, y quien la toca
      cree que la app está rota. */
-  const secciones = actual.secciones.filter((s) => !s.oculto && deja.has(s.ruta));
+  const visibles = actual.secciones.filter((s) => !s.oculto && deja.has(s.ruta));
   const IconoActual = ICONO_MODULO[actual.id] ?? IconoLista;
+
+  /* EN UN MÓDULO CON RAMAS SE MUESTRA UNA SOLA RAMA.
+     Roturas mide dos cosas que no se suman —unidades en sitio y kilos a
+     la salida—, y un riel con las siete pantallas seguidas las presenta
+     como una sola lista, que es justo el error que el módulo existe para
+     evitar. Estando dentro de una rama se ven sus pantallas; parado en
+     la portada del módulo se ven las ramas, no sus pantallas. */
+  const rama = ramaDeRuta(actual, pathname);
+  const secciones = actual.ramas?.length
+    ? (rama ? visibles.filter((s) => s.rama === rama.id) : [])
+    : visibles;
+
+  /* Las ramas que esta persona puede abrir. Una rama sin ninguna
+     pantalla abierta no se ofrece: sería una puerta a un pasillo vacío. */
+  const ramas = rama || !actual.ramas?.length ? [] : actual.ramas.filter((r) =>
+    visibles.some((s) => s.rama === r.id));
 
   return (
     <nav className="sh-lado" aria-label="Navegación de módulos">
@@ -230,11 +257,38 @@ export function Navegacion({ permitidas, anclado, alternar }: {
 
         <div className="grupo texto">ESTÁS EN</div>
 
-        <Link href={actual.ruta} className="modulo on">
+        <Link href={actual.ruta} className={"modulo" + (rama ? "" : " on")}>
           <IconoActual />
           <span className="texto">{actual.nombre}</span>
           <span className="globo">{actual.nombre}</span>
         </Link>
+
+        {/* La rama, debajo del módulo y marcada como el sitio actual: es
+            la que manda sobre lo que se ve abajo, y tocarla devuelve a su
+            primera pantalla. El enlace de arriba sigue siendo la salida
+            hacia la otra rama. */}
+        {rama && (
+          <Link href={rama.ruta} className="hijo on">
+            <IconoRama />
+            <span className="texto">{rama.nombre}</span>
+            <span className="globo">{actual.nombre} · {rama.nombre}</span>
+          </Link>
+        )}
+
+        {ramas.map((r) => {
+          const Icono = ICONO_RUTA[r.ruta] ?? IconoLista;
+          return (
+            <Link key={r.id} href={r.ruta} className="hijo"
+                  prefetch={false}
+                  onMouseEnter={() => adelantar(r.ruta)}
+                  onPointerDown={() => adelantar(r.ruta)}
+                  onFocus={() => adelantar(r.ruta)}>
+              <Icono />
+              <span className="texto">{r.nombre}</span>
+              <span className="globo">{r.nombre} · {r.eyebrow.toLowerCase()}</span>
+            </Link>
+          );
+        })}
 
         {secciones.map((s) => {
           const Icono = ICONO_RUTA[s.ruta] ?? IconoTablero;

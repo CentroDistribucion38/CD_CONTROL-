@@ -30,6 +30,30 @@ export type Seccion = {
    * perdería su casilla de permisos y nadie podría volver a darla.
    */
   oculto?: boolean;
+  /**
+   * A qué rama del módulo pertenece, cuando el módulo tiene ramas.
+   * El menú lateral muestra SOLO las secciones de la rama en la que uno
+   * está: es lo que impide que dos submódulos que miden cosas distintas
+   * se lean como una sola lista.
+   */
+  rama?: string;
+};
+
+/**
+ * UNA RAMA de un módulo: un submódulo con sus propias pantallas.
+ *
+ * Existe para el caso en que un módulo agrupa dos cosas que comparten
+ * tema pero NO comparten cifras —Roturas: unidades en sitio y kilos a la
+ * salida—. La portada del módulo pinta una tarjeta por rama y el menú
+ * lateral solo muestra la rama en la que uno está.
+ */
+export type Rama = {
+  id: string;
+  nombre: string;
+  /** Etiqueta corta en mayúsculas: la unidad con la que mide esta rama. */
+  eyebrow: string;
+  ruta: string;
+  descripcion: string;
 };
 
 export type Modulo = {
@@ -68,8 +92,20 @@ export type Modulo = {
   activo: boolean;
   oculto?: boolean;
   roles?: Rol[];
+  /** Si el módulo se parte en submódulos. Sin esto, `ruta` es una
+   *  pantalla normal y las secciones se listan todas juntas. */
+  ramas?: Rama[];
   secciones: Seccion[];
 };
+
+/** En qué rama cae una ruta. Gana la coincidencia más larga: sin eso,
+ *  "/roturas/salida" se llevaría también a "/roturas/salida/tolvas". */
+export function ramaDeRuta(m: Modulo, pathname: string): Rama | undefined {
+  if (!m.ramas?.length) return undefined;
+  return m.ramas
+    .filter((r) => pathname === r.ruta || pathname.startsWith(r.ruta + "/"))
+    .sort((a, b) => b.ruta.length - a.ruta.length)[0];
+}
 
 export const MODULOS: Modulo[] = [
   {
@@ -156,14 +192,40 @@ export const MODULOS: Modulo[] = [
        el informe: está de pie al lado del vidrio. */
     entrada: "/roturas",
     activo: true,
-    // El orden del recorrido de una rotura: se registra → ABI decide →
-    // se pesa y sale → por qué se rompe → la configuración.
+    /* DOS RAMAS QUE NO SE MEZCLAN, tampoco en el menú.
+       En sitio cuenta UNIDADES por causa y proceso; la salida pesa
+       KILOS de vidrio. Son dos preguntas distintas —de quién fue la
+       rotura, y cuánto vidrio salió— y no existe el factor que
+       convierta una en la otra. Un menú plano con las cinco pantallas
+       seguidas invita justamente a lo contrario: a leer las unidades de
+       arriba y los kilos de abajo como si fueran la misma cuenta. */
+    ramas: [
+      {
+        id: "en-sitio",
+        nombre: "En sitio",
+        eyebrow: "UNIDADES",
+        ruta: "/roturas/en-sitio",
+        descripcion: "Lo que se rompió en la bodega, contado por causa y por proceso. Contesta de quién fue y de dónde salió.",
+      },
+      {
+        id: "salida",
+        nombre: "Salida",
+        eyebrow: "KILOS",
+        ruta: "/roturas/salida",
+        descripcion: "El vidrio que sale por la puerta, pesado en tolvas y firmado por tres personas. Contesta cuánto salió.",
+      },
+    ],
+    // Dentro de cada rama, el orden del recorrido: se registra → ABI
+    // decide → por qué se rompe → la configuración.
     secciones: [
-      { nombre: "En sitio", ruta: "/roturas" },
-      { nombre: "Visto bueno", ruta: "/roturas/visto-bueno" },
-      { nombre: "Salidas", ruta: "/roturas/salidas" },
-      { nombre: "Análisis", ruta: "/roturas/analisis" },
-      { nombre: "Maestro", ruta: "/roturas/maestro" },
+      { nombre: "Registrar", ruta: "/roturas/en-sitio", rama: "en-sitio" },
+      { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
+      { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
+      { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
+
+      { nombre: "Salidas", ruta: "/roturas/salida", rama: "salida" },
+      { nombre: "Análisis", ruta: "/roturas/salida/analisis", rama: "salida" },
+      { nombre: "Tolvas", ruta: "/roturas/salida/tolvas", rama: "salida" },
     ],
   },
   {

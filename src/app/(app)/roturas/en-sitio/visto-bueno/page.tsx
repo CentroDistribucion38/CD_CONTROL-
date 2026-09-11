@@ -1,8 +1,8 @@
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import { porRevisar } from "@/modulos/roturas/datos";
-import "../roturas.css";
-import { SinTablas } from "../comunes";
+import "../../roturas.css";
+import { SinTablas } from "../../comunes";
 import { VistoBueno } from "./VistoBueno";
 
 export const dynamic = "force-dynamic";

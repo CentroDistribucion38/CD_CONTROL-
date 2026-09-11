@@ -34,7 +34,7 @@ export default async function SalidaPage({ params }: { params: Promise<{ id: str
       <section className="cabeza">
         <div>
           <p className="ojo">
-            <Link href="/roturas/salidas" style={{ color: "inherit" }}>← SALIDAS</Link>
+            <Link href="/roturas/salida" style={{ color: "inherit" }}>← SALIDAS</Link>
             {" · "}{s.codigo}
           </p>
           <h1>{s.estado === "abierta" ? "Pesando" : s.completa ? "Salida completa" : "Esperando firmas"}</h1>

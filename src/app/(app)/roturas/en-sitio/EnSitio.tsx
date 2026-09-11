@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { Causa, Material, Proceso, Rotura } from "@/modulos/roturas/datos";
-import { Fila } from "./comunes";
-import { Evidencia } from "./Evidencia";
-import { Reportar } from "./Reportar";
+import { Fila } from "../comunes";
+import { Evidencia } from "../Evidencia";
+import { Reportar } from "../Reportar";
 
 /**
  * EN SITIO — lo que se rompió, contado en UNIDADES.

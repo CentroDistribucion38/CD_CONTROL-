@@ -33,14 +33,11 @@ import { COLOR_VIDRIO, kilos } from "@/modulos/roturas/formato";
  * cambia normalmente teme justo lo contrario.
  */
 
-type Hoja = "materiales" | "procesos" | "causas" | "tolvas";
+export type Hoja = "materiales" | "procesos" | "causas" | "tolvas";
 
-const HOJAS: { id: Hoja; t: string }[] = [
-  { id: "materiales", t: "Materiales" },
-  { id: "procesos", t: "Procesos" },
-  { id: "causas", t: "Causas" },
-  { id: "tolvas", t: "Tolvas" },
-];
+const NOMBRE: Record<Hoja, string> = {
+  materiales: "Materiales", procesos: "Procesos", causas: "Causas", tolvas: "Tolvas",
+};
 
 const TABLA: Record<Hoja, string> = {
   materiales: "roturas_materiales",
@@ -55,7 +52,12 @@ function aClave(s: string) {
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
 }
 
-export function Maestro({ materiales, procesos, causas, tolvas, uso, puedeEditar }: {
+export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, puedeEditar }: {
+  /* QUÉ HOJAS LLEVA ESTA PANTALLA. El maestro está partido igual que el
+     módulo: los materiales, los procesos y las causas son de En sitio;
+     las tolvas, de la Salida. Un solo maestro con las cuatro hojas
+     volvería a juntar en una pantalla lo que las dos ramas separan. */
+  hojas: Hoja[];
   materiales: Material[];
   procesos: Proceso[];
   causas: Causa[];
@@ -70,7 +72,7 @@ export function Maestro({ materiales, procesos, causas, tolvas, uso, puedeEditar
   const [avisar, avisos] = useAvisos();
   const [pedir, dialogo] = useConfirmar();
 
-  const [hoja, setHoja] = useState<Hoja>("materiales");
+  const [hoja, setHoja] = useState<Hoja>(hojas[0]);
   const [nueva, setNueva] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [mandando, setMandando] = useState(false);
@@ -292,20 +294,24 @@ export function Maestro({ materiales, procesos, causas, tolvas, uso, puedeEditar
     <>
       {avisos}{dialogo}
 
-      <div className="filtros">
-        {HOJAS.map((h) => (
-          <button key={h.id} type="button"
-                  className={"btn" + (hoja === h.id ? " si" : "")}
-                  onClick={() => { setHoja(h.id); setNueva(false); setEditando(null) }}>
-            {h.t}
-          </button>
-        ))}
-      </div>
+      {/* Con una sola hoja no hay pestañas: una pestaña única no da a
+          escoger nada y solo hace creer que falta algo al lado. */}
+      {hojas.length > 1 && (
+        <div className="filtros">
+          {hojas.map((h) => (
+            <button key={h} type="button"
+                    className={"btn" + (hoja === h ? " si" : "")}
+                    onClick={() => { setHoja(h); setNueva(false); setEditando(null) }}>
+              {NOMBRE[h]}
+            </button>
+          ))}
+        </div>
+      )}
 
       <section className="caja">
         <div className="cab">
           <div>
-            <h2>{items.length} {HOJAS.find((h) => h.id === hoja)!.t.toLowerCase()}</h2>
+            <h2>{items.length} {NOMBRE[hoja].toLowerCase()}</h2>
             <p>
               Desactivar deja de ofrecerlo al registrar y no toca lo viejo. Borrar solo aparece
               cuando nadie lo ha usado nunca.

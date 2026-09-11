@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import type { Rotura } from "@/modulos/roturas/datos";
-import { Fila } from "../comunes";
-import { Evidencia } from "../Evidencia";
+import { Fila } from "../../comunes";
+import { Evidencia } from "../../Evidencia";
 
 /**
  * EL VISTO BUENO DE ABI — cuenta o no cuenta.

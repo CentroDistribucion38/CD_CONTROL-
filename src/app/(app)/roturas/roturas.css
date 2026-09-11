@@ -67,6 +67,74 @@
 .rt .kpi .num .u { font-size: .3em; margin-left: 7px; letter-spacing: 0 }
 .rt .kpi .pie { position: relative; margin-top: 8px; font-size: 12px }
 
+/* =====================================================================
+   LA BIFURCACIÓN — las dos ramas del módulo.
+
+   Dos tarjetas grandes y nada más en la pantalla: la decisión es de dos
+   y cualquier cosa que las acompañe compite con ellas. Cada una trae su
+   cifra viva en SU unidad —roturas esperando, kilos abiertos— y en
+   ningún sitio se suman, que es de lo que trata el módulo entero.
+   ===================================================================== */
+/* Con el ancho completo de una pantalla de 1440 cada tarjeta medía casi
+   700 px de ancho por 274 de alto: dos barras largas y medio vacías,
+   porque el texto de adentro se corta a 42 caracteres para poder leerse.
+   Con el tope, las dos quedan casi cuadradas y el texto llena la caja. */
+.rt .ramas {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px; max-width: 1000px;
+}
+.rt .rama {
+  position: relative; overflow: hidden; min-width: 0;
+  display: flex; flex-direction: column; gap: 0;
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  border-left: 4px solid var(--rt-negro); border-radius: 14px;
+  padding: 20px 22px 18px; text-decoration: none; color: inherit;
+}
+.rt .rama:hover { border-color: var(--rt-gris); border-left-color: var(--rt-oro) }
+.rt .rama .corte {
+  position: absolute; top: -30px; right: -46px; width: 116px; height: 150px;
+  background: var(--rt-oro); opacity: .26; transform: skewX(-26deg);
+}
+.rt .rama .rot {
+  position: relative; font-size: 10px; font-weight: 700; letter-spacing: .16em;
+  color: var(--rt-gris);
+}
+.rt .rama .nom {
+  position: relative; font-family: var(--rt-titulo); font-weight: 900;
+  font-size: clamp(28px, 3.4vw, 44px); line-height: 1; letter-spacing: -.045em;
+  margin-top: 6px;
+}
+.rt .rama .des {
+  font-size: 12.5px; line-height: 1.45; color: var(--rt-gris);
+  margin-top: 9px; max-width: 42ch;
+}
+/* La cifra viva. Es lo que hace que la portada no sea un peaje: quien
+   entra ya sabía adónde iba; lo que no sabía es cuánto hay esperando. */
+.rt .rama .cifra-rama {
+  display: block; margin-top: 16px; padding-top: 13px;
+  border-top: 1px solid var(--rt-linea);
+}
+.rt .rama .cifra-rama b {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 34px;
+  letter-spacing: -.04em; font-variant-numeric: tabular-nums;
+}
+.rt .rama .cifra-rama i { font-style: normal; font-size: 13px; font-weight: 700; margin-left: 6px }
+.rt .rama .cifra-rama em {
+  display: block; font-style: normal; font-size: 11.5px;
+  color: var(--rt-gris); margin-top: 3px; line-height: 1.35;
+}
+.rt .rama .cifra-rama.mal b { color: var(--rt-mal) }
+.rt .rama .entrar {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;
+  font-size: 13px; font-weight: 800;
+}
+.rt .rama .entrar svg {
+  width: 26px; height: 26px; padding: 5px; border-radius: 50%;
+  background: var(--rt-negro); color: #fff; stroke: currentColor; stroke-width: 2;
+  flex: none;
+}
+.rt .rama:hover .entrar svg { background: var(--rt-oro); color: #1A1200 }
+
 /* ====================== Cifras ====================== */
 .rt .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
 .rt .cifra {
@@ -408,6 +476,10 @@
 /* ====================== Celular ====================== */
 @media (max-width: 760px) {
   .rt .cabeza { grid-template-columns: minmax(0, 1fr) }
+  /* Las dos ramas, una encima de otra. Lado a lado en 360 px cada
+     tarjeta queda de 150 px y el nombre se parte por la mitad. */
+  .rt .ramas { grid-template-columns: minmax(0, 1fr) }
+  .rt .rama { padding: 17px 18px 16px }
   .rt .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .rt .fila { grid-template-columns: minmax(0, 1fr); gap: 7px }
   .rt .fila .cod { padding-top: 0 }

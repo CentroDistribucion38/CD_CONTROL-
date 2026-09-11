@@ -61,3 +61,11 @@ anchos. El arnes queda en .arnes/rot-mide.mjs para volver a correrlo.
 El formato (kilos, fechas) vive en modulos/roturas/formato.ts y no en
 comunes.tsx: aquel es "use client", y lo que una pagina del servidor
 importe de ahi llega como referencia y no como funcion.
+
+Y el registro: hasta ahora el modulo no estaba en registro.ts ni en el
+riel de navegacion, asi que aunque las pantallas existieran no habia
+tarjeta en la portada ni enlaces en el menu. Las cinco secciones van en
+el orden del recorrido de una rotura — En sitio, Visto bueno, Salidas,
+Analisis, Maestro — y la entrada del modulo es En sitio, porque quien
+abre Roturas casi siempre viene a registrar una, no a mirar el informe:
+esta de pie al lado del vidrio.

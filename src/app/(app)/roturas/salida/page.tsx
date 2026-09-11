@@ -44,7 +44,7 @@ export default async function SalidasPage() {
       </section>
 
       <Salidas salidas={datos.salidas} nombres={nombres}
-               puedeAbrir={permisos.puedeEditar("/roturas/salidas")} />
+               puedeAbrir={permisos.puedeEditar("/roturas/salida")} />
     </div>
   );
 }
