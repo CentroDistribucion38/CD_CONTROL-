@@ -198,6 +198,15 @@
   letter-spacing: -.02em; line-height: 1.25; overflow-wrap: anywhere;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
+/* LA PLACA, como una placa. Monoespaciada, en un marco: es un
+   identificador que alguien va a leer en voz alta por radio o comparar
+   con el papel de la portería, no una palabra más del título. */
+.rt .placa {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 700; font-size: 14px; letter-spacing: .1em;
+  background: var(--rt-negro); color: var(--rt-oro);
+  padding: 4px 10px; white-space: nowrap;
+}
 .rt .fila .meta {
   margin-top: 9px; font-size: 13px; color: var(--rt-gris);
   display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
@@ -327,9 +336,14 @@
 .rt .formula .chip.tara { border-color: var(--rt-oro) }
 .rt .formula .chip.neto { background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200; font-weight: 800 }
 .rt .formula .signo { color: var(--rt-gris2); font-size: 17px }
-/* La tara del maestro, en negro sobre la ilustración. */
+/* EL DIBUJO Y SU COTA. El sello va ENCIMA del extremo derecho de la
+   cota, pegado a la línea: así se lee "esta medida pesa 111 kg" y no
+   "aquí hay un dato suelto que también dice 111". */
+.rt .comomide .dibujo { position: relative; width: clamp(300px, 32vw, 420px); max-width: 100% }
+.rt .comomide .dibujo svg { width: 100%; height: auto; display: block }
 .rt .comomide .tara-sello {
-  background: var(--rt-negro); color: #fff; padding: 16px 30px; text-align: center;
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  background: var(--rt-negro); color: #fff; padding: 14px 24px; text-align: center;
 }
 .rt .comomide .tara-sello .r { font-size: 11px; font-weight: 600; letter-spacing: .2em; color: #A8A8A8 }
 .rt .comomide .tara-sello .v {
@@ -732,7 +746,7 @@
   .rt .cabeza { grid-template-columns: minmax(0, 1fr) }
   .rt .kpi { min-width: 0 }
   .rt .comomide { grid-template-columns: minmax(0, 1fr); padding: 22px }
-  .rt .comomide .tara-sello { justify-self: start }
+  .rt .comomide .dibujo { width: 100% }
   .rt .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .rt .firmas { grid-template-columns: minmax(0, 1fr) }
   .rt .firma { border-right: 1px solid var(--rt-linea); border-bottom: 0 }

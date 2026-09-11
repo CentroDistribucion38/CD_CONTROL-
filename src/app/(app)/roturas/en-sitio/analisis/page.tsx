@@ -67,7 +67,7 @@ export default async function AnalisisEnSitioPage() {
           </p>
         </div>
         <div className="kpi">
-          <div className="corte" aria-hidden />
+          <span className="corte" aria-hidden />
           <div className="rot">UNIDADES DE VIDRIO QUE CUENTAN</div>
           <div className="num">{total}<span className="u">und</span></div>
           <div className="pie">{cuentan.length} roturas con visto bueno</div>

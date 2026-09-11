@@ -344,6 +344,15 @@ create table if not exists public.roturas_salidas (
   codigo   text unique not null,
   estado   salida_estado not null default 'abierta',
 
+  /* LA PLACA DEL CAMIÓN. Campo propio y no una frase dentro de la
+     observación: es la identidad de la salida. El día que Peldar
+     reclame por una carga, o que haya que cruzar lo que salió con la
+     portería, se busca por placa; y un texto libre donde alguien
+     escribió "camion de peldar placa xxx000" no se puede buscar.
+     Se guarda en mayúsculas y sin espacios, como en T1 / T2, para que
+     "abc123", "ABC 123" y "ABC-123" sean el mismo camión y no tres. */
+  placa    text,
+
   observacion text,
 
   creada_por uuid references public.perfiles(id) on delete set null,
@@ -376,6 +385,19 @@ create table if not exists public.roturas_salidas (
 );
 
 create index if not exists roturas_salidas_idx on public.roturas_salidas (estado, creada_en desc);
+
+/* LA PLACA, para quien ya tenía la tabla de antes. Se agrega vacía, se
+   rellenan las salidas viejas con un marcador que se ve a la legua
+   —'SIN PLACA' es buscable; una cadena vacía se confunde con un error de
+   la app— y recién ahí se exige. Hacerlo al revés dejaría la migración
+   trancada en la primera salida sin placa. */
+alter table public.roturas_salidas add column if not exists placa text;
+update public.roturas_salidas set placa = 'SIN PLACA'
+ where placa is null or btrim(placa) = '';
+alter table public.roturas_salidas alter column placa set not null;
+
+create index if not exists roturas_salidas_placa_idx
+  on public.roturas_salidas (upper(placa));
 
 /* UNA TOLVA PESADA. El neto se CALCULA, no se guarda: un neto guardado
    puede quedar desfasado de su bruto y su tara el día que alguien
@@ -582,25 +604,45 @@ grant execute on function public.rotura_anular(uuid, text) to authenticated;
 -- ---------------------------------------------------------------------
 -- LA SALIDA: abrir, pesar tolva por tolva, y las tres firmas.
 -- ---------------------------------------------------------------------
-create or replace function public.salida_abrir(p_observacion text default null)
-returns table (id uuid, codigo text)
+/* La firma vieja recibía solo la observación. Se quita para que no
+   queden las dos: con las dos, una pantalla sin actualizar seguiría
+   abriendo salidas sin placa y nadie se enteraría. */
+drop function if exists public.salida_abrir(text);
+
+create or replace function public.salida_abrir(
+  p_placa       text,
+  p_observacion text default null
+)
+returns table (id uuid, codigo text, placa text)
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare v_id uuid; v_cod text;
+declare v_id uuid; v_cod text; v_placa text;
 begin
   if not public.rotura_puede('supervisora') then
     raise exception 'Abrir una salida de vidrio es de la supervisora de líneas';
   end if;
+
+  /* Se normaliza AQUÍ y no en la pantalla: la pantalla es una de las
+     formas de entrar, no la única. Fuera van los espacios y los guiones,
+     de modo que "abc 123", "ABC-123" y "abc123" terminen siendo la misma
+     placa y el informe del mes no cuente tres camiones donde hubo uno. */
+  v_placa := upper(regexp_replace(coalesce(p_placa, ''), '[^A-Za-z0-9]', '', 'g'));
+
+  if length(v_placa) < 5 then
+    raise exception 'Falta la placa del camión. Es lo que amarra el vidrio al vehículo que se lo llevó';
+  end if;
+
   v_cod := 'SR-' || lpad(nextval('public.roturas_salida_seq')::text, 4, '0');
-  insert into public.roturas_salidas (codigo, observacion, creada_por)
-  values (v_cod, nullif(btrim(coalesce(p_observacion, '')), ''), auth.uid())
+  insert into public.roturas_salidas (codigo, placa, observacion, creada_por)
+  values (v_cod, v_placa, nullif(btrim(coalesce(p_observacion, '')), ''), auth.uid())
   returning roturas_salidas.id into v_id;
-  return query select v_id, v_cod;
+
+  return query select v_id, v_cod, v_placa;
 end $$;
 
-grant execute on function public.salida_abrir(text) to authenticated;
+grant execute on function public.salida_abrir(text, text) to authenticated;
 
 /* PESAR UNA TOLVA. La tara la trae la función del maestro: no se
    recibe del navegador, que es lo que la hace imposible de negociar. */
@@ -821,6 +863,7 @@ create view public.v_roturas_salidas as
 select
   s.id,
   s.codigo,
+  s.placa,
   s.estado::text                                  as estado,
   s.observacion,
   s.creada_por, s.creada_en,

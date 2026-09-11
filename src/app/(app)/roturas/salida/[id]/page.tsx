@@ -37,7 +37,10 @@ export default async function SalidaPage({ params }: { params: Promise<{ id: str
             <Link href="/roturas/salida" style={{ color: "inherit" }}>← SALIDAS</Link>
             {" · "}{s.codigo}
           </p>
-          <h1>{s.estado === "abierta" ? "Pesando" : s.completa ? "Salida completa" : "Esperando firmas"}</h1>
+          <h1>
+            {s.estado === "abierta" ? "Pesando" : s.completa ? "Salida completa" : "Esperando firmas"}
+            {" "}<span className="placa" style={{ verticalAlign: "middle", fontSize: 18 }}>{s.placa}</span>
+          </h1>
           <p className="sub">
             {s.observacion
               ? s.observacion
@@ -45,7 +48,7 @@ export default async function SalidaPage({ params }: { params: Promise<{ id: str
           </p>
         </div>
         <div className="kpi">
-          <div className="corte" aria-hidden />
+          <span className="corte" aria-hidden />
           <div className="rot">NETO DE ESTA SALIDA</div>
           <div className="num">{kilos(s.neto_kg)}<span className="u">kg</span></div>
           <div className="pie">{s.firmas} de 3 firmas · {s.tolvas} tolva{s.tolvas === 1 ? "" : "s"}</div>

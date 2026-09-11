@@ -44,7 +44,7 @@ export default async function TolvasPage() {
           </p>
         </div>
         <div className="kpi">
-          <div className="corte" aria-hidden />
+          <span className="corte" aria-hidden />
           <div className="rot">TOLVAS ACTIVAS</div>
           <div className="num">{activas.length}<span className="u">tolvas</span></div>
           <div className="pie">

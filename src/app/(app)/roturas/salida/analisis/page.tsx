@@ -62,7 +62,7 @@ export default async function AnalisisSalidaPage() {
           </p>
         </div>
         <div className="kpi">
-          <div className="corte" aria-hidden />
+          <span className="corte" aria-hidden />
           <div className="rot">NETO DESPACHADO</div>
           <div className="num">{kilos(kg)}<span className="u">kg</span></div>
           <div className="pie">{completas.length} salida{completas.length === 1 ? "" : "s"} completas</div>

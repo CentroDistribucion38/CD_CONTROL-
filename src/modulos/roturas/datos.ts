@@ -45,6 +45,7 @@ export type Rotura = {
 export type Salida = {
   id: string;
   codigo: string;
+  placa: string;
   estado: "abierta" | "cerrada" | "anulada";
   observacion: string | null;
   creada_por: string | null;

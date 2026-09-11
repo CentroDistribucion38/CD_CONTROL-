@@ -50,8 +50,8 @@ export function Bandeja({ salidas, nombres, papel, rol, manda }: {
     const ok = await pedir({
       titulo: `¿${verbo} ${s.codigo}?`,
       dice: papel === "verificador"
-        ? `Estás diciendo que revisaste ${kilos(s.neto_kg)} kg netos en ${s.tolvas} tolva${s.tolvas === 1 ? "" : "s"} y que la cuenta está bien. Queda escrito tu nombre y la hora.`
-        : `Estás dando el aval para que salgan ${kilos(s.neto_kg)} kg netos. Es la última firma: después la salida queda cerrada.`,
+        ? `Camión ${s.placa}. Estás diciendo que revisaste ${kilos(s.neto_kg)} kg netos en ${s.tolvas} tolva${s.tolvas === 1 ? "" : "s"} y que la cuenta está bien. Queda escrito tu nombre y la hora.`
+        : `Camión ${s.placa}. Estás dando el aval para que salgan ${kilos(s.neto_kg)} kg netos. Es la última firma: después la salida queda cerrada.`,
       confirmar: verbo,
     });
     if (!ok) return;
@@ -97,6 +97,7 @@ export function Bandeja({ salidas, nombres, papel, rol, manda }: {
 
               <div>
                 <div className="tit">
+                  <span className="placa">{s.placa}</span>
                   {kilos(s.neto_kg)} kg netos
                   <span className="eti esperando">{s.tolvas} tolva{s.tolvas === 1 ? "" : "s"}</span>
                 </div>

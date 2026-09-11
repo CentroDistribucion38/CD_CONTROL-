@@ -1,88 +1,89 @@
-Modulo Roturas: las pantallas, partidas en dos ramas
+Roturas: el diseno entregado, y una pantalla por firma
 
-Ya existia la base de datos pero no habia por donde entrar, y el modulo
-ni siquiera estaba en el registro: no habia tarjeta en la portada ni
-enlaces en el menu.
+Dos cosas mal que se arreglan juntas.
 
-DOS RAMAS QUE NO SE MEZCLAN, TAMPOCO EN LA PANTALLA.
-Al entrar a Roturas no hay una lista de siete pantallas: hay que
-escoger una de dos.
+1. EL DORADO SALIA ROJO. Los colores del modulo colgaban de var(--c-oro),
+   el token de "ojo con esto" de la app. En los temas negro, gris y halo
+   ese token vale #ff0000, asi que el NETO de una salida se pintaba en
+   rojo bombero. El dorado de Roturas es DEL MODULO, igual que el rojo es
+   de Acciones: no es un acento que el tema pueda reinterpretar. Ahora la
+   paleta va literal y sale del diseno entregado — negro 0D0D0D, oro
+   FFC000, ojo 8A6A00, linea E0E0DC, Archivo + IBM Plex Sans.
 
-  EN SITIO (unidades)        SALIDA (kilos)
-  1 Registrar                1 Salidas — pesar y firmar
-  2 Visto bueno de ABI       2 Analisis
-  3 Analisis                 3 Tolvas
-  4 Maestro
+2. LAS TRES FIRMAS NO CABEN EN LA MISMA HOJA. Estaban las tres juntas
+   con sus tres botones. La misma persona veia los tres, tocaba dos, y
+   la base le contestaba "quien peso no verifica". La regla estaba bien;
+   la pantalla la convertia en un regano en vez de en un camino.
 
-En sitio cuenta UNIDADES por causa y proceso: contesta de quien fue la
-rotura y de donde salio. La salida pesa KILOS de vidrio: contesta cuanto
-vidrio salio por la puerta. Y no se cuadran entre si — una botella de
-330 y una de 750 pesan distinto, el vidrio se acumula dias antes de
-salir, y parte de lo que se pesa nunca se conto en sitio.
+   Ahora la salida AVANZA de bandeja en bandeja:
 
-Con las siete pantallas en una sola lista, tarde o temprano alguien lee
-las unidades de arriba y los kilos de abajo como si fueran la misma
-cuenta, y arma un informe con un factor de conversion inventado. La
-bifurcacion es lo que impide esa lectura, y por eso esta partido hasta
-el final: dos analisis y dos maestros, no uno con las dos mitades
-adentro. El menu lateral muestra SOLO la rama en la que uno esta.
+     PESAR          la supervisora pesa tolvas y cierra
+     VERIFICACION   otra persona revisa la cuenta
+     VALIDACION     una tercera da el aval de salida
 
-La bifurcacion vive en el registro como concepto —Modulo.ramas— y no
-quemada en la pantalla de Roturas: el dia que otro modulo necesite
-partirse, el menu ya sabe hacerlo.
+   Al cerrar, la salida se va de Pesar y aparece en Verificacion. Cada
+   quien entra a SU pantalla y no ve un boton que no puede tocar. La
+   restriccion de la tabla sigue ahi —es la que de verdad protege—, pero
+   ya no hace falta que hable.
 
-DOS PASOS PARA REGISTRAR, NO UNO. Quien registra esta de pie al lado del
-vidrio, con guantes y el celular en una mano. Un formulario de catorce
-campos en una sola pantalla se llena mal: se baja hasta el final, se
-toca enviar y la mitad quedo en blanco. Paso 1 que se rompio, paso 2 por
-que — y en ese orden porque el material decide si hay que preguntar
-botellas, asi que preguntar la causa primero obligaria a devolverse.
+DE "FACTURADOR" A "VALIDACION". Lo que esa persona hace no es facturar:
+es dar el aval para que el camion salga. Se renombra el rol, las dos
+columnas y la pantalla. El SQL trae el cambio de nombre hecho de forma
+idempotente, asi que quien ya lo haya corrido no pierde sus salidas:
+renombrar una columna conserva datos y restricciones.
 
-LA FOTO SE EXIGE ANTES DE ENVIAR. Al escoger una causa no asumida sale
-el aviso negro y el boton dice "Falta la foto" hasta que la tome. Sin
-eso el reporte sale, ABI lo devuelve, y el operario se entera al dia
-siguiente cuando ya no esta parado donde paso.
+EL GPS YA NO SE PIDE AL ABRIR. Lo primero que veia quien entraba a
+registrar era el cuadro del navegador preguntando por su ubicacion,
+antes de haber hecho nada. Ahora se pide al tocar la camara, que es lo
+unico que lo necesita: el sello de la foto. Quien registre una rotura
+sin foto no ve ese cuadro nunca.
 
-LA RESTA SE DIBUJA COMO RESTA: BRUTO menos TARA igual NETO, en cajas
-grandes, y no como tres columnas de una tabla. Quien pesa tiene la
-bascula al lado y tiene que reconocer en la pantalla la cuenta que acaba
-de hacer. La tara no se teclea: viene del maestro de tolvas.
+LO QUE SE REHIZO SEGUN EL DISENO:
 
-SOLO SE PINTA EL BOTON DE LA FIRMA QUE SIGUE. Las otras dos dicen
-"espera la firma anterior". Tres botones activos al tiempo invitan a que
-la misma persona toque los tres, que es exactamente lo que la regla de
-las tres personas quiere impedir.
+  · La tarjeta "Como se mide": bruto menos tolva, la formula en chips y
+    la tara del maestro en negro. Es el sitio donde queda escrito que
+    los 111 kg no los teclea nadie.
+  · Las tolvas como TARJETAS, cada una con su propia resta —bruto,
+    menos tara, neto— y no una tabla con el total al final. Quien pesa
+    hace la cuenta tolva por tolva; con solo el total, un bruto mal
+    tecleado no se ve hasta el final, cuando ya no se sabe cual estaba
+    mala.
+  · La banda negra de totales POR COLOR. El vidrio se vende por color:
+    un total unico no le sirve a quien factura.
+  · Las firmas numeradas 1-2-3, con la que sigue en crema. El numero no
+    es adorno: es lo que hace ver que no se valida antes de verificar.
+  · Las roturas como tarjetas sueltas con filo rojo en las no asumidas,
+    la miniatura de evidencia o "Sin foto" en rojo a la izquierda, y las
+    unidades en cifra grande.
+  · La cadena "9 por revisar > 34 cuentan > 6 no cuentan".
+  · El asistente del celular: procesos en chips, causa con su punto de
+    color, vidrio con la muestra grande, contador de 76 px, el aviso
+    rojo de "esta causa exige foto" y el boton "Enviar a ABI".
 
-"NO CUENTA" PIDE MOTIVO Y "CUENTA" NO. Una rotura que no cuenta es plata
-que alguien mas va a tener que asumir, y el dia que reclamen, "no
-cuenta" sin una linea que lo explique no se puede defender.
+BUG DEL GUARDIAN DE RUTAS, encontrado de paso. scripts/rutas.mjs partia
+el registro por cualquier "{ id:", y el dia que un modulo estreno
+submodulos —que tambien traen id— el corte cayo en medio del modulo: sus
+secciones quedaron dentro de un trozo sin "activo: true" y dejaron de
+revisarse. El guardian se quedo callado justo para el modulo mas nuevo.
+Ahora parte por el id del modulo, a cuatro espacios: pasa de revisar 24
+rutas a 33.
 
-LO QUE SALIO DE MEDIR Y NO DE MIRAR, con Playwright a 1440 / 820 / 390 /
-360 px:
-
-  · En celular los tres botones de la bandeja quedaban 2 + 1: "Ver" al
-    lado de "Cuenta", y "No cuenta" solo y ancho abajo. Eso empareja
-    visualmente el boton de mirar con el de aprobar, y son trabajos
-    distintos. Ahora "Ver" va en su propia linea.
-  · A 360 px la resta media 302 px en un hueco de 300 y el NETO se caia
-    al renglon de abajo — justo donde deja de leerse como resta.
-  · En los botones de causa el nombre y la aclaracion salian pegados:
-    "Apilado por encima de lo permitidoNo asumida". Eran spans, y el
-    margin-top de un inline no hace nada. display:block.
-  · En 1440 las dos tarjetas de la bifurcacion median 700 x 274: dos
-    barras largas y medio vacias, porque el texto se corta a 42
-    caracteres para poder leerse. Con tope de 1000 px quedan 493 x 274.
-
-Cero desborde horizontal en los cuatro anchos. Los arneses quedan en
-.arnes/rot-mide.mjs y .arnes/rot-ramas.mjs para volver a correrlos.
-
-El formato (kilos, fechas) vive en modulos/roturas/formato.ts y no en
-comunes.tsx: aquel es "use client", y lo que una pagina del servidor
-importe de ahi llega como referencia y no como funcion.
-
-roturas.sql actualiza las rutas de los permisos a las nuevas y borra las
-de la version plana, para que no queden casillas fantasma en
-/admin/roles apuntando a pantallas que ya no existen.
+Medido con Playwright a 1440 / 390 / 360 px: cero desborde horizontal y
+nada que se salga de su tarjeta.
 
 PASO 1 — correr en Supabase: supabase/modulos/roturas.sql
-Termina con ocho 'ok'.
+
+LA ILUSTRACION DE LA TOLVA, que faltaba. La tarjeta "Como se mide" tenia
+solo el sello negro de la tara; el dibujo no estaba. La imagen no venia
+como archivo suelto en el HTML entregado —lo unico suelto ahi es el
+logo—, asi que se dibuja en SVG: dos kilobytes, nitida en cualquier
+pantalla, y el oro sale del mismo token del modulo.
+
+El dibujo no es adorno. Quien llega nuevo a la bascula tiene que
+entender de un vistazo que los 111 kg son el RECIPIENTE y no el vidrio,
+y para eso sirve la cota de punta a punta al lado del sello: la tara es
+de ESTO, con su bastidor y sus ruedas.
+
+VA NIVELADA. El primer intento la dibujo sobre un riel inclinado y
+parecia rodando cuesta abajo, que es justo lo que uno no quiere ver al
+lado de la palabra "bascula". Una tolva que se pesa esta quieta.

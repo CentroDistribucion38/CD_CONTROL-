@@ -37,6 +37,7 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
   const [avisar, avisos] = useAvisos();
 
   const [abriendo, setAbriendo] = useState(false);
+  const [placa, setPlaca] = useState("");
   const [obs, setObs] = useState("");
   const [mandando, setMandando] = useState(false);
   const [ver, setVer] = useState<"abiertas" | "todas">("abiertas");
@@ -44,15 +45,23 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
   const lista = salidas.filter((s) =>
     ver === "todas" ? true : s.estado === "abierta");
 
+  /* Se limpia igual que en la base —fuera espacios y guiones, todo en
+     mayúsculas— para que lo que se ve mientras se escribe sea lo que va
+     a quedar guardado. Si la pantalla dejara "abc-123" y la base
+     guardara "ABC123", el primer reclamo sería por qué no aparece la
+     placa que alguien juró haber escrito. */
+  const placaLimpia = placa.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
   async function abrir() {
     setMandando(true);
     const { data, error } = await supabase.rpc("salida_abrir", {
+      p_placa: placaLimpia,
       p_observacion: obs.trim() || null,
     });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     const fila = Array.isArray(data) ? data[0] : data;
-    setAbriendo(false); setObs("");
+    setAbriendo(false); setPlaca(""); setObs("");
     /* Se entra derecho a pesar. Quien abre una salida está al lado de la
        báscula con la primera tolva ya montada: devolverlo a la lista
        para que busque la que acaba de crear es un paso de más. */
@@ -73,17 +82,43 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
       {abriendo && (
         <section className="caja">
           <div className="cab"><div><h2>Abrir una salida</h2>
-            <p>El código lo pone el sistema. La observación es para el camión o el destino.</p>
+            <p>
+              El código lo pone el sistema. La placa es obligatoria: es lo que amarra el vidrio
+              al camión que se lo llevó, y por lo que se busca el día que haya un reclamo.
+            </p>
           </div></div>
           <div className="panel" style={{ margin: 12 }}>
+            <label htmlFor="placa">Placa del camión</label>
+            <input id="placa" value={placa} autoFocus
+                   onChange={(e) => setPlaca(e.target.value)}
+                   onKeyDown={(e) => { if (e.key === "Enter" && placaLimpia.length >= 5) abrir() }}
+                   placeholder="ABC123"
+                   style={{ textTransform: "uppercase", fontWeight: 700, letterSpacing: ".08em" }} />
+            {placa && placaLimpia.length < 5 && (
+              <span style={{ fontSize: 12.5, color: "var(--rt-mal)" }}>
+                Una placa lleva al menos cinco caracteres. Van {placaLimpia.length}.
+              </span>
+            )}
+            {placaLimpia.length >= 5 && placaLimpia !== placa.toUpperCase() && (
+              /* Se enseña lo que va a quedar guardado ANTES de guardarlo.
+                 Normalizar en silencio es la manera más rápida de que
+                 alguien jure que escribió otra cosa. */
+              <span style={{ fontSize: 12.5, color: "var(--rt-gris)" }}>
+                Se va a guardar como <b>{placaLimpia}</b>.
+              </span>
+            )}
+
             <label htmlFor="obs">Observación (opcional)</label>
             <input id="obs" value={obs} onChange={(e) => setObs(e.target.value)}
-                   placeholder="Camión de Peldar, placa XXX-000" />
+                   placeholder="Destino, transportadora, o lo que haya que anotar" />
             <div className="acciones-panel">
-              <button type="button" className="btn si" disabled={mandando} onClick={abrir}>
-                {mandando ? "Abriendo…" : "Abrir y empezar a pesar"}
+              <button type="button" className="btn si"
+                      disabled={mandando || placaLimpia.length < 5} onClick={abrir}>
+                {mandando ? "Abriendo…"
+                  : placaLimpia.length < 5 ? "Falta la placa" : "Abrir y empezar a pesar"}
               </button>
-              <button type="button" className="btn plano" onClick={() => setAbriendo(false)}>
+              <button type="button" className="btn plano"
+                      onClick={() => { setAbriendo(false); setPlaca(""); setObs("") }}>
                 Cancelar
               </button>
             </div>
@@ -128,13 +163,13 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
 
               <div>
                 <div className="tit">
+                  <span className="placa">{s.placa}</span>
                   {s.tolvas} tolva{s.tolvas === 1 ? "" : "s"} · {kilos(s.neto_kg)} kg netos
                 </div>
                 <div className="meta">
                   <span className="eti">{s.estado.toUpperCase()}</span>
-                  <span>·</span>
                   <span>abierta {fecha(s.creada_en)} por {quien(nombres, s.creada_por)}</span>
-                  {s.observacion && <><span>·</span><span>{s.observacion}</span></>}
+                  {s.observacion && <span>{s.observacion}</span>}
                 </div>
                 <div className="meta">
                   {/* CUÁL falta, no cuántas van. "2 de 3" obliga a ir a

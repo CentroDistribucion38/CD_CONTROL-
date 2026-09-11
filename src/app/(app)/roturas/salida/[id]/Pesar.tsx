@@ -8,6 +8,7 @@ import { useConfirmar } from "@/components/Confirmar";
 import type { Salida, Tolva, TolvaPesada } from "@/modulos/roturas/datos";
 import { COLOR_VIDRIO, fecha, kilos, quien } from "@/modulos/roturas/formato";
 import { Firmas, etapaDe, puedeFirmar } from "../Firmas";
+import { IlustracionTolva } from "../IlustracionTolva";
 
 /**
  * PESAR UNA SALIDA — bruto menos tara, tolva por tolva.
@@ -126,9 +127,16 @@ export function Pesar({ salida, tolvas, maestro, nombres, rol, manda }: {
             <span className="chip neto">NETO</span>
           </div>
         </div>
-        <div className="tara-sello">
-          <div className="r">TARA</div>
-          <div className="v">{kilos(taraEjemplo)} kg</div>
+        {/* El dibujo con su cota y el sello encima del extremo derecho:
+            la tara es de ESTO —el recipiente completo—, no del vidrio
+            que lleva dentro. Una frase lo explica; el dibujo lo hace
+            obvio para quien llega nuevo a la báscula. */}
+        <div className="dibujo">
+          <IlustracionTolva />
+          <div className="tara-sello">
+            <div className="r">TARA</div>
+            <div className="v">{kilos(taraEjemplo)} kg</div>
+          </div>
         </div>
       </section>
 

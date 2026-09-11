@@ -36,7 +36,7 @@ export default async function RoturasPage() {
           </p>
         </div>
         <div className="kpi">
-          <div className="corte" aria-hidden />
+          <span className="corte" aria-hidden />
           <div className="rot">ESPERANDO VISTO BUENO</div>
           <div className="num">{esperando}<span className="u">roturas</span></div>
           <div className="pie">ABI decide si cuentan o no</div>
