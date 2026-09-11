@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Baja, Produccion, Meta, Carga, MesAnio } from "@/modulos/quiebra/datos";
 import { Calendario, useAfuera } from "@/components/CalendarioRango";
-import { TablaAnio } from "@/components/TablaAnio";
 import { createClient } from "@/lib/supabase/client";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -54,7 +53,7 @@ type Props = {
   metas: Meta[];
   ultimaCarga: Carga | null;
   esEditor: boolean;
-  /** El año mes por mes, ya con lo escrito a mano del diario aplicado. */
+  /** Los meses del año. Los usa el simulador de CONA. */
   meses?: MesAnio[];
   /** Lo guardado del simulador, un renglón por mes. */
   simuladores?: Guardado[];
@@ -139,18 +138,6 @@ export function TableroQuiebra({
     for (const [m, v] of prodMes) { a += v * metaDe(m); t += v; }
     return t ? a / t : 0.016;
   }, [prodMes, metas]);
-
-  /* La tabla del año usa el año del último día del filtro, y las metas
-     con la misma llave "AAAA-MM" que espera el componente compartido. */
-  const anioTabla = useMemo(() => {
-    const a = Number((hasta || maxF || "").slice(0, 4));
-    return Number.isFinite(a) && a > 2000 ? a : null;
-  }, [hasta, maxF]);
-  const mapaMetas = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const x of metas) m[`${x.anio}-${String(x.mes).padStart(2, "0")}`] = Number(x.meta);
-    return m;
-  }, [metas]);
 
   const exceso = Math.round(total * ((pct ?? 0) - meta));
   const sobre = pct != null && pct > meta;
@@ -363,28 +350,6 @@ export function TableroQuiebra({
         </div>
       </section>
 
-      {/* ---------------- Fila 2 ---------------- */}
-      <section className="tarjetas dos" data-parte="graficos2">
-        <TarjetaDia bajas={bj} prod={pr} meta={meta} />
-
-        <div className="tarjeta">
-          <div className="cab">
-            <div>
-              <h2>Composición mes a mes</h2>
-              <p>Unidades rotas por causal</p>
-            </div>
-          </div>
-          <div className="cuerpo">
-            <GraficoApilado bajas={bj} causales={causales} />
-            <div className="leyenda abajo">
-              {causales.filter((c) => !apagadas.has(c)).map((c) => (
-                <span key={c}><i style={{ background: color(c) }} /> {c}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ---------------- Fila 3 ---------------- */}
       <section className="tarjetas pareja" data-parte="tablas">
         <div className="tarjeta">
@@ -404,26 +369,6 @@ export function TableroQuiebra({
 
       {/* ---------------- El simulador de CONA ---------------- */}
       <Simulador guardados={simuladores} meses={meses} esEditor={esEditor} hasta={hasta} />
-
-      {/* ---------------- El año mes por mes ---------------- */}
-      {anioTabla != null && (
-        <section className="tarjeta">
-          <div className="cab">
-            <div>
-              <h2>El año mes por mes</h2>
-              <p>
-                Con lo escrito a mano del diario aplicado, no solo lo importado.{" "}
-                <Link href="/quiebra/diario">Escribirlo en el diario</Link>
-              </p>
-            </div>
-          </div>
-          <TablaAnio
-            anio={anioTabla}
-            meses={meses.filter((m) => m.anio === anioTabla)}
-            metas={mapaMetas}
-          />
-        </section>
-      )}
 
       <p className="nota-pie">
         {nf.format(bj.length)} de {nf.format(bajas.length)} movimientos de baja y{" "}
@@ -849,155 +794,6 @@ function GraficoMes({ prodMes, perdMes, metaDe }: {
   );
 }
 
-/* ==================== Día a día ==================== */
-function TarjetaDia({ bajas, prod, meta }: { bajas: Baja[]; prod: Produccion[]; meta: number }) {
-  const pd = new Map<string, number>(), ld = new Map<string, number>();
-  for (const p of prod) pd.set(p.fecha, (pd.get(p.fecha) ?? 0) + Number(p.cantidad));
-  for (const b of bajas) ld.set(b.fecha, (ld.get(b.fecha) ?? 0) + Number(b.cantidad));
-  const dias = [...new Set([...pd.keys(), ...ld.keys()])].sort();
-  const filas = dias.map((f) => {
-    const p = pd.get(f) ?? 0, q = ld.get(f) ?? 0;
-    return { f, prod: p, perd: q, pct: p ? q / p : 0 };
-  });
-
-  // Percentil 95: unos pocos días de producción mínima disparan porcentajes
-  // enormes y aplastan el resto. Los que se salen van al tope con una punta.
-  const orden = filas.map((x) => x.pct).sort((a, b) => a - b);
-  const p95 = orden[Math.min(orden.length - 1, Math.floor(orden.length * 0.95))] || 0.01;
-  const max = Math.max(meta * 1.6, p95) * 1.12 || 0.01;
-  const fuera = filas.filter((x) => x.pct > max).length;
-
-  const W = 1000, H = 250, m = { t: 14, r: 12, b: 28, l: 88 };
-  const iw = W - m.l - m.r, ih = H - m.t - m.b;
-  const y = (v: number) => m.t + ih - (Math.min(v, max) / max) * ih;
-  const paso = iw / Math.max(1, filas.length);
-  const an = Math.max(1.6, Math.min(12, paso * 0.62));
-
-  // Una marca por mes: con 250 días, una etiqueta por día es ilegible.
-  const marcas = filas.map((x, i) => ({ ...x, i }))
-    .filter((x, i, arr) => i === 0 || x.f.slice(5, 7) !== arr[i - 1].f.slice(5, 7));
-
-  return (
-    <div className="tarjeta">
-      <div className="cab">
-        <div>
-          <h2>Día a día</h2>
-          <p>
-            {filas.length} días del período
-            {fuera > 0 && <> · {fuera} día{fuera > 1 ? "s" : ""} por encima de la escala</>}
-          </p>
-        </div>
-      </div>
-      <div className="cuerpo">
-        <svg viewBox={`0 0 ${W} ${H}`} className="grafico g-dia" role="img" aria-label="Quiebra diaria">
-          {[0, 1, 2, 3, 4].map((i) => {
-            const v = (max * i) / 4;
-            return (
-              <g key={i}>
-                <line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} className="rejilla" />
-                <text x={m.l - 10} y={y(v) + 4} className="eje" textAnchor="end">
-                  {pf(v, 1)}{i === 4 ? "+" : ""}
-                </text>
-              </g>
-            );
-          })}
-          {!!filas.length && (
-            <line x1={m.l} x2={W - m.r} y1={y(meta)} y2={y(meta)} className="meta" />
-          )}
-          {filas.map((x, i) => {
-            const px = m.l + paso * i + (paso - an) / 2;
-            const corta = x.pct > max, yv = y(x.pct);
-            return (
-              <g key={x.f}>
-                <rect x={px} y={yv} width={an} height={Math.max(1.2, m.t + ih - yv)}
-                      fill={x.pct > meta ? "#E4002B" : "#0B4EA2"}>
-                  <title>{`${x.f}\nQuiebra ${pf(x.pct)}${corta ? " (fuera de escala)" : ""}\n${nf.format(x.perd)} de ${nf.format(x.prod)} und`}</title>
-                </rect>
-                {corta && (
-                  <path d={`M${px - 2} ${yv} L${px + an / 2} ${yv - 7} L${px + an + 2} ${yv} Z`}
-                        fill="#E4002B" />
-                )}
-              </g>
-            );
-          })}
-          {marcas.map((x) => (
-            <text key={x.f} x={m.l + paso * x.i + paso / 2} y={H - 10}
-                  className="eje" textAnchor="middle">
-              {x.f.slice(8)}/{x.f.slice(5, 7)}
-            </text>
-          ))}
-          {!filas.length && (
-            <text x={W / 2} y={H / 2} className="eje" textAnchor="middle">Sin datos con este filtro</text>
-          )}
-        </svg>
-        <div className="leyenda abajo">
-          <span><i style={{ background: "#0B4EA2" }} /> Bajo meta</span>
-          <span><i style={{ background: "#E4002B" }} /> Sobre meta</span>
-          <span><i className="meta" /> Meta</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ==================== Composición apilada ==================== */
-function GraficoApilado({ bajas, causales }: { bajas: Baja[]; causales: string[] }) {
-  const W = 620, H = 290, m = { t: 14, r: 10, b: 30, l: 66 };
-  const iw = W - m.l - m.r, ih = H - m.t - m.b;
-  const meses = [...new Set(bajas.map((b) => mesDe(b.fecha)))].sort((a, b) => a - b);
-  const cs = causales.filter((c) => bajas.some((b) => b.causal === c));
-
-  const mat = meses.map((mm) =>
-    cs.map((c) => bajas
-      .filter((b) => mesDe(b.fecha) === mm && b.causal === c)
-      .reduce((a, b) => a + Number(b.cantidad), 0))
-  );
-  const tot = mat.map((f) => f.reduce((a, b) => a + Math.max(0, b), 0));
-  const max = Math.max(1, ...tot) * 1.12;
-  const y = (v: number) => m.t + ih - (v / max) * ih;
-  const paso = iw / Math.max(1, meses.length), an = Math.min(34, paso * 0.56);
-
-  const etiqueta = (v: number) =>
-    v >= 1e6 ? (v / 1e6).toFixed(1).replace(".", ",") + "M" : Math.round(v / 1e3) + "k";
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="grafico g-apilado" role="img"
-         aria-label="Composición mensual por causal">
-      {[0, 1, 2, 3].map((i) => {
-        const v = (max * i) / 3;
-        return (
-          <g key={i}>
-            <line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} className="rejilla" />
-            <text x={m.l - 10} y={y(v) + 4} className="eje" textAnchor="end">{etiqueta(v)}</text>
-          </g>
-        );
-      })}
-      {meses.map((mm, i) => {
-        const x = m.l + paso * i + (paso - an) / 2;
-        let ac = 0;
-        return (
-          <g key={mm}>
-            {cs.map((c, j) => {
-              const v = mat[i][j];
-              if (v <= 0) return null;
-              const y0 = y(ac + v), h = Math.max(1, y(ac) - y0 - 1.5);
-              ac += v;
-              return (
-                <rect key={c} x={x} y={y0} width={an} height={h} fill={color(c)}>
-                  <title>{`${MESES[mm - 1]} · ${c}\n${nf.format(v)} und`}</title>
-                </rect>
-              );
-            })}
-            <text x={x + an / 2} y={H - 10} className="eje" textAnchor="middle">{MESES[mm - 1]}</text>
-          </g>
-        );
-      })}
-      {!meses.length && (
-        <text x={W / 2} y={H / 2} className="eje" textAnchor="middle">Sin datos con este filtro</text>
-      )}
-    </svg>
-  );
-}
 
 /* ==================== Tablas ==================== */
 function TablaMateriales({ bajas, total }: { bajas: Baja[]; total: number }) {
@@ -1083,8 +879,11 @@ function TablaMes({ prodMes, perdMes, metaDe }: {
 
 /* ==================== Informe: PDF y copiar ==================== */
 
-/** Los bloques del tablero que van al informe, en orden. */
-const PARTES = ["cabeza", "cifras", "graficos1", "graficos2", "tablas"];
+/** Los bloques del tablero que van al informe, en orden.
+    "graficos2" salió de aquí cuando se quitaron el Día a día y la
+    Composición mes a mes: fotografiar un bloque que ya no existe deja
+    una página en blanco en el PDF. */
+const PARTES = ["cabeza", "cifras", "graficos1", "tablas"];
 
 type Foto = { url: string; an: number; al: number };
 
