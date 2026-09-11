@@ -88,7 +88,7 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
   async function tomar(ranura: Ranura, archivo: File) {
     try {
       const foto = await sellar(archivo, {
-        placa: placa.trim().toUpperCase() || "SIN PLACA",
+        titulo: placa.trim().toUpperCase() || "SIN PLACA",
         ubi,
         direccion: direccion.trim(),
         etiqueta: RANURAS.find((r) => r.id === ranura)!.t,

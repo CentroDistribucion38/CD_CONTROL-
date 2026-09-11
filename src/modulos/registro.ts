@@ -142,6 +142,35 @@ export const MODULOS: Modulo[] = [
     ],
   },
   {
+    id: "acciones",
+    nombre: "Acciones",
+    eyebrow: "CORRECTIVAS Y PREVENTIVAS",
+    descripcion:
+      "Lo que se encontró mal, con plazo según la prioridad, responsable con nombre y verificación de si de verdad sirvió.",
+    /* Rojo de la casa: es el módulo que habla de lo que está mal, y el
+       día que se abre no es para dar una buena noticia. */
+    acento: "#E4002B",
+    fondo: "#FDE8EC",
+    etiquetas: ["Plazo por prioridad", "Se verifica, no se cierra y ya"],
+    imagen: "/modulos/acciones.jpg",
+    ruta: "/acciones",
+    /* Quien abre Acciones casi siempre viene a ver LO SUYO, no el
+       tablero de todos: el tablero es de la reunión de arranque de
+       turno, y a esa se entra con la pantalla ya puesta en la TV. */
+    entrada: "/acciones/mias",
+    activo: true,
+    // El orden del proceso, de arriba abajo: me toca → lo hice → alguien
+    // verifica → así vamos → por qué se repite → la configuración.
+    secciones: [
+      { nombre: "Mis acciones", ruta: "/acciones/mias" },
+      { nombre: "Por verificar", ruta: "/acciones/verificar" },
+      { nombre: "Todas", ruta: "/acciones" },
+      { nombre: "Tablero", ruta: "/acciones/tablero" },
+      { nombre: "Análisis", ruta: "/acciones/analisis" },
+      { nombre: "Maestro", ruta: "/acciones/maestro" },
+    ],
+  },
+  {
     id: "admin",
     nombre: "Administración",
     eyebrow: "PLATAFORMA",

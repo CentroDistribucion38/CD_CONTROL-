@@ -399,7 +399,7 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
   async function tomar(ranura: Ranura, archivo: File) {
     try {
       const foto = await sellar(archivo, {
-        placa: viaje.placa,
+        titulo: viaje.placa,
         ubi: pos.ubi,
         direccion: pos.direccion.trim(),
         etiqueta: `LLEGADA · ${RANURAS.find((r) => r.id === ranura)!.t}`,
@@ -420,7 +420,7 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
   async function tomarObs(archivo: File) {
     try {
       const foto = await sellar(archivo, {
-        placa: viaje.placa,
+        titulo: viaje.placa,
         ubi: pos.ubi,
         direccion: pos.direccion.trim(),
         etiqueta: `LLEGADA · OBSERVACIÓN`,

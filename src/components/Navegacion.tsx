@@ -105,10 +105,36 @@ const IconoLlave = () => (
   </svg>
 );
 
+const IconoAcciones = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M12 3.2l8 3.4v5.1c0 4.4-3.3 7.6-8 9.1-4.7-1.5-8-4.7-8-9.1V6.6z" />
+    <path d="M8.8 12.2l2.3 2.3 4.1-4.6" />
+  </svg>
+);
+const IconoMias = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <circle cx="12" cy="8" r="3.4" />
+    <path d="M5 20.5c.6-3.5 3.5-5.5 7-5.5s6.4 2 7 5.5" />
+  </svg>
+);
+const IconoVerificar = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4 6.5h10M4 12h10M4 17.5h6" />
+    <path d="M15.5 18l2 2 4-4.5" />
+  </svg>
+);
+const IconoAnalisis = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4 17.5l5-5.5 3.5 3L20 6.5" />
+    <path d="M20 11V6.5h-4.5" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   quiebra: IconoQuiebra,
   sider: IconoSider,
   inventario: IconoInventario,
+  acciones: IconoAcciones,
 };
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/sider": IconoLista,
@@ -123,6 +149,12 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/bodegas": IconoBodega,
   "/inventario/movimientos": IconoMovimientos,
   "/inventario/conteos": IconoConteos,
+  "/acciones": IconoLista,
+  "/acciones/mias": IconoMias,
+  "/acciones/verificar": IconoVerificar,
+  "/acciones/tablero": IconoTablero,
+  "/acciones/analisis": IconoAnalisis,
+  "/acciones/maestro": IconoLlave,
 };
 
 export function Navegacion({ permitidas, anclado, alternar }: {

@@ -1,0 +1,538 @@
+/* ---------------------------------------------------------------------
+   ACCIONES CORRECTIVAS Y PREVENTIVAS.
+   Todo cuelga de .ac para no pisar nada de la app. Mismo lenguaje visual
+   que Quiebra y T1 / T2, con su propio acento: el módulo se reconoce por
+   el color antes de leer el título.
+
+   A LO ANCHO NO SE DESPLAZA NUNCA: lo que no cabe se apila o se recorta
+   dentro de su propio recuadro, nunca empujando la página de lado. A lo
+   alto sí crece, como Quiebra y T1 / T2 — el cascarón le da al <main> un
+   min-height de una pantalla, no una altura fija, así que una caja que
+   quisiera desplazarse por dentro no tendría contra qué recortar. La
+   excepción es la TV del arranque de turno, que sí se recorta: nadie le
+   hace scroll a un televisor.
+   --------------------------------------------------------------------- */
+
+.ac {
+  --ac-tinta: var(--c-04203f);
+  --ac-acento: #E4002B;
+  --ac-acento-hondo: #B00021;
+  /* Dos rojos, igual que en T1 / T2: --ac-acento es el color del módulo
+     y --ac-mal es semáforo. Se parecen y NO son lo mismo: el semáforo no
+     puede cambiar con el tema, porque si cambiara dejaría de querer
+     decir "esto está mal". */
+  --ac-mal: #E4002B;
+  --ac-ojo: var(--c-oro);
+  --ac-verde: #0F7A4A;
+  --ac-papel: #FFF;
+  --ac-gris: var(--c-5b6b7f);
+  --ac-linea: var(--c-d5dce5);
+
+  --ac-titulo: "Archivo", system-ui, sans-serif;
+  --ac-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+
+  font-family: var(--ac-texto);
+  color: var(--ac-tinta);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+.ac *, .ac *::before, .ac *::after { box-sizing: border-box }
+
+/* ====================== Encabezado ====================== */
+.ac .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: stretch }
+.ac .cabeza h1 {
+  font-family: var(--ac-titulo); font-weight: 900;
+  font-size: clamp(23px, 2.05vw, 27px); letter-spacing: -.04em; margin: 0;
+}
+.ac .cabeza .ojo {
+  margin: 0 0 4px; font-size: 10px; font-weight: 700;
+  letter-spacing: .16em; color: var(--ac-gris);
+}
+.ac .cabeza .sub {
+  margin: 5px 0 0; font-size: 12.5px; line-height: 1.45;
+  color: var(--ac-gris); max-width: 76ch;
+}
+
+/* ====================== Las cifras de arriba ====================== */
+.ac .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.ac .cifra {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea);
+  border-radius: 12px; padding: 12px 14px; border-left: 3px solid var(--ac-linea);
+  min-width: 0;
+}
+.ac .cifra .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--ac-gris) }
+.ac .cifra .n {
+  font-family: var(--ac-titulo); font-weight: 900; font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1; letter-spacing: -.04em; margin-top: 4px;
+}
+.ac .cifra .u { font-size: 11px; color: var(--ac-gris); margin-top: 4px; line-height: 1.3 }
+.ac .cifra.mal { border-left-color: var(--ac-mal) }
+.ac .cifra.mal .n { color: var(--ac-mal) }
+.ac .cifra.ojo { border-left-color: var(--ac-ojo) }
+
+/* ====================== La lista ====================== */
+/* LA CAJA CRECE CON SU CONTENIDO, y la página se desplaza. Es como
+   funcionan Quiebra y T1 / T2, y por eso es como funciona esta: el
+   cascarón le da al <main> un min-height de una pantalla, no una altura
+   fija, así que una caja que intentara desplazarse por dentro nunca
+   tendría un alto contra el cual recortar —el navegador le daría el alto
+   de su contenido— y el desplazamiento de adentro no haría nada mientras
+   la página se desplaza igual. Dos barras, una inútil.
+
+   La única que sí se recorta por dentro es la TV del arranque de turno,
+   más abajo: esa tiene que caber en la pantalla completa porque nadie le
+   va a hacer scroll a un televisor. */
+.ac .caja {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea);
+  border-radius: 12px; display: flex; flex-direction: column;
+  min-width: 0; overflow: hidden;
+}
+.ac .caja > .cab {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 12px; padding: 12px 14px 10px; border-bottom: 1px solid var(--ac-linea);
+  flex-wrap: wrap;
+}
+.ac .caja > .cab h2 {
+  font-family: var(--ac-titulo); font-weight: 800; font-size: 15px; margin: 0;
+  letter-spacing: -.02em;
+}
+.ac .caja > .cab p { margin: 3px 0 0; font-size: 11.5px; color: var(--ac-gris); max-width: 70ch }
+
+/* overflow-x y no overflow a secas: lo único que puede no caber a lo
+   ancho es una fila con un título largo, y para eso está. A lo alto la
+   lista crece y se lleva la página con ella, que es lo que se espera. */
+.ac .rueda { overflow-x: auto; min-width: 0; -webkit-overflow-scrolling: touch }
+
+/* Una acción. En PC es una fila ancha; en celular se apila sola. */
+.ac .fila {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 12px; align-items: start;
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ac-linea) 60%, transparent);
+  border-left: 3px solid transparent;
+}
+.ac .fila:last-child { border-bottom: 0 }
+.ac .fila.vencida { border-left-color: var(--ac-mal); background: #FEF4F6 }
+.ac .fila.hoy     { border-left-color: var(--ac-ojo) }
+
+.ac .fila .cod {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .02em; color: var(--ac-gris);
+  padding-top: 2px;
+}
+.ac .fila .tit { font-weight: 700; font-size: 13.5px; line-height: 1.3; overflow-wrap: anywhere }
+.ac .fila .meta {
+  margin-top: 4px; font-size: 11.5px; color: var(--ac-gris);
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+}
+.ac .fila .meta b { font-weight: 600; color: var(--ac-tinta) }
+.ac .fila .der { display: flex; flex-direction: column; align-items: flex-end; gap: 6px }
+/* Dos botones que van juntos —"Fue efectiva" / "No fue efectiva"—. Van
+   en su propia envoltura porque son UNA decisión con dos salidas, y
+   deben romper de renglón los dos a la vez o ninguno. */
+.ac .fila .der .par { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end }
+
+/* Las etiquetas. La prioridad y el estado se leen de un vistazo o no
+   sirven: por eso llevan color de fondo y no solo texto. */
+.ac .eti {
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  padding: 3px 7px; border-radius: 5px; white-space: nowrap;
+  background: var(--c-eef1f5); color: var(--ac-gris);
+}
+.ac .eti.alta   { background: #FDE8EC; color: #A8001F }
+.ac .eti.media  { background: #FFF4DE; color: #8A5A00 }
+.ac .eti.baja   { background: #E9F3EE; color: #0F5C39 }
+.ac .eti.abierta,
+.ac .eti.reabierta { background: #FDE8EC; color: #A8001F }
+.ac .eti.cerrada    { background: #FFF4DE; color: #8A5A00 }
+.ac .eti.verificada { background: #E9F3EE; color: #0F5C39 }
+.ac .eti.anulada    { background: var(--c-eef1f5); color: var(--ac-gris); text-decoration: line-through }
+.ac .eti.preventiva { background: #ECEAFB; color: #3B2BB0 }
+
+.ac .plazo { font-size: 11.5px; font-weight: 700; white-space: nowrap }
+.ac .plazo.mal { color: var(--ac-mal) }
+.ac .plazo.ok  { color: var(--ac-gris) }
+
+/* ====================== Botones ====================== */
+.ac .btn {
+  font: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 8px 13px; border-radius: 8px; border: 1px solid var(--ac-linea);
+  background: #fff; color: var(--ac-tinta); cursor: pointer;
+  /* 38 px de alto real: el dedo de alguien con guantes no acierta menos. */
+  min-height: 38px; white-space: nowrap;
+}
+.ac .btn:hover { border-color: var(--ac-gris) }
+.ac .btn.si { background: var(--c-oro); border-color: var(--c-oro); color: #1A1200 }
+/* 62% y no 45%: al 45% el borde verde sobre el papel blanco quedaba
+   tan pálido que los dos botones se leían como texto suelto y no como
+   botones. Solo se notaba en las filas blancas —sobre el rosado de las
+   vencidas sí se veía—, que es la clase de diferencia que no se ve
+   mirando una captura y sí comparando dos. */
+.ac .btn.bien { color: var(--ac-verde); border-color: color-mix(in srgb, var(--ac-verde) 62%, #fff) }
+.ac .btn.mal  { color: var(--ac-mal);   border-color: color-mix(in srgb, var(--ac-mal) 62%, #fff) }
+.ac .btn:disabled { opacity: .5; cursor: not-allowed }
+.ac .btn.plano { border-color: transparent; background: transparent; color: var(--ac-gris) }
+
+/* ====================== Filtros ====================== */
+.ac .filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.ac .filtros select, .ac .filtros input {
+  font: inherit; font-size: 12.5px; padding: 7px 10px; min-height: 36px;
+  border: 1px solid var(--ac-linea); border-radius: 8px; background: #fff;
+  color: var(--ac-tinta); min-width: 0;
+}
+.ac .filtros input { flex: 1 1 150px }
+
+/* ====================== Panel dentro de la fila ====================== */
+/* Cerrar, verificar y asignar abren AQUÍ, debajo de su propia acción, y
+   no en una ventana aparte: quien escribe qué hizo tiene que seguir
+   viendo de qué acción está hablando. */
+.ac .panel {
+  grid-column: 1 / -1; margin-top: 10px; padding: 12px;
+  border: 1px solid var(--ac-linea); border-radius: 10px; background: var(--c-fafbfd);
+  display: flex; flex-direction: column; gap: 9px;
+}
+.ac .panel label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--ac-gris) }
+.ac .panel textarea, .ac .panel input, .ac .panel select {
+  font: inherit; font-size: 13px; padding: 9px 11px; width: 100%;
+  border: 1px solid var(--ac-linea); border-radius: 8px; background: #fff;
+  color: var(--ac-tinta); resize: vertical;
+}
+.ac .panel .acciones-panel { display: flex; gap: 8px; flex-wrap: wrap }
+
+/* El aviso amarillo y el rojo. */
+.ac .aviso {
+  border-left: 3px solid var(--c-oro); background: #FFFBEF;
+  padding: 10px 12px; border-radius: 0 8px 8px 0; font-size: 12.5px; line-height: 1.45;
+}
+.ac .aviso.rojo { border-left-color: var(--ac-mal); background: #FEF4F6 }
+.ac .aviso b { font-weight: 700 }
+
+.ac .vacio {
+  padding: 34px 18px; text-align: center; color: var(--ac-gris); font-size: 13px;
+}
+.ac .vacio b { display: block; font-size: 15px; color: var(--ac-tinta); margin-bottom: 5px }
+
+.ac .sin-tablas {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea);
+  border-left: 3px solid var(--ac-mal); border-radius: 12px; padding: 18px 20px;
+}
+.ac .sin-tablas h2 { font-family: var(--ac-titulo); font-size: 17px; margin: 0 0 7px }
+.ac .sin-tablas p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ac-gris) }
+.ac .sin-tablas code {
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  background: var(--c-eef1f5); padding: 2px 5px; border-radius: 4px;
+}
+
+/* ====================== La carga de cada quien ====================== */
+.ac .quien {
+  display: grid; grid-template-columns: 38px minmax(0, 1fr) 120px auto;
+  gap: 12px; align-items: center; padding: 11px 12px; width: 100%;
+  border: 0; border-bottom: 1px solid color-mix(in srgb, var(--ac-linea) 60%, transparent);
+  background: transparent; text-align: left; font: inherit; cursor: pointer;
+}
+.ac .quien:hover { background: var(--c-fafbfd) }
+.ac .quien.on { background: #FFFBEF }
+.ac .quien .ini {
+  width: 38px; height: 38px; border-radius: 50%; background: #15171A; color: var(--c-oro);
+  display: grid; place-items: center; font-weight: 800; font-size: 12px; letter-spacing: .02em;
+}
+.ac .quien .n { font-weight: 700; font-size: 13.5px }
+.ac .quien .c { font-size: 11.5px; color: var(--ac-gris) }
+.ac .quien .barra { height: 7px; border-radius: 99px; background: var(--c-eef1f5); overflow: hidden }
+.ac .quien .barra i { display: block; height: 100%; background: var(--c-oro) }
+.ac .quien.sat .barra i { background: var(--ac-mal) }
+.ac .quien .num { text-align: right; font-size: 11.5px; line-height: 1.25; white-space: nowrap }
+.ac .quien .num b { display: block; font-family: var(--ac-titulo); font-size: 15px; font-weight: 900 }
+.ac .quien .num .v { color: var(--ac-mal); font-weight: 700 }
+
+/* ====================== Barras por área ====================== */
+.ac .barras { display: flex; flex-direction: column; gap: 11px; padding: 14px }
+.ac .barras .b { display: grid; grid-template-columns: 130px minmax(0, 1fr) 48px; gap: 12px; align-items: center }
+.ac .barras .b .et { font-size: 12.5px; font-weight: 600 }
+.ac .barras .b .riel { height: 10px; border-radius: 99px; background: var(--c-eef1f5); overflow: hidden }
+.ac .barras .b .riel i { display: block; height: 100%; background: var(--c-oro); border-radius: 99px }
+.ac .barras .b.mal .riel i { background: var(--ac-mal) }
+.ac .barras .b .pct {
+  text-align: right; font-family: var(--ac-titulo); font-weight: 900; font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.ac .barras .b .pct.nd { font-family: var(--ac-texto); font-weight: 600; font-size: 11.5px; color: var(--ac-gris) }
+
+/* =====================================================================
+   REPORTAR — la pantalla completa que se abre con el "+".
+   Ocupa todo porque en el celular es lo único que importa mientras dura,
+   y porque el paso a paso con el resto de la app detrás se lee como un
+   diálogo que se puede cancelar sin querer.
+   ===================================================================== */
+.ac-rep {
+  position: fixed; inset: 0; z-index: 60; background: #F4F6F9;
+  display: flex; flex-direction: column;
+  font-family: var(--ac-texto); color: var(--c-04203f);
+}
+.ac-rep *, .ac-rep *::before, .ac-rep *::after { box-sizing: border-box }
+
+.ac-rep .barra {
+  background: #0D0D0D; color: #fff; padding: 13px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 3px solid var(--c-oro); flex: 0 0 auto;
+}
+.ac-rep .barra .t { font-family: var(--ac-titulo); font-weight: 800; font-size: 14px; letter-spacing: .16em }
+.ac-rep .barra button {
+  background: transparent; border: 0; color: #fff; font-size: 22px; line-height: 1;
+  cursor: pointer; padding: 4px 8px; min-height: 38px; min-width: 38px;
+}
+
+/* Los pasos. Barritas y no números: el número invita a preguntarse
+   cuántos faltan; la barra se entiende sin contar. */
+.ac-rep .pasos { display: flex; gap: 6px; padding: 14px 16px 0; flex: 0 0 auto }
+.ac-rep .pasos i { height: 4px; border-radius: 99px; background: var(--c-d5dce5); flex: 1 1 0 }
+.ac-rep .pasos i.on { background: var(--c-oro) }
+
+.ac-rep .cuerpo { flex: 1 1 auto; overflow: auto; padding: 14px 16px 18px; min-height: 0 }
+.ac-rep h2 {
+  font-family: var(--ac-titulo); font-weight: 900; font-size: clamp(21px, 5.5vw, 28px);
+  letter-spacing: -.03em; margin: 8px 0 6px; text-wrap: balance;
+}
+.ac-rep .guia { margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--c-5b6b7f) }
+
+.ac-rep .pie {
+  flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px;
+  padding: 12px 16px; background: #fff; border-top: 1px solid var(--c-d5dce5);
+}
+.ac-rep .pie button {
+  font: inherit; font-weight: 800; font-size: 14px; min-height: 48px;
+  border-radius: 9px; border: 1px solid var(--c-d5dce5); background: var(--c-eef1f5);
+  color: var(--c-04203f); cursor: pointer;
+}
+.ac-rep .pie button.si { background: var(--c-oro); border-color: var(--c-oro); color: #1A1200 }
+.ac-rep .pie button:disabled { opacity: .5; cursor: not-allowed }
+
+/* La tarjeta de la zona detectada / leída. */
+.ac-rep .zona {
+  background: #fff; border: 1px solid var(--c-d5dce5); border-left: 3px solid var(--c-oro);
+  border-radius: 10px; padding: 13px 15px; margin-bottom: 12px;
+}
+.ac-rep .zona .rot { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: var(--c-5b6b7f) }
+.ac-rep .zona h3 {
+  font-family: var(--ac-titulo); font-weight: 900; font-size: 21px; margin: 5px 0 3px;
+  letter-spacing: -.02em;
+}
+.ac-rep .zona p { margin: 0; font-size: 12.5px; color: var(--c-5b6b7f); line-height: 1.4; overflow-wrap: anywhere }
+.ac-rep .zona .dos { display: flex; gap: 9px; margin-top: 11px; flex-wrap: wrap }
+.ac-rep .zona .dos button {
+  font: inherit; font-weight: 700; font-size: 13.5px; min-height: 44px; padding: 0 20px;
+  border-radius: 8px; border: 1px solid var(--c-d5dce5); background: var(--c-eef1f5); cursor: pointer;
+  color: var(--c-04203f); flex: 1 1 auto;
+}
+.ac-rep .zona .dos button.si { background: var(--c-oro); border-color: var(--c-oro); color: #1A1200 }
+
+/* La lista de zonas. */
+.ac-rep .lista { background: #fff; border: 1px solid var(--c-d5dce5); border-radius: 10px; overflow: hidden }
+.ac-rep .lista .grupo {
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; color: var(--c-5b6b7f);
+  padding: 10px 14px 6px; background: var(--c-fafbfd);
+}
+.ac-rep .lista button {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: 12px 14px; border-top: 1px solid color-mix(in srgb, var(--c-d5dce5) 55%, transparent);
+  font: inherit; cursor: pointer; min-height: 46px;
+}
+.ac-rep .lista button:hover { background: var(--c-fafbfd) }
+.ac-rep .lista button.on { background: #FFFBEF }
+.ac-rep .lista .n { font-weight: 700; font-size: 14px }
+.ac-rep .lista .c {
+  font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--c-5b6b7f); margin-top: 2px;
+}
+.ac-rep .lista .d { float: right; font-size: 12px; color: var(--c-5b6b7f); font-weight: 600 }
+
+.ac-rep .buscar {
+  display: flex; align-items: center; gap: 9px; background: #fff; margin-bottom: 10px;
+  border: 1px solid var(--c-d5dce5); border-radius: 10px; padding: 0 13px;
+}
+.ac-rep .buscar input {
+  font: inherit; font-size: 14px; border: 0; outline: 0; padding: 13px 0; width: 100%;
+  background: transparent; color: var(--c-04203f);
+}
+
+.ac-rep .otra {
+  display: block; width: 100%; margin-top: 10px; padding: 13px;
+  border: 1px dashed var(--c-b4c0ce); border-radius: 10px; background: transparent;
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--c-04203f);
+  cursor: pointer; min-height: 46px;
+}
+
+/* La foto. */
+.ac-rep .foto {
+  background: #1A1A1A; border-radius: 10px; overflow: hidden; margin-bottom: 12px;
+  display: flex; flex-direction: column;
+}
+.ac-rep .foto .lienzo {
+  aspect-ratio: 4 / 3; max-width: 100%; display: grid; place-items: center;
+  color: rgba(255,255,255,.6); font-size: 12px; letter-spacing: .12em; font-weight: 700;
+}
+.ac-rep .foto .lienzo img { width: 100%; height: 100%; object-fit: cover }
+.ac-rep .foto .sello {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 10px; padding: 11px 13px; background: #101010;
+  font-size: 11.5px; line-height: 1.4; color: rgba(255,255,255,.78);
+}
+.ac-rep .foto .sello b { color: var(--c-oro); font-weight: 700 }
+
+/* Los tres botones de prioridad. */
+.ac-rep .prio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 12px }
+.ac-rep .prio button {
+  font: inherit; background: #fff; border: 1.5px solid var(--c-d5dce5); border-radius: 10px;
+  padding: 13px 6px; cursor: pointer; min-height: 62px; color: var(--c-04203f);
+}
+.ac-rep .prio button .p { font-weight: 800; font-size: 15px }
+.ac-rep .prio button .h { font-size: 11.5px; color: var(--c-5b6b7f); margin-top: 2px }
+.ac-rep .prio button.on.alta  { border-color: #E4002B; background: #FDE8EC }
+.ac-rep .prio button.on.media { border-color: #C98A00; background: #FFF7E6 }
+.ac-rep .prio button.on.baja  { border-color: #0F7A4A; background: #ECF6F1 }
+
+.ac-rep .campo { margin-bottom: 12px }
+.ac-rep .campo label {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  color: var(--c-5b6b7f); margin-bottom: 5px;
+}
+.ac-rep .campo input, .ac-rep .campo textarea, .ac-rep .campo select {
+  font: inherit; font-size: 14px; width: 100%; padding: 12px 13px; min-height: 46px;
+  border: 1px solid var(--c-d5dce5); border-radius: 9px; background: #fff;
+  color: var(--c-04203f); resize: vertical;
+}
+
+.ac-rep .negro {
+  background: #0D0D0D; color: #fff; border-radius: 10px; padding: 12px 14px;
+  font-size: 12.5px; line-height: 1.45; display: flex; gap: 10px; align-items: flex-start;
+}
+.ac-rep .negro .punto {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--c-oro);
+  flex: 0 0 auto; margin-top: 6px;
+}
+.ac-rep .negro b { color: var(--c-oro) }
+
+/* =====================================================================
+   TABLERO DE REUNIÓN — la TV del arranque de turno.
+   Fondo negro a propósito: se ve desde el otro lado de la bodega y no
+   quema la pantalla si queda puesta tres horas.
+   ===================================================================== */
+.ac-tv {
+  position: relative; background: #131313; color: #fff; border-radius: 12px;
+  padding: clamp(14px, 2vw, 26px); display: flex; flex-direction: column;
+  gap: clamp(12px, 1.6vw, 20px); overflow: hidden;
+  font-family: var(--ac-texto);
+
+  /* ESTA SÍ SE RECORTA POR DENTRO. A un televisor pegado en la pared
+     nadie le hace scroll: lo que no quepa, no existe. Se descuentan los
+     70 px de la barra de arriba, el aire del área segura y el relleno
+     del <main> del cascarón, que en celular es más corto —de ahí el
+     segundo valor en la media consulta de abajo—.
+     Las listas de adentro sí se desplazan, cada una en su panel. */
+  height: calc(100dvh - 70px - var(--sh-aire, 0px) - env(safe-area-inset-top) - 66px);
+  /* Piso, por si alguien la abre en una ventana diminuta: mejor que se
+     salga un poco a que quede una franja negra de 200 px sin nada. */
+  min-height: 520px;
+}
+@media (max-width: 720px) {
+  .ac-tv { height: calc(100dvh - 70px - var(--sh-aire, 0px) - env(safe-area-inset-top) - 48px) }
+}
+.ac-tv .alto {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding-bottom: 12px; border-bottom: 2px solid var(--c-oro); flex-wrap: wrap;
+}
+.ac-tv .alto h1 {
+  font-family: var(--ac-titulo); font-weight: 900; letter-spacing: -.035em; margin: 0;
+  font-size: clamp(26px, 3.6vw, 46px);
+}
+.ac-tv .alto .d { margin: 4px 0 0; font-size: clamp(11px, 1.1vw, 14px); color: rgba(255,255,255,.55) }
+.ac-tv .alto .reloj {
+  font-family: var(--ac-titulo); font-weight: 900; letter-spacing: -.03em; text-align: right;
+  font-size: clamp(26px, 3.6vw, 46px); line-height: 1; font-variant-numeric: tabular-nums;
+}
+.ac-tv .alto .reloj span { display: block; font-size: clamp(10px, .95vw, 13px); font-weight: 500; color: rgba(255,255,255,.5); letter-spacing: 0; margin-top: 5px }
+
+.ac-tv .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(8px, 1.1vw, 16px) }
+.ac-tv .k { background: #1C1C1C; border-left: 3px solid rgba(255,255,255,.2); padding: clamp(10px, 1.3vw, 18px) }
+.ac-tv .k .rot { font-size: clamp(9px, .8vw, 11px); font-weight: 700; letter-spacing: .16em; color: rgba(255,255,255,.6) }
+.ac-tv .k .n {
+  font-family: var(--ac-titulo); font-weight: 900; letter-spacing: -.05em; line-height: .95;
+  font-size: clamp(30px, 4.4vw, 62px); margin-top: 6px;
+}
+.ac-tv .k .u { font-size: clamp(10px, .9vw, 13px); color: rgba(255,255,255,.5); margin-top: 8px }
+.ac-tv .k.mal { background: #2A0E13; border-left-color: #FF3B55 }
+.ac-tv .k.mal .n { color: #FF5C70 }
+.ac-tv .k.ojo { border-left-color: var(--c-oro) }
+
+.ac-tv .dos { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(10px, 1.3vw, 18px); min-height: 0; flex: 1 1 auto }
+.ac-tv .panel { background: #1C1C1C; border-radius: 8px; padding: clamp(12px, 1.4vw, 20px); display: flex; flex-direction: column; min-height: 0; overflow: hidden }
+.ac-tv .panel h2 { font-family: var(--ac-titulo); font-weight: 800; font-size: clamp(14px, 1.4vw, 20px); margin: 0 0 10px }
+.ac-tv .panel .rueda { overflow: auto; min-height: 0; flex: 1 1 auto }
+
+.ac-tv .v {
+  display: grid; grid-template-columns: 78px minmax(0, 1fr) 62px; gap: 14px; align-items: center;
+  padding: clamp(9px, 1.1vw, 15px) 0; border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.ac-tv .v:last-child { border-bottom: 0 }
+.ac-tv .v .c { font-family: ui-monospace, Menlo, monospace; font-size: clamp(10px, .95vw, 13px); color: rgba(255,255,255,.45) }
+.ac-tv .v .t { font-size: clamp(12px, 1.15vw, 16px); overflow-wrap: anywhere }
+.ac-tv .v .d { text-align: right; color: #FF5C70; font-weight: 800; font-size: clamp(12px, 1.15vw, 16px); line-height: 1.15 }
+
+.ac-tv .bar { display: grid; grid-template-columns: 108px minmax(0, 1fr) 44px; gap: 12px; align-items: center; padding: clamp(7px, .9vw, 12px) 0 }
+.ac-tv .bar .e { font-size: clamp(11px, 1.05vw, 14px) }
+.ac-tv .bar .riel { height: clamp(8px, .9vw, 12px); background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden }
+.ac-tv .bar .riel i { display: block; height: 100%; background: var(--c-oro) }
+.ac-tv .bar.mal .riel i { background: #E4002B }
+.ac-tv .bar .p { text-align: right; font-weight: 800; font-size: clamp(11px, 1.05vw, 15px); font-variant-numeric: tabular-nums }
+.ac-tv .bar .p.nd { color: rgba(255,255,255,.4); font-weight: 600 }
+
+/* =====================================================================
+   El botón "+" flotante. Es la acción del módulo: reportar.
+   ===================================================================== */
+.ac .mas {
+  position: fixed; right: 20px; bottom: 20px; z-index: 40;
+  width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--c-oro); color: #1A1200; font-size: 30px; line-height: 1;
+  box-shadow: 0 6px 20px -4px rgba(0,0,0,.35);
+  display: grid; place-items: center;
+}
+.ac .mas:hover { filter: brightness(1.05) }
+
+/* =====================================================================
+   CELULAR. Es donde se reporta, así que no es una versión reducida: es
+   la principal. Lo que se va son las columnas que no caben, no la
+   información.
+   ===================================================================== */
+@media (max-width: 760px) {
+  .ac .cabeza { grid-template-columns: minmax(0, 1fr) }
+  .ac .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  /* UNA SOLA COLUMNA, y los botones abajo ocupando el ancho.
+     Con `minmax(0,1fr) auto` la columna de los botones pedía sus
+     250 px de "Fue efectiva · No fue efectiva" y al título le quedaban
+     veinte: salía una letra por renglón, ilegible, y la fila medía
+     ochocientos pixeles de alto. Se vio midiendo, no mirando. */
+  .ac .fila { grid-template-columns: minmax(0, 1fr); gap: 7px }
+  .ac .fila .cod { padding-top: 0 }
+  .ac .fila .der {
+    flex-direction: row; align-items: center; flex-wrap: wrap;
+    justify-content: flex-start; gap: 8px;
+  }
+  /* Los botones de la fila se reparten el ancho: el pulgar no tiene que
+     apuntar a un botón de 90 px pegado al borde derecho.
+     El width:100% de la envoltura no es de adorno: sin él la envoltura
+     se encogía a su contenido (254 px), los dos botones de 130 ya no
+     cabían dentro de ESA medida y se partían en dos renglones de ancho
+     completo, uno encima del otro. Medido: 254 y 254. */
+  .ac .fila .der { width: 100%; justify-content: space-between }
+  .ac .fila .der .par { width: 100%; justify-content: flex-start }
+  .ac .fila .der .par .btn { flex: 1 1 130px }
+  .ac .quien { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px }
+  .ac .quien .barra { display: none }
+  .ac .barras .b { grid-template-columns: 96px minmax(0, 1fr) 42px; gap: 9px }
+  .ac-tv .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .ac-tv .dos { grid-template-columns: minmax(0, 1fr) }
+  .ac-rep .pie { grid-template-columns: 1fr 1.4fr }
+}

@@ -1,55 +1,72 @@
-Modulo Acciones: la base de datos
+Modulo Acciones: las pantallas
 
-Acciones correctivas y preventivas para toda la bodega, aparte de las
-novedades de T1 / T2: una novedad es lo que paso en un viaje y se
-resuelve entre dos plantas; una accion es una correccion con plazo,
-responsable y verificacion, en cualquier area.
+Seis pantallas sobre el SQL del commit anterior. El modulo entra en el
+menu en orden de proceso: Mis acciones, Por verificar, Todas, Tablero,
+Analisis, Maestro. Se entra por Mis acciones, no por el tablero: quien
+abre Acciones casi siempre viene a ver lo suyo, y el tablero es de la
+reunion de arranque de turno, a la que se llega con la pantalla ya
+puesta en la TV.
 
-Lo que importa no son las tablas, son cuatro reglas que quedan en la
-BASE y que ninguna pantalla puede mover:
+REPORTAR, cuatro pasos, y DONDE va de primero.
+Quien reporta esta parado en el sitio. Si el lugar se pregunta al final
+ya camino, y escribe de memoria: "por el pasillo tres, creo". De primero
+se resuelve con la camara en dos segundos y queda exacto — y el lugar
+exacto es lo que despues permite decir "esto ya paso tres veces AQUI",
+que es la regla que sostiene el modulo entero.
 
-1. EL PLAZO LO PONE LA PRIORIDAD, NO LA PERSONA.
-   Alta 48 h, media 7 dias, baja 15. La fecha la calcula la base al
-   reportar, leyendo acciones_plazos. No hay camino por donde el
-   navegador mande una fecha de vencimiento.
+Cuatro caminos para el lugar, de mas seguro a menos: el QR del pasillo
+(lee el codigo pegado en la pared y llena area y proceso solos), el GPS
+(propone la zona mas cercana y la persona confirma), la lista, y
+escribirlo. El reporte nunca se traba por no saber donde esta: se traba
+si no se dice donde, que es distinto.
 
-2. CERRAR NO ES RESOLVER.
-   Cerrar es decir que se hizo, y el texto es obligatorio. Despues
-   alguien VERIFICA si sirvio. La efectividad del mes se mide sobre lo
-   verificado, no sobre lo cerrado: asi no se puede inflar cerrando.
+La foto se toma con la camara y NO de la galeria, y se sella en el
+telefono al tomarla, no en el servidor al subirla: entre tomar y subir
+pueden pasar veinte minutos sin senal y la hora que quedaria escrita
+seria la de la subida.
 
-3. A LA TERCERA VEZ EN EL MISMO SITIO SE CORTA.
-   Mismo motivo, misma zona, tres veces en seis meses: la cuarta
-   correctiva se rechaza y hay que abrir preventiva, que exige causa
-   raiz y responsable de PROCESO. Los dos numeros son parametros.
+ASIGNAR muestra la carga antes de decidir.
+No es un desplegable con nombres: es cuanto tiene encima cada quien,
+abiertas y vencidas, ordenado por quien tiene menos. Si el escogido esta
+saturado lo dice con esas palabras: doce acciones en la misma persona no
+se cierran, se acumulan, y el plazo pasa a ser una promesa que el
+sistema ya sabe que no se va a cumplir.
 
-4. SI NO FUE EFECTIVA, REABRE CON EL MISMO CODIGO Y EL MISMO PLAZO.
-   No se crea una nueva: asi la reincidencia cuenta problemas y no
-   intentos. Y el plazo no se estira, porque esconder que ya esta
-   vencida seria el error que este modulo existe para no cometer.
+EL BLOQUEO aparece al marcar "no fue efectiva" algo que ya va tres veces
+en el mismo sitio. No se abre una cuarta correctiva: se pide preventiva
+con causa raiz y responsable de PROCESO. Al abrirla, la vieja queda
+verificada como no efectiva — dejarla "esperando verificacion" para
+siempre torceria el indicador del mes.
 
-Una regla que NO se impone y si se muestra: quien cierra no deberia
-verificar. En un turno de tres a veces no hay de otra, asi que en vez de
-trabar el proceso la fila queda marcada como auto_verificada y se ve en
-el tablero. Una regla que se puede saltar en silencio es peor que una
-que no existe.
+EL TABLERO es la TV del arranque de turno, no un informe: fondo negro
+para verlo desde el otro lado de la bodega, cuatro cifras grandes, y las
+vencidas CON NOMBRE, porque "hay que hablar de estas" no funciona si no
+dice con quien. Es la unica pantalla que se recorta por dentro: nadie le
+hace scroll a un televisor.
 
-Detalles que salieron de las pruebas:
+ANALISIS contesta la otra pregunta. El tablero dice como vamos; esto
+dice por que se repite, agrupando por motivo y zona con la MISMA llave
+con la que la base cuenta la reincidencia, para que lo que se ve sea lo
+mismo que va a bloquear el sistema y no una segunda forma de contar. No
+mide quien reporta mas: contar reportes por persona convierte reportar
+en algo que se evita.
 
-- El area sale de la ZONA, no del motivo. Una rejilla suelta en la zona
-  de cargue cuenta para Despacho, no para Seguridad, porque el tablero
-  agrupa por donde paso.
-- Faltaban los GRANT. Las politicas de RLS dicen que filas puede tocar
-  alguien; el grant dice si puede tocar la tabla, y sin grant la
-  politica ni se evalua. Supabase suele traerlos por omision y por eso
-  se olvidan; el dia que el proyecto se monte de cero el modulo dejaria
-  de escribir sin que nadie entienda por que. Se declaran, no se suponen.
+La ubicacion y el sellado de la foto se mudaron de sider/evidencia.tsx a
+src/lib/evidencia.tsx. Los usan T1 / T2 y Acciones, y dos copias del
+sellado es que el dia que haya que arreglar la banda se arregle en una
+sola y nadie se de cuenta hasta que alguien compare dos fotos. Sider
+sigue exportando todo desde donde siempre: sus pantallas no cambiaron.
 
-Probado contra Postgres 16 real, en una sola transaccion y dos veces:
-el bloqueo corta la cuarta y deja pasar la misma falla en otro pasillo,
-los tres plazos dan 48 h / 7 / 15 dias, cerrar sin texto se rechaza,
-verificar algo no cerrado se rechaza, la preventiva sin causa raiz se
-rechaza y queda amarrada a las tres correctivas que la originaron, y un
-operador no puede asignar pero si leer.
+Dos cosas que salieron de medir y no de mirar:
 
-Se siembran 10 zonas y 18 motivos como base, editables desde la app.
+- En celular el titulo de cada accion salia UNA LETRA POR RENGLON. La
+  fila era `minmax(0,1fr) auto` y la columna de los botones pedia sus
+  250 px de "Fue efectiva / No fue efectiva"; al titulo le quedaban
+  veinte. La fila medida: 888 px de alto. Ahora una sola columna y los
+  botones abajo repartiendose el ancho.
+- Los dos botones se partian en dos renglones de ancho completo porque
+  su envoltura se encogia a 254 px y dos de 130 ya no cabian en esa
+  medida. Medido: 254 y 254; ahora 160 y 160, uno al lado del otro.
+- Y el borde verde de "Fue efectiva" al 45% quedaba tan palido sobre el
+  papel blanco que se leia como texto suelto. Solo se notaba en las
+  filas blancas: sobre el rosado de las vencidas si se veia.
