@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { viajesEnTransito, nombresDe } from "@/modulos/sider/datos";
+import { viajesEnTransito, nombresTodos } from "@/modulos/sider/datos";
 import "../sider.css";
 import { Transito } from "./Transito";
 
@@ -19,17 +20,23 @@ function horas(iv: string | null): number {
 
 export default async function TransitoPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const [{ data: perfil }, { viajes, falta }] = await Promise.all([
+  const user = await usuarioActual();
+  /* LAS CUATRO DE UNA. Antes iban en tres tandas —los viajes, después
+     los permisos, después los nombres—, y la pantalla tardaba lo que
+     SUMAN las tres aunque ninguna dependa de la anterior. Los nombres se
+     traen todos porque así no hay que esperar los viajes para saber por
+     cuáles preguntar. */
+  const [{ data: perfil }, { viajes, falta }, permisos, nombres] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     viajesEnTransito(),
+    /* Ver el tránsito lo puede todo el mundo: de eso se trata, que el que
+       recibe sepa qué viene. Certificar la llegada, no. */
+    /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
+       global: un rol puede certificar y no tocar el maestro. */
+    misPermisos(),
+    nombresTodos(),
   ]);
-  /* Ver el tránsito lo puede todo el mundo: de eso se trata, que el que
-     recibe sepa qué viene. Certificar la llegada, no. */
-  /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
-     global: un rol puede certificar y no tocar el maestro. */
-  const esEditor = (await misPermisos()).puedeEditar("/sider/transito");
-  const nombres = await nombresDe(viajes.map((v) => v.creado_por));
+  const esEditor = permisos.puedeEditar("/sider/transito");
 
   if (falta) {
     return (

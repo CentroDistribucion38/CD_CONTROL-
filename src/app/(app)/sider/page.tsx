@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { viajesSider, maestroSider, nombresDe } from "@/modulos/sider/datos";
+import { viajesSider, maestroSider, nombresTodos } from "@/modulos/sider/datos";
 import "./sider.css";
 import { BotonExportar } from "./Exportar";
 import { Viajes } from "./Viajes";
@@ -13,19 +14,22 @@ const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 
 export default async function FuentePrincipalPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await usuarioActual();
   /* El maestro se trae para los desplegables de la corrección: quien
      corrige un viaje escoge de la MISMA lista de la que escogió quien
      lo certificó, no escribe el nombre a mano. */
-  const [{ viajes, falta }, maestro, permisos] = await Promise.all([
+  /* Los nombres entran en la misma tanda. Antes se pedían DESPUÉS, con
+     la lista de autores de los viajes ya en la mano, y esa espera era en
+     serie: la pantalla no empezaba a pintar hasta que volviera. */
+  const [{ viajes, falta }, maestro, permisos, nombres] = await Promise.all([
     viajesSider(),
     maestroSider(),
     misPermisos(),
+    nombresTodos(),
   ]);
   /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
      global: un rol puede certificar y no tocar el maestro. */
   const esEditor = permisos.puedeEditar("/sider");
-  const nombres = await nombresDe(viajes.map((v) => v.creado_por));
 
   if (falta) {
     return (

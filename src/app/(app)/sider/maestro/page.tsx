@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
 import { maestroSider } from "@/modulos/sider/datos";
 import "../sider.css";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MaestroPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await usuarioActual();
   const [{ data: perfil }, maestro] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     maestroSider(),

@@ -1,23 +1,55 @@
-El menu de T1 / T2 va en el orden del proceso
+Que cambiar de pantalla se sienta instantaneo
 
-Estaba en el orden en que se fueron construyendo las pantallas, no en
-el orden en que pasan las cosas. De arriba abajo ahora es lo que le
-pasa de verdad a un vehiculo:
+Tocar una seccion del menu no hacia NADA visible hasta que el servidor
+terminara: la pantalla anterior se quedaba quieta, parecia trabada, y
+quien no ve respuesta vuelve a tocar. El segundo toque cancela el
+primero, asi que en parte lo estabamos volviendo lento nosotros.
 
-  Certificar        sale del CD origen
-  En transito       llega a Barranquilla
-  Fuente principal  ahi queda el viaje, ya completo
-  Seguimiento       el informe de todos
-  Novedades         lo que salio mal, que solo se sabe al final
-  Maestro           la configuracion
+Cinco cosas, de la que mas se siente a la que menos:
 
-Novedades baja al final porque una novedad se reporta DESPUES: primero
-se despacha, llega, queda registrado, y ahi se sabe que hubo un sello
-roto o un faltante. Arriba invitaba a abrirla antes de que hubiera algo
-que reportar.
+1. ARMAZON DE CARGA (src/app/(app)/loading.tsx)
+   Ahora el cambio de pantalla es inmediato: cambia la direccion, el menu
+   marca donde estas, y queda el armazon gris de la pagina mientras los
+   datos entran encima. Es el mismo tiempo y se siente distinto: un
+   armazon con la forma de lo que viene se lee como "ya casi".
+   Y trae algo que no se ve: Next SOLO adelanta las pantallas que tienen
+   un armazon asi. Sin el no adelantaba ninguna, porque todas consultan
+   en vivo.
 
-Maestro cierra porque no es un paso del proceso: son los origenes y los
-materiales, configuracion que se toca una vez cada mucho.
+2. UNA SOLA PREGUNTA DE "QUIEN ENTRO" POR PANTALLA (src/lib/sesion.ts)
+   getUser() no lee una cookie: manda la sesion a Supabase para que la
+   VALIDE, y eso es un viaje por internet. Se estaba pagando cinco veces
+   para pintar una sola pantalla: el middleware, el armazon, la pagina, y
+   dos veces mas adentro de misPermisos. Ahora se pregunta una vez por
+   pantalla y las demas reciben la misma respuesta.
+   No debilita nada: la sesion se sigue validando contra Supabase en cada
+   pantalla. Lo que se quita es preguntar cinco veces lo mismo en la
+   misma pantalla.
 
-La entrada del modulo no cambia: quien abre T1 / T2 sigue cayendo en
-Certificar, que es donde esta la gente cuando tiene un vehiculo al lado.
+3. LOS PERMISOS, TAMBIEN UNA VEZ (src/lib/permisos.ts)
+   Los pedian el armazon —para el menu— y la pagina —para los botones de
+   guardar—, cuatro consultas cada uno. Ocho consultas para pintar una
+   pantalla, y las cuatro segundas contestaban lo mismo que las primeras.
+   Dura lo que dura armar la pagina: un cambio de rol se ve en la
+   pantalla siguiente, no queda pegado.
+
+4. LAS CONSULTAS EN PARALELO, NO EN FILA
+   Fuente principal, En transito y Novedades pedian sus datos en dos o
+   tres tandas, y tardaban lo que SUMAN aunque ninguna dependa de la
+   anterior. Los nombres de quien hizo cada cosa se piden ahora todos de
+   una —son decenas de personas, tres columnas— en vez de esperar los
+   viajes para saber por cuales preguntar.
+
+5. ADELANTAR AL PASAR POR ENCIMA (Navegacion.tsx + next.config.ts)
+   Al pasar el mouse por una seccion, o al APOYAR el dedo en celular, se
+   empieza a traer esa pantalla. Cuando el toque termina, muchas veces ya
+   llego. Se adelanta la que la persona esta mirando, no las seis: todas
+   serian seis consultas cada vez que alguien abre el menu.
+   staleTimes de 30 segundos es lo que hace que eso sirva: sin eso Next
+   botaba lo adelantado antes de usarlo. Es la ventana de ir y volver, no
+   la de quedarse, y escribir algo la bota (router.refresh), asi que no
+   se ven datos viejos despues de guardar.
+
+Medido: el armazon no hace crecer la pagina ni la desborda en 1440, 820,
+390 ni 360 de ancho, que es lo que evita el brinco justo cuando llegan
+los datos.

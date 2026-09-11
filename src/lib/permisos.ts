@@ -19,7 +19,9 @@
  * la que protege es la de abajo.
  */
 
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { MODULOS, type Modulo } from "@/modulos/registro";
 
 export type Nivel = "ninguno" | "ver" | "editar";
@@ -51,9 +53,22 @@ const NADA: Permisos = {
   modulos: [], falta: false,
 };
 
-export async function misPermisos(): Promise<Permisos> {
+/**
+ * UNA SOLA VEZ POR PANTALLA, no una por quien pregunte.
+ *
+ * Esto lo llaman el armazón (para dibujar el menú) y la página (para
+ * saber si salen los botones de guardar), y son cuatro consultas cada
+ * vez: quién entró, su perfil, los roles y los permisos. Sin cache() se
+ * pagaban ocho para pintar una pantalla, y las cuatro segundas
+ * contestaban exactamente lo mismo que las cuatro primeras.
+ *
+ * cache() dura lo que dura ARMAR ESA PÁGINA. La petición siguiente
+ * vuelve a preguntar, así que un cambio de rol se ve en la pantalla
+ * siguiente y no queda pegado.
+ */
+export const misPermisos = cache(async function misPermisos(): Promise<Permisos> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await usuarioActual();
   if (!user) return NADA;
 
   const [perfilR, rolesR, permisosR] = await Promise.all([
@@ -120,7 +135,7 @@ export async function misPermisos(): Promise<Permisos> {
     rol, nombreRol: suRol?.nombre ?? rol, manda,
     nivel, puedeVer, puedeEditar, modulos, falta: false,
   };
-}
+});
 
 /**
  * Adónde lleva la tarjeta de un módulo PARA ESTA PERSONA.

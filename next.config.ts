@@ -19,6 +19,25 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/sider/exportar": ["./public/plantillas/**", "./public/marca/**"],
   },
+
+  /* CUÁNTO LE DURA AL NAVEGADOR LO QUE YA TRAJO.
+     Todas las pantallas consultan en vivo (force-dynamic), y para esas
+     Next guarda CERO por defecto: volver a una sección que se acaba de
+     mirar la vuelve a pedir entera al servidor, y adelantarla al pasar
+     el mouse no servía de nada porque lo adelantado se botaba antes de
+     usarlo.
+
+     Treinta segundos es la ventana de ir y volver —entro a Seguimiento,
+     miro, vuelvo a Certificar—, no la de quedarse. Pasados los treinta
+     se vuelve a consultar sola.
+
+     Y no deja ver datos viejos después de escribir: cada pantalla que
+     guarda algo llama a router.refresh(), que bota esta memoria. Lo que
+     alcanza a quedar guardado es lo que uno acaba de VER, no lo que
+     acaba de cambiar. */
+  experimental: {
+    staleTimes: { dynamic: 30, static: 180 },
+  },
 };
 
 export default nextConfig;

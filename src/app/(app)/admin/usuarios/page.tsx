@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
 import { MODULOS } from "@/modulos/registro";
 import { hayLlaveDeServicio } from "@/lib/supabase/servicio";
@@ -41,7 +42,7 @@ export default async function UsuariosPage() {
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await usuarioActual();
   const [gente, roles] = await Promise.all([
     supabase
       .from("perfiles")

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
 import { diasConDatos, seguimientoSider, zldeDelRango } from "@/modulos/sider/datos";
 import { mesCompleto, nombreRango } from "@/modulos/sider/comun";
@@ -42,7 +43,7 @@ export default async function SeguimientoPage({
 }) {
   const q = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await usuarioActual();
   const [{ data: perfil }, { dias, falta }] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     diasConDatos(),

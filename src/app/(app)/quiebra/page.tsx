@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { datosQuiebra } from "@/modulos/quiebra/datos";
 import "./quiebra.css";
 import { TableroQuiebra } from "@/components/TableroQuiebra";
@@ -7,9 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function QuiebraPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await usuarioActual();
 
   const [{ data: perfil }, datos, { data: sims }] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),

@@ -71,6 +71,30 @@ export async function viajesEnTransito() {
   return { viajes: (data ?? []) as unknown as Viaje[], falta: !!error };
 }
 
+/**
+ * TODOS LOS NOMBRES, DE UNA.
+ *
+ * nombresDe() de abajo pide los nombres de UNA lista de ids, así que hay
+ * que tener la lista antes de llamarla: primero se traen los viajes,
+ * SE ESPERA, y recién ahí se pregunta por sus autores. Son dos viajes al
+ * servidor uno detrás del otro, y el segundo no empieza hasta que
+ * termina el primero.
+ *
+ * Esta se puede pedir sin saber nada, así que sale al mismo tiempo que
+ * los datos y no después. La tabla de perfiles es la gente de la bodega
+ * —decenas, no miles— y son tres columnas: traerla entera cuesta menos
+ * que el viaje extra que evita.
+ */
+export async function nombresTodos() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("perfiles").select("id, usuario, nombre").limit(2000);
+  const out: Record<string, string> = {};
+  for (const p of (data ?? []) as { id: string; usuario: string | null; nombre: string | null }[]) {
+    out[p.id] = p.usuario || p.nombre || "—";
+  }
+  return out;
+}
+
 /** Quién creó cada viaje: cuando una cifra no cuadra, esa es la pregunta. */
 export async function nombresDe(ids: (string | null)[]) {
   const limpios = [...new Set(ids.filter(Boolean))] as string[];

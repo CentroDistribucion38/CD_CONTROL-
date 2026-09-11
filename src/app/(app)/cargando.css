@@ -1,0 +1,107 @@
+/* =====================================================================
+   EL ARMAZÓN DE CARGA
+
+   Bloques grises con un brillo que los recorre. Nada de dar vueltas: un
+   armazón con la FORMA de lo que viene se lee como "ya casi", y una
+   ruedita girando se lee como "esperá". Es el mismo tiempo y se siente
+   distinto.
+
+   No pesa: son divs con un degradado. Ni una imagen, ni una fuente, ni
+   una línea de JavaScript, que es justamente lo que no puede hacer algo
+   que aparece cuando la app va lenta.
+   ===================================================================== */
+
+.cg {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* La página NO crece: el armazón cabe en lo que hay y la tabla de
+     abajo se corta sola. Si creciera, al entrar aparecería una barra de
+     desplazamiento que desaparece al cargar, y la pantalla daría un
+     brinco justo cuando llegan los datos. */
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Para quien usa lector de pantalla: "Cargando…" se dice, no se ve. */
+.cg .sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* El bloque. Un gris de la línea del tema, para que en cualquiera de los
+   temas —claro, pizarra, tinta— siga siendo el gris de esa casa. */
+.cg-b {
+  background: color-mix(in srgb, var(--bv-linea) 70%, transparent);
+  border-radius: 6px;
+  height: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cg-b::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--bv-panel) 75%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: cg-brillo 1.15s linear infinite;
+}
+
+@keyframes cg-brillo {
+  to { transform: translateX(100%); }
+}
+
+/* Quien pidió menos movimiento no ve el brillo: los bloques se quedan
+   quietos y siguen diciendo lo mismo. */
+@media (prefers-reduced-motion: reduce) {
+  .cg-b::after { animation: none; }
+}
+
+.cg-cabeza { display: flex; flex-direction: column; gap: 10px; }
+.cg-ojo    { width: 120px; height: 9px; }
+.cg-titulo { width: min(340px, 70%); height: 26px; border-radius: 8px; }
+.cg-sub    { width: min(520px, 90%); height: 11px; }
+
+.cg-filtros { display: flex; gap: 8px; flex-wrap: wrap; }
+.cg-chip    { width: 96px; height: 30px; border-radius: 8px; }
+.cg-chip.ancho { flex: 1 1 160px; min-width: 0; }
+
+.cg-tabla {
+  border: 1px solid var(--bv-linea);
+  border-radius: var(--bv-radio, 12px);
+  background: var(--bv-panel);
+  padding: 6px 10px;
+  /* Las filas que no caben se cortan aquí adentro, no en la página. */
+  overflow: hidden;
+  min-height: 0;
+}
+
+.cg-fila {
+  display: grid;
+  /* minmax(0,…) y no 1fr a secas: 1fr no deja que una columna baje de su
+     contenido, y en celular la última se salía del recuadro. */
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bv-linea) 55%, transparent);
+}
+.cg-fila:last-child { border-bottom: 0; }
+
+/* En celular sobran columnas: dos alcanzan para que se lea como una
+   lista y no como una tabla apretada. */
+@media (max-width: 640px) {
+  .cg-fila { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+  .cg-fila > :nth-child(n + 3) { display: none; }
+  .cg-titulo { height: 22px; }
+}

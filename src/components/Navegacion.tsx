@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { moduloPorRuta } from "@/modulos/registro";
 
 /**
@@ -132,8 +132,27 @@ export function Navegacion({ permitidas, anclado, alternar }: {
   alternar: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const actual = moduloPorRuta(pathname);
   const deja = useMemo(() => new Set(permitidas), [permitidas]);
+
+  /* ADELANTAR LA PANTALLA ANTES DE QUE LA TOQUEN.
+     Al pasar el mouse por encima —o al APOYAR el dedo, que en celular
+     pasa un buen rato antes de que el toque termine— se le pide a Next
+     que vaya trayendo esa sección. Cuando el toque se completa, muchas
+     veces ya llegó y el cambio es instantáneo.
+
+     Se adelanta al pasar por encima y no todas de una: todas serían seis
+     consultas a Supabase cada vez que alguien abre el menú, para cinco
+     pantallas que no va a mirar. Y una sola vez por sección: el mouse
+     entra y sale diez veces mientras uno decide. */
+  const pedidas = useRef(new Set<string>());
+  const adelantar = (ruta: string) => {
+    if (pedidas.current.has(ruta)) return;
+    pedidas.current.add(ruta);
+    router.prefetch(ruta);
+  };
+
   if (!actual) return null;
 
   /* Solo lo que el rol puede ver. Un enlace a una pantalla cerrada no es
@@ -170,6 +189,14 @@ export function Navegacion({ permitidas, anclado, alternar }: {
               href={s.ruta}
               className={"hijo" + (aqui ? " on" : "")}
               aria-current={aqui ? "page" : undefined}
+              /* prefetch={false} apaga el automático, que dispara al
+                 aparecer el enlace en pantalla: con el menú anclado eso
+                 es traerlas TODAS al entrar. Aquí se trae la que la
+                 persona está mirando, no las seis. */
+              prefetch={false}
+              onMouseEnter={() => adelantar(s.ruta)}
+              onPointerDown={() => adelantar(s.ruta)}
+              onFocus={() => adelantar(s.ruta)}
             >
               <Icono />
               <span className="texto">{s.nombre}</span>

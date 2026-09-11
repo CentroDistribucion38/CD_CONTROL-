@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { leerRango, rangoDelMes } from "@/modulos/quiebra/diario";
 import "../quiebra.css";
 import "./diario.css";
@@ -20,9 +21,7 @@ export default async function DiarioPage({
   const supabase = await createClient();
   const { f } = await searchParams;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await usuarioActual();
 
   const hoy = hoyAqui();
   const fecha = f && /^\d{4}-\d{2}-\d{2}$/.test(f) ? f : hoy;

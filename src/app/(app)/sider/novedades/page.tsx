@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
 import {
-  novedadesSider, motivosNovedad, viajesEnTransito, nombresDe, hiloNovedades,
+  novedadesSider, motivosNovedad, viajesEnTransito, nombresTodos, hiloNovedades,
 } from "@/modulos/sider/datos";
 import "../sider.css";
 import { Novedades } from "./Novedades";
@@ -16,9 +17,9 @@ export const dynamic = "force-dynamic";
  */
 export default async function NovedadesPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await usuarioActual();
 
-  const [permisos, novedades, motivos, viajes] = await Promise.all([
+  const [permisos, novedades, motivos, viajes, nombres, { data: p }] = await Promise.all([
     misPermisos(),
     novedadesSider(),
     motivosNovedad(),
@@ -26,25 +27,22 @@ export default async function NovedadesPage() {
        Para uno ya recibido se escribe la placa a mano, que es el mismo
        camino de T2. */
     viajesEnTransito(),
+    /* Los nombres de quien reportó, quien cerró y quien respondió, de una
+       sola vez: uno por fila serían cuatrocientas consultas para pintar
+       una lista. Van en esta tanda y no después porque se traen todos, y
+       para eso no hace falta saber primero quiénes son. */
+    nombresTodos(),
+    /* Desde dónde contesta esta persona. Se propone del perfil y se puede
+       corregir en el formulario: alguien de Galapa que entra a responder
+       no debería tener que escribir "CD Galapa" cada vez. */
+    supabase.from("perfiles").select("bodega").eq("id", user!.id).maybeSingle(),
   ]);
 
   const puedeEditar = permisos.puedeEditar("/sider/novedades");
 
-  /* Los nombres de quien reportó y de quien cerró, de una sola vez: uno
-     por fila serían cuatrocientas consultas para pintar una lista. */
+  /* La única que SÍ tiene que esperar: para pedir el hilo hay que saber
+     de cuáles novedades, y eso lo dice la consulta de arriba. */
   const hilo = await hiloNovedades(novedades.map((n) => n.id));
-
-  const nombres = await nombresDe([
-    ...novedades.map((n) => n.creada_por),
-    ...novedades.map((n) => n.cerrada_por),
-    ...hilo.map((h) => h.escrita_por),
-  ]);
-
-  /* Desde dónde contesta esta persona. Se propone del perfil y se puede
-     corregir en el formulario: alguien de Galapa que entra a responder
-     no debería tener que escribir "CD Galapa" cada vez. */
-  const { data: p } = await supabase
-    .from("perfiles").select("bodega").eq("id", user!.id).maybeSingle();
 
   return (
     <div className="sd">
