@@ -28,11 +28,14 @@ import { Reportar } from "../Reportar";
  * fotos del piso con tal de pasar al siguiente paso. Lo que sí se dice,
  * con esas palabras, es qué pierde un cierre sin foto.
  */
-export function Mias({ acciones, zonas, motivos, plazos, puedeEditar, manda }: {
+export function Mias({ acciones, zonas, motivos, plazos, gente, puedeEditar, manda }: {
   acciones: Accion[];
   zonas: Zona[];
   motivos: Motivo[];
   plazos: Record<string, { horas: number; etiqueta: string }>;
+  /** Para asignar sin salir de la pantalla de "quedó reportada". */
+  gente?: { id: string; nombre: string | null; usuario: string | null;
+            rol: string; abiertas: number; vencidas: number; saturado: boolean }[];
   puedeEditar: boolean;
   /** El administrador: el único que corrige y quita del seguimiento. */
   manda: boolean;
@@ -123,7 +126,7 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar, manda }: {
       {avisos}
 
       {reportando && (
-        <Reportar zonas={zonas} motivos={motivos} plazos={plazos}
+        <Reportar zonas={zonas} motivos={motivos} plazos={plazos} gente={gente}
                   cerrar={() => setReportando(false)} />
       )}
 

@@ -520,3 +520,23 @@ un caso que en este centro no se da.
 Se va la caja, se va el estado del equipo y se va el parametro. La
 funcion de la base sigue recibiendo el equipo —el dia que se necesite
 esta ahi— pero la pantalla ya no lo ofrece.
+
+
+EL MODAL DE REPORTAR SE ABRE DESDE TRES SITIOS. SOLO DOS TENIAN LA GENTE.
+
+"Mis acciones" —que es la pantalla por la que se entra al modulo y desde
+la que se reporta— montaba el mismo modal SIN pasarle la lista de gente.
+Como la lista llegaba vacia, la confirmacion caia al mensaje de
+"se asigna desde Todas" y asignar en el momento seguia sin poderse, por
+mas que las otras dos pantallas ya lo tuvieran.
+
+Corregido: mias/page.tsx trae carga() y Mias.tsx la pasa, igual que
+BarraAbajo y Todas.
+
+Y LO QUE PERMITIO QUE ESTO PASARA SIN QUE SE VIERA: el caso de lista
+vacia era un callejon sin salida. "Se asigna desde Todas" no es una
+salida, es un letrero; y ademas escondia el error —una lista vacia se
+veia igual que "no hay nadie"—. Ahora, si la lista no carga, lo dice y
+deja un boton que lleva derecho a la pantalla de asignar DE ESA accion,
+que ya sabe cual es. Nunca un callejon sin salida en la pantalla que
+confirma que algo quedo creado.

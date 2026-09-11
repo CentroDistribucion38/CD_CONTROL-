@@ -1,6 +1,6 @@
 import { misPermisos } from "@/lib/permisos";
 import { usuarioActual } from "@/lib/sesion";
-import { misAcciones, zonas, motivos, parametros } from "@/modulos/acciones/datos";
+import { misAcciones, zonas, motivos, parametros, carga } from "@/modulos/acciones/datos";
 import "../acciones.css";
 import { SinTablas } from "../comunes";
 import { Alerta } from "../Alerta";
@@ -11,12 +11,13 @@ export const dynamic = "force-dynamic";
 export default async function MisAccionesPage() {
   const user = await usuarioActual();
 
-  const [permisos, datos, zs, ms, par] = await Promise.all([
+  const [permisos, datos, zs, ms, par, gente] = await Promise.all([
     misPermisos(),
     misAcciones(user?.id ?? ""),
     zonas(),
     motivos(),
     parametros(),
+    carga(),
   ]);
 
   if (datos.falta) return <div className="ac"><SinTablas /></div>;
@@ -58,6 +59,7 @@ export default async function MisAccionesPage() {
         zonas={zs}
         motivos={ms}
         plazos={par.plazos}
+        gente={gente}
         puedeEditar={permisos.puedeEditar("/acciones/mias")}
         manda={permisos.manda}
       />

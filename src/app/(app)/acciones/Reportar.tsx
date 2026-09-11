@@ -431,8 +431,18 @@ export function Reportar({ zonas, motivos, plazos, gente = [], cerrar }: Props) 
               Quedó asignada a <b>{asignada}</b>. Se puede cambiar desde <b>Todas</b>.
             </div>
           ) : gente.length === 0 ? (
-            <div className="aviso" style={{ marginTop: 14 }}>
-              Todavía no tiene responsable. Se asigna desde <b>Todas</b>.
+            /* NUNCA UN CALLEJÓN SIN SALIDA. Si la lista no cargó, el
+               camino sigue siendo asignar —no "andá a buscarla a otra
+               pantalla"—, así que se va derecho a la pantalla de asignar
+               de ESTA acción, que ya sabe cuál es. */
+            <div style={{ marginTop: 14 }}>
+              <div className="aviso">
+                No se pudo cargar la lista de gente aquí.
+              </div>
+              <button type="button" className="ac-rep-ir"
+                      onClick={() => router.push(`/acciones/asignar/${listo!.id}`)}>
+                Asignar responsable ahora
+              </button>
             </div>
           ) : (
             <>
