@@ -349,6 +349,20 @@ update public.sider_certificaciones c
 -- Se bota explícitamente y no con "cascade", porque cascade se lleva por
 -- delante lo que encuentre sin decir qué era; aquí se nombra lo que se
 -- bota y se vuelve a crear abajo, en la sección 9.
+-- La columna la AGREGA la migración 2026-09-corregir-viajes.sql, pero la
+-- vista de aquí abajo la lee. En una base que ya corrió la migración no
+-- se nota; en una base NUEVA —montar el proyecto de cero, o una copia
+-- para probar— este archivo se caía con
+--   ERROR: column v.motivo_anulacion does not exist
+-- porque el módulo se corre antes que las migraciones. Se declara aquí
+-- también, con "if not exists", para que el módulo se sostenga solo y no
+-- dependa del orden en que se peguen los archivos. La restricción que
+-- obliga a escribir el motivo al anular sigue viviendo en la migración.
+alter table public.sider_viajes
+  add column if not exists anulado_en       timestamptz,
+  add column if not exists anulado_por      uuid references public.perfiles(id) on delete set null,
+  add column if not exists motivo_anulacion text;
+
 drop view if exists public.v_sider_seguimiento;
 drop view if exists public.v_sider_viajes;
 create view public.v_sider_viajes as

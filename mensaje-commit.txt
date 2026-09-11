@@ -1,48 +1,40 @@
-Novedades de T1 / T2, con responsable y seguimiento entre plantas
+Novedades de T1 / T2: el CD responsable sale del maestro, no del viaje
 
-QUE ES
-- Una bandeja para lo que sale mal: sello roto, faltante, cliente
-  cerrado, vehiculo varado. Se reporta, se responde, se cierra.
+La vista v_sider_novedades y la funcion de reportar leian v.cd_origen
+de sider_viajes, y esa columna ahi no existe: el viaje guarda "planta"
+(Arenosa) y el nombre que la gente reconoce (CD La Arenosa) vive en el
+maestro sider_origenes. Lo mismo con la descripcion del material, que
+vive en sider_skus. Supabase paraba la migracion con
 
-LO QUE LA HACE UTIL ENTRE PLANTAS -y no una lista de quejas-
-- CADA NOVEDAD TIENE UN RESPONSABLE. En T1 es el CD de origen -lo que
-  llego mal salio de alla- y lo pone la BASE a partir del viaje, no el
-  navegador: dejarlo del lado del cliente permite echarle la culpa al CD
-  equivocado. Probado mandando "CD Mentira": guardo CD Galapa.
-- HAY UN HILO. El CD de origen contesta SIN cerrar: "revisamos, salieron
-  400", "no alcanzamos el jueves, va el lunes". Hoy eso pasa por telefono
-  y a la semana nadie se acuerda de quien dijo que. El hilo no se edita
-  ni se borra -RLS solo SELECT e INSERT-: una conversacion que se puede
-  reescribir no sirve para ponerse de acuerdo.
-- HAY COMPROMISO Y FECHA. Manda el ultimo, pero el hilo guarda los dos,
-  que es donde se ve que la fecha se corrio. Si la fecha ya paso, la
-  novedad sale marcada y hay un contador de "pasadas de fecha" arriba que
-  ademas filtra.
-- SE VEN LOS DIAS QUE LLEVA. Es lo que convierte un renglon en un
-  problema: "lleva 12 dias" se entiende sin leer nada mas.
+  ERROR: 42703: column v.cd_origen does not exist
 
-DECISIONES
-- El motivo sale de un CATALOGO, no de texto libre: con texto libre, a
-  los tres meses hay doscientas novedades y "sello roto", "SELLO ROTO" y
-  "roto el sello" son tres cosas para una consulta. El catalogo es una
-  tabla, se edita sin tocar codigo. La descripcion libre sigue al lado.
-- EL VIAJE ES OPCIONAL. Pegada a un viaje de T1 se puede decir "de 40
-  viajes, 6 con novedad"; suelta sirve para T2, que todavia no tiene
-  viajes en la plataforma.
-- LA PLACA SE GUARDA SIEMPRE, aunque haya viaje. Probado: al borrar el
-  viaje, la novedad sigue diciendo JYN245.
-- CERRAR OBLIGA A DECIR QUE SE HIZO -restriccion en la tabla, no solo en
-  la pantalla-. Sin eso "cerrada" no significa "resuelta": significa que
-  alguien le dio al boton.
-- Lo que se hizo se escribe EN LA TARJETA, no en un window.prompt: ese
-  cuadro sale con el dominio encima y sin los colores de la plataforma.
-- La migracion crea los permisos de la pantalla: una seccion nueva nace
-  cerrada para todos menos para quien manda, y sin esas filas nadie la
-  veria en el menu sin saber por que.
+Se llega a los dos por su maestro. Y por los maestros, no por la vista
+v_sider_viajes, que tambien los tiene: si novedades dependiera de esa
+vista, volver a correr supabase/modulos/sider.sql -que la bota y la
+vuelve a crear- se caeria con "cannot drop view because other objects
+depend on it". Colgandose de las tablas, los dos archivos quedan
+independientes y cada uno se puede correr cuando sea, y dos veces.
 
-Probado contra Postgres 16: reportar pegada y suelta, sin placa, fecha
-futura, rol operador, responder, correr la fecha, responder una cerrada,
-cerrar sin decir que se hizo, cerrar dos veces, y borrar el viaje.
+De paso, sider.sql se sostiene solo. La vista lee anulado_en,
+anulado_por y motivo_anulacion, tres columnas que agrega la migracion
+2026-09-corregir-viajes.sql. En la base de produccion ya estan, asi que
+no se notaba; en una base NUEVA -montar el proyecto de cero, o una copia
+para probar- el modulo se caia porque se corre antes que las
+migraciones. Ahora las declara el tambien, con "if not exists".
 
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
+Por que no se habia visto: la prueba local corria contra un esquema
+escrito a mano que se habia inventado la columna cd_origen en
+sider_viajes. Diez casos en verde contra un esquema que no era el real.
+Esta vez la prueba carga los .sql del repo -nucleo, perfil, roles,
+usuarios, sider y las migraciones- y sobre ese esquema comprueba que:
+
+  - una novedad pegada al viaje saca placa SXY123 y responsable
+    "CD La Arenosa" de la base, no del navegador
+  - la vista trae CD, material, estado del viaje, dias y vencida
+  - sin viaje, la placa y el responsable se escriben a mano
+  - otra planta responde con compromiso, y vencida se prende y se
+    apaga al cerrar
+  - un operador no puede reportar ni cerrar, pero si leer la bandeja
+  - fecha futura, viaje inexistente, sin placa y cerrar dos veces
+    dan error con su mensaje
+  - correr sider.sql otra vez, con novedades ya instalado, no rompe

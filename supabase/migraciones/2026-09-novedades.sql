@@ -215,13 +215,28 @@ select
 
   (select count(*) from public.sider_novedad_hilo h where h.novedad_id = n.id) as respuestas,
   -- De qué viaje habla, cuando hay viaje.
-  v.cd_origen,
-  v.descripcion                              as material,
+  --
+  -- OJO CON DE DÓNDE SALE cd_origen. En sider_viajes la columna NO
+  -- existe: ahí lo que hay es "planta", que apunta al maestro
+  -- sider_origenes, y el nombre bonito del CD —"CD La Arenosa"— vive en
+  -- ese maestro. Igual pasa con la descripción del material, que vive en
+  -- sider_skus. Se llega a los dos por su maestro, no por el viaje.
+  --
+  -- Y se llega POR LOS MAESTROS, no por la vista v_sider_viajes, que
+  -- también los tiene: si esta vista dependiera de aquella, volver a
+  -- correr supabase/modulos/sider.sql —que la bota y la vuelve a crear—
+  -- se caería con "cannot drop view v_sider_viajes because other objects
+  -- depend on it". Colgarse de las tablas deja los dos archivos
+  -- independientes: cada uno se puede correr cuando sea, y dos veces.
+  o.cd_origen,
+  s.descripcion                              as material,
   v.estado::text                             as estado_viaje,
   (n.viaje_id is not null)                   as pegada_a_viaje
 from public.sider_novedades n
 join public.sider_novedad_motivos m on m.clave = n.motivo
-left join public.sider_viajes v on v.id = n.viaje_id;
+left join public.sider_viajes   v on v.id     = n.viaje_id
+left join public.sider_origenes o on o.planta = v.planta
+left join public.sider_skus     s on s.sku    = v.sku;
 
 grant select on public.v_sider_novedades to authenticated;
 
@@ -308,8 +323,16 @@ begin
     /* La placa Y el responsable salen DEL VIAJE. Dejar que los mande el
        navegador permite una novedad que dice una placa y apunta a un
        viaje de otra, o que le echa la culpa al CD equivocado. */
-    select upper(btrim(placa)), cd_origen into v_placa, v_resp
-      from public.sider_viajes where id = p_viaje_id;
+    /* El CD sale del MAESTRO de orígenes, no del viaje: el viaje guarda
+       "planta" ('Arenosa') y el nombre que la gente reconoce ('CD La
+       Arenosa') está en sider_origenes. left join y no join, para que un
+       viaje sin maestro siga dando placa —la novedad se reporta igual,
+       solo queda sin responsable— en vez de contestar "ese viaje no
+       existe", que sería mentira. */
+    select upper(btrim(v.placa)), o.cd_origen into v_placa, v_resp
+      from public.sider_viajes v
+      left join public.sider_origenes o on o.planta = v.planta
+     where v.id = p_viaje_id;
     if v_placa is null then
       raise exception 'Ese viaje no existe';
     end if;
