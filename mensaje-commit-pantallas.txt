@@ -214,3 +214,28 @@ de la firma, los tres mensajes de la base y los textos de las pantallas.
 La CLAVE interna sigue siendo 'supervisora' y las columnas siguen siendo
 supervisora_por / supervisora_en — renombrarlas obligaria a migrar datos
 para cambiar una palabra que nadie ve.
+
+"CAMION" PASA A "Vh" en todo lo que se lee: el rotulo del campo, el
+mensaje de la base, los textos de las tres bandejas.
+
+UNA NOTA POR FIRMA, EN LAS TRES ETAPAS.
+
+Tres columnas y no una sola para la salida: lo que el verificador tenga
+que decir —"el bruto de la TOLVA-2 no cuadraba, se volvio a pesar"— no
+es lo mismo que lo que anoto quien peso, y machacar las dos en un campo
+comun borra quien vio que.
+
+SE PIDE ANTES DE FIRMAR, no despues. Si el campo saliera al terminar, lo
+que habia que contar ya se firmo sin contarlo.
+
+ES OPCIONAL. Obligar a escribir "ok" trescientas veces convierte el
+campo en ruido que nadie lee, y el dia que alguien escriba algo de
+verdad va a pasar desapercibido entre los "ok".
+
+La nota se pinta DENTRO de la tarjeta de su firma, en cursiva y con
+filo: es una voz —lo que dijo esa persona—, no un dato mas del
+formulario.
+
+salida_firmar pasa de dos argumentos a tres. La firma vieja se BORRA, no
+se deja al lado: con las dos, una pantalla sin actualizar seguiria
+firmando sin nota y nadie se enteraria.
