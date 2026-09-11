@@ -25,26 +25,34 @@ import type { Accion, Carga } from "@/modulos/acciones/datos";
  * nadie escoja a nadie: 48 horas cambia a quién tiene sentido asignarle.
  * Dicho después, es un dato; dicho antes, es parte de la decisión.
  */
-export function Asignar({ accion, carga, nombres, saturado }: {
+export function Asignar({ accion, carga, nombres, saturado, equipos }: {
   accion: Accion;
   carga: Carga[];
   nombres: Record<string, string>;
   saturado: number;
+  equipos: { clave: string; nombre: string }[];
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
 
+  /* LA PERSONA ES EL CAMINO NORMAL. El equipo es para el caso en que se
+     le pasa a un operador logístico y todavía no se sabe a quién de
+     adentro le va a tocar; si el contratista tiene usuario propio, se le
+     asigna directo y el equipo sobra. Ninguno de los dos manda sobre el
+     otro, y el bloque de equipos ni siquiera se pinta si el maestro está
+     vacío. */
+  const [equipo, setEquipo] = useState<string | null>(accion.equipo);
   const [escogido, setEscogido] = useState<string | null>(accion.responsable);
   const [mandando, setMandando] = useState(false);
 
   const tope = Math.max(saturado, ...carga.map((c) => c.abiertas), 1);
   const el = carga.find((c) => c.id === escogido);
 
-  async function asignar(a: string | null) {
+  async function asignar(eq: string | null, a: string | null) {
     setMandando(true);
     const { error } = await supabase.rpc("accion_asignar", {
-      p_id: accion.id, p_responsable: a,
+      p_id: accion.id, p_equipo: eq, p_responsable: a,
     });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
@@ -135,6 +143,34 @@ export function Asignar({ accion, carga, nombres, saturado }: {
         </div>
       </section>
 
+      {/* EL EQUIPO, DESPUÉS DE LAS PERSONAS Y SOLO SI EXISTE ALGUNO.
+          Es para el caso en que se le pasa a un OL y todavía no se sabe
+          a quién de adentro le toca. Si el maestro está vacío —que es lo
+          normal— esta caja no aparece y asignar es escoger a alguien,
+          como siempre. */}
+      {equipos.length > 0 && (
+        <section className="caja">
+          <div className="cab">
+            <div>
+              <h2>¿O se lo pasamos a un equipo?</h2>
+              <p>
+                Cuando responde un operador logístico y todavía no se sabe a quién de adentro le
+                va a tocar. Si la persona ya tiene usuario, con escogerla arriba alcanza.
+              </p>
+            </div>
+          </div>
+          <div className="ac-equipos">
+            {equipos.map((e) => (
+              <button key={e.clave} type="button"
+                      className={"ac-eq" + (equipo === e.clave ? " on" : "")}
+                      onClick={() => setEquipo(equipo === e.clave ? null : e.clave)}>
+                {e.nombre}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {el?.saturado && (
         <div className="aviso rojo">
           <b>{el.nombre || el.usuario} está saturado.</b>{" "}
@@ -145,15 +181,24 @@ export function Asignar({ accion, carga, nombres, saturado }: {
       )}
 
       <div className="ac-pie">
-        <button type="button" className="btn si" disabled={mandando || !escogido}
-                onClick={() => escogido && asignar(escogido)}>
+        <button type="button" className="btn si"
+                disabled={mandando || (!escogido && !equipo)}
+                onClick={() => asignar(equipo, escogido)}>
           {mandando ? "Asignando…"
-            : escogido ? `Asignar a ${carga.find((c) => c.id === escogido)?.nombre
-                ?? carga.find((c) => c.id === escogido)?.usuario}`
-            : "Escoge a alguien"}
+            : !escogido && !equipo ? "Escoge a alguien"
+            : escogido
+              ? `Asignar a ${carga.find((c) => c.id === escogido)?.nombre
+                  ?? carga.find((c) => c.id === escogido)?.usuario}`
+                + (equipo ? ` · ${equipos.find((e) => e.clave === equipo)?.nombre}` : "")
+              : `Asignar a ${equipos.find((e) => e.clave === equipo)?.nombre}`}
         </button>
+        {equipo && !escogido && (
+          <span className="sub" style={{ alignSelf: "center" }}>
+            Sin persona está bien: el equipo responde, y ya le pondrán nombre.
+          </span>
+        )}
         <button type="button" className="btn plano" disabled={mandando}
-                onClick={() => asignar(null)}>
+                onClick={() => asignar(null, null)}>
           Dejar sin asignar
         </button>
       </div>

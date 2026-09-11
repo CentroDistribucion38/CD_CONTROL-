@@ -79,6 +79,40 @@ exception when duplicate_object then null; end $$;
 -- ellas: con texto libre, "Almacenamiento" y "almacenamiento" son dos
 -- barras distintas y el informe se parte solo.
 -- ---------------------------------------------------------------------
+-- ---------------------------------------------------------------------
+-- LOS EQUIPOS QUE RESPONDEN. Easy y Summar son operadores logísticos,
+-- no personas: la acción se le asigna al OL y después, si se quiere, a
+-- alguien de adentro.
+--
+-- Maestro y no texto libre, por lo mismo que las áreas: con texto
+-- suelto, "Easy", "EASY" y "easy " son tres responsables distintos y el
+-- informe de cumplimiento se parte solo.
+--
+-- No son usuarios de la aplicación. Un login compartido por todo un OL
+-- deja de decir QUIÉN cerró cada acción, que es justamente lo que este
+-- módulo existe para saber. El día que alguien de Easy tenga su propia
+-- cuenta, se le pone su equipo en el perfil y su bandeja lo filtra.
+-- ---------------------------------------------------------------------
+create table if not exists public.acciones_equipos (
+  clave     text primary key,
+  nombre    text not null,
+  activo    boolean not null default true,
+  orden     smallint,
+  creado_en timestamptz not null default now()
+);
+
+-- SIN SEMILLA, A PROPÓSITO. La primera versión traía "Easy" y "Summar"
+-- quemados aquí, y eso estaba mal por dos razones: los nombres de los
+-- contratistas de UN centro de distribución no son parte del programa
+-- —el día que cambie el OL habría que tocar código para algo que es un
+-- dato—, y además Easy YA tiene su propio usuario, así que sembrarlo
+-- como equipo crea un segundo "Easy" que no es el mismo que el de la
+-- lista de personas.
+--
+-- El maestro nace vacío y se carga desde Acciones → Maestro → Equipos,
+-- si hace falta. Mientras esté vacío, asignar funciona exactamente como
+-- antes: se escoge la persona y ya.
+
 create table if not exists public.acciones_areas (
   clave     text primary key,
   nombre    text not null,
@@ -281,6 +315,20 @@ create table if not exists public.acciones (
 
   estado      accion_estado not null default 'abierta',
 
+  /* A QUIÉN LE TOCA, EN DOS NIVELES.
+
+     PERSONA  el caso normal. Quien de verdad tiene que hacerlo, y de
+              quien se sabe el nombre. Si el contratista tiene usuario
+              propio, se le asigna aquí y no hace falta nada más.
+     EQUIPO   opcional, y para un caso concreto: cuando se le pasa a un
+              operador logístico y todavía no se sabe a quién de adentro
+              le va a tocar. Un equipo sin persona ya es un dueño — el OL
+              responde—, y ya le pondrán nombre.
+
+     Los dos son opcionales y ninguno manda sobre el otro. "Sin equipo y
+     sin persona" es la que de verdad no tiene dueño, y es la que el
+     tablero tiene que señalar. */
+  equipo        text references public.acciones_equipos(clave),
   responsable   uuid references public.perfiles(id) on delete set null,
   asignada_por  uuid references public.perfiles(id) on delete set null,
   asignada_en   timestamptz,
@@ -326,6 +374,16 @@ create table if not exists public.acciones (
    tiene esta persona, y cuántas veces pasó esto aquí. */
 create index if not exists acciones_estado_idx   on public.acciones (estado, vence_en);
 create index if not exists acciones_resp_idx     on public.acciones (responsable, estado);
+alter table public.acciones add column if not exists equipo text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'acciones_equipo_fkey') then
+    alter table public.acciones add constraint acciones_equipo_fkey
+      foreign key (equipo) references public.acciones_equipos(clave);
+  end if;
+end $$;
+
+create index if not exists acciones_equipo_idx   on public.acciones (equipo, estado)
+  where equipo is not null;
 create index if not exists acciones_zona_idx     on public.acciones (motivo, zona, reportada_en desc);
 create index if not exists acciones_area_idx     on public.acciones (area, reportada_en desc);
 create index if not exists acciones_abiertas_idx on public.acciones (vence_en)
@@ -541,7 +599,13 @@ to authenticated;
 -- ---------------------------------------------------------------------
 -- ASIGNAR
 -- ---------------------------------------------------------------------
-create or replace function public.accion_asignar(p_id uuid, p_responsable uuid)
+drop function if exists public.accion_asignar(uuid, uuid);
+
+create or replace function public.accion_asignar(
+  p_id          uuid,
+  p_equipo      text,
+  p_responsable uuid default null
+)
 returns void
 language plpgsql
 security definer
@@ -559,23 +623,41 @@ begin
     raise exception 'Esa acción ya no está abierta';
   end if;
 
-  /* Se permite dejar sin asignar —p_responsable null—: una acción sin
-     dueño es visible y molesta, que es mejor que asignársela al primero
-     que aparezca para que el tablero se vea limpio. */
+  /* Se permite dejar sin asignar —los dos en null—: una acción sin dueño
+     es visible y molesta, que es mejor que asignársela al primero que
+     aparezca para que el tablero se vea limpio. */
+  if p_equipo is not null
+     and not exists (select 1 from public.acciones_equipos
+                      where clave = p_equipo and activo) then
+    raise exception 'Ese equipo no existe o está desactivado';
+  end if;
+
   if p_responsable is not null
      and not exists (select 1 from public.perfiles
                       where id = p_responsable and activo) then
     raise exception 'Esa persona no existe o está inactiva';
   end if;
 
+  /* LOS DOS SON OPCIONALES Y NINGUNO MANDA SOBRE EL OTRO.
+     La primera versión exigía el equipo antes que la persona, y eso
+     bloqueaba el caso más normal que hay: el contratista que YA tiene
+     usuario propio y al que se le asigna directo, sin ningún equipo de
+     por medio. Una regla que obliga a llenar un campo de más para hacer
+     lo de siempre no protege nada: solo estorba.
+
+     El equipo sirve para cuando se le pasa a un OL y todavía no se sabe
+     a quién de adentro le va a tocar. Cuando hay persona, con la persona
+     alcanza. */
+
   update public.acciones
-     set responsable  = p_responsable,
+     set equipo       = p_equipo,
+         responsable  = p_responsable,
          asignada_por = auth.uid(),
          asignada_en  = now()
    where id = p_id;
 end $$;
 
-grant execute on function public.accion_asignar(uuid, uuid) to authenticated;
+grant execute on function public.accion_asignar(uuid, text, uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- CERRAR — decir qué se hizo
@@ -849,7 +931,13 @@ select
        then (coalesce(a.verificada_en, a.anulada_en)::date - a.reportada_en::date)
        else (current_date - a.reportada_en::date) end            as dias,
 
+  a.equipo,
+  eq.nombre                       as equipo_nombre,
   a.responsable, a.asignada_por, a.asignada_en,
+  /* SIN DUEÑO de verdad: ni equipo ni persona. "Easy, sin persona" SÍ
+     tiene dueño —el OL responde— y no debe contarse aquí; contarla
+     mandaría a alguien a reasignar algo que ya está asignado. */
+  (a.equipo is null and a.responsable is null) as sin_dueno,
   a.reportada_por, a.reportada_en,
   a.que_se_hizo, a.cerrada_por, a.cerrada_en,
   a.efectiva, a.nota_verificacion, a.verificada_por, a.verificada_en,
@@ -875,7 +963,11 @@ from public.acciones a
 join public.acciones_motivos m on m.clave = a.motivo
 join public.acciones_areas   ar on ar.clave = a.area
 left join public.acciones_zonas z on z.codigo = a.zona
-left join public.acciones_plazos p on p.prioridad = a.prioridad;
+left join public.acciones_plazos p on p.prioridad = a.prioridad
+/* left join: un equipo borrado del maestro no puede hacer desaparecer
+   la acción de la lista. Se quedaría sin nombre, que es un problema
+   mucho menor que perderla de vista. */
+left join public.acciones_equipos eq on eq.clave = a.equipo;
 
 grant select on public.v_acciones to authenticated;
 
@@ -957,7 +1049,8 @@ declare t text;
 begin
   foreach t in array array['acciones','acciones_zonas','acciones_areas',
                            'acciones_motivos','acciones_fotos','acciones_hilo',
-                           'acciones_origen','acciones_plazos','acciones_parametros']
+                           'acciones_origen','acciones_plazos','acciones_parametros',
+                           'acciones_equipos']
   loop
     execute format('drop policy if exists %I_select on public.%I', t, t);
     execute format(
@@ -972,7 +1065,7 @@ do $$
 declare t text;
 begin
   foreach t in array array['acciones_zonas','acciones_areas','acciones_motivos',
-                           'acciones_plazos','acciones_parametros']
+                           'acciones_plazos','acciones_parametros','acciones_equipos']
   loop
     execute format('drop policy if exists %I_write on public.%I', t, t);
     execute format(
@@ -1004,7 +1097,7 @@ to authenticated;
 
 grant select, insert, update, delete on
   public.acciones_zonas, public.acciones_areas, public.acciones_motivos,
-  public.acciones_plazos, public.acciones_parametros
+  public.acciones_plazos, public.acciones_parametros, public.acciones_equipos
 to authenticated;
 
 grant insert on public.acciones_fotos to authenticated;
@@ -1075,7 +1168,7 @@ begin
    where table_schema = 'public'
      and table_name in ('acciones','acciones_zonas','acciones_areas','acciones_motivos',
                         'acciones_fotos','acciones_hilo','acciones_origen',
-                        'acciones_plazos','acciones_parametros');
+                        'acciones_plazos','acciones_parametros','acciones_equipos');
 
   select count(*) into v_func from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace

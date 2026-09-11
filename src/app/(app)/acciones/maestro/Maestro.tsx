@@ -36,7 +36,7 @@ import type { Area, Motivo, Zona } from "@/modulos/acciones/datos";
  * edita el NOMBRE, que es lo que la gente lee; la clave se queda quieta.
  */
 
-type Hoja = "zonas" | "motivos" | "areas";
+type Hoja = "zonas" | "motivos" | "areas" | "equipos";
 
 /** Una clave legible a partir del nombre: "Pasillo 5" → "pasillo_5". */
 function aClave(s: string) {
@@ -44,11 +44,16 @@ function aClave(s: string) {
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
 }
 
-export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
+export function Maestro({ zonas, motivos, areas, equipos, uso, puedeEditar }: {
   zonas: Zona[];
   motivos: Motivo[];
   areas: Area[];
-  uso: { zonas: Record<string, number>; motivos: Record<string, number> };
+  /** Los OL que responden por una acción: Easy, Summar. */
+  equipos: { clave: string; nombre: string; orden: number | null; activo: boolean }[];
+  uso: {
+    zonas: Record<string, number>; motivos: Record<string, number>;
+    equipos: Record<string, number>;
+  };
   puedeEditar: boolean;
 }) {
   const router = useRouter();
@@ -68,7 +73,8 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
   const [f, setF] = useState(vacio);
 
   const tabla = hoja === "zonas" ? "acciones_zonas"
-              : hoja === "motivos" ? "acciones_motivos" : "acciones_areas";
+              : hoja === "motivos" ? "acciones_motivos"
+              : hoja === "equipos" ? "acciones_equipos" : "acciones_areas";
   const llave = hoja === "zonas" ? "codigo" : "clave";
 
   function abrirNueva() {
@@ -84,6 +90,9 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
     } else if (hoja === "motivos") {
       const m = motivos.find((x) => x.clave === id)!;
       setF({ clave: m.clave, nombre: m.nombre, proceso: "", area: m.area ?? "", critico: m.critico });
+    } else if (hoja === "equipos") {
+      const e = equipos.find((x) => x.clave === id)!;
+      setF({ clave: e.clave, nombre: e.nombre, proceso: "", area: "", critico: false });
     } else {
       const a = areas.find((x) => x.clave === id)!;
       setF({ clave: a.clave, nombre: a.nombre, proceso: "", area: "", critico: false });
@@ -162,6 +171,7 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
   const usos = (id: string) =>
     hoja === "zonas" ? (uso.zonas[id] ?? 0)
     : hoja === "motivos" ? (uso.motivos[id] ?? 0)
+    : hoja === "equipos" ? (uso.equipos[id] ?? 0)
     : 0;
 
   /* Las áreas no se cuentan por acción sino por lo que cuelga de ellas:
@@ -180,12 +190,18 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
             id: m.clave, nombre: m.nombre, sub: nombreArea(m.area),
             activo: m.activo, critico: m.critico,
           }))
-        : areas.map((a) => ({
-            id: a.clave, nombre: a.nombre,
-            sub: `${zonas.filter((z) => z.area === a.clave).length} zonas · ` +
-                 `${motivos.filter((m) => m.area === a.clave).length} motivos`,
-            activo: a.activo,
-          }));
+        : hoja === "equipos"
+          ? equipos.map((e) => ({
+              id: e.clave, nombre: e.nombre,
+              sub: `${uso.equipos[e.clave] ?? 0} acciones asignadas`,
+              activo: e.activo,
+            }))
+          : areas.map((a) => ({
+              id: a.clave, nombre: a.nombre,
+              sub: `${zonas.filter((z) => z.area === a.clave).length} zonas · ` +
+                   `${motivos.filter((m) => m.area === a.clave).length} motivos`,
+              activo: a.activo,
+            }));
 
   const puedeGuardar = f.nombre.trim().length >= 2 &&
     (hoja !== "zonas" || f.clave.trim().length >= 4);
@@ -322,6 +338,12 @@ const TEXTO: Record<Hoja, string> = {
   areas:
     "Son los renglones de “Cumplimiento por área” del tablero. Cada zona y cada motivo apuntan " +
     "a una; por eso un área con cosas colgando no se puede borrar.",
+  equipos:
+    "Opcional, y normalmente vacío. Sirve para pasarle una acción a un operador logístico " +
+    "cuando todavía no se sabe a quién de adentro le va a tocar: el OL responde, y ya le " +
+    "pondrán nombre. Si el contratista tiene usuario propio en la plataforma, se le asigna " +
+    "directo como a cualquiera y esto no hace falta. Nace vacío a propósito: los contratistas " +
+    "de un centro de distribución son un dato, no parte del programa.",
 };
 
 /** Los campos del formulario, compartidos entre crear y editar. */

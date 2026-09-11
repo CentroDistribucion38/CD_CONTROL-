@@ -342,3 +342,86 @@ Y un bug de la PRUEBA, no del codigo, que vale la pena anotar: dentro de
 un bloque do$$ todas las filas comparten el mismo now(), asi que "la
 ultima por fecha" devuelve cualquiera. La prueba 6 fallaba por eso. Se
 mide por id.
+
+SIDER: LA NOVEDAD LLEVA TODO LO QUE HACE FALTA PARA RECLAMAR.
+
+Una novedad es el papel que se le manda al CD de origen. Si para armarlo
+hay que buscar la factura a un lado, el lote a otro y la cantidad en la
+cabeza de alguien, el reclamo no se manda: se deja para despues y
+despues se olvida. Ahora la fila trae fecha, hora, placa, factura, lote,
+SKU, cuanto vino mal, origen responsable, motivo, descripcion, foto y el
+hilo de respuestas.
+
+LA FACTURA Y EL LOTE VIVEN EN EL VIAJE, no en la novedad. Se piden al
+CERTIFICAR, junto con la placa y el SKU, aunque el viaje venga perfecto.
+Asi TODO viaje queda documentado y no solo los que salen con problema: el
+dia que alguien pregunte "que lote vino en ese camion?" hay respuesta
+aunque nunca se haya reportado nada. Guardarlos solo en la novedad haria
+que la respuesta existiera unicamente para los camiones que salieron
+mal, que es justo al reves de lo que sirve.
+
+SE COPIAN AL REPORTAR, igual que la tara se copia a la linea de la
+tolva. No se leen del viaje cada vez: si manana alguien corrige el
+viaje, la novedad que ya se mando tiene que seguir diciendo lo que decia
+cuando se mando. Y lo tecleado GANA sobre lo del viaje: el viaje es la
+propuesta, pero quien tiene el papel en la mano puede ver que la factura
+del sistema no es la que trae el camion.
+
+LA CANTIDAD VA CON SU UNIDAD, y la restriccion lo obliga. Un "12" suelto
+puede ser doce estibas o doce botellas, y la diferencia es de dos ceros.
+Estibas, cajas o unidades.
+
+LA HORA VA APARTE DE LA FECHA, no convirtiendo "fecha" en timestamp: los
+dias que lleva abierta se cuentan por dia, y cambiarle el tipo a esa
+columna moveria ese calculo y sus indices.
+
+Factura y lote se guardan en mayusculas y sin espacios, como la placa:
+"fe-4471" y "FE 4471" son la misma factura, y guardadas distinto no se
+encuentran buscando.
+
+PROBADO CONTRA POSTGRES 16 REAL, dos veces cada archivo:
+
+  1 factura se normaliza a FE-4471 ........ ok
+  2 lote se normaliza a L2609A ............ ok
+  3 la novedad hereda la factura .......... ok
+  4 hereda el lote ........................ ok
+  5 hereda el SKU ......................... ok
+  6 cantidad y unidad ..................... ok
+  7 hora .................................. ok
+  8 lo tecleado gana sobre lo del viaje ... ok
+  9 sin viaje, todo a mano ................ ok
+
+ACCIONES: SE ASIGNAN A UN EQUIPO —EASY, SUMMAR—, Y DESPUES A UNA PERSONA.
+
+EL EQUIPO ES EL QUE RESPONDE, y va primero porque es el que no cambia:
+la gente del OL rota, y una accion asignada solo a una persona se queda
+huerfana el dia que esa persona no vuelve. La persona es el nombre con
+el que se habla, y es OPCIONAL: "Easy, sin persona" ya es una accion con
+dueno.
+
+Lo que NO se acepta es al reves —persona sin equipo—, y lo dice la
+funcion: si la persona se va, la accion se queda sin nadie que responda.
+
+LOS EQUIPOS NO SON USUARIOS DE LA APLICACION, a proposito. Un login
+compartido por todo un OL deja de decir QUIEN cerro cada accion, que es
+justamente lo que este modulo existe para saber. El dia que alguien de
+Easy tenga su propia cuenta, se le pone su equipo en el perfil y su
+bandeja lo filtra.
+
+Maestro y no texto libre, por lo mismo que las areas: con texto suelto,
+"Easy", "EASY" y "easy " son tres responsables distintos y el informe de
+cumplimiento se parte solo. Se siembran Easy y Summar; el resto se crea
+desde Acciones -> Maestro -> Equipos.
+
+"SIN RESPONSABLE" PASA A SER "SIN DUENO", y significa ni equipo ni
+persona. La cifra del tablero contaba como huerfanas las que solo tenian
+equipo, y eso mandaria a alguien a reasignar algo que ya esta asignado.
+Lo calcula la vista (sin_dueno), no cada pantalla por su cuenta.
+
+PROBADO CONTRA POSTGRES 16 REAL, dos corridas del archivo:
+
+  1 una accion nace sin dueno ......... ok
+  2 equipo sin persona = con dueno .... ok
+  3 equipo + persona .................. ok
+  4 persona sin equipo se rechaza ..... ok
+  5 equipo inventado se rechaza ....... ok

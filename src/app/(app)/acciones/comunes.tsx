@@ -62,6 +62,12 @@ export function Fila({ a, nombres, derecha, children }: {
           <span>{a.area_nombre}</span>
           <span>·</span>
           <b>{a.zona_nombre ?? a.ubicacion}</b>
+          {/* EL EQUIPO PRIMERO Y LA PERSONA DESPUÉS. El equipo es el que
+              responde; la persona es el nombre con el que se habla.
+              "Easy" solo ya es un dueño: el OL contesta por ella. */}
+          {a.equipo_nombre && (
+            <><span>·</span><span className="eti equipo">{a.equipo_nombre}</span></>
+          )}
           {a.responsable && <><span>·</span><span>{quien(nombres, a.responsable)}</span></>}
           {a.veces_aqui > 1 && (
             <>

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { misPermisos } from "@/lib/permisos";
 import { createClient } from "@/lib/supabase/server";
 import { nombresTodos } from "@/modulos/sider/datos";
-import { carga, parametros, type Accion } from "@/modulos/acciones/datos";
+import { carga, equipos, parametros, type Accion } from "@/modulos/acciones/datos";
 import "../../acciones.css";
 import { SinTablas } from "../../comunes";
 import { Asignar } from "./Asignar";
@@ -13,9 +13,10 @@ export default async function AsignarPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const supabase = await createClient();
 
-  const [permisos, quienes, par, nombres, una] = await Promise.all([
+  const [permisos, quienes, eqs, par, nombres, una] = await Promise.all([
     misPermisos(),
     carga(),
+    equipos(),
     parametros(),
     nombresTodos(),
     /* Solo la acción que se va a asignar. Traer las 500 para usar una es
@@ -43,6 +44,7 @@ export default async function AsignarPage({ params }: { params: Promise<{ id: st
         carga={quienes}
         nombres={nombres}
         saturado={par.par["carga_saturado"] ?? 10}
+        equipos={eqs}
       />
     </div>
   );

@@ -40,7 +40,13 @@ export type Accion = {
   vencida: boolean;
   horas_restantes: number;
   dias: number;
+  /** El equipo que responde: Easy, Summar. Es lo que no cambia cuando la
+   *  gente del OL rota. La persona es opcional debajo de él. */
+  equipo: string | null;
+  equipo_nombre: string | null;
   responsable: string | null;
+  /** Ni equipo ni persona. "Easy sin persona" NO es sin dueño. */
+  sin_dueno: boolean;
   asignada_por: string | null;
   asignada_en: string | null;
   reportada_por: string | null;
@@ -216,6 +222,22 @@ export async function areas() {
   return (data ?? []) as Area[];
 }
 
+/**
+ * LOS EQUIPOS QUE RESPONDEN — Easy, Summar.
+ *
+ * No son usuarios de la aplicación: son los operadores logísticos. Una
+ * acción se le asigna al EQUIPO, que es el que responde y el que no
+ * cambia cuando la gente de adentro rota, y opcionalmente a una persona
+ * dentro de él.
+ */
+export async function equipos(soloActivos = true) {
+  const supabase = await createClient();
+  let q = supabase.from("acciones_equipos").select("clave, nombre, orden, activo");
+  if (soloActivos) q = q.eq("activo", true);
+  const { data } = await q.order("orden", { ascending: true, nullsFirst: false });
+  return (data ?? []) as { clave: string; nombre: string; orden: number | null; activo: boolean }[];
+}
+
 export async function areasTodas() {
   const supabase = await createClient();
   const { data } = await supabase
@@ -234,14 +256,18 @@ export async function areasTodas() {
  *  de la llave foránea. */
 export async function usoDelMaestro() {
   const supabase = await createClient();
-  const { data } = await supabase.from("v_acciones").select("zona, motivo").limit(5000);
+  const { data } = await supabase.from("v_acciones")
+    .select("zona, motivo, equipo").limit(5000);
   const zonas: Record<string, number> = {};
   const motivos: Record<string, number> = {};
-  for (const f of (data ?? []) as { zona: string | null; motivo: string }[]) {
+  const equipos: Record<string, number> = {};
+  for (const f of (data ?? []) as
+       { zona: string | null; motivo: string; equipo: string | null }[]) {
     if (f.zona) zonas[f.zona] = (zonas[f.zona] ?? 0) + 1;
     motivos[f.motivo] = (motivos[f.motivo] ?? 0) + 1;
+    if (f.equipo) equipos[f.equipo] = (equipos[f.equipo] ?? 0) + 1;
   }
-  return { zonas, motivos };
+  return { zonas, motivos, equipos };
 }
 
 /** Cuánto tiene encima cada quien. Es lo que se mira ANTES de asignar. */

@@ -906,3 +906,24 @@
 }
 .ac .ev-mandos button:hover { color: var(--ac-tinta); text-decoration: underline }
 .ac .ev-mandos button.mal:hover { color: var(--ac-mal) }
+
+/* LOS EQUIPOS QUE RESPONDEN — Easy, Summar. Botones grandes y pocos: es
+   una decisión de dos o tres opciones, no una lista para buscar. */
+.ac .ac-equipos { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px }
+.ac .ac-eq {
+  font: inherit; font-family: var(--ac-titulo); font-weight: 800; font-size: 17px;
+  padding: 16px 28px; min-height: 58px; cursor: pointer;
+  background: #fff; border: 1px solid var(--ac-linea); border-radius: 10px;
+  color: var(--ac-tinta);
+}
+.ac .ac-eq:hover { border-color: var(--ac-gris) }
+.ac .ac-eq.on {
+  border-color: var(--ac-mal); border-width: 2px;
+  background: color-mix(in srgb, var(--ac-mal) 7%, #fff);
+}
+
+/* El equipo que responde, dentro de una fila. Va como etiqueta y no como
+   texto suelto: es un responsable, no un dato más de la línea. */
+.ac .eti.equipo {
+  background: var(--c-eef1f5); color: var(--ac-tinta); font-weight: 700;
+}

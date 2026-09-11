@@ -39,7 +39,7 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
   const lista = acciones.filter((a) => {
     if (f.estado === "vivas" && !a.viva) return false;
     if (f.estado === "vencidas" && !a.vencida) return false;
-    if (f.estado === "sin" && (a.responsable || !a.viva)) return false;
+    if (f.estado === "sin" && (!a.sin_dueno || !a.viva)) return false;
     if (f.estado === "cerradas" && a.estado !== "cerrada") return false;
     if (f.area && a.area !== f.area) return false;
     if (f.prioridad && a.prioridad !== f.prioridad) return false;
@@ -51,7 +51,10 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
 
   const vencidas = acciones.filter((a) => a.vencida).length;
   const criticas = acciones.filter((a) => a.viva && a.prioridad === "alta").length;
-  const sinDueno = acciones.filter((a) => a.viva && !a.responsable).length;
+  /* SIN DUEÑO de verdad: ni equipo ni persona. "Easy, sin persona" ya
+     tiene dueño —el OL responde—, y contarla aquí mandaría a alguien a
+     reasignar algo que ya está asignado. */
+  const sinDueno = acciones.filter((a) => a.viva && a.sin_dueno).length;
   const porVerificar = acciones.filter((a) => a.estado === "cerrada").length;
 
   return (
@@ -150,7 +153,7 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
                            módulo y no se toma bien en un panel de 200 px
                            con el resto de la lista distrayendo alrededor. */
                         <Link href={`/acciones/asignar/${a.id}`} className="btn">
-                          {a.responsable ? "Cambiar responsable" : "Asignar"}
+                          {a.sin_dueno ? "Asignar" : "Cambiar responsable"}
                         </Link>
                       )}
                     </div>
