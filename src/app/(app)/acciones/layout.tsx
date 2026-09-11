@@ -1,5 +1,5 @@
 import { misPermisos } from "@/lib/permisos";
-import { zonas, motivos, parametros } from "@/modulos/acciones/datos";
+import { zonas, motivos, parametros, carga } from "@/modulos/acciones/datos";
 import "./acciones.css";
 import { BarraAbajo } from "./BarraAbajo";
 import { Cola } from "./Cola";
@@ -13,8 +13,12 @@ import { Cola } from "./Cola";
  * no repite esas dos consultas.
  */
 export default async function AccionesLayout({ children }: { children: React.ReactNode }) {
-  const [permisos, zs, ms, par] = await Promise.all([
+  const [permisos, zs, ms, par, gente] = await Promise.all([
     misPermisos(), zonas(), motivos(), parametros(),
+    /* La carga de cada quien, para poder asignar al terminar de reportar
+       sin salir de la pantalla. Va en el cascarón por lo mismo que las
+       zonas: una sola vez para todo el módulo. */
+    carga(),
   ]);
 
   return (
@@ -24,7 +28,7 @@ export default async function AccionesLayout({ children }: { children: React.Rea
           esconde solo cuando no hay nada pendiente. */}
       <div className="ac" style={{ gap: 0 }}><Cola /></div>
       {children}
-      <BarraAbajo zonas={zs} motivos={ms} plazos={par.plazos}
+      <BarraAbajo zonas={zs} motivos={ms} plazos={par.plazos} gente={gente}
                   puedeEditar={permisos.puedeEditar("/acciones")} />
     </>
   );

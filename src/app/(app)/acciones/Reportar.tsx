@@ -36,6 +36,13 @@ type Props = {
   zonas: Zona[];
   motivos: Motivo[];
   plazos: Record<string, { horas: number; etiqueta: string }>;
+  /* A QUIÉN SE LE PUEDE ASIGNAR, con lo que ya tiene encima. Viene para
+     poder asignar aquí mismo, al terminar de reportar: quien acaba de
+     reportar muchas veces YA sabe a quién le toca, y mandarlo a otra
+     pantalla a buscar la acción que acaba de crear es el paso donde se
+     pierden las asignaciones. */
+  gente?: { id: string; nombre: string | null; usuario: string | null;
+            rol: string; abiertas: number; vencidas: number; saturado: boolean }[];
   cerrar: () => void;
 };
 
@@ -58,7 +65,7 @@ function metros(aLat: number, aLng: number, bLat: number, bLng: number) {
   return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 }
 
-export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
+export function Reportar({ zonas, motivos, plazos, gente = [], cerrar }: Props) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -81,7 +88,11 @@ export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
 
   const [mandando, setMandando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
-  const [listo, setListo] = useState<{ codigo: string; vence: string } | null>(null);
+  const [listo, setListo] = useState<{ id: string; codigo: string; vence: string } | null>(null);
+  /* A quién se le acaba de asignar, para no dejar la pantalla igual
+     después de tocar: sin esto no se sabe si el toque sirvió. */
+  const [asignada, setAsignada] = useState<string | null>(null);
+  const [asignando, setAsignando] = useState(false);
   /* Se guardó sin red y va a salir sola. Es un final distinto del de
      "quedó reportada" y por eso es otro estado: prometerle a alguien un
      código que todavía no existe sería mentirle. */
@@ -333,8 +344,21 @@ export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
     }
 
     setMandando(false);
-    setListo({ codigo: fila?.codigo ?? "", vence: fila?.vence_en ?? "" });
+    setListo({ id, codigo: fila?.codigo ?? "", vence: fila?.vence_en ?? "" });
     if (avisoFoto) setMal(avisoFoto.trim());
+    router.refresh();
+  }
+
+  /* Asignar desde aquí. Si falla, la acción YA existe y sigue sin dueño:
+     se dice y se sigue, que es mejor que dejar creer que se asignó. */
+  async function asignar(id: string, nombre: string) {
+    setAsignando(true);
+    const { error } = await supabase.rpc("accion_asignar", {
+      p_id: listo!.id, p_equipo: null, p_responsable: id,
+    });
+    setAsignando(false);
+    if (error) { setMal(error.message); return }
+    setAsignada(nombre);
     router.refresh();
   }
 
@@ -395,15 +419,50 @@ export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
             prioridad, no una persona, y por eso el indicador de cumplimiento no se puede negociar.
           </p>
           {mal && <div className="negro"><span className="punto" />{mal}</div>}
-          <div className="aviso" style={{ marginTop: 14 }}>
-            Todavía no tiene responsable. Se asigna desde <b>Todas</b>, mirando primero cuánto
-            tiene encima cada quien.
-          </div>
+
+          {/* ASIGNAR AQUÍ MISMO. Quien acaba de reportar muchas veces ya
+              sabe a quién le toca; mandarlo a otra pantalla a buscar la
+              acción que acaba de crear es el paso donde se pierden las
+              asignaciones y la acción se queda huérfana.
+              Se enseña CUÁNTO TIENE ENCIMA CADA QUIEN, igual que en la
+              pantalla de asignar: doce acciones en la misma persona no
+              se cierran, se acumulan. */}
+          {asignada ? (
+            <div className="aviso" style={{ marginTop: 14 }}>
+              Quedó asignada a <b>{asignada}</b>. Se puede cambiar desde <b>Todas</b>.
+            </div>
+          ) : gente.length === 0 ? (
+            <div className="aviso" style={{ marginTop: 14 }}>
+              Todavía no tiene responsable. Se asigna desde <b>Todas</b>.
+            </div>
+          ) : (
+            <>
+              <span className="rotulo">¿A quién le toca?</span>
+              <div className="ac-rep-gente">
+                {gente.map((g) => (
+                  <button key={g.id} type="button" disabled={asignando}
+                          className={"ac-rep-q" + (g.saturado ? " sat" : "")}
+                          onClick={() => asignar(g.id, g.nombre || g.usuario || "—")}>
+                    <span className="n">{g.nombre || g.usuario}</span>
+                    <span className="c">
+                      {g.abiertas} abierta{g.abiertas === 1 ? "" : "s"}
+                      {g.vencidas > 0 && <b> · {g.vencidas} vencida{g.vencidas === 1 ? "" : "s"}</b>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="guia" style={{ marginTop: 10 }}>
+                O déjala sin asignar: se ve y molesta en <b>Todas</b>, que es mejor que
+                dársela al primero de la lista para que el tablero se vea limpio.
+              </p>
+            </>
+          )}
         </div>
         <div className="pie">
           <button type="button" onClick={cerrar}>Cerrar</button>
           <button type="button" className="si" onClick={() => {
-            setListo(null); setPaso(1); setModo("detectando"); setZona(null); setAMano("");
+            setListo(null); setAsignada(null); setPaso(1); setModo("detectando");
+            setZona(null); setAMano("");
             setMotivo(""); setTitulo(""); setDescripcion("");
             if (foto) URL.revokeObjectURL(foto.url);
             setFoto(null); setMal(null); setTocoPrioridad(false); pedir();

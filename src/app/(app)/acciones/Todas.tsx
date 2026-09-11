@@ -18,13 +18,17 @@ import { Reportar } from "./Reportar";
  * cierran: se acumulan, y el plazo de 48 horas pasa a ser una promesa que
  * el sistema ya sabe que no se va a cumplir.
  */
-export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeEditar, manda }: {
+export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, gente, puedeEditar, manda }: {
   acciones: Accion[];
   nombres: Record<string, string>;
   zonas: Zona[];
   motivos: Motivo[];
   areas: { clave: string; nombre: string }[];
   plazos: Record<string, { horas: number; etiqueta: string }>;
+  /* La carga de cada quien, para poder asignar al terminar de reportar
+     sin salir de la pantalla. */
+  gente?: { id: string; nombre: string | null; usuario: string | null;
+            rol: string; abiertas: number; vencidas: number; saturado: boolean }[];
   puedeEditar: boolean;
   /** El administrador: el único que corrige y quita del seguimiento. */
   manda: boolean;
@@ -60,7 +64,7 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
   return (
     <>
       {reportando && (
-        <Reportar zonas={zonas} motivos={motivos} plazos={plazos}
+        <Reportar zonas={zonas} motivos={motivos} plazos={plazos} gente={gente}
                   cerrar={() => setReportando(false)} />
       )}
 

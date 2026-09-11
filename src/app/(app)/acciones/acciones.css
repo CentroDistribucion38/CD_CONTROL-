@@ -927,3 +927,23 @@
 .ac .eti.equipo {
   background: var(--c-eef1f5); color: var(--ac-tinta); font-weight: 700;
 }
+
+/* ASIGNAR AL TERMINAR DE REPORTAR. Botones anchos y con la carga de cada
+   quien debajo: es la misma decisión que en la pantalla de asignar, y se
+   toma con el mismo dato a la vista. */
+.ac-rep .ac-rep-gente { display: grid; gap: 8px; margin-top: 4px }
+.ac-rep .ac-rep-q {
+  font: inherit; text-align: left; cursor: pointer;
+  background: #fff; border: 1px solid var(--ac-linea); border-radius: 10px;
+  padding: 14px 16px; min-height: 60px; color: var(--ac-tinta);
+}
+.ac-rep .ac-rep-q:hover { border-color: var(--ac-gris) }
+.ac-rep .ac-rep-q:disabled { opacity: .5; cursor: not-allowed }
+.ac-rep .ac-rep-q .n {
+  display: block; font-family: var(--ac-titulo); font-weight: 800; font-size: 16px;
+}
+.ac-rep .ac-rep-q .c { display: block; font-size: 12.5px; color: var(--ac-gris); margin-top: 3px }
+.ac-rep .ac-rep-q .c b { color: var(--ac-mal); font-weight: 700 }
+/* Saturado: se puede escoger igual —a veces no hay a quién más—, pero se
+   ve antes de tocarlo. */
+.ac-rep .ac-rep-q.sat { border-left: 4px solid var(--ac-mal) }

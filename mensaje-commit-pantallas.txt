@@ -425,3 +425,55 @@ PROBADO CONTRA POSTGRES 16 REAL, dos corridas del archivo:
   3 equipo + persona .................. ok
   4 persona sin equipo se rechaza ..... ok
   5 equipo inventado se rechaza ....... ok
+
+CORRECCION SOBRE LO ANTERIOR: NADA DE EQUIPOS QUEMADOS, Y NINGUNO OBLIGA.
+
+Easy YA tiene usuario propio. Sembrarlo como equipo creaba un segundo
+"Easy" que no es el mismo que el de la lista de personas, y ademas metia
+los nombres de los contratistas de UN centro de distribucion dentro del
+programa: el dia que cambie el OL habria que tocar codigo para algo que
+es un dato. El maestro nace VACIO.
+
+Y peor: la version anterior exigia el equipo antes que la persona y
+rechazaba "persona sin equipo". Eso bloqueaba el caso mas normal que
+hay —el contratista que ya tiene usuario y al que se le asigna
+directo—. Una regla que obliga a llenar un campo de mas para hacer lo de
+siempre no protege nada: solo estorba. Los dos campos son opcionales y
+ninguno manda sobre el otro.
+
+La caja de equipos pasa DESPUES de las personas y solo se pinta si hay
+alguno cargado. Con el maestro vacio —que es lo normal— asignar es
+escoger a alguien, igual que siempre.
+
+El equipo queda para un caso concreto: pasarle la accion a un OL cuando
+todavia no se sabe a quien de adentro le va a tocar.
+
+PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas:
+
+  0 el maestro nace vacio (0 filas) ... ok
+  1 persona sin equipo ................ ok   <- lo que antes fallaba
+  2 dejar sin asignar ................. ok
+  3 equipo cargado a mano ............. ok
+
+
+ASIGNAR DESDE LA MISMA PANTALLA DE "QUEDO REPORTADA".
+
+Quien acaba de levantar la accion casi siempre YA SABE a quien le toca:
+lo esta viendo, acaba de hablar con el. Mandarlo a otra pantalla a
+buscar la accion que el mismo creo hace diez segundos es justo el paso
+donde se pierden las asignaciones —se cierra la app, entra una llamada,
+y la accion queda sin dueno—. La pantalla de confirmacion decia
+"Se asigna desde Todas": era un recordatorio, no una accion.
+
+Ahora la confirmacion trae la lista de gente y se asigna ahi mismo, sin
+salir. Queda el aviso de que se puede dejar sin asignar: no es
+obligatorio, hay veces que no se sabe todavia y eso esta bien.
+
+Cada persona sale con su carga —abiertas y vencidas— porque asignar a
+ciegas es como se satura siempre al mismo. Al que ya esta saturado se le
+pinta el filo rojo: no lo bloquea, solo lo dice antes del clic, que es
+cuando sirve.
+
+Va por accion_asignar(p_id, p_equipo, p_responsable), la misma funcion
+del maestro: una sola regla de asignacion en la base, no dos caminos que
+algun dia se van a contradecir.

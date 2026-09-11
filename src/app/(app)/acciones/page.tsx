@@ -1,7 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
-  acciones as leerAcciones, zonas, motivos, areas, parametros,
+  acciones as leerAcciones, zonas, motivos, areas, parametros, carga,
 } from "@/modulos/acciones/datos";
 import "./acciones.css";
 import { SinTablas } from "./comunes";
@@ -14,13 +14,14 @@ export const dynamic = "force-dynamic";
  * la pantalla tardaría lo que suman, y aquí ninguna depende de otra.
  */
 export default async function AccionesPage() {
-  const [permisos, datos, zs, ms, as, par, nombres] = await Promise.all([
+  const [permisos, datos, zs, ms, as, par, gente, nombres] = await Promise.all([
     misPermisos(),
     leerAcciones(),
     zonas(),
     motivos(),
     areas(),
     parametros(),
+    carga(),
     nombresTodos(),
   ]);
 
@@ -48,6 +49,7 @@ export default async function AccionesPage() {
         motivos={ms}
         areas={as}
         plazos={par.plazos}
+        gente={gente}
         puedeEditar={permisos.puedeEditar("/acciones")}
         manda={permisos.manda}
       />

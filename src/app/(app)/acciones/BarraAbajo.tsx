@@ -21,10 +21,14 @@ import { Reportar } from "./Reportar";
  * En PC no aparece: allá está el riel, que muestra los mismos destinos y
  * no le quita 64 px de alto a la tabla.
  */
-export function BarraAbajo({ zonas, motivos, plazos, puedeEditar }: {
+export function BarraAbajo({ zonas, motivos, plazos, gente, puedeEditar }: {
   zonas: Zona[];
   motivos: Motivo[];
   plazos: Record<string, { horas: number; etiqueta: string }>;
+  /* La carga de cada quien, para poder asignar al terminar de reportar
+     sin salir de la pantalla. */
+  gente?: { id: string; nombre: string | null; usuario: string | null;
+            rol: string; abiertas: number; vencidas: number; saturado: boolean }[];
   puedeEditar: boolean;
 }) {
   const [reportando, setReportando] = useState(false);
@@ -48,7 +52,7 @@ export function BarraAbajo({ zonas, motivos, plazos, puedeEditar }: {
   return (
     <>
       {reportando && (
-        <Reportar zonas={zonas} motivos={motivos} plazos={plazos}
+        <Reportar zonas={zonas} motivos={motivos} plazos={plazos} gente={gente}
                   cerrar={() => setReportando(false)} />
       )}
 
