@@ -1,49 +1,79 @@
-El administrador puede corregir y quitar del seguimiento, dejando marca
+Modulo Roturas: la base de datos
 
-El hilo nacio "solo agrega, nunca edita ni borra", y la razon era buena:
-una accion que lleva ocho dias es una conversacion, y si esa
-conversacion se puede reescribir despues no sirve para explicar por que
-se demoro.
+Todo lo que se rompe en la bodega, desde que el operario lo levanta del
+piso hasta que el vidrio sale por la puerta con las tres firmas.
 
-Pero eso dejaba al administrador sin salida en dos casos que pasan de
-verdad: alguien escribio el comentario en la accion equivocada, o
-escribio algo que no debia quedar ahi —un nombre, un dato personal, una
-groseria—. Sin poder tocarlo, la unica salida era entrar a la base por
-detras, que es PEOR: ahi si no queda rastro de nada.
+  01 SE RECOGE    Summar o Easy la levanta del piso
+  02 SE REGISTRA  unidades, proceso y causa, desde el celular
+  03 ABI DECIDE   cuenta o no cuenta
+  04 SE PESA      vidrio en tolvas, bruto menos tara
+  05 SALE         supervisora, verificador y facturador
 
-LA SOLUCION NO ES PERMITIRLO EN SILENCIO, ES PERMITIRLO CON MARCA.
+DOS SUBMODULOS QUE MIDEN COSAS DISTINTAS Y NO SE MEZCLAN.
+En sitio cuenta UNIDADES por causa y proceso: contesta de quien fue y de
+donde salio. La salida pesa KILOS de vidrio: contesta cuanto vidrio
+salio por la puerta.
 
-  CORREGIR  el texto cambia, el ORIGINAL se guarda, y la linea queda
-            diciendo "corregido por Fulano el tal dia". Debajo se lee
-            "Antes decia: ...". Quien lea el hilo sabe que se toco.
-  QUITAR    el comentario no desaparece: la fila se queda y la linea
-            dice "Quitado por Fulano el tal dia". Se deja de ver el
-            texto, no la huella. Un hueco silencioso en una conversacion
-            de ocho dias es justo lo que este modulo existe para no
-            permitir.
+Y no se cuadran entre si, a proposito. Una botella de 330 y una de 750
+pesan distinto, el vidrio se acumula dias antes de salir, y parte de lo
+que se pesa nunca se conto en sitio. El dia que alguien "cuadre" las dos
+va a estar inventando un factor de conversion — y ese numero no existe.
+Por eso no hay ni una sola consulta aqui que sume unidades con kilos.
 
-La diferencia entre las dos cosas es todo: un hilo que se puede
-reescribir sin dejar marca no es un registro, es un borrador. Uno que se
-puede corregir DEJANDO marca sigue siendo un registro, y ademas sirve.
+LAS CINCO REGLAS, EN LA BASE Y NO EN UNA PANTALLA:
 
-Las marcas van en el mismo renglon de quien escribio, no escondidas en
-un "ver detalle": una marca que hay que abrir no la abre nadie.
+1. LA TARA VIVE EN UN MAESTRO, y se COPIA a la linea al pesar. Los 111
+   kg no se teclean en cada salida; y si mañana entra una tolva de otro
+   modelo y se cambia el maestro, las salidas viejas siguen mostrando la
+   tara con la que de verdad se pesaron. Probado: se cambio la tara de
+   TOLVA-1 de 111 a 95 despues de cerrar una salida y el neto de esa
+   salida siguio en 1.092 kg.
 
-SOLO DEL ADMINISTRADOR. Un supervisor sigue pudiendo agregar y nada mas.
-El dia que cualquiera pueda editar lo que otro escribio, el hilo deja de
-servir para lo que sirve. Las dos funciones piden mi_rol() = 'admin' en
-la base, asi que esconder el boton no es la unica defensa.
+2. LA FOTO SE EXIGE ANTES DE ENVIAR, no al revisar. Una causa "no
+   asumida" dice que la rotura no fue del OL, y eso hay que probarlo en
+   el momento y en el sitio. La base ademas impide que ABI marque
+   CUENTA una no asumida sin foto: es lo que ABI devolveria de todas
+   formas, y devolverlo ahi ahorra el viaje.
+   "exige_foto" va POR CAUSA y no quemado en el codigo: el dia que
+   aparezca una asumida que tambien deba probarse, se cambia el maestro.
 
-El original se guarda UNA sola vez: la segunda correccion no lo pisa,
-porque lo que se quiere conservar es lo que decia al principio, no lo
-que decia en el intento anterior.
+3. QUIEN DIGITA NO VERIFICA. Tres personas y tres momentos, y en orden:
+   no se puede verificar lo que la supervisora no ha cerrado, ni
+   facturar lo que nadie verifico. Lo dice una restriccion de la TABLA,
+   no una pantalla — una regla que vive en la base no se salta entrando
+   por otro lado.
+
+4. EL PRODUCTO TERMINADO SE ABRE EN DOS. Unidades del empaque y botellas
+   rotas adentro. Si solo se contara el empaque, el vidrio que va dentro
+   del liquido se perderia del conteo. La base propone el empaque
+   completo (30 botellas) y deja corregir, pero rechaza mas botellas de
+   las que caben.
+
+5. EL NETO SALE DE SUMAR LAS PARTES, siempre. No se guarda ningun total:
+   un neto guardado queda desfasado de su bruto el dia que alguien
+   corrija uno de los dos, y la salida diria un numero que no sale de
+   sus propias tolvas.
+
+LAS TRES FIRMAS VAN POR ROL —abi, verificador, facturador, creados en la
+tabla de roles— y no por persona nombrada: el dia que esa persona este
+incapacitada, la salida no se puede quedar parada esperando a que
+alguien entre al maestro a cambiarle el nombre. Se le pone el rol a otro
+y sigue. El administrador puede firmar cualquiera, porque si no un
+domingo sin nadie mas la bodega se para — pero queda escrito quien firmo.
+
+BUG QUE SALIO DE PROBAR, no de leer: salida_pesar devuelve una columna
+llamada "id", y dentro del cuerpo ese nombre le hacia sombra al de la
+tabla. Postgres contestaba "column reference id is ambiguous" y la
+funcion entera no servia. Se califica con alias.
 
 Probado contra Postgres 16 real, dos veces y en una sola transaccion:
-corregir guarda el original y marca quien; la segunda correccion no pisa
-el original; un supervisor no puede corregir; dejarlo vacio se rechaza
-—para quitarlo se elimina—; eliminar deja la fila con quien lo quito; y
-eliminar dos veces o corregir lo ya eliminado se rechazan con su motivo.
+las cinco reglas de arriba, mas que un supervisor no da el visto bueno,
+que "no cuenta" sin motivo se rechaza, que un bruto menor que la tara se
+rechaza diciendo los dos numeros, y que una salida cerrada no admite
+mas tolvas.
 
-PASO 1 — correr en Supabase:
-  supabase/migraciones/2026-09-acciones-hilo-admin.sql
-Termina con tres 'ok'.
+Se siembran 7 materiales, 7 procesos, 10 causas y 4 tolvas, todos
+editables desde la app.
+
+PASO 1 — correr en Supabase: supabase/modulos/roturas.sql
+Termina con ocho 'ok'.
