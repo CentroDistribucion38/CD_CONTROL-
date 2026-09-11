@@ -28,13 +28,13 @@ export default async function SalidasPage() {
           <p className="sub">
             Aquí se pesa: bruto menos la tara de la tolva. La tara vive en el maestro y se copia
             a la línea al pesar, así que el día que cambie una tolva las salidas viejas siguen
-            mostrando la tara con la que de verdad se pesaron. Y son tres firmas de tres
-            personas distintas: quien pesa no verifica, y quien verifica no factura.
+            mostrando la tara con la que de verdad se pesaron. Al cerrar, la salida se va de
+            esta pantalla y aparece en <b>Verificación</b>, que es de otra persona.
           </p>
         </div>
         <div className="kpi">
-          <div className="corte" aria-hidden />
-          <div className="rot">EN SALIDAS ABIERTAS</div>
+          <span className="corte" aria-hidden />
+          <div className="rot">PESÁNDOSE AHORA</div>
           <div className="num">{kilos(enPiso)}<span className="u">kg</span></div>
           <div className="pie">
             {abiertas.length} abierta{abiertas.length === 1 ? "" : "s"}

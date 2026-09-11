@@ -37,7 +37,7 @@ export default async function AnalisisSalidaPage() {
      que es cuando de verdad salió de la contabilidad. */
   const porMes = new Map<string, number>();
   for (const s of completas) {
-    const d = new Date(s.facturador_en!);
+    const d = new Date(s.validador_en!);
     const k = d.toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
     porMes.set(k, (porMes.get(k) ?? 0) + Number(s.neto_kg));
   }

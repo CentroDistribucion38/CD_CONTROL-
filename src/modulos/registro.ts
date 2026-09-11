@@ -223,7 +223,17 @@ export const MODULOS: Modulo[] = [
       { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
       { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
 
-      { nombre: "Salidas", ruta: "/roturas/salida", rama: "salida" },
+      /* UNA PANTALLA POR ETAPA DE LA CADENA, y en el orden en que pasa.
+         Las tres firmas son de tres personas distintas y cada una
+         trabaja en un sitio distinto: la supervisora en la báscula, el
+         verificador revisando, quien valida dando el aval de salida.
+         Con las tres firmas en una sola hoja, la misma persona ve los
+         tres botones, toca dos, y la base le contesta que no —que es
+         tener la regla como regaño en vez de como camino—. Aquí la
+         salida AVANZA: sale de una bandeja y aparece en la siguiente. */
+      { nombre: "Pesar", ruta: "/roturas/salida", rama: "salida" },
+      { nombre: "Verificación", ruta: "/roturas/salida/verificacion", rama: "salida" },
+      { nombre: "Validación", ruta: "/roturas/salida/validacion", rama: "salida" },
       { nombre: "Análisis", ruta: "/roturas/salida/analisis", rama: "salida" },
       { nombre: "Tolvas", ruta: "/roturas/salida/tolvas", rama: "salida" },
     ],

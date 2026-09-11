@@ -1,24 +1,46 @@
 /* ---------------------------------------------------------------------
    ROTURAS. Todo cuelga de .rt para no pisar nada de la app.
 
-   Acento negro y oro, como en el diseño: es el módulo del vidrio, y el
-   oro es lo que hace que una tolva y un peso se lean como cifras de
-   operación y no como una tabla más.
+   LOS COLORES SON LITERALES Y NO TOKENS DE LA APP, a propósito. La
+   primera versión colgaba el dorado de var(--c-oro) —el token de "ojo
+   con esto"—, y en los temas negro, gris y halo ese token vale #ff0000:
+   el NETO de una salida salía en rojo bombero. El dorado de Roturas es
+   del MÓDULO, igual que el rojo es de Acciones; no es un acento que el
+   tema pueda reinterpretar. Lo único que se hereda de la app es la
+   tipografía de respaldo.
+
+   Paleta tomada del diseño entregado:
+     negro   #0D0D0D   la barra, el flujo, la banda de totales
+     oro     #FFC000   el acento. Es el color del módulo
+     ojo     #8A6A00   los antetítulos sobre fondo claro
+     papel   #FFFFFF   las tarjetas
+     fondo   #F1F1F1   la página
+     línea   #E0E0DC
+     texto   #4E524E / #5E625E
+     verde   #1E7A3C   asumida, firma puesta
+     rojo    #C8102E   no asumida, quitar, no cuenta
 
    Los tokens van en las tres raíces —.rt, .rt-rep y .rt-modal— porque
-   los dos overlays se abren por encima de todo y las variables de CSS se
+   los overlays se abren por encima de todo y las variables de CSS se
    heredan por el árbol del documento, no por dónde se ve el elemento.
    --------------------------------------------------------------------- */
 
 .rt, .rt-rep, .rt-modal {
-  --rt-tinta: var(--c-04203f);
   --rt-negro: #0D0D0D;
-  --rt-oro: var(--c-oro);
-  --rt-mal: #E4002B;
-  --rt-verde: #0F7A4A;
+  --rt-oro: #FFC000;
+  --rt-oro-hondo: #E3A900;
+  --rt-ojo: #8A6A00;
+  --rt-crema: #FFFBEF;
+  --rt-tinta: #0D0D0D;
+  --rt-gris: #5E625E;
+  --rt-gris2: #8A8E8A;
+  --rt-linea: #E0E0DC;
   --rt-papel: #FFF;
-  --rt-gris: var(--c-5b6b7f);
-  --rt-linea: var(--c-d5dce5);
+  --rt-fondo: #F1F1F1;
+  --rt-verde: #1E7A3C;
+  --rt-verde-suave: #EDF6F0;
+  --rt-mal: #C8102E;
+  --rt-mal-suave: #FDEEF1;
 
   --rt-titulo: "Archivo", system-ui, sans-serif;
   --rt-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
@@ -27,481 +49,722 @@
   color: var(--rt-tinta);
 }
 
-.rt { display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.rt { display: flex; flex-direction: column; gap: 16px; min-width: 0 }
 .rt *, .rt *::before, .rt *::after,
 .rt-rep *, .rt-rep *::before, .rt-rep *::after,
 .rt-modal *, .rt-modal *::before, .rt-modal *::after { box-sizing: border-box }
 
 /* ====================== Encabezado ====================== */
-.rt .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: stretch }
+.rt .cabeza { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: start }
 .rt .cabeza h1 {
   font-family: var(--rt-titulo); font-weight: 900;
-  font-size: clamp(23px, 2.05vw, 27px); letter-spacing: -.04em; margin: 0;
+  font-size: clamp(30px, 3.1vw, 42px); letter-spacing: -.045em; line-height: 1.02;
+  margin: 8px 0 0;
 }
 .rt .cabeza .ojo {
-  margin: 0 0 4px; font-size: 10px; font-weight: 700;
-  letter-spacing: .16em; color: var(--rt-gris);
+  margin: 0; font-size: 11.5px; font-weight: 600;
+  letter-spacing: .18em; color: var(--rt-ojo);
 }
 .rt .cabeza .sub {
-  margin: 5px 0 0; font-size: 12.5px; line-height: 1.45;
-  color: var(--rt-gris); max-width: 76ch;
+  margin: 12px 0 0; font-size: 14.5px; line-height: 1.62;
+  color: var(--rt-gris); max-width: 68ch;
 }
 
-/* El KPI grande de la derecha: el de "esperando visto bueno" y el neto
-   de una salida. Negro con corte diagonal, como en el diseño. */
+/* EL KPI DORADO. Cuadrado, sin esquinas redondeadas y con la cuña
+   diagonal más oscura a la derecha: es la firma visual del módulo y lo
+   que hace que una cifra de operación no se lea como una tarjeta más. */
 .rt .kpi {
-  position: relative; overflow: hidden; border-radius: 12px;
+  position: relative; overflow: hidden;
   background: var(--rt-oro); color: #1A1200;
-  padding: 15px 22px 14px; min-width: 260px;
-  display: flex; flex-direction: column; justify-content: center;
+  padding: 16px 26px 15px; min-width: 296px;
 }
 .rt .kpi .corte {
-  position: absolute; top: -20%; bottom: -20%; right: -30px; width: 44%;
-  background: rgba(0,0,0,.14); transform: skewX(-26deg);
+  position: absolute; top: -25%; bottom: -25%; right: -44px; width: 40%;
+  background: var(--rt-oro-hondo); transform: skewX(-20deg);
 }
-.rt .kpi .rot { position: relative; font-size: 10px; font-weight: 700; letter-spacing: .14em; opacity: .9 }
+.rt .kpi .rot {
+  position: relative; font-size: 11px; font-weight: 600; letter-spacing: .18em;
+  color: #4A3800;
+}
 .rt .kpi .num {
   position: relative; font-family: var(--rt-titulo); font-weight: 900;
-  font-size: clamp(30px, 3.2vw, 46px); line-height: .92; letter-spacing: -.05em; margin-top: 5px;
+  font-size: clamp(38px, 3.8vw, 52px); line-height: .95; letter-spacing: -.05em;
+  margin-top: 6px; font-variant-numeric: tabular-nums;
 }
-.rt .kpi .num .u { font-size: .3em; margin-left: 7px; letter-spacing: 0 }
-.rt .kpi .pie { position: relative; margin-top: 8px; font-size: 12px }
+.rt .kpi .num .u { font-size: .28em; margin-left: 8px; letter-spacing: 0; font-weight: 600 }
+.rt .kpi .pie { position: relative; margin-top: 9px; font-size: 13px; color: #3A2C00 }
+.rt .kpi .pie b { font-weight: 700 }
+
+/* =====================================================================
+   LA CADENA DE ESTADOS — "9 por revisar › 34 cuentan › 6 no cuentan".
+
+   Chevrones y no cuatro tarjetas sueltas: las tres cifras son el mismo
+   montón en tres momentos, y puestas en fila con flechas se lee el
+   recorrido. Cuatro cajas iguales se leen como cuatro medidas distintas.
+   ===================================================================== */
+.rt .cadena { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap }
+.rt .cadena .eslabon {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  padding: 14px 22px 13px; min-width: 128px;
+}
+.rt .cadena .eslabon .n {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 30px;
+  line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums;
+}
+.rt .cadena .eslabon .r {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .1em;
+  color: var(--rt-gris); margin-top: 7px;
+}
+.rt .cadena .eslabon.aqui { border-color: var(--rt-oro); background: var(--rt-crema) }
+.rt .cadena .eslabon.mal .n { color: var(--rt-mal) }
+.rt .cadena .flecha {
+  display: grid; place-items: center; width: 26px;
+  color: var(--rt-gris2); font-size: 15px;
+}
+
+/* ====================== Cifras (4 cajas) ====================== */
+.rt .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
+.rt .cifra {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  padding: 15px 18px; border-left: 4px solid var(--rt-linea); min-width: 0;
+}
+.rt .cifra .rot { font-size: 10.5px; font-weight: 600; letter-spacing: .15em; color: var(--rt-gris) }
+.rt .cifra .n {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(26px, 2.6vw, 34px);
+  line-height: 1; letter-spacing: -.04em; margin-top: 7px;
+  font-variant-numeric: tabular-nums;
+}
+.rt .cifra .u { font-size: 12px; color: var(--rt-gris); margin-top: 6px; line-height: 1.4 }
+.rt .cifra.mal { border-left-color: var(--rt-mal) } .rt .cifra.mal .n { color: var(--rt-mal) }
+.rt .cifra.ojo { border-left-color: var(--rt-oro) }
+.rt .cifra.bien { border-left-color: var(--rt-verde) }
+
+/* ====================== Cajas ====================== */
+.rt .caja {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  display: flex; flex-direction: column; min-width: 0;
+}
+.rt .caja > .cab {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 14px; padding: 18px 22px 15px; border-bottom: 1px solid var(--rt-linea);
+  flex-wrap: wrap;
+}
+.rt .caja > .cab h2 {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 19px; margin: 0;
+  letter-spacing: -.03em;
+}
+.rt .caja > .cab p { margin: 6px 0 0; font-size: 13px; color: var(--rt-gris); max-width: 72ch; line-height: 1.5 }
+.rt .rueda { min-width: 0 }
+
+/* =====================================================================
+   UNA ROTURA — tarjeta suelta, no renglón de tabla.
+
+   Cada rotura es una decisión ("¿cuenta o no cuenta?") y una decisión
+   necesita su propio marco. En una tabla con líneas divisorias los ojos
+   saltan de columna a columna; en tarjetas separadas se lee una, se
+   decide, se baja a la siguiente.
+
+   EL FILO IZQUIERDO ES LA DECISIÓN: rojo si la causa dice que la rotura
+   NO fue del OL —hay plata de por medio y alguien va a discutirla—,
+   gris cuando el OL la asume.
+   ===================================================================== */
+.rt .filas { display: flex; flex-direction: column; gap: 10px }
+.rt .fila {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) auto;
+  gap: 18px; align-items: start; padding: 16px 20px 16px 18px;
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  border-left: 5px solid var(--rt-linea);
+}
+.rt .fila.roja { border-left-color: var(--rt-mal) }
+.rt .fila .izq { min-width: 0 }
+.rt .fila.gris { background: #F7F7F5; opacity: .85 }
+.rt .fila .cod {
+  font-family: var(--rt-titulo); font-size: 13px; font-weight: 800;
+  letter-spacing: .06em; color: var(--rt-gris); min-width: 0; overflow-wrap: anywhere;
+}
+/* La miniatura de la evidencia. Que se vea SI HAY foto, sin abrir nada:
+   es lo primero que ABI mira, y "sin foto" en rojo le ahorra el clic. */
+.rt .fila .ev {
+  display: grid; place-items: center; width: 62px; height: 62px; margin-top: 9px;
+  background: #2B2B2B; color: rgba(255,255,255,.8);
+  font-size: 9px; font-weight: 700; letter-spacing: .12em; line-height: 1.5;
+  text-align: center; overflow: hidden;
+}
+.rt .fila .ev img { width: 100%; height: 100%; object-fit: cover }
+.rt .fila .sinfoto { margin-top: 7px; font-size: 12px; font-weight: 600; color: var(--rt-mal) }
+
+.rt .fila .tit {
+  font-family: var(--rt-titulo); font-weight: 800; font-size: 17px;
+  letter-spacing: -.02em; line-height: 1.25; overflow-wrap: anywhere;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.rt .fila .meta {
+  margin-top: 9px; font-size: 13px; color: var(--rt-gris);
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.rt .fila .meta b { font-weight: 700; color: var(--rt-tinta) }
+/* La cifra de unidades, del tamaño de una cifra y no del de una palabra:
+   es el dato por el que se compara una rotura con otra. */
+.rt .fila .meta .cant {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 17px;
+  color: var(--rt-tinta); letter-spacing: -.02em;
+}
+.rt .fila .der { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end }
+.rt .fila .der .par { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end }
+
+/* El color del vidrio, con su muestra. Es lo que se separa para vender. */
+.rt .vidrio { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 13.5px; font-weight: 600 }
+.rt .vidrio i { width: 15px; height: 15px; border: 1px solid rgba(0,0,0,.18); flex: none }
+.rt .vidrio.ambar i { background: #C8801F }
+.rt .vidrio.flint i { background: #E7EBE7 }
+.rt .vidrio.green i { background: #2F6B3C }
+
+.rt .eti {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 600; padding: 5px 11px; white-space: nowrap;
+  background: #F1F1EF; color: var(--rt-gris);
+}
+.rt .eti.no_asumida { background: var(--rt-mal-suave); color: var(--rt-mal); font-weight: 700 }
+.rt .eti.asumida    { background: var(--rt-verde-suave); color: var(--rt-verde) }
+.rt .eti.esperando  { background: var(--rt-crema); color: var(--rt-ojo) }
+.rt .eti.cuenta     { background: var(--rt-verde-suave); color: var(--rt-verde) }
+.rt .eti.no_cuenta  { background: var(--rt-mal-suave); color: var(--rt-mal) }
+.rt .eti.anulada    { text-decoration: line-through }
+.rt .eti.falta      { background: var(--rt-mal-suave); color: var(--rt-mal); font-weight: 700 }
+
+/* ====================== Botones y filtros ====================== */
+.rt .btn {
+  font: inherit; font-family: var(--rt-titulo); font-size: 14px; font-weight: 700;
+  padding: 9px 18px; border: 1px solid var(--rt-linea);
+  background: #fff; color: var(--rt-tinta); cursor: pointer;
+  min-height: 42px; white-space: nowrap; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.rt .btn:hover { border-color: var(--rt-gris2) }
+.rt .btn.si {
+  background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200;
+  font-weight: 800;
+}
+.rt .btn.si:hover { background: var(--rt-oro-hondo); border-color: var(--rt-oro-hondo) }
+.rt .btn.bien { color: var(--rt-verde); border-color: #9FC9AF }
+.rt .btn.bien:hover { border-color: var(--rt-verde); background: var(--rt-verde-suave) }
+.rt .btn.mal  { color: var(--rt-mal); border-color: #E8A3AF }
+.rt .btn.mal:hover { border-color: var(--rt-mal); background: var(--rt-mal-suave) }
+.rt .btn.plano { border-color: transparent; background: transparent; color: var(--rt-gris) }
+.rt .btn:disabled { opacity: .45; cursor: not-allowed }
+
+.rt .filtros { display: flex; gap: 9px; flex-wrap: wrap; align-items: center }
+.rt .filtros select, .rt .filtros input {
+  font: inherit; font-size: 13.5px; padding: 9px 12px; min-height: 42px;
+  border: 1px solid var(--rt-linea); background: #fff;
+  color: var(--rt-tinta); min-width: 0;
+}
+.rt .filtros input { flex: 1 1 170px }
+
+.rt .panel {
+  grid-column: 1 / -1; margin-top: 12px; padding: 16px;
+  border: 1px solid var(--rt-linea); background: #FAFAF8;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.rt .panel label { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; color: var(--rt-gris) }
+.rt .panel textarea, .rt .panel input, .rt .panel select {
+  font: inherit; font-size: 14px; padding: 11px 13px; width: 100%;
+  border: 1px solid var(--rt-linea); background: #fff;
+  color: var(--rt-tinta); resize: vertical;
+}
+.rt .panel .acciones-panel { display: flex; gap: 10px; flex-wrap: wrap }
+
+/* El recordatorio de que las dos mitades no se cuadran. Crema con filo
+   rojo: es una advertencia, no una nota al pie. */
+.rt .aviso {
+  border-left: 5px solid var(--rt-mal); background: var(--rt-crema);
+  padding: 16px 20px; font-size: 14px; line-height: 1.6; color: var(--rt-gris);
+}
+.rt .aviso b { color: var(--rt-tinta) }
+.rt .aviso.rojo { background: var(--rt-mal-suave) }
+.rt .aviso a { color: var(--rt-ojo); font-weight: 600 }
+
+.rt .vacio { padding: 44px 20px; text-align: center; color: var(--rt-gris); font-size: 14px }
+.rt .vacio b { display: block; font-family: var(--rt-titulo); font-size: 18px; color: var(--rt-tinta); margin-bottom: 7px }
+
+.rt .sin-tablas {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  border-left: 5px solid var(--rt-mal); padding: 22px 24px;
+}
+.rt .sin-tablas h2 { font-family: var(--rt-titulo); font-weight: 900; font-size: 20px; margin: 0 0 9px }
+.rt .sin-tablas p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--rt-gris) }
+.rt .sin-tablas code {
+  font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+  background: #F1F1EF; padding: 2px 6px;
+}
+
+/* =====================================================================
+   CÓMO SE MIDE — la tarjeta que explica la resta, arriba de la salida.
+
+   No es un adorno ni un tutorial: es el sitio donde queda escrito que
+   los 111 kg salen del maestro y no de la mano de quien pesa. Quien
+   llega nuevo a la báscula lo lee una vez y ya sabe por qué el sistema
+   descuenta solo.
+   ===================================================================== */
+.rt .comomide {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  border-bottom: 4px solid var(--rt-oro);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px;
+  padding: 30px 34px; align-items: center;
+}
+.rt .comomide .rot { font-size: 11.5px; font-weight: 600; letter-spacing: .18em; color: var(--rt-ojo) }
+.rt .comomide h2 {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(24px, 2.6vw, 34px);
+  letter-spacing: -.04em; margin: 10px 0 0;
+}
+.rt .comomide p { margin: 12px 0 0; font-size: 14.5px; line-height: 1.62; color: var(--rt-gris); max-width: 58ch }
+/* La fórmula en chips: BRUTO − TARA 111 = NETO */
+.rt .formula { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 22px }
+.rt .formula .chip {
+  font-family: var(--rt-titulo); font-weight: 700; font-size: 13px; letter-spacing: .1em;
+  padding: 11px 20px; border: 1px solid var(--rt-linea); background: #fff;
+}
+.rt .formula .chip.tara { border-color: var(--rt-oro) }
+.rt .formula .chip.neto { background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200; font-weight: 800 }
+.rt .formula .signo { color: var(--rt-gris2); font-size: 17px }
+/* La tara del maestro, en negro sobre la ilustración. */
+.rt .comomide .tara-sello {
+  background: var(--rt-negro); color: #fff; padding: 16px 30px; text-align: center;
+}
+.rt .comomide .tara-sello .r { font-size: 11px; font-weight: 600; letter-spacing: .2em; color: #A8A8A8 }
+.rt .comomide .tara-sello .v {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 34px; color: var(--rt-oro);
+  letter-spacing: -.03em; margin-top: 6px;
+}
+
+/* =====================================================================
+   LAS TOLVAS DE LA SALIDA — una tarjeta por tolva, con su propia resta.
+
+   LA RESTA VA POR TOLVA Y NO AL FINAL. Quien pesa hace la cuenta en la
+   báscula tolva por tolva; si la pantalla solo mostrara el total, un
+   bruto tecleado mal no se vería hasta el final, cuando ya no se sabe
+   cuál de las tres estaba mala.
+   ===================================================================== */
+.rt .tolvas {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px; padding: 18px 22px 22px;
+}
+.rt .tolva-card {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  border-top: 4px solid var(--rt-oro); padding: 16px 18px 18px; min-width: 0;
+}
+.rt .tolva-card .arriba { display: flex; align-items: center; justify-content: space-between; gap: 10px }
+.rt .tolva-card .nom {
+  font-family: var(--rt-titulo); font-weight: 800; font-size: 14px; letter-spacing: .1em;
+}
+.rt .tolva-card .quitar {
+  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--rt-mal);
+  background: none; border: 0; cursor: pointer; padding: 2px 0;
+}
+.rt .tolva-card label {
+  display: block; font-size: 12.5px; font-weight: 600; color: var(--rt-gris);
+  margin: 14px 0 6px;
+}
+.rt .tolva-card select, .rt .tolva-card input {
+  font: inherit; font-size: 15px; width: 100%; padding: 12px 13px; min-height: 48px;
+  border: 1px solid var(--rt-linea); background: #fff; color: var(--rt-tinta);
+}
+/* El bruto se teclea alineado a la derecha, como en la báscula. */
+.rt .tolva-card input.peso {
+  text-align: right; font-family: var(--rt-titulo); font-weight: 800; font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.rt .tolva-card .resta {
+  margin-top: 14px; padding: 13px 15px; border: 1px dashed var(--rt-linea);
+  font-variant-numeric: tabular-nums;
+}
+.rt .tolva-card .resta .l {
+  display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px;
+  color: var(--rt-gris); padding: 2px 0;
+}
+.rt .tolva-card .resta .l.menos { color: var(--rt-mal) }
+.rt .tolva-card .resta .l.neto {
+  border-top: 1px solid var(--rt-linea); margin-top: 8px; padding-top: 9px;
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 19px; color: var(--rt-tinta);
+  letter-spacing: -.02em;
+}
+.rt .tolva-card .pie-t { margin-top: 11px; font-size: 12px; color: var(--rt-gris2); line-height: 1.4 }
+
+.rt .agregar {
+  display: grid; place-items: center; gap: 8px; min-height: 150px; cursor: pointer;
+  border: 2px dashed #C8C8C2; background: transparent;
+  font: inherit; font-family: var(--rt-titulo); font-size: 15px; font-weight: 700;
+  color: var(--rt-tinta);
+}
+.rt .agregar:hover { border-color: var(--rt-oro); background: var(--rt-crema) }
+.rt .agregar span { display: flex; align-items: center; gap: 10px }
+.rt .agregar b { color: var(--rt-oro-hondo); font-size: 22px; line-height: 1 }
+
+/* LA BANDA NEGRA DE TOTALES. Por color, porque el vidrio se vende por
+   color: un total único no le sirve a quien factura. El neto va en oro
+   porque es el número que sale en la factura. */
+.rt .totales {
+  background: var(--rt-negro); color: #fff;
+  display: flex; flex-wrap: wrap; align-items: stretch;
+}
+.rt .totales .t {
+  padding: 22px 30px; border-right: 1px solid #2A2E33; min-width: 0; flex: 0 1 auto;
+}
+.rt .totales .t:last-child { border-right: 0 }
+.rt .totales .t .r { font-size: 11px; font-weight: 600; letter-spacing: .18em; color: #9A9A9A }
+.rt .totales .t .v {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(28px, 3vw, 40px);
+  letter-spacing: -.045em; margin-top: 8px; font-variant-numeric: tabular-nums;
+}
+.rt .totales .t.neto .v { color: var(--rt-oro) }
+
+/* =====================================================================
+   LAS TRES FIRMAS — numeradas, porque van en orden.
+
+   El número no es adorno: es la única manera de que se vea de un
+   vistazo que no se puede facturar antes de verificar. La que sigue es
+   la única con botón; las otras dos esperan o ya están.
+   ===================================================================== */
+.rt .firmas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 }
+.rt .firma {
+  border: 1px solid var(--rt-linea); border-right: 0; padding: 18px 20px;
+  background: #fff; min-width: 0;
+}
+.rt .firma:last-child { border-right: 1px solid var(--rt-linea) }
+.rt .firma .cab-f { display: flex; align-items: flex-start; gap: 12px }
+.rt .firma .n {
+  display: grid; place-items: center; flex: none;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #D8D8D4; color: #6A6A66;
+  font-family: var(--rt-titulo); font-weight: 800; font-size: 13px;
+}
+.rt .firma .quien { font-family: var(--rt-titulo); font-weight: 800; font-size: 16px; overflow-wrap: anywhere }
+.rt .firma .hace { font-size: 13px; color: var(--rt-gris); margin-top: 3px }
+.rt .firma .cuando { font-size: 13px; color: var(--rt-gris); margin-top: 12px }
+.rt .firma.lista .n { background: var(--rt-verde); color: #fff }
+.rt .firma.turno { background: var(--rt-crema); border-color: var(--rt-oro) }
+.rt .firma.turno + .firma { border-left: 0 }
+.rt .firma.turno .n { background: var(--rt-oro); color: #1A1200 }
+.rt .firma.turno .cuando { color: var(--rt-ojo); font-weight: 600 }
+.rt .firma .btn { margin-top: 12px; width: 100% }
+.rt .firma .espera { font-size: 13px; color: var(--rt-gris2); margin-top: 12px }
+
+/* =====================================================================
+   LA CUENTA EN GRANDE — bruto − tara = neto, para el resumen del mes.
+
+   Es la misma resta de cada tolva pero de todas juntas, y se dibuja
+   igual a propósito: quien la reconoce en la salida la reconoce aquí.
+   ===================================================================== */
+.rt .cuenta {
+  display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap;
+  font-family: var(--rt-titulo); font-weight: 900; letter-spacing: -.03em;
+  font-size: clamp(20px, 2.2vw, 26px);
+}
+.rt .cuenta .caja-n {
+  background: #fff; border: 1px solid var(--rt-linea);
+  padding: 12px 20px; min-width: 110px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.rt .cuenta .caja-n small {
+  display: block; font-family: var(--rt-texto); font-weight: 600;
+  font-size: 10.5px; letter-spacing: .15em; color: var(--rt-gris); margin-bottom: 5px;
+}
+.rt .cuenta .caja-n.tara { background: #F1F1EF }
+.rt .cuenta .caja-n.neto { background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200 }
+.rt .cuenta .caja-n.neto small { color: #4A3800 }
+.rt .cuenta .signo { display: grid; place-items: center; color: var(--rt-gris2); font-size: 1.1em }
+
+/* Una tolva en una lista simple (el maestro dentro del análisis). */
+.rt .tolva {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px;
+  align-items: center; padding: 15px 22px;
+  border-bottom: 1px solid #F0F0EC;
+}
+.rt .tolva:last-child { border-bottom: 0 }
+.rt .tolva .nom { font-family: var(--rt-titulo); font-weight: 800; font-size: 15px }
+.rt .tolva .det { font-size: 13px; color: var(--rt-gris); margin-top: 4px }
+
+/* ====================== Las barras del análisis ====================== */
+.rt .barras { display: flex; flex-direction: column; gap: 13px; padding: 20px 22px }
+.rt .barras .b {
+  display: grid; grid-template-columns: 170px minmax(0, 1fr) 64px;
+  gap: 14px; align-items: center;
+}
+.rt .barras .b .et { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere }
+.rt .barras .b .riel { height: 12px; background: #E8E8E4; overflow: hidden }
+.rt .barras .b .riel i { display: block; height: 100%; background: var(--rt-oro) }
+.rt .barras .b.mal .riel i { background: var(--rt-mal) }
+.rt .barras .b .n {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 16px;
+  text-align: right; font-variant-numeric: tabular-nums;
+}
 
 /* =====================================================================
    LA BIFURCACIÓN — las dos ramas del módulo.
-
-   Dos tarjetas grandes y nada más en la pantalla: la decisión es de dos
-   y cualquier cosa que las acompañe compite con ellas. Cada una trae su
-   cifra viva en SU unidad —roturas esperando, kilos abiertos— y en
-   ningún sitio se suman, que es de lo que trata el módulo entero.
    ===================================================================== */
-/* Con el ancho completo de una pantalla de 1440 cada tarjeta medía casi
-   700 px de ancho por 274 de alto: dos barras largas y medio vacías,
-   porque el texto de adentro se corta a 42 caracteres para poder leerse.
-   Con el tope, las dos quedan casi cuadradas y el texto llena la caja. */
 .rt .ramas {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px; max-width: 1000px;
+  gap: 16px; max-width: 1040px;
 }
 .rt .rama {
   position: relative; overflow: hidden; min-width: 0;
-  display: flex; flex-direction: column; gap: 0;
+  display: flex; flex-direction: column;
   background: var(--rt-papel); border: 1px solid var(--rt-linea);
-  border-left: 4px solid var(--rt-negro); border-radius: 14px;
-  padding: 20px 22px 18px; text-decoration: none; color: inherit;
+  border-left: 5px solid var(--rt-negro);
+  padding: 26px 28px 24px; text-decoration: none; color: inherit;
 }
-.rt .rama:hover { border-color: var(--rt-gris); border-left-color: var(--rt-oro) }
+.rt .rama:hover { border-left-color: var(--rt-oro) }
 .rt .rama .corte {
-  position: absolute; top: -30px; right: -46px; width: 116px; height: 150px;
-  background: var(--rt-oro); opacity: .26; transform: skewX(-26deg);
+  position: absolute; top: -34px; right: -52px; width: 130px; height: 170px;
+  background: var(--rt-oro); opacity: .22; transform: skewX(-20deg);
 }
 .rt .rama .rot {
-  position: relative; font-size: 10px; font-weight: 700; letter-spacing: .16em;
-  color: var(--rt-gris);
+  position: relative; font-size: 11.5px; font-weight: 600; letter-spacing: .18em;
+  color: var(--rt-ojo);
 }
 .rt .rama .nom {
   position: relative; font-family: var(--rt-titulo); font-weight: 900;
-  font-size: clamp(28px, 3.4vw, 44px); line-height: 1; letter-spacing: -.045em;
-  margin-top: 6px;
+  font-size: clamp(32px, 3.6vw, 48px); line-height: 1; letter-spacing: -.05em;
+  margin-top: 8px;
 }
 .rt .rama .des {
-  font-size: 12.5px; line-height: 1.45; color: var(--rt-gris);
-  margin-top: 9px; max-width: 42ch;
+  font-size: 14px; line-height: 1.55; color: var(--rt-gris);
+  margin-top: 12px; max-width: 40ch;
 }
-/* La cifra viva. Es lo que hace que la portada no sea un peaje: quien
-   entra ya sabía adónde iba; lo que no sabía es cuánto hay esperando. */
 .rt .rama .cifra-rama {
-  display: block; margin-top: 16px; padding-top: 13px;
+  display: block; margin-top: auto; padding-top: 18px;
   border-top: 1px solid var(--rt-linea);
 }
 .rt .rama .cifra-rama b {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: 34px;
-  letter-spacing: -.04em; font-variant-numeric: tabular-nums;
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 38px;
+  letter-spacing: -.045em; font-variant-numeric: tabular-nums;
 }
-.rt .rama .cifra-rama i { font-style: normal; font-size: 13px; font-weight: 700; margin-left: 6px }
+.rt .rama .cifra-rama i { font-style: normal; font-size: 14px; font-weight: 600; margin-left: 7px }
 .rt .rama .cifra-rama em {
-  display: block; font-style: normal; font-size: 11.5px;
-  color: var(--rt-gris); margin-top: 3px; line-height: 1.35;
+  display: block; font-style: normal; font-size: 12.5px;
+  color: var(--rt-gris); margin-top: 4px; line-height: 1.4;
 }
 .rt .rama .cifra-rama.mal b { color: var(--rt-mal) }
 .rt .rama .entrar {
-  display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;
-  font-size: 13px; font-weight: 800;
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 18px;
+  font-family: var(--rt-titulo); font-size: 14px; font-weight: 800;
 }
 .rt .rama .entrar svg {
-  width: 26px; height: 26px; padding: 5px; border-radius: 50%;
+  width: 28px; height: 28px; padding: 5px; border-radius: 50%;
   background: var(--rt-negro); color: #fff; stroke: currentColor; stroke-width: 2;
   flex: none;
 }
 .rt .rama:hover .entrar svg { background: var(--rt-oro); color: #1A1200 }
 
-/* ====================== Cifras ====================== */
-.rt .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
-.rt .cifra {
-  background: var(--rt-papel); border: 1px solid var(--rt-linea);
-  border-radius: 12px; padding: 12px 14px; border-left: 3px solid var(--rt-linea);
-  min-width: 0;
-}
-.rt .cifra .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--rt-gris) }
-.rt .cifra .n {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(24px, 2.6vw, 34px);
-  line-height: 1; letter-spacing: -.04em; margin-top: 4px;
-  font-variant-numeric: tabular-nums;
-}
-.rt .cifra .u { font-size: 11px; color: var(--rt-gris); margin-top: 4px; line-height: 1.3 }
-.rt .cifra.mal { border-left-color: var(--rt-mal) } .rt .cifra.mal .n { color: var(--rt-mal) }
-.rt .cifra.ojo { border-left-color: var(--rt-oro) }
-.rt .cifra.bien { border-left-color: var(--rt-verde) }
-
-/* ====================== Cajas y listas ====================== */
-.rt .caja {
-  background: var(--rt-papel); border: 1px solid var(--rt-linea);
-  border-radius: 12px; display: flex; flex-direction: column;
-  min-width: 0; overflow: hidden;
-}
-.rt .caja > .cab {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 12px; padding: 12px 14px 10px; border-bottom: 1px solid var(--rt-linea);
-  flex-wrap: wrap;
-}
-.rt .caja > .cab h2 {
-  font-family: var(--rt-titulo); font-weight: 800; font-size: 15px; margin: 0;
-  letter-spacing: -.02em;
-}
-.rt .caja > .cab p { margin: 3px 0 0; font-size: 11.5px; color: var(--rt-gris); max-width: 70ch }
-.rt .rueda { overflow-x: auto; min-width: 0 }
-
-/* Una rotura. FILO ROJO si es no asumida: ese filo es la diferencia
-   entre "el OL lo reconoce" y "estamos diciendo que no fue nuestro", que
-   es la decisión que ABI tiene que tomar de un vistazo. */
-.rt .fila {
-  display: grid; grid-template-columns: 78px minmax(0, 1fr) auto;
-  gap: 12px; align-items: start; padding: 12px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--rt-linea) 60%, transparent);
-  border-left: 3px solid transparent;
-}
-.rt .fila:last-child { border-bottom: 0 }
-.rt .fila.roja { border-left-color: var(--rt-mal) }
-.rt .fila.gris { background: var(--c-fafbfd) }
-.rt .fila .cod {
-  font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; font-weight: 700;
-  color: var(--rt-gris); padding-top: 2px; min-width: 0; overflow-wrap: anywhere;
-}
-.rt .fila .tit { font-weight: 700; font-size: 13.5px; line-height: 1.3; overflow-wrap: anywhere }
-.rt .fila .meta {
-  margin-top: 4px; font-size: 11.5px; color: var(--rt-gris);
-  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
-}
-.rt .fila .meta b { font-weight: 600; color: var(--rt-tinta) }
-.rt .fila .der { display: flex; flex-direction: column; align-items: flex-end; gap: 6px }
-.rt .fila .der .par { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end }
-
-/* El color del vidrio, como punto. Es lo que se separa para vender. */
-.rt .vidrio { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap }
-.rt .vidrio i {
-  width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(0,0,0,.2);
-  flex: none;
-}
-.rt .vidrio.ambar i { background: #C98A3A }
-.rt .vidrio.flint i { background: #EDEFF1 }
-.rt .vidrio.green i { background: #4C7A4C }
-
-.rt .eti {
-  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .08em;
-  padding: 3px 7px; border-radius: 5px; white-space: nowrap;
-  background: var(--c-eef1f5); color: var(--rt-gris);
-}
-.rt .eti.no_asumida { background: #FDE8EC; color: #A8001F }
-.rt .eti.asumida    { background: var(--c-eef1f5); color: var(--rt-gris) }
-.rt .eti.esperando  { background: #FFF4DE; color: #8A5A00 }
-.rt .eti.cuenta     { background: #E9F3EE; color: #0F5C39 }
-.rt .eti.no_cuenta  { background: #FDE8EC; color: #A8001F }
-.rt .eti.anulada    { text-decoration: line-through }
-.rt .eti.falta      { background: #FDE8EC; color: #A8001F }
-
-/* ====================== Botones y filtros ====================== */
-.rt .btn {
-  font: inherit; font-size: 12.5px; font-weight: 700;
-  padding: 8px 13px; border-radius: 8px; border: 1px solid var(--rt-linea);
-  background: #fff; color: var(--rt-tinta); cursor: pointer;
-  min-height: 38px; white-space: nowrap; text-decoration: none;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.rt .btn:hover { border-color: var(--rt-gris) }
-.rt .btn.si { background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200 }
-.rt .btn.bien { color: var(--rt-verde); border-color: color-mix(in srgb, var(--rt-verde) 62%, #fff) }
-.rt .btn.mal  { color: var(--rt-mal);   border-color: color-mix(in srgb, var(--rt-mal) 62%, #fff) }
-.rt .btn.plano { border-color: transparent; background: transparent; color: var(--rt-gris) }
-.rt .btn:disabled { opacity: .5; cursor: not-allowed }
-
-.rt .filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
-.rt .filtros select, .rt .filtros input {
-  font: inherit; font-size: 12.5px; padding: 7px 10px; min-height: 36px;
-  border: 1px solid var(--rt-linea); border-radius: 8px; background: #fff;
-  color: var(--rt-tinta); min-width: 0;
-}
-.rt .filtros input { flex: 1 1 150px }
-
-.rt .panel {
-  grid-column: 1 / -1; margin-top: 10px; padding: 12px;
-  border: 1px solid var(--rt-linea); border-radius: 10px; background: var(--c-fafbfd);
-  display: flex; flex-direction: column; gap: 9px;
-}
-.rt .panel label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--rt-gris) }
-.rt .panel textarea, .rt .panel input, .rt .panel select {
-  font: inherit; font-size: 13px; padding: 9px 11px; width: 100%;
-  border: 1px solid var(--rt-linea); border-radius: 8px; background: #fff;
-  color: var(--rt-tinta); resize: vertical;
-}
-.rt .panel .acciones-panel { display: flex; gap: 8px; flex-wrap: wrap }
-
-.rt .aviso {
-  border-left: 3px solid var(--rt-oro); background: #FFFBEF;
-  padding: 10px 12px; border-radius: 0 8px 8px 0; font-size: 12.5px; line-height: 1.45;
-}
-.rt .aviso.rojo { border-left-color: var(--rt-mal); background: #FEF4F6 }
-
-.rt .vacio { padding: 34px 18px; text-align: center; color: var(--rt-gris); font-size: 13px }
-.rt .vacio b { display: block; font-size: 15px; color: var(--rt-tinta); margin-bottom: 5px }
-
-.rt .sin-tablas {
-  background: var(--rt-papel); border: 1px solid var(--rt-linea);
-  border-left: 3px solid var(--rt-mal); border-radius: 12px; padding: 18px 20px;
-}
-.rt .sin-tablas h2 { font-family: var(--rt-titulo); font-size: 17px; margin: 0 0 7px }
-.rt .sin-tablas p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--rt-gris) }
-.rt .sin-tablas code {
-  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
-  background: var(--c-eef1f5); padding: 2px 5px; border-radius: 4px;
-}
-
 /* =====================================================================
-   LA CUENTA DE LA TOLVA — bruto menos tara, a la vista.
-
-   Es el corazón de la salida y por eso se dibuja como una cuenta y no
-   como tres celdas de una tabla: quien pesa tiene que poder mirar la
-   pantalla y reconocer la resta que acaba de hacer en la báscula.
-   ===================================================================== */
-.rt .cuenta {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  font-family: var(--rt-titulo); font-weight: 900; letter-spacing: -.02em;
-  font-size: clamp(15px, 1.7vw, 20px);
-}
-.rt .cuenta .caja-n {
-  background: #fff; border: 1px solid var(--rt-linea); border-radius: 8px;
-  padding: 7px 13px; min-width: 78px; text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.rt .cuenta .caja-n small {
-  display: block; font-family: var(--rt-texto); font-weight: 600;
-  font-size: 9.5px; letter-spacing: .12em; color: var(--rt-gris); margin-bottom: 2px;
-}
-.rt .cuenta .caja-n.tara { background: var(--c-eef1f5) }
-.rt .cuenta .caja-n.neto { background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200 }
-.rt .cuenta .signo { color: var(--rt-gris); font-size: 1.1em }
-
-/* Una tolva de la salida. */
-.rt .tolva {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px;
-  align-items: center; padding: 12px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--rt-linea) 60%, transparent);
-}
-.rt .tolva:last-child { border-bottom: 0 }
-.rt .tolva .nom { font-weight: 700; font-size: 13.5px }
-.rt .tolva .det { font-size: 11.5px; color: var(--rt-gris); margin-top: 3px }
-
-/* ====================== Las tres firmas ====================== */
-.rt .firmas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
-.rt .firma {
-  border: 1px solid var(--rt-linea); border-radius: 10px; padding: 12px 13px;
-  background: #fff; min-width: 0;
-}
-.rt .firma .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--rt-gris) }
-.rt .firma .quien { font-weight: 700; font-size: 13px; margin-top: 5px; overflow-wrap: anywhere }
-.rt .firma .cuando { font-size: 11px; color: var(--rt-gris); margin-top: 2px }
-.rt .firma.lista { border-color: color-mix(in srgb, var(--rt-verde) 45%, #fff); background: #F4FAF7 }
-.rt .firma.lista .quien { color: var(--rt-verde) }
-/* La que sigue: es la única con botón, para que no haya que adivinar
-   cuál toca. Las otras dos esperan. */
-.rt .firma.turno { border-color: var(--rt-oro); background: #FFFBEF }
-.rt .firma .btn { margin-top: 9px; width: 100% }
-.rt .firma .espera { font-size: 11.5px; color: var(--rt-gris); margin-top: 9px }
-
-/* =====================================================================
-   REPORTAR EN SITIO — los dos pasos del celular.
+   REGISTRAR EN SITIO — el asistente del celular.
    ===================================================================== */
 .rt-rep {
-  position: fixed; inset: 0; z-index: 60; background: #F4F6F9;
+  position: fixed; inset: 0; z-index: 60; background: #F1F1F1;
   display: flex; flex-direction: column;
 }
 .rt-rep .barra {
-  background: var(--rt-negro); color: #fff; padding: 13px 16px;
+  background: var(--rt-negro); color: #fff; padding: 16px 20px;
   display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 3px solid var(--rt-oro); flex: 0 0 auto;
+  border-bottom: 4px solid var(--rt-oro); flex: 0 0 auto;
 }
-.rt-rep .barra .t { font-family: var(--rt-titulo); font-weight: 800; font-size: 14px; letter-spacing: .16em }
+.rt-rep .barra .t { font-family: var(--rt-titulo); font-weight: 800; font-size: 15px; letter-spacing: .22em }
 .rt-rep .barra button {
-  background: transparent; border: 0; color: #fff; font-size: 22px; line-height: 1;
-  cursor: pointer; padding: 4px 8px; min-height: 38px; min-width: 38px;
+  background: transparent; border: 0; color: #9A9A9A; font-size: 24px; line-height: 1;
+  cursor: pointer; padding: 4px 8px; min-height: 40px; min-width: 40px;
 }
-.rt-rep .pasos { display: flex; gap: 6px; padding: 14px 16px 0; flex: 0 0 auto }
-.rt-rep .pasos i { height: 4px; border-radius: 99px; background: var(--rt-linea); flex: 1 1 0 }
+/* Cuatro tramos y se llenan de a dos por paso: el asistente tiene dos
+   pantallas, pero la barra avanza a la mitad cuando uno termina la
+   primera mitad de la primera. Un solo tramo por paso da la sensación
+   de que no se ha movido nada. */
+.rt-rep .pasos { display: flex; gap: 8px; padding: 18px 20px 0; flex: 0 0 auto }
+.rt-rep .pasos i { height: 4px; background: #D8D8D4; flex: 1 1 0 }
 .rt-rep .pasos i.on { background: var(--rt-oro) }
 
-.rt-rep .cuerpo { flex: 1 1 auto; overflow: auto; padding: 14px 16px 18px; min-height: 0 }
+.rt-rep .cuerpo { flex: 1 1 auto; overflow: auto; padding: 16px 20px 24px; min-height: 0 }
 .rt-rep h2 {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(21px, 5.5vw, 28px);
-  letter-spacing: -.03em; margin: 8px 0 6px; text-wrap: balance;
+  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(26px, 6.5vw, 34px);
+  letter-spacing: -.04em; margin: 12px 0 0; text-wrap: balance;
 }
-.rt-rep .guia { margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--rt-gris) }
+.rt-rep .guia { margin: 14px 0 0; font-size: 14px; line-height: 1.55; color: var(--rt-gris) }
 
 .rt-rep .pie {
-  flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px;
-  padding: 12px 16px; background: #fff; border-top: 1px solid var(--rt-linea);
+  flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1.25fr; gap: 12px;
+  padding: 14px 20px; background: #fff; border-top: 1px solid var(--rt-linea);
 }
 .rt-rep .pie button {
-  font: inherit; font-weight: 800; font-size: 14px; min-height: 48px;
-  border-radius: 9px; border: 1px solid var(--rt-linea); background: var(--c-eef1f5);
-  color: var(--rt-tinta); cursor: pointer;
+  font: inherit; font-family: var(--rt-titulo); font-weight: 800; font-size: 16px;
+  min-height: 54px; border: 0; background: #E8E8E4; color: var(--rt-tinta); cursor: pointer;
 }
-.rt-rep .pie button.si { background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200 }
-.rt-rep .pie button:disabled { opacity: .5; cursor: not-allowed }
+.rt-rep .pie button.si { background: var(--rt-oro); color: #1A1200 }
+.rt-rep .pie button:disabled { opacity: .45; cursor: not-allowed }
+
+.rt-rep .rotulo {
+  display: block; font-family: var(--rt-titulo); font-size: 15px; font-weight: 800;
+  margin: 22px 0 10px;
+}
 
 /* Los botones grandes de escoger. Nada de teclado si se puede evitar. */
-.rt-rep .opciones { display: grid; gap: 9px; margin-bottom: 14px }
+.rt-rep .opciones { display: grid; gap: 10px }
 .rt-rep .opciones.dos { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 .rt-rep .opciones.tres { grid-template-columns: repeat(3, minmax(0, 1fr)) }
 .rt-rep .opciones button {
-  font: inherit; background: #fff; border: 1.5px solid var(--rt-linea); border-radius: 10px;
-  padding: 13px 10px; cursor: pointer; min-height: 58px; color: var(--rt-tinta);
+  font: inherit; background: #fff; border: 1px solid var(--rt-linea);
+  padding: 16px 16px; cursor: pointer; min-height: 64px; color: var(--rt-tinta);
   text-align: left;
 }
-/* display:block y no inline: son <span>, y sin esto el nombre de la
-   causa y su aclaración salen pegados en el mismo renglón —"Apilado por
-   encima de lo permitidoNo asumida"— porque el margin-top de un inline
-   no hace nada. */
-.rt-rep .opciones button .p { display: block; font-weight: 800; font-size: 14px; line-height: 1.25 }
-.rt-rep .opciones button .h {
-  display: block; font-size: 11.5px; color: var(--rt-gris);
-  margin-top: 3px; line-height: 1.35;
-}
-.rt-rep .opciones button.on { border-color: var(--rt-oro); background: #FFFBEF }
-.rt-rep .opciones button.on.roja { border-color: var(--rt-mal); background: #FEF4F6 }
+.rt-rep .opciones button .p { display: block; font-family: var(--rt-titulo); font-weight: 800; font-size: 17px; line-height: 1.2 }
+.rt-rep .opciones button .h { display: block; font-size: 13.5px; color: var(--rt-gris); margin-top: 5px; line-height: 1.4 }
+.rt-rep .opciones button.on { border-color: var(--rt-oro); border-width: 2px; background: var(--rt-crema) }
 
-/* El contador de unidades. Botones de 52 px: se toca con guantes. */
+/* La causa: una opción con su punto de color. El punto dice, antes de
+   leer, de qué lado cae —verde el OL lo asume, rojo estamos diciendo
+   que no fue nuestro—. */
+.rt-rep .opciones button .p.conpunto { display: flex; align-items: center; gap: 11px }
+.rt-rep .opciones button .p .punto {
+  width: 13px; height: 13px; border-radius: 50%; background: var(--rt-verde); flex: none;
+}
+.rt-rep .opciones button.roja .p .punto { background: var(--rt-mal) }
+
+/* Los procesos, en chips: son siete y caben; un desplegable escondería
+   la lista completa detrás de un toque. */
+.rt-rep .chips { display: flex; gap: 10px; flex-wrap: wrap }
+.rt-rep .chips button {
+  font: inherit; font-family: var(--rt-titulo); font-weight: 700; font-size: 15px;
+  background: #fff; border: 1px solid var(--rt-linea); color: var(--rt-tinta);
+  padding: 14px 20px; min-height: 52px; cursor: pointer;
+}
+.rt-rep .chips button.on { border-color: var(--rt-oro); border-width: 2px; background: var(--rt-crema) }
+
+/* El tipo de vidrio, con la muestra grande: se escoge mirando el color,
+   no leyendo la palabra. */
+.rt-rep .vidrios { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+.rt-rep .vidrios button {
+  font: inherit; background: #fff; border: 1px solid var(--rt-linea); cursor: pointer;
+  padding: 16px 10px; text-align: center; color: var(--rt-tinta);
+}
+.rt-rep .vidrios button.on { border-color: var(--rt-oro); border-width: 2px; background: var(--rt-crema) }
+.rt-rep .vidrios button i {
+  display: block; width: 38px; height: 38px; margin: 0 auto 10px;
+  border: 1px solid rgba(0,0,0,.18);
+}
+.rt-rep .vidrios button.ambar i { background: #C8801F }
+.rt-rep .vidrios button.flint i { background: #E7EBE7 }
+.rt-rep .vidrios button.green i { background: #2F6B3C }
+.rt-rep .vidrios button b { font-family: var(--rt-titulo); font-weight: 800; font-size: 15px }
+
+/* El contador de unidades. Bloques grises de 64 px: se toca con guantes
+   y sin mirar. */
 .rt-rep .contador {
-  display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; gap: 10px;
-  align-items: center; margin-bottom: 6px;
+  display: grid; grid-template-columns: 82px minmax(0, 1fr) 82px;
+  align-items: stretch; border: 1px solid var(--rt-linea); background: #fff;
 }
 .rt-rep .contador button {
-  font: inherit; font-size: 26px; font-weight: 700; min-height: 56px;
-  border: 1px solid var(--rt-linea); border-radius: 10px; background: #fff;
-  color: var(--rt-tinta); cursor: pointer;
+  font: inherit; font-size: 30px; font-weight: 700; min-height: 76px;
+  border: 0; background: #EFEFEC; color: var(--rt-tinta); cursor: pointer;
 }
 .rt-rep .contador input {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: 30px; text-align: center;
-  min-height: 56px; width: 100%; border: 1px solid var(--rt-linea); border-radius: 10px;
-  background: #fff; color: var(--rt-tinta); font-variant-numeric: tabular-nums;
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 38px; text-align: center;
+  min-height: 76px; width: 100%; border: 0; background: #fff;
+  color: var(--rt-tinta); font-variant-numeric: tabular-nums;
 }
 
-.rt-rep .campo { margin-bottom: 12px }
+.rt-rep .campo { margin-top: 18px }
 .rt-rep .campo label {
-  display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
-  color: var(--rt-gris); margin-bottom: 5px;
+  display: block; font-family: var(--rt-titulo); font-size: 15px; font-weight: 800;
+  margin-bottom: 10px;
 }
 .rt-rep .campo input, .rt-rep .campo textarea, .rt-rep .campo select {
-  font: inherit; font-size: 14px; width: 100%; padding: 12px 13px; min-height: 46px;
-  border: 1px solid var(--rt-linea); border-radius: 9px; background: #fff;
+  font: inherit; font-size: 16px; width: 100%; padding: 15px 16px; min-height: 54px;
+  border: 1px solid var(--rt-linea); background: #fff;
   color: var(--rt-tinta); resize: vertical;
 }
+.rt-rep .nota { margin-top: 12px; font-size: 13.5px; line-height: 1.5; color: var(--rt-gris) }
 
-.rt-rep .foto {
-  background: #1A1A1A; border-radius: 10px; overflow: hidden; margin-bottom: 12px;
+/* El aviso de que la causa exige foto: fondo rojo claro y filo rojo.
+   Es la única advertencia del asistente y tiene que verse como tal. */
+.rt-rep .exige {
+  border-left: 5px solid var(--rt-mal); background: var(--rt-mal-suave);
+  padding: 18px 20px; margin-top: 18px; font-size: 14.5px; line-height: 1.55;
+  color: var(--rt-mal);
 }
+.rt-rep .exige b { color: var(--rt-tinta) }
+
+.rt-rep .foto { background: #2B2B2B; margin-top: 18px }
 .rt-rep .foto .lienzo {
   aspect-ratio: 4 / 3; max-width: 100%; display: grid; place-items: center;
-  color: rgba(255,255,255,.6); font-size: 12px; letter-spacing: .12em; font-weight: 700;
+  color: rgba(255,255,255,.75); font-size: 17px; font-weight: 500; letter-spacing: .02em;
 }
 .rt-rep .foto .lienzo img { width: 100%; height: 100%; object-fit: cover }
+/* La banda del sello, dentro del recuadro negro: hora, sitio y
+   precisión quedan GRABADAS en la imagen, y esto lo enseña. */
 .rt-rep .foto .sello {
-  padding: 11px 13px; background: #101010; font-size: 11.5px; line-height: 1.4;
-  color: rgba(255,255,255,.78);
+  margin: 0 14px 14px; padding: 13px; background: #0A0A0A; text-align: center;
+  font-size: 13px; color: rgba(255,255,255,.82); font-variant-numeric: tabular-nums;
 }
-.rt-rep .foto .sello b { color: var(--rt-oro) }
 .rt-rep .otra {
-  display: block; width: 100%; margin-top: 10px; padding: 13px;
-  border: 1px dashed var(--c-b4c0ce); border-radius: 10px; background: transparent;
-  font: inherit; font-size: 13px; font-weight: 700; color: var(--rt-tinta);
-  cursor: pointer; min-height: 46px;
+  display: block; width: 100%; margin-top: 12px; padding: 16px;
+  border: 2px dashed #C8C8C2; background: transparent;
+  font: inherit; font-family: var(--rt-titulo); font-size: 15px; font-weight: 700;
+  color: var(--rt-tinta); cursor: pointer; min-height: 54px;
 }
+.rt-rep .otra:hover { border-color: var(--rt-oro) }
 .rt-rep .negro {
-  background: var(--rt-negro); color: #fff; border-radius: 10px; padding: 12px 14px;
-  font-size: 12.5px; line-height: 1.45; display: flex; gap: 10px; align-items: flex-start;
+  background: var(--rt-negro); color: #fff; padding: 16px 18px; margin-top: 18px;
+  font-size: 14px; line-height: 1.5; display: flex; gap: 12px; align-items: flex-start;
 }
 .rt-rep .negro .punto {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--rt-oro);
-  flex: 0 0 auto; margin-top: 6px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--rt-oro);
+  flex: 0 0 auto; margin-top: 7px;
 }
 .rt-rep .negro b { color: var(--rt-oro) }
 
-/* =====================================================================
-   LAS BARRAS DEL ANÁLISIS.
-
-   Barras y no una tabla de números: la pregunta de esta pantalla es
-   "¿cuál pesa más?", y eso se contesta comparando largos de un vistazo.
-   Una columna de cifras hay que leerla entera para contestarlo.
-   ===================================================================== */
-.rt .barras { display: flex; flex-direction: column; gap: 11px; padding: 14px }
-.rt .barras .b {
-  display: grid; grid-template-columns: 150px minmax(0, 1fr) 56px;
-  gap: 12px; align-items: center;
-}
-.rt .barras .b .et { font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere }
-.rt .barras .b .riel { height: 10px; border-radius: 99px; background: var(--c-eef1f5); overflow: hidden }
-.rt .barras .b .riel i { display: block; height: 100%; background: var(--rt-oro); border-radius: 99px }
-.rt .barras .b.mal .riel i { background: var(--rt-mal) }
-.rt .barras .b .n {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: 14px;
-  text-align: right; font-variant-numeric: tabular-nums;
-}
-
 /* El botón "+" flotante: registrar es la acción del módulo. */
 .rt .mas {
-  position: fixed; right: 20px; bottom: 20px; z-index: 40;
-  width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;
-  background: var(--rt-oro); color: #1A1200; font-size: 30px; line-height: 1;
-  box-shadow: 0 6px 20px -4px rgba(0,0,0,.35); display: grid; place-items: center;
+  position: fixed; right: 24px; bottom: 24px; z-index: 40;
+  width: 62px; height: 62px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--rt-oro); color: #1A1200; font-size: 32px; line-height: 1;
+  box-shadow: 0 8px 24px -6px rgba(0,0,0,.4); display: grid; place-items: center;
 }
 
 /* ====================== Celular ====================== */
-@media (max-width: 760px) {
+@media (max-width: 860px) {
   .rt .cabeza { grid-template-columns: minmax(0, 1fr) }
-  /* Las dos ramas, una encima de otra. Lado a lado en 360 px cada
+  .rt .kpi { min-width: 0 }
+  .rt .comomide { grid-template-columns: minmax(0, 1fr); padding: 22px }
+  .rt .comomide .tara-sello { justify-self: start }
+  .rt .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .rt .firmas { grid-template-columns: minmax(0, 1fr) }
+  .rt .firma { border-right: 1px solid var(--rt-linea); border-bottom: 0 }
+  .rt .firma:last-child { border-bottom: 1px solid var(--rt-linea) }
+  .rt .firma.turno + .firma { border-left: 1px solid var(--rt-linea) }
+  .rt .totales .t { flex: 1 1 50%; border-right: 0; border-bottom: 1px solid #2A2E33; padding: 18px 22px }
+  .rt .tolvas { grid-template-columns: minmax(0, 1fr); padding: 14px }
+}
+
+@media (max-width: 760px) {
+  /* Las dos ramas, una encima de otra: lado a lado en 360 px cada
      tarjeta queda de 150 px y el nombre se parte por la mitad. */
   .rt .ramas { grid-template-columns: minmax(0, 1fr) }
-  .rt .rama { padding: 17px 18px 16px }
-  .rt .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .rt .fila { grid-template-columns: minmax(0, 1fr); gap: 7px }
-  .rt .fila .cod { padding-top: 0 }
-  .rt .fila .der { width: 100%; flex-direction: row; align-items: center; flex-wrap: wrap;
-                   justify-content: flex-start; gap: 8px }
+  .rt .rama { padding: 20px 22px }
+
+  /* La tarjeta de una rotura, en una columna. El código y la miniatura
+     pasan arriba, en fila, para no gastar 96 px de ancho en un celular
+     de 360. */
+  .rt .fila { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 15px 16px }
+  .rt .fila .izq { display: flex; align-items: center; gap: 12px }
+  .rt .fila .ev { margin-top: 0; width: 48px; height: 48px }
+  .rt .fila .sinfoto { margin-top: 0 }
+  .rt .fila .der { width: 100%; justify-content: flex-start }
   .rt .fila .der .par { width: 100%; justify-content: flex-start }
   .rt .fila .der .par .btn { flex: 1 1 130px }
-  /* "Ver" ocupa su propia línea y las dos decisiones comparten la
-     siguiente. Dejados a su suerte, los tres quedaban 2 + 1: "Ver" al
-     lado de "Cuenta" y "No cuenta" solo y ancho abajo, que empareja
-     visualmente el botón de mirar con el de aprobar. Son trabajos
-     distintos y no deben verse como pareja. */
-  .rt .fila .der .par .btn:first-child { flex: 1 1 100% }
-  .rt .firmas { grid-template-columns: minmax(0, 1fr) }
-  .rt .tolva { grid-template-columns: minmax(0, 1fr) }
-  .rt-rep .opciones.tres { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .rt .barras .b { grid-template-columns: 110px minmax(0, 1fr) 46px; gap: 9px }
 
-  /* LA RESTA NO SE PARTE EN DOS LÍNEAS. En un teléfono de 360 px las
-     tres cajas medidas para PC sumaban 302 px en un hueco de 300 y el
-     neto se caía abajo, que es justo donde deja de leerse como una
-     resta. Se aprietan las cajas en vez de dejarla envolver. */
-  .rt .cuenta { gap: 8px; font-size: 16px }
-  .rt .cuenta .caja-n { min-width: 68px; padding: 7px 8px }
+  .rt .cadena .eslabon { flex: 1 1 100px; min-width: 0; padding: 12px 14px }
+  .rt .cadena .eslabon .n { font-size: 24px }
+  .rt .cadena .flecha { width: 18px }
+
+  .rt .barras .b { grid-template-columns: 118px minmax(0, 1fr) 52px; gap: 10px }
+
+  .rt-rep .opciones.tres, .rt-rep .vidrios { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .rt-rep .contador { grid-template-columns: 68px minmax(0, 1fr) 68px }
 }

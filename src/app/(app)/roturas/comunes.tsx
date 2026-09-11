@@ -42,50 +42,64 @@ export function Fila({ r, nombres, derecha, children }: {
   return (
     <div className={"fila" + (r.grupo === "no_asumida" ? " roja" : "")
                   + (r.estado === "anulada" ? " gris" : "")}>
-      <div className="cod">{r.codigo}</div>
+      {/* EL CÓDIGO Y LA EVIDENCIA, JUNTOS Y A LA IZQUIERDA. Que se vea
+          si hay foto SIN abrir nada es lo primero que ABI mira: una
+          causa no asumida sin foto se devuelve, y decirlo aquí le ahorra
+          el clic. */}
+      <div className="izq">
+        <div className="cod">{r.codigo}</div>
+        {r.fotos > 0
+          ? <div className="ev">EV<br />FOTO</div>
+          : <div className="sinfoto">Sin foto</div>}
+      </div>
 
       <div>
         <div className="tit">
           {r.material_nombre}
-          {" · "}
-          {r.tipo === "producto_terminado"
-            ? `${r.unidades} empaque${r.unidades === 1 ? "" : "s"}`
-              + (r.botellas != null ? ` · ${r.botellas} botella${r.botellas === 1 ? "" : "s"}` : "")
-            : `${r.unidades} unidad${r.unidades === 1 ? "" : "es"}`}
-        </div>
-        <div className="meta">
-          <span className={"eti " + r.grupo}>
-            {r.grupo === "no_asumida" ? "NO ASUMIDA" : "ASUMIDA"}
-          </span>
           <Vidrio color={r.color} />
-          <span>·</span>
-          <b>{r.proceso_nombre}</b>
-          <span>·</span>
-          <span>{r.causa_nombre}</span>
-          {r.le_falta_foto && (
-            <>
-              <span>·</span>
-              {/* Se dice ANTES de que ABI la abra: es lo que va a
-                  devolver, y devolverlo aquí ahorra el viaje. */}
-              <span className="eti falta">LE FALTA LA FOTO</span>
-            </>
-          )}
         </div>
+
         <div className="meta">
-          <span>{hace(r.minutos)}</span>
-          <span>·</span>
-          <span>{quien(nombres, r.reportada_por)}</span>
-          {r.descripcion && <><span>·</span><span>{r.descripcion}</span></>}
+          <span className="cant">{r.unidades}</span>
+          <span>{r.tipo === "producto_terminado"
+            ? (r.unidades === 1 ? "empaque" : "empaques")
+            : (r.unidades === 1 ? "unidad" : "unidades")}</span>
+          <span>Proceso {r.proceso_nombre}</span>
+          <span className={"eti " + r.grupo}>
+            {r.grupo === "no_asumida"
+              ? `No asumida · ${r.causa_nombre.toLowerCase()}`
+              : "Asumida por el OL"}
+          </span>
+          <span>{quien(nombres, r.reportada_por)} · {hace(r.minutos)}</span>
+          {r.le_falta_foto && <span className="eti falta">LE FALTA LA FOTO</span>}
         </div>
+
+        {/* EL PRODUCTO TERMINADO SE ABRE EN DOS: los empaques de afuera
+            y las botellas de adentro. Sin esta línea, el vidrio que va
+            dentro del líquido no aparece en ninguna parte. */}
+        {r.tipo === "producto_terminado" && r.botellas != null && (
+          <div className="meta">
+            <span>
+              De {r.unidades} empaque{r.unidades === 1 ? "" : "s"},{" "}
+              <b>{r.botellas} botella{r.botellas === 1 ? "" : "s"}</b> rotas dentro
+            </span>
+          </div>
+        )}
+
+        {r.descripcion && (
+          <div className="meta"><span>{r.descripcion}</span></div>
+        )}
+
         {children}
       </div>
 
       <div className="der">
-        <span className={"eti " + r.estado}>
-          {r.estado === "esperando" ? "ESPERA VISTO BUENO"
-            : r.estado === "cuenta" ? "CUENTA"
-            : r.estado === "no_cuenta" ? "NO CUENTA" : "ANULADA"}
-        </span>
+        {r.estado !== "esperando" && (
+          <span className={"eti " + r.estado}>
+            {r.estado === "cuenta" ? "CUENTA"
+              : r.estado === "no_cuenta" ? "NO CUENTA" : "ANULADA"}
+          </span>
+        )}
         {derecha}
       </div>
     </div>

@@ -11,11 +11,18 @@ import { readdirSync, existsSync } from "node:fs";
 import { readFileSync } from "node:fs";
 
 const registro = readFileSync("src/modulos/registro.ts", "utf8");
-const activos = registro.split(/\n\s*\{\s*\n\s*id:/).slice(1);
+
+/* SE PARTE POR EL "id:" DEL MÓDULO, que va a cuatro espacios.
+   Antes se partía por cualquier "{" seguido de "id:", y el día que un
+   módulo estrenó submódulos —que también traen id— el corte cayó en
+   medio del módulo: sus secciones quedaron dentro de un trozo sin
+   "activo: true" y dejaron de revisarse. El guardián se quedó callado
+   justo para el módulo más nuevo, que es donde más falta hacía. */
+const activos = registro.split(/\n {4}id: "/).slice(1);
 
 const rutas = new Set();
 for (const bloque of activos) {
-  if (!/activo:\s*true/.test(bloque)) continue;
+  if (!/\n {4}activo:\s*true/.test(bloque)) continue;
   for (const m of bloque.matchAll(/ruta:\s*"([^"]+)"/g)) rutas.add(m[1]);
 }
 

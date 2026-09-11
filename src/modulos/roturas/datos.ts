@@ -53,8 +53,8 @@ export type Salida = {
   supervisora_en: string | null;
   verificador_por: string | null;
   verificador_en: string | null;
-  facturador_por: string | null;
-  facturador_en: string | null;
+  validador_por: string | null;
+  validador_en: string | null;
   tolvas: number;
   bruto_kg: number;
   tara_kg: number;

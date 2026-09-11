@@ -13,8 +13,14 @@ import { fecha, kilos, quien } from "../comunes";
  *
  * Una salida es un camión: se van pesando tolvas, y cuando está completo
  * se firma. Las tres firmas van en cadena y en orden —supervisora,
- * verificador, facturador— porque quien digita no verifica: es la regla
- * que evita que el mismo par de manos pese, apruebe y facture.
+ * verificador, validación— y CADA UNA VIVE EN SU PROPIA PANTALLA, porque
+ * son tres personas distintas y cada una trabaja en un sitio distinto.
+ * Con los tres botones en una sola hoja, la misma persona tocaba dos y
+ * la base le contestaba que no: la regla estaba bien, la pantalla la
+ * convertía en un regaño.
+ *
+ * Esta pantalla es la de la SUPERVISORA: solo enseña lo que todavía se
+ * está pesando. Lo cerrado ya no es suyo.
  *
  * El neto NO se guarda en ninguna parte: sale de sumar las tolvas cada
  * vez que se mira. Un neto guardado queda desfasado de su bruto el día
@@ -59,8 +65,8 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
 
       <div className="filtros">
         <select value={ver} onChange={(e) => setVer(e.target.value as "abiertas" | "todas")}>
-          <option value="abiertas">Solo las abiertas</option>
-          <option value="todas">Todas</option>
+          <option value="abiertas">Las que estoy pesando</option>
+          <option value="todas">Todas, incluidas las que ya salieron</option>
         </select>
       </div>
 
@@ -100,15 +106,20 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
             </button>
           )}
         </div>
+      </section>
 
-        <div className="rueda">
+      {/* Las salidas van FUERA de la caja del encabezado: cada una es su
+          propia tarjeta. Metidas dentro se leen como renglones de una
+          tabla, y una salida es una cosa con la que se trabaja, no una
+          fila que se consulta. */}
+      <div className="filas">
           {lista.length === 0 && (
-            <div className="vacio">
+            <div className="caja"><div className="vacio">
               <b>Sin salidas</b>
               {salidas.length
-                ? "No hay ninguna abierta. Cambia el filtro para ver las cerradas."
+                ? "No hay ninguna abierta. Cambia el filtro para ver las que ya salieron."
                 : "Todavía no se ha abierto ninguna salida de vidrio."}
-            </div>
+            </div></div>
           )}
 
           {lista.map((s) => (
@@ -126,12 +137,14 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
                   {s.observacion && <><span>·</span><span>{s.observacion}</span></>}
                 </div>
                 <div className="meta">
-                  {/* Las tres firmas como cadena y no como "2 de 3": lo
-                      que importa no es cuántas van, es CUÁL falta. */}
+                  {/* CUÁL falta, no cuántas van. "2 de 3" obliga a ir a
+                      mirar; el nombre de la etapa ya dice a quién hay
+                      que ir a buscar. */}
                   <span>
-                    Supervisora {s.supervisora_en ? "✓" : "—"} ·
-                    {" "}Verificador {s.verificador_en ? "✓" : "—"} ·
-                    {" "}Facturador {s.facturador_en ? "✓" : "—"}
+                    {!s.supervisora_en ? "Falta cerrar y enviar a verificación"
+                      : !s.verificador_en ? "En Verificación, esperando"
+                      : !s.validador_en ? "En Validación, esperando el aval"
+                      : "Las tres firmas puestas"}
                   </span>
                 </div>
               </div>
@@ -146,8 +159,7 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
               </div>
             </div>
           ))}
-        </div>
-      </section>
+      </div>
     </>
   );
 }

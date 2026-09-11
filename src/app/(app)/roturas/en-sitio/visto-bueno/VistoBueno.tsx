@@ -67,14 +67,19 @@ export function VistoBueno({ roturas, nombres, puedeDecidir }: {
             </p>
           </div>
         </div>
+      </section>
 
-        <div className="rueda">
-          {roturas.length === 0 && (
-            <div className="vacio">
-              <b>Bandeja limpia</b>
-              No hay nada esperando visto bueno.
-            </div>
-          )}
+      {/* Cada rotura es una DECISIÓN, y una decisión necesita su propio
+          marco. En una tabla con líneas divisorias los ojos saltan de
+          columna a columna; en tarjetas separadas se lee una, se decide,
+          y se baja a la siguiente. */}
+      <div className="filas">
+        {roturas.length === 0 && (
+          <div className="caja"><div className="vacio">
+            <b>Bandeja limpia</b>
+            No hay nada esperando visto bueno.
+          </div></div>
+        )}
 
           {roturas.map((r) => (
             <Fila key={r.id} r={r} nombres={nombres}
@@ -142,8 +147,17 @@ export function VistoBueno({ roturas, nombres, puedeDecidir }: {
               {abierta === r.id && <Evidencia id={r.id} />}
             </Fila>
           ))}
-        </div>
-      </section>
+      </div>
+
+      {/* La frase que sostiene el módulo entero, donde se toma la
+          decisión: lo que se aprueba aquí cuenta unidades, y los kilos
+          del vidrio que sale son otra medida que nunca se cuadra con
+          esta. Puesta al final de la bandeja y no en un manual. */}
+      <div className="aviso">
+        <b>Unidades, no kilos.</b> Lo que se aprueba aquí alimenta el conteo por proceso y por
+        causa. El peso del vidrio que sale de la bodega se mide aparte, en Salida, y los dos
+        números nunca se cuadran entre sí.
+      </div>
     </>
   );
 }

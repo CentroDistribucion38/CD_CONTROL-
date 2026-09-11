@@ -11,7 +11,7 @@
 --   02 SE REGISTRA  unidades, proceso y causa, desde el celular
 --   03 ABI DECIDE   cuenta o no cuenta
 --   04 SE PESA      vidrio en tolvas, bruto menos tara
---   05 SALE         supervisora, verificador y facturador
+--   05 SALE         supervisora, verificador y validación
 --
 -- SON DOS SUBMÓDULOS QUE MIDEN COSAS DISTINTAS Y NO SE MEZCLAN:
 --
@@ -39,7 +39,7 @@
 --      probarlo en el momento y en el sitio. Pedirla después es pedirle
 --      a alguien que vuelva a un pasillo donde ya no está el vidrio.
 --
---   3. QUIEN DIGITA NO VERIFICA. Supervisora, verificador y facturador
+--   3. QUIEN DIGITA NO VERIFICA. Supervisora, verificador y validación
 --      son tres personas y tres momentos. La base rechaza que la misma
 --      persona ponga dos de las tres firmas.
 --
@@ -180,7 +180,7 @@ on conflict (codigo) do nothing;
 -- ---------------------------------------------------------------------
 -- 3. LOS ROLES DE LA CADENA
 --
--- ABI da el visto bueno; el verificador y el facturador firman la
+-- ABI da el visto bueno; el verificador y quien valida firman la
 -- salida. Van como ROLES y no como personas nombradas: el día que la
 -- persona esté incapacitada o de vacaciones, la salida no se puede
 -- quedar parada esperando a que alguien entre al maestro a cambiarle el
@@ -192,7 +192,7 @@ begin
     insert into public.roles (clave, nombre, descripcion, manda, sistema, orden) values
       ('abi',         'ABI',          'Da el visto bueno de las roturas: decide qué cuenta.', false, false, 10),
       ('verificador', 'Verificador',  'Verifica el peso de la salida de vidrio.',             false, false, 11),
-      ('facturador',  'Facturador',   'Factura la salida de vidrio.',                         false, false, 12)
+      ('validador',   'Validación',   'Da el aval final para que la salida de vidrio salga.',  false, false, 12)
     on conflict (clave) do nothing;
   end if;
 end $$;
@@ -212,7 +212,7 @@ as $$
     when 'visto_bueno' then public.mi_rol() in ('admin', 'abi')
     when 'supervisora' then public.mi_rol() in ('admin', 'supervisor')
     when 'verificador' then public.mi_rol() in ('admin', 'verificador')
-    when 'facturador'  then public.mi_rol() in ('admin', 'facturador')
+    when 'validador'   then public.mi_rol() in ('admin', 'validador')
     else false
   end
 $$;
@@ -308,6 +308,37 @@ create index if not exists roturas_fotos_idx on public.roturas_fotos (rotura_id)
 -- ---------------------------------------------------------------------
 create sequence if not exists public.roturas_salida_seq;
 
+/* DE "FACTURADOR" A "VALIDACIÓN".
+   La primera versión llamó a la tercera firma "facturador". Pero lo que
+   esa persona hace no es facturar: es dar el aval para que el camión
+   salga. Se renombra aquí, de forma idempotente, para que quien ya haya
+   corrido la versión anterior no pierda las salidas que tenga. Renombrar
+   una columna conserva sus restricciones y sus datos; borrar y volver a
+   crear los perdería. */
+do $$
+begin
+  if to_regclass('public.roturas_salidas') is not null then
+    if exists (select 1 from information_schema.columns
+                where table_schema = 'public' and table_name = 'roturas_salidas'
+                  and column_name = 'facturador_por') then
+      alter table public.roturas_salidas rename column facturador_por to validador_por;
+      alter table public.roturas_salidas rename column facturador_en  to validador_en;
+    end if;
+  end if;
+
+  if to_regclass('public.roles') is not null then
+    -- La vista vieja la lee; se quita antes de tocar las columnas.
+    update public.roles set clave = 'validador', nombre = 'Validación',
+           descripcion = 'Da el aval final para que la salida de vidrio salga.'
+     where clave = 'facturador'
+       and not exists (select 1 from public.roles where clave = 'validador');
+  end if;
+
+  if to_regclass('public.perfiles') is not null then
+    update public.perfiles set rol = 'validador' where rol = 'facturador';
+  end if;
+end $$;
+
 create table if not exists public.roturas_salidas (
   id       uuid primary key default gen_random_uuid(),
   codigo   text unique not null,
@@ -324,8 +355,8 @@ create table if not exists public.roturas_salidas (
   supervisora_en  timestamptz,
   verificador_por uuid references public.perfiles(id) on delete set null,
   verificador_en  timestamptz,
-  facturador_por  uuid references public.perfiles(id) on delete set null,
-  facturador_en   timestamptz,
+  validador_por  uuid references public.perfiles(id) on delete set null,
+  validador_en   timestamptz,
 
   anulada_por uuid references public.perfiles(id) on delete set null,
   anulada_en  timestamptz,
@@ -339,8 +370,8 @@ create table if not exists public.roturas_salidas (
      puede saltar entrando por otro lado. */
   constraint salida_tres_personas check (
     (supervisora_por is null or verificador_por is null or supervisora_por <> verificador_por)
-    and (supervisora_por is null or facturador_por is null or supervisora_por <> facturador_por)
-    and (verificador_por is null or facturador_por is null or verificador_por <> facturador_por)
+    and (supervisora_por is null or validador_por is null or supervisora_por <> validador_por)
+    and (verificador_por is null or validador_por is null or verificador_por <> validador_por)
   )
 );
 
@@ -695,16 +726,16 @@ begin
     update public.roturas_salidas
        set verificador_por = auth.uid(), verificador_en = now() where id = p_salida;
 
-  elsif p_papel = 'facturador' then
+  elsif p_papel = 'validador' then
     if s.verificador_en is null then
-      raise exception 'Todavía no la ha verificado nadie: no se puede facturar';
+      raise exception 'Todavía no la ha verificado nadie: no se puede dar salida';
     end if;
     if s.supervisora_por = auth.uid() or s.verificador_por = auth.uid() then
-      raise exception 'Son tres personas y tres momentos: quien pesó o verificó no factura';
+      raise exception 'Son tres personas y tres momentos: quien pesó o verificó no valida';
     end if;
-    if s.facturador_en is not null then raise exception 'Ya está facturada'; end if;
+    if s.validador_en is not null then raise exception 'Ya está validada'; end if;
     update public.roturas_salidas
-       set facturador_por = auth.uid(), facturador_en = now() where id = p_salida;
+       set validador_por = auth.uid(), validador_en = now() where id = p_salida;
 
   else
     raise exception 'Firma desconocida: %', p_papel;
@@ -795,7 +826,7 @@ select
   s.creada_por, s.creada_en,
   s.supervisora_por, s.supervisora_en,
   s.verificador_por, s.verificador_en,
-  s.facturador_por,  s.facturador_en,
+  s.validador_por,  s.validador_en,
   s.motivo_anulacion, s.anulada_en, s.anulada_por,
 
   (select count(*) from public.roturas_salida_tolvas t where t.salida_id = s.id) as tolvas,
@@ -812,8 +843,8 @@ select
      la pantalla tenga que mirar tres campos. */
   ((s.supervisora_en is not null)::int
    + (s.verificador_en is not null)::int
-   + (s.facturador_en is not null)::int)          as firmas,
-  (s.facturador_en is not null)                   as completa
+   + (s.validador_en is not null)::int)          as firmas,
+  (s.validador_en is not null)                   as completa
 from public.roturas_salidas s;
 
 grant select on public.v_roturas_salidas to authenticated;
@@ -894,7 +925,7 @@ begin
   if to_regclass('public.rol_permisos') is not null then
     insert into public.rol_permisos (rol, seccion, nivel)
     select r.clave, s.ruta,
-           (case when r.clave in ('admin', 'supervisor', 'abi') then 'editar' else 'ver' end)
+           (case when r.clave in ('admin', 'supervisor', 'abi', 'verificador', 'validador') then 'editar' else 'ver' end)
              ::public.nivel_permiso
       from public.roles r
       cross join (values
@@ -904,8 +935,12 @@ begin
         ('/roturas/en-sitio/visto-bueno'),
         ('/roturas/en-sitio/analisis'),
         ('/roturas/en-sitio/maestro'),
-        -- SALIDA: pesa kilos
+        -- SALIDA: pesa kilos. Una pantalla por etapa de la cadena, para
+        -- que cada quien entre a la suya y no vea botones que no puede
+        -- tocar.
         ('/roturas/salida'),
+        ('/roturas/salida/verificacion'),
+        ('/roturas/salida/validacion'),
         ('/roturas/salida/analisis'),
         ('/roturas/salida/tolvas')) as s(ruta)
     on conflict (rol, seccion) do nothing;
@@ -945,7 +980,7 @@ begin
   select count(*) into v_mat from public.roturas_materiales;
   select count(*) into v_cau from public.roturas_causas;
   select count(*) into v_tol from public.roturas_tolvas;
-  select count(*) into v_roles from public.roles where clave in ('abi','verificador','facturador');
+  select count(*) into v_roles from public.roles where clave in ('abi','verificador','validador');
   select exists (select 1 from storage.buckets where id = 'roturas') into v_bucket;
 
   raise notice 'las ocho tablas .......... %', case when v_tablas = 8 then 'ok' else 'MAL (' || v_tablas || ')' end;

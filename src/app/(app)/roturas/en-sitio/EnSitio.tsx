@@ -115,14 +115,16 @@ export function EnSitio({ roturas, nombres, materiales, procesos, causas, puedeE
           </div>
         </div>
 
-        <div className="rueda">
+      </section>
+
+      <div className="filas">
           {lista.length === 0 && (
-            <div className="vacio">
+            <div className="caja"><div className="vacio">
               <b>Nada por aquí</b>
               {roturas.length
                 ? "Con estos filtros no queda ninguna."
                 : "Todavía no se ha registrado nada. El botón + abre el registro."}
-            </div>
+            </div></div>
           )}
 
           {lista.map((r) => (
@@ -141,8 +143,7 @@ export function EnSitio({ roturas, nombres, materiales, procesos, causas, puedeE
               {abierta === r.id && <Evidencia id={r.id} />}
             </Fila>
           ))}
-        </div>
-      </section>
+      </div>
 
       {puedeEditar && (
         <button type="button" className="mas" onClick={() => setReportando(true)}

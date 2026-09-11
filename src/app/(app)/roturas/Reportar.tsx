@@ -4,29 +4,30 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
+import { COLOR_VIDRIO } from "@/modulos/roturas/formato";
 import type { Causa, Material, Proceso } from "@/modulos/roturas/datos";
 
 /**
  * REGISTRAR UNA ROTURA — dos pasos, en el orden en que pasan las cosas.
  *
- *   PASO 1  QUÉ SE ROMPIÓ   tipo, material y cuántas
- *   PASO 2  POR QUÉ         proceso, causa, foto y qué pasó
+ *   PASO 1  ¿QUÉ SE ROMPIÓ?      tipo, vidrio, material y cuántas
+ *   PASO 2  ¿DE QUÉ PROCESO?     proceso, causa, foto y qué pasó
  *
  * DOS PASOS Y NO UNO. Quien registra está de pie al lado del vidrio, con
  * guantes y con el celular en una mano. Un formulario de catorce campos
  * en una sola pantalla se llena mal: se baja hasta el final, se toca
- * "enviar" y la mitad quedó en blanco. Dos pasos con botones grandes se
- * llenan de pie.
+ * "enviar" y la mitad quedó en blanco.
  *
  * POR QUÉ "QUÉ" VA ANTES QUE "POR QUÉ". El material decide si hay que
- * preguntar botellas —el producto terminado se abre en dos y el EER no—,
- * así que preguntar la causa primero obligaría a volver atrás.
+ * preguntar botellas —el producto terminado se abre en dos y el EER
+ * no—, así que preguntar la causa primero obligaría a volver atrás.
  *
- * LA FOTO SE EXIGE AQUÍ, no al revisar. Una causa "no asumida" dice que
- * la rotura no fue del OL, y eso hay que probarlo en el momento y en el
- * sitio: una foto tomada mañana desde la oficina no prueba nada. La base
- * además impide que ABI marque CUENTA una no asumida sin foto, así que
- * sin este aviso el reporte simplemente se devolvería.
+ * EL GPS NO SE PIDE AL ABRIR. La primera versión lo pedía nada más
+ * entrar, y lo primero que veía la persona era el cuadro del navegador
+ * preguntando por su ubicación antes de haber hecho nada. Ahora se pide
+ * cuando se va a tomar la foto, que es lo único que lo necesita: el
+ * sello de la imagen. Quien registre una rotura sin foto no ve ese
+ * cuadro nunca.
  */
 
 export function Reportar({ materiales, procesos, causas, cerrar }: {
@@ -41,6 +42,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
   const [paso, setPaso] = useState(1);
 
   const [tipo, setTipo] = useState<"producto_terminado" | "eer">("producto_terminado");
+  const [vidrio, setVidrio] = useState<"ambar" | "flint" | "green">("ambar");
   const [material, setMaterial] = useState("");
   const [unidades, setUnidades] = useState(1);
   const [botellas, setBotellas] = useState<number | null>(null);
@@ -60,15 +62,21 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
 
   const { ubi, direccion, pedir } = usePosicion();
 
-  /* Se pide el GPS al abrir, sin que nadie lo toque: quien abrió esto
-     está al lado del vidrio AHORA, y cada toque de más es un toque con
-     guantes puestos. */
-  useEffect(() => { pedir(); }, [pedir]);
-
-  const delTipo = materiales.filter((m) => m.tipo === tipo);
+  /* En EER el vidrio se separa por color porque se vende por color, así
+     que escoger el color es escoger de qué lista salen los materiales.
+     En producto terminado no hay color: el vidrio va dentro del líquido. */
+  const delTipo = materiales.filter((m) =>
+    m.tipo === tipo && (tipo !== "eer" || m.color === vidrio));
   const mat = materiales.find((m) => m.clave === material) ?? null;
   const cau = causas.find((c) => c.clave === causa) ?? null;
   const exigeFoto = !!cau?.exige_foto;
+
+  /* Si al cambiar de tipo o de color el material escogido ya no está en
+     la lista, se suelta. Dejarlo puesto haría enviar un EER ámbar con
+     "flint" marcado en la pantalla. */
+  useEffect(() => {
+    if (material && !delTipo.some((m) => m.clave === material)) setMaterial("");
+  }, [material, delTipo]);
 
   /* EL EMPAQUE COMPLETO COMO PROPUESTA, no como dato fijo. Cuando una
      estiba se cae, lo más probable es que se rompa todo lo que iba
@@ -79,6 +87,15 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
     if (tipo !== "producto_terminado" || !mat?.botellas_x_empaque) { setBotellas(null); return }
     if (!tocoBotellas) setBotellas(unidades * mat.botellas_x_empaque);
   }, [tipo, mat, unidades, tocoBotellas]);
+
+  async function abrirCamara() {
+    /* Se pide el punto AQUÍ y no al abrir el asistente. Si la persona
+       dice que no, la foto se toma igual y la banda sale sin
+       coordenadas: la evidencia vale menos, pero el reporte no se
+       pierde por un permiso. */
+    pedir();
+    camara.current?.click();
+  }
 
   async function tomarFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const archivo = e.target.files?.[0];
@@ -91,7 +108,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
          subirla pueden pasar veinte minutos sin señal en un pasillo, y
          la hora que quedaría escrita sería la de la subida. */
       const f = await sellar(archivo, {
-        titulo: (mat?.nombre ?? "ROTURA").toUpperCase(),
+        titulo: (procesos.find((p) => p.clave === proceso)?.nombre ?? "ROTURA").toUpperCase(),
         ubi, direccion, etiqueta: "ROTURA",
       });
       if (foto) URL.revokeObjectURL(foto.url);
@@ -132,7 +149,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
     /* La foto va DESPUÉS, porque su ruta lleva el id de la rotura. Si
        falla, la rotura YA existe y eso es lo correcto: perder el reporte
        porque no subió una imagen sería cambiar lo importante por lo
-       accesorio. Se dice que faltó la foto y se sigue. */
+       accesorio. */
     let aviso = "";
     if (foto && id) {
       const ruta = `${id}/rotura.jpg`;
@@ -160,6 +177,13 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
     router.refresh();
   }
 
+  const sello = [
+    new Date().toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" }),
+    new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
+    procesos.find((p) => p.clave === proceso)?.nombre,
+    ubi ? `precisión ${Math.round(ubi.precision)} m` : "sin ubicación",
+  ].filter(Boolean).join(" · ");
+
   if (listo !== null) {
     return (
       <div className="rt-rep">
@@ -171,14 +195,13 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
           <h2>Quedó registrada</h2>
           <p className="guia">
             <b>{listo}</b> — {mat?.nombre}. Pasa a la bandeja de ABI para el visto bueno.
-            {exigeFoto && " Como la causa es no asumida, ABI la va a mirar con la foto."}
           </p>
           {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
           <button type="button" className="otra" onClick={() => {
-            /* Se vuelve al paso 2 con el material puesto: cuando se cae
-               una estiba no se rompe una sola caja, y volver a escoger
-               el mismo material cinco veces es lo que hace que la quinta
-               no se registre. */
+            /* Se vuelve al paso 1 con todo puesto menos la cuenta:
+               cuando se cae una estiba no se rompe una sola caja, y
+               volver a escoger el mismo material cinco veces es lo que
+               hace que la quinta no se registre. */
             setListo(null); setMal(null); setPaso(1);
             setUnidades(1); setTocoBotellas(false);
             if (foto) { URL.revokeObjectURL(foto.url); setFoto(null) }
@@ -200,38 +223,61 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
         <span className="t">ROTURA EN SITIO</span>
         <button type="button" onClick={cerrar} aria-label="Cerrar">✕</button>
       </div>
+      {/* Cuatro tramos que se llenan de a dos. Un tramo por paso, con dos
+          pasos, deja la barra en la mitad todo el tiempo y no se siente
+          que avance. */}
       <div className="pasos">
-        <i className="on" /><i className={paso >= 2 ? "on" : ""} />
+        {[1, 2, 3, 4].map((i) => <i key={i} className={paso * 2 >= i ? "on" : ""} />)}
       </div>
 
       <div className="cuerpo">
         {paso === 1 ? (
           <>
             <h2>¿Qué se rompió?</h2>
-            <p className="guia">
-              El producto terminado se cuenta en empaques y además en botellas rotas adentro;
-              el EER va en unidades.
-            </p>
 
-            <div className="opciones dos">
+            <div className="opciones dos" style={{ marginTop: 18 }}>
               {(["producto_terminado", "eer"] as const).map((t) => (
                 <button key={t} type="button" className={tipo === t ? "on" : ""}
-                        onClick={() => { setTipo(t); setMaterial(""); setTocoBotellas(false) }}>
+                        onClick={() => { setTipo(t); setTocoBotellas(false) }}>
                   <span className="p">{t === "eer" ? "EER" : "Producto terminado"}</span>
                   <span className="h">
-                    {t === "eer" ? "Envase, empaque y estiba retornables" : "Producto lleno, con botellas adentro"}
+                    {t === "eer" ? "Envase retornable vacío" : "Cerveza envasada"}
                   </span>
                 </button>
               ))}
             </div>
+
+            {tipo === "eer" && (
+              <>
+                <span className="rotulo">Tipo de vidrio</span>
+                <div className="vidrios">
+                  {(["ambar", "flint", "green"] as const).map((c) => (
+                    <button key={c} type="button"
+                            className={c + (vidrio === c ? " on" : "")}
+                            onClick={() => setVidrio(c)}>
+                      <i aria-hidden />
+                      <b>{COLOR_VIDRIO[c]}</b>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
 
             <div className="campo">
               <label htmlFor="rt-mat">Material</label>
               <select id="rt-mat" value={material}
                       onChange={(e) => { setMaterial(e.target.value); setTocoBotellas(false) }}>
                 <option value="">Escoge el material</option>
-                {delTipo.map((m) => <option key={m.clave} value={m.clave}>{m.nombre}</option>)}
+                {delTipo.map((m) => (
+                  <option key={m.clave} value={m.clave}>{m.nombre} · {m.clave}</option>
+                ))}
               </select>
+              {delTipo.length === 0 && (
+                <p className="nota">
+                  No hay materiales {tipo === "eer" ? `de vidrio ${COLOR_VIDRIO[vidrio].toLowerCase()}` : "de producto terminado"} en
+                  el maestro. Se agregan en Maestro, sin esperar un despliegue.
+                </p>
+              )}
             </div>
 
             <div className="campo">
@@ -244,6 +290,9 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
                 <button type="button" onClick={() => setUnidades((n) => n + 1)}
                         aria-label="Una más">+</button>
               </div>
+              <p className="nota">
+                En sitio siempre se cuenta en unidades. Los kilos son de la salida, no de aquí.
+              </p>
             </div>
 
             {tipo === "producto_terminado" && mat?.botellas_x_empaque && (
@@ -258,11 +307,11 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
                          setTocoBotellas(true);
                          setBotellas(Math.max(0, Number(e.target.value) || 0));
                        }} />
-                <div className="negro" style={{ marginTop: 10 }}>
+                <div className="negro">
                   <span className="punto" />
                   <span>
                     Va propuesto el <b>empaque completo</b>. Si quedaron botellas sanas,
-                    corrige el número: el vidrio que no se cuente aquí no aparece en ningún lado.
+                    corrige: el vidrio que no se cuente aquí no aparece en ningún lado.
                   </span>
                 </div>
               </div>
@@ -270,31 +319,29 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
           </>
         ) : (
           <>
-            <h2>¿Por qué se rompió?</h2>
-            <p className="guia">
-              El proceso dice dónde pasó; la causa, de quién fue. Las dos juntas son lo que
-              después contesta por qué se sigue rompiendo lo mismo en el mismo sitio.
-            </p>
+            <h2>¿De qué proceso viene?</h2>
 
-            <div className="campo">
-              <label htmlFor="rt-pro">Proceso</label>
-              <select id="rt-pro" value={proceso} onChange={(e) => setProceso(e.target.value)}>
-                <option value="">Escoge el proceso</option>
-                {procesos.map((p) => <option key={p.clave} value={p.clave}>{p.nombre}</option>)}
-              </select>
+            <div className="chips" style={{ marginTop: 18 }}>
+              {procesos.map((p) => (
+                <button key={p.clave} type="button"
+                        className={proceso === p.clave ? "on" : ""}
+                        onClick={() => setProceso(p.clave)}>
+                  {p.nombre}
+                </button>
+              ))}
             </div>
 
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: ".06em", marginBottom: 5, color: "var(--rt-gris)" }}>
-              CAUSA
-            </label>
+            <span className="rotulo">Causa</span>
             <div className="opciones">
               {causas.map((c) => (
                 <button key={c.clave} type="button"
                         className={(causa === c.clave ? "on" : "") + (c.grupo === "no_asumida" ? " roja" : "")}
                         onClick={() => setCausa(c.clave)}>
-                  <span className="p">{c.nombre}</span>
+                  <span className="p conpunto"><i className="punto" aria-hidden />{c.nombre}</span>
                   <span className="h">
-                    {c.grupo === "no_asumida" ? "No asumida — no fue del OL" : "Asumida por el OL"}
+                    {c.grupo === "no_asumida"
+                      ? "No asumida — se dice que no fue del OL"
+                      : "Asumida por el OL"}
                     {c.exige_foto ? " · exige foto" : ""}
                   </span>
                 </button>
@@ -302,12 +349,9 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
             </div>
 
             {exigeFoto && (
-              <div className="negro" style={{ marginBottom: 12 }}>
-                <span className="punto" />
-                <span>
-                  <b>Esta causa exige foto.</b> Estás diciendo que la rotura no fue del OL, y
-                  eso se prueba aquí y ahora. Sin foto, ABI no la puede marcar como que cuenta.
-                </span>
+              <div className="exige">
+                <b>Esta causa exige foto.</b> Es lo que sostiene que la rotura no es del OL. Sin
+                evidencia, ABI la va a devolver.
               </div>
             )}
 
@@ -316,26 +360,21 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
                 {foto
                   /* eslint-disable-next-line @next/next/no-img-element */
                   ? <img src={foto.url} alt="La rotura" />
-                  : <span>{sellando ? "SELLANDO…" : "SIN FOTO"}</span>}
+                  : <span>{sellando ? "SELLANDO…" : "FOTO DE LA NOVEDAD"}</span>}
               </div>
-              <div className="sello">
-                {foto
-                  ? <>Sellada con la hora y el punto donde se tomó. <b>Queda así</b>: la banda es parte de la imagen.</>
-                  : <>La hora y el lugar se graban en la imagen al tomarla, no al subirla.</>}
-              </div>
+              <div className="sello">{sello}</div>
             </div>
             <input ref={camara} type="file" accept="image/*" capture="environment"
                    onChange={tomarFoto} hidden />
-            <button type="button" className="otra" onClick={() => camara.current?.click()}
-                    disabled={sellando}>
+            <button type="button" className="otra" onClick={abrirCamara} disabled={sellando}>
               {foto ? "Tomar otra foto" : "Tomar la foto"}
             </button>
 
-            <div className="campo" style={{ marginTop: 14 }}>
-              <label htmlFor="rt-des">Qué pasó (opcional)</label>
+            <div className="campo">
+              <label htmlFor="rt-des">Qué pasó</label>
               <textarea id="rt-des" rows={3} value={descripcion}
                         onChange={(e) => setDescripcion(e.target.value)}
-                        placeholder="Se cayó la estiba al bajar del montacargas" />
+                        placeholder="La transportadora de la T1 se atascó y tumbó la fila de envase." />
             </div>
 
             {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
@@ -350,8 +389,8 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
         <button type="button" className="si" disabled={!puedeSeguir || mandando}
                 onClick={() => (paso === 1 ? setPaso(2) : mandar())}>
           {paso === 1 ? "Siguiente"
-            : mandando ? "Registrando…"
-            : exigeFoto && !foto ? "Falta la foto" : "Registrar"}
+            : mandando ? "Enviando…"
+            : exigeFoto && !foto ? "Falta la foto" : "Enviar a ABI"}
         </button>
       </div>
     </div>

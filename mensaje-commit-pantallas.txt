@@ -1,13 +1,35 @@
-Modulo Roturas: las cinco pantallas
+Modulo Roturas: las pantallas, partidas en dos ramas
 
-Ya existia la base de datos pero no habia por donde entrar. Esto es lo
-que se ve, en el orden del recorrido de una rotura:
+Ya existia la base de datos pero no habia por donde entrar, y el modulo
+ni siquiera estaba en el registro: no habia tarjeta en la portada ni
+enlaces en el menu.
 
-  EN SITIO      se registra, desde el celular
-  VISTO BUENO   ABI dice si cuenta o no cuenta
-  SALIDAS       se pesa el vidrio y se firma
-  ANALISIS      por que se sigue rompiendo lo mismo
-  MAESTRO       materiales, procesos, causas y tolvas
+DOS RAMAS QUE NO SE MEZCLAN, TAMPOCO EN LA PANTALLA.
+Al entrar a Roturas no hay una lista de siete pantallas: hay que
+escoger una de dos.
+
+  EN SITIO (unidades)        SALIDA (kilos)
+  1 Registrar                1 Salidas — pesar y firmar
+  2 Visto bueno de ABI       2 Analisis
+  3 Analisis                 3 Tolvas
+  4 Maestro
+
+En sitio cuenta UNIDADES por causa y proceso: contesta de quien fue la
+rotura y de donde salio. La salida pesa KILOS de vidrio: contesta cuanto
+vidrio salio por la puerta. Y no se cuadran entre si — una botella de
+330 y una de 750 pesan distinto, el vidrio se acumula dias antes de
+salir, y parte de lo que se pesa nunca se conto en sitio.
+
+Con las siete pantallas en una sola lista, tarde o temprano alguien lee
+las unidades de arriba y los kilos de abajo como si fueran la misma
+cuenta, y arma un informe con un factor de conversion inventado. La
+bifurcacion es lo que impide esa lectura, y por eso esta partido hasta
+el final: dos analisis y dos maestros, no uno con las dos mitades
+adentro. El menu lateral muestra SOLO la rama en la que uno esta.
+
+La bifurcacion vive en el registro como concepto —Modulo.ramas— y no
+quemada en la pantalla de Roturas: el dia que otro modulo necesite
+partirse, el menu ya sabe hacerlo.
 
 DOS PASOS PARA REGISTRAR, NO UNO. Quien registra esta de pie al lado del
 vidrio, con guantes y el celular en una mano. Un formulario de catorce
@@ -24,8 +46,7 @@ siguiente cuando ya no esta parado donde paso.
 LA RESTA SE DIBUJA COMO RESTA: BRUTO menos TARA igual NETO, en cajas
 grandes, y no como tres columnas de una tabla. Quien pesa tiene la
 bascula al lado y tiene que reconocer en la pantalla la cuenta que acaba
-de hacer. Una tabla se lee despues, en la oficina; esto se lee de pie.
-La tara no se teclea: viene del maestro.
+de hacer. La tara no se teclea: viene del maestro de tolvas.
 
 SOLO SE PINTA EL BOTON DE LA FIRMA QUE SIGUE. Las otras dos dicen
 "espera la firma anterior". Tres botones activos al tiempo invitan a que
@@ -36,36 +57,32 @@ las tres personas quiere impedir.
 que alguien mas va a tener que asumir, y el dia que reclamen, "no
 cuenta" sin una linea que lo explique no se puede defender.
 
-EL ANALISIS NO CUADRA LAS DOS MITADES, y lo dice con todas las letras al
-final de la pantalla. Unidades arriba, kilos abajo, ninguna cifra que
-los mezcle.
-
 LO QUE SALIO DE MEDIR Y NO DE MIRAR, con Playwright a 1440 / 820 / 390 /
 360 px:
 
   · En celular los tres botones de la bandeja quedaban 2 + 1: "Ver" al
     lado de "Cuenta", y "No cuenta" solo y ancho abajo. Eso empareja
     visualmente el boton de mirar con el de aprobar, y son trabajos
-    distintos. Ahora "Ver" va en su propia linea y las dos decisiones
-    comparten la siguiente.
-  · A 360 px la resta medía 302 px en un hueco de 300 y el NETO se caia
-    al renglon de abajo — justo donde deja de leerse como resta. Se
-    aprietan las cajas en vez de dejarla envolver.
+    distintos. Ahora "Ver" va en su propia linea.
+  · A 360 px la resta media 302 px en un hueco de 300 y el NETO se caia
+    al renglon de abajo — justo donde deja de leerse como resta.
   · En los botones de causa el nombre y la aclaracion salian pegados:
     "Apilado por encima de lo permitidoNo asumida". Eran spans, y el
     margin-top de un inline no hace nada. display:block.
+  · En 1440 las dos tarjetas de la bifurcacion median 700 x 274: dos
+    barras largas y medio vacias, porque el texto se corta a 42
+    caracteres para poder leerse. Con tope de 1000 px quedan 493 x 274.
 
-Cero desborde horizontal y nada que se salga de su fila en los cuatro
-anchos. El arnes queda en .arnes/rot-mide.mjs para volver a correrlo.
+Cero desborde horizontal en los cuatro anchos. Los arneses quedan en
+.arnes/rot-mide.mjs y .arnes/rot-ramas.mjs para volver a correrlos.
 
 El formato (kilos, fechas) vive en modulos/roturas/formato.ts y no en
 comunes.tsx: aquel es "use client", y lo que una pagina del servidor
 importe de ahi llega como referencia y no como funcion.
 
-Y el registro: hasta ahora el modulo no estaba en registro.ts ni en el
-riel de navegacion, asi que aunque las pantallas existieran no habia
-tarjeta en la portada ni enlaces en el menu. Las cinco secciones van en
-el orden del recorrido de una rotura — En sitio, Visto bueno, Salidas,
-Analisis, Maestro — y la entrada del modulo es En sitio, porque quien
-abre Roturas casi siempre viene a registrar una, no a mirar el informe:
-esta de pie al lado del vidrio.
+roturas.sql actualiza las rutas de los permisos a las nuevas y borra las
+de la version plana, para que no queden casillas fantasma en
+/admin/roles apuntando a pantallas que ya no existen.
+
+PASO 1 — correr en Supabase: supabase/modulos/roturas.sql
+Termina con ocho 'ok'.
