@@ -78,7 +78,10 @@ export type Motivo = {
   area: string | null;
   critico: boolean;
   orden: number | null;
+  activo: boolean;
 };
+
+export type Area = { clave: string; nombre: string; orden: number | null; activo: boolean };
 
 export type Carga = {
   id: string;
@@ -177,13 +180,29 @@ export async function zonas() {
   return (data ?? []) as Zona[];
 }
 
+/**
+ * Los motivos ACTIVOS: los que se pueden escoger al reportar.
+ * El maestro usa motivosTodos(), que también trae los desactivados —si no,
+ * una vez desactivado un motivo desaparecería de la pantalla donde se
+ * vuelve a activar, y no habría forma de recuperarlo sin entrar a la base.
+ */
 export async function motivos() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("acciones_motivos")
-    .select("clave, nombre, area, critico, orden")
+    .select("clave, nombre, area, critico, orden, activo")
     .eq("activo", true)
     .order("orden", { ascending: true, nullsFirst: false });
+  return (data ?? []) as Motivo[];
+}
+
+export async function motivosTodos() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("acciones_motivos")
+    .select("clave, nombre, area, critico, orden, activo")
+    .order("orden", { ascending: true, nullsFirst: false })
+    .order("clave");
   return (data ?? []) as Motivo[];
 }
 
@@ -191,10 +210,38 @@ export async function areas() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("acciones_areas")
-    .select("clave, nombre, orden")
+    .select("clave, nombre, orden, activo")
     .eq("activo", true)
     .order("orden", { ascending: true, nullsFirst: false });
-  return (data ?? []) as { clave: string; nombre: string; orden: number | null }[];
+  return (data ?? []) as Area[];
+}
+
+export async function areasTodas() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("acciones_areas")
+    .select("clave, nombre, orden, activo")
+    .order("orden", { ascending: true, nullsFirst: false })
+    .order("clave");
+  return (data ?? []) as Area[];
+}
+
+/** Cuántas acciones cuelgan de cada zona y de cada motivo.
+ *  Es lo que decide si se puede BORRAR o solo desactivar: borrar una zona
+ *  que ya tiene acciones se llevaría por delante el histórico con el que
+ *  se cuenta la reincidencia, y la base lo va a rechazar de todas formas.
+ *  Saberlo antes permite decirlo con palabras en vez de mostrar el error
+ *  de la llave foránea. */
+export async function usoDelMaestro() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("v_acciones").select("zona, motivo").limit(5000);
+  const zonas: Record<string, number> = {};
+  const motivos: Record<string, number> = {};
+  for (const f of (data ?? []) as { zona: string | null; motivo: string }[]) {
+    if (f.zona) zonas[f.zona] = (zonas[f.zona] ?? 0) + 1;
+    motivos[f.motivo] = (motivos[f.motivo] ?? 0) + 1;
+  }
+  return { zonas, motivos };
 }
 
 /** Cuánto tiene encima cada quien. Es lo que se mira ANTES de asignar. */

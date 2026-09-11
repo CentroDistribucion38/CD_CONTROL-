@@ -1,5 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
-import { zonas, motivos, areas, acciones as leerAcciones } from "@/modulos/acciones/datos";
+import {
+  zonas, motivosTodos, areasTodas, usoDelMaestro, acciones as leerAcciones,
+} from "@/modulos/acciones/datos";
 import "../acciones.css";
 import { SinTablas } from "../comunes";
 import { Maestro } from "./Maestro";
@@ -7,11 +9,14 @@ import { Maestro } from "./Maestro";
 export const dynamic = "force-dynamic";
 
 export default async function MaestroPage() {
-  const [permisos, zs, ms, as, datos] = await Promise.all([
+  const [permisos, zs, ms, as, uso, datos] = await Promise.all([
     misPermisos(),
     zonas(),
-    motivos(),
-    areas(),
+    /* Los DESACTIVADOS también: si no, al desactivar uno desaparecería de
+       la única pantalla donde se puede volver a activar. */
+    motivosTodos(),
+    areasTodas(),
+    usoDelMaestro(),
     /* Solo para saber si el módulo existe: si falta el SQL, la pantalla
        lo dice en vez de mostrar dos listas vacías que parecen un error
        de datos y no de instalación. */
@@ -38,6 +43,7 @@ export default async function MaestroPage() {
         zonas={zs}
         motivos={ms}
         areas={as}
+        uso={uso}
         puedeEditar={permisos.puedeEditar("/acciones/maestro")}
       />
     </div>

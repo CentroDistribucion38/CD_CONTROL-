@@ -1,72 +1,59 @@
-Modulo Acciones: las pantallas
+Acciones: el tablero en claro, el maestro que si edita, y la barra de abajo
 
-Seis pantallas sobre el SQL del commit anterior. El modulo entra en el
-menu en orden de proceso: Mis acciones, Por verificar, Todas, Tablero,
-Analisis, Maestro. Se entra por Mis acciones, no por el tablero: quien
-abre Acciones casi siempre viene a ver lo suyo, y el tablero es de la
-reunion de arranque de turno, a la que se llega con la pantalla ya
-puesta en la TV.
+EL TABLERO YA NO ES NEGRO.
+La app entera es clara y una pantalla negra en el medio se lee como si
+fuera otro programa. Lo que la hace de reunion no es el fondo sino el
+TAMANO: las cifras crecen con el ancho, asi que en un televisor se leen
+desde el otro lado de la bodega y en un portatil siguen cabiendo.
 
-REPORTAR, cuatro pasos, y DONDE va de primero.
-Quien reporta esta parado en el sitio. Si el lugar se pregunta al final
-ya camino, y escribe de memoria: "por el pasillo tres, creo". De primero
-se resuelve con la camara en dos segundos y queda exacto — y el lugar
-exacto es lo que despues permite decir "esto ya paso tres veces AQUI",
-que es la regla que sostiene el modulo entero.
+Tampoco se recorta por dentro. Al fijarle el alto para que "cupiera en
+la TV", el panel de Cumplimiento por area quedaba cortado por la mitad
+con su propia barrita de desplazamiento. Ahora la pagina crece, como en
+Quiebra y T1 / T2.
 
-Cuatro caminos para el lugar, de mas seguro a menos: el QR del pasillo
-(lee el codigo pegado en la pared y llena area y proceso solos), el GPS
-(propone la zona mas cercana y la persona confirma), la lista, y
-escribirlo. El reporte nunca se traba por no saber donde esta: se traba
-si no se dice donde, que es distinto.
+EL MAESTRO YA NO SOLO LEE.
+Crear, editar, activar, desactivar y eliminar, en zonas, motivos Y areas.
+El "+" esta arriba, al lado de las tres pestanas.
 
-La foto se toma con la camara y NO de la galeria, y se sella en el
-telefono al tomarla, no en el servidor al subirla: entre tomar y subir
-pueden pasar veinte minutos sin senal y la hora que quedaria escrita
-seria la de la subida.
+Borrar y desactivar NO son lo mismo, y la diferencia es la que evita
+perder el historico:
+  DESACTIVAR  deja de ofrecerse al reportar, pero las acciones viejas
+              siguen mostrando su zona y siguen contando para la
+              reincidencia. Es lo que se hace casi siempre.
+  BORRAR      solo aparece si NADIE lo ha usado nunca. Es para el error
+              de dedo: creaste AG01-PAS-O5 con O de oso y quieres que
+              desaparezca sin dejar rastro.
+Si algo ya tiene acciones, el boton de borrar no sale y en su lugar dice
+cuantas tiene. La base lo rechazaria igual por la llave foranea, pero un
+"violates foreign key constraint" no le explica nada a nadie.
 
-ASIGNAR muestra la carga antes de decidir.
-No es un desplegable con nombres: es cuanto tiene encima cada quien,
-abiertas y vencidas, ordenado por quien tiene menos. Si el escogido esta
-saturado lo dice con esas palabras: doce acciones en la misma persona no
-se cierran, se acumulan, y el plazo pasa a ser una promesa que el
-sistema ya sabe que no se va a cumplir.
+La CLAVE no se edita. En las zonas es el codigo pegado en la pared que
+lee la camara: cambiarlo dejaria el QR apuntando a algo que ya no existe.
+En los motivos es con lo que se agrupa la reincidencia: al cambiarla, las
+tres apariciones viejas dejarian de ser "lo mismo". Se edita el nombre,
+que es lo que la gente lee.
 
-EL BLOQUEO aparece al marcar "no fue efectiva" algo que ya va tres veces
-en el mismo sitio. No se abre una cuarta correctiva: se pide preventiva
-con causa raiz y responsable de PROCESO. Al abrirla, la vieja queda
-verificada como no efectiva — dejarla "esperando verificacion" para
-siempre torceria el indicador del mes.
+El maestro ahora trae tambien los DESACTIVADOS. Sin eso, al desactivar
+uno desaparecia de la unica pantalla donde se puede volver a activar.
 
-EL TABLERO es la TV del arranque de turno, no un informe: fondo negro
-para verlo desde el otro lado de la bodega, cuatro cifras grandes, y las
-vencidas CON NOMBRE, porque "hay que hablar de estas" no funciona si no
-dice con quien. Es la unica pantalla que se recorta por dentro: nadie le
-hace scroll a un televisor.
+LA CLAVE SE MONTABA ENCIMA DEL NOMBRE.
+La columna del codigo mide 92 px y el contenido es una palabra sola sin
+espacios —apilado_incorrecto—: sin overflow-wrap la palabra no se parte,
+se sale de su columna y se imprime ENCIMA del titulo de al lado. En el
+maestro, ademas, la clave ya no va en columna aparte: va debajo del
+nombre, como etiqueta, que es donde se lee.
 
-ANALISIS contesta la otra pregunta. El tablero dice como vamos; esto
-dice por que se repite, agrupando por motivo y zona con la MISMA llave
-con la que la base cuenta la reincidencia, para que lo que se ve sea lo
-mismo que va a bloquear el sistema y no una segunda forma de contar. No
-mide quien reporta mas: contar reportes por persona convierte reportar
-en algo que se evita.
+LA BARRA DE ABAJO DEL CELULAR, que estaba en el diseno y no habia hecho.
+Verificar · Mias · (+) · Tablero · Analisis, con el "+" levantado sobre
+la barra. Existe aparte del riel lateral por una razon concreta: el riel
+se abre con el pulgar en la esquina de arriba a la izquierda, que es
+justo donde no llega la mano de alguien que ademas esta cargando algo.
+Abajo llega siempre. En PC no aparece.
 
-La ubicacion y el sellado de la foto se mudaron de sider/evidencia.tsx a
-src/lib/evidencia.tsx. Los usan T1 / T2 y Acciones, y dos copias del
-sellado es que el dia que haya que arreglar la banda se arregle en una
-sola y nadie se de cuenta hasta que alguien compare dos fotos. Sider
-sigue exportando todo desde donde siempre: sus pantallas no cambiaron.
+Las zonas y los motivos que necesita el reporte se traen una vez en el
+layout del modulo y no en cada pagina: moverse entre Mis acciones y Por
+verificar ya no repite esas dos consultas.
 
-Dos cosas que salieron de medir y no de mirar:
-
-- En celular el titulo de cada accion salia UNA LETRA POR RENGLON. La
-  fila era `minmax(0,1fr) auto` y la columna de los botones pedia sus
-  250 px de "Fue efectiva / No fue efectiva"; al titulo le quedaban
-  veinte. La fila medida: 888 px de alto. Ahora una sola columna y los
-  botones abajo repartiendose el ancho.
-- Los dos botones se partian en dos renglones de ancho completo porque
-  su envoltura se encogia a 254 px y dos de 130 ya no cabian en esa
-  medida. Medido: 254 y 254; ahora 160 y 160, uno al lado del otro.
-- Y el borde verde de "Fue efectiva" al 45% quedaba tan palido sobre el
-  papel blanco que se leia como texto suelto. Solo se notaba en las
-  filas blancas: sobre el rosado de las vencidas si se veia.
+Falta todavia, del diseno: Asignar como pantalla propia con el bloque
+amarillo del plazo, el bloqueo como ventana centrada en vez de pantalla
+completa, y la cola de envio sin senal.

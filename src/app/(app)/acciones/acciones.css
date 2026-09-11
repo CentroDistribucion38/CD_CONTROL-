@@ -8,9 +8,7 @@
    dentro de su propio recuadro, nunca empujando la página de lado. A lo
    alto sí crece, como Quiebra y T1 / T2 — el cascarón le da al <main> un
    min-height de una pantalla, no una altura fija, así que una caja que
-   quisiera desplazarse por dentro no tendría contra qué recortar. La
-   excepción es la TV del arranque de turno, que sí se recorta: nadie le
-   hace scroll a un televisor.
+   quisiera desplazarse por dentro no tendría contra qué recortar.
    --------------------------------------------------------------------- */
 
 .ac {
@@ -82,9 +80,7 @@
    de su contenido— y el desplazamiento de adentro no haría nada mientras
    la página se desplaza igual. Dos barras, una inútil.
 
-   La única que sí se recorta por dentro es la TV del arranque de turno,
-   más abajo: esa tiene que caber en la pantalla completa porque nadie le
-   va a hacer scroll a un televisor. */
+*/
 .ac .caja {
   background: var(--ac-papel); border: 1px solid var(--ac-linea);
   border-radius: 12px; display: flex; flex-direction: column;
@@ -119,11 +115,20 @@
 .ac .fila.vencida { border-left-color: var(--ac-mal); background: #FEF4F6 }
 .ac .fila.hoy     { border-left-color: var(--ac-ojo) }
 
+/* overflow-wrap: anywhere NO es adorno. La columna mide 92 px y el
+   contenido es una palabra sola sin espacios —AC-0142, o una clave como
+   apilado_incorrecto—: sin esto la palabra no se parte, se sale de su
+   columna y se imprime ENCIMA del título de al lado. Se vio en el
+   maestro, donde las claves son largas. */
 .ac .fila .cod {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 11.5px; font-weight: 700; letter-spacing: .02em; color: var(--ac-gris);
-  padding-top: 2px;
+  padding-top: 2px; min-width: 0; overflow-wrap: anywhere;
 }
+
+/* Filas de dos columnas: el maestro, donde no hay código a la izquierda
+   porque la clave va debajo del nombre, que es donde se lee. */
+.ac .fila.dos { grid-template-columns: minmax(0, 1fr) auto }
 .ac .fila .tit { font-weight: 700; font-size: 13.5px; line-height: 1.3; overflow-wrap: anywhere }
 .ac .fila .meta {
   margin-top: 4px; font-size: 11.5px; color: var(--ac-gris);
@@ -416,78 +421,106 @@
 .ac-rep .negro b { color: var(--c-oro) }
 
 /* =====================================================================
-   TABLERO DE REUNIÓN — la TV del arranque de turno.
-   Fondo negro a propósito: se ve desde el otro lado de la bodega y no
-   quema la pantalla si queda puesta tres horas.
-   ===================================================================== */
-.ac-tv {
-  position: relative; background: #131313; color: #fff; border-radius: 12px;
-  padding: clamp(14px, 2vw, 26px); display: flex; flex-direction: column;
-  gap: clamp(12px, 1.6vw, 20px); overflow: hidden;
-  font-family: var(--ac-texto);
+   TABLERO DE REUNIÓN — la pantalla del arranque de turno.
 
-  /* ESTA SÍ SE RECORTA POR DENTRO. A un televisor pegado en la pared
-     nadie le hace scroll: lo que no quepa, no existe. Se descuentan los
-     70 px de la barra de arriba, el aire del área segura y el relleno
-     del <main> del cascarón, que en celular es más corto —de ahí el
-     segundo valor en la media consulta de abajo—.
-     Las listas de adentro sí se desplazan, cada una en su panel. */
-  height: calc(100dvh - 70px - var(--sh-aire, 0px) - env(safe-area-inset-top) - 66px);
-  /* Piso, por si alguien la abre en una ventana diminuta: mejor que se
-     salga un poco a que quede una franja negra de 200 px sin nada. */
-  min-height: 520px;
-}
-@media (max-width: 720px) {
-  .ac-tv { height: calc(100dvh - 70px - var(--sh-aire, 0px) - env(safe-area-inset-top) - 48px) }
-}
+   Era negra y no gustó, con razón: la app entera es clara y una pantalla
+   negra en el medio se lee como otra aplicación. Ahora es del mismo
+   papel que las demás, y lo que la hace de reunión no es el fondo sino
+   el TAMAÑO: las cifras crecen con el ancho de la pantalla, así que en
+   un televisor se leen desde el otro lado de la bodega y en un portátil
+   siguen cabiendo.
+
+   Tampoco se recorta por dentro. Al fijarle el alto, el panel de
+   cumplimiento quedaba cortado por la mitad con su propia barrita de
+   desplazamiento —se ve en la captura—, que es peor que dejar que la
+   página baje.
+   ===================================================================== */
+.ac-tv { display: flex; flex-direction: column; gap: clamp(12px, 1.6vw, 20px); min-width: 0 }
+
 .ac-tv .alto {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
-  padding-bottom: 12px; border-bottom: 2px solid var(--c-oro); flex-wrap: wrap;
+  padding-bottom: 12px; border-bottom: 2px solid var(--ac-ojo); flex-wrap: wrap;
 }
 .ac-tv .alto h1 {
   font-family: var(--ac-titulo); font-weight: 900; letter-spacing: -.035em; margin: 0;
-  font-size: clamp(26px, 3.6vw, 46px);
+  font-size: clamp(26px, 3.4vw, 44px); color: var(--ac-tinta);
 }
-.ac-tv .alto .d { margin: 4px 0 0; font-size: clamp(11px, 1.1vw, 14px); color: rgba(255,255,255,.55) }
+.ac-tv .alto .d { margin: 4px 0 0; font-size: clamp(11px, 1.1vw, 14px); color: var(--ac-gris) }
 .ac-tv .alto .reloj {
   font-family: var(--ac-titulo); font-weight: 900; letter-spacing: -.03em; text-align: right;
-  font-size: clamp(26px, 3.6vw, 46px); line-height: 1; font-variant-numeric: tabular-nums;
+  font-size: clamp(26px, 3.4vw, 44px); line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--ac-tinta);
 }
-.ac-tv .alto .reloj span { display: block; font-size: clamp(10px, .95vw, 13px); font-weight: 500; color: rgba(255,255,255,.5); letter-spacing: 0; margin-top: 5px }
+.ac-tv .alto .reloj span {
+  display: block; font-family: var(--ac-texto); font-size: clamp(10px, .95vw, 13px);
+  font-weight: 500; color: var(--ac-gris); letter-spacing: 0; margin-top: 5px;
+}
 
 .ac-tv .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(8px, 1.1vw, 16px) }
-.ac-tv .k { background: #1C1C1C; border-left: 3px solid rgba(255,255,255,.2); padding: clamp(10px, 1.3vw, 18px) }
-.ac-tv .k .rot { font-size: clamp(9px, .8vw, 11px); font-weight: 700; letter-spacing: .16em; color: rgba(255,255,255,.6) }
+.ac-tv .k {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea);
+  border-left: 3px solid var(--ac-linea); border-radius: 12px;
+  padding: clamp(12px, 1.4vw, 20px); min-width: 0;
+}
+.ac-tv .k .rot { font-size: clamp(9px, .8vw, 11px); font-weight: 700; letter-spacing: .16em; color: var(--ac-gris) }
 .ac-tv .k .n {
   font-family: var(--ac-titulo); font-weight: 900; letter-spacing: -.05em; line-height: .95;
-  font-size: clamp(30px, 4.4vw, 62px); margin-top: 6px;
+  font-size: clamp(30px, 4.2vw, 58px); margin-top: 6px; color: var(--ac-tinta);
 }
-.ac-tv .k .u { font-size: clamp(10px, .9vw, 13px); color: rgba(255,255,255,.5); margin-top: 8px }
-.ac-tv .k.mal { background: #2A0E13; border-left-color: #FF3B55 }
-.ac-tv .k.mal .n { color: #FF5C70 }
-.ac-tv .k.ojo { border-left-color: var(--c-oro) }
+.ac-tv .k .u { font-size: clamp(10px, .9vw, 13px); color: var(--ac-gris); margin-top: 8px; line-height: 1.35 }
+/* El semáforo: rojo solo cuando hay algo que mirar. Un cero en rojo
+   enseña a ignorar el rojo. */
+.ac-tv .k.mal { border-left-color: var(--ac-mal); background: #FEF4F6 }
+.ac-tv .k.mal .n { color: var(--ac-mal) }
+.ac-tv .k.ojo { border-left-color: var(--ac-ojo) }
 
-.ac-tv .dos { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(10px, 1.3vw, 18px); min-height: 0; flex: 1 1 auto }
-.ac-tv .panel { background: #1C1C1C; border-radius: 8px; padding: clamp(12px, 1.4vw, 20px); display: flex; flex-direction: column; min-height: 0; overflow: hidden }
-.ac-tv .panel h2 { font-family: var(--ac-titulo); font-weight: 800; font-size: clamp(14px, 1.4vw, 20px); margin: 0 0 10px }
-.ac-tv .panel .rueda { overflow: auto; min-height: 0; flex: 1 1 auto }
+.ac-tv .dos {
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: clamp(10px, 1.3vw, 18px); align-items: start;
+}
+.ac-tv .panel {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea); border-radius: 12px;
+  padding: clamp(12px, 1.4vw, 20px); min-width: 0;
+}
+.ac-tv .panel h2 {
+  font-family: var(--ac-titulo); font-weight: 800; font-size: clamp(14px, 1.4vw, 20px);
+  margin: 0 0 10px; color: var(--ac-tinta);
+}
+.ac-tv .panel .nota { font-size: 12px; color: var(--ac-gris); line-height: 1.5; margin-top: 12px }
 
 .ac-tv .v {
-  display: grid; grid-template-columns: 78px minmax(0, 1fr) 62px; gap: 14px; align-items: center;
-  padding: clamp(9px, 1.1vw, 15px) 0; border-bottom: 1px solid rgba(255,255,255,.08);
+  display: grid; grid-template-columns: 82px minmax(0, 1fr) 66px; gap: 14px; align-items: center;
+  padding: clamp(9px, 1.1vw, 14px) 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ac-linea) 60%, transparent);
 }
 .ac-tv .v:last-child { border-bottom: 0 }
-.ac-tv .v .c { font-family: ui-monospace, Menlo, monospace; font-size: clamp(10px, .95vw, 13px); color: rgba(255,255,255,.45) }
+.ac-tv .v .c {
+  font-family: ui-monospace, Menlo, monospace; font-size: clamp(10px, .95vw, 13px);
+  color: var(--ac-gris); overflow-wrap: anywhere;
+}
 .ac-tv .v .t { font-size: clamp(12px, 1.15vw, 16px); overflow-wrap: anywhere }
-.ac-tv .v .d { text-align: right; color: #FF5C70; font-weight: 800; font-size: clamp(12px, 1.15vw, 16px); line-height: 1.15 }
+.ac-tv .v .d {
+  text-align: right; color: var(--ac-mal); font-weight: 800;
+  font-size: clamp(12px, 1.15vw, 16px); line-height: 1.15;
+}
+.ac-tv .vacio-tv { padding: 22px 0; color: var(--ac-gris); font-size: 13.5px; line-height: 1.5 }
 
-.ac-tv .bar { display: grid; grid-template-columns: 108px minmax(0, 1fr) 44px; gap: 12px; align-items: center; padding: clamp(7px, .9vw, 12px) 0 }
+.ac-tv .bar {
+  display: grid; grid-template-columns: 118px minmax(0, 1fr) 46px; gap: 12px;
+  align-items: center; padding: clamp(7px, .9vw, 11px) 0;
+}
 .ac-tv .bar .e { font-size: clamp(11px, 1.05vw, 14px) }
-.ac-tv .bar .riel { height: clamp(8px, .9vw, 12px); background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden }
-.ac-tv .bar .riel i { display: block; height: 100%; background: var(--c-oro) }
-.ac-tv .bar.mal .riel i { background: #E4002B }
-.ac-tv .bar .p { text-align: right; font-weight: 800; font-size: clamp(11px, 1.05vw, 15px); font-variant-numeric: tabular-nums }
-.ac-tv .bar .p.nd { color: rgba(255,255,255,.4); font-weight: 600 }
+.ac-tv .bar .riel {
+  height: clamp(9px, .9vw, 12px); background: var(--c-eef1f5);
+  border-radius: 99px; overflow: hidden;
+}
+.ac-tv .bar .riel i { display: block; height: 100%; background: var(--ac-ojo); border-radius: 99px }
+.ac-tv .bar.mal .riel i { background: var(--ac-mal) }
+.ac-tv .bar .p {
+  text-align: right; font-weight: 800; font-size: clamp(11px, 1.05vw, 15px);
+  font-variant-numeric: tabular-nums;
+}
+.ac-tv .bar .p.nd { color: var(--ac-gris); font-weight: 600; font-size: 12px }
 
 /* =====================================================================
    El botón "+" flotante. Es la acción del módulo: reportar.
@@ -534,5 +567,83 @@
   .ac .barras .b { grid-template-columns: 96px minmax(0, 1fr) 42px; gap: 9px }
   .ac-tv .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .ac-tv .dos { grid-template-columns: minmax(0, 1fr) }
+  .ac-tv .v { grid-template-columns: 70px minmax(0, 1fr) 56px; gap: 10px }
+  .ac-tv .bar { grid-template-columns: 96px minmax(0, 1fr) 42px; gap: 9px }
   .ac-rep .pie { grid-template-columns: 1fr 1.4fr }
+}
+
+/* ====================== Maestro ====================== */
+/* La clave, donde se lee: DEBAJO del nombre y no en una columna aparte.
+   En una columna de 92 px, "apilado_incorrecto" no cabe y se imprimía
+   encima del nombre de al lado. Aquí es una etiqueta que se ajusta al
+   texto y se parte si hace falta. */
+.ac .fila .clave {
+  font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+  background: var(--c-eef1f5); padding: 2px 6px; border-radius: 4px;
+  color: var(--ac-gris); overflow-wrap: anywhere; max-width: 100%;
+}
+
+/* Lo desactivado se ve apagado, no escondido: tiene que poder volver. */
+.ac .fila.apagada .tit { color: var(--ac-gris) }
+.ac .fila.apagada { background: var(--c-fafbfd) }
+
+.ac .nota-chica { font-size: 11px; color: var(--ac-gris); align-self: center; max-width: 150px; text-align: right }
+
+/* El botón de agregar del maestro: el "+" al frente lo hace obvio sin
+   tener que leerlo. */
+.ac .btn.mas-chico { border-style: dashed; font-weight: 800 }
+
+/* =====================================================================
+   LA BARRA DE ABAJO DEL CELULAR.
+
+   Cinco destinos y el "+" en el medio, levantado sobre la barra. Existe
+   aparte del riel lateral por una razón concreta: el riel se abre con el
+   pulgar en la esquina de arriba a la izquierda, que es justo donde no
+   llega la mano de alguien que además está cargando algo. Abajo llega
+   siempre.
+
+   En PC no aparece: allá está el riel, que muestra los mismos destinos y
+   no le quita 64 px de alto a la tabla.
+   ===================================================================== */
+.ac-abajo { display: none }
+
+@media (max-width: 760px) {
+  .ac-abajo {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    background: #0D0D0D; border-top: 1px solid rgba(255,255,255,.1);
+    /* El área segura del iPhone: sin esto, la barra de gestos del
+       sistema queda encima de los dos botones del medio. */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .ac-abajo a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 9px 2px 8px; min-height: 56px;
+    color: rgba(255,255,255,.62); text-decoration: none;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .01em;
+  }
+  .ac-abajo a svg {
+    width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ac-abajo a.on { color: var(--c-oro) }
+
+  .ac-abajo .hueco { position: relative }
+  .ac-abajo .hueco .mas {
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+    width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer;
+    background: var(--c-oro); color: #1A1200; font-size: 29px; line-height: 1;
+    display: grid; place-items: center;
+    /* El resplandor lo separa de la barra negra: sin él, el círculo
+       dorado sobre negro se lee pegado y no levantado. */
+    box-shadow: 0 0 0 5px #0D0D0D, 0 6px 18px -4px rgba(0,0,0,.5);
+  }
+
+  /* Aire al final de la página para que la barra no tape el último
+     renglón de la lista. 56 del alto + el área segura + un respiro. */
+  .ac { padding-bottom: calc(74px + env(safe-area-inset-bottom)) }
+
+  /* El "+" flotante de las pantallas sobra cuando está la barra: son el
+     mismo botón dicho dos veces, y uno de los dos tapa contenido. */
+  .ac > .mas { display: none }
 }

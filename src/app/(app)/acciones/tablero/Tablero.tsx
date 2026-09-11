@@ -5,14 +5,19 @@ import type { Accion, PorArea } from "@/modulos/acciones/datos";
 import { quien } from "../comunes";
 
 /**
- * EL TABLERO DEL ARRANQUE DE TURNO — la TV.
+ * EL TABLERO DEL ARRANQUE DE TURNO.
  *
  * No es un informe: es la pantalla que se queda puesta mientras se habla,
- * y de ahí salen todas las decisiones de diseño. Fondo negro porque se ve
- * desde el otro lado de la bodega y no quema la pantalla en tres horas.
- * Cuatro cifras grandes y nada más arriba, porque en una reunión de pie
- * nadie lee un párrafo. Y las vencidas con NOMBRE: "hay que hablar de
- * estas" no funciona si no dice con quién.
+ * y de ahí salen las decisiones de diseño. Cuatro cifras grandes y nada
+ * más arriba, porque en una reunión de pie nadie lee un párrafo. Y las
+ * vencidas CON NOMBRE: "hay que hablar de estas" no funciona si no dice
+ * con quién.
+ *
+ * Lo que la hace de reunión es el TAMAÑO, no el color: las cifras crecen
+ * con el ancho, así que en un televisor se leen desde el otro lado de la
+ * bodega y en un portátil siguen cabiendo. Fue negra un rato y no
+ * funcionó: la app entera es clara y una pantalla negra en el medio se
+ * lee como si fuera otro programa.
  *
  * El reloj se pinta en el navegador y no en el servidor a propósito: la
  * hora del servidor es UTC y saldría cinco horas adelantada. Arranca
@@ -104,9 +109,9 @@ export function Tablero({ acciones, areas, nombres, meta }: {
       <div className="dos">
         <div className="panel">
           <h2>Vencidas · hay que hablar de estas</h2>
-          <div className="rueda">
+          <div>
             {vencidas.length === 0 && (
-              <div style={{ padding: "22px 0", color: "rgba(255,255,255,.5)", fontSize: 14 }}>
+              <div className="vacio-tv">
                 Ninguna vencida. Es la primera vez que esta pantalla no tiene nada que decir,
                 y eso es exactamente lo que se buscaba.
               </div>
@@ -132,7 +137,7 @@ export function Tablero({ acciones, areas, nombres, meta }: {
 
         <div className="panel">
           <h2>Cumplimiento por área</h2>
-          <div className="rueda">
+          <div>
             {areas.map((x) => (
               <div key={x.area} className={"bar" + (x.pct != null && x.pct < meta ? " mal" : "")}>
                 <div className="e">{x.area_nombre}</div>
@@ -142,12 +147,11 @@ export function Tablero({ acciones, areas, nombres, meta }: {
                 </div>
               </div>
             ))}
-            <div style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,.45)", lineHeight: 1.5 }}>
-              El porcentaje es <b style={{ color: "rgba(255,255,255,.75)" }}>efectivas sobre
-              verificadas</b>, no cerradas sobre abiertas. Se puede cerrar todo y tener 38% si
-              nada de lo que se hizo sirvió. Un guion quiere decir que en esa área todavía no se
-              ha verificado nada.
-            </div>
+            <p className="nota">
+              El porcentaje es <b>efectivas sobre verificadas</b>, no cerradas sobre abiertas. Se
+              puede cerrar todo y tener 38% si nada de lo que se hizo sirvió. Un guion quiere
+              decir que en esa área todavía no se ha verificado nada.
+            </p>
           </div>
         </div>
       </div>
