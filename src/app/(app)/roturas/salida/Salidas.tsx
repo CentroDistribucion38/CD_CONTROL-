@@ -12,14 +12,14 @@ import { fecha, kilos, quien } from "../comunes";
  * LAS SALIDAS DE VIDRIO — lo que se pesa, en KILOS.
  *
  * Una salida es un camión: se van pesando tolvas, y cuando está completo
- * se firma. Las tres firmas van en cadena y en orden —supervisora,
+ * se firma. Las tres firmas van en cadena y en orden —supervisor (a),
  * verificador, validación— y CADA UNA VIVE EN SU PROPIA PANTALLA, porque
  * son tres personas distintas y cada una trabaja en un sitio distinto.
  * Con los tres botones en una sola hoja, la misma persona tocaba dos y
  * la base le contestaba que no: la regla estaba bien, la pantalla la
  * convertía en un regaño.
  *
- * Esta pantalla es la de la SUPERVISORA: solo enseña lo que todavía se
+ * Esta pantalla es la del SUPERVISOR (A): solo enseña lo que todavía se
  * está pesando. Lo cerrado ya no es suyo.
  *
  * El neto NO se guarda en ninguna parte: sale de sumar las tolvas cada
@@ -188,6 +188,11 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
                 <span className={"eti " + (s.completa ? "cuenta" : "esperando")}>
                   {s.completa ? "COMPLETA" : `${s.firmas} DE 3 FIRMAS`}
                 </span>
+                {s.mismo_firmante && (
+                  <span className="eti falta" title="Dos firmas de la misma persona">
+                    MISMA PERSONA
+                  </span>
+                )}
                 <Link href={`/roturas/salida/${s.id}`} className="btn">
                   {s.estado === "abierta" ? "Pesar" : "Ver"}
                 </Link>

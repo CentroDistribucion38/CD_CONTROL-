@@ -21,7 +21,7 @@ import { fecha, quien } from "@/modulos/roturas/formato";
  */
 
 export const PAPELES = [
-  { id: "supervisora", n: 1, t: "Supervisora", h: "pesa y cierra la salida" },
+  { id: "supervisora", n: 1, t: "Supervisor (a)", h: "pesa y cierra la salida" },
   { id: "verificador", n: 2, t: "Verificador", h: "revisa lo que va a salir" },
   { id: "validador", n: 3, t: "Validación", h: "da el aval de salida" },
 ] as const;
@@ -52,6 +52,20 @@ export function Firmas({ salida, nombres }: {
   const etapa = etapaDe(salida);
 
   return (
+    <>
+      {/* DOS FIRMAS DE LA MISMA MANO. Solo el administrador puede, y a
+          propósito: un domingo sin nadie más la bodega no se puede
+          quedar parada, y en pruebas una sola persona tiene que poder
+          recorrer la cadena. Pero se DICE. Una excepción silenciosa
+          convierte la regla de las tres personas en un adorno: al mes
+          nadie recuerda que existía. */}
+      {salida.mismo_firmante && (
+        <div className="aviso" style={{ marginBottom: 12 }}>
+          <b>Dos de estas firmas son de la misma persona.</b> Lo permitió el rol de
+          administrador. La regla es que sean tres: quien pesa no verifica, y quien verifica no
+          da salida.
+        </div>
+      )}
     <div className="firmas">
       {PAPELES.map((p) => {
         const en = p.id === "supervisora" ? salida.supervisora_en
@@ -78,5 +92,6 @@ export function Firmas({ salida, nombres }: {
         );
       })}
     </div>
+    </>
   );
 }

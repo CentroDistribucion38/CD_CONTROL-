@@ -11,7 +11,7 @@
 --   02 SE REGISTRA  unidades, proceso y causa, desde el celular
 --   03 ABI DECIDE   cuenta o no cuenta
 --   04 SE PESA      vidrio en tolvas, bruto menos tara
---   05 SALE         supervisora, verificador y validación
+--   05 SALE         supervisor (a), verificador y validación
 --
 -- SON DOS SUBMÓDULOS QUE MIDEN COSAS DISTINTAS Y NO SE MEZCLAN:
 --
@@ -39,7 +39,7 @@
 --      probarlo en el momento y en el sitio. Pedirla después es pedirle
 --      a alguien que vuelva a un pasillo donde ya no está el vidrio.
 --
---   3. QUIEN DIGITA NO VERIFICA. Supervisora, verificador y validación
+--   3. QUIEN DIGITA NO VERIFICA. Supervisor (a), verificador y validación
 --      son tres personas y tres momentos. La base rechaza que la misma
 --      persona ponga dos de las tres firmas.
 --
@@ -377,12 +377,16 @@ create table if not exists public.roturas_salidas (
   /* QUIEN DIGITA NO VERIFICA. Tres personas distintas, y lo dice la
      tabla y no una pantalla: una restricción que vive en la base no se
      puede saltar entrando por otro lado. */
-  constraint salida_tres_personas check (
-    (supervisora_por is null or verificador_por is null or supervisora_por <> verificador_por)
-    and (supervisora_por is null or validador_por is null or supervisora_por <> validador_por)
-    and (verificador_por is null or validador_por is null or verificador_por <> validador_por)
-  )
+  /* LA REGLA DE LAS TRES PERSONAS YA NO ES UNA RESTRICCIÓN DE TABLA.
+     Una restricción no sabe quién está firmando: no puede dejar pasar al
+     administrador y frenar a los demás. Se mudó a salida_firmar, que sí
+     lo sabe. NO SE PIERDE LA GARANTÍA: 'authenticated' solo tiene GRANT
+     de SELECT sobre esta tabla, así que la única manera de escribir una
+     firma es esa función. La regla no se debilitó, cambió de sitio —y
+     ganó la excepción del administrador, que antes era imposible. */
 );
+
+alter table public.roturas_salidas drop constraint if exists salida_tres_personas;
 
 create index if not exists roturas_salidas_idx on public.roturas_salidas (estado, creada_en desc);
 
@@ -621,7 +625,7 @@ as $$
 declare v_id uuid; v_cod text; v_placa text;
 begin
   if not public.rotura_puede('supervisora') then
-    raise exception 'Abrir una salida de vidrio es de la supervisora de líneas';
+    raise exception 'Abrir una salida de vidrio es del supervisor (a) de líneas';
   end if;
 
   /* Se normaliza AQUÍ y no en la pantalla: la pantalla es una de las
@@ -663,7 +667,7 @@ declare
   v_id     uuid;
 begin
   if not public.rotura_puede('supervisora') then
-    raise exception 'Pesar una tolva es de la supervisora de líneas';
+    raise exception 'Pesar una tolva es del supervisor (a) de líneas';
   end if;
 
   /* s.id y no id a secas: esta función DEVUELVE una columna llamada
@@ -704,7 +708,7 @@ as $$
 declare v_estado salida_estado;
 begin
   if not public.rotura_puede('supervisora') then
-    raise exception 'Quitar una tolva es de la supervisora de líneas';
+    raise exception 'Quitar una tolva es del supervisor (a) de líneas';
   end if;
   select s.estado into v_estado
     from public.roturas_salida_tolvas t
@@ -721,7 +725,7 @@ grant execute on function public.salida_quitar_tolva(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- FIRMAR. Las tres, en cadena y en orden: no se puede verificar lo que
--- la supervisora todavía no cerró, ni facturar lo que nadie verificó.
+-- el supervisor (a) todavía no cerró, ni dar salida a lo que nadie verificó.
 --
 -- Y NADIE FIRMA DOS VECES. La restricción de la tabla ya lo impide, pero
 -- se comprueba aquí también para poder decirlo con palabras: el error de
@@ -752,16 +756,23 @@ begin
     if v_tolvas = 0 then
       raise exception 'Una salida sin tolvas pesadas no se puede firmar';
     end if;
-    if s.supervisora_en is not null then raise exception 'Ya está firmada por la supervisora'; end if;
+    if s.supervisora_en is not null then raise exception 'Ya está firmada por el supervisor (a)'; end if;
     update public.roturas_salidas
        set supervisora_por = auth.uid(), supervisora_en = now(), estado = 'cerrada'
      where id = p_salida;
 
   elsif p_papel = 'verificador' then
     if s.supervisora_en is null then
-      raise exception 'Todavía no la ha firmado la supervisora: no hay qué verificar';
+      raise exception 'Todavía no la ha firmado el supervisor (a): no hay qué verificar';
     end if;
-    if s.supervisora_por = auth.uid() then
+    /* EL ADMINISTRADOR PASA. Un domingo sin nadie más la bodega no se
+       puede quedar parada esperando a que aparezca un segundo par de
+       manos; y en pruebas, una sola persona tiene que poder recorrer la
+       cadena entera. No se pierde nada: queda escrito quién firmó cada
+       una, y la vista marca la salida como firmada por la misma persona
+       —v_roturas_salidas.mismo_firmante—, así que la excepción se ve en
+       la pantalla en vez de desaparecer. */
+    if s.supervisora_por = auth.uid() and public.mi_rol() <> 'admin' then
       raise exception 'Quien pesó no verifica: la firma del verificador es de otra persona';
     end if;
     if s.verificador_en is not null then raise exception 'Ya está verificada'; end if;
@@ -772,7 +783,8 @@ begin
     if s.verificador_en is null then
       raise exception 'Todavía no la ha verificado nadie: no se puede dar salida';
     end if;
-    if s.supervisora_por = auth.uid() or s.verificador_por = auth.uid() then
+    if (s.supervisora_por = auth.uid() or s.verificador_por = auth.uid())
+       and public.mi_rol() <> 'admin' then
       raise exception 'Son tres personas y tres momentos: quien pesó o verificó no valida';
     end if;
     if s.validador_en is not null then raise exception 'Ya está validada'; end if;
@@ -887,7 +899,17 @@ select
   ((s.supervisora_en is not null)::int
    + (s.verificador_en is not null)::int
    + (s.validador_en is not null)::int)          as firmas,
-  (s.validador_en is not null)                   as completa
+  (s.validador_en is not null)                   as completa,
+
+  /* DOS FIRMAS DE LA MISMA MANO. Solo puede pasar si la puso un
+     administrador, porque a los demás la función se lo impide. No es
+     un error y por eso no bloquea nada; es un dato que la pantalla
+     enseña, para que una salida firmada por una sola persona no se vea
+     igual que una que pasó por tres. */
+  (   (s.supervisora_por is not null and s.supervisora_por = s.verificador_por)
+   or (s.supervisora_por is not null and s.supervisora_por = s.validador_por)
+   or (s.verificador_por is not null and s.verificador_por = s.validador_por)
+  )                                              as mismo_firmante
 from public.roturas_salidas s;
 
 grant select on public.v_roturas_salidas to authenticated;

@@ -62,6 +62,10 @@ export type Salida = {
   neto_kg: number;
   firmas: number;
   completa: boolean;
+  /** Dos de las tres firmas son de la misma persona. Solo lo puede hacer
+   *  un administrador; a los demás la base se lo impide. No bloquea nada
+   *  —es un dato para que la pantalla lo diga. */
+  mismo_firmante: boolean;
 };
 
 export type TolvaPesada = {

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 /**
  * VERIFICACIÓN — la segunda firma.
  *
- * Solo llega lo que la supervisora ya cerró. Lo que todavía se está
+ * Solo llega lo que el supervisor (a) ya cerró. Lo que todavía se está
  * pesando no aparece aquí: no hay nada que verificar de una salida a la
  * que le pueden entrar dos tolvas más.
  */
@@ -22,7 +22,7 @@ export default async function VerificacionPage() {
 
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
-  /* Cerradas por la supervisora y todavía sin verificar. Lo más viejo
+  /* Cerradas por el supervisor (a) y todavía sin verificar. Lo más viejo
      primero: al revés, lo de hace tres días no se mira nunca porque
      cada turno entra algo encima. */
   const lista = datos.salidas
@@ -38,7 +38,7 @@ export default async function VerificacionPage() {
           <p className="ojo">ROTURAS · SALIDA · VERIFICACIÓN</p>
           <h1>Por verificar</h1>
           <p className="sub">
-            Salidas que la supervisora ya cerró y que esperan que alguien más revise la cuenta.
+            Salidas que el supervisor (a) ya cerró y que esperan que alguien más revise la cuenta.
             Quien pesó no verifica: es la regla que evita que el mismo par de manos pese,
             apruebe y despache.
           </p>

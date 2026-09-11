@@ -165,3 +165,23 @@ estaba roto por creerle a una medicion mal hecha.
 La ilustracion de la tolva se queda con sus colores propios: es el dibujo
 de un objeto, no cromo de la interfaz. Una foto tampoco cambiaria de
 color al cambiar de tema.
+
+EL AVISO DE "FALTA CORRER EL SQL" AHORA NOMBRA EL ARCHIVO.
+
+Decia "supabase/modulos/…" con puntos suspensivos, y eso deja a quien lo
+lee con la mitad del trabajo: sabe que falta un SQL, no cual de los
+cinco. El nombre de la tabla o la funcion que Postgres no encontro ya
+lleva el prefijo del modulo adentro —salida_abrir, acciones_zonas,
+v_sider_viajes—, asi que se saca de ahi.
+
+  salida_abrir     → supabase/modulos/roturas.sql
+  acciones_zonas   → supabase/modulos/acciones.sql
+  v_sider_viajes   → supabase/modulos/sider.sql
+
+Roturas tiene dos prefijos, "rotura_" y "salida_", porque son sus dos
+submodulos. Y si no hay pista, se dice lo generico: mandar a correr el
+SQL equivocado cuesta mas tiempo que no decir nada.
+
+Salio de un caso real: al cambiar la firma de salida_abrir para que
+reciba la placa, la pantalla nueva contra la base vieja mostro el aviso
+generico y no decia que archivo correr.

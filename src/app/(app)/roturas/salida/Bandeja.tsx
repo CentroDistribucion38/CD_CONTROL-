@@ -17,7 +17,7 @@ import { Firmas, PAPELES, type Papel, puedeFirmar } from "./Firmas";
  * enseñan lo que llegó a SU etapa y ponen UN botón. Dos copias serían
  * dos sitios donde arreglar el mismo detalle, y una se quedaría vieja.
  *
- * AQUÍ SOLO LLEGA LO QUE LE TOCA A ESTA ETAPA. Lo que la supervisora no
+ * AQUÍ SOLO LLEGA LO QUE LE TOCA A ESTA ETAPA. Lo que el supervisor (a) no
  * ha cerrado no aparece en Verificación; lo que nadie verificó no
  * aparece en Validación. Quien entra no tiene que buscar lo suyo entre
  * lo de los demás, y sobre todo no ve un botón que la base le va a
@@ -124,6 +124,11 @@ export function Bandeja({ salidas, nombres, papel, rol, manda }: {
                     </>
                   )}
                   {s.observacion && <><span>·</span><span>{s.observacion}</span></>}
+                  {s.mismo_firmante && (
+                    <span className="eti falta" title="Dos firmas de la misma persona">
+                      MISMA PERSONA
+                    </span>
+                  )}
                 </div>
 
                 {abierta === s.id && (
