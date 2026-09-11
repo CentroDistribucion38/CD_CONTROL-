@@ -117,15 +117,27 @@ export const MODULOS: Modulo[] = [
     // ruta que no existe pone un enlace en el menú que lleva a un 404, y
     // quien lo toca no tiene forma de saber que es una pantalla pendiente
     // y no una app rota. scripts/rutas.mjs revienta el build si pasa.
+    // EL MENÚ VA EN EL ORDEN DEL PROCESO, no en el orden en que se fueron
+    // construyendo las pantallas. De arriba abajo es lo que pasa de
+    // verdad con un vehículo:
+    //
+    //   Certificar        sale del CD origen
+    //   En tránsito       llega a Barranquilla
+    //   Fuente principal  ahí queda el viaje, ya completo
+    //   Seguimiento       el informe de todos
+    //   Novedades         lo que salió mal, que solo se sabe al final
+    //
+    // Maestro cierra porque no es un paso: es la configuración —los
+    // orígenes y los materiales— y se toca una vez cada mucho.
     secciones: [
-      { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
-      { nombre: "Novedades", ruta: "/sider/novedades" },
+      { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
       /* Se entra por el botón Importar de Seguimiento, que es donde se
          necesita. En el menú era el mismo destino dicho dos veces. */
       { nombre: "Importar", ruta: "/sider/importar", oculto: true },
+      { nombre: "Novedades", ruta: "/sider/novedades" },
       { nombre: "Maestro", ruta: "/sider/maestro" },
     ],
   },

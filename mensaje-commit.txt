@@ -1,40 +1,23 @@
-Novedades de T1 / T2: el CD responsable sale del maestro, no del viaje
+El menu de T1 / T2 va en el orden del proceso
 
-La vista v_sider_novedades y la funcion de reportar leian v.cd_origen
-de sider_viajes, y esa columna ahi no existe: el viaje guarda "planta"
-(Arenosa) y el nombre que la gente reconoce (CD La Arenosa) vive en el
-maestro sider_origenes. Lo mismo con la descripcion del material, que
-vive en sider_skus. Supabase paraba la migracion con
+Estaba en el orden en que se fueron construyendo las pantallas, no en
+el orden en que pasan las cosas. De arriba abajo ahora es lo que le
+pasa de verdad a un vehiculo:
 
-  ERROR: 42703: column v.cd_origen does not exist
+  Certificar        sale del CD origen
+  En transito       llega a Barranquilla
+  Fuente principal  ahi queda el viaje, ya completo
+  Seguimiento       el informe de todos
+  Novedades         lo que salio mal, que solo se sabe al final
+  Maestro           la configuracion
 
-Se llega a los dos por su maestro. Y por los maestros, no por la vista
-v_sider_viajes, que tambien los tiene: si novedades dependiera de esa
-vista, volver a correr supabase/modulos/sider.sql -que la bota y la
-vuelve a crear- se caeria con "cannot drop view because other objects
-depend on it". Colgandose de las tablas, los dos archivos quedan
-independientes y cada uno se puede correr cuando sea, y dos veces.
+Novedades baja al final porque una novedad se reporta DESPUES: primero
+se despacha, llega, queda registrado, y ahi se sabe que hubo un sello
+roto o un faltante. Arriba invitaba a abrirla antes de que hubiera algo
+que reportar.
 
-De paso, sider.sql se sostiene solo. La vista lee anulado_en,
-anulado_por y motivo_anulacion, tres columnas que agrega la migracion
-2026-09-corregir-viajes.sql. En la base de produccion ya estan, asi que
-no se notaba; en una base NUEVA -montar el proyecto de cero, o una copia
-para probar- el modulo se caia porque se corre antes que las
-migraciones. Ahora las declara el tambien, con "if not exists".
+Maestro cierra porque no es un paso del proceso: son los origenes y los
+materiales, configuracion que se toca una vez cada mucho.
 
-Por que no se habia visto: la prueba local corria contra un esquema
-escrito a mano que se habia inventado la columna cd_origen en
-sider_viajes. Diez casos en verde contra un esquema que no era el real.
-Esta vez la prueba carga los .sql del repo -nucleo, perfil, roles,
-usuarios, sider y las migraciones- y sobre ese esquema comprueba que:
-
-  - una novedad pegada al viaje saca placa SXY123 y responsable
-    "CD La Arenosa" de la base, no del navegador
-  - la vista trae CD, material, estado del viaje, dias y vencida
-  - sin viaje, la placa y el responsable se escriben a mano
-  - otra planta responde con compromiso, y vencida se prende y se
-    apaga al cerrar
-  - un operador no puede reportar ni cerrar, pero si leer la bandeja
-  - fecha futura, viaje inexistente, sin placa y cerrar dos veces
-    dan error con su mensaje
-  - correr sider.sql otra vez, con novedades ya instalado, no rompe
+La entrada del modulo no cambia: quien abre T1 / T2 sigue cayendo en
+Certificar, que es donde esta la gente cuando tiene un vehiculo al lado.
