@@ -87,3 +87,81 @@ de ESTO, con su bastidor y sus ruedas.
 VA NIVELADA. El primer intento la dibujo sobre un riel inclinado y
 parecia rodando cuesta abajo, que es justo lo que uno no quiere ver al
 lado de la palabra "bascula". Una tolva que se pesa esta quieta.
+
+LA PLACA DEL CAMION, como campo propio y obligatorio.
+
+Estaba escondida dentro de la observacion, que es texto libre. La placa
+es la IDENTIDAD de la salida: el dia que Peldar reclame por una carga, o
+que haya que cruzar lo que salio con el papel de la porteria, se busca
+por placa — y una frase donde alguien escribio "camion de peldar placa
+xxx000" no se puede buscar. Ahora es columna, con su indice.
+
+SE NORMALIZA EN LA BASE Y NO EN LA PANTALLA. Fuera espacios y guiones,
+todo en mayusculas, de modo que "abc 123", "ABC-123" y "abc123" sean el
+mismo camion y no tres en el informe del mes. Se hace en la funcion
+porque la pantalla es UNA de las formas de entrar, no la unica.
+
+Y SE ENSEÑA ANTES DE GUARDAR: mientras se escribe, la pantalla dice "se
+va a guardar como ABC123". Normalizar en silencio es la manera mas
+rapida de que alguien jure que escribio otra cosa.
+
+La firma vieja de salida_abrir se BORRA en vez de dejarse al lado. Con
+las dos, una pantalla sin actualizar seguiria abriendo salidas sin placa
+y nadie se enteraria.
+
+Las salidas que ya existan quedan con 'SIN PLACA' —un marcador que se ve
+a la legua y se puede buscar; una cadena vacia se confunde con un fallo
+de la app— y recien ahi la columna se vuelve obligatoria. Al reves, la
+migracion se trancaria en la primera salida vieja.
+
+La placa se pinta como una placa: monoespaciada, oro sobre negro. Es un
+identificador que alguien va a leer en voz alta por radio o comparar con
+un papel, no una palabra mas del titulo. Va en la lista, en las dos
+bandejas, en el encabezado de la salida y en el texto de las dos
+confirmaciones de firma — quien verifica y quien da salida firman sobre
+un camion con nombre, no sobre un codigo.
+
+EL MODULO VUELVE A SEGUIR EL TEMA.
+
+Dos errores seguidos, y son el mismo malentendido por sus dos caras:
+
+  1. El acento colgaba de var(--c-oro) a secas. En los temas negro, gris
+     y halo ese token vale #ff0000, asi que el NETO salia en rojo bombero
+     CON TINTA OSCURA ENCIMA: ilegible.
+  2. Al arreglarlo puse la paleta en literales. Se leia bien, pero
+     cambiar de tema en Preferencias ya no cambiaba nada en Roturas — y
+     un modulo que no reacciona se ve como si no fuera de la misma app.
+
+Lo que faltaba no era escoger entre las dos: era el PAR. La app ya
+resuelve esto para su acento de marca —define --c-marca junto con
+--c-marca-txt, "el acento y el texto que va ENCIMA de el", por tema y a
+proposito—. --c-oro no traia pareja, asi que el modulo la pone:
+--rt-sobre-oro. Sobre acento claro, tinta oscura; sobre acento oscuro o
+muy saturado, blanco.
+
+Ademas:
+  · La banda oscura sale de --c-grupo, que la app define por tema
+    justamente para eso y que a proposito NO se deriva del acento.
+  · --rt-oro-claro: el acento aclarado, para lo que va ENCIMA de esa
+    banda. Sin el, en el tema tinta el total salia azul sobre azul
+    oscuro y no se veia.
+  · En los temas de tinta blanca el relleno baja al 88%: blanco sobre
+    rojo pleno da 4,0 de contraste —alcanza para una cifra grande, no
+    para una etiqueta de 11 px—. Al 88% sube a 5,0.
+  · Verde y rojo NO salen del tema: significan quien paga. Es el mismo
+    criterio con el que la app deja --c-alarma roja en los siete.
+
+MEDIDO, no supuesto: .arnes/rot-temas.mjs calcula el contraste real de
+los seis pares criticos en los siete temas. Todos los rellenos de acento
+quedan por encima de 5,0 y la banda por encima de 3,6 —que solo lleva
+cifras grandes, donde el minimo es 3,0—.
+
+Y un bug del propio medidor, que vale la pena contar: Chrome devuelve
+rgb(0-255) para los colores planos pero color(srgb 0-1) para lo que sale
+de color-mix. La primera version leia los dos igual y reportaba que la
+banda fallaba cuando el CSS estaba bien. Casi "arreglo" algo que no
+estaba roto por creerle a una medicion mal hecha.
+
+La ilustracion de la tolva se queda con sus colores propios: es el dibujo
+de un objeto, no cromo de la interfaz. Una foto tampoco cambiaria de
+color al cambiar de tema.

@@ -198,15 +198,6 @@
   letter-spacing: -.02em; line-height: 1.25; overflow-wrap: anywhere;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
-/* LA PLACA, como una placa. Monoespaciada, en un marco: es un
-   identificador que alguien va a leer en voz alta por radio o comparar
-   con el papel de la portería, no una palabra más del título. */
-.rt .placa {
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-weight: 700; font-size: 14px; letter-spacing: .1em;
-  background: var(--rt-negro); color: var(--rt-oro);
-  padding: 4px 10px; white-space: nowrap;
-}
 .rt .fila .meta {
   margin-top: 9px; font-size: 13px; color: var(--rt-gris);
   display: flex; gap: 10px; flex-wrap: wrap; align-items: center;

@@ -19,16 +19,51 @@
  * se devuelve igual.
  */
 
+/**
+ * DE QUÉ MÓDULO ES LO QUE FALTA.
+ *
+ * Postgres nombra lo que no encontró —"salida_abrir", "acciones_zonas",
+ * "v_sider_viajes"— y ese nombre lleva el prefijo del módulo adentro.
+ * Con eso alcanza para decir qué archivo correr en vez de mandar a
+ * alguien a abrir cinco.
+ *
+ * Cada módulo puede tener más de un prefijo: Roturas escribe tanto
+ * "rotura_" como "salida_", porque son sus dos submódulos.
+ */
+const PREFIJOS: [RegExp, string][] = [
+  [/\b(roturas?_|salida_|v_roturas)/, "supabase/modulos/roturas.sql"],
+  [/\b(acciones?_|accion_)/, "supabase/modulos/acciones.sql"],
+  [/\b(sider_|v_sider)/, "supabase/modulos/sider.sql"],
+  [/\b(inventario_|producto_|bodega_|conteo_|movimiento_)/, "supabase/modulos/inventario.sql"],
+  [/\b(quiebra_|v_quiebra)/, "supabase/modulos/quiebra.sql"],
+  [/\b(roles?_|rol_permisos|perfiles)\b/, "supabase/02-roles.sql"],
+];
+
+function archivoDelModulo(t: string): string {
+  for (const [patron, archivo] of PREFIJOS) if (patron.test(t)) return archivo;
+  /* Sin pista, se dice lo genérico. Es peor que nombrar el archivo, pero
+     mucho mejor que inventarse uno: mandar a correr el SQL equivocado
+     cuesta más tiempo que no decir nada. */
+  return "el archivo del módulo en supabase/modulos/";
+}
+
 export function traducirError(m: string | undefined | null): string {
   const t = (m ?? "").toLowerCase();
   if (!t) return "Algo falló y la base no dijo qué. Vuelve a intentarlo.";
 
   /* Falta correr el SQL. Es el único que nombra un archivo: es lo único
-     que arregla el problema, y decirlo ahorra media hora de búsqueda. */
+     que arregla el problema, y decirlo ahorra media hora de búsqueda.
+
+     Y NOMBRA EL ARCHIVO EXACTO. La primera versión decía
+     "supabase/modulos/…" con puntos suspensivos, y eso deja a quien lo
+     lee con la mitad del trabajo: sabe que falta un SQL, no cuál de los
+     cinco. El nombre de la tabla o de la función que Postgres no
+     encontró ya lleva el prefijo del módulo adentro —salida_abrir,
+     acciones_zonas, sider_viajes—, así que se saca de ahí. */
   if (t.includes("does not exist") || t.includes("schema cache") ||
       t.includes("could not find the function")) {
-    return "Falta crear esta parte en Supabase. Abre el SQL Editor y ejecuta el archivo del " +
-           "módulo (supabase/modulos/…) — se puede correr varias veces sin romper nada.";
+    return `Falta crear esta parte en Supabase. Abre el SQL Editor y ejecuta ${archivoDelModulo(t)}` +
+           " — se puede correr varias veces sin romper nada.";
   }
 
   if (t.includes("duplicate key") || t.includes("already exists")) {
