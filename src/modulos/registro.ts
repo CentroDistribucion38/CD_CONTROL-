@@ -121,6 +121,7 @@ export const MODULOS: Modulo[] = [
       { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
+      { nombre: "Novedades", ruta: "/sider/novedades" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
       /* Se entra por el botón Importar de Seguimiento, que es donde se
          necesita. En el menú era el mismo destino dicho dos veces. */

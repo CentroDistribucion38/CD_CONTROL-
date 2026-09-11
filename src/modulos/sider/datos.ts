@@ -236,3 +236,102 @@ export async function evidenciaDeViaje(viajeId: string) {
   return { puntas, falta: false };
 }
 
+
+/* ==================== NOVEDADES ====================
+   La bandeja de lo que sale mal. Se trae la vista y no la tabla: ya
+   viene con el nombre del motivo y con lo que se sepa del viaje, así la
+   pantalla no tiene que cruzar tres listas para pintar una fila.
+   ==================================================== */
+export type Novedad = {
+  id: string;
+  tramo: "t1" | "t2";
+  tipo: "viaje" | "entrega";
+  motivo: string;
+  motivo_nombre: string;
+  viaje_id: string | null;
+  placa: string;
+  fecha: string;
+  descripcion: string | null;
+  foto_ruta: string | null;
+  cd_responsable: string | null;
+  compromiso: string | null;
+  fecha_compromiso: string | null;
+  estado: "abierta" | "cerrada";
+  que_se_hizo: string | null;
+  cerrada_por: string | null;
+  cerrada_en: string | null;
+  creada_por: string | null;
+  creada_en: string;
+  cd_origen: string | null;
+  material: string | null;
+  estado_viaje: string | null;
+  pegada_a_viaje: boolean;
+  /** Días que lleva abierta, o los que estuvo si ya se cerró. */
+  dias: number;
+  /** Abierta y pasada de la fecha que prometieron. */
+  vencida: boolean;
+  respuestas: number;
+};
+
+/** Una respuesta del hilo. No se edita ni se borra. */
+export type RespuestaNovedad = {
+  id: string;
+  novedad_id: string;
+  texto: string;
+  desde: string | null;
+  escrita_por: string | null;
+  escrita_en: string;
+};
+
+export type MotivoNovedad = {
+  clave: string;
+  nombre: string;
+  /** null = sirve para los dos tramos. */
+  tramo: "t1" | "t2" | null;
+  tipo: "viaje" | "entrega";
+  orden: number;
+};
+
+/** Las novedades, las abiertas primero y dentro de cada grupo lo más
+ *  reciente arriba: lo que hay que atender no se busca, se ve. */
+export async function novedadesSider(limite = 400) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_sider_novedades")
+    .select("*")
+    .order("estado", { ascending: true })   // 'abierta' antes que 'cerrada'
+    .order("fecha", { ascending: false })
+    .order("creada_en", { ascending: false })
+    .limit(limite);
+  /* Si la tabla todavía no existe —falta correr la migración— la
+     pantalla sale vacía en vez de reventar, y el aviso de arriba lo
+     explica. */
+  if (error) return [] as Novedad[];
+  return (data ?? []) as Novedad[];
+}
+
+export async function motivosNovedad() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("sider_novedad_motivos")
+    .select("clave, nombre, tramo, tipo, orden")
+    .eq("activo", true)
+    .order("orden");
+  if (error) return [] as MotivoNovedad[];
+  return (data ?? []) as MotivoNovedad[];
+}
+
+/** El hilo de todas las novedades de una vez. Son pocas líneas por
+ *  novedad: una consulta por fila serían cuatrocientas para pintar una
+ *  lista, y abrirlas de a una deja al que revisa haciendo clics. */
+export async function hiloNovedades(ids: string[]) {
+  if (ids.length === 0) return [] as RespuestaNovedad[];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("sider_novedad_hilo")
+    .select("id, novedad_id, texto, desde, escrita_por, escrita_en")
+    .in("novedad_id", ids)
+    .order("escrita_en");
+  if (error) return [] as RespuestaNovedad[];
+  return (data ?? []) as RespuestaNovedad[];
+}

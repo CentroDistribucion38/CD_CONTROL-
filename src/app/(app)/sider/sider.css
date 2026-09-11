@@ -2513,3 +2513,197 @@
   .sd .vj-filtros .btn.plano { height: 44px }
   .sd .vj-motivo-campo input { height: 44px }
 }
+
+/* ====================== NOVEDADES ======================
+   Una bandeja de tarjetas y no una tabla: cada novedad lleva un párrafo
+   de descripción, un compromiso y un hilo de respuestas, y eso en una
+   celda de tabla no cabe ni se lee.
+   El orden de lectura de cada tarjeta es el orden en que se pregunta:
+   qué pasó → a quién le toca → qué prometieron → qué se ha dicho.
+   ====================================================== */
+.sd .nv-barra {
+  display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap;
+  background: var(--sd-papel); border: 1px solid var(--sd-linea);
+  border-radius: 3px; padding: 14px 18px;
+}
+.sd .nv-cuenta {
+  display: flex; flex-direction: column; gap: 1px; padding-right: 16px;
+  border-right: 1px solid var(--sd-linea); border-width: 0 1px 0 0;
+  background: none; text-align: left; font: inherit; color: inherit;
+}
+.sd .nv-cuenta b {
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 26px; line-height: 1;
+}
+.sd .nv-cuenta span { font-size: 12.5px; color: var(--sd-gris) }
+/* Las pasadas de fecha van en alarma y SE PUEDEN TOCAR: el número es un
+   filtro, no un adorno. */
+.sd button.nv-cuenta { cursor: pointer }
+.sd .nv-cuenta.mala b { color: var(--c-alarma) }
+.sd button.nv-cuenta:hover span { color: var(--c-alarma) }
+
+.sd .nv-filtro { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.sd .nv-filtro span { font-size: 12px; font-weight: 600; color: var(--c-2c4361) }
+.sd .nv-filtro select, .sd .nv-filtro input {
+  height: 40px; padding: 0 10px; min-width: 130px;
+  font: 500 14px var(--sd-texto); color: var(--sd-tinta);
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .nv-filtro select:focus, .sd .nv-filtro input:focus {
+  outline: 3px solid var(--sd-acento); outline-offset: 1px;
+}
+.sd .nv-nueva { margin-left: auto }
+
+/* ---------- Reportar ---------- */
+.sd .nv-forma .nv-campos {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px; padding: 4px 26px 18px;
+}
+.sd .nv-campos > label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.sd .nv-campos > label.ancho { grid-column: 1 / -1 }
+.sd .nv-campos span { font-size: 12.5px; font-weight: 600; color: var(--c-2c4361) }
+.sd .nv-campos em {
+  font-style: normal; font-size: 12px; color: var(--sd-gris); line-height: 1.4;
+}
+.sd .nv-campos select, .sd .nv-campos input, .sd .nv-campos textarea {
+  width: 100%; padding: 0 11px; font: 500 15px var(--sd-texto); color: var(--sd-tinta);
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .nv-campos select, .sd .nv-campos input { height: 44px }
+.sd .nv-campos textarea { padding: 10px 11px; resize: vertical; min-height: 74px }
+.sd .nv-campos select:focus, .sd .nv-campos input:focus, .sd .nv-campos textarea:focus {
+  outline: 3px solid var(--sd-acento); outline-offset: 1px;
+}
+.sd .nv-acciones { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 0 26px 20px }
+.sd .nv-forma .aviso { margin: 0 26px 14px }
+
+/* ---------- La bandeja ---------- */
+.sd .nv-lista { display: flex; flex-direction: column; gap: 12px }
+.sd .nv-vacia {
+  padding: 30px 26px; text-align: center; color: var(--sd-gris); font-size: 14.5px;
+  background: var(--sd-papel); border: 1px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .nv {
+  background: var(--sd-papel); border: 1px solid var(--sd-linea);
+  border-left: 3px solid var(--sd-acento); border-radius: 0 3px 3px 0;
+  padding: 15px 20px; display: flex; flex-direction: column; gap: 9px;
+}
+/* Cerrada: sin filo de color y en tono apagado. Sigue estando, pero deja
+   de pedir algo. */
+.sd .nv.cerrada { border-left-color: var(--sd-linea); background: var(--c-fafbfd) }
+/* Pasada de la fecha prometida: filo de alarma. No es que falte
+   evidencia — es que alguien no cumplió. */
+.sd .nv.vencida { border-left-color: var(--c-alarma) }
+
+.sd .nv-cab { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.sd .nv-cab h3 {
+  margin: 0; font-family: var(--sd-titulo); font-weight: 800; font-size: 16.5px;
+}
+.sd .nv-tramo {
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 11px; letter-spacing: .08em;
+  padding: 3px 8px; border-radius: 2px; color: #fff; background: var(--sd-acento);
+}
+.sd .nv-tramo.t2 { background: var(--c-2c4361) }
+.sd .nv-placa {
+  font-family: var(--sd-mono, ui-monospace, monospace); font-size: 13.5px;
+  font-weight: 600; color: var(--c-2c4361);
+}
+.sd .nv-fecha, .sd .nv-dias { font-size: 12.5px; color: var(--sd-gris) }
+.sd .nv-dias.largo { color: var(--c-alarma); font-weight: 700 }
+.sd .nv-estado {
+  margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+}
+.sd .nv-estado.abierta { background: #FDE7EB; color: #A4102A }
+.sd .nv-estado.cerrada { background: var(--c-eaf0f7); color: var(--c-2c4361) }
+
+.sd .nv-quien { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px }
+.sd .nv-resp { color: var(--c-2c4361) }
+.sd .nv-resp.sin { color: var(--c-alarma); font-weight: 600 }
+.sd .nv-viaje { color: var(--sd-gris) }
+.sd .nv-dice { margin: 0; font-size: 14.5px; line-height: 1.5 }
+
+.sd .nv-compromiso {
+  margin: 0; font-size: 13.5px; line-height: 1.5; padding: 9px 13px; border-radius: 3px;
+  background: var(--c-f7fcfd); border-left: 2px solid var(--sd-acento);
+}
+.sd .nv-compromiso em {
+  font-style: normal; display: block; font-size: 12.5px; color: var(--sd-gris); margin-top: 2px;
+}
+.sd .nv-compromiso.vencido { background: #FDF0F3; border-left-color: var(--c-alarma) }
+.sd .nv-compromiso.vencido em { color: var(--c-alarma); font-weight: 600 }
+.sd .nv-compromiso.sin {
+  background: none; border-left-color: var(--c-alarma); color: var(--c-alarma);
+  font-weight: 600; padding: 4px 13px;
+}
+
+/* ---------- El hilo ---------- */
+.sd .nv-hilo {
+  list-style: none; margin: 0; padding: 0 0 0 14px;
+  display: flex; flex-direction: column; gap: 9px;
+  border-left: 2px solid var(--sd-linea);
+}
+.sd .nv-hilo li { display: flex; flex-direction: column; gap: 2px }
+.sd .nv-h-cab { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap }
+.sd .nv-h-cab b { font-family: var(--sd-titulo); font-weight: 800; font-size: 13.5px }
+.sd .nv-h-cab span { font-size: 12px; color: var(--sd-gris) }
+.sd .nv-hilo p { margin: 0; font-size: 14px; line-height: 1.5 }
+
+.sd .nv-hecho {
+  margin: 0; font-size: 14px; line-height: 1.5; padding: 9px 13px; border-radius: 3px;
+  background: #F1FBF5; border-left: 2px solid #0F7A4A;
+}
+
+.sd .nv-pie {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  flex-wrap: wrap; padding-top: 3px; font-size: 12.5px; color: var(--sd-gris);
+  border-top: 1px solid var(--sd-linea); margin-top: 2px; padding-top: 10px;
+}
+
+/* ---------- Responder ---------- */
+.sd .nv-responder {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px; padding: 14px; border-radius: 3px; background: var(--c-fafbfd);
+  border: 1px solid var(--sd-linea);
+}
+.sd .nv-responder > label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.sd .nv-responder > label.ancho { grid-column: 1 / -1 }
+.sd .nv-responder span { font-size: 12.5px; font-weight: 600; color: var(--c-2c4361) }
+.sd .nv-responder input, .sd .nv-responder textarea {
+  width: 100%; padding: 0 11px; font: 500 15px var(--sd-texto); color: var(--sd-tinta);
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .nv-responder input { height: 44px }
+.sd .nv-responder textarea { padding: 10px 11px; resize: vertical; min-height: 64px }
+.sd .nv-responder input:focus, .sd .nv-responder textarea:focus {
+  outline: 3px solid var(--sd-acento); outline-offset: 1px;
+}
+.sd .nv-responder .nv-acciones { grid-column: 1 / -1; padding: 0 }
+.sd .nv-ojo {
+  grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--sd-gris); line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .sd .nv-forma .nv-campos { grid-template-columns: 1fr; padding: 4px 16px 16px }
+  .sd .nv-acciones { padding: 0 16px 18px }
+  .sd .nv-forma .aviso { margin: 0 16px 12px }
+  .sd .nv-responder { grid-template-columns: 1fr }
+  .sd .nv { padding: 13px 15px }
+  .sd .nv-barra { padding: 12px 14px; gap: 11px }
+  .sd .nv-nueva { margin-left: 0; width: 100% }
+  .sd .nv-cuenta { border-right: 0; padding-right: 0 }
+}
+@media (max-width: 700px) {
+  /* 16px en las cajas: por debajo, el celular hace zoom al enfocar. */
+  .sd .nv-campos select, .sd .nv-campos input, .sd .nv-campos textarea,
+  .sd .nv-responder input, .sd .nv-responder textarea,
+  .sd .nv-filtro select, .sd .nv-filtro input { font-size: 16px }
+  .sd .nv-filtro select, .sd .nv-filtro input { height: 44px }
+  .sd .nv-cab h3 { font-size: 15px }
+  /* La chapa T1/T2 sube a 12px: a 11 con .08em de espaciado queda justo
+     en el suelo del auditor, y aquí no es un rótulo de dos palabras — es
+     lo primero que se lee de la tarjeta. */
+  .sd .nv-tramo { font-size: 12px }
+  .sd .nv-estado { margin-left: 0 }
+  .sd .nv-pie { align-items: stretch }
+  .sd .nv-pie .us-mini { width: 100% }
+}

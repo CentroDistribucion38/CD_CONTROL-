@@ -1,17 +1,48 @@
-El modulo "Sider Certificado" pasa a llamarse "T1 / T2"
+Novedades de T1 / T2, con responsable y seguimiento entre plantas
 
-- Cambia el NOMBRE que lee la gente: la tarjeta de la portada, el menu,
-  las chapas de permisos en Usuarios, el autor del Excel exportado y el
-  nombre del archivo.
-- La RUTA sigue siendo /sider y no se toca. Las direcciones estan
-  guardadas como TEXTO en rol_permisos y en los permisos extra de cada
-  persona ("/sider", "/sider/certificar", …): cambiarlas dejaria esas
-  filas apuntando a algo que no existe y todo el mundo perderia el
-  permiso EN SILENCIO -la pantalla no da error, simplemente deja de
-  verse-. Ademas son 45 sitios en el codigo. Lo que lee la gente y lo que
-  identifica la pantalla son dos cosas distintas.
-- Comprobado que no queda ningun "Sider Certificado" a la vista y que la
-  lista de modulos dice T1 / T2.
+QUE ES
+- Una bandeja para lo que sale mal: sello roto, faltante, cliente
+  cerrado, vehiculo varado. Se reporta, se responde, se cierra.
+
+LO QUE LA HACE UTIL ENTRE PLANTAS -y no una lista de quejas-
+- CADA NOVEDAD TIENE UN RESPONSABLE. En T1 es el CD de origen -lo que
+  llego mal salio de alla- y lo pone la BASE a partir del viaje, no el
+  navegador: dejarlo del lado del cliente permite echarle la culpa al CD
+  equivocado. Probado mandando "CD Mentira": guardo CD Galapa.
+- HAY UN HILO. El CD de origen contesta SIN cerrar: "revisamos, salieron
+  400", "no alcanzamos el jueves, va el lunes". Hoy eso pasa por telefono
+  y a la semana nadie se acuerda de quien dijo que. El hilo no se edita
+  ni se borra -RLS solo SELECT e INSERT-: una conversacion que se puede
+  reescribir no sirve para ponerse de acuerdo.
+- HAY COMPROMISO Y FECHA. Manda el ultimo, pero el hilo guarda los dos,
+  que es donde se ve que la fecha se corrio. Si la fecha ya paso, la
+  novedad sale marcada y hay un contador de "pasadas de fecha" arriba que
+  ademas filtra.
+- SE VEN LOS DIAS QUE LLEVA. Es lo que convierte un renglon en un
+  problema: "lleva 12 dias" se entiende sin leer nada mas.
+
+DECISIONES
+- El motivo sale de un CATALOGO, no de texto libre: con texto libre, a
+  los tres meses hay doscientas novedades y "sello roto", "SELLO ROTO" y
+  "roto el sello" son tres cosas para una consulta. El catalogo es una
+  tabla, se edita sin tocar codigo. La descripcion libre sigue al lado.
+- EL VIAJE ES OPCIONAL. Pegada a un viaje de T1 se puede decir "de 40
+  viajes, 6 con novedad"; suelta sirve para T2, que todavia no tiene
+  viajes en la plataforma.
+- LA PLACA SE GUARDA SIEMPRE, aunque haya viaje. Probado: al borrar el
+  viaje, la novedad sigue diciendo JYN245.
+- CERRAR OBLIGA A DECIR QUE SE HIZO -restriccion en la tabla, no solo en
+  la pantalla-. Sin eso "cerrada" no significa "resuelta": significa que
+  alguien le dio al boton.
+- Lo que se hizo se escribe EN LA TARJETA, no en un window.prompt: ese
+  cuadro sale con el dominio encima y sin los colores de la plataforma.
+- La migracion crea los permisos de la pantalla: una seccion nueva nace
+  cerrada para todos menos para quien manda, y sin esas filas nadie la
+  veria en el menu sin saber por que.
+
+Probado contra Postgres 16: reportar pegada y suelta, sin placa, fecha
+futura, rol operador, responder, correr la fecha, responder una cerrada,
+cerrar sin decir que se hizo, cerrar dos veces, y borrar el viaje.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
