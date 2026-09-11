@@ -61,9 +61,11 @@ export function Fila({ r, nombres, derecha, children }: {
 
         <div className="meta">
           <span className="cant">{r.unidades}</span>
-          <span>{r.tipo === "producto_terminado"
-            ? (r.unidades === 1 ? "empaque" : "empaques")
-            : (r.unidades === 1 ? "unidad" : "unidades")}</span>
+          {/* UNIDADES EN LOS DOS CASOS. Producto terminado y EER se
+              cuentan igual —la bodega dice "unidades"—, y tener dos
+              palabras para la misma cifra obliga a traducir mentalmente
+              cada vez que se compara una rotura con otra. */}
+          <span>{r.unidades === 1 ? "unidad" : "unidades"}</span>
           <span>Proceso {r.proceso_nombre}</span>
           <span className={"eti " + r.grupo}>
             {r.grupo === "no_asumida"
@@ -74,13 +76,13 @@ export function Fila({ r, nombres, derecha, children }: {
           {r.le_falta_foto && <span className="eti falta">LE FALTA LA FOTO</span>}
         </div>
 
-        {/* EL PRODUCTO TERMINADO SE ABRE EN DOS: los empaques de afuera
+        {/* EL PRODUCTO TERMINADO SE ABRE EN DOS: las unidades de afuera
             y las botellas de adentro. Sin esta línea, el vidrio que va
             dentro del líquido no aparece en ninguna parte. */}
         {r.tipo === "producto_terminado" && r.botellas != null && (
           <div className="meta">
             <span>
-              De {r.unidades} empaque{r.unidades === 1 ? "" : "s"},{" "}
+              De {r.unidades} unidad{r.unidades === 1 ? "" : "es"},{" "}
               <b>{r.botellas} botella{r.botellas === 1 ? "" : "s"}</b> rotas dentro
             </span>
           </div>

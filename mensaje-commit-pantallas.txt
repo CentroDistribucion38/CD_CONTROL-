@@ -239,3 +239,38 @@ formulario.
 salida_firmar pasa de dos argumentos a tres. La firma vieja se BORRA, no
 se deja al lado: con las dos, una pantalla sin actualizar seguiria
 firmando sin nota y nadie se enteraria.
+
+PROBADO CONTRA POSTGRES 16 REAL, no leido.
+
+El archivo tenia un error de sintaxis que llego hasta Supabase: al quitar
+la restriccion salida_tres_personas quedo una coma colgando antes del
+parentesis de cierre de la tabla. "syntax error at or near )". No debio
+salir de aqui. Ahora se corre de verdad, dos veces y en una sola
+transaccion, antes de mandarlo.
+
+Lo que se comprobo con datos reales:
+
+  1 placa corta se rechaza ................ ok
+  2 "abc-123 " se guarda como ABC123 ...... ok
+  3 el administrador firma las tres ....... ok
+  4 y la salida queda marcada ............. ok
+  5 las tres notas se guardan ............. ok
+  6 neto 523 - 111 = 412 .................. ok
+  7 un supervisor no se auto-verifica ..... ok
+  8 esa salida se queda en 1 firma ........ ok
+
+BUG QUE SALIO DE PROBAR, no de leer: mismo_firmante devolvia NULL en vez
+de falso cuando la salida tenia una sola firma —"X = null" da NULL, y el
+OR entero se contagia—. La pantalla lo trataba como falso por
+casualidad, porque null es falsy en JavaScript, y el tipo de TypeScript
+decia boolean. Un booleano que a veces es null es una trampa esperando a
+que alguien escriba "if (!s.mismo_firmante)". Va con coalesce.
+
+Y UNA COSA QUE HAY QUE DECIR CLARO sobre la regla de las tres personas:
+quien de verdad la sostiene es la SEPARACION DE ROLES, no la
+comprobacion de "quien peso no verifica". Una persona tiene un solo rol;
+pesar pide supervisor y verificar pide verificador, asi que un usuario
+normal nunca puede poner dos firmas —la comprobacion ni siquiera llega a
+dispararse—. La prueba 7 lo confirmo: al supervisor lo freno el rol, no
+la comprobacion. Esta se queda como red de seguridad y para el caso del
+administrador, que ahora pasa a proposito.

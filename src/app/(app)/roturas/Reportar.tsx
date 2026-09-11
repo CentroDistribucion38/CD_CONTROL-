@@ -78,7 +78,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
     if (material && !delTipo.some((m) => m.clave === material)) setMaterial("");
   }, [material, delTipo]);
 
-  /* EL EMPAQUE COMPLETO COMO PROPUESTA, no como dato fijo. Cuando una
+  /* TODAS LAS BOTELLAS COMO PROPUESTA, no como dato fijo. Cuando una
      estiba se cae, lo más probable es que se rompa todo lo que iba
      dentro; y si no, se corrige con dos toques. Proponer cero obligaría
      a teclear el número correcto SIEMPRE, y el que no lo teclee deja el
@@ -281,7 +281,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
             </div>
 
             <div className="campo">
-              <label>{tipo === "eer" ? "Unidades rotas" : "Empaques rotos"}</label>
+              <label>Unidades rotas</label>
               <div className="contador">
                 <button type="button" onClick={() => setUnidades((n) => Math.max(1, n - 1))}
                         aria-label="Una menos">−</button>
@@ -310,7 +310,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
                 <div className="negro">
                   <span className="punto" />
                   <span>
-                    Va propuesto el <b>empaque completo</b>. Si quedaron botellas sanas,
+                    Van propuestas <b>todas las que caben</b>. Si quedaron botellas sanas,
                     corrige: el vidrio que no se cuente aquí no aparece en ningún lado.
                   </span>
                 </div>

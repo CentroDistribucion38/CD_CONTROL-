@@ -43,8 +43,8 @@
 --      son tres personas y tres momentos. La base rechaza que la misma
 --      persona ponga dos de las tres firmas.
 --
---   4. EL PRODUCTO TERMINADO SE ABRE EN DOS. Unidades del empaque y
---      unidades de botella rota adentro. Si solo se contara el empaque,
+--   4. EL PRODUCTO TERMINADO SE ABRE EN DOS. Las unidades rotas y
+--      las botellas rotas adentro. Si solo se contaran las unidades,
 --      el vidrio que va dentro del líquido se perdería del conteo.
 -- =====================================================================
 
@@ -88,9 +88,9 @@ create table if not exists public.roturas_materiales (
   /* Solo en EER: el vidrio se separa por color porque se vende por
      color. En producto terminado va nulo. */
   color     vidrio_color,
-  /* Cuántas botellas trae un empaque. Es lo que permite proponer las
+  /* Cuántas botellas trae una unidad. Es lo que permite proponer las
      botellas rotas de adentro cuando se rompe producto terminado; se
-     puede corregir a mano, porque un empaque roto rara vez pierde todas
+     puede corregir a mano, porque una unidad rota rara vez pierde todas
      sus botellas. */
   botellas_x_empaque smallint,
   activo    boolean not null default true,
@@ -269,7 +269,7 @@ create table if not exists public.roturas (
   creado_en  timestamptz not null default now(),
 
   /* Las botellas de adentro solo existen en producto terminado, y ahí
-     no pueden ser más que las del empaque completo — pero eso último no
+     no pueden ser más que las que caben en esas unidades — pero eso no
      se puede comprobar aquí sin leer el maestro, así que lo comprueba
      la función al registrar. */
   constraint roturas_botellas_solo_pt
@@ -382,18 +382,17 @@ create table if not exists public.roturas_salidas (
   motivo_anulacion text,
 
   constraint salida_anulada_con_motivo
-    check (estado <> 'anulada' or btrim(coalesce(motivo_anulacion, '')) <> ''),
+    check (estado <> 'anulada' or btrim(coalesce(motivo_anulacion, '')) <> '')
 
-  /* QUIEN DIGITA NO VERIFICA. Tres personas distintas, y lo dice la
-     tabla y no una pantalla: una restricción que vive en la base no se
-     puede saltar entrando por otro lado. */
-  /* LA REGLA DE LAS TRES PERSONAS YA NO ES UNA RESTRICCIÓN DE TABLA.
-     Una restricción no sabe quién está firmando: no puede dejar pasar al
-     administrador y frenar a los demás. Se mudó a salida_firmar, que sí
-     lo sabe. NO SE PIERDE LA GARANTÍA: 'authenticated' solo tiene GRANT
-     de SELECT sobre esta tabla, así que la única manera de escribir una
-     firma es esa función. La regla no se debilitó, cambió de sitio —y
-     ganó la excepción del administrador, que antes era imposible. */
+  /* LA REGLA DE LAS TRES PERSONAS NO ESTÁ AQUÍ, y no es un olvido.
+     Una restricción de tabla no sabe QUIÉN está firmando: no puede
+     dejar pasar al administrador y frenar a los demás. Vive en
+     salida_firmar, que sí lo sabe.
+     NO SE PIERDE LA GARANTÍA: 'authenticated' solo tiene GRANT de
+     SELECT sobre esta tabla, así que la única manera de escribir una
+     firma sigue siendo esa función. La regla cambió de sitio, no de
+     fuerza — y ganó la excepción del administrador, que con una
+     restricción de tabla era imposible. */
 );
 
 alter table public.roturas_salidas drop constraint if exists salida_tres_personas;
@@ -512,13 +511,13 @@ begin
   end if;
 
   /* EL PRODUCTO TERMINADO SE ABRE EN DOS. Si no se dice cuántas
-     botellas se rompieron adentro, se propone el empaque completo: es
+     botellas se rompieron adentro, se proponen todas las que caben: es
      lo más probable cuando una estiba se cae, y la pantalla lo deja
      corregir. En EER no hay botellas que separar. */
   if v_tipo = 'producto_terminado' then
     p_botellas := coalesce(p_botellas, p_unidades * coalesce(v_bxe, 0));
     if v_bxe is not null and p_botellas > p_unidades * v_bxe then
-      raise exception 'No pueden romperse más botellas (%) que las que caben en % empaques (%)',
+      raise exception 'No pueden romperse más botellas (%) que las que caben en % unidades (%)',
         p_botellas, p_unidades, p_unidades * v_bxe;
     end if;
   else
@@ -933,10 +932,17 @@ select
      un error y por eso no bloquea nada; es un dato que la pantalla
      enseña, para que una salida firmada por una sola persona no se vea
      igual que una que pasó por tres. */
-  (   (s.supervisora_por is not null and s.supervisora_por = s.verificador_por)
+  /* coalesce, y no es adorno: con una sola firma puesta, "X = null" da
+     NULL y el OR entero devolvía NULL en vez de falso. La pantalla lo
+     trataba como falso por casualidad —null es falsy en JavaScript—, y
+     el tipo de TypeScript decía boolean. Un booleano que a veces es
+     null es una trampa esperando a que alguien escriba
+     "if (!s.mismo_firmante)". */
+  coalesce(
+      (s.supervisora_por is not null and s.supervisora_por = s.verificador_por)
    or (s.supervisora_por is not null and s.supervisora_por = s.validador_por)
    or (s.verificador_por is not null and s.verificador_por = s.validador_por)
-  )                                              as mismo_firmante
+  , false)                                       as mismo_firmante
 from public.roturas_salidas s;
 
 grant select on public.v_roturas_salidas to authenticated;

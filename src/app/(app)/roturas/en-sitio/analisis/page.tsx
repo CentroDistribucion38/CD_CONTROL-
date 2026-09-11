@@ -88,7 +88,7 @@ export default async function AnalisisEnSitioPage() {
         <div className="cifra ojo">
           <div className="rot">DE PRODUCTO TERMINADO</div>
           <div className="n">{pt}</div>
-          <div className="u">botellas rotas dentro del empaque</div>
+          <div className="u">botellas rotas dentro de las unidades</div>
         </div>
         <div className="cifra">
           <div className="rot">ROTURAS REGISTRADAS</div>

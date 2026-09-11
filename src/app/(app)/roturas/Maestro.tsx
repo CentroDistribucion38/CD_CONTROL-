@@ -186,7 +186,7 @@ export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, pued
       id: m.clave, titulo: m.nombre, activo: m.activo,
       detalle: (m.tipo === "eer"
         ? `EER · ${COLOR_VIDRIO[m.color ?? ""] ?? "sin color"}`
-        : `Producto terminado${m.botellas_x_empaque ? ` · ${m.botellas_x_empaque} botellas por empaque` : ""}`),
+        : `Producto terminado${m.botellas_x_empaque ? ` · ${m.botellas_x_empaque} botellas por unidad` : ""}`),
     }))
     : hoja === "procesos" ? procesos.map((p) => ({
       id: p.clave, titulo: p.nombre, activo: p.activo, detalle: p.clave,
@@ -246,7 +246,7 @@ export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, pued
             </>
           ) : (
             <>
-              <label htmlFor="m-bot">Botellas por empaque</label>
+              <label htmlFor="m-bot">Botellas que trae una unidad</label>
               <input id="m-bot" type="number" inputMode="numeric" value={f.botellas}
                      onChange={(e) => setF({ ...f, botellas: e.target.value })} />
             </>
