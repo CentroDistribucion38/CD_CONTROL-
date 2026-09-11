@@ -72,6 +72,8 @@ export function Firmas({ salida, nombres }: {
           : p.id === "verificador" ? salida.verificador_en : salida.validador_en;
         const por = p.id === "supervisora" ? salida.supervisora_por
           : p.id === "verificador" ? salida.verificador_por : salida.validador_por;
+        const nota = p.id === "supervisora" ? salida.supervisora_nota
+          : p.id === "verificador" ? salida.verificador_nota : salida.validador_nota;
         const turno = etapa === p.id && salida.estado !== "anulada";
 
         return (
@@ -88,6 +90,11 @@ export function Firmas({ salida, nombres }: {
                 : turno ? "Esperando"
                 : "Espera la firma anterior"}
             </div>
+            {/* LO QUE DIJO QUIEN FIRMÓ. Va debajo de SU firma y no en un
+                campo común de la salida: "el bruto de la 2 no cuadraba"
+                dicho por el verificador no es lo mismo que dicho por
+                quien pesó, y juntarlas borra quién vio qué. */}
+            {nota && <div className="nota-firma">{nota}</div>}
           </div>
         );
       })}

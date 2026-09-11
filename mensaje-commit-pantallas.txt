@@ -185,3 +185,32 @@ SQL equivocado cuesta mas tiempo que no decir nada.
 Salio de un caso real: al cambiar la firma de salida_abrir para que
 reciba la placa, la pantalla nueva contra la base vieja mostro el aviso
 generico y no decia que archivo correr.
+
+EL ADMINISTRADOR PUEDE FIRMAR LAS TRES. Y QUEDA MARCADO.
+
+Un domingo sin nadie mas la bodega no se puede quedar parada esperando a
+que aparezca un segundo par de manos; y para probar la cadena entera,
+una sola persona tiene que poder recorrerla. Antes ni el administrador
+podia: la regla frenaba a todos por igual.
+
+LA REGLA SE MUDO DE LA TABLA A LA FUNCION. Una restriccion de tabla no
+sabe QUIEN esta firmando: no puede dejar pasar al administrador y frenar
+a los demas. Se quita salida_tres_personas y la comprobacion vive en
+salida_firmar, que si lo sabe.
+
+NO SE PERDIO LA GARANTIA, cambio de sitio. 'authenticated' solo tiene
+GRANT de SELECT sobre roturas_salidas: la unica manera de escribir una
+firma sigue siendo esa funcion. Lo que se gano es la excepcion del
+administrador, que con una restriccion de tabla era imposible.
+
+Y NO ES SILENCIOSA. La vista calcula mismo_firmante —dos de las tres
+firmas de la misma mano— y la pantalla lo dice en tres sitios: un aviso
+sobre la cadena de firmas, y una etiqueta "MISMA PERSONA" en la lista de
+salidas y en las bandejas. Una excepcion que no se ve convierte la regla
+de las tres personas en un adorno: al mes nadie recuerda que existia.
+
+"SUPERVISORA" PASA A "SUPERVISOR (A)" en todo lo que se lee: la etiqueta
+de la firma, los tres mensajes de la base y los textos de las pantallas.
+La CLAVE interna sigue siendo 'supervisora' y las columnas siguen siendo
+supervisora_por / supervisora_en — renombrarlas obligaria a migrar datos
+para cambiar una palabra que nadie ve.

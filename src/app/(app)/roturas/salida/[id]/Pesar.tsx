@@ -46,6 +46,11 @@ export function Pesar({ salida, tolvas, maestro, nombres, rol, manda }: {
   const [color, setColor] = useState<"ambar" | "flint" | "green">("ambar");
   const [bruto, setBruto] = useState("");
   const [mandando, setMandando] = useState(false);
+  /* La nota de ESTA firma. Se pide antes de cerrar y no después: si
+     saliera al terminar, lo que había que contar ya se firmó sin
+     contarlo. */
+  const [cerrando, setCerrando] = useState(false);
+  const [nota, setNota] = useState("");
 
   const abierta = salida.estado === "abierta";
   const elegida = maestro.find((t) => t.codigo === tolva) ?? null;
@@ -93,7 +98,7 @@ export function Pesar({ salida, tolvas, maestro, nombres, rol, manda }: {
     if (!ok) return;
     setMandando(true);
     const { error } = await supabase.rpc("salida_firmar", {
-      p_salida: salida.id, p_papel: "supervisora",
+      p_salida: salida.id, p_papel: "supervisora", p_nota: nota.trim() || null,
     });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
@@ -286,15 +291,34 @@ export function Pesar({ salida, tolvas, maestro, nombres, rol, manda }: {
         <div style={{ padding: 18 }}>
           <Firmas salida={salida} nombres={nombres} />
 
-          {meToca && (
+          {meToca && !cerrando && (
             <div style={{ display: "flex", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
               <button type="button" className="btn si"
-                      disabled={mandando || salida.tolvas === 0} onClick={cerrar}>
+                      disabled={salida.tolvas === 0}
+                      onClick={() => { setCerrando(true); setNota("") }}>
                 {salida.tolvas === 0 ? "Falta pesar una tolva" : "Cerrar y enviar a verificación"}
               </button>
               <span style={{ alignSelf: "center", fontSize: 13, color: "var(--rt-gris)" }}>
                 Después de esto la salida pasa a otra persona. Tú no la verificas.
               </span>
+            </div>
+          )}
+
+          {meToca && cerrando && (
+            <div className="panel">
+              <label htmlFor="nota-cierre">¿Alguna novedad al pesar? (opcional)</label>
+              <textarea id="nota-cierre" rows={2} value={nota} autoFocus
+                        onChange={(e) => setNota(e.target.value)}
+                        placeholder="La TOLVA-3 entró con vidrio de dos colores mezclado." />
+              <div className="acciones-panel">
+                <button type="button" className="btn si" disabled={mandando} onClick={cerrar}>
+                  {mandando ? "Cerrando…" : "Cerrar y enviar a verificación"}
+                </button>
+                <button type="button" className="btn plano"
+                        onClick={() => { setCerrando(false); setNota("") }}>
+                  Cancelar
+                </button>
+              </div>
             </div>
           )}
 

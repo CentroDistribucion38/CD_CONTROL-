@@ -41,25 +41,33 @@ export function Bandeja({ salidas, nombres, papel, rol, manda }: {
 
   const [abierta, setAbierta] = useState<string | null>(null);
   const [mandando, setMandando] = useState(false);
+  /* Cuál salida está con el campo de nota abierto, y qué dice. Uno solo
+     a la vez: dos cajas de texto abiertas en una bandeja son dos sitios
+     donde escribir y uno donde equivocarse. */
+  const [notando, setNotando] = useState<string | null>(null);
+  const [nota, setNota] = useState("");
 
   const info = PAPELES.find((p) => p.id === papel)!;
   const puede = puedeFirmar(papel, rol, manda);
   const verbo = papel === "verificador" ? "Verificar" : "Dar salida";
 
-  async function firmar(s: Salida) {
+  async function firmar(s: Salida, texto: string) {
     const ok = await pedir({
       titulo: `¿${verbo} ${s.codigo}?`,
       dice: papel === "verificador"
-        ? `Camión ${s.placa}. Estás diciendo que revisaste ${kilos(s.neto_kg)} kg netos en ${s.tolvas} tolva${s.tolvas === 1 ? "" : "s"} y que la cuenta está bien. Queda escrito tu nombre y la hora.`
-        : `Camión ${s.placa}. Estás dando el aval para que salgan ${kilos(s.neto_kg)} kg netos. Es la última firma: después la salida queda cerrada.`,
+        ? `Vh ${s.placa}. Estás diciendo que revisaste ${kilos(s.neto_kg)} kg netos en ${s.tolvas} tolva${s.tolvas === 1 ? "" : "s"} y que la cuenta está bien. Queda escrito tu nombre y la hora.`
+        : `Vh ${s.placa}. Estás dando el aval para que salgan ${kilos(s.neto_kg)} kg netos. Es la última firma: después la salida queda cerrada.`,
       confirmar: verbo,
     });
     if (!ok) return;
     setMandando(true);
-    const { error } = await supabase.rpc("salida_firmar", { p_salida: s.id, p_papel: papel });
+    const { error } = await supabase.rpc("salida_firmar", {
+      p_salida: s.id, p_papel: papel, p_nota: texto.trim() || null,
+    });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien(`${s.codigo} ${papel === "verificador" ? "quedó verificada" : "quedó lista para salir"}.`);
+    setNotando(null); setNota("");
     router.refresh();
   }
 
@@ -136,6 +144,36 @@ export function Bandeja({ salidas, nombres, papel, rol, manda }: {
                     <Firmas salida={s} nombres={nombres} />
                   </div>
                 )}
+
+                {/* LA NOTA, ANTES DE FIRMAR Y NO DESPUÉS. Si el campo
+                    saliera al terminar, lo que había que contar —que
+                    faltaba una tolva, que el bruto no cuadraba— ya se
+                    firmó sin contarlo. Opcional: obligar a escribir "ok"
+                    trescientas veces convierte el campo en ruido. */}
+                {notando === s.id && (
+                  <div className="panel">
+                    <label htmlFor={`nota-${s.id}`}>
+                      {papel === "verificador"
+                        ? "¿Alguna novedad al revisar? (opcional)"
+                        : "¿Alguna novedad antes de dar salida? (opcional)"}
+                    </label>
+                    <textarea id={`nota-${s.id}`} rows={2} value={nota} autoFocus
+                              onChange={(e) => setNota(e.target.value)}
+                              placeholder={papel === "verificador"
+                                ? "El bruto de la TOLVA-2 no cuadraba; se volvió a pesar."
+                                : "Sale con la guía 4471."} />
+                    <div className="acciones-panel">
+                      <button type="button" className="btn si" disabled={mandando}
+                              onClick={() => firmar(s, nota)}>
+                        {mandando ? "Guardando…" : verbo}
+                      </button>
+                      <button type="button" className="btn plano"
+                              onClick={() => { setNotando(null); setNota("") }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="der">
@@ -147,7 +185,7 @@ export function Bandeja({ salidas, nombres, papel, rol, manda }: {
                   <Link href={`/roturas/salida/${s.id}`} className="btn">Ver tolvas</Link>
                   {puede && (
                     <button type="button" className="btn si" disabled={mandando}
-                            onClick={() => firmar(s)}>
+                            onClick={() => { setNotando(s.id); setNota("") }}>
                       {verbo}
                     </button>
                   )}

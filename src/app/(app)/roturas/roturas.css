@@ -1,24 +1,27 @@
 /* ---------------------------------------------------------------------
    ROTURAS. Todo cuelga de .rt para no pisar nada de la app.
 
-   LOS COLORES SON LITERALES Y NO TOKENS DE LA APP, a propósito. La
-   primera versión colgaba el dorado de var(--c-oro) —el token de "ojo
-   con esto"—, y en los temas negro, gris y halo ese token vale #ff0000:
-   el NETO de una salida salía en rojo bombero. El dorado de Roturas es
-   del MÓDULO, igual que el rojo es de Acciones; no es un acento que el
-   tema pueda reinterpretar. Lo único que se hereda de la app es la
-   tipografía de respaldo.
+   EL MÓDULO SIGUE EL TEMA. Cambiar de tema en Preferencias tiene que
+   cambiar Roturas como cambia todo lo demás; un módulo que se queda
+   igual se ve como si no fuera de la misma aplicación.
 
-   Paleta tomada del diseño entregado:
-     negro   #0D0D0D   la barra, el flujo, la banda de totales
-     oro     #FFC000   el acento. Es el color del módulo
-     ojo     #8A6A00   los antetítulos sobre fondo claro
-     papel   #FFFFFF   las tarjetas
-     fondo   #F1F1F1   la página
-     línea   #E0E0DC
-     texto   #4E524E / #5E625E
-     verde   #1E7A3C   asumida, firma puesta
-     rojo    #C8102E   no asumida, quitar, no cuenta
+   Se llegó aquí por dos errores seguidos, y los dos vale la pena dejar
+   escritos porque son el mismo malentendido visto por sus dos caras:
+
+     1. Primero el acento colgaba de var(--c-oro) a secas. En los temas
+        negro, gris y halo ese token vale #ff0000, así que el NETO de una
+        salida salía en rojo bombero CON TEXTO OSCURO ENCIMA: ilegible.
+     2. Al arreglarlo puse la paleta en literales. Se leía bien, pero el
+        módulo dejó de reaccionar al tema.
+
+   Lo que faltaba no era escoger entre las dos: era el PAR. La app ya
+   resuelve esto para su acento de marca —define --c-marca junto con
+   --c-marca-txt, "el acento y el texto que va ENCIMA de él", por tema y
+   a propósito—. --c-oro no traía su pareja, así que el módulo la pone:
+   --rt-sobre-oro. Sobre los acentos claros va tinta oscura; sobre los
+   oscuros o muy saturados, blanco.
+
+   Así el módulo cambia con el tema Y sigue siendo legible en los siete.
 
    Los tokens van en las tres raíces —.rt, .rt-rep y .rt-modal— porque
    los overlays se abren por encima de todo y las variables de CSS se
@@ -26,17 +29,38 @@
    --------------------------------------------------------------------- */
 
 .rt, .rt-rep, .rt-modal {
-  --rt-negro: #0D0D0D;
-  --rt-oro: #FFC000;
-  --rt-oro-hondo: #E3A900;
-  --rt-ojo: #8A6A00;
-  --rt-crema: #FFFBEF;
-  --rt-tinta: #0D0D0D;
-  --rt-gris: #5E625E;
-  --rt-gris2: #8A8E8A;
-  --rt-linea: #E0E0DC;
+  /* EL ACENTO, del tema. Es el "ojo con esto" de la aplicación. */
+  --rt-oro: var(--c-oro);
+  --rt-oro-hondo: color-mix(in srgb, var(--c-oro) 82%, #000);
+  /* Su pareja: la tinta que va ENCIMA del acento. Se sobreescribe abajo
+     en los temas donde el acento es oscuro. */
+  --rt-sobre-oro: #1A1200;
+  /* El antetítulo: el acento llevado a tinta, para que se lea sobre
+     papel sin dejar de ser del mismo color. */
+  --rt-ojo: color-mix(in srgb, var(--c-oro) 58%, #000);
+  --rt-crema: color-mix(in srgb, var(--c-oro) 11%, #fff);
+  /* EL ACENTO SOBRE LA BANDA OSCURA. El acento crudo no siempre se lee
+     ahí: en el tema tinta es azul (#0b4ea2) y la banda es azul oscuro
+     (#0a3a6e) — el número quedaría invisible. Aclarado, en los siete
+     temas se despega del fondo sin dejar de ser el mismo color. */
+  --rt-oro-claro: color-mix(in srgb, var(--c-oro) 60%, #fff);
+
+  /* La banda oscura —el total de la salida, la barra del asistente—.
+     Sale de --c-grupo, que la app define por tema justamente para esto:
+     "la franja oscura que agrupa columnas", y que a propósito NO se
+     deriva del acento. */
+  --rt-negro: var(--c-grupo);
+
+  --rt-tinta: var(--c-04203f);
+  --rt-gris: var(--c-5b6b7f);
+  --rt-gris2: color-mix(in srgb, var(--c-5b6b7f) 68%, #fff);
+  --rt-linea: var(--c-d5dce5);
   --rt-papel: #FFF;
-  --rt-fondo: #F1F1F1;
+
+  /* Verde y rojo NO salen del tema: significan algo. "Asumida por el OL"
+     tiene que verse igual de verde en los siete temas, porque lo que
+     dice —quién paga— no cambia con el gusto de nadie. Es el mismo
+     criterio con el que la app deja --c-alarma roja en todos. */
   --rt-verde: #1E7A3C;
   --rt-verde-suave: #EDF6F0;
   --rt-mal: #C8102E;
@@ -47,6 +71,28 @@
 
   font-family: var(--rt-texto);
   color: var(--rt-tinta);
+}
+
+/* LOS TEMAS DE ACENTO OSCURO O MUY SATURADO. En tinta el acento es azul
+   (#0b4ea2), en ámbar oliva (#8c6d00) y en negro, gris y halo es rojo
+   pleno: sobre esos, la tinta oscura no se lee. Va blanca.
+   El selector lleva el tema como ANCESTRO porque el atributo vive en el
+   armazón de la app, no en el módulo. */
+[data-tema="tinta"] .rt,    [data-tema="tinta"] .rt-rep,    [data-tema="tinta"] .rt-modal,
+[data-tema="ambar"] .rt,    [data-tema="ambar"] .rt-rep,    [data-tema="ambar"] .rt-modal,
+[data-tema="negro"] .rt,    [data-tema="negro"] .rt-rep,    [data-tema="negro"] .rt-modal,
+[data-tema="gris"] .rt,     [data-tema="gris"] .rt-rep,     [data-tema="gris"] .rt-modal,
+[data-tema="halo"] .rt,     [data-tema="halo"] .rt-rep,     [data-tema="halo"] .rt-modal {
+  --rt-sobre-oro: #fff;
+  /* Y el antetítulo no se oscurece más: ya nace oscuro. */
+  --rt-ojo: color-mix(in srgb, var(--c-oro) 78%, #000);
+  /* EL RELLENO, UN PUNTO MÁS HONDO. Blanco sobre el rojo pleno de estos
+     temas da 4,0 de contraste: alcanza para una cifra grande, no para
+     la etiqueta de 11 px que va encima ni para el rótulo de un botón.
+     Bajarlo al 88% lo lleva a 4,8 y sigue siendo el mismo color del
+     tema. En los temas de acento claro no se toca: ahí la tinta es
+     oscura y el oro vivo se lee de sobra. */
+  --rt-oro: color-mix(in srgb, var(--c-oro) 88%, #000);
 }
 
 .rt { display: flex; flex-direction: column; gap: 16px; min-width: 0 }
@@ -75,7 +121,7 @@
    que hace que una cifra de operación no se lea como una tarjeta más. */
 .rt .kpi {
   position: relative; overflow: hidden;
-  background: var(--rt-oro); color: #1A1200;
+  background: var(--rt-oro); color: var(--rt-sobre-oro);
   padding: 16px 26px 15px; min-width: 296px;
 }
 .rt .kpi .corte {
@@ -84,7 +130,7 @@
 }
 .rt .kpi .rot {
   position: relative; font-size: 11px; font-weight: 600; letter-spacing: .18em;
-  color: #4A3800;
+  color: color-mix(in srgb, var(--rt-sobre-oro) 86%, transparent);
 }
 .rt .kpi .num {
   position: relative; font-family: var(--rt-titulo); font-weight: 900;
@@ -92,7 +138,7 @@
   margin-top: 6px; font-variant-numeric: tabular-nums;
 }
 .rt .kpi .num .u { font-size: .28em; margin-left: 8px; letter-spacing: 0; font-weight: 600 }
-.rt .kpi .pie { position: relative; margin-top: 9px; font-size: 13px; color: #3A2C00 }
+.rt .kpi .pie { position: relative; margin-top: 9px; font-size: 13px; color: color-mix(in srgb, var(--rt-sobre-oro) 82%, transparent) }
 .rt .kpi .pie b { font-weight: 700 }
 
 /* =====================================================================
@@ -177,7 +223,7 @@
 }
 .rt .fila.roja { border-left-color: var(--rt-mal) }
 .rt .fila .izq { min-width: 0 }
-.rt .fila.gris { background: #F7F7F5; opacity: .85 }
+.rt .fila.gris { background: var(--c-fafbfd); opacity: .85 }
 .rt .fila .cod {
   font-family: var(--rt-titulo); font-size: 13px; font-weight: 800;
   letter-spacing: .06em; color: var(--rt-gris); min-width: 0; overflow-wrap: anywhere;
@@ -197,6 +243,16 @@
   font-family: var(--rt-titulo); font-weight: 800; font-size: 17px;
   letter-spacing: -.02em; line-height: 1.25; overflow-wrap: anywhere;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+/* LA PLACA, como una placa. Monoespaciada, en un marco: es un
+   identificador que alguien va a leer en voz alta por radio o comparar
+   con el papel de la portería, no una palabra más del título. */
+.rt .placa {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 700; font-size: 14px; letter-spacing: .1em;
+  background: var(--rt-negro); color: #fff;
+  border-left: 3px solid var(--rt-oro-claro);
+  padding: 4px 10px; white-space: nowrap;
 }
 .rt .fila .meta {
   margin-top: 9px; font-size: 13px; color: var(--rt-gris);
@@ -222,7 +278,7 @@
 .rt .eti {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12.5px; font-weight: 600; padding: 5px 11px; white-space: nowrap;
-  background: #F1F1EF; color: var(--rt-gris);
+  background: var(--c-eef1f5); color: var(--rt-gris);
 }
 .rt .eti.no_asumida { background: var(--rt-mal-suave); color: var(--rt-mal); font-weight: 700 }
 .rt .eti.asumida    { background: var(--rt-verde-suave); color: var(--rt-verde) }
@@ -242,7 +298,7 @@
 }
 .rt .btn:hover { border-color: var(--rt-gris2) }
 .rt .btn.si {
-  background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200;
+  background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro);
   font-weight: 800;
 }
 .rt .btn.si:hover { background: var(--rt-oro-hondo); border-color: var(--rt-oro-hondo) }
@@ -263,7 +319,7 @@
 
 .rt .panel {
   grid-column: 1 / -1; margin-top: 12px; padding: 16px;
-  border: 1px solid var(--rt-linea); background: #FAFAF8;
+  border: 1px solid var(--rt-linea); background: var(--c-fafbfd);
   display: flex; flex-direction: column; gap: 10px;
 }
 .rt .panel label { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; color: var(--rt-gris) }
@@ -295,7 +351,7 @@
 .rt .sin-tablas p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--rt-gris) }
 .rt .sin-tablas code {
   font-family: ui-monospace, Menlo, monospace; font-size: 13px;
-  background: #F1F1EF; padding: 2px 6px;
+  background: var(--c-eef1f5); padding: 2px 6px;
 }
 
 /* =====================================================================
@@ -325,7 +381,7 @@
   padding: 11px 20px; border: 1px solid var(--rt-linea); background: #fff;
 }
 .rt .formula .chip.tara { border-color: var(--rt-oro) }
-.rt .formula .chip.neto { background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200; font-weight: 800 }
+.rt .formula .chip.neto { background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro); font-weight: 800 }
 .rt .formula .signo { color: var(--rt-gris2); font-size: 17px }
 /* EL DIBUJO Y SU COTA. El sello va ENCIMA del extremo derecho de la
    cota, pegado a la línea: así se lee "esta medida pesa 111 kg" y no
@@ -336,9 +392,9 @@
   position: absolute; right: 0; top: 50%; transform: translateY(-50%);
   background: var(--rt-negro); color: #fff; padding: 14px 24px; text-align: center;
 }
-.rt .comomide .tara-sello .r { font-size: 11px; font-weight: 600; letter-spacing: .2em; color: #A8A8A8 }
+.rt .comomide .tara-sello .r { font-size: 11px; font-weight: 600; letter-spacing: .2em; color: rgba(255,255,255,.66) }
 .rt .comomide .tara-sello .v {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: 34px; color: var(--rt-oro);
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 34px; color: var(--rt-oro-claro);
   letter-spacing: -.03em; margin-top: 6px;
 }
 
@@ -397,7 +453,7 @@
 
 .rt .agregar {
   display: grid; place-items: center; gap: 8px; min-height: 150px; cursor: pointer;
-  border: 2px dashed #C8C8C2; background: transparent;
+  border: 2px dashed var(--c-b4c0ce); background: transparent;
   font: inherit; font-family: var(--rt-titulo); font-size: 15px; font-weight: 700;
   color: var(--rt-tinta);
 }
@@ -413,15 +469,15 @@
   display: flex; flex-wrap: wrap; align-items: stretch;
 }
 .rt .totales .t {
-  padding: 22px 30px; border-right: 1px solid #2A2E33; min-width: 0; flex: 0 1 auto;
+  padding: 22px 30px; border-right: 1px solid rgba(255,255,255,.16); min-width: 0; flex: 0 1 auto;
 }
 .rt .totales .t:last-child { border-right: 0 }
-.rt .totales .t .r { font-size: 11px; font-weight: 600; letter-spacing: .18em; color: #9A9A9A }
+.rt .totales .t .r { font-size: 11px; font-weight: 600; letter-spacing: .18em; color: rgba(255,255,255,.66) }
 .rt .totales .t .v {
   font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(28px, 3vw, 40px);
   letter-spacing: -.045em; margin-top: 8px; font-variant-numeric: tabular-nums;
 }
-.rt .totales .t.neto .v { color: var(--rt-oro) }
+.rt .totales .t.neto .v { color: var(--rt-oro-claro) }
 
 /* =====================================================================
    LAS TRES FIRMAS — numeradas, porque van en orden.
@@ -440,7 +496,7 @@
 .rt .firma .n {
   display: grid; place-items: center; flex: none;
   width: 26px; height: 26px; border-radius: 50%;
-  background: #D8D8D4; color: #6A6A66;
+  background: var(--c-d5dce5); color: var(--rt-gris);
   font-family: var(--rt-titulo); font-weight: 800; font-size: 13px;
 }
 .rt .firma .quien { font-family: var(--rt-titulo); font-weight: 800; font-size: 16px; overflow-wrap: anywhere }
@@ -449,7 +505,7 @@
 .rt .firma.lista .n { background: var(--rt-verde); color: #fff }
 .rt .firma.turno { background: var(--rt-crema); border-color: var(--rt-oro) }
 .rt .firma.turno + .firma { border-left: 0 }
-.rt .firma.turno .n { background: var(--rt-oro); color: #1A1200 }
+.rt .firma.turno .n { background: var(--rt-oro); color: var(--rt-sobre-oro) }
 .rt .firma.turno .cuando { color: var(--rt-ojo); font-weight: 600 }
 .rt .firma .btn { margin-top: 12px; width: 100% }
 .rt .firma .espera { font-size: 13px; color: var(--rt-gris2); margin-top: 12px }
@@ -474,16 +530,16 @@
   display: block; font-family: var(--rt-texto); font-weight: 600;
   font-size: 10.5px; letter-spacing: .15em; color: var(--rt-gris); margin-bottom: 5px;
 }
-.rt .cuenta .caja-n.tara { background: #F1F1EF }
-.rt .cuenta .caja-n.neto { background: var(--rt-oro); border-color: var(--rt-oro); color: #1A1200 }
-.rt .cuenta .caja-n.neto small { color: #4A3800 }
+.rt .cuenta .caja-n.tara { background: var(--c-eef1f5) }
+.rt .cuenta .caja-n.neto { background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro) }
+.rt .cuenta .caja-n.neto small { color: color-mix(in srgb, var(--rt-sobre-oro) 86%, transparent) }
 .rt .cuenta .signo { display: grid; place-items: center; color: var(--rt-gris2); font-size: 1.1em }
 
 /* Una tolva en una lista simple (el maestro dentro del análisis). */
 .rt .tolva {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px;
   align-items: center; padding: 15px 22px;
-  border-bottom: 1px solid #F0F0EC;
+  border-bottom: 1px solid var(--c-eef1f5);
 }
 .rt .tolva:last-child { border-bottom: 0 }
 .rt .tolva .nom { font-family: var(--rt-titulo); font-weight: 800; font-size: 15px }
@@ -496,7 +552,7 @@
   gap: 14px; align-items: center;
 }
 .rt .barras .b .et { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere }
-.rt .barras .b .riel { height: 12px; background: #E8E8E4; overflow: hidden }
+.rt .barras .b .riel { height: 12px; background: var(--c-eef1f5); overflow: hidden }
 .rt .barras .b .riel i { display: block; height: 100%; background: var(--rt-oro) }
 .rt .barras .b.mal .riel i { background: var(--rt-mal) }
 .rt .barras .b .n {
@@ -559,7 +615,7 @@
   background: var(--rt-negro); color: #fff; stroke: currentColor; stroke-width: 2;
   flex: none;
 }
-.rt .rama:hover .entrar svg { background: var(--rt-oro); color: #1A1200 }
+.rt .rama:hover .entrar svg { background: var(--rt-oro); color: var(--rt-sobre-oro) }
 
 /* =====================================================================
    REGISTRAR EN SITIO — el asistente del celular.
@@ -575,7 +631,7 @@
 }
 .rt-rep .barra .t { font-family: var(--rt-titulo); font-weight: 800; font-size: 15px; letter-spacing: .22em }
 .rt-rep .barra button {
-  background: transparent; border: 0; color: #9A9A9A; font-size: 24px; line-height: 1;
+  background: transparent; border: 0; color: rgba(255,255,255,.7); font-size: 24px; line-height: 1;
   cursor: pointer; padding: 4px 8px; min-height: 40px; min-width: 40px;
 }
 /* Cuatro tramos y se llenan de a dos por paso: el asistente tiene dos
@@ -583,7 +639,7 @@
    primera mitad de la primera. Un solo tramo por paso da la sensación
    de que no se ha movido nada. */
 .rt-rep .pasos { display: flex; gap: 8px; padding: 18px 20px 0; flex: 0 0 auto }
-.rt-rep .pasos i { height: 4px; background: #D8D8D4; flex: 1 1 0 }
+.rt-rep .pasos i { height: 4px; background: var(--c-d5dce5); flex: 1 1 0 }
 .rt-rep .pasos i.on { background: var(--rt-oro) }
 
 .rt-rep .cuerpo { flex: 1 1 auto; overflow: auto; padding: 16px 20px 24px; min-height: 0 }
@@ -599,9 +655,9 @@
 }
 .rt-rep .pie button {
   font: inherit; font-family: var(--rt-titulo); font-weight: 800; font-size: 16px;
-  min-height: 54px; border: 0; background: #E8E8E4; color: var(--rt-tinta); cursor: pointer;
+  min-height: 54px; border: 0; background: var(--c-eef1f5); color: var(--rt-tinta); cursor: pointer;
 }
-.rt-rep .pie button.si { background: var(--rt-oro); color: #1A1200 }
+.rt-rep .pie button.si { background: var(--rt-oro); color: var(--rt-sobre-oro) }
 .rt-rep .pie button:disabled { opacity: .45; cursor: not-allowed }
 
 .rt-rep .rotulo {
@@ -666,7 +722,7 @@
 }
 .rt-rep .contador button {
   font: inherit; font-size: 30px; font-weight: 700; min-height: 76px;
-  border: 0; background: #EFEFEC; color: var(--rt-tinta); cursor: pointer;
+  border: 0; background: var(--c-eef1f5); color: var(--rt-tinta); cursor: pointer;
 }
 .rt-rep .contador input {
   font-family: var(--rt-titulo); font-weight: 900; font-size: 38px; text-align: center;
@@ -709,7 +765,7 @@
 }
 .rt-rep .otra {
   display: block; width: 100%; margin-top: 12px; padding: 16px;
-  border: 2px dashed #C8C8C2; background: transparent;
+  border: 2px dashed var(--c-b4c0ce); background: transparent;
   font: inherit; font-family: var(--rt-titulo); font-size: 15px; font-weight: 700;
   color: var(--rt-tinta); cursor: pointer; min-height: 54px;
 }
@@ -719,16 +775,16 @@
   font-size: 14px; line-height: 1.5; display: flex; gap: 12px; align-items: flex-start;
 }
 .rt-rep .negro .punto {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--rt-oro);
+  width: 8px; height: 8px; border-radius: 50%; background: var(--rt-oro-claro);
   flex: 0 0 auto; margin-top: 7px;
 }
-.rt-rep .negro b { color: var(--rt-oro) }
+.rt-rep .negro b { color: var(--rt-oro-claro) }
 
 /* El botón "+" flotante: registrar es la acción del módulo. */
 .rt .mas {
   position: fixed; right: 24px; bottom: 24px; z-index: 40;
   width: 62px; height: 62px; border-radius: 50%; border: 0; cursor: pointer;
-  background: var(--rt-oro); color: #1A1200; font-size: 32px; line-height: 1;
+  background: var(--rt-oro); color: var(--rt-sobre-oro); font-size: 32px; line-height: 1;
   box-shadow: 0 8px 24px -6px rgba(0,0,0,.4); display: grid; place-items: center;
 }
 
@@ -743,7 +799,7 @@
   .rt .firma { border-right: 1px solid var(--rt-linea); border-bottom: 0 }
   .rt .firma:last-child { border-bottom: 1px solid var(--rt-linea) }
   .rt .firma.turno + .firma { border-left: 1px solid var(--rt-linea) }
-  .rt .totales .t { flex: 1 1 50%; border-right: 0; border-bottom: 1px solid #2A2E33; padding: 18px 22px }
+  .rt .totales .t { flex: 1 1 50%; border-right: 0; border-bottom: 1px solid rgba(255,255,255,.16); padding: 18px 22px }
   .rt .tolvas { grid-template-columns: minmax(0, 1fr); padding: 14px }
 }
 
@@ -773,3 +829,14 @@
   .rt-rep .opciones.tres, .rt-rep .vidrios { grid-template-columns: repeat(3, minmax(0, 1fr)) }
   .rt-rep .contador { grid-template-columns: 68px minmax(0, 1fr) 68px }
 }
+
+/* La nota de una firma. Va dentro de su tarjeta, en cursiva y con filo:
+   es una voz —lo que dijo esa persona—, no un dato más del formulario. */
+.rt .firma .nota-firma {
+  margin-top: 10px; padding: 8px 0 8px 11px;
+  border-left: 3px solid var(--rt-linea);
+  font-size: 13px; line-height: 1.45; color: var(--rt-gris); font-style: italic;
+  overflow-wrap: anywhere;
+}
+.rt .firma.turno .nota-firma { border-left-color: var(--rt-oro) }
+.rt .firma.lista .nota-firma { border-left-color: color-mix(in srgb, var(--rt-verde) 45%, #fff) }

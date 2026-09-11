@@ -52,10 +52,13 @@ export type Salida = {
   creada_en: string;
   supervisora_por: string | null;
   supervisora_en: string | null;
+  supervisora_nota: string | null;
   verificador_por: string | null;
   verificador_en: string | null;
+  verificador_nota: string | null;
   validador_por: string | null;
   validador_en: string | null;
+  validador_nota: string | null;
   tolvas: number;
   bruto_kg: number;
   tara_kg: number;

@@ -11,7 +11,7 @@ import { fecha, kilos, quien } from "../comunes";
 /**
  * LAS SALIDAS DE VIDRIO — lo que se pesa, en KILOS.
  *
- * Una salida es un camión: se van pesando tolvas, y cuando está completo
+ * Una salida es un Vh: se van pesando tolvas, y cuando está completo
  * se firma. Las tres firmas van en cadena y en orden —supervisor (a),
  * verificador, validación— y CADA UNA VIVE EN SU PROPIA PANTALLA, porque
  * son tres personas distintas y cada una trabaja en un sitio distinto.
@@ -84,11 +84,11 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
           <div className="cab"><div><h2>Abrir una salida</h2>
             <p>
               El código lo pone el sistema. La placa es obligatoria: es lo que amarra el vidrio
-              al camión que se lo llevó, y por lo que se busca el día que haya un reclamo.
+              al Vh que se lo llevó, y por lo que se busca el día que haya un reclamo.
             </p>
           </div></div>
           <div className="panel" style={{ margin: 12 }}>
-            <label htmlFor="placa">Placa del camión</label>
+            <label htmlFor="placa">Placa del Vh</label>
             <input id="placa" value={placa} autoFocus
                    onChange={(e) => setPlaca(e.target.value)}
                    onKeyDown={(e) => { if (e.key === "Enter" && placaLimpia.length >= 5) abrir() }}

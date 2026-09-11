@@ -310,7 +310,7 @@ create sequence if not exists public.roturas_salida_seq;
 
 /* DE "FACTURADOR" A "VALIDACIÓN".
    La primera versión llamó a la tercera firma "facturador". Pero lo que
-   esa persona hace no es facturar: es dar el aval para que el camión
+   esa persona hace no es facturar: es dar el aval para que el Vh
    salga. Se renombra aquí, de forma idempotente, para que quien ya haya
    corrido la versión anterior no pierda las salidas que tenga. Renombrar
    una columna conserva sus restricciones y sus datos; borrar y volver a
@@ -344,13 +344,13 @@ create table if not exists public.roturas_salidas (
   codigo   text unique not null,
   estado   salida_estado not null default 'abierta',
 
-  /* LA PLACA DEL CAMIÓN. Campo propio y no una frase dentro de la
+  /* LA PLACA DEL VH. Campo propio y no una frase dentro de la
      observación: es la identidad de la salida. El día que Peldar
      reclame por una carga, o que haya que cruzar lo que salió con la
      portería, se busca por placa; y un texto libre donde alguien
-     escribió "camion de peldar placa xxx000" no se puede buscar.
+     escribió "vh de peldar placa xxx000" no se puede buscar.
      Se guarda en mayúsculas y sin espacios, como en T1 / T2, para que
-     "abc123", "ABC 123" y "ABC-123" sean el mismo camión y no tres. */
+     "abc123", "ABC 123" y "ABC-123" sean el mismo Vh y no tres. */
   placa    text,
 
   observacion text,
@@ -360,12 +360,22 @@ create table if not exists public.roturas_salidas (
 
   /* LAS TRES FIRMAS, en cadena. Cada una guarda quién y cuándo: una
      firma sin hora no dice si se firmó antes o después de pesar. */
+  /* Y SU NOTA. Una por firma, no una sola para la salida: lo que el
+     verificador tenga que decir —"faltaba una tolva", "el bruto de la 2
+     no cuadraba, se volvió a pesar"— no es lo mismo que lo que anotó
+     quien pesó, y machacar las dos en un solo campo es perder la que
+     llegó primero. Es opcional: la mayoría de las firmas no tienen nada
+     que contar, y obligar a escribir "ok" trescientas veces convierte el
+     campo en ruido que nadie lee. */
   supervisora_por uuid references public.perfiles(id) on delete set null,
   supervisora_en  timestamptz,
+  supervisora_nota text,
   verificador_por uuid references public.perfiles(id) on delete set null,
   verificador_en  timestamptz,
+  verificador_nota text,
   validador_por  uuid references public.perfiles(id) on delete set null,
   validador_en   timestamptz,
+  validador_nota text,
 
   anulada_por uuid references public.perfiles(id) on delete set null,
   anulada_en  timestamptz,
@@ -387,6 +397,12 @@ create table if not exists public.roturas_salidas (
 );
 
 alter table public.roturas_salidas drop constraint if exists salida_tres_personas;
+
+-- Las notas, para quien ya tenía la tabla de antes.
+alter table public.roturas_salidas
+  add column if not exists supervisora_nota text,
+  add column if not exists verificador_nota text,
+  add column if not exists validador_nota   text;
 
 create index if not exists roturas_salidas_idx on public.roturas_salidas (estado, creada_en desc);
 
@@ -631,11 +647,11 @@ begin
   /* Se normaliza AQUÍ y no en la pantalla: la pantalla es una de las
      formas de entrar, no la única. Fuera van los espacios y los guiones,
      de modo que "abc 123", "ABC-123" y "abc123" terminen siendo la misma
-     placa y el informe del mes no cuente tres camiones donde hubo uno. */
+     placa y el informe del mes no cuente tres Vh donde hubo uno. */
   v_placa := upper(regexp_replace(coalesce(p_placa, ''), '[^A-Za-z0-9]', '', 'g'));
 
   if length(v_placa) < 5 then
-    raise exception 'Falta la placa del camión. Es lo que amarra el vidrio al vehículo que se lo llevó';
+    raise exception 'Falta la placa del Vh. Es lo que amarra el vidrio al Vh que se lo llevó';
   end if;
 
   v_cod := 'SR-' || lpad(nextval('public.roturas_salida_seq')::text, 4, '0');
@@ -732,7 +748,13 @@ grant execute on function public.salida_quitar_tolva(uuid) to authenticated;
 -- una restricción dice "viola salida_tres_personas" y no le explica nada
 -- a quien está de pie frente a la báscula.
 -- ---------------------------------------------------------------------
-create or replace function public.salida_firmar(p_salida uuid, p_papel text)
+drop function if exists public.salida_firmar(uuid, text);
+
+create or replace function public.salida_firmar(
+  p_salida uuid,
+  p_papel  text,
+  p_nota   text default null
+)
 returns void
 language plpgsql
 security definer
@@ -741,7 +763,9 @@ as $$
 declare
   s public.roturas_salidas%rowtype;
   v_tolvas integer;
+  v_nota   text;
 begin
+  v_nota := nullif(btrim(coalesce(p_nota, '')), '');
   select * into s from public.roturas_salidas where id = p_salida;
   if not found then raise exception 'Esa salida no existe'; end if;
   if s.estado = 'anulada' then raise exception 'Esa salida está anulada'; end if;
@@ -758,7 +782,8 @@ begin
     end if;
     if s.supervisora_en is not null then raise exception 'Ya está firmada por el supervisor (a)'; end if;
     update public.roturas_salidas
-       set supervisora_por = auth.uid(), supervisora_en = now(), estado = 'cerrada'
+       set supervisora_por = auth.uid(), supervisora_en = now(),
+           supervisora_nota = v_nota, estado = 'cerrada'
      where id = p_salida;
 
   elsif p_papel = 'verificador' then
@@ -777,7 +802,8 @@ begin
     end if;
     if s.verificador_en is not null then raise exception 'Ya está verificada'; end if;
     update public.roturas_salidas
-       set verificador_por = auth.uid(), verificador_en = now() where id = p_salida;
+       set verificador_por = auth.uid(), verificador_en = now(), verificador_nota = v_nota
+     where id = p_salida;
 
   elsif p_papel = 'validador' then
     if s.verificador_en is null then
@@ -789,14 +815,15 @@ begin
     end if;
     if s.validador_en is not null then raise exception 'Ya está validada'; end if;
     update public.roturas_salidas
-       set validador_por = auth.uid(), validador_en = now() where id = p_salida;
+       set validador_por = auth.uid(), validador_en = now(), validador_nota = v_nota
+     where id = p_salida;
 
   else
     raise exception 'Firma desconocida: %', p_papel;
   end if;
 end $$;
 
-grant execute on function public.salida_firmar(uuid, text) to authenticated;
+grant execute on function public.salida_firmar(uuid, text, text) to authenticated;
 
 create or replace function public.salida_anular(p_id uuid, p_motivo text)
 returns void
@@ -879,9 +906,9 @@ select
   s.estado::text                                  as estado,
   s.observacion,
   s.creada_por, s.creada_en,
-  s.supervisora_por, s.supervisora_en,
-  s.verificador_por, s.verificador_en,
-  s.validador_por,  s.validador_en,
+  s.supervisora_por, s.supervisora_en, s.supervisora_nota,
+  s.verificador_por, s.verificador_en, s.verificador_nota,
+  s.validador_por,  s.validador_en,  s.validador_nota,
   s.motivo_anulacion, s.anulada_en, s.anulada_por,
 
   (select count(*) from public.roturas_salida_tolvas t where t.salida_id = s.id) as tolvas,
