@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
 import { encolar, esDeRed } from "@/modulos/acciones/cola";
+import { asignarAccion } from "@/modulos/acciones/asignar";
 import type { Motivo, Zona } from "@/modulos/acciones/datos";
 
 /**
@@ -353,11 +354,9 @@ export function Reportar({ zonas, motivos, plazos, gente = [], cerrar }: Props) 
      se dice y se sigue, que es mejor que dejar creer que se asignó. */
   async function asignar(id: string, nombre: string) {
     setAsignando(true);
-    const { error } = await supabase.rpc("accion_asignar", {
-      p_id: listo!.id, p_equipo: null, p_responsable: id,
-    });
+    const { error } = await asignarAccion(supabase, listo!.id, null, id);
     setAsignando(false);
-    if (error) { setMal(error.message); return }
+    if (error) { setMal(error); return }
     setAsignada(nombre);
     router.refresh();
   }

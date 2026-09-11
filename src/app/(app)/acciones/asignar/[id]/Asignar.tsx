@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import type { Accion, Carga } from "@/modulos/acciones/datos";
+import { asignarAccion } from "@/modulos/acciones/asignar";
 
 /**
  * ASIGNAR RESPONSABLE — pantalla propia, y no un cajón dentro de la lista.
@@ -25,24 +26,20 @@ import type { Accion, Carga } from "@/modulos/acciones/datos";
  * nadie escoja a nadie: 48 horas cambia a quién tiene sentido asignarle.
  * Dicho después, es un dato; dicho antes, es parte de la decisión.
  */
-export function Asignar({ accion, carga, nombres, saturado, equipos }: {
+export function Asignar({ accion, carga, nombres, saturado }: {
   accion: Accion;
   carga: Carga[];
   nombres: Record<string, string>;
   saturado: number;
-  equipos: { clave: string; nombre: string }[];
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
 
-  /* LA PERSONA ES EL CAMINO NORMAL. El equipo es para el caso en que se
-     le pasa a un operador logístico y todavía no se sabe a quién de
-     adentro le va a tocar; si el contratista tiene usuario propio, se le
-     asigna directo y el equipo sobra. Ninguno de los dos manda sobre el
-     otro, y el bloque de equipos ni siquiera se pinta si el maestro está
-     vacío. */
-  const [equipo, setEquipo] = useState<string | null>(accion.equipo);
+  /* SE ASIGNA A UNA PERSONA. Punto. Los contratistas tienen usuario
+     propio, así que asignarle "al equipo Easy" y no a alguien de Easy
+     solo mueve el problema: la acción queda con dueño en la pantalla y
+     sin dueño en la realidad, y nadie la cierra. */
   const [escogido, setEscogido] = useState<string | null>(accion.responsable);
   const [mandando, setMandando] = useState(false);
 
@@ -51,11 +48,9 @@ export function Asignar({ accion, carga, nombres, saturado, equipos }: {
 
   async function asignar(eq: string | null, a: string | null) {
     setMandando(true);
-    const { error } = await supabase.rpc("accion_asignar", {
-      p_id: accion.id, p_equipo: eq, p_responsable: a,
-    });
+    const { error } = await asignarAccion(supabase, accion.id, eq, a);
     setMandando(false);
-    if (error) { avisar.mal(error.message); return }
+    if (error) { avisar.mal(error); return }
     /* El aviso se deja puesto y se vuelve a la lista: la confirmación se
        lee allá, que es donde la persona sigue trabajando. */
     router.push("/acciones");
@@ -143,34 +138,6 @@ export function Asignar({ accion, carga, nombres, saturado, equipos }: {
         </div>
       </section>
 
-      {/* EL EQUIPO, DESPUÉS DE LAS PERSONAS Y SOLO SI EXISTE ALGUNO.
-          Es para el caso en que se le pasa a un OL y todavía no se sabe
-          a quién de adentro le toca. Si el maestro está vacío —que es lo
-          normal— esta caja no aparece y asignar es escoger a alguien,
-          como siempre. */}
-      {equipos.length > 0 && (
-        <section className="caja">
-          <div className="cab">
-            <div>
-              <h2>¿O se lo pasamos a un equipo?</h2>
-              <p>
-                Cuando responde un operador logístico y todavía no se sabe a quién de adentro le
-                va a tocar. Si la persona ya tiene usuario, con escogerla arriba alcanza.
-              </p>
-            </div>
-          </div>
-          <div className="ac-equipos">
-            {equipos.map((e) => (
-              <button key={e.clave} type="button"
-                      className={"ac-eq" + (equipo === e.clave ? " on" : "")}
-                      onClick={() => setEquipo(equipo === e.clave ? null : e.clave)}>
-                {e.nombre}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
       {el?.saturado && (
         <div className="aviso rojo">
           <b>{el.nombre || el.usuario} está saturado.</b>{" "}
@@ -182,21 +149,13 @@ export function Asignar({ accion, carga, nombres, saturado, equipos }: {
 
       <div className="ac-pie">
         <button type="button" className="btn si"
-                disabled={mandando || (!escogido && !equipo)}
-                onClick={() => asignar(equipo, escogido)}>
+                disabled={mandando || !escogido}
+                onClick={() => asignar(null, escogido)}>
           {mandando ? "Asignando…"
-            : !escogido && !equipo ? "Escoge a alguien"
-            : escogido
-              ? `Asignar a ${carga.find((c) => c.id === escogido)?.nombre
-                  ?? carga.find((c) => c.id === escogido)?.usuario}`
-                + (equipo ? ` · ${equipos.find((e) => e.clave === equipo)?.nombre}` : "")
-              : `Asignar a ${equipos.find((e) => e.clave === equipo)?.nombre}`}
+            : !escogido ? "Escoge a alguien"
+            : `Asignar a ${carga.find((c) => c.id === escogido)?.nombre
+                ?? carga.find((c) => c.id === escogido)?.usuario}`}
         </button>
-        {equipo && !escogido && (
-          <span className="sub" style={{ alignSelf: "center" }}>
-            Sin persona está bien: el equipo responde, y ya le pondrán nombre.
-          </span>
-        )}
         <button type="button" className="btn plano" disabled={mandando}
                 onClick={() => asignar(null, null)}>
           Dejar sin asignar

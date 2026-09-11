@@ -270,14 +270,40 @@ export async function usoDelMaestro() {
   return { zonas, motivos, equipos };
 }
 
-/** Cuánto tiene encima cada quien. Es lo que se mira ANTES de asignar. */
+/**
+ * CUÁNTO TIENE ENCIMA CADA QUIEN. Es lo que se mira ANTES de asignar.
+ *
+ * La cuenta la hace la vista v_acciones_carga. Pero esta función NO
+ * existe para dar cifras: existe para que la pantalla de asignar tenga
+ * a quién asignarle. Si la vista falta —porque todavía no se corrió
+ * acciones.sql— devolver una lista vacía dejaba la pantalla diciendo
+ * "no hay nadie", que es mentira: la gente está en perfiles, y lo único
+ * que no está es la cuenta.
+ *
+ * Entonces: si la vista no responde, se cae a perfiles y se asigna
+ * igual, con las cifras en cero. Perder el "tiene 4 abiertas" molesta;
+ * no poder asignar bloquea el trabajo.
+ */
 export async function carga() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("v_acciones_carga")
     .select("*")
     .order("abiertas", { ascending: true });
-  return (data ?? []) as Carga[];
+
+  if (!error && data && data.length) return data as Carga[];
+
+  const { data: pf } = await supabase
+    .from("perfiles")
+    .select("id, usuario, nombre, rol")
+    .eq("activo", true)
+    .order("nombre", { nullsFirst: false });
+
+  return ((pf ?? []) as { id: string; usuario: string | null;
+                          nombre: string | null; rol: string }[])
+    .map((p) => ({
+      ...p, abiertas: 0, vencidas: 0, por_verificar: 0, saturado: false,
+    })) as Carga[];
 }
 
 /** Las barras de "Cumplimiento por área" del tablero. */

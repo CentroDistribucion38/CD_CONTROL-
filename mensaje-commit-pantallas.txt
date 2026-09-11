@@ -477,3 +477,46 @@ cuando sirve.
 Va por accion_asignar(p_id, p_equipo, p_responsable), la misma funcion
 del maestro: una sola regla de asignacion en la base, no dos caminos que
 algun dia se van a contradecir.
+
+
+ASIGNAR NO PUEDE DEPENDER DE QUE YA SE HAYA CORRIDO EL SQL.
+
+La pantalla no mostraba a nadie y no decia por que. Dos causas, las dos
+mias:
+
+1. carga() leia v_acciones_carga y, si la vista no estaba, se tragaba el
+   error y devolvia lista vacia. La pantalla entonces decia "todavia no
+   tiene responsable" —como si no hubiera a quien asignarle—. Mentira:
+   la gente esta en perfiles; lo unico que faltaba era la CUENTA de
+   cuantas lleva cada uno. Ahora, si la vista no responde, se cae a
+   perfiles y se asigna igual con las cifras en cero. Perder el "tiene 4
+   abiertas" estorba; no poder asignar para el trabajo.
+
+2. accion_asignar cambio de forma —de (id, responsable) a
+   (id, equipo, responsable)— y las pantallas empezaron a llamar la
+   nueva contra una base que todavia tiene la vieja. Postgres responde
+   "no existe esa funcion", que aparece DESPUES de haber escogido a la
+   persona y no le explica nada a nadie.
+
+   Queda un solo camino —modulos/acciones/asignar.ts— que intenta la
+   nueva y, si la base es la vieja, llama la vieja. Lo unico que no se
+   puede fingir es el equipo: si venia un equipo se dice que falta
+   correr acciones.sql, con esas palabras, en vez de asignar a medias.
+
+El patron, que vale para todo el programa: una pantalla que depende de
+SQL nuevo no se puede quedar MUDA cuando el SQL no esta. O funciona con
+lo que hay, o dice que archivo falta. "No hay nadie" cuando si hay gente
+es el peor de los tres.
+
+
+FUERA LA CAJA DE EQUIPOS. SE ASIGNA A UNA PERSONA.
+
+Los contratistas tienen usuario propio. Asignarle "al equipo Easy" en
+vez de a alguien de Easy solo mueve el problema de sitio: la accion
+queda CON dueno en la pantalla y SIN dueno en la realidad, y nadie la
+cierra. Una caja de mas en la decision mas importante del modulo, para
+un caso que en este centro no se da.
+
+Se va la caja, se va el estado del equipo y se va el parametro. La
+funcion de la base sigue recibiendo el equipo —el dia que se necesite
+esta ahi— pero la pantalla ya no lo ofrece.
