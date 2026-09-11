@@ -61,6 +61,15 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
   const [sku, setSku] = useState("");
   const [estibas, setEstibas] = useState("");
   const [placa, setPlaca] = useState("");
+  /* EL PAPEL DEL VIAJE. Se piden aquí y no solo cuando hay una novedad:
+     así TODO viaje queda documentado, no únicamente los que salen con
+     problema, y el día que alguien pregunte "¿qué lote vino en ese
+     camión?" hay respuesta aunque nunca se haya reportado nada.
+     Opcionales: a veces el papel llega después del camión, y trabar la
+     certificación por eso dejaría el viaje sin fotos ni ubicación, que
+     es mucho peor que dejarlo sin factura. */
+  const [factura, setFactura] = useState("");
+  const [lote, setLote] = useState("");
   const [nota, setNota] = useState("");
   const [fotos, setFotos] = useState<Partial<Record<Ranura, Foto>>>({});
 
@@ -124,6 +133,8 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
       p_ubicado_en: ubi.en,
       p_nota: nota.trim() || null,
       p_direccion: direccion.trim() || null,
+      p_factura: factura.trim().toUpperCase() || null,
+      p_lote: lote.trim().toUpperCase() || null,
     });
 
     if (error) {
@@ -369,6 +380,16 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
                 <span>Placa</span>
                 <input value={placa} placeholder="JYN141" autoCapitalize="characters"
                        onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+              </label>
+              <label>
+                <span>Factura (opcional)</span>
+                <input value={factura} placeholder="FE-4471" autoCapitalize="characters"
+                       onChange={(e) => setFactura(e.target.value.toUpperCase())} />
+              </label>
+              <label>
+                <span>Lote (opcional)</span>
+                <input value={lote} placeholder="L2609A" autoCapitalize="characters"
+                       onChange={(e) => setLote(e.target.value.toUpperCase())} />
               </label>
               <label className="ancho">
                 <span>Observación (opcional)</span>

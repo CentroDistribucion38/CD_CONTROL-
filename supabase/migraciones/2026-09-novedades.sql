@@ -144,6 +144,50 @@ create table if not exists public.sider_novedades (
   )
 );
 
+/* TODO LO QUE HACE FALTA PARA RECLAMAR, en la misma fila.
+   Una novedad es el papel que se le manda al CD de origen. Si para
+   armarlo hay que ir a buscar la factura a un lado, el lote a otro y la
+   cantidad a la cabeza de alguien, el reclamo no se manda: se deja para
+   después y después se olvida.
+
+   FACTURA, LOTE Y SKU SE COPIAN DEL VIAJE al reportar, igual que la tara
+   se copia a la línea de la tolva. No se leen del viaje cada vez: si
+   mañana alguien corrige el viaje, la novedad que ya se mandó tiene que
+   seguir diciendo lo que decía cuando se mandó. Y se pueden teclear a
+   mano, porque una novedad puede no tener viaje. */
+alter table public.sider_novedades add column if not exists factura text;
+alter table public.sider_novedades add column if not exists lote    text;
+alter table public.sider_novedades add column if not exists sku     text;
+
+/* CUÁNTO, no solo qué. Sin esta cifra la novedad dice que llegó mojado
+   pero no cuánto llegó mojado, y el día del reclamo no hay nada que
+   cobrar. La unidad va al lado porque no siempre son estibas: a veces
+   son cajas sueltas y a veces botellas. */
+alter table public.sider_novedades add column if not exists cantidad numeric(10,2);
+alter table public.sider_novedades add column if not exists unidad   text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'novedad_unidad_conocida') then
+    alter table public.sider_novedades add constraint novedad_unidad_conocida
+      check (unidad is null or unidad in ('estibas', 'cajas', 'unidades'));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'novedad_cantidad_con_unidad') then
+    /* Un número sin unidad no dice nada: "12" puede ser doce estibas o
+       doce botellas, y la diferencia es de dos ceros. */
+    alter table public.sider_novedades add constraint novedad_cantidad_con_unidad
+      check (cantidad is null or unidad is not null);
+  end if;
+end $$;
+
+/* LA HORA, aparte de la fecha. En un día entran varios camiones del
+   mismo origen: sin hora, dos novedades del mismo día son
+   indistinguibles al reclamar. Va como columna aparte y no convirtiendo
+   "fecha" en timestamp: los días que lleva abierta se cuentan por día, y
+   cambiarle el tipo a esa columna movería ese cálculo y sus índices. */
+alter table public.sider_novedades add column if not exists hora time;
+
+create index if not exists sider_novedades_factura_idx
+  on public.sider_novedades (upper(btrim(factura))) where factura is not null;
+
 create index if not exists sider_novedades_fecha_idx on public.sider_novedades (fecha desc);
 create index if not exists sider_novedades_placa_idx on public.sider_novedades (upper(btrim(placa)));
 create index if not exists sider_novedades_viaje_idx on public.sider_novedades (viaje_id)
@@ -191,6 +235,12 @@ select
   n.viaje_id,
   n.placa,
   n.fecha,
+  n.hora,
+  n.factura,
+  n.lote,
+  n.sku,
+  n.cantidad,
+  n.unidad,
   n.descripcion,
   n.foto_ruta,
   n.cd_responsable,
@@ -294,6 +344,9 @@ grant select on public.sider_novedad_motivos to authenticated;
 -- mande el navegador permite una novedad que dice una placa y apunta a
 -- un viaje de otra.
 -- ---------------------------------------------------------------------
+drop function if exists public.sider_novedad_reportar(
+  text, text, text, text, date, text, uuid, text, text);
+
 create or replace function public.sider_novedad_reportar(
   p_tramo       text,
   p_tipo        text,
@@ -303,7 +356,13 @@ create or replace function public.sider_novedad_reportar(
   p_descripcion text default null,
   p_viaje_id    uuid default null,
   p_foto_ruta   text default null,
-  p_responsable text default null
+  p_responsable text default null,
+  p_factura     text default null,
+  p_lote        text default null,
+  p_sku         text default null,
+  p_cantidad    numeric default null,
+  p_unidad      text default null,
+  p_hora        time default null
 )
 returns uuid
 language plpgsql
@@ -314,6 +373,9 @@ declare
   v_placa text;
   v_resp  text;
   v_id    uuid;
+  v_fact  text;
+  v_lote  text;
+  v_sku   text;
 begin
   if not public.es_editor() then
     raise exception 'Reportar una novedad requiere rol de supervisor o administrador';
@@ -329,16 +391,27 @@ begin
        viaje sin maestro siga dando placa —la novedad se reporta igual,
        solo queda sin responsable— en vez de contestar "ese viaje no
        existe", que sería mentira. */
-    select upper(btrim(v.placa)), o.cd_origen into v_placa, v_resp
+    select upper(btrim(v.placa)), o.cd_origen, v.factura, v.lote, v.sku
+      into v_placa, v_resp, v_fact, v_lote, v_sku
       from public.sider_viajes v
       left join public.sider_origenes o on o.planta = v.planta
      where v.id = p_viaje_id;
     if v_placa is null then
       raise exception 'Ese viaje no existe';
     end if;
+    /* Lo que venga tecleado GANA sobre lo del viaje. El viaje es la
+       propuesta —ahorra teclear tres campos que casi siempre son los
+       mismos—, pero quien está con el papel en la mano puede ver que la
+       factura del sistema no es la que trae el camión. */
+    v_fact := coalesce(nullif(upper(btrim(coalesce(p_factura, ''))), ''), v_fact);
+    v_lote := coalesce(nullif(upper(btrim(coalesce(p_lote,    ''))), ''), v_lote);
+    v_sku  := coalesce(nullif(btrim(coalesce(p_sku, '')), ''), v_sku);
   else
     v_placa := upper(btrim(coalesce(p_placa, '')));
     v_resp  := nullif(btrim(coalesce(p_responsable, '')), '');
+    v_fact  := nullif(upper(btrim(coalesce(p_factura, ''))), '');
+    v_lote  := nullif(upper(btrim(coalesce(p_lote,    ''))), '');
+    v_sku   := nullif(btrim(coalesce(p_sku, '')), '');
     if v_placa = '' then
       raise exception 'Sin viaje hay que escribir la placa';
     end if;
@@ -348,20 +421,31 @@ begin
     raise exception 'La fecha de la novedad no puede ser futura';
   end if;
 
+  if p_cantidad is not null and p_cantidad <= 0 then
+    raise exception 'La cantidad afectada tiene que ser mayor que cero';
+  end if;
+
   insert into public.sider_novedades
-    (tramo, tipo, motivo, viaje_id, placa, fecha, descripcion, foto_ruta,
-     cd_responsable, creada_por)
+    (tramo, tipo, motivo, viaje_id, placa, fecha, hora, descripcion, foto_ruta,
+     cd_responsable, factura, lote, sku, cantidad, unidad, creada_por)
   values
     (p_tramo::tramo_novedad, p_tipo::tipo_novedad, p_motivo, p_viaje_id, v_placa,
-     p_fecha, nullif(btrim(coalesce(p_descripcion, '')), ''), p_foto_ruta,
-     v_resp, auth.uid())
+     p_fecha, p_hora, nullif(btrim(coalesce(p_descripcion, '')), ''), p_foto_ruta,
+     v_resp, v_fact, v_lote, v_sku,
+     p_cantidad,
+     /* La unidad solo se guarda si hay cantidad: una unidad suelta no
+        mide nada y confunde al leer. */
+     case when p_cantidad is not null
+          then coalesce(nullif(btrim(coalesce(p_unidad, '')), ''), 'estibas') end,
+     auth.uid())
   returning id into v_id;
 
   return v_id;
 end $$;
 
 grant execute on function public.sider_novedad_reportar(
-  text, text, text, text, date, text, uuid, text, text) to authenticated;
+  text, text, text, text, date, text, uuid, text, text,
+  text, text, text, numeric, text, time) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 6b. RESPONDER, sin cerrar.

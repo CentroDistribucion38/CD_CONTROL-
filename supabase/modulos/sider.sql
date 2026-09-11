@@ -162,6 +162,24 @@ create table if not exists public.sider_viajes (
 alter table public.sider_viajes add column if not exists fecha     date;
 alter table public.sider_viajes add column if not exists importado boolean not null default false;
 
+/* LA FACTURA Y EL LOTE, EN EL VIAJE Y NO EN LA NOVEDAD.
+   Se piden al certificar, junto con la placa y el SKU, aunque el viaje
+   venga perfecto. Así TODO viaje queda documentado y no solo los que
+   salen con problema: el día que alguien pregunte "¿qué lote vino en
+   ese camión?" hay respuesta aunque nunca se haya reportado nada.
+   Guardarlos solo en la novedad haría que la respuesta existiera
+   únicamente para los camiones que salieron mal, que es justo al revés
+   de lo que sirve.
+   Van opcionales: los 200 viajes importados de abril a agosto no las
+   traen y nunca las van a traer. */
+alter table public.sider_viajes add column if not exists factura text;
+alter table public.sider_viajes add column if not exists lote    text;
+
+create index if not exists sider_viajes_factura_idx on public.sider_viajes (upper(btrim(factura)))
+  where factura is not null;
+create index if not exists sider_viajes_lote_idx on public.sider_viajes (upper(btrim(lote)))
+  where lote is not null;
+
 create index if not exists sider_viajes_estado_idx on public.sider_viajes (estado, creado_en desc);
 create index if not exists sider_viajes_placa_idx  on public.sider_viajes (upper(placa));
 create index if not exists sider_viajes_fecha_idx  on public.sider_viajes (creado_en desc);
@@ -377,6 +395,8 @@ select
   s.descripcion,
   s.clase                                       as tipo_envase,
   v.estibas,
+  v.factura,
+  v.lote,
   v.estado,
   v.observacion,
   v.creado_por,
@@ -450,6 +470,9 @@ left join public.sider_certificaciones cl on cl.viaje_id = v.id and cl.punta = '
 --    El viaje y su primera certificación nacen juntos: un viaje sin
 --    ubicación ni fotos no debería poder existir ni un instante.
 -- ---------------------------------------------------------------------
+drop function if exists public.sider_certificar_salida(
+  text, text, text, numeric, numeric, numeric, numeric, timestamptz, text, text);
+
 create or replace function public.sider_certificar_salida(
   p_placa       text,
   p_planta      text,
@@ -460,7 +483,9 @@ create or replace function public.sider_certificar_salida(
   p_precision_m numeric,
   p_ubicado_en  timestamptz,
   p_nota        text default null,
-  p_direccion   text default null
+  p_direccion   text default null,
+  p_factura     text default null,
+  p_lote        text default null
 )
 returns table (viaje_id uuid, certificacion_id uuid)
 language plpgsql
@@ -478,8 +503,14 @@ begin
     raise exception 'Falta la ubicación: no se puede certificar sin saber dónde se hizo';
   end if;
 
-  insert into public.sider_viajes (placa, planta, sku, estibas, creado_por)
-  values (upper(btrim(p_placa)), p_planta, btrim(p_sku), p_estibas, auth.uid())
+  insert into public.sider_viajes (placa, planta, sku, estibas, factura, lote, creado_por)
+  values (upper(btrim(p_placa)), p_planta, btrim(p_sku), p_estibas,
+          /* En mayúsculas y sin espacios, como la placa: "fe-4471" y
+             "FE 4471" son la misma factura, y si se guardan distinto no
+             se encuentran buscando. */
+          nullif(upper(btrim(coalesce(p_factura, ''))), ''),
+          nullif(upper(btrim(coalesce(p_lote, ''))), ''),
+          auth.uid())
   returning id into v_viaje;
 
   insert into public.sider_certificaciones
@@ -630,7 +661,7 @@ end $$;
 
 grant select on public.v_sider_viajes to authenticated;
 grant execute on function
-  public.sider_certificar_salida(text, text, text, numeric, numeric, numeric, numeric, timestamptz, text, text)
+  public.sider_certificar_salida(text, text, text, numeric, numeric, numeric, numeric, timestamptz, text, text, text, text)
 to authenticated;
 grant execute on function
   public.sider_certificar_llegada(uuid, numeric, numeric, numeric, timestamptz, text, text)

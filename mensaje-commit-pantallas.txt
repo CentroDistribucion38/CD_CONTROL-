@@ -292,3 +292,53 @@ maestro ("botellas que trae una unidad") y en el mensaje de la base:
 Lo que NO cambia: la columna botellas_x_empaque y la causa
 "Empaque en mal estado" —esa habla del empaque fisico, que es otra cosa
 que la cifra que se cuenta—.
+
+ACCIONES: LOS PLAZOS BAJAN A 24 / 48 / 72 HORAS.
+
+Eran 48 h, 7 dias y 15 dias. Ahora alta 24, media 48, baja 72.
+
+Se actualizan SOLO si siguen en los valores viejos. Un "do update" a
+secas los pisaria cada vez que se corre el archivo, y el dia que alguien
+ajuste el plazo de "media" desde la app lo perderia sin enterarse: la
+semilla es un punto de partida, no la verdad.
+
+ROTURAS: EL PRODUCTO TERMINADO SE ABRE EN DOS BAJAS DISTINTAS.
+
+  ROTA         se rompe la botella. Se da de baja el LIQUIDO Y EL VIDRIO.
+               El vidrio sale despues en tolva.
+  CONTAMINADA  la botella queda entera pero el liquido no sirve. Se da de
+               baja SOLO EL LIQUIDO; el envase se recupera y vuelve a la
+               linea.
+
+DOS COLUMNAS Y NO UNA SUMA. Si se contaran juntas, el vidrio que sale
+por la puerta tendria que cuadrar con unidades que nunca se rompieron, y
+no cuadraria nunca. La vista trae las dos cifras separadas:
+
+  unidades_liquido = rotas + contaminadas   (cero en EER: no hay liquido)
+  unidades_vidrio  = botellas rotas         (las contaminadas NO entran)
+
+En el asistente son dos contadores, cada uno con su explicacion debajo.
+En la lista se pintan aparte, y la que este en cero no se pinta: un "0
+contaminadas" en cada fila es ruido. El analisis pasa a tener dos cifras
+—baja de liquido y baja de vidrio— en vez de una.
+
+Las contaminadas solo existen en producto terminado: un envase
+retornable vacio no tiene liquido que contaminar. Lo dice una
+restriccion, no una pantalla.
+
+PROBADO CONTRA POSTGRES 16 REAL, en base nueva y como migracion sobre la
+base vieja, dos veces cada una:
+
+  1 rotas se guardan .................... ok
+  2 contaminadas se guardan ............. ok
+  3 baja de liquido = 10 + 4 = 14 ....... ok
+  4 vidrio = solo las rotas (300) ....... ok
+  5 solo contaminadas: vidrio en cero ... ok
+  6 EER: sin liquido, sin contaminadas .. ok
+  7 reporte vacio se rechaza ............ ok
+  8 contaminadas en EER se rechazan ..... ok
+
+Y un bug de la PRUEBA, no del codigo, que vale la pena anotar: dentro de
+un bloque do$$ todas las filas comparten el mismo now(), asi que "la
+ultima por fecha" devuelve cualquiera. La prueba 6 fallaba por eso. Se
+mide por id.

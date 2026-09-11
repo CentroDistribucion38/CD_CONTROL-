@@ -275,6 +275,19 @@ export type Novedad = {
   viaje_id: string | null;
   placa: string;
   fecha: string;
+  /** La hora, cuando se supo. En un día entran varios camiones del mismo
+   *  origen: sin hora, dos novedades del mismo día no se distinguen. */
+  hora: string | null;
+  /** Copiados del viaje al reportar, o tecleados si no hay viaje. Se
+   *  copian y no se leen del viaje cada vez: una novedad ya mandada
+   *  tiene que seguir diciendo lo que decía cuando se mandó. */
+  factura: string | null;
+  lote: string | null;
+  sku: string | null;
+  /** Cuánto vino mal, y en qué. Sin esto la novedad dice QUÉ pasó pero
+   *  no CUÁNTO hay que cobrar. */
+  cantidad: number | null;
+  unidad: "estibas" | "cajas" | "unidades" | null;
   descripcion: string | null;
   foto_ruta: string | null;
   cd_responsable: string | null;

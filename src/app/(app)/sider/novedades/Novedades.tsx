@@ -44,7 +44,10 @@ const cuando = (s: string | null) =>
         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
       }) : "—";
 
-type Viaje = { id: string; placa: string; cd_origen: string; descripcion: string };
+type Viaje = {
+  id: string; placa: string; cd_origen: string; descripcion: string;
+  sku: string | null; factura: string | null; lote: string | null;
+};
 
 const VACIO = {
   tramo: "t1" as "t1" | "t2",
@@ -53,6 +56,16 @@ const VACIO = {
   placa: "",
   responsable: "",
   fecha: "",
+  hora: "",
+  /* Factura, lote y SKU: se rellenan solos al escoger el viaje y se
+     pueden corregir. El viaje es la propuesta —ahorra teclear tres
+     campos que casi siempre son los mismos—, pero quien tiene el papel
+     en la mano puede ver que la factura del sistema no es la que trae
+     el camión. */
+  factura: "",
+  lote: "",
+  cantidad: "",
+  unidad: "estibas",
   descripcion: "",
 };
 
@@ -148,6 +161,9 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
     if (!conViaje && !n.placa.trim()) { setMal("Sin viaje hay que escribir la placa."); return }
     if (!n.fecha) { setMal("Falta la fecha."); return }
     if (n.fecha > HOY()) { setMal("La fecha no puede ser futura."); return }
+    if (n.cantidad.trim() && !(Number(n.cantidad) > 0)) {
+      setMal("La cantidad afectada tiene que ser un número mayor que cero."); return;
+    }
 
     const elMotivo = motivos.find((m) => m.clave === n.motivo);
     setEnviando(true);
@@ -157,6 +173,12 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
       p_motivo: n.motivo,
       p_placa: n.placa.trim().toUpperCase(),
       p_fecha: n.fecha,
+      p_hora: n.hora || null,
+      p_factura: n.factura.trim().toUpperCase() || null,
+      p_lote: n.lote.trim().toUpperCase() || null,
+      p_sku: null,
+      p_cantidad: n.cantidad.trim() ? Number(n.cantidad) : null,
+      p_unidad: n.cantidad.trim() ? n.unidad : null,
       p_descripcion: n.descripcion.trim() || null,
       p_viaje_id: conViaje ? n.viajeId : null,
       p_foto_ruta: null,
@@ -307,7 +329,15 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
               <label className="ancho">
                 <span>¿De cuál viaje?</span>
                 <select value={n.viajeId}
-                        onChange={(e) => setN({ ...n, viajeId: e.target.value, placa: "" })}>
+                        onChange={(e) => {
+                          /* Se copian AL ESCOGER, no al enviar: así se
+                             ven antes de mandar y se pueden corregir. */
+                          const v = viajes.find((x) => x.id === e.target.value);
+                          setN({
+                            ...n, viajeId: e.target.value, placa: "",
+                            factura: v?.factura ?? "", lote: v?.lote ?? "",
+                          });
+                        }}>
                   <option value="">Ninguno — escribo la placa</option>
                   {viajes.map((v) => (
                     <option key={v.id} value={v.id}>
@@ -341,6 +371,46 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
               <span>¿Cuándo pasó?</span>
               <input type="date" value={n.fecha} max={HOY()}
                      onChange={(e) => setN({ ...n, fecha: e.target.value })} />
+            </label>
+
+            <label>
+              <span>¿A qué hora? (opcional)</span>
+              <input type="time" value={n.hora}
+                     onChange={(e) => setN({ ...n, hora: e.target.value })} />
+              <em>En un día entran varios camiones del mismo origen.</em>
+            </label>
+
+            {/* LO QUE HACE FALTA PARA RECLAMAR. Si para armar el reclamo
+                hay que ir a buscar la factura a un lado y el lote a otro,
+                el reclamo se deja para después y después se olvida. */}
+            <label>
+              <span>Factura</span>
+              <input value={n.factura} placeholder="FE-4471"
+                     onChange={(e) => setN({ ...n, factura: e.target.value.toUpperCase() })} />
+              {n.viajeId !== "" && <em>Viene del viaje. Si el papel dice otra, corrígela.</em>}
+            </label>
+
+            <label>
+              <span>Lote</span>
+              <input value={n.lote} placeholder="L2609A"
+                     onChange={(e) => setN({ ...n, lote: e.target.value.toUpperCase() })} />
+            </label>
+
+            <label>
+              <span>¿Cuánto vino mal?</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="number" inputMode="decimal" step="0.01" min="0"
+                       style={{ flex: "1 1 90px", minWidth: 0 }}
+                       value={n.cantidad} placeholder="3"
+                       onChange={(e) => setN({ ...n, cantidad: e.target.value })} />
+                <select value={n.unidad} style={{ flex: "0 1 120px" }}
+                        onChange={(e) => setN({ ...n, unidad: e.target.value })}>
+                  <option value="estibas">estibas</option>
+                  <option value="cajas">cajas</option>
+                  <option value="unidades">unidades</option>
+                </select>
+              </div>
+              <em>Sin esta cifra la novedad dice qué pasó, pero no cuánto hay que cobrar.</em>
             </label>
 
             <label className="ancho">
@@ -385,7 +455,9 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
               <span className={"nv-tramo " + x.tramo}>{x.tramo.toUpperCase()}</span>
               <h3>{x.motivo_nombre}</h3>
               <span className="nv-placa">{x.placa}</span>
-              <span className="nv-fecha">{dia(x.fecha)}</span>
+              <span className="nv-fecha">
+                {dia(x.fecha)}{x.hora ? ` · ${x.hora.slice(0, 5)}` : ""}
+              </span>
               {/* Los días son lo que convierte un renglón en un problema:
                   "lleva 12 días" se entiende sin leer nada más. */}
               <span className={"nv-dias" + (x.estado === "abierta" && x.dias >= 7 ? " largo" : "")}>
@@ -406,6 +478,23 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                 </span>
               )}
             </div>
+
+            {/* EL PAPEL DEL RECLAMO, en la misma fila. Una novedad es lo
+                que se le manda al CD de origen: si para armarla hay que
+                buscar la factura a un lado, el lote a otro y la cantidad
+                en la cabeza de alguien, el reclamo se deja para después
+                y después se olvida. Lo que no se sepa no se pinta: un
+                "Factura: —" en cada renglón es ruido. */}
+            {(x.factura || x.lote || x.cantidad != null) && (
+              <div className="nv-papel">
+                {x.cantidad != null && (
+                  <span className="nv-cant"><b>{x.cantidad}</b> {x.unidad}</span>
+                )}
+                {x.factura && <span>Factura <b>{x.factura}</b></span>}
+                {x.lote && <span>Lote <b>{x.lote}</b></span>}
+                {x.sku && <span>SKU <b>{x.sku}</b></span>}
+              </div>
+            )}
 
             {x.descripcion && <p className="nv-dice">{x.descripcion}</p>}
 

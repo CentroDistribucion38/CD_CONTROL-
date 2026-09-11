@@ -90,6 +90,11 @@ export type Viaje = {
   descripcion: string;
   tipo_envase: string | null;
   estibas: number;
+  /** El papel del viaje. Se piden al certificar la salida, aunque el
+   *  viaje venga perfecto: así TODO viaje queda documentado y no solo
+   *  los que salen con problema. Los 200 importados no los traen. */
+  factura: string | null;
+  lote: string | null;
   estado: "en_transito" | "recibido" | "anulado";
   /** Vino de un archivo, no de una certificación: no tiene evidencia. */
   importado: boolean;

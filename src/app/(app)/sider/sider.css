@@ -2707,3 +2707,17 @@
   .sd .nv-pie { align-items: stretch }
   .sd .nv-pie .us-mini { width: 100% }
 }
+
+/* EL PAPEL DEL RECLAMO dentro de una novedad: factura, lote, SKU y
+   cuánto vino mal. Va en su propia línea y con las cifras en negrita,
+   porque es lo que alguien va a copiar en un correo o leer por teléfono.
+   La cantidad va primero y más grande: es el número que se cobra. */
+.sd .nv-papel {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px dashed var(--c-d5dce5);
+  font-size: 12.5px; color: var(--c-5b6b7f);
+}
+.sd .nv-papel b { color: var(--c-04203f); font-weight: 700 }
+.sd .nv-papel .nv-cant { font-size: 14px }
+.sd .nv-papel .nv-cant b { font-size: 16px }

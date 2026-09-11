@@ -60,8 +60,12 @@ export default async function NovedadesPage() {
       <Novedades
         novedades={novedades}
         motivos={motivos}
+        /* Se pasan también factura, lote y SKU: al escoger el viaje, el
+           formulario los copia para no teclear tres campos que ya están
+           en la base. */
         viajes={viajes.viajes.map((v) => ({
           id: v.id, placa: v.placa, cd_origen: v.cd_origen, descripcion: v.descripcion,
+          sku: v.sku ?? null, factura: v.factura ?? null, lote: v.lote ?? null,
         }))}
         hilo={hilo}
         nombres={nombres}
