@@ -59,6 +59,7 @@ export default async function MisAccionesPage() {
         motivos={ms}
         plazos={par.plazos}
         puedeEditar={permisos.puedeEditar("/acciones/mias")}
+        manda={permisos.manda}
       />
     </div>
   );

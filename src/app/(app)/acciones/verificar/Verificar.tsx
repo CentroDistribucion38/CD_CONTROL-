@@ -21,13 +21,15 @@ import { Evidencia } from "../Evidencia";
  * causa raíz y tiene responsable de PROCESO, no de turno. Abrir una
  * cuarta corrección sería repetir el ciclo que ya falló tres veces.
  */
-export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
+export function Verificar({ acciones, carga, nombres, veces, puedeEditar, manda }: {
   acciones: Accion[];
   carga: Carga[];
   nombres: Record<string, string>;
   /** Cuántas veces tiene que repetirse algo antes de exigir preventiva. */
   veces: number;
   puedeEditar: boolean;
+  /** El administrador: el único que corrige y quita del seguimiento. */
+  manda: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -226,7 +228,7 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
                   </div>
                 )}
 
-                {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} />}
+                {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} manda={manda} />}
 
                 {abierta === a.id && (
                   <div className="panel">

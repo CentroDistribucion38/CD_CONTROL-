@@ -888,3 +888,21 @@
   min-height: 38px; display: inline-flex; align-items: center; background: #fff;
 }
 .ac-alerta .ir:hover { border-color: var(--ac-gris) }
+
+/* Las marcas del seguimiento: quién corrigió y quién quitó. Van en el
+   mismo renglón de quién escribió y no escondidas en un "ver detalle",
+   porque una marca que hay que abrir no la abre nadie. */
+.ac .ev-linea .marca { font-size: 11px; color: var(--ac-gris); font-style: italic }
+.ac .ev-linea .antes {
+  margin-top: 3px; font-size: 11.5px; color: var(--ac-gris);
+  border-left: 2px solid var(--ac-linea); padding-left: 8px;
+}
+.ac .ev-linea.quitada { border-left-style: dashed }
+.ac .ev-linea .dice.apagado { color: var(--ac-gris); font-style: italic }
+.ac .ev-mandos { display: flex; gap: 12px; margin-top: 5px }
+.ac .ev-mandos button {
+  font: inherit; font-size: 11.5px; font-weight: 700; background: transparent;
+  border: 0; padding: 6px 0; min-height: 32px; cursor: pointer; color: var(--ac-gris);
+}
+.ac .ev-mandos button:hover { color: var(--ac-tinta); text-decoration: underline }
+.ac .ev-mandos button.mal:hover { color: var(--ac-mal) }

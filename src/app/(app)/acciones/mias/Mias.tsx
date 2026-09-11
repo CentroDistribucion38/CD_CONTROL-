@@ -28,12 +28,14 @@ import { Reportar } from "../Reportar";
  * fotos del piso con tal de pasar al siguiente paso. Lo que sí se dice,
  * con esas palabras, es qué pierde un cierre sin foto.
  */
-export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
+export function Mias({ acciones, zonas, motivos, plazos, puedeEditar, manda }: {
   acciones: Accion[];
   zonas: Zona[];
   motivos: Motivo[];
   plazos: Record<string, { horas: number; etiqueta: string }>;
   puedeEditar: boolean;
+  /** El administrador: el único que corrige y quita del seguimiento. */
+  manda: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -223,7 +225,7 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
                   </div>
                 </div>
               )}
-              {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} />}
+              {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} manda={manda} />}
             </Fila>
           ))}
 
@@ -254,7 +256,7 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
                       </span>
                     )}
                   </div>
-                  {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} />}
+                  {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} manda={manda} />}
                 </Fila>
               ))}
             </>

@@ -49,6 +49,7 @@ export default async function AccionesPage() {
         areas={as}
         plazos={par.plazos}
         puedeEditar={permisos.puedeEditar("/acciones")}
+        manda={permisos.manda}
       />
     </div>
   );

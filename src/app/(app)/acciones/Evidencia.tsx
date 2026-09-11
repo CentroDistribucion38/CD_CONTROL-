@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
+import { useConfirmar } from "@/components/Confirmar";
 import type { Accion, Comentario, FotoAccion } from "@/modulos/acciones/datos";
 
 /**
@@ -39,19 +40,25 @@ const RANURAS = [
   { id: "cierre", t: "Cómo quedó", d: "La foto de después, del momento de cerrar" },
 ] as const;
 
-export function Evidencia({ accion, puedeEditar }: {
+export function Evidencia({ accion, puedeEditar, manda }: {
   accion: Accion;
   puedeEditar: boolean;
+  /** El administrador. Es el único que puede corregir y quitar del hilo. */
+  manda?: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
+  const [pedir, dialogo] = useConfirmar();
 
   const [datos, setDatos] = useState<Datos | null>(null);
   const [cargando, setCargando] = useState(true);
   const [grande, setGrande] = useState<FotoAccion | null>(null);
   const [texto, setTexto] = useState("");
   const [mandando, setMandando] = useState(false);
+  /* Cuál comentario está en corrección, y con qué texto. */
+  const [editando, setEditando] = useState<string | null>(null);
+  const [nuevo, setNuevo] = useState("");
 
   const traer = useCallback(async () => {
     setCargando(true);
@@ -80,6 +87,36 @@ export function Evidencia({ accion, puedeEditar }: {
     router.refresh();
   }
 
+  async function corregir(id: string) {
+    setMandando(true);
+    const { error } = await supabase.rpc("accion_comentario_editar", {
+      p_id: id, p_texto: nuevo.trim(),
+    });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien("Corregido. El hilo queda marcado con quién lo corrigió.");
+    setEditando(null);
+    await traer();
+  }
+
+  async function quitar(id: string) {
+    const si = await pedir({
+      titulo: "¿Quitar este comentario del seguimiento?",
+      dice: "No se borra de verdad: la línea se queda diciendo que tú lo quitaste y cuándo. " +
+            "Un hueco silencioso en una conversación de ocho días es justo lo que este módulo " +
+            "existe para no permitir.",
+      confirmar: "Sí, quitarlo",
+      peligro: true,
+    });
+    if (!si) return;
+    setMandando(true);
+    const { error } = await supabase.rpc("accion_comentario_borrar", { p_id: id });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien("Quitado del seguimiento.");
+    await traer();
+  }
+
   const fecha = (s: string | null) =>
     s ? new Date(s).toLocaleString("es-CO", {
       day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
@@ -90,6 +127,7 @@ export function Evidencia({ accion, puedeEditar }: {
   return (
     <div className="panel ev">
       {avisos}
+      {dialogo}
 
       {/* La foto en grande. Se abre sobre todo porque una foto de
           evidencia se mira para DECIDIR, y en 160 px no se decide nada. */}
@@ -205,9 +243,55 @@ export function Evidencia({ accion, puedeEditar }: {
         )}
 
         {datos?.hilo.map((c) => (
-          <div className="ev-linea" key={c.id}>
+          <div className={"ev-linea" + (c.borrado_en ? " quitada" : "")} key={c.id}>
             <b>{quien(c.escrito_por)}</b> · {fecha(c.escrito_en)}
-            <div className="dice">{c.texto}</div>
+
+            {/* Las marcas, en el mismo renglón de quién escribió: si
+                estuvieran escondidas en un "ver detalle" no servirían
+                para nada, porque nadie las abriría. */}
+            {c.editado_en && !c.borrado_en && (
+              <span className="marca" title={c.texto_original ?? undefined}>
+                {" · corregido por "}{quien(c.editado_por)}{" el "}{fecha(c.editado_en)}
+              </span>
+            )}
+
+            {c.borrado_en ? (
+              <div className="dice apagado">
+                Quitado por {quien(c.borrado_por)} el {fecha(c.borrado_en)}.
+              </div>
+            ) : editando === c.id ? (
+              <div className="ev-decir" style={{ marginTop: 6 }}>
+                <textarea rows={2} value={nuevo} autoFocus
+                          onChange={(e) => setNuevo(e.target.value)} />
+                <button type="button" className="btn si"
+                        disabled={mandando || nuevo.trim().length < 3}
+                        onClick={() => corregir(c.id)}>
+                  {mandando ? "Guardando…" : "Guardar"}
+                </button>
+                <button type="button" className="btn plano" onClick={() => setEditando(null)}>
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="dice">{c.texto}</div>
+                {c.texto_original && (
+                  <div className="antes">Antes decía: “{c.texto_original}”</div>
+                )}
+                {manda && (
+                  <div className="ev-mandos">
+                    <button type="button"
+                            onClick={() => { setEditando(c.id); setNuevo(c.texto) }}>
+                      Corregir
+                    </button>
+                    <button type="button" className="mal" disabled={mandando}
+                            onClick={() => quitar(c.id)}>
+                      Quitar
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         ))}
 
@@ -227,7 +311,12 @@ export function Evidencia({ accion, puedeEditar }: {
             días es una conversación, y si esa conversación se puede
             reescribir después no sirve para explicar por qué se demoró. */}
         <p className="ev-nota">
-          El seguimiento solo se agrega: no se edita ni se borra.
+          {manda
+            ? "El seguimiento solo se agrega. Como administrador puedes corregir y quitar, y las " +
+              "dos cosas quedan marcadas con tu nombre: un hilo que se reescribe sin marca deja " +
+              "de servir como registro."
+            : "El seguimiento solo se agrega: no se edita ni se borra. Si algo quedó mal escrito, " +
+              "un administrador puede corregirlo, y queda dicho que lo corrigió."}
         </p>
       </div>
     </div>

@@ -322,6 +322,15 @@ export type Comentario = {
   texto: string;
   escrito_por: string | null;
   escrito_en: string;
+  /* Las marcas. El hilo sigue siendo solo-agrega para todo el mundo
+     menos el administrador, y cuando él toca algo QUEDA ESCRITO: un
+     hilo que se puede reescribir sin marca no es un registro, es un
+     borrador. */
+  texto_original: string | null;
+  editado_en: string | null;
+  editado_por: string | null;
+  borrado_en: string | null;
+  borrado_por: string | null;
 };
 
 export async function evidenciaDeAccion(id: string) {
@@ -333,7 +342,8 @@ export async function evidenciaDeAccion(id: string) {
       .eq("accion_id", id)
       .order("subida_en", { ascending: true }),
     supabase.from("acciones_hilo")
-      .select("id, texto, escrito_por, escrito_en")
+      .select("id, texto, escrito_por, escrito_en, texto_original, " +
+              "editado_en, editado_por, borrado_en, borrado_por")
       .eq("accion_id", id)
       .order("escrito_en", { ascending: true }),
   ]);
@@ -354,7 +364,11 @@ export async function evidenciaDeAccion(id: string) {
 
   return {
     fotos: filas.map((x, i) => ({ ...x, url: urls[i] })) as FotoAccion[],
-    hilo: (h.data ?? []) as Comentario[],
+    /* `as unknown as` y no un cast directo: PostgREST tipa la respuesta
+       de un select con cadena larga como un tipo genérico que TypeScript
+       no reconoce como compatible. El error era del tipado de la
+       librería, no de los datos. */
+    hilo: (h.data ?? []) as unknown as Comentario[],
     falta: false,
   };
 }

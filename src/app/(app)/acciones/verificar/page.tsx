@@ -38,6 +38,7 @@ export default async function VerificarPage() {
         nombres={nombres}
         veces={par.par["reincidencia_veces"] ?? 3}
         puedeEditar={permisos.puedeEditar("/acciones/verificar")}
+        manda={permisos.manda}
       />
     </div>
   );

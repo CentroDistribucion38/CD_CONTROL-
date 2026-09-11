@@ -1,89 +1,49 @@
-Acciones: la evidencia se puede ver, el seguimiento, la alerta del turno
-y la exportacion
+El administrador puede corregir y quitar del seguimiento, dejando marca
 
-LAS FOTOS YA SE VEN. Era lo mas grave: se tomaban, se sellaban con hora
-y coordenadas, se subian al bucket — y no habia una sola pantalla que
-las mostrara. Toda la maquinaria de evidencia producia algo que nadie
-podia mirar.
+El hilo nacio "solo agrega, nunca edita ni borra", y la razon era buena:
+una accion que lleva ocho dias es una conversacion, y si esa
+conversacion se puede reescribir despues no sirve para explicar por que
+se demoro.
 
-Ahora cada accion se abre con el boton "Ver" y muestra el ANTES y el
-DESPUES lado a lado, con su hora, sus coordenadas y su precision, y la
-foto se agranda al tocarla: una foto de evidencia se mira para DECIDIR,
-y en 160 px no se decide nada.
+Pero eso dejaba al administrador sin salida en dos casos que pasan de
+verdad: alguien escribio el comentario en la accion equivocada, o
+escribio algo que no debia quedar ahi —un nombre, un dato personal, una
+groseria—. Sin poder tocarlo, la unica salida era entrar a la base por
+detras, que es PEOR: ahi si no queda rastro de nada.
 
-Las dos ranuras se pintan SIEMPRE, aunque una este vacia. El hueco del
-"despues" es la pregunta "¿y como quedo?", y esa pregunta es la que hace
-que alguien suba la segunda foto. Sin dibujar, nadie sabria que existe.
+LA SOLUCION NO ES PERMITIRLO EN SILENCIO, ES PERMITIRLO CON MARCA.
 
-FOTO DE CIERRE, opcional a proposito. Al cerrar una accion se puede
-tomar la foto de como quedo, sellada en el telefono igual que la del
-hallazgo. No es obligatoria porque hay cosas que no se pueden
-fotografiar, y una foto obligatoria en esos casos produce fotos del piso
-con tal de pasar al siguiente paso. Lo que si se dice, con esas
-palabras, es que sin ella verificar es creerle a un texto.
+  CORREGIR  el texto cambia, el ORIGINAL se guarda, y la linea queda
+            diciendo "corregido por Fulano el tal dia". Debajo se lee
+            "Antes decia: ...". Quien lea el hilo sabe que se toco.
+  QUITAR    el comentario no desaparece: la fila se queda y la linea
+            dice "Quitado por Fulano el tal dia". Se deja de ver el
+            texto, no la huella. Un hueco silencioso en una conversacion
+            de ocho dias es justo lo que este modulo existe para no
+            permitir.
 
-La foto va DESPUES del cierre porque su ruta lleva el id. Si no sube, la
-accion ya quedo cerrada — perder el cierre por una imagen seria cambiar
-lo importante por lo accesorio.
+La diferencia entre las dos cosas es todo: un hilo que se puede
+reescribir sin dejar marca no es un registro, es un borrador. Uno que se
+puede corregir DEJANDO marca sigue siendo un registro, y ademas sirve.
 
-EL SEGUIMIENTO, que estaba en la base y ninguna pantalla usaba. La
-historia completa en orden: quien reporto, quien la asigno y a quien,
-quien cerro y que hizo, quien verifico y que encontro, mas lo que
-escriba la gente. Solo agrega: no se edita ni se borra. Una accion que
-lleva ocho dias es una conversacion, y si esa conversacion se puede
-reescribir despues no sirve para explicar por que se demoro.
+Las marcas van en el mismo renglon de quien escribio, no escondidas en
+un "ver detalle": una marca que hay que abrir no la abre nadie.
 
-La evidencia se pide al ABRIR la accion, no con la lista: firmar
-quinientas URL para que alguien mire una es trabajo que se paga en
-espera. Y las URL firmadas vencen en minutos, con no-store.
+SOLO DEL ADMINISTRADOR. Un supervisor sigue pudiendo agregar y nada mas.
+El dia que cualquiera pueda editar lo que otro escribio, el hilo deja de
+servir para lo que sirve. Las dos funciones piden mi_rol() = 'admin' en
+la base, asi que esconder el boton no es la unica defensa.
 
-VERIFICAR AHORA MUESTRA LA EVIDENCIA antes de decidir. Decir "fue
-efectiva" sin mirar la foto del antes y la del despues es firmar de
-memoria.
+El original se guarda UNA sola vez: la segunda correccion no lo pisa,
+porque lo que se quiere conservar es lo que decia al principio, no lo
+que decia en el intento anterior.
 
-LA ALERTA DEL TURNO. Sin esto el modulo dependia de que la gente entrara
-a mirar, y nadie entra a mirar si algo le vencio: entra cuando tiene
-tiempo, que es justo cuando ya no lo tiene. Al abrir Mis acciones sale
-lo vencido, lo que vence hoy y lo recien asignado, en ese orden — que es
-el orden en que hay que actuar, no el orden en que llego.
+Probado contra Postgres 16 real, dos veces y en una sola transaccion:
+corregir guarda el original y marca quien; la segunda correccion no pisa
+el original; un supervisor no puede corregir; dejarlo vacio se rechaza
+—para quitarlo se elimina—; eliminar deja la fila con quien lo quito; y
+eliminar dos veces o corregir lo ya eliminado se rechazan con su motivo.
 
-Solo sale si hay algo. Una barra permanente que dice "0 pendientes" se
-vuelve parte del fondo en tres dias, y el dia que diga 6 nadie la ve.
-
-Lo que NO es: una notificacion del telefono. El push de verdad necesita
-llaves VAPID y un servidor que las mande; eso no esta montado y
-prometerlo sin montarlo seria peor que no tenerlo. Esto es lo que si se
-sostiene hoy.
-
-EXPORTAR A EXCEL, tres hojas y ninguna es un volcado de la tabla:
-  RESUMEN       las cuatro cifras del arranque de turno con su semaforo,
-                el cumplimiento por area y las vencidas con nombre.
-  ACCIONES      el detalle con filtro puesto y la primera fila congelada,
-                lo vencido y lo no efectivo en rojo — en un archivo que
-                alguien filtra y ordena, el color es lo unico que
-                sobrevive al reordenamiento.
-  REINCIDENCIA  donde se repite lo mismo, con cuantas faltan para que el
-                sistema exija preventiva. Es la unica hoja que dice que
-                hacer.
-
-Un export que es la tabla de la pantalla otra vez no le sirve a nadie:
-quien lo abre ya vio la pantalla. Lo que no puede hacer alli es llevarlo
-a una reunion, escribir al lado y mandarlo por correo, y para eso tiene
-que verse terminado y no como un CSV con bordes.
-
-Se arma en el SERVIDOR: en un celular, armar un libro de mil filas en
-memoria es medio minuto de telefono trabado. Y sigue aplicando RLS —el
-cliente lleva la sesion del usuario, no una llave de servicio—, asi que
-nadie exporta lo que no podria ver en pantalla.
-
-El libro se arma en src/modulos/acciones/libro.ts, aparte de la ruta, y
-por eso se pudo generar con datos de prueba y ABRIR el archivo. Ahi
-salio un fallo: "la mas vieja, 3 dias" tomaba la primera de la lista y
-no la mas vencida, porque la funcion confiaba en el orden con que le
-llegaban. Ahora ordena ella, y da lo mismo la corran desde donde la
-corran.
-
-Falta todavia: imprimir los QR de las zonas, capturar las coordenadas de
-cada zona parado ahi, anular acciones, y decidir si el plazo debe contar
-dias habiles en vez de horas corridas (hoy una alta del viernes a las
-6 p. m. vence el domingo).
+PASO 1 — correr en Supabase:
+  supabase/migraciones/2026-09-acciones-hilo-admin.sql
+Termina con tres 'ok'.

@@ -18,7 +18,7 @@ import { Reportar } from "./Reportar";
  * cierran: se acumulan, y el plazo de 48 horas pasa a ser una promesa que
  * el sistema ya sabe que no se va a cumplir.
  */
-export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeEditar }: {
+export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeEditar, manda }: {
   acciones: Accion[];
   nombres: Record<string, string>;
   zonas: Zona[];
@@ -26,6 +26,8 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
   areas: { clave: string; nombre: string }[];
   plazos: Record<string, { horas: number; etiqueta: string }>;
   puedeEditar: boolean;
+  /** El administrador: el único que corrige y quita del seguimiento. */
+  manda: boolean;
 }) {
   const [reportando, setReportando] = useState(false);
   /* Cuál acción está abierta. Una sola a la vez: dos paneles de
@@ -159,7 +161,7 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
                 </div>
               )}
 
-              {abierta === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} />}
+              {abierta === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} manda={manda} />}
             </Fila>
           ))}
         </div>
