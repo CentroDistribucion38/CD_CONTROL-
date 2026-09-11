@@ -1,25 +1,29 @@
-La quiebra del mes tambien se escribe a mano
+El simulador no pierde el mes guardado, y las cifras llevan puntos
 
-- Tres campos escritos -CONA, % y quiebra del mes- y dos calculados:
-    Proyeccion und = CONA x %
-    Disponible     = Proyeccion - quiebra del mes
-- Por que hacia falta: hay meses en los que lo importado todavia no esta
-  completo -falta el archivo, o faltan dias del diario- y el disponible
-  salia mostrando la proyeccion entera, como si no se hubiera roto nada.
-- EL BLANCO NO ES UN CERO. En blanco quiere decir "usa la que sabe la
-  plataforma", y un cero escrito quiere decir "este mes no se rompio
-  nada". Si fueran lo mismo no habria forma de decir lo segundo sin que
-  la pantalla lo pisara con lo importado. Por eso la columna admite null.
-- Cuando lo escrito no coincide con lo que calcula la plataforma, la
-  pantalla muestra las dos cifras. Ver las dos cuando dicen lo mismo es
-  ruido; verlas cuando no, es el aviso de que una esta desactualizada.
-- La funcion de guardar pasa de 4 a 5 argumentos y la vieja se BORRA
-  antes: "create or replace" con otra cantidad de argumentos no
-  reemplaza, crea una segunda funcion con el mismo nombre y PostgREST
-  tiene que adivinar cual llamar. Comprobado que no queda ninguna.
-- Probado contra Postgres 16: escrita, en blanco, cero, mayor que la de
-  la app, negativa (rechazada) y con rol operador (rechazada). Y las
-  cuentas dan 495.924 exacto, el mismo numero de la hoja.
+SE PERDIA LO GUARDADO
+- Guardar agosto, filtrar septiembre y volver a agosto mostraba otra vez
+  el agosto VIEJO -o vacio-, con toda la pinta de que no se hubiera
+  guardado. `simuladores` viene del render del SERVIDOR y no cambia
+  porque uno guarde desde el navegador.
+- Ahora lo que esta sesion guarda se queda en la pantalla, y ademas se le
+  pide al servidor la version buena -que trae quien y cuando-.
+- Probado en el navegador con el calendario de verdad, siguiendo el mismo
+  camino que describio Cristian: filtrar agosto, escribir, guardar, irse
+  a septiembre (queda vacio, correcto: septiembre no tiene nada guardado)
+  y volver a agosto. Todo sigue ahi.
+
+LOS PUNTOS DE MILES
+- CONA y quiebra del mes se escriben con separador mientras se teclea:
+  85.166.358 en vez de 85166358. El porcentaje no lleva separador -es
+  2,65- y conserva la coma decimal.
+- El cursor se devuelve a su sitio contando DIGITOS y no caracteres: al
+  reescribir el valor el navegador lo manda al final, y corregir un
+  digito en la mitad de "85.166.358" se volvia imposible.
+- OJO CON EL PUNTO: al llevar separador de miles, "85.166.358" tiene
+  puntos que NO son decimales. El lector viejo quitaba todo menos digitos
+  y puntos y daba 85,166 -cinco ordenes de magnitud menos- y el
+  disponible salia absurdo sin que nada pareciera roto. Las unidades son
+  enteras: solo digitos. Once casos probados.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Baja, Produccion, Meta, Carga, MesAnio } from "@/modulos/quiebra/datos";
 import { Calendario, useAfuera } from "@/components/CalendarioRango";
 import { TablaAnio } from "@/components/TablaAnio";
@@ -433,6 +434,39 @@ export function TableroQuiebra({
   );
 }
 
+/* ---------- Escribir cifras con los puntos puestos ----------
+   Se reformatea EN CADA TECLA y hay que devolver el cursor a su sitio:
+   al reescribir el valor, el navegador lo manda al final, y corregir un
+   dígito en la mitad de "85.166.358" se vuelve imposible. El truco es
+   contar DÍGITOS antes del cursor —no caracteres— y volver a esa
+   posición contando dígitos otra vez: así los puntos que entran o salen
+   no lo corren. */
+const soloDigitos = (t: string) => t.replace(/\D/g, "");
+const conPuntos = (t: string) => {
+  const d = soloDigitos(t);
+  return d === "" ? "" : nf.format(Number(d));
+};
+function alEscribirCifra(
+  e: React.ChangeEvent<HTMLInputElement>,
+  poner: (v: string) => void
+) {
+  const caja = e.target;
+  const antes = caja.selectionStart ?? caja.value.length;
+  const digitosAntes = soloDigitos(caja.value.slice(0, antes)).length;
+  const nuevo = conPuntos(caja.value);
+  poner(nuevo);
+  /* Después de que React repinte: si se hiciera ya mismo, el valor de la
+     caja todavía es el viejo y el cursor quedaría mal igual. */
+  requestAnimationFrame(() => {
+    let i = 0, vistos = 0;
+    while (i < nuevo.length && vistos < digitosAntes) {
+      if (/\d/.test(nuevo[i])) vistos++;
+      i++;
+    }
+    caja.setSelectionRange(i, i);
+  });
+}
+
 /* ==================== EL SIMULADOR DE CONA ====================
    La pregunta que responde es una sola: cuánta quiebra me queda antes de
    pasarme del tope del mes.
@@ -463,6 +497,7 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
   hasta: string;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   /* EL MES DEL QUE SE HABLA ES EL DEL "HASTA" DEL FILTRO, no el de hoy.
      De enero a agosto, esta tarjeta habla de agosto; de enero a julio,
@@ -473,17 +508,25 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
   const anio = Number(hasta.slice(0, 4));
   const mes = Number(hasta.slice(5, 7));
   const nombreMes = MESES_LARGO[mes - 1] ?? "";
+  /* LO QUE SE ACABA DE GUARDAR, sin esperar al servidor.
+     `guardados` viene del render del servidor y no cambia porque uno
+     guarde: guardar agosto, irse a septiembre y volver mostraba otra vez
+     el agosto VIEJO, con toda la pinta de que no se hubiera guardado.
+     Se queda aquí lo que esta sesión ya escribió, y router.refresh()
+     trae después la versión del servidor —que dirá lo mismo—. */
+  const [propios, setPropios] = useState<Record<string, Guardado>>({});
+  const llaveMes = `${anio}-${mes}`;
   const guardado = useMemo(
-    () => guardados.find((g) => g.anio === anio && g.mes === mes) ?? null,
-    [guardados, anio, mes]
+    () => propios[llaveMes] ?? guardados.find((g) => g.anio === anio && g.mes === mes) ?? null,
+    [propios, llaveMes, guardados, anio, mes]
   );
 
   /* Se guarda como fracción y se escribe como porcentaje: la conversión
      vive AQUÍ y en un solo sitio. */
   const comoTexto = (g: Guardado | null) => ({
-    cona: g ? String(g.cona) : "",
+    cona: g ? nf.format(Math.round(g.cona)) : "",
     pct: g ? String(+(g.pct * 100).toFixed(4)).replace(".", ",") : "",
-    baja: g && g.baja != null ? String(g.baja) : "",
+    baja: g && g.baja != null ? nf.format(Math.round(g.baja)) : "",
   });
 
   const [cona, setCona] = useState(() => comoTexto(guardado).cona);
@@ -509,8 +552,14 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
     setAviso(null);
   }, [anio, mes, guardado]);
 
-  const nCona = Number(cona.replace(/[^\d.-]/g, ""));
-  const nPct = Number(pct.replace(",", ".").replace(/[^\d.-]/g, "")) / 100;
+  /* OJO CON EL PUNTO. Desde que las cifras se escriben con separador de
+     miles, "85.166.358" tiene puntos que NO son decimales: quitar todo
+     menos dígitos y puntos daba 85,166 en vez de 85.166.358 —cinco
+     órdenes de magnitud menos— y el disponible salía absurdo sin que
+     nada pareciera roto. Las unidades son enteras: solo dígitos.
+     El porcentaje es el único con decimales, y su separador es la coma. */
+  const nCona = Number(soloDigitos(cona));
+  const nPct = Number(pct.replace(",", ".").replace(/[^\d.]/g, "")) / 100;
   const hay = cona.trim() !== "" && pct.trim() !== "" &&
               Number.isFinite(nCona) && Number.isFinite(nPct) && nCona > 0 && nPct > 0;
 
@@ -524,7 +573,7 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
      El blanco no es un cero: en blanco quiere decir "usa la tuya", y un
      cero escrito quiere decir "este mes no se rompió nada". */
   const delaApp = meses.find((m) => m.anio === anio && m.num_mes === mes)?.baja ?? 0;
-  const nBaja = Number(baja.replace(/[^\d.-]/g, ""));
+  const nBaja = Number(soloDigitos(baja));
   const bajaEscrita = baja.trim() !== "" && Number.isFinite(nBaja) && nBaja >= 0;
   const delMes = bajaEscrita ? nBaja : delaApp;
   /* Se avisa solo cuando de verdad discrepan: ver las dos cifras cuando
@@ -561,6 +610,18 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
       });
       return;
     }
+    /* Se anota aquí mismo para que volver a este mes lo encuentre, y se
+       le pide al servidor la versión buena —que trae quién y cuándo—. */
+    setPropios((p) => ({
+      ...p,
+      [llaveMes]: {
+        anio, mes, cona: nCona, pct: nPct,
+        baja: bajaEscrita ? nBaja : null,
+        quien: guardado?.quien ?? null,
+        cuando: new Date().toISOString(),
+      },
+    }));
+    router.refresh();
     setAviso({ mal: false, texto: `Guardado para ${nombreMes} de ${anio}.` });
   }
 
@@ -590,9 +651,9 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
           <label className="sim-fila">
             <span>CONA</span>
             {esEditor ? (
-              <input inputMode="numeric" value={cona} placeholder="85166358"
+              <input inputMode="numeric" value={cona} placeholder="85.166.358"
                      aria-label={`CONA de ${nombreMes} en unidades`}
-                     onChange={(e) => setCona(e.target.value)} />
+                     onChange={(e) => alEscribirCifra(e, setCona)} />
             ) : <b>{hay ? nf.format(nCona) : "—"}</b>}
             <em>unidades a producir</em>
           </label>
@@ -619,7 +680,7 @@ function Simulador({ guardados, meses, esEditor, hasta }: {
               <input inputMode="numeric" value={baja}
                      placeholder={delaApp > 0 ? nf.format(Math.round(delaApp)) : "0"}
                      aria-label={`Quiebra de ${nombreMes} en unidades`}
-                     onChange={(e) => setBaja(e.target.value)} />
+                     onChange={(e) => alEscribirCifra(e, setBaja)} />
             ) : <b>{nf.format(Math.round(delMes))}</b>}
             <em>
               {!bajaEscrita
