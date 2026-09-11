@@ -13,7 +13,7 @@
 -- indicador de cumplimiento deja de significar algo:
 --
 --   1. EL PLAZO LO PONE LA PRIORIDAD, NO LA PERSONA.
---      Alta 48 horas, media 7 días, baja 15 días. La fecha la calcula
+--      Alta 24 horas, media 48, baja 72. La fecha la calcula
 --      la base al reportar. Nadie escribe una fecha de vencimiento.
 --
 --   2. CERRAR NO ES RESOLVER.
@@ -202,10 +202,23 @@ create table if not exists public.acciones_plazos (
 );
 
 insert into public.acciones_plazos (prioridad, horas, etiqueta) values
-  ('alta',   48,  '48 horas'),
-  ('media',  168, '7 días'),
-  ('baja',   360, '15 días')
+  ('alta',   24, '24 horas'),
+  ('media',  48, '48 horas'),
+  ('baja',   72, '72 horas')
 on conflict (prioridad) do nothing;
+
+/* LOS PLAZOS SE ACORTARON: eran 48 h / 7 días / 15 días y pasaron a
+   24 / 48 / 72 horas. Se actualizan SOLO si siguen en los valores
+   viejos. Un "do update" a secas los pisaría cada vez que se corre el
+   archivo, y el día que alguien ajuste el plazo de "media" desde la app
+   lo perdería sin enterarse: la semilla es un punto de partida, no la
+   verdad. */
+update public.acciones_plazos set horas = 24, etiqueta = '24 horas'
+ where prioridad = 'alta'  and horas = 48;
+update public.acciones_plazos set horas = 48, etiqueta = '48 horas'
+ where prioridad = 'media' and horas = 168;
+update public.acciones_plazos set horas = 72, etiqueta = '72 horas'
+ where prioridad = 'baja'  and horas = 360;
 
 /* Cuántas veces tiene que repetirse algo antes de que deje de ser mala
    suerte, y en cuántos meses. También configurable, y también leído y

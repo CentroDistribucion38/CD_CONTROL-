@@ -17,7 +17,13 @@ export type Rotura = {
   tipo: "producto_terminado" | "eer";
   color: "ambar" | "flint" | "green" | null;
   unidades: number;
+  /** Solo en producto terminado: la botella quedó entera y solo se da de
+   *  baja el líquido. No cuenta como vidrio roto. */
+  contaminadas: number | null;
   botellas: number | null;
+  /** Rotas + contaminadas. Las dos pierden el líquido. Cero en EER. */
+  unidades_liquido: number;
+  /** Botellas rotas (PT) o unidades (EER). Las contaminadas NO entran. */
   unidades_vidrio: number;
   proceso: string;
   proceso_nombre: string;

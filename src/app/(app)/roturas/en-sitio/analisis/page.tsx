@@ -48,8 +48,12 @@ export default async function AnalisisEnSitioPage() {
 
   const devueltas = vivas.filter((r) => r.estado === "no_cuenta").length;
   const pctDevueltas = vivas.length ? Math.round((devueltas / vivas.length) * 100) : 0;
-  const pt = cuentan.filter((r) => r.tipo === "producto_terminado")
-    .reduce((s, r) => s + r.unidades_vidrio, 0);
+  /* LA BAJA DE LÍQUIDO Y LA DE VIDRIO SON DOS CIFRAS, no una. Las
+     contaminadas pierden el líquido pero devuelven la botella, así que
+     entran en la primera y no en la segunda. Sumarlas sería dar de baja
+     un envase que sigue en la línea. */
+  const liquido = cuentan.reduce((s, r) => s + r.unidades_liquido, 0);
+  const contaminadas = cuentan.reduce((s, r) => s + (r.contaminadas ?? 0), 0);
 
   const causasNoAsumidas = new Set(cuentan.filter((r) => r.grupo === "no_asumida")
     .map((r) => r.causa_nombre));
@@ -64,11 +68,13 @@ export default async function AnalisisEnSitioPage() {
             Unidades de vidrio de lo que ya tiene visto bueno, por causa y por proceso. La causa
             dice de quién fue; el proceso, dónde pasó. Si un proceso pesa el doble que el
             siguiente, el problema es del proceso y no del turno que le tocó ese día.
+            Ojo con las dos bajas: la rota pierde el líquido <b>y</b> la botella; la contaminada
+            pierde solo el líquido y el envase vuelve a la línea.
           </p>
         </div>
         <div className="kpi">
           <span className="corte" aria-hidden />
-          <div className="rot">UNIDADES DE VIDRIO QUE CUENTAN</div>
+          <div className="rot">BAJA DE VIDRIO</div>
           <div className="num">{total}<span className="u">und</span></div>
           <div className="pie">{cuentan.length} roturas con visto bueno</div>
         </div>
@@ -86,14 +92,18 @@ export default async function AnalisisEnSitioPage() {
           <div className="u">{devueltas} que ABI marcó como que no cuentan</div>
         </div>
         <div className="cifra ojo">
-          <div className="rot">DE PRODUCTO TERMINADO</div>
-          <div className="n">{pt}</div>
-          <div className="u">botellas rotas dentro de las unidades</div>
+          <div className="rot">BAJA DE LÍQUIDO</div>
+          <div className="n">{liquido}</div>
+          <div className="u">
+            unidades de producto terminado: las rotas más las contaminadas
+          </div>
         </div>
         <div className="cifra">
-          <div className="rot">ROTURAS REGISTRADAS</div>
-          <div className="n">{vivas.length}</div>
-          <div className="u">sin contar las anuladas</div>
+          <div className="rot">DE ESAS, CONTAMINADAS</div>
+          <div className="n">{contaminadas}</div>
+          <div className="u">
+            pierden el líquido pero devuelven la botella: no cuentan como vidrio
+          </div>
         </div>
       </section>
 

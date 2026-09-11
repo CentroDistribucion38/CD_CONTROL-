@@ -274,3 +274,21 @@ normal nunca puede poner dos firmas —la comprobacion ni siquiera llega a
 dispararse—. La prueba 7 lo confirmo: al supervisor lo freno el rol, no
 la comprobacion. Esta se queda como red de seguridad y para el caso del
 administrador, que ahora pasa a proposito.
+
+"EMPAQUES" PASA A "UNIDADES" EN TODO EL MODULO.
+
+En la bodega se dice unidades, y el producto terminado no es la
+excepcion. Tener dos palabras para la misma cifra —empaques en producto
+terminado, unidades en EER— obliga a traducir mentalmente cada vez que
+se compara una rotura con otra, y en el informe del mes la columna no se
+puede titular de las dos maneras.
+
+Cambia en el contador del asistente, en la fila de la lista, en el
+maestro ("botellas que trae una unidad") y en el mensaje de la base:
+
+  antes: "No pueden romperse mas botellas (400) que las que caben en 10 empaques (300)"
+  ahora: "No pueden romperse mas botellas (400) que las que caben en 10 unidades (300)"
+
+Lo que NO cambia: la columna botellas_x_empaque y la causa
+"Empaque en mal estado" —esa habla del empaque fisico, que es otra cosa
+que la cifra que se cuenta—.

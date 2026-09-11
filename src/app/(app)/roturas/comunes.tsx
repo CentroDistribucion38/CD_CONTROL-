@@ -60,12 +60,23 @@ export function Fila({ r, nombres, derecha, children }: {
         </div>
 
         <div className="meta">
-          <span className="cant">{r.unidades}</span>
-          {/* UNIDADES EN LOS DOS CASOS. Producto terminado y EER se
-              cuentan igual —la bodega dice "unidades"—, y tener dos
-              palabras para la misma cifra obliga a traducir mentalmente
-              cada vez que se compara una rotura con otra. */}
-          <span>{r.unidades === 1 ? "unidad" : "unidades"}</span>
+          {/* ROTAS Y CONTAMINADAS, SEPARADAS. Las dos pierden el
+              líquido, pero solo la rota pierde la botella: juntarlas en
+              una cifra obligaría después a adivinar cuánto vidrio salió
+              de ahí. Si una de las dos es cero no se pinta: un "0
+              contaminadas" en cada fila es ruido. */}
+          {r.unidades > 0 && (
+            <>
+              <span className="cant">{r.unidades}</span>
+              <span>{r.unidades === 1 ? "rota" : "rotas"}</span>
+            </>
+          )}
+          {!!r.contaminadas && (
+            <>
+              <span className="cant">{r.contaminadas}</span>
+              <span>contaminada{r.contaminadas === 1 ? "" : "s"}</span>
+            </>
+          )}
           <span>Proceso {r.proceso_nombre}</span>
           <span className={"eti " + r.grupo}>
             {r.grupo === "no_asumida"
@@ -79,12 +90,20 @@ export function Fila({ r, nombres, derecha, children }: {
         {/* EL PRODUCTO TERMINADO SE ABRE EN DOS: las unidades de afuera
             y las botellas de adentro. Sin esta línea, el vidrio que va
             dentro del líquido no aparece en ninguna parte. */}
-        {r.tipo === "producto_terminado" && r.botellas != null && (
+        {r.tipo === "producto_terminado" && (
           <div className="meta">
-            <span>
-              De {r.unidades} unidad{r.unidades === 1 ? "" : "es"},{" "}
-              <b>{r.botellas} botella{r.botellas === 1 ? "" : "s"}</b> rotas dentro
-            </span>
+            {!!r.botellas && (
+              <span>
+                De {r.unidades} unidad{r.unidades === 1 ? "" : "es"} rota{r.unidades === 1 ? "" : "s"},{" "}
+                <b>{r.botellas} botella{r.botellas === 1 ? "" : "s"}</b> rotas dentro
+              </span>
+            )}
+            {!!r.contaminadas && (
+              <span>
+                Las {r.contaminadas} contaminada{r.contaminadas === 1 ? "" : "s"} pierden{" "}
+                <b>solo el líquido</b>: el envase vuelve a la línea
+              </span>
+            )}
           </div>
         )}
 

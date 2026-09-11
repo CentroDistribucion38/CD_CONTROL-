@@ -45,6 +45,12 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
   const [vidrio, setVidrio] = useState<"ambar" | "flint" | "green">("ambar");
   const [material, setMaterial] = useState("");
   const [unidades, setUnidades] = useState(1);
+  /* LAS CONTAMINADAS SON OTRA COSA QUE LAS ROTAS, y por eso son otro
+     contador. En la rota se pierde el líquido Y la botella; en la
+     contaminada la botella queda entera y vuelve a la línea, y solo se
+     da de baja el líquido. Sumarlas en un solo número obligaría después
+     a adivinar cuánto vidrio salió de ahí. */
+  const [contaminadas, setContaminadas] = useState(0);
   const [botellas, setBotellas] = useState<number | null>(null);
   const [tocoBotellas, setTocoBotellas] = useState(false);
 
@@ -121,8 +127,9 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
 
   useEffect(() => () => { if (foto) URL.revokeObjectURL(foto.url); }, [foto]);
 
+  const esPT = tipo === "producto_terminado";
   const puedeSeguir = paso === 1
-    ? !!material && unidades > 0
+    ? !!material && (unidades + (esPT ? contaminadas : 0)) > 0
     : !!proceso && !!causa && (!exigeFoto || !!foto);
 
   async function mandar() {
@@ -132,7 +139,8 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
     const { data, error } = await supabase.rpc("rotura_registrar", {
       p_material: material,
       p_unidades: unidades,
-      p_botellas: tipo === "producto_terminado" ? botellas : null,
+      p_contaminadas: esPT ? contaminadas : null,
+      p_botellas: esPT ? botellas : null,
       p_proceso: proceso,
       p_causa: causa,
       p_descripcion: descripcion.trim() || null,
@@ -203,7 +211,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
                volver a escoger el mismo material cinco veces es lo que
                hace que la quinta no se registre. */
             setListo(null); setMal(null); setPaso(1);
-            setUnidades(1); setTocoBotellas(false);
+            setUnidades(1); setContaminadas(0); setTocoBotellas(false);
             if (foto) { URL.revokeObjectURL(foto.url); setFoto(null) }
           }}>
             Registrar otra
@@ -238,7 +246,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
             <div className="opciones dos" style={{ marginTop: 18 }}>
               {(["producto_terminado", "eer"] as const).map((t) => (
                 <button key={t} type="button" className={tipo === t ? "on" : ""}
-                        onClick={() => { setTipo(t); setTocoBotellas(false) }}>
+                        onClick={() => { setTipo(t); setContaminadas(0); setTocoBotellas(false) }}>
                   <span className="p">{t === "eer" ? "EER" : "Producto terminado"}</span>
                   <span className="h">
                     {t === "eer" ? "Envase retornable vacío" : "Cerveza envasada"}
@@ -283,19 +291,41 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
             <div className="campo">
               <label>Unidades rotas</label>
               <div className="contador">
-                <button type="button" onClick={() => setUnidades((n) => Math.max(1, n - 1))}
+                <button type="button" onClick={() => setUnidades((n) => Math.max(0, n - 1))}
                         aria-label="Una menos">−</button>
-                <input type="number" inputMode="numeric" min={1} value={unidades}
-                       onChange={(e) => setUnidades(Math.max(1, Number(e.target.value) || 1))} />
+                <input type="number" inputMode="numeric" min={0} value={unidades}
+                       onChange={(e) => setUnidades(Math.max(0, Number(e.target.value) || 0))} />
                 <button type="button" onClick={() => setUnidades((n) => n + 1)}
                         aria-label="Una más">+</button>
               </div>
               <p className="nota">
-                En sitio siempre se cuenta en unidades. Los kilos son de la salida, no de aquí.
+                {esPT
+                  ? "Se rompió la botella: se da de baja el líquido y el vidrio."
+                  : "En sitio siempre se cuenta en unidades. Los kilos son de la salida, no de aquí."}
               </p>
             </div>
 
-            {tipo === "producto_terminado" && mat?.botellas_x_empaque && (
+            {/* EL SEGUNDO CONTADOR, solo en producto terminado. Un envase
+                retornable vacío no tiene líquido que contaminar. */}
+            {esPT && (
+              <div className="campo">
+                <label>Unidades contaminadas</label>
+                <div className="contador">
+                  <button type="button" onClick={() => setContaminadas((n) => Math.max(0, n - 1))}
+                          aria-label="Una menos">−</button>
+                  <input type="number" inputMode="numeric" min={0} value={contaminadas}
+                         onChange={(e) => setContaminadas(Math.max(0, Number(e.target.value) || 0))} />
+                  <button type="button" onClick={() => setContaminadas((n) => n + 1)}
+                          aria-label="Una más">+</button>
+                </div>
+                <p className="nota">
+                  La botella quedó entera: se da de baja <b>solo el líquido</b> y el envase
+                  vuelve a la línea. Por eso no cuenta como vidrio roto.
+                </p>
+              </div>
+            )}
+
+            {esPT && unidades > 0 && mat?.botellas_x_empaque && (
               <div className="campo">
                 <label htmlFor="rt-bot">
                   Botellas rotas adentro — caben {unidades * mat.botellas_x_empaque}

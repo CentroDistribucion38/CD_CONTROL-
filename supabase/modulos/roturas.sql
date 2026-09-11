@@ -236,8 +236,21 @@ create table if not exists public.roturas (
   tipo       rotura_tipo not null,
   color      vidrio_color,
 
-  /* LAS DOS CIFRAS DEL PRODUCTO TERMINADO. En EER solo hay unidades. */
-  unidades   integer not null check (unidades > 0),
+  /* LAS CIFRAS DEL PRODUCTO TERMINADO. En EER solo hay unidades.
+
+     ROTAS Y CONTAMINADAS NO SON LO MISMO, y confundirlas cuesta plata:
+
+       ROTA         se rompe la botella. Se dan de baja LAS DOS COSAS:
+                    el líquido y el vidrio. El vidrio sale en tolva.
+       CONTAMINADA  la botella queda entera pero el líquido no sirve.
+                    Se da de baja SOLO el líquido; el envase se recupera
+                    y vuelve a la línea.
+
+     Por eso son dos columnas y no una suma: si se contaran juntas, el
+     vidrio que sale por la puerta tendría que cuadrar con unidades que
+     nunca se rompieron, y no cuadraría nunca. */
+  unidades   integer not null check (unidades >= 0),
+  contaminadas integer check (contaminadas >= 0),
   botellas   integer check (botellas is null or botellas >= 0),
 
   proceso    text not null references public.roturas_procesos(clave),
@@ -274,9 +287,35 @@ create table if not exists public.roturas (
      la función al registrar. */
   constraint roturas_botellas_solo_pt
     check (tipo = 'producto_terminado' or botellas is null),
+  /* Las contaminadas solo existen en producto terminado: un envase
+     retornable vacío no tiene líquido que contaminar. */
+  constraint roturas_contaminadas_solo_pt
+    check (tipo = 'producto_terminado' or contaminadas is null),
+  /* Y algo tiene que haber pasado. Un reporte con cero rotas y cero
+     contaminadas es un reporte vacío. */
+  constraint roturas_algo_paso
+    check (unidades + coalesce(contaminadas, 0) > 0),
   constraint roturas_anulada_con_motivo
     check (estado <> 'anulada' or btrim(coalesce(motivo_anulacion, '')) <> '')
 );
+
+/* Las contaminadas, para quien ya tenía la tabla. Y el check viejo de
+   "unidades > 0" se reemplaza: ahora una rotura puede tener cero rotas
+   si lo que hubo fueron contaminadas. */
+alter table public.roturas add column if not exists contaminadas integer;
+alter table public.roturas drop constraint if exists roturas_unidades_check;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'roturas_algo_paso') then
+    alter table public.roturas
+      add constraint roturas_algo_paso check (unidades + coalesce(contaminadas, 0) > 0);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'roturas_contaminadas_solo_pt') then
+    alter table public.roturas
+      add constraint roturas_contaminadas_solo_pt
+      check (tipo = 'producto_terminado' or contaminadas is null);
+  end if;
+end $$;
 
 create index if not exists roturas_estado_idx  on public.roturas (estado, reportada_en desc);
 create index if not exists roturas_proceso_idx on public.roturas (proceso, reportada_en desc);
@@ -460,10 +499,12 @@ create index if not exists roturas_salida_tolvas_idx
 -- asumida sin foto no se puede marcar "cuenta".
 -- ---------------------------------------------------------------------
 drop function if exists public.rotura_registrar(text, integer, integer, text, text, text, numeric, numeric, numeric);
+drop function if exists public.rotura_registrar(text, integer, integer, integer, text, text, text, numeric, numeric, numeric);
 
 create or replace function public.rotura_registrar(
-  p_material    text,
-  p_unidades    integer,
+  p_material     text,
+  p_unidades     integer,
+  p_contaminadas integer default null,
   p_botellas    integer default null,
   p_proceso     text default null,
   p_causa       text default null,
@@ -496,8 +537,12 @@ begin
     raise exception 'Ese material no existe o está desactivado';
   end if;
 
-  if p_unidades is null or p_unidades <= 0 then
-    raise exception 'Hay que decir cuántas unidades se rompieron';
+  p_unidades     := coalesce(p_unidades, 0);
+  p_contaminadas := case when v_tipo = 'producto_terminado'
+                         then coalesce(p_contaminadas, 0) else null end;
+
+  if p_unidades + coalesce(p_contaminadas, 0) <= 0 then
+    raise exception 'Hay que decir cuántas unidades se rompieron o se contaminaron';
   end if;
 
   if not exists (select 1 from public.roturas_procesos where clave = p_proceso and activo) then
@@ -527,10 +572,11 @@ begin
   v_cod := 'RB-' || lpad(nextval('public.roturas_codigo_seq')::text, 4, '0');
 
   insert into public.roturas
-    (codigo, material, tipo, color, unidades, botellas, proceso, causa, grupo,
+    (codigo, material, tipo, color, unidades, contaminadas, botellas, proceso, causa, grupo,
      descripcion, lat, lng, precision_m, estado, reportada_por)
   values
-    (v_cod, p_material, v_tipo, v_color, p_unidades, p_botellas, p_proceso, p_causa, v_grupo,
+    (v_cod, p_material, v_tipo, v_color, p_unidades, p_contaminadas, p_botellas,
+     p_proceso, p_causa, v_grupo,
      nullif(btrim(coalesce(p_descripcion, '')), ''),
      p_lat, p_lng, p_precision, 'esperando', auth.uid())
   returning roturas.id into v_id;
@@ -539,7 +585,7 @@ begin
 end $$;
 
 grant execute on function
-  public.rotura_registrar(text, integer, integer, text, text, text, numeric, numeric, numeric)
+  public.rotura_registrar(text, integer, integer, integer, text, text, text, numeric, numeric, numeric)
 to authenticated;
 
 -- ---------------------------------------------------------------------
@@ -862,12 +908,22 @@ select
   r.tipo::text                   as tipo,
   r.color::text                  as color,
   r.unidades,
+  r.contaminadas,
   r.botellas,
-  /* LO QUE SE ROMPIÓ, EN UNA CIFRA COMPARABLE. En producto terminado
-     son las botellas de adentro; en EER son las unidades. Es la única
-     manera de sumar dos cosas que se cuentan distinto sin inventar un
-     factor: no se convierte nada, se elige cuál de las dos cifras es
-     "vidrio roto" en cada caso. */
+
+  /* LA BAJA DE LÍQUIDO. Se pierde el líquido tanto de lo roto como de
+     lo contaminado: en lo roto se derramó, en lo contaminado no sirve.
+     Es la cifra que le importa a quien responde por el producto. */
+  case when r.tipo = 'producto_terminado'
+       then r.unidades + coalesce(r.contaminadas, 0)
+       else 0 end                as unidades_liquido,
+  /* EL VIDRIO PERDIDO. En producto terminado son las botellas rotas de
+     adentro; en EER son las unidades. LAS CONTAMINADAS NO ENTRAN: la
+     botella queda entera y vuelve a la línea, así que contarla como
+     vidrio roto sería dar de baja un envase que sigue existiendo.
+     Es la única manera de sumar dos cosas que se cuentan distinto sin
+     inventar un factor: no se convierte nada, se elige cuál de las dos
+     cifras es "vidrio roto" en cada caso. */
   case when r.tipo = 'producto_terminado' then coalesce(r.botellas, 0)
        else r.unidades end       as unidades_vidrio,
   r.proceso,
