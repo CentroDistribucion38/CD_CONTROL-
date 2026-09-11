@@ -956,3 +956,23 @@
   background: var(--c-oro); color: #1A1200;
   border: 1px solid var(--c-oro); border-radius: 10px; padding: 16px;
 }
+
+/* A quién nacen asignadas las acciones nuevas. Una fila por persona,
+   la escogida marcada: es una sola decisión, no un formulario. */
+.ac .ac-defecto { display: grid; gap: 8px; padding: 12px }
+.ac .ac-def-q {
+  font: inherit; text-align: left; cursor: pointer;
+  background: #fff; border: 1px solid var(--c-d5dce5); border-radius: 10px;
+  padding: 13px 15px; min-height: 56px; color: var(--c-04203f);
+}
+.ac .ac-def-q:hover { border-color: var(--c-5b6b7f) }
+.ac .ac-def-q:disabled { opacity: .55; cursor: not-allowed }
+.ac .ac-def-q.on { border-color: var(--c-oro); border-left: 4px solid var(--c-oro) }
+.ac .ac-def-q .n {
+  display: block; font-family: var(--ac-titulo); font-weight: 800; font-size: 16px;
+}
+.ac .ac-def-q .c { display: block; font-size: 12.5px; color: var(--c-5b6b7f); margin-top: 3px }
+.ac .ac-def-q .n b.si {
+  font-size: 11px; font-weight: 800; letter-spacing: .08em;
+  color: var(--c-oro); margin-left: 8px;
+}

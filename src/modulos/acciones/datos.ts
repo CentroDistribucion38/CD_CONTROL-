@@ -424,3 +424,39 @@ export async function evidenciaDeAccion(id: string) {
     falta: false,
   };
 }
+
+/** A quién nace asignada una acción nueva. Null = nace sin dueño. */
+export async function responsableDefecto() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("acciones_ajustes").select("valor")
+    .eq("clave", "responsable_defecto").maybeSingle();
+  /* Si la tabla no está —falta la migración— no es un error de datos:
+     es que la función todavía no existe. Se devuelve "sin ajuste" y la
+     pantalla lo dice con el nombre del archivo. */
+  if (error) return { id: null as string | null, falta: true };
+  return { id: ((data as { valor: string | null } | null)?.valor ?? null), falta: false };
+}
+
+/** Todos los usuarios activos, marcando quién recibe acciones. Es la
+ *  lista del Maestro, no la de asignar: para marcar a alguien hay que
+ *  poder verlo aunque todavía no reciba nada. */
+export async function quienRecibe() {
+  const supabase = await createClient();
+  const [pf, asg] = await Promise.all([
+    supabase.from("perfiles").select("id, usuario, nombre, rol")
+      .eq("activo", true).order("nombre", { nullsFirst: false }),
+    supabase.from("acciones_asignables").select("perfil_id"),
+  ]);
+  const marcados = new Set(
+    ((asg.data ?? []) as { perfil_id: string }[]).map((x) => x.perfil_id));
+  return {
+    /* Falta la migración: se dice qué archivo, no "error". */
+    falta: !!asg.error,
+    /* Nadie marcado = reciben todos. Es lo mismo que hace la vista. */
+    todos: marcados.size === 0,
+    gente: ((pf.data ?? []) as {
+      id: string; usuario: string | null; nombre: string | null; rol: string;
+    }[]).map((p) => ({ ...p, recibe: marcados.has(p.id) })),
+  };
+}

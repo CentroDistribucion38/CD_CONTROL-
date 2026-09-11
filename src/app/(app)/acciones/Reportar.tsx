@@ -344,8 +344,25 @@ export function Reportar({ zonas, motivos, plazos, gente = [], cerrar }: Props) 
       }
     }
 
+    /* LA ACCIÓN PUEDE NACER YA ASIGNADA —hay un responsable por defecto
+       puesto en el Maestro—. Eso lo decide la base, no esta pantalla, y
+       por eso hay que preguntárselo: mostrar "todavía no tiene
+       responsable" cuando sí lo tiene es peor que no decir nada, porque
+       lleva a asignarla otra vez. */
+    let yaEs: string | null = null;
+    if (id) {
+      const { data: ya } = await supabase
+        .from("acciones").select("responsable").eq("id", id).maybeSingle();
+      const r = (ya as { responsable: string | null } | null)?.responsable ?? null;
+      if (r) {
+        const q = gente.find((g) => g.id === r);
+        yaEs = q ? (q.nombre || q.usuario || "—") : "—";
+      }
+    }
+
     setMandando(false);
     setListo({ id, codigo: fila?.codigo ?? "", vence: fila?.vence_en ?? "" });
+    setAsignada(yaEs);
     if (avisoFoto) setMal(avisoFoto.trim());
     router.refresh();
   }
@@ -426,11 +443,18 @@ export function Reportar({ zonas, motivos, plazos, gente = [], cerrar }: Props) 
               Se enseña CUÁNTO TIENE ENCIMA CADA QUIEN, igual que en la
               pantalla de asignar: doce acciones en la misma persona no
               se cierran, se acumulan. */}
-          {asignada ? (
+          {/* SI YA TIENE DUEÑO SE DICE, Y LA LISTA SIGUE ABAJO. Decir
+              "se cambia desde Todas" y quitar la lista sería volver al
+              callejón: cambiarla aquí cuesta un toque, allá cuesta
+              encontrar la acción. */}
+          {asignada && (
             <div className="aviso" style={{ marginTop: 14 }}>
-              Quedó asignada a <b>{asignada}</b>. Se puede cambiar desde <b>Todas</b>.
+              Quedó asignada a <b>{asignada}</b>.
+              {gente.length > 0 && " Si no es, escoge a otro aquí abajo."}
             </div>
-          ) : gente.length === 0 ? (
+          )}
+
+          {gente.length === 0 && !asignada ? (
             /* NUNCA UN CALLEJÓN SIN SALIDA. Si la lista no cargó, el
                camino sigue siendo asignar —no "andá a buscarla a otra
                pantalla"—, así que se va derecho a la pantalla de asignar
@@ -446,7 +470,9 @@ export function Reportar({ zonas, motivos, plazos, gente = [], cerrar }: Props) 
             </div>
           ) : (
             <>
-              <span className="rotulo">¿A quién le toca?</span>
+              <span className="rotulo">
+                {asignada ? "¿Va para otro?" : "¿A quién le toca?"}
+              </span>
               <div className="ac-rep-gente">
                 {gente.map((g) => (
                   <button key={g.id} type="button" disabled={asignando}
@@ -460,10 +486,12 @@ export function Reportar({ zonas, motivos, plazos, gente = [], cerrar }: Props) 
                   </button>
                 ))}
               </div>
-              <p className="guia" style={{ marginTop: 10 }}>
-                O déjala sin asignar: se ve y molesta en <b>Todas</b>, que es mejor que
-                dársela al primero de la lista para que el tablero se vea limpio.
-              </p>
+              {!asignada && (
+                <p className="guia" style={{ marginTop: 10 }}>
+                  O déjala sin asignar: se ve y molesta en <b>Todas</b>, que es mejor que
+                  dársela al primero de la lista para que el tablero se vea limpio.
+                </p>
+              )}
             </>
           )}
         </div>

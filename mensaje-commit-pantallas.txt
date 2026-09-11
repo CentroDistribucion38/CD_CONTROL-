@@ -540,3 +540,89 @@ veia igual que "no hay nadie"—. Ahora, si la lista no carga, lo dice y
 deja un boton que lleva derecho a la pantalla de asignar DE ESA accion,
 que ya sabe cual es. Nunca un callejon sin salida en la pantalla que
 confirma que algo quedo creado.
+
+
+LA ACCION NACE ASIGNADA. A QUIEN, LO DICE EL MAESTRO.
+
+Quien reporta casi siempre le pasa la accion al mismo: el operador
+logistico que responde por el centro. Escogerlo una por una no aporta
+nada y es donde se pierden las asignaciones.
+
+Ahora la accion NACE con dueno. La pantalla de "quedo reportada" lo
+dice y deja la lista abajo para cambiarlo de un toque —decir "se cambia
+desde Todas" y quitar la lista seria volver al callejon de antes—.
+
+NO VA QUEMADO. El nombre del contratista es un DATO de este centro, no
+una regla del programa: se escoge en el Maestro, al final, que es el
+orden en que se arma el modulo —primero existen las zonas y los
+motivos, y solo despues tiene sentido decir a quien le cae lo que se
+reporte en ellos—. Nace vacio: sin nadie puesto todo sigue igual que
+antes. El dia que cambie el OL se cambia ahi.
+
+Solo el administrador lo mueve: quien toque esto decide a quien le cae
+TODO lo que se reporte de aqui en adelante, que es una decision del
+centro y no de un turno.
+
+Y VA DENTRO DE accion_reportar, no en la pantalla: una accion que entre
+por otro camino —la cola de sin internet, manana una importacion—
+naceria sin dueno y nadie sabria por que unas si y otras no.
+
+Si la persona puesta se desactiva, la accion nace SIN dueno en vez de
+fallar. Perder el default molesta; no poder reportar para el trabajo, y
+quien esta reportando no tiene como arreglar eso.
+
+PROBADO CONTRA POSTGRES 16 REAL, por los dos caminos —instalacion nueva
+con acciones.sql, y la migracion sobre una base que ya estaba—, dos
+corridas cada uno:
+
+  0 sin nadie puesto, nace sin dueno ....... ok
+  1 poner a alguien ........................ ok
+  2 la accion nace asignada a esa persona .. ok
+  3 se puede cambiar despues ............... ok
+  4 poner a un desactivado se rechaza ...... ok
+  5 si el puesto se desactiva, nace sin
+    dueno y NO revienta el reporte ......... ok
+  6 quitar el default (dejar en nadie) ..... ok
+  7 un supervisor NO lo puede cambiar ...... ok
+
+
+EN ASIGNAR SOLO SALE QUIEN DE VERDAD RECIBE ACCIONES.
+
+La lista mostraba a TODOS los usuarios: el administrador, la cuenta de
+la bodega, el operador de turno. A ninguno de esos se le asigna una
+correctiva. Con cinco usuarios ya estorba; con veinte, escoger al que
+es se vuelve buscar, y buscar es donde se escoge al primero que
+aparece.
+
+Se marca quién recibe, en el Maestro. NO ES UN PERMISO: quien no esté
+marcado entra a la plataforma igual y ve lo mismo; lo unico que cambia
+es que no aparece en la lista de a quién pasarle trabajo.
+
+SI NO HAY NADIE MARCADO APARECEN TODOS, y la pantalla lo dice. Una
+lista vacía dejaría asignar sin nadie, y de ahí no se sale: de la lista
+larga se sale escogiendo.
+
+NO SE PUEDE SACAR AL QUE RECIBE POR DEFECTO sin cambiar antes el
+defecto. Sacarlo dejaría las acciones naciendo asignadas a alguien que
+la lista ya no muestra —con dueño en la base y sin forma de cambiarlo
+desde la pantalla—.
+
+EL FILTRO VA EN LA VISTA, no en cada pantalla: el día que alguien
+agregue una lista nueva y se le olvide filtrar, saldrían otra vez todos
+y nadie sabría por qué en una pantalla sí y en otra no.
+
+El orden del Maestro sigue el orden en que se arma el módulo: primero
+existen las zonas y los motivos; después se dice quién puede recibir lo
+que se reporte en ellos; y solo entonces a cuál de esos le llega por
+defecto.
+
+PROBADO CONTRA POSTGRES 16 REAL, instalación nueva y migración sobre
+base existente, dos corridas cada una:
+
+   8 sin nadie marcado salen todos ......... ok
+   9 marcando solo a uno, sale solo ese .... ok
+  10 no deja sacar al que recibe por
+     defecto, y dice por qué ............... ok
+  11 quitando el defecto ya se puede sacar
+     y vuelven todos ....................... ok
+  12 un supervisor no puede marcar ......... ok

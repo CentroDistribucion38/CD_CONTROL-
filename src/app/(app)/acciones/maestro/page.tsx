@@ -1,15 +1,18 @@
 import { misPermisos } from "@/lib/permisos";
 import {
   zonas, motivosTodos, areasTodas, equipos, usoDelMaestro, acciones as leerAcciones,
+  carga, responsableDefecto, quienRecibe,
 } from "@/modulos/acciones/datos";
 import "../acciones.css";
 import { SinTablas } from "../comunes";
 import { Maestro } from "./Maestro";
+import { PorDefecto } from "./PorDefecto";
+import { QuienRecibe } from "./QuienRecibe";
 
 export const dynamic = "force-dynamic";
 
 export default async function MaestroPage() {
-  const [permisos, zs, ms, as, eqs, uso, datos] = await Promise.all([
+  const [permisos, zs, ms, as, eqs, uso, datos, quienes, defecto, recibe] = await Promise.all([
     misPermisos(),
     zonas(),
     /* Los DESACTIVADOS también: si no, al desactivar uno desaparecería de
@@ -23,6 +26,9 @@ export default async function MaestroPage() {
        lo dice en vez de mostrar dos listas vacías que parecen un error
        de datos y no de instalación. */
     leerAcciones(1),
+    carga(),
+    responsableDefecto(),
+    quienRecibe(),
   ]);
 
   if (datos.falta) return <div className="ac"><SinTablas /></div>;
@@ -48,6 +54,24 @@ export default async function MaestroPage() {
         equipos={eqs}
         uso={uso}
         puedeEditar={permisos.puedeEditar("/acciones/maestro")}
+      />
+
+      {/* AL FINAL, en el orden en que se arma el módulo: primero
+          existen las zonas y los motivos; después se dice quién puede
+          recibir lo que se reporte en ellos; y solo entonces tiene
+          sentido escoger a cuál de esos le llega por defecto. */}
+      <QuienRecibe
+        gente={recibe.gente}
+        todos={recibe.todos}
+        falta={recibe.falta}
+        puedeEditar={permisos.rol === "admin"}
+      />
+
+      <PorDefecto
+        gente={quienes}
+        actual={defecto.id}
+        falta={defecto.falta}
+        puedeEditar={permisos.rol === "admin"}
       />
     </div>
   );

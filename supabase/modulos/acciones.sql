@@ -270,6 +270,30 @@ insert into public.acciones_parametros (clave, valor, nota) values
   ('carga_saturado',     10, 'Acciones abiertas a partir de las cuales se avisa que la persona está saturada.')
 on conflict (clave) do nothing;
 
+/* LOS AJUSTES QUE NO SON NÚMEROS. acciones_parametros guarda numeric;
+   el responsable por defecto es un uuid y no cabe ahí sin aflojar la
+   columna para todos. */
+create table if not exists public.acciones_ajustes (
+  clave text primary key,
+  valor text,
+  nota  text
+);
+
+insert into public.acciones_ajustes (clave, valor, nota) values
+  ('responsable_defecto', null,
+   'A quién nace asignada una acción nueva. Vacío = nace sin dueño.')
+on conflict (clave) do nothing;
+
+/* QUIÉN RECIBE ACCIONES. La lista de asignar mostraría a todos los
+   usuarios —el administrador, la cuenta de la bodega—, y a ninguno de
+   esos se le asigna una correctiva. Nadie marcado = aparecen todos:
+   una lista vacía dejaría la pantalla de asignar sin salida. */
+create table if not exists public.acciones_asignables (
+  perfil_id  uuid primary key references public.perfiles(id) on delete cascade,
+  puesto_por uuid,
+  puesto_en  timestamptz not null default now()
+);
+
 -- ---------------------------------------------------------------------
 -- 6. LAS ACCIONES
 -- ---------------------------------------------------------------------
@@ -520,6 +544,7 @@ declare
   v_zona   text;
   v_veces  integer;
   v_tope   integer;
+  v_dueno  uuid;
 begin
   if not public.es_editor() then
     raise exception 'Reportar una acción requiere rol de supervisor o administrador';
@@ -576,17 +601,33 @@ begin
       using errcode = 'P0001';
   end if;
 
+  /* EL DUEÑO POR DEFECTO. Quien reporta casi siempre le pasa la acción
+     al mismo; escogerlo una por una es donde se pierden las
+     asignaciones. Va AQUÍ y no en la pantalla: una acción que entre por
+     otro camino —la cola de sin internet— nacería sin dueño y nadie
+     sabría por qué unas sí y otras no.
+     Si el puesto ya no está activo queda en null en vez de fallar:
+     perder el default molesta; no poder reportar para el trabajo. */
+  select a.valor::uuid into v_dueno
+    from public.acciones_ajustes a
+   where a.clave = 'responsable_defecto'
+     and a.valor is not null
+     and exists (select 1 from public.perfiles p
+                  where p.id = a.valor::uuid and p.activo);
+
   v_cod := 'AC-' || lpad(nextval('public.acciones_codigo_seq')::text, 4, '0');
 
   insert into public.acciones
     (codigo, tipo, titulo, descripcion, motivo, area, zona, ubicacion,
-     lat, lng, precision_m, prioridad, vence_en, estado, reportada_por)
+     lat, lng, precision_m, prioridad, vence_en, estado, reportada_por,
+     responsable, asignada_en)
   values
     (v_cod, 'correctiva', btrim(p_titulo),
      nullif(btrim(coalesce(p_descripcion, '')), ''),
      p_motivo, v_area, v_zona,
      nullif(btrim(coalesce(p_ubicacion, '')), ''),
-     p_lat, p_lng, p_precision, v_pri, v_vence, 'abierta', auth.uid())
+     p_lat, p_lng, p_precision, v_pri, v_vence, 'abierta', auth.uid(),
+     v_dueno, case when v_dueno is not null then now() end)
   returning acciones.id into v_id;
 
   return query select v_id, v_cod, v_vence, v_veces;
@@ -595,6 +636,71 @@ end $$;
 grant execute on function
   public.accion_reportar(text, text, text, text, text, text, numeric, numeric, numeric)
 to authenticated;
+
+-- ---------------------------------------------------------------------
+-- PONER EL RESPONSABLE POR DEFECTO
+--
+-- Solo el administrador: quien mueva esto decide a quién le cae TODO lo
+-- que se reporte de aquí en adelante, que es una decisión del centro y
+-- no de un turno.
+-- ---------------------------------------------------------------------
+create or replace function public.accion_responsable_defecto(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.mi_rol() <> 'admin' then
+    raise exception 'Cambiar el responsable por defecto es del administrador';
+  end if;
+
+  if p_id is not null
+     and not exists (select 1 from public.perfiles
+                      where id = p_id and activo) then
+    raise exception 'Esa persona no existe o está desactivada';
+  end if;
+
+  insert into public.acciones_ajustes (clave, valor)
+  values ('responsable_defecto', p_id::text)
+  on conflict (clave) do update set valor = excluded.valor;
+end $$;
+
+grant execute on function public.accion_responsable_defecto(uuid) to authenticated;
+
+create or replace function public.accion_asignable(p_id uuid, p_recibe boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.mi_rol() <> 'admin' then
+    raise exception 'Cambiar quién recibe acciones es del administrador';
+  end if;
+
+  if not exists (select 1 from public.perfiles where id = p_id and activo) then
+    raise exception 'Esa persona no existe o está desactivada';
+  end if;
+
+  if p_recibe then
+    insert into public.acciones_asignables (perfil_id, puesto_por)
+    values (p_id, auth.uid())
+    on conflict (perfil_id) do nothing;
+  else
+    /* Sacar al que recibe por defecto dejaría las acciones naciendo
+       asignadas a alguien que la lista ya no muestra. */
+    if exists (select 1 from public.acciones_ajustes
+                where clave = 'responsable_defecto' and valor = p_id::text) then
+      raise exception
+        'Esa persona es la que recibe las acciones nuevas. Cambia primero el '
+        'responsable por defecto y después sácala de la lista.';
+    end if;
+    delete from public.acciones_asignables where perfil_id = p_id;
+  end if;
+end $$;
+
+grant execute on function public.accion_asignable(uuid, boolean) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- ASIGNAR
@@ -994,6 +1100,13 @@ select
 from public.perfiles pf
 left join public.acciones a on a.responsable = pf.id
 where pf.activo
+  /* Solo los que reciben. Nadie marcado = todos: una lista vacía
+     dejaría la pantalla de asignar sin salida. El filtro va EN LA
+     VISTA para que no haya una pantalla que se acuerde de filtrar y
+     otra que no. */
+  and (not exists (select 1 from public.acciones_asignables)
+       or exists (select 1 from public.acciones_asignables x
+                   where x.perfil_id = pf.id))
 group by pf.id, pf.usuario, pf.nombre, pf.rol;
 
 grant select on public.v_acciones_carga to authenticated;
@@ -1043,6 +1156,31 @@ alter table public.acciones_hilo      enable row level security;
 alter table public.acciones_origen    enable row level security;
 alter table public.acciones_plazos    enable row level security;
 alter table public.acciones_parametros enable row level security;
+alter table public.acciones_ajustes enable row level security;
+
+drop policy if exists acciones_ajustes_select on public.acciones_ajustes;
+create policy acciones_ajustes_select on public.acciones_ajustes
+  for select to authenticated using (true);
+
+drop policy if exists acciones_ajustes_write on public.acciones_ajustes;
+create policy acciones_ajustes_write on public.acciones_ajustes
+  for all to authenticated
+  using (public.mi_rol() = 'admin') with check (public.mi_rol() = 'admin');
+
+grant select, insert, update on public.acciones_ajustes to authenticated;
+
+alter table public.acciones_asignables enable row level security;
+
+drop policy if exists acciones_asignables_select on public.acciones_asignables;
+create policy acciones_asignables_select on public.acciones_asignables
+  for select to authenticated using (true);
+
+drop policy if exists acciones_asignables_write on public.acciones_asignables;
+create policy acciones_asignables_write on public.acciones_asignables
+  for all to authenticated
+  using (public.mi_rol() = 'admin') with check (public.mi_rol() = 'admin');
+
+grant select, insert, delete on public.acciones_asignables to authenticated;
 
 do $$
 declare t text;
