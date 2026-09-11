@@ -296,3 +296,65 @@ export async function hilo(ids: string[]) {
     escrito_por: string | null; escrito_en: string;
   }[];
 }
+
+/* =====================================================================
+   LA EVIDENCIA DE UNA ACCIÓN — las fotos y el seguimiento.
+
+   Va por su propia consulta y no pegada a la lista a propósito: firmar
+   quinientas URL para que alguien mire una es trabajo que se paga en
+   espera. Se pide cuando alguien abre la acción, no antes.
+   ===================================================================== */
+
+export type FotoAccion = {
+  ranura: "hallazgo" | "cierre";
+  ruta: string;
+  url: string | null;
+  tomada_en: string | null;
+  lat: number | null;
+  lng: number | null;
+  precision_m: number | null;
+  subida_por: string | null;
+  subida_en: string;
+};
+
+export type Comentario = {
+  id: string;
+  texto: string;
+  escrito_por: string | null;
+  escrito_en: string;
+};
+
+export async function evidenciaDeAccion(id: string) {
+  const supabase = await createClient();
+
+  const [f, h] = await Promise.all([
+    supabase.from("acciones_fotos")
+      .select("ranura, ruta, tomada_en, lat, lng, precision_m, subida_por, subida_en")
+      .eq("accion_id", id)
+      .order("subida_en", { ascending: true }),
+    supabase.from("acciones_hilo")
+      .select("id, texto, escrito_por, escrito_en")
+      .eq("accion_id", id)
+      .order("escrito_en", { ascending: true }),
+  ]);
+
+  if (f.error) return { fotos: [] as FotoAccion[], hilo: [] as Comentario[], falta: sinTablas(f.error.message) };
+
+  const filas = (f.data ?? []) as Omit<FotoAccion, "url">[];
+
+  /* Las URL se firman de a una y en paralelo. Vencen en minutos: que un
+     intermediario las guarde no tiene sentido y sí tiene riesgo, y por
+     eso la ruta que las sirve manda no-store. */
+  const urls = await Promise.all(
+    filas.map(async (x) => {
+      const { data } = await supabase.storage.from("acciones").createSignedUrl(x.ruta, 600);
+      return data?.signedUrl ?? null;
+    })
+  );
+
+  return {
+    fotos: filas.map((x, i) => ({ ...x, url: urls[i] })) as FotoAccion[],
+    hilo: (h.data ?? []) as Comentario[],
+    falta: false,
+  };
+}

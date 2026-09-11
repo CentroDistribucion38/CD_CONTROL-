@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Accion, Motivo, Zona } from "@/modulos/acciones/datos";
 import { useAvisos } from "@/components/Aviso";
+import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
 import { Fila, fecha } from "../comunes";
+import { Evidencia } from "../Evidencia";
 import { Reportar } from "../Reportar";
 
 /**
@@ -18,6 +20,13 @@ import { Reportar } from "../Reportar";
  * CERRAR PIDE ESCRIBIR QUÉ SE HIZO, y no es burocracia: quien verifica
  * después necesita saber qué fue lo que se intentó para poder decir si
  * sirvió. "Listo" no le sirve a nadie, y la base lo rechaza.
+ *
+ * Y PIDE —sin obligar— LA FOTO DE CÓMO QUEDÓ. Con la del hallazgo al
+ * lado, el antes y el después se ven de un vistazo y verificar deja de
+ * ser creerle a un texto. No es obligatoria a propósito: hay cosas que
+ * no se pueden fotografiar, y una foto obligatoria en esos casos produce
+ * fotos del piso con tal de pasar al siguiente paso. Lo que sí se dice,
+ * con esas palabras, es qué pierde un cierre sin foto.
  */
 export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
   acciones: Accion[];
@@ -34,6 +43,35 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
   const [cerrando, setCerrando] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [mandando, setMandando] = useState(false);
+  const [viendo, setViendo] = useState<string | null>(null);
+
+  /* La foto de cómo quedó. Se sella aquí, en el teléfono, igual que
+     la del hallazgo: entre tomarla y subirla pueden pasar veinte
+     minutos sin señal, y la hora que quedaría escrita sería la de
+     la subida. */
+  const [foto, setFoto] = useState<Foto | null>(null);
+  const [sellando, setSellando] = useState(false);
+  const camara = useRef<HTMLInputElement>(null);
+  const { ubi, direccion, pedir } = usePosicion();
+
+  useEffect(() => () => { if (foto) URL.revokeObjectURL(foto.url) }, [foto]);
+
+  async function tomarFoto(e: React.ChangeEvent<HTMLInputElement>, codigo: string) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+    setSellando(true);
+    try {
+      const f = await sellar(archivo, {
+        titulo: codigo, ubi, direccion, etiqueta: "CÓMO QUEDÓ",
+      });
+      if (foto) URL.revokeObjectURL(foto.url);
+      setFoto(f);
+    } catch {
+      avisar.mal("No se pudo procesar esa foto. Vuelve a tomarla.");
+    }
+    setSellando(false);
+  }
 
   /* Lo vivo arriba y lo demás abajo. Dentro de lo vivo manda el plazo,
      que ya viene ordenado de la base. */
@@ -46,11 +84,35 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
     const { error } = await supabase.rpc("accion_cerrar", {
       p_id: id, p_que_se_hizo: texto.trim(),
     });
+    if (error) { setMandando(false); avisar.mal(error.message); return }
+
+    /* La foto va DESPUÉS del cierre, porque su ruta lleva el id. Si
+       falla, la acción YA quedó cerrada y eso es lo correcto: perder el
+       cierre porque no subió una imagen sería cambiar lo importante por
+       lo accesorio. Se dice que faltó la foto y se sigue. */
+    if (foto) {
+      const ruta = `${id}/cierre.jpg`;
+      const { error: eSubir } = await supabase.storage
+        .from("acciones").upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
+      if (eSubir) {
+        avisar.info("Quedó cerrada, pero la foto no subió. Se puede agregar después.");
+      } else {
+        await supabase.from("acciones_fotos").insert({
+          accion_id: id, ranura: "cierre", ruta,
+          ancho: foto.ancho, alto: foto.alto, bytes: foto.blob.size,
+          tomada_en: ubi?.en ?? new Date().toISOString(),
+          lat: ubi?.lat ?? null, lng: ubi?.lng ?? null,
+          precision_m: ubi ? Math.round(ubi.precision) : null,
+        });
+      }
+      URL.revokeObjectURL(foto.url);
+    }
+
     setMandando(false);
-    if (error) { avisar.mal(error.message); return }
     avisar.bien("Quedó a la espera de que alguien verifique si sirvió.");
     setCerrando(null);
     setTexto("");
+    setFoto(null);
     router.refresh();
   }
 
@@ -86,13 +148,21 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
           {vivas.map((a) => (
             <Fila key={a.id} a={a} nombres={{}}
                   derecha={
-                    <button type="button" className="btn si"
-                            onClick={() => {
-                              setCerrando(cerrando === a.id ? null : a.id);
-                              setTexto("");
-                            }}>
-                      Ya lo hice
-                    </button>
+                    <div className="par">
+                      <button type="button" className="btn"
+                              onClick={() => setViendo(viendo === a.id ? null : a.id)}>
+                        {viendo === a.id ? "Cerrar" : `Ver${a.fotos ? ` · ${a.fotos} foto${a.fotos === 1 ? "" : "s"}` : ""}`}
+                      </button>
+                      <button type="button" className="btn si"
+                              onClick={() => {
+                                setCerrando(cerrando === a.id ? null : a.id);
+                                setTexto("");
+                                if (foto) { URL.revokeObjectURL(foto.url); setFoto(null) }
+                                pedir();
+                              }}>
+                        Ya lo hice
+                      </button>
+                    </div>
                   }>
               {a.descripcion && (
                 <div className="meta" style={{ marginTop: 5 }}><span>{a.descripcion}</span></div>
@@ -113,6 +183,30 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
                               onChange={(e) => setTexto(e.target.value)}
                               placeholder="Se reapilaron las tres estibas a dos alturas y se marcó el piso del lado del rack." />
                   </div>
+                  <div>
+                    <label>LA FOTO DE CÓMO QUEDÓ (opcional)</label>
+                    <div className="cerrar-foto">
+                      {foto ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={foto.url} alt="Cómo quedó" />
+                      ) : (
+                        <div className="hueco">{sellando ? "Sellando…" : "Sin foto"}</div>
+                      )}
+                      <div>
+                        <input ref={camara} type="file" accept="image/*" capture="environment"
+                               onChange={(e) => tomarFoto(e, a.codigo)} hidden />
+                        <button type="button" className="btn" disabled={sellando}
+                                onClick={() => camara.current?.click()}>
+                          {foto ? "Tomar otra" : "Abrir la cámara"}
+                        </button>
+                        <p>
+                          Con la del hallazgo al lado, el antes y el después se ven de un vistazo.
+                          No es obligatoria — pero sin ella, verificar es creerle a un texto.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="aviso">
                     Esto no cierra el tema: lo manda a verificación. Alguien va a ir a mirar si de
                     verdad sirvió, y lo que escribas aquí es lo que va a ir a comprobar.
@@ -129,6 +223,7 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
                   </div>
                 </div>
               )}
+              {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} />}
             </Fila>
           ))}
 
@@ -141,7 +236,13 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
                 </div>
               </div>
               {resto.map((a) => (
-                <Fila key={a.id} a={a} nombres={{}}>
+                <Fila key={a.id} a={a} nombres={{}}
+                      derecha={
+                        <button type="button" className="btn"
+                                onClick={() => setViendo(viendo === a.id ? null : a.id)}>
+                          {viendo === a.id ? "Cerrar" : "Ver"}
+                        </button>
+                      }>
                   <div className="meta" style={{ marginTop: 5 }}>
                     {a.estado === "cerrada" && (
                       <span>Cerrada el {fecha(a.cerrada_en)} · esperando que alguien verifique</span>
@@ -153,6 +254,7 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
                       </span>
                     )}
                   </div>
+                  {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} />}
                 </Fila>
               ))}
             </>

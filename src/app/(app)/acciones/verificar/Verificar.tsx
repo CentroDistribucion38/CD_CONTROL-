@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Accion, Carga } from "@/modulos/acciones/datos";
 import { useAvisos } from "@/components/Aviso";
 import { Fila, fecha, quien } from "../comunes";
+import { Evidencia } from "../Evidencia";
 
 /**
  * POR VERIFICAR — ir a mirar si de verdad sirvió.
@@ -33,6 +34,10 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
   const [avisar, avisos] = useAvisos();
 
   const [abierta, setAbierta] = useState<string | null>(null);
+  /* Cuál está mostrando su evidencia. Es la pantalla donde más
+     falta: decir "fue efectiva" sin mirar la foto del antes y la
+     del después es firmar de memoria. */
+  const [viendo, setViendo] = useState<string | null>(null);
   const [nota, setNota] = useState("");
   const [mandando, setMandando] = useState(false);
 
@@ -195,6 +200,10 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
               <Fila key={a.id} a={a} nombres={nombres}
                     derecha={puedeEditar ? (
                       <div className="par">
+                        <button type="button" className="btn"
+                                onClick={() => setViendo(viendo === a.id ? null : a.id)}>
+                          {viendo === a.id ? "Cerrar" : `Ver${a.fotos ? ` · ${a.fotos} foto${a.fotos === 1 ? "" : "s"}` : ""}`}
+                        </button>
                         <button type="button" className="btn bien" disabled={mandando}
                                 onClick={() => verificar(a, true)}>
                           Fue efectiva
@@ -216,6 +225,8 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
                     <span className="plazo mal">Esperando hace {espera} días</span>
                   </div>
                 )}
+
+                {viendo === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} />}
 
                 {abierta === a.id && (
                   <div className="panel">

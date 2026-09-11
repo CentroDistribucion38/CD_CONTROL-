@@ -771,3 +771,120 @@
 }
 .ac-cola button:hover { border-color: var(--c-oro); color: var(--c-oro) }
 .ac-cola button:disabled { opacity: .5; cursor: not-allowed }
+
+/* =====================================================================
+   LA EVIDENCIA — las fotos y el seguimiento, dentro de la acción.
+   ===================================================================== */
+.ac .ev { gap: 14px }
+
+.ac .ev-fotos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
+.ac .ev-ranura { min-width: 0 }
+.ac .ev-ranura .rot {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--ac-gris);
+  margin-bottom: 6px;
+}
+.ac .ev-ranura .lienzo {
+  display: block; width: 100%; padding: 0; border: 1px solid var(--ac-linea);
+  border-radius: 9px; overflow: hidden; background: #111; cursor: zoom-in;
+  aspect-ratio: 4 / 3;
+}
+.ac .ev-ranura .lienzo img { width: 100%; height: 100%; object-fit: cover; display: block }
+/* El hueco del "después" es la pregunta "¿y cómo quedó?". Dibujado, la
+   gente sube la segunda foto; sin dibujar, nadie sabe que existe. */
+.ac .ev-ranura .lienzo.hueco {
+  background: var(--c-fafbfd); border-style: dashed; cursor: default;
+  display: grid; place-items: center; color: var(--ac-gris); font-size: 12px;
+}
+.ac .ev-ranura .pie { margin-top: 6px; font-size: 11px; color: var(--ac-gris); line-height: 1.4 }
+
+.ac .ev-donde {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--ac-gris);
+}
+.ac .ev-donde .rot { font-size: 10px; font-weight: 700; letter-spacing: .12em; flex: none }
+.ac .ev-donde b { color: var(--ac-tinta) }
+.ac .ev-donde code {
+  font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+  background: var(--c-eef1f5); padding: 1px 5px; border-radius: 4px;
+}
+
+.ac .ev-hilo { display: flex; flex-direction: column; gap: 9px }
+.ac .ev-hilo > .rot { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--ac-gris) }
+.ac .ev-linea {
+  font-size: 12.5px; line-height: 1.45; color: var(--ac-gris);
+  padding-left: 13px; border-left: 2px solid var(--ac-linea);
+}
+.ac .ev-linea b { color: var(--ac-tinta); font-weight: 700 }
+.ac .ev-linea.mal { border-left-color: var(--ac-mal) }
+.ac .ev-linea .dice { color: var(--ac-tinta); margin-top: 2px; overflow-wrap: anywhere }
+
+.ac .ev-decir { display: flex; gap: 9px; align-items: flex-end; flex-wrap: wrap }
+.ac .ev-decir textarea {
+  flex: 1 1 240px; font: inherit; font-size: 13px; padding: 9px 11px;
+  border: 1px solid var(--ac-linea); border-radius: 8px; background: #fff;
+  color: var(--ac-tinta); resize: vertical; min-width: 0;
+}
+.ac .ev-nota { margin: 0; font-size: 11px; color: var(--ac-gris) }
+
+/* La foto en grande: una foto de evidencia se mira para DECIDIR, y en
+   160 px no se decide nada. */
+.ac-modal .ventana.foto-grande { width: min(900px, 100%); background: #111 }
+.ac-modal .ventana.foto-grande img {
+  display: block; width: 100%; max-height: calc(100dvh - 130px); object-fit: contain;
+}
+.ac-modal .ventana.foto-grande .pie-foto {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; padding: 12px 16px; background: #0D0D0D;
+  color: rgba(255,255,255,.78); font-size: 12px; line-height: 1.45;
+}
+.ac-modal .ventana.foto-grande .pie-foto b { color: var(--c-oro) }
+.ac-modal .ventana.foto-grande .pie-foto button {
+  font: inherit; font-weight: 700; font-size: 12.5px; min-height: 38px; padding: 0 16px;
+  border-radius: 8px; border: 1px solid rgba(255,255,255,.25);
+  background: transparent; color: #fff; cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .ac .ev-fotos { grid-template-columns: minmax(0, 1fr) }
+}
+
+/* La foto de cierre, dentro del panel de "ya lo hice". */
+.ac .cerrar-foto { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px; align-items: start }
+.ac .cerrar-foto img,
+.ac .cerrar-foto .hueco {
+  width: 128px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 9px;
+  border: 1px solid var(--ac-linea);
+}
+.ac .cerrar-foto .hueco {
+  background: var(--c-fafbfd); border-style: dashed; display: grid; place-items: center;
+  color: var(--ac-gris); font-size: 11.5px;
+}
+.ac .cerrar-foto p { margin: 7px 0 0; font-size: 11.5px; color: var(--ac-gris); line-height: 1.45 }
+@media (max-width: 760px) { .ac .cerrar-foto { grid-template-columns: minmax(0, 1fr) } }
+
+/* =====================================================================
+   LA ALERTA DEL TURNO. Solo sale si hay algo: una barra permanente que
+   dice "0 pendientes" se vuelve parte del fondo en tres días, y el día
+   que diga 6 nadie la va a ver.
+   ===================================================================== */
+.ac-alerta {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: #FFFBEF; border: 1px solid color-mix(in srgb, var(--ac-ojo) 45%, #fff);
+  border-left: 3px solid var(--ac-ojo); border-radius: 10px;
+  padding: 12px 14px; font-size: 13px; line-height: 1.45;
+}
+.ac-alerta.grave { background: #FEF4F6; border-color: color-mix(in srgb, var(--ac-mal) 40%, #fff); border-left-color: var(--ac-mal) }
+.ac-alerta .signo svg {
+  width: 22px; height: 22px; fill: none; stroke: #8A5A00; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; display: block;
+}
+.ac-alerta.grave .signo svg { stroke: var(--ac-mal) }
+.ac-alerta .txt { flex: 1 1 260px; min-width: 0 }
+.ac-alerta b { font-weight: 800 }
+.ac-alerta.grave b { color: var(--ac-mal) }
+.ac-alerta .ir {
+  font-weight: 700; font-size: 12.5px; color: var(--ac-tinta); text-decoration: none;
+  border: 1px solid var(--ac-linea); border-radius: 8px; padding: 9px 14px;
+  min-height: 38px; display: inline-flex; align-items: center; background: #fff;
+}
+.ac-alerta .ir:hover { border-color: var(--ac-gris) }

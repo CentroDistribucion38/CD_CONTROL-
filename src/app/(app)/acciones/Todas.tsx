@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Accion, Motivo, Zona } from "@/modulos/acciones/datos";
 import { Fila, quien } from "./comunes";
+import { Evidencia } from "./Evidencia";
 import { Reportar } from "./Reportar";
 
 /**
@@ -27,6 +28,9 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
   puedeEditar: boolean;
 }) {
   const [reportando, setReportando] = useState(false);
+  /* Cuál acción está abierta. Una sola a la vez: dos paneles de
+     evidencia abiertos es una lista que ya no se puede recorrer. */
+  const [abierta, setAbierta] = useState<string | null>(null);
 
   const [f, setF] = useState({ estado: "vivas", area: "", prioridad: "", texto: "" });
 
@@ -115,6 +119,9 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
               nadie escribió esa fecha.
             </p>
           </div>
+          {/* Un enlace y no un botón con fetch: el navegador ya sabe
+              descargar, y así funciona igual con el clic derecho. */}
+          <a href="/api/acciones/exportar" className="btn">Exportar a Excel</a>
         </div>
 
         <div className="rueda">
@@ -129,20 +136,30 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeE
 
           {lista.map((a) => (
             <Fila key={a.id} a={a} nombres={nombres}
-                  derecha={puedeEditar && a.viva ? (
-                    /* A una PANTALLA, no a un cajón aquí mismo. Escoger a
-                       quién le toca es la decisión más importante del
-                       módulo y no se toma bien en un panel de 200 px con
-                       el resto de la lista distrayendo alrededor. */
-                    <Link href={`/acciones/asignar/${a.id}`} className="btn">
-                      {a.responsable ? "Cambiar responsable" : "Asignar"}
-                    </Link>
-                  ) : null}>
+                  derecha={
+                    <div className="par">
+                      <button type="button" className="btn"
+                              onClick={() => setAbierta(abierta === a.id ? null : a.id)}>
+                        {abierta === a.id ? "Cerrar" : `Ver${a.fotos ? ` · ${a.fotos} foto${a.fotos === 1 ? "" : "s"}` : ""}`}
+                      </button>
+                      {puedeEditar && a.viva && (
+                        /* A una PANTALLA, no a un cajón aquí mismo. Escoger
+                           a quién le toca es la decisión más importante del
+                           módulo y no se toma bien en un panel de 200 px
+                           con el resto de la lista distrayendo alrededor. */
+                        <Link href={`/acciones/asignar/${a.id}`} className="btn">
+                          {a.responsable ? "Cambiar responsable" : "Asignar"}
+                        </Link>
+                      )}
+                    </div>
+                  }>
               {a.estado === "cerrada" && a.que_se_hizo && (
                 <div className="meta" style={{ marginTop: 6 }}>
                   <span>Se hizo: {a.que_se_hizo} — {quien(nombres, a.cerrada_por)}</span>
                 </div>
               )}
+
+              {abierta === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} />}
             </Fila>
           ))}
         </div>

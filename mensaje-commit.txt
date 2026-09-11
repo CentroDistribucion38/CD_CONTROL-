@@ -1,77 +1,89 @@
-Acciones: asignar con pantalla propia, bloqueo en ventana, cola sin senal
-y avisos con la cara de la aplicacion
+Acciones: la evidencia se puede ver, el seguimiento, la alerta del turno
+y la exportacion
 
-ASIGNAR ES PANTALLA PROPIA, como estaba dibujado.
-Era un cajon dentro de la lista. Escoger a quien le toca es la decision
-mas importante del modulo y no se toma bien en un panel de 200 px con el
-resto de la lista distrayendo alrededor. Ahora tiene su direccion
-(/acciones/asignar/<id>), con el bloque del plazo arriba a la derecha:
-grande, con su corte diagonal, ANTES de que nadie escoja a nadie. 48
-horas cambia a quien tiene sentido asignarle; dicho despues es un dato,
-dicho antes es parte de la decision.
+LAS FOTOS YA SE VEN. Era lo mas grave: se tomaban, se sellaban con hora
+y coordenadas, se subian al bucket — y no habia una sola pantalla que
+las mostrara. Toda la maquinaria de evidencia producia algo que nadie
+podia mirar.
 
-El permiso se comprueba en la pagina y no solo escondiendo el boton: a
-esa direccion se llega escribiendola.
+Ahora cada accion se abre con el boton "Ver" y muestra el ANTES y el
+DESPUES lado a lado, con su hora, sus coordenadas y su precision, y la
+foto se agranda al tocarla: una foto de evidencia se mira para DECIDIR,
+y en 160 px no se decide nada.
 
-EL BLOQUEO ES UNA VENTANA CENTRADA, no pantalla completa.
-Interrumpe algo que se estaba haciendo, y dejar ver debajo —apagada— la
-accion que se iba a verificar es lo que hace que se lea como "espera" y
-no como "te sacaron a otro lado". Lleva el mismo corte diagonal de los
-KPI de los otros modulos, que es lo que la hace reconocible como parte
-de la misma aplicacion.
+Las dos ranuras se pintan SIEMPRE, aunque una este vacia. El hueco del
+"despues" es la pregunta "¿y como quedo?", y esa pregunta es la que hace
+que alguien suba la segunda foto. Sin dibujar, nadie sabria que existe.
 
-LA COLA SIN SENAL, que el diseno prometia y no estaba construida.
-En los pasillos no hay senal. Sin esto, tocar Reportar ahi adentro
-devolvia un error, y lo que pasa despues no es que la persona camine
-hasta la puerta y vuelva: es que no lo reporta.
+FOTO DE CIERRE, opcional a proposito. Al cerrar una accion se puede
+tomar la foto de como quedo, sellada en el telefono igual que la del
+hallazgo. No es obligatoria porque hay cosas que no se pueden
+fotografiar, y una foto obligatoria en esos casos produce fotos del piso
+con tal de pasar al siguiente paso. Lo que si se dice, con esas
+palabras, es que sin ella verificar es creerle a un texto.
 
-Ahora el reporte se guarda completo —con su foto— y sale solo cuando
-vuelve la red. Un aviso en el cascaron dice cuantos hay esperando, con
-un boton de intentar ahora (el "online" del navegador miente seguido: el
-telefono se conecta al wifi de la bodega, dice que hay red, y el wifi no
-llega a internet).
+La foto va DESPUES del cierre porque su ruta lleva el id. Si no sube, la
+accion ya quedo cerrada — perder el cierre por una imagen seria cambiar
+lo importante por lo accesorio.
 
-Va en IndexedDB y no en localStorage porque hay una FOTO: localStorage
-solo guarda texto, meterla en base64 la infla un 33% y el cupo son 5 MB.
-Dos fotos y se llena, fallando en silencio.
+EL SEGUIMIENTO, que estaba en la base y ninguna pantalla usaba. La
+historia completa en orden: quien reporto, quien la asigno y a quien,
+quien cerro y que hizo, quien verifico y que encontro, mas lo que
+escriba la gente. Solo agrega: no se edita ni se borra. Una accion que
+lleva ocho dias es una conversacion, y si esa conversacion se puede
+reescribir despues no sirve para explicar por que se demoro.
 
-Lo que si se distingue: SIN RED se guarda y sale despues; RECHAZO de la
-base —reincidencia, permiso, fecha futura— NO se encola, porque
-reintentarlo manana lo rechazaria igual y mientras tanto la persona
-creeria que quedo reportado.
+La evidencia se pide al ABRIR la accion, no con la lista: firmar
+quinientas URL para que alguien mire una es trabajo que se paga en
+espera. Y las URL firmadas vencen en minutos, con no-store.
 
-Lo que no se puede prometer es el plazo, y se dice con esas palabras: el
-vencimiento lo calcula la base al RECIBIR el reporte, asi que uno que
-sale de la cola al dia siguiente vence 48 horas despues de ese momento.
-La foto si conserva su hora, porque el sello se pone en el telefono al
-tomarla. Esa es toda la razon por la que se sella al tomar y no al subir.
+VERIFICAR AHORA MUESTRA LA EVIDENCIA antes de decidir. Decir "fue
+efectiva" sin mirar la foto del antes y la del despues es firmar de
+memoria.
 
-LOS MENSAJES YA NO SALEN FEOS.
-Los errores de Postgres se mostraban en crudo: "new row violates
-row-level security policy for table acciones_zonas". Eso hace dos danos
-a la vez: no le dice a quien esta en la bodega que hacer, y cuando
-alguien lo ensena en una reunion parece que la aplicacion se rompio.
+LA ALERTA DEL TURNO. Sin esto el modulo dependia de que la gente entrara
+a mirar, y nadie entra a mirar si algo le vencio: entra cuando tiene
+tiempo, que es justo cuando ya no lo tiene. Al abrir Mis acciones sale
+lo vencido, lo que vence hoy y lo recien asignado, en ese orden — que es
+el orden en que hay que actuar, no el orden en que llego.
 
-Dos piezas nuevas, las dos compartidas por toda la app:
-  src/lib/errores.ts   traduce lo de Postgres a que paso y que hacer
-  src/components/Aviso.tsx  los avisos, con la cara de la plataforma
+Solo sale si hay algo. Una barra permanente que dice "0 pendientes" se
+vuelve parte del fondo en tres dias, y el dia que diga 6 nadie la ve.
 
-Los errores NO se van solos: un error que desaparece a los cuatro
-segundos es un error que nadie leyo, porque quien lo provoco estaba
-mirando el campo y no la esquina. Lo que salio bien si se va solo.
-Abajo a la derecha en PC y ARRIBA en celular, donde no los tapa el
-teclado ni la barra del modulo. Todo pasa por el traductor aunque quien
-llama se olvide.
+Lo que NO es: una notificacion del telefono. El push de verdad necesita
+llaves VAPID y un servidor que las mande; eso no esta montado y
+prometerlo sin montarlo seria peor que no tenerlo. Esto es lo que si se
+sostiene hoy.
 
-Y el borrar del maestro pasa por el dialogo de la aplicacion
-—useConfirmar, el que ya usan Roles, Usuarios y Quiebra— en vez del
-panel rojo en linea.
+EXPORTAR A EXCEL, tres hojas y ninguna es un volcado de la tabla:
+  RESUMEN       las cuatro cifras del arranque de turno con su semaforo,
+                el cumplimiento por area y las vencidas con nombre.
+  ACCIONES      el detalle con filtro puesto y la primera fila congelada,
+                lo vencido y lo no efectivo en rojo — en un archivo que
+                alguien filtra y ordena, el color es lo unico que
+                sobrevive al reordenamiento.
+  REINCIDENCIA  donde se repite lo mismo, con cuantas faltan para que el
+                sistema exija preventiva. Es la unica hoja que dice que
+                hacer.
 
-BUG REAL QUE SALIO DE MEDIR, no de mirar:
-Los tokens del modulo (--ac-titulo, --ac-mal, --ac-linea) estaban solo en
-.ac. Las variables de CSS se heredan por el arbol del documento, no por
-donde se ve el elemento — y la pantalla de Reportar la abre la barra de
-abajo, que vive en el cascaron FUERA de .ac. Resultado: ese overlay se
-quedaba sin la tipografia del modulo y sin los rojos, con la letra del
-sistema. Ahora los tokens estan en las tres raices: .ac, .ac-rep y
-.ac-modal.
+Un export que es la tabla de la pantalla otra vez no le sirve a nadie:
+quien lo abre ya vio la pantalla. Lo que no puede hacer alli es llevarlo
+a una reunion, escribir al lado y mandarlo por correo, y para eso tiene
+que verse terminado y no como un CSV con bordes.
+
+Se arma en el SERVIDOR: en un celular, armar un libro de mil filas en
+memoria es medio minuto de telefono trabado. Y sigue aplicando RLS —el
+cliente lleva la sesion del usuario, no una llave de servicio—, asi que
+nadie exporta lo que no podria ver en pantalla.
+
+El libro se arma en src/modulos/acciones/libro.ts, aparte de la ruta, y
+por eso se pudo generar con datos de prueba y ABRIR el archivo. Ahi
+salio un fallo: "la mas vieja, 3 dias" tomaba la primera de la lista y
+no la mas vencida, porque la funcion confiaba en el orden con que le
+llegaban. Ahora ordena ella, y da lo mismo la corran desde donde la
+corran.
+
+Falta todavia: imprimir los QR de las zonas, capturar las coordenadas de
+cada zona parado ahi, anular acciones, y decidir si el plazo debe contar
+dias habiles en vez de horas corridas (hoy una alta del viernes a las
+6 p. m. vence el domingo).
