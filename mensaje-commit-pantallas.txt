@@ -1,0 +1,63 @@
+Modulo Roturas: las cinco pantallas
+
+Ya existia la base de datos pero no habia por donde entrar. Esto es lo
+que se ve, en el orden del recorrido de una rotura:
+
+  EN SITIO      se registra, desde el celular
+  VISTO BUENO   ABI dice si cuenta o no cuenta
+  SALIDAS       se pesa el vidrio y se firma
+  ANALISIS      por que se sigue rompiendo lo mismo
+  MAESTRO       materiales, procesos, causas y tolvas
+
+DOS PASOS PARA REGISTRAR, NO UNO. Quien registra esta de pie al lado del
+vidrio, con guantes y el celular en una mano. Un formulario de catorce
+campos en una sola pantalla se llena mal: se baja hasta el final, se
+toca enviar y la mitad quedo en blanco. Paso 1 que se rompio, paso 2 por
+que — y en ese orden porque el material decide si hay que preguntar
+botellas, asi que preguntar la causa primero obligaria a devolverse.
+
+LA FOTO SE EXIGE ANTES DE ENVIAR. Al escoger una causa no asumida sale
+el aviso negro y el boton dice "Falta la foto" hasta que la tome. Sin
+eso el reporte sale, ABI lo devuelve, y el operario se entera al dia
+siguiente cuando ya no esta parado donde paso.
+
+LA RESTA SE DIBUJA COMO RESTA: BRUTO menos TARA igual NETO, en cajas
+grandes, y no como tres columnas de una tabla. Quien pesa tiene la
+bascula al lado y tiene que reconocer en la pantalla la cuenta que acaba
+de hacer. Una tabla se lee despues, en la oficina; esto se lee de pie.
+La tara no se teclea: viene del maestro.
+
+SOLO SE PINTA EL BOTON DE LA FIRMA QUE SIGUE. Las otras dos dicen
+"espera la firma anterior". Tres botones activos al tiempo invitan a que
+la misma persona toque los tres, que es exactamente lo que la regla de
+las tres personas quiere impedir.
+
+"NO CUENTA" PIDE MOTIVO Y "CUENTA" NO. Una rotura que no cuenta es plata
+que alguien mas va a tener que asumir, y el dia que reclamen, "no
+cuenta" sin una linea que lo explique no se puede defender.
+
+EL ANALISIS NO CUADRA LAS DOS MITADES, y lo dice con todas las letras al
+final de la pantalla. Unidades arriba, kilos abajo, ninguna cifra que
+los mezcle.
+
+LO QUE SALIO DE MEDIR Y NO DE MIRAR, con Playwright a 1440 / 820 / 390 /
+360 px:
+
+  · En celular los tres botones de la bandeja quedaban 2 + 1: "Ver" al
+    lado de "Cuenta", y "No cuenta" solo y ancho abajo. Eso empareja
+    visualmente el boton de mirar con el de aprobar, y son trabajos
+    distintos. Ahora "Ver" va en su propia linea y las dos decisiones
+    comparten la siguiente.
+  · A 360 px la resta medía 302 px en un hueco de 300 y el NETO se caia
+    al renglon de abajo — justo donde deja de leerse como resta. Se
+    aprietan las cajas en vez de dejarla envolver.
+  · En los botones de causa el nombre y la aclaracion salian pegados:
+    "Apilado por encima de lo permitidoNo asumida". Eran spans, y el
+    margin-top de un inline no hace nada. display:block.
+
+Cero desborde horizontal y nada que se salga de su fila en los cuatro
+anchos. El arnes queda en .arnes/rot-mide.mjs para volver a correrlo.
+
+El formato (kilos, fechas) vive en modulos/roturas/formato.ts y no en
+comunes.tsx: aquel es "use client", y lo que una pagina del servidor
+importe de ahi llega como referencia y no como funcion.
