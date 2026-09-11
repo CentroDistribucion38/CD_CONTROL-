@@ -92,7 +92,15 @@ export const MODULOS: Modulo[] = [
   },
   {
     id: "sider",
-    nombre: "Sider Certificado",
+    /* El nombre es literal: así se llama el módulo en el CD. La RUTA
+       sigue siendo /sider y no se toca — las direcciones están guardadas
+       como texto en rol_permisos y en los permisos extra de cada persona
+       ("/sider", "/sider/certificar", …), así que cambiarlas dejaría esas
+       filas apuntando a algo que ya no existe y todo el mundo perdería el
+       permiso EN SILENCIO: la pantalla no da error, simplemente deja de
+       verse. Lo que lee la gente y lo que identifica la pantalla son dos
+       cosas distintas y aquí se separan. */
+    nombre: "T1 / T2",
     eyebrow: "ENVASE EN TRÁNSITO",
     descripcion:
       "Certificación de vehículos con ubicación y evidencia fotográfica, en la salida del CD origen y en la llegada a Barranquilla.",

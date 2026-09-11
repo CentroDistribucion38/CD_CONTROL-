@@ -74,7 +74,7 @@ export default async function FuentePrincipalPage() {
         <div>
           <h1>Fuente principal</h1>
           <p className="sub">
-            Donde llega toda la información de Sider Certificado. Es la hoja{" "}
+            Donde llega toda la información de T1 / T2. Es la hoja{" "}
             <b>Base de Datos</b> del archivo, pero de las 16 columnas solo se guardan las
             cinco que alguien teclea — placa, origen, material, estibas y cuándo — y las
             once restantes se calculan al leer, con las mismas fórmulas.{" "}

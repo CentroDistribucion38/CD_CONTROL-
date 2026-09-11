@@ -198,7 +198,7 @@ const enlaceMapa = (lat: number, lng: number) =>
 export async function armarLibro(d: Insumos): Promise<{ archivo: Buffer; recortadas: number }> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(PLANTILLA());
-  wb.creator = "CONTROL · Sider Certificado";
+  wb.creator = "CONTROL · T1 / T2";
   wb.modified = new Date();
 
   /* Las fotos de muestra que trae la plantilla se van: son 1,6 MB de

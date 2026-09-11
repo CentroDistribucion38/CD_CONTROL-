@@ -147,7 +147,7 @@ export async function GET(req: Request) {
            ? rango.desde.slice(0, 7)
            : `${rango.desde} a ${rango.hasta}`)
     : "historico";
-  const nombre = `Sider Certificado ${trozo}.xlsx`;
+  const nombre = `T1 T2 ${trozo}.xlsx`;
   return new NextResponse(new Uint8Array(archivo), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

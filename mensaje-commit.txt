@@ -1,29 +1,17 @@
-El simulador no pierde el mes guardado, y las cifras llevan puntos
+El modulo "Sider Certificado" pasa a llamarse "T1 / T2"
 
-SE PERDIA LO GUARDADO
-- Guardar agosto, filtrar septiembre y volver a agosto mostraba otra vez
-  el agosto VIEJO -o vacio-, con toda la pinta de que no se hubiera
-  guardado. `simuladores` viene del render del SERVIDOR y no cambia
-  porque uno guarde desde el navegador.
-- Ahora lo que esta sesion guarda se queda en la pantalla, y ademas se le
-  pide al servidor la version buena -que trae quien y cuando-.
-- Probado en el navegador con el calendario de verdad, siguiendo el mismo
-  camino que describio Cristian: filtrar agosto, escribir, guardar, irse
-  a septiembre (queda vacio, correcto: septiembre no tiene nada guardado)
-  y volver a agosto. Todo sigue ahi.
-
-LOS PUNTOS DE MILES
-- CONA y quiebra del mes se escriben con separador mientras se teclea:
-  85.166.358 en vez de 85166358. El porcentaje no lleva separador -es
-  2,65- y conserva la coma decimal.
-- El cursor se devuelve a su sitio contando DIGITOS y no caracteres: al
-  reescribir el valor el navegador lo manda al final, y corregir un
-  digito en la mitad de "85.166.358" se volvia imposible.
-- OJO CON EL PUNTO: al llevar separador de miles, "85.166.358" tiene
-  puntos que NO son decimales. El lector viejo quitaba todo menos digitos
-  y puntos y daba 85,166 -cinco ordenes de magnitud menos- y el
-  disponible salia absurdo sin que nada pareciera roto. Las unidades son
-  enteras: solo digitos. Once casos probados.
+- Cambia el NOMBRE que lee la gente: la tarjeta de la portada, el menu,
+  las chapas de permisos en Usuarios, el autor del Excel exportado y el
+  nombre del archivo.
+- La RUTA sigue siendo /sider y no se toca. Las direcciones estan
+  guardadas como TEXTO en rol_permisos y en los permisos extra de cada
+  persona ("/sider", "/sider/certificar", …): cambiarlas dejaria esas
+  filas apuntando a algo que no existe y todo el mundo perderia el
+  permiso EN SILENCIO -la pantalla no da error, simplemente deja de
+  verse-. Ademas son 45 sitios en el codigo. Lo que lee la gente y lo que
+  identifica la pantalla son dos cosas distintas.
+- Comprobado que no queda ningun "Sider Certificado" a la vista y que la
+  lista de modulos dice T1 / T2.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

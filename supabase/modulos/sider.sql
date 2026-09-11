@@ -4,7 +4,7 @@
 -- Supabase → SQL Editor → New query → pegar → Run. Es idempotente.
 --
 -- QUÉ REEMPLAZA
--- La hoja "Base de Datos" de Sider Certificado. En esa hoja hay 16
+-- La hoja "Base de Datos" de T1 / T2 —antes "Sider Certificado"—. En esa hoja hay 16
 -- columnas, pero solo CINCO se teclean: origen, fecha, estibas, placa y
 -- SKU. Las otras once salen de fórmulas:
 --
