@@ -1,59 +1,77 @@
-Acciones: el tablero en claro, el maestro que si edita, y la barra de abajo
+Acciones: asignar con pantalla propia, bloqueo en ventana, cola sin senal
+y avisos con la cara de la aplicacion
 
-EL TABLERO YA NO ES NEGRO.
-La app entera es clara y una pantalla negra en el medio se lee como si
-fuera otro programa. Lo que la hace de reunion no es el fondo sino el
-TAMANO: las cifras crecen con el ancho, asi que en un televisor se leen
-desde el otro lado de la bodega y en un portatil siguen cabiendo.
+ASIGNAR ES PANTALLA PROPIA, como estaba dibujado.
+Era un cajon dentro de la lista. Escoger a quien le toca es la decision
+mas importante del modulo y no se toma bien en un panel de 200 px con el
+resto de la lista distrayendo alrededor. Ahora tiene su direccion
+(/acciones/asignar/<id>), con el bloque del plazo arriba a la derecha:
+grande, con su corte diagonal, ANTES de que nadie escoja a nadie. 48
+horas cambia a quien tiene sentido asignarle; dicho despues es un dato,
+dicho antes es parte de la decision.
 
-Tampoco se recorta por dentro. Al fijarle el alto para que "cupiera en
-la TV", el panel de Cumplimiento por area quedaba cortado por la mitad
-con su propia barrita de desplazamiento. Ahora la pagina crece, como en
-Quiebra y T1 / T2.
+El permiso se comprueba en la pagina y no solo escondiendo el boton: a
+esa direccion se llega escribiendola.
 
-EL MAESTRO YA NO SOLO LEE.
-Crear, editar, activar, desactivar y eliminar, en zonas, motivos Y areas.
-El "+" esta arriba, al lado de las tres pestanas.
+EL BLOQUEO ES UNA VENTANA CENTRADA, no pantalla completa.
+Interrumpe algo que se estaba haciendo, y dejar ver debajo —apagada— la
+accion que se iba a verificar es lo que hace que se lea como "espera" y
+no como "te sacaron a otro lado". Lleva el mismo corte diagonal de los
+KPI de los otros modulos, que es lo que la hace reconocible como parte
+de la misma aplicacion.
 
-Borrar y desactivar NO son lo mismo, y la diferencia es la que evita
-perder el historico:
-  DESACTIVAR  deja de ofrecerse al reportar, pero las acciones viejas
-              siguen mostrando su zona y siguen contando para la
-              reincidencia. Es lo que se hace casi siempre.
-  BORRAR      solo aparece si NADIE lo ha usado nunca. Es para el error
-              de dedo: creaste AG01-PAS-O5 con O de oso y quieres que
-              desaparezca sin dejar rastro.
-Si algo ya tiene acciones, el boton de borrar no sale y en su lugar dice
-cuantas tiene. La base lo rechazaria igual por la llave foranea, pero un
-"violates foreign key constraint" no le explica nada a nadie.
+LA COLA SIN SENAL, que el diseno prometia y no estaba construida.
+En los pasillos no hay senal. Sin esto, tocar Reportar ahi adentro
+devolvia un error, y lo que pasa despues no es que la persona camine
+hasta la puerta y vuelva: es que no lo reporta.
 
-La CLAVE no se edita. En las zonas es el codigo pegado en la pared que
-lee la camara: cambiarlo dejaria el QR apuntando a algo que ya no existe.
-En los motivos es con lo que se agrupa la reincidencia: al cambiarla, las
-tres apariciones viejas dejarian de ser "lo mismo". Se edita el nombre,
-que es lo que la gente lee.
+Ahora el reporte se guarda completo —con su foto— y sale solo cuando
+vuelve la red. Un aviso en el cascaron dice cuantos hay esperando, con
+un boton de intentar ahora (el "online" del navegador miente seguido: el
+telefono se conecta al wifi de la bodega, dice que hay red, y el wifi no
+llega a internet).
 
-El maestro ahora trae tambien los DESACTIVADOS. Sin eso, al desactivar
-uno desaparecia de la unica pantalla donde se puede volver a activar.
+Va en IndexedDB y no en localStorage porque hay una FOTO: localStorage
+solo guarda texto, meterla en base64 la infla un 33% y el cupo son 5 MB.
+Dos fotos y se llena, fallando en silencio.
 
-LA CLAVE SE MONTABA ENCIMA DEL NOMBRE.
-La columna del codigo mide 92 px y el contenido es una palabra sola sin
-espacios —apilado_incorrecto—: sin overflow-wrap la palabra no se parte,
-se sale de su columna y se imprime ENCIMA del titulo de al lado. En el
-maestro, ademas, la clave ya no va en columna aparte: va debajo del
-nombre, como etiqueta, que es donde se lee.
+Lo que si se distingue: SIN RED se guarda y sale despues; RECHAZO de la
+base —reincidencia, permiso, fecha futura— NO se encola, porque
+reintentarlo manana lo rechazaria igual y mientras tanto la persona
+creeria que quedo reportado.
 
-LA BARRA DE ABAJO DEL CELULAR, que estaba en el diseno y no habia hecho.
-Verificar · Mias · (+) · Tablero · Analisis, con el "+" levantado sobre
-la barra. Existe aparte del riel lateral por una razon concreta: el riel
-se abre con el pulgar en la esquina de arriba a la izquierda, que es
-justo donde no llega la mano de alguien que ademas esta cargando algo.
-Abajo llega siempre. En PC no aparece.
+Lo que no se puede prometer es el plazo, y se dice con esas palabras: el
+vencimiento lo calcula la base al RECIBIR el reporte, asi que uno que
+sale de la cola al dia siguiente vence 48 horas despues de ese momento.
+La foto si conserva su hora, porque el sello se pone en el telefono al
+tomarla. Esa es toda la razon por la que se sella al tomar y no al subir.
 
-Las zonas y los motivos que necesita el reporte se traen una vez en el
-layout del modulo y no en cada pagina: moverse entre Mis acciones y Por
-verificar ya no repite esas dos consultas.
+LOS MENSAJES YA NO SALEN FEOS.
+Los errores de Postgres se mostraban en crudo: "new row violates
+row-level security policy for table acciones_zonas". Eso hace dos danos
+a la vez: no le dice a quien esta en la bodega que hacer, y cuando
+alguien lo ensena en una reunion parece que la aplicacion se rompio.
 
-Falta todavia, del diseno: Asignar como pantalla propia con el bloque
-amarillo del plazo, el bloqueo como ventana centrada en vez de pantalla
-completa, y la cola de envio sin senal.
+Dos piezas nuevas, las dos compartidas por toda la app:
+  src/lib/errores.ts   traduce lo de Postgres a que paso y que hacer
+  src/components/Aviso.tsx  los avisos, con la cara de la plataforma
+
+Los errores NO se van solos: un error que desaparece a los cuatro
+segundos es un error que nadie leyo, porque quien lo provoco estaba
+mirando el campo y no la esquina. Lo que salio bien si se va solo.
+Abajo a la derecha en PC y ARRIBA en celular, donde no los tapa el
+teclado ni la barra del modulo. Todo pasa por el traductor aunque quien
+llama se olvide.
+
+Y el borrar del maestro pasa por el dialogo de la aplicacion
+—useConfirmar, el que ya usan Roles, Usuarios y Quiebra— en vez del
+panel rojo en linea.
+
+BUG REAL QUE SALIO DE MEDIR, no de mirar:
+Los tokens del modulo (--ac-titulo, --ac-mal, --ac-linea) estaban solo en
+.ac. Las variables de CSS se heredan por el arbol del documento, no por
+donde se ve el elemento — y la pantalla de Reportar la abre la barra de
+abajo, que vive en el cascaron FUERA de .ac. Resultado: ese overlay se
+quedaba sin la tipografia del modulo y sin los rojos, con la letra del
+sistema. Ahora los tokens estan en las tres raices: .ac, .ac-rep y
+.ac-modal.

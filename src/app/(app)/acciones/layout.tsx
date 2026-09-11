@@ -2,6 +2,7 @@ import { misPermisos } from "@/lib/permisos";
 import { zonas, motivos, parametros } from "@/modulos/acciones/datos";
 import "./acciones.css";
 import { BarraAbajo } from "./BarraAbajo";
+import { Cola } from "./Cola";
 
 /**
  * El cascarón del módulo. Existe por la barra de abajo del celular: los
@@ -18,6 +19,10 @@ export default async function AccionesLayout({ children }: { children: React.Rea
 
   return (
     <>
+      {/* El aviso de lo que quedó guardado sin señal. Va en el cascarón
+          para que se vea desde cualquier pantalla del módulo, y se
+          esconde solo cuando no hay nada pendiente. */}
+      <div className="ac" style={{ gap: 0 }}><Cola /></div>
       {children}
       <BarraAbajo zonas={zs} motivos={ms} plazos={par.plazos}
                   puedeEditar={permisos.puedeEditar("/acciones")} />

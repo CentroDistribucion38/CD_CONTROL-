@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAvisos } from "@/components/Aviso";
+import { useConfirmar } from "@/components/Confirmar";
 import type { Area, Motivo, Zona } from "@/modulos/acciones/datos";
 
 /**
@@ -51,13 +53,13 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
 }) {
   const router = useRouter();
   const supabase = createClient();
+  const [avisar, avisos] = useAvisos();
+  const [pedir, dialogo] = useConfirmar();
 
   const [hoja, setHoja] = useState<Hoja>("zonas");
   const [nueva, setNueva] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
-  const [borrando, setBorrando] = useState<string | null>(null);
   const [mandando, setMandando] = useState(false);
-  const [mal, setMal] = useState<string | null>(null);
 
   /* Un solo formulario para las tres hojas: los campos que no aplican no
      se pintan. Tres formularios separados serían tres sitios donde
@@ -70,11 +72,11 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
   const llave = hoja === "zonas" ? "codigo" : "clave";
 
   function abrirNueva() {
-    setF(vacio); setNueva(true); setEditando(null); setBorrando(null); setMal(null);
+    setF(vacio); setNueva(true); setEditando(null);
   }
 
   function abrirEditar(id: string) {
-    setNueva(false); setBorrando(null); setMal(null);
+    setNueva(false);
     setEditando(editando === id ? null : id);
     if (hoja === "zonas") {
       const z = zonas.find((x) => x.codigo === id)!;
@@ -89,7 +91,7 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
   }
 
   async function crear() {
-    setMandando(true); setMal(null);
+    setMandando(true);
     const clave = hoja === "zonas"
       ? f.clave.trim().toUpperCase()
       : (f.clave.trim() || aClave(f.nombre));
@@ -106,12 +108,13 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
 
     const { error } = await supabase.from(tabla).insert(fila);
     setMandando(false);
-    if (error) { setMal(traducir(error.message)); return }
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(`${f.nombre.trim()} quedó agregado.`);
     setNueva(false); setF(vacio); router.refresh();
   }
 
   async function guardar(id: string) {
-    setMandando(true); setMal(null);
+    setMandando(true);
     const cambio: Record<string, unknown> =
       hoja === "zonas"
         ? { nombre: f.nombre.trim(), proceso: f.proceso.trim() || null, area: f.area }
@@ -121,23 +124,38 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
 
     const { error } = await supabase.from(tabla).update(cambio).eq(llave, id);
     setMandando(false);
-    if (error) { setMal(traducir(error.message)); return }
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien("Cambio guardado.");
     setEditando(null); router.refresh();
   }
 
   async function alternar(id: string, activo: boolean) {
-    setMal(null);
     const { error } = await supabase.from(tabla).update({ activo: !activo }).eq(llave, id);
-    if (error) { setMal(traducir(error.message)); return }
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(activo ? "Desactivado. Deja de ofrecerse al reportar; el histórico se queda."
+                       : "Activado. Ya se puede escoger al reportar.");
     router.refresh();
   }
 
-  async function borrar(id: string) {
-    setMandando(true); setMal(null);
+  async function borrar(id: string, nombre: string) {
+    /* Se pregunta con el diálogo de la aplicación y no con el cuadro gris
+       del navegador, que sale con el dominio encima y parece que la app
+       se rompió justo cuando alguien la está enseñando. */
+    const si = await pedir({
+      titulo: `¿Eliminar ${nombre}?`,
+      dice: "Nadie lo ha usado todavía, así que no se pierde histórico — pero no hay deshacer. " +
+            "Si algún día se usó, lo correcto es desactivarlo, no borrarlo.",
+      confirmar: "Sí, eliminar",
+      peligro: true,
+    });
+    if (!si) return;
+
+    setMandando(true);
     const { error } = await supabase.from(tabla).delete().eq(llave, id);
     setMandando(false);
-    if (error) { setMal(traducir(error.message)); return }
-    setBorrando(null); router.refresh();
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(`${nombre} se eliminó.`);
+    router.refresh();
   }
 
   const nombreArea = (c: string | null) => areas.find((a) => a.clave === c)?.nombre ?? c ?? "—";
@@ -174,10 +192,13 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
 
   return (
     <>
+      {avisos}
+      {dialogo}
+
       <div className="filtros">
         {(["zonas", "motivos", "areas"] as Hoja[]).map((h) => (
           <button key={h} type="button" className={"btn" + (hoja === h ? " si" : "")}
-                  onClick={() => { setHoja(h); setNueva(false); setEditando(null); setBorrando(null); setMal(null); }}>
+                  onClick={() => { setHoja(h); setNueva(false); setEditando(null); }}>
             {h === "zonas" ? `Zonas (${zonas.length})`
              : h === "motivos" ? `Motivos (${motivos.length})`
              : `Áreas (${areas.length})`}
@@ -189,8 +210,6 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
           </button>
         )}
       </div>
-
-      {mal && <div className="aviso rojo">{mal}</div>}
 
       <section className="caja">
         <div className="cab">
@@ -257,23 +276,6 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
                     </div>
                   )}
 
-                  {borrando === x.id && (
-                    <div className="panel">
-                      <div className="aviso rojo">
-                        Se borra <b>{x.nombre}</b> y no queda rastro. Nadie la ha usado todavía,
-                        así que no se pierde nada — pero no hay deshacer.
-                      </div>
-                      <div className="acciones-panel">
-                        <button type="button" className="btn mal" disabled={mandando}
-                                onClick={() => borrar(x.id)}>
-                          {mandando ? "Borrando…" : "Sí, borrar"}
-                        </button>
-                        <button type="button" className="btn plano" onClick={() => setBorrando(null)}>
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {puedeEditar && (
@@ -287,8 +289,8 @@ export function Maestro({ zonas, motivos, areas, uso, puedeEditar }: {
                         {x.activo ? "Desactivar" : "Activar"}
                       </button>
                       {n === 0 ? (
-                        <button type="button" className="btn mal"
-                                onClick={() => { setBorrando(borrando === x.id ? null : x.id); setEditando(null); }}>
+                        <button type="button" className="btn mal" disabled={mandando}
+                                onClick={() => borrar(x.id, x.nombre)}>
                           Eliminar
                         </button>
                       ) : (
@@ -385,19 +387,3 @@ function Campos({ hoja, f, setF, areas, nuevo }: {
   );
 }
 
-/** Los errores de Postgres no le explican nada a quien está en la bodega. */
-function traducir(m: string): string {
-  const t = m.toLowerCase();
-  if (t.includes("duplicate key")) return "Ya existe uno con esa clave. Escoge otra.";
-  if (t.includes("foreign key")) {
-    return "No se puede borrar: ya hay acciones que apuntan a esto. Desactívalo en vez de borrarlo — " +
-           "borrarlo se llevaría por delante el histórico con el que se cuenta la reincidencia.";
-  }
-  if (t.includes("row-level security") || t.includes("permission")) {
-    return "Tu usuario no tiene permiso para editar el maestro. Se necesita rol de supervisor o administrador.";
-  }
-  if (t.includes("does not exist") || t.includes("schema cache")) {
-    return "Falta correr supabase/modulos/acciones.sql en el SQL Editor de Supabase.";
-  }
-  return m;
-}

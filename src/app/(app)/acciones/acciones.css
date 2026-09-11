@@ -11,7 +11,15 @@
    quisiera desplazarse por dentro no tendría contra qué recortar.
    --------------------------------------------------------------------- */
 
-.ac {
+/* LOS TOKENS VAN EN LAS TRES RAÍCES, no solo en .ac.
+   .ac-rep (Reportar) y .ac-modal (el bloqueo) se abren por encima de
+   todo, y el de Reportar lo abre la barra de abajo, que vive en el
+   cascarón del módulo FUERA de .ac. Las variables de CSS se heredan por
+   el árbol del documento, no por dónde se ve el elemento: definidas solo
+   en .ac, ese overlay se quedaba sin la tipografía del módulo y sin los
+   rojos, y la pantalla de reportar salía con la letra del sistema.
+   Se vio midiendo el modal, no mirándolo. */
+.ac, .ac-rep, .ac-modal {
   --ac-tinta: var(--c-04203f);
   --ac-acento: #E4002B;
   --ac-acento-hondo: #B00021;
@@ -31,13 +39,19 @@
 
   font-family: var(--ac-texto);
   color: var(--ac-tinta);
+}
+
+/* La disposición sí es solo de .ac: los overlays se colocan solos. */
+.ac {
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-width: 0;
   min-height: 0;
 }
-.ac *, .ac *::before, .ac *::after { box-sizing: border-box }
+.ac *, .ac *::before, .ac *::after,
+.ac-rep *, .ac-rep *::before, .ac-rep *::after,
+.ac-modal *, .ac-modal *::before, .ac-modal *::after { box-sizing: border-box }
 
 /* ====================== Encabezado ====================== */
 .ac .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: stretch }
@@ -276,9 +290,7 @@
 .ac-rep {
   position: fixed; inset: 0; z-index: 60; background: #F4F6F9;
   display: flex; flex-direction: column;
-  font-family: var(--ac-texto); color: var(--c-04203f);
 }
-.ac-rep *, .ac-rep *::before, .ac-rep *::after { box-sizing: border-box }
 
 .ac-rep .barra {
   background: #0D0D0D; color: #fff; padding: 13px 16px;
@@ -647,3 +659,115 @@
      mismo botón dicho dos veces, y uno de los dos tapa contenido. */
   .ac > .mas { display: none }
 }
+
+/* =====================================================================
+   EL BLOQUEO — ventana centrada, no pantalla completa.
+
+   El bloqueo INTERRUMPE algo que se estaba haciendo. Dejar ver debajo,
+   apagada, la acción que se iba a verificar es lo que hace que se lea
+   como "espera" y no como "te sacaron a otro lado".
+   ===================================================================== */
+.ac-modal { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 18px }
+.ac-modal .fondo {
+  position: absolute; inset: 0; border: 0; padding: 0; cursor: pointer;
+  background: rgba(10, 22, 38, .55);
+}
+.ac-modal .ventana {
+  position: relative; width: min(620px, 100%); max-height: calc(100dvh - 36px);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--ac-papel); border-radius: 14px;
+  box-shadow: 0 24px 60px -18px rgba(6, 18, 34, .55);
+}
+.ac-modal .cabezal {
+  background: var(--ac-mal); color: #fff; padding: 17px 22px 18px; flex: 0 0 auto;
+  position: relative; overflow: hidden;
+}
+/* El mismo corte diagonal del KPI de los otros módulos: es lo que hace
+   que se reconozca como parte de la misma aplicación. */
+.ac-modal .cabezal::after {
+  content: ""; position: absolute; top: -30%; bottom: -30%; right: -34px; width: 30%;
+  background: rgba(0,0,0,.14); transform: skewX(-26deg);
+}
+.ac-modal .cabezal .rot { font-size: 10px; font-weight: 700; letter-spacing: .16em; opacity: .92 }
+.ac-modal .cabezal h2 {
+  font-family: var(--ac-titulo); font-weight: 900; font-size: clamp(20px, 2.4vw, 27px);
+  letter-spacing: -.03em; margin: 6px 0 0; position: relative;
+}
+.ac-modal .cuerpo { padding: 18px 22px; overflow: auto; min-height: 0; flex: 1 1 auto }
+.ac-modal .cuerpo .guia { margin: 0 0 12px; font-size: 13.5px; line-height: 1.55; color: var(--ac-tinta) }
+.ac-modal .cuerpo .campo { margin-bottom: 13px }
+.ac-modal .cuerpo .campo label {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  color: var(--ac-gris); margin-bottom: 5px;
+}
+.ac-modal .cuerpo .campo input,
+.ac-modal .cuerpo .campo textarea,
+.ac-modal .cuerpo .campo select {
+  font: inherit; font-size: 14px; width: 100%; padding: 11px 13px; min-height: 46px;
+  border: 1px solid var(--ac-linea); border-radius: 9px; background: #fff;
+  color: var(--ac-tinta); resize: vertical;
+}
+.ac-modal .pie {
+  flex: 0 0 auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 14px 22px; background: var(--c-fafbfd); border-top: 1px solid var(--ac-linea);
+}
+.ac-modal .pie button {
+  font: inherit; font-weight: 800; font-size: 13.5px; min-height: 44px; padding: 0 20px;
+  border-radius: 9px; border: 1px solid var(--ac-linea); background: #fff;
+  color: var(--ac-tinta); cursor: pointer;
+}
+.ac-modal .pie button.si { background: var(--c-oro); border-color: var(--c-oro); color: #1A1200 }
+.ac-modal .pie button.plano { border-color: transparent; background: transparent; color: var(--ac-gris) }
+.ac-modal .pie button:disabled { opacity: .5; cursor: not-allowed }
+
+/* =====================================================================
+   ASIGNAR — el bloque del plazo y la barra de decidir.
+   ===================================================================== */
+.ac-plazo {
+  position: relative; overflow: hidden; border-radius: 12px;
+  background: var(--c-oro); color: #1A1200;
+  padding: 15px 22px 14px; min-width: 260px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.ac-plazo.alta { background: var(--ac-mal); color: #fff }
+.ac-plazo .corte {
+  position: absolute; top: -20%; bottom: -20%; right: -30px; width: 44%;
+  background: rgba(0,0,0,.14); transform: skewX(-26deg);
+}
+.ac-plazo .rot { position: relative; font-size: 10px; font-weight: 700; letter-spacing: .14em; opacity: .92 }
+.ac-plazo .num {
+  position: relative; font-family: var(--ac-titulo); font-weight: 900;
+  font-size: clamp(30px, 3.2vw, 44px); line-height: .95; letter-spacing: -.05em; margin-top: 5px;
+}
+.ac-plazo .pie { position: relative; margin-top: 9px; font-size: 12.5px }
+
+/* La barra de decidir va al final del contenido y no pegada abajo:
+   pegada taparía el último renglón de la lista de personas, que es
+   justamente la que hay que leer para decidir. */
+.ac-pie {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  padding: 14px; background: var(--ac-papel);
+  border: 1px solid var(--ac-linea); border-radius: 12px;
+}
+.ac-pie .btn { min-height: 46px; font-size: 13.5px; padding: 0 22px }
+
+/* =====================================================================
+   LA COLA — el aviso de lo que espera salir.
+   ===================================================================== */
+.ac-cola {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  background: #0D0D0D; color: #fff; border-radius: 10px; padding: 11px 14px;
+  font-size: 12.5px; line-height: 1.45;
+}
+.ac-cola .punto {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--c-oro); flex: 0 0 auto;
+}
+.ac-cola .txt { flex: 1 1 220px; min-width: 0 }
+.ac-cola b { color: var(--c-oro) }
+.ac-cola button {
+  font: inherit; font-weight: 700; font-size: 12.5px; min-height: 38px; padding: 0 14px;
+  border-radius: 8px; border: 1px solid rgba(255,255,255,.25); background: transparent;
+  color: #fff; cursor: pointer;
+}
+.ac-cola button:hover { border-color: var(--c-oro); color: var(--c-oro) }
+.ac-cola button:disabled { opacity: .5; cursor: not-allowed }

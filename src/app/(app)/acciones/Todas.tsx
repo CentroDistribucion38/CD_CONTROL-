@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import type { Accion, Carga, Motivo, Zona } from "@/modulos/acciones/datos";
+import Link from "next/link";
+import type { Accion, Motivo, Zona } from "@/modulos/acciones/datos";
 import { Fila, quien } from "./comunes";
 import { Reportar } from "./Reportar";
 
@@ -18,25 +17,16 @@ import { Reportar } from "./Reportar";
  * cierran: se acumulan, y el plazo de 48 horas pasa a ser una promesa que
  * el sistema ya sabe que no se va a cumplir.
  */
-export function Todas({ acciones, carga, nombres, zonas, motivos, areas, plazos, puedeEditar, saturado }: {
+export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, puedeEditar }: {
   acciones: Accion[];
-  carga: Carga[];
   nombres: Record<string, string>;
   zonas: Zona[];
   motivos: Motivo[];
   areas: { clave: string; nombre: string }[];
   plazos: Record<string, { horas: number; etiqueta: string }>;
   puedeEditar: boolean;
-  saturado: number;
 }) {
-  const router = useRouter();
-  const supabase = createClient();
-
   const [reportando, setReportando] = useState(false);
-  const [asignando, setAsignando] = useState<string | null>(null);
-  const [escogido, setEscogido] = useState<string | null>(null);
-  const [mandando, setMandando] = useState(false);
-  const [mal, setMal] = useState<string | null>(null);
 
   const [f, setF] = useState({ estado: "vivas", area: "", prioridad: "", texto: "" });
 
@@ -57,21 +47,6 @@ export function Todas({ acciones, carga, nombres, zonas, motivos, areas, plazos,
   const criticas = acciones.filter((a) => a.viva && a.prioridad === "alta").length;
   const sinDueno = acciones.filter((a) => a.viva && !a.responsable).length;
   const porVerificar = acciones.filter((a) => a.estado === "cerrada").length;
-
-  async function asignar(id: string, aQuien: string | null) {
-    setMandando(true);
-    setMal(null);
-    const { error } = await supabase.rpc("accion_asignar", {
-      p_id: id, p_responsable: aQuien,
-    });
-    setMandando(false);
-    if (error) { setMal(error.message); return }
-    setAsignando(null);
-    setEscogido(null);
-    router.refresh();
-  }
-
-  const elEscogido = carga.find((c) => c.id === escogido);
 
   return (
     <>
@@ -155,86 +130,14 @@ export function Todas({ acciones, carga, nombres, zonas, motivos, areas, plazos,
           {lista.map((a) => (
             <Fila key={a.id} a={a} nombres={nombres}
                   derecha={puedeEditar && a.viva ? (
-                    <button type="button" className="btn"
-                            onClick={() => {
-                              setAsignando(asignando === a.id ? null : a.id);
-                              setEscogido(a.responsable);
-                              setMal(null);
-                            }}>
+                    /* A una PANTALLA, no a un cajón aquí mismo. Escoger a
+                       quién le toca es la decisión más importante del
+                       módulo y no se toma bien en un panel de 200 px con
+                       el resto de la lista distrayendo alrededor. */
+                    <Link href={`/acciones/asignar/${a.id}`} className="btn">
                       {a.responsable ? "Cambiar responsable" : "Asignar"}
-                    </button>
+                    </Link>
                   ) : null}>
-              {asignando === a.id && (
-                <div className="panel">
-                  <div>
-                    <label>A QUIÉN LE TOCA</label>
-                    <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--ac-gris)" }}>
-                      Antes de asignar, mira cuánto tiene encima cada quien. Doce acciones en la
-                      misma persona no se cierran: se acumulan.
-                    </p>
-                  </div>
-
-                  <div style={{ border: "1px solid var(--ac-linea)", borderRadius: 9, overflow: "hidden", background: "#fff" }}>
-                    {carga.map((c) => {
-                      const tope = Math.max(saturado, ...carga.map((x) => x.abiertas), 1);
-                      return (
-                        <button key={c.id} type="button"
-                                className={"quien" + (escogido === c.id ? " on" : "") + (c.saturado ? " sat" : "")}
-                                onClick={() => setEscogido(c.id)}>
-                          <span className="ini">
-                            {(c.nombre || c.usuario || "?").split(/\s+/).slice(0, 2)
-                              .map((p) => p[0]).join("").toUpperCase()}
-                          </span>
-                          <span>
-                            <span className="n">{c.nombre || c.usuario}</span>
-                            <span className="c">{c.rol}</span>
-                          </span>
-                          <span className="barra">
-                            <i style={{ width: `${Math.min(100, (c.abiertas / tope) * 100)}%` }} />
-                          </span>
-                          <span className="num">
-                            <b>{c.abiertas}</b>
-                            abiertas
-                            {c.vencidas > 0 && <span className="v"> {c.vencidas} vencidas</span>}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {elEscogido?.saturado && (
-                    <div className="aviso rojo">
-                      <b>{elEscogido.nombre || elEscogido.usuario} está saturado.</b>{" "}
-                      {elEscogido.abiertas} acciones abiertas
-                      {elEscogido.vencidas > 0 ? ` y ${elEscogido.vencidas} vencidas` : ""}. Si le
-                      asignas esta, el plazo es una promesa que el sistema ya sabe que no se va a
-                      cumplir.
-                    </div>
-                  )}
-
-                  {mal && <div className="aviso rojo">{mal}</div>}
-
-                  <div className="acciones-panel">
-                    <button type="button" className="btn si" disabled={mandando || !escogido}
-                            onClick={() => escogido && asignar(a.id, escogido)}>
-                      {mandando ? "Asignando…"
-                        : escogido ? `Asignar a ${carga.find((c) => c.id === escogido)?.nombre
-                            ?? carga.find((c) => c.id === escogido)?.usuario}`
-                        : "Escoge a alguien"}
-                    </button>
-                    {a.responsable && (
-                      <button type="button" className="btn" disabled={mandando}
-                              onClick={() => asignar(a.id, null)}>
-                        Dejar sin asignar
-                      </button>
-                    )}
-                    <button type="button" className="btn plano" onClick={() => setAsignando(null)}>
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {a.estado === "cerrada" && a.que_se_hizo && (
                 <div className="meta" style={{ marginTop: 6 }}>
                   <span>Se hizo: {a.que_se_hizo} — {quien(nombres, a.cerrada_por)}</span>

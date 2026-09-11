@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Accion, Carga } from "@/modulos/acciones/datos";
+import { useAvisos } from "@/components/Aviso";
 import { Fila, fecha, quien } from "../comunes";
 
 /**
@@ -29,11 +30,11 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
 }) {
   const router = useRouter();
   const supabase = createClient();
+  const [avisar, avisos] = useAvisos();
 
   const [abierta, setAbierta] = useState<string | null>(null);
   const [nota, setNota] = useState("");
   const [mandando, setMandando] = useState(false);
-  const [mal, setMal] = useState<string | null>(null);
 
   /* El bloqueo: cuál acción disparó la pantalla de preventiva. */
   const [bloqueo, setBloqueo] = useState<Accion | null>(null);
@@ -51,12 +52,14 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
       return;
     }
     setMandando(true);
-    setMal(null);
     const { error } = await supabase.rpc("accion_verificar", {
       p_id: a.id, p_efectiva: efectiva, p_nota: nota.trim() || null,
     });
     setMandando(false);
-    if (error) { setMal(error.message); return }
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(efectiva
+      ? `${a.codigo} queda verificada como efectiva. Cuenta para el indicador del mes.`
+      : `${a.codigo} vuelve a abrirse con el mismo código y el mismo plazo.`);
     setAbierta(null);
     setNota("");
     router.refresh();
@@ -65,7 +68,6 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
   async function abrirPreventiva() {
     if (!bloqueo) return;
     setMandando(true);
-    setMal(null);
 
     /* Primero se cierra el ciclo viejo: la acción que falló queda
        verificada como NO efectiva, con su nota. Si se saltara este paso,
@@ -75,7 +77,7 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
       p_id: bloqueo.id, p_efectiva: false,
       p_nota: nota.trim() || "El problema volvió igual. Se pasa a acción preventiva.",
     });
-    if (e1) { setMandando(false); setMal(e1.message); return }
+    if (e1) { setMandando(false); avisar.mal(e1.message); return }
 
     const { error: e2 } = await supabase.rpc("accion_abrir_preventiva", {
       p_titulo: `Causa raíz: ${bloqueo.titulo}`,
@@ -88,8 +90,9 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
       p_prioridad: "alta",
     });
     setMandando(false);
-    if (e2) { setMal(e2.message); return }
+    if (e2) { avisar.mal(e2.message); return }
 
+    avisar.bien("Preventiva abierta, con causa raíz y responsable de proceso.");
     setBloqueo(null);
     setNota("");
     router.refresh();
@@ -97,15 +100,25 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
 
   return (
     <>
+      {avisos}
+
       {/* ------------------- EL BLOQUEO ------------------- */}
       {bloqueo && (
-        <div className="ac-rep">
-          <div className="barra" style={{ background: "#E4002B", borderBottomColor: "#E4002B" }}>
-            <span className="t">TERCERA VEZ EN EL MISMO SITIO</span>
-            <button type="button" onClick={() => setBloqueo(null)} aria-label="Cerrar">✕</button>
-          </div>
+        /* Ventana centrada sobre la pantalla apagada, no pantalla
+           completa: el bloqueo INTERRUMPE algo que se estaba haciendo, y
+           dejar ver debajo la acción que se iba a verificar es lo que
+           hace que se entienda como "espera" y no como "te sacaron a otro
+           lado". */
+        <div className="ac-modal" role="dialog" aria-modal="true"
+             aria-labelledby="bloqueo-titulo">
+          <button type="button" className="fondo" aria-label="Cerrar"
+                  onClick={() => setBloqueo(null)} />
+          <div className="ventana">
+            <div className="cabezal">
+              <span className="rot">TERCERA VEZ EN EL MISMO SITIO</span>
+              <h2 id="bloqueo-titulo">Aquí ya no va otra correctiva</h2>
+            </div>
           <div className="cuerpo">
-            <h2>Aquí ya no va otra correctiva</h2>
             <p className="guia">
               “{bloqueo.motivo_nombre}” en {bloqueo.zona_nombre ?? bloqueo.ubicacion} lleva{" "}
               <b>{bloqueo.veces_aqui} apariciones</b> en la ventana que mira el sistema. Se
@@ -140,15 +153,17 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
               el indicador del mes.
             </div>
 
-            {mal && <div className="negro" style={{ marginTop: 12 }}><span className="punto" />{mal}</div>}
           </div>
           <div className="pie">
-            <button type="button" onClick={() => setBloqueo(null)}>Atrás</button>
             <button type="button" className="si"
                     disabled={mandando || causa.trim().length < 15 || !duenoProceso}
                     onClick={abrirPreventiva}>
               {mandando ? "Abriendo…" : "Abrir acción preventiva"}
             </button>
+            <button type="button" className="plano" onClick={() => setBloqueo(null)}>
+              Atrás
+            </button>
+          </div>
           </div>
         </div>
       )}
@@ -185,9 +200,7 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
                           Fue efectiva
                         </button>
                         <button type="button" className="btn mal" disabled={mandando}
-                                onClick={() => {
-                                  setAbierta(a.id); setNota(""); setMal(null);
-                                }}>
+                                onClick={() => { setAbierta(a.id); setNota(""); }}>
                           No fue efectiva
                         </button>
                       </div>
@@ -217,7 +230,6 @@ export function Verificar({ acciones, carga, nombres, veces, puedeEditar }: {
                       el mismo plazo</b>. No se crea una nueva: así la reincidencia cuenta
                       problemas y no intentos, y el plazo no se estira.
                     </div>
-                    {mal && <div className="aviso rojo">{mal}</div>}
                     <div className="acciones-panel">
                       <button type="button" className="btn mal"
                               disabled={mandando || nota.trim().length < 4}

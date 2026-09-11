@@ -1367,3 +1367,72 @@ body {
   .cod { font-size: 12px }
   .pie { font-size: 12px }
 }
+
+/* =====================================================================
+   AVISOS — lo que la aplicación contesta cuando algo pasa.
+
+   Viven en globals.css y no en el CSS de un módulo por la misma razón
+   que el diálogo de confirmar: los usan todos los módulos y los visten
+   los siete temas sin que haya que repetir la regla siete veces.
+
+   Abajo a la derecha en PC; ARRIBA en celular, porque abajo los tapa el
+   teclado y la barra de navegación del módulo.
+   ===================================================================== */
+.av-pila {
+  position: fixed; right: 18px; bottom: 18px; z-index: 90;
+  display: flex; flex-direction: column; gap: 9px;
+  width: min(420px, calc(100vw - 36px));
+  pointer-events: none;
+}
+
+.av {
+  pointer-events: auto;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) 26px;
+  gap: 11px; align-items: start;
+  background: var(--bv-panel); color: var(--bv-texto);
+  border: 1px solid var(--bv-linea); border-left: 3px solid var(--bv-linea);
+  border-radius: 10px; padding: 12px 13px;
+  box-shadow: var(--sombra-suave);
+  font-size: 13px; line-height: 1.45;
+  /* Entra desde abajo y no aparece de golpe: un cartel que se
+     materializa se lee como un error del navegador, uno que entra se
+     lee como una respuesta de la aplicación. */
+  animation: av-entra .18s ease-out;
+}
+@keyframes av-entra {
+  from { opacity: 0; transform: translateY(8px) }
+  to   { opacity: 1; transform: none }
+}
+@media (prefers-reduced-motion: reduce) { .av { animation: none } }
+
+.av .av-icono svg {
+  width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9;
+  stroke-linecap: round; stroke-linejoin: round; display: block; margin-top: 1px;
+}
+.av .av-txt { min-width: 0; overflow-wrap: anywhere }
+.av .av-x {
+  font: inherit; font-size: 15px; line-height: 1; background: transparent; border: 0;
+  color: var(--bv-texto-2); cursor: pointer; padding: 2px 4px; border-radius: 5px;
+  /* 26 px de ancho de caja pero blanco de toque de 38: el área táctil se
+     estira con el padding sin empujar el texto de al lado. */
+  min-height: 26px;
+}
+.av .av-x:hover { background: var(--c-eef1f5); color: var(--bv-texto) }
+
+.av.bien { border-left-color: #0F7A4A }
+.av.bien .av-icono { color: #0F7A4A }
+.av.mal  { border-left-color: #E4002B; background: #FEF4F6 }
+.av.mal  .av-icono { color: #E4002B }
+.av.info { border-left-color: var(--c-oro) }
+.av.info .av-icono { color: #8A5A00 }
+
+@media (max-width: 760px) {
+  .av-pila {
+    right: 12px; left: 12px; width: auto;
+    top: calc(10px + env(safe-area-inset-top)); bottom: auto;
+  }
+  @keyframes av-entra {
+    from { opacity: 0; transform: translateY(-8px) }
+    to   { opacity: 1; transform: none }
+  }
+}

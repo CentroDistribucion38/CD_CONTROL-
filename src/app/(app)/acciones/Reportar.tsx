@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
+import { encolar, esDeRed } from "@/modulos/acciones/cola";
 import type { Motivo, Zona } from "@/modulos/acciones/datos";
 
 /**
@@ -81,6 +82,25 @@ export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
   const [mandando, setMandando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
   const [listo, setListo] = useState<{ codigo: string; vence: string } | null>(null);
+  /* Se guardó sin red y va a salir sola. Es un final distinto del de
+     "quedó reportada" y por eso es otro estado: prometerle a alguien un
+     código que todavía no existe sería mentirle. */
+  const [enCola, setEnCola] = useState(false);
+  const [sinRed, setSinRed] = useState(false);
+
+  /* Se mira al abrir y cada vez que el navegador avisa. No es adorno:
+     es lo que permite decir ANTES de tomar la foto que el envío va a
+     quedar en cola, en vez de decirlo al final cuando ya no hay vuelta. */
+  useEffect(() => {
+    const mirar = () => setSinRed(typeof navigator !== "undefined" && !navigator.onLine);
+    mirar();
+    window.addEventListener("online", mirar);
+    window.addEventListener("offline", mirar);
+    return () => {
+      window.removeEventListener("online", mirar);
+      window.removeEventListener("offline", mirar);
+    };
+  }, []);
 
   const { ubi, buscando, errUbi, direccion, pedir } = usePosicion();
 
@@ -223,7 +243,7 @@ export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
     setMandando(true);
     setMal(null);
 
-    const { data, error } = await supabase.rpc("accion_reportar", {
+    const rpc = {
       p_titulo: titulo.trim(),
       p_motivo: motivo,
       p_prioridad: prioridad,
@@ -233,13 +253,51 @@ export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
       p_lat: ubi?.lat ?? null,
       p_lng: ubi?.lng ?? null,
       p_precision: ubi ? Math.round(ubi.precision) : null,
-    });
+    };
+
+    /* SIN RED NI SE INTENTA. Se guarda y se avisa. Intentarlo primero
+       solo gasta veinte segundos de espera para llegar al mismo sitio,
+       y en un pasillo sin señal esos veinte segundos son los que hacen
+       que la próxima vez nadie reporte. */
+    if (sinRed) {
+      try {
+        await encolar({
+          rpc, foto: foto?.blob, ancho: foto?.ancho, alto: foto?.alto,
+          intentado_en: new Date().toISOString(), titulo: titulo.trim(),
+        });
+        setMandando(false);
+        setEnCola(true);
+        return;
+      } catch {
+        setMandando(false);
+        setMal("No hay señal y este teléfono no pudo guardar el reporte para después. Sal a donde haya señal sin cerrar esta pantalla.");
+        return;
+      }
+    }
+
+    const { data, error } = await supabase.rpc("accion_reportar", rpc);
 
     if (error) {
+      /* Dos errores distintos que se veían iguales:
+         SIN RED    la petición no llegó a ningún lado. Se guarda y sale
+                    sola después.
+         RECHAZO    la base contestó que no —reincidencia, permiso, fecha
+                    futura—. Encolarlo lo haría reintentar para siempre
+                    fallando igual, y mientras tanto la persona creería
+                    que quedó reportado. Se muestra con sus palabras, que
+                    ya explican qué hacer. */
+      if (esDeRed(error)) {
+        try {
+          await encolar({
+            rpc, foto: foto?.blob, ancho: foto?.ancho, alto: foto?.alto,
+            intentado_en: new Date().toISOString(), titulo: titulo.trim(),
+          });
+          setMandando(false);
+          setEnCola(true);
+          return;
+        } catch { /* si tampoco se pudo guardar, cae al mensaje de abajo */ }
+      }
       setMandando(false);
-      /* El bloqueo de reincidencia llega como un error de Postgres, pero
-         no es un error: es la regla funcionando. Se muestra con sus
-         palabras, que ya explican qué hacer. */
       setMal(error.message);
       return;
     }
@@ -284,6 +342,43 @@ export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
     s ? new Date(s).toLocaleString("es-CO", {
       day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
     }) : "";
+
+  /* ------------------------------------------------------------------ */
+  if (enCola) {
+    return (
+      <div className="ac-rep">
+        <div className="barra">
+          <span className="t">REPORTAR</span>
+          <button type="button" onClick={cerrar} aria-label="Cerrar">✕</button>
+        </div>
+        <div className="cuerpo">
+          <h2>Guardado en el teléfono</h2>
+          <p className="guia">
+            No hay señal en este punto. El reporte quedó guardado con su foto y{" "}
+            <b>se envía solo</b> cuando vuelva la red — no hay que volver a escribirlo ni
+            acordarse de nada.
+          </p>
+          <div className="negro">
+            <span className="punto" />
+            <span>
+              La foto ya está sellada con la hora y el sitio de AHORA, así que cuando salga va a
+              seguir diciendo lo de este momento. <b>El plazo no:</b> las 48 horas las cuenta la
+              base cuando reciba el reporte, no desde ya.
+            </span>
+          </div>
+        </div>
+        <div className="pie">
+          <button type="button" onClick={cerrar}>Cerrar</button>
+          <button type="button" className="si" onClick={() => {
+            setEnCola(false); setPaso(1); setModo("detectando"); setZona(null); setAMano("");
+            setMotivo(""); setTitulo(""); setDescripcion("");
+            if (foto) URL.revokeObjectURL(foto.url);
+            setFoto(null); setMal(null); setTocoPrioridad(false); pedir();
+          }}>Reportar otra</button>
+        </div>
+      </div>
+    );
+  }
 
   /* ------------------------------------------------------------------ */
   if (listo) {
@@ -551,6 +646,15 @@ export function Reportar({ zonas, motivos, plazos, cerrar }: Props) {
               <b>{fmt(new Date(Date.now() + (plazos[prioridad]?.horas ?? 168) * 3600_000).toISOString())}</b>.
               Así el indicador de cumplimiento no se puede negociar.
             </div>
+
+            {sinRed && (
+              <div className="negro" style={{ marginTop: 12 }}>
+                <span className="punto" />
+                <span>
+                  Sin señal en este punto. <b>Se envía sola</b> cuando vuelva la red.
+                </span>
+              </div>
+            )}
 
             {mal && (
               <div className="negro" style={{ marginTop: 12 }}>

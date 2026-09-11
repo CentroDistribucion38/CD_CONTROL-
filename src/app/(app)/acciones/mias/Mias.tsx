@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Accion, Motivo, Zona } from "@/modulos/acciones/datos";
+import { useAvisos } from "@/components/Aviso";
 import { Fila, fecha } from "../comunes";
 import { Reportar } from "../Reportar";
 
@@ -27,12 +28,12 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
 }) {
   const router = useRouter();
   const supabase = createClient();
+  const [avisar, avisos] = useAvisos();
 
   const [reportando, setReportando] = useState(false);
   const [cerrando, setCerrando] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [mandando, setMandando] = useState(false);
-  const [mal, setMal] = useState<string | null>(null);
 
   /* Lo vivo arriba y lo demás abajo. Dentro de lo vivo manda el plazo,
      que ya viene ordenado de la base. */
@@ -42,12 +43,12 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
 
   async function cerrar(id: string) {
     setMandando(true);
-    setMal(null);
     const { error } = await supabase.rpc("accion_cerrar", {
       p_id: id, p_que_se_hizo: texto.trim(),
     });
     setMandando(false);
-    if (error) { setMal(error.message); return }
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien("Quedó a la espera de que alguien verifique si sirvió.");
     setCerrando(null);
     setTexto("");
     router.refresh();
@@ -55,6 +56,8 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
 
   return (
     <>
+      {avisos}
+
       {reportando && (
         <Reportar zonas={zonas} motivos={motivos} plazos={plazos}
                   cerrar={() => setReportando(false)} />
@@ -86,7 +89,7 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
                     <button type="button" className="btn si"
                             onClick={() => {
                               setCerrando(cerrando === a.id ? null : a.id);
-                              setTexto(""); setMal(null);
+                              setTexto("");
                             }}>
                       Ya lo hice
                     </button>
@@ -114,7 +117,6 @@ export function Mias({ acciones, zonas, motivos, plazos, puedeEditar }: {
                     Esto no cierra el tema: lo manda a verificación. Alguien va a ir a mirar si de
                     verdad sirvió, y lo que escribas aquí es lo que va a ir a comprobar.
                   </div>
-                  {mal && <div className="aviso rojo">{mal}</div>}
                   <div className="acciones-panel">
                     <button type="button" className="btn si"
                             disabled={mandando || texto.trim().length < 4}
