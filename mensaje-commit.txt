@@ -1,55 +1,55 @@
-Que cambiar de pantalla se sienta instantaneo
+Modulo Acciones: la base de datos
 
-Tocar una seccion del menu no hacia NADA visible hasta que el servidor
-terminara: la pantalla anterior se quedaba quieta, parecia trabada, y
-quien no ve respuesta vuelve a tocar. El segundo toque cancela el
-primero, asi que en parte lo estabamos volviendo lento nosotros.
+Acciones correctivas y preventivas para toda la bodega, aparte de las
+novedades de T1 / T2: una novedad es lo que paso en un viaje y se
+resuelve entre dos plantas; una accion es una correccion con plazo,
+responsable y verificacion, en cualquier area.
 
-Cinco cosas, de la que mas se siente a la que menos:
+Lo que importa no son las tablas, son cuatro reglas que quedan en la
+BASE y que ninguna pantalla puede mover:
 
-1. ARMAZON DE CARGA (src/app/(app)/loading.tsx)
-   Ahora el cambio de pantalla es inmediato: cambia la direccion, el menu
-   marca donde estas, y queda el armazon gris de la pagina mientras los
-   datos entran encima. Es el mismo tiempo y se siente distinto: un
-   armazon con la forma de lo que viene se lee como "ya casi".
-   Y trae algo que no se ve: Next SOLO adelanta las pantallas que tienen
-   un armazon asi. Sin el no adelantaba ninguna, porque todas consultan
-   en vivo.
+1. EL PLAZO LO PONE LA PRIORIDAD, NO LA PERSONA.
+   Alta 48 h, media 7 dias, baja 15. La fecha la calcula la base al
+   reportar, leyendo acciones_plazos. No hay camino por donde el
+   navegador mande una fecha de vencimiento.
 
-2. UNA SOLA PREGUNTA DE "QUIEN ENTRO" POR PANTALLA (src/lib/sesion.ts)
-   getUser() no lee una cookie: manda la sesion a Supabase para que la
-   VALIDE, y eso es un viaje por internet. Se estaba pagando cinco veces
-   para pintar una sola pantalla: el middleware, el armazon, la pagina, y
-   dos veces mas adentro de misPermisos. Ahora se pregunta una vez por
-   pantalla y las demas reciben la misma respuesta.
-   No debilita nada: la sesion se sigue validando contra Supabase en cada
-   pantalla. Lo que se quita es preguntar cinco veces lo mismo en la
-   misma pantalla.
+2. CERRAR NO ES RESOLVER.
+   Cerrar es decir que se hizo, y el texto es obligatorio. Despues
+   alguien VERIFICA si sirvio. La efectividad del mes se mide sobre lo
+   verificado, no sobre lo cerrado: asi no se puede inflar cerrando.
 
-3. LOS PERMISOS, TAMBIEN UNA VEZ (src/lib/permisos.ts)
-   Los pedian el armazon —para el menu— y la pagina —para los botones de
-   guardar—, cuatro consultas cada uno. Ocho consultas para pintar una
-   pantalla, y las cuatro segundas contestaban lo mismo que las primeras.
-   Dura lo que dura armar la pagina: un cambio de rol se ve en la
-   pantalla siguiente, no queda pegado.
+3. A LA TERCERA VEZ EN EL MISMO SITIO SE CORTA.
+   Mismo motivo, misma zona, tres veces en seis meses: la cuarta
+   correctiva se rechaza y hay que abrir preventiva, que exige causa
+   raiz y responsable de PROCESO. Los dos numeros son parametros.
 
-4. LAS CONSULTAS EN PARALELO, NO EN FILA
-   Fuente principal, En transito y Novedades pedian sus datos en dos o
-   tres tandas, y tardaban lo que SUMAN aunque ninguna dependa de la
-   anterior. Los nombres de quien hizo cada cosa se piden ahora todos de
-   una —son decenas de personas, tres columnas— en vez de esperar los
-   viajes para saber por cuales preguntar.
+4. SI NO FUE EFECTIVA, REABRE CON EL MISMO CODIGO Y EL MISMO PLAZO.
+   No se crea una nueva: asi la reincidencia cuenta problemas y no
+   intentos. Y el plazo no se estira, porque esconder que ya esta
+   vencida seria el error que este modulo existe para no cometer.
 
-5. ADELANTAR AL PASAR POR ENCIMA (Navegacion.tsx + next.config.ts)
-   Al pasar el mouse por una seccion, o al APOYAR el dedo en celular, se
-   empieza a traer esa pantalla. Cuando el toque termina, muchas veces ya
-   llego. Se adelanta la que la persona esta mirando, no las seis: todas
-   serian seis consultas cada vez que alguien abre el menu.
-   staleTimes de 30 segundos es lo que hace que eso sirva: sin eso Next
-   botaba lo adelantado antes de usarlo. Es la ventana de ir y volver, no
-   la de quedarse, y escribir algo la bota (router.refresh), asi que no
-   se ven datos viejos despues de guardar.
+Una regla que NO se impone y si se muestra: quien cierra no deberia
+verificar. En un turno de tres a veces no hay de otra, asi que en vez de
+trabar el proceso la fila queda marcada como auto_verificada y se ve en
+el tablero. Una regla que se puede saltar en silencio es peor que una
+que no existe.
 
-Medido: el armazon no hace crecer la pagina ni la desborda en 1440, 820,
-390 ni 360 de ancho, que es lo que evita el brinco justo cuando llegan
-los datos.
+Detalles que salieron de las pruebas:
+
+- El area sale de la ZONA, no del motivo. Una rejilla suelta en la zona
+  de cargue cuenta para Despacho, no para Seguridad, porque el tablero
+  agrupa por donde paso.
+- Faltaban los GRANT. Las politicas de RLS dicen que filas puede tocar
+  alguien; el grant dice si puede tocar la tabla, y sin grant la
+  politica ni se evalua. Supabase suele traerlos por omision y por eso
+  se olvidan; el dia que el proyecto se monte de cero el modulo dejaria
+  de escribir sin que nadie entienda por que. Se declaran, no se suponen.
+
+Probado contra Postgres 16 real, en una sola transaccion y dos veces:
+el bloqueo corta la cuarta y deja pasar la misma falla en otro pasillo,
+los tres plazos dan 48 h / 7 / 15 dias, cerrar sin texto se rechaza,
+verificar algo no cerrado se rechaza, la preventiva sin causa raiz se
+rechaza y queda amarrada a las tres correctivas que la originaron, y un
+operador no puede asignar pero si leer.
+
+Se siembran 10 zonas y 18 motivos como base, editables desde la app.
