@@ -1279,14 +1279,21 @@
 @media (min-width: 560px) { .tp .agregar-m.ruta-nueva button { flex: 0 0 auto } }
 
 /* ---------- Placa y ruta, ya de lista ----------
-   La placa se sigue viendo grande: es lo que quien está al lado del
-   vehículo compara con el papel. Que ahora sea un desplegable no
-   cambia que sea la cifra que se lee de lejos. */
+   LA LETRA GRANDE ERA DEL CAMPO DE ESCRIBIR, NO DE LA LISTA. Cuando la
+   placa se tecleaba, el tamaño hacía trabajo: quien está al lado del
+   vehículo compara lo que escribió con el papel. Al pasar a
+   desplegable heredó esos 32 px — y el menú nativo copia el tamaño del
+   control, así que salía una lista de siete placas ocupando media
+   pantalla. Escoger de una lista no necesita ese tamaño: el error de
+   dedo que el tamaño prevenía ya no existe.
+
+   Queda del mismo alto y la misma familia que el de ruta, con la placa
+   un punto más grande y espaciada, que es como se lee una placa. */
 .tp .placa select {
-  width: 100%; min-height: 64px; border: 1.5px solid var(--tp-linea); border-radius: 3px;
-  background: var(--tp-fondo); color: var(--tp-tinta); padding: 0 14px;
-  font-family: var(--tp-titulo); font-weight: 900; font-size: clamp(22px, 5vw, 32px);
-  letter-spacing: .08em; text-align: center; text-align-last: center;
+  width: 100%; height: 50px; border: 1.5px solid var(--tp-linea); border-radius: 3px;
+  background: var(--tp-fondo); color: var(--tp-tinta); padding: 0 12px;
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 17px;
+  letter-spacing: .06em;
 }
 .tp .placa select:focus {
   outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);

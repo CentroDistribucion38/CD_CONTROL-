@@ -1,28 +1,18 @@
-Traspasos: las placas y las rutas si se pueden borrar
+Traspasos: el desplegable de placa ocupaba media pantalla
 
-El menu decia "No se puede borrar: ya lo nombran 43 viajes" tambien para
-placas y rutas. Copie ahi la regla de puntos y tipos, y en placas y rutas
-esa regla NO APLICA. El esquema lo dice:
+Al abrirlo salia una lista de siete placas a 32 px, centrada, tapando el
+formulario entero.
 
-  traspasos_viajes.origen  -> traspasos_puntos
-  traspasos_viajes.destino -> traspasos_puntos
-  traspasos_viajes.tipo    -> traspasos_tipos
+La causa: la letra grande era del CAMPO DE ESCRIBIR, no de la lista.
+Cuando la placa se tecleaba, el tamaño hacia trabajo —quien esta al lado
+del vehiculo compara lo que escribio con el papel, y con guantes un
+error de dedo es facil—. Al pasar a desplegable heredo esos 32 px, y el
+menu nativo copia el tamaño del control.
 
-Y nada mas. No hay ninguna llave foranea hacia placas ni hacia rutas: la
-placa se guarda como TEXTO dentro de cada viaje, y la ruta sale del
-origen y el destino de ese mismo viaje.
+Escoger de una lista no necesita ese tamaño: el error que el tamaño
+prevenia ya no existe, porque ya no se escribe nada.
 
-Asi que borrar una placa del maestro no toca un solo viaje —siguen con
-su placa escrita, y los informes por placa siguen contandolos igual—:
-lo unico que pasa es que deja de ofrecerse al registrar. Prohibirlo era
-prohibir algo que la base permite sin riesgo.
-
-DONDE SI APLICA SE QUEDA COMO ESTABA. Un punto o un tipo usados no se
-pueden borrar porque la base lo rechazaria, y la pantalla lo dice antes
-en vez de dejar salir un "violates foreign key constraint", que no le
-explica nada a quien esta mirando.
-
-Y SE DICE QUE PASA CON LOS VIAJES. "Borrar" al lado de "142 viajes" da a
-entender que se van con ella, asi que debajo del boton va la frase: "Los
-142 viajes que la nombran no se pierden: queda escrita en cada uno. Solo
-deja de poderse escoger".
+Queda del mismo alto y la misma familia que el desplegable de ruta —50
+px—, con la placa un punto mas grande y espaciada, que es como se lee
+una placa. Los chips de placas recientes siguen debajo: esos son el
+camino corto.
