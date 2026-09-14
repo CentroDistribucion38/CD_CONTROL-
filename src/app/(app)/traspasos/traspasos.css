@@ -1063,3 +1063,31 @@
   color: color-mix(in srgb, var(--tp-ojo) 68%, #000);
 }
 .tp .guia.adicional b { color: var(--tp-tinta) }
+
+/* =====================================================================
+   LAS SEIS CIFRAS DE CONTROL
+   ---------------------------------------------------------------------
+   Tres columnas y no cuatro: con cuatro, la sexta tarjeta se queda sola
+   en un segundo renglón y se lee como si fuera aparte. Con tres son dos
+   filas llenas de a tres.
+   ===================================================================== */
+.tp .cifras.seis { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+.tp .cifras.seis .n { font-size: 30px }
+
+.tp .cifra.bien  { border-left-color: var(--tp-bien) }
+.tp .cifra.bien .n  { color: var(--tp-bien) }
+.tp .cifra.medio { border-left-color: var(--tp-ojo) }
+.tp .cifra.ojo .n { color: color-mix(in srgb, var(--tp-ojo) 78%, #000) }
+
+/* APARTE quiere decir aparte. El filo punteado es lo mismo que dice el
+   texto de abajo —esta cifra no entra en el cálculo— dicho de una
+   manera que se ve sin leer. */
+.tp .cifra.aparte {
+  border-left: 3px dashed var(--tp-gris);
+  background: color-mix(in srgb, var(--tp-fondo) 55%, #fff);
+}
+.tp .cifra.aparte .n { color: var(--tp-gris) }
+.tp .cifra.aparte .u b { color: var(--tp-tinta) }
+
+@media (max-width: 900px) { .tp .cifras.seis { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 420px) { .tp .cifras.seis { grid-template-columns: 1fr } }

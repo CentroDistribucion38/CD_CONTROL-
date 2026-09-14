@@ -1,0 +1,47 @@
+Traspasos: las seis cifras de Control, siempre visibles
+
+Estaban repartidas por la pantalla: los dos porcentajes arriba, los
+adicionales metidos dentro de la leyenda de la cinta, y los vacios solo
+como alerta y solo si habia alguno. Para leer las seis habia que saber
+donde mirar cada una.
+
+Ahora van juntas, en una fila de seis tarjetas debajo del titulo, y SE
+PINTAN AUNQUE VALGAN CERO. Esconder lo que vale cero tiene sentido en
+una alerta; no en una cifra que alguien necesita leer todos los dias.
+"Adicionales: 0" ES la respuesta a una pregunta, y no encontrarla
+obliga a preguntarse si es cero o si la pantalla no la trae.
+
+EL ORDEN ES EL DEL PROCESO, no el de la importancia:
+
+  planeados -> cumplidos -> adicionales -> vacios (aparte)
+  -> % adherencia -> % cumplimiento
+
+Los dos porcentajes van al final porque salen de los cuatro de antes.
+El que manda ya esta grande arriba, en el panel dorado.
+
+LOS VACIOS VAN APARTE Y LO DICEN, con filo punteado, fondo apagado y la
+frase escrita en la tarjeta: "aparte: no entran en el calculo". Es la
+cifra que mas facil se suma por error —un viaje sin carga cuesta igual
+pero no mueve producto, asi que meterlo en el cumplido inflaria la
+adherencia con viajes que no movieron nada—.
+
+No es una promesa de la pantalla: la vista ya los excluye en la base,
+
+  where estado = 'registrado' and not vacio
+
+y los vacios planeados viven en su propia tabla, traspasos_plan_vacios,
+justo para que nadie los sume por accidente. La tarjeta solo hace
+visible una regla que ya existia, para que nadie la deshaga a mano en
+un informe.
+
+VACIOS Y ADICIONALES SE QUITAN DE LAS ALERTAS: ya son tarjetas. La
+misma cifra dos veces en la misma pantalla es la forma mas rapida de
+que alguien deje de creerle a las dos. Las alertas se quedan con lo que
+no es tarjeta: viajes sin salir, tipos movidos sin planear, tipos al
+100%.
+
+Tres columnas y no cuatro: con cuatro, la sexta tarjeta se queda sola en
+un segundo renglon y se lee como si fuera aparte.
+
+MEDIDO CON PLAYWRIGHT a 1440 / 820 / 390 / 360 px: tres columnas, dos y
+una; sin desborde horizontal en ninguno.

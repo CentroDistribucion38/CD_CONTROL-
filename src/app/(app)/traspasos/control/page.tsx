@@ -133,6 +133,65 @@ export default async function ControlPage({ searchParams }: {
           derecha le comían el ancho al título. */}
       <Barra tipos={t.tipos} soloFiltros />
 
+      {/* ─ LAS SEIS CIFRAS, SIEMPRE, AUNQUE ESTÉN EN CERO.
+
+          Antes vivían repartidas —los porcentajes arriba, los
+          adicionales dentro de la leyenda de la cinta, los vacíos solo
+          como alerta y solo si había alguno—. Esconder lo que vale cero
+          tiene sentido en una alerta; no en una cifra que alguien
+          necesita leer todos los días. "Adicionales: 0" ES la respuesta
+          a una pregunta, y no encontrarla obliga a preguntarse si es
+          cero o si la pantalla no la trae.
+
+          EL ORDEN ES EL DEL PROCESO, no el de la importancia: se
+          planea, se mueve, algo sale de más, algunos van vacíos — y de
+          esos cuatro salen los dos porcentajes, que por eso van al
+          final. El que manda ya está grande arriba. */}
+      <section className="cifras seis">
+        <div className="cifra">
+          <div className="rot">VIAJES PLANEADOS</div>
+          <div className="n">{planeado}</div>
+          <div className="u">lo que el plan publicado prometió mover</div>
+        </div>
+
+        <div className="cifra">
+          <div className="rot">VIAJES CUMPLIDOS</div>
+          <div className="n">{cumplido}</div>
+          <div className="u">registrados con carga · nadie escribe esta cifra</div>
+        </div>
+
+        <div className="cifra ojo">
+          <div className="rot">ADICIONALES</div>
+          <div className="n">{adicionales}</div>
+          <div className="u">se movieron por encima del plan o sin planear</div>
+        </div>
+
+        {/* LOS VACÍOS VAN APARTE Y LO DICEN. Es la cifra que más fácil
+            se suma por error: un viaje sin carga cuesta igual pero no
+            mueve producto, así que meterlo en el cumplido inflaría la
+            adherencia con viajes que no movieron nada. La vista los
+            excluye —`where estado = 'registrado' and not vacio`— y esta
+            tarjeta lo dice para que nadie los vuelva a sumar a mano en
+            un informe. */}
+        <div className="cifra aparte">
+          <div className="rot">VIAJES VACÍOS</div>
+          <div className="n">{vacios}</div>
+          <div className="u">aparte: <b>no entran en el cálculo</b></div>
+        </div>
+
+        <div className={"cifra " + clase(planeado > 0 ? adherencia : null)}>
+          <div className="rot">% ADHERENCIA</div>
+          <div className="n">{planeado > 0 ? `${adherencia}%` : "—"}</div>
+          <div className="u">de lo planeado, cuánto salió · tope 100%</div>
+        </div>
+
+        <div className={"cifra " + clase(planeado > 0 ? cumplimiento : null)}>
+          <div className="rot">% CUMPLIMIENTO</div>
+          <div className="n">{planeado > 0 ? `${cumplimiento}%` : "—"}</div>
+          <div className="u">todo lo movido contra el plan · adicionales incluidos</div>
+        </div>
+      </section>
+
       {/* 2 ─ CÓMO VA REPARTIDA */}
       <section className="medidor">
         <div className="avance">
@@ -186,13 +245,12 @@ export default async function ControlPage({ searchParams }: {
 
       {/* 3 ─ LO QUE ESTÁ MAL. Solo se pinta lo que hay: una alerta que
              dice "0" es una alerta que la gente aprende a no leer. */}
-      {(faltan > 0 || vacios > 0 || adicionales > 0 || sinPlanear > 0 || alCien.length > 0) && (
+      {/* VACÍOS Y ADICIONALES YA NO SE REPITEN AQUÍ: subieron a las seis
+          tarjetas. La misma cifra dos veces en la misma pantalla es la
+          forma más rápida de que alguien deje de creerle a las dos. */}
+      {(faltan > 0 || sinPlanear > 0 || alCien.length > 0) && (
         <section className="alertas">
           {faltan > 0 && <div className="alerta"><b>{faltan}</b> viajes sin salir</div>}
-          {vacios > 0 && <div className="alerta"><b>{vacios}</b> viajes vacíos</div>}
-          {adicionales > 0 && (
-            <div className="alerta neutra"><b>{adicionales}</b> adicionales no planeados</div>
-          )}
           {sinPlanear > 0 && (
             <div className="alerta neutra">
               <b>{sinPlanear}</b> tipo{sinPlanear === 1 ? "" : "s"} movido{sinPlanear === 1 ? "" : "s"} sin planear
