@@ -7,7 +7,7 @@ ${glob}
 *{box-sizing:border-box} body{margin:0;background:var(--c-eef1f5,#EEF1F5);font:14px system-ui}
 .marco{min-height:100vh;padding:18px}
 ${css}
-</style><div class="marco"><div class="tp">${cuerpo}</div></div>`;
+</style><div${process.env.TEMA?` data-tema="${process.env.TEMA}"`:""}><div class="marco"><div class="tp">${cuerpo}</div></div></div>`;
 
 const asa = `<button class="asa"><svg viewBox="0 0 24 24"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"/></svg></button>`;
 const sw  = (on) => `<label class="sw"><input type="checkbox" ${on?"checked":""}><i></i></label>`;

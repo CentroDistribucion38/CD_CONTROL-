@@ -19,7 +19,7 @@ const mes = (ocup) => `<div class="cal">
 
 const HTML = `<!doctype html><meta charset="utf-8"><style>${glob}
 *{box-sizing:border-box}body{margin:0;padding:18px;background:var(--c-eef1f5,#EEF1F5)}${css}</style>
-<div class="tp"><div class="pie-publicar" style="flex-wrap:wrap">
+<div${process.env.TEMA?` data-tema="${process.env.TEMA}"`:""}><div class="tp"><div class="pie-publicar" style="flex-wrap:wrap">
 
 <div class="cal-caja">
 <button class="cal-disparo" aria-expanded="true"><svg viewBox="0 0 24 24">

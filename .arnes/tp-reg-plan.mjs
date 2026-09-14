@@ -7,7 +7,7 @@ ${glob}
 *{box-sizing:border-box} body{margin:0;background:var(--c-eef1f5,#EEF1F5);font:14px system-ui}
 .marco{min-height:100vh;padding:18px}
 ${css}
-</style><div class="marco"><div class="tp">${cuerpo}</div></div>`;
+</style><div${process.env.TEMA?` data-tema="${process.env.TEMA}"`:""}><div class="marco"><div class="tp">${cuerpo}</div></div></div>`;
 
 const TIPOS=[["Casco vidrio",6,5,3,4],["Envase",4,3,2,0],["Estibas",2,1,1,0],
   ["Plástico",1,1,0,0],["PET",3,2,2,0],["Lavado",1,0,0,0],["PT Expo",2,1,0,0],

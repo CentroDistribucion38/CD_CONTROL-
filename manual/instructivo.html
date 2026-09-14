@@ -1,0 +1,761 @@
+<title>Traspasos Ag01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* =====================================================================
+   Los colores salen del módulo: gris claro y ámbar, que es con lo que
+   se entra a CONTROL. Un instructivo que no se parece a la pantalla
+   que explica obliga a traducir dos veces.
+   ===================================================================== */
+:root {
+  --papel:  #ffffff;
+  --fondo:  #ededed;
+  --tinta:  #141414;
+  --gris:   #5f6163;
+  --linea:  #d8d8d6;
+  --oro:    #ffc000;
+  --oro-ti: #5e4100;
+  --oro-suave: #fdf0d0;
+  --mal:    #c0332b;
+  --bien:   #1b7f4b;
+  --sombra: 0 1px 2px rgba(0,0,0,.05), 0 10px 26px -18px rgba(0,0,0,.35);
+  --titulo: "Archivo", system-ui, sans-serif;
+  --texto:  "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #1c1c1b; --fondo: #121212; --tinta: #eceae6; --gris: #a3a3a1;
+    --linea: #33322f; --oro-suave: #3a2f0f; --oro-ti: #f5c85a;
+    --mal: #ef6a60; --bien: #4ec585;
+    --sombra: 0 1px 2px rgba(0,0,0,.5), 0 10px 26px -18px rgba(0,0,0,.9);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #1c1c1b; --fondo: #121212; --tinta: #eceae6; --gris: #a3a3a1;
+  --linea: #33322f; --oro-suave: #3a2f0f; --oro-ti: #f5c85a;
+  --mal: #ef6a60; --bien: #4ec585;
+  --sombra: 0 1px 2px rgba(0,0,0,.5), 0 10px 26px -18px rgba(0,0,0,.9);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box }
+body {
+  margin: 0; background: var(--fondo); color: var(--tinta);
+  font: 400 16px/1.62 var(--texto);
+  -webkit-text-size-adjust: 100%;
+}
+.hoja { max-width: 860px; margin: 0 auto; padding-block: 0 72px; padding-left: 20px; padding-right: 20px }
+img { max-width: 100%; display: block }
+
+/* ---------- Portada ---------- */
+.tapa {
+  margin: 0 -20px 40px; padding: 44px 20px 34px;
+  background: var(--tinta); color: #fff;
+  border-bottom: 5px solid var(--oro);
+}
+.tapa .ojo {
+  margin: 0; font: 700 11px/1 var(--texto); letter-spacing: .18em;
+  color: var(--oro); text-transform: uppercase;
+}
+.tapa h1 {
+  margin: 12px 0 0; font: 900 clamp(34px, 8vw, 56px)/1.02 var(--titulo);
+  letter-spacing: -.03em; text-wrap: balance;
+}
+.tapa p { margin: 14px 0 0; max-width: 58ch; color: #c9c9c7; font-size: 15.5px }
+.tapa .sello {
+  display: inline-block; margin-top: 20px; padding: 7px 12px;
+  background: var(--oro); color: #241a00; border-radius: 3px;
+  font: 800 11.5px/1 var(--titulo); letter-spacing: .1em;
+}
+
+/* ---------- Índice ---------- */
+.indice { margin-bottom: 44px }
+.indice h2 {
+  margin: 0 0 12px; font: 800 12px/1 var(--texto); letter-spacing: .16em;
+  text-transform: uppercase; color: var(--gris);
+}
+.indice ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px }
+.indice a {
+  display: flex; align-items: baseline; gap: 12px;
+  color: var(--tinta); text-decoration: none;
+  background: var(--papel); border: 1px solid var(--linea); border-radius: 3px;
+  padding: 11px 14px; font-weight: 500;
+}
+.indice a:hover { border-color: var(--oro); box-shadow: inset 3px 0 0 var(--oro) }
+.indice em {
+  font-style: normal; font: 800 12px var(--titulo); color: var(--oro-ti);
+  background: var(--oro-suave); border-radius: 3px; padding: 3px 7px; flex: none;
+}
+.indice span { color: var(--gris); font-size: 13.5px; margin-left: auto; text-align: right }
+
+/* ---------- Secciones ---------- */
+section { margin-bottom: 54px; scroll-margin-top: 16px }
+section > h2 {
+  margin: 0 0 6px; font: 900 clamp(24px, 5vw, 32px)/1.1 var(--titulo);
+  letter-spacing: -.025em; text-wrap: balance;
+}
+section > h2 .num {
+  display: inline-block; min-width: 1.6em; color: var(--oro-ti);
+  background: var(--oro-suave); border-radius: 4px; padding: 0 .3em;
+  margin-right: .35em; font-size: .72em;
+}
+section > .quien {
+  margin: 0 0 22px; font: 600 12px/1 var(--texto); letter-spacing: .1em;
+  text-transform: uppercase; color: var(--gris);
+}
+section > p { max-width: 66ch }
+
+/* ---------- Un paso ---------- */
+.paso {
+  display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 0 16px;
+  margin-bottom: 26px;
+}
+.paso > .n {
+  grid-row: 1 / span 2;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--oro); color: #241a00;
+  display: grid; place-items: center;
+  font: 800 15px var(--titulo); font-variant-numeric: tabular-nums;
+}
+.paso > h3 { margin: 4px 0 4px; font: 700 18px/1.3 var(--titulo); letter-spacing: -.01em }
+.paso > .cuerpo { min-width: 0 }
+.paso > .cuerpo > p:first-child { margin-top: 0 }
+.paso p { margin: 0 0 10px; max-width: 62ch }
+@media (max-width: 560px) {
+  .paso { grid-template-columns: 1fr; gap: 0 }
+  .paso > .n { grid-row: auto; margin-bottom: 8px }
+}
+
+/* ---------- Captura ---------- */
+figure {
+  margin: 16px 0 18px; background: var(--papel);
+  border: 1px solid var(--linea); border-radius: 4px; overflow: hidden;
+  box-shadow: var(--sombra);
+}
+figure img { width: 100% }
+figure figcaption {
+  padding: 9px 13px; font-size: 13px; color: var(--gris);
+  border-top: 1px solid var(--linea); background: var(--fondo);
+}
+figure.angosta { max-width: 420px }
+figure.media   { max-width: 660px }
+
+/* ---------- Avisos ---------- */
+.nota, .ojo-nota, .no {
+  margin: 14px 0; padding: 13px 15px; border-radius: 3px;
+  font-size: 14.5px; line-height: 1.55; max-width: 66ch;
+  background: var(--papel); border: 1px solid var(--linea);
+}
+.ojo-nota { border-left: 4px solid var(--oro); background: var(--oro-suave); color: var(--oro-ti) }
+.ojo-nota b { color: inherit }
+.no { border-left: 4px solid var(--mal) }
+.nota { border-left: 4px solid var(--gris) }
+.rot-nota {
+  display: block; font: 800 10.5px/1 var(--texto); letter-spacing: .14em;
+  text-transform: uppercase; margin-bottom: 6px; opacity: .8;
+}
+
+/* ---------- Tablas ---------- */
+.tabla-envuelta { overflow-x: auto; margin: 16px 0 }
+table { border-collapse: collapse; width: 100%; min-width: 460px; font-size: 14.5px }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--linea); vertical-align: top }
+th { font: 700 11px var(--texto); letter-spacing: .1em; text-transform: uppercase; color: var(--gris) }
+td:first-child { font-weight: 600 }
+tbody tr:last-child td { border-bottom: 0 }
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .92em;
+  background: var(--fondo); padding: 1px 5px; border-radius: 3px;
+}
+kbd {
+  font: 600 12px var(--texto); background: var(--papel); border: 1px solid var(--linea);
+  border-bottom-width: 2px; border-radius: 4px; padding: 2px 6px;
+}
+b, strong { font-weight: 600 }
+ul { margin: 0 0 12px; padding-left: 20px; max-width: 62ch }
+li { margin-bottom: 6px }
+.eti {
+  display: inline-block; font: 700 10.5px/1 var(--texto); letter-spacing: .08em;
+  padding: 3px 7px; border-radius: 4px; vertical-align: 1px;
+  background: var(--oro-suave); color: var(--oro-ti);
+}
+.eti.rojo { background: color-mix(in srgb, var(--mal) 16%, var(--papel)); color: var(--mal) }
+
+footer {
+  border-top: 1px solid var(--linea); padding-top: 18px; margin-top: 10px;
+  font-size: 13.5px; color: var(--gris);
+}
+
+/* ---------- Para el PDF ---------- */
+@media print {
+  body { background: #fff }
+  .hoja { max-width: none; padding: 0 }
+  .indice { break-after: page }
+  section { break-inside: auto; margin-bottom: 30px }
+  section > h2 { break-after: avoid }
+  .paso { break-inside: avoid }
+  figure { break-inside: avoid; box-shadow: none }
+  .tapa { margin: 0 0 24px; border-radius: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact }
+  a { color: inherit; text-decoration: none }
+}
+</style>
+
+<div class="hoja">
+
+<header class="tapa">
+  <p class="ojo">CONTROL · CD38 Ag01 · Barranquilla</p>
+  <h1>Traspasos, paso a paso</h1>
+  <p>
+    Cómo se registra un viaje, cómo se planea el día y cómo se corrige lo que salió mal.
+    Cada pantalla está aquí con su captura y con lo que la aplicación hace por su cuenta,
+    que es casi siempre lo que confunde.
+  </p>
+  <span class="sello">EL CUMPLIDO NO SE ESCRIBE</span>
+</header>
+
+<nav class="indice">
+  <h2>Lo que hay adentro</h2>
+  <ol>
+    <li><a href="#registrar"><em>1</em> Registrar un viaje <span>El que mueve</span></a></li>
+    <li><a href="#equivoque"><em>2</em> Me equivoqué <span>El que mueve · Admin</span></a></li>
+    <li><a href="#planear"><em>3</em> Planear el día <span>Supervisor</span></a></li>
+    <li><a href="#varios"><em>4</em> Planear varios días <span>Supervisor</span></a></li>
+    <li><a href="#borrar"><em>5</em> Cambiar o borrar un plan <span>Supervisor</span></a></li>
+    <li><a href="#control"><em>6</em> Leer el control <span>Todos</span></a></li>
+    <li><a href="#maestro"><em>7</em> El maestro <span>Supervisor · Admin</span></a></li>
+    <li><a href="#celular"><em>8</em> En el celular <span>Todos</span></a></li>
+    <li><a href="#reglas"><em>9</em> Lo que la app no deja hacer <span>Todos</span></a></li>
+  </ol>
+</nav>
+
+<!-- ================================================================= -->
+<section id="registrar">
+  <h2><span class="num">1</span>Registrar un viaje</h2>
+  <p class="quien">Lo hace quien mueve · operador o supervisor</p>
+
+  <p>
+    Cada viaje que sale del muelle se registra aquí, en el momento en que sale.
+    <b>El cumplido del plan no se escribe en ninguna parte</b>: sube solo con lo que se
+    registra en esta pantalla. Si un viaje no se registra, para la aplicación no salió.
+  </p>
+
+  <figure>
+    <img src="img/registrar.jpg" alt="La pantalla de registrar un viaje, con el desplegable de placas abierto y el plan del turno a la derecha." loading="lazy">
+    <figcaption>Registrar viaje. A la derecha, el plan del turno: cada cuadro es un viaje prometido y se prende al registrarlo.</figcaption>
+  </figure>
+
+  <div class="paso">
+    <span class="n">1</span>
+    <h3>Abre Traspasos y mira el turno</h3>
+    <div class="cuerpo">
+      <p>
+        La aplicación ya escogió el turno por la hora que es. Solo hay que tocarlo si estás
+        registrando algo del turno anterior — pasa cuando el relevo entra y quedó un viaje
+        sin meter.
+      </p>
+      <div class="tabla-envuelta">
+        <table>
+          <thead><tr><th>Turno</th><th>Horario</th></tr></thead>
+          <tbody>
+            <tr><td>A</td><td>06:00 · 14:00</td></tr>
+            <tr><td>B</td><td>14:00 · 22:00</td></tr>
+            <tr><td>C</td><td>22:00 · 06:00</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">2</span>
+    <h3>¿Con carga o vacío?</h3>
+    <div class="cuerpo">
+      <p>
+        Un <b>viaje vacío</b> no lleva tipo, ni placa, ni ruta: es un número de viajes del
+        turno y ya. Cuestan igual y no mueven producto, por eso se cuentan aparte y nunca se
+        suman al cumplido.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">3</span>
+    <h3>Escoge el tipo — del plan</h3>
+    <div class="cuerpo">
+      <p>
+        Los tipos que salen no son una lista cualquiera: son <b>lo que este turno prometió
+        mover</b>. Cada uno dice cuánto falta (<span class="eti">FALTAN 3</span>) y cómo va
+        (<span class="eti">4 / 7</span>). Cuando se completa, se marca.
+      </p>
+      <p>
+        ¿Salió algo que nadie planeó? Está el <b>«+ Adicional»</b>. No es un error ni hay que
+        pedir permiso: se registra igual y entra como adicional. El botón de abajo te lo
+        avisa — dice <b>«Registrar (2 adicionales)»</b> cuando lo que vas a meter va por
+        encima del plan.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">4</span>
+    <h3>La placa, de la lista</h3>
+    <div class="cuerpo">
+      <p>
+        Ya no se escribe a mano. Se despliega y se toca. Si hay muchas, aparece un buscador
+        arriba: escribe tres letras y listo.
+      </p>
+      <div class="ojo-nota">
+        <span class="rot-nota">Si el camión no está en la lista</span>
+        Abajo del todo está <b>«+ Otra placa…»</b>. La agregas ahí mismo y sigues: no hay que
+        esperar a que alguien entre al maestro. Se guarda sin espacios ni guiones y en
+        mayúsculas, así que <code>abc 123</code>, <code>ABC-123</code> y <code>abc123</code>
+        son el mismo vehículo.
+      </div>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">5</span>
+    <h3>De dónde sale y a dónde va</h3>
+    <div class="cuerpo">
+      <p>
+        Dos listas de <b>bodegas</b>, las mismas en las dos puntas: la misma bodega es origen
+        unas veces y destino otras. En medio hay un botón para <b>invertir</b> — sirve para
+        el viaje de vuelta, que es la mitad de los viajes del día.
+      </p>
+      <p>
+        Debajo quedan las <b>rutas que más se repiten</b>, de un toque. Esas no las mantiene
+        nadie: salen de lo que de verdad se ha movido.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">6</span>
+    <h3>Cuántos viajes, y la carga si la sabes</h3>
+    <div class="cuerpo">
+      <p>
+        Casi siempre es <b>1</b>. Sube el número solo cuando estás metiendo varios viajes
+        iguales de una vez. El plan se mide en viajes, no en canastas.
+      </p>
+      <p>
+        La <b>cantidad</b> es opcional. Si no la sabes, déjala vacía: un dato inventado es
+        peor que un dato que falta.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">7</span>
+    <h3>Registrar viaje</h3>
+    <div class="cuerpo">
+      <p>
+        Desde el computador también sirve <kbd>Ctrl</kbd> + <kbd>Enter</kbd>. El viaje aparece
+        de una en «Viajes de hoy», el cuadro del plan se prende y el cumplido del turno sube
+        solo.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section id="equivoque">
+  <h2><span class="num">2</span>Me equivoqué</h2>
+  <p class="quien">Anular: quien lo registró o el administrador · Corregir: solo el administrador</p>
+
+  <p>
+    Son dos cosas distintas y conviene no confundirlas. <b>Anular</b> dice «esto no pasó».
+    <b>Corregir</b> dice «pasó, pero no como quedó escrito».
+  </p>
+
+  <div class="paso">
+    <span class="n">A</span>
+    <h3>El viaje no salió: anular</h3>
+    <div class="cuerpo">
+      <p>
+        En «Viajes de hoy», botón <b>Anular</b>. Pide un motivo y es obligatorio:
+        <i>anular sin motivo es borrar</i>. El viaje no desaparece — se queda a la vista,
+        marcado <span class="eti rojo">ANULADO</span>, con quién lo anuló y por qué, y deja de
+        contar para el cumplido en el mismo segundo.
+      </p>
+      <div class="nota">
+        <span class="rot-nota">Por qué no se borra</span>
+        Un viaje que existió y desapareció deja el plan cuadrando por arte de magia y sin
+        nadie a quien preguntarle. Dentro de tres meses, «faltan cuatro viajes» sin
+        explicación no le sirve a nadie.
+      </div>
+      <p>
+        Lo puede anular <b>quien lo registró</b> o un <b>administrador</b>. Un supervisor no
+        puede anular lo del turno de al lado.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">B</span>
+    <h3>El viaje salió, pero el dato está mal: corregir</h3>
+    <div class="cuerpo">
+      <p>
+        Por una placa con un dígito cambiado no hay que anular y volver a teclear ocho campos.
+        El <b>administrador</b> tiene <b>Corregir</b> en cada viaje: día, turno, tipo, placa,
+        origen, destino, cuántos viajes, cantidad, unidad y la observación. También pasarlo de
+        con carga a vacío y al revés.
+      </p>
+      <figure>
+        <img src="img/corregir.jpg" alt="El formulario de corrección abierto debajo del renglón del viaje, con todos los campos ya llenos con lo que el viaje dice hoy." loading="lazy">
+        <figcaption>El formulario arranca con lo que el viaje dice hoy, no en blanco: corregir es cambiar una cosa de ocho.</figcaption>
+      </figure>
+      <div class="ojo-nota">
+        <span class="rot-nota">Queda rastro, siempre</span>
+        Cada corrección guarda la fila <b>entera</b> como estaba y como quedó, con quién la
+        hizo y por qué. El renglón queda marcado <span class="eti">CORREGIDO</span> en la
+        lista. No es desconfianza: es que dentro de tres meses alguien va a preguntar por qué
+        ese viaje dice otra cosa, y tiene que haber respuesta.
+      </div>
+      <p>
+        Si el viaje ya está anulado, primero se devuelve y después se corrige. Y el código
+        <code>TR-####</code> no cambia nunca: es el nombre del viaje.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section id="planear">
+  <h2><span class="num">3</span>Planear el día</h2>
+  <p class="quien">Supervisor o administrador</p>
+
+  <p>
+    El plan es lo que el centro promete mover: cuántos viajes de cada tipo, en cada turno.
+    Es contra esto que se mide todo lo demás.
+  </p>
+
+  <figure>
+    <img src="img/plan-rejilla.jpg" alt="La rejilla del plan: una fila por tipo de viaje, una columna por turno, y la columna Día con el total." loading="lazy">
+    <figcaption>Una fila por tipo, una columna por turno. La columna «Día» es la suma y no se toca.</figcaption>
+  </figure>
+
+  <div class="paso">
+    <span class="n">1</span>
+    <h3>Llena la rejilla</h3>
+    <div class="cuerpo">
+      <p>
+        Escribe el número o usa el <b>−</b> y el <b>+</b>, que están hechos para el dedo con
+        guante. Un cero es lo mismo que dejarlo vacío.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">2</span>
+    <h3>No empieces de cero: usa los atajos</h3>
+    <div class="cuerpo">
+      <p>Casi todos los días se parecen. A la derecha hay tres:</p>
+      <ul>
+        <li><b>Copiar el plan de ayer</b> — trae la rejilla de ayer tal cual.</li>
+        <li><b>Promedio del mismo día</b> — lo que de verdad salió los últimos lunes, si hoy
+          es lunes. Sirve para no copiar cuatro veces un plan que estuvo mal.</li>
+        <li><b>Vaciar la rejilla</b> — deja todo en cero para empezar a mano.</li>
+      </ul>
+      <p>
+        Cualquiera de los tres solo <b>llena la rejilla</b>. Nada se guarda hasta que tú lo
+        guardes.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">3</span>
+    <h3>Los viajes vacíos, abajo del total</h3>
+    <div class="cuerpo">
+      <p>
+        Van en la misma tabla para que caigan bajo la columna de su turno, pero no son una
+        fila más: no llevan tipo. <b>No entran en el cumplimiento</b> — se cuentan aparte,
+        porque cuestan igual y no mueven producto.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">4</span>
+    <h3>Guardar borrador, o publicar</h3>
+    <div class="cuerpo">
+      <p>
+        <b>Guardar borrador</b> deja el trabajo hecho sin que el turno lo vea: siguen viendo
+        el plan anterior hasta que publiques. Sirve para armar el día de mañana con calma.
+      </p>
+      <p>
+        <b>Publicar plan del día</b> lo pone a contar. Desde ese momento, cada viaje que se
+        registre se compara con él.
+      </p>
+      <div class="nota">
+        El botón dice <b>«Sin cambios sobre lo publicado»</b> cuando no has tocado nada, así
+        sabes si de verdad hay algo que publicar. Y si ya hay viajes hechos sobre ese plan, te
+        lo avisa ahí mismo.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section id="varios">
+  <h2><span class="num">4</span>Planear otro día, o varios</h2>
+  <p class="quien">Supervisor o administrador</p>
+
+  <div class="paso">
+    <span class="n">1</span>
+    <h3>Otro día: el calendario</h3>
+    <div class="cuerpo">
+      <p>
+        Arriba, el botón con la fecha abre el calendario. La aplicación abre siempre en
+        <b>hoy</b>; desde aquí te mueves a cualquier día, hacia adelante o hacia atrás.
+      </p>
+      <figure class="angosta">
+        <img src="img/plan-calendario.jpg" alt="El calendario del mes abierto desde el botón de la fecha." loading="lazy">
+        <figcaption>Escoger el día que se va a planear.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">2</span>
+    <h3>La misma rejilla en varios días</h3>
+    <div class="cuerpo">
+      <p>
+        <b>«Aplicar a varios días»</b>. Tocas el primer día y después el último, y marcas qué
+        días de la semana entran — para dejar los domingos fuera, por ejemplo.
+      </p>
+      <figure class="media">
+        <img src="img/plan-varios.jpg" alt="El panel de aplicar a varios días: rango en el calendario, casillas por día de semana, y el botón Publicar en 8 días." loading="lazy">
+        <figcaption>Los días con un punto rojo ya tienen plan publicado: esos se saltan y la pantalla los nombra.</figcaption>
+      </figure>
+      <div class="ojo-nota">
+        <span class="rot-nota">No pisa nada</span>
+        Un día que ya tiene plan publicado <b>no se toca</b>. La pantalla te dice cuántos se
+        saltan antes de hacer nada. Si quieres cambiar uno de esos, se abre ese día y se
+        cambia a mano — a propósito, para que nadie borre el trabajo de otro sin enterarse.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section id="borrar">
+  <h2><span class="num">5</span>Cambiar o borrar un plan</h2>
+  <p class="quien">Supervisor o administrador</p>
+
+  <div class="paso">
+    <span class="n">1</span>
+    <h3>Cambiar lo que ya publicaste</h3>
+    <div class="cuerpo">
+      <p>
+        Abre el día en el calendario. <b>La rejilla ya viene con lo que publicaste</b>, no
+        vacía. Cambias el número y le das otra vez a <b>Publicar plan del día</b>: eso
+        <b>reemplaza</b> el plan de ese día, no lo suma.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">2</span>
+    <h3>Dejar el día sin plan</h3>
+    <div class="cuerpo">
+      <p>
+        Poner todas las celdas en cero <b>no</b> borra el plan. Para eso está, al final del
+        pie, <b>«Borrar el plan del día»</b>. Pide confirmación y dice qué se lleva.
+      </p>
+      <figure>
+        <img src="img/plan-pie.jpg" alt="El pie del plan: Publicar, Guardar borrador, y abajo la confirmación de borrar el plan del día." loading="lazy">
+        <figcaption>Va en renglón aparte y a dos toques: no compite con «Publicar» por el mismo dedo.</figcaption>
+      </figure>
+      <div class="ojo-nota">
+        <span class="rot-nota">Los viajes no se tocan</span>
+        Borrar el plan de un día <b>no borra un solo viaje</b>. Los que ya se registraron
+        siguen ahí con su placa, su ruta y su hora. Lo único que cambia es que pasan a contar
+        como <b>adicionales</b> — que es lo que son cuando no hay plan.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section id="control">
+  <h2><span class="num">6</span>Leer el control</h2>
+  <p class="quien">Todos</p>
+
+  <p>
+    Seis tarjetas, y cierran entre ellas. La confusión de siempre es entre las dos últimas,
+    así que vale la pena leerlas despacio una vez.
+  </p>
+
+  <figure>
+    <img src="img/control-seis.jpg" alt="Las seis tarjetas del control: planeados, cumplidos, adicionales, vacíos, adherencia y cumplimiento." loading="lazy">
+    <figcaption>Un día de ejemplo: 28 planeados, 24 del plan cumplidos, 5 adicionales, 3 vacíos.</figcaption>
+  </figure>
+
+  <div class="tabla-envuelta">
+    <table>
+      <thead><tr><th>Tarjeta</th><th>Qué es</th></tr></thead>
+      <tbody>
+        <tr><td>Viajes planeados</td><td>Lo que el plan publicado prometió mover. Los vacíos no entran.</td></tr>
+        <tr><td>Viajes cumplidos</td><td>Los del plan que de verdad salieron. Nadie escribe esta cifra: sube con lo que se registra.</td></tr>
+        <tr><td>Adicionales</td><td>Los que se movieron por encima del plan, o sin que hubiera plan.</td></tr>
+        <tr><td>Viajes vacíos</td><td>Aparte. No entran en ninguno de los dos porcentajes.</td></tr>
+        <tr><td>% Adherencia</td><td><b>Cumplidos del plan ÷ planeados.</b> Tope 100 %: mide si se hizo lo que se prometió. 24 de 28 = 86 %.</td></tr>
+        <tr><td>% Cumplimiento</td><td><b>(Cumplidos + adicionales) ÷ planeados.</b> Puede pasar de 100 %: mide todo lo que se movió. 29 de 28 = 104 %.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nota">
+    <span class="rot-nota">La diferencia, en una frase</span>
+    <b>Adherencia</b> responde «¿hicimos lo que dijimos?». <b>Cumplimiento</b> responde
+    «¿cuánto movimos en total?». Un día puede tener 104 % de cumplimiento y 86 % de
+    adherencia al mismo tiempo: se movió más de lo prometido, pero no exactamente lo
+    prometido. Las dos cosas son ciertas y dicen cosas distintas.
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section id="maestro">
+  <h2><span class="num">7</span>El maestro</h2>
+  <p class="quien">Supervisor o administrador</p>
+
+  <p>
+    Las <b>bodegas</b>, los <b>tipos de viaje</b> y las <b>placas</b> son datos de este centro,
+    no código. El día que abran una bodega o entre un camión nuevo, nadie tiene que esperar un
+    despliegue. Lo que se agrega aquí es exactamente lo que se puede escoger al registrar.
+  </p>
+
+  <figure>
+    <img src="img/maestro.jpg" alt="El maestro: bodegas y placas en la columna izquierda, tipos de viaje en la derecha." loading="lazy">
+    <figcaption>Bodegas y placas a la izquierda; tipos de viaje a la derecha.</figcaption>
+  </figure>
+
+  <div class="paso">
+    <span class="n">1</span>
+    <h3>Agregar, renombrar, ordenar</h3>
+    <div class="cuerpo">
+      <p>
+        Se escribe arriba y se da <b>Agregar</b>. Para cambiarle el nombre o el subtítulo, el
+        menú de los <b>⋯</b>. Para cambiar el orden en que salen al registrar, se <b>arrastra</b>
+        por las rayitas de la izquierda — el orden de aquí es el orden de allá.
+      </p>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">2</span>
+    <h3>Apagar no es borrar</h3>
+    <div class="cuerpo">
+      <p>
+        El interruptor <b>apaga</b>: deja de poderse escoger al registrar, pero los viajes y
+        las planeaciones viejas lo siguen nombrando. Es lo que casi siempre quieres.
+      </p>
+      <div class="tabla-envuelta">
+        <table>
+          <thead><tr><th>Qué</th><th>¿Se puede borrar?</th></tr></thead>
+          <tbody>
+            <tr><td>Bodegas y tipos</td><td>Solo si nunca se usaron. Un viaje los nombra por dentro y la base no deja borrar algo que está en uso.</td></tr>
+            <tr><td>Placas</td><td>Siempre. La placa se guarda escrita dentro de cada viaje, así que borrarla del maestro no toca ningún viaje: solo deja de ofrecerse.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="paso">
+    <span class="n">3</span>
+    <h3>Posibles duplicados</h3>
+    <div class="cuerpo">
+      <p>
+        Abajo del todo, la aplicación avisa cuando el mismo sitio quedó escrito de dos formas
+        — <code>AG-01</code> y <code>Ag01</code>. Mientras estén partidos, el informe por punto
+        parte el mismo lugar en dos y ninguno cuadra. <b>Unir</b> los junta en el que más
+        viajes tiene.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section id="celular">
+  <h2><span class="num">8</span>En el celular</h2>
+  <p class="quien">Todos</p>
+
+  <p>
+    Todo funciona igual en el teléfono. Lo único distinto es la rejilla del plan: no caben
+    tres turnos en una pantalla, así que <b>se rueda de lado</b>.
+  </p>
+
+  <figure class="media">
+    <img src="img/cel-fijo.jpg" alt="La rejilla del plan en el celular, rodada hasta el turno C, con la columna del tipo de viaje quieta a la izquierda." loading="lazy">
+    <figcaption>Rodada hasta el turno C. La columna del tipo se queda quieta: siempre sabes de qué material es cada número.</figcaption>
+  </figure>
+
+  <p>
+    La sombra del borde izquierdo es la señal de que hay más tabla a la derecha.
+  </p>
+</section>
+
+<!-- ================================================================= -->
+<section id="reglas">
+  <h2><span class="num">9</span>Lo que la app no deja hacer</h2>
+  <p class="quien">Todos</p>
+
+  <p>
+    No son fallas: son reglas, y están en la base de datos, no en la pantalla. Si te sale uno
+    de estos mensajes, esto es lo que significa.
+  </p>
+
+  <div class="tabla-envuelta">
+    <table>
+      <thead><tr><th>El mensaje</th><th>Qué pasó</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>El viaje sale y llega al mismo sitio</td>
+          <td>Origen y destino son la misma bodega. Y lo detecta aunque estén escritos distinto: <code>Ag01</code> y <code>ag 01</code> son el mismo sitio.</td>
+        </tr>
+        <tr>
+          <td>Hay que decir por qué se anula</td>
+          <td>El motivo de una anulación no es opcional. Anular sin motivo es borrar.</td>
+        </tr>
+        <tr>
+          <td>Solo quien registró el viaje o un administrador puede anularlo</td>
+          <td>El supervisor del turno de al lado no puede tocar lo del otro turno.</td>
+        </tr>
+        <tr>
+          <td>Corregir un viaje registrado es solo del administrador</td>
+          <td>Si te equivocaste al registrar y no eres administrador: anúlalo y vuelve a registrarlo.</td>
+        </tr>
+        <tr>
+          <td>Ese viaje está anulado</td>
+          <td>Primero se devuelve, después se corrige. Un viaje anulado que además se edita es una fila que se contradice.</td>
+        </tr>
+        <tr>
+          <td>No hay nada sin publicar en ese día</td>
+          <td>La rejilla está igual que lo publicado. Si querías dejar el día sin plan, es «Borrar el plan del día».</td>
+        </tr>
+        <tr>
+          <td>Ese tipo de viaje no existe o está desactivado</td>
+          <td>Alguien lo apagó en el maestro. Se prende ahí y se vuelve a intentar.</td>
+        </tr>
+        <tr>
+          <td>La placa … es muy corta</td>
+          <td>Se esperan al menos 5 caracteres, sin contar espacios ni guiones.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <p>
+    CONTROL · módulo de Traspasos · centro de distribución CD38 Ag01, Barranquilla.<br>
+    Las capturas son de las pantallas reales del módulo con datos de ejemplo.
+  </p>
+</footer>
+
+</div>

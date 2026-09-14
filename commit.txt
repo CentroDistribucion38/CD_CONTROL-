@@ -1,71 +1,29 @@
-El administrador corrige un viaje, y se entra en gris y ambar
+Instructivo del modulo de Traspasos, con capturas
 
-DOS COSAS.
+Un instructivo paso a paso, por secciones segun quien lo lee: el que
+registra viajes, el supervisor que planea, y el administrador que
+corrige y maneja el maestro. Nueve secciones, de registrar un viaje a
+leer el control, y una ultima con los mensajes que la aplicacion
+devuelve y que significa cada uno.
 
-1. CORREGIR UN VIAJE YA REGISTRADO.
+LAS CAPTURAS SON DE LAS PANTALLAS DE VERDAD. Salen de los arneses de
+Playwright, que pintan el CSS real del modulo con datos de ejemplo; no
+son dibujos ni maquetas hechas aparte. Cuando el modulo cambie, se
+vuelven a generar y el instructivo se actualiza con el.
 
-Hasta hoy un viaje mal registrado solo se podia ANULAR y volver a
-teclear entero. Por una placa con un digito cambiado eso son ocho
-campos otra vez, a las cinco de la manana y con guantes: nadie lo hace,
-y el viaje malo se queda. Un dato que no se puede corregir es un dato
-que se deja mal.
+Y SALE UNA SOLA FUENTE. manual/instructivo.html es la pagina; el PDF
+para imprimir se imprime de ese mismo archivo con
+.arnes/manual-pdf.mjs. Mantener dos fuentes es mantener dos
+instructivos que se van separando: el de la pared dice una cosa y el
+del celular otra.
 
-Ahora el ADMINISTRADOR tiene "Corregir" en cada viaje: dia, turno,
-tipo, placa, origen, destino, cantidad, carga, unidad y observacion.
-Tambien pasarlo de con carga a vacio y al reves.
+Los colores son los del tema gris y ambar, que es con el que se entra
+ahora. Un instructivo que no se parece a la pantalla que explica obliga
+a traducir dos veces.
 
-QUIEN. Solo el administrador, y el candado esta en la base, no en la
-pantalla: la funcion rechaza la correccion venga de donde venga.
-Esconder un boton no es un permiso. Anular sigue igual que estaba
--quien lo registro o un administrador- porque son dos cosas distintas:
-anular dice "esto no paso"; corregir reescribe lo que paso.
-
-QUEDA RASTRO DE TODO. Cada correccion guarda la fila ENTERA como
-estaba y como quedo, en jsonb, con quien y por que. Un administrador
-que cambia cualquier cosa sin dejar huella no es una herramienta, es un
-agujero. Y el renglon queda marcado CORREGIDO en la lista: un rastro
-que nadie ve no sirve de nada.
-
-Las MISMAS reglas que al registrar, y salen de las mismas funciones: ni
-origen igual a destino, ni un tipo apagado, ni turno inventado, ni cero
-viajes, ni sin placa. Si fueran dos juegos de reglas, por la puerta de
-"corregir" entrarian viajes que por la de "registrar" no pasan. Un
-viaje ANULADO no se edita: primero se devuelve. El codigo TR-#### no
-cambia nunca.
-
-Probado contra Postgres 16, 14 de 14, tres veces seguidas y como
-usuario sin privilegios (.arnes/prueba-editar-viaje.sql). Incluye que
-el cumplido del turno SIGUE a la correccion -cambiar el turno mueve el
-numero del turno-, y que ningun intento fallido deja rastro ni cuenta
-como edicion.
-
-La etiqueta CORREGIDO lleva un ambar EN DURO, que es la excepcion en
-todo el modulo: el token de aviso es --c-oro y --c-oro es rojo puro en
-negro, gris y halo; el acento del tema es rojo en el oficial. Por
-cualquiera de los dos caminos "CORREGIDO" acababa rojo en la misma fila
-donde el rojo ya quiere decir ANULADO. 8.31 de contraste en los siete
-temas, medido.
-
-2. SE ENTRA EN "GRIS CLARO Y AMBAR".
-
-El tema de la casa pasa a ser el gris: barra clara con puntos, filo
-ambar, menu de la izquierda oscuro. Cambia el valor por defecto de
-perfiles.tema, la pantalla de entrada y el orden de la lista en Perfil
--el de la casa va primero, que es el que hay que reconocer antes que
-ninguno-. No se borra ningun tema: los siete siguen y cada quien se
-cambia el suyo.
-
-La migracion arrastra a gris UNA sola vez a quien estaba en 'oficial'
-sin haberlo escogido, y lo que le dice si ya corrio es el propio valor
-por defecto de la columna. Correrla dos veces no le deshace el tema a
-quien escogio Oficial a proposito. Probado.
-
-Y el ALTER va ANTES del update, no despues: al reves Postgres lo
-rechaza con "cannot ALTER TABLE because it has pending trigger events".
-
-HAY QUE CORRER EN SUPABASE, en este orden:
-  supabase/migraciones/2026-09-traspasos-editar-viaje.sql
-  supabase/migraciones/2026-09-tema-gris-por-defecto.sql
+Los arneses ganaron la variable TEMA: se corren con TEMA=gris y pintan
+cualquiera de los siete temas, que es lo que hizo falta para que las
+capturas salieran como se ve la aplicacion hoy.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

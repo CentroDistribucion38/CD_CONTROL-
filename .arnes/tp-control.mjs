@@ -42,7 +42,7 @@ ${glob}
 *{box-sizing:border-box} body{margin:0;background:var(--c-eef1f5,#EEF1F5);font:14px system-ui}
 .marco{min-height:100vh;padding:18px}
 ${css}
-</style><div class="marco"><div class="tp">
+</style><div${process.env.TEMA?` data-tema="${process.env.TEMA}"`:""}><div class="marco"><div class="tp">
 <section class="cabeza-ctl"><div>
 <p class="ojo">TRASPASOS · CD38 AG01 · LUNES 14 DE SEPTIEMBRE</p>
 <h1>Control y ejecución</h1>

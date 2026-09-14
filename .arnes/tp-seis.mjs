@@ -2,15 +2,19 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 const css  = fs.readFileSync("src/app/(app)/traspasos/traspasos.css","utf8");
 const glob = fs.readFileSync("src/app/globals.css","utf8");
+/* Cifras de un día que de verdad se puede leer: 28 planeados, 24 del
+   plan cumplidos, 5 adicionales. Con ceros no se entiende ni la
+   diferencia entre adherencia y cumplimiento, que es lo único que estas
+   seis tarjetas están para explicar. */
 const C = [["VIAJES PLANEADOS","28","lo que el plan publicado prometió mover",""],
- ["VIAJES CUMPLIDOS","0","registrados con carga · nadie escribe esta cifra",""],
- ["ADICIONALES","0","se movieron por encima del plan o sin planear","ojo"],
- ["VIAJES VACÍOS","0","aparte: <b>no entran en el cálculo</b>","aparte"],
- ["% ADHERENCIA","0%","de lo planeado, cuánto salió · tope 100%","mal"],
- ["% CUMPLIMIENTO","0%","todo lo movido contra el plan · adicionales incluidos","mal"]];
+ ["VIAJES CUMPLIDOS","24","del plan · nadie escribe esta cifra",""],
+ ["ADICIONALES","5","se movieron por encima del plan o sin planear","ojo"],
+ ["VIAJES VACÍOS","3","aparte: <b>no entran en el cálculo</b>","aparte"],
+ ["% ADHERENCIA","86%","24 de 28 · de lo planeado, cuánto salió · tope 100%",""],
+ ["% CUMPLIMIENTO","104%","29 de 28 · todo lo movido, adicionales incluidos",""]];
 const HTML = `<!doctype html><meta charset="utf-8"><style>${glob}
 *{box-sizing:border-box}body{margin:0;background:var(--c-eef1f5,#EEF1F5)}
-.marco{padding:18px}${css}</style><div class="marco"><div class="tp">
+.marco{padding:18px}${css}</style><div${process.env.TEMA?` data-tema="${process.env.TEMA}"`:""}><div class="marco"><div class="tp">
 <section class="cifras seis">${C.map(([r,n,u,k])=>
 `<div class="cifra ${k}"><div class="rot">${r}</div><div class="n">${n}</div><div class="u">${u}</div></div>`).join("")}
 </section></div></div>`;
