@@ -863,3 +863,85 @@ PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas del archivo:
   10 anular sin motivo se rechaza ................. ok
   11 anulado no cuenta pero SIGUE estando ......... ok
   12 el porcentaje y lo que falta ................. ok
+
+
+TRASPASOS, CORREGIDO CON LA INTERFAZ A LA VISTA.
+
+Con solo el backend habia tres cosas mal en el modelo. Con el HTML
+delante se corrigieron:
+
+  1. LOS TURNOS SON C, A y B —en ese orden—, no 1, 2 y 3. Asi los llama
+     la bodega y C es el que abre el dia. Renumerarlos obligaba a
+     traducir en cada conversacion ("el turno 1, o sea el C") y esa
+     traduccion es donde se equivoca alguien a las cinco de la mañana.
+     El orden C-A-B vive en una funcion de la base para que las vistas y
+     las pantallas ordenen igual.
+
+  2. "CANTIDAD" ERA CUANTOS VIAJES, no cuanta carga. Se veia en las
+     fichas de resumen: comparaban sum(cantidad) de los ejecutados
+     contra sum(planeado). Modelarlo como canastas habria hecho que el
+     plan y lo real se midieran en unidades distintas —y que la
+     comparacion no significara nada—. Ahora la columna se llama
+     `viajes`, empieza en 1, y la carga va aparte y es opcional.
+
+  3. LOS VACIOS NO LLEVAN TIPO NI PLACA. En la hoja el registro de
+     vacios era un numero por turno, y para meterlo en la misma tabla
+     habia que inventarle un tipo de material llamado
+     "Vacios (Registro Independiente)" que despues tocaba sacar a mano
+     de cada informe con un if. Aqui un registro de vacios es
+     (fecha, turno, cuantos) y la base impide mezclarlo: un viaje CON
+     carga lleva tipo, placa y ruta; uno vacio no lleva ninguno.
+
+LO QUE LA INTERFAZ TENIA BIEN Y SE CONSERVA CON LAS MISMAS PALABRAS:
+las DOS cifras.
+
+  ADHERENCIA    de lo PLANEADO, cuanto se hizo. Tope 100%: hacer viajes
+                de mas no arregla los que faltaron.
+  CUMPLIMIENTO  todo lo movido contra lo planeado, adicionales
+                incluidos.
+
+Un turno con 10 planeados que hace 6 de los planeados y 6 adicionales
+tiene 60% de adherencia y 120% de cumplimiento. Las dos son ciertas y
+dicen cosas distintas: movio lo que habia que mover, y planeo mal. Una
+sola de las dos esconderia justamente eso.
+
+La diferencia con la hoja es de DONDE salen. Alla las calculaba la
+pantalla sobre el campo "Cumplido" escrito a mano en un modal; aca
+salen de la vista, sobre los viajes registrados. Misma formula, una
+sola verdad. Y se calculan sobre las SUMAS, no promediando los
+porcentajes de cada renglon: promediarlos haria pesar igual al tipo con
+2 planeados que al de 40.
+
+DOS FORMULARIOS QUE DESAPARECEN, y su ausencia es el modulo:
+
+  "Diligenciar cumplido" (el modal del tablero de Control). El cumplido
+  se cuenta. Mientras ese modal existia, las fichas de resumen contaban
+  los viajes registrados y el tablero contaba el campo escrito a mano:
+  la misma app enseñaba dos cifras distintas del mismo turno en dos
+  pestañas.
+
+  "Viaje Adicional". Un adicional es un viaje que se hizo y no estaba
+  planeado: se registra como cualquier otro y aparece solo como
+  adicional. Tenerlo aparte obligaba a teclear a mano un numero que ya
+  se podia contar —y lo guardaba como una fila de plan con
+  planeado=0 y cumplido=N, que es un plan que no planea nada—.
+
+LOS PAPELES SIGUEN SIENDO LOS DE LA HOJA: admin planea, registra y
+controla; supervisor registra y ve el control; ABI solo mira el
+control. ABI ya existia como rol en la plataforma.
+
+PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas del archivo:
+
+   1 los turnos son C, A, B y en ese orden ........ ok
+   2 un turno inventado se rechaza ................ ok
+   3 planear 10 en el turno C ..................... ok
+   4 seis viajes: el cumplido sube solo ........... ok
+   5 una linea que vale 3 viajes suma 3 ........... ok
+   6 9 de 10 -> 90% y 90%; 13 de 10 -> adherencia
+     100% (tope) y cumplimiento 130% .............. ok
+   7 vacios sin tipo ni placa, y NO cuentan ....... ok
+   8 un viaje con carga sin placa se rechaza ...... ok
+   9 origen = destino se rechaza .................. ok
+  10 punto fuera del maestro queda marcado ........ ok
+  11 lo movido SIN PLANEAR sale en el control ..... ok
+  12 anulado no cuenta pero sigue estando ......... ok
