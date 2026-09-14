@@ -356,9 +356,9 @@ export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
 
               {modo === "carga" && (
                 <div>
-                  <span className="rot-campo">Carga (opcional)</span>
+                  <span className="rot-campo">Cantidad (opcional)</span>
                   <input className="campo-suelto" value={carga} inputMode="numeric"
-                         placeholder="Canastas, estibas…" aria-label="Carga"
+                         placeholder="Canastas, estibas…" aria-label="Cantidad"
                          onChange={(e) => setCarga(e.target.value.replace(/\D/g, ""))} />
                 </div>
               )}
@@ -401,7 +401,10 @@ export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
             <div className="corte" aria-hidden />
             <div className="rot">PLAN DEL TURNO {turno}</div>
             <div className="marca">
-              <b>{hechos}</b><span>de {plan} viajes</span>
+              {/* "1 de 0 viajes" no quiere decir nada. Sin plan, la cifra
+                  que hay es cuántos van registrados y ya. */}
+              <b>{hechos}</b>
+              <span>{plan > 0 ? `de ${plan} viajes` : hechos === 1 ? "viaje, sin plan" : "viajes, sin plan"}</span>
             </div>
             {plan > 0 ? (
               <>

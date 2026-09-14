@@ -1,36 +1,42 @@
-Traspasos: la barra de fecha del plan, que quedo rota
+Traspasos: el modulo sale rojo en un tema ambar
 
-Al meterle el calendario, la barra quedo asi: las dos flechas, HOY, un
-cuadrito blanco vacio, y el texto "15 de septiembre" flotando por fuera
-de cualquier borde. Horrible, y con una causa de una linea.
+La carcasa se veia ambar y Traspasos rojo adentro. Dos colores que nadie
+escogio juntos, y la causa es que el modulo colgaba su identidad del
+token equivocado:
 
-  .tp .fecha-nav button { width: 36px; height: 36px; display: grid }
+  --c-marca = #ffc000   el ACENTO del tema, con su tinta pareja
+  --c-oro   = #ff0000   el "ojo con esto" de la app
 
-Esa regla apunta a CUALQUIER boton de adentro. Las flechas son
-cuadradas, asi que mientras la barra solo tuvo flechas y HOY funciono.
-El dia que gano un control propio —el calendario, que es ancho y lleva
-texto— lo aplasto a 36x36 y el texto se salio por fuera del borde.
+En los temas negro, gris y halo esos dos valores son distintos. El
+modulo usaba --c-oro para los paneles, los chips, la seleccion y los
+rellenos — o sea, para TODO lo que lo identifica. Ahora usa --c-marca,
+que es lo que el tema define como su acento.
 
-Pasa a `> button`: los hijos DIRECTOS son las flechas y HOY; lo que viva
-dentro de otro componente se peina solo. Es el tercer choque de este
-tipo en el dia —`.pie`, `.hoy`, y este— y los tres son lo mismo: una
-regla escrita sin pensar en quien mas puede caer adentro.
+Y SE BORRA UN PARCHE QUE YA NO APLICA. --c-oro no trae tinta pareja, asi
+que el modulo escogia blanco o casi-negro segun el tema y ademas
+oscurecia el relleno del panel al 70% para que el texto chico alcanzara
+el minimo de contraste. --c-marca SI viene emparejado con --c-marca-txt
+—la app lo define asi justamente para esto—, de modo que ese trabajo lo
+hace el tema. Se borra en vez de dejarlo apagado: un parche que ya no
+aplica es lo que el mes que viene alguien "arregla" sin saber para que
+era.
 
-Y DE PASO, EL ORDEN. Estaba:  < HOY >  [fecha]
-Queda:                        < [fecha] >  HOY
+LO QUE DE VERDAD ES UN AVISO SE QUEDA CON --c-oro, en un token propio
+—--tp-aviso—: un viaje sin planear, un punto escrito a mano, la cifra
+que hay que mirar. Si compartieran tono con el color del modulo
+dejarian de decir nada. Son cuatro sitios.
 
-La fecha va en el MEDIO, entre las dos flechas: es el sitio donde uno la
-busca, y de paso es el boton que abre el calendario. HOY queda despues,
-que es lo que es — un atajo para volver, no la pieza principal.
+MEDIDO EN LOS SIETE TEMAS con .arnes/tp-contraste.mjs, el par mas
+critico del panel:
 
-HOY SE APAGA cuando ya estas en hoy. Un boton que no va a ninguna parte
-no deberia verse igual que el que si va.
+  oficial 4,8   tinta 8,8   pizarra 4,7   ambar 9,2
+  negro 11,8    gris 11,2   halo 11,5
 
-LA FECHA LLEVA EL DIA DE LA SEMANA: "mar 15 de septiembre". En una
-pantalla donde se planea por semana, saber que el 15 es martes es la
-mitad de la informacion — y es justo lo que hace falta al escoger los
-dias del rango.
+Todos por encima de 4,5, y sin oscurecer nada a mano.
 
-MEDIDO a 1440 / 820 / 390 / 360 px y en el tema negro: los cuatro
-controles a 38 px de alto, ninguno se sale, y la barra no desplaza la
-pagina.
+DOS COSAS CHICAS DE LA MISMA PANTALLA:
+
+  · "1 de 0 viajes" no quiere decir nada. Cuando el turno no tiene plan,
+    la cifra que hay es cuantos van registrados: "1 viaje, sin plan".
+
+  · "Carga (opcional)" pasa a "Cantidad (opcional)".

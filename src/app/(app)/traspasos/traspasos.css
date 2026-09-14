@@ -21,7 +21,24 @@
   --tp-tinta: var(--c-04203f);
   --tp-acento: var(--c-marca);
   --tp-sobre-acento: var(--c-marca-txt);
-  --tp-ojo: var(--c-oro);
+
+  /* EL COLOR DEL MÓDULO ES EL ACENTO DEL TEMA, no el token de alarma.
+     Colgaba de --c-oro, que NO es el acento: es el "ojo con esto" de la
+     app, y en los temas negro, gris y halo vale #ff0000. El resultado
+     era una carcasa ámbar con un módulo rojo adentro — dos colores que
+     nadie escogió juntos.
+
+     --c-marca sí es el acento, y la app lo define EMPAREJADO con
+     --c-marca-txt, la tinta que va encima. Tomando el par no hace falta
+     oscurecer nada a mano: el contraste lo garantiza el tema. */
+  --tp-ojo: var(--c-marca);
+  --tp-sobre-ojo: var(--c-marca-txt);
+  --tp-panel: var(--c-marca);
+
+  /* Y LO QUE DE VERDAD ES UN AVISO se queda con --c-oro. Un viaje sin
+     planear o un punto escrito a mano tienen que verse distintos del
+     color del módulo; si compartieran tono dejarían de decir nada. */
+  --tp-aviso: var(--c-oro);
   /* Semáforo. NO sale del tema a propósito: si cambiara con las
      preferencias dejaría de querer decir "esto está mal". */
   --tp-mal: #C8102E;
@@ -81,7 +98,7 @@
 .tp .cifra .u { font-size: 11px; color: var(--tp-gris); margin-top: 4px; line-height: 1.3 }
 .tp .cifra.mal { border-left-color: var(--tp-mal) }
 .tp .cifra.mal .n { color: var(--tp-mal) }
-.tp .cifra.ojo { border-left-color: var(--tp-ojo) }
+.tp .cifra.ojo { border-left-color: var(--tp-aviso) }
 
 /* ====================== Caja ====================== */
 .tp .caja {
@@ -126,13 +143,13 @@
 
 /* SIN PLANEAR: se movió y nadie lo planeó. Filo de color, no fila roja:
    no está MAL, está fuera del plan, que es otra cosa. */
-.tp tr.sin-plan td:first-child { box-shadow: inset 3px 0 0 var(--tp-ojo) }
+.tp tr.sin-plan td:first-child { box-shadow: inset 3px 0 0 var(--tp-aviso) }
 .tp .eti {
   display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
   padding: 3px 7px; border-radius: 5px; background: var(--tp-fondo); color: var(--tp-gris);
   white-space: nowrap;
 }
-.tp .eti.ojo { background: var(--tp-ojo); color: #1A1200 }
+.tp .eti.ojo { background: var(--tp-aviso); color: #fff }
 .tp .eti.mal { background: var(--tp-mal); color: #fff }
 .tp .eti.vacio-eti { background: transparent; border: 1px dashed var(--tp-gris) }
 
@@ -157,7 +174,7 @@
 .tp .fila .meta .cant { font-weight: 800; color: var(--tp-tinta) }
 /* El punto escrito a mano se ve distinto: es lo que hay que agregar al
    maestro, no un sitio más. */
-.tp .fila .suelto { border-bottom: 1px dashed var(--tp-ojo) }
+.tp .fila .suelto { border-bottom: 1px dashed var(--tp-aviso) }
 .tp .fila .der { display: flex; flex-direction: column; gap: 6px; align-items: flex-end }
 
 /* ====================== Botones ====================== */
@@ -227,29 +244,13 @@
    la cifra grande → cómo va repartida → lo que está mal → el detalle.
    ===================================================================== */
 
-/* EL ORO Y SU TINTA, EMPAREJADOS. La app define --c-marca junto con
-   --c-marca-txt justamente para esto; --c-oro no trae pareja, así que
-   el módulo pone la suya. Sin esto, en los temas donde --c-oro es rojo
-   el panel grande quedaba con letra casi negra sobre rojo. */
-.tp { --tp-sobre-ojo: #1A1200; --tp-panel: var(--tp-ojo) }
-[data-tema="tinta"] .tp, [data-tema="ambar"] .tp, [data-tema="negro"] .tp,
-[data-tema="gris"]  .tp, [data-tema="halo"]  .tp {
-  --tp-sobre-ojo: #fff;
-  --tp-ojo: color-mix(in srgb, var(--c-oro) 88%, #000);
-  --tp-panel: var(--tp-ojo);
-}
+/* Antes aquí vivía un parche por tema: --c-oro no trae tinta pareja, así
+   que el módulo escogía blanco o casi-negro según el tema y oscurecía el
+   relleno a mano. Con --c-marca ese trabajo lo hace el tema y el parche
+   sobra. Se borra en vez de dejarlo apagado: un parche que ya no aplica
+   es lo que el mes que viene alguien "arregla" sin saber para qué era. */
 
-/* EL PANEL GRANDE SE OSCURECE MÁS QUE EL ACENTO, y por eso lleva token
-   propio. En los temas donde --c-oro es rojo pleno, el 88% que le basta
-   a un filo de 2 px no le alcanza a un rectángulo lleno de texto
-   blanco: medido daba 4,4 y 3,8 —por debajo del mínimo de 4,5 para
-   texto chico—. Al 70% sube por encima de 6.
 
-   Se oscurece SOLO el panel: --tp-ojo sigue igual para chips, filos y
-   rellenos, que es donde el color tiene que reconocerse. */
-[data-tema="negro"] .tp, [data-tema="gris"] .tp, [data-tema="halo"] .tp {
-  --tp-panel: color-mix(in srgb, var(--c-oro) 70%, #000);
-}
 
 /* ---------- Encabezado con botones ---------- */
 .tp .cabeza-ctl {
