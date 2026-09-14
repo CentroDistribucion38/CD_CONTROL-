@@ -337,13 +337,6 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
                          setTocoBotellas(true);
                          setBotellas(Math.max(0, Number(e.target.value) || 0));
                        }} />
-                <div className="negro">
-                  <span className="punto" />
-                  <span>
-                    Van propuestas <b>todas las que caben</b>. Si quedaron botellas sanas,
-                    corrige: el vidrio que no se cuente aquí no aparece en ningún lado.
-                  </span>
-                </div>
               </div>
             )}
           </>

@@ -626,3 +626,15 @@ base existente, dos corridas cada una:
   11 quitando el defecto ya se puede sacar
      y vuelven todos ....................... ok
   12 un supervisor no puede marcar ......... ok
+
+
+FUERA EL AVISO NEGRO DE "BOTELLAS ROTAS ADENTRO".
+
+La casilla ya viene llena con todas las que caben y el propio rotulo
+dice cuantas caben. Tres renglones mas explicando lo que el campo ya
+muestra no aportan: en una pantalla que se llena de pie y con guantes,
+un aviso que no pide nada es un aviso que se aprende a saltar —y el dia
+que salga uno que SI importa, tambien se salta—.
+
+El comportamiento no cambia: sigue proponiendo todas las que caben y
+sigue dejando corregir.
