@@ -61,6 +61,20 @@ const renglon = (n, s, v, on, abierto) => `<div class="item${on ? "" : " apagado
    ===================================================================== */
 const PAGINAS = [
 
+/* ---------- LA BARRA DE DÍAS, la misma en las tres pantallas ---------- */
+{
+  nombre: "dias", ancho: 700, alto: 200,
+  cuerpo: `<div class="fecha-nav">
+<button><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+<div class="cal-caja"><button class="cal-disparo"><svg viewBox="0 0 24 24">
+<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>15 de septiembre</button></div>
+<button><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+<button class="hoy">HOY</button>
+<span class="estado-plan"><i></i> Borrador · sin publicar</span>
+</div>`,
+  mira: [[".fecha-nav", "p-dias"]],
+},
+
 /* ---------- REGISTRAR ---------- */
 {
   nombre: "reg", ancho: 900, alto: 1100,

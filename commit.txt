@@ -1,61 +1,43 @@
-Rotura de linea: la base de datos del modulo
+Traspasos: el dia se escoge en las tres pantallas
 
-Primer paso del modulo de ROTURA DE LINEA, dentro de Quiebra: el envase
-que se rompe mientras se envasa, maquina por maquina a lo largo del
-tren. Sale del archivo "ROTURA DE LINEA 2026.xlsx" que se venia
-llevando a mano.
+REGISTRAR abria en hoy y no habia forma de moverse. Al turno de la
+noche le toca cerrar el dia anterior a las cinco de la manana y no
+tenia donde: un viaje que se quedo sin registrar quedaba sin registrar.
+Ahora lleva la barra de dias arriba del todo.
 
-QUE ENTRA. Cuatro maestros sembrados desde la hoja MAESTRO -4 lineas
-con su tren y su centro de coste, 15 maquinas en el orden del tren, 21
-envases con su peso, 25 SKU con el envase al que corresponden-, la
-tabla del registro, la de produccion, y las vistas de las que salen
-todos los informes.
+CONTROL terminaba siempre en hoy. Eso dejaba el plan de manana sin
+forma de mirarse: se armaba en Plan y no habia donde verlo contra nada.
+Un plan que no se puede revisar antes de que empiece el turno es un
+plan que solo se revisa cuando ya no se puede arreglar. Ahora el dia se
+escoge, manana incluido, y la pantalla lo DICE en el subtitulo -"este
+dia todavia no ha llegado: lo que se ve es el plan"- para que nadie lea
+un 0 % como un mal dia.
 
-EL PREFIJO ES rotlinea_ Y NO roturas_. Ya hay un modulo ROTURAS en este
-proyecto -el de las tolvas y las salidas- y se quedo con roturas_* y
-rotura_*. Son dos cosas que se llaman igual y no son la misma: aquella
-es producto que se rompe en bodega, esta es envase que se rompe en la
-linea. Reusar el prefijo era garantizar que alguien lea la tabla
-equivocada.
+ES UNA SOLA BARRA Y NO TRES COPIAS. La de Plan se generalizo: recibe a
+que pantalla va y con que nombre viaja la fecha. Tres barras parecidas
+es que dentro de un mes una tenga el calendario y las otras no.
 
-TRES COSAS QUE SOLO APARECEN MIDIENDO:
+Y AL CAMBIAR DE DIA NO SE PIERDEN LOS FILTROS. La barra armaba la
+direccion a mano, asi que en Control mover un dia borraba el filtro de
+turno y de tipo que la persona acababa de poner. Ahora copia lo que hay
+y solo toca la fecha; el boton HOY quita la fecha y deja el resto.
 
-1. DE KILOS A UNIDADES SE REDONDEA HACIA ARRIBA. Comprobado contra las
-   24.243 filas de 2026: con round() a la mitad, 13.190 filas quedaban
-   con una unidad de diferencia; con ceil(), las 24.243 cuadran
-   exactas. Tiene sentido -media botella rota es una botella que no se
-   vende- pero sin medirlo habria quedado mal.
+Detalles: en un dia que no es hoy no se refresca solo -gastar consultas
+para volver a pintar lo mismo-, el titulo dice "Registrar en otro dia",
+el panel dice REGISTRADOS ESE DIA y la lista dice "ese dia" en vez de
+"hoy".
 
-2. LA TOMA, que el Excel no tenia. Hay 822 turnos que aparecen dos
-   veces en la hoja, 716 de ellos con kilos DISTINTOS: el 3 de enero,
-   linea 1, turno 2, Costeñita, las trece maquinas dos veces -lavadora
-   12 kg y otra vez 22-. No son copias: son dos pesadas del mismo turno
-   y las dos son rotura de verdad, 73.563 unidades, el 3,9 % del año.
-   En la hoja eso no se podia decir. Aqui la pesada se numera, guardar
-   de nuevo AGREGA una toma en vez de reemplazar, y para corregir una
-   se manda su numero. La llave unica sigue impidiendo lo que si es un
-   error: la misma pesada metida dos veces.
+Medido en los cuatro anchos con el aviso de borrador puesto, que es el
+caso mas largo de la barra (.arnes/tp-fechas.mjs).
 
-3. EL % DE ROTURA ES NULO, NO CERO, cuando no hay produccion cargada.
-   Poner cero diria "no hubo rotura", que es mentira. Y la vista del
-   indicador va por FULL JOIN a proposito: asi salen tambien el dia con
-   rotura y sin produccion importada, y el dia con produccion y sin
-   rotura registrada. Los dos son fallas de captura y con un join
-   normal quedarian invisibles.
+EL INSTRUCTIVO QUEDA AL DIA en el mismo commit: la seccion de registrar
+gana un paso 1 -escoger el dia, con su foto-, los otros siete se
+renumeran, y Control explica lo de manana. La pagina y el PDF salen del
+mismo archivo, asi que no se pueden separar.
 
-Probado contra Postgres 16 de verdad: 18 de 18, tres veces seguidas y
-como usuario sin privilegios (.arnes/prueba-rotura-linea.sql).
-
-EL HISTORICO DE 2026 va aparte, en supabase/datos, como CSV: 24.243
-filas del 1-ene al 13-sep. Las unidades suman 1.889.816, exactamente
-las mismas que el Excel -diferencia cero-. Se carga por Table Editor,
-que tarda menos de un segundo.
-
-Falta: la pantalla de la rejilla, la importacion del ZPREC y los
-informes. Van en su propio paso.
-
-HAY QUE CORRER EN SUPABASE:
-  supabase/modulos/rotura-linea.sql
+Borrar el plan de UN dia ya estaba: es el boton "Borrar el plan del
+dia" al final del pie de Plan, del commit anterior. Aparece cuando ese
+dia tiene plan y va a dos toques.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

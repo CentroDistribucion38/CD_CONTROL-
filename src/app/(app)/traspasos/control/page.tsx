@@ -6,6 +6,7 @@ import { fecha as fechaLarga, TURNOS } from "@/modulos/traspasos/formato";
 import "../traspasos.css";
 import { AlDia, SinTablas } from "../comunes";
 import { Barra } from "./Barra";
+import { Fechas } from "../plan/Fechas";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +37,19 @@ export const dynamic = "force-dynamic";
  * que verse como un hueco.
  */
 export default async function ControlPage({ searchParams }: {
-  searchParams: Promise<{ dias?: string; turno?: string; tipo?: string }>;
+  searchParams: Promise<{ dias?: string; turno?: string; tipo?: string; d?: string }>;
 }) {
   const q = await searchParams;
-  const hasta = hoyLocal();
+  const hoy = hoyLocal();
+
+  /* EL DÍA EN EL QUE TERMINA LA VENTANA, y puede ser MAÑANA.
+     Antes esto era hoy y punto, y eso dejaba el plan de mañana sin
+     forma de mirarse: se armaba en Plan y no había dónde verlo contra
+     nada. Un plan que no se puede revisar antes de que empiece el turno
+     es un plan que solo se revisa cuando ya no se puede arreglar. */
+  const dia = /^\d{4}-\d{2}-\d{2}$/.test(q.d ?? "") ? q.d! : hoy;
+  const esHoy = dia === hoy;
+  const hasta = dia;
   const dias = Math.min(Math.max(Number(q.dias) || 0, 0), 365);
   const desde = new Date(Date.parse(hasta + "T12:00:00") - dias * 86400_000)
     .toISOString().slice(0, 10);
@@ -107,8 +117,16 @@ export default async function ControlPage({ searchParams }: {
   return (
     <div className="tp">
       {/* Cifras al día sin perder el arranque instantáneo. Cada dos
-          minutos porque esta pantalla se queda puesta en la oficina. */}
-      <AlDia cada={120} />
+          minutos porque esta pantalla se queda puesta en la oficina.
+          Un día que no es hoy no se mueve solo: refrescarlo sería
+          gastar consultas para volver a pintar lo mismo. */}
+      <AlDia cada={esHoy ? 120 : 0} />
+
+      {/* El día en el que termina la ventana. Sirve para mirar un día
+          de atrás y, sobre todo, para mirar MAÑANA: revisar el plan
+          antes de que empiece el turno, que es cuando todavía se puede
+          arreglar. */}
+      <Fechas dia={dia} hoy={hoy} esHoy={esHoy} ruta="/traspasos/control" param="d" />
 
       {/* 1 ─ LA CIFRA QUE MANDA */}
       <section className="cabeza-ctl">
@@ -118,7 +136,10 @@ export default async function ControlPage({ searchParams }: {
           </p>
           <h1>Control y ejecución</h1>
           <p className="sub">
-            Lo que se planeó contra lo que de verdad salió, turno por turno y tipo por tipo.
+            {dia > hoy
+              ? <>Este día todavía no ha llegado: lo que se ve es <b>el plan</b>, sin nada
+                cumplido todavía. Sirve para revisarlo antes de que empiece el turno.</>
+              : <>Lo que se planeó contra lo que de verdad salió, turno por turno y tipo por tipo.</>}
           </p>
         </div>
         <div className="der-ctl">

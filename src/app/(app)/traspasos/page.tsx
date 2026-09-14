@@ -7,13 +7,25 @@ import {
 import { turnoDeAhora, TURNOS } from "@/modulos/traspasos/formato";
 import "./traspasos.css";
 import { AlDia, SinTablas } from "./comunes";
+import { Fechas } from "./plan/Fechas";
+import { conDia } from "./plan/Calendario";
 import { Registrar } from "./Registrar";
 import { Viajes } from "./Viajes";
 
 export const dynamic = "force-dynamic";
 
-export default async function TraspasosPage() {
-  const fecha = hoyLocal();
+export default async function TraspasosPage({ searchParams }: {
+  searchParams: Promise<{ d?: string }>;
+}) {
+  /* EL DÍA SE PUEDE MOVER, y por eso viaja en la dirección y no en un
+     estado del navegador: así el turno de la noche puede dejar abierto
+     el día anterior, mandarlo por chat y que al otro le abra lo mismo.
+     Se valida la forma: una fecha escrita a mano en la barra no puede
+     tumbar la pantalla. */
+  const q = await searchParams;
+  const hoy = hoyLocal();
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.d ?? "") ? q.d! : hoy;
+  const esHoy = fecha === hoy;
 
   /* Las siete consultas en una sola tanda: en serie la pantalla
      tardaría lo que suman y aquí ninguna depende de otra. */
@@ -66,22 +78,37 @@ export default async function TraspasosPage() {
   return (
     <div className="tp">
       {/* Los cuadritos del plan suben también cuando registra otro
-          supervisor desde otro equipo. */}
-      <AlDia cada={90} />
+          supervisor desde otro equipo. SOLO EN HOY: un día cerrado no
+          cambia solo, y refrescarlo cada minuto y medio sería gastar
+          consultas para volver a pintar lo mismo. */}
+      <AlDia cada={esHoy ? 90 : 0} />
+
+      {/* Moverse de día es lo primero de la pantalla, no un filtro
+          escondido: al turno de la noche le toca cerrar el día anterior
+          a las cinco de la mañana y esa es la primera cosa que busca. */}
+      <Fechas dia={fecha} hoy={hoy} esHoy={esHoy} ruta="/traspasos" param="d" />
 
       <section className="cabeza-ctl">
         <div>
-          <p className="ojo">TRASPASOS · CD38 AG01 · TURNO {turno}</p>
-          <h1>Registrar viaje</h1>
+          <p className="ojo">
+            TRASPASOS · CD38 AG01 · TURNO {turno}
+            {!esHoy && ` · ${conDia(fecha).toUpperCase()}`}
+          </p>
+          <h1>{esHoy ? "Registrar viaje" : "Registrar en otro día"}</h1>
           <p className="sub">
-            Cada viaje que sale, con su placa y su ruta. El cumplido del plan no se escribe:
-            sube solo con lo que se registra aquí.
+            {esHoy ? (
+              <>Cada viaje que sale, con su placa y su ruta. El cumplido del plan no se escribe:
+              sube solo con lo que se registra aquí.</>
+            ) : (
+              <>Estás en <b>{conDia(fecha)}</b>, no en hoy. Lo que registres aquí cuenta para
+              ese día. Dale a HOY para volver.</>
+            )}
           </p>
         </div>
         <div className="der-ctl">
           <div className="panel-ojo">
             <div className="corte" aria-hidden />
-            <div className="rot">REGISTRADOS HOY</div>
+            <div className="rot">{esHoy ? "REGISTRADOS HOY" : "REGISTRADOS ESE DÍA"}</div>
             <div className="num">{cumplido}</div>
             <div className="pie">
               de <b>{planeado} planeados</b>
@@ -99,7 +126,7 @@ export default async function TraspasosPage() {
                    planPorTipo={planPorTipo}
                    viajes={dia.viajes} nombres={nombres} />
       ) : (
-        <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar={false} />
+        <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar={false} esHoy={esHoy} />
       )}
 
       {permisos.puedeEditar("/traspasos") && (
@@ -107,7 +134,7 @@ export default async function TraspasosPage() {
            pinta el botón; el candado de verdad está en la base, que
            rechaza la corrección venga de donde venga. Esconder un botón
            no es un permiso. */
-        <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar
+        <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar esHoy={esHoy}
                 esAdmin={permisos.rol === "admin"}
                 tipos={t.tipos} puntos={pts} placas={pl.placas} />
       )}

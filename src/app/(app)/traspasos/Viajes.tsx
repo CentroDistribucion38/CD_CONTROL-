@@ -24,11 +24,13 @@ import { Desplegable, FilaViaje, type Opcion } from "./comunes";
  * ahí que exista este formulario. Cada corrección guarda la fila entera
  * como estaba y como quedó, y el renglón queda marcado CORREGIDO.
  */
-export function Viajes({ viajes, nombres, puedeEditar, esAdmin = false,
+export function Viajes({ viajes, nombres, puedeEditar, esAdmin = false, esHoy = true,
                          tipos = [], puntos = [], placas = [] }: {
   viajes: Viaje[];
   nombres: Record<string, string>;
   puedeEditar: boolean;
+  /** Si la pantalla está parada en hoy o en otro día. Solo cambia el texto. */
+  esHoy?: boolean;
   /** Solo el administrador corrige. El candado de verdad está en la base. */
   esAdmin?: boolean;
   tipos?: TipoViaje[];
@@ -60,14 +62,14 @@ export function Viajes({ viajes, nombres, puedeEditar, esAdmin = false,
       {avisos}
       <div className="cab">
         <div>
-          <h2>{viajes.length} viaje{viajes.length === 1 ? "" : "s"} hoy</h2>
+          <h2>{viajes.length} viaje{viajes.length === 1 ? "" : "s"}{esHoy ? " hoy" : " ese día"}</h2>
           <p>Lo último arriba. Los anulados siguen a la vista, con su motivo.</p>
         </div>
       </div>
 
       {viajes.length === 0 ? (
         <div className="vacio">
-          <b>Todavía no hay viajes hoy</b>
+          <b>{esHoy ? "Todavía no hay viajes hoy" : "Ese día no tiene viajes registrados"}</b>
           El primero que se registre va a aparecer aquí y a contar en el plan del turno.
         </div>
       ) : (
