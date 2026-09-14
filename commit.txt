@@ -1,18 +1,84 @@
-Traspasos: el desplegable de placa ocupaba media pantalla
+Traspasos: son BODEGAS, no rutas — y un desplegable propio
 
-Al abrirlo salia una lista de siete placas a 32 px, centrada, tapando el
-formulario entero.
+DOS COSAS, Y LA PRIMERA ES QUE ME EQUIVOQUE DE ABSTRACCION.
 
-La causa: la letra grande era del CAMPO DE ESCRIBIR, no de la lista.
-Cuando la placa se tecleaba, el tamaño hacia trabajo —quien esta al lado
-del vehiculo compara lo que escribio con el papel, y con guantes un
-error de dedo es facil—. Al pasar a desplegable heredo esos 32 px, y el
-menu nativo copia el tamaño del control.
+1. FUERA EL MAESTRO DE RUTAS. Una ruta no es una cosa que exista por si
+   sola: es de donde sale y a donde llega. Y las dos puntas salen de la
+   MISMA lista, porque la misma bodega es origen unas veces y destino
+   otras. Mantener una lista de PARES ademas de la lista de bodegas era
+   mantener dos listas donde hay una — y el dia que se desajustaran,
+   nadie sabria cual creer.
 
-Escoger de una lista no necesita ese tamaño: el error que el tamaño
-prevenia ya no existe, porque ya no se escribe nada.
+   Asi que "Puntos" pasa a llamarse BODEGAS, que es como se dice en el
+   centro, y al registrar se escogen dos: de donde sale y a donde va.
+   Cada lado con su «+» para agregar una bodega sin salir de ahi.
 
-Queda del mismo alto y la misma familia que el desplegable de ruta —50
-px—, con la placa un punto mas grande y espaciada, que es como se lee
-una placa. Los chips de placas recientes siguen debajo: esos son el
-camino corto.
+   LA TABLA SE BOTA ANTES DE EXISTIR. El SQL de placas y rutas todavia
+   no se habia corrido, asi que se reemplaza por uno de placas a secas
+   —2026-09-traspasos-placas.sql— que ademas BORRA traspasos_rutas y sus
+   funciones por si alguien alcanzo a correr el viejo. Ningun viaje la
+   referenciaba: los viajes guardan origen y destino directo, asi que no
+   se pierde un dato.
+
+   LAS RUTAS FRECUENTES SE QUEDAN, y son otra cosa: una cuenta sobre los
+   viajes ya registrados, no una lista que alguien mantenga. Funcionan
+   desde el primer dia y se afinan solas. Esa es exactamente la
+   diferencia entre las dos ideas.
+
+   Y VOLTEAR LA RUTA vuelve a estar siempre disponible. Con el maestro
+   de pares habia que comprobar que la vuelta existiera; con dos
+   bodegas, voltear es intercambiar dos valores.
+
+2. LA LISTA DEL DESPLEGABLE LA DIBUJA AHORA EL MODULO. El <select>
+   nativo la dibuja el sistema operativo: el azul, la letra y el alto de
+   cada renglon no los pone el CSS y no hay propiedad que los cambie. En
+   medio de una pantalla con su propia paleta se ve como lo que es, una
+   ventana de otro programa.
+
+   Lo que hubo que reponer a mano, porque el nativo lo traia gratis:
+   teclado (flechas, Enter, Escape, Home, End), cerrar al tocar por
+   fuera, que la lista abra EN la opcion que ya estaba escogida —bajar
+   cuarenta veces para llegar a la que ya tenias es lo que el nativo no
+   hacia—, y los aria-* para que un lector de pantalla lo anuncie.
+
+   Y UN BUSCADOR A PARTIR DE OCHO OPCIONES. Con siete placas sobra; con
+   cuarenta, buscar con la rueda del mouse es peor que teclear tres
+   letras. No sale siempre: un campo de busqueda sobre una lista de
+   cinco es ruido.
+
+TRES CHOQUES DE SELECTOR EN LA MISMA SESION, y los tres son el mismo
+error mio: una regla escrita con un selector ancho que sobrevive a lo
+que la justificaba.
+
+  .tp .placa input   la caja gigante de teclear la placa. La placa ya se
+                     escoge de lista, pero la regla seguia viva y se
+                     comio el buscador del desplegable: 38 px, centrado
+                     y en mayusculas, un "BUSCAR…" del tamaño de un
+                     titular.
+
+  .tp .ruta input    lo mismo con los dos campos de escribir el sitio.
+
+  .tp .opciones      esta no era codigo muerto sino OTRA cosa con el
+                     mismo nombre —los botones de opcion de un
+                     formulario, con display:flex—. Mi regla ganaba por
+                     especificidad en todo lo que declaraba, pero nunca
+                     declaro `display`, asi que la lista heredaba aquel
+                     flex y se encogia al contenido: 99 px de ancho
+                     dentro de un desplegable de 492.
+
+Las dos primeras se borran; la tercera declara su `display`.
+
+PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas del archivo:
+las placas se siembran desde los viajes, la tabla de rutas queda
+borrada, y los pares origen>destino se siguen contando en la vista de
+uso para alimentar las rutas frecuentes.
+
+MEDIDO CON PLAYWRIGHT a 1440 / 820 / 390 / 360 px: las cinco pantallas
+limpias. Y el contraste en los siete temas, ocho pares por tema, todos
+por encima de 4,5.
+
+PASO 1 — correr en Supabase:
+  supabase/migraciones/2026-09-traspasos-placas.sql
+
+(El archivo 2026-09-traspasos-placas-rutas.sql ya no existe: NO lo
+corras si te quedo por ahi.)

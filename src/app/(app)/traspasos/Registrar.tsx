@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
-import type { PlacaM, Punto, RutaM, TipoViaje, Viaje } from "@/modulos/traspasos/datos";
+import type { PlacaM, Punto, TipoViaje, Viaje } from "@/modulos/traspasos/datos";
 import { TURNOS, hora, quien } from "@/modulos/traspasos/formato";
+import { Desplegable } from "./comunes";
 
 /**
  * REGISTRAR UN VIAJE.
@@ -39,16 +40,15 @@ export type PlanTipo = {
   tipo: string; nombre: string; planeado: number; cumplido: number;
 };
 
-export function Registrar({ tipos, puntos, placas, rutas, placasM, rutasM,
+export function Registrar({ tipos, puntos, placas, rutas, placasM,
                             fecha, turnoSugerido,
                             planTurno, hechosTurno, planPorTipo, viajes, nombres }: {
   tipos: TipoViaje[];
   puntos: Punto[];
   placas: { placa: string; veces: number }[];
   rutas: { origen: string; destino: string; veces: number }[];
-  /** El maestro. Lo que se puede escoger, que ya no es texto libre. */
+  /** El maestro de placas. Lo que se puede escoger, ya no texto libre. */
   placasM: PlacaM[];
-  rutasM: RutaM[];
   fecha: string;
   turnoSugerido: string;
   /** Cuántos viajes lleva planeados el turno escogido, y cuántos van. */
@@ -75,19 +75,18 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM, rutasM,
   const [mandando, setMandando] = useState(false);
   const [verOtros, setVerOtros] = useState(false);
   const [placaNueva, setPlacaNueva] = useState<string | null>(null);
-  const [rutaNueva, setRutaNueva] = useState<{ o: string; d: string } | null>(null);
-  const campoPlaca = useRef<HTMLSelectElement>(null);
+  const [bodegaNueva, setBodegaNueva] = useState<{ lado: "o" | "d"; texto: string } | null>(null);
+  const campoPlaca = useRef<HTMLButtonElement>(null);
 
   const hayMaestro = puntos.length > 0;
   const puntosVivos = puntos.filter((p) => p.activo);
 
-  /* La ruta escogida, si el par está en el maestro. */
-  const rutaActual = rutasM.find((r) => r.origen === origen && r.destino === destino);
-
-  /* Voltear solo tiene sentido si la ruta de vuelta EXISTE en el
-     maestro. Antes era darle la vuelta a dos textos; ahora sería
-     ofrecer una ruta que el maestro no tiene. */
-  const vuelta = rutasM.find((r) => r.origen === destino && r.destino === origen);
+  /* LAS BODEGAS SON UNA SOLA LISTA. La misma es origen unas veces y
+     destino otras, así que no hay dos maestros ni una lista de pares:
+     hay bodegas, y un viaje escoge dos. */
+  const bodegas = puntosVivos.map((p) => ({
+    valor: p.clave, texto: p.nombre, nota: p.descripcion,
+  }));
 
   /* ------------------------------------------------------------------
      AGREGAR SOBRE LA MARCHA.
@@ -110,17 +109,24 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM, rutasM,
     router.refresh();
   }
 
-  async function guardarRutaNueva() {
-    const r = rutaNueva;
-    if (!r?.o || !r?.d) return;
+  async function guardarBodegaNueva() {
+    const b = bodegaNueva;
+    const t = (b?.texto ?? "").trim();
+    if (!b || !t) return;
     setMandando(true);
-    const { error } = await supabase.rpc("traspaso_agregar_ruta",
-      { p_origen: r.o, p_destino: r.d });
+    const { data, error } = await supabase.rpc("traspaso_agregar_punto",
+      { p_nombre: t, p_descripcion: null });
     setMandando(false);
-    if (error) { avisar.mal(mensajeFalta(error.message)); return }
-    setOrigen(r.o); setDestino(r.d);
-    setRutaNueva(null);
-    avisar.bien("La ruta quedó en el maestro.");
+    if (error) {
+      avisar.mal(/does not exist|could not find the function|schema cache/i.test(error.message)
+        ? "Falta correr supabase/migraciones/2026-09-traspasos-maestro.sql en Supabase."
+        : error.message);
+      return;
+    }
+    const cl = (data as { clave: string }[] | null)?.[0]?.clave ?? "";
+    if (b.lado === "o") setOrigen(cl); else setDestino(cl);
+    setBodegaNueva(null);
+    avisar.bien(`${t} quedó en el maestro de bodegas.`);
     router.refresh();
   }
 
@@ -244,19 +250,14 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM, rutasM,
                       ni se vuelve a ofrecer. El «＋» está al lado para que
                       un vehículo nuevo no trabe el registro. */}
                   <div className="placa">
-                    <select ref={campoPlaca} value={placa} aria-label="Placa del vehículo"
-                            onChange={(e) => {
-                              if (e.target.value === "+") { setPlacaNueva(""); return }
-                              setPlaca(e.target.value);
-                            }}>
-                      <option value="">Escoge la placa…</option>
-                      {placasM.map((p) => (
-                        <option key={p.placa} value={p.placa}>
-                          {p.placa}{p.nota ? ` · ${p.nota}` : ""}
-                        </option>
-                      ))}
-                      <option value="+">＋ Otra placa…</option>
-                    </select>
+                    <Desplegable grande disparoRef={campoPlaca} valor={placa}
+                                 ariaLabel="Placa del vehículo" vacio="Escoge la placa…"
+                                 opciones={placasM.map((p) => ({
+                                   valor: p.placa, texto: p.placa, nota: p.nota,
+                                 }))}
+                                 extra="Otra placa…"
+                                 alEscoger={setPlaca}
+                                 alExtra={() => setPlacaNueva("")} />
                   </div>
 
                   {placaNueva !== null && (
@@ -375,66 +376,80 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM, rutasM,
                 <div>
                   <span className="rot-campo">Ruta</span>
 
-                  {/* UNA SOLA LISTA Y NO DOS CAMPOS. La ruta es un par de
-                      puntos del maestro, así que escogerla es un toque en
-                      vez de dos escrituras que pueden no existir. */}
-                  <div className="ruta-sel">
-                    <select value={rutaActual ? rutaActual.id : ""} aria-label="Ruta"
-                            onChange={(e) => {
-                              if (e.target.value === "+") { setRutaNueva({ o: "", d: "" }); return }
-                              const r = rutasM.find((x) => x.id === e.target.value);
-                              setOrigen(r?.origen ?? ""); setDestino(r?.destino ?? "");
-                            }}>
-                      <option value="">Escoge la ruta…</option>
-                      {rutasM.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.origen_nombre} → {r.destino_nombre}
-                        </option>
-                      ))}
-                      <option value="+">＋ Otra ruta…</option>
-                    </select>
+                  {/* DOS BODEGAS, NO UNA "RUTA". Una ruta no es una cosa
+                      que exista por sí sola: es de dónde sale y a dónde
+                      llega, y las dos salen de la MISMA lista — la misma
+                      bodega es origen unas veces y destino otras.
 
-                    {/* VOLTEAR solo si la vuelta EXISTE en el maestro.
-                        Antes era darle la vuelta a dos textos; ahora sería
-                        ofrecer una ruta que el maestro no tiene. */}
-                    <button type="button" className="voltear" aria-label="la ruta de vuelta"
-                            disabled={!vuelta}
-                            title={vuelta ? "La ruta de vuelta" : "La vuelta no está en el maestro"}
-                            onClick={() => { if (vuelta) { setOrigen(vuelta.origen); setDestino(vuelta.destino) } }}>
+                      Hubo aquí un maestro de rutas, una lista de pares
+                      aparte de la de bodegas. Era mantener dos listas
+                      donde hay una, y el día que se desajustaran nadie
+                      sabría cuál creer. Se botó antes de llegar a la
+                      base. */}
+                  <div className="ruta">
+                    <Desplegable valor={origen} ariaLabel="De dónde sale"
+                                 vacio="De dónde sale…" opciones={bodegas}
+                                 extra="Otra bodega…"
+                                 alEscoger={setOrigen}
+                                 alExtra={() => setBodegaNueva({ lado: "o", texto: "" })} />
+
+                    {/* VOLTEAR. La mitad de los viajes son el regreso del
+                        anterior, y ahora que las dos puntas salen de la
+                        misma lista voltearlas siempre tiene sentido. */}
+                    <button type="button" className="voltear" aria-label="voltear la ruta"
+                            disabled={!origen && !destino}
+                            title="Voltear: la ruta de vuelta"
+                            onClick={() => { const o = origen; setOrigen(destino); setDestino(o) }}>
                       <svg viewBox="0 0 24 24"><path d="M7 10h13M7 10l3-3M7 10l3 3" />
                         <path d="M17 14H4M17 14l-3-3M17 14l-3 3" /></svg>
                     </button>
+
+                    <Desplegable valor={destino} ariaLabel="A dónde va"
+                                 vacio="A dónde va…"
+                                 opciones={bodegas.filter((b) => b.valor !== origen)}
+                                 extra="Otra bodega…"
+                                 alEscoger={setDestino}
+                                 alExtra={() => setBodegaNueva({ lado: "d", texto: "" })} />
                   </div>
 
-                  {rutaNueva !== null && (
-                    <div className="alta ruta-alta">
-                      <select value={rutaNueva.o} aria-label="De dónde sale"
-                              onChange={(e) => setRutaNueva({ ...rutaNueva, o: e.target.value })}>
-                        <option value="">De dónde sale…</option>
-                        {puntosVivos.map((p) => (
-                          <option key={p.clave} value={p.clave}>{p.nombre}</option>
-                        ))}
-                      </select>
-                      <span className="fl" aria-hidden>→</span>
-                      <select value={rutaNueva.d} aria-label="A dónde va"
-                              onChange={(e) => setRutaNueva({ ...rutaNueva, d: e.target.value })}>
-                        <option value="">A dónde va…</option>
-                        {puntosVivos.filter((p) => p.clave !== rutaNueva.o).map((p) => (
-                          <option key={p.clave} value={p.clave}>{p.nombre}</option>
-                        ))}
-                      </select>
+                  {bodegaNueva !== null && (
+                    <div className="alta">
+                      <input value={bodegaNueva.texto} autoFocus autoComplete="off"
+                             aria-label="Bodega nueva"
+                             placeholder={bodegaNueva.lado === "o"
+                               ? "Nombre de la bodega de origen"
+                               : "Nombre de la bodega de destino"}
+                             onChange={(e) => setBodegaNueva({ ...bodegaNueva, texto: e.target.value })}
+                             onKeyDown={(e) => {
+                               if (e.key === "Enter") { e.preventDefault(); guardarBodegaNueva() }
+                               if (e.key === "Escape") setBodegaNueva(null);
+                             }} />
                       <button type="button" className="btn si chico"
-                              disabled={!rutaNueva.o || !rutaNueva.d || mandando}
-                              onClick={guardarRutaNueva}>Agregar</button>
+                              disabled={!bodegaNueva.texto.trim() || mandando}
+                              onClick={guardarBodegaNueva}>Agregar</button>
                       <button type="button" className="btn chico"
-                              onClick={() => setRutaNueva(null)}>Dejar así</button>
+                              onClick={() => setBodegaNueva(null)}>Dejar así</button>
                     </div>
                   )}
 
-                  {puntosVivos.length < 2 && (
+                  {/* LAS RUTAS QUE MÁS SE REPITEN. No son un maestro: es
+                      una cuenta sobre los viajes ya registrados, así que
+                      funciona desde el primer día y se afina sola. */}
+                  {rutas.length > 0 && (
+                    <div className="rutas-frec">
+                      {rutas.map((r) => (
+                        <button key={r.origen + r.destino} type="button"
+                                onClick={() => { setOrigen(r.origen); setDestino(r.destino) }}>
+                          {nombreBodega(puntos, r.origen)} → {nombreBodega(puntos, r.destino)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {puntosVivos.length === 0 && (
                     <p className="guia" style={{ marginTop: 10 }}>
-                      Una ruta son dos puntos del maestro y todavía no hay dos. Agrégalos en{" "}
-                      <b>Maestro → Puntos</b> y las rutas se pueden armar desde aquí.
+                      Todavía no hay bodegas. Agrégalas aquí mismo con <b>Otra bodega…</b>, o
+                      en <b>Maestro → Bodegas</b>.
                     </p>
                   )}
                 </div>
@@ -563,4 +578,10 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM, rutasM,
       </div>
     </>
   );
+}
+
+/** El nombre de una bodega a partir de su clave. Las rutas frecuentes
+ *  vienen de la base con claves; la pantalla muestra nombres. */
+function nombreBodega(puntos: Punto[], clave: string) {
+  return puntos.find((p) => p.clave === clave)?.nombre ?? clave;
 }

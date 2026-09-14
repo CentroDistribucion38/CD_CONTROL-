@@ -4,28 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
-import type { PlacaM, Punto, PuntoFaltante, RutaM, TipoViaje } from "@/modulos/traspasos/datos";
+import type { PlacaM, Punto, PuntoFaltante, TipoViaje } from "@/modulos/traspasos/datos";
 
 /**
  * EL MAESTRO DE TRASPASOS.
  *
- * Cuatro listas: PUNTOS, TIPOS, PLACAS y RUTAS. Es todo lo que se puede
- * escoger al registrar un viaje — y por eso vive aquí y no en el código:
- * el día que abran una bodega o entre un vehículo nuevo, nadie debería
- * esperar un despliegue.
+ * Tres listas: BODEGAS, TIPOS y PLACAS. Es todo lo que se puede escoger
+ * al registrar un viaje — y por eso vive aquí y no en el código: el día
+ * que abran una bodega o entre un vehículo nuevo, nadie debería esperar
+ * un despliegue.
+ *
+ * NO HAY MAESTRO DE RUTAS, y llegó a haberlo. Una ruta no es una cosa
+ * que exista por sí sola: es de dónde sale y a dónde llega, y las dos
+ * puntas salen de esta misma lista de bodegas — la misma bodega es
+ * origen unas veces y destino otras. Mantener además una lista de pares
+ * era mantener dos listas donde hay una.
  *
  * BORRAR NO SIGNIFICA LO MISMO EN LAS CUATRO, y la diferencia no es una
  * preferencia sino el esquema:
  *
- *   PUNTOS Y TIPOS   traspasos_viajes los REFERENCIA por llave foránea
+ *   BODEGAS Y TIPOS  traspasos_viajes los REFERENCIA por llave foránea
  *                    (origen, destino, tipo). Borrar uno usado lo
  *                    rechaza la base, así que la pantalla lo dice antes
  *                    en vez de dejar salir un "violates foreign key
  *                    constraint", que no le explica nada a nadie.
  *
- *   PLACAS Y RUTAS   no hay ninguna llave foránea hacia ellas: la placa
- *                    se guarda como TEXTO dentro de cada viaje y la ruta
- *                    sale del origen y el destino de ese viaje. Se
+ *   PLACAS           no hay ninguna llave foránea hacia ellas: la placa
+ *                    se guarda como TEXTO dentro de cada viaje. Se
  *                    pueden borrar siempre; los viajes no se tocan, solo
  *                    dejan de ofrecerse al registrar.
  *
@@ -52,11 +57,10 @@ type Fila = {
   viajes: number;
 };
 
-export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEditar }: {
+export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: {
   tipos: TipoViaje[];
   puntos: Punto[];
   placas: PlacaM[];
-  rutas: RutaM[];
   faltantes: PuntoFaltante[];
   uso: Uso;
   puedeEditar: boolean;
@@ -69,12 +73,6 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
   const [nuevoPunto, setNuevoPunto] = useState("");
   const [nuevoTipo, setNuevoTipo] = useState("");
   const [nuevaPlaca, setNuevaPlaca] = useState("");
-  const [rOrigen, setROrigen] = useState("");
-  const [rDestino, setRDestino] = useState("");
-
-  /* Para armar una ruta solo sirven los puntos ACTIVOS: ofrecer uno
-     apagado sería ofrecer una ruta que el registro no va a aceptar. */
-  const puntosVivos = puntos.filter((p) => p.activo);
 
   /* SOLO QUEDAN LOS DUPLICADOS. La franja de "sitios escritos a mano"
      se fue, y no por gusto: existía porque Registrar dejaba escribir el
@@ -165,53 +163,6 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
     router.refresh();
   }
 
-  /** El punto que ya existe, buscado como lo busca la base: sin acentos,
-   *  sin espacios y sin mayúsculas. Si no está, devuelve null. */
-  function puntoDe(texto: string) {
-    const k = clave(texto);
-    return puntos.find((p) => clave(p.clave) === k || clave(p.nombre) === k) ?? null;
-  }
-
-  async function agregarRuta() {
-    const to = rOrigen.trim(), td = rDestino.trim();
-    if (!to || !td) return;
-    setMandando(true);
-
-    /* EL PUNTO QUE FALTE SE CREA. Mandar a alguien a otra caja a agregar
-       dos puntos para poder volver aquí a armar una ruta es trabajo
-       inventado. */
-    const creados: string[] = [];
-    for (const t of [to, td]) {
-      if (puntoDe(t)) continue;
-      const r = await supabase.rpc("traspaso_agregar_punto",
-        { p_nombre: t, p_descripcion: null });
-      if (r.error) {
-        setMandando(false);
-        avisar.mal(faltaLaFuncion(r.error.message)
-          ? "Falta correr supabase/migraciones/2026-09-traspasos-maestro.sql en Supabase."
-          : r.error.message);
-        return;
-      }
-      creados.push(t);
-    }
-
-    const { error } = await supabase.rpc("traspaso_agregar_ruta",
-      { p_origen: to, p_destino: td });
-    setMandando(false);
-    if (error) {
-      avisar.mal(faltaLaFuncion(error.message)
-        ? "Falta correr supabase/migraciones/2026-09-traspasos-placas-rutas.sql en Supabase."
-        : error.message);
-      return;
-    }
-    setROrigen(""); setRDestino("");
-    avisar.bien(`${to} → ${td} quedó en el maestro de rutas.`
-      + (creados.length
-        ? ` Y ${creados.join(" y ")} ${creados.length === 1 ? "se agregó" : "se agregaron"} a Puntos.`
-        : ""));
-    router.refresh();
-  }
-
   async function agregarTipo() {
     const n = nuevoTipo.trim();
     if (!n) return;
@@ -247,11 +198,7 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
   }
 
   async function ordenar(fn: string, claves: string[]) {
-    /* traspaso_ordenar_rutas recibe uuid[] y su parámetro se llama
-       p_ids. PostgREST casa por nombre, así que mandar p_claves ahí
-       sería "no encuentro la función" sin decir por qué. */
-    const arg = fn.endsWith("_rutas") ? { p_ids: claves } : { p_claves: claves };
-    const { error } = await supabase.rpc(fn, arg);
+    const { error } = await supabase.rpc(fn, { p_claves: claves });
     if (error) {
       avisar.mal(faltaLaFuncion(error.message)
         ? "Para cambiar el orden falta correr supabase/migraciones/2026-09-traspasos-maestro.sql en Supabase."
@@ -271,11 +218,6 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
   const filasPlacas: Fila[] = placas.map((p) => ({
     clave: p.placa, nombre: p.placa, sub: p.nota,
     activo: p.activo, viajes: uso.placas[p.placa] ?? 0,
-  }));
-
-  const filasRutas: Fila[] = rutas.map((r) => ({
-    clave: r.id, nombre: `${r.origen_nombre} → ${r.destino_nombre}`, sub: null,
-    activo: r.activo, viajes: uso.rutas[`${r.origen}>${r.destino}`] ?? 0,
   }));
 
   const filasTipos: Fila[] = tipos.map((t) => ({
@@ -300,14 +242,14 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
         {/* ---------------- PUNTOS ---------------- */}
         <div className="caja-m">
           <div className="cab-m">
-            <h2>Puntos <em>{puntos.length}</em></h2>
-            <p>De dónde sale y a dónde llega un viaje.</p>
+            <h2>Bodegas <em>{puntos.length}</em></h2>
+            <p>De dónde sale y a dónde llega un viaje. Una sola lista: la misma bodega es origen unas veces y destino otras.</p>
           </div>
 
           {puedeEditar && (
             <form className="agregar-m"
                   onSubmit={(e) => { e.preventDefault(); agregarPunto(nuevoPunto) }}>
-              <input value={nuevoPunto} placeholder="Nombre del punto — Ag01, Planta, Patio…"
+              <input value={nuevoPunto} placeholder="Nombre de la bodega — Ag01, Planta, Patio…"
                      onChange={(e) => setNuevoPunto(e.target.value)} />
               <button type="submit" disabled={!nuevoPunto.trim() || mandando}>Agregar</button>
             </form>
@@ -393,57 +335,6 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
           )}
         </div>
 
-        {/* ---------------- RUTAS ---------------- */}
-        <div className="caja-m">
-          <div className="cab-m">
-            <h2>Rutas <em>{rutas.length}</em></h2>
-            <p>
-              Un par de puntos, no un texto: por eso el informe por punto y el informe por
-              ruta siempre cuadran. Si falta un punto, agrégalo arriba primero.
-            </p>
-          </div>
-
-          {/* SE ESCRIBE O SE ESCOGE, y el punto que falte se crea solo.
-              Antes, con menos de dos puntos, esta caja decía "faltan
-              puntos" y no dejaba hacer nada: mandaba a la persona a otra
-              caja a hacer dos cosas para poder volver a hacer una. Lo que
-              quiere decir es "de aquí a allá", y eso se escribe de una. */}
-          {puedeEditar && (
-            <form className="agregar-m ruta-nueva"
-                  onSubmit={(e) => { e.preventDefault(); agregarRuta() }}>
-              <input list="tp-m-puntos" value={rOrigen} autoComplete="off"
-                     aria-label="De dónde sale" placeholder="De dónde sale"
-                     onChange={(e) => setROrigen(e.target.value)} />
-              <span className="fl" aria-hidden>→</span>
-              <input list="tp-m-puntos" value={rDestino} autoComplete="off"
-                     aria-label="A dónde va" placeholder="A dónde va"
-                     onChange={(e) => setRDestino(e.target.value)} />
-              <datalist id="tp-m-puntos">
-                {puntosVivos.map((p) => <option key={p.clave} value={p.nombre} />)}
-              </datalist>
-              <button type="submit"
-                      disabled={!rOrigen.trim() || !rDestino.trim() || mandando}>
-                Agregar
-              </button>
-            </form>
-          )}
-
-          {rutas.length === 0 ? (
-            <div className="vacio">
-              <b>Todavía no hay rutas</b>
-              {puntosVivos.length === 0
-                ? "Escribe los dos sitios arriba: se agregan a Puntos y la ruta queda armada."
-                : "Arma la primera arriba. Al correr la migración también se siembran con las que ya se venían registrando."}
-            </div>
-          ) : (
-            <Lista filas={filasRutas} puedeEditar={puedeEditar} mandando={mandando}
-                   sinUso={uso.falta} sinSub sinRenombrar borrarSiempre
-                   alOrdenar={(cs) => ordenar("traspaso_ordenar_rutas", cs)}
-                   alPrender={(c, a) => cambiar("traspasos_rutas", "id", c, { activo: a })}
-                   alRenombrar={() => {}}
-                   alBorrar={(c, n) => borrar("traspasos_rutas", "id", c, n)} />
-          )}
-        </div>
       </section>
 
       {/* ---------------- DUPLICADOS ---------------- */}

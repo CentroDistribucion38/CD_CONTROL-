@@ -684,15 +684,12 @@
 /* LA PLACA, GRANDE. Es el único dato que no se puede reconstruir de
    memoria si se escribe mal, y el que se lee a un metro de distancia
    para comprobarlo contra el vehículo. */
-.tp .placa input {
-  width: 100%; height: 72px; border: 2px solid var(--tp-linea); border-radius: 3px;
-  background: var(--tp-fondo); font: 900 38px var(--tp-titulo); letter-spacing: .14em;
-  text-align: center; color: var(--tp-tinta); text-transform: uppercase; padding: 0 12px;
-}
-.tp .placa input:focus {
-  outline: none; border-color: var(--tp-ojo); background: var(--tp-papel);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
-}
+/* Aquí vivía el campo gigante de escribir la placa. La placa ya se
+   escoge de una lista, así que la regla quedó sin dueño — y como
+   apuntaba a CUALQUIER input de adentro, se comió el buscador del
+   desplegable: 38 px, centrado y en mayúsculas, un "BUSCAR…" del
+   tamaño de un titular. El CSS muerto no es inofensivo cuando su
+   selector sigue siendo ancho. */
 .tp .recientes { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap }
 .tp .recientes button {
   border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 2px;
@@ -714,13 +711,12 @@
   font-weight: 700;
 }
 
-.tp .ruta { display: grid; grid-template-columns: 1fr 46px 1fr; gap: 10px; align-items: end }
-.tp .ruta input {
-  width: 100%; height: 50px; border: 1.5px solid var(--tp-linea); border-radius: 2px;
-  padding: 0 14px; font: 500 15px var(--tp-texto); background: var(--tp-fondo);
-  color: var(--tp-tinta);
-}
-.tp .ruta input:focus { outline: none; border-color: var(--tp-ojo); background: var(--tp-papel) }
+.tp .ruta { display: grid; grid-template-columns: minmax(0,1fr) 46px minmax(0,1fr); gap: 10px; align-items: start }
+/* Aquí vivían las reglas del campo de ESCRIBIR el sitio. Los dos lados
+   de la ruta ya son desplegables, así que la regla quedó sin dueño — y
+   apuntaba a cualquier input de adentro, incluido el buscador del
+   desplegable. Es la tercera vez hoy que un selector ancho sobreviviente
+   se come algo nuevo; por eso se borra en vez de quedarse apagado. */
 .tp .ruta .voltear {
   height: 50px; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
   border-radius: 2px; cursor: pointer; display: grid; place-items: center;
@@ -827,7 +823,6 @@
   .tp .linea-campos { grid-template-columns: 1fr }
   .tp .ruta { grid-template-columns: 1fr; }
   .tp .ruta .voltear { height: 42px }
-  .tp .placa input { height: 60px; font-size: 30px }
 }
 
 /* =====================================================================
@@ -1289,27 +1284,9 @@
 
    Queda del mismo alto y la misma familia que el de ruta, con la placa
    un punto más grande y espaciada, que es como se lee una placa. */
-.tp .placa select {
-  width: 100%; height: 50px; border: 1.5px solid var(--tp-linea); border-radius: 3px;
-  background: var(--tp-fondo); color: var(--tp-tinta); padding: 0 12px;
-  font-family: var(--tp-titulo); font-weight: 800; font-size: 17px;
-  letter-spacing: .06em;
-}
-.tp .placa select:focus {
-  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
-}
 
-.tp .ruta-sel { display: grid; grid-template-columns: minmax(0, 1fr) 50px; gap: 10px }
-.tp .ruta-sel select {
-  font: inherit; font-size: 16px; width: 100%; min-width: 0; height: 50px;
-  border: 1.5px solid var(--tp-linea); border-radius: 3px; padding: 0 12px;
-  background: var(--tp-fondo); color: var(--tp-tinta);
-}
-.tp .ruta-sel select:focus {
-  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
-}
+
+
 .tp .ruta-sel .voltear:disabled { opacity: .35; cursor: not-allowed }
 
 /* El alta rápida, la que cuelga del «＋». Va con fondo propio para que
@@ -1328,3 +1305,112 @@
 .tp .alta .fl { color: var(--tp-gris); flex: none }
 .tp .alta .btn { flex: 0 0 auto }
 @media (max-width: 520px) { .tp .alta .btn { flex: 1 1 100% } }
+
+/* =====================================================================
+   EL DESPLEGABLE PROPIO
+   ---------------------------------------------------------------------
+   Reemplaza al <select> nativo, cuya lista la dibuja el sistema
+   operativo: el azul, la letra y el alto de cada renglón no los pone el
+   CSS y no hay propiedad que los cambie.
+
+   FLOTA POR ENCIMA, no empuja. Una lista que abre empujando el
+   formulario hacia abajo mueve el botón de registrar mientras alguien
+   lo está mirando.
+   ===================================================================== */
+.tp .desple { position: relative }
+
+.tp .desple .disparo {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 50px;
+  padding: 0 12px; cursor: pointer; text-align: left;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+  font: 500 16px var(--tp-texto);
+}
+.tp .desple .disparo:hover { border-color: var(--tp-ojo) }
+.tp .desple .disparo[aria-expanded="true"],
+.tp .desple .disparo:focus-visible {
+  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+.tp .desple .disparo > span {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Lo que todavía no se ha escogido no se ve igual que lo escogido. */
+.tp .desple .disparo .sin { color: var(--tp-gris) }
+.tp .desple .disparo i {
+  font-style: normal; color: var(--tp-gris); font-weight: 400; margin-left: 8px; font-size: 13px;
+}
+.tp .desple .disparo .flecha {
+  width: 15px; height: 15px; flex: none; stroke: var(--tp-gris); stroke-width: 2.2;
+  fill: none; stroke-linecap: round; stroke-linejoin: round; transition: transform .14s;
+}
+.tp .desple .disparo[aria-expanded="true"] .flecha { transform: rotate(180deg) }
+
+/* La placa se lee un punto más grande y espaciada, como una placa. */
+.tp .desple.grande .disparo .puesto {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 17px; letter-spacing: .06em;
+}
+
+.tp .desple .opciones {
+  /* `display: block` ESCRITO, no heredado. En este mismo archivo hay
+     un `.tp .opciones { display: flex }` —los botones de opción de un
+     formulario, otra cosa con el mismo nombre—. Mi regla gana por
+     especificidad en todo lo que SÍ declara, pero nunca declaró
+     `display`, así que la lista heredaba aquel flex y se encogía al
+     contenido: 99 px de ancho dentro de un desplegable de 492. */
+  display: block;
+  position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 70;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .45); overflow: hidden;
+}
+/* El filo del módulo arriba: es lo que hace que la lista se lea como
+   parte de esta pantalla y no como una ventana de otro programa. */
+.tp .desple .opciones::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  background: var(--tp-ojo); z-index: 1;
+}
+.tp .desple .rollo { max-height: 268px; overflow-y: auto; padding: 4px 0 }
+.tp .desple .filtro { padding: 9px 9px 7px; border-bottom: 1px solid var(--tp-fondo) }
+.tp .desple .filtro input {
+  font: inherit; font-size: 15px; width: 100%; height: 38px; padding: 0 11px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .desple .filtro input:focus { outline: none; border-color: var(--tp-ojo); background: var(--tp-papel) }
+
+.tp .desple .opciones button {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 42px;
+  padding: 9px 13px; border: 0; background: none; cursor: pointer; text-align: left;
+  font: 500 15px var(--tp-texto); color: var(--tp-tinta);
+  border-left: 3px solid transparent;
+}
+.tp .desple .opciones button > span {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tp .desple .opciones button i {
+  font-style: normal; color: var(--tp-gris); font-size: 12.5px; margin-left: 8px;
+}
+/* MARCADA es donde está el cursor —teclado o mouse—; ELEGIDA es la que
+   está puesta. Son dos cosas distintas y por eso se ven distinto: una
+   es fondo, la otra es el tic y el filo. */
+.tp .desple .opciones button.marcada { background: var(--tp-fondo) }
+.tp .desple .opciones button.elegida {
+  font-weight: 700; border-left-color: var(--tp-ojo);
+  background: color-mix(in srgb, var(--tp-ojo) 10%, #fff);
+}
+.tp .desple .opciones .tic {
+  width: 15px; height: 15px; flex: none; stroke: var(--tp-ojo); stroke-width: 2.6;
+  fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0;
+}
+.tp .desple .opciones button.elegida .tic { opacity: 1 }
+
+.tp .desple.grande .opciones button {
+  font-family: var(--tp-titulo); font-weight: 700; font-size: 15px; letter-spacing: .05em;
+}
+.tp .desple.grande .opciones button.elegida { font-weight: 900 }
+
+.tp .desple .opciones button.mas {
+  border-top: 1px solid var(--tp-fondo); color: var(--tp-gris); font-weight: 600;
+}
+.tp .desple .opciones button.mas.marcada { color: var(--tp-tinta) }
+.tp .desple .nada { padding: 14px 13px; font-size: 13px; color: var(--tp-gris) }

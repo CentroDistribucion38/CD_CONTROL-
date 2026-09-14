@@ -9,7 +9,7 @@
  * función.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Viaje } from "@/modulos/traspasos/datos";
 import { hora, quien, TURNOS } from "@/modulos/traspasos/formato";
@@ -146,5 +146,163 @@ export function SinTablas() {
         romper nada.
       </p>
     </section>
+  );
+}
+
+/* =====================================================================
+   UN DESPLEGABLE QUE SÍ SE PUEDE PEINAR
+   ---------------------------------------------------------------------
+   El <select> nativo dibuja su lista el sistema operativo: el azul, el
+   tipo de letra y el alto de cada renglón no los pone el CSS, y no hay
+   propiedad que los cambie. En medio de una pantalla con su propia
+   paleta se ve como lo que es — una ventana de otro programa.
+
+   Así que la lista se dibuja aquí. Lo que hay que reponer a mano,
+   porque el nativo lo traía gratis:
+
+     · teclado: flechas, Enter, Escape, Home y End
+     · cerrar al tocar por fuera
+     · el que está escogido se ve escogido, y la lista abre en él
+     · aria-* para que un lector de pantalla lo anuncie como lista
+
+   Y UN FILTRO CUANDO HAY MUCHAS. Con siete placas sobra; con cuarenta,
+   buscar con la rueda del mouse es peor que teclear tres letras. Sale
+   solo a partir de ocho, no siempre: un campo de búsqueda sobre una
+   lista de cinco es ruido.
+   ===================================================================== */
+
+export type Opcion = { valor: string; texto: string; nota?: string | null };
+
+export function Desplegable({ valor, opciones, vacio, extra, alEscoger, alExtra,
+                              grande, ariaLabel, disparoRef }: {
+  valor: string;
+  opciones: Opcion[];
+  /** Lo que dice el botón cuando no hay nada escogido. */
+  vacio: string;
+  /** El renglón de abajo, el de "＋ Otra placa…". Opcional. */
+  extra?: string;
+  alEscoger: (v: string) => void;
+  alExtra?: () => void;
+  /** La placa se lee un punto más grande y espaciada. */
+  grande?: boolean;
+  ariaLabel: string;
+  disparoRef?: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [marcado, setMarcado] = useState(0);
+  const caja = useRef<HTMLDivElement>(null);
+  const lista = useRef<HTMLDivElement>(null);
+
+  const conFiltro = opciones.length >= 8;
+  const vistas = busca.trim()
+    ? opciones.filter((o) =>
+        (o.texto + " " + (o.nota ?? "")).toLowerCase().includes(busca.trim().toLowerCase()))
+    : opciones;
+  const elegida = opciones.find((o) => o.valor === valor);
+
+  /* Al abrir, el cursor arranca en la que está escogida y no en la
+     primera: bajar cuarenta veces para llegar a la que ya estaba es
+     exactamente lo que el nativo no hacía. */
+  useEffect(() => {
+    if (!abierto) { setBusca(""); return }
+    const i = vistas.findIndex((o) => o.valor === valor);
+    setMarcado(i >= 0 ? i : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abierto]);
+
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: PointerEvent) => {
+      if (!caja.current?.contains(e.target as Node)) setAbierto(false);
+    };
+    document.addEventListener("pointerdown", fuera);
+    return () => document.removeEventListener("pointerdown", fuera);
+  }, [abierto]);
+
+  /* La marcada siempre a la vista. Sin esto, bajar con la flecha más
+     allá del borde mueve una selección que nadie puede ver. */
+  useEffect(() => {
+    if (!abierto) return;
+    lista.current?.querySelector('[data-marcada="1"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [abierto, marcado]);
+
+  function escoger(v: string) { setAbierto(false); alEscoger(v) }
+
+  function teclas(e: React.KeyboardEvent) {
+    if (!abierto) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+        e.preventDefault(); setAbierto(true);
+      }
+      return;
+    }
+    const tope = vistas.length + (extra ? 1 : 0) - 1;
+    if (e.key === "Escape")      { e.preventDefault(); setAbierto(false) }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setMarcado((i) => Math.min(i + 1, tope)) }
+    else if (e.key === "ArrowUp")   { e.preventDefault(); setMarcado((i) => Math.max(i - 1, 0)) }
+    else if (e.key === "Home")      { e.preventDefault(); setMarcado(0) }
+    else if (e.key === "End")       { e.preventDefault(); setMarcado(tope) }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (extra && marcado === vistas.length) { setAbierto(false); alExtra?.() }
+      else if (vistas[marcado]) escoger(vistas[marcado].valor);
+    }
+  }
+
+  return (
+    <div className={"desple" + (grande ? " grande" : "")} ref={caja}>
+      <button type="button" ref={disparoRef} className="disparo"
+              aria-haspopup="listbox" aria-expanded={abierto} aria-label={ariaLabel}
+              onClick={() => setAbierto((v) => !v)} onKeyDown={teclas}>
+        <span className={elegida ? "puesto" : "sin"}>
+          {elegida ? elegida.texto : vacio}
+          {elegida?.nota && <i>{elegida.nota}</i>}
+        </span>
+        <svg className="flecha" viewBox="0 0 24 24" aria-hidden>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {abierto && (
+        <div className="opciones" role="listbox" aria-label={ariaLabel} onKeyDown={teclas}>
+          {conFiltro && (
+            <div className="filtro">
+              <input value={busca} autoFocus placeholder="Buscar…" aria-label="Buscar"
+                     onChange={(e) => { setBusca(e.target.value); setMarcado(0) }}
+                     onKeyDown={teclas} />
+            </div>
+          )}
+
+          <div className="rollo" ref={lista}>
+            {vistas.length === 0 && <div className="nada">Nada con «{busca}»</div>}
+
+            {vistas.map((o, i) => (
+              <button key={o.valor} type="button" role="option"
+                      aria-selected={o.valor === valor}
+                      data-marcada={i === marcado ? "1" : undefined}
+                      className={(o.valor === valor ? "elegida" : "")
+                                 + (i === marcado ? " marcada" : "")}
+                      onPointerEnter={() => setMarcado(i)}
+                      onClick={() => escoger(o.valor)}>
+                <svg className="tic" viewBox="0 0 24 24" aria-hidden>
+                  <path d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{o.texto}{o.nota && <i>{o.nota}</i>}</span>
+              </button>
+            ))}
+
+            {extra && (
+              <button type="button" className={"mas" + (marcado === vistas.length ? " marcada" : "")}
+                      data-marcada={marcado === vistas.length ? "1" : undefined}
+                      onPointerEnter={() => setMarcado(vistas.length)}
+                      onClick={() => { setAbierto(false); alExtra?.() }}>
+                <span>＋ {extra}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

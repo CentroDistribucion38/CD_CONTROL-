@@ -34,7 +34,15 @@ const HTML = marco(`
 </div>
 
 <div><span class="rot-campo">Placa</span>
-<div class="placa"><select><option>ABC123 · Tractomula de Summar</option></select></div>
+<div class="placa"><div class="desple grande"><button class="disparo" aria-expanded="true">
+<span class="puesto">ABC123<i>Tractomula de Summar</i></span>
+<svg class="flecha" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+<div class="opciones"><div class="filtro"><input placeholder="Buscar…"></div><div class="rollo">
+<button class="elegida"><svg class="tic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><span>ABC123<i>Tractomula de Summar</i></span></button>
+<button class="marcada"><svg class="tic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><span>BHG156<i>Turbo propio</i></span></button>
+<button><svg class="tic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><span>UYT569</span></button>
+<button class="mas"><span>＋ Otra placa…</span></button>
+</div></div></div></div>
 <div class="recientes"><button>ABC123</button><button>XYZ789</button><button>TUV456</button></div></div>
 
 <div><span class="rot-campo">Del plan del turno A</span>
@@ -46,11 +54,12 @@ ${PLAN.map((p,i)=>chip(p,i===0)).join("")}
 </div>
 
 <div><span class="rot-campo">Ruta</span>
-<div class="ruta-sel"><select><option>Ag01 → Planta Barranquilla</option></select>
-<button class="voltear"><svg viewBox="0 0 24 24"><path d="M7 10h13M7 10l3-3M7 10l3 3"/><path d="M17 14H4M17 14l-3-3M17 14l-3 3"/></svg></button></div>
-<div class="alta ruta-alta"><select><option>De dónde sale…</option></select><span class="fl">→</span>
-<select><option>A dónde va…</option></select><button class="btn si chico">Agregar</button>
-<button class="btn chico">Dejar así</button></div></div>
+<div class="ruta"><div class="desple"><button class="disparo"><span class="sin">De dónde sale…</span>
+<svg class="flecha" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button></div>
+<button class="voltear"><svg viewBox="0 0 24 24"><path d="M7 10h13M7 10l3-3M7 10l3 3"/><path d="M17 14H4M17 14l-3-3M17 14l-3 3"/></svg></button>
+<div class="desple"><button class="disparo"><span class="sin">A dónde va…</span>
+<svg class="flecha" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button></div></div>
+<div class="rutas-frec"><button>Ag01 → Planta Barranquilla</button><button>Planta Barranquilla → Ag01</button></div></div>
 
 <div class="linea-campos">
 <div><span class="rot-campo">Cuántos viajes</span>

@@ -103,14 +103,6 @@ export type PlacaM = {
   placa: string; nota: string | null; activo: boolean; orden: number | null;
 };
 
-/** Una ruta del maestro: un PAR de puntos, no un texto. */
-export type RutaM = {
-  id: string;
-  origen: string; destino: string;
-  origen_nombre: string; destino_nombre: string;
-  activo: boolean; orden: number | null; viajes: number;
-};
-
 export type PuntoFaltante = {
   texto: string;
   veces: number;
@@ -290,23 +282,6 @@ export async function placasMaestro(soloActivas = true) {
   const { data, error } = await q.order("orden", { ascending: true, nullsFirst: false });
   if (error) return { placas: [] as PlacaM[], falta: sinTablas(error.message) };
   return { placas: (data ?? []) as PlacaM[], falta: false };
-}
-
-/**
- * EL MAESTRO DE RUTAS, con los nombres ya resueltos.
- *
- * Una ruta es un PAR DE PUNTOS del maestro, atado por llave foránea. Con
- * texto libre serían dos listas que hay que mantener parejas, y el día
- * que no lo estén el informe por punto y el informe por ruta dan
- * distinto sin que nadie sepa cuál creer.
- */
-export async function rutasMaestro(soloActivas = true) {
-  const supabase = await createClient();
-  let q = supabase.from("v_traspasos_rutas_maestro").select("*");
-  if (soloActivas) q = q.eq("activo", true);
-  const { data, error } = await q.order("orden", { ascending: true, nullsFirst: false });
-  if (error) return { rutas: [] as RutaM[], falta: sinTablas(error.message) };
-  return { rutas: (data ?? []) as RutaM[], falta: false };
 }
 
 

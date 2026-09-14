@@ -2,7 +2,7 @@ import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
   tipos as leerTipos, puntos as leerPuntos, viajesDelDia, control,
-  placasRecientes, rutasFrecuentes, hoyLocal, placasMaestro, rutasMaestro,
+  placasRecientes, rutasFrecuentes, hoyLocal, placasMaestro,
 } from "@/modulos/traspasos/datos";
 import { turnoDeAhora, TURNOS } from "@/modulos/traspasos/formato";
 import "./traspasos.css";
@@ -17,10 +17,10 @@ export default async function TraspasosPage() {
 
   /* Las siete consultas en una sola tanda: en serie la pantalla
      tardaría lo que suman y aquí ninguna depende de otra. */
-  const [permisos, t, pts, dia, ctl, placas, rutas, nombres, pl, ru] = await Promise.all([
+  const [permisos, t, pts, dia, ctl, placas, rutas, nombres, pl] = await Promise.all([
     misPermisos(), leerTipos(), leerPuntos(), viajesDelDia(fecha),
     control(fecha), placasRecientes(), rutasFrecuentes(), nombresTodos(),
-    placasMaestro(), rutasMaestro(),
+    placasMaestro(),
   ]);
 
   if (t.falta || dia.falta) return <div className="tp"><SinTablas /></div>;
@@ -93,7 +93,7 @@ export default async function TraspasosPage() {
 
       {permisos.puedeEditar("/traspasos") ? (
         <Registrar tipos={t.tipos} puntos={pts} placas={placas} rutas={rutas}
-                   placasM={pl.placas} rutasM={ru.rutas}
+                   placasM={pl.placas}
                    fecha={fecha} turnoSugerido={turno}
                    planTurno={planTurno} hechosTurno={hechosTurno}
                    planPorTipo={planPorTipo}
