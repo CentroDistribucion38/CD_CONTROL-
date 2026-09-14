@@ -9,28 +9,29 @@ import type { PlacaM, Punto, PuntoFaltante, RutaM, TipoViaje } from "@/modulos/t
 /**
  * EL MAESTRO DE TRASPASOS.
  *
- * Dos listas —puntos y tipos— y, entre medio, lo único que impide que
- * el maestro se vacíe solo: lo que la gente escribió a mano en el
- * registro porque todavía no estaba en la lista.
+ * Cuatro listas: PUNTOS, TIPOS, PLACAS y RUTAS. Es todo lo que se puede
+ * escoger al registrar un viaje — y por eso vive aquí y no en el código:
+ * el día que abran una bodega o entre un vehículo nuevo, nadie debería
+ * esperar un despliegue.
  *
- * ESO SE PARTE EN DOS PREGUNTAS DISTINTAS, y esta pantalla es la que
- * las separa:
+ * BORRAR NO SIGNIFICA LO MISMO EN LAS CUATRO, y la diferencia no es una
+ * preferencia sino el esquema:
  *
- *   ¿es un sitio NUEVO?     -> Agregar. Y al agregarlo, los viajes
- *                              viejos que lo nombraban pasan a
- *                              apuntarlo: si no, el contador baja y el
- *                              informe por punto sigue partido.
+ *   PUNTOS Y TIPOS   traspasos_viajes los REFERENCIA por llave foránea
+ *                    (origen, destino, tipo). Borrar uno usado lo
+ *                    rechaza la base, así que la pantalla lo dice antes
+ *                    en vez de dejar salir un "violates foreign key
+ *                    constraint", que no le explica nada a nadie.
  *
- *   ¿es el MISMO mal        -> Unir. Abajo, con las dos escrituras y
- *    escrito?                  cuántos viajes lleva cada una a la
- *                              vista, porque quien aprieta el botón
- *                              tiene que poder ver que no se está
- *                              comiendo un sitio de verdad.
+ *   PLACAS Y RUTAS   no hay ninguna llave foránea hacia ellas: la placa
+ *                    se guarda como TEXTO dentro de cada viaje y la ruta
+ *                    sale del origen y el destino de ese viaje. Se
+ *                    pueden borrar siempre; los viajes no se tocan, solo
+ *                    dejan de ofrecerse al registrar.
  *
- * NADA SE BORRA SI YA SE USÓ. La base lo rechazaría igual por la llave
- * foránea, pero "violates foreign key constraint" no le explica nada a
- * quien está mirando la pantalla: decirlo antes —"usado en 43 viajes"—
- * sí.
+ * Y abajo, POSIBLES DUPLICADOS: el mismo sitio escrito de dos formas.
+ * Mientras uno de los dos esté suelto no cuenta en ningún informe por
+ * punto, así que unirlos no es cosmética.
  */
 
 type Uso = {
@@ -385,6 +386,7 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
                    sinUso={uso.falta}
                    alOrdenar={(cs) => ordenar("traspaso_ordenar_placas", cs)}
                    alPrender={(c, a) => cambiar("traspasos_placas", "placa", c, { activo: a })}
+                   borrarSiempre
                    alRenombrar={(c, _nom, sub) =>
                      cambiar("traspasos_placas", "placa", c, { nota: sub })}
                    alBorrar={(c, n) => borrar("traspasos_placas", "placa", c, n)} />
@@ -435,7 +437,7 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
             </div>
           ) : (
             <Lista filas={filasRutas} puedeEditar={puedeEditar} mandando={mandando}
-                   sinUso={uso.falta} sinSub sinRenombrar
+                   sinUso={uso.falta} sinSub sinRenombrar borrarSiempre
                    alOrdenar={(cs) => ordenar("traspaso_ordenar_rutas", cs)}
                    alPrender={(c, a) => cambiar("traspasos_rutas", "id", c, { activo: a })}
                    alRenombrar={() => {}}
@@ -478,7 +480,7 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
    LA LISTA
    ===================================================================== */
 
-function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar,
+function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar, borrarSiempre,
                  alOrdenar, alPrender, alRenombrar, alBorrar }: {
   filas: Fila[];
   puedeEditar: boolean;
@@ -488,6 +490,9 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar,
   /** Una ruta no tiene nombre propio: es el par de puntos. Cambiarle el
    *  nombre no querría decir nada, así que esa opción no se ofrece. */
   sinRenombrar?: boolean;
+  /** SE PUEDE BORRAR AUNQUE SE HAYA USADO. Vale para placas y rutas, y
+   *  no por relajar la regla: es que la regla no aplica. Ver abajo. */
+  borrarSiempre?: boolean;
   alOrdenar: (claves: string[]) => void;
   alPrender: (clave: string, activo: boolean) => void;
   alRenombrar: (clave: string, nombre: string, sub: string | null) => void;
@@ -550,7 +555,7 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar,
     <div ref={caja} onPointerMove={mover} onPointerUp={soltar} onPointerCancel={soltar}>
       {vistas.map((f) => (
         <Renglon key={f.clave} f={f} sinSub={sinSub} sinUso={sinUso}
-                 sinRenombrar={sinRenombrar}
+                 sinRenombrar={sinRenombrar} borrarSiempre={borrarSiempre}
                  puedeEditar={puedeEditar} mandando={mandando}
                  moviendo={moviendo === f.clave}
                  alTomar={(e) => tomar(e, f.clave)}
@@ -560,11 +565,12 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar,
   );
 }
 
-function Renglon({ f, sinSub, sinRenombrar, sinUso, puedeEditar, mandando, moviendo,
-                   alTomar, alPrender, alRenombrar, alBorrar }: {
+function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, mandando,
+                   moviendo, alTomar, alPrender, alRenombrar, alBorrar }: {
   f: Fila;
   sinSub?: boolean;
   sinRenombrar?: boolean;
+  borrarSiempre?: boolean;
   sinUso: boolean;
   puedeEditar: boolean;
   mandando: boolean;
@@ -597,10 +603,20 @@ function Renglon({ f, sinSub, sinRenombrar, sinUso, puedeEditar, mandando, movie
     return () => document.removeEventListener("pointerdown", fuera);
   }, [menu]);
 
-  /* Se puede borrar solo si NUNCA se usó — y solo si sabemos cuánto se
-     usó. Con la vista de uso ausente todo dice 0 y ofrecer "borrar"
-     sería ofrecer un error de llave foránea. */
-  const sePuedeBorrar = puedeEditar && !sinUso && f.viajes === 0;
+  /* CUÁNDO SE PUEDE BORRAR, y por qué son dos reglas distintas.
+
+     PUNTOS Y TIPOS: solo si nunca se usaron. La tabla de viajes los
+     REFERENCIA por llave foránea —traspasos_viajes.origen, .destino y
+     .tipo—, así que borrar uno usado lo rechazaría la base. Se dice
+     antes en vez de dejar salir un "violates foreign key constraint".
+
+     PLACAS Y RUTAS: siempre. No hay ninguna llave foránea hacia ellas:
+     la placa se guarda como texto dentro de cada viaje y la ruta sale
+     del origen y el destino de ese viaje. Borrarlas del maestro no
+     toca un solo viaje —siguen con su placa y su ruta escritas—, solo
+     dejan de ofrecerse al registrar. Copiar aquí la regla de puntos y
+     tipos era prohibir algo que la base permite sin riesgo. */
+  const sePuedeBorrar = puedeEditar && (borrarSiempre || (!sinUso && f.viajes === 0));
 
   if (editando) {
     return (
@@ -668,10 +684,20 @@ function Renglon({ f, sinSub, sinRenombrar, sinUso, puedeEditar, mandando, movie
               {f.activo ? "Apagar" : "Prender"}
             </button>
             {sePuedeBorrar ? (
-              <button type="button" className="mal" disabled={mandando}
-                      onClick={() => { setMenu(false); alBorrar(f.clave, f.nombre) }}>
-                Borrar
-              </button>
+              <>
+                <button type="button" className="mal" disabled={mandando}
+                        onClick={() => { setMenu(false); alBorrar(f.clave, f.nombre) }}>
+                  Borrar
+                </button>
+                {/* SE DICE QUÉ PASA CON LOS VIAJES. "Borrar" al lado de
+                    "142 viajes" da a entender que se van con ella. */}
+                {borrarSiempre && f.viajes > 0 && (
+                  <div className="nota">
+                    Los {f.viajes} viaje{f.viajes === 1 ? "" : "s"} que la nombran no se
+                    pierden: queda escrita en cada uno. Solo deja de poderse escoger.
+                  </div>
+                )}
+              </>
             ) : (
               <div className="nota">
                 {sinUso

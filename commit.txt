@@ -1,52 +1,28 @@
-Traspasos: fuera la franja de escritos a mano, y la ruta se arma aqui
+Traspasos: las placas y las rutas si se pueden borrar
 
-DOS COSAS DE LA MISMA PANTALLA.
+El menu decia "No se puede borrar: ya lo nombran 43 viajes" tambien para
+placas y rutas. Copie ahi la regla de puntos y tipos, y en placas y rutas
+esa regla NO APLICA. El esquema lo dice:
 
-1. LA FRANJA DE "ESCRITOS A MANO" SE VA, y no por gusto: quedo obsoleta
-   el mismo dia que Registrar paso a escoger del maestro. Existia porque
-   el registro dejaba teclear el sitio; ahora por ahi no entra nada
-   nuevo, asi que la franja solo podia mostrar restos viejos —en la base
-   de pruebas, letras sueltas: o, b, j, a, v—. Se va tambien su CSS y la
-   cifra dorada de la cabecera que la contaba. Se borra en vez de
-   dejarlo apagado: el codigo muerto es lo que el mes que viene alguien
-   "arregla" sin saber para que era.
+  traspasos_viajes.origen  -> traspasos_puntos
+  traspasos_viajes.destino -> traspasos_puntos
+  traspasos_viajes.tipo    -> traspasos_tipos
 
-   LO QUE SE QUEDA es la seccion de posibles duplicados. Los restos
-   viejos siguen ahi y mientras esten sueltos no cuentan en ningun
-   informe por punto; unirlos con el punto al que pertenecen sigue
-   haciendo falta.
+Y nada mas. No hay ninguna llave foranea hacia placas ni hacia rutas: la
+placa se guarda como TEXTO dentro de cada viaje, y la ruta sale del
+origen y el destino de ese mismo viaje.
 
-2. EN RUTAS SE PUEDE AGREGAR, punto. Antes, con menos de dos puntos, la
-   caja decia "faltan puntos" y no dejaba hacer nada: mandaba a la
-   persona a otra caja a hacer dos cosas para poder volver a hacer una.
-   Y encima salian dos mensajes de vacio pegados, uno debajo del otro.
+Asi que borrar una placa del maestro no toca un solo viaje —siguen con
+su placa escrita, y los informes por placa siguen contandolos igual—:
+lo unico que pasa es que deja de ofrecerse al registrar. Prohibirlo era
+prohibir algo que la base permite sin riesgo.
 
-   Ahora son dos campos que se escriben o se escogen de la lista, y EL
-   PUNTO QUE FALTE SE CREA SOLO: lo que alguien quiere decir es "de aqui
-   a alla", no "primero vaya a registrar dos sitios". Se avisa cuando
-   pasa: "Ag01 → Muelle 2 quedo en rutas. Y Muelle 2 se agrego a Puntos".
+DONDE SI APLICA SE QUEDA COMO ESTABA. Un punto o un tipo usados no se
+pueden borrar porque la base lo rechazaria, y la pantalla lo dice antes
+en vez de dejar salir un "violates foreign key constraint", que no le
+explica nada a quien esta mirando.
 
-Y UN TERCERO QUE SALIO DE MIRAR LA FOTO: los botones "Agregar" salian
-con letra roja sobre la banda verde oscura. Medido, 1,7 de contraste en
-los temas oficial y pizarra — practicamente invisible. No lo cause hoy:
-el acento y la banda (--c-grupo) son tokens INDEPENDIENTES y nada
-garantiza que contrasten; en negro daban 6,9 y por eso nunca se noto.
-
-  --tp-sobre-grupo: el acento aclarado, para lo que va ENCIMA de la
-  banda. El porcentaje sale de medir y no de mirar: al 55% daba 3,0 y al
-  30% daba 3,9 en pizarra, cuya banda no es oscura sino un verde medio
-  (#0e7490). Al 15% los siete pasan de 4,5. Es el mismo arreglo que ya
-  tenia Roturas.
-
-Afecta a cinco sitios que tenian el mismo patron: el boton Agregar, el
-boton HOY, el punto que gana en duplicados, la cabecera "Dia" de la
-rejilla del plan y el control segmentado de Registrar — el que en la
-foto se leia "Viaje con carga" en rojo sobre gris oscuro.
-
-MEDIDO EN LOS SIETE TEMAS, ocho pares criticos cada uno:
-
-  oficial 4,8   tinta 8,8   pizarra 4,6   ambar 8,4
-  negro 9,7     gris 9,0    halo 9,7
-
-Y con Playwright a 1440 / 820 / 390 / 360 px: las cinco pantallas del
-modulo limpias en los cuatro anchos.
+Y SE DICE QUE PASA CON LOS VIAJES. "Borrar" al lado de "142 viajes" da a
+entender que se van con ella, asi que debajo del boton va la frase: "Los
+142 viajes que la nombran no se pierden: queda escrita en cada uno. Solo
+deja de poderse escoger".
