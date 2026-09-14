@@ -27,9 +27,20 @@ import { TURNOS, hora, quien } from "@/modulos/traspasos/formato";
  * tipo. Los VACÍOS son un número de viajes del turno y ya: no llevan
  * tipo ni placa porque no los tienen, y pedirlos obligaría a
  * inventarlos.
+ *
+ * EL TIPO SE ESCOGE DEL PLAN, no de una lista de nueve. Lo que hay que
+ * mover en este turno ya está decidido; la pregunta de quien está al
+ * lado del vehículo es «de lo que falta, cuál es este viaje». Cada
+ * tipo del plan dice CUÁNTOS FALTAN, que es la cifra que se usa —«4 de
+ * 7» obliga a restar—. Lo que no estaba planeado no desaparece: vive
+ * detrás del «+», y queda dicho en la pantalla que va como adicional.
  */
+export type PlanTipo = {
+  tipo: string; nombre: string; planeado: number; cumplido: number;
+};
+
 export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
-                            planTurno, hechosTurno, viajes, nombres }: {
+                            planTurno, hechosTurno, planPorTipo, viajes, nombres }: {
   tipos: TipoViaje[];
   puntos: Punto[];
   placas: { placa: string; veces: number }[];
@@ -39,6 +50,8 @@ export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
   /** Cuántos viajes lleva planeados el turno escogido, y cuántos van. */
   planTurno: Record<string, number>;
   hechosTurno: Record<string, number>;
+  /** El plan del turno, tipo por tipo: qué falta de cada uno. */
+  planPorTipo: Record<string, PlanTipo[]>;
   viajes: Viaje[];
   nombres: Record<string, string>;
 }) {
@@ -56,9 +69,30 @@ export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
   const [carga, setCarga] = useState("");
   const [nota, setNota] = useState("");
   const [mandando, setMandando] = useState(false);
+  const [verOtros, setVerOtros] = useState(false);
   const campoPlaca = useRef<HTMLInputElement>(null);
 
   const hayMaestro = puntos.length > 0;
+
+  /* ------------------------------------------------------------------
+     LO PLANEADO Y LO DEMÁS.
+
+     `delPlan` son los tipos que este turno prometió mover. `otros` es
+     todo lo que existe en el maestro y no está en el plan: se puede
+     registrar igual —el plan no es una reja— pero detrás del «+», para
+     que el camino corto sea el del plan.
+     ------------------------------------------------------------------ */
+  const delPlan = planPorTipo[turno] ?? [];
+  const enPlan = new Set(delPlan.map((p) => p.tipo));
+  const otros = tipos.filter((t) => !enPlan.has(t.clave));
+  const hayPlan = delPlan.length > 0;
+
+  /* De los `viajesN` que se están registrando, cuántos se salen del
+     plan. Si el tipo no estaba planeado, todos. */
+  const linea = delPlan.find((p) => p.tipo === tipo);
+  const faltan = linea ? Math.max(0, linea.planeado - linea.cumplido) : 0;
+  const adicionales = !tipo || !hayPlan ? 0
+    : Math.max(0, viajesN - faltan);
   const puedeMandar = modo === "vacio"
     ? viajesN >= 1
     : !!tipo && placa.trim() !== "" && origen.trim() !== "" && destino.trim() !== "";
@@ -95,7 +129,11 @@ export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
 
     avisar.bien(esVacio
       ? `${viajesN} viaje${viajesN === 1 ? "" : "s"} vacío${viajesN === 1 ? "" : "s"} en el turno ${turno}.`
-      : `${placa.toUpperCase()} registrado. El plan del turno ya lo cuenta.`);
+      : adicionales === 0
+        ? `${placa.toUpperCase()} registrado. El plan del turno ya lo cuenta.`
+        : adicionales === viajesN
+          ? `${placa.toUpperCase()} registrado como adicional. Va a salir en Control por encima del plan.`
+          : `${placa.toUpperCase()} registrado: ${viajesN - adicionales} del plan y ${adicionales} adicional${adicionales === 1 ? "" : "es"}.`);
 
     /* SE LIMPIA LO DEL VIAJE Y SE DEJA LO DEL TURNO: quien registra
        varios seguidos del mismo tipo y la misma ruta no debería volver
@@ -165,14 +203,87 @@ export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
                 </div>
 
                 <div>
-                  <span className="rot-campo">Tipo de viaje</span>
-                  <div className="chips">
-                    {tipos.map((t) => (
-                      <button key={t.clave} type="button"
-                              className={tipo === t.clave ? "on" : ""}
-                              onClick={() => setTipo(t.clave)}>{t.nombre}</button>
-                    ))}
-                  </div>
+                  <span className="rot-campo">
+                    {hayPlan ? `Del plan del turno ${turno}` : "Tipo de viaje"}
+                  </span>
+
+                  {hayPlan ? (
+                    <>
+                      <div className="chips-plan">
+                        {delPlan.map((p) => {
+                          const f = Math.max(0, p.planeado - p.cumplido);
+                          const sobra = Math.max(0, p.cumplido - p.planeado);
+                          return (
+                            <button key={p.tipo} type="button"
+                                    className={"chip-plan"
+                                      + (tipo === p.tipo ? " on" : "")
+                                      + (f === 0 ? " lleno" : "")}
+                                    onClick={() => setTipo(p.tipo)}>
+                              <b>{p.nombre}</b>
+                              <span className="falta">
+                                {f > 0 ? `Faltan ${f}`
+                                  : sobra > 0 ? `+${sobra} sobre el plan`
+                                  : "Completo"}
+                              </span>
+                              <span className="prog">{p.cumplido} / {p.planeado}</span>
+                            </button>
+                          );
+                        })}
+
+                        {/* LO QUE NO ESTABA PLANEADO. El plan no es una
+                            reja: si llegó un viaje de algo que nadie
+                            previó, se registra —y Control lo va a
+                            mostrar como «sin planear», que es
+                            justamente el dato que sirve—. */}
+                        {otros.length > 0 && (
+                          <button type="button"
+                                  className={"chip-mas" + (verOtros ? " on" : "")}
+                                  aria-expanded={verOtros}
+                                  onClick={() => setVerOtros((v) => !v)}>
+                            <b>+</b>
+                            <span className="falta">Otro tipo</span>
+                            <span className="prog">no planeado</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {verOtros && (
+                        <div className="chips otros-tipos">
+                          {otros.map((t) => (
+                            <button key={t.clave} type="button"
+                                    className={tipo === t.clave ? "on" : ""}
+                                    onClick={() => setTipo(t.clave)}>{t.nombre}</button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* SE DICE ANTES DE REGISTRAR, no después. Que un
+                          viaje salga por encima del plan no es un error
+                          —pasa todos los días— pero sí es algo que quien
+                          lo registra tiene que saber que está haciendo. */}
+                      {adicionales > 0 && (
+                        <p className="guia adicional">
+                          {adicionales === viajesN
+                            ? <>Va como <b>adicional</b>: {linea ? "este tipo ya completó su plan del turno" : "no estaba en el plan del turno"}.</>
+                            : <>Del plan caben <b>{faltan}</b>; {adicionales === 1 ? "el otro sale" : `los otros ${adicionales} salen`} como <b>adicional{adicionales === 1 ? "" : "es"}</b>.</>}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="chips">
+                        {tipos.map((t) => (
+                          <button key={t.clave} type="button"
+                                  className={tipo === t.clave ? "on" : ""}
+                                  onClick={() => setTipo(t.clave)}>{t.nombre}</button>
+                        ))}
+                      </div>
+                      <p className="guia" style={{ marginTop: 10 }}>
+                        El turno {turno} no tiene plan publicado, así que se escoge de la lista
+                        completa. Todo lo que se registre va a salir como «sin planear» en Control.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <div>
@@ -269,9 +380,14 @@ export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
               {mandando ? "Registrando…"
                 : modo === "vacio" ? `Registrar ${viajesN} vacío${viajesN === 1 ? "" : "s"}`
                 : !placa.trim() ? "Falta la placa"
-                : !tipo ? "Falta el tipo"
+                : !tipo ? (hayPlan ? "Escoge del plan" : "Falta el tipo")
                 : !origen.trim() || !destino.trim() ? "Falta la ruta"
-                : "Registrar viaje"}
+                /* El botón dice lo que va a pasar. "Registrar viaje" cuando
+                   el viaje se sale del plan esconde justo lo que había que
+                   avisar. */
+                : adicionales === 0 ? "Registrar viaje"
+                : adicionales === viajesN ? `Registrar ${viajesN === 1 ? "adicional" : `${viajesN} adicionales`}`
+                : `Registrar (${adicionales} adicional${adicionales === 1 ? "" : "es"})`}
             </button>
             <span className="atajo">o pulsa <kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
           </div>

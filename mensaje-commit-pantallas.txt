@@ -1326,3 +1326,62 @@ Y un bug del propio medidor, que vale la pena anotar: contaba como
 desborde la cuña del panel dorado, que se sale de su recuadro a
 proposito y queda recortada por overflow:hidden. Un adorno recortado no
 empuja nada. Ahora se pregunta por los ancestros antes de acusar.
+
+TRASPASOS: EL TIPO SE ESCOGE DEL PLAN, Y EL ADICIONAL ES UN "+".
+
+Registrar mostraba los nueve tipos del maestro en fila, todos iguales.
+Pero lo que hay que mover en este turno YA ESTA DECIDIDO: la pregunta
+de quien esta al lado del vehiculo no es "cual de los nueve" sino "de
+lo que falta, cual es este viaje". La lista plana obligaba a tener el
+plan en la cabeza —o a abrirlo en otra pantalla— para saber si lo que
+se estaba registrando iba dentro o por fuera.
+
+Ahora el selector ES el plan del turno. Un chip por tipo planeado, con:
+
+  Casco vidrio
+  FALTAN 3          <- grande: es lo que se usa
+  4 / 7             <- chiquito: de donde sale ese 3
+
+"4 / 7" solo obliga a restar mentalmente en la puerta de la bodega a
+las cinco de la mañana. Se muestra la resta hecha.
+
+EL QUE YA COMPLETO SU PLAN NO SE ESCONDE. Se apaga en gris —para que
+la vista caiga en lo que falta— pero sigue donde estaba: quien acaba de
+mover cuatro de casco vidrio y trae el quinto lo busca donde lo toco
+las cuatro veces anteriores, no dentro de un menu. Y dice cuanto lleva
+encima: "+1 sobre el plan".
+
+LO NO PLANEADO VIVE DETRAS DEL "+". El plan no es una reja: si llego un
+viaje de algo que nadie previo se registra igual, y Control lo va a
+mostrar como "sin planear" —que es justamente el dato que sirve—. Pero
+el camino corto es el del plan.
+
+SE AVISA ANTES DE REGISTRAR, NO DESPUES. Si el tipo escogido ya no
+tiene cupo, o si los 5 viajes que se estan registrando no caben en los
+3 que faltan, la pantalla lo dice sobre el boton:
+
+  "Del plan caben 3; los otros 2 salen como adicionales."
+
+Y EL BOTON DICE LO QUE VA A PASAR: "Registrar (2 adicionales)" en vez
+de "Registrar viaje". Un boton que dice lo mismo haga lo que haga es un
+boton que esconde justo lo que habia que avisar. El aviso de despues
+tambien: "ABC123 registrado: 3 del plan y 2 adicionales".
+
+SIN PLAN PUBLICADO se cae a la lista completa de los nueve, con la
+razon escrita: "El turno C no tiene plan publicado... todo lo que se
+registre va a salir como sin planear en Control". Registrar nunca se
+bloquea por no haber planeado.
+
+CERO SQL NUEVO. v_traspasos_control ya trae una fila por (fecha, turno,
+tipo) con planeado y cumplido, que es exactamente esto. Pedirlo aparte
+seria preguntar dos veces lo mismo y arriesgarse a que las dos
+respuestas no coincidan.
+
+EL RIEL DE CHIPS SE CORRE A LO ANCHO DENTRO DE SI MISMO. Apilar nueve
+chips de tres renglones deja el boton de registrar fuera de la pantalla
+en el celular, que es la forma mas segura de que alguien deje de
+registrar a media tarde. A 360 px se ven 278 de 886 px de riel y la
+pagina no se mueve de lado.
+
+MEDIDO CON PLAYWRIGHT a 1440 / 820 / 390 / 360 px: los cuatro limpios,
+sin desborde horizontal y sin controles por debajo de 30 px.

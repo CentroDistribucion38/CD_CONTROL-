@@ -39,6 +39,27 @@ export default async function TraspasosPage() {
       .reduce((a, f) => a + f.cumplido, 0);
   }
 
+  /* EL PLAN DEL TURNO, TIPO POR TIPO. Es lo que convierte "escoger el
+     tipo" en "escoger del plan": qué se prometió mover en este turno y
+     cuánto falta de cada uno.
+
+     NO HACE FALTA NINGUNA CONSULTA NUEVA: v_traspasos_control ya trae
+     una fila por (fecha, turno, tipo) con planeado y cumplido, que es
+     exactamente esto. Pedirlo otra vez sería preguntar dos veces lo
+     mismo y arriesgarse a que las dos respuestas no coincidan. */
+  const planPorTipo: Record<string, {
+    tipo: string; nombre: string; planeado: number; cumplido: number;
+  }[]> = {};
+  for (const tu of TURNOS) {
+    planPorTipo[tu] = ctl.filas
+      .filter((f) => f.turno === tu && f.planeado > 0)
+      .sort((a, b) => (a.tipo_orden ?? 99) - (b.tipo_orden ?? 99))
+      .map((f) => ({
+        tipo: f.tipo, nombre: f.tipo_nombre,
+        planeado: f.planeado, cumplido: f.cumplido,
+      }));
+  }
+
   const turno = turnoDeAhora();
 
   return (
@@ -69,6 +90,7 @@ export default async function TraspasosPage() {
         <Registrar tipos={t.tipos} puntos={pts} placas={placas} rutas={rutas}
                    fecha={fecha} turnoSugerido={turno}
                    planTurno={planTurno} hechosTurno={hechosTurno}
+                   planPorTipo={planPorTipo}
                    viajes={dia.viajes} nombres={nombres} />
       ) : (
         <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar={false} />

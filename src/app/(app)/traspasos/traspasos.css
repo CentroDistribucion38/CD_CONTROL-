@@ -991,3 +991,75 @@
   .tp .item .mas { grid-column: 4; grid-row: 1 / span 2 }
   .tp .par-dup .unir { margin-left: 0; width: 100% }
 }
+
+/* =====================================================================
+   ESCOGER DEL PLAN
+   ---------------------------------------------------------------------
+   El tipo de viaje deja de ser una lista de nueve y pasa a ser el plan
+   del turno. Cada chip lleva tres renglones y el orden no es casual:
+
+     nombre      qué es
+     FALTAN 3    lo que hay que hacer  <- lo grande, es la pregunta
+     4 / 7       de dónde sale ese 3
+
+   "4 / 7" solo, que es lo que casi todas las pantallas muestran, obliga
+   a restar mentalmente en la puerta de la bodega a las cinco de la
+   mañana. El que ya se completó no se esconde —se sigue usando— pero se
+   apaga para que la vista caiga en lo que falta.
+
+   RECORRE A LO ANCHO SI NO CABE, dentro de su propio riel. Apilar nueve
+   chips de tres renglones deja el botón de registrar fuera de la
+   pantalla en el celular, que es la forma más segura de que alguien
+   deje de registrar a media tarde.
+   ===================================================================== */
+.tp .chips-plan {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+}
+.tp .chips-plan::-webkit-scrollbar { height: 6px }
+.tp .chips-plan::-webkit-scrollbar-thumb { background: var(--tp-linea); border-radius: 3px }
+
+.tp .chip-plan, .tp .chip-mas {
+  flex: 0 0 auto; scroll-snap-align: start; min-width: 118px; text-align: left;
+  display: flex; flex-direction: column; gap: 2px; cursor: pointer;
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 2px;
+  padding: 10px 13px 9px; min-height: 68px; color: var(--tp-tinta);
+}
+.tp .chip-plan b, .tp .chip-mas b {
+  font: 600 12.5px var(--tp-texto); line-height: 1.25; overflow-wrap: anywhere;
+}
+.tp .chip-plan .falta, .tp .chip-mas .falta {
+  font: 900 15px var(--tp-titulo); letter-spacing: -.02em; margin-top: auto;
+}
+.tp .chip-plan .prog, .tp .chip-mas .prog {
+  font-size: 11px; color: var(--tp-gris); font-variant-numeric: tabular-nums;
+}
+.tp .chip-plan:hover, .tp .chip-mas:hover { border-color: var(--tp-ojo) }
+
+.tp .chip-plan.on, .tp .chip-mas.on {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 12%, #fff);
+  box-shadow: inset 3px 0 0 var(--tp-ojo);
+}
+
+/* EL QUE YA COMPLETÓ SU PLAN. Se apaga, no se quita: quien acaba de
+   mover cuatro de casco vidrio y trae el quinto lo busca donde lo
+   tocó las cuatro veces anteriores, no dentro de un menú. */
+.tp .chip-plan.lleno { background: var(--tp-fondo) }
+.tp .chip-plan.lleno b { color: var(--tp-gris) }
+.tp .chip-plan.lleno .falta { color: var(--tp-gris); font-size: 13px }
+.tp .chip-plan.lleno.on { background: color-mix(in srgb, var(--tp-ojo) 12%, #fff) }
+.tp .chip-plan.lleno.on b { color: var(--tp-tinta) }
+
+.tp .chip-mas { border-style: dashed; min-width: 104px }
+.tp .chip-mas b { font: 900 19px var(--tp-titulo); line-height: 1; color: var(--tp-gris) }
+.tp .chip-mas .falta { font-size: 13px }
+
+.tp .otros-tipos { margin-top: 9px }
+
+.tp .guia.adicional {
+  margin-top: 9px; padding: 9px 12px; border-radius: 2px;
+  border-left: 3px solid var(--tp-ojo);
+  background: color-mix(in srgb, var(--tp-ojo) 10%, #fff);
+  color: color-mix(in srgb, var(--tp-ojo) 68%, #000);
+}
+.tp .guia.adicional b { color: var(--tp-tinta) }
