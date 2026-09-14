@@ -27,12 +27,12 @@ const item = (n,s,v,on,ab) => `<div class="item${on?"":" apagado"}">${asa}
 
 const PUNTOS = [["Ag01","Bodega propia",142,1],["Planta Barranquilla","Planta",98,1],
   ["CD Galapa","Centro de distribución",61,1],["CD Turbaco","Centro de distribución",34,1],
-  ["Patio de estibas","Zona interna",12,1],["CD Santa Marta","Centro de distribución",0,0,false]];
+  ["Patio de estibas","Zona interna",12,1],["CD Santa Marta","Centro de distribución",0,0,true]];
 const TIPOS = [["Casco vidrio","usado este mes",142,1],["Envase","usado este mes",96,1],
   ["Estibas","usado este mes",44,1],["Plástico","usado este mes",21,1],
   ["PET","usado este mes",63,1],["Lavado","usado este mes",18,1],
   ["PT Expo","usado este mes",12,1],["Material","usado este mes",9,1],
-  ["Averías/Isotanque","sin uso",0,0,false]];
+  ["Averías/Isotanque","sin uso",0,0,true]];
 
 const HTML = marco(`
 <section class="cabeza"><div>
@@ -52,7 +52,7 @@ ${PUNTOS.map(p=>item(...p)).join("")}
 <div class="cab-m"><h2>Placas <em>4</em></h2><p>Los vehículos que se pueden escoger al registrar. Se guardan sin espacios ni guiones y en mayúsculas.</p></div>
 <form class="agregar-m"><input placeholder="Placa — ABC123"><button>Agregar</button></form>
 ${[["ABC123","Tractomula de Summar",142,1],["BHG156","Turbo propio",96,1],
-   ["UYT569","",44,1],["CGV589","sin uso",0,0,false]].map(p=>item(...p)).join("")}
+   ["UYT569","",44,1],["CGV589","sin uso",0,0,true]].map(p=>item(...p)).join("")}
 </div>
 </div>
 
@@ -124,22 +124,33 @@ for (const [w, nom] of ANCHOS) {
         }
       }
     }
+    /* Y ADEMÁS, DENTRO DE SU PROPIA TARJETA. No basta con que no lo
+       corten: abierto hacia abajo en el último renglón se montaba sobre
+       la tarjeta de al lado y se leía como parte de ella. */
+    const fuera = [];
+    for (const m of document.querySelectorAll(".mas .menu")) {
+      const b = m.getBoundingClientRect();
+      const c = m.closest(".caja-m").getBoundingClientRect();
+      const sale = Math.max(0, c.top - b.top) + Math.max(0, b.bottom - c.bottom);
+      if (sale > 0.5) fuera.push("menú se sale " + Math.round(sale) + "px de su caja");
+    }
     const menus = document.querySelectorAll(".mas .menu").length;
 
     return {
-      ancho: doc.clientWidth, scroll: doc.scrollWidth, menus, cortados,
+      ancho: doc.clientWidth, scroll: doc.scrollWidth, menus, cortados, fuera,
       desborda: desborda.slice(0, 6), toque: toque.slice(0, 6),
       cols: getComputedStyle(document.querySelector(".maestro")).gridTemplateColumns,
       alto: document.body.scrollHeight,
     };
   });
-  const mal = r.scroll > r.ancho + 0.5 || r.desborda.length || r.toque.length || r.cortados.length;
+  const mal = r.scroll > r.ancho + 0.5 || r.desborda.length || r.toque.length || r.cortados.length || r.fuera.length;
   if (mal) malas++;
   console.log(`${nom.padEnd(4)} ${String(w).padStart(5)}px  scroll=${r.scroll}  alto=${r.alto}  ${mal ? "MAL" : "bien"}`);
   console.log(`      columnas: ${r.cols}   menús abiertos: ${r.menus}, cortados: ${r.cortados.length}`);
   if (r.desborda.length) console.log("      DESBORDA:", r.desborda.join(" | "));
   if (r.toque.length)    console.log("      CHICOS:", r.toque.join(" | "));
   if (r.cortados.length) console.log("      MENÚ CORTADO:", r.cortados.join(" | "));
+  if (r.fuera.length)    console.log("      MENÚ FUERA:", r.fuera.join(" | "));
   await pg.screenshot({ path: `.arnes/tpm-${nom}.png`, fullPage: true });
   await pg.close();
 }

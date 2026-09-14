@@ -198,6 +198,7 @@
 }
 .tp .btn.si { background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento) }
 .tp .btn.chico { min-height: 34px; font-size: 12px; padding: 0 11px }
+.tp .btn.mal { background: var(--tp-mal); border-color: var(--tp-mal); color: #fff }
 .tp .btn:disabled { opacity: .5; cursor: not-allowed }
 
 /* ====================== Campos ====================== */
@@ -529,8 +530,12 @@
   padding: 14px 16px; text-align: center; background: var(--c-grupo); color: #fff;
   font-family: var(--tp-titulo); font-weight: 900; font-size: 19px; border: 0;
 }
+/* SE APAGA EL TEXTO, NO LA CELDA. Con opacity se aclaraba también el
+   fondo, y clavada al borde quedaba de otro verde que el resto de su
+   propia fila. */
 .tp .matriz tfoot td:first-child {
-  text-align: left; font-size: 12px; letter-spacing: .1em; opacity: .7; font-weight: 700;
+  text-align: left; font-size: 12px; letter-spacing: .1em; font-weight: 700;
+  color: color-mix(in srgb, #fff 72%, transparent);
 }
 .tp .matriz tfoot td.dia { color: var(--tp-sobre-grupo); font-size: 23px }
 
@@ -583,6 +588,24 @@
 .tp .pie-publicar .btn.si { height: 50px; padding: 0 28px; font-size: 15px }
 .tp .aviso-cambios { font-size: 13px; color: var(--tp-gris) }
 .tp .aviso-cambios b { color: var(--tp-tinta) }
+
+/* BORRAR EL PLAN DEL DÍA. Renglón aparte y al final: no compite con
+   «Publicar» por el mismo dedo. Sin pedir, es solo un enlace; pedido,
+   se convierte en dos botones y dice qué se lleva por delante. */
+.tp .borrar-plan {
+  flex: 1 1 100%; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  border-top: 1px dashed var(--tp-linea); padding-top: 14px; margin-top: 2px;
+}
+.tp .enlace-mal {
+  border: 0; background: none; cursor: pointer; padding: 6px 0; min-height: 34px;
+  font: 600 13px var(--tp-texto); color: var(--tp-mal);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.tp .enlace-mal:hover { text-decoration-thickness: 2px }
+.tp .enlace-mal:disabled { opacity: .5; cursor: not-allowed }
+.tp .nota-borrar {
+  font-size: 12.5px; color: var(--tp-gris); line-height: 1.5; flex: 1 1 260px; min-width: 0;
+}
 
 /* ---------- La columna derecha ---------- */
 .tp .lado-plan { display: flex; flex-direction: column; gap: 16px }
@@ -643,11 +666,57 @@
 .tp .ref-fila .dif.mas { color: var(--tp-bien) }
 .tp .ref-fila .dif.menos { color: var(--tp-mal) }
 
+/* =====================================================================
+   LA COLUMNA DEL TIPO, CLAVADA
+   =====================================================================
+   En el celular la rejilla no cabe: se rueda de lado para llegar al
+   turno C. Y al rodar, la columna de la izquierda se iba con todo lo
+   demás, así que quedaban cuatro casillas con números y ninguna pista
+   de a qué material pertenecían. Planear a ciegas.
+
+   Ahora esa columna se queda quieta y los turnos pasan por debajo.
+
+   POR QUÉ CAMBIA border-collapse. Con `collapse` los bordes no son de
+   la celda sino de la tabla, así que una celda clavada viaja SIN sus
+   bordes y se ve como un recorte flotando. Con `separate` y
+   border-spacing: 0 se dibuja exactamente igual —cada celda pone su
+   propia raya de abajo, nadie las duplica— y los bordes se quedan
+   pegados a la celda donde van.
+
+   CADA FILA PONE SU PROPIO FONDO. Una celda clavada pasa POR ENCIMA de
+   las que van corriendo: si fuera transparente, se leerían los números
+   del turno C a través del nombre del material. */
+.tp .matriz table { border-collapse: separate; border-spacing: 0 }
+.tp .matriz th:first-child,
+.tp .matriz td:first-child {
+  position: sticky; left: 0; z-index: 2; background: var(--tp-papel);
+}
+.tp .matriz thead th:first-child { z-index: 3; background: var(--tp-fondo) }
+.tp .matriz tfoot tr.total td:first-child { z-index: 3; background: var(--c-grupo) }
+.tp .matriz tfoot tr.vacios td:first-child { z-index: 3; background: var(--tp-papel) }
+/* El hover de la fila no llegaba a la celda clavada porque esta trae su
+   propio fondo opaco: se repite aquí o la fila se ilumina a medias. */
+.tp .matriz tbody tr:hover td:first-child {
+  background: color-mix(in srgb, var(--tp-ojo) 6%, #fff);
+}
 @media (max-width: 1100px) {
   .tp .plan-marco { grid-template-columns: 1fr }
 }
 @media (max-width: 700px) {
   .tp .cel-step input { width: 34px }
+  /* Clavada y además angosta: si se queda con los 300 px que le daba el
+     texto largo, los turnos no caben ni de a uno en la pantalla. */
+  .tp .matriz th:first-child,
+  .tp .matriz td:first-child { width: 132px; min-width: 132px }
+  .tp .matriz td.tipo { font-size: 13px; overflow-wrap: anywhere }
+  /* "TOTAL CON CARGA" en 132 px parte en dos líneas y se pega al
+     número del turno. Más chico y con aire a la derecha. */
+  .tp .matriz tfoot td:first-child { font-size: 10px; letter-spacing: .06em; padding-right: 12px }
+  /* La sombra dice que hay más tabla a la derecha. Va solo aquí: en el
+     escritorio la rejilla cabe entera y una sombra sin nada detrás se
+     lee como una raya suelta en mitad de la tabla. */
+  .tp .matriz th:first-child,
+  .tp .matriz td:first-child { box-shadow: 7px 0 11px -9px rgba(0, 0, 0, .55) }
 }
 
 /* =====================================================================
@@ -977,6 +1046,9 @@
 }
 /* Abierto hacia arriba: mismo menú, al otro lado del botón. */
 .tp .mas .menu.arriba { top: auto; bottom: calc(100% + 4px) }
+/* El cuadro que se pinta para medirlo. Ocupa su sitio pero no se ve, así
+   que el ojo nunca lo alcanza abajo antes de que suba. */
+.tp .mas .menu.midiendo { visibility: hidden }
 .tp .mas .menu::before {
   content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--tp-ojo);
 }

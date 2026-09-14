@@ -1,29 +1,45 @@
-Maestro: el menu de los tres puntos ya no se corta
+Plan: la columna del tipo se queda quieta, y ya se puede borrar un dia
 
-El menu que se abre con los tres puntos quedaba rebanado por el borde
-de su propia tarjeta: en la ultima fila de Placas solo se veian
-"Cambiar nombre y subtitulo" y "Apagar", y "Borrar" no aparecia nunca.
+TRES COSAS.
 
-La culpa era de una linea mia: la tarjeta tenia overflow: hidden, que
-puse para que el fondo del ultimo renglon no se saliera de la esquina
-redondeada. Pero eso recorta TODO lo que sea descendiente, y el menu
-es un absoluto que cae por debajo del borde. La esquina se arregla
-redondeando el ultimo renglon -tres pixeles- y no a costa del menu.
+1. LA COLUMNA DEL TIPO, CLAVADA. En el celular la rejilla no cabe y hay
+que rodarla de lado para llegar al turno C. Al rodar, la columna de la
+izquierda se iba con todo lo demas: quedaban cuatro casillas con
+numeros y ninguna pista de a que material pertenecian. Ahora esa
+columna se queda quieta y los turnos pasan por debajo, con una sombra
+que avisa que hay mas tabla a la derecha.
 
-Ademas, cuando la fila esta muy abajo en la pantalla el menu se abre
-HACIA ARRIBA en vez de salirse por debajo. Se decide antes de
-pintarlo, midiendo el boton que se acaba de tocar, para que no se vea
-el salto de dibujarlo abajo y moverlo.
+Cambia border-collapse a separate en esa tabla, y no por gusto: con
+collapse los bordes son de la tabla y no de la celda, asi que una celda
+clavada viaja SIN sus bordes y se ve como un recorte flotando. Con
+separate y border-spacing 0 se dibuja igual y los bordes se quedan
+donde van.
 
-El arnes media menus cerrados, que es por lo que esto paso: ahora abre
-tres a proposito y comprueba que ningun antepasado los corte. Con el
-overflow: hidden de vuelta, el arnes canta "caja-m corta 210px" en los
-cuatro anchos; sin el, los cuatro limpios.
+2. BORRAR EL PLAN DE UN DIA. No se podia. Poner las 27 celdas en cero y
+darle publicar no dejaba el dia limpio: publicar exige que haya algo
+sin publicar, y con la rejilla vacia no hay nada, asi que salia "No hay
+nada sin publicar en ese dia" y el plan viejo seguia ahi. Quien planeo
+un domingo por equivocacion se quedaba con un domingo planeado para
+siempre.
 
-Va tambien el Maestro en dos columnas: Bodegas y Placas en una pila a
-la izquierda, Tipos de viaje a la derecha. Antes era una rejilla y
-Placas quedaba alineada con el final de Tipos, con medio metro de
-vacio en medio.
+Ahora hay un "Borrar el plan del dia" al final del pie, aparte de
+Publicar y a dos toques. LOS VIAJES NO SE TOCAN: los que ya se
+registraron siguen registrados, solo pasan a contar como adicionales,
+que es lo que son cuando no hay plan. Y publicar una rejilla en cero ya
+no devuelve el error de la base: dice que para dejar el dia sin plan
+esta el otro boton.
+
+Probado contra Postgres 16 de verdad, 12 de 12, dos veces seguidas y
+como usuario sin privilegios (.arnes/prueba-borrar-plan.sql). Incluye
+el caso que lo motivo: publicar vacio NO borra, y el plan publicado
+sigue entero despues de intentarlo.
+
+3. La celda "TOTAL CON CARGA" llevaba opacity .7, que aclaraba tambien
+el fondo: clavada al borde quedaba de otro verde que el resto de su
+propia fila. Se apaga el texto, no la celda.
+
+HAY QUE CORRER EN SUPABASE:
+  supabase/migraciones/2026-09-traspasos-borrar-plan.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

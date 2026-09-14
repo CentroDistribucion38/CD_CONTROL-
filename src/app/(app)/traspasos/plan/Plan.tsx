@@ -52,6 +52,8 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
   const [mandando, setMandando] = useState(false);
+  /* El segundo toque de «Borrar el plan del día». */
+  const [confirmaBorrar, setConfirmaBorrar] = useState(false);
 
   /* La rejilla arranca en el borrador si lo hay, y si no en lo
      publicado: quien vuelve a la pantalla tiene que encontrar lo que
@@ -112,7 +114,33 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
     return l;
   };
 
+  /* LA REJILLA VACÍA NO ES UN PLAN VACÍO. Publicar exige que haya algo
+     sin publicar, así que poner las veintisiete celdas en cero y darle
+     publicar devolvía «No hay nada sin publicar en ese día» y el plan
+     viejo se quedaba — parecía que la app no hacía caso. Dejar el día
+     sin plan es otra cosa y tiene su propio botón. */
+  const rejillaVacia = totalConCarga === 0 && totalVacios === 0;
+  const hayPlan = publicadas.length > 0 || borrador.length > 0;
+
+  async function borrarPlan() {
+    setMandando(true);
+    const { error } = await supabase.rpc("traspaso_borrar_plan", { p_fecha: fecha });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    setRejilla({});
+    setVacios({});
+    setConfirmaBorrar(false);
+    avisar.bien("El día quedó sin plan. Los viajes registrados no se tocaron: pasan a contar como adicionales.");
+    router.refresh();
+  }
+
   async function guardar(publicar: boolean) {
+    if (publicar && rejillaVacia) {
+      avisar.mal(hayPlan
+        ? "La rejilla está en cero. Si quieres dejar el día SIN plan, usa «Borrar el plan del día»."
+        : "No hay nada que publicar: la rejilla está en cero.");
+      return;
+    }
     setMandando(true);
     const { error } = await supabase.rpc("traspaso_guardar_plan", {
       p_fecha: fecha,
@@ -255,6 +283,40 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                   {esHoy && totalHechos(hecho) > 0 &&
                     ` · ya hay ${totalHechos(hecho)} viajes hechos sobre este plan`}
                 </span>
+
+                {/* BORRAR VA AL FINAL Y SOLO SI HAY QUÉ BORRAR. Un botón
+                    que deja un día sin plan no puede estar al lado de
+                    «Publicar» esperando un dedo torcido, y en un día que
+                    nunca se planeó no significa nada.
+                    DOS TOQUES, NO UN CONFIRM DEL NAVEGADOR: el confirm
+                    congela la pantalla en la tableta del muelle. */}
+                {hayPlan && (
+                  <div className="borrar-plan">
+                    {confirmaBorrar ? (
+                      <>
+                        <button type="button" className="btn mal" disabled={mandando}
+                                onClick={borrarPlan}>
+                          {mandando ? "Borrando…" : "Sí, dejar el día sin plan"}
+                        </button>
+                        <button type="button" className="btn" disabled={mandando}
+                                onClick={() => setConfirmaBorrar(false)}>
+                          Dejar así
+                        </button>
+                        <span className="nota-borrar">
+                          Se va el plan de este día, publicado y borrador.
+                          {esHoy && totalHechos(hecho) > 0
+                            ? ` Los ${totalHechos(hecho)} viajes ya registrados NO se borran: pasan a contar como adicionales.`
+                            : " Los viajes registrados no se tocan."}
+                        </span>
+                      </>
+                    ) : (
+                      <button type="button" className="enlace-mal" disabled={mandando}
+                              onClick={() => setConfirmaBorrar(true)}>
+                        Borrar el plan del día
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </section>

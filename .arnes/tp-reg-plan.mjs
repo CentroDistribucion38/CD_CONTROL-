@@ -43,7 +43,10 @@ const PLAN = marco(`
 </table></div>
 <div class="pie-publicar"><button class="btn si">Publicar plan del día</button>
 <button class="btn">Guardar borrador</button>
-<span class="aviso-cambios"><b>4 cambios</b> sin publicar · ya hay 4 viajes hechos sobre este plan</span></div>
+<span class="aviso-cambios"><b>4 cambios</b> sin publicar · ya hay 4 viajes hechos sobre este plan</span>
+<div class="borrar-plan"><button class="btn mal">Sí, dejar el día sin plan</button>
+<button class="btn">Dejar así</button>
+<span class="nota-borrar">Se va el plan de este día, publicado y borrador. Los 4 viajes ya registrados NO se borran: pasan a contar como adicionales.</span></div></div>
 </section></div>
 <aside class="lado-plan">
 <div class="resumen-dia"><div class="corte"></div><div class="rot">CARGA DEL DÍA</div>
@@ -143,6 +146,30 @@ for (const [nom, html] of [["plan", PLAN], ["reg", REG]]) {
       return { x: document.documentElement.scrollWidth > a, fuera: [...new Set(fuera)].slice(0,5), det };
     });
     console.log(`${nom} ${m} (${w}px): desplaza=${r.x}`, r.det?.length?r.det:"");
+
+    /* LA COLUMNA CLAVADA. Se rueda la rejilla hasta el final y se
+       comprueba que la primera celda de cada fila siguió en el borde
+       izquierdo del recuadro —y con fondo propio, o los números de
+       atrás se leerían a través de ella. */
+    if (nom === "plan") {
+      const f = await p.evaluate(() => {
+        const env = document.querySelector(".matriz .tabla-envuelta");
+        env.scrollLeft = env.scrollWidth;
+        const e = env.getBoundingClientRect();
+        const malas = [];
+        for (const c of document.querySelectorAll(".matriz tr > :first-child")) {
+          const b = c.getBoundingClientRect();
+          const tx = (c.textContent || "").trim().slice(0, 16);
+          if (Math.abs(b.left - e.left) > 1) malas.push(tx + " se corrió " + Math.round(b.left - e.left) + "px");
+          const fondo = getComputedStyle(c).backgroundColor;
+          if (fondo === "rgba(0, 0, 0, 0)" || fondo === "transparent") malas.push(tx + " SIN FONDO");
+        }
+        return { sobra: Math.round(env.scrollWidth - env.clientWidth), rodado: Math.round(env.scrollLeft), malas };
+      });
+      console.log(`      rejilla: sobran ${f.sobra}px de lado, rodada ${f.rodado}px · columna clavada: ${f.malas.length ? "MAL" : "bien"}`);
+      if (f.malas.length) console.log("      ", f.malas.slice(0, 6).join(" | "));
+      if (f.sobra > 0) await p.screenshot({ path: `.arnes/tp-fijo-${m}.png` });
+    }
     await p.close();
   }
 }

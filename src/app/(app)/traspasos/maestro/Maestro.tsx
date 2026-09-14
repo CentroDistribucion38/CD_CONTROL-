@@ -478,14 +478,43 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
   alBorrar: (clave: string, nombre: string) => void;
 }) {
   const [menu, setMenu] = useState(false);
-  /* Hacia dónde se abre. Abajo casi siempre; hacia arriba cuando el
-     renglón está tan al fondo de la pantalla que el menú saldría por
-     debajo del borde y habría que rodar la página para ver "Borrar". */
-  const [arriba, setArriba] = useState(false);
+  /* HACIA DÓNDE SE ABRE, y se mide contra LA TARJETA, no contra la
+     pantalla. Abierto hacia abajo en el último renglón, el menú se
+     montaba encima de la tarjeta de al lado: no se cortaba, pero se veía
+     como si fuera parte de la otra. Así que si no cabe abajo y sí cabe
+     arriba, se abre hacia arriba y queda dentro de su propia tarjeta.
+     Solo cuando no cabe de ningún lado —una tarjeta de dos renglones—
+     se decide por la pantalla, que es lo único que queda.
+     null = todavía sin medir: se pinta invisible un cuadro. */
+  const [arriba, setArriba] = useState<boolean | null>(null);
   const [editando, setEditando] = useState(false);
   const [nom, setNom] = useState(f.nombre);
   const [sub, setSub] = useState(f.sub ?? "");
   const cajaMenu = useRef<HTMLDivElement>(null);
+  const disparo = useRef<HTMLButtonElement>(null);
+  const hoja = useRef<HTMLDivElement>(null);
+
+  /* SE MIDE EL MENÚ DE VERDAD, no se estima. Un menú con la nota de
+     "los 44 viajes no se pierden" mide el doble que uno de dos
+     opciones; calcularlo a ojo era equivocarse en la mitad de las
+     filas. Se pinta invisible, se mide, se coloca — todo antes de que
+     el ojo alcance a ver nada. */
+  useEffect(() => {
+    if (!menu) { setArriba(null); return }
+    const m = hoja.current, d = disparo.current;
+    if (!m || !d) return;
+    const alto = m.offsetHeight;
+    const r = d.getBoundingClientRect();
+    const caja = (d.closest(".caja-m") ?? d.closest(".tp"))!.getBoundingClientRect();
+    const abajo = caja.bottom - r.bottom - 4;
+    const encima = r.top - caja.top - 4;
+    if (alto <= abajo) setArriba(false);
+    else if (alto <= encima) setArriba(true);
+    else {
+      const vAbajo = window.innerHeight - r.bottom;
+      setArriba(alto > vAbajo && r.top > vAbajo);
+    }
+  }, [menu]);
 
   /* Un menú abierto se cierra al tocar cualquier otra parte. Sin esto
      quedan tres menús abiertos a la vez y el de abajo tapa al de
@@ -570,19 +599,11 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
       </label>
 
       <div className="mas" ref={cajaMenu}>
-        <button type="button" aria-label={`Opciones de ${f.nombre}`} aria-expanded={menu}
-                onClick={(e) => {
-                  /* Se decide ANTES de pintarlo, con el botón que se acaba
-                     de tocar: medirlo después obligaría a dibujar el menú
-                     abajo y moverlo, y eso se ve como un salto. 230 px es
-                     el menú más alto —tres opciones y la nota. */
-                  const r = e.currentTarget.getBoundingClientRect();
-                  const abajo = window.innerHeight - r.bottom;
-                  setArriba(abajo < 230 && r.top > abajo);
-                  setMenu((v) => !v);
-                }}>⋯</button>
+        <button type="button" ref={disparo} aria-label={`Opciones de ${f.nombre}`}
+                aria-expanded={menu} onClick={() => setMenu((v) => !v)}>⋯</button>
         {menu && (
-          <div className={"menu" + (arriba ? " arriba" : "")}>
+          <div ref={hoja}
+               className={"menu" + (arriba === null ? " midiendo" : arriba ? " arriba" : "")}>
             {!sinRenombrar && (
               <button type="button" disabled={!puedeEditar}
                       onClick={() => { setMenu(false); setEditando(true) }}>
