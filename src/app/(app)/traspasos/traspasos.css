@@ -231,11 +231,24 @@
    --c-marca-txt justamente para esto; --c-oro no trae pareja, así que
    el módulo pone la suya. Sin esto, en los temas donde --c-oro es rojo
    el panel grande quedaba con letra casi negra sobre rojo. */
-.tp { --tp-sobre-ojo: #1A1200 }
+.tp { --tp-sobre-ojo: #1A1200; --tp-panel: var(--tp-ojo) }
 [data-tema="tinta"] .tp, [data-tema="ambar"] .tp, [data-tema="negro"] .tp,
 [data-tema="gris"]  .tp, [data-tema="halo"]  .tp {
   --tp-sobre-ojo: #fff;
   --tp-ojo: color-mix(in srgb, var(--c-oro) 88%, #000);
+  --tp-panel: var(--tp-ojo);
+}
+
+/* EL PANEL GRANDE SE OSCURECE MÁS QUE EL ACENTO, y por eso lleva token
+   propio. En los temas donde --c-oro es rojo pleno, el 88% que le basta
+   a un filo de 2 px no le alcanza a un rectángulo lleno de texto
+   blanco: medido daba 4,4 y 3,8 —por debajo del mínimo de 4,5 para
+   texto chico—. Al 70% sube por encima de 6.
+
+   Se oscurece SOLO el panel: --tp-ojo sigue igual para chips, filos y
+   rellenos, que es donde el color tiene que reconocerse. */
+[data-tema="negro"] .tp, [data-tema="gris"] .tp, [data-tema="halo"] .tp {
+  --tp-panel: color-mix(in srgb, var(--c-oro) 70%, #000);
 }
 
 /* ---------- Encabezado con botones ---------- */
@@ -257,7 +270,7 @@
    de verdad manda: la adherencia al plan. */
 .tp .panel-ojo {
   position: relative; overflow: hidden; border-radius: 3px;
-  background: var(--tp-ojo); color: var(--tp-sobre-ojo);
+  background: var(--tp-panel); color: var(--tp-sobre-ojo);
   padding: 18px 26px 17px 22px; min-width: 300px;
   display: flex; flex-direction: column; justify-content: center;
 }
@@ -265,12 +278,36 @@
   position: absolute; top: -20%; bottom: -20%; right: -12px; width: 80px;
   background: rgba(0, 0, 0, .12); transform: skewX(-26deg);
 }
-.tp .panel-ojo .rot { position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; opacity: .85 }
+.tp .panel-ojo .rot {
+  position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .16em;
+  /* SIN opacidad. Apagar el rótulo le quitaba un punto entero de
+     contraste justo al texto más chico del panel. La jerarquía ya la
+     dan el tamaño y las mayúsculas. */
+  color: var(--tp-sobre-ojo);
+}
 .tp .panel-ojo .num {
   position: relative; font-family: var(--tp-titulo); font-weight: 900; font-size: 46px;
   line-height: .9; letter-spacing: -.05em; margin-top: 5px;
 }
-.tp .panel-ojo .pie { position: relative; margin-top: 9px; font-size: 12.5px }
+/* EL COLOR VA ESCRITO, NO HEREDADO. globals.css trae una clase suelta
+   —`.pie{color:var(--bv-texto-2)}`, sin prefijo de módulo— y cualquier
+   regla que ponga color le gana a lo que se hereda del padre. El
+   resultado era gris #717171 sobre el rojo del panel: ilegible, y en
+   los siete temas, porque el que manda es el gris de la clase global y
+   no el acento.
+
+   Se arregla aquí y no allá: esa clase la usan otras pantallas y
+   cambiarla las tocaría todas. Lo que este módulo necesita es decir
+   cuál es su tinta —la misma del panel— en vez de callarse. */
+.tp .panel-ojo .pie {
+  position: relative; margin-top: 9px; font-size: 12.5px;
+  color: var(--tp-sobre-ojo);
+}
+.tp .panel-ojo .pie b { color: var(--tp-sobre-ojo); font-weight: 700 }
+
+/* El mismo choque en el recuadro oscuro: hereda blanco del padre y la
+   clase global se lo pisaba con gris. */
+.tp .kpi .pie, .tp .kpi .pie b { color: #fff }
 
 /* ---------- Filtros ---------- */
 .tp .filtros { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px }

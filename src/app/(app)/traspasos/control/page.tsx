@@ -154,10 +154,20 @@ export default async function ControlPage({ searchParams }: {
           <div className="u">lo que el plan publicado prometió mover</div>
         </div>
 
+        {/* CUMPLIDOS ES LO QUE CUMPLIÓ EL PLAN, no todo lo registrado.
+            La versión anterior mostraba el total —que YA lleva los
+            adicionales adentro— al lado de una tarjeta de adicionales.
+            Quien intentaba rehacer la cuenta sumaba el adicional dos
+            veces y no le daba ninguno de los dos porcentajes. Una cifra
+            de la que no salen las de al lado hace que nadie crea las
+            tres. Así la fila cierra sola:
+
+              adherencia   = cumplidos / planeados
+              cumplimiento = (cumplidos + adicionales) / planeados  */}
         <div className="cifra">
           <div className="rot">VIAJES CUMPLIDOS</div>
-          <div className="n">{cumplido}</div>
-          <div className="u">registrados con carga · nadie escribe esta cifra</div>
+          <div className="n">{adheridos}</div>
+          <div className="u">cumplieron el plan · nadie escribe esta cifra</div>
         </div>
 
         <div className="cifra ojo">
@@ -182,13 +192,16 @@ export default async function ControlPage({ searchParams }: {
         <div className={"cifra " + clase(planeado > 0 ? adherencia : null)}>
           <div className="rot">% ADHERENCIA</div>
           <div className="n">{planeado > 0 ? `${adherencia}%` : "—"}</div>
-          <div className="u">de lo planeado, cuánto salió · tope 100%</div>
+          {/* LA FÓRMULA ESCRITA, con las palabras de las tarjetas de
+              arriba. Es lo que permite rehacer la cuenta sin salir de
+              la fila — y lo que evita que alguien la rehaga mal. */}
+          <div className="u">cumplidos ÷ planeados · tope 100%</div>
         </div>
 
         <div className={"cifra " + clase(planeado > 0 ? cumplimiento : null)}>
           <div className="rot">% CUMPLIMIENTO</div>
           <div className="n">{planeado > 0 ? `${cumplimiento}%` : "—"}</div>
-          <div className="u">todo lo movido contra el plan · adicionales incluidos</div>
+          <div className="u">(cumplidos + adicionales) ÷ planeados</div>
         </div>
       </section>
 

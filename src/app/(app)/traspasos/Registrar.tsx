@@ -241,8 +241,8 @@ export function Registrar({ tipos, puntos, placas, rutas, fecha, turnoSugerido,
                                   aria-expanded={verOtros}
                                   onClick={() => setVerOtros((v) => !v)}>
                             <b>+</b>
-                            <span className="falta">Otro tipo</span>
-                            <span className="prog">no planeado</span>
+                            <span className="falta">Adicional</span>
+                            <span className="prog">fuera del plan</span>
                           </button>
                         )}
                       </div>

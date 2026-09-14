@@ -1,47 +1,70 @@
-Traspasos: las seis cifras de Control, siempre visibles
+Traspasos: el pie de los paneles se leia gris sobre rojo
 
-Estaban repartidas por la pantalla: los dos porcentajes arriba, los
-adicionales metidos dentro de la leyenda de la cinta, y los vacios solo
-como alerta y solo si habia alguno. Para leer las seis habia que saber
-donde mirar cada una.
+"de 11 planeados" salia en gris #717171 sobre el rojo del panel. Y no
+era del modulo: globals.css trae una clase SUELTA, sin prefijo,
 
-Ahora van juntas, en una fila de seis tarjetas debajo del titulo, y SE
-PINTAN AUNQUE VALGAN CERO. Esconder lo que vale cero tiene sentido en
-una alerta; no en una cifra que alguien necesita leer todos los dias.
-"Adicionales: 0" ES la respuesta a una pregunta, y no encontrarla
-obliga a preguntarse si es cero o si la pantalla no la trae.
+  .pie{ font-size:11.5px; color:var(--bv-texto-2); margin:6px 0 0 }
 
-EL ORDEN ES EL DEL PROCESO, no el de la importancia:
+y mi regla .tp .panel-ojo .pie nunca fijaba color propio. Cualquier
+regla que ponga color le gana a lo que se hereda del padre, asi que el
+blanco del panel no llegaba nunca al pie. Pasaba en los tres paneles
+del modulo —Registrar, Control, Plan— y en los siete temas, porque el
+que mandaba era el gris de la clase global y no el acento.
 
-  planeados -> cumplidos -> adicionales -> vacios (aparte)
-  -> % adherencia -> % cumplimiento
+Se arregla en el modulo y no en globals: esa clase la usan otras
+pantallas y cambiarla las tocaria todas. Lo que faltaba era que el
+modulo dijera cual es su tinta en vez de callarse.
 
-Los dos porcentajes van al final porque salen de los cuatro de antes.
-El que manda ya esta grande arriba, en el panel dorado.
+Y DE PASO, LO QUE MEDIR DEJO VER. Ya con el color puesto, en los temas
+donde --c-oro es rojo pleno —negro, gris, halo— el pie daba 4,4 y el
+rotulo 3,8, por debajo del minimo de 4,5 para texto chico. Dos causas:
 
-LOS VACIOS VAN APARTE Y LO DICEN, con filo punteado, fondo apagado y la
-frase escrita en la tarjeta: "aparte: no entran en el calculo". Es la
-cifra que mas facil se suma por error —un viaje sin carga cuesta igual
-pero no mueve producto, asi que meterlo en el cumplido inflaria la
-adherencia con viajes que no movieron nada—.
+  1. El panel se pintaba con el acento al 88%. Ese 88% le basta a un
+     filo de 2 px; a un rectangulo lleno de texto blanco, no. Ahora el
+     panel tiene token propio —--tp-panel— y en esos tres temas baja al
+     70%. --tp-ojo no se toca: chips, filos y rellenos siguen igual,
+     que es donde el color tiene que reconocerse.
 
-No es una promesa de la pantalla: la vista ya los excluye en la base,
+  2. El rotulo y el pie se apagaban con opacidad. Eso le quitaba casi
+     un punto de contraste justo al texto mas chico del panel. Se quita:
+     la jerarquia ya la dan el tamaño, el grosor y las mayusculas.
 
-  where estado = 'registrado' and not vacio
+MEDIDO, no supuesto: .arnes/tp-contraste.mjs calcula el contraste real
+de los cuatro pares del panel en los siete temas.
 
-y los vacios planeados viven en su propia tabla, traspasos_plan_vacios,
-justo para que nadie los sume por accidente. La tarjeta solo hace
-visible una regla que ya existia, para que nadie la deshaga a mano en
-un informe.
+  oficial 8,9   tinta 9,3   pizarra 10,0   ambar 6,0
+  negro 7,2     gris 7,2    halo 7,2
 
-VACIOS Y ADICIONALES SE QUITAN DE LAS ALERTAS: ya son tarjetas. La
-misma cifra dos veces en la misma pantalla es la forma mas rapida de
-que alguien deje de creerle a las dos. Las alertas se quedan con lo que
-no es tarjeta: viajes sin salir, tipos movidos sin planear, tipos al
-100%.
+Todos por encima de 4,5. Antes, en negro/gris/halo, el pie era gris
+sobre rojo: 1,6.
 
-Tres columnas y no cuatro: con cuatro, la sexta tarjeta se queda sola en
-un segundo renglon y se lee como si fuera aparte.
+EL CHIP DEL "+" DICE ADICIONAL. Decia "Otro tipo / no planeado", que
+describe de donde sale el tipo pero no lo que va a pasar con el viaje.
+La palabra que usa la bodega —y la que sale despues en Control— es
+adicional.
 
-MEDIDO CON PLAYWRIGHT a 1440 / 820 / 390 / 360 px: tres columnas, dos y
-una; sin desborde horizontal en ninguno.
+Y LA FILA DE SEIS NO CERRABA. "VIAJES CUMPLIDOS" mostraba TODO lo
+registrado, y ese total ya lleva los adicionales adentro. Al lado habia
+una tarjeta de adicionales. Quien intentaba rehacer la cuenta sumaba el
+adicional dos veces y no le daba ninguno de los dos porcentajes:
+
+  lo que se veia:  11 planeados, 3 cumplidos, 1 adicional
+  y sin embargo:   adherencia 18%, cumplimiento 27%
+  la cuenta a mano: 3/11 = 27%, (3+1)/11 = 36%
+
+Los porcentajes estaban BIEN —18% es 2/11 y 27% es (2+1)/11—; la que
+mentia era la tarjeta. Ahora muestra 2: los que cumplieron el plan. El
+adicional vive solo en su tarjeta y no en dos sitios.
+
+Las dos tarjetas de porcentaje llevan la formula escrita con las
+palabras de las tarjetas de arriba:
+
+  % ADHERENCIA    cumplidos / planeados · tope 100%
+  % CUMPLIMIENTO  (cumplidos + adicionales) / planeados
+
+Es lo que permite rehacer la cuenta sin salir de la fila, y lo que evita
+que alguien la rehaga mal. Una cifra de la que no salen las de al lado
+hace que nadie crea las tres.
+
+Ningun porcentaje cambia de valor: la vista ya calculaba asi. Lo que
+cambia es que ahora se puede comprobar.
