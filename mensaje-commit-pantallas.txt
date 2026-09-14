@@ -695,3 +695,43 @@ puntual es lo correcto. En la vista se preguntaban quinientas.
 Las columnas quedaron con el mismo tipo a proposito —count(*) es bigint
 y se dejo bigint—: cambiarlo obligaria a botar la vista, y botarla se
 lleva por delante lo que dependa de ella.
+
+
+LOS CONTEOS DEL MAESTRO, HECHOS EN LA BASE.
+
+El Maestro necesita saber cuantas veces se uso cada zona, cada motivo,
+cada material: es lo que decide si sale el boton de BORRAR o solo el de
+desactivar. Para saberlo se traia al navegador la columna de TODAS las
+acciones y se contaba en memoria.
+
+Con veinte filas eso es mas simple que una vista, y por eso se hizo
+asi. Con cincuenta mil es traerse la tabla por la red para devolver
+cuarenta numeros.
+
+MEDIDO CON 50.000 ACCIONES, lo que viaja al navegador:
+
+  antes ....... 2.315 kB   (y con el tope de 5.000 puesto: 232 kB)
+  despues .....     3 kB   (71 filas: 40 zonas, 30 motivos, areas)
+
+Setecientas veces menos. Y lo que importa: lo que baja ya no depende de
+cuantas acciones haya, sino de cuantas zonas y motivos tenga el
+maestro, que son decenas y van a seguir siendo decenas. En un celular
+con señal de bodega esa es la diferencia entre que la pantalla abra y
+que parezca colgada.
+
+EL TOPE DE 5.000 ERA PEOR QUE LENTO: ERA MENTIRA. Pasadas las 5.000
+acciones la cuenta se hacia solo sobre las primeras 5.000, asi que una
+zona muy usada podia aparecer con menos usos de los que tiene —o con
+cero— y el Maestro habria ofrecido BORRARLA. La base la habria
+rechazado por la llave foranea, pero el boton no deberia haber estado
+ahi. Contando en la base no hay tope: se cuentan todas, siempre.
+
+En roturas era peor todavia: la consulta no tenia ni tope. Se traian
+TODAS las roturas para contar cuatro cosas.
+
+COMPROBADO QUE DA LO MISMO:
+
+  diferencias entre el conteo viejo y el nuevo .............. 0
+  zonas contadas / motivos contados ................... 40 / 30
+  suma de usos por motivo = total de acciones .......... 50.005
+  tarda ................................................. 16 ms

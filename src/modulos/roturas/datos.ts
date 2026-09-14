@@ -198,27 +198,24 @@ export async function tolvas(soloActivas = true) {
  * constraint" no le explica nada a quien está mirando la pantalla:
  * decirlo antes —"usado en 43"— sí.
  *
- * Se cuenta en memoria sobre lo que ya se trajo y no con cuatro
- * consultas de group by: el maestro son decenas de filas, no millones.
+ * LA CUENTA LA HACE LA BASE. Antes se traían TODAS las roturas —sin
+ * tope siquiera— para contar cuatro cosas en memoria. Con decenas de
+ * filas daba igual; con decenas de miles es traerse la tabla por la red
+ * para devolver una docena de números.
  */
 export async function usoDeMaestros() {
   const supabase = await createClient();
-  const [r, t] = await Promise.all([
-    supabase.from("roturas").select("material, proceso, causa"),
-    supabase.from("roturas_salida_tolvas").select("tolva"),
-  ]);
+  const { data } = await supabase.from("v_roturas_uso").select("tipo, clave, usos");
 
   const vacio = () => ({} as Record<string, number>);
   const uso = {
     materiales: vacio(), procesos: vacio(), causas: vacio(), tolvas: vacio(),
   };
-  for (const f of (r.data ?? []) as { material: string; proceso: string; causa: string }[]) {
-    uso.materiales[f.material] = (uso.materiales[f.material] ?? 0) + 1;
-    uso.procesos[f.proceso] = (uso.procesos[f.proceso] ?? 0) + 1;
-    uso.causas[f.causa] = (uso.causas[f.causa] ?? 0) + 1;
-  }
-  for (const f of (t.data ?? []) as { tolva: string }[]) {
-    uso.tolvas[f.tolva] = (uso.tolvas[f.tolva] ?? 0) + 1;
+  for (const f of (data ?? []) as { tipo: string; clave: string; usos: number }[]) {
+    if (f.tipo === "material") uso.materiales[f.clave] = f.usos;
+    else if (f.tipo === "proceso") uso.procesos[f.clave] = f.usos;
+    else if (f.tipo === "causa") uso.causas[f.clave] = f.usos;
+    else if (f.tipo === "tolva") uso.tolvas[f.clave] = f.usos;
   }
   return uso;
 }

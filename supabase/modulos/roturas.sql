@@ -988,6 +988,24 @@ left join tol t on t.salida_id = s.id;
 
 grant select on public.v_roturas_salidas to authenticated;
 
+create or replace view public.v_roturas_uso as
+  select 'material'::text as tipo, material as clave, count(*)::int as usos
+    from public.roturas group by material
+  union all
+  select 'proceso', proceso, count(*)::int
+    from public.roturas group by proceso
+  union all
+  select 'causa', causa, count(*)::int
+    from public.roturas group by causa
+  union all
+  select 'tolva', tolva, count(*)::int
+    from public.roturas_salida_tolvas group by tolva;
+
+grant select on public.v_roturas_uso to authenticated;
+
+create index if not exists roturas_material_idx on public.roturas (material);
+create index if not exists roturas_tolva_idx    on public.roturas_salida_tolvas (tolva);
+
 -- =====================================================================
 -- 8. RLS Y GRANTS
 --

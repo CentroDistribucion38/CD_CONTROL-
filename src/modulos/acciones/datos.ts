@@ -248,24 +248,34 @@ export async function areasTodas() {
   return (data ?? []) as Area[];
 }
 
-/** Cuántas acciones cuelgan de cada zona y de cada motivo.
- *  Es lo que decide si se puede BORRAR o solo desactivar: borrar una zona
- *  que ya tiene acciones se llevaría por delante el histórico con el que
- *  se cuenta la reincidencia, y la base lo va a rechazar de todas formas.
- *  Saberlo antes permite decirlo con palabras en vez de mostrar el error
- *  de la llave foránea. */
+/**
+ * CUÁNTAS VECES SE USÓ CADA CLAVE DEL MAESTRO.
+ *
+ * Es lo que decide si en el maestro sale el botón de BORRAR o solo el
+ * de desactivar. La base lo rechazaría igual por la llave foránea,
+ * pero "violates foreign key constraint" no le explica nada a quien
+ * está mirando la pantalla: decirlo antes —"usado en 43"— sí.
+ *
+ * LA CUENTA LA HACE LA BASE, no el navegador. Antes se traía la
+ * columna de TODAS las acciones y se contaba en memoria: con veinte
+ * filas eso es más simple que una vista, con cincuenta mil son 2,3 MB
+ * por la red para devolver cuarenta números.
+ *
+ * Y el tope de 5.000 que tenía no era solo lento: era MENTIRA. Pasadas
+ * las 5.000, una zona muy usada podía salir con cero usos y el maestro
+ * habría ofrecido borrarla. Contando en la base no hay tope.
+ */
 export async function usoDelMaestro() {
   const supabase = await createClient();
-  const { data } = await supabase.from("v_acciones")
-    .select("zona, motivo, equipo").limit(5000);
+  const { data } = await supabase.from("v_acciones_uso").select("tipo, clave, usos");
+
   const zonas: Record<string, number> = {};
   const motivos: Record<string, number> = {};
   const equipos: Record<string, number> = {};
-  for (const f of (data ?? []) as
-       { zona: string | null; motivo: string; equipo: string | null }[]) {
-    if (f.zona) zonas[f.zona] = (zonas[f.zona] ?? 0) + 1;
-    motivos[f.motivo] = (motivos[f.motivo] ?? 0) + 1;
-    if (f.equipo) equipos[f.equipo] = (equipos[f.equipo] ?? 0) + 1;
+  for (const f of (data ?? []) as { tipo: string; clave: string; usos: number }[]) {
+    if (f.tipo === "zona") zonas[f.clave] = f.usos;
+    else if (f.tipo === "motivo") motivos[f.clave] = f.usos;
+    else if (f.tipo === "equipo") equipos[f.clave] = f.usos;
   }
   return { zonas, motivos, equipos };
 }

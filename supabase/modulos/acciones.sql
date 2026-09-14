@@ -1000,6 +1000,7 @@ grant execute on function public.accion_comentar(uuid, text) to authenticated;
 -- 10. LAS VISTAS
 -- =====================================================================
 
+drop view if exists public.v_acciones_uso;
 drop view if exists public.v_acciones_carga;
 drop view if exists public.v_acciones_area;
 drop view if exists public.v_acciones;
@@ -1153,6 +1154,23 @@ where ar.activo
 group by ar.clave, ar.nombre, ar.orden;
 
 grant select on public.v_acciones_area to authenticated;
+
+create or replace view public.v_acciones_uso as
+  select 'zona'::text as tipo, zona as clave, count(*)::int as usos
+    from public.acciones where zona is not null group by zona
+  union all
+  select 'motivo', motivo, count(*)::int
+    from public.acciones group by motivo
+  union all
+  select 'equipo', equipo, count(*)::int
+    from public.acciones where equipo is not null group by equipo
+  union all
+  select 'area', area, count(*)::int
+    from public.acciones group by area;
+
+grant select on public.v_acciones_uso to authenticated;
+
+create index if not exists acciones_motivo_idx on public.acciones (motivo);
 
 -- =====================================================================
 -- 11. RLS — todos leen, escriben los que mandan
