@@ -1,45 +1,71 @@
-Plan: la columna del tipo se queda quieta, y ya se puede borrar un dia
+El administrador corrige un viaje, y se entra en gris y ambar
 
-TRES COSAS.
+DOS COSAS.
 
-1. LA COLUMNA DEL TIPO, CLAVADA. En el celular la rejilla no cabe y hay
-que rodarla de lado para llegar al turno C. Al rodar, la columna de la
-izquierda se iba con todo lo demas: quedaban cuatro casillas con
-numeros y ninguna pista de a que material pertenecian. Ahora esa
-columna se queda quieta y los turnos pasan por debajo, con una sombra
-que avisa que hay mas tabla a la derecha.
+1. CORREGIR UN VIAJE YA REGISTRADO.
 
-Cambia border-collapse a separate en esa tabla, y no por gusto: con
-collapse los bordes son de la tabla y no de la celda, asi que una celda
-clavada viaja SIN sus bordes y se ve como un recorte flotando. Con
-separate y border-spacing 0 se dibuja igual y los bordes se quedan
-donde van.
+Hasta hoy un viaje mal registrado solo se podia ANULAR y volver a
+teclear entero. Por una placa con un digito cambiado eso son ocho
+campos otra vez, a las cinco de la manana y con guantes: nadie lo hace,
+y el viaje malo se queda. Un dato que no se puede corregir es un dato
+que se deja mal.
 
-2. BORRAR EL PLAN DE UN DIA. No se podia. Poner las 27 celdas en cero y
-darle publicar no dejaba el dia limpio: publicar exige que haya algo
-sin publicar, y con la rejilla vacia no hay nada, asi que salia "No hay
-nada sin publicar en ese dia" y el plan viejo seguia ahi. Quien planeo
-un domingo por equivocacion se quedaba con un domingo planeado para
-siempre.
+Ahora el ADMINISTRADOR tiene "Corregir" en cada viaje: dia, turno,
+tipo, placa, origen, destino, cantidad, carga, unidad y observacion.
+Tambien pasarlo de con carga a vacio y al reves.
 
-Ahora hay un "Borrar el plan del dia" al final del pie, aparte de
-Publicar y a dos toques. LOS VIAJES NO SE TOCAN: los que ya se
-registraron siguen registrados, solo pasan a contar como adicionales,
-que es lo que son cuando no hay plan. Y publicar una rejilla en cero ya
-no devuelve el error de la base: dice que para dejar el dia sin plan
-esta el otro boton.
+QUIEN. Solo el administrador, y el candado esta en la base, no en la
+pantalla: la funcion rechaza la correccion venga de donde venga.
+Esconder un boton no es un permiso. Anular sigue igual que estaba
+-quien lo registro o un administrador- porque son dos cosas distintas:
+anular dice "esto no paso"; corregir reescribe lo que paso.
 
-Probado contra Postgres 16 de verdad, 12 de 12, dos veces seguidas y
-como usuario sin privilegios (.arnes/prueba-borrar-plan.sql). Incluye
-el caso que lo motivo: publicar vacio NO borra, y el plan publicado
-sigue entero despues de intentarlo.
+QUEDA RASTRO DE TODO. Cada correccion guarda la fila ENTERA como
+estaba y como quedo, en jsonb, con quien y por que. Un administrador
+que cambia cualquier cosa sin dejar huella no es una herramienta, es un
+agujero. Y el renglon queda marcado CORREGIDO en la lista: un rastro
+que nadie ve no sirve de nada.
 
-3. La celda "TOTAL CON CARGA" llevaba opacity .7, que aclaraba tambien
-el fondo: clavada al borde quedaba de otro verde que el resto de su
-propia fila. Se apaga el texto, no la celda.
+Las MISMAS reglas que al registrar, y salen de las mismas funciones: ni
+origen igual a destino, ni un tipo apagado, ni turno inventado, ni cero
+viajes, ni sin placa. Si fueran dos juegos de reglas, por la puerta de
+"corregir" entrarian viajes que por la de "registrar" no pasan. Un
+viaje ANULADO no se edita: primero se devuelve. El codigo TR-#### no
+cambia nunca.
 
-HAY QUE CORRER EN SUPABASE:
-  supabase/migraciones/2026-09-traspasos-borrar-plan.sql
+Probado contra Postgres 16, 14 de 14, tres veces seguidas y como
+usuario sin privilegios (.arnes/prueba-editar-viaje.sql). Incluye que
+el cumplido del turno SIGUE a la correccion -cambiar el turno mueve el
+numero del turno-, y que ningun intento fallido deja rastro ni cuenta
+como edicion.
+
+La etiqueta CORREGIDO lleva un ambar EN DURO, que es la excepcion en
+todo el modulo: el token de aviso es --c-oro y --c-oro es rojo puro en
+negro, gris y halo; el acento del tema es rojo en el oficial. Por
+cualquiera de los dos caminos "CORREGIDO" acababa rojo en la misma fila
+donde el rojo ya quiere decir ANULADO. 8.31 de contraste en los siete
+temas, medido.
+
+2. SE ENTRA EN "GRIS CLARO Y AMBAR".
+
+El tema de la casa pasa a ser el gris: barra clara con puntos, filo
+ambar, menu de la izquierda oscuro. Cambia el valor por defecto de
+perfiles.tema, la pantalla de entrada y el orden de la lista en Perfil
+-el de la casa va primero, que es el que hay que reconocer antes que
+ninguno-. No se borra ningun tema: los siete siguen y cada quien se
+cambia el suyo.
+
+La migracion arrastra a gris UNA sola vez a quien estaba en 'oficial'
+sin haberlo escogido, y lo que le dice si ya corrio es el propio valor
+por defecto de la columna. Correrla dos veces no le deshace el tema a
+quien escogio Oficial a proposito. Probado.
+
+Y el ALTER va ANTES del update, no despues: al reves Postgres lo
+rechaza con "cannot ALTER TABLE because it has pending trigger events".
+
+HAY QUE CORRER EN SUPABASE, en este orden:
+  supabase/migraciones/2026-09-traspasos-editar-viaje.sql
+  supabase/migraciones/2026-09-tema-gris-por-defecto.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

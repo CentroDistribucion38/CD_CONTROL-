@@ -55,6 +55,10 @@ export type Viaje = {
   hora: string;
   registrado_por: string | null;
   registrado_en: string;
+  /** Cuántas veces lo corrigió un administrador. 0 = tal como se registró. */
+  ediciones: number;
+  editado_en: string | null;
+  editado_por: string | null;
   estado: "registrado" | "anulado";
   vale: boolean;
   motivo_anulacion: string | null;

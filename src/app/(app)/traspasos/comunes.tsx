@@ -117,6 +117,15 @@ export function FilaViaje({ v, nombres, derecha }: {
           <span>{hora(v.hora)}</span>
           <span>{quien(nombres, v.registrado_por)}</span>
           {v.codigo && <span>{v.codigo}</span>}
+          {/* CORREGIDO SE DICE, no se esconde. Un viaje reescrito por un
+              administrador se veía igual que uno recién registrado, y
+              entonces el rastro que se guarda no le sirve a nadie:
+              nadie sabe que hay algo que mirar. */}
+          {v.ediciones > 0 && (
+            <span className="eti corregido" title={`Corregido por ${quien(nombres, v.editado_por)}`}>
+              CORREGIDO{v.ediciones > 1 ? ` ×${v.ediciones}` : ""}
+            </span>
+          )}
         </div>
 
         {v.nota && <div className="meta"><span>{v.nota}</span></div>}

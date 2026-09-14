@@ -103,7 +103,13 @@ export default async function TraspasosPage() {
       )}
 
       {permisos.puedeEditar("/traspasos") && (
-        <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar />
+        /* CORREGIR ES SOLO DEL ADMINISTRADOR. Aquí solo se decide si se
+           pinta el botón; el candado de verdad está en la base, que
+           rechaza la corrección venga de donde venga. Esconder un botón
+           no es un permiso. */
+        <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar
+                esAdmin={permisos.rol === "admin"}
+                tipos={t.tipos} puntos={pts} placas={pl.placas} />
       )}
     </div>
   );

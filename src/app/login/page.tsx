@@ -28,10 +28,15 @@ const TEMAS = new Set(["tinta", "pizarra", "ambar", "negro", "gris", "halo"]);
 
 export default async function LoginPage() {
   /* Si la cookie trae basura o un tema que ya no existe, se ignora y
-     entra el oficial. Un valor escrito a mano no puede dejar la entrada
-     sin colores. */
+     entra el de la casa. Un valor escrito a mano no puede dejar la
+     entrada sin colores.
+     EL DE LA CASA ES «GRIS CLARO Y ÁMBAR». En un equipo estrenado no
+     hay cookie todavía, y la entrada tiene que pintarse con lo mismo
+     que va a ver la persona un segundo después de entrar. */
   const guardado = (await cookies()).get("tema_equipo")?.value;
-  const tema = guardado && TEMAS.has(guardado) ? guardado : undefined;
+  const tema = guardado && TEMAS.has(guardado)
+    ? guardado
+    : guardado === "oficial" ? undefined : "gris";
 
   return (
     <div className="acc" data-tema={tema}>

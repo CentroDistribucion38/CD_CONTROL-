@@ -1065,6 +1065,42 @@
   border-top: 1px solid var(--tp-fondo); margin-top: 3px;
 }
 
+/* =====================================================================
+   ANULAR Y CORREGIR — lo que se abre debajo del renglón del viaje
+   ===================================================================== */
+.tp .pie-accion { padding: 0 16px 16px; border-top: 1px solid var(--tp-fondo); padding-top: 14px }
+.tp .pie-accion .guia { margin: 0 0 10px }
+
+/* La rejilla del formulario de corrección. Dos columnas en el
+   escritorio y una en el celular: son campos cortos, y uno debajo de
+   otro obliga a rodar media pantalla para ver ocho cosas que caben. */
+.tp .rejilla-corregir {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px; margin-bottom: 14px;
+}
+.tp .rejilla-corregir > .ancho { grid-column: 1 / -1 }
+.tp .rejilla-corregir .campo { min-width: 0 }
+@media (max-width: 620px) {
+  .tp .rejilla-corregir { grid-template-columns: 1fr }
+}
+.tp .fila-btn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+
+/* CORREGIDO. Ámbar y no rojo: el viaje vale, solo que lo reescribieron.
+   El rojo está tomado por ANULADO, que sí quiere decir que no cuenta.
+
+   ESTE ÁMBAR VA EN DURO Y NO SIGUE AL TEMA, que es la excepción en todo
+   el módulo. El token de aviso es --c-oro, y --c-oro es ROJO PURO en
+   negro, gris y halo; el acento del tema es rojo en el oficial. Por
+   cualquiera de los dos caminos, «CORREGIDO» acabaría rojo en la misma
+   fila donde el rojo ya quiere decir ANULADO — y son cosas opuestas:
+   una vale y la otra no. Antes que un color que cambia de significado,
+   un ámbar que no cambia. Medido: 8.31 de contraste en los siete temas. */
+.tp .eti.corregido {
+  background: #FDF0D0; color: #5E4100;
+  box-shadow: inset 2.5px 0 0 #C08A16;
+  padding-left: 9px;
+}
+
 /* ---------- Posibles duplicados ---------- */
 .tp .duplicados {
   background: var(--tp-papel); border: 1px solid var(--tp-linea);

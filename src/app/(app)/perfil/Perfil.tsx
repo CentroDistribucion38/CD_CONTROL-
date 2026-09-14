@@ -53,10 +53,22 @@ const DIAGONAL = "repeating-linear-gradient(116deg,rgba(255,192,0,.16) 0 1px,tra
 const PUNTOS = "radial-gradient(rgba(0,0,0,.14) .9px,transparent 1px)";
 
 const TEMAS: Ficha[] = [
+  /* EL DE LA CASA VA PRIMERO. Es con el que se entra si nadie toca
+     nada, así que es el que hay que reconocer antes que ninguno. */
+  {
+    id: "gris",
+    nombre: "Gris claro y ámbar",
+    nota: "El de la casa: es el que ve todo el mundo si no cambia nada. La única barra CLARA \u2014 gris con puntos y el filo en ámbar. El menú de la izquierda sigue oscuro.",
+    barra: "#D9D9D9",
+    filo: "#FFC000",
+    trama: PUNTOS,
+    tramaOp: 0.55,
+    muestras: ["#141414", "#414141", "#FFC000", "#A1A1A1", "#EDEDED"],
+  },
   {
     id: "oficial",
     nombre: "Oficial",
-    nota: "El azul marino y el rojo de siempre. Es el que ve todo el mundo si no cambia nada.",
+    nota: "El azul marino y el rojo de siempre. Era el de entrada hasta que lo fue el gris; sigue aquí para quien lo prefiera.",
     barra: "#04203F",
     filo: "#E4002B",
     trama: ROMBOS,
@@ -67,7 +79,7 @@ const TEMAS: Ficha[] = [
   {
     id: "tinta",
     nombre: "Tinta y ámbar",
-    nota: "El mismo azul marino, con el acento en ámbar. Cambia solo el acento; el resto es igual al oficial.",
+    nota: "El mismo azul marino del Oficial, con el acento en ámbar. Cambia solo el acento.",
     barra:
       "radial-gradient(120px 60px at 12% 130%,rgba(240,180,41,.22) 0%,transparent 72%)," +
       "radial-gradient(150px 70px at 90% -30%,rgba(11,78,162,.45) 0%,transparent 72%),#04203F",
@@ -110,16 +122,6 @@ const TEMAS: Ficha[] = [
     trama: DIAGONAL,
     tramaOp: 0.9,
     muestras: ["#0D0D0D", "#383838", "#FFC000", "#A1A1A1", "#F1F1F1"],
-  },
-  {
-    id: "gris",
-    nombre: "Gris claro y ámbar",
-    nota: "La única barra CLARA: gris con puntos y el filo en ámbar. El menú de la izquierda sigue oscuro.",
-    barra: "#D9D9D9",
-    filo: "#FFC000",
-    trama: PUNTOS,
-    tramaOp: 0.55,
-    muestras: ["#141414", "#414141", "#FFC000", "#A1A1A1", "#EDEDED"],
   },
   {
     id: "halo",
