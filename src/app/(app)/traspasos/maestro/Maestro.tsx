@@ -75,10 +75,15 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
      apagado sería ofrecer una ruta que el registro no va a aceptar. */
   const puntosVivos = puntos.filter((p) => p.activo);
 
-  /* Los que no se parecen a nada: sitios nuevos. Los que sí: duplicados. */
-  const nuevos = faltantes.filter((f) => !f.parecido);
+  /* SOLO QUEDAN LOS DUPLICADOS. La franja de "sitios escritos a mano"
+     se fue, y no por gusto: existía porque Registrar dejaba escribir el
+     sitio a mano. Ahora Registrar escoge del maestro, así que por ahí ya
+     no entra nada nuevo — la franja solo podía mostrar restos viejos.
+
+     Lo que SÍ sigue haciendo falta es unir esos restos con el punto al
+     que pertenecen: mientras estén sueltos no cuentan en ningún informe
+     por punto. Eso es la sección de abajo, y esa se queda. */
   const dobles = faltantes.filter((f) => f.parecido);
-  const vecesSemana = nuevos.reduce((a, f) => a + f.veces_semana, 0);
 
   /* ------------------------------------------------------------------
      AGREGAR UN PUNTO.
@@ -159,11 +164,38 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
     router.refresh();
   }
 
+  /** El punto que ya existe, buscado como lo busca la base: sin acentos,
+   *  sin espacios y sin mayúsculas. Si no está, devuelve null. */
+  function puntoDe(texto: string) {
+    const k = clave(texto);
+    return puntos.find((p) => clave(p.clave) === k || clave(p.nombre) === k) ?? null;
+  }
+
   async function agregarRuta() {
-    if (!rOrigen || !rDestino) return;
+    const to = rOrigen.trim(), td = rDestino.trim();
+    if (!to || !td) return;
     setMandando(true);
+
+    /* EL PUNTO QUE FALTE SE CREA. Mandar a alguien a otra caja a agregar
+       dos puntos para poder volver aquí a armar una ruta es trabajo
+       inventado. */
+    const creados: string[] = [];
+    for (const t of [to, td]) {
+      if (puntoDe(t)) continue;
+      const r = await supabase.rpc("traspaso_agregar_punto",
+        { p_nombre: t, p_descripcion: null });
+      if (r.error) {
+        setMandando(false);
+        avisar.mal(faltaLaFuncion(r.error.message)
+          ? "Falta correr supabase/migraciones/2026-09-traspasos-maestro.sql en Supabase."
+          : r.error.message);
+        return;
+      }
+      creados.push(t);
+    }
+
     const { error } = await supabase.rpc("traspaso_agregar_ruta",
-      { p_origen: rOrigen, p_destino: rDestino });
+      { p_origen: to, p_destino: td });
     setMandando(false);
     if (error) {
       avisar.mal(faltaLaFuncion(error.message)
@@ -171,10 +203,11 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
         : error.message);
       return;
     }
-    const no = puntos.find((p) => p.clave === rOrigen)?.nombre ?? rOrigen;
-    const nd = puntos.find((p) => p.clave === rDestino)?.nombre ?? rDestino;
     setROrigen(""); setRDestino("");
-    avisar.bien(`${no} → ${nd} quedó en el maestro de rutas.`);
+    avisar.bien(`${to} → ${td} quedó en el maestro de rutas.`
+      + (creados.length
+        ? ` Y ${creados.join(" y ")} ${creados.length === 1 ? "se agregó" : "se agregaron"} a Puntos.`
+        : ""));
     router.refresh();
   }
 
@@ -269,25 +302,6 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
             <h2>Puntos <em>{puntos.length}</em></h2>
             <p>De dónde sale y a dónde llega un viaje.</p>
           </div>
-
-          {nuevos.length > 0 && (
-            <div className="sugerido">
-              <div className="rot">ESCRITOS A MANO EN EL REGISTRO</div>
-              <p>Todavía no están en el maestro. Agrégalos y dejan de escribirse distinto cada vez.</p>
-              <div className="sug-chips">
-                {nuevos.map((f) => (
-                  <div className="sug" key={f.texto}>
-                    <b>{f.texto}</b>
-                    <span>· {f.veces} {f.veces === 1 ? "vez" : "veces"}</span>
-                    {puedeEditar && (
-                      <button type="button" disabled={mandando}
-                              onClick={() => agregarPunto(f.texto)}>Agregar</button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {puedeEditar && (
             <form className="agregar-m"
@@ -387,41 +401,37 @@ export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEdi
             </p>
           </div>
 
+          {/* SE ESCRIBE O SE ESCOGE, y el punto que falte se crea solo.
+              Antes, con menos de dos puntos, esta caja decía "faltan
+              puntos" y no dejaba hacer nada: mandaba a la persona a otra
+              caja a hacer dos cosas para poder volver a hacer una. Lo que
+              quiere decir es "de aquí a allá", y eso se escribe de una. */}
           {puedeEditar && (
-            puntosVivos.length < 2 ? (
-              <div className="vacio">
-                <b>Faltan puntos</b>
-                Una ruta son dos puntos del maestro. Agrega al menos dos arriba.
-              </div>
-            ) : (
-              <form className="agregar-m ruta-nueva"
-                    onSubmit={(e) => { e.preventDefault(); agregarRuta() }}>
-                <select value={rOrigen} aria-label="De dónde sale"
-                        onChange={(e) => setROrigen(e.target.value)}>
-                  <option value="">De dónde sale…</option>
-                  {puntosVivos.map((p) => (
-                    <option key={p.clave} value={p.clave}>{p.nombre}</option>
-                  ))}
-                </select>
-                <span className="fl" aria-hidden>→</span>
-                <select value={rDestino} aria-label="A dónde va"
-                        onChange={(e) => setRDestino(e.target.value)}>
-                  <option value="">A dónde va…</option>
-                  {puntosVivos.filter((p) => p.clave !== rOrigen).map((p) => (
-                    <option key={p.clave} value={p.clave}>{p.nombre}</option>
-                  ))}
-                </select>
-                <button type="submit" disabled={!rOrigen || !rDestino || mandando}>
-                  Agregar
-                </button>
-              </form>
-            )
+            <form className="agregar-m ruta-nueva"
+                  onSubmit={(e) => { e.preventDefault(); agregarRuta() }}>
+              <input list="tp-m-puntos" value={rOrigen} autoComplete="off"
+                     aria-label="De dónde sale" placeholder="De dónde sale"
+                     onChange={(e) => setROrigen(e.target.value)} />
+              <span className="fl" aria-hidden>→</span>
+              <input list="tp-m-puntos" value={rDestino} autoComplete="off"
+                     aria-label="A dónde va" placeholder="A dónde va"
+                     onChange={(e) => setRDestino(e.target.value)} />
+              <datalist id="tp-m-puntos">
+                {puntosVivos.map((p) => <option key={p.clave} value={p.nombre} />)}
+              </datalist>
+              <button type="submit"
+                      disabled={!rOrigen.trim() || !rDestino.trim() || mandando}>
+                Agregar
+              </button>
+            </form>
           )}
 
           {rutas.length === 0 ? (
             <div className="vacio">
               <b>Todavía no hay rutas</b>
-              Al correr la migración se siembran solas con las que ya se venían registrando.
+              {puntosVivos.length === 0
+                ? "Escribe los dos sitios arriba: se agregan a Puntos y la ruta queda armada."
+                : "Arma la primera arriba. Al correr la migración también se siembran con las que ya se venían registrando."}
             </div>
           ) : (
             <Lista filas={filasRutas} puedeEditar={puedeEditar} mandando={mandando}

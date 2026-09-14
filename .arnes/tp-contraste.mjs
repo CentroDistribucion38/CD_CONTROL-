@@ -16,6 +16,10 @@ for (const tema of TEMAS) {
 <div class="num">2</div><div class="pie">de <b>11 planeados</b></div></div>
 <div class="kpi"><div class="rot">PLAN</div><div class="num">6</div>
 <div class="pie">de <b>11 viajes</b></div></div>
+<form class="agregar-m"><input><button>Agregar</button></form>
+<div class="fecha-nav"><button class="hoy">HOY</button></div>
+<div class="par-dup"><span class="tx gana">Ag01</span></div>
+<div class="seg"><button class="on">Viaje con carga</button></div>
 </div></div>`;
   const pg = await nav.newPage({ viewport:{width:420,height:420}, deviceScaleFactor:2 });
   await pg.setContent(HTML,{waitUntil:"load"});
@@ -33,9 +37,11 @@ for (const tema of TEMAS) {
       return Math.round(((A+.05)/(B+.05))*10)/10; };
     const out = {};
     for (const [nom, sel] of [["ojo-pie",".panel-ojo .pie"],["ojo-b",".panel-ojo .pie b"],
-                              ["ojo-rot",".panel-ojo .rot"],["kpi-pie",".kpi .pie b"]]) {
+                              ["ojo-rot",".panel-ojo .rot"],["kpi-pie",".kpi .pie b"],
+                              ["agregar",".agregar-m button"],["hoy",".fecha-nav .hoy"],
+                              ["gana",".par-dup .tx.gana"],["seg",".seg button.on"]]) {
       const el = document.querySelector(sel);
-      const caja = el.closest(".panel-ojo, .kpi");
+      const caja = ["agregar","hoy","gana","seg"].includes(nom) ? el : el.closest(".panel-ojo, .kpi");
       const cs = getComputedStyle(el), cp = getComputedStyle(caja);
       /* La opacidad mezcla con el fondo antes de pintar: medir el color
          escrito y no el que se ve dejaría pasar un texto apagado. */

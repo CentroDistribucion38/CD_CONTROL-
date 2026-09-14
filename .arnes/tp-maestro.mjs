@@ -28,22 +28,12 @@ const TIPOS = [["Casco vidrio","usado este mes",142,1],["Envase","usado este mes
 const HTML = marco(`
 <section class="cabeza"><div>
 <p class="ojo">TRASPASOS · MAESTRO · CD38 AG01</p><h1>Maestro</h1>
-<p class="sub">Los puntos y los tipos de viaje son datos de este centro, no código: el día que abran una bodega nueva nadie debería esperar un despliegue. Lo que alguien escribe a mano en el registro aparece aquí para agregarlo de un toque.</p></div>
-<div class="panel-ojo"><div class="corte"></div>
-<div class="rot">SITIOS DETECTADOS SIN AGREGAR</div><div class="num">3</div>
-<div class="pie">escritos a mano <b>19 veces</b> esta semana</div></div></section>
+<p class="sub">Los puntos, los tipos, las placas y las rutas son datos de este centro, no código: el día que abran una bodega nueva o entre un vehículo nuevo, nadie debería esperar un despliegue. Lo que se agrega aquí es lo que se puede escoger al registrar.</p></div>
+</section>
 
 <section class="maestro">
 <div class="caja-m">
 <div class="cab-m"><h2>Puntos <em>6</em></h2><p>De dónde sale y a dónde llega un viaje.</p></div>
-<div class="sugerido"><div class="rot">ESCRITOS A MANO EN EL REGISTRO</div>
-<p>Todavía no están en el maestro. Agrégalos y dejan de escribirse distinto cada vez.</p>
-<div class="sug-chips">
-<div class="sug"><b>Bodega de averías</b><span>· 9 veces</span><button>Agregar</button></div>
-<div class="sug"><b>Muelle 2</b><span>· 7 veces</span><button>Agregar</button></div>
-<div class="sug"><b>Patio norte</b><span>· 3 veces</span><button>Agregar</button></div>
-<div class="sug"><b>BodegaDeAveriasDelPatioNorteMuyLarga</b><span>· 2 veces</span><button>Agregar</button></div>
-</div></div>
 <form class="agregar-m"><input placeholder="Nombre del punto — Ag01, Planta, Patio…"><button>Agregar</button></form>
 ${PUNTOS.map(p=>item(...p)).join("")}
 </div>
@@ -52,6 +42,21 @@ ${PUNTOS.map(p=>item(...p)).join("")}
 <div class="cab-m"><h2>Tipos de viaje <em>9</em></h2><p>Qué se mueve. Un tipo apagado no se borra: las planeaciones viejas lo siguen nombrando, solo deja de poderse escoger.</p></div>
 <form class="agregar-m"><input placeholder="Nombre del tipo"><button>Agregar</button></form>
 ${TIPOS.map(t=>item(...t)).join("")}
+</div>
+
+<div class="caja-m">
+<div class="cab-m"><h2>Placas <em>4</em></h2><p>Los vehículos que se pueden escoger al registrar. Se guardan sin espacios ni guiones y en mayúsculas.</p></div>
+<form class="agregar-m"><input placeholder="Placa — ABC123"><button>Agregar</button></form>
+${[["ABC123","Tractomula de Summar",142,1],["BHG156","Turbo propio",96,1],
+   ["UYT569","",44,1],["CGV589","sin uso",0,0]].map(p=>item(...p)).join("")}
+</div>
+
+<div class="caja-m">
+<div class="cab-m"><h2>Rutas <em>3</em></h2><p>Un par de puntos, no un texto: por eso el informe por punto y el informe por ruta siempre cuadran.</p></div>
+<form class="agregar-m ruta-nueva"><input placeholder="De dónde sale"><span class="fl">→</span>
+<input placeholder="A dónde va"><button>Agregar</button></form>
+${[["Ag01 → Planta Barranquilla","",142,1],["Planta Barranquilla → Ag01","",98,1],
+   ["Ag01 → CD Santa Marta","",0,0]].map(r=>item(...r)).join("")}
 </div>
 </section>
 

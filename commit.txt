@@ -1,68 +1,52 @@
-Traspasos: maestro de placas y de rutas, y se escogen de lista
+Traspasos: fuera la franja de escritos a mano, y la ruta se arma aqui
 
-La placa y la ruta se escribian a mano. Las listas de "placas
-recientes" y "rutas frecuentes" ayudaban, pero salian de lo ya
-registrado: si alguien tecleo mal una vez, la equivocacion entra en la
-lista y se vuelve a ofrecer para siempre. Un maestro corta ese circulo.
+DOS COSAS DE LA MISMA PANTALLA.
 
-UNA RUTA ES UN PAR DE PUNTOS DEL MAESTRO, no un texto aparte. Con texto
-libre serian dos listas que hay que mantener parejas, y el dia que no lo
-esten el informe por punto y el informe por ruta dan distinto sin que
-nadie sepa cual creer. Atadas por llave foranea eso no puede pasar — y
-borrar un punto se lleva sus rutas en vez de dejarlas apuntando al vacio.
+1. LA FRANJA DE "ESCRITOS A MANO" SE VA, y no por gusto: quedo obsoleta
+   el mismo dia que Registrar paso a escoger del maestro. Existia porque
+   el registro dejaba teclear el sitio; ahora por ahi no entra nada
+   nuevo, asi que la franja solo podia mostrar restos viejos —en la base
+   de pruebas, letras sueltas: o, b, j, a, v—. Se va tambien su CSS y la
+   cifra dorada de la cabecera que la contaba. Se borra en vez de
+   dejarlo apagado: el codigo muerto es lo que el mes que viene alguien
+   "arregla" sin saber para que era.
 
-LOS DOS MAESTROS NACEN LLENOS, sembrados con lo que ya se venia usando.
-Un maestro vacio el primer dia es un maestro que nadie llena: quien
-llega a registrar a las cinco de la mañana no va a cargar cuarenta
-placas antes de mover el primer camion. La siembra corre SOLO la primera
-vez: un `on conflict do nothing` a secas resucitaria, en cada corrida,
-las placas que alguien borro a proposito.
+   LO QUE SE QUEDA es la seccion de posibles duplicados. Los restos
+   viejos siguen ahi y mientras esten sueltos no cuentan en ningun
+   informe por punto; unirlos con el punto al que pertenecen sigue
+   haciendo falta.
 
-AL REGISTRAR SE ESCOGE, NO SE ESCRIBE. La placa es un desplegable —y se
-sigue viendo grande, porque es lo que quien esta al lado del vehiculo
-compara con el papel—. La ruta es UN solo desplegable en vez de dos
-campos: un toque en vez de dos escrituras que pueden no existir.
+2. EN RUTAS SE PUEDE AGREGAR, punto. Antes, con menos de dos puntos, la
+   caja decia "faltan puntos" y no dejaba hacer nada: mandaba a la
+   persona a otra caja a hacer dos cosas para poder volver a hacer una.
+   Y encima salian dos mensajes de vacio pegados, uno debajo del otro.
 
-Y CADA UNO TRAE UN «+». Nadie se queda parado en el muelle esperando a
-que alguien con permiso entre al Maestro; lo que se agrega asi es
-exactamente lo que de verdad se usa. Pide el mismo rol que registrar un
-viaje: quien puede registrar puede agregar. Exigir mas seria devolver el
-problema que esto resuelve.
+   Ahora son dos campos que se escriben o se escogen de la lista, y EL
+   PUNTO QUE FALTE SE CREA SOLO: lo que alguien quiere decir es "de aqui
+   a alla", no "primero vaya a registrar dos sitios". Se avisa cuando
+   pasa: "Ag01 → Muelle 2 quedo en rutas. Y Muelle 2 se agrego a Puntos".
 
-VOLTEAR LA RUTA solo se ofrece si la vuelta EXISTE en el maestro. Antes
-era darle la vuelta a dos textos; ahora seria ofrecer una ruta que el
-maestro no tiene, asi que el boton se apaga y lo dice.
+Y UN TERCERO QUE SALIO DE MIRAR LA FOTO: los botones "Agregar" salian
+con letra roja sobre la banda verde oscura. Medido, 1,7 de contraste en
+los temas oficial y pizarra — practicamente invisible. No lo cause hoy:
+el acento y la banda (--c-grupo) son tokens INDEPENDIENTES y nada
+garantiza que contrasten; en negro daban 6,9 y por eso nunca se noto.
 
-LA PLACA SE NORMALIZA CON LA MISMA REGLA de traspaso_registrar —sin
-espacios ni guiones, en mayusculas—. Si fueran dos reglas, el maestro y
-los viajes se irian separando de a una placa por vez. Y se dice COMO
-quedo guardada: normalizar en silencio es la manera mas rapida de que
-alguien jure que escribio otra cosa.
+  --tp-sobre-grupo: el acento aclarado, para lo que va ENCIMA de la
+  banda. El porcentaje sale de medir y no de mirar: al 55% daba 3,0 y al
+  30% daba 3,9 en pizarra, cuya banda no es oscura sino un verde medio
+  (#0e7490). Al 15% los siete pasan de 4,5. Es el mismo arreglo que ya
+  tenia Roturas.
 
-UN BUG QUE ME ATRAPE A MI MISMO: v_traspasos_uso gano las clases `placa`
-y `ruta`, y el lector en TypeScript decia "si es tipo va aqui, si no, a
-puntos". Con las clases nuevas, una placa habria contado como punto — el
-Maestro diria que Ag01 tiene viajes que no son suyos y ofreceria borrar
-lo que no debe. Ahora hay una rama por clase.
+Afecta a cinco sitios que tenian el mismo patron: el boton Agregar, el
+boton HOY, el punto que gana en duplicados, la cabecera "Dia" de la
+rejilla del plan y el control segmentado de Registrar — el que en la
+foto se leia "Viaje con carga" en rojo sobre gris oscuro.
 
-PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas del archivo, y
-como usuario NO superusuario para que RLS aplique:
+MEDIDO EN LOS SIETE TEMAS, ocho pares criticos cada uno:
 
-   1 la placa se normaliza: "  bhg-156 " -> BHG156 ..... ok
-   2 placa muy corta se rechaza ......................... ok
-   3 agregar la misma no duplica y la reactiva ........... ok
-   4 ruta por NOMBRE de punto, no solo por clave ......... ok
-   5 ruta al mismo sitio se rechaza ...................... ok
-   6 punto inventado se rechaza .......................... ok
-   7 ruta repetida no duplica ............................ ok
-   8 el uso cuenta placas y rutas aparte ................. ok
-   9 reordenar con lista parcial se rechaza .............. ok
-  10 borrar un punto se lleva sus rutas, 0 huerfanas ..... ok
-  11 un operador no puede agregar placa ni ruta .......... ok
-  12 ni por la tabla directo: RLS no deja ................ ok
+  oficial 4,8   tinta 8,8   pizarra 4,6   ambar 8,4
+  negro 9,7     gris 9,0    halo 9,7
 
-MEDIDO CON PLAYWRIGHT a 1440 / 820 / 390 / 360 px: Registrar y Maestro
-limpios en los cuatro.
-
-PASO 1 — correr en Supabase:
-  supabase/migraciones/2026-09-traspasos-placas-rutas.sql
+Y con Playwright a 1440 / 820 / 390 / 360 px: las cinco pantallas del
+modulo limpias en los cuatro anchos.
