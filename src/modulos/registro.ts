@@ -123,12 +123,15 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Tablero", ruta: "/quiebra" },
       { nombre: "Quiebra diaria", ruta: "/quiebra/diario" },
-      /* ROTURA DE LÍNEA vive dentro de Quiebra y no aparte: es una
-         pérdida de material como las otras, solo que se mide contra la
-         producción en vez de contra el inventario. */
+      { nombre: "Importar", ruta: "/quiebra/importar" },
+      /* ROTURA DE LÍNEA VA DE ÚLTIMA, y el maestro detrás de ella.
+         Vive dentro de Quiebra —es una pérdida de material como las
+         otras, solo que medida contra la producción en vez de contra el
+         inventario— pero es su propio flujo: quien entra a Quiebra va al
+         tablero, al día a día y a importar. Meterla en medio partía en
+         dos lo que se lee de corrido. */
       { nombre: "Rotura de línea", ruta: "/quiebra/rotura" },
       { nombre: "Maestro de rotura", ruta: "/quiebra/rotura/maestro" },
-      { nombre: "Importar", ruta: "/quiebra/importar" },
     ],
   },
   {

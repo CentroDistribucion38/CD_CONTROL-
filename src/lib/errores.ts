@@ -29,8 +29,36 @@
  *
  * Cada módulo puede tener más de un prefijo: Roturas escribe tanto
  * "rotura_" como "salida_", porque son sus dos submódulos.
+ *
+ * EL ORDEN IMPORTA: gana el primero que case, así que lo específico va
+ * ANTES que lo general. `rotlinea_firmar` tiene que dar la migración de
+ * la firma, no el archivo del módulo entero — mandar a correr un
+ * archivo de setecientas líneas para que falta una función de veinte es
+ * hacer perder el tiempo con cara de estar ayudando.
  */
 const PREFIJOS: [RegExp, string][] = [
+  /* Rotura de línea: el módulo y sus migraciones, de lo fino a lo grueso. */
+  [/\b(rotlinea_firmas?|rotlinea_firmar|rotlinea_quitar_firma|v_rotlinea_firmas)/,
+   "supabase/migraciones/2026-09-rotura-linea-firma.sql"],
+  [/\bv_rotlinea_uso/, "supabase/migraciones/2026-09-rotura-linea-maestro.sql"],
+  [/\b(rotlinea_|v_rotlinea)/, "supabase/modulos/rotura-linea.sql"],
+
+  /* Traspasos, igual: lo fino antes que lo grueso. Este módulo faltaba
+     entero en la lista y mandaba al mensaje genérico —el que dice "el
+     archivo del módulo" y deja a quien lo lee con la mitad del trabajo. */
+  [/\b(traspaso_editar_viaje|traspasos_viajes_ediciones)/,
+   "supabase/migraciones/2026-09-traspasos-editar-viaje.sql"],
+  [/\btraspaso_borrar_plan/, "supabase/migraciones/2026-09-traspasos-borrar-plan.sql"],
+  [/\b(traspasos_placas|traspaso_agregar_placa|traspaso_ordenar_placas)/,
+   "supabase/migraciones/2026-09-traspasos-placas.sql"],
+  [/\b(traspaso_plan_a_varios|traspaso_dias_con_plan)/,
+   "supabase/migraciones/2026-09-traspasos-plan-varios-dias.sql"],
+  [/\b(traspaso_parecido|traspaso_unir_punto|traspaso_agregar_punto|v_traspasos_uso)/,
+   "supabase/migraciones/2026-09-traspasos-maestro.sql"],
+  [/\b(traspasos_plan_vacios|traspaso_guardar_plan|traspaso_publicar_plan)/,
+   "supabase/migraciones/2026-09-traspasos-plan-rejilla.sql"],
+  [/\b(traspasos?_|v_traspasos)/, "supabase/modulos/traspasos.sql"],
+
   [/\b(roturas?_|salida_|v_roturas)/, "supabase/modulos/roturas.sql"],
   [/\b(acciones?_|accion_)/, "supabase/modulos/acciones.sql"],
   [/\b(sider_|v_sider)/, "supabase/modulos/sider.sql"],
