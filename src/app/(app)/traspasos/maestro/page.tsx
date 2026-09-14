@@ -11,12 +11,19 @@ export const dynamic = "force-dynamic";
 export default async function MaestroPage() {
   const [permisos, t, pts, falt, uso] = await Promise.all([
     misPermisos(),
-    /* Los DESACTIVADOS también: si no, al desactivar uno desaparecería
-       de la única pantalla donde se puede volver a activar. */
+    /* Los APAGADOS también: si no, al apagar uno desaparecería de la
+       única pantalla donde se puede volver a prender. */
     leerTipos(false), leerPuntos(false), puntosFaltantes(), usoDelMaestro(),
   ]);
 
   if (t.falta) return <div className="tp"><SinTablas /></div>;
+
+  /* LA CIFRA DE ARRIBA ES LA QUE MUEVE A ALGUIEN. No "6 puntos" —eso
+     ya se ve en la lista— sino cuántos sitios se están escribiendo a
+     mano sin estar en el maestro, que es trabajo que se está haciendo
+     de más y un informe que no va a cuadrar. */
+  const nuevos = falt.filter((f) => !f.parecido);
+  const semana = nuevos.reduce((a, f) => a + f.veces_semana, 0);
 
   return (
     <div className="tp">
@@ -25,12 +32,24 @@ export default async function MaestroPage() {
           <p className="ojo">TRASPASOS · MAESTRO · CD38 AG01</p>
           <h1>Maestro</h1>
           <p className="sub">
-            Los tipos de viaje y los puntos son datos, no código: el día que abran una bodega
-            nueva nadie debería esperar un despliegue. Lo que se escribió a mano en el registro
-            aparece arriba para agregarlo de un toque — es lo que impide que «Ag01», «AG-01» y
-            «ag 01» terminen siendo tres sitios distintos.
+            Los puntos y los tipos de viaje son datos de este centro, no código: el día que
+            abran una bodega nueva nadie debería esperar un despliegue. Lo que alguien escribe
+            a mano en el registro aparece aquí para agregarlo de un toque.
           </p>
         </div>
+
+        {nuevos.length > 0 && (
+          <div className="panel-ojo">
+            <div className="corte" />
+            <div className="rot">SITIOS DETECTADOS SIN AGREGAR</div>
+            <div className="num">{nuevos.length}</div>
+            <div className="pie">
+              {semana > 0
+                ? <>escritos a mano <b>{semana} {semana === 1 ? "vez" : "veces"}</b> esta semana</>
+                : <>ninguno se escribió esta semana</>}
+            </div>
+          </div>
+        )}
       </section>
 
       <Maestro tipos={t.tipos} puntos={pts} faltantes={falt} uso={uso}

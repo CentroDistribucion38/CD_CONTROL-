@@ -1191,3 +1191,138 @@ PROBADO CONTRA POSTGRES 16 REAL, dos corridas del archivo:
 
 MEDIDO CON PLAYWRIGHT a 1440, 820, 390 y 360 px: ninguna de las tres
 pantallas desplaza la pagina a lo ancho.
+
+TRASPASOS · EL MAESTRO SE DEFIENDE SOLO.
+
+El registro deja escribir un sitio a mano cuando todavia no esta en el
+maestro. Eso esta bien —no se traba a nadie— pero deja un rastro:
+viajes con texto y sin punto, que NO cuentan en ningun informe por
+punto. Al mes "Ag01" tiene 142 viajes, "AG-01" tiene 4 sueltos, y la
+suma por punto no cuadra con el total. La pantalla vieja mostraba lo
+escrito a mano y ofrecia agregarlo; faltaba la otra mitad.
+
+1. AGREGAR AHORA ADOPTA. Al agregar un punto que ya se venia escribiendo
+   a mano, los viajes viejos que lo nombraban pasan a apuntarlo. Antes
+   se insertaba la fila y ya: el contador de "sin agregar" bajaba y el
+   informe seguia partido exactamente igual. Se dice cuantos se llevo
+   —"quedo en el maestro y se llevo 9 viajes que estaban sueltos"—
+   porque "OK" no cuenta nada.
+
+2. POSIBLES DUPLICADOS. Un texto suelto que se parece a un punto que ya
+   existe —"Planta Bquilla" contra "Planta Barranquilla"— se ofrece
+   para unir, con los viajes de cada escritura a la vista. UNIR NO
+   BORRA NADA: le pone el punto al viaje y le quita el texto. El viaje
+   sigue siendo el mismo; lo unico que cambia es que ahora cuenta.
+
+   LO QUE NO HACE, dicho a proposito: no une dos puntos del maestro
+   entre si. Eso si seria destructivo —habria que borrar una fila que
+   los viajes referencian— y ademas no es el caso que se da: los
+   duplicados nacen como texto suelto, no como dos puntos creados a
+   mano con el mismo nombre.
+
+COMO SE DECIDE QUE DOS TEXTOS SON EL MISMO SITIO. Sin acentos, sin
+espacios ni guiones, en mayusculas; y si aun asi no son iguales, se
+miden por trigramas —cuantos pedazos de tres letras comparten—.
+
+  "Planta Bquilla" vs "Planta Barranquilla" ... 0.57  -> el mismo
+  "CD Galapa"      vs "CD Turbaco" ............ 0.12  -> distintos
+
+CON UNA EXCEPCION QUE IMPORTA: si dos textos son iguales salvo por el
+numero, son sitios distintos. "Muelle 2" y "Muelle 3" se parecen en
+0.60 y no son el mismo muelle. Unirlos borraria una distincion real, y
+como el informe los sumaria nadie se daria cuenta.
+
+LOS TRIGRAMAS SE ESCRIBEN A MANO, sin pg_trgm. Esa funcion viene de una
+extension que hay que habilitar, y una deteccion que existe en la base
+de pruebas pero no en la de produccion es peor que no tenerla. Son doce
+lineas y no dependen de nada.
+
+Y traspaso_punto() —la que resuelve lo que se escribe al registrar— se
+arregla de paso: comparaba SOLO contra la clave, asi que renombrar un
+punto hacia que su nombre nuevo dejara de reconocerse, y no quitaba
+acentos, asi que quien escribia "Bogota" con tilde no caia en el punto.
+
+RENDIMIENTO, MEDIDO Y CORREGIDO. La primera version de la vista tardaba
+2.550 ms con 52.000 viajes: comparaba cada texto suelto contra cada
+punto calculando trigramas, 2.400 veces. Ahora la regla pregunta
+primero lo barato —empiezan igual? uno esta dentro del otro?— y solo
+calcula trigramas para los que podrian serlo. Mas dos indices parciales
+sobre las columnas de texto suelto, que son pocas filas entre muchas.
+
+  2.550 ms -> 77 ms, con los mismos resultados.
+
+Y usoDelMaestro() deja de bajar tres columnas de la tabla de viajes
+entera al navegador para contarlas ahi —varios megabytes por cada vez
+que alguien abria el Maestro— y lee una vista con una fila por clave.
+Es el mismo error que ya se habia corregido en Acciones y en Roturas.
+
+LA PANTALLA, segun el diseno entregado: la cifra grande en dorado dice
+cuantos sitios se estan escribiendo a mano —no "6 puntos", que ya se ve
+en la lista, sino el trabajo que se esta haciendo de mas—, las dos
+listas lado a lado, la franja crema de lo escrito a mano DENTRO de la
+caja de puntos, interruptor por fila, y los duplicados abajo con filo
+rojo.
+
+  EL ORDEN SE ARRASTRA, y con eventos de puntero y no con la API de
+  arrastrar del navegador: esa no existe en un celular, y el maestro se
+  ordena tanto desde el escritorio como desde la tableta del muelle. Se
+  manda la lista COMPLETA en una sola llamada: renumerar solo una parte
+  deja dos filas con el mismo orden y sin error, que es la peor forma
+  de fallar.
+
+  EL INTERRUPTOR SE TOCA EN 40 px AUNQUE MIDA 22. Asi se ve un
+  interruptor, pero 22 px es menos de lo que acierta un dedo con guante.
+  El campo invisible se estira por arriba y por abajo sin cambiar el
+  dibujo ni empujar el renglon.
+
+  EL MENU DE LOS TRES PUNTOS —que el diseno mostraba sin decir que
+  llevaba dentro— trae cambiar el nombre (y el subtitulo), apagar o
+  prender, y borrar SOLO si nunca se uso. Si ya se uso, en vez del
+  boton va la razon: "ya lo nombran 43 viajes. Apagalo y deja de
+  poderse escoger". La base lo rechazaria igual por la llave foranea,
+  pero "violates foreign key constraint" no le explica nada a quien
+  esta mirando la pantalla.
+
+  Y UN BUG QUE SE HABRIA COLADO: la primera version cerraba el menu con
+  una escucha en document y cortaba el evento con stopPropagation de
+  React. React no cuelga sus escuchas de document sino de la raiz de la
+  app, asi que el corte no llegaba: el menu se cerraba antes que el
+  clic y NINGUNA opcion de adentro habria funcionado nunca. Se pregunta
+  por el nodo.
+
+EL SUBTITULO DEL PUNTO es columna nueva —"Bodega propia", "Planta",
+"Zona interna"—. En una lista de veinte puntos es lo que distingue "CD
+Galapa" de "Galapa (planta)" sin meterlo dentro del nombre, que es lo
+que termina pasando cuando no hay donde escribirlo. Si esta vacia se
+dice si el punto es de adentro o de afuera del centro.
+
+LA PANTALLA NO SE MUERE SI FALTA EL SQL. La lista de puntos se pide con
+* y no por columnas: pedir `descripcion` por nombre dejaria el modulo
+entero vacio hasta correr la migracion. Si falta la funcion de agregar,
+se cae al insert de antes y se dice que archivo correr. Si falta la
+vista de uso, todo dice "—" y no se ofrece borrar nada: ofrecer
+"borrar" sabiendo 0 cuando no se sabe es ofrecer un error.
+
+PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas del archivo, y
+como usuario NO superusuario para que RLS de verdad aplique:
+
+   1 unir "AG-01" en Ag01: 4 viajes ................. ok
+   2 unir "Planta Bquilla": 6 viajes ................ ok
+   3 agregar "Bodega de averias" adopta 9 ........... ok
+   4 los adoptados desaparecen de la lista .......... ok
+   5 el uso por punto sube con lo adoptado .......... ok
+   6 "Muelle 3" NO se ofrece unir con "Muelle 2" .... ok
+   7 reordenar deja 1..n sin repetir ................ ok
+   8 una lista parcial se rechaza ................... ok
+   9 un nombre sin letras se rechaza ................ ok
+  10 agregar uno que ya existe se rechaza ........... ok
+  11 un operador no puede unir, ordenar ni agregar .. ok
+  12 ni por la tabla directo: RLS no deja ........... ok
+
+MEDIDO CON PLAYWRIGHT a 1440 / 820 / 390 / 360 px: los cuatro anchos
+limpios, sin desborde horizontal y sin controles por debajo de 30 px.
+
+Y un bug del propio medidor, que vale la pena anotar: contaba como
+desborde la cuña del panel dorado, que se sale de su recuadro a
+proposito y queda recortada por overflow:hidden. Un adorno recortado no
+empuja nada. Ahora se pregunta por los ancestros antes de acusar.

@@ -764,3 +764,230 @@
   .tp .ruta .voltear { height: 42px }
   .tp .placa input { height: 60px; font-size: 30px }
 }
+
+/* =====================================================================
+   EL MAESTRO
+   ---------------------------------------------------------------------
+   Dos columnas —puntos y tipos— porque son dos listas que se miran a la
+   vez y ninguna es más importante. Debajo, los posibles duplicados:
+   van al final y no arriba porque son los que la persona revisa después
+   de agregar, no antes.
+
+   LAS DOS COLUMNAS LLEVAN min-width: 0. Un hijo de rejilla nace con
+   min-width: auto y estira su columna hasta donde llegue su contenido
+   más largo: un nombre de punto sin espacios empujaría la página de
+   lado en el celular.
+   ===================================================================== */
+.tp .maestro { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start }
+.tp .maestro > * { min-width: 0 }
+
+.tp .caja-m {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-radius: 3px; overflow: hidden; min-width: 0;
+}
+.tp .caja-m .cab-m { padding: 16px 18px 13px; border-bottom: 1px solid var(--tp-linea) }
+.tp .caja-m h2 {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 17px; margin: 0;
+  letter-spacing: -.02em; display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+}
+.tp .caja-m h2 em {
+  font-style: normal; background: var(--tp-fondo); color: var(--tp-gris);
+  font-family: var(--tp-texto); font-weight: 600; font-size: 12px;
+  padding: 3px 8px; border-radius: 3px;
+}
+.tp .caja-m .cab-m p { margin: 6px 0 0; font-size: 12.5px; color: var(--tp-gris); line-height: 1.5 }
+
+/* ---------- La franja de lo escrito a mano ----------
+   Va DENTRO de la caja de puntos y con fondo propio: no es un aviso
+   suelto, es la parte de la lista que todavía no es lista. */
+.tp .sugerido {
+  background: color-mix(in srgb, var(--tp-ojo) 11%, #fff);
+  border-bottom: 1px solid color-mix(in srgb, var(--tp-ojo) 45%, #fff);
+  padding: 14px 18px;
+}
+.tp .sugerido .rot {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .13em;
+  color: color-mix(in srgb, var(--tp-ojo) 72%, #000);
+}
+.tp .sugerido p {
+  font-size: 12.5px; margin: 5px 0 0; line-height: 1.5;
+  color: color-mix(in srgb, var(--tp-ojo) 62%, #000);
+}
+.tp .sug-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px }
+.tp .sug {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  background: var(--tp-papel);
+  border: 1.5px solid color-mix(in srgb, var(--tp-ojo) 55%, #fff);
+  border-radius: 3px; padding: 5px 6px 5px 11px; font-size: 13px; font-weight: 600;
+}
+.tp .sug > b { font-weight: 600; min-width: 0; overflow-wrap: anywhere }
+.tp .sug span {
+  font-weight: 400; font-size: 11.5px; white-space: nowrap;
+  color: color-mix(in srgb, var(--tp-ojo) 65%, #000);
+}
+.tp .sug button {
+  border: 0; border-radius: 2px; cursor: pointer; white-space: nowrap;
+  background: var(--tp-ojo); color: var(--tp-sobre-ojo);
+  padding: 6px 11px; font: 800 11.5px var(--tp-titulo); min-height: 30px;
+}
+.tp .sug button:hover { background: var(--tp-tinta); color: var(--tp-papel) }
+.tp .sug button:disabled { opacity: .5; cursor: not-allowed }
+
+/* ---------- Agregar ---------- */
+.tp .agregar-m {
+  display: flex; gap: 9px; padding: 14px 18px; border-bottom: 1px solid var(--tp-linea);
+}
+.tp .agregar-m input {
+  font: inherit; font-size: 16px; flex: 1 1 140px; min-width: 0; min-height: 46px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; padding: 0 13px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .agregar-m input:focus {
+  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+.tp .agregar-m button {
+  min-height: 46px; padding: 0 18px; border: 0; border-radius: 3px; cursor: pointer;
+  background: var(--c-grupo); color: var(--tp-ojo); font: 800 13px var(--tp-titulo);
+  white-space: nowrap;
+}
+.tp .agregar-m button:hover:not(:disabled) { background: var(--tp-ojo); color: var(--tp-sobre-ojo) }
+.tp .agregar-m button:disabled { opacity: .45; cursor: not-allowed }
+
+/* ---------- Un renglón del maestro ---------- */
+.tp .item {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 38px 30px;
+  gap: 10px; align-items: center; padding: 10px 18px;
+  border-bottom: 1px solid var(--tp-fondo);
+}
+.tp .item:last-child { border-bottom: 0 }
+.tp .item > * { min-width: 0 }
+.tp .item:hover { background: color-mix(in srgb, var(--tp-ojo) 5%, #fff) }
+.tp .item.arrastrando {
+  background: color-mix(in srgb, var(--tp-ojo) 16%, #fff);
+  box-shadow: inset 3px 0 0 var(--tp-ojo);
+}
+.tp .item .asa {
+  cursor: grab; opacity: .4; display: grid; place-items: center;
+  background: none; border: 0; padding: 0; min-height: 30px;
+  /* Sin esto, arrastrar en el celular hace rodar la página en vez de
+     mover el renglón. */
+  touch-action: none;
+}
+.tp .item .asa:hover { opacity: .9 }
+.tp .item .asa svg {
+  width: 15px; height: 15px; stroke: var(--tp-gris);
+  stroke-width: 2.6; stroke-linecap: round; fill: none;
+}
+.tp .item .nom b { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere }
+.tp .item .nom span { display: block; font-size: 11.5px; color: var(--tp-gris); margin-top: 1px }
+.tp .item .uso {
+  font-size: 12px; color: var(--tp-gris); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.tp .item.apagado { background: var(--tp-fondo) }
+.tp .item.apagado .nom b { color: var(--tp-gris); text-decoration: line-through }
+
+/* El interruptor. Es un <input> de verdad debajo: se enfoca con el
+   teclado y se prende con la barra espaciadora como cualquier casilla. */
+.tp .sw { position: relative; display: inline-block; width: 38px; height: 22px; cursor: pointer }
+/* LA ZONA QUE SE TOCA ES MÁS ALTA QUE LA QUE SE VE. El riel mide 22 px
+   —así se ve un interruptor— pero 22 px es menos de lo que acierta un
+   dedo con guante en la tableta del muelle. El <input> se estira 9 px
+   por arriba y por abajo: 40 px de blanco para tocar, sin cambiar el
+   dibujo ni empujar el renglón. */
+.tp .sw input {
+  position: absolute; left: 0; top: -9px; width: 100%; height: 40px;
+  opacity: 0; margin: 0; cursor: pointer;
+}
+.tp .sw i {
+  position: absolute; inset: 0; background: color-mix(in srgb, var(--tp-gris) 45%, #fff);
+  border-radius: 20px; transition: background .15s; pointer-events: none;
+}
+.tp .sw i::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; transition: transform .15s;
+}
+.tp .sw input:checked + i { background: var(--tp-ojo) }
+.tp .sw input:checked + i::after { transform: translateX(16px) }
+.tp .sw input:focus-visible + i { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 40%, transparent) }
+.tp .sw input:disabled { cursor: not-allowed }
+.tp .sw input:disabled + i { opacity: .45 }
+
+/* El menú de los tres puntos. */
+.tp .mas { position: relative; justify-self: end }
+.tp .mas > button {
+  border: 0; background: none; cursor: pointer; color: var(--tp-gris);
+  font-size: 17px; line-height: 1; min-height: 30px; min-width: 28px; border-radius: 3px;
+}
+.tp .mas > button:hover { color: var(--tp-tinta); background: var(--tp-fondo) }
+.tp .mas .menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 190px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  box-shadow: 0 20px 40px -22px rgba(0, 0, 0, .5); padding: 4px 0;
+}
+.tp .mas .menu::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--tp-ojo);
+}
+.tp .mas .menu button {
+  display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
+  font: 500 13.5px var(--tp-texto); color: var(--tp-tinta); padding: 10px 13px; min-height: 40px;
+}
+.tp .mas .menu button:first-child { margin-top: 3px }
+.tp .mas .menu button:hover { background: var(--tp-fondo) }
+.tp .mas .menu button.mal { color: var(--tp-mal) }
+.tp .mas .menu button:disabled { opacity: .45; cursor: not-allowed }
+.tp .mas .menu .nota {
+  padding: 9px 13px; font-size: 11.5px; color: var(--tp-gris); line-height: 1.45;
+  border-top: 1px solid var(--tp-fondo); margin-top: 3px;
+}
+
+/* ---------- Posibles duplicados ---------- */
+.tp .duplicados {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-left: 4px solid var(--tp-mal); border-radius: 3px; padding: 18px 20px; min-width: 0;
+}
+.tp .duplicados h3 { font-family: var(--tp-titulo); font-weight: 800; font-size: 16px; margin: 0 }
+.tp .duplicados > p {
+  font-size: 13px; color: var(--tp-gris); margin: 6px 0 0; line-height: 1.55; max-width: 70ch;
+}
+.tp .par-dup {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  padding: 13px 0; border-bottom: 1px solid var(--tp-fondo);
+}
+.tp .par-dup:last-child { border-bottom: 0 }
+.tp .par-dup .tx {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 14px;
+  background: var(--tp-fondo); padding: 6px 11px; border-radius: 3px;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.tp .par-dup .tx.gana { background: var(--c-grupo); color: var(--tp-ojo) }
+.tp .par-dup .cuantos { font-size: 12px; color: var(--tp-gris); white-space: nowrap }
+.tp .par-dup .fl { color: var(--tp-gris) }
+.tp .par-dup .unir {
+  margin-left: auto; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+  border-radius: 3px; padding: 0 15px; min-height: 40px; cursor: pointer;
+  font: 600 13px var(--tp-texto); color: var(--tp-tinta); white-space: nowrap;
+}
+.tp .par-dup .unir:hover:not(:disabled) {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 8%, #fff);
+}
+.tp .par-dup .unir:disabled { opacity: .5; cursor: not-allowed }
+
+@media (max-width: 900px) {
+  .tp .maestro { grid-template-columns: 1fr }
+}
+@media (max-width: 480px) {
+  /* En el celular el nombre se lleva el renglón y el resto se va abajo:
+     cinco columnas en 360 px dejarían el nombre en una tira de letras
+     de una en una. */
+  .tp .item {
+    grid-template-columns: 20px minmax(0, 1fr) 38px 30px;
+    row-gap: 4px;
+  }
+  .tp .item .asa { grid-column: 1; grid-row: 1 }
+  .tp .item .nom { grid-column: 2; grid-row: 1 }
+  .tp .item .uso { grid-column: 2; grid-row: 2 }
+  .tp .item .sw  { grid-column: 3; grid-row: 1 / span 2 }
+  .tp .item .mas { grid-column: 4; grid-row: 1 / span 2 }
+  .tp .par-dup .unir { margin-left: 0; width: 100% }
+}

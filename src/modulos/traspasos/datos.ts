@@ -24,6 +24,9 @@ export type TipoViaje = {
 export type Punto = {
   clave: string; nombre: string; externo: boolean;
   activo: boolean; orden: number | null;
+  /** El subtítulo: "Bodega propia", "Planta", "Zona interna". Lo que
+   *  distingue dos puntos parecidos sin meterlo dentro del nombre. */
+  descripcion: string | null;
 };
 
 export type Viaje = {
@@ -88,7 +91,24 @@ export type Control = {
   cumplimiento: number | null;
 };
 
-export type PuntoFaltante = { texto: string; veces: number; ultima: string };
+/**
+ * UN SITIO ESCRITO A MANO EN EL REGISTRO.
+ *
+ * Viene con la mitad que faltaba: si se parece a un punto que YA está
+ * en el maestro (`parecido`), no es un sitio nuevo sino el mismo mal
+ * escrito, y el botón que hay que ofrecer es "unir", no "agregar".
+ */
+export type PuntoFaltante = {
+  texto: string;
+  veces: number;
+  /** De los últimos siete días. Es la cifra que pesa: "19 veces esta
+   *  semana" mueve a alguien; "19 veces desde siempre", no. */
+  veces_semana: number;
+  ultima: string;
+  parecido: string | null;
+  parecido_nombre: string | null;
+  parecido_viajes: number | null;
+};
 
 function sinTablas(msg: string | undefined) {
   const t = (msg ?? "").toLowerCase();
@@ -112,8 +132,12 @@ export async function tipos(soloActivos = true) {
 
 export async function puntos(soloActivos = true) {
   const supabase = await createClient();
-  let q = supabase.from("traspasos_puntos")
-    .select("clave, nombre, externo, activo, orden");
+  /* `*` y no la lista de columnas a propósito: `descripcion` la agrega
+     una migración posterior, y pedirla por nombre haría que el módulo
+     entero se viera vacío hasta que se corra. La tabla es el maestro
+     —decenas de filas, no miles—, así que traer una columna de más no
+     cuesta nada. */
+  let q = supabase.from("traspasos_puntos").select("*");
   if (soloActivos) q = q.eq("activo", true);
   const { data } = await q.order("orden", { ascending: true, nullsFirst: false });
   return (data ?? []) as Punto[];
@@ -182,32 +206,53 @@ export async function vaciosRango(desde: string, hasta: string) {
  */
 export async function puntosFaltantes() {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("v_traspasos_puntos_faltantes").select("texto, veces, ultima");
-  return (data ?? []) as PuntoFaltante[];
+  const { data, error } = await supabase
+    .from("v_traspasos_puntos_faltantes").select("*")
+    .order("veces", { ascending: false });
+  if (error) return [] as PuntoFaltante[];
+  return (data ?? []).map((f) => ({
+    texto: f.texto as string,
+    veces: (f.veces ?? 0) as number,
+    /* La vista vieja no traía estas tres. Si todavía es la que está
+       corriendo, la pantalla se ve completa igual: sin semana y sin
+       pareja, que es exactamente lo que había antes. */
+    veces_semana: (f.veces_semana ?? 0) as number,
+    ultima: f.ultima as string,
+    parecido: (f.parecido ?? null) as string | null,
+    parecido_nombre: (f.parecido_nombre ?? null) as string | null,
+    parecido_viajes: (f.parecido_viajes ?? null) as number | null,
+  })) as PuntoFaltante[];
 }
 
-/** Cuántas veces se usó cada clave del maestro. Decide si se puede
- *  borrar o solo desactivar. La cuenta la hace la base. */
+/**
+ * CUÁNTOS VIAJES LLEVA CADA COSA DEL MAESTRO.
+ *
+ * Decide si un punto o un tipo se puede borrar o solo desactivar, y es
+ * la cifra que se ve en cada renglón.
+ *
+ * LA CUENTA LA HACE LA BASE, no el navegador. La versión anterior
+ * bajaba tres columnas de la tabla de viajes entera para contarlas
+ * aquí: con cincuenta mil viajes eran varios megabytes por cada vez
+ * que alguien abría el Maestro. La vista devuelve una fila por clave.
+ */
 export async function usoDelMaestro() {
   const supabase = await createClient();
-  const [t, po, pd] = await Promise.all([
-    supabase.from("traspasos_viajes").select("tipo"),
-    supabase.from("traspasos_viajes").select("origen"),
-    supabase.from("traspasos_viajes").select("destino"),
-  ]);
+  const { data, error } = await supabase
+    .from("v_traspasos_uso").select("clase, clave, viajes, ultima");
+
   const tipos: Record<string, number> = {};
   const pts: Record<string, number> = {};
-  for (const f of (t.data ?? []) as { tipo: string }[]) {
-    tipos[f.tipo] = (tipos[f.tipo] ?? 0) + 1;
+  const ultima: Record<string, string> = {};
+
+  if (error) return { tipos, puntos: pts, ultima, falta: true };
+
+  for (const f of (data ?? []) as
+       { clase: string; clave: string; viajes: number; ultima: string }[]) {
+    if (f.clase === "tipo") tipos[f.clave] = f.viajes;
+    else pts[f.clave] = f.viajes;
+    ultima[f.clase + ":" + f.clave] = f.ultima;
   }
-  for (const f of (po.data ?? []) as { origen: string | null }[]) {
-    if (f.origen) pts[f.origen] = (pts[f.origen] ?? 0) + 1;
-  }
-  for (const f of (pd.data ?? []) as { destino: string | null }[]) {
-    if (f.destino) pts[f.destino] = (pts[f.destino] ?? 0) + 1;
-  }
-  return { tipos, puntos: pts };
+  return { tipos, puntos: pts, ultima, falta: false };
 }
 
 

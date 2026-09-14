@@ -1,31 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import type { Punto, PuntoFaltante, TipoViaje } from "@/modulos/traspasos/datos";
 
 /**
- * EL MAESTRO: tipos de viaje y puntos.
+ * EL MAESTRO DE TRASPASOS.
  *
- * LO IMPORTANTE DE ESTA PANTALLA ES LA PRIMERA CAJA, no las listas.
- * Los puntos que alguien escribió a mano porque no estaban en la lista
- * aparecen arriba con cuántas veces se usaron, y se agregan de un
- * toque. Sin eso, el "se puede escribir otro" del registro sería la
- * puerta por la que el maestro se vacía solo: dentro de un mes habría
- * cuarenta escrituras distintas del mismo sitio y ningún informe por
- * ruta cuadraría.
+ * Dos listas —puntos y tipos— y, entre medio, lo único que impide que
+ * el maestro se vacíe solo: lo que la gente escribió a mano en el
+ * registro porque todavía no estaba en la lista.
+ *
+ * ESO SE PARTE EN DOS PREGUNTAS DISTINTAS, y esta pantalla es la que
+ * las separa:
+ *
+ *   ¿es un sitio NUEVO?     -> Agregar. Y al agregarlo, los viajes
+ *                              viejos que lo nombraban pasan a
+ *                              apuntarlo: si no, el contador baja y el
+ *                              informe por punto sigue partido.
+ *
+ *   ¿es el MISMO mal        -> Unir. Abajo, con las dos escrituras y
+ *    escrito?                  cuántos viajes lleva cada una a la
+ *                              vista, porque quien aprieta el botón
+ *                              tiene que poder ver que no se está
+ *                              comiendo un sitio de verdad.
  *
  * NADA SE BORRA SI YA SE USÓ. La base lo rechazaría igual por la llave
  * foránea, pero "violates foreign key constraint" no le explica nada a
- * quien está mirando la pantalla: decirlo antes —"usado en 43"— sí.
+ * quien está mirando la pantalla: decirlo antes —"usado en 43 viajes"—
+ * sí.
  */
+
+type Uso = {
+  tipos: Record<string, number>;
+  puntos: Record<string, number>;
+  ultima: Record<string, string>;
+  falta: boolean;
+};
+
+/** Es una lista del maestro: puntos o tipos. Los dos se pintan igual. */
+type Fila = {
+  clave: string;
+  nombre: string;
+  sub: string | null;
+  activo: boolean;
+  viajes: number;
+};
+
 export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
   tipos: TipoViaje[];
   puntos: Punto[];
   faltantes: PuntoFaltante[];
-  uso: { tipos: Record<string, number>; puntos: Record<string, number> };
+  uso: Uso;
   puedeEditar: boolean;
 }) {
   const router = useRouter();
@@ -36,24 +64,67 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
   const [nuevoPunto, setNuevoPunto] = useState("");
   const [nuevoTipo, setNuevoTipo] = useState("");
 
-  /** La clave a partir del nombre: sin acentos, sin espacios, en
-   *  mayúsculas. Se genera y no se pide, porque nadie debería tener que
-   *  inventarse un código para agregar "Patio de vacíos". */
-  function clave(nombre: string) {
-    return nombre.normalize("NFD").replace(/[̀-ͯ]/g, "")
-      .replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 40);
-  }
+  /* Los que no se parecen a nada: sitios nuevos. Los que sí: duplicados. */
+  const nuevos = faltantes.filter((f) => !f.parecido);
+  const dobles = faltantes.filter((f) => f.parecido);
+  const vecesSemana = nuevos.reduce((a, f) => a + f.veces_semana, 0);
 
-  async function agregarPunto(nombre: string) {
+  /* ------------------------------------------------------------------
+     AGREGAR UN PUNTO.
+
+     Va por la función y no por un insert directo porque la función es
+     la que adopta los viajes que ya venían nombrando ese sitio a mano.
+     Si la función todavía no está —falta correr la migración— se cae
+     al insert de antes en vez de dejar la pantalla muerta, y se dice
+     qué archivo falta.
+     ------------------------------------------------------------------ */
+  async function agregarPunto(nombre: string, sub?: string | null) {
     const n = nombre.trim();
     if (!n) return;
     setMandando(true);
+    const r = await supabase.rpc("traspaso_agregar_punto", {
+      p_nombre: n, p_descripcion: sub ?? null,
+    });
+    setMandando(false);
+
+    if (!r.error) {
+      const adoptados = (r.data as { adoptados: number }[] | null)?.[0]?.adoptados ?? 0;
+      setNuevoPunto("");
+      avisar.bien(
+        adoptados
+          ? `${n} quedó en el maestro y se llevó ${adoptados} viaje${adoptados === 1 ? "" : "s"} que estaban sueltos.`
+          : `${n} quedó en el maestro. Los viajes nuevos ya lo pueden escoger.`,
+      );
+      router.refresh();
+      return;
+    }
+
+    if (!faltaLaFuncion(r.error.message)) { avisar.mal(r.error.message); return }
+
     const { error } = await supabase.from("traspasos_puntos")
       .insert({ clave: clave(n), nombre: n });
-    setMandando(false);
     if (error) { avisar.mal(error.message); return }
     setNuevoPunto("");
-    avisar.bien(`${n} quedó en el maestro. Los viajes nuevos ya lo pueden escoger.`);
+    avisar.bien(
+      `${n} quedó en el maestro. Los viajes viejos que lo nombraban siguen sueltos: ` +
+      `para que se los lleve hay que correr supabase/migraciones/2026-09-traspasos-maestro.sql.`,
+    );
+    router.refresh();
+  }
+
+  async function unir(texto: string, clavePunto: string, nombrePunto: string) {
+    setMandando(true);
+    const { data, error } = await supabase.rpc("traspaso_unir_punto",
+      { p_texto: texto, p_clave: clavePunto });
+    setMandando(false);
+    if (error) {
+      avisar.mal(faltaLaFuncion(error.message)
+        ? "Para unir puntos falta correr supabase/migraciones/2026-09-traspasos-maestro.sql en Supabase."
+        : error.message);
+      return;
+    }
+    const n = (data as number) ?? 0;
+    avisar.bien(`${n} viaje${n === 1 ? "" : "s"} que decían «${texto}» ahora cuentan en ${nombrePunto}.`);
     router.refresh();
   }
 
@@ -71,180 +142,400 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
     router.refresh();
   }
 
-  async function cambiarActivo(tabla: string, c: string, activo: boolean) {
+  async function cambiar(tabla: string, c: string, campos: Record<string, unknown>) {
     setMandando(true);
-    const { error } = await supabase.from(tabla).update({ activo }).eq("clave", c);
+    const { error } = await supabase.from(tabla).update(campos).eq("clave", c);
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     router.refresh();
   }
 
-  async function borrar(tabla: string, c: string) {
+  async function borrar(tabla: string, c: string, nombre: string) {
     setMandando(true);
     const { error } = await supabase.from(tabla).delete().eq("clave", c);
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
+    avisar.bien(`${nombre} se borró del maestro.`);
     router.refresh();
   }
+
+  async function ordenar(fn: string, claves: string[]) {
+    const { error } = await supabase.rpc(fn, { p_claves: claves });
+    if (error) {
+      avisar.mal(faltaLaFuncion(error.message)
+        ? "Para cambiar el orden falta correr supabase/migraciones/2026-09-traspasos-maestro.sql en Supabase."
+        : error.message);
+      router.refresh();
+      return;
+    }
+    router.refresh();
+  }
+
+  const filasPuntos: Fila[] = puntos.map((p) => ({
+    clave: p.clave, nombre: p.nombre,
+    sub: p.descripcion ?? (p.externo ? "Fuera del centro" : "Dentro del centro"),
+    activo: p.activo, viajes: uso.puntos[p.clave] ?? 0,
+  }));
+
+  const filasTipos: Fila[] = tipos.map((t) => ({
+    clave: t.clave, nombre: t.nombre,
+    sub: subDeTipo(uso.ultima["tipo:" + t.clave]),
+    activo: t.activo, viajes: uso.tipos[t.clave] ?? 0,
+  }));
 
   return (
     <>
       {avisos}
 
-      {/* LO PRIMERO: lo que la gente escribió y todavía no está. */}
-      {faltantes.length > 0 && (
-        <section className="caja">
-          <div className="cab">
-            <div>
-              <h2>Sitios escritos a mano ({faltantes.length})</h2>
-              <p>
-                No estaban en la lista, así que se escribieron para no trabar el registro. Lo
-                que se escribió varias veces es un punto real: agrégalo y los viajes nuevos lo
-                van a escoger en vez de volver a escribirlo distinto.
-              </p>
-            </div>
+      {uso.falta && (
+        <div className="aviso">
+          Las cuentas de uso vienen de una vista que todavía no existe: hasta que corras{" "}
+          <b>supabase/migraciones/2026-09-traspasos-maestro.sql</b> todo va a decir 0 viajes,
+          así que aquí no se ofrece borrar nada.
+        </div>
+      )}
+
+      <section className="maestro">
+        {/* ---------------- PUNTOS ---------------- */}
+        <div className="caja-m">
+          <div className="cab-m">
+            <h2>Puntos <em>{puntos.length}</em></h2>
+            <p>De dónde sale y a dónde llega un viaje.</p>
           </div>
-          {faltantes.map((f) => (
-            <div className="fila" key={f.texto}>
-              <div className="placa">{f.veces}</div>
-              <div>
-                <div className="ruta">{f.texto}</div>
-                <div className="meta">
-                  <span>{f.veces === 1 ? "usado una vez" : `usado ${f.veces} veces`}</span>
-                  <span>última vez: {f.ultima}</span>
-                </div>
+
+          {nuevos.length > 0 && (
+            <div className="sugerido">
+              <div className="rot">ESCRITOS A MANO EN EL REGISTRO</div>
+              <p>Todavía no están en el maestro. Agrégalos y dejan de escribirse distinto cada vez.</p>
+              <div className="sug-chips">
+                {nuevos.map((f) => (
+                  <div className="sug" key={f.texto}>
+                    <b>{f.texto}</b>
+                    <span>· {f.veces} {f.veces === 1 ? "vez" : "veces"}</span>
+                    {puedeEditar && (
+                      <button type="button" disabled={mandando}
+                              onClick={() => agregarPunto(f.texto)}>Agregar</button>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div className="der">
-                {puedeEditar && (
-                  <button type="button" className="btn si chico" disabled={mandando}
-                          onClick={() => agregarPunto(f.texto)}>
-                    Agregar al maestro
-                  </button>
-                )}
-              </div>
+            </div>
+          )}
+
+          {puedeEditar && (
+            <form className="agregar-m"
+                  onSubmit={(e) => { e.preventDefault(); agregarPunto(nuevoPunto) }}>
+              <input value={nuevoPunto} placeholder="Nombre del punto — Ag01, Planta, Patio…"
+                     onChange={(e) => setNuevoPunto(e.target.value)} />
+              <button type="submit" disabled={!nuevoPunto.trim() || mandando}>Agregar</button>
+            </form>
+          )}
+
+          {puntos.length === 0 ? (
+            <div className="vacio">
+              <b>El maestro está vacío</b>
+              Mientras tanto los sitios se escriben a mano en el registro y aparecen arriba
+              para agregarlos de un toque.
+            </div>
+          ) : (
+            <Lista filas={filasPuntos} puedeEditar={puedeEditar} mandando={mandando}
+                   sinUso={uso.falta}
+                   alOrdenar={(cs) => ordenar("traspaso_ordenar_puntos", cs)}
+                   alPrender={(c, a) => cambiar("traspasos_puntos", c, { activo: a })}
+                   alRenombrar={(c, nom, sub) =>
+                     cambiar("traspasos_puntos", c, { nombre: nom, descripcion: sub })}
+                   alBorrar={(c, n) => borrar("traspasos_puntos", c, n)} />
+          )}
+        </div>
+
+        {/* ---------------- TIPOS ---------------- */}
+        <div className="caja-m">
+          <div className="cab-m">
+            <h2>Tipos de viaje <em>{tipos.length}</em></h2>
+            <p>
+              Qué se mueve. Un tipo apagado no se borra: las planeaciones viejas lo siguen
+              nombrando, solo deja de poderse escoger.
+            </p>
+          </div>
+
+          {puedeEditar && (
+            <form className="agregar-m"
+                  onSubmit={(e) => { e.preventDefault(); agregarTipo() }}>
+              <input value={nuevoTipo} placeholder="Nombre del tipo"
+                     onChange={(e) => setNuevoTipo(e.target.value)} />
+              <button type="submit" disabled={!nuevoTipo.trim() || mandando}>Agregar</button>
+            </form>
+          )}
+
+          <Lista filas={filasTipos} puedeEditar={puedeEditar} mandando={mandando}
+                 sinUso={uso.falta} sinSub
+                 alOrdenar={(cs) => ordenar("traspaso_ordenar_tipos", cs)}
+                 alPrender={(c, a) => cambiar("traspasos_tipos", c, { activo: a })}
+                 alRenombrar={(c, nom) => cambiar("traspasos_tipos", c, { nombre: nom })}
+                 alBorrar={(c, n) => borrar("traspasos_tipos", c, n)} />
+        </div>
+      </section>
+
+      {/* ---------------- DUPLICADOS ---------------- */}
+      {dobles.length > 0 && (
+        <section className="duplicados">
+          <h3>Posibles duplicados</h3>
+          <p>
+            Mismo sitio escrito de dos formas. Si se dejan así, el informe por punto parte el
+            mismo lugar en dos y ninguno cuadra. Unir no borra nada: los viajes que decían la
+            forma de la izquierda pasan a contar en la de la derecha.
+          </p>
+          {dobles.map((f) => (
+            <div className="par-dup" key={f.texto}>
+              <span className="tx">{f.texto}</span>
+              <span className="cuantos">{f.veces} viaje{f.veces === 1 ? "" : "s"}</span>
+              <span className="fl" aria-hidden>→</span>
+              <span className="tx gana">{f.parecido_nombre}</span>
+              <span className="cuantos">{f.parecido_viajes ?? 0} viajes</span>
+              {puedeEditar && (
+                <button type="button" className="unir" disabled={mandando}
+                        onClick={() => unir(f.texto, f.parecido!, f.parecido_nombre!)}>
+                  Unir en {f.parecido_nombre}
+                </button>
+              )}
             </div>
           ))}
         </section>
       )}
-
-      {/* LOS PUNTOS */}
-      <section className="caja">
-        <div className="cab">
-          <div>
-            <h2>Puntos ({puntos.length})</h2>
-            <p>
-              De dónde sale y a dónde llega un viaje. Nacen vacíos a propósito: los puntos de
-              este centro son un dato de este centro, no del programa.
-            </p>
-          </div>
-        </div>
-
-        {puedeEditar && (
-          <div style={{ padding: 16, borderBottom: "1px solid var(--tp-linea)",
-                        display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <input value={nuevoPunto} placeholder="Nombre del punto — Ag01, Planta, Patio…"
-                   style={{ flex: "1 1 240px", minHeight: 46, fontSize: 16, padding: "11px 13px",
-                            borderRadius: 9, border: "1px solid var(--tp-linea)" }}
-                   onChange={(e) => setNuevoPunto(e.target.value)} />
-            <button type="button" className="btn si" disabled={!nuevoPunto.trim() || mandando}
-                    onClick={() => agregarPunto(nuevoPunto)}>Agregar</button>
-          </div>
-        )}
-
-        {puntos.length === 0 ? (
-          <div className="vacio">
-            <b>El maestro está vacío</b>
-            Mientras tanto los sitios se escriben a mano en el registro y aparecen arriba para
-            agregarlos de un toque.
-          </div>
-        ) : (
-          puntos.map((p) => (
-            <div className="fila" key={p.clave}>
-              <div className="placa">{p.clave.slice(0, 6)}</div>
-              <div>
-                <div className="ruta">{p.nombre}</div>
-                <div className="meta">
-                  <span>{uso.puntos[p.clave] ?? 0} viaje{(uso.puntos[p.clave] ?? 0) === 1 ? "" : "s"}</span>
-                  {p.externo && <span className="eti">FUERA DEL CENTRO</span>}
-                  {!p.activo && <span className="eti mal">DESACTIVADO</span>}
-                </div>
-              </div>
-              <div className="der">
-                {puedeEditar && (
-                  <>
-                    <button type="button" className="btn chico" disabled={mandando}
-                            onClick={() => cambiarActivo("traspasos_puntos", p.clave, !p.activo)}>
-                      {p.activo ? "Desactivar" : "Activar"}
-                    </button>
-                    {/* Borrar solo si NUNCA se usó. Un punto usado se
-                        desactiva: los viajes viejos lo siguen nombrando. */}
-                    {!(uso.puntos[p.clave] ?? 0) && (
-                      <button type="button" className="btn chico" disabled={mandando}
-                              onClick={() => borrar("traspasos_puntos", p.clave)}>
-                        Borrar
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </section>
-
-      {/* LOS TIPOS */}
-      <section className="caja">
-        <div className="cab">
-          <div>
-            <h2>Tipos de viaje ({tipos.length})</h2>
-            <p>
-              Qué se mueve. Un tipo desactivado no se borra —las planeaciones viejas lo siguen
-              nombrando—: solo deja de poderse escoger.
-            </p>
-          </div>
-        </div>
-
-        {puedeEditar && (
-          <div style={{ padding: 16, borderBottom: "1px solid var(--tp-linea)",
-                        display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <input value={nuevoTipo} placeholder="Nombre del tipo"
-                   style={{ flex: "1 1 240px", minHeight: 46, fontSize: 16, padding: "11px 13px",
-                            borderRadius: 9, border: "1px solid var(--tp-linea)" }}
-                   onChange={(e) => setNuevoTipo(e.target.value)} />
-            <button type="button" className="btn si" disabled={!nuevoTipo.trim() || mandando}
-                    onClick={agregarTipo}>Agregar</button>
-          </div>
-        )}
-
-        {tipos.map((t) => (
-          <div className="fila" key={t.clave}>
-            <div className="placa">{uso.tipos[t.clave] ?? 0}</div>
-            <div>
-              <div className="ruta">{t.nombre}</div>
-              <div className="meta">
-                <span>{uso.tipos[t.clave] ?? 0} viaje{(uso.tipos[t.clave] ?? 0) === 1 ? "" : "s"}</span>
-                {!t.activo && <span className="eti mal">DESACTIVADO</span>}
-              </div>
-            </div>
-            <div className="der">
-              {puedeEditar && (
-                <>
-                  <button type="button" className="btn chico" disabled={mandando}
-                          onClick={() => cambiarActivo("traspasos_tipos", t.clave, !t.activo)}>
-                    {t.activo ? "Desactivar" : "Activar"}
-                  </button>
-                  {!(uso.tipos[t.clave] ?? 0) && (
-                    <button type="button" className="btn chico" disabled={mandando}
-                            onClick={() => borrar("traspasos_tipos", t.clave)}>
-                      Borrar
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </section>
     </>
   );
+}
+
+/* =====================================================================
+   LA LISTA
+   ===================================================================== */
+
+function Lista({ filas, puedeEditar, mandando, sinUso, sinSub,
+                 alOrdenar, alPrender, alRenombrar, alBorrar }: {
+  filas: Fila[];
+  puedeEditar: boolean;
+  mandando: boolean;
+  sinUso: boolean;
+  sinSub?: boolean;
+  alOrdenar: (claves: string[]) => void;
+  alPrender: (clave: string, activo: boolean) => void;
+  alRenombrar: (clave: string, nombre: string, sub: string | null) => void;
+  alBorrar: (clave: string, nombre: string) => void;
+}) {
+  /* El orden que se está viendo. Sale de lo que llegó del servidor y
+     solo se aparta de él mientras alguien arrastra. */
+  const [orden, setOrden] = useState<string[]>(() => filas.map((f) => f.clave));
+  const [moviendo, setMoviendo] = useState<string | null>(null);
+  const caja = useRef<HTMLDivElement>(null);
+
+  const llaves = filas.map((f) => f.clave).join("|");
+  useEffect(() => { setOrden(filas.map((f) => f.clave)) },
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            [llaves]);
+
+  const porClave = new Map(filas.map((f) => [f.clave, f]));
+  const vistas = orden.map((c) => porClave.get(c)).filter(Boolean) as Fila[];
+
+  /* ------------------------------------------------------------------
+     ARRASTRAR CON EL DEDO O CON EL RATÓN.
+
+     Con eventos de puntero y NO con la API de arrastrar del navegador:
+     esa no existe en un celular, y el maestro se ordena tanto desde el
+     escritorio como desde la tableta del muelle. La posición se calcula
+     con la mitad de cada renglón, que es lo que hace que el salto pase
+     cuando el dedo pasa por la mitad y no cuando toca el borde.
+     ------------------------------------------------------------------ */
+  function tomar(e: React.PointerEvent, clave: string) {
+    if (!puedeEditar) return;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    setMoviendo(clave);
+  }
+
+  function mover(e: React.PointerEvent) {
+    if (!moviendo || !caja.current) return;
+    const filasDom = Array.from(caja.current.querySelectorAll<HTMLElement>(".item"));
+    const y = e.clientY;
+    let destino = filasDom.length - 1;
+    for (let i = 0; i < filasDom.length; i++) {
+      const r = filasDom[i].getBoundingClientRect();
+      if (y < r.top + r.height / 2) { destino = i; break }
+    }
+    const desde = orden.indexOf(moviendo);
+    if (desde < 0 || desde === destino) return;
+    const siguiente = orden.slice();
+    siguiente.splice(destino, 0, siguiente.splice(desde, 1)[0]);
+    setOrden(siguiente);
+  }
+
+  function soltar() {
+    if (!moviendo) return;
+    setMoviendo(null);
+    /* Solo se guarda si de verdad cambió: un toque en el asa sin
+       arrastrar no tiene por qué escribir en la base. */
+    if (orden.join("|") !== llaves) alOrdenar(orden);
+  }
+
+  return (
+    <div ref={caja} onPointerMove={mover} onPointerUp={soltar} onPointerCancel={soltar}>
+      {vistas.map((f) => (
+        <Renglon key={f.clave} f={f} sinSub={sinSub} sinUso={sinUso}
+                 puedeEditar={puedeEditar} mandando={mandando}
+                 moviendo={moviendo === f.clave}
+                 alTomar={(e) => tomar(e, f.clave)}
+                 alPrender={alPrender} alRenombrar={alRenombrar} alBorrar={alBorrar} />
+      ))}
+    </div>
+  );
+}
+
+function Renglon({ f, sinSub, sinUso, puedeEditar, mandando, moviendo,
+                   alTomar, alPrender, alRenombrar, alBorrar }: {
+  f: Fila;
+  sinSub?: boolean;
+  sinUso: boolean;
+  puedeEditar: boolean;
+  mandando: boolean;
+  moviendo: boolean;
+  alTomar: (e: React.PointerEvent) => void;
+  alPrender: (clave: string, activo: boolean) => void;
+  alRenombrar: (clave: string, nombre: string, sub: string | null) => void;
+  alBorrar: (clave: string, nombre: string) => void;
+}) {
+  const [menu, setMenu] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [nom, setNom] = useState(f.nombre);
+  const [sub, setSub] = useState(f.sub ?? "");
+  const cajaMenu = useRef<HTMLDivElement>(null);
+
+  /* Un menú abierto se cierra al tocar cualquier otra parte. Sin esto
+     quedan tres menús abiertos a la vez y el de abajo tapa al de
+     arriba.
+     SE PREGUNTA POR EL NODO Y NO SE CORTA EL EVENTO. React no cuelga
+     sus escuchas de document sino de la raíz de la app, así que un
+     stopPropagation de React no detiene esta escucha: el menú se
+     cerraría antes de que llegara el clic y ninguna opción de adentro
+     llegaría a funcionar nunca. */
+  useEffect(() => {
+    if (!menu) return;
+    const fuera = (e: PointerEvent) => {
+      if (!cajaMenu.current?.contains(e.target as Node)) setMenu(false);
+    };
+    document.addEventListener("pointerdown", fuera);
+    return () => document.removeEventListener("pointerdown", fuera);
+  }, [menu]);
+
+  /* Se puede borrar solo si NUNCA se usó — y solo si sabemos cuánto se
+     usó. Con la vista de uso ausente todo dice 0 y ofrecer "borrar"
+     sería ofrecer un error de llave foránea. */
+  const sePuedeBorrar = puedeEditar && !sinUso && f.viajes === 0;
+
+  if (editando) {
+    return (
+      <form className="agregar-m"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!nom.trim()) return;
+              alRenombrar(f.clave, nom.trim(), sub.trim() || null);
+              setEditando(false);
+            }}>
+        <input value={nom} autoFocus aria-label="Nombre"
+               onChange={(e) => setNom(e.target.value)} />
+        {!sinSub && (
+          <input value={sub} placeholder="Subtítulo — Planta, Zona interna…"
+                 aria-label="Subtítulo" onChange={(e) => setSub(e.target.value)} />
+        )}
+        <button type="submit" disabled={!nom.trim() || mandando}>Guardar</button>
+        <button type="button" className="btn" onClick={() => {
+          setNom(f.nombre); setSub(f.sub ?? ""); setEditando(false);
+        }}>Dejar así</button>
+      </form>
+    );
+  }
+
+  return (
+    <div className={"item" + (f.activo ? "" : " apagado") + (moviendo ? " arrastrando" : "")}>
+      {puedeEditar ? (
+        <button type="button" className="asa" onPointerDown={alTomar}
+                aria-label={`Mover ${f.nombre}`} title="Arrastrar para cambiar el orden">
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01" />
+          </svg>
+        </button>
+      ) : <span className="asa" />}
+
+      <div className="nom">
+        <b>{f.nombre}</b>
+        {!sinSub || f.sub ? <span>{f.sub}</span> : null}
+      </div>
+
+      <span className="uso">
+        {sinUso ? "—" : `${f.viajes.toLocaleString("es-CO")} viaje${f.viajes === 1 ? "" : "s"}`}
+      </span>
+
+      <label className="sw" title={f.activo ? "Se puede escoger" : "Ya no se puede escoger"}>
+        <input type="checkbox" checked={f.activo} disabled={!puedeEditar || mandando}
+               aria-label={`${f.nombre}: se puede escoger`}
+               onChange={(e) => alPrender(f.clave, e.target.checked)} />
+        <i />
+      </label>
+
+      <div className="mas" ref={cajaMenu}>
+        <button type="button" aria-label={`Opciones de ${f.nombre}`} aria-expanded={menu}
+                onClick={() => setMenu((v) => !v)}>⋯</button>
+        {menu && (
+          <div className="menu">
+            <button type="button" disabled={!puedeEditar}
+                    onClick={() => { setMenu(false); setEditando(true) }}>
+              Cambiar el nombre
+            </button>
+            <button type="button" disabled={!puedeEditar || mandando}
+                    onClick={() => { setMenu(false); alPrender(f.clave, !f.activo) }}>
+              {f.activo ? "Apagar" : "Prender"}
+            </button>
+            {sePuedeBorrar ? (
+              <button type="button" className="mal" disabled={mandando}
+                      onClick={() => { setMenu(false); alBorrar(f.clave, f.nombre) }}>
+                Borrar
+              </button>
+            ) : (
+              <div className="nota">
+                {sinUso
+                  ? "Para saber si se puede borrar falta correr la migración del maestro."
+                  : `No se puede borrar: ya lo nombran ${f.viajes} viaje${f.viajes === 1 ? "" : "s"}. Apágalo y deja de poderse escoger.`}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================================
+   AYUDAS
+   ===================================================================== */
+
+/** La clave a partir del nombre: sin acentos, sin espacios, en
+ *  mayúsculas. Se genera y no se pide, porque nadie debería tener que
+ *  inventarse un código para agregar "Patio de vacíos". Es la misma
+ *  regla que traspaso_norm() en la base. */
+function clave(nombre: string) {
+  return nombre.normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 40);
+}
+
+function faltaLaFuncion(msg: string | undefined) {
+  const t = (msg ?? "").toLowerCase();
+  return t.includes("does not exist") || t.includes("schema cache")
+      || t.includes("could not find the function");
+}
+
+/** El subtítulo de un tipo: cuándo se usó por última vez. Es lo que
+ *  dice si un tipo sigue vivo sin tener que abrir un informe. */
+function subDeTipo(ultima: string | undefined) {
+  if (!ultima) return "sin uso";
+  const dias = Math.floor((Date.now() - new Date(ultima + "T12:00:00").getTime()) / 86_400_000);
+  if (dias <= 31) return "usado este mes";
+  if (dias <= 93) return "usado hace unos meses";
+  return "sin uso desde hace más de tres meses";
 }
