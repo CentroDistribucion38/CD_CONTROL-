@@ -14,11 +14,24 @@ fs.writeFileSync("manual/vista.html",
   '<!doctype html><html lang="es"><head><meta charset="utf-8">'
   + '<meta name="viewport" content="width=device-width,initial-scale=1">'
   + '<style>img{max-width:100%}[hidden]{display:none!important}</style>'
-  + c.slice(0, i) + '</head><body>' + c.slice(i) + '</body></html>');
+  /* SIN loading="lazy" AQUÍ. En la página está bien —el celular no se
+     traga nueve capturas de golpe—, pero al imprimir el navegador solo
+     carga lo que cabe en la ventana y el PDF salía con la mitad de las
+     figuras vacías: solo el pie, sin foto. */
+  + c.slice(0, i) + '</head><body>'
+  + c.slice(i).replaceAll(' loading="lazy"', '') + '</body></html>');
 
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const p = await nav.newPage({ viewport: { width: 900, height: 1200 } });
 await p.goto("file://" + process.cwd() + "/manual/vista.html", { waitUntil: "networkidle" });
+/* Y se espera a que TODAS estén decodificadas, no solo pedidas. */
+await p.evaluate(async () => {
+  await Promise.all([...document.images].map((im) => im.complete ? null : im.decode().catch(() => null)));
+  await document.fonts.ready;
+});
+const faltan = await p.evaluate(() =>
+  [...document.images].filter((im) => !im.complete || im.naturalWidth === 0).map((im) => im.src));
+if (faltan.length) { console.log("IMÁGENES QUE NO CARGARON:", faltan); process.exit(1) }
 /* Se imprime en claro aunque el equipo esté en oscuro: el PDF va al
    papel, y el papel no tiene tema. */
 await p.emulateMedia({ media: "print", colorScheme: "light" });
