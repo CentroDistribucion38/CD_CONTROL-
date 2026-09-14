@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { maestros, delDia } from "@/modulos/rotlinea/datos";
+import { turnoDeAhora, letraDe, horarioDe } from "@/modulos/rotlinea/turnos";
 import "./rotura.css";
 import { Dias } from "./Dias";
 import { Rejilla } from "./Rejilla";
@@ -35,6 +36,10 @@ export default async function RoturaLineaPage({ searchParams }: {
 
   const [permisos, m, dia] = await Promise.all([misPermisos(), maestros(), delDia(fecha)]);
   const puedeEditar = permisos.puedeEditar("/quiebra/rotura");
+  /* El turno se calcula en el SERVIDOR. En el navegador dependería del
+     reloj del equipo, y un computador de bodega con la hora corrida dos
+     horas registraría en el turno de al lado sin que nadie lo note. */
+  const turnoAhora = turnoDeAhora();
 
   if (m.falta) {
     return (
@@ -74,7 +79,7 @@ export default async function RoturaLineaPage({ searchParams }: {
       <section className="rl-cabeza">
         <div>
           <p className="rl-ojo">
-            QUIEBRA · ROTURA DE LÍNEA · CD38 AG01
+            QUIEBRA · ROTURA DE LÍNEA · TURNO {letraDe(turnoAhora)} · {horarioDe(turnoAhora)}
             {!esHoy && " · OTRO DÍA"}
           </p>
           <h1>Rotura de línea</h1>
@@ -99,7 +104,8 @@ export default async function RoturaLineaPage({ searchParams }: {
 
       <div className="rl-marco">
         <Rejilla fecha={fecha} lineas={m.lineas} maquinas={m.maquinas} envases={m.envases}
-                 pesadas={dia.pesadas} puedeEditar={puedeEditar} />
+                 pesadas={dia.pesadas} firmas={dia.firmas} turnoAhora={turnoAhora}
+                 puedeEditar={puedeEditar} esAdmin={permisos.rol === "admin"} />
 
         <aside className="rl-lado">
           <div className="rl-caja">
@@ -142,9 +148,12 @@ export default async function RoturaLineaPage({ searchParams }: {
               Reemplaza el archivo «ROTURA DE LINEA 2026.xlsx». Los cuatro maestros —líneas,
               máquinas, envases con su peso, y los SKU— salieron de su hoja MAESTRO, y el
               histórico de 2026 está cargado: 24.243 registros del 1 de enero en adelante.
+              Las descripciones y los pesos se miran y se cambian en el maestro.
             </p>
             <p className="rl-explica">
-              <Link href="/quiebra">Volver al tablero de Quiebra</Link>
+              <Link href="/quiebra/rotura/maestro">Ver el maestro</Link>
+              {" · "}
+              <Link href="/quiebra">Volver al tablero</Link>
             </p>
           </div>
         </aside>

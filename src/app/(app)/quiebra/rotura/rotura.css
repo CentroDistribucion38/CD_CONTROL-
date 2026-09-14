@@ -210,7 +210,11 @@
 .rl-tabla tbody tr:hover { background: color-mix(in srgb, var(--rl-ojo) 5%, #fff) }
 .rl-tabla tbody tr.con { background: color-mix(in srgb, var(--rl-ojo) 8%, #fff) }
 .rl-maq { font: 600 13.5px var(--rl-texto); display: flex; align-items: center; gap: 9px }
-.rl-item {
+/* EL CÓDIGO DE LA MÁQUINA. Se llamaba .rl-item, y el renglón del
+   maestro también: la misma clase para dos cosas distintas en el mismo
+   archivo. El `text-align: center` de aquí se le iba a los renglones del
+   maestro y les centraba el nombre. Quinta vez en este proyecto. */
+.rl-cod {
   flex: none; min-width: 26px; text-align: center; font: 700 10.5px var(--rl-texto);
   color: var(--rl-gris); background: var(--rl-fondo); border-radius: 3px; padding: 3px 5px;
   font-variant-numeric: tabular-nums;
@@ -299,4 +303,166 @@
   .rl-tabla th, .rl-tabla td { padding-left: 12px; padding-right: 12px }
   .rl-tabla input { width: 78px }
   .rl-suma { margin-left: 0; flex: 1 1 100% }
+}
+
+/* =====================================================================
+   EL MAESTRO
+   ===================================================================== */
+.rl-maestro { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start }
+@media (max-width: 1040px) { .rl-maestro { grid-template-columns: 1fr } }
+
+.rl-caja-m {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  min-width: 0;
+  /* SIN overflow: hidden. Recorta cualquier absoluto que se abra dentro
+     —un desplegable, un menú— y lo deja cortado por el borde. Ya pasó
+     en Traspasos con el menú de los tres puntos. */
+}
+.rl-cab-m { padding: 16px 18px 12px; border-bottom: 1px solid var(--rl-linea) }
+.rl-cab-m h2 {
+  margin: 0; font: 800 17px var(--rl-titulo); letter-spacing: -.02em;
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+}
+.rl-cab-m h2 em {
+  font-style: normal; background: var(--rl-fondo); color: var(--rl-gris);
+  font: 600 12px var(--rl-texto); padding: 3px 8px; border-radius: 3px;
+}
+.rl-cab-m p { margin: 7px 0 0; font-size: 12.5px; color: var(--rl-gris); line-height: 1.55 }
+
+/* ÁMBAR EN DURO, como la etiqueta CORREGIDO de Traspasos: el token
+   --c-oro es ROJO PURO en negro, gris y halo, y un aviso rojo dice
+   "esto está mal" cuando lo que dice es "ten esto en cuenta". */
+.rl-ojo-nota {
+  margin: 14px 18px; padding: 12px 14px; border-radius: 3px; font-size: 12.5px;
+  line-height: 1.55; background: #FDF0D0; border-left: 4px solid #C08A16; color: #5E4100;
+}
+.rl-caja.ojo { border-left-color: #C08A16 }
+
+/* ---------- Agregar ---------- */
+.rl-agregar {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+  padding: 14px 18px; border-bottom: 1px solid var(--rl-linea); background: var(--rl-fondo);
+}
+.rl-agregar .rl-campo { flex: 0 1 130px; min-width: 0 }
+.rl-agregar .rl-campo.rl-ancho { flex: 1 1 200px }
+.rl-agregar input, .rl-agregar select,
+.rl-item-form input, .rl-item-form select {
+  width: 100%; min-height: 44px; padding: 0 11px; font: inherit; font-size: 15px;
+  border: 1.5px solid var(--rl-linea); border-radius: 3px;
+  background: var(--rl-papel); color: var(--rl-tinta);
+}
+.rl-agregar input:focus, .rl-agregar select:focus,
+.rl-item-form input:focus, .rl-item-form select:focus {
+  outline: none; border-color: var(--rl-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rl-ojo) 25%, transparent);
+}
+.rl-agregar .rl-btn { flex: 0 0 auto }
+
+/* ---------- Un renglón ---------- */
+.rl-item { border-bottom: 1px solid var(--rl-fondo) }
+.rl-item:last-child { border-bottom: 0 }
+.rl-item.apagado { background: var(--rl-fondo) }
+.rl-item.apagado .rl-item-nom b { color: var(--rl-gris); text-decoration: line-through }
+.rl-item-cab {
+  display: flex; align-items: center; gap: 12px; padding: 11px 18px; flex-wrap: wrap;
+}
+.rl-item-nom { flex: 1 1 200px; min-width: 0 }
+.rl-item-nom b { display: block; font: 600 14px var(--rl-texto); overflow-wrap: anywhere }
+.rl-item-nom span { display: block; font-size: 11.5px; color: var(--rl-gris); margin-top: 1px }
+.rl-item-uso {
+  font-size: 12px; color: var(--rl-gris); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rl-item-uso i { font-style: normal; opacity: .75 }
+
+/* El interruptor. Es un <input> de verdad debajo: se enfoca con el
+   teclado y se prende con la barra espaciadora. */
+.rl-sw { position: relative; display: inline-block; width: 38px; height: 22px; cursor: pointer; flex: none }
+.rl-sw input {
+  position: absolute; left: 0; top: -9px; width: 100%; height: 40px;
+  opacity: 0; margin: 0; cursor: pointer;
+}
+.rl-sw i {
+  position: absolute; inset: 0; border-radius: 20px; pointer-events: none;
+  background: color-mix(in srgb, var(--rl-gris) 45%, #fff); transition: background .15s;
+}
+.rl-sw i::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; transition: transform .15s;
+}
+.rl-sw input:checked + i { background: var(--rl-ojo) }
+.rl-sw input:checked + i::after { transform: translateX(16px) }
+.rl-sw input:focus-visible + i { box-shadow: 0 0 0 3px color-mix(in srgb, var(--rl-ojo) 40%, transparent) }
+
+.rl-btn.chico { min-height: 36px; padding: 0 13px; font-size: 12px }
+.rl-btn.mal { background: var(--rl-mal); border-color: var(--rl-mal); color: #fff }
+
+/* ---------- El formulario del renglón ---------- */
+.rl-item-form { padding: 0 18px 16px; border-top: 1px solid var(--rl-fondo) }
+.rl-campos { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 }
+.rl-campos .rl-campo { flex: 0 1 140px; min-width: 0 }
+.rl-campos .rl-campo.rl-ancho { flex: 1 1 220px }
+.rl-item-form label {
+  display: block; font: 700 10px var(--rl-texto); letter-spacing: .13em;
+  text-transform: uppercase; color: var(--rl-gris); margin-bottom: 6px;
+}
+.rl-fila-btn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.rl-enlace-mal {
+  border: 0; background: none; cursor: pointer; padding: 6px 0; min-height: 36px;
+  font: 600 13px var(--rl-texto); color: var(--rl-mal);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* ---------- El turno, con su letra y su horario ---------- */
+.rl-seg.turnos button {
+  display: grid; gap: 1px; padding: 6px 12px; min-width: 84px; line-height: 1.15;
+}
+.rl-seg.turnos b { font: 800 15px var(--rl-titulo) }
+.rl-seg.turnos i {
+  font-style: normal; font: 600 9.5px var(--rl-texto); letter-spacing: .04em;
+  opacity: .8; white-space: nowrap;
+}
+
+/* =====================================================================
+   LA FIRMA DEL LÍDER
+   ---------------------------------------------------------------------
+   Sin firmar va en ÁMBAR —hay algo pendiente— y firmado en verde. El
+   ámbar va en duro por lo de siempre: el token --c-oro es rojo puro en
+   tres de los siete temas, y un aviso rojo dice "esto está mal" cuando
+   lo que dice es "falta hacer esto".
+   ===================================================================== */
+.rl-firmar, .rl-firmado {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 18px; border-bottom: 1px solid var(--rl-linea);
+}
+.rl-firmar { background: #FDF0D0; border-left: 4px solid #C08A16 }
+.rl-firmado { background: color-mix(in srgb, var(--rl-bien) 10%, #fff); border-left: 4px solid var(--rl-bien) }
+
+.rl-firmar-txt, .rl-firmado-txt { flex: 1 1 260px; min-width: 0 }
+.rl-firmar-txt b, .rl-firmado-txt b { display: block; font: 800 14px var(--rl-titulo) }
+.rl-firmar-txt > b { color: #5E4100 }
+.rl-firmado-txt > b { color: var(--rl-bien) }
+.rl-firmar-txt span, .rl-firmado-txt span {
+  display: block; font-size: 12.5px; line-height: 1.5; margin-top: 2px;
+}
+.rl-firmar-txt span { color: #5E4100 }
+.rl-firmado-txt span { color: var(--rl-gris) }
+.rl-firmado-txt span b { display: inline; color: var(--rl-tinta) }
+
+/* La alerta de que alguien movió algo DESPUÉS de firmar. Esta sí es
+   roja: aquí sí quiere decir "esto está mal". */
+.rl-alerta {
+  margin-top: 6px !important; padding: 7px 10px; border-radius: 3px;
+  background: color-mix(in srgb, var(--rl-mal) 12%, #fff);
+  color: var(--rl-mal) !important; font-weight: 500;
+}
+.rl-alerta b { display: inline !important; color: var(--rl-mal) !important }
+
+.rl-nota-firma {
+  flex: 1 1 200px; min-width: 0; min-height: 44px; padding: 0 12px;
+  font: inherit; font-size: 14px; background: var(--rl-papel);
+  border: 1.5px solid #C08A16; border-radius: 3px; color: var(--rl-tinta);
+}
+.rl-nota-firma:focus {
+  outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, #C08A16 30%, transparent);
 }

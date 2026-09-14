@@ -127,6 +127,7 @@ export const MODULOS: Modulo[] = [
          pérdida de material como las otras, solo que se mide contra la
          producción en vez de contra el inventario. */
       { nombre: "Rotura de línea", ruta: "/quiebra/rotura" },
+      { nombre: "Maestro de rotura", ruta: "/quiebra/rotura/maestro" },
       { nombre: "Importar", ruta: "/quiebra/importar" },
     ],
   },

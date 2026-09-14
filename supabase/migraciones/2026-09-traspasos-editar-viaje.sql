@@ -100,7 +100,12 @@ declare
   v_placa  text;
   v_o text; v_d text; v_ot text; v_dt text;
 begin
-  if public.mi_rol() <> 'admin' then
+  /* COALESCE, Y NO ES ADORNO. mi_rol() devuelve NULL para quien no
+     tiene perfil —una cuenta recién creada, un perfil borrado—, y en SQL
+     `null <> 'admin'` no es cierto NI falso: es NULL, así que el `if` no
+     dispara y la función SIGUE DE LARGO. El candado se abría justo para
+     el caso que menos se conoce. Lo cazó la prueba, no el ojo. */
+  if coalesce(public.mi_rol(), '') <> 'admin' then
     raise exception 'Corregir un viaje registrado es solo del administrador. Si te equivocaste al registrar, anúlalo y vuelve a registrarlo';
   end if;
 

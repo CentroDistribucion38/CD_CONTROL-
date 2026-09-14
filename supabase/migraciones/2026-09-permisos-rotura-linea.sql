@@ -18,14 +18,17 @@
 -- Se puede correr dos veces seguidas sin romper nada.
 -- =====================================================================
 insert into public.rol_permisos (rol, seccion, nivel) values
-  ('supervisor', '/quiebra/rotura', 'editar'),
-  ('operador',   '/quiebra/rotura', 'ver')
+  ('supervisor', '/quiebra/rotura',         'editar'),
+  ('supervisor', '/quiebra/rotura/maestro', 'editar'),
+  ('operador',   '/quiebra/rotura',         'ver'),
+  ('operador',   '/quiebra/rotura/maestro', 'ver')
 on conflict (rol, seccion) do update set nivel = excluded.nivel;
 
 do $$
 declare v_n int;
 begin
-  select count(*) into v_n from public.rol_permisos where seccion = '/quiebra/rotura';
-  if v_n < 2 then raise exception 'FALTÓ: los permisos de /quiebra/rotura'; end if;
-  raise notice 'Listo: /quiebra/rotura visible para supervisor (editar) y operador (ver).';
+  select count(*) into v_n from public.rol_permisos
+   where seccion like '/quiebra/rotura%';
+  if v_n < 4 then raise exception 'FALTÓ: los permisos de /quiebra/rotura'; end if;
+  raise notice 'Listo: rotura de línea y su maestro visibles para supervisor (editar) y operador (ver).';
 end $$;

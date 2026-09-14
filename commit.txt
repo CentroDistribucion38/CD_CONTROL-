@@ -1,57 +1,84 @@
-Rotura de linea: la pantalla, y "manana" en el periodo de Control
+Rotura de linea: el maestro, los turnos A/B/C y la firma del lider
 
-LA PANTALLA. /quiebra/rotura, dentro del modulo de Quiebra. Ya aparece
-en el menu -antes solo estaba la base de datos, por eso no se veia-.
+CUATRO COSAS, y una de ellas es un hueco de seguridad.
 
-COMO SE REGISTRA. Se escoge linea, turno y envase, y sale UNA rejilla
-con las quince maquinas del tren en el orden del recorrido: de la
-desempacadora a la empacadora. Quien la llena va siguiendo la botella,
-no una lista alfabetica.
+1. EL MAESTRO. /quiebra/rotura/maestro: los envases con su peso, las
+maquinas del tren, los SKU con su envase, y las lineas. Se agregan, se
+editan, se apagan y se borran.
 
-SE DIGITA EL KILO Y LAS UNIDADES SALEN SOLAS, al lado y mientras se
-teclea. Lo que hay en el muelle es una bascula: se pesa la canastilla
-de vidrio roto y sale un numero en kilos. Nadie tiene que confiar a
-ciegas en una cuenta que no ve. Y Enter baja al campo siguiente: son
-quince campos numericos en columna y obligar a tocar cada uno es lo que
-hace que la gente lo llene en Excel y lo pase despues.
+BORRAR SOLO LO QUE NUNCA SE USO, y la pantalla lo dice CON EL NUMERO
+antes de que alguien lo intente: "no se puede borrar, 24.243 registros
+lo nombran; apagalo con el interruptor". "No se puede borrar" a secas
+es lo que hace que alguien lo intente cinco veces.
 
-LAS PESADAS DEL TURNO VAN ARRIBA DE LA REJILLA, no abajo: es lo que hay
-que saber ANTES de empezar a teclear, o se registra dos veces lo mismo.
-Se tocan para corregir una; la que ya salio por SAP sale apagada y lo
-dice.
+Y el aviso que importa, donde importa: CAMBIAR UN PESO NO REESCRIBE EL
+PASADO. Las unidades se calculan al guardar cada pesada y se quedan
+quietas, asi que una correccion de hoy no mueve tres meses de informes
+entregados -pero tampoco arregla lo que ya se registro mal-.
 
-EL PENDIENTE DE BAJA es una cifra en la pantalla donde se registra. En
-el Excel era una columna en blanco dentro de 24.000 renglones: no se
-veia.
+2. EL NUMERO RARO DE LA REJILLA. Era el codigo interno de la maquina
+(9, 1, 12, 6...) y no le dice nada a quien esta pesando. Se fue de la
+rejilla; en el maestro, que es donde tiene sentido, se queda.
 
-Y SI FALTA EL SQL, la pantalla lo DICE -que archivo correr y donde
-cargar el CSV- en vez de reventar.
+Y detras habia un error mio de verdad: .rl-item era el codigo de la
+maquina Y el renglon del maestro, la misma clase para dos cosas en el
+mismo archivo. El text-align:center del codigo se le iba a los
+renglones del maestro y les centraba el nombre. Quinta vez en este
+proyecto; el codigo ahora se llama .rl-cod.
 
-MEDIDO, no mirado: cuatro anchos y los siete temas. El acento del tema
-es rojo en unos y ambar en otros, asi que el texto sobre el panel, el
-total y los botones se comprobo en todos; el peor da 4.7. El arnes
-tambien gano una comprobacion nueva -que la PALABRA quepa en el boton-
-y con ella cayo un error mio: la regla ".rl-dias > button" con ancho
-fijo de 38 px le caia tambien al boton HOY y le cortaba el texto. Es la
-cuarta vez en este proyecto que un selector demasiado ancho se lleva
-por delante al vecino, asi que ahora hay una medida que lo caza.
+3. LOS TURNOS SON A, B Y C, y arrancan a medianoche: A 00-08, B 08-16,
+C 16-24. Son OTROS que los de Traspasos -alla el A arranca a las 06- y
+por eso viven en su propio archivo: compartir la constante habria hecho
+que arreglar una rompiera la otra. Se muestran con su letra Y su
+horario, porque "Turno 2" no le dice a nadie si es el suyo. En la base
+siguen siendo 1, 2 y 3: asi venian las 24.243 filas del Excel, y
+renombrarlos era reescribir el historico para cambiar una etiqueta.
 
-APARTE: "MANANA" EN EL PERIODO DE CONTROL. La barra de dias ya dejaba
-llegar, pero nadie iba a buscar ahi lo que todo el mundo busca en
-"Periodo" -que es la palabra que dice que rango se esta viendo-. Manana
-va de PRIMERO en la lista: el plan se arma para manana y revisarlo
-antes de que empiece el turno es lo unico que todavia se puede
-arreglar. El periodo y el dia son el mismo control, no dos: escoger
-"manana" mueve la fecha y deja la ventana en un dia, y cualquier otro
-vuelve a hoy. Si fueran dos se podria pedir "ultimos 30 dias terminando
-manana", que no quiere decir nada.
+Y ARRANCA EN EL TURNO DE AHORA, calculado en el SERVIDOR. En el
+navegador dependeria del reloj del equipo, y un computador de bodega
+con la hora corrida registraria en el turno de al lado.
 
-HAY QUE CORRER EN SUPABASE, en este orden:
-  1. supabase/modulos/rotura-linea.sql          (si no lo has corrido)
-  2. supabase/migraciones/2026-09-permisos-rotura-linea.sql
+4. LA FIRMA DEL LIDER DE TURNO. Un turno registrado y un turno OLVIDADO
+se veian igual: los dos son cero. Un dato sin firmar no es un dato, es
+un espacio en blanco con suerte.
 
-Sin el segundo la pantalla existe pero NADIE la ve: el menu se arma con
-lo que diga rol_permisos, no con lo que exista en el codigo.
+La firma dice tres cosas que la rotura sola no dice: que alguien MIRO
+el turno, quien fue con nombre y hora, y CUANTO DECIA en el momento de
+firmarlo. Esa ultima es la que importa: se guarda la foto, no se
+calcula al leer. Si alguien agrega una pesada despues, las dos cifras
+dejan de coincidir y la pantalla lo canta en rojo.
+
+FIRMAR CIERRA EL TURNO: no entran pesadas ni correcciones. Quitarla es
+solo del administrador, porque deshacer una validacion no es lo mismo
+que hacerla. Y un turno EN CERO se puede firmar -esa es la diferencia
+entre "no se rompio nada" y "nadie peso"-.
+
+La tabla de firmas no tiene politica de escritura a proposito: la unica
+forma de que entre o salga una firma es por las dos funciones, que son
+security definer. Una firma que se puede fabricar desde el navegador no
+vale nada.
+
+EL HUECO. La prueba cazo algo que el ojo no: `if mi_rol() <> 'admin'`
+NO PROTEGE NADA para quien no tiene perfil. mi_rol() devuelve NULL, y
+en SQL `null <> 'admin'` no es cierto ni falso: es NULL, asi que el if
+no dispara y la funcion sigue de largo. El candado se abria justo para
+el caso que menos se conoce. Arreglado con coalesce en los DOS sitios
+donde lo escribi: quitar una firma, y corregir un viaje de Traspasos.
+Hay una prueba nueva que entra sin perfil y comprueba que rebota.
+
+Probado contra Postgres 16: 12 de 12 en la firma, tres veces seguidas y
+como usuario sin privilegios. Y la pantalla, medida en cuatro anchos y
+los siete temas.
+
+HAY QUE CORRER EN SUPABASE:
+  supabase/migraciones/2026-09-rotura-linea-maestro.sql
+  supabase/migraciones/2026-09-rotura-linea-firma.sql
+  supabase/migraciones/2026-09-permisos-rotura-linea.sql   (otra vez:
+      gano la seccion del maestro)
+  supabase/migraciones/2026-09-traspasos-editar-viaje.sql  (otra vez:
+      lleva el arreglo del coalesce)
+
+Falta el tablero con graficas. Va en su propio paso.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
-import type { Envase, Linea, Maquina, Pesada } from "@/modulos/rotlinea/datos";
+import type { Envase, Firma, Linea, Maquina, Pesada } from "@/modulos/rotlinea/datos";
+import { TURNOS, horarioDe, letraDe, turnoDeAhora } from "@/modulos/rotlinea/turnos";
 
 /**
  * LA REJILLA DE LA PESADA.
@@ -27,13 +28,18 @@ import type { Envase, Linea, Maquina, Pesada } from "@/modulos/rotlinea/datos";
  * pesadas de ese turno se ven arriba y se suman. Para corregir una, se
  * toca y la rejilla se llena con lo que decía.
  */
-export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, puedeEditar }: {
+export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
+                          puedeEditar, esAdmin, turnoAhora }: {
   fecha: string;
   lineas: Linea[];
   maquinas: Maquina[];
   envases: Envase[];
   pesadas: Pesada[];
+  firmas: Firma[];
   puedeEditar: boolean;
+  esAdmin: boolean;
+  /** El turno que corresponde a esta hora, calculado en el servidor. */
+  turnoAhora: number;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -43,14 +49,45 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, puedeEditar
   const maqs = maquinas.filter((m) => m.activo);
 
   const [linea, setLinea] = useState<number>(vivas[0]?.linea ?? 1);
-  const [turno, setTurno] = useState<number>(1);
+  /* EL TURNO ARRANCA EN EL DE AHORA. Quien entra a pesar está pesando lo
+     de su turno el 95 % de las veces; que salga puesto el A a las cinco
+     de la tarde es un error esperando a que alguien no lo mire. */
+  const [turno, setTurno] = useState<number>(turnoAhora);
   const [envase, setEnvase] = useState<string>("");
   /* Kilos por máquina, como TEXTO. Guardar el número obligaría a
      decidir qué es "" y qué es 0 mientras la persona borra para volver
      a escribir, y el campo se pondría en 0 solo. */
   const [kilos, setKilos] = useState<Record<number, string>>({});
   const [corrigiendo, setCorrigiendo] = useState<number | null>(null);
+  const [notaFirma, setNotaFirma] = useState("");
   const [mandando, setMandando] = useState(false);
+
+  /* La firma de ESTE turno de ESTA línea. Es por turno completo, no por
+     envase: el líder da por bueno el turno, no una canastilla. */
+  const firmado = firmas.find((f) => f.linea === linea && f.turno === turno);
+
+  async function firmar() {
+    setMandando(true);
+    const { error } = await supabase.rpc("rotlinea_firmar", {
+      p_fecha: fecha, p_linea: linea, p_turno: turno, p_nota: notaFirma.trim() || null,
+    });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    setNotaFirma("");
+    avisar.bien(`Turno ${letraDe(turno)} de la línea ${linea} firmado. Queda cerrado.`);
+    router.refresh();
+  }
+
+  async function quitarFirma() {
+    setMandando(true);
+    const { error } = await supabase.rpc("rotlinea_quitar_firma", {
+      p_fecha: fecha, p_linea: linea, p_turno: turno,
+    });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien("Firma quitada. El turno queda abierto otra vez.");
+    router.refresh();
+  }
 
   const env = envases.find((e) => e.material === envase);
 
@@ -119,10 +156,15 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, puedeEditar
 
         <div className="rl-campo">
           <span className="rl-rot">Turno</span>
-          <div className="rl-seg">
-            {[1, 2, 3].map((t) => (
-              <button key={t} type="button" className={turno === t ? "on" : ""}
-                      onClick={() => setTurno(t)}>{t}</button>
+          {/* LA LETRA Y LA HORA, no el número. "Turno 2" no le dice a
+              nadie si es el suyo; "B · 08:00 · 16:00" sí. El número es
+              lo que se guarda, la letra es lo que se lee. */}
+          <div className="rl-seg turnos">
+            {TURNOS.map((t) => (
+              <button key={t.n} type="button" className={turno === t.n ? "on" : ""}
+                      onClick={() => setTurno(t.n)}>
+                <b>{t.letra}</b><i>{horarioDe(t.n)}</i>
+              </button>
             ))}
           </div>
         </div>
@@ -133,6 +175,51 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, puedeEditar
                    alEscoger={setEnvase} />
         </div>
       </div>
+
+      {/* LA FIRMA DEL LÍDER. Va arriba de todo lo del turno porque es lo
+          que decide si se puede tocar algo: un turno firmado está
+          cerrado y la rejilla no tiene nada que hacer ahí. */}
+      {firmado ? (
+        <div className="rl-firmado">
+          <div className="rl-firmado-txt">
+            <b>Turno {letraDe(turno)} firmado</b>
+            <span>
+              {firmado.firmado_nombre ?? "—"} · {new Date(firmado.firmado_en)
+                .toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              {" · "}<b>{firmado.firmadas.toLocaleString("es-CO")}</b> unidades
+              {firmado.nota && <> · «{firmado.nota}»</>}
+            </span>
+            {/* LAS DOS CIFRAS, cuando no coinciden. Es la única forma de
+                enterarse de que alguien movió algo después de validarlo. */}
+            {firmado.cambio_despues && (
+              <span className="rl-alerta">
+                Hoy la tabla dice <b>{firmado.unidades_hoy.toLocaleString("es-CO")}</b>, no lo que
+                se firmó. Algo se movió después de la firma.
+              </span>
+            )}
+          </div>
+          {esAdmin && (
+            <button type="button" className="rl-btn chico" disabled={mandando}
+                    onClick={quitarFirma}>Quitar la firma</button>
+          )}
+        </div>
+      ) : puedeEditar && (
+        <div className="rl-firmar">
+          <div className="rl-firmar-txt">
+            <b>Turno {letraDe(turno)} sin firmar</b>
+            <span>
+              Firmar dice que alguien MIRÓ este turno y lo dio por bueno — con nombre y hora.
+              Sin firma, un turno en cero y un turno olvidado se ven igual.
+            </span>
+          </div>
+          <input className="rl-nota-firma" value={notaFirma} placeholder="Novedad del turno (opcional)"
+                 aria-label="Novedad del turno"
+                 onChange={(e) => setNotaFirma(e.target.value)} />
+          <button type="button" className="rl-btn si" disabled={mandando} onClick={firmar}>
+            Firmar el turno {letraDe(turno)}
+          </button>
+        </div>
+      )}
 
       {/* LAS PESADAS QUE YA TIENE ESE TURNO. Van ARRIBA de la rejilla y
           no abajo: son lo que hay que saber ANTES de empezar a teclear,
@@ -162,7 +249,13 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, puedeEditar
         </div>
       )}
 
-      {!envase ? (
+      {firmado ? (
+        <div className="rl-vacio">
+          <b>Este turno está cerrado</b>
+          El líder lo firmó y ya no entran pesadas ni correcciones. Si hay que cambiar algo,
+          un administrador tiene que quitar la firma primero.
+        </div>
+      ) : !envase ? (
         <div className="rl-vacio">
           <b>Escoge el envase</b>
           Las unidades salen de dividir los kilos por el peso de ese envase, así que hasta que
@@ -185,7 +278,12 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, puedeEditar
                   const u = und(kg);
                   return (
                     <tr key={m.item} className={u > 0 ? "con" : ""}>
-                      <td className="rl-maq"><span className="rl-item">{m.item}</span>{m.nombre}</td>
+                      {/* SIN EL CÓDIGO. Decía 9, 1, 12, 6… al lado de
+                          cada máquina y no quiere decir nada para quien
+                          está llenando la rejilla: es el código interno
+                          con el que la máquina se conoce en el maestro,
+                          y ahí es donde tiene sentido verlo. */}
+                      <td className="rl-maq">{m.nombre}</td>
                       <td className="cen">
                         <input
                           ref={(el) => { campos.current[i] = el }}

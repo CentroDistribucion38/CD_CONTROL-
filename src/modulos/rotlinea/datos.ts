@@ -10,11 +10,34 @@ import { createClient } from "@/lib/supabase/server";
  * que dos informes del mismo día dieran cifras distintas.
  */
 
-export type Linea   = { linea: number; tren: string; centro_coste: string; activo: boolean };
+export type Linea   = {
+  linea: number; tren: string; centro_coste: string;
+  activo: boolean; orden: number | null;
+};
 export type Maquina = { item: number; nombre: string; activo: boolean; orden: number | null };
 export type Envase  = {
   material: string; descripcion: string; peso_kg: number;
   activo: boolean; orden: number | null;
+};
+
+export type Sku = {
+  sku: string; descripcion: string; corto: string | null; envase: string;
+  activo: boolean; orden: number | null;
+};
+
+/** Cuánto se usa cada cosa del maestro. Sale de v_rotlinea_uso. */
+export type Uso = {
+  clase: "envase" | "maquina" | "linea" | "sku";
+  clave: string; registros: number; unidades: number; ultima: string;
+};
+
+/** Una firma de turno, con lo que dice la tabla hoy al lado. */
+export type Firma = {
+  fecha: string; linea: number; turno: number;
+  firmado_por: string | null; firmado_nombre: string | null; firmado_usuario: string | null;
+  firmado_en: string; nota: string | null;
+  firmadas: number; kg_firmados: number; pesadas: number;
+  unidades_hoy: number; kg_hoy: number; cambio_despues: boolean;
 };
 
 /** Una pesada ya guardada, resumida. */
@@ -30,21 +53,39 @@ export type PorMaquina = { maquina: number; kg: number; und: number };
 const sinTablas = (m: string) =>
   m.includes("does not exist") || m.includes("schema cache") || m.includes("rotlinea_");
 
-/** Las tres listas que la pantalla necesita para poder escoger. */
-export async function maestros() {
+/**
+ * LAS CUATRO LISTAS del maestro, y opcionalmente cuánto se usa cada una.
+ *
+ * El uso NO se pide siempre: la pantalla de registrar no lo necesita y
+ * es un recorrido sobre los 24.000 registros. Solo la del maestro lo
+ * pide, que es donde hace falta para poder decir «esto no se puede
+ * borrar porque lo nombran 1.865 registros».
+ */
+export async function maestros({ conUso = false } = {}) {
   const supabase = await createClient();
-  const [l, m, e] = await Promise.all([
+  const [l, m, e, s, u] = await Promise.all([
     supabase.from("rotlinea_lineas").select("*").order("orden", { nullsFirst: false }),
     supabase.from("rotlinea_maquinas").select("*").order("orden", { nullsFirst: false }),
     supabase.from("rotlinea_envases").select("*").order("orden", { nullsFirst: false }),
+    supabase.from("rotlinea_skus").select("*").order("orden", { nullsFirst: false }),
+    conUso ? supabase.from("v_rotlinea_uso").select("*")
+           : Promise.resolve({ data: [], error: null }),
   ]);
-  if (l.error) return { falta: sinTablas(l.error.message), lineas: [] as Linea[],
-                        maquinas: [] as Maquina[], envases: [] as Envase[] };
+  const vacio = {
+    lineas: [] as Linea[], maquinas: [] as Maquina[],
+    envases: [] as Envase[], skus: [] as Sku[], uso: [] as Uso[],
+  };
+  if (l.error) return { falta: sinTablas(l.error.message), ...vacio };
   return {
     falta: false,
     lineas: (l.data ?? []) as Linea[],
     maquinas: (m.data ?? []) as Maquina[],
     envases: (e.data ?? []) as Envase[],
+    skus: (s.data ?? []) as Sku[],
+    /* Si la vista del uso todavía no existe —falta correr su migración—
+       la pantalla sale igual, solo que sin los conteos: media pantalla
+       es mejor que una pantalla en blanco. */
+    uso: (u.error ? [] : (u.data ?? [])) as Uso[],
   };
 }
 
@@ -58,11 +99,14 @@ export async function maestros() {
  */
 export async function delDia(fecha: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("v_rotlinea")
-    .select("linea, turno, envase, envase_nombre, toma, maquina, kg, und, baja")
-    .eq("fecha", fecha);
-  if (error) return { falta: sinTablas(error.message), pesadas: [] as Pesada[], filas: [] };
+  const [{ data, error }, fir] = await Promise.all([
+    supabase.from("v_rotlinea")
+      .select("linea, turno, envase, envase_nombre, toma, maquina, kg, und, baja")
+      .eq("fecha", fecha),
+    supabase.from("v_rotlinea_firmas").select("*").eq("fecha", fecha),
+  ]);
+  if (error) return { falta: sinTablas(error.message), pesadas: [] as Pesada[],
+                      firmas: [] as Firma[], filas: [] };
 
   type F = {
     linea: number; turno: number; envase: string; envase_nombre: string;
@@ -89,5 +133,8 @@ export async function delDia(fecha: string) {
     (a, b) => a.linea - b.linea || a.turno - b.turno ||
               a.envase.localeCompare(b.envase) || a.toma - b.toma);
 
-  return { falta: false, pesadas, filas };
+  /* Si la tabla de firmas todavía no existe —falta correr su
+     migración— la pantalla sale igual, solo que sin firmas. Media
+     pantalla es mejor que una pantalla en blanco. */
+  return { falta: false, pesadas, filas, firmas: (fir.error ? [] : (fir.data ?? [])) as Firma[] };
 }
