@@ -28,14 +28,19 @@ export function Fechas({ dia, hoy, esHoy, hayBorrador }: {
       <button type="button" onClick={() => mover(-1)} aria-label="día anterior">
         <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg>
       </button>
-      <button type="button" className={"hoy" + (esHoy ? " on" : "")}
-              onClick={() => router.push("/traspasos/plan")}>HOY</button>
+      {/* LA FECHA VA EN EL MEDIO, entre las dos flechas: es el sitio
+          donde uno la busca, y de paso es el botón del calendario. HOY
+          queda después, que es lo que es — un atajo para volver, no la
+          pieza principal. */}
+      <EscogerDia dia={dia} hoy={hoy}
+                  alEscoger={(f) => router.push(`/traspasos/plan?d=${f}`)} />
+
       <button type="button" onClick={() => mover(1)} aria-label="día siguiente">
         <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
       </button>
 
-      <EscogerDia dia={dia} hoy={hoy}
-                  alEscoger={(f) => router.push(`/traspasos/plan?d=${f}`)} />
+      <button type="button" className={"hoy" + (esHoy ? " on" : "")} disabled={esHoy}
+              onClick={() => router.push("/traspasos/plan")}>HOY</button>
 
       {/* EL AVISO DE BORRADOR NO ES DECORACIÓN: es la diferencia entre
           lo que estás armando y lo que el turno está viendo. */}

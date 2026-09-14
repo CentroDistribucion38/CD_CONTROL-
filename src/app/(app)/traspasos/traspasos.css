@@ -448,16 +448,30 @@
    PLAN DEL DÍA — la rejilla
    ===================================================================== */
 .tp .fecha-nav { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; flex-wrap: wrap }
-.tp .fecha-nav button {
-  width: 36px; height: 36px; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+/* `> button` Y NO `button` A SECAS. La regla apuntaba a cualquier botón
+   de adentro, así que el día que la barra ganó un control propio —el
+   calendario— quedó aplastado a un cuadrito de 36 px con el texto
+   saliéndose por fuera del borde. Los hijos directos son las flechas y
+   HOY; lo que viva dentro de otro componente se peina solo. */
+.tp .fecha-nav > button {
+  width: 38px; height: 38px; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
   border-radius: 2px; cursor: pointer; display: grid; place-items: center;
 }
-.tp .fecha-nav button:hover { border-color: var(--tp-ojo) }
-.tp .fecha-nav svg { width: 15px; height: 15px; stroke: var(--tp-tinta); stroke-width: 2.2; fill: none }
-.tp .fecha-nav .hoy {
-  border: 0; background: var(--c-grupo); color: var(--tp-ojo); width: auto; padding: 0 14px;
+.tp .fecha-nav > button:hover { border-color: var(--tp-ojo) }
+.tp .fecha-nav > button svg {
+  width: 15px; height: 15px; stroke: var(--tp-tinta); stroke-width: 2.2; fill: none;
+}
+.tp .fecha-nav > button.hoy {
+  border: 0; background: var(--c-grupo); color: var(--tp-ojo); width: auto; padding: 0 15px;
   font: 700 12.5px var(--tp-titulo); letter-spacing: .06em;
 }
+/* HOY se apaga cuando ya estás en hoy: un botón que no va a ninguna
+   parte no debería verse como el que sí va. */
+.tp .fecha-nav > button.hoy.on { opacity: .45; cursor: default }
+
+/* La fecha es el control del medio y por eso es el ancho: es lo que se
+   lee, y lo que se toca para saltar a cualquier día. */
+.tp .fecha-nav .cal-disparo { height: 38px; font-weight: 700; padding: 0 14px }
 .tp .estado-plan {
   display: inline-flex; align-items: center; gap: 9px;
   background: color-mix(in srgb, var(--tp-ojo) 14%, #fff);

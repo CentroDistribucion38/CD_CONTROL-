@@ -40,9 +40,14 @@ export const diaSemana = (f: string) =>
   (new Date(f + "T12:00:00").getUTCDay() + 6) % 7;
 
 export const bonita = (f: string) => {
-  const { a, m, d } = partes(f);
+  const { m, d } = partes(f);
   return `${d} de ${MESES[m]}`;
 };
+
+/** Con el día de la semana delante. En una pantalla donde se planea por
+ *  semana, saber que el 15 es martes es la mitad de la información. */
+const SEM = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
+export const conDia = (f: string) => `${SEM[diaSemana(f)]} ${bonita(f)}`;
 
 /** Todos los días entre dos fechas, incluidas las dos puntas. */
 export function rango(desde: string, hasta: string) {
@@ -147,7 +152,7 @@ export function EscogerDia({ dia, hoy, alEscoger }: {
         <svg viewBox="0 0 24 24" aria-hidden>
           <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" />
         </svg>
-        {bonita(dia)}
+        {conDia(dia)}
       </button>
       {abierto && (
         <div className="cal-flota">
