@@ -143,7 +143,7 @@ export default async function ControlPage({ searchParams }: {
           </p>
         </div>
         <div className="der-ctl">
-          <Barra tipos={t.tipos} soloBotones />
+          <Barra tipos={t.tipos} soloBotones hoy={hoy} dia={dia} />
           <div className="panel-ojo">
             <div className="corte" aria-hidden />
             <div className="rot">ADHERENCIA AL PLAN</div>
@@ -156,7 +156,7 @@ export default async function ControlPage({ searchParams }: {
       {/* LOS FILTROS, a lo ancho y debajo del título: son de toda la
           pantalla, no del panel de la derecha. Metidos en la columna
           derecha le comían el ancho al título. */}
-      <Barra tipos={t.tipos} soloFiltros />
+      <Barra tipos={t.tipos} soloFiltros hoy={hoy} dia={dia} />
 
       {/* ─ LAS SEIS CIFRAS, SIEMPRE, AUNQUE ESTÉN EN CERO.
 

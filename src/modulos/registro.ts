@@ -123,6 +123,10 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Tablero", ruta: "/quiebra" },
       { nombre: "Quiebra diaria", ruta: "/quiebra/diario" },
+      /* ROTURA DE LÍNEA vive dentro de Quiebra y no aparte: es una
+         pérdida de material como las otras, solo que se mide contra la
+         producción en vez de contra el inventario. */
+      { nombre: "Rotura de línea", ruta: "/quiebra/rotura" },
       { nombre: "Importar", ruta: "/quiebra/importar" },
     ],
   },

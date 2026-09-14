@@ -77,6 +77,15 @@ const IconoDia = () => (
   </svg>
 );
 
+/* ROTURA DE LÍNEA: una botella partida. Se dibuja de cero y no se copia
+   de ningún set: el cuello, el hombro y la grieta en diagonal. */
+const IconoBotella = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M10 2.5h4v3.2c0 1 .4 1.6 1 2.3 1 1.2 1.5 2.3 1.5 3.8v7.7a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2v-7.7c0-1.5.5-2.6 1.5-3.8.6-.7 1-1.3 1-2.3V2.5Z" />
+    <path d="M9.4 13.2l2.6 1.6-1.9 1.5 2.5 1.5" />
+  </svg>
+);
+
 const IconoSider = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M2.5 7.5h11v9h-11z" />
@@ -171,6 +180,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/sider/maestro": IconoLlave,
   "/quiebra": IconoTablero,
   "/quiebra/diario": IconoDia,
+  "/quiebra/rotura": IconoBotella,
   "/quiebra/importar": IconoImportar,
   "/inventario": IconoLista,
   "/inventario/productos": IconoCaja,

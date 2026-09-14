@@ -1,43 +1,57 @@
-Traspasos: el dia se escoge en las tres pantallas
+Rotura de linea: la pantalla, y "manana" en el periodo de Control
 
-REGISTRAR abria en hoy y no habia forma de moverse. Al turno de la
-noche le toca cerrar el dia anterior a las cinco de la manana y no
-tenia donde: un viaje que se quedo sin registrar quedaba sin registrar.
-Ahora lleva la barra de dias arriba del todo.
+LA PANTALLA. /quiebra/rotura, dentro del modulo de Quiebra. Ya aparece
+en el menu -antes solo estaba la base de datos, por eso no se veia-.
 
-CONTROL terminaba siempre en hoy. Eso dejaba el plan de manana sin
-forma de mirarse: se armaba en Plan y no habia donde verlo contra nada.
-Un plan que no se puede revisar antes de que empiece el turno es un
-plan que solo se revisa cuando ya no se puede arreglar. Ahora el dia se
-escoge, manana incluido, y la pantalla lo DICE en el subtitulo -"este
-dia todavia no ha llegado: lo que se ve es el plan"- para que nadie lea
-un 0 % como un mal dia.
+COMO SE REGISTRA. Se escoge linea, turno y envase, y sale UNA rejilla
+con las quince maquinas del tren en el orden del recorrido: de la
+desempacadora a la empacadora. Quien la llena va siguiendo la botella,
+no una lista alfabetica.
 
-ES UNA SOLA BARRA Y NO TRES COPIAS. La de Plan se generalizo: recibe a
-que pantalla va y con que nombre viaja la fecha. Tres barras parecidas
-es que dentro de un mes una tenga el calendario y las otras no.
+SE DIGITA EL KILO Y LAS UNIDADES SALEN SOLAS, al lado y mientras se
+teclea. Lo que hay en el muelle es una bascula: se pesa la canastilla
+de vidrio roto y sale un numero en kilos. Nadie tiene que confiar a
+ciegas en una cuenta que no ve. Y Enter baja al campo siguiente: son
+quince campos numericos en columna y obligar a tocar cada uno es lo que
+hace que la gente lo llene en Excel y lo pase despues.
 
-Y AL CAMBIAR DE DIA NO SE PIERDEN LOS FILTROS. La barra armaba la
-direccion a mano, asi que en Control mover un dia borraba el filtro de
-turno y de tipo que la persona acababa de poner. Ahora copia lo que hay
-y solo toca la fecha; el boton HOY quita la fecha y deja el resto.
+LAS PESADAS DEL TURNO VAN ARRIBA DE LA REJILLA, no abajo: es lo que hay
+que saber ANTES de empezar a teclear, o se registra dos veces lo mismo.
+Se tocan para corregir una; la que ya salio por SAP sale apagada y lo
+dice.
 
-Detalles: en un dia que no es hoy no se refresca solo -gastar consultas
-para volver a pintar lo mismo-, el titulo dice "Registrar en otro dia",
-el panel dice REGISTRADOS ESE DIA y la lista dice "ese dia" en vez de
-"hoy".
+EL PENDIENTE DE BAJA es una cifra en la pantalla donde se registra. En
+el Excel era una columna en blanco dentro de 24.000 renglones: no se
+veia.
 
-Medido en los cuatro anchos con el aviso de borrador puesto, que es el
-caso mas largo de la barra (.arnes/tp-fechas.mjs).
+Y SI FALTA EL SQL, la pantalla lo DICE -que archivo correr y donde
+cargar el CSV- en vez de reventar.
 
-EL INSTRUCTIVO QUEDA AL DIA en el mismo commit: la seccion de registrar
-gana un paso 1 -escoger el dia, con su foto-, los otros siete se
-renumeran, y Control explica lo de manana. La pagina y el PDF salen del
-mismo archivo, asi que no se pueden separar.
+MEDIDO, no mirado: cuatro anchos y los siete temas. El acento del tema
+es rojo en unos y ambar en otros, asi que el texto sobre el panel, el
+total y los botones se comprobo en todos; el peor da 4.7. El arnes
+tambien gano una comprobacion nueva -que la PALABRA quepa en el boton-
+y con ella cayo un error mio: la regla ".rl-dias > button" con ancho
+fijo de 38 px le caia tambien al boton HOY y le cortaba el texto. Es la
+cuarta vez en este proyecto que un selector demasiado ancho se lleva
+por delante al vecino, asi que ahora hay una medida que lo caza.
 
-Borrar el plan de UN dia ya estaba: es el boton "Borrar el plan del
-dia" al final del pie de Plan, del commit anterior. Aparece cuando ese
-dia tiene plan y va a dos toques.
+APARTE: "MANANA" EN EL PERIODO DE CONTROL. La barra de dias ya dejaba
+llegar, pero nadie iba a buscar ahi lo que todo el mundo busca en
+"Periodo" -que es la palabra que dice que rango se esta viendo-. Manana
+va de PRIMERO en la lista: el plan se arma para manana y revisarlo
+antes de que empiece el turno es lo unico que todavia se puede
+arreglar. El periodo y el dia son el mismo control, no dos: escoger
+"manana" mueve la fecha y deja la ventana en un dia, y cualquier otro
+vuelve a hoy. Si fueran dos se podria pedir "ultimos 30 dias terminando
+manana", que no quiere decir nada.
+
+HAY QUE CORRER EN SUPABASE, en este orden:
+  1. supabase/modulos/rotura-linea.sql          (si no lo has corrido)
+  2. supabase/migraciones/2026-09-permisos-rotura-linea.sql
+
+Sin el segundo la pantalla existe pero NADIE la ve: el menu se arma con
+lo que diga rol_permisos, no con lo que exista en el codigo.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

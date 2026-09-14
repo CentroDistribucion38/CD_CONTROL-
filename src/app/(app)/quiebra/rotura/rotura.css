@@ -1,0 +1,302 @@
+/* =====================================================================
+   ROTURA DE LÍNEA
+   =====================================================================
+   Todo cuelga de `.rl` y todas las clases llevan `rl-`. El proyecto ya
+   tiene un módulo ROTURAS con sus propias clases y un módulo TRASPASOS
+   con las suyas: un `.tabla` o un `.panel` suelto aquí se pisaría con
+   los de allá el día que alguien abra las dos hojas de estilo en la
+   misma pantalla. Ya pasó cuatro veces en este proyecto.
+
+   LOS COLORES SALEN DE LOS TOKENS DEL TEMA, no en duro: la aplicación
+   tiene siete temas y el acento cambia en todos. `--c-marca` es el
+   acento del tema (con `--c-marca-txt` para lo que va encima) y
+   `--c-oro` es el token de alarma, que en tres temas es rojo puro.
+   ===================================================================== */
+.rl {
+  --rl-papel: #fff;
+  --rl-fondo: var(--c-eef1f5, #EEF1F5);
+  --rl-tinta: var(--bv-texto, #12263A);
+  --rl-gris:  var(--bv-texto-2, #6B7785);
+  --rl-linea: var(--c-dfe5ec, #DFE5EC);
+  --rl-ojo:   var(--c-marca, #E4002B);
+  --rl-sobre: var(--c-marca-txt, #fff);
+  --rl-grupo: var(--c-grupo, #12263A);
+  --rl-bien:  #127A47;
+  --rl-mal:   #C0332B;
+  --rl-titulo: "Archivo", system-ui, sans-serif;
+  --rl-texto:  "IBM Plex Sans", system-ui, sans-serif;
+  font-family: var(--rl-texto);
+  color: var(--rl-tinta);
+  min-width: 0;
+}
+.rl * { box-sizing: border-box }
+
+/* ---------- La barra de días ---------- */
+.rl-dias { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 10px }
+/* LAS FLECHAS, y solo las flechas. Sin el :not, el ancho fijo de 38 px
+   le caía también al botón HOY —que es hijo directo igual— y le cortaba
+   la palabra. Es la cuarta vez en este proyecto que una regla con el
+   selector demasiado ancho se lleva por delante al vecino. */
+.rl-dias > button:not(.rl-hoy) {
+  width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+}
+.rl-dias > button:not(.rl-hoy):hover { border-color: var(--rl-ojo) }
+.rl-dias svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2 }
+.rl-fecha {
+  position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  min-height: 38px; padding: 0 13px; background: var(--rl-papel);
+  border: 1px solid var(--rl-linea); border-radius: 3px;
+  font: 700 13.5px var(--rl-titulo);
+}
+/* "lunes, 14 de septiembre" con la primera en mayúscula. Con
+   `capitalize` salía "Lunes, 14 De Septiembre": el navegador sube la
+   primera letra de CADA palabra, incluida la preposición. */
+.rl-fecha span { text-transform: lowercase }
+.rl-fecha span::first-letter { text-transform: uppercase }
+.rl-fecha:hover { border-color: var(--rl-ojo) }
+.rl-fecha svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8 }
+/* El input de verdad, encima y transparente: abre el selector nativo y
+   conserva el teclado, pero lo que se ve es la fecha en español. */
+.rl-fecha input {
+  position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
+  border: 0; padding: 0; cursor: pointer;
+}
+.rl-hoy {
+  min-height: 38px; padding: 0 14px; cursor: pointer; border-radius: 3px;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  font: 800 12px var(--rl-titulo); letter-spacing: .08em; color: var(--rl-gris);
+}
+.rl-hoy:hover:not(:disabled) { border-color: var(--rl-ojo); color: var(--rl-tinta) }
+.rl-hoy.on { background: var(--rl-grupo); color: #fff; border-color: var(--rl-grupo); cursor: default }
+
+/* ---------- Cabeza ---------- */
+.rl-cabeza {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 20px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.rl-cabeza > div { min-width: 0; flex: 1 1 380px }
+.rl-ojo {
+  margin: 0; font: 700 10.5px var(--rl-texto); letter-spacing: .15em; color: var(--rl-gris);
+}
+.rl-cabeza h1 {
+  margin: 7px 0 0; font: 900 clamp(26px, 5vw, 34px)/1.05 var(--rl-titulo);
+  letter-spacing: -.03em;
+}
+.rl-sub { margin: 9px 0 0; font-size: 14px; color: var(--rl-gris); line-height: 1.55; max-width: 62ch }
+
+.rl-panel {
+  position: relative; overflow: hidden; border-radius: 3px; min-width: 210px;
+  background: var(--rl-ojo); color: var(--rl-sobre); padding: 16px 20px; flex: 0 0 auto;
+}
+.rl-corte {
+  position: absolute; top: -30%; bottom: -30%; right: -14px; width: 84px;
+  background: rgba(255, 255, 255, .13); transform: skewX(-26deg);
+}
+.rl-panel > * { position: relative }
+.rl-rot { font: 700 10px var(--rl-texto); letter-spacing: .15em; opacity: .85 }
+.rl-num {
+  font: 900 40px/1 var(--rl-titulo); margin: 6px 0 4px; font-variant-numeric: tabular-nums;
+}
+/* El pie declara su color: en globals.css `.pie` es gris, y un gris
+   heredado sobre el acento del tema da 1.7 de contraste. Aquí la clase
+   es otra, pero la lección se queda escrita. */
+.rl-pie { font-size: 12.5px; color: var(--rl-sobre); opacity: .9 }
+
+/* ---------- El marco de dos columnas ---------- */
+.rl-marco {
+  display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start;
+}
+.rl-marco > * { min-width: 0 }
+@media (max-width: 1040px) { .rl-marco { grid-template-columns: 1fr } }
+
+/* ---------- Escoger línea, turno y envase ---------- */
+.rl-rejilla {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  min-width: 0;
+}
+.rl-escoger {
+  display: flex; gap: 16px; flex-wrap: wrap; padding: 16px 18px;
+  border-bottom: 1px solid var(--rl-linea);
+}
+.rl-campo { min-width: 0 }
+.rl-campo.rl-ancho { flex: 1 1 260px }
+.rl-rot {
+  display: block; font: 700 10px var(--rl-texto); letter-spacing: .13em;
+  text-transform: uppercase; color: var(--rl-gris); margin-bottom: 6px;
+}
+.rl-seg {
+  display: inline-flex; border: 1px solid var(--rl-linea); border-radius: 3px;
+  overflow: hidden; background: var(--rl-fondo);
+}
+.rl-seg button {
+  min-width: 46px; min-height: 42px; border: 0; background: none; cursor: pointer;
+  font: 800 14px var(--rl-titulo); color: var(--rl-gris);
+}
+.rl-seg button.on { background: var(--rl-ojo); color: var(--rl-sobre) }
+.rl-seg button:not(.on):hover { background: var(--rl-papel); color: var(--rl-tinta) }
+
+/* ---------- El desplegable del envase ---------- */
+.rl-sel { position: relative; min-width: 0 }
+.rl-disparo {
+  width: 100%; min-height: 48px; display: flex; align-items: center; gap: 10px;
+  padding: 0 12px; cursor: pointer; text-align: left;
+  background: var(--rl-fondo); border: 1.5px solid var(--rl-linea); border-radius: 3px;
+}
+.rl-disparo:hover { border-color: var(--rl-ojo) }
+.rl-disparo svg { width: 17px; height: 17px; flex: none; margin-left: auto; fill: none; stroke: currentColor; stroke-width: 2 }
+.rl-puesto { min-width: 0; overflow: hidden }
+.rl-puesto b { display: block; font: 600 14px var(--rl-texto); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.rl-puesto i { display: block; font-style: normal; font-size: 11.5px; color: var(--rl-gris) }
+.rl-sin { color: var(--rl-gris); font-size: 14px }
+
+.rl-opciones {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .45);
+  /* El filo del acento arriba, como el resto de la aplicación. */
+  border-top: 3px solid var(--rl-ojo);
+}
+.rl-filtro { padding: 8px; border-bottom: 1px solid var(--rl-linea) }
+.rl-filtro input {
+  width: 100%; min-height: 38px; padding: 0 11px; font: inherit; font-size: 14px;
+  border: 1px solid var(--rl-linea); border-radius: 3px; background: var(--rl-fondo);
+  color: var(--rl-tinta);
+}
+.rl-rollo { max-height: 280px; overflow-y: auto; padding: 4px 0 }
+.rl-rollo button {
+  display: block; width: 100%; text-align: left; border: 0; background: none;
+  cursor: pointer; padding: 9px 13px; min-height: 46px;
+}
+.rl-rollo button:hover { background: var(--rl-fondo) }
+.rl-rollo button.elegida { background: color-mix(in srgb, var(--rl-ojo) 12%, #fff) }
+.rl-rollo button b { display: block; font: 600 13.5px var(--rl-texto); color: var(--rl-tinta) }
+.rl-rollo button i { font-style: normal; font-size: 11.5px; color: var(--rl-gris) }
+.rl-nada { margin: 0; padding: 14px; font-size: 13px; color: var(--rl-gris) }
+
+/* ---------- Las pesadas que ya tiene el turno ---------- */
+.rl-tomas {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 18px; border-bottom: 1px solid var(--rl-linea);
+  background: color-mix(in srgb, var(--rl-ojo) 6%, #fff);
+}
+.rl-tomas .rl-rot { margin: 0 }
+.rl-toma {
+  display: grid; gap: 1px; text-align: left; cursor: pointer; padding: 7px 12px;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+}
+.rl-toma:hover:not(:disabled) { border-color: var(--rl-ojo) }
+.rl-toma.on { border-color: var(--rl-ojo); box-shadow: inset 3px 0 0 var(--rl-ojo) }
+.rl-toma:disabled { cursor: not-allowed; opacity: .75 }
+.rl-toma b { font: 800 12.5px var(--rl-titulo) }
+.rl-toma span { font-size: 11.5px; color: var(--rl-gris); font-variant-numeric: tabular-nums }
+.rl-toma i {
+  font-style: normal; font: 700 9.5px var(--rl-texto); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--rl-bien);
+}
+.rl-suma { margin-left: auto; font-size: 13px; color: var(--rl-gris) }
+.rl-suma b { color: var(--rl-tinta); font-variant-numeric: tabular-nums }
+
+/* ---------- La rejilla ---------- */
+.rl-tabla-env { overflow-x: auto; -webkit-overflow-scrolling: touch }
+.rl-tabla { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 420px }
+.rl-tabla th {
+  text-align: left; font: 700 10px var(--rl-texto); letter-spacing: .12em;
+  text-transform: uppercase; color: var(--rl-gris); padding: 11px 16px;
+  border-bottom: 1px solid var(--rl-linea); white-space: nowrap;
+}
+.rl-tabla th.cen, .rl-tabla td.cen { text-align: center }
+.rl-tabla td { padding: 7px 16px; border-bottom: 1px solid var(--rl-fondo) }
+.rl-tabla tbody tr:hover { background: color-mix(in srgb, var(--rl-ojo) 5%, #fff) }
+.rl-tabla tbody tr.con { background: color-mix(in srgb, var(--rl-ojo) 8%, #fff) }
+.rl-maq { font: 600 13.5px var(--rl-texto); display: flex; align-items: center; gap: 9px }
+.rl-item {
+  flex: none; min-width: 26px; text-align: center; font: 700 10.5px var(--rl-texto);
+  color: var(--rl-gris); background: var(--rl-fondo); border-radius: 3px; padding: 3px 5px;
+  font-variant-numeric: tabular-nums;
+}
+.rl-tabla input {
+  width: 92px; min-height: 42px; text-align: center; font: 800 15px var(--rl-titulo);
+  border: 1.5px solid var(--rl-linea); border-radius: 3px; background: var(--rl-fondo);
+  color: var(--rl-tinta); font-variant-numeric: tabular-nums; padding: 0 6px;
+}
+.rl-tabla input:focus {
+  outline: none; background: var(--rl-papel); border-color: var(--rl-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rl-ojo) 25%, transparent);
+}
+/* Sin las flechitas del navegador: ocupan sitio, se tocan sin querer con
+   el dedo y el teclado numérico del celular ya sube y baja. */
+.rl-tabla input::-webkit-outer-spin-button,
+.rl-tabla input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0 }
+.rl-tabla input[type=number] { -moz-appearance: textfield; appearance: textfield }
+.rl-und {
+  font: 800 15px var(--rl-titulo); font-variant-numeric: tabular-nums; color: var(--rl-tinta);
+}
+.rl-tabla tfoot td {
+  padding: 14px 16px; background: var(--rl-grupo); color: #fff; border: 0;
+  font: 900 18px var(--rl-titulo); font-variant-numeric: tabular-nums;
+}
+.rl-tabla tfoot td:first-child {
+  font-size: 11.5px; letter-spacing: .1em; color: color-mix(in srgb, #fff 72%, transparent);
+}
+
+/* ---------- Pie ---------- */
+.rl-pie-x { display: none }
+.rl-pie, .rl-pie-accion {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 16px 18px; border-top: 1px solid var(--rl-linea);
+}
+.rl-btn {
+  min-height: 46px; padding: 0 20px; cursor: pointer; border-radius: 3px;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  font: 800 13.5px var(--rl-titulo); color: var(--rl-tinta);
+}
+.rl-btn.si { background: var(--rl-ojo); border-color: var(--rl-ojo); color: var(--rl-sobre) }
+.rl-btn:disabled { opacity: .5; cursor: not-allowed }
+.rl-nota { font-size: 12.5px; color: var(--rl-gris); flex: 1 1 220px; min-width: 0 }
+
+/* ---------- Vacíos ---------- */
+.rl-vacio { padding: 34px 18px; text-align: center; color: var(--rl-gris); font-size: 13.5px }
+.rl-vacio b { display: block; font: 800 16px var(--rl-titulo); color: var(--rl-tinta); margin-bottom: 6px }
+.rl-vacio-chico { padding: 16px 18px; font-size: 13px; color: var(--rl-gris) }
+
+/* ---------- La columna de la derecha ---------- */
+.rl-lado { display: flex; flex-direction: column; gap: 14px }
+.rl-caja { background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px }
+.rl-caja.ojo { border-left: 4px solid var(--c-oro, #FFC000) }
+.rl-cab { padding: 13px 16px 0 }
+.rl-cab h2 { margin: 0; font: 800 14px var(--rl-titulo); letter-spacing: -.01em }
+.rl-explica {
+  margin: 8px 16px 14px; font-size: 12.5px; color: var(--rl-gris); line-height: 1.55;
+}
+.rl-explica a { color: var(--rl-ojo); font-weight: 600 }
+.rl-grande {
+  font: 900 34px/1 var(--rl-titulo); margin: 10px 16px 0; font-variant-numeric: tabular-nums;
+}
+.rl-fila-linea {
+  display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 10px;
+  align-items: center; padding: 9px 16px;
+}
+.rl-etq { font: 700 11.5px var(--rl-texto); color: var(--rl-gris) }
+.rl-pista { height: 9px; background: var(--rl-fondo); border-radius: 5px; overflow: hidden }
+.rl-pista i { display: block; height: 100%; background: var(--rl-ojo) }
+.rl-v { font: 800 13.5px var(--rl-titulo); font-variant-numeric: tabular-nums }
+
+/* ---------- Falta el SQL ---------- */
+.rl-sin-tablas {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  border-left: 4px solid var(--c-oro, #FFC000); border-radius: 3px; padding: 22px 24px;
+}
+.rl-sin-tablas h2 { margin: 0; font: 800 19px var(--rl-titulo) }
+.rl-sin-tablas p { font-size: 14px; color: var(--rl-gris); line-height: 1.6; max-width: 70ch }
+.rl-sin-tablas code {
+  font-family: ui-monospace, Menlo, monospace; font-size: .92em;
+  background: var(--rl-fondo); padding: 1px 6px; border-radius: 3px; color: var(--rl-tinta);
+}
+
+@media (max-width: 620px) {
+  .rl-escoger { gap: 12px }
+  .rl-tabla th, .rl-tabla td { padding-left: 12px; padding-right: 12px }
+  .rl-tabla input { width: 78px }
+  .rl-suma { margin-left: 0; flex: 1 1 100% }
+}
