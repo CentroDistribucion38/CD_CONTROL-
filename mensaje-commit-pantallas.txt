@@ -735,3 +735,46 @@ COMPROBADO QUE DA LO MISMO:
   zonas contadas / motivos contados ................... 40 / 30
   suma de usos por motivo = total de acciones .......... 50.005
   tarda ................................................. 16 ms
+
+
+UNA OPTIMIZACION QUE SE MIDIO Y NO SIRVE. QUEDA GUARDADA, NO PUESTA.
+
+supabase/migraciones/2026-09-rls-rapida.sql envuelve las llamadas a
+es_editor(), mi_rol(), manda() y auth.uid() dentro de las politicas de
+seguridad en un (select ...), para que Postgres las evalue una vez y no
+por cada fila.
+
+En una prueba con una politica inventada sobre 5.000 filas la
+diferencia era enorme: 44,9 ms contra 1,0 ms. Con ese numero en la mano
+parecia el arreglo mas grande de los tres.
+
+NO LO ES, EN ESTA BASE. Se midio contra dos bases identicas, una con el
+cambio y otra sin el, con usuarios reales y no como superusuario:
+
+  leer 50.000 acciones ......... 17,5 ms  ->  17,0 ms
+  leer 2.000 perfiles .......... 0,28 ms  ->  0,29 ms
+
+Eso es ruido, no una mejora. Y la razon es buena: las tablas grandes
+tienen la regla de LECTURA en "true" —cualquiera que entro puede leer—
+y lo que llama funciones son las reglas de ESCRITURA, que aplican sobre
+una fila a la vez. Postgres evalua el "true" primero y ni llega a la
+funcion.
+
+Queda el archivo escrito y probado, con el numero real en la cabecera y
+la fecha en que habra que correrlo: el dia que una regla de LECTURA deje
+de ser "true" y pase a depender de quien sos —"cada bodega ve lo suyo",
+"el operador solo ve su area"—. Ese dia la funcion pasa a evaluarse por
+fila leida y la diferencia vuelve a ser 45 veces.
+
+SE COMPROBO QUE NO CAMBIA LA SEGURIDAD, que es lo que habia que
+comprobar antes de guardarlo siquiera:
+
+  el operador NO puede crear una zona ......... bloqueado en las dos
+  el admin SI puede ........................... permitido en las dos
+  el operador no puede tocar el perfil del admin .. 0 filas en las dos
+  politicas que quedaron con una llamada suelta ................... 0
+  correrlo dos veces: la segunda dice ............... "reescritas: 0"
+
+Se deja escrito aqui por una razon: la proxima vez que alguien lea "45x"
+en un blog y quiera aplicarlo, que encuentre la medicion de ESTA base al
+lado y no tenga que repetirla.

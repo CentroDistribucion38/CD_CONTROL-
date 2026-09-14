@@ -1,0 +1,222 @@
+/* ---------------------------------------------------------------------
+   TRASPASOS — viajes entre puntos.
+
+   Todo cuelga de .tp para no pisar nada de la app. Mismo lenguaje visual
+   que Acciones y Roturas, con su propio acento: el módulo se reconoce
+   por el color antes de leer el título.
+
+   EL ACENTO SALE DEL TEMA, no de un azul escrito a mano. La app empareja
+   un acento con su tinta —--c-marca con --c-marca-txt— justamente para
+   que al cambiar de preferencias no quede texto oscuro sobre fondo
+   oscuro. --c-oro no trae pareja, así que este módulo pone la suya.
+
+   A LO ANCHO NO SE DESPLAZA NUNCA: lo que no cabe se apila o se recorta
+   dentro de su propio recuadro, nunca empujando la página de lado.
+   --------------------------------------------------------------------- */
+
+/* Los tokens van en las dos raíces: .tp-reg se abre por encima de todo
+   y lo lanza la barra de abajo, que vive FUERA de .tp. Las variables se
+   heredan por el árbol del documento, no por dónde se ve el elemento. */
+.tp, .tp-reg {
+  --tp-tinta: var(--c-04203f);
+  --tp-acento: var(--c-marca);
+  --tp-sobre-acento: var(--c-marca-txt);
+  --tp-ojo: var(--c-oro);
+  /* Semáforo. NO sale del tema a propósito: si cambiara con las
+     preferencias dejaría de querer decir "esto está mal". */
+  --tp-mal: #C8102E;
+  --tp-bien: #0F7A4A;
+  --tp-papel: #FFF;
+  --tp-gris: var(--c-5b6b7f);
+  --tp-linea: var(--c-d5dce5);
+  --tp-fondo: var(--c-eef1f5);
+
+  --tp-titulo: "Archivo", system-ui, sans-serif;
+  --tp-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+
+  font-family: var(--tp-texto);
+  color: var(--tp-tinta);
+}
+
+.tp { display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.tp *, .tp *::before, .tp *::after,
+.tp-reg *, .tp-reg *::before, .tp-reg *::after { box-sizing: border-box }
+
+/* ====================== Encabezado ====================== */
+.tp .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: stretch }
+.tp .cabeza h1 {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: clamp(26px, 4vw, 38px);
+  margin: 4px 0 6px; line-height: 1.04; letter-spacing: -.02em;
+}
+.tp .cabeza .ojo {
+  margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .16em; color: var(--tp-gris);
+}
+.tp .cabeza .sub { margin: 0; font-size: 13px; color: var(--tp-gris); max-width: 72ch; line-height: 1.5 }
+
+/* El recuadro de la cifra del turno. */
+.tp .kpi {
+  position: relative; background: var(--c-grupo); color: #fff;
+  border-radius: 12px; padding: 16px 20px; min-width: 190px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.tp .kpi .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; opacity: .75 }
+.tp .kpi .num {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 40px; line-height: 1;
+  margin-top: 6px; font-variant-numeric: tabular-nums;
+}
+.tp .kpi .num .u { font-size: 12px; font-weight: 600; opacity: .8; margin-left: 7px }
+.tp .kpi .pie { font-size: 11px; opacity: .8; margin-top: 6px }
+
+/* ====================== Cifras ====================== */
+.tp .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.tp .cifra {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-left: 3px solid var(--tp-acento); border-radius: 10px; padding: 13px 15px;
+}
+.tp .cifra .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--tp-gris) }
+.tp .cifra .n {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 27px; line-height: 1;
+  margin-top: 5px; font-variant-numeric: tabular-nums;
+}
+.tp .cifra .u { font-size: 11px; color: var(--tp-gris); margin-top: 4px; line-height: 1.3 }
+.tp .cifra.mal { border-left-color: var(--tp-mal) }
+.tp .cifra.mal .n { color: var(--tp-mal) }
+.tp .cifra.ojo { border-left-color: var(--tp-ojo) }
+
+/* ====================== Caja ====================== */
+.tp .caja {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-radius: 12px; overflow: hidden; min-width: 0;
+}
+.tp .caja > .cab {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
+  padding: 14px 16px; border-bottom: 1px solid var(--tp-linea); flex-wrap: wrap;
+}
+.tp .caja > .cab h2 {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 16px; margin: 0;
+}
+.tp .caja > .cab p { margin: 3px 0 0; font-size: 11.5px; color: var(--tp-gris); max-width: 72ch }
+
+.tp .vacio { padding: 26px 16px; text-align: center; color: var(--tp-gris); font-size: 13px }
+.tp .vacio b { display: block; font-family: var(--tp-titulo); font-size: 15px; color: var(--tp-tinta); margin-bottom: 4px }
+
+/* ====================== La tabla del seguimiento ======================
+   Es la única cosa ancha del módulo y por eso se desplaza DENTRO de su
+   propio recuadro. La página nunca se mueve de lado. */
+.tp .tabla-envuelta { overflow-x: auto; -webkit-overflow-scrolling: touch }
+.tp table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px }
+.tp th {
+  text-align: left; font-size: 9.5px; font-weight: 700; letter-spacing: .12em;
+  color: var(--tp-gris); padding: 9px 12px; border-bottom: 1px solid var(--tp-linea);
+  white-space: nowrap;
+}
+.tp td { padding: 11px 12px; border-bottom: 1px solid var(--tp-linea); vertical-align: middle }
+.tp tr:last-child td { border-bottom: 0 }
+.tp td.n, .tp th.n { text-align: right; font-variant-numeric: tabular-nums }
+.tp td.tipo { font-weight: 700 }
+
+/* La barra de cumplimiento dentro de la celda. Se lee antes que el
+   número: de un vistazo se ve cuál turno va corto. */
+.tp .barra {
+  display: block; height: 7px; border-radius: 4px; background: var(--tp-fondo);
+  overflow: hidden; min-width: 70px; margin-top: 5px;
+}
+.tp .barra i { display: block; height: 100%; background: var(--tp-bien) }
+.tp .barra.corto i { background: var(--tp-mal) }
+
+/* SIN PLANEAR: se movió y nadie lo planeó. Filo de color, no fila roja:
+   no está MAL, está fuera del plan, que es otra cosa. */
+.tp tr.sin-plan td:first-child { box-shadow: inset 3px 0 0 var(--tp-ojo) }
+.tp .eti {
+  display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
+  padding: 3px 7px; border-radius: 5px; background: var(--tp-fondo); color: var(--tp-gris);
+  white-space: nowrap;
+}
+.tp .eti.ojo { background: var(--tp-ojo); color: #1A1200 }
+.tp .eti.mal { background: var(--tp-mal); color: #fff }
+.tp .eti.vacio-eti { background: transparent; border: 1px dashed var(--tp-gris) }
+
+/* ====================== Filas de viajes ====================== */
+.tp .fila {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px;
+  padding: 13px 16px; border-bottom: 1px solid var(--tp-linea); align-items: start;
+}
+.tp .fila:last-child { border-bottom: 0 }
+.tp .fila.anulada { opacity: .5 }
+.tp .fila .placa {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 15px;
+  background: var(--tp-fondo); border-radius: 7px; padding: 7px 10px;
+  letter-spacing: .04em; white-space: nowrap;
+}
+.tp .fila .ruta { font-family: var(--tp-titulo); font-weight: 800; font-size: 15px }
+.tp .fila .ruta .fl { color: var(--tp-gris); margin: 0 7px; font-weight: 400 }
+.tp .fila .meta {
+  display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px;
+  font-size: 12px; color: var(--tp-gris); align-items: center;
+}
+.tp .fila .meta .cant { font-weight: 800; color: var(--tp-tinta) }
+/* El punto escrito a mano se ve distinto: es lo que hay que agregar al
+   maestro, no un sitio más. */
+.tp .fila .suelto { border-bottom: 1px dashed var(--tp-ojo) }
+.tp .fila .der { display: flex; flex-direction: column; gap: 6px; align-items: flex-end }
+
+/* ====================== Botones ====================== */
+.tp .btn {
+  font: inherit; font-family: var(--tp-titulo); font-weight: 800; font-size: 13px;
+  min-height: 42px; padding: 0 16px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--tp-linea); background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .btn.si { background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento) }
+.tp .btn.chico { min-height: 34px; font-size: 12px; padding: 0 11px }
+.tp .btn:disabled { opacity: .5; cursor: not-allowed }
+
+/* ====================== Campos ====================== */
+.tp .campo, .tp-reg .campo { display: block; margin-bottom: 13px }
+.tp .campo label, .tp-reg .campo label {
+  display: block; font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  color: var(--tp-gris); margin-bottom: 6px; text-transform: uppercase;
+}
+.tp .campo input, .tp .campo select, .tp .campo textarea,
+.tp-reg .campo input, .tp-reg .campo select, .tp-reg .campo textarea {
+  font: inherit; font-size: 16px; width: 100%; min-height: 48px;
+  padding: 11px 13px; border-radius: 9px; border: 1px solid var(--tp-linea);
+  background: var(--tp-papel); color: var(--tp-tinta);
+}
+.tp .campo textarea, .tp-reg .campo textarea { min-height: 76px; resize: vertical }
+
+/* Los turnos y los tipos, como botones grandes: se toca con guantes. */
+.tp .opciones, .tp-reg .opciones { display: flex; flex-wrap: wrap; gap: 8px }
+.tp .op, .tp-reg .op {
+  font: inherit; font-family: var(--tp-titulo); font-weight: 800; font-size: 14px;
+  min-height: 46px; padding: 0 16px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--tp-linea); background: var(--tp-papel); color: var(--tp-tinta);
+}
+.tp .op.on, .tp-reg .op.on {
+  background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento);
+}
+.tp .op:disabled, .tp-reg .op:disabled { opacity: .5; cursor: not-allowed }
+
+/* ====================== Avisos ====================== */
+.tp .aviso, .tp-reg .aviso {
+  background: #FFFBEB; border-left: 3px solid var(--tp-ojo);
+  padding: 11px 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.5;
+}
+.tp .aviso.malo, .tp-reg .aviso.malo { background: #FEF2F2; border-left-color: var(--tp-mal) }
+.tp .guia, .tp-reg .guia { font-size: 12px; color: var(--tp-gris); line-height: 1.5; margin: 0 }
+
+.tp .sin-tablas { background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-left: 3px solid var(--tp-mal); border-radius: 12px; padding: 20px }
+.tp .sin-tablas h2 { font-family: var(--tp-titulo); font-weight: 800; font-size: 17px; margin: 0 0 7px }
+.tp .sin-tablas p { margin: 0; font-size: 13px; color: var(--tp-gris); line-height: 1.55 }
+.tp .sin-tablas code {
+  font-family: ui-monospace, monospace; font-size: 12.5px;
+  background: var(--tp-fondo); padding: 2px 6px; border-radius: 5px;
+}
+
+/* ====================== Celular ====================== */
+@media (max-width: 720px) {
+  .tp .cabeza { grid-template-columns: 1fr }
+  .tp .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .tp .fila { grid-template-columns: auto 1fr; }
+  .tp .fila .der { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start }
+}

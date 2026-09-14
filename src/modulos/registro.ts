@@ -239,6 +239,32 @@ export const MODULOS: Modulo[] = [
     ],
   },
   {
+    id: "traspasos",
+    nombre: "Traspasos",
+    eyebrow: "VIAJES ENTRE PUNTOS",
+    descripcion:
+      "Lo que se planea mover en cada turno y lo que de verdad se movió, viaje por viaje y con su placa. El cumplido no se escribe: se cuenta.",
+    acento: "#0B4EA2",
+    fondo: "#E6EEF9",
+    etiquetas: ["Plan del turno", "Viajes con placa"],
+    imagen: "/modulos/traspasos.jpg",
+    ruta: "/traspasos",
+    /* Quien abre Traspasos casi siempre viene a registrar un viaje que
+       tiene enfrente, no a mirar el plan. El plan se hace una vez por
+       turno; los viajes se registran todo el turno. */
+    entrada: "/traspasos",
+    activo: true,
+    /* EL ORDEN DEL PROCESO, no el de las pantallas: primero se planea el
+       turno, después se registra lo que sale, después se compara, y la
+       configuración de último. */
+    secciones: [
+      { nombre: "Plan", ruta: "/traspasos/plan" },
+      { nombre: "Registrar", ruta: "/traspasos" },
+      { nombre: "Seguimiento", ruta: "/traspasos/seguimiento" },
+      { nombre: "Maestro", ruta: "/traspasos/maestro" },
+    ],
+  },
+  {
     id: "acciones",
     nombre: "Acciones",
     eyebrow: "CORRECTIVAS Y PREVENTIVAS",
