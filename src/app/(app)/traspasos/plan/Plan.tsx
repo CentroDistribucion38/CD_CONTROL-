@@ -1,185 +1,335 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
-import type { Control, TipoViaje } from "@/modulos/traspasos/datos";
-import { TURNOS } from "@/modulos/traspasos/formato";
+import type { Control, PlanLinea, TipoViaje } from "@/modulos/traspasos/datos";
+import { TURNOS, HORARIO } from "@/modulos/traspasos/formato";
+
+type Rejilla = Record<string, number>;      // "A|pet" → 6
+type Vacios  = Record<string, number>;      // "A"     → 2
+
+const k = (turno: string, tipo: string) => `${turno}|${tipo}`;
 
 /**
- * EL PLAN DEL TURNO.
+ * EL PLAN DEL DÍA, EN UNA SOLA REJILLA.
  *
- * Se planea por (fecha, turno, tipo): cuántos viajes con carga y
- * cuántos vacíos. Planear dos veces el mismo tipo el mismo turno
- * ACTUALIZA la línea en vez de crear otra — es lo que la persona quería
- * hacer, y dos líneas del mismo tipo es un renglón que después nadie
- * sabe si sumar o escoger.
+ * Nueve tipos por tres turnos son veintisiete decisiones. Tomadas de a
+ * una en un formulario —escoge turno, escoge tipo, escribe el número,
+ * guarda, y otra vez— son veintisiete formularios: nadie planea el día
+ * así dos veces. En una rejilla se ven todas, se comparan entre turnos
+ * de un vistazo, y se guardan de una.
  *
- * NO HAY BOTÓN DE "DILIGENCIAR CUMPLIDO", y su ausencia es el módulo.
- * La columna de cumplido se ve pero no se puede escribir: sale de
- * contar los viajes registrados. Si esta pantalla lo dejara editar,
- * volvería el problema del que salimos — dos cifras del mismo turno en
- * dos pestañas de la misma app.
+ * SE ARMA COMO BORRADOR Y DESPUÉS SE PUBLICA. Mientras se arma, el
+ * turno sigue viendo el plan que estaba vigente: sin eso, los
+ * supervisores verían un plan a medias y el porcentaje de cumplimiento
+ * daría saltos sin sentido durante los diez minutos que toma armarlo.
  *
- * NO HAY FORMULARIO DE "VIAJE ADICIONAL" tampoco, y por lo mismo. Un
- * adicional es un viaje que se hizo y no estaba planeado: se registra
- * como cualquier otro viaje, en Registrar, y aparece solo como
- * adicional aquí. Tenerlo como formulario aparte obligaba a teclear a
- * mano un número que ya se podía contar.
+ * LO CUMPLIDO NO SE TOCA DESDE AQUÍ —sale de contar los viajes—, pero
+ * SÍ SE VE: debajo de la celda, en verde, cuántos van hechos. Planear
+ * el turno B sin saber que el A ya lleva cuatro es planear a ciegas.
  */
-export function Plan({ filas, tipos, fecha, puedeEditar }: {
-  filas: Control[];
+export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
+                       promedio, ayer, fecha, esHoy, puedeEditar }: {
   tipos: TipoViaje[];
+  publicadas: PlanLinea[];
+  borrador: PlanLinea[];
+  vaciosGuardados: { turno: string; vacios: number }[];
+  /** Para enseñar cuántos van hechos por celda. */
+  control: Control[];
+  /** Promedio de lo que de verdad salió los últimos 4 días iguales. */
+  promedio: { turno: string; tipo: string; promedio: number; dias: number }[];
+  /** El plan publicado de ayer, para copiarlo. */
+  ayer: PlanLinea[];
   fecha: string;
+  esHoy: boolean;
   puedeEditar: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
-
-  const [turno, setTurno] = useState<string>("C");
-  const [tipo, setTipo] = useState("");
-  const [planeado, setPlaneado] = useState("");
-  const [vacios, setVacios] = useState("");
   const [mandando, setMandando] = useState(false);
 
-  const delTurno = filas.filter((f) => f.turno === turno);
+  /* La rejilla arranca en el borrador si lo hay, y si no en lo
+     publicado: quien vuelve a la pantalla tiene que encontrar lo que
+     dejó a medias, no una rejilla en blanco. */
+  const inicial = useMemo(() => {
+    const base = borrador.length ? borrador : publicadas;
+    const r: Rejilla = {};
+    for (const l of base) r[k(l.turno, l.tipo)] = l.planeado;
+    return r;
+  }, [borrador, publicadas]);
 
-  async function guardar() {
+  const inicialVac = useMemo(() => {
+    const v: Vacios = {};
+    for (const x of vaciosGuardados) v[x.turno] = x.vacios;
+    return v;
+  }, [vaciosGuardados]);
+
+  const [rejilla, setRejilla] = useState<Rejilla>(inicial);
+  const [vacios, setVacios] = useState<Vacios>(inicialVac);
+
+  /* CUÁNTOS CAMBIOS HAY SIN PUBLICAR. Se compara contra lo PUBLICADO y
+     no contra el borrador: lo que la persona necesita saber es en qué
+     se diferencia lo que está armando de lo que el turno está viendo. */
+  const publicado = useMemo(() => {
+    const r: Rejilla = {};
+    for (const l of publicadas) r[k(l.turno, l.tipo)] = l.planeado;
+    return r;
+  }, [publicadas]);
+
+  const cambios = useMemo(() => {
+    const claves = new Set([...Object.keys(rejilla), ...Object.keys(publicado)]);
+    let n = 0;
+    for (const c of claves) if ((rejilla[c] ?? 0) !== (publicado[c] ?? 0)) n++;
+    return n;
+  }, [rejilla, publicado]);
+
+  const hecho = useMemo(() => {
+    const r: Rejilla = {};
+    for (const c of control) r[k(c.turno, c.tipo)] = c.cumplido;
+    return r;
+  }, [control]);
+
+  const val = (t: string, tipo: string) => rejilla[k(t, tipo)] ?? 0;
+  const poner = (t: string, tipo: string, n: number) =>
+    setRejilla((r) => ({ ...r, [k(t, tipo)]: Math.max(0, n) }));
+
+  const totTurno = (t: string) => tipos.reduce((a, x) => a + val(t, x.clave), 0);
+  const totTipo = (tipo: string) => TURNOS.reduce((a, t) => a + val(t, tipo), 0);
+  const totalConCarga = tipos.reduce((a, x) => a + totTipo(x.clave), 0);
+  const totalVacios = TURNOS.reduce((a, t) => a + (vacios[t] ?? 0), 0);
+
+  const lineas = () => {
+    const l: { turno: string; tipo: string; planeado: number }[] = [];
+    for (const t of TURNOS) for (const x of tipos) {
+      const n = val(t, x.clave);
+      if (n > 0) l.push({ turno: t, tipo: x.clave, planeado: n });
+    }
+    return l;
+  };
+
+  async function guardar(publicar: boolean) {
     setMandando(true);
-    const { error } = await supabase.rpc("traspaso_planear", {
-      p_fecha: fecha, p_turno: turno, p_tipo: tipo,
-      p_planeado: Number(planeado) || 0,
-      p_vacios: Number(vacios) || 0,
-      p_nota: null,
+    const { error } = await supabase.rpc("traspaso_guardar_plan", {
+      p_fecha: fecha,
+      p_lineas: lineas(),
+      p_vacios: TURNOS.map((t) => ({ turno: t, vacios: vacios[t] ?? 0 })),
     });
+    if (error) { setMandando(false); avisar.mal(error.message); return }
+
+    if (publicar) {
+      const { error: e2 } = await supabase.rpc("traspaso_publicar_plan", { p_fecha: fecha });
+      if (e2) { setMandando(false); avisar.mal(e2.message); return }
+      avisar.bien(`Plan publicado: ${totalConCarga} viajes con carga y ${totalVacios} vacíos.`);
+    } else {
+      avisar.bien("Borrador guardado. El turno sigue viendo el plan anterior hasta que publiques.");
+    }
     setMandando(false);
-    if (error) { avisar.mal(error.message); return }
-    const n = tipos.find((t) => t.clave === tipo)?.nombre ?? tipo;
-    avisar.bien(`${n}: ${planeado} viajes planeados para el turno ${turno}.`);
-    setPlaneado(""); setVacios("");
     router.refresh();
   }
+
+  /* ATAJOS. Casi todos los días se parecen: empezar de cero una rejilla
+     de veintisiete celdas es lo que hace que nadie planee. */
+  function copiarAyer() {
+    const r: Rejilla = {};
+    for (const l of ayer) r[k(l.turno, l.tipo)] = l.planeado;
+    setRejilla(r);
+    avisar.bien(`Copiado el plan de ayer: ${ayer.reduce((a, l) => a + l.planeado, 0)} viajes.`);
+  }
+
+  function usarPromedio() {
+    const r: Rejilla = {};
+    for (const p of promedio) if (p.promedio > 0) r[k(p.turno, p.tipo)] = p.promedio;
+    setRejilla(r);
+    avisar.bien("Puesto el promedio de lo que DE VERDAD salió los últimos días iguales.");
+  }
+
+  const totalAyer = ayer.reduce((a, l) => a + l.planeado, 0);
+  const totalProm = promedio.reduce((a, p) => a + p.promedio, 0);
+
+  /* La referencia de la derecha: por tipo, el promedio real contra lo
+     que se está planeando ahora. */
+  const referencia = tipos.map((x) => {
+    const prom = promedio.filter((p) => p.tipo === x.clave)
+      .reduce((a, p) => a + p.promedio, 0);
+    return { tipo: x, prom, plan: totTipo(x.clave), dif: totTipo(x.clave) - prom };
+  }).filter((r) => r.prom > 0 || r.plan > 0).slice(0, 6);
 
   return (
     <>
       {avisos}
 
-      {puedeEditar && (
-        <section className="caja">
-          <div className="cab">
-            <div>
-              <h2>Planear el turno</h2>
-              <p>
-                Cuántos viajes de cada tipo lleva el turno. Si el tipo ya estaba planeado, se
-                actualiza esa línea en vez de crear otra.
-              </p>
+      <div className="plan-marco">
+        <div>
+          <section className="matriz">
+            <div className="tabla-envuelta">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tipo de viaje</th>
+                    {TURNOS.map((t) => (
+                      <th key={t} className="cen">
+                        Turno {t}
+                        <span className="hor">{HORARIO[t]}</span>
+                      </th>
+                    ))}
+                    <th className="cen dia">Día</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tipos.map((x) => (
+                    <tr key={x.clave}>
+                      <td className="tipo">{x.nombre}</td>
+                      {TURNOS.map((t) => (
+                        <td key={t} className="cen">
+                          <Celda n={val(t, x.clave)} puedeEditar={puedeEditar}
+                                 onCambio={(n) => poner(t, x.clave, n)} />
+                          {/* Lo hecho, debajo y en verde. Planear el
+                              turno B sin saber que el A ya lleva cuatro
+                              es planear a ciegas. */}
+                          {esHoy && (hecho[k(t, x.clave)] ?? 0) > 0 && (
+                            <span className="hecho">{hecho[k(t, x.clave)]} hechos</span>
+                          )}
+                        </td>
+                      ))}
+                      <td className="cen tot">{totTipo(x.clave) || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="total">
+                    <td>TOTAL CON CARGA</td>
+                    {TURNOS.map((t) => <td key={t} className="cen">{totTurno(t)}</td>)}
+                    <td className="cen dia">{totalConCarga}</td>
+                  </tr>
+
+                  {/* LOS VACÍOS VAN DEBAJO DEL TOTAL Y EN LA MISMA TABLA.
+                      No son una fila más de la rejilla —no llevan tipo,
+                      porque un viaje sin carga no mueve un material— pero
+                      sí tienen que caer bajo la columna de su turno: en
+                      una tabla aparte los números quedaban corridos
+                      respecto de los de arriba, y dos cifras del mismo
+                      turno que no están alineadas se leen mal. */}
+                  <tr className="vacios">
+                    <td>
+                      Viajes vacíos
+                      <span>cuestan igual y no mueven producto</span>
+                    </td>
+                    {TURNOS.map((t) => (
+                      <td className="cen" key={t}>
+                        <Celda n={vacios[t] ?? 0} puedeEditar={puedeEditar}
+                               onCambio={(n) => setVacios((v) => ({ ...v, [t]: Math.max(0, n) }))} />
+                      </td>
+                    ))}
+                    <td className="cen tot">{totalVacios || "—"}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-          </div>
 
-          <div style={{ padding: 16 }}>
-            <div className="campo">
-              <label>Turno</label>
-              <div className="opciones">
-                {TURNOS.map((t) => (
-                  <button key={t} type="button"
-                          className={"op" + (turno === t ? " on" : "")}
-                          onClick={() => setTurno(t)}>Turno {t}</button>
-                ))}
+            {puedeEditar && (
+              <div className="pie-publicar">
+                <button type="button" className="btn si" disabled={mandando}
+                        onClick={() => guardar(true)}>
+                  {mandando ? "Guardando…" : "Publicar plan del día"}
+                </button>
+                <button type="button" className="btn" disabled={mandando}
+                        onClick={() => guardar(false)}>
+                  Guardar borrador
+                </button>
+                <span className="aviso-cambios">
+                  {cambios === 0
+                    ? "Sin cambios sobre lo publicado"
+                    : <><b>{cambios} {cambios === 1 ? "cambio" : "cambios"}</b> sin publicar</>}
+                  {esHoy && totalHechos(hecho) > 0 &&
+                    ` · ya hay ${totalHechos(hecho)} viajes hechos sobre este plan`}
+                </span>
               </div>
-            </div>
-
-            <div className="campo">
-              <label>Tipo de viaje</label>
-              <div className="opciones">
-                {tipos.map((t) => (
-                  <button key={t.clave} type="button"
-                          className={"op" + (tipo === t.clave ? " on" : "")}
-                          onClick={() => setTipo(t.clave)}>{t.nombre}</button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div className="campo">
-                <label htmlFor="tp-pl">Viajes con carga</label>
-                <input id="tp-pl" type="number" inputMode="numeric" min={0} value={planeado}
-                       onChange={(e) => setPlaneado(e.target.value)} />
-              </div>
-              <div className="campo">
-                <label htmlFor="tp-va">Viajes vacíos</label>
-                <input id="tp-va" type="number" inputMode="numeric" min={0} value={vacios}
-                       onChange={(e) => setVacios(e.target.value)} />
-              </div>
-            </div>
-
-            <button type="button" className="btn si" style={{ width: "100%", minHeight: 50 }}
-                    disabled={!tipo || planeado.trim() === "" || mandando}
-                    onClick={guardar}>
-              {mandando ? "Guardando…"
-                : !tipo ? "Escoge el tipo de viaje"
-                : planeado.trim() === "" ? "Di cuántos viajes"
-                : `Planear para el turno ${turno}`}
-            </button>
-          </div>
-        </section>
-      )}
-
-      <section className="caja">
-        <div className="cab">
-          <div>
-            <h2>Plan del turno {turno}</h2>
-            <p>
-              Lo cumplido no se escribe aquí: lo cuenta la base sobre los viajes registrados.
-            </p>
-          </div>
+            )}
+          </section>
         </div>
 
-        {delTurno.length === 0 ? (
-          <div className="vacio">
-            <b>El turno {turno} no tiene nada planeado</b>
-            Se puede registrar viajes igual — aparecerían como «sin planear» en el Control.
+        <aside className="lado-plan">
+          <div className="resumen-dia">
+            <div className="corte" aria-hidden />
+            <div className="rot">CARGA DEL DÍA</div>
+            <div className="gran">{totalConCarga + totalVacios}</div>
+            <div className="sub">{totalConCarga} con carga · {totalVacios} vacíos</div>
+            <div className="barras-turno">
+              {TURNOS.map((t) => {
+                const n = totTurno(t) + (vacios[t] ?? 0);
+                const tope = Math.max(1, ...TURNOS.map((o) => totTurno(o) + (vacios[o] ?? 0)));
+                return (
+                  <div className="bt" key={t}>
+                    <span>Turno {t}</span>
+                    <span className="pista"><i style={{ width: `${(n / tope) * 100}%` }} /></span>
+                    <span className="v">{n}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          <div className="tabla-envuelta">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th className="n">Planeado</th>
-                  <th className="n">Cumplido</th>
-                  <th className="n">Faltan</th>
-                  <th className="n">Adicionales</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {delTurno.map((f) => (
-                  <tr key={f.tipo} className={f.sin_planear ? "sin-plan" : undefined}>
-                    <td className="tipo">
-                      {f.tipo_nombre}
-                      {f.sin_planear && <> <span className="eti ojo">SIN PLANEAR</span></>}
-                    </td>
-                    <td className="n">{f.planeado || "—"}</td>
-                    <td className="n">{f.cumplido}</td>
-                    <td className="n">{f.faltan > 0 ? f.faltan : "—"}</td>
-                    <td className="n">{f.adicionales > 0 ? `+${f.adicionales}` : "—"}</td>
-                    <td className="n">
-                      {f.adherencia != null && (
-                        <span className={"barra" + (f.adherencia < 100 ? " corto" : "")}
-                              aria-label={`${f.adherencia}%`}>
-                          <i style={{ width: `${f.adherencia}%` }} />
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+
+          {puedeEditar && (
+            <div className="atajos-plan">
+              <h3>Armar más rápido</h3>
+              <p>Casi todos los días se parecen. No empieces de cero.</p>
+              <div className="fila-a">
+                <button type="button" disabled={!totalAyer} onClick={copiarAyer}>
+                  Copiar el plan de ayer <span>{totalAyer || "—"}</span>
+                </button>
+                <button type="button" disabled={!totalProm} onClick={usarPromedio}>
+                  Promedio del mismo día <span>{totalProm || "—"}</span>
+                </button>
+                <button type="button" onClick={() => { setRejilla({}); setVacios({}); }}>
+                  Vaciar la rejilla <span>0</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {referencia.length > 0 && (
+            <div className="referencia">
+              <h3>Contra los últimos días iguales</h3>
+              <p>
+                Promedio de lo que de verdad salió, no de lo que se planeó: copiar cuatro veces
+                un plan que estuvo mal es como un error se vuelve costumbre.
+              </p>
+              {referencia.map((r) => (
+                <div className="ref-fila" key={r.tipo.clave}>
+                  <span>{r.tipo.nombre}</span>
+                  <span className="prom">prom. {r.prom}</span>
+                  <span className={"dif " + (r.dif > 0 ? "mas" : r.dif < 0 ? "menos" : "")}>
+                    {r.dif > 0 ? `+${r.dif}` : r.dif < 0 ? r.dif : "="}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+      </div>
     </>
+  );
+}
+
+function totalHechos(h: Rejilla) {
+  return Object.values(h).reduce((a, n) => a + n, 0);
+}
+
+/** La celda de la rejilla. Con guantes, dos botones grandes ganan a
+ *  teclear; con teclado, escribir gana. Por eso tiene las dos cosas. */
+function Celda({ n, puedeEditar, onCambio }: {
+  n: number; puedeEditar: boolean; onCambio: (n: number) => void;
+}) {
+  if (!puedeEditar) return <span className="solo-ver">{n || "—"}</span>;
+  return (
+    <span className={"cel-step" + (n === 0 ? " vacia" : "")}>
+      <button type="button" onClick={() => onCambio(n - 1)} aria-label="uno menos">−</button>
+      <input value={n} inputMode="numeric" aria-label="viajes planeados"
+             onChange={(e) => onCambio(Number(e.target.value.replace(/\D/g, "")) || 0)} />
+      <button type="button" onClick={() => onCambio(n + 1)} aria-label="uno más">+</button>
+    </span>
   );
 }

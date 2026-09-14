@@ -945,3 +945,249 @@ PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas del archivo:
   10 punto fuera del maestro queda marcado ........ ok
   11 lo movido SIN PLANEAR sale en el control ..... ok
   12 anulado no cuenta pero sigue estando ......... ok
+
+
+TRASPASOS: EL ARCHIVO SE PONE AL DIA SOLO.
+
+La correccion del modelo —turnos C/A/B, viajes en vez de carga, vacios
+sin tipo ni placa— llego DESPUES de que el modulo ya se hubiera corrido
+en Supabase. Y "create table if not exists" no cambia una tabla que ya
+existe: la base se quedaba con el turno numerico y el archivo reventaba
+mas abajo con "la funcion traspaso_orden_turno(smallint) no existe".
+
+Ahora el archivo arranca con una seccion 0 que pone al dia una
+instalacion anterior. Si la base esta limpia no hace nada.
+
+EL TURNO SE TRADUCE, NO SE VACIA: 1→C, 2→A, 3→B, que es el mismo
+horario —en la version de numeros el 1 era el de las 6 de la mañana, y
+ese es el C—. Hoy casi no hay datos, pero vaciar por comodidad es la
+clase de atajo que se paga el dia que alguien corra esto sobre una base
+con un turno cargado.
+
+`cantidad` NO se renombra a `viajes`: eran cosas distintas. La carga
+vieja se conserva en su propia columna y los viajes arrancan en 1, que
+es lo que valia cada linea.
+
+Y LO MAS PELIGROSO, que no daba error: LAS FUNCIONES VIEJAS SE BOTAN
+POR SU FIRMA EXACTA. Postgres deja convivir dos funciones con el mismo
+nombre si reciben tipos distintos, asi que "create or replace" no
+reemplazaba la vieja: la dejaba al lado. La comprobacion lo delato
+—decia "las seis funciones: MAL (8)"—. Y ahi el riesgo no era que
+fallara sino que NO fallara: PostgREST escoge cual llamar segun lo que
+le mande la pantalla, y el dia que alguien mandara un numero donde va
+una letra se habria ejecutado la regla vieja, en silencio.
+
+PROBADO CONTRA POSTGRES 16 REAL, los dos caminos, dos corridas cada
+uno:
+
+  A) base LIMPIA ............................. las 12 pruebas ok
+  B) base con la version VIEJA ya corrida Y CON DATOS:
+     el turno numerico paso a letra ........................ ok
+     la carga vieja se conservo ............................ ok
+     los viajes arrancaron en 1 ............................ ok
+     el viaje viejo sigue contando en el cumplido .......... ok
+     las funciones viejas ya no estan (6 y no 8) ........... ok
+     correrlo dos veces seguidas no cambia nada ............ ok
+
+
+CONTROL Y EJECUCION, CON EL DISEÑO ENTREGADO.
+
+Se armo contra el HTML del diseño: el panel grande de adherencia, la
+cinta de tres tramos, los tres anillos por turno, las tarjetas de
+alerta y la tabla con el total en negro.
+
+SE LEE DE ARRIBA ABAJO Y EN ESE ORDEN A PROPOSITO:
+
+  1 la cifra que manda ..... adherencia al plan
+  2 como va repartida ...... la cinta y los tres turnos
+  3 lo que esta mal ........ las alertas
+  4 el detalle ............. la tabla por tipo
+
+Quien entra a las seis de la mañana mira la primera linea y se va.
+Quien esta en la reunion baja hasta la tabla. Las dos cosas en la misma
+pantalla, sin pestañas.
+
+DOS COSAS DEL DISEÑO NO SE COPIARON, Y POR LA MISMA RAZON:
+
+1. LOS BOTONES DE MAS Y DE MENOS EN LA COLUMNA "CUMPLIDO", y el rotulo
+   "Escribe el cumplido aqui mismo: el porcentaje se recalcula solo".
+
+   Eso es exactamente el problema del que salimos: dos numeros que
+   hablan de lo mismo y pueden contradecirse. En la hoja las fichas de
+   resumen contaban los viajes registrados y el tablero contaba el
+   campo escrito a mano, y la misma app enseñaba dos cifras distintas
+   del mismo turno en dos pestañas.
+
+   El recuadro SE CONSERVA —mismo tamaño, mismo borde, la cifra
+   destacada igual— pero sin las flechas. Y el rotulo dice lo que si es
+   verdad: "El cumplido no se escribe aqui: lo cuentan los viajes
+   registrados. Si un numero no cuadra, lo que falta es registrar el
+   viaje —y ahi queda con su placa, que es lo que despues permite decir
+   cual fue".
+
+2. "SALIERON A TIEMPO 16 DE 28" y los tramos "a tiempo / fuera de
+   hora". Eso necesita saber a que hora DEBIA salir cada viaje, y ese
+   dato no existe: el plan dice cuantos, no cuando. Inventar la cifra
+   habria sido peor que no tenerla —un indicador de puntualidad que
+   nadie puede auditar—.
+
+   La cinta conserva sus tres tramos y su misma lectura de un vistazo,
+   pero repartiendo lo que SI se sabe, que ademas suma el plan:
+
+     lo que se hizo dentro del plan ..... oro
+     lo que se hizo de mas .............. oro claro
+     lo que no salio .................... hueco punteado, sin color
+
+   El tercero va punteado y sin relleno a proposito: un hueco tiene que
+   verse como un hueco.
+
+   El dia que se quiera medir puntualidad, lo que hay que agregar es la
+   hora prevista en el plan. Queda dicho aqui para que no haya que
+   volver a deducirlo.
+
+LO QUE SE AGREGO Y NO ESTABA EN EL MOCKUP:
+
+  LOS FILTROS VIVEN EN LA DIRECCION, no en el estado de la pantalla.
+  Permite mandar "mira el turno C de ayer" y que al otro le abra
+  exactamente eso, y hace que el boton de atras deshaga el filtro en
+  vez de salirse del modulo. El de FECHA ademas filtra EN LA BASE: con
+  un año de viajes, filtrarlos en el navegador obligaria a bajarlos
+  todos para mirar un turno.
+
+  EL PDF LO HACE EL NAVEGADOR, con hoja de estilos de impresion propia
+  (A4 horizontal, sin filtros ni botones, cajas que no se parten). No
+  hay libreria ni servidor que lo arme, y lo que sale es exactamente lo
+  que se esta viendo —con los filtros puestos—, que es justo lo que
+  nunca cuadra cuando el PDF se genera aparte.
+
+  EL ORO SALE DEL TEMA y lleva su tinta emparejada. En los temas donde
+  --c-oro es rojo, el panel grande habria quedado con letra casi negra
+  sobre rojo; el modulo define --tp-sobre-ojo igual que Roturas.
+
+  LOS ANILLOS calculan su circunferencia (2·π·r) en vez de llevarla
+  escrita: si alguien cambia el radio y el numero se queda, el anillo
+  miente.
+
+  LAS ALERTAS SOLO SE PINTAN SI LAS HAY. Una tarjeta que dice "0" es
+  una tarjeta que la gente aprende a no leer, y el dia que diga 4
+  tampoco la va a leer.
+
+MEDIDO, NO MIRADO. Playwright a 1440, 820, 390 y 360 px:
+la pagina NO se desplaza a lo ancho en ninguna. La tabla —lo unico
+ancho— se desplaza dentro de su propio recuadro.
+
+
+PLANEAR Y REGISTRAR, CON EL DISEÑO ENTREGADO.
+
+LOS TURNOS PASAN DE C,A,B A A,B,C —y esto es una correccion, no un
+gusto—. La primera version dedujo el orden del orden en que aparecian
+en la lista desplegable de la hoja. El diseño nuevo trae los HORARIOS
+escritos: A 06:00-14:00, B 14:00-22:00, C 22:00-06:00. Con eso no hay
+nada que deducir: A abre el dia. Un horario explicito le gana siempre a
+un orden inferido. Los horarios viven en la base
+(traspaso_horario_turno) para que el dia que cambien —o entre un cuarto
+turno— se cambien en un sitio.
+
+EL PLAN, EN UNA SOLA REJILLA.
+
+Nueve tipos por tres turnos son veintisiete decisiones. Tomadas de a una
+en un formulario —escoge turno, escoge tipo, escribe el numero, guarda,
+y otra vez— son veintisiete formularios: nadie planea el dia asi dos
+veces. En una rejilla se ven todas, se comparan entre turnos de un
+vistazo, y se guardan de una.
+
+  La funcion vieja guardaba UNA linea y la pantalla la habria llamado
+  veintisiete veces: veintisiete viajes a la base para guardar una sola
+  decision, y si el numero trece falla el plan queda a medias sin que
+  nadie sepa cual falto. Ahora entra la rejilla completa en un jsonb y
+  se guarda en una transaccion: o queda todo el plan, o no queda nada.
+
+  UN CERO BORRA LA LINEA en vez de guardarla con planeado = 0. "Casco
+  vidrio, turno B, 0 viajes" y la ausencia de esa linea dicen lo mismo,
+  y tener las dos formas obliga a TODAS las consultas a acordarse de
+  filtrar los ceros.
+
+BORRADOR Y PUBLICAR, que no estaba y hace falta.
+
+Antes cada linea quedaba viva en el momento en que se tecleaba. Eso
+significa que durante los diez minutos que toma armar el dia, los
+supervisores ven un plan a medias y el porcentaje de cumplimiento da
+saltos sin sentido. Ahora el plan se arma como borrador, el turno sigue
+viendo el plan vigente, y solo al publicar reemplaza al anterior —en una
+transaccion, asi que nunca hay un instante en que el dia se quede sin
+plan—.
+
+  El indice unico tuvo que incluir `publicado`: sin eso, guardar el
+  borrador de un dia que ya tiene plan chocaba contra la linea publicada
+  y no dejaba armar el borrador, que es justo lo que el borrador vino a
+  permitir.
+
+  Y la funcion vieja traspaso_planear SE BOTA: escribia en la columna
+  `vacios` que esta migracion quita, asi que a partir de aqui fallaba.
+  Dejarla seria dejar una puerta que revienta.
+
+LOS VACIOS PLANEADOS SE MUDAN A SU PROPIA TABLA, por turno. Un viaje
+vacio no mueve un material, asi que "3 vacios de casco vidrio" no quiere
+decir nada; estaban como columna de la linea de plan —que si lleva
+tipo— y eso obligaba a repartirlos entre tipos a ojo.
+
+EN LA PANTALLA van en el tfoot, debajo del total y en la misma tabla. En
+una tabla aparte los numeros quedaban corridos respecto de los de
+arriba, y dos cifras del mismo turno que no estan alineadas se leen mal.
+
+LO CUMPLIDO NO SE TOCA DESDE EL PLAN —sale de contar los viajes— PERO
+SI SE VE: debajo de la celda, en verde, cuantos van hechos. Planear el
+turno B sin saber que el A ya lleva cuatro es planear a ciegas.
+
+ARMAR MAS RAPIDO. Copiar el plan de ayer, o poner el PROMEDIO DE LO QUE
+DE VERDAD SALIO los ultimos cuatro dias iguales. Es lo real y no lo
+planeado a proposito: el plan de los lunes anteriores puede haber estado
+mal, y copiar un plan malo cuatro veces es como se institucionaliza un
+error.
+
+REGISTRAR: LO QUE MAS SE REPITE, DE UN TOQUE.
+
+  Las placas de los ultimos siete dias, la mas reciente primero. Casi
+  siempre el vehiculo que esta en la puerta ya paso esta semana:
+  tocarla es un gesto; teclearla con guantes son diez segundos y un
+  error de dedo.
+
+  Las rutas mas frecuentes del ultimo mes, y un boton de VOLTEAR la
+  ruta: la mitad de los viajes son el regreso del anterior.
+
+  Las tres listas salen de lo que YA esta registrado. No hay un maestro
+  de placas ni de rutas que alguien tenga que llenar, asi que funcionan
+  desde el primer dia y se afinan solas.
+
+  EL PLAN DEL TURNO EN CUADRITOS, uno por viaje planeado, encendido al
+  registrarlo. "4 de 16" se entiende leyendo; doce cuadros apagados se
+  entienden sin leer, que es lo que hace falta a las cinco de la mañana.
+
+  CTRL+ENTER manda. Quien registra veinte viajes seguidos desde el
+  escritorio no quiere soltar el teclado para buscar el boton.
+
+  LA NOVEDAD VA PLEGADA: se usa en uno de cada veinte viajes, y un campo
+  grande que casi nunca se llena empuja el boton fuera de la pantalla en
+  el celular.
+
+UN BUG DE DISPOSICION QUE SOLO SE VE MIDIENDO: la rejilla desplazaba la
+pagina de lado en el celular. No era la tabla —esa se desplaza tranquila
+dentro de su recuadro— sino que un hijo de grid nace con min-width:auto,
+asi que la tabla de 680 px estiraba su columna entera y con ella la
+pagina; el overflow-x del recuadro nunca llegaba a actuar porque el
+recuadro ya era de 680. min-width:0 en los hijos de las cuatro rejillas.
+
+PROBADO CONTRA POSTGRES 16 REAL, dos corridas del archivo:
+
+   1 guardar la rejilla entera de una, y el 0 no se guarda ... ok
+   2 el borrador NO aparece en Control ...................... ok
+   3 guardar otra vez reemplaza el borrador ................. ok
+   4 publicar: ahora si cuenta ............................. ok
+   5 publicar sin borrador se rechaza ...................... ok
+   6 un borrador nuevo NO tumba lo publicado ............... ok
+   7 al publicar, el nuevo reemplaza al viejo sin duplicar .. ok
+   8 turno inventado se rechaza ............................ ok
+   9 las placas y rutas recientes salen .................... ok
+
+MEDIDO CON PLAYWRIGHT a 1440, 820, 390 y 360 px: ninguna de las tres
+pantallas desplaza la pagina a lo ancho.

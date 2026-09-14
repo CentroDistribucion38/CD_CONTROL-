@@ -209,3 +209,69 @@ export async function usoDelMaestro() {
   }
   return { tipos, puntos: pts };
 }
+
+
+export type PlanLinea = {
+  id: string; fecha: string; turno: string; tipo: string;
+  planeado: number; publicado: boolean;
+};
+
+/**
+ * EL PLAN DE UN DÍA, publicado y borrador por separado.
+ *
+ * Van aparte y no mezclados porque la pantalla tiene que poder decir
+ * "esto es lo que está vigente" y "esto es lo que estás armando". Si
+ * llegaran juntos, la rejilla tendría que adivinar cuál pinta.
+ */
+export async function planDelDia(fecha: string) {
+  const supabase = await createClient();
+  const [pl, vac] = await Promise.all([
+    supabase.from("traspasos_plan")
+      .select("id, fecha, turno, tipo, planeado, publicado")
+      .eq("fecha", fecha).eq("estado", "registrado"),
+    supabase.from("traspasos_plan_vacios").select("turno, vacios").eq("fecha", fecha),
+  ]);
+  const lineas = (pl.data ?? []) as PlanLinea[];
+  return {
+    falta: !!pl.error && sinTablas(pl.error.message),
+    publicadas: lineas.filter((l) => l.publicado),
+    borrador: lineas.filter((l) => !l.publicado),
+    vacios: (vac.data ?? []) as { turno: string; vacios: number }[],
+  };
+}
+
+/** Las placas de los últimos siete días, la más reciente primero. Es lo
+ *  que convierte teclear una placa en tocar un botón. */
+export async function placasRecientes(limite = 8) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("v_traspasos_placas")
+    .select("placa, veces, ultima").order("ultima", { ascending: false }).limit(limite);
+  return (data ?? []) as { placa: string; veces: number; ultima: string }[];
+}
+
+/** Las rutas que más se repiten en el último mes. */
+export async function rutasFrecuentes(limite = 6) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("v_traspasos_rutas")
+    .select("origen, destino, veces").order("veces", { ascending: false }).limit(limite);
+  return (data ?? []) as { origen: string; destino: string; veces: number }[];
+}
+
+/**
+ * EL PROMEDIO DE LO QUE DE VERDAD SALIÓ el mismo día de la semana, en
+ * las últimas cuatro semanas.
+ *
+ * Es lo REAL y no lo planeado a propósito: el plan de los lunes
+ * anteriores puede haber estado mal, y copiar un plan malo cuatro veces
+ * seguidas es como se institucionaliza un error.
+ */
+export async function promedioDelDia(fecha: string) {
+  const supabase = await createClient();
+  /* getUTCDay sobre el mediodía: la fecha suelta se interpreta como
+     medianoche UTC, que en Colombia es el día anterior. */
+  const d = new Date(fecha + "T12:00:00").getUTCDay();
+  const iso = d === 0 ? 7 : d;
+  const { data } = await supabase.from("v_traspasos_promedio")
+    .select("turno, tipo, promedio, dias").eq("dia_semana", iso);
+  return (data ?? []) as { turno: string; tipo: string; promedio: number; dias: number }[];
+}

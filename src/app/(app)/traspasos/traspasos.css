@@ -220,3 +220,547 @@
   .tp .fila { grid-template-columns: auto 1fr; }
   .tp .fila .der { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start }
 }
+
+/* =====================================================================
+   CONTROL Y EJECUCIÓN
+   La pantalla de la reunión. Se lee de arriba abajo en este orden:
+   la cifra grande → cómo va repartida → lo que está mal → el detalle.
+   ===================================================================== */
+
+/* EL ORO Y SU TINTA, EMPAREJADOS. La app define --c-marca junto con
+   --c-marca-txt justamente para esto; --c-oro no trae pareja, así que
+   el módulo pone la suya. Sin esto, en los temas donde --c-oro es rojo
+   el panel grande quedaba con letra casi negra sobre rojo. */
+.tp { --tp-sobre-ojo: #1A1200 }
+[data-tema="tinta"] .tp, [data-tema="ambar"] .tp, [data-tema="negro"] .tp,
+[data-tema="gris"]  .tp, [data-tema="halo"]  .tp {
+  --tp-sobre-ojo: #fff;
+  --tp-ojo: color-mix(in srgb, var(--c-oro) 88%, #000);
+}
+
+/* ---------- Encabezado con botones ---------- */
+.tp .cabeza-ctl {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: center;
+}
+.tp .cabeza-ctl > * { min-width: 0 }
+.tp .acciones-informe { display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 10px }
+.tp .accion {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 15px; cursor: pointer;
+  background: var(--tp-papel); border: 1.5px solid var(--tp-linea); border-radius: 3px;
+  font: 600 13px var(--tp-texto); color: var(--tp-tinta);
+}
+.tp .accion:hover { border-color: var(--tp-acento); color: var(--tp-acento) }
+.tp .accion svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.8; fill: none;
+  stroke-linecap: round; stroke-linejoin: round }
+
+/* EL PANEL GRANDE. Es lo primero que se ve y por eso lleva la cifra que
+   de verdad manda: la adherencia al plan. */
+.tp .panel-ojo {
+  position: relative; overflow: hidden; border-radius: 3px;
+  background: var(--tp-ojo); color: var(--tp-sobre-ojo);
+  padding: 18px 26px 17px 22px; min-width: 300px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.tp .panel-ojo .corte {
+  position: absolute; top: -20%; bottom: -20%; right: -12px; width: 80px;
+  background: rgba(0, 0, 0, .12); transform: skewX(-26deg);
+}
+.tp .panel-ojo .rot { position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; opacity: .85 }
+.tp .panel-ojo .num {
+  position: relative; font-family: var(--tp-titulo); font-weight: 900; font-size: 46px;
+  line-height: .9; letter-spacing: -.05em; margin-top: 5px;
+}
+.tp .panel-ojo .pie { position: relative; margin-top: 9px; font-size: 12.5px }
+
+/* ---------- Filtros ---------- */
+.tp .filtros { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px }
+.tp .filtros .arriba { display: flex; align-items: flex-end; gap: 14px; padding: 16px 20px; flex-wrap: wrap }
+.tp .sel { display: flex; flex-direction: column; gap: 6px }
+.tp .sel > span { font-size: 11.5px; font-weight: 600; color: var(--tp-tinta) }
+.tp .sel select {
+  height: 42px; min-width: 150px; padding: 0 12px; font: 500 14px var(--tp-texto);
+  color: var(--tp-tinta); background: var(--tp-fondo);
+  border: 1.5px solid var(--tp-linea); border-radius: 2px; cursor: pointer;
+}
+.tp .sel select:focus-visible { outline: none; border-color: var(--tp-acento) }
+.tp .limpiar {
+  margin-left: auto; height: 42px; padding: 0 16px; cursor: pointer;
+  background: none; border: 1.5px solid var(--tp-linea); border-radius: 2px;
+  font: 600 13px var(--tp-texto); color: var(--tp-gris);
+}
+.tp .limpiar:hover { border-color: var(--tp-acento); color: var(--tp-acento) }
+
+/* ---------- El medidor: la cinta y los tres turnos ---------- */
+.tp .medidor {
+  display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: stretch;
+}
+.tp .medidor > * { min-width: 0 }
+.tp .avance {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  padding: 22px 24px; display: flex; flex-direction: column; justify-content: center;
+}
+.tp .avance .arr { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap }
+.tp .avance .arr b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: clamp(38px, 6vw, 60px);
+  letter-spacing: -.05em; line-height: 1;
+}
+.tp .avance .arr span { font-size: 14.5px; color: var(--tp-gris) }
+.tp .avance .arr span b { font-size: 34px; color: var(--tp-tinta) }
+
+/* LA CINTA. Tres tramos que suman el plan: lo que se hizo dentro del
+   plan, lo que se hizo de más, y lo que no salió. El tercero va con
+   borde punteado y sin color: un hueco tiene que verse como un hueco. */
+.tp .cinta {
+  margin-top: 18px; height: 32px; background: var(--tp-fondo);
+  display: flex; overflow: hidden; border-radius: 2px;
+}
+.tp .cinta i { display: block; height: 100% }
+.tp .cinta .ok    { background: var(--tp-ojo) }
+.tp .cinta .extra { background: color-mix(in srgb, var(--tp-ojo) 45%, #fff) }
+.tp .cinta .falta { background: var(--tp-fondo); border-left: 2px dashed var(--tp-linea) }
+.tp .leyenda-cinta {
+  display: flex; gap: 18px; margin-top: 11px; font-size: 12.5px; color: var(--tp-gris); flex-wrap: wrap;
+}
+.tp .leyenda-cinta span { display: inline-flex; align-items: center; gap: 8px }
+.tp .leyenda-cinta i { width: 12px; height: 12px; border-radius: 2px; display: inline-block }
+
+.tp .turnos {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  padding: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.tp .turno { text-align: center; min-width: 0 }
+.tp .turno svg { width: 100%; max-width: 86px }
+.tp .turno b { display: block; font-family: var(--tp-titulo); font-weight: 800; font-size: 14px; margin-top: 7px }
+.tp .turno span { display: block; font-size: 12px; color: var(--tp-gris); margin-top: 2px }
+
+/* ---------- Las alertas ---------- */
+.tp .alertas { display: flex; gap: 10px; flex-wrap: wrap }
+.tp .alerta {
+  display: flex; align-items: center; gap: 10px; background: var(--tp-papel);
+  border: 1px solid var(--tp-linea); border-left: 4px solid var(--tp-mal);
+  border-radius: 3px; padding: 12px 16px; font-size: 13px;
+}
+.tp .alerta b { font-family: var(--tp-titulo); font-weight: 900; font-size: 19px }
+.tp .alerta.bien   { border-left-color: var(--tp-bien) }
+.tp .alerta.neutra { border-left-color: var(--tp-linea) }
+
+/* ---------- La tabla del detalle ---------- */
+.tp .panel-tabla { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px; overflow: hidden }
+.tp .panel-tabla .cab-tabla { padding: 16px 22px; border-bottom: 1px solid var(--tp-linea) }
+.tp .panel-tabla h2 { font-family: var(--tp-titulo); font-weight: 800; font-size: 18px; margin: 0 }
+.tp .panel-tabla .cab-tabla p { margin: 5px 0 0; font-size: 13px; color: var(--tp-gris); max-width: 82ch }
+.tp .panel-tabla th { padding: 10px 22px; background: var(--tp-fondo); text-transform: uppercase }
+.tp .panel-tabla td { padding: 12px 22px }
+.tp .panel-tabla tr:hover { background: var(--tp-fondo) }
+.tp .panel-tabla td.nom { font-family: var(--tp-titulo); font-weight: 800; font-size: 14.5px }
+
+/* LA CIFRA CUMPLIDA VA EN SU RECUADRO, y el recuadro NO tiene botones
+   de más y de menos a propósito. El cumplido lo cuentan los viajes
+   registrados: un par de flechas aquí volvería a poner dos números que
+   hablan de lo mismo, que es justo lo que este módulo vino a quitar. */
+.tp .cuenta {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 62px; height: 32px; padding: 0 12px;
+  border: 1.5px solid var(--tp-linea); border-radius: 2px; background: var(--tp-papel);
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.tp td.mini { width: 150px; padding-left: 0; padding-right: 10px }
+.tp td.mini .pista { height: 8px; background: var(--tp-fondo); border-radius: 2px; overflow: hidden }
+.tp td.mini .relleno { height: 100% }
+.tp .pct { font-family: var(--tp-titulo); font-weight: 800 }
+.tp .pct.bien { color: var(--tp-bien) }
+.tp .pct.medio { color: var(--tp-ojo) }
+.tp .pct.mal { color: var(--tp-mal) }
+.tp tfoot td {
+  background: var(--c-grupo); color: #fff; font-weight: 600; padding: 14px 22px;
+  border-bottom: 0; font-size: 14px;
+}
+.tp tfoot td:first-child { font-family: var(--tp-titulo); font-weight: 800 }
+
+/* ---------- Celular ---------- */
+@media (max-width: 900px) {
+  .tp .cabeza-ctl { grid-template-columns: 1fr }
+  .tp .acciones-informe { justify-content: flex-start }
+  .tp .medidor { grid-template-columns: 1fr }
+  .tp .alertas .alerta { flex: 1 1 160px }
+}
+
+/* ---------- Al imprimir: el PDF sale de aquí ----------
+   No hay librería de PDF ni servidor que lo arme: el navegador ya sabe
+   hacerlo, y lo que imprime es exactamente lo que se está viendo —con
+   los filtros puestos—, que es lo que nadie logra con un PDF generado
+   aparte. */
+@media print {
+  @page { size: A4 landscape; margin: 12mm }
+  .tp .filtros, .tp .acciones-informe { display: none !important }
+  .tp .panel-ojo { color: #000; background: none; border: 2px solid #000 }
+  .tp .panel-ojo .corte { display: none }
+  .tp .medidor { grid-template-columns: 1fr 300px }
+  .tp .caja, .tp .panel-tabla, .tp .avance, .tp .turnos { break-inside: avoid }
+  .tp tfoot td { background: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact }
+}
+
+/* La columna derecha del encabezado: los dos botones y el panel grande.
+   Los filtros NO van aquí —van a lo ancho, debajo del título—: metidos
+   en esta columna le comen el ancho al título, que es lo primero que
+   alguien lee al entrar. */
+.tp .der-ctl { display: flex; flex-direction: column; min-width: 300px }
+
+/* =====================================================================
+   PLAN DEL DÍA — la rejilla
+   ===================================================================== */
+.tp .fecha-nav { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; flex-wrap: wrap }
+.tp .fecha-nav button {
+  width: 36px; height: 36px; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+  border-radius: 2px; cursor: pointer; display: grid; place-items: center;
+}
+.tp .fecha-nav button:hover { border-color: var(--tp-ojo) }
+.tp .fecha-nav svg { width: 15px; height: 15px; stroke: var(--tp-tinta); stroke-width: 2.2; fill: none }
+.tp .fecha-nav .hoy {
+  border: 0; background: var(--c-grupo); color: var(--tp-ojo); width: auto; padding: 0 14px;
+  font: 700 12.5px var(--tp-titulo); letter-spacing: .06em;
+}
+.tp .estado-plan {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: color-mix(in srgb, var(--tp-ojo) 14%, #fff);
+  border: 1px solid color-mix(in srgb, var(--tp-ojo) 55%, #fff);
+  padding: 7px 13px; font-size: 12.5px; font-weight: 600; color: var(--tp-tinta);
+}
+.tp .estado-plan i {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--tp-ojo); display: block;
+}
+
+/* min-width:0 EN LOS HIJOS, y no es adorno. Un hijo de grid nace con
+   min-width:auto, así que la tabla de 680 px de ancho estiraba su
+   columna entera y con ella la página — el overflow-x del recuadro de
+   la tabla nunca llegaba a actuar porque el recuadro ya era de 680.
+   Es el mismo motivo por el que el módulo lleva min-width:0 en .tp. */
+.tp .plan-marco {
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start;
+}
+.tp .plan-marco > * { min-width: 0 }
+
+.tp .matriz { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px }
+.tp .matriz table { min-width: 680px }
+.tp .matriz thead th {
+  padding: 13px 16px; background: var(--tp-fondo); text-transform: uppercase;
+  border-bottom: 1px solid var(--tp-linea);
+}
+.tp .matriz thead th.cen { text-align: center }
+.tp .matriz thead th .hor {
+  display: block; margin-top: 4px; font-size: 9.5px; font-weight: 500;
+  letter-spacing: .04em; opacity: .75; text-transform: none;
+}
+.tp .matriz thead th.dia { background: var(--c-grupo); color: var(--tp-ojo) }
+.tp .matriz td { padding: 10px 16px; text-align: center }
+.tp .matriz td.tipo { text-align: left; font-weight: 600; font-size: 14px }
+.tp .matriz td.cen { text-align: center }
+.tp .matriz td.tot {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 17px; background: var(--tp-fondo);
+}
+.tp .matriz tr:hover { background: color-mix(in srgb, var(--tp-ojo) 6%, #fff) }
+.tp .matriz tfoot td {
+  padding: 14px 16px; text-align: center; background: var(--c-grupo); color: #fff;
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 19px; border: 0;
+}
+.tp .matriz tfoot td:first-child {
+  text-align: left; font-size: 12px; letter-spacing: .1em; opacity: .7; font-weight: 700;
+}
+.tp .matriz tfoot td.dia { color: var(--tp-ojo); font-size: 23px }
+
+/* LA CELDA. Dos botones grandes para los guantes y un campo para el
+   teclado: quien planea desde el escritorio escribe 6 y sigue; quien
+   ajusta desde el celular en la bodega toca el más. */
+.tp .cel-step {
+  display: inline-flex; align-items: center; border: 1.5px solid var(--tp-linea);
+  border-radius: 2px; overflow: hidden; background: var(--tp-papel);
+}
+.tp .cel-step button {
+  width: 30px; height: 34px; border: 0; background: var(--tp-fondo); cursor: pointer;
+  font: 800 15px var(--tp-titulo); color: var(--tp-gris);
+}
+.tp .cel-step button:hover { background: var(--tp-ojo); color: var(--tp-sobre-ojo) }
+.tp .cel-step input {
+  width: 42px; min-height: 0; height: 34px; border: 0; padding: 0; text-align: center;
+  background: none; font: 900 15px var(--tp-titulo); color: var(--tp-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.tp .cel-step input:focus { outline: none; background: color-mix(in srgb, var(--tp-ojo) 18%, #fff) }
+.tp .cel-step.vacia input { color: var(--tp-linea) }
+.tp .solo-ver { font-family: var(--tp-titulo); font-weight: 900; font-size: 15px }
+.tp .hecho {
+  display: block; margin-top: 5px; font-size: 10.5px; color: var(--tp-bien); font-weight: 700;
+}
+
+/* Los vacíos viven en el tfoot, debajo del total. La fila es blanca y
+   el total negro: son dos cosas distintas y la tabla lo dice sin
+   necesidad de un rótulo. */
+.tp .matriz tfoot tr.vacios td {
+  background: var(--tp-papel); color: var(--tp-tinta);
+  font-family: var(--tp-texto); font-weight: 600; font-size: 14px;
+  border-top: 1px solid var(--tp-linea); padding: 12px 16px;
+}
+.tp .matriz tfoot tr.vacios td:first-child {
+  text-align: left; letter-spacing: 0; opacity: 1; font-weight: 600;
+}
+.tp .matriz tfoot tr.vacios td:first-child span {
+  display: block; font-size: 11.5px; color: var(--tp-gris); font-weight: 400; margin-top: 2px;
+}
+.tp .matriz tfoot tr.vacios td.tot {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 17px; background: var(--tp-fondo);
+}
+
+.tp .pie-publicar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  border-top: 1px solid var(--tp-linea); padding: 16px;
+}
+.tp .pie-publicar .btn.si { height: 50px; padding: 0 28px; font-size: 15px }
+.tp .aviso-cambios { font-size: 13px; color: var(--tp-gris) }
+.tp .aviso-cambios b { color: var(--tp-tinta) }
+
+/* ---------- La columna derecha ---------- */
+.tp .lado-plan { display: flex; flex-direction: column; gap: 16px }
+.tp .resumen-dia {
+  background: var(--c-grupo); color: #fff; padding: 20px 22px;
+  position: relative; overflow: hidden; border-radius: 3px;
+}
+.tp .resumen-dia .corte {
+  position: absolute; top: -30%; bottom: -30%; right: -14px; width: 90px;
+  background: color-mix(in srgb, var(--tp-ojo) 16%, transparent); transform: skewX(-26deg);
+}
+.tp .resumen-dia .rot {
+  position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .15em; opacity: .65;
+}
+.tp .resumen-dia .gran {
+  position: relative; font-family: var(--tp-titulo); font-weight: 900; font-size: 50px;
+  line-height: 1; color: var(--tp-ojo); margin-top: 7px;
+}
+.tp .resumen-dia .sub { position: relative; font-size: 12.5px; opacity: .75; margin-top: 6px }
+.tp .barras-turno { position: relative; margin-top: 18px; display: flex; flex-direction: column; gap: 10px }
+.tp .bt { display: grid; grid-template-columns: 62px 1fr 32px; gap: 10px; align-items: center; font-size: 13px }
+.tp .bt .pista { height: 12px; background: rgba(255, 255, 255, .14); border-radius: 2px; overflow: hidden }
+.tp .bt .pista i { display: block; height: 100%; background: var(--tp-ojo) }
+.tp .bt .v { text-align: right; font-family: var(--tp-titulo); font-weight: 800 }
+
+.tp .atajos-plan, .tp .referencia {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px; padding: 18px 20px;
+}
+.tp .atajos-plan h3, .tp .referencia h3 {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 15.5px; margin: 0 0 6px;
+}
+.tp .atajos-plan p, .tp .referencia p {
+  font-size: 12.5px; color: var(--tp-gris); line-height: 1.5; margin: 0;
+}
+.tp .atajos-plan .fila-a { display: flex; flex-direction: column; gap: 9px; margin-top: 14px }
+.tp .atajos-plan button {
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); padding: 12px 14px;
+  text-align: left; cursor: pointer; font: 600 13.5px var(--tp-texto); color: var(--tp-tinta);
+  display: flex; align-items: center; gap: 11px; border-radius: 2px;
+}
+.tp .atajos-plan button:hover:not(:disabled) {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 8%, #fff);
+}
+.tp .atajos-plan button:disabled { opacity: .45; cursor: not-allowed }
+.tp .atajos-plan button span { margin-left: auto; font-weight: 400; font-size: 12px; color: var(--tp-gris) }
+
+.tp .ref-fila {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--tp-linea); font-size: 13.5px;
+}
+.tp .ref-fila:first-of-type { margin-top: 10px }
+.tp .ref-fila:last-child { border-bottom: 0 }
+.tp .ref-fila .prom { color: var(--tp-gris); font-size: 12.5px }
+.tp .ref-fila .dif {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 13px; width: 38px; text-align: right;
+  color: var(--tp-gris);
+}
+.tp .ref-fila .dif.mas { color: var(--tp-bien) }
+.tp .ref-fila .dif.menos { color: var(--tp-mal) }
+
+@media (max-width: 1100px) {
+  .tp .plan-marco { grid-template-columns: 1fr }
+}
+@media (max-width: 700px) {
+  .tp .cel-step input { width: 34px }
+}
+
+/* =====================================================================
+   REGISTRAR — la consola del turno
+   ===================================================================== */
+.tp .consola {
+  display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 18px; align-items: start;
+}
+.tp .consola > * { min-width: 0 }
+.tp .tarj-reg { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px }
+.tp .tarj-reg > .cab { padding: 18px 22px 15px; border-bottom: 1px solid var(--tp-linea) }
+.tp .tarj-reg h2 { font-family: var(--tp-titulo); font-weight: 800; font-size: 19px; margin: 0 }
+.tp .tarj-reg > .cab p { margin: 5px 0 0; font-size: 13px; color: var(--tp-gris) }
+.tp .cuerpo-f { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px }
+
+.tp .linea-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px }
+.tp .rot-campo {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .12em;
+  color: var(--tp-gris); margin-bottom: 9px; text-transform: uppercase;
+}
+
+/* EL SEGMENTADO. Dos o tres opciones que se excluyen se leen mejor
+   pegadas que como botones sueltos: el hueco entre botones invita a
+   pensar que se pueden tocar los dos. */
+.tp .seg { display: inline-flex; background: var(--tp-fondo); padding: 4px; border-radius: 2px; gap: 4px }
+.tp .seg button {
+  border: 0; background: none; padding: 10px 18px; border-radius: 2px; cursor: pointer;
+  font: 600 14px var(--tp-texto); color: var(--tp-gris);
+}
+.tp .seg button.on { background: var(--c-grupo); color: var(--tp-ojo); font-weight: 700 }
+.tp .seg.turno button { min-width: 48px; font-family: var(--tp-titulo); font-weight: 800 }
+.tp .seg.turno button.on { background: var(--tp-ojo); color: var(--tp-sobre-ojo) }
+
+/* LA PLACA, GRANDE. Es el único dato que no se puede reconstruir de
+   memoria si se escribe mal, y el que se lee a un metro de distancia
+   para comprobarlo contra el vehículo. */
+.tp .placa input {
+  width: 100%; height: 72px; border: 2px solid var(--tp-linea); border-radius: 3px;
+  background: var(--tp-fondo); font: 900 38px var(--tp-titulo); letter-spacing: .14em;
+  text-align: center; color: var(--tp-tinta); text-transform: uppercase; padding: 0 12px;
+}
+.tp .placa input:focus {
+  outline: none; border-color: var(--tp-ojo); background: var(--tp-papel);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+.tp .recientes { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap }
+.tp .recientes button {
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 2px;
+  padding: 7px 12px; font: 700 13px var(--tp-titulo); letter-spacing: .06em;
+  cursor: pointer; color: var(--tp-tinta);
+}
+.tp .recientes button:hover {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 8%, #fff);
+}
+
+.tp .chips { display: flex; flex-wrap: wrap; gap: 8px }
+.tp .chips button {
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 2px;
+  padding: 11px 15px; font: 600 13.5px var(--tp-texto); cursor: pointer; color: var(--tp-tinta);
+  min-height: 44px;
+}
+.tp .chips button.on {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 12%, #fff);
+  font-weight: 700;
+}
+
+.tp .ruta { display: grid; grid-template-columns: 1fr 46px 1fr; gap: 10px; align-items: end }
+.tp .ruta input {
+  width: 100%; height: 50px; border: 1.5px solid var(--tp-linea); border-radius: 2px;
+  padding: 0 14px; font: 500 15px var(--tp-texto); background: var(--tp-fondo);
+  color: var(--tp-tinta);
+}
+.tp .ruta input:focus { outline: none; border-color: var(--tp-ojo); background: var(--tp-papel) }
+.tp .ruta .voltear {
+  height: 50px; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+  border-radius: 2px; cursor: pointer; display: grid; place-items: center;
+}
+.tp .ruta .voltear:hover { border-color: var(--tp-ojo) }
+.tp .ruta .voltear svg { width: 18px; height: 18px; stroke: var(--tp-gris); stroke-width: 1.9; fill: none }
+.tp .rutas-frec { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap }
+.tp .rutas-frec button {
+  border: 1.5px dashed var(--tp-linea); background: none; border-radius: 2px; padding: 8px 13px;
+  font: 500 13px var(--tp-texto); cursor: pointer; color: var(--tp-gris);
+}
+.tp .rutas-frec button:hover {
+  border-color: var(--tp-ojo); color: var(--tp-tinta);
+  background: color-mix(in srgb, var(--tp-ojo) 8%, #fff);
+}
+
+.tp .conteo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+.tp .cel-step.grande button { width: 46px; height: 46px; font-size: 19px }
+.tp .cel-step.grande input { width: 56px; height: 46px; font-size: 20px }
+.tp .nota-conteo { font-size: 12.5px; color: var(--tp-gris); line-height: 1.5; flex: 1 1 140px }
+.tp .campo-suelto {
+  width: 100%; height: 50px; border: 1.5px solid var(--tp-linea); border-radius: 2px;
+  padding: 0 14px; font: 500 15px var(--tp-texto); background: var(--tp-fondo); color: var(--tp-tinta);
+}
+
+.tp .extra { border-top: 1px solid var(--tp-linea); padding-top: 15px }
+.tp .extra summary {
+  cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--tp-acento); list-style: none;
+}
+.tp .extra summary::-webkit-details-marker { display: none }
+.tp .extra summary::before { content: "+ "; font-family: var(--tp-titulo) }
+.tp .extra textarea {
+  width: 100%; margin-top: 12px; min-height: 74px; border: 1.5px solid var(--tp-linea);
+  border-radius: 2px; padding: 11px 13px; font: 400 14px var(--tp-texto); resize: vertical;
+  background: var(--tp-papel); color: var(--tp-tinta);
+}
+
+.tp .pie-reg {
+  display: flex; align-items: center; gap: 16px; padding: 16px 22px; flex-wrap: wrap;
+  background: var(--tp-fondo); border-top: 1px solid var(--tp-linea);
+}
+.tp .pie-reg .btn.si { height: 54px; padding: 0 32px; font-size: 16px }
+.tp .pie-reg .atajo { font-size: 12.5px; color: var(--tp-gris) }
+.tp .pie-reg kbd {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-bottom-width: 2px;
+  border-radius: 3px; padding: 2px 7px; font: 600 11.5px var(--tp-texto);
+}
+
+/* ---------- La columna derecha ---------- */
+.tp .plan-turno {
+  background: var(--c-grupo); color: #fff; padding: 20px 22px; border-radius: 3px;
+  position: relative; overflow: hidden;
+}
+.tp .plan-turno .corte {
+  position: absolute; top: -30%; bottom: -30%; right: -14px; width: 90px;
+  background: color-mix(in srgb, var(--tp-ojo) 16%, transparent); transform: skewX(-26deg);
+}
+.tp .plan-turno .rot {
+  position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .15em; opacity: .65;
+}
+.tp .plan-turno .marca { position: relative; display: flex; align-items: baseline; gap: 10px; margin-top: 7px }
+.tp .plan-turno .marca b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 50px; line-height: 1; color: var(--tp-ojo);
+}
+.tp .plan-turno .marca span { font-size: 15px; opacity: .75 }
+
+/* UN CUADRO POR VIAJE PLANEADO. "4 de 16" se entiende leyendo; doce
+   cuadros apagados se entienden sin leer, que es lo que hace falta a
+   las cinco de la mañana. */
+.tp .huecos { position: relative; display: flex; gap: 5px; margin-top: 16px; flex-wrap: wrap }
+.tp .huecos i {
+  flex: 1 1 14px; min-width: 10px; max-width: 26px; height: 14px;
+  background: rgba(255, 255, 255, .14); border-radius: 2px;
+}
+.tp .huecos i.lleno { background: var(--tp-ojo) }
+.tp .plan-turno .pie-plan {
+  position: relative; margin-top: 13px; font-size: 12.5px; opacity: .7; line-height: 1.5;
+}
+
+.tp .hoy {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px; margin-top: 16px;
+}
+.tp .hoy .cab {
+  padding: 16px 20px 13px; border-bottom: 1px solid var(--tp-linea);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+}
+.tp .hoy h3 { font-family: var(--tp-titulo); font-weight: 800; font-size: 16px; margin: 0 }
+.tp .hoy .cuantos { font-size: 12.5px; color: var(--tp-gris) }
+.tp .viaje {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  padding: 12px 20px; border-bottom: 1px solid var(--tp-linea);
+}
+.tp .viaje:last-child { border-bottom: 0 }
+.tp .viaje.anulado { opacity: .45 }
+.tp .viaje .hora { font: 700 12px var(--tp-titulo); color: var(--tp-gris) }
+.tp .viaje .pl { display: block; font: 900 14px var(--tp-titulo); letter-spacing: .06em }
+.tp .viaje .det { display: block; font-size: 12.5px; color: var(--tp-gris); margin-top: 2px }
+.tp .vacio-hoy {
+  padding: 30px 20px; text-align: center; color: var(--tp-gris); font-size: 13px; line-height: 1.6;
+}
+
+@media (max-width: 1100px) { .tp .consola { grid-template-columns: 1fr } }
+@media (max-width: 620px) {
+  .tp .linea-campos { grid-template-columns: 1fr }
+  .tp .ruta { grid-template-columns: 1fr; }
+  .tp .ruta .voltear { height: 42px }
+  .tp .placa input { height: 60px; font-size: 30px }
+}

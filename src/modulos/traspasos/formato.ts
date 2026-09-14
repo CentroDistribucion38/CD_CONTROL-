@@ -9,15 +9,34 @@
  */
 
 /**
- * LOS TURNOS SON C, A y B, EN ESE ORDEN.
+ * LOS TURNOS SON A, B y C, CON SUS HORARIOS.
  *
- * No son 1, 2 y 3: así los llama la bodega y C es el que abre el día.
- * Renumerarlos obligaría a traducir en cada conversación —"el turno 1,
- * o sea el C"— y esa traducción es donde se equivoca alguien a las
- * cinco de la mañana.
+ * No son 1, 2 y 3: así los llama la bodega. El orden sale del horario
+ * —A abre el día— y no del orden en que aparecían en una lista
+ * desplegable, que es de donde salió el C-A-B de la primera versión.
+ * Un horario explícito le gana siempre a un orden inferido.
+ *
+ * Los horarios también viven en la base (traspaso_horario_turno), que
+ * es la que manda: aquí están para que la pantalla no tenga que
+ * preguntarlos en cada renglón de una rejilla de veintisiete celdas.
  */
-export const TURNOS = ["C", "A", "B"] as const;
+export const TURNOS = ["A", "B", "C"] as const;
 export type Turno = (typeof TURNOS)[number];
+
+export const HORARIO: Record<string, string> = {
+  A: "06:00 · 14:00",
+  B: "14:00 · 22:00",
+  C: "22:00 · 06:00",
+};
+
+/** Qué turno va según la hora de Colombia. Se PROPONE, no se impone:
+ *  quien registra a las 6:05 casi siempre está cerrando el anterior. */
+export function turnoDeAhora() {
+  const h = new Date(Date.now() - 5 * 3600_000).getUTCHours();
+  if (h >= 6 && h < 14) return "A";
+  if (h >= 14 && h < 22) return "B";
+  return "C";
+}
 
 /** La hora sola. La fecha ya está en el encabezado de la pantalla:
  *  repetirla en cada renglón es ruido que empuja lo que importa. */
