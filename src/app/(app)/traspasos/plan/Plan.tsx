@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
-import type { Seguimiento, TipoViaje } from "@/modulos/traspasos/datos";
+import type { Control, TipoViaje } from "@/modulos/traspasos/datos";
 import { TURNOS } from "@/modulos/traspasos/formato";
 
 /**
@@ -16,16 +16,20 @@ import { TURNOS } from "@/modulos/traspasos/formato";
  * hacer, y dos líneas del mismo tipo es un renglón que después nadie
  * sabe si sumar o escoger.
  *
- * LO CUMPLIDO NO SE TOCA DESDE AQUÍ, y por eso la columna se ve pero no
- * se puede escribir: sale de contar los viajes registrados. Si esta
- * pantalla lo dejara editar, volvería el problema del que salimos.
+ * NO HAY BOTÓN DE "DILIGENCIAR CUMPLIDO", y su ausencia es el módulo.
+ * La columna de cumplido se ve pero no se puede escribir: sale de
+ * contar los viajes registrados. Si esta pantalla lo dejara editar,
+ * volvería el problema del que salimos — dos cifras del mismo turno en
+ * dos pestañas de la misma app.
  *
- * LO ADICIONAL SE MARCA Y NO SE ESCONDE. Un turno que cumplió 10 de 10
- * y metió 6 adicionales no planeó bien, y esa es justamente la cifra
- * que el plan tiene que dejar ver.
+ * NO HAY FORMULARIO DE "VIAJE ADICIONAL" tampoco, y por lo mismo. Un
+ * adicional es un viaje que se hizo y no estaba planeado: se registra
+ * como cualquier otro viaje, en Registrar, y aparece solo como
+ * adicional aquí. Tenerlo como formulario aparte obligaba a teclear a
+ * mano un número que ya se podía contar.
  */
 export function Plan({ filas, tipos, fecha, puedeEditar }: {
-  filas: Seguimiento[];
+  filas: Control[];
   tipos: TipoViaje[];
   fecha: string;
   puedeEditar: boolean;
@@ -34,11 +38,10 @@ export function Plan({ filas, tipos, fecha, puedeEditar }: {
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
 
-  const [turno, setTurno] = useState(1);
+  const [turno, setTurno] = useState<string>("C");
   const [tipo, setTipo] = useState("");
   const [planeado, setPlaneado] = useState("");
   const [vacios, setVacios] = useState("");
-  const [adicional, setAdicional] = useState(false);
   const [mandando, setMandando] = useState(false);
 
   const delTurno = filas.filter((f) => f.turno === turno);
@@ -49,14 +52,13 @@ export function Plan({ filas, tipos, fecha, puedeEditar }: {
       p_fecha: fecha, p_turno: turno, p_tipo: tipo,
       p_planeado: Number(planeado) || 0,
       p_vacios: Number(vacios) || 0,
-      p_adicional: adicional,
       p_nota: null,
     });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     const n = tipos.find((t) => t.clave === tipo)?.nombre ?? tipo;
     avisar.bien(`${n}: ${planeado} viajes planeados para el turno ${turno}.`);
-    setPlaneado(""); setVacios(""); setAdicional(false);
+    setPlaneado(""); setVacios("");
     router.refresh();
   }
 
@@ -112,17 +114,6 @@ export function Plan({ filas, tipos, fecha, puedeEditar }: {
               </div>
             </div>
 
-            <label style={{ display: "flex", gap: 9, alignItems: "center",
-                            cursor: "pointer", marginBottom: 13 }}>
-              <input type="checkbox" checked={adicional} style={{ width: 18, height: 18, minHeight: 0 }}
-                     onChange={(e) => setAdicional(e.target.checked)} />
-              <span style={{ fontSize: 12.5 }}>
-                Adicional — entró después de cerrada la planeación del turno. Se marca y no se
-                esconde: un turno que cumple todo lo planeado y mete seis adicionales no planeó
-                bien, y eso hay que poderlo ver.
-              </span>
-            </label>
-
             <button type="button" className="btn si" style={{ width: "100%", minHeight: 50 }}
                     disabled={!tipo || planeado.trim() === "" || mandando}
                     onClick={guardar}>
@@ -148,7 +139,7 @@ export function Plan({ filas, tipos, fecha, puedeEditar }: {
         {delTurno.length === 0 ? (
           <div className="vacio">
             <b>El turno {turno} no tiene nada planeado</b>
-            Se puede registrar viajes igual — aparecerían como «sin planear» en el seguimiento.
+            Se puede registrar viajes igual — aparecerían como «sin planear» en el Control.
           </div>
         ) : (
           <div className="tabla-envuelta">
@@ -159,7 +150,7 @@ export function Plan({ filas, tipos, fecha, puedeEditar }: {
                   <th className="n">Planeado</th>
                   <th className="n">Cumplido</th>
                   <th className="n">Faltan</th>
-                  <th className="n">Vacíos</th>
+                  <th className="n">Adicionales</th>
                   <th></th>
                 </tr>
               </thead>
@@ -168,24 +159,17 @@ export function Plan({ filas, tipos, fecha, puedeEditar }: {
                   <tr key={f.tipo} className={f.sin_planear ? "sin-plan" : undefined}>
                     <td className="tipo">
                       {f.tipo_nombre}
-                      {f.es_adicional && <> <span className="eti">ADICIONAL</span></>}
                       {f.sin_planear && <> <span className="eti ojo">SIN PLANEAR</span></>}
                     </td>
-                    <td className="n">{f.planeado}</td>
-                    <td className="n">
-                      {f.cumplido}
-                      {f.de_mas > 0 && <span className="eti" style={{ marginLeft: 6 }}>+{f.de_mas}</span>}
-                    </td>
+                    <td className="n">{f.planeado || "—"}</td>
+                    <td className="n">{f.cumplido}</td>
                     <td className="n">{f.faltan > 0 ? f.faltan : "—"}</td>
+                    <td className="n">{f.adicionales > 0 ? `+${f.adicionales}` : "—"}</td>
                     <td className="n">
-                      {f.vacios_hechos}
-                      {f.vacios_planeados > 0 && <span style={{ opacity: .6 }}> / {f.vacios_planeados}</span>}
-                    </td>
-                    <td className="n">
-                      {f.pct != null && (
-                        <span className="barra" aria-label={`${f.pct}%`}>
-                          <i className={f.pct < 100 ? undefined : undefined}
-                             style={{ width: `${Math.min(100, f.pct)}%` }} />
+                      {f.adherencia != null && (
+                        <span className={"barra" + (f.adherencia < 100 ? " corto" : "")}
+                              aria-label={`${f.adherencia}%`}>
+                          <i style={{ width: `${f.adherencia}%` }} />
                         </span>
                       )}
                     </td>

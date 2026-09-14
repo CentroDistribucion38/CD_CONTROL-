@@ -1,7 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
-  tipos as leerTipos, puntos as leerPuntos, viajesDelDia, seguimiento, hoyLocal,
+  tipos as leerTipos, puntos as leerPuntos, viajesDelDia, control, hoyLocal,
 } from "@/modulos/traspasos/datos";
 import "./traspasos.css";
 import { SinTablas } from "./comunes";
@@ -10,13 +10,16 @@ import { Viajes } from "./Viajes";
 
 export const dynamic = "force-dynamic";
 
-/** Qué turno va según la hora de Colombia. Se PROPONE, no se impone:
- *  quien registra a las 6:05 casi siempre está cerrando el anterior. */
+/**
+ * Qué turno va según la hora de Colombia. Se PROPONE, no se impone:
+ * quien registra a las 6:05 casi siempre está cerrando el anterior.
+ * C abre el día, después A, después B.
+ */
 function turnoDeAhora() {
   const h = new Date(Date.now() - 5 * 3600_000).getUTCHours();
-  if (h >= 6 && h < 14) return 1;
-  if (h >= 14 && h < 22) return 2;
-  return 3;
+  if (h >= 6 && h < 14) return "C";
+  if (h >= 14 && h < 22) return "A";
+  return "B";
 }
 
 export default async function TraspasosPage() {
@@ -24,18 +27,18 @@ export default async function TraspasosPage() {
 
   /* Las cinco consultas en una sola tanda: en serie la pantalla
      tardaría lo que suman y aquí ninguna depende de otra. */
-  const [permisos, t, pts, dia, seg, nombres] = await Promise.all([
+  const [permisos, t, pts, dia, ctl, nombres] = await Promise.all([
     misPermisos(), leerTipos(), leerPuntos(), viajesDelDia(fecha),
-    seguimiento(fecha), nombresTodos(),
+    control(fecha), nombresTodos(),
   ]);
 
   if (t.falta || dia.falta) return <div className="tp"><SinTablas /></div>;
 
   const vivos = dia.viajes.filter((v) => v.vale);
-  const cargados = vivos.filter((v) => !v.vacio).length;
-  const vacios = vivos.filter((v) => v.vacio).length;
-  const planeado = seg.filas.reduce((a, f) => a + f.planeado, 0);
-  const faltan = seg.filas.reduce((a, f) => a + f.faltan, 0);
+  const cumplido = vivos.filter((v) => !v.vacio).reduce((a, v) => a + v.viajes, 0);
+  const vacios = vivos.filter((v) => v.vacio).reduce((a, v) => a + v.viajes, 0);
+  const planeado = ctl.filas.reduce((a, f) => a + f.planeado, 0);
+  const faltan = ctl.filas.reduce((a, f) => a + f.faltan, 0);
 
   return (
     <div className="tp">
@@ -50,8 +53,8 @@ export default async function TraspasosPage() {
           </p>
         </div>
         <div className="kpi">
-          <div className="rot">VIAJES REGISTRADOS HOY</div>
-          <div className="num">{cargados}<span className="u">con carga</span></div>
+          <div className="rot">VIAJES CON CARGA HOY</div>
+          <div className="num">{cumplido}<span className="u">de {planeado}</span></div>
           <div className="pie">
             {vacios > 0 ? `y ${vacios} vacío${vacios === 1 ? "" : "s"}` : "sin viajes vacíos"}
           </div>
@@ -66,7 +69,7 @@ export default async function TraspasosPage() {
         </div>
         <div className="cifra">
           <div className="rot">CUMPLIDO</div>
-          <div className="n">{cargados}</div>
+          <div className="n">{cumplido}</div>
           <div className="u">contado sobre los viajes registrados</div>
         </div>
         <div className={"cifra" + (faltan > 0 ? " mal" : "")}>

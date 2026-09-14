@@ -9,48 +9,68 @@
 --
 --   01 SE PLANEA     cuántos viajes de cada tipo lleva el turno
 --   02 SE REGISTRA   cada viaje que sale, con su placa y su ruta
---   03 SE COMPARA    plan contra real, en el mismo renglón
+--   03 SE CONTROLA   plan contra real: adherencia y cumplimiento
 --   04 EL MAESTRO    los tipos de viaje y los puntos
+--
+-- LOS TURNOS SON C, A y B, EN ESE ORDEN. No son 1, 2 y 3: así los
+-- llama la bodega y C es el que abre el día. Renumerarlos aquí
+-- obligaría a traducir en cada conversación —"el turno 1, o sea el C"—
+-- y esa traducción es donde se equivoca alguien a las cinco de la
+-- mañana.
 --
 -- EL CUMPLIDO NO SE ESCRIBE: SE CUENTA.
 --
 -- La versión anterior tenía dos números que hablaban de lo mismo y no
--- se hablaban entre sí: un "cumplido" que alguien tecleaba en la
--- planeación, y aparte una lista de viajes con placa que registraba el
--- supervisor. Si el supervisor registraba siete viajes y alguien había
--- escrito "cumplido: 5", no existía manera de saber cuál de los dos
--- era el bueno — y las dos pantallas mostraban su número con la misma
--- cara de seguridad.
+-- se hablaban entre sí: un "Cumplido" que alguien tecleaba en un modal
+-- de la pantalla de Control, y aparte una hoja de viajes con placa que
+-- llenaba el supervisor. Si el supervisor registraba siete viajes y
+-- alguien había escrito "cumplido: 5", no existía manera de saber cuál
+-- de los dos era el bueno —y las dos pantallas mostraban su número con
+-- la misma cara de seguridad—. Peor: las fichas de resumen contaban los
+-- viajes registrados y el tablero de control contaba el campo escrito a
+-- mano, así que la misma app enseñaba dos cifras distintas del mismo
+-- turno en dos pestañas.
 --
--- Aquí el cumplido SALE de contar los viajes registrados. Es una sola
--- verdad, no puede contradecirse, y de yapa queda escrito qué placa
--- hizo cada viaje: "se cumplió 5 de 7" pasa a poderse abrir y ver
--- cuáles cinco.
+-- Aquí el cumplido SALE de contar los viajes registrados. Una sola
+-- verdad, imposible de contradecir, y de yapa "5 de 7" se puede abrir y
+-- ver cuáles cinco y con qué placa.
 --
--- LOS VACÍOS SON VIAJES SIN CARGA. Cuestan lo mismo —el vehículo, el
--- conductor, el tiempo— pero no mueven producto. Por eso se cuentan
--- aparte y nunca se suman a los viajes cargados: sumarlos haría ver
--- productivo un turno que movió aire.
+-- LAS DOS CIFRAS QUE NO SON LA MISMA —y esto sí estaba bien pensado en
+-- el original, así que se conserva con las mismas palabras:
+--
+--   ADHERENCIA    de lo PLANEADO, cuánto se hizo. Mide si el plan se
+--                 cumplió. Tope 100%: hacer viajes de más no arregla
+--                 los que faltaron.
+--   CUMPLIMIENTO  todo lo que se movió contra lo planeado, adicionales
+--                 incluidos. Mide si la operación movió lo que tenía
+--                 que mover, aunque no fuera lo que decía el papel.
+--
+-- Un turno con 10 planeados que hace 6 de los planeados y 6 adicionales
+-- tiene 60% de adherencia y 120% de cumplimiento. Las dos cifras son
+-- ciertas y dicen cosas distintas: movió lo que había que mover, y
+-- planeó mal. Una sola de las dos escondería justamente eso.
+--
+-- LOS VACÍOS SON VIAJES SIN CARGA y se cuentan aparte. Cuestan lo mismo
+-- —el vehículo, el conductor, el tiempo— pero no mueven producto, así
+-- que nunca entran en el cumplido: sumarlos haría ver cumplido un turno
+-- que movió aire.
 --
 -- LAS REGLAS QUE EL SOFTWARE IMPONE:
 --
 --   1. ORIGEN Y DESTINO SALEN DE UN MAESTRO. Escritos a mano, "Ag01",
---      "AG-01" y "ag01" son tres sitios distintos y ningún informe por
---      ruta cuadra jamás. Si el punto no está en la lista se puede
---      escribir, pero queda MARCADO para que alguien lo agregue al
---      maestro — el dato no se pierde y la lista no se ensucia sola.
+--      "AG-01" y "ag 01" son tres sitios distintos y ningún informe por
+--      ruta cuadra jamás. Si el punto no está se puede escribir, pero
+--      queda MARCADO para que alguien lo agregue al maestro.
 --
---   2. UN VIAJE NO SALE Y LLEGA AL MISMO SITIO. Es casi siempre un
---      error de dedo, y un viaje de Ag01 a Ag01 en el informe no
---      significa nada.
+--   2. UN VIAJE NO SALE Y LLEGA AL MISMO SITIO.
 --
 --   3. NADA SE BORRA: SE ANULA CON MOTIVO. El script viejo borraba la
---      fila de la hoja. Un viaje que existió y se borró deja el plan
---      cuadrando por arte de magia y sin nadie a quien preguntarle.
+--      fila. Un viaje que existió y se borró deja el plan cuadrando por
+--      arte de magia y sin nadie a quien preguntarle.
 --
---   4. LA CANTIDAD DE UN VIAJE VACÍO ES CERO. No se puede registrar un
---      viaje "sin carga" que mueve 40 canastas: o mueve algo, o va
---      vacío.
+--   4. UN REGISTRO DE VACÍOS NO LLEVA TIPO NI PLACA, y uno con carga
+--      SÍ los lleva. Son dos cosas distintas y la base no deja
+--      confundirlas.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -60,13 +80,25 @@ do $$ begin
   create type traspaso_estado as enum ('registrado', 'anulado');
 exception when duplicate_object then null; end $$;
 
+/* EL ORDEN DE LOS TURNOS ES C, A, B y no alfabético. Se pone en una
+   función para que las vistas y las pantallas ordenen igual: si cada
+   una lo resolviera por su cuenta, el día que alguien ordene alfabético
+   la misma tabla saldría distinta en dos sitios. */
+create or replace function public.traspaso_orden_turno(p_turno text)
+returns smallint
+language sql
+immutable
+as $$ select case upper(btrim(p_turno))
+              when 'C' then 1 when 'A' then 2 when 'B' then 3
+              else 9 end::smallint $$;
+
+grant execute on function public.traspaso_orden_turno(text) to authenticated;
+
 -- ---------------------------------------------------------------------
 -- 2. EL MAESTRO: TIPOS DE VIAJE
 --
--- Son los mismos nueve que ya venían de la hoja. Se siembran porque
--- son los que hay hoy en Ag01 y porque un maestro vacío hace que la
--- primera pantalla no sirva para nada; pero se pueden desactivar y
--- agregar los que sean, sin tocar código.
+-- Los mismos nueve que venían de la hoja, con los nombres tal cual los
+-- dice la gente. Se pueden desactivar y agregar los que sean.
 -- ---------------------------------------------------------------------
 create table if not exists public.traspasos_tipos (
   clave   text primary key,
@@ -97,15 +129,14 @@ on conflict (clave) do nothing;
 -- inventados haría que alguien escoja "Planta 1" sin que exista.
 --
 -- Mientras esté vacío, el registro deja escribir el sitio a mano y lo
--- marca: la primera semana de uso arma sola la lista de los puntos que
--- de verdad se usan.
+-- marca: la primera semana de uso arma sola la lista de los que de
+-- verdad se usan.
 -- ---------------------------------------------------------------------
 create table if not exists public.traspasos_puntos (
   clave   text primary key,
   nombre  text not null,
-  /* Para separar lo de adentro de la bodega de lo de afuera en los
-     informes: "cuántos viajes internos" es otra pregunta que "cuántos
-     salieron del centro". */
+  /* Separa lo de adentro del centro de lo de afuera: "cuántos viajes
+     internos" es otra pregunta que "cuántos salieron". */
   externo boolean not null default false,
   activo  boolean not null default true,
   orden   smallint
@@ -116,24 +147,18 @@ create table if not exists public.traspasos_puntos (
 --
 -- Cuántos viajes de un tipo lleva un turno. Una fila por
 -- (fecha, turno, tipo): planear dos veces lo mismo el mismo turno es
--- siempre un error de dedo, y la llave única lo impide en vez de
--- dejar dos renglones que después nadie sabe sumar o escoger.
---
--- ADICIONAL es lo que se metió después de cerrada la planeación del
--- turno. Se marca y no se esconde: un turno que cumplió 10 de 10
--- planeados y metió 6 adicionales no planeó bien, y esa es justamente
--- la cifra que el plan tiene que dejar ver.
+-- siempre un error de dedo, y la llave única lo impide en vez de dejar
+-- dos renglones que después nadie sabe sumar o escoger.
 -- ---------------------------------------------------------------------
 create table if not exists public.traspasos_plan (
   id            uuid primary key default gen_random_uuid(),
   fecha         date not null,
-  turno         smallint not null,
+  turno         text not null,
   tipo          text not null references public.traspasos_tipos(clave),
   planeado      integer not null,
   /* Viajes SIN CARGA previstos. Se cuentan aparte y nunca se suman a
-     `planeado`: sumarlos haría ver productivo un turno que movió aire. */
+     `planeado`. */
   vacios        integer not null default 0,
-  es_adicional  boolean not null default false,
   nota          text,
   creado_por    uuid references public.perfiles(id) on delete set null,
   creado_en     timestamptz not null default now(),
@@ -142,14 +167,14 @@ create table if not exists public.traspasos_plan (
   anulado_en    timestamptz,
   anulado_por   uuid references public.perfiles(id) on delete set null,
 
-  constraint traspasos_plan_turno_valido check (turno between 1 and 3),
+  constraint traspasos_plan_turno_valido check (turno in ('A', 'B', 'C')),
   constraint traspasos_plan_planeado_valido check (planeado >= 0),
   constraint traspasos_plan_vacios_valido check (vacios >= 0)
 );
 
-/* Uno por turno y tipo. El índice es PARCIAL —solo lo no anulado—
-   porque si no, anular una línea y volver a planearla chocaría contra
-   la anulada, y "ya existe" sería mentira: la que existe está muerta. */
+/* El índice es PARCIAL —solo lo no anulado— porque si no, anular una
+   línea y volver a planearla chocaría contra la anulada, y "ya existe"
+   sería mentira: la que existe está muerta. */
 create unique index if not exists traspasos_plan_unico
   on public.traspasos_plan (fecha, turno, tipo)
   where estado = 'registrado';
@@ -160,27 +185,36 @@ create index if not exists traspasos_plan_fecha_idx
 -- ---------------------------------------------------------------------
 -- 5. LOS VIAJES
 --
--- Lo que de verdad salió. Cada uno con su placa y su ruta.
+-- Lo que de verdad salió.
 --
--- NO tiene llave al plan a propósito. Un viaje existe aunque nadie
--- haya planeado ese tipo ese turno —pasa, y esconderlo sería peor—;
--- se junta con el plan por (fecha, turno, tipo), que es lo que los dos
--- tienen. Así el seguimiento puede decir las tres cosas que importan:
--- lo planeado que se cumplió, lo planeado que no, y lo que se movió
--- sin estar en el plan.
+-- `viajes` ES CUÁNTOS VIAJES REPRESENTA LA LÍNEA, no cuánta carga
+-- llevó. Casi siempre es 1 —un vehículo, un viaje—, pero el registro
+-- de vacíos del turno entra como una sola línea con el número de
+-- viajes, que es como se llenaba en la hoja y como se cuenta el turno.
+-- La carga va aparte y es opcional: es un dato bueno de tener, pero el
+-- plan se mide en viajes, no en canastas.
+--
+-- NO tiene llave al plan a propósito. Un viaje existe aunque nadie haya
+-- planeado ese tipo ese turno —pasa, y esconderlo sería peor—; se junta
+-- con el plan por (fecha, turno, tipo). Así el control puede decir las
+-- tres cosas que importan: lo planeado que se cumplió, lo planeado que
+-- no, y lo que se movió sin estar en el plan.
 -- ---------------------------------------------------------------------
 create table if not exists public.traspasos_viajes (
   id         uuid primary key default gen_random_uuid(),
   codigo     text unique,
   fecha      date not null,
-  turno      smallint not null,
-  tipo       text not null references public.traspasos_tipos(clave),
+  turno      text not null,
+
+  /* Nulo SOLO en un registro de vacíos: un viaje sin carga no mueve un
+     tipo de material. La regla de abajo lo obliga en los dos sentidos. */
+  tipo       text references public.traspasos_tipos(clave),
 
   /* La placa normalizada: sin guiones ni espacios y en mayúsculas. Se
      guarda así y no como la escribieron, porque "ABC 123", "abc-123" y
      "ABC123" son el mismo vehículo y el informe por placa tiene que
      verlos como uno solo. Es el mismo criterio del módulo Sider. */
-  placa      text not null,
+  placa      text,
 
   origen     text references public.traspasos_puntos(clave),
   destino    text references public.traspasos_puntos(clave),
@@ -190,13 +224,13 @@ create table if not exists public.traspasos_viajes (
   origen_texto  text,
   destino_texto text,
 
-  /* Cuánto movió. En un viaje vacío es cero, y la regla de abajo lo
-     obliga: o mueve algo, o va vacío. */
-  cantidad   integer not null default 0,
+  /* CUÁNTOS VIAJES. Casi siempre 1. */
+  viajes     integer not null default 1,
   vacio      boolean not null default false,
-  /* En qué se cuenta lo que movió: canastas, estibas, unidades. Va en
-     el viaje y no en el tipo porque el mismo tipo se mide distinto
-     según de dónde a dónde va. */
+
+  /* La carga, opcional. El plan se mide en viajes; esto es para saber
+     después cuánto se movió de verdad en cada uno. */
+  carga      integer,
   unidad     text,
 
   hora       timestamptz not null default now(),
@@ -209,26 +243,28 @@ create table if not exists public.traspasos_viajes (
   anulado_en timestamptz,
   anulado_por uuid references public.perfiles(id) on delete set null,
 
-  constraint traspasos_viajes_turno_valido check (turno between 1 and 3),
-  constraint traspasos_viajes_cantidad_valida check (cantidad >= 0),
+  constraint traspasos_viajes_turno_valido check (turno in ('A', 'B', 'C')),
+  constraint traspasos_viajes_viajes_valido check (viajes >= 1),
+  constraint traspasos_viajes_carga_valida check (carga is null or carga >= 0),
 
-  /* REGLA 4: un viaje vacío no mueve nada. */
-  constraint traspasos_viajes_vacio_sin_carga
-    check (not vacio or cantidad = 0),
+  /* REGLA 4. Un viaje CON carga lleva tipo, placa y ruta; uno VACÍO no
+     lleva ninguno de los tres. Son dos cosas distintas y dejarlas
+     mezclarse produciría el "Vacios (Registro Independiente)" que el
+     original tenía que meter como si fuera un tipo de material, y que
+     después había que sacar a mano de todos los informes con un if. */
+  constraint traspasos_viajes_con_carga_completo
+    check (vacio or (tipo is not null and btrim(coalesce(placa, '')) <> '')),
 
-  /* REGLA 2: no se sale y se llega al mismo sitio. Se comprueba sobre
-     las dos formas —la clave del maestro y el texto suelto— porque si
-     no, escribirlo a mano sería la puerta de atrás para saltarse la
-     regla. */
+  /* REGLA 2: no se sale y se llega al mismo sitio. */
   constraint traspasos_viajes_ruta_distinta
     check (origen is null or destino is null or origen <> destino),
 
-  /* Que haya SIEMPRE un origen y un destino, de la lista o escrito.
-     Un viaje sin ruta no se puede contar en ningún informe. */
+  /* Un viaje con carga tiene siempre origen y destino, de la lista o
+     escrito: sin ruta no se puede contar en ningún informe. */
   constraint traspasos_viajes_tiene_origen
-    check (origen is not null or btrim(coalesce(origen_texto, '')) <> ''),
+    check (vacio or origen is not null or btrim(coalesce(origen_texto, '')) <> ''),
   constraint traspasos_viajes_tiene_destino
-    check (destino is not null or btrim(coalesce(destino_texto, '')) <> '')
+    check (vacio or destino is not null or btrim(coalesce(destino_texto, '')) <> '')
 );
 
 create index if not exists traspasos_viajes_fecha_idx
@@ -238,18 +274,14 @@ create index if not exists traspasos_viajes_plan_idx
 create index if not exists traspasos_viajes_placa_idx
   on public.traspasos_viajes (placa);
 
-/* El consecutivo TR-0001. Se usa una secuencia y no un "max + 1"
-   porque max+1 con dos supervisores registrando al tiempo entrega el
-   mismo número dos veces, y el número es el que la gente dice en voz
-   alta. */
+/* El consecutivo TR-0001. Se usa una secuencia y no un "max + 1" porque
+   max+1 con dos supervisores registrando al tiempo entrega el mismo
+   número dos veces —y en la hoja el id era Date.now() del navegador,
+   que con dos celulares en el mismo milisegundo hace lo mismo—. */
 create sequence if not exists public.traspasos_codigo_seq;
 
 -- ---------------------------------------------------------------------
 -- 6. REGISTRAR UN VIAJE
---
--- Es la función que usa el supervisor, de pie al lado del vehículo.
--- Normaliza la placa, resuelve el punto contra el maestro y, si no
--- está, lo guarda como texto marcado.
 -- ---------------------------------------------------------------------
 create or replace function public.traspaso_punto(p_texto text)
 returns text
@@ -258,8 +290,8 @@ stable
 set search_path = public
 as $$
   /* ¿Ese texto es un punto del maestro? Se compara sin acentos, sin
-     espacios y sin mayúsculas: quien escribe "ag 01" se refiere a
-     AG01, y obligarlo a escribirlo igualito sería inventar trabajo. */
+     espacios y sin mayúsculas: quien escribe "ag 01" se refiere a AG01,
+     y obligarlo a escribirlo igualito sería inventar trabajo. */
   select p.clave from public.traspasos_puntos p
    where p.activo
      and upper(regexp_replace(p.clave,  '[^A-Za-z0-9]', '', 'g'))
@@ -269,13 +301,14 @@ $$;
 
 create or replace function public.traspaso_registrar(
   p_fecha    date,
-  p_turno    smallint,
+  p_turno    text,
   p_tipo     text,
   p_placa    text,
   p_origen   text,
   p_destino  text,
-  p_cantidad integer default 0,
+  p_viajes   integer default 1,
   p_vacio    boolean default false,
+  p_carga    integer default null,
   p_unidad   text    default null,
   p_nota     text    default null
 )
@@ -285,18 +318,39 @@ security definer
 set search_path = public
 as $$
 declare
-  v_id   uuid;
-  v_cod  text;
-  v_placa text;
-  v_o    text;
-  v_d    text;
-  v_ot   text;
-  v_dt   text;
+  v_id uuid; v_cod text; v_placa text;
+  v_o text; v_d text; v_ot text; v_dt text;
 begin
   if not public.es_editor() then
     raise exception 'Registrar un viaje requiere rol de supervisor o administrador';
   end if;
 
+  if upper(btrim(coalesce(p_turno, ''))) not in ('A','B','C') then
+    raise exception 'El turno tiene que ser A, B o C';
+  end if;
+
+  if coalesce(p_viajes, 1) < 1 then
+    raise exception 'Un registro tiene que representar al menos un viaje';
+  end if;
+
+  /* ------------------------------------------------------------------
+     EL REGISTRO DE VACÍOS es corto a propósito: es un número de viajes
+     por turno y ya. No lleva tipo, ni placa, ni ruta — pedirlos
+     obligaría a inventarlos, y datos inventados son peores que datos
+     que faltan. */
+  if p_vacio then
+    v_cod := 'TR-' || lpad(nextval('public.traspasos_codigo_seq')::text, 4, '0');
+    insert into public.traspasos_viajes
+      (codigo, fecha, turno, viajes, vacio, nota, registrado_por)
+    values
+      (v_cod, p_fecha, upper(btrim(p_turno)), coalesce(p_viajes, 1), true,
+       nullif(btrim(coalesce(p_nota, '')), ''), auth.uid())
+    returning traspasos_viajes.id into v_id;
+    return query select v_id, v_cod;
+    return;
+  end if;
+
+  /* ------------------------------------------------------------------ */
   if not exists (select 1 from public.traspasos_tipos
                   where clave = p_tipo and activo) then
     raise exception 'Ese tipo de viaje no existe o está desactivado';
@@ -308,9 +362,9 @@ begin
   end if;
 
   /* El punto se busca en el maestro. Si está, se guarda la clave —que
-     es lo que después agrupa los informes—; si no, se guarda el texto
-     marcado, para que el viaje se pueda registrar igual y el punto
-     aparezca en la lista de "faltan en el maestro". */
+     es lo que agrupa los informes—; si no, se guarda el texto marcado,
+     para que el viaje se registre igual y el punto aparezca en la lista
+     de "faltan en el maestro". */
   v_o := public.traspaso_punto(p_origen);
   v_d := public.traspaso_punto(p_destino);
   v_ot := case when v_o is null then nullif(btrim(coalesce(p_origen, '')), '') end;
@@ -323,51 +377,42 @@ begin
     raise exception 'Hay que decir a dónde va el viaje';
   end if;
 
-  /* REGLA 2, también para lo escrito a mano: "Ag01" a "ag 01" es el
-     mismo sitio aunque el maestro no lo tenga. */
+  /* REGLA 2, también para lo escrito a mano: "Ag01" y "ag 01" son el
+     mismo sitio aunque el maestro no los tenga. */
   if upper(regexp_replace(coalesce(v_o, v_ot), '[^A-Za-z0-9]', '', 'g'))
    = upper(regexp_replace(coalesce(v_d, v_dt), '[^A-Za-z0-9]', '', 'g')) then
     raise exception 'El viaje sale y llega al mismo sitio. Revisa el origen y el destino';
-  end if;
-
-  if p_vacio and coalesce(p_cantidad, 0) <> 0 then
-    raise exception 'Un viaje vacío no mueve carga: o va vacío, o dice cuánto movió';
-  end if;
-  if not p_vacio and coalesce(p_cantidad, 0) = 0 then
-    raise exception 'Di cuánto movió, o márcalo como viaje vacío';
   end if;
 
   v_cod := 'TR-' || lpad(nextval('public.traspasos_codigo_seq')::text, 4, '0');
 
   insert into public.traspasos_viajes
     (codigo, fecha, turno, tipo, placa, origen, destino,
-     origen_texto, destino_texto, cantidad, vacio, unidad, nota, registrado_por)
+     origen_texto, destino_texto, viajes, vacio, carga, unidad, nota, registrado_por)
   values
-    (v_cod, p_fecha, p_turno, p_tipo, v_placa, v_o, v_d,
-     v_ot, v_dt, coalesce(p_cantidad, 0), p_vacio,
-     nullif(btrim(coalesce(p_unidad, '')), ''),
-     nullif(btrim(coalesce(p_nota, '')), ''),
-     auth.uid())
+    (v_cod, p_fecha, upper(btrim(p_turno)), p_tipo, v_placa, v_o, v_d,
+     v_ot, v_dt, coalesce(p_viajes, 1), false,
+     p_carga, nullif(btrim(coalesce(p_unidad, '')), ''),
+     nullif(btrim(coalesce(p_nota, '')), ''), auth.uid())
   returning traspasos_viajes.id into v_id;
 
   return query select v_id, v_cod;
 end $$;
 
 grant execute on function
-  public.traspaso_registrar(date, smallint, text, text, text, text, integer, boolean, text, text)
+  public.traspaso_registrar(date, text, text, text, text, text, integer, boolean, integer, text, text)
 to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 7. PLANEAR
 -- ---------------------------------------------------------------------
 create or replace function public.traspaso_planear(
-  p_fecha      date,
-  p_turno      smallint,
-  p_tipo       text,
-  p_planeado   integer,
-  p_vacios     integer default 0,
-  p_adicional  boolean default false,
-  p_nota       text    default null
+  p_fecha    date,
+  p_turno    text,
+  p_tipo     text,
+  p_planeado integer,
+  p_vacios   integer default 0,
+  p_nota     text    default null
 )
 returns uuid
 language plpgsql
@@ -379,25 +424,25 @@ begin
   if not public.es_editor() then
     raise exception 'Planear requiere rol de supervisor o administrador';
   end if;
-
+  if upper(btrim(coalesce(p_turno, ''))) not in ('A','B','C') then
+    raise exception 'El turno tiene que ser A, B o C';
+  end if;
   if not exists (select 1 from public.traspasos_tipos
                   where clave = p_tipo and activo) then
     raise exception 'Ese tipo de viaje no existe o está desactivado';
   end if;
 
   /* Planear dos veces lo mismo el mismo turno es siempre un error de
-     dedo. En vez de rechazarlo —que obligaría a buscar y borrar la
-     otra línea— se ACTUALIZA la que hay: es lo que la persona quería
-     hacer. */
+     dedo. En vez de rechazarlo —que obligaría a buscar y borrar la otra
+     línea— se ACTUALIZA la que hay: es lo que la persona quería hacer. */
   insert into public.traspasos_plan
-    (fecha, turno, tipo, planeado, vacios, es_adicional, nota, creado_por)
+    (fecha, turno, tipo, planeado, vacios, nota, creado_por)
   values
-    (p_fecha, p_turno, p_tipo, p_planeado, coalesce(p_vacios, 0),
-     p_adicional, nullif(btrim(coalesce(p_nota, '')), ''), auth.uid())
+    (p_fecha, upper(btrim(p_turno)), p_tipo, p_planeado, coalesce(p_vacios, 0),
+     nullif(btrim(coalesce(p_nota, '')), ''), auth.uid())
   on conflict (fecha, turno, tipo) where estado = 'registrado'
   do update set planeado = excluded.planeado,
                 vacios   = excluded.vacios,
-                es_adicional = excluded.es_adicional,
                 nota     = excluded.nota
   returning traspasos_plan.id into v_id;
 
@@ -405,15 +450,10 @@ begin
 end $$;
 
 grant execute on function
-  public.traspaso_planear(date, smallint, text, integer, integer, boolean, text)
-to authenticated;
+  public.traspaso_planear(date, text, text, integer, integer, text) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 8. ANULAR — NADA SE BORRA
---
--- El script viejo borraba la fila. Un viaje que existió y se borró deja
--- el plan cuadrando por arte de magia y sin nadie a quien preguntarle.
--- Aquí se anula con motivo y sigue estando, marcado.
 -- ---------------------------------------------------------------------
 create or replace function public.traspaso_anular_viaje(p_id uuid, p_motivo text)
 returns void
@@ -428,12 +468,11 @@ begin
   if not found then raise exception 'Ese viaje no existe'; end if;
   if v_estado = 'anulado' then raise exception 'Ese viaje ya está anulado'; end if;
 
-  /* Lo anula quien lo registró o un administrador. El supervisor del
+  /* Lo anula quien lo registró o un administrador: el supervisor del
      turno de al lado no debería poder borrar lo del otro turno. */
   if not (public.mi_rol() = 'admin' or v_quien = auth.uid()) then
     raise exception 'Solo quien registró el viaje o un administrador puede anularlo';
   end if;
-
   if btrim(coalesce(p_motivo, '')) = '' then
     raise exception 'Hay que decir por qué se anula. Anular sin motivo es borrar';
   end if;
@@ -475,124 +514,127 @@ grant execute on function public.traspaso_anular_plan(uuid, text) to authenticat
 -- =====================================================================
 -- 9. LAS VISTAS
 -- =====================================================================
-drop view if exists public.v_traspasos_seguimiento;
+drop view if exists public.v_traspasos_control;
 drop view if exists public.v_traspasos_viajes;
 drop view if exists public.v_traspasos_puntos_faltantes;
 
--- ---------------------------------------------------------------------
--- LOS VIAJES, con los nombres ya resueltos.
--- ---------------------------------------------------------------------
 create view public.v_traspasos_viajes as
 select
   v.id, v.codigo, v.fecha, v.turno,
-  v.tipo, t.nombre as tipo_nombre,
+  public.traspaso_orden_turno(v.turno)          as turno_orden,
+  v.tipo, t.nombre                              as tipo_nombre,
   v.placa,
-  v.origen, coalesce(po.nombre, v.origen_texto)  as origen_nombre,
+  v.origen,  coalesce(po.nombre, v.origen_texto)  as origen_nombre,
   v.destino, coalesce(pd.nombre, v.destino_texto) as destino_nombre,
-  /* Marcados: el punto todavía no está en el maestro. La pantalla lo
-     puede enseñar distinto para que alguien lo agregue. */
-  (v.origen  is null) as origen_suelto,
-  (v.destino is null) as destino_suelto,
-  v.cantidad, v.vacio, v.unidad, v.nota,
+  /* Marcados: el punto todavía no está en el maestro. */
+  (v.origen  is null and v.origen_texto  is not null) as origen_suelto,
+  (v.destino is null and v.destino_texto is not null) as destino_suelto,
+  v.viajes, v.vacio, v.carga, v.unidad, v.nota,
   v.hora, v.registrado_por, v.registrado_en,
   v.estado::text as estado,
   (v.estado = 'registrado') as vale,
   v.motivo_anulacion, v.anulado_en, v.anulado_por
 from public.traspasos_viajes v
-join public.traspasos_tipos t on t.clave = v.tipo
+left join public.traspasos_tipos t on t.clave = v.tipo
 left join public.traspasos_puntos po on po.clave = v.origen
 left join public.traspasos_puntos pd on pd.clave = v.destino;
 
 grant select on public.v_traspasos_viajes to authenticated;
 
 -- ---------------------------------------------------------------------
--- EL SEGUIMIENTO: PLAN CONTRA REAL, EN EL MISMO RENGLÓN.
+-- EL CONTROL: PLAN CONTRA REAL, EN EL MISMO RENGLÓN.
 --
--- Es la vista que contesta la pregunta del turno. Sale de un FULL JOIN
--- y no de un left join a propósito: hay tres casos y los tres importan.
+-- Sale de un FULL JOIN y no de un left join desde el plan, a propósito.
+-- Hay tres casos y los tres importan:
 --
 --   planeado y cumplido   ..... lo normal
 --   planeado sin viajes   ..... lo que se prometió y no se hizo
 --   viajes sin planear    ..... lo que se movió fuera del plan
 --
--- Con un left join desde el plan, el tercero desaparecería —y es
--- justamente el que dice que la planeación no está sirviendo—.
+-- Con un left join desde el plan el tercero desaparece — y es
+-- justamente el que dice que la planeación no está sirviendo.
 --
--- LOS VIAJES VACÍOS SE CUENTAN APARTE Y NO ENTRAN EN "CUMPLIDO".
--- Cuestan lo mismo pero no mueven producto: meterlos en el cumplido
--- haría ver cumplido un turno que movió aire.
+-- LAS DOS CIFRAS. `adheridos` son los viajes que caben dentro de lo
+-- planeado; `adicionales` los que se pasaron o no estaban. Las
+-- pantallas sacan de ahí adherencia y cumplimiento sin volver a
+-- calcular nada, que es lo que impide que dos pestañas de la misma app
+-- enseñen números distintos del mismo turno.
 -- ---------------------------------------------------------------------
-create view public.v_traspasos_seguimiento as
+create view public.v_traspasos_control as
 with plan as (
-  select fecha, turno, tipo, planeado, vacios, es_adicional, nota, id as plan_id
+  select fecha, turno, tipo, planeado, vacios, nota, id as plan_id
     from public.traspasos_plan
    where estado = 'registrado'
 ),
 real as (
   select fecha, turno, tipo,
-         count(*) filter (where not vacio)::int as cumplido,
-         count(*) filter (where vacio)::int     as vacios_hechos,
-         coalesce(sum(cantidad) filter (where not vacio), 0)::int as cantidad,
+         sum(viajes)::int                       as cumplido,
+         count(*)::int                          as registros,
+         coalesce(sum(carga), 0)::int           as carga,
          count(distinct placa)::int             as placas
     from public.traspasos_viajes
-   where estado = 'registrado'
+   where estado = 'registrado' and not vacio
    group by fecha, turno, tipo
 )
 select
   coalesce(p.fecha, r.fecha)   as fecha,
   coalesce(p.turno, r.turno)   as turno,
+  public.traspaso_orden_turno(coalesce(p.turno, r.turno)) as turno_orden,
   coalesce(p.tipo,  r.tipo)    as tipo,
   t.nombre                     as tipo_nombre,
   t.orden                      as tipo_orden,
   p.plan_id,
   coalesce(p.planeado, 0)      as planeado,
   coalesce(p.vacios, 0)        as vacios_planeados,
-  coalesce(p.es_adicional, false) as es_adicional,
   p.nota,
   coalesce(r.cumplido, 0)      as cumplido,
-  coalesce(r.vacios_hechos, 0) as vacios_hechos,
-  coalesce(r.cantidad, 0)      as cantidad,
+  coalesce(r.registros, 0)     as registros,
+  coalesce(r.carga, 0)         as carga,
   coalesce(r.placas, 0)        as placas,
 
-  /* Lo que falta. Nunca negativo: si se hicieron más de los planeados,
-     lo que sobra es "de más", que es otra cosa y tiene su columna. */
+  /* DE LO PLANEADO, cuánto se hizo. Nunca pasa del plan. */
+  least(coalesce(r.cumplido, 0), coalesce(p.planeado, 0)) as adheridos,
+  /* LO QUE SE PASÓ DEL PLAN o no estaba en él. */
+  greatest(coalesce(r.cumplido, 0) - coalesce(p.planeado, 0), 0) as adicionales,
+  /* LO QUE FALTA. Nunca negativo. */
   greatest(coalesce(p.planeado, 0) - coalesce(r.cumplido, 0), 0) as faltan,
-  greatest(coalesce(r.cumplido, 0) - coalesce(p.planeado, 0), 0) as de_mas,
 
-  /* SIN PLANEAR: se movió y nadie lo había planeado. Es el renglón que
-     dice que la planeación no está sirviendo, y por eso tiene nombre
-     propio en vez de aparecer como un cumplimiento de 0 planeados. */
+  /* SIN PLANEAR: se movió y nadie lo había planeado. Tiene nombre
+     propio en vez de aparecer como un cumplimiento sobre 0 planeados. */
   (p.plan_id is null)          as sin_planear,
 
   case when coalesce(p.planeado, 0) = 0 then null
-       else least(round(100.0 * coalesce(r.cumplido, 0) / p.planeado)::int, 999)
-  end                          as pct
+       else least(round(100.0 * least(coalesce(r.cumplido, 0), p.planeado) / p.planeado)::int, 100)
+  end                          as adherencia,
+  case when coalesce(p.planeado, 0) = 0 then null
+       else round(100.0 * coalesce(r.cumplido, 0) / p.planeado)::int
+  end                          as cumplimiento
 from plan p
 full join real r
   on r.fecha = p.fecha and r.turno = p.turno and r.tipo = p.tipo
 join public.traspasos_tipos t on t.clave = coalesce(p.tipo, r.tipo);
 
-grant select on public.v_traspasos_seguimiento to authenticated;
+grant select on public.v_traspasos_control to authenticated;
 
 -- ---------------------------------------------------------------------
 -- LOS PUNTOS QUE FALTAN EN EL MAESTRO.
 --
 -- Todo lo que se escribió a mano porque no estaba en la lista, con
--- cuántas veces se usó. Es la pantalla que convierte el texto suelto
--- en maestro: lo que se escribió nueve veces esta semana es un punto
--- real que hay que agregar.
+-- cuántas veces se usó. Es la pantalla que convierte el texto suelto en
+-- maestro: lo que se escribió nueve veces esta semana es un punto real.
+-- Sin esta lista, el "se puede escribir otro" sería la puerta por la
+-- que el maestro se vacía solo.
 -- ---------------------------------------------------------------------
 create view public.v_traspasos_puntos_faltantes as
 select texto, count(*)::int as veces, max(fecha) as ultima
 from (
-  select origen_texto  as texto, fecha from public.traspasos_viajes
+  select origen_texto as texto, fecha from public.traspasos_viajes
    where origen_texto is not null and estado = 'registrado'
   union all
   select destino_texto, fecha from public.traspasos_viajes
    where destino_texto is not null and estado = 'registrado'
 ) x
-group by texto
-order by count(*) desc;
+group by texto;
 
 grant select on public.v_traspasos_puntos_faltantes to authenticated;
 
@@ -644,10 +686,17 @@ grant usage on sequence public.traspasos_codigo_seq to authenticated;
 
 -- =====================================================================
 -- 11. LOS PERMISOS DE LAS PANTALLAS
+--
+-- Sigue los mismos tres papeles que tenía la hoja:
+--   admin      planea, registra y controla
+--   supervisor registra y ve el control
+--   abi        SOLO mira el control — no registra ni planea
+--   los demás  ven lo que su rol permita
 -- =====================================================================
 do $$
 begin
   if to_regclass('public.rol_permisos') is not null then
+    /* Todos ven; admin y supervisor editan. */
     insert into public.rol_permisos (rol, seccion, nivel)
     select r.clave, s.ruta,
            (case when r.clave in ('admin', 'supervisor') then 'editar' else 'ver' end)
@@ -656,9 +705,16 @@ begin
       cross join (values
         ('/traspasos'),
         ('/traspasos/plan'),
-        ('/traspasos/seguimiento'),
+        ('/traspasos/control'),
         ('/traspasos/maestro')) as s(ruta)
     on conflict (rol, seccion) do nothing;
+
+    /* Planear es del administrador: el plan del turno lo arma quien
+       responde por el centro, no quien está registrando viajes. */
+    if exists (select 1 from public.roles where clave = 'supervisor') then
+      update public.rol_permisos set nivel = 'ver'
+       where rol = 'supervisor' and seccion = '/traspasos/plan';
+    end if;
   end if;
 end $$;
 
@@ -666,8 +722,7 @@ end $$;
 -- 12. COMPROBACIÓN. Todas tienen que decir 'ok'.
 -- =====================================================================
 do $$
-declare
-  v_tablas integer; v_fun integer; v_vistas integer; v_tipos integer;
+declare v_tablas integer; v_fun integer; v_vistas integer; v_tipos integer;
 begin
   select count(*) into v_tablas from information_schema.tables
    where table_schema = 'public'
@@ -677,18 +732,20 @@ begin
   select count(*) into v_fun from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.proname in ('traspaso_registrar','traspaso_planear','traspaso_punto',
-                       'traspaso_anular_viaje','traspaso_anular_plan');
+                       'traspaso_anular_viaje','traspaso_anular_plan',
+                       'traspaso_orden_turno');
 
   select count(*) into v_vistas from information_schema.views
    where table_schema = 'public'
-     and table_name in ('v_traspasos_viajes','v_traspasos_seguimiento',
+     and table_name in ('v_traspasos_viajes','v_traspasos_control',
                         'v_traspasos_puntos_faltantes');
 
   select count(*) into v_tipos from public.traspasos_tipos;
 
   raise notice 'las cuatro tablas ........ %', case when v_tablas = 4 then 'ok' else 'MAL (' || v_tablas || ')' end;
-  raise notice 'las cinco funciones ...... %', case when v_fun = 5 then 'ok' else 'MAL (' || v_fun || ')' end;
+  raise notice 'las seis funciones ....... %', case when v_fun = 6 then 'ok' else 'MAL (' || v_fun || ')' end;
   raise notice 'las tres vistas .......... %', case when v_vistas = 3 then 'ok' else 'MAL (' || v_vistas || ')' end;
   raise notice 'tipos sembrados .......... % (%)', case when v_tipos >= 9 then 'ok' else 'MAL' end, v_tipos;
+  raise notice 'turnos ................... C, A, B — como los llama la bodega';
   raise notice 'puntos ................... nacen vacíos, se llenan en el Maestro';
 end $$;

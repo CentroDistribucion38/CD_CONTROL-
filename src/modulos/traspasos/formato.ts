@@ -8,9 +8,16 @@
  * modulos/roturas/formato.ts.
  */
 
-/** Los tres turnos. La bodega trabaja en tres y no cambian: si algún día
- *  cambian, cambian aquí y en el CHECK de la base, que es el que manda. */
-export const TURNOS = [1, 2, 3] as const;
+/**
+ * LOS TURNOS SON C, A y B, EN ESE ORDEN.
+ *
+ * No son 1, 2 y 3: así los llama la bodega y C es el que abre el día.
+ * Renumerarlos obligaría a traducir en cada conversación —"el turno 1,
+ * o sea el C"— y esa traducción es donde se equivoca alguien a las
+ * cinco de la mañana.
+ */
+export const TURNOS = ["C", "A", "B"] as const;
+export type Turno = (typeof TURNOS)[number];
 
 /** La hora sola. La fecha ya está en el encabezado de la pantalla:
  *  repetirla en cada renglón es ruido que empuja lo que importa. */

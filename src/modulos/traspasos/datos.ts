@@ -30,10 +30,11 @@ export type Viaje = {
   id: string;
   codigo: string | null;
   fecha: string;
-  turno: number;
-  tipo: string;
-  tipo_nombre: string;
-  placa: string;
+  turno: string;
+  turno_orden: number;
+  tipo: string | null;
+  tipo_nombre: string | null;
+  placa: string | null;
   origen: string | null;
   origen_nombre: string | null;
   destino: string | null;
@@ -41,8 +42,11 @@ export type Viaje = {
   /** El punto todavía no está en el maestro: se escribió a mano. */
   origen_suelto: boolean;
   destino_suelto: boolean;
-  cantidad: number;
+  /** Cuántos viajes representa la línea. Casi siempre 1. */
+  viajes: number;
   vacio: boolean;
+  /** La carga, opcional: el plan se mide en viajes, no en canastas. */
+  carga: number | null;
   unidad: string | null;
   nota: string | null;
   hora: string;
@@ -55,27 +59,33 @@ export type Viaje = {
   anulado_por: string | null;
 };
 
-export type Seguimiento = {
+export type Control = {
   fecha: string;
-  turno: number;
+  turno: string;
+  turno_orden: number;
   tipo: string;
   tipo_nombre: string;
   tipo_orden: number | null;
   plan_id: string | null;
   planeado: number;
   vacios_planeados: number;
-  es_adicional: boolean;
   nota: string | null;
   /** Contado sobre los viajes registrados. Nadie lo escribe. */
   cumplido: number;
-  vacios_hechos: number;
-  cantidad: number;
+  registros: number;
+  carga: number;
   placas: number;
+  /** De lo PLANEADO, cuánto se hizo. Nunca pasa del plan. */
+  adheridos: number;
+  /** Lo que se pasó del plan o no estaba en él. */
+  adicionales: number;
   faltan: number;
-  de_mas: number;
   /** Se movió y nadie lo había planeado. */
   sin_planear: boolean;
-  pct: number | null;
+  /** Mide si el PLAN se cumplió. Tope 100%. */
+  adherencia: number | null;
+  /** Mide si se movió lo que había que mover, adicionales incluidos. */
+  cumplimiento: number | null;
 };
 
 export type PuntoFaltante = { texto: string; veces: number; ultima: string };
@@ -126,28 +136,40 @@ export async function viajesDelDia(fecha: string) {
 }
 
 /** El plan contra lo real, de un día. Es la pantalla del turno. */
-export async function seguimiento(fecha: string) {
+export async function control(fecha: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("v_traspasos_seguimiento").select("*")
+    .from("v_traspasos_control").select("*")
     .eq("fecha", fecha)
-    .order("turno", { ascending: true })
+    .order("turno_orden", { ascending: true })
     .order("tipo_orden", { ascending: true, nullsFirst: false });
-  if (error) return { filas: [] as Seguimiento[], falta: sinTablas(error.message) };
-  return { filas: (data ?? []) as Seguimiento[], falta: false };
+  if (error) return { filas: [] as Control[], falta: sinTablas(error.message) };
+  return { filas: (data ?? []) as Control[], falta: false };
 }
 
-/** Un rango, para el análisis. Mismo criterio: se filtra en la base. */
-export async function seguimientoRango(desde: string, hasta: string) {
+/** Un rango, para el control. Mismo criterio: se filtra en la base. */
+export async function controlRango(desde: string, hasta: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("v_traspasos_seguimiento").select("*")
+    .from("v_traspasos_control").select("*")
     .gte("fecha", desde).lte("fecha", hasta)
     .order("fecha", { ascending: false })
-    .order("turno", { ascending: true })
+    .order("turno_orden", { ascending: true })
     .order("tipo_orden", { ascending: true, nullsFirst: false });
-  if (error) return { filas: [] as Seguimiento[], falta: sinTablas(error.message) };
-  return { filas: (data ?? []) as Seguimiento[], falta: false };
+  if (error) return { filas: [] as Control[], falta: sinTablas(error.message) };
+  return { filas: (data ?? []) as Control[], falta: false };
+}
+
+/** Los viajes vacíos de un rango. Van aparte porque no llevan tipo:
+ *  un viaje sin carga no mueve un material. */
+export async function vaciosRango(desde: string, hasta: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("v_traspasos_viajes").select("fecha, turno, viajes")
+    .eq("vacio", true).eq("estado", "registrado")
+    .gte("fecha", desde).lte("fecha", hasta);
+  return ((data ?? []) as { fecha: string; turno: string; viajes: number }[])
+    .reduce((a, v) => a + v.viajes, 0);
 }
 
 /**

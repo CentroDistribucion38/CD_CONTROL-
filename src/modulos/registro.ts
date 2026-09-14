@@ -260,7 +260,7 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Plan", ruta: "/traspasos/plan" },
       { nombre: "Registrar", ruta: "/traspasos" },
-      { nombre: "Seguimiento", ruta: "/traspasos/seguimiento" },
+      { nombre: "Control", ruta: "/traspasos/control" },
       { nombre: "Maestro", ruta: "/traspasos/maestro" },
     ],
   },

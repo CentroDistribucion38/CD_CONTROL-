@@ -8,7 +8,7 @@ import type { Punto, TipoViaje } from "@/modulos/traspasos/datos";
 import { TURNOS } from "@/modulos/traspasos/formato";
 
 /**
- * REGISTRAR UN VIAJE.
+ * REGISTRAR.
  *
  * Es la pantalla del supervisor, de pie al lado del vehículo, con el
  * celular en una mano. Por eso los turnos y los tipos son botones
@@ -17,33 +17,39 @@ import { TURNOS } from "@/modulos/traspasos/formato";
  *
  * NO PIDE EL "CUMPLIDO" POR NINGÚN LADO, y eso es el punto del módulo.
  * Registrar este viaje ES el cumplimiento: el plan se actualiza solo.
- * La versión anterior tenía las dos cosas —viajes por un lado, un
- * número escrito a mano por el otro— y cuando no coincidían nadie sabía
- * cuál creer.
+ * En la versión de la hoja había las dos cosas —viajes por un lado y un
+ * modal de "Diligenciar cumplido" por otro— y cuando no coincidían, la
+ * misma app enseñaba dos cifras distintas del mismo turno en dos
+ * pestañas.
  *
- * LA PLACA VA PRIMERO porque es lo que la persona está mirando. El
- * resto se puede reconstruir de memoria; la placa no.
+ * DOS COSAS QUE NO SE MEZCLAN. Un viaje CON CARGA lleva placa, ruta y
+ * tipo. Los VACÍOS son un número de viajes del turno y ya: no llevan
+ * tipo ni placa porque no los tienen, y pedirlos obligaría a
+ * inventarlos. En la hoja se resolvía metiendo los vacíos como si
+ * fueran un tipo de material llamado "Vacios (Registro Independiente)",
+ * y después había que sacarlo a mano de cada informe con un if.
  */
 export function Registrar({ tipos, puntos, fecha, turnoSugerido }: {
   tipos: TipoViaje[];
   puntos: Punto[];
   fecha: string;
   /** El turno que va según la hora. Se propone, no se impone: quien
-   *  registra a las 6:05 casi siempre está cerrando el turno anterior. */
-  turnoSugerido: number;
+   *  registra a las 6:05 casi siempre está cerrando el anterior. */
+  turnoSugerido: string;
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
 
+  const [modo, setModo] = useState<"carga" | "vacio">("carga");
   const [turno, setTurno] = useState(turnoSugerido);
   const [tipo, setTipo] = useState("");
   const [placa, setPlaca] = useState("");
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
-  const [cantidad, setCantidad] = useState("");
+  const [viajes, setViajes] = useState("1");
+  const [carga, setCarga] = useState("");
   const [unidad, setUnidad] = useState("");
-  const [vacio, setVacio] = useState(false);
   const [nota, setNota] = useState("");
   const [mandando, setMandando] = useState(false);
 
@@ -53,37 +59,39 @@ export function Registrar({ tipos, puntos, fecha, turnoSugerido }: {
      para tener la lista bonita. */
   const hayMaestro = puntos.length > 0;
 
-  const puedeMandar = !!tipo && placa.trim() !== ""
-    && origen.trim() !== "" && destino.trim() !== ""
-    && (vacio || cantidad.trim() !== "");
+  const puedeMandar = modo === "vacio"
+    ? Number(viajes) >= 1
+    : !!tipo && placa.trim() !== "" && origen.trim() !== "" && destino.trim() !== ""
+      && Number(viajes) >= 1;
 
   async function mandar() {
     setMandando(true);
+    const esVacio = modo === "vacio";
     const { error } = await supabase.rpc("traspaso_registrar", {
       p_fecha: fecha,
       p_turno: turno,
-      p_tipo: tipo,
-      p_placa: placa,
-      p_origen: origen,
-      p_destino: destino,
-      p_cantidad: vacio ? 0 : Number(cantidad) || 0,
-      p_vacio: vacio,
-      p_unidad: unidad.trim() || null,
+      p_tipo: esVacio ? null : tipo,
+      p_placa: esVacio ? null : placa,
+      p_origen: esVacio ? null : origen,
+      p_destino: esVacio ? null : destino,
+      p_viajes: Number(viajes) || 1,
+      p_vacio: esVacio,
+      p_carga: esVacio || carga.trim() === "" ? null : Number(carga),
+      p_unidad: esVacio ? null : (unidad.trim() || null),
       p_nota: nota.trim() || null,
     });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
 
-    avisar.bien(
-      vacio
-        ? `Viaje vacío de ${placa.toUpperCase()} registrado.`
-        : `Viaje de ${placa.toUpperCase()} registrado. El plan del turno ya lo cuenta.`);
+    avisar.bien(esVacio
+      ? `${viajes} viaje${Number(viajes) === 1 ? "" : "s"} vacío${Number(viajes) === 1 ? "" : "s"} en el turno ${turno}.`
+      : `Viaje de ${placa.toUpperCase()} registrado. El plan del turno ya lo cuenta.`);
 
     /* SE LIMPIA LO DEL VIAJE Y SE DEJA LO DEL TURNO. Quien registra
        viajes registra varios seguidos del mismo tipo y la misma ruta:
        volver a escoger las cuatro cosas cada vez es lo que hace que se
        dejen de registrar a media tarde. */
-    setPlaca(""); setCantidad(""); setNota(""); setVacio(false);
+    setPlaca(""); setCarga(""); setNota(""); setViajes("1");
     router.refresh();
   }
 
@@ -92,7 +100,7 @@ export function Registrar({ tipos, puntos, fecha, turnoSugerido }: {
       {avisos}
       <div className="cab">
         <div>
-          <h2>Registrar un viaje</h2>
+          <h2>Registrar</h2>
           <p>
             Cada viaje que sale. No hay que escribir cuántos se cumplieron: el plan del turno
             los cuenta solo a medida que se registran.
@@ -101,6 +109,16 @@ export function Registrar({ tipos, puntos, fecha, turnoSugerido }: {
       </div>
 
       <div style={{ padding: 16 }}>
+        <div className="campo">
+          <label>¿Qué se registra?</label>
+          <div className="opciones">
+            <button type="button" className={"op" + (modo === "carga" ? " on" : "")}
+                    onClick={() => setModo("carga")}>Viaje con carga</button>
+            <button type="button" className={"op" + (modo === "vacio" ? " on" : "")}
+                    onClick={() => setModo("vacio")}>Viajes vacíos</button>
+          </div>
+        </div>
+
         <div className="campo">
           <label>Turno</label>
           <div className="opciones">
@@ -114,84 +132,102 @@ export function Registrar({ tipos, puntos, fecha, turnoSugerido }: {
           </div>
         </div>
 
-        <div className="campo">
-          <label htmlFor="tp-placa">Placa del vehículo</label>
-          <input id="tp-placa" value={placa} autoComplete="off"
-                 placeholder="ABC123"
-                 style={{ textTransform: "uppercase", fontWeight: 800, letterSpacing: ".05em" }}
-                 onChange={(e) => setPlaca(e.target.value)} />
-          {/* Se dice ANTES, no después de rechazarlo: quien escribe con
-              guion no está haciendo nada malo. */}
-          <p className="guia" style={{ marginTop: 6 }}>
-            Da igual con guion o sin guion: se guarda siempre igual para que el informe por
-            placa no parta el mismo vehículo en tres.
-          </p>
-        </div>
-
-        <div className="campo">
-          <label>Tipo de viaje</label>
-          <div className="opciones">
-            {tipos.map((t) => (
-              <button key={t.clave} type="button"
-                      className={"op" + (tipo === t.clave ? " on" : "")}
-                      onClick={() => setTipo(t.clave)}>
-                {t.nombre}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="campo">
-          <label htmlFor="tp-origen">De dónde sale</label>
-          <input id="tp-origen" list="tp-puntos" value={origen} autoComplete="off"
-                 placeholder={hayMaestro ? "Escoge o escribe" : "Escribe el sitio"}
-                 onChange={(e) => setOrigen(e.target.value)} />
-        </div>
-
-        <div className="campo">
-          <label htmlFor="tp-destino">A dónde va</label>
-          <input id="tp-destino" list="tp-puntos" value={destino} autoComplete="off"
-                 placeholder={hayMaestro ? "Escoge o escribe" : "Escribe el sitio"}
-                 onChange={(e) => setDestino(e.target.value)} />
-        </div>
-
-        <datalist id="tp-puntos">
-          {puntos.map((p) => <option key={p.clave} value={p.nombre} />)}
-        </datalist>
-
-        {!hayMaestro && (
-          <div className="aviso" style={{ marginBottom: 13 }}>
-            El maestro de puntos está vacío. Se puede registrar igual escribiendo el sitio: lo
-            escrito queda marcado y aparece en <b>Maestro</b> para agregarlo de una. La primera
-            semana arma sola la lista de los puntos que de verdad se usan.
-          </div>
-        )}
-
-        <div className="campo">
-          <label>¿Qué movió?</label>
-          <div className="opciones" style={{ marginBottom: 10 }}>
-            <button type="button" className={"op" + (!vacio ? " on" : "")}
-                    onClick={() => setVacio(false)}>Movió carga</button>
-            <button type="button" className={"op" + (vacio ? " on" : "")}
-                    onClick={() => { setVacio(true); setCantidad(""); }}>Va vacío</button>
-          </div>
-
-          {vacio ? (
-            <p className="guia">
-              Los viajes vacíos se cuentan aparte y <b>no entran en el cumplido</b>: cuestan lo
-              mismo —el vehículo, el conductor, el tiempo— pero no mueven producto. Meterlos en
-              el cumplido haría ver cumplido un turno que movió aire.
-            </p>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <input type="number" inputMode="numeric" min={0} value={cantidad}
-                     placeholder="Cuánto" aria-label="Cantidad"
-                     onChange={(e) => setCantidad(e.target.value)} />
-              <input value={unidad} placeholder="Canastas, estibas…" aria-label="Unidad"
-                     autoComplete="off" onChange={(e) => setUnidad(e.target.value)} />
+        {modo === "vacio" ? (
+          <>
+            <div className="campo">
+              <label htmlFor="tp-vac">¿Cuántos viajes vacíos?</label>
+              <input id="tp-vac" type="number" inputMode="numeric" min={1} value={viajes}
+                     onChange={(e) => setViajes(e.target.value)} />
             </div>
-          )}
-        </div>
+            <p className="guia" style={{ marginBottom: 13 }}>
+              Los vacíos se cuentan aparte y <b>no entran en el cumplido</b>: cuestan lo mismo
+              —el vehículo, el conductor, el tiempo— pero no mueven producto. Meterlos en el
+              cumplido haría ver cumplido un turno que movió aire.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="campo">
+              <label htmlFor="tp-placa">Placa del vehículo</label>
+              <input id="tp-placa" value={placa} autoComplete="off" placeholder="ABC123"
+                     style={{ textTransform: "uppercase", fontWeight: 800, letterSpacing: ".05em" }}
+                     onChange={(e) => setPlaca(e.target.value)} />
+              {/* Se dice ANTES, no después de rechazarlo: quien escribe
+                  con guion no está haciendo nada malo. */}
+              <p className="guia" style={{ marginTop: 6 }}>
+                Da igual con guion o sin guion: se guarda siempre igual para que el informe por
+                placa no parta el mismo vehículo en tres.
+              </p>
+            </div>
+
+            <div className="campo">
+              <label>Tipo de viaje</label>
+              <div className="opciones">
+                {tipos.map((t) => (
+                  <button key={t.clave} type="button"
+                          className={"op" + (tipo === t.clave ? " on" : "")}
+                          onClick={() => setTipo(t.clave)}>
+                    {t.nombre}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="campo">
+              <label htmlFor="tp-origen">De dónde sale</label>
+              <input id="tp-origen" list="tp-puntos" value={origen} autoComplete="off"
+                     placeholder={hayMaestro ? "Escoge o escribe" : "Escribe el sitio"}
+                     onChange={(e) => setOrigen(e.target.value)} />
+            </div>
+
+            <div className="campo">
+              <label htmlFor="tp-destino">A dónde va</label>
+              <input id="tp-destino" list="tp-puntos" value={destino} autoComplete="off"
+                     placeholder={hayMaestro ? "Escoge o escribe" : "Escribe el sitio"}
+                     onChange={(e) => setDestino(e.target.value)} />
+            </div>
+
+            <datalist id="tp-puntos">
+              {puntos.map((p) => <option key={p.clave} value={p.nombre} />)}
+            </datalist>
+
+            {!hayMaestro && (
+              <div className="aviso" style={{ marginBottom: 13 }}>
+                El maestro de puntos está vacío. Se puede registrar igual escribiendo el sitio:
+                lo escrito queda marcado y aparece en <b>Maestro</b> para agregarlo de una. La
+                primera semana arma sola la lista de los puntos que de verdad se usan.
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="campo">
+                <label htmlFor="tp-nv">Cuántos viajes</label>
+                <input id="tp-nv" type="number" inputMode="numeric" min={1} value={viajes}
+                       onChange={(e) => setViajes(e.target.value)} />
+              </div>
+              <div className="campo">
+                <label htmlFor="tp-carga">Carga (opcional)</label>
+                <input id="tp-carga" type="number" inputMode="numeric" min={0} value={carga}
+                       placeholder="Canastas, estibas…"
+                       onChange={(e) => setCarga(e.target.value)} />
+              </div>
+            </div>
+
+            {carga.trim() !== "" && (
+              <div className="campo">
+                <label htmlFor="tp-unidad">¿En qué se cuenta esa carga?</label>
+                <input id="tp-unidad" value={unidad} autoComplete="off"
+                       placeholder="Canastas, estibas, unidades…"
+                       onChange={(e) => setUnidad(e.target.value)} />
+              </div>
+            )}
+
+            <p className="guia" style={{ marginBottom: 13 }}>
+              El plan se mide en <b>viajes</b>, no en canastas. La carga es opcional y sirve
+              para saber después cuánto se movió de verdad en cada uno.
+            </p>
+          </>
+        )}
 
         <div className="campo">
           <label htmlFor="tp-nota">Novedad (opcional)</label>
@@ -202,10 +238,10 @@ export function Registrar({ tipos, puntos, fecha, turnoSugerido }: {
         <button type="button" className="btn si" style={{ width: "100%", minHeight: 52 }}
                 disabled={!puedeMandar || mandando} onClick={mandar}>
           {mandando ? "Registrando…"
+            : modo === "vacio" ? `Registrar ${viajes || 0} vacío${Number(viajes) === 1 ? "" : "s"} del turno ${turno}`
             : !tipo ? "Escoge el tipo de viaje"
             : !placa.trim() ? "Falta la placa"
             : !origen.trim() || !destino.trim() ? "Falta la ruta"
-            : !vacio && !cantidad.trim() ? "Di cuánto movió, o márcalo vacío"
             : "Registrar el viaje"}
         </button>
       </div>

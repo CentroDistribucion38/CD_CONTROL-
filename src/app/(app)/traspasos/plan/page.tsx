@@ -1,7 +1,5 @@
 import { misPermisos } from "@/lib/permisos";
-import {
-  tipos as leerTipos, seguimiento, hoyLocal,
-} from "@/modulos/traspasos/datos";
+import { tipos as leerTipos, control, hoyLocal } from "@/modulos/traspasos/datos";
 import { fecha as fechaLarga } from "@/modulos/traspasos/formato";
 import "../traspasos.css";
 import { SinTablas } from "../comunes";
@@ -11,11 +9,11 @@ export const dynamic = "force-dynamic";
 
 export default async function PlanPage() {
   const dia = hoyLocal();
-  const [permisos, t, seg] = await Promise.all([
-    misPermisos(), leerTipos(), seguimiento(dia),
+  const [permisos, t, ctl] = await Promise.all([
+    misPermisos(), leerTipos(), control(dia),
   ]);
 
-  if (t.falta || seg.falta) return <div className="tp"><SinTablas /></div>;
+  if (t.falta || ctl.falta) return <div className="tp"><SinTablas /></div>;
 
   return (
     <div className="tp">
@@ -31,7 +29,7 @@ export default async function PlanPage() {
         </div>
       </section>
 
-      <Plan filas={seg.filas} tipos={t.tipos} fecha={dia}
+      <Plan filas={ctl.filas} tipos={t.tipos} fecha={dia}
             puedeEditar={permisos.puedeEditar("/traspasos/plan")} />
     </div>
   );

@@ -778,3 +778,88 @@ comprobar antes de guardarlo siquiera:
 Se deja escrito aqui por una razon: la proxima vez que alguien lea "45x"
 en un blog y quiera aplicarlo, que encuentre la medicion de ESTA base al
 lado y no tenga que repetirla.
+
+
+MODULO NUEVO: TRASPASOS.
+
+Los viajes entre puntos: lo que se planea mover en un turno y lo que de
+verdad se movio. Viene de una hoja de calculo con Apps Script; se trajo
+el modelo, no el codigo.
+
+EL CUMPLIDO NO SE ESCRIBE: SE CUENTA. ES EL CAMBIO DE FONDO.
+
+La version anterior tenia DOS numeros que hablaban de lo mismo y no se
+hablaban entre si: un "Cumplido" que alguien tecleaba en la hoja de
+planeacion, y aparte una hoja de viajes con placa que llenaba el
+supervisor. Si el supervisor registraba siete viajes y alguien habia
+escrito "cumplido: 5", no existia manera de saber cual de los dos era
+el bueno —y las dos pantallas mostraban su numero con la misma cara de
+seguridad—.
+
+Aqui el cumplido SALE de contar los viajes registrados. Una sola
+verdad, imposible de contradecir, y de yapa "se cumplio 5 de 7" se
+puede abrir y ver cuales cinco y con que placa. Por eso en el modulo no
+hay —ni puede haber— una funcion que guarde el cumplido.
+
+LO QUE SE CORRIGIO DEL ORIGINAL, punto por punto:
+
+  1. CONTRASEÑAS EN TEXTO PLANO en una hoja (admin/1234). Desaparece:
+     entra por el mismo login y los mismos roles de la plataforma.
+
+  2. BORRAR FILAS. eliminarRegistro() borraba la fila de la hoja. Un
+     viaje que existio y se borro deja el plan cuadrando por arte de
+     magia y sin nadie a quien preguntarle. Aqui se ANULA con motivo,
+     sigue a la vista marcado, y deja de contar en el mismo segundo.
+
+  3. ID GENERADO EN EL CLIENTE y appendRow sin transaccion: dos
+     supervisores al tiempo se pisaban. Ahora el consecutivo TR-0001
+     sale de una secuencia de Postgres.
+
+  4. ORIGEN Y DESTINO COMO TEXTO LIBRE. "Ag01", "AG-01" y "ag 01" eran
+     tres sitios y ningun informe por ruta cuadraba. Ahora salen de un
+     maestro; si el punto no esta se puede escribir igual —no se traba
+     el trabajo— pero queda MARCADO y aparece en el Maestro con cuantas
+     veces se uso, para agregarlo de un toque. La primera semana arma
+     sola la lista de los puntos que de verdad se usan.
+
+  5. NINGUNA VALIDACION. Ahora: la placa se normaliza (ABC-123, abc 123
+     y ABC123 son el mismo vehiculo); un viaje no sale y llega al mismo
+     sitio —ni escribiendolo distinto—; un viaje vacio no puede mover
+     carga; el turno esta entre 1 y 3; planear dos veces el mismo tipo
+     el mismo turno ACTUALIZA la linea en vez de crear otra.
+
+  6. NO SE SABIA QUIEN HIZO QUE NI CUANDO. Ahora cada viaje y cada
+     linea del plan llevan quien y a que hora.
+
+LOS VACIOS SON VIAJES SIN CARGA y se cuentan APARTE. Cuestan lo mismo
+—el vehiculo, el conductor, el tiempo— pero no mueven producto.
+Sumarlos al cumplido haria ver cumplido un turno que movio aire.
+
+EL SEGUIMIENTO SALE DE UN FULL JOIN, no de un left join desde el plan.
+Hay tres casos y los tres importan: lo planeado que se cumplio, lo
+planeado que no, y LO QUE SE MOVIO SIN ESTAR EN EL PLAN. Con un left
+join desde el plan el tercero desaparece —y es justamente el que dice
+que la planeacion no esta sirviendo—. Tiene nombre propio en la
+pantalla y filo de color.
+
+El orden del menu es el del proceso, no el de las pantallas:
+Plan -> Registrar -> Seguimiento -> Maestro. Pero la tarjeta del modulo
+entra por REGISTRAR: el plan se hace una vez por turno y los viajes se
+registran todo el turno.
+
+PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas del archivo:
+
+   1 planear 8 de un tipo ......................... ok
+   2 planear lo mismo otra vez ACTUALIZA .......... ok
+   3 registrar 3 viajes: el cumplido sube solo .... ok
+   4 la placa se normaliza (abc-121 -> ABC121) .... ok
+   5 un viaje vacio NO entra en el cumplido ....... ok
+   6 un vacio con carga se rechaza ................ ok
+   7 origen = destino se rechaza, incluso
+     escrito distinto ("AG01" vs "ag 01") ......... ok
+   8 punto fuera del maestro: se guarda marcado
+     y sale en la lista de faltantes .............. ok
+   9 viajes SIN PLANEAR salen en el seguimiento ... ok
+  10 anular sin motivo se rechaza ................. ok
+  11 anulado no cuenta pero SIGUE estando ......... ok
+  12 el porcentaje y lo que falta ................. ok

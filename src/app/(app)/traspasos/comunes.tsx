@@ -31,28 +31,37 @@ export function FilaViaje({ v, nombres, derecha }: {
 }) {
   return (
     <div className={"fila" + (v.estado === "anulado" ? " anulada" : "")}>
-      <div className="placa">{v.placa}</div>
+      {/* EL VACÍO NO TIENE PLACA NI RUTA, y no se le inventa una: es un
+          número de viajes del turno, no un vehículo. En su sitio va el
+          número, que es el dato que lleva. */}
+      <div className="placa">{v.vacio ? v.viajes : v.placa}</div>
 
       <div>
         <div className="ruta">
-          <Punto nombre={v.origen_nombre} suelto={v.origen_suelto} />
-          <span className="fl" aria-hidden>→</span>
-          <Punto nombre={v.destino_nombre} suelto={v.destino_suelto} />
+          {v.vacio ? (
+            <>Viajes vacíos <span className="eti vacio-eti">SIN CARGA</span></>
+          ) : (
+            <>
+              <Punto nombre={v.origen_nombre} suelto={v.origen_suelto} />
+              <span className="fl" aria-hidden>→</span>
+              <Punto nombre={v.destino_nombre} suelto={v.destino_suelto} />
+            </>
+          )}
         </div>
 
         <div className="meta">
-          <span>{v.tipo_nombre}</span>
-          {/* EL VACÍO NO LLEVA CIFRA. Poner "0 canastas" haría que la
-              vista rápida lo lea como un viaje que movió poco, cuando
-              lo que pasó es que no movió nada a propósito. */}
-          {v.vacio
-            ? <span className="eti vacio-eti">VA VACÍO</span>
-            : (
-              <>
-                <span className="cant">{v.cantidad.toLocaleString("es-CO")}</span>
-                <span>{v.unidad ?? "unidades"}</span>
-              </>
-            )}
+          {v.tipo_nombre && <span>{v.tipo_nombre}</span>}
+          {/* Cuántos VIAJES vale la línea. Solo se dice si no es uno:
+              "1 viaje" en cada renglón es ruido. */}
+          {v.viajes > 1 && (
+            <>
+              <span className="cant">{v.viajes}</span>
+              <span>viajes</span>
+            </>
+          )}
+          {v.carga != null && (
+            <span>{v.carga.toLocaleString("es-CO")} {v.unidad ?? "unidades"}</span>
+          )}
           <span>Turno {v.turno}</span>
           <span>{hora(v.hora)}</span>
           <span>{quien(nombres, v.registrado_por)}</span>
