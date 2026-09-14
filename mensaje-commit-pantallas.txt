@@ -638,3 +638,60 @@ que salga uno que SI importa, tambien se salta—.
 
 El comportamiento no cambia: sigue proponiendo todas las que caben y
 sigue dejando corregir.
+
+
+LAS VISTAS, SIN UNA CONSULTA POR RENGLON.
+
+Esto no arregla nada que se vea hoy. Arregla lo que iba a pasar dentro
+de seis meses, que es cuando ya no se puede arreglar barato.
+
+QUE ESTABA MAL. Las vistas traian columnas calculadas con subconsultas
+correlacionadas: "cuantas fotos tiene ESTA accion", "cuantas veces va
+este motivo en ESTA zona". Se lee perfecto, pero Postgres las ejecuta
+UNA VEZ POR FILA. Pedir 500 filas no eran 500 lecturas: eran 500 x 4
+consultas, y la de reincidencia ademas volvia a recorrer la tabla
+entera de acciones cada vez. El costo no crecia con lo que se pide;
+crecia con lo que HAY. Eso es exactamente lo que hace que una app vaya
+bien el primer mes y se arrastre el sexto.
+
+QUE SE HIZO. Los mismos numeros salen de agregados que se calculan UNA
+vez y se pegan con un join. Tres vistas: v_acciones (4 subconsultas por
+fila), v_roturas (2) y v_roturas_salidas (4).
+
+NO SE LIMITO NADA. Ni una lista se recorto, ni una columna se escondio,
+ni un dato dejo de estar. Es la misma informacion, traida de otra
+manera.
+
+MEDIDO CONTRA POSTGRES CON 50.000 ACCIONES REALES:
+
+  Todas (500 por vencimiento) ....  766 ms  ->  41 ms
+  Mis acciones ...................            27 ms
+  Por verificar ..................            25 ms
+  Tablero por area ...............            13 ms
+
+Casi 19 veces. Pero lo que importa mas que el numero es la forma de la
+curva: antes el costo subia con el CUADRADO de los datos, ahora sube
+derecho.
+
+Y SE COMPROBO QUE DA LO MISMO, que es lo unico que hace confiable una
+optimizacion:
+
+  filas con algun numero distinto entre la vista vieja y la nueva ... 0
+  filas de mas o de menos ........................................... 0
+  le_falta_foto con foto / sin foto ............................. f / t
+  salida con 2 tolvas: 2100.50 bruto, 350.50 tara, 1750.00 neto .... ok
+  salida sin tolvas: cero, no null ................................. ok
+
+LOS INDICES QUE ESOS AGRUPAMIENTOS NECESITAN van en la misma migracion:
+acciones_origen(preventiva_id), roturas_fotos(rotura_id),
+roturas_salida_tolvas(salida_id), y dos por reportada_en desc para las
+listas que ordenan por lo mas reciente sin filtrar por nada, que es lo
+primero que ve todo el mundo al entrar.
+
+La funcion accion_reincidencia SIGUE EXISTIENDO y sigue siendo la que
+manda al reportar: ahi se pregunta por UNA combinacion y una consulta
+puntual es lo correcto. En la vista se preguntaban quinientas.
+
+Las columnas quedaron con el mismo tipo a proposito —count(*) es bigint
+y se dejo bigint—: cambiarlo obligaria a botar la vista, y botarla se
+lleva por delante lo que dependa de ella.

@@ -341,6 +341,8 @@ create table if not exists public.roturas_fotos (
 );
 
 create index if not exists roturas_fotos_idx on public.roturas_fotos (rotura_id);
+create index if not exists roturas_reportada_idx
+  on public.roturas (reportada_en desc);
 
 -- ---------------------------------------------------------------------
 -- 5. LAS SALIDAS — el submódulo SALIDA, que pesa KILOS
@@ -900,6 +902,8 @@ drop view if exists public.v_roturas_salidas;
 drop view if exists public.v_roturas;
 
 create view public.v_roturas as
+with cnt_fotos as (
+  select rotura_id, count(*) n from public.roturas_fotos group by rotura_id)
 select
   r.id,
   r.codigo,
@@ -910,20 +914,9 @@ select
   r.unidades,
   r.contaminadas,
   r.botellas,
-
-  /* LA BAJA DE LÍQUIDO. Se pierde el líquido tanto de lo roto como de
-     lo contaminado: en lo roto se derramó, en lo contaminado no sirve.
-     Es la cifra que le importa a quien responde por el producto. */
   case when r.tipo = 'producto_terminado'
        then r.unidades + coalesce(r.contaminadas, 0)
        else 0 end                as unidades_liquido,
-  /* EL VIDRIO PERDIDO. En producto terminado son las botellas rotas de
-     adentro; en EER son las unidades. LAS CONTAMINADAS NO ENTRAN: la
-     botella queda entera y vuelve a la línea, así que contarla como
-     vidrio roto sería dar de baja un envase que sigue existiendo.
-     Es la única manera de sumar dos cosas que se cuentan distinto sin
-     inventar un factor: no se convierte nada, se elige cuál de las dos
-     cifras es "vidrio roto" en cada caso. */
   case when r.tipo = 'producto_terminado' then coalesce(r.botellas, 0)
        else r.unidades end       as unidades_vidrio,
   r.proceso,
@@ -940,20 +933,27 @@ select
   r.reportada_por, r.reportada_en,
   r.decidida_por, r.decidida_en, r.nota_decision,
   r.motivo_anulacion, r.anulada_en, r.anulada_por,
-  (select count(*) from public.roturas_fotos f where f.rotura_id = r.id) as fotos,
-  /* La que ABI va a devolver: exige foto y no la tiene. Se calcula aquí
-     para que la bandeja lo pueda mostrar ANTES de que alguien la abra. */
-  (c.exige_foto and not exists (select 1 from public.roturas_fotos f where f.rotura_id = r.id))
+  coalesce(cf.n, 0)              as fotos,
+  (c.exige_foto and coalesce(cf.n, 0) = 0)
                                  as le_falta_foto,
   round(extract(epoch from (now() - r.reportada_en)) / 60)::int as minutos
 from public.roturas r
 join public.roturas_materiales m on m.clave = r.material
 join public.roturas_procesos   p on p.clave = r.proceso
-join public.roturas_causas     c on c.clave = r.causa;
+join public.roturas_causas     c on c.clave = r.causa
+left join cnt_fotos cf on cf.rotura_id = r.id;
 
 grant select on public.v_roturas to authenticated;
 
 create view public.v_roturas_salidas as
+with tol as (
+  select salida_id,
+         count(*)                  as tolvas,
+         sum(bruto_kg)             as bruto_kg,
+         sum(tara_kg)              as tara_kg,
+         sum(bruto_kg - tara_kg)   as neto_kg
+    from public.roturas_salida_tolvas
+   group by salida_id)
 select
   s.id,
   s.codigo,
@@ -966,40 +966,25 @@ select
   s.validador_por,  s.validador_en,  s.validador_nota,
   s.motivo_anulacion, s.anulada_en, s.anulada_por,
 
-  (select count(*) from public.roturas_salida_tolvas t where t.salida_id = s.id) as tolvas,
-  /* EL NETO SALE DE SUMAR LAS PARTES, siempre. Nunca hay un total
-     guardado que pueda quedar desfasado de sus tolvas. */
-  coalesce((select sum(t.bruto_kg) from public.roturas_salida_tolvas t
-             where t.salida_id = s.id), 0)        as bruto_kg,
-  coalesce((select sum(t.tara_kg) from public.roturas_salida_tolvas t
-             where t.salida_id = s.id), 0)        as tara_kg,
-  coalesce((select sum(t.bruto_kg - t.tara_kg) from public.roturas_salida_tolvas t
-             where t.salida_id = s.id), 0)        as neto_kg,
+  coalesce(t.tolvas, 0)                          as tolvas,
+  coalesce(t.bruto_kg, 0)                        as bruto_kg,
+  coalesce(t.tara_kg, 0)                         as tara_kg,
+  coalesce(t.neto_kg, 0)                         as neto_kg,
 
-  /* Cuántas firmas lleva, de tres. Es lo que dibuja la cadena sin que
-     la pantalla tenga que mirar tres campos. */
   ((s.supervisora_en is not null)::int
    + (s.verificador_en is not null)::int
    + (s.validador_en is not null)::int)          as firmas,
   (s.validador_en is not null)                   as completa,
 
-  /* DOS FIRMAS DE LA MISMA MANO. Solo puede pasar si la puso un
-     administrador, porque a los demás la función se lo impide. No es
-     un error y por eso no bloquea nada; es un dato que la pantalla
-     enseña, para que una salida firmada por una sola persona no se vea
-     igual que una que pasó por tres. */
   /* coalesce, y no es adorno: con una sola firma puesta, "X = null" da
-     NULL y el OR entero devolvía NULL en vez de falso. La pantalla lo
-     trataba como falso por casualidad —null es falsy en JavaScript—, y
-     el tipo de TypeScript decía boolean. Un booleano que a veces es
-     null es una trampa esperando a que alguien escriba
-     "if (!s.mismo_firmante)". */
+     NULL y el OR entero devolvía NULL en vez de falso. */
   coalesce(
       (s.supervisora_por is not null and s.supervisora_por = s.verificador_por)
    or (s.supervisora_por is not null and s.supervisora_por = s.validador_por)
    or (s.verificador_por is not null and s.verificador_por = s.validador_por)
   , false)                                       as mismo_firmante
-from public.roturas_salidas s;
+from public.roturas_salidas s
+left join tol t on t.salida_id = s.id;
 
 grant select on public.v_roturas_salidas to authenticated;
 

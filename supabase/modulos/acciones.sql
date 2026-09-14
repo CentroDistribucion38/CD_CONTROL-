@@ -462,6 +462,10 @@ create table if not exists public.acciones_hilo (
 );
 
 create index if not exists acciones_hilo_idx on public.acciones_hilo (accion_id, escrito_en);
+/* Para las listas que ordenan por lo más reciente sin filtrar por
+   nada, que es lo primero que ve todo el mundo. */
+create index if not exists acciones_reportada_idx
+  on public.acciones (reportada_en desc);
 
 /* De qué acciones viejas nació una preventiva. Es la prueba de que el
    bloqueo de reincidencia funcionó: la preventiva AC-0160 existe
@@ -471,6 +475,10 @@ create table if not exists public.acciones_origen (
   accion_id     uuid not null references public.acciones(id) on delete cascade,
   primary key (preventiva_id, accion_id)
 );
+
+/* El conteo de orígenes de la vista agrupa por preventiva_id. */
+create index if not exists acciones_origen_prev_idx
+  on public.acciones_origen (preventiva_id);
 
 -- =====================================================================
 -- 9. LAS FUNCIONES
@@ -997,6 +1005,35 @@ drop view if exists public.v_acciones_area;
 drop view if exists public.v_acciones;
 
 create view public.v_acciones as
+with
+  /* Los tres conteos, agrupados de una. Un recorrido por tabla en vez
+     de uno por fila de la lista. */
+  /* Sin ::int a propósito: count(*) es bigint y así estaban las
+     columnas. Cambiarles el tipo obligaría a botar la vista, y botarla
+     se lleva por delante cualquier cosa que dependa de ella. */
+  cnt_hilo as (
+    select accion_id, count(*) n from public.acciones_hilo group by accion_id),
+  cnt_fotos as (
+    select accion_id, count(*) n from public.acciones_fotos group by accion_id),
+  cnt_orig as (
+    select preventiva_id, count(*) n from public.acciones_origen group by preventiva_id),
+
+  /* LA REINCIDENCIA. Es el mismo cálculo que hace
+     accion_reincidencia(), con los mismos filtros, pero agrupado por
+     (motivo, zona) una sola vez en vez de llamado por renglón.
+     La función SIGUE EXISTIENDO y sigue siendo la que manda al
+     reportar: ahí se pregunta por UNA combinación y una consulta
+     puntual es lo correcto. Aquí se preguntan quinientas. */
+  reinc as (
+    select a.motivo, a.zona, count(*)::int n
+      from public.acciones a
+     where a.zona is not null
+       and a.tipo = 'correctiva'
+       and a.estado <> 'anulada'
+       and a.reportada_en >= now() - make_interval(
+             months => (select valor::int from public.acciones_parametros
+                         where clave = 'reincidencia_meses'))
+     group by a.motivo, a.zona)
 select
   a.id,
   a.codigo,
@@ -1018,21 +1055,9 @@ select
   a.vence_en,
   a.estado::text                                 as estado,
 
-  /* VIVA = todavía hay algo que hacer. Se calcula una vez aquí y no en
-     cada pantalla, porque el día que alguien la calcule distinto en
-     una sola pantalla, dos números del mismo módulo dejan de cuadrar. */
   (a.estado in ('abierta', 'reabierta'))         as viva,
-
-  /* VENCIDA. Solo lo vivo puede estar vencido: una acción cerrada el
-     día 3 no se vuelve vencida el día 4. */
   (a.estado in ('abierta', 'reabierta') and a.vence_en < now()) as vencida,
-
-  /* Cuántas horas faltan —o sobran, en negativo—. La app decide cómo
-     lo dice; aquí solo está el número. */
   round(extract(epoch from (a.vence_en - now())) / 3600.0)::int as horas_restantes,
-
-  /* Cuántos días lleva. Es la cifra que convierte un renglón en un
-     problema: "lleva 11 días" se entiende sin leer nada más. */
   case when a.estado in ('verificada', 'anulada')
        then (coalesce(a.verificada_en, a.anulada_en)::date - a.reportada_en::date)
        else (current_date - a.reportada_en::date) end            as dias,
@@ -1040,40 +1065,29 @@ select
   a.equipo,
   eq.nombre                       as equipo_nombre,
   a.responsable, a.asignada_por, a.asignada_en,
-  /* SIN DUEÑO de verdad: ni equipo ni persona. "Easy, sin persona" SÍ
-     tiene dueño —el OL responde— y no debe contarse aquí; contarla
-     mandaría a alguien a reasignar algo que ya está asignado. */
   (a.equipo is null and a.responsable is null) as sin_dueno,
   a.reportada_por, a.reportada_en,
   a.que_se_hizo, a.cerrada_por, a.cerrada_en,
   a.efectiva, a.nota_verificacion, a.verificada_por, a.verificada_en,
-
-  /* La marca de la regla que no se impone pero se ve: la cerró y la
-     verificó la misma persona. No está prohibido —en un turno de tres
-     a veces no hay de otra— pero queda escrito. */
   (a.cerrada_por is not null and a.cerrada_por = a.verificada_por) as auto_verificada,
-
   a.causa_raiz, a.responsable_proceso,
   a.motivo_anulacion, a.anulada_en, a.anulada_por,
 
-  (select count(*) from public.acciones_hilo h where h.accion_id = a.id)   as comentarios,
-  (select count(*) from public.acciones_fotos f where f.accion_id = a.id)  as fotos,
-  (select count(*) from public.acciones_origen o where o.preventiva_id = a.id) as origenes,
+  coalesce(ch.n, 0)                              as comentarios,
+  coalesce(cf.n, 0)                              as fotos,
+  coalesce(co.n, 0)                              as origenes,
 
-  /* Cuántas veces va este motivo en esta zona. Viaja en la fila para
-     que la pantalla pueda avisar ANTES de que alguien abra la cuarta,
-     sin una consulta por renglón. */
-  case when a.zona is null then 0
-       else public.accion_reincidencia(a.motivo, a.zona) end     as veces_aqui
+  case when a.zona is null then 0 else coalesce(rc.n, 0) end     as veces_aqui
 from public.acciones a
 join public.acciones_motivos m on m.clave = a.motivo
 join public.acciones_areas   ar on ar.clave = a.area
 left join public.acciones_zonas z on z.codigo = a.zona
 left join public.acciones_plazos p on p.prioridad = a.prioridad
-/* left join: un equipo borrado del maestro no puede hacer desaparecer
-   la acción de la lista. Se quedaría sin nombre, que es un problema
-   mucho menor que perderla de vista. */
-left join public.acciones_equipos eq on eq.clave = a.equipo;
+left join public.acciones_equipos eq on eq.clave = a.equipo
+left join cnt_hilo  ch on ch.accion_id = a.id
+left join cnt_fotos cf on cf.accion_id = a.id
+left join cnt_orig  co on co.preventiva_id = a.id
+left join reinc     rc on rc.motivo = a.motivo and rc.zona = a.zona;
 
 grant select on public.v_acciones to authenticated;
 
