@@ -1277,3 +1277,64 @@
   }
   .tp .cal-flota.ancho { width: min(320px, calc(100vw - 24px)) }
 }
+
+/* La ruta se arma con dos desplegables y la flecha en medio, que es como
+   se lee. En el celular se apilan: dos selects de 46 px uno al lado del
+   otro no dejan leer ninguno de los dos nombres. */
+.tp .agregar-m.ruta-nueva { flex-wrap: wrap; align-items: center }
+.tp .agregar-m.ruta-nueva select {
+  font: inherit; font-size: 16px; flex: 1 1 130px; min-width: 0; min-height: 46px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; padding: 0 10px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .agregar-m.ruta-nueva select:focus {
+  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+.tp .agregar-m.ruta-nueva .fl { color: var(--tp-gris); flex: none }
+.tp .agregar-m.ruta-nueva button { flex: 1 1 100% }
+@media (min-width: 560px) { .tp .agregar-m.ruta-nueva button { flex: 0 0 auto } }
+
+/* ---------- Placa y ruta, ya de lista ----------
+   La placa se sigue viendo grande: es lo que quien está al lado del
+   vehículo compara con el papel. Que ahora sea un desplegable no
+   cambia que sea la cifra que se lee de lejos. */
+.tp .placa select {
+  width: 100%; min-height: 64px; border: 1.5px solid var(--tp-linea); border-radius: 3px;
+  background: var(--tp-fondo); color: var(--tp-tinta); padding: 0 14px;
+  font-family: var(--tp-titulo); font-weight: 900; font-size: clamp(22px, 5vw, 32px);
+  letter-spacing: .08em; text-align: center; text-align-last: center;
+}
+.tp .placa select:focus {
+  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+
+.tp .ruta-sel { display: grid; grid-template-columns: minmax(0, 1fr) 50px; gap: 10px }
+.tp .ruta-sel select {
+  font: inherit; font-size: 16px; width: 100%; min-width: 0; height: 50px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; padding: 0 12px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .ruta-sel select:focus {
+  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+.tp .ruta-sel .voltear:disabled { opacity: .35; cursor: not-allowed }
+
+/* El alta rápida, la que cuelga del «＋». Va con fondo propio para que
+   se lea como "estás agregando algo", no como un campo más del viaje. */
+.tp .alta {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 9px;
+  padding: 10px; border-radius: 3px;
+  background: color-mix(in srgb, var(--tp-ojo) 10%, #fff);
+  border: 1px solid color-mix(in srgb, var(--tp-ojo) 45%, #fff);
+}
+.tp .alta input, .tp .alta select {
+  font: inherit; font-size: 16px; flex: 1 1 140px; min-width: 0; height: 44px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; padding: 0 12px;
+  background: var(--tp-papel); color: var(--tp-tinta);
+}
+.tp .alta .fl { color: var(--tp-gris); flex: none }
+.tp .alta .btn { flex: 0 0 auto }
+@media (max-width: 520px) { .tp .alta .btn { flex: 1 1 100% } }

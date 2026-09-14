@@ -98,6 +98,19 @@ export type Control = {
  * en el maestro (`parecido`), no es un sitio nuevo sino el mismo mal
  * escrito, y el botón que hay que ofrecer es "unir", no "agregar".
  */
+/** Una placa del maestro. La clave ES la placa, ya normalizada. */
+export type PlacaM = {
+  placa: string; nota: string | null; activo: boolean; orden: number | null;
+};
+
+/** Una ruta del maestro: un PAR de puntos, no un texto. */
+export type RutaM = {
+  id: string;
+  origen: string; destino: string;
+  origen_nombre: string; destino_nombre: string;
+  activo: boolean; orden: number | null; viajes: number;
+};
+
 export type PuntoFaltante = {
   texto: string;
   veces: number;
@@ -242,17 +255,58 @@ export async function usoDelMaestro() {
 
   const tipos: Record<string, number> = {};
   const pts: Record<string, number> = {};
+  const placas: Record<string, number> = {};
+  const rutas: Record<string, number> = {};
   const ultima: Record<string, string> = {};
 
-  if (error) return { tipos, puntos: pts, ultima, falta: true };
+  if (error) return { tipos, puntos: pts, placas, rutas, ultima, falta: true };
 
+  /* UNA RAMA POR CLASE, no "tipo o lo demás". La vista ganó las clases
+     `placa` y `ruta`, y un `else` que lo metiera todo en puntos haría
+     que una placa contara como punto: el Maestro diría que Ag01 tiene
+     viajes que no son suyos, y ofrecería borrar lo que no debe. */
   for (const f of (data ?? []) as
        { clase: string; clave: string; viajes: number; ultima: string }[]) {
-    if (f.clase === "tipo") tipos[f.clave] = f.viajes;
-    else pts[f.clave] = f.viajes;
+    if (f.clase === "tipo")       tipos[f.clave]  = f.viajes;
+    else if (f.clase === "punto") pts[f.clave]    = f.viajes;
+    else if (f.clase === "placa") placas[f.clave] = f.viajes;
+    else if (f.clase === "ruta")  rutas[f.clave]  = f.viajes;
     ultima[f.clase + ":" + f.clave] = f.ultima;
   }
-  return { tipos, puntos: pts, ultima, falta: false };
+  return { tipos, puntos: pts, placas, rutas, ultima, falta: false };
+}
+
+/**
+ * EL MAESTRO DE PLACAS.
+ *
+ * Antes las placas salían de lo ya registrado. Ayudaba, pero una
+ * equivocación tecleada una vez entraba en la lista y se volvía a
+ * ofrecer para siempre. Un maestro es lo que corta ese círculo.
+ */
+export async function placasMaestro(soloActivas = true) {
+  const supabase = await createClient();
+  let q = supabase.from("traspasos_placas").select("placa, nota, activo, orden");
+  if (soloActivas) q = q.eq("activo", true);
+  const { data, error } = await q.order("orden", { ascending: true, nullsFirst: false });
+  if (error) return { placas: [] as PlacaM[], falta: sinTablas(error.message) };
+  return { placas: (data ?? []) as PlacaM[], falta: false };
+}
+
+/**
+ * EL MAESTRO DE RUTAS, con los nombres ya resueltos.
+ *
+ * Una ruta es un PAR DE PUNTOS del maestro, atado por llave foránea. Con
+ * texto libre serían dos listas que hay que mantener parejas, y el día
+ * que no lo estén el informe por punto y el informe por ruta dan
+ * distinto sin que nadie sepa cuál creer.
+ */
+export async function rutasMaestro(soloActivas = true) {
+  const supabase = await createClient();
+  let q = supabase.from("v_traspasos_rutas_maestro").select("*");
+  if (soloActivas) q = q.eq("activo", true);
+  const { data, error } = await q.order("orden", { ascending: true, nullsFirst: false });
+  if (error) return { rutas: [] as RutaM[], falta: sinTablas(error.message) };
+  return { rutas: (data ?? []) as RutaM[], falta: false };
 }
 
 

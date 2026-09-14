@@ -34,7 +34,7 @@ const HTML = marco(`
 </div>
 
 <div><span class="rot-campo">Placa</span>
-<div class="placa"><input value="ABC123"></div>
+<div class="placa"><select><option>ABC123 · Tractomula de Summar</option></select></div>
 <div class="recientes"><button>ABC123</button><button>XYZ789</button><button>TUV456</button></div></div>
 
 <div><span class="rot-campo">Del plan del turno A</span>
@@ -46,8 +46,11 @@ ${PLAN.map((p,i)=>chip(p,i===0)).join("")}
 </div>
 
 <div><span class="rot-campo">Ruta</span>
-<div class="ruta"><input value="Ag01"><button class="voltear"><svg viewBox="0 0 24 24"><path d="M7 10h13M7 10l3-3M7 10l3 3"/><path d="M17 14H4M17 14l-3-3M17 14l-3 3"/></svg></button><input value="Planta Barranquilla"></div>
-<div class="rutas-frec"><button>Ag01 → Planta Barranquilla</button><button>Planta Barranquilla → Ag01</button></div></div>
+<div class="ruta-sel"><select><option>Ag01 → Planta Barranquilla</option></select>
+<button class="voltear"><svg viewBox="0 0 24 24"><path d="M7 10h13M7 10l3-3M7 10l3 3"/><path d="M17 14H4M17 14l-3-3M17 14l-3 3"/></svg></button></div>
+<div class="alta ruta-alta"><select><option>De dónde sale…</option></select><span class="fl">→</span>
+<select><option>A dónde va…</option></select><button class="btn si chico">Agregar</button>
+<button class="btn chico">Dejar así</button></div></div>
 
 <div class="linea-campos">
 <div><span class="rot-campo">Cuántos viajes</span>

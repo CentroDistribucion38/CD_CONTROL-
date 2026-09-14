@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
-import type { Punto, PuntoFaltante, TipoViaje } from "@/modulos/traspasos/datos";
+import type { PlacaM, Punto, PuntoFaltante, RutaM, TipoViaje } from "@/modulos/traspasos/datos";
 
 /**
  * EL MAESTRO DE TRASPASOS.
@@ -36,6 +36,8 @@ import type { Punto, PuntoFaltante, TipoViaje } from "@/modulos/traspasos/datos"
 type Uso = {
   tipos: Record<string, number>;
   puntos: Record<string, number>;
+  placas: Record<string, number>;
+  rutas: Record<string, number>;
   ultima: Record<string, string>;
   falta: boolean;
 };
@@ -49,9 +51,11 @@ type Fila = {
   viajes: number;
 };
 
-export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
+export function Maestro({ tipos, puntos, placas, rutas, faltantes, uso, puedeEditar }: {
   tipos: TipoViaje[];
   puntos: Punto[];
+  placas: PlacaM[];
+  rutas: RutaM[];
   faltantes: PuntoFaltante[];
   uso: Uso;
   puedeEditar: boolean;
@@ -63,6 +67,13 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
 
   const [nuevoPunto, setNuevoPunto] = useState("");
   const [nuevoTipo, setNuevoTipo] = useState("");
+  const [nuevaPlaca, setNuevaPlaca] = useState("");
+  const [rOrigen, setROrigen] = useState("");
+  const [rDestino, setRDestino] = useState("");
+
+  /* Para armar una ruta solo sirven los puntos ACTIVOS: ofrecer uno
+     apagado sería ofrecer una ruta que el registro no va a aceptar. */
+  const puntosVivos = puntos.filter((p) => p.activo);
 
   /* Los que no se parecen a nada: sitios nuevos. Los que sí: duplicados. */
   const nuevos = faltantes.filter((f) => !f.parecido);
@@ -128,6 +139,45 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
     router.refresh();
   }
 
+  async function agregarPlaca() {
+    const n = nuevaPlaca.trim();
+    if (!n) return;
+    setMandando(true);
+    const { data, error } = await supabase.rpc("traspaso_agregar_placa",
+      { p_placa: n, p_nota: null });
+    setMandando(false);
+    if (error) {
+      avisar.mal(faltaLaFuncion(error.message)
+        ? "Falta correr supabase/migraciones/2026-09-traspasos-placas-rutas.sql en Supabase."
+        : error.message);
+      return;
+    }
+    setNuevaPlaca("");
+    /* Se dice CÓMO quedó guardada. Normalizar en silencio es la manera
+       más rápida de que alguien jure que escribió otra cosa. */
+    avisar.bien(`${data} quedó en el maestro de placas.`);
+    router.refresh();
+  }
+
+  async function agregarRuta() {
+    if (!rOrigen || !rDestino) return;
+    setMandando(true);
+    const { error } = await supabase.rpc("traspaso_agregar_ruta",
+      { p_origen: rOrigen, p_destino: rDestino });
+    setMandando(false);
+    if (error) {
+      avisar.mal(faltaLaFuncion(error.message)
+        ? "Falta correr supabase/migraciones/2026-09-traspasos-placas-rutas.sql en Supabase."
+        : error.message);
+      return;
+    }
+    const no = puntos.find((p) => p.clave === rOrigen)?.nombre ?? rOrigen;
+    const nd = puntos.find((p) => p.clave === rDestino)?.nombre ?? rDestino;
+    setROrigen(""); setRDestino("");
+    avisar.bien(`${no} → ${nd} quedó en el maestro de rutas.`);
+    router.refresh();
+  }
+
   async function agregarTipo() {
     const n = nuevoTipo.trim();
     if (!n) return;
@@ -142,17 +192,20 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
     router.refresh();
   }
 
-  async function cambiar(tabla: string, c: string, campos: Record<string, unknown>) {
+  /* La columna llave no siempre se llama `clave`: en placas es `placa` y
+     en rutas es `id`. Se pasa como parámetro en vez de darla por hecha. */
+  async function cambiar(tabla: string, col: string, c: string,
+                         campos: Record<string, unknown>) {
     setMandando(true);
-    const { error } = await supabase.from(tabla).update(campos).eq("clave", c);
+    const { error } = await supabase.from(tabla).update(campos).eq(col, c);
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     router.refresh();
   }
 
-  async function borrar(tabla: string, c: string, nombre: string) {
+  async function borrar(tabla: string, col: string, c: string, nombre: string) {
     setMandando(true);
-    const { error } = await supabase.from(tabla).delete().eq("clave", c);
+    const { error } = await supabase.from(tabla).delete().eq(col, c);
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien(`${nombre} se borró del maestro.`);
@@ -160,7 +213,11 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
   }
 
   async function ordenar(fn: string, claves: string[]) {
-    const { error } = await supabase.rpc(fn, { p_claves: claves });
+    /* traspaso_ordenar_rutas recibe uuid[] y su parámetro se llama
+       p_ids. PostgREST casa por nombre, así que mandar p_claves ahí
+       sería "no encuentro la función" sin decir por qué. */
+    const arg = fn.endsWith("_rutas") ? { p_ids: claves } : { p_claves: claves };
+    const { error } = await supabase.rpc(fn, arg);
     if (error) {
       avisar.mal(faltaLaFuncion(error.message)
         ? "Para cambiar el orden falta correr supabase/migraciones/2026-09-traspasos-maestro.sql en Supabase."
@@ -175,6 +232,16 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
     clave: p.clave, nombre: p.nombre,
     sub: p.descripcion ?? (p.externo ? "Fuera del centro" : "Dentro del centro"),
     activo: p.activo, viajes: uso.puntos[p.clave] ?? 0,
+  }));
+
+  const filasPlacas: Fila[] = placas.map((p) => ({
+    clave: p.placa, nombre: p.placa, sub: p.nota,
+    activo: p.activo, viajes: uso.placas[p.placa] ?? 0,
+  }));
+
+  const filasRutas: Fila[] = rutas.map((r) => ({
+    clave: r.id, nombre: `${r.origen_nombre} → ${r.destino_nombre}`, sub: null,
+    activo: r.activo, viajes: uso.rutas[`${r.origen}>${r.destino}`] ?? 0,
   }));
 
   const filasTipos: Fila[] = tipos.map((t) => ({
@@ -241,10 +308,10 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
             <Lista filas={filasPuntos} puedeEditar={puedeEditar} mandando={mandando}
                    sinUso={uso.falta}
                    alOrdenar={(cs) => ordenar("traspaso_ordenar_puntos", cs)}
-                   alPrender={(c, a) => cambiar("traspasos_puntos", c, { activo: a })}
+                   alPrender={(c, a) => cambiar("traspasos_puntos", "clave", c, { activo: a })}
                    alRenombrar={(c, nom, sub) =>
-                     cambiar("traspasos_puntos", c, { nombre: nom, descripcion: sub })}
-                   alBorrar={(c, n) => borrar("traspasos_puntos", c, n)} />
+                     cambiar("traspasos_puntos", "clave", c, { nombre: nom, descripcion: sub })}
+                   alBorrar={(c, n) => borrar("traspasos_puntos", "clave", c, n)} />
           )}
         </div>
 
@@ -270,9 +337,100 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
           <Lista filas={filasTipos} puedeEditar={puedeEditar} mandando={mandando}
                  sinUso={uso.falta} sinSub
                  alOrdenar={(cs) => ordenar("traspaso_ordenar_tipos", cs)}
-                 alPrender={(c, a) => cambiar("traspasos_tipos", c, { activo: a })}
-                 alRenombrar={(c, nom) => cambiar("traspasos_tipos", c, { nombre: nom })}
-                 alBorrar={(c, n) => borrar("traspasos_tipos", c, n)} />
+                 alPrender={(c, a) => cambiar("traspasos_tipos", "clave", c, { activo: a })}
+                 alRenombrar={(c, nom) => cambiar("traspasos_tipos", "clave", c, { nombre: nom })}
+                 alBorrar={(c, n) => borrar("traspasos_tipos", "clave", c, n)} />
+        </div>
+        {/* ---------------- PLACAS ---------------- */}
+        <div className="caja-m">
+          <div className="cab-m">
+            <h2>Placas <em>{placas.length}</em></h2>
+            <p>
+              Los vehículos que se pueden escoger al registrar. Se guardan sin espacios ni
+              guiones y en mayúsculas, así «abc 123» y «ABC-123» son un solo vehículo.
+            </p>
+          </div>
+
+          {puedeEditar && (
+            <form className="agregar-m"
+                  onSubmit={(e) => { e.preventDefault(); agregarPlaca() }}>
+              <input value={nuevaPlaca} placeholder="Placa — ABC123"
+                     autoComplete="off" spellCheck={false}
+                     onChange={(e) => setNuevaPlaca(e.target.value)} />
+              <button type="submit" disabled={!nuevaPlaca.trim() || mandando}>Agregar</button>
+            </form>
+          )}
+
+          {placas.length === 0 ? (
+            <div className="vacio">
+              <b>Todavía no hay placas</b>
+              Al correr la migración se siembran solas con las que ya se venían registrando.
+            </div>
+          ) : (
+            <Lista filas={filasPlacas} puedeEditar={puedeEditar} mandando={mandando}
+                   sinUso={uso.falta}
+                   alOrdenar={(cs) => ordenar("traspaso_ordenar_placas", cs)}
+                   alPrender={(c, a) => cambiar("traspasos_placas", "placa", c, { activo: a })}
+                   alRenombrar={(c, _nom, sub) =>
+                     cambiar("traspasos_placas", "placa", c, { nota: sub })}
+                   alBorrar={(c, n) => borrar("traspasos_placas", "placa", c, n)} />
+          )}
+        </div>
+
+        {/* ---------------- RUTAS ---------------- */}
+        <div className="caja-m">
+          <div className="cab-m">
+            <h2>Rutas <em>{rutas.length}</em></h2>
+            <p>
+              Un par de puntos, no un texto: por eso el informe por punto y el informe por
+              ruta siempre cuadran. Si falta un punto, agrégalo arriba primero.
+            </p>
+          </div>
+
+          {puedeEditar && (
+            puntosVivos.length < 2 ? (
+              <div className="vacio">
+                <b>Faltan puntos</b>
+                Una ruta son dos puntos del maestro. Agrega al menos dos arriba.
+              </div>
+            ) : (
+              <form className="agregar-m ruta-nueva"
+                    onSubmit={(e) => { e.preventDefault(); agregarRuta() }}>
+                <select value={rOrigen} aria-label="De dónde sale"
+                        onChange={(e) => setROrigen(e.target.value)}>
+                  <option value="">De dónde sale…</option>
+                  {puntosVivos.map((p) => (
+                    <option key={p.clave} value={p.clave}>{p.nombre}</option>
+                  ))}
+                </select>
+                <span className="fl" aria-hidden>→</span>
+                <select value={rDestino} aria-label="A dónde va"
+                        onChange={(e) => setRDestino(e.target.value)}>
+                  <option value="">A dónde va…</option>
+                  {puntosVivos.filter((p) => p.clave !== rOrigen).map((p) => (
+                    <option key={p.clave} value={p.clave}>{p.nombre}</option>
+                  ))}
+                </select>
+                <button type="submit" disabled={!rOrigen || !rDestino || mandando}>
+                  Agregar
+                </button>
+              </form>
+            )
+          )}
+
+          {rutas.length === 0 ? (
+            <div className="vacio">
+              <b>Todavía no hay rutas</b>
+              Al correr la migración se siembran solas con las que ya se venían registrando.
+            </div>
+          ) : (
+            <Lista filas={filasRutas} puedeEditar={puedeEditar} mandando={mandando}
+                   sinUso={uso.falta} sinSub sinRenombrar
+                   alOrdenar={(cs) => ordenar("traspaso_ordenar_rutas", cs)}
+                   alPrender={(c, a) => cambiar("traspasos_rutas", "id", c, { activo: a })}
+                   alRenombrar={() => {}}
+                   alBorrar={(c, n) => borrar("traspasos_rutas", "id", c, n)} />
+          )}
         </div>
       </section>
 
@@ -310,13 +468,16 @@ export function Maestro({ tipos, puntos, faltantes, uso, puedeEditar }: {
    LA LISTA
    ===================================================================== */
 
-function Lista({ filas, puedeEditar, mandando, sinUso, sinSub,
+function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar,
                  alOrdenar, alPrender, alRenombrar, alBorrar }: {
   filas: Fila[];
   puedeEditar: boolean;
   mandando: boolean;
   sinUso: boolean;
   sinSub?: boolean;
+  /** Una ruta no tiene nombre propio: es el par de puntos. Cambiarle el
+   *  nombre no querría decir nada, así que esa opción no se ofrece. */
+  sinRenombrar?: boolean;
   alOrdenar: (claves: string[]) => void;
   alPrender: (clave: string, activo: boolean) => void;
   alRenombrar: (clave: string, nombre: string, sub: string | null) => void;
@@ -379,6 +540,7 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub,
     <div ref={caja} onPointerMove={mover} onPointerUp={soltar} onPointerCancel={soltar}>
       {vistas.map((f) => (
         <Renglon key={f.clave} f={f} sinSub={sinSub} sinUso={sinUso}
+                 sinRenombrar={sinRenombrar}
                  puedeEditar={puedeEditar} mandando={mandando}
                  moviendo={moviendo === f.clave}
                  alTomar={(e) => tomar(e, f.clave)}
@@ -388,10 +550,11 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub,
   );
 }
 
-function Renglon({ f, sinSub, sinUso, puedeEditar, mandando, moviendo,
+function Renglon({ f, sinSub, sinRenombrar, sinUso, puedeEditar, mandando, moviendo,
                    alTomar, alPrender, alRenombrar, alBorrar }: {
   f: Fila;
   sinSub?: boolean;
+  sinRenombrar?: boolean;
   sinUso: boolean;
   puedeEditar: boolean;
   mandando: boolean;
@@ -484,10 +647,12 @@ function Renglon({ f, sinSub, sinUso, puedeEditar, mandando, moviendo,
                 onClick={() => setMenu((v) => !v)}>⋯</button>
         {menu && (
           <div className="menu">
-            <button type="button" disabled={!puedeEditar}
-                    onClick={() => { setMenu(false); setEditando(true) }}>
-              Cambiar el nombre
-            </button>
+            {!sinRenombrar && (
+              <button type="button" disabled={!puedeEditar}
+                      onClick={() => { setMenu(false); setEditando(true) }}>
+                {sinSub ? "Cambiar el nombre" : "Cambiar nombre y subtítulo"}
+              </button>
+            )}
             <button type="button" disabled={!puedeEditar || mandando}
                     onClick={() => { setMenu(false); alPrender(f.clave, !f.activo) }}>
               {f.activo ? "Apagar" : "Prender"}
