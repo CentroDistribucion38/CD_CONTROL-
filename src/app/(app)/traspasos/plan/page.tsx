@@ -4,7 +4,7 @@ import {
 } from "@/modulos/traspasos/datos";
 import { fecha as fechaLarga } from "@/modulos/traspasos/formato";
 import "../traspasos.css";
-import { SinTablas } from "../comunes";
+import { AlDia, SinTablas } from "../comunes";
 import { Plan } from "./Plan";
 import { Fechas } from "./Fechas";
 
@@ -32,9 +32,14 @@ export default async function PlanPage({ searchParams }: {
 
   return (
     <div className="tp">
+      {/* Lo cumplido que sale debajo de cada celda lo registran otros
+          mientras esta pantalla está abierta. Sin reloj: planear es un
+          rato de trabajo seguido, no un tablero que se deja puesto. */}
+      <AlDia />
+
       <section className="cabeza-ctl">
         <div>
-          <Fechas dia={dia} esHoy={dia === hoy} hayBorrador={hayBorrador} />
+          <Fechas dia={dia} hoy={hoy} esHoy={dia === hoy} hayBorrador={hayBorrador} />
           <h1>Plan del día</h1>
           <p className="sub" style={{ textTransform: "none" }}>
             <span style={{ textTransform: "capitalize" }}>{fechaLarga(dia)}</span>. Los tres
@@ -67,6 +72,7 @@ export default async function PlanPage({ searchParams }: {
         promedio={prom}
         ayer={planAyer.publicadas}
         fecha={dia}
+        hoy={hoy}
         esHoy={dia === hoy}
         puedeEditar={permisos.puedeEditar("/traspasos/plan")}
       />

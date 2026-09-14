@@ -1,15 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { EscogerDia } from "./Calendario";
 
 /**
  * MOVERSE DE DÍA, Y EL AVISO DE BORRADOR.
  *
  * El plan casi siempre se arma para MAÑANA, no para hoy: por eso las
  * flechas están antes del título y no escondidas en un filtro.
+ *
+ * Y EL CALENDARIO PARA TODO LO DEMÁS. Las flechas de ± un día resuelven
+ * "mañana"; llegar a fin de mes con ellas eran veinte toques, y planear
+ * el mes entrante empezaba por ahí.
  */
-export function Fechas({ dia, esHoy, hayBorrador }: {
-  dia: string; esHoy: boolean; hayBorrador: boolean;
+export function Fechas({ dia, hoy, esHoy, hayBorrador }: {
+  dia: string; hoy: string; esHoy: boolean; hayBorrador: boolean;
 }) {
   const router = useRouter();
   const mover = (n: number) => {
@@ -28,6 +33,9 @@ export function Fechas({ dia, esHoy, hayBorrador }: {
       <button type="button" onClick={() => mover(1)} aria-label="día siguiente">
         <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
       </button>
+
+      <EscogerDia dia={dia} hoy={hoy}
+                  alEscoger={(f) => router.push(`/traspasos/plan?d=${f}`)} />
 
       {/* EL AVISO DE BORRADOR NO ES DECORACIÓN: es la diferencia entre
           lo que estás armando y lo que el turno está viendo. */}

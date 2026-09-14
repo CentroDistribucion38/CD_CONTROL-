@@ -6,7 +6,7 @@ import {
 } from "@/modulos/traspasos/datos";
 import { turnoDeAhora, TURNOS } from "@/modulos/traspasos/formato";
 import "./traspasos.css";
-import { SinTablas } from "./comunes";
+import { AlDia, SinTablas } from "./comunes";
 import { Registrar } from "./Registrar";
 import { Viajes } from "./Viajes";
 
@@ -64,6 +64,10 @@ export default async function TraspasosPage() {
 
   return (
     <div className="tp">
+      {/* Los cuadritos del plan suben también cuando registra otro
+          supervisor desde otro equipo. */}
+      <AlDia cada={90} />
+
       <section className="cabeza-ctl">
         <div>
           <p className="ojo">TRASPASOS · CD38 AG01 · TURNO {turno}</p>

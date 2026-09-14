@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Repetir } from "./Repetir";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
@@ -31,7 +32,7 @@ const k = (turno: string, tipo: string) => `${turno}|${tipo}`;
  * el turno B sin saber que el A ya lleva cuatro es planear a ciegas.
  */
 export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
-                       promedio, ayer, fecha, esHoy, puedeEditar }: {
+                       promedio, ayer, fecha, hoy, esHoy, puedeEditar }: {
   tipos: TipoViaje[];
   publicadas: PlanLinea[];
   borrador: PlanLinea[];
@@ -43,6 +44,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
   /** El plan publicado de ayer, para copiarlo. */
   ayer: PlanLinea[];
   fecha: string;
+  hoy: string;
   esHoy: boolean;
   puedeEditar: boolean;
 }) {
@@ -239,6 +241,13 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                         onClick={() => guardar(false)}>
                   Guardar borrador
                 </button>
+
+                {/* Va junto a Publicar y no arriba con los atajos: es la
+                    ÚLTIMA decisión —ya miraste la rejilla y te cuadra—,
+                    no una forma de empezarla. */}
+                <Repetir fecha={fecha} hoy={hoy} lineas={lineas}
+                         vacios={() => TURNOS.map((t) => ({ turno: t, vacios: vacios[t] ?? 0 }))}
+                         totalViajes={totalConCarga} avisar={avisar} />
                 <span className="aviso-cambios">
                   {cambios === 0
                     ? "Sin cambios sobre lo publicado"

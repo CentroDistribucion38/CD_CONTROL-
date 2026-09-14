@@ -4,7 +4,7 @@ import {
 } from "@/modulos/traspasos/datos";
 import { fecha as fechaLarga, TURNOS } from "@/modulos/traspasos/formato";
 import "../traspasos.css";
-import { SinTablas } from "../comunes";
+import { AlDia, SinTablas } from "../comunes";
 import { Barra } from "./Barra";
 
 export const dynamic = "force-dynamic";
@@ -106,6 +106,10 @@ export default async function ControlPage({ searchParams }: {
 
   return (
     <div className="tp">
+      {/* Cifras al día sin perder el arranque instantáneo. Cada dos
+          minutos porque esta pantalla se queda puesta en la oficina. */}
+      <AlDia cada={120} />
+
       {/* 1 ─ LA CIFRA QUE MANDA */}
       <section className="cabeza-ctl">
         <div>

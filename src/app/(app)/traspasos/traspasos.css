@@ -1128,3 +1128,137 @@
 
 @media (max-width: 900px) { .tp .cifras.seis { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
 @media (max-width: 420px) { .tp .cifras.seis { grid-template-columns: 1fr } }
+
+/* =====================================================================
+   EL CALENDARIO DEL PLAN
+   ---------------------------------------------------------------------
+   Propio del módulo y no el de Quiebra: aquel vive dentro de
+   quiebra.css, y traerlo aquí sería cargar la hoja entera de otro
+   módulo para dibujar siete columnas.
+
+   Flota por encima y se ancla a su botón. Va con z-index alto porque
+   cae sobre la rejilla del plan, que tiene cabecera pegada.
+   ===================================================================== */
+.tp .cal-caja { position: relative; display: inline-block }
+
+.tp .cal-disparo {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 13px;
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 3px;
+  font: 600 13px var(--tp-texto); color: var(--tp-tinta); cursor: pointer; white-space: nowrap;
+}
+.tp .cal-disparo:hover { border-color: var(--tp-ojo) }
+.tp .cal-disparo svg {
+  width: 15px; height: 15px; stroke: var(--tp-gris); stroke-width: 1.8; fill: none;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tp .cal-disparo[aria-expanded="true"] { border-color: var(--tp-ojo) }
+
+.tp .cal-flota {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  box-shadow: 0 24px 48px -22px rgba(0, 0, 0, .45); padding: 12px;
+  /* Nunca más ancho que la pantalla, ancle donde ancle. */
+  max-width: calc(100vw - 24px);
+}
+.tp .cal-flota::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--tp-ojo);
+}
+.tp .cal-flota.ancho { width: 300px; max-width: calc(100vw - 32px) }
+
+.tp .cal-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 9px }
+.tp .cal-cab button {
+  width: 30px; height: 30px; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--tp-linea); background: var(--tp-papel); border-radius: 3px;
+}
+.tp .cal-cab button:hover { border-color: var(--tp-ojo) }
+.tp .cal-cab svg { width: 15px; height: 15px; stroke: var(--tp-tinta); stroke-width: 2.2; fill: none }
+.tp .cal-titulo {
+  flex: 1; text-align: center; font: 800 13.5px var(--tp-titulo); text-transform: capitalize;
+}
+
+.tp .cal-sem, .tp .cal-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px }
+.tp .cal-sem span {
+  text-align: center; font-size: 10px; font-weight: 700; color: var(--tp-gris);
+  padding-bottom: 5px; letter-spacing: .06em;
+}
+/* ALTO FIJO Y min-width:0, NO aspect-ratio.
+
+   Con `aspect-ratio: 1` el ancho mínimo de la celda sale de su alto, y
+   como el alto sale del ancho la cuenta se muerde la cola: el navegador
+   la resolvía en 56 px por celda, así que las siete columnas pedían
+   378 px dentro de un calendario de 294 y la rejilla se desbordaba de
+   su propio recuadro. Solo se veía midiendo — a 1440 px sobraba sitio
+   y no se notaba. */
+.tp .cal-dias button {
+  height: 38px; min-width: 0; border: 0; background: none; cursor: pointer;
+  font: 600 13px var(--tp-texto); color: var(--tp-tinta); border-radius: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.tp .cal-dias button:hover { background: var(--tp-fondo) }
+.tp .cal-dias button.cal-hoy { box-shadow: inset 0 0 0 1.5px var(--tp-gris) }
+.tp .cal-dias button.dentro { background: color-mix(in srgb, var(--tp-ojo) 16%, #fff) }
+.tp .cal-dias button.punta {
+  background: var(--tp-panel); color: var(--tp-sobre-ojo); font-weight: 800;
+}
+
+/* YA TIENE PLAN. Un punto y no un color de fondo: el fondo ya lo usa el
+   rango, y dos cosas distintas pintadas igual se leen como una sola. */
+.tp .cal-dias button.ocupado { position: relative }
+.tp .cal-dias button.ocupado::after {
+  content: ""; position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--tp-mal);
+}
+.tp .cal-dias button.punta.ocupado::after { background: var(--tp-sobre-ojo) }
+
+/* ---------- Repetir en varios días ---------- */
+.tp .rep-cab { margin-bottom: 10px }
+.tp .rep-cab b { display: block; font: 800 14px var(--tp-titulo) }
+.tp .rep-cab span { display: block; font-size: 11.5px; color: var(--tp-gris); margin-top: 3px; line-height: 1.45 }
+
+.tp .rep-sem {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+  margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--tp-fondo);
+}
+.tp .rep-sem label {
+  display: grid; place-items: center; min-height: 34px; cursor: pointer; border-radius: 3px;
+  border: 1.5px solid var(--tp-linea); font: 700 12px var(--tp-titulo); color: var(--tp-gris);
+}
+.tp .rep-sem label.on {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 14%, #fff);
+  color: var(--tp-tinta);
+}
+/* La casilla de verdad sigue ahí debajo: se enfoca con el teclado y se
+   marca con la barra espaciadora. Solo no se dibuja. */
+.tp .rep-sem input { position: absolute; opacity: 0; width: 0; height: 0 }
+.tp .rep-sem label:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 35%, transparent) }
+
+.tp .rep-cuenta {
+  margin-top: 11px; font-size: 12.5px; color: var(--tp-gris); line-height: 1.5;
+}
+.tp .rep-cuenta b { font: 900 17px var(--tp-titulo); color: var(--tp-tinta); margin-right: 3px }
+.tp .rep-cuenta .saltan { display: block; margin-top: 2px; color: var(--tp-mal) }
+.tp .rep-cuenta .nada { color: var(--tp-mal) }
+
+.tp .rep-pie { margin-top: 12px; display: flex; flex-direction: column; gap: 7px }
+.tp .rep-pie .btn { width: 100% }
+.tp .rep-nota { font-size: 11px; color: var(--tp-gris); line-height: 1.45 }
+
+/* EN PANTALLA CHICA DEJA DE COLGAR DEL BOTÓN Y SE CENTRA.
+
+   Anclarlo al botón —por la izquierda o por la derecha, da igual— se
+   sale de la pantalla en cuanto el botón queda cerca de un borde: un
+   calendario de 300 px colgando de un botón de 150 no cabe de ninguna
+   de las dos formas. Medido a 390 px, se salía 160 px por la izquierda.
+
+   Centrado y fijo cabe siempre y en cualquier posición del botón, que
+   es lo que un calendario en un celular tiene que hacer. Se cierra
+   tocando por fuera, igual que antes. */
+@media (max-width: 640px) {
+  .tp .cal-flota {
+    position: fixed; left: 50%; right: auto; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(320px, calc(100vw - 24px));
+    max-height: calc(100vh - 32px); overflow-y: auto;
+  }
+  .tp .cal-flota.ancho { width: min(320px, calc(100vw - 24px)) }
+}

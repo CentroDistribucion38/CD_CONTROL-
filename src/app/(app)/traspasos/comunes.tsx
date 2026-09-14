@@ -9,10 +9,61 @@
  * función.
  */
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { Viaje } from "@/modulos/traspasos/datos";
 import { hora, quien, TURNOS } from "@/modulos/traspasos/formato";
 
 export { hora, quien, TURNOS };
+
+/**
+ * MANTIENE LA PANTALLA AL DÍA SIN HACERLA LENTA.
+ *
+ * El problema que resuelve tiene dos caras y son la misma:
+ *
+ *   La app guarda 30 segundos lo que ya trajo (staleTimes en
+ *   next.config). Eso es lo que hace que ir y volver entre pantallas sea
+ *   instantáneo — y también lo que hacía que las cifras salieran viejas.
+ *   Bajar los 30 a cero arregla lo segundo y rompe lo primero.
+ *
+ * Así que no se escoge: se pinta lo guardado de una —la pantalla aparece
+ * al instante— y en cuanto aparece se pide la versión nueva por detrás.
+ * Quien mira ve números en el primer parpadeo y los ve corregirse solos
+ * un momento después, si es que cambiaron.
+ *
+ * TAMBIÉN AL VOLVER A LA PESTAÑA. Un tablero de turno vive abierto en
+ * una pantalla de la oficina: si solo se refrescara al entrar, a las
+ * tres horas estaría mostrando la mañana. Y solo cuando la pestaña está
+ * VISIBLE: refrescar una pestaña que nadie está mirando es gastar una
+ * consulta por gusto.
+ *
+ * `cada` es opcional y va en segundos. Solo tiene sentido en las
+ * pantallas que alguien deja puestas.
+ */
+export function AlDia({ cada = 0 }: { cada?: number }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    /* No remonta con cada refresco: router.refresh() vuelve a pedir los
+       componentes del servidor sin tumbar el estado del cliente, así que
+       este efecto no se vuelve a disparar y no hay bucle. */
+    router.refresh();
+
+    const siSeVe = () => { if (document.visibilityState === "visible") router.refresh() };
+    document.addEventListener("visibilitychange", siSeVe);
+    window.addEventListener("focus", siSeVe);
+
+    const reloj = cada > 0 ? setInterval(siSeVe, cada * 1000) : undefined;
+
+    return () => {
+      document.removeEventListener("visibilitychange", siSeVe);
+      window.removeEventListener("focus", siSeVe);
+      if (reloj) clearInterval(reloj);
+    };
+  }, [router, cada]);
+
+  return null;
+}
 
 /** Un punto que se escribió a mano se ve distinto: es lo que hay que
  *  agregar al maestro, no un sitio más de la lista. */

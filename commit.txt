@@ -1,70 +1,92 @@
-Traspasos: el pie de los paneles se leia gris sobre rojo
+Traspasos: calendario en el plan, y planear varios dias de una
 
-"de 11 planeados" salia en gris #717171 sobre el rojo del panel. Y no
-era del modulo: globals.css trae una clase SUELTA, sin prefijo,
+Las flechas de mas y menos un dia resuelven "mañana". Llegar a fin de
+mes eran veinte toques, y planear el mes entrante empezaba por ahi.
 
-  .pie{ font-size:11.5px; color:var(--bv-texto-2); margin:6px 0 0 }
+DOS COSAS:
 
-y mi regla .tp .panel-ojo .pie nunca fijaba color propio. Cualquier
-regla que ponga color le gana a lo que se hereda del padre, asi que el
-blanco del panel no llegaba nunca al pie. Pasaba en los tres paneles
-del modulo —Registrar, Control, Plan— y en los siete temas, porque el
-que mandaba era el gris de la clase global y no el acento.
+1. CALENDARIO PARA IR A CUALQUIER DIA. Al lado de las flechas, con la
+   fecha escrita. Las flechas se quedan: para mañana siguen siendo un
+   toque y el calendario serian tres.
 
-Se arregla en el modulo y no en globals: esa clase la usan otras
-pantallas y cambiarla las tocaria todas. Lo que faltaba era que el
-modulo dijera cual es su tinta en vez de callarse.
+2. APLICAR ESTA REJILLA A VARIOS DIAS. Armas el dia una vez y lo
+   repites en el rango que escojas.
 
-Y DE PASO, LO QUE MEDIR DEJO VER. Ya con el color puesto, en los temas
-donde --c-oro es rojo pleno —negro, gris, halo— el pie daba 4,4 y el
-rotulo 3,8, por debajo del minimo de 4,5 para texto chico. Dos causas:
+   El plan de un CD no cambia todos los dias: la semana se parece a la
+   anterior. Pero armar la misma rejilla de nueve tipos por tres turnos,
+   un dia a la vez, son treinta veces el mismo trabajo para planear un
+   mes. Asi que nadie planea el mes: se planea el dia siguiente a las
+   corridas, y el plan deja de ser un plan.
 
-  1. El panel se pintaba con el acento al 88%. Ese 88% le basta a un
-     filo de 2 px; a un rectangulo lleno de texto blanco, no. Ahora el
-     panel tiene token propio —--tp-panel— y en esos tres temas baja al
-     70%. --tp-ojo no se toca: chips, filos y rellenos siguen igual,
-     que es donde el color tiene que reconocerse.
+LOS DIAS QUE YA TIENEN PLAN PUBLICADO NO SE TOCAN. Reemplazar en
+silencio un plan que el turno ya vio es la clase de cosa que se descubre
+cuando alguien pregunta por que su plan cambio solo. Y no se avisa
+despues: salen marcados con un punto rojo EN EL CALENDARIO, antes de
+apretar nada, y contados debajo — "8 dias se van a planear · 2 se
+saltan: ya tienen plan". Quien de verdad quiera rehacer uno de esos dias
+entra a ese dia.
 
-  2. El rotulo y el pie se apagaban con opacidad. Eso le quitaba casi
-     un punto de contraste justo al texto mas chico del panel. Se quita:
-     la jerarquia ya la dan el tamaño, el grosor y las mayusculas.
+LOS DIAS DE SEMANA SE DESTILDAN. Nacen los siete marcados: un CD que no
+mueve domingos lo destilda una vez; uno que si, no toca nada. Al reves
+—nacer vacios— obligaria a siete toques a todo el mundo.
 
-MEDIDO, no supuesto: .arnes/tp-contraste.mjs calcula el contraste real
-de los cuatro pares del panel en los siete temas.
+SE PUBLICA, NO QUEDA EN BORRADOR. Treinta borradores que habria que
+publicar uno por uno no serian un atajo: serian el mismo trabajo con
+otro nombre. La rejilla que se aplica es la que la persona acaba de
+mirar.
 
-  oficial 8,9   tinta 9,3   pizarra 10,0   ambar 6,0
-  negro 7,2     gris 7,2    halo 7,2
+TODO EN UNA TRANSACCION, y se valida ANTES de escribir el primer dia. Si
+un tipo esta mal, el error sale una vez y no quedan quince dias
+planeados y quince sin planear.
 
-Todos por encima de 4,5. Antes, en negro/gris/halo, el pie era gris
-sobre rojo: 1,6.
+PROBADO CONTRA POSTGRES 16 REAL, base nueva, dos corridas del archivo, y
+como usuario NO superusuario para que RLS aplique:
 
-EL CHIP DEL "+" DICE ADICIONAL. Decia "Otro tipo / no planeado", que
-describe de donde sale el tipo pero no lo que va a pasar con el viaje.
-La palabra que usa la bodega —y la que sale despues en Control— es
-adicional.
+   1 la rejilla se aplica a 5 dias ................ ok
+   2 el cero no se guarda (2 lineas, no 3) ........ ok
+   3 quedan publicadas y cuentan en Control ....... ok
+   4 los vacios por turno se copian ............... ok
+   5 volver a aplicar: los 5 se saltan ............ ok
+   6 y el plan viejo NO se toco (sigue en 6) ...... ok
+   7 traspaso_dias_con_plan lista los ocupados .... ok
+   8 si todos ya tenian, se rechaza entero ........ ok
+   9 tipo inventado: no escribe ni el primer dia .. ok
+  10 rejilla vacia se rechaza ..................... ok
+  11 tope de 366 dias ............................. ok
+  12 un operador no puede planear ................. ok
 
-Y LA FILA DE SEIS NO CERRABA. "VIAJES CUMPLIDOS" mostraba TODO lo
-registrado, y ese total ya lleva los adicionales adentro. Al lado habia
-una tarjeta de adicionales. Quien intentaba rehacer la cuenta sumaba el
-adicional dos veces y no le daba ninguno de los dos porcentajes:
+UN BUG QUE LA PRUEBA ATRAPO, y que es el que justifica correrlas: la
+funcion DEVUELVE una columna que se llama `fecha`, asi que un
+`where fecha = f` a secas es ambiguo —Postgres no sabe si es la columna
+de la tabla o la de salida— y revienta al ejecutar, no al crear. Peor:
+la prueba 8 pasaba POR LA RAZON EQUIVOCADA, porque el error que
+capturaba era ese y no el que buscaba.
 
-  lo que se veia:  11 planeados, 3 cumplidos, 1 adicional
-  y sin embargo:   adherencia 18%, cumplimiento 27%
-  la cuenta a mano: 3/11 = 27%, (3+1)/11 = 36%
+DOS BUGS DE DISPOSICION QUE SOLO SE VEN MIDIENDO:
 
-Los porcentajes estaban BIEN —18% es 2/11 y 27% es (2+1)/11—; la que
-mentia era la tarjeta. Ahora muestra 2: los que cumplieron el plan. El
-adicional vive solo en su tarjeta y no en dos sitios.
+  · aspect-ratio en las celdas del calendario. El ancho minimo de la
+    celda salia de su alto, y como el alto salia del ancho la cuenta se
+    muerde la cola: el navegador la resolvia en 56 px por celda, asi que
+    las siete columnas pedian 378 px dentro de un calendario de 294 y la
+    rejilla se desbordaba. A 1440 px sobraba sitio y no se notaba. Alto
+    fijo y min-width:0.
 
-Las dos tarjetas de porcentaje llevan la formula escrita con las
-palabras de las tarjetas de arriba:
+  · CHOQUE DE CLASES, el segundo del dia. El dia de hoy llevaba
+    class="hoy" — y `.tp .hoy` ya era la tarjeta "Viajes de hoy" de
+    Registrar, con margin-top:16px. El dia de hoy se caia 16 px y partia
+    el calendario en seis renglones en vez de cinco. Pasa a cal-hoy.
 
-  % ADHERENCIA    cumplidos / planeados · tope 100%
-  % CUMPLIMIENTO  (cumplidos + adicionales) / planeados
+EN EL CELULAR EL CALENDARIO NO CUELGA DEL BOTON: se centra. Anclarlo por
+la izquierda o por la derecha da igual, se sale de la pantalla en cuanto
+el boton queda cerca de un borde — un calendario de 300 px colgando de
+un boton de 150 no cabe de ninguna de las dos formas. Medido a 390 px,
+se salia 160 px.
 
-Es lo que permite rehacer la cuenta sin salir de la fila, y lo que evita
-que alguien la rehaga mal. Una cifra de la que no salen las de al lado
-hace que nadie crea las tres.
+Calendario propio y no el de Quiebra: aquel vive dentro de quiebra.css,
+y traerlo aqui seria cargar la hoja entera de otro modulo para dibujar
+siete columnas.
 
-Ningun porcentaje cambia de valor: la vista ya calculaba asi. Lo que
-cambia es que ahora se puede comprobar.
+MEDIDO CON PLAYWRIGHT a 1440 / 820 / 390 / 360 px: los cuatro limpios.
+
+PASO 1 — correr en Supabase:
+  supabase/migraciones/2026-09-traspasos-plan-varios-dias.sql
