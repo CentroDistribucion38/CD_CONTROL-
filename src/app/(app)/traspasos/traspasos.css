@@ -838,13 +838,33 @@
    más largo: un nombre de punto sin espacios empujaría la página de
    lado en el celular.
    ===================================================================== */
-.tp .maestro { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start }
-.tp .maestro > * { min-width: 0 }
+/* DOS COLUMNAS QUE SE APILAN SOLAS, no una rejilla.
 
+   Con `grid-template-columns: 1fr 1fr` cada FILA mide lo que mide su
+   caja más alta: Tipos trae nueve renglones, así que Placas —que va en
+   la segunda fila de la izquierda— caía muy por debajo de Bodegas y
+   dejaba medio metro de vacío en medio. La rejilla alinea filas, y aquí
+   las filas no significan nada: lo que significa algo es la columna.
+
+   Cada columna es su propia pila, así que las cajas se pegan una debajo
+   de otra y el largo de la vecina no las mueve. */
+.tp .maestro { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start }
+.tp .maestro > .col {
+  display: flex; flex-direction: column; gap: 16px; min-width: 0;
+}
+
+/* SIN overflow: hidden, A PROPÓSITO.
+   Lo tenía para que el fondo del último renglón no se saliera de la
+   esquina redondeada. Pero overflow: hidden recorta TODO lo que sea
+   descendiente, y el menú de los tres puntos del último renglón es un
+   absoluto que cae por debajo del borde: se cortaba a la mitad y el
+   «Borrar» quedaba invisible. La esquina se resuelve redondeando el
+   último renglón —tres píxeles— y no a costa de los menús. */
 .tp .caja-m {
   background: var(--tp-papel); border: 1px solid var(--tp-linea);
-  border-radius: 3px; overflow: hidden; min-width: 0;
+  border-radius: 3px; min-width: 0;
 }
+.tp .caja-m > .item:last-child { border-radius: 0 0 2px 2px }
 .tp .caja-m .cab-m { padding: 16px 18px 13px; border-bottom: 1px solid var(--tp-linea) }
 .tp .caja-m h2 {
   font-family: var(--tp-titulo); font-weight: 800; font-size: 17px; margin: 0;
@@ -955,6 +975,8 @@
   background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
   box-shadow: 0 20px 40px -22px rgba(0, 0, 0, .5); padding: 4px 0;
 }
+/* Abierto hacia arriba: mismo menú, al otro lado del botón. */
+.tp .mas .menu.arriba { top: auto; bottom: calc(100% + 4px) }
 .tp .mas .menu::before {
   content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--tp-ojo);
 }

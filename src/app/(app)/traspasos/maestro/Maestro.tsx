@@ -238,8 +238,11 @@ export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: 
         </div>
       )}
 
+      {/* IZQUIERDA: dónde y con qué. DERECHA: qué se mueve.
+          Las dos columnas se apilan por su cuenta — ver el CSS. */}
       <section className="maestro">
-        {/* ---------------- PUNTOS ---------------- */}
+        <div className="col">
+        {/* ---------------- BODEGAS ---------------- */}
         <div className="caja-m">
           <div className="cab-m">
             <h2>Bodegas <em>{puntos.length}</em></h2>
@@ -272,32 +275,6 @@ export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: 
           )}
         </div>
 
-        {/* ---------------- TIPOS ---------------- */}
-        <div className="caja-m">
-          <div className="cab-m">
-            <h2>Tipos de viaje <em>{tipos.length}</em></h2>
-            <p>
-              Qué se mueve. Un tipo apagado no se borra: las planeaciones viejas lo siguen
-              nombrando, solo deja de poderse escoger.
-            </p>
-          </div>
-
-          {puedeEditar && (
-            <form className="agregar-m"
-                  onSubmit={(e) => { e.preventDefault(); agregarTipo() }}>
-              <input value={nuevoTipo} placeholder="Nombre del tipo"
-                     onChange={(e) => setNuevoTipo(e.target.value)} />
-              <button type="submit" disabled={!nuevoTipo.trim() || mandando}>Agregar</button>
-            </form>
-          )}
-
-          <Lista filas={filasTipos} puedeEditar={puedeEditar} mandando={mandando}
-                 sinUso={uso.falta} sinSub
-                 alOrdenar={(cs) => ordenar("traspaso_ordenar_tipos", cs)}
-                 alPrender={(c, a) => cambiar("traspasos_tipos", "clave", c, { activo: a })}
-                 alRenombrar={(c, nom) => cambiar("traspasos_tipos", "clave", c, { nombre: nom })}
-                 alBorrar={(c, n) => borrar("traspasos_tipos", "clave", c, n)} />
-        </div>
         {/* ---------------- PLACAS ---------------- */}
         <div className="caja-m">
           <div className="cab-m">
@@ -334,7 +311,36 @@ export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: 
                    alBorrar={(c, n) => borrar("traspasos_placas", "placa", c, n)} />
           )}
         </div>
+        </div>
 
+        <div className="col">
+        {/* ---------------- TIPOS ---------------- */}
+        <div className="caja-m">
+          <div className="cab-m">
+            <h2>Tipos de viaje <em>{tipos.length}</em></h2>
+            <p>
+              Qué se mueve. Un tipo apagado no se borra: las planeaciones viejas lo siguen
+              nombrando, solo deja de poderse escoger.
+            </p>
+          </div>
+
+          {puedeEditar && (
+            <form className="agregar-m"
+                  onSubmit={(e) => { e.preventDefault(); agregarTipo() }}>
+              <input value={nuevoTipo} placeholder="Nombre del tipo"
+                     onChange={(e) => setNuevoTipo(e.target.value)} />
+              <button type="submit" disabled={!nuevoTipo.trim() || mandando}>Agregar</button>
+            </form>
+          )}
+
+          <Lista filas={filasTipos} puedeEditar={puedeEditar} mandando={mandando}
+                 sinUso={uso.falta} sinSub
+                 alOrdenar={(cs) => ordenar("traspaso_ordenar_tipos", cs)}
+                 alPrender={(c, a) => cambiar("traspasos_tipos", "clave", c, { activo: a })}
+                 alRenombrar={(c, nom) => cambiar("traspasos_tipos", "clave", c, { nombre: nom })}
+                 alBorrar={(c, n) => borrar("traspasos_tipos", "clave", c, n)} />
+        </div>
+        </div>
       </section>
 
       {/* ---------------- DUPLICADOS ---------------- */}
@@ -472,6 +478,10 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
   alBorrar: (clave: string, nombre: string) => void;
 }) {
   const [menu, setMenu] = useState(false);
+  /* Hacia dónde se abre. Abajo casi siempre; hacia arriba cuando el
+     renglón está tan al fondo de la pantalla que el menú saldría por
+     debajo del borde y habría que rodar la página para ver "Borrar". */
+  const [arriba, setArriba] = useState(false);
   const [editando, setEditando] = useState(false);
   const [nom, setNom] = useState(f.nombre);
   const [sub, setSub] = useState(f.sub ?? "");
@@ -561,9 +571,18 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
 
       <div className="mas" ref={cajaMenu}>
         <button type="button" aria-label={`Opciones de ${f.nombre}`} aria-expanded={menu}
-                onClick={() => setMenu((v) => !v)}>⋯</button>
+                onClick={(e) => {
+                  /* Se decide ANTES de pintarlo, con el botón que se acaba
+                     de tocar: medirlo después obligaría a dibujar el menú
+                     abajo y moverlo, y eso se ve como un salto. 230 px es
+                     el menú más alto —tres opciones y la nota. */
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const abajo = window.innerHeight - r.bottom;
+                  setArriba(abajo < 230 && r.top > abajo);
+                  setMenu((v) => !v);
+                }}>⋯</button>
         {menu && (
-          <div className="menu">
+          <div className={"menu" + (arriba ? " arriba" : "")}>
             {!sinRenombrar && (
               <button type="button" disabled={!puedeEditar}
                       onClick={() => { setMenu(false); setEditando(true) }}>
