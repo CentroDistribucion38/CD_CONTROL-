@@ -21,6 +21,17 @@
   --rl-ojo:   var(--c-marca, #E4002B);
   --rl-sobre: var(--c-marca-txt, #fff);
   --rl-grupo: var(--c-grupo, #12263A);
+  /* EL COLOR DE LOS DATOS, que NO es el acento a secas.
+     El acento del tema es una marca, no una rampa de datos: en cuatro
+     de los siete temas es ámbar, y ámbar sobre la pista gris de una
+     barra da 1.4 de contraste — la barra se ve casi como el vacío. Este
+     es el MISMO tono, un paso más oscuro, que es lo que hace cualquier
+     sistema de diseño: el tono claro para rellenos grandes, el oscuro
+     para las marcas que hay que distinguir.
+     El 60 % salió de medirlo tema por tema (.arnes/mezcla.mjs): con
+     menos negro, ámbar, negro, gris y halo no llegan a 3 contra la
+     pista, que es el mínimo de una marca que no es texto. */
+  --rl-dato:  color-mix(in srgb, var(--c-marca, #E4002B) 60%, #140c00);
   --rl-bien:  #127A47;
   --rl-mal:   #C0332B;
   --rl-titulo: "Archivo", system-ui, sans-serif;
@@ -466,3 +477,173 @@
 .rl-nota-firma:focus {
   outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, #C08A16 30%, transparent);
 }
+
+/* =====================================================================
+   EL TABLERO
+   ===================================================================== */
+.rl-periodo {
+  display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+  justify-content: space-between; margin-bottom: 14px;
+}
+.rl-atajos { display: flex; gap: 7px; flex-wrap: wrap }
+.rl-atajos button {
+  min-height: 38px; padding: 0 13px; cursor: pointer; border-radius: 3px;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  font: 700 12.5px var(--rl-titulo); color: var(--rl-gris);
+}
+.rl-atajos button:hover { border-color: var(--rl-ojo); color: var(--rl-tinta) }
+.rl-atajos button.on {
+  background: var(--rl-grupo); color: #fff; border-color: var(--rl-grupo);
+}
+.rl-fechas { display: flex; gap: 10px; flex-wrap: wrap }
+.rl-fechas label { display: grid; gap: 5px }
+.rl-fechas span {
+  font: 700 9.5px var(--rl-texto); letter-spacing: .13em; text-transform: uppercase;
+  color: var(--rl-gris);
+}
+.rl-fechas input, .rl-fechas select {
+  min-height: 38px; padding: 0 10px; font: inherit; font-size: 13.5px;
+  border: 1px solid var(--rl-linea); border-radius: 3px;
+  background: var(--rl-papel); color: var(--rl-tinta);
+}
+
+/* ---------- Las cuatro cifras ---------- */
+.rl-cifras {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px;
+}
+@media (max-width: 900px) { .rl-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 460px) { .rl-cifras { grid-template-columns: 1fr } }
+.rl-cifra {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  border-left: 4px solid var(--rl-linea); border-radius: 3px; padding: 13px 16px; min-width: 0;
+}
+.rl-cifra.ojo { border-left-color: #C08A16 }
+.rl-c-rot {
+  font: 700 9.5px var(--rl-texto); letter-spacing: .14em; color: var(--rl-gris);
+}
+.rl-c-n {
+  font: 900 30px/1 var(--rl-titulo); margin: 7px 0 5px; font-variant-numeric: tabular-nums;
+}
+.rl-c-u { font-size: 11.5px; color: var(--rl-gris); line-height: 1.5 }
+.rl-c-u b { color: var(--rl-tinta) }
+
+/* ---------- La tarjeta de una gráfica ---------- */
+.rl-tarj {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  margin-bottom: 16px; min-width: 0;
+}
+.rl-tarj.ojo { border-left: 4px solid #C08A16 }
+.rl-t-cab {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;
+  flex-wrap: wrap; padding: 16px 18px 12px; border-bottom: 1px solid var(--rl-linea);
+}
+.rl-t-cab > div { min-width: 0; flex: 1 1 280px }
+.rl-t-cab h2 { margin: 0; font: 800 17px var(--rl-titulo); letter-spacing: -.02em }
+.rl-t-cab p { margin: 6px 0 0; font-size: 12.5px; color: var(--rl-gris); line-height: 1.55; max-width: 62ch }
+
+/* La cifra que resume la gráfica, al lado del título. */
+.rl-t-clave {
+  display: flex; align-items: center; gap: 10px; flex: 0 1 220px;
+  background: var(--rl-fondo); border-radius: 3px; padding: 10px 13px;
+}
+/* EL NÚMERO VA EN TINTA, no en el color del dato. Es texto, y el texto
+   se lee con los tokens de texto: pintado del color de las barras
+   repite lo que las barras ya dicen y encima baja a 1.4 de contraste en
+   los temas ámbar. */
+.rl-t-clave b {
+  font: 900 30px/1 var(--rl-titulo); color: var(--rl-tinta); font-variant-numeric: tabular-nums;
+}
+.rl-t-clave span { font-size: 11.5px; color: var(--rl-gris); line-height: 1.4 }
+.rl-t-pie {
+  margin: 0; padding: 12px 18px; border-top: 1px solid var(--rl-fondo);
+  font-size: 12.5px; color: var(--rl-gris); line-height: 1.55;
+}
+.rl-t-pie b { color: var(--rl-tinta) }
+.rl-sin-datos { margin: 0; padding: 26px 18px; font-size: 13px; color: var(--rl-gris) }
+
+.rl-dos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px }
+@media (max-width: 900px) { .rl-dos { grid-template-columns: 1fr } }
+
+/* ---------- Barras horizontales ---------- */
+.rl-barras { padding: 14px 18px; display: grid; gap: 9px }
+.rl-barra {
+  display: grid; grid-template-columns: minmax(90px, 248px) minmax(0, 1fr) 92px;
+  gap: 12px; align-items: center;
+}
+.rl-barra-rot {
+  font: 600 12.5px var(--rl-texto); color: var(--rl-tinta);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rl-barra-pista { height: 22px; background: var(--rl-fondo); border-radius: 3px; overflow: hidden }
+/* La punta redondeada y el arranque a ras: la barra tiene que salir del
+   cero, no flotar. */
+.rl-barra-pista i {
+  display: block; height: 100%; background: var(--rl-dato);
+  border-radius: 0 4px 4px 0; min-width: 3px;
+}
+.rl-barra-val {
+  text-align: right; font: 800 13.5px var(--rl-titulo); font-variant-numeric: tabular-nums;
+  color: var(--rl-tinta);
+}
+.rl-barra-val i {
+  display: block; font-style: normal; font: 500 10.5px var(--rl-texto); color: var(--rl-gris);
+}
+@media (max-width: 620px) {
+  .rl-barra { grid-template-columns: minmax(0, 1fr) 78px; grid-template-areas: "rot val" "pista pista" }
+  .rl-barra-rot { grid-area: rot; white-space: normal }
+  .rl-barra-val { grid-area: val }
+  .rl-barra-pista { grid-area: pista; height: 14px }
+}
+
+/* ---------- La serie diaria ---------- */
+.rl-serie { padding: 14px 18px 4px }
+.rl-serie svg { width: 100%; height: 220px; display: block; overflow: visible }
+.rl-g-rejilla { stroke: var(--rl-linea); stroke-width: 1; vector-effect: non-scaling-stroke }
+.rl-g-area { fill: color-mix(in srgb, var(--rl-dato) 16%, transparent); stroke: none }
+.rl-g-linea {
+  fill: none; stroke: var(--rl-dato); stroke-width: 2;
+  stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke;
+}
+/* El promedio es una REFERENCIA, no una serie: punteado y en gris. */
+.rl-g-prom {
+  stroke: var(--rl-gris); stroke-width: 1.5; stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke; opacity: .8;
+}
+.rl-g-pico { fill: var(--rl-dato); stroke: var(--rl-papel); stroke-width: 2 }
+.rl-g-toque { fill: transparent }
+.rl-g-toque:hover { fill: color-mix(in srgb, var(--rl-ojo) 12%, transparent) }
+
+.rl-serie-eje { position: relative; height: 18px; margin-top: 2px }
+.rl-serie-eje span {
+  position: absolute; transform: translateX(-50%); white-space: nowrap;
+  font: 500 10.5px var(--rl-texto); color: var(--rl-gris);
+}
+/* EN EL CELULAR CABEN MENOS FECHAS. Ocho rótulos entran a 1440 px y se
+   encimaban a 360: se dejan los marcados como `clave` —el primero, el
+   último y dos en medio— y los demás se esconden. */
+@media (max-width: 620px) {
+  .rl-serie-eje span:not(.clave) { display: none }
+}
+.rl-serie-pie {
+  margin: 8px 0 0; padding: 12px 0 14px; border-top: 1px solid var(--rl-fondo);
+  font-size: 12.5px; color: var(--rl-gris); line-height: 1.55;
+}
+.rl-serie-pie b { color: var(--rl-tinta) }
+
+/* ---------- Turnos sin firmar ---------- */
+.rl-lista-firma { display: flex; gap: 9px; flex-wrap: wrap; padding: 14px 18px; align-items: center }
+.rl-chip-firma {
+  display: grid; gap: 1px; padding: 8px 12px; text-decoration: none;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+}
+.rl-chip-firma:hover { border-color: #C08A16; box-shadow: inset 3px 0 0 #C08A16 }
+.rl-chip-firma b { font: 800 12.5px var(--rl-titulo); color: var(--rl-tinta) }
+.rl-chip-firma span { font-size: 11px; color: var(--rl-gris) }
+.rl-chip-firma i {
+  font-style: normal; font: 600 10.5px var(--rl-texto); color: #5E4100;
+  font-variant-numeric: tabular-nums;
+}
+.rl-mas-firma { font-size: 12.5px; color: var(--rl-gris) }
+
+.rl-volver { margin: 4px 0 0; font-size: 13px }
+.rl-volver a { color: var(--rl-ojo); font-weight: 600 }

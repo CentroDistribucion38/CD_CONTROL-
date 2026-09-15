@@ -131,6 +131,7 @@ export const MODULOS: Modulo[] = [
          tablero, al día a día y a importar. Meterla en medio partía en
          dos lo que se lee de corrido. */
       { nombre: "Rotura de línea", ruta: "/quiebra/rotura" },
+      { nombre: "Tablero de rotura", ruta: "/quiebra/rotura/tablero" },
       { nombre: "Maestro de rotura", ruta: "/quiebra/rotura/maestro" },
     ],
   },

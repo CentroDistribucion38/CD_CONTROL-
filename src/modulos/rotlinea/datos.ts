@@ -138,3 +138,54 @@ export async function delDia(fecha: string) {
      pantalla es mejor que una pantalla en blanco. */
   return { falta: false, pesadas, filas, firmas: (fir.error ? [] : (fir.data ?? [])) as Firma[] };
 }
+
+/* =====================================================================
+   EL TABLERO
+   ---------------------------------------------------------------------
+   Todo sale de las vistas al GRANO DIARIO y se suma aquí. Un rango de
+   un año son 365 × 4 filas por corte —unas pocas miles—, no los 24.243
+   registros: agrupar en la base es lo que permite que el tablero abra
+   en un segundo con el año entero puesto.
+   ===================================================================== */
+export type FilaDia    = { fecha: string; linea: number; und: number; kg: number;
+                           pesadas: number; turnos: number; sin_baja: number };
+export type FilaMaq    = { fecha: string; linea: number; maquina: number;
+                           maquina_nombre: string; orden: number; rotas: number; kg: number };
+export type FilaEnvase = { fecha: string; linea: number; envase: string;
+                           envase_nombre: string; und: number; kg: number };
+export type FilaProd   = { fecha: string; linea: number; producidas: number; hl: number | null };
+export type SinFirma   = { fecha: string; linea: number; turno: number; und: number; kg: number };
+
+export async function tablero(desde: string, hasta: string, linea?: number) {
+  const supabase = await createClient();
+  const rango = <T>(q: T) => {
+    let c = (q as ReturnType<typeof supabase.from>["select"] extends never ? never : any)
+      .gte("fecha", desde).lte("fecha", hasta);
+    if (linea) c = c.eq("linea", linea);
+    return c;
+  };
+
+  const [d, m, e, p, sf] = await Promise.all([
+    rango(supabase.from("v_rotlinea_dia").select("*")),
+    rango(supabase.from("v_rotlinea_maquina").select("*")),
+    rango(supabase.from("v_rotlinea_envase").select("*")),
+    rango(supabase.from("v_rotlinea_prod_dia").select("*")),
+    rango(supabase.from("v_rotlinea_sin_firma").select("*")),
+  ]);
+
+  if (d.error) {
+    return { falta: sinTablas(d.error.message), dias: [] as FilaDia[], maquinas: [] as FilaMaq[],
+             envases: [] as FilaEnvase[], produccion: [] as FilaProd[], sinFirma: [] as SinFirma[] };
+  }
+  return {
+    falta: false,
+    dias: (d.data ?? []) as FilaDia[],
+    maquinas: (m.error ? [] : (m.data ?? [])) as FilaMaq[],
+    envases: (e.error ? [] : (e.data ?? [])) as FilaEnvase[],
+    produccion: (p.error ? [] : (p.data ?? [])) as FilaProd[],
+    /* Si la vista de firmas todavía no existe, el tablero sale igual y
+       la tarjeta de firmas dice cero: media pantalla es mejor que una
+       pantalla en blanco. */
+    sinFirma: (sf.error ? [] : (sf.data ?? [])) as SinFirma[],
+  };
+}

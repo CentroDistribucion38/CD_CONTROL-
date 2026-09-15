@@ -1,48 +1,67 @@
-El aviso de "falta correr el SQL" ya nombra el archivo exacto
+Rotura de linea: el tablero
 
-EL PROBLEMA. En la pantalla de rotura salia el mensaje generico -"abre
-el SQL Editor y ejecuta el archivo del modulo en supabase/modulos/"- y
-ese mensaje deja a quien lo lee con la mitad del trabajo: sabe que
-falta un SQL, no cual de veinte.
+/quiebra/rotura/tablero. Abre con LO QUE VA DEL ANO, que es el periodo
+con el que se habla de rotura y el unico que tiene con que comparar.
 
-Pasaba porque la lista de prefijos que traduce el error a un archivo no
-conocia ni rotura de linea NI TRASPASOS. Dos modulos enteros caian al
-generico.
+SE LEE DE ARRIBA ABAJO Y EN ESE ORDEN: el % de rotura contra la
+produccion, las cuatro cifras que lo componen, el pareto por maquina,
+la serie por dia, y el detalle por linea y por envase. Quien pasa por el
+pasillo mira la primera linea; quien esta en la reunion baja hasta el
+pareto.
 
-QUE CAMBIA. La lista gana los dos, y con las migraciones separadas del
-archivo del modulo:
+EL PARETO ES LA PANTALLA. La pregunta del modulo no es cuanto se rompio
+sino DONDE, y el tablero la contesta con una frase, no con quince
+barras que hay que sumar de memoria: "6 maquinas se comen la mitad de
+todo lo que se rompe", "las tres primeras suman el 29,6 % del total".
 
-  rotlinea_firmar, rotlinea_firmas  → 2026-09-rotura-linea-firma.sql
-  v_rotlinea_uso                    → 2026-09-rotura-linea-maestro.sql
-  rotlinea_*, v_rotlinea            → modulos/rotura-linea.sql
-  traspaso_editar_viaje             → 2026-09-traspasos-editar-viaje.sql
-  traspaso_borrar_plan              → 2026-09-traspasos-borrar-plan.sql
-  traspasos_placas                  → 2026-09-traspasos-placas.sql
-  traspaso_plan_a_varios            → 2026-09-traspasos-plan-varios-dias.sql
-  v_traspasos_uso                   → 2026-09-traspasos-maestro.sql
-  traspasos_plan_vacios             → 2026-09-traspasos-plan-rejilla.sql
-  traspasos_*, v_traspasos          → modulos/traspasos.sql
+CINCO DECISIONES DE LA GRAFICA:
 
-EL ORDEN IMPORTA y por eso lo fino va antes que lo grueso: mandar a
-correr un archivo de setecientas lineas porque falta una funcion de
-veinte es hacer perder el tiempo con cara de estar ayudando.
+1. SVG EN EL SERVIDOR, sin libreria. Lo que hay que pintar son barras y
+   una linea; traerse trescientos kilobytes de JavaScript para eso hace
+   que la pantalla tarde mas en aparecer de lo que tarda en leerse.
 
-Hay una prueba: .arnes/prueba-errores.mjs, con los mensajes TAL COMO
-los devuelve PostgREST -"Could not find the function public.X in the
-schema cache", 'relation "public.Y" does not exist'-. Con mensajes
-inventados la prueba pasaria con un mapeo que en la vida real no
-acierta. 18 de 18, y comprueba tambien que un error que NO es de SQL
-faltante no nombre ningun archivo.
+2. UN SOLO COLOR, sin paleta de categorias. Todo lo que se dibuja es LA
+   MISMA MEDIDA repartida entre cosas distintas: darle un color a cada
+   maquina seria inventar una identidad que no existe, y habria que
+   comprobar que los quince se distinguen entre si Y en los siete temas.
+   Lo que distingue una barra es su rotulo y su largo.
 
-La prueba compila el archivo de verdad con tsc en vez de quitarle los
-tipos con expresiones regulares. El primer intento uso ese atajo y
-reventó con un `as string`: una prueba que falla por su propio andamio
-no dice nada de lo que probaba.
+3. ESE COLOR NO ES EL ACENTO A SECAS, y esto lo cazo la medicion. El
+   acento del tema es una MARCA, no una rampa de datos: en cuatro de
+   los siete temas es ambar, y ambar sobre la pista gris de una barra da
+   1.4 de contraste — la barra se veia casi como el vacio. --rl-dato es
+   el mismo tono un paso mas oscuro, y el cuanto salio de medirlo tema
+   por tema (.arnes/mezcla.mjs): con 60 % de acento y 40 % de negro, el
+   peor de los siete da 3.4 contra la pista. Menos que eso y ambar,
+   negro, gris y halo no llegan.
 
-APARTE: EL MENU DE QUIEBRA, EN ORDEN. Rotura de linea y su maestro van
-de ULTIMAS, despues de Importar. Quien entra a Quiebra va al tablero,
-al dia a dia y a importar; rotura es su propio flujo y meterla en medio
-partia en dos lo que se lee de corrido.
+4. EL TEXTO VA EN TINTA, nunca en el color del dato. El numero grande
+   del pareto estaba pintado del color de las barras: repetia lo que la
+   barra ya decia y daba 1.4 de contraste en los temas ambar.
+
+5. EL PROMEDIO ES UNA REFERENCIA, NO UNA SEGUNDA SERIE: punteado y en
+   gris. Dos colores en la misma grafica invitan a leerla como si fueran
+   dos medidas, y es una sola. Y no hay doble eje en ninguna parte.
+
+MEDIDO CON LOS DATOS DE VERDAD, las 24.243 filas de 2026 del Excel. Un
+tablero probado con datos inventados se ve bien y miente: los rotulos
+largos, las barras chiquitas y los numeros de siete cifras solo
+aparecen con los reales. El arnes comprueba ademas que ninguna barra se
+salga de su pista, que ninguna quede invisible, y que las fechas del
+eje no se encimen — a 360 px se encimaban, y por eso ahora el celular
+muestra cuatro y no ocho.
+
+La capa de detalle es el `title` nativo del SVG y del HTML: sale al
+posar el cursor y funciona sin una linea de JavaScript.
+
+Y AL FINAL, LA TABLA. Las graficas se leen; la tabla se copia y se
+audita. Lleva el acumulado, que es lo que convierte un pareto en una
+decision.
+
+HAY QUE CORRER EN SUPABASE:
+  supabase/migraciones/2026-09-rotura-linea-tablero.sql
+  supabase/migraciones/2026-09-permisos-rotura-linea.sql   (otra vez:
+      gano la seccion del tablero)
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
