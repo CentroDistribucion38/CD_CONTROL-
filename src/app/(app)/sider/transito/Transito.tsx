@@ -98,7 +98,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
        revisión se deshace con otro clic; quitarla puede estar borrando
        una decisión que alguien tomó por algo, y en el muelle un clic de
        más es fácil. */
-    const r = v.requiere_ai
+    const ok = v.requiere_ai
       ? await pedir({
           titulo: `¿Quitar la revisión AI de ${v.placa}?`,
           dice: <>Al llegar se certifica como cualquier otro vehículo, sin muestra
@@ -107,26 +107,24 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
           peligro: true,
         })
       : await pedir({
-          titulo: `Revisión AI para ${v.placa}`,
+          titulo: `¿Solicitar revisión AI obligatoria para ${v.placa}?`,
           dice: <>Al llegar, quien certifique tendrá que sacar la muestra en el
                  muelle y contar los defectos <b>antes de descargar</b>.</>,
-          campo: {
-            rotulo: "¿Por qué se revisa? (opcional)",
-            ejemplo: "Reclamo del socio, lote sospechoso…",
-            ayuda: "Lo ve quien recibe el vehículo, en la tarjeta y en el formulario.",
-          },
-          confirmar: "Pedir la revisión",
+          confirmar: "Solicitar revisión",
         });
-    if (!r) return;
+    if (!ok) return;
 
     setMarcando(v.id);
     const supabase = createClient();
+    /* SIN MOTIVO, a propósito. Hubo un campo para escribirlo y se quitó:
+       la revisión es obligatoria o no lo es, y un campo opcional que
+       nadie llena es un paso de más en el muelle. La columna sigue en la
+       base —hay filas viejas que sí lo traen y la tarjeta las pinta—,
+       pero desde aquí ya no se escribe ninguno. */
     const { error } = await supabase.rpc("sider_ai_marcar", {
       p_viaje: v.id,
       p_marcar: !v.requiere_ai,
-      /* Vacío es NULL, no cadena vacía: un motivo en blanco guardado
-         como "" se pinta después como si alguien hubiera escrito algo. */
-      p_motivo: v.requiere_ai ? null : (r.texto || null),
+      p_motivo: null,
     });
     setMarcando(null);
     if (error) { avisar.mal(error.message); return }
