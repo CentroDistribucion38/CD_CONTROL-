@@ -131,6 +131,12 @@ export default async function TableroRoturaPage({ searchParams }: {
     return {
       n, vitales, cuantasVitales, undVitales, pctVitales, n80,
       pctN80: n > 0 ? (n80 * 100) / n : 0,
+      /* QUÉ PORCENTAJE DEL UNIVERSO SON ESAS «POCAS», de verdad. El
+         rótulo decía «el 20 % que más rompe» siempre, y con 4 líneas
+         las dos primeras son el 50 %: el informe llamaba «20 %» a la
+         mitad del universo. Un número mal rotulado en un informe es peor
+         que ningún número, porque nadie lo va a volver a comprobar. */
+      pctVitalesDelN: n > 0 ? (cuantasVitales * 100) / n : 0,
       /* SE CUMPLE cuando para el 80 % basta con la tercera parte. No es
          un número mágico: es donde «unas pocas» deja de ser una forma
          de hablar y pasa a ser una lista que cabe en una orden de
@@ -285,41 +291,75 @@ export default async function TableroRoturaPage({ searchParams }: {
           <div className={"rl-8020" + (A.seCumple ? " si" : " no")}>
             <div className="rl-8020-cifras">
               <div className="rl-8020-c">
-                <span className="rl-8020-r">El 20 % que más rompe</span>
+                <span className="rl-8020-r">Las {A.cuantasVitales} de mayor incidencia</span>
                 <b>{A.pctVitales.toFixed(1)} %</b>
-                <i>{A.cuantasVitales} de {A.n} {varios} · {fmt(A.undVitales)} unidades</i>
+                <i>
+                  {A.cuantasVitales} de {A.n} {varios} — el {A.pctVitalesDelN.toFixed(0)} % de{" "}
+                  {las} · {fmt(A.undVitales)} unidades
+                </i>
               </div>
               <div className="rl-8020-flecha" aria-hidden>·</div>
               <div className="rl-8020-c">
-                <span className="rl-8020-r">Para juntar el 80 %</span>
+                <span className="rl-8020-r">Para cubrir el 80 %</span>
                 <b>{A.n80} de {A.n}</b>
                 <i>o sea el {A.pctN80.toFixed(0)} % de {las}</i>
               </div>
             </div>
 
+            {/* ---------- LA LECTURA, EN REGISTRO DE INFORME ----------
+
+                Esto se lee en voz alta en una reunión y se pega en un
+                correo, así que se escribe como se escribe un informe:
+                el hallazgo, la cifra que lo sostiene, la causa cuando se
+                conoce, y la recomendación. Sin coloquialismos —«diez
+                frentes a la vez no son un plan»—, sin hablarle de tú al
+                lector, y sin mandarlo a tocar botones: un informe que
+                depende de que alguien haga clic no se puede citar.
+
+                Y NO SE ESCONDE EL RESULTADO NEGATIVO. Que la rotura NO
+                se concentre es un hallazgo con consecuencia —cambia por
+                dónde se ataca— y por eso se enuncia igual de firme que
+                el positivo. */}
             <p className="rl-8020-fallo">
               {A.seCumple ? (
                 <>
-                  <b>Se cumple el 80/20.</b> Con {A.n80} {A.n80 === 1 ? uno : varios} de {A.n} se
-                  cubre el 80 % de todo lo que se rompe. Esa es la lista corta, y cabe en una
-                  orden de trabajo.
+                  <b>La rotura se concentra por {uno}.</b>{" "}
+                  {A.n80} de {A.n} {A.n80 === 1 ? uno : varios} —el {A.pctN80.toFixed(0)} % de{" "}
+                  {las}— explican el 80 % del volumen roto del período, y{" "}
+                  {A.cuantasVitales === 1 ? "el primero concentra" : `los ${A.cuantasVitales} primeros concentran`}{" "}
+                  el {A.pctVitales.toFixed(1)} %. El comportamiento es el esperado en una
+                  distribución de Pareto: la intervención sobre ese grupo cubre la mayor
+                  parte de la pérdida y el resto tiene efecto marginal.{" "}
+                  <b>Se recomienda concentrar la acción en{" "}
+                  {A.vitales.map((x) => x.rotulo).slice(0, 3).join(", ")}</b>
+                  {A.cuantasVitales > 3 ? " y el resto de la lista." : "."}
                 </>
               ) : (
                 <>
-                  <b>Por {uno} no se cumple el 80/20.</b> Para llegar al 80 % hacen falta{" "}
-                  <b>{A.n80} de {A.n}</b>, y diez frentes a la vez no son un plan.
+                  <b>La rotura no se concentra por {uno}.</b>{" "}
+                  {A.cuantasVitales === 1 ? "El primero aporta" : `Los ${A.cuantasVitales} de mayor incidencia aportan`}{" "}
+                  el {A.pctVitales.toFixed(1)} % del total, frente al orden del 80 % que
+                  describiría una distribución concentrada. Cubrir el 80 % exige intervenir{" "}
+                  <b>{A.n80} de {A.n} {varios}</b> —el {A.pctN80.toFixed(0)} %—, lo que equivale
+                  a intervenir el proceso completo y no un punto crítico.
                   {corte === "maquina" && (
-                    <> Y no es que la cuenta esté mal: las {A.n} máquinas son las estaciones que
-                    <b> todas las líneas tienen</b>, así que esta barra junta la desempacadora de
-                    la línea 1 con la de la 2, la 4 y la 6. Cuatro máquinas distintas promediadas
-                    dan siempre algo parecido a la media — por eso salen parejas.</>
+                    <> El origen es de agregación, no de operación: las {A.n} estaciones
+                    existen en todas las líneas, de modo que cada barra promedia la misma
+                    estación de la línea 1, la 2, la 4 y la 6. Promediar equipos distintos
+                    bajo un mismo rótulo tiende al valor medio y suprime la dispersión que
+                    el análisis busca.</>
                   )}
                   {mejor && (
-                    <> Donde sí se concentra es <b>por {DATOS[mejor.id].uno}</b>:{" "}
-                    <b>{mejor.a.n80} de {mejor.a.n}</b> {DATOS[mejor.id].varios} hacen el 80 %,
-                    y el primero solo pone{" "}
-                    <b>{((DATOS[mejor.id].datos[0].valor * 100) / und).toFixed(1)} %</b>. Ese es
-                    el frente por el que se ataca. Cámbialo aquí arriba y lo ves.</>
+                    <> Por <b>{DATOS[mejor.id].uno}</b> el comportamiento sí es concentrado:{" "}
+                    <b>{mejor.a.n80} de {mejor.a.n} {DATOS[mejor.id].varios}</b> explican el
+                    80 %, con {DATOS[mejor.id].datos[0].rotulo} en{" "}
+                    <b>{((DATOS[mejor.id].datos[0].valor * 100) / und).toFixed(1)} %</b>.{" "}
+                    <b>Se recomienda dirigir la intervención por esa dimensión.</b></>
+                  )}
+                  {!mejor && (
+                    <> Ninguna de las otras dimensiones disponibles concentra mejor, de modo
+                    que la reducción pasa por condiciones comunes al proceso —material,
+                    ajuste de velocidad, turno— y no por un equipo en particular.</>
                   )}
                 </>
               )}

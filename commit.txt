@@ -1,62 +1,58 @@
-Usuarios: la tabla de a qué entra cada persona, y el poder de cerrarle una
+Rotura: el bloque del 80/20 se escribe como un informe, no como un chat
 
-TRES COSAS QUE PIDIÓ CRISTIAN, y las tres son la misma: que al
-seleccionar a alguien se vea y se decida su acceso completo.
+CRISTIAN LO DIJO EN UNA LÍNEA: «eso no es una redacción para el
+informe». Tenía razón. El párrafo que interpreta el pareto decía «y diez
+frentes a la vez no son un plan» y terminaba con «Cámbialo aquí arriba y
+lo ves». Ese texto se lee en voz alta en una reunión y se pega en un
+correo: no puede hablarle de tú al lector, y no puede depender de que
+alguien haga clic — un análisis que solo funciona con la pantalla
+delante no se puede citar.
 
-1) NO ERA UNA TABLA DE ACCESO, ERA UNA DE EXTRAS. El panel enseñaba solo
-   las casillas de lo suelto, así que para saber si una persona ENTRA a
-   una pantalla había que abrir /admin/roles en otra pestaña, mirar su
-   rol y sumarlo de cabeza.
+AHORA ESTÁ ESCRITO COMO SE ESCRIBE UN INFORME: hallazgo, cifra que lo
+sostiene, causa cuando se conoce, y recomendación.
 
-   Ahora cada renglón abre con EN QUÉ QUEDA —«editar», «ver», «sin
-   acceso»— en una columna fija a la izquierda: se baja la vista por ella
-   y se lee de un golpe a qué entra y a qué no, que es la pregunta que
-   trae a alguien a esta pantalla. Debajo del nombre, de dónde sale: del
-   rol o puesto a mano. Y arriba, el resumen: «entra a 12 de 17».
+  «La rotura no se concentra por máquina. Las 3 de mayor incidencia
+   aportan el 29,6 % del total, frente al orden del 80 % que describiría
+   una distribución concentrada. Cubrir el 80 % exige intervenir 10 de 13
+   máquinas —el 77 %—, lo que equivale a intervenir el proceso completo y
+   no un punto crítico. El origen es de agregación, no de operación: las
+   13 estaciones existen en todas las líneas, de modo que cada barra
+   promedia la misma estación de la línea 1, la 2, la 4 y la 6. Promediar
+   equipos distintos bajo un mismo rótulo tiende al valor medio y suprime
+   la dispersión que el análisis busca. Por envase el comportamiento sí
+   es concentrado: 4 de 12 envases explican el 80 %, con BOTELLA … en
+   36,5 %. Se recomienda dirigir la intervención por esa dimensión.»
 
-2) Y AHORA SE PUEDE QUITAR, NO SOLO DAR. Hasta hoy lo de una persona
-   SUMABA y nunca restaba: para que alguien viera UNA pantalla menos que
-   sus compañeros había que inventarle un rol propio, que es exactamente
-   lo que los roles venían a evitar —la lista de roles se vuelve una
-   lista de personas—.
+LAS DOS RAMAS CIERRAN CON UNA RECOMENDACIÓN, también la negativa. Que la
+rotura NO se concentre es un hallazgo con consecuencia —cambia por dónde
+se ataca— y merece enunciarse igual de firme que el positivo. Y se
+agregó el caso que faltaba: cuando ninguna otra dimensión concentra
+mejor, el informe lo dice y concluye que la reducción pasa por
+condiciones comunes al proceso y no por un equipo.
 
-   Lo que se le pone a una persona MANDA sobre su rol, en los dos
-   sentidos. Tres botones por pantalla: Sin acceso, Ver, Editar. Tocar el
-   que ya está puesto lo devuelve al rol, que es la única forma de volver
-   a «lo que diga el rol» sin un cuarto botón que diría eso mismo.
+Y HABÍA ALGO PEOR QUE EL TONO, que es lo que de verdad importa: el
+rótulo decía «El 20 % que más rompe» SIEMPRE. Pero ese grupo nunca baja
+de dos elementos, así que con cuatro líneas las dos primeras son el 50 %
+del universo — y el informe llamaba «20 %» a la mitad. Un número mal
+rotulado en un informe es peor que ningún número, porque nadie lo va a
+volver a comprobar. Ahora el rótulo dice cuántas son y la línea de abajo
+qué porcentaje del universo representan, calculado.
 
-   CON UNA EXCEPCIÓN DURA: un rol que administra la plataforma entra a
-   todo, y eso va antes que cualquier cosa suelta. Si se le pudiera
-   quitar Administración a un administrador, el último que quedara podría
-   encerrarse afuera y ya nadie podría devolvérselo. Para que alguien deje
-   de mandar se le cambia el rol, que es una decisión visible. La tabla lo
-   dice y se apaga entera en vez de esconderse.
+`.arnes/rl-redaccion.mjs` audita ese párrafo: coloquialismos, trato de
+tú, órdenes de hacer clic, exclamaciones, rótulos que afirman un
+porcentaje que en realidad se calcula, y que las dos ramas terminen en
+una recomendación.
 
-   La regla vive en `lib/permisos.ts` y está escrita IGUAL en la pantalla:
-   si las dos se separaran, esto mostraría un acceso que la aplicación no
-   da.
-
-3) «PERO NO SE ACTUALIZA». Guardaba, no salía error, y la fila seguía
-   mostrando lo de antes hasta recargar con F5. Ahora la lista se pinta de
-   un estado propio y la fila se actualiza al guardar — con lo que el
-   SERVIDOR contesta que quedó, no con lo que el navegador cree que mandó.
-   Si un trigger cambiara algo por su cuenta se vería ahí mismo. El
-   `router.refresh()` se queda: hace falta para todo lo demás que pueda
-   haber cambiado, pero ya no es de lo que depende ver el resultado.
-   Lo mismo con «Nueva clave», que también cambia lo que se ve.
-
-MEDIDO (`.arnes/us-pantallas.mjs`), y cazó dos cosas de verdad:
-
-  · El renglón pasó de dos botones a tres y a 820 px el tercero se salía
-    de la tarjeta del módulo. Las tarjetas suben de 240 a 300 px de ancho
-    mínimo —el ancho que de verdad necesita una fila con chip, nombre y
-    tres botones— y por debajo de 760 px los botones bajan a su propia
-    línea, porque apretarlos sería devolverles el tamaño que no se toca
-    con guante.
-  · La letra chica de cada renglón contrasta entre 4,59 y 5,17 sobre el
-    panel en los siete temas.
-
-Y la tabla sigue midiendo lo mismo con y sin las diecisiete pantallas.
+EL ARNÉS SE EQUIVOCÓ PRIMERO, y de la forma más peligrosa: dando el
+visto bueno. Quitaba todo lo que va entre llaves con el argumento de que
+en JSX las llaves son código — y se comió justo lo que venía a auditar,
+porque el párrafo entero vive dentro de un `{A.seCumple ? (…) : (…)}`.
+Quedó leyendo una cadena vacía y aprobando cualquier cosa; probado
+poniendo la frase prohibida a propósito, no la vio. Ahora quita solo los
+comentarios —el de ese bloque nombra las frases prohibidas para explicar
+por qué no van, y sin quitarlo el arnés se caza a sí mismo— y lo que
+evita cazar código son las reglas: la exclamación se busca pegada a una
+letra, que es como aparece en la prosa y nunca en una negación.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
