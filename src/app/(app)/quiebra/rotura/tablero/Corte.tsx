@@ -2,6 +2,10 @@
 
 import { useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+/* La lista vive en un archivo sin "use client": la página del
+   servidor también la necesita, y desde aquí le llegaría como
+   referencia al cliente en vez de como arreglo. */
+import { CORTES, type Corte } from "@/modulos/rotlinea/cortes";
 
 /**
  * POR QUÉ SE MIRA EL PARETO, Y POR QUÉ SE PUEDE CAMBIAR.
@@ -28,12 +32,9 @@ import { useRouter, useSearchParams } from "next/navigation";
  * máquina aunque no concentre. El botón está para que la pregunta la
  * haga quien sabe la respuesta.
  */
-export const CORTES = [
-  { id: "maquina", rotulo: "Por máquina" },
-  { id: "envase",  rotulo: "Por envase" },
-  { id: "linea",   rotulo: "Por línea" },
-] as const;
-export type Corte = (typeof CORTES)[number]["id"];
+
+
+export type { Corte };
 
 export function EscogerCorte({ corte }: { corte: Corte }) {
   const router = useRouter();

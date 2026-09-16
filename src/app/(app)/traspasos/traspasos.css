@@ -1563,3 +1563,69 @@
 }
 .tp .desple .opciones button.mas.marcada { color: var(--tp-tinta) }
 .tp .desple .nada { padding: 14px 13px; font-size: 13px; color: var(--tp-gris) }
+
+/* ====================== Filtros de varios a la vez ======================
+
+   REEMPLAZAN A LOS DESPLEGABLES DE TURNO Y TIPO. Un <select> escoge UNA
+   cosa: para ver el turno A y el C juntos —dejando fuera el B— no había
+   forma de decírselo. Estos botones se prenden y se apagan, así que
+   escoger dos es tocar dos.
+
+   OCUPAN MÁS SITIO QUE UN DESPLEGABLE CERRADO, y eso se paga a cambio
+   de ver qué está puesto sin abrir nada. Con tres turnos y nueve tipos
+   cabe; el día que sean treinta tipos habrá que volver a pensarlo.
+
+   `.grupo-f` Y NO `.grupo`: en este proyecto ya se han pisado cinco
+   clases con nombre genérico entre módulos. El sufijo no es feo, es
+   barato.
+   ======================================================================= */
+.tp .grupo-f { min-width: 0; display: grid; gap: 6px; align-content: start }
+.tp .grupo-r {
+  display: flex; align-items: center; gap: 6px;
+  font: 700 10px var(--tp-texto); letter-spacing: .13em;
+  text-transform: uppercase; color: var(--tp-gris);
+}
+/* Cuántos hay puestos. Con nueve tipos y tres escogidos, contar los
+   botones prendidos es trabajo que puede hacer la pantalla. */
+.tp .grupo-r i {
+  font-style: normal; font-size: 9px; letter-spacing: 0;
+  background: var(--tp-ojo); color: #fff;
+  min-width: 15px; height: 15px; border-radius: 8px;
+  display: inline-grid; place-items: center; padding: 0 4px;
+}
+.tp .grupo-b { display: flex; gap: 5px; flex-wrap: wrap }
+.tp .grupo-b button {
+  min-height: 38px; padding: 0 12px; cursor: pointer; border-radius: 3px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  font: 700 12.5px var(--tp-titulo); color: var(--tp-gris);
+  white-space: nowrap;
+}
+.tp .grupo-b button:hover { border-color: var(--tp-ojo); color: var(--tp-tinta) }
+/* EL PRENDIDO VA EN --tp-grupo, NO EN EL ACENTO, y eso se midió: el
+   acento del tema es ámbar en cuatro de los siete, y ámbar con letra
+   blanca a 12,5 px da 3.38 de contraste — por debajo de 4.5, que es el
+   mínimo para texto de ese tamaño. Es la misma lección que ya costó el
+   color de las barras del tablero: el acento es una marca, no un fondo
+   para texto chico.
+
+   EL TOKEN SE LLAMA --c-grupo, no --tp-grupo. Se escribió mal la
+   primera vez y `background: var(--tp-grupo)` con un token inexistente
+   no es un error: la declaración se descarta en silencio, el fondo se
+   queda transparente y la letra blanca desaparece sobre el papel. Es la
+   peor clase de fallo de CSS, el que no se queja.
+
+   --c-grupo es el azul casi negro que ya usan la cabecera, el botón HOY
+   y las cabeceras de la matriz, así que además queda consistente sin
+   inventar un color nuevo. */
+.tp .grupo-b button.on {
+  background: var(--c-grupo); color: var(--tp-sobre-grupo, #fff);
+  border-color: var(--c-grupo);
+}
+/* El foco se ve: son botones y se navegan con el tabulador. */
+.tp .grupo-b button:focus-visible {
+  outline: 2px solid var(--tp-tinta); outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+  .tp .grupo-b button { min-height: 36px; padding: 0 10px; font-size: 12px }
+}

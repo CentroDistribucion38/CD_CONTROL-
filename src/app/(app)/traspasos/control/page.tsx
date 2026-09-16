@@ -61,11 +61,20 @@ export default async function ControlPage({ searchParams }: {
 
   if (ctl.falta) return <div className="tp"><SinTablas /></div>;
 
+  /* VARIOS A LA VEZ, separados por coma: ?turno=A,C. Un conjunto vacío
+     quiere decir «todos», que es como se comporta cualquier filtro: no
+     filtrar es ver todo. Y los enlaces viejos de un solo valor siguen
+     funcionando, porque «A» partido por comas es ["A"]. */
+  const listaDe = (v?: string) =>
+    new Set((v ?? "").split(",").map((x) => x.trim()).filter(Boolean));
+  const turnos = listaDe(q.turno);
+  const tipos = listaDe(q.tipo);
+
   /* El filtro de turno y tipo se aplica aquí porque ya vino el rango de
      la base: son decenas de filas, no miles. El de FECHA sí va en la
      base —ese es el que crece—. */
   const filas = ctl.filas.filter((f) =>
-    (!q.turno || f.turno === q.turno) && (!q.tipo || f.tipo === q.tipo));
+    (!turnos.size || turnos.has(f.turno)) && (!tipos.size || tipos.has(f.tipo)));
 
   const sum = (l: Control[], k: keyof Control) =>
     l.reduce((a, f) => a + (Number(f[k]) || 0), 0);

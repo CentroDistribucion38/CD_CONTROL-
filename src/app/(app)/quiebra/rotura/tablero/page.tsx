@@ -4,7 +4,8 @@ import { maestros, tablero } from "@/modulos/rotlinea/datos";
 import { letraDe } from "@/modulos/rotlinea/turnos";
 import "../rotura.css";
 import { Barras, Serie, Pareto, type Barra } from "./Graficas";
-import { EscogerCorte, CORTES, type Corte } from "./Corte";
+import { EscogerCorte } from "./Corte";
+import { CORTES, type Corte } from "@/modulos/rotlinea/cortes";
 import { Periodo } from "./Periodo";
 
 export const dynamic = "force-dynamic";

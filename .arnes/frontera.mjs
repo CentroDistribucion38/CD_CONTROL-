@@ -17,9 +17,21 @@
 
    LA REGLA QUE SE COMPRUEBA: una página del servidor puede importar
    COMPONENTES de un archivo "use client" —para eso está la frontera—,
-   pero no puede importar VALORES ni FUNCIONES para llamarlos ella
-   misma. La diferencia se lee en el nombre, que es la misma convención
-   de React: Mayúscula = componente, minúscula = función.
+   pero no puede importar VALORES ni FUNCIONES para usarlos ella misma.
+
+   CÓMO SE DISTINGUE UN COMPONENTE, y la primera versión de esto se
+   equivocó: daba por componente cualquier nombre que empezara en
+   mayúscula. Con esa regla, `CORTES` —una lista de constantes— pasó el
+   arnés, la página del servidor le hizo `.some()` y tumbó el tablero
+   entero con «a server-side exception». Un nombre en mayúscula no es
+   un componente: un nombre en PascalCase lo es.
+
+       EscogerCorte   → mayúscula y sigue minúscula: componente, pasa
+       CORTES         → TODO mayúsculas: es una constante, se reporta
+       conDia         → minúscula: función, se reporta
+
+   La diferencia son dos caracteres en una expresión regular y es la
+   diferencia entre cazar el error y dejarlo salir a producción.
 
    Los `import type` no cuentan: se borran al compilar.
    ===================================================================== */
@@ -89,14 +101,15 @@ for (const f of archivos(SRC)) {
     const destino = resolver(f, spec);
     if (!destino || !esCliente(destino)) continue;
 
-    /* Mayúscula = componente de React: cruzar la frontera es
-       exactamente para lo que sirve. Minúscula = función o valor: si el
-       servidor la llama, revienta. */
-    if (/^[a-z]/.test(nombre)) {
+    /* PascalCase = componente de React: cruzar la frontera es
+       exactamente para lo que sirve. Cualquier otra cosa —minúscula o
+       TODO_MAYÚSCULAS— es un valor, y si el servidor lo usa, revienta. */
+    const esComponente = /^[A-Z][a-z]/.test(nombre);
+    if (!esComponente) {
       fallas.push(
         `${f.replace(RAIZ, "")}\n      importa  ${nombre}  de  ${spec}\n` +
-        `      …que es "use client". El servidor recibe una referencia, no la función:\n` +
-        `      al llamarla tumba la pantalla. Múdala a un archivo sin "use client".`);
+        `      …que es "use client". El servidor recibe una referencia, no el valor:\n` +
+        `      al usarlo tumba la pantalla. Múdalo a un archivo sin "use client".`);
     }
   }
 }

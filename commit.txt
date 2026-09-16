@@ -1,64 +1,60 @@
-Tablero de rotura: el pareto se puede mirar por máquina, envase o línea
+Traspasos · Control: escoger varios turnos y varios tipos a la vez
 
-«NO PUEDE SER QUE DE 13 SEAN 10 MI PARETO, IMPOSIBLE ATACAR 10
-PROBLEMAS DE UNA.» Tenía razón en el fondo y el reclamo destapó algo
-mejor que un error de cuenta: la cuenta estaba bien, la PREGUNTA estaba
-mal hecha.
+UN <select> NO SIRVE PARA ESTO, y no es cuestión de gusto: un
+desplegable escoge UNA cosa. Para ver el turno A y el C juntos —dejando
+fuera el B— no había forma de decírselo. El <select multiple> sí
+existe, pero se usa con ctrl+clic, en el celular no se puede y nadie
+sabe que hay que hacerlo.
 
-Medido sobre los 24.245 registros de 2026, cuántos hacen falta para
-juntar el 80 %:
+BOTONES QUE SE PRENDEN Y SE APAGAN. Se ve de un vistazo qué está puesto
+—sin abrir nada—, se toca con el dedo, y prender dos es tocar dos. El
+precio es que ocupan más sitio que un desplegable cerrado; para tres
+turnos y nueve tipos, cabe. El día que sean treinta tipos habrá que
+volver a pensarlo.
 
-    por línea           3 de 4     (son cuatro: no dice mucho)
-    por envase          4 de 12    ← aquí SÍ se concentra
-    por línea + envase  6 de 17
-    por máquina        10 de 13    ← lo que estaba en pantalla
-    línea + máquina    31 de 52    (peor todavía)
+NINGUNO PRENDIDO SIGNIFICA TODOS, que es como funciona cualquier
+filtro: no filtrar es ver todo. Obligar a prender los tres para ver los
+tres sería pedir trabajo para no pedir nada. Y «Todos» es un botón más
+y no una X escondida: quitar tres filtros de a uno son tres toques y
+hay que acordarse de cuáles estaban; «Todos» es uno y siempre está en
+el mismo sitio.
 
-POR MÁQUINA NO SE CONCENTRA, Y NO ES CASUALIDAD. Las trece máquinas son
-las trece estaciones que TODAS las líneas tienen. Preguntar «cuál
-máquina» junta la desempacadora de la línea 1 con la de la 2, la 4 y la
-6 en una sola barra, y cuatro máquinas distintas promediadas dan
-siempre algo parecido a la media. De ahí salían las trece barras
-parejas: no de un error aritmético, sino de comparar cosas que no son
-comparables entre sí.
+AL LADO DEL RÓTULO VA CUÁNTOS HAY PUESTOS. Con nueve tipos y tres
+escogidos, contar los botones prendidos es trabajo que puede hacer la
+pantalla.
 
-POR ENVASE SÍ: cuatro de doce hacen el 80 %, y Costeñita 175R sola pone
-el 36,5 %. Eso sí cabe en una orden de trabajo.
+EN LA DIRECCIÓN VAN SEPARADOS POR COMA —?turno=A,C— así que un enlace
+con dos turnos se manda por WhatsApp igual que antes, el botón de atrás
+sigue deshaciendo el filtro, y LOS ENLACES VIEJOS de un solo turno
+siguen abriendo lo mismo: «A» partido por comas es ["A"].
 
-LO QUE SE HIZO, entonces, no fue arreglar la cuenta sino dejar escoger
-la pregunta: tres botones —por máquina, por envase, por línea— encima
-del pareto. El cuadro entero se recalcula, incluido el 80/20.
+MEDIDO, y el arnés se dejó engañar dos veces antes de servir:
 
-Y NO SE ESCOGE POR ÉL. Cuál corte importa depende de qué se pueda
-cambiar: si hay plata para negociar envase, manda el envase; si el
-turno tiene que ajustar una máquina, manda la máquina aunque no
-concentre. El botón está para que la pregunta la haga quien sabe la
-respuesta.
+ · .arnes/tp-filtros.mjs — 9 casos de lógica (nada escogido, uno, dos
+   sueltos sin el del medio, apagar el último, prender dos veces el
+   mismo, enlaces viejos, espacios y comas sueltas, y que el orden en
+   que se prenden no cambie el resultado) y 28 combinaciones de pantalla
+   (4 anchos × 7 temas): que ningún botón se salga de la tarjeta, que el
+   texto quepa dentro del botón, que ninguno baje de 34 px de alto
+   —en bodega se toca con guantes— y el contraste del prendido.
 
-EL BLOQUE DEL 80/20 AHORA DICE LAS DOS COSAS. Cuando el corte no
-concentra, explica POR QUÉ no —lo de las estaciones compartidas— y
-señala el corte que sí, con su cifra: «donde sí se concentra es por
-envase: 4 de 12 hacen el 80 %». Es la diferencia entre «aquí no hay
-nada» y «aquí no, pero al lado sí».
+ · Primer engaño: el arnés cargaba solo traspasos.css y no globals.css,
+   donde viven los tokens del tema. Sin ellos `var(--tp-ojo)` no
+   resolvía, fondo y letra salían iguales y reportó contraste 1.00 en
+   los siete temas sobre un botón que en la app se ve bien.
 
-EL UMBRAL DE «SE CUMPLE» ES QUE BASTE LA TERCERA PARTE, y no un 60 %
-inventado. No es un número mágico: es donde «unas pocas» deja de ser
-una forma de hablar y pasa a ser una lista que cabe en una orden de
-trabajo. Con 12 envases son 4 —y hacen falta 4—; con 13 máquinas serían
-4 y hacen falta 10.
+ · Segundo, y este tapaba un error de verdad: el prendido se escribió
+   `var(--tp-grupo)` y ese token NO EXISTE —en Traspasos se llama
+   --c-grupo—. CSS descarta en silencio una declaración con un var()
+   inválido: el fondo quedó en rgba(0,0,0,0) y la letra blanca sobre
+   papel blanco. El arnés leyó los ceros como negro puro, calculó 21.00
+   de contraste y lo aprobó. Ahora un fondo transparente se REPORTA en
+   vez de medirse; probado al revés, con el token malo lo caza en las 28
+   combinaciones.
 
-Y EL 20 % NUNCA BAJA DE DOS. Con 4 líneas el 20 % es 0,8, que
-redondeado da una sola: «la primera aporta el 36 %» no es un pareto, es
-el máximo.
-
-El resto del cuadro no cambió: los dos ejes, los números encima de cada
-barra, la curva con forro y las comprobaciones de .arnes/rl-pareto.mjs
-—28 combinaciones, el acumulado cierra en 100 %, nada se sale ni se
-encima, los títulos de eje no pisan sus números— siguen pasando.
-
-Falta correr en Supabase, en este orden:
-  supabase/migraciones/2026-09-rotura-linea-tablero-rapido.sql
-  supabase/migraciones/2026-09-rotura-linea-sin-firma-rapido.sql
+ · Y el color del prendido no es el acento: ámbar con letra blanca a
+   12,5 px da 3.38, por debajo de 4.5. Va en --c-grupo, el azul casi
+   negro que ya usan la cabecera y el botón HOY.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
