@@ -177,6 +177,12 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
+      /* REVISIÓN AI VA JUSTO DESPUÉS DE TRÁNSITO porque ese es el orden
+         del proceso: el administrador marca el vehículo en Tránsito, el
+         camión llega, y la revisión es lo siguiente que pasa. Ponerla al
+         final —donde suele caer lo que se construyó de último— la
+         separaría del sitio donde se pide. */
+      { nombre: "Revisión AI", ruta: "/sider/ai" },
       { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
       /* Se entra por el botón Importar de Seguimiento, que es donde se

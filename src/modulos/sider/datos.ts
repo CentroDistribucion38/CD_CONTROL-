@@ -62,13 +62,40 @@ export async function viajesSider(limite = 500) {
  */
 export async function viajesEnTransito() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("v_sider_viajes")
-    .select("*")
-    .eq("estado", "en_transito")
-    .order("salida_en", { ascending: true, nullsFirst: false })
-    .limit(500);
-  return { viajes: (data ?? []) as unknown as Viaje[], falta: !!error };
+  /* LA MARCA DE REVISIÓN AI VIENE EN UNA SEGUNDA CONSULTA, no dentro de
+     la vista. v_sider_viajes es la vista más grande del módulo y la leen
+     cinco pantallas; meterle cuatro columnas para una casilla que solo
+     mira Tránsito obliga a recrearla entera en una migración y a que
+     todas las demás carguen lo que no usan.
+
+     Son las dos en la MISMA tanda —no una detrás de otra— y la segunda
+     trae cuatro columnas de las decenas de filas que hay en tránsito.
+     Se cruzan por id aquí, que es exactamente lo que haría el join. */
+  const [{ data, error }, ai] = await Promise.all([
+    supabase.from("v_sider_viajes").select("*")
+      .eq("estado", "en_transito")
+      .order("salida_en", { ascending: true, nullsFirst: false })
+      .limit(500),
+    supabase.from("sider_viajes")
+      .select("id, requiere_ai, ai_motivo, ai_pedido_por, ai_pedido_en")
+      .eq("estado", "en_transito").eq("requiere_ai", true).limit(500),
+  ]);
+
+  /* Si el módulo AI todavía no está creado, la consulta falla y la
+     pantalla sale igual, solo que sin marcas. Media pantalla es mejor
+     que una pantalla en blanco. */
+  type M = { id: string; requiere_ai: boolean; ai_motivo: string | null;
+             ai_pedido_por: string | null; ai_pedido_en: string | null };
+  const marcas = new Map<string, M>();
+  if (!ai.error) for (const m of (ai.data ?? []) as M[]) marcas.set(m.id, m);
+
+  const viajes = ((data ?? []) as unknown as Viaje[]).map((v) => {
+    const m = marcas.get(v.id);
+    return m ? { ...v, requiere_ai: true, ai_motivo: m.ai_motivo,
+                 ai_pedido_por: m.ai_pedido_por, ai_pedido_en: m.ai_pedido_en }
+             : { ...v, requiere_ai: false };
+  });
+  return { viajes, falta: !!error };
 }
 
 /**

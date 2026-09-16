@@ -1,77 +1,70 @@
-Sider · Revisión AI del envase: la base
+Sider · Revisión AI: marcar el vehículo en Tránsito y el formulario
 
-PRIMERA PARTE DE TRES. Esto es la base de datos: las tablas, los
-maestros, las cuentas y los candados. Las pantallas —marcar en
-Tránsito, el formulario y el tablero— van aparte.
+SEGUNDA PARTE. La base ya estaba; esto es lo que se ve.
 
-QUÉ ES. A algunos camiones que llegan con envase retornable se les hace
-una revisión de calidad: se toma una muestra, se cuentan las botellas
-malas por tipo de defecto, y de ahí sale un ÍNDICE DE COBRO que decide
-cuántas unidades NO se le abonan al socio. Es plata. No se le hace a
-todos: el administrador marca en Tránsito a cuáles.
+DÓNDE SE ASIGNA. En Tránsito, en la tarjeta de cada vehículo, el
+administrador tiene un botón «Pedir revisión AI» que pregunta por qué
+—opcional— y deja la marca. El botón solo lo ve el administrador; el
+candado de verdad está en la base, que rechaza la marca venga de donde
+venga. Esconder un botón no es un permiso.
 
-DE ANALIZAR EL EXCEL —296 filas de Barranquilla— salieron cinco cosas,
-tres buenas y dos malas.
+EL SELLO VA JUNTO A LA PLACA, no escondido abajo. Quien recibe el
+camión tiene que saber ANTES de descargarlo que a este le toca
+revisión: la muestra se saca en el muelle, y una vez descargado el
+envase ya está revuelto y no hay muestra que sacar. Es ámbar y no rojo
+a propósito — no pasó nada malo, es una instrucción, y un rojo de más
+enseña a ignorar los rojos de verdad, que aquí son los vehículos
+trabados hace más de un día.
 
-CUADRAN EXACTAS, sin una sola excepción, y se respetan tal cual:
-  · «Total botellas con defectos» = la suma de DIEZ categorías. Las
-    otras cuatro —mezclado, cuerpo extraño, cajas malas, estiba mala—
-    se cuentan pero no cobran.
-  · no abono  = round(recibidas × índice)
-  · abono SAP = recibidas − no abono
+QUITAR PREGUNTA, PEDIR NO. Pedir la revisión se deshace con otro clic;
+quitarla puede estar borrando una decisión que alguien tomó por algo, y
+en el muelle un clic de más es fácil.
 
-NO CUADRAN, y este módulo las arregla:
-  · EL ÍNDICE SE DIGITABA. Cinco fórmulas probadas contra las 296 filas
-    y ninguna acierta siempre; la más parecida —defectos + mezclado—
-    acierta 168. Y en 112 filas el índice era MENOR que defectos ÷
-    revisadas, imposible si sale de sumar categorías. Aquí no se digita:
-    lo calcula la vista. Por eso no hay columna `indice` en la tabla —
-    guardarlo sería poder contradecirlo, y entonces habría que decidir
-    cuál manda cuando el socio reclame.
-  · LOS HECTOLITROS ESTABAN MAL. Para G175 —175 cc— el litraje debería
-    ser 0,175 siempre; en el archivo salían 64 valores distintos, hasta
-    0,3417. Fórmulas arrastradas. Aquí sale del maestro del envase.
+EL FORMULARIO REEMPLAZA UNA FILA DE CINCUENTA Y NUEVE COLUMNAS POR
+TRECE CAMPOS. Las otras cuarenta y seis eran cuentas, y las cuentas no
+se digitan: de las 59 del Excel, solo 13 son datos que alguien observa.
 
-DECISIONES QUE VALE LA PENA DEFENDER:
+Y LO QUE SE CALCULA SE VE MIENTRAS SE ESCRIBE. Quien está contando
+botellas ve subir el índice y las unidades que no se le van a abonar al
+socio. Si va a salir un número raro, se nota ANTES de mandarlo, no
+cuando el socio reclame. El bloque «Lo que sale» tiene otro fondo y
+otro borde a propósito: si pareciera un campo, alguien intentaría
+escribir encima.
 
- · LOS DEFECTOS SON UNA TABLA, no catorce columnas, y «cobra» es un
-   dato y no un if. El día que la política cambie se cambia el maestro
-   y no se despliega nada.
+LOS AVISOS SE CALCULAN AQUÍ, no se esperan del servidor. Decirle a
+alguien que marcó más botellas malas que las que revisó DESPUÉS de que
+llenó cuarenta casillas es hacerle perder el trabajo. El botón de
+guardar no se puede tocar mientras haya un aviso.
 
- · LA CABECERA SE COPIA DEL VIAJE Y SE GUARDA. Fecha, placa y planta no
-   se piden —ya están— pero quedan congeladas en la revisión: es un
-   documento de cobro, y si mañana alguien corrige la placa del viaje,
-   lo que se le cobró al socio no cambia solo.
+Y ESTE ANTICIPO NO ES LO QUE MANDA: el índice de verdad lo calcula la
+base con la misma fórmula. Están escritos iguales a propósito —defectos
+que cobran ÷ revisadas— y hay una prueba en la base que la fija.
 
- · LOS CEROS NO SE GUARDAN. Catorce filas por revisión, la mayoría en
-   cero, es basura que hay que filtrar en cada consulta.
+DETALLES DE PANTALLA que cuestan poco y se notan:
+ · Los catorce conteos son casillas de 44 px, centradas y sin flechitas
+   de incremento: se llenan en el muelle, muchas veces con guantes.
+ · Los cuatro que no cobran van abajo, separados y más apagados: se
+   llenan igual pero no deciden plata.
+ · El socio solo aparece cuando el canal es Socios. En un traslado
+   propio no hay a quién cobrarle, y dejar el campo puesto invita a
+   llenarlo con cualquiera.
+ · La lista pone PRIMERO lo que falta por hacer y después lo hecho: un
+   camión marcado que nadie revisó es un cobro que se pierde.
 
- · SIN POLÍTICA DE ESCRITURA en revisiones ni conteos. La única entrada
-   es sider_ai_guardar, que es security definer y valida. Un índice de
-   cobro que se pueda fabricar desde el navegador no vale nada.
+Y DOS COSAS QUE SE VIERON MIRANDO LA PANTALLA, no razonándola:
+ · Las casillas se salían dos píxeles de la tarjeta. Faltaba
+   `box-sizing: border-box` en el módulo: un input con padding mide su
+   ancho MÁS el padding más el borde, así que cinco columnas de «1fr»
+   sumaban más que la tarjeta.
+ · El selector de turno dejaba un cuarto cajón vacío a la derecha —el
+   label es una rejilla y estiraba a sus hijos—. `justify-self: start`.
 
- · NO SE PUEDE DESMARCAR UN VIAJE YA REVISADO: sería borrar el cobro
-   sin dejar rastro.
+En el menú, Revisión AI va justo después de En tránsito: ese es el
+orden del proceso —se marca en Tránsito, llega el camión, se revisa—.
+Ponerla al final, donde suele caer lo último que se construyó, la
+separaría del sitio donde se pide.
 
- · El `coalesce(mi_rol(), '')` de sider_ai_marcar no es adorno: sin él,
-   `null <> 'admin'` no es cierto ni falso y el if no entra. Es el mismo
-   hueco que apareció con las firmas de rotura, y hay una prueba que
-   entra sin perfil para que no vuelva.
-
-MEDIDO contra Postgres 16, de no superusuario, el módulo corrido dos
-veces seguidas. .arnes/prueba-sider-ai.sql, 27 comprobaciones, y la
-central usa UNA FILA DE VERDAD del archivo —8 de mayo, JYM 958,
-Logisinú, G175, 82.080 recibidas y 4.104 revisadas—:
-
-    defectos 32 · otros 3 · Hl 0,056 · no abono 640 · abono 81.440
-
-Los 32 defectos y los 0,056 Hl son EXACTAMENTE lo que dice el Excel
-para esa fila. El no abono no: el archivo dice 680 porque su índice
-estaba digitado como 34/4104 en vez de 32/4104. Cuarenta unidades de
-diferencia en un solo camión, y en la dirección de cobrarle de más al
-socio. Ese es el tipo de cosa que este módulo deja de permitir.
-
-Falta correr en Supabase:
+Falta correr en Supabase (si todavía no):
   supabase/modulos/sider-ai.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

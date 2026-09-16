@@ -2721,3 +2721,41 @@
 .sd .nv-papel b { color: var(--c-04203f); font-weight: 700 }
 .sd .nv-papel .nv-cant { font-size: 14px }
 .sd .nv-papel .nv-cant b { font-size: 16px }
+
+/* ====================== La marca de revisión AI ======================
+
+   EL SELLO VA JUNTO A LA PLACA. Quien recibe el camión tiene que saber
+   ANTES de descargarlo que a este le toca revisión: la muestra se saca
+   en el muelle, y una vez descargado el envase ya está revuelto y no
+   hay muestra que sacar. Escondido abajo no lo ve nadie.
+
+   ÁMBAR Y NO ROJO. No es una alarma —no pasó nada malo—: es una
+   instrucción. Rojo enseñaría a ignorar los rojos de verdad, que en
+   esta pantalla son los vehículos trabados hace más de un día.
+   ==================================================================== */
+.sd .sello.ai {
+  background: #FDF0D0; color: #5E4100; border-color: #E8CE8C;
+  font-weight: 800; letter-spacing: .06em;
+}
+.sd .sello.ai i { background: #C08A16 }
+
+.sd .tr-botones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+
+.sd .tr-ai {
+  min-height: 38px; padding: 0 12px; cursor: pointer; border-radius: 3px;
+  background: var(--sd-papel, #fff); border: 1px dashed var(--sd-linea, #DFE5EC);
+  font: 700 12px var(--sd-titulo, system-ui); color: var(--sd-gris, #6B7785);
+  white-space: nowrap;
+}
+.sd .tr-ai:hover:not(:disabled) { border-style: solid; border-color: #C08A16; color: #5E4100 }
+/* Puesta: deja de ser punteada. Una línea continua dice «esto ya está
+   decidido»; la punteada, «esto se puede pedir». */
+.sd .tr-ai.on {
+  background: #FDF0D0; color: #5E4100; border: 1px solid #C08A16;
+}
+.sd .tr-ai:disabled { opacity: .55; cursor: default }
+
+.sd .tr-ojo.ai {
+  background: #FDF0D0; color: #5E4100;
+  box-shadow: inset 2.5px 0 0 #C08A16; padding-left: 11px;
+}

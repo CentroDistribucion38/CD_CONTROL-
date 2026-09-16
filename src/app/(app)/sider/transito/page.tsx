@@ -37,6 +37,10 @@ export default async function TransitoPage() {
     nombresTodos(),
   ]);
   const esEditor = permisos.puedeEditar("/sider/transito");
+  /* PEDIR UNA REVISIÓN AI ES SOLO DEL ADMINISTRADOR: cuesta media hora
+     de muelle y termina en un cobro al socio. Aquí solo se decide si se
+     pinta el botón; el candado está en la base. */
+  const esAdmin = perfil?.rol === "admin";
 
   if (falta) {
     return (
@@ -64,8 +68,7 @@ export default async function TransitoPage() {
           vehículos en camino" son ruido cuando se está cerrando UNO, y en
           el celular ese ruido se lleva 195 px de los 844 que hay —medido—.
           Desde el servidor no hay forma de saber que lo abrió. */}
-      <Transito
-        viajes={viajes}
+      <Transito esAdmin={esAdmin} viajes={viajes}
         nombres={nombres}
         esEditor={esEditor}
         trabados={trabados}

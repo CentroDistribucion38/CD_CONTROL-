@@ -82,6 +82,14 @@ export type Sku = {
 
 export type Viaje = {
   id: string;
+  /* LA MARCA DE REVISIÓN AI. Opcionales porque no salen de la vista:
+     los pega viajesEnTransito() en una segunda consulta, y el resto de
+     pantallas que leen Viaje —seguimiento, libro, exportar— no las
+     piden ni las necesitan. */
+  requiere_ai?: boolean;
+  ai_motivo?: string | null;
+  ai_pedido_por?: string | null;
+  ai_pedido_en?: string | null;
   placa: string;
   planta: string;
   cd_origen: string;

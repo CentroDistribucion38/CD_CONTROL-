@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { traducirError } from "@/lib/errores";
 import type { Viaje } from "@/modulos/sider/comun";
 import {
   RANURAS, RANURA_OBS, type Ranura, type RanuraCualquiera, type Foto,
@@ -57,7 +58,8 @@ function horasEnCamino(iv: string | null): number {
    bloquear nada. */
 const HORAS_LARGAS = 24;
 
-export function Transito({ viajes, nombres, esEditor, trabados, sinEvidencia, cabeza }: {
+export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvidencia, cabeza }: {
+  esAdmin?: boolean;
   viajes: Viaje[];
   nombres: Record<string, string>;
   esEditor: boolean;
@@ -71,6 +73,30 @@ export function Transito({ viajes, nombres, esEditor, trabados, sinEvidencia, ca
 
   /** El viaje abierto para certificar la llegada. */
   const [abierto, setAbierto] = useState<Viaje | null>(null);
+
+  /* PEDIR O QUITAR LA REVISIÓN AI.
+     El id del viaje que se está mandando, para apagar SOLO ese botón: un
+     estado booleano apagaría los doce de la pantalla, y entonces parece
+     que se cayó todo en vez de que uno está trabajando. */
+  const [marcando, setMarcando] = useState<string | null>(null);
+
+  async function pedirAi(v: Viaje) {
+    /* QUITAR PREGUNTA, PEDIR NO. Pedir la revisión se deshace con otro
+       clic; quitarla puede estar borrando una decisión que alguien tomó
+       por algo, y en el muelle un clic de más es fácil. */
+    if (v.requiere_ai && !confirm(`¿Quitar la revisión AI de ${v.placa}?`)) return;
+    setMarcando(v.id);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("sider_ai_marcar", {
+      p_viaje: v.id,
+      p_marcar: !v.requiere_ai,
+      p_motivo: v.requiere_ai ? null
+        : (prompt(`¿Por qué se revisa ${v.placa}? (opcional)`) ?? null),
+    });
+    setMarcando(null);
+    if (error) { alert(traducirError(error.message)); return }
+    router.refresh();
+  }
   const [f, setF] = useState({ placa: "", origen: "", desde: "", hasta: "" });
   /* En el celular los filtros arrancan PLEGADOS. Desplegados miden 207px
      de los 640 de la pantalla y, con la cabeza y las alertas, no queda
@@ -242,6 +268,17 @@ export function Transito({ viajes, nombres, esEditor, trabados, sinEvidencia, ca
             <article key={v.id} className={"tr-vh" + (largo ? " largo" : "")}>
               <header>
                 <b className="placa">{v.placa}</b>
+                {/* EL SELLO DE AI VA EN LA CABECERA, junto a la placa y
+                    no escondido abajo: quien recibe el camión tiene que
+                    saber ANTES de descargarlo que a este le toca
+                    revisión, porque la muestra se saca en el muelle y
+                    después ya está el envase revuelto. */}
+                {v.requiere_ai && (
+                  <span className="sello ai"
+                        title={v.ai_motivo ?? "Revisión AI pedida por el administrador"}>
+                    <i />REVISIÓN AI
+                  </span>
+                )}
                 <span className={"sello " + (largo ? "falta" : "transito")}>
                   <i />{enCamino(v.en_camino)}
                 </span>
@@ -278,12 +315,36 @@ export function Transito({ viajes, nombres, esEditor, trabados, sinEvidencia, ca
                     {v.salida_direccion ? ` · ${v.salida_direccion}` : ""}
                   </em>
                 </div>
-                {esEditor && (
-                  <button type="button" className="btn" onClick={() => setAbierto(v)}>
-                    Certificar llegada
-                  </button>
-                )}
+                <div className="tr-botones">
+                  {/* PEDIR LA REVISIÓN ES SOLO DEL ADMINISTRADOR. Aquí
+                      solo se decide si se pinta el botón; el candado de
+                      verdad está en la base, que rechaza la marca venga
+                      de donde venga. Esconder un botón no es un
+                      permiso. */}
+                  {esAdmin && (
+                    <button type="button"
+                            className={"tr-ai" + (v.requiere_ai ? " on" : "")}
+                            disabled={marcando === v.id}
+                            onClick={() => pedirAi(v)}>
+                      {marcando === v.id ? "…" : v.requiere_ai ? "Quitar AI" : "Pedir revisión AI"}
+                    </button>
+                  )}
+                  {esEditor && (
+                    <button type="button" className="btn" onClick={() => setAbierto(v)}>
+                      Certificar llegada
+                    </button>
+                  )}
+                </div>
               </footer>
+
+              {v.requiere_ai && (
+                <p className="tr-ojo ai">
+                  A este vehículo le toca <b>revisión AI</b> al llegar.
+                  {v.ai_motivo ? ` ${v.ai_motivo}` : ""}
+                  {v.ai_pedido_por ? ` — la pidió ${nombres[v.ai_pedido_por] ?? "un administrador"}.` : ""}
+                  {" "}La muestra se saca en el muelle, antes de descargar.
+                </p>
+              )}
 
               {faltanFotos && (
                 <p className="tr-ojo">
