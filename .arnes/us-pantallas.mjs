@@ -21,10 +21,20 @@
        diecisiete casillas quepan sin salirse por los lados.
      · Y que el panel no se cuele cuando NADIE está en edición: una fila
        de más en una tabla es una fila que alguien va a intentar leer.
+     · Que el rótulo «el rol ya da» se lea —es letra de 10,5 px— y que al
+       aparecer no descuadre la rejilla ni empuje los botones fuera.
    ===================================================================== */
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
 
+/* LAS DOS HOJAS, y el envoltorio `rl us` como en la página de verdad:
+   los tokens --rl-* viven en `.rl`, así que un armazón con solo `us`
+   los deja sin definir y todo cae a lo heredado. Con eso, el rótulo del
+   rol medía 15,78 de contraste —que es el negro del texto normal, no el
+   acento— y el arnés habría jurado que estaba bien sin haber mirado el
+   color de verdad. Es la tercera vez en este proyecto que un armazón
+   incompleto hace mentir a una medición. */
+const rl   = readFileSync(new URL("../src/app/(app)/admin/roles/roles.css", import.meta.url), "utf8");
 const us   = readFileSync(new URL("../src/app/(app)/admin/usuarios/usuarios.css", import.meta.url), "utf8");
 const glob = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
 
@@ -37,9 +47,16 @@ const MODULOS = [
   { n: "Administración", s: ["Roles", "Usuarios"] },
 ];
 
-const seccion = (nombre) => `
-  <div class="us-sec"><span>${nombre}</span>
-    <div class="us-niveles"><button>Ver</button><button class="on">Editar</button></div>
+/* La mitad de las secciones se pintan como «el rol ya da», que es el
+   caso realista de un administrador: su rol le da casi todo y las
+   extra son la excepción. */
+const seccion = (nombre, delRol) => `
+  <div class="us-sec${delRol ? " ya" : ""}">
+    <span>${nombre}${delRol ? `<em class="us-yatiene">el rol ya da · ${delRol}</em>` : ""}</span>
+    <div class="us-niveles">
+      <button${delRol ? " disabled" : ""}>Ver</button>
+      <button class="on"${delRol === "editar" ? " disabled" : ""}>Editar</button>
+    </div>
   </div>`;
 
 const panel = `
@@ -48,7 +65,7 @@ const panel = `
   <p class="us-dice">Toca el nivel otra vez para quitarlo.</p>
   <div class="us-modulos">
     ${MODULOS.map((m) => `<div class="us-mod"><b style="border-color:#E4002B">${m.n}</b>
-      ${m.s.map(seccion).join("")}</div>`).join("")}
+      ${m.s.map((x, i) => seccion(x, i % 2 === 0 ? "editar" : null)).join("")}</div>`).join("")}
   </div>
 </td></tr>`;
 
@@ -68,7 +85,7 @@ const fila = (nombre, usuario, cuantas, edicion) => `
 </tr>`;
 
 const tabla = (conPanel, cuantas = 17) => `
-<div class="us"><div class="us-marco"><table class="us-tabla">
+<div class="rl us"><div class="us-marco"><table class="us-tabla">
   <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th>
     <th>Pantallas extra</th><th>Estado</th><th class="us-acc">Acciones</th></tr></thead>
   <tbody>
@@ -85,6 +102,24 @@ const PANTALLAS = [
   { w: 390,  h: 844, nombre: "celular", toque: 38 },
 ];
 
+/* Chromium contesta el color en 0–255 (`rgb(...)`) o en 0–1
+   (`color(srgb ...)`, para lo que salga de un color-mix). Leer el
+   segundo como el primero da contrastes inventados. */
+const canales = (c) => {
+  const n = (c.match(/[\d.]+/g) ?? [0, 0, 0]).slice(0, 3).map(Number);
+  return c.startsWith("color(") ? n.map((v) => v * 255) : n;
+};
+const contraste = (a, b) => {
+  const lum = (c) => {
+    const [r, g, bl] = canales(c).map((v) => {
+      v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const L1 = lum(a), L2 = lum(b);
+  return +((Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05)).toFixed(2);
+};
+
 const navegador = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const fallas = [];
 
@@ -96,7 +131,7 @@ for (const p of PANTALLAS) {
      y sin ninguna. La diferencia entre las dos es exactamente lo que
      cuesta esa columna. */
   const mideTabla = async (html) => {
-    await pag.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${us}
+    await pag.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${rl}${us}
       html,body{margin:0;background:#EEF1F5}main{padding:16px}</style></head>
       <body><main>${html}</main></body></html>`);
     return pag.evaluate(() => ({
@@ -109,7 +144,7 @@ for (const p of PANTALLAS) {
   const cerrado = { vacia: conNada.alto, llena: con17.alto, panelesSueltos: con17.paneles };
 
   /* 2 ─ ABIERTO: la fila en edición, con su panel. */
-  await pag.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${us}
+  await pag.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${rl}${us}
     html,body{margin:0;background:#EEF1F5}main{padding:16px}</style></head>
     <body><main>${tabla(true, 17)}</main></body></html>`);
 
@@ -118,11 +153,16 @@ for (const p of PANTALLAS) {
     let bajo = 999;
     for (const b of document.querySelectorAll(".us-niveles button"))
       bajo = Math.min(bajo, b.getBoundingClientRect().height);
+    const g = (sel, prop) => {
+      const e = document.querySelector(sel);
+      return e ? getComputedStyle(e).getPropertyValue(prop) : "";
+    };
+    const yaTiene = { txt: g(".us-yatiene", "color"), fondo: g(".us-panel > td", "background-color") };
     const salen = [...document.querySelectorAll(".us-panel *")].filter((e) => {
       const r = e.getBoundingClientRect();
       return r.width > 0 && (r.right - caja.right > 0.5 || caja.left - r.left > 0.5);
     }).map((e) => e.className || e.tagName.toLowerCase());
-    return { bajo: Math.round(bajo), salen: [...new Set(salen)] };
+    return { bajo: Math.round(bajo), salen: [...new Set(salen)], yaTiene };
   });
   await pag.close();
 
@@ -144,11 +184,36 @@ for (const p of PANTALLAS) {
                 `(mínimo ${p.toque} para tocarlos con guante)`);
   if (abierto.salen.length)
     fallas.push(`${p.nombre}: el panel se sale por los lados: ${abierto.salen.join(", ")}`);
+
 }
 
+/* ===== EL RÓTULO DEL ROL, EN LOS SIETE TEMAS =====
+   «el rol ya da · editar» es letra de 10,5 px pintada con el acento del
+   tema sobre el fondo del panel: dos tokens que nadie emparejó a
+   propósito, y el acento cambia con las preferencias de cada quien. Se
+   mide tema por tema, que es la única forma de saberlo. */
+const TEMAS = [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"];
+const pag = await navegador.newPage({ viewport: { width: 1440, height: 900 } });
+console.log("\ntema      «el rol ya da» sobre el panel");
+for (const t of TEMAS) {
+  await pag.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${rl}${us}
+    html,body{margin:0;background:#EEF1F5}main{padding:16px}</style></head>
+    <body><div class="sh"${t ? ` data-tema="${t}"` : ""}><main>${tabla(true, 17)}</main></div></body></html>`);
+  const m = await pag.evaluate(() => {
+    const g = (s, p) => { const e = document.querySelector(s); return e ? getComputedStyle(e).getPropertyValue(p) : "" };
+    return { txt: g(".us-yatiene", "color"), fondo: g(".us-panel > td", "background-color") };
+  });
+  const c = contraste(m.txt, m.fondo);
+  const nombre = t ?? "oficial";
+  console.log(`${nombre.padEnd(9)} ${c}`);
+  if (c < 4.5)
+    fallas.push(`tema ${nombre}: «el rol ya da» contrasta ${c} sobre el panel (mínimo 4.5)`);
+}
+await pag.close();
 await navegador.close();
 if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\nListo: la tabla queda pareja y el editor se toca en las tres.");
+
+console.log("\nListo: la tabla queda pareja, el editor se toca y el rótulo del rol se lee.");

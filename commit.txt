@@ -1,61 +1,44 @@
-Usuarios: las pantallas extra se editan al seleccionar a la persona
+Usuarios: el selector de pantallas ahora dice qué le da el rol
 
-LO QUE HABÍA, y lo que Cristian pidió. La columna «Pantallas extra»
-imprimía una chapa por cada pantalla. Con diecisiete —el caso real de un
-administrador— la fila medía cinco veces las otras y la tabla dejaba de
-leerse de un vistazo, que es para lo único que sirve una tabla. Y encima
-ninguna de las diecisiete se podía tocar: se enseñaban y no se editaban.
-Ocupaban sitio sin servir, que es lo peor de los dos mundos.
+POR QUÉ. El selector de pantallas extra se llenaba a ciegas: nadie sabía
+si la pantalla que estaba a punto de dar ya venía con el rol. Cristian lo
+pidió con esas palabras —«las pantallas que tiene el rol, por si las
+moscas»— y tiene razón, porque hay una consecuencia que no se ve:
 
-AHORA LA CELDA DICE CUÁNTAS Y ES UN BOTÓN. «17 pantallas · ver y
-cambiar» abre el editor de esa persona; la lista completa sigue estando
-al pasar el mouse por encima. Sin pantallas, un guion, como antes.
+LOS EXTRA SUMAN Y NUNCA RESTAN. Así que dar «ver» a alguien cuyo rol ya
+lo deja «editar» es un permiso que se ve puesto, no cambia nada, y
+después alguien lo lee como si sí hiciera algo. Un permiso que miente es
+peor que un permiso que falta.
 
-Y EL EDITOR VA EN SU PROPIA FILA, a todo lo ancho, debajo de la persona
-—no en una ventana encima—. Es la misma razón que ya valía para el
-nombre y el usuario: una ventana tapa justo el resto de la lista, que es
-contra lo que uno compara. A todo lo ancho porque son diecisiete
-casillas y en una celda de tabla no caben sin volver a reventar la fila.
+AHORA CADA SECCIÓN LO DICE. «El rol ya da · editar», debajo del nombre
+de la pantalla, y los niveles que no cambiarían nada quedan apagados con
+el borde punteado y una explicación al pasar por encima. Si uno YA estaba
+puesto sigue tocándose, para poder quitarlo: un botón apagado del que no
+se puede salir es una trampa.
 
-EL ROL TAMBIÉN SE EDITA AHORA. Estaba en la tabla y solo de lectura: para
-cambiarle el rol a alguien no había ningún sitio en toda la aplicación.
+Y CAMBIA CON EL ROL QUE SE ESTÉ ELIGIENDO, no con el que tenía guardado:
+si en el mismo editor se le cambia el rol, las marcas se recalculan antes
+de guardar. Lo mismo en el formulario de crear.
 
-EL SELECTOR DE PANTALLAS ES UNO SOLO. Estaba escrito dentro del
-formulario de crear, y esa es la razón de fondo de que al editar no se
-pudiera tocar nada: no existía en ninguna otra parte. Ahora es un
-componente que usan los dos.
+`rol_permisos` se lee en la página —la misma tabla que ya lee
+/admin/roles— y se indexa una vez por rol: consultarla con un filter()
+dentro de cada casilla sería recorrer la lista entera diecisiete veces
+por cada render.
 
-EN EL SERVIDOR, el PUT aprendió `rol` y `permisos_extra`, los dos
-OPCIONALES a propósito: `undefined` quiere decir «no los toques». Si se
-trataran como vacíos, cualquier pantalla que solo quisiera corregir un
-nombre dejaría a la persona sin rol y sin sus pantallas sin haberlo
-pedido.
+MEDIDO (`.arnes/us-pantallas.mjs`): el rótulo contrasta entre 5,70 y 7,03
+sobre el panel en los siete temas, la tabla sigue midiendo lo mismo con y
+sin las diecisiete pantallas, y los botones de nivel siguen en 30 px en
+escritorio y 38 en celular.
 
-Y UN CANDADO NUEVO: nadie puede quitarse a sí mismo el rol que administra
-la plataforma. Quedaría con la sesión abierta pero sin poder volver a
-entrar aquí, y si es el único administrador deja la plataforma sin nadie
-que pueda arreglarlo. El candado está en el servidor y no en un botón
-escondido: esconder un botón no es un permiso.
-
-MEDIDO (`.arnes/us-pantallas.mjs`): con las diecisiete pantallas la
-tabla mide lo mismo que sin ninguna —181 px en escritorio y tableta,
-396 en celular—, el panel no se sale por los lados, y los botones de
-nivel miden 30 px en escritorio y 38 en celular, que es lo que se toca
-con guante.
-
-ESTE ARNÉS NO CAZÓ NADA EN SU PRIMERA VERSIÓN, y la razón vale la pena.
-Comparaba la fila llena contra una fila vacía. Pero al ensancharse la
-columna de las chapas se estrechaba la de Acciones, sus dos botones se
-partían en dos líneas y TODAS las filas crecían a la vez: la razón entre
-ellas seguía siendo 1 mientras la tabla se deformaba entera. Una medida
-relativa a algo que también se daña no mide nada. Ahora compara la misma
-tabla con y sin las pantallas, y probado al revés —volviendo a poner las
-chapas— canta 289 px contra 181.
-
-De paso eso destapó algo que a ojo no se veía: a 820 px el botón con su
-subrótulo apretaba la columna de Acciones y hacía el mismo daño con otra
-forma. Por debajo de 1200 px el subrótulo se va; el botón sigue diciendo
-lo que hay y que se toca lo dice el cursor.
+Y OTRA VEZ EL ARMAZÓN INCOMPLETO. La primera medición del rótulo dio 15,78
+de contraste, que es un número buenísimo — y falso: el armazón envolvía la
+tabla en `us` a secas cuando la página real usa `rl us`, así que los
+tokens --rl-* quedaban sin definir y el rótulo caía al negro del texto
+normal. Medía el color equivocado y habría jurado que todo estaba bien.
+Con el envoltorio correcto son 5,70–7,03, que siguen pasando pero son los
+de verdad. Es la tercera vez en este proyecto que un armazón incompleto
+hace mentir a una medición; por eso ahora el arnés carga también
+roles.css y lo dice en su cabecera.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

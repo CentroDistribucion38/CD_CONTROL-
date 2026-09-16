@@ -28,6 +28,8 @@ type Persona = {
   permisos_extra: Record<string, "ver" | "editar"> | null;
 };
 type Rol = { clave: string; nombre: string; manda: boolean };
+/** Una línea de rol_permisos: qué le da un rol a una sección. */
+type PermisoRol = { rol: string; seccion: string; nivel: "ver" | "editar" };
 type Modulo = {
   id: string; nombre: string; acento: string;
   secciones: { nombre: string; ruta: string }[];
@@ -42,10 +44,12 @@ type Modulo = {
  * reventaban la fila— y no dejaba cambiar ninguna. Enseñar algo que no
  * se puede tocar es lo peor de los dos mundos: ocupa sitio y no sirve.
  */
-function Pantallas({ catalogo, valor, cambiar }: {
+function Pantallas({ catalogo, valor, cambiar, delRol }: {
   catalogo: Modulo[];
   valor: Record<string, "ver" | "editar">;
   cambiar: (v: Record<string, "ver" | "editar">) => void;
+  /** Lo que el rol elegido ya da, por ruta. Vacío = el rol no da nada. */
+  delRol: Record<string, "ver" | "editar">;
 }) {
   return (
     <div className="us-modulos">
@@ -54,26 +58,46 @@ function Pantallas({ catalogo, valor, cambiar }: {
           <b style={{ borderColor: m.acento }}>{m.nombre}</b>
           {m.secciones.map((sec) => {
             const n = valor[sec.ruta];
+            const rol = delRol[sec.ruta];
+            /* LOS EXTRA SUMAN Y NUNCA RESTAN. Así que un extra por
+               debajo de lo que ya da el rol no hace absolutamente nada:
+               dar «ver» a quien el rol ya deja «editar» es un permiso
+               que se ve puesto y no cambia nada, y después alguien lo
+               lee como si sí. Esos se apagan.
+               Pero si YA está puesto, se puede tocar para quitarlo: un
+               botón apagado del que no se puede salir sería una trampa. */
+            const sobra = (x: "ver" | "editar") =>
+              rol === "editar" || (rol === "ver" && x === "ver");
             return (
-              <div key={sec.ruta} className="us-sec">
-                <span>{sec.nombre}</span>
+              <div key={sec.ruta} className={"us-sec" + (rol ? " ya" : "")}>
+                <span>
+                  {sec.nombre}
+                  {rol && <em className="us-yatiene">el rol ya da · {rol}</em>}
+                </span>
                 <div className="us-niveles">
-                  {(["ver", "editar"] as const).map((x) => (
-                    <button key={x} type="button"
-                            aria-pressed={n === x}
-                            className={n === x ? "on" : ""}
-                            onClick={() => {
-                              const c = { ...valor };
-                              /* Tocar el nivel que ya está puesto lo
-                                 QUITA: es la única forma de volver a
-                                 «ninguno» sin un tercer botón que diría
-                                 lo mismo que no tener ninguno puesto. */
-                              if (c[sec.ruta] === x) delete c[sec.ruta]; else c[sec.ruta] = x;
-                              cambiar(c);
-                            }}>
-                      {x === "ver" ? "Ver" : "Editar"}
-                    </button>
-                  ))}
+                  {(["ver", "editar"] as const).map((x) => {
+                    const apagado = sobra(x) && n !== x;
+                    return (
+                      <button key={x} type="button"
+                              aria-pressed={n === x}
+                              disabled={apagado}
+                              title={apagado
+                                ? `El rol ya le da «${rol}» en esta pantalla: darle «${x}» aparte no cambiaría nada.`
+                                : undefined}
+                              className={n === x ? "on" : ""}
+                              onClick={() => {
+                                const c = { ...valor };
+                                /* Tocar el nivel que ya está puesto lo
+                                   QUITA: es la única forma de volver a
+                                   «ninguno» sin un tercer botón que
+                                   diría lo mismo que no tener ninguno. */
+                                if (c[sec.ruta] === x) delete c[sec.ruta]; else c[sec.ruta] = x;
+                                cambiar(c);
+                              }}>
+                        {x === "ver" ? "Ver" : "Editar"}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -94,9 +118,11 @@ function proponer(nombre: string): string {
   return normalizarUsuario(partes[0][0] + partes[partes.length - 1]);
 }
 
-export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
+export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
   gente: Persona[];
   roles: Rol[];
+  /** Lo que ya da cada rol, para no dar suelto lo que ya venía puesto. */
+  delRol: PermisoRol[];
   catalogo: Modulo[];
   hayLlave: boolean;
   /** Quién está mirando: a uno mismo no se le genera clave desde aquí. */
@@ -296,6 +322,16 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
   }
 
   const puede = nombre.trim().length >= 3 && usuario.length >= 3 && !!rol && libre === true;
+  /* LO QUE DA CADA ROL, indexado una vez. La tabla llega plana —una
+     línea por rol y sección— y el selector la consulta por ruta en cada
+     casilla: buscarla con un filter() ahí adentro sería recorrer la
+     lista entera diecisiete veces por cada render. */
+  const porRol = useMemo(() => {
+    const m: Record<string, Record<string, "ver" | "editar">> = {};
+    for (const p of delRol) (m[p.rol] ??= {})[p.seccion] = p.nivel;
+    return m;
+  }, [delRol]);
+
   const nRol = (c: string) => roles.find((r) => r.clave === c)?.nombre ?? c;
   const nRuta = (ruta: string) => {
     for (const m of catalogo) {
@@ -417,10 +453,11 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
                 Una pantalla más, solo para esta persona <em>(opcional)</em>
               </p>
               <p className="us-dice">
-                Se suma a lo que ya le da su rol y nunca le quita nada. Es para la
-                excepción; si son varios, el sitio es el rol.
+                Se suma a lo que ya le da su rol y nunca le quita nada. Lo que el rol ya
+                da aparece marcado. Es para la excepción; si son varios, el sitio es el rol.
               </p>
-              <Pantallas catalogo={catalogo} valor={extra} cambiar={setExtra} />
+              <Pantallas catalogo={catalogo} valor={extra} cambiar={setExtra}
+                         delRol={porRol[rol] ?? {}} />
             </div>
 
             <div className="us-acciones">
@@ -558,10 +595,14 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
                           <em> — se suman a las de su rol y nunca le quitan ninguna</em>
                         </p>
                         <p className="us-dice">
-                          Toca el nivel otra vez para quitarlo. Si a varias personas les
-                          hace falta la misma pantalla, el sitio es el <b>rol</b>, no aquí.
+                          Lo que ya da su rol <b>{nRol(edRol)}</b> aparece marcado y no se
+                          puede volver a dar: un extra por debajo de lo que el rol ya da no
+                          cambia nada. Toca el nivel otra vez para quitarlo. Y si a varias
+                          personas les hace falta la misma pantalla, el sitio es el{" "}
+                          <b>rol</b>, no aquí.
                         </p>
-                        <Pantallas catalogo={catalogo} valor={edExtra} cambiar={setEdExtra} />
+                        <Pantallas catalogo={catalogo} valor={edExtra} cambiar={setEdExtra}
+                                   delRol={porRol[edRol] ?? {}} />
                       </td>
                     </tr>
                   </Fragment>

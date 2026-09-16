@@ -324,3 +324,30 @@
 @media (max-width: 1200px) {
   .us .us-chapa.cuenta em { display: none }
 }
+
+/* ============ LO QUE EL ROL YA DA, DENTRO DEL SELECTOR ============
+
+   POR QUÉ ESTÁ. El selector de pantallas extra se llenaba a ciegas:
+   nadie sabía si la pantalla que estaba a punto de dar ya venía con el
+   rol. Y como los extra SUMAN Y NUNCA RESTAN, dar «ver» a quien el rol
+   ya deja «editar» es un permiso que se ve puesto y no hace nada — pero
+   que después alguien lee como si hiciera algo.
+
+   Ahora cada sección dice qué le da su rol, y los niveles que no
+   cambiarían nada quedan apagados. Si uno YA estaba puesto sigue
+   tocándose, para poder quitarlo: un botón apagado del que no se puede
+   salir es una trampa.
+   ================================================================== */
+.us .us-sec.ya > span { color: var(--rl-gris) }
+.us .us-yatiene {
+  display: block; font-style: normal; font-size: 10.5px; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; margin-top: 2px;
+  color: var(--rl-acento);
+}
+.us .us-niveles button:disabled {
+  cursor: not-allowed; opacity: .42;
+  background: transparent; border-style: dashed;
+}
+.us .us-niveles button:disabled:hover {
+  border-color: var(--rl-linea); color: var(--rl-gris);
+}

@@ -43,12 +43,18 @@ export default async function UsuariosPage() {
 
   const supabase = await createClient();
   const user = await usuarioActual();
-  const [gente, roles] = await Promise.all([
+  const [gente, roles, permisosRol] = await Promise.all([
     supabase
       .from("perfiles")
       .select("id, usuario, nombre, rol, activo, clave_provisional, permisos_extra")
       .order("nombre", { nullsFirst: false }),
     supabase.from("roles").select("clave, nombre, manda").order("orden", { nullsFirst: false }),
+    /* LO QUE YA DA EL ROL. Sin esto, el editor de pantallas extra se
+       llena a ciegas: nadie sabe si la pantalla que está a punto de dar
+       ya venía con el rol, y termina habiendo permisos sueltos que no
+       hacen nada —pero que después alguien lee como si hicieran algo—.
+       Es la misma tabla que lee /admin/roles; aquí solo se mira. */
+    supabase.from("rol_permisos").select("rol, seccion, nivel"),
   ]);
 
   /* Si falta 03-usuarios.sql, las dos columnas nuevas no vienen. La
@@ -92,6 +98,7 @@ export default async function UsuariosPage() {
         <Usuarios
           gente={(gente.data ?? []) as never[]}
           roles={(roles.data ?? []) as never[]}
+          delRol={(permisosRol.data ?? []) as never[]}
           catalogo={catalogo}
           hayLlave={hayLlaveDeServicio()}
           yo={user?.id ?? ""}
