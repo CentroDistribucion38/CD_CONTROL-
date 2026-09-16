@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { TipoViaje } from "@/modulos/traspasos/datos";
 import { TURNOS } from "@/modulos/traspasos/formato";
@@ -35,35 +36,83 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
   const pathname = usePathname();
   const params = useSearchParams();
 
-  function poner(clave: string, valor: string) {
+  const [cargando, empezar] = useTransition();
+
+  /* ==================================================================
+     POR QUÉ ESTO NO NAVEGA EN CADA TOQUE
+
+     Cambiar un filtro vuelve a dibujar la pantalla EN EL SERVIDOR: se
+     piden los viajes otra vez y se manda el HTML nuevo. Con un botón
+     por cada turno y cada tipo, prender «A» y «C» eran DOS viajes
+     completos al servidor —y el primero se tiraba a la basura apenas
+     se tocaba el segundo—. Escoger tres tipos, tres. Por eso se sentía
+     trabado: no era la conexión, era que se estaba pidiendo el trabajo
+     una vez por clic.
+
+     DOS COSAS, Y HACEN FALTA LAS DOS:
+
+     1. EL BOTÓN SE PRENDE DE UNA, sin esperar al servidor. Lo que se
+        acaba de tocar se guarda aquí y la pantalla lo pinta ya. Sin
+        esto, entre el clic y la respuesta no pasaba nada visible y el
+        remedio de todo el mundo es volver a hacer clic — pedir el
+        mismo trabajo dos veces.
+
+     2. LA CONSULTA ESPERA A QUE TERMINES DE ESCOGER. Cada toque
+        reinicia un reloj de 400 ms; solo cuando pasan sin que toques
+        nada más, se manda UNA consulta con todo lo escogido. Prender
+        A, B y C seguidos es un viaje al servidor, no tres.
+
+     400 ms no es un número al azar: por debajo de 250 el reloj se
+     dispara entre dos clics seguidos y vuelve a ser una consulta por
+     botón; por encima de 600 se siente que la pantalla se quedó
+     pensando después del último toque.
+
+     LO QUE ESTÁ PUESTO SIGUE VIVIENDO EN LA DIRECCIÓN. Esto es una
+     copia de paso, no un estado paralelo: en cuanto la dirección
+     cambia —por esta consulta o por el botón de atrás del navegador—
+     la copia se tira y manda la dirección otra vez. Si se quedara,
+     el botón de atrás cambiaría la URL y los filtros seguirían
+     pintando lo anterior.
+     ================================================================== */
+  const ESPERA = 400;
+  const [local, setLocal] = useState<Record<string, string>>({});
+  const pendiente = useRef<Record<string, string>>({});
+  const reloj = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* La dirección cambió: lo que se estaba escogiendo ya llegó (o alguien
+     le dio atrás). Se suelta la copia y vuelve a mandar la URL. */
+  const urlActual = params.toString();
+  useEffect(() => {
+    pendiente.current = {};
+    setLocal({});
+  }, [urlActual]);
+
+  /* Y si el componente se va mientras el reloj corre, no queda un
+     temporizador apuntando a una pantalla que ya no existe. */
+  useEffect(() => () => { if (reloj.current) clearTimeout(reloj.current) }, []);
+
+  const valorDe = (clave: string) => local[clave] ?? params.get(clave) ?? "";
+
+  function mandar(vals: Record<string, string>) {
     const p = new URLSearchParams(params.toString());
-    if (valor) p.set(clave, valor); else p.delete(clave);
-    router.push(`${pathname}?${p.toString()}`);
+    for (const [k, v] of Object.entries(vals)) {
+      if (v) p.set(k, v); else p.delete(k);
+    }
+    const q = p.toString();
+    empezar(() => router.push(q ? `${pathname}?${q}` : pathname));
   }
 
-  /* ------------------------------------------------------------------
-     FILTROS DE VARIOS A LA VEZ
+  /* Se pinta ya y se manda después. */
+  function poner(clave: string, valor: string) {
+    const nuevo = { ...pendiente.current, [clave]: valor };
+    pendiente.current = nuevo;
+    setLocal(nuevo);
+    if (reloj.current) clearTimeout(reloj.current);
+    reloj.current = setTimeout(() => mandar(nuevo), ESPERA);
+  }
 
-     UN <select> NO SIRVE PARA ESTO, y no es cuestión de gusto: un
-     desplegable normal escoge UNA cosa. Para ver el turno A y el C
-     juntos —dejando fuera el B— no hay forma de decírselo. El
-     <select multiple> sí existe, pero se usa con ctrl+clic, en el
-     celular no se puede y nadie sabe que hay que hacerlo.
-
-     BOTONES QUE SE PRENDEN Y SE APAGAN. Se ve de un vistazo qué está
-     puesto —sin abrir nada—, se toca con el dedo, y prender dos es
-     tocar dos. El precio es que ocupan más sitio que un desplegable
-     cerrado; para tres turnos y nueve tipos, cabe.
-
-     NINGUNO PRENDIDO SIGNIFICA TODOS, que es como funciona cualquier
-     filtro: no filtrar es ver todo. Obligar a prender los tres para ver
-     los tres sería pedir trabajo para no pedir nada.
-
-     EN LA DIRECCIÓN VAN SEPARADOS POR COMA —?turno=A,C— así que un
-     enlace con dos turnos se puede mandar por chat igual que antes, y
-     los enlaces viejos de un solo turno siguen abriendo lo mismo. */
   const lista = (clave: string) =>
-    (params.get(clave) ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+    valorDe(clave).split(",").map((x) => x.trim()).filter(Boolean);
 
   function alternar(clave: string, valor: string) {
     const puestos = lista(clave);
@@ -73,7 +122,7 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
     poner(clave, nuevos.join(","));
   }
 
-  const hay = params.get("dias") || params.get("turno") || params.get("tipo") || params.get("d");
+  const hay = valorDe("dias") || valorDe("turno") || valorDe("tipo") || params.get("d");
 
   /* MAÑANA ES UN PERÍODO, no un caso aparte.
      El plan se arma para mañana y hasta ahora no había dónde mirarlo:
@@ -94,14 +143,18 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
      hoy. Si fueran dos, se podría pedir "últimos 30 días terminando
      mañana", que no quiere decir nada. */
   function periodo(v: string) {
-    const p = new URLSearchParams(params.toString());
-    if (v === "m") { p.set("d", mañana); p.delete("dias") }
-    else {
-      p.delete("d");
-      if (v === "0") p.delete("dias"); else p.set("dias", v);
-    }
-    const q = p.toString();
-    router.push(q ? `${pathname}?${q}` : pathname);
+    /* Va por ponerYa y no por poner: un desplegable se escoge una sola
+       vez, no se encadena con otro, así que esperar 400 ms sería
+       retraso puro sin nada que agrupar. */
+    if (v === "m") ponerYa2({ d: mañana, dias: "" });
+    else ponerYa2({ d: "", dias: v === "0" ? "" : v });
+  }
+
+  /* Dos claves de un golpe: el período toca `d` y `dias` a la vez, y
+     mandarlas por separado dispararía dos consultas. */
+  function ponerYa2(vals: Record<string, string>) {
+    if (reloj.current) clearTimeout(reloj.current);
+    mandar({ ...pendiente.current, ...vals });
   }
 
   return (
@@ -120,7 +173,7 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
       )}
 
       {!soloBotones && (
-      <section className="filtros">
+      <section className={"filtros" + (cargando ? " cargando" : "")}>
         <div className="arriba">
           <label className="sel">
             <span>Período</span>
@@ -145,7 +198,12 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
                  puestos={lista("tipo")} alternar={alternar} poner={poner} />
 
           {hay && (
-            <button type="button" className="limpiar" onClick={() => router.push(pathname)}>
+            <button type="button" className="limpiar" onClick={() => {
+              if (reloj.current) clearTimeout(reloj.current);
+              pendiente.current = {};
+              setLocal({ dias: "", turno: "", tipo: "" });
+              empezar(() => router.push(pathname));
+            }}>
               Restablecer
             </button>
           )}

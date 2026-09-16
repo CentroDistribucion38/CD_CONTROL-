@@ -1,60 +1,59 @@
-Traspasos · Control: escoger varios turnos y varios tipos a la vez
+Traspasos · Control: que escoger filtros no espere al servidor en cada toque
 
-UN <select> NO SIRVE PARA ESTO, y no es cuestión de gusto: un
-desplegable escoge UNA cosa. Para ver el turno A y el C juntos —dejando
-fuera el B— no había forma de decírselo. El <select multiple> sí
-existe, pero se usa con ctrl+clic, en el celular no se puede y nadie
-sabe que hay que hacerlo.
+EL SÍNTOMA: «selecciono y está lento». Y no era la conexión ni la base.
 
-BOTONES QUE SE PRENDEN Y SE APAGAN. Se ve de un vistazo qué está puesto
-—sin abrir nada—, se toca con el dedo, y prender dos es tocar dos. El
-precio es que ocupan más sitio que un desplegable cerrado; para tres
-turnos y nueve tipos, cabe. El día que sean treinta tipos habrá que
-volver a pensarlo.
+QUÉ ESTABA PASANDO. Cada botón de filtro navegaba de una, y cada
+navegación vuelve a dibujar la pantalla EN EL SERVIDOR: se piden los
+viajes otra vez y se manda el HTML nuevo. Con botones sueltos —que es
+justo lo que se acaba de añadir para poder escoger varios— prender «A»
+y «C» eran DOS viajes completos, y el primero se tiraba a la basura
+apenas se tocaba el segundo. Escoger tres tipos, tres viajes. La barra
+vieja de desplegables no tenía este problema porque solo se podía
+escoger una cosa: la mejora de poder escoger varios trajo el costo
+pegado, y no se vio hasta usarla.
 
-NINGUNO PRENDIDO SIGNIFICA TODOS, que es como funciona cualquier
-filtro: no filtrar es ver todo. Obligar a prender los tres para ver los
-tres sería pedir trabajo para no pedir nada. Y «Todos» es un botón más
-y no una X escondida: quitar tres filtros de a uno son tres toques y
-hay que acordarse de cuáles estaban; «Todos» es uno y siempre está en
-el mismo sitio.
+DOS CAMBIOS, Y HACEN FALTA LOS DOS:
 
-AL LADO DEL RÓTULO VA CUÁNTOS HAY PUESTOS. Con nueve tipos y tres
-escogidos, contar los botones prendidos es trabajo que puede hacer la
-pantalla.
+1. EL BOTÓN SE PRENDE DE UNA, sin esperar al servidor. Lo que se acaba
+   de tocar se guarda en la pantalla y se pinta ya. Sin esto, entre el
+   clic y la respuesta no pasaba nada visible, y el remedio de todo el
+   mundo es volver a hacer clic — pedir el mismo trabajo dos veces.
 
-EN LA DIRECCIÓN VAN SEPARADOS POR COMA —?turno=A,C— así que un enlace
-con dos turnos se manda por WhatsApp igual que antes, el botón de atrás
-sigue deshaciendo el filtro, y LOS ENLACES VIEJOS de un solo turno
-siguen abriendo lo mismo: «A» partido por comas es ["A"].
+2. LA CONSULTA ESPERA A QUE TERMINES DE ESCOGER. Cada toque reinicia un
+   reloj de 400 ms; solo cuando pasan sin tocar nada más se manda UNA
+   consulta con todo lo escogido. Prender A, B y C seguidos es un viaje
+   al servidor, no tres.
 
-MEDIDO, y el arnés se dejó engañar dos veces antes de servir:
+   400 ms se escogió por los dos lados: por debajo de 250 el reloj se
+   dispara entre dos clics seguidos y vuelve a ser una consulta por
+   botón; por encima de 600 se siente que la pantalla se quedó pensando
+   después del último toque.
 
- · .arnes/tp-filtros.mjs — 9 casos de lógica (nada escogido, uno, dos
-   sueltos sin el del medio, apagar el último, prender dos veces el
-   mismo, enlaces viejos, espacios y comas sueltas, y que el orden en
-   que se prenden no cambie el resultado) y 28 combinaciones de pantalla
-   (4 anchos × 7 temas): que ningún botón se salga de la tarjeta, que el
-   texto quepa dentro del botón, que ninguno baje de 34 px de alto
-   —en bodega se toca con guantes— y el contraste del prendido.
+EL PERÍODO NO ESPERA. Es un desplegable: se escoge una vez y no se
+encadena con otro, así que retrasarlo 400 ms sería retraso puro sin
+nada que agrupar. Va derecho, y de paso manda `d` y `dias` en la misma
+consulta —el período toca las dos— en vez de disparar dos.
 
- · Primer engaño: el arnés cargaba solo traspasos.css y no globals.css,
-   donde viven los tokens del tema. Sin ellos `var(--tp-ojo)` no
-   resolvía, fondo y letra salían iguales y reportó contraste 1.00 en
-   los siete temas sobre un botón que en la app se ve bien.
+NADA SE APAGA MIENTRAS CARGA. Bloquear los botones impediría seguir
+escogiendo, que es exactamente lo que hay que poder hacer, y rompería
+el agrupado que hace esto rápido. Lo que hay es una rayita que corre
+bajo la tarjeta: va ABAJO y no encima de los botones, porque lo que se
+está mirando es el botón que se acaba de prender.
 
- · Segundo, y este tapaba un error de verdad: el prendido se escribió
-   `var(--tp-grupo)` y ese token NO EXISTE —en Traspasos se llama
-   --c-grupo—. CSS descarta en silencio una declaración con un var()
-   inválido: el fondo quedó en rgba(0,0,0,0) y la letra blanca sobre
-   papel blanco. El arnés leyó los ceros como negro puro, calculó 21.00
-   de contraste y lo aprobó. Ahora un fondo transparente se REPORTA en
-   vez de medirse; probado al revés, con el token malo lo caza en las 28
-   combinaciones.
+LA COPIA LOCAL ES DE PASO, no un estado paralelo. En cuanto la
+dirección cambia —por esta consulta o por el botón de atrás del
+navegador— se tira y manda la URL otra vez. Si se quedara, darle atrás
+cambiaría la dirección y los filtros seguirían pintando lo anterior. Y
+el reloj se cancela al desmontar, para no dejar un temporizador
+apuntando a una pantalla que ya no existe.
 
- · Y el color del prendido no es el acento: ámbar con letra blanca a
-   12,5 px da 3.38, por debajo de 4.5. Va en --c-grupo, el azul casi
-   negro que ya usan la cabecera y el botón HOY.
+MEDIDO en .arnes/tp-filtros.mjs, además de lo que ya comprobaba:
+ · tres toques seguidos → UNA consulta, y esa consulta lleva todo lo
+   escogido ({"turno":"A,C","tipo":"pet"}), no solo lo último.
+ · dos toques separados por más de la espera → DOS consultas. El
+   agrupado junta lo seguido; no se queda esperando para siempre.
+ · con relojes de verdad y no simulados: un temporizador inventado
+   probaría la simulación, no el código.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -1629,3 +1629,29 @@
 @media (max-width: 620px) {
   .tp .grupo-b button { min-height: 36px; padding: 0 10px; font-size: 12px }
 }
+
+/* ---------- Mientras se aplica un filtro ----------
+
+   LA RAYITA VA ABAJO DE LA TARJETA, no encima de los botones: lo que se
+   está mirando es el botón que se acaba de prender, y un giradorcito en
+   el medio taparía justo eso.
+
+   NADA SE APAGA NI SE PONE EL CURSOR DE ESPERA. Bloquear los botones
+   mientras carga impediría seguir escogiendo —prender A y C seguidos es
+   exactamente lo que hay que poder hacer— y de paso rompería el
+   agrupado, que es lo que hace esto rápido. */
+.tp .filtros { position: relative }
+.tp .filtros.cargando::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  border-radius: 0 0 3px 3px;
+  background-image: linear-gradient(90deg, transparent, var(--c-grupo), transparent);
+  background-size: 40% 100%; background-repeat: no-repeat;
+  animation: tp-corre 1s linear infinite;
+}
+@keyframes tp-corre {
+  from { background-position: -40% 0 }
+  to   { background-position: 140% 0 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp .filtros.cargando::after { animation: none; background-position: 50% 0 }
+}

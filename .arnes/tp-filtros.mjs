@@ -81,6 +81,63 @@ for (const [nombre, f] of casos) if (!f()) fallas.push(`lógica: ${nombre}`);
 console.log(`Lógica: ${casos.length - fallas.length} de ${casos.length}`);
 
 /* ---------------------------------------------------------------------
+   1b. EL AGRUPADO: tres toques, UNA consulta
+
+   Es la razón de que la barra dejara de sentirse trabada, así que es
+   lo que hay que comprobar. Se copia el mecanismo de la pantalla —un
+   reloj que se reinicia con cada toque y solo dispara cuando pasan
+   400 ms sin tocar nada— y se cuenta CUÁNTAS VECES se iría al servidor.
+
+   Con reloj de verdad, no con uno inventado: un temporizador simulado
+   probaría la simulación, no el código.
+   --------------------------------------------------------------------- */
+const ESPERA = 400;
+function barraFalsa() {
+  let pend = {}, reloj = null, viajes = 0, ultimo = null;
+  const mandar = (v) => { viajes++; ultimo = { ...v } };
+  return {
+    poner(clave, valor) {
+      pend = { ...pend, [clave]: valor };
+      if (reloj) clearTimeout(reloj);
+      const copia = pend;
+      reloj = setTimeout(() => mandar(copia), ESPERA);
+    },
+    alternar(clave, valor) {
+      const p = lista(pend[clave] ?? "");
+      this.poner(clave, (p.includes(valor) ? p.filter((x) => x !== valor) : [...p, valor]).join(","));
+    },
+    cuenta: () => viajes,
+    ultimo: () => ultimo,
+  };
+}
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+{
+  const b = barraFalsa();
+  b.alternar("turno", "A");
+  b.alternar("turno", "C");
+  b.alternar("tipo", "pet");
+  await dormir(ESPERA + 150);
+  if (b.cuenta() !== 1)
+    fallas.push(`agrupado: tres toques seguidos dispararon ${b.cuenta()} consultas, debía ser 1`);
+  const u = b.ultimo() ?? {};
+  if (u.turno !== "A,C" || u.tipo !== "pet")
+    fallas.push(`agrupado: la consulta no llevó todo lo escogido (${JSON.stringify(u)})`);
+  console.log(`Agrupado: 3 toques → ${b.cuenta()} consulta con ${JSON.stringify(u)}`);
+}
+{
+  /* Y si de verdad se espera entre toque y toque, sí son dos: el
+     agrupado junta lo seguido, no se queda esperando para siempre. */
+  const b = barraFalsa();
+  b.alternar("turno", "A");
+  await dormir(ESPERA + 150);
+  b.alternar("turno", "C");
+  await dormir(ESPERA + 150);
+  if (b.cuenta() !== 2)
+    fallas.push(`agrupado: dos toques separados dieron ${b.cuenta()} consultas, debían ser 2`);
+}
+
+/* ---------------------------------------------------------------------
    2. QUE QUEPAN
    --------------------------------------------------------------------- */
 const grupo = (rotulo, opciones, puestos) => `
