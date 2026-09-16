@@ -157,6 +157,11 @@ export type FilaEnvase = { envase: string; envase_nombre: string;
                            und: number; kg: number };
 export type FilaProd   = { fecha: string; linea: number; producidas: number; hl: number | null };
 export type SinFirma   = { fecha: string; linea: number; turno: number; und: number; kg: number };
+/** El resumen de lo que espera firma. Separa lo que se registró EN LA
+ *  APP —que sí se puede cerrar hoy— del histórico que entró por SQL y
+ *  que nadie va a firmar nunca. */
+export type ResumenFirma = { turnos: number; unidades: number; kg: number;
+                             turnos_app: number; unidades_app: number };
 
 export async function tablero(desde: string, hasta: string, linea?: number) {
   const supabase = await createClient();
@@ -175,17 +180,23 @@ export async function tablero(desde: string, hasta: string, linea?: number) {
      —la serie del día, la producción, lo sin firmar— sí necesita el
      grano diario, porque se dibuja día por día. */
   const args = { p_desde: desde, p_hasta: hasta, p_linea: linea ?? null };
-  const [d, m, e, p, sf] = await Promise.all([
+  const [d, m, e, p, sf, su] = await Promise.all([
     rango(supabase.from("v_rotlinea_dia").select("*")),
     supabase.rpc("rotlinea_tablero_maquina", args),
     supabase.rpc("rotlinea_tablero_envase", args),
     rango(supabase.from("v_rotlinea_prod_dia").select("*")),
-    rango(supabase.from("v_rotlinea_sin_firma").select("*")),
+    /* SIN FIRMA, TAMBIÉN POR FUNCIÓN. Al grano de turno son 1.790 filas
+       en 2026 y PostgREST corta en 1.000 sin avisar: la tarjeta decía
+       exactamente «1000», que es el número más sospechoso que puede dar
+       un conteo. Ahora vienen el resumen (una fila) y los seis últimos. */
+    supabase.rpc("rotlinea_sin_firma_resumen", args),
+    supabase.rpc("rotlinea_sin_firma_ultimos", { ...args, p_cuantos: 6 }),
   ]);
 
   if (d.error) {
     return { falta: sinTablas(d.error.message), dias: [] as FilaDia[], maquinas: [] as FilaMaq[],
-             envases: [] as FilaEnvase[], produccion: [] as FilaProd[], sinFirma: [] as SinFirma[] };
+             envases: [] as FilaEnvase[], produccion: [] as FilaProd[],
+             sinFirma: [] as SinFirma[], resumenFirma: null as ResumenFirma | null };
   }
   return {
     falta: false,
@@ -193,9 +204,11 @@ export async function tablero(desde: string, hasta: string, linea?: number) {
     maquinas: (m.error ? [] : (m.data ?? [])) as FilaMaq[],
     envases: (e.error ? [] : (e.data ?? [])) as FilaEnvase[],
     produccion: (p.error ? [] : (p.data ?? [])) as FilaProd[],
-    /* Si la vista de firmas todavía no existe, el tablero sale igual y
-       la tarjeta de firmas dice cero: media pantalla es mejor que una
-       pantalla en blanco. */
-    sinFirma: (sf.error ? [] : (sf.data ?? [])) as SinFirma[],
+    /* Si las funciones de firmas todavía no existen —falta correr su
+       migración— el tablero sale igual y la tarjeta dice cero: media
+       pantalla es mejor que una pantalla en blanco. */
+    sinFirma: (su.error ? [] : (su.data ?? [])) as SinFirma[],
+    resumenFirma: (sf.error ? null
+                   : ((Array.isArray(sf.data) ? sf.data[0] : sf.data) ?? null)) as ResumenFirma | null,
   };
 }

@@ -680,3 +680,87 @@
 
 .rl-volver { margin: 4px 0 0; font-size: 13px }
 .rl-volver a { color: var(--rl-ojo); font-weight: 600 }
+
+/* ====================== El pareto por máquina ======================
+
+   SE DESLIZA EN VEZ DE ENCOGERSE. Un pareto de trece barras con los
+   nombres girados necesita ancho: metido a la fuerza en 390 px, las
+   barras quedan de dos píxeles y los nombres ilegibles, o sea que no
+   queda nada. Con `overflow-x: auto` y un ancho mínimo, en el celular
+   se arrastra de lado y se lee igual de bien que en el computador. Es
+   la única gráfica del tablero que hace esto, y lo hace porque es la
+   única con un eje de nombres.
+   ================================================================== */
+.rl-pareto { overflow-x: auto; padding-bottom: 4px }
+.rl-pareto svg { display: block; width: 100%; min-width: 660px; height: auto }
+
+.rl-p-barra { fill: var(--rl-dato) }
+/* LA COLA, más clara. Es la mitad del mensaje del pareto: las oscuras
+   son las que hacen el 80 %, y contarlas responde «cuántas máquinas
+   importan» sin leer un número. No se baja con opacity —que aclararía
+   también lo que haya detrás— sino mezclando con el papel. */
+.rl-p-barra.cola { fill: color-mix(in srgb, var(--rl-dato) 32%, var(--rl-papel)) }
+
+.rl-p-umbral {
+  stroke: var(--rl-gris); stroke-width: 1.5; stroke-dasharray: 5 4;
+}
+.rl-p-umbral-txt {
+  fill: var(--rl-gris); font: 700 11px var(--rl-texto); letter-spacing: .06em;
+}
+
+/* La curva va en TINTA: mide porcentaje, no unidades. Del color del
+   dato diría que es más de lo mismo. */
+.rl-p-forro { fill: none; stroke: var(--rl-papel); stroke-width: 5.5;
+              stroke-linejoin: round; stroke-linecap: round }
+.rl-p-curva { fill: none; stroke: var(--rl-tinta); stroke-width: 2.2;
+              stroke-linejoin: round; stroke-linecap: round }
+/* Los puntos llevan el mismo forro, por el mismo motivo: los de las
+   primeras máquinas caen justo sobre las barras más altas. */
+.rl-p-punto { fill: var(--rl-tinta); stroke: var(--rl-papel); stroke-width: 1.8 }
+.rl-p-acum  { fill: var(--rl-tinta); font: 700 12px var(--rl-titulo) }
+
+.rl-p-rotulo {
+  fill: var(--rl-tinta); font: 600 11px var(--rl-texto);
+  text-anchor: end; dominant-baseline: middle;
+}
+
+/* ====================== La lectura ====================== */
+.rl-lectura {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  border-radius: 3px; padding: 20px 22px; margin-top: 14px;
+  /* El rielito del acento a la izquierda: dice «esto no es otra
+     gráfica, esto es alguien hablándote». */
+  box-shadow: inset 3px 0 0 var(--rl-dato);
+}
+.rl-l-cab h2 { margin: 0; font: 700 16px var(--rl-titulo); color: var(--rl-tinta) }
+.rl-l-cab p  { margin: 3px 0 0; font-size: 12.5px; color: var(--rl-gris) }
+
+.rl-l-lista { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 11px }
+.rl-l-lista li {
+  font-size: 14px; line-height: 1.55; color: var(--rl-tinta);
+  padding-left: 16px; position: relative;
+}
+.rl-l-lista li::before {
+  content: ""; position: absolute; left: 0; top: .62em;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--rl-dato);
+}
+.rl-l-lista b { font-weight: 700 }
+
+.rl-l-hacer {
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rl-linea);
+}
+.rl-l-hacer h3 {
+  margin: 0 0 9px; font: 700 9.5px var(--rl-texto);
+  letter-spacing: .13em; text-transform: uppercase; color: var(--rl-gris);
+}
+.rl-l-hacer ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px }
+.rl-l-hacer li { font-size: 13.5px; line-height: 1.5; color: var(--rl-tinta) }
+
+.rl-l-nota {
+  margin: 14px 0 0; font-size: 11.5px; color: var(--rl-gris);
+}
+
+@media (max-width: 620px) {
+  .rl-lectura { padding: 16px }
+  .rl-l-lista li { font-size: 13.5px }
+}

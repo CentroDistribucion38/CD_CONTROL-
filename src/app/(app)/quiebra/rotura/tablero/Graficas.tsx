@@ -163,3 +163,132 @@ export function Serie({ puntos, unidad = "und" }: {
     </div>
   );
 }
+
+/* ---------------------------------------------------------------------
+   EL PARETO DE VERDAD
+
+   Las barras ya estaban —ordenadas de mayor a menor, que es media
+   receta—. Lo que faltaba es lo que convierte un ranking en un pareto:
+   LA LÍNEA ACUMULADA. Sin ella se ve cuál máquina rompe más; con ella
+   se ve CUÁNTAS HACEN FALTA para cubrir la mayoría, que es la pregunta
+   con la que se decide dónde meter una hora de mantenimiento.
+
+   VERTICAL, y no horizontal como las otras barras de este tablero. Un
+   pareto se lee siguiendo la curva que sube de izquierda a derecha;
+   girado, esa curva baja y deja de significar lo que significa. El
+   precio es que los nombres van rotados abajo, y por eso el cuadro
+   entra en un contenedor que se desliza en el celular en vez de
+   encogerse hasta ser ilegible.
+
+   LA RAYA DEL 80 % NO ES DECORACIÓN: es el umbral del que habla la
+   regla. Y las barras cambian de tono justo donde la curva la cruza,
+   así que «cuántas máquinas hacen el 80 %» se responde contando las
+   barras oscuras, sin leer un solo número.
+
+   LA CURVA VA EN TINTA, no en el color del dato. Mide otra cosa
+   —porcentaje, no unidades— y pintarla del mismo color diría que es
+   más de lo mismo. En tinta se lee como lo que es: una anotación
+   encima de las barras.
+   --------------------------------------------------------------------- */
+export function Pareto({ datos, total, unidad = "und" }: {
+  datos: Barra[]; total: number; unidad?: string;
+}) {
+  const vivos = datos.filter((d) => d.valor > 0);
+  if (vivos.length < 2 || total <= 0) {
+    return <p className="rl-sin-datos">Hacen falta al menos dos máquinas con dato.</p>;
+  }
+
+  const W = 1000, ALTO = 300;
+  /* EL PIE SE CALCULA DEL NOMBRE MÁS LARGO, no se escribe a mano. Con
+     130 fijos —que era lo que había— «SALIDA DE LAVADORA» salía como
+     «LIDA DE LAVADORA» y «DESEMPACADORA - LAVADORA» como «ADORA -
+     LAVADORA»: el SVG recorta lo que se sale del viewBox y no avisa.
+     Y no se arregla poniendo 200 fijos: el día que entre una máquina
+     con un nombre más largo vuelve a pasar, en silencio.
+
+     7.6 por carácter salió de MEDIRLO, no de estimarlo: con 6.6 el
+     arnés reportó que «PASTEURIZADORA - ETIQUETADORA» —29 caracteres—
+     se salía 19 unidades, y de ahí sale el número. El tope de 300 es
+     para que un nombre absurdo se corte él en vez de comerse la
+     gráfica entera. */
+  const masLargo = Math.max(...datos.map((d) => d.rotulo.length));
+  const PIE = Math.min(Math.max(90, Math.round(masLargo * 7.6) + 20), 300);
+  const H = ALTO + PIE;
+  const IZQ = 4, DER = 4;
+  const ancho = (W - IZQ - DER) / vivos.length;
+  const barra = Math.min(ancho * 0.62, 58);
+  const tope = vivos[0].valor;
+
+  /* El acumulado, y en qué barra cruza el 80 %. */
+  let suma = 0;
+  const pasos = vivos.map((d) => {
+    suma += d.valor;
+    return { ...d, acum: (suma * 100) / total, pct: (d.valor * 100) / total };
+  });
+  const cruce = pasos.findIndex((p) => p.acum >= 80);
+  const cuantasOchenta = cruce === -1 ? vivos.length : cruce + 1;
+
+  const x = (i: number) => IZQ + i * ancho + ancho / 2;
+  const yBarra = (v: number) => ALTO - (v / tope) * (ALTO - 18);
+  const yPct = (p: number) => ALTO - (p / 100) * (ALTO - 18);
+
+  const curva = pasos.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yPct(p.acum).toFixed(1)}`).join("");
+
+  return (
+    <div className="rl-pareto">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img"
+           aria-label={`Pareto de rotura por máquina. ${cuantasOchenta} de ${vivos.length} máquinas suman el 80 % del total.`}>
+        {/* La rejilla del eje de porcentaje, recesiva. */}
+        {[25, 50, 75, 100].map((p) => (
+          <line key={p} x1={IZQ} x2={W - DER} y1={yPct(p)} y2={yPct(p)} className="rl-g-rejilla" />
+        ))}
+
+        {pasos.map((p, i) => (
+          <g key={p.clave}>
+            <rect x={x(i) - barra / 2} y={yBarra(p.valor)}
+                  width={barra} height={ALTO - yBarra(p.valor)}
+                  className={"rl-p-barra" + (i < cuantasOchenta ? "" : " cola")}>
+              <title>{`${p.rotulo}: ${p.valor.toLocaleString("es-CO")} ${unidad} · ${p.pct.toFixed(1)} % · acumulado ${p.acum.toFixed(1)} %`}</title>
+            </rect>
+            {/* El nombre, rotado. Es el precio de que el pareto sea
+                vertical, y se paga: un nombre girado se lee, uno
+                cortado en «PASTEURIZAD…» no. */}
+            <text x={x(i)} y={ALTO + 8} className="rl-p-rotulo"
+                  transform={`rotate(-90 ${x(i)} ${ALTO + 8})`}>{p.rotulo}</text>
+          </g>
+        ))}
+
+        {/* El umbral del 80 %, con su número pegado. */}
+        <line x1={IZQ} x2={W - DER} y1={yPct(80)} y2={yPct(80)} className="rl-p-umbral" />
+        <text x={W - DER - 2} y={yPct(80) - 6} className="rl-p-umbral-txt" textAnchor="end">80 %</text>
+
+        {/* LA CURVA VA DOS VECES, y no es un descuido. Encima va la
+            tinta; debajo, la misma línea más gruesa del color del papel.
+            Sin ese forro, la curva cruza por encima de las barras —que
+            son oscuras— y en el tema oficial la tinta azul sobre el rojo
+            oscuro daba 1.77 de contraste: la línea desaparecía justo en
+            las barras altas, que son las que importan. Con forro, la
+            curva se lee sobre cualquier cosa que le pongan debajo, y no
+            hay que escoger un color que funcione contra trece fondos. */}
+        <path d={curva} className="rl-p-forro" />
+        <path d={curva} className="rl-p-curva" />
+        {pasos.map((p, i) => (
+          <circle key={p.clave} cx={x(i)} cy={yPct(p.acum)} r={4} className="rl-p-punto">
+            <title>{`Hasta ${p.rotulo}: ${p.acum.toFixed(1)} % del total`}</title>
+          </circle>
+        ))}
+        {/* Solo tres números en la curva: el primero, el del cruce y el
+            último. Uno por punto sería trece cifras encima de trece
+            barras, y entonces no se lee ninguna. */}
+        {[0, cuantasOchenta - 1, pasos.length - 1]
+          .filter((i, k, a) => i >= 0 && a.indexOf(i) === k)
+          .map((i) => (
+            <text key={i} x={x(i)} y={yPct(pasos[i].acum) - 10}
+                  className="rl-p-acum" textAnchor="middle">
+              {pasos[i].acum.toFixed(0)} %
+            </text>
+          ))}
+      </svg>
+    </div>
+  );
+}

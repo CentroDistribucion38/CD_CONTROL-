@@ -1,68 +1,93 @@
-Tablero de rotura: quitar 2025 y que cambiar de período sea rápido
+Tablero de rotura: pareto de verdad, una lectura en palabras, y dos números que mentían
 
-QUITAR «TODO 2025». No hay 2025 cargado: el histórico que entró son los
-24.245 registros de 2026. Un botón que siempre devuelve una pantalla
-vacía no es un atajo, es una trampa — quien lo toca no aprende que no
-hay datos, aprende que el tablero está roto.
+EMPIEZO POR LO GRAVE, que no era lo que se pidió: el tablero estaba
+mostrando cifras falsas y no se quejaba.
 
-LA LENTITUD, MEDIDA ANTES DE TOCAR NADA. Con «Lo que va de 2026», cada
-clic se traía 12.171 filas:
+La tarjeta decía «1000 turnos sin firmar». No 998, no 1013: mil
+clavado. Un número así no sale de contar, sale de un tope — y era un
+tope. PostgREST, la capa por la que Supabase sirve las tablas, devuelve
+como mucho 1.000 filas si nadie le dice otra cosa. v_rotlinea_sin_firma
+tiene 1.790 filas en 2026: llegaban mil y el resto no existía para la
+pantalla.
 
-    v_rotlinea_dia         806
-    v_rotlinea_maquina  10.477   ← aquí estaba todo
-    v_rotlinea_envase      888
+La misma trampa se estaba comiendo el pareto por máquina. Pedía 10.477
+filas —el desglose al grano diario— y recibía 1.000. Por eso se veían
+DOS máquinas de trece y el acumulado del detalle cerraba en 11,7 % en
+vez de 100 %. Con los datos completos son 13 máquinas y 1.889.816
+unidades.
 
-Diez mil de esas doce mil eran el desglose por máquina al grano DIARIO,
-para dibujar quince barras. La base agrupaba los 24.245 registros en
-10.477 filas, las mandaba enteras a Vercel, y Vercel las volvía a
-agrupar en quince. El trabajo se hacía dos veces y el viaje era el de
-diez mil filas.
+Lo peor de este error es que no se queja. No hay excepción ni fila
+roja: la consulta funciona, devuelve datos, y los datos son un pedazo.
+Una pantalla que se cae se arregla el mismo día; una que contesta de
+menos se cree durante meses. La regla que queda escrita, y vale para
+todo el proyecto: lo que se va a sumar se suma en la base.
 
-No fue un descuido que estuvieran al grano diario: una vista no puede
-venir sumada por un rango que todavía no se ha escogido. Lo que hacía
-falta era pasarle el rango A LA BASE, y eso lo hace una función, no una
-vista. Ahora son 806 + 13 + 12 = 831 filas. Casi quince veces menos.
+EL PARETO. Las barras ya estaban ordenadas de mayor a menor, que es
+media receta. Lo que faltaba es lo que convierte un ranking en un
+pareto: la curva acumulada. Sin ella se ve cuál máquina rompe más; con
+ella se ve CUÁNTAS hacen falta para cubrir la mayoría, que es la
+pregunta con la que se decide dónde meter una hora de mantenimiento.
+Va vertical —un pareto se lee siguiendo una curva que sube; girado, esa
+curva baja y deja de significar lo mismo—, con la raya del 80 % y las
+barras cambiando de tono justo donde la curva la cruza, así que
+«cuántas máquinas importan» se responde contando barras oscuras.
 
-Las vistas diarias se quedan donde están: sirven para mirar una máquina
-día por día, que es otra pregunta.
+Y LO QUE DICE ESE PARETO NO ES LO QUE UNO ESPERA, así que la lectura
+tampoco lo finge: la rotura NO está concentrada. De 10,9 % la primera a
+6,2 % la última, y hacen falta 10 de 13 máquinas para juntar el 80 %.
+No hay una máquina culpable, y un texto que dijera «concéntrate en la
+primera» mandaría a mantenimiento a perseguir un fantasma. Con esa
+forma, la causa suele ser algo que atraviesa toda la línea —el envase
+que entra, el manejo, la velocidad— y no una máquina desajustada.
 
-Y QUE ADEMÁS SE SIENTA RÁPIDO, que no es lo mismo. Aunque el servidor
-conteste en medio segundo, con un onClick pelado entre el clic y el
-cambio no pasaba NADA visible: el botón seguía apagado y el otro seguía
-encendido. Eso se lee como «no funcionó», y el remedio de todo el mundo
-es volver a hacer clic — pedir el mismo trabajo dos veces.
+LA LECTURA, que es lo otro que se pidió. Un bloque que escribe en
+palabras lo que dicen los números: la forma del pareto, el día que se
+salió del promedio, el vidrio que más se va, y aparte lo que se puede
+cerrar hoy. Las frases cambian según los datos, no son plantilla con
+huecos: si mañana una máquina se dispara, la lectura señala esa
+máquina; hoy dice que no la hay. Y si un número no da para afirmar, la
+frase no se pone.
 
-Dos cosas, y hacen falta las dos:
- · useTransition + estado optimista: el botón que se tocó se enciende
-   de una, antes de que lleguen los datos, y una rayita corre bajo la
-   barra mientras tanto. Nada se apaga ni se bloquea: poder
-   arrepentirse a mitad de carga se siente más rápido, no menos.
- · router.prefetch de los cuatro atajos al abrir, y de cualquiera al
-   posar el cursor. Prefetch sin aviso visual seguiría sintiéndose
-   trabado la primera vez; el aviso sin prefetch seguiría tardando.
+Y LA TARJETA DE FIRMAS AHORA SEPARA DOS COSAS. El histórico de 2026
+entró por SQL desde el Excel: nadie lo firmó ni lo va a firmar, porque
+esos turnos pasaron hace meses. Contarlo como pendiente convierte la
+tarjeta en un 1.790 permanente, y una alarma que nunca se puede apagar
+deja de leerse a la semana. Lo que sí es un pendiente de verdad es un
+turno registrado EN LA APP sin firmar, y la marca que los separa ya
+existía sin inventarla: las filas importadas tienen registrado_por en
+nulo. Hoy: 1.790 históricos, 0 de la app.
 
-NO SE CREÓ NINGÚN ÍNDICE, y esa también fue una medición. La primera
-versión creaba (fecha, linea), que parecía lo obvio; sobraba, porque la
-llave única (fecha, linea, turno, envase, maquina, toma) ya empieza por
-esas dos columnas y un índice compuesto sirve para cualquier prefijo
-suyo. Habría sido una copia del que ya está, pagando escrituras y disco
-en una instancia NANO a cambio de nada. EXPLAIN ANALYZE sobre los
-24.245 registros: últimos 7 días → Index Scan 0,14 ms; año entero con
-una línea → Seq Scan 3,8 ms, y está bien, porque esa línea es el 29 %
-de la tabla.
+MEDIDO, y el arnés se equivocó dos veces antes de servir:
 
-COMPROBADO CONTRA POSTGRES 16 con los 24.245 registros de verdad
-cargados —los seis archivos de supabase/datos entran limpios y dan
-24.245 filas, 1.889.816 unidades, 426.367 kg—:
- · la función y la vista suman lo MISMO, con filtro de línea y sin él.
-   Rápido y distinto no sirve de nada.
- · la migración corre dos veces seguidas sin quejarse.
- · un usuario con rol operador puede leer las dos funciones: son
-   security invoker a propósito, así que el RLS sigue mandando.
- · .arnes/rl-tablero.mjs limpio en los 7 temas y los 4 anchos.
+ · .arnes/rl-pareto.mjs — 28 combinaciones (4 anchos × 7 temas) con las
+   13 máquinas y los 1.889.816 de verdad sacados de Postgres.
+   Comprueba que el acumulado cierre en 100,0 %, que las barras estén
+   ordenadas, que nada se salga del lienzo ni se encime, y los
+   contrastes en los siete temas.
 
-Falta correr en Supabase:
+ · Primer fallo del arnés: leía `color(srgb 0.86 0.69 0.71)` —de 0 a 1,
+   que es como Chromium devuelve lo que salió de un color-mix()— y lo
+   dividía entre 255. Reportó «no se distinguen» en los siete temas
+   sobre un dibujo que estaba bien. Una prueba que falla sin razón es
+   peor que no tenerla: enseña a ignorarla.
+
+ · Segundo fallo, y este sí tapaba un error real: medía los rótulos con
+   getBBox(), que devuelve la caja ANTES del transform. Los nombres van
+   girados -90°, así que miraba 12 de alto donde había 190, y dio todo
+   verde sobre un dibujo en el que «SALIDA DE LAVADORA» salía como
+   «LIDA DE LAVADORA». Con getBoundingClientRect() convertido a
+   unidades del viewBox, lo cazó de una. El alto del pie ya no es un
+   130 escrito a mano sino una cuenta sobre el nombre más largo, y el
+   7.6 por carácter salió de esa medición.
+
+ · La curva lleva forro: se dibuja dos veces, la tinta encima y la
+   misma línea más gruesa del color del papel debajo. Sin él, en el
+   tema oficial la tinta azul sobre el rojo oscuro daba 1.77 de
+   contraste y la curva desaparecía justo en las barras altas.
+
+Falta correr en Supabase, en este orden:
   supabase/migraciones/2026-09-rotura-linea-tablero-rapido.sql
+  supabase/migraciones/2026-09-rotura-linea-sin-firma-rapido.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
