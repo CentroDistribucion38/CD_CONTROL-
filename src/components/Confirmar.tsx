@@ -19,20 +19,13 @@
  *     ...
  *     return (<>{dialogo}...</>)
  *
- * Y TAMBIÉN PREGUNTA UNA COSA, cuando hace falta escribir algo para
- * decidir —el motivo de una revisión, por ejemplo—. Eso reemplaza a
- * window.prompt(), que es el mismo cuadro gris del sistema pero peor: un
- * campo suelto, sin decir de qué vehículo habla y sin sitio para
- * explicar para qué sirve lo que se escriba.
- *
- *     const r = await pedir({ titulo: "…", campo: { rotulo: "Motivo" } });
- *     if (!r) return;            // canceló
- *     r.texto                    // "" si lo dejó vacío
- *
- * DEVUELVE `false` O UN OBJETO, no un booleano, y a propósito: `false`
- * es falso y el objeto es verdadero, así que los sitios que ya escribían
- * `if (!(await pedir(…))) return` siguen funcionando sin tocarlos, y el
- * que necesita el texto lo tiene ahí.
+ * ESTO PREGUNTA SÍ O NO, y nada más. Hubo una versión con un campo de
+ * texto adentro —para el motivo de una revisión AI— y se quitó al día
+ * siguiente: el motivo no hacía falta, y un campo opcional que nadie
+ * llena es un paso de más en el muelle. Si alguna vez hace falta
+ * escribir algo para decidir, va en su propio cuadro y no aquí: este
+ * pone el foco en CANCELAR y deja que Enter cancele, y eso deja de ser
+ * cierto en cuanto hay un campo donde escribir.
  *
  * DECISIONES QUE NO SON DE ADORNO
  *   · El botón peligroso NO es el que tiene el foco al abrir. Con Enter
@@ -55,37 +48,21 @@ export type Pedido = {
   cancelar?: string;
   /** true = la acción destruye algo y el botón va en rojo. */
   peligro?: boolean;
-  /** Un campo de texto dentro del cuadro. Sin esto, es solo sí/no. */
-  campo?: {
-    rotulo: string;
-    /** Lo que se ve dentro del campo vacío. Un ejemplo, no una orden. */
-    ejemplo?: string;
-    /** La letra chica debajo: para qué va a servir lo que se escriba. */
-    ayuda?: string;
-    /** true = no se puede continuar con el campo vacío. */
-    obligatorio?: boolean;
-    valor?: string;
-  };
 };
 
-export type Respuesta = false | { texto: string };
-
-export function useConfirmar(): [(p: Pedido) => Promise<Respuesta>, React.ReactNode] {
+export function useConfirmar(): [(p: Pedido) => Promise<boolean>, React.ReactNode] {
   const [pedido, setPedido] = useState<Pedido | null>(null);
-  const [texto, setTexto] = useState("");
-  const resolver = useRef<((v: Respuesta) => void) | null>(null);
+  const resolver = useRef<((v: boolean) => void) | null>(null);
   const volverA = useRef<HTMLElement | null>(null);
   const cancelarRef = useRef<HTMLButtonElement>(null);
-  const campoRef = useRef<HTMLInputElement>(null);
 
   const pedir = useCallback((p: Pedido) => {
     volverA.current = document.activeElement as HTMLElement | null;
-    setTexto(p.campo?.valor ?? "");
     setPedido(p);
-    return new Promise<Respuesta>((res) => { resolver.current = res });
+    return new Promise<boolean>((res) => { resolver.current = res });
   }, []);
 
-  const cerrar = useCallback((valor: Respuesta) => {
+  const cerrar = useCallback((valor: boolean) => {
     setPedido(null);
     resolver.current?.(valor);
     resolver.current = null;
@@ -96,45 +73,32 @@ export function useConfirmar(): [(p: Pedido) => Promise<Respuesta>, React.ReactN
 
   useEffect(() => {
     if (!pedido) return;
-    /* CON CAMPO, EL FOCO VA AL CAMPO: es lo que hay que hacer, y quien
-       abrió el cuadro ya decidió. Sin campo arranca en CANCELAR, nunca
-       en el botón peligroso: con Enter apretado por costumbre, un foco
-       en "Borrar" borra sin que nadie haya leído. */
-    if (pedido.campo) campoRef.current?.focus();
-    else cancelarRef.current?.focus();
+    /* El foco arranca en CANCELAR, nunca en el botón peligroso: con
+       Enter apretado por costumbre, un foco en "Borrar" borra sin que
+       nadie haya leído. */
+    cancelarRef.current?.focus();
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar(false) };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
   }, [pedido, cerrar]);
 
-  const falta = !!pedido?.campo?.obligatorio && !texto.trim();
-
   const dialogo = pedido ? (
     <div className="cf-velo" role="dialog" aria-modal="true" aria-labelledby="cf-titulo"
          onClick={(e) => { if (e.target === e.currentTarget) cerrar(false) }}>
-      <form className={"cf-caja" + (pedido.peligro ? " peligro" : "")}
-            onSubmit={(e) => { e.preventDefault(); if (!falta) cerrar({ texto: texto.trim() }) }}>
+      <div className={"cf-caja" + (pedido.peligro ? " peligro" : "")}>
         <h2 id="cf-titulo">{pedido.titulo}</h2>
         {pedido.dice && <div className="cf-dice">{pedido.dice}</div>}
-        {pedido.campo && (
-          <label className="cf-campo">
-            <span>{pedido.campo.rotulo}</span>
-            <input ref={campoRef} value={texto} placeholder={pedido.campo.ejemplo}
-                   onChange={(e) => setTexto(e.target.value)} />
-            {pedido.campo.ayuda && <em>{pedido.campo.ayuda}</em>}
-          </label>
-        )}
         <div className="cf-botones">
           <button type="button" ref={cancelarRef} className="cf-btn plano"
                   onClick={() => cerrar(false)}>
             {pedido.cancelar ?? "Cancelar"}
           </button>
-          <button type="submit" className={"cf-btn" + (pedido.peligro ? " mal" : "")}
-                  disabled={falta}>
+          <button type="button" className={"cf-btn" + (pedido.peligro ? " mal" : "")}
+                  onClick={() => cerrar(true)}>
             {pedido.confirmar ?? "Continuar"}
           </button>
         </div>
-      </form>
+      </div>
     </div>
   ) : null;
 

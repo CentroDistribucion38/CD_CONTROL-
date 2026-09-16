@@ -44,32 +44,22 @@ por eso las tres se van con un arnés detrás, no solo con el arreglo.
    `useAvisos` cuenta después— y Tránsito era la ÚNICA pantalla de toda
    la plataforma que no los usaba.
 
-   `useConfirmar` aprendió a llevar un campo de texto, que es lo que le
-   faltaba para reemplazar también a `prompt()`. Devuelve `false` o un
-   objeto en vez de un booleano, a propósito: `false` es falso y el
-   objeto es verdadero, así que los catorce sitios que ya escribían
-   `if (!(await pedir(…))) return` siguen funcionando sin tocarlos.
+   El cuadro de solicitar la revisión dice lo que va a pasar —que hay
+   que sacar la muestra en el muelle antes de descargar— y se acepta y
+   ya: la revisión es obligatoria o no lo es. Hubo un campo para
+   escribir el motivo y duró un día: Cristian lo vio y lo mandó quitar,
+   con razón —un campo opcional que nadie llena es un paso de más en el
+   muelle—. La columna `ai_motivo` sigue en la base porque hay filas
+   viejas que lo traen y la tarjeta las pinta, pero desde la pantalla ya
+   no se escribe ninguno.
 
-   El cuadro de pedir la revisión ahora dice lo que va a pasar —que hay
-   que sacar la muestra en el muelle antes de descargar—, ofrece el
-   motivo como opcional con un ejemplo, y explica dónde se va a ver lo
-   que se escriba. El de quitarla va en rojo y avisa que se puede volver
-   a pedir.
+   El de quitarla va en rojo y avisa que se puede volver a pedir.
 
    `.arnes/jsx.mjs` prohíbe los tres para siempre. Se cazó a sí mismo
    tres veces antes de servir —los comentarios que explican por qué no
    se usa `prompt()` contienen la palabra `prompt()`—, así que busca
    sobre el archivo sin cadenas y sin comentarios. Un arnés que grita
    por su propia explicación se termina apagando, y apagado no sirve.
-
-EL CAMPO NUEVO, MEDIDO EN LOS SIETE TEMAS (`.arnes/cf-campo.mjs`). Su
-borde va más oscuro que el de los demás campos de la aplicación y es
-una decisión, no un descuido: el gris de la casa contrasta 1.38 contra
-el blanco de la hoja, por debajo del 3.0 que pide la norma para el filo
-de algo que se toca. En un cuadro que sale encima de la pantalla y trae
-un solo campo, si no se nota no se escribe nada y el motivo se pierde.
-Ahora: rótulo 4.83–5.45, ayuda igual, texto 14.45–19.44, borde 3.06–3.10,
-y el cuadro entero cabe en una pantalla de 360×640.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
