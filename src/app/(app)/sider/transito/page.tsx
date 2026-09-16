@@ -3,7 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
 import { viajesEnTransito, nombresTodos } from "@/modulos/sider/datos";
+import { maestrosAi } from "@/modulos/sider/ai";
 import "../sider.css";
+import "@/modulos/sider/ai.css";
 import { Transito } from "./Transito";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +58,19 @@ export default async function TransitoPage() {
     );
   }
 
+  /* LOS MAESTROS DE LA REVISIÓN AI, SOLO SI HAY A QUIÉN REVISAR.
+     Son cuatro listas cortas —catorce defectos, dieciocho envases,
+     sesenta y tres socios, cuatro canales— y bajan con la pantalla para
+     que el formulario aparezca INSTANTÁNEO cuando alguien cierra la
+     llegada de un vehículo marcado: en el muelle, con una barra de carga
+     encima, el que está contando botellas se va a buscar el papel.
+
+     Y no bajan nunca si ningún vehículo en tránsito está marcado, que es
+     el caso normal: no se le cobra a todo el mundo el peso de una
+     pantalla que casi nadie abre. */
+  const hayAi = viajes.some((v) => v.requiere_ai);
+  const maestros = hayAi ? await maestrosAi() : null;
+
   const totalSider = viajes.reduce((s, v) => s + Number(v.sider ?? 0), 0);
   const trabados = viajes.filter((v) => horas(v.en_camino) > 24).length;
   const sinEvidencia = viajes.filter((v) => v.fotos_salida < 3).length;
@@ -70,6 +85,7 @@ export default async function TransitoPage() {
           Desde el servidor no hay forma de saber que lo abrió. */}
       <Transito esAdmin={esAdmin} viajes={viajes}
         nombres={nombres}
+        maestrosAi={maestros}
         esEditor={esEditor}
         trabados={trabados}
         sinEvidencia={sinEvidencia}

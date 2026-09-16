@@ -1,65 +1,66 @@
-Tránsito: fuera el comentario impreso, el botón que se salía y los cuadros grises
+Sider: la revisión AI deja de ser un módulo aparte y entra en la llegada
 
-TRES COSAS QUE CRISTIAN VIO EN PRODUCCIÓN Y NINGUNA HERRAMIENTA VIO
-ANTES. Las tres son válidas para `tsc`, para el `build` y para ESLint, y
-por eso las tres se van con un arnés detrás, no solo con el arreglo.
+LO QUE ESTABA MAL ERA EL SITIO, no el formulario. Lo hice como pantalla
+suelta —Sider → Revisión AI, con su lista de pendientes y su
+formulario—, y eso obliga a quien recibe el vehículo a saber que esa
+pantalla existe, a acordarse de entrar y a buscar la placa en una lista.
+En el muelle, con el camión esperando, eso no pasa: se descarga y la
+revisión queda sin hacer. Cristian lo dijo en una línea: el admin la
+asigna, a la persona en el tránsito le aparece, y la verificación va
+ahí mismo.
 
-1) UN COMENTARIO DE VEINTE RENGLONES IMPRESO EN LA PANTALLA, encima de
-   la lista y en letra grande, explicando por qué la cinta de asuntos es
-   negra. Dentro de JSX un comentario tiene que ir envuelto en llaves;
-   sin ellas es TEXTO, tan válido como escribir «hola». La llave se
-   perdió al sacar el comentario de adentro de un `{cond && ( … )}`,
-   donde no puede ir de primer hijo.
+AHORA ES UN PASO MÁS DE LA CERTIFICACIÓN. Quien toca «Certificar
+llegada» de un vehículo marcado recorre: dónde → tres fotos → revisión
+AI. No cambia de pantalla, no busca la placa, no se acuerda de nada: el
+formulario sale solo.
 
-   `.arnes/jsx.mjs` lo caza por la forma: un comentario de bloque que
-   viene después de `}` o `>` y antes de `{` o `<` está entre hijos de
-   JSX, y ahí las llaves no son opcionales.
+Y VA DESPUÉS DE CERTIFICAR, NO ANTES, aunque la muestra se saque antes
+de descargar. La base no acepta una revisión de un viaje cuya llegada no
+esté certificada, y con razón: una revisión de algo que nunca se recibió
+no se puede auditar. Así que primero queda la llegada —que es lo que no
+se puede perder— y después el conteo. Si ahí se cae la señal, la llegada
+ya está guardada y la revisión se retoma desde su propia dirección.
 
-2) EL BOTÓN «CERTIFICAR LLEGADA» SALIÉNDOSE DE LA TARJETA, 14 px por
-   fuera del borde derecho. El pie de la tarjeta es una fila de dos: la
-   línea de «salió» a la izquierda, los botones a la derecha. Los
-   botones llevan `flex: none` —un botón aplastado no se toca con
-   guante— pero eso solo los protege a ELLOS: el grupo sí se dejaba
-   encoger, y con una dirección de salida larga lo encogía por debajo de
-   lo que mide el botón.
+Una vez certificada la llegada no se puede volver a los dos primeros
+pasos: ya se guardaron, y volver a mandarlos solo sirve para ver un
+error. Se quedan en verde, que es lo que son.
 
-   Lo arregla `white-space: nowrap`, y no por lo que parece: al no poder
-   partir el rótulo, el ancho mínimo del botón pasa a ser el botón
-   entero, y con él el mínimo del grupo. El navegador ya no puede
-   encogerlo de más: parte la fila en dos y quien cede el sitio es la
-   dirección, que sí puede.
+EL FORMULARIO ES EL MISMO, NO UNA COPIA. Se movió a
+`src/modulos/sider/FormularioAi.tsx` y dejó de saber a dónde ir después
+—hacía `router.push("/sider/ai")` por dentro, y eso lo ataba a la
+pantalla suelta—: ahora quien lo dibuja le pasa esa respuesta. Desde la
+certificación el botón de salir dice «Después» y no «Cancelar», porque
+la llegada ya quedó guardada: salir de ahí no deshace nada, deja la
+revisión pendiente.
 
-   `.arnes/sd-tarjeta.mjs` monta la tarjeta con la dirección larga de
-   verdad —la de JGY577, la de la foto— en nueve anchos y comprueba que
-   ningún hijo termine más allá del relleno. Antes del arreglo cantaba
-   los cuatro anchos donde pasaba; ahora los nueve salen limpios.
+LOS MAESTROS BAJAN CON LA PANTALLA, y solo si hace falta. Las cuatro
+listas —catorce defectos, dieciocho envases, sesenta y tres socios,
+cuatro canales— vienen con el tránsito cuando algún vehículo está
+marcado, para que el formulario aparezca instantáneo: en el muelle, una
+barra de carga manda a alguien a buscar el papel. Si ningún vehículo
+está marcado, que es el caso normal, no bajan.
 
-3) LOS CUADROS GRISES DEL NAVEGADOR. Pedir una revisión AI abría un
-   `prompt()` del sistema: «cd-control-one.vercel.app dice», un campo
-   pelado que no dice de qué vehículo habla, botones que no son los de
-   la plataforma. Quitarla, un `confirm()`. Los errores, un `alert()`.
+DOS COSAS QUE SE VIERON AL MEDIRLO EN SU SITIO NUEVO
+(`.arnes/sd-ai-paso.mjs`, que monta el formulario DENTRO de la tarjeta
+de la certificación en cuatro tamaños):
 
-   Y lo peor es que no hacía falta: la aplicación ya tiene los dos
-   cuadros de la casa desde hace meses —`useConfirmar` pregunta antes,
-   `useAvisos` cuenta después— y Tránsito era la ÚNICA pantalla de toda
-   la plataforma que no los usaba.
+  · La casilla de «Deformado» se salía 44 px de la caja. Un <input> sin
+    `size` trae un ancho mínimo propio de unos veinte caracteres —244 px
+    con esta letra— y, como hijo de rejilla, ese mínimo le gana a la
+    columna de 180. Se veía solo con los catorce defectos puestos y en
+    pantalla ancha, que es donde nadie mira. Le faltaba `min-width: 0`.
 
-   El cuadro de solicitar la revisión dice lo que va a pasar —que hay
-   que sacar la muestra en el muelle antes de descargar— y se acepta y
-   ya: la revisión es obligatoria o no lo es. Hubo un campo para
-   escribir el motivo y duró un día: Cristian lo vio y lo mandó quitar,
-   con razón —un campo opcional que nadie llena es un paso de más en el
-   muelle—. La columna `ai_motivo` sigue en la base porque hay filas
-   viejas que lo traen y la tarjeta las pinta, pero desde la pantalla ya
-   no se escribe ninguno.
+  · En el celular la tira de cuentas caía a una cifra por fila, y así
+    deja de leerse como un resumen: hay que rodar para comparar el
+    índice con lo que no se abona, que es justamente la comparación que
+    alguien hace antes de mandarlo. Ahora van dos por fila.
 
-   El de quitarla va en rojo y avisa que se puede volver a pedir.
-
-   `.arnes/jsx.mjs` prohíbe los tres para siempre. Se cazó a sí mismo
-   tres veces antes de servir —los comentarios que explican por qué no
-   se usa `prompt()` contienen la palabra `prompt()`—, así que busca
-   sobre el archivo sin cadenas y sin comentarios. Un arnés que grita
-   por su propia explicación se termina apagando, y apagado no sirve.
+LO QUE SIGUE. La pantalla `/sider/ai` se queda por ahora como está
+—lista de pendientes y revisiones hechas—, porque un vehículo que ya
+llegó y se dejó para después tiene que poder revisarse desde algún
+sitio, y esa es su dirección. El siguiente paso es convertirla en el
+tablero: índice por socio, por envase y tendencia, que es lo que se
+mira después y no en el muelle.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

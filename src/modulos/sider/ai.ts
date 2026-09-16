@@ -46,8 +46,14 @@ export type DetalleAi = {
 const sinTablas = (m: string) =>
   m.includes("does not exist") || m.includes("schema cache") || m.includes("sider_ai_");
 
+/** Los cuatro maestros juntos, como los reciben las pantallas. */
+export type MaestrosAi = {
+  falta: boolean;
+  defectos: Defecto[]; envases: EnvaseAi[]; socios: SocioAi[]; canales: CanalAi[];
+};
+
 /** Los cuatro maestros del módulo, de una sola tanda. */
-export async function maestrosAi() {
+export async function maestrosAi(): Promise<MaestrosAi> {
   const supabase = await createClient();
   const [d, e, s, c] = await Promise.all([
     supabase.from("sider_ai_defectos").select("*").eq("activo", true).order("orden"),

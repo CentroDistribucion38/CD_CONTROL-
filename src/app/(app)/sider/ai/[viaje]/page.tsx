@@ -5,8 +5,8 @@ import { pendientesAi, maestrosAi, revisionDe } from "@/modulos/sider/ai";
 import type { Pendiente } from "@/modulos/sider/ai";
 import { createClient } from "@/lib/supabase/server";
 import "../../sider.css";
-import "../ai.css";
-import { Formulario } from "../Formulario";
+import "@/modulos/sider/ai.css";
+import { Editor } from "./Editor";
 
 export const dynamic = "force-dynamic";
 
@@ -79,9 +79,9 @@ export default async function RevisarPage({ params }: {
         </div>
       </section>
 
-      <Formulario viaje={viaje} revision={hecha.revision} detalle={hecha.detalle}
-                  defectos={m.defectos} envases={m.envases}
-                  socios={m.socios} canales={m.canales} />
+      <Editor viaje={viaje} revision={hecha.revision} detalle={hecha.detalle}
+              defectos={m.defectos} envases={m.envases}
+              socios={m.socios} canales={m.canales} />
     </div>
   );
 }

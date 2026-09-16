@@ -2,7 +2,7 @@ import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { pendientesAi, revisionesAi, maestrosAi } from "@/modulos/sider/ai";
 import "../sider.css";
-import "./ai.css";
+import "@/modulos/sider/ai.css";
 
 export const dynamic = "force-dynamic";
 

@@ -21,6 +21,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Viaje } from "@/modulos/sider/comun";
+import type { MaestrosAi } from "@/modulos/sider/ai";
+import { FormularioAi } from "@/modulos/sider/FormularioAi";
 import {
   RANURAS, RANURA_OBS, type Ranura, type RanuraCualquiera, type Foto,
   usePosicion, TarjetaUbicacion, CampoDireccion, Ranurita, CajaObservacion,
@@ -59,11 +61,14 @@ function horasEnCamino(iv: string | null): number {
    bloquear nada. */
 const HORAS_LARGAS = 24;
 
-export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvidencia, cabeza }: {
+export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvidencia,
+                           maestrosAi, cabeza }: {
   esAdmin?: boolean;
   viajes: Viaje[];
   nombres: Record<string, string>;
   esEditor: boolean;
+  /** Los maestros de la revisión AI. null = ningún vehículo la lleva. */
+  maestrosAi: MaestrosAi | null;
   trabados: number;
   sinEvidencia: number;
   /** La cabeza de la página. La dibuja el servidor, la esconde el cliente. */
@@ -212,6 +217,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
       <Llegada
         viaje={abierto}
         supabase={supabase}
+        maestrosAi={maestrosAi}
         cerrar={() => setAbierto(null)}
         listo={() => { setAbierto(null); router.refresh(); }}
       />
@@ -467,10 +473,11 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
    dos cosas distintas. El que recibe está de pie al lado del vehículo:
    primero dice dónde está, después toma las fotos.
    =============================================================== */
-function Llegada({ viaje, supabase, cerrar, listo }: {
+function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
   viaje: Viaje;
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   supabase: any;
+  maestrosAi: MaestrosAi | null;
   cerrar: () => void;
   listo: () => void;
 }) {
@@ -482,6 +489,19 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
   const [enviando, setEnviando] = useState(false);
   const [avance, setAvance] = useState("");
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
+
+  /* ---------- LA REVISIÓN AI, DENTRO DE ESTE MISMO RECORRIDO ----------
+     El administrador marca el vehículo desde la lista; quien lo recibe
+     no tiene que ir a buscar otra pantalla ni acordarse de que existe.
+     Cierra la llegada y el formulario sale solo, como tercer paso.
+
+     Y VA DESPUÉS DE CERTIFICAR, no antes, porque la base no acepta una
+     revisión de un viaje cuya llegada no esté certificada —y con razón:
+     una revisión de algo que nunca se recibió no se puede auditar—. Por
+     eso, si aquí se cae la señal, lo que ya quedó guardado es la
+     llegada, y la revisión se retoma desde la tarjeta del vehículo. */
+  const revisaAi = !!viaje.requiere_ai && !!maestrosAi && !maestrosAi.falta;
+  const [yaCertifico, setYaCertifico] = useState(false);
 
   const faltanFotos = RANURAS.filter((r) => !fotos[r.id]);
   const sinEvidenciaSalida = viaje.fotos_salida < 3;
@@ -622,6 +642,10 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
       });
       return;
     }
+    /* Con revisión pendiente NO se sale: la llegada ya quedó, y ahora
+       toca la muestra en el muelle. Salir aquí sería mandar a alguien a
+       buscar en otro sitio lo que puede hacer sin moverse. */
+    if (revisaAi) { setYaCertifico(true); setPaso(2); return }
     listo();
   }
 
@@ -640,12 +664,19 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
   const pasos = [
     { t: "Dónde", ok: !!pos.ubi },
     { t: "Fotos", ok: faltanFotos.length === 0 },
+    ...(revisaAi ? [{ t: "Revisión AI", ok: false }] : []),
   ];
 
   /* La misma regla que en la salida: a un paso solo se llega si los
      anteriores están listos, y la ubicación es requisito duro porque es
-     lo que prueba que quien certificó estaba ahí. */
-  const alcanzable = (i: number) => i === 0 || pasos.slice(0, i).every((p) => p.ok);
+     lo que prueba que quien certificó estaba ahí.
+
+     Y UNA VEZ CERTIFICADA LA LLEGADA NO SE VUELVE ATRÁS: los dos
+     primeros pasos ya se guardaron en la base y volver a mandarlos solo
+     sirve para ver un error. Se quedan marcados en verde, que es lo que
+     son: hechos. */
+  const alcanzable = (i: number) =>
+    yaCertifico ? i === 2 : i === 0 || pasos.slice(0, i).every((p) => p.ok);
 
   return (
     <>
@@ -693,7 +724,11 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
         <div className="ct-paso tr-llegada">
           <div className="tr-quien">
             <div>
-              <h2>{paso === 0 ? `Llegó ${viaje.placa}` : `Tres fotos de ${viaje.placa}`}</h2>
+              <h2>
+                {paso === 0 ? `Llegó ${viaje.placa}`
+                  : paso === 1 ? `Tres fotos de ${viaje.placa}`
+                    : `Revisión AI de ${viaje.placa}`}
+              </h2>
               <p className="ct-dice">
                 {paso === 0 ? (
                   <>
@@ -701,11 +736,17 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
                     {nf2.format(viaje.estibas)} estibas · salió {hora(viaje.salida_en)}
                     {" — "}solo falta dónde llegó y la prueba de que llegó.
                   </>
-                ) : (
+                ) : paso === 1 ? (
                   <>
                     Cada una queda sellada con la placa, la fecha, la hora y las
                     coordenadas quemadas en la esquina. Si algo llegó mal, déjalo
                     dicho abajo y, si se puede, fotografíalo.
+                  </>
+                ) : (
+                  <>
+                    <b>La llegada ya quedó registrada.</b> Falta la muestra: se saca en
+                    el muelle, antes de descargar, y de lo que se cuente aquí sale lo
+                    que se le abona al socio.
                   </>
                 )}
               </p>
@@ -833,6 +874,34 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
                 </button>
               </div>
             </>
+          )}
+
+          {/* EL TERCER PASO: la revisión AI, aquí mismo.
+              Es el MISMO formulario que vivía en la pantalla suelta —no
+              una copia—, solo que ahora quien decide a dónde se va
+              después es esta pantalla y no él. El vehículo no se vuelve
+              a digitar: sale del viaje que ya está abierto. */}
+          {paso === 2 && revisaAi && maestrosAi && (
+            <FormularioAi
+              viaje={{
+                viaje_id: viaje.id, placa: viaje.placa, planta: viaje.planta,
+                fecha: viaje.fecha, sku: viaje.sku,
+                ai_motivo: viaje.ai_motivo ?? null,
+              }}
+              revision={null}
+              detalle={[]}
+              defectos={maestrosAi.defectos}
+              envases={maestrosAi.envases}
+              socios={maestrosAi.socios}
+              canales={maestrosAi.canales}
+              alGuardar={listo}
+              /* «Después» y no «Cancelar»: la llegada YA se guardó, así
+                 que salir de aquí no deshace nada — deja la revisión
+                 pendiente, y la tarjeta del vehículo la sigue pidiendo.
+                 Decirle «cancelar» haría creer que se perdió todo. */
+              alCancelar={listo}
+              rotuloCancelar="Después"
+            />
           )}
         </div>
 
