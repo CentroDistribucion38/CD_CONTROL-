@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Linea } from "@/modulos/rotlinea/datos";
 
@@ -15,16 +16,52 @@ import type { Linea } from "@/modulos/rotlinea/datos";
  * mira nueve de cada diez veces; las dos fechas sueltas están para la
  * décima. Al revés, todo el mundo teclearía dos fechas para pedir lo
  * que hay un botón que pide.
+ *
+ * ------------------------------------------------------------------
+ * POR QUÉ ESTO NO ES UN `onClick` A SECAS
+ *
+ * Cambiar de período vuelve a dibujar la pantalla EN EL SERVIDOR: se
+ * piden los datos otra vez y se manda el HTML nuevo. Eso toma lo que
+ * toma. Con un onClick pelado, entre el clic y el cambio no pasaba
+ * NADA visible —el botón seguía apagado, el otro seguía encendido— y
+ * la pantalla se sentía trabada; el remedio de todo el mundo es volver
+ * a hacer clic, que es pedir el mismo trabajo dos veces.
+ *
+ * Dos cosas lo arreglan, y hacen falta las dos:
+ *
+ *   EL BOTÓN SE ENCIENDE DE UNA. useTransition dice si la navegación
+ *   está en curso, y mientras tanto el botón que se acaba de tocar se
+ *   pinta como escogido. La respuesta es inmediata aunque los datos no
+ *   hayan llegado: se ve que la orden se recibió.
+ *
+ *   Y LOS DATOS SE VAN PIDIENDO ANTES. router.prefetch deja listo el
+ *   contenido de los atajos apenas se abre la pantalla —y el de
+ *   cualquiera al posar el cursor encima—, así que cuando se hace clic
+ *   muchas veces ya está. Prefetch sin el aviso visual seguiría
+ *   sintiéndose trabado la primera vez; el aviso sin prefetch seguiría
+ *   tardando. Juntos, no.
  */
 export function Periodo({ desde, hasta, linea, hoy, lineas }: {
   desde: string; hasta: string; linea?: number; hoy: string; lineas: Linea[];
 }) {
   const router = useRouter();
+  const [cargando, empezar] = useTransition();
+  /* CUÁL SE ACABA DE PEDIR. Hace falta aparte del período de verdad:
+     `desde`/`hasta` llegan del servidor y no cambian hasta que la
+     pantalla nueva está lista, así que mientras carga seguirían
+     encendiendo el botón VIEJO. Esto enciende el que se tocó, ya. */
+  const [pedido, setPedido] = useState<string | null>(null);
 
-  const ir = (d: string, h: string, l?: number) => {
+  const dir = (d: string, h: string, l?: number) => {
     const p = new URLSearchParams({ desde: d, hasta: h });
     if (l) p.set("linea", String(l));
-    router.push(`/quiebra/rotura/tablero?${p.toString()}`);
+    return `/quiebra/rotura/tablero?${p.toString()}`;
+  };
+  /* La navegación va dentro de la transición: sin esto, `cargando`
+     nunca se pone en true y el botón no se entera de nada. */
+  const ir = (d: string, h: string, l?: number) => {
+    setPedido(`${d}|${h}`);
+    empezar(() => router.push(dir(d, h, l)));
   };
 
   const menos = (n: number) =>
@@ -37,17 +74,37 @@ export function Periodo({ desde, hasta, linea, hoy, lineas }: {
     ["Este mes", `${mes}-01`, hoy],
     ["Últimos 30 días", menos(29), hoy],
     ["Últimos 7 días", menos(6), hoy],
-    [`Todo ${Number(anio) - 1}`, `${Number(anio) - 1}-01-01`, `${Number(anio) - 1}-12-31`],
   ];
 
+  /* Los cuatro atajos se piden apenas se abre la pantalla. Son cuatro
+     y son los que se usan; pedirlos de más cuesta menos que hacer
+     esperar en el clic. */
+  useEffect(() => { if (!cargando) setPedido(null) }, [cargando]);
+
+  useEffect(() => {
+    for (const [, d, h] of ATAJOS) router.prefetch(dir(d, h, linea));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoy, linea]);
+
   return (
-    <div className="rl-periodo">
+    <div className={"rl-periodo" + (cargando ? " cargando" : "")}>
       <div className="rl-atajos">
-        {ATAJOS.map(([r, d, h]) => (
-          <button key={r} type="button"
-                  className={desde === d && hasta === h ? "on" : ""}
-                  onClick={() => ir(d, h, linea)}>{r}</button>
-        ))}
+        {ATAJOS.map(([r, d, h]) => {
+          /* Mientras carga manda lo que se pidió; ya cargado, lo que
+             de verdad está puesto. Si la navegación se pierde, el
+             servidor tiene la última palabra y el botón se corrige. */
+          const puesto = cargando && pedido
+            ? pedido === `${d}|${h}`
+            : desde === d && hasta === h;
+          return (
+            <button key={r} type="button"
+                    className={puesto ? "on" : ""}
+                    aria-current={puesto ? "true" : undefined}
+                    onMouseEnter={() => router.prefetch(dir(d, h, linea))}
+                    onFocus={() => router.prefetch(dir(d, h, linea))}
+                    onClick={() => ir(d, h, linea)}>{r}</button>
+          );
+        })}
       </div>
 
       <div className="rl-fechas">

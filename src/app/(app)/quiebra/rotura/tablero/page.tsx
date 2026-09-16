@@ -74,15 +74,14 @@ export default async function TableroRoturaPage({ searchParams }: {
   const sinBaja = t.dias.reduce((a, d) => a + d.sin_baja, 0);
   const diasConDato = new Set(t.dias.map((d) => d.fecha)).size;
 
-  /* ---------- El pareto por máquina ---------- */
-  const porMaquina = new Map<number, { nombre: string; v: number }>();
-  for (const r of t.maquinas) {
-    const x = porMaquina.get(r.maquina) ?? { nombre: r.maquina_nombre, v: 0 };
-    x.v += Number(r.rotas);
-    porMaquina.set(r.maquina, x);
-  }
-  const maquinas: Barra[] = [...porMaquina.entries()]
-    .map(([k, x]) => ({ clave: String(k), rotulo: x.nombre, valor: x.v }))
+  /* ---------- El pareto por máquina ----------
+     YA VIENEN SUMADAS: una fila por máquina, no una por máquina y día.
+     Aquí había un bucle que las volvía a agrupar, y agrupaba lo que la
+     base ya había agrupado —diez mil filas de ida para producir quince
+     barras—. La suma se hace donde están los datos. */
+  const maquinas: Barra[] = t.maquinas
+    .map((r) => ({ clave: String(r.maquina), rotulo: r.maquina_nombre,
+                   valor: Number(r.rotas) }))
     .sort((a, b) => b.valor - a.valor);
 
   /* LAS QUE SE COMEN LA MITAD. Es la frase que sale de un pareto y la
@@ -100,14 +99,9 @@ export default async function TableroRoturaPage({ searchParams }: {
                    valor: porLinea.get(l.linea) ?? 0 }))
     .sort((a, b) => b.valor - a.valor);
 
-  const porEnvase = new Map<string, { nombre: string; v: number }>();
-  for (const r of t.envases) {
-    const x = porEnvase.get(r.envase) ?? { nombre: r.envase_nombre, v: 0 };
-    x.v += Number(r.und);
-    porEnvase.set(r.envase, x);
-  }
-  const envases: Barra[] = [...porEnvase.entries()]
-    .map(([k, x]) => ({ clave: k, rotulo: x.nombre, valor: x.v }))
+  /* Igual que las máquinas: una fila por envase, ya sumada. */
+  const envases: Barra[] = t.envases
+    .map((r) => ({ clave: r.envase, rotulo: r.envase_nombre, valor: Number(r.und) }))
     .sort((a, b) => b.valor - a.valor);
 
   /* ---------- La serie ---------- */

@@ -149,10 +149,12 @@ export async function delDia(fecha: string) {
    ===================================================================== */
 export type FilaDia    = { fecha: string; linea: number; und: number; kg: number;
                            pesadas: number; turnos: number; sin_baja: number };
-export type FilaMaq    = { fecha: string; linea: number; maquina: number;
-                           maquina_nombre: string; orden: number; rotas: number; kg: number };
-export type FilaEnvase = { fecha: string; linea: number; envase: string;
-                           envase_nombre: string; und: number; kg: number };
+/* SIN fecha NI linea: llegan ya sumados por el rango que se pidió.
+   Dejarlos en el tipo sería prometer un dato que la función no manda. */
+export type FilaMaq    = { maquina: number; maquina_nombre: string;
+                           orden: number; rotas: number; kg: number };
+export type FilaEnvase = { envase: string; envase_nombre: string;
+                           und: number; kg: number };
 export type FilaProd   = { fecha: string; linea: number; producidas: number; hl: number | null };
 export type SinFirma   = { fecha: string; linea: number; turno: number; und: number; kg: number };
 
@@ -165,10 +167,18 @@ export async function tablero(desde: string, hasta: string, linea?: number) {
     return c;
   };
 
+  /* MÁQUINAS Y ENVASES SE PIDEN YA SUMADOS, por función y no por
+     vista. Al grano diario, un año de máquinas son 10.477 filas que
+     viajaban enteras hasta aquí para convertirse en quince barras: la
+     base agrupaba, mandaba, y este archivo volvía a agrupar. Con el
+     rango dentro de la consulta son quince filas y veintiuna. El resto
+     —la serie del día, la producción, lo sin firmar— sí necesita el
+     grano diario, porque se dibuja día por día. */
+  const args = { p_desde: desde, p_hasta: hasta, p_linea: linea ?? null };
   const [d, m, e, p, sf] = await Promise.all([
     rango(supabase.from("v_rotlinea_dia").select("*")),
-    rango(supabase.from("v_rotlinea_maquina").select("*")),
-    rango(supabase.from("v_rotlinea_envase").select("*")),
+    supabase.rpc("rotlinea_tablero_maquina", args),
+    supabase.rpc("rotlinea_tablero_envase", args),
     rango(supabase.from("v_rotlinea_prod_dia").select("*")),
     rango(supabase.from("v_rotlinea_sin_firma").select("*")),
   ]);

@@ -1,22 +1,24 @@
 /* =====================================================================
    ROTURA DE LÍNEA — HISTÓRICO 2026 · PARTE 6 DE 6
    ---------------------------------------------------------------------
-   Sale de «ROTURA DE LINEA 2026.xlsx». Las unidades se calcularon con
-   CEIL(kg / peso del envase) —no ROUND—: es lo que cuadra con las
-   24.243 filas del Excel; con ROUND fallaban 13.190.
+   Sale de la hoja BASE de «ROTURA DE LINEA 2026.xlsx»: las 24.245 filas
+   del año, ni una más ni una menos.
+
+   LAS UNIDADES SE RECALCULAN con CEIL(kg / peso del envase) en vez de
+   copiar la columna UND. Comprobado: da 1.889.816, exactamente lo que
+   suma la columna del Excel, fila por fila. Con ROUND fallaban 13.190.
+
+   LA TOMA LLEGA HASTA 4. Una misma combinación de día, línea, turno,
+   envase y máquina puede estar pesada hasta cuatro veces; las pesadas
+   se suman, no se reemplazan.
 
    BAJA_EN VA EN NULL A PROPÓSITO. El Excel dice SI la baja se hizo en
-   SAP, no CUÁNDO. Ponerle la fecha del registro sería inventarse un
-   dato que nadie midió, y el día que alguien pregunte «¿cuánto se
-   demoran las bajas?» la respuesta sería cero y sería mentira.
-
-   VA PARTIDO EN 6 ARCHIVOS no porque Postgres no aguante los 24.243
-   de un golpe, sino porque el editor SQL del panel es una caja de
-   texto del navegador: un megabyte lo deja pensando.
+   SAP, no CUÁNDO. Ponerle una fecha inventada haría que el día que
+   alguien pregunte «¿cuánto se demoran las bajas?» la respuesta fuera
+   cero, y fuera mentira.
 
    SE PUEDE CORRER DOS VECES: el ON CONFLICT se apoya en la llave
-   (fecha, línea, turno, envase, máquina, toma). Si un pedazo se quedó
-   a medias, se vuelve a correr entero y no duplica nada.
+   (fecha, línea, turno, envase, máquina, toma).
 
    Corre este archivo ENTERO de una sola vez. Al final te dice cuánto
    llevas.
@@ -25,7 +27,9 @@
 insert into public.rotlinea_registro
   (fecha, linea, turno, envase, maquina, toma, kg, und, baja)
 values
-('2026-08-06'::date,6::smallint,1::smallint,'3500888',2::smallint,1::smallint,5.00,9,true),
+('2026-08-06'::date,4::smallint,1::smallint,'3501430',13::smallint,1::smallint,27.00,85,true),
+('2026-08-06',6,1,'3500888',1,1,7.00,12,true),
+('2026-08-06',6,1,'3500888',2,1,5.00,9,true),
 ('2026-08-06',6,1,'3500888',3,1,6.00,10,true),
 ('2026-08-06',6,1,'3500888',4,1,8.00,13,true),
 ('2026-08-06',6,1,'3500888',5,1,9.00,15,true),
@@ -3770,10 +3774,10 @@ values
 ('2026-09-12',6,2,'3500888',13,1,12.00,20,false)
 on conflict (fecha, linea, turno, envase, maquina, toma) do nothing;
 
-select count(*)              as filas_2026,
-       sum(und)              as unidades,
-       round(sum(kg))        as kilos,
-       min(fecha)            as desde,
-       max(fecha)            as hasta
+select count(*)       as filas_2026,
+       sum(und)       as unidades,
+       round(sum(kg)) as kilos,
+       min(fecha)     as desde,
+       max(fecha)     as hasta
   from public.rotlinea_registro
  where fecha between '2026-01-01' and '2026-12-31';

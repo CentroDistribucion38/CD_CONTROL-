@@ -1,43 +1,68 @@
-Traspasos: arreglar la pantalla que reventaba en cualquier día que no fuera hoy
+Tablero de rotura: quitar 2025 y que cambiar de período sea rápido
 
-SÍNTOMA: entrar a Registrar, moverse al día anterior, y la pantalla
-entera cae con «Application error: a server-side exception has
-occurred». Parecía un permiso —«no me deja registrar días anteriores»—
-y no lo era: la pantalla se caía antes de dibujarse.
+QUITAR «TODO 2025». No hay 2025 cargado: el histórico que entró son los
+24.245 registros de 2026. Un botón que siempre devuelve una pantalla
+vacía no es un atajo, es una trampa — quien lo toca no aprende que no
+hay datos, aprende que el tablero está roto.
 
-CAUSA: page.tsx es una página del SERVIDOR y llamaba `conDia`,
-importándola de plan/Calendario.tsx, que es "use client". Next no le
-entrega la función: le entrega una REFERENCIA al cliente. Llamarla en
-el servidor revienta.
+LA LENTITUD, MEDIDA ANTES DE TOCAR NADA. Con «Lo que va de 2026», cada
+clic se traía 12.171 filas:
 
-POR QUÉ NO SE VIO ANTES: `conDia` solo se llama cuando la fecha no es
-la de hoy —el título dice «Estás en jue 11 de septiembre»—. En hoy esa
-línea nunca se ejecutaba. La pantalla funcionó perfecto todos los días
-hasta que alguien tocó la flecha de ayer. Y la compilación pasa limpia:
-no es un error de tipos ni de sintaxis, así que nada avisa. Se descubre
-en producción.
+    v_rotlinea_dia         806
+    v_rotlinea_maquina  10.477   ← aquí estaba todo
+    v_rotlinea_envase      888
 
-ARREGLO: los nombres de fechas —MESES, partes, diaSemana, bonita,
-conDia— se mudan a modulos/traspasos/formato.ts, que es un archivo
-normal. Calendario.tsx los importa de allí. Repetir.tsx también, que
-los traía del calendario.
+Diez mil de esas doce mil eran el desglose por máquina al grano DIARIO,
+para dibujar quince barras. La base agrupaba los 24.245 registros en
+10.477 filas, las mandaba enteras a Vercel, y Vercel las volvía a
+agrupar en quince. El trabajo se hacía dos veces y el viaje era el de
+diez mil filas.
 
-SIN REEXPORTAR desde Calendario, aunque habría sido una línea: un
-`export { conDia }` dentro de un "use client" deja la trampa armada
-para la próxima página del servidor que importe de ahí, y el error
-vuelve idéntico.
+No fue un descuido que estuvieran al grano diario: una vista no puede
+venir sumada por un rango que todavía no se ha escogido. Lo que hacía
+falta era pasarle el rango A LA BASE, y eso lo hace una función, no una
+vista. Ahora son 806 + 13 + 12 = 831 filas. Casi quince veces menos.
 
-Y UN ARNÉS, porque esta es la segunda vez que este proyecto cruza mal
-la frontera —la primera fue comunes.tsx, y por eso existe formato.ts—:
+Las vistas diarias se quedan donde están: sirven para mirar una máquina
+día por día, que es otra pregunta.
 
-  .arnes/frontera.mjs
+Y QUE ADEMÁS SE SIENTA RÁPIDO, que no es lo mismo. Aunque el servidor
+conteste en medio segundo, con un onClick pelado entre el clic y el
+cambio no pasaba NADA visible: el botón seguía apagado y el otro seguía
+encendido. Eso se lee como «no funcionó», y el remedio de todo el mundo
+es volver a hacer clic — pedir el mismo trabajo dos veces.
 
-Recorre los 92 archivos del servidor, resuelve cada import (alias @/,
-relativo, con extensión o sin ella) y marca los que traen un VALOR de
-un archivo "use client". Componentes sí —Mayúscula, para eso está la
-frontera—; funciones no. Comprobado de las dos formas: con el error
-puesto a propósito lo reporta señalando el archivo y la línea, y
-quitado queda limpio.
+Dos cosas, y hacen falta las dos:
+ · useTransition + estado optimista: el botón que se tocó se enciende
+   de una, antes de que lleguen los datos, y una rayita corre bajo la
+   barra mientras tanto. Nada se apaga ni se bloquea: poder
+   arrepentirse a mitad de carga se siente más rápido, no menos.
+ · router.prefetch de los cuatro atajos al abrir, y de cualquiera al
+   posar el cursor. Prefetch sin aviso visual seguiría sintiéndose
+   trabado la primera vez; el aviso sin prefetch seguiría tardando.
+
+NO SE CREÓ NINGÚN ÍNDICE, y esa también fue una medición. La primera
+versión creaba (fecha, linea), que parecía lo obvio; sobraba, porque la
+llave única (fecha, linea, turno, envase, maquina, toma) ya empieza por
+esas dos columnas y un índice compuesto sirve para cualquier prefijo
+suyo. Habría sido una copia del que ya está, pagando escrituras y disco
+en una instancia NANO a cambio de nada. EXPLAIN ANALYZE sobre los
+24.245 registros: últimos 7 días → Index Scan 0,14 ms; año entero con
+una línea → Seq Scan 3,8 ms, y está bien, porque esa línea es el 29 %
+de la tabla.
+
+COMPROBADO CONTRA POSTGRES 16 con los 24.245 registros de verdad
+cargados —los seis archivos de supabase/datos entran limpios y dan
+24.245 filas, 1.889.816 unidades, 426.367 kg—:
+ · la función y la vista suman lo MISMO, con filtro de línea y sin él.
+   Rápido y distinto no sirve de nada.
+ · la migración corre dos veces seguidas sin quejarse.
+ · un usuario con rol operador puede leer las dos funciones: son
+   security invoker a propósito, así que el RLS sigue mandando.
+ · .arnes/rl-tablero.mjs limpio en los 7 temas y los 4 anchos.
+
+Falta correr en Supabase:
+  supabase/migraciones/2026-09-rotura-linea-tablero-rapido.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

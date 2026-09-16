@@ -495,6 +495,39 @@
 .rl-atajos button.on {
   background: var(--rl-grupo); color: #fff; border-color: var(--rl-grupo);
 }
+
+/* ---------- Mientras se cambia de período ----------
+
+   EL BOTÓN SE ENCIENDE ANTES DE QUE LLEGUEN LOS DATOS. Es lo que hace
+   que la barra se sienta rápida aunque el servidor tarde: sin esto,
+   entre el clic y el cambio no pasaba nada visible y la gente volvía a
+   hacer clic, que es pedir el mismo trabajo dos veces.
+
+   Y UNA RAYITA QUE CORRE por debajo de la barra mientras tanto. Va
+   debajo y no encima de los botones: lo que se está mirando es el
+   botón que se acaba de encender, y un giradorcito en el medio taparía
+   justo eso.
+
+   NO SE APAGA NADA NI SE PONE EL CURSOR DE ESPERA. Apagar los botones
+   mientras carga impediría corregirse —tocar «Este mes» y arrepentirse
+   al segundo— y eso se siente más lento, no menos, aunque tarde igual. */
+.rl-periodo { position: relative }
+.rl-periodo.cargando::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px;
+  border-radius: 2px; background: var(--rl-linea); overflow: hidden;
+  background-image: linear-gradient(90deg, transparent, var(--rl-grupo), transparent);
+  background-size: 40% 100%; background-repeat: no-repeat;
+  animation: rl-corre 1s linear infinite;
+}
+@keyframes rl-corre {
+  from { background-position: -40% 0 }
+  to   { background-position: 140% 0 }
+}
+/* Quien pidió menos movimiento ve la rayita quieta, no ve nada moverse
+   en bucle. Sigue diciendo lo mismo: hay algo en curso. */
+@media (prefers-reduced-motion: reduce) {
+  .rl-periodo.cargando::after { animation: none; background-position: 50% 0 }
+}
 .rl-fechas { display: flex; gap: 10px; flex-wrap: wrap }
 .rl-fechas label { display: grid; gap: 5px }
 .rl-fechas span {
