@@ -97,7 +97,12 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
     if (error) { alert(traducirError(error.message)); return }
     router.refresh();
   }
-  const [f, setF] = useState({ placa: "", origen: "", desde: "", hasta: "" });
+  /* `solo` no es un filtro más de la fila de filtros: es el que ponen
+     los chips de la cinta de arriba. Vive en el mismo objeto para que
+     «Limpiar» lo borre también —si viviera aparte, limpiar dejaría la
+     lista filtrada sin ningún filtro visible, que es la peor forma de
+     quedarse sin vehículos—. */
+  const [f, setF] = useState({ placa: "", origen: "", desde: "", hasta: "", solo: "" });
   /* En el celular los filtros arrancan PLEGADOS. Desplegados miden 207px
      de los 640 de la pantalla y, con la cabeza y las alertas, no queda
      sitio ni para media tarjeta: quien abre esta pantalla en el patio
@@ -120,6 +125,11 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
     return viajes.filter((v) => {
       if (p && !v.placa.toUpperCase().includes(p)) return false;
       if (f.origen && v.cd_origen !== f.origen) return false;
+      /* Los dos asuntos de la cinta. La misma cuenta que hace el
+         contador de arriba, para que el chip que dice «2» muestre
+         exactamente esos dos. */
+      if (f.solo === "fotos" && v.fotos_salida >= 3) return false;
+      if (f.solo === "trabados" && horasEnCamino(v.en_camino) <= HORAS_LARGAS) return false;
       /* La fecha que se filtra es la de SALIDA, no la de creación: es la
          que le importa a quien pregunta "¿qué salió el martes y todavía
          no llega?". Se compara en texto YYYY-MM-DD contra la fecha local
@@ -136,7 +146,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
     });
   }, [viajes, f]);
 
-  const hayFiltro = !!f.placa.trim() || !!f.origen || !!f.desde || !!f.hasta;
+  const hayFiltro = !!f.placa.trim() || !!f.origen || !!f.desde || !!f.hasta || !!f.solo;
 
   /* AGRUPADAS POR CD ORIGEN, que era el problema: veinte tarjetas
      sueltas en una rejilla no dejan ver que doce vienen de Galapa.
@@ -176,19 +186,48 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
     <>
       {cabeza}
 
+      /* ---------- LA CINTA DE ASUNTOS ----------
+
+            ANTES ERA UN PÁRRAFO CREMA de dos renglones que decía lo
+            mismo y no llevaba a ninguna parte: había que leerlo, buscar
+            los vehículos a mano y filtrar uno por uno. Y ocupaba
+            noventa píxeles de la lista, que en una pantalla donde lo
+            que importa son los camiones es el peor sitio para gastar.
+
+            AHORA CADA ASUNTO ES UN BOTÓN que filtra la lista. Un aviso
+            que no lleva al sitio del problema obliga a hacer a mano lo
+            que la pantalla ya sabe.
+
+            UNA SOLA LÍNEA, y negra. El negro la separa del resto sin
+            gritar —no es una alarma, es un estado— y el número de cada
+            chip lleva el color de su gravedad: rojo lo que bloquea el
+            cierre, ámbar lo que hay que mirar. */
       {(trabados > 0 || sinEvidencia > 0) && (
-        <section className="tr-alertas">
-          {trabados > 0 && (
-            <p>
-              <b>{trabados}</b> {trabados === 1 ? "vehículo lleva" : "vehículos llevan"} más
-              de 24 horas sin llegar. O están trabados, o alguien no cerró la llegada.
-            </p>
-          )}
+        <section className="tr-cinta">
+          <span className="tr-rot">REQUIERE ATENCIÓN</span>
           {sinEvidencia > 0 && (
-            <p>
-              <b>{sinEvidencia}</b> {sinEvidencia === 1 ? "salió" : "salieron"} sin las tres
-              fotos. Esos no se pueden cerrar hasta completarlas.
-            </p>
+            <button type="button" className="tr-chip"
+                    onClick={() => setF({ ...f, solo: f.solo === "fotos" ? "" : "fotos" })}
+                    aria-pressed={f.solo === "fotos"}>
+              <b>{sinEvidencia}</b>
+              <span>{sinEvidencia === 1 ? "salió" : "salieron"} sin las tres fotos · no se{" "}
+                {sinEvidencia === 1 ? "puede" : "pueden"} cerrar</span>
+              <i aria-hidden>→</i>
+            </button>
+          )}
+          {trabados > 0 && (
+            <button type="button" className="tr-chip amb"
+                    onClick={() => setF({ ...f, solo: f.solo === "trabados" ? "" : "trabados" })}
+                    aria-pressed={f.solo === "trabados"}>
+              <b>{trabados}</b>
+              <span>más de 24 h sin llegar</span>
+              <i aria-hidden>→</i>
+            </button>
+          )}
+          {f.solo && (
+            <button type="button" className="tr-quitar" onClick={() => setF({ ...f, solo: "" })}>
+              Ver todos
+            </button>
           )}
         </section>
       )}
@@ -237,7 +276,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
                    onChange={(e) => setF({ ...f, hasta: e.target.value })} />
           </label>
           <button type="button" className="btn plano" disabled={!hayFiltro}
-                  onClick={() => setF({ placa: "", origen: "", desde: "", hasta: "" })}>
+                  onClick={() => setF({ placa: "", origen: "", desde: "", hasta: "", solo: "" })}>
             Limpiar
           </button>
           {hayFiltro && (
@@ -366,7 +405,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
           {viajes.length ? (
             <>Ningún vehículo coincide con el filtro.{" "}
               <button type="button" className="tr-enlace"
-                      onClick={() => setF({ placa: "", origen: "", desde: "", hasta: "" })}>
+                      onClick={() => setF({ placa: "", origen: "", desde: "", hasta: "", solo: "" })}>
                 Quitar el filtro
               </button></>
           ) : (

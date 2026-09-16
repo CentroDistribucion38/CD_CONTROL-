@@ -61,7 +61,7 @@ export default async function TransitoPage() {
   const sinEvidencia = viajes.filter((v) => v.fotos_salida < 3).length;
 
   return (
-    <div className="sd">
+    <div className="sd tr-pantalla">
       {/* La cabeza y las alertas se le pasan al cliente en vez de dibujarse
           aquí, porque cuando alguien abre un vehículo para cerrar su
           llegada las esconde: el conteo de los otros doce y el "12

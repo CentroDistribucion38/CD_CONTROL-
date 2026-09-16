@@ -1,71 +1,61 @@
-Sider · Revisión AI: marcar el vehículo en Tránsito y el formulario
+Tránsito: la cinta de asuntos en una línea y la lista deja de ser cortica
 
-SEGUNDA PARTE. La base ya estaba; esto es lo que se ve.
+DOS COSAS QUE ERAN LA MISMA: la pantalla hablaba de sí misma en vez de
+mostrar camiones.
 
-DÓNDE SE ASIGNA. En Tránsito, en la tarjeta de cada vehículo, el
-administrador tiene un botón «Pedir revisión AI» que pregunta por qué
-—opcional— y deja la marca. El botón solo lo ve el administrador; el
-candado de verdad está en la base, que rechaza la marca venga de donde
-venga. Esconder un botón no es un permiso.
+1) LAS ALERTAS. Eran un párrafo crema de dos renglones que decía lo
+   mismo que ya dicen las tarjetas, y no se podía hacer nada con él.
+   Ahora es una cinta negra de una línea donde cada asunto es un botón:
+   se toca «2 salieron sin las tres fotos» y la lista se queda solo con
+   esos. De informar a servir, y de 55 px de alto a lo que ocupa una
+   línea de texto.
 
-EL SELLO VA JUNTO A LA PLACA, no escondido abajo. Quien recibe el
-camión tiene que saber ANTES de descargarlo que a este le toca
-revisión: la muestra se saca en el muelle, y una vez descargado el
-envase ya está revuelto y no hay muestra que sacar. Es ámbar y no rojo
-a propósito — no pasó nada malo, es una instrucción, y un rojo de más
-enseña a ignorar los rojos de verdad, que aquí son los vehículos
-trabados hace más de un día.
+   El filtro vive en la misma bolsa que los otros (`solo` en el estado),
+   así que se combina con placa, origen y fechas sin reglas aparte.
 
-QUITAR PREGUNTA, PEDIR NO. Pedir la revisión se deshace con otro clic;
-quitarla puede estar borrando una decisión que alguien tomó por algo, y
-en el muelle un clic de más es fácil.
+2) EL SCROLL, que Cristian describió como «muy cortico». Lo era: la
+   lista se recortaba con `max-height: calc(100dvh - 470px)`, y ese 470
+   era «lo que ocupa todo lo de arriba» escrito a mano. Medido, lo de
+   arriba ocupa entre 403 y 498 px según el ancho —la cabecera envuelve
+   distinto—, así que ninguna constante podía estar bien: en unas
+   pantallas le regalaba alto a la nada y en otras dejaba la lista
+   colgando bajo el borde, con la página y la lista rodando a la vez.
 
-EL FORMULARIO REEMPLAZA UNA FILA DE CINCUENTA Y NUEVE COLUMNAS POR
-TRECE CAMPOS. Las otras cuarenta y seis eran cuentas, y las cuentas no
-se digitan: de las 59 del Excel, solo 13 son datos que alguien observa.
+   Se fue el número mágico. Ahora la pantalla mide lo que queda bajo la
+   barra de la app y la lista es el hijo que crece (`flex: 1`, con
+   `min-height: 0` en cada eslabón, que no es adorno: sin eso un hijo de
+   flex empuja hacia abajo en vez de rodar, que es justo el bug).
 
-Y LO QUE SE CALCULA SE VE MIENTRAS SE ESCRIBE. Quien está contando
-botellas ve subir el índice y las unidades que no se le van a abonar al
-socio. Si va a salir un número raro, se nota ANTES de mandarlo, no
-cuando el socio reclame. El bloque «Lo que sale» tiene otro fondo y
-otro borde a propósito: si pareciera un campo, alguien intentaría
-escribir encima.
+   Y en pantallas bajas —el portátil de bodega, 768 px— se encoge lo de
+   ARRIBA, no la lista: párrafo de la cabecera fuera, KPI más apretado,
+   cinta más fina, y la tarjeta pierde aire (no información: siguen la
+   placa, la ruta, el material, las cuatro cifras y el botón).
 
-LOS AVISOS SE CALCULAN AQUÍ, no se esperan del servidor. Decirle a
-alguien que marcó más botellas malas que las que revisó DESPUÉS de que
-llenó cuarenta casillas es hacerle perder el trabajo. El botón de
-guardar no se puede tocar mientras haya un aviso.
+MEDIDO, NO CALCULADO A OJO. `.arnes/sd-scroll.mjs` arma la pantalla en
+cuatro tamaños y pregunta dónde EMPIEZA la lista:
 
-Y ESTE ANTICIPO NO ES LO QUE MANDA: el índice de verdad lo calcula la
-base con la misma fórmula. Están escritos iguales a propósito —defectos
-que cobran ÷ revisadas— y hay una prueba en la base que la fija.
+   portátil        375 px    485 px alto    54 %   1.7 filas
+   monitor         375 px    665 px         62 %   2.3 filas
+   portátil chico  339 px    389 px         51 %   1.5 filas
+   kiosco          454 px    631 px         56 %   2.2 filas
 
-DETALLES DE PANTALLA que cuestan poco y se notan:
- · Los catorce conteos son casillas de 44 px, centradas y sin flechitas
-   de incremento: se llenan en el muelle, muchas veces con guantes.
- · Los cuatro que no cobran van abajo, separados y más apagados: se
-   llenan igual pero no deciden plata.
- · El socio solo aparece cuando el canal es Socios. En un traslado
-   propio no hay a quién cobrarle, y dejar el campo puesto invita a
-   llenarlo con cualquiera.
- · La lista pone PRIMERO lo que falta por hacer y después lo hecho: un
-   camión marcado que nadie revisó es un cobro que se pierde.
+ESTE ARNÉS MINTIÓ DOS VECES ANTES DE SERVIR, y las dos por lo mismo: el
+armazón de prueba llevaba clases que la pantalla no usa. Primero
+`.tr-cabeza` y `.tr-kpi` (las de verdad son `.cabeza` y `.kpi`): midió
+una cabecera sin estilos y la regla que salió de esos números apuntaba a
+las clases inventadas. Después `.filtros` con un `.arriba` adentro, que
+sí existe —en globals.css, para otras pantallas—, y por eso el control
+de huérfanas lo dejó pasar: midió un panel de 114 px donde la pantalla
+real tiene una fila de 60.
 
-Y DOS COSAS QUE SE VIERON MIRANDO LA PANTALLA, no razonándola:
- · Las casillas se salían dos píxeles de la tarjeta. Faltaba
-   `box-sizing: border-box` en el módulo: un input con padding mide su
-   ancho MÁS el padding más el borde, así que cinco columnas de «1fr»
-   sumaban más que la tarjeta.
- · El selector de turno dejaba un cuarto cajón vacío a la derecha —el
-   label es una rejilla y estiraba a sus hijos—. `justify-self: start`.
+Así que el control cambió de sitio y de forma: el armazón se compara
+contra Transito.tsx, no contra la hoja de estilos, y por palabra
+completa —`tsx.includes("filtros")` daba verdadero porque allá está
+escrito `tr-filtros`—. Probado al revés: con `.filtros` puesto a
+propósito, el arnés lo canta.
 
-En el menú, Revisión AI va justo después de En tránsito: ese es el
-orden del proceso —se marca en Tránsito, llega el camión, se revisa—.
-Ponerla al final, donde suele caer lo último que se construyó, la
-separaría del sitio donde se pide.
-
-Falta correr en Supabase (si todavía no):
-  supabase/modulos/sider-ai.sql
+Y se cuentan FILAS, no tarjetas: las tarjetas van en rejilla y a 1280 px
+caben tres al lado; lo que obliga a rodar es el grupo, no la tarjeta.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

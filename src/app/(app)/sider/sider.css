@@ -803,7 +803,16 @@
    título y el armazón crece, así que allá el descuento es otro. */
 .sd .tr-cuerpo { display: flex; flex-direction: column; gap: 14px; min-height: 0 }
 .sd .tr-grupos {
-  max-height: max(200px, calc(100dvh - 470px));
+  /* SIN max-height. Lo que había era `calc(100dvh - 470px)`, y ese 470
+     nunca pudo estar bien: al medirlo, la lista arranca en 403 px en un
+     monitor de 1280 de ancho y en 498 en uno de 1125 —la cabecera
+     envuelve distinto según el ancho—. Una constante contra algo que
+     varía casi cien píxeles le regala alto a la nada en unas pantallas
+     y arma dos scrolls peleando en otras.
+
+     Ahora la lista CRECE hasta llenar lo que sobre, y lo que sobra lo
+     calcula el navegador: ver `.sd.tr-pantalla` más abajo. */
+  flex: 1; min-height: 200px;
   overflow-y: auto;
   padding-bottom: 4px;
   display: flex; flex-direction: column; gap: 14px;
@@ -2758,4 +2767,157 @@
 .sd .tr-ojo.ai {
   background: #FDF0D0; color: #5E4100;
   box-shadow: inset 2.5px 0 0 #C08A16; padding-left: 11px;
+}
+
+
+/* ====================== La cinta de asuntos ======================
+
+   REEMPLAZA AL PÁRRAFO CREMA. Ese decía lo mismo, no llevaba a ninguna
+   parte —había que buscar los vehículos a mano— y se comía noventa
+   píxeles de la lista. En una pantalla donde lo que importa son los
+   camiones, ese es el peor sitio para gastar alto.
+
+   NEGRA Y DE UNA LÍNEA. El negro la separa del resto sin gritar: no es
+   una alarma, es un estado. Y el color va en el NÚMERO de cada chip,
+   no en el fondo — rojo lo que bloquea el cierre, ámbar lo que solo
+   hay que mirar. Pintar la barra entera de rojo enseñaría a ignorarla.
+
+   CADA CHIP ES UN FILTRO. Un aviso que no lleva al sitio del problema
+   obliga a hacer a mano lo que la pantalla ya sabe hacer.
+   ================================================================= */
+.sd .tr-cinta {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; border-radius: 3px;
+  background: var(--c-grupo, #0D0D0D);
+}
+/* El rayado del tema, muy tenue: la misma textura de la cabecera de la
+   app, para que la cinta se lea como parte del armazón y no como una
+   tarjeta suelta. */
+.sd .tr-cinta::before {
+  content: ""; position: absolute; inset: 0; opacity: .4; pointer-events: none;
+  background-image: repeating-linear-gradient(116deg,
+    rgba(255,255,255,.07) 0 2px, transparent 2px 18px);
+}
+.sd .tr-cinta > * { position: relative }
+
+.sd .tr-rot {
+  font: 700 10.5px var(--sd-titulo, system-ui); letter-spacing: .15em;
+  color: var(--c-marca, #E4002B);
+}
+
+.sd .tr-chip {
+  display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 8px 13px; border: 0; border-left: 3px solid #D30000;
+  background: rgba(255,255,255,.07); color: #fff; text-align: left;
+  border-radius: 0 2px 2px 0;
+}
+.sd .tr-chip:hover { background: rgba(255,255,255,.14) }
+/* Puesto: se invierte. Es la única forma de saber, mirando la cinta,
+   que la lista de abajo está recortada por este chip. */
+.sd .tr-chip[aria-pressed="true"] { background: #fff; color: #0D0D0D }
+.sd .tr-chip[aria-pressed="true"] span { color: #3A3A3A }
+.sd .tr-chip b {
+  font: 900 19px/1 var(--sd-titulo, system-ui); color: #FF5A5A;
+  font-variant-numeric: tabular-nums;
+}
+.sd .tr-chip[aria-pressed="true"] b { color: #B10000 }
+.sd .tr-chip span { font-size: 12.5px; color: #D4D6D4; line-height: 1.35 }
+.sd .tr-chip i { font-style: normal; color: #8A8A8A; font-size: 14px }
+.sd .tr-chip[aria-pressed="true"] i { color: #6B6B6B }
+
+.sd .tr-chip.amb { border-left-color: #FFC000 }
+.sd .tr-chip.amb b { color: #FFC000 }
+.sd .tr-chip.amb[aria-pressed="true"] b { color: #7A5C00 }
+
+.sd .tr-quitar {
+  margin-left: auto; padding: 7px 12px; cursor: pointer;
+  background: none; border: 1px solid rgba(255,255,255,.25); border-radius: 2px;
+  font: 600 12.5px system-ui; color: #D4D6D4;
+}
+.sd .tr-quitar:hover { border-color: #fff; color: #fff }
+
+.sd .tr-cinta button:focus-visible { outline: 2px solid #FFC000; outline-offset: 2px }
+
+@media (max-width: 620px) {
+  .sd .tr-cinta { padding: 9px 12px; gap: 9px }
+  .sd .tr-rot { width: 100% }
+  .sd .tr-chip span { font-size: 12px }
+}
+
+
+/* ---------- Pantallas bajas ----------
+
+   EN UN PORTÁTIL DE 768 px DE ALTO el armazón se come el 51 % antes de
+   mostrar un solo camión, y en la lista cabe tarjeta y media: rodar con
+   una tarjeta y media visible es adivinar.
+
+   ASÍ QUE ARRIBA SE ENCOGE, que es de donde hay que sacarlo. El título
+   baja, el párrafo que explica la pantalla se esconde —lo lee quien
+   entra la primera vez, no quien la usa doce veces al día— y el KPI se
+   aplana. Se recuperan unos 90 px, todos para la lista.
+
+   SE ESCOGIÓ POR ALTO Y NO POR ANCHO: el problema es el alto. Hay
+   monitores anchos y bajos —los de 1920×1080 en vertical partido— donde
+   una regla por ancho no entraría nunca. */
+@media (min-width: 901px) and (max-height: 820px) {
+  .sd .cabeza h1 { font-size: 24px }
+  .sd .cabeza .sub { display: none }
+  .sd .kpi { padding: 11px 16px }
+  .sd .kpi .num { font-size: 30px; margin-top: 2px }
+  .sd .kpi .pie { margin-top: 7px }
+  /* Aquí NO va un `max-height` para la lista. Estuvo, y era el mismo
+     error de antes con otro número: la lista ya crece sola con
+     `flex: 1`, y ponerle un tope calculado a mano vuelve a pelear con
+     el navegador. Lo que esta regla hace es lo único que sirve en una
+     pantalla baja: encoger LO DE ARRIBA, para que abajo sobre más. */
+  .sd .tr-cinta { padding: 7px 13px }
+  .sd .tr-chip { padding: 6px 11px }
+
+  /* Y LA TARJETA TAMBIÉN, porque lo que se apila hacia abajo no es la
+     cabecera sino ella: en un portátil de 768 px cada tarjeta se lleva
+     217 px y con dos ya no cabe el asomo de la tercera. Aquí no se
+     quita información —siguen la placa, la ruta, el material, las
+     cuatro cifras y el botón—, se quita aire: 32 px por tarjeta, que a
+     tres filas son casi cien. */
+  .sd .tr-vh { padding: 10px 13px 11px; gap: 7px }
+  .sd .tr-vh .placa { font-size: 21px }
+  .sd .tr-vh footer .btn { height: 34px }
+  .sd .tr-grupos { gap: 10px }
+  .sd .tr-rejilla { gap: 10px }
+}
+
+
+/* ====================== El alto de la pantalla de tránsito ==========
+
+   EL NÚMERO MÁGICO SE FUE. Antes la lista se recortaba con
+   `max-height: calc(100dvh - 470px)`, donde 470 era «lo que ocupa todo
+   lo de arriba» escrito a mano. Medido, eso ocupa entre 403 y 498 px
+   según el ancho —la cabecera envuelve distinto—, así que ninguna
+   constante podía servir: en unas pantallas regalaba alto y en otras
+   dejaba la lista colgando por debajo del borde, con la página y la
+   lista rodando a la vez.
+
+   AHORA SE ENCADENA. La pantalla mide lo que queda bajo la barra de la
+   app, y la lista es el hijo que crece. Lo de arriba puede cambiar de
+   alto —una alerta más, una cabecera que envuelve— y la lista se ajusta
+   sola. Lo único que queda escrito son dos cosas que sí son
+   constantes: el alto de la barra y el relleno del <main>.
+
+   `min-height: 0` EN CADA ESLABÓN, y no es adorno: un hijo de flex se
+   niega a encogerse por debajo de su contenido salvo que se le diga.
+   Sin eso, la lista empuja hacia abajo en vez de rodar, que es
+   exactamente el bug que se está arreglando.
+   ==================================================================== */
+.sd.tr-pantalla {
+  display: flex; flex-direction: column; min-height: 0;
+  height: calc(100dvh - 70px - var(--sh-aire, 0px) - 66px);
+}
+.sd.tr-pantalla .tr-cuerpo { flex: 1; min-height: 0 }
+
+/* En el celular NO: allá ruedan juntos los filtros y la lista dentro de
+   .tr-cuerpo —cabeza, cinta y filtros abiertos no dejan nada quieto— y
+   el alto lo pone la regla de abajo, no esta. */
+@media (max-width: 900px) {
+  .sd.tr-pantalla { height: auto; display: block }
 }
