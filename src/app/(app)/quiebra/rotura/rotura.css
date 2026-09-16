@@ -915,3 +915,97 @@
 @media (prefers-reduced-motion: reduce) {
   .rl-cortes.cargando::after { animation: none; background-position: 50% 0 }
 }
+
+/* ================= LA LECTURA DEL PARETO, COMO INFORME =============
+
+   POR QUÉ CAMBIÓ DE FORMA. Antes era un párrafo de seis renglones
+   corridos. Decía lo correcto, y en seis renglones corridos nadie
+   encuentra el dato que quiere citar en una reunión. Ahora es lo que
+   sería en un informe impreso: titular con el hallazgo, la recomendación
+   aparte, y la interpretación en tres puntos —qué pasa, por qué pasa,
+   qué hacer— que es el orden en que se sostiene un argumento.
+
+   LA RECOMENDACIÓN VA EN NEGRO Y APARTE. Es la única línea del bloque
+   que pide una decisión; enterrarla en el tercer renglón de un párrafo
+   es garantizar que se lea al final o no se lea.
+   =================================================================== */
+.rl-lect {
+  grid-column: 1 / -1; margin-top: 4px;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  overflow: hidden;
+}
+
+.rl-lect-cab {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  gap: 24px; align-items: start; padding: 20px 22px 18px;
+}
+.rl-lect-titu { min-width: 0 }
+.rl-lect-ojo {
+  margin: 0; font: 700 9.5px var(--rl-texto); letter-spacing: .15em;
+  text-transform: uppercase; color: var(--rl-gris);
+}
+.rl-lect h3 {
+  margin: 9px 0 0; font: 900 27px/1.16 var(--rl-titulo); color: var(--rl-tinta);
+  letter-spacing: -.02em; text-wrap: balance;
+}
+/* EL SUBRAYADO VA SOBRE LA MITAD QUE RESUELVE, no sobre las dos: si se
+   marcara todo el titular, marcar dejaría de querer decir algo. */
+.rl-lect h3 mark {
+  background: var(--rl-ojo); color: var(--rl-sobre);
+  padding: 0 7px; box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+.rl-lect-meta {
+  margin: 12px 0 0; font-size: 12.5px; color: var(--rl-gris);
+  font-variant-numeric: tabular-nums;
+}
+
+.rl-lect-rec {
+  background: var(--rl-grupo); color: #fff; border-radius: 3px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.rl-lect-rec span {
+  font: 700 9.5px var(--rl-texto); letter-spacing: .15em; text-transform: uppercase;
+  opacity: .72;
+}
+.rl-lect-rec b { font: 800 19px/1.2 var(--rl-titulo); letter-spacing: -.01em }
+/* .92 y no .82: la banda del tema pizarra no es oscura sino un verde
+   medio, y con el blanco rebajado al 82 % esta línea daba 4,16. */
+.rl-lect-rec i { font-style: normal; font-size: 12px; line-height: 1.45; opacity: .92 }
+
+.rl-lect-cuerpo {
+  border-top: 1px solid var(--rl-linea); background: var(--rl-fondo);
+  padding: 16px 22px 18px; box-shadow: inset 3px 0 0 var(--rl-ojo);
+}
+.rl-lect-puntos {
+  margin: 12px 0 0; padding: 0; list-style: none; counter-reset: pt;
+  display: grid; gap: 18px 22px;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+}
+.rl-lect-puntos li {
+  counter-increment: pt; min-width: 0;
+  font-size: 13px; line-height: 1.55;
+  /* NO --rl-gris. Esto no es una leyenda ni un pie de foto: es el texto
+     que alguien va a LEER y a citar, y en --rl-gris contrastaba entre
+     4,17 y 4,40 sobre el fondo del bloque, por debajo del 4,5 que pide
+     un cuerpo de 13 px. Se acerca a la tinta sin llegar a ella, para que
+     el título en negrita del punto siga pesando más. */
+  color: color-mix(in srgb, var(--rl-tinta) 85%, var(--rl-fondo));
+  padding-left: 30px; position: relative;
+}
+/* La numeración SÍ dice algo aquí: los tres puntos van en el orden en
+   que se sostiene el argumento —qué pasa, por qué, qué hacer—, así que
+   el número es la secuencia y no un adorno. */
+.rl-lect-puntos li::before {
+  content: counter(pt); position: absolute; left: 0; top: 1px;
+  width: 20px; height: 20px; display: grid; place-items: center;
+  background: var(--rl-grupo); color: #fff; border-radius: 2px;
+  font: 800 11px var(--rl-titulo);
+}
+.rl-lect-puntos b { color: var(--rl-tinta); font-weight: 700 }
+
+.rl-lect .rl-8020-lista { margin: 0; padding: 0 22px 18px; background: var(--rl-fondo) }
+
+@media (max-width: 860px) {
+  .rl-lect-cab { grid-template-columns: 1fr; gap: 16px }
+  .rl-lect h3 { font-size: 23px }
+}

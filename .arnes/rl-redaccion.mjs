@@ -29,10 +29,10 @@ const src = readFileSync(ruta, "utf8");
 /* Solo el bloque del 80/20: el resto del archivo son comentarios, y los
    comentarios de este proyecto sí hablan de tú a quien los lee. Lo que
    se audita es lo que SALE EN PANTALLA. */
-const ini = src.indexOf('<div className="rl-8020-cifras">');
-const fin = src.indexOf('<ol className="rl-8020-lista">');
+const ini = src.indexOf('{paretoDatos.length >= 3 && und > 0 && (() => {');
+const fin = src.indexOf('<ol className="rl-8020-lista">', ini);
 if (ini < 0 || fin < 0) {
-  console.error("No se encontró el bloque del 80/20 en el tablero. ¿Se renombró una clase?");
+  console.error("No se encontró el bloque de lectura en el tablero. ¿Se renombró .rl-lect?");
   process.exit(1);
 }
 /* El bloque tal como está escrito, para mirar los rótulos; y su texto
@@ -72,6 +72,15 @@ function sinComentarios(t) {
       out += " ";
       continue;
     }
+    /* Y los comentarios normales de JavaScript: el texto de los tres
+       puntos se arma ARRIBA del JSX, en objetos, así que la mitad del
+       bloque es código y lleva sus propias explicaciones. */
+    if (t.startsWith("/*", i)) {
+      const cierra = t.indexOf("*/", i + 2);
+      i = cierra < 0 ? t.length : cierra + 2;
+      out += " ";
+      continue;
+    }
     out += t[i++];
   }
   return out;
@@ -99,7 +108,7 @@ for (const [re, por] of PROHIBIDO) {
    Un rótulo escrito a mano no puede decir «el 20 %» cuando ese 20 % es
    una cuenta que cambia con los datos. Se permite «el 80 %», que sí es
    la constante de la regla. */
-for (const m of crudo.matchAll(/<span className="rl-8020-r">([^<]*)<\/span>/g)) {
+for (const m of crudo.matchAll(/<(?:p|span) className="rl-lect-(?:ojo|rec)?[^"]*">([^<{]*)</g)) {
   const rot = m[1].trim();
   const pct = rot.match(/\b(\d+)\s*%/);
   if (pct && pct[1] !== "80")
@@ -110,10 +119,14 @@ for (const m of crudo.matchAll(/<span className="rl-8020-r">([^<]*)<\/span>/g)) 
    Las dos ramas —se cumple y no se cumple— tienen que terminar en una
    recomendación. Describir sin concluir deja el trabajo a medias, y es
    justo lo que diferencia un informe de una lista de cifras. */
-const recomienda = (crudo.match(/Se recomienda/g) ?? []).length;
-if (recomienda < 2)
-  fallas.push(`solo ${recomienda} rama(s) del párrafo terminan en una recomendación; ` +
-              "tanto el caso que concentra como el que no tienen que decir qué hacer");
+/* Las tres salidas —concentra, no concentra pero otra dimensión sí, y
+   no concentra en ninguna— tienen que terminar en una recomendación.
+   Ahora la recomendación es un objeto con `que:`, así que se cuentan
+   esos. */
+const recomienda = (crudo.match(/que:/g) ?? []).length;
+if (recomienda < 3)
+  fallas.push(`solo ${recomienda} de los tres desenlaces tienen recomendación; ` +
+              "concentra, no concentra pero otra dimensión sí, y no concentra en ninguna");
 
 if (fallas.length) {
   console.error("REDACCIÓN DEL BLOQUE 80/20:\n" +

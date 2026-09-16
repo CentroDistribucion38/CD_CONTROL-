@@ -1,58 +1,55 @@
-Rotura: el bloque del 80/20 se escribe como un informe, no como un chat
+Rotura: la lectura del pareto pasa de párrafo a cabecera de informe
 
-CRISTIAN LO DIJO EN UNA LÍNEA: «eso no es una redacción para el
-informe». Tenía razón. El párrafo que interpreta el pareto decía «y diez
-frentes a la vez no son un plan» y terminaba con «Cámbialo aquí arriba y
-lo ves». Ese texto se lee en voz alta en una reunión y se pega en un
-correo: no puede hablarle de tú al lector, y no puede depender de que
-alguien haga clic — un análisis que solo funciona con la pantalla
-delante no se puede citar.
+CRISTIAN MANDÓ EL DISEÑO Y TENÍA RAZÓN. El párrafo anterior decía lo
+correcto en seis renglones corridos, y en seis renglones corridos nadie
+encuentra el dato que quiere citar en una reunión. Ahora es lo que sería
+en un informe impreso:
 
-AHORA ESTÁ ESCRITO COMO SE ESCRIBE UN INFORME: hallazgo, cifra que lo
-sostiene, causa cuando se conoce, y recomendación.
+  · un titular con el hallazgo, con la mitad que resuelve marcada
+    —«Por máquina no se concentra. **Por envase sí.**»—;
+  · la línea de contexto: período, unidades rotas, cuántas máquinas y
+    cuántos envases;
+  · la RECOMENDACIÓN aparte, en negro, a la derecha;
+  · y la interpretación en tres puntos numerados.
 
-  «La rotura no se concentra por máquina. Las 3 de mayor incidencia
-   aportan el 29,6 % del total, frente al orden del 80 % que describiría
-   una distribución concentrada. Cubrir el 80 % exige intervenir 10 de 13
-   máquinas —el 77 %—, lo que equivale a intervenir el proceso completo y
-   no un punto crítico. El origen es de agregación, no de operación: las
-   13 estaciones existen en todas las líneas, de modo que cada barra
-   promedia la misma estación de la línea 1, la 2, la 4 y la 6. Promediar
-   equipos distintos bajo un mismo rótulo tiende al valor medio y suprime
-   la dispersión que el análisis busca. Por envase el comportamiento sí
-   es concentrado: 4 de 12 envases explican el 80 %, con BOTELLA … en
-   36,5 %. Se recomienda dirigir la intervención por esa dimensión.»
+LOS TRES PUNTOS VAN EN EL ORDEN EN QUE SE SOSTIENE UN ARGUMENTO: qué
+pasa, por qué pasa, qué hacer. Ese es también el orden en que alguien lo
+repite, y por eso la numeración aquí sí dice algo —es la secuencia, no un
+01/02/03 decorativo—.
 
-LAS DOS RAMAS CIERRAN CON UNA RECOMENDACIÓN, también la negativa. Que la
-rotura NO se concentre es un hallazgo con consecuencia —cambia por dónde
-se ataca— y merece enunciarse igual de firme que el positivo. Y se
-agregó el caso que faltaba: cuando ninguna otra dimensión concentra
-mejor, el informe lo dice y concluye que la reducción pasa por
-condiciones comunes al proceso y no por un equipo.
+LA RECOMENDACIÓN NO PODÍA SEGUIR ENTERRADA en el tercer renglón de un
+párrafo. Es la única línea del bloque que pide una decisión, así que va
+sola y en negro: se lee primero y se cita sin recortar.
 
-Y HABÍA ALGO PEOR QUE EL TONO, que es lo que de verdad importa: el
-rótulo decía «El 20 % que más rompe» SIEMPRE. Pero ese grupo nunca baja
-de dos elementos, así que con cuatro líneas las dos primeras son el 50 %
-del universo — y el informe llamaba «20 %» a la mitad. Un número mal
-rotulado en un informe es peor que ningún número, porque nadie lo va a
-volver a comprobar. Ahora el rótulo dice cuántas son y la línea de abajo
-qué porcentaje del universo representan, calculado.
+Y TODO SALE DE LAS MISMAS VARIABLES. El titular, el recuadro y los tres
+puntos se arman arriba del JSX a partir de `A` y `mejor`, de modo que no
+existe la posibilidad de que el titular diga una cosa y el punto 3 otra
+del mismo período. Los tres desenlaces —concentra, no concentra pero otra
+dimensión sí, y no concentra en ninguna— tienen sus tres puntos y su
+recomendación.
 
-`.arnes/rl-redaccion.mjs` audita ese párrafo: coloquialismos, trato de
-tú, órdenes de hacer clic, exclamaciones, rótulos que afirman un
-porcentaje que en realidad se calcula, y que las dos ramas terminen en
-una recomendación.
+MEDIDO EN LOS SIETE TEMAS (`.arnes/rl-lectura.mjs`), porque las tres
+piezas nuevas descansan en pares de tokens que nadie emparejó a
+propósito: el marcado del titular pinta el acento con su tinta encima, el
+recuadro pinta blanco sobre la banda del tema, y los puntos van sobre el
+fondo del bloque. Dos correcciones salieron de medir:
 
-EL ARNÉS SE EQUIVOCÓ PRIMERO, y de la forma más peligrosa: dando el
-visto bueno. Quitaba todo lo que va entre llaves con el argumento de que
-en JSX las llaves son código — y se comió justo lo que venía a auditar,
-porque el párrafo entero vive dentro de un `{A.seCumple ? (…) : (…)}`.
-Quedó leyendo una cadena vacía y aprobando cualquier cosa; probado
-poniendo la frase prohibida a propósito, no la vio. Ahora quita solo los
-comentarios —el de ese bloque nombra las frases prohibidas para explicar
-por qué no van, y sin quitarlo el arnés se caza a sí mismo— y lo que
-evita cazar código son las reglas: la exclamación se busca pegada a una
-letra, que es como aparece en la prosa y nunca en una negación.
+  · El cuerpo de los tres puntos estaba en --rl-gris y contrastaba entre
+    4,17 y 4,40. Eso no es una leyenda ni un pie de foto: es el texto que
+    alguien va a leer y a citar, y 13 px piden 4,5. Ahora se acerca a la
+    tinta sin llegar a ella —para que el título en negrita del punto siga
+    pesando más— y da entre 9,56 y 11,96.
+  · El subtítulo de la recomendación iba al 82 % y daba 4,16 en pizarra,
+    cuya banda no es oscura sino un verde medio. Al 92 % queda en 4,80.
+
+El titular marcado va entre 4,71 y 11,84 (el mínimo para 27 px en peso
+900 es 3,0), y la interpretación se reparte en tres columnas en los
+siete: si cayera a una sola, el bloque volvería a ser el párrafo largo
+que vino a reemplazar, y el arnés lo canta.
+
+`.arnes/rl-redaccion.mjs` se apuntó al bloque nuevo y ahora exige tres
+recomendaciones, una por desenlace. Probado al revés metiéndole el
+coloquialismo viejo: lo caza.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -287,86 +287,127 @@ export default async function TableroRoturaPage({ searchParams }: {
             se entra al cuadro —«¿dónde meto la mano?»— y la respuesta
             tiene que estar antes de las barras, no después de
             estudiarlas. */}
-        {paretoDatos.length >= 3 && und > 0 && (
-          <div className={"rl-8020" + (A.seCumple ? " si" : " no")}>
-            <div className="rl-8020-cifras">
-              <div className="rl-8020-c">
-                <span className="rl-8020-r">Las {A.cuantasVitales} de mayor incidencia</span>
-                <b>{A.pctVitales.toFixed(1)} %</b>
-                <i>
-                  {A.cuantasVitales} de {A.n} {varios} — el {A.pctVitalesDelN.toFixed(0)} % de{" "}
-                  {las} · {fmt(A.undVitales)} unidades
-                </i>
+        {paretoDatos.length >= 3 && und > 0 && (() => {
+          /* ---------- LA LECTURA, EN TRES PUNTOS ----------
+
+             UN PÁRRAFO LARGO NO SE LEE EN UNA REUNIÓN. La versión
+             anterior decía lo correcto en seis renglones corridos, y en
+             seis renglones corridos nadie encuentra el dato que quiere
+             citar. Se parte en tres puntos numerados —qué pasa, por qué
+             pasa, y qué hacer— que es el orden en que se sostiene un
+             argumento y el orden en que alguien lo repite.
+
+             LOS PUNTOS SE ARMAN AQUÍ Y NO EN LA PLANTILLA: así el
+             recuadro de la recomendación y el titular salen de las
+             MISMAS variables que el texto, y no pueden decir cosas
+             distintas del mismo período. */
+          const p1 = A.seCumple
+            ? {
+                t: `${A.n80} de ${A.n} explican el 80 %.`,
+                c: <>{A.cuantasVitales === 1 ? "El primero concentra" : `Los ${A.cuantasVitales} de mayor incidencia concentran`}{" "}
+                   el {A.pctVitales.toFixed(1)} % del total. El resto aporta de forma marginal:
+                   es una distribución concentrada y admite una intervención dirigida.</>,
+              }
+            : {
+                t: `${las[0].toUpperCase()}${las.slice(1)} están parejas.`,
+                c: <>{A.cuantasVitales === 1 ? "La primera suma" : `Las ${A.cuantasVitales} de mayor incidencia suman`}{" "}
+                   el {A.pctVitales.toFixed(1)} %, muy lejos del 80 % que describiría un proceso
+                   con un punto crítico. Cubrir el 80 % exigiría tocar {A.n80} de {A.n}.</>,
+              };
+
+          const p2 = !A.seCumple && corte === "maquina"
+            ? {
+                t: "Ese resultado es de agregación, no de operación.",
+                c: <>Las {A.n} estaciones existen en las cuatro líneas, así que cada barra
+                   promedia la misma estación de la línea 1, la 2, la 4 y la 6, y el promedio
+                   borra la dispersión.</>,
+              }
+            : A.seCumple
+              ? {
+                  t: "La lista corta cabe en una orden de trabajo.",
+                  c: <>{A.vitales.map((x) => x.rotulo).slice(0, 3).join(", ")}
+                     {A.cuantasVitales > 3 ? " y el resto del grupo" : ""} —
+                     el {A.pctN80.toFixed(0)} % de {las}— es todo el frente que hay que abrir.</>,
+                }
+              : {
+                  t: "Intervenir el 80 % es intervenir el proceso.",
+                  c: <>{A.n80} de {A.n} {varios} es el {A.pctN80.toFixed(0)} % del universo: una
+                     acción sobre ese conjunto no es una acción dirigida, es un cambio de proceso
+                     y se planea como tal.</>,
+                };
+
+          const p3 = mejor
+            ? {
+                t: `Por ${DATOS[mejor.id].uno} sí hay dónde apretar.`,
+                c: <>{mejor.a.n80} de {mejor.a.n} explican el 80 % y{" "}
+                   {DATOS[mejor.id].datos[0].rotulo} solo aporta{" "}
+                   {((DATOS[mejor.id].datos[0].valor * 100) / und).toFixed(1)} %. La intervención
+                   debe dirigirse por esa dimensión.</>,
+              }
+            : A.seCumple
+              ? {
+                  t: "El efecto esperado es proporcional.",
+                  c: <>Reducir a la mitad la rotura de ese grupo baja el total del período en
+                     torno a {(A.pctVitales / 2).toFixed(1)} puntos. Es la única palanca de ese
+                     tamaño disponible en este corte.</>,
+                }
+              : {
+                  t: "Ninguna otra dimensión concentra mejor.",
+                  c: <>La reducción pasa entonces por condiciones comunes al proceso —material,
+                     ajuste de velocidad, turno— y no por un equipo en particular.</>,
+                };
+
+          const puntos = [p1, p2, p3];
+          const titular = A.seCumple
+            ? { normal: `La rotura se concentra`, marcado: `por ${uno}.` }
+            : mejor
+              ? { normal: `Por ${uno} no se concentra.`, marcado: `Por ${DATOS[mejor.id].uno} sí.` }
+              : { normal: "La rotura no se concentra", marcado: "en ninguna dimensión." };
+          const recomienda = A.seCumple
+            ? { que: `Intervenir por ${uno}`,
+                por: `${A.n80} de ${A.n} ${varios} explican el 80 % de la rotura` }
+            : mejor
+              ? { que: `Intervenir por ${DATOS[mejor.id].uno}`,
+                  por: `${mejor.a.n80} de ${mejor.a.n} ${DATOS[mejor.id].varios} explican el 80 % de la rotura` }
+              : { que: "Revisar condiciones de proceso",
+                  por: "ninguna dimensión concentra la rotura del período" };
+
+          return (
+          <div className={"rl-lect" + (A.seCumple ? " si" : " no")}>
+            <div className="rl-lect-cab">
+              <div className="rl-lect-titu">
+                <p className="rl-lect-ojo">Dónde se concentra la rotura</p>
+                <h3>
+                  {titular.normal} <mark>{titular.marcado}</mark>
+                </h3>
+                <p className="rl-lect-meta">
+                  {dia(desde)} a {dia(hasta)} · {fmt(und)} unidades rotas ·{" "}
+                  {maquinas.length} máquinas y {envases.length} envases
+                </p>
               </div>
-              <div className="rl-8020-flecha" aria-hidden>·</div>
-              <div className="rl-8020-c">
-                <span className="rl-8020-r">Para cubrir el 80 %</span>
-                <b>{A.n80} de {A.n}</b>
-                <i>o sea el {A.pctN80.toFixed(0)} % de {las}</i>
-              </div>
+
+              {/* LA RECOMENDACIÓN, APARTE Y EN NEGRO. Es la única línea
+                  del bloque que pide una decisión, y en un informe eso no
+                  puede ir enterrado en el tercer renglón de un párrafo:
+                  se lee primero y se cita solo. */}
+              <aside className="rl-lect-rec">
+                <span>Recomendación</span>
+                <b>{recomienda.que}</b>
+                <i>{recomienda.por}</i>
+              </aside>
             </div>
 
-            {/* ---------- LA LECTURA, EN REGISTRO DE INFORME ----------
+            <div className="rl-lect-cuerpo">
+              <p className="rl-lect-ojo">Interpretación</p>
+              <ol className="rl-lect-puntos">
+                {puntos.map((x) => (
+                  <li key={x.t}><b>{x.t}</b> {x.c}</li>
+                ))}
+              </ol>
+            </div>
 
-                Esto se lee en voz alta en una reunión y se pega en un
-                correo, así que se escribe como se escribe un informe:
-                el hallazgo, la cifra que lo sostiene, la causa cuando se
-                conoce, y la recomendación. Sin coloquialismos —«diez
-                frentes a la vez no son un plan»—, sin hablarle de tú al
-                lector, y sin mandarlo a tocar botones: un informe que
-                depende de que alguien haga clic no se puede citar.
-
-                Y NO SE ESCONDE EL RESULTADO NEGATIVO. Que la rotura NO
-                se concentre es un hallazgo con consecuencia —cambia por
-                dónde se ataca— y por eso se enuncia igual de firme que
-                el positivo. */}
-            <p className="rl-8020-fallo">
-              {A.seCumple ? (
-                <>
-                  <b>La rotura se concentra por {uno}.</b>{" "}
-                  {A.n80} de {A.n} {A.n80 === 1 ? uno : varios} —el {A.pctN80.toFixed(0)} % de{" "}
-                  {las}— explican el 80 % del volumen roto del período, y{" "}
-                  {A.cuantasVitales === 1 ? "el primero concentra" : `los ${A.cuantasVitales} primeros concentran`}{" "}
-                  el {A.pctVitales.toFixed(1)} %. El comportamiento es el esperado en una
-                  distribución de Pareto: la intervención sobre ese grupo cubre la mayor
-                  parte de la pérdida y el resto tiene efecto marginal.{" "}
-                  <b>Se recomienda concentrar la acción en{" "}
-                  {A.vitales.map((x) => x.rotulo).slice(0, 3).join(", ")}</b>
-                  {A.cuantasVitales > 3 ? " y el resto de la lista." : "."}
-                </>
-              ) : (
-                <>
-                  <b>La rotura no se concentra por {uno}.</b>{" "}
-                  {A.cuantasVitales === 1 ? "El primero aporta" : `Los ${A.cuantasVitales} de mayor incidencia aportan`}{" "}
-                  el {A.pctVitales.toFixed(1)} % del total, frente al orden del 80 % que
-                  describiría una distribución concentrada. Cubrir el 80 % exige intervenir{" "}
-                  <b>{A.n80} de {A.n} {varios}</b> —el {A.pctN80.toFixed(0)} %—, lo que equivale
-                  a intervenir el proceso completo y no un punto crítico.
-                  {corte === "maquina" && (
-                    <> El origen es de agregación, no de operación: las {A.n} estaciones
-                    existen en todas las líneas, de modo que cada barra promedia la misma
-                    estación de la línea 1, la 2, la 4 y la 6. Promediar equipos distintos
-                    bajo un mismo rótulo tiende al valor medio y suprime la dispersión que
-                    el análisis busca.</>
-                  )}
-                  {mejor && (
-                    <> Por <b>{DATOS[mejor.id].uno}</b> el comportamiento sí es concentrado:{" "}
-                    <b>{mejor.a.n80} de {mejor.a.n} {DATOS[mejor.id].varios}</b> explican el
-                    80 %, con {DATOS[mejor.id].datos[0].rotulo} en{" "}
-                    <b>{((DATOS[mejor.id].datos[0].valor * 100) / und).toFixed(1)} %</b>.{" "}
-                    <b>Se recomienda dirigir la intervención por esa dimensión.</b></>
-                  )}
-                  {!mejor && (
-                    <> Ninguna de las otras dimensiones disponibles concentra mejor, de modo
-                    que la reducción pasa por condiciones comunes al proceso —material,
-                    ajuste de velocidad, turno— y no por un equipo en particular.</>
-                  )}
-                </>
-              )}
-            </p>
-
-            {/* La lista corta. Aunque no se cumpla el 80/20, si hay que
-                empezar por algún lado se empieza por estos. */}
+            {/* Las de mayor incidencia, con su peso. El orden ES la
+                información: es un ranking, no una decoración. */}
             <ol className="rl-8020-lista">
               {A.vitales.map((x) => (
                 <li key={x.clave}>
@@ -376,7 +417,8 @@ export default async function TableroRoturaPage({ searchParams }: {
               ))}
             </ol>
           </div>
-        )}
+          );
+        })()}
         <Pareto datos={paretoDatos} total={und} />
 
       </section>
