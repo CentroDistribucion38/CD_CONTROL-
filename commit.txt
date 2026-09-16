@@ -1,22 +1,60 @@
-La dirección vieja de la revisión AI lleva a Tránsito en vez de a un 404
+Control: en el celular, las tres cajas de adherencia se vuelven una tarjeta
 
-QUÉ PASÓ. Con el cambio anterior /sider/ai dejó de existir —la revisión
-vive dentro de Tránsito— y borré la pantalla. Lo que no hice fue pensar
-en quién seguía parado ahí: Cristian tenía la página abierta, refrescó, y
-le salió «404 — This page could not be found», en inglés y sin decir a
-dónde ir.
+CRISTIAN MANDÓ EL DISEÑO HECHO, en los tres temas, y esto es eso.
 
-Una dirección que existió no se puede simplemente apagar. Quedan
-pestañas abiertas, marcadores y el botón de atrás, y todos caen en el
-mismo sitio.
+EL PROBLEMA QUE RESUELVE. En el escritorio, la adherencia va en tres
+bloques: el panel del porcentaje grande, las seis cifras, y la cinta con
+su leyenda. Ahí funciona —caben lado a lado y se leen de un vistazo—.
 
-AHORA /sider/ai y /sider/ai/<viaje> llevan a /sider/transito, que es
-donde está la revisión.
+En el celular no: apilados uno debajo del otro miden más de una pantalla
+entera. Hay que rodar para ver el 63 %, rodar otra vez para ver de
+cuántos, y rodar de nuevo para saber cuántos faltan. Tres viajes por la
+misma respuesta, y quien abre esto en el patio quiere la respuesta, no el
+recorrido.
 
-TEMPORAL (307) Y NO PERMANENTE (308), a propósito: un 308 se le queda
-pegado al navegador para siempre y no hay forma de despegarlo desde el
-servidor. Si algún día vuelve a haber algo en /sider/ai —el tablero, por
-ejemplo— con un 308 nadie podría llegar nunca.
+AHORA SON UNA SOLA TARJETA, en el orden en que alguien lo pregunta:
+
+  1. cómo vamos ........ 63 %, y de cuántos: 22 de 35
+  2. repartido en qué .. la cinta, con su leyenda
+  3. de dónde sale ..... las seis cifras, en rejilla
+  4. qué falta HOY ..... la banda oscura de abajo
+
+LA BANDA CIERRA Y NO ES ADORNO: es la única línea de la tarjeta que dice
+qué HACER. Lo de arriba informa; «faltan por mover antes de cerrar» es lo
+que queda por hacer antes de que termine el turno.
+
+LOS NÚMEROS NO SE RECALCULAN. La tarjeta los recibe ya hechos desde la
+página —incluidos los dos tramos de la cinta—, para que no exista la
+posibilidad de que el celular y el escritorio muestren cifras distintas
+del mismo día. Y en escritorio la tarjeta no se dibuja: solo por debajo
+de 900 px, donde a cambio se esconden los tres bloques que reemplaza.
+Los anillos por turno SÍ se quedan: eso la tarjeta no lo trae.
+
+LOS COLORES SALEN DE LOS TOKENS DEL MÓDULO, no de hexadecimales
+escritos a mano, así que los siete temas funcionan sin una regla por
+tema. Medido en `.arnes/tp-kpi.mjs`, y dos cosas salieron de medir y no
+de mirar:
+
+  · El escalón hondo del acento —el de «adicionales»— estaba al 62 % y
+    la cifra contrastaba 4,12 contra el papel en ámbar, negro, gris y
+    halo: por debajo del 4,5 que pide una letra de 22 px. Al 50 % los
+    siete pasan, y de paso los dos tramos de la cinta se separan más.
+  · El rótulo del pie iba en blanco al 82 % y daba 4,16 en pizarra,
+    cuya banda no es oscura sino un verde medio. Al 95 % queda en 5,00.
+
+Ahora: rótulo 4,83–5,45 · cifras igual · rótulo del pie 5,00–10,45 ·
+número del pie 4,57–10,50 · los dos tramos de la cinta se separan
+189–286 (el mínimo es 60) · y la tarjeta mide 364 px, o sea que cabe
+entera en una pantalla de celular, que es exactamente para lo que existe.
+
+Y DE PASO, UN ARNÉS QUE SE HABÍA VUELTO FRÁGIL. `sd-scroll.mjs`
+comprobaba que su armazón usara las clases de verdad mirando solo lo
+pegado a un `className=`. La tarjeta de Tránsito pasó a armar su clase en
+una variable —`const cls = "tr-vh" + (…)`— y el arnés cantó que `tr-vh`
+no existía, estando ahí mismo. Ahora mira todas las cadenas del archivo;
+sigue cazando lo que se hizo para cazar —probado poniendo `.filtros` a
+propósito—, pero ya no grita por un cambio correcto. Un arnés que grita
+en falso se termina apagando.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

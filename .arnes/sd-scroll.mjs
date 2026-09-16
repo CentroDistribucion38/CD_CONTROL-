@@ -102,12 +102,20 @@ const fallas = [];
    justamente el que hizo mentir a este arnés— pasaba el control. Se
    sacan las clases de los `className` del componente y se comparan como
    conjuntos. */
+/* SE MIRAN TODAS LAS CADENAS DEL ARCHIVO, no solo las que están pegadas
+   a un `className=`. La primera versión miraba solo esas y se equivocó
+   al revés: la tarjeta pasó a armar su clase en una variable
+   —`const cls = "tr-vh" + (…)`— y el arnés cantó que `tr-vh` no existía
+   cuando está ahí mismo. Un arnés que grita por un cambio correcto se
+   termina apagando.
+
+   Sigue sirviendo para lo que se hizo, porque la comparación es por
+   PALABRA COMPLETA: `.filtros` —la clase inventada que lo hizo mentir—
+   no aparece como palabra suelta en ningún sitio del componente, solo
+   dentro de `tr-filtros`, que es otra palabra. */
 const clasesComponente = new Set(
-  [...tsx.matchAll(/className=(?:"([^"]*)"|\{([^}]*)\})/g)]
-    .flatMap((m) => m[1] !== undefined
-      ? [m[1]]
-      : [...m[2].matchAll(/["'`]([^"'`]*)["'`]/g)].map((s) => s[1]))
-    .flatMap((s) => s.split(/\s+/))
+  [...tsx.matchAll(/["'`]([^"'`\n]*)["'`]/g)]
+    .flatMap((m) => m[1].split(/\s+/))
     .filter(Boolean));
 
 const clasesArmazon = new Set(

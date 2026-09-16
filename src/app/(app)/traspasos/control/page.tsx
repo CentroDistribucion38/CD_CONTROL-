@@ -6,6 +6,7 @@ import { fecha as fechaLarga, TURNOS } from "@/modulos/traspasos/formato";
 import "../traspasos.css";
 import { AlDia, SinTablas } from "../comunes";
 import { Barra } from "./Barra";
+import { TarjetaKpi } from "./TarjetaKpi";
 import { Fechas } from "../plan/Fechas";
 
 export const dynamic = "force-dynamic";
@@ -166,6 +167,19 @@ export default async function ControlPage({ searchParams }: {
           pantalla, no del panel de la derecha. Metidos en la columna
           derecha le comían el ancho al título. */}
       <Barra tipos={t.tipos} soloFiltros hoy={hoy} dia={dia} />
+
+      {/* LA MISMA INFORMACIÓN, EN UNA SOLA TARJETA, para el celular.
+          Solo se ve por debajo de 900 px; ahí el CSS esconde el panel
+          del porcentaje, las seis cifras y la cinta, que apilados miden
+          más de una pantalla entera. Los números NO se recalculan: se
+          le pasan ya hechos, para que no puedan dar distinto que arriba. */}
+      <TarjetaKpi
+        adherencia={adherencia} cumplimiento={cumplimiento}
+        planeado={planeado} adheridos={adheridos} adicionales={adicionales}
+        faltan={faltan} vacios={vacios}
+        pOk={pOk} pExtra={pExtra}
+        turnos={[...turnos]}
+      />
 
       {/* ─ LAS SEIS CIFRAS, SIEMPRE, AUNQUE ESTÉN EN CERO.
 

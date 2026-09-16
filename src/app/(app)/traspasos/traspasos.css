@@ -1655,3 +1655,120 @@
 @media (prefers-reduced-motion: reduce) {
   .tp .filtros.cargando::after { animation: none; background-position: 50% 0 }
 }
+
+/* ===================== LA TARJETA DE ADHERENCIA (CELULAR) ===========
+
+   EN EL ESCRITORIO la misma información va en tres bloques —el panel
+   del porcentaje, las seis cifras y la cinta con su leyenda— y ahí
+   funciona: caben lado a lado.
+
+   EN EL CELULAR esos tres, apilados, miden más de una pantalla entera:
+   hay que rodar para ver el 63 %, rodar otra vez para ver de cuántos, y
+   rodar de nuevo para saber cuántos faltan. Tres viajes por la misma
+   respuesta. Así que por debajo de 900 px se esconden y en su lugar va
+   ESTA, que dice lo mismo en el orden en que alguien lo pregunta.
+
+   LOS COLORES SALEN DE LOS TOKENS DEL MÓDULO, no de hexadecimales
+   escritos aquí: --tp-ojo es el acento del tema y --c-grupo la banda
+   oscura, así que la tarjeta cambia con los siete temas sin una sola
+   regla por tema. Medido en `.arnes/tp-kpi.mjs`.
+   ==================================================================== */
+.tp .tk { display: none }
+
+.tp .tk-cab { padding: 18px 20px 0 }
+.tp .tk-r {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .16em; color: var(--tp-gris);
+}
+.tp .tk-fila {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 12px; margin-top: 10px;
+}
+.tp .tk-pct {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 62px;
+  line-height: .88; letter-spacing: -.05em;
+}
+.tp .tk-frac { text-align: right }
+.tp .tk-frac b {
+  display: block; font-family: var(--tp-titulo); font-weight: 900; font-size: 26px; line-height: 1;
+}
+.tp .tk-frac span {
+  display: block; font-size: 11.5px; color: var(--tp-gris); margin-top: 3px; letter-spacing: .04em;
+}
+
+/* LA CINTA NO LLEVA EL TRAMO QUE FALTA como un hijo más: lo que falta
+   es el fondo. Así, si los dos tramos no suman 100, lo que sobra se ve
+   igual — y no depende de que un tercer porcentaje esté bien. */
+.tp .tk-barra {
+  display: flex; height: 16px; margin: 16px 20px 0;
+  background: var(--tp-fondo); overflow: hidden;
+}
+.tp .tk-barra i { display: block; height: 100% }
+.tp .tk-barra .c, .tp .tk-ley i.c { background: var(--tp-ojo) }
+/* El acento un escalón más hondo para los adicionales: es el MISMO
+   color, no otro —son viajes que sí salieron—, y por eso se mezcla con
+   negro en vez de escoger un tono aparte que habría que mantener por
+   tema.
+
+   EL 50 % SALE DE MEDIR, no de mirar: con 62 % la cifra «3
+   ADICIONALES» contrastaba 4,12 contra el papel blanco en los temas
+   ámbar, negro, gris y halo —por debajo del 4,5 que pide letra de 22
+   px—. Al 50 % los siete pasan, y de paso los dos tramos de la cinta se
+   separan más. */
+.tp .tk-barra .a, .tp .tk-ley i.a { background: color-mix(in srgb, var(--tp-ojo) 50%, #000) }
+
+.tp .tk-ley {
+  display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 20px 16px;
+  font-size: 11px; color: var(--tp-gris);
+}
+.tp .tk-ley span { display: inline-flex; align-items: center; gap: 6px }
+.tp .tk-ley i { width: 10px; height: 10px; display: inline-block; flex: none }
+.tp .tk-ley i.f { background: var(--tp-fondo); border: 1px solid var(--tp-linea) }
+
+.tp .tk-rejilla {
+  display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--tp-linea);
+}
+.tp .tk-rejilla > div {
+  padding: 14px 6px; text-align: center;
+  border-right: 1px solid var(--tp-linea); border-bottom: 1px solid var(--tp-linea);
+}
+.tp .tk-rejilla > div:nth-child(3n) { border-right: 0 }
+.tp .tk-rejilla > div:nth-child(n+4) { border-bottom: 0 }
+.tp .tk-rejilla b {
+  display: block; font-family: var(--tp-titulo); font-weight: 900; font-size: 22px; line-height: 1;
+}
+.tp .tk-rejilla span {
+  display: block; font-size: 9.5px; letter-spacing: .1em; color: var(--tp-gris); margin-top: 6px;
+}
+.tp .tk-rejilla .mal b { color: var(--tp-mal) }
+.tp .tk-rejilla .ac b { color: color-mix(in srgb, var(--tp-ojo) 50%, #000) }
+.tp .tk-rejilla .apag b { color: var(--tp-gris) }
+
+/* LA BANDA CIERRA, y es la única línea de la tarjeta que dice qué
+   HACER: lo de arriba informa, esto es lo que queda por mover antes de
+   cerrar el turno. Por eso va en el color de banda del módulo y el
+   número en el acento aclarado —el token que ya está medido para leerse
+   encima de esa banda en los siete temas—. */
+.tp .tk-pie {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 15px 20px; background: var(--c-grupo); color: #fff;
+}
+/* .95 y no .82: la banda del tema pizarra no es oscura sino un verde
+   medio, y con el blanco rebajado al 82 % el rótulo daba 4,16. */
+.tp .tk-pie span { font-size: 12px; letter-spacing: .04em; opacity: .95 }
+.tp .tk-pie b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 26px;
+  color: var(--tp-sobre-grupo);
+}
+
+@media (max-width: 900px) {
+  .tp .tk {
+    display: block; background: var(--tp-papel);
+    border: 1px solid var(--tp-linea); border-radius: 3px; overflow: hidden;
+  }
+  /* Y SE VAN LOS TRES QUE ESTA REEMPLAZA. No se esconde `.medidor`
+     entero: los anillos por turno siguen ahí abajo, que es información
+     que la tarjeta no trae. */
+  .tp .cabeza-ctl .panel-ojo,
+  .tp .cifras.seis,
+  .tp .medidor .avance { display: none }
+}
