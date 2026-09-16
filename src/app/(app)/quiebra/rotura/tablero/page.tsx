@@ -424,7 +424,7 @@ export default async function TableroRoturaPage({ searchParams }: {
       </section>
 
       <Lectura maquinas={maquinas} total={und} dias={diasConDato} serie={serie}
-               lineas={lineas} envases={envases}
+               lineas={lineas} envases={envases} periodo={`${dia(desde)} a ${dia(hasta)}`}
                sinFirmaApp={sinFirmaApp} sinBaja={sinBaja} />
 
       {/* 4 ─ CÓMO VIENE */}
@@ -561,15 +561,43 @@ export default async function TableroRoturaPage({ searchParams }: {
    muestran variaciones» no es nada. Si el número no da para afirmar,
    no se pone la frase.
    ===================================================================== */
-function Lectura({ maquinas, total, dias, serie, lineas, envases, sinFirmaApp, sinBaja }: {
+/**
+ * QUÉ DICE ESTO — la lectura del período, en casillas.
+ *
+ * ANTES ERA UNA LISTA DE VIÑETAS de tres renglones cada una. Decía lo
+ * mismo, pero un hallazgo enterrado en el tercer renglón de un párrafo
+ * no se ve al pasar: hay que leer los cuatro para saber cuál importa.
+ *
+ * AHORA CADA HALLAZGO ES UNA CASILLA con su cifra grande adelante, y la
+ * cifra es lo que se compara de un vistazo entre las cuatro. La frase
+ * queda para el que quiera el porqué, no para el que quiera el qué.
+ *
+ * LO QUE SE PUEDE CERRAR VA APARTE Y ABAJO, en su propia banda: no es un
+ * hallazgo sobre el período, es trabajo pendiente de hoy, y mezclarlo
+ * con los otros cuatro haría que se leyera como una observación más.
+ */
+type Casilla = {
+  cifra: string;
+  /** Lo chico pegado a la cifra: «de 13», «×». */
+  cola?: string;
+  titulo: string;
+  dice: string;
+  /** La cifra en rojo: algo que hay que mirar, no algo que se describe. */
+  ojo?: boolean;
+};
+
+function Lectura({ maquinas, total, dias, serie, lineas, envases,
+                   sinFirmaApp, sinBaja, periodo }: {
   maquinas: Barra[]; total: number; dias: number;
   serie: { fecha: string; valor: number }[];
   lineas: Barra[]; envases: Barra[];
   sinFirmaApp: number; sinBaja: number;
+  periodo: string;
 }) {
   if (total <= 0 || maquinas.length === 0) return null;
 
-  const frases: React.ReactNode[] = [];
+  const nfl = (n: number) => n.toLocaleString("es-CO");
+  const casillas: Casilla[] = [];
 
   /* ---- 1. La forma del pareto ---- */
   let acum = 0, hasta80 = 0;
@@ -577,27 +605,21 @@ function Lectura({ maquinas, total, dias, serie, lineas, envases, sinFirmaApp, s
   const primera = (maquinas[0].valor * 100) / total;
   const parejo = primera < 100 / maquinas.length * 1.6;
 
-  if (parejo) {
-    frases.push(
-      <>
-        <b>No hay una máquina culpable.</b> La más alta —{maquinas[0].rotulo}— aporta el{" "}
-        <b>{primera.toFixed(1)} %</b>, y para juntar el 80 % hacen falta{" "}
-        <b>{hasta80} de {maquinas.length}</b>. Cuando la rotura está repartida así de pareja,
-        el problema no suele ser una máquina desajustada sino algo que las atraviesa a todas:
-        el estado del envase que entra, el manejo, o la velocidad a la que va la línea.
-        Cambiar una máquina movería el {primera.toFixed(0)} % en el mejor de los casos.
-      </>);
-  } else {
-    frases.push(
-      <>
-        <b>{hasta80} {hasta80 === 1 ? "máquina hace" : "máquinas hacen"} el 80 %</b> de toda la
-        rotura del período, y {maquinas[0].rotulo} sola pone el <b>{primera.toFixed(1)} %</b>.
-        Ahí una hora de mantenimiento rinde más que en las otras {maquinas.length - hasta80}{" "}
-        juntas.
-      </>);
-  }
+  casillas.push(parejo
+    ? {
+        cifra: String(hasta80), cola: `de ${maquinas.length}`,
+        titulo: "Ninguna máquina manda",
+        dice: `La más alta aporta ${primera.toFixed(1)} %. El problema atraviesa el proceso, ` +
+              "no está en un equipo.",
+      }
+    : {
+        cifra: String(hasta80), cola: `de ${maquinas.length}`,
+        titulo: `${maquinas[0].rotulo} manda`,
+        dice: `Ella sola pone el ${primera.toFixed(1)} %. Una hora de mantenimiento ahí rinde ` +
+              `más que en las otras ${maquinas.length - hasta80} juntas.`,
+      });
 
-  /* ---- 2. El día más alto contra el promedio ---- */
+  /* ---- 2. El día que se salió del promedio ---- */
   if (serie.length >= 7) {
     const prom = total / serie.length;
     const pico = serie.reduce((m, p) => (p.valor > m.valor ? p : m), serie[0]);
@@ -605,13 +627,12 @@ function Lectura({ maquinas, total, dias, serie, lineas, envases, sinFirmaApp, s
     if (veces >= 1.8) {
       const f = new Date(Date.parse(pico.fecha + "T12:00:00"))
         .toLocaleDateString("es-CO", { day: "numeric", month: "long" });
-      frases.push(
-        <>
-          El <b>{f}</b> se rompió <b>{veces.toFixed(1)} veces</b> el promedio del período
-          ({pico.valor.toLocaleString("es-CO")} contra {Math.round(prom).toLocaleString("es-CO")}).
-          Un día así no es ruido: o pasó algo ese turno, o alguien registró dos veces. Vale la
-          pena abrirlo.
-        </>);
+      casillas.push({
+        cifra: veces.toFixed(1), cola: "×", ojo: true,
+        titulo: `El ${f} se disparó`,
+        dice: `${nfl(pico.valor)} contra un promedio de ${nfl(Math.round(prom))}. ` +
+              "Vale la pena abrir ese turno.",
+      });
     }
   }
 
@@ -619,59 +640,77 @@ function Lectura({ maquinas, total, dias, serie, lineas, envases, sinFirmaApp, s
   if (lineas.length >= 2) {
     const p = (lineas[0].valor * 100) / total;
     if (p >= 100 / lineas.length * 1.3) {
-      frases.push(
-        <>
-          <b>{lineas[0].rotulo}</b> aporta el <b>{p.toFixed(1)} %</b> con{" "}
-          {lineas.length} líneas en juego. Antes de sacar conclusiones conviene cruzarlo con
-          cuánto produjo cada una: la que más produce rompe más sin estar peor.
-        </>);
+      casillas.push({
+        cifra: `${p.toFixed(1)} %`,
+        titulo: lineas[0].rotulo,
+        dice: `De ${lineas.length} líneas. Cruzar con lo que produjo cada una antes de ` +
+              "concluir: la que más produce rompe más sin estar peor.",
+      });
     }
   }
   if (envases.length >= 2) {
     const p = (envases[0].valor * 100) / total;
-    frases.push(
-      <>
-        El vidrio que más se va es <b>{envases[0].rotulo}</b>: <b>{p.toFixed(1)} %</b> de las
-        unidades del período.
-      </>);
+    casillas.push({
+      cifra: `${p.toFixed(1)} %`,
+      titulo: envases[0].rotulo,
+      dice: "Es el vidrio que más se va del período.",
+    });
   }
 
-  /* ---- 4. Lo que hay que hacer, no solo lo que pasó ---- */
-  const pendientes: React.ReactNode[] = [];
+  /* ---- 4. Lo que se puede cerrar HOY ---- */
+  const pendientes: Casilla[] = [];
   if (sinFirmaApp > 0) {
-    pendientes.push(
-      <>
-        <b>{sinFirmaApp}</b> {sinFirmaApp === 1 ? "turno registrado en la app está" : "turnos registrados en la app están"}{" "}
-        sin firmar. Esos sí se pueden cerrar hoy.
-      </>);
+    pendientes.push({
+      cifra: nfl(sinFirmaApp), ojo: true,
+      titulo: sinFirmaApp === 1 ? "turno sin firmar" : "turnos sin firmar",
+      dice: "Registrados en la app. Esos sí se pueden cerrar hoy.",
+    });
   }
   if (sinBaja > 0) {
-    pendientes.push(
-      <>
-        <b>{sinBaja.toLocaleString("es-CO")}</b> registros no han salido por SAP. Mientras no
-        salgan, ese material sigue contando en el inventario.
-      </>);
+    pendientes.push({
+      cifra: nfl(sinBaja), ojo: true,
+      titulo: "registros sin salir por SAP",
+      dice: "Mientras no salgan, ese material sigue contando en el inventario.",
+    });
   }
 
   return (
-    <section className="rl-lectura">
-      <div className="rl-l-cab">
+    <section className="rl-lee">
+      <div className="rl-lee-cab">
         <h2>Qué dice esto</h2>
-        <p>La lectura del período, en palabras. Sale de los mismos números de arriba.</p>
+        <span>{periodo} · {dias} {dias === 1 ? "día" : "días"} con registro</span>
       </div>
-      <ul className="rl-l-lista">
-        {frases.map((f, i) => <li key={i}>{f}</li>)}
-      </ul>
-      {pendientes.length > 0 && (
-        <div className="rl-l-hacer">
-          <h3>Y esto se puede cerrar</h3>
-          <ul>{pendientes.map((p, i) => <li key={i}>{p}</li>)}</ul>
+
+      {/* LAS CASILLAS SE REPARTEN SOLAS. Son entre dos y cuatro según lo
+          que haya pasado en el período —el pico solo aparece si hubo
+          pico— así que una rejilla de cuatro fijas dejaría huecos que se
+          leen como información que falta. */}
+      <div className="rl-lee-rejilla">
+        {casillas.map((c) => (
+          <div className="rl-lee-c" key={c.titulo}>
+            <p className={"rl-lee-num" + (c.ojo ? " ojo" : "")}>
+              {c.cifra}{c.cola && <em>{c.cola}</em>}
+            </p>
+            <h3>{c.titulo}</h3>
+            <p className="rl-lee-dice">{c.dice}</p>
+          </div>
+        ))}
+      </div>
+
+      {pendientes.map((c) => (
+        <div className="rl-lee-hacer" key={c.titulo}>
+          <b className={c.ojo ? "ojo" : undefined}>{c.cifra}</b>
+          <div>
+            <h3>{c.titulo}</h3>
+            <p>{c.dice}</p>
+          </div>
         </div>
-      )}
-      <p className="rl-l-nota">
-        {dias} {dias === 1 ? "día" : "días"} con registro en el período.
-        {" "}Todo esto se recalcula solo cuando cambias el período o la línea.
+      ))}
+
+      <p className="rl-lee-pie">
+        Todo se recalcula solo al cambiar el período o la línea.
       </p>
     </section>
   );
 }
+

@@ -1009,3 +1009,96 @@
   .rl-lect-cab { grid-template-columns: 1fr; gap: 16px }
   .rl-lect h3 { font-size: 23px }
 }
+
+/* =============== «QUÉ DICE ESTO», EN CASILLAS ======================
+
+   ERA UNA LISTA DE VIÑETAS de tres renglones cada una. Decía lo mismo,
+   pero un hallazgo enterrado en el tercer renglón de un párrafo no se ve
+   al pasar: había que leer los cuatro para saber cuál importa.
+
+   Cada hallazgo es ahora una casilla con su cifra grande adelante, y esa
+   cifra es lo que se compara de un vistazo entre las cuatro. La frase
+   queda para quien quiera el porqué, no para quien quiera el qué.
+
+   LA FRANJA DEL BORDE IZQUIERDO es lo que amarra el bloque: sin ella,
+   cuatro casillas sueltas se leen como cuatro tarjetas de un tablero y
+   no como una sola lectura.
+   =================================================================== */
+.rl-lee {
+  grid-column: 1 / -1;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  border-left: 4px solid var(--rl-ojo); overflow: hidden;
+}
+.rl-lee-cab {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 18px;
+  flex-wrap: wrap; padding: 18px 22px 16px;
+}
+.rl-lee-cab h2 {
+  margin: 0; font: 900 22px var(--rl-titulo); color: var(--rl-tinta); letter-spacing: -.02em;
+}
+.rl-lee-cab span { font-size: 12.5px; color: var(--rl-gris); font-variant-numeric: tabular-nums }
+
+.rl-lee-rejilla {
+  display: grid; border-top: 1px solid var(--rl-linea);
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+}
+.rl-lee-c {
+  padding: 16px 20px 18px; min-width: 0;
+  border-right: 1px solid var(--rl-linea); border-bottom: 1px solid var(--rl-linea);
+}
+/* El último de cada fila no lleva raya a la derecha, y como la rejilla
+   se reparte sola no se puede saber cuál es: se tapa con el propio
+   borde de la tarjeta corriendo la rejilla un pelo hacia afuera. */
+.rl-lee-rejilla { margin-right: -1px; margin-bottom: -1px }
+
+.rl-lee-num {
+  margin: 0; font: 900 30px/1 var(--rl-titulo); color: var(--rl-tinta);
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+/* LA CIFRA EN ROJO ES UN AVISO, NO UN ADORNO: se reserva para lo que hay
+   que ir a mirar —un día disparado, algo sin cerrar— y nunca para una
+   cifra que solo describe el período. Si todas fueran rojas, ninguna
+   diría nada. */
+.rl-lee-num.ojo { color: var(--rl-mal) }
+.rl-lee-num em {
+  font-style: normal; font-size: .52em; font-weight: 800; color: var(--rl-gris);
+  margin-left: 5px; letter-spacing: 0;
+}
+.rl-lee-c h3 {
+  margin: 9px 0 0; font: 700 13.5px var(--rl-texto); color: var(--rl-tinta);
+  line-height: 1.3; text-wrap: balance;
+}
+.rl-lee-dice {
+  margin: 6px 0 0; font-size: 12.5px; line-height: 1.5;
+  color: color-mix(in srgb, var(--rl-tinta) 78%, var(--rl-papel));
+}
+
+/* Lo que se puede cerrar HOY: no es un hallazgo del período sino trabajo
+   pendiente, así que va en su propia banda y no como una casilla más. */
+.rl-lee-hacer {
+  display: flex; align-items: center; gap: 18px;
+  padding: 14px 22px; background: var(--rl-fondo);
+  border-top: 1px solid var(--rl-linea);
+}
+.rl-lee-hacer b {
+  font: 900 28px var(--rl-titulo); color: var(--rl-tinta); flex: none;
+  font-variant-numeric: tabular-nums; letter-spacing: -.03em;
+}
+.rl-lee-hacer b.ojo { color: var(--rl-mal) }
+.rl-lee-hacer h3 { margin: 0; font: 700 13.5px var(--rl-texto); color: var(--rl-tinta) }
+.rl-lee-hacer p {
+  margin: 3px 0 0; font-size: 12.5px; line-height: 1.45;
+  color: color-mix(in srgb, var(--rl-tinta) 78%, var(--rl-fondo));
+}
+
+.rl-lee-pie {
+  margin: 0; padding: 12px 22px 14px; font-size: 12px; color: var(--rl-gris);
+  border-top: 1px solid var(--rl-linea);
+}
+
+@media (max-width: 620px) {
+  .rl-lee-cab h2 { font-size: 19px }
+  .rl-lee-num { font-size: 26px }
+  .rl-lee-hacer { gap: 14px; padding: 13px 18px }
+  .rl-lee-hacer b { font-size: 24px }
+}

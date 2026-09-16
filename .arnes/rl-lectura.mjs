@@ -149,9 +149,70 @@ for (const t of TEMAS) {
     fallas.push(`tema ${nombre}: se sale de la tarjeta: ${[...new Set(m.salen)].join(", ")}`);
 }
 
+/* ===== «QUÉ DICE ESTO», LAS CASILLAS =====
+   El mismo cuidado: la cifra roja y la frase de cada casilla van sobre
+   el papel, y el aviso de abajo sobre el fondo del bloque. Y se cuenta
+   que las cuatro casillas se repartan —si caen una debajo de otra,
+   vuelve a ser la lista de viñetas que se cambió—. */
+const CASILLAS = [
+  ["10", "de 13", "Ninguna máquina manda", "La más alta aporta 10.9 %. El problema atraviesa el proceso, no está en un equipo.", false],
+  ["2.5", "×", "El 24 de junio se disparó", "19.190 contra un promedio de 7.559. Vale la pena abrir ese turno.", true],
+  ["36.5 %", "", "Línea 1 · TREN-1", "De 4 líneas. Cruzar con lo que produjo cada una antes de concluir.", false],
+  ["36.5 %", "", "Envase Costeñita 175R", "Es el vidrio que más se va del período.", false],
+];
+const LEE = `
+<div class="rl"><section class="rl-lee">
+  <div class="rl-lee-cab"><h2>Qué dice esto</h2>
+    <span>1 de sept a 30 de sept · 250 días con registro</span></div>
+  <div class="rl-lee-rejilla">
+    ${CASILLAS.map(([n, cola, t, d, ojo]) => `<div class="rl-lee-c">
+      <p class="rl-lee-num${ojo ? " ojo" : ""}">${n}${cola ? `<em>${cola}</em>` : ""}</p>
+      <h3>${t}</h3><p class="rl-lee-dice">${d}</p></div>`).join("")}
+  </div>
+  <div class="rl-lee-hacer"><b class="ojo">715</b>
+    <div><h3>registros sin salir por SAP</h3>
+    <p>Mientras no salgan, ese material sigue contando en el inventario.</p></div></div>
+  <p class="rl-lee-pie">Todo se recalcula solo al cambiar el período o la línea.</p>
+</section></div>`;
+
+const pag2 = await navegador.newPage({ viewport: { width: 1440, height: 1000 } });
+console.log("\ntema      cifra  frase  aviso  columnas");
+for (const t of TEMAS) {
+  await pag2.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${rot}
+    html,body{margin:0;background:#EEF1F5}main{padding:20px;max-width:1180px}</style></head>
+    <body><div class="sh"${t ? ` data-tema="${t}"` : ""}><main>${LEE}</main></div></body></html>`);
+  const m = await pag2.evaluate(() => {
+    const g = (s, p) => { const e = document.querySelector(s); return e ? getComputedStyle(e).getPropertyValue(p) : "" };
+    const tops = [...document.querySelectorAll(".rl-lee-c")]
+      .map((e) => Math.round(e.getBoundingClientRect().top));
+    return {
+      ojo: g(".rl-lee-num.ojo", "color"), papel: g(".rl-lee-c", "background-color"),
+      dice: g(".rl-lee-dice", "color"),
+      aviso: g(".rl-lee-hacer p", "color"), avisoFondo: g(".rl-lee-hacer", "background-color"),
+      marco: g(".rl-lee", "background-color"),
+      columnas: tops.length / new Set(tops).size,
+    };
+  });
+  const fondoCasilla = m.papel === "rgba(0, 0, 0, 0)" ? m.marco : m.papel;
+  const c = {
+    cifra: razon(m.ojo, fondoCasilla),
+    frase: razon(m.dice, fondoCasilla),
+    aviso: razon(m.aviso, m.avisoFondo),
+  };
+  const nombre = t ?? "oficial";
+  console.log(`${nombre.padEnd(9)} ${String(c.cifra).padStart(5)}  ${String(c.frase).padStart(5)}  ` +
+              `${String(c.aviso).padStart(5)}  ${String(m.columnas).padStart(8)}`);
+  for (const [k, v] of Object.entries(c))
+    if (v < 4.5) fallas.push(`tema ${nombre}: «${k}» de las casillas contrasta ${v} (mínimo 4.5)`);
+  if (m.columnas < 3.9)
+    fallas.push(`tema ${nombre}: las casillas caen en ${(4 / m.columnas).toFixed(0)} filas; ` +
+                "vuelve a ser la lista de viñetas que se cambió");
+}
+await pag2.close();
+
 await navegador.close();
 if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\nListo: se lee en los siete temas y la interpretación va en tres columnas.");
+console.log("\nListo: los dos bloques se leen en los siete temas y no se apilan.");
