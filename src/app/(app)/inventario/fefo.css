@@ -1,0 +1,488 @@
+/* ---------------------------------------------------------------------
+   FEFO — el conteo del almacén por ubicación, con vencimientos.
+
+   Todo cuelga de .fe para no pisar nada de la app. Comparte el lenguaje
+   visual de los otros módulos y toma su acento del tema, que es lo que
+   hace que las siete apariencias funcionen sin una regla por tema.
+
+   Y SE DISEÑA PARA EL CELULAR PRIMERO, no como una concesión: este
+   maestro se corrige de pie, con el Excel abierto en la otra mano, y la
+   pantalla de contar —que viene después— se usa entera con una sola
+   mano frente a un módulo.
+   --------------------------------------------------------------------- */
+.fe {
+  --fe-tinta: var(--c-04203f);
+  --fe-acento: var(--c-marca);
+  --fe-sobre: var(--c-marca-txt);
+  --fe-banda: var(--c-grupo);
+  --fe-papel: #FFF;
+  --fe-fondo: var(--c-eef1f5);
+  --fe-gris: var(--c-5b6b7f);
+  /* EL MISMO GRIS, PERO PARA LO QUE VA SOBRE EL PANEL TINTADO.
+     --fe-gris está calibrado contra el papel BLANCO de las tarjetas y
+     ahí contrasta 5,9. Sobre --fe-fondo —que es más oscuro— cae a 4,39
+     en el tema ámbar, por debajo de la norma. Lo cazó el arnés en el eco
+     del código y en el botón «No» sin escoger, que son dos de las cosas
+     que más se miran contando. Se oscurece SOLO lo que descansa en el
+     panel, mezclando hacia la tinta del tema, para que las siete
+     apariencias sigan funcionando sin una regla por tema. */
+  --fe-gris-panel: color-mix(in srgb, var(--c-5b6b7f) 72%, var(--c-04203f));
+  --fe-linea: var(--c-d5dce5);
+  --fe-aviso: var(--c-oro);
+  --fe-mal: #C8102E;
+  --fe-bien: #0F7A4A;
+
+  --fe-titulo: "Archivo", system-ui, sans-serif;
+  --fe-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+
+  font-family: var(--fe-texto);
+  color: var(--fe-tinta);
+  display: flex; flex-direction: column; gap: 14px; min-width: 0;
+}
+.fe *, .fe *::before, .fe *::after { box-sizing: border-box }
+
+/* Solo para lectores de pantalla: el buscador no lleva rótulo visible
+   —el marcador de posición ya dice qué se busca— pero sin nombre no se
+   puede usar con teclado ni con lector. */
+.fe .sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---------- La cabecera ---------- */
+.fe .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: stretch }
+.fe .cabeza .ojo {
+  margin: 0; font: 700 10.5px var(--fe-texto); letter-spacing: .15em;
+  text-transform: uppercase; color: var(--fe-gris);
+}
+.fe .cabeza h1 {
+  margin: 6px 0 0; font: 900 30px var(--fe-titulo); letter-spacing: -.03em;
+}
+.fe .cabeza .sub {
+  margin: 7px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--fe-gris);
+  max-width: 74ch;
+}
+.fe .kpi {
+  position: relative; overflow: hidden; min-width: 240px;
+  background: var(--fe-banda); color: #fff; border-radius: 3px; padding: 14px 20px 13px;
+}
+.fe .kpi .corte {
+  position: absolute; top: -20%; bottom: -20%; right: -12px; width: 78px;
+  background: rgba(0, 0, 0, .16); transform: skewX(-26deg);
+}
+.fe .kpi .rot {
+  position: relative; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; opacity: .85;
+}
+.fe .kpi .num {
+  position: relative; font: 900 34px/1 var(--fe-titulo); letter-spacing: -.04em; margin-top: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.fe .kpi .pie { position: relative; margin-top: 7px; font-size: 12.5px; opacity: .88 }
+
+/* ---------- El aviso de los que no tienen factor ---------- */
+.fe .fe-faltan {
+  background: #FFF8E6; border: 1px solid #F0D89B; border-radius: 3px; padding: 12px 16px;
+}
+.fe .fe-faltan p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #6B5518 }
+.fe .fe-faltan b { color: #4A3A0C }
+.fe .fe-faltan .cuales { margin-top: 5px; font-size: 11.5px; opacity: .85 }
+
+/* ---------- La barra: pestañas, buscador, agregar ---------- */
+.fe .fe-barra {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 12px 14px;
+}
+.fe .fe-pes { display: flex; gap: 4px; flex: none }
+.fe .fe-pes button {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  min-height: 40px; padding: 0 14px; border-radius: 2px;
+  border: 1px solid var(--fe-linea); background: var(--fe-fondo);
+  font: 700 13.5px var(--fe-titulo); color: var(--fe-gris);
+}
+.fe .fe-pes button.on {
+  background: var(--fe-banda); border-color: var(--fe-banda); color: #fff;
+}
+.fe .fe-pes button em {
+  font-style: normal; font-size: 11.5px; font-weight: 600; opacity: .8;
+  font-variant-numeric: tabular-nums;
+}
+
+.fe .fe-busca { flex: 1 1 240px; min-width: 0; display: block }
+.fe .fe-busca input {
+  width: 100%; min-height: 40px; padding: 0 13px;
+  font: 500 14px var(--fe-texto); color: var(--fe-tinta);
+  background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
+}
+.fe .fe-busca input:focus {
+  outline: none; background: #fff; border-color: var(--fe-acento);
+}
+
+.fe .fe-check { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px }
+.fe .fe-check input { width: 18px; height: 18px; flex: none }
+
+.fe .btn {
+  min-height: 40px; padding: 0 18px; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--fe-acento); color: var(--fe-sobre);
+  font: 800 13.5px var(--fe-titulo); white-space: nowrap;
+}
+.fe .btn:disabled { opacity: .5; cursor: not-allowed }
+.fe .btn.plano {
+  background: none; color: var(--fe-gris); border: 1px solid var(--fe-linea); font-weight: 600;
+}
+
+.fe .fe-cuenta { margin: 0; font-size: 12px; color: var(--fe-gris) }
+
+/* ---------- La lista ---------- */
+.fe .fe-lista { display: flex; flex-direction: column; gap: 8px }
+.fe .fe-vacio {
+  margin: 0; padding: 32px 16px; text-align: center; font-size: 13.5px; color: var(--fe-gris);
+  background: var(--fe-papel); border: 1px dashed var(--fe-linea); border-radius: 3px;
+}
+
+.fe .fe-fila {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  border-left: 3px solid var(--fe-acento); padding: 11px 14px;
+}
+/* Inactivo se APAGA, no se esconde: el que lo busca quiere saber que
+   existe y que está apagado, no creer que nunca estuvo. */
+.fe .fe-fila.apagada { border-left-color: var(--fe-linea); background: var(--fe-fondo) }
+.fe .fe-fila.apagada .fe-cod, .fe .fe-fila.apagada .fe-desc { color: var(--fe-gris) }
+
+.fe .fe-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.fe .fe-cod {
+  font: 900 15px var(--fe-titulo); letter-spacing: .02em; flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.fe .fe-desc { font-size: 13.5px; font-weight: 500; min-width: 0; overflow-wrap: anywhere }
+.fe .fe-tipo {
+  font: 700 9.5px var(--fe-texto); letter-spacing: .1em; padding: 3px 7px; border-radius: 2px;
+  background: var(--fe-fondo); color: var(--fe-gris); border: 1px solid var(--fe-linea);
+  flex: none;
+}
+.fe .fe-tipo.envase { background: #EDE3FA; color: #4B2578; border-color: #D6C2EF }
+.fe .fe-off {
+  font: 700 9.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--fe-mal); flex: none;
+}
+.fe .fe-mini {
+  margin-left: auto; min-height: 34px; padding: 0 13px; cursor: pointer; flex: none;
+  border: 1px solid var(--fe-linea); background: var(--fe-fondo); border-radius: 2px;
+  font: 600 12.5px var(--fe-texto); color: var(--fe-tinta);
+}
+.fe .fe-mini:hover { border-color: var(--fe-acento); color: var(--fe-acento) }
+
+.fe .fe-cifras {
+  margin: 9px 0 0; display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(min(110px, 100%), 1fr));
+}
+.fe .fe-cifras > div {
+  background: var(--fe-fondo); border-radius: 2px; padding: 6px 9px; min-width: 0;
+}
+.fe .fe-cifras dt {
+  font: 600 9.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+.fe .fe-cifras dd {
+  margin: 3px 0 0; font: 800 14px var(--fe-titulo); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* «falta» no es un cero: es el dato que hace que la cuenta de ese
+   material no exista. Se pinta como lo que es. */
+.fe .fe-cifras dd.falta { color: var(--fe-mal); font-size: 12px }
+
+/* ---------- El editor ---------- */
+.fe .fe-editor {
+  margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--fe-linea);
+}
+.fe .fe-editor.nuevo {
+  margin: 0; padding: 14px 16px 16px; border-top: 0;
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  box-shadow: inset 3px 0 0 var(--fe-acento);
+}
+.fe .fe-editor.nuevo h2 {
+  margin: 0 0 12px; font: 800 16px var(--fe-titulo); letter-spacing: -.01em;
+}
+.fe .fe-campos {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+}
+.fe .fe-campos label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.fe .fe-campos label.ancho { grid-column: 1 / -1 }
+.fe .fe-campos label > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+/* 44 px: es un maestro que se corrige de pie y con el celular en una
+   mano. Un campo de 32 se falla con el pulgar.
+
+   Y LA CASILLA DE VERIFICAR QUEDA FUERA, con `:not`. Sin eso, esta regla
+   y la de .fe-check tienen la MISMA especificidad (0,2,1) y gana la que
+   va después —esta—: la casilla se estiraba a todo el ancho y 44 px de
+   alto, y el «Activo» de al lado se salía de la tarjeta. Lo cazó el
+   arnés a 390 px; a simple vista en el escritorio no se notaba. */
+.fe .fe-campos input:not([type="checkbox"]),
+.fe .fe-campos select {
+  min-height: 44px; padding: 0 12px; width: 100%; min-width: 0;
+  font: 500 15px var(--fe-texto); color: var(--fe-tinta);
+  background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px;
+}
+.fe .fe-campos input:focus,
+.fe .fe-campos select:focus { outline: none; border-color: var(--fe-acento) }
+.fe .fe-campos label.fe-check { flex-direction: row; align-items: center; gap: 9px }
+
+.fe .fe-pie { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px }
+/* QUITAR VA AL FINAL Y SEPARADO del resto, y en texto y no en botón
+   rojo: es lo único de esta pantalla que puede desaparecer algo, y
+   ponerlo con el mismo peso que «Guardar» es invitar a tocarlo por
+   inercia. */
+.fe .fe-quitar {
+  margin-left: auto; border: 0; background: none; cursor: pointer; padding: 0 4px;
+  min-height: 40px; font: 600 12.5px var(--fe-texto); color: var(--fe-mal);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.fe .fe-quitar:disabled { opacity: .5; cursor: not-allowed }
+
+/* ---------- El celular ---------- */
+@media (max-width: 760px) {
+  .fe .cabeza { grid-template-columns: 1fr }
+  .fe .cabeza h1 { font-size: 25px }
+  .fe .kpi { min-width: 0 }
+  .fe .fe-pes { flex: 1 1 100%; }
+  .fe .fe-pes button { flex: 1 1 0 }
+  .fe .fe-busca { flex: 1 1 100% }
+  .fe .fe-barra .btn { flex: 1 1 100% }
+  .fe .fe-mini { margin-left: 0; width: 100% }
+  .fe .fe-quitar { margin-left: 0; width: 100%; text-align: left }
+}
+
+/* ---------- En qué va el módulo ----------
+   Mientras esté a medio construir, la portada dice qué hay y qué falta.
+   No es un adorno: quien entra y encuentra una sola sección no puede
+   distinguir «esto es todo» de «esto está roto», y termina preguntando. */
+.fe .fe-pasos {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 16px 20px 18px;
+}
+.fe .fe-pasos h2 {
+  margin: 0 0 12px; font: 800 16px var(--fe-titulo); letter-spacing: -.01em;
+}
+.fe .fe-pasos ol { margin: 0; padding: 0; list-style: none; counter-reset: p }
+.fe .fe-pasos li {
+  counter-increment: p; position: relative; padding: 0 0 14px 34px;
+}
+.fe .fe-pasos li:last-child { padding-bottom: 0 }
+.fe .fe-pasos li::before {
+  content: counter(p); position: absolute; left: 0; top: 0;
+  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--fe-fondo); color: var(--fe-gris);
+  font: 800 11px var(--fe-titulo); border: 1px solid var(--fe-linea);
+}
+/* El paso hecho lleva visto y no número: el número dice «este es el
+   orden», el visto dice «este ya está», y son dos cosas distintas. */
+.fe .fe-pasos li.listo::before {
+  content: "✓"; background: var(--fe-bien); border-color: var(--fe-bien); color: #fff;
+}
+.fe .fe-pasos li b { display: block; font: 700 13.5px var(--fe-texto) }
+.fe .fe-pasos li span {
+  display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.5;
+  color: color-mix(in srgb, var(--fe-tinta) 78%, var(--fe-papel));
+}
+.fe .fe-pasos li a { color: var(--fe-acento); font-weight: 600 }
+
+/* =====================================================================
+   LA PLANTILLA DE CONTEO
+   ---------------------------------------------------------------------
+   Esta parte se usa DE PIE, frente a un módulo, con una sola mano y a
+   veces con guantes. Todo lo que se toca mide 48 px y no 40: un campo de
+   escritorio se falla con el pulgar, y fallar aquí no es un clic de más
+   —es volver a contar la estiba—.
+   ===================================================================== */
+
+/* Los dos pasos van numerados porque SON un orden: dónde estás, y luego
+   qué hay ahí. Sin el número, «calle» y «código» se leen como dos
+   campos del mismo formulario y se llenan en cualquier orden. */
+.fe .fe-paso {
+  margin: 0 0 10px; font: 700 10.5px var(--fe-texto); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--fe-acento);
+}
+
+/* 48 px y no 44 para TODO lo que se toca en estas dos tarjetas. Los
+   44 px de .fe-campos son la medida del maestro, que se corrige sentado
+   con el Excel al lado; esto se usa de pie, frente a una estiba y a
+   veces con guantes, y fallar un campo aquí no es un clic de más: es
+   volver a contar el módulo. */
+.fe .fe-donde .fe-campos input,
+.fe .fe-donde .fe-campos select,
+.fe .fe-anotar .fe-campos input,
+.fe .fe-anotar .fe-campos select { min-height: 48px }
+
+.fe .fe-donde, .fe .fe-anotar, .fe .fe-recorrido, .fe .fe-arranque {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 14px 16px 16px;
+}
+.fe .fe-donde { border-left: 3px solid var(--fe-acento) }
+
+/* Anotar SIN haber escogido módulo no es un error que haya que explicar:
+   es un paso que todavía no llega. Se atenúa en vez de gritar. */
+.fe .fe-anotar.dormida { opacity: .55 }
+.fe .fe-anotar.dormida * { pointer-events: none }
+.fe .fe-anotar.dormida .fe-cuenta { pointer-events: auto; opacity: 1 }
+
+.fe .fe-aqui {
+  margin: 11px 0 0; padding: 9px 12px; border-radius: 2px;
+  background: var(--fe-fondo); font-size: 13px; line-height: 1.45;
+}
+.fe .fe-aqui b { font-family: var(--fe-titulo); letter-spacing: .02em }
+
+.fe .fe-cod-campo { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px }
+.fe .fe-cod-campo > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+/* EL CÓDIGO ES EL CAMPO GRANDE. Es el que se teclea 152 veces al día y
+   el único donde un dedazo cambia lo que se está contando. */
+.fe .fe-cod-campo input {
+  min-height: 56px; padding: 0 14px; width: 100%;
+  font: 800 24px var(--fe-titulo); letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+  background: #fff; border: 2px solid var(--fe-linea); border-radius: 2px;
+  color: var(--fe-tinta);
+}
+.fe .fe-cod-campo input:focus { outline: none; border-color: var(--fe-acento) }
+
+/* EL ECO DEL MAESTRO. En el Excel un código malo solo se notaba al
+   final, cuando la descripción decía «VALIDAR CODIGO» y ya nadie estaba
+   frente a esa estiba. Aquí se contesta mientras se teclea. */
+.fe .fe-eco {
+  margin: 0 0 12px; min-height: 34px; padding: 8px 11px; border-radius: 2px;
+  background: var(--fe-fondo); font-size: 12.5px; line-height: 1.4;
+  color: var(--fe-gris-panel);
+}
+.fe .fe-eco b { color: var(--fe-tinta) }
+.fe .fe-eco b.ojo { color: var(--fe-mal) }
+.fe .fe-eco.mal { background: #FDECEE; color: #8A1020 }
+
+/* «¿Rota?» es una PREGUNTA y arranca sin respuesta, no en «no». En la
+   hoja real se contesta en las 152 filas —94 sí, 58 no— así que dejarla
+   preseleccionada sería contestar por el que cuenta. */
+.fe .fe-rota { display: flex; align-items: center; gap: 12px; margin: 12px 0 }
+.fe .fe-rota > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris); flex: none;
+}
+.fe .fe-si-no { display: flex; gap: 8px; flex: 1 }
+.fe .fe-si-no button {
+  flex: 1; min-height: 48px; cursor: pointer; border-radius: 2px;
+  border: 1.5px solid var(--fe-linea); background: var(--fe-fondo);
+  font: 700 15px var(--fe-titulo); color: var(--fe-gris-panel);
+}
+.fe .fe-si-no button.on {
+  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);
+}
+
+.fe .fe-fecha > span {
+  display: block; margin-bottom: 5px;
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+.fe .fe-fecha em { font-style: normal; letter-spacing: 0; text-transform: none; opacity: .8 }
+.fe .fe-dma { display: flex; gap: 8px }
+.fe .fe-dma input {
+  flex: 1; min-width: 0; min-height: 48px; text-align: center;
+  font: 700 18px var(--fe-titulo); font-variant-numeric: tabular-nums;
+  background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px;
+  color: var(--fe-tinta);
+}
+.fe .fe-dma input:focus { outline: none; border-color: var(--fe-acento) }
+
+/* Lo raro va abajo y sin abultar: avería salió en 2 filas de 152 y PNC
+   en 1. Darles el peso del código sería cobrarle a los 150 renglones
+   normales el costo de los dos raros. */
+.fe .fe-marcas {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--fe-linea);
+}
+.fe .fe-estado { flex: 1 1 180px; min-width: 0 }
+.fe .fe-estado select {
+  width: 100%; min-height: 44px; padding: 0 10px;
+  font: 500 14px var(--fe-texto); color: var(--fe-tinta);
+  background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
+}
+
+.fe .btn.grande { width: 100%; min-height: 52px; font-size: 15px }
+
+.fe .fe-arranque h2 { margin: 0 0 8px; font: 800 18px var(--fe-titulo) }
+.fe .fe-arranque p {
+  margin: 0 0 16px; font-size: 13px; line-height: 1.55; color: var(--fe-gris); max-width: 64ch;
+}
+
+.fe .fe-rec-cab {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 12px;
+}
+.fe .fe-rec-cab h2 { margin: 0; font: 800 16px var(--fe-titulo); letter-spacing: -.01em }
+.fe .fe-rec-cab span { font-size: 12px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
+
+.fe .fe-ubi {
+  margin-left: auto; font: 700 11px var(--fe-texto); letter-spacing: .06em;
+  padding: 3px 8px; border-radius: 2px; flex: none;
+  background: var(--fe-fondo); color: var(--fe-gris); border: 1px solid var(--fe-linea);
+}
+/* Lo que ya se pasó de su fecha de salida se marca en la lista, no en un
+   informe de mañana: el que está ahí parado todavía puede hacer algo. */
+.fe .fe-fila.urgente { border-left-color: var(--fe-mal) }
+.fe .fe-recorrido .fe-fila .fe-mini { margin-left: 0 }
+
+@media (max-width: 760px) {
+  .fe .fe-recorrido .fe-fila .fe-mini { width: auto; margin-left: auto }
+  .fe .fe-ubi { margin-left: 0 }
+}
+
+/* El paso 1, plegado: una línea que recuerda dónde estás y un botón para
+   moverse. Es el estado normal de la jornada — la ubicación se escoge
+   una vez y se camina. */
+.fe .fe-donde.plegada {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; padding: 11px 14px;
+}
+.fe .fe-donde.plegada .fe-paso { margin: 0 0 3px }
+.fe .fe-aqui-cab { margin: 0; font-size: 13px; line-height: 1.4 }
+.fe .fe-aqui-cab b {
+  font: 900 17px var(--fe-titulo); letter-spacing: .02em; margin-right: 2px;
+}
+.fe .fe-aqui-cab span { color: var(--fe-gris) }
+.fe .fe-donde.plegada .fe-mini { margin-left: auto; min-height: 48px }
+
+/* Dos desplegables cortos caben lado a lado hasta en 360 px, y apilarlos
+   es media pantalla menos para anotar. */
+.fe .fe-campos.dos { grid-template-columns: 1fr 1fr }
+
+/* ---------- CONTANDO, EN EL CELULAR ----------
+   LA CABECERA SOBRA MIENTRAS SE CUENTA. El título y la tarjeta de cifras
+   son para quien entra a mirar; quien está de pie frente a una estiba ya
+   sabe dónde está y lo que necesita es el campo del código.
+
+   No es un gusto: con la cabecera completa —228 px— más el paso 1
+   desplegado, el botón de «Anotar renglón» quedaba 515 px bajo el
+   pliegue en un celular de 390×740. Eso es un scroll por cada estiba, y
+   son 152 al día. */
+@media (max-width: 760px) {
+  .fe.contando { gap: 10px }
+  /* LA CABECERA ENTERA SE VA. El título «Contar» repite lo que ya dice
+     el menú, y el subtítulo explica algo que quien está contando ya
+     sabe. Lo que de verdad hace falta arriba —en qué módulo estás— lo
+     dice el paso 1 plegado, que queda de primero.
+     Sin esto, «Anotar renglón» quedaba 46 px bajo el pliegue: cerca,
+     pero un scroll por estiba son 152 al día. */
+  .fe.contando .cabeza { display: none }
+  .fe.contando .fe-anotar { padding: 12px 14px 14px }
+  .fe.contando .fe-eco { min-height: 0; margin-bottom: 10px }
+  .fe.contando .fe-marcas { margin: 10px 0 12px; padding-top: 10px }
+  /* Un margen de más y «Anotar» vuelve a quedar bajo el pliegue: el
+     arnés lo dijo con 1 px de sobra, que es tan falso como 100. */
+  .fe.contando .fe-rota { margin: 10px 0 }
+  /* El recorrido va al final y detrás de la cabecera propia: lo que se
+     acaba de anotar se confirma con el aviso, no bajando a mirar. */
+  .fe.contando .fe-recorrido { margin-top: 4px }
+}

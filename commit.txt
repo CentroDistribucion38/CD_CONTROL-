@@ -1,137 +1,191 @@
-FEFO: el maestro se edita desde la pantalla, probado sobre los 494 reales
+Inventario: el maestro del CD y la plantilla de conteo por módulo
 
-Cristian pidió: «tienes los maestros entonces impórtalos y en mi módulo
-de maestros yo edito, agrego, elimino o desactivo, entonces ayúdame para
-hacer las pruebas pero con la información allí». Esto es eso: los 494
-materiales y las 428 ubicaciones del Excel dentro de la base, y una
-pantalla que los corrige — probada contra esos mismos datos y no contra
-cuatro filas inventadas.
+Cristian lo corrigió: «los datos maestros iban dentro de inventario y tú
+ibas a armar la plantilla de conteo». Esto es eso. El módulo FEFO aparte
+se elimina — no debió existir.
 
 =====================================================================
-1 · QUITAR NO ES BORRAR, Y NO LO DECIDE LA PANTALLA
+1 · LAS CUATRO HOJAS DE «FEFO 002.xlsx», Y QUÉ HACE CADA UNA
 =====================================================================
 
-`fefo_quitar_material(codigo)` y `fefo_quitar_ubicacion(clave)`: miran
-si algún conteo lo usó, y entonces BORRAN o DESACTIVAN, y devuelven cuál
-de las dos hicieron para que la pantalla lo pueda decir.
+Leídas por sus FÓRMULAS y no por sus resultados, que es lo que dejó ver
+dos cosas que a ojo no se ven.
 
-Tiene que ser así. Un material que ya salió en un conteo no se puede
-borrar sin dejar ese histórico sin descripción: el conteo de la semana
-pasada quedaría con un código pelado y nadie sabría qué se contó. Pero
-uno que nadie usó tampoco tiene por qué quedarse apagado ensuciando la
-lista para siempre. La decisión depende de un dato que solo la base
-tiene, así que la toma la base.
+MAESTRO (494 materiales, 18 columnas)
+    La hoja CONTEO le pregunta CINCO cosas por el código: descripción,
+    «Factor estibas», vida útil, «Mínimo T1» y P/E. Las otras trece no
+    las toca. Van al maestro igual, pero no hacen falta para contar.
 
-La de ubicaciones cuenta por CALLE + MÓDULO + LADO y no por la clave.
-`fefo_lineas` no guarda la clave —guarda las tres piezas— así que contar
-por clave habría dado cero siempre y habría borrado ubicaciones que sí
-se usaron. Eso era un borrado silencioso de histórico.
+Hoja1 (32 códigos)
+    Los 32 envases. Están TODOS en MAESTRO y con valores idénticos: cero
+    diferencias, cero códigos nuevos. Es con lo que se armó la columna
+    P/E. No se importa: aquí es `tipo_material = 'ENVASE'`.
 
-=====================================================================
-2 · LA PANTALLA DEL MAESTRO
-=====================================================================
+CAPACIDAD DE MODULOS (428 ubicaciones + 9 listas)
+    Dos trabajos: la lista de ubicaciones con familia y capacidad, y las
+    listas desplegables — calle, los módulos de CADA calle, lado, y
+    ESTADO_ENVASE con 35 valores.
 
-Dos pestañas, buscador, y el editor se abre en la misma fila.
+CONTEO (25 columnas)
+    La plantilla. Solo DIEZ se teclean; las otras quince son VLOOKUP
+    contra el maestro o cuentas.
 
-SON 494 FILAS, y eso cambia la forma de la pantalla. El patrón de los
-otros maestros de la plataforma —cargarlo todo en un formulario, editar
-lo que sea, dar Guardar— funciona con treinta y siete filas y no con
-novecientas: sería una página de dos mil campos que el navegador dibuja
-entera para cambiar un factor. Aquí se dibujan 60, el buscador filtra en
-el navegador —los datos ya están, así que responde por tecla sin ir al
-servidor, que es lo que se siente lento con señal de bodega— y lo que se
-cambia se guarda en ese momento.
+DOS COSAS QUE YO MISMO HABÍA DICHO MAL Y LAS FÓRMULAS CORRIGIERON:
 
-Y la pantalla DICE cuántos está mostrando. «60 de 494», siempre. Sin esa
-línea, ver sesenta se lee como «el maestro tiene sesenta», que es una
-afirmación falsa sobre la que alguien puede decidir.
+  · «Mínimo T1» NO se deduce de la vida útil. Con vida 180 hay
+    materiales con 90, con 120 y con 49; con 120 los hay con 90 y con
+    49. Es un dato propio de cada material. Calcularlo habría inventado
+    la fecha de salida de media bodega.
 
-Las tres cifras que deciden las cuentas —cajas por estiba, vida útil,
-días mínimo— van a la vista sin abrir nada, y el que no tiene cajas por
-estiba lo dice en rojo: sin esa cifra, lo que se cuente de ese material
-sale en cero y no avisa. Están en null a propósito; poner un 1 sería
-inventárselo.
+  · «ROT» no es una casilla rara: se contesta en las 152 filas — 94 «SI»
+    y 58 «NO». Las raras son AVERÍA (2 filas) y PNC (1).
+
+Y una columna que no había visto: «UBICACIÓN COMBINADA» = la ubicación
+más « AVERIA», « PNC» y el comentario. Es la que separa la estiba
+averiada de la buena dentro del mismo módulo, o sea la que sirve para
+agrupar. Está reproducida en la vista.
 
 =====================================================================
-3 · DOS ERRORES QUE ENCONTRÓ EL ARNÉS Y NO EL OJO
+2 · EL HALLAZGO QUE MANDA EN TODO EL DISEÑO
 =====================================================================
 
-LA CASILLA «ACTIVO» SE COMÍA LA TARJETA. `.fe .fe-campos input` y
-`.fe .fe-check input` tienen la MISMA especificidad (0,2,1), así que
-ganaba la que iba después: la casilla de verificar se estiraba a todo el
-ancho y 44 px de alto —las medidas pensadas para los campos de texto— y
-el «Activo» de al lado se salía de la tarjeta. En el celular la página
-entera se arrastraba 32 px de lado. En el escritorio no se notaba.
-Arreglado con `:not([type="checkbox"])`, que dice lo que la regla
-siempre quiso decir.
+38 DE LAS 152 FILAS DEL CONTEO REAL —UN CUARTO— APUNTAN A UNA UBICACIÓN
+QUE NO EXISTE.
 
-LA PRUEBA SQL PASABA UNA VEZ Y FALLABA LA SEGUNDA, por su propia huella:
-la sección que comprueba que un material usado se DESACTIVA en vez de
-borrarse dejaba el 3128 apagado, y en la vuelta siguiente `fefo_agregar`
-lo rechazaba con «no está en el maestro». Se corría dos veces
-precisamente para cazar esto. Ahora empieza limpiando lo suyo, y se
-probó tres vueltas seguidas.
+No porque falte el módulo: «A29», «C08», «E01», «C29», «B29», «B19»
+existen — pero como A29_DER y A29_IZQ, y la fila se dejó SIN LADO. Más
+«E6» donde el maestro dice «E06» y «EST8» donde dice «EST08».
+
+Un cuarto del conteo no puede decir de qué lado del pasillo estaba.
+
+El desplegable del Excel no lo evitó porque sus listas traen '01' como
+texto y 10 como número, y encima se puede escribir a mano. Por eso aquí
+la ubicación es una LLAVE FORÁNEA y no un texto: no se teclea, se
+escoge, y no hay tres formas de escribir lo mismo.
 
 =====================================================================
-4 · LAS PRUEBAS, CON LA INFORMACIÓN ADENTRO
+3 · LA BASE
 =====================================================================
 
-`.arnes/prueba-fefo-maestro.sql` hace lo que hace la pantalla —los
-mismos update, insert y rpc— sobre los 494 materiales y las 428
-ubicaciones ya importados, y como USUARIO NORMAL: probarlo como
-superusuario no prueba nada, porque el superusuario se salta RLS y
-aprobaría cualquier cosa.
+Los 494 materiales entran en `productos` —que ya es el catálogo del
+módulo— con sus 18 columnas. Las 428 ubicaciones entran en una tabla
+nueva colgada de la bodega: una ubicación NO es una bodega, y meterlas
+como bodegas habría convertido un centro de distribución en
+cuatrocientos. Los 34 estados de envase van en tabla y no en un `check`,
+porque esa lista la mantiene la bodega.
 
-Comprueba que el supervisor corrige, agrega y quita; que el código
-repetido y el tipo inventado los para la base y no solo la pantalla; que
-el lado sigue siendo IZQ o DER —el candado que cazó al importador cuando
-partía «ALAR_A» en calle A, módulo LAR, lado A—; que lo desactivado
-sigue leyéndose y se vuelve a encender; y que el operador lo lee todo y
-no puede tocar nada.
+`conteos` y `conteo_lineas` se AMPLÍAN en vez de duplicarse: un solo
+sitio donde se ve quién contó qué.
 
-Ese último es el que importa y el que casi se escribe mal: RLS no lanza
-error en un UPDATE, simplemente no encuentra filas que dejen tocar.
-Comprobar «no reventó» habría aprobado el agujero; lo que se comprueba
-es que no cambió NADA. Se verificó volviendo supervisor al operador a
-escondidas: la prueba lo cazó — «un operador corrigió el maestro».
+TRES COSAS QUE HUBO QUE CAMBIAR DE LO QUE YA ESTABA, Y POR QUÉ:
 
-`.arnes/fe-maestro.mjs` mide la pantalla en los siete temas y a
-1440/820/390/360: contraste, que nada se salga, que el dedo alcance
-(44 px los campos, 40 los botones) y que el editor no se vuelva una
-columna en escritorio.
+a) `conteos.tipo` — 'general' o 'fefo'. El general arranca con una línea
+   por producto activo y se va tachando; el FEFO arranca VACÍO y crece
+   mientras se camina, porque hasta no pararse frente al módulo nadie
+   sabe qué hay ahí. Sin esto, `iniciar_conteo` le sembraba 494
+   renglones en blanco a quien va a caminar la bodega.
 
-Ese arnés también mintió antes de servir, dos veces, y las dos quedaron
-escritas en él:
+b) LA LLAVE ÚNICA DE `conteo_lineas`. `unique (conteo_id, producto_id)`
+   era correcta para un conteo general —una línea por producto— pero en
+   FEFO la misma cerveza está en ocho módulos con cuatro vencimientos
+   distintos, y cada uno es un renglón de verdad, no un duplicado. Ahora
+   incluye ubicación, fecha, avería y PNC, con `nulls not distinct`:
+   eso es lo que mantiene el conteo general comportándose EXACTAMENTE
+   como antes, porque sin ello Postgres considera que dos nulos son
+   distintos y dejaría repetir producto en un conteo sin ubicación.
 
-  · leía el fondo de `.sh`, que en el tema oficial NO tiene fondo —lo
-    pone `body`—. «rgba(0, 0, 0, 0)» leído como color es NEGRO: dio 2,66
-    de contraste, me hizo «arreglar» un gris que estaba bien, y el
-    arreglo empeoró el tema oficial. Ahora sube hasta el primer
-    antepasado que sí pinte. El gris se dejó como estaba.
-
-  · contaba como «se sale» el corte diagonal de la tarjeta de cifras,
-    que se dibuja a propósito más ancho dentro de un `overflow: hidden`
-    y no asoma un píxel. Un arnés que grita por lo que está bien enseña
-    a ignorarlo, que es peor que no tenerlo.
-
-Los dos errores de verdad se volvieron a meter a mano para comprobar que
-el arnés los caza. Los caza.
+c) `cerrar_conteo` AHORA SUMA POR PRODUCTO antes de ajustar. Antes
+   generaba un movimiento por renglón, lo cual daba igual cuando había
+   un renglón por producto. Con FEFO el mismo producto trae ocho
+   renglones y sin el `group by` el kardex recibiría ocho ajustes
+   parciales, cada uno restándole el teórico COMPLETO. Eso no es un
+   ajuste con ruido: es un inventario destruido.
 
 =====================================================================
-5 · LO QUE SIGUE
+4 · LAS DOS PANTALLAS
 =====================================================================
 
-La pantalla de contar desde el celular: escoger el módulo una vez,
-agregar los materiales que hay ahí, y que cada renglón quede guardado al
-momento con el nombre de quien lo contó — para que una señal que se cae
-no borre la mañana.
+INVENTARIO → MAESTRO. Materiales y ubicaciones, buscador que filtra en
+el navegador —sin ir al servidor en cada tecla— y el editor que se abre
+en la misma fila y guarda al momento. Se dibujan 60 filas de 494 y la
+pantalla DICE «60 de 494»: sin esa línea, ver sesenta se lee como «el
+maestro tiene sesenta», que es una afirmación falsa sobre la que alguien
+puede decidir. Sacar del maestro APAGA, no borra: lo contado antes se
+sigue leyendo con su descripción.
 
-PARA QUE ESTO FUNCIONE hay que correr en el SQL Editor de Supabase, en
-este orden:
-  1. supabase/modulos/fefo.sql
-  2. supabase/datos/fefo-maestro.sql   (tiene llaves foráneas contra el
-                                        primero)
-Los dos se pueden correr varias veces sin romper nada.
+INVENTARIO → CONTAR. La hoja de conteo vacía, para el celular:
+
+  · La ubicación se escoge una vez y el paso 1 se pliega. En la hoja
+    real hay 88 cambios de módulo en 151 saltos de renglón: se camina,
+    no se salta.
+  · El material se reconoce MIENTRAS SE TECLEA. En el Excel un código
+    malo solo se notaba al final, cuando la descripción decía «VALIDAR
+    CODIGO» y ya nadie estaba frente a esa estiba.
+  · La fecha se conserva de un renglón al otro DENTRO del módulo —las
+    estibas suelen ser del mismo lote— y se borra al cambiar de módulo,
+    que es como se cuela una fecha ajena.
+  · «¿Rota?» arranca SIN respuesta. Preseleccionar «no» habría quedado
+    58 veces bien y 94 veces mal.
+  · Avería, PNC y estado de envase van abajo y sin abultar: 2, 1 y 10
+    filas de 152. Darles el peso del código sería cobrarle a los 150
+    renglones normales el costo de los tres raros.
+  · Cada renglón se guarda al momento y el responsable lo saca la base
+    de la sesión — no se puede contar a nombre de otro.
+
+=====================================================================
+5 · LO QUE MIDIERON LOS ARNESES
+=====================================================================
+
+`.arnes/prueba-inventario-fefo.sql` reproduce CINCO renglones reales de
+la hoja y compara las seis cuentas contra lo que el Excel mostraba el
+16/09/2026. Los días van desplazados por los transcurridos: fijarlos tal
+cual habría hecho una prueba que pasa hoy y falla mañana.
+
+Los dos errores que más importan se volvieron a meter a mano para
+comprobar que la prueba los caza:
+  · «cerrar» generando un movimiento por renglón
+       → «3 renglones del 3128 generaron 3 movimientos»
+  · «días para salir» con el 90 fijo
+       → «FALLA f22 DIAS PARA SALIR: -93 (Excel -3)»
+
+`.arnes/inv-conteo.mjs` mide la pantalla de contar en los siete temas y
+a 1440/820/390/360. Encontró cuatro cosas que a ojo no se ven:
+
+  · «ANOTAR RENGLÓN» QUEDABA 515 px BAJO EL PLIEGUE en un celular de
+    390×740. Un scroll por estiba, 152 al día. Se arregló plegando el
+    paso 1 al escoger módulo y quitando la cabecera en el celular — el
+    título «Contar» repite lo que ya dice el menú y el subtítulo explica
+    algo que quien está contando ya sabe.
+  · El eco del código y el botón «No» sin escoger contrastaban 4,39 en
+    el tema ámbar: van sobre el panel tintado, más oscuro que el papel
+    blanco contra el que está calibrado el gris.
+  · Cuatro cosas que se tocan medían 44 px. Aquí es 48: se cuenta de pie
+    y a veces con guantes, y fallar un campo no es un clic de más, es
+    volver a contar el módulo.
+
+Y este arnés también mintió antes de servir: contaba como «0 px de alto»
+el desplegable del módulo cuando el paso 1 está plegado — o sea cuando
+no está en pantalla. El mínimo salía siempre 0 y gritaba por algo que no
+existe. Ahora lo que no está no se mide, y se comprueba en la pasada de
+«todo abierto».
+
+Sus tres afirmaciones se verificaron rompiéndolas a propósito: devolver
+la cabecera (→ 213 px bajo el pliegue), arrancar «¿Rota?» en «no», y
+mandar la ubicación como texto en vez de la llave.
+
+=====================================================================
+6 · PARA CORRER, EN ESTE ORDEN
+=====================================================================
+
+  1. supabase/migraciones/2026-09-inventario-fefo.sql
+  2. supabase/datos/inventario-maestro-cd38.sql
+
+Los dos se pueden correr varias veces sin romper nada. El segundo NO
+toca `costo_unitario` ni `stock_min` de los productos: el Excel no los
+trae y ponerlos en cero borraría lo que ya esté cargado.
+
+Lo que sigue: el resumen del período — qué se vence primero y qué ya se
+pasó de su fecha de salida, que es para lo que el conteo existe.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

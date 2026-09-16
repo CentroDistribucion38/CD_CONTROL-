@@ -40,7 +40,7 @@
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
 
-const fefo = readFileSync(new URL("../src/app/(app)/fefo/fefo.css", import.meta.url), "utf8");
+const fefo = readFileSync(new URL("../src/app/(app)/inventario/fefo.css", import.meta.url), "utf8");
 const glob = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
 /* EL ARMAZÓN DE LA APLICACIÓN VA COMPLETO, no un `div` inventado. En
    otra pantalla de este proyecto el arnés envolvió la tabla en «us»
@@ -48,8 +48,8 @@ const glob = readFileSync(new URL("../src/app/globals.css", import.meta.url), "u
    un rótulo midió 15,78 de contraste: el negro del texto normal. El
    número era real y no decía nada. */
 const shell = readFileSync(new URL("../src/app/(app)/shell.css", import.meta.url), "utf8");
-const tsx  = readFileSync(new URL("../src/app/(app)/fefo/maestro/Maestro.tsx", import.meta.url), "utf8");
-const pgx  = readFileSync(new URL("../src/app/(app)/fefo/maestro/page.tsx", import.meta.url), "utf8");
+const tsx  = readFileSync(new URL("../src/app/(app)/inventario/maestro/Maestro.tsx", import.meta.url), "utf8");
+const pgx  = readFileSync(new URL("../src/app/(app)/inventario/maestro/page.tsx", import.meta.url), "utf8");
 
 const TEMAS = [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"];
 const ANCHOS = [[1440, "pc"], [820, "tableta"], [390, "celular"], [360, "360"]];
@@ -113,7 +113,7 @@ const CAMPOS = `
 <div class="fe-pie">
   <button type="button" class="btn">Guardar</button>
   <button type="button" class="btn plano">Cancelar</button>
-  <button type="button" class="fe-quitar">Quitar del maestro</button>
+  <button type="button" class="fe-quitar">Sacar del maestro</button>
 </div>`;
 
 const ARMAZON = `

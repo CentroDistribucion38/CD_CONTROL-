@@ -330,45 +330,28 @@ export const MODULOS: Modulo[] = [
     nombre: "Inventario",
     eyebrow: "STOCK",
     descripcion:
-      "Catálogo, kardex de movimientos, existencias por bodega y conteos físicos.",
+      "Maestro de materiales y ubicaciones, conteo por módulo con vencimientos, " +
+      "kardex de movimientos y existencias por bodega.",
     acento: "#E9A81F",
     fondo: "#E2EDF9",
-    etiquetas: ["Kardex", "Conteos físicos"],
+    etiquetas: ["Conteo por ubicación", "Días para salir"],
     imagen: "/modulos/inventario.jpg",
     ruta: "/inventario",
     activo: true,
     secciones: [
       { nombre: "Resumen", ruta: "/inventario" },
+      /* EL MAESTRO VA PRIMERO Y NO AL FINAL, aunque sea lo que menos se
+         abre: sin maestro no hay conteo —el código no trae descripción,
+         el factor estibado no existe y las cuentas salen en cero— así
+         que ese es el orden del proceso, no el de construcción. */
+      { nombre: "Maestro", ruta: "/inventario/maestro" },
+      { nombre: "Contar (FEFO)", ruta: "/inventario/conteo" },
       { nombre: "Productos", ruta: "/inventario/productos" },
       { nombre: "Bodegas", ruta: "/inventario/bodegas" },
       { nombre: "Movimientos", ruta: "/inventario/movimientos" },
       { nombre: "Conteos físicos", ruta: "/inventario/conteos" },
     ],
   },
-  {
-    id: "fefo",
-    nombre: "FEFO",
-    eyebrow: "VENCIMIENTOS",
-    descripcion:
-      "El conteo del almacén módulo por módulo, con la fecha de vencimiento de cada " +
-      "estiba. De ahí sale qué se despacha primero y qué se está por vencer.",
-    acento: "#0B7285",
-    fondo: "#DDEEF1",
-    etiquetas: ["Conteo por ubicación", "Días para salir"],
-    /* Sin foto propia todavía: se reusa la de inventario, que es el mismo
-       almacén. Poner una ruta a un archivo que no existe dejaría un hueco
-       gris en la portada, que se lee como «esto está roto». */
-    imagen: "/modulos/inventario.jpg",
-    ruta: "/fefo",
-    activo: true,
-    /* EL MAESTRO VA PRIMERO Y NO AL FINAL, aunque sea lo que menos se
-       abre: sin maestro no hay conteo —el código no trae descripción y
-       las cuentas no salen— así que ese es el orden del proceso. */
-    secciones: [
-      { nombre: "Maestro", ruta: "/fefo/maestro" },
-    ],
-  },
-
 ];
 
 /**
