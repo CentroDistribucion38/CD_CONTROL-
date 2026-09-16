@@ -1,61 +1,75 @@
-Tránsito: la cinta de asuntos en una línea y la lista deja de ser cortica
+Tránsito: fuera el comentario impreso, el botón que se salía y los cuadros grises
 
-DOS COSAS QUE ERAN LA MISMA: la pantalla hablaba de sí misma en vez de
-mostrar camiones.
+TRES COSAS QUE CRISTIAN VIO EN PRODUCCIÓN Y NINGUNA HERRAMIENTA VIO
+ANTES. Las tres son válidas para `tsc`, para el `build` y para ESLint, y
+por eso las tres se van con un arnés detrás, no solo con el arreglo.
 
-1) LAS ALERTAS. Eran un párrafo crema de dos renglones que decía lo
-   mismo que ya dicen las tarjetas, y no se podía hacer nada con él.
-   Ahora es una cinta negra de una línea donde cada asunto es un botón:
-   se toca «2 salieron sin las tres fotos» y la lista se queda solo con
-   esos. De informar a servir, y de 55 px de alto a lo que ocupa una
-   línea de texto.
+1) UN COMENTARIO DE VEINTE RENGLONES IMPRESO EN LA PANTALLA, encima de
+   la lista y en letra grande, explicando por qué la cinta de asuntos es
+   negra. Dentro de JSX un comentario tiene que ir envuelto en llaves;
+   sin ellas es TEXTO, tan válido como escribir «hola». La llave se
+   perdió al sacar el comentario de adentro de un `{cond && ( … )}`,
+   donde no puede ir de primer hijo.
 
-   El filtro vive en la misma bolsa que los otros (`solo` en el estado),
-   así que se combina con placa, origen y fechas sin reglas aparte.
+   `.arnes/jsx.mjs` lo caza por la forma: un comentario de bloque que
+   viene después de `}` o `>` y antes de `{` o `<` está entre hijos de
+   JSX, y ahí las llaves no son opcionales.
 
-2) EL SCROLL, que Cristian describió como «muy cortico». Lo era: la
-   lista se recortaba con `max-height: calc(100dvh - 470px)`, y ese 470
-   era «lo que ocupa todo lo de arriba» escrito a mano. Medido, lo de
-   arriba ocupa entre 403 y 498 px según el ancho —la cabecera envuelve
-   distinto—, así que ninguna constante podía estar bien: en unas
-   pantallas le regalaba alto a la nada y en otras dejaba la lista
-   colgando bajo el borde, con la página y la lista rodando a la vez.
+2) EL BOTÓN «CERTIFICAR LLEGADA» SALIÉNDOSE DE LA TARJETA, 14 px por
+   fuera del borde derecho. El pie de la tarjeta es una fila de dos: la
+   línea de «salió» a la izquierda, los botones a la derecha. Los
+   botones llevan `flex: none` —un botón aplastado no se toca con
+   guante— pero eso solo los protege a ELLOS: el grupo sí se dejaba
+   encoger, y con una dirección de salida larga lo encogía por debajo de
+   lo que mide el botón.
 
-   Se fue el número mágico. Ahora la pantalla mide lo que queda bajo la
-   barra de la app y la lista es el hijo que crece (`flex: 1`, con
-   `min-height: 0` en cada eslabón, que no es adorno: sin eso un hijo de
-   flex empuja hacia abajo en vez de rodar, que es justo el bug).
+   Lo arregla `white-space: nowrap`, y no por lo que parece: al no poder
+   partir el rótulo, el ancho mínimo del botón pasa a ser el botón
+   entero, y con él el mínimo del grupo. El navegador ya no puede
+   encogerlo de más: parte la fila en dos y quien cede el sitio es la
+   dirección, que sí puede.
 
-   Y en pantallas bajas —el portátil de bodega, 768 px— se encoge lo de
-   ARRIBA, no la lista: párrafo de la cabecera fuera, KPI más apretado,
-   cinta más fina, y la tarjeta pierde aire (no información: siguen la
-   placa, la ruta, el material, las cuatro cifras y el botón).
+   `.arnes/sd-tarjeta.mjs` monta la tarjeta con la dirección larga de
+   verdad —la de JGY577, la de la foto— en nueve anchos y comprueba que
+   ningún hijo termine más allá del relleno. Antes del arreglo cantaba
+   los cuatro anchos donde pasaba; ahora los nueve salen limpios.
 
-MEDIDO, NO CALCULADO A OJO. `.arnes/sd-scroll.mjs` arma la pantalla en
-cuatro tamaños y pregunta dónde EMPIEZA la lista:
+3) LOS CUADROS GRISES DEL NAVEGADOR. Pedir una revisión AI abría un
+   `prompt()` del sistema: «cd-control-one.vercel.app dice», un campo
+   pelado que no dice de qué vehículo habla, botones que no son los de
+   la plataforma. Quitarla, un `confirm()`. Los errores, un `alert()`.
 
-   portátil        375 px    485 px alto    54 %   1.7 filas
-   monitor         375 px    665 px         62 %   2.3 filas
-   portátil chico  339 px    389 px         51 %   1.5 filas
-   kiosco          454 px    631 px         56 %   2.2 filas
+   Y lo peor es que no hacía falta: la aplicación ya tiene los dos
+   cuadros de la casa desde hace meses —`useConfirmar` pregunta antes,
+   `useAvisos` cuenta después— y Tránsito era la ÚNICA pantalla de toda
+   la plataforma que no los usaba.
 
-ESTE ARNÉS MINTIÓ DOS VECES ANTES DE SERVIR, y las dos por lo mismo: el
-armazón de prueba llevaba clases que la pantalla no usa. Primero
-`.tr-cabeza` y `.tr-kpi` (las de verdad son `.cabeza` y `.kpi`): midió
-una cabecera sin estilos y la regla que salió de esos números apuntaba a
-las clases inventadas. Después `.filtros` con un `.arriba` adentro, que
-sí existe —en globals.css, para otras pantallas—, y por eso el control
-de huérfanas lo dejó pasar: midió un panel de 114 px donde la pantalla
-real tiene una fila de 60.
+   `useConfirmar` aprendió a llevar un campo de texto, que es lo que le
+   faltaba para reemplazar también a `prompt()`. Devuelve `false` o un
+   objeto en vez de un booleano, a propósito: `false` es falso y el
+   objeto es verdadero, así que los catorce sitios que ya escribían
+   `if (!(await pedir(…))) return` siguen funcionando sin tocarlos.
 
-Así que el control cambió de sitio y de forma: el armazón se compara
-contra Transito.tsx, no contra la hoja de estilos, y por palabra
-completa —`tsx.includes("filtros")` daba verdadero porque allá está
-escrito `tr-filtros`—. Probado al revés: con `.filtros` puesto a
-propósito, el arnés lo canta.
+   El cuadro de pedir la revisión ahora dice lo que va a pasar —que hay
+   que sacar la muestra en el muelle antes de descargar—, ofrece el
+   motivo como opcional con un ejemplo, y explica dónde se va a ver lo
+   que se escriba. El de quitarla va en rojo y avisa que se puede volver
+   a pedir.
 
-Y se cuentan FILAS, no tarjetas: las tarjetas van en rejilla y a 1280 px
-caben tres al lado; lo que obliga a rodar es el grupo, no la tarjeta.
+   `.arnes/jsx.mjs` prohíbe los tres para siempre. Se cazó a sí mismo
+   tres veces antes de servir —los comentarios que explican por qué no
+   se usa `prompt()` contienen la palabra `prompt()`—, así que busca
+   sobre el archivo sin cadenas y sin comentarios. Un arnés que grita
+   por su propia explicación se termina apagando, y apagado no sirve.
+
+EL CAMPO NUEVO, MEDIDO EN LOS SIETE TEMAS (`.arnes/cf-campo.mjs`). Su
+borde va más oscuro que el de los demás campos de la aplicación y es
+una decisión, no un descuido: el gris de la casa contrasta 1.38 contra
+el blanco de la hoja, por debajo del 3.0 que pide la norma para el filo
+de algo que se toca. En un cuadro que sale encima de la pantalla y trae
+un solo campo, si no se nota no se escribe nada y el motivo se pierde.
+Ahora: rótulo 4.83–5.45, ayuda igual, texto 14.45–19.44, borde 3.06–3.10,
+y el cuadro entero cabe en una pantalla de 360×640.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

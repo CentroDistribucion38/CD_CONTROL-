@@ -2748,7 +2748,21 @@
 }
 .sd .sello.ai i { background: #C08A16 }
 
+/* LOS BOTONES DEL PIE, Y POR QUÉ NO SE SALEN.
+   El pie es una fila de dos: la línea de «salió» a la izquierda y esto a
+   la derecha. Los botones llevan `flex: none` —un botón aplastado no se
+   toca con guante— pero eso solo los protege a ELLOS: el grupo sí se
+   dejaba encoger, y con una dirección de salida larga lo encogía por
+   debajo de lo que mide el botón. El botón no cabía y salía 14 px por
+   fuera del borde derecho de la tarjeta. Medido en `.arnes/sd-tarjeta`.
+
+   `white-space: nowrap` es lo que lo arregla, y no por lo que parece: al
+   no poder partir el rótulo, el ancho MÍNIMO del botón pasa a ser el
+   botón entero, y con él el mínimo del grupo. Entonces el navegador ya
+   no puede encogerlo de más: parte la fila en dos —para eso está el
+   `flex-wrap`— y quien cede el sitio es la dirección, que sí puede. */
 .sd .tr-botones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.sd .tr-botones > * { white-space: nowrap }
 
 .sd .tr-ai {
   min-height: 38px; padding: 0 12px; cursor: pointer; border-radius: 3px;

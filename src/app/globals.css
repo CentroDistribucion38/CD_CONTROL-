@@ -1324,10 +1324,42 @@ body {
 }
 .cf-dice b { font-weight: 600 }
 
+/* EL CAMPO, cuando el cuadro además pregunta algo. Reemplaza a
+   window.prompt(), que salía con el dominio encima y un campo pelado
+   sin decir de qué vehículo hablaba. */
+.cf-campo { display: block; margin: 16px 0 0 }
+.cf-campo > span {
+  display: block; font-size: 11px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--c-5b6b7f); margin-bottom: 6px;
+}
+.cf-campo input {
+  width: 100%; box-sizing: border-box; height: 44px; padding: 0 13px;
+  font: 500 15px "IBM Plex Sans", system-ui, sans-serif; color: var(--c-04203f);
+  background: #fff;
+  /* EL BORDE, MÁS OSCURO QUE EL DE LOS DEMÁS CAMPOS, y a propósito. El
+     gris de la casa (--c-d5dce5) contrasta 1.38 contra el blanco de la
+     hoja: por debajo del 3.0 que pide la norma para el filo de algo que
+     se toca, o sea que en una pantalla con reflejo no se ve dónde
+     empieza el campo. Aquí importa más que en otros sitios porque el
+     cuadro sale encima de la pantalla y solo trae UN campo: si no se
+     nota, no se escribe nada y el motivo se pierde. Medido en
+     `.arnes/cf-campo`. */
+  border: 1.5px solid var(--c-8494a8); border-radius: 3px;
+}
+.cf-campo input:focus {
+  outline: none; border-color: var(--c-marca); box-shadow: 0 0 0 3px rgba(4, 32, 63, .12);
+}
+.cf-campo em {
+  display: block; margin-top: 6px; font-style: normal;
+  font-size: 12px; line-height: 1.45; color: var(--c-5b6b7f);
+}
+
 .cf-botones {
   display: flex; justify-content: flex-end; gap: 10px;
   margin-top: 20px; flex-wrap: wrap;
 }
+.cf-btn:disabled { opacity: .45; cursor: not-allowed }
+.cf-btn:disabled:hover { background: var(--c-marca) }
 .cf-btn {
   min-height: 42px; padding: 0 20px; border: 0; border-radius: 2px; cursor: pointer;
   font-family: "Archivo", system-ui, sans-serif; font-weight: 800; font-size: 14px;

@@ -18,7 +18,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { traducirError } from "@/lib/errores";
+import { useConfirmar } from "@/components/Confirmar";
+import { useAvisos } from "@/components/Aviso";
 import type { Viaje } from "@/modulos/sider/comun";
 import {
   RANURAS, RANURA_OBS, type Ranura, type RanuraCualquiera, type Foto,
@@ -80,21 +81,58 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
      que se cayó todo en vez de que uno está trabajando. */
   const [marcando, setMarcando] = useState<string | null>(null);
 
+  /* NADA DE CUADROS DEL NAVEGADOR. Esto usaba prompt(), confirm() y
+     alert(), que salen con "cd-control-one.vercel.app dice" encima, en
+     gris, con un campo pelado que no dice de qué vehículo habla y con
+     botones que no son los de la plataforma. Enseñar eso en una reunión
+     parece que la aplicación se rompió.
+
+     Los dos cuadros de la casa ya existían y esta pantalla era la ÚNICA
+     de toda la aplicación que no los usaba: useConfirmar pregunta antes,
+     useAvisos cuenta después. */
+  const [pedir, dialogo] = useConfirmar();
+  const [avisar, avisos] = useAvisos();
+
   async function pedirAi(v: Viaje) {
-    /* QUITAR PREGUNTA, PEDIR NO. Pedir la revisión se deshace con otro
-       clic; quitarla puede estar borrando una decisión que alguien tomó
-       por algo, y en el muelle un clic de más es fácil. */
-    if (v.requiere_ai && !confirm(`¿Quitar la revisión AI de ${v.placa}?`)) return;
+    /* PEDIRLA PREGUNTA EL MOTIVO; QUITARLA PIDE CONFIRMACIÓN. Pedir la
+       revisión se deshace con otro clic; quitarla puede estar borrando
+       una decisión que alguien tomó por algo, y en el muelle un clic de
+       más es fácil. */
+    const r = v.requiere_ai
+      ? await pedir({
+          titulo: `¿Quitar la revisión AI de ${v.placa}?`,
+          dice: <>Al llegar se certifica como cualquier otro vehículo, sin muestra
+                 ni conteo de defectos. Se puede volver a pedir después.</>,
+          confirmar: "Quitar la revisión",
+          peligro: true,
+        })
+      : await pedir({
+          titulo: `Revisión AI para ${v.placa}`,
+          dice: <>Al llegar, quien certifique tendrá que sacar la muestra en el
+                 muelle y contar los defectos <b>antes de descargar</b>.</>,
+          campo: {
+            rotulo: "¿Por qué se revisa? (opcional)",
+            ejemplo: "Reclamo del socio, lote sospechoso…",
+            ayuda: "Lo ve quien recibe el vehículo, en la tarjeta y en el formulario.",
+          },
+          confirmar: "Pedir la revisión",
+        });
+    if (!r) return;
+
     setMarcando(v.id);
     const supabase = createClient();
     const { error } = await supabase.rpc("sider_ai_marcar", {
       p_viaje: v.id,
       p_marcar: !v.requiere_ai,
-      p_motivo: v.requiere_ai ? null
-        : (prompt(`¿Por qué se revisa ${v.placa}? (opcional)`) ?? null),
+      /* Vacío es NULL, no cadena vacía: un motivo en blanco guardado
+         como "" se pinta después como si alguien hubiera escrito algo. */
+      p_motivo: v.requiere_ai ? null : (r.texto || null),
     });
     setMarcando(null);
-    if (error) { alert(traducirError(error.message)); return }
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(v.requiere_ai
+      ? `${v.placa} ya no lleva revisión AI.`
+      : `${v.placa} queda con revisión AI al llegar.`);
     router.refresh();
   }
   /* `solo` no es un filtro más de la fila de filtros: es el que ponen
@@ -184,9 +222,11 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
 
   return (
     <>
+      {dialogo}
+      {avisos}
       {cabeza}
 
-      /* ---------- LA CINTA DE ASUNTOS ----------
+      {/* ---------- LA CINTA DE ASUNTOS ----------
 
             ANTES ERA UN PÁRRAFO CREMA de dos renglones que decía lo
             mismo y no llevaba a ninguna parte: había que leerlo, buscar
@@ -201,7 +241,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
             UNA SOLA LÍNEA, y negra. El negro la separa del resto sin
             gritar —no es una alarma, es un estado— y el número de cada
             chip lleva el color de su gravedad: rojo lo que bloquea el
-            cierre, ámbar lo que hay que mirar. */
+            cierre, ámbar lo que hay que mirar. */}
       {(trabados > 0 || sinEvidencia > 0) && (
         <section className="tr-cinta">
           <span className="tr-rot">REQUIERE ATENCIÓN</span>
