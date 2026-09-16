@@ -25,6 +25,25 @@ values ('11111111-1111-1111-1111-111111111111', 'heiner', 'DE LEON HEINER', 'adm
        ('22222222-2222-2222-2222-222222222222', 'otro',   'OTRA PERSONA',   'operador', true)
 on conflict (id) do update set nombre = excluded.nombre, rol = excluded.rol;
 
+-- ---------------------------------------------------------------------
+-- BORRÓN Y CUENTA NUEVA ANTES DE EMPEZAR.
+-- ---------------------------------------------------------------------
+-- ESTA PRUEBA SE CORRE DOS VECES, SIEMPRE, y la segunda es la que vale:
+-- la primera pasa hasta cuando el archivo deja basura detrás. Esta de
+-- aquí la dejaba: la sección 8 desactiva el 3128 a propósito —para
+-- comprobar que un material usado se desactiva en vez de borrarse— y no
+-- lo volvía a encender, así que en la segunda vuelta `fefo_agregar` lo
+-- rechazaba con «El código 3128 no está en el maestro» y la prueba
+-- reventaba por su propia huella, no por un error del módulo.
+--
+-- Y el conteo también: `fefo_abrir` devuelve el que ya esté abierto —que
+-- es lo correcto para quien vuelve del almuerzo— así que sin borrarlo la
+-- segunda vuelta contaría los renglones de la primera.
+delete from public.fefo_conteos
+ where responsable_id in ('11111111-1111-1111-1111-111111111111',
+                          '22222222-2222-2222-2222-222222222222');
+delete from public.fefo_materiales where codigo = 999001;
+
 -- Los cuatro materiales de los renglones que se van a comprobar.
 insert into public.fefo_materiales
   (codigo, descripcion, unidades_por_caja, cajas_por_estiba, unidades_por_estiba,
@@ -37,7 +56,13 @@ values
 on conflict (codigo) do update set
   cajas_por_estiba = excluded.cajas_por_estiba,
   vida_util = excluded.vida_util, dias_minimo = excluded.dias_minimo,
-  tipo = excluded.tipo;
+  tipo = excluded.tipo,
+  activo = true;   -- ← lo que la sección 8 apagó en la vuelta anterior
+
+-- La ubicación que la sección 8 desactiva, de vuelta en pie.
+insert into public.fefo_ubicaciones (clave, calle, modulo, lado)
+     values ('E01', 'E', '01', null)
+on conflict (clave) do update set activa = true;
 
 commit;
 
@@ -253,7 +278,39 @@ begin
     raise exception 'FALLA: fefo_abrir devolvió el conteo ya cerrado';
   end if;
 
-  raise notice 'FEFO: las 6 cuentas dan lo mismo que la hoja y los 11 candados aguantan.';
+  -- ===== 8. QUITAR DEL MAESTRO: BORRA O DESACTIVA, SEGÚN =====
+  declare v_msg text; v_act boolean;
+  begin
+    -- 3128 tiene un renglón de conteo: no se puede borrar.
+    v_msg := public.fefo_quitar_material(3128);
+    if position('desactiv' in lower(v_msg)) = 0 then
+      raise exception 'FALLA: un material usado debería desactivarse, dijo «%»', v_msg;
+    end if;
+    select activo into v_act from public.fefo_materiales where codigo = 3128;
+    if v_act then raise exception 'FALLA: dijo desactivado y sigue activo'; end if;
+
+    -- Uno que nadie usó, sí se borra.
+    insert into public.fefo_materiales (codigo, descripcion, cajas_por_estiba, tipo)
+         values (999001, 'MATERIAL DE PRUEBA', 10, 'PRODUCTO');
+    v_msg := public.fefo_quitar_material(999001);
+    if position('borrado' in lower(v_msg)) = 0 then
+      raise exception 'FALLA: un material sin usar debería borrarse, dijo «%»', v_msg;
+    end if;
+    if exists (select 1 from public.fefo_materiales where codigo = 999001) then
+      raise exception 'FALLA: dijo borrado y sigue ahí';
+    end if;
+
+    -- Y una ubicación que SÍ se usó. Se cuenta por calle+módulo+lado y no
+    -- por la clave, porque el renglón no guarda la clave.
+    insert into public.fefo_ubicaciones (clave, calle, modulo, lado)
+         values ('E01', 'E', '01', null) on conflict (clave) do nothing;
+    v_msg := public.fefo_quitar_ubicacion('E01');
+    if position('desactiv' in lower(v_msg)) = 0 then
+      raise exception 'FALLA: una ubicación con conteo debería desactivarse, dijo «%»', v_msg;
+    end if;
+  end;
+
+  raise notice 'FEFO: las 6 cuentas dan lo mismo que la hoja y los 14 candados aguantan.';
 end $$;
 
 reset role;

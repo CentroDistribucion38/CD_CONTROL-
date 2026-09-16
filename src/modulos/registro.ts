@@ -345,6 +345,29 @@ export const MODULOS: Modulo[] = [
       { nombre: "Conteos físicos", ruta: "/inventario/conteos" },
     ],
   },
+  {
+    id: "fefo",
+    nombre: "FEFO",
+    eyebrow: "VENCIMIENTOS",
+    descripcion:
+      "El conteo del almacén módulo por módulo, con la fecha de vencimiento de cada " +
+      "estiba. De ahí sale qué se despacha primero y qué se está por vencer.",
+    acento: "#0B7285",
+    fondo: "#DDEEF1",
+    etiquetas: ["Conteo por ubicación", "Días para salir"],
+    /* Sin foto propia todavía: se reusa la de inventario, que es el mismo
+       almacén. Poner una ruta a un archivo que no existe dejaría un hueco
+       gris en la portada, que se lee como «esto está roto». */
+    imagen: "/modulos/inventario.jpg",
+    ruta: "/fefo",
+    activo: true,
+    /* EL MAESTRO VA PRIMERO Y NO AL FINAL, aunque sea lo que menos se
+       abre: sin maestro no hay conteo —el código no trae descripción y
+       las cuentas no salen— así que ese es el orden del proceso. */
+    secciones: [
+      { nombre: "Maestro", ruta: "/fefo/maestro" },
+    ],
+  },
 
 ];
 

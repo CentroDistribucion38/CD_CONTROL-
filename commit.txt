@@ -1,93 +1,137 @@
-FEFO: la base del conteo por ubicación, y «Qué dice esto» en casillas
+FEFO: el maestro se edita desde la pantalla, probado sobre los 494 reales
+
+Cristian pidió: «tienes los maestros entonces impórtalos y en mi módulo
+de maestros yo edito, agrego, elimino o desactivo, entonces ayúdame para
+hacer las pruebas pero con la información allí». Esto es eso: los 494
+materiales y las 428 ubicaciones del Excel dentro de la base, y una
+pantalla que los corrige — probada contra esos mismos datos y no contra
+cuatro filas inventadas.
 
 =====================================================================
-1 · FEFO — EL PRIMER PASO: LA BASE
+1 · QUITAR NO ES BORRAR, Y NO LO DECIDE LA PANTALLA
 =====================================================================
-Reemplaza a «FEFO 002.xlsx», hoja CONTEO. Alguien camina el almacén
-módulo por módulo y anota qué hay: material, cuántas estibas o cajas, y
-la fecha de vencimiento impresa. De ahí sale el FEFO.
 
-LO QUE DECIDIÓ EL DISEÑO SALIÓ DE MEDIR LA HOJA, no de suponer:
+`fefo_quitar_material(codigo)` y `fefo_quitar_ubicacion(clave)`: miran
+si algún conteo lo usó, y entonces BORRAN o DESACTIVAN, y devuelven cuál
+de las dos hicieron para que la pantalla lo pueda decir.
 
-  · DE 25 COLUMNAS, SOLO 7 SE ESCRIBEN. Las otras 18 o se traen del
-    maestro por el código, o son una cuenta. En un celular, parado
-    frente a un módulo, esas 18 son 18 formas de equivocarse
-    escribiendo algo que la base ya sabe.
+Tiene que ser así. Un material que ya salió en un conteo no se puede
+borrar sin dejar ese histórico sin descripción: el conteo de la semana
+pasada quedaría con un código pelado y nadie sabría qué se contó. Pero
+uno que nadie usó tampoco tiene por qué quedarse apagado ensuciando la
+lista para siempre. La decisión depende de un dato que solo la base
+tiene, así que la toma la base.
 
-  · LAS CUATRO COLUMNAS DE NOVEDAD CASI NO SE USAN: en 152 renglones,
-    AVERÍA salió 2 veces, PNC 1, ESTADO 10 y COMENTARIO ninguna. Existen
-    —cuando pasan, importan— pero no pueden ocupar sitio en la pantalla
-    de todos los días.
-
-  · SE CAMINA EN ORDEN: 89 ubicaciones distintas para 152 renglones y 88
-    cambios en 151 saltos. Nadie brinca de la calle A a la E y vuelve.
-    Por eso la ubicación será del recorrido en curso y no de cada
-    renglón.
-
-  · ESTIBAS O CAJAS, NO LAS DOS: 120 renglones con estibas, 33 con
-    cajas, y UNO con las dos —que es casi seguro un error de
-    digitación—. La restricción lo vuelve imposible en vez de dejarlo
-    salir después en un informe.
-
-LAS FÓRMULAS NO SE REINVENTARON: se leyeron del propio archivo y van
-copiadas con la del Excel al lado. Una se presta especialmente a
-inventarla mal: «días para salir» parecía una constante de 90 días
-—daba 90 en 89 de los renglones— y no lo es. Sale de «Mínimo T1» del
-maestro y cambia por material: 90 para lo de vida 180/270/365, 49 para
-lo de 120, 30 para lo de 60. Haberla dejado en 90 habría adelantado o
-atrasado la salida de material real.
-
-EL NOMBRE DE QUIEN CONTÓ NO SE ESCRIBE: sale de la sesión. Por eso no
-hay política de escritura sobre las tablas del conteo y la única entrada
-son cuatro funciones security definer. Es lo único que hace que «con el
-nombre de la persona que lo hizo» quiera decir algo — si la pantalla
-pudiera mandar el responsable, se podría contar a nombre de otro.
-
-PROBADO CONTRA POSTGRES 16 DE VERDAD (`.arnes/prueba-fefo.sql`), dos
-veces, en una transacción y COMO USUARIO NORMAL — probarlo como
-superusuario no probaría nada, porque el candado es RLS y auth.uid() y
-el superusuario se los salta. Las 6 cuentas dan lo mismo que la hoja
-—56 × 480 = 26.880 incluido— y los 11 candados aguantan: sin fecha en un
-producto, estibas y cajas juntas, un renglón vacío, el 31 de febrero, un
-código fuera del maestro, escribir o cerrar el conteo de otro, cerrar
-uno sin renglones, y tocar uno ya cerrado.
-
-DOS COSAS QUE LA PRUEBA CAZÓ Y YO NO VI:
-  · Faltaban los `grant select` sobre las VISTAS. Dar permiso sobre las
-    tablas no lo da sobre las vistas que las leen.
-  · El primer generador del maestro partía la clave de ubicación por el
-    guion bajo, y convertía «ALAR_A» en calle «A», módulo «LAR», lado
-    «A». La restricción del lado lo cantó. En la hoja conviven cinco
-    formas —A01_DER, P_12_IZQ, EST07, C18A y áreas con nombre— y ahora
-    se desarman con una regla, no a ojo.
-
-Van 494 materiales y 428 ubicaciones. El siguiente paso es la pantalla.
+La de ubicaciones cuenta por CALLE + MÓDULO + LADO y no por la clave.
+`fefo_lineas` no guarda la clave —guarda las tres piezas— así que contar
+por clave habría dado cero siempre y habría borrado ubicaciones que sí
+se usaron. Eso era un borrado silencioso de histórico.
 
 =====================================================================
-2 · «QUÉ DICE ESTO» — DE VIÑETAS A CASILLAS
+2 · LA PANTALLA DEL MAESTRO
 =====================================================================
-Era una lista de cuatro viñetas de tres renglones cada una. Decía lo
-mismo, pero un hallazgo enterrado en el tercer renglón de un párrafo no
-se ve al pasar: había que leer los cuatro para saber cuál importa.
 
-Ahora cada hallazgo es una casilla con su cifra grande adelante, y esa
-cifra es lo que se compara de un vistazo entre las cuatro. La frase
-queda para quien quiera el porqué, no para quien quiera el qué.
+Dos pestañas, buscador, y el editor se abre en la misma fila.
 
-LA CIFRA EN ROJO ES UN AVISO Y NO UN ADORNO: se reserva para lo que hay
-que ir a mirar —un día disparado, algo sin cerrar— y nunca para una
-cifra que solo describe el período. Si todas fueran rojas, ninguna diría
-nada.
+SON 494 FILAS, y eso cambia la forma de la pantalla. El patrón de los
+otros maestros de la plataforma —cargarlo todo en un formulario, editar
+lo que sea, dar Guardar— funciona con treinta y siete filas y no con
+novecientas: sería una página de dos mil campos que el navegador dibuja
+entera para cambiar un factor. Aquí se dibujan 60, el buscador filtra en
+el navegador —los datos ya están, así que responde por tecla sin ir al
+servidor, que es lo que se siente lento con señal de bodega— y lo que se
+cambia se guarda en ese momento.
 
-Y LO QUE SE PUEDE CERRAR HOY VA EN SU PROPIA BANDA: no es un hallazgo
-sobre el período, es trabajo pendiente, y mezclarlo con los otros cuatro
-lo haría leer como una observación más.
+Y la pantalla DICE cuántos está mostrando. «60 de 494», siempre. Sin esa
+línea, ver sesenta se lee como «el maestro tiene sesenta», que es una
+afirmación falsa sobre la que alguien puede decidir.
 
-Medido en los siete temas: la cifra de aviso contrasta 5,60, la frase de
-cada casilla entre 8,13 y 10,13, el aviso de abajo entre 7,59 y 9,41, y
-las cuatro casillas se reparten en cuatro columnas en los siete — si
-cayeran una debajo de otra volvería a ser la lista que se cambió, y el
-arnés lo canta.
+Las tres cifras que deciden las cuentas —cajas por estiba, vida útil,
+días mínimo— van a la vista sin abrir nada, y el que no tiene cajas por
+estiba lo dice en rojo: sin esa cifra, lo que se cuente de ese material
+sale en cero y no avisa. Están en null a propósito; poner un 1 sería
+inventárselo.
+
+=====================================================================
+3 · DOS ERRORES QUE ENCONTRÓ EL ARNÉS Y NO EL OJO
+=====================================================================
+
+LA CASILLA «ACTIVO» SE COMÍA LA TARJETA. `.fe .fe-campos input` y
+`.fe .fe-check input` tienen la MISMA especificidad (0,2,1), así que
+ganaba la que iba después: la casilla de verificar se estiraba a todo el
+ancho y 44 px de alto —las medidas pensadas para los campos de texto— y
+el «Activo» de al lado se salía de la tarjeta. En el celular la página
+entera se arrastraba 32 px de lado. En el escritorio no se notaba.
+Arreglado con `:not([type="checkbox"])`, que dice lo que la regla
+siempre quiso decir.
+
+LA PRUEBA SQL PASABA UNA VEZ Y FALLABA LA SEGUNDA, por su propia huella:
+la sección que comprueba que un material usado se DESACTIVA en vez de
+borrarse dejaba el 3128 apagado, y en la vuelta siguiente `fefo_agregar`
+lo rechazaba con «no está en el maestro». Se corría dos veces
+precisamente para cazar esto. Ahora empieza limpiando lo suyo, y se
+probó tres vueltas seguidas.
+
+=====================================================================
+4 · LAS PRUEBAS, CON LA INFORMACIÓN ADENTRO
+=====================================================================
+
+`.arnes/prueba-fefo-maestro.sql` hace lo que hace la pantalla —los
+mismos update, insert y rpc— sobre los 494 materiales y las 428
+ubicaciones ya importados, y como USUARIO NORMAL: probarlo como
+superusuario no prueba nada, porque el superusuario se salta RLS y
+aprobaría cualquier cosa.
+
+Comprueba que el supervisor corrige, agrega y quita; que el código
+repetido y el tipo inventado los para la base y no solo la pantalla; que
+el lado sigue siendo IZQ o DER —el candado que cazó al importador cuando
+partía «ALAR_A» en calle A, módulo LAR, lado A—; que lo desactivado
+sigue leyéndose y se vuelve a encender; y que el operador lo lee todo y
+no puede tocar nada.
+
+Ese último es el que importa y el que casi se escribe mal: RLS no lanza
+error en un UPDATE, simplemente no encuentra filas que dejen tocar.
+Comprobar «no reventó» habría aprobado el agujero; lo que se comprueba
+es que no cambió NADA. Se verificó volviendo supervisor al operador a
+escondidas: la prueba lo cazó — «un operador corrigió el maestro».
+
+`.arnes/fe-maestro.mjs` mide la pantalla en los siete temas y a
+1440/820/390/360: contraste, que nada se salga, que el dedo alcance
+(44 px los campos, 40 los botones) y que el editor no se vuelva una
+columna en escritorio.
+
+Ese arnés también mintió antes de servir, dos veces, y las dos quedaron
+escritas en él:
+
+  · leía el fondo de `.sh`, que en el tema oficial NO tiene fondo —lo
+    pone `body`—. «rgba(0, 0, 0, 0)» leído como color es NEGRO: dio 2,66
+    de contraste, me hizo «arreglar» un gris que estaba bien, y el
+    arreglo empeoró el tema oficial. Ahora sube hasta el primer
+    antepasado que sí pinte. El gris se dejó como estaba.
+
+  · contaba como «se sale» el corte diagonal de la tarjeta de cifras,
+    que se dibuja a propósito más ancho dentro de un `overflow: hidden`
+    y no asoma un píxel. Un arnés que grita por lo que está bien enseña
+    a ignorarlo, que es peor que no tenerlo.
+
+Los dos errores de verdad se volvieron a meter a mano para comprobar que
+el arnés los caza. Los caza.
+
+=====================================================================
+5 · LO QUE SIGUE
+=====================================================================
+
+La pantalla de contar desde el celular: escoger el módulo una vez,
+agregar los materiales que hay ahí, y que cada renglón quede guardado al
+momento con el nombre de quien lo contó — para que una señal que se cae
+no borre la mañana.
+
+PARA QUE ESTO FUNCIONE hay que correr en el SQL Editor de Supabase, en
+este orden:
+  1. supabase/modulos/fefo.sql
+  2. supabase/datos/fefo-maestro.sql   (tiene llaves foráneas contra el
+                                        primero)
+Los dos se pueden correr varias veces sin romper nada.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

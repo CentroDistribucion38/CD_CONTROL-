@@ -424,6 +424,77 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
+-- 5 bis. QUITAR DEL MAESTRO: BORRAR O DESACTIVAR, LO DECIDE LA BASE
+-- ---------------------------------------------------------------------
+-- QUITAR NO ES BORRAR. Un material o una ubicación que ya usó un conteo
+-- no se puede borrar sin llevarse el histórico por delante: el conteo de
+-- la semana pasada quedaría apuntando a un código que ya no existe y su
+-- descripción saldría en blanco en un informe de FEFO.
+--
+-- Así que la base mira si se usó: si no, borra; si sí, DESACTIVA —deja de
+-- salir en las listas y lo viejo se sigue leyendo—. Y devuelve cuál de
+-- las dos hizo, para que la pantalla lo diga en vez de dejar a alguien
+-- adivinando por qué el código sigue ahí.
+create or replace function public.fefo_quitar_material(p_codigo bigint)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_n integer; v_desc text;
+begin
+  if not public.es_editor() then
+    raise exception 'Tocar el maestro requiere rol de supervisor o administrador.';
+  end if;
+
+  select descripcion into v_desc from public.fefo_materiales where codigo = p_codigo;
+  if v_desc is null then return 'Ese código ya no estaba.'; end if;
+
+  select count(*) into v_n from public.fefo_lineas where codigo = p_codigo;
+  if v_n = 0 then
+    delete from public.fefo_materiales where codigo = p_codigo;
+    return 'Borrado: no lo había usado ningún conteo.';
+  end if;
+
+  update public.fefo_materiales set activo = false, actualizado_en = now()
+   where codigo = p_codigo;
+  return format('Desactivado: lo usan %s renglones de conteo, así que borrarlo ' ||
+                'dejaría ese histórico sin descripción.', v_n);
+end $$;
+
+create or replace function public.fefo_quitar_ubicacion(p_clave text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_n integer; v_u record;
+begin
+  if not public.es_editor() then
+    raise exception 'Tocar el maestro requiere rol de supervisor o administrador.';
+  end if;
+
+  select * into v_u from public.fefo_ubicaciones where clave = p_clave;
+  if v_u is null then return 'Esa ubicación ya no estaba.'; end if;
+
+  /* LA UBICACIÓN NO ES LLAVE FORÁNEA en fefo_lineas —el renglón guarda
+     calle, módulo y lado sueltos— así que aquí se cuenta por esos tres y
+     no por la clave. Si se contara por la clave, siempre daría cero y
+     esto borraría ubicaciones que sí se usaron. */
+  select count(*) into v_n from public.fefo_lineas l
+   where l.calle = v_u.calle and l.modulo = v_u.modulo
+     and coalesce(l.lado, '') = coalesce(v_u.lado, '');
+
+  if v_n = 0 then
+    delete from public.fefo_ubicaciones where clave = p_clave;
+    return 'Borrada: no la había usado ningún conteo.';
+  end if;
+
+  update public.fefo_ubicaciones set activa = false where clave = p_clave;
+  return format('Desactivada: %s renglones de conteo están ahí.', v_n);
+end $$;
+
+-- ---------------------------------------------------------------------
 -- 6. QUIÉN VE Y QUIÉN ESCRIBE
 -- ---------------------------------------------------------------------
 alter table public.fefo_materiales  enable row level security;
@@ -483,6 +554,8 @@ grant execute on function public.fefo_agregar(uuid, bigint, text, text, text, in
                                               boolean, boolean, text, text) to authenticated;
 grant execute on function public.fefo_borrar(uuid) to authenticated;
 grant execute on function public.fefo_cerrar(uuid, text) to authenticated;
+grant execute on function public.fefo_quitar_material(bigint) to authenticated;
+grant execute on function public.fefo_quitar_ubicacion(text)  to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 7. QUEDÓ ASÍ
