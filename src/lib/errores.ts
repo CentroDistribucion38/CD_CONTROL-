@@ -63,6 +63,9 @@ const PREFIJOS: [RegExp, string][] = [
 
   [/\b(roturas?_|salida_|v_roturas)/, "supabase/modulos/roturas.sql"],
   [/\b(acciones?_|accion_)/, "supabase/modulos/acciones.sql"],
+  /* La revisión AI va ANTES que Sider a secas: sider_ai_guardar empieza
+     por "sider_" y con el orden al revés mandaría al módulo grande. */
+  [/\b(sider_ai_|v_sider_ai)/, "supabase/modulos/sider-ai.sql"],
   [/\b(sider_|v_sider)/, "supabase/modulos/sider.sql"],
   [/\b(inventario_|producto_|bodega_|conteo_|movimiento_)/, "supabase/modulos/inventario.sql"],
   [/\b(quiebra_|v_quiebra)/, "supabase/modulos/quiebra.sql"],

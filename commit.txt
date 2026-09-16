@@ -1,59 +1,78 @@
-Traspasos · Control: que escoger filtros no espere al servidor en cada toque
+Sider · Revisión AI del envase: la base
 
-EL SÍNTOMA: «selecciono y está lento». Y no era la conexión ni la base.
+PRIMERA PARTE DE TRES. Esto es la base de datos: las tablas, los
+maestros, las cuentas y los candados. Las pantallas —marcar en
+Tránsito, el formulario y el tablero— van aparte.
 
-QUÉ ESTABA PASANDO. Cada botón de filtro navegaba de una, y cada
-navegación vuelve a dibujar la pantalla EN EL SERVIDOR: se piden los
-viajes otra vez y se manda el HTML nuevo. Con botones sueltos —que es
-justo lo que se acaba de añadir para poder escoger varios— prender «A»
-y «C» eran DOS viajes completos, y el primero se tiraba a la basura
-apenas se tocaba el segundo. Escoger tres tipos, tres viajes. La barra
-vieja de desplegables no tenía este problema porque solo se podía
-escoger una cosa: la mejora de poder escoger varios trajo el costo
-pegado, y no se vio hasta usarla.
+QUÉ ES. A algunos camiones que llegan con envase retornable se les hace
+una revisión de calidad: se toma una muestra, se cuentan las botellas
+malas por tipo de defecto, y de ahí sale un ÍNDICE DE COBRO que decide
+cuántas unidades NO se le abonan al socio. Es plata. No se le hace a
+todos: el administrador marca en Tránsito a cuáles.
 
-DOS CAMBIOS, Y HACEN FALTA LOS DOS:
+DE ANALIZAR EL EXCEL —296 filas de Barranquilla— salieron cinco cosas,
+tres buenas y dos malas.
 
-1. EL BOTÓN SE PRENDE DE UNA, sin esperar al servidor. Lo que se acaba
-   de tocar se guarda en la pantalla y se pinta ya. Sin esto, entre el
-   clic y la respuesta no pasaba nada visible, y el remedio de todo el
-   mundo es volver a hacer clic — pedir el mismo trabajo dos veces.
+CUADRAN EXACTAS, sin una sola excepción, y se respetan tal cual:
+  · «Total botellas con defectos» = la suma de DIEZ categorías. Las
+    otras cuatro —mezclado, cuerpo extraño, cajas malas, estiba mala—
+    se cuentan pero no cobran.
+  · no abono  = round(recibidas × índice)
+  · abono SAP = recibidas − no abono
 
-2. LA CONSULTA ESPERA A QUE TERMINES DE ESCOGER. Cada toque reinicia un
-   reloj de 400 ms; solo cuando pasan sin tocar nada más se manda UNA
-   consulta con todo lo escogido. Prender A, B y C seguidos es un viaje
-   al servidor, no tres.
+NO CUADRAN, y este módulo las arregla:
+  · EL ÍNDICE SE DIGITABA. Cinco fórmulas probadas contra las 296 filas
+    y ninguna acierta siempre; la más parecida —defectos + mezclado—
+    acierta 168. Y en 112 filas el índice era MENOR que defectos ÷
+    revisadas, imposible si sale de sumar categorías. Aquí no se digita:
+    lo calcula la vista. Por eso no hay columna `indice` en la tabla —
+    guardarlo sería poder contradecirlo, y entonces habría que decidir
+    cuál manda cuando el socio reclame.
+  · LOS HECTOLITROS ESTABAN MAL. Para G175 —175 cc— el litraje debería
+    ser 0,175 siempre; en el archivo salían 64 valores distintos, hasta
+    0,3417. Fórmulas arrastradas. Aquí sale del maestro del envase.
 
-   400 ms se escogió por los dos lados: por debajo de 250 el reloj se
-   dispara entre dos clics seguidos y vuelve a ser una consulta por
-   botón; por encima de 600 se siente que la pantalla se quedó pensando
-   después del último toque.
+DECISIONES QUE VALE LA PENA DEFENDER:
 
-EL PERÍODO NO ESPERA. Es un desplegable: se escoge una vez y no se
-encadena con otro, así que retrasarlo 400 ms sería retraso puro sin
-nada que agrupar. Va derecho, y de paso manda `d` y `dias` en la misma
-consulta —el período toca las dos— en vez de disparar dos.
+ · LOS DEFECTOS SON UNA TABLA, no catorce columnas, y «cobra» es un
+   dato y no un if. El día que la política cambie se cambia el maestro
+   y no se despliega nada.
 
-NADA SE APAGA MIENTRAS CARGA. Bloquear los botones impediría seguir
-escogiendo, que es exactamente lo que hay que poder hacer, y rompería
-el agrupado que hace esto rápido. Lo que hay es una rayita que corre
-bajo la tarjeta: va ABAJO y no encima de los botones, porque lo que se
-está mirando es el botón que se acaba de prender.
+ · LA CABECERA SE COPIA DEL VIAJE Y SE GUARDA. Fecha, placa y planta no
+   se piden —ya están— pero quedan congeladas en la revisión: es un
+   documento de cobro, y si mañana alguien corrige la placa del viaje,
+   lo que se le cobró al socio no cambia solo.
 
-LA COPIA LOCAL ES DE PASO, no un estado paralelo. En cuanto la
-dirección cambia —por esta consulta o por el botón de atrás del
-navegador— se tira y manda la URL otra vez. Si se quedara, darle atrás
-cambiaría la dirección y los filtros seguirían pintando lo anterior. Y
-el reloj se cancela al desmontar, para no dejar un temporizador
-apuntando a una pantalla que ya no existe.
+ · LOS CEROS NO SE GUARDAN. Catorce filas por revisión, la mayoría en
+   cero, es basura que hay que filtrar en cada consulta.
 
-MEDIDO en .arnes/tp-filtros.mjs, además de lo que ya comprobaba:
- · tres toques seguidos → UNA consulta, y esa consulta lleva todo lo
-   escogido ({"turno":"A,C","tipo":"pet"}), no solo lo último.
- · dos toques separados por más de la espera → DOS consultas. El
-   agrupado junta lo seguido; no se queda esperando para siempre.
- · con relojes de verdad y no simulados: un temporizador inventado
-   probaría la simulación, no el código.
+ · SIN POLÍTICA DE ESCRITURA en revisiones ni conteos. La única entrada
+   es sider_ai_guardar, que es security definer y valida. Un índice de
+   cobro que se pueda fabricar desde el navegador no vale nada.
+
+ · NO SE PUEDE DESMARCAR UN VIAJE YA REVISADO: sería borrar el cobro
+   sin dejar rastro.
+
+ · El `coalesce(mi_rol(), '')` de sider_ai_marcar no es adorno: sin él,
+   `null <> 'admin'` no es cierto ni falso y el if no entra. Es el mismo
+   hueco que apareció con las firmas de rotura, y hay una prueba que
+   entra sin perfil para que no vuelva.
+
+MEDIDO contra Postgres 16, de no superusuario, el módulo corrido dos
+veces seguidas. .arnes/prueba-sider-ai.sql, 27 comprobaciones, y la
+central usa UNA FILA DE VERDAD del archivo —8 de mayo, JYM 958,
+Logisinú, G175, 82.080 recibidas y 4.104 revisadas—:
+
+    defectos 32 · otros 3 · Hl 0,056 · no abono 640 · abono 81.440
+
+Los 32 defectos y los 0,056 Hl son EXACTAMENTE lo que dice el Excel
+para esa fila. El no abono no: el archivo dice 680 porque su índice
+estaba digitado como 34/4104 en vez de 32/4104. Cuarenta unidades de
+diferencia en un solo camión, y en la dirección de cobrarle de más al
+socio. Ese es el tipo de cosa que este módulo deja de permitir.
+
+Falta correr en Supabase:
+  supabase/modulos/sider-ai.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
