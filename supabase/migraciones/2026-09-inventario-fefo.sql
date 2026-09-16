@@ -41,6 +41,25 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
+-- 0. ANTES QUE NADA: QUE EL MÓDULO EXISTA
+-- ---------------------------------------------------------------------
+-- ESTO AMPLÍA INVENTARIO, NO LO CREA. Si `productos` y `bodegas` no
+-- están, lo que sale es «relation "public.productos" does not exist» a
+-- mitad del archivo — un error de Postgres que no dice qué hacer, y que
+-- deja el trabajo hecho a medias.
+--
+-- Pasó de verdad: el módulo Inventario venía en el repositorio desde el
+-- principio pero su SQL nunca se había corrido en Supabase, y estas dos
+-- migraciones reventaron dos veces antes de que se viera por qué.
+do $$
+begin
+  if to_regclass('public.productos') is null or to_regclass('public.bodegas') is null then
+    raise exception
+      'Falta crear el módulo Inventario. Corre primero supabase/modulos/inventario.sql y vuelve a este archivo. (NO corras inventario-seed.sql: son datos de ejemplo.)';
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------
 -- 1. EL MATERIAL: LAS 18 COLUMNAS DEL MAESTRO
 -- ---------------------------------------------------------------------
 -- CUIDADO CON LOS NOMBRES DEL EXCEL, que no dicen lo que parecen:

@@ -174,14 +174,33 @@ la cabecera (→ 213 px bajo el pliegue), arrancar «¿Rota?» en «no», y
 mandar la ubicación como texto en vez de la llave.
 
 =====================================================================
-6 · PARA CORRER, EN ESTE ORDEN
+6 · PARA CORRER, EN ESTE ORDEN — SON TRES, NO DOS
 =====================================================================
 
+  0. supabase/modulos/inventario.sql                   ← el que faltaba
   1. supabase/migraciones/2026-09-inventario-fefo.sql
   2. supabase/datos/inventario-maestro-cd38.sql
 
-Los dos se pueden correr varias veces sin romper nada. El segundo NO
-toca `costo_unitario` ni `stock_min` de los productos: el Excel no los
+EL CERO SE ME PASÓ. El módulo Inventario está en el repositorio desde el
+principio y yo di por hecho que sus tablas existían en Supabase porque
+el código las usa. Nunca se había corrido: `bodegas` y `productos` no
+existían, y las dos migraciones reventaron en producción con «relation
+"public.productos" does not exist» a mitad del archivo — un error de
+Postgres que no dice qué hacer y que deja el trabajo hecho a medias.
+
+Verifiqué los archivos contra el disco y las cuentas contra Postgres,
+pero no verifiqué que la base de destino tuviera lo que el archivo da
+por sentado. Por eso el archivo 1 ahora empieza comprobándolo y, si
+falta, revienta ANTES de tocar nada con el nombre del archivo que hay
+que correr primero.
+
+La cadena entera se probó desde una base vacía, dos vueltas seguidas:
+494 productos (32 envases), 428 ubicaciones, 34 estados de envase.
+
+NO correr `supabase/modulos/inventario-seed.sql`: son cinco productos y
+dos bodegas de ejemplo que ensuciarían el catálogo.
+
+El archivo 2 NO toca `costo_unitario` ni `stock_min`: el Excel no los
 trae y ponerlos en cero borraría lo que ya esté cargado.
 
 Lo que sigue: el resumen del período — qué se vence primero y qué ya se

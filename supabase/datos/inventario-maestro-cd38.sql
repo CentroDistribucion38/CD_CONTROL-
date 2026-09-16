@@ -19,7 +19,10 @@
 -- Nada se borra: un material que desaparezca del Excel se queda, porque
 -- puede tener conteos colgando.
 --
--- CORRER DESPUÉS DE supabase/migraciones/2026-09-inventario-fefo.sql.
+-- CORRER EN ESTE ORDEN:
+--   1. supabase/modulos/inventario.sql                     (crea el módulo)
+--   2. supabase/migraciones/2026-09-inventario-fefo.sql    (lo amplía)
+--   3. este archivo
 -- =====================================================================
 
 -- La bodega a la que cuelgan las ubicaciones. Si ya existe, se respeta
