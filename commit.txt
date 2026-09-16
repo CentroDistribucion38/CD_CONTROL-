@@ -1,210 +1,121 @@
-Inventario: el maestro del CD y la plantilla de conteo por módulo
+Revisión AI: el panel no se va de la vista y los conteos se tocan
 
-Cristian lo corrigió: «los datos maestros iban dentro de inventario y tú
-ibas a armar la plantilla de conteo». Esto es eso. El módulo FEFO aparte
-se elimina — no debió existir.
-
-=====================================================================
-1 · LAS CUATRO HOJAS DE «FEFO 002.xlsx», Y QUÉ HACE CADA UNA
-=====================================================================
-
-Leídas por sus FÓRMULAS y no por sus resultados, que es lo que dejó ver
-dos cosas que a ojo no se ven.
-
-MAESTRO (494 materiales, 18 columnas)
-    La hoja CONTEO le pregunta CINCO cosas por el código: descripción,
-    «Factor estibas», vida útil, «Mínimo T1» y P/E. Las otras trece no
-    las toca. Van al maestro igual, pero no hacen falta para contar.
-
-Hoja1 (32 códigos)
-    Los 32 envases. Están TODOS en MAESTRO y con valores idénticos: cero
-    diferencias, cero códigos nuevos. Es con lo que se armó la columna
-    P/E. No se importa: aquí es `tipo_material = 'ENVASE'`.
-
-CAPACIDAD DE MODULOS (428 ubicaciones + 9 listas)
-    Dos trabajos: la lista de ubicaciones con familia y capacidad, y las
-    listas desplegables — calle, los módulos de CADA calle, lado, y
-    ESTADO_ENVASE con 35 valores.
-
-CONTEO (25 columnas)
-    La plantilla. Solo DIEZ se teclean; las otras quince son VLOOKUP
-    contra el maestro o cuentas.
-
-DOS COSAS QUE YO MISMO HABÍA DICHO MAL Y LAS FÓRMULAS CORRIGIERON:
-
-  · «Mínimo T1» NO se deduce de la vida útil. Con vida 180 hay
-    materiales con 90, con 120 y con 49; con 120 los hay con 90 y con
-    49. Es un dato propio de cada material. Calcularlo habría inventado
-    la fecha de salida de media bodega.
-
-  · «ROT» no es una casilla rara: se contesta en las 152 filas — 94 «SI»
-    y 58 «NO». Las raras son AVERÍA (2 filas) y PNC (1).
-
-Y una columna que no había visto: «UBICACIÓN COMBINADA» = la ubicación
-más « AVERIA», « PNC» y el comentario. Es la que separa la estiba
-averiada de la buena dentro del mismo módulo, o sea la que sirve para
-agrupar. Está reproducida en la vista.
+Cristian: «arreglemos ese panel uff de una, o sea cambio extremo», con dos
+maquetas. Esto es eso.
 
 =====================================================================
-2 · EL HALLAZGO QUE MANDA EN TODO EL DISEÑO
+1 · LO QUE ESTABA MAL
 =====================================================================
 
-38 DE LAS 152 FILAS DEL CONTEO REAL —UN CUARTO— APUNTAN A UNA UBICACIÓN
-QUE NO EXISTE.
+Dos cosas, y las dos se notan solo cuando uno está de pie en el muelle:
 
-No porque falte el módulo: «A29», «C08», «E01», «C29», «B29», «B19»
-existen — pero como A29_DER y A29_IZQ, y la fila se dejó SIN LADO. Más
-«E6» donde el maestro dice «E06» y «EST8» donde dice «EST08».
+LA CUENTA ESTABA AL FINAL. El índice de cobro, lo que no se le abona al
+socio y lo que faltaba para poder guardar vivían debajo de los catorce
+conteos. Para saber en qué iba la cuenta había que bajar — y quien está
+contando botellas no baja: sigue contando, y se entera del número raro
+cuando el socio reclama.
 
-Un cuarto del conteo no puede decir de qué lado del pasillo estaba.
-
-El desplegable del Excel no lo evitó porque sus listas traen '01' como
-texto y 10 como número, y encima se puede escribir a mano. Por eso aquí
-la ubicación es una LLAVE FORÁNEA y no un texto: no se teclea, se
-escoge, y no hay tres formas de escribir lo mismo.
-
-=====================================================================
-3 · LA BASE
-=====================================================================
-
-Los 494 materiales entran en `productos` —que ya es el catálogo del
-módulo— con sus 18 columnas. Las 428 ubicaciones entran en una tabla
-nueva colgada de la bodega: una ubicación NO es una bodega, y meterlas
-como bodegas habría convertido un centro de distribución en
-cuatrocientos. Los 34 estados de envase van en tabla y no en un `check`,
-porque esa lista la mantiene la bodega.
-
-`conteos` y `conteo_lineas` se AMPLÍAN en vez de duplicarse: un solo
-sitio donde se ve quién contó qué.
-
-TRES COSAS QUE HUBO QUE CAMBIAR DE LO QUE YA ESTABA, Y POR QUÉ:
-
-a) `conteos.tipo` — 'general' o 'fefo'. El general arranca con una línea
-   por producto activo y se va tachando; el FEFO arranca VACÍO y crece
-   mientras se camina, porque hasta no pararse frente al módulo nadie
-   sabe qué hay ahí. Sin esto, `iniciar_conteo` le sembraba 494
-   renglones en blanco a quien va a caminar la bodega.
-
-b) LA LLAVE ÚNICA DE `conteo_lineas`. `unique (conteo_id, producto_id)`
-   era correcta para un conteo general —una línea por producto— pero en
-   FEFO la misma cerveza está en ocho módulos con cuatro vencimientos
-   distintos, y cada uno es un renglón de verdad, no un duplicado. Ahora
-   incluye ubicación, fecha, avería y PNC, con `nulls not distinct`:
-   eso es lo que mantiene el conteo general comportándose EXACTAMENTE
-   como antes, porque sin ello Postgres considera que dos nulos son
-   distintos y dejaría repetir producto en un conteo sin ubicación.
-
-c) `cerrar_conteo` AHORA SUMA POR PRODUCTO antes de ajustar. Antes
-   generaba un movimiento por renglón, lo cual daba igual cuando había
-   un renglón por producto. Con FEFO el mismo producto trae ocho
-   renglones y sin el `group by` el kardex recibiría ocho ajustes
-   parciales, cada uno restándole el teórico COMPLETO. Eso no es un
-   ajuste con ruido: es un inventario destruido.
+LOS CATORCE CONTEOS ERAN CASILLAS DE TECLEAR. Con el celular en una mano
+y la otra señalando botellas, teclear abre el teclado del sistema, que
+tapa media pantalla y el campo siguiente. Y hay algo más hondo: un número
+tecleado se puede escribir mal. El 44 donde iba el 4 pasa, y nadie lo
+nota hasta la factura.
 
 =====================================================================
-4 · LAS DOS PANTALLAS
+2 · LO QUE QUEDÓ
 =====================================================================
 
-INVENTARIO → MAESTRO. Materiales y ubicaciones, buscador que filtra en
-el navegador —sin ir al servidor en cada tecla— y el editor que se abre
-en la misma fila y guarda al momento. Se dibujan 60 filas de 494 y la
-pantalla DICE «60 de 494»: sin esa línea, ver sesenta se lee como «el
-maestro tiene sesenta», que es una afirmación falsa sobre la que alguien
-puede decidir. Sacar del maestro APAGA, no borra: lo contado antes se
-sigue leyendo con su descripción.
+SE TOCA, NO SE DIGITA. Cada defecto es un menos, una cifra y un más, de
+44 px. Tocando «más» por cada botella mala el número no se puede escribir
+mal: no existe el 44 donde iba el 4. Los que tienen algo se pintan con el
+acento — con catorce en cero, los tres que traen número son lo único que
+hay que poder revisar de un vistazo antes de cerrar.
 
-INVENTARIO → CONTAR. La hoja de conteo vacía, para el celular:
+EL PANEL NO SE VA. En pantalla ancha va pegado al lado (`sticky`): se
+baja por los catorce contadores y el índice sigue ahí. Cuando la pantalla
+se angosta y el panel ya no cabe al lado, aparece una barra pegada abajo
+con lo que no se puede perder de vista — el índice y si ya se puede
+cerrar. Nunca hay que bajar a buscar la cuenta.
 
-  · La ubicación se escoge una vez y el paso 1 se pliega. En la hoja
-    real hay 88 cambios de módulo en 151 saltos de renglón: se camina,
-    no se salta.
-  · El material se reconoce MIENTRAS SE TECLEA. En el Excel un código
-    malo solo se notaba al final, cuando la descripción decía «VALIDAR
-    CODIGO» y ya nadie estaba frente a esa estiba.
-  · La fecha se conserva de un renglón al otro DENTRO del módulo —las
-    estibas suelen ser del mismo lote— y se borra al cambiar de módulo,
-    que es como se cuela una fecha ajena.
-  · «¿Rota?» arranca SIN respuesta. Preseleccionar «no» habría quedado
-    58 veces bien y 94 veces mal.
-  · Avería, PNC y estado de envase van abajo y sin abultar: 2, 1 y 10
-    filas de 152. Darles el peso del código sería cobrarle a los 150
-    renglones normales el costo de los tres raros.
-  · Cada renglón se guarda al momento y el responsable lo saca la base
-    de la sesión — no se puede contar a nombre de otro.
+LO QUE FALTA SE DICE DOS VECES Y A PROPÓSITO: el panel dice QUÉ falta
+(«El socio», «El tipo de envase») y el campo se pinta de rojo para decir
+DÓNDE. Con uno solo de los dos hay que buscar. Y lo que está MAL va
+aparte de lo que falta: no es lo mismo «todavía no lo has puesto» que «lo
+que pusiste no puede ser».
+
+LA FICHA DEL VEHÍCULO ES AHORA UNA CINTA. Placa, planta, llegada y
+material eran una tarjeta entera de cuatro datos que nadie digita —salen
+del viaje—, así que no merecían el espacio de un formulario.
 
 =====================================================================
-5 · LO QUE MIDIERON LOS ARNESES
+3 · EL COLOR, QUE ERA UNA TRAMPA
 =====================================================================
 
-`.arnes/prueba-inventario-fefo.sql` reproduce CINCO renglones reales de
-la hoja y compara las seis cuentas contra lo que el Excel mostraba el
-16/09/2026. Los días van desplazados por los transcurridos: fijarlos tal
-cual habría hecho una prueba que pasa hoy y falla mañana.
+La maqueta es ámbar sobre negro y ahí funciona. Pero la aplicación tiene
+SIETE temas y el acento cambia en todos: el índice en acento sobre la
+banda oscura del panel daba **1,72 en el tema oficial y 1,75 en pizarra**
+— invisible. Rojo sobre azul marino.
 
-Los dos errores que más importan se volvieron a meter a mano para
-comprobar que la prueba los caza:
-  · «cerrar» generando un movimiento por renglón
-       → «3 renglones del 3128 generaron 3 movimientos»
-  · «días para salir» con el 90 fijo
-       → «FALLA f22 DIAS PARA SALIR: -93 (Excel -3)»
+Es el mismo problema que ya estaba anotado en esa hoja para `--ai-dato`,
+pero al revés: allá había que oscurecer el acento para que se leyera
+sobre papel blanco; aquí hay que aclararlo para que se lea sobre la
+banda. Se agregó `--ai-ojo-banda`, el acento aclarado al 60 %: da 3,47 en
+el peor tema, que es lo que pide la norma para cifras grandes en negrita
+—el índice son 50 px en peso 900—. La proporción no se escogió a ojo: se
+midieron seis en los siete temas.
 
-`.arnes/inv-conteo.mjs` mide la pantalla de contar en los siete temas y
-a 1440/820/390/360. Encontró cuatro cosas que a ojo no se ven:
-
-  · «ANOTAR RENGLÓN» QUEDABA 515 px BAJO EL PLIEGUE en un celular de
-    390×740. Un scroll por estiba, 152 al día. Se arregló plegando el
-    paso 1 al escoger módulo y quitando la cabecera en el celular — el
-    título «Contar» repite lo que ya dice el menú y el subtítulo explica
-    algo que quien está contando ya sabe.
-  · El eco del código y el botón «No» sin escoger contrastaban 4,39 en
-    el tema ámbar: van sobre el panel tintado, más oscuro que el papel
-    blanco contra el que está calibrado el gris.
-  · Cuatro cosas que se tocan medían 44 px. Aquí es 48: se cuenta de pie
-    y a veces con guantes, y fallar un campo no es un clic de más, es
-    volver a contar el módulo.
-
-Y este arnés también mintió antes de servir: contaba como «0 px de alto»
-el desplegable del módulo cuando el paso 1 está plegado — o sea cuando
-no está en pantalla. El mínimo salía siempre 0 y gritaba por algo que no
-existe. Ahora lo que no está no se mide, y se comprueba en la pasada de
-«todo abierto».
-
-Sus tres afirmaciones se verificaron rompiéndolas a propósito: devolver
-la cabecera (→ 213 px bajo el pliegue), arrancar «¿Rota?» en «no», y
-mandar la ubicación como texto en vez de la llave.
+Y EL TEXTO CHICO DE LA BANDA SALIÓ DE LA OPACIDAD. Iba en blanco al
+62-70 %, que es la trampa de siempre: la banda de pizarra es un verde
+MEDIO, no oscuro, y blanco rebajado encima deja de leerse. Ahora es un
+token sólido, medido.
 
 =====================================================================
-6 · PARA CORRER, EN ESTE ORDEN — SON TRES, NO DOS
+4 · EL ARNÉS
 =====================================================================
 
-  0. supabase/modulos/inventario.sql                   ← el que faltaba
-  1. supabase/migraciones/2026-09-inventario-fefo.sql
-  2. supabase/datos/inventario-maestro-cd38.sql
+`.arnes/sd-ai-panel.mjs` mide contraste en los siete temas y geometría a
+1440/1100/820/390/360, dos veces: el formulario solo y DENTRO de la
+tarjeta de la certificación de llegada, que es donde se usa de verdad.
 
-EL CERO SE ME PASÓ. El módulo Inventario está en el repositorio desde el
-principio y yo di por hecho que sus tablas existían en Supabase porque
-el código las usa. Nunca se había corrido: `bodegas` y `productos` no
-existían, y las dos migraciones reventaron en producción con «relation
-"public.productos" does not exist» a mitad del archivo — un error de
-Postgres que no dice qué hacer y que deja el trabajo hecho a medias.
+El candado que importa no es el contraste: es que **la cuenta nunca se
+pierda de vista**. Si el panel va al lado tiene que estar pegado; si se
+fue abajo tiene que aparecer la barra; y no pueden estar los dos, que
+sería el mismo dato dos veces. Se comprobó rompiendo las tres a mano:
 
-Verifiqué los archivos contra el disco y las cuentas contra Postgres,
-pero no verifiqué que la base de destino tuviera lo que el archivo da
-por sentado. Por eso el archivo 1 ahora empieza comprobándolo y, si
-falta, revienta ANTES de tocar nada con el nombre del archivo que hay
-que correr primero.
+  · panel sin `sticky`  → «va al lado pero no está pegado»
+  · barra en `none`     → «se fue abajo y NO aparece la barra fija»
+  · acento sin aclarar  → «índice contrasta 1.72»
+  · contador sin el más → «no hay botón de sumar en el contador»
 
-La cadena entera se probó desde una base vacía, dos vueltas seguidas:
-494 productos (32 envases), 428 ubicaciones, 34 estados de envase.
+SE BORRÓ `.arnes/sd-ai-paso.mjs` Y SU TRABAJO SE MUDÓ AQUÍ. Ese arnés
+medía el formulario dentro de la certificación, que es una comprobación
+que hace falta — pero tenía su PROPIA COPIA del armazón, la pantalla
+cambió y él siguió midiendo la de antes: reprobaba por un rótulo que ya
+no existe y por un bloque de cifras que se eliminó. Dos copias del mismo
+armazón es exactamente cómo una se queda vieja sin que nadie lo note, así
+que ahora es un solo arnés con dos pasadas.
 
-NO correr `supabase/modulos/inventario-seed.sql`: son cinco productos y
-dos bodegas de ejemplo que ensuciarían el catálogo.
+Y este arnés también mintió antes de servir: contaba como «se sale» la
+barra fija, que es `position: fixed` y ocupa el ancho de la PANTALLA a
+propósito — medirla contra la tarjeta que la contiene decía que se salía,
+y es lo que tiene que hacer. Ahora lo fijo se mide contra la pantalla.
 
-El archivo 2 NO toca `costo_unitario` ni `stock_min`: el Excel no los
-trae y ponerlos en cero borraría lo que ya esté cargado.
+TAMBIÉN SE BORRARON las reglas de `.ai-cabeza`, `.ai-lista` y `.ai-tabla`:
+eran de la pantalla suelta `/sider/ai`, que se eliminó hace dos semanas.
+Nadie las usaba. Dejarlas es CSS muerto que el próximo tiene que leer
+para descubrir que no hace nada.
 
-Lo que sigue: el resumen del período — qué se vence primero y qué ya se
-pasó de su fecha de salida, que es para lo que el conteo existe.
+=====================================================================
+5 · LO QUE NO CAMBIÓ
+=====================================================================
+
+La cuenta. El índice sigue siendo defectos que cobran ÷ revisadas, la
+misma fórmula que hace la base, y el arnés revienta si alguien la cambia
+aquí. Lo que se ve mientras se cuenta es un anticipo: el número que manda
+lo calcula `sider_ai_guardar`.
+
+Y el formulario sigue guardando con la misma función y los mismos trece
+campos. No se tocó nada del SQL.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

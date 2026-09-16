@@ -923,6 +923,7 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
               viaje={{
                 viaje_id: viaje.id, placa: viaje.placa, planta: viaje.planta,
                 fecha: viaje.fecha, sku: viaje.sku,
+                llego_en: viaje.llegada_en ?? null,
                 ai_motivo: viaje.ai_motivo ?? null,
               }}
               revision={null}
