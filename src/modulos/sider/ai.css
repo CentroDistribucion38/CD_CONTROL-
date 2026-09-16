@@ -9,7 +9,22 @@
    LOS COLORES SALEN DE LOS TOKENS DEL TEMA. La aplicación tiene siete y
    el acento cambia en todos.
    ===================================================================== */
-.sd.ai {
+/* LOS TOKENS VAN EN `.ai-form` Y NO EN `.sd.ai`, y esto costó una
+   pantalla rota en producción.
+   
+   Estaban definidos en `.sd.ai`, o sea: solo existían si alguien había
+   puesto la clase `ai` en el envoltorio. La pantalla suelta /sider/ai la
+   ponía; TRÁNSITO NO —su envoltorio es `.sd tr-pantalla`— así que al
+   mudar el formulario adentro de la certificación ningún `var(--ai-*)`
+   resolvía. Y una declaración con una variable indefinida no se degrada:
+   se DESCARTA entera. Se cayeron todos los bordes, todos los fondos, la
+   cinta negra y el panel; quedó en pie únicamente lo que estaba escrito
+   con un color literal. Se veía como un formulario sin CSS.
+
+   Ahora cuelgan del propio formulario, que siempre lleva su clase vaya
+   donde vaya. `.sd.ai` se conserva para que la clase siga sirviendo
+   donde ya está puesta. */
+.ai-form, .sd.ai {
   --ai-papel: #fff;
   --ai-fondo: var(--c-eef1f5, #EEF1F5);
   --ai-tinta: var(--bv-texto, #12263A);
@@ -44,7 +59,7 @@
    cinco columnas de «1fr» sumaban veinte píxeles más que la tarjeta y
    la última se cortaba contra el borde. Se vio mirando la pantalla, no
    razonándola. */
-.sd.ai * { box-sizing: border-box }
+.ai-form *, .sd.ai * { box-sizing: border-box }
 
 /* =====================================================================
    EL FORMULARIO DE LA REVISIÓN — panel al lado, contadores al frente

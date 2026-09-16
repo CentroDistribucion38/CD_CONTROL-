@@ -1,87 +1,70 @@
-Tablero de rotura: la cifra de arriba deja de ser un número suelto
+Revisión AI: los tokens colgaban de un envoltorio que Tránsito no tiene
 
-Cristian escogió la opción 3 de sus tres maquetas: banda con el rótulo,
-la cifra grande, el peso con su comparación al lado, y la forma de la
-tendencia abajo.
-
-=====================================================================
-1 · LO QUE CAMBIÓ, Y NO ES EL GUSTO
-=====================================================================
-
-Arriba había un recuadro de acento al lado del título con un número:
-«1.889.816 rotas». Un millón novecientas mil botellas NO SIGNIFICA NADA
-hasta que se sabe si el período anterior fueron dos millones o uno. La
-tarjeta ahora trae las dos cosas que faltaban:
-
-  · CONTRA QUÉ COMPARARLO — «▲ 12,4 % vs período anterior», calculado
-    sobre el mismo largo de período pegado atrás.
-  · CON QUÉ FORMA VIENE — una chispa con un punto por día, para saber de
-    un vistazo si el número sale de una subida sostenida o de un solo
-    día malo.
-
-EN ROTURA SUBIR ES MALO, al revés de un tablero de ventas: aquí el
-número que crece es vidrio en el piso. Por eso ▲ va en el color de
-alarma y ▼ en el de bien, y por eso está escrito en el código y
-comprobado en el arnés — invertirlo haría leer una mejora como un
-problema, que es el error más caro que puede tener este bloque.
-
-EL PORCENTAJE SIGUE MANDANDO CUANDO EXISTE. Mil rotas en un día de tres
-millones y mil en uno de ochocientas mil son dos cosas muy distintas.
-Cuando todavía no hay ZPREC cargado la cifra grande pasa a ser las
-unidades, que es lo único con lo que se puede hablar ese día. El delta
-compara SIEMPRE la misma medida que muestra la cifra grande: comparar el
-% de hoy contra las unidades de ayer sería un número con nombre de
-porcentaje y sin significado.
-
-Y SE CALLA CUANDO NO HAY CON QUÉ. Sin registro en el período anterior no
-dice «▲ 100 %»: dice que no hay con qué comparar. Un aumento contra cero
-es infinito, no un porcentaje. Tampoco deja el hueco vacío — quien lo ve
-en blanco no sabe si es que no cambió o si la tarjeta está rota.
+Cristian lo vio en producción: «esto en tránsito sigue igual, o sea qué
+cambiaste entonces». Tenía razón a medias — el HTML nuevo SÍ estaba (los
+rótulos, «Falta», el recuadro rojo de lo que falta para cerrar) pero
+salía SIN UN SOLO BORDE NI FONDO. Se veía como un formulario sin CSS.
 
 =====================================================================
-2 · EL DATO NUEVO, SIN DESHACER LO QUE COSTÓ
+1 · QUÉ PASÓ
 =====================================================================
 
-El período anterior no existía, así que hubo que pedirlo. Este módulo se
-peleó para bajar de 12.171 filas por clic a unos cientos, y esto no
-podía deshacerlo: las dos consultas nuevas piden solo las columnas que
-suman —`select("und,kg")` y `select("producidas")`, no `*`— sobre las
-mismas vistas que ya existen. No hace falta correr ningún SQL.
+`ai.css` definía sus diez tokens —papel, fondo, tinta, línea, acento,
+banda— en el selector `.sd.ai`. O sea: solo existían si alguien había
+puesto la clase `ai` en el envoltorio.
+
+La pantalla suelta /sider/ai la ponía. TRÁNSITO NO: su envoltorio es
+`.sd tr-pantalla`. Cuando el formulario se mudó adentro de la
+certificación de llegada —hace dos semanas— ningún `var(--ai-*)`
+resolvió más.
+
+Y UNA VARIABLE CSS INDEFINIDA NO SE DEGRADA: LA DECLARACIÓN SE DESCARTA
+ENTERA. `border: 1.5px solid var(--ai-linea)` con el token ausente no da
+un borde gris por defecto: no da borde. Se cayeron todos los bordes,
+todos los fondos, la cinta negra de la placa y el fondo del panel. Quedó
+en pie únicamente lo escrito con un color literal —el `#3A1114` del
+recuadro de «falta para cerrar»—, que es exactamente lo único que se ve
+en su captura.
+
+ARREGLO: los tokens cuelgan ahora de `.ai-form`, que es el propio
+formulario y viaja con él vaya donde vaya. `.sd.ai` se conserva para no
+romper donde ya esté puesta.
 
 =====================================================================
-3 · DOS COSAS QUE ENCONTRÓ EL ARNÉS
+2 · POR QUÉ EL ARNÉS NO LO CAZÓ, QUE ES LO GRAVE
 =====================================================================
 
-LA CHISPA ERA INVISIBLE EN CUATRO TEMAS. Iba en el acento a secas y
-contrastaba 1,64 sobre papel blanco: la línea simplemente no estaba. Es
-la MISMA lección que ya está escrita en esa hoja unas líneas más arriba
-—«en cuatro de los siete temas el acento es ámbar, y ámbar sobre papel
-no llega»— y volví a tropezarla. Ahora va en `--rl-dato`, el token que
-existe exactamente para esto. En la banda sí va el acento puro, porque
-allá es el fondo y no la tinta.
+Porque montaba `<div class="sd ai">` — un envoltorio que la aplicación
+NO TIENE. Ahí los tokens sí resolvían, todo se pintaba, y las siete
+columnas de contraste daban números preciosos.
 
-LA CHISPA SE ROMPÍA CON TODOS LOS DÍAS IGUALES. Con un período sin
-variación el rango es cero, la división manda los puntos a NaN y el SVG
-sale vacío SIN AVISAR: no hay error, no hay hueco, simplemente no hay
-línea y nadie lo nota. Ahora el rango plano cae a 1 y se dibuja una
-recta a media altura, que es lo que corresponde.
+ES LA CUARTA VEZ EN ESTE PROYECTO que un arnés mide un armazón inventado
+—`.filtros` por `.tr-filtros`, la tabla envuelta en `us` cuando la
+página usa `rl us`, el fondo de `.sh` leído donde lo pone `body`— y la
+PRIMERA que el error llega hasta la pantalla del usuario. Las otras tres
+las cacé yo antes de entregar; esta la cazó Cristian.
 
-`.arnes/rl-kpi.mjs` mide contraste en los siete temas y geometría a
-1440/820/390/360. Sus tres afirmaciones se verificaron rompiéndolas:
+Dos cosas nuevas en `.arnes/sd-ai-panel.mjs`:
 
-  · flechas invertidas   → «la flecha de SUBIR no es de alarma»
-  · chispa en acento     → «contrasta 1.64»
-  · rango sin protección → «sale rota: 0.0,NaN 266.7,NaN…»
+  · Monta el envoltorio REAL: `.sd tr-pantalla`, sin la clase `ai`.
 
-El sentido de la flecha se comprueba por el CANAL ROJO del color y no
-por el nombre de la clase: un `.sube` pintado de verde pasaría cualquier
-revisión de clases y seguiría mintiendo.
+  · Comprueba QUE LOS TOKENS RESUELVAN, antes de medir un solo color.
+    Este es el candado que faltaba y el que hay que copiar a los demás
+    arneses: si los tokens no existen, el contraste medido encima sale
+    perfecto —es texto negro sobre papel blanco— y un 16,65 puede ser
+    una pantalla impecable o una pantalla sin CSS. El número no los
+    distingue; la comprobación sí. Y además mira que la cinta, el panel,
+    la caja y los campos no queden transparentes, y que los campos
+    tengan borde.
 
-TAMBIÉN SE QUITÓ UN BUCLE REPETIDO. La chispa necesitaba la serie por
-día y la página ya la armaba doce líneas más abajo para el gráfico del
-período. Ahora sale de esa misma: el gráfico de abajo y la forma de
-arriba tienen que contar lo mismo, y dos bucles iguales es cómo uno se
-queda viejo.
+Se verificó devolviendo los tokens a `.sd.ai`. El arnés lo canta con
+seis líneas, empezando por «los tokens … no existen en el envoltorio
+real de la pantalla».
+
+Se revisaron las otras once hojas del proyecto por si tenían lo mismo:
+todas cuelgan sus tokens de una clase única —`.rl`, `.fe`, `.sd`, `.tp`,
+`.qb`— que las páginas sí ponen. `ai.css` era la única con un selector
+compuesto, y por eso la única frágil.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

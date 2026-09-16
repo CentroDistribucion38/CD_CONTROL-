@@ -206,19 +206,66 @@ const EN_TARJETA = `
   </div>
 </section>`;
 
+/* EL ENVOLTORIO ES EL DE TRÁNSITO: «sd tr-pantalla», SIN la clase «ai».
+   Este arnés montaba «sd ai» —un envoltorio que la aplicación no tiene—
+   y por eso aprobó una pantalla que en producción salió sin un solo
+   borde: los tokens colgaban de «.sd.ai» y ahí sí resolvían, aquí no.
+   Es la cuarta vez en este proyecto que un arnés mide un armazón
+   inventado, y la primera que llega hasta la pantalla del usuario. */
 const monta = async (pag, tema, ancho, alto = 900, dentro = false) => {
   await pag.setViewportSize({ width: ancho, height: alto });
   await pag.setContent(`<!doctype html><html><head><meta charset="utf-8">
     <style>${glob}${shell}${sd}${ai} html,body{margin:0}</style></head>
     <body><div class="sh flex min-h-screen flex-col"${tema ? ` data-tema="${tema}"` : ""}>
       <div class="sh-marco sin-riel"><main class="sh-main">
-        <div class="sd ai">${dentro ? EN_TARJETA : ARMAZON}</div>
+        <div class="sd tr-pantalla">${dentro ? EN_TARJETA : ARMAZON}</div>
       </main></div>
     </div></body></html>`);
 };
 
-/* ---------- 4. CONTRASTE ---------- */
+/* ---------- 3.5. QUE LOS TOKENS EXISTAN ----------
+   ES LO PRIMERO QUE HAY QUE COMPROBAR Y NO LO ÚLTIMO. Una declaración
+   con una variable CSS indefinida no se degrada: se descarta entera. Si
+   los tokens no resuelven, la pantalla sale sin bordes ni fondos —y el
+   contraste medido encima de eso da números perfectos, porque es texto
+   negro sobre papel blanco. Un 16,65 puede ser una pantalla impecable o
+   una pantalla sin CSS, y el número no los distingue.
+
+   Por eso se comprueban por SEPARADO, antes de medir un solo color. */
 const pag = await navegador.newPage();
+await monta(pag, null, 1440);
+const tokens = await pag.evaluate(() => {
+  const cs = getComputedStyle(document.querySelector(".ai-form"));
+  const nombres = ["--ai-papel", "--ai-fondo", "--ai-tinta", "--ai-gris",
+                   "--ai-linea", "--ai-ojo", "--ai-sobre", "--ai-grupo",
+                   "--ai-ojo-banda", "--ai-tenue"];
+  return Object.fromEntries(nombres.map((n) => [n, cs.getPropertyValue(n).trim()]));
+});
+const sinResolver = Object.entries(tokens).filter(([, v]) => v === "");
+if (sinResolver.length)
+  fallas.push(`los tokens ${sinResolver.map(([n]) => n).join(", ")} no existen en el ` +
+              "envoltorio real de la pantalla: cada regla que los use se descarta entera y " +
+              "el formulario sale sin bordes ni fondos");
+else console.log("tokens: los 10 resuelven en el envoltorio de Tránsito\n");
+
+/* Y que lo que de verdad pinta, pinte: si `.ai-cinta` o `.ai-panel`
+   quedan transparentes, la cinta negra y el panel no existen aunque el
+   HTML esté completo. */
+const fondos = await pag.evaluate(() => {
+  const g = (s) => { const e = document.querySelector(s); return e ? getComputedStyle(e).backgroundColor : "" };
+  return { cinta: g(".ai-cinta"), panel: g(".ai-panel"), caja: g(".ai-caja"),
+           campo: g(".ai-campo select"), borde: getComputedStyle(
+             document.querySelector(".ai-campo select")).borderTopWidth };
+});
+for (const [k, v] of Object.entries(fondos)) {
+  if (k === "borde") continue;
+  if (!v || /rgba\(0, 0, 0, 0\)/.test(v))
+    fallas.push(`«${k}» quedó transparente: se ve como un formulario sin CSS`);
+}
+if (parseFloat(fondos.borde) < 1)
+  fallas.push(`los campos no tienen borde (${fondos.borde}): la regla se descartó`);
+
+/* ---------- 4. CONTRASTE ---------- */
 console.log("tema      índice  abono  placa  falta  contador  «cerrar»  sub  rótulo  cinta");
 for (const t of TEMAS) {
   await monta(pag, t, 1440);
