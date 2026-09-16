@@ -1,67 +1,72 @@
-Rotura de linea: el tablero
+Traspasos: registrar días anteriores con la hora de su turno y marcados
 
-/quiebra/rotura/tablero. Abre con LO QUE VA DEL ANO, que es el periodo
-con el que se habla de rotura y el unico que tiene con que comparar.
+Registrar un viaje de un día pasado ya se podía —la fecha entraba tal
+cual—. Lo que no se podía era DARSE CUENTA, y eso lo volvía un dato
+peor que uno que falta: un viaje del jueves metido el lunes se veía
+exactamente igual que uno registrado en su turno, y encima con la hora
+del lunes. La tabla decía que ese viaje salió a las 9:14 a. m. del
+lunes y contaba para el jueves; dos cosas que no pueden ser ciertas a
+la vez, y la que se veía en pantalla era la falsa.
 
-SE LEE DE ARRIBA ABAJO Y EN ESE ORDEN: el % de rotura contra la
-produccion, las cuatro cifras que lo componen, el pareto por maquina,
-la serie por dia, y el detalle por linea y por envase. Quien pasa por el
-pasillo mira la primera linea; quien esta en la reunion baja hasta el
-pareto.
+Tres cambios, ninguno le quita permisos a nadie:
 
-EL PARETO ES LA PANTALLA. La pregunta del modulo no es cuanto se rompio
-sino DONDE, y el tablero la contesta con una frase, no con quince
-barras que hay que sumar de memoria: "6 maquinas se comen la mitad de
-todo lo que se rompe", "las tres primeras suman el 29,6 % del total".
+1. LA HORA DEJA DE MENTIR. Si el viaje es de un día pasado, la hora que
+   se guarda es la de arranque del turno de ESE día —06:00 el A, 14:00
+   el B, 22:00 el C—, no el momento en que alguien lo digitó. A qué
+   hora salió de verdad nadie lo sabe: eso no se registró. El arranque
+   del turno es lo único cierto que se puede poner, y deja el viaje
+   dentro de su propio día en vez de desparramado en otro.
 
-CINCO DECISIONES DE LA GRAFICA:
+2. QUEDA MARCADO. La fila muestra «REGISTRADO DESPUÉS · N días», con
+   quién lo metió y cuándo. No hizo falta columna nueva: registrado_en
+   y registrado_por estaban ahí desde el primer día — lo que faltaba
+   era mirarlos. Un dato que se guarda y nadie ve es un dato que no
+   existe. La vista los compara y saca `atrasado` y `dias_atras`;
+   calculados, no guardados, porque una columna guardada se puede
+   contradecir con registrado_en y entonces habría que decidir cuál de
+   las dos manda.
 
-1. SVG EN EL SERVIDOR, sin libreria. Lo que hay que pintar son barras y
-   una linea; traerse trescientos kilobytes de JavaScript para eso hace
-   que la pantalla tarde mas en aparecer de lo que tarda en leerse.
+3. EL FUTURO SE CIERRA. Un viaje que no ha salido no es un registro, es
+   un plan, y para eso está Planear. Hasta hoy se podía meter un viaje
+   del mes entrante y salía contado como cumplido; un dedo que escribe
+   2027 en vez de 2026 metía un cumplido que ningún informe vuelve a
+   mirar. La pantalla lo dice ANTES de escribir placa y ruta, y enlaza
+   a Planear de ese mismo día.
 
-2. UN SOLO COLOR, sin paleta de categorias. Todo lo que se dibuja es LA
-   MISMA MEDIDA repartida entre cosas distintas: darle un color a cada
-   maquina seria inventar una identidad que no existe, y habria que
-   comprobar que los quince se distinguen entre si Y en los siete temas.
-   Lo que distingue una barra es su rotulo y su largo.
+Hacia atrás queda abierto para todos, no solo para el administrador. Se
+pensó en cerrarlo: el turno C entra a las 22:00 y sale a las 6:00, y
+muchas veces digita al otro día — encerrarlos en «hoy» les partiría el
+turno en dos. Lo que sí hay es un tope de un año contra el error de
+dedo en el año, y ese tope el administrador lo pasa: si él dice que la
+fecha es correcta, es correcta.
 
-3. ESE COLOR NO ES EL ACENTO A SECAS, y esto lo cazo la medicion. El
-   acento del tema es una MARCA, no una rampa de datos: en cuatro de
-   los siete temas es ambar, y ambar sobre la pista gris de una barra da
-   1.4 de contraste — la barra se veia casi como el vacio. --rl-dato es
-   el mismo tono un paso mas oscuro, y el cuanto salio de medirlo tema
-   por tema (.arnes/mezcla.mjs): con 60 % de acento y 40 % de negro, el
-   peor de los siete da 3.4 contra la pista. Menos que eso y ambar,
-   negro, gris y halo no llegan.
+La etiqueta no es roja. Registrar el día anterior es normal; pintarlo
+de alarma enseñaría a la gente a ignorar las alarmas. Va en azul frío
+con el mismo rielito de CORREGIDO —son parientes: las dos dicen «este
+renglón no es lo que parece»— pero de otro tono, porque corregido es
+alguien reescribiendo un dato y atrasado es un dato que llegó tarde sin
+que nadie lo tocara. Si compartieran color habría que leer el texto
+para distinguirlas, y una etiqueta que hay que leer entera no está
+haciendo su trabajo.
 
-4. EL TEXTO VA EN TINTA, nunca en el color del dato. El numero grande
-   del pareto estaba pintado del color de las barras: repetia lo que la
-   barra ya decia y daba 1.4 de contraste en los temas ambar.
+MEDIDO, no mirado:
+ · .arnes/prueba-registro-atrasado.sql — 11 comprobaciones contra
+   Postgres 16, de no superusuario, con la migración corrida dos veces.
+   Incluye la trampa de UTC: un viaje de hoy digitado a las 7 p. m. de
+   Barranquilla ya es mañana para el servidor, y con `registrado_en::date`
+   a secas TODOS los turnos B y C tardíos habrían salido marcados en
+   falso, todos los días.
+ · .arnes/tp-tarde.mjs — 28 combinaciones (4 anchos × 7 temas): la
+   etiqueta no se sale de la fila ni se parte en dos, contraste 8.82 en
+   todos los temas, y se distingue de CORREGIDO a simple vista.
+ · prueba-editar-viaje.sql y prueba-borrar-plan.sql pasaron a fechas
+   relativas a hoy. Tenían literales de septiembre de 2026 que el nuevo
+   tope del futuro rechazaba — y que, sin este cambio, habrían empezado
+   a fallar solos el mes entrante sin que nadie supiera si lo roto era
+   el código o el calendario.
 
-5. EL PROMEDIO ES UNA REFERENCIA, NO UNA SEGUNDA SERIE: punteado y en
-   gris. Dos colores en la misma grafica invitan a leerla como si fueran
-   dos medidas, y es una sola. Y no hay doble eje en ninguna parte.
-
-MEDIDO CON LOS DATOS DE VERDAD, las 24.243 filas de 2026 del Excel. Un
-tablero probado con datos inventados se ve bien y miente: los rotulos
-largos, las barras chiquitas y los numeros de siete cifras solo
-aparecen con los reales. El arnes comprueba ademas que ninguna barra se
-salga de su pista, que ninguna quede invisible, y que las fechas del
-eje no se encimen — a 360 px se encimaban, y por eso ahora el celular
-muestra cuatro y no ocho.
-
-La capa de detalle es el `title` nativo del SVG y del HTML: sale al
-posar el cursor y funciona sin una linea de JavaScript.
-
-Y AL FINAL, LA TABLA. Las graficas se leen; la tabla se copia y se
-audita. Lleva el acumulado, que es lo que convierte un pareto en una
-decision.
-
-HAY QUE CORRER EN SUPABASE:
-  supabase/migraciones/2026-09-rotura-linea-tablero.sql
-  supabase/migraciones/2026-09-permisos-rotura-linea.sql   (otra vez:
-      gano la seccion del tablero)
+Falta correr en Supabase:
+  supabase/migraciones/2026-09-traspasos-registro-atrasado.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

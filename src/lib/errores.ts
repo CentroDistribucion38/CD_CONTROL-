@@ -46,6 +46,8 @@ const PREFIJOS: [RegExp, string][] = [
   /* Traspasos, igual: lo fino antes que lo grueso. Este módulo faltaba
      entero en la lista y mandaba al mensaje genérico —el que dice "el
      archivo del módulo" y deja a quien lo lee con la mitad del trabajo. */
+  [/\b(traspaso_hoy|traspaso_arranque_turno|dias_atras|atrasado)/,
+   "supabase/migraciones/2026-09-traspasos-registro-atrasado.sql"],
   [/\b(traspaso_editar_viaje|traspasos_viajes_ediciones)/,
    "supabase/migraciones/2026-09-traspasos-editar-viaje.sql"],
   [/\btraspaso_borrar_plan/, "supabase/migraciones/2026-09-traspasos-borrar-plan.sql"],

@@ -55,6 +55,12 @@ export type Viaje = {
   hora: string;
   registrado_por: string | null;
   registrado_en: string;
+  /** Cuántos días después de su fecha se digitó el viaje, contados en
+   *  días de Barranquilla. 0 = se registró en su propio día. */
+  dias_atras: number;
+  /** El viaje se metió después de su día. No es una columna guardada:
+   *  sale de comparar la fecha con el día en que se digitó. */
+  atrasado: boolean;
   /** Cuántas veces lo corrigió un administrador. 0 = tal como se registró. */
   ediciones: number;
   editado_en: string | null;

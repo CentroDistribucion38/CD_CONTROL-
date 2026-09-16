@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
@@ -26,6 +27,12 @@ export default async function TraspasosPage({ searchParams }: {
   const hoy = hoyLocal();
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.d ?? "") ? q.d! : hoy;
   const esHoy = fecha === hoy;
+  /* HACIA ADELANTE NO SE REGISTRA. La base lo rechaza —un viaje que no
+     ha salido no es un registro, es un plan—, pero enterarse por un
+     mensaje rojo después de escribir placa, ruta y cantidad es la peor
+     forma de enterarse. Aquí se dice antes y se ofrece el sitio
+     correcto. */
+  const esFuturo = fecha > hoy;
 
   /* Las siete consultas en una sola tanda: en serie la pantalla
      tardaría lo que suman y aquí ninguna depende de otra. */
@@ -94,14 +101,23 @@ export default async function TraspasosPage({ searchParams }: {
             TRASPASOS · CD38 AG01 · TURNO {turno}
             {!esHoy && ` · ${conDia(fecha).toUpperCase()}`}
           </p>
-          <h1>{esHoy ? "Registrar viaje" : "Registrar en otro día"}</h1>
+          <h1>
+            {esHoy ? "Registrar viaje"
+                   : esFuturo ? "Ese día no ha pasado" : "Registrar en otro día"}
+          </h1>
           <p className="sub">
             {esHoy ? (
               <>Cada viaje que sale, con su placa y su ruta. El cumplido del plan no se escribe:
               sube solo con lo que se registra aquí.</>
+            ) : esFuturo ? (
+              <>Estás en <b>{conDia(fecha)}</b>, que todavía no llega. Los viajes se registran
+              cuando ya salieron; lo de adelante se arma en{" "}
+              <Link href={`/traspasos/plan?d=${fecha}`}>Planear</Link>. Dale a HOY para volver.</>
             ) : (
               <>Estás en <b>{conDia(fecha)}</b>, no en hoy. Lo que registres aquí cuenta para
-              ese día. Dale a HOY para volver.</>
+              ese día y queda marcado <b>REGISTRADO DESPUÉS</b>, con tu nombre y la fecha en que
+              lo metiste. La hora que se guarda es la de arranque del turno, no la de ahora.
+              Dale a HOY para volver.</>
             )}
           </p>
         </div>
@@ -118,7 +134,7 @@ export default async function TraspasosPage({ searchParams }: {
         </div>
       </section>
 
-      {permisos.puedeEditar("/traspasos") ? (
+      {permisos.puedeEditar("/traspasos") && !esFuturo ? (
         <Registrar tipos={t.tipos} puntos={pts} placas={placas} rutas={rutas}
                    placasM={pl.placas}
                    fecha={fecha} turnoSugerido={turno}
@@ -129,7 +145,7 @@ export default async function TraspasosPage({ searchParams }: {
         <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar={false} esHoy={esHoy} />
       )}
 
-      {permisos.puedeEditar("/traspasos") && (
+      {permisos.puedeEditar("/traspasos") && !esFuturo && (
         /* CORREGIR ES SOLO DEL ADMINISTRADOR. Aquí solo se decide si se
            pinta el botón; el candado de verdad está en la base, que
            rechaza la corrección venga de donde venga. Esconder un botón

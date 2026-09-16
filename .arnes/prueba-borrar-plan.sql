@@ -24,8 +24,8 @@ set role probador;
 
 do $$
 declare
-  f date := date '2026-09-20';
-  g date := date '2026-09-21';
+  f date := public.traspaso_hoy() - 6;
+  g date := public.traspaso_hoy() - 5;
   n int; v_falla text := '';
   v_viajes int;
 begin
@@ -108,14 +108,14 @@ set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 set role probador;
 do $$
 begin
-  perform public.traspaso_guardar_plan(date '2026-09-22', '[]'::jsonb, '[]'::jsonb);
+  perform public.traspaso_guardar_plan((public.traspaso_hoy() - 4), '[]'::jsonb, '[]'::jsonb);
   raise exception '12 FALLO: el operador pudo guardar';
 exception when others then
   if sqlerrm like '%requiere rol%' then null; else raise; end if;
 end $$;
 do $$
 begin
-  perform public.traspaso_borrar_plan(date '2026-09-20');
+  perform public.traspaso_borrar_plan((public.traspaso_hoy() - 6));
   raise exception '12 FALLO: el operador pudo borrar';
 exception when others then
   if sqlerrm like '%requiere rol de supervisor%' then

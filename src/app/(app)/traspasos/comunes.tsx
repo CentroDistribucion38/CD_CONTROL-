@@ -126,6 +126,21 @@ export function FilaViaje({ v, nombres, derecha }: {
               CORREGIDO{v.ediciones > 1 ? ` ×${v.ediciones}` : ""}
             </span>
           )}
+          {/* ATRASADO TAMBIÉN SE DICE. Un viaje del jueves metido el
+              lunes cuenta igual que uno registrado en su turno —y debe
+              contar igual: pasó—. Pero quien mira el día tiene derecho
+              a saber que ese renglón no se escribió ahí, porque es la
+              diferencia entre un dato tomado en el momento y uno
+              reconstruido de memoria. La hora que se ve al lado es la
+              de arranque del turno, no la de salida: de un viaje
+              metido después nadie sabe la hora exacta. */}
+          {v.atrasado && (
+            <span className="eti tarde"
+                  title={`Registrado ${v.dias_atras} día${v.dias_atras === 1 ? "" : "s"} después`
+                         + ` por ${quien(nombres, v.registrado_por)}`}>
+              REGISTRADO DESPUÉS{v.dias_atras > 1 ? ` · ${v.dias_atras} días` : ""}
+            </span>
+          )}
         </div>
 
         {v.nota && <div className="meta"><span>{v.nota}</span></div>}

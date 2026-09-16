@@ -1101,6 +1101,25 @@
   padding-left: 9px;
 }
 
+/* ---------- Registrado después de su día ----------
+
+   MISMA FORMA QUE «CORREGIDO» —el rielito a la izquierda— porque son
+   parientes: las dos marcas dicen «este renglón no es exactamente lo
+   que parece, mira el detalle». Y OTRO TONO, frío, porque no son la
+   misma cosa: corregido es alguien reescribiendo un dato; atrasado es
+   un dato que llegó tarde pero nadie tocó. Si compartieran color
+   habría que leer el texto para distinguirlas, y una etiqueta que hay
+   que leer entera no está haciendo su trabajo.
+
+   NO ES ROJO A PROPÓSITO. Registrar el día anterior es normal: el
+   turno C sale a las seis de la mañana y muchas veces digita después.
+   Pintarlo de alarma enseñaría a la gente a ignorar las alarmas. */
+.tp .eti.tarde {
+  background: #E6EDF4; color: #2A4257;
+  box-shadow: inset 2.5px 0 0 #5B7C9B;
+  padding-left: 9px;
+}
+
 /* ---------- Posibles duplicados ---------- */
 .tp .duplicados {
   background: var(--tp-papel); border: 1px solid var(--tp-linea);
