@@ -87,6 +87,8 @@ export type Viaje = {
      pantallas que leen Viaje —seguimiento, libro, exportar— no las
      piden ni las necesitan. */
   requiere_ai?: boolean;
+  /** Ya llegó, se certificó, y la revisión AI sigue sin hacerse. */
+  ai_pendiente?: boolean;
   ai_motivo?: string | null;
   ai_pedido_por?: string | null;
   ai_pedido_en?: string | null;

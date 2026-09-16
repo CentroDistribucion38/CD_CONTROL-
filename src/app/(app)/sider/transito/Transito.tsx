@@ -347,8 +347,15 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
         {g.viajes.map((v) => {
           const largo = horasEnCamino(v.en_camino) > HORAS_LARGAS;
           const faltanFotos = v.fotos_salida < 3;
+          /* EL COLOR DICE EL ESTADO ANTES DE LEER NADA, y por eso la
+             marca de AI tiene el suyo: morado, que no es el de nada más
+             en esta pantalla —turquesa es normal, oro es va tarde, rojo
+             es error—. Y el morado FUERTE, con el fondo teñido, es para
+             el que ya llegó y sigue sin revisar: ese no está esperando
+             en la carretera, está esperando a alguien. */
+          const cls = "tr-vh" + (v.ai_pendiente ? " ai-falta" : v.requiere_ai ? " ai" : largo ? " largo" : "");
           return (
-            <article key={v.id} className={"tr-vh" + (largo ? " largo" : "")}>
+            <article key={v.id} className={cls}>
               <header>
                 <b className="placa">{v.placa}</b>
                 {/* EL SELLO DE AI VA EN LA CABECERA, junto a la placa y
@@ -357,14 +364,18 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
                     revisión, porque la muestra se saca en el muelle y
                     después ya está el envase revuelto. */}
                 {v.requiere_ai && (
-                  <span className="sello ai"
+                  <span className={"sello ai" + (v.ai_pendiente ? " falta" : "")}
                         title={v.ai_motivo ?? "Revisión AI pedida por el administrador"}>
-                    <i />REVISIÓN AI
+                    <i />{v.ai_pendiente ? "FALTA LA REVISIÓN AI" : "REVISIÓN AI"}
                   </span>
                 )}
-                <span className={"sello " + (largo ? "falta" : "transito")}>
-                  <i />{enCamino(v.en_camino)}
-                </span>
+                {/* El que ya llegó no lleva el reloj de «en camino»: ese
+                    número hablaría de un viaje que ya terminó. */}
+                {!v.ai_pendiente && (
+                  <span className={"sello " + (largo ? "falta" : "transito")}>
+                    <i />{enCamino(v.en_camino)}
+                  </span>
+                )}
               </header>
 
               <div className="tr-ruta">
@@ -390,7 +401,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
 
               <footer>
                 <div className="tr-salio">
-                  Salió {hora(v.salida_en)}
+                  {v.ai_pendiente ? <>Llegó {hora(v.llegada_en)}</> : <>Salió {hora(v.salida_en)}</>}
                   <em>
                     {v.creado_por ? nombres[v.creado_por] ?? "—" : "—"}
                     {" · "}
@@ -404,7 +415,11 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
                       verdad está en la base, que rechaza la marca venga
                       de donde venga. Esconder un botón no es un
                       permiso. */}
-                  {esAdmin && (
+                  {/* AL QUE YA LLEGÓ NO SE LE OFRECE QUITAR LA MARCA:
+                      la muestra ya se sacó o se perdió, y desmarcarlo
+                      solo serviría para que el pendiente desaparezca de
+                      la lista sin que nadie contara nada. */}
+                  {esAdmin && !v.ai_pendiente && (
                     <button type="button"
                             className={"tr-ai" + (v.requiere_ai ? " on" : "")}
                             disabled={marcando === v.id}
@@ -413,19 +428,30 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
                     </button>
                   )}
                   {esEditor && (
-                    <button type="button" className="btn" onClick={() => setAbierto(v)}>
-                      Certificar llegada
+                    <button type="button" className={"btn" + (v.ai_pendiente ? " ai" : "")}
+                            onClick={() => setAbierto(v)}>
+                      {v.ai_pendiente ? "Hacer la revisión AI" : "Certificar llegada"}
                     </button>
                   )}
                 </div>
               </footer>
 
               {v.requiere_ai && (
-                <p className="tr-ojo ai">
-                  A este vehículo le toca <b>revisión AI</b> al llegar.
-                  {v.ai_motivo ? ` ${v.ai_motivo}` : ""}
-                  {v.ai_pedido_por ? ` — la pidió ${nombres[v.ai_pedido_por] ?? "un administrador"}.` : ""}
-                  {" "}La muestra se saca en el muelle, antes de descargar.
+                <p className={"tr-ojo ai" + (v.ai_pendiente ? " falta" : "")}>
+                  {v.ai_pendiente ? (
+                    <>
+                      <b>Llegó y nadie ha contado la muestra.</b> Se queda en esta lista
+                      hasta que alguien la registre: mientras tanto, al socio se le abona
+                      todo lo que mandó.
+                    </>
+                  ) : (
+                    <>
+                      A este vehículo le toca <b>revisión AI</b> al llegar.
+                      {v.ai_motivo ? ` ${v.ai_motivo}` : ""}
+                      {v.ai_pedido_por ? ` — la pidió ${nombres[v.ai_pedido_por] ?? "un administrador"}.` : ""}
+                      {" "}La muestra se saca en el muelle, antes de descargar.
+                    </>
+                  )}
                 </p>
               )}
 
@@ -483,7 +509,7 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
 }) {
   const router = useRouter();
   const pos = usePosicion();
-  const [paso, setPaso] = useState(0);
+  const [paso, setPaso] = useState(viaje.ai_pendiente ? 2 : 0);
   const [fotos, setFotos] = useState<Partial<Record<RanuraCualquiera, Foto>>>({});
   const [nota, setNota] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -501,7 +527,12 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
      eso, si aquí se cae la señal, lo que ya quedó guardado es la
      llegada, y la revisión se retoma desde la tarjeta del vehículo. */
   const revisaAi = !!viaje.requiere_ai && !!maestrosAi && !maestrosAi.falta;
-  const [yaCertifico, setYaCertifico] = useState(false);
+  /* EL QUE YA LLEGÓ ENTRA DIRECTO AL FORMULARIO. Su llegada se certificó
+     hace rato —por eso salió de «en camino» y aparece con el morado
+     fuerte—, así que los dos primeros pasos ya están hechos: pedirle la
+     ubicación y tres fotos otra vez sería hacerle repetir algo que la
+     base ya tiene y que ya no aceptaría. */
+  const [yaCertifico, setYaCertifico] = useState(!!viaje.ai_pendiente);
 
   const faltanFotos = RANURAS.filter((r) => !fotos[r.id]);
   const sinEvidenciaSalida = viaje.fotos_salida < 3;
@@ -662,8 +693,8 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
   }, []);
 
   const pasos = [
-    { t: "Dónde", ok: !!pos.ubi },
-    { t: "Fotos", ok: faltanFotos.length === 0 },
+    { t: "Dónde", ok: !!pos.ubi || !!viaje.ai_pendiente },
+    { t: "Fotos", ok: faltanFotos.length === 0 || !!viaje.ai_pendiente },
     ...(revisaAi ? [{ t: "Revisión AI", ok: false }] : []),
   ];
 
@@ -741,6 +772,12 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
                     Cada una queda sellada con la placa, la fecha, la hora y las
                     coordenadas quemadas en la esquina. Si algo llegó mal, déjalo
                     dicho abajo y, si se puede, fotografíalo.
+                  </>
+                ) : viaje.ai_pendiente ? (
+                  <>
+                    <b>La llegada se certificó {hora(viaje.llegada_en)}.</b> Lo que falta
+                    es la muestra, y de lo que se cuente aquí sale lo que se le abona al
+                    socio.
                   </>
                 ) : (
                   <>

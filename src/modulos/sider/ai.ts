@@ -73,15 +73,14 @@ export async function maestrosAi(): Promise<MaestrosAi> {
   };
 }
 
-/** Los camiones marcados que ya llegaron y nadie ha revisado. */
-export async function pendientesAi() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("v_sider_ai_pendientes").select("*")
-    .order("llego_en", { ascending: true, nullsFirst: false }).limit(200);
-  if (error) return { falta: sinTablas(error.message), pendientes: [] as Pendiente[] };
-  return { falta: false, pendientes: (data ?? []) as Pendiente[] };
-}
+/* `pendientesAi()` se fue de aquí. Lo que hacía —listar los que
+   llegaron y siguen sin revisar— ahora lo hace `viajesEnTransito()`,
+   porque esos vehículos ya no viven en una pantalla aparte: se quedan
+   en Tránsito, en morado, hasta que alguien cuente la muestra. La vista
+   `v_sider_ai_pendientes` sigue siendo la misma; cambió quién la lee.
+
+   Las dos de abajo se quedan: son las del tablero —índice por socio,
+   por envase, tendencia—, que es lo que sigue. */
 
 /** Las revisiones hechas, de más nueva a más vieja. */
 export async function revisionesAi(desde?: string, hasta?: string) {

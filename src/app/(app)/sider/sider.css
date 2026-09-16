@@ -924,6 +924,8 @@
 .sd .tr-salio em b.mal { color: #A4271C }
 .sd .tr-vh footer .btn { height: 38px; padding: 0 15px; font-size: 12.5px; flex: none }
 .sd .tr-ojo { margin: 0; font-size: 12px; color: #7A5A05; background: #FFF8E6; padding: 8px 10px; border-radius: 3px }
+.sd .tr-ojo.ai { color: #4B2578; background: #F3ECFC }
+.sd .tr-ojo.ai.falta { color: #3D1D64; background: #E7DAF8 }
 
 .sd .tr-vacio {
   grid-column: 1 / -1; text-align: center; color: var(--sd-gris); font-size: 14px;
@@ -2742,11 +2744,42 @@
    instrucción. Rojo enseñaría a ignorar los rojos de verdad, que en
    esta pantalla son los vehículos trabados hace más de un día.
    ==================================================================== */
+/* ====================== EL MORADO DE LA REVISIÓN AI ==================
+   POR QUÉ UN COLOR PROPIO. Esta pantalla ya tenía tres estados con
+   color: turquesa el viaje normal, oro el que lleva más de un día, rojo
+   el error. La marca de AI estaba en ORO —el mismo del que va tarde— y
+   entonces dos cosas distintas se veían igual: quien barre la lista con
+   la vista no podía separar «este va tarde» de «a este hay que sacarle
+   muestra», que no se parecen en nada y se resuelven distinto.
+
+   El morado no lo usa nada más aquí, así que no hay que aprenderse
+   ninguna regla: lo morado es AI.
+
+   Y HAY DOS MORADOS, no uno. El claro es el aviso —viene en camino y al
+   llegar le toca—; el fuerte, con la tarjeta teñida, es el que YA LLEGÓ
+   y sigue sin revisar. Ese segundo no está esperando en la carretera:
+   está esperando a una persona, y tiene que gritar más.
+   =================================================================== */
 .sd .sello.ai {
-  background: #FDF0D0; color: #5E4100; border-color: #E8CE8C;
+  background: #EDE3FA; color: #4B2578; border-color: #D6C2EF;
   font-weight: 800; letter-spacing: .06em;
 }
-.sd .sello.ai i { background: #C08A16 }
+.sd .sello.ai i { background: #6A3FA0 }
+.sd .sello.ai.falta { background: #5B2E92; color: #fff; border-color: #5B2E92 }
+.sd .sello.ai.falta i { background: #fff }
+
+/* La franja del borde izquierdo: es lo que se ve de reojo sin leer. */
+.sd .tr-vh.ai { border-left-color: #6A3FA0 }
+.sd .tr-vh.ai-falta {
+  border-left-color: #5B2E92; border-left-width: 6px;
+  background: #F8F4FD; border-color: #DCCBF1;
+}
+/* El botón del pendiente va morado y no turquesa: es el único de la
+   pantalla que no certifica una llegada sino que cuenta botellas, y
+   estar del mismo color que «Certificar llegada» invita a tocarlo
+   creyendo que hace lo otro. */
+.sd .tr-vh footer .btn.ai { background: #5B2E92 }
+.sd .tr-vh footer .btn.ai:hover:not(:disabled) { background: #46226F }
 
 /* LOS BOTONES DEL PIE, Y POR QUÉ NO SE SALEN.
    El pie es una fila de dos: la línea de «salió» a la izquierda y esto a

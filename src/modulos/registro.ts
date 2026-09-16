@@ -177,12 +177,12 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
-      /* REVISIÓN AI VA JUSTO DESPUÉS DE TRÁNSITO porque ese es el orden
-         del proceso: el administrador marca el vehículo en Tránsito, el
-         camión llega, y la revisión es lo siguiente que pasa. Ponerla al
-         final —donde suele caer lo que se construyó de último— la
-         separaría del sitio donde se pide. */
-      { nombre: "Revisión AI", ruta: "/sider/ai" },
+      /* LA REVISIÓN AI NO TIENE ENTRADA PROPIA, y es la decisión
+         correcta: vive DENTRO de Tránsito, que es donde se pide y donde
+         se hace. Tuvo su pantalla un día y era un módulo que obligaba a
+         quien recibe el camión a saber que existe, a entrar y a buscar
+         la placa en una lista. En el muelle eso no pasa: se descarga y
+         la revisión queda sin hacer. */
       { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
       /* Se entra por el botón Importar de Seguimiento, que es donde se

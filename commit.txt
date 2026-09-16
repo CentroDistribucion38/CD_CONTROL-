@@ -1,66 +1,51 @@
-Sider: la revisión AI deja de ser un módulo aparte y entra en la llegada
+Tránsito: la revisión AI se ve por color en la tarjeta y deja de ser un módulo
 
-LO QUE ESTABA MAL ERA EL SITIO, no el formulario. Lo hice como pantalla
-suelta —Sider → Revisión AI, con su lista de pendientes y su
-formulario—, y eso obliga a quien recibe el vehículo a saber que esa
-pantalla existe, a acordarse de entrar y a buscar la placa en una lista.
-En el muelle, con el camión esperando, eso no pasa: se descarga y la
-revisión queda sin hacer. Cristian lo dijo en una línea: el admin la
-asigna, a la persona en el tránsito le aparece, y la verificación va
-ahí mismo.
+CRISTIAN LO DIJO ASÍ: que en la misma lista de tránsito se vea, por
+color, a qué vehículo le toca revisión — y que no sea otro módulo.
 
-AHORA ES UN PASO MÁS DE LA CERTIFICACIÓN. Quien toca «Certificar
-llegada» de un vehículo marcado recorre: dónde → tres fotos → revisión
-AI. No cambia de pantalla, no busca la placa, no se acuerda de nada: el
-formulario sale solo.
+EL COLOR. Esta pantalla ya tenía tres estados con color: turquesa el
+viaje normal, oro el que lleva más de un día en camino, rojo el error.
+La marca de AI estaba en ORO, o sea el mismo del que va tarde: dos cosas
+que no se parecen en nada y se resuelven de forma distinta compartían
+color, y barriendo la lista con la vista no se separaban.
 
-Y VA DESPUÉS DE CERTIFICAR, NO ANTES, aunque la muestra se saque antes
-de descargar. La base no acepta una revisión de un viaje cuya llegada no
-esté certificada, y con razón: una revisión de algo que nunca se recibió
-no se puede auditar. Así que primero queda la llegada —que es lo que no
-se puede perder— y después el conteo. Si ahí se cae la señal, la llegada
-ya está guardada y la revisión se retoma desde su propia dirección.
+Ahora la AI tiene el suyo, morado, que no lo usa nada más aquí. Y son
+DOS morados, no uno:
 
-Una vez certificada la llegada no se puede volver a los dos primeros
-pasos: ya se guardaron, y volver a mandarlos solo sirve para ver un
-error. Se quedan en verde, que es lo que son.
+  · el claro, en la franja del borde — viene en camino y al llegar le
+    toca la muestra;
+  · el fuerte, con la tarjeta teñida y el borde más grueso — YA LLEGÓ y
+    sigue sin revisar. Ese no está esperando en la carretera: está
+    esperando a una persona, y tiene que gritar más.
 
-EL FORMULARIO ES EL MISMO, NO UNA COPIA. Se movió a
-`src/modulos/sider/FormularioAi.tsx` y dejó de saber a dónde ir después
-—hacía `router.push("/sider/ai")` por dentro, y eso lo ataba a la
-pantalla suelta—: ahora quien lo dibuja le pasa esa respuesta. Desde la
-certificación el botón de salir dice «Después» y no «Cancelar», porque
-la llegada ya quedó guardada: salir de ahí no deshace nada, deja la
-revisión pendiente.
+MEDIDO, no a ojo (`.arnes/sd-ai-color.mjs`). Las franjas se separan 180
+(normal vs AI) y 355 (va tarde vs AI) en una escala donde por debajo de
+100 dos colores se confunden de lejos; 119 para quien no distingue el
+verde. Y el color no es lo único: cada estado lleva además su sello con
+texto, porque una franja que solo separa para el que ve bien no separa.
+El texto sobre cada fondo contrasta entre 8.31 y 10.13.
 
-LOS MAESTROS BAJAN CON LA PANTALLA, y solo si hace falta. Las cuatro
-listas —catorce defectos, dieciocho envases, sesenta y tres socios,
-cuatro canales— vienen con el tránsito cuando algún vehículo está
-marcado, para que el formulario aparezca instantáneo: en el muelle, una
-barra de carga manda a alguien a buscar el papel. Si ningún vehículo
-está marcado, que es el caso normal, no bajan.
+EL MÓDULO SE FUE DEL MENÚ. «Revisión AI» ya no es una entrada, y sus dos
+pantallas se borraron. Obligaban a quien recibe el camión a saber que
+existían, a entrar y a buscar la placa en una lista; en el muelle eso no
+pasa: se descarga y la revisión queda sin hacer.
 
-DOS COSAS QUE SE VIERON AL MEDIRLO EN SU SITIO NUEVO
-(`.arnes/sd-ai-paso.mjs`, que monta el formulario DENTRO de la tarjeta
-de la certificación en cuatro tamaños):
+Y COMO NO HAY OTRA PANTALLA, EL PENDIENTE NO SE PIERDE DE VISTA: un
+vehículo marcado que ya llegó y nadie revisó NO desaparece de Tránsito
+al certificar la llegada. Se queda arriba de la lista —primero, porque
+es el único con algo que hacer ya— en morado fuerte, diciendo «llegó y
+nadie ha contado la muestra», y su botón dice «Hacer la revisión AI» y
+abre el formulario directo, sin volver a pedir ubicación ni fotos: eso
+ya está guardado y la base no lo aceptaría dos veces.
 
-  · La casilla de «Deformado» se salía 44 px de la caja. Un <input> sin
-    `size` trae un ancho mínimo propio de unos veinte caracteres —244 px
-    con esta letra— y, como hijo de rejilla, ese mínimo le gana a la
-    columna de 180. Se veía solo con los catorce defectos puestos y en
-    pantalla ancha, que es donde nadie mira. Le faltaba `min-width: 0`.
+Al que ya llegó tampoco se le ofrece quitarle la marca: desmarcarlo solo
+serviría para que el pendiente desaparezca sin que nadie contara nada.
 
-  · En el celular la tira de cuentas caía a una cifra por fila, y así
-    deja de leerse como un resumen: hay que rodar para comparar el
-    índice con lo que no se abona, que es justamente la comparación que
-    alguien hace antes de mandarlo. Ahora van dos por fila.
-
-LO QUE SIGUE. La pantalla `/sider/ai` se queda por ahora como está
-—lista de pendientes y revisiones hechas—, porque un vehículo que ya
-llegó y se dejó para después tiene que poder revisarse desde algún
-sitio, y esa es su dirección. El siguiente paso es convertirla en el
-tablero: índice por socio, por envase y tendencia, que es lo que se
-mira después y no en el muelle.
+LO QUE QUEDA ABIERTO, y lo digo porque es un hueco de verdad: una
+revisión ya guardada no se puede corregir desde ninguna parte —antes se
+corregía desde la pantalla que se quitó—. `revisionDe()` sigue en su
+sitio para cuando se haga el tablero, que es donde va a tener sentido
+entrar a corregir.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

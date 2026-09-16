@@ -71,7 +71,7 @@ export async function viajesEnTransito() {
      Son las dos en la MISMA tanda —no una detrás de otra— y la segunda
      trae cuatro columnas de las decenas de filas que hay en tránsito.
      Se cruzan por id aquí, que es exactamente lo que haría el join. */
-  const [{ data, error }, ai] = await Promise.all([
+  const [{ data, error }, ai, pend] = await Promise.all([
     supabase.from("v_sider_viajes").select("*")
       .eq("estado", "en_transito")
       .order("salida_en", { ascending: true, nullsFirst: false })
@@ -79,6 +79,15 @@ export async function viajesEnTransito() {
     supabase.from("sider_viajes")
       .select("id, requiere_ai, ai_motivo, ai_pedido_por, ai_pedido_en")
       .eq("estado", "en_transito").eq("requiere_ai", true).limit(500),
+    /* LOS QUE YA LLEGARON Y SIGUEN SIN REVISAR. No están en tránsito
+       —su llegada ya se certificó— pero tienen que seguir viéndose AQUÍ,
+       porque no hay otra pantalla: la revisión AI dejó de ser un módulo
+       aparte. Un vehículo marcado desaparece de la lista solo cuando
+       alguien contó las botellas, no cuando llegó.
+
+       Es la misma vista que alimentaba la lista de pendientes del módulo
+       que se quitó; lo que cambió es dónde se muestran. */
+    supabase.from("v_sider_ai_pendientes").select("viaje_id").limit(200),
   ]);
 
   /* Si el módulo AI todavía no está creado, la consulta falla y la
@@ -89,13 +98,38 @@ export async function viajesEnTransito() {
   const marcas = new Map<string, M>();
   if (!ai.error) for (const m of (ai.data ?? []) as M[]) marcas.set(m.id, m);
 
-  const viajes = ((data ?? []) as unknown as Viaje[]).map((v) => {
+  const enCamino = ((data ?? []) as unknown as Viaje[]).map((v) => {
     const m = marcas.get(v.id);
     return m ? { ...v, requiere_ai: true, ai_motivo: m.ai_motivo,
                  ai_pedido_por: m.ai_pedido_por, ai_pedido_en: m.ai_pedido_en }
              : { ...v, requiere_ai: false };
   });
-  return { viajes, falta: !!error };
+
+  /* Los pendientes se traen en una segunda vuelta y no en la misma: hay
+     que saber CUÁLES son antes de poder pedirlos, y la vista de arriba
+     solo da los ids. Son poquísimos —los que llegaron hoy y nadie
+     revisó— y la mayoría de los días son cero, así que ni siquiera se
+     pregunta cuando la lista viene vacía. */
+  const ids = pend.error ? [] : ((pend.data ?? []) as { viaje_id: string }[]).map((p) => p.viaje_id);
+  let pendientes: Viaje[] = [];
+  if (ids.length) {
+    const { data: dp } = await supabase.from("v_sider_viajes").select("*").in("id", ids);
+    const extra = await supabase.from("sider_viajes")
+      .select("id, ai_motivo, ai_pedido_por, ai_pedido_en").in("id", ids);
+    const porId = new Map<string, M>();
+    if (!extra.error) for (const m of (extra.data ?? []) as M[]) porId.set(m.id, m);
+    pendientes = ((dp ?? []) as unknown as Viaje[]).map((v) => ({
+      ...v, requiere_ai: true, ai_pendiente: true,
+      ai_motivo: porId.get(v.id)?.ai_motivo ?? null,
+      ai_pedido_por: porId.get(v.id)?.ai_pedido_por ?? null,
+      ai_pedido_en: porId.get(v.id)?.ai_pedido_en ?? null,
+    }));
+  }
+
+  /* LOS PENDIENTES VAN PRIMEROS, y no por capricho: son los únicos de
+     esta lista con algo que HACER ya. Los demás están en la carretera y
+     no dependen de nadie aquí. */
+  return { viajes: [...pendientes, ...enCamino], falta: !!error };
 }
 
 /**
