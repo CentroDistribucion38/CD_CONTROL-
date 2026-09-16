@@ -55,13 +55,18 @@ console.log(`${MAQ.length} máquinas · ${TOT.toLocaleString("es-CO")} unidades`
 /* La MISMA matemática del componente. Si se copia mal, la prueba
    aprueba un dibujo que no es el que sale en pantalla — así que se
    copia entera y a la vista. */
-const W = 1000, ALTO = 300, IZQ = 4, DER = 4;
-const masLargo = Math.max(...MAQ.map((d) => d.rotulo.length));
-const PIE = Math.min(Math.max(90, Math.round(masLargo * 7.6) + 20), 300);
+const lineas = (r) => { const p = r.split(" - "); return p.length === 2 ? [p[0] + " -", p[1]] : [r] };
+const paso = (max) => { const c = max/5, p = 10 ** Math.floor(Math.log10(c));
+  for (const m of [1,2,2.5,5,10]) if (p*m >= c) return p*m; return p*10 };
+const W = 1000, ALTO = 250, IZQ = 78, DER = 56, TECHO = 28;
+const masLargo = Math.max(...MAQ.flatMap((d) => lineas(d.rotulo).map((l) => l.length)));
+const PIE = Math.min(Math.max(70, Math.round(masLargo * 7.6) + 22), 200);
 const H = ALTO + PIE;
 const ancho = (W - IZQ - DER) / MAQ.length;
-const barra = Math.min(ancho * 0.62, 58);
-const tope = MAQ[0].valor;
+const barra = Math.min(ancho * 0.6, 54);
+const salto = paso(MAQ[0].valor);
+const tope = Math.ceil(MAQ[0].valor / salto) * salto;
+const MARCAS = []; for (let v = 0; v <= tope + 0.5; v += salto) MARCAS.push(v);
 let suma = 0;
 const pasos = MAQ.map((d) => {
   suma += d.valor;
@@ -70,16 +75,22 @@ const pasos = MAQ.map((d) => {
 const cruce = pasos.findIndex((p) => p.acum >= 80);
 const n80 = cruce === -1 ? MAQ.length : cruce + 1;
 const x = (i) => IZQ + i * ancho + ancho / 2;
-const yB = (v) => ALTO - (v / tope) * (ALTO - 18);
-const yP = (p) => ALTO - (p / 100) * (ALTO - 18);
+const yB = (v) => TECHO + (1 - v / tope) * (ALTO - TECHO);
+const yP = (p) => TECHO + (1 - p / 100) * (ALTO - TECHO);
 const curva = pasos.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yP(p.acum).toFixed(1)}`).join("");
 
 console.log(`${n80} de ${MAQ.length} máquinas hacen el 80 % · la primera pone ${pasos[0].pct.toFixed(1)} %`);
 
 const svg = `<div class="rl-pareto"><svg viewBox="0 0 ${W} ${H}">
-${[25, 50, 75, 100].map((p) => `<line x1="${IZQ}" x2="${W - DER}" y1="${yP(p)}" y2="${yP(p)}" class="rl-g-rejilla"/>`).join("")}
+${MARCAS.map((v,k) => `<line x1="${IZQ}" x2="${W - DER}" y1="${yB(v)}" y2="${yB(v)}" class="rl-g-rejilla"/>
+<text id="ei${k}" x="${IZQ-9}" y="${yB(v)+3.5}" class="rl-p-eje" text-anchor="end">${v===0?"0":Math.round(v/1000)+" mil"}</text>`).join("")}
+${[0,25,50,75,100].map((p,k) => `<text id="ed${k}" x="${W-DER+9}" y="${yP(p)+3.5}" class="rl-p-eje der" text-anchor="start">${p} %</text>`).join("")}
+<text id="ti" transform="rotate(-90 11 ${(TECHO+ALTO)/2})" x="11" y="${(TECHO+ALTO)/2}" class="rl-p-eje-tit" text-anchor="middle">unidades rotas</text>
+<text id="td" transform="rotate(90 ${W-9} ${(TECHO+ALTO)/2})" x="${W-9}" y="${(TECHO+ALTO)/2}" class="rl-p-eje-tit" text-anchor="middle">% acumulado</text>
 ${pasos.map((p, i) => `<g><rect id="b${i}" x="${x(i) - barra / 2}" y="${yB(p.valor)}" width="${barra}" height="${ALTO - yB(p.valor)}" class="rl-p-barra${i < n80 ? "" : " cola"}"/>
-<text id="r${i}" x="${x(i)}" y="${ALTO + 8}" class="rl-p-rotulo" transform="rotate(-90 ${x(i)} ${ALTO + 8})">${p.rotulo}</text></g>`).join("")}
+${lineas(p.rotulo).map((l, k) => { const xx = x(i) + (k - (lineas(p.rotulo).length - 1) / 2) * 12;
+  return `<text id="r${i}_${k}" x="${xx}" y="${ALTO + 8}" class="rl-p-rotulo" transform="rotate(-90 ${xx} ${ALTO + 8})">${l}</text>` }).join("")}
+<text x="${x(i)}" y="${yB(p.valor) - 7}" class="rl-p-val" text-anchor="middle">${p.pct.toFixed(1)}</text></g>`).join("")}
 <line x1="${IZQ}" x2="${W - DER}" y1="${yP(80)}" y2="${yP(80)}" class="rl-p-umbral"/>
 <text x="${W - DER - 2}" y="${yP(80) - 6}" class="rl-p-umbral-txt" text-anchor="end">80 %</text>
 <path d="${curva}" class="rl-p-forro"/><path id="curva" d="${curva}" class="rl-p-curva"/>
@@ -154,8 +165,16 @@ body{margin:0;background:#fff}.rl{padding:12px}</style></head>
       };
       const cajas = [], rots = [];
       for (let i = 0; i < n; i++) {
-        rots.push(aVb(document.getElementById("r" + i)));
         cajas.push(aVb(document.getElementById("b" + i)));
+        /* Cada rótulo puede ser una línea o dos: se mide la unión de
+           las que haya, que es lo que ocupa de verdad. */
+        const trozos = [...document.querySelectorAll(`[id^="r${i}_"]`)].map(aVb);
+        rots.push({
+          x: Math.min(...trozos.map((t) => t.x)),
+          y: Math.min(...trozos.map((t) => t.y)),
+          width: Math.max(...trozos.map((t) => t.x + t.width)) - Math.min(...trozos.map((t) => t.x)),
+          height: Math.max(...trozos.map((t) => t.y + t.height)) - Math.min(...trozos.map((t) => t.y)),
+        });
       }
       const e = (s) => getComputedStyle(document.querySelector(s));
       return {
@@ -164,6 +183,10 @@ body{margin:0;background:#fff}.rl{padding:12px}</style></head>
         /* ¿La caja del contenedor deja ver todo o corta? */
         caja: document.querySelector(".rl-pareto").getBoundingClientRect().width,
         anchoSvg: svg.getBoundingClientRect().width,
+        tituloIzq: aVb(document.getElementById("ti")),
+        tituloDer: aVb(document.getElementById("td")),
+        ejeIzq: [...document.querySelectorAll('[id^="ei"]')].map(aVb),
+        ejeDer: [...document.querySelectorAll('[id^="ed"]')].map(aVb),
         barraCol: e(".rl-p-barra").fill,
         colaCol: e(".rl-p-barra.cola").fill,
         curvaCol: e(".rl-p-curva").stroke,
@@ -195,6 +218,20 @@ body{margin:0;background:#fff}.rl{padding:12px}</style></head>
     for (let i = 1; i < r.cajas.length; i++) {
       if (r.cajas[i - 1].x + r.cajas[i - 1].width > r.cajas[i].x + 0.5)
         fallas.push(`${donde}: las barras ${i - 1} y ${i} se tocan`);
+    }
+
+    /* 3c. LOS TÍTULOS DE EJE NO SE MONTAN SOBRE SUS PROPIOS NÚMEROS.
+       Es el error que se vio mirando la captura y que ninguna
+       comprobación tenía: «UNIDADES ROTAS» girado cruzaba por encima
+       del «125 mil». Dos textos que se solapan no son ilegibles a
+       medias: son ilegibles los dos. */
+    for (const [tit, ejes, lado] of [["ti", r.ejeIzq, "izquierdo"], ["td", r.ejeDer, "derecho"]]) {
+      const t = tit === "ti" ? r.tituloIzq : r.tituloDer;
+      for (const e of ejes) {
+        const pisa = t.x < e.x + e.width && t.x + t.width > e.x
+                  && t.y < e.y + e.height && t.y + t.height > e.y;
+        if (pisa) { fallas.push(`${donde}: el título del eje ${lado} se monta sobre sus números`); break }
+      }
     }
 
     /* 4. Las dos clases de barra se distinguen. */

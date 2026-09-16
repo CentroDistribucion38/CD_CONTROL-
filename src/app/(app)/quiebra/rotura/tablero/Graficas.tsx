@@ -198,28 +198,63 @@ export function Pareto({ datos, total, unidad = "und" }: {
     return <p className="rl-sin-datos">Hacen falta al menos dos máquinas con dato.</p>;
   }
 
-  const W = 1000, ALTO = 300;
-  /* EL PIE SE CALCULA DEL NOMBRE MÁS LARGO, no se escribe a mano. Con
-     130 fijos —que era lo que había— «SALIDA DE LAVADORA» salía como
-     «LIDA DE LAVADORA» y «DESEMPACADORA - LAVADORA» como «ADORA -
-     LAVADORA»: el SVG recorta lo que se sale del viewBox y no avisa.
-     Y no se arregla poniendo 200 fijos: el día que entre una máquina
-     con un nombre más largo vuelve a pasar, en silencio.
+  /* EL NOMBRE SE PARTE EN DOS POR EL GUION. «PASTEURIZADORA -
+     ETIQUETADORA» girado medía 240 unidades y el espacio de los
+     rótulos acababa siendo más alto que la gráfica: el cuadro se
+     volvía una torre donde lo que hay que mirar quedaba aplastado
+     arriba. Partido, ocupa la mitad y se lee igual, porque el guion ya
+     era la pausa natural del nombre. */
+  const enLineas = (r: string) => {
+    const p = r.split(" - ");
+    return p.length === 2 ? [p[0] + " -", p[1]] : [r];
+  };
+  const masLargo = Math.max(...vivos.flatMap((d) => enLineas(d.rotulo).map((l) => l.length)));
 
-     7.6 por carácter salió de MEDIRLO, no de estimarlo: con 6.6 el
-     arnés reportó que «PASTEURIZADORA - ETIQUETADORA» —29 caracteres—
-     se salía 19 unidades, y de ahí sale el número. El tope de 300 es
-     para que un nombre absurdo se corte él en vez de comerse la
-     gráfica entera. */
-  const masLargo = Math.max(...datos.map((d) => d.rotulo.length));
-  const PIE = Math.min(Math.max(90, Math.round(masLargo * 7.6) + 20), 300);
+  /* ------------------------------------------------------------------
+     LOS DOS EJES, que es lo que le faltaba y lo que hace que un pareto
+     sea un pareto y no dos dibujos encima del otro.
+
+     A LA IZQUIERDA, UNIDADES: cuánto se rompió en cada máquina. Sin esa
+     escala, las barras solo dicen «esta es más alta que aquella» y no
+     cuánto más.
+
+     A LA DERECHA, PORCENTAJE ACUMULADO: dónde va la curva. Es OTRA
+     medida —por eso va en su propio lado y con su propio título—; si
+     compartieran eje, la curva y las barras dirían que se pueden
+     comparar entre sí, y no se puede.
+
+     Es la única gráfica de este tablero con dos escalas, y la excepción
+     está justificada: en un pareto las dos series son la MISMA medida,
+     una en bruto y la otra acumulada en porcentaje. En cualquier otro
+     caso dos ejes son una trampa para el que mira.
+     ------------------------------------------------------------------ */
+  const W = 1000, ALTO = 250;
+  /* 78 y 56 de margen, no 62 y 48: con los anteriores el título girado
+     del eje se montaba encima de sus propios números —«UNIDADES ROTAS»
+     cruzaba el «125 mil»—. Se vio mirando la gráfica, no razonándola. */
+  const IZQ = 78, DER = 56, TECHO = 28;
+  const PIE = Math.min(Math.max(70, Math.round(masLargo * 7.6) + 22), 200);
   const H = ALTO + PIE;
-  const IZQ = 4, DER = 4;
   const ancho = (W - IZQ - DER) / vivos.length;
-  const barra = Math.min(ancho * 0.62, 58);
-  const tope = vivos[0].valor;
+  const barra = Math.min(ancho * 0.6, 54);
 
-  /* El acumulado, y en qué barra cruza el 80 %. */
+  /* LAS MARCAS DEL EJE SON NÚMEROS REDONDOS, y eso hay que buscarlo.
+     Partir el máximo en cuartos daba «250 mil · 188 mil · 125 mil ·
+     63 mil»: cifras que nadie compara de un vistazo porque no son de
+     las que uno tiene en la cabeza. Se escoge primero el PASO —1, 2 o
+     5 por una potencia de diez— y el tope sale de ahí. Con los datos
+     de hoy: 0 · 50 mil · 100 mil · 150 mil · 200 mil · 250 mil. */
+  const paso = (max: number) => {
+    const crudo = max / 5;
+    const p = 10 ** Math.floor(Math.log10(crudo));
+    for (const m of [1, 2, 2.5, 5, 10]) if (p * m >= crudo) return p * m;
+    return p * 10;
+  };
+  const salto = paso(vivos[0].valor);
+  const tope = Math.ceil(vivos[0].valor / salto) * salto;
+  const MARCAS: number[] = [];
+  for (let v = 0; v <= tope + 0.5; v += salto) MARCAS.push(v);
+
   let suma = 0;
   const pasos = vivos.map((d) => {
     suma += d.valor;
@@ -229,19 +264,51 @@ export function Pareto({ datos, total, unidad = "und" }: {
   const cuantasOchenta = cruce === -1 ? vivos.length : cruce + 1;
 
   const x = (i: number) => IZQ + i * ancho + ancho / 2;
-  const yBarra = (v: number) => ALTO - (v / tope) * (ALTO - 18);
-  const yPct = (p: number) => ALTO - (p / 100) * (ALTO - 18);
+  const yBarra = (v: number) => TECHO + (1 - v / tope) * (ALTO - TECHO);
+  const yPct = (p: number) => TECHO + (1 - p / 100) * (ALTO - TECHO);
 
   const curva = pasos.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yPct(p.acum).toFixed(1)}`).join("");
+
+  /* 206.075 → «206 mil». Siete cifras en el eje obligarían a un margen
+     el doble de ancho para un dato que solo sirve de referencia; el
+     número exacto de cada máquina está en la tabla de abajo. */
+  const corto = (v: number) =>
+    v === 0 ? "0"
+    : v >= 1000 ? `${Math.round(v / 1000).toLocaleString("es-CO")} mil`
+    : v.toLocaleString("es-CO");
 
   return (
     <div className="rl-pareto">
       <svg viewBox={`0 0 ${W} ${H}`} role="img"
            aria-label={`Pareto de rotura por máquina. ${cuantasOchenta} de ${vivos.length} máquinas suman el 80 % del total.`}>
-        {/* La rejilla del eje de porcentaje, recesiva. */}
-        {[25, 50, 75, 100].map((p) => (
-          <line key={p} x1={IZQ} x2={W - DER} y1={yPct(p)} y2={yPct(p)} className="rl-g-rejilla" />
+        {MARCAS.map((v) => (
+          <g key={v}>
+            <line x1={IZQ} x2={W - DER} y1={yBarra(v)} y2={yBarra(v)} className="rl-g-rejilla" />
+            {/* Izquierda: unidades */}
+            <text x={IZQ - 9} y={yBarra(v) + 3.5} className="rl-p-eje" textAnchor="end">
+              {corto(v)}
+            </text>
+          </g>
         ))}
+        {/* Derecha: porcentaje acumulado. Va en su propia tanda porque
+            sus marcas son otras —de veinticinco en veinticinco— y
+            colgarlas de las de la izquierda las ataría a un tope que no
+            es el suyo. */}
+        {[0, 25, 50, 75, 100].map((p) => (
+          <text key={p} x={W - DER + 9} y={yPct(p) + 3.5} className="rl-p-eje der" textAnchor="start">
+            {p} %
+          </text>
+        ))}
+
+        {/* Los títulos de cada eje, girados y pequeños: están para que
+            nadie tenga que adivinar qué mide cada lado. */}
+        <text transform={`rotate(-90 11 ${(TECHO + ALTO) / 2})`} x={11} y={(TECHO + ALTO) / 2}
+              className="rl-p-eje-tit" textAnchor="middle">unidades rotas</text>
+        <text transform={`rotate(90 ${W - 9} ${(TECHO + ALTO) / 2})`} x={W - 9} y={(TECHO + ALTO) / 2}
+              className="rl-p-eje-tit" textAnchor="middle">% acumulado</text>
+
+        {/* La línea del cero, que cierra las barras por abajo. */}
+        <line x1={IZQ} x2={W - DER} y1={ALTO} y2={ALTO} className="rl-p-base" />
 
         {pasos.map((p, i) => (
           <g key={p.clave}>
@@ -250,45 +317,51 @@ export function Pareto({ datos, total, unidad = "und" }: {
                   className={"rl-p-barra" + (i < cuantasOchenta ? "" : " cola")}>
               <title>{`${p.rotulo}: ${p.valor.toLocaleString("es-CO")} ${unidad} · ${p.pct.toFixed(1)} % · acumulado ${p.acum.toFixed(1)} %`}</title>
             </rect>
-            {/* El nombre, rotado. Es el precio de que el pareto sea
-                vertical, y se paga: un nombre girado se lee, uno
-                cortado en «PASTEURIZAD…» no. */}
-            <text x={x(i)} y={ALTO + 8} className="rl-p-rotulo"
-                  transform={`rotate(-90 ${x(i)} ${ALTO + 8})`}>{p.rotulo}</text>
+
+            {/* EL NÚMERO DE CADA BARRA, ENCIMA. Sin él hay que pasar el
+                cursor por cada una, y en el celular no hay cursor. */}
+            <text x={x(i)} y={yBarra(p.valor) - 7} className="rl-p-val" textAnchor="middle">
+              {p.pct.toFixed(1)}
+            </text>
+
+            {enLineas(p.rotulo).map((l, k, a) => {
+              const xx = x(i) + (k - (a.length - 1) / 2) * 12;
+              return (
+                <text key={k} x={xx} y={ALTO + 8} className="rl-p-rotulo"
+                      transform={`rotate(-90 ${xx} ${ALTO + 8})`}>{l}</text>
+              );
+            })}
           </g>
         ))}
 
-        {/* El umbral del 80 %, con su número pegado. */}
         <line x1={IZQ} x2={W - DER} y1={yPct(80)} y2={yPct(80)} className="rl-p-umbral" />
-        <text x={W - DER - 2} y={yPct(80) - 6} className="rl-p-umbral-txt" textAnchor="end">80 %</text>
+        <text x={W - DER - 4} y={yPct(80) - 6} className="rl-p-umbral-txt" textAnchor="end">80 %</text>
 
-        {/* LA CURVA VA DOS VECES, y no es un descuido. Encima va la
-            tinta; debajo, la misma línea más gruesa del color del papel.
-            Sin ese forro, la curva cruza por encima de las barras —que
-            son oscuras— y en el tema oficial la tinta azul sobre el rojo
-            oscuro daba 1.77 de contraste: la línea desaparecía justo en
-            las barras altas, que son las que importan. Con forro, la
-            curva se lee sobre cualquier cosa que le pongan debajo, y no
-            hay que escoger un color que funcione contra trece fondos. */}
+        {/* LA CURVA VA DOS VECES: la tinta encima y la misma línea más
+            gruesa del color del papel debajo. Sin ese forro, en el tema
+            oficial la tinta sobre el rojo oscuro daba 1.77 de contraste
+            y la curva desaparecía justo en las barras altas. */}
         <path d={curva} className="rl-p-forro" />
         <path d={curva} className="rl-p-curva" />
         {pasos.map((p, i) => (
-          <circle key={p.clave} cx={x(i)} cy={yPct(p.acum)} r={4} className="rl-p-punto">
+          <circle key={p.clave} cx={x(i)} cy={yPct(p.acum)} r={3.5} className="rl-p-punto">
             <title>{`Hasta ${p.rotulo}: ${p.acum.toFixed(1)} % del total`}</title>
           </circle>
         ))}
-        {/* Solo tres números en la curva: el primero, el del cruce y el
-            último. Uno por punto sería trece cifras encima de trece
-            barras, y entonces no se lee ninguna. */}
         {[0, cuantasOchenta - 1, pasos.length - 1]
           .filter((i, k, a) => i >= 0 && a.indexOf(i) === k)
           .map((i) => (
-            <text key={i} x={x(i)} y={yPct(pasos[i].acum) - 10}
+            <text key={i} x={x(i)} y={yPct(pasos[i].acum) - 9}
                   className="rl-p-acum" textAnchor="middle">
               {pasos[i].acum.toFixed(0)} %
             </text>
           ))}
       </svg>
+      <p className="rl-p-leyenda">
+        Eje izquierdo: <b>unidades rotas</b> por máquina —el número encima de cada barra es su
+        porcentaje del total—. Eje derecho: <b>% acumulado</b>, que es la línea. Las{" "}
+        {cuantasOchenta} barras oscuras son las que juntan el 80 %.
+      </p>
     </div>
   );
 }

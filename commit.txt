@@ -1,89 +1,60 @@
-Tablero de rotura: pareto de verdad, una lectura en palabras, y dos números que mentían
+Tablero de rotura: el pareto se puede mirar por máquina, envase o línea
 
-EMPIEZO POR LO GRAVE, que no era lo que se pidió: el tablero estaba
-mostrando cifras falsas y no se quejaba.
+«NO PUEDE SER QUE DE 13 SEAN 10 MI PARETO, IMPOSIBLE ATACAR 10
+PROBLEMAS DE UNA.» Tenía razón en el fondo y el reclamo destapó algo
+mejor que un error de cuenta: la cuenta estaba bien, la PREGUNTA estaba
+mal hecha.
 
-La tarjeta decía «1000 turnos sin firmar». No 998, no 1013: mil
-clavado. Un número así no sale de contar, sale de un tope — y era un
-tope. PostgREST, la capa por la que Supabase sirve las tablas, devuelve
-como mucho 1.000 filas si nadie le dice otra cosa. v_rotlinea_sin_firma
-tiene 1.790 filas en 2026: llegaban mil y el resto no existía para la
-pantalla.
+Medido sobre los 24.245 registros de 2026, cuántos hacen falta para
+juntar el 80 %:
 
-La misma trampa se estaba comiendo el pareto por máquina. Pedía 10.477
-filas —el desglose al grano diario— y recibía 1.000. Por eso se veían
-DOS máquinas de trece y el acumulado del detalle cerraba en 11,7 % en
-vez de 100 %. Con los datos completos son 13 máquinas y 1.889.816
-unidades.
+    por línea           3 de 4     (son cuatro: no dice mucho)
+    por envase          4 de 12    ← aquí SÍ se concentra
+    por línea + envase  6 de 17
+    por máquina        10 de 13    ← lo que estaba en pantalla
+    línea + máquina    31 de 52    (peor todavía)
 
-Lo peor de este error es que no se queja. No hay excepción ni fila
-roja: la consulta funciona, devuelve datos, y los datos son un pedazo.
-Una pantalla que se cae se arregla el mismo día; una que contesta de
-menos se cree durante meses. La regla que queda escrita, y vale para
-todo el proyecto: lo que se va a sumar se suma en la base.
+POR MÁQUINA NO SE CONCENTRA, Y NO ES CASUALIDAD. Las trece máquinas son
+las trece estaciones que TODAS las líneas tienen. Preguntar «cuál
+máquina» junta la desempacadora de la línea 1 con la de la 2, la 4 y la
+6 en una sola barra, y cuatro máquinas distintas promediadas dan
+siempre algo parecido a la media. De ahí salían las trece barras
+parejas: no de un error aritmético, sino de comparar cosas que no son
+comparables entre sí.
 
-EL PARETO. Las barras ya estaban ordenadas de mayor a menor, que es
-media receta. Lo que faltaba es lo que convierte un ranking en un
-pareto: la curva acumulada. Sin ella se ve cuál máquina rompe más; con
-ella se ve CUÁNTAS hacen falta para cubrir la mayoría, que es la
-pregunta con la que se decide dónde meter una hora de mantenimiento.
-Va vertical —un pareto se lee siguiendo una curva que sube; girado, esa
-curva baja y deja de significar lo mismo—, con la raya del 80 % y las
-barras cambiando de tono justo donde la curva la cruza, así que
-«cuántas máquinas importan» se responde contando barras oscuras.
+POR ENVASE SÍ: cuatro de doce hacen el 80 %, y Costeñita 175R sola pone
+el 36,5 %. Eso sí cabe en una orden de trabajo.
 
-Y LO QUE DICE ESE PARETO NO ES LO QUE UNO ESPERA, así que la lectura
-tampoco lo finge: la rotura NO está concentrada. De 10,9 % la primera a
-6,2 % la última, y hacen falta 10 de 13 máquinas para juntar el 80 %.
-No hay una máquina culpable, y un texto que dijera «concéntrate en la
-primera» mandaría a mantenimiento a perseguir un fantasma. Con esa
-forma, la causa suele ser algo que atraviesa toda la línea —el envase
-que entra, el manejo, la velocidad— y no una máquina desajustada.
+LO QUE SE HIZO, entonces, no fue arreglar la cuenta sino dejar escoger
+la pregunta: tres botones —por máquina, por envase, por línea— encima
+del pareto. El cuadro entero se recalcula, incluido el 80/20.
 
-LA LECTURA, que es lo otro que se pidió. Un bloque que escribe en
-palabras lo que dicen los números: la forma del pareto, el día que se
-salió del promedio, el vidrio que más se va, y aparte lo que se puede
-cerrar hoy. Las frases cambian según los datos, no son plantilla con
-huecos: si mañana una máquina se dispara, la lectura señala esa
-máquina; hoy dice que no la hay. Y si un número no da para afirmar, la
-frase no se pone.
+Y NO SE ESCOGE POR ÉL. Cuál corte importa depende de qué se pueda
+cambiar: si hay plata para negociar envase, manda el envase; si el
+turno tiene que ajustar una máquina, manda la máquina aunque no
+concentre. El botón está para que la pregunta la haga quien sabe la
+respuesta.
 
-Y LA TARJETA DE FIRMAS AHORA SEPARA DOS COSAS. El histórico de 2026
-entró por SQL desde el Excel: nadie lo firmó ni lo va a firmar, porque
-esos turnos pasaron hace meses. Contarlo como pendiente convierte la
-tarjeta en un 1.790 permanente, y una alarma que nunca se puede apagar
-deja de leerse a la semana. Lo que sí es un pendiente de verdad es un
-turno registrado EN LA APP sin firmar, y la marca que los separa ya
-existía sin inventarla: las filas importadas tienen registrado_por en
-nulo. Hoy: 1.790 históricos, 0 de la app.
+EL BLOQUE DEL 80/20 AHORA DICE LAS DOS COSAS. Cuando el corte no
+concentra, explica POR QUÉ no —lo de las estaciones compartidas— y
+señala el corte que sí, con su cifra: «donde sí se concentra es por
+envase: 4 de 12 hacen el 80 %». Es la diferencia entre «aquí no hay
+nada» y «aquí no, pero al lado sí».
 
-MEDIDO, y el arnés se equivocó dos veces antes de servir:
+EL UMBRAL DE «SE CUMPLE» ES QUE BASTE LA TERCERA PARTE, y no un 60 %
+inventado. No es un número mágico: es donde «unas pocas» deja de ser
+una forma de hablar y pasa a ser una lista que cabe en una orden de
+trabajo. Con 12 envases son 4 —y hacen falta 4—; con 13 máquinas serían
+4 y hacen falta 10.
 
- · .arnes/rl-pareto.mjs — 28 combinaciones (4 anchos × 7 temas) con las
-   13 máquinas y los 1.889.816 de verdad sacados de Postgres.
-   Comprueba que el acumulado cierre en 100,0 %, que las barras estén
-   ordenadas, que nada se salga del lienzo ni se encime, y los
-   contrastes en los siete temas.
+Y EL 20 % NUNCA BAJA DE DOS. Con 4 líneas el 20 % es 0,8, que
+redondeado da una sola: «la primera aporta el 36 %» no es un pareto, es
+el máximo.
 
- · Primer fallo del arnés: leía `color(srgb 0.86 0.69 0.71)` —de 0 a 1,
-   que es como Chromium devuelve lo que salió de un color-mix()— y lo
-   dividía entre 255. Reportó «no se distinguen» en los siete temas
-   sobre un dibujo que estaba bien. Una prueba que falla sin razón es
-   peor que no tenerla: enseña a ignorarla.
-
- · Segundo fallo, y este sí tapaba un error real: medía los rótulos con
-   getBBox(), que devuelve la caja ANTES del transform. Los nombres van
-   girados -90°, así que miraba 12 de alto donde había 190, y dio todo
-   verde sobre un dibujo en el que «SALIDA DE LAVADORA» salía como
-   «LIDA DE LAVADORA». Con getBoundingClientRect() convertido a
-   unidades del viewBox, lo cazó de una. El alto del pie ya no es un
-   130 escrito a mano sino una cuenta sobre el nombre más largo, y el
-   7.6 por carácter salió de esa medición.
-
- · La curva lleva forro: se dibuja dos veces, la tinta encima y la
-   misma línea más gruesa del color del papel debajo. Sin él, en el
-   tema oficial la tinta azul sobre el rojo oscuro daba 1.77 de
-   contraste y la curva desaparecía justo en las barras altas.
+El resto del cuadro no cambió: los dos ejes, los números encima de cada
+barra, la curva con forro y las comprobaciones de .arnes/rl-pareto.mjs
+—28 combinaciones, el acumulado cierra en 100 %, nada se sale ni se
+encima, los títulos de eje no pisan sus números— siguen pasando.
 
 Falta correr en Supabase, en este orden:
   supabase/migraciones/2026-09-rotura-linea-tablero-rapido.sql

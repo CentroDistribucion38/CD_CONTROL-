@@ -4,6 +4,7 @@ import { maestros, tablero } from "@/modulos/rotlinea/datos";
 import { letraDe } from "@/modulos/rotlinea/turnos";
 import "../rotura.css";
 import { Barras, Serie, Pareto, type Barra } from "./Graficas";
+import { EscogerCorte, CORTES, type Corte } from "./Corte";
 import { Periodo } from "./Periodo";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString("es-CO");
  * muy distintas, y el número solo no las distingue.
  */
 export default async function TableroRoturaPage({ searchParams }: {
-  searchParams: Promise<{ desde?: string; hasta?: string; linea?: string }>;
+  searchParams: Promise<{ desde?: string; hasta?: string; linea?: string; corte?: string }>;
 }) {
   const q = await searchParams;
   const hoy = hoyLocal();
@@ -88,7 +89,8 @@ export default async function TableroRoturaPage({ searchParams }: {
      que nadie calcula mirando las barras. */
   let acum = 0, cuantasMitad = 0;
   for (const x of maquinas) { acum += x.valor; cuantasMitad++; if (acum >= und / 2) break }
-  const tresPrimeras = maquinas.slice(0, 3).reduce((a, x) => a + x.valor, 0);
+
+
 
   /* ---------- Por línea y por envase ---------- */
   const porLinea = new Map<number, number>();
@@ -103,6 +105,64 @@ export default async function TableroRoturaPage({ searchParams }: {
   const envases: Barra[] = t.envases
     .map((r) => ({ clave: r.envase, rotulo: r.envase_nombre, valor: Number(r.und) }))
     .sort((a, b) => b.valor - a.valor);
+
+  /* ---------- EL 80/20, sobre lo que se esté comparando ----------
+
+     LA MISMA CUENTA SIRVE PARA LOS TRES CORTES, así que se escribe una
+     vez. Y se hace por LOS DOS LADOS de la regla, porque con uno solo
+     uno se puede creer lo que quiera:
+
+       · ¿cuánto aporta el 20 % que más rompe?   (debería ser ~80 %)
+       · ¿cuántos hacen falta para el 80 %?      (debería ser ~20 %)
+
+     EL 20 % SE REDONDEA HACIA ARRIBA Y NUNCA BAJA DE 2. Con 4 líneas,
+     el 20 % es 0,8: redondeado daría una sola, y «la primera aporta el
+     36 %» no es un pareto, es el máximo. Dos es el mínimo para que la
+     palabra «unas pocas» signifique algo. */
+  const analiza = (datos: Barra[], total: number) => {
+    const n = datos.length;
+    const cuantasVitales = Math.min(n, Math.max(2, Math.ceil(n * 0.2)));
+    const vitales = datos.slice(0, cuantasVitales);
+    const undVitales = vitales.reduce((a, x) => a + x.valor, 0);
+    const pctVitales = total > 0 ? (undVitales * 100) / total : 0;
+    let a = 0, n80 = 0;
+    for (const x of datos) { a += x.valor; n80++; if (a >= total * 0.8) break }
+    return {
+      n, vitales, cuantasVitales, undVitales, pctVitales, n80,
+      pctN80: n > 0 ? (n80 * 100) / n : 0,
+      /* SE CUMPLE cuando para el 80 % basta con la tercera parte. No es
+         un número mágico: es donde «unas pocas» deja de ser una forma
+         de hablar y pasa a ser una lista que cabe en una orden de
+         trabajo. Con 12 envases son 4; con 13 máquinas serían 4 y hacen
+         falta 10. */
+      seCumple: n > 0 && n80 <= Math.max(2, Math.ceil(n / 3)),
+    };
+  };
+
+  /* ---------- QUÉ SE COMPARA ---------- */
+  const corte: Corte = CORTES.some((c) => c.id === q.corte)
+    ? (q.corte as Corte) : "maquina";
+  /* El artículo va en la tabla y no se arma con un if en la plantilla:
+     «el 77 % de las máquinas» y «el 33 % de los envases» son la misma
+     frase con dos géneros, y resolverlo en el sitio donde se escribe es
+     lo que evita el «de lo/la/los» que sale de concatenar. */
+  const DATOS: Record<Corte, { datos: Barra[]; uno: string; varios: string; las: string }> = {
+    maquina: { datos: maquinas, uno: "máquina", varios: "máquinas", las: "las máquinas" },
+    envase:  { datos: envases,  uno: "envase",  varios: "envases",  las: "los envases" },
+    linea:   { datos: lineas,   uno: "línea",   varios: "líneas",   las: "las líneas" },
+  };
+  const { datos: paretoDatos, uno, varios, las } = DATOS[corte];
+  const A = analiza(paretoDatos, und);
+
+  /* EL CORTE QUE SÍ CONCENTRA, para poder decírselo a quien está
+     mirando el que no. Es la diferencia entre «aquí no hay nada» y
+     «aquí no, pero al lado sí». */
+  const otros = CORTES
+    .filter((c) => c.id !== corte)
+    .map((c) => ({ ...c, a: analiza(DATOS[c.id].datos, und), n: DATOS[c.id].varios }))
+    .filter((c) => c.a.seCumple && c.a.n >= 5)
+    .sort((x, y) => x.a.n80 / x.a.n - y.a.n80 / y.a.n);
+  const mejor = otros[0];
 
   /* ---------- La serie ---------- */
   const porDia = new Map<string, number>();
@@ -197,11 +257,12 @@ export default async function TableroRoturaPage({ searchParams }: {
       <section className="rl-tarj">
         <div className="rl-t-cab">
           <div>
-            <h2>¿Cuál máquina se come el envase?</h2>
+            <h2>¿Por dónde se está yendo el envase?</h2>
             <p>
-              Unidades rotas por máquina en el período, de mayor a menor. Es la pregunta que se
-              hace con esto: no cuánto se rompió, sino <b>dónde</b>.
+              Pareto de las unidades rotas en el período. La pregunta no es cuánto se rompió,
+              sino <b>dónde meter la mano</b> — y eso depende de qué se compare.
             </p>
+            <EscogerCorte corte={corte} />
           </div>
           {maquinas.length > 0 && und > 0 && (
             <div className="rl-t-clave">
@@ -213,14 +274,70 @@ export default async function TableroRoturaPage({ searchParams }: {
             </div>
           )}
         </div>
-        <Pareto datos={maquinas} total={und} />
-        {maquinas.length >= 3 && und > 0 && (
-          <p className="rl-t-pie">
-            Las tres primeras suman <b>{fmt(tresPrimeras)}</b> unidades —{" "}
-            <b>{((tresPrimeras * 100) / und).toFixed(1)} %</b> del total del período. Ahí es
-            donde una hora de mantenimiento rinde más que en las otras doce juntas.
-          </p>
+
+        {/* ---------- EL 80/20, en cifras y con veredicto ----------
+            Va ARRIBA del pareto y no debajo: es la pregunta con la que
+            se entra al cuadro —«¿dónde meto la mano?»— y la respuesta
+            tiene que estar antes de las barras, no después de
+            estudiarlas. */}
+        {paretoDatos.length >= 3 && und > 0 && (
+          <div className={"rl-8020" + (A.seCumple ? " si" : " no")}>
+            <div className="rl-8020-cifras">
+              <div className="rl-8020-c">
+                <span className="rl-8020-r">El 20 % que más rompe</span>
+                <b>{A.pctVitales.toFixed(1)} %</b>
+                <i>{A.cuantasVitales} de {A.n} {varios} · {fmt(A.undVitales)} unidades</i>
+              </div>
+              <div className="rl-8020-flecha" aria-hidden>·</div>
+              <div className="rl-8020-c">
+                <span className="rl-8020-r">Para juntar el 80 %</span>
+                <b>{A.n80} de {A.n}</b>
+                <i>o sea el {A.pctN80.toFixed(0)} % de {las}</i>
+              </div>
+            </div>
+
+            <p className="rl-8020-fallo">
+              {A.seCumple ? (
+                <>
+                  <b>Se cumple el 80/20.</b> Con {A.n80} {A.n80 === 1 ? uno : varios} de {A.n} se
+                  cubre el 80 % de todo lo que se rompe. Esa es la lista corta, y cabe en una
+                  orden de trabajo.
+                </>
+              ) : (
+                <>
+                  <b>Por {uno} no se cumple el 80/20.</b> Para llegar al 80 % hacen falta{" "}
+                  <b>{A.n80} de {A.n}</b>, y diez frentes a la vez no son un plan.
+                  {corte === "maquina" && (
+                    <> Y no es que la cuenta esté mal: las {A.n} máquinas son las estaciones que
+                    <b> todas las líneas tienen</b>, así que esta barra junta la desempacadora de
+                    la línea 1 con la de la 2, la 4 y la 6. Cuatro máquinas distintas promediadas
+                    dan siempre algo parecido a la media — por eso salen parejas.</>
+                  )}
+                  {mejor && (
+                    <> Donde sí se concentra es <b>por {DATOS[mejor.id].uno}</b>:{" "}
+                    <b>{mejor.a.n80} de {mejor.a.n}</b> {DATOS[mejor.id].varios} hacen el 80 %,
+                    y el primero solo pone{" "}
+                    <b>{((DATOS[mejor.id].datos[0].valor * 100) / und).toFixed(1)} %</b>. Ese es
+                    el frente por el que se ataca. Cámbialo aquí arriba y lo ves.</>
+                  )}
+                </>
+              )}
+            </p>
+
+            {/* La lista corta. Aunque no se cumpla el 80/20, si hay que
+                empezar por algún lado se empieza por estos. */}
+            <ol className="rl-8020-lista">
+              {A.vitales.map((x) => (
+                <li key={x.clave}>
+                  <span>{x.rotulo}</span>
+                  <b>{((x.valor * 100) / und).toFixed(1)} %</b>
+                </li>
+              ))}
+            </ol>
+          </div>
         )}
+        <Pareto datos={paretoDatos} total={und} />
+
       </section>
 
       <Lectura maquinas={maquinas} total={und} dias={diasConDato} serie={serie}

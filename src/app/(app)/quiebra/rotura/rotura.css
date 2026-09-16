@@ -692,7 +692,22 @@
    única con un eje de nombres.
    ================================================================== */
 .rl-pareto { overflow-x: auto; padding-bottom: 4px }
-.rl-pareto svg { display: block; width: 100%; min-width: 660px; height: auto }
+/* EL TOPE DE ANCHO NO ES CAPRICHO: es lo que evita que el cuadro se
+   vuelva una torre. El viewBox mide 1000 de ancho; si el svg se estira
+   a 1700 px, TODO se multiplica por 1,7 —el alto, la letra de los
+   rótulos, los números— y lo que se diseñó como una gráfica de 380 px
+   sale de 650 con letras de 19 px. Tapado en 1000, una unidad del
+   viewBox es un píxel y la gráfica se ve del tamaño que se dibujó.
+   Centrado, porque a partir de ahí sobra sitio a los lados. */
+.rl-pareto svg {
+  display: block; width: 100%; max-width: 1000px; min-width: 620px;
+  height: auto; margin: 0 auto;
+}
+.rl-p-leyenda {
+  margin: 10px auto 0; max-width: 1000px;
+  font-size: 12px; color: var(--rl-gris); line-height: 1.5;
+}
+.rl-p-leyenda b { color: var(--rl-tinta); font-weight: 700 }
 
 .rl-p-barra { fill: var(--rl-dato) }
 /* LA COLA, más clara. Es la mitad del mensaje del pareto: las oscuras
@@ -717,12 +732,45 @@
 /* Los puntos llevan el mismo forro, por el mismo motivo: los de las
    primeras máquinas caen justo sobre las barras más altas. */
 .rl-p-punto { fill: var(--rl-tinta); stroke: var(--rl-papel); stroke-width: 1.8 }
-.rl-p-acum  { fill: var(--rl-tinta); font: 700 12px var(--rl-titulo) }
+/* CON FORRO, igual que la curva: el primer punto del acumulado cae
+   sobre la barra más alta, que es oscura, y sin él el «11 %» se perdía
+   dentro del rojo. `paint-order: stroke` pinta el borde ANTES que el
+   relleno, así que el trazo grueso del papel queda detrás de la letra
+   en vez de comérsela. */
+.rl-p-acum {
+  fill: var(--rl-tinta); font: 700 12px var(--rl-titulo);
+  stroke: var(--rl-papel); stroke-width: 3.5; paint-order: stroke fill;
+}
+.rl-p-val { paint-order: stroke fill; stroke: var(--rl-papel); stroke-width: 3 }
 
 .rl-p-rotulo {
-  fill: var(--rl-tinta); font: 600 11px var(--rl-texto);
+  fill: var(--rl-tinta); font: 600 10.5px var(--rl-texto);
   text-anchor: end; dominant-baseline: middle;
 }
+/* El porcentaje encima de cada barra. En tinta y no en el color del
+   dato: un número escrito del color de la barra se lee peor y repite
+   lo que la barra ya dice con su alto. */
+.rl-p-val {
+  fill: var(--rl-tinta); font: 700 11px var(--rl-titulo);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Los dos ejes ----------
+   EN GRIS Y PEQUEÑOS, a propósito. Una escala está para poder estimar
+   —«esto ronda las doscientas mil»—, no para leerse: si compite en peso
+   con las barras, se mira el eje en vez del dato. El de la derecha va
+   del color de la curva para que se sepa de un vistazo cuál escala es
+   de cuál serie, que es el único riesgo real de tener dos. */
+.rl-p-eje {
+  fill: var(--rl-gris); font: 600 10px var(--rl-texto);
+  font-variant-numeric: tabular-nums;
+}
+.rl-p-eje.der { fill: var(--rl-tinta) }
+.rl-p-eje-tit {
+  fill: var(--rl-gris); font: 700 9px var(--rl-texto);
+  letter-spacing: .12em; text-transform: uppercase;
+}
+.rl-p-base { stroke: var(--rl-linea); stroke-width: 1.5 }
 
 /* ====================== La lectura ====================== */
 .rl-lectura {
@@ -763,4 +811,107 @@
 @media (max-width: 620px) {
   .rl-lectura { padding: 16px }
   .rl-l-lista li { font-size: 13.5px }
+}
+
+/* ====================== El 80/20 ======================
+
+   LAS DOS CIFRAS JUNTAS Y DEL MISMO TAMAÑO, porque son las dos caras de
+   la misma regla y con una sola se puede creer lo que uno quiera. «El
+   20 % que más rompe aporta el 29,6 %» y «para el 80 % hacen falta 10
+   de 13» dicen lo mismo por los dos lados; separadas, cada una se
+   puede leer como un dato suelto.
+
+   EL COLOR DEL BORDE DICE EL VEREDICTO ANTES DE LEER. Verde cuando se
+   cumple —hay dónde meter la mano—, ámbar cuando no —no la hay, y eso
+   también es una respuesta, no un error—. NO ES ROJO: que la rotura
+   esté repartida no es una falla del dato ni de la planta, es una
+   característica del proceso, y pintarla de alarma haría que se
+   leyera como un problema del tablero.
+   ==================================================================== */
+.rl-8020 {
+  grid-column: 1 / -1; margin-top: 4px;
+  background: var(--rl-fondo); border-radius: 3px; padding: 15px 17px;
+  box-shadow: inset 3px 0 0 var(--rl-gris);
+}
+.rl-8020.si { box-shadow: inset 3px 0 0 var(--rl-bien) }
+.rl-8020.no { box-shadow: inset 3px 0 0 var(--rl-dato) }
+
+.rl-8020-cifras { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap }
+.rl-8020-c { min-width: 0 }
+.rl-8020-r {
+  display: block; font: 700 9.5px var(--rl-texto); letter-spacing: .13em;
+  text-transform: uppercase; color: var(--rl-gris);
+}
+.rl-8020-c b {
+  display: block; font: 900 27px/1.05 var(--rl-titulo); color: var(--rl-tinta);
+  margin: 5px 0 3px; font-variant-numeric: tabular-nums;
+}
+.rl-8020-c i { font-style: normal; font-size: 12px; color: var(--rl-gris) }
+.rl-8020-flecha { color: var(--rl-linea); font-size: 26px; line-height: 1; padding-bottom: 14px }
+
+.rl-8020-fallo {
+  margin: 12px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--rl-tinta);
+  max-width: 78ch;
+}
+
+/* LAS DE ARRIBA, NUMERADAS. Aquí la numeración sí dice algo —es un
+   ranking, y el orden es la información—, al contrario que esos 01/02/03
+   decorativos que no ordenan nada. */
+.rl-8020-lista {
+  margin: 12px 0 0; padding: 0; list-style: none;
+  display: flex; gap: 8px; flex-wrap: wrap; counter-reset: v;
+}
+.rl-8020-lista li {
+  counter-increment: v;
+  display: flex; align-items: baseline; gap: 8px;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  padding: 7px 11px; min-width: 0;
+}
+.rl-8020-lista li::before {
+  content: counter(v); font: 800 10px var(--rl-titulo); color: var(--rl-sobre);
+  background: var(--rl-dato); border-radius: 50%;
+  width: 16px; height: 16px; display: grid; place-items: center; flex: none;
+  align-self: center;
+}
+.rl-8020-lista span {
+  font: 600 12.5px var(--rl-texto); color: var(--rl-tinta);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rl-8020-lista b {
+  font: 800 13px var(--rl-titulo); color: var(--rl-tinta);
+  font-variant-numeric: tabular-nums; margin-left: auto;
+}
+
+@media (max-width: 620px) {
+  .rl-8020-flecha { display: none }
+  .rl-8020-cifras { gap: 14px }
+  .rl-8020-c b { font-size: 23px }
+  .rl-8020-lista li { width: 100% }
+}
+
+/* ---------- Qué se compara en el pareto ----------
+   VA PEGADO AL TÍTULO DE LA TARJETA, no arriba con el período: no filtra
+   datos —el período y la línea sí—, cambia la PREGUNTA que hace este
+   cuadro. Mezclarlo con los filtros haría creer que recorta algo. */
+.rl-cortes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 11px }
+.rl-cortes button {
+  min-height: 32px; padding: 0 12px; cursor: pointer; border-radius: 3px;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  font: 700 12px var(--rl-titulo); color: var(--rl-gris);
+}
+.rl-cortes button:hover { border-color: var(--rl-ojo); color: var(--rl-tinta) }
+.rl-cortes button.on {
+  background: var(--rl-grupo); color: #fff; border-color: var(--rl-grupo);
+}
+/* Mientras cambia, la rayita que corre — igual que en el período. */
+.rl-cortes { position: relative }
+.rl-cortes.cargando::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 2px;
+  border-radius: 2px;
+  background-image: linear-gradient(90deg, transparent, var(--rl-grupo), transparent);
+  background-size: 40% 100%; background-repeat: no-repeat;
+  animation: rl-corre 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rl-cortes.cargando::after { animation: none; background-position: 50% 0 }
 }
