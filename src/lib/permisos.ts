@@ -82,9 +82,15 @@ export const misPermisos = cache(async function misPermisos(): Promise<Permisos>
      Existen para la excepción: el de portería que además revisa el
      maestro. Sin esto habría que inventarle un rol para él solo, y la
      lista de roles se vuelve una lista de personas.
-     SUMAN Y NUNCA RESTAN: quitar un permiso se hace en el rol, que es
-     donde se ve a quién más afecta. Si la columna todavía no existe
-     —falta correr 03-usuarios.sql— queda vacío y todo sigue igual. */
+     MANDAN SOBRE EL ROL, hacia arriba y hacia abajo. Antes solo sumaban
+     —«quitar se hace en el rol»— y eso obligaba a inventarle un rol
+     propio a la persona que necesita ver UNA pantalla menos que sus
+     compañeros, que es justo lo que los roles venían a evitar. Ahora lo
+     que se le pone a una persona en /admin/usuarios es lo que vale para
+     esa pantalla, y lo que no se le toca sigue saliendo de su rol.
+
+     Si la columna todavía no existe —falta correr 03-usuarios.sql—
+     queda vacío y todo sigue igual. */
   const extra = (perfilR.data as { permisos_extra?: Record<string, Nivel> } | null)
     ?.permisos_extra ?? {};
 
@@ -112,13 +118,21 @@ export const misPermisos = cache(async function misPermisos(): Promise<Permisos>
     if (p.rol === rol) mapa.set(p.seccion, p.nivel);
   }
 
-  /* El más alto de los dos: el del rol y el extra de la persona. */
-  const PESO: Record<Nivel, number> = { ninguno: 0, ver: 1, editar: 2 };
+  /* LO DE LA PERSONA MANDA; lo que no se le tocó sale de su rol.
+     `extra[ruta]` puede valer "ninguno" a propósito: es cómo se le quita
+     a una sola persona una pantalla que su rol sí da.
+
+     UN ROL QUE ADMINISTRA LA PLATAFORMA SIGUE VIÉNDOLO TODO, y eso va
+     ANTES que cualquier cosa suelta. No es un descuido: si se le pudiera
+     quitar Administración a un administrador, el último que quedara
+     podría encerrarse afuera y ya nadie podría devolvérselo. Quien manda
+     entra siempre; para que alguien deje de mandar se le cambia el rol,
+     que es una decisión visible. */
   const nivel = (ruta: string): Nivel => {
     if (manda) return "editar";
-    const delRol = mapa.get(ruta) ?? "ninguno";
-    const suyo = extra[ruta] ?? "ninguno";
-    return PESO[suyo] > PESO[delRol] ? suyo : delRol;
+    const suyo = extra[ruta];
+    if (suyo) return suyo;
+    return mapa.get(ruta) ?? "ninguno";
   };
   const puedeVer = (ruta: string) => nivel(ruta) !== "ninguno";
   const puedeEditar = (ruta: string) => nivel(ruta) === "editar";

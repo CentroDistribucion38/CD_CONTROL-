@@ -173,7 +173,7 @@ export async function POST(req: Request) {
   /* Los permisos extra tienen que ser rutas reales y niveles reales: sin
      esto, un typo deja un permiso que no aplica a nada y parece dado. */
   for (const [ruta, nivel] of Object.entries(extra)) {
-    if (nivel !== "ver" && nivel !== "editar") {
+    if (nivel !== "ver" && nivel !== "editar" && nivel !== "ninguno") {
       return NextResponse.json({ error: `Nivel inválido en ${ruta}.` }, { status: 400 });
     }
   }
@@ -432,11 +432,13 @@ export async function PUT(req: Request) {
     }
   }
 
-  /* Los permisos extra tienen que ser niveles reales: sin esto, un typo
-     deja un permiso que no aplica a nada y parece dado. */
+  /* Los permisos de la persona tienen que ser niveles reales: sin esto,
+     un typo deja un permiso que no aplica a nada y parece dado.
+     «ninguno» es un valor VÁLIDO y no una ausencia: es cómo se le quita
+     a una sola persona una pantalla que su rol sí le da. */
   if (extra !== null) {
     for (const [ruta, nivel] of Object.entries(extra)) {
-      if (nivel !== "ver" && nivel !== "editar") {
+      if (nivel !== "ver" && nivel !== "editar" && nivel !== "ninguno") {
         return NextResponse.json({ error: `Nivel inválido en ${ruta}.` }, { status: 400 });
       }
     }
@@ -489,7 +491,7 @@ export async function PUT(req: Request) {
       ...(extra !== null ? { permisos_extra: extra } : {}),
     })
     .eq("id", id)
-    .select("id, usuario, nombre, rol")
+    .select("id, usuario, nombre, rol, permisos_extra")
     .maybeSingle();
 
   if (ePerfil || !despues) {
@@ -509,6 +511,13 @@ export async function PUT(req: Request) {
     id: despues.id,
     nombre: despues.nombre,
     usuario: despues.usuario,
+    /* SE DEVUELVE CÓMO QUEDÓ, no solo que salió bien. La pantalla pinta
+       esto en la fila sin esperar a volver a consultar: así lo que se ve
+       después de guardar es lo que la BASE dice que quedó, no lo que el
+       navegador cree que mandó. Si un trigger cambiara algo por su
+       cuenta, se vería aquí mismo. */
+    rol: despues.rol,
+    permisos_extra: despues.permisos_extra ?? {},
     antes: { nombre: antes.nombre, usuario: antes.usuario },
     cambioUsuario: cambiaUsuario,
     cambioRol: rol !== null && rol !== antes.rol,

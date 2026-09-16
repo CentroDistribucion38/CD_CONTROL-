@@ -21,8 +21,9 @@
        diecisiete casillas quepan sin salirse por los lados.
      · Y que el panel no se cuele cuando NADIE está en edición: una fila
        de más en una tabla es una fila que alguien va a intentar leer.
-     · Que el rótulo «el rol ya da» se lea —es letra de 10,5 px— y que al
-       aparecer no descuadre la rejilla ni empuje los botones fuera.
+     · Que la letra chica de cada renglón —«sale del rol · editar», 10,5
+       px— se lea sobre el panel en los siete temas, y que el renglón de
+       tres botones no descuadre la rejilla ni los empuje fuera.
    ===================================================================== */
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
@@ -50,22 +51,26 @@ const MODULOS = [
 /* La mitad de las secciones se pintan como «el rol ya da», que es el
    caso realista de un administrador: su rol le da casi todo y las
    extra son la excepción. */
-const seccion = (nombre, delRol) => `
-  <div class="us-sec${delRol ? " ya" : ""}">
-    <span>${nombre}${delRol ? `<em class="us-yatiene">el rol ya da · ${delRol}</em>` : ""}</span>
-    <div class="us-niveles">
-      <button${delRol ? " disabled" : ""}>Ver</button>
-      <button class="on"${delRol === "editar" ? " disabled" : ""}>Editar</button>
+const seccion = (nombre, res, aMano) => `
+  <div class="us-sec n-${res}">
+    <span class="us-res ${res}">${res === "ninguno" ? "sin acceso" : res}</span>
+    <span class="us-nom">${nombre}<em>${aMano ? "a mano · el rol da nada" : "sale del rol · editar"}</em></span>
+    <div class="us-niveles tres">
+      <button${aMano === "ninguno" ? ' class="on"' : ""}>Sin acceso</button>
+      <button${aMano === "ver" ? ' class="on"' : ""}>Ver</button>
+      <button${aMano === "editar" ? ' class="on"' : ""}>Editar</button>
     </div>
   </div>`;
 
 const panel = `
 <tr class="us-panel"><td colspan="6">
-  <p class="us-rot">Pantallas de Santiago Leal<em> — se suman a las de su rol</em></p>
-  <p class="us-dice">Toca el nivel otra vez para quitarlo.</p>
+  <p class="us-rot">A qué entra Santiago Leal<em> — y a qué no</em></p>
+  <p class="us-dice">A la izquierda, en qué queda cada pantalla.</p>
+  <p class="us-resumen">Entra a <b>12 de 17</b> pantallas. 5 están puestas a mano.</p>
   <div class="us-modulos">
     ${MODULOS.map((m) => `<div class="us-mod"><b style="border-color:#E4002B">${m.n}</b>
-      ${m.s.map((x, i) => seccion(x, i % 2 === 0 ? "editar" : null)).join("")}</div>`).join("")}
+      ${m.s.map((x, i) => seccion(x, ["editar", "ver", "ninguno"][i % 3],
+          i % 3 === 2 ? "ninguno" : null)).join("")}</div>`).join("")}
   </div>
 </td></tr>`;
 
@@ -194,20 +199,20 @@ for (const p of PANTALLAS) {
    mide tema por tema, que es la única forma de saberlo. */
 const TEMAS = [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"];
 const pag = await navegador.newPage({ viewport: { width: 1440, height: 900 } });
-console.log("\ntema      «el rol ya da» sobre el panel");
+console.log("\ntema      la letra chica del renglón, sobre el panel");
 for (const t of TEMAS) {
   await pag.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${rl}${us}
     html,body{margin:0;background:#EEF1F5}main{padding:16px}</style></head>
     <body><div class="sh"${t ? ` data-tema="${t}"` : ""}><main>${tabla(true, 17)}</main></div></body></html>`);
   const m = await pag.evaluate(() => {
     const g = (s, p) => { const e = document.querySelector(s); return e ? getComputedStyle(e).getPropertyValue(p) : "" };
-    return { txt: g(".us-yatiene", "color"), fondo: g(".us-panel > td", "background-color") };
+    return { txt: g(".us-sec .us-nom em", "color"), fondo: g(".us-panel > td", "background-color") };
   });
   const c = contraste(m.txt, m.fondo);
   const nombre = t ?? "oficial";
   console.log(`${nombre.padEnd(9)} ${c}`);
   if (c < 4.5)
-    fallas.push(`tema ${nombre}: «el rol ya da» contrasta ${c} sobre el panel (mínimo 4.5)`);
+    fallas.push(`tema ${nombre}: la letra chica del renglón contrasta ${c} sobre el panel (mínimo 4.5)`);
 }
 await pag.close();
 await navegador.close();

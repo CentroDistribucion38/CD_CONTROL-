@@ -25,7 +25,9 @@ import { useConfirmar } from "@/components/Confirmar";
 type Persona = {
   id: string; usuario: string | null; nombre: string | null; rol: string;
   activo: boolean; clave_provisional: boolean;
-  permisos_extra: Record<string, "ver" | "editar"> | null;
+  /** Lo de ESTA persona. Manda sobre el rol, y «ninguno» es un valor:
+      es cómo se le quita una pantalla que su rol sí le da. */
+  permisos_extra: Record<string, Nivel> | null;
 };
 type Rol = { clave: string; nombre: string; manda: boolean };
 /** Una línea de rol_permisos: qué le da un rol a una sección. */
@@ -36,75 +38,118 @@ type Modulo = {
 };
 
 /**
- * EL SELECTOR DE PANTALLAS, UNO SOLO PARA LOS DOS SITIOS.
+ * A QUÉ TIENE ACCESO ESTA PERSONA, Y A QUÉ NO.
  *
- * Lo usan el formulario de crear y el editor de una fila. Estaba escrito
- * solo en el de crear, así que al editar no había forma de tocar las
- * pantallas: la columna las MOSTRABA —diecisiete chapas apiladas que
- * reventaban la fila— y no dejaba cambiar ninguna. Enseñar algo que no
- * se puede tocar es lo peor de los dos mundos: ocupa sitio y no sirve.
+ * NO ES UN SELECTOR DE EXTRAS, aunque los extras se toquen aquí. Es la
+ * tabla de acceso: pantalla por pantalla, qué le da el rol, qué se le
+ * dio suelto, y —lo que de verdad importa— en qué queda. La versión
+ * anterior solo enseñaba las casillas de lo suelto, así que para saber
+ * si alguien ENTRA a una pantalla había que abrir /admin/roles en otra
+ * pestaña, mirar su rol, y sumarlo de cabeza.
+ *
+ * EL RESULTADO VA A LA IZQUIERDA y es lo primero de cada renglón: se
+ * baja la vista por la columna y se ve de un golpe a qué entra y a qué
+ * no, que es la pregunta que trae a alguien a esta pantalla.
+ *
+ * LOS EXTRA SUMAN Y NUNCA RESTAN. Por eso un extra por debajo de lo que
+ * el rol ya da no cambia nada —dar «ver» a quien el rol deja «editar» es
+ * un permiso que se ve puesto y no hace nada—, y esos niveles se apagan.
+ * Si uno YA estaba puesto sigue tocándose, para poder quitarlo: un botón
+ * apagado del que no se puede salir es una trampa.
  */
-function Pantallas({ catalogo, valor, cambiar, delRol }: {
+type Nivel = "ninguno" | "ver" | "editar";
+const NIVELES: Nivel[] = ["ninguno", "ver", "editar"];
+const ROTULO: Record<Nivel, string> = { ninguno: "Sin acceso", ver: "Ver", editar: "Editar" };
+
+function Pantallas({ catalogo, valor, cambiar, delRol, nombreRol, mandaElRol }: {
   catalogo: Modulo[];
-  valor: Record<string, "ver" | "editar">;
-  cambiar: (v: Record<string, "ver" | "editar">) => void;
-  /** Lo que el rol elegido ya da, por ruta. Vacío = el rol no da nada. */
-  delRol: Record<string, "ver" | "editar">;
+  /** Lo que se le puso a ESTA persona. Lo que no está aquí sale del rol. */
+  valor: Record<string, Nivel>;
+  cambiar: (v: Record<string, Nivel>) => void;
+  /** Lo que el rol elegido da, por ruta. Sin la ruta = el rol no la da,
+      y por eso el valor lleva `undefined`: sin él, TypeScript da por
+      hecho que toda ruta está y el `?? "ninguno"` queda como código
+      muerto que nunca corre —cuando es justo el caso más común—. */
+  delRol: Record<string, "ver" | "editar" | undefined>;
+  nombreRol: string;
+  /** El rol administra la plataforma: entra a todo y esto no aplica. */
+  mandaElRol: boolean;
 }) {
+  const todas = catalogo.flatMap((m) => m.secciones.map((s) => s.ruta));
+  /* LO DE LA PERSONA MANDA; lo que no se le tocó sale del rol. Es la
+     MISMA regla que aplica el servidor en lib/permisos.ts, escrita
+     igual: si las dos se separaran, esta pantalla mostraría un acceso
+     que la aplicación no da. */
+  const final = (ruta: string): Nivel =>
+    mandaElRol ? "editar" : (valor[ruta] ?? delRol[ruta] ?? "ninguno");
+
+  const entra = todas.filter((r) => final(r) !== "ninguno").length;
+  const tocadas = todas.filter((r) => valor[r] && valor[r] !== (delRol[r] ?? "ninguno")).length;
+
   return (
-    <div className="us-modulos">
-      {catalogo.map((m) => (
-        <div key={m.id} className="us-mod">
-          <b style={{ borderColor: m.acento }}>{m.nombre}</b>
-          {m.secciones.map((sec) => {
-            const n = valor[sec.ruta];
-            const rol = delRol[sec.ruta];
-            /* LOS EXTRA SUMAN Y NUNCA RESTAN. Así que un extra por
-               debajo de lo que ya da el rol no hace absolutamente nada:
-               dar «ver» a quien el rol ya deja «editar» es un permiso
-               que se ve puesto y no cambia nada, y después alguien lo
-               lee como si sí. Esos se apagan.
-               Pero si YA está puesto, se puede tocar para quitarlo: un
-               botón apagado del que no se puede salir sería una trampa. */
-            const sobra = (x: "ver" | "editar") =>
-              rol === "editar" || (rol === "ver" && x === "ver");
-            return (
-              <div key={sec.ruta} className={"us-sec" + (rol ? " ya" : "")}>
-                <span>
-                  {sec.nombre}
-                  {rol && <em className="us-yatiene">el rol ya da · {rol}</em>}
-                </span>
-                <div className="us-niveles">
-                  {(["ver", "editar"] as const).map((x) => {
-                    const apagado = sobra(x) && n !== x;
-                    return (
+    <>
+      <p className="us-resumen">
+        {mandaElRol ? (
+          <>Su rol <b>{nombreRol}</b> administra la plataforma: <b>entra a todo</b> y
+            nada de aquí le aplica. Para cerrarle una pantalla hay que darle otro rol.</>
+        ) : (
+          <>Entra a <b>{entra} de {todas.length}</b> pantallas.
+            {tocadas > 0
+              ? <> {tocadas} {tocadas === 1 ? "está puesta" : "están puestas"} a mano;
+                  el resto sale de su rol <b>{nombreRol}</b>.</>
+              : <> Todas salen de su rol <b>{nombreRol}</b>.</>}</>
+        )}
+      </p>
+      <div className={"us-modulos" + (mandaElRol ? " manda" : "")}>
+        {catalogo.map((m) => (
+          <div key={m.id} className="us-mod">
+            <b style={{ borderColor: m.acento }}>{m.nombre}</b>
+            {m.secciones.map((sec) => {
+              const puesto = valor[sec.ruta];
+              const rol: Nivel = delRol[sec.ruta] ?? "ninguno";
+              const res = final(sec.ruta);
+              return (
+                <div key={sec.ruta} className={"us-sec n-" + res}>
+                  <span className={"us-res " + res}>
+                    {res === "ninguno" ? "sin acceso" : res}
+                  </span>
+                  <span className="us-nom">
+                    {sec.nombre}
+                    <em>
+                      {puesto
+                        ? `a mano · el rol da ${rol === "ninguno" ? "nada" : rol}`
+                        : `sale del rol · ${rol === "ninguno" ? "nada" : rol}`}
+                    </em>
+                  </span>
+                  <div className="us-niveles tres">
+                    {NIVELES.map((x) => (
                       <button key={x} type="button"
-                              aria-pressed={n === x}
-                              disabled={apagado}
-                              title={apagado
-                                ? `El rol ya le da «${rol}» en esta pantalla: darle «${x}» aparte no cambiaría nada.`
-                                : undefined}
-                              className={n === x ? "on" : ""}
+                              aria-pressed={puesto === x}
+                              disabled={mandaElRol}
+                              title={puesto === x
+                                ? "Tócalo otra vez para que vuelva a salir del rol."
+                                : `Ponerle «${ROTULO[x].toLowerCase()}» a esta persona, mande lo que mande su rol.`}
+                              className={puesto === x ? "on" : ""}
                               onClick={() => {
                                 const c = { ...valor };
                                 /* Tocar el nivel que ya está puesto lo
-                                   QUITA: es la única forma de volver a
-                                   «ninguno» sin un tercer botón que
-                                   diría lo mismo que no tener ninguno. */
+                                   DEVUELVE AL ROL. Es la única forma de
+                                   volver a «lo que diga el rol» sin un
+                                   cuarto botón que diría eso mismo. */
                                 if (c[sec.ruta] === x) delete c[sec.ruta]; else c[sec.ruta] = x;
                                 cambiar(c);
                               }}>
-                        {x === "ver" ? "Ver" : "Editar"}
+                        {ROTULO[x]}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -131,12 +176,24 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
+  /* LA LISTA SE PINTA DE AQUÍ, no de la prop, y es por un síntoma que
+     Cristian reportó: guardaba un usuario, no salía error, y la fila
+     seguía mostrando lo de antes hasta recargar con F5. `router.refresh()`
+     sigue estando —hace falta para todo lo demás que pueda haber
+     cambiado— pero ya no es de lo que depende ver el resultado.
+
+     Y NO SE ADIVINA LO QUE QUEDÓ: se pinta lo que el servidor CONTESTA
+     que quedó guardado. Si un trigger cambiara algo por su cuenta, se
+     vería aquí mismo en vez de descubrirse mañana. */
+  const [lista, setLista] = useState(gente);
+  useEffect(() => { setLista(gente) }, [gente]);
+
   const [abierto, setAbierto] = useState(false);
   const [nombre, setNombre] = useState("");
   const [usuario, setUsuario] = useState("");
   const [tocado, setTocado] = useState(false);
   const [rol, setRol] = useState(roles.find((r) => !r.manda)?.clave ?? roles[0]?.clave ?? "");
-  const [extra, setExtra] = useState<Record<string, "ver" | "editar">>({});
+  const [extra, setExtra] = useState<Record<string, Nivel>>({});
   const [libre, setLibre] = useState<boolean | null>(null);
   const [creando, setCreando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
@@ -198,6 +255,10 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
         `"Nueva clave" a ${p.nombre || p.usuario} y usa la que salga.`
       );
     }
+    /* La clave nueva cambia lo que se VE —el estado pasa a «clave
+       provisional»—, así que se pinta aquí igual que al editar y no se
+       espera a que vuelva a consultarse. */
+    setLista((l) => l.map((x) => (x.id === p.id ? { ...x, clave_provisional: true } : x)));
     router.refresh();
   }
 
@@ -214,7 +275,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
   const [edNombre, setEdNombre] = useState("");
   const [edUsuario, setEdUsuario] = useState("");
   const [edRol, setEdRol] = useState("");
-  const [edExtra, setEdExtra] = useState<Record<string, "ver" | "editar">>({});
+  const [edExtra, setEdExtra] = useState<Record<string, Nivel>>({});
   const [guardando, setGuardando] = useState(false);
   const [pedir, dialogo] = useConfirmar();
 
@@ -283,6 +344,13 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
         `pero la próxima vez tienes que entrar como "${usu}".`
       );
     }
+    setLista((l) => l.map((x) => (x.id === p.id ? {
+      ...x,
+      nombre: j.nombre as string,
+      usuario: j.usuario as string,
+      rol: (j.rol as string) ?? x.rol,
+      permisos_extra: (j.permisos_extra as Record<string, Nivel>) ?? x.permisos_extra,
+    } : x)));
     setEditando(null);
     router.refresh();
   }
@@ -405,7 +473,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
       <section className="tarjeta">
         <div className="cab">
           <div>
-            <h2>{gente.length} {gente.length === 1 ? "persona" : "personas"}</h2>
+            <h2>{lista.length} {lista.length === 1 ? "persona" : "personas"}</h2>
             <p>Quién entra a CONTROL y con qué rol.</p>
           </div>
           <button type="button" className="btn" disabled={!hayLlave}
@@ -457,7 +525,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
                 da aparece marcado. Es para la excepción; si son varios, el sitio es el rol.
               </p>
               <Pantallas catalogo={catalogo} valor={extra} cambiar={setExtra}
-                         delRol={porRol[rol] ?? {}} />
+                         delRol={porRol[rol] ?? {}} nombreRol={nRol(rol)}
+                         mandaElRol={!!roles.find((r) => r.clave === rol)?.manda} />
             </div>
 
             <div className="us-acciones">
@@ -480,7 +549,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
               </tr>
             </thead>
             <tbody>
-              {gente.map((p) => {
+              {lista.map((p) => {
                 const ex = Object.entries(p.permisos_extra ?? {});
                 const enEdicion = editando === p.id;
                 const fila = (
@@ -591,24 +660,25 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
                     <tr className="us-panel">
                       <td colSpan={6}>
                         <p className="us-rot">
-                          Pantallas de {p.nombre || p.usuario}
-                          <em> — se suman a las de su rol y nunca le quitan ninguna</em>
+                          A qué entra {p.nombre || p.usuario}
+                          <em> — y a qué no</em>
                         </p>
                         <p className="us-dice">
-                          Lo que ya da su rol <b>{nRol(edRol)}</b> aparece marcado y no se
-                          puede volver a dar: un extra por debajo de lo que el rol ya da no
-                          cambia nada. Toca el nivel otra vez para quitarlo. Y si a varias
-                          personas les hace falta la misma pantalla, el sitio es el{" "}
-                          <b>rol</b>, no aquí.
+                          A la izquierda, en qué queda cada pantalla. Los botones dan lo
+                          <b> suelto</b>, que se SUMA a lo del rol y nunca le quita nada —por
+                          eso lo que el rol ya da no se puede volver a dar—. Toca el nivel
+                          otra vez para quitarlo. Y si a varias personas les hace falta la
+                          misma pantalla, el sitio es el <b>rol</b>, no aquí.
                         </p>
                         <Pantallas catalogo={catalogo} valor={edExtra} cambiar={setEdExtra}
-                                   delRol={porRol[edRol] ?? {}} />
+                                   delRol={porRol[edRol] ?? {}} nombreRol={nRol(edRol)}
+                                   mandaElRol={!!roles.find((r) => r.clave === edRol)?.manda} />
                       </td>
                     </tr>
                   </Fragment>
                 ) : fila;
               })}
-              {gente.length === 0 && (
+              {lista.length === 0 && (
                 <tr><td colSpan={6} className="apagado">Todavía no hay nadie.</td></tr>
               )}
             </tbody>

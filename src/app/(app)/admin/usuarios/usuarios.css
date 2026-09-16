@@ -75,7 +75,11 @@
    desplazamiento horizontal donde no debe haber ninguna. */
 .us .us-modulos {
   display: grid; gap: 12px; align-items: start;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  /* 300 y no 240: el renglón ahora lleva el chip del resultado (74 px),
+     el nombre y TRES botones. Medido a 820 px de pantalla, con 240 el
+     tercer botón se salía de la tarjeta del módulo. Es el ancho que de
+     verdad necesita una fila, no un número redondo. */
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
 }
 .us .us-mod { border: 1px solid var(--rl-linea); border-radius: 3px; padding: 10px 12px 8px }
 .us .us-mod > b {
@@ -350,4 +354,86 @@
 }
 .us .us-niveles button:disabled:hover {
   border-color: var(--rl-linea); color: var(--rl-gris);
+}
+
+/* =============== LA TABLA DE ACCESO DE UNA PERSONA ================
+
+   El panel dejó de ser «las casillas de lo suelto» y pasó a ser la
+   respuesta a la pregunta que trae a alguien aquí: a qué entra esta
+   persona y a qué no. Antes, para saberlo, había que abrir /admin/roles
+   en otra pestaña, mirar su rol y sumarlo de cabeza.
+
+   EL RESULTADO VA PRIMERO, a la izquierda, con ancho fijo: así se baja
+   la vista por una sola columna y se lee de un golpe. Si fuera al final
+   habría que rastrear cada renglón hasta el borde.
+   ================================================================== */
+.us .us-resumen {
+  margin: 0 0 12px; font-size: 13px; color: var(--rl-gris);
+}
+.us .us-resumen b { color: var(--rl-tinta, inherit); font-weight: 700 }
+
+.us .us-sec {
+  display: grid; grid-template-columns: 74px minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; padding: 5px 0;
+}
+.us .us-sec + .us-sec { border-top: 1px solid var(--c-edf1f6) }
+.us .us-nom { min-width: 0; overflow-wrap: anywhere; font-size: 12.5px }
+.us .us-nom em {
+  display: block; font-style: normal; font-size: 10.5px; line-height: 1.35;
+  color: var(--rl-gris); margin-top: 1px;
+}
+
+/* EL CHIP DEL RESULTADO. Tres estados y tres pesos: «editar» es el que
+   más pesa porque es el que deja cambiar datos, «sin acceso» es el más
+   callado porque es la ausencia de algo. El color NO es lo único que los
+   separa —cada uno dice su palabra—, que es lo que hace que sirvan
+   también para quien no distingue colores. */
+.us .us-res {
+  display: inline-block; text-align: center; width: 74px; flex: none;
+  padding: 3px 0; border-radius: 2px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+}
+.us .us-res.editar { background: var(--c-grupo); color: #fff }
+.us .us-res.ver { background: var(--c-edf1f6); color: var(--c-2c4361); border: 1px solid var(--c-d5dce5) }
+.us .us-res.ninguno {
+  background: none; color: var(--c-5b6b7f);
+  border: 1px dashed var(--c-d5dce5); font-weight: 600;
+}
+/* La fila sin acceso se apaga entera: lo que importa de esta tabla es
+   dónde SÍ entra, y lo demás es fondo. */
+.us .us-sec.n-ninguno .us-nom { color: var(--c-5b6b7f) }
+
+/* TRES NIVELES Y NO DOS. Lo que se le pone a una persona MANDA sobre su
+   rol en los dos sentidos, así que hace falta poder decir «sin acceso»:
+   es cómo se le cierra a UNA persona una pantalla que su rol sí da, sin
+   inventarle un rol propio —que es justo lo que los roles venían a
+   evitar—. El tercer botón aprieta la fila, así que los tres bajan de
+   46 a 38 px de ancho mínimo. */
+.us .us-niveles.tres button { min-width: 38px; padding: 0 7px }
+.us .us-niveles.tres button:first-child { letter-spacing: -.01em }
+
+/* «Sin acceso» puesto a mano no es lo mismo que «el rol no la da»: lo
+   primero es una decisión y lo segundo es el estado de fondo. Por eso el
+   botón encendido de «Sin acceso» va en rojo y no en el acento: es lo
+   único de esta pantalla que QUITA algo. */
+.us .us-niveles.tres button.on:first-child {
+  background: var(--c-marca, #E4002B); border-color: var(--c-marca, #E4002B);
+  color: var(--c-marca-txt, #fff);
+}
+
+/* Cuando el rol administra la plataforma, esta tabla no aplica: entra a
+   todo pase lo que pase. Se apaga entera en vez de esconderla, para que
+   se vea que existe y por qué no se puede tocar. */
+.us .us-modulos.manda { opacity: .5 }
+
+/* Y EN PANTALLA CHICA LOS BOTONES BAJAN A SU PROPIA LÍNEA. Con 300 px de
+   tarjeta y un nombre largo —«Inventario · Conteos físicos»— no hay
+   ancho para las tres cosas en fila; apretarlos sería devolverles el
+   tamaño que no se toca con guante. */
+@media (max-width: 760px) {
+  .us .us-sec {
+    grid-template-columns: 74px minmax(0, 1fr);
+    row-gap: 6px;
+  }
+  .us .us-sec .us-niveles { grid-column: 1 / -1; justify-content: flex-end }
 }
