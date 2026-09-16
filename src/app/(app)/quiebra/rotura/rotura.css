@@ -1102,3 +1102,75 @@
   .rl-lee-hacer { gap: 14px; padding: 13px 18px }
   .rl-lee-hacer b { font-size: 24px }
 }
+
+/* =====================================================================
+   LA TARJETA DE ARRIBA DEL TABLERO
+   ---------------------------------------------------------------------
+   Reemplaza el recuadro de acento que iba al lado del título. Lo que
+   cambió no es el gusto: antes la cifra era un número suelto —«1.889.816
+   rotas»— y ahora dice contra qué compararla y con qué forma viene. Un
+   millón novecientas mil botellas no significa nada hasta que se sabe si
+   el período anterior fueron dos millones o uno.
+   ===================================================================== */
+.rl-kpi {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  overflow: hidden; margin-bottom: 18px; min-width: 0;
+}
+
+/* La banda lleva el acento del tema. Es lo único de color de la tarjeta:
+   la cifra va en tinta sobre papel, que es donde mejor se lee un número
+   de cincuenta píxeles. */
+.rl-kpi-banda {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--rl-ojo); color: var(--rl-sobre); padding: 9px 22px;
+}
+.rl-kpi-banda svg { width: 19px; height: 19px; flex: none }
+.rl-kpi-banda span {
+  font: 700 10.5px var(--rl-texto); letter-spacing: .16em;
+}
+
+.rl-kpi-cuerpo {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px;
+  align-items: end; padding: 18px 22px 16px;
+}
+.rl-kpi-izq { min-width: 0 }
+.rl-kpi-num {
+  margin: 0; font: 900 clamp(34px, 6vw, 50px)/1 var(--rl-titulo);
+  letter-spacing: -.045em; font-variant-numeric: tabular-nums; color: var(--rl-tinta);
+}
+.rl-kpi-sub { margin: 9px 0 0; font-size: 12.5px; color: var(--rl-gris) }
+
+.rl-kpi-der { text-align: right; min-width: 0 }
+.rl-kpi-k { margin: 0; font: 600 10px var(--rl-texto); letter-spacing: .14em; color: var(--rl-gris) }
+.rl-kpi-v {
+  margin: 6px 0 0; font: 900 24px var(--rl-titulo); font-variant-numeric: tabular-nums;
+  color: var(--rl-tinta); white-space: nowrap;
+}
+/* EN ROTURA, SUBIR ES MALO. Al revés de un tablero de ventas: aquí el
+   número que crece es vidrio en el piso. Por eso la flecha hacia arriba
+   va en rojo y la de abajo en verde, y por eso está escrito. */
+.rl-kpi-d { margin: 7px 0 0; font-size: 12px; font-weight: 600; line-height: 1.4 }
+.rl-kpi-d.sube { color: var(--rl-mal) }
+.rl-kpi-d.baja { color: var(--rl-bien) }
+.rl-kpi-d.sin  { color: var(--rl-gris); font-weight: 500 }
+
+.rl-kpi-chispa { padding: 0 22px 16px }
+.rl-kpi-chispa svg { width: 100%; height: 34px; display: block }
+/* LA CHISPA VA EN --rl-dato Y NO EN EL ACENTO A SECAS. Es la misma
+   lección que ya está escrita arriba en este archivo y que volví a
+   tropezar: en cuatro de los siete temas el acento es ámbar, y ámbar
+   sobre papel blanco contrasta 1,64 — la línea desaparece. --rl-dato es
+   ese mismo tono un paso más hondo, y existe exactamente para esto.
+   En la banda sí va el acento puro, porque allá es el FONDO. */
+.rl-kpi-chispa polyline { stroke: var(--rl-dato) }
+
+@media (max-width: 620px) {
+  /* En el celular la comparación se va debajo de la cifra en vez de al
+     lado: a 360 px, «426.367 kg» y «▲ 12,4 % vs período anterior» en la
+     misma fila que un número de 34 px dejan las dos columnas en tiras de
+     un dígito. */
+  .rl-kpi-cuerpo { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px 16px 14px }
+  .rl-kpi-der { text-align: left; border-top: 1px solid var(--rl-linea); padding-top: 13px }
+  .rl-kpi-banda { padding: 9px 16px }
+  .rl-kpi-chispa { padding: 0 16px 14px }
+}

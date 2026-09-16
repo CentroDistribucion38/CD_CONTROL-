@@ -1,121 +1,87 @@
-Revisión AI: el panel no se va de la vista y los conteos se tocan
+Tablero de rotura: la cifra de arriba deja de ser un número suelto
 
-Cristian: «arreglemos ese panel uff de una, o sea cambio extremo», con dos
-maquetas. Esto es eso.
-
-=====================================================================
-1 · LO QUE ESTABA MAL
-=====================================================================
-
-Dos cosas, y las dos se notan solo cuando uno está de pie en el muelle:
-
-LA CUENTA ESTABA AL FINAL. El índice de cobro, lo que no se le abona al
-socio y lo que faltaba para poder guardar vivían debajo de los catorce
-conteos. Para saber en qué iba la cuenta había que bajar — y quien está
-contando botellas no baja: sigue contando, y se entera del número raro
-cuando el socio reclama.
-
-LOS CATORCE CONTEOS ERAN CASILLAS DE TECLEAR. Con el celular en una mano
-y la otra señalando botellas, teclear abre el teclado del sistema, que
-tapa media pantalla y el campo siguiente. Y hay algo más hondo: un número
-tecleado se puede escribir mal. El 44 donde iba el 4 pasa, y nadie lo
-nota hasta la factura.
+Cristian escogió la opción 3 de sus tres maquetas: banda con el rótulo,
+la cifra grande, el peso con su comparación al lado, y la forma de la
+tendencia abajo.
 
 =====================================================================
-2 · LO QUE QUEDÓ
+1 · LO QUE CAMBIÓ, Y NO ES EL GUSTO
 =====================================================================
 
-SE TOCA, NO SE DIGITA. Cada defecto es un menos, una cifra y un más, de
-44 px. Tocando «más» por cada botella mala el número no se puede escribir
-mal: no existe el 44 donde iba el 4. Los que tienen algo se pintan con el
-acento — con catorce en cero, los tres que traen número son lo único que
-hay que poder revisar de un vistazo antes de cerrar.
+Arriba había un recuadro de acento al lado del título con un número:
+«1.889.816 rotas». Un millón novecientas mil botellas NO SIGNIFICA NADA
+hasta que se sabe si el período anterior fueron dos millones o uno. La
+tarjeta ahora trae las dos cosas que faltaban:
 
-EL PANEL NO SE VA. En pantalla ancha va pegado al lado (`sticky`): se
-baja por los catorce contadores y el índice sigue ahí. Cuando la pantalla
-se angosta y el panel ya no cabe al lado, aparece una barra pegada abajo
-con lo que no se puede perder de vista — el índice y si ya se puede
-cerrar. Nunca hay que bajar a buscar la cuenta.
+  · CONTRA QUÉ COMPARARLO — «▲ 12,4 % vs período anterior», calculado
+    sobre el mismo largo de período pegado atrás.
+  · CON QUÉ FORMA VIENE — una chispa con un punto por día, para saber de
+    un vistazo si el número sale de una subida sostenida o de un solo
+    día malo.
 
-LO QUE FALTA SE DICE DOS VECES Y A PROPÓSITO: el panel dice QUÉ falta
-(«El socio», «El tipo de envase») y el campo se pinta de rojo para decir
-DÓNDE. Con uno solo de los dos hay que buscar. Y lo que está MAL va
-aparte de lo que falta: no es lo mismo «todavía no lo has puesto» que «lo
-que pusiste no puede ser».
+EN ROTURA SUBIR ES MALO, al revés de un tablero de ventas: aquí el
+número que crece es vidrio en el piso. Por eso ▲ va en el color de
+alarma y ▼ en el de bien, y por eso está escrito en el código y
+comprobado en el arnés — invertirlo haría leer una mejora como un
+problema, que es el error más caro que puede tener este bloque.
 
-LA FICHA DEL VEHÍCULO ES AHORA UNA CINTA. Placa, planta, llegada y
-material eran una tarjeta entera de cuatro datos que nadie digita —salen
-del viaje—, así que no merecían el espacio de un formulario.
+EL PORCENTAJE SIGUE MANDANDO CUANDO EXISTE. Mil rotas en un día de tres
+millones y mil en uno de ochocientas mil son dos cosas muy distintas.
+Cuando todavía no hay ZPREC cargado la cifra grande pasa a ser las
+unidades, que es lo único con lo que se puede hablar ese día. El delta
+compara SIEMPRE la misma medida que muestra la cifra grande: comparar el
+% de hoy contra las unidades de ayer sería un número con nombre de
+porcentaje y sin significado.
 
-=====================================================================
-3 · EL COLOR, QUE ERA UNA TRAMPA
-=====================================================================
-
-La maqueta es ámbar sobre negro y ahí funciona. Pero la aplicación tiene
-SIETE temas y el acento cambia en todos: el índice en acento sobre la
-banda oscura del panel daba **1,72 en el tema oficial y 1,75 en pizarra**
-— invisible. Rojo sobre azul marino.
-
-Es el mismo problema que ya estaba anotado en esa hoja para `--ai-dato`,
-pero al revés: allá había que oscurecer el acento para que se leyera
-sobre papel blanco; aquí hay que aclararlo para que se lea sobre la
-banda. Se agregó `--ai-ojo-banda`, el acento aclarado al 60 %: da 3,47 en
-el peor tema, que es lo que pide la norma para cifras grandes en negrita
-—el índice son 50 px en peso 900—. La proporción no se escogió a ojo: se
-midieron seis en los siete temas.
-
-Y EL TEXTO CHICO DE LA BANDA SALIÓ DE LA OPACIDAD. Iba en blanco al
-62-70 %, que es la trampa de siempre: la banda de pizarra es un verde
-MEDIO, no oscuro, y blanco rebajado encima deja de leerse. Ahora es un
-token sólido, medido.
+Y SE CALLA CUANDO NO HAY CON QUÉ. Sin registro en el período anterior no
+dice «▲ 100 %»: dice que no hay con qué comparar. Un aumento contra cero
+es infinito, no un porcentaje. Tampoco deja el hueco vacío — quien lo ve
+en blanco no sabe si es que no cambió o si la tarjeta está rota.
 
 =====================================================================
-4 · EL ARNÉS
+2 · EL DATO NUEVO, SIN DESHACER LO QUE COSTÓ
 =====================================================================
 
-`.arnes/sd-ai-panel.mjs` mide contraste en los siete temas y geometría a
-1440/1100/820/390/360, dos veces: el formulario solo y DENTRO de la
-tarjeta de la certificación de llegada, que es donde se usa de verdad.
-
-El candado que importa no es el contraste: es que **la cuenta nunca se
-pierda de vista**. Si el panel va al lado tiene que estar pegado; si se
-fue abajo tiene que aparecer la barra; y no pueden estar los dos, que
-sería el mismo dato dos veces. Se comprobó rompiendo las tres a mano:
-
-  · panel sin `sticky`  → «va al lado pero no está pegado»
-  · barra en `none`     → «se fue abajo y NO aparece la barra fija»
-  · acento sin aclarar  → «índice contrasta 1.72»
-  · contador sin el más → «no hay botón de sumar en el contador»
-
-SE BORRÓ `.arnes/sd-ai-paso.mjs` Y SU TRABAJO SE MUDÓ AQUÍ. Ese arnés
-medía el formulario dentro de la certificación, que es una comprobación
-que hace falta — pero tenía su PROPIA COPIA del armazón, la pantalla
-cambió y él siguió midiendo la de antes: reprobaba por un rótulo que ya
-no existe y por un bloque de cifras que se eliminó. Dos copias del mismo
-armazón es exactamente cómo una se queda vieja sin que nadie lo note, así
-que ahora es un solo arnés con dos pasadas.
-
-Y este arnés también mintió antes de servir: contaba como «se sale» la
-barra fija, que es `position: fixed` y ocupa el ancho de la PANTALLA a
-propósito — medirla contra la tarjeta que la contiene decía que se salía,
-y es lo que tiene que hacer. Ahora lo fijo se mide contra la pantalla.
-
-TAMBIÉN SE BORRARON las reglas de `.ai-cabeza`, `.ai-lista` y `.ai-tabla`:
-eran de la pantalla suelta `/sider/ai`, que se eliminó hace dos semanas.
-Nadie las usaba. Dejarlas es CSS muerto que el próximo tiene que leer
-para descubrir que no hace nada.
+El período anterior no existía, así que hubo que pedirlo. Este módulo se
+peleó para bajar de 12.171 filas por clic a unos cientos, y esto no
+podía deshacerlo: las dos consultas nuevas piden solo las columnas que
+suman —`select("und,kg")` y `select("producidas")`, no `*`— sobre las
+mismas vistas que ya existen. No hace falta correr ningún SQL.
 
 =====================================================================
-5 · LO QUE NO CAMBIÓ
+3 · DOS COSAS QUE ENCONTRÓ EL ARNÉS
 =====================================================================
 
-La cuenta. El índice sigue siendo defectos que cobran ÷ revisadas, la
-misma fórmula que hace la base, y el arnés revienta si alguien la cambia
-aquí. Lo que se ve mientras se cuenta es un anticipo: el número que manda
-lo calcula `sider_ai_guardar`.
+LA CHISPA ERA INVISIBLE EN CUATRO TEMAS. Iba en el acento a secas y
+contrastaba 1,64 sobre papel blanco: la línea simplemente no estaba. Es
+la MISMA lección que ya está escrita en esa hoja unas líneas más arriba
+—«en cuatro de los siete temas el acento es ámbar, y ámbar sobre papel
+no llega»— y volví a tropezarla. Ahora va en `--rl-dato`, el token que
+existe exactamente para esto. En la banda sí va el acento puro, porque
+allá es el fondo y no la tinta.
 
-Y el formulario sigue guardando con la misma función y los mismos trece
-campos. No se tocó nada del SQL.
+LA CHISPA SE ROMPÍA CON TODOS LOS DÍAS IGUALES. Con un período sin
+variación el rango es cero, la división manda los puntos a NaN y el SVG
+sale vacío SIN AVISAR: no hay error, no hay hueco, simplemente no hay
+línea y nadie lo nota. Ahora el rango plano cae a 1 y se dibuja una
+recta a media altura, que es lo que corresponde.
+
+`.arnes/rl-kpi.mjs` mide contraste en los siete temas y geometría a
+1440/820/390/360. Sus tres afirmaciones se verificaron rompiéndolas:
+
+  · flechas invertidas   → «la flecha de SUBIR no es de alarma»
+  · chispa en acento     → «contrasta 1.64»
+  · rango sin protección → «sale rota: 0.0,NaN 266.7,NaN…»
+
+El sentido de la flecha se comprueba por el CANAL ROJO del color y no
+por el nombre de la clase: un `.sube` pintado de verde pasaría cualquier
+revisión de clases y seguiría mintiendo.
+
+TAMBIÉN SE QUITÓ UN BUCLE REPETIDO. La chispa necesitaba la serie por
+día y la página ya la armaba doce líneas más abajo para el gráfico del
+período. Ahora sale de esa misma: el gráfico de abajo y la forma de
+arriba tienen que contar lo mismo, y dos bucles iguales es cómo uno se
+queda viejo.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -7,6 +7,7 @@ import { Barras, Serie, Pareto, type Barra } from "./Graficas";
 import { EscogerCorte } from "./Corte";
 import { CORTES, type Corte } from "@/modulos/rotlinea/cortes";
 import { Periodo } from "./Periodo";
+import { Kpi } from "./Kpi";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,28 @@ export default async function TableroRoturaPage({ searchParams }: {
   const pct = producidas > 0 ? (und * 100) / producidas : null;
   const sinBaja = t.dias.reduce((a, d) => a + d.sin_baja, 0);
   const diasConDato = new Set(t.dias.map((d) => d.fecha)).size;
+
+  /* ---------- CONTRA QUÉ SE COMPARA ----------
+     Se compara LA MISMA MEDIDA que muestra la cifra grande: si arriba va
+     el porcentaje, el delta es de porcentajes; si van unidades, es de
+     unidades. Comparar el % de hoy contra las unidades de ayer sería un
+     número con nombre de porcentaje y sin significado.
+
+     Y SE CALLA CUANDO NO HAY CON QUÉ. Sin registro en el período
+     anterior no hay «▲ 100 %»: un aumento contra cero es infinito. */
+  const delta = (() => {
+    const a = t.anterior;
+    if (!a) return null;
+    if (pct != null) {
+      const antPct = a.producidas > 0 ? (a.und * 100) / a.producidas : null;
+      if (antPct == null || antPct === 0) return null;
+      return { pct: ((pct - antPct) / antPct) * 100, que: "vs período anterior" };
+    }
+    if (a.und === 0) return null;
+    return { pct: ((und - a.und) / a.und) * 100, que: "vs período anterior" };
+  })();
+
+
 
   /* ---------- El pareto por máquina ----------
      YA VIENEN SUMADAS: una fila por máquina, no una por máquina y día.
@@ -175,6 +198,10 @@ export default async function TableroRoturaPage({ searchParams }: {
   const porDia = new Map<string, number>();
   for (const d of t.dias) porDia.set(d.fecha, (porDia.get(d.fecha) ?? 0) + Number(d.und));
   const serie = [...porDia.entries()].sort().map(([fecha, valor]) => ({ fecha, valor }));
+  /* La chispa de la tarjeta sale de ESTA misma serie y no de una copia:
+     el gráfico de abajo y la forma de arriba tienen que contar lo mismo,
+     y dos bucles iguales es cómo uno se queda viejo. */
+  const serieDia = serie.map((x) => x.valor);
 
   /* ---------- Lo que falta firmar ---------- */
   /* CONTADOS EN LA BASE, no aquí. Contar las filas que llegaron daba
@@ -216,18 +243,30 @@ export default async function TableroRoturaPage({ searchParams }: {
             )}
           </p>
         </div>
-
-        <div className="rl-panel">
-          <div className="rl-corte" aria-hidden />
-          <div className="rl-rot">{pct == null ? "ROTAS EN EL PERÍODO" : "% DE ROTURA"}</div>
-          <div className="rl-num">{pct == null ? fmt(und) : `${pct.toFixed(2)}%`}</div>
-          <div className="rl-pie">
-            {pct == null
-              ? <>unidades · <b>{fmt(kg)} kg</b></>
-              : <><b>{fmt(und)}</b> rotas de {fmt(producidas)} envasadas</>}
-          </div>
-        </div>
       </section>
+
+      {/* LA TARJETA DE ARRIBA.
+          EL PORCENTAJE MANDA CUANDO EXISTE. Mil rotas en un día de tres
+          millones y mil en uno de ochocientas mil son dos cosas muy
+          distintas, y el número solo no las distingue. Cuando todavía no
+          hay ZPREC cargado la cifra grande pasa a ser las unidades,
+          porque es lo único con lo que se puede hablar ese día.
+
+          Y AL LADO VA CONTRA QUÉ COMPARARLA. Un millón novecientas mil
+          botellas no dice nada hasta que se sabe si el período anterior
+          fueron dos millones o uno. Arriba es peor: en rotura, subir es
+          malo, y por eso la flecha hacia arriba va en rojo. */}
+      <Kpi
+        rotulo={pct == null ? "ROTAS EN EL PERÍODO" : "% DE ROTURA"}
+        cifra={pct == null ? fmt(und) : `${pct.toFixed(2)} %`}
+        sub={pct == null
+          ? `unidades · ${dia(desde)} a ${dia(hasta)}`
+          : `${fmt(und)} rotas de ${fmt(producidas)} envasadas`}
+        ladoRot={pct == null ? "PESO" : "UNIDADES"}
+        ladoVal={pct == null ? `${fmt(kg)} kg` : fmt(und)}
+        delta={delta}
+        serie={serieDia}
+      />
 
       {/* 2 ─ DE DÓNDE SALE */}
       <section className="rl-cifras">

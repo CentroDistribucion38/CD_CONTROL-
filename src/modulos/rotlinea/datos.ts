@@ -147,6 +147,10 @@ export async function delDia(fecha: string) {
    registros: agrupar en la base es lo que permite que el tablero abra
    en un segundo con el año entero puesto.
    ===================================================================== */
+/** El mismo largo de período, pegado atrás. Null cuando no hay registro
+ *  antes: un aumento contra cero es infinito, no un porcentaje. */
+export type Anterior   = { und: number; kg: number; producidas: number };
+
 export type FilaDia    = { fecha: string; linea: number; und: number; kg: number;
                            pesadas: number; turnos: number; sin_baja: number };
 /* SIN fecha NI linea: llegan ya sumados por el rango que se pidió.
@@ -179,8 +183,23 @@ export async function tablero(desde: string, hasta: string, linea?: number) {
      rango dentro de la consulta son quince filas y veintiuna. El resto
      —la serie del día, la producción, lo sin firmar— sí necesita el
      grano diario, porque se dibuja día por día. */
+  /* EL PERÍODO ANTERIOR, DEL MISMO LARGO Y PEGADO ATRÁS. Es contra lo
+     que compara la tarjeta de arriba: «▲ 12,4 % vs período anterior».
+     Sin esto la cifra es un número suelto — 1,9 millones de botellas no
+     dice nada hasta que se sabe si el mes pasado fueron dos o uno.
+
+     Se pide con `select("und,kg")` y no con `*`: son las mismas ~800
+     filas del año pero con dos columnas en vez de siete, y de ellas
+     aquí solo sale una suma. Todo el módulo se peleó para bajar de
+     12.171 filas por clic; esto no puede deshacerlo. */
+  const largo = Math.max(1,
+    Math.round((Date.parse(hasta) - Date.parse(desde)) / 86_400_000) + 1);
+  const dia = (t: number) => new Date(t).toISOString().slice(0, 10);
+  const antHasta = dia(Date.parse(desde) - 86_400_000);
+  const antDesde = dia(Date.parse(desde) - largo * 86_400_000);
+
   const args = { p_desde: desde, p_hasta: hasta, p_linea: linea ?? null };
-  const [d, m, e, p, sf, su] = await Promise.all([
+  const [d, m, e, p, sf, su, ad, ap] = await Promise.all([
     rango(supabase.from("v_rotlinea_dia").select("*")),
     supabase.rpc("rotlinea_tablero_maquina", args),
     supabase.rpc("rotlinea_tablero_envase", args),
@@ -191,13 +210,34 @@ export async function tablero(desde: string, hasta: string, linea?: number) {
        un conteo. Ahora vienen el resumen (una fila) y los seis últimos. */
     supabase.rpc("rotlinea_sin_firma_resumen", args),
     supabase.rpc("rotlinea_sin_firma_ultimos", { ...args, p_cuantos: 6 }),
+    (() => {
+      let c = supabase.from("v_rotlinea_dia").select("und,kg")
+        .gte("fecha", antDesde).lte("fecha", antHasta);
+      if (linea) c = c.eq("linea", linea);
+      return c;
+    })(),
+    (() => {
+      let c = supabase.from("v_rotlinea_prod_dia").select("producidas")
+        .gte("fecha", antDesde).lte("fecha", antHasta);
+      if (linea) c = c.eq("linea", linea);
+      return c;
+    })(),
   ]);
 
   if (d.error) {
     return { falta: sinTablas(d.error.message), dias: [] as FilaDia[], maquinas: [] as FilaMaq[],
              envases: [] as FilaEnvase[], produccion: [] as FilaProd[],
-             sinFirma: [] as SinFirma[], resumenFirma: null as ResumenFirma | null };
+             sinFirma: [] as SinFirma[], resumenFirma: null as ResumenFirma | null,
+             anterior: null as Anterior | null, antDesde, antHasta };
   }
+
+  /* Si el período anterior no tiene registro —el primer mes cargado, o
+     un rango que arranca antes de la historia— la tarjeta NO inventa un
+     «▲ 100 %»: dice que no hay con qué comparar. Un aumento contra cero
+     es infinito, no un porcentaje. */
+  const antUnd = ad.error ? 0 : (ad.data ?? []).reduce((a, r) => a + Number(r.und), 0);
+  const antKg  = ad.error ? 0 : (ad.data ?? []).reduce((a, r) => a + Number(r.kg), 0);
+  const antProd = ap.error ? 0 : (ap.data ?? []).reduce((a, r) => a + Number(r.producidas), 0);
   return {
     falta: false,
     dias: (d.data ?? []) as FilaDia[],
@@ -208,6 +248,8 @@ export async function tablero(desde: string, hasta: string, linea?: number) {
        migración— el tablero sale igual y la tarjeta dice cero: media
        pantalla es mejor que una pantalla en blanco. */
     sinFirma: (su.error ? [] : (su.data ?? [])) as SinFirma[],
+    anterior: (antUnd > 0 ? { und: antUnd, kg: antKg, producidas: antProd } : null) as Anterior | null,
+    antDesde, antHasta,
     resumenFirma: (sf.error ? null
                    : ((Array.isArray(sf.data) ? sf.data[0] : sf.data) ?? null)) as ResumenFirma | null,
   };
