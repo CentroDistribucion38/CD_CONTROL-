@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Mes, bonita, diaSemana, partes, rango, useAfuera } from "./Calendario";
+import { Mes, rango, useAfuera } from "./Calendario";
+import { bonita, diaSemana, partes } from "@/modulos/traspasos/formato";
 
 /**
  * APLICAR ESTA REJILLA A VARIOS DÍAS.

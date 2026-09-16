@@ -5,11 +5,10 @@ import {
   tipos as leerTipos, puntos as leerPuntos, viajesDelDia, control,
   placasRecientes, rutasFrecuentes, hoyLocal, placasMaestro,
 } from "@/modulos/traspasos/datos";
-import { turnoDeAhora, TURNOS } from "@/modulos/traspasos/formato";
+import { turnoDeAhora, TURNOS, conDia } from "@/modulos/traspasos/formato";
 import "./traspasos.css";
 import { AlDia, SinTablas } from "./comunes";
 import { Fechas } from "./plan/Fechas";
-import { conDia } from "./plan/Calendario";
 import { Registrar } from "./Registrar";
 import { Viajes } from "./Viajes";
 

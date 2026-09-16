@@ -67,3 +67,50 @@ export function quien(nombres: Record<string, string>, id: string | null) {
 export function hoy() {
   return new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 10);
 }
+
+/* =====================================================================
+   LOS NOMBRES DE LAS FECHAS
+
+   VIVEN AQUÍ Y NO EN Calendario.tsx, y ese traslado es el arreglo de un
+   error de verdad: la página de Registrar es del SERVIDOR y llamaba
+   `conDia` importándola del calendario, que es "use client". Next no
+   trae la función: trae una referencia al cliente, y llamarla en el
+   servidor revienta la pantalla entera con «a server-side exception has
+   occurred».
+
+   Y REVENTABA SOLO AL SALIRSE DE HOY, porque `conDia` únicamente se
+   llama cuando la fecha no es la de hoy —el título dice «Estás en jue
+   11 de septiembre»—. En hoy la línea nunca se ejecutaba. Por eso
+   parecía «no me deja registrar días anteriores»: no era un permiso ni
+   una regla, era la pantalla cayéndose antes de dibujarse.
+
+   La regla, y es la misma que ya está escrita arriba para comunes.tsx:
+   lo que una página del servidor va a LLAMAR no puede salir de un
+   archivo "use client". Nunca.
+   ===================================================================== */
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+  "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+const SEM = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
+
+export const partes = (f: string) => ({
+  a: Number(f.slice(0, 4)), m: Number(f.slice(5, 7)) - 1, d: Number(f.slice(8, 10)),
+});
+
+/** Lunes = 0 … domingo = 6, para una fecha suelta. Se ancla al mediodía
+ *  porque una fecha sin hora se lee como medianoche UTC, que en Colombia
+ *  es el día anterior. */
+export const diaSemana = (f: string) =>
+  (new Date(f + "T12:00:00").getUTCDay() + 6) % 7;
+
+export const bonita = (f: string) => {
+  const { m, d } = partes(f);
+  return `${d} de ${MESES[m]}`;
+};
+
+/** Con el día de la semana delante. En una pantalla donde se planea por
+ *  semana, saber que el 15 es martes es la mitad de la información. */
+export const conDia = (f: string) => `${SEM[diaSemana(f)]} ${bonita(f)}`;
+
+export { MESES };

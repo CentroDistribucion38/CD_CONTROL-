@@ -1,72 +1,43 @@
-Traspasos: registrar días anteriores con la hora de su turno y marcados
+Traspasos: arreglar la pantalla que reventaba en cualquier día que no fuera hoy
 
-Registrar un viaje de un día pasado ya se podía —la fecha entraba tal
-cual—. Lo que no se podía era DARSE CUENTA, y eso lo volvía un dato
-peor que uno que falta: un viaje del jueves metido el lunes se veía
-exactamente igual que uno registrado en su turno, y encima con la hora
-del lunes. La tabla decía que ese viaje salió a las 9:14 a. m. del
-lunes y contaba para el jueves; dos cosas que no pueden ser ciertas a
-la vez, y la que se veía en pantalla era la falsa.
+SÍNTOMA: entrar a Registrar, moverse al día anterior, y la pantalla
+entera cae con «Application error: a server-side exception has
+occurred». Parecía un permiso —«no me deja registrar días anteriores»—
+y no lo era: la pantalla se caía antes de dibujarse.
 
-Tres cambios, ninguno le quita permisos a nadie:
+CAUSA: page.tsx es una página del SERVIDOR y llamaba `conDia`,
+importándola de plan/Calendario.tsx, que es "use client". Next no le
+entrega la función: le entrega una REFERENCIA al cliente. Llamarla en
+el servidor revienta.
 
-1. LA HORA DEJA DE MENTIR. Si el viaje es de un día pasado, la hora que
-   se guarda es la de arranque del turno de ESE día —06:00 el A, 14:00
-   el B, 22:00 el C—, no el momento en que alguien lo digitó. A qué
-   hora salió de verdad nadie lo sabe: eso no se registró. El arranque
-   del turno es lo único cierto que se puede poner, y deja el viaje
-   dentro de su propio día en vez de desparramado en otro.
+POR QUÉ NO SE VIO ANTES: `conDia` solo se llama cuando la fecha no es
+la de hoy —el título dice «Estás en jue 11 de septiembre»—. En hoy esa
+línea nunca se ejecutaba. La pantalla funcionó perfecto todos los días
+hasta que alguien tocó la flecha de ayer. Y la compilación pasa limpia:
+no es un error de tipos ni de sintaxis, así que nada avisa. Se descubre
+en producción.
 
-2. QUEDA MARCADO. La fila muestra «REGISTRADO DESPUÉS · N días», con
-   quién lo metió y cuándo. No hizo falta columna nueva: registrado_en
-   y registrado_por estaban ahí desde el primer día — lo que faltaba
-   era mirarlos. Un dato que se guarda y nadie ve es un dato que no
-   existe. La vista los compara y saca `atrasado` y `dias_atras`;
-   calculados, no guardados, porque una columna guardada se puede
-   contradecir con registrado_en y entonces habría que decidir cuál de
-   las dos manda.
+ARREGLO: los nombres de fechas —MESES, partes, diaSemana, bonita,
+conDia— se mudan a modulos/traspasos/formato.ts, que es un archivo
+normal. Calendario.tsx los importa de allí. Repetir.tsx también, que
+los traía del calendario.
 
-3. EL FUTURO SE CIERRA. Un viaje que no ha salido no es un registro, es
-   un plan, y para eso está Planear. Hasta hoy se podía meter un viaje
-   del mes entrante y salía contado como cumplido; un dedo que escribe
-   2027 en vez de 2026 metía un cumplido que ningún informe vuelve a
-   mirar. La pantalla lo dice ANTES de escribir placa y ruta, y enlaza
-   a Planear de ese mismo día.
+SIN REEXPORTAR desde Calendario, aunque habría sido una línea: un
+`export { conDia }` dentro de un "use client" deja la trampa armada
+para la próxima página del servidor que importe de ahí, y el error
+vuelve idéntico.
 
-Hacia atrás queda abierto para todos, no solo para el administrador. Se
-pensó en cerrarlo: el turno C entra a las 22:00 y sale a las 6:00, y
-muchas veces digita al otro día — encerrarlos en «hoy» les partiría el
-turno en dos. Lo que sí hay es un tope de un año contra el error de
-dedo en el año, y ese tope el administrador lo pasa: si él dice que la
-fecha es correcta, es correcta.
+Y UN ARNÉS, porque esta es la segunda vez que este proyecto cruza mal
+la frontera —la primera fue comunes.tsx, y por eso existe formato.ts—:
 
-La etiqueta no es roja. Registrar el día anterior es normal; pintarlo
-de alarma enseñaría a la gente a ignorar las alarmas. Va en azul frío
-con el mismo rielito de CORREGIDO —son parientes: las dos dicen «este
-renglón no es lo que parece»— pero de otro tono, porque corregido es
-alguien reescribiendo un dato y atrasado es un dato que llegó tarde sin
-que nadie lo tocara. Si compartieran color habría que leer el texto
-para distinguirlas, y una etiqueta que hay que leer entera no está
-haciendo su trabajo.
+  .arnes/frontera.mjs
 
-MEDIDO, no mirado:
- · .arnes/prueba-registro-atrasado.sql — 11 comprobaciones contra
-   Postgres 16, de no superusuario, con la migración corrida dos veces.
-   Incluye la trampa de UTC: un viaje de hoy digitado a las 7 p. m. de
-   Barranquilla ya es mañana para el servidor, y con `registrado_en::date`
-   a secas TODOS los turnos B y C tardíos habrían salido marcados en
-   falso, todos los días.
- · .arnes/tp-tarde.mjs — 28 combinaciones (4 anchos × 7 temas): la
-   etiqueta no se sale de la fila ni se parte en dos, contraste 8.82 en
-   todos los temas, y se distingue de CORREGIDO a simple vista.
- · prueba-editar-viaje.sql y prueba-borrar-plan.sql pasaron a fechas
-   relativas a hoy. Tenían literales de septiembre de 2026 que el nuevo
-   tope del futuro rechazaba — y que, sin este cambio, habrían empezado
-   a fallar solos el mes entrante sin que nadie supiera si lo roto era
-   el código o el calendario.
-
-Falta correr en Supabase:
-  supabase/migraciones/2026-09-traspasos-registro-atrasado.sql
+Recorre los 92 archivos del servidor, resuelve cada import (alias @/,
+relativo, con extensión o sin ella) y marca los que traen un VALOR de
+un archivo "use client". Componentes sí —Mayúscula, para eso está la
+frontera—; funciones no. Comprobado de las dos formas: con el error
+puesto a propósito lo reporta señalando el archivo y la línea, y
+quitado queda limpio.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

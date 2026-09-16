@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+/* LOS NOMBRES DE LAS FECHAS VIENEN DE formato.ts, que es un archivo
+   normal. Estaban aquí, y como este archivo es "use client", la página
+   de Registrar —que es del servidor— reventaba al llamar conDia para
+   cualquier día que no fuera hoy. Lo que el servidor va a llamar no
+   puede vivir detrás de un "use client". */
+import { MESES, partes, diaSemana, bonita, conDia } from "@/modulos/traspasos/formato";
 
 /**
  * EL CALENDARIO DEL PLAN.
@@ -19,35 +25,17 @@ import { useEffect, useRef, useState } from "react";
  * fechas sí es la misma y está escrita igual a propósito.
  */
 
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
-  "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 /** Empieza en lunes, que es como se lee un calendario de trabajo. */
 const DIAS = ["L", "M", "M", "J", "V", "S", "D"];
 
 export const aTexto = (a: number, m: number, d: number) =>
   `${a}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-export const partes = (f: string) => ({
-  a: Number(f.slice(0, 4)), m: Number(f.slice(5, 7)) - 1, d: Number(f.slice(8, 10)),
-});
 const cuantosDias = (a: number, m: number) => new Date(Date.UTC(a, m + 1, 0)).getUTCDate();
 /** 0 = lunes. */
 const huecoInicial = (a: number, m: number) => (new Date(Date.UTC(a, m, 1)).getUTCDay() + 6) % 7;
 
-/** Lunes = 0 … domingo = 6, para una fecha suelta. Se ancla al mediodía
- *  porque una fecha sin hora se lee como medianoche UTC, que en Colombia
- *  es el día anterior. */
-export const diaSemana = (f: string) =>
-  (new Date(f + "T12:00:00").getUTCDay() + 6) % 7;
 
-export const bonita = (f: string) => {
-  const { m, d } = partes(f);
-  return `${d} de ${MESES[m]}`;
-};
 
-/** Con el día de la semana delante. En una pantalla donde se planea por
- *  semana, saber que el 15 es martes es la mitad de la información. */
-const SEM = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
-export const conDia = (f: string) => `${SEM[diaSemana(f)]} ${bonita(f)}`;
 
 /** Todos los días entre dos fechas, incluidas las dos puntas. */
 export function rango(desde: string, hasta: string) {
