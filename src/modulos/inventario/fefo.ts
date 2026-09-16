@@ -58,6 +58,11 @@ export type Renglon = {
   cajas: number | null;
   total_cajas: number;
   total_estibas: number;
+  /* Los tres pedazos como se teclearon, aparte de la fecha armada: son
+     los que hay que devolver a las casillas DD/MM/AA al corregir. */
+  venc_dia: number | null;
+  venc_mes: number | null;
+  venc_anio: number | null;
   vencimiento: string | null;
   dias_para_vencer: number | null;
   dias_para_salir: number | null;
@@ -69,6 +74,11 @@ export type Renglon = {
   ubicacion_combinada: string | null;
   conto: string | null;
   contado_en: string | null;
+  /* Los dos que hacen falta para volver a abrir el renglón en el
+     formulario tal como se guardó: sin ellos, corregir una fila exige
+     adivinar qué ubicación y qué material eran. */
+  producto_id: string;
+  ubicacion_id: string | null;
 };
 
 /* Se reconoce que falta correr el SQL por el error de Postgres, no por
@@ -138,7 +148,7 @@ export async function miConteoFefo(bodegaId: string | null) {
 
   const { data: c } = await supabase
     .from("conteos")
-    .select("id, codigo, estado, iniciado_en")
+    .select("id, codigo, estado, iniciado_en, enviado_en")
     .eq("responsable_id", user.id).eq("tipo", "fefo")
     .eq("bodega_id", bodegaId).eq("estado", "en_proceso")
     .order("creado_en", { ascending: false }).limit(1).maybeSingle();

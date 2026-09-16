@@ -19,10 +19,19 @@ export type ViajeAi = {
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
-const cuando = (s?: string | null) =>
-  s ? new Date(s).toLocaleString("es-CO", {
-        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-      }) : null;
+/* LA FECHA SE FORMATEA SIEMPRE, venga como venga. Salía en crudo
+   —«2026-09-10T17:41:01.717404+00:00»— porque el respaldo era
+   `viaje.fecha` a pelo, y esa columna a veces trae la marca de tiempo
+   entera. Poner un texto sin formatear en una cinta es peor que no
+   ponerlo: ocupa el triple y no se lee. */
+const cuando = (s?: string | null) => {
+  if (!s) return null;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("es-CO", {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+};
 
 /**
  * LA REVISIÓN AI DEL ENVASE.
@@ -177,7 +186,7 @@ export function FormularioAi({
 
   const cobran = defectos.filter((d) => d.cobra);
   const noCobran = defectos.filter((d) => !d.cobra);
-  const llegada = cuando(viaje.llego_en) ?? viaje.fecha;
+  const llegada = cuando(viaje.llego_en) ?? cuando(viaje.fecha) ?? viaje.fecha;
 
   /* Un contador. Es lo único que se toca catorce veces seguidas, así que
      es lo único que mide 44 px de verdad y no «casi». */

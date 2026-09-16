@@ -456,6 +456,13 @@ for (const [ancho, etiqueta] of ANCHOS) {
 
 /* ---------- 7. LO QUE NO SE VE PERO DECIDE ---------- */
 const limpio = tsx.replace(/\/\*[\s\S]*?\*\//g, "");
+/* LA FECHA DE LA CINTA SE FORMATEA SIEMPRE. Salió en crudo en
+   producción —«2026-09-10T17:41:01.717404+00:00» ocupando media
+   cinta— porque el respaldo era `viaje.fecha` a pelo y esa columna a
+   veces trae la marca de tiempo entera. */
+if (/cuando\(viaje\.llego_en\) \?\? viaje\.fecha/.test(limpio))
+  fallas.push("la fecha de llegada cae a `viaje.fecha` sin formatear: sale la marca de " +
+              "tiempo en crudo dentro de la cinta");
 if (/\b(prompt|confirm|alert)\s*\(/.test(limpio))
   fallas.push("usa los diálogos del navegador en vez de los de la app");
 /* Los conteos se TOCAN. Si vuelve a haber un input de número por

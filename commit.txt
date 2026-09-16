@@ -1,70 +1,117 @@
-Revisión AI: los tokens colgaban de un envoltorio que Tránsito no tiene
+Conteo: el renglón en el orden de la hoja, y borrador hasta que se envía
 
-Cristian lo vio en producción: «esto en tránsito sigue igual, o sea qué
-cambiaste entonces». Tenía razón a medias — el HTML nuevo SÍ estaba (los
-rótulos, «Falta», el recuadro rojo de lo que falta para cerrar) pero
-salía SIN UN SOLO BORDE NI FONDO. Se veía como un formulario sin CSS.
-
-=====================================================================
-1 · QUÉ PASÓ
-=====================================================================
-
-`ai.css` definía sus diez tokens —papel, fondo, tinta, línea, acento,
-banda— en el selector `.sd.ai`. O sea: solo existían si alguien había
-puesto la clase `ai` en el envoltorio.
-
-La pantalla suelta /sider/ai la ponía. TRÁNSITO NO: su envoltorio es
-`.sd tr-pantalla`. Cuando el formulario se mudó adentro de la
-certificación de llegada —hace dos semanas— ningún `var(--ai-*)`
-resolvió más.
-
-Y UNA VARIABLE CSS INDEFINIDA NO SE DEGRADA: LA DECLARACIÓN SE DESCARTA
-ENTERA. `border: 1.5px solid var(--ai-linea)` con el token ausente no da
-un borde gris por defecto: no da borde. Se cayeron todos los bordes,
-todos los fondos, la cinta negra de la placa y el fondo del panel. Quedó
-en pie únicamente lo escrito con un color literal —el `#3A1114` del
-recuadro de «falta para cerrar»—, que es exactamente lo único que se ve
-en su captura.
-
-ARREGLO: los tokens cuelgan ahora de `.ai-form`, que es el propio
-formulario y viaja con él vaya donde vaya. `.sd.ai` se conserva para no
-romper donde ya esté puesta.
+Cristian, con la hoja CONTEO al lado: «CAL, MOD, D/I sin límite, y en
+orden; luego código, descripción por defecto automático, luego fecha de
+vencimiento, y luego cantidad que se divide si es estibas, cajas, ROT.
+Luego AVER, PNC, ESTA. Y así poder tener todo el conteo que se va yendo
+para otra hoja como borrador pero aún sin enviar, y cuando la persona
+culmine se va para allá, valida si va a corregir algún registro, y luego
+enviar con fecha, hora y nombre del usuario».
 
 =====================================================================
-2 · POR QUÉ EL ARNÉS NO LO CAZÓ, QUE ES LO GRAVE
+1 · EL RENGLÓN, EN EL ORDEN DEL EXCEL
 =====================================================================
 
-Porque montaba `<div class="sd ai">` — un envoltorio que la aplicación
-NO TIENE. Ahí los tokens sí resolvían, todo se pintaba, y las siete
-columnas de contraste daban números preciosos.
+  CAL · MOD · D/I → CÓDIGO → DESCRIPCIÓN → D/M/A → ESTIBAS · CAJAS · ROT
+  → AVER · PNC · ESTA
 
-ES LA CUARTA VEZ EN ESTE PROYECTO que un arnés mide un armazón inventado
-—`.filtros` por `.tr-filtros`, la tabla envuelta en `us` cuando la
-página usa `rl us`, el fondo de `.sh` leído donde lo pone `body`— y la
-PRIMERA que el error llega hasta la pantalla del usuario. Las otras tres
-las cacé yo antes de entregar; esta la cazó Cristian.
+Es el orden en que se mira una estiba: dónde estoy, qué es, cuándo vence,
+cuánto hay, y de último lo raro. Cambiarlo obliga a quien lleva años
+llenando la hoja a buscar cada campo, que es la forma más segura de que
+prefiera el papel.
 
-Dos cosas nuevas en `.arnes/sd-ai-panel.mjs`:
+EL MÓDULO YA NO ESTÁ BLOQUEADO hasta escoger calle. Estaba, y era un
+estorbo: quien vuelve al mismo módulo cada mañana tenía que pasar por la
+calle aunque ya supiera a dónde iba. Sin calle, la lista trae TODAS las
+ubicaciones; con calle, las de esa calle. Y escoger el módulo pone su
+calle solo, así que entrar por la lista completa no cuesta un paso de
+vuelta.
 
-  · Monta el envoltorio REAL: `.sd tr-pantalla`, sin la clase `ai`.
+EL LADO NO SE ESCOGE: VIENE CON EL MÓDULO. En la hoja era una columna
+aparte y por eso 38 de las 152 filas quedaron sin él — «A29» existe, pero
+como A29_DER y A29_IZQ, y un cuarto del conteo no podía decir de qué lado
+del pasillo estaba. Aquí se muestra para confirmar, no para llenar.
 
-  · Comprueba QUE LOS TOKENS RESUELVAN, antes de medir un solo color.
-    Este es el candado que faltaba y el que hay que copiar a los demás
-    arneses: si los tokens no existen, el contraste medido encima sale
-    perfecto —es texto negro sobre papel blanco— y un 16,65 puede ser
-    una pantalla impecable o una pantalla sin CSS. El número no los
-    distingue; la comprobación sí. Y además mira que la cinta, el panel,
-    la caja y los campos no queden transparentes, y que los campos
-    tengan borde.
+ESTIBAS Y CAJAS SON LA MISMA CASILLA CON DOS NOMBRES. En la hoja son dos
+columnas y en 151 de 152 filas una va vacía; la única que traía las dos
+es un dedazo. Poner las dos invita a repetirlo.
 
-Se verificó devolviendo los tokens a `.sd.ai`. El arnés lo canta con
-seis líneas, empezando por «los tokens … no existen en el envoltorio
-real de la pantalla».
+Y las tres marcas arman a la vista la «UBICACIÓN COMBINADA» del Excel
+—`E06_IZQ AVERIA VACIOS`—, que es la columna con la que se agrupa: una
+estiba averiada no es lo mismo que la buena del mismo módulo.
 
-Se revisaron las otras once hojas del proyecto por si tenían lo mismo:
-todas cuelgan sus tokens de una clase única —`.rl`, `.fe`, `.sd`, `.tp`,
-`.qb`— que las páginas sí ponen. `ai.css` era la única con un selector
-compuesto, y por eso la única frágil.
+=====================================================================
+2 · BORRADOR HASTA QUE SE ENVÍA
+=====================================================================
+
+Los renglones se siguen guardando AL MOMENTO —un borrador que viviera en
+el celular se perdería con la señal, y son 152 de una mañana— pero el
+recorrido queda abierto. Abajo está «El borrador»: se revisa, se corrige
+lo que haga falta, y al final se ENVÍA con fecha, hora y nombre.
+
+CORREGIR CARGA EL RENGLÓN DE VUELTA en el formulario tal como quedó, y el
+formulario se pinta distinto mientras tanto. Sin eso, tocar «Corregir» en
+una fila de abajo y subir dejaba a alguien escribiendo encima de un
+renglón que creía nuevo.
+
+ENVIAR NO TOCA EL KARDEX, y es a propósito. `cerrar_conteo` genera los
+ajustes por diferencia, y eso solo tiene sentido si el conteo cubrió TODA
+la bodega. Un recorrido FEFO normal es parcial —los módulos que dio el
+turno— y ajustar con un conteo parcial le restaría a cada producto lo que
+no se alcanzó a contar. Enviar cierra y firma; ajustar el inventario
+sigue siendo un acto aparte.
+
+Dos candados nuevos: un conteo enviado ya no se corrige —cambiar lo que
+alguien dio por bueno, sin rastro, no puede ser un botón— y un conteo
+vacío no se envía: firmar cero renglones dice que no había nada en la
+bodega, que es muy distinto de «no alcancé a contar».
+
+=====================================================================
+3 · DOS COSAS QUE SE VEÍAN MAL EN PRODUCCIÓN
+=====================================================================
+
+LA FECHA DE LLEGADA SALÍA EN CRUDO en la cinta de la revisión AI:
+«2026-09-10T17:41:01.717404+00:00», ocupando el triple y sin poder
+leerse. El respaldo era `viaje.fecha` a pelo, y esa columna a veces trae
+la marca de tiempo entera. Ahora se formatea venga como venga.
+
+«ANOTAR RENGLÓN» QUEDABA 115 px BAJO EL PLIEGUE en un celular de
+390×740 con el renglón nuevo: un scroll por estiba, 152 al día. Las tres
+filas ya no se apilan en el celular — se reparten por lo que mide cada
+campo, con el módulo llevándose la parte grande porque es la elección que
+no se puede truncar.
+
+=====================================================================
+4 · LOS ARNESES
+=====================================================================
+
+`.arnes/inv-conteo.mjs` se reescribió al renglón nuevo, y ahora comprueba
+EL ORDEN DE LOS CAMPOS uno por uno contra el componente. Ese candado
+apareció por un error mío: buscaba el rótulo «Vence» y encontraba el
+`<dt>Vence</dt>` de la lista de abajo, cien líneas después —así que daba
+por bueno cualquier orden a partir de ahí—. El arreglo fue en el
+componente: el rótulo es «Vence» y punto, y la nota del envase salió a su
+propio elemento.
+
+`.arnes/sd-ai-panel.mjs` gana la comprobación de la fecha en crudo.
+Verificada devolviéndola: «la fecha de llegada cae a viaje.fecha sin
+formatear».
+
+=====================================================================
+5 · PARA CORRER
+=====================================================================
+
+  supabase/migraciones/2026-09-conteo-borrador.sql
+
+Solo ese, y solo después de los tres de ayer. Agrega `conteo_fefo_editar`
+y `conteo_fefo_enviar`, y las columnas de la firma. Se puede correr
+varias veces; probado dos vueltas sobre una base limpia.
+
+OJO CON LA VISTA: va con `drop` y no con `create or replace` porque gana
+columnas en medio, y Postgres solo deja reemplazar una vista si las
+columnas viejas quedan iguales y en el mismo orden. Con `replace`
+reventaba con «cannot change name of view column» y la migración no
+pasaba ni la primera vez.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

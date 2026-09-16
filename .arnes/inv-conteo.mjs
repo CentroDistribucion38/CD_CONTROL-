@@ -56,59 +56,68 @@ const ARMAZON = `
     <div>
       <p class="ojo">INVENTARIO · CONTEO POR MÓDULO</p>
       <h1>Contar</h1>
-      <p class="sub">Se camina módulo por módulo: escoges dónde estás una vez y vas
-        anotando lo que hay. Cada renglón queda guardado al momento con tu nombre.</p>
+      <p class="sub">Se camina módulo por módulo: escoges dónde estás y vas anotando.</p>
     </div>
-    <div class="kpi"><div class="corte"></div><div class="rot">RECORRIDO ABIERTO</div>
+    <div class="kpi"><div class="corte"></div><div class="rot">BORRADOR</div>
       <div class="num">12</div><div class="pie">renglones · 4 módulos</div></div>
   </section>
 
-  <section class="fe-donde plegada">
-    <div><p class="fe-paso">Estás en</p>
-      <p class="fe-aqui-cab"><b>ALAR_BAHIA_6</b>
-        <span> · ESTIBAS DE PRODUCTO TERMINADO SIN CLASIFICAR</span>
-        <span> — 3 renglones aquí (26.880 cajas)</span></p></div>
-    <button type="button" class="fe-mini">Cambiar módulo</button>
-  </section>
-
   <section class="fe-anotar">
-    <p class="fe-paso">2 · Qué hay ahí</p>
+    <div class="fe-anotar-cab"><p class="fe-paso">Anotar lo que hay</p></div>
+
+    <div class="fe-tres">
+      <label><span>Calle</span><select><option>Todas</option><option>ALAR</option></select></label>
+      <label><span>Módulo</span>
+        <select><option>ALAR_BAHIA_6 · MULTIEMPAQUE</option></select></label>
+      <label><span>Lado</span><output class="fe-lado">sin lado</output></label>
+    </div>
+
     <label class="fe-cod-campo"><span>Código</span>
       <input inputmode="numeric" value="3128"></label>
     <p class="fe-eco">CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE ·
       <b>480</b> cajas por estiba</p>
-    <div class="fe-campos dos">
-      <label><span>Qué cuentas</span>
-        <select><option>Estibas completas</option><option>Cajas sueltas</option></select></label>
-      <label><span>Cuántas</span><input inputmode="numeric" value="56"></label>
-    </div>
-    <div class="fe-rota"><span>¿Rota?</span>
-      <div class="fe-si-no">
-        <button type="button" class="on">Sí</button>
-        <button type="button">No</button>
-      </div></div>
-    <div class="fe-fecha"><span>Vence</span>
+
+    <div class="fe-fecha"><span>Vence</span><em class="fe-opcional">el envase no trae fecha</em>
       <div class="fe-dma">
         <input inputmode="numeric" maxlength="2" placeholder="DD" value="21">
         <input inputmode="numeric" maxlength="2" placeholder="MM" value="08">
         <input inputmode="numeric" maxlength="2" placeholder="AA" value="27">
       </div></div>
-    <div class="fe-marcas">
+
+    <div class="fe-tres">
+      <label><span>Qué cuentas</span>
+        <select><option>Estibas</option><option>Cajas</option></select></label>
+      <label><span>Cuántas</span><input inputmode="numeric" value="56"></label>
+      <div class="fe-rota"><span>¿Rota?</span>
+        <div class="fe-si-no"><button type="button" class="on">Sí</button>
+          <button type="button">No</button></div></div>
+    </div>
+
+    <div class="fe-tres fe-marcas">
       <label class="fe-check"><input type="checkbox"><span>Avería</span></label>
       <label class="fe-check"><input type="checkbox"><span>PNC</span></label>
+      <label><span>Estado del envase</span>
+        <select><option>—</option><option>PIROGRABADO</option></select></label>
     </div>
+
     <button type="button" class="btn grande">Anotar renglón</button>
   </section>
 
   <section class="fe-recorrido">
-    <div class="fe-rec-cab"><h2>El recorrido</h2>
-      <span>12 renglones · 4 módulos · 68.420 cajas</span></div>
+    <div class="fe-rec-cab">
+      <div><h2>El borrador</h2>
+        <p class="fe-rec-dice">Todo esto está guardado pero todavía no se ha enviado.
+          Revísalo, corrige lo que haga falta, y mándalo cuando termines.</p></div>
+      <span>12 renglones · 4 módulos · 68.420 cajas</span>
+    </div>
+    <p class="fe-aqui">En <b>ALAR_BAHIA_6</b> llevas 3 renglones (26.880 cajas)</p>
     <div class="fe-lista">
       <article class="fe-fila urgente">
         <div class="fe-cab"><b class="fe-cod">3500231</b>
           <span class="fe-desc">ENVASE COSTEÑITA 175 ML RETORNABLE CAJA X 30</span>
           <span class="fe-ubi">ALAR_BAHIA_6 AVERIA VACIOS</span>
-          <button type="button" class="fe-mini">Borrar</button></div>
+          <button type="button" class="fe-mini">Corregir</button>
+          <button type="button" class="fe-quitar chico">Borrar</button></div>
         <dl class="fe-cifras">
           <div><dt>Total cajas</dt><dd>4.320</dd></div>
           <div><dt>Estibas</dt><dd>80</dd></div>
@@ -120,7 +129,8 @@ const ARMAZON = `
         <div class="fe-cab"><b class="fe-cod">17740</b>
           <span class="fe-desc">PONY MALTA LTA 330 X6 TERMO EXP USA</span>
           <span class="fe-ubi">E06_IZQ</span>
-          <button type="button" class="fe-mini">Borrar</button></div>
+          <button type="button" class="fe-mini">Corregir</button>
+          <button type="button" class="fe-quitar chico">Borrar</button></div>
         <dl class="fe-cifras">
           <div><dt>Total cajas</dt><dd>26.880</dd></div>
           <div><dt>Estibas</dt><dd>56</dd></div>
@@ -129,28 +139,23 @@ const ARMAZON = `
         </dl>
       </article>
     </div>
+    <div class="fe-enviar">
+      <p>Al enviarlo queda firmado con tu nombre, la fecha y la hora, y
+        <b>deja de poderse corregir</b>.</p>
+      <button type="button" class="btn grande">Enviar el conteo · 12 renglones</button>
+    </div>
   </section>
 </div>`;
 
-/* TODO ABIERTO: el paso 1 desplegado y el estado del envase a la vista.
-   Es el momento de escoger módulo, que dura tres segundos, así que no se
-   le exige caber sobre el pliegue — pero sí que nada se salga y que el
-   dedo alcance, porque escoger mal el módulo es contar el pasillo
-   equivocado. */
-const ABIERTO = ARMAZON
-  .replace(/<section class="fe-donde plegada">[\s\S]*?<\/section>/, `
-  <section class="fe-donde">
-    <p class="fe-paso">1 · En qué módulo estás</p>
-    <div class="fe-campos dos">
-      <label><span>Calle</span><select><option>ALAR</option></select></label>
-      <label><span>Módulo</span><select><option>ALAR_BAHIA_6 · MULTIEMPAQUE</option></select></label>
-    </div>
-    <p class="fe-aqui"><b>ALAR_BAHIA_6</b> · ESTIBAS DE PRODUCTO TERMINADO SIN
-      CLASIFICAR · capacidad 96</p>
-  </section>`)
-  .replace('<span>PNC</span></label>', `<span>PNC</span></label>
-      <label class="fe-estado"><span class="sr">Estado del envase</span>
-        <select><option>Estado del envase…</option><option>PIROGRABADO</option></select></label>`);
+/* CORRIGIENDO: el otro estado real del formulario. Se llega tocando
+   «Corregir» en una fila de abajo, y el formulario se pinta distinto
+   para que nadie escriba encima de un renglón creyéndolo nuevo. */
+const CORRIGIENDO = ARMAZON
+  .replace('class="fe-anotar"', 'class="fe-anotar corrigiendo"')
+  .replace('<p class="fe-paso">Anotar lo que hay</p>',
+    '<p class="fe-paso">Corrigiendo un renglón</p>' +
+    '<button type="button" class="fe-mini">Dejarlo como estaba</button>')
+  .replace(">Anotar renglón<", ">Guardar la corrección<");
 
 /* El aviso del código malo se mide aparte: solo existe cuando el código
    no está en el maestro, y es el que hay que leer con el sol de frente. */
@@ -314,7 +319,7 @@ for (const [ancho, etiqueta] of ANCHOS) {
                 "390×740: cada estiba costaría un scroll");
 
   /* Y lo mismo con todo abierto, menos el pliegue. */
-  await monta(pag, null, ancho, 740, ABIERTO);
+  await monta(pag, null, ancho, 740, CORRIGIENDO);
   const b = await pag.evaluate(() => {
     const recortado = (e, hasta) => {
       for (let p = e.parentElement; p && p !== hasta.parentElement; p = p.parentElement)
@@ -331,16 +336,16 @@ for (const [ancho, etiqueta] of ANCHOS) {
       }
     }
     const d = document.documentElement;
-    const sel = [...document.querySelectorAll(".fe-donde select, .fe-estado select")];
+    const sel = [...document.querySelectorAll(".fe-tres select, .fe-tres input")];
     return { salen: [...new Set(salen)], lado: d.scrollWidth - d.clientWidth,
              toque: Math.min(...sel.map((e) => Math.round(e.getBoundingClientRect().height))) };
   });
   if (b.salen.length)
-    fallas.push(`${etiqueta}, escogiendo módulo: se sale ${b.salen.join(", ")}`);
+    fallas.push(`${etiqueta}, corrigiendo: se sale ${b.salen.join(", ")}`);
   if (b.lado > 0)
-    fallas.push(`${etiqueta}, escogiendo módulo: la página se arrastra ${b.lado} px de lado`);
+    fallas.push(`${etiqueta}, corrigiendo: la página se arrastra ${b.lado} px de lado`);
   if (b.toque < 44)
-    fallas.push(`${etiqueta}, escogiendo módulo: un desplegable mide ${b.toque} px`);
+    fallas.push(`${etiqueta}, corrigiendo: un desplegable mide ${b.toque} px`);
 }
 
 /* ---------- 7. LO QUE NO SE VE PERO DECIDE ---------- */
@@ -349,14 +354,31 @@ if (/\b(prompt|confirm|alert)\s*\(/.test(limpio))
   fallas.push("usa los diálogos del navegador en vez de los de la app");
 /* La ubicación tiene que ser una LLAVE, no un texto tecleado: es lo que
    arregla el cuarto del conteo que en la hoja no se podía ubicar. */
-if (/p_ubicacion:\s*(ubicacion\.clave|codigo|busca)/.test(limpio))
+if (/p_ubicacion:\s*(ubicacion\.clave|b\.codigo|busca)/.test(limpio))
   fallas.push("manda la ubicación como texto en vez de la llave escogida");
-if (!/p_ubicacion:\s*ubicacion\.id/.test(limpio))
+if (!/p_ubicacion:\s*ubicacion!\.id/.test(limpio))
   fallas.push("no manda el id de la ubicación escogida");
+/* EL RENGLÓN VA EN EL ORDEN DE LA HOJA. Es lo que pidió Cristian y lo
+   que lleva años en el Excel: cambiarlo obliga a quien ya sabe llenarla
+   a buscar cada campo. Se comprueba por el orden en que aparecen los
+   rótulos en el componente. */
+const orden = ["Calle", "Módulo", "Lado", "Código", "Vence", "Qué cuentas",
+               "Cuántas", "¿Rota?", "Avería", "PNC", "Estado del envase"];
+let desde = 0;
+for (const r of orden) {
+  const i = limpio.indexOf(">" + r + "<", desde);
+  if (i < 0) { fallas.push(`falta el campo «${r}» en el renglón`); break }
+  desde = i;
+}
+/* Y el borrador tiene que poder corregirse y enviarse. */
+if (!/conteo_fefo_editar/.test(limpio))
+  fallas.push("no se puede corregir un renglón del borrador");
+if (!/conteo_fefo_enviar/.test(limpio))
+  fallas.push("no hay envío: el conteo nunca queda firmado");
 /* «¿Rota?» arranca SIN respuesta: se contesta en las 152 filas de la
    hoja real, así que preseleccionar «no» sería contestar por el que
    cuenta — y quedaría 58 veces bien y 94 veces mal. */
-if (!/useState<boolean \| null>\(null\)/.test(limpio))
+if (!/rot:\s*null/.test(limpio))
   fallas.push("«¿Rota?» arranca con una respuesta puesta en vez de vacía");
 
 await navegador.close();
