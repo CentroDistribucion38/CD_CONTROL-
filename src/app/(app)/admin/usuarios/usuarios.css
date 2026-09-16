@@ -272,3 +272,55 @@
   /* Blancos de toque cortos */
   .us .us-campos select { height: 44px }
 }
+
+/* ============ LA COLUMNA DE PANTALLAS, Y SU EDITOR =================
+
+   LO QUE HABÍA. La columna imprimía una chapa por cada pantalla extra.
+   Con diecisiete —el caso real de un administrador— la fila medía cinco
+   veces las otras, la tabla dejaba de leerse de un vistazo (que es para
+   lo único que sirve una tabla) y encima ninguna de las diecisiete se
+   podía tocar: se enseñaban y no se editaban. Ocupaban sitio sin
+   servir.
+
+   LO QUE HAY. La celda dice CUÁNTAS y es un botón: abre el editor de esa
+   persona. La lista entera sigue estando —en el `title`, al pasar por
+   encima— y completa y editable un clic más allá.
+
+   Y EL EDITOR VA EN SU PROPIA FILA, a todo lo ancho, no en una ventana
+   encima: lo mismo que ya valía para el nombre y el usuario vale aquí,
+   una ventana tapa justo el resto de la lista, que es contra lo que uno
+   compara. A todo lo ancho porque son diecisiete casillas y en una
+   celda de tabla no caben sin volver a reventar la fila.
+   =================================================================== */
+.us .us-cuantas { white-space: nowrap }
+
+.us .us-chapa.cuenta {
+  border: 1px solid var(--rl-linea); cursor: pointer; margin: 0;
+  min-height: 30px; font-family: var(--rl-texto);
+  color: inherit;
+}
+.us .us-chapa.cuenta:hover:not(:disabled) {
+  border-color: var(--rl-acento); color: var(--rl-acento);
+}
+.us .us-chapa.cuenta:disabled { cursor: default; opacity: .55 }
+.us .us-chapa.cuenta:focus-visible { outline: 3px solid var(--rl-acento); outline-offset: 2px }
+
+/* Mientras se edita, la celda deja de ofrecer el botón y dice dónde
+   está lo que se está tocando: el panel queda debajo y en una tabla
+   larga «abajo» no siempre es evidente. */
+.us .us-editando-aqui { font-size: 12px; color: var(--rl-gris) }
+
+.us .us-panel > td {
+  background: var(--c-f7f9fc); padding: 14px 18px 18px;
+  box-shadow: inset 3px 0 0 var(--rl-acento);
+}
+
+/* EL «VER Y CAMBIAR» SOBRA CUANDO EL ANCHO APRIETA. Medido: a 820 px el
+   botón entero mide lo suficiente para estrecharle la columna a
+   Acciones, sus dos botones se parten en dos líneas y la tabla crece de
+   181 a 289 px — el mismo daño que las chapas, con otra forma. Sin el
+   subrótulo el botón sigue diciendo lo que hay («17 pantallas») y que se
+   toca lo dice el cursor. */
+@media (max-width: 1200px) {
+  .us .us-chapa.cuenta em { display: none }
+}

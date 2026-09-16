@@ -16,7 +16,7 @@
  * decir "ya está tomado" antes de llenar el resto.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { normalizarUsuario } from "@/lib/auth";
@@ -32,6 +32,57 @@ type Modulo = {
   id: string; nombre: string; acento: string;
   secciones: { nombre: string; ruta: string }[];
 };
+
+/**
+ * EL SELECTOR DE PANTALLAS, UNO SOLO PARA LOS DOS SITIOS.
+ *
+ * Lo usan el formulario de crear y el editor de una fila. Estaba escrito
+ * solo en el de crear, así que al editar no había forma de tocar las
+ * pantallas: la columna las MOSTRABA —diecisiete chapas apiladas que
+ * reventaban la fila— y no dejaba cambiar ninguna. Enseñar algo que no
+ * se puede tocar es lo peor de los dos mundos: ocupa sitio y no sirve.
+ */
+function Pantallas({ catalogo, valor, cambiar }: {
+  catalogo: Modulo[];
+  valor: Record<string, "ver" | "editar">;
+  cambiar: (v: Record<string, "ver" | "editar">) => void;
+}) {
+  return (
+    <div className="us-modulos">
+      {catalogo.map((m) => (
+        <div key={m.id} className="us-mod">
+          <b style={{ borderColor: m.acento }}>{m.nombre}</b>
+          {m.secciones.map((sec) => {
+            const n = valor[sec.ruta];
+            return (
+              <div key={sec.ruta} className="us-sec">
+                <span>{sec.nombre}</span>
+                <div className="us-niveles">
+                  {(["ver", "editar"] as const).map((x) => (
+                    <button key={x} type="button"
+                            aria-pressed={n === x}
+                            className={n === x ? "on" : ""}
+                            onClick={() => {
+                              const c = { ...valor };
+                              /* Tocar el nivel que ya está puesto lo
+                                 QUITA: es la única forma de volver a
+                                 «ninguno» sin un tercer botón que diría
+                                 lo mismo que no tener ninguno puesto. */
+                              if (c[sec.ruta] === x) delete c[sec.ruta]; else c[sec.ruta] = x;
+                              cambiar(c);
+                            }}>
+                      {x === "ver" ? "Ver" : "Editar"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** El usuario que se propone del nombre: "Génesis Visbal" → "gvisbal". */
 function proponer(nombre: string): string {
@@ -136,6 +187,8 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
   const [editando, setEditando] = useState<string | null>(null);
   const [edNombre, setEdNombre] = useState("");
   const [edUsuario, setEdUsuario] = useState("");
+  const [edRol, setEdRol] = useState("");
+  const [edExtra, setEdExtra] = useState<Record<string, "ver" | "editar">>({});
   const [guardando, setGuardando] = useState(false);
   const [pedir, dialogo] = useConfirmar();
 
@@ -144,6 +197,10 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
     setEditando(p.id);
     setEdNombre(p.nombre ?? "");
     setEdUsuario(p.usuario ?? "");
+    setEdRol(p.rol);
+    /* Copia, no la referencia: tocar una pantalla y después Cancelar no
+       puede dejar el objeto de la lista ya cambiado. */
+    setEdExtra({ ...(p.permisos_extra ?? {}) });
   }
 
   async function guardarEdicion(p: Persona) {
@@ -176,7 +233,10 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
     const r = await fetch("/api/admin/usuarios", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: p.id, nombre: nom, usuario: usu }),
+      body: JSON.stringify({
+        id: p.id, nombre: nom, usuario: usu,
+        rol: edRol, permisos_extra: edExtra,
+      }),
     });
     const j = await r.json().catch(() => ({} as Record<string, string>));
     setGuardando(false);
@@ -360,35 +420,7 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
                 Se suma a lo que ya le da su rol y nunca le quita nada. Es para la
                 excepción; si son varios, el sitio es el rol.
               </p>
-              <div className="us-modulos">
-                {catalogo.map((m) => (
-                  <div key={m.id} className="us-mod">
-                    <b style={{ borderColor: m.acento }}>{m.nombre}</b>
-                    {m.secciones.map((s) => {
-                      const n = extra[s.ruta];
-                      return (
-                        <div key={s.ruta} className="us-sec">
-                          <span>{s.nombre}</span>
-                          <div className="us-niveles">
-                            {(["ver", "editar"] as const).map((x) => (
-                              <button key={x} type="button"
-                                      aria-pressed={n === x}
-                                      className={n === x ? "on" : ""}
-                                      onClick={() => setExtra((e) => {
-                                        const c = { ...e };
-                                        if (c[s.ruta] === x) delete c[s.ruta]; else c[s.ruta] = x;
-                                        return c;
-                                      })}>
-                                {x === "ver" ? "Ver" : "Editar"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+              <Pantallas catalogo={catalogo} valor={extra} cambiar={setExtra} />
             </div>
 
             <div className="us-acciones">
@@ -414,7 +446,7 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
               {gente.map((p) => {
                 const ex = Object.entries(p.permisos_extra ?? {});
                 const enEdicion = editando === p.id;
-                return (
+                const fila = (
                   <tr key={p.id} className={enEdicion ? "us-editando" : undefined}>
                     <td>
                       {enEdicion ? (
@@ -430,15 +462,38 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
                                onChange={(e) => setEdUsuario(normalizarUsuario(e.target.value))} />
                       ) : (p.usuario || "—")}
                     </td>
-                    <td>{nRol(p.rol)}</td>
                     <td>
-                      {ex.length === 0
-                        ? <span className="apagado">—</span>
-                        : ex.map(([ruta, n]) => (
-                            <span key={ruta} className="us-chapa">
-                              {nRuta(ruta)} <em>{n}</em>
-                            </span>
+                      {enEdicion ? (
+                        <select className="us-campo" value={edRol} aria-label="Rol"
+                                onChange={(e) => setEdRol(e.target.value)}>
+                          {roles.map((r) => (
+                            <option key={r.clave} value={r.clave}>{r.nombre}</option>
                           ))}
+                        </select>
+                      ) : nRol(p.rol)}
+                    </td>
+                    {/* LA CUENTA, NO LA LISTA. Aquí vivían las diecisiete
+                        chapas de Santiago Leal, una debajo de otra: la
+                        fila medía cinco veces las demás, la tabla dejaba
+                        de leerse de un vistazo —que es para lo único que
+                        sirve una tabla— y encima no se podía tocar
+                        ninguna. La lista completa está a un clic, en el
+                        editor, que es donde además se puede cambiar. */}
+                    <td className="us-cuantas">
+                      {enEdicion
+                        ? <span className="us-editando-aqui">
+                            {Object.keys(edExtra).length === 0
+                              ? "ninguna" : `${Object.keys(edExtra).length} elegidas`} · abajo ↓
+                          </span>
+                        : ex.length === 0
+                          ? <span className="apagado">—</span>
+                          : <button type="button" className="us-chapa cuenta"
+                                    disabled={!hayLlave || !!editando}
+                                    title={ex.map(([r, n]) => `${nRuta(r)} · ${n}`).join("\n")}
+                                    onClick={() => abrirEdicion(p)}>
+                              {ex.length} pantalla{ex.length === 1 ? "" : "s"}
+                              <em>ver y cambiar</em>
+                            </button>}
                     </td>
                     <td>
                       {!p.activo
@@ -486,6 +541,31 @@ export function Usuarios({ gente, roles, catalogo, hayLlave, yo }: {
                     </td>
                   </tr>
                 );
+                /* EL PANEL DE PANTALLAS VA EN SU PROPIA FILA, a todo lo
+                   ancho, y no en una ventana encima: lo mismo que ya
+                   valía para el nombre y el usuario vale aquí —una
+                   ventana tapa justo el resto de la lista, que es contra
+                   lo que uno compara—. Y a todo lo ancho porque son
+                   diecisiete casillas: en una celda de tabla no caben
+                   sin volver a reventar la fila. */
+                return enEdicion ? (
+                  <Fragment key={p.id}>
+                    {fila}
+                    <tr className="us-panel">
+                      <td colSpan={6}>
+                        <p className="us-rot">
+                          Pantallas de {p.nombre || p.usuario}
+                          <em> — se suman a las de su rol y nunca le quitan ninguna</em>
+                        </p>
+                        <p className="us-dice">
+                          Toca el nivel otra vez para quitarlo. Si a varias personas les
+                          hace falta la misma pantalla, el sitio es el <b>rol</b>, no aquí.
+                        </p>
+                        <Pantallas catalogo={catalogo} valor={edExtra} cambiar={setEdExtra} />
+                      </td>
+                    </tr>
+                  </Fragment>
+                ) : fila;
               })}
               {gente.length === 0 && (
                 <tr><td colSpan={6} className="apagado">Todavía no hay nadie.</td></tr>

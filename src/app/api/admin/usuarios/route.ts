@@ -371,7 +371,10 @@ export async function PUT(req: Request) {
     );
   }
 
-  let cuerpo: { id?: string; nombre?: string; usuario?: string };
+  let cuerpo: {
+    id?: string; nombre?: string; usuario?: string;
+    rol?: string; permisos_extra?: Record<string, string>;
+  };
   try { cuerpo = await req.json() } catch {
     return NextResponse.json({ error: "No llegó nada que cambiar." }, { status: 400 });
   }
@@ -379,6 +382,13 @@ export async function PUT(req: Request) {
   const id = (cuerpo.id ?? "").trim();
   const nombre = (cuerpo.nombre ?? "").trim();
   const usuario = normalizarUsuario(cuerpo.usuario ?? "");
+  /* EL ROL Y LAS PANTALLAS SON OPCIONALES EN ESTA RUTA, a propósito:
+     `undefined` quiere decir «no los toques». Si se trataran como ""
+     y {}, cualquier pantalla que solo quisiera corregir un nombre
+     dejaría a la persona sin rol y sin sus pantallas extra sin haberlo
+     pedido. */
+  const rol = cuerpo.rol === undefined ? null : cuerpo.rol.trim();
+  const extra = cuerpo.permisos_extra ?? null;
 
   if (!id) return NextResponse.json({ error: "Falta decir a quién." }, { status: 400 });
   if (nombre.length < 3) {
@@ -392,9 +402,44 @@ export async function PUT(req: Request) {
   }
 
   const { data: antes } = await admin
-    .from("perfiles").select("id, usuario, nombre").eq("id", id).maybeSingle();
+    .from("perfiles").select("id, usuario, nombre, rol").eq("id", id).maybeSingle();
   if (!antes) {
     return NextResponse.json({ error: "Esa persona ya no está." }, { status: 404 });
+  }
+
+  /* El rol tiene que existir. Si no se comprobara, un rol mal escrito
+     dejaría a alguien sin ver ninguna pantalla y nadie sabría por qué. */
+  if (rol !== null) {
+    if (!rol) return NextResponse.json({ error: "Falta decir con qué rol entra." }, { status: 400 });
+    const { data: elRol } = await supabase
+      .from("roles").select("clave, manda").eq("clave", rol).maybeSingle();
+    if (!elRol) {
+      return NextResponse.json({ error: `El rol "${rol}" no existe.` }, { status: 400 });
+    }
+
+    /* NADIE SE QUITA A SÍ MISMO LA LLAVE. Cambiarse el propio rol por uno
+       que no administra la plataforma deja la sesión abierta pero sin
+       poder volver a entrar aquí — y si es el único administrador, deja
+       la plataforma sin nadie que pueda arreglarlo. El candado vive en el
+       servidor y no en un botón escondido: esconder un botón no es un
+       permiso. */
+    if (id === user.id && !elRol.manda) {
+      return NextResponse.json(
+        { error: "No puedes quitarte a ti mismo el rol que administra la plataforma: " +
+                 "quedarías sin poder volver a entrar aquí. Pídeselo a otro administrador." },
+        { status: 409 }
+      );
+    }
+  }
+
+  /* Los permisos extra tienen que ser niveles reales: sin esto, un typo
+     deja un permiso que no aplica a nada y parece dado. */
+  if (extra !== null) {
+    for (const [ruta, nivel] of Object.entries(extra)) {
+      if (nivel !== "ver" && nivel !== "editar") {
+        return NextResponse.json({ error: `Nivel inválido en ${ruta}.` }, { status: 400 });
+      }
+    }
   }
 
   const cambiaUsuario = (antes.usuario ?? "").toLowerCase() !== usuario.toLowerCase();
@@ -438,9 +483,13 @@ export async function PUT(req: Request) {
      cambiaron, la pantalla diría "listo" sin haber cambiado nada. */
   const { data: despues, error: ePerfil } = await admin
     .from("perfiles")
-    .update({ nombre, usuario })
+    .update({
+      nombre, usuario,
+      ...(rol !== null ? { rol } : {}),
+      ...(extra !== null ? { permisos_extra: extra } : {}),
+    })
     .eq("id", id)
-    .select("id, usuario, nombre")
+    .select("id, usuario, nombre, rol")
     .maybeSingle();
 
   if (ePerfil || !despues) {
@@ -462,6 +511,7 @@ export async function PUT(req: Request) {
     usuario: despues.usuario,
     antes: { nombre: antes.nombre, usuario: antes.usuario },
     cambioUsuario: cambiaUsuario,
+    cambioRol: rol !== null && rol !== antes.rol,
     /* Cambiarse a uno mismo el usuario es válido, pero la sesión sigue
        abierta con el correo viejo y el siguiente ingreso será con el
        nuevo. Mejor decirlo que dejar que lo descubra mañana. */
