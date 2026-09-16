@@ -38,6 +38,24 @@ const nextConfig: NextConfig = {
   experimental: {
     staleTimes: { dynamic: 30, static: 180 },
   },
+
+  /* LA REVISIÓN AI YA NO TIENE PANTALLA PROPIA: vive dentro de Tránsito,
+     que es donde se pide y donde se hace. Pero una dirección que existió
+     no se puede simplemente apagar: quedan pestañas abiertas, marcadores
+     y el botón de atrás, y todos caen en un 404 que no explica nada —le
+     pasó a Cristian el mismo día del cambio—.
+
+     Así que la dirección vieja lleva a la nueva. Es temporal (307) y no
+     permanente (308) a propósito: un 308 se le queda pegado al navegador
+     para siempre y no hay forma de despegarlo desde el servidor, así que
+     si algún día vuelve a haber algo en /sider/ai —el tablero, por
+     ejemplo— nadie podría llegar. */
+  async redirects() {
+    return [
+      { source: "/sider/ai", destination: "/sider/transito", permanent: false },
+      { source: "/sider/ai/:viaje", destination: "/sider/transito", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

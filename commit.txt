@@ -1,51 +1,22 @@
-Tránsito: la revisión AI se ve por color en la tarjeta y deja de ser un módulo
+La dirección vieja de la revisión AI lleva a Tránsito en vez de a un 404
 
-CRISTIAN LO DIJO ASÍ: que en la misma lista de tránsito se vea, por
-color, a qué vehículo le toca revisión — y que no sea otro módulo.
+QUÉ PASÓ. Con el cambio anterior /sider/ai dejó de existir —la revisión
+vive dentro de Tránsito— y borré la pantalla. Lo que no hice fue pensar
+en quién seguía parado ahí: Cristian tenía la página abierta, refrescó, y
+le salió «404 — This page could not be found», en inglés y sin decir a
+dónde ir.
 
-EL COLOR. Esta pantalla ya tenía tres estados con color: turquesa el
-viaje normal, oro el que lleva más de un día en camino, rojo el error.
-La marca de AI estaba en ORO, o sea el mismo del que va tarde: dos cosas
-que no se parecen en nada y se resuelven de forma distinta compartían
-color, y barriendo la lista con la vista no se separaban.
+Una dirección que existió no se puede simplemente apagar. Quedan
+pestañas abiertas, marcadores y el botón de atrás, y todos caen en el
+mismo sitio.
 
-Ahora la AI tiene el suyo, morado, que no lo usa nada más aquí. Y son
-DOS morados, no uno:
+AHORA /sider/ai y /sider/ai/<viaje> llevan a /sider/transito, que es
+donde está la revisión.
 
-  · el claro, en la franja del borde — viene en camino y al llegar le
-    toca la muestra;
-  · el fuerte, con la tarjeta teñida y el borde más grueso — YA LLEGÓ y
-    sigue sin revisar. Ese no está esperando en la carretera: está
-    esperando a una persona, y tiene que gritar más.
-
-MEDIDO, no a ojo (`.arnes/sd-ai-color.mjs`). Las franjas se separan 180
-(normal vs AI) y 355 (va tarde vs AI) en una escala donde por debajo de
-100 dos colores se confunden de lejos; 119 para quien no distingue el
-verde. Y el color no es lo único: cada estado lleva además su sello con
-texto, porque una franja que solo separa para el que ve bien no separa.
-El texto sobre cada fondo contrasta entre 8.31 y 10.13.
-
-EL MÓDULO SE FUE DEL MENÚ. «Revisión AI» ya no es una entrada, y sus dos
-pantallas se borraron. Obligaban a quien recibe el camión a saber que
-existían, a entrar y a buscar la placa en una lista; en el muelle eso no
-pasa: se descarga y la revisión queda sin hacer.
-
-Y COMO NO HAY OTRA PANTALLA, EL PENDIENTE NO SE PIERDE DE VISTA: un
-vehículo marcado que ya llegó y nadie revisó NO desaparece de Tránsito
-al certificar la llegada. Se queda arriba de la lista —primero, porque
-es el único con algo que hacer ya— en morado fuerte, diciendo «llegó y
-nadie ha contado la muestra», y su botón dice «Hacer la revisión AI» y
-abre el formulario directo, sin volver a pedir ubicación ni fotos: eso
-ya está guardado y la base no lo aceptaría dos veces.
-
-Al que ya llegó tampoco se le ofrece quitarle la marca: desmarcarlo solo
-serviría para que el pendiente desaparezca sin que nadie contara nada.
-
-LO QUE QUEDA ABIERTO, y lo digo porque es un hueco de verdad: una
-revisión ya guardada no se puede corregir desde ninguna parte —antes se
-corregía desde la pantalla que se quitó—. `revisionDe()` sigue en su
-sitio para cuando se haga el tablero, que es donde va a tener sentido
-entrar a corregir.
+TEMPORAL (307) Y NO PERMANENTE (308), a propósito: un 308 se le queda
+pegado al navegador para siempre y no hay forma de despegarlo desde el
+servidor. Si algún día vuelve a haber algo en /sider/ai —el tablero, por
+ejemplo— con un 308 nadie podría llegar nunca.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
