@@ -184,15 +184,21 @@ export function Contar({
     [materiales, b.codigo]);
   const esEnvase = material?.tipo_material === "ENVASE";
 
-  function limpiar(dejarSitioYFecha: boolean) {
+  function limpiar(dejarSitio: boolean) {
     setCorrigiendo(null);
-    setB((x) => dejarSitioYFecha
-      /* EL SITIO Y LA FECHA SE QUEDAN. Se camina módulo por módulo —88
-         cambios de ubicación en 151 renglones— y dentro de un módulo las
-         estibas suelen ser del mismo lote. Volver a escoger los dos en
-         cada renglón es la mitad de las pulsaciones de la jornada. */
-      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado,
-          dia: x.dia, mes: x.mes, anio: x.anio }
+    setB((x) => dejarSitio
+      /* SOLO EL SITIO SE QUEDA: sigo parado frente al mismo módulo. Todo
+         lo demás vuelve a cero —código, fecha, cantidad, ¿rota?, las
+         marcas— porque el siguiente renglón es otra estiba.
+
+         LA FECHA SE QUEDABA, y estaba mal. La dejé pensando que dentro
+         de un módulo las estibas son del mismo lote, y sí lo son a
+         veces; pero cuando NO lo son hay que borrar tres casillas antes
+         de teclear la nueva, y eso es peor que teclearlas. Y hay algo
+         más grave: una fecha que se quedó puesta no se ve como un campo
+         por llenar, se ve como un campo ya lleno. Un renglón con la
+         fecha del anterior se anota sin que nadie lo note. */
+      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }
       : VACIO);
     campoCodigo.current?.focus();
   }
@@ -464,8 +470,15 @@ export function Contar({
             dos. Lo que confirma un dato no puede ser más pequeño que el
             dato. */}
         <div className="fe-cod-dos">
+          {/* EL MARCADOR NO PUEDE SER UN CÓDIGO DE VERDAD. Decía «3128»,
+              que es la Águila 330, y en gris claro dentro de un campo
+              grande se lee como un campo YA LLENO — sobre todo después
+              de anotar, que es justo cuando el campo acaba de vaciarse.
+              Un ejemplo que se puede confundir con un dato no es un
+              ejemplo, es un error esperando. */}
           <label><span>Código</span>
-            <input ref={campoCodigo} inputMode="numeric" value={b.codigo} placeholder="3128"
+            <input ref={campoCodigo} inputMode="numeric" value={b.codigo}
+                   placeholder="Teclea el código"
                    onChange={(e) => pon("codigo", e.target.value)} /></label>
           <label><span>Descripción</span>
             <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : "")}>

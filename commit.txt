@@ -1,73 +1,118 @@
-Contar: el formulario y el borrador, en dos pestañas
+Sider AI: el informe que el Excel no tenía, con las 285 del histórico
 
-Cristian: «la idea es que dentro de Contar estuviera el formulario de
-conteo —que perfecto, bien— y la otra es el borrador, que es lo que
-llevaríamos, para no enredarnos».
+Cristian: «el archivo del AI no lo importaste para ver la información.
+Te dije: pon la información en la otra hoja, de Seguimiento, dentro de
+ese mismo módulo, con gráfica y todo, que miraras cómo se calculaba para
+ejecutarlo».
 
-=====================================================================
-1 · DOS MOMENTOS, DOS PESTAÑAS
-=====================================================================
-
-    [ Anotar ]  [ El borrador · 152 ]
-
-Contar y revisar son dos cosas distintas. Contando se mira UN renglón
-—el que se está anotando—; revisando se miran los ciento cincuenta.
-
-Apilados en una sola página larga, cada renglón que entraba empujaba la
-lista hacia abajo y el formulario hacia arriba, y había que buscarlo
-otra vez. Ciento cincuenta veces en una mañana.
-
-CORREGIR SALTA AL FORMULARIO, con el renglón cargado. Sin eso, tocar
-«Corregir» en una fila del borrador dejaría el renglón cargado en un
-formulario que no se ve, y el siguiente que se anotara escribiría encima
-de él. Y al guardar la corrección VUELVE al borrador, que es de donde se
-vino y donde se comprueba que quedó bien. Anotar se queda en el
-formulario, que es donde va el siguiente.
+Tenía razón: le había hecho el análisis y la corrección del cobro, pero
+la pantalla no existía. Ahora sí.
 
 =====================================================================
-2 · LA BARRA SE ENCOGE EN EL CELULAR
+1 · LAS 285 FILAS, DENTRO
 =====================================================================
 
-A 46 px empujaba «Anotar renglón» 13 px bajo el pliegue de un teléfono
-de 360. Ese botón bajo el pliegue es un scroll por estiba.
+De «BD AI BAQ» —Barranquilla, mayo a septiembre de 2026—, leídas por
+FÓRMULAS y no por valores.
 
-A 40 px el dedo sigue acertando —es la altura del resto de las pestañas
-de la app— y la barra se pega a la sección de abajo: el hueco de 14 px
-que el módulo pone entre sus hijos aquí no separa dos cosas distintas
-—la pestaña y lo que la pestaña abre son lo mismo— y eran los píxeles
-que faltaban. Medido: cabe a 390 y a 360.
+LOS PORCENTAJES DEL EXCEL NO SE IMPORTAN. Ni el «% índice de cobro», ni
+el «% total botellas con defectos», ni los Hl. Todos salen de las
+unidades contadas, en `v_sider_ai`. Importar un porcentaje ya calculado
+sería poder contradecir a la vista, y entonces habría que decidir cuál
+manda cuando el socio reclame.
 
-=====================================================================
-3 · UNA REGLA DE CSS QUE PARECE DE MÁS Y NO LO ES
-=====================================================================
+Comprobado fila por fila contra el archivo: 285 de 285 con el mismo
+índice y el mismo no abono.
 
-    .fe [hidden] { display: none !important }
+EL VIAJE PASÓ A SER OPCIONAL. `sider_ai_revisiones` exigía un viaje, y
+esas 285 no lo tienen: se hicieron antes de que existiera el módulo. La
+salida fácil era inventar 285 viajes, y está mal — metería camiones
+fantasma en Tránsito y en las cuentas del CD. Así que la revisión ahora
+dice DE DÓNDE SALIÓ, y un candado impide que una revisión del formulario
+se guarde sin camión.
 
-El `display: none` que el navegador trae para `[hidden]` vale (0,1,0).
-Cualquier `.fe .fe-recorrido` de la hoja vale (0,2,0) y lo pisa. Hoy
-ninguna de las dos secciones fija `display`, así que funciona sin la
-regla — pero el día que alguien le ponga un `display: flex` para alinear
-algo, la sección quedaría oculta en el papel y VISIBLE en pantalla, con
-las dos pestañas encendidas a la vez. Y eso no da ningún error.
-
-EL ARNÉS MIDE ESO Y NO OTRA COSA. La primera versión de la comprobación
-ponía `[hidden]` y miraba si ocultaba: pasaba siempre, porque hoy
-funciona solo. Era una aserción que NO PODÍA FALLAR. Ahora inyecta el
-`display: flex` en la sección antes de medir, que es el riesgo de
-verdad. Verificada quitando el `!important`: falla.
+DIEZ FILAS NO ENTRARON, y el archivo de datos las lista una por una con
+su razón: ocho duplicadas —misma fecha, placa y envase— y dos
+imposibles, con más botellas revisadas que recibidas. Esas dos están en
+el comentario con nombre y cifras: al dividir por una muestra inflada el
+índice sale MÁS BAJO, así que a esos dos socios se les cobró de menos.
 
 =====================================================================
-4 · LO DEL LADO NO ERA UN ERROR
+2 · LA HOJA: /sider/seguimiento/ai
 =====================================================================
 
-El aviso «falta decir de qué lado del módulo» sobre A01 era de antes de
-escoger el módulo — el aviso se queda unos segundos en pantalla. En la
-captura siguiente el borrador ya decía «1 renglón · 1 módulo · 3.600
-cajas · 3128 · A01_DER». A01 existe solo como A01_DER, el formulario lo
-resuelve sin preguntar, y así funcionan los 54 módulos que tienen una
-sola ubicación de las 241.
+Tres preguntas y una tabla, que es lo que el archivo no contestaba con
+sus cincuenta y ocho columnas por fila:
 
-NO HAY SQL ESTA VEZ.
+  · CUÁNTO se está cobrando — el índice del período, en grande.
+  · QUÉ DEFECTO lo explica — las nueve que cobran, en barras.
+  · A QUIÉN LLAMAR — por socio, ordenado por lo que no se le abona.
+
+Y debajo, revisión por revisión, filtrable y buscable: es donde se mira
+la fila concreta cuando alguien reclama.
+
+EL ÍNDICE DEL PERÍODO NO ES EL PROMEDIO DE LOS ÍNDICES. Es la suma de
+defectos sobre la suma de revisadas. Promediar porcentajes le da el mismo
+peso a una muestra de 200 botellas que a una de 4.104, y una sola muestra
+chica con un defecto movería el número del mes.
+
+LO QUE SE CUENTA Y NO COBRA VA APARTE Y ROTULADO —hongo, etiqueta
+asoleada, cuerpo extraño, cajas, estibas—. Son botellas de verdad que
+alguien contó; esconderlas haría que la suma de la pantalla no diera el
+total contado.
+
+=====================================================================
+3 · TRES DECISIONES DE LAS GRÁFICAS
+=====================================================================
+
+UN SOLO TONO. Nada aquí distingue COSAS por color: las barras miden
+MAGNITUD. Una paleta por categoría obligaría a ir a una leyenda para
+leer una barra que ya tiene su nombre escrito al lado.
+
+LA ESCALA ARRANCA EN CERO. Empezarla en el valor más bajo convierte dos
+décimas en un precipicio. Exagerar la pendiente es la forma más fácil de
+mentir con una gráfica y no hace falta mala intención — por eso es una
+comprobación del arnés y no una preferencia.
+
+POR SEMANA Y NO POR DÍA. Hay días con una sola revisión, y un índice
+sacado de una muestra sube y baja por azar: la línea diría «se disparó el
+martes» cuando lo que pasó es que el martes se revisó un solo camión.
+
+=====================================================================
+4 · EL ARNÉS
+=====================================================================
+
+`.arnes/sd-informe-ai.mjs`. Lo primero que hace, ANTES de medir un solo
+color, es comprobar que los tokens resuelvan: una declaración con una
+variable indefinida no se degrada, SE DESCARTA ENTERA, y en este
+proyecto eso ya mandó una pantalla sin CSS a producción con el arnés en
+verde. Verificado colgando los tokens de un envoltorio que la pantalla
+no tiene.
+
+Después: contraste en los siete temas, que nada se salga a
+1440/1100/390/360, que la TABLA se deslice y la PÁGINA no, que la
+tendencia se dibuje con una serie plana —techo cero → NaN → SVG vacío
+sin error— y que las barras no salgan llenas con el tope en cero.
+
+Y una que no es de pintura: que las cuentas NO se rehagan en la pantalla.
+
+DOS COSAS QUE CAZÓ AL PRIMER INTENTO: el rótulo de la tabla contrastaba
+4,27 en el tema ámbar —tercera vez en este proyecto que el gris calibrado
+contra papel blanco se usa sobre un fondo tintado— y el propio arnés
+acusaba a la pantalla de un fallo suyo, porque miraba las barras de los
+dos gráficos como una sola lista y marcaba la del tope del segundo.
+
+=====================================================================
+5 · PARA CORRER, EN ESTE ORDEN
+=====================================================================
+
+  supabase/migraciones/2026-09-sider-ai-que-cobra.sql   (si no lo corrió)
+  supabase/migraciones/2026-09-sider-ai-historico.sql
+  supabase/datos/sider-ai-historico-baq.sql
+
+Los tres se pueden correr varias veces. El último avisa al final cuántas
+revisiones quedaron; probado dos veces seguidas sobre la misma base, no
+duplica.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

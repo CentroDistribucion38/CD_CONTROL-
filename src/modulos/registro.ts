@@ -185,6 +185,11 @@ export const MODULOS: Modulo[] = [
          la revisión queda sin hacer. */
       { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
+      /* EL INFORME DE LA REVISIÓN AI va detrás del seguimiento de
+         envase y no antes: las dos son análisis de lo que ya pasó, pero
+         el de envase es el del flujo principal —T1/T2— y el de AI es el
+         del cobro al socio, que es una conversación aparte. */
+      { nombre: "Revisión AI", ruta: "/sider/seguimiento/ai" },
       /* Se entra por el botón Importar de Seguimiento, que es donde se
          necesita. En el menú era el mismo destino dicho dos veces. */
       { nombre: "Importar", ruta: "/sider/importar", oculto: true },

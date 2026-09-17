@@ -443,6 +443,25 @@ if (!/modo: "estibas"/.test(limpio))
 if (!/r\.estibas != null \? "estibas" : r\.saldo != null \? "saldo" : "cajas"/.test(limpio))
   fallas.push("al corregir no se distingue un saldo de unas cajas: se cargaría como cajas");
 
+/* ---------- ANOTAR DEJA EL RENGLÓN EN CERO ----------
+   Solo el sitio se queda —sigo parado frente al mismo módulo—. Código,
+   fecha, cantidad, ¿rota? y las marcas vuelven a vacío, porque el
+   siguiente renglón es otra estiba.
+
+   LA FECHA ES LA QUE IMPORTA AQUÍ. Se quedaba puesta a propósito, y
+   estaba mal por dos razones: hay que borrar tres casillas antes de
+   teclear otra, y —peor— una fecha que quedó del renglón anterior no se
+   ve como un campo por llenar sino como uno ya lleno, así que se anota
+   sin que nadie lo note. */
+if (!/\{ \.\.\.VACIO, calle: x\.calle, base: x\.base, lado: x\.lado \}/.test(limpio))
+  fallas.push("al anotar no se limpia el renglón: la fecha del anterior se arrastraría al siguiente");
+
+/* Y EL MARCADOR DEL CÓDIGO NO PUEDE SER UN CÓDIGO DE VERDAD. Decía
+   «3128» —la Águila 330— y en gris dentro de un campo grande se lee como
+   un campo ya lleno, sobre todo justo después de anotar. */
+if (/placeholder="\d+"/.test(limpio))
+  fallas.push("el marcador del código es un número: se confunde con un código ya tecleado");
+
 /* ---------- DOS PESTAÑAS Y NO UNA PÁGINA LARGA ----------
    Contar y revisar son dos momentos: contando se mira UN renglón,
    revisando se miran los ciento cincuenta. Apilados, cada renglón

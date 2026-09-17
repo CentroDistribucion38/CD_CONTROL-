@@ -1,0 +1,235 @@
+/* ---------------------------------------------------------------------
+   SIDER · AI — EL INFORME.
+
+   Los tokens cuelgan de `.sd`, que es la clase que la pantalla SÍ tiene
+   —la pone su `page.tsx`—. Esto no es un detalle de estilo: en este
+   proyecto una hoja definió sus variables en `.sd.ai`, un envoltorio
+   compuesto que la aplicación no usaba, todas las `var(--ai-*)`
+   quedaron indefinidas, y una declaración con una variable indefinida no
+   se degrada: SE DESCARTA ENTERA. La pantalla salió a producción sin
+   bordes, sin fondos y sin cinta, con el arnés en verde.
+
+   UN SOLO TONO PARA LAS BARRAS. Nada aquí distingue COSAS por color:
+   las barras miden MAGNITUD, y para magnitud el color correcto es uno
+   solo. Una paleta por categoría obligaría a ir a una leyenda para leer
+   una barra que ya tiene el nombre escrito al lado.
+   --------------------------------------------------------------------- */
+.sd {
+  --ia-ramp: var(--sd-acento);
+  --ia-ramp-suave: color-mix(in srgb, var(--sd-acento) 13%, #fff);
+  /* EL ACENTO SOBRE PAPEL BLANCO HAY QUE OSCURECERLO. El mismo color que
+     se lee bien como relleno de una barra cae por debajo de 4,5 como
+     TEXTO sobre blanco en varios de los siete temas. Es la tercera vez
+     que este proyecto tropieza con eso —está escrito en rotura.css y en
+     fefo.css— así que aquí va desde el principio. */
+  --ia-dato: color-mix(in srgb, var(--sd-acento) 78%, var(--c-04203f));
+  /* EL MISMO GRIS, PERO PARA LO QUE DESCANSA EN UN FONDO TINTADO.
+     --sd-gris está calibrado contra el papel BLANCO. Sobre el gris del
+     encabezado de la tabla cae a 4,27 en el tema ámbar, por debajo de la
+     norma — y esos rótulos dicen qué significa cada columna: «no abono»
+     no se adivina. Es la TERCERA vez que este proyecto tropieza con la
+     misma pareja; está escrito igual en fefo.css. */
+  --ia-gris-panel: color-mix(in srgb, var(--sd-gris) 68%, var(--c-04203f));
+}
+
+/* ---------- Las cifras de arriba ---------- */
+.sd .ia-filtros {
+  display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+  background: var(--sd-papel); border: 1px solid var(--sd-linea); border-radius: 3px;
+  padding: 12px 16px;
+}
+.sd .ia-filtros label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.sd .ia-filtros label > span {
+  font: 600 10.5px var(--sd-texto); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--sd-gris);
+}
+.sd .ia-filtros input, .sd .ia-filtros select {
+  min-height: 44px; padding: 0 11px; min-width: 150px;
+  font: 500 14px var(--sd-texto); color: var(--sd-tinta);
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 2px;
+}
+.sd .ia-filtros input:focus, .sd .ia-filtros select:focus {
+  outline: none; border-color: var(--sd-acento);
+}
+
+.sd .ia-cifras {
+  display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 10px;
+}
+.sd .ia-hero, .sd .ia-dato {
+  background: var(--sd-papel); border: 1px solid var(--sd-linea); border-radius: 3px;
+  padding: 16px 20px 15px; min-width: 0;
+}
+/* La cifra del período lleva la banda: es LA respuesta de la pantalla y
+   todo lo demás la explica. */
+.sd .ia-hero { background: var(--sd-tinta); border-color: var(--sd-tinta); color: #fff }
+.sd .ia-hero .rot, .sd .ia-dato .rot {
+  margin: 0; font: 600 10.5px var(--sd-texto); letter-spacing: .13em; color: var(--sd-gris);
+}
+.sd .ia-hero .rot { color: rgba(255, 255, 255, .78) }
+.sd .ia-hero .num {
+  margin: 6px 0 0; font: 900 44px/1 var(--sd-titulo); letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+}
+.sd .ia-dato .num {
+  margin: 6px 0 0; font: 900 27px/1 var(--sd-titulo); letter-spacing: -.03em;
+  color: var(--ia-dato); font-variant-numeric: tabular-nums;
+}
+.sd .ia-hero .pie { margin: 8px 0 0; font-size: 12px; color: rgba(255, 255, 255, .84); line-height: 1.45 }
+.sd .ia-dato .pie { margin: 7px 0 0; font-size: 11.5px; color: var(--sd-gris); line-height: 1.4 }
+
+/* ---------- Las cajas ---------- */
+.sd .ia-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start }
+.sd .ia-caja {
+  background: var(--sd-papel); border: 1px solid var(--sd-linea); border-radius: 3px;
+  min-width: 0;
+}
+.sd .ia-caja-cab { padding: 15px 20px 12px; border-bottom: 1px solid var(--sd-linea) }
+.sd .ia-caja-cab.con-busca {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+}
+.sd .ia-caja-cab h2 { margin: 0; font: 800 17px var(--sd-titulo); letter-spacing: -.01em }
+.sd .ia-caja-cab p {
+  margin: 5px 0 0; font-size: 12px; line-height: 1.45; color: var(--sd-gris); max-width: 62ch;
+}
+.sd .ia-herramientas { display: flex; gap: 8px; flex-wrap: wrap }
+.sd .ia-busca input, .sd .ia-ordenar select {
+  min-height: 40px; padding: 0 12px; min-width: 165px;
+  font: 500 13.5px var(--sd-texto); color: var(--sd-tinta);
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 2px;
+}
+.sd .ia-busca input:focus, .sd .ia-ordenar select:focus {
+  outline: none; border-color: var(--sd-acento);
+}
+.sd .sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---------- Las barras ----------
+   DELGADAS Y CON EL VALOR ESCRITO AL LADO. La barra dice de un vistazo
+   cuál pesa más; el número dice cuánto. Una barra gorda sin número se ve
+   importante y no contesta nada. */
+.sd .ia-barras { padding: 14px 20px 16px; display: flex; flex-direction: column; gap: 9px }
+.sd .ia-bar {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
+  gap: 12px; align-items: center; font-size: 13px;
+}
+.sd .ia-bar .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+/* El nombre del socio filtra al tocarlo. Va como botón y no como span
+   con onClick: con teclado también se llega, y el subrayado dice que se
+   puede tocar sin tener que adivinarlo. */
+.sd .ia-bar .nom button {
+  border: 0; background: none; padding: 0; cursor: pointer; font: inherit;
+  color: var(--ia-dato); text-decoration: underline; text-underline-offset: 3px;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sd .ia-bar .pista {
+  height: 14px; background: var(--ia-ramp-suave); border-radius: 2px; overflow: hidden;
+}
+.sd .ia-bar .pista i {
+  display: block; height: 100%; background: var(--ia-ramp);
+  border-radius: 0 4px 4px 0;
+}
+.sd .ia-bar .val {
+  text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.sd .ia-bar .val em {
+  display: block; font-style: normal; font-size: 11px; font-weight: 400; color: var(--sd-gris);
+}
+.sd .ia-nada, .sd .ia-mas {
+  margin: 0; padding: 12px 20px 14px; font-size: 12px; color: var(--sd-gris);
+}
+
+/* Lo que se cuenta y no cobra. Aparte y rotulado: son botellas de verdad
+   que alguien contó, y esconderlas haría que la suma no diera. */
+.sd .ia-nocobra { padding: 12px 20px 16px; border-top: 1px dashed var(--sd-linea) }
+.sd .ia-nocobra .rot {
+  margin: 0 0 8px; font: 600 10px var(--sd-texto); letter-spacing: .13em; color: var(--sd-gris);
+}
+.sd .ia-nocobra ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px }
+.sd .ia-nocobra li { font-size: 12.5px; color: var(--sd-tinta) }
+.sd .ia-nocobra li b { font-family: var(--sd-titulo); font-variant-numeric: tabular-nums }
+.sd .ia-nocobra li em { font-style: normal; color: var(--sd-gris); margin-left: 5px; font-size: 11.5px }
+.sd .ia-nocobra .nota {
+  margin: 10px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--sd-gris); max-width: 62ch;
+}
+
+/* ---------- La tendencia ---------- */
+.sd .ia-linea { padding: 16px 20px 6px; position: relative }
+.sd .ia-linea svg { width: 100%; height: 150px; display: block; overflow: visible }
+.sd .ia-linea .area { fill: var(--ia-ramp-suave); stroke: none }
+.sd .ia-linea .traza {
+  fill: none; stroke: var(--ia-ramp); stroke-width: 2;
+  stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+/* El aro del color del papel separa el punto de la línea cuando se
+   montan; sin él, dos puntos juntos se ven como una mancha. */
+.sd .ia-linea .punto { fill: var(--ia-ramp); stroke: var(--sd-papel); stroke-width: 2 }
+.sd .ia-linea .punto.pico { fill: var(--sd-mal) }
+
+.sd .ia-rotulos { position: relative; height: 34px; margin: 2px 20px 0 }
+.sd .ia-rotulos span {
+  position: absolute; transform: translateX(-50%); text-align: center; white-space: nowrap;
+}
+.sd .ia-rotulos b {
+  display: block; font: 800 12.5px var(--sd-titulo); color: var(--ia-dato);
+  font-variant-numeric: tabular-nums;
+}
+.sd .ia-rotulos em {
+  display: block; font-style: normal; font-size: 10.5px; color: var(--sd-gris); margin-top: 1px;
+}
+
+/* ---------- La tabla ----------
+   SE DESLIZA DE LADO EN VEZ DE ENCOGERSE: son once columnas y apretarlas
+   en 390 px las vuelve ilegibles. Solo la tabla se mueve; la página no. */
+.sd .ia-tabla { overflow-x: auto }
+.sd .ia-tabla table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 12.5px }
+.sd .ia-tabla th {
+  text-align: left; padding: 9px 12px; border-bottom: 1.5px solid var(--sd-linea);
+  font: 700 9.5px var(--sd-texto); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ia-gris-panel); white-space: nowrap; background: var(--c-edf1f6);
+}
+.sd .ia-tabla td {
+  padding: 9px 12px; border-bottom: 1px solid var(--sd-linea); color: var(--sd-tinta);
+}
+.sd .ia-tabla tr:last-child td { border-bottom: 0 }
+.sd .ia-tabla .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.sd .ia-tabla .destaca { font-weight: 800; color: var(--ia-dato) }
+.sd .ia-tabla td b { font-family: var(--sd-titulo) }
+.sd .ia-tabla .nada { text-align: center; padding: 26px 12px; color: var(--sd-gris) }
+
+/* De dónde salió la revisión. Con la palabra escrita y no solo con el
+   color: la mitad de una bodega mira esto en un celular con el sol de
+   frente, y «gris o verde» no se distingue así. */
+.sd .ia-sello {
+  display: inline-block; padding: 2px 7px; border-radius: 2px; white-space: nowrap;
+  font: 700 9.5px var(--sd-texto); letter-spacing: .08em; text-transform: uppercase;
+  background: var(--c-edf1f6); color: var(--sd-gris); border: 1px solid var(--sd-linea);
+}
+.sd .ia-sello.propio {
+  background: color-mix(in srgb, var(--sd-acento) 12%, #fff);
+  color: var(--ia-dato); border-color: color-mix(in srgb, var(--sd-acento) 35%, #fff);
+}
+
+.sd .ia-vacio {
+  background: var(--sd-papel); border: 1px dashed var(--sd-linea); border-radius: 3px;
+  padding: 40px 24px; text-align: center;
+}
+.sd .ia-vacio h2 { margin: 0 0 6px; font: 800 18px var(--sd-titulo) }
+.sd .ia-vacio p { margin: 0; font-size: 13px; color: var(--sd-gris) }
+
+@media (max-width: 1100px) {
+  .sd .ia-cifras { grid-template-columns: 1fr 1fr }
+  .sd .ia-dos { grid-template-columns: 1fr }
+}
+@media (max-width: 560px) {
+  .sd .ia-cifras { grid-template-columns: 1fr }
+  .sd .ia-hero .num { font-size: 38px }
+  .sd .ia-filtros input, .sd .ia-filtros select { min-width: 0; width: 100% }
+  .sd .ia-filtros label { flex: 1 1 100% }
+  /* La barra pierde la columna del medio antes que el número: el valor
+     es el dato y la pista es la ayuda visual. */
+  .sd .ia-bar { grid-template-columns: minmax(0, 1fr) auto }
+  .sd .ia-bar .pista { grid-column: 1 / -1 }
+}
