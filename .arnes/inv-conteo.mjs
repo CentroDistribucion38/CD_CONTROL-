@@ -66,16 +66,22 @@ const ARMAZON = `
     <div class="fe-anotar-cab"><p class="fe-paso">Anotar lo que hay</p></div>
 
     <div class="fe-tres">
-      <label><span>Calle</span><select><option>Todas</option><option>ALAR</option></select></label>
+      <label><span>Calle</span>
+        <div class="bs"><input class="bs-campo" value="Todas"><span class="bs-flecha">▾</span>
+          <ul class="bs-lista"><li class="on"><b>A</b></li><li><b>ALAR</b></li>
+            <li><b>JAULA_PNC</b><em>PRODUCTO NO CONFORME</em></li></ul></div></label>
       <label><span>Módulo</span>
-        <select><option>ALAR_BAHIA_6 · MULTIEMPAQUE</option></select></label>
-      <label><span>Lado</span><output class="fe-lado">sin lado</output></label>
+        <div class="bs"><input class="bs-campo" value="ALAR06"><span class="bs-flecha">▾</span></div></label>
+      <label><span>Lado</span>
+        <select><option>Escoge…</option><option>Izquierdo</option><option>Derecho</option></select></label>
     </div>
 
-    <label class="fe-cod-campo"><span>Código</span>
-      <input inputmode="numeric" value="3128"></label>
-    <p class="fe-eco">CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE ·
-      <b>480</b> cajas por estiba</p>
+    <div class="fe-cod-dos">
+      <label><span>Código</span><input inputmode="numeric" value="3128"></label>
+      <label><span>Descripción</span>
+        <output class="fe-desc-campo">CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE</output></label>
+    </div>
+    <p class="fe-eco"><b>480</b> cajas por estiba</p>
 
     <div class="fe-fecha"><span>Vence</span><em class="fe-opcional">el envase no trae fecha</em>
       <div class="fe-dma">
@@ -86,7 +92,7 @@ const ARMAZON = `
 
     <div class="fe-tres">
       <label><span>Qué cuentas</span>
-        <select><option>Estibas</option><option>Cajas</option></select></label>
+        <select><option>Estibas</option><option>Saldo</option><option>Cajas</option></select></label>
       <label><span>Cuántas</span><input inputmode="numeric" value="56"></label>
       <div class="fe-rota"><span>¿Rota?</span>
         <div class="fe-si-no"><button type="button" class="on">Sí</button>
@@ -160,7 +166,10 @@ const CORRIGIENDO = ARMAZON
 /* El aviso del código malo se mide aparte: solo existe cuando el código
    no está en el maestro, y es el que hay que leer con el sol de frente. */
 const ECO_MALO = `<div class="fe"><section class="fe-anotar">
-  <p class="fe-eco mal">Ese código no está en el maestro.</p></section></div>`;
+  <div class="fe-cod-dos"><label><span>Código</span><input value="9999"></label>
+  <label><span>Descripción</span>
+    <output class="fe-desc-campo mal"><i>Ese código no está en el maestro.</i></output></label>
+  </div></section></div>`;
 
 /* ---------- 1. QUE LO MEDIDO SEA LO QUE EXISTE ---------- */
 const literales = [...`${tsx}\n${pgx}`.matchAll(/["'`]([^"'`\n]{0,200})["'`]/g)].map((m) => m[1]).join(" ");
@@ -221,7 +230,7 @@ for (const t of TEMAS) {
       return "rgb(255, 255, 255)";
     };
     return {
-      codTxt: g(".fe-cod-campo input", "color"), codFondo: g(".fe-cod-campo input", "background-color"),
+      codTxt: g(".fe-cod-dos input", "color"), codFondo: g(".fe-cod-dos input", "background-color"),
       ecoTxt: g(".fe-eco", "color"), ecoFondo: g(".fe-eco", "background-color"),
       siOnTxt: g(".fe-si-no button.on", "color"), siOnFondo: g(".fe-si-no button.on", "background-color"),
       siOffTxt: g(".fe-si-no button:not(.on)", "color"), siOffFondo: g(".fe-si-no button:not(.on)", "background-color"),
@@ -231,7 +240,7 @@ for (const t of TEMAS) {
   });
   await monta(pag, t, 1440, 600, ECO_MALO);
   const mal = await pag.evaluate(() => {
-    const e = document.querySelector(".fe-eco.mal"); const s = getComputedStyle(e);
+    const e = document.querySelector(".fe-desc-campo.mal"); const s = getComputedStyle(e);
     return { txt: s.color, fondo: s.backgroundColor };
   });
 
@@ -287,9 +296,9 @@ for (const [ancho, etiqueta] of ANCHOS) {
     const anotar = document.querySelector(".fe-anotar .btn.grande").getBoundingClientRect();
     return {
       salen: [...new Set(salen)], lado: d.scrollWidth - d.clientWidth,
-      codigo: alto(".fe-cod-campo input"),
+      codigo: alto(".fe-cod-dos input"),
       toque: Math.min(alto(".fe-si-no button"), alto(".fe-dma input"),
-                      alto(".fe-anotar .btn.grande"), alto(".fe-donde select"),
+                      alto(".fe-anotar .btn.grande"), alto(".fe-donde select, .fe-donde .bs-campo"),
                       alto(".fe-donde.plegada .fe-mini")),
       dma: [...document.querySelectorAll(".fe-dma input")]
              .map((e) => Math.round(e.getBoundingClientRect().width)).join("/"),
@@ -362,7 +371,7 @@ if (!/p_ubicacion:\s*ubicacion!\.id/.test(limpio))
    que lleva años en el Excel: cambiarlo obliga a quien ya sabe llenarla
    a buscar cada campo. Se comprueba por el orden en que aparecen los
    rótulos en el componente. */
-const orden = ["Calle", "Módulo", "Lado", "Código", "Vence", "Qué cuentas",
+const orden = ["Calle", "Módulo", "Lado", "Código", "Descripción", "Vence", "Qué cuentas",
                "Cuántas", "¿Rota?", "Avería", "PNC", "Estado del envase"];
 let desde = 0;
 for (const r of orden) {
@@ -380,6 +389,54 @@ if (!/conteo_fefo_enviar/.test(limpio))
    cuenta — y quedaría 58 veces bien y 94 veces mal. */
 if (!/rot:\s*null/.test(limpio))
   fallas.push("«¿Rota?» arranca con una respuesta puesta en vez de vacía");
+
+/* ---------- LO QUE PIDIÓ HOY, COMPROBADO EN EL COMPONENTE ----------
+
+   LAS LETRAS ANTES QUE LOS NOMBRES. Ordenado a secas la lista queda A,
+   ALAR, B, BAHIA, C, CARPA… y encontrar la calle C obliga a leerla
+   entera. Las de una letra son las que se caminan todos los días.
+   Se comprueba ejecutando el comparador del componente, no leyendo que
+   exista: un `sort()` con un comparador que no ordena pasa igual. */
+{
+  const m = limpio.match(/const ordenCalle = \(a: string, b: string\) => \{([\s\S]*?)\n\};/);
+  if (!m) fallas.push("no hay un orden propio para las calles: quedarían A, ALAR, B, BAHIA…");
+  else {
+    const fn = new Function("a", "b", m[1].replace(/: string/g, ""));
+    const dio = ["BAHIA", "C", "ALAR", "A", "JAULA_PNC", "B", "EST"].sort(fn);
+    const debe = ["A", "B", "C", "ALAR", "BAHIA", "EST", "JAULA_PNC"];
+    if (dio.join(",") !== debe.join(","))
+      fallas.push(`las calles quedan [${dio.join(", ")}] y deben quedar [${debe.join(", ")}]`);
+  }
+}
+
+/* EL MÓDULO VA SIN EL LADO PEGADO. Salía «A01_DER · RB F1000», que hacía
+   escoger el lado dos veces: dentro del nombre y en el campo de al lado.
+   La opción se arma con calle+módulo, nunca con `clave`. */
+if (/valor: m\.base[\s\S]{0,200}?texto: `\$\{u?\.?clave/.test(limpio) || /texto: `\$\{m\.clave/.test(limpio))
+  fallas.push("el módulo sigue mostrando la clave con el lado pegado");
+if (!/texto: `\$\{m\.calle\}\$\{m\.modulo\}`/.test(limpio))
+  fallas.push("el módulo no se arma con calle+módulo: volvería a traer el lado");
+
+/* Y EL LADO SE ESCOGE ENTRE LOS QUE EXISTEN, no entre los tres siempre.
+   Ofrecer «izquierdo» en un módulo que no lo tiene es ofrecer una
+   ubicación que no está — lo que dejó 38 de 152 filas sin ubicar. */
+if (!/const lados = useMemo/.test(limpio))
+  fallas.push("el lado no sale de las ubicaciones del módulo: ofrecería lados que no existen");
+
+/* LOS DOS BUSCADORES SE TECLEAN. Con 428 ubicaciones un `<select>` solo
+   deja saltar por la primera letra. */
+if ((limpio.match(/<Buscador/g) ?? []).length < 2)
+  fallas.push("calle o módulo siguen siendo un desplegable: con 428 ubicaciones no se puede buscar");
+
+/* SALDO, LA TERCERA CANTIDAD, y arrancando en estibas —que es lo que más
+   se cuenta—. Si `p_saldo` no viaja, el renglón se guarda con la cifra
+   en la columna equivocada y el total sale corto. */
+if (!/p_saldo:/.test(limpio))
+  fallas.push("no manda el saldo: la cifra caería en cajas o se perdería");
+if (!/modo: "estibas"/.test(limpio))
+  fallas.push("«Qué cuentas» no arranca en estibas");
+if (!/r\.estibas != null \? "estibas" : r\.saldo != null \? "saldo" : "cajas"/.test(limpio))
+  fallas.push("al corregir no se distingue un saldo de unas cajas: se cargaría como cajas");
 
 await navegador.close();
 

@@ -58,6 +58,11 @@ export type Renglon = {
   lado: string | null;
   estibas: number | null;
   cajas: number | null;
+  /* LA TERCERA CANTIDAD. Un saldo es lo que queda en una estiba
+     incompleta; se guarda aparte de `cajas` —las sueltas— porque en el
+     piso son dos cosas distintas y, una vez sumadas, no hay manera de
+     volverlas a separar. Las tres caen en `total_cajas`. */
+  saldo: number | null;
   total_cajas: number;
   total_estibas: number;
   /* Los tres pedazos como se teclearon, aparte de la fecha armada: son

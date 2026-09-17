@@ -192,14 +192,17 @@ begin
   raise notice '✓ las 6 cuentas dan lo mismo que la hoja en los 5 renglones reales';
 
   -- ===== 4. LO QUE LA HOJA NO PODÍA =====
-  -- 4.1 estibas Y cajas a la vez (el dedazo de la fila 154)
+  -- 4.1 DOS CANTIDADES A LA VEZ (el dedazo de la fila 154).
+  --     El mensaje cambió al entrar el saldo: antes decía «no las dos» y
+  --     ahora «Una sola cantidad por renglón», porque ya son tres. Se
+  --     busca «una sola cantidad», que es lo que la regla dice hoy.
   begin
     perform public.conteo_fefo_agregar(v_conteo, '3128',
       (select id from public.ubicaciones where bodega_id = v_bod and clave = 'E01_DER'),
       false, 5, 5, 11::smallint, 3::smallint, 27::smallint);
     raise exception 'FALLA: aceptó estibas y cajas en el mismo renglón';
   exception when raise_exception then
-    if position('no las dos' in sqlerrm) = 0 then raise; end if;
+    if position('na sola cantidad' in sqlerrm) = 0 then raise; end if;
   end;
 
   -- 4.2 sin nada que contar
@@ -207,9 +210,9 @@ begin
     perform public.conteo_fefo_agregar(v_conteo, '3128',
       (select id from public.ubicaciones where bodega_id = v_bod and clave = 'E01_DER'),
       false, null, null, 11::smallint, 3::smallint, 27::smallint);
-    raise exception 'FALLA: aceptó un renglón sin estibas ni cajas';
+    raise exception 'FALLA: aceptó un renglón sin estibas, cajas ni saldo';
   exception when raise_exception then
-    if position('estibas o cajas' in sqlerrm) = 0 then raise; end if;
+    if position('estibas, cajas o saldo' in sqlerrm) = 0 then raise; end if;
   end;
 
   -- 4.3 producto sin fecha de vencimiento
@@ -355,3 +358,109 @@ begin
 end $$;
 
 reset role;
+
+
+-- =====================================================================
+-- EL SALDO, LA TERCERA CANTIDAD
+--
+-- El saldo es lo que queda en una estiba incompleta, y se guarda en su
+-- propia columna: aritméticamente daría igual meterlo en `cajas` —las
+-- tres terminan en cajas— pero entonces el informe no podría volver a
+-- separar un saldo de unas cajas sueltas, y en el piso son dos cosas
+-- distintas.
+--
+-- LO QUE SE PRUEBA, Y POR QUÉ CADA COSA:
+--   1. Que el saldo SUME en total_cajas. Si la vista no lo suma, el
+--      renglón se guarda bien y el total sale corto: el error no
+--      aparece al anotar sino al cuadrar el mes.
+--   2. Que no se puedan mandar dos cantidades. El candado antes miraba
+--      dos columnas; con tres, `a is null or b is null` ya no dice lo
+--      que hay que decir.
+--   3. Que no quede viva la versión VIEJA de la función. Postgres no
+--      reemplaza una función cuando le cambia la firma: crea otra. Si
+--      quedan las dos, una llamada sin `p_saldo` entra por la de antes
+--      —guarda bien, sin saldo— y nadie se entera hasta el informe.
+-- =====================================================================
+/* El `reset role` del bloque anterior también soltó la identidad, y sin
+   ella `conteo_fefo_abrir` contesta «Hay que entrar para contar» — que
+   es el candado haciendo su trabajo, no un fallo. Se vuelve a poner. */
+set role probador;
+select set_config('request.jwt.claims',
+  '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', false) \gset
+
+do $$
+declare
+  v_bod uuid; v_conteo uuid; v_linea uuid; v_total bigint; v_saldo integer;
+begin
+  select id into v_bod from public.bodegas order by codigo limit 1;
+  v_conteo := public.conteo_fefo_abrir(v_bod);
+
+  -- 3128 lleva 45 cajas por estiba. Un saldo de 17 cajas es 17, no 765:
+  -- el saldo NO se multiplica por el factor.
+  v_linea := public.conteo_fefo_agregar(
+    v_conteo, '3128',
+    (select id from public.ubicaciones where bodega_id = v_bod and clave = 'E02_DER'),
+    true, null, null, 4::smallint, 4::smallint, 27::smallint,
+    false, false, null, null, 17);
+
+  select total_cajas, saldo into v_total, v_saldo
+    from public.v_conteo_fefo where id = v_linea;
+
+  if v_saldo is distinct from 17 then
+    raise exception 'FALLA: el saldo se guardó como % y era 17', v_saldo;
+  end if;
+  if v_total <> 17 then
+    raise exception 'FALLA: 17 de saldo dieron % cajas. El saldo no se multiplica por el factor estibado.', v_total;
+  end if;
+  raise notice '✓ el saldo suma como cajas y no se multiplica por el factor';
+
+  -- Y una estiba en el mismo módulo sigue dando 45.
+  perform public.conteo_fefo_agregar(
+    v_conteo, '3128',
+    (select id from public.ubicaciones where bodega_id = v_bod and clave = 'E03_DER'),
+    true, 1, null, 4::smallint, 4::smallint, 27::smallint);
+  if (select total_cajas from public.v_conteo_fefo
+       where conteo_id = v_conteo and estibas = 1) <> 45 then
+    raise exception 'FALLA: una estiba del 3128 dejó de dar 45 cajas al agregar el saldo';
+  end if;
+  raise notice '✓ la estiba sigue dando 45: el saldo no le movió la cuenta';
+
+  -- UNA SOLA CANTIDAD POR RENGLÓN.
+  begin
+    perform public.conteo_fefo_agregar(
+      v_conteo, '3128',
+      (select id from public.ubicaciones where bodega_id = v_bod and clave = 'E04_DER'),
+      true, 2, null, 4::smallint, 4::smallint, 27::smallint,
+      false, false, null, null, 17);
+    raise exception 'FALLA: dejó anotar estibas Y saldo en el mismo renglón';
+  exception when others then
+    if sqlerrm like 'FALLA:%' then raise; end if;
+  end;
+
+  begin
+    perform public.conteo_fefo_agregar(
+      v_conteo, '3128',
+      (select id from public.ubicaciones where bodega_id = v_bod and clave = 'E05_DER'),
+      true, null, 9, 4::smallint, 4::smallint, 27::smallint,
+      false, false, null, null, 17);
+    raise exception 'FALLA: dejó anotar cajas Y saldo en el mismo renglón';
+  exception when others then
+    if sqlerrm like 'FALLA:%' then raise; end if;
+  end;
+  raise notice '✓ una sola cantidad por renglón: estibas, cajas o saldo';
+end $$;
+
+reset role;
+
+-- QUE NO QUEDE LA FUNCIÓN VIEJA VIVA.
+do $$
+declare v_n integer;
+begin
+  select count(*) into v_n from pg_proc
+   where pronamespace = 'public'::regnamespace
+     and proname in ('conteo_fefo_agregar', 'conteo_fefo_editar');
+  if v_n <> 2 then
+    raise exception 'FALLA: hay % versiones de agregar/editar y deberían ser 2. Con la firma vieja viva, una llamada sin p_saldo entraría por ella y el saldo se perdería en silencio.', v_n;
+  end if;
+  raise notice '✓ una sola versión de agregar y de editar';
+end $$;

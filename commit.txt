@@ -1,104 +1,135 @@
-Sider AI: se estaba cobrando de más a los socios. Corregido
+Contar: las calles en orden, buscar tecleando, el lado aparte y el saldo
 
-Leyendo «Registro Cobro AI COL V02.xlsx» por FÓRMULAS para armar el
-tablero, apareció un error mío que lleva semanas en producción.
-
-=====================================================================
-1 · TRES BANDERAS AL REVÉS, Y SON PLATA
-=====================================================================
-
-Su fórmula de cobro —columna M, «% ÍNDICE DE COBRO»— es:
-
-    (U+V+W+X+Y+Z+AA+AB+AE) / S
-
-Nueve categorías: incluye MEZCLADO y deja fuera HONGO y ETIQUETA
-ASOLEADA. Está idéntica en las 296 filas del archivo, o sea que es la
-regla y no el descuido de una fila.
-
-Yo escribí las banderas siguiendo la columna T, «TOTAL BOTELLAS CON
-DEFECTOS» = SUM(U:AD), que son DIEZ categorías: con hongo y etiqueta
-asoleada, sin mezclado.
-
-                    unidades    su Excel    lo que escribí
-    Hongo                219    no cobra    COBRA        ✗
-    Etiqueta asoleada    614    no cobra    COBRA        ✗
-    Mezclado             546    COBRA       no cobra     ✗
-
-Sobre las 296 revisiones son 3.600 botellas de más en el NO ABONO, un
-4,5 %. Y el no-abono no es un rótulo de pantalla: es la cifra que viaja
-a SAP y se le descuenta al socio.
-
-POR QUÉ NO SE VIO ANTES. Las dos columnas conviven en la misma hoja y
-difieren en 252 de las 296 filas. Mirando una fila cualquiera se ven dos
-números parecidos; solo comparando las 296 se ve que nunca son el mismo.
+Cristian, con la pantalla abierta: «primero deben salir solo las letras
+A-B-C-D, ya de último los nombres que es como ALAR, BAHIA y así. Y que me
+deje a la vez escribir para buscar más rápido. En el módulo igual, y el
+módulo debe ir sin _DER porque el último es lado, donde se selecciona si
+es izquierdo o derecho o nada, porque puede pasar que nada. En el código,
+mitad código y la otra parte de la fila la descripción, igual del mismo
+tamaño. Lo de vence está bien. En lo de qué cuentas tienes estibas,
+cajas, y falta saldo; y por lo general cuando uno abra, este en estibas,
+que si es saldo o cajas ya uno selecciona».
 
 =====================================================================
-2 · Y EL ARNÉS ESTABA FIJANDO EL ERROR
+1 · LAS LETRAS PRIMERO
 =====================================================================
 
-`prueba-sider-ai.sql` comprobaba la fila del 8 de mayo contra
-«defectos 32 · Hl 0,056», que son los de la columna T. O sea que la
-prueba pasaba EN VERDE con el cobro mal, porque estaba escrita contra la
-misma columna equivocada. Los valores correctos de esa fila son 34 y
-0,0595.
+Ordenado a secas la lista quedaba A, ALAR, B, BAHIA, C, CARPA, D, E,
+EST, JAULA_PNC, P — y encontrar la calle C obligaba a leerla entera.
 
-La sección nueva no cuenta cuántas cobran: compara LA LISTA EXACTA. Con
-un conteo bastaba intercambiar mezclado por hongo —nueve sigue siendo
-nueve— que es justo el error que hubo. Verificado haciendo ese
-intercambio: revienta.
+Las calles de una letra son las del almacén y se caminan todos los días.
+ALAR, BAHIA, CARPA y JAULA_PNC son sitios con nombre y se buscan de vez
+en cuando. Van al final.
 
-Y se comprobó lo más fuerte que se podía comprobar: sembré las 293 filas
-buenas del archivo en un Postgres 16 local y comparé `v_sider_ai` contra
-las columnas M y N del Excel, fila por fila.
-
-    ÍNDICE distinto  : 0 de 293
-    NO ABONO distinto: 0 de 293
+El arnés no comprueba que exista el orden: EJECUTA el comparador con una
+lista desordenada y compara el resultado. Un `sort()` con un comparador
+que no ordena pasa igual de bien.
 
 =====================================================================
-3 · DOS FILAS IMPOSIBLES EN SU ARCHIVO
+2 · SE BUSCA TECLEANDO
 =====================================================================
 
-El esquema las rechaza con `revisadas <= recibidas`, y por eso
-aparecieron:
+Calle y módulo eran desplegables del navegador. Con 428 ubicaciones el
+desplegable solo deja saltar por la primera letra: llegar a E06 era
+pulsar «E» y rodar. Ahora se escribe «e06» y queda una.
 
-  fila 126 · 06/07 · Los Gavilanes    recibidas 20.520 · revisadas 41.104
-  fila 194 · 29/07 · Logisinú          recibidas  2.430 · revisadas  2.700
+El filtro busca EN CUALQUIER PARTE del texto, no solo al principio: «RB»
+encuentra «A01 · RB F1000», que es como se busca de verdad —por lo que
+hay guardado, no por el código que a veces no se recuerda—.
 
-No se puede revisar más de lo que llegó. La 126 parece un 4.104 —la
-muestra de siempre— con un 1 de más; eso divide el índice por diez y a
-ese socio se le cobró de MENOS. No las toco: se las dejo para que decida,
-porque corregir una cifra de facturación no puede ser algo que yo adivine.
+NO ES UN `<datalist>`, que habría sido la mitad del código: el navegador
+decide si lo muestra y en Android a veces no aparece. Una lista que a
+veces no sale es peor que ninguna, porque nadie sabe si escribió mal o
+si la opción no existe.
 
-=====================================================================
-4 · ANDAMIO DE PRUEBAS, POR ESCRITO
-=====================================================================
-
-`.arnes/supabase-local.sql` es nuevo. Las pruebas de SQL se corren contra
-un Postgres local —nunca contra el Supabase donde están los conteos de la
-bodega— pero el proyecto habla Supabase: `auth.uid()`, el rol
-`authenticated`, `auth.users`, los buckets de storage. Ese andamio se
-venía escribiendo a mano en cada sesión, que es justo como una prueba
-termina midiendo algo distinto cada vez.
-
-Incluye la columna `raw_user_meta_data`, que no se usa en ninguna
-consulta pero sin la cual el disparador de `00-nucleo.sql` revienta al
-insertar el primer usuario de prueba.
+Funciona con el teclado entero —flechas, Enter, Escape—: el computador
+del patio se usa sin ratón.
 
 =====================================================================
-5 · PARA CORRER
+3 · EL MÓDULO SIN EL LADO, Y EL LADO APARTE
 =====================================================================
 
-  supabase/migraciones/2026-09-sider-ai-que-cobra.sql
+Salía «A01_DER · RB F1000», que hacía escoger el lado DOS VECES: dentro
+del nombre del módulo y en el campo de al lado. Y eran 428 opciones para
+214 sitios, porque cada módulo aparecía dos veces.
 
-HAY QUE CORRERLO AUNQUE VUELVA A CORRER `sider-ai.sql`. La siembra de ese
-módulo trae `on conflict do update` pero NO pisa `cobra`, a propósito
-—para que quien cambie la política desde el maestro no la pierda al
-reinstalar—. La corrección no llega sola.
+Ahora el módulo es «A01» y el lado se escoge — pero SOLO ENTRE LOS QUE
+ESE MÓDULO TIENE. Puede tener los dos, uno solo, o ninguno (EST07,
+JAULA_PNC). Ofrecer «izquierdo» donde no existe es ofrecer una ubicación
+que no está, que es exactamente lo que dejó 38 de las 152 filas de la
+hoja sin poder ubicar.
 
-Antes de tocar nada dice en un NOTICE cuánto va a cambiar el no-abono de
-lo que ya está guardado. Probado dos veces sobre base limpia, y probado
-de verdad: poniendo las banderas malas, corriéndolo, y viendo bajar el
-no-abono de 84.218 a 80.619 botellas (−4,27 %).
+Y con un solo lado posible no se pregunta: se pone. Preguntar donde no
+hay más que una respuesta es un toque de más por renglón, 152 al día.
+
+=====================================================================
+4 · CÓDIGO Y DESCRIPCIÓN, MITAD Y MITAD
+=====================================================================
+
+La descripción iba debajo, en letra chica, como una nota al pie. Y es LA
+CONFIRMACIÓN de que se tecleó bien: 3128 y 3182 existen los dos y son
+cervezas distintas. Lo que confirma un dato no puede ser más pequeño que
+el dato.
+
+Van los dos a 56 px de alto. El `min-height` es a propósito: «CERVEZA
+AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE» son 48 caracteres y tienen
+que caber sin recortarse — un nombre cortado confirma mal, que es peor
+que no confirmar.
+
+Debajo queda solo el factor estibado, que es dato de cálculo y no de
+identificación.
+
+=====================================================================
+5 · EL SALDO, CON COLUMNA PROPIA
+=====================================================================
+
+Aritméticamente daba lo mismo meterlo en «cajas»: las tres terminan en
+cajas. Pero entonces el informe no podría volver a separar un saldo de
+unas cajas sueltas, y en el piso son dos cosas distintas —un saldo es lo
+que queda de una estiba y se recuenta mirándola; unas cajas sueltas
+están en otro lado—. Una vez guardadas juntas no hay cómo separarlas.
+
+Arranca en ESTIBAS porque es lo que más se cuenta: quien llega a un
+módulo lleno anota estibas y sigue.
+
+El SQL toca la columna, el candado de «una sola cantidad por renglón»
+—que antes miraba dos y ahora mira tres— las DOS vistas, y las dos
+funciones. Las dos vistas importa: si solo se arregla una, el tablero y
+el conteo dicen cifras distintas del mismo día.
+
+Y BORRA LAS FIRMAS VIEJAS de agregar y editar. Postgres no reemplaza una
+función cuando le cambia la lista de parámetros: crea otra, y quedan las
+dos vivas. Una llamada sin `p_saldo` seguiría entrando por la de antes
+—guardando bien, sin saldo— y nadie se enteraría hasta que el informe no
+cuadrara. El arnés cuenta que haya exactamente dos.
+
+=====================================================================
+6 · DOS COSAS QUE SE ARREGLARON DE CAMINO
+=====================================================================
+
+EL ARNÉS DE SQL MONTABA SU ANDAMIO A MANO EN CADA SESIÓN. Ahora está
+escrito en `.arnes/supabase-local.sql`: el esquema `auth`, `auth.uid()`,
+los roles, los buckets de storage. Su `auth.uid()` lee LAS DOS formas en
+que llega la identidad —el JSON `request.jwt.claims` y las variables
+`request.jwt.claim.<campo>`— porque los arneses de este proyecto usan
+una u otra. La primera versión leía solo una, y el arnés de la plantilla
+de conteo falló con «Hay que entrar para contar»: el candado funcionando
+perfecto sobre una identidad que el andamio no supo leer.
+
+Y ESTA MIGRACIÓN VA EN UNA TRANSACCIÓN. psql confirma cada sentencia por
+su cuenta; la primera corrida de este archivo falló a mitad y dejó la
+base con las dos vistas BORRADAS. Con `begin`/`commit` no queda nada
+aplicado si algo revienta.
+
+=====================================================================
+7 · PARA CORRER
+=====================================================================
+
+  supabase/migraciones/2026-09-conteo-saldo.sql
+
+Después de los tres de Inventario. Probado dos veces sobre base limpia y
+una tercera encima de sí mismo. Y probado de verdad: quitando el saldo
+de la suma de la vista, el arnés dice «17 de saldo dieron 0 cajas».
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

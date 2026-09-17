@@ -36,6 +36,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Buscador } from "@/components/Buscador";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
@@ -54,18 +55,42 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
    que corregir sea CARGARLO y no reconstruirlo campo por campo: con doce
    estados sueltos, abrir una fila para corregirla era doce asignaciones
    y olvidar una dejaba el dato de la fila anterior. */
+type Modo = "estibas" | "cajas" | "saldo";
+
 type Borrador = {
-  calle: string; ubicacionId: string;
+  calle: string;
+  /* EL MÓDULO YA NO ES LA UBICACIÓN: es el módulo pelado —«A01»— y el
+     lado va aparte. La ubicación sale de juntar los dos. En la lista
+     salía «A01_DER», que obligaba a escoger el lado dos veces: una
+     dentro del nombre del módulo y otra en el campo de al lado. */
+  base: string;
+  lado: string;
   codigo: string;
   dia: string; mes: string; anio: string;
-  modo: "estibas" | "cajas"; cuantas: string;
+  modo: Modo; cuantas: string;
   rot: boolean | null;
   averia: boolean; pnc: boolean; estado: string; nota: string;
 };
 const VACIO: Borrador = {
-  calle: "", ubicacionId: "", codigo: "", dia: "", mes: "", anio: "",
+  calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
   modo: "estibas", cuantas: "", rot: null,
   averia: false, pnc: false, estado: "", nota: "",
+};
+
+/* La clave con la que se agrupan las ubicaciones de un mismo módulo.
+   Va calle + módulo y NO la clave, porque la clave ya trae el lado
+   pegado: A01_DER y A01_IZQ son el mismo módulo por dos lados. */
+const claveBase = (u: { calle: string; modulo: string }) => `${u.calle}|${u.modulo}`;
+
+/* LAS LETRAS PRIMERO Y LOS NOMBRES DESPUÉS.
+   Ordenado a secas queda A, ALAR, B, BAHIA, C, CARPA… y encontrar la
+   calle C obliga a leer la lista entera. Las calles de una letra son las
+   del almacén de verdad y son las que se caminan todos los días; ALAR,
+   BAHIA, CARPA y JAULA_PNC son sitios con nombre y se buscan de vez en
+   cuando. Van al final. */
+const ordenCalle = (a: string, b: string) => {
+  const suelta = (x: string) => (x.length === 1 ? 0 : 1);
+  return suelta(a) - suelta(b) || a.localeCompare(b, "es", { numeric: true });
 };
 
 export function Contar({
@@ -105,15 +130,47 @@ export function Contar({
      trae TODAS las ubicaciones; con calle, las de esa calle. Escoger el
      módulo pone su calle solo. */
   const calles = useMemo(
-    () => [...new Set(ubicaciones.filter((u) => u.activa).map((u) => u.calle))].sort(),
+    () => [...new Set(ubicaciones.filter((u) => u.activa).map((u) => u.calle))].sort(ordenCalle),
     [ubicaciones]);
 
-  const modulos = useMemo(() => ubicaciones
-      .filter((u) => u.activa && (b.calle === "" || u.calle === b.calle))
-      .sort((x, y) => x.clave.localeCompare(y.clave, undefined, { numeric: true })),
-    [ubicaciones, b.calle]);
+  /* LOS MÓDULOS SIN EL LADO PEGADO. A01_DER y A01_IZQ son un solo
+     módulo, y salían como dos renglones de la lista: 428 opciones para
+     214 sitios. La familia se toma del primero —las dos caras de un
+     módulo guardan lo mismo— y sirve para reconocerlo de un vistazo. */
+  const modulos = useMemo(() => {
+    const m = new Map<string, { base: string; calle: string; modulo: string; familia: string | null }>();
+    for (const u of ubicaciones) {
+      if (!u.activa) continue;
+      if (b.calle !== "" && u.calle !== b.calle) continue;
+      const k = claveBase(u);
+      if (!m.has(k)) m.set(k, { base: k, calle: u.calle, modulo: u.modulo, familia: u.familia });
+    }
+    return [...m.values()].sort((x, y) =>
+      ordenCalle(x.calle, y.calle) ||
+      x.modulo.localeCompare(y.modulo, "es", { numeric: true }));
+  }, [ubicaciones, b.calle]);
 
-  const ubicacion = ubicaciones.find((u) => u.id === b.ubicacionId) ?? null;
+  /* LOS LADOS QUE ESE MÓDULO TIENE DE VERDAD, no los tres siempre.
+     Puede tener IZQ y DER, puede tener uno solo, y puede no tener
+     ninguno —EST07, JAULA_PNC—. Ofrecer «izquierdo» en un módulo que no
+     lo tiene es ofrecer una ubicación que no existe, que es exactamente
+     lo que dejó 38 de 152 filas de la hoja sin poder ubicar. */
+  const lados = useMemo(
+    () => ubicaciones
+      .filter((u) => u.activa && claveBase(u) === b.base)
+      .map((u) => u.lado ?? "")
+      .filter((v, i, xs) => xs.indexOf(v) === i)
+      .sort(),
+    [ubicaciones, b.base]);
+
+  /* La ubicación sale de módulo + lado. Con un solo lado posible no hace
+     falta escogerlo: se toma ese. */
+  const ubicacion = useMemo(() => {
+    if (!b.base) return null;
+    const delModulo = ubicaciones.filter((u) => u.activa && claveBase(u) === b.base);
+    if (delModulo.length === 1) return delModulo[0];
+    return delModulo.find((u) => (u.lado ?? "") === b.lado) ?? null;
+  }, [ubicaciones, b.base, b.lado]);
 
   /* El material se reconoce MIENTRAS SE TECLEA. */
   const material = useMemo(
@@ -128,7 +185,7 @@ export function Contar({
          cambios de ubicación en 151 renglones— y dentro de un módulo las
          estibas suelen ser del mismo lote. Volver a escoger los dos en
          cada renglón es la mitad de las pulsaciones de la jornada. */
-      ? { ...VACIO, calle: x.calle, ubicacionId: x.ubicacionId,
+      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado,
           dia: x.dia, mes: x.mes, anio: x.anio }
       : VACIO);
     campoCodigo.current?.focus();
@@ -150,7 +207,8 @@ export function Contar({
   }
 
   function revisar(): string | null {
-    if (!ubicacion) return "Escoge el módulo.";
+    if (!b.base) return "Escoge el módulo.";
+    if (!ubicacion) return "Falta decir de qué lado del módulo.";
     if (!material) return `El código «${b.codigo}» no está en el maestro.`;
     if (ent(b.cuantas) == null) return `¿Cuántas ${b.modo}?`;
     if (b.rot == null) return "Falta decir si rota.";
@@ -165,6 +223,7 @@ export function Contar({
     p_rotacion: b.rot,
     p_estibas: b.modo === "estibas" ? ent(b.cuantas) : null,
     p_cajas: b.modo === "cajas" ? ent(b.cuantas) : null,
+    p_saldo: b.modo === "saldo" ? ent(b.cuantas) : null,
     p_venc_dia: ent(b.dia), p_venc_mes: ent(b.mes),
     p_venc_anio: b.anio.trim() === "" ? null : Number(b.anio.trim()),
     p_averia: b.averia, p_pnc: b.pnc,
@@ -201,13 +260,18 @@ export function Contar({
     const u = ubicaciones.find((x) => x.id === r.ubicacion_id);
     setCorrigiendo(r.id);
     setB({
-      calle: u?.calle ?? "", ubicacionId: r.ubicacion_id ?? "",
+      calle: u?.calle ?? "",
+      base: u ? claveBase(u) : "",
+      lado: u?.lado ?? "",
       codigo: r.codigo,
       dia: r.venc_dia != null ? String(r.venc_dia) : "",
       mes: r.venc_mes != null ? String(r.venc_mes) : "",
       anio: r.venc_anio != null ? String(r.venc_anio) : "",
-      modo: r.estibas != null ? "estibas" : "cajas",
-      cuantas: String(r.estibas ?? r.cajas ?? ""),
+      /* El modo se deduce de cuál de las TRES vino llena. El orden
+         importa: `estibas ?? cajas ?? saldo` con estibas en cero daría
+         cero y parecería vacío, así que se compara contra null. */
+      modo: r.estibas != null ? "estibas" : r.saldo != null ? "saldo" : "cajas",
+      cuantas: String(r.estibas ?? r.saldo ?? r.cajas ?? ""),
       rot: r.rotacion, averia: r.averia, pnc: r.pnc,
       estado: r.estado_envase ?? "", nota: r.nota ?? "",
     });
@@ -292,63 +356,101 @@ export function Contar({
           )}
         </div>
 
-        {/* ---------- 1 · CAL · MOD · D/I ---------- */}
+        {/* ---------- 1 · CAL · MOD · D/I ----------
+            LOS TRES SE TECLEAN. Eran desplegables del navegador, y con
+            428 ubicaciones el desplegable solo deja saltar por la
+            primera letra: llegar a E06 era pulsar «E» y rodar. Ahora se
+            escribe «e06» y queda una. */}
         <div className="fe-tres">
           <label><span>Calle</span>
-            <select value={b.calle} onChange={(e) => {
-              /* Cambiar de calle borra el módulo solo si el que había no
-                 es de la calle nueva: si lo es, no hay por qué hacerle
-                 escoger otra vez lo que ya estaba bien. */
-              const nueva = e.target.value;
-              const sigue = ubicaciones.find((u) => u.id === b.ubicacionId)?.calle === nueva;
-              setB((x) => ({ ...x, calle: nueva, ubicacionId: sigue ? x.ubicacionId : "" }));
-            }}>
-              <option value="">Todas</option>
-              {calles.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select></label>
+            <Buscador
+              valor={b.calle}
+              marcador="Todas"
+              opciones={[{ valor: "", texto: "Todas" },
+                         ...calles.map((c) => ({ valor: c, texto: c }))]}
+              onEscoge={(nueva) => {
+                /* Cambiar de calle borra el módulo solo si el que había
+                   no es de la calle nueva: si lo es, no hay por qué
+                   hacerle escoger otra vez lo que ya estaba bien. */
+                const sigue = b.base.startsWith(nueva + "|");
+                setB((x) => ({ ...x, calle: nueva,
+                               base: nueva === "" || sigue ? x.base : "",
+                               lado: nueva === "" || sigue ? x.lado : "" }));
+              }} /></label>
 
           <label><span>Módulo</span>
-            <select value={b.ubicacionId} onChange={(e) => {
-              const u = ubicaciones.find((x) => x.id === e.target.value);
-              /* Escoger el módulo pone su calle sola: si se entró por la
-                 lista completa, la calle queda dicha sin tener que
-                 volver atrás. Y la fecha se borra —arrastrar la del
-                 módulo anterior es cómo se cuela una fecha ajena. */
-              setB((x) => ({ ...x, ubicacionId: e.target.value,
-                             calle: u?.calle ?? x.calle, dia: "", mes: "", anio: "" }));
-            }}>
-              <option value="">Escoge…</option>
-              {modulos.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.clave}{u.familia ? ` · ${u.familia}` : ""}
-                </option>
-              ))}
-            </select></label>
+            <Buscador
+              valor={b.base}
+              marcador="Escribe o escoge…"
+              sinOpciones="Esa calle no tiene módulos activos."
+              /* SIN EL LADO EN EL NOMBRE. Salía «A01_DER · RB F1000», que
+                 hacía escoger el lado dos veces: dentro del módulo y en
+                 el campo de al lado. */
+              opciones={modulos.map((m) => ({
+                valor: m.base,
+                texto: `${m.calle}${m.modulo}`,
+                pista: m.familia,
+              }))}
+              onEscoge={(base) => {
+                const u = ubicaciones.find((x) => x.activa && claveBase(x) === base);
+                const posibles = ubicaciones.filter((x) => x.activa && claveBase(x) === base);
+                /* Escoger el módulo pone su calle sola, y si solo tiene
+                   un lado lo pone también: preguntar «¿izquierdo o
+                   derecho?» donde no hay más que uno es un toque de más
+                   por renglón. La fecha se borra —arrastrar la del
+                   módulo anterior es cómo se cuela una fecha ajena. */
+                setB((x) => ({ ...x, base,
+                               calle: u?.calle ?? x.calle,
+                               lado: posibles.length === 1 ? (posibles[0].lado ?? "") : "",
+                               dia: "", mes: "", anio: "" }));
+              }} /></label>
 
-          {/* EL LADO NO SE ESCOGE: viene con el módulo. En la hoja era un
-              campo aparte y por eso 38 filas quedaron sin él. Aquí se
-              muestra para confirmar, no para llenar. */}
+          {/* EL LADO SE ESCOGE, y solo entre los que ese módulo tiene.
+              Puede tener los dos, uno, o ninguno —EST07, JAULA_PNC—.
+              Ofrecer «izquierdo» donde no existe es ofrecer una
+              ubicación que no está, que es lo que dejó 38 de las 152
+              filas de la hoja sin poder ubicar. */}
           <label><span>Lado</span>
-            <output className="fe-lado">{ubicacion ? (ubicacion.lado ?? "sin lado") : "—"}</output>
+            {!b.base ? (
+              <output className="fe-lado">—</output>
+            ) : lados.length === 1 ? (
+              <output className="fe-lado">{lados[0] === "" ? "sin lado" : lados[0]}</output>
+            ) : (
+              <select value={b.lado} onChange={(e) => pon("lado", e.target.value)}>
+                <option value="">Escoge…</option>
+                {lados.map((l) => (
+                  <option key={l} value={l}>{l === "" ? "Sin lado" : l === "IZQ" ? "Izquierdo" : "Derecho"}</option>
+                ))}
+              </select>
+            )}
           </label>
         </div>
 
-        {/* ---------- 2 · CÓDIGO y su DESCRIPCIÓN ---------- */}
-        <label className="fe-cod-campo">
-          <span>Código</span>
-          <input ref={campoCodigo} inputMode="numeric" value={b.codigo} placeholder="3128"
-                 onChange={(e) => pon("codigo", e.target.value)} />
-        </label>
-        <p className={"fe-eco" + (b.codigo && !material ? " mal" : "")}>
-          {!b.codigo ? "Teclea el código y te digo qué es."
-            : material
-              ? <>{material.nombre}
-                  {material.cajas_por_estiba != null
-                    ? <> · <b>{material.cajas_por_estiba}</b> cajas por estiba</>
-                    : <> · <b className="ojo">sin factor estibado</b> — las estibas darían cero</>}
-                  {esEnvase && <> · envase</>}</>
-              : <>Ese código no está en el maestro.</>}
-        </p>
+        {/* ---------- 2 · CÓDIGO y su DESCRIPCIÓN ----------
+            MITAD Y MITAD, y del mismo tamaño. La descripción iba debajo
+            en letra chica, como una nota al pie, y es LA CONFIRMACIÓN de
+            que se tecleó el código correcto: 3128 y 3182 existen los
+            dos. Lo que confirma un dato no puede ser más pequeño que el
+            dato. */}
+        <div className="fe-cod-dos">
+          <label><span>Código</span>
+            <input ref={campoCodigo} inputMode="numeric" value={b.codigo} placeholder="3128"
+                   onChange={(e) => pon("codigo", e.target.value)} /></label>
+          <label><span>Descripción</span>
+            <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : "")}>
+              {!b.codigo ? <i>Teclea el código y te digo qué es.</i>
+                : material ? material.nombre
+                : <i>Ese código no está en el maestro.</i>}
+            </output></label>
+        </div>
+        {material && (
+          <p className="fe-eco">
+            {material.cajas_por_estiba != null
+              ? <><b>{material.cajas_por_estiba}</b> cajas por estiba</>
+              : <><b className="ojo">sin factor estibado</b> — las estibas darían cero</>}
+            {esEnvase && <> · envase</>}
+          </p>
+        )}
 
         {/* ---------- 3 · VENCIMIENTO ---------- */}
         <div className={"fe-fecha" + (esEnvase ? " opcional" : "")}>
@@ -371,8 +473,13 @@ export function Contar({
             invita a repetirlo. */}
         <div className="fe-tres">
           <label><span>Qué cuentas</span>
-            <select value={b.modo} onChange={(e) => pon("modo", e.target.value as "estibas" | "cajas")}>
+            {/* ARRANCA EN ESTIBAS porque es lo que más se cuenta: quien
+                llega a un módulo lleno anota estibas y sigue. Saldo es
+                lo que queda de una estiba a medias, y cajas son las
+                sueltas — las dos se escogen, la común viene puesta. */}
+            <select value={b.modo} onChange={(e) => pon("modo", e.target.value as Modo)}>
               <option value="estibas">Estibas</option>
+              <option value="saldo">Saldo</option>
               <option value="cajas">Cajas</option>
             </select></label>
           <label><span>Cuántas</span>

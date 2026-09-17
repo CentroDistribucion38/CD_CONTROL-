@@ -43,12 +43,28 @@ alter table auth.users add column if not exists raw_user_meta_data jsonb not nul
    una petición anónima — y es el caso que más importa probar. */
 create or replace function auth.uid() returns uuid
 language sql stable as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+  /* LAS DOS FORMAS, y hacen falta las dos. PostgREST deja la identidad
+     en `request.jwt.claims` —un JSON entero— y también en
+     `request.jwt.claim.<campo>`, una variable por campo. Los arneses de
+     este proyecto usan una u otra según quién los escribió.
+
+     La primera versión de este archivo leía solo la segunda, y el arnés
+     de la plantilla de conteo —que pone el JSON— falló con «Hay que
+     entrar para contar»: el candado funcionando perfecto sobre una
+     identidad que el andamio no supo leer. Una hora buscando el error
+     en el sitio equivocado. */
+  select coalesce(
+    nullif(current_setting('request.jwt.claims', true), '')::json ->> 'sub',
+    nullif(current_setting('request.jwt.claim.sub', true), '')
+  )::uuid
 $$;
 
 create or replace function auth.role() returns text
 language sql stable as $$
-  select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'authenticated')
+  select coalesce(
+    nullif(current_setting('request.jwt.claims', true), '')::json ->> 'role',
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    'authenticated')
 $$;
 
 /* Los roles de Supabase. `nologin` porque nadie se conecta con ellos:

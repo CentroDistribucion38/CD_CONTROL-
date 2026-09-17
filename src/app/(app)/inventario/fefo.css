@@ -348,6 +348,47 @@
 }
 .fe .fe-aqui b { font-family: var(--fe-titulo); letter-spacing: .02em }
 
+/* CÓDIGO Y DESCRIPCIÓN, MITAD Y MITAD.
+   La descripción iba debajo en letra chica, como una nota al pie, y es
+   LA CONFIRMACIÓN de que se tecleó el código correcto: 3128 y 3182
+   existen los dos y son cervezas distintas. Lo que confirma un dato no
+   puede ser más pequeño que el dato. */
+.fe .fe-cod-dos {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px; margin-bottom: 4px; align-items: end;
+}
+.fe .fe-cod-dos > label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.fe .fe-cod-dos > label > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+.fe .fe-cod-dos input {
+  min-height: 56px; padding: 0 14px; width: 100%;
+  font: 800 24px var(--fe-titulo); letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+  background: #fff; border: 2px solid var(--fe-linea); border-radius: 2px;
+  color: var(--fe-tinta);
+}
+.fe .fe-cod-dos input:focus { outline: none; border-color: var(--fe-acento) }
+
+/* MISMO ALTO QUE EL CÓDIGO, y por eso es `min-height` y no `height`:
+   «CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE» son 48
+   caracteres y tienen que caber sin recortarse. Un nombre cortado
+   confirma mal, que es peor que no confirmar. */
+.fe .fe-cod-dos .fe-desc-campo {
+  display: flex; align-items: center; min-height: 56px; padding: 8px 12px;
+  background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
+  font: 600 14px var(--fe-texto); line-height: 1.25; color: var(--fe-tinta);
+  overflow-wrap: anywhere;
+}
+.fe .fe-cod-dos .fe-desc-campo i {
+  font-style: normal; font-weight: 400; color: var(--fe-gris-panel);
+}
+.fe .fe-cod-dos .fe-desc-campo.mal {
+  background: #FDECEE; border-color: var(--fe-mal);
+}
+.fe .fe-cod-dos .fe-desc-campo.mal i { color: #8A1020 }
+
 .fe .fe-cod-campo { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px }
 .fe .fe-cod-campo > span {
   font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
@@ -712,3 +753,68 @@
   .fe .fe-barras .fe-mat { grid-template-columns: minmax(0, 1fr) auto; gap: 8px }
   .fe .fe-barras .fe-mat .pista { grid-column: 1 / -1 }
 }
+
+
+/* ---------------------------------------------------------------------
+   EL BUSCADOR QUE SE FILTRA TECLEANDO.
+
+   Vive aquí y no en la hoja global porque hoy solo lo usa el conteo. El
+   día que lo use otro módulo, se sube — mover CSS que ya funciona es
+   barato; mantener reglas globales que un solo sitio usa, no.
+
+   Lo que reemplaza: un `<select>` de 428 opciones donde el navegador
+   solo deja saltar por la primera letra.
+   --------------------------------------------------------------------- */
+.fe .bs { position: relative; min-width: 0 }
+
+.fe .bs-campo {
+  min-height: 48px; padding: 0 30px 0 11px; width: 100%; min-width: 0;
+  font: 500 15px var(--fe-texto); color: var(--fe-tinta);
+  background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px;
+  text-overflow: ellipsis;
+}
+.fe .bs-campo:focus { outline: none; border-color: var(--fe-acento) }
+
+.fe .bs-flecha {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--fe-gris); font-size: 11px; pointer-events: none;
+}
+
+/* LA LISTA FLOTA SOBRE LO DE ABAJO en vez de empujarlo: si empujara, el
+   renglón entero saltaría cada vez que se abre y el campo que se iba a
+   tocar después ya no estaría donde el dedo iba.
+
+   `z-index` alto porque debajo hay una barra pegada al pie con el botón
+   de anotar, y la lista tiene que quedar POR ENCIMA — si no, las
+   últimas opciones quedan detrás del botón y no se pueden tocar. */
+.fe .bs-lista {
+  position: absolute; z-index: 40; top: calc(100% + 3px); left: 0; right: 0;
+  margin: 0; padding: 4px; list-style: none;
+  max-height: 264px; overflow-y: auto;
+  background: var(--fe-papel); border: 1.5px solid var(--fe-acento); border-radius: 2px;
+  box-shadow: 0 14px 34px rgba(4, 32, 63, .17);
+}
+
+.fe .bs-lista li {
+  display: flex; align-items: baseline; gap: 8px;
+  /* 40 px: es una lista que se toca con guante. */
+  min-height: 40px; padding: 7px 10px; border-radius: 2px; cursor: pointer;
+  font-size: 14px; line-height: 1.25;
+}
+.fe .bs-lista li b {
+  font: 700 14.5px var(--fe-titulo); letter-spacing: .01em; white-space: nowrap;
+}
+.fe .bs-lista li em {
+  font-style: normal; font-size: 12px; color: var(--fe-gris);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* El resaltado va con fondo y no solo con color: se mueve con las
+   flechas y con el ratón, y un cambio de color de letra no se sigue con
+   la vista a la velocidad a la que se teclea. */
+.fe .bs-lista li.on { background: var(--fe-banda); color: #fff }
+.fe .bs-lista li.on em { color: rgba(255, 255, 255, .8) }
+.fe .bs-lista li.puesta:not(.on) { background: var(--fe-fondo) }
+.fe .bs-lista .bs-nada {
+  cursor: default; color: var(--fe-gris-panel); font-size: 13px;
+}
+.fe .bs-lista .bs-nada:hover { background: none }
