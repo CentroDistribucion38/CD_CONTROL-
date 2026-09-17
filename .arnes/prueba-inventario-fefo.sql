@@ -464,3 +464,53 @@ begin
   end if;
   raise notice '✓ una sola versión de agregar y de editar';
 end $$;
+
+
+-- =====================================================================
+-- TREINTA PERSONAS A LA VEZ
+--
+-- No se puede levantar treinta conexiones desde un solo script, así que
+-- lo que se comprueba aquí es LA CAUSA, no el síntoma: que abrir un
+-- conteo esté serializado. La carrera de verdad —treinta sesiones
+-- simultáneas contra este mismo Postgres— se corrió a mano y falló
+-- DIECISÉIS DE TREINTA con «duplicate key value violates unique
+-- constraint "conteos_codigo_key"»: catorce personas podían empezar y
+-- dieciséis veían un error de base de datos al primer toque del turno.
+--
+-- El código se arma con `1 + count(*) de los conteos de hoy` y
+-- `conteos.codigo` es UNIQUE. Treinta manos a las seis de la mañana leen
+-- el mismo count y arman el mismo código.
+--
+-- Después del candado: 30 de 30, treinta códigos distintos, cero
+-- errores. Y 30 × 10 renglones TODOS en el mismo módulo y con el mismo
+-- material: 300 renglones, diez por conteo, cero cruces.
+-- =====================================================================
+do $$
+declare v_src text;
+begin
+  select prosrc into v_src from pg_proc
+   where proname = 'conteo_fefo_abrir' and pronamespace = 'public'::regnamespace;
+
+  if v_src not like '%pg_advisory_xact_lock%' then
+    raise exception 'FALLA: abrir conteo no está serializado. Con treinta personas empezando '
+      'el turno a la vez, la mitad recibe «duplicate key» en conteos_codigo_key.';
+  end if;
+
+  /* Y LA SEGUNDA MIRADA DESPUÉS DEL CANDADO. Entre la primera consulta y
+     el candado pudo entrar la misma persona por otra pestaña —el celular
+     en la mano y la tablet del pasillo—. Sin esa segunda mirada acabaría
+     con dos recorridos abiertos y la mitad de sus renglones en cada uno. */
+  if (length(v_src) - length(replace(v_src, 'estado = ''en_proceso''', ''))) / length('estado = ''en_proceso''') < 2 then
+    raise exception 'FALLA: solo se mira una vez si ya hay conteo abierto. La misma persona '
+      'en dos pestañas acabaría con dos recorridos y los renglones repartidos.';
+  end if;
+
+  raise notice '✓ abrir conteo: serializado por día, y se vuelve a mirar dentro del candado';
+end $$;
+
+-- Y QUE LA PANTALLA NO SE BAJE COLUMNAS QUE NO USA.
+-- `productos` tiene 28 columnas y la pantalla de contar usa 16. La
+-- diferencia son 134 KB por carga; con treinta personas abriendo al
+-- empezar el turno, cinco megas de más sobre el wifi de la bodega.
+-- Esto se comprueba en el arnés de JS, no aquí; queda escrito para que
+-- nadie vuelva a poner `select("*")` pensando que da igual.

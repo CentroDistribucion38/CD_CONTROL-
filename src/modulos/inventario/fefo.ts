@@ -117,14 +117,23 @@ const sinTablas = (m: string) =>
 export async function maestroInventario() {
   const supabase = await createClient();
   const [m, u, b, e] = await Promise.all([
-    /* `*` y no la lista de columnas: pegar la lista con `+` rompe el
-       tipado de supabase-js —el tipo sale de la CADENA LITERAL, y una
-       concatenación ya no lo es— y el build revienta con un error que no
-       dice eso. Las columnas de más son costo y stock mínimo: nada al
-       lado de traer 494 filas. */
-    supabase.from("productos").select("*").order("sku").limit(5000),
-    supabase.from("ubicaciones").select("*")
-      .order("calle").order("modulo").order("lado", { nullsFirst: true }).limit(5000),
+    /* LA LISTA DE COLUMNAS, Y NO `*`. Aquí decía `*` con un comentario
+       mío que afirmaba que las columnas de más «no eran nada al lado de
+       traer 494 filas». Medido: `productos` tiene 28 columnas, la
+       pantalla usa 16, y la diferencia son 134 KB POR CARGA. Con
+       treinta personas abriendo la pantalla al empezar el turno son
+       cinco megas de más sobre el wifi de una bodega, cada vez.
+
+       Va escrita como CADENA LITERAL de una pieza: el tipo de
+       supabase-js sale de esa literal, así que partirla con `+` para
+       que quepa en la línea rompe el tipado y el build revienta con un
+       error que no dice eso. */
+    supabase.from("productos").select(
+      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,activo"
+    ).order("sku").limit(5000),
+    supabase.from("ubicaciones").select(
+      "id,bodega_id,clave,calle,modulo,lado,familia,capacidad,activa"
+    ).order("calle").order("modulo").order("lado", { nullsFirst: true }).limit(5000),
     /* LAS BODEGAS COMPLETAS Y TAMBIÉN LAS APAGADAS: el maestro las
        edita, y un maestro que esconde lo inactivo no deja volver a
        encenderlo. La pantalla de contar se queda con las activas. */

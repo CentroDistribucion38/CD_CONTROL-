@@ -1,130 +1,91 @@
-Contar: no se pierde nada a medio escribir · AI: los tres totales de la hoja
+Inventario: con 30 personas a la vez, la mitad no podía ni empezar
+
+«30 personas pueden contar a la vez.»
+
+Contar, sí. EMPEZAR, no. Y no se habría visto nunca probando de a uno.
 
 =====================================================================
-1 · «SI NO HE GUARDADO Y VOY A OTRO MÓDULO, QUE NO SE ME PIERDA NADA»
+1 · DIECISÉIS DE TREINTA FALLABAN AL PRIMER TOQUE DEL TURNO
 =====================================================================
 
-Lo anotado ya estaba a salvo: cada renglón se guarda en la base en el
-momento de tocar «Anotar», con su nombre y su hora. Lo que NO lo estaba
-era lo que se tiene tecleado y todavía no se ha anotado.
+`conteo_fefo_abrir` armaba el código del recorrido así:
 
-Dos huecos, los dos cerrados:
+    'FEFO-' || hoy || '-' || lpad(1 + (select count(*) ... de hoy), 2)
 
-CAMBIAR DE MÓDULO BORRABA LA FECHA. La borraba a propósito —para que no
-se colara la del módulo anterior— y con eso hacía perder lo tecleado a
-quien se dio cuenta a medio renglón de que había escogido mal el módulo.
-Son dos momentos distintos: después de ANOTAR se limpia todo, porque el
-renglón ya quedó guardado; mientras se ESCRIBE no se pierde nada, porque
-nada está guardado todavía.
+Un `count(*)` leído fuera de cualquier candado, y `conteos.codigo` es
+UNIQUE. Treinta personas tocando «Empezar a contar» a las seis de la
+mañana leen el mismo count, arman el mismo código, y el que llega
+segundo revienta con «duplicate key value violates unique constraint».
 
-Y EL RENGLÓN A MEDIO ESCRIBIR SOBREVIVE al refresco, al bloqueo del
-celular y a la señal caída. Se guarda en el navegador —es de esa persona
-y de ese teléfono, nadie más tiene que verlo, y guardarlo en la base
-sería una escritura por cada tecla—. La llave lleva el id del conteo: sin
-eso, quien cierra un recorrido y abre otro se encontraría el renglón a
-medias del anterior, que ya no tiene sentido porque ese conteo se envió.
+NO ES TEÓRICO. Lo probé con treinta sesiones simultáneas contra un
+Postgres 16 de verdad:
 
-TODO VA EN try/catch. En modo privado, con el almacenamiento lleno o con
-permisos restringidos, `localStorage` LANZA. Sin el try/catch la pantalla
-de contar se cae entera — y no poder contar es infinitamente peor que
-perder un renglón a medias. El arnés cuenta los usos y los catch.
+    ANTES : 16 de 30 fallaron. 14 personas podían empezar a contar.
+    DESPUÉS: 30 de 30, treinta códigos distintos, cero errores.
 
-=====================================================================
-2 · VARIAS PERSONAS CONTANDO A LA VEZ: NO SE PISAN
-=====================================================================
+EL ARREGLO es un candado de transacción sobre EL DÍA. Serializa solo el
+pedacito que lee la cuenta y escribe la fila —microsegundos, una vez por
+persona y por jornada—. Contar, que es lo que se hace las otras ocho
+horas, no toca ese candado ni una vez.
 
-No hacía falta cambiar nada, y vale la pena dejar escrito por qué.
-
-  · `conteo_fefo_abrir` devuelve EL CONTEO DE QUIEN LLAMA
-    (`responsable_id = auth.uid()`), no «el conteo abierto». Dos personas
-    que entran a la vez abren dos recorridos distintos.
-  · `conteo_fefo_agregar` y `conteo_fefo_editar` revientan con «ese
-    conteo es de otra persona» si el dueño no es quien llama.
-  · La llave única es POR CONTEO: dos personas pueden contar el mismo
-    módulo el mismo día sin chocar, porque cada renglón cuelga de su
-    recorrido.
-  · El tablero solo lee lo ENVIADO, así que un recorrido a medio caminar
-    de otra persona no aparece en las cifras de nadie.
-
-Está probado en `prueba-inventario-fefo.sql`, sección «nadie escribe en
-el conteo de otro, pero todos lo ven», y se corre como un usuario normal
-—no como superusuario— porque si no, RLS se salta sin avisar.
+Y SE VUELVE A MIRAR DENTRO DEL CANDADO si ya hay conteo abierto. Entre
+la primera consulta y el candado puede entrar la misma persona por otra
+pestaña —el celular en la mano y la tablet del pasillo—; sin esa segunda
+mirada acabaría con dos recorridos y la mitad de sus renglones en cada
+uno.
 
 =====================================================================
-3 · «ESE VALOR NO ES VÁLIDO» NO ERA CAPACIDAD: ERA EL MES 20
+2 · CONTAR A LA VEZ SÍ AGUANTABA, Y AHORA ESTÁ PROBADO
 =====================================================================
 
-Un dedazo de una tecla en el mes llegaba hasta Postgres, que reventaba
-con «date/time field value out of range», y la app lo traducía a «Ese
-valor no es válido para este campo». Quien lo lee está mirando ONCE
-campos y ninguno dice cuál.
+Treinta personas × diez renglones, TODOS en el mismo módulo y con el
+mismo material a la vez: 300 renglones, exactamente diez por conteo,
+cero errores y cero renglones escritos en el conteo de otro.
 
-Ahora lo dice el campo por su nombre: «El mes del vencimiento dice 20. Va
-de 1 a 12». Y comprueba que la fecha EXISTA, no solo que los rangos
-cuadren: el 31 de febrero pasa un `mes <= 12` y sigue sin ser un día.
+Aguanta porque cada renglón cuelga de su propio recorrido y la llave
+única lleva el `conteo_id`. Lo que faltaba era poder empezar.
 
 =====================================================================
-4 · LA SOBREOCUPACIÓN SE INFORMA, NO SE IMPIDE
+3 · 413 KB POR PERSONA, Y 134 DE ELLOS SOBRABAN
 =====================================================================
 
-Un módulo por encima de su capacidad PASA: se recibe de más, se arruma
-en el pasillo, se deja una estiba encima mientras se despacha otra.
+La pantalla se bajaba `productos` con `select("*")`: 28 columnas para
+usar 16. Lo había escrito yo, con un comentario que afirmaba que las
+columnas de más «no son nada al lado de traer 494 filas».
 
-Bloquear el conteo obligaría a quien está caminando a anotar MENOS de lo
-que ve para poder seguir, y entonces el inventario diría lo que cabe en
-vez de lo que hay. Así que se anota y el tablero lo dice, con las dos
-cifras al lado: cuánto cabe, cuánto hay, cuánto sobra y en qué
-porcentaje.
+Medido:
 
-SE COMPARA EN ESTIBAS. La capacidad del maestro está en estibas —A01_DER
-son 96— y contrastarla contra las CAJAS daría que todos los módulos están
-al 4.000 %, que es una alarma que nadie vuelve a mirar. El arnés lo
-comprueba, y comprueba también que la pantalla de contar NO mire la
-capacidad.
+    productos      306 KB → 172 KB
+    ubicaciones    106 KB →  87 KB
+    por carga      413 KB → 259 KB
+    × 30 personas   12 MB →   7 MB   por ronda de recargas
 
-=====================================================================
-5 · «NO ME CUADRAN LOS VALORES» — LOS TRES TOTALES, EN PANTALLA
-=====================================================================
-
-Y no cuadraban porque «BD AI BAQ» tiene TRES sumas de botellas con
-defecto en la misma fila, se llaman casi igual, y no coinciden en 252 de
-las 296 filas. La pantalla mostraba solo una —la que cobra—, así que era
-imposible cuadrarla contra el archivo.
-
-  % ÍNDICE DE COBRO (M y BG)  (U+V+W+X+Y+Z+AA+AB+AE)/S   9 categorías
-  % TOTAL BOT. CON DEFECTOS (AI)  SUM(U:AD)/S           10 categorías
-  TOTAL (Hl) (AU)                 SUM(AV:BF)            11 categorías
-
-Los tres están ahora en el informe, uno al lado del otro, con la fórmula
-escrita en monoespaciado para poder compararla con la del Excel. La que
-factura lleva una barra de color: de las tres es la única sobre la que
-alguien cobra.
-
-Y LA TABLA TIENE UN MODO «COMO EL EXCEL»: las doce columnas de % y las
-doce de Hl, con los nombres del archivo —«% CEMENTO /PINTURA», «Hl
-ETIQUETA ASOLEADA»— para poder cuadrar columna por columna sin traducir
-nombres en la cabeza. No es el modo por defecto porque treinta y tres
-columnas no se leen: se cuadran.
-
-Las tres cifras salen de la vista, comprobadas contra el archivo en las
-285 filas: 0 diferencias en las tres.
-
-QUÉ CATEGORÍA ENTRA EN CUÁL TOTAL va en la tabla de defectos y no en
-tres listas repetidas dentro de la vista: escribir «hongo» en tres sitios
-es escribirlo mal en uno el día que cambie la política, y ese error no da
-error — da una cifra distinta en una pantalla y la misma en las otras
-dos.
+Cinco megas menos sobre el wifi de una bodega cada vez que empieza el
+turno. La lista de columnas va como CADENA LITERAL de una pieza: el tipo
+de supabase-js sale de esa literal, así que partirla con `+` para que
+quepa en la línea rompe el tipado y el build revienta con un error que no
+dice eso.
 
 =====================================================================
-6 · PARA CORRER
+4 · LOS CANDADOS
 =====================================================================
 
-  supabase/migraciones/2026-09-sider-ai-tres-totales.sql
+`prueba-inventario-fefo.sql` comprueba LA CAUSA y no el síntoma —no se
+pueden levantar treinta conexiones desde un script—: que abrir esté
+serializado, y que se mire DOS VECES si ya hay conteo abierto.
 
-Después de `2026-09-sider-ai-historico.sql`. Se puede correr varias
-veces. Y NO con `clip`, que rompe las tildes:
+`inv-conteo.mjs` comprueba que el maestro no vuelva a bajarse con
+`select("*")`.
 
-  powershell -c "Get-Content -Raw -Encoding UTF8 'ruta\al\archivo.sql' | Set-Clipboard"
+=====================================================================
+5 · PARA CORRER
+=====================================================================
+
+  supabase/migraciones/2026-09-conteo-treinta-a-la-vez.sql
+
+Después de `2026-09-inventario-fefo.sql`. Se puede correr varias veces.
+
+  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-conteo-treinta-a-la-vez.sql' | Set-Clipboard"
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

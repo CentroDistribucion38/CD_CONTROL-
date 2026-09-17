@@ -489,6 +489,21 @@ if (!/function limpiar\(\) \{\s*\n\s*setCorrigiendo\(null\);\s*\n\s*setB\(VACIO\
 if (/placeholder="\d+"/.test(limpio))
   fallas.push("el marcador del código es un número: se confunde con un código ya tecleado");
 
+/* ---------- NO BAJARSE COLUMNAS QUE NO SE USAN ----------
+   `productos` tiene 28 columnas y esta pantalla usa 16. Con `select("*")`
+   son 413 KB por carga en vez de 259; con treinta personas abriendo al
+   empezar el turno, cinco megas de más sobre el wifi de una bodega, cada
+   vez. Aquí decía `*` con un comentario mío afirmando que daba igual.
+   Medido, no daba igual. */
+{
+  const datos = readFileSync(new URL("../src/modulos/inventario/fefo.ts", import.meta.url), "utf8");
+  if (/from\("productos"\)\.select\("\*"\)/.test(datos))
+    fallas.push("el maestro de productos se baja con select(*): 28 columnas para usar 16, " +
+                "134 KB de más por carga y por persona");
+  if (/from\("ubicaciones"\)\.select\("\*"\)/.test(datos))
+    fallas.push("el maestro de ubicaciones se baja con select(*)");
+}
+
 /* ---------- EL RENGLÓN A MEDIO ESCRIBIR NO SE PIERDE ----------
    Lo anotado está a salvo desde que se toca «Anotar»: cada renglón se
    guarda en la base al instante. Lo que no lo estaba era lo tecleado y
