@@ -62,6 +62,11 @@ const ARMAZON = `
       <div class="num">12</div><div class="pie">renglones · 4 módulos</div></div>
   </section>
 
+  <div class="fe-pes fe-pes-conteo" role="tablist">
+    <button type="button" role="tab" class="on">Anotar</button>
+    <button type="button" role="tab">El borrador<em>152</em></button>
+  </div>
+
   <section class="fe-anotar">
     <div class="fe-anotar-cab"><p class="fe-paso">Anotar lo que hay</p></div>
 
@@ -437,6 +442,52 @@ if (!/modo: "estibas"/.test(limpio))
   fallas.push("«Qué cuentas» no arranca en estibas");
 if (!/r\.estibas != null \? "estibas" : r\.saldo != null \? "saldo" : "cajas"/.test(limpio))
   fallas.push("al corregir no se distingue un saldo de unas cajas: se cargaría como cajas");
+
+/* ---------- DOS PESTAÑAS Y NO UNA PÁGINA LARGA ----------
+   Contar y revisar son dos momentos: contando se mira UN renglón,
+   revisando se miran los ciento cincuenta. Apilados, cada renglón
+   anotado empujaba el formulario y había que buscarlo otra vez. */
+if (!/hidden=\{pestania !== "anotar"\}/.test(limpio) ||
+    !/hidden=\{pestania !== "borrador"\}/.test(limpio))
+  fallas.push("el formulario y el borrador no están en pestañas: vuelven a ser una página larga");
+
+/* CORREGIR TIENE QUE LLEVAR AL FORMULARIO. Se toca «Corregir» en una
+   fila del borrador; si la pantalla se queda en la lista, el renglón se
+   carga en un formulario que no se ve y el siguiente que se anote
+   escribe encima de él. */
+if (!/setPestania\("anotar"\);\s*\n\s*setCorrigiendo/.test(limpio))
+  fallas.push("«Corregir» no lleva al formulario: se editaría a ciegas");
+
+/* ---------- QUE `[hidden]` GANE AUNQUE ALGUIEN LE PONGA `display` ----------
+   Hoy ninguna de las dos secciones fija `display`, así que el
+   `display: none` que trae el navegador para `[hidden]` funciona solo.
+   Comprobarlo tal cual sería una aserción que NO PUEDE FALLAR, y este
+   proyecto ya aprendió lo que cuestan.
+
+   Lo que se mide es el riesgo real: que mañana alguien le ponga
+   `display: flex` a `.fe .fe-recorrido` —para alinear algo— y con eso
+   (0,2,0) pise el (0,1,0) del navegador. La sección quedaría oculta en
+   el papel y VISIBLE en pantalla, con las dos pestañas encendidas a la
+   vez. Así que la regla se inyecta aquí y se mide si `[hidden]` aguanta.
+
+   Verificado quitando `.fe [hidden] { display: none !important }`: sin
+   esa línea, esto falla. */
+{
+  await monta(pag, null, 1440, 1100);
+  const mal = await pag.evaluate(() => {
+    const s = document.querySelector(".fe-recorrido");
+    if (!s) return "no existe .fe-recorrido en el armazón";
+    const hoja = document.createElement("style");
+    hoja.textContent = ".fe .fe-recorrido { display: flex }";
+    document.head.appendChild(hoja);
+    s.setAttribute("hidden", "");
+    const d = getComputedStyle(s).display;
+    s.removeAttribute("hidden");
+    hoja.remove();
+    return d === "none" ? null : `con [hidden] y un display propio queda en display:${d}`;
+  });
+  if (mal) fallas.push(`el borrador no se ocultaría al cambiar de pestaña — ${mal}`);
+}
 
 await navegador.close();
 
