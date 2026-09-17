@@ -1,118 +1,80 @@
-Inventario: maestro, contar y tablero — y nada más
+Un 404 que dice qué pasó y da la salida
 
-Cristian, viendo el menú: «no entiendo por qué tienes todo eso, solo
-debería estar el maestro con todas las bases, el de conteo, y allí mismo
-se valida el FEFO y el tablero».
+Cristian recargó una pantalla de Inventario que tenía abierta desde
+antes del deploy y aterrizó en esto:
 
-Tenía razón y el problema era peor que el menú. Las pantallas de la
-plantilla de ejemplo —Resumen, Productos, Bodegas, Movimientos, Conteos
-físicos— se quedaron al lado de las nuevas, así que `productos` tenía
-DOS editores: el maestro y la vieja «Productos», con un formulario más
-pobre. Dos editores de una misma tabla no son un menú largo: son dos
-personas corrigiendo el mismo dato sin enterarse la una de la otra.
+    404 | This page could not be found.
+
+En inglés, sobre blanco, sin logo, sin un enlace de vuelta. La app tenía
+38 rutas y NINGUNA página de 404: lo que se veía era la de Next.js.
 
 =====================================================================
-1 · TRES SECCIONES, EN EL ORDEN DEL PROCESO
+1 · POR QUÉ IMPORTA UNA PANTALLA QUE «NADIE VE»
 =====================================================================
 
-  Maestro → Contar → Tablero
+La ve cualquiera que tenga una pantalla abierta cuando entra un cambio,
+que en una plataforma a medio construir es todo el mundo. Y la ve JUSTO
+en el momento en que no sabe si la aplicación se rompió. Con una
+pantalla en blanco, en inglés y sin salida, la conclusión razonable es
+que sí se rompió — y de ahí sale una llamada.
 
-Primero con qué se cuenta, después caminar la bodega, después leer lo
-caminado. El tablero vive en la raíz del módulo —/inventario— porque es
-lo que alguien quiere ver cuando entra sin saber a qué entra.
+La nueva dice tres cosas y ninguna más:
 
-Se fueron cuatro pantallas y dos archivos que ya nadie llamaba
-(`acciones.ts` y `FormMovimiento.tsx`). Eso lo lleva `git rm`, y va en
-el comando de abajo.
+  · QUÉ PASÓ — «la plataforma se está construyendo y las pantallas se
+    mueven; lo más probable es que esta la tenía abierta desde antes».
+  · QUE NO SE PERDIÓ NADA — porque es lo que uno se pregunta de
+    inmediato si estaba a mitad de un conteo.
+  · POR DÓNDE SALIR — «Ir al inicio» e «Inventario», de 44 px.
 
-=====================================================================
-2 · EL MAESTRO GANA LAS BODEGAS
-=====================================================================
-
-Tercera pestaña, con su editor. La fila muestra CUÁNTAS UBICACIONES
-CUELGAN DE ELLA, que es el dato que decide si se puede apagar: apagar
-una bodega con 428 módulos deja el conteo sin dónde caminar.
-
-Y las bodegas ahora se traen SIN FILTRAR, apagadas incluidas. Un maestro
-que esconde lo inactivo no deja volver a encenderlo, que es una trampa
-de un solo sentido. La pantalla de contar sigue quedándose con las
-activas.
+No pide perdón y no culpa a quien tecleó. Ninguna de las dos cosas
+ayuda a quien está mirando la pantalla.
 
 =====================================================================
-3 · EL TABLERO: QUÉ SALE PRIMERO
+2 · DOS DECISIONES
 =====================================================================
 
-Es para lo que el conteo existe. Caminar 152 renglones no sirve de nada
-si después nadie puede decir qué se despacha primero.
+VA EN LA RAÍZ Y NO DENTRO DE (app). Así atrapa también lo que cae fuera
+del armazón: una dirección tecleada mal, un enlace viejo, el acceso
+directo de la app instalada. Dentro de (app) solo cubriría lo que ya
+pasó por el layout con sesión.
 
-«DÍAS PARA SALIR» ES LA CIFRA, y no el vencimiento. No es cuándo se
-vence: es cuándo TIENE QUE HABER SALIDO para llegar al cliente con vida
-útil suficiente —vencimiento menos hoy menos el Mínimo T1 del material—.
-En negativo ya se pasó, y eso es una decisión de hoy.
+SE PINTA CON EL TEMA DEL EQUIPO, igual que la entrada. Quien llega aquí
+puede no tener sesión, así que no hay tema suyo que leer en la base; lo
+más cerca que se puede estar de acertar es el de la última persona que
+entró en ese computador, que es lo que guarda la cookie. Y el acento
+sale del tema en vez de un rojo en duro: en ámbar un botón rojo sería
+el único rojo de la pantalla, y el blanco encima no se lee.
 
-TRES GRUPOS Y NO UNA ESCALA. Ya se pasó / sale esta semana / contado. Un
-semáforo de siete colores obliga a interpretar; tres grupos se leen de
-una y cada uno tiene una acción distinta: sacarlo hoy, programarlo,
-dejarlo quieto.
-
-«A QUIÉN LLAMAR» AGRUPA POR MATERIAL. Quince renglones del mismo código
-en ocho módulos son UN problema, no quince.
-
-Y SOLO LEE LO ENVIADO. Un borrador a medio caminar diría que la calle E
-está vacía porque todavía no se ha llegado, y sobre eso alguien podría
-decidir un despacho. Lo firmado es lo único que se puede afirmar; el
-arnés lo comprueba en el código, no en la pintura.
+El 404 va en el color de la línea y no en el acento. Un número rojo de
+58 px es una alarma, y aquí no se rompió nada: lo que hay que leer es la
+frase de al lado.
 
 =====================================================================
-4 · DOS COSAS QUE APARECIERON AL MEDIR, Y NINGUNA EN UN TSX
+3 · EL RIEL, DE PASO
 =====================================================================
 
-`.fe-barra` ESTABA DEFINIDA DOS VECES EN LA MISMA HOJA: la barra de
-pestañas del maestro, y la fila del gráfico de barras del tablero, que
-nació hoy cuatrocientas líneas más abajo. Misma especificidad (0,2,0) y
-gana el de abajo, así que el `display: flex; flex-wrap: wrap` del
-maestro se volvió un `grid` de tres columnas. Con dos pestañas no se
-notaba; con la tercera —Bodegas— la página se arrastraba 85 px de lado
-en un celular de 360 px. Nadie había tocado el maestro.
-
-La fila se llama ahora `.fe-mat` y va anidada bajo `.fe-barras`. Y el
-arnés falla si dos bloques con el MISMO selector declaran `display`
-DISTINTO: repetir un selector para ajustar un color es normal y está por
-toda la hoja; repetirlo para cambiar el display ya no es un ajuste, es
-otro componente con el nombre prestado.
-
-LAS BARRAS SE DIBUJABAN LLENAS CON EL TOPE EN CERO. La barra es una
-fracción del material que más pesa, y si ese pesa 0 —pasa: un material
-sin factor estibado contado en estibas da total 0— la división da NaN.
-`width: NaN%` no lanza ningún error: el navegador DESCARTA la
-declaración, y un `<i>` de bloque sin ancho se estira hasta llenar la
-pista. O sea que el fallo no se ve como una barra que falta, sino como
-dos barras llenas, que es peor porque parece un dato. Es el mismo
-silencio que dejó la chispa del tablero de rotura en blanco con una
-serie plana, dos días atrás.
-
-Y EL RÓTULO DE LA TABLA CONTRASTABA 4,39 EN EL TEMA ÁMBAR — tercera vez
-en este módulo que `--fe-gris`, calibrado contra el papel blanco, se usa
-sobre `--fe-fondo`, que es más oscuro. Para eso existe `--fe-gris-panel`.
+Las tres secciones de Inventario caían al icono por defecto —las dos
+nuevas no estaban en el mapa— y tres entradas con el mismo dibujo
+obligan a leer el rótulo para distinguirlas, que es justo lo que el riel
+existe para evitar. Tablero, llave y caja.
 
 =====================================================================
-5 · LOS ARNESES
+4 · EL ARNÉS
 =====================================================================
 
-`.arnes/fe-tablero.mjs` es nuevo: contraste en los siete temas de las
-parejas que nadie emparejó a propósito —los días en rojo sobre el rosa
-fijo de la fila vencida, el blanco del KPI en alarma—, que nada se salga
-a 1440/820/390/360, que LA TABLA se deslice de lado y LA PÁGINA no, y
-que las barras se dibujen con todos los pesos en cero.
+`.arnes/no-existe.mjs`: contraste en los siete temas, que nada se salga
+a 1440/820/390/360, que el botón mida 44 px y que en el celular no
+compartan fila —lado a lado quedan de 150 px y se falla el toque con
+guante—.
 
-`.arnes/fe-maestro.mjs` gana la tercera pestaña y tres candados nuevos:
-el choque de `display`, que bajo /inventario no vuelva a aparecer una
-pantalla de más, y que el menú siga en el orden del proceso.
+Y un candado que no es de pintura: QUE LA SALIDA LLEVE A ALGÚN LADO. Las
+rutas de los enlaces se comprueban contra el disco, no contra una lista
+escrita en el arnés que se quedaría vieja sola. Un «Ir al inicio» que
+caiga en otro 404 le dice a quien llegó que la aplicación entera está
+rota. Verificado apuntándolo a /inventario/movimientos, que es una de
+las que se borraron ayer.
 
-Los cinco candados nuevos se verificaron devolviendo el error que dicen
-cazar, uno por uno.
-
-NO HAY SQL ESTA VEZ. Lo pendiente de correr sigue siendo lo de ayer.
+NO HAY SQL ESTA VEZ.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

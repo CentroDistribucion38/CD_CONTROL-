@@ -1,0 +1,102 @@
+/* ---------------------------------------------------------------------
+   LA PANTALLA DE «ESTA DIRECCIÓN NO EXISTE».
+
+   Todo va con el prefijo .nx- para no tocar nada del resto de la app.
+
+   POR QUÉ EXISTE ESTE ARCHIVO. Hasta hoy la app tenía 38 rutas y NINGUNA
+   página de 404: quien caía en una dirección muerta veía la de Next.js
+   —«This page could not be found», en inglés, sobre blanco, sin logo y
+   sin un solo enlace de vuelta—. Y eso no es un caso raro: la
+   plataforma se está construyendo, las pantallas se renombran y se
+   quitan, y cualquiera que tenga una abierta cuando entra un cambio
+   aterriza aquí al recargar. Pasó hoy con las pantallas viejas de
+   Inventario.
+
+   La regla de la pantalla: DECIR QUÉ PASÓ Y DAR LA SALIDA. No pedir
+   perdón, no culpar a quien tecleó, y no dejar a nadie mirando un número
+   sin saber si la aplicación se rompió o si se equivocó de dirección.
+   --------------------------------------------------------------------- */
+.nx {
+  --nx-tinta:  var(--c-04203f);
+  /* El acento es EL DEL TEMA, no el rojo en duro: esta pantalla se pinta
+     con el tema del equipo igual que la entrada, y en ámbar un botón
+     rojo sería el único rojo de la pantalla. --nx-sobre va con él
+     porque sobre ámbar el blanco no se lee. */
+  --nx-acento: var(--c-marca);
+  --nx-sobre:  var(--c-marca-txt);
+  --nx-hueso:  var(--c-eef1f5);
+  --nx-gris:   var(--c-5b6b7f);
+  --nx-linea:  var(--c-d5dce5);
+  --nx-papel:  #FFFFFF;
+
+  --nx-titulo: "Archivo", system-ui, sans-serif;
+  --nx-texto:  "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: var(--nx-tinta);
+  font-family: var(--nx-texto);
+  color: var(--nx-tinta);
+  -webkit-font-smoothing: antialiased;
+}
+.nx *, .nx *::before, .nx *::after { box-sizing: border-box }
+
+.nx-tarjeta {
+  width: 100%; max-width: 520px;
+  background: var(--nx-papel); border-radius: 4px;
+  padding: 34px 36px 30px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .34);
+}
+
+/* La marca es la de la casa —el archivo que subió Cristian— y se lee en
+   tiempo de ejecución. Nunca se dibuja con código. */
+.nx-marca { display: flex; align-items: center; gap: 11px; margin-bottom: 26px }
+.nx-marca img { height: 26px; width: auto; display: block }
+.nx-marca span {
+  font: 700 10.5px var(--nx-texto); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--nx-gris);
+}
+
+/* El número va grande pero NO es el protagonista: lo que hay que leer es
+   la frase de al lado. Por eso va en el hueso y no en el acento — un 404
+   rojo de 64 px es una alarma, y aquí no se rompió nada. */
+.nx-num {
+  font: 900 58px/1 var(--nx-titulo); letter-spacing: -.05em;
+  color: var(--nx-linea);
+}
+.nx h1 {
+  margin: 10px 0 0; font: 900 25px var(--nx-titulo); letter-spacing: -.03em;
+  text-wrap: balance;
+}
+.nx p {
+  margin: 12px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--nx-gris);
+  max-width: 46ch;
+}
+.nx p b { color: var(--nx-tinta); font-weight: 600 }
+
+.nx-pie {
+  margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--nx-linea);
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+}
+/* El botón mide 44 px como todo lo que se toca en esta app: la bodega
+   entra aquí desde una tablet de piso, con guantes. */
+.nx-btn {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px;
+  border-radius: 2px; text-decoration: none;
+  background: var(--nx-acento); color: var(--nx-sobre);
+  font: 800 13.5px var(--nx-titulo);
+}
+.nx-btn.plano {
+  background: none; color: var(--nx-gris); border: 1px solid var(--nx-linea);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .nx { padding: 16px }
+  .nx-tarjeta { padding: 26px 22px 24px }
+  .nx h1 { font-size: 22px }
+  /* En el celular los dos botones ocupan la fila entera: uno al lado del
+     otro quedan de 150 px y se falla el toque con guante. */
+  .nx-pie .nx-btn { flex: 1 1 100%; justify-content: center }
+}

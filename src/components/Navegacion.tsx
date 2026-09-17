@@ -184,7 +184,13 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/quiebra/rotura/tablero": IconoTablero,
   "/quiebra/rotura/maestro": IconoLlave,
   "/quiebra/importar": IconoImportar,
-  "/inventario": IconoLista,
+  /* Las tres de Inventario con su icono propio. Sin esta línea las dos
+     de abajo caían al icono por defecto, y tres secciones con el mismo
+     dibujo en el riel obligan a leer el rótulo para distinguirlas — que
+     es justo lo que el riel existe para evitar. */
+  "/inventario": IconoTablero,
+  "/inventario/maestro": IconoLlave,
+  "/inventario/conteo": IconoCaja,
   "/acciones": IconoLista,
   "/acciones/mias": IconoMias,
   "/acciones/verificar": IconoVerificar,
