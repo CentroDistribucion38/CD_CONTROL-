@@ -1,80 +1,104 @@
-Un 404 que dice qué pasó y da la salida
+Sider AI: se estaba cobrando de más a los socios. Corregido
 
-Cristian recargó una pantalla de Inventario que tenía abierta desde
-antes del deploy y aterrizó en esto:
-
-    404 | This page could not be found.
-
-En inglés, sobre blanco, sin logo, sin un enlace de vuelta. La app tenía
-38 rutas y NINGUNA página de 404: lo que se veía era la de Next.js.
+Leyendo «Registro Cobro AI COL V02.xlsx» por FÓRMULAS para armar el
+tablero, apareció un error mío que lleva semanas en producción.
 
 =====================================================================
-1 · POR QUÉ IMPORTA UNA PANTALLA QUE «NADIE VE»
+1 · TRES BANDERAS AL REVÉS, Y SON PLATA
 =====================================================================
 
-La ve cualquiera que tenga una pantalla abierta cuando entra un cambio,
-que en una plataforma a medio construir es todo el mundo. Y la ve JUSTO
-en el momento en que no sabe si la aplicación se rompió. Con una
-pantalla en blanco, en inglés y sin salida, la conclusión razonable es
-que sí se rompió — y de ahí sale una llamada.
+Su fórmula de cobro —columna M, «% ÍNDICE DE COBRO»— es:
 
-La nueva dice tres cosas y ninguna más:
+    (U+V+W+X+Y+Z+AA+AB+AE) / S
 
-  · QUÉ PASÓ — «la plataforma se está construyendo y las pantallas se
-    mueven; lo más probable es que esta la tenía abierta desde antes».
-  · QUE NO SE PERDIÓ NADA — porque es lo que uno se pregunta de
-    inmediato si estaba a mitad de un conteo.
-  · POR DÓNDE SALIR — «Ir al inicio» e «Inventario», de 44 px.
+Nueve categorías: incluye MEZCLADO y deja fuera HONGO y ETIQUETA
+ASOLEADA. Está idéntica en las 296 filas del archivo, o sea que es la
+regla y no el descuido de una fila.
 
-No pide perdón y no culpa a quien tecleó. Ninguna de las dos cosas
-ayuda a quien está mirando la pantalla.
+Yo escribí las banderas siguiendo la columna T, «TOTAL BOTELLAS CON
+DEFECTOS» = SUM(U:AD), que son DIEZ categorías: con hongo y etiqueta
+asoleada, sin mezclado.
 
-=====================================================================
-2 · DOS DECISIONES
-=====================================================================
+                    unidades    su Excel    lo que escribí
+    Hongo                219    no cobra    COBRA        ✗
+    Etiqueta asoleada    614    no cobra    COBRA        ✗
+    Mezclado             546    COBRA       no cobra     ✗
 
-VA EN LA RAÍZ Y NO DENTRO DE (app). Así atrapa también lo que cae fuera
-del armazón: una dirección tecleada mal, un enlace viejo, el acceso
-directo de la app instalada. Dentro de (app) solo cubriría lo que ya
-pasó por el layout con sesión.
+Sobre las 296 revisiones son 3.600 botellas de más en el NO ABONO, un
+4,5 %. Y el no-abono no es un rótulo de pantalla: es la cifra que viaja
+a SAP y se le descuenta al socio.
 
-SE PINTA CON EL TEMA DEL EQUIPO, igual que la entrada. Quien llega aquí
-puede no tener sesión, así que no hay tema suyo que leer en la base; lo
-más cerca que se puede estar de acertar es el de la última persona que
-entró en ese computador, que es lo que guarda la cookie. Y el acento
-sale del tema en vez de un rojo en duro: en ámbar un botón rojo sería
-el único rojo de la pantalla, y el blanco encima no se lee.
-
-El 404 va en el color de la línea y no en el acento. Un número rojo de
-58 px es una alarma, y aquí no se rompió nada: lo que hay que leer es la
-frase de al lado.
+POR QUÉ NO SE VIO ANTES. Las dos columnas conviven en la misma hoja y
+difieren en 252 de las 296 filas. Mirando una fila cualquiera se ven dos
+números parecidos; solo comparando las 296 se ve que nunca son el mismo.
 
 =====================================================================
-3 · EL RIEL, DE PASO
+2 · Y EL ARNÉS ESTABA FIJANDO EL ERROR
 =====================================================================
 
-Las tres secciones de Inventario caían al icono por defecto —las dos
-nuevas no estaban en el mapa— y tres entradas con el mismo dibujo
-obligan a leer el rótulo para distinguirlas, que es justo lo que el riel
-existe para evitar. Tablero, llave y caja.
+`prueba-sider-ai.sql` comprobaba la fila del 8 de mayo contra
+«defectos 32 · Hl 0,056», que son los de la columna T. O sea que la
+prueba pasaba EN VERDE con el cobro mal, porque estaba escrita contra la
+misma columna equivocada. Los valores correctos de esa fila son 34 y
+0,0595.
+
+La sección nueva no cuenta cuántas cobran: compara LA LISTA EXACTA. Con
+un conteo bastaba intercambiar mezclado por hongo —nueve sigue siendo
+nueve— que es justo el error que hubo. Verificado haciendo ese
+intercambio: revienta.
+
+Y se comprobó lo más fuerte que se podía comprobar: sembré las 293 filas
+buenas del archivo en un Postgres 16 local y comparé `v_sider_ai` contra
+las columnas M y N del Excel, fila por fila.
+
+    ÍNDICE distinto  : 0 de 293
+    NO ABONO distinto: 0 de 293
 
 =====================================================================
-4 · EL ARNÉS
+3 · DOS FILAS IMPOSIBLES EN SU ARCHIVO
 =====================================================================
 
-`.arnes/no-existe.mjs`: contraste en los siete temas, que nada se salga
-a 1440/820/390/360, que el botón mida 44 px y que en el celular no
-compartan fila —lado a lado quedan de 150 px y se falla el toque con
-guante—.
+El esquema las rechaza con `revisadas <= recibidas`, y por eso
+aparecieron:
 
-Y un candado que no es de pintura: QUE LA SALIDA LLEVE A ALGÚN LADO. Las
-rutas de los enlaces se comprueban contra el disco, no contra una lista
-escrita en el arnés que se quedaría vieja sola. Un «Ir al inicio» que
-caiga en otro 404 le dice a quien llegó que la aplicación entera está
-rota. Verificado apuntándolo a /inventario/movimientos, que es una de
-las que se borraron ayer.
+  fila 126 · 06/07 · Los Gavilanes    recibidas 20.520 · revisadas 41.104
+  fila 194 · 29/07 · Logisinú          recibidas  2.430 · revisadas  2.700
 
-NO HAY SQL ESTA VEZ.
+No se puede revisar más de lo que llegó. La 126 parece un 4.104 —la
+muestra de siempre— con un 1 de más; eso divide el índice por diez y a
+ese socio se le cobró de MENOS. No las toco: se las dejo para que decida,
+porque corregir una cifra de facturación no puede ser algo que yo adivine.
+
+=====================================================================
+4 · ANDAMIO DE PRUEBAS, POR ESCRITO
+=====================================================================
+
+`.arnes/supabase-local.sql` es nuevo. Las pruebas de SQL se corren contra
+un Postgres local —nunca contra el Supabase donde están los conteos de la
+bodega— pero el proyecto habla Supabase: `auth.uid()`, el rol
+`authenticated`, `auth.users`, los buckets de storage. Ese andamio se
+venía escribiendo a mano en cada sesión, que es justo como una prueba
+termina midiendo algo distinto cada vez.
+
+Incluye la columna `raw_user_meta_data`, que no se usa en ninguna
+consulta pero sin la cual el disparador de `00-nucleo.sql` revienta al
+insertar el primer usuario de prueba.
+
+=====================================================================
+5 · PARA CORRER
+=====================================================================
+
+  supabase/migraciones/2026-09-sider-ai-que-cobra.sql
+
+HAY QUE CORRERLO AUNQUE VUELVA A CORRER `sider-ai.sql`. La siembra de ese
+módulo trae `on conflict do update` pero NO pisa `cobra`, a propósito
+—para que quien cambie la política desde el maestro no la pierda al
+reinstalar—. La corrección no llega sola.
+
+Antes de tocar nada dice en un NOTICE cuánto va a cambiar el no-abono de
+lo que ya está guardado. Probado dos veces sobre base limpia, y probado
+de verdad: poniendo las banderas malas, corriéndolo, y viendo bajar el
+no-abono de 84.218 a 80.619 botellas (−4,27 %).
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

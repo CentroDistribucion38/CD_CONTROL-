@@ -154,19 +154,29 @@ begin
 
   select * into r from public.v_sider_ai where id = v_id;
 
-  -- Las cifras del Excel para esa fila: «TOTAL BOTELLAS CON DEFECTOS» 32
-  -- y Hl 0,056. Las dos tienen que salir iguales.
-  if r.defectos <> 32 then v_falla := v_falla || ' 5(defectos=' || r.defectos || ', debía ser 32)'; end if;
-  if r.otros    <> 3  then v_falla := v_falla || ' 5b(otros=' || r.otros || ', debía ser 3)'; end if;
-  if r.hl_defectos <> 0.0560 then v_falla := v_falla || ' 5c(hl=' || r.hl_defectos || ', debía ser 0.056)'; end if;
+  -- LAS CIFRAS DEL EXCEL PARA ESA FILA, Y OJO CON CUÁL COLUMNA.
+  -- Esta prueba decía 32 y Hl 0,056, que son los de «TOTAL BOTELLAS CON
+  -- DEFECTOS» (columna T). Esa columna NO es la que cobra: la que cobra
+  -- es «% ÍNDICE DE COBRO» (columna M), que suma nueve categorías —con
+  -- mezclado, sin hongo ni etiqueta asoleada— y da 34.
+  --
+  -- O sea que el arnés estaba fijando el error en vez de cazarlo. Dos
+  -- unidades de diferencia en una fila; 3.600 botellas en las 296.
+  --   defectos (las 9 que cobran) = 4+5+10+7+6+2 = 34
+  --   otros (cuentan y no cobran) = cajas malas 1
+  --   Hl = 34 × 0,175 / 100 = 0,0595
+  if r.defectos <> 34 then v_falla := v_falla || ' 5(defectos=' || r.defectos || ', debía ser 34)'; end if;
+  if r.otros    <> 1  then v_falla := v_falla || ' 5b(otros=' || r.otros || ', debía ser 1)'; end if;
+  if r.hl_defectos <> 0.0595 then v_falla := v_falla || ' 5c(hl=' || r.hl_defectos || ', debía ser 0.0595)'; end if;
 
-  -- El índice, ahora calculado: 32 / 4104.
-  if r.indice <> round(32::numeric/4104, 6) then
+  -- El índice, ahora calculado: 34 / 4104 = 0,008285 — el mismo que
+  -- muestra la columna M del Excel en esa fila.
+  if r.indice <> round(34::numeric/4104, 6) then
     v_falla := v_falla || ' 5d(indice=' || r.indice || ')'; end if;
 
   -- Y de ahí las dos cifras de plata, con las fórmulas del Excel que sí
   -- cuadraban en las 296 filas.
-  if r.no_abono <> round(82080 * 32::numeric / 4104)::integer then
+  if r.no_abono <> round(82080 * 34::numeric / 4104)::integer then
     v_falla := v_falla || ' 5e(no_abono=' || r.no_abono || ')'; end if;
   if r.abono_sap <> 82080 - r.no_abono then
     v_falla := v_falla || ' 5f(abono_sap no cierra)'; end if;
@@ -179,8 +189,8 @@ begin
       (select count(*) from public.sider_ai_conteos where revision_id = v_id) || ' conteos, debían ser 7)'; end if;
 
   -- 7. EL DETALLE cuadra con la cabecera.
-  if (select sum(unidades) from public.v_sider_ai_detalle where revision_id = v_id and cobra) <> 32 then
-    v_falla := v_falla || ' 7(el detalle no suma 32)'; end if;
+  if (select sum(unidades) from public.v_sider_ai_detalle where revision_id = v_id and cobra) <> 34 then
+    v_falla := v_falla || ' 7(el detalle no suma 34)'; end if;
 
   -- 8. YA NO ESTÁ PENDIENTE.
   if exists (select 1 from public.v_sider_ai_pendientes
@@ -188,7 +198,7 @@ begin
     v_falla := v_falla || ' 8(sigue apareciendo como pendiente)'; end if;
 
   if v_falla <> '' then raise exception 'FALLARON:%', v_falla; end if;
-  raise warning 'la fila del Excel: 8 de 8 · defectos 32 · Hl 0.056 · no abono % · abono %',
+  raise warning 'la fila del Excel: 8 de 8 · defectos 34 · Hl 0.0595 · no abono % · abono %',
     r.no_abono, r.abono_sap;
 end $$;
 
@@ -239,9 +249,9 @@ begin
     if sqlerrm not like '%no existe en el maestro%' then
       v_falla := v_falla || ' 12(error raro: ' || sqlerrm || ')'; end if;
   end;
-  --     …y la revisión buena sigue intacta: 32, no 3.
+  --     …y la revisión buena sigue intacta: 34, no 3.
   if (select defectos from public.v_sider_ai
-       where viaje_id = 'aaaaaaaa-0000-0000-0000-000000000001') <> 32 then
+       where viaje_id = 'aaaaaaaa-0000-0000-0000-000000000001') <> 34 then
     v_falla := v_falla || ' 12b(el intento fallido dañó la revisión buena)'; end if;
 
   -- 13. NO SE PUEDE ESCRIBIR LA REVISIÓN DIRECTO. Sin esto, un índice de
@@ -301,3 +311,64 @@ end $$;
    tabla. Con el rol de prueba puesto, la prueba fallaba al final —por
    su propio andamiaje, no por lo que estaba probando—. */
 reset role;
+
+
+-- =====================================================================
+-- 16. QUÉ COBRA Y QUÉ NO — CONTRA LA COLUMNA M DEL EXCEL
+--
+-- Este bloque existe porque las banderas estuvieron al revés y eso
+-- cobró de más a los socios durante semanas: hongo y etiqueta asoleada
+-- cobraban, y mezclado no. Es al contrario.
+--
+-- POR QUÉ SE ESCAPÓ. La hoja «BD AI BAQ» tiene DOS sumas de defectos en
+-- la misma fila y no son la misma:
+--     T = SUM(U:AD)                          → 10 categorías, 7.427 uds
+--     M = (U+V+W+X+Y+Z+AA+AB+AE)/S           →  9 categorías, 7.140 uds
+-- La que factura es M. Yo seguí T. Las dos columnas conviven en la
+-- misma hoja y difieren en 252 de las 296 filas, así que no había forma
+-- de notarlo mirando una fila.
+--
+-- LA PRUEBA NO ES «QUE HAYA NUEVE»: es que sean EXACTAMENTE ESAS NUEVE.
+-- Contar cuántas cobran dejaría pasar un intercambio —quitar mezclado y
+-- meter hongo sigue dando nueve— que es precisamente el error que hubo.
+-- =====================================================================
+do $$
+declare
+  v_cobran text;
+  v_no     text;
+  v_falla  text := '';
+begin
+  select string_agg(clave, ',' order by clave) filter (where cobra),
+         string_agg(clave, ',' order by clave) filter (where not cobra)
+    into v_cobran, v_no
+    from public.sider_ai_defectos;
+
+  if v_cobran is distinct from
+     'antiguo,cemento,cristalizado,extrasucio,faltante,mezclado,no_retorn,otras_cias,rota' then
+    v_falla := v_falla || ' 16a(cobran: ' || coalesce(v_cobran, '∅') || ')';
+  end if;
+
+  if v_no is distinct from 'cajas_malas,cuerpo_extra,estiba_mala,etiq_asoleada,hongo' then
+    v_falla := v_falla || ' 16b(no cobran: ' || coalesce(v_no, '∅') || ')';
+  end if;
+
+  /* Y QUE LA VISTA LAS USE. Las banderas podrían estar bien y el índice
+     salir de otro lado: lo que le llega al socio es lo que calcula
+     `v_sider_ai`, no lo que dice la tabla de defectos.
+
+     La fila es la del 8 de mayo que ya montó esta prueba —82.080
+     recibidas, 4.104 revisadas—. Con las nueve que cobran da 34
+     unidades; con las diez de la columna T daría 32. Dos números
+     parecidos que se separan en 1.700 botellas de no-abono. */
+  if not exists (
+    select 1 from public.v_sider_ai
+     where viaje_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+       and defectos = 34
+       and round(indice, 6) = round(34::numeric / 4104, 6)
+  ) then
+    v_falla := v_falla || ' 16c(la vista no cobra por las nueve de la columna M)';
+  end if;
+
+  if v_falla <> '' then raise exception 'FALLARON:%', v_falla; end if;
+  raise warning 'qué cobra: 3 de 3';
+end $$;

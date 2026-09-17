@@ -194,10 +194,23 @@ insert into public.sider_ai_defectos (clave, nombre, cobra, orden) values
   ('antiguo',      'Antiguo formato',           true,   6),
   ('extrasucio',   'Extrasucio / no recuperable', true, 7),
   ('cristalizado', 'Cristalizado / meteorizada', true,  8),
-  ('hongo',        'Hongo',                     true,   9),
-  ('etiq_asoleada','Etiqueta asoleada',         true,  10),
-  /* Los cuatro que se cuentan pero no cobran. */
-  ('mezclado',     'Mezclado',                  false, 11),
+  /* HONGO Y ETIQUETA ASOLEADA NO COBRAN, Y MEZCLADO SÍ. Estas tres
+     banderas estuvieron al revés y no era un detalle: el índice
+     multiplica las botellas recibidas para sacar el no-abono, que es la
+     cifra que viaja a SAP. Sobre las 296 revisiones de «BD AI BAQ» eran
+     3.600 botellas cobradas de más a los socios, un 4,5 %.
+
+     El error salió de seguir la columna equivocada del Excel. La hoja
+     tiene DOS sumas de defectos que no son la misma:
+        T  «TOTAL BOTELLAS CON DEFECTOS» = SUM(U:AD) — 10 categorías,
+           con hongo y etiqueta asoleada, sin mezclado;
+        M  «% ÍNDICE DE COBRO» = (U+V+W+X+Y+Z+AA+AB+AE)/S — 9, con
+           mezclado, sin hongo ni etiqueta asoleada.
+     La que cobra es M, idéntica en las 296 filas. Yo seguí T. */
+  ('hongo',        'Hongo',                     false,  9),
+  ('etiq_asoleada','Etiqueta asoleada',         false, 10),
+  ('mezclado',     'Mezclado',                  true,  11),
+  /* Los tres que se cuentan y no cobran. */
   ('cuerpo_extra', 'Cuerpo extraño',            false, 12),
   ('cajas_malas',  'Cajas malas',               false, 13),
   ('estiba_mala',  'Estiba mala',               false, 14)
