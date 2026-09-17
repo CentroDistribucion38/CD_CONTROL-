@@ -170,7 +170,19 @@ as $$
 declare
   v_id uuid;
 begin
-  if not public.es_editor() then
+  /* EL CANDADO SOLO APLICA SI HAY ALGUIEN CONECTADO.
+     `es_editor()` pregunta por el rol de `auth.uid()`, y en el SQL
+     Editor de Supabase NO HAY usuario: la consola corre como `postgres`
+     y `auth.uid()` devuelve null. Con el candado a secas, el histórico
+     no se podía importar por el único sitio por donde se importa una
+     vez — y el mensaje decía «requiere rol de supervisor», que manda a
+     buscar el problema a los permisos.
+
+     Y no es un agujero: quien está en la consola ya puede escribir en
+     las tablas directamente. El candado existe para que un usuario
+     CONECTADO sin rol no llame esta función desde la aplicación, y eso
+     se sigue cumpliendo. */
+  if auth.uid() is not null and not public.es_editor() then
     raise exception 'Importar el histórico requiere rol de supervisor.';
   end if;
 

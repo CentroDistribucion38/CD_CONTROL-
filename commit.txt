@@ -114,5 +114,22 @@ Los tres se pueden correr varias veces. El último avisa al final cuántas
 revisiones quedaron; probado dos veces seguidas sobre la misma base, no
 duplica.
 
+=====================================================================
+6 · EL CANDADO QUE NO DEJABA IMPORTAR
+=====================================================================
+
+`sider_ai_importar` exigía `es_editor()`, y en el SQL Editor de Supabase
+NO HAY usuario: la consola corre como `postgres` y `auth.uid()` devuelve
+null. O sea que el histórico no se podía importar por el único sitio por
+donde se importa una vez, y el mensaje —«requiere rol de supervisor»—
+mandaba a buscar el problema a los permisos, que era el sitio
+equivocado.
+
+Ahora el candado solo aplica cuando HAY alguien conectado. No es un
+agujero: quien está en la consola ya puede escribir en las tablas
+directamente. El candado existe para que un usuario conectado sin rol no
+llame la función desde la aplicación, y eso se sigue cumpliendo.
+Probado importando las 285 sin usuario.
+
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
