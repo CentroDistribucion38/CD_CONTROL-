@@ -115,6 +115,22 @@ const ARMAZON = `
   </section>
 
   <section class="fe-recorrido">
+    <div class="fe-alerta mal">
+      <p><b>2 renglones ya se pasaron de su fecha de salida</b> — 3128 · 9139. No es que esté
+        vencido: es que ya no alcanza a llegar al cliente con vida útil suficiente.</p>
+      <p class="suave">Y 3 salen esta semana — 3751 · 17740 · 20050.</p>
+    </div>
+    <div class="fe-filtros">
+      <label class="ancho"><span class="sr">Buscar</span>
+        <input placeholder="Código o descripción — 3128, aguila…"></label>
+      <label><span class="sr">Calle</span>
+        <select><option>Todas las calles</option><option>ALAR</option></select></label>
+      <label><span class="sr">Módulo</span>
+        <select><option>Todos los módulos</option><option>ALAR_BAHIA_6</option></select></label>
+      <button type="button" class="btn plano">Quitar filtros</button>
+    </div>
+    <p class="fe-cuenta-filtro">3 de 152 renglones. <b>Enviar manda los 152</b>, no solo los
+      que se ven.</p>
     <div class="fe-rec-cab">
       <div><h2>El borrador</h2>
         <p class="fe-rec-dice">Todo esto está guardado pero todavía no se ha enviado.
@@ -422,6 +438,16 @@ if (/valor: m\.base[\s\S]{0,200}?texto: `\$\{u?\.?clave/.test(limpio) || /texto:
 if (!/texto: `\$\{m\.calle\}\$\{m\.modulo\}`/.test(limpio))
   fallas.push("el módulo no se arma con calle+módulo: volvería a traer el lado");
 
+/* Y LA OPCIÓN DEL MÓDULO NO LLEVA NADA MÁS. La familia estaba detrás
+   —«A01  RB F1000»— y se fue: quien está parado frente a un módulo sabe
+   en cuál está, y «RB F1000» repetido en doscientas filas obliga a leer
+   de más para encontrar el número. */
+{
+  const bloque = (limpio.match(/opciones=\{modulos\.map\([\s\S]{0,260}?\)\)\}/) ?? [""])[0];
+  if (/pista:/.test(bloque))
+    fallas.push("la lista de módulos volvió a traer la familia detrás del número");
+}
+
 /* Y EL LADO SE ESCOGE ENTRE LOS QUE EXISTEN, no entre los tres siempre.
    Ofrecer «izquierdo» en un módulo que no lo tiene es ofrecer una
    ubicación que no está — lo que dejó 38 de 152 filas sin ubicar. */
@@ -453,14 +479,50 @@ if (!/r\.estibas != null \? "estibas" : r\.saldo != null \? "saldo" : "cajas"/.t
    teclear otra, y —peor— una fecha que quedó del renglón anterior no se
    ve como un campo por llenar sino como uno ya lleno, así que se anota
    sin que nadie lo note. */
-if (!/\{ \.\.\.VACIO, calle: x\.calle, base: x\.base, lado: x\.lado \}/.test(limpio))
-  fallas.push("al anotar no se limpia el renglón: la fecha del anterior se arrastraría al siguiente");
+if (!/function limpiar\(\) \{\s*\n\s*setCorrigiendo\(null\);\s*\n\s*setB\(VACIO\);/.test(limpio))
+  fallas.push("al anotar no se limpia el renglón ENTERO: un campo que quedó lleno del " +
+              "anterior no se ve como un campo por llenar, se ve como uno ya contestado");
 
 /* Y EL MARCADOR DEL CÓDIGO NO PUEDE SER UN CÓDIGO DE VERDAD. Decía
    «3128» —la Águila 330— y en gris dentro de un campo grande se lee como
    un campo ya lleno, sobre todo justo después de anotar. */
 if (/placeholder="\d+"/.test(limpio))
   fallas.push("el marcador del código es un número: se confunde con un código ya tecleado");
+
+/* ---------- EL BORRADOR SE FILTRA ----------
+   Ciento cincuenta renglones en una jornada: buscar el 3128 que se anotó
+   hace dos horas rodando la lista es como se termina corrigiendo el
+   renglón equivocado. */
+for (const [re_, que] of [
+  [/const \[fCodigo, setFCodigo\]/, "por código"],
+  [/const \[fCalle, setFCalle\]/, "por calle"],
+  [/const \[fModulo, setFModulo\]/, "por módulo"],
+]) if (!re_.test(limpio)) fallas.push(`el borrador no se puede filtrar ${que}`);
+
+/* Y LA LISTA TIENE QUE DIBUJAR LO FILTRADO. Con el filtro puesto pero la
+   lista leyendo `renglones`, los campos se mueven y no pasa nada — que
+   es peor que no tenerlos. */
+if (!/\{vistos\.map\(\(r\) =>/.test(limpio))
+  fallas.push("la lista del borrador no dibuja lo filtrado: los filtros no harían nada");
+
+/* «ENVIAR MANDA LOS 152, NO LOS 3 QUE SE VEN». Un filtro puesto hace que
+   la lista se vea corta, y de ahí a creer que el conteo va corto hay un
+   paso — y ese paso termina en un conteo enviado a medias. */
+if (!/Enviar manda los/.test(limpio))
+  fallas.push("con el filtro puesto no se dice que enviar manda TODO: se podría creer que " +
+              "el conteo va corto");
+
+/* ---------- LA ALERTA DE FECHA CORTA ----------
+   Quien acaba de anotar sigue parado frente a esa estiba: es el único
+   instante en que puede mirarla otra vez y sacarla. Dicho media hora
+   después, en el tablero, hay que volver a caminar hasta allá.
+
+   Y EL NÚMERO LO TRAE LA VISTA. Si la pantalla lo recalculara, la alerta
+   y el tablero podrían decir cosas distintas del mismo renglón. */
+if (!/dias_para_salir/.test(limpio))
+  fallas.push("no hay alerta de fecha corta al anotar");
+if (/vida_util[\s\S]{0,80}-[\s\S]{0,40}dias_minimo/.test(limpio))
+  fallas.push("la pantalla recalcula los días para salir en vez de leerlos de la vista");
 
 /* ---------- DOS PESTAÑAS Y NO UNA PÁGINA LARGA ----------
    Contar y revisar son dos momentos: contando se mira UN renglón,

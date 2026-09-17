@@ -1,135 +1,85 @@
-Sider AI: el informe que el Excel no tenía, con las 285 del histórico
+Contar: el renglón queda en blanco, el borrador se filtra, y avisa
+de la fecha corta
 
-Cristian: «el archivo del AI no lo importaste para ver la información.
-Te dije: pon la información en la otra hoja, de Seguimiento, dentro de
-ese mismo módulo, con gráfica y todo, que miraras cómo se calculaba para
-ejecutarlo».
-
-Tenía razón: le había hecho el análisis y la corrección del cobro, pero
-la pantalla no existía. Ahora sí.
+Cuatro cosas que salieron probando la pantalla con la bodega al lado.
 
 =====================================================================
-1 · LAS 285 FILAS, DENTRO
+1 · ANOTAR DEJA EL RENGLÓN ENTERO EN BLANCO
 =====================================================================
 
-De «BD AI BAQ» —Barranquilla, mayo a septiembre de 2026—, leídas por
-FÓRMULAS y no por valores.
+«Guardé un registro y no se borró ni calle ni módulo ni lado».
 
-LOS PORCENTAJES DEL EXCEL NO SE IMPORTAN. Ni el «% índice de cobro», ni
-el «% total botellas con defectos», ni los Hl. Todos salen de las
-unidades contadas, en `v_sider_ai`. Importar un porcentaje ya calculado
-sería poder contradecir a la vista, y entonces habría que decidir cuál
-manda cuando el socio reclame.
+Dejé el sitio puesto DOS VECES —primero con la fecha, después sin ella—
+pensando que se camina módulo por módulo y que volver a escoger los tres
+campos era la mitad de las pulsaciones de la jornada. Y Cristian lo
+devolvió las dos veces, que es lo que vale: él es el que lo camina.
 
-Comprobado fila por fila contra el archivo: 285 de 285 con el mismo
-índice y el mismo no abono.
-
-EL VIAJE PASÓ A SER OPCIONAL. `sider_ai_revisiones` exigía un viaje, y
-esas 285 no lo tienen: se hicieron antes de que existiera el módulo. La
-salida fácil era inventar 285 viajes, y está mal — metería camiones
-fantasma en Tránsito y en las cuentas del CD. Así que la revisión ahora
-dice DE DÓNDE SALIÓ, y un candado impide que una revisión del formulario
-se guarde sin camión.
-
-DIEZ FILAS NO ENTRARON, y el archivo de datos las lista una por una con
-su razón: ocho duplicadas —misma fecha, placa y envase— y dos
-imposibles, con más botellas revisadas que recibidas. Esas dos están en
-el comentario con nombre y cifras: al dividir por una muestra inflada el
-índice sale MÁS BAJO, así que a esos dos socios se les cobró de menos.
+La razón de fondo es la misma que la de la fecha: un campo que quedó
+lleno del renglón anterior NO SE VE como un campo por llenar, se ve como
+uno ya contestado. Un renglón anotado en el módulo equivocado no da
+error, no avisa, y aparece cuadrando el mes.
 
 =====================================================================
-2 · LA HOJA: /sider/seguimiento/ai
+2 · EN EL MÓDULO, SOLO EL MÓDULO
 =====================================================================
 
-Tres preguntas y una tabla, que es lo que el archivo no contestaba con
-sus cincuenta y ocho columnas por fila:
-
-  · CUÁNTO se está cobrando — el índice del período, en grande.
-  · QUÉ DEFECTO lo explica — las nueve que cobran, en barras.
-  · A QUIÉN LLAMAR — por socio, ordenado por lo que no se le abona.
-
-Y debajo, revisión por revisión, filtrable y buscable: es donde se mira
-la fila concreta cuando alguien reclama.
-
-EL ÍNDICE DEL PERÍODO NO ES EL PROMEDIO DE LOS ÍNDICES. Es la suma de
-defectos sobre la suma de revisadas. Promediar porcentajes le da el mismo
-peso a una muestra de 200 botellas que a una de 4.104, y una sola muestra
-chica con un defecto movería el número del mes.
-
-LO QUE SE CUENTA Y NO COBRA VA APARTE Y ROTULADO —hongo, etiqueta
-asoleada, cuerpo extraño, cajas, estibas—. Son botellas de verdad que
-alguien contó; esconderlas haría que la suma de la pantalla no diera el
-total contado.
+La lista decía «A01  RB F1000». La familia se fue: quien está parado
+frente a un módulo sabe en cuál está, y lo que quiere es llegar a «A01»
+en dos teclas. «RB F1000» repetido en doscientas filas solo obliga a leer
+de más para encontrar el número. La familia sigue en el maestro, que es
+donde se consulta.
 
 =====================================================================
-3 · TRES DECISIONES DE LAS GRÁFICAS
+3 · EL BORRADOR SE FILTRA — CÓDIGO, CALLE, MÓDULO
 =====================================================================
 
-UN SOLO TONO. Nada aquí distingue COSAS por color: las barras miden
-MAGNITUD. Una paleta por categoría obligaría a ir a una leyenda para
-leer una barra que ya tiene su nombre escrito al lado.
+Ciento cincuenta renglones en una jornada. Buscar el 3128 que se anotó
+hace dos horas rodando la lista es como se termina corrigiendo el
+renglón equivocado.
 
-LA ESCALA ARRANCA EN CERO. Empezarla en el valor más bajo convierte dos
-décimas en un precipicio. Exagerar la pendiente es la forma más fácil de
-mentir con una gráfica y no hace falta mala intención — por eso es una
-comprobación del arnés y no una preferencia.
+LAS LISTAS DE CALLE Y MÓDULO SALEN DE LO ANOTADO, no del maestro:
+ofrecer la calle J cuando no se ha contado nada en J devuelve la lista
+vacía y hace dudar de si se perdió algo.
 
-POR SEMANA Y NO POR DÍA. Hay días con una sola revisión, y un índice
-sacado de una muestra sube y baja por azar: la línea diría «se disparó el
-martes» cuando lo que pasó es que el martes se revisó un solo camión.
-
-=====================================================================
-4 · EL ARNÉS
-=====================================================================
-
-`.arnes/sd-informe-ai.mjs`. Lo primero que hace, ANTES de medir un solo
-color, es comprobar que los tokens resuelvan: una declaración con una
-variable indefinida no se degrada, SE DESCARTA ENTERA, y en este
-proyecto eso ya mandó una pantalla sin CSS a producción con el arnés en
-verde. Verificado colgando los tokens de un envoltorio que la pantalla
-no tiene.
-
-Después: contraste en los siete temas, que nada se salga a
-1440/1100/390/360, que la TABLA se deslice y la PÁGINA no, que la
-tendencia se dibuje con una serie plana —techo cero → NaN → SVG vacío
-sin error— y que las barras no salgan llenas con el tope en cero.
-
-Y una que no es de pintura: que las cuentas NO se rehagan en la pantalla.
-
-DOS COSAS QUE CAZÓ AL PRIMER INTENTO: el rótulo de la tabla contrastaba
-4,27 en el tema ámbar —tercera vez en este proyecto que el gris calibrado
-contra papel blanco se usa sobre un fondo tintado— y el propio arnés
-acusaba a la pantalla de un fallo suyo, porque miraba las barras de los
-dos gráficos como una sola lista y marcaba la del tope del segundo.
+Y CON EL FILTRO PUESTO SE DICE «3 DE 152 · ENVIAR MANDA LOS 152». Un
+filtro hace que la lista se vea corta, y de ahí a creer que el conteo va
+corto hay un paso — un paso que termina en un conteo enviado a medias.
 
 =====================================================================
-5 · PARA CORRER, EN ESTE ORDEN
+4 · LA ALERTA DE FECHA CORTA, EN EL MOMENTO
 =====================================================================
 
-  supabase/migraciones/2026-09-sider-ai-que-cobra.sql   (si no lo corrió)
-  supabase/migraciones/2026-09-sider-ai-historico.sql
-  supabase/datos/sider-ai-historico-baq.sql
+Al anotar, si ese renglón ya se pasó de su fecha de salida, lo dice ahí
+mismo: «3128: YA SE PASÓ de su fecha de salida por 6 días. Sácalo.». Y si
+sale dentro de la semana, lo dice en tono de aviso.
 
-Los tres se pueden correr varias veces. El último avisa al final cuántas
-revisiones quedaron; probado dos veces seguidas sobre la misma base, no
-duplica.
+POR QUÉ EN EL MOMENTO Y NO EN EL TABLERO. Quien acaba de anotar sigue
+parado frente a esa estiba: es el único instante en que puede mirarla
+otra vez, comprobar la fecha impresa y sacarla. Media hora después hay
+que volver a caminar hasta allá.
+
+EL NÚMERO LO TRAE LA VISTA. No se recalcula en la pantalla: es el mismo
+«días para salir» con el que después decide el tablero, así que la
+alerta y el informe no pueden contradecirse. El arnés lo comprueba.
+
+Y el borrador abre con el resumen: cuántos ya se pasaron, con sus
+códigos, y cuántos salen esta semana. Con la frase escrita y no solo con
+el color — esto se mira en un celular con el sol de frente.
 
 =====================================================================
-6 · EL CANDADO QUE NO DEJABA IMPORTAR
+5 · LOS ARNESES
 =====================================================================
 
-`sider_ai_importar` exigía `es_editor()`, y en el SQL Editor de Supabase
-NO HAY usuario: la consola corre como `postgres` y `auth.uid()` devuelve
-null. O sea que el histórico no se podía importar por el único sitio por
-donde se importa una vez, y el mensaje —«requiere rol de supervisor»—
-mandaba a buscar el problema a los permisos, que era el sitio
-equivocado.
+`inv-conteo.mjs` gana cinco candados: que el renglón se limpie entero,
+que el borrador se pueda filtrar por los tres campos, que la lista
+dibuje LO FILTRADO —con los filtros puestos pero la lista leyendo todo,
+los campos se mueven y no pasa nada, que es peor que no tenerlos—, que
+se diga que enviar manda todo, y que los días para salir NO se
+recalculen en la pantalla.
 
-Ahora el candado solo aplica cuando HAY alguien conectado. No es un
-agujero: quien está en la consola ya puede escribir en las tablas
-directamente. El candado existe para que un usuario conectado sin rol no
-llame la función desde la aplicación, y eso se sigue cumpliendo.
-Probado importando las 285 sin usuario.
+Los cinco verificados devolviendo el error que dicen cazar.
+
+NO HAY SQL ESTA VEZ.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

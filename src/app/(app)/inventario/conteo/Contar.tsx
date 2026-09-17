@@ -119,6 +119,12 @@ export function Contar({
      vez que se anotaba algo la lista de abajo empujaba el formulario y
      había que buscarlo otra vez. */
   const [pestania, setPestania] = useState<"anotar" | "borrador">("anotar");
+  /* EL BORRADOR SE FILTRA. Ciento cincuenta renglones en una jornada, y
+     buscar el 3128 que se anotó hace dos horas rodando la lista es como
+     se termina corrigiendo el renglón equivocado. */
+  const [fCodigo, setFCodigo] = useState("");
+  const [fCalle, setFCalle] = useState("");
+  const [fModulo, setFModulo] = useState("");
   const [b, setB] = useState<Borrador>(VACIO);
   const campoCodigo = useRef<HTMLInputElement>(null);
 
@@ -184,22 +190,28 @@ export function Contar({
     [materiales, b.codigo]);
   const esEnvase = material?.tipo_material === "ENVASE";
 
-  function limpiar(dejarSitio: boolean) {
+  /**
+   * ANOTAR DEJA EL RENGLÓN ENTERO EN BLANCO. Calle, módulo, lado,
+   * código, fecha, cantidad, ¿rota? y las marcas: todo.
+   *
+   * Dejé el sitio puesto dos veces —primero con la fecha, después sin
+   * ella— pensando que se camina módulo por módulo y volver a escoger
+   * los tres campos era la mitad de las pulsaciones de la jornada. Y
+   * Cristian lo devolvió las dos veces, que es lo que vale: él es el que
+   * lo camina.
+   *
+   * La razón de fondo es la misma que la de la fecha: un campo que quedó
+   * lleno del renglón anterior NO SE VE como un campo por llenar, se ve
+   * como uno ya contestado. Un renglón anotado en el módulo equivocado
+   * no da error, no avisa, y aparece cuadrando el mes.
+   *
+   * Si alguna vez pesa más teclear que equivocarse, volver a dejar el
+   * sitio es una línea — pero tiene que ser una decisión, no un descuido
+   * mío.
+   */
+  function limpiar() {
     setCorrigiendo(null);
-    setB((x) => dejarSitio
-      /* SOLO EL SITIO SE QUEDA: sigo parado frente al mismo módulo. Todo
-         lo demás vuelve a cero —código, fecha, cantidad, ¿rota?, las
-         marcas— porque el siguiente renglón es otra estiba.
-
-         LA FECHA SE QUEDABA, y estaba mal. La dejé pensando que dentro
-         de un módulo las estibas son del mismo lote, y sí lo son a
-         veces; pero cuando NO lo son hay que borrar tres casillas antes
-         de teclear la nueva, y eso es peor que teclearlas. Y hay algo
-         más grave: una fecha que se quedó puesta no se ve como un campo
-         por llenar, se ve como un campo ya lleno. Un renglón con la
-         fecha del anterior se anota sin que nadie lo note. */
-      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }
-      : VACIO);
+    setB(VACIO);
     campoCodigo.current?.focus();
   }
 
@@ -262,11 +274,29 @@ export function Contar({
     avisar.bien(corrigiendo
       ? `${material!.sku} corregido.`
       : `${material!.sku} · ${ent(b.cuantas)} ${b.modo} anotadas.`);
+    /* LA ALERTA DE FECHA CORTA, EN EL MOMENTO. Quien acaba de anotar
+       sigue parado frente a esa estiba: es el único instante en que
+       puede mirarla otra vez, comprobar la fecha impresa y sacarla si
+       hace falta. Dicho media hora después, en el tablero, ya hay que
+       volver a caminar hasta allá.
+
+       EL NÚMERO LO TRAE LA VISTA, no se calcula aquí: es el mismo
+       «días para salir» con el que después decide el tablero, así que
+       la alerta y el informe no pueden contradecirse. */
+    const nuevo = (await supabase.from("v_conteo_fefo")
+      .select("dias_para_salir, codigo").eq("conteo_id", conteo.id)
+      .order("contado_en", { ascending: false }).limit(1).maybeSingle()).data;
+    const d = nuevo?.dias_para_salir as number | null | undefined;
+    if (d != null && d < 0)
+      avisar.mal(`${nuevo!.codigo}: YA SE PASÓ de su fecha de salida por ${-d} día${-d === 1 ? "" : "s"}. Sácalo.`);
+    else if (d != null && d <= 7)
+      avisar.info(`${nuevo!.codigo}: sale en ${d} día${d === 1 ? "" : "s"}. Hay que programarlo.`);
+
     /* Corregir DEVUELVE al borrador: se vino de ahí a arreglar una fila y
        ahí es donde se comprueba que quedó bien. Anotar se queda en el
        formulario, que es donde va el siguiente renglón. */
     if (corrigiendo) setPestania("borrador");
-    limpiar(!corrigiendo);
+    limpiar();
   }
 
   /* Cargar un renglón guardado de vuelta en el formulario, tal como
@@ -310,7 +340,7 @@ export function Contar({
     setGuardando(false);
     if (error) { avisar.mal(error.message); return }
     setRenglones((xs) => xs.filter((x) => x.id !== r.id));
-    if (corrigiendo === r.id) limpiar(false);
+    if (corrigiendo === r.id) limpiar();
     avisar.bien("Renglón borrado.");
   }
 
@@ -331,9 +361,33 @@ export function Contar({
     setGuardando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien("Conteo enviado.");
-    setConteo(null); setRenglones([]); limpiar(false);
+    setConteo(null); setRenglones([]); limpiar();
     router.refresh();
   }
+
+  /* LAS LISTAS DE LOS FILTROS SALEN DE LO ANOTADO, no del maestro:
+     ofrecer la calle J cuando no se ha contado nada en J es ofrecer un
+     filtro que devuelve la lista vacía y hace dudar de si se perdió algo. */
+  const callesB = [...new Set(renglones.map((r) => r.calle).filter(Boolean))].sort() as string[];
+  const modulosB = [...new Set(renglones
+    .filter((r) => fCalle === "" || r.calle === fCalle)
+    .map((r) => r.ubicacion).filter(Boolean))].sort() as string[];
+
+  const vistos = renglones.filter((r) => {
+    const q = fCodigo.trim().toLowerCase();
+    if (q && !`${r.codigo} ${r.material}`.toLowerCase().includes(q)) return false;
+    if (fCalle && r.calle !== fCalle) return false;
+    if (fModulo && r.ubicacion !== fModulo) return false;
+    return true;
+  });
+  const filtrando = fCodigo.trim() !== "" || fCalle !== "" || fModulo !== "";
+
+  /* LO QUE YA SE PASÓ DE SALIDA, de lo anotado en este recorrido. El
+     número lo trae la vista —no se recalcula aquí— y es el mismo con el
+     que después decide el tablero. */
+  const cortos = renglones.filter((r) => r.dias_para_salir != null && r.dias_para_salir < 0);
+  const semana = renglones.filter((r) =>
+    r.dias_para_salir != null && r.dias_para_salir >= 0 && r.dias_para_salir <= 7);
 
   const deAqui = renglones.filter((r) => r.ubicacion === ubicacion?.clave);
   const cajasAqui = deAqui.reduce((a, r) => a + Number(r.total_cajas), 0);
@@ -387,7 +441,7 @@ export function Contar({
             {corrigiendo ? "Corrigiendo un renglón" : "Anotar lo que hay"}
           </p>
           {corrigiendo && (
-            <button type="button" className="fe-mini" onClick={() => limpiar(false)}>
+            <button type="button" className="fe-mini" onClick={() => limpiar()}>
               Dejarlo como estaba
             </button>
           )}
@@ -420,13 +474,19 @@ export function Contar({
               valor={b.base}
               marcador="Escribe o escoge…"
               sinOpciones="Esa calle no tiene módulos activos."
-              /* SIN EL LADO EN EL NOMBRE. Salía «A01_DER · RB F1000», que
-                 hacía escoger el lado dos veces: dentro del módulo y en
-                 el campo de al lado. */
+              /* SOLO EL MÓDULO. Salía «A01_DER · RB F1000»: el lado pegado
+                 al nombre —que hacía escogerlo dos veces— y la familia
+                 detrás. Los dos se fueron.
+
+                 LA FAMILIA NO ES LO QUE SE BUSCA AQUÍ. Quien está parado
+                 frente a un módulo sabe en cuál está y lo que quiere es
+                 llegar a «A01» en dos teclas; «RB F1000» repetido en
+                 doscientas filas solo alarga el renglón y obliga a leer
+                 de más para encontrar el número. La familia sigue
+                 estando en el maestro, que es donde se consulta. */
               opciones={modulos.map((m) => ({
                 valor: m.base,
                 texto: `${m.calle}${m.modulo}`,
-                pista: m.familia,
               }))}
               onEscoge={(base) => {
                 const u = ubicaciones.find((x) => x.activa && claveBase(x) === base);
@@ -600,7 +660,67 @@ export function Contar({
           </span>
         </div>
 
-        {ubicacion && deAqui.length > 0 && (
+        {(cortos.length > 0 || semana.length > 0) && (
+          <div className={"fe-alerta" + (cortos.length > 0 ? " mal" : "")}>
+            {cortos.length > 0 && (
+              <p>
+                <b>{cortos.length} renglón{cortos.length > 1 ? "es" : ""} ya se pasó de su
+                fecha de salida</b> — {cortos.slice(0, 6).map((r) => r.codigo).join(" · ")}
+                {cortos.length > 6 && ` y ${cortos.length - 6} más`}. No es que esté vencido:
+                es que ya no alcanza a llegar al cliente con vida útil suficiente.
+              </p>
+            )}
+            {semana.length > 0 && (
+              <p className="suave">
+                Y {semana.length} sale{semana.length > 1 ? "n" : ""} esta semana —{" "}
+                {semana.slice(0, 6).map((r) => r.codigo).join(" · ")}
+                {semana.length > 6 && ` y ${semana.length - 6} más`}.
+              </p>
+            )}
+          </div>
+        )}
+
+        {renglones.length > 0 && (
+          <div className="fe-filtros">
+            <label className="ancho">
+              <span className="sr">Buscar por código o descripción</span>
+              <input value={fCodigo} onChange={(e) => setFCodigo(e.target.value)}
+                     placeholder="Código o descripción — 3128, aguila…" />
+            </label>
+            <label>
+              <span className="sr">Calle</span>
+              <select value={fCalle} onChange={(e) => { setFCalle(e.target.value); setFModulo("") }}>
+                <option value="">Todas las calles</option>
+                {callesB.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className="sr">Módulo</span>
+              <select value={fModulo} onChange={(e) => setFModulo(e.target.value)}>
+                <option value="">Todos los módulos</option>
+                {modulosB.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </label>
+            {filtrando && (
+              <button type="button" className="btn plano"
+                      onClick={() => { setFCodigo(""); setFCalle(""); setFModulo("") }}>
+                Quitar filtros
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* CUÁNTOS SE ESTÁN VIENDO, SIEMPRE QUE HAYA FILTRO. Sin esta
+            línea, ver 3 de 150 se lee como «el borrador tiene 3», y
+            sobre eso alguien envía el conteo creyendo que va completo. */}
+        {filtrando && (
+          <p className="fe-cuenta-filtro">
+            {vistos.length} de {renglones.length} renglones. <b>Enviar manda los
+            {" "}{renglones.length}</b>, no solo los que se ven.
+          </p>
+        )}
+
+        {ubicacion && deAqui.length > 0 && !filtrando && (
           <p className="fe-aqui">
             En <b>{ubicacion.clave}</b> llevas {deAqui.length} renglón{deAqui.length > 1 ? "es" : ""}{" "}
             ({nf.format(cajasAqui)} cajas)
@@ -612,7 +732,10 @@ export function Contar({
         ) : (
           <>
             <div className="fe-lista">
-              {renglones.map((r) => (
+              {vistos.length === 0 && (
+                <p className="fe-vacio">Ningún renglón coincide con el filtro.</p>
+              )}
+              {vistos.map((r) => (
                 <article key={r.id}
                          className={"fe-fila"
                            + (r.dias_para_salir != null && r.dias_para_salir < 0 ? " urgente" : "")
