@@ -249,7 +249,20 @@
   .fe .cabeza h1 { font-size: 25px }
   .fe .kpi { min-width: 0 }
   .fe .fe-pes { flex: 1 1 100%; }
-  .fe .fe-pes button { flex: 1 1 0 }
+  /* TRES PESTAÑAS NO CABEN EN FILA A 360 px con la cuenta al lado del
+     nombre: «Ubicaciones 428» pide 110 px de ancho mínimo, y tres de
+     esas más los espacios se salen 85 px de la pantalla. Con dos cabían
+     —por eso esto aparece hoy y no cuando se hizo la pantalla—.
+
+     La cuenta se va DEBAJO del nombre en vez de recortar el nombre:
+     «Ubicacio…» obliga a adivinar cuál pestaña es, y son tres nombres
+     que se parecen. El alto de 40 px no se toca: es lo que hace que el
+     dedo acierte. */
+  .fe .fe-pes button {
+    flex: 1 1 0; min-width: 0; padding: 0 8px; font-size: 12.5px;
+    flex-direction: column; gap: 0; justify-content: center; line-height: 1.15;
+  }
+  .fe .fe-pes button em { opacity: .7 }
   .fe .fe-busca { flex: 1 1 100% }
   .fe .fe-barra .btn { flex: 1 1 100% }
   .fe .fe-mini { margin-left: 0; width: 100% }
@@ -578,4 +591,124 @@
   .fe .fe-tres.fe-marcas .fe-check { min-height: 44px; font-size: 12px }
   .fe .fe-tres .fe-si-no { gap: 6px }
   .fe .fe-tres .fe-si-no button { min-width: 44px; padding: 0 8px }
+}
+
+/* =====================================================================
+   EL TABLERO — qué sale primero
+   ---------------------------------------------------------------------
+   Es para lo que el conteo existe: caminar la bodega y anotar 152
+   renglones no sirve de nada si después nadie puede decir qué se
+   despacha primero.
+   ===================================================================== */
+.fe .kpi.alarma { background: var(--fe-mal) }
+
+/* TRES GRUPOS Y NO UNA ESCALA. Un semáforo de siete colores obliga a
+   interpretar; tres se leen de una y cada uno tiene su propia acción:
+   sacarlo hoy, programarlo, dejarlo quieto. */
+.fe .fe-grupos {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+  background: var(--fe-linea); border: 1px solid var(--fe-linea); border-radius: 3px;
+  overflow: hidden;
+}
+.fe .fe-grupo { background: var(--fe-papel); padding: 16px 18px; min-width: 0 }
+.fe .fe-grupo .rot {
+  margin: 0; font: 700 10px var(--fe-texto); letter-spacing: .14em; color: var(--fe-gris);
+}
+.fe .fe-grupo .n {
+  margin: 9px 0 0; font: 900 32px/1 var(--fe-titulo); letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+}
+.fe .fe-grupo .u { margin: 6px 0 0; font-size: 12px; color: var(--fe-gris); line-height: 1.4 }
+.fe .fe-grupo.mal { box-shadow: inset 4px 0 0 var(--fe-mal) }
+.fe .fe-grupo.mal .n { color: var(--fe-mal) }
+.fe .fe-grupo.ojo { box-shadow: inset 4px 0 0 var(--fe-aviso) }
+
+.fe .fe-caja {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  min-width: 0;
+}
+.fe .fe-caja-cab { padding: 16px 20px 13px; border-bottom: 1px solid var(--fe-linea) }
+.fe .fe-caja-cab h2 { margin: 0; font: 800 17px var(--fe-titulo); letter-spacing: -.01em }
+.fe .fe-caja-cab p {
+  margin: 5px 0 0; font-size: 12.5px; color: var(--fe-gris); line-height: 1.45; max-width: 74ch;
+}
+
+/* ---------- A quién llamar ---------- */
+/* LA FILA SE LLAMA `fe-mat` Y NO `fe-barra`, Y ESO COSTÓ UNA BARRA DE
+   HERRAMIENTAS ROTA. La primera versión la llamó `.fe-barra`, que es el
+   nombre que YA tenía la barra de pestañas del maestro cuatrocientas
+   líneas más arriba: misma especificidad (0,2,0) y más abajo en la
+   hoja, así que ganaba. El `display: flex; flex-wrap: wrap` de la barra
+   del maestro se volvía este `grid` de tres columnas, y con la tercera
+   pestaña —Bodegas— la página se arrastraba 85 px de lado en un celular
+   de 360. Nada en el TSX del maestro había cambiado.
+
+   Y va anidada bajo `.fe-barras` además del nombre propio: si algún día
+   vuelve a aparecer un `.fe-mat` suelto, este bloque no lo alcanza. */
+.fe .fe-barras { padding: 14px 20px 18px; display: flex; flex-direction: column; gap: 9px }
+.fe .fe-barras .fe-mat {
+  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 12px; align-items: center; font-size: 13px;
+}
+.fe .fe-barras .fe-mat .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.fe .fe-barras .fe-mat .nom b { font-family: var(--fe-titulo); margin-right: 5px }
+.fe .fe-barras .fe-mat .pista {
+  height: 16px; background: var(--fe-fondo); border-radius: 2px; overflow: hidden;
+}
+.fe .fe-barras .fe-mat .pista i { display: block; height: 100%; background: var(--fe-mal) }
+.fe .fe-barras .fe-mat .val {
+  text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.fe .fe-barras .fe-mat .val em {
+  display: block; font-style: normal; font-size: 11px; font-weight: 400; color: var(--fe-gris);
+}
+
+/* ---------- Las tablas ----------
+   SE DESLIZAN DE LADO EN VEZ DE ENCOGERSE: son seis columnas de datos y
+   apretarlas en 390 px las vuelve ilegibles. Solo la tabla se mueve; la
+   página no. */
+.fe .fe-tabla { overflow-x: auto }
+.fe .fe-tabla table { width: 100%; min-width: 660px; border-collapse: collapse; font-size: 13px }
+.fe .fe-tabla th {
+  text-align: left; padding: 9px 14px; border-bottom: 1.5px solid var(--fe-linea);
+  font: 700 9.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase;
+  /* --fe-gris-panel Y NO --fe-gris, y ya es la tercera vez en este
+     módulo. El gris normal está calibrado contra el papel BLANCO; sobre
+     --fe-fondo, que es más oscuro, cae a 4,39 en el tema ámbar. Los
+     rótulos de esta tabla dicen qué significa cada columna —«días para
+     salir» no se adivina— así que no pueden quedarse por debajo de la
+     norma en uno de los siete temas. */
+  color: var(--fe-gris-panel); white-space: nowrap; background: var(--fe-fondo);
+}
+.fe .fe-tabla td {
+  padding: 10px 14px; border-bottom: 1px solid var(--fe-linea); color: var(--fe-tinta);
+}
+.fe .fe-tabla tr:last-child td { border-bottom: 0 }
+.fe .fe-tabla .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.fe .fe-tabla td b { font-family: var(--fe-titulo) }
+.fe .fe-tabla td span { color: var(--fe-gris) }
+.fe .fe-tabla td em { font-style: normal; font-size: 11.5px; color: var(--fe-gris) }
+/* Los días para salir son LA cifra de esta tabla: van tabulares y en
+   grande, porque es por lo que está ordenada. */
+.fe .fe-tabla .dias {
+  font: 800 15px var(--fe-titulo); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.fe .fe-tabla tr.mal { background: #FDF2F3 }
+.fe .fe-tabla tr.mal .dias { color: var(--fe-mal) }
+.fe .fe-tabla .nada { text-align: center; padding: 26px 14px; color: var(--fe-gris) }
+
+.fe .fe-vacio-grande {
+  background: var(--fe-papel); border: 1px dashed var(--fe-linea); border-radius: 3px;
+  padding: 40px 24px; text-align: center;
+}
+.fe .fe-vacio-grande h2 { margin: 0 0 8px; font: 800 18px var(--fe-titulo) }
+.fe .fe-vacio-grande p {
+  margin: 0 auto 16px; font-size: 13.5px; color: var(--fe-gris); line-height: 1.55; max-width: 56ch;
+}
+.fe .fe-vacio-grande .btn { display: inline-flex; align-items: center; text-decoration: none }
+
+@media (max-width: 760px) {
+  .fe .fe-grupos { grid-template-columns: 1fr }
+  .fe .fe-barras .fe-mat { grid-template-columns: minmax(0, 1fr) auto; gap: 8px }
+  .fe .fe-barras .fe-mat .pista { grid-column: 1 / -1 }
 }

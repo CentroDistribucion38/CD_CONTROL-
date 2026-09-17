@@ -339,17 +339,19 @@ export const MODULOS: Modulo[] = [
     ruta: "/inventario",
     activo: true,
     secciones: [
-      { nombre: "Resumen", ruta: "/inventario" },
-      /* EL MAESTRO VA PRIMERO Y NO AL FINAL, aunque sea lo que menos se
-         abre: sin maestro no hay conteo —el código no trae descripción,
-         el factor estibado no existe y las cuentas salen en cero— así
-         que ese es el orden del proceso, no el de construcción. */
+      /* TRES PANTALLAS Y EL ORDEN ES EL DEL PROCESO: se mantiene el
+         maestro, se camina la bodega, se valida lo contado.
+
+         Aquí había siete. Las otras cuatro —Resumen, Productos, Bodegas,
+         Movimientos, Conteos físicos— eran la plantilla de demostración
+         con la que nació el repositorio, y al montar FEFO encima
+         quedaron DUPLICANDO lo mismo: «Productos» editaba `productos`
+         con un formulario más pobre que el del maestro, y «Bodegas»
+         hacía lo propio. Dos editores para una misma tabla es cómo dos
+         personas se pisan el dato sin enterarse. */
       { nombre: "Maestro", ruta: "/inventario/maestro" },
-      { nombre: "Contar (FEFO)", ruta: "/inventario/conteo" },
-      { nombre: "Productos", ruta: "/inventario/productos" },
-      { nombre: "Bodegas", ruta: "/inventario/bodegas" },
-      { nombre: "Movimientos", ruta: "/inventario/movimientos" },
-      { nombre: "Conteos físicos", ruta: "/inventario/conteos" },
+      { nombre: "Contar", ruta: "/inventario/conteo" },
+      { nombre: "Tablero", ruta: "/inventario" },
     ],
   },
 ];

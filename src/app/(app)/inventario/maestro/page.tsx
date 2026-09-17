@@ -51,10 +51,11 @@ export default async function InventarioMaestroPage() {
       <section className="cabeza">
         <div>
           <p className="ojo">INVENTARIO · MAESTRO</p>
-          <h1>Materiales y ubicaciones</h1>
+          <h1>Las bases del conteo</h1>
           <p className="sub">
-            Con lo que se cuenta. El código trae la descripción y el factor estibado que
-            hacen las cuentas; la ubicación es la lista de módulos por la que se camina.{" "}
+            Con lo que se cuenta: los materiales, los módulos por los que se camina y las
+            bodegas de las que cuelgan. El código trae la descripción y el factor estibado que
+            hacen las cuentas.{" "}
             {esEditor
               ? "Se agrega, se corrige y se apaga desde aquí."
               : "Corregir el maestro requiere rol de supervisor."}
@@ -65,7 +66,8 @@ export default async function InventarioMaestroPage() {
           <div className="rot">EN EL MAESTRO</div>
           <div className="num">{m.materiales.length}</div>
           <div className="pie">
-            materiales ({envases} envases) · {m.ubicaciones.length} ubicaciones
+            materiales ({envases} envases) · {m.ubicaciones.length} ubicaciones ·{" "}
+            {m.bodegas.length} bodega{m.bodegas.length === 1 ? "" : "s"}
           </div>
         </div>
       </section>

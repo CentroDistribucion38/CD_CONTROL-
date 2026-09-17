@@ -28,7 +28,11 @@ import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Bodega } from "@/modulos/inventario/fefo";
 
-type Pestania = "materiales" | "ubicaciones";
+/* TRES BASES Y NO DOS. La bodega tenía su propia pantalla en el menú
+   —herencia de la plantilla de demostración— y era el tercer sitio donde
+   se editaba lo mismo. Un maestro que deja fuera una de sus bases obliga
+   a salir del maestro para completarlo. */
+type Pestania = "materiales" | "ubicaciones" | "bodegas";
 
 const ent = (s: string): number | null => {
   const t = s.trim();
@@ -64,6 +68,7 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
 
   const [materiales, setMateriales] = useState(matIni);
   const [ubicaciones, setUbicaciones] = useState(ubiIni);
+  const [bods, setBods] = useState(bodegas);
   /* La fila que se está tocando, aparte de la lista: así lo que se
      escribe no se pierde si la lista se reordena, y cancelar es
      devolverse sin haber alterado nada. */
@@ -76,6 +81,11 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
     (q === "" || m.sku.includes(q) || m.nombre.toLowerCase().includes(q) ||
      (m.familia ?? "").toLowerCase().includes(q))),
     [materiales, q, verInactivos]);
+
+  const bodFiltradas = useMemo(() => bods.filter((x) =>
+    (verInactivos || x.activo) &&
+    (q === "" || x.codigo.toLowerCase().includes(q) || x.nombre.toLowerCase().includes(q))),
+    [bods, q, verInactivos]);
 
   const ubiFiltradas = useMemo(() => ubicaciones.filter((u) =>
     (verInactivos || u.activa) &&
@@ -205,8 +215,46 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
     router.refresh();
   }
 
+  /* ---------- BODEGAS ---------- */
+  async function guardarBodega(x: Bodega) {
+    const nombre = (borrador.nombre ?? "").trim();
+    if (nombre === "") { avisar.mal("El nombre no puede quedar en blanco."); return }
+    const parche = {
+      nombre,
+      direccion: (borrador.direccion ?? "").trim() || null,
+      activo: borrador.activo === "1",
+    };
+    setGuardando(true);
+    const { error } = await supabase.from("bodegas").update(parche).eq("id", x.id);
+    setGuardando(false);
+    if (error) { avisar.mal(error.message); return }
+    setBods((xs) => xs.map((y) => (y.id === x.id ? { ...y, ...parche } : y)));
+    setEditando(null);
+    avisar.bien(`${x.codigo} guardada.`);
+    router.refresh();
+  }
+
+  async function nuevaBodega() {
+    const codigo = (borrador.codigo ?? "").trim().toUpperCase();
+    const nombre = (borrador.nombre ?? "").trim();
+    if (codigo === "") { avisar.mal("Falta el código de la bodega."); return }
+    if (nombre === "") { avisar.mal("Falta el nombre."); return }
+    if (bods.some((x) => x.codigo === codigo)) {
+      avisar.mal(`La bodega ${codigo} ya existe.`); return;
+    }
+    const fila = { codigo, nombre, direccion: (borrador.direccion ?? "").trim() || null, activo: true };
+    setGuardando(true);
+    const { data, error } = await supabase.from("bodegas").insert(fila).select().single();
+    setGuardando(false);
+    if (error) { avisar.mal(error.message); return }
+    setBods((xs) => [...xs, data as Bodega].sort((a, c) => a.codigo.localeCompare(c.codigo)));
+    setEditando(null);
+    avisar.bien(`${codigo} agregada.`);
+    router.refresh();
+  }
+
   /* ---------- APAGAR ---------- */
-  async function apagar(que: "material" | "ubicacion", id: string, nombre: string) {
+  async function apagar(que: "material" | "ubicacion" | "bodega", id: string, nombre: string) {
     const ok = await pedir({
       titulo: `¿Sacar «${nombre}» del maestro?`,
       dice: <>Se <b>apaga</b>: deja de ofrecerse al contar, pero lo que ya se contó con él
@@ -220,25 +268,31 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
     setGuardando(true);
     const { error } = que === "material"
       ? await supabase.from("productos").update({ activo: false }).eq("id", id)
-      : await supabase.from("ubicaciones").update({ activa: false }).eq("id", id);
+      : que === "ubicacion"
+        ? await supabase.from("ubicaciones").update({ activa: false }).eq("id", id)
+        : await supabase.from("bodegas").update({ activo: false }).eq("id", id);
     setGuardando(false);
     if (error) { avisar.mal(error.message); return }
 
     if (que === "material") {
       setMateriales((xs) => xs.map((x) => (x.id === id ? { ...x, activo: false } : x)));
-    } else {
+    } else if (que === "ubicacion") {
       setUbicaciones((xs) => xs.map((x) => (x.id === id ? { ...x, activa: false } : x)));
+    } else {
+      setBods((xs) => xs.map((x) => (x.id === id ? { ...x, activo: false } : x)));
     }
     setEditando(null);
     avisar.bien(`${nombre} apagado.`);
     router.refresh();
   }
 
-  const lista = pestania === "materiales" ? matFiltrados : ubiFiltradas;
-  const total = pestania === "materiales" ? materiales.length : ubicaciones.length;
-  const inactivos = pestania === "materiales"
-    ? materiales.filter((m) => !m.activo).length
-    : ubicaciones.filter((u) => !u.activa).length;
+  const lista = pestania === "materiales" ? matFiltrados
+              : pestania === "ubicaciones" ? ubiFiltradas : bodFiltradas;
+  const total = pestania === "materiales" ? materiales.length
+              : pestania === "ubicaciones" ? ubicaciones.length : bods.length;
+  const inactivos = pestania === "materiales" ? materiales.filter((m) => !m.activo).length
+              : pestania === "ubicaciones" ? ubicaciones.filter((u) => !u.activa).length
+              : bods.filter((x) => !x.activo).length;
   const mostrados = lista.slice(0, TOPE);
 
   return (
@@ -248,12 +302,13 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
 
       <section className="fe-barra">
         <div className="fe-pes" role="tablist">
-          {(["materiales", "ubicaciones"] as Pestania[]).map((p) => (
+          {(["materiales", "ubicaciones", "bodegas"] as Pestania[]).map((p) => (
             <button key={p} type="button" role="tab" aria-selected={pestania === p}
                     className={pestania === p ? "on" : ""}
                     onClick={() => { setPestania(p); setEditando(null); setBusca("") }}>
-              {p === "materiales" ? "Materiales" : "Ubicaciones"}
-              <em>{p === "materiales" ? materiales.length : ubicaciones.length}</em>
+              {p === "materiales" ? "Materiales" : p === "ubicaciones" ? "Ubicaciones" : "Bodegas"}
+              <em>{p === "materiales" ? materiales.length
+                   : p === "ubicaciones" ? ubicaciones.length : bods.length}</em>
             </button>
           ))}
         </div>
@@ -263,7 +318,9 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
           <input value={busca} onChange={(e) => setBusca(e.target.value)}
                  placeholder={pestania === "materiales"
                    ? "Código, descripción o familia — 3128, aguila, lata…"
-                   : "Clave o familia — A01, EST, RB F1000…"} />
+                   : pestania === "ubicaciones"
+                     ? "Clave o familia — A01, EST, RB F1000…"
+                     : "Código o nombre — CD38…"} />
         </label>
 
         {inactivos > 0 && (
@@ -278,7 +335,9 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
           <button type="button" className="btn"
                   onClick={() => abrir("nuevo", pestania === "materiales"
                     ? { tipo_material: "PRODUCTO" }
-                    : { lado: "", bodega_id: bodegas[0]?.id ?? "" })}>
+                    : pestania === "ubicaciones"
+                      ? { lado: "", bodega_id: bods[0]?.id ?? "" }
+                      : {})}>
             Agregar
           </button>
         )}
@@ -295,7 +354,8 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
 
       {editando === "nuevo" && (
         <section className="fe-editor nuevo">
-          <h2>{pestania === "materiales" ? "Material nuevo" : "Ubicación nueva"}</h2>
+          <h2>{pestania === "materiales" ? "Material nuevo"
+               : pestania === "ubicaciones" ? "Ubicación nueva" : "Bodega nueva"}</h2>
           {pestania === "materiales" ? (
             <div className="fe-campos">
               <label><span>Código</span>
@@ -326,13 +386,25 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                   <option value="ENVASE">Envase</option>
                 </select></label>
             </div>
+          ) : pestania === "bodegas" ? (
+            <div className="fe-campos">
+              <label><span>Código</span>
+                <input value={borrador.codigo ?? ""} placeholder="CD38"
+                       onChange={(e) => poner("codigo", e.target.value)} /></label>
+              <label className="ancho"><span>Nombre</span>
+                <input value={borrador.nombre ?? ""} placeholder="CD38 · Ag01 Barranquilla"
+                       onChange={(e) => poner("nombre", e.target.value)} /></label>
+              <label className="ancho"><span>Dirección</span>
+                <input value={borrador.direccion ?? ""}
+                       onChange={(e) => poner("direccion", e.target.value)} /></label>
+            </div>
           ) : (
             <div className="fe-campos">
-              {bodegas.length > 1 && (
+              {bods.length > 1 && (
                 <label><span>Bodega</span>
                   <select value={borrador.bodega_id ?? ""}
                           onChange={(e) => poner("bodega_id", e.target.value)}>
-                    {bodegas.map((b) => <option key={b.id} value={b.id}>{b.codigo}</option>)}
+                    {bods.map((b) => <option key={b.id} value={b.id}>{b.codigo}</option>)}
                   </select></label>
               )}
               <label><span>Clave</span>
@@ -361,7 +433,8 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
           )}
           <div className="fe-pie">
             <button type="button" className="btn" disabled={guardando}
-                    onClick={pestania === "materiales" ? nuevoMaterial : nuevaUbicacion}>
+                    onClick={pestania === "materiales" ? nuevoMaterial
+                             : pestania === "ubicaciones" ? nuevaUbicacion : nuevaBodega}>
               {guardando ? "Guardando…" : "Agregar"}
             </button>
             <button type="button" className="btn plano" onClick={() => setEditando(null)}>
@@ -461,6 +534,66 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                     {m.activo && (
                       <button type="button" className="fe-quitar" disabled={guardando}
                               onClick={() => apagar("material", m.id, m.sku)}>
+                        Sacar del maestro
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </article>
+          );
+        })}
+
+        {pestania === "bodegas" && (mostrados as Bodega[]).map((x) => {
+          const abierto = editando === x.id;
+          const cuantas = ubicaciones.filter((u) => u.bodega_id === x.id).length;
+          return (
+            <article key={x.id} className={"fe-fila" + (x.activo ? "" : " apagada")}>
+              <div className="fe-cab">
+                <b className="fe-cod">{x.codigo}</b>
+                <span className="fe-desc">{x.nombre}</span>
+                {!x.activo && <span className="fe-off">apagada</span>}
+                {esEditor && !abierto && (
+                  <button type="button" className="fe-mini"
+                          onClick={() => abrir(x.id, {
+                            nombre: x.nombre, direccion: x.direccion ?? "",
+                            activo: x.activo ? "1" : "0",
+                          })}>
+                    Editar
+                  </button>
+                )}
+              </div>
+              <dl className="fe-cifras">
+                {/* CUÁNTAS UBICACIONES CUELGAN DE ELLA es el dato que
+                    decide si se puede apagar: apagar una bodega con 428
+                    módulos deja el conteo sin dónde caminar. */}
+                <div><dt>Ubicaciones</dt><dd>{cuantas}</dd></div>
+                <div><dt>Dirección</dt><dd>{x.direccion ?? "—"}</dd></div>
+              </dl>
+              {abierto && (
+                <div className="fe-editor">
+                  <div className="fe-campos">
+                    <label className="ancho"><span>Nombre</span>
+                      <input value={borrador.nombre ?? ""}
+                             onChange={(e) => poner("nombre", e.target.value)} /></label>
+                    <label className="ancho"><span>Dirección</span>
+                      <input value={borrador.direccion ?? ""}
+                             onChange={(e) => poner("direccion", e.target.value)} /></label>
+                    <label className="fe-check"><input type="checkbox"
+                             checked={borrador.activo === "1"}
+                             onChange={(e) => poner("activo", e.target.checked ? "1" : "0")} />
+                      <span>Activa</span></label>
+                  </div>
+                  <div className="fe-pie">
+                    <button type="button" className="btn" disabled={guardando}
+                            onClick={() => guardarBodega(x)}>
+                      {guardando ? "Guardando…" : "Guardar"}
+                    </button>
+                    <button type="button" className="btn plano"
+                            onClick={() => setEditando(null)}>Cancelar</button>
+                    {x.activo && (
+                      <button type="button" className="fe-quitar" disabled={guardando}
+                              onClick={() => apagar("bodega", x.id, x.codigo)}>
                         Sacar del maestro
                       </button>
                     )}

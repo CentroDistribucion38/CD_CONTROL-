@@ -41,7 +41,9 @@ export type Ubicacion = {
   activa: boolean;
 };
 
-export type Bodega = { id: string; codigo: string; nombre: string };
+export type Bodega = {
+  id: string; codigo: string; nombre: string; direccion: string | null; activo: boolean;
+};
 
 export type Renglon = {
   id: string;
@@ -113,7 +115,10 @@ export async function maestroInventario() {
     supabase.from("productos").select("*").order("sku").limit(5000),
     supabase.from("ubicaciones").select("*")
       .order("calle").order("modulo").order("lado", { nullsFirst: true }).limit(5000),
-    supabase.from("bodegas").select("id, codigo, nombre").eq("activo", true).order("codigo"),
+    /* LAS BODEGAS COMPLETAS Y TAMBIÉN LAS APAGADAS: el maestro las
+       edita, y un maestro que esconde lo inactivo no deja volver a
+       encenderlo. La pantalla de contar se queda con las activas. */
+    supabase.from("bodegas").select("*").order("codigo"),
     supabase.from("envase_estados").select("clave").eq("activo", true).order("orden"),
   ]);
 
@@ -164,3 +169,46 @@ export async function miConteoFefo(bodegaId: string | null) {
 
   return { conteo: c, renglones: (r ?? []) as Renglon[] };
 }
+
+
+/**
+ * LO QUE HAY QUE VALIDAR DESPUÉS DE CONTAR.
+ *
+ * ES PARA LO QUE EL CONTEO EXISTE: saber qué se despacha primero y qué
+ * ya se pasó de su fecha de salida. Sale de `v_conteo_fefo`, que ya trae
+ * las seis cuentas con las fórmulas del Excel — aquí no se recalcula
+ * nada, solo se agrupa.
+ *
+ * SOLO LO ENVIADO. Un borrador a medio caminar diría que la calle E está
+ * vacía porque todavía no se ha llegado, y sobre eso alguien podría
+ * decidir un despacho. Lo firmado es lo único que se puede afirmar.
+ */
+export async function tableroFefo(bodegaId: string | null, desde?: string, hasta?: string) {
+  const supabase = await createClient();
+  if (!bodegaId) return { falta: false, lineas: [] as Renglon[], conteos: [] as ConteoFefo[] };
+
+  let q = supabase.from("v_conteos_fefo").select("*")
+    .eq("bodega_id", bodegaId).order("enviado_en", { ascending: false }).limit(200);
+  if (desde) q = q.gte("fecha_analisis", desde);
+  if (hasta) q = q.lte("fecha_analisis", hasta);
+  const { data: c, error } = await q;
+  if (error) return { falta: sinTablas(error.message), lineas: [] as Renglon[], conteos: [] as ConteoFefo[] };
+
+  const enviados = (c ?? []).filter((x) => x.estado === "cerrado");
+  if (enviados.length === 0) return { falta: false, lineas: [] as Renglon[], conteos: enviados as ConteoFefo[] };
+
+  /* Los renglones de esos conteos, de una. El `in` va con los ids que ya
+     se filtraron arriba: pedir todo y filtrar aquí sería traer la
+     bodega entera para mostrar una semana. */
+  const { data: l } = await supabase.from("v_conteo_fefo").select("*")
+    .in("conteo_id", enviados.map((x) => x.id)).limit(5000);
+
+  return { falta: false, lineas: (l ?? []) as Renglon[], conteos: enviados as ConteoFefo[] };
+}
+
+export type ConteoFefo = {
+  id: string; codigo: string; estado: string; bodega: string;
+  responsable: string | null; fecha_analisis: string;
+  enviado_en: string | null; envio_nombre: string | null;
+  renglones: number; ubicaciones: number; total_cajas: number;
+};

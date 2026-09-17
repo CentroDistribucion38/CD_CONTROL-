@@ -38,7 +38,7 @@
       corregir un factor.
    ===================================================================== */
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 const fefo = readFileSync(new URL("../src/app/(app)/inventario/fefo.css", import.meta.url), "utf8");
 const glob = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
@@ -65,6 +65,13 @@ const UBICACIONES = [
   ["A01_DER", "A", "01", "DER", "RB F1000", 24],
   ["EST07", "EST", "07", null, "ESTIBAS DE PRODUCTO TERMINADO SIN CLASIFICAR", 12],
   ["P_12_IZQ", "P", "12", "IZQ", null, null],
+];
+/* LA TERCERA PESTAÑA. La bodega es de la que cuelgan las 428
+   ubicaciones, y por eso su fila lleva esa cuenta: es el dato que
+   decide si se puede apagar. */
+const BODEGAS = [
+  ["CD38", "CENTRO DE DISTRIBUCIÓN BARRANQUILLA AG01", "Vía 40 # 79-341, Barranquilla", 428],
+  ["CD99", "BODEGA DE AVERÍAS Y PRODUCTO NO CONFORME", null, 0],
 ];
 
 const fila = (m) => `
@@ -99,6 +106,19 @@ const filaU = (u) => `
   </dl>
 </article>`;
 
+const filaB = (b) => `
+<article class="fe-fila">
+  <div class="fe-cab">
+    <b class="fe-cod">${b[0]}</b>
+    <span class="fe-desc">${b[1]}</span>
+    <button type="button" class="fe-mini">Editar</button>
+  </div>
+  <dl class="fe-cifras">
+    <div><dt>Ubicaciones</dt><dd>${b[3]}</dd></div>
+    <div><dt>Dirección</dt><dd>${b[2] ?? "—"}</dd></div>
+  </dl>
+</article>`;
+
 const CAMPOS = `
 <div class="fe-campos">
   <label class="ancho"><span>Descripción</span><input value="${MATERIALES[0][1]}"></label>
@@ -120,14 +140,15 @@ const ARMAZON = `
 <div class="fe">
   <section class="cabeza">
     <div>
-      <p class="ojo">FEFO · MAESTRO</p>
-      <h1>Materiales y ubicaciones</h1>
-      <p class="sub">Con lo que se cuenta. El código trae la descripción y las cifras que
-        hacen las cuentas; la ubicación es la lista de módulos por la que se camina.
-        Se agrega, se corrige y se quita desde aquí.</p>
+      <p class="ojo">INVENTARIO · MAESTRO</p>
+      <h1>Las bases del conteo</h1>
+      <p class="sub">Con lo que se cuenta: los materiales, los módulos por los que se camina
+        y las bodegas de las que cuelgan. El código trae la descripción y el factor estibado
+        que hacen las cuentas. Se agrega, se corrige y se apaga desde aquí.</p>
     </div>
     <div class="kpi"><div class="corte"></div><div class="rot">EN EL MAESTRO</div>
-      <div class="num">494</div><div class="pie">materiales · 428 ubicaciones</div></div>
+      <div class="num">494</div>
+      <div class="pie">materiales (34 envases) · 428 ubicaciones · 2 bodegas</div></div>
   </section>
 
   <section class="fe-faltan">
@@ -140,10 +161,11 @@ const ARMAZON = `
     <div class="fe-pes" role="tablist">
       <button type="button" role="tab" aria-selected="true" class="on">Materiales<em>494</em></button>
       <button type="button" role="tab" aria-selected="false">Ubicaciones<em>428</em></button>
+      <button type="button" role="tab" aria-selected="false">Bodegas<em>2</em></button>
     </div>
     <label class="fe-busca"><span class="sr">Buscar</span>
       <input placeholder="Código o descripción — 3128, aguila, lata…"></label>
-    <label class="fe-check"><input type="checkbox"><span>Ver los 7 inactivos</span></label>
+    <label class="fe-check"><input type="checkbox"><span>Ver los 7 apagados</span></label>
     <button type="button" class="btn">Agregar</button>
   </section>
 
@@ -161,7 +183,7 @@ const ARMAZON = `
       <div class="fe-cab"><b class="fe-cod">4410</b>
         <span class="fe-desc">CERVEZA CLUB COLOMBIA DORADA BOTELLA 330 CC</span>
         <span class="fe-tipo producto">PRODUCTO</span>
-        <span class="fe-off">inactivo</span>
+        <span class="fe-off">apagado</span>
         <button type="button" class="fe-mini">Editar</button></div>
       <dl class="fe-cifras"><div><dt>Cajas por estiba</dt><dd>96</dd></div>
         <div><dt>Vida útil</dt><dd>365 d</dd></div>
@@ -170,6 +192,7 @@ const ARMAZON = `
       <div class="fe-editor">${CAMPOS}</div>
     </article>
     ${UBICACIONES.map(filaU).join("")}
+    ${BODEGAS.map(filaB).join("")}
   </div>
 </div>`;
 
@@ -350,6 +373,61 @@ if (!/de \{total\}|\{total\}\./.test(tsx))
   fallas.push("la pantalla no dice cuántos de cuántos se están viendo");
 if (/\b(prompt|confirm|alert)\s*\(/.test(tsx.replace(/\/\*[\s\S]*?\*\//g, "")))
   fallas.push("usa los diálogos del navegador en vez de los de la app");
+
+/* ---------- 7. UN SOLO EDITOR POR TABLA ----------
+   El módulo tenía SIETE entradas y dos pantallas que editaban
+   `productos`: el maestro nuevo y la vieja «Productos» de la plantilla
+   de ejemplo. Dos editores de la misma tabla es lo que se ve como un
+   menú largo, pero el daño real es que se corrige en uno y se mira en
+   el otro. Aquí se comprueba que no vuelvan: bajo /inventario solo
+   `maestro` y `conteo` —el tablero es la raíz—, y el menú con las tres
+   secciones EN EL ORDEN DEL PROCESO: primero las bases, después
+   caminar, después leer lo caminado. */
+const pantallas = readdirSync(new URL("../src/app/(app)/inventario/", import.meta.url),
+                              { withFileTypes: true })
+  .filter((e) => e.isDirectory()).map((e) => e.name).sort();
+if (pantallas.join(",") !== "conteo,maestro")
+  fallas.push(`bajo /inventario hay pantallas de más: ${pantallas.join(", ")} ` +
+              "— el módulo es maestro, contar y tablero, y nada más");
+
+const reg = readFileSync(new URL("../src/modulos/registro.ts", import.meta.url), "utf8");
+const secciones = [...(reg.match(/id: "inventario"[\s\S]*?\n  \},/) ?? [""])[0]
+  .matchAll(/ruta: "(\/inventario[^"]*)"/g)].map((m) => m[1]);
+const espera = ["/inventario", "/inventario/maestro", "/inventario/conteo", "/inventario"];
+if (secciones.join(" ") !== espera.join(" "))
+  fallas.push(`el menú de Inventario dice [${secciones.join(", ")}] y el proceso es ` +
+              `[${espera.join(", ")}] — la ruta del módulo y luego maestro, contar, tablero`);
+
+const pes = [...tsx.matchAll(/\["materiales", "ubicaciones", "bodegas"\]/g)];
+if (pes.length === 0)
+  fallas.push("las tres pestañas del maestro no están en el orden materiales · ubicaciones · bodegas");
+
+/* ---------- 8. DOS BLOQUES CON EL MISMO NOMBRE Y DISTINTO `display` ----------
+   Esto es lo que se rompió hoy y no se vio en ningún TSX: el tablero
+   llamó `.fe-barra` a la fila de su gráfico de barras, y ese nombre ya
+   era la barra de pestañas del maestro cuatrocientas líneas más arriba.
+   Misma especificidad, y gana el de abajo: el `flex-wrap` del maestro se
+   volvió un `grid` de tres columnas y la página se arrastró 85 px de
+   lado en un celular, sin que nadie tocara el maestro.
+
+   La regla no es «no repetir selectores» —repetir para ajustar un color
+   es normal y está por toda la hoja—: es que dos bloques con el mismo
+   selector NO PUEDEN DECLARAR `display` DISTINTO, porque eso ya no es un
+   ajuste, es otro componente con el nombre prestado. */
+const cuerpos = new Map();
+for (const [, sel, cuerpo] of fefo
+       .replace(/\/\*[\s\S]*?\*\//g, "")
+       .matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
+  const s = sel.trim().replace(/\s+/g, " ");
+  if (!s.startsWith(".fe")) continue;
+  const d = cuerpo.match(/(?:^|;)\s*display\s*:\s*([^;]+)/);
+  if (!d) continue;
+  const antes = cuerpos.get(s);
+  if (antes && antes !== d[1].trim())
+    fallas.push(`«${s}» declara display dos veces y distinto (${antes} / ${d[1].trim()}) ` +
+                "— son dos componentes con el mismo nombre, y gana el de abajo");
+  cuerpos.set(s, d[1].trim());
+}
 
 await navegador.close();
 
