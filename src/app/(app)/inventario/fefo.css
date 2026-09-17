@@ -903,3 +903,12 @@
   .fe .fe-filtros select { min-width: 0 }
   .fe .fe-filtros .btn { flex: 1 1 100% }
 }
+
+/* La nota al pie de una tarjeta: dice dónde se arregla lo que la tabla
+   acaba de señalar. Sin eso, «la capacidad está mal» es una queja sin
+   destino. */
+.fe .fe-pie-nota {
+  margin: 0; padding: 11px 20px 14px; font-size: 11.5px; line-height: 1.45;
+  color: var(--fe-gris-panel); border-top: 1px solid var(--fe-linea);
+}
+.fe .fe-pie-nota b { color: var(--fe-tinta) }

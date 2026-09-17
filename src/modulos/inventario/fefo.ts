@@ -65,6 +65,11 @@ export type Renglon = {
   saldo: number | null;
   total_cajas: number;
   total_estibas: number;
+  /* La capacidad del módulo, en estibas, como la trae el maestro. Viene
+     en el renglón —no se busca aparte— porque la vista ya hace el join
+     con `ubicaciones` y buscarla otra vez en la pantalla sería tener dos
+     versiones de la misma cifra. */
+  capacidad: number | null;
   /* Los tres pedazos como se teclearon, aparte de la fecha armada: son
      los que hay que devolver a las casillas DD/MM/AA al corregir. */
   venc_dia: number | null;

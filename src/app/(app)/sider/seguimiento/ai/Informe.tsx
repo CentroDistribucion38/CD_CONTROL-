@@ -21,8 +21,29 @@ type Datos = {
     revisiones: number; recibidas: number; revisadas: number; defectos: number;
     otros: number; no_abono: number; hl: number; socios: number;
     importadas: number; indice: number;
+    defectos_hoja: number; hl_hoja: number; pct_hoja: number;
   };
+  porRevision: Map<string, Record<string, { pct: number; hl: number }>>;
 };
+
+/* EL ORDEN DE LAS COLUMNAS DEL EXCEL, tal cual. Doce de % y doce de Hl,
+   y NO son la misma lista: la de % no tiene mezclado, cajas ni estibas;
+   la de Hl tampoco, pero sí tiene cuerpo extraño en otro sitio. Se
+   escriben aquí para poder poner la pantalla al lado de la hoja y
+   cuadrar columna por columna sin ir traduciendo nombres. */
+const COLS_EXCEL: [string, string][] = [
+  ["rota", "% DESPICADO"],
+  ["faltante", "% FALTANTE"],
+  ["cemento", "% CEMENTO /PINTURA"],
+  ["no_retorn", "% NO RETORNABLE"],
+  ["otras_cias", "% OTRAS COMPAÑIAS"],
+  ["antiguo", "% PRODUCCIÓN ANTIGUA"],
+  ["cuerpo_extra", "% CUERPO EXTRAÑO"],
+  ["extrasucio", "% EXTRASUCIO"],
+  ["cristalizado", "% CRISTALIZADO METEORIZADA"],
+  ["hongo", "% HONGO"],
+  ["etiq_asoleada", "% ETIQUETA ASOLEADA"],
+];
 
 /**
  * EL INFORME DE LA REVISIÓN AI.
@@ -55,6 +76,10 @@ export function Informe({
   const router = useRouter();
   const [busca, setBusca] = useState("");
   const [orden, setOrden] = useState<"fecha" | "indice" | "no_abono">("fecha");
+  /* «COMO EL EXCEL» pone las veinticuatro columnas del archivo. No es el
+     modo por defecto porque veinticuatro columnas no se leen: se
+     cuadran. Para leer está el resumen; para cuadrar, esto. */
+  const [ancha, setAncha] = useState(false);
 
   function filtrar(k: string, v: string) {
     const p = new URLSearchParams();
@@ -153,6 +178,51 @@ export function Informe({
               <p className="rot">CONTADAS Y NO COBRADAS</p>
               <p className="num">{nf.format(total.otros)}</p>
               <p className="pie">hongo, etiqueta asoleada, cuerpo extraño, cajas y estibas</p>
+            </div>
+          </section>
+
+          {/* ---------- LOS TRES TOTALES DE LA HOJA ----------
+              ESTO ES LO QUE NO CUADRABA. El archivo trae tres sumas de
+              botellas con defecto en la misma fila, se llaman casi
+              igual, y no coinciden en 252 de las 296. Puestas una al
+              lado de la otra, con la fórmula escrita, deja de ser un
+              misterio y pasa a ser una decisión. */}
+          <section className="ia-caja">
+            <div className="ia-caja-cab">
+              <h2>Por qué hay tres cifras distintas</h2>
+              <p>
+                Tu hoja calcula tres totales de «botellas con defectos» en la misma fila, con
+                tres listas de categorías distintas. Aquí están los tres con su fórmula.
+              </p>
+            </div>
+            <div className="ia-tres">
+              <div className="ia-tres-uno manda">
+                <p className="rot">% ÍNDICE DE COBRO · columnas M y BG</p>
+                <p className="n">{pct(total.indice)}</p>
+                <p className="f">(U+V+W+X+Y+Z+AA+AB+AE) / S — nueve categorías</p>
+                <p className="u">
+                  {nf.format(total.defectos)} botellas. <b>Es la que factura</b>: multiplicada
+                  por las recibidas da las {nf.format(total.no_abono)} unidades no abonadas.
+                </p>
+              </div>
+              <div className="ia-tres-uno">
+                <p className="rot">% TOTAL BOTELLAS CON DEFECTOS · columna AI</p>
+                <p className="n">{pct(total.pct_hoja)}</p>
+                <p className="f">SUM(U:AD) / S — diez categorías</p>
+                <p className="u">
+                  {nf.format(total.defectos_hoja)} botellas. Suma hongo y etiqueta asoleada, y
+                  NO suma mezclado. <b>No es la que cobra.</b>
+                </p>
+              </div>
+              <div className="ia-tres-uno">
+                <p className="rot">TOTAL BOTELLAS CON DEFECTOS (Hl) · columna AU</p>
+                <p className="n">{nf3.format(total.hl_hoja)}</p>
+                <p className="f">SUM(AV:BF) — once categorías</p>
+                <p className="u">
+                  Las diez de arriba más cuerpo extraño. En Hl de cobro son{" "}
+                  <b>{nf3.format(total.hl)}</b>, que salen de las nueve.
+                </p>
+              </div>
             </div>
           </section>
 
@@ -264,16 +334,33 @@ export function Informe({
                     <option value="no_abono">No abono más alto</option>
                   </select>
                 </label>
+                <label className="ia-ordenar">
+                  <span className="sr">Columnas</span>
+                  <select value={ancha ? "excel" : "resumen"}
+                          onChange={(e) => setAncha(e.target.value === "excel")}>
+                    <option value="resumen">Columnas: resumen</option>
+                    <option value="excel">Columnas: como el Excel</option>
+                  </select>
+                </label>
               </div>
             </div>
-            <div className="ia-tabla">
+            <div className={"ia-tabla" + (ancha ? " ancha" : "")}>
               <table>
                 <thead>
                   <tr>
                     <th>Fecha</th><th>Placa</th><th>Socio</th><th>Envase</th>
                     <th className="n">Recibidas</th><th className="n">Revisadas</th>
-                    <th className="n">Defectos</th><th className="n">Índice</th>
-                    <th className="n">No abono</th><th className="n">Hl</th><th>Origen</th>
+                    {/* Los nombres son los DE LA HOJA, no los míos: quien
+                        cuadra tiene el Excel abierto al lado y traducir
+                        nombres de columna es donde se pierde el hilo. */}
+                    <th className="n">% ÍNDICE DE COBRO</th>
+                    <th className="n">Unid. no abonadas</th>
+                    <th className="n">% TOTAL BOT. CON DEFECTOS</th>
+                    <th className="n">TOTAL (Hl)</th>
+                    {ancha && COLS_EXCEL.map(([k, n]) => <th key={"p" + k} className="n">{n}</th>)}
+                    {ancha && COLS_EXCEL.map(([k, n]) =>
+                      <th key={"h" + k} className="n">{n.replace("% ", "Hl ")}</th>)}
+                    <th>Origen</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -285,10 +372,20 @@ export function Informe({
                       <td>{r.envase}</td>
                       <td className="n">{nf.format(r.recibidas)}</td>
                       <td className="n">{nf.format(r.revisadas)}</td>
-                      <td className="n">{nf.format(r.defectos)}</td>
                       <td className="n destaca">{pct(r.indice)}</td>
-                      <td className="n">{nf.format(r.no_abono)}</td>
-                      <td className="n">{nf3.format(Number(r.hl_defectos))}</td>
+                      <td className="n destaca">{nf.format(r.no_abono)}</td>
+                      <td className="n">{pct(Number((r as Revision & { pct_hoja?: number }).pct_hoja ?? 0))}</td>
+                      <td className="n">{nf3.format(Number((r as Revision & { hl_hoja?: number }).hl_hoja ?? 0))}</td>
+                      {ancha && COLS_EXCEL.map(([k]) => (
+                        <td key={"p" + k} className="n">
+                          {pct(datos.porRevision.get(r.id)?.[k]?.pct ?? 0)}
+                        </td>
+                      ))}
+                      {ancha && COLS_EXCEL.map(([k]) => (
+                        <td key={"h" + k} className="n">
+                          {nf3.format(datos.porRevision.get(r.id)?.[k]?.hl ?? 0)}
+                        </td>
+                      ))}
                       <td>
                         {(r as Revision & { origen?: string }).origen === "importado"
                           ? <span className="ia-sello">Excel</span>
@@ -297,7 +394,7 @@ export function Informe({
                     </tr>
                   ))}
                   {tabla.length === 0 && (
-                    <tr><td colSpan={11} className="nada">Nada coincide con «{busca.trim()}».</td></tr>
+                    <tr><td colSpan={ancha ? 33 : 11} className="nada">Nada coincide con «{busca.trim()}».</td></tr>
                   )}
                 </tbody>
               </table>

@@ -122,6 +122,26 @@ const ARMAZON = `
   </section>
 
   <section class="ia-caja">
+    <div class="ia-caja-cab"><h2>Por qué hay tres cifras distintas</h2>
+      <p>Tu hoja calcula tres totales de «botellas con defectos» en la misma fila, con tres
+        listas de categorías distintas. Aquí están los tres con su fórmula.</p></div>
+    <div class="ia-tres">
+      <div class="ia-tres-uno manda">
+        <p class="rot">% ÍNDICE DE COBRO · columnas M y BG</p><p class="n">0,69 %</p>
+        <p class="f">(U+V+W+X+Y+Z+AA+AB+AE) / S — nueve categorías</p>
+        <p class="u">7.140 botellas. <b>Es la que factura.</b></p></div>
+      <div class="ia-tres-uno">
+        <p class="rot">% TOTAL BOTELLAS CON DEFECTOS · columna AI</p><p class="n">0,72 %</p>
+        <p class="f">SUM(U:AD) / S — diez categorías</p>
+        <p class="u">7.427 botellas. <b>No es la que cobra.</b></p></div>
+      <div class="ia-tres-uno">
+        <p class="rot">TOTAL BOTELLAS CON DEFECTOS (Hl) · columna AU</p><p class="n">16,875</p>
+        <p class="f">SUM(AV:BF) — once categorías</p>
+        <p class="u">Las diez de arriba más cuerpo extraño.</p></div>
+    </div>
+  </section>
+
+  <section class="ia-caja">
     <div class="ia-caja-cab"><h2>Cómo va el índice, semana a semana</h2>
       <p>Cada punto es una semana completa. La escala arranca en cero.</p></div>
     <div class="ia-linea">
@@ -262,6 +282,20 @@ if (sinToken.length) {
 }
 
 /* ---------- 3. CONTRASTE ---------- */
+/* LOS NOMBRES DE LAS COLUMNAS SON LOS DE LA HOJA, no los míos. Quien
+   cuadra tiene el Excel abierto al lado, y traducir «índice» a «% ÍNDICE
+   DE COBRO» en la cabeza es donde se pierde el hilo a la tercera fila. */
+for (const n of ["% ÍNDICE DE COBRO", "% TOTAL BOT. CON DEFECTOS", "Unid. no abonadas"])
+  if (!tsx.includes(n))
+    fallas.push(`la tabla no rotula «${n}» con el nombre del archivo: cuadrar obliga a ` +
+                "traducir nombres de columna en la cabeza");
+
+/* Y LAS TRES CIFRAS VAN JUNTAS. Separadas, cada una parece la buena; es
+   verlas al lado lo que convierte «no me cuadra» en una decisión. */
+for (const f of ["total.indice", "total.pct_hoja", "total.hl_hoja"])
+  if (!tsx.includes(f))
+    fallas.push(`falta «${f}» en el bloque de los tres totales`);
+
 console.log("tema      cifra  dato   pie    rótulo  sello  enlace");
 for (const t of TEMAS) {
   await monta(t, 1440);

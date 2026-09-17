@@ -233,3 +233,43 @@
   .sd .ia-bar { grid-template-columns: minmax(0, 1fr) auto }
   .sd .ia-bar .pista { grid-column: 1 / -1 }
 }
+
+/* ---------- LOS TRES TOTALES DE LA HOJA ----------
+   Uno al lado del otro y con la fórmula escrita debajo. Separados —o en
+   pantallas distintas— cada uno parece el bueno; juntos, la pregunta
+   deja de ser «cuál está mal» y pasa a ser «cuál quiero mirar». */
+.sd .ia-tres {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px; background: var(--sd-linea);
+}
+.sd .ia-tres-uno { background: var(--sd-papel); padding: 15px 18px 16px; min-width: 0 }
+/* La que factura lleva una barra: de las tres, es la única sobre la que
+   alguien cobra, y eso tiene que verse sin leer. */
+.sd .ia-tres-uno.manda { box-shadow: inset 4px 0 0 var(--ia-ramp) }
+.sd .ia-tres-uno .rot {
+  margin: 0; font: 700 9.5px var(--sd-texto); letter-spacing: .1em;
+  color: var(--ia-gris-panel); line-height: 1.4;
+}
+.sd .ia-tres-uno .n {
+  margin: 8px 0 0; font: 900 30px/1 var(--sd-titulo); letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; color: var(--sd-gris);
+}
+.sd .ia-tres-uno.manda .n { color: var(--ia-dato) }
+/* La fórmula, en monoespaciado: es una fórmula, y leída en proporcional
+   no se puede comparar con la del Excel de al lado. */
+.sd .ia-tres-uno .f {
+  margin: 6px 0 0; font: 500 11px ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color: var(--sd-gris); overflow-wrap: anywhere;
+}
+.sd .ia-tres-uno .u {
+  margin: 8px 0 0; font-size: 12px; line-height: 1.45; color: var(--sd-tinta);
+}
+.sd .ia-tres-uno .u b { font-weight: 700 }
+
+/* En modo «como el Excel» son treinta y tres columnas: la tabla necesita
+   más sitio del que puede encoger. Se desliza, que ya lo hace. */
+.sd .ia-tabla.ancha table { min-width: 2600px }
+
+@media (max-width: 900px) {
+  .sd .ia-tres { grid-template-columns: 1fr }
+}

@@ -1,85 +1,130 @@
-Contar: el renglón queda en blanco, el borrador se filtra, y avisa
-de la fecha corta
-
-Cuatro cosas que salieron probando la pantalla con la bodega al lado.
+Contar: no se pierde nada a medio escribir · AI: los tres totales de la hoja
 
 =====================================================================
-1 · ANOTAR DEJA EL RENGLÓN ENTERO EN BLANCO
+1 · «SI NO HE GUARDADO Y VOY A OTRO MÓDULO, QUE NO SE ME PIERDA NADA»
 =====================================================================
 
-«Guardé un registro y no se borró ni calle ni módulo ni lado».
+Lo anotado ya estaba a salvo: cada renglón se guarda en la base en el
+momento de tocar «Anotar», con su nombre y su hora. Lo que NO lo estaba
+era lo que se tiene tecleado y todavía no se ha anotado.
 
-Dejé el sitio puesto DOS VECES —primero con la fecha, después sin ella—
-pensando que se camina módulo por módulo y que volver a escoger los tres
-campos era la mitad de las pulsaciones de la jornada. Y Cristian lo
-devolvió las dos veces, que es lo que vale: él es el que lo camina.
+Dos huecos, los dos cerrados:
 
-La razón de fondo es la misma que la de la fecha: un campo que quedó
-lleno del renglón anterior NO SE VE como un campo por llenar, se ve como
-uno ya contestado. Un renglón anotado en el módulo equivocado no da
-error, no avisa, y aparece cuadrando el mes.
+CAMBIAR DE MÓDULO BORRABA LA FECHA. La borraba a propósito —para que no
+se colara la del módulo anterior— y con eso hacía perder lo tecleado a
+quien se dio cuenta a medio renglón de que había escogido mal el módulo.
+Son dos momentos distintos: después de ANOTAR se limpia todo, porque el
+renglón ya quedó guardado; mientras se ESCRIBE no se pierde nada, porque
+nada está guardado todavía.
 
-=====================================================================
-2 · EN EL MÓDULO, SOLO EL MÓDULO
-=====================================================================
+Y EL RENGLÓN A MEDIO ESCRIBIR SOBREVIVE al refresco, al bloqueo del
+celular y a la señal caída. Se guarda en el navegador —es de esa persona
+y de ese teléfono, nadie más tiene que verlo, y guardarlo en la base
+sería una escritura por cada tecla—. La llave lleva el id del conteo: sin
+eso, quien cierra un recorrido y abre otro se encontraría el renglón a
+medias del anterior, que ya no tiene sentido porque ese conteo se envió.
 
-La lista decía «A01  RB F1000». La familia se fue: quien está parado
-frente a un módulo sabe en cuál está, y lo que quiere es llegar a «A01»
-en dos teclas. «RB F1000» repetido en doscientas filas solo obliga a leer
-de más para encontrar el número. La familia sigue en el maestro, que es
-donde se consulta.
-
-=====================================================================
-3 · EL BORRADOR SE FILTRA — CÓDIGO, CALLE, MÓDULO
-=====================================================================
-
-Ciento cincuenta renglones en una jornada. Buscar el 3128 que se anotó
-hace dos horas rodando la lista es como se termina corrigiendo el
-renglón equivocado.
-
-LAS LISTAS DE CALLE Y MÓDULO SALEN DE LO ANOTADO, no del maestro:
-ofrecer la calle J cuando no se ha contado nada en J devuelve la lista
-vacía y hace dudar de si se perdió algo.
-
-Y CON EL FILTRO PUESTO SE DICE «3 DE 152 · ENVIAR MANDA LOS 152». Un
-filtro hace que la lista se vea corta, y de ahí a creer que el conteo va
-corto hay un paso — un paso que termina en un conteo enviado a medias.
+TODO VA EN try/catch. En modo privado, con el almacenamiento lleno o con
+permisos restringidos, `localStorage` LANZA. Sin el try/catch la pantalla
+de contar se cae entera — y no poder contar es infinitamente peor que
+perder un renglón a medias. El arnés cuenta los usos y los catch.
 
 =====================================================================
-4 · LA ALERTA DE FECHA CORTA, EN EL MOMENTO
+2 · VARIAS PERSONAS CONTANDO A LA VEZ: NO SE PISAN
 =====================================================================
 
-Al anotar, si ese renglón ya se pasó de su fecha de salida, lo dice ahí
-mismo: «3128: YA SE PASÓ de su fecha de salida por 6 días. Sácalo.». Y si
-sale dentro de la semana, lo dice en tono de aviso.
+No hacía falta cambiar nada, y vale la pena dejar escrito por qué.
 
-POR QUÉ EN EL MOMENTO Y NO EN EL TABLERO. Quien acaba de anotar sigue
-parado frente a esa estiba: es el único instante en que puede mirarla
-otra vez, comprobar la fecha impresa y sacarla. Media hora después hay
-que volver a caminar hasta allá.
+  · `conteo_fefo_abrir` devuelve EL CONTEO DE QUIEN LLAMA
+    (`responsable_id = auth.uid()`), no «el conteo abierto». Dos personas
+    que entran a la vez abren dos recorridos distintos.
+  · `conteo_fefo_agregar` y `conteo_fefo_editar` revientan con «ese
+    conteo es de otra persona» si el dueño no es quien llama.
+  · La llave única es POR CONTEO: dos personas pueden contar el mismo
+    módulo el mismo día sin chocar, porque cada renglón cuelga de su
+    recorrido.
+  · El tablero solo lee lo ENVIADO, así que un recorrido a medio caminar
+    de otra persona no aparece en las cifras de nadie.
 
-EL NÚMERO LO TRAE LA VISTA. No se recalcula en la pantalla: es el mismo
-«días para salir» con el que después decide el tablero, así que la
-alerta y el informe no pueden contradecirse. El arnés lo comprueba.
-
-Y el borrador abre con el resumen: cuántos ya se pasaron, con sus
-códigos, y cuántos salen esta semana. Con la frase escrita y no solo con
-el color — esto se mira en un celular con el sol de frente.
+Está probado en `prueba-inventario-fefo.sql`, sección «nadie escribe en
+el conteo de otro, pero todos lo ven», y se corre como un usuario normal
+—no como superusuario— porque si no, RLS se salta sin avisar.
 
 =====================================================================
-5 · LOS ARNESES
+3 · «ESE VALOR NO ES VÁLIDO» NO ERA CAPACIDAD: ERA EL MES 20
 =====================================================================
 
-`inv-conteo.mjs` gana cinco candados: que el renglón se limpie entero,
-que el borrador se pueda filtrar por los tres campos, que la lista
-dibuje LO FILTRADO —con los filtros puestos pero la lista leyendo todo,
-los campos se mueven y no pasa nada, que es peor que no tenerlos—, que
-se diga que enviar manda todo, y que los días para salir NO se
-recalculen en la pantalla.
+Un dedazo de una tecla en el mes llegaba hasta Postgres, que reventaba
+con «date/time field value out of range», y la app lo traducía a «Ese
+valor no es válido para este campo». Quien lo lee está mirando ONCE
+campos y ninguno dice cuál.
 
-Los cinco verificados devolviendo el error que dicen cazar.
+Ahora lo dice el campo por su nombre: «El mes del vencimiento dice 20. Va
+de 1 a 12». Y comprueba que la fecha EXISTA, no solo que los rangos
+cuadren: el 31 de febrero pasa un `mes <= 12` y sigue sin ser un día.
 
-NO HAY SQL ESTA VEZ.
+=====================================================================
+4 · LA SOBREOCUPACIÓN SE INFORMA, NO SE IMPIDE
+=====================================================================
+
+Un módulo por encima de su capacidad PASA: se recibe de más, se arruma
+en el pasillo, se deja una estiba encima mientras se despacha otra.
+
+Bloquear el conteo obligaría a quien está caminando a anotar MENOS de lo
+que ve para poder seguir, y entonces el inventario diría lo que cabe en
+vez de lo que hay. Así que se anota y el tablero lo dice, con las dos
+cifras al lado: cuánto cabe, cuánto hay, cuánto sobra y en qué
+porcentaje.
+
+SE COMPARA EN ESTIBAS. La capacidad del maestro está en estibas —A01_DER
+son 96— y contrastarla contra las CAJAS daría que todos los módulos están
+al 4.000 %, que es una alarma que nadie vuelve a mirar. El arnés lo
+comprueba, y comprueba también que la pantalla de contar NO mire la
+capacidad.
+
+=====================================================================
+5 · «NO ME CUADRAN LOS VALORES» — LOS TRES TOTALES, EN PANTALLA
+=====================================================================
+
+Y no cuadraban porque «BD AI BAQ» tiene TRES sumas de botellas con
+defecto en la misma fila, se llaman casi igual, y no coinciden en 252 de
+las 296 filas. La pantalla mostraba solo una —la que cobra—, así que era
+imposible cuadrarla contra el archivo.
+
+  % ÍNDICE DE COBRO (M y BG)  (U+V+W+X+Y+Z+AA+AB+AE)/S   9 categorías
+  % TOTAL BOT. CON DEFECTOS (AI)  SUM(U:AD)/S           10 categorías
+  TOTAL (Hl) (AU)                 SUM(AV:BF)            11 categorías
+
+Los tres están ahora en el informe, uno al lado del otro, con la fórmula
+escrita en monoespaciado para poder compararla con la del Excel. La que
+factura lleva una barra de color: de las tres es la única sobre la que
+alguien cobra.
+
+Y LA TABLA TIENE UN MODO «COMO EL EXCEL»: las doce columnas de % y las
+doce de Hl, con los nombres del archivo —«% CEMENTO /PINTURA», «Hl
+ETIQUETA ASOLEADA»— para poder cuadrar columna por columna sin traducir
+nombres en la cabeza. No es el modo por defecto porque treinta y tres
+columnas no se leen: se cuadran.
+
+Las tres cifras salen de la vista, comprobadas contra el archivo en las
+285 filas: 0 diferencias en las tres.
+
+QUÉ CATEGORÍA ENTRA EN CUÁL TOTAL va en la tabla de defectos y no en
+tres listas repetidas dentro de la vista: escribir «hongo» en tres sitios
+es escribirlo mal en uno el día que cambie la política, y ese error no da
+error — da una cifra distinta en una pantalla y la misma en las otras
+dos.
+
+=====================================================================
+6 · PARA CORRER
+=====================================================================
+
+  supabase/migraciones/2026-09-sider-ai-tres-totales.sql
+
+Después de `2026-09-sider-ai-historico.sql`. Se puede correr varias
+veces. Y NO con `clip`, que rompe las tildes:
+
+  powershell -c "Get-Content -Raw -Encoding UTF8 'ruta\al\archivo.sql' | Set-Clipboard"
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -87,6 +87,35 @@ export default async function InventarioTableroPage() {
 
   const sinFecha = t.lineas.filter((l) => l.dias_para_salir == null && l.tipo_material !== "ENVASE");
 
+  /* ---------- LOS MÓDULOS QUE SE PASARON DE CAPACIDAD ----------
+     CONTAR NO LO IMPIDE, Y ES A PROPÓSITO. Un módulo por encima de su
+     capacidad PASA: se recibe de más, se arruma en el pasillo, se deja
+     una estiba encima mientras se despacha otra. Bloquear el conteo
+     obligaría a quien está caminando a mentir para poder seguir —anotar
+     menos de lo que ve— y entonces el inventario diría lo que cabe en
+     vez de lo que hay.
+
+     Así que se anota lo que hay y se dice aquí, con las dos cifras al
+     lado: cuánto cabe y cuánto hay. La decisión es de quien planea el
+     almacén, no del que está contando.
+
+     Se suman las ESTIBAS y no las cajas: la capacidad del maestro está
+     en estibas —A01_DER son 96— y comparar cajas contra estibas daría
+     que todos los módulos están al 4.000 %. */
+  const porModulo = new Map<string, { clave: string; capacidad: number; estibas: number; renglones: number }>();
+  for (const l of t.lineas) {
+    if (!l.ubicacion || l.capacidad == null || l.capacidad <= 0) continue;
+    const x = porModulo.get(l.ubicacion)
+      ?? { clave: l.ubicacion, capacidad: l.capacidad, estibas: 0, renglones: 0 };
+    x.estibas += Number(l.total_estibas);
+    x.renglones += 1;
+    porModulo.set(l.ubicacion, x);
+  }
+  const pasados = [...porModulo.values()]
+    .filter((m) => m.estibas > m.capacidad)
+    .map((m) => ({ ...m, sobra: m.estibas - m.capacidad, pct: m.estibas / m.capacidad }))
+    .sort((a, b) => b.pct - a.pct);
+
   return (
     <div className="fe">
       <section className="cabeza">
@@ -148,6 +177,46 @@ export default async function InventarioTableroPage() {
                 <b>{sinFecha.length} renglón{sinFecha.length > 1 ? "es" : ""} de producto sin
                 fecha de vencimiento</b> — no entran en ningún grupo porque no se les puede
                 calcular cuándo salen. Son de conteos viejos: hoy la fecha es obligatoria.
+              </p>
+            </section>
+          )}
+
+          {pasados.length > 0 && (
+            <section className="fe-caja">
+              <div className="fe-caja-cab">
+                <h2>Módulos por encima de su capacidad</h2>
+                <p>
+                  Lo que se contó pesa más de lo que el maestro dice que cabe. No es un error
+                  del conteo: se anota lo que hay, no lo que cabe. Aquí están las dos cifras
+                  para que se pueda decidir qué se reacomoda.
+                </p>
+              </div>
+              <div className="fe-tabla">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Módulo</th><th className="n">Cabe</th><th className="n">Hay</th>
+                      <th className="n">Sobran</th><th className="n">Ocupación</th>
+                      <th className="n">Renglones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pasados.map((m) => (
+                      <tr key={m.clave} className="mal">
+                        <td><b>{m.clave}</b></td>
+                        <td className="n">{nf.format(m.capacidad)}</td>
+                        <td className="n">{nf.format(m.estibas)}</td>
+                        <td className="n dias">+{nf.format(m.sobra)}</td>
+                        <td className="n">{Math.round(m.pct * 100)} %</td>
+                        <td className="n">{m.renglones}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="fe-pie-nota">
+                En estibas, que es como está la capacidad en el maestro. Si una capacidad está
+                mal puesta, se corrige en <b>Maestro → Ubicaciones</b>.
               </p>
             </section>
           )}

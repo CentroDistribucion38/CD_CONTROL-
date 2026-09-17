@@ -489,6 +489,38 @@ if (!/function limpiar\(\) \{\s*\n\s*setCorrigiendo\(null\);\s*\n\s*setB\(VACIO\
 if (/placeholder="\d+"/.test(limpio))
   fallas.push("el marcador del código es un número: se confunde con un código ya tecleado");
 
+/* ---------- EL RENGLÓN A MEDIO ESCRIBIR NO SE PIERDE ----------
+   Lo anotado está a salvo desde que se toca «Anotar»: cada renglón se
+   guarda en la base al instante. Lo que no lo estaba era lo tecleado y
+   todavía no anotado, y en una bodega eso se pierde por cualquier cosa
+   —la señal se cae, el celular se bloquea, alguien recarga—.
+
+   LA LLAVE LLEVA EL ID DEL CONTEO: sin eso, quien cierra un recorrido y
+   abre otro se encontraría el renglón a medias del anterior, que ya no
+   tiene sentido porque ese conteo está enviado.
+
+   Y TIENE QUE IR EN try/catch: en modo privado, con el almacenamiento
+   lleno o con permisos restringidos, `localStorage` LANZA. Sin el
+   try/catch, la pantalla de contar se cae entera — y no poder contar es
+   infinitamente peor que perder un renglón a medias. */
+if (!/localStorage\.setItem/.test(limpio) || !/localStorage\.getItem/.test(limpio))
+  fallas.push("el renglón a medio escribir no sobrevive a un refresco ni a una señal caída");
+if (!/fefo\.renglon\.\$\{conteo\.id\}/.test(limpio))
+  fallas.push("el renglón guardado no lleva el id del conteo: al abrir un recorrido nuevo " +
+              "aparecería el renglón a medias del anterior");
+{
+  const usos = (limpio.match(/localStorage\./g) ?? []).length;
+  const catches = (limpio.match(/\} catch/g) ?? []).length;
+  if (catches < 3 || usos > catches + 1)
+    fallas.push("algún uso de localStorage queda sin try/catch: en modo privado LANZA y " +
+                "tumbaría la pantalla de contar entera");
+}
+
+/* Y AL ANOTAR SE BORRA EL GUARDADO: el renglón ya quedó en la base, así
+   que restaurarlo mañana sería ofrecer volver a anotar lo ya anotado. */
+if (!/localStorage\.removeItem/.test(limpio))
+  fallas.push("al anotar no se borra el renglón guardado: volvería a aparecer mañana");
+
 /* ---------- EL BORRADOR SE FILTRA ----------
    Ciento cincuenta renglones en una jornada: buscar el 3128 que se anotó
    hace dos horas rodando la lista es como se termina corrigiendo el

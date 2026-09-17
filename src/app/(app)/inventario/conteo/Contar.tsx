@@ -33,7 +33,7 @@
  * firmado por nadie.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
@@ -128,6 +128,49 @@ export function Contar({
   const [b, setB] = useState<Borrador>(VACIO);
   const campoCodigo = useRef<HTMLInputElement>(null);
 
+  /* ---------- EL RENGLÓN A MEDIO ESCRIBIR NO SE PIERDE ----------
+     Lo anotado está a salvo desde el momento en que se toca «Anotar»:
+     cada renglón se guarda en la base al instante, con su nombre. Lo que
+     NO estaba a salvo era lo que se tiene tecleado y todavía no se ha
+     anotado — y en una bodega eso se pierde por cualquier cosa: la señal
+     se cae a mitad de un pasillo, el celular se bloquea, alguien recarga
+     sin querer.
+
+     Se guarda en el NAVEGADOR y no en la base, a propósito: es de esta
+     persona y de este teléfono, nadie más tiene que verlo, y guardarlo
+     en la base significaría una escritura por cada tecla.
+
+     LA LLAVE LLEVA EL ID DEL CONTEO. Sin eso, quien cierra un recorrido
+     y abre otro se encontraría el renglón a medias del anterior — y ese
+     renglón ya no tiene sentido, porque el conteo al que pertenecía está
+     enviado. */
+  const llave = conteo ? `fefo.renglon.${conteo.id}` : null;
+
+  useEffect(() => {
+    if (!llave) return;
+    try {
+      const crudo = localStorage.getItem(llave);
+      if (crudo) setB({ ...VACIO, ...(JSON.parse(crudo) as Partial<Borrador>) });
+    } catch {
+      /* Sin localStorage —modo privado, almacenamiento lleno, permisos—
+         la pantalla funciona igual: se pierde el renglón a medias, que
+         es exactamente lo que pasaba antes. Nunca puede impedir contar. */
+    }
+  }, [llave]);
+
+  useEffect(() => {
+    if (!llave) return;
+    try {
+      /* VACÍO SE BORRA, no se guarda. Un objeto vacío en el almacén
+         haría que la próxima vez se restaurara «nada» encima de nada,
+         que es inofensivo pero deja basura por cada conteo cerrado. */
+      const hayAlgo = Object.entries(b).some(([k, v]) =>
+        v !== VACIO[k as keyof Borrador] && v !== "" && v !== null && v !== false);
+      if (hayAlgo) localStorage.setItem(llave, JSON.stringify(b));
+      else localStorage.removeItem(llave);
+    } catch { /* ver arriba */ }
+  }, [b, llave]);
+
   const pon = <K extends keyof Borrador>(k: K, v: Borrador[K]) =>
     setB((x) => ({ ...x, [k]: v }));
 
@@ -212,6 +255,10 @@ export function Contar({
   function limpiar() {
     setCorrigiendo(null);
     setB(VACIO);
+    /* Y se borra el guardado: el renglón ya quedó en la base, así que
+       restaurarlo mañana sería ofrecer volver a anotar algo que ya está
+       anotado. */
+    try { if (llave) localStorage.removeItem(llave) } catch { /* da igual */ }
     campoCodigo.current?.focus();
   }
 
@@ -238,6 +285,29 @@ export function Contar({
     if (b.rot == null) return "Falta decir si rota.";
     if (!esEnvase && (ent(b.dia) == null || ent(b.mes) == null || b.anio.trim() === ""))
       return "Falta la fecha de vencimiento.";
+
+    /* LA FECHA SE REVISA AQUÍ Y CON NOMBRE PROPIO.
+       Escribir 20 en el mes —un dedazo de una tecla— llegaba a Postgres,
+       que reventaba con «date/time field value out of range», y la app
+       lo traducía a «Ese valor no es válido para este campo». Quien lo
+       lee está mirando ONCE campos y ninguno dice cuál. Se pierden dos
+       minutos por dedazo, con la estiba delante.
+
+       Y se comprueba que la fecha EXISTA, no solo que los rangos
+       cuadren: el 31 de febrero pasa un `mes <= 12` y sigue sin ser un
+       día. */
+    if (!esEnvase || b.anio.trim() !== "") {
+      const d = ent(b.dia), m = ent(b.mes);
+      const a = b.anio.trim() === "" ? null : Number(b.anio.trim());
+      if (d != null && (d < 1 || d > 31)) return `El día del vencimiento dice ${d}. Va de 1 a 31.`;
+      if (m != null && (m < 1 || m > 12)) return `El mes del vencimiento dice ${m}. Va de 1 a 12.`;
+      if (a != null && (a < 0 || a > 99)) return `El año va de dos cifras: 27, no ${a}.`;
+      if (d != null && m != null && a != null) {
+        const f = new Date(2000 + a, m - 1, d);
+        if (f.getMonth() !== m - 1 || f.getDate() !== d)
+          return `El ${d}/${m}/${a} no existe. Revisa el día.`;
+      }
+    }
     return null;
   }
 
@@ -494,12 +564,19 @@ export function Contar({
                 /* Escoger el módulo pone su calle sola, y si solo tiene
                    un lado lo pone también: preguntar «¿izquierdo o
                    derecho?» donde no hay más que uno es un toque de más
-                   por renglón. La fecha se borra —arrastrar la del
-                   módulo anterior es cómo se cuela una fecha ajena. */
+                   por renglón.
+
+                   LA FECHA YA NO SE BORRA AL CAMBIAR DE MÓDULO. La
+                   borraba —para que no se colara la del módulo
+                   anterior— y eso hacía perder lo tecleado a quien
+                   estaba a medio renglón y se dio cuenta de que había
+                   escogido mal el módulo. Son dos momentos distintos:
+                   después de ANOTAR se limpia todo, porque el renglón
+                   ya quedó guardado; mientras se ESCRIBE no se pierde
+                   nada, porque nada está guardado todavía. */
                 setB((x) => ({ ...x, base,
                                calle: u?.calle ?? x.calle,
-                               lado: posibles.length === 1 ? (posibles[0].lado ?? "") : "",
-                               dia: "", mes: "", anio: "" }));
+                               lado: posibles.length === 1 ? (posibles[0].lado ?? "") : "" }));
               }} /></label>
 
           {/* EL LADO SE ESCOGE, y solo entre los que ese módulo tiene.

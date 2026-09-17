@@ -84,6 +84,7 @@ export async function informeAi(f: FiltroAi = {}) {
       revisiones: [] as Revision[], defectos: [] as PorDefecto[],
       socios: [] as PorSocio[], semanas: [] as PorSemana[],
       total: vacio(),
+      porRevision: new Map<string, Record<string, { pct: number; hl: number }>>(),
     };
   }
 
@@ -92,6 +93,7 @@ export async function informeAi(f: FiltroAi = {}) {
     return {
       falta: false, revisiones, defectos: [] as PorDefecto[],
       socios: [] as PorSocio[], semanas: [] as PorSemana[], total: vacio(),
+      porRevision: new Map<string, Record<string, { pct: number; hl: number }>>(),
     };
   }
 
@@ -120,8 +122,20 @@ export async function informeAi(f: FiltroAi = {}) {
     socios:    new Set(revisiones.map((r) => r.socio).filter(Boolean)).size,
     importadas: revisiones.filter((r) => (r as Revision & { origen?: string }).origen === "importado").length,
     indice: 0,
+    /* Los dos de LECTURA, para cuadrar contra el archivo. Se llenan
+       abajo; van declarados aquí para que el tipo los tenga. */
+    defectos_hoja: 0, hl_hoja: 0, pct_hoja: 0,
   };
   total.indice = total.revisadas > 0 ? total.defectos / total.revisadas : 0;
+
+  /* LOS OTROS DOS TOTALES DE LA HOJA, para poder cuadrar. No cobran: son
+     los que el archivo muestra al lado y que NO coinciden con el índice
+     en 252 de las 296 filas. Verlos juntos es la única forma de dejar de
+     preguntarse cuál está mal. */
+  const R = revisiones as (Revision & { defectos_hoja?: number; hl_hoja?: number })[];
+  total.defectos_hoja = R.reduce((a, r) => a + Number(r.defectos_hoja ?? 0), 0);
+  total.hl_hoja = R.reduce((a, r) => a + Number(r.hl_hoja ?? 0), 0);
+  total.pct_hoja = total.revisadas > 0 ? total.defectos_hoja / total.revisadas : 0;
 
   /* ---------- POR DEFECTO ----------
      Los catorce, cobren o no. Los que no cobran se muestran aparte y
@@ -185,13 +199,26 @@ export async function informeAi(f: FiltroAi = {}) {
     .map((x) => ({ ...x, indice: x.revisadas > 0 ? x.defectos / x.revisadas : 0 }))
     .sort((a, b) => a.semana.localeCompare(b.semana));
 
-  return { falta: false, revisiones, defectos, socios, semanas, total };
+  /* ---------- EL DETALLE POR REVISIÓN, PARA CUADRAR CONTRA EL EXCEL ----
+     La hoja tiene doce columnas de % y doce de Hl por fila. Aquí van
+     como un mapa revisión → defecto → {pct, hl}, y la pantalla las
+     dibuja en el orden del archivo. Las cifras NO se calculan en la
+     pantalla: `v_sider_ai_detalle` ya las trae. */
+  const porRevision = new Map<string, Record<string, { pct: number; hl: number }>>();
+  for (const d of det ?? []) {
+    const x = porRevision.get(d.revision_id) ?? {};
+    x[d.defecto] = { pct: Number(d.pct), hl: Number(d.hl) };
+    porRevision.set(d.revision_id, x);
+  }
+
+  return { falta: false, revisiones, defectos, socios, semanas, total, porRevision };
 }
 
 function vacio() {
   return {
     revisiones: 0, recibidas: 0, revisadas: 0, defectos: 0, otros: 0,
     no_abono: 0, hl: 0, socios: 0, importadas: 0, indice: 0,
+    defectos_hoja: 0, hl_hoja: 0, pct_hoja: 0,
   };
 }
 

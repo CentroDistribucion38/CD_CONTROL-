@@ -46,6 +46,8 @@
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
 
+const U = (p) => new URL(p, import.meta.url);
+
 const fefo = readFileSync(new URL("../src/app/(app)/inventario/fefo.css", import.meta.url), "utf8");
 const glob = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
 const shell = readFileSync(new URL("../src/app/(app)/shell.css", import.meta.url), "utf8");
@@ -114,6 +116,26 @@ const ARMAZON = `
         <span class="val">${m[2]}<em>${m[3]} módulos</em></span>
       </div>`).join("")}
     </div>
+  </section>
+
+  <section class="fe-caja">
+    <div class="fe-caja-cab"><h2>Módulos por encima de su capacidad</h2>
+      <p>Lo que se contó pesa más de lo que el maestro dice que cabe. No es un error del
+        conteo: se anota lo que hay, no lo que cabe.</p></div>
+    <div class="fe-tabla">
+      <table>
+        <thead><tr><th>Módulo</th><th class="n">Cabe</th><th class="n">Hay</th>
+          <th class="n">Sobran</th><th class="n">Ocupación</th><th class="n">Renglones</th></tr></thead>
+        <tbody>
+          <tr class="mal"><td><b>E06_IZQ</b></td><td class="n">24</td><td class="n">41</td>
+            <td class="n dias">+17</td><td class="n">171 %</td><td class="n">3</td></tr>
+          <tr class="mal"><td><b>A01_DER</b></td><td class="n">96</td><td class="n">104</td>
+            <td class="n dias">+8</td><td class="n">108 %</td><td class="n">2</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="fe-pie-nota">En estibas, que es como está la capacidad en el maestro. Si una
+      capacidad está mal puesta, se corrige en <b>Maestro → Ubicaciones</b>.</p>
   </section>
 
   <section class="fe-caja">
@@ -315,6 +337,31 @@ for (const [ancho, etiqueta] of ANCHOS) {
 }
 
 await navegador.close();
+
+/* ---------- LA SOBREOCUPACIÓN SE INFORMA, NO SE IMPIDE ----------
+   Un módulo por encima de su capacidad PASA: se recibe de más, se arruma
+   en el pasillo, se deja una estiba encima mientras se despacha otra.
+   Bloquear el conteo obligaría a quien camina a anotar MENOS de lo que
+   ve para poder seguir, y entonces el inventario diría lo que cabe en
+   vez de lo que hay. Así que se anota y se informa, con las dos cifras
+   al lado.
+
+   SE COMPARA EN ESTIBAS. La capacidad del maestro está en estibas
+   —A01_DER son 96— y contrastarla contra las CAJAS daría que todos los
+   módulos están al 4.000 %, que es una alarma que nadie volvería a
+   mirar. */
+if (!/total_estibas/.test(pgx))
+  fallas.push("la ocupación no se compara en estibas: contra las cajas todo módulo saldría " +
+              "al 4.000 % y la alarma no serviría de nada");
+if (!/l\.capacidad == null \|\| l\.capacidad <= 0/.test(pgx))
+  fallas.push("una capacidad en cero o sin poner no se salta: daría una división por cero " +
+              "o un módulo «al infinito por ciento»");
+{
+  const con = readFileSync(U("../src/app/(app)/inventario/conteo/Contar.tsx"), "utf8");
+  if (/capacidad/.test(con.replace(/\/\*[\s\S]*?\*\//g, "")))
+    fallas.push("la pantalla de contar mira la capacidad: contar no puede impedirse por " +
+                "sobreocupación, porque obligaría a anotar menos de lo que hay");
+}
 
 /* ---------- 5. NO AFIRMAR SOBRE BORRADORES ---------- */
 if (!/estado === "cerrado"/.test(dat))
