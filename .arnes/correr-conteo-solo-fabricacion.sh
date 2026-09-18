@@ -59,6 +59,17 @@ SQL
 
 $PSQL -d $DB -f .arnes/siembra-conteo-viejo.sql >/dev/null
 
+# COMO LO CORRE EL EDITOR DE SUPABASE, no como lo corre psql.
+#
+# `psql -f` con un `begin;` arriba ejecuta el archivo entero en UNA
+# transacción; el editor de Supabase no. La primera versión de esta
+# migración guardaba los renglones convertidos en una TABLA TEMPORAL, y
+# aquí pasaba en verde mientras en el editor reventaba con «relation
+# "_convertidas" does not exist»: la prueba corría en un sitio distinto
+# de donde el archivo se usa de verdad.
+#
+# `--single-transaction` NO se pasa a propósito, y `-1` tampoco: lo que
+# hay que comprobar es que el archivo aguante SIN que nadie lo agrupe.
 echo "--- la migración, dos veces (tiene que poder correrse varias veces)"
 $PSQL -d $DB -f supabase/migraciones/2026-09-conteo-solo-fabricacion.sql 2>&1 | grep -E "NOTICE|ERROR" || true
 echo "--- segunda vuelta"

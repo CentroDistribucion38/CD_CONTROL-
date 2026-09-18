@@ -380,7 +380,7 @@ export function Importar({ cargas }: { cargas: Carga[] }) {
                   <div className="linea ok">
                     <span className="marca">✓</span>
                     <span>
-                      {listo} <Link href="/quiebra">Ver el tablero</Link>
+                      {listo} <Link href="/quiebra/tablero">Ver el tablero</Link>
                     </span>
                   </div>
                 </div>

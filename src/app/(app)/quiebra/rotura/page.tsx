@@ -153,7 +153,7 @@ export default async function RoturaLineaPage({ searchParams }: {
             <p className="rl-explica">
               <Link href="/quiebra/rotura/maestro">Ver el maestro</Link>
               {" · "}
-              <Link href="/quiebra">Volver al tablero</Link>
+              <Link href="/quiebra/tablero">Volver al tablero</Link>
             </p>
           </div>
         </aside>

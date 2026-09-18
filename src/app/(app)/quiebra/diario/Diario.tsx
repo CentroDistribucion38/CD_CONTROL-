@@ -710,7 +710,7 @@ export function Diario({ inicial, fechaInicial, esEditor, hoy }: Props) {
           <p className="sub">
             El día a día de la hoja quiebra diaria. Trae lo importado de SAP y deja
             escribir a mano lo que todavía no llega; lo escrito manda y la importación
-            no lo borra. <Link href="/quiebra">Ver el tablero del periodo</Link>
+            no lo borra. <Link href="/quiebra/tablero">Ver el tablero del periodo</Link>
           </p>
         </div>
         {/* El color sigue la meta, igual que en el tablero del periodo: rojo

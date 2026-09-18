@@ -167,18 +167,37 @@ const IconoRama = () => (
 );
 
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
-  roturas: IconoRoturas,
+  /* Roturas ya no es un módulo: se mudó dentro de Quiebra. Su dibujo
+     sigue vivo como icono de las ramas «En sitio» y «Salida» y de sus
+     pantallas, más abajo. */
   quiebra: IconoQuiebra,
   sider: IconoSider,
   inventario: IconoInventario,
   acciones: IconoAcciones,
 };
+/* EL ICONO DE UNA RAMA VA POR SU ID Y NO POR SU RUTA.
+   La rama «Envase» entra por /quiebra/tablero, que como SECCIÓN es el
+   tablero y lleva el dibujo del tablero. Buscando por ruta, la rama
+   heredaría ese mismo dibujo y en el riel quedarían dos cosas distintas
+   con la misma cara. Son dos papeles distintos sobre la misma
+   dirección, así que se nombran aparte. */
+const ICONO_RAMA: Record<string, () => React.ReactElement> = {
+  envase: IconoBotella,
+  "en-sitio": IconoRoturas,
+  salida: IconoTolva,
+};
+
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/sider": IconoLista,
   "/sider/certificar": IconoUbicacion,
   "/sider/transito": IconoRuta,
   "/sider/maestro": IconoLlave,
-  "/quiebra": IconoTablero,
+  /* LAS TRES RAMAS DE QUIEBRA, con dibujo propio. Sin estas líneas las
+     tres caerían al icono por defecto y habría que leer el rótulo para
+     distinguirlas — que es justo lo que el riel existe para evitar. La
+     de envase usa la botella; en sitio, el vidrio roto; la salida, la
+     tolva. */
+  "/quiebra/tablero": IconoTablero,
   "/quiebra/diario": IconoDia,
   "/quiebra/rotura": IconoBotella,
   "/quiebra/rotura/tablero": IconoTablero,
@@ -292,7 +311,7 @@ export function Navegacion({ permitidas, anclado, alternar }: {
         )}
 
         {ramas.map((r) => {
-          const Icono = ICONO_RUTA[r.ruta] ?? IconoLista;
+          const Icono = ICONO_RAMA[r.id] ?? ICONO_RUTA[r.ruta] ?? IconoLista;
           return (
             <Link key={r.id} href={r.ruta} className="hijo"
                   prefetch={false}

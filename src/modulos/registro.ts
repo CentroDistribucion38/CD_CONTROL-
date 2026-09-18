@@ -98,41 +98,156 @@ export type Modulo = {
   secciones: Seccion[];
 };
 
-/** En qué rama cae una ruta. Gana la coincidencia más larga: sin eso,
- *  "/roturas/salida" se llevaría también a "/roturas/salida/tolvas". */
+/**
+ * En qué rama cae una ruta.
+ *
+ * DOS CAMINOS, Y HACEN FALTA LOS DOS.
+ *
+ * 1. POR LA DIRECCIÓN. Gana la coincidencia más larga: sin eso,
+ *    "/roturas/salida" se llevaría también a "/roturas/salida/tolvas".
+ *
+ * 2. POR LA SECCIÓN, cuando la dirección no alcanza. Es lo que pasa en
+ *    Quiebra: sus pantallas de envase son /quiebra/tablero,
+ *    /quiebra/diario, /quiebra/importar y /quiebra/rotura, y lo único
+ *    que comparten es /quiebra — que es la ruta del MÓDULO, la pantalla
+ *    que precisamente sirve para escoger rama. Si la rama se declarara
+ *    con ese prefijo, la portada caería dentro de su propia rama y no
+ *    habría dónde escoger. Con esto, cada pantalla dice a qué rama
+ *    pertenece porque ya lo dice su sección, y no hace falta que las
+ *    direcciones se hayan diseñado para eso.
+ *
+ * LA RUTA DEL MÓDULO NUNCA CAE EN UNA RAMA. Es la bifurcación: estando
+ * parado ahí, el riel tiene que mostrar las ramas, no las pantallas de
+ * una de ellas.
+ */
 export function ramaDeRuta(m: Modulo, pathname: string): Rama | undefined {
   if (!m.ramas?.length) return undefined;
-  return m.ramas
+  if (pathname === m.ruta) return undefined;
+
+  const porRuta = m.ramas
     .filter((r) => pathname === r.ruta || pathname.startsWith(r.ruta + "/"))
     .sort((a, b) => b.ruta.length - a.ruta.length)[0];
+  if (porRuta) return porRuta;
+
+  const seccion = m.secciones
+    .filter((s) => !!s.rama && (pathname === s.ruta || pathname.startsWith(s.ruta + "/")))
+    .sort((a, b) => b.ruta.length - a.ruta.length)[0];
+  return seccion ? m.ramas.find((r) => r.id === seccion.rama) : undefined;
 }
 
 export const MODULOS: Modulo[] = [
   {
     id: "quiebra",
     nombre: "Quiebra",
-    eyebrow: "AVERÍAS",
+    eyebrow: "PÉRDIDA DE MATERIAL",
     descripcion:
-      "Rotura de envase retornable medida contra producción, importada del maestro de SAP.",
+      "Todo lo que se pierde: el envase retornable medido contra producción, " +
+      "lo que se rompe en la bodega y el vidrio que sale por la puerta.",
     acento: "#E4002B",
     fondo: "#FBEFD6",
-    etiquetas: ["Meta mensual 1,6%", "Cierre diario editable"],
+    etiquetas: ["Envase contra producción", "Roturas en sitio y a la salida"],
     imagen: "/modulos/quiebra.jpg",
     ruta: "/quiebra",
     activo: true,
+
+    /* ROTURAS SE MUDÓ AQUÍ ADENTRO, Y LAS DIRECCIONES NO SE TOCARON.
+       Sus pantallas siguen viviendo en /roturas/... a propósito: los
+       permisos de cada persona están guardados EN LA BASE como el texto
+       de la dirección —«/roturas/salida», «/roturas/en-sitio/maestro»—,
+       en rol_permisos y en los permisos extra de cada perfil. Cambiar
+       una ruta deja esas filas apuntando a algo que no existe y la
+       persona pierde la pantalla EN SILENCIO: no da error, deja de
+       verse. Es el mismo motivo por el que el módulo que la gente llama
+       T1/T2 sigue viviendo en /sider.
+
+       TRES RAMAS, Y NINGUNA SE SUMA CON OTRA:
+         Envase   mide un PORCENTAJE contra la producción del mes.
+         En sitio cuenta UNIDADES por causa y por proceso.
+         Salida   pesa KILOS de vidrio.
+       No existe el factor que convierta una en otra —una botella de 330
+       y una de 750 pesan distinto, el vidrio se acumula días antes de
+       salir, y parte de lo que se pesa nunca se contó en sitio—. Un
+       menú plano con las catorce pantallas seguidas invita justamente a
+       leerlas como una sola cuenta. */
+    ramas: [
+      {
+        id: "envase",
+        nombre: "Envase",
+        eyebrow: "% CONTRA PRODUCCIÓN",
+        ruta: "/quiebra/tablero",
+        descripcion:
+          "El envase retornable que se da de baja, medido contra lo que se produjo. " +
+          "Contesta cómo vamos contra la meta del mes.",
+      },
+      {
+        id: "en-sitio",
+        nombre: "En sitio",
+        eyebrow: "UNIDADES",
+        ruta: "/roturas/en-sitio",
+        descripcion:
+          "Lo que se rompió en la bodega, contado por causa y por proceso. " +
+          "Contesta de quién fue y de dónde salió.",
+      },
+      {
+        id: "salida",
+        nombre: "Salida",
+        eyebrow: "KILOS",
+        ruta: "/roturas/salida",
+        descripcion:
+          "El vidrio que sale por la puerta, pesado en tolvas y firmado por tres " +
+          "personas. Contesta cuánto salió.",
+      },
+    ],
+
     secciones: [
-      { nombre: "Tablero", ruta: "/quiebra" },
-      { nombre: "Quiebra diaria", ruta: "/quiebra/diario" },
-      { nombre: "Importar", ruta: "/quiebra/importar" },
-      /* ROTURA DE LÍNEA VA DE ÚLTIMA, y el maestro detrás de ella.
-         Vive dentro de Quiebra —es una pérdida de material como las
-         otras, solo que medida contra la producción en vez de contra el
-         inventario— pero es su propio flujo: quien entra a Quiebra va al
+      /* ENVASE. El tablero se mudó de /quiebra a /quiebra/tablero porque
+         /quiebra pasó a ser la bifurcación. Es la ÚNICA ruta que cambió
+         en todo esto, y va con su migración: el nivel que cada rol tenía
+         en /quiebra se copia a /quiebra/tablero, así que nadie pierde
+         nada. */
+      { nombre: "Tablero", ruta: "/quiebra/tablero", rama: "envase" },
+      { nombre: "Quiebra diaria", ruta: "/quiebra/diario", rama: "envase" },
+      { nombre: "Importar", ruta: "/quiebra/importar", rama: "envase" },
+      /* ROTURA DE LÍNEA VA DE ÚLTIMA, y el maestro detrás de ella. Es
+         una pérdida de material como las otras, medida también contra la
+         producción, pero es su propio flujo: quien entra a Envase va al
          tablero, al día a día y a importar. Meterla en medio partía en
          dos lo que se lee de corrido. */
-      { nombre: "Rotura de línea", ruta: "/quiebra/rotura" },
-      { nombre: "Tablero de rotura", ruta: "/quiebra/rotura/tablero" },
-      { nombre: "Maestro de rotura", ruta: "/quiebra/rotura/maestro" },
+      { nombre: "Rotura de línea", ruta: "/quiebra/rotura", rama: "envase" },
+      { nombre: "Tablero de rotura", ruta: "/quiebra/rotura/tablero", rama: "envase" },
+      { nombre: "Maestro de rotura", ruta: "/quiebra/rotura/maestro", rama: "envase" },
+
+      /* EN SITIO. El orden del recorrido: se registra → ABI decide → por
+         qué se rompe → la configuración. */
+      { nombre: "Registrar", ruta: "/roturas/en-sitio", rama: "en-sitio" },
+      { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
+      { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
+      { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
+
+      /* SALIDA: una pantalla por etapa de la cadena, y en el orden en que
+         pasa. Las tres firmas son de tres personas distintas y cada una
+         trabaja en un sitio distinto: la supervisora en la báscula, el
+         verificador revisando, quien valida dando el aval de salida. Con
+         las tres firmas en una sola hoja, la misma persona ve los tres
+         botones, toca dos, y la base le contesta que no —que es tener la
+         regla como regaño en vez de como camino—. Aquí la salida
+         AVANZA: sale de una bandeja y aparece en la siguiente. */
+      { nombre: "Pesar", ruta: "/roturas/salida", rama: "salida" },
+      { nombre: "Verificación", ruta: "/roturas/salida/verificacion", rama: "salida" },
+      { nombre: "Validación", ruta: "/roturas/salida/validacion", rama: "salida" },
+      { nombre: "Análisis", ruta: "/roturas/salida/analisis", rama: "salida" },
+      { nombre: "Tolvas", ruta: "/roturas/salida/tolvas", rama: "salida" },
+
+      /* LA VIEJA PORTADA DE ROTURAS. Ya no se lista —su trabajo lo hace
+         ahora la de Quiebra— pero la pantalla sigue existiendo y manda
+         para acá: hay gente con ese enlace guardado y en la app
+         instalada no hay barra de direcciones donde corregirlo.
+
+         Y SE QUEDA REGISTRADA, oculta, en vez de borrarse: quitarla del
+         registro le quitaría su casilla en /admin/roles, y entonces la
+         fila de permiso que cada rol ya tiene sobre «/roturas» quedaría
+         sin forma de verse ni de cambiarse. */
+      { nombre: "Roturas (portada vieja)", ruta: "/roturas", oculto: true },
     ],
   },
   {
@@ -197,67 +312,16 @@ export const MODULOS: Modulo[] = [
       { nombre: "Maestro", ruta: "/sider/maestro" },
     ],
   },
-  {
-    id: "roturas",
-    nombre: "Roturas",
-    eyebrow: "VIDRIO Y PRODUCTO ROTO",
-    descripcion:
-      "Todo lo que se rompe en la bodega, desde que el operario lo levanta del piso hasta que el vidrio sale por la puerta con las tres firmas.",
-    acento: "#0D0D0D",
-    fondo: "#FFF4DE",
-    etiquetas: ["Unidades en sitio", "Kilos a la salida"],
-    imagen: "/modulos/roturas.jpg",
-    ruta: "/roturas",
-    /* Quien abre Roturas casi siempre viene a registrar una, no a mirar
-       el informe: está de pie al lado del vidrio. */
-    entrada: "/roturas",
-    activo: true,
-    /* DOS RAMAS QUE NO SE MEZCLAN, tampoco en el menú.
-       En sitio cuenta UNIDADES por causa y proceso; la salida pesa
-       KILOS de vidrio. Son dos preguntas distintas —de quién fue la
-       rotura, y cuánto vidrio salió— y no existe el factor que
-       convierta una en la otra. Un menú plano con las cinco pantallas
-       seguidas invita justamente a lo contrario: a leer las unidades de
-       arriba y los kilos de abajo como si fueran la misma cuenta. */
-    ramas: [
-      {
-        id: "en-sitio",
-        nombre: "En sitio",
-        eyebrow: "UNIDADES",
-        ruta: "/roturas/en-sitio",
-        descripcion: "Lo que se rompió en la bodega, contado por causa y por proceso. Contesta de quién fue y de dónde salió.",
-      },
-      {
-        id: "salida",
-        nombre: "Salida",
-        eyebrow: "KILOS",
-        ruta: "/roturas/salida",
-        descripcion: "El vidrio que sale por la puerta, pesado en tolvas y firmado por tres personas. Contesta cuánto salió.",
-      },
-    ],
-    // Dentro de cada rama, el orden del recorrido: se registra → ABI
-    // decide → por qué se rompe → la configuración.
-    secciones: [
-      { nombre: "Registrar", ruta: "/roturas/en-sitio", rama: "en-sitio" },
-      { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
-      { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
-      { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
+  /* ROTURAS YA NO ES UN MÓDULO APARTE: se mudó dentro de Quiebra, arriba,
+     como dos de sus tres ramas —«En sitio» y «Salida»—. Las tres miden
+     material perdido y ahora se entra a las tres por la misma puerta.
 
-      /* UNA PANTALLA POR ETAPA DE LA CADENA, y en el orden en que pasa.
-         Las tres firmas son de tres personas distintas y cada una
-         trabaja en un sitio distinto: la supervisora en la báscula, el
-         verificador revisando, quien valida dando el aval de salida.
-         Con las tres firmas en una sola hoja, la misma persona ve los
-         tres botones, toca dos, y la base le contesta que no —que es
-         tener la regla como regaño en vez de como camino—. Aquí la
-         salida AVANZA: sale de una bandeja y aparece en la siguiente. */
-      { nombre: "Pesar", ruta: "/roturas/salida", rama: "salida" },
-      { nombre: "Verificación", ruta: "/roturas/salida/verificacion", rama: "salida" },
-      { nombre: "Validación", ruta: "/roturas/salida/validacion", rama: "salida" },
-      { nombre: "Análisis", ruta: "/roturas/salida/analisis", rama: "salida" },
-      { nombre: "Tolvas", ruta: "/roturas/salida/tolvas", rama: "salida" },
-    ],
-  },
+     SUS DIRECCIONES NO CAMBIARON. Siguen siendo /roturas/…, y eso es a
+     propósito: los permisos están guardados en la base como el TEXTO de
+     la dirección, y moverlas habría dejado a cada persona sin sus
+     pantallas en silencio. Lo que cambió es dónde se entra, no dónde
+     vive. */
+
   {
     id: "traspasos",
     nombre: "Traspasos",

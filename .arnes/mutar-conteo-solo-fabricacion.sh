@@ -43,25 +43,25 @@ open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
 PY
 probar "restar, no sumar" "La cuenta no cuadra"
 
-# 2. EL AÑO A MANO. Restarle 1 al año de dos cifras en vez de sacarlo de
-#    la fecha: acierta cuando la resta cruza el año y falla cuando no —o
-#    al revés, según el mes—. Es el error que solo se ve con un caso que
-#    cruce diciembre, y por eso la siembra trae uno.
+# 2. EL AÑO A MANO. Copiar el año del vencimiento en vez de sacarlo de la
+#    fecha ya restada: acierta cuando la resta no cruza el año y falla
+#    cuando sí. Solo se ve con un caso que cruce diciembre, y por eso la
+#    siembra trae uno.
 python3 - <<'PY'
 s=open('/tmp/fab-buena.sql',encoding='utf-8').read()
-s=s.replace("""       fab_anio = (extract(year from (
-         make_date(2000 + l.venc_anio, l.venc_mes, l.venc_dia) - p.vida_util))::integer - 2000)::smallint""",
-            """       fab_anio = l.venc_anio""")
+s=s.replace("""           fab_anio = (extract(year from (
+             make_date(2000 + l.venc_anio, l.venc_mes, l.venc_dia) - p.vida_util))::integer - 2000)::smallint""",
+            """           fab_anio = l.venc_anio""")
 open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
 PY
-probar "el año sale de la fecha, no se resta a mano" "La cuenta no cuadra"
+probar "el año sale de la fecha, no se copia" "La cuenta no cuadra"
 
 # 3. SIN VIDA ÚTIL, RESTAR CERO. Le pondría al renglón una fabricación
 #    igual a su vencimiento: un dato inventado que además parece bueno.
 python3 - <<'PY'
 s=open('/tmp/fab-buena.sql',encoding='utf-8').read()
-s=s.replace("   and coalesce(p.vida_util, 0) > 0\nreturning l.id)",
-            "   and coalesce(p.vida_util, 0) >= 0\nreturning l.id)")
+s=s.replace("       and coalesce(p.vida_util, 0) > 0\n    returning",
+            "       and coalesce(p.vida_util, 0) >= 0\n    returning")
 s=s.replace("make_date(2000 + l.venc_anio, l.venc_mes, l.venc_dia) - p.vida_util",
             "make_date(2000 + l.venc_anio, l.venc_mes, l.venc_dia) - coalesce(p.vida_util, 0)")
 open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
@@ -72,7 +72,8 @@ probar "sin vida útil no se inventa nada" "3(se invento una fabricacion sin vid
 #    un renglón que se tecleó frente a la estiba.
 python3 - <<'PY'
 s=open('/tmp/fab-buena.sql',encoding='utf-8').read()
-s=s.replace("   and l.fab_anio is null\n   and l.venc_anio is not null", "   and l.venc_anio is not null")
+s=s.replace("       and l.fab_anio is null\n       and l.venc_anio is not null",
+            "       and l.venc_anio is not null")
 open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
 PY
 probar "no se pisa lo que ya tenía fabricación" "5(le cambio la fabricacion a uno que ya la tenia"
@@ -83,20 +84,22 @@ probar "no se pisa lo que ya tenía fabricación" "5(le cambio la fabricacion a 
 #    que salir — no el de la prueba.
 python3 - <<'PY'
 s=open('/tmp/fab-buena.sql',encoding='utf-8').read()
-s=s.replace("   and coalesce(p.vida_util, 0) > 0\nreturning l.id)",
-            "   and false\nreturning l.id)")
+s=s.replace("       and coalesce(p.vida_util, 0) > 0\n    returning",
+            "       and false\n    returning")
 open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
 PY
 probar "la migración exige haber convertido" "convertibles sin convertir"
 
 # 5b. LO MISMO, PERO CON LA GUARDIA TAMBIÉN ROTA. Es el escenario que de
-#     verdad pone a prueba la aserción 6: no se convirtió nada y nadie lo
-#     impidió.
+#     verdad pone a prueba la aserción 6 de la prueba: no se convirtió
+#     nada y nadie lo impidió.
 python3 - <<'PY'
 s=open('/tmp/fab-buena.sql',encoding='utf-8').read()
-s=s.replace("   and coalesce(p.vida_util, 0) > 0\nreturning l.id)",
-            "   and false\nreturning l.id)")
-s=s.replace("  if v_quedan > 0 then\n    raise exception 'Quedaron % renglones convertibles sin convertir', v_quedan;\n  end if;", "")
+s=s.replace("       and coalesce(p.vida_util, 0) > 0\n    returning",
+            "       and false\n    returning")
+s=s.replace("""  if v_quedan > 0 then
+    raise exception 'Quedaron % renglones convertibles sin convertir', v_quedan;
+  end if;""", "")
 open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
 PY
 probar "de verdad convierte" "6(quedaron"
@@ -107,43 +110,62 @@ probar "de verdad convierte" "6(quedaron"
 #
 #    SE MUEVE DE FORMA COHERENTE —un año más en el vencimiento Y en la
 #    fabricación despejada— a propósito. Moverlo a secas lo cazaría la
-#    guardia de la migración («la cuenta no cuadra») y no la aserción
-#    que dice probarse. Así queda todo cuadrado por dentro y el único
-#    que puede notarlo es quien compare contra el dato de antes, que es
+#    guardia de la migración («la cuenta no cuadra») y no la aserción que
+#    dice probarse. Así queda todo cuadrado por dentro y el único que
+#    puede notarlo es quien compare contra el dato de antes, que es
 #    exactamente lo que hace la prueba 1b.
 python3 - <<'PY'
 s=open('/tmp/fab-buena.sql',encoding='utf-8').read()
 s=s.replace("make_date(2000 + l.venc_anio, l.venc_mes, l.venc_dia) - p.vida_util",
             "make_date(2000 + l.venc_anio + 1, l.venc_mes, l.venc_dia) - p.vida_util")
-s=s.replace("))::integer - 2000)::smallint\n  from public.productos p",
-            "))::integer - 2000)::smallint,\n       venc_anio = (l.venc_anio + 1)::smallint\n  from public.productos p")
+s=s.replace("""))::integer - 2000)::smallint
+      from public.productos p""",
+            """))::integer - 2000)::smallint,
+           venc_anio = (l.venc_anio + 1)::smallint
+      from public.productos p""")
 open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
 PY
 probar "el vencimiento no se toca" "1b(le movio el vencimiento"
 
-# 7. LA COMPROBACIÓN SOBRE TODAS LAS FILAS, no solo las convertidas. Es
-#    el error que YO tenía: la migración se habría negado a correr por un
-#    renglón viejo que ella no tocó, solo porque a su material le
-#    cambiaron la vida útil después de contarse. Aquí se comprueba que
-#    volver a ese comportamiento se note.
+# 7. COMPROBAR SOBRE TODA LA TABLA, no solo sobre lo convertido. Es el
+#    error que YO tenía: la migración se habría negado a correr por un
+#    renglón viejo que ella no toca, solo porque a su material le
+#    cambiaron la vida útil después de contarse. La siembra trae uno así
+#    justamente para que esto se note.
 python3 - <<'PY'
 s=open('/tmp/fab-buena.sql',encoding='utf-8').read()
-s=s.replace("""  select count(*) into v_malos
-    from public.conteo_lineas l
-    join _convertidas c on c.id = l.id
-    join public.productos p on p.id = l.producto_id
-   where make_date(2000 + l.fab_anio, l.fab_mes, l.fab_dia) + p.vida_util
-       <> make_date(2000 + l.venc_anio, l.venc_mes, l.venc_dia);""",
-"""  select count(*) into v_malos
-    from public.conteo_lineas l
-    join public.productos p on p.id = l.producto_id
-   where l.fab_anio is not null and l.venc_anio is not null
-     and coalesce(p.vida_util, 0) > 0
-     and make_date(2000 + l.fab_anio, l.fab_mes, l.fab_dia) + p.vida_util
-       <> make_date(2000 + l.venc_anio, l.venc_mes, l.venc_dia);""")
+s=s.replace("""  if v_quedan > v_descuadrados_antes then
+    raise exception 'La conversión descuadró % renglón(es) que antes cuadraban',
+      v_quedan - v_descuadrados_antes;
+  end if;""",
+"""  if v_quedan > 0 then
+    raise exception 'La cuenta no cuadra en % renglon(es) de toda la tabla', v_quedan;
+  end if;""")
 open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
 PY
-probar "no revienta por un renglón que no tocó" "La cuenta no cuadra"
+probar "no revienta por un renglón que no tocó" "de toda la tabla"
+
+# 8. DEPENDER DE UNA TABLA TEMPORAL ENTRE SENTENCIAS.
+#
+#    ES EL ERROR QUE DE VERDAD PASÓ, y el más caro de los ocho: la
+#    primera versión guardaba los renglones convertidos en una tabla
+#    temporal `on commit drop` y los comprobaba en la sentencia
+#    siguiente. Con `psql -f` y un `begin;` arriba funcionaba; en el
+#    editor de Supabase reventó con «relation "_convertidas" does not
+#    exist», porque ahí el archivo no corre como una sola transacción.
+#
+#    El arnés tiene que cazarlo SIN Supabase delante, y por eso corre la
+#    migración sin agrupar nada. Esta mutación comprueba que ese arnés
+#    de verdad lo caza.
+python3 - <<'PY'
+s=open('/tmp/fab-buena.sql',encoding='utf-8').read()
+s=s.replace("do $$\ndeclare\n  v_ya int;",
+            "create temp table _convertidas on commit drop as select 1 as id;\n\ndo $$\ndeclare\n  v_ya int;")
+s=s.replace("  select count(*) into v_ya\n    from public.conteo_lineas where fab_anio is not null;",
+            "  select count(*) into v_ya from _convertidas;")
+open('/tmp/fab-mutada.sql','w',encoding='utf-8').write(s)
+PY
+probar "nada puede depender de una tabla temporal" 'relation "_convertidas" does not exist'
 
 cp /tmp/fab-buena.sql "$ORIG"
 echo
@@ -151,4 +173,4 @@ if [ "$FALLOS" -gt 0 ]; then
   echo "$FALLOS aserción(es) no cazan lo que dicen cazar."
   exit 1
 fi
-echo "Las 8 se pusieron rojas. El arnés caza lo que dice cazar."
+echo "Las 9 se pusieron rojas. El arnés caza lo que dice cazar."

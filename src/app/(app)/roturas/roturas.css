@@ -563,59 +563,12 @@
 /* =====================================================================
    LA BIFURCACIÓN — las dos ramas del módulo.
    ===================================================================== */
-.rt .ramas {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px; max-width: 1040px;
-}
-.rt .rama {
-  position: relative; overflow: hidden; min-width: 0;
-  display: flex; flex-direction: column;
-  background: var(--rt-papel); border: 1px solid var(--rt-linea);
-  border-left: 5px solid var(--rt-negro);
-  padding: 26px 28px 24px; text-decoration: none; color: inherit;
-}
-.rt .rama:hover { border-left-color: var(--rt-oro) }
-.rt .rama .corte {
-  position: absolute; top: -34px; right: -52px; width: 130px; height: 170px;
-  background: var(--rt-oro); opacity: .22; transform: skewX(-20deg);
-}
-.rt .rama .rot {
-  position: relative; font-size: 11.5px; font-weight: 600; letter-spacing: .18em;
-  color: var(--rt-ojo);
-}
-.rt .rama .nom {
-  position: relative; font-family: var(--rt-titulo); font-weight: 900;
-  font-size: clamp(32px, 3.6vw, 48px); line-height: 1; letter-spacing: -.05em;
-  margin-top: 8px;
-}
-.rt .rama .des {
-  font-size: 14px; line-height: 1.55; color: var(--rt-gris);
-  margin-top: 12px; max-width: 40ch;
-}
-.rt .rama .cifra-rama {
-  display: block; margin-top: auto; padding-top: 18px;
-  border-top: 1px solid var(--rt-linea);
-}
-.rt .rama .cifra-rama b {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: 38px;
-  letter-spacing: -.045em; font-variant-numeric: tabular-nums;
-}
-.rt .rama .cifra-rama i { font-style: normal; font-size: 14px; font-weight: 600; margin-left: 7px }
-.rt .rama .cifra-rama em {
-  display: block; font-style: normal; font-size: 12.5px;
-  color: var(--rt-gris); margin-top: 4px; line-height: 1.4;
-}
-.rt .rama .cifra-rama.mal b { color: var(--rt-mal) }
-.rt .rama .entrar {
-  display: inline-flex; align-items: center; gap: 10px; margin-top: 18px;
-  font-family: var(--rt-titulo); font-size: 14px; font-weight: 800;
-}
-.rt .rama .entrar svg {
-  width: 28px; height: 28px; padding: 5px; border-radius: 50%;
-  background: var(--rt-negro); color: #fff; stroke: currentColor; stroke-width: 2;
-  flex: none;
-}
-.rt .rama:hover .entrar svg { background: var(--rt-oro); color: var(--rt-sobre-oro) }
+/* LA BIFURCACIÓN DE ROTURAS VIVÍA AQUÍ, y se fue con la portada.
+   Roturas se mudó dentro de Quiebra: la pantalla que escoge submódulo es
+   ahora /quiebra, y sus estilos están en quiebra.css. Estas cincuenta
+   líneas se borran en vez de quedarse «por si acaso» — CSS que ya no
+   pinta nada es CSS que alguien va a copiar dentro de seis meses
+   creyendo que está en uso. */
 
 /* =====================================================================
    REGISTRAR EN SITIO — el asistente del celular.

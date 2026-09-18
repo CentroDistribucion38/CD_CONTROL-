@@ -777,3 +777,117 @@ body.capturando .qb .acciones-informe { visibility: hidden }
    trabajando cuando no lo está. Solo mientras guarda de verdad. */
 .qb .sim-pie .btn:disabled { cursor: default }
 .qb .sim-pie .btn[aria-busy="true"] { cursor: progress }
+
+/* =====================================================================
+   LA BIFURCACIÓN — tres submódulos y hay que escoger uno.
+
+   Es la primera pantalla de Quiebra desde que Roturas se mudó aquí
+   adentro. Existe para SEPARAR: los tres miden material perdido y
+   ninguno se suma con otro —porcentaje contra producción, unidades
+   rotas, kilos de vidrio— y no existe el factor que convierta uno en
+   otro. Con las catorce pantallas en una sola lista, alguien acaba
+   leyendo una cifra de arriba y otra de abajo como si fueran la misma
+   cuenta.
+
+   Misma forma que la bifurcación que ya tenía Roturas, a propósito: la
+   gente que ya la conocía no tiene que aprender otra.
+   ===================================================================== */
+.qb .cabeza-ramas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px }
+.qb .cabeza-ramas h1 {
+  font-family: var(--qb-titulo); font-weight: 900;
+  font-size: clamp(30px, 3.1vw, 42px); letter-spacing: -.045em; line-height: 1.02;
+  margin: 8px 0 0;
+}
+.qb .cabeza-ramas .ojo { margin: 0 }
+.qb .cabeza-ramas .sub {
+  margin: 12px 0 0; font-size: 14.5px; line-height: 1.62;
+  color: var(--qb-gris); max-width: 68ch;
+}
+.qb .cabeza-ramas .sub b { color: var(--qb-tinta); font-weight: 700 }
+
+/* TRES EN UNA FILA EN PANTALLA GRANDE, y una debajo de otra en el
+   celular. `auto-fit` con un mínimo y no `repeat(3, 1fr)`: con tres
+   columnas fijas, la persona a la que su rol solo le abre una tarjeta la
+   vería ocupando un tercio y dos huecos al lado. */
+.qb .ramas {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px; max-width: 1180px;
+}
+.qb .rama {
+  position: relative; overflow: hidden; min-width: 0;
+  display: flex; flex-direction: column;
+  background: var(--qb-papel); border: 1px solid var(--qb-linea);
+  border-left: 5px solid var(--qb-tinta);
+  padding: 26px 28px 24px; text-decoration: none; color: inherit;
+}
+.qb .rama:hover { border-left-color: var(--qb-rojo) }
+.qb .rama .corte {
+  position: absolute; top: -34px; right: -52px; width: 130px; height: 170px;
+  background: var(--qb-rojo); opacity: .18; transform: skewX(-20deg);
+}
+.qb .rama .rot {
+  position: relative; font-size: 11.5px; font-weight: 600; letter-spacing: .18em;
+  color: var(--qb-gris);
+}
+.qb .rama .nom {
+  position: relative; font-family: var(--qb-titulo); font-weight: 900;
+  font-size: clamp(30px, 3.2vw, 44px); line-height: 1; letter-spacing: -.05em;
+  margin-top: 8px;
+}
+.qb .rama .des {
+  font-size: 14px; line-height: 1.55; color: var(--qb-gris);
+  margin-top: 12px; max-width: 40ch;
+}
+
+/* LA CIFRA VIVA, PEGADA ABAJO. `margin-top: auto` la clava al pie
+   aunque las descripciones tengan largos distintos: si cada tarjeta
+   pusiera su número donde le toque, las tres quedarían desalineadas y
+   habría que buscarlas de una en una. */
+.qb .rama .cifra-rama {
+  display: block; margin-top: auto; padding-top: 18px;
+  border-top: 1px solid var(--qb-linea);
+}
+.qb .rama .cifra-rama b {
+  font-family: var(--qb-titulo); font-weight: 900; font-size: 38px;
+  letter-spacing: -.045em; font-variant-numeric: tabular-nums;
+}
+.qb .rama .cifra-rama i { font-style: normal; font-size: 14px; font-weight: 600; margin-left: 7px }
+/* EL PIE RESERVA DOS RENGLONES AUNQUE OCUPE UNO.
+   Sin esto, los tres números NO quedan a la misma altura: el bloque de
+   la cifra se pega al fondo de la tarjeta, así que un pie de dos líneas
+   empuja su número un renglón más arriba que el de la tarjeta de al
+   lado. Y el número es justo lo que se lee de un barrido — desalineados
+   hay que buscarlos de uno en uno.
+
+   Lo cazó el arnés, no el ojo: con los tres pies de verdad —«de quiebra
+   en agosto de 2026» ocupa una línea y «esperando visto bueno · 2 sin la
+   foto que exige su causa» ocupa dos— la diferencia es de 18 px y a
+   simple vista parece un descuido de espaciado.
+
+   DOS RENGLONES Y NO MÁS: si algún día un pie necesita tres, esto deja
+   de alcanzar y el arnés lo vuelve a decir. Es preferible a clavar una
+   altura que recorte el texto. */
+.qb .rama .cifra-rama em {
+  display: block; font-style: normal; font-size: 12.5px;
+  color: var(--qb-gris); margin-top: 4px; line-height: 1.4;
+  min-height: 2.8em;
+}
+.qb .rama .cifra-rama.mal b { color: var(--qb-rojo) }
+.qb .rama .entrar {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 18px;
+  font-family: var(--qb-titulo); font-size: 14px; font-weight: 800;
+}
+.qb .rama .entrar svg {
+  width: 28px; height: 28px; padding: 5px; border-radius: 50%;
+  background: var(--qb-tinta); color: #fff; stroke: currentColor; stroke-width: 2;
+  fill: none; flex: none;
+}
+.qb .rama:hover .entrar svg { background: var(--qb-rojo) }
+
+/* NINGUNA RAMA ABIERTA. Se dice qué hacer, no solo que no hay nada:
+   quien llega aquí no tiene forma de adivinar que es cosa de permisos. */
+.qb .aviso-ramas {
+  background: var(--qb-papel); border: 1px solid var(--qb-linea);
+  border-left: 4px solid var(--qb-rojo); padding: 18px 20px;
+  font-size: 14px; line-height: 1.6; max-width: 70ch;
+}

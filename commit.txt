@@ -1,109 +1,135 @@
-Contar: se acabó «VENCE». Solo se teclea la fecha de fabricación
+Quiebra absorbe Roturas: tres submódulos y una sola puerta
 
-«Te dije: se anota fecha de fabricación y se calcula sola la fecha de
-vencimiento. Mira cómo.»
+«Ingresa el módulo de Roturas dentro de Quiebra, y acomódalos por
+submódulos, así como en sitio y así.»
 
-=====================================================================
-1 · QUÉ HICE MAL
-=====================================================================
-
-Ayer le quité el interruptor «Vence | Se fabricó» a la pantalla, pero le
-DEJÉ la posición «Vence» adentro «por si acaso», para los renglones
-anotados antes del cambio.
-
-Dos consecuencias, y las dos me las encontró él en diez minutos:
-
-  1. EL BORRADOR GUARDADO EN EL TELÉFONO SE QUEDABA PEGADO. La pantalla
-     recuerda el renglón a medio llenar en localStorage, y los guardados
-     de antes del cambio traían la marca «vence». Al restaurarse, el
-     formulario abría en «Vence» — y como ya no hay interruptor, NO
-     HABÍA MANERA DE SALIR DE AHÍ. Un estado sin salida que dejé yo
-     mismo al quitar el único control que lo cambiaba, y que nadie ve
-     probando con el teléfono limpio.
-
-  2. Y aunque hubiera funcionado, seguía estando mal: la pantalla
-     mostraba «VENCE» cuando lo que él pidió es que esa palabra no
-     aparezca.
+Y de paso, dos fallos que aparecieron por el camino: uno mío en la
+migración del conteo, y uno vivo en los permisos que lleva ahí desde que
+existen.
 
 =====================================================================
-2 · LO QUE DICE LA HOJA
+1 · TRES SUBMÓDULOS QUE NO SE SUMAN
 =====================================================================
 
-FEFO 002.xlsx, columna S:
+  ENVASE    un PORCENTAJE contra la producción del mes.
+  EN SITIO  UNIDADES rotas, por causa y por proceso.
+  SALIDA    KILOS de vidrio que salieron por la puerta.
 
-    S = IFERROR(DATE(K+2000, J, I), "")
+No existe el factor que convierta uno en otro: una botella de 330 y una
+de 750 pesan distinto, el vidrio se acumula días antes de salir, parte de
+lo que se pesa nunca se contó en sitio, y el porcentaje de envase se mide
+contra litros producidos. Con las catorce pantallas en una sola lista,
+tarde o temprano alguien lee una cifra de arriba y otra de abajo como si
+fueran la misma cuenta y arma un informe con un factor inventado.
 
-Lo que se teclea en D/M/A ES el vencimiento, sin sumarle nada. Es decir:
-la cuenta de la vida útil se venía haciendo DE CABEZA antes de escribir
-el número. Eso es justo lo que la app viene a quitar — y por eso «Vence»
-no tiene por qué existir como opción.
-
-=====================================================================
-3 · CONVERTIR LO VIEJO, NO ARRASTRARLO
-=====================================================================
-
-    fabricación = vencimiento − vida útil
-
-La cuenta es exacta y reversible: no se inventa un dato, se despeja el
-que ya estaba. EL VENCIMIENTO NO SE TOCA — es lo que manda, de él salen
-«días para vencer» y «días para salir», y queda idéntico.
-
-Donde no se puede, no se hace, y se dice en voz alta:
-  · Renglones sin ninguna fecha (los envases) se quedan sin las dos.
-    No les falta nada: el retornable no trae fecha impresa.
-  · Materiales sin vida útil en el maestro: no hay con qué despejar. La
-    migración cuenta cuántos son y dice cómo arreglarlo.
-
-Y toca también los conteos ya enviados, a propósito: no cambia ninguna
-cifra que un informe mire, solo rellena de dónde salía.
+/quiebra pasa a ser la bifurcación —una tarjeta por submódulo, con su
+cifra viva en la unidad de ese submódulo— y el riel solo muestra las
+pantallas del submódulo en el que uno está.
 
 =====================================================================
-4 · LO QUE EL ARNÉS ME DEVOLVIÓ
+2 · LAS DIRECCIONES DE ROTURAS NO SE TOCARON
 =====================================================================
 
-MI PROPIA MIGRACIÓN ESTABA MAL, y lo encontró la siembra de prueba.
+Y es la decisión que más importaba. Los permisos de cada persona están
+guardados EN LA BASE como el TEXTO de la dirección —rol_permisos.seccion
+y perfiles.permisos_extra—, así que renombrar una ruta deja esas filas
+apuntando a algo que ya no existe y la persona pierde la pantalla EN
+SILENCIO: no da error, deja de verse.
 
-Comprobaba que «fabricación + vida útil = vencimiento» en TODOS los
-renglones que tuvieran las dos fechas. Suena bien y es un error: basta
-con que alguien le cambie la vida útil a un material en el maestro para
-que un renglón viejo —tecleado con su fabricación, y correcto el día que
-se tecleó— deje de cuadrar contra la vida útil de HOY. La migración se
-habría negado a correr por una fila que ella no toca.
+Sus pantallas siguen en /roturas/en-sitio y /roturas/salida. Lo que
+cambió es por dónde se entra, no dónde viven. Es el mismo criterio por el
+que el módulo que la gente llama T1/T2 sigue viviendo en /sider.
 
-Un conteo es la foto de su día. Ahora comprueba solo lo que convirtió, y
-lo demás lo cuenta y lo avisa.
+LA ÚNICA RUTA QUE CAMBIÓ es el tablero de envase: /quiebra era el
+tablero, y ahora /quiebra es la bifurcación. Va con su migración, que
+COPIA —no mueve— el nivel de cada rol y de cada persona a
+/quiebra/tablero. Se copia porque /quiebra sigue siendo la puerta del
+módulo: quien no la tenga no vería ni la bifurcación.
 
-OCHO MUTACIONES, y las ocho se ponen rojas: sumar en vez de restar, el
-año restado a mano en vez de sacado de la fecha, restar cero cuando no
-hay vida útil, pisar lo que ya tenía fabricación, no convertir nada,
-moverle el vencimiento, y volver a comprobar sobre todas las filas.
-
-DOS SE EQUIVOCABAN DE ACUSADO y las reescribí. «No convertir nada» salía
-roja, sí — pero por la guardia de la propia migración, no por la
-aserción que decía probar. Y «moverle el vencimiento» lo cazaba la misma
-guardia. Una mutación que se equivoca de acusado es tan inútil como una
-aserción que no puede fallar: ahora una mueve el vencimiento de forma
-COHERENTE —el año en los dos sitios— para que solo pueda notarlo quien
-compare contra el dato de antes, que es lo que hace la prueba.
-
-Y el arnés de la pantalla gana tres aserciones: que no vuelva el estado
-«vence», que al corregir se abra con la fabricación, y que el borrador
-guardado se restaure solo con las claves que el formulario tiene HOY —
-que es exactamente lo que dejó la pantalla sin salida.
+Y LA PORTADA VIEJA DE ROTURAS manda para /quiebra en vez de dar 404: hay
+gente con ese enlace guardado y en la app instalada no hay barra de
+direcciones donde corregirlo. Queda registrada pero oculta, para no
+perder su casilla en /admin/roles.
 
 =====================================================================
-5 · PARA CORRER
+3 · UN FALLO VIVO QUE APARECIÓ SOLO
 =====================================================================
 
-  supabase/migraciones/2026-09-conteo-solo-fabricacion.sql
+No lo buscaba. Estaba sembrando casos para probar la migración —uno era
+«a esta persona le cerraron /quiebra a mano»— y la siembra reventó contra
+un CHECK de la base.
 
-Después de 2026-09-conteo-fabricacion.sql. Se puede correr varias veces.
-Probado contra Postgres 16 con renglones sembrados COMO ERAN ANTES —sin
-eso, una migración de datos que no encuentra datos pasa en verde sin
-haber hecho nada—, y con la resta cruzando el año hacia atrás, que es
-donde un año de dos cifras se rompe.
+En /admin/usuarios, cada persona puede tener permisos propios con tres
+niveles: «Sin acceso», «Ver» y «Editar». El motor de permisos cuenta con
+ello textualmente: «"ninguno" es cómo se le quita a una sola persona una
+pantalla que su rol sí da». PERO LA BASE SOLO ADMITÍA DOS:
 
-  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-conteo-solo-fabricacion.sql' | Set-Clipboard"
+    select bool_and(e.value in ('ver', 'editar'))
+
+Así que escoger «Sin acceso» para alguien terminaba en un error al
+guardar, y la única forma de quitarle UNA pantalla a UNA persona era
+inventarle un rol para ella sola — justo lo que los roles venían a
+evitar. Un fallo silencioso: no rompe ninguna pantalla, no sale en ningún
+informe, y quien lo sufre cree que lo hizo mal.
+
+Va arreglado en archivo aparte, de una línea, sin tocar ninguna fila.
+
+=====================================================================
+4 · LO QUE EL ARNÉS ME DEVOLVIÓ (TRES VECES LO MISMO)
+=====================================================================
+
+MI PROPIA COMPROBACIÓN JUZGABA FILAS QUE LA MIGRACIÓN NO TOCA. Exigía
+que el nivel del tablero fuera igual al de /quiebra en TODOS los roles —
+incluido el que ya lo tenía puesto a mano con otro nivel, que es
+precisamente la fila que la migración decide respetar. Se habría negado a
+correr por su propia decisión correcta.
+
+Es la segunda vez en el día: la migración del conteo comprobaba la cuenta
+en todos los renglones y habría reventado por uno viejo al que le
+cambiaron la vida útil después de contarse. Comprobar de más es tan error
+como comprobar de menos, y se ve igual de bien escrito.
+
+Y LA TERCERA: cuatro mutaciones salieron «verdes» y no era que nadie
+cazara el error — lo cazaba la GUARDIA de la migración en vez de la
+aserción que decía probarlo. Ahora cada error se rompe dos veces, con la
+guardia puesta y con la guardia también rota. Doce mutaciones, doce rojas.
+
+LOS TRES NÚMEROS NO QUEDABAN A LA MISMA ALTURA. El bloque de la cifra se
+pega al fondo de la tarjeta, así que un pie de dos líneas empujaba su
+número un renglón más arriba que el de al lado. 18 px: a simple vista
+parece un descuido de espaciado, y el número es justo lo que se lee de un
+barrido. Lo cazó el arnés midiendo, no el ojo.
+
+=====================================================================
+5 · Y EL CONTEO, CORREGIDO
+=====================================================================
+
+La migración de «solo fabricación» guardaba los renglones convertidos en
+una TABLA TEMPORAL para comprobarlos después. Con psql —donde yo la
+probé— el archivo corre como una sola transacción y funciona. El editor
+de Supabase no lo agrupa así: «relation "_convertidas" does not exist».
+Probé en un sitio distinto de donde el archivo se usa.
+
+Ahora va todo en un solo `do $$`: el UPDATE y su comprobación en la misma
+sentencia. Y el arnés corre las migraciones SIN AGRUPAR NADA, como el
+editor, con una mutación que reintroduce la tabla temporal a propósito.
+
+=====================================================================
+6 · PARA CORRER, EN ESTE ORDEN
+=====================================================================
+
+  1. supabase/migraciones/2026-09-permiso-sin-acceso-por-persona.sql
+  2. supabase/migraciones/2026-09-roturas-dentro-de-quiebra.sql
+  3. supabase/migraciones/2026-09-conteo-solo-fabricacion.sql   (otra vez)
+
+Los tres se pueden correr varias veces. Probados contra un Postgres 16 de
+verdad, sin agrupar, con casos sembrados que el archivo de roles no trae:
+un rol con «editar», uno que ya tenía el tablero puesto a mano, una
+persona con la pantalla cerrada por encima de su rol y otra con ella
+abierta.
+
+  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-permiso-sin-acceso-por-persona.sql' | Set-Clipboard"
+  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-roturas-dentro-de-quiebra.sql' | Set-Clipboard"
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
