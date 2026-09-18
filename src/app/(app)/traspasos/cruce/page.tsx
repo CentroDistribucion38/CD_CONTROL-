@@ -1,26 +1,33 @@
 import { misPermisos } from "@/lib/permisos";
-import { cruceSap } from "@/modulos/traspasos/datos";
-import { Cruce } from "./Cruce";
+import { importacionesSap } from "@/modulos/traspasos/datos";
+import { Importar } from "./Importar";
 import "../traspasos.css";
-import "./cruce.css";
+import "./importar.css";
 
 export const dynamic = "force-dynamic";
 
 /**
- * TRASPASOS · EL CRUCE CONTRA SAP.
+ * TRASPASOS · IMPORTAR EL CORTE DE SAP.
  *
- * Es la pregunta que no tenía respuesta: ¿lo que registraron es lo que
- * de verdad salió? Hasta ahora se comparaba a ojo, con el Excel en una
- * pantalla y el sistema en la otra, y a ojo no se comparan doscientos
- * documentos.
+ * SOLO SUBE. Aquí no se mira el cruce: se sube el Excel del día y ya. Las
+ * diferencias —qué salió en SAP y nadie registró— salen AL PIE DE
+ * CONTROL, que es la pantalla que ya se abre todos los días para mirar
+ * los números del turno.
  *
- * VA EN SU PROPIA PANTALLA Y NO DENTRO DEL TABLERO. Subir un archivo y
- * mirar el turno son dos momentos distintos: el corte se baja de SAP una
- * vez al día, y el tablero se mira cada rato. El tablero se queda con lo
- * que hace falta ahí —cuáles faltaron— y aquí vive lo demás.
+ * Tenerlo en dos pantallas era el error: subir el archivo es una acción
+ * de una vez al día, y mirar lo que faltó es una pregunta del tablero.
+ * Puestas juntas, la pregunta se quedaba esperando a que alguien se
+ * acordara de entrar aquí.
+ *
+ * LA DIRECCIÓN SIGUE SIENDO /traspasos/cruce Y NO SE TOCA. Los permisos
+ * de cada persona están guardados EN LA BASE como el texto de la
+ * dirección —«/traspasos/cruce»—, en rol_permisos y en los permisos
+ * extra de cada perfil. Cambiar la ruta porque cambió el nombre visible
+ * deja esas filas apuntando a algo que no existe y la gente pierde la
+ * pantalla EN SILENCIO: no da error, deja de verse.
  */
-export default async function CrucePage() {
-  const [permisos, c] = await Promise.all([misPermisos(), cruceSap()]);
+export default async function ImportarPage() {
+  const [permisos, imp] = await Promise.all([misPermisos(), importacionesSap()]);
 
   if (!permisos.puedeVer("/traspasos/cruce")) {
     return (
@@ -28,14 +35,14 @@ export default async function CrucePage() {
         <section className="caja">
           <div className="cab"><div>
             <h2>Esta pantalla no es para tu rol</h2>
-            <p>El cruce contra SAP lo ve quien lo tenga asignado en Administración → Roles.</p>
+            <p>Importar el corte de SAP lo ve quien lo tenga asignado en Administración → Roles.</p>
           </div></div>
         </section>
       </div>
     );
   }
 
-  if (c.falta) {
+  if (imp.falta) {
     return (
       <div className="tp">
         <section className="sin-tablas">
@@ -43,8 +50,8 @@ export default async function CrucePage() {
           <p>
             Abre el SQL Editor y ejecuta{" "}
             <code>supabase/migraciones/2026-09-traspasos-cruce-sap.sql</code>. Ese archivo
-            crea la tabla del corte de SAP y la vista del cruce. Se puede correr varias veces
-            sin romper nada.
+            crea la tabla del corte de SAP, la vista del cruce y la de las importaciones.
+            Se puede correr varias veces sin romper nada.
           </p>
         </section>
       </div>
@@ -55,27 +62,18 @@ export default async function CrucePage() {
     <div className="tp">
       <section className="cabeza-ctl">
         <div>
-          <p className="ojo">TRASPASOS · CRUCE CONTRA SAP</p>
-          <h1>El cruce</h1>
+          <p className="ojo">TRASPASOS · SAP</p>
+          <h1>Importar</h1>
           <p className="sub">
-            El corte de SAP contra lo registrado. Un documento con varios movimientos
-            —salió, se anuló, se rehízo— cuenta <b>una vez</b>; uno que se anuló y quedó en
-            cero no cuenta.
+            El corte de SAP contra lo que se registró. Sirve para ver{" "}
+            <b>qué documentos salieron y nadie registró</b> — y eso sale al pie de
+            Control, no aquí: aquí solo se sube el archivo.
           </p>
         </div>
       </section>
 
-      {c.tope && (
-        <section className="caja">
-          <p className="cr-tope">
-            <b>Se llegó al tope de documentos que esta pantalla trae de una.</b> Lo que ves
-            está bien, pero no está todo.
-          </p>
-        </section>
-      )}
-
-      <Cruce lineas={c.lineas} resumen={c.resumen}
-             puedeImportar={permisos.puedeEditar("/traspasos/cruce")} />
+      <Importar puedeImportar={permisos.puedeEditar("/traspasos/cruce")}
+                importaciones={imp.lista} />
     </div>
   );
 }

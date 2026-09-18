@@ -1,90 +1,134 @@
-Conteo: vuelve el vencimiento, el cursor pasa solo y el renglón se lee en cuatro momentos
+El cruce se parte en dos: Importar solo sube, Control muestra lo que faltó
 
-LA FECHA VUELVE A SER LA DE VENCIMIENTO
-Es la que trae impreso el cartón y la que lleva años poniéndose en la
-hoja —columnas I/J/K de CONTEO—. La había cambiado a fabricación
-calculando el vencimiento con la vida útil, y eso obliga a hacer la
-cuenta al revés de cabeza antes de teclear: justo lo que la pantalla
-venía a quitar. Se anota lo que se lee.
+«Ese cruce no es independiente, o sea solo era crear uno de importar, y
+una vez allí importando se iba guardando lo del día; y en el módulo de
+Control que se evidencie en la parte de abajo. La fecha se ve clarito,
+así que no me puedes decir que no encuentras la fecha.»
 
-Y DE ELLA SALEN LAS DOS CIFRAS QUE DECIDEN, ahí mismo:
-  días para vencer = vencimiento - hoy
-  días para salir  = eso - el mínimo T1 del maestro
-«Días para salir» va primero y grande porque es la que manda: no es
-cuándo vence, es cuándo tiene que haber SALIDO para llegarle al cliente
-con vida útil suficiente. En negativo ya se pasó aunque falten meses —y
-ese es justo el caso en que quien está ahí parado todavía puede hacer
-algo—. Se pinta en rojo con raya, o en ámbar si sale esta semana.
+Las dos cosas eran ciertas y las dos están arregladas.
 
-EL CURSOR PASA SOLO: DD -> MM -> AA
-Eran tres toques por fecha y 152 fechas al día: 304 toques que no hacían
-falta, cada uno con su ocasión de caer en la casilla de al lado y
-escribir el mes donde va el día. El salto se dispara por tener DOS
-DÍGITOS DENTRO y no por dos teclas pulsadas, así que corregir borrando y
-volviendo a escribir salta igual, y pegar la fecha también. El retroceso
-sobre una casilla vacía devuelve a la anterior con lo escrito
-seleccionado. Y las casillas suben a 56 px: son las únicas que se teclean
-sin mirarlas.
+=====================================================================
+1 · IMPORTAR SOLO SUBE
+=====================================================================
 
-EL RENGLÓN SE LEE EN CUATRO MOMENTOS
-DÓNDE · QUÉ · CUÁNTO · CÓMO ESTÁ. Es el mismo orden de la hoja y los
-mismos campos: lo único que cambia es que ahora se ven las costuras.
-Iban seguidos, en filas de tres, y de lejos —que es como se mira una
-pantalla con una estiba delante— eran once casillas iguales.
+«El cruce» era una pantalla que subía el archivo Y mostraba el
+resultado. Eso junta dos momentos que no son el mismo: el corte se baja
+de SAP una vez al día, y «¿qué faltó?» se pregunta mirando los números
+del turno. Puestas juntas, la pregunta se quedaba esperando a que
+alguien se acordara de entrar a una pantalla aparte — y lo que nadie
+abre no existe.
 
-ESTIBAS COMPLETAS **Y** SALDO, EN EL MISMO RENGLÓN
-«Saldo» era una tercera opción del desplegable, lo que lo ponía al mismo
-nivel que las otras dos como si fuera otra forma de contar. No lo es: es
-lo que sobra de la última estiba y siempre viene con estibas al lado.
-Doce completas más ocho sueltas son 548 cajas de un mismo material en un
-mismo sitio, y como tercera opción había que partirlo en dos renglones.
-Ahora son dos formas de contar —estibas, con su saldo; o cajas— y el
-total se arma a la vista: «12 x 45 + 8 = 548». Se enseña la cuenta
-entera y no solo el resultado, porque 548 hay que creérselo y la cuenta
-se mira contra la estiba.
-También se deshace un error silencioso: las tres cifras compartían una
-sola casilla, así que pasar de estibas a cajas conservaba el número y 56
-estibas se volvían 56 cajas sin que cambiara nada en pantalla.
+Ahora IMPORTAR solo sube el archivo, y dice mientras tanto todo lo que
+el que sube necesita saber: qué hoja leyó, en qué fila encontró el
+encabezado, qué columnas reconoció y con qué título, cuántos
+movimientos válidos, cuántas filas descartó Y POR QUÉ CADA UNA —con el
+número de fila del Excel—, y si el botón está apagado, por qué lo está
+y qué hay que revisar.
 
-«ANOTAR RENGLÓN» YA NO SE VA DE LA PANTALLA
-Va en una barra pegada abajo, con la cuenta del borrador al lado. Con
-los cuatro momentos a la vista el final del formulario queda fuera de la
-pantalla, y un botón fuera de la pantalla es un scroll por estiba —152 al
-día—. El arnés mide que esté pegada y que se vea sin bajar: basta con
-que un ancestro traiga `overflow` para que `sticky` deje de funcionar en
-silencio, y esa mutación se comprueba.
+LA DIRECCIÓN SIGUE SIENDO /traspasos/cruce. Solo cambió el nombre
+visible. Los permisos de cada persona están guardados en la base como
+el TEXTO de la ruta —en rol_permisos y en los permisos extra de cada
+perfil—, así que renombrarla habría dejado esas filas apuntando a algo
+que no existe y la gente habría perdido la pantalla EN SILENCIO: sin
+error, simplemente deja de verse. Hay una mutación en el arnés que lo
+vigila.
 
-LA OBSERVACIÓN SE GUARDABA Y NO SE PODÍA ESCRIBIR
-El renglón manda `p_nota` desde el primer día y el formulario no tenía
-dónde teclearla: iba siempre vacía.
+=====================================================================
+2 · LAS DIFERENCIAS, AL PIE DE CONTROL
+=====================================================================
 
-EN LA BASE — el 31 de febrero
-`venc_dia between 1 and 31` y `venc_mes between 1 and 12` dejan pasar el
-31/02: dos números buenos que juntos no son un día. Se guardaba, y quien
-reventaba después era LA VISTA —make_date(2027, 2, 31)—, que es de donde
-leen todas las pantallas: el borrador entero dejaba de cargar por un
-renglón, y el error no nombraba ni la fila ni el conteo. Con la fecha
-tecleándose de corrido un dedazo así es cuestión de tiempo. Se caza al
-guardar, en las dos funciones, con el nombre del día que no existe.
+Bajan enteras: los tres montones, no solo los que faltan.
 
-SE BORRA 2026-09-conteo-solo-fabricacion.sql y sus cuatro archivos de
-arnés. Nunca se corrió y la decisión se revirtió: convertía los
-renglones viejos a fabricación, que es exactamente lo contrario de lo
-que ahora se anota.
+  FALTAN   SAP los tiene y nadie los registró → hay que ir a registrar.
+  SOBRAN   registrados y SAP no los tiene → casi siempre un dedazo; el
+           que aparece como que falta suele ser el mismo número.
+  CUADRAN  nada que hacer, salvo los del día cambiado, que descuadran
+           el cumplido de los dos días a la vez.
 
-MEDIDO, NO MIRADO
-· .arnes/inv-conteo.mjs: contraste en los 7 temas de las parejas nuevas
-  —el total vivo sobre el panel, «ya se pasó» en rojo sobre rosa, «sale
-  esta semana» en ámbar sobre crema—; 56 px en el código, en las cifras
-  y en la fecha; nada se sale a 1440/820/390/360; la barra pegada.
-· .arnes/mutar-inv-conteo.mjs: 23 mutaciones, las 23 rojas. Una de ellas
-  cazó que el chequeo de los cuatro momentos medía el armazón del arnés
-  —que escribo yo— y no la pantalla: era una aserción que no podía
-  fallar. Ahora se lee del componente.
-· .arnes/correr-conteo-estibas-y-saldo.sh contra Postgres 16 de verdad,
-  dos veces, como no-superusuario y SIN AGRUPAR NADA —como lo corre el
-  editor de Supabase—; .arnes/mutar-conteo-estibas-y-saldo.sh: 8
-  mutaciones, las 8 rojas.
+Van DEL DÍA QUE SE ESTÁ MIRANDO, el mismo de la barra de fechas de
+arriba: mirar ayer trae las diferencias de ayer sin tocar nada más. Y
+van ABAJO y no arriba, porque el tablero contesta primero «¿vamos al
+día con el plan?».
+
+SIN CORTE NO SE AFIRMA NADA. Si el corte importado no cubre ese día, se
+dice qué rango cubre y se ofrece importar. Un «0 faltaron» sin haber
+comparado contra nada es peor que no decir nada: se lee como que todo
+cuadra.
+
+=====================================================================
+3 · «LA FECHA SE VE CLARITO»
+=====================================================================
+
+Tenía razón. El lector tomaba LA PRIMERA FILA como encabezado, y el
+corte de SAP trae encima el título del reporte y la línea del centro y
+el almacén. El encabezado de verdad —el que dice «Fecha de entrada»—
+quedaba como si fuera un dato, y la pantalla pedía una columna que
+cualquiera estaba viendo.
+
+Ahora se miran las primeras quince filas y gana LA QUE MÁS COLUMNAS
+CONOCIDAS TENGA. No hace falta saber cuántas filas de adorno trae el
+layout de turno: la fila del encabezado es, por definición, la que se
+parece a un encabezado. Y cuando de verdad falta una columna, se dice
+CUÁL y se muestra el encabezado que sí se encontró, en vez de «faltan
+columnas» a secas.
+
+De paso, tres cosas más que estaban mal y no se veían:
+
+  · LA CANTIDAD se limpiaba a manotazos —quitar lo que no fuera dígito
+    y cambiar la coma por punto—. Con «1.234,50» eso daba «1.234.50»,
+    que no es un número. Y SAP escribe el menos DETRÁS: «36-». Leído al
+    derecho, una anulación entraba como salida y el documento no daba
+    cero, así que aparecía como que faltaba para siempre.
+
+  · EL NÚMERO DE FILA que se muestra ahora es el del Excel. Antes las
+    filas en blanco se saltaban al leer, así que «fila 8» señalaba la
+    11 y quien iba a mirarla encontraba otra cosa.
+
+  · LA FILA EN BLANCO ya no cuenta como descarte. Sumarlas llenaba el
+    «se descartaron 23» de filas que nadie escribió.
+
+La regla de agrupar —sumar por referencia y contar el que no dé cero—
+SIGUE VIVIENDO EN LA BASE y no en la pantalla. Escrita dos veces, da
+dos respuestas y nadie sabe cuál creer. Hay una prueba que vigila que
+no se cuele aquí.
+
+=====================================================================
+4 · CÓMO SE COMPROBÓ
+=====================================================================
+
+  .arnes/tp-importar.mjs        el lector, contra Excel de verdad
+                                construidos con el mismo xlsx que usa
+                                la pantalla y leídos con sus mismas
+                                opciones —sacadas del código, no
+                                copiadas—.
+  .arnes/tp-importar-mide.mjs   lo que se ve: 7 temas × 5 anchos, sin
+                                desplazamiento lateral, todo el texto
+                                por encima de 4,5 y el botón de dedo.
+  .arnes/mutar-tp-importar.mjs  15 mutaciones: se le vuelve a meter
+                                CADA error que los arneses dicen cazar
+                                y se exige que se pongan rojos.
+
+Las 15 se cazaron, cada una por su propia prueba. Tres afirmaciones no
+se sostenían en el primer intento y hubo que hacerlas de verdad; y el
+arnés de contraste tenía un error propio —leía «color(srgb 0.98 …)»
+como si fuera 0-255— que acusaba de ilegible algo que estaba bien.
+
+De eso sí salieron dos arreglos reales: el botón apagado daba 3,9 —se
+veía apagado, sí, pero también ilegible, y lo que dice es justo lo que
+uno busca cuando no pasa nada al tocarlo— y el gris de leer se quedaba
+en 4,1-4,4 en el tema ámbar.
+
+=====================================================================
+FALTA CORRER EN SUPABASE, EN ESTE ORDEN
+=====================================================================
+
+  2026-09-inventario-base.sql
+  2026-09-traspasos-documento-diez.sql
+  2026-09-traspasos-dia-cerrado.sql
+  2026-09-traspasos-cruce-sap.sql        ← vuelve a correrse: trae la
+                                           vista de importaciones
+  2026-09-traspasos-cruce-permiso.sql
+  2026-09-traspasos-varios-tipos.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

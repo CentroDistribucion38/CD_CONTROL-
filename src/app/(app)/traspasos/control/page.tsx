@@ -1,14 +1,14 @@
 import { misPermisos } from "@/lib/permisos";
 import {
-  controlRango, vaciosRango, tipos as leerTipos, hoyLocal, faltantesDelDia, type Control,
+  controlRango, vaciosRango, tipos as leerTipos, hoyLocal, cruceDelDia, type Control,
 } from "@/modulos/traspasos/datos";
 import { fecha as fechaLarga, TURNOS } from "@/modulos/traspasos/formato";
-import Link from "next/link";
 import "../traspasos.css";
 import "../cruce/cruce.css";
 import { AlDia, SinTablas } from "../comunes";
 import { Barra } from "./Barra";
 import { TarjetaKpi } from "./TarjetaKpi";
+import { Diferencias } from "./Diferencias";
 import { Fechas } from "../plan/Fechas";
 
 export const dynamic = "force-dynamic";
@@ -57,12 +57,14 @@ export default async function ControlPage({ searchParams }: {
   const desde = new Date(Date.parse(hasta + "T12:00:00") - dias * 86400_000)
     .toISOString().slice(0, 10);
 
-  const [permisos, ctl, vacios, t, sinRegistrar] = await Promise.all([
+  const [permisos, ctl, vacios, t, cruce] = await Promise.all([
     misPermisos(), controlRango(desde, hasta), vaciosRango(desde, hasta), leerTipos(),
-    /* LOS QUE FALTARON, DEL DÍA QUE SE ESTÁ MIRANDO. El tablero no
-       necesita el cruce entero —para eso está su pantalla—: necesita la
-       lista corta de lo que hay que ir a buscar hoy. */
-    faltantesDelDia(dia),
+    /* EL CRUCE DEL DÍA QUE SE ESTÁ MIRANDO. Ya no hay pantalla de cruce:
+       Importar solo sube el corte, y las diferencias salen aquí abajo,
+       que es donde se miran los números del día. Se trae solo el día
+       —no el corte entero— porque esta consulta se paga en cada carga
+       del tablero, y el tablero se queda puesto en la oficina. */
+    cruceDelDia(dia),
   ]);
   void permisos;
 
@@ -412,66 +414,28 @@ export default async function ControlPage({ searchParams }: {
       </section>
 
       {/* =================================================================
-          QUÉ DOCUMENTOS FALTARON
+          LAS DIFERENCIAS CONTRA SAP
 
           VA AL FINAL Y NO ARRIBA. El tablero contesta primero «¿vamos al
           día con el plan?», que es lo que se mira cada rato; esto
           contesta «¿y lo que salió, quedó registrado?», que se revisa
-          una vez, con el corte de SAP delante.
+          una vez, con el corte del día ya subido.
 
-          SOLO SALE SI HAY CORTE SUBIDO. Sin corte no se puede afirmar
-          que falte nada — y un «0 faltaron» sin haber comparado con
-          nada es peor que no decir nada: se lee como que todo cuadra.
+          Y VA AQUÍ Y NO EN PANTALLA APARTE. Tenía la suya, y era el
+          error: subir el archivo es una acción de una vez al día, pero
+          «¿qué faltó?» es una pregunta del tablero. En pantalla aparte
+          se quedaba esperando a que alguien se acordara de entrar.
+
+          EL DÍA ES EL MISMO DE ARRIBA —el de la barra de fechas—, así
+          que mirar el día de ayer trae las diferencias de ayer sin
+          tocar nada más.
           ================================================================= */}
-      {!sinRegistrar.falta && (
-        <section className="caja">
-          <div className="cab">
-            <div>
-              <h2>
-                {sinRegistrar.lineas.length === 0
-                  ? "Ningún documento sin registrar"
-                  : `${sinRegistrar.lineas.length} documento${sinRegistrar.lineas.length === 1 ? "" : "s"} sin registrar`}
-              </h2>
-              <p>
-                {sinRegistrar.lineas.length === 0
-                  ? <>De lo que SAP reporta ese día, todo tiene su viaje registrado. El cruce
-                     completo está en <Link href="/traspasos/cruce">El cruce</Link>.</>
-                  : <>SAP dice que estos documentos salieron y no hay viaje registrado con ese
-                     número. Un documento que se anuló y se rehizo cuenta <b>una vez</b>; uno
-                     que se anuló y quedó en cero no aparece aquí.{" "}
-                     <Link href="/traspasos/cruce">Ver el cruce completo</Link>.</>}
-              </p>
-            </div>
-          </div>
-
-          {sinRegistrar.lineas.length > 0 && (
-            <div className="cr-marco">
-              <table className="cr-tabla">
-                <thead>
-                  <tr>
-                    <th>Documento</th>
-                    <th>Hora en SAP</th>
-                    <th className="num">Mov.</th>
-                    <th className="num">Cantidad</th>
-                    <th>Material</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sinRegistrar.lineas.map((l) => (
-                    <tr key={l.documento}>
-                      <td className="cr-doc">{l.documento}</td>
-                      <td>{l.sap_hora ? l.sap_hora.slice(0, 5) : "—"}</td>
-                      <td className="num">{l.sap_movimientos ?? "—"}</td>
-                      <td className="num">{l.sap_neto ?? "—"}</td>
-                      <td>{l.sap_descripcion ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+      {!cruce.falta && (
+        <Diferencias lineas={cruce.lineas} hayCorte={cruce.hayCorte}
+                     rotulo={fechaLarga(dia)} desde={cruce.desde} hasta={cruce.hasta}
+                     tope={cruce.tope} />
       )}
+
     </div>
   );
 }

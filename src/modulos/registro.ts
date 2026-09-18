@@ -345,13 +345,22 @@ export const MODULOS: Modulo[] = [
       { nombre: "Plan", ruta: "/traspasos/plan" },
       { nombre: "Registrar", ruta: "/traspasos" },
       { nombre: "Control", ruta: "/traspasos/control" },
-      /* EL CRUCE VA DESPUÉS DE CONTROL Y ANTES DEL MAESTRO, porque ese
+      /* IMPORTAR VA DESPUÉS DE CONTROL Y ANTES DEL MAESTRO, porque ese
          es el orden del proceso: se planea, se registra lo que sale, se
-         mira si se cumplió el plan, y al final del día se comprueba
-         contra SAP que lo registrado es lo que de verdad salió. El
-         maestro no es un paso del día: es lo que se mantiene de vez en
-         cuando, y por eso cierra la lista. */
-      { nombre: "El cruce", ruta: "/traspasos/cruce" },
+         mira si se cumplió el plan, y al final del día se sube el corte
+         de SAP para comprobar que lo registrado es lo que de verdad
+         salió. El maestro no es un paso del día: es lo que se mantiene
+         de vez en cuando, y por eso cierra la lista.
+
+         SE LLAMA «IMPORTAR» Y VIVE EN /traspasos/cruce. El nombre
+         cambió porque la pantalla cambió —ya no muestra el cruce, solo
+         sube el archivo; las diferencias salen al pie de Control—, pero
+         LA DIRECCIÓN NO SE PUEDE TOCAR: los permisos de cada persona
+         están guardados en la base como el texto de la ruta, en
+         rol_permisos y en los permisos extra de cada perfil. Renombrar
+         la ruta deja esas filas apuntando a algo que no existe y la
+         gente pierde la pantalla EN SILENCIO. */
+      { nombre: "Importar", ruta: "/traspasos/cruce" },
       { nombre: "Maestro", ruta: "/traspasos/maestro" },
     ],
   },

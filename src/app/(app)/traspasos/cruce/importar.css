@@ -1,0 +1,268 @@
+/* ---------------------------------------------------------------------
+   TRASPASOS · IMPORTAR EL CORTE DE SAP
+
+   Una sola cosa se hace aquí —subir el archivo— y la pantalla está
+   armada para eso: a la izquierda el archivo y lo que se leyó de él, a
+   la derecha en qué paso va uno. Las diferencias NO viven aquí; viven al
+   pie de Control.
+
+   Todo cuelga de .tp y de .cz- para no pisar nada. Este proyecto ya
+   perdió una barra de herramientas y una casilla por reusar un nombre
+   que existía cuatrocientas líneas más arriba, así que el prefijo no es
+   pedantería.
+
+   EL ÁMBAR DEL BOTÓN SALE DEL TEMA —--tp-acento con su tinta pareja--,
+   no de un color escrito a mano: la app empareja acento y tinta
+   justamente para que al cambiar de preferencias no quede texto oscuro
+   sobre fondo oscuro. Lo único escrito a mano es la fichita negra del
+   ejemplo, que es un recuadro decorativo con su palabra repetida al
+   lado.
+   --------------------------------------------------------------------- */
+
+/* El campo de archivo de verdad: invisible pero ALCANZABLE CON EL
+   TECLADO. display:none lo sacaría del orden de tabulación y la pantalla
+   quedaría sin forma de escoger archivo sin ratón. */
+.tp .cz-oculto {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.tp .cz-duo {
+  display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px; align-items: start;
+
+  /* EL GRIS DE LEER, QUE NO ES EL GRIS DE LA APP.
+     --tp-gris está pensado para rótulos cortos sobre el papel. Aquí
+     carga texto de verdad —por qué está apagado el botón, por qué se
+     descartó una fila, qué archivos valen— y encima de los fondos
+     claros de esta pantalla se quedaba en 4,1-4,4 en el tema ámbar:
+     medido, no mirado. Acercándolo un poco a la tinta pasa de 4,5 en
+     los siete temas sin dejar de ser gris, y se mueve con el tema en
+     lugar de quedar escrito a mano. */
+  --cz-gris: color-mix(in srgb, var(--tp-gris) 62%, var(--tp-tinta));
+}
+.tp .cz-caja {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-radius: 10px; overflow: hidden; min-width: 0;
+}
+.tp .cz-h { padding: 15px 18px 13px; border-bottom: 1px solid var(--tp-linea) }
+.tp .cz-h h2 {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 17px; margin: 0;
+  color: var(--tp-tinta);
+}
+.tp .cz-h p { font-size: 12px; color: var(--cz-gris); margin: 6px 0 0; line-height: 1.5; max-width: 72ch }
+.tp .cz-c { padding: 18px }
+
+/* ── EL SITIO DONDE SE SUELTA EL ARCHIVO ─────────────────────────── */
+.tp .cz-zona {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 32px 20px; text-align: center; cursor: pointer;
+  border: 2px dashed var(--tp-linea); border-radius: 8px; background: var(--tp-fondo);
+}
+.tp .cz-zona:hover:not(:disabled) { border-color: var(--tp-acento) }
+.tp .cz-zona:disabled { cursor: not-allowed; opacity: .7 }
+.tp .cz-zona svg {
+  width: 32px; height: 32px; fill: none; stroke: var(--tp-acento);
+  stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+}
+.tp .cz-zona b { font: 800 15px var(--tp-titulo); color: var(--tp-tinta) }
+.tp .cz-zona span { font-size: 12.5px; color: var(--cz-gris) }
+.tp .cz-zona:focus-visible { outline: 2px solid var(--tp-acento); outline-offset: 2px }
+
+/* ── EL ARCHIVO QUE YA ESTÁ PUESTO ───────────────────────────────── */
+.tp .cz-arch {
+  display: flex; align-items: center; gap: 13px; min-width: 0;
+  border: 1px solid var(--tp-linea); border-radius: 8px; padding: 13px 15px;
+}
+.tp .cz-arch .ic {
+  width: 38px; height: 38px; flex: none; border-radius: 6px;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--tp-bien) 12%, #fff);
+}
+.tp .cz-arch .ic svg { width: 19px; height: 19px; fill: none; stroke: var(--tp-bien); stroke-width: 1.7 }
+.tp .cz-arch > div { min-width: 0 }
+.tp .cz-arch b {
+  display: block; font-size: 14px; font-weight: 600; color: var(--tp-tinta);
+  overflow-wrap: anywhere;
+}
+.tp .cz-arch span { display: block; font-size: 12px; color: var(--cz-gris); margin-top: 2px }
+.tp .cz-arch button {
+  margin-left: auto; flex: none; cursor: pointer; border-radius: 6px;
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+  padding: 9px 14px; font: 600 12.5px var(--tp-texto); color: var(--tp-tinta);
+}
+.tp .cz-arch button:hover { border-color: var(--tp-acento) }
+
+/* ── LAS TRES CIFRAS DE LO QUE SE LEYÓ ───────────────────────────── */
+.tp .cz-lectura {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+  margin-top: 14px; background: var(--tp-linea);
+  border: 1px solid var(--tp-linea); border-radius: 8px; overflow: hidden;
+}
+.tp .cz-lectura > div { background: var(--tp-papel); padding: 13px 15px; min-width: 0 }
+.tp .cz-lectura .n {
+  font: 900 25px/1 var(--tp-titulo); color: var(--tp-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.tp .cz-lectura .t {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em;
+  color: var(--cz-gris); margin-top: 6px;
+}
+.tp .cz-lectura .mal .n { color: var(--tp-mal) }
+/* Ámbar medido contra el papel: #8A6A00 sobre blanco da 5,6 — pasa de
+   sobra, y se distingue del gris de al lado sin gritar como el rojo. */
+.tp .cz-lectura .ver {
+  display: block; margin-top: 7px; padding: 0; border: 0; background: none;
+  font: 600 12px var(--tp-texto); color: #8A6A00;
+  text-decoration: underline; cursor: pointer;
+}
+
+.tp .cz-porque {
+  margin-top: 10px; border: 1px solid var(--tp-linea); border-radius: 8px;
+  background: var(--tp-fondo); padding: 12px 14px;
+}
+.tp .cz-porque .t {
+  font: 700 10px var(--tp-texto); letter-spacing: .14em; color: var(--cz-gris);
+  margin-bottom: 8px;
+}
+.tp .cz-porque ul { margin: 0; padding: 0; list-style: none; max-height: 220px; overflow: auto }
+.tp .cz-porque li {
+  font-size: 12.5px; line-height: 1.6; color: var(--cz-gris); overflow-wrap: anywhere;
+}
+.tp .cz-porque li b { color: var(--tp-tinta); font-weight: 600 }
+.tp .cz-porque .mas { margin: 8px 0 0; font-size: 12px; color: var(--cz-gris) }
+
+/* ── LAS COLUMNAS QUE SE RECONOCIERON ────────────────────────────── */
+.tp .cz-cols { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px }
+.tp .cz-col {
+  display: inline-flex; align-items: baseline; gap: 6px; min-width: 0;
+  border: 1px solid var(--tp-linea); border-radius: 6px; padding: 7px 11px;
+  font-size: 12.5px; background: var(--tp-papel); color: var(--tp-tinta);
+}
+.tp .cz-col em { font-style: normal; font-size: 11.5px; color: var(--cz-gris); overflow-wrap: anywhere }
+.tp .cz-col i { font-style: normal; font-weight: 800 }
+.tp .cz-col.ok {
+  border-color: color-mix(in srgb, var(--tp-bien) 35%, #fff);
+  background: color-mix(in srgb, var(--tp-bien) 7%, #fff);
+}
+.tp .cz-col.ok i { color: var(--tp-bien) }
+/* LA OBLIGATORIA QUE FALTA SE VE DISTINTA DE LA OPCIONAL QUE NO VINO.
+   Las dos llevan ✕, y sin el color se leerían como el mismo problema
+   cuando una impide importar y la otra no. */
+.tp .cz-col.no {
+  border-color: color-mix(in srgb, var(--tp-mal) 35%, #fff);
+  background: color-mix(in srgb, var(--tp-mal) 6%, #fff);
+  color: #7A1F26;
+}
+.tp .cz-col.no i { color: var(--tp-mal) }
+.tp .cz-col.gris { background: var(--tp-fondo); color: var(--cz-gris) }
+.tp .cz-col.gris i { color: var(--cz-gris) }
+
+/* ── LA REGLA, CON EL EJEMPLO DELANTE ────────────────────────────── */
+.tp .cz-regla {
+  margin-top: 18px; border: 1px solid var(--tp-linea); border-radius: 8px;
+  background: var(--tp-fondo); overflow: hidden;
+}
+.tp .cz-regla > .t {
+  padding: 11px 15px; border-bottom: 1px solid var(--tp-linea);
+  font: 700 10px var(--tp-texto); letter-spacing: .14em; color: var(--cz-gris);
+}
+.tp .cz-regla .cuerpo {
+  padding: 15px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px;
+}
+.tp .cz-caso { display: flex; align-items: center; gap: 9px; flex-wrap: wrap }
+.tp .cz-mov {
+  font: 800 13.5px var(--tp-titulo); font-variant-numeric: tabular-nums;
+  padding: 6px 10px; border-radius: 5px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+}
+.tp .cz-mov.neg { color: var(--tp-mal) }
+.tp .cz-mov.pos { color: var(--tp-bien) }
+.tp .cz-igual { color: var(--cz-gris); font-size: 14px }
+/* Ficha decorativa: ámbar sobre casi negro, 11:1 medido. No sale del
+   tema porque el tema no garantiza esa pareja, y la palabra que lleva
+   («1 documento») está repetida en la nota de abajo. */
+.tp .cz-res {
+  font: 800 12.5px var(--tp-titulo); padding: 6px 11px; border-radius: 5px;
+  background: #0D0D0D; color: #FFC000;
+}
+.tp .cz-res.cero { background: var(--tp-linea); color: var(--tp-tinta) }
+.tp .cz-caso .nota { width: 100%; font-size: 11.5px; color: var(--cz-gris); line-height: 1.45 }
+.tp .cz-regla .pie-regla {
+  margin: 0; padding: 0 15px 14px; font-size: 11.5px; line-height: 1.5; color: var(--cz-gris);
+}
+
+/* ── EL BOTÓN Y, SOBRE TODO, POR QUÉ ESTÁ APAGADO ────────────────── */
+.tp .cz-pie {
+  display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
+  padding: 16px 18px; background: var(--tp-fondo); border-top: 1px solid var(--tp-linea);
+}
+.tp .cz-pie > button {
+  height: 48px; padding: 0 24px; border: 0; border-radius: 8px; flex: none;
+  background: var(--tp-acento); color: var(--tp-sobre-acento);
+  font: 800 14.5px var(--tp-titulo); cursor: pointer;
+}
+/* EL BOTÓN APAGADO TIENE QUE PODER LEERSE. Gris sobre la línea daba
+   3,9 medido: se veía apagado, sí, pero también ilegible — y lo que
+   dice es justamente lo que uno busca cuando no pasa nada al tocarlo.
+   Apagado se nota por lo que le falta —el ámbar— no por borrarle la
+   letra. */
+.tp .cz-pie > button:disabled {
+  background: var(--tp-fondo); color: var(--cz-gris); cursor: not-allowed;
+  box-shadow: inset 0 0 0 1.5px var(--tp-linea);
+}
+.tp .cz-pie .razon {
+  font-size: 12.5px; font-weight: 600; color: var(--tp-mal); min-width: 0; line-height: 1.45;
+}
+.tp .cz-pie .razon span {
+  display: block; color: var(--cz-gris); font-weight: 400; font-size: 12px;
+  margin-top: 3px; line-height: 1.5;
+}
+.tp .cz-pie .razon.bien { color: var(--tp-bien) }
+.tp .cz-pie .razon.neutra { color: var(--tp-tinta) }
+
+/* ── LA COLUMNA DE LA DERECHA: EN QUÉ PASO VA UNO ────────────────── */
+.tp .cz-lado .cz-c { display: flex; flex-direction: column; gap: 13px }
+.tp .cz-paso {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 11px;
+  font-size: 13px; line-height: 1.5; color: var(--cz-gris);
+}
+.tp .cz-paso i {
+  width: 22px; height: 22px; border-radius: 50%; font-style: normal;
+  display: grid; place-items: center; font: 800 10.5px var(--tp-titulo);
+  background: var(--tp-linea); color: var(--cz-gris);
+}
+.tp .cz-paso.activo i { background: var(--tp-acento); color: var(--tp-sobre-acento) }
+.tp .cz-paso.hecho i { background: var(--tp-bien); color: #FFF }
+.tp .cz-paso b { display: block; color: var(--tp-tinta); font-weight: 600 }
+
+.tp .cz-hist { border-top: 1px solid var(--tp-linea); padding: 14px 18px }
+.tp .cz-hist .t {
+  font: 700 10px var(--tp-texto); letter-spacing: .14em; color: var(--cz-gris);
+  margin-bottom: 9px;
+}
+.tp .cz-hist .nada { margin: 0; font-size: 12.5px; color: var(--cz-gris) }
+.tp .cz-fila {
+  display: flex; justify-content: space-between; gap: 10px; padding: 8px 0;
+  font-size: 12.5px; border-bottom: 1px solid var(--tp-linea);
+}
+.tp .cz-fila:last-child { border-bottom: 0 }
+.tp .cz-fila b { font-weight: 600; color: var(--tp-tinta); white-space: nowrap }
+.tp .cz-fila span { color: var(--cz-gris); text-align: right }
+.tp .cz-fila em { font-style: normal; font-weight: 600 }
+.tp .cz-fila em.mal { color: var(--tp-mal) }
+.tp .cz-fila em.bien { color: var(--tp-bien) }
+
+/* A LO ANCHO NO SE DESPLAZA NUNCA: la columna de pasos se va abajo antes
+   de que algo tenga que encogerse hasta no leerse. */
+@media (max-width: 1040px) {
+  .tp .cz-duo { grid-template-columns: minmax(0, 1fr) }
+}
+@media (max-width: 720px) {
+  .tp .cz-lectura { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .tp .cz-lectura > div:last-child { grid-column: 1 / -1 }
+  .tp .cz-regla .cuerpo { grid-template-columns: minmax(0, 1fr) }
+  .tp .cz-pie > button { width: 100%; }
+  .tp .cz-arch { flex-wrap: wrap }
+  .tp .cz-arch button { margin-left: 0 }
+}

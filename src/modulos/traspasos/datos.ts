@@ -414,47 +414,91 @@ export type LineaCruce = {
 /* EL TOPE VA ESCRITO. PostgREST contesta 1.000 filas por defecto y NO
    AVISA: un corte de una semana entera pasa de mil documentos sin
    despeinarse, y la lista llegaría corta sin que nada lo diga. */
-const TOPE_CRUCE = 20000;
+const TOPE_DIA = 5000;
 
-export async function cruceSap() {
+/* =====================================================================
+   EL CRUCE DE UN DÍA — lo que se pinta al pie del tablero.
+
+   NO HAY PANTALLA DE CRUCE. Importar solo sube el corte; las diferencias
+   salen donde se miran los números del día, que es Control. Un cruce en
+   su propia pantalla obliga a que alguien se acuerde de ir a verlo, y lo
+   que nadie abre no existe.
+
+   POR QUÉ DOS FECHAS EN EL MISMO FILTRO. Un documento que FALTA solo
+   tiene fecha de SAP; uno que SOBRA solo tiene la del viaje registrado.
+   Filtrar por una sola dejaría fuera justo el montón contrario —y los
+   que sobran son los dedazos, que es lo que hay que ir a corregir—.
+
+   UN DOCUMENTO CON EL DÍA CAMBIADO SALE EN LOS DOS DÍAS, a propósito:
+   descuadra el cumplido de los dos a la vez, y quien mire cualquiera de
+   los dos tiene que poder verlo.
+   ===================================================================== */
+export async function cruceDelDia(fecha: string) {
   const supabase = await createClient();
-  const [c, r] = await Promise.all([
-    supabase.from("v_traspasos_cruce").select("*").limit(TOPE_CRUCE),
-    supabase.from("traspasos_sap").select("fecha, importado_en, importado_por")
-      .order("importado_en", { ascending: false }).limit(TOPE_CRUCE),
+  const [c, pri, ult] = await Promise.all([
+    supabase.from("v_traspasos_cruce").select("*")
+      .or(`sap_fecha.eq.${fecha},sis_fecha.eq.${fecha}`)
+      .order("sap_hora").limit(TOPE_DIA),
+    supabase.from("traspasos_sap").select("fecha")
+      .order("fecha", { ascending: true }).limit(1),
+    supabase.from("traspasos_sap").select("fecha")
+      .order("fecha", { ascending: false }).limit(1),
   ]);
+
   if (c.error) {
     return {
       falta: /does not exist|schema cache/i.test(c.error.message),
-      lineas: [] as LineaCruce[], resumen: null, tope: false,
+      lineas: [] as LineaCruce[], tope: false,
+      hayCorte: false, desde: null as string | null, hasta: null as string | null,
     };
   }
-  const filas = (r.data ?? []) as { fecha: string; importado_en: string; importado_por: string | null }[];
-  const fechas = filas.map((x) => x.fecha).sort();
+
+  /* HASTA DÓNDE LLEGA EL CORTE IMPORTADO. Sin esto, un día que nadie ha
+     importado se vería como «ningún documento sin registrar» — que es
+     peor que no decir nada: se lee como que todo cuadra. */
+  const desde = (pri.data?.[0]?.fecha ?? null) as string | null;
+  const hasta = (ult.data?.[0]?.fecha ?? null) as string | null;
+
   return {
     falta: false,
     lineas: (c.data ?? []) as LineaCruce[],
-    tope: (c.data ?? []).length === TOPE_CRUCE,
-    resumen: filas.length === 0 ? null : {
-      documentos: filas.length,
-      desde: fechas[0] ?? null,
-      hasta: fechas[fechas.length - 1] ?? null,
-      importado_en: filas[0]?.importado_en ?? null,
-      quien: null as string | null,
-    },
+    tope: (c.data ?? []).length === TOPE_DIA,
+    hayCorte: desde != null && hasta != null && desde <= fecha && fecha <= hasta,
+    desde, hasta,
   };
 }
 
-/* LOS QUE FALTARON, PARA EL PIE DEL TABLERO.
-   El tablero no necesita el cruce entero: necesita la lista corta de lo
-   que hay que ir a buscar, y del día que se está mirando. Traer las mil
-   líneas para pintar ocho sería pagarlo en cada carga del tablero. */
-export async function faltantesDelDia(fecha: string) {
+/* =====================================================================
+   LAS IMPORTACIONES ANTERIORES
+
+   «Se subió el corte a tal hora, trajo tantos documentos, tantos siguen
+   sin registrar.» Es lo único que la pantalla de Importar necesita
+   mostrar de lo que ya pasó: si el de esta mañana ya se subió, y si el
+   de la semana pasada dejó algo pendiente.
+
+   `sin_registrar` LO CALCULA LA VISTA CONTRA LO DE AHORA, no contra lo
+   que había al importar: si alguien registró el viaje que faltaba, el
+   renglón de esa importación baja solo.
+   ===================================================================== */
+export type Importacion = {
+  cuando: string;
+  documentos: number;
+  anulados: number;
+  desde: string | null;
+  hasta: string | null;
+  quien: string | null;
+  sin_registrar: number;
+};
+
+export async function importacionesSap(cuantas = 8) {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("v_traspasos_cruce")
-    .select("*").eq("estado", "falta").eq("sap_fecha", fecha)
-    .order("sap_hora").limit(500);
-  if (error) return { falta: /does not exist|schema cache/i.test(error.message),
-                      lineas: [] as LineaCruce[] };
-  return { falta: false, lineas: (data ?? []) as LineaCruce[] };
+  const { data, error } = await supabase.from("v_traspasos_sap_importaciones")
+    .select("*").order("cuando", { ascending: false }).limit(cuantas);
+  if (error) {
+    return {
+      falta: /does not exist|schema cache/i.test(error.message),
+      lista: [] as Importacion[],
+    };
+  }
+  return { falta: false, lista: (data ?? []) as Importacion[] };
 }

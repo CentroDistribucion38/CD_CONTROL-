@@ -108,3 +108,12 @@
   .tp .cr-grupo .n { font-size: 24px }
   .tp .cr-marco { max-height: 56vh }
 }
+
+/* LO QUE QUIERE DECIR EL MONTÓN QUE SE ESCOGIÓ. Va entre los botones y
+   la tabla porque es lo que hay que leer ANTES de recorrerla: «sobran»
+   sin la explicación se lee como un error del sistema, cuando casi
+   siempre es un dígito mal tecleado que se arregla en dos minutos. */
+.tp .cr-pista {
+  margin: 12px 0 0; padding: 0 16px 4px;
+  font-size: 12.5px; line-height: 1.55; color: var(--tp-gris); max-width: 86ch;
+}
