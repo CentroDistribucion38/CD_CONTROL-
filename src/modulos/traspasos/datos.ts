@@ -38,6 +38,13 @@ export type Viaje = {
   tipo: string | null;
   tipo_nombre: string | null;
   placa: string | null;
+  /** El documento del papel que va con el vehículo. Obligatorio en los
+   *  viajes con carga y sin repetir: dos veces el mismo número son dos
+   *  viajes contados donde hubo uno. Un vacío no lleva. */
+  documento: string | null;
+  /** Viaje con carga, registrado y sin documento: es de antes de que la
+   *  regla existiera. No es una columna guardada — se calcula. */
+  sin_documento: boolean;
   origen: string | null;
   origen_nombre: string | null;
   destino: string | null;

@@ -478,6 +478,25 @@
 .fe .fe-rec-cab h2 { margin: 0; font: 800 16px var(--fe-titulo); letter-spacing: -.01em }
 .fe .fe-rec-cab span { font-size: 12px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
 
+/* ---------- ENVIAR, DESDE ARRIBA ----------
+
+   Con ciento cincuenta renglones el botón del final queda a siete
+   pantallazos: el que ya revisó tiene que recorrer la lista entera otra
+   vez solo para llegar a él.
+
+   48 px DE ALTO, como todo lo que se toca en esta pantalla: se usa de
+   pie y a veces con guantes. Y `flex: none` para que no se encoja
+   cuando el título de al lado crece — un botón de enviar que se vuelve
+   una rendija es peor que no tenerlo.
+
+   EN EL CELULAR SE VA A SU PROPIO RENGLÓN y ocupa el ancho. Ahí no hay
+   sitio para tres cosas en una línea, y apretado al lado de la cuenta
+   sería justo el botón que se toca sin querer. */
+.fe .fe-rec-cab .fe-mandar-ya { flex: none; min-height: 48px; margin-left: 4px }
+@media (max-width: 760px) {
+  .fe .fe-rec-cab .fe-mandar-ya { width: 100%; margin-left: 0; margin-top: 4px }
+}
+
 .fe .fe-ubi {
   margin-left: auto; font: 700 11px var(--fe-texto); letter-spacing: .06em;
   padding: 3px 8px; border-radius: 2px; flex: none;
@@ -924,15 +943,33 @@
    alternan varias veces en una jornada; un desplegable serían dos toques
    cada vez, con guante.
    --------------------------------------------------------------------- */
+/* QUÉ FECHA ES ESTA. Era un interruptor de dos botones y ahora es un
+   rótulo: siempre se teclea la de fábrica. Se deja escrito igual —y no
+   se quita— porque la casilla dice DD MM AA y nada más; sin el rótulo,
+   qué fecha va ahí es algo que hay que acordarse, y acordarse a las
+   cinco de la mañana con ciento cincuenta estibas por delante no es un
+   plan.
+
+   EN ÁMBAR CUANDO DICE «Vence»: ese es el caso raro —un renglón de
+   antes del cambio, que se está corrigiendo— y tiene que saltar a la
+   vista, porque es el único en el que el número que se teclea significa
+   otra cosa. */
 .fe .fe-que-fecha { display: inline-flex; gap: 3px; margin-bottom: 2px }
-.fe .fe-que-fecha button {
-  min-height: 32px; padding: 0 12px; cursor: pointer; border-radius: 2px;
-  border: 1px solid var(--fe-linea); background: var(--fe-fondo);
-  font: 700 11.5px var(--fe-texto); letter-spacing: .04em;
+.fe .fe-etiq-fecha {
+  display: inline-block; min-height: 22px; line-height: 22px;
+  font: 800 11.5px var(--fe-titulo); letter-spacing: .1em; text-transform: uppercase;
   color: var(--fe-gris-panel);
 }
-.fe .fe-que-fecha button.on {
-  background: var(--fe-banda); border-color: var(--fe-banda); color: #fff;
+.fe .fe-etiq-fecha.ojo {
+  color: var(--fe-tinta); padding: 0 8px; border-radius: 2px;
+  /* EL ÁMBAR VA EN DURO Y NO SIGUE AL TEMA. --fe-aviso es --c-oro, y
+     --c-oro es ROJO PURO en negro, gris y halo. En esta pantalla el
+     rojo ya quiere decir «se pasó de su fecha de salida», que es una
+     alarma; «este renglón se anotó por vencimiento» es una aclaración.
+     Si compartieran color habría que leer el texto para distinguirlas,
+     y una marca que hay que leer entera no está haciendo su trabajo.
+     Es el mismo ámbar de «CORREGIDO» en Traspasos, por lo mismo. */
+  background: var(--fe-fondo); box-shadow: inset 2.5px 0 0 #C08A16;
 }
 
 /* LA FECHA QUE SALE DE LA OTRA. Se muestra mientras se teclea y con la
@@ -966,7 +1003,7 @@
      fecha que lo produce—. */
   .fe .fe-fecha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px }
   .fe .fe-que-fecha { order: 1; margin-bottom: 0 }
-  .fe .fe-que-fecha button { min-height: 30px; padding: 0 10px; font-size: 11px }
+  .fe .fe-etiq-fecha { font-size: 11px }
   .fe .fe-fecha .fe-opcional { order: 2 }
   .fe .fe-calculada {
     order: 3; margin: 0 0 0 auto; padding: 4px 8px; font-size: 11.5px;

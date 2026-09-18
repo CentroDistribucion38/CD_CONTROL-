@@ -89,6 +89,10 @@ const REG = marco(`
 <div><span class="rot-campo">Placa</span><div class="placa"><input value="WGX418"></div>
 <div class="recientes"><button>WGX418</button><button>SVD902</button><button>TKR337</button><button>JHP551</button><button>RQM204</button></div></div>
 
+<div><span class="rot-campo">Documento</span>
+<input class="campo-suelto doc" value="4500123456">
+<p class="guia" style="margin-top:8px">No se puede repetir: si este número ya está en otro viaje, la pantalla te dice en cuál. Si ese otro registro está malo, anúlalo y este entra.</p></div>
+
 <div><span class="rot-campo">Tipo de viaje</span><div class="chips">
 <button class="on">Casco vidrio</button><button>Envase</button><button>Estibas</button>
 <button>Plástico</button><button>PET</button><button>Lavado</button>
@@ -117,10 +121,10 @@ const REG = marco(`
 <div class="huecos">${Array.from({length:16},(_,i)=>`<i class="${i<4?"lleno":""}"></i>`).join("")}</div>
 <div class="pie-plan">Cada cuadro es un viaje del plan. Se prende al registrarlo.</div></div>
 <div class="hoy"><div class="cab"><h3>Viajes de hoy</h3><span class="cuantos">4 registrados</span></div>
-${[["11:32","WGX418","Casco vidrio · Ag01 → Planta Barranquilla"],
-   ["10:58","SVD902","Estibas · Ag01 → CD Galapa"],
-   ["10:14","WGX418","Envase · Planta Barranquilla → Ag01"],
-   ["09:40","TKR337","PET · Ag01 → CD Turbaco"]].map(([h,p,d])=>
+${[["11:32","WGX418","4500123456 · Casco vidrio · Ag01 → Planta Barranquilla"],
+   ["10:58","SVD902","4500123457 · Estibas · Ag01 → CD Galapa"],
+   ["10:14","WGX418","4500123458 · Envase · Planta Barranquilla → Ag01"],
+   ["09:40","TKR337","sin documento · PET · Ag01 → CD Turbaco"]].map(([h,p,d])=>
 `<div class="viaje"><span class="hora">${h}</span><span><span class="pl">${p}</span><span class="det">${d}</span></span></div>`).join("")}
 </div></aside></div>`);
 
@@ -146,6 +150,37 @@ for (const [nom, html] of [["plan", PLAN], ["reg", REG]]) {
       return { x: document.documentElement.scrollWidth > a, fuera: [...new Set(fuera)].slice(0,5), det };
     });
     console.log(`${nom} ${m} (${w}px): desplaza=${r.x}`, r.det?.length?r.det:"");
+
+    /* EL DOCUMENTO SE TECLEA DE PIE Y A VECES CON GUANTES. 48px de alto
+       es el mínimo de esta bodega, el mismo que ya rige las casillas de
+       fecha del conteo — allí intenté bajarlo a 46 para ganar seis
+       píxeles y el arnés tuvo razón y yo no. Y tiene que caber el
+       número entero: un campo que corta «4500123456» a la mitad obliga
+       a rodar dentro del campo para cotejarlo contra el papel. */
+    if (nom === "reg") {
+      const d = await p.evaluate(() => {
+        const el = document.querySelector(".campo-suelto.doc");
+        if (!el) return { falta: true };
+        const b = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        /* Cuánto mide el texto de verdad con la tipografía que le tocó,
+           medido con el navegador y no calculado a ojo. */
+        const lona = document.createElement("canvas").getContext("2d");
+        lona.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        const ancho = lona.measureText("4500123456").width;
+        const util = b.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        return { alto: Math.round(b.height), ancho: Math.round(ancho), util: Math.round(util) };
+      });
+      const malDoc = [];
+      if (d.falta) malDoc.push("no está el campo de documento");
+      else {
+        if (d.alto < 48) malDoc.push(`alto ${d.alto}px, el mínimo son 48`);
+        if (d.ancho > d.util) malDoc.push(`el número no cabe: ${d.ancho}px en ${d.util}px`);
+      }
+      console.log(`      documento: alto ${d.alto ?? "?"}px · cabe el número: ${d.falta || d.ancho > d.util ? "NO" : "sí"}`
+                  + (malDoc.length ? `  ← MAL: ${malDoc.join(" | ")}` : ""));
+      if (malDoc.length) process.exitCode = 1;
+    }
 
     /* LA COLUMNA CLAVADA. Se rueda la rejilla hasta el final y se
        comprueba que la primera celda de cada fila siguió en el borde

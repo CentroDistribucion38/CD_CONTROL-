@@ -77,9 +77,12 @@ type Borrador = {
   rot: boolean | null;
   averia: boolean; pnc: boolean; estado: string; nota: string;
 };
+/* UN RENGLÓN NUEVO ARRANCA SIEMPRE EN FABRICACIÓN. «vence» ya solo
+   existe para reabrir los renglones que se anotaron así antes del
+   cambio; no hay forma de escogerlo desde la pantalla. */
 const VACIO: Borrador = {
   calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
-  fecha: "vence", modo: "estibas", cuantas: "", rot: null,
+  fecha: "fabrica", modo: "estibas", cuantas: "", rot: null,
   averia: false, pnc: false, estado: "", nota: "",
 };
 
@@ -420,8 +423,14 @@ export function Contar({
       /* Se vuelve a abrir CON LA FECHA QUE SE TECLEÓ. Si se anotó la de
          fábrica, corregir muestra esa —no el vencimiento calculado—:
          quien vuelve a mirar la estiba lee el mismo número que leyó la
-         primera vez. */
-      fecha: r.fab_anio != null ? "fabrica" : "vence",
+         primera vez.
+
+         «vence» SOLO SI DE VERDAD HAY UN VENCIMIENTO TECLEADO. Ahora que
+         la pantalla ya no ofrece esa opción, preguntar nada más por
+         `fab_anio` mandaría a «vence» también a los renglones SIN NINGUNA
+         fecha —los envases—, y esos aparecerían con el aviso de «se
+         anotó por vencimiento» encima de tres casillas vacías. */
+      fecha: r.fab_anio == null && r.venc_anio != null ? "vence" : "fabrica",
       dia: String((r.fab_anio != null ? r.fab_dia : r.venc_dia) ?? ""),
       mes: String((r.fab_anio != null ? r.fab_mes : r.venc_mes) ?? ""),
       anio: String((r.fab_anio != null ? r.fab_anio : r.venc_anio) ?? ""),
@@ -672,17 +681,28 @@ export function Contar({
         )}
 
         {/* ---------- 3 · LA FECHA ----------
-            SE ESCOGE CUÁL SE ESTÁ LEYENDO. Unas estibas traen impreso el
-            vencimiento y otras la fabricación, y hasta ahora había que
-            hacer la cuenta de cabeza antes de teclear. Ahora se dice
-            cuál es y, si es la de fábrica, la pantalla muestra cuándo
-            vence mientras se teclea. */}
+            SE TECLEA LA DE FÁBRICA Y YA. Aquí hubo un interruptor
+            «Vence | Se fabricó», y sobraba: los 462 productos activos
+            tienen vida útil en el maestro, SIN UNA SOLA EXCEPCIÓN, así
+            que el vencimiento siempre se puede calcular. Un interruptor
+            cuya segunda posición no hace falta es un toque de más en
+            cada estiba —152 al día— y una manera de equivocarse que no
+            tenía por qué existir: escoger «Vence» y teclear la de
+            fábrica guarda una fecha que está mal y no avisa.
+
+            LOS 32 ENVASES NO TIENEN VIDA ÚTIL Y NO LA NECESITAN: el
+            retornable no trae fecha impresa, y para ellos la fecha
+            entera es opcional.
+
+            LOS RENGLONES VIEJOS QUE SE ANOTARON POR VENCIMIENTO se
+            siguen corrigiendo por vencimiento —se dice cuál es—, porque
+            reabrirlos como fabricación pondría en la casilla un número
+            que nadie leyó nunca en esa estiba. */}
         <div className={"fe-fecha" + (esEnvase ? " opcional" : "")}>
           <div className="fe-que-fecha">
-            <button type="button" className={b.fecha === "vence" ? "on" : ""}
-                    onClick={() => pon("fecha", "vence")}>Vence</button>
-            <button type="button" className={b.fecha === "fabrica" ? "on" : ""}
-                    onClick={() => pon("fecha", "fabrica")}>Se fabricó</button>
+            <span className={"fe-etiq-fecha" + (b.fecha === "vence" ? " ojo" : "")}>
+              {b.fecha === "vence" ? "Vence" : "Se fabricó"}
+            </span>
           </div>
           {esEnvase && <em className="fe-opcional">el envase no trae fecha</em>}
           <div className="fe-dma">
@@ -693,14 +713,19 @@ export function Contar({
             <input inputMode="numeric" maxLength={2} placeholder="AA" value={b.anio}
                    onChange={(e) => pon("anio", e.target.value)} />
           </div>
-          {b.fecha === "fabrica" && (
+          {b.fecha === "vence" ? (
+            <p className="fe-calculada esperando">
+              Este renglón se anotó con la fecha de vencimiento, antes del cambio.
+              Se corrige igual: la casilla es el vencimiento, no la fabricación.
+            </p>
+          ) : (
             <p className={"fe-calculada" + (fechaCalculada ? "" : " esperando")}>
               {fechaCalculada
                 ? <>Vence el <b>{fechaCalculada.toLocaleDateString("es-CO")}</b>
                     {" "}· {material!.vida_util} días de vida útil</>
-                : material && !material.vida_util
+                : material && !material.vida_util && !esEnvase
                   ? <>Este material no tiene vida útil en el maestro, así que no se puede
-                      calcular. Téclea el vencimiento.</>
+                      calcular el vencimiento. Avísale a quien lleva el maestro.</>
                   : <>Teclea la fecha de fábrica y te digo cuándo vence.</>}
             </p>
           )}
@@ -794,6 +819,27 @@ export function Contar({
             {modulosHechos} módulo{modulosHechos === 1 ? "" : "s"} ·{" "}
             {nf.format(cajasTotal)} cajas
           </span>
+
+          {/* ENVIAR, TAMBIÉN AQUÍ ARRIBA.
+              Con ciento cincuenta renglones el botón de abajo queda a
+              siete pantallazos de scroll, y el que ya revisó y solo
+              quiere mandar tiene que recorrer toda la lista otra vez
+              para llegar a él.
+
+              SIGUEN SIENDO DOS Y ESO ESTÁ BIEN: son dos momentos
+              distintos. Arriba es «ya revisé, mándalo»; abajo es «acabo
+              de leer el último renglón y ya estoy ahí». Un solo botón
+              obliga a rodar en una de las dos direcciones.
+
+              Y los dos llaman a la MISMA función, con la misma
+              confirmación: si fueran dos caminos distintos, uno de los
+              dos acabaría saltándose el aviso. */}
+          {renglones.length > 0 && (
+            <button type="button" className="btn fe-mandar-ya" disabled={guardando}
+                    onClick={enviar}>
+              {guardando ? "Enviando…" : "Enviar el conteo"}
+            </button>
+          )}
         </div>
 
         {(cortos.length > 0 || semana.length > 0) && (

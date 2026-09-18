@@ -1,93 +1,161 @@
-Contar: se teclea la fecha de fábrica y el vencimiento sale de la vida útil
+Traspasos: el documento del viaje, obligatorio y sin repetir
 
-«Tengo que meter fecha de fabricación y mira cómo calcula la del
-vencimiento.»
+«En el registro sí o sí deben colocar el documento asociado a ese
+vehículo, y ningún documento se puede repetir — a menos que el registro
+se anule.»
 
-La cuenta ya estaba en el maestro: `vida_util`, en días, por material.
-Vencimiento = fabricación + vida útil.
-
-LO PRIMERO FUE COMPROBAR QUE EL DATO ALCANCE, antes de construir nada:
-los 462 productos activos tienen vida útil, SIN UNA SOLA EXCEPCIÓN. Los
-32 envases no la tienen y no la necesitan —el retornable no trae fecha
-impresa—, así que para ellos no cambia nada.
+Y dos cosas del conteo, pedidas con la bodega delante: la fecha ya solo
+se teclea de fabricación, y el borrador se puede enviar desde arriba.
 
 =====================================================================
-1 · SE ESCOGE QUÉ FECHA SE ESTÁ LEYENDO
+1 · POR QUÉ EL REPETIDO ES EL ERROR CARO
 =====================================================================
 
-    [ Vence ]  [ Se fabricó ]
+Un mismo documento digitado dos veces son dos viajes contados donde
+hubo uno. El cumplido del turno queda inflado, y el viaje que alguien
+creyó registrar y no registró NO SE NOTA, porque el número cuadra.
 
-Unas estibas traen impreso el vencimiento y otras la fabricación, según
-la línea y el formato. Hasta ahora había que hacer la cuenta de cabeza
-antes de teclear.
-
-Con «Se fabricó», la pantalla dice debajo: «Vence el 6/11/2027 · 180
-días de vida útil». CON LOS DÍAS AL LADO a propósito: sin ese número,
-«vence el 6 de noviembre» es un dato que hay que creer; con él, se puede
-comprobar de cabeza frente a la estiba.
+Es la clase de error que no se ve mirando la pantalla. Solo se ve
+poniendo el candado.
 
 =====================================================================
-2 · LA CUENTA LA HACE LA BASE, NO LA PANTALLA
+2 · SE GUARDA COMO EL PAPEL, SE COMPARA SIN ADORNOS
 =====================================================================
 
-Lo que viaja al guardar es LA FECHA QUE SE TECLEÓ. Con la fabricación,
-el vencimiento va en null y lo calcula `conteo_fefo_agregar` con la vida
-útil del maestro.
+`documento` conserva lo que dice el papel —«T-12345»— y una segunda
+columna GENERADA, `documento_clave`, guarda la versión sin guiones, sin
+espacios y en mayúscula. El candado va sobre la clave: «t 12345»,
+«T-12345» y «T12345» son el mismo papel y el segundo se rechaza.
 
-Si la pantalla mandara el vencimiento ya calculado, habría dos versiones
-de la misma fórmula —una en JavaScript y otra en SQL— esperando a
-discrepar el día que alguien corrija una vida útil. Lo que se ve en
-pantalla es una VISTA PREVIA; lo que se guarda lo decide un solo sitio.
-El arnés comprueba las dos cosas.
-
-=====================================================================
-3 · SE GUARDAN LAS DOS FECHAS
-=====================================================================
-
-EL VENCIMIENTO ES LO QUE MANDA: de él salen «días para vencer» y «días
-para salir», que es sobre lo que se decide un despacho.
-
-LA FABRICACIÓN ES LO QUE SE LEYÓ EN LA ESTIBA. Si mañana alguien corrige
-la vida útil de un material en el maestro, lo contado ayer NO cambia —un
-conteo es una foto de ese día, y eso es correcto—. Pero sin la
-fabricación guardada no habría forma de recontar contra lo que dice el
-cartón.
-
-Y al corregir un renglón se vuelve a abrir con la fecha que se tecleó,
-no con la calculada: quien vuelve a mirar la estiba lee el mismo número
-que leyó la primera vez.
+POR QUÉ DOS COLUMNAS. Si se guardara solo la versión pelada, la
+pantalla mostraría «T12345» y el papel diría «T-12345»: quien compara a
+ojo tendría que traducir cada vez. Y por qué GENERADA: no se puede
+desajustar. No hay forma de escribir un documento y una clave que no se
+correspondan — ni desde la pantalla, ni desde el SQL Editor, ni desde
+un import que alguien escriba dentro de un año. El arnés lo intenta.
 
 =====================================================================
-4 · LO QUE EL ARNÉS ME DEVOLVIÓ DOS VECES
+3 · EL CANDADO ES UN ÍNDICE, NO UN «if»
 =====================================================================
 
-El interruptor y el aviso sumaban dos renglones y empujaban «Anotar
-renglón» 40 px bajo el pliegue de un teléfono de 390. Ese botón bajo el
-pliegue es un scroll por estiba, 152 al día.
+La comprobación también está en la función, para poder decir CUÁL viaje
+ya tiene ese documento —«ya está en el TR-0231 del 14/09 con la placa
+ABC123»— en vez de «duplicate key value violates unique constraint».
 
-Primero subí el aviso a la fila del interruptor con `order` —sin tocar
-el orden del HTML, que es el que leen el teclado y el lector de
-pantalla—. Faltaban seis píxeles, y los saqué bajando las casillas
-DD/MM/AA de 48 a 46.
-
-EL ARNÉS LO RECHAZÓ: el mínimo de esta pantalla son 48 px, porque se usa
-de pie y a veces con guantes. Tenía razón el arnés y no yo. Los píxeles
-salieron del aire entre bloques, que no se toca con el dedo.
-
-Y me cazó otra de paso: `min-width: auto` en un hijo flex no se deja
-encoger, y las tres casillas empujaban la página 460 px de lado a 360.
+Pero lo que de verdad impide el duplicado es el índice único. Un `if`
+que mira y después inserta tiene un hueco entre las dos cosas, y dos
+supervisores digitando en el mismo segundo se cuelan los dos. En este
+módulo hay tres turnos y varias personas registrando a la vez; el
+consecutivo TR- ya se tuvo que resolver con una secuencia por esto
+mismo. El arnés escribe DIRECTO en la tabla, saltándose el `if`, para
+comprobar que el índice aguanta solo.
 
 =====================================================================
-5 · PARA CORRER
+4 · ANULAR LIBERA EL DOCUMENTO
 =====================================================================
 
-  supabase/migraciones/2026-09-conteo-fabricacion.sql
+El índice es PARCIAL: solo lo registrado. Es literalmente lo que se
+pidió, y además es lo único que funciona — si cubriera lo anulado,
+anular y volver a registrar (el camino normal cuando se digitó mal)
+chocaría contra el propio viaje anulado y no habría manera de
+arreglarlo.
 
-Después de `2026-09-conteo-saldo.sql`. Se puede correr varias veces;
-probado dos vueltas, y la cuenta comprobada con datos reales: el 3128
-fabricado el 10/05/27, con 180 días de vida útil, vence el 06/11/27.
+El anulado CONSERVA su documento: el rastro no se borra. Quedan dos
+filas con el mismo número, una anulada y una viva, y está bien.
 
-  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-conteo-fabricacion.sql' | Set-Clipboard"
+=====================================================================
+5 · LO VIEJO NO SE ROMPE Y NO SE INVENTA
+=====================================================================
+
+Los viajes que ya están en la base se quedan sin documento y la vista
+los marca (`sin_documento`) para completarlos al corregirlos. No se les
+pone un número inventado.
+
+Y la regla NO se puso como CHECK en la tabla, aunque era lo primero que
+se me ocurrió: un CHECK se evalúa también al ACTUALIZAR, y entonces
+anular un viaje viejo —que es un update— fallaría por una columna que
+no tiene nada que ver con anular. La obligación vive en las dos
+funciones por las que se entra.
+
+=====================================================================
+6 · LO QUE EL ARNÉS ME DEVOLVIÓ
+=====================================================================
+
+Once mutaciones: se rompe la migración a propósito, una cosa a la vez,
+y se exige que la prueba correspondiente se ponga ROJA. Las once lo
+hicieron — pero no a la primera.
+
+UNA MUTACIÓN SE EQUIVOCÓ DE ACUSADO. Quitarle al índice su condición
+`estado = 'registrado'` debía romper «anular libera el documento», y
+salió VERDE. No porque nada cazara el error: lo cazó OTRA cosa —la
+guardia de la propia migración— y mi mutación esperaba el mensaje
+equivocado. Una mutación que se equivoca de acusado es tan inútil como
+una aserción que no puede fallar. Ahora son dos: una para la guardia y
+otra, con la guardia también rota, que sí pone a prueba la aserción.
+
+Y EL MEDIDOR DE CONTRASTE MENTÍA. Medía las etiquetas nuevas contra la
+fila que las contiene, y esa fila no pinta fondo: devolvía 1,3 y 2,2
+para dos etiquetas perfectamente legibles. Un elemento sin fondo no es
+negro — deja ver el de atrás. Ahora sube por los padres hasta el primer
+fondo de verdad. Medido así: 9,4 en los siete temas.
+
+=====================================================================
+7 · EL CONTEO: SOLO FECHA DE FABRICACIÓN
+=====================================================================
+
+«Aquí nada más se debe registrar fecha de fabricación y dependiendo del
+material se colocaba automático la fecha de vencimiento.»
+
+El interruptor «Vence | Se fabricó» sobraba: los 462 productos activos
+tienen vida útil en el maestro, SIN UNA SOLA EXCEPCIÓN, así que el
+vencimiento siempre se puede calcular. Un interruptor cuya segunda
+posición no hace falta es un toque de más por estiba —152 al día— y una
+manera de equivocarse que no tenía por qué existir: escoger «Vence» y
+teclear la de fábrica guarda una fecha mala y nada avisa.
+
+Queda un RÓTULO en su sitio, no un hueco: la casilla dice DD MM AA y
+nada más, y acordarse de qué fecha va ahí a las cinco de la mañana con
+ciento cincuenta estibas por delante no es un plan.
+
+LOS RENGLONES DE ANTES que se anotaron por vencimiento se siguen
+corrigiendo por vencimiento, y la pantalla lo dice en ámbar. Reabrirlos
+como fabricación pondría en la casilla un número que nadie leyó nunca
+en esa estiba.
+
+Y una que casi se cuela: preguntar solo por `fab_anio` mandaba a
+«vence» también a los renglones SIN NINGUNA fecha —los 32 envases—, que
+habrían aparecido con el aviso de «se anotó por vencimiento» encima de
+tres casillas vacías.
+
+=====================================================================
+8 · EL CONTEO: ENVIAR DESDE ARRIBA
+=====================================================================
+
+«Que en la parte de arriba haya un botón para enviar el conteo, para
+que no me toque bajar y guardar todo.»
+
+Con ciento cincuenta renglones el botón del final está a siete
+pantallazos. SIGUEN SIENDO DOS y está bien: arriba es «ya revisé,
+mándalo»; abajo es «acabo de leer el último renglón y ya estoy ahí».
+Los dos llaman a la MISMA función con la MISMA confirmación — si fueran
+dos caminos, uno acabaría saltándose el aviso.
+
+48 px de alto, como todo lo que se toca en esta pantalla.
+
+=====================================================================
+9 · PARA CORRER
+=====================================================================
+
+  supabase/migraciones/2026-09-traspasos-documento.sql
+
+Después de 2026-09-traspasos-registro-atrasado.sql. Se puede correr
+varias veces; probado dos vueltas contra un Postgres 16 de verdad, como
+no-superusuario, con un viaje viejo sembrado antes de la migración.
+
+  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-traspasos-documento.sql' | Set-Clipboard"
+
+El conteo no necesita SQL nuevo: la base ya calculaba el vencimiento
+desde la fabricación.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

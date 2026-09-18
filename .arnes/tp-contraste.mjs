@@ -20,6 +20,11 @@ for (const tema of TEMAS) {
 <div class="fecha-nav"><button class="hoy">HOY</button></div>
 <div class="par-dup"><span class="tx gana">Ag01</span></div>
 <div class="seg"><button class="on">Viaje con carga</button></div>
+<div class="caja"><div class="fila"><div class="placa">WGX418</div><div>
+<div class="ruta">Ag01 → Planta</div>
+<div class="meta"><span class="doc-eti">4500123456</span>
+<span class="eti sin-doc">SIN DOCUMENTO</span>
+<span class="eti corregido">CORREGIDO</span></div></div></div></div>
 </div></div>`;
   const pg = await nav.newPage({ viewport:{width:420,height:420}, deviceScaleFactor:2 });
   await pg.setContent(HTML,{waitUntil:"load"});
@@ -36,12 +41,35 @@ for (const tema of TEMAS) {
     const razon = (a,b) => { const [A,B] = [lum(leer(a)), lum(leer(b))].sort((x,y)=>y-x);
       return Math.round(((A+.05)/(B+.05))*10)/10; };
     const out = {};
-    for (const [nom, sel] of [["ojo-pie",".panel-ojo .pie"],["ojo-b",".panel-ojo .pie b"],
-                              ["ojo-rot",".panel-ojo .rot"],["kpi-pie",".kpi .pie b"],
-                              ["agregar",".agregar-m button"],["hoy",".fecha-nav .hoy"],
-                              ["gana",".par-dup .tx.gana"],["seg",".seg button.on"]]) {
+    /* El tercer valor es CONTRA QUÉ se mide. Una etiqueta de fondo
+       transparente no se puede medir contra sí misma: el lector
+       devolvería negro para «transparent» y daría un contraste
+       inventado. Se mide contra la fila, que es lo que de verdad hay
+       detrás. */
+    for (const [nom, sel, cajaSel] of [
+        ["ojo-pie",".panel-ojo .pie"],["ojo-b",".panel-ojo .pie b"],
+        ["ojo-rot",".panel-ojo .rot"],["kpi-pie",".kpi .pie b"],
+        ["agregar",".agregar-m button", "propio"],["hoy",".fecha-nav .hoy", "propio"],
+        ["gana",".par-dup .tx.gana", "propio"],["seg",".seg button.on", "propio"],
+        ["doc",".fila .meta .doc-eti", ".fila"],
+        ["sin-doc",".fila .meta .eti.sin-doc", ".fila"],
+        ["corregido",".fila .meta .eti.corregido", "propio"]]) {
       const el = document.querySelector(sel);
-      const caja = ["agregar","hoy","gana","seg"].includes(nom) ? el : el.closest(".panel-ojo, .kpi");
+      let caja = cajaSel === "propio" ? el
+               : cajaSel ? el.closest(cajaSel)
+               : el.closest(".panel-ojo, .kpi");
+
+      /* Y SI ESA CAJA NO PINTA NADA, SE SIGUE SUBIENDO. Un elemento sin
+         fondo no es negro: deja ver el de atrás. Medir contra él
+         devuelve un contraste inventado — la primera versión de esto
+         daba 1,3 y 2,2 para dos etiquetas perfectamente legibles, y el
+         error estaba en el medidor, no en la pantalla. */
+      const pinta = (n) => {
+        const c = getComputedStyle(n).backgroundColor;
+        return c && c !== "transparent" && !/rgba\([^)]*,\s*0\s*\)/.test(c);
+      };
+      while (caja && caja !== document.documentElement && !pinta(caja)) caja = caja.parentElement;
+      if (!caja) caja = document.body;
       const cs = getComputedStyle(el), cp = getComputedStyle(caja);
       /* La opacidad mezcla con el fondo antes de pintar: medir el color
          escrito y no el que se ve dejaría pasar un texto apagado. */

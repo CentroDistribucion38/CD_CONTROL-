@@ -90,8 +90,7 @@ const ARMAZON = `
 
     <div class="fe-fecha">
       <div class="fe-que-fecha">
-        <button type="button">Vence</button>
-        <button type="button" class="on">Se fabricó</button>
+        <span class="fe-etiq-fecha">Se fabricó</span>
       </div>
       <em class="fe-opcional">el envase no trae fecha</em>
       <div class="fe-dma">
@@ -143,6 +142,7 @@ const ARMAZON = `
         <p class="fe-rec-dice">Todo esto está guardado pero todavía no se ha enviado.
           Revísalo, corrige lo que haga falta, y mándalo cuando termines.</p></div>
       <span>12 renglones · 4 módulos · 68.420 cajas</span>
+      <button type="button" class="btn fe-mandar-ya">Enviar el conteo</button>
     </div>
     <p class="fe-aqui">En <b>ALAR_BAHIA_6</b> llevas 3 renglones (26.880 cajas)</p>
     <div class="fe-lista">
@@ -385,6 +385,63 @@ for (const [ancho, etiqueta] of ANCHOS) {
     fallas.push(`${etiqueta}, corrigiendo: un desplegable mide ${b.toque} px`);
 }
 
+/* ---------- 6b. LA FECHA Y EL BOTÓN DE ENVIAR ----------
+
+   DOS COSAS QUE SE PIDIERON MIRANDO LA PANTALLA CON LA BODEGA DELANTE:
+
+   · Que la fecha sea SIEMPRE la de fabricación. El interruptor
+     «Vence | Se fabricó» sobraba —los 462 productos activos tienen vida
+     útil— y era un toque de más por estiba, 152 al día, más una manera
+     de guardar una fecha equivocada sin que nada avisara. Esta aserción
+     existe para que no vuelva: es la clase de control que alguien
+     reintroduce «por si acaso» dentro de seis meses.
+
+   · Que se pueda enviar SIN BAJAR HASTA EL FINAL. Con 150 renglones el
+     botón del final está a siete pantallazos, y el que ya revisó tiene
+     que recorrer la lista entera otra vez solo para llegar a él.
+     ------------------------------------------------------------------ */
+await monta(pag, null, 390, 740);
+const env = await pag.evaluate((BARRA) => {
+  const botones = document.querySelectorAll(".fe-que-fecha button").length;
+  const rot = document.querySelector(".fe-etiq-fecha");
+  const b = document.querySelector(".fe-rec-cab .fe-mandar-ya");
+  const sec = document.querySelector(".fe-recorrido");
+  if (!b || !sec) return { botones, rotulo: rot ? rot.textContent.trim() : null, falta: true };
+  const rb = b.getBoundingClientRect(), rs = sec.getBoundingClientRect();
+  return {
+    botones,
+    rotulo: rot ? rot.textContent.trim() : null,
+    alto: Math.round(rb.height),
+    /* Cuánto hay que bajar dentro del borrador para llegar al botón. La
+       pestaña se abre por su principio, así que esto es exactamente lo
+       que costaría alcanzarlo. */
+    desde: Math.round(rb.bottom - rs.top),
+    cabe: Math.round(rb.bottom - rs.top) <= 740 - BARRA,
+  };
+}, BARRA);
+
+console.log(`\nfecha: ${env.botones} botón(es) de escoger · rótulo «${env.rotulo ?? "NO HAY"}»`);
+console.log(`enviar arriba: ${env.falta ? "NO ESTÁ" : `alto ${env.alto} px · a ${env.desde} px del principio del borrador · ${env.cabe ? "cabe sin bajar" : "HAY QUE BAJAR"}`}`);
+
+if (env.botones > 0)
+  fallas.push(`volvió el interruptor de escoger la fecha (${env.botones} botones). ` +
+              "Aquí solo se teclea la de fabricación: el vencimiento lo calcula la base " +
+              "con la vida útil del maestro");
+if (!env.rotulo)
+  fallas.push("la fecha no dice cuál es: la casilla solo pone DD MM AA y sin rótulo hay que " +
+              "acordarse de qué fecha va ahí");
+if (env.falta)
+  fallas.push("no está el botón de enviar arriba del borrador: con 150 renglones el de abajo " +
+              "queda a siete pantallazos");
+else {
+  if (env.alto < 48)
+    fallas.push(`el botón de enviar de arriba mide ${env.alto} px (mínimo 48: se usa de pie ` +
+                "y a veces con guantes)");
+  if (!env.cabe)
+    fallas.push(`el botón de enviar de arriba queda a ${env.desde} px del principio del ` +
+                "borrador: hay que bajar para verlo, que es justo lo que venía a evitar");
+}
+
 /* ---------- 7. LO QUE NO SE VE PERO DECIDE ---------- */
 const limpio = tsx.replace(/\/\*[\s\S]*?\*\//g, "");
 if (/\b(prompt|confirm|alert)\s*\(/.test(limpio))
@@ -399,12 +456,21 @@ if (!/p_ubicacion:\s*ubicacion!\.id/.test(limpio))
    que lleva años en el Excel: cambiarlo obliga a quien ya sabe llenarla
    a buscar cada campo. Se comprueba por el orden en que aparecen los
    rótulos en el componente. */
-const orden = ["Calle", "Módulo", "Lado", "Código", "Descripción", "Vence", "Qué cuentas",
-               "Cuántas", "¿Rota?", "Avería", "PNC", "Estado del envase"];
+const orden = [
+  ["Calle", ">Calle<"], ["Módulo", ">Módulo<"], ["Lado", ">Lado<"],
+  ["Código", ">Código<"], ["Descripción", ">Descripción<"],
+  /* LA FECHA YA NO SE BUSCA POR SU RÓTULO, porque el rótulo es dinámico
+     —«Se fabricó» casi siempre, «Vence» al corregir uno de antes— y un
+     `indexOf(">Vence<")` diría que falta el paso entero. Se busca por el
+     bloque, que es lo que de verdad ocupa ese lugar en el orden. */
+  ["La fecha", 'className={"fe-fecha"'],
+  ["Qué cuentas", ">Qué cuentas<"], ["Cuántas", ">Cuántas<"], ["¿Rota?", ">¿Rota?<"],
+  ["Avería", ">Avería<"], ["PNC", ">PNC<"], ["Estado del envase", ">Estado del envase<"],
+];
 let desde = 0;
-for (const r of orden) {
-  const i = limpio.indexOf(">" + r + "<", desde);
-  if (i < 0) { fallas.push(`falta el campo «${r}» en el renglón`); break }
+for (const [r, aguja] of orden) {
+  const i = limpio.indexOf(aguja, desde);
+  if (i < 0) { fallas.push(`falta el campo «${r}» en el renglón, o quedó fuera de orden`); break }
   desde = i;
 }
 /* Y el borrador tiene que poder corregirse y enviarse. */
@@ -519,8 +585,14 @@ if (/p_venc_[a-z]+: fechaCalculada/.test(limpio))
               "la fabricación y dejar que la base haga la cuenta");
 /* Al corregir se vuelve a abrir con la fecha que se tecleó, no con la
    calculada: quien vuelve a mirar la estiba lee el mismo número. */
-if (!/fecha: r\.fab_anio != null \? "fabrica" : "vence"/.test(limpio))
-  fallas.push("al corregir no se recuerda cuál de las dos fechas se había tecleado");
+/* «vence» SOLO SI DE VERDAD HAY UN VENCIMIENTO TECLEADO. Preguntar nada
+   más por `fab_anio` mandaría a «vence» también a los renglones SIN
+   NINGUNA fecha —los envases—, y esos se reabrirían con el aviso de
+   «este renglón se anotó por vencimiento» encima de tres casillas
+   vacías. */
+if (!/fecha: r\.fab_anio == null && r\.venc_anio != null \? "vence" : "fabrica"/.test(limpio))
+  fallas.push("al corregir no se recuerda cuál de las dos fechas se había tecleado, " +
+              "o manda a «vence» a los renglones que no tienen ninguna fecha");
 
 /* ---------- NO BAJARSE COLUMNAS QUE NO SE USAN ----------
    `productos` tiene 28 columnas y esta pantalla usa 16. Con `select("*")`

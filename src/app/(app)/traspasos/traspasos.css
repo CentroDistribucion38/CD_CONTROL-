@@ -811,6 +811,17 @@
   padding: 0 14px; font: 500 15px var(--tp-texto); background: var(--tp-fondo); color: var(--tp-tinta);
 }
 
+/* EL DOCUMENTO SE TECLEA CON GUANTES Y SE COMPARA CONTRA UN PAPEL. Más
+   grande que el resto y con cifras de ancho fijo, que es lo que permite
+   cotejar dígito por dígito sin ir contando con el dedo. La mayúscula
+   la pone el `onChange`, no el CSS: `text-transform` cambia lo que se
+   ve y no lo que se manda, y entonces la pantalla y la base dirían
+   cosas distintas el día que alguien mire las dos. */
+.tp .campo-suelto.doc {
+  font-weight: 700; font-size: 17px; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}
+
 .tp .extra { border-top: 1px solid var(--tp-linea); padding-top: 15px }
 .tp .extra summary {
   cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--tp-acento); list-style: none;
@@ -1118,6 +1129,41 @@
   background: #E6EDF4; color: #2A4257;
   box-shadow: inset 2.5px 0 0 #5B7C9B;
   padding-left: 9px;
+}
+
+/* ---------- El documento del viaje ----------
+
+   EL NÚMERO, DE PRIMERO Y EN TINTA. No es una etiqueta de estado: es lo
+   que identifica el viaje para quien lo busca, y tiene el mismo peso
+   que la placa. Por eso no usa `.eti` —que es gris y minúscula, para
+   cosas que se miran de reojo— sino su propia clase. */
+.tp .fila .meta .doc-eti {
+  font-weight: 800; color: var(--tp-tinta);
+  font-variant-numeric: tabular-nums; letter-spacing: .01em;
+}
+
+/* ---------- Le falta el documento ----------
+
+   DE RAYITAS, Y NO POR ADORNO. En este módulo el borde discontinuo ya
+   quiere decir «esto hay que completar»: lo usa el punto escrito a mano
+   que todavía no está en el maestro, y el registro de vacíos para decir
+   que no lleva carga. Un viaje sin documento es exactamente eso — algo
+   que falta por llenar, no algo que esté mal.
+
+   EL ÁMBAR ES EL MISMO DE «CORREGIDO», relleno allá y solo de contorno
+   aquí: son parientes —«mira este renglón»— con distinto peso. Un
+   cuarto color habría que aprendérselo; este ya se conoce.
+
+   Y NO ES ROJO, a propósito y por la misma razón que «CORREGIDO» no lo
+   es: en esta fila el rojo ya quiere decir ANULADO. Un viaje viejo sin
+   documento no es un viaje que no pasó.
+
+   Va en duro porque --tp-papel es #FFF en los siete temas: el contraste
+   de #5E4100 sobre blanco es 9.4, medido. */
+.tp .eti.sin-doc {
+  background: transparent; color: #5E4100;
+  border: 1px dashed #C08A16;
+  padding: 2px 6px;
 }
 
 /* ---------- Posibles duplicados ---------- */

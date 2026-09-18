@@ -101,6 +101,20 @@ export function FilaViaje({ v, nombres, derecha }: {
         </div>
 
         <div className="meta">
+          {/* EL DOCUMENTO VA DE PRIMERO en la fila. Cuando alguien busca
+              un viaje en esta lista, casi siempre lo busca por el papel
+              —«¿dónde está el 4500123456?»—, no por el tipo. */}
+          {v.documento && <span className="doc-eti">{v.documento}</span>}
+          {/* Y CUANDO FALTA, SE DICE. Son los viajes de antes de que el
+              documento existiera: no se les inventa un número, se
+              marcan para que se completen al corregirlos. Un vacío
+              nunca sale marcado — no le falta, es que no lleva. */}
+          {v.sin_documento && (
+            <span className="eti sin-doc"
+                  title="Este viaje es de antes de que el documento fuera obligatorio. Se completa al corregirlo.">
+              SIN DOCUMENTO
+            </span>
+          )}
           {v.tipo_nombre && <span>{v.tipo_nombre}</span>}
           {/* Cuántos VIAJES vale la línea. Solo se dice si no es uno:
               "1 viaje" en cada renglón es ruido. */}

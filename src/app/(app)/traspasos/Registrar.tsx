@@ -67,6 +67,11 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
   const [turno, setTurno] = useState(turnoSugerido);
   const [tipo, setTipo] = useState("");
   const [placa, setPlaca] = useState("");
+  /* EL DOCUMENTO SE GUARDA YA EN MAYÚSCULA, desde la tecla. Que la base
+     lo normalice al guardar no basta: quien teclea «t-12345» vería una
+     cosa en la pantalla y otra en la tabla de abajo, y la primera
+     pregunta sería si se guardó bien. */
+  const [documento, setDocumento] = useState("");
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
   const [viajesN, setViajesN] = useState(1);
@@ -155,9 +160,14 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
   const faltan = linea ? Math.max(0, linea.planeado - linea.cumplido) : 0;
   const adicionales = !tipo || !hayPlan ? 0
     : Math.max(0, viajesN - faltan);
+  /* UN VACÍO NO LLEVA DOCUMENTO. No es un olvido: es un número de
+     viajes del turno, no un traslado con papel. Pedírselo obligaría a
+     inventar un número, y un número inventado en una columna que no se
+     puede repetir bloquea el día que alguien lo vuelva a inventar. */
   const puedeMandar = modo === "vacio"
     ? viajesN >= 1
-    : !!tipo && placa.trim() !== "" && origen.trim() !== "" && destino.trim() !== "";
+    : !!tipo && placa.trim() !== "" && documento.trim() !== ""
+      && origen.trim() !== "" && destino.trim() !== "";
 
   /* CTRL+ENTER MANDA. Quien registra veinte viajes seguidos desde el
      escritorio no quiere soltar el teclado para buscar el botón. */
@@ -185,9 +195,10 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
       p_carga: esVacio || carga.trim() === "" ? null : Number(carga),
       p_unidad: null,
       p_nota: nota.trim() || null,
+      p_documento: esVacio ? null : documento.trim() || null,
     });
     setMandando(false);
-    if (error) { avisar.mal(error.message); return }
+    if (error) { avisar.mal(mensajeRegistro(error.message)); return }
 
     avisar.bien(esVacio
       ? `${viajesN} viaje${viajesN === 1 ? "" : "s"} vacío${viajesN === 1 ? "" : "s"} en el turno ${turno}.`
@@ -201,9 +212,28 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
        varios seguidos del mismo tipo y la misma ruta no debería volver
        a escogerlos cada vez — es lo que hace que se dejen de registrar
        a media tarde. */
-    setPlaca(""); setCarga(""); setNota(""); setViajesN(1);
+    /* EL DOCUMENTO SE LIMPIA SIEMPRE, y es de las cosas que más
+       importan de esta pantalla: dejarlo puesto haría que el siguiente
+       viaje saliera rechazado por repetido —o peor, que alguien lo
+       registrara con el documento del anterior sin darse cuenta—. */
+    setPlaca(""); setDocumento(""); setCarga(""); setNota(""); setViajesN(1);
     campoPlaca.current?.focus();
     router.refresh();
+  }
+
+  /* El índice único habla en su idioma. Quien está de pie al lado de un
+     camión no tiene por qué leer «duplicate key value violates unique
+     constraint». La base ya manda el mensaje bueno cuando puede; esto
+     cubre el caso en que llegue el crudo. */
+  function mensajeRegistro(m: string) {
+    if (/does not exist|could not find the function|schema cache/i.test(m)) {
+      return "Falta correr supabase/migraciones/2026-09-traspasos-documento.sql en Supabase.";
+    }
+    if (/duplicate key|traspasos_viajes_documento_unico/i.test(m)) {
+      return `El documento ${documento.trim()} ya está registrado en otro viaje. `
+           + "Revisa el número; si el otro registro está malo, anúlalo y este entra.";
+    }
+    return m;
   }
 
   const plan = planTurno[turno] ?? 0;
@@ -287,6 +317,25 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* EL DOCUMENTO VA PEGADO A LA PLACA, no al final del
+                    formulario. Es el papel que viene CON ese vehículo:
+                    se lee de la misma mano, en el mismo momento, y
+                    ponerlo ocho campos más abajo obliga a soltarlo y a
+                    volver a buscarlo. */}
+                <div>
+                  <span className="rot-campo">Documento</span>
+                  <input className="campo-suelto doc" value={documento}
+                         autoComplete="off" spellCheck={false}
+                         inputMode="text" aria-label="Documento del viaje"
+                         placeholder="El número del papel que va con el vehículo"
+                         /* Mayúscula desde la tecla, no al guardar. */
+                         onChange={(e) => setDocumento(e.target.value.toUpperCase())} />
+                  <p className="guia" style={{ marginTop: 8 }}>
+                    No se puede repetir: si este número ya está en otro viaje, la pantalla
+                    te dice en cuál. Si ese otro registro está malo, anúlalo y este entra.
+                  </p>
                 </div>
 
                 <div>
@@ -505,6 +554,7 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
               {mandando ? "Registrando…"
                 : modo === "vacio" ? `Registrar ${viajesN} vacío${viajesN === 1 ? "" : "s"}`
                 : !placa.trim() ? "Falta la placa"
+                : !documento.trim() ? "Falta el documento"
                 : !tipo ? (hayPlan ? "Escoge del plan" : "Falta el tipo")
                 : !origen.trim() || !destino.trim() ? "Falta la ruta"
                 /* El botón dice lo que va a pasar. "Registrar viaje" cuando
@@ -566,7 +616,12 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                     <span className="det">
                       {v.vacio
                         ? `Turno ${v.turno} · ${quien(nombres, v.registrado_por)}`
-                        : `${v.tipo_nombre} · ${v.origen_nombre} → ${v.destino_nombre}`}
+                        /* EL DOCUMENTO DE PRIMERO en este renglón: la
+                           lista de al lado se mira para responder «¿ya
+                           metí este papel?», y la respuesta es el
+                           número, no la ruta. */
+                        : `${v.documento ?? "sin documento"} · ${v.tipo_nombre}`
+                          + ` · ${v.origen_nombre} → ${v.destino_nombre}`}
                     </span>
                   </span>
                   {!v.vale && <span className="eti mal">ANULADO</span>}
