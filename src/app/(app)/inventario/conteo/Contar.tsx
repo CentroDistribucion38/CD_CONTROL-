@@ -67,13 +67,19 @@ type Borrador = {
   lado: string;
   codigo: string;
   dia: string; mes: string; anio: string;
+  /* QUÉ FECHA SE ESTÁ TECLEANDO. Unas estibas traen impreso el
+     vencimiento y otras la fabricación —depende de la línea y del
+     formato—, así que se escoge y se teclea una sola vez. El
+     vencimiento, cuando se teclea la de fábrica, lo calcula LA BASE con
+     la vida útil del maestro; aquí solo se muestra para confirmar. */
+  fecha: "vence" | "fabrica";
   modo: Modo; cuantas: string;
   rot: boolean | null;
   averia: boolean; pnc: boolean; estado: string; nota: string;
 };
 const VACIO: Borrador = {
   calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
-  modo: "estibas", cuantas: "", rot: null,
+  fecha: "vence", modo: "estibas", cuantas: "", rot: null,
   averia: false, pnc: false, estado: "", nota: "",
 };
 
@@ -233,6 +239,26 @@ export function Contar({
     [materiales, b.codigo]);
   const esEnvase = material?.tipo_material === "ENVASE";
 
+  /* LA FECHA QUE SALE DE LA OTRA, solo para ENSEÑARLA mientras se
+     teclea. Lo que se guarda lo calcula la base con la misma vida útil:
+     aquí no se manda un vencimiento calculado, se manda la fabricación y
+     la base hace la cuenta. Si esto calculara y mandara, habría dos
+     versiones de la misma fórmula esperando a discrepar.
+
+     Se muestra porque es lo que pidió ver: teclear la de fábrica y que
+     la pantalla diga cuándo vence, ahí, frente a la estiba. */
+  const fechaCalculada = useMemo(() => {
+    if (b.fecha !== "fabrica" || !material) return null;
+    const d = ent(b.dia), m = ent(b.mes);
+    const a = b.anio.trim() === "" ? null : Number(b.anio.trim());
+    const vida = material.vida_util;
+    if (d == null || m == null || a == null || !vida || vida <= 0) return null;
+    const f = new Date(2000 + a, m - 1, d);
+    if (f.getMonth() !== m - 1 || f.getDate() !== d) return null;
+    f.setDate(f.getDate() + vida);
+    return f;
+  }, [b.fecha, b.dia, b.mes, b.anio, material]);
+
   /**
    * ANOTAR DEJA EL RENGLÓN ENTERO EN BLANCO. Calle, módulo, lado,
    * código, fecha, cantidad, ¿rota? y las marcas: todo.
@@ -318,8 +344,15 @@ export function Contar({
     p_estibas: b.modo === "estibas" ? ent(b.cuantas) : null,
     p_cajas: b.modo === "cajas" ? ent(b.cuantas) : null,
     p_saldo: b.modo === "saldo" ? ent(b.cuantas) : null,
-    p_venc_dia: ent(b.dia), p_venc_mes: ent(b.mes),
-    p_venc_anio: b.anio.trim() === "" ? null : Number(b.anio.trim()),
+    /* SE MANDA LA QUE SE TECLEÓ, NO LA CALCULADA. Con la fabricación, el
+       vencimiento va en null y lo calcula la base: una sola fórmula, en
+       un solo sitio. */
+    p_venc_dia: b.fecha === "vence" ? ent(b.dia) : null,
+    p_venc_mes: b.fecha === "vence" ? ent(b.mes) : null,
+    p_venc_anio: b.fecha === "vence" && b.anio.trim() !== "" ? Number(b.anio.trim()) : null,
+    p_fab_dia: b.fecha === "fabrica" ? ent(b.dia) : null,
+    p_fab_mes: b.fecha === "fabrica" ? ent(b.mes) : null,
+    p_fab_anio: b.fecha === "fabrica" && b.anio.trim() !== "" ? Number(b.anio.trim()) : null,
     p_averia: b.averia, p_pnc: b.pnc,
     p_estado: b.estado || null,
     p_nota: b.nota.trim() || null,
@@ -384,9 +417,14 @@ export function Contar({
       base: u ? claveBase(u) : "",
       lado: u?.lado ?? "",
       codigo: r.codigo,
-      dia: r.venc_dia != null ? String(r.venc_dia) : "",
-      mes: r.venc_mes != null ? String(r.venc_mes) : "",
-      anio: r.venc_anio != null ? String(r.venc_anio) : "",
+      /* Se vuelve a abrir CON LA FECHA QUE SE TECLEÓ. Si se anotó la de
+         fábrica, corregir muestra esa —no el vencimiento calculado—:
+         quien vuelve a mirar la estiba lee el mismo número que leyó la
+         primera vez. */
+      fecha: r.fab_anio != null ? "fabrica" : "vence",
+      dia: String((r.fab_anio != null ? r.fab_dia : r.venc_dia) ?? ""),
+      mes: String((r.fab_anio != null ? r.fab_mes : r.venc_mes) ?? ""),
+      anio: String((r.fab_anio != null ? r.fab_anio : r.venc_anio) ?? ""),
       /* El modo se deduce de cuál de las TRES vino llena. El orden
          importa: `estibas ?? cajas ?? saldo` con estibas en cero daría
          cero y parecería vacío, así que se compara contra null. */
@@ -633,9 +671,19 @@ export function Contar({
           </p>
         )}
 
-        {/* ---------- 3 · VENCIMIENTO ---------- */}
+        {/* ---------- 3 · LA FECHA ----------
+            SE ESCOGE CUÁL SE ESTÁ LEYENDO. Unas estibas traen impreso el
+            vencimiento y otras la fabricación, y hasta ahora había que
+            hacer la cuenta de cabeza antes de teclear. Ahora se dice
+            cuál es y, si es la de fábrica, la pantalla muestra cuándo
+            vence mientras se teclea. */}
         <div className={"fe-fecha" + (esEnvase ? " opcional" : "")}>
-          <span>Vence</span>
+          <div className="fe-que-fecha">
+            <button type="button" className={b.fecha === "vence" ? "on" : ""}
+                    onClick={() => pon("fecha", "vence")}>Vence</button>
+            <button type="button" className={b.fecha === "fabrica" ? "on" : ""}
+                    onClick={() => pon("fecha", "fabrica")}>Se fabricó</button>
+          </div>
           {esEnvase && <em className="fe-opcional">el envase no trae fecha</em>}
           <div className="fe-dma">
             <input inputMode="numeric" maxLength={2} placeholder="DD" value={b.dia}
@@ -645,6 +693,17 @@ export function Contar({
             <input inputMode="numeric" maxLength={2} placeholder="AA" value={b.anio}
                    onChange={(e) => pon("anio", e.target.value)} />
           </div>
+          {b.fecha === "fabrica" && (
+            <p className={"fe-calculada" + (fechaCalculada ? "" : " esperando")}>
+              {fechaCalculada
+                ? <>Vence el <b>{fechaCalculada.toLocaleDateString("es-CO")}</b>
+                    {" "}· {material!.vida_util} días de vida útil</>
+                : material && !material.vida_util
+                  ? <>Este material no tiene vida útil en el maestro, así que no se puede
+                      calcular. Téclea el vencimiento.</>
+                  : <>Teclea la fecha de fábrica y te digo cuándo vence.</>}
+            </p>
+          )}
         </div>
 
         {/* ---------- 4 · ESTIBAS | CAJAS | ROT ----------

@@ -75,6 +75,13 @@ export type Renglon = {
   venc_dia: number | null;
   venc_mes: number | null;
   venc_anio: number | null;
+  /* La de FÁBRICA, cuando fue la que se tecleó. El vencimiento se
+     calcula de ella con la vida útil y se guarda aparte; esta se guarda
+     para poder recontar contra lo que dice el cartón. */
+  fab_dia: number | null;
+  fab_mes: number | null;
+  fab_anio: number | null;
+  fabricacion: string | null;
   vencimiento: string | null;
   dias_para_vencer: number | null;
   dias_para_salir: number | null;

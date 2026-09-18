@@ -1,91 +1,93 @@
-Inventario: con 30 personas a la vez, la mitad no podía ni empezar
+Contar: se teclea la fecha de fábrica y el vencimiento sale de la vida útil
 
-«30 personas pueden contar a la vez.»
+«Tengo que meter fecha de fabricación y mira cómo calcula la del
+vencimiento.»
 
-Contar, sí. EMPEZAR, no. Y no se habría visto nunca probando de a uno.
+La cuenta ya estaba en el maestro: `vida_util`, en días, por material.
+Vencimiento = fabricación + vida útil.
 
-=====================================================================
-1 · DIECISÉIS DE TREINTA FALLABAN AL PRIMER TOQUE DEL TURNO
-=====================================================================
-
-`conteo_fefo_abrir` armaba el código del recorrido así:
-
-    'FEFO-' || hoy || '-' || lpad(1 + (select count(*) ... de hoy), 2)
-
-Un `count(*)` leído fuera de cualquier candado, y `conteos.codigo` es
-UNIQUE. Treinta personas tocando «Empezar a contar» a las seis de la
-mañana leen el mismo count, arman el mismo código, y el que llega
-segundo revienta con «duplicate key value violates unique constraint».
-
-NO ES TEÓRICO. Lo probé con treinta sesiones simultáneas contra un
-Postgres 16 de verdad:
-
-    ANTES : 16 de 30 fallaron. 14 personas podían empezar a contar.
-    DESPUÉS: 30 de 30, treinta códigos distintos, cero errores.
-
-EL ARREGLO es un candado de transacción sobre EL DÍA. Serializa solo el
-pedacito que lee la cuenta y escribe la fila —microsegundos, una vez por
-persona y por jornada—. Contar, que es lo que se hace las otras ocho
-horas, no toca ese candado ni una vez.
-
-Y SE VUELVE A MIRAR DENTRO DEL CANDADO si ya hay conteo abierto. Entre
-la primera consulta y el candado puede entrar la misma persona por otra
-pestaña —el celular en la mano y la tablet del pasillo—; sin esa segunda
-mirada acabaría con dos recorridos y la mitad de sus renglones en cada
-uno.
+LO PRIMERO FUE COMPROBAR QUE EL DATO ALCANCE, antes de construir nada:
+los 462 productos activos tienen vida útil, SIN UNA SOLA EXCEPCIÓN. Los
+32 envases no la tienen y no la necesitan —el retornable no trae fecha
+impresa—, así que para ellos no cambia nada.
 
 =====================================================================
-2 · CONTAR A LA VEZ SÍ AGUANTABA, Y AHORA ESTÁ PROBADO
+1 · SE ESCOGE QUÉ FECHA SE ESTÁ LEYENDO
 =====================================================================
 
-Treinta personas × diez renglones, TODOS en el mismo módulo y con el
-mismo material a la vez: 300 renglones, exactamente diez por conteo,
-cero errores y cero renglones escritos en el conteo de otro.
+    [ Vence ]  [ Se fabricó ]
 
-Aguanta porque cada renglón cuelga de su propio recorrido y la llave
-única lleva el `conteo_id`. Lo que faltaba era poder empezar.
+Unas estibas traen impreso el vencimiento y otras la fabricación, según
+la línea y el formato. Hasta ahora había que hacer la cuenta de cabeza
+antes de teclear.
 
-=====================================================================
-3 · 413 KB POR PERSONA, Y 134 DE ELLOS SOBRABAN
-=====================================================================
-
-La pantalla se bajaba `productos` con `select("*")`: 28 columnas para
-usar 16. Lo había escrito yo, con un comentario que afirmaba que las
-columnas de más «no son nada al lado de traer 494 filas».
-
-Medido:
-
-    productos      306 KB → 172 KB
-    ubicaciones    106 KB →  87 KB
-    por carga      413 KB → 259 KB
-    × 30 personas   12 MB →   7 MB   por ronda de recargas
-
-Cinco megas menos sobre el wifi de una bodega cada vez que empieza el
-turno. La lista de columnas va como CADENA LITERAL de una pieza: el tipo
-de supabase-js sale de esa literal, así que partirla con `+` para que
-quepa en la línea rompe el tipado y el build revienta con un error que no
-dice eso.
+Con «Se fabricó», la pantalla dice debajo: «Vence el 6/11/2027 · 180
+días de vida útil». CON LOS DÍAS AL LADO a propósito: sin ese número,
+«vence el 6 de noviembre» es un dato que hay que creer; con él, se puede
+comprobar de cabeza frente a la estiba.
 
 =====================================================================
-4 · LOS CANDADOS
+2 · LA CUENTA LA HACE LA BASE, NO LA PANTALLA
 =====================================================================
 
-`prueba-inventario-fefo.sql` comprueba LA CAUSA y no el síntoma —no se
-pueden levantar treinta conexiones desde un script—: que abrir esté
-serializado, y que se mire DOS VECES si ya hay conteo abierto.
+Lo que viaja al guardar es LA FECHA QUE SE TECLEÓ. Con la fabricación,
+el vencimiento va en null y lo calcula `conteo_fefo_agregar` con la vida
+útil del maestro.
 
-`inv-conteo.mjs` comprueba que el maestro no vuelva a bajarse con
-`select("*")`.
+Si la pantalla mandara el vencimiento ya calculado, habría dos versiones
+de la misma fórmula —una en JavaScript y otra en SQL— esperando a
+discrepar el día que alguien corrija una vida útil. Lo que se ve en
+pantalla es una VISTA PREVIA; lo que se guarda lo decide un solo sitio.
+El arnés comprueba las dos cosas.
+
+=====================================================================
+3 · SE GUARDAN LAS DOS FECHAS
+=====================================================================
+
+EL VENCIMIENTO ES LO QUE MANDA: de él salen «días para vencer» y «días
+para salir», que es sobre lo que se decide un despacho.
+
+LA FABRICACIÓN ES LO QUE SE LEYÓ EN LA ESTIBA. Si mañana alguien corrige
+la vida útil de un material en el maestro, lo contado ayer NO cambia —un
+conteo es una foto de ese día, y eso es correcto—. Pero sin la
+fabricación guardada no habría forma de recontar contra lo que dice el
+cartón.
+
+Y al corregir un renglón se vuelve a abrir con la fecha que se tecleó,
+no con la calculada: quien vuelve a mirar la estiba lee el mismo número
+que leyó la primera vez.
+
+=====================================================================
+4 · LO QUE EL ARNÉS ME DEVOLVIÓ DOS VECES
+=====================================================================
+
+El interruptor y el aviso sumaban dos renglones y empujaban «Anotar
+renglón» 40 px bajo el pliegue de un teléfono de 390. Ese botón bajo el
+pliegue es un scroll por estiba, 152 al día.
+
+Primero subí el aviso a la fila del interruptor con `order` —sin tocar
+el orden del HTML, que es el que leen el teclado y el lector de
+pantalla—. Faltaban seis píxeles, y los saqué bajando las casillas
+DD/MM/AA de 48 a 46.
+
+EL ARNÉS LO RECHAZÓ: el mínimo de esta pantalla son 48 px, porque se usa
+de pie y a veces con guantes. Tenía razón el arnés y no yo. Los píxeles
+salieron del aire entre bloques, que no se toca con el dedo.
+
+Y me cazó otra de paso: `min-width: auto` en un hijo flex no se deja
+encoger, y las tres casillas empujaban la página 460 px de lado a 360.
 
 =====================================================================
 5 · PARA CORRER
 =====================================================================
 
-  supabase/migraciones/2026-09-conteo-treinta-a-la-vez.sql
+  supabase/migraciones/2026-09-conteo-fabricacion.sql
 
-Después de `2026-09-inventario-fefo.sql`. Se puede correr varias veces.
+Después de `2026-09-conteo-saldo.sql`. Se puede correr varias veces;
+probado dos vueltas, y la cuenta comprobada con datos reales: el 3128
+fabricado el 10/05/27, con 180 días de vida útil, vence el 06/11/27.
 
-  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-conteo-treinta-a-la-vez.sql' | Set-Clipboard"
+  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-conteo-fabricacion.sql' | Set-Clipboard"
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

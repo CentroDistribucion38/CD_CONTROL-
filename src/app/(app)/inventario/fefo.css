@@ -912,3 +912,84 @@
   color: var(--fe-gris-panel); border-top: 1px solid var(--fe-linea);
 }
 .fe .fe-pie-nota b { color: var(--fe-tinta) }
+
+/* ---------------------------------------------------------------------
+   QUÉ FECHA SE ESTÁ LEYENDO: la de vencimiento o la de fábrica.
+
+   Unas estibas traen impreso el vencimiento y otras la fabricación —
+   depende de la línea y del formato—, y hasta ahora había que hacer la
+   cuenta de cabeza antes de teclear. Dos botones y ya.
+
+   VAN COMO BOTONES Y NO COMO UN DESPLEGABLE: son dos opciones y se
+   alternan varias veces en una jornada; un desplegable serían dos toques
+   cada vez, con guante.
+   --------------------------------------------------------------------- */
+.fe .fe-que-fecha { display: inline-flex; gap: 3px; margin-bottom: 2px }
+.fe .fe-que-fecha button {
+  min-height: 32px; padding: 0 12px; cursor: pointer; border-radius: 2px;
+  border: 1px solid var(--fe-linea); background: var(--fe-fondo);
+  font: 700 11.5px var(--fe-texto); letter-spacing: .04em;
+  color: var(--fe-gris-panel);
+}
+.fe .fe-que-fecha button.on {
+  background: var(--fe-banda); border-color: var(--fe-banda); color: #fff;
+}
+
+/* LA FECHA QUE SALE DE LA OTRA. Se muestra mientras se teclea y con la
+   vida útil al lado: sin el número de días, «vence el 6 de noviembre»
+   es un dato que hay que creer; con él, se puede comprobar de cabeza.
+
+   Y no es lo que se guarda: lo que viaja es la fabricación, y la cuenta
+   la hace la base. Esto es para confirmar frente a la estiba. */
+.fe .fe-calculada {
+  margin: 7px 0 0; padding: 8px 11px; border-radius: 2px;
+  background: var(--fe-fondo); font-size: 12.5px; line-height: 1.4;
+  color: var(--fe-tinta);
+}
+.fe .fe-calculada b { font-family: var(--fe-titulo); font-size: 13.5px }
+.fe .fe-calculada.esperando { color: var(--fe-gris-panel) }
+
+/* EN EL CELULAR LOS DOS RENGLONES NUEVOS SE APRIETAN. Sumados —el
+   interruptor y la fecha calculada— empujaban «Anotar renglón» 40 px
+   bajo el pliegue de un teléfono de 390, y ese botón bajo el pliegue es
+   un scroll por estiba, 152 al día.
+
+   Se recortan los dos, no uno: quitar solo el aviso dejaría la función
+   a medias —lo que se pidió es VER cuándo vence— y quitar solo el
+   interruptor no alcanzaba. */
+@media (max-width: 760px) {
+  /* EL AVISO SE SUBE A LA FILA DEL INTERRUPTOR en vez de ocupar un
+     renglón propio: es la única forma de que quepan las dos cosas
+     nuevas sin empujar «Anotar renglón» bajo el pliegue. Se logra con
+     `order`, sin tocar el orden del HTML —que es el que leen el teclado
+     y el lector de pantalla, y ahí «cuándo vence» va DESPUÉS de la
+     fecha que lo produce—. */
+  .fe .fe-fecha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px }
+  .fe .fe-que-fecha { order: 1; margin-bottom: 0 }
+  .fe .fe-que-fecha button { min-height: 30px; padding: 0 10px; font-size: 11px }
+  .fe .fe-fecha .fe-opcional { order: 2 }
+  .fe .fe-calculada {
+    order: 3; margin: 0 0 0 auto; padding: 4px 8px; font-size: 11.5px;
+    background: none; text-align: right;
+  }
+  .fe .fe-calculada b { font-size: 12.5px }
+  /* El eco del factor estibado se aprieta: es dato de CÁLCULO, no de
+     identificación — la descripción, que es la que confirma que se
+     tecleó bien el código, ya está arriba y de su mismo tamaño. */
+  .fe.contando .fe-eco { padding: 5px 9px; min-height: 0; font-size: 11.5px; margin-bottom: 8px }
+
+  /* MIN-WIDTH CERO O SE SALE. Un hijo flex trae `min-width: auto` y no
+     se deja encoger por debajo de su contenido: sin esto, las tres
+     casillas DD/MM/AA empujaban la página 460 px de lado a 360. */
+  .fe .fe-dma { order: 4; flex: 1 1 100%; min-width: 0 }
+
+  /* LOS PÍXELES QUE FALTABAN NO SALEN DE LO QUE SE TOCA. Bajé las
+     casillas DD/MM/AA de 48 a 46 y el arnés lo rechazó: el mínimo de
+     esta pantalla son 48, porque se usa de pie y a veces con guantes.
+     Tenía razón el arnés y no yo.
+
+     Salen del aire entre bloques, que no se toca con el dedo. */
+  .fe .fe-fecha { gap: 4px 10px }
+  .fe.contando .fe-eco { margin-bottom: 5px }
+  .fe .fe-calculada { padding: 2px 8px }
+}

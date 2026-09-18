@@ -88,12 +88,19 @@ const ARMAZON = `
     </div>
     <p class="fe-eco"><b>480</b> cajas por estiba</p>
 
-    <div class="fe-fecha"><span>Vence</span><em class="fe-opcional">el envase no trae fecha</em>
+    <div class="fe-fecha">
+      <div class="fe-que-fecha">
+        <button type="button">Vence</button>
+        <button type="button" class="on">Se fabricó</button>
+      </div>
+      <em class="fe-opcional">el envase no trae fecha</em>
       <div class="fe-dma">
         <input inputmode="numeric" maxlength="2" placeholder="DD" value="21">
         <input inputmode="numeric" maxlength="2" placeholder="MM" value="08">
         <input inputmode="numeric" maxlength="2" placeholder="AA" value="27">
-      </div></div>
+      </div>
+      <p class="fe-calculada">Vence el <b>6/11/2027</b> · 180 días de vida útil</p>
+    </div>
 
     <div class="fe-tres">
       <label><span>Qué cuentas</span>
@@ -488,6 +495,32 @@ if (!/function limpiar\(\) \{\s*\n\s*setCorrigiendo\(null\);\s*\n\s*setB\(VACIO\
    un campo ya lleno, sobre todo justo después de anotar. */
 if (/placeholder="\d+"/.test(limpio))
   fallas.push("el marcador del código es un número: se confunde con un código ya tecleado");
+
+/* ---------- LA FECHA DE FÁBRICA, Y EL VENCIMIENTO CALCULADO ----------
+   Unas estibas traen impreso el vencimiento y otras la fabricación, y
+   hasta ahora había que hacer la cuenta de cabeza antes de teclear.
+
+   LO QUE SE MANDA ES LO QUE SE TECLEÓ. Con la fabricación, el
+   vencimiento viaja en NULL y lo calcula la base con la vida útil del
+   maestro. Si la pantalla mandara un vencimiento ya calculado, habría
+   dos versiones de la misma fórmula —una aquí y otra en la base—
+   esperando a discrepar el día que alguien corrija una vida útil. */
+if (!/p_fab_dia:/.test(limpio))
+  fallas.push("no se puede teclear la fecha de fabricación");
+if (!/p_venc_dia: b\.fecha === "vence" \? ent\(b\.dia\) : null/.test(limpio))
+  fallas.push("con la fabricación puesta se sigue mandando un vencimiento: la cuenta " +
+              "quedaría escrita en dos sitios");
+/* Y LA VISTA PREVIA ES SOLO PARA ENSEÑAR. Que exista —es lo que se pidió
+   ver— pero que NO sea lo que se guarda. */
+if (!/const fechaCalculada = useMemo/.test(limpio))
+  fallas.push("la pantalla no enseña cuándo vence mientras se teclea la fecha de fábrica");
+if (/p_venc_[a-z]+: fechaCalculada/.test(limpio))
+  fallas.push("se está guardando el vencimiento calculado EN LA PANTALLA en vez de mandar " +
+              "la fabricación y dejar que la base haga la cuenta");
+/* Al corregir se vuelve a abrir con la fecha que se tecleó, no con la
+   calculada: quien vuelve a mirar la estiba lee el mismo número. */
+if (!/fecha: r\.fab_anio != null \? "fabrica" : "vence"/.test(limpio))
+  fallas.push("al corregir no se recuerda cuál de las dos fechas se había tecleado");
 
 /* ---------- NO BAJARSE COLUMNAS QUE NO SE USAN ----------
    `productos` tiene 28 columnas y esta pantalla usa 16. Con `select("*")`
