@@ -46,10 +46,15 @@
 -- ---------------------------------------------------------------------
 -- El editor de Supabase no ejecuta un archivo como una sola transacción:
 -- un `begin;` arriba no lo agrupa como uno espera. Ya me costó una
--- migración que funcionaba con psql y reventaba allá. Un `do $$` es UNA
--- sentencia: o pasa entero o no pasa nada, lo corra quien lo corra. Y
--- aquí importa de verdad — a medio aplicar, unos roles tendrían el
--- permiso del tablero y otros no.
+-- migración que funcionaba con psql y reventaba allá. Un bloque anónimo
+-- es UNA sentencia: o pasa entero o no pasa nada, lo corra quien lo
+-- corra. Y aquí importa de verdad — a medio aplicar, unos roles tendrían
+-- el permiso del tablero y otros no.
+--
+-- Y NO SE NOMBRA AQUÍ EL DELIMITADOR DEL BLOQUE. El editor de Supabase
+-- cuenta esos signos para saber dónde acaba cada sentencia: uno suelto en
+-- un comentario le invierte la cuenta y parte el bloque por la mitad.
+-- Pasó en otra migración de este mismo lote.
 --
 -- ORDEN: después de supabase/02-roles.sql y supabase/03-usuarios.sql.
 -- SE PUEDE CORRER VARIAS VECES.

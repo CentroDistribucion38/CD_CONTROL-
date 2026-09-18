@@ -110,17 +110,40 @@ probé— el archivo corre como una sola transacción y funciona. El editor
 de Supabase no lo agrupa así: «relation "_convertidas" does not exist».
 Probé en un sitio distinto de donde el archivo se usa.
 
-Ahora va todo en un solo `do $$`: el UPDATE y su comprobación en la misma
-sentencia. Y el arnés corre las migraciones SIN AGRUPAR NADA, como el
-editor, con una mutación que reintroduce la tabla temporal a propósito.
+Ahora va todo en un solo bloque anónimo: el UPDATE y su comprobación en
+la misma sentencia. Y el arnés corre las migraciones SIN AGRUPAR NADA,
+como el editor, con una mutación que reintroduce la tabla temporal a
+propósito.
+
+Y ESO DESTAPÓ EL SEGUNDO, QUE ERA PEOR. El archivo arreglado volvió a
+reventar en el editor, ahora con «relation "v_ya" does not exist» — el
+nombre de una VARIABLE, tratado como si fuera una tabla.
+
+La causa: yo había escrito el delimitador del bloque DENTRO DE UN
+COMENTARIO, explicando precisamente que todo iba en un solo bloque.
+Postgres ignora los comentarios; el editor de Supabase NO — cuenta esos
+signos para saber dónde acaba cada sentencia. Uno suelto en un
+comentario le invierte la cuenta, y cuando llega al bloque de verdad
+cree que lo está cerrando: el `declare` queda en una sentencia y el
+cuerpo en otra. Estaba en tres archivos de este lote, los tres escritos
+hoy, los tres explicando lo mismo.
+
+Va un arnés nuevo para que no vuelva: .arnes/sql-como-lo-lee-supabase.mjs
+lee LOS 79 ARCHIVOS SQL del proyecto troceándolos como los trocea el
+editor, y se niega si encuentra un delimitador dentro de un comentario o
+un bloque partido. Entiende también los delimitadores CON NOMBRE: la
+primera versión no, y acusó de «bloque partido» a dos archivos que llevan
+meses corriendo bien — el arnés equivocándose sobre el código, que es la
+forma más rápida de que se deje de creer en él.
 
 =====================================================================
 6 · PARA CORRER, EN ESTE ORDEN
 =====================================================================
 
-  1. supabase/migraciones/2026-09-permiso-sin-acceso-por-persona.sql
-  2. supabase/migraciones/2026-09-roturas-dentro-de-quiebra.sql
-  3. supabase/migraciones/2026-09-conteo-solo-fabricacion.sql   (otra vez)
+  1. supabase/migraciones/2026-09-traspasos-documento.sql
+  2. supabase/migraciones/2026-09-permiso-sin-acceso-por-persona.sql
+  3. supabase/migraciones/2026-09-roturas-dentro-de-quiebra.sql
+  4. supabase/migraciones/2026-09-conteo-solo-fabricacion.sql
 
 Los tres se pueden correr varias veces. Probados contra un Postgres 16 de
 verdad, sin agrupar, con casos sembrados que el archivo de roles no trae:
@@ -128,8 +151,8 @@ un rol con «editar», uno que ya tenía el tablero puesto a mano, una
 persona con la pantalla cerrada por encima de su rol y otra con ella
 abierta.
 
-  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-permiso-sin-acceso-por-persona.sql' | Set-Clipboard"
-  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-roturas-dentro-de-quiebra.sql' | Set-Clipboard"
+Los cuatro pasan el arnés nuevo, así que se trocean igual en psql y en el
+editor.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

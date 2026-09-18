@@ -80,8 +80,18 @@
 -- de donde el archivo se usa de verdad.
 --
 -- Aquí el UPDATE y su comprobación van en la MISMA sentencia, dentro de
--- un solo `do $$`. Eso no depende de cómo agrupe nadie: un bloque es una
--- sentencia, y si la comprobación falla, el UPDATE se deshace con ella.
+-- un solo bloque anónimo. Eso no depende de cómo agrupe nadie: un bloque
+-- es una sentencia, y si la comprobación falla, el UPDATE se deshace con
+-- ella.
+--
+-- Y OJO CON ESCRIBIR EL DELIMITADOR DE UN BLOQUE DENTRO DE UN COMENTARIO.
+-- Aquí ponía el signo del dólar repetido, entre comillas, para nombrarlo.
+-- Postgres ignora los comentarios, pero el editor de Supabase CUENTA esos
+-- signos para saber dónde empieza y dónde acaba cada sentencia: uno suelto
+-- en un comentario le invierte la cuenta, y el bloque de abajo lo parte
+-- por la mitad. Reventó con «relation "v_ya" does not exist» — el nombre
+-- de una variable, tratada como si fuera una tabla, porque el `declare`
+-- había quedado en otra sentencia.
 --
 -- ORDEN: después de supabase/migraciones/2026-09-conteo-fabricacion.sql
 -- SE PUEDE CORRER VARIAS VECES. La segunda vuelta no encuentra nada que

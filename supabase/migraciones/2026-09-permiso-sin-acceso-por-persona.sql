@@ -67,10 +67,14 @@ begin
 end $$;
 
 /* El CHECK llama a esta función, así que reemplazarla lo cambia. Va
-   aparte del `do $$` de arriba porque `create or replace function` no
+   aparte del bloque de arriba porque `create or replace function` no
    puede ir dentro de un bloque sin ejecutarlo como texto, y un `execute`
    con una función entera adentro es de las cosas que nadie vuelve a
-   leer. */
+   leer.
+
+   (El delimitador de un bloque no se nombra en un comentario: el editor
+   de Supabase cuenta esos signos para partir las sentencias, y uno
+   suelto le invierte la cuenta y rompe el archivo.) */
 create or replace function public.permisos_extra_validos(p jsonb)
 returns boolean
 language sql
