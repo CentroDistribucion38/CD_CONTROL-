@@ -1840,3 +1840,50 @@
 .tp .aviso-cerrado h2 { color: #3D2A00 }
 .tp .aviso-cerrado p { color: #5E4100; margin: 8px 0 0; line-height: 1.55; max-width: 74ch }
 .tp .aviso-cerrado p b { color: #3D2A00 }
+
+/* ---------------------------------------------------------------------
+   CUÁNTO LLEVA DE CADA TIPO
+
+   Aparece SOLO cuando hay tipos escogidos, y crece con ellos. Un bloque
+   fijo con diez casillas —una por tipo del maestro— sería pedir diez
+   cifras para llenar una, y empujaría el botón de registrar fuera de la
+   pantalla en el celular.
+
+   EL CONTADOR DE VIAJES SE FUE DE AQUÍ. Un vehículo es un viaje; lo que
+   puede ser más de uno son los tipos que lleva. El contador sigue
+   existiendo para los vacíos, que sí son un número de viajes del turno.
+   --------------------------------------------------------------------- */
+.tp .rot-suave {
+  font-style: normal; font-weight: 500; letter-spacing: 0;
+  text-transform: none; color: var(--tp-gris);
+}
+.tp .por-tipo { display: flex; flex-direction: column; gap: 8px }
+.tp .pt-fila {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 200px);
+  gap: 10px; align-items: center;
+}
+.tp .pt-nombre {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0;
+  font: 600 14px var(--tp-texto); color: var(--tp-tinta); overflow-wrap: anywhere;
+}
+/* CUÁL ES EL PRINCIPAL, DICHO. Es el que queda en la columna del viaje y
+   el que sale en la lista de abajo; sin decirlo, el orden en que se
+   tocaron los chips sería una regla invisible. */
+.tp .pt-nombre i {
+  flex: none; font-style: normal;
+  font: 700 9.5px var(--tp-texto); letter-spacing: .12em; text-transform: uppercase;
+  color: #5E4100; background: #FFF8E6; border: 1px solid #EBD9A6;
+  padding: 2px 6px; border-radius: 2px;
+}
+.tp .pt-fila input {
+  min-height: 44px; padding: 0 12px; width: 100%; min-width: 0;
+  font: 500 14px var(--tp-texto); color: var(--tp-tinta);
+  background: #fff; border: 1.5px solid var(--tp-linea); border-radius: 2px;
+}
+.tp .pt-fila input:focus { outline: none; border-color: var(--tp-acento) }
+
+@media (max-width: 620px) {
+  /* En el celular el nombre y la cifra se apilan: con dos columnas,
+     «Averías/Isotanque» deja la casilla en una rendija. */
+  .tp .pt-fila { grid-template-columns: minmax(0, 1fr); gap: 4px }
+}

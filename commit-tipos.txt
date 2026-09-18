@@ -1,0 +1,69 @@
+Traspasos: un viaje puede llevar varios tipos, y el viaje va en 1
+
+«Cuántos viajes: que siempre sea 1, bloquéalo. Que pueda seleccionar
+varios a la vez y se despliegue la cantidad por tipo.»
+
+QUÉ ESTABA PASANDO
+Un camión que salía con casco y estibas había que registrarlo dos veces
+—y no se podía: el documento es UNO, el del papel que va con el
+vehículo, y no se repite—. Así que se escogía uno de los dos tipos y el
+otro desaparecía del plan.
+
+CÓMO QUEDA
+Un registro es UN vehículo con SU documento, y lleva los tipos que
+lleve. Los chips del plan ahora se escogen varios; debajo aparece una
+casilla de cantidad por cada tipo escogido, opcional como siempre.
+
+EL CONTADOR DE VIAJES SE FUE del viaje con carga, y no es que se
+esconda: es que ya no existe. Un vehículo es un viaje. Lo que puede ser
+más de uno son los tipos que lleva encima. Dejar el contador al lado
+invitaría a poner 3 y mover nueve planes con un solo camión.
+Los VACÍOS lo conservan: un vacío no es un vehículo con papel, es un
+número de viajes del turno, y meter los cinco de una es para lo que
+sirve.
+
+CÓMO CUENTA EN EL PLAN: UNO DE CADA TIPO
+El plan de casco pide viajes de casco; si un camión llevó casco, el plan
+de casco avanzó uno. Que en el mismo camión viniera PET no le quita nada
+a eso — el PET también avanzó uno. El total del turno dirá tres viajes
+donde salió un camión, y eso es correcto EN LA UNIDAD EN QUE ESTÁ
+ESCRITO EL PLAN, que son viajes por tipo. La alternativa —un tercio para
+cada uno— deja el cumplido en «2,33 de 4», que no se reporta.
+La pantalla lo dice en el momento: «avanza 3 planes del turno», en el
+aviso al guardar y en el propio botón.
+
+POR QUÉ UNA TABLA HIJA Y NO VARIAS FILAS DE VIAJE
+Lo obvio sería una fila de viaje por tipo. No se puede, y por una razón
+que ya estaba escrita: `documento_clave` tiene un índice ÚNICO sobre lo
+registrado. Tres filas con el mismo documento —que es lo correcto, es un
+solo papel— chocarían contra él. Relajar ese índice sería deshacer justo
+lo que se pidió hace dos días.
+
+LO VIEJO NO SE TOCA. Los viajes de antes no tienen tipos colgados y no
+se les inventan: el control los lee por su columna `tipo` con un LEFT
+JOIN. Un viaje con hijos cuenta por sus hijos; uno sin hijos, por su
+tipo. Cero datos migrados, y el cumplido de ayer sale igual que ayer.
+
+Y `traspaso_registrar` NO SE REESCRIBE: la función nueva la LLAMA y
+después cuelga los tipos. Una llamada desde la pantalla, una
+transacción, y la función de siempre intacta — que ya se me han perdido
+cosas dentro al rehacerla de memoria.
+
+MEDIDO, NO MIRADO
+· correr-traspasos-varios-tipos.sh contra Postgres 16 de verdad, dos
+  veces, sin agrupar nada. Comprueba lo que decide: que el camión de
+  tres tipos avance los tres planes; que siga siendo UNA fila con UN
+  documento; que el viaje viejo cuente igual que ayer; que la carga no
+  se cuente dos veces; que anular lo saque de los tres planes.
+· mutar-traspasos-varios-tipos.sh: 8 mutaciones, las 8 rojas.
+
+Y SE QUITÓ UN GUARDIÁN DE LA MIGRACIÓN, que es lo honesto. Comprobaba
+que el nombre `traspasos_viaje_tipos` apareciera en la definición del
+control. La mutación lo desnudó: cambiando el join a `on false` la vista
+deja de leer nada y el nombre sigue apareciendo, así que el guardián
+pasaba tan tranquilo. Un guardián que no distingue «lo lee» de «lo
+nombra» no protege y además da confianza de que sí. Lo que de verdad lo
+comprueba es el arnés, y esa prueba sí se pone roja.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

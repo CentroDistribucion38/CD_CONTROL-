@@ -65,7 +65,17 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
 
   const [modo, setModo] = useState<"carga" | "vacio">("carga");
   const [turno, setTurno] = useState(turnoSugerido);
-  const [tipo, setTipo] = useState("");
+  /* VARIOS TIPOS A LA VEZ, cada uno con su cantidad.
+
+     UN CAMIÓN PUEDE SALIR CON CASCO Y ESTIBAS, y hasta hoy había que
+     escoger uno de los dos: el otro desaparecía del plan. No se podía
+     registrar dos veces porque el documento es UNO —el del papel que va
+     con el vehículo— y no se puede repetir.
+
+     Se guarda como Map y no como lista para que escoger y desescoger
+     sea una sola operación, y para que la cantidad de un tipo no se
+     pierda al desescoger el de al lado. */
+  const [tipos_, setTipos] = useState<Map<string, string>>(new Map());
   const [placa, setPlaca] = useState("");
   /* EL DOCUMENTO ES UN NÚMERO Y LLEVA DIEZ CIFRAS COMO MÁXIMO.
      Se limpia DESDE LA TECLA y no al guardar: quien teclea de más vería
@@ -77,7 +87,9 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
   const [viajesN, setViajesN] = useState(1);
-  const [carga, setCarga] = useState("");
+  /* LA CANTIDAD YA NO ES UNA SOLA: va por tipo, dentro de `tipos_`. La
+     del PRIMER tipo se guarda además en la columna `carga` del viaje
+     —lo hace la base— para que todo lo que ya la lee siga leyéndola. */
   const [nota, setNota] = useState("");
   const [mandando, setMandando] = useState(false);
   const [verOtros, setVerOtros] = useState(false);
@@ -156,19 +168,29 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
   const otros = tipos.filter((t) => !enPlan.has(t.clave));
   const hayPlan = delPlan.length > 0;
 
-  /* De los `viajesN` que se están registrando, cuántos se salen del
-     plan. Si el tipo no estaba planeado, todos. */
-  const linea = delPlan.find((p) => p.tipo === tipo);
-  const faltan = linea ? Math.max(0, linea.planeado - linea.cumplido) : 0;
-  const adicionales = !tipo || !hayPlan ? 0
-    : Math.max(0, viajesN - faltan);
+  /* EL ORDEN EN QUE SE ESCOGIERON. El primero es el que queda como tipo
+     del viaje, así que no puede depender de cómo esté ordenado el
+     maestro: es el que la persona tocó primero. */
+  const escogidos = [...tipos_.keys()];
+  const nombreTipo = (c: string) =>
+    tipos.find((t) => t.clave === c)?.nombre ?? c;
+
+  /* CUÁLES DE LOS TIPOS ESCOGIDOS SE SALEN DEL PLAN.
+     Cada tipo avanza SU plan, así que la cuenta es por tipo: uno puede
+     ir dentro del plan y el de al lado por encima, en el mismo viaje.
+     Antes era una sola cifra porque había un solo tipo. */
+  const fueraDelPlan = escogidos.filter((c) => {
+    if (!hayPlan) return true;
+    const l = delPlan.find((p) => p.tipo === c);
+    return !l || l.planeado - l.cumplido <= 0;
+  });
   /* UN VACÍO NO LLEVA DOCUMENTO. No es un olvido: es un número de
      viajes del turno, no un traslado con papel. Pedírselo obligaría a
      inventar un número, y un número inventado en una columna que no se
      puede repetir bloquea el día que alguien lo vuelva a inventar. */
   const puedeMandar = modo === "vacio"
     ? viajesN >= 1
-    : !!tipo && placa.trim() !== "" && documento.trim() !== ""
+    : escogidos.length > 0 && placa.trim() !== "" && documento.trim() !== ""
       && origen.trim() !== "" && destino.trim() !== "";
 
   /* CTRL+ENTER MANDA. Quien registra veinte viajes seguidos desde el
@@ -183,32 +205,63 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
     return () => window.removeEventListener("keydown", t);
   });
 
+  /* Escoger y desescoger un tipo. La cantidad de los demás no se toca:
+     quien ya escribió «120 canastas de PET» y se equivocó de segundo
+     tipo no tiene por qué volver a teclear lo primero. */
+  function tocarTipo(clave: string) {
+    setTipos((m) => {
+      const n = new Map(m);
+      if (n.has(clave)) n.delete(clave); else n.set(clave, "");
+      return n;
+    });
+  }
+  function ponCantidad(clave: string, v: string) {
+    setTipos((m) => new Map(m).set(clave, v.replace(/\D/g, "")));
+  }
   async function mandar() {
     setMandando(true);
     const esVacio = modo === "vacio";
-    const { error } = await supabase.rpc("traspaso_registrar", {
-      p_fecha: fecha, p_turno: turno,
-      p_tipo: esVacio ? null : tipo,
-      p_placa: esVacio ? null : placa,
-      p_origen: esVacio ? null : origen,
-      p_destino: esVacio ? null : destino,
-      p_viajes: viajesN,
-      p_vacio: esVacio,
-      p_carga: esVacio || carga.trim() === "" ? null : Number(carga),
-      p_unidad: null,
-      p_nota: nota.trim() || null,
-      p_documento: esVacio ? null : documento.trim() || null,
-    });
+    /* DOS PUERTAS, Y CADA UNA ES LA SUYA.
+       El vacío sigue por `traspaso_registrar`: no lleva tipo ni placa ni
+       documento, es un número de viajes del turno, y meterlo por la
+       función de varios tipos obligaría a inventarle un tipo.
+       El viaje con carga va por `traspaso_registrar_varios`, que cuelga
+       los tipos y fuerza el viaje en 1 — un vehículo es un viaje. */
+    const { error } = esVacio
+      ? await supabase.rpc("traspaso_registrar", {
+          p_fecha: fecha, p_turno: turno,
+          p_tipo: null, p_placa: null, p_origen: null, p_destino: null,
+          p_viajes: viajesN, p_vacio: true,
+          p_carga: null, p_unidad: null,
+          p_nota: nota.trim() || null, p_documento: null,
+        })
+      : await supabase.rpc("traspaso_registrar_varios", {
+          p_fecha: fecha, p_turno: turno,
+          p_tipos: escogidos.map((c) => ({
+            tipo: c,
+            cantidad: (tipos_.get(c) ?? "").trim() === "" ? null : Number(tipos_.get(c)),
+          })),
+          p_placa: placa,
+          p_origen: origen,
+          p_destino: destino,
+          p_documento: documento.trim() || null,
+          p_nota: nota.trim() || null,
+        });
     setMandando(false);
     if (error) { avisar.mal(mensajeRegistro(error.message)); return }
 
+    const cuantos = escogidos.length;
     avisar.bien(esVacio
       ? `${viajesN} viaje${viajesN === 1 ? "" : "s"} vacío${viajesN === 1 ? "" : "s"} en el turno ${turno}.`
-      : adicionales === 0
-        ? `${placa.toUpperCase()} registrado. El plan del turno ya lo cuenta.`
-        : adicionales === viajesN
-          ? `${placa.toUpperCase()} registrado como adicional. Va a salir en Control por encima del plan.`
-          : `${placa.toUpperCase()} registrado: ${viajesN - adicionales} del plan y ${adicionales} adicional${adicionales === 1 ? "" : "es"}.`);
+      /* SE DICE CUÁNTOS PLANES MOVIÓ, no «un viaje». Un camión con tres
+         tipos avanza tres planes, y el total del turno va a subir tres:
+         quien lo registró tiene que saberlo en el momento, no
+         descubrirlo en Control preguntándose de dónde salieron. */
+      : fueraDelPlan.length === 0
+        ? `${placa.toUpperCase()} registrado · ${cuantos} tipo${cuantos === 1 ? "" : "s"}. El plan del turno ya lo cuenta.`
+        : fueraDelPlan.length === cuantos
+          ? `${placa.toUpperCase()} registrado · ${cuantos} tipo${cuantos === 1 ? "" : "s"}, ${cuantos === 1 ? "fuera del plan" : "todos fuera del plan"}. Va a salir en Control por encima.`
+          : `${placa.toUpperCase()} registrado · ${cuantos - fueraDelPlan.length} del plan y ${fueraDelPlan.length} por encima.`);
 
     /* SE LIMPIA LO DEL VIAJE Y SE DEJA LO DEL TURNO: quien registra
        varios seguidos del mismo tipo y la misma ruta no debería volver
@@ -218,7 +271,12 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
        importan de esta pantalla: dejarlo puesto haría que el siguiente
        viaje saliera rechazado por repetido —o peor, que alguien lo
        registrara con el documento del anterior sin darse cuenta—. */
-    setPlaca(""); setDocumento(""); setCarga(""); setNota(""); setViajesN(1);
+    setPlaca(""); setDocumento(""); setNota(""); setViajesN(1);
+    /* LOS TIPOS TAMBIÉN SE LIMPIAN. Se quedaban puestos «porque el
+       siguiente suele ser igual», y con varios tipos eso es otra cosa:
+       un camión de casco registrado detrás de uno de casco+estibas+PET
+       avanzaría tres planes sin que nadie lo tocara. */
+    setTipos(new Map());
     campoPlaca.current?.focus();
     router.refresh();
   }
@@ -380,9 +438,10 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                           return (
                             <button key={p.tipo} type="button"
                                     className={"chip-plan"
-                                      + (tipo === p.tipo ? " on" : "")
+                                      + (tipos_.has(p.tipo) ? " on" : "")
                                       + (f === 0 ? " lleno" : "")}
-                                    onClick={() => setTipo(p.tipo)}>
+                                    aria-pressed={tipos_.has(p.tipo)}
+                                    onClick={() => tocarTipo(p.tipo)}>
                               <b>{p.nombre}</b>
                               <span className="falta">
                                 {f > 0 ? `Faltan ${f}`
@@ -415,8 +474,9 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                         <div className="chips otros-tipos">
                           {otros.map((t) => (
                             <button key={t.clave} type="button"
-                                    className={tipo === t.clave ? "on" : ""}
-                                    onClick={() => setTipo(t.clave)}>{t.nombre}</button>
+                                    className={tipos_.has(t.clave) ? "on" : ""}
+                                    aria-pressed={tipos_.has(t.clave)}
+                                    onClick={() => tocarTipo(t.clave)}>{t.nombre}</button>
                           ))}
                         </div>
                       )}
@@ -425,11 +485,11 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                           viaje salga por encima del plan no es un error
                           —pasa todos los días— pero sí es algo que quien
                           lo registra tiene que saber que está haciendo. */}
-                      {adicionales > 0 && (
+                      {fueraDelPlan.length > 0 && (
                         <p className="guia adicional">
-                          {adicionales === viajesN
-                            ? <>Va como <b>adicional</b>: {linea ? "este tipo ya completó su plan del turno" : "no estaba en el plan del turno"}.</>
-                            : <>Del plan caben <b>{faltan}</b>; {adicionales === 1 ? "el otro sale" : `los otros ${adicionales} salen`} como <b>adicional{adicionales === 1 ? "" : "es"}</b>.</>}
+                          {fueraDelPlan.length === 1
+                            ? <><b>{nombreTipo(fueraDelPlan[0])}</b> va como <b>adicional</b>: ya completó su plan del turno o no estaba en él.</>
+                            : <>Van como <b>adicionales</b>: {fueraDelPlan.map(nombreTipo).join(", ")}. Ya completaron su plan del turno o no estaban en él.</>}
                         </p>
                       )}
                     </>
@@ -438,8 +498,9 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                       <div className="chips">
                         {tipos.map((t) => (
                           <button key={t.clave} type="button"
-                                  className={tipo === t.clave ? "on" : ""}
-                                  onClick={() => setTipo(t.clave)}>{t.nombre}</button>
+                                  className={tipos_.has(t.clave) ? "on" : ""}
+                                  aria-pressed={tipos_.has(t.clave)}
+                                  onClick={() => tocarTipo(t.clave)}>{t.nombre}</button>
                         ))}
                       </div>
                       <p className="guia" style={{ marginTop: 10 }}>
@@ -533,38 +594,69 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
               </>
             )}
 
-            <div className="linea-campos">
-              <div>
-                <span className="rot-campo">
-                  {modo === "vacio" ? "¿Cuántos viajes vacíos?" : "Cuántos viajes"}
-                </span>
-                <div className="conteo">
-                  <span className="cel-step grande">
-                    <button type="button" onClick={() => setViajesN(Math.max(1, viajesN - 1))}
-                            aria-label="uno menos">−</button>
-                    <input value={viajesN} inputMode="numeric" aria-label="cuántos viajes"
-                           onChange={(e) =>
-                             setViajesN(Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1))} />
-                    <button type="button" onClick={() => setViajesN(viajesN + 1)}
-                            aria-label="uno más">+</button>
-                  </span>
-                  <span className="nota-conteo">
-                    {modo === "vacio"
-                      ? "No entran en el cumplido: cuestan igual y no mueven producto."
-                      : "El plan se mide en viajes, no en canastas."}
-                  </span>
+            {/* ---------- CUÁNTO LLEVA DE CADA TIPO ----------
+
+                EL CONTADOR DE VIAJES SE FUE DEL VIAJE CON CARGA, y no es
+                que se esconda: es que ya no existe. Un vehículo es UN
+                viaje; lo que puede ser más de uno son los tipos que
+                lleva encima, y eso ahora se escoge arriba. Dejar el
+                contador al lado invitaría a poner 3 y registrar nueve
+                planes con un solo camión.
+
+                Los VACÍOS sí lo conservan: un vacío no es un vehículo
+                con papel, es un número de viajes del turno, y meter los
+                cinco de una es justo para lo que sirve. */}
+            {modo === "vacio" ? (
+              <div className="linea-campos">
+                <div>
+                  <span className="rot-campo">¿Cuántos viajes vacíos?</span>
+                  <div className="conteo">
+                    <span className="cel-step grande">
+                      <button type="button" onClick={() => setViajesN(Math.max(1, viajesN - 1))}
+                              aria-label="uno menos">−</button>
+                      <input value={viajesN} inputMode="numeric" aria-label="cuántos viajes"
+                             onChange={(e) =>
+                               setViajesN(Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1))} />
+                      <button type="button" onClick={() => setViajesN(viajesN + 1)}
+                              aria-label="uno más">+</button>
+                    </span>
+                    <span className="nota-conteo">
+                      No entran en el cumplido: cuestan igual y no mueven producto.
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              {modo === "carga" && (
-                <div>
-                  <span className="rot-campo">Cantidad (opcional)</span>
-                  <input className="campo-suelto" value={carga} inputMode="numeric"
-                         placeholder="Canastas, estibas…" aria-label="Cantidad"
-                         onChange={(e) => setCarga(e.target.value.replace(/\D/g, ""))} />
+            ) : escogidos.length > 0 && (
+              <div>
+                <span className="rot-campo">
+                  Cuánto lleva de cada tipo <em className="rot-suave">(opcional)</em>
+                </span>
+                <div className="por-tipo">
+                  {escogidos.map((c, i) => (
+                    <label key={c} className="pt-fila">
+                      <span className="pt-nombre">
+                        {nombreTipo(c)}
+                        {/* CUÁL ES EL PRINCIPAL, DICHO. Es el que queda
+                            en la columna del viaje y el que sale en la
+                            lista de abajo; sin decirlo, el orden en que
+                            se tocaron los chips sería una regla
+                            invisible. */}
+                        {i === 0 && escogidos.length > 1 && <i>principal</i>}
+                      </span>
+                      <input value={tipos_.get(c) ?? ""} inputMode="numeric"
+                             placeholder="Canastas, estibas…"
+                             aria-label={`Cuánto lleva de ${nombreTipo(c)}`}
+                             onChange={(e) => ponCantidad(c, e.target.value)} />
+                    </label>
+                  ))}
                 </div>
-              )}
-            </div>
+                <p className="guia" style={{ marginTop: 8 }}>
+                  Este viaje avanza <b>{escogidos.length}</b> plan
+                  {escogidos.length === 1 ? "" : "es"} del turno, uno por tipo. El vehículo
+                  salió una vez; el plan se mide por tipo.
+                </p>
+              </div>
+            )}
 
             {/* LA NOVEDAD VA PLEGADA: se usa en uno de cada veinte
                 viajes, y un campo grande que casi nunca se llena empuja
@@ -583,14 +675,17 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                 : modo === "vacio" ? `Registrar ${viajesN} vacío${viajesN === 1 ? "" : "s"}`
                 : !placa.trim() ? "Falta la placa"
                 : !documento.trim() ? "Falta el documento"
-                : !tipo ? (hayPlan ? "Escoge del plan" : "Falta el tipo")
+                : escogidos.length === 0 ? (hayPlan ? "Escoge del plan" : "Falta el tipo")
                 : !origen.trim() || !destino.trim() ? "Falta la ruta"
                 /* El botón dice lo que va a pasar. "Registrar viaje" cuando
                    el viaje se sale del plan esconde justo lo que había que
-                   avisar. */
-                : adicionales === 0 ? "Registrar viaje"
-                : adicionales === viajesN ? `Registrar ${viajesN === 1 ? "adicional" : `${viajesN} adicionales`}`
-                : `Registrar (${adicionales} adicional${adicionales === 1 ? "" : "es"})`}
+                   avisar. Y con varios tipos dice CUÁNTOS, porque el total
+                   del turno va a subir esa cifra y no uno. */
+                : fueraDelPlan.length === 0
+                  ? (escogidos.length === 1 ? "Registrar viaje" : `Registrar · ${escogidos.length} tipos`)
+                : fueraDelPlan.length === escogidos.length
+                  ? `Registrar ${escogidos.length === 1 ? "adicional" : `${escogidos.length} adicionales`}`
+                : `Registrar (${fueraDelPlan.length} adicional${fueraDelPlan.length === 1 ? "" : "es"})`}
             </button>
             <span className="atajo">o pulsa <kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
           </div>
