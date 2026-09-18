@@ -566,6 +566,12 @@
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px; margin-bottom: 12px; align-items: end;
 }
+/* LA FILA DE «DÓNDE» SE QUEDÓ EN DOS: el lado se bajó a su propio
+   renglón para que quepa como dos botones que se tocan sin mirar. Se
+   escribe como variante y no como clase nueva porque es la MISMA fila
+   —mismos rótulos, mismos altos, mismo foco—: lo único distinto es
+   cuántas columnas tiene. */
+.fe .fe-tres.dos { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 .fe .fe-tres > label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
 .fe .fe-tres > label > span {
   font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
@@ -579,14 +585,37 @@
 .fe .fe-tres select:focus, .fe .fe-tres input:focus {
   outline: none; border-color: var(--fe-acento);
 }
-/* EL LADO NO SE ESCOGE: viene con el módulo. En la hoja era un campo
-   aparte y por eso 38 de 152 filas quedaron sin él — «A29» existe, pero
-   como A29_DER y A29_IZQ, y un cuarto del conteo no podía decir de qué
-   lado del pasillo estaba. Aquí se muestra para confirmar. */
+/* ---------------------------------------------------------------------
+   EL LADO — DOS BOTONES, NO UNA RUEDA
+
+   En la hoja el lado era un campo aparte y por eso 38 de 152 filas
+   quedaron sin él: «A29» existe, pero como A29_DER y A29_IZQ, y un
+   cuarto del conteo no podía decir de qué lado del pasillo estaba.
+
+   AQUÍ FUE UN `<select>` Y ESO EN UN CELULAR ES LA RUEDA DEL SISTEMA:
+   un toque para abrirla, uno para escoger, a veces uno más para
+   confirmar. Tres toques por renglón —152 al día— para una pregunta de
+   dos respuestas, y de pie y con guante es el control más fácil de
+   fallar de todos. Dos botones es un toque, y el que está puesto se ve
+   desde lejos sin abrir nada.
+
+   ANCHO COMPLETO Y EN SU PROPIO RENGLÓN. De tercero, al lado de calle y
+   módulo, los dos botones medían 60 px y había que apuntar.
+   --------------------------------------------------------------------- */
+.fe .fe-lado-campo { display: flex; flex-direction: column; gap: 5px; margin-top: 12px }
+.fe .fe-lado-rot {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+.fe .fe-lado-campo .fe-segmento { margin-bottom: 0 }
+
+/* CON UN SOLO LADO NO SE PREGUNTA: se enseña. Y se ve que NO es un
+   botón —fondo de panel, sin borde de control— para que nadie lo toque
+   esperando que cambie algo. */
 .fe .fe-lado {
-  display: flex; align-items: center; min-height: 48px; padding: 0 11px;
+  display: flex; align-items: center; min-height: 48px; padding: 0 12px;
   background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
-  font: 700 15px var(--fe-titulo); color: var(--fe-gris);
+  font: 700 15px var(--fe-titulo); color: var(--fe-gris-panel);
 }
 
 /* «¿Rota?» YA NO VA EN LA FILA DE TRES. Iba de tercera, al lado de «Qué
@@ -642,7 +671,13 @@
      escoge mal. El lado solo se lee, así que le basta lo que sobra. */
   .fe .fe-tres { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto; gap: 8px;
                  margin-bottom: 9px }
-  .fe .fe-tres .fe-lado { padding: 0 9px; font-size: 13px }
+  /* CALLE Y MÓDULO SE REPARTEN por lo que mide cada uno y no a partes
+     iguales: el módulo se lleva la parte grande porque es la elección
+     que no se puede truncar —«ALAR_BAHIA_6» cortado a la mitad se
+     escoge mal— y la calle es una letra. */
+  .fe .fe-tres.dos { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) }
+  .fe .fe-lado { padding: 0 10px; font-size: 13px }
+  .fe .fe-lado-campo { margin-top: 9px }
   /* Avería · PNC · Estado */
   .fe .fe-tres.fe-marcas { grid-template-columns: auto auto minmax(0, 1fr); padding-top: 10px }
   .fe .fe-tres.fe-marcas .fe-check { min-height: 44px; font-size: 12px }

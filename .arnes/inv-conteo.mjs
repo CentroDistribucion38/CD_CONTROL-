@@ -72,15 +72,20 @@ const ARMAZON = `
 
     <div class="fe-bloque">
       <p class="fe-bloque-cab">Dónde</p>
-      <div class="fe-tres">
+      <div class="fe-tres dos">
         <label><span>Calle</span>
           <div class="bs"><input class="bs-campo" value="Todas"><span class="bs-flecha">▾</span>
             <ul class="bs-lista"><li class="on"><b>A</b></li><li><b>ALAR</b></li>
               <li><b>JAULA_PNC</b><em>PRODUCTO NO CONFORME</em></li></ul></div></label>
         <label><span>Módulo</span>
           <div class="bs"><input class="bs-campo" value="ALAR06"><span class="bs-flecha">▾</span></div></label>
-        <label><span>Lado</span>
-          <select><option>Escoge…</option><option>Izquierdo</option><option>Derecho</option></select></label>
+      </div>
+      <div class="fe-lado-campo">
+        <span class="fe-lado-rot">Lado</span>
+        <div class="fe-segmento" role="group">
+          <button type="button" class="on">Izquierdo</button>
+          <button type="button">Derecho</button>
+        </div>
       </div>
     </div>
 
@@ -226,6 +231,15 @@ const CORRIGIENDO = ARMAZON
     '<button type="button" class="fe-mini">Dejarlo como estaba</button>')
   .replace(">Anotar renglón<", ">Guardar la corrección<");
 
+/* EL MÓDULO CON UN SOLO LADO —EST07, JAULA_PNC— no pregunta nada: lo
+   enseña. Es otro estado real y tiene que leerse igual de bien. */
+const UN_LADO = ARMAZON.replace(
+  `<div class="fe-segmento" role="group">
+          <button type="button" class="on">Izquierdo</button>
+          <button type="button">Derecho</button>
+        </div>`,
+  '<output class="fe-lado">Este módulo no tiene lados</output>');
+
 /* El aviso del código malo se mide aparte: solo existe cuando el código
    no está en el maestro, y es el que hay que leer con el sol de frente. */
 const ECO_MALO = `<div class="fe"><section class="fe-anotar">
@@ -277,7 +291,7 @@ const monta = async (pag, tema, ancho, alto, html = ARMAZON) => {
 
 /* ---------- 4 y 6. CONTRASTE ---------- */
 const pag = await navegador.newPage();
-console.log("tema      código  eco  «sí» on  «sí» off  fecha  total  d.salir  d.vencer  urgente  malo");
+console.log("tema      código  eco  «sí» on  «sí» off  fecha  total  1 lado  d.salir  d.vencer  urgente  malo");
 for (const t of TEMAS) {
   await monta(pag, t, 1440, 1200);
   const m = await pag.evaluate(() => {
@@ -328,6 +342,16 @@ for (const t of TEMAS) {
     }
     return { txt: s.color, fondo: f ? getComputedStyle(f).backgroundColor : "rgb(255,255,255)" };
   });
+  await monta(pag, t, 1440, 1200, UN_LADO);
+  const unlado = await pag.evaluate(() => {
+    const e = document.querySelector(".fe-lado"); const s = getComputedStyle(e);
+    let f = e; for (; f; f = f.parentElement) {
+      const c = getComputedStyle(f).backgroundColor;
+      if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) break;
+    }
+    return { txt: s.color, fondo: f ? getComputedStyle(f).backgroundColor : "rgb(255,255,255)",
+             alto: Math.round(e.getBoundingClientRect().height) };
+  });
   await monta(pag, t, 1440, 600, ECO_MALO);
   const mal = await pag.evaluate(() => {
     const e = document.querySelector(".fe-desc-campo.mal"); const s = getComputedStyle(e);
@@ -341,6 +365,7 @@ for (const t of TEMAS) {
     siOff: razon(m.siOffTxt, m.siOffFondo),
     fecha: razon(m.dmaTxt, m.dmaFondo),
     total: razon(m.totTxt, m.totFondo),
+    unLado: razon(unlado.txt, unlado.fondo),
     diasSalir: razon(dmal.txt, dmal.fondo),
     diasVencer: razon(dojo.txt, dojo.fondo),
     urgente: razon(m.urgTxt, m.urgFondo),
@@ -650,6 +675,49 @@ if (!/texto: `\$\{m\.calle\}\$\{m\.modulo\}`/.test(limpio))
    ubicación que no está — lo que dejó 38 de 152 filas sin ubicar. */
 if (!/const lados = useMemo/.test(limpio))
   fallas.push("el lado no sale de las ubicaciones del módulo: ofrecería lados que no existen");
+
+/* ---------- EL LADO SE TOCA, NO SE DESPLIEGA ----------
+
+   Era un `<select>`, y en un celular eso abre la rueda del sistema: un
+   toque para abrirla, uno para escoger y a veces uno más para
+   confirmar. Tres toques por renglón —152 al día— para una pregunta de
+   DOS respuestas, y de pie y con guante la rueda es el control más
+   fácil de fallar de todos.
+
+   SE MIRA EL BLOQUE DEL LADO Y NO EL COMPONENTE ENTERO: quedan
+   desplegables legítimos —el estado del envase, los filtros del
+   borrador— y buscar «<select» a secas los cazaría a ellos y no a
+   este. */
+{
+  const bloque = (limpio.match(/<div className="fe-lado-campo">[\s\S]*?\n          <\/div>/) ?? [""])[0];
+  if (!bloque)
+    fallas.push("no está el renglón propio del lado: metido en la fila de tres, los dos " +
+                "botones quedan de 60 px y hay que apuntar");
+  else {
+    if (/<select/.test(bloque))
+      fallas.push("el lado volvió a ser un desplegable: en el celular eso abre la rueda del " +
+                  "sistema, que son tres toques por renglón para una pregunta de dos " +
+                  "respuestas y es lo más fácil de fallar con guante");
+    if (!/className="fe-segmento"/.test(bloque))
+      fallas.push("el lado no se escoge con botones");
+    /* Y LOS BOTONES SALEN DE `lados`, no escritos a mano. Dos botones
+       fijos «Izquierdo | Derecho» ofrecerían un lado que ese módulo no
+       tiene, que es exactamente lo que había que arreglar. */
+    if (!/lados\.map\(\(l\) =>/.test(bloque))
+      fallas.push("los botones del lado están escritos a mano en vez de salir de los lados " +
+                  "que ese módulo tiene: ofrecerían una ubicación que no existe");
+    /* CON UN SOLO LADO NO SE PREGUNTA: se enseña. Un botón solo, y
+       encendido, invita a tocarlo esperando que cambie algo. */
+    if (!/lados\.length === 1/.test(bloque))
+      fallas.push("con un solo lado posible se sigue preguntando en vez de enseñarlo");
+  }
+}
+/* Y EL NOMBRE ENTERO EN EL BOTÓN. En la clave va «IZQ» y «DER» porque
+   una clave se escribe corta; en dos botones pegados que se tocan sin
+   mirar, «IZQ» y «DER» se distinguen por una sola letra. */
+if (!/const nombreLado =/.test(limpio) || !/"Izquierdo"/.test(limpio) || !/"Derecho"/.test(limpio))
+  fallas.push("los botones del lado no dicen el nombre entero: «IZQ» y «DER» pegados se " +
+              "distinguen por una letra y se tocan sin mirar");
 
 /* LOS DOS BUSCADORES SE TECLEAN. Con 428 ubicaciones un `<select>` solo
    deja saltar por la primera letra. */

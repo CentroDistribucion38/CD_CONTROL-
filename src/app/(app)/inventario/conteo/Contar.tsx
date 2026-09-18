@@ -124,6 +124,14 @@ const ordenCalle = (a: string, b: string) => {
   return suelta(a) - suelta(b) || a.localeCompare(b, "es", { numeric: true });
 };
 
+/* EL LADO, CON SU NOMBRE ENTERO. En la clave va «IZQ» y «DER» porque una
+   clave se escribe corta; en un botón que se toca sin mirar, «IZQ» y
+   «DER» se distinguen por una letra y están uno al lado del otro. El que
+   no tiene lado —EST07, JAULA_PNC— lo dice con todas sus palabras, en
+   vez de dejar un botón vacío que parece un fallo. */
+const nombreLado = (l: string) =>
+  l === "" ? "Este módulo no tiene lados" : l === "IZQ" ? "Izquierdo" : "Derecho";
+
 /* DOS CIFRAS Y SOLO DÍGITOS. Es lo que hace que el salto de casilla sea
    fiable: sin esto, pegar «2027» en el año dejaba cuatro caracteres
    dentro y la casilla nunca «se llenaba». */
@@ -688,7 +696,9 @@ export function Contar({
             escribe «e06» y queda una. */}
         <div className="fe-bloque">
           <p className="fe-bloque-cab">Dónde</p>
-          <div className="fe-tres">
+          {/* DOS COLUMNAS Y NO TRES: el lado se bajó a su propio renglón
+              para que quepa como dos botones. */}
+          <div className="fe-tres dos">
             <label><span>Calle</span>
               <Buscador
                 valor={b.calle}
@@ -745,25 +755,43 @@ export function Contar({
                                  lado: posibles.length === 1 ? (posibles[0].lado ?? "") : "" }));
                 }} /></label>
 
-            {/* EL LADO SE ESCOGE, y solo entre los que ese módulo tiene.
-                Puede tener los dos, uno, o ninguno —EST07, JAULA_PNC—.
-                Ofrecer «izquierdo» donde no existe es ofrecer una
-                ubicación que no está, que es lo que dejó 38 de las 152
-                filas de la hoja sin poder ubicar. */}
-            <label><span>Lado</span>
-              {!b.base ? (
-                <output className="fe-lado">—</output>
-              ) : lados.length === 1 ? (
-                <output className="fe-lado">{lados[0] === "" ? "sin lado" : lados[0]}</output>
-              ) : (
-                <select value={b.lado} onChange={(e) => pon("lado", e.target.value)}>
-                  <option value="">Escoge…</option>
-                  {lados.map((l) => (
-                    <option key={l} value={l}>{l === "" ? "Sin lado" : l === "IZQ" ? "Izquierdo" : "Derecho"}</option>
-                  ))}
-                </select>
-              )}
-            </label>
+          </div>
+
+          {/* EL LADO SE TOCA, NO SE DESPLIEGA.
+
+              Era un `<select>` y en un celular eso abre la rueda del
+              sistema: un toque para abrirla, uno para escoger y a veces
+              uno más para confirmar. Son tres toques por renglón —152 al
+              día— para una pregunta de DOS respuestas, y de pie, con
+              guante, la rueda es además el control más fácil de fallar
+              de todos.
+
+              VA EN SU PROPIO RENGLÓN Y ANCHO COMPLETO. Metido de tercero
+              al lado de calle y módulo, los dos botones quedaban de 60 px
+              y había que apuntar; así miden la mitad de la pantalla cada
+              uno y se tocan sin mirar.
+
+              Y SOLO SALEN LOS LADOS QUE ESE MÓDULO TIENE DE VERDAD.
+              Puede tener los dos, uno, o ninguno —EST07, JAULA_PNC—.
+              Ofrecer «izquierdo» donde no existe es ofrecer una
+              ubicación que no está, que es lo que dejó 38 de las 152
+              filas de la hoja sin poder ubicar. Con un solo lado no se
+              pregunta nada: se enseña, para confirmar. */}
+          <div className="fe-lado-campo">
+            <span className="fe-lado-rot" id="fe-rot-lado">Lado</span>
+            {!b.base ? (
+              <output className="fe-lado">Escoge primero el módulo</output>
+            ) : lados.length === 1 ? (
+              <output className="fe-lado">{nombreLado(lados[0])}</output>
+            ) : (
+              <div className="fe-segmento" role="group" aria-labelledby="fe-rot-lado">
+                {lados.map((l) => (
+                  <button key={l} type="button" className={b.lado === l ? "on" : ""}
+                          aria-pressed={b.lado === l}
+                          onClick={() => pon("lado", l)}>{nombreLado(l)}</button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

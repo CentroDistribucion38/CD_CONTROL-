@@ -162,6 +162,49 @@ probar("el total se arma a la vista",
   [[TSX, "const cuenta = useMemo", "const cuentaQuitada = useMemo"]],
   "no se ve el total en cajas mientras se anota");
 
+/* ---------- EL LADO ---------- */
+probar("el lado no vuelve a ser una rueda",
+  [[TSX, `<div className="fe-segmento" role="group" aria-labelledby="fe-rot-lado">
+                {lados.map((l) => (
+                  <button key={l} type="button" className={b.lado === l ? "on" : ""}
+                          aria-pressed={b.lado === l}
+                          onClick={() => pon("lado", l)}>{nombreLado(l)}</button>
+                ))}
+              </div>`,
+         `<select value={b.lado} onChange={(e) => pon("lado", e.target.value)}>
+                {lados.map((l) => <option key={l} value={l}>{nombreLado(l)}</option>)}
+              </select>`]],
+  "el lado volvió a ser un desplegable");
+
+probar("los botones del lado salen de los lados que el módulo tiene",
+  [[TSX, "{lados.map((l) => (", "{[\"IZQ\", \"DER\"].map((l) => ("]],
+  "están escritos a mano");
+
+probar("con un solo lado se enseña, no se pregunta",
+  [[TSX, "            ) : lados.length === 1 ? (", "            ) : false ? ("]],
+  "con un solo lado posible se sigue preguntando");
+
+probar("el lado va en su propio renglón",
+  [[TSX, '<div className="fe-lado-campo">', '<div className="fe-lado-metido">']],
+  "no está el renglón propio del lado");
+
+/* LA MUTACIÓN VA CON EL SELECTOR PEGADO Y NO SOLO CON LA DECLARACIÓN.
+   La escribí con la línea del color a secas y pegó en `.fe-si-no
+   button` —que tiene esa misma línea cuatrocientas antes— así que
+   rompía el botón «No» y dejaba el lado intacto: verde por el motivo
+   equivocado, que es la trampa de siempre. */
+probar("el «1 lado» se lee sobre el panel",
+  [[CSS, `.fe .fe-lado {
+  display: flex; align-items: center; min-height: 48px; padding: 0 12px;
+  background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
+  font: 700 15px var(--fe-titulo); color: var(--fe-gris-panel);
+}`, `.fe .fe-lado {
+  display: flex; align-items: center; min-height: 48px; padding: 0 12px;
+  background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
+  font: 700 15px var(--fe-titulo); color: #C9CDD2;
+}`]],
+  "«unLado» contrasta");
+
 /* ---------- LA OBSERVACIÓN ---------- */
 probar("la observación se puede escribir",
   [[TSX, "<input value={b.nota} placeholder", "<input placeholder"]],
@@ -173,4 +216,4 @@ if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 23 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 28 se pusieron rojas. El arnés caza lo que dice cazar.");
