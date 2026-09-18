@@ -1,158 +1,90 @@
-Quiebra absorbe Roturas: tres submódulos y una sola puerta
+Conteo: vuelve el vencimiento, el cursor pasa solo y el renglón se lee en cuatro momentos
 
-«Ingresa el módulo de Roturas dentro de Quiebra, y acomódalos por
-submódulos, así como en sitio y así.»
+LA FECHA VUELVE A SER LA DE VENCIMIENTO
+Es la que trae impreso el cartón y la que lleva años poniéndose en la
+hoja —columnas I/J/K de CONTEO—. La había cambiado a fabricación
+calculando el vencimiento con la vida útil, y eso obliga a hacer la
+cuenta al revés de cabeza antes de teclear: justo lo que la pantalla
+venía a quitar. Se anota lo que se lee.
 
-Y de paso, dos fallos que aparecieron por el camino: uno mío en la
-migración del conteo, y uno vivo en los permisos que lleva ahí desde que
-existen.
+Y DE ELLA SALEN LAS DOS CIFRAS QUE DECIDEN, ahí mismo:
+  días para vencer = vencimiento - hoy
+  días para salir  = eso - el mínimo T1 del maestro
+«Días para salir» va primero y grande porque es la que manda: no es
+cuándo vence, es cuándo tiene que haber SALIDO para llegarle al cliente
+con vida útil suficiente. En negativo ya se pasó aunque falten meses —y
+ese es justo el caso en que quien está ahí parado todavía puede hacer
+algo—. Se pinta en rojo con raya, o en ámbar si sale esta semana.
 
-=====================================================================
-1 · TRES SUBMÓDULOS QUE NO SE SUMAN
-=====================================================================
+EL CURSOR PASA SOLO: DD -> MM -> AA
+Eran tres toques por fecha y 152 fechas al día: 304 toques que no hacían
+falta, cada uno con su ocasión de caer en la casilla de al lado y
+escribir el mes donde va el día. El salto se dispara por tener DOS
+DÍGITOS DENTRO y no por dos teclas pulsadas, así que corregir borrando y
+volviendo a escribir salta igual, y pegar la fecha también. El retroceso
+sobre una casilla vacía devuelve a la anterior con lo escrito
+seleccionado. Y las casillas suben a 56 px: son las únicas que se teclean
+sin mirarlas.
 
-  ENVASE    un PORCENTAJE contra la producción del mes.
-  EN SITIO  UNIDADES rotas, por causa y por proceso.
-  SALIDA    KILOS de vidrio que salieron por la puerta.
+EL RENGLÓN SE LEE EN CUATRO MOMENTOS
+DÓNDE · QUÉ · CUÁNTO · CÓMO ESTÁ. Es el mismo orden de la hoja y los
+mismos campos: lo único que cambia es que ahora se ven las costuras.
+Iban seguidos, en filas de tres, y de lejos —que es como se mira una
+pantalla con una estiba delante— eran once casillas iguales.
 
-No existe el factor que convierta uno en otro: una botella de 330 y una
-de 750 pesan distinto, el vidrio se acumula días antes de salir, parte de
-lo que se pesa nunca se contó en sitio, y el porcentaje de envase se mide
-contra litros producidos. Con las catorce pantallas en una sola lista,
-tarde o temprano alguien lee una cifra de arriba y otra de abajo como si
-fueran la misma cuenta y arma un informe con un factor inventado.
+ESTIBAS COMPLETAS **Y** SALDO, EN EL MISMO RENGLÓN
+«Saldo» era una tercera opción del desplegable, lo que lo ponía al mismo
+nivel que las otras dos como si fuera otra forma de contar. No lo es: es
+lo que sobra de la última estiba y siempre viene con estibas al lado.
+Doce completas más ocho sueltas son 548 cajas de un mismo material en un
+mismo sitio, y como tercera opción había que partirlo en dos renglones.
+Ahora son dos formas de contar —estibas, con su saldo; o cajas— y el
+total se arma a la vista: «12 x 45 + 8 = 548». Se enseña la cuenta
+entera y no solo el resultado, porque 548 hay que creérselo y la cuenta
+se mira contra la estiba.
+También se deshace un error silencioso: las tres cifras compartían una
+sola casilla, así que pasar de estibas a cajas conservaba el número y 56
+estibas se volvían 56 cajas sin que cambiara nada en pantalla.
 
-/quiebra pasa a ser la bifurcación —una tarjeta por submódulo, con su
-cifra viva en la unidad de ese submódulo— y el riel solo muestra las
-pantallas del submódulo en el que uno está.
+«ANOTAR RENGLÓN» YA NO SE VA DE LA PANTALLA
+Va en una barra pegada abajo, con la cuenta del borrador al lado. Con
+los cuatro momentos a la vista el final del formulario queda fuera de la
+pantalla, y un botón fuera de la pantalla es un scroll por estiba —152 al
+día—. El arnés mide que esté pegada y que se vea sin bajar: basta con
+que un ancestro traiga `overflow` para que `sticky` deje de funcionar en
+silencio, y esa mutación se comprueba.
 
-=====================================================================
-2 · LAS DIRECCIONES DE ROTURAS NO SE TOCARON
-=====================================================================
+LA OBSERVACIÓN SE GUARDABA Y NO SE PODÍA ESCRIBIR
+El renglón manda `p_nota` desde el primer día y el formulario no tenía
+dónde teclearla: iba siempre vacía.
 
-Y es la decisión que más importaba. Los permisos de cada persona están
-guardados EN LA BASE como el TEXTO de la dirección —rol_permisos.seccion
-y perfiles.permisos_extra—, así que renombrar una ruta deja esas filas
-apuntando a algo que ya no existe y la persona pierde la pantalla EN
-SILENCIO: no da error, deja de verse.
+EN LA BASE — el 31 de febrero
+`venc_dia between 1 and 31` y `venc_mes between 1 and 12` dejan pasar el
+31/02: dos números buenos que juntos no son un día. Se guardaba, y quien
+reventaba después era LA VISTA —make_date(2027, 2, 31)—, que es de donde
+leen todas las pantallas: el borrador entero dejaba de cargar por un
+renglón, y el error no nombraba ni la fila ni el conteo. Con la fecha
+tecleándose de corrido un dedazo así es cuestión de tiempo. Se caza al
+guardar, en las dos funciones, con el nombre del día que no existe.
 
-Sus pantallas siguen en /roturas/en-sitio y /roturas/salida. Lo que
-cambió es por dónde se entra, no dónde viven. Es el mismo criterio por el
-que el módulo que la gente llama T1/T2 sigue viviendo en /sider.
+SE BORRA 2026-09-conteo-solo-fabricacion.sql y sus cuatro archivos de
+arnés. Nunca se corrió y la decisión se revirtió: convertía los
+renglones viejos a fabricación, que es exactamente lo contrario de lo
+que ahora se anota.
 
-LA ÚNICA RUTA QUE CAMBIÓ es el tablero de envase: /quiebra era el
-tablero, y ahora /quiebra es la bifurcación. Va con su migración, que
-COPIA —no mueve— el nivel de cada rol y de cada persona a
-/quiebra/tablero. Se copia porque /quiebra sigue siendo la puerta del
-módulo: quien no la tenga no vería ni la bifurcación.
-
-Y LA PORTADA VIEJA DE ROTURAS manda para /quiebra en vez de dar 404: hay
-gente con ese enlace guardado y en la app instalada no hay barra de
-direcciones donde corregirlo. Queda registrada pero oculta, para no
-perder su casilla en /admin/roles.
-
-=====================================================================
-3 · UN FALLO VIVO QUE APARECIÓ SOLO
-=====================================================================
-
-No lo buscaba. Estaba sembrando casos para probar la migración —uno era
-«a esta persona le cerraron /quiebra a mano»— y la siembra reventó contra
-un CHECK de la base.
-
-En /admin/usuarios, cada persona puede tener permisos propios con tres
-niveles: «Sin acceso», «Ver» y «Editar». El motor de permisos cuenta con
-ello textualmente: «"ninguno" es cómo se le quita a una sola persona una
-pantalla que su rol sí da». PERO LA BASE SOLO ADMITÍA DOS:
-
-    select bool_and(e.value in ('ver', 'editar'))
-
-Así que escoger «Sin acceso» para alguien terminaba en un error al
-guardar, y la única forma de quitarle UNA pantalla a UNA persona era
-inventarle un rol para ella sola — justo lo que los roles venían a
-evitar. Un fallo silencioso: no rompe ninguna pantalla, no sale en ningún
-informe, y quien lo sufre cree que lo hizo mal.
-
-Va arreglado en archivo aparte, de una línea, sin tocar ninguna fila.
-
-=====================================================================
-4 · LO QUE EL ARNÉS ME DEVOLVIÓ (TRES VECES LO MISMO)
-=====================================================================
-
-MI PROPIA COMPROBACIÓN JUZGABA FILAS QUE LA MIGRACIÓN NO TOCA. Exigía
-que el nivel del tablero fuera igual al de /quiebra en TODOS los roles —
-incluido el que ya lo tenía puesto a mano con otro nivel, que es
-precisamente la fila que la migración decide respetar. Se habría negado a
-correr por su propia decisión correcta.
-
-Es la segunda vez en el día: la migración del conteo comprobaba la cuenta
-en todos los renglones y habría reventado por uno viejo al que le
-cambiaron la vida útil después de contarse. Comprobar de más es tan error
-como comprobar de menos, y se ve igual de bien escrito.
-
-Y LA TERCERA: cuatro mutaciones salieron «verdes» y no era que nadie
-cazara el error — lo cazaba la GUARDIA de la migración en vez de la
-aserción que decía probarlo. Ahora cada error se rompe dos veces, con la
-guardia puesta y con la guardia también rota. Doce mutaciones, doce rojas.
-
-LOS TRES NÚMEROS NO QUEDABAN A LA MISMA ALTURA. El bloque de la cifra se
-pega al fondo de la tarjeta, así que un pie de dos líneas empujaba su
-número un renglón más arriba que el de al lado. 18 px: a simple vista
-parece un descuido de espaciado, y el número es justo lo que se lee de un
-barrido. Lo cazó el arnés midiendo, no el ojo.
-
-=====================================================================
-5 · Y EL CONTEO, CORREGIDO
-=====================================================================
-
-La migración de «solo fabricación» guardaba los renglones convertidos en
-una TABLA TEMPORAL para comprobarlos después. Con psql —donde yo la
-probé— el archivo corre como una sola transacción y funciona. El editor
-de Supabase no lo agrupa así: «relation "_convertidas" does not exist».
-Probé en un sitio distinto de donde el archivo se usa.
-
-Ahora va todo en un solo bloque anónimo: el UPDATE y su comprobación en
-la misma sentencia. Y el arnés corre las migraciones SIN AGRUPAR NADA,
-como el editor, con una mutación que reintroduce la tabla temporal a
-propósito.
-
-Y ESO DESTAPÓ EL SEGUNDO, QUE ERA PEOR. El archivo arreglado volvió a
-reventar en el editor, ahora con «relation "v_ya" does not exist» — el
-nombre de una VARIABLE, tratado como si fuera una tabla.
-
-La causa: yo había escrito el delimitador del bloque DENTRO DE UN
-COMENTARIO, explicando precisamente que todo iba en un solo bloque.
-Postgres ignora los comentarios; el editor de Supabase NO — cuenta esos
-signos para saber dónde acaba cada sentencia. Uno suelto en un
-comentario le invierte la cuenta, y cuando llega al bloque de verdad
-cree que lo está cerrando: el `declare` queda en una sentencia y el
-cuerpo en otra. Estaba en tres archivos de este lote, los tres escritos
-hoy, los tres explicando lo mismo.
-
-Va un arnés nuevo para que no vuelva: .arnes/sql-como-lo-lee-supabase.mjs
-lee LOS 79 ARCHIVOS SQL del proyecto troceándolos como los trocea el
-editor, y se niega si encuentra un delimitador dentro de un comentario o
-un bloque partido. Entiende también los delimitadores CON NOMBRE: la
-primera versión no, y acusó de «bloque partido» a dos archivos que llevan
-meses corriendo bien — el arnés equivocándose sobre el código, que es la
-forma más rápida de que se deje de creer en él.
-
-=====================================================================
-6 · PARA CORRER, EN ESTE ORDEN
-=====================================================================
-
-  1. supabase/migraciones/2026-09-traspasos-documento.sql
-  2. supabase/migraciones/2026-09-permiso-sin-acceso-por-persona.sql
-  3. supabase/migraciones/2026-09-roturas-dentro-de-quiebra.sql
-  4. supabase/migraciones/2026-09-conteo-solo-fabricacion.sql
-
-Los tres se pueden correr varias veces. Probados contra un Postgres 16 de
-verdad, sin agrupar, con casos sembrados que el archivo de roles no trae:
-un rol con «editar», uno que ya tenía el tablero puesto a mano, una
-persona con la pantalla cerrada por encima de su rol y otra con ella
-abierta.
-
-Los cuatro pasan el arnés nuevo, así que se trocean igual en psql y en el
-editor.
+MEDIDO, NO MIRADO
+· .arnes/inv-conteo.mjs: contraste en los 7 temas de las parejas nuevas
+  —el total vivo sobre el panel, «ya se pasó» en rojo sobre rosa, «sale
+  esta semana» en ámbar sobre crema—; 56 px en el código, en las cifras
+  y en la fecha; nada se sale a 1440/820/390/360; la barra pegada.
+· .arnes/mutar-inv-conteo.mjs: 23 mutaciones, las 23 rojas. Una de ellas
+  cazó que el chequeo de los cuatro momentos medía el armazón del arnés
+  —que escribo yo— y no la pantalla: era una aserción que no podía
+  fallar. Ahora se lee del componente.
+· .arnes/correr-conteo-estibas-y-saldo.sh contra Postgres 16 de verdad,
+  dos veces, como no-superusuario y SIN AGRUPAR NADA —como lo corre el
+  editor de Supabase—; .arnes/mutar-conteo-estibas-y-saldo.sh: 8
+  mutaciones, las 8 rojas.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

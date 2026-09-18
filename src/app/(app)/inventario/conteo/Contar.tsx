@@ -15,6 +15,12 @@
  * ese orden obliga a quien lleva años llenando la hoja a buscar cada
  * campo, que es la forma más segura de que prefiera el papel.
  *
+ * Y AHORA ESOS CUATRO MOMENTOS SE VEN. Los once campos iban seguidos, en
+ * filas de tres, sin nada que dijera dónde acaba uno y empieza el otro:
+ * de lejos era una rejilla de once casillas iguales. Se agrupan en
+ * DÓNDE · QUÉ · CUÁNTO · CÓMO ESTÁ, que es el mismo orden de siempre con
+ * las costuras a la vista. No se movió ni un campo.
+ *
  * LA DESCRIPCIÓN SALE SOLA. En el Excel es un VLOOKUP que solo se veía
  * al final —cuando decía «VALIDAR CODIGO» y ya nadie estaba frente a esa
  * estiba—. Aquí aparece mientras se teclea el código.
@@ -34,6 +40,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent, RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
@@ -50,12 +57,20 @@ const ent = (s: string): number | null => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+const DIA = 86_400_000;
 
 /* Lo que se teclea de un renglón, todo junto. Va en un solo objeto para
    que corregir sea CARGARLO y no reconstruirlo campo por campo: con doce
    estados sueltos, abrir una fila para corregirla era doce asignaciones
    y olvidar una dejaba el dato de la fila anterior. */
-type Modo = "estibas" | "cajas" | "saldo";
+
+/* DOS FORMAS DE CONTAR, NO TRES. «Saldo» era una tercera opción del
+   desplegable y eso lo ponía en el mismo plano que las otras dos, como
+   si fuera otra manera de contar un módulo. No lo es: el saldo es lo que
+   sobra de la última estiba, y SIEMPRE viene con estibas al lado. Doce
+   estibas completas más ocho cajas sueltas es UN renglón —548 cajas—, y
+   como tercera opción del desplegable había que partirlo en dos. */
+type Modo = "estibas" | "cajas";
 
 type Borrador = {
   calle: string;
@@ -66,27 +81,30 @@ type Borrador = {
   base: string;
   lado: string;
   codigo: string;
-  dia: string; mes: string; anio: string;
-  /* LA FECHA ES SIEMPRE LA DE FABRICACIÓN. No hay un campo que diga
-     cuál es porque no hay dos: el vencimiento lo calcula LA BASE con la
-     vida útil del maestro, y aquí solo se muestra para confirmar frente
-     a la estiba.
+  /* LA FECHA ES LA DE VENCIMIENTO, que es la que se anota en la hoja y
+     la que trae impresa el cartón. De ella salen las dos cifras que
+     deciden el FEFO —días para salir y días para vencer—, y son las que
+     se enseñan aquí mismo, frente a la estiba.
 
      AQUÍ HUBO UN `fecha: "vence" | "fabrica"` y fue un error mío. Le
      quité el interruptor a la pantalla pero le dejé el estado adentro
      «por si acaso», y el borrador que se guarda en el teléfono trajo esa
-     marca de vuelta después de actualizar: el formulario abría en
-     «Vence» y NO HABÍA CÓMO SALIR, porque el único control que lo
-     cambiaba ya no existía. Un estado sin salida que nadie habría visto
-     probando con el teléfono limpio. Lo viejo se convirtió en la base
-     —2026-09-conteo-solo-fabricacion.sql— en vez de arrastrarlo aquí. */
-  modo: Modo; cuantas: string;
+     marca de vuelta después de actualizar: el formulario abría en un
+     modo y NO HABÍA CÓMO SALIR, porque el único control que lo cambiaba
+     ya no existía. Un campo de estado sin control que lo mueva es una
+     trampa, aunque hoy parezca inofensivo. */
+  dia: string; mes: string; anio: string;
+  /* LAS TRES CIFRAS VIVEN APARTE y no en una sola casilla con tres
+     nombres. Las tenía compartiendo `cuantas`, y con eso pasar de
+     estibas a cajas conservaba el número: 56 estibas se convertían en
+     56 cajas sin que nada cambiara en pantalla. */
+  modo: Modo; estibas: string; saldo: string; cajas: string;
   rot: boolean | null;
   averia: boolean; pnc: boolean; estado: string; nota: string;
 };
 const VACIO: Borrador = {
   calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
-  modo: "estibas", cuantas: "", rot: null,
+  modo: "estibas", estibas: "", saldo: "", cajas: "", rot: null,
   averia: false, pnc: false, estado: "", nota: "",
 };
 
@@ -105,6 +123,11 @@ const ordenCalle = (a: string, b: string) => {
   const suelta = (x: string) => (x.length === 1 ? 0 : 1);
   return suelta(a) - suelta(b) || a.localeCompare(b, "es", { numeric: true });
 };
+
+/* DOS CIFRAS Y SOLO DÍGITOS. Es lo que hace que el salto de casilla sea
+   fiable: sin esto, pegar «2027» en el año dejaba cuatro caracteres
+   dentro y la casilla nunca «se llenaba». */
+const dosDigitos = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 
 export function Contar({
   bodegaId, conteoInicial, renglonesIniciales, materiales, ubicaciones, estados,
@@ -140,6 +163,11 @@ export function Contar({
   const [fModulo, setFModulo] = useState("");
   const [b, setB] = useState<Borrador>(VACIO);
   const campoCodigo = useRef<HTMLInputElement>(null);
+  /* LAS TRES CASILLAS DE LA FECHA SE CONOCEN ENTRE ELLAS: es lo que
+     permite que el cursor pase solo de DD a MM y de MM a AA. */
+  const campoDia = useRef<HTMLInputElement>(null);
+  const campoMes = useRef<HTMLInputElement>(null);
+  const campoAnio = useRef<HTMLInputElement>(null);
 
   /* ---------- EL RENGLÓN A MEDIO ESCRIBIR NO SE PIERDE ----------
      Lo anotado está a salvo desde el momento en que se toca «Anotar»:
@@ -200,6 +228,41 @@ export function Contar({
   const pon = <K extends keyof Borrador>(k: K, v: Borrador[K]) =>
     setB((x) => ({ ...x, [k]: v }));
 
+  /* ---------- LA FECHA SE TECLEA DE CORRIDO ----------
+
+     SEIS DÍGITOS Y NINGÚN TOQUE ENTRE MEDIAS. Eran tres casillas sueltas
+     y había que tocar cada una: dos dígitos, tocar, dos dígitos, tocar,
+     dos dígitos. Son 152 estibas al día, así que son 304 toques que
+     sobran — y cada uno es una ocasión de tocar la casilla de al lado y
+     escribir el mes donde va el día.
+
+     EL SALTO SE HACE CON DOS DÍGITOS DENTRO, no con dos teclas pulsadas:
+     corregir el día borrando y volviendo a escribir tiene que saltar
+     igual, y pegar «11» desde otro sitio también.
+
+     Y SE PUEDE VOLVER. Llegar al mes, ver que el día quedó mal y no
+     poder devolverse sin levantar la mano al teléfono sería cambiar un
+     estorbo por otro: el retroceso sobre una casilla vacía devuelve el
+     cursor a la anterior, con lo escrito seleccionado para reemplazarlo
+     de una. */
+  function tecleaFecha(k: "dia" | "mes" | "anio", v: string,
+                       siguiente?: RefObject<HTMLInputElement | null>) {
+    const limpio = dosDigitos(v);
+    pon(k, limpio);
+    if (limpio.length === 2 && siguiente?.current) {
+      siguiente.current.focus();
+      siguiente.current.select();
+    }
+  }
+
+  function atrasFecha(e: KeyboardEvent<HTMLInputElement>, valor: string,
+                      anterior?: RefObject<HTMLInputElement | null>) {
+    if (e.key !== "Backspace" || valor !== "" || !anterior?.current) return;
+    e.preventDefault();
+    anterior.current.focus();
+    anterior.current.select();
+  }
+
   /* ---------- LAS LISTAS, SIN RECORTAR ----------
      Las calles y los módulos salen del maestro de ubicaciones, no de una
      lista escrita aquí: el día que abran una calle nueva se agrega en el
@@ -259,25 +322,57 @@ export function Contar({
     [materiales, b.codigo]);
   const esEnvase = material?.tipo_material === "ENVASE";
 
-  /* LA FECHA QUE SALE DE LA OTRA, solo para ENSEÑARLA mientras se
-     teclea. Lo que se guarda lo calcula la base con la misma vida útil:
-     aquí no se manda un vencimiento calculado, se manda la fabricación y
-     la base hace la cuenta. Si esto calculara y mandara, habría dos
-     versiones de la misma fórmula esperando a discrepar.
+  /* ---------- LAS DOS CIFRAS DEL FEFO, MIENTRAS SE TECLEA ----------
 
-     Se muestra porque es lo que pidió ver: teclear la de fábrica y que
-     la pantalla diga cuándo vence, ahí, frente a la estiba. */
-  const fechaCalculada = useMemo(() => {
+     Son las columnas T y U de la hoja, con sus mismas fórmulas:
+
+       DÍAS PARA VENCER = vencimiento − hoy
+       DÍAS PARA SALIR  = eso mismo − el mínimo T1 del maestro
+
+     «Días para salir» es la que manda: no es cuándo vence, es cuándo
+     TIENE QUE HABER SALIDO para llegarle al cliente con vida útil
+     suficiente. En negativo ya se pasó, aunque falten meses para vencer.
+
+     ESTO SOLO ENSEÑA. Lo que decide —el tablero, las alertas, el
+     informe— lo calcula `v_conteo_fefo` con estas mismas fórmulas. Se
+     repiten aquí para que la respuesta salga sin ir al servidor, con la
+     estiba delante; el día que cambie el criterio, la vista es la que
+     manda y esta cuenta se corrige con ella. */
+  const dias = useMemo(() => {
     if (!material) return null;
     const d = ent(b.dia), m = ent(b.mes);
     const a = b.anio.trim() === "" ? null : Number(b.anio.trim());
-    const vida = material.vida_util;
-    if (d == null || m == null || a == null || !vida || vida <= 0) return null;
+    if (d == null || m == null || a == null) return null;
     const f = new Date(2000 + a, m - 1, d);
     if (f.getMonth() !== m - 1 || f.getDate() !== d) return null;
-    f.setDate(f.getDate() + vida);
-    return f;
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const vencer = Math.round((f.getTime() - hoy.getTime()) / DIA);
+    return { vence: f, vencer, salir: vencer - material.dias_minimo, minimo: material.dias_minimo };
   }, [b.dia, b.mes, b.anio, material]);
+
+  /* ---------- EL TOTAL, ARMADO A LA VISTA ----------
+
+     12 × 45 + 8 = 548. La cuenta se enseña ENTERA y no solo el
+     resultado, porque el resultado solo no se puede comprobar: 548 es un
+     número que hay que creerse, y «12 × 45 + 8» se mira contra la estiba
+     y se ve si el factor que usó es el que corresponde a ese material.
+
+     Es la misma suma que hace la base al guardar. Aquí no decide nada:
+     lo que se manda son las tres cifras por separado. */
+  const cuenta = useMemo(() => {
+    if (b.modo === "cajas") {
+      const c = ent(b.cajas);
+      return c == null ? null : { formula: `${nf.format(c)}`, total: c };
+    }
+    const e = ent(b.estibas), s = ent(b.saldo);
+    if (e == null && s == null) return null;
+    const f = material?.cajas_por_estiba ?? null;
+    if (e != null && f == null) return { formula: null, total: null };
+    const total = (e ?? 0) * (f ?? 0) + (s ?? 0);
+    const partes = [e != null ? `${e} × ${f}` : null, s != null ? nf.format(s) : null]
+      .filter(Boolean).join(" + ");
+    return { formula: partes, total };
+  }, [b.modo, b.estibas, b.saldo, b.cajas, material]);
 
   /**
    * ANOTAR DEJA EL RENGLÓN ENTERO EN BLANCO. Calle, módulo, lado,
@@ -327,7 +422,11 @@ export function Contar({
     if (!b.base) return "Escoge el módulo.";
     if (!ubicacion) return "Falta decir de qué lado del módulo.";
     if (!material) return `El código «${b.codigo}» no está en el maestro.`;
-    if (ent(b.cuantas) == null) return `¿Cuántas ${b.modo}?`;
+    if (b.modo === "cajas") {
+      if (ent(b.cajas) == null) return "¿Cuántas cajas?";
+    } else if (ent(b.estibas) == null && ent(b.saldo) == null) {
+      return "¿Cuántas estibas? Si solo quedan sueltas, anótalas en el saldo.";
+    }
     if (b.rot == null) return "Falta decir si rota.";
     if (!esEnvase && (ent(b.dia) == null || ent(b.mes) == null || b.anio.trim() === ""))
       return "Falta la fecha de vencimiento.";
@@ -361,22 +460,22 @@ export function Contar({
     p_sku: material!.sku,
     p_ubicacion: ubicacion!.id,
     p_rotacion: b.rot,
-    p_estibas: b.modo === "estibas" ? ent(b.cuantas) : null,
-    p_cajas: b.modo === "cajas" ? ent(b.cuantas) : null,
-    p_saldo: b.modo === "saldo" ? ent(b.cuantas) : null,
-    /* SE MANDA LA QUE SE TECLEÓ, NO LA CALCULADA. Con la fabricación, el
-       vencimiento va en null y lo calcula la base: una sola fórmula, en
-       un solo sitio. */
-    /* EL VENCIMIENTO VIAJA EN NULL SIEMPRE. Lo calcula la base con la
-       vida útil del maestro. Si la pantalla mandara uno ya calculado
-       habría dos versiones de la misma fórmula —una aquí y otra allá—
-       esperando a discrepar el día que alguien corrija una vida útil. */
-    p_venc_dia: null,
-    p_venc_mes: null,
-    p_venc_anio: null,
-    p_fab_dia: ent(b.dia),
-    p_fab_mes: ent(b.mes),
-    p_fab_anio: b.anio.trim() !== "" ? Number(b.anio.trim()) : null,
+    /* LAS ESTIBAS Y EL SALDO VIAJAN JUNTOS; las cajas, solas. Son las
+       dos formas de contar un módulo, y mezclarlas dejaría el renglón
+       sin decir cómo se contó — eso lo rechaza también la base. */
+    p_estibas: b.modo === "estibas" ? ent(b.estibas) : null,
+    p_saldo: b.modo === "estibas" ? ent(b.saldo) : null,
+    p_cajas: b.modo === "cajas" ? ent(b.cajas) : null,
+    /* SE MANDA EL VENCIMIENTO, que es lo que se lee en el cartón y lo que
+       lleva años anotándose en la hoja. Los días para salir y para vencer
+       los calcula la vista con el mínimo T1 del maestro: una sola
+       fórmula, en un solo sitio. */
+    p_venc_dia: ent(b.dia),
+    p_venc_mes: ent(b.mes),
+    p_venc_anio: b.anio.trim() !== "" ? Number(b.anio.trim()) : null,
+    p_fab_dia: null,
+    p_fab_mes: null,
+    p_fab_anio: null,
     p_averia: b.averia, p_pnc: b.pnc,
     p_estado: b.estado || null,
     p_nota: b.nota.trim() || null,
@@ -400,7 +499,7 @@ export function Contar({
     await releer(conteo.id);
     avisar.bien(corrigiendo
       ? `${material!.sku} corregido.`
-      : `${material!.sku} · ${ent(b.cuantas)} ${b.modo} anotadas.`);
+      : `${material!.sku} · ${cuenta?.total != null ? nf.format(cuenta.total) + " cajas" : "anotado"}.`);
     /* LA ALERTA DE FECHA CORTA, EN EL MOMENTO. Quien acaba de anotar
        sigue parado frente a esa estiba: es el único instante en que
        puede mirarla otra vez, comprobar la fecha impresa y sacarla si
@@ -441,23 +540,22 @@ export function Contar({
       base: u ? claveBase(u) : "",
       lado: u?.lado ?? "",
       codigo: r.codigo,
-      /* SIEMPRE LA DE FABRICACIÓN, nunca el vencimiento calculado: quien
+      /* LOS TRES PEDAZOS COMO SE TECLEARON, no la fecha armada: quien
          vuelve a mirar la estiba lee el mismo número que leyó la primera
-         vez.
+         vez, en las mismas tres casillas.
 
-         Y SI EL RENGLÓN NO LA TIENE, las casillas quedan vacías. Solo
-         pasa en dos casos y los dos están bien así: un envase, que no
-         trae fecha impresa; o un renglón viejo cuyo material perdió la
-         vida útil del maestro y por eso la migración no pudo despejarla
-         —adivinarla sería inventarse el dato—. */
-      dia: String(r.fab_dia ?? ""),
-      mes: String(r.fab_mes ?? ""),
-      anio: String(r.fab_anio ?? ""),
-      /* El modo se deduce de cuál de las TRES vino llena. El orden
-         importa: `estibas ?? cajas ?? saldo` con estibas en cero daría
-         cero y parecería vacío, así que se compara contra null. */
-      modo: r.estibas != null ? "estibas" : r.saldo != null ? "saldo" : "cajas",
-      cuantas: String(r.estibas ?? r.saldo ?? r.cajas ?? ""),
+         Y SI EL RENGLÓN NO LA TIENE, quedan vacías. Pasa con los
+         envases, que no traen fecha impresa. */
+      dia: String(r.venc_dia ?? ""),
+      mes: String(r.venc_mes ?? ""),
+      anio: String(r.venc_anio ?? ""),
+      /* SE CONTÓ POR CAJAS O SE CONTÓ POR ESTIBAS. Un renglón con saldo
+         se contó por estibas —el saldo es lo que sobró de la última— así
+         que solo `cajas` distingue las dos formas. */
+      modo: r.cajas != null ? "cajas" : "estibas",
+      estibas: String(r.estibas ?? ""),
+      saldo: String(r.saldo ?? ""),
+      cajas: String(r.cajas ?? ""),
       rot: r.rotacion, averia: r.averia, pnc: r.pnc,
       estado: r.estado_envase ?? "", nota: r.nota ?? "",
     });
@@ -583,186 +681,254 @@ export function Contar({
           )}
         </div>
 
-        {/* ---------- 1 · CAL · MOD · D/I ----------
+        {/* ================= 1 · DÓNDE — CAL · MOD · D/I =================
             LOS TRES SE TECLEAN. Eran desplegables del navegador, y con
             428 ubicaciones el desplegable solo deja saltar por la
             primera letra: llegar a E06 era pulsar «E» y rodar. Ahora se
             escribe «e06» y queda una. */}
-        <div className="fe-tres">
-          <label><span>Calle</span>
-            <Buscador
-              valor={b.calle}
-              marcador="Todas"
-              opciones={[{ valor: "", texto: "Todas" },
-                         ...calles.map((c) => ({ valor: c, texto: c }))]}
-              onEscoge={(nueva) => {
-                /* Cambiar de calle borra el módulo solo si el que había
-                   no es de la calle nueva: si lo es, no hay por qué
-                   hacerle escoger otra vez lo que ya estaba bien. */
-                const sigue = b.base.startsWith(nueva + "|");
-                setB((x) => ({ ...x, calle: nueva,
-                               base: nueva === "" || sigue ? x.base : "",
-                               lado: nueva === "" || sigue ? x.lado : "" }));
-              }} /></label>
+        <div className="fe-bloque">
+          <p className="fe-bloque-cab">Dónde</p>
+          <div className="fe-tres">
+            <label><span>Calle</span>
+              <Buscador
+                valor={b.calle}
+                marcador="Todas"
+                opciones={[{ valor: "", texto: "Todas" },
+                           ...calles.map((c) => ({ valor: c, texto: c }))]}
+                onEscoge={(nueva) => {
+                  /* Cambiar de calle borra el módulo solo si el que había
+                     no es de la calle nueva: si lo es, no hay por qué
+                     hacerle escoger otra vez lo que ya estaba bien. */
+                  const sigue = b.base.startsWith(nueva + "|");
+                  setB((x) => ({ ...x, calle: nueva,
+                                 base: nueva === "" || sigue ? x.base : "",
+                                 lado: nueva === "" || sigue ? x.lado : "" }));
+                }} /></label>
 
-          <label><span>Módulo</span>
-            <Buscador
-              valor={b.base}
-              marcador="Escribe o escoge…"
-              sinOpciones="Esa calle no tiene módulos activos."
-              /* SOLO EL MÓDULO. Salía «A01_DER · RB F1000»: el lado pegado
-                 al nombre —que hacía escogerlo dos veces— y la familia
-                 detrás. Los dos se fueron.
+            <label><span>Módulo</span>
+              <Buscador
+                valor={b.base}
+                marcador="Escribe o escoge…"
+                sinOpciones="Esa calle no tiene módulos activos."
+                /* SOLO EL MÓDULO. Salía «A01_DER · RB F1000»: el lado pegado
+                   al nombre —que hacía escogerlo dos veces— y la familia
+                   detrás. Los dos se fueron.
 
-                 LA FAMILIA NO ES LO QUE SE BUSCA AQUÍ. Quien está parado
-                 frente a un módulo sabe en cuál está y lo que quiere es
-                 llegar a «A01» en dos teclas; «RB F1000» repetido en
-                 doscientas filas solo alarga el renglón y obliga a leer
-                 de más para encontrar el número. La familia sigue
-                 estando en el maestro, que es donde se consulta. */
-              opciones={modulos.map((m) => ({
-                valor: m.base,
-                texto: `${m.calle}${m.modulo}`,
-              }))}
-              onEscoge={(base) => {
-                const u = ubicaciones.find((x) => x.activa && claveBase(x) === base);
-                const posibles = ubicaciones.filter((x) => x.activa && claveBase(x) === base);
-                /* Escoger el módulo pone su calle sola, y si solo tiene
-                   un lado lo pone también: preguntar «¿izquierdo o
-                   derecho?» donde no hay más que uno es un toque de más
-                   por renglón.
+                   LA FAMILIA NO ES LO QUE SE BUSCA AQUÍ. Quien está parado
+                   frente a un módulo sabe en cuál está y lo que quiere es
+                   llegar a «A01» en dos teclas; «RB F1000» repetido en
+                   doscientas filas solo alarga el renglón y obliga a leer
+                   de más para encontrar el número. La familia sigue
+                   estando en el maestro, que es donde se consulta. */
+                opciones={modulos.map((m) => ({
+                  valor: m.base,
+                  texto: `${m.calle}${m.modulo}`,
+                }))}
+                onEscoge={(base) => {
+                  const u = ubicaciones.find((x) => x.activa && claveBase(x) === base);
+                  const posibles = ubicaciones.filter((x) => x.activa && claveBase(x) === base);
+                  /* Escoger el módulo pone su calle sola, y si solo tiene
+                     un lado lo pone también: preguntar «¿izquierdo o
+                     derecho?» donde no hay más que uno es un toque de más
+                     por renglón.
 
-                   LA FECHA YA NO SE BORRA AL CAMBIAR DE MÓDULO. La
-                   borraba —para que no se colara la del módulo
-                   anterior— y eso hacía perder lo tecleado a quien
-                   estaba a medio renglón y se dio cuenta de que había
-                   escogido mal el módulo. Son dos momentos distintos:
-                   después de ANOTAR se limpia todo, porque el renglón
-                   ya quedó guardado; mientras se ESCRIBE no se pierde
-                   nada, porque nada está guardado todavía. */
-                setB((x) => ({ ...x, base,
-                               calle: u?.calle ?? x.calle,
-                               lado: posibles.length === 1 ? (posibles[0].lado ?? "") : "" }));
-              }} /></label>
+                     LA FECHA YA NO SE BORRA AL CAMBIAR DE MÓDULO. La
+                     borraba —para que no se colara la del módulo
+                     anterior— y eso hacía perder lo tecleado a quien
+                     estaba a medio renglón y se dio cuenta de que había
+                     escogido mal el módulo. Son dos momentos distintos:
+                     después de ANOTAR se limpia todo, porque el renglón
+                     ya quedó guardado; mientras se ESCRIBE no se pierde
+                     nada, porque nada está guardado todavía. */
+                  setB((x) => ({ ...x, base,
+                                 calle: u?.calle ?? x.calle,
+                                 lado: posibles.length === 1 ? (posibles[0].lado ?? "") : "" }));
+                }} /></label>
 
-          {/* EL LADO SE ESCOGE, y solo entre los que ese módulo tiene.
-              Puede tener los dos, uno, o ninguno —EST07, JAULA_PNC—.
-              Ofrecer «izquierdo» donde no existe es ofrecer una
-              ubicación que no está, que es lo que dejó 38 de las 152
-              filas de la hoja sin poder ubicar. */}
-          <label><span>Lado</span>
-            {!b.base ? (
-              <output className="fe-lado">—</output>
-            ) : lados.length === 1 ? (
-              <output className="fe-lado">{lados[0] === "" ? "sin lado" : lados[0]}</output>
-            ) : (
-              <select value={b.lado} onChange={(e) => pon("lado", e.target.value)}>
-                <option value="">Escoge…</option>
-                {lados.map((l) => (
-                  <option key={l} value={l}>{l === "" ? "Sin lado" : l === "IZQ" ? "Izquierdo" : "Derecho"}</option>
-                ))}
-              </select>
-            )}
-          </label>
+            {/* EL LADO SE ESCOGE, y solo entre los que ese módulo tiene.
+                Puede tener los dos, uno, o ninguno —EST07, JAULA_PNC—.
+                Ofrecer «izquierdo» donde no existe es ofrecer una
+                ubicación que no está, que es lo que dejó 38 de las 152
+                filas de la hoja sin poder ubicar. */}
+            <label><span>Lado</span>
+              {!b.base ? (
+                <output className="fe-lado">—</output>
+              ) : lados.length === 1 ? (
+                <output className="fe-lado">{lados[0] === "" ? "sin lado" : lados[0]}</output>
+              ) : (
+                <select value={b.lado} onChange={(e) => pon("lado", e.target.value)}>
+                  <option value="">Escoge…</option>
+                  {lados.map((l) => (
+                    <option key={l} value={l}>{l === "" ? "Sin lado" : l === "IZQ" ? "Izquierdo" : "Derecho"}</option>
+                  ))}
+                </select>
+              )}
+            </label>
+          </div>
         </div>
 
-        {/* ---------- 2 · CÓDIGO y su DESCRIPCIÓN ----------
-            MITAD Y MITAD, y del mismo tamaño. La descripción iba debajo
-            en letra chica, como una nota al pie, y es LA CONFIRMACIÓN de
-            que se tecleó el código correcto: 3128 y 3182 existen los
-            dos. Lo que confirma un dato no puede ser más pequeño que el
-            dato. */}
-        <div className="fe-cod-dos">
-          {/* EL MARCADOR NO PUEDE SER UN CÓDIGO DE VERDAD. Decía «3128»,
+        {/* ============ 2 · QUÉ — CÓDIGO · DESCRIPCIÓN · D/M/A ============ */}
+        <div className="fe-bloque">
+          <p className="fe-bloque-cab">Qué</p>
+
+          {/* MITAD Y MITAD, y del mismo tamaño. La descripción iba debajo
+              en letra chica, como una nota al pie, y es LA CONFIRMACIÓN de
+              que se tecleó el código correcto: 3128 y 3182 existen los
+              dos. Lo que confirma un dato no puede ser más pequeño que el
+              dato.
+
+              EL MARCADOR NO PUEDE SER UN CÓDIGO DE VERDAD. Decía «3128»,
               que es la Águila 330, y en gris claro dentro de un campo
               grande se lee como un campo YA LLENO — sobre todo después
-              de anotar, que es justo cuando el campo acaba de vaciarse.
-              Un ejemplo que se puede confundir con un dato no es un
-              ejemplo, es un error esperando. */}
-          <label><span>Código</span>
-            <input ref={campoCodigo} inputMode="numeric" value={b.codigo}
-                   placeholder="Teclea el código"
-                   onChange={(e) => pon("codigo", e.target.value)} /></label>
-          <label><span>Descripción</span>
-            <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : "")}>
-              {!b.codigo ? <i>Teclea el código y te digo qué es.</i>
-                : material ? material.nombre
-                : <i>Ese código no está en el maestro.</i>}
-            </output></label>
-        </div>
-        {material && (
-          <p className="fe-eco">
-            {material.cajas_por_estiba != null
-              ? <><b>{material.cajas_por_estiba}</b> cajas por estiba</>
-              : <><b className="ojo">sin factor estibado</b> — las estibas darían cero</>}
-            {esEnvase && <> · envase</>}
-          </p>
-        )}
-
-        {/* ---------- 3 · LA FECHA ----------
-            SE TECLEA LA DE FÁBRICA Y YA. Aquí hubo un interruptor
-            «Vence | Se fabricó», y sobraba: los 462 productos activos
-            tienen vida útil en el maestro, SIN UNA SOLA EXCEPCIÓN, así
-            que el vencimiento siempre se puede calcular. Un interruptor
-            cuya segunda posición no hace falta es un toque de más en
-            cada estiba —152 al día— y una manera de equivocarse que no
-            tenía por qué existir: escoger «Vence» y teclear la de
-            fábrica guarda una fecha que está mal y no avisa.
-
-            LOS 32 ENVASES NO TIENEN VIDA ÚTIL Y NO LA NECESITAN: el
-            retornable no trae fecha impresa, y para ellos la fecha
-            entera es opcional.
-
-            LOS RENGLONES VIEJOS QUE SE ANOTARON POR VENCIMIENTO se
-            siguen corrigiendo por vencimiento —se dice cuál es—, porque
-            reabrirlos como fabricación pondría en la casilla un número
-            que nadie leyó nunca en esa estiba. */}
-        <div className={"fe-fecha" + (esEnvase ? " opcional" : "")}>
-          <div className="fe-que-fecha">
-            <span className="fe-etiq-fecha">Se fabricó</span>
+              de anotar, que es justo cuando el campo acaba de vaciarse. */}
+          <div className="fe-cod-dos">
+            <label><span>Código</span>
+              <input ref={campoCodigo} inputMode="numeric" value={b.codigo}
+                     placeholder="Teclea el código"
+                     onChange={(e) => pon("codigo", e.target.value)} /></label>
+            <label><span>Descripción</span>
+              <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : "")}>
+                {!b.codigo ? <i>Teclea el código y te digo qué es.</i>
+                  : material ? material.nombre
+                  : <i>Ese código no está en el maestro.</i>}
+              </output></label>
           </div>
-          {esEnvase && <em className="fe-opcional">el envase no trae fecha</em>}
-          <div className="fe-dma">
-            <input inputMode="numeric" maxLength={2} placeholder="DD" value={b.dia}
-                   onChange={(e) => pon("dia", e.target.value)} />
-            <input inputMode="numeric" maxLength={2} placeholder="MM" value={b.mes}
-                   onChange={(e) => pon("mes", e.target.value)} />
-            <input inputMode="numeric" maxLength={2} placeholder="AA" value={b.anio}
-                   onChange={(e) => pon("anio", e.target.value)} />
+          {material && (
+            <p className="fe-eco">
+              {material.cajas_por_estiba != null
+                ? <><b>{material.cajas_por_estiba}</b> cajas por estiba</>
+                : <><b className="ojo">sin factor estibado</b> — las estibas darían cero</>}
+              {esEnvase && <> · envase</>}
+            </p>
+          )}
+
+          {/* ---------- LA FECHA ----------
+              SE ANOTA EL VENCIMIENTO, que es lo que trae impreso el
+              cartón y lo que lleva años poniéndose en la hoja. De ahí
+              salen las dos cifras que deciden el FEFO, y salen AQUÍ,
+              frente a la estiba: «sale en 249 días» es lo que dice si
+              esta estiba se queda o se programa.
+
+              EL CURSOR PASA SOLO de DD a MM y de MM a AA. Eran tres
+              toques por fecha y 152 fechas al día: 304 toques que no
+              hacían falta, cada uno con su ocasión de caer en la casilla
+              de al lado.
+
+              LOS 32 ENVASES NO TRAEN FECHA y no la necesitan: el
+              retornable no la lleva impresa, y para ellos la fecha
+              entera es opcional. */}
+          <div className={"fe-fecha" + (esEnvase ? " opcional" : "")}>
+            <div className="fe-que-fecha">
+              <span className="fe-etiq-fecha">Vence</span>
+              {esEnvase && <em className="fe-opcional">el envase no trae fecha</em>}
+            </div>
+            <div className="fe-dma">
+              <input ref={campoDia} inputMode="numeric" maxLength={2} placeholder="DD"
+                     aria-label="Día del vencimiento" value={b.dia}
+                     onChange={(e) => tecleaFecha("dia", e.target.value, campoMes)} />
+              <input ref={campoMes} inputMode="numeric" maxLength={2} placeholder="MM"
+                     aria-label="Mes del vencimiento" value={b.mes}
+                     onChange={(e) => tecleaFecha("mes", e.target.value, campoAnio)}
+                     onKeyDown={(e) => atrasFecha(e, b.mes, campoDia)} />
+              <input ref={campoAnio} inputMode="numeric" maxLength={2} placeholder="AA"
+                     aria-label="Año del vencimiento" value={b.anio}
+                     onChange={(e) => tecleaFecha("anio", e.target.value)}
+                     onKeyDown={(e) => atrasFecha(e, b.anio, campoMes)} />
+            </div>
+
+            {/* «DÍAS PARA SALIR» VA PRIMERO Y GRANDE. No es cuándo vence:
+                es cuándo tiene que haber SALIDO para llegarle al cliente
+                con vida útil suficiente. En negativo ya se pasó, aunque
+                falten meses para el vencimiento — y es justo el caso en
+                que hay que hacer algo con la estiba que se tiene
+                delante. */}
+            <div className={"fe-dias" + (dias == null ? " esperando"
+                            : dias.salir < 0 ? " mal" : dias.salir <= 7 ? " ojo" : "")}>
+              {dias ? (
+                <>
+                  <span className="fe-dias-par">
+                    <b>{dias.salir < 0 ? `se pasó por ${-dias.salir}` : dias.salir}</b>
+                    <em>{dias.salir < 0 ? "días de su fecha de salida" : "días para salir"}</em>
+                  </span>
+                  <span className="fe-dias-par suave">
+                    <b>{dias.vencer}</b><em>días para vencer</em>
+                  </span>
+                </>
+              ) : (
+                <span className="fe-dias-nada">
+                  {material
+                    ? "Teclea el vencimiento y te digo cuántos días le quedan para salir."
+                    : "Primero el código; después la fecha."}
+                </span>
+              )}
+            </div>
           </div>
-          <p className={"fe-calculada" + (fechaCalculada ? "" : " esperando")}>
-            {fechaCalculada
-              ? <>Vence el <b>{fechaCalculada.toLocaleDateString("es-CO")}</b>
-                  {" "}· {material!.vida_util} días de vida útil</>
-              : material && !material.vida_util && !esEnvase
-                ? <>Este material no tiene vida útil en el maestro, así que no se puede
-                    calcular el vencimiento. Avísale a quien lleva el maestro.</>
-                : <>Teclea la fecha de fábrica y te digo cuándo vence.</>}
+        </div>
+
+        {/* ============ 3 · CUÁNTO — ESTIBAS · SALDO · CAJAS ============
+            DOS FORMAS DE CONTAR UN MÓDULO, no tres cifras sueltas: o se
+            cuentan estibas —completas más lo que sobre suelto— o se
+            cuentan cajas. En la hoja son dos columnas y en 151 de 152
+            filas una va vacía; la única que traía las dos es un dedazo.
+
+            Y LAS ESTIBAS VAN CON SU SALDO EN EL MISMO RENGLÓN. Doce
+            completas y ocho sueltas son 548 cajas de un mismo material
+            en un mismo sitio: partirlo en dos renglones obliga a
+            acordarse de que van juntos. */}
+        <div className="fe-bloque">
+          <p className="fe-bloque-cab">Cuánto</p>
+
+          <div className="fe-segmento" role="group" aria-label="Cómo se cuenta">
+            <button type="button" className={b.modo === "estibas" ? "on" : ""}
+                    onClick={() => pon("modo", "estibas")}>Estibas</button>
+            <button type="button" className={b.modo === "cajas" ? "on" : ""}
+                    onClick={() => pon("modo", "cajas")}>Cajas</button>
+          </div>
+
+          {b.modo === "estibas" ? (
+            <div className="fe-dos">
+              <label><span>Estibas completas</span>
+                <input inputMode="numeric" value={b.estibas}
+                       onChange={(e) => pon("estibas", e.target.value)} /></label>
+              <label><span>Saldo · cajas sueltas</span>
+                <input inputMode="numeric" value={b.saldo}
+                       onChange={(e) => pon("saldo", e.target.value)} /></label>
+            </div>
+          ) : (
+            <div className="fe-dos una">
+              <label><span>Cajas</span>
+                <input inputMode="numeric" value={b.cajas}
+                       onChange={(e) => pon("cajas", e.target.value)} /></label>
+            </div>
+          )}
+
+          {/* EL TOTAL, ARMADO A LA VISTA. Se enseña la cuenta entera
+              —12 × 45 + 8— y no solo el 548: el resultado solo hay que
+              creérselo, la cuenta se mira contra la estiba. */}
+          <p className={"fe-total" + (cuenta?.total == null ? " esperando" : "")}>
+            {cuenta == null
+              ? <>Anota cuántas y te digo el total en cajas.</>
+              : cuenta.total == null
+                ? <><b className="ojo">Sin factor estibado</b> — este material no dice cuántas
+                    cajas lleva una estiba, así que las estibas darían cero. Cuéntalo por cajas
+                    o avísale a quien lleva el maestro.</>
+                : <><span className="fe-formula">{cuenta.formula}</span>
+                    <b>{nf.format(cuenta.total)}</b> cajas</>}
           </p>
         </div>
 
-        {/* ---------- 4 · ESTIBAS | CAJAS | ROT ----------
-            ESTIBAS Y CAJAS SON LA MISMA CASILLA CON DOS NOMBRES. En la
-            hoja son dos columnas y en 151 de 152 filas una de las dos va
-            vacía; la única que traía las dos es un dedazo. Poner las dos
-            invita a repetirlo. */}
-        <div className="fe-tres">
-          <label><span>Qué cuentas</span>
-            {/* ARRANCA EN ESTIBAS porque es lo que más se cuenta: quien
-                llega a un módulo lleno anota estibas y sigue. Saldo es
-                lo que queda de una estiba a medias, y cajas son las
-                sueltas — las dos se escogen, la común viene puesta. */}
-            <select value={b.modo} onChange={(e) => pon("modo", e.target.value as Modo)}>
-              <option value="estibas">Estibas</option>
-              <option value="saldo">Saldo</option>
-              <option value="cajas">Cajas</option>
-            </select></label>
-          <label><span>Cuántas</span>
-            <input inputMode="numeric" value={b.cuantas}
-                   onChange={(e) => pon("cuantas", e.target.value)} /></label>
-          {/* ROT SE CONTESTA SIEMPRE: 94 «SI» y 58 «NO» en las 152 filas.
-              Arranca vacío porque preseleccionar «no» habría quedado 58
-              veces bien y 94 veces mal. */}
+        {/* ========= 4 · CÓMO ESTÁ — ROT · AVER · PNC · ESTA =========
+            Lo raro va de último y sin abultar: avería salió en 2 filas de
+            152, PNC en 1 y el estado del envase en 10. Darles el peso del
+            código sería cobrarle a los 150 renglones normales el costo de
+            los tres raros.
+
+            «¿ROTA?» ES OTRA COSA Y POR ESO VA APARTE: es rotación —si esa
+            estiba se mueve o está quieta—, no si está rota. Se contesta
+            en las 152 filas de la hoja: 94 sí y 58 no. */}
+        <div className="fe-bloque">
+          <p className="fe-bloque-cab">Cómo está</p>
+
           <div className="fe-rota">
             <span>¿Rota?</span>
             <div className="fe-si-no">
@@ -772,29 +938,31 @@ export function Contar({
                       onClick={() => pon("rot", false)}>No</button>
             </div>
           </div>
-        </div>
 
-        {/* ---------- 5 · AVER | PNC | ESTA ----------
-            Lo raro va de último y sin abultar: avería salió en 2 filas de
-            152, PNC en 1 y el estado del envase en 10. Darles el peso del
-            código sería cobrarle a los 150 renglones normales el costo de
-            los tres raros. */}
-        <div className="fe-tres fe-marcas">
-          <label className="fe-check">
-            <input type="checkbox" checked={b.averia}
-                   onChange={(e) => pon("averia", e.target.checked)} />
-            <span>Avería</span>
-          </label>
-          <label className="fe-check">
-            <input type="checkbox" checked={b.pnc}
-                   onChange={(e) => pon("pnc", e.target.checked)} />
-            <span>PNC</span>
-          </label>
-          <label><span>Estado del envase</span>
-            <select value={b.estado} onChange={(e) => pon("estado", e.target.value)}>
-              <option value="">—</option>
-              {estados.map((e) => <option key={e} value={e}>{e}</option>)}
-            </select></label>
+          <div className="fe-tres fe-marcas">
+            <label className="fe-check">
+              <input type="checkbox" checked={b.averia}
+                     onChange={(e) => pon("averia", e.target.checked)} />
+              <span>Avería</span>
+            </label>
+            <label className="fe-check">
+              <input type="checkbox" checked={b.pnc}
+                     onChange={(e) => pon("pnc", e.target.checked)} />
+              <span>PNC</span>
+            </label>
+            <label><span>Estado del envase</span>
+              <select value={b.estado} onChange={(e) => pon("estado", e.target.value)}>
+                <option value="">—</option>
+                {estados.map((e) => <option key={e} value={e}>{e}</option>)}
+              </select></label>
+          </div>
+
+          {/* LA OBSERVACIÓN SE GUARDABA Y NO SE PODÍA ESCRIBIR. El
+              renglón la manda desde el primer día —`p_nota`— pero el
+              formulario no tenía dónde teclearla: iba siempre vacía. */}
+          <label className="fe-nota"><span>Observación</span>
+            <input value={b.nota} placeholder="Opcional — lo que haya que decir de esta estiba"
+                   onChange={(e) => pon("nota", e.target.value)} /></label>
         </div>
 
         {(b.averia || b.pnc || b.estado) && (
@@ -809,9 +977,23 @@ export function Contar({
           </p>
         )}
 
-        <button type="button" className="btn grande" disabled={guardando} onClick={anotar}>
-          {guardando ? "Guardando…" : corrigiendo ? "Guardar la corrección" : "Anotar renglón"}
-        </button>
+        {/* ---------- LA BARRA QUE NO SE VA ----------
+            «Anotar renglón» iba al final del formulario, y con cuatro
+            bloques el final está fuera de la pantalla: cada estiba
+            costaría bajar a buscarlo. Pegada abajo está siempre a un
+            dedo, sin importar por dónde vaya el formulario.
+
+            Y LLEVA LA CUENTA DEL BORRADOR AL LADO. Es la única cifra que
+            se mira sin dejar de contar —cuántos van— y tenerla ahí
+            ahorra cambiar de pestaña para averiguarlo. */}
+        <div className="fe-barra-fija">
+          <p className="fe-fija-cuenta">
+            <b>{renglones.length}</b> en el borrador
+          </p>
+          <button type="button" className="btn grande" disabled={guardando} onClick={anotar}>
+            {guardando ? "Guardando…" : corrigiendo ? "Guardar la corrección" : "Anotar renglón"}
+          </button>
+        </div>
       </section>
 
       {/* ---------- EL BORRADOR ---------- */}
@@ -943,8 +1125,14 @@ export function Contar({
                   </div>
                   <dl className="fe-cifras">
                     <div><dt>Total cajas</dt><dd>{nf.format(Number(r.total_cajas))}</dd></div>
-                    <div><dt>{r.estibas != null ? "Estibas" : "Cajas"}</dt>
-                      <dd>{r.estibas ?? r.cajas}</dd></div>
+                    {/* CÓMO SE CONTÓ, y no solo cuántas: «56» no dice si
+                        son estibas o cajas, y con el saldo al lado la
+                        diferencia entre 12 estibas y 12 cajas es de dos
+                        órdenes de magnitud. */}
+                    <div><dt>{r.cajas != null ? "Cajas" : r.saldo != null ? "Estibas + saldo" : "Estibas"}</dt>
+                      <dd>{r.cajas != null ? r.cajas
+                           : r.saldo != null ? `${r.estibas ?? 0} + ${r.saldo}`
+                           : r.estibas}</dd></div>
                     <div><dt>Vence</dt>
                       <dd>{r.vencimiento
                         ? new Date(r.vencimiento + "T00:00:00").toLocaleDateString("es-CO")

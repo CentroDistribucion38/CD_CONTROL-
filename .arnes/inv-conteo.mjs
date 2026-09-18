@@ -70,54 +70,78 @@ const ARMAZON = `
   <section class="fe-anotar">
     <div class="fe-anotar-cab"><p class="fe-paso">Anotar lo que hay</p></div>
 
-    <div class="fe-tres">
-      <label><span>Calle</span>
-        <div class="bs"><input class="bs-campo" value="Todas"><span class="bs-flecha">▾</span>
-          <ul class="bs-lista"><li class="on"><b>A</b></li><li><b>ALAR</b></li>
-            <li><b>JAULA_PNC</b><em>PRODUCTO NO CONFORME</em></li></ul></div></label>
-      <label><span>Módulo</span>
-        <div class="bs"><input class="bs-campo" value="ALAR06"><span class="bs-flecha">▾</span></div></label>
-      <label><span>Lado</span>
-        <select><option>Escoge…</option><option>Izquierdo</option><option>Derecho</option></select></label>
-    </div>
-
-    <div class="fe-cod-dos">
-      <label><span>Código</span><input inputmode="numeric" value="3128"></label>
-      <label><span>Descripción</span>
-        <output class="fe-desc-campo">CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE</output></label>
-    </div>
-    <p class="fe-eco"><b>480</b> cajas por estiba</p>
-
-    <div class="fe-fecha">
-      <div class="fe-que-fecha">
-        <span class="fe-etiq-fecha">Se fabricó</span>
+    <div class="fe-bloque">
+      <p class="fe-bloque-cab">Dónde</p>
+      <div class="fe-tres">
+        <label><span>Calle</span>
+          <div class="bs"><input class="bs-campo" value="Todas"><span class="bs-flecha">▾</span>
+            <ul class="bs-lista"><li class="on"><b>A</b></li><li><b>ALAR</b></li>
+              <li><b>JAULA_PNC</b><em>PRODUCTO NO CONFORME</em></li></ul></div></label>
+        <label><span>Módulo</span>
+          <div class="bs"><input class="bs-campo" value="ALAR06"><span class="bs-flecha">▾</span></div></label>
+        <label><span>Lado</span>
+          <select><option>Escoge…</option><option>Izquierdo</option><option>Derecho</option></select></label>
       </div>
-      <em class="fe-opcional">el envase no trae fecha</em>
-      <div class="fe-dma">
-        <input inputmode="numeric" maxlength="2" placeholder="DD" value="21">
-        <input inputmode="numeric" maxlength="2" placeholder="MM" value="08">
-        <input inputmode="numeric" maxlength="2" placeholder="AA" value="27">
-      </div>
-      <p class="fe-calculada">Vence el <b>6/11/2027</b> · 180 días de vida útil</p>
     </div>
 
-    <div class="fe-tres">
-      <label><span>Qué cuentas</span>
-        <select><option>Estibas</option><option>Saldo</option><option>Cajas</option></select></label>
-      <label><span>Cuántas</span><input inputmode="numeric" value="56"></label>
+    <div class="fe-bloque">
+      <p class="fe-bloque-cab">Qué</p>
+      <div class="fe-cod-dos">
+        <label><span>Código</span><input inputmode="numeric" value="3128"></label>
+        <label><span>Descripción</span>
+          <output class="fe-desc-campo">CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE</output></label>
+      </div>
+      <p class="fe-eco"><b>45</b> cajas por estiba</p>
+
+      <div class="fe-fecha">
+        <div class="fe-que-fecha">
+          <span class="fe-etiq-fecha">Vence</span>
+          <em class="fe-opcional">el envase no trae fecha</em>
+        </div>
+        <div class="fe-dma">
+          <input inputmode="numeric" maxlength="2" placeholder="DD" value="11">
+          <input inputmode="numeric" maxlength="2" placeholder="MM" value="03">
+          <input inputmode="numeric" maxlength="2" placeholder="AA" value="27">
+        </div>
+        <div class="fe-dias">
+          <span class="fe-dias-par"><b>249</b><em>días para salir</em></span>
+          <span class="fe-dias-par suave"><b>339</b><em>días para vencer</em></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="fe-bloque">
+      <p class="fe-bloque-cab">Cuánto</p>
+      <div class="fe-segmento" role="group">
+        <button type="button" class="on">Estibas</button>
+        <button type="button">Cajas</button>
+      </div>
+      <div class="fe-dos">
+        <label><span>Estibas completas</span><input inputmode="numeric" value="12"></label>
+        <label><span>Saldo · cajas sueltas</span><input inputmode="numeric" value="8"></label>
+      </div>
+      <p class="fe-total"><span class="fe-formula">12 × 45 + 8</span><b>548</b> cajas</p>
+    </div>
+
+    <div class="fe-bloque">
+      <p class="fe-bloque-cab">Cómo está</p>
       <div class="fe-rota"><span>¿Rota?</span>
         <div class="fe-si-no"><button type="button" class="on">Sí</button>
           <button type="button">No</button></div></div>
+      <div class="fe-tres fe-marcas">
+        <label class="fe-check"><input type="checkbox"><span>Avería</span></label>
+        <label class="fe-check"><input type="checkbox"><span>PNC</span></label>
+        <label><span>Estado del envase</span>
+          <select><option>—</option><option>PIROGRABADO</option></select></label>
+      </div>
+      <label class="fe-nota"><span>Observación</span>
+        <input placeholder="Opcional — lo que haya que decir de esta estiba"></label>
     </div>
 
-    <div class="fe-tres fe-marcas">
-      <label class="fe-check"><input type="checkbox"><span>Avería</span></label>
-      <label class="fe-check"><input type="checkbox"><span>PNC</span></label>
-      <label><span>Estado del envase</span>
-        <select><option>—</option><option>PIROGRABADO</option></select></label>
+    <div class="fe-barra-fija">
+      <p class="fe-fija-cuenta"><b>152</b> en el borrador</p>
+      <button type="button" class="btn grande">Anotar renglón</button>
     </div>
-
-    <button type="button" class="btn grande">Anotar renglón</button>
   </section>
 
   <section class="fe-recorrido">
@@ -154,7 +178,7 @@ const ARMAZON = `
           <button type="button" class="fe-quitar chico">Borrar</button></div>
         <dl class="fe-cifras">
           <div><dt>Total cajas</dt><dd>4.320</dd></div>
-          <div><dt>Estibas</dt><dd>80</dd></div>
+          <div><dt>Estibas + saldo</dt><dd>80 + 12</dd></div>
           <div><dt>Vence</dt><dd>13/09/2026</dd></div>
           <div><dt>Días para salir</dt><dd class="falta">-3</dd></div>
         </dl>
@@ -180,6 +204,17 @@ const ARMAZON = `
     </div>
   </section>
 </div>`;
+
+/* LOS DOS ESTADOS DE LAS CIFRAS DEL FEFO. Son los que hay que poder leer
+   con el sol de frente, y son la única pareja de la pantalla que NO sale
+   de los tokens del tema: rojo sobre rosa y ámbar sobre crema. */
+const DIAS_MAL = ARMAZON
+  .replace('<div class="fe-dias">', '<div class="fe-dias mal">')
+  .replace("<b>249</b><em>días para salir</em>",
+           "<b>se pasó por 12</b><em>días de su fecha de salida</em>");
+const DIAS_OJO = ARMAZON
+  .replace('<div class="fe-dias">', '<div class="fe-dias ojo">')
+  .replace("<b>249</b>", "<b>4</b>");
 
 /* CORRIGIENDO: el otro estado real del formulario. Se llega tocando
    «Corregir» en una fila de abajo, y el formulario se pinta distinto
@@ -242,7 +277,7 @@ const monta = async (pag, tema, ancho, alto, html = ARMAZON) => {
 
 /* ---------- 4 y 6. CONTRASTE ---------- */
 const pag = await navegador.newPage();
-console.log("tema      código  eco  «sí» on  «sí» off  fecha  urgente  cód. malo");
+console.log("tema      código  eco  «sí» on  «sí» off  fecha  total  d.salir  d.vencer  urgente  malo");
 for (const t of TEMAS) {
   await monta(pag, t, 1440, 1200);
   const m = await pag.evaluate(() => {
@@ -263,8 +298,35 @@ for (const t of TEMAS) {
       siOnTxt: g(".fe-si-no button.on", "color"), siOnFondo: g(".fe-si-no button.on", "background-color"),
       siOffTxt: g(".fe-si-no button:not(.on)", "color"), siOffFondo: g(".fe-si-no button:not(.on)", "background-color"),
       dmaTxt: g(".fe-dma input", "color"), dmaFondo: g(".fe-dma input", "background-color"),
+      /* EL TOTAL VIVO. Es la cifra que se mira de reojo mientras se
+         teclea —548 cajas— y descansa en el panel tintado, que es
+         justo donde --fe-gris se cae por debajo de la norma. */
+      totTxt: g(".fe-total b", "color"), totFondo: fondoReal(".fe-total b"),
       urgTxt: g(".fe-cifras dd.falta", "color"), urgFondo: fondoReal(".fe-cifras dd.falta"),
     };
+  });
+
+  /* LOS DOS ESTADOS DE «DÍAS PARA SALIR», cada uno en su propia pasada:
+     son la única pareja que no sale de los tokens del tema —rojo sobre
+     rosa, ámbar sobre crema— y los dos existen solo cuando hay algo que
+     hacer con la estiba que se tiene delante. */
+  await monta(pag, t, 1440, 1200, DIAS_MAL);
+  const dmal = await pag.evaluate(() => {
+    const e = document.querySelector(".fe-dias.mal .fe-dias-par em"); const s = getComputedStyle(e);
+    let f = e; for (; f; f = f.parentElement) {
+      const c = getComputedStyle(f).backgroundColor;
+      if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) break;
+    }
+    return { txt: s.color, fondo: f ? getComputedStyle(f).backgroundColor : "rgb(255,255,255)" };
+  });
+  await monta(pag, t, 1440, 1200, DIAS_OJO);
+  const dojo = await pag.evaluate(() => {
+    const e = document.querySelector(".fe-dias.ojo .fe-dias-par em"); const s = getComputedStyle(e);
+    let f = e; for (; f; f = f.parentElement) {
+      const c = getComputedStyle(f).backgroundColor;
+      if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) break;
+    }
+    return { txt: s.color, fondo: f ? getComputedStyle(f).backgroundColor : "rgb(255,255,255)" };
   });
   await monta(pag, t, 1440, 600, ECO_MALO);
   const mal = await pag.evaluate(() => {
@@ -278,6 +340,9 @@ for (const t of TEMAS) {
     siOn: razon(m.siOnTxt, m.siOnFondo),
     siOff: razon(m.siOffTxt, m.siOffFondo),
     fecha: razon(m.dmaTxt, m.dmaFondo),
+    total: razon(m.totTxt, m.totFondo),
+    diasSalir: razon(dmal.txt, dmal.fondo),
+    diasVencer: razon(dojo.txt, dojo.fondo),
     urgente: razon(m.urgTxt, m.urgFondo),
     codMalo: razon(mal.txt, mal.fondo),
   };
@@ -288,7 +353,7 @@ for (const t of TEMAS) {
 }
 
 /* ---------- 2, 3 y 5. GEOMETRÍA ---------- */
-console.log("\nancho    se sale        código  toque  DD/MM/AA  «anotar» al pliegue");
+console.log("\nancho    se sale        código  cifra  toque  DD/MM/AA  «anotar»");
 for (const [ancho, etiqueta] of ANCHOS) {
   await monta(pag, null, ancho, 740);
   const m = await pag.evaluate((BARRA) => {
@@ -301,7 +366,7 @@ for (const [ancho, etiqueta] of ANCHOS) {
       ((e.className || "").toString().trim().split(/\s+/)[0] || e.tagName.toLowerCase()) +
       (e.textContent?.trim() ? ` «${e.textContent.trim().slice(0, 20)}»` : "");
     const salen = [];
-    for (const f of document.querySelectorAll(".fe-donde, .fe-anotar, .fe-recorrido, .fe-fila, .cabeza")) {
+    for (const f of document.querySelectorAll(".fe-anotar, .fe-recorrido, .fe-fila, .cabeza")) {
       const c = f.getBoundingClientRect();
       for (const e of f.querySelectorAll("*")) {
         const r = e.getBoundingClientRect();
@@ -319,30 +384,56 @@ for (const [ancho, etiqueta] of ANCHOS) {
                       : Infinity;
     };
     const d = document.documentElement;
-    /* Dónde termina el botón de anotar, contado desde arriba del
-       documento: si pasa del alto útil, cada estiba cuesta un scroll. */
+    /* ¿SE VE «ANOTAR RENGLÓN» SIN BAJAR? Antes se medía si CABÍA en la
+       primera pantalla —su posición en el documento contra el alto
+       útil— y por eso el formulario no podía crecer: cada campo nuevo
+       empujaba el botón bajo el pliegue.
+
+       Ahora la barra va pegada abajo, así que lo que hay que medir es
+       otra cosa: que ESTÉ EN PANTALLA sin haber bajado nada. Con
+       `position: sticky` eso es verdad por muy largo que sea el
+       formulario; sin ella —o con un ancestro que tenga `overflow`, que
+       es lo que la rompe en silencio— el botón se va al final del
+       documento y esta medida lo caza. */
     const anotar = document.querySelector(".fe-anotar .btn.grande").getBoundingClientRect();
     return {
       salen: [...new Set(salen)], lado: d.scrollWidth - d.clientWidth,
       codigo: alto(".fe-cod-dos input"),
-      toque: Math.min(alto(".fe-si-no button"), alto(".fe-dma input"),
-                      alto(".fe-anotar .btn.grande"), alto(".fe-donde select, .fe-donde .bs-campo"),
-                      alto(".fe-donde.plegada .fe-mini")),
+      cifra: alto(".fe-dos input"),
+      fechaAlto: alto(".fe-dma input"),
+      toque: Math.min(alto(".fe-si-no button"), alto(".fe-segmento button"),
+                      alto(".fe-dma input"), alto(".fe-dos input"), alto(".fe-nota input"),
+                      alto(".fe-anotar .btn.grande"), alto(".fe-tres select, .fe-tres .bs-campo")),
       dma: [...document.querySelectorAll(".fe-dma input")]
              .map((e) => Math.round(e.getBoundingClientRect().width)).join("/"),
-      pliegue: Math.round(anotar.bottom + window.scrollY) - (740 - BARRA),
+      /* Cuánto sobresale del borde de abajo de la ventana. 0 o menos =
+         se ve sin bajar. */
+      fuera: Math.round(anotar.bottom) - 740,
+      pegada: getComputedStyle(document.querySelector(".fe-barra-fija")).position,
     };
   }, BARRA);
 
   console.log(`${etiqueta.padEnd(8)} ${(m.salen.length ? m.salen.join(", ") : "nada").padEnd(14)} ` +
-              `${String(m.codigo).padStart(6)}  ${String(m.toque).padStart(5)}  ` +
-              `${m.dma.padStart(8)}  ${m.pliegue <= 0 ? "cabe" : `${m.pliegue} px por debajo`}`);
+              `${String(m.codigo).padStart(6)}  ${String(Math.min(m.cifra, m.fechaAlto)).padStart(5)}  ` +
+              `${String(m.toque).padStart(5)}  ` +
+              `${m.dma.padStart(8)}  ${m.fuera <= 0 ? "se ve" : `${m.fuera} px fuera`}`);
 
   if (m.salen.length) fallas.push(`${etiqueta}: se sale de su tarjeta: ${m.salen.join(", ")}`);
   if (m.lado > 0) fallas.push(`${etiqueta}: la página se arrastra ${m.lado} px de lado`);
   if (m.codigo < 56)
     fallas.push(`${etiqueta}: el campo del código mide ${m.codigo} px (mínimo 56: es el que ` +
                 "se teclea 152 veces al día y donde un dedazo cambia lo que se cuenta)");
+  /* LAS CIFRAS Y LA FECHA, TAMBIÉN A 56. Son las otras casillas donde un
+     dedazo no da error, no avisa y aparece cuadrando el mes — y la
+     fecha, además, es la única que se teclea SIN MIRARLA, porque el
+     cursor entra solo. */
+  if (m.cifra < 56)
+    fallas.push(`${etiqueta}: la casilla de las estibas mide ${m.cifra} px (mínimo 56: es el ` +
+                "otro dato donde un dedazo no da error, no avisa y aparece cuadrando el mes)");
+  if (m.fechaAlto < 56)
+    fallas.push(`${etiqueta}: las casillas de la fecha miden ${m.fechaAlto} px de alto ` +
+                "(mínimo 56: son las únicas que se teclean SIN MIRARLAS, porque el cursor " +
+                "entra solo y los dedos van a donde estaba el dedo anterior)");
   if (m.toque < 48)
     fallas.push(`${etiqueta}: algo que se toca mide ${m.toque} px de alto (mínimo 48: se usa ` +
                 "de pie y a veces con guantes)");
@@ -351,9 +442,14 @@ for (const [ancho, etiqueta] of ANCHOS) {
   if (new Set(m.dma.split("/")).size > 1)
     fallas.push(`${etiqueta}: las casillas de la fecha miden ${m.dma} px — desparejas se ` +
                 "dejan de leer como DD MM AA");
-  if (etiqueta === "celular" && m.pliegue > 0)
-    fallas.push(`«Anotar renglón» queda ${m.pliegue} px bajo el pliegue en un celular de ` +
-                "390×740: cada estiba costaría un scroll");
+  if (m.pegada !== "sticky")
+    fallas.push(`${etiqueta}: la barra de anotar no va pegada abajo (position: ${m.pegada}). ` +
+                "Con los cuatro momentos a la vista el botón se va fuera de la pantalla y " +
+                "cada estiba cuesta un scroll para encontrarlo");
+  if (m.fuera > 0)
+    fallas.push(`${etiqueta}: «Anotar renglón» queda ${m.fuera} px fuera de la ventana sin ` +
+                "haber bajado nada. La barra tiene que estar pegada abajo — y basta con que " +
+                "un ancestro traiga `overflow` para que sticky deje de funcionar en silencio");
 
   /* Y lo mismo con todo abierto, menos el pliegue. */
   await monta(pag, null, ancho, 740, CORRIGIENDO);
@@ -364,7 +460,7 @@ for (const [ancho, etiqueta] of ANCHOS) {
       return false;
     };
     const salen = [];
-    for (const f of document.querySelectorAll(".fe-donde, .fe-anotar, .fe-recorrido, .fe-fila")) {
+    for (const f of document.querySelectorAll(".fe-anotar, .fe-recorrido, .fe-fila")) {
       const c = f.getBoundingClientRect();
       for (const e of f.querySelectorAll("*")) {
         const r = e.getBoundingClientRect();
@@ -404,12 +500,14 @@ await monta(pag, null, 390, 740);
 const env = await pag.evaluate((BARRA) => {
   const botones = document.querySelectorAll(".fe-que-fecha button").length;
   const rot = document.querySelector(".fe-etiq-fecha");
+  const bloques = [...document.querySelectorAll(".fe-anotar .fe-bloque-cab")]
+    .map((e) => e.textContent.trim());
   const b = document.querySelector(".fe-rec-cab .fe-mandar-ya");
   const sec = document.querySelector(".fe-recorrido");
-  if (!b || !sec) return { botones, rotulo: rot ? rot.textContent.trim() : null, falta: true };
+  if (!b || !sec) return { botones, bloques, rotulo: rot ? rot.textContent.trim() : null, falta: true };
   const rb = b.getBoundingClientRect(), rs = sec.getBoundingClientRect();
   return {
-    botones,
+    botones, bloques,
     rotulo: rot ? rot.textContent.trim() : null,
     alto: Math.round(rb.height),
     /* Cuánto hay que bajar dentro del borrador para llegar al botón. La
@@ -421,15 +519,39 @@ const env = await pag.evaluate((BARRA) => {
 }, BARRA);
 
 console.log(`\nfecha: ${env.botones} botón(es) de escoger · rótulo «${env.rotulo ?? "NO HAY"}»`);
+console.log(`los cuatro momentos: ${env.bloques.join(" · ") || "NO ESTÁN"}`);
 console.log(`enviar arriba: ${env.falta ? "NO ESTÁ" : `alto ${env.alto} px · a ${env.desde} px del principio del borrador · ${env.cabe ? "cabe sin bajar" : "HAY QUE BAJAR"}`}`);
 
 if (env.botones > 0)
   fallas.push(`volvió el interruptor de escoger la fecha (${env.botones} botones). ` +
-              "Aquí solo se teclea la de fabricación: el vencimiento lo calcula la base " +
-              "con la vida útil del maestro");
+              "Aquí se anota el vencimiento, que es lo que trae impreso el cartón y lo que " +
+              "lleva años poniéndose en la hoja");
 if (!env.rotulo)
   fallas.push("la fecha no dice cuál es: la casilla solo pone DD MM AA y sin rótulo hay que " +
               "acordarse de qué fecha va ahí");
+/* LOS CUATRO MOMENTOS, EN EL ORDEN EN QUE SE MIRA UNA ESTIBA. Es el
+   orden de la hoja y es lo que se pidió: primero dónde estoy, luego qué
+   es, luego cuánto hay, y de último lo raro.
+
+   SE LEE DEL COMPONENTE Y NO DEL ARMAZÓN. Lo medí primero contra el
+   armazón de aquí arriba —que lo escribo yo— y era una aserción QUE NO
+   PODÍA FALLAR: cambiar el orden en la pantalla de verdad la dejaba
+   verde. Lo cazó la mutación, que es para lo que está.
+
+   El armazón se sigue midiendo, pero para otra cosa: que los cuatro
+   bloques se pinten. Que ADEMÁS coincidan es lo que ata el armazón a la
+   pantalla — si se separan, lo que se mide aquí deja de decir nada de
+   lo que se usa allá. */
+{
+  const debe = ["Dónde", "Qué", "Cuánto", "Cómo está"];
+  const enPantalla = [...tsx.matchAll(/className="fe-bloque-cab">([^<]+)</g)].map((m) => m[1].trim());
+  if (enPantalla.join("|") !== debe.join("|"))
+    fallas.push(`los momentos del renglón salen [${enPantalla.join(", ") || "ninguno"}] y ` +
+                `deben salir [${debe.join(", ")}]: es el orden en que se mira una estiba`);
+  if (env.bloques.join("|") !== enPantalla.join("|"))
+    fallas.push(`el armazón del arnés pinta [${env.bloques.join(", ")}] y la pantalla ` +
+                `[${enPantalla.join(", ")}]: lo que se mida aquí deja de decir nada de allá`);
+}
 if (env.falta)
   fallas.push("no está el botón de enviar arriba del borrador: con 150 renglones el de abajo " +
               "queda a siete pantallazos");
@@ -464,8 +586,10 @@ const orden = [
      `indexOf(">Vence<")` diría que falta el paso entero. Se busca por el
      bloque, que es lo que de verdad ocupa ese lugar en el orden. */
   ["La fecha", 'className={"fe-fecha"'],
-  ["Qué cuentas", ">Qué cuentas<"], ["Cuántas", ">Cuántas<"], ["¿Rota?", ">¿Rota?<"],
+  ["Estibas completas", ">Estibas completas<"], ["Saldo", ">Saldo · cajas sueltas<"],
+  ["¿Rota?", ">¿Rota?<"],
   ["Avería", ">Avería<"], ["PNC", ">PNC<"], ["Estado del envase", ">Estado del envase<"],
+  ["Observación", ">Observación<"],
 ];
 let desde = 0;
 for (const [r, aguja] of orden) {
@@ -538,9 +662,43 @@ if ((limpio.match(/<Buscador/g) ?? []).length < 2)
 if (!/p_saldo:/.test(limpio))
   fallas.push("no manda el saldo: la cifra caería en cajas o se perdería");
 if (!/modo: "estibas"/.test(limpio))
-  fallas.push("«Qué cuentas» no arranca en estibas");
-if (!/r\.estibas != null \? "estibas" : r\.saldo != null \? "saldo" : "cajas"/.test(limpio))
-  fallas.push("al corregir no se distingue un saldo de unas cajas: se cargaría como cajas");
+  fallas.push("la forma de contar no arranca en estibas, que es lo que más se cuenta");
+
+/* ---------- ESTIBAS COMPLETAS **Y** SALDO, EN EL MISMO RENGLÓN ----------
+
+   Doce completas más ocho sueltas son 548 cajas de un mismo material en
+   un mismo sitio. Con «saldo» como TERCERA opción de un desplegable eso
+   había que partirlo en dos renglones, y de ahí a que uno de los dos se
+   quede sin anotar hay un paso.
+
+   Las dos cifras tienen que VIAJAR JUNTAS. Si `p_saldo` solo se manda
+   cuando el modo es «saldo», el renglón de estibas pierde el saldo sin
+   avisar: la pantalla lo muestra en la casilla, el total de arriba lo
+   suma, y la base guarda ocho cajas menos. Nadie lo nota hasta que el
+   mes cuadra de menos. */
+if (!/p_estibas: b\.modo === "estibas" \? ent\(b\.estibas\) : null/.test(limpio) ||
+    !/p_saldo: b\.modo === "estibas" \? ent\(b\.saldo\) : null/.test(limpio))
+  fallas.push("las estibas y el saldo no viajan juntas en el renglón de estibas: el saldo se " +
+              "perdería en silencio y el total guardado saldría corto");
+if (!/p_cajas: b\.modo === "cajas" \? ent\(b\.cajas\) : null/.test(limpio))
+  fallas.push("las cajas no van solas: mezcladas con estibas el renglón no dice cómo se contó");
+/* Y TRES CASILLAS DE VERDAD, no una compartida. Compartiendo `cuantas`,
+   pasar de estibas a cajas conservaba el número: 56 estibas se volvían
+   56 cajas sin que cambiara nada en pantalla. */
+if (/\bcuantas\b/.test(limpio))
+  fallas.push("las tres cifras vuelven a compartir una sola casilla: cambiar de forma de " +
+              "contar conservaría el número y 56 estibas se volverían 56 cajas");
+if (!/r\.cajas != null \? "cajas" : "estibas"/.test(limpio))
+  fallas.push("al corregir no se distingue cómo se contó el renglón");
+
+/* EL TOTAL, ARMADO A LA VISTA. 12 × 45 + 8 = 548. Se enseña la cuenta
+   entera y no solo el resultado: 548 hay que creérselo, «12 × 45 + 8» se
+   mira contra la estiba y se ve si el factor es el que corresponde. */
+if (!/const cuenta = useMemo/.test(limpio))
+  fallas.push("no se ve el total en cajas mientras se anota: la cuenta de estibas por factor " +
+              "más el saldo habría que hacerla de cabeza");
+if (!/cajas_por_estiba/.test(limpio))
+  fallas.push("el total no usa el factor estibado del maestro");
 
 /* ---------- ANOTAR DEJA EL RENGLÓN EN CERO ----------
    Solo el sitio se queda —sigo parado frente al mismo módulo—. Código,
@@ -562,43 +720,107 @@ if (!/function limpiar\(\) \{\s*\n\s*setCorrigiendo\(null\);\s*\n\s*setB\(VACIO\
 if (/placeholder="\d+"/.test(limpio))
   fallas.push("el marcador del código es un número: se confunde con un código ya tecleado");
 
-/* ---------- LA FECHA DE FÁBRICA, Y EL VENCIMIENTO CALCULADO ----------
-   Unas estibas traen impreso el vencimiento y otras la fabricación, y
-   hasta ahora había que hacer la cuenta de cabeza antes de teclear.
+/* ---------- EL VENCIMIENTO, Y LAS DOS CIFRAS QUE SALEN DE ÉL ----------
 
-   LO QUE SE MANDA ES LO QUE SE TECLEÓ. Con la fabricación, el
-   vencimiento viaja en NULL y lo calcula la base con la vida útil del
-   maestro. Si la pantalla mandara un vencimiento ya calculado, habría
-   dos versiones de la misma fórmula —una aquí y otra en la base—
-   esperando a discrepar el día que alguien corrija una vida útil. */
-if (!/p_fab_dia:/.test(limpio))
-  fallas.push("no se puede teclear la fecha de fabricación");
-if (!/p_venc_dia: null/.test(limpio))
-  fallas.push("la pantalla sigue mandando un vencimiento: la cuenta quedaría escrita en " +
-              "dos sitios, una aquí y otra en la base, esperando a discrepar el día que " +
-              "alguien corrija una vida útil");
-/* Y LA VISTA PREVIA ES SOLO PARA ENSEÑAR. Que exista —es lo que se pidió
-   ver— pero que NO sea lo que se guarda. */
-if (!/const fechaCalculada = useMemo/.test(limpio))
-  fallas.push("la pantalla no enseña cuándo vence mientras se teclea la fecha de fábrica");
-if (/p_venc_[a-z]+: fechaCalculada/.test(limpio))
-  fallas.push("se está guardando el vencimiento calculado EN LA PANTALLA en vez de mandar " +
-              "la fabricación y dejar que la base haga la cuenta");
-/* Al corregir se vuelve a abrir con la fecha que se tecleó, no con la
-   calculada: quien vuelve a mirar la estiba lee el mismo número. */
-/* NO PUEDE QUEDAR NI RASTRO DE «VENCE» EN LA PANTALLA.
-   Le quité el interruptor pero dejé el estado adentro «por si acaso»,
-   y el borrador que se guarda en el teléfono trajo esa marca de vuelta
-   después de actualizar: el formulario abría en «Vence» y NO HABÍA CÓMO
-   SALIR, porque el único control que lo cambiaba ya no existía. Los
-   renglones viejos se convirtieron en la base; aquí no se arrastra. */
-if (/"vence"/.test(limpio))
-  fallas.push("volvió el estado «vence» al formulario. Aquí solo se teclea la fabricación; " +
-              "los renglones viejos se convirtieron con 2026-09-conteo-solo-fabricacion.sql");
-/* Y al corregir se abre con la FABRICACIÓN, no con el vencimiento
-   calculado: quien vuelve a mirar la estiba lee el mismo número. */
-if (!/dia: String\(r\.fab_dia \?\? ""\)/.test(limpio))
-  fallas.push("al corregir no se vuelve a abrir con la fecha de fabricación que se tecleó");
+   SE ANOTA EL VENCIMIENTO. Es lo que trae impreso el cartón y lo que
+   lleva años poniéndose en la hoja —columnas I/J/K de CONTEO—, y de ahí
+   salen las dos que deciden el FEFO:
+
+     DÍAS PARA VENCER = vencimiento − hoy
+     DÍAS PARA SALIR  = eso mismo − el mínimo T1 del maestro
+
+   Esto estuvo un rato pidiendo la fecha de FABRICACIÓN y calculando el
+   vencimiento con la vida útil. Se devolvió: quien está frente a la
+   estiba lee lo que dice el cartón, y hacer la cuenta de cabeza al revés
+   —restarle la vida útil para saber qué teclear— es justo lo que la
+   pantalla venía a quitar. */
+if (!/p_venc_dia: ent\(b\.dia\)/.test(limpio))
+  fallas.push("la pantalla no manda el vencimiento que se teclea");
+if (!/p_fab_dia: null/.test(limpio))
+  fallas.push("sigue mandando una fecha de fabricación: el renglón acabaría con las dos, y " +
+              "el vencimiento guardado no sería el que se leyó en el cartón");
+/* Y LAS DOS CIFRAS SE VEN MIENTRAS SE TECLEA. Es lo que se pidió: que la
+   pantalla diga «sale en 249 días» ahí, frente a la estiba, que es el
+   único momento en que se puede hacer algo con ella. */
+if (!/const dias = useMemo/.test(limpio))
+  fallas.push("la pantalla no dice los días para salir y para vencer mientras se teclea la " +
+              "fecha: habría que esperar al tablero, y para entonces ya hay que volver a " +
+              "caminar hasta el módulo");
+if (!/dias_minimo/.test(limpio))
+  fallas.push("los días para salir no restan el mínimo T1 del maestro: saldría el mismo " +
+              "número que los días para vencer, que es el que NO manda");
+
+/* NO PUEDE HABER UN CAMPO DE ESTADO SIN CONTROL QUE LO MUEVA.
+   Hubo aquí un `fecha: "vence" | "fabrica"`: le quité el interruptor a la
+   pantalla y dejé el estado adentro «por si acaso», y el borrador que se
+   guarda en el teléfono trajo esa marca de vuelta después de actualizar.
+   El formulario abría en un modo y NO HABÍA CÓMO SALIR, porque el único
+   control que lo cambiaba ya no existía. */
+if (/fecha:\s*"(vence|fabrica)"/.test(limpio) || /\[fecha, setFecha\]/.test(limpio))
+  fallas.push("volvió un campo de estado para escoger qué fecha es, y en la pantalla no hay " +
+              "control que lo mueva: el borrador guardado lo restauraría y el formulario " +
+              "quedaría en un modo sin salida");
+/* Y al corregir se abre con los TRES PEDAZOS como se teclearon, no con
+   la fecha armada: quien vuelve a mirar la estiba lee el mismo número. */
+if (!/dia: String\(r\.venc_dia \?\? ""\)/.test(limpio))
+  fallas.push("al corregir no se vuelve a abrir con el vencimiento que se tecleó");
+
+/* ---------- EL CURSOR PASA SOLO: DD → MM → AA ----------
+
+   Eran tres toques por fecha y 152 fechas al día: 304 toques que no
+   hacían falta, cada uno con su ocasión de caer en la casilla de al lado
+   y escribir el mes donde va el día.
+
+   EL SALTO ES POR DOS DÍGITOS DENTRO, no por dos teclas pulsadas:
+   corregir el día borrando y volviendo a escribir tiene que saltar
+   igual, y pegar «11» desde otro sitio también. Por eso se mide contra
+   el valor ya limpio y no contra el evento.
+
+   Y SE PUEDE VOLVER: llegar al mes, ver que el día quedó mal y no poder
+   devolverse sin levantar la mano al teléfono sería cambiar un estorbo
+   por otro. */
+if (!/function tecleaFecha/.test(limpio))
+  fallas.push("el cursor no pasa solo de DD a MM y de MM a AA: son tres toques por fecha y " +
+              "152 fechas al día");
+{
+  const fn = (limpio.match(/function tecleaFecha[\s\S]{0,600}?\n  \}/) ?? [""])[0];
+  if (!/limpio\.length === 2/.test(fn))
+    fallas.push("el salto de casilla no se dispara por tener dos dígitos dentro: corregir " +
+                "borrando y volviendo a escribir, o pegar la fecha, no saltaría");
+  if (!/\.focus\(\)/.test(fn))
+    fallas.push("la casilla siguiente no recibe el cursor");
+  if (!/\.select\(\)/.test(fn))
+    fallas.push("al saltar no se selecciona lo que ya había en la casilla: teclear encima " +
+                "dejaría cuatro cifras donde caben dos");
+}
+if (!/const dosDigitos =/.test(limpio) || !/replace\(\/\\D\/g, ""\)\.slice\(0, 2\)/.test(limpio))
+  fallas.push("la casilla de la fecha no se limpia a dos dígitos: pegar «2027» en el año " +
+              "dejaría cuatro dentro y la casilla nunca se daría por llena");
+if (!/function atrasFecha/.test(limpio))
+  fallas.push("el retroceso sobre una casilla vacía no devuelve a la anterior: para corregir " +
+              "el día habría que levantar la mano al teléfono");
+/* Y LAS TRES CASILLAS TIENEN QUE ESTAR ENCADENADAS EN ORDEN. Con el día
+   apuntando al año —o el mes a sí mismo— el arnés de arriba pasaría
+   igual y la fecha se tecleraría al revés. */
+{
+  const dma = (limpio.match(/<div className="fe-dma">[\s\S]*?<\/div>/) ?? [""])[0];
+  const cadena = [...dma.matchAll(/tecleaFecha\("(\w+)"[^)]*?(?:, (campo\w+))?\)/g)]
+    .map((m) => `${m[1]}→${m[2] ?? "fin"}`).join(" ");
+  if (cadena !== "dia→campoMes mes→campoAnio anio→fin")
+    fallas.push(`las casillas de la fecha están encadenadas [${cadena || "de ninguna forma"}] ` +
+                "y deben ir dia→campoMes mes→campoAnio anio→fin");
+  const atras = [...dma.matchAll(/atrasFecha\(e, b\.(\w+), (campo\w+)\)/g)]
+    .map((m) => `${m[1]}←${m[2]}`).join(" ");
+  if (atras !== "mes←campoDia anio←campoMes")
+    fallas.push(`el retroceso va [${atras || "a ninguna parte"}] y debe ir mes←campoDia ` +
+                "anio←campoMes");
+}
+
+/* LA OBSERVACIÓN SE GUARDABA Y NO SE PODÍA ESCRIBIR. El renglón manda
+   `p_nota` desde el primer día y el formulario no tenía dónde teclearla:
+   iba siempre vacía. */
+if (!/value=\{b\.nota\}/.test(limpio))
+  fallas.push("la observación se manda pero no hay dónde escribirla: iría siempre vacía");
 
 /* EL BORRADOR GUARDADO ES DE AYER; EL FORMULARIO ES DE HOY.
    Restaurarlo con un `...guardado` a secas mete de vuelta campos de una
@@ -742,5 +964,6 @@ await navegador.close();
 
 console.log("");
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
-console.log("✓ Plantilla de conteo: se lee en los 7 temas, nada se sale, el dedo alcanza " +
-            "y «Anotar» cabe en la primera pantalla del celular.");
+console.log("✓ Plantilla de conteo: los cuatro momentos en el orden de la hoja, el " +
+            "vencimiento con sus días para salir, el cursor pasa solo de DD a MM a AA, " +
+            "el total se arma a la vista y «Anotar» no se va de la pantalla.");

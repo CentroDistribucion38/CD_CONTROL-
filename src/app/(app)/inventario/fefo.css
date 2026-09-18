@@ -435,17 +435,17 @@
   background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);
 }
 
-.fe .fe-fecha > span {
-  display: block; margin-bottom: 5px;
-  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
-  color: var(--fe-gris);
-}
 .fe .fe-fecha em { font-style: normal; letter-spacing: 0; text-transform: none; opacity: .8 }
 .fe .fe-dma { display: flex; gap: 8px }
+/* 56 px Y NO 48. Es la casilla donde el cursor entra solo, así que es la
+   única que se teclea SIN MIRARLA: los dedos van a donde estaba el dedo
+   anterior. Esos 8 px de más son los que hacen que el salto automático
+   sea un alivio y no una manera nueva de escribir el mes en el día. */
 .fe .fe-dma input {
-  flex: 1; min-width: 0; min-height: 48px; text-align: center;
-  font: 700 18px var(--fe-titulo); font-variant-numeric: tabular-nums;
-  background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px;
+  flex: 1; min-width: 0; min-height: 56px; text-align: center;
+  font: 800 22px var(--fe-titulo); font-variant-numeric: tabular-nums;
+  letter-spacing: .06em;
+  background: #fff; border: 2px solid var(--fe-linea); border-radius: 2px;
   color: var(--fe-tinta);
 }
 .fe .fe-dma input:focus { outline: none; border-color: var(--fe-acento) }
@@ -534,9 +534,7 @@
   .fe.contando .fe-anotar { padding: 12px 14px 14px }
   .fe.contando .fe-eco { min-height: 0; margin-bottom: 10px }
   .fe.contando .fe-marcas { margin: 10px 0 12px; padding-top: 10px }
-  /* Un margen de más y «Anotar» vuelve a quedar bajo el pliegue: el
-     arnés lo dijo con 1 px de sobra, que es tan falso como 100. */
-  .fe.contando .fe-rota { margin: 10px 0 }
+  .fe.contando .fe-anotar .fe-rota { margin: 0 0 10px }
   /* El recorrido va al final y detrás de la cabecera propia: lo que se
      acaba de anotar se confirma con el aviso, no bajando a mirar. */
   .fe.contando .fe-recorrido { margin-top: 4px }
@@ -591,11 +589,12 @@
   font: 700 15px var(--fe-titulo); color: var(--fe-gris);
 }
 
-.fe .fe-tres .fe-rota { margin: 0; flex-direction: column; align-items: stretch; gap: 5px }
-.fe .fe-tres .fe-rota > span { margin: 0 }
-.fe .fe-tres.fe-marcas {
-  padding-top: 12px; border-top: 1px solid var(--fe-linea); align-items: center;
-}
+/* «¿Rota?» YA NO VA EN LA FILA DE TRES. Iba de tercera, al lado de «Qué
+   cuentas» y «Cuántas», y ahí se leía como parte de la cantidad. Es la
+   primera pregunta de «cómo está» y ahora ocupa su renglón: la pregunta
+   a la izquierda y los dos botones grandes a la derecha. */
+.fe .fe-anotar .fe-rota { margin: 0 0 12px }
+.fe .fe-tres.fe-marcas { align-items: center }
 .fe .fe-tres.fe-marcas .fe-check { min-height: 48px }
 
 /* Lo que va a quedar escrito en la ubicación combinada, armado a la
@@ -644,8 +643,6 @@
   .fe .fe-tres { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto; gap: 8px;
                  margin-bottom: 9px }
   .fe .fe-tres .fe-lado { padding: 0 9px; font-size: 13px }
-  /* Qué cuentas · Cuántas · ¿Rota? */
-  .fe .fe-tres:nth-of-type(2) { grid-template-columns: minmax(0, 1fr) minmax(0, .8fr) auto }
   /* Avería · PNC · Estado */
   .fe .fe-tres.fe-marcas { grid-template-columns: auto auto minmax(0, 1fr); padding-top: 10px }
   .fe .fe-tres.fe-marcas .fe-check { min-height: 44px; font-size: 12px }
@@ -932,91 +929,223 @@
 }
 .fe .fe-pie-nota b { color: var(--fe-tinta) }
 
-/* ---------------------------------------------------------------------
-   QUÉ FECHA SE ESTÁ LEYENDO: la de vencimiento o la de fábrica.
+/* =====================================================================
+   EL RENGLÓN, EN CUATRO MOMENTOS
 
-   Unas estibas traen impreso el vencimiento y otras la fabricación —
-   depende de la línea y del formato—, y hasta ahora había que hacer la
-   cuenta de cabeza antes de teclear. Dos botones y ya.
+   DÓNDE · QUÉ · CUÁNTO · CÓMO ESTÁ. Es el mismo orden de la hoja y los
+   mismos once campos: lo único que cambia es que ahora se ven las
+   costuras. Iban seguidos, en filas de tres, y de lejos —que es como se
+   mira una pantalla con una estiba delante— eran once casillas iguales.
 
-   VAN COMO BOTONES Y NO COMO UN DESPLEGABLE: son dos opciones y se
-   alternan varias veces en una jornada; un desplegable serían dos toques
-   cada vez, con guante.
-   --------------------------------------------------------------------- */
-/* QUÉ FECHA ES ESTA. Era un interruptor de dos botones y ahora es un
-   rótulo, porque solo hay una: la de fabricación. Se deja escrito igual
-   —y no se quita— porque la casilla dice DD MM AA y nada más; sin el
-   rótulo, qué fecha va ahí es algo que hay que acordarse, y acordarse a
-   las cinco de la mañana con ciento cincuenta estibas por delante no es
-   un plan.
+   NO SON TARJETAS DENTRO DE UNA TARJETA. Un borde alrededor de cada
+   grupo dentro del panel blanco hace cuatro cajas anidadas y el
+   formulario se llena de líneas que no dicen nada. Lo que separa es una
+   LÍNEA ARRIBA y el rótulo del grupo: cuesta 1 px y dice lo mismo.
+   ===================================================================== */
+.fe .fe-bloque { padding-top: 14px; margin-bottom: 14px; border-top: 1px solid var(--fe-linea) }
+/* El primero no lleva raya: no separa de nada, y ahí arriba solo sirve
+   para partir el panel en dos justo debajo de su propia cabecera. */
+.fe .fe-anotar .fe-bloque:first-of-type { padding-top: 0; border-top: none }
+.fe .fe-bloque-cab {
+  margin: 0 0 10px; font: 800 11px var(--fe-titulo); letter-spacing: .16em;
+  text-transform: uppercase; color: var(--fe-gris-panel);
+}
+.fe .fe-bloque > :last-child { margin-bottom: 0 }
+.fe .fe-bloque .fe-tres { margin-bottom: 0 }
 
-   HUBO AQUÍ UN `.ojo` EN ÁMBAR para cuando el rótulo decía «Vence».
-   Sobra: esa palabra ya no aparece en esta pantalla. Los renglones
-   viejos que traían vencimiento se convirtieron en la base
-   —2026-09-conteo-solo-fabricacion.sql— y el estilo se va con ellos, en
-   vez de quedarse esperando un caso que no puede volver a darse. */
-.fe .fe-que-fecha { display: inline-flex; gap: 3px; margin-bottom: 2px }
+/* QUÉ FECHA ES ESTA. Es el VENCIMIENTO —lo que trae impreso el cartón y
+   lo que lleva años poniéndose en la hoja— y se deja escrito aunque solo
+   haya una: la casilla dice DD MM AA y nada más, y acordarse de qué
+   fecha va ahí a las cinco de la mañana, con ciento cincuenta estibas
+   por delante, no es un plan. */
+.fe .fe-que-fecha { display: inline-flex; align-items: baseline; gap: 8px; margin-bottom: 5px }
 .fe .fe-etiq-fecha {
   display: inline-block; min-height: 22px; line-height: 22px;
   font: 800 11.5px var(--fe-titulo); letter-spacing: .1em; text-transform: uppercase;
   color: var(--fe-gris-panel);
 }
 
-/* LA FECHA QUE SALE DE LA OTRA. Se muestra mientras se teclea y con la
-   vida útil al lado: sin el número de días, «vence el 6 de noviembre»
-   es un dato que hay que creer; con él, se puede comprobar de cabeza.
+/* ---------------------------------------------------------------------
+   LAS DOS CIFRAS DEL FEFO, FRENTE A LA ESTIBA
 
-   Y no es lo que se guarda: lo que viaja es la fabricación, y la cuenta
-   la hace la base. Esto es para confirmar frente a la estiba. */
-.fe .fe-calculada {
-  margin: 7px 0 0; padding: 8px 11px; border-radius: 2px;
-  background: var(--fe-fondo); font-size: 12.5px; line-height: 1.4;
+   «Días para salir» manda y por eso va primero y grande: no es cuándo
+   vence, es cuándo tiene que haber SALIDO para llegarle al cliente con
+   vida útil suficiente. En negativo ya se pasó aunque falten meses para
+   vencer — y ese es justo el caso en el que quien está ahí parado
+   todavía puede hacer algo.
+
+   «Días para vencer» va al lado y en gris: es la que se entiende sola y
+   la que todo el mundo mira primero, y por eso hay que quitarle peso, o
+   se lee esa y se decide con la que no manda.
+   --------------------------------------------------------------------- */
+.fe .fe-dias {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  margin: 8px 0 0; padding: 9px 12px; border-radius: 2px;
+  background: var(--fe-fondo); min-height: 44px;
+}
+.fe .fe-dias-par { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0 }
+.fe .fe-dias-par b {
+  font: 900 22px/1 var(--fe-titulo); letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; color: var(--fe-tinta);
+}
+.fe .fe-dias-par em {
+  font-style: normal; font-size: 12px; line-height: 1.3; color: var(--fe-gris-panel);
+}
+.fe .fe-dias-par.suave b { font-size: 15px; font-weight: 700; color: var(--fe-gris-panel) }
+.fe .fe-dias-par.suave em { font-size: 11.5px }
+.fe .fe-dias-nada { font-size: 12.5px; line-height: 1.4; color: var(--fe-gris-panel) }
+/* LO QUE YA SE PASÓ SE PINTA, y con la raya a la izquierda además del
+   color: el rojo solo no se ve con el sol de frente ni lo distingue
+   quien no separa bien los colores. */
+.fe .fe-dias.mal { background: #FDECEE; box-shadow: inset 4px 0 0 var(--fe-mal) }
+.fe .fe-dias.mal .fe-dias-par b { color: #8A1020 }
+.fe .fe-dias.mal .fe-dias-par em { color: #8A1020 }
+.fe .fe-dias.ojo { background: #FFF8E6; box-shadow: inset 4px 0 0 #C08A16 }
+.fe .fe-dias.ojo .fe-dias-par b { color: #5E4100 }
+.fe .fe-dias.ojo .fe-dias-par em { color: #5E4100 }
+
+/* ---------------------------------------------------------------------
+   CUÁNTO — DOS FORMAS DE CONTAR Y UN TOTAL QUE SE MIRA
+
+   El interruptor va en botones y no en desplegable: son dos opciones,
+   se alternan varias veces en una jornada, y un desplegable serían dos
+   toques cada vez, con guante.
+   --------------------------------------------------------------------- */
+.fe .fe-segmento { display: flex; gap: 8px; margin-bottom: 10px }
+.fe .fe-segmento button {
+  flex: 1; min-height: 48px; cursor: pointer; border-radius: 2px;
+  border: 1.5px solid var(--fe-linea); background: var(--fe-fondo);
+  font: 700 15px var(--fe-titulo); color: var(--fe-gris-panel);
+}
+.fe .fe-segmento button.on {
+  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);
+}
+
+/* ESTIBAS COMPLETAS Y SALDO, LADO A LADO Y EN EL MISMO RENGLÓN: doce
+   completas más ocho sueltas son 548 cajas de un mismo material en un
+   mismo sitio, y partirlo en dos renglones obliga a acordarse de que
+   van juntos. */
+.fe .fe-dos {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px; margin-bottom: 10px;
+}
+.fe .fe-dos.una { grid-template-columns: minmax(0, 1fr) }
+.fe .fe-dos > label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.fe .fe-dos > label > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+/* LA CIFRA ES GRANDE COMO EL CÓDIGO. Es el otro dato del renglón donde
+   un dedazo no da error, no avisa, y aparece cuadrando el mes. */
+.fe .fe-dos input {
+  min-height: 56px; padding: 0 14px; width: 100%;
+  font: 800 24px var(--fe-titulo); font-variant-numeric: tabular-nums;
+  background: #fff; border: 2px solid var(--fe-linea); border-radius: 2px;
   color: var(--fe-tinta);
 }
-.fe .fe-calculada b { font-family: var(--fe-titulo); font-size: 13.5px }
-.fe .fe-calculada.esperando { color: var(--fe-gris-panel) }
+.fe .fe-dos input:focus { outline: none; border-color: var(--fe-acento) }
 
-/* EN EL CELULAR LOS DOS RENGLONES NUEVOS SE APRIETAN. Sumados —el
-   interruptor y la fecha calculada— empujaban «Anotar renglón» 40 px
-   bajo el pliegue de un teléfono de 390, y ese botón bajo el pliegue es
-   un scroll por estiba, 152 al día.
+/* EL TOTAL SE ENSEÑA CON LA CUENTA DELANTE. «548» hay que creérselo;
+   «12 × 45 + 8» se mira contra la estiba y se ve si el factor que usó es
+   el que corresponde a ese material. Es la misma suma que hace la base
+   al guardar: aquí no decide nada. */
+.fe .fe-total {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin: 0; padding: 10px 12px; border-radius: 2px; min-height: 44px;
+  background: var(--fe-fondo); font-size: 12.5px; line-height: 1.45;
+  color: var(--fe-gris-panel);
+}
+.fe .fe-total .fe-formula {
+  font: 600 14px var(--fe-titulo); font-variant-numeric: tabular-nums;
+  color: var(--fe-gris-panel);
+}
+.fe .fe-total .fe-formula::after { content: " ="; opacity: .6 }
+.fe .fe-total b {
+  font: 900 24px/1 var(--fe-titulo); letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; color: var(--fe-tinta);
+}
+.fe .fe-total b.ojo { font-size: 13px; letter-spacing: 0; color: var(--fe-mal) }
+.fe .fe-total.esperando { color: var(--fe-gris-panel) }
 
-   Se recortan los dos, no uno: quitar solo el aviso dejaría la función
-   a medias —lo que se pidió es VER cuándo vence— y quitar solo el
-   interruptor no alcanzaba. */
+/* LA OBSERVACIÓN. El renglón la manda desde el primer día y el
+   formulario no tenía dónde teclearla: iba siempre vacía. Va de último
+   y de una línea porque es opcional en 150 de 152 filas. */
+.fe .fe-nota { display: flex; flex-direction: column; gap: 5px; margin-top: 10px }
+.fe .fe-nota > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+.fe .fe-nota input {
+  min-height: 48px; padding: 0 12px; width: 100%;
+  font: 500 14px var(--fe-texto); color: var(--fe-tinta);
+  background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px;
+}
+.fe .fe-nota input:focus { outline: none; border-color: var(--fe-acento) }
+
+/* =====================================================================
+   LA BARRA QUE NO SE VA
+
+   «Anotar renglón» iba al final del formulario. Con los cuatro momentos
+   a la vista el final está fuera de la pantalla, y un botón fuera de la
+   pantalla es un scroll por estiba —152 al día—. Pegado abajo está
+   siempre a un dedo, vaya el formulario por donde vaya.
+
+   Y LLEVA LA CUENTA DEL BORRADOR AL LADO: es la única cifra que se mira
+   sin dejar de contar, y tenerla ahí ahorra cambiar de pestaña.
+
+   `position: sticky` Y NO `fixed`: pegado a la ventana taparía la lista
+   del borrador, que es otra pestaña y no tiene por qué cargar con el
+   botón de anotar. Sticky solo se pega mientras el formulario esté en
+   pantalla, que es justo cuando sirve.
+
+   EL FONDO ES OPACO A PROPÓSITO. Con fondo transparente, el texto del
+   formulario pasa por debajo y se lee encima del botón: se ve sucio y,
+   peor, el botón deja de leerse como un botón.
+   ===================================================================== */
+.fe .fe-barra-fija {
+  position: sticky; bottom: 0; z-index: 3;
+  display: flex; align-items: center; gap: 12px;
+  margin: 14px -16px -16px; padding: 12px 16px;
+  background: var(--fe-papel); border-top: 1px solid var(--fe-linea);
+}
+.fe .fe-barra-fija .fe-fija-cuenta {
+  margin: 0; flex: none; font-size: 12px; line-height: 1.3; color: var(--fe-gris-panel);
+  max-width: 7.5em;
+}
+.fe .fe-barra-fija .fe-fija-cuenta b {
+  font: 900 20px/1 var(--fe-titulo); font-variant-numeric: tabular-nums;
+  color: var(--fe-tinta); margin-right: 5px;
+}
+.fe .fe-barra-fija .btn.grande { flex: 1; width: auto }
+
+/* LO QUE SE ENFOCA NO PUEDE QUEDAR DEBAJO DE LA BARRA. El navegador
+   desplaza el campo que recibe el cursor hasta «verlo», y para él la
+   barra pegada no tapa nada: deja el campo justo detrás. Pasa con la
+   observación —el último— y con la fecha en un teléfono con el teclado
+   abierto, que son los dos sitios donde más duele.
+
+   Se resuelve con `scroll-margin-bottom` en lo que se enfoca: el
+   navegador cuenta ese aire de más al desplazar, y el campo sube por
+   encima de la barra. */
+.fe .fe-anotar input, .fe .fe-anotar select, .fe .fe-anotar button {
+  scroll-margin-bottom: 84px;
+}
+
 @media (max-width: 760px) {
-  /* EL AVISO SE SUBE A LA FILA DEL INTERRUPTOR en vez de ocupar un
-     renglón propio: es la única forma de que quepan las dos cosas
-     nuevas sin empujar «Anotar renglón» bajo el pliegue. Se logra con
-     `order`, sin tocar el orden del HTML —que es el que leen el teclado
-     y el lector de pantalla, y ahí «cuándo vence» va DESPUÉS de la
-     fecha que lo produce—. */
-  .fe .fe-fecha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px }
-  .fe .fe-que-fecha { order: 1; margin-bottom: 0 }
-  .fe .fe-etiq-fecha { font-size: 11px }
-  .fe .fe-fecha .fe-opcional { order: 2 }
-  .fe .fe-calculada {
-    order: 3; margin: 0 0 0 auto; padding: 4px 8px; font-size: 11.5px;
-    background: none; text-align: right;
-  }
-  .fe .fe-calculada b { font-size: 12.5px }
+  .fe .fe-bloque { padding-top: 11px; margin-bottom: 11px }
+  .fe .fe-bloque-cab { margin-bottom: 8px }
+  .fe .fe-dias { padding: 7px 10px; gap: 12px }
+  .fe .fe-dias-par b { font-size: 20px }
+  .fe .fe-total { padding: 8px 10px }
+  .fe .fe-barra-fija { margin: 12px -14px -14px; padding: 10px 14px; gap: 10px }
+  .fe .fe-barra-fija .fe-fija-cuenta { font-size: 11px; max-width: 6em }
+  .fe .fe-barra-fija .fe-fija-cuenta b { font-size: 17px }
   /* El eco del factor estibado se aprieta: es dato de CÁLCULO, no de
      identificación — la descripción, que es la que confirma que se
      tecleó bien el código, ya está arriba y de su mismo tamaño. */
   .fe.contando .fe-eco { padding: 5px 9px; min-height: 0; font-size: 11.5px; margin-bottom: 8px }
-
   /* MIN-WIDTH CERO O SE SALE. Un hijo flex trae `min-width: auto` y no
      se deja encoger por debajo de su contenido: sin esto, las tres
      casillas DD/MM/AA empujaban la página 460 px de lado a 360. */
-  .fe .fe-dma { order: 4; flex: 1 1 100%; min-width: 0 }
-
-  /* LOS PÍXELES QUE FALTABAN NO SALEN DE LO QUE SE TOCA. Bajé las
-     casillas DD/MM/AA de 48 a 46 y el arnés lo rechazó: el mínimo de
-     esta pantalla son 48, porque se usa de pie y a veces con guantes.
-     Tenía razón el arnés y no yo.
-
-     Salen del aire entre bloques, que no se toca con el dedo. */
-  .fe .fe-fecha { gap: 4px 10px }
-  .fe.contando .fe-eco { margin-bottom: 5px }
-  .fe .fe-calculada { padding: 2px 8px }
+  .fe .fe-dma { min-width: 0 }
 }
