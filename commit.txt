@@ -1,161 +1,109 @@
-Traspasos: el documento del viaje, obligatorio y sin repetir
+Contar: se acabó «VENCE». Solo se teclea la fecha de fabricación
 
-«En el registro sí o sí deben colocar el documento asociado a ese
-vehículo, y ningún documento se puede repetir — a menos que el registro
-se anule.»
-
-Y dos cosas del conteo, pedidas con la bodega delante: la fecha ya solo
-se teclea de fabricación, y el borrador se puede enviar desde arriba.
+«Te dije: se anota fecha de fabricación y se calcula sola la fecha de
+vencimiento. Mira cómo.»
 
 =====================================================================
-1 · POR QUÉ EL REPETIDO ES EL ERROR CARO
+1 · QUÉ HICE MAL
 =====================================================================
 
-Un mismo documento digitado dos veces son dos viajes contados donde
-hubo uno. El cumplido del turno queda inflado, y el viaje que alguien
-creyó registrar y no registró NO SE NOTA, porque el número cuadra.
+Ayer le quité el interruptor «Vence | Se fabricó» a la pantalla, pero le
+DEJÉ la posición «Vence» adentro «por si acaso», para los renglones
+anotados antes del cambio.
 
-Es la clase de error que no se ve mirando la pantalla. Solo se ve
-poniendo el candado.
+Dos consecuencias, y las dos me las encontró él en diez minutos:
 
-=====================================================================
-2 · SE GUARDA COMO EL PAPEL, SE COMPARA SIN ADORNOS
-=====================================================================
+  1. EL BORRADOR GUARDADO EN EL TELÉFONO SE QUEDABA PEGADO. La pantalla
+     recuerda el renglón a medio llenar en localStorage, y los guardados
+     de antes del cambio traían la marca «vence». Al restaurarse, el
+     formulario abría en «Vence» — y como ya no hay interruptor, NO
+     HABÍA MANERA DE SALIR DE AHÍ. Un estado sin salida que dejé yo
+     mismo al quitar el único control que lo cambiaba, y que nadie ve
+     probando con el teléfono limpio.
 
-`documento` conserva lo que dice el papel —«T-12345»— y una segunda
-columna GENERADA, `documento_clave`, guarda la versión sin guiones, sin
-espacios y en mayúscula. El candado va sobre la clave: «t 12345»,
-«T-12345» y «T12345» son el mismo papel y el segundo se rechaza.
-
-POR QUÉ DOS COLUMNAS. Si se guardara solo la versión pelada, la
-pantalla mostraría «T12345» y el papel diría «T-12345»: quien compara a
-ojo tendría que traducir cada vez. Y por qué GENERADA: no se puede
-desajustar. No hay forma de escribir un documento y una clave que no se
-correspondan — ni desde la pantalla, ni desde el SQL Editor, ni desde
-un import que alguien escriba dentro de un año. El arnés lo intenta.
+  2. Y aunque hubiera funcionado, seguía estando mal: la pantalla
+     mostraba «VENCE» cuando lo que él pidió es que esa palabra no
+     aparezca.
 
 =====================================================================
-3 · EL CANDADO ES UN ÍNDICE, NO UN «if»
+2 · LO QUE DICE LA HOJA
 =====================================================================
 
-La comprobación también está en la función, para poder decir CUÁL viaje
-ya tiene ese documento —«ya está en el TR-0231 del 14/09 con la placa
-ABC123»— en vez de «duplicate key value violates unique constraint».
+FEFO 002.xlsx, columna S:
 
-Pero lo que de verdad impide el duplicado es el índice único. Un `if`
-que mira y después inserta tiene un hueco entre las dos cosas, y dos
-supervisores digitando en el mismo segundo se cuelan los dos. En este
-módulo hay tres turnos y varias personas registrando a la vez; el
-consecutivo TR- ya se tuvo que resolver con una secuencia por esto
-mismo. El arnés escribe DIRECTO en la tabla, saltándose el `if`, para
-comprobar que el índice aguanta solo.
+    S = IFERROR(DATE(K+2000, J, I), "")
+
+Lo que se teclea en D/M/A ES el vencimiento, sin sumarle nada. Es decir:
+la cuenta de la vida útil se venía haciendo DE CABEZA antes de escribir
+el número. Eso es justo lo que la app viene a quitar — y por eso «Vence»
+no tiene por qué existir como opción.
 
 =====================================================================
-4 · ANULAR LIBERA EL DOCUMENTO
+3 · CONVERTIR LO VIEJO, NO ARRASTRARLO
 =====================================================================
 
-El índice es PARCIAL: solo lo registrado. Es literalmente lo que se
-pidió, y además es lo único que funciona — si cubriera lo anulado,
-anular y volver a registrar (el camino normal cuando se digitó mal)
-chocaría contra el propio viaje anulado y no habría manera de
-arreglarlo.
+    fabricación = vencimiento − vida útil
 
-El anulado CONSERVA su documento: el rastro no se borra. Quedan dos
-filas con el mismo número, una anulada y una viva, y está bien.
+La cuenta es exacta y reversible: no se inventa un dato, se despeja el
+que ya estaba. EL VENCIMIENTO NO SE TOCA — es lo que manda, de él salen
+«días para vencer» y «días para salir», y queda idéntico.
 
-=====================================================================
-5 · LO VIEJO NO SE ROMPE Y NO SE INVENTA
-=====================================================================
+Donde no se puede, no se hace, y se dice en voz alta:
+  · Renglones sin ninguna fecha (los envases) se quedan sin las dos.
+    No les falta nada: el retornable no trae fecha impresa.
+  · Materiales sin vida útil en el maestro: no hay con qué despejar. La
+    migración cuenta cuántos son y dice cómo arreglarlo.
 
-Los viajes que ya están en la base se quedan sin documento y la vista
-los marca (`sin_documento`) para completarlos al corregirlos. No se les
-pone un número inventado.
-
-Y la regla NO se puso como CHECK en la tabla, aunque era lo primero que
-se me ocurrió: un CHECK se evalúa también al ACTUALIZAR, y entonces
-anular un viaje viejo —que es un update— fallaría por una columna que
-no tiene nada que ver con anular. La obligación vive en las dos
-funciones por las que se entra.
+Y toca también los conteos ya enviados, a propósito: no cambia ninguna
+cifra que un informe mire, solo rellena de dónde salía.
 
 =====================================================================
-6 · LO QUE EL ARNÉS ME DEVOLVIÓ
+4 · LO QUE EL ARNÉS ME DEVOLVIÓ
 =====================================================================
 
-Once mutaciones: se rompe la migración a propósito, una cosa a la vez,
-y se exige que la prueba correspondiente se ponga ROJA. Las once lo
-hicieron — pero no a la primera.
+MI PROPIA MIGRACIÓN ESTABA MAL, y lo encontró la siembra de prueba.
 
-UNA MUTACIÓN SE EQUIVOCÓ DE ACUSADO. Quitarle al índice su condición
-`estado = 'registrado'` debía romper «anular libera el documento», y
-salió VERDE. No porque nada cazara el error: lo cazó OTRA cosa —la
-guardia de la propia migración— y mi mutación esperaba el mensaje
-equivocado. Una mutación que se equivoca de acusado es tan inútil como
-una aserción que no puede fallar. Ahora son dos: una para la guardia y
-otra, con la guardia también rota, que sí pone a prueba la aserción.
+Comprobaba que «fabricación + vida útil = vencimiento» en TODOS los
+renglones que tuvieran las dos fechas. Suena bien y es un error: basta
+con que alguien le cambie la vida útil a un material en el maestro para
+que un renglón viejo —tecleado con su fabricación, y correcto el día que
+se tecleó— deje de cuadrar contra la vida útil de HOY. La migración se
+habría negado a correr por una fila que ella no toca.
 
-Y EL MEDIDOR DE CONTRASTE MENTÍA. Medía las etiquetas nuevas contra la
-fila que las contiene, y esa fila no pinta fondo: devolvía 1,3 y 2,2
-para dos etiquetas perfectamente legibles. Un elemento sin fondo no es
-negro — deja ver el de atrás. Ahora sube por los padres hasta el primer
-fondo de verdad. Medido así: 9,4 en los siete temas.
+Un conteo es la foto de su día. Ahora comprueba solo lo que convirtió, y
+lo demás lo cuenta y lo avisa.
 
-=====================================================================
-7 · EL CONTEO: SOLO FECHA DE FABRICACIÓN
-=====================================================================
+OCHO MUTACIONES, y las ocho se ponen rojas: sumar en vez de restar, el
+año restado a mano en vez de sacado de la fecha, restar cero cuando no
+hay vida útil, pisar lo que ya tenía fabricación, no convertir nada,
+moverle el vencimiento, y volver a comprobar sobre todas las filas.
 
-«Aquí nada más se debe registrar fecha de fabricación y dependiendo del
-material se colocaba automático la fecha de vencimiento.»
+DOS SE EQUIVOCABAN DE ACUSADO y las reescribí. «No convertir nada» salía
+roja, sí — pero por la guardia de la propia migración, no por la
+aserción que decía probar. Y «moverle el vencimiento» lo cazaba la misma
+guardia. Una mutación que se equivoca de acusado es tan inútil como una
+aserción que no puede fallar: ahora una mueve el vencimiento de forma
+COHERENTE —el año en los dos sitios— para que solo pueda notarlo quien
+compare contra el dato de antes, que es lo que hace la prueba.
 
-El interruptor «Vence | Se fabricó» sobraba: los 462 productos activos
-tienen vida útil en el maestro, SIN UNA SOLA EXCEPCIÓN, así que el
-vencimiento siempre se puede calcular. Un interruptor cuya segunda
-posición no hace falta es un toque de más por estiba —152 al día— y una
-manera de equivocarse que no tenía por qué existir: escoger «Vence» y
-teclear la de fábrica guarda una fecha mala y nada avisa.
-
-Queda un RÓTULO en su sitio, no un hueco: la casilla dice DD MM AA y
-nada más, y acordarse de qué fecha va ahí a las cinco de la mañana con
-ciento cincuenta estibas por delante no es un plan.
-
-LOS RENGLONES DE ANTES que se anotaron por vencimiento se siguen
-corrigiendo por vencimiento, y la pantalla lo dice en ámbar. Reabrirlos
-como fabricación pondría en la casilla un número que nadie leyó nunca
-en esa estiba.
-
-Y una que casi se cuela: preguntar solo por `fab_anio` mandaba a
-«vence» también a los renglones SIN NINGUNA fecha —los 32 envases—, que
-habrían aparecido con el aviso de «se anotó por vencimiento» encima de
-tres casillas vacías.
+Y el arnés de la pantalla gana tres aserciones: que no vuelva el estado
+«vence», que al corregir se abra con la fabricación, y que el borrador
+guardado se restaure solo con las claves que el formulario tiene HOY —
+que es exactamente lo que dejó la pantalla sin salida.
 
 =====================================================================
-8 · EL CONTEO: ENVIAR DESDE ARRIBA
+5 · PARA CORRER
 =====================================================================
 
-«Que en la parte de arriba haya un botón para enviar el conteo, para
-que no me toque bajar y guardar todo.»
+  supabase/migraciones/2026-09-conteo-solo-fabricacion.sql
 
-Con ciento cincuenta renglones el botón del final está a siete
-pantallazos. SIGUEN SIENDO DOS y está bien: arriba es «ya revisé,
-mándalo»; abajo es «acabo de leer el último renglón y ya estoy ahí».
-Los dos llaman a la MISMA función con la MISMA confirmación — si fueran
-dos caminos, uno acabaría saltándose el aviso.
+Después de 2026-09-conteo-fabricacion.sql. Se puede correr varias veces.
+Probado contra Postgres 16 con renglones sembrados COMO ERAN ANTES —sin
+eso, una migración de datos que no encuentra datos pasa en verde sin
+haber hecho nada—, y con la resta cruzando el año hacia atrás, que es
+donde un año de dos cifras se rompe.
 
-48 px de alto, como todo lo que se toca en esta pantalla.
-
-=====================================================================
-9 · PARA CORRER
-=====================================================================
-
-  supabase/migraciones/2026-09-traspasos-documento.sql
-
-Después de 2026-09-traspasos-registro-atrasado.sql. Se puede correr
-varias veces; probado dos vueltas contra un Postgres 16 de verdad, como
-no-superusuario, con un viaje viejo sembrado antes de la migración.
-
-  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-traspasos-documento.sql' | Set-Clipboard"
-
-El conteo no necesita SQL nuevo: la base ya calculaba el vencimiento
-desde la fabricación.
+  powershell -c "Get-Content -Raw -Encoding UTF8 'supabase\migraciones\2026-09-conteo-solo-fabricacion.sql' | Set-Clipboard"
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

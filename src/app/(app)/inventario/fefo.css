@@ -944,32 +944,22 @@
    cada vez, con guante.
    --------------------------------------------------------------------- */
 /* QUÉ FECHA ES ESTA. Era un interruptor de dos botones y ahora es un
-   rótulo: siempre se teclea la de fábrica. Se deja escrito igual —y no
-   se quita— porque la casilla dice DD MM AA y nada más; sin el rótulo,
-   qué fecha va ahí es algo que hay que acordarse, y acordarse a las
-   cinco de la mañana con ciento cincuenta estibas por delante no es un
-   plan.
+   rótulo, porque solo hay una: la de fabricación. Se deja escrito igual
+   —y no se quita— porque la casilla dice DD MM AA y nada más; sin el
+   rótulo, qué fecha va ahí es algo que hay que acordarse, y acordarse a
+   las cinco de la mañana con ciento cincuenta estibas por delante no es
+   un plan.
 
-   EN ÁMBAR CUANDO DICE «Vence»: ese es el caso raro —un renglón de
-   antes del cambio, que se está corrigiendo— y tiene que saltar a la
-   vista, porque es el único en el que el número que se teclea significa
-   otra cosa. */
+   HUBO AQUÍ UN `.ojo` EN ÁMBAR para cuando el rótulo decía «Vence».
+   Sobra: esa palabra ya no aparece en esta pantalla. Los renglones
+   viejos que traían vencimiento se convirtieron en la base
+   —2026-09-conteo-solo-fabricacion.sql— y el estilo se va con ellos, en
+   vez de quedarse esperando un caso que no puede volver a darse. */
 .fe .fe-que-fecha { display: inline-flex; gap: 3px; margin-bottom: 2px }
 .fe .fe-etiq-fecha {
   display: inline-block; min-height: 22px; line-height: 22px;
   font: 800 11.5px var(--fe-titulo); letter-spacing: .1em; text-transform: uppercase;
   color: var(--fe-gris-panel);
-}
-.fe .fe-etiq-fecha.ojo {
-  color: var(--fe-tinta); padding: 0 8px; border-radius: 2px;
-  /* EL ÁMBAR VA EN DURO Y NO SIGUE AL TEMA. --fe-aviso es --c-oro, y
-     --c-oro es ROJO PURO en negro, gris y halo. En esta pantalla el
-     rojo ya quiere decir «se pasó de su fecha de salida», que es una
-     alarma; «este renglón se anotó por vencimiento» es una aclaración.
-     Si compartieran color habría que leer el texto para distinguirlas,
-     y una marca que hay que leer entera no está haciendo su trabajo.
-     Es el mismo ámbar de «CORREGIDO» en Traspasos, por lo mismo. */
-  background: var(--fe-fondo); box-shadow: inset 2.5px 0 0 #C08A16;
 }
 
 /* LA FECHA QUE SALE DE LA OTRA. Se muestra mientras se teclea y con la

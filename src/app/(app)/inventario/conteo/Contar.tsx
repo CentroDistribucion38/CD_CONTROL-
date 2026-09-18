@@ -67,22 +67,26 @@ type Borrador = {
   lado: string;
   codigo: string;
   dia: string; mes: string; anio: string;
-  /* QUÉ FECHA SE ESTÁ TECLEANDO. Unas estibas traen impreso el
-     vencimiento y otras la fabricación —depende de la línea y del
-     formato—, así que se escoge y se teclea una sola vez. El
-     vencimiento, cuando se teclea la de fábrica, lo calcula LA BASE con
-     la vida útil del maestro; aquí solo se muestra para confirmar. */
-  fecha: "vence" | "fabrica";
+  /* LA FECHA ES SIEMPRE LA DE FABRICACIÓN. No hay un campo que diga
+     cuál es porque no hay dos: el vencimiento lo calcula LA BASE con la
+     vida útil del maestro, y aquí solo se muestra para confirmar frente
+     a la estiba.
+
+     AQUÍ HUBO UN `fecha: "vence" | "fabrica"` y fue un error mío. Le
+     quité el interruptor a la pantalla pero le dejé el estado adentro
+     «por si acaso», y el borrador que se guarda en el teléfono trajo esa
+     marca de vuelta después de actualizar: el formulario abría en
+     «Vence» y NO HABÍA CÓMO SALIR, porque el único control que lo
+     cambiaba ya no existía. Un estado sin salida que nadie habría visto
+     probando con el teléfono limpio. Lo viejo se convirtió en la base
+     —2026-09-conteo-solo-fabricacion.sql— en vez de arrastrarlo aquí. */
   modo: Modo; cuantas: string;
   rot: boolean | null;
   averia: boolean; pnc: boolean; estado: string; nota: string;
 };
-/* UN RENGLÓN NUEVO ARRANCA SIEMPRE EN FABRICACIÓN. «vence» ya solo
-   existe para reabrir los renglones que se anotaron así antes del
-   cambio; no hay forma de escogerlo desde la pantalla. */
 const VACIO: Borrador = {
   calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
-  fecha: "fabrica", modo: "estibas", cuantas: "", rot: null,
+  modo: "estibas", cuantas: "", rot: null,
   averia: false, pnc: false, estado: "", nota: "",
 };
 
@@ -159,7 +163,20 @@ export function Contar({
     if (!llave) return;
     try {
       const crudo = localStorage.getItem(llave);
-      if (crudo) setB({ ...VACIO, ...(JSON.parse(crudo) as Partial<Borrador>) });
+      /* SOLO LAS CLAVES QUE EL FORMULARIO TIENE HOY. Un `...guardado` a
+         secas mete de vuelta lo que el borrador traía de una versión
+         anterior de la pantalla, y así fue como un `fecha: "vence"`
+         guardado antes de un cambio dejó el formulario en un modo que
+         ya no tenía cómo cambiarse. Lo guardado es de ayer; el
+         formulario es de hoy, y manda el formulario. */
+      if (crudo) {
+        const g = JSON.parse(crudo) as Record<string, unknown>;
+        const limpio = { ...VACIO };
+        for (const k of Object.keys(VACIO) as (keyof Borrador)[]) {
+          if (k in g) (limpio[k] as unknown) = g[k];
+        }
+        setB(limpio);
+      }
     } catch {
       /* Sin localStorage —modo privado, almacenamiento lleno, permisos—
          la pantalla funciona igual: se pierde el renglón a medias, que
@@ -251,7 +268,7 @@ export function Contar({
      Se muestra porque es lo que pidió ver: teclear la de fábrica y que
      la pantalla diga cuándo vence, ahí, frente a la estiba. */
   const fechaCalculada = useMemo(() => {
-    if (b.fecha !== "fabrica" || !material) return null;
+    if (!material) return null;
     const d = ent(b.dia), m = ent(b.mes);
     const a = b.anio.trim() === "" ? null : Number(b.anio.trim());
     const vida = material.vida_util;
@@ -260,7 +277,7 @@ export function Contar({
     if (f.getMonth() !== m - 1 || f.getDate() !== d) return null;
     f.setDate(f.getDate() + vida);
     return f;
-  }, [b.fecha, b.dia, b.mes, b.anio, material]);
+  }, [b.dia, b.mes, b.anio, material]);
 
   /**
    * ANOTAR DEJA EL RENGLÓN ENTERO EN BLANCO. Calle, módulo, lado,
@@ -350,12 +367,16 @@ export function Contar({
     /* SE MANDA LA QUE SE TECLEÓ, NO LA CALCULADA. Con la fabricación, el
        vencimiento va en null y lo calcula la base: una sola fórmula, en
        un solo sitio. */
-    p_venc_dia: b.fecha === "vence" ? ent(b.dia) : null,
-    p_venc_mes: b.fecha === "vence" ? ent(b.mes) : null,
-    p_venc_anio: b.fecha === "vence" && b.anio.trim() !== "" ? Number(b.anio.trim()) : null,
-    p_fab_dia: b.fecha === "fabrica" ? ent(b.dia) : null,
-    p_fab_mes: b.fecha === "fabrica" ? ent(b.mes) : null,
-    p_fab_anio: b.fecha === "fabrica" && b.anio.trim() !== "" ? Number(b.anio.trim()) : null,
+    /* EL VENCIMIENTO VIAJA EN NULL SIEMPRE. Lo calcula la base con la
+       vida útil del maestro. Si la pantalla mandara uno ya calculado
+       habría dos versiones de la misma fórmula —una aquí y otra allá—
+       esperando a discrepar el día que alguien corrija una vida útil. */
+    p_venc_dia: null,
+    p_venc_mes: null,
+    p_venc_anio: null,
+    p_fab_dia: ent(b.dia),
+    p_fab_mes: ent(b.mes),
+    p_fab_anio: b.anio.trim() !== "" ? Number(b.anio.trim()) : null,
     p_averia: b.averia, p_pnc: b.pnc,
     p_estado: b.estado || null,
     p_nota: b.nota.trim() || null,
@@ -420,20 +441,18 @@ export function Contar({
       base: u ? claveBase(u) : "",
       lado: u?.lado ?? "",
       codigo: r.codigo,
-      /* Se vuelve a abrir CON LA FECHA QUE SE TECLEÓ. Si se anotó la de
-         fábrica, corregir muestra esa —no el vencimiento calculado—:
-         quien vuelve a mirar la estiba lee el mismo número que leyó la
-         primera vez.
+      /* SIEMPRE LA DE FABRICACIÓN, nunca el vencimiento calculado: quien
+         vuelve a mirar la estiba lee el mismo número que leyó la primera
+         vez.
 
-         «vence» SOLO SI DE VERDAD HAY UN VENCIMIENTO TECLEADO. Ahora que
-         la pantalla ya no ofrece esa opción, preguntar nada más por
-         `fab_anio` mandaría a «vence» también a los renglones SIN NINGUNA
-         fecha —los envases—, y esos aparecerían con el aviso de «se
-         anotó por vencimiento» encima de tres casillas vacías. */
-      fecha: r.fab_anio == null && r.venc_anio != null ? "vence" : "fabrica",
-      dia: String((r.fab_anio != null ? r.fab_dia : r.venc_dia) ?? ""),
-      mes: String((r.fab_anio != null ? r.fab_mes : r.venc_mes) ?? ""),
-      anio: String((r.fab_anio != null ? r.fab_anio : r.venc_anio) ?? ""),
+         Y SI EL RENGLÓN NO LA TIENE, las casillas quedan vacías. Solo
+         pasa en dos casos y los dos están bien así: un envase, que no
+         trae fecha impresa; o un renglón viejo cuyo material perdió la
+         vida útil del maestro y por eso la migración no pudo despejarla
+         —adivinarla sería inventarse el dato—. */
+      dia: String(r.fab_dia ?? ""),
+      mes: String(r.fab_mes ?? ""),
+      anio: String(r.fab_anio ?? ""),
       /* El modo se deduce de cuál de las TRES vino llena. El orden
          importa: `estibas ?? cajas ?? saldo` con estibas en cero daría
          cero y parecería vacío, así que se compara contra null. */
@@ -700,9 +719,7 @@ export function Contar({
             que nadie leyó nunca en esa estiba. */}
         <div className={"fe-fecha" + (esEnvase ? " opcional" : "")}>
           <div className="fe-que-fecha">
-            <span className={"fe-etiq-fecha" + (b.fecha === "vence" ? " ojo" : "")}>
-              {b.fecha === "vence" ? "Vence" : "Se fabricó"}
-            </span>
+            <span className="fe-etiq-fecha">Se fabricó</span>
           </div>
           {esEnvase && <em className="fe-opcional">el envase no trae fecha</em>}
           <div className="fe-dma">
@@ -713,22 +730,15 @@ export function Contar({
             <input inputMode="numeric" maxLength={2} placeholder="AA" value={b.anio}
                    onChange={(e) => pon("anio", e.target.value)} />
           </div>
-          {b.fecha === "vence" ? (
-            <p className="fe-calculada esperando">
-              Este renglón se anotó con la fecha de vencimiento, antes del cambio.
-              Se corrige igual: la casilla es el vencimiento, no la fabricación.
-            </p>
-          ) : (
-            <p className={"fe-calculada" + (fechaCalculada ? "" : " esperando")}>
-              {fechaCalculada
-                ? <>Vence el <b>{fechaCalculada.toLocaleDateString("es-CO")}</b>
-                    {" "}· {material!.vida_util} días de vida útil</>
-                : material && !material.vida_util && !esEnvase
-                  ? <>Este material no tiene vida útil en el maestro, así que no se puede
-                      calcular el vencimiento. Avísale a quien lleva el maestro.</>
-                  : <>Teclea la fecha de fábrica y te digo cuándo vence.</>}
-            </p>
-          )}
+          <p className={"fe-calculada" + (fechaCalculada ? "" : " esperando")}>
+            {fechaCalculada
+              ? <>Vence el <b>{fechaCalculada.toLocaleDateString("es-CO")}</b>
+                  {" "}· {material!.vida_util} días de vida útil</>
+              : material && !material.vida_util && !esEnvase
+                ? <>Este material no tiene vida útil en el maestro, así que no se puede
+                    calcular el vencimiento. Avísale a quien lleva el maestro.</>
+                : <>Teclea la fecha de fábrica y te digo cuándo vence.</>}
+          </p>
         </div>
 
         {/* ---------- 4 · ESTIBAS | CAJAS | ROT ----------

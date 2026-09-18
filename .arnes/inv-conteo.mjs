@@ -573,9 +573,10 @@ if (/placeholder="\d+"/.test(limpio))
    esperando a discrepar el día que alguien corrija una vida útil. */
 if (!/p_fab_dia:/.test(limpio))
   fallas.push("no se puede teclear la fecha de fabricación");
-if (!/p_venc_dia: b\.fecha === "vence" \? ent\(b\.dia\) : null/.test(limpio))
-  fallas.push("con la fabricación puesta se sigue mandando un vencimiento: la cuenta " +
-              "quedaría escrita en dos sitios");
+if (!/p_venc_dia: null/.test(limpio))
+  fallas.push("la pantalla sigue mandando un vencimiento: la cuenta quedaría escrita en " +
+              "dos sitios, una aquí y otra en la base, esperando a discrepar el día que " +
+              "alguien corrija una vida útil");
 /* Y LA VISTA PREVIA ES SOLO PARA ENSEÑAR. Que exista —es lo que se pidió
    ver— pero que NO sea lo que se guarda. */
 if (!/const fechaCalculada = useMemo/.test(limpio))
@@ -585,14 +586,29 @@ if (/p_venc_[a-z]+: fechaCalculada/.test(limpio))
               "la fabricación y dejar que la base haga la cuenta");
 /* Al corregir se vuelve a abrir con la fecha que se tecleó, no con la
    calculada: quien vuelve a mirar la estiba lee el mismo número. */
-/* «vence» SOLO SI DE VERDAD HAY UN VENCIMIENTO TECLEADO. Preguntar nada
-   más por `fab_anio` mandaría a «vence» también a los renglones SIN
-   NINGUNA fecha —los envases—, y esos se reabrirían con el aviso de
-   «este renglón se anotó por vencimiento» encima de tres casillas
-   vacías. */
-if (!/fecha: r\.fab_anio == null && r\.venc_anio != null \? "vence" : "fabrica"/.test(limpio))
-  fallas.push("al corregir no se recuerda cuál de las dos fechas se había tecleado, " +
-              "o manda a «vence» a los renglones que no tienen ninguna fecha");
+/* NO PUEDE QUEDAR NI RASTRO DE «VENCE» EN LA PANTALLA.
+   Le quité el interruptor pero dejé el estado adentro «por si acaso»,
+   y el borrador que se guarda en el teléfono trajo esa marca de vuelta
+   después de actualizar: el formulario abría en «Vence» y NO HABÍA CÓMO
+   SALIR, porque el único control que lo cambiaba ya no existía. Los
+   renglones viejos se convirtieron en la base; aquí no se arrastra. */
+if (/"vence"/.test(limpio))
+  fallas.push("volvió el estado «vence» al formulario. Aquí solo se teclea la fabricación; " +
+              "los renglones viejos se convirtieron con 2026-09-conteo-solo-fabricacion.sql");
+/* Y al corregir se abre con la FABRICACIÓN, no con el vencimiento
+   calculado: quien vuelve a mirar la estiba lee el mismo número. */
+if (!/dia: String\(r\.fab_dia \?\? ""\)/.test(limpio))
+  fallas.push("al corregir no se vuelve a abrir con la fecha de fabricación que se tecleó");
+
+/* EL BORRADOR GUARDADO ES DE AYER; EL FORMULARIO ES DE HOY.
+   Restaurarlo con un `...guardado` a secas mete de vuelta campos de una
+   versión anterior de la pantalla — que fue exactamente cómo un
+   `fecha: "vence"` guardado antes de un cambio dejó el formulario en un
+   modo que ya no tenía cómo cambiarse. */
+if (!/for \(const k of Object\.keys\(VACIO\)/.test(limpio))
+  fallas.push("el borrador guardado se restaura entero en vez de solo las claves que el " +
+              "formulario tiene hoy: un campo viejo puede dejar la pantalla en un estado " +
+              "sin salida");
 
 /* ---------- NO BAJARSE COLUMNAS QUE NO SE USAN ----------
    `productos` tiene 28 columnas y esta pantalla usa 16. Con `select("*")`
