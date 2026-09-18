@@ -67,10 +67,12 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
   const [turno, setTurno] = useState(turnoSugerido);
   const [tipo, setTipo] = useState("");
   const [placa, setPlaca] = useState("");
-  /* EL DOCUMENTO SE GUARDA YA EN MAYÚSCULA, desde la tecla. Que la base
-     lo normalice al guardar no basta: quien teclea «t-12345» vería una
-     cosa en la pantalla y otra en la tabla de abajo, y la primera
-     pregunta sería si se guardó bien. */
+  /* EL DOCUMENTO ES UN NÚMERO Y LLEVA DIEZ CIFRAS COMO MÁXIMO.
+     Se limpia DESDE LA TECLA y no al guardar: quien teclea de más vería
+     una cosa en la pantalla y otra en la tabla de abajo, y la primera
+     pregunta sería si se guardó bien. Y quien pega dos documentos
+     seguidos —que es como se cuelan los de veinte cifras— ve en el acto
+     que solo entraron diez. */
   const [documento, setDocumento] = useState("");
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
@@ -233,6 +235,15 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
       return `El documento ${documento.trim()} ya está registrado en otro viaje. `
            + "Revisa el número; si el otro registro está malo, anúlalo y este entra.";
     }
+    /* LA REGLA DE LAS DIEZ CIFRAS TAMBIÉN ESTÁ EN LA BASE, y ahí habla
+       en su idioma. La pantalla ya no deja teclear otra cosa, así que si
+       este mensaje llega es porque el registro entró por otra puerta —o
+       porque a alguien se le pasó un documento viejo con letras—. Aun
+       así se traduce: un «violates check constraint» no le dice nada a
+       quien está al lado de un camión. */
+    if (/traspasos_viajes_documento_diez/i.test(m)) {
+      return "El documento va en números y con diez cifras como máximo.";
+    }
     return m;
   }
 
@@ -273,6 +284,37 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
 
             {modo === "carga" && (
               <>
+                {/* EL DOCUMENTO VA PRIMERO, ANTES DE LA PLACA.
+
+                    Es el orden en que llega la información a la mano de
+                    quien registra: el papel se recibe, se lee su número,
+                    y de ese papel se saca de qué vehículo es. Pedir
+                    primero la placa obliga a mirar el vehículo, soltar,
+                    volver al papel y volver a mirar.
+
+                    Y ES EL CAMPO QUE PUEDE RECHAZAR EL REGISTRO: si ese
+                    número ya está en otro viaje, no entra. Descubrirlo
+                    de primero cuesta un campo; descubrirlo al final
+                    cuesta el formulario entero.
+
+                    DIEZ CIFRAS Y SOLO CIFRAS, limpiadas desde la tecla.
+                    Así, pegar dos documentos seguidos —que es como se
+                    cuelan los de veinte— se ve en el acto. */}
+                <div>
+                  <span className="rot-campo">Documento</span>
+                  <input className="campo-suelto doc" value={documento}
+                         autoComplete="off" spellCheck={false}
+                         inputMode="numeric" maxLength={10}
+                         aria-label="Documento del viaje"
+                         placeholder="El número del papel — hasta 10 cifras"
+                         onChange={(e) => setDocumento(e.target.value.replace(/\D/g, "").slice(0, 10))} />
+                  <p className="guia" style={{ marginTop: 8 }}>
+                    Solo números, hasta diez. <b>No se puede repetir</b>: si este número ya
+                    está en otro viaje, la pantalla te dice en cuál. Si ese otro registro
+                    está malo, anúlalo y este entra.
+                  </p>
+                </div>
+
                 <div>
                   <span className="rot-campo">Placa</span>
                   {/* DE LISTA, NO A MANO. Las placas salen del maestro: una
@@ -292,9 +334,14 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
 
                   {placaNueva !== null && (
                     <div className="alta">
+                      {/* MAYÚSCULA DESDE LA TECLA. La base ya la sube al
+                          guardar —upper() en traspaso_agregar_placa— pero
+                          quien teclea «nlw428» vería una cosa en la
+                          pantalla y otra en la lista de abajo, y la
+                          primera pregunta sería si se guardó bien. */}
                       <input value={placaNueva} autoFocus autoComplete="off" spellCheck={false}
                              placeholder="ABC123" aria-label="Placa nueva"
-                             onChange={(e) => setPlacaNueva(e.target.value)}
+                             onChange={(e) => setPlacaNueva(e.target.value.toUpperCase())}
                              onKeyDown={(e) => {
                                if (e.key === "Enter") { e.preventDefault(); guardarPlacaNueva() }
                                if (e.key === "Escape") setPlacaNueva(null);
@@ -317,25 +364,6 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                       ))}
                     </div>
                   )}
-                </div>
-
-                {/* EL DOCUMENTO VA PEGADO A LA PLACA, no al final del
-                    formulario. Es el papel que viene CON ese vehículo:
-                    se lee de la misma mano, en el mismo momento, y
-                    ponerlo ocho campos más abajo obliga a soltarlo y a
-                    volver a buscarlo. */}
-                <div>
-                  <span className="rot-campo">Documento</span>
-                  <input className="campo-suelto doc" value={documento}
-                         autoComplete="off" spellCheck={false}
-                         inputMode="text" aria-label="Documento del viaje"
-                         placeholder="El número del papel que va con el vehículo"
-                         /* Mayúscula desde la tecla, no al guardar. */
-                         onChange={(e) => setDocumento(e.target.value.toUpperCase())} />
-                  <p className="guia" style={{ marginTop: 8 }}>
-                    No se puede repetir: si este número ya está en otro viaje, la pantalla
-                    te dice en cuál. Si ese otro registro está malo, anúlalo y este entra.
-                  </p>
                 </div>
 
                 <div>

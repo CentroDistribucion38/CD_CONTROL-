@@ -1,0 +1,56 @@
+Traspasos: el documento va primero, en números y hasta diez
+
+EL DOCUMENTO ANTES QUE LA PLACA
+Es el orden en que la información llega a la mano: el papel se recibe,
+se lee su número, y de ese papel se saca de qué vehículo es. Pidiendo
+primero la placa hay que mirar el vehículo, soltar, volver al papel y
+volver a mirar.
+
+Y es el campo que puede RECHAZAR el registro —si ese número ya está en
+otro viaje, no entra—. Descubrirlo de primero cuesta un campo;
+descubrirlo al final cuesta el formulario entero.
+
+NÚMEROS, Y DIEZ COMO MÁXIMO
+Se limpia desde la tecla: lo que no es cifra no entra y se corta en
+diez. Así, pegar dos documentos seguidos se ve en el acto.
+
+Y LA REGLA TAMBIÉN ESTÁ EN LA BASE —2026-09-traspasos-documento-diez.sql—
+porque la pantalla no es la puerta. Lo que de verdad evita no es un
+número largo: es el PEGADO DOBLE. «12345678901234567890» no choca con el
+índice único —no es igual a ninguno de los dos documentos— así que queda
+registrado, parece bueno, y después no se encuentra buscando por ninguno
+de los dos de verdad.
+
+Va como regla de tabla y no como `if` en la función: meterlo en la
+función obligaba a reescribir traspaso_registrar y
+traspaso_editar_viaje enteras, y ya se me han perdido cosas
+reescribiéndolas de memoria. Una línea, sin tocar las funciones, y cubre
+cualquier cosa que escriba en esa tabla.
+
+Se juzga sobre `documento_clave` —la columna generada ya normalizada— y
+no sobre `documento`: así «12-345 678-90», que son diez cifras, cuenta
+diez y no trece.
+
+Y SI ALGÚN VIAJE YA REGISTRADO NO CUMPLE, la migración no lo toca ni lo
+recorta: lo dice con su placa y su fecha para que alguien lo arregle
+mirando el papel. Recortarlo por nuestra cuenta sería inventarse cuál
+era el bueno.
+
+LA PLACA, EN MAYÚSCULA DESDE LA TECLA
+La base ya la subía al guardar —upper() en traspaso_agregar_placa— pero
+quien teclea «nlw428» al agregar una placa nueva veía una cosa en la
+pantalla y otra en la lista, y la primera pregunta era si se guardó bien.
+
+MEDIDO, NO MIRADO
+· .arnes/correr-traspasos-documento-diez.sh contra Postgres 16 de
+  verdad, dos veces, como no-superusuario y SIN AGRUPAR NADA. Comprueba
+  ANTES que hoy un documento de veinte cifras SÍ entra: sin eso, la
+  prueba de después no demostraría que la migración hace falta.
+· .arnes/mutar-traspasos-documento-diez.sh: 7 mutaciones, las 7 rojas.
+  Una cazó un error mío en el propio arnés: la mutación que quitaba el
+  `documento_clave is null or` no rompía NADA, porque en un CHECK una
+  condición que da NULL se da por buena — el viaje vacío seguía
+  entrando igual y yo habría jurado que la aserción no servía.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
