@@ -1,0 +1,167 @@
+/* ---------------------------------------------------------------------
+   LA BASE — todo lo contado, en una tabla de verdad.
+
+   ESTO NO SE USA DE PIE. La pantalla de contar se camina con una mano y
+   por eso todo mide 48 px; esta se mira sentado, con la hoja al lado y
+   veintiséis columnas que hay que poder recorrer con el ojo. Son dos
+   trabajos distintos y por eso son dos densidades distintas.
+
+   Todo cuelga de .fe y de .ba- para no pisar nada: `.fe-tabla` habría
+   sido el nombre corto, y este proyecto ya perdió una barra de
+   herramientas por reusar un nombre que existía cuatrocientas líneas más
+   arriba.
+   --------------------------------------------------------------------- */
+
+.fe .ba-pes { margin-bottom: 4px }
+
+/* QUÉ ES CADA PESTAÑA, ESCRITO Y ARRIBA. Las dos son una tabla igual con
+   números distintos, y ahí es donde alguien suma la equivocada. */
+.fe .ba-dice {
+  margin: 0 0 12px; padding: 10px 13px; border-radius: 2px;
+  background: var(--fe-fondo); font-size: 12.5px; line-height: 1.5;
+  color: var(--fe-gris-panel); max-width: 92ch;
+}
+.fe .ba-dice b { color: var(--fe-tinta) }
+/* El borrador se pinta distinto del resto de la pantalla: es lo que
+   impide leerlo como un dato firmado. El ámbar va a mano y no por token
+   —--c-oro es ROJO PURO en tres de los siete temas— y este par está
+   medido contra el crema, no mirado. */
+.fe .ba-dice.ojo { background: #FFF8E6; color: #5E4100; box-shadow: inset 4px 0 0 #C08A16 }
+.fe .ba-dice.ojo b { color: #3D2A00 }
+
+/* EL TOPE, DICHO. PostgREST contesta hasta cierto número de filas y no
+   avisa: una lista corta se ve perfectamente normal y alguien cuadra
+   contra ella sin saber que le faltan los recorridos viejos. */
+.fe .ba-tope {
+  margin: 0 0 12px; padding: 10px 13px; border-radius: 2px;
+  background: #FDECEE; color: #8A1020; font-size: 12.5px; line-height: 1.5;
+  box-shadow: inset 4px 0 0 var(--fe-mal);
+}
+
+.fe .ba-filtros {
+  display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-bottom: 10px;
+}
+.fe .ba-filtros label { display: block; min-width: 0 }
+.fe .ba-filtros label.ancho { flex: 1 1 260px }
+/* `:not([type="checkbox"])` Y NO `input` A SECAS.
+   Escrito a secas, esta regla y la de `.fe .fe-check input` —que pone la
+   casilla en 18×18— tienen la MISMA especificidad (0,2,1), y esta va
+   después porque base.css se carga después de fefo.css: la casilla de
+   «Solo lo que ya se pasó» se llevaba el ancho completo y los 40 px de
+   alto, y empujaba su propia etiqueta fuera de la pantalla arrastrando
+   la página 27 px de lado. No dio ningún error; lo cazó el arnés.
+   Es la segunda vez en este proyecto que un nombre de regla con la misma
+   especificidad pisa a otra cuatrocientas líneas más arriba. */
+.fe .ba-filtros input:not([type="checkbox"]), .fe .ba-filtros select {
+  min-height: 40px; padding: 0 10px; width: 100%; min-width: 0;
+  font: 500 13.5px var(--fe-texto); color: var(--fe-tinta);
+  background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px;
+}
+.fe .ba-filtros input:not([type="checkbox"]):focus, .fe .ba-filtros select:focus {
+  outline: none; border-color: var(--fe-acento);
+}
+/* EL CHECK NO ES UN CAMPO APILADO. `.ba-filtros label { display: block }`
+   —que es lo que pone el rótulo encima del campo en los demás— le pisó
+   el `inline-flex` de `.fe-check` y dejó la casilla en una caja alta con
+   el texto debajo. Va explícito aquí, con la especificidad del caso. */
+.fe .ba-filtros label.fe-check {
+  display: inline-flex; align-items: center; gap: 8px;
+  /* NI `flex: none` NI `nowrap`. Los puse y a 390 px la etiqueta —«Solo
+     lo que ya se pasó»— no cabía, no podía encogerse ni partirse, y
+     arrastraba la página entera 127 px de lado: justo lo que esta
+     pantalla evita metiendo la tabla en su propia caja. Que se encoja y
+     parta, que la casilla no. */
+  flex: 0 1 auto; min-width: 0; min-height: 40px;
+}
+.fe .ba-filtros label.fe-check input { flex: none }
+
+.fe .ba-cuenta {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 8px;
+}
+.fe .ba-cuenta p {
+  margin: 0; font-size: 12.5px; color: var(--fe-gris);
+  font-variant-numeric: tabular-nums;
+}
+.fe .ba-cuenta p b { color: var(--fe-tinta); font-family: var(--fe-titulo) }
+.fe .ba-cuenta .btn { min-height: 40px; flex: none }
+
+/* ---------------------------------------------------------------------
+   LA TABLA SE DESPLAZA DENTRO DE SU CAJA
+
+   Veintiséis columnas no caben en ninguna pantalla. Si la que se va de
+   lado es la PÁGINA, el menú y los filtros quedan inalcanzables mientras
+   se mira la columna veinte — y para volver a filtrar hay que arrastrar
+   de vuelta. Aquí se desplaza la caja y el resto se queda quieto.
+
+   Y LA CABECERA SE QUEDA PEGADA ARRIBA. Con doscientas filas, la fila
+   ciento veinte es una hilera de números sin ningún título a la vista, y
+   ahí es donde se lee «saldo» en la columna de «cajas sueltas».
+   --------------------------------------------------------------------- */
+.fe .ba-marco {
+  overflow: auto; max-height: 70vh;
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  /* Con `overscroll-behavior` el tirón que llega al final de la tabla no
+     sigue hacia la página: al revisar de arriba abajo se salta sola. */
+  overscroll-behavior: contain;
+}
+.fe .ba-tabla {
+  border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%;
+  font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.fe .ba-tabla th, .fe .ba-tabla td {
+  padding: 0; border-bottom: 1px solid var(--fe-linea); text-align: left;
+  white-space: nowrap;
+}
+.fe .ba-tabla thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--fe-fondo); border-bottom: 2px solid var(--fe-linea);
+}
+/* EL TÍTULO ES UN BOTÓN porque ordena. Va como botón de verdad —no un
+   `<th>` con onClick— para que se alcance con el teclado y lo anuncie el
+   lector de pantalla; `aria-sort` en el `<th>` dice por cuál se está
+   ordenando. */
+.fe .ba-tabla thead button {
+  display: flex; align-items: center; gap: 5px; width: 100%;
+  /* 38 px Y NO LO QUE SALGA. El título no es solo un rótulo: es el
+     control que ordena, y se toca. Con el alto que daba el texto se
+     quedaba en 32 px, que en una tableta es apuntar. */
+  min-height: 38px; padding: 10px 11px; cursor: pointer;
+  background: none; border: none; text-align: left;
+  font: 700 10.5px var(--fe-texto); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--fe-gris-panel);
+}
+.fe .ba-tabla thead th.num button { justify-content: flex-end }
+.fe .ba-tabla thead button:hover { color: var(--fe-acento) }
+.fe .ba-tabla thead button i { font-style: normal; font-size: 9px; color: var(--fe-acento) }
+.fe .ba-tabla thead button:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: -2px }
+
+.fe .ba-tabla td { padding: 9px 11px; color: var(--fe-tinta) }
+.fe .ba-tabla td.num, .fe .ba-tabla th.num { text-align: right }
+/* ZEBRA MUY SUAVE. Con veintiséis columnas el ojo pierde el renglón a
+   medio camino; con un rayado fuerte la tabla se vuelve ilegible. Se
+   busca lo justo para seguir la fila, no para decorarla. */
+.fe .ba-tabla tbody tr:nth-child(even) { background: color-mix(in srgb, var(--fe-fondo) 55%, #FFF) }
+.fe .ba-tabla tbody tr:hover { background: var(--fe-fondo) }
+.fe .ba-tabla tbody tr:last-child td { border-bottom: none }
+
+/* LO QUE YA SE PASÓ DE SU FECHA DE SALIDA. No es cuándo vence: es que ya
+   no alcanza a llegarle al cliente con vida útil suficiente. */
+.fe .ba-tabla .ba-mal { font-weight: 800; color: var(--fe-mal) }
+
+@media (max-width: 760px) {
+  /* EN EL CELULAR CADA FILTRO SE LLEVA SU RENGLÓN. Apretados en una
+     fila, los desplegables no se dejan encoger por debajo del texto de
+     su opción más larga —«Todos los recorridos»— y el que queda de
+     último sale empujado fuera de la pantalla, arrastrando la página de
+     lado. Que es justo lo que esta pantalla evita metiendo la tabla en
+     su propia caja: no tendría sentido arreglarlo abajo y romperlo
+     arriba. */
+  .fe .ba-filtros { gap: 8px }
+  .fe .ba-filtros label, .fe .ba-filtros label.ancho { flex: 1 1 100%; min-width: 0 }
+  .fe .ba-filtros label.fe-check { flex: 1 1 100% }
+  .fe .ba-filtros .btn.plano { width: 100% }
+  .fe .ba-marco { max-height: 60vh }
+  .fe .ba-cuenta .btn { width: 100% }
+  .fe .ba-filtros label.ancho { flex: 1 1 100% }
+}

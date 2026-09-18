@@ -47,6 +47,15 @@ export type Bodega = {
 
 export type Renglon = {
   id: string;
+  /* DE QUÉ RECORRIDO VIENE ESTE RENGLÓN. La pantalla de contar no lo
+     necesitaba —todos sus renglones son del recorrido abierto— pero la
+     base junta los de muchos, y sin esto no hay cómo decir de cuál es
+     cada fila ni separar lo enviado de lo que se está contando ahora. */
+  conteo_id: string;
+  conteo: string;
+  /* El estado DEL RECORRIDO, no del envase: 'cerrado' es lo firmado,
+     'en_proceso' lo que alguien tiene abierto en este momento. */
+  estado: string;
   codigo: string;
   material: string;
   tipo_material: "PRODUCTO" | "ENVASE";
@@ -238,3 +247,80 @@ export type ConteoFefo = {
   enviado_en: string | null; envio_nombre: string | null;
   renglones: number; ubicaciones: number; total_cajas: number;
 };
+
+/* =====================================================================
+   LA BASE — TODO LO CONTADO, TAL CUAL
+
+   El tablero contesta UNA pregunta —qué se despacha primero— y para eso
+   recorta: solo lo enviado, solo lo que tiene fecha, agrupado. Esto es
+   lo otro: el registro completo, renglón por renglón y con todas sus
+   columnas, para cuadrar contra la hoja y para buscar cualquier cosa.
+
+   VIENEN DOS MONTONES Y NO SE MEZCLAN:
+
+     · LA BASE son los recorridos ENVIADOS. Están firmados con nombre,
+       fecha y hora, y ya no se pueden corregir. Es lo único sobre lo que
+       se puede afirmar algo.
+
+     · LOS BORRADORES son los recorridos que alguien tiene abiertos en
+       este momento, de cualquiera. Se traen SOLO PARA MIRAR —qué se
+       está contando ahora mismo, sin llamar a preguntar— y no entran en
+       la base ni suman en ningún total.
+
+   Juntarlos en una sola lista sería el error caro: un renglón a medio
+   contar sumando en un total del que alguien despacha.
+
+   EL TOPE VA ESCRITO Y SE DICE CUANDO SE TOCA.
+   PostgREST contesta 1.000 filas por defecto y NO AVISA: la lista
+   llegaría corta y se vería perfectamente normal. Aquí se pide un tope
+   alto a propósito y, si lo que vuelve es EXACTAMENTE el tope, se
+   devuelve `tope: true` para que la pantalla lo diga en vez de dejar a
+   alguien cuadrando contra una lista incompleta.
+   ===================================================================== */
+const TOPE_BASE = 20000;
+const TOPE_RECORRIDOS = 500;
+
+export async function baseFefo(bodegaId: string | null) {
+  const vacio = {
+    falta: false, enviadas: [] as Renglon[], abiertas: [] as Renglon[],
+    conteos: [] as ConteoFefo[], tope: false,
+  };
+  if (!bodegaId) return vacio;
+  const supabase = await createClient();
+
+  const { data: c, error } = await supabase.from("v_conteos_fefo").select("*")
+    .eq("bodega_id", bodegaId)
+    /* Por fecha de análisis y no por envío: los abiertos todavía no
+       tienen envío, y ordenar por una columna nula los mandaba al final
+       —que es justo donde no se ven los que están pasando ahora—. */
+    .order("fecha_analisis", { ascending: false })
+    .limit(TOPE_RECORRIDOS);
+  if (error) return { ...vacio, falta: sinTablas(error.message) };
+
+  const conteos = (c ?? []) as ConteoFefo[];
+  /* ANULADO NO ES NI LO UNO NI LO OTRO: se descarta a propósito. Un
+     recorrido anulado se anuló por algo, y arrastrarlo «para tener la
+     visual» es exactamente cómo vuelve a contarse. */
+  const enviados = conteos.filter((x) => x.estado === "cerrado");
+  const abiertos = conteos.filter((x) => x.estado === "en_proceso" || x.estado === "borrador");
+
+  /* Los renglones de los dos montones en UNA consulta y separados
+     después: son dos listas para la pantalla, pero una sola ida al
+     servidor. Dos consultas costaban el doble de espera para partir por
+     una columna que ya viene en cada fila. */
+  const ids = [...enviados, ...abiertos].map((x) => x.id);
+  if (ids.length === 0) return { ...vacio, conteos };
+
+  const { data: l } = await supabase.from("v_conteo_fefo").select("*")
+    .in("conteo_id", ids).limit(TOPE_BASE);
+  const lineas = (l ?? []) as Renglon[];
+
+  const deEnviados = new Set(enviados.map((x) => x.id));
+  return {
+    falta: false,
+    conteos,
+    enviadas: lineas.filter((r) => deEnviados.has(r.conteo_id)),
+    abiertas: lineas.filter((r) => !deEnviados.has(r.conteo_id)),
+    tope: lineas.length === TOPE_BASE,
+  };
+}

@@ -1,0 +1,80 @@
+Inventario: la base del conteo — todo lo contado, con todas sus columnas
+
+QUÉ ES Y POR QUÉ NO ES EL TABLERO
+El tablero contesta UNA pregunta —qué se despacha primero— y para
+contestarla recorta: agrupa, se queda con lo que tiene fecha, y tira lo
+demás. Esta pantalla es lo contrario: el registro entero, renglón por
+renglón, con las 26 columnas, para cuadrar contra la hoja y para buscar
+cualquier cosa.
+
+Va en el menú ANTES que el tablero, porque el tablero SALE de ella:
+Maestro · Contar · La base · Tablero. Puesta después, la pantalla que
+decide iría antes que los datos con los que decide.
+
+DOS MONTONES Y DOS PESTAÑAS, QUE NO SE MEZCLAN
+  · LA BASE es lo ENVIADO: firmado con nombre, fecha y hora, y ya sin
+    poderse corregir. Es lo único sobre lo que se puede afirmar algo.
+  · BORRADORES son los recorridos que alguien tiene abiertos ahora
+    mismo, de cualquiera. Están SOLO PARA MIRAR: no entran en la base,
+    no suman en ningún total, y desde aquí no se tocan.
+
+Juntarlos habría sido el error caro: un renglón a medio contar sumando
+en un total del que alguien despacha no da error, no avisa, y la
+diferencia aparece semanas después cuando ya nadie sabe de dónde salió.
+Cada pestaña dice por escrito qué es lo suyo, y los totales de una nunca
+incluyen a la otra.
+
+Los ANULADOS no van en ninguno de los dos: se anularon por algo, y
+arrastrarlos «para tener la visual» es exactamente cómo vuelven a
+contarse.
+
+DE LOS BORRADORES NO SE TOCA NADA
+La pantalla entera es de lectura: no llama a ninguna función que
+escriba. Una fila que alguien arregla «de paso» desde otra pantalla es un
+renglón que el que cuenta ya no reconoce. Para corregir se entra a
+Contar, que es donde está el recorrido.
+
+COMO SE TRABAJA EL EXCEL
+Filtros arriba —buscar, recorrido, calle, módulo, «solo lo que ya se
+pasó»—, cabecera que ordena al tocarla, y «Bajar a Excel» que baja LO
+QUE SE ESTÁ VIENDO, filtrado y ordenado igual. El CSV lleva `sep=;` y
+BOM: sin lo primero, Excel en español apila las 26 columnas en la A; sin
+lo segundo, «Águila» se abre como «Ãguila».
+
+EL TOPE SE DICE
+PostgREST contesta hasta cierto número de filas y NO AVISA: la lista
+llega corta y se ve perfectamente normal. Si se toca el tope, la
+pantalla lo dice en rojo en vez de dejar a alguien cuadrando contra una
+lista incompleta.
+
+EL PERMISO — 2026-09-inventario-base.sql
+La pantalla no crea ni una tabla: lee dos vistas que ya existen. Lo
+único que hace el SQL es dar la llave, a quien ya ve el tablero, y en
+«ver» nunca en «editar» —la pantalla no escribe nada, y ofrecer «editar»
+en /admin/roles se lee como que desde ahí se corrige un renglón—.
+Respeta el «ninguno» puesto a mano: a quien le cerraron el tablero no se
+le abre la base, que trae MÁS detalle todavía.
+
+MEDIDO, NO MIRADO
+· .arnes/inv-base.mjs: contraste en los 7 temas; las 26 columnas se
+  recorren sin arrastrar la página a 1440/820/390/360; la cabecera se
+  queda pegada de verdad —se desplaza y se vuelve a medir, no se lee el
+  CSS—; y el Excel lleva las mismas columnas que la tabla.
+· .arnes/mutar-inv-base.mjs: 19 mutaciones, las 19 rojas. Tres cazaron
+  errores míos: el chequeo del BOM se daba por satisfecho con un
+  COMENTARIO mío que lo mencionaba; el de las columnas pedía 3 usos
+  cuando son 4, así que cazaba la mitad; y el armazón tenía 3 filas, con
+  lo que la tabla no llegaba a desplazarse y la cabecera pegada se
+  aprobaba sin medir nada.
+· .arnes/correr-inventario-base.sh contra Postgres 16 de verdad, dos
+  veces, como no-superusuario y SIN AGRUPAR NADA;
+  .arnes/mutar-inventario-base.sh: 11 mutaciones, las 11 rojas.
+
+Y UN CHOQUE DE CSS QUE NO DIO NINGÚN ERROR
+`.fe .ba-filtros input` y `.fe .fe-check input` tienen la MISMA
+especificidad, y la nueva va después: la casilla de «Solo lo que ya se
+pasó» se llevaba el ancho completo y arrastraba la página 27 px de lado.
+Es la segunda vez en este proyecto. Lo cazó el arnés, no el ojo.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
