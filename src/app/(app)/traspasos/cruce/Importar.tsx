@@ -337,7 +337,9 @@ export function Importar({ puedeImportar, importaciones }: {
   const [leyendo, setLeyendo] = useState(false);
   const [mandando, setMandando] = useState(false);
   const [verPorQue, setVerPorQue] = useState(false);
-  const [hecho, setHecho] = useState<{ documentos: number; movimientos: number; anulados: number } | null>(null);
+  const [hecho, setHecho] = useState<
+    { documentos: number; guardados: number; reemplazados: number;
+      dias: number; anulados: number } | null>(null);
   const campo = useRef<HTMLInputElement>(null);
 
   async function leer(f: File) {
@@ -387,11 +389,13 @@ export function Importar({ puedeImportar, importaciones }: {
       return;
     }
     const r = (Array.isArray(data) ? data[0] : data) as
-      { documentos: number; movimientos_leidos: number; anulados: number } | null;
-    setHecho({ documentos: r?.documentos ?? 0, movimientos: r?.movimientos_leidos ?? 0,
+      { documentos: number; movimientos_leidos: number; movimientos_guardados: number;
+        reemplazados: number; dias: number; anulados: number } | null;
+    setHecho({ documentos: r?.documentos ?? 0, guardados: r?.movimientos_guardados ?? 0,
+               reemplazados: r?.reemplazados ?? 0, dias: r?.dias ?? 0,
                anulados: r?.anulados ?? 0 });
-    avisar.bien(`${nf.format(r?.documentos ?? 0)} documentos de `
-      + `${nf.format(r?.movimientos_leidos ?? 0)} movimientos. Las diferencias están en Control.`);
+    avisar.bien(`${nf.format(r?.movimientos_guardados ?? 0)} movimientos en `
+      + `${r?.dias ?? 0} día${(r?.dias ?? 0) === 1 ? "" : "s"}. Las diferencias están en Control.`);
     setLeido(null); setArchivo(null);
     if (campo.current) campo.current.value = "";
     router.refresh();
@@ -435,7 +439,9 @@ export function Importar({ puedeImportar, importaciones }: {
             <p>
               El Excel tal como sale. Las columnas se leen por su nombre y el encabezado se
               busca en las primeras filas, así que el orden —y el título que SAP mete
-              arriba— no importan. Volver a subirlo actualiza lo que ya está, no lo duplica.
+              arriba— no importan. <b>Cada día que trae el archivo se reemplaza entero</b>,
+              así que puedes importar rangos que se solapen —del 15 al 18 aunque ya
+              hubieras subido el 17— sin duplicar nada.
             </p>
           </div>
 
@@ -561,6 +567,9 @@ export function Importar({ puedeImportar, importaciones }: {
               <p className="pie-regla">
                 La agrupación la hace la base, no esta pantalla: es la misma regla que después
                 usa el tablero, y una regla escrita dos veces termina dando dos respuestas.
+                Y se aplica sobre <b>todo lo importado</b>, no sobre este archivo: el −36 del
+                turno C y el +36 de pasada la medianoche se suman aunque hayan entrado en
+                dos cortes distintos.
               </p>
             </div>
           </div>
@@ -572,12 +581,24 @@ export function Importar({ puedeImportar, importaciones }: {
             </button>
 
             {hecho && (
-              <div className="razon bien">
-                Importado: {nf.format(hecho.documentos)} documentos de {nf.format(hecho.movimientos)} movimientos
-                {hecho.anulados > 0 && <> · {nf.format(hecho.anulados)} anulados en SAP, que no cuentan</>}
+              /* REEMPLAZÓ MÁS DE LO QUE METIÓ: el día se quedó con menos
+                 movimientos de los que tenía. Casi siempre es un corte
+                 FILTRADO —un solo material, un solo almacén— y sin este
+                 aviso el día queda a medias sin que nada lo diga. */
+              <div className={"razon " + (hecho.reemplazados > hecho.guardados ? "" : "bien")}>
+                {hecho.reemplazados > hecho.guardados
+                  ? <>Ojo: se guardaron {nf.format(hecho.guardados)} movimientos donde había{" "}
+                     {nf.format(hecho.reemplazados)}</>
+                  : <>Importado: {nf.format(hecho.guardados)} movimientos ·{" "}
+                     {nf.format(hecho.documentos)} documentos
+                     {hecho.anulados > 0 && <> · {nf.format(hecho.anulados)} anulados en SAP, que no cuentan</>}</>}
                 <span>
-                  Las diferencias están al pie de{" "}
-                  <Link href="/traspasos/control">Control y ejecución</Link>.
+                  {hecho.reemplazados > hecho.guardados
+                    ? <>Esos días se quedan con lo que traía este archivo. Si el corte venía filtrado
+                       —por material o por almacén— vuelve a bajarlo completo y súbelo otra vez.</>
+                    : <>Se reemplazaron {hecho.dias} día{hecho.dias === 1 ? "" : "s"} completo
+                       {hecho.dias === 1 ? "" : "s"}. Las diferencias están al pie de{" "}
+                       <Link href="/traspasos/control">Control y ejecución</Link>.</>}
                 </span>
               </div>
             )}

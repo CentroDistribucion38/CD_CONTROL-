@@ -298,6 +298,43 @@ comment on view public.v_traspasos_cruce is
   'Los documentos de SAP contra los viajes registrados, en las fechas que cubre el último corte importado. falta = SAP lo tiene y nadie lo registró; sobra = está registrado y SAP no lo tiene (casi siempre un dedazo en el número); cuadra = los dos.';
 
 -- ---------------------------------------------------------------------
+-- LAS IMPORTACIONES, UNA POR TANDA
+--
+-- «Se subió el corte a tal hora, trajo tantos documentos, tantos sin
+-- registrar.» Sale de agrupar por el momento en que se importó — no
+-- hace falta una tabla de bitácora: `importado_en` ya lo guarda cada
+-- fila, y un dato que ya se guarda y nadie mira es un dato que no
+-- existe.
+--
+-- SE AGRUPA AL SEGUNDO. Todas las filas de una misma llamada comparten
+-- el `now()` de esa transacción, así que un `date_trunc('second')` las
+-- junta exactamente por tanda y no por día: subir el corte dos veces la
+-- misma mañana son dos renglones, que es lo que pasó.
+-- ---------------------------------------------------------------------
+create or replace view public.v_traspasos_sap_importaciones as
+select
+  date_trunc('second', s.importado_en)                  as cuando,
+  count(*)::int                                         as documentos,
+  count(*) filter (where not s.cuenta)::int             as anulados,
+  min(s.fecha)                                          as desde,
+  max(s.fecha)                                          as hasta,
+  max(p.nombre)                                         as quien,
+  /* CUÁNTOS DE ESA TANDA SIGUEN SIN REGISTRAR. Es la cifra por la que
+     se sube el corte, y se calcula CONTRA LO DE AHORA, no contra lo que
+     había al importar: si alguien registró el viaje que faltaba, el
+     renglón de la importación tiene que bajar. */
+  count(*) filter (
+    where s.cuenta and not exists (
+      select 1 from public.traspasos_viajes v
+       where v.estado = 'registrado' and v.documento_clave = s.referencia))::int
+                                                        as sin_registrar
+from public.traspasos_sap s
+left join public.perfiles p on p.id = s.importado_por
+group by date_trunc('second', s.importado_en);
+
+grant select on public.v_traspasos_sap_importaciones to authenticated;
+
+-- ---------------------------------------------------------------------
 -- QUEDÓ ASÍ
 -- ---------------------------------------------------------------------
 do $$
@@ -310,6 +347,9 @@ begin
   end if;
   if to_regprocedure('public.traspaso_sap_importar(jsonb)') is null then
     raise exception 'La función de importar no quedó.';
+  end if;
+  if to_regclass('public.v_traspasos_sap_importaciones') is null then
+    raise exception 'La vista de importaciones no quedó.';
   end if;
 
   /* LA COLUMNA `cuenta` ES LA REGLA ENTERA. Si la tabla la pierde

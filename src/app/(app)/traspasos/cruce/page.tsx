@@ -49,9 +49,11 @@ export default async function ImportarPage() {
           <h2>Falta preparar el cruce en Supabase</h2>
           <p>
             Abre el SQL Editor y ejecuta{" "}
-            <code>supabase/migraciones/2026-09-traspasos-cruce-sap.sql</code>. Ese archivo
-            crea la tabla del corte de SAP, la vista del cruce y la de las importaciones.
-            Se puede correr varias veces sin romper nada.
+            <code>supabase/migraciones/2026-09-traspasos-cruce-sap.sql</code> y después{" "}
+            <code>supabase/migraciones/2026-09-traspasos-sap-movimientos.sql</code>. Entre
+            los dos crean la tabla de movimientos del corte, la vista que los agrupa en
+            documentos, la del cruce y la de las importaciones. Se pueden correr varias
+            veces sin romper nada.
           </p>
         </section>
       </div>

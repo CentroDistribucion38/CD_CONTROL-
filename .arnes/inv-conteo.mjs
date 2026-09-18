@@ -125,19 +125,18 @@ const ARMAZON = `
         <label><span>Estibas completas</span><input inputmode="numeric" value="12"></label>
         <label><span>Saldo · cajas sueltas</span><input inputmode="numeric" value="8"></label>
       </div>
+      <label class="fe-estado"><span>Estado del envase</span>
+        <select><option>—</option><option>PIROGRABADO</option></select></label>
       <p class="fe-total"><span class="fe-formula">12 × 45 + 8</span><b>548</b> cajas</p>
     </div>
 
     <div class="fe-bloque">
       <p class="fe-bloque-cab">Cómo está</p>
       <div class="fe-rota"><span>¿Rota?</span>
-        <div class="fe-si-no"><button type="button" class="on">Sí</button>
-          <button type="button">No</button></div></div>
-      <div class="fe-tres fe-marcas">
-        <label class="fe-check"><input type="checkbox"><span>Avería</span></label>
-        <label class="fe-check"><input type="checkbox"><span>PNC</span></label>
-        <label><span>Estado del envase</span>
-          <select><option>—</option><option>PIROGRABADO</option></select></label>
+        <div class="fe-si-no una"><button type="button">Sí, rota</button></div></div>
+      <div class="fe-marcas dos">
+        <button type="button" class="fe-marca on">Avería</button>
+        <button type="button" class="fe-marca">PNC</button>
       </div>
       <label class="fe-nota"><span>Observación</span>
         <input placeholder="Opcional — lo que haya que decir de esta estiba"></label>
@@ -309,7 +308,13 @@ for (const t of TEMAS) {
     return {
       codTxt: g(".fe-cod-dos input", "color"), codFondo: g(".fe-cod-dos input", "background-color"),
       ecoTxt: g(".fe-eco", "color"), ecoFondo: g(".fe-eco", "background-color"),
-      siOnTxt: g(".fe-si-no button.on", "color"), siOnFondo: g(".fe-si-no button.on", "background-color"),
+      /* MARCADO Y SIN MARCAR, LA MISMA PIEZA EN SUS DOS ESTADOS. «¿Rota?»
+         se quedó con un solo botón —no marcarlo es decir que no— así que
+         el estado apagado se mide ahí, que es como se ve casi siempre, y
+         el encendido en el cuadro de Avería, que es el mismo control.
+         Medir un botón «No» que ya no existe daba contraste 1: no medía
+         nada y salía en rojo por la razón equivocada. */
+      siOnTxt: g(".fe-marca.on", "color"), siOnFondo: g(".fe-marca.on", "background-color"),
       siOffTxt: g(".fe-si-no button:not(.on)", "color"), siOffFondo: g(".fe-si-no button:not(.on)", "background-color"),
       dmaTxt: g(".fe-dma input", "color"), dmaFondo: g(".fe-dma input", "background-color"),
       /* EL TOTAL VIVO. Es la cifra que se mira de reojo mientras se
@@ -428,7 +433,18 @@ for (const [ancho, etiqueta] of ANCHOS) {
       fechaAlto: alto(".fe-dma input"),
       toque: Math.min(alto(".fe-si-no button"), alto(".fe-segmento button"),
                       alto(".fe-dma input"), alto(".fe-dos input"), alto(".fe-nota input"),
+                      alto(".fe-marca"), alto(".fe-estado select"),
                       alto(".fe-anotar .btn.grande"), alto(".fe-tres select, .fe-tres .bs-campo")),
+      /* AVERÍA Y PNC, DEL MISMO TAMAÑO — lo pidió así, y el motivo se ve
+         en la pantalla vieja: eran casillas de verificación y lo que se
+         podía tocar era la palabra, así que «PNC» daba tres letras. Se
+         miden los dos rectángulos y se comparan; que sean «parecidos»
+         no basta, porque lo que se sentía mal era justamente que uno
+         fuera la mitad del otro. */
+      marcas: [...document.querySelectorAll(".fe-marca")].map((e) => {
+        const r = e.getBoundingClientRect();
+        return [Math.round(r.width), Math.round(r.height)];
+      }),
       dma: [...document.querySelectorAll(".fe-dma input")]
              .map((e) => Math.round(e.getBoundingClientRect().width)).join("/"),
       /* Cuánto sobresale del borde de abajo de la ventana. 0 o menos =
@@ -459,6 +475,11 @@ for (const [ancho, etiqueta] of ANCHOS) {
     fallas.push(`${etiqueta}: las casillas de la fecha miden ${m.fechaAlto} px de alto ` +
                 "(mínimo 56: son las únicas que se teclean SIN MIRARLAS, porque el cursor " +
                 "entra solo y los dedos van a donde estaba el dedo anterior)");
+  if (m.marcas.length !== 2)
+    fallas.push(`${etiqueta}: hay ${m.marcas.length} cuadros de marca y son dos, Avería y PNC`);
+  else if (m.marcas[0][0] !== m.marcas[1][0] || m.marcas[0][1] !== m.marcas[1][1])
+    fallas.push(`${etiqueta}: Avería mide ${m.marcas[0].join("×")} y PNC ${m.marcas[1].join("×")}, `
+              + "y se pidieron del mismo tamaño");
   if (m.toque < 48)
     fallas.push(`${etiqueta}: algo que se toca mide ${m.toque} px de alto (mínimo 48: se usa ` +
                 "de pie y a veces con guantes)");
@@ -612,8 +633,14 @@ const orden = [
      bloque, que es lo que de verdad ocupa ese lugar en el orden. */
   ["La fecha", 'className={"fe-fecha"'],
   ["Estibas completas", ">Estibas completas<"], ["Saldo", ">Saldo · cajas sueltas<"],
+  /* EL ESTADO DEL ENVASE SUBIÓ AL BLOQUE «CUÁNTO», debajo de las
+     cantidades. Lo pidió Cristian y tiene sentido: dice QUÉ se contó
+     —envase bueno, sucio, roto— y separa la estiba dentro del mismo
+     módulo; al final, quien anotaba ya había dado el renglón por
+     terminado en el total. */
+  ["Estado del envase", ">Estado del envase<"],
   ["¿Rota?", ">¿Rota?<"],
-  ["Avería", ">Avería<"], ["PNC", ">PNC<"], ["Estado del envase", ">Estado del envase<"],
+  ["Avería", ">Avería<"], ["PNC", ">PNC<"],
   ["Observación", ">Observación<"],
 ];
 let desde = 0;
@@ -652,22 +679,71 @@ if (!/rot:\s*null/.test(limpio))
   }
 }
 
-/* EL MÓDULO VA SIN EL LADO PEGADO. Salía «A01_DER · RB F1000», que hacía
-   escoger el lado dos veces: dentro del nombre y en el campo de al lado.
-   La opción se arma con calle+módulo, nunca con `clave`. */
+/* ---------- EL TECLADO QUE ABRE CADA CAMPO ----------
+
+   De pie, el teclado del sistema tapa media pantalla y deja la lista
+   debajo. La calle son doce opciones de una letra: la lista entera cabe
+   y escribir no ahorra un solo toque, así que no se levanta el teclado.
+   El módulo sí se escribe —«01»— y para eso está el numérico, que tiene
+   las teclas al doble de tamaño y se acierta con guante.
+
+   Se comprueba en el componente y no en el armazón: el armazón pinta el
+   campo, pero quien decide qué teclado abre es la propiedad. */
+{
+  /* SE CORTA POR POSICIÓN Y NO CON UN `/>` AL FINAL: el Buscador cierra
+     cuatrocientas líneas más abajo —lleva su `onEscoge` dentro— así que
+     pedir la etiqueta de cierre no encontraba nada y la comprobación
+     salía vacía, que es como se aprueba cualquier cosa. */
+  const trozo = (marca) => {
+    const i = limpio.indexOf(marca);
+    return i < 0 ? "" : limpio.slice(i, i + 400);
+  };
+  if (!/teclado="ninguno"/.test(trozo("valor={b.calle}")))
+    fallas.push("la calle vuelve a levantar el teclado del celular, y tapa la lista que hay que mirar");
+  if (!/teclado="numerico"/.test(trozo("valor={b.base}")))
+    fallas.push("el módulo ya no abre el teclado numérico");
+}
+
+/* DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA. Rotación, avería, PNC,
+   estado del envase y observación son opcionales: no marcar la rotación
+   ES decir que no. Un aviso que frena el renglón por algo que no cambia
+   la cifra es un aviso que la gente aprende a esquivar. */
+{
+  const rev = (limpio.match(/function revisar\(\)[\s\S]*?\n  \}/) ?? [""])[0];
+  for (const [que, re] of [["la rotación", /b\.rot/], ["la avería", /b\.averia/],
+                           ["el PNC", /b\.pnc/], ["el estado del envase", /b\.estado/]]) {
+    if (re.test(rev))
+      fallas.push(`volvió a frenar el renglón por ${que}, y de «Cómo está» en adelante no se valida nada`);
+  }
+  /* Y SE MANDA RESUELTO, no nulo: la base sigue rechazando el nulo, así
+     que dejar de resolverlo aquí rompería el guardado entero. */
+  if (!/p_rotacion: b\.rot === true/.test(limpio))
+    fallas.push("la rotación se manda sin resolver: sin marcar iría nula y la base la rechaza");
+}
+
+/* EL MÓDULO VA SIN EL LADO PEGADO Y SIN LA LETRA DE LA CALLE.
+
+   Salía «A01_DER · RB F1000»: el lado dentro del nombre —que hacía
+   escogerlo dos veces— y la familia detrás. Y desde hoy tampoco lleva la
+   letra: el teclado del módulo es NUMÉRICO, así que un texto con letra
+   sería un campo que no se puede teclear con su propio teclado. */
 if (/valor: m\.base[\s\S]{0,200}?texto: `\$\{u?\.?clave/.test(limpio) || /texto: `\$\{m\.clave/.test(limpio))
   fallas.push("el módulo sigue mostrando la clave con el lado pegado");
-if (!/texto: `\$\{m\.calle\}\$\{m\.modulo\}`/.test(limpio))
-  fallas.push("el módulo no se arma con calle+módulo: volvería a traer el lado");
+if (/texto: `\$\{m\.calle\}/.test(limpio))
+  fallas.push("el módulo volvió a llevar la letra de la calle pegada al número, y el teclado es numérico: no se podría teclear");
+if (!/texto: m\.modulo\b/.test(limpio))
+  fallas.push("el módulo ya no muestra solo el número");
 
-/* Y LA OPCIÓN DEL MÓDULO NO LLEVA NADA MÁS. La familia estaba detrás
-   —«A01  RB F1000»— y se fue: quien está parado frente a un módulo sabe
-   en cuál está, y «RB F1000» repetido en doscientas filas obliga a leer
-   de más para encontrar el número. */
+/* Y LA OPCIÓN DEL MÓDULO NO LLEVA LA FAMILIA. «RB F1000» repetido en
+   doscientas filas obliga a leer de más para encontrar el número. La
+   única pista admitida es la CALLE, y solo cuando no hay ninguna
+   escogida: sin ella, el 01 de A y el 01 de B se verían iguales. */
 {
-  const bloque = (limpio.match(/opciones=\{modulos\.map\([\s\S]{0,260}?\)\)\}/) ?? [""])[0];
-  if (/pista:/.test(bloque))
+  const bloque = (limpio.match(/opciones=\{modulos\.map\([\s\S]{0,420}?\)\)\}/) ?? [""])[0];
+  if (/pista:[^\n]*familia/.test(bloque))
     fallas.push("la lista de módulos volvió a traer la familia detrás del número");
+  if (!/pista:[\s\S]{0,80}?b\.calle === ""/.test(bloque))
+    fallas.push("sin calle escogida, el 01 de A y el 01 de B se verían iguales: falta la pista de la calle");
 }
 
 /* Y EL LADO SE ESCOGE ENTRE LOS QUE EXISTEN, no entre los tres siempre.

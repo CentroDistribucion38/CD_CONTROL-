@@ -435,7 +435,12 @@ export function Contar({
     } else if (ent(b.estibas) == null && ent(b.saldo) == null) {
       return "¿Cuántas estibas? Si solo quedan sueltas, anótalas en el saldo.";
     }
-    if (b.rot == null) return "Falta decir si rota.";
+    /* DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA. Rotación, avería,
+       PNC, estado del envase y observación: si no se marca, no pasa
+       nada. Aquí estaba «Falta decir si rota» y frenaba el renglón por
+       una pregunta que ahora se contesta sola — no marcarla ES decir
+       que no. Un aviso que para el renglón por algo que no cambia la
+       cifra es un aviso que la gente aprende a esquivar. */
     if (!esEnvase && (ent(b.dia) == null || ent(b.mes) == null || b.anio.trim() === ""))
       return "Falta la fecha de vencimiento.";
 
@@ -467,7 +472,12 @@ export function Contar({
   const argumentos = () => ({
     p_sku: material!.sku,
     p_ubicacion: ubicacion!.id,
-    p_rotacion: b.rot,
+    /* NO MARCAR ES DECIR QUE NO, y eso se decide AQUÍ y se manda
+       resuelto. La base sigue rechazando el nulo —«Falta decir si
+       rota»— y así queda como red de seguridad: si algún día otra
+       pantalla deja de contestarlo, se entera en vez de guardar una
+       columna en blanco que nadie sabe leer. */
+    p_rotacion: b.rot === true,
     /* LAS ESTIBAS Y EL SALDO VIAJAN JUNTOS; las cajas, solas. Son las
        dos formas de contar un módulo, y mezclarlas dejaría el renglón
        sin decir cómo se contó — eso lo rechaza también la base. */
@@ -703,6 +713,11 @@ export function Contar({
               <Buscador
                 valor={b.calle}
                 marcador="Todas"
+                /* SIN TECLADO. Son doce calles de una letra: la lista
+                   entera cabe en la pantalla y escribir no ahorra ni un
+                   toque. El teclado del celular, en cambio, tapa media
+                   pantalla y deja la lista debajo. */
+                teclado="ninguno"
                 opciones={[{ valor: "", texto: "Todas" },
                            ...calles.map((c) => ({ valor: c, texto: c }))]}
                 onEscoge={(nueva) => {
@@ -720,19 +735,31 @@ export function Contar({
                 valor={b.base}
                 marcador="Escribe o escoge…"
                 sinOpciones="Esa calle no tiene módulos activos."
-                /* SOLO EL MÓDULO. Salía «A01_DER · RB F1000»: el lado pegado
-                   al nombre —que hacía escogerlo dos veces— y la familia
-                   detrás. Los dos se fueron.
+                /* TECLADO NUMÉRICO, Y POR ESO EL NÚMERO VA SOLO.
 
-                   LA FAMILIA NO ES LO QUE SE BUSCA AQUÍ. Quien está parado
-                   frente a un módulo sabe en cuál está y lo que quiere es
-                   llegar a «A01» en dos teclas; «RB F1000» repetido en
-                   doscientas filas solo alarga el renglón y obliga a leer
-                   de más para encontrar el número. La familia sigue
-                   estando en el maestro, que es donde se consulta. */
+                   Salía «A01_DER · RB F1000»: el lado pegado al nombre
+                   —que hacía escogerlo dos veces— y la familia detrás.
+                   Los dos se fueron, y ahora también la letra de la
+                   calle: quien está parado frente al módulo ya escogió
+                   la calle arriba, así que repetirla dentro del número
+                   obliga a un teclado de letras para llegar a «A01».
+                   Escribiendo «01» sirve el numérico, que tiene las
+                   teclas al doble de tamaño y se acierta con guante.
+
+                   LA CALLE NO SE PIERDE: cuando no hay ninguna escogida
+                   —la lista trae las 428— va como pista al lado, que es
+                   lo único que distingue el 01 de A del 01 de B. Con
+                   calle escogida no hay nada que distinguir y no se
+                   pinta: sobra.
+
+                   LA FAMILIA TAMPOCO ESTÁ. «RB F1000» repetido en
+                   doscientas filas solo alarga el renglón; sigue en el
+                   maestro, que es donde se consulta. */
+                teclado="numerico"
                 opciones={modulos.map((m) => ({
                   valor: m.base,
-                  texto: `${m.calle}${m.modulo}`,
+                  texto: m.modulo,
+                  pista: b.calle === "" ? `Calle ${m.calle}` : null,
                 }))}
                 onEscoge={(base) => {
                   const u = ubicaciones.find((x) => x.activa && claveBase(x) === base);
@@ -930,6 +957,17 @@ export function Contar({
             </div>
           )}
 
+          {/* EL ESTADO DEL ENVASE VA AQUÍ, debajo de las cantidades y no
+              al final con lo raro. Es lo que dice QUÉ se contó —envase
+              bueno, sucio, roto— y separa la estiba dentro del mismo
+              módulo igual que la avería; puesto al final, quien anotaba
+              ya había dado el renglón por terminado en el total. */}
+          <label className="fe-estado"><span>Estado del envase</span>
+            <select value={b.estado} onChange={(e) => pon("estado", e.target.value)}>
+              <option value="">—</option>
+              {estados.map((e) => <option key={e} value={e}>{e}</option>)}
+            </select></label>
+
           {/* EL TOTAL, ARMADO A LA VISTA. Se enseña la cuenta entera
               —12 × 45 + 8— y no solo el 548: el resultado solo hay que
               creérselo, la cuenta se mira contra la estiba. */}
@@ -957,32 +995,38 @@ export function Contar({
         <div className="fe-bloque">
           <p className="fe-bloque-cab">Cómo está</p>
 
+          {/* UN SOLO BOTÓN, Y NO «SÍ / NO».
+
+              No marcarlo ES decir que no, así que el «No» solo servía
+              para obligar a contestar dos veces la misma cosa: una para
+              decir que no y otra para que el formulario dejara anotar.
+              Y con eso se fue también el aviso que frenaba el renglón.
+
+              LO QUE SE PIERDE, DICHO: ya no se distingue «contestó que
+              no» de «no contestó». Se acepta porque las dos llevan al
+              mismo sitio —la estiba no rota— y porque lo que estaba
+              costando era el toque de más, 152 veces al día. */}
           <div className="fe-rota">
             <span>¿Rota?</span>
-            <div className="fe-si-no">
-              <button type="button" className={b.rot === true ? "on" : ""}
-                      onClick={() => pon("rot", true)}>Sí</button>
-              <button type="button" className={b.rot === false ? "on" : ""}
-                      onClick={() => pon("rot", false)}>No</button>
+            <div className="fe-si-no una">
+              <button type="button" className={b.rot ? "on" : ""}
+                      aria-pressed={!!b.rot}
+                      onClick={() => pon("rot", !b.rot)}>Sí, rota</button>
             </div>
           </div>
 
-          <div className="fe-tres fe-marcas">
-            <label className="fe-check">
-              <input type="checkbox" checked={b.averia}
-                     onChange={(e) => pon("averia", e.target.checked)} />
-              <span>Avería</span>
-            </label>
-            <label className="fe-check">
-              <input type="checkbox" checked={b.pnc}
-                     onChange={(e) => pon("pnc", e.target.checked)} />
-              <span>PNC</span>
-            </label>
-            <label><span>Estado del envase</span>
-              <select value={b.estado} onChange={(e) => pon("estado", e.target.value)}>
-                <option value="">—</option>
-                {estados.map((e) => <option key={e} value={e}>{e}</option>)}
-              </select></label>
+          {/* AVERÍA Y PNC, DOS CUADROS DEL MISMO TAMAÑO. Eran dos
+              casillas sueltas en una fila con el estado del envase, y en
+              el celular quedaban de un tamaño cada una: la de PNC medía
+              lo que mide la palabra. Ahora son dos cuadros iguales que
+              se tocan sin apuntar, como el lado y el modo de contar. */}
+          <div className="fe-marcas dos">
+            <button type="button" className={"fe-marca" + (b.averia ? " on" : "")}
+                    aria-pressed={b.averia}
+                    onClick={() => pon("averia", !b.averia)}>Avería</button>
+            <button type="button" className={"fe-marca" + (b.pnc ? " on" : "")}
+                    aria-pressed={b.pnc}
+                    onClick={() => pon("pnc", !b.pnc)}>PNC</button>
           </div>
 
           {/* LA OBSERVACIÓN SE GUARDABA Y NO SE PODÍA ESCRIBIR. El

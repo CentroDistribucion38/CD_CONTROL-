@@ -27,7 +27,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 export type Opcion = { valor: string; texto: string; pista?: string | null };
 
 export function Buscador({
-  valor, opciones, onEscoge, marcador, id, sinOpciones,
+  valor, opciones, onEscoge, marcador, id, sinOpciones, teclado = "texto",
 }: {
   valor: string;
   opciones: Opcion[];
@@ -36,6 +36,22 @@ export function Buscador({
   id?: string;
   /** Qué decir cuando la lista viene vacía por completo. */
   sinOpciones?: string;
+  /**
+   * QUÉ TECLADO ABRE EN EL CELULAR. Contando de pie, el teclado del
+   * sistema tapa media pantalla y la lista queda debajo.
+   *
+   *   "ninguno"  no lo abre — la lista es todo lo que hace falta, como
+   *              en una calle, que son doce opciones de una letra.
+   *   "numerico" abre el numérico, que tiene las teclas al doble de
+   *              tamaño. Solo sirve si lo que se escribe son dígitos.
+   *   "texto"    el de siempre.
+   *
+   * Se hace con `inputMode` y NO con `readOnly`: readOnly apagaría
+   * también el teclado de verdad de un PC, y esta pantalla se usa en
+   * las dos. Con `inputMode="none"` el celular no levanta el teclado y
+   * el PC sigue filtrando al escribir.
+   */
+  teclado?: "texto" | "numerico" | "ninguno";
 }) {
   const auto = useId();
   const idLista = `${id ?? auto}-lista`;
@@ -118,6 +134,7 @@ export function Buscador({
         aria-controls={idLista}
         aria-autocomplete="list"
         autoComplete="off"
+        inputMode={teclado === "ninguno" ? "none" : teclado === "numerico" ? "numeric" : "text"}
         placeholder={marcador}
         value={visible}
         onFocus={() => { setAbierto(true); setTexto("") }}

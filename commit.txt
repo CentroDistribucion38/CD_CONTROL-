@@ -1,134 +1,100 @@
-El cruce se parte en dos: Importar solo sube, Control muestra lo que faltó
+Conteo: el teclado que abre cada campo, y «Cómo está» deja de frenar
 
-«Ese cruce no es independiente, o sea solo era crear uno de importar, y
-una vez allí importando se iba guardando lo del día; y en el módulo de
-Control que se evidencie en la parte de abajo. La fecha se ve clarito,
-así que no me puedes decir que no encuentras la fecha.»
-
-Las dos cosas eran ciertas y las dos están arregladas.
+Seis cosas pedidas de pie, contando, que es donde se notan:
 
 =====================================================================
-1 · IMPORTAR SOLO SUBE
+1 · EL TECLADO QUE ABRE CADA CAMPO
 =====================================================================
 
-«El cruce» era una pantalla que subía el archivo Y mostraba el
-resultado. Eso junta dos momentos que no son el mismo: el corte se baja
-de SAP una vez al día, y «¿qué faltó?» se pregunta mirando los números
-del turno. Puestas juntas, la pregunta se quedaba esperando a que
-alguien se acordara de entrar a una pantalla aparte — y lo que nadie
-abre no existe.
+LA CALLE NO LO LEVANTA. Son doce calles de una letra: la lista entera
+cabe en la pantalla y escribir no ahorra un solo toque. El teclado, en
+cambio, tapa media pantalla y deja la lista debajo.
 
-Ahora IMPORTAR solo sube el archivo, y dice mientras tanto todo lo que
-el que sube necesita saber: qué hoja leyó, en qué fila encontró el
-encabezado, qué columnas reconoció y con qué título, cuántos
-movimientos válidos, cuántas filas descartó Y POR QUÉ CADA UNA —con el
-número de fila del Excel—, y si el botón está apagado, por qué lo está
-y qué hay que revisar.
+EL MÓDULO ABRE EL NUMÉRICO, y por eso la opción perdió la letra: salía
+«A01» y ahora sale «01». Un campo que se teclea con teclado numérico no
+puede pedir una letra para llegar a su primera opción. Las teclas del
+numérico son del doble de tamaño y se aciertan con guante.
 
-LA DIRECCIÓN SIGUE SIENDO /traspasos/cruce. Solo cambió el nombre
-visible. Los permisos de cada persona están guardados en la base como
-el TEXTO de la ruta —en rol_permisos y en los permisos extra de cada
-perfil—, así que renombrarla habría dejado esas filas apuntando a algo
-que no existe y la gente habría perdido la pantalla EN SILENCIO: sin
-error, simplemente deja de verse. Hay una mutación en el arnés que lo
-vigila.
+LA CALLE NO SE PIERDE: cuando no hay ninguna escogida —la lista trae las
+428— va como pista al lado, que es lo único que distingue el 01 de A del
+01 de B. Con calle escogida no hay nada que distinguir y no se pinta.
+
+Se hace con `inputMode` y NO con `readOnly`: readOnly apagaría también
+el teclado de verdad de un PC, y esta pantalla se usa en los dos.
 
 =====================================================================
-2 · LAS DIFERENCIAS, AL PIE DE CONTROL
+2 · EL ESTADO DEL ENVASE SUBE AL BLOQUE «CUÁNTO»
 =====================================================================
 
-Bajan enteras: los tres montones, no solo los que faltan.
-
-  FALTAN   SAP los tiene y nadie los registró → hay que ir a registrar.
-  SOBRAN   registrados y SAP no los tiene → casi siempre un dedazo; el
-           que aparece como que falta suele ser el mismo número.
-  CUADRAN  nada que hacer, salvo los del día cambiado, que descuadran
-           el cumplido de los dos días a la vez.
-
-Van DEL DÍA QUE SE ESTÁ MIRANDO, el mismo de la barra de fechas de
-arriba: mirar ayer trae las diferencias de ayer sin tocar nada más. Y
-van ABAJO y no arriba, porque el tablero contesta primero «¿vamos al
-día con el plan?».
-
-SIN CORTE NO SE AFIRMA NADA. Si el corte importado no cubre ese día, se
-dice qué rango cubre y se ofrece importar. Un «0 faltaron» sin haber
-comparado contra nada es peor que no decir nada: se lee como que todo
-cuadra.
+Va debajo de las estibas y el saldo. Dice QUÉ se contó —envase bueno,
+sucio, roto— y separa la estiba dentro del mismo módulo igual que la
+avería; al final, junto con lo raro, quien anotaba ya había dado el
+renglón por terminado en el total.
 
 =====================================================================
-3 · «LA FECHA SE VE CLARITO»
+3 · «¿ROTA?» ES UN SOLO BOTÓN
 =====================================================================
 
-Tenía razón. El lector tomaba LA PRIMERA FILA como encabezado, y el
-corte de SAP trae encima el título del reporte y la línea del centro y
-el almacén. El encabezado de verdad —el que dice «Fecha de entrada»—
-quedaba como si fuera un dato, y la pantalla pedía una columna que
-cualquiera estaba viendo.
+No marcarlo ES decir que no. El «No» solo servía para contestar dos
+veces la misma cosa: una para decir que no y otra para que el formulario
+dejara anotar.
 
-Ahora se miran las primeras quince filas y gana LA QUE MÁS COLUMNAS
-CONOCIDAS TENGA. No hace falta saber cuántas filas de adorno trae el
-layout de turno: la fila del encabezado es, por definición, la que se
-parece a un encabezado. Y cuando de verdad falta una columna, se dice
-CUÁL y se muestra el encabezado que sí se encontró, en vez de «faltan
-columnas» a secas.
+LO QUE SE PIERDE, DICHO: ya no se distingue «contestó que no» de «no
+contestó». Se acepta porque las dos llevan al mismo sitio y porque lo
+que costaba era el toque de más, 152 veces al día.
 
-De paso, tres cosas más que estaban mal y no se veían:
-
-  · LA CANTIDAD se limpiaba a manotazos —quitar lo que no fuera dígito
-    y cambiar la coma por punto—. Con «1.234,50» eso daba «1.234.50»,
-    que no es un número. Y SAP escribe el menos DETRÁS: «36-». Leído al
-    derecho, una anulación entraba como salida y el documento no daba
-    cero, así que aparecía como que faltaba para siempre.
-
-  · EL NÚMERO DE FILA que se muestra ahora es el del Excel. Antes las
-    filas en blanco se saltaban al leer, así que «fila 8» señalaba la
-    11 y quien iba a mirarla encontraba otra cosa.
-
-  · LA FILA EN BLANCO ya no cuenta como descarte. Sumarlas llenaba el
-    «se descartaron 23» de filas que nadie escribió.
-
-La regla de agrupar —sumar por referencia y contar el que no dé cero—
-SIGUE VIVIENDO EN LA BASE y no en la pantalla. Escrita dos veces, da
-dos respuestas y nadie sabe cuál creer. Hay una prueba que vigila que
-no se cuele aquí.
+La pantalla manda la rotación RESUELTA —`b.rot === true`— y la base
+sigue rechazando el nulo. Así el guardián de la base queda como red: si
+algún día otra pantalla deja de contestarlo, se entera en vez de guardar
+una columna en blanco que nadie sabe leer.
 
 =====================================================================
-4 · CÓMO SE COMPROBÓ
+4 · DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA
 =====================================================================
 
-  .arnes/tp-importar.mjs        el lector, contra Excel de verdad
-                                construidos con el mismo xlsx que usa
-                                la pantalla y leídos con sus mismas
-                                opciones —sacadas del código, no
-                                copiadas—.
-  .arnes/tp-importar-mide.mjs   lo que se ve: 7 temas × 5 anchos, sin
-                                desplazamiento lateral, todo el texto
-                                por encima de 4,5 y el botón de dedo.
-  .arnes/mutar-tp-importar.mjs  15 mutaciones: se le vuelve a meter
-                                CADA error que los arneses dicen cazar
-                                y se exige que se pongan rojos.
-
-Las 15 se cazaron, cada una por su propia prueba. Tres afirmaciones no
-se sostenían en el primer intento y hubo que hacerlas de verdad; y el
-arnés de contraste tenía un error propio —leía «color(srgb 0.98 …)»
-como si fuera 0-255— que acusaba de ilegible algo que estaba bien.
-
-De eso sí salieron dos arreglos reales: el botón apagado daba 3,9 —se
-veía apagado, sí, pero también ilegible, y lo que dice es justo lo que
-uno busca cuando no pasa nada al tocarlo— y el gris de leer se quedaba
-en 4,1-4,4 en el tema ámbar.
+Rotación, avería, PNC, estado del envase y observación: si no se marca,
+no pasa nada. Se fue el «Falta decir si rota», que frenaba el renglón
+por algo que no cambia ninguna cifra — y un aviso así es un aviso que la
+gente aprende a esquivar.
 
 =====================================================================
-FALTA CORRER EN SUPABASE, EN ESTE ORDEN
+5 · AVERÍA Y PNC, DOS CUADROS DEL MISMO TAMAÑO
 =====================================================================
 
-  2026-09-inventario-base.sql
-  2026-09-traspasos-documento-diez.sql
-  2026-09-traspasos-dia-cerrado.sql
-  2026-09-traspasos-cruce-sap.sql        ← vuelve a correrse: trae la
-                                           vista de importaciones
-  2026-09-traspasos-cruce-permiso.sql
-  2026-09-traspasos-varios-tipos.sql
+Eran casillas de verificación y lo que se podía tocar era la palabra:
+«PNC» daba tres letras. Ahora son dos cuadros de media fila cada uno,
+la misma pieza que el lado y el modo de contar, así que se aprenden una
+sola vez.
+
+=====================================================================
+6 · LO QUE APARECIÓ AL MEDIRLO
+=====================================================================
+
+El arnés encontró tres cosas mías, todas en lo que acababa de escribir:
+
+  · EL CUADRO MARCADO USABA EL ACENTO DE LETRA sobre papel: 1,6 en
+    ámbar, negro, gris y halo; 1,9 en tinta; 3,1 en pizarra. Ilegible en
+    seis de los siete temas. El acento está hecho para ser FONDO y la
+    app lo empareja con su tinta —--fe-sobre—; es el mismo error que
+    este proyecto ya pagó con --c-oro.
+
+  · EL DESPLEGABLE DEL ESTADO se trajo de su fila anterior un alto de
+    44 px. El mínimo de esta pantalla es 48: se usa de pie y con
+    guantes.
+
+  · LA COMPROBACIÓN DEL TECLADO NO COMPROBABA NADA. Buscaba el campo
+    pidiendo su etiqueta de cierre, y el Buscador cierra cuatrocientas
+    líneas más abajo: no encontraba nada y aprobaba cualquier cosa.
+
+Y el propio arnés medía una pantalla que ya no existe —el botón «No» de
+¿Rota?, la fila de tres con las casillas—, así que se actualizó su
+armazón y se le añadió lo que se pidió hoy: que Avería y PNC midan LO
+MISMO, medido rectángulo contra rectángulo y no «parecido».
+
+  .arnes/inv-conteo.mjs        7 temas × 4 anchos
+  .arnes/mutar-inv-conteo.mjs  37 mutaciones — las 9 nuevas incluidas
+
+Las 37 se ponen rojas.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

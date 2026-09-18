@@ -210,10 +210,51 @@ probar("la observación se puede escribir",
   [[TSX, "<input value={b.nota} placeholder", "<input placeholder"]],
   "no hay dónde escribirla");
 
+/* ---------- LO QUE SE PIDIÓ HOY ---------- */
+probar("la calle no levanta el teclado del celular",
+  [[TSX, '                teclado="ninguno"', '                teclado="texto"']],
+  "vuelve a levantar el teclado");
+
+probar("el módulo abre el teclado numérico",
+  [[TSX, 'teclado="numerico"', 'teclado="texto"']],
+  "ya no abre el teclado numérico");
+
+probar("el módulo va sin la letra de la calle (o el numérico no podría teclearlo)",
+  [[TSX, "texto: m.modulo,", "texto: `${m.calle}${m.modulo}`,"]],
+  "volvió a llevar la letra de la calle");
+
+probar("sin calle escogida, la calle va como pista para distinguir el 01 de A del de B",
+  [[TSX, 'pista: b.calle === "" ? `Calle ${m.calle}` : null,', "pista: null,"]],
+  "se verían iguales");
+
+probar("no se frena el renglón por la rotación",
+  [[TSX, "    /* DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA.",
+          '    if (b.rot == null) return "Falta decir si rota.";\n    /* DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA.']],
+  "volvió a frenar el renglón por la rotación");
+
+probar("la rotación se manda resuelta y no nula",
+  [[TSX, "p_rotacion: b.rot === true,", "p_rotacion: b.rot,"]],
+  "se manda sin resolver");
+
+probar("Avería y PNC miden lo mismo",
+  [[CSS, ".fe .fe-marcas {\n  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));",
+         ".fe .fe-marcas {\n  display: grid; grid-template-columns: 2fr 1fr;"]],
+  "se pidieron del mismo tamaño");
+
+probar("el cuadro marcado se rellena con el acento y no lo usa de letra",
+  [[CSS, ".fe .fe-marca.on {\n  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);",
+         ".fe .fe-marca.on {\n  background: var(--fe-papel); border-color: var(--fe-acento); color: var(--fe-acento);"]],
+  "«siOn» contrasta");
+
+probar("el estado del envase va debajo de las cantidades",
+  [[TSX, '          <label className="fe-estado"><span>Estado del envase</span>',
+          '          <label className="fe-estado zzz"><span>Estado del envase X</span>']],
+  "Estado del envase");
+
 restaurar();
 console.log("");
 if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 28 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 37 se pusieron rojas. El arnés caza lo que dice cazar.");

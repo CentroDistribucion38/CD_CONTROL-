@@ -439,9 +439,13 @@ export async function cruceDelDia(fecha: string) {
     supabase.from("v_traspasos_cruce").select("*")
       .or(`sap_fecha.eq.${fecha},sis_fecha.eq.${fecha}`)
       .order("sap_hora").limit(TOPE_DIA),
-    supabase.from("traspasos_sap").select("fecha")
+    /* DE LOS MOVIMIENTOS, que es donde vive el corte desde que se guarda
+       fila por fila. La tabla agrupada de antes quedó jubilada como
+       `traspasos_sap_viejo` y ya no se actualiza: leerla daría un rango
+       congelado en el día de la migración, sin dar error. */
+    supabase.from("traspasos_sap_mov").select("fecha")
       .order("fecha", { ascending: true }).limit(1),
-    supabase.from("traspasos_sap").select("fecha")
+    supabase.from("traspasos_sap_mov").select("fecha")
       .order("fecha", { ascending: false }).limit(1),
   ]);
 
@@ -483,6 +487,7 @@ export async function cruceDelDia(fecha: string) {
 export type Importacion = {
   cuando: string;
   documentos: number;
+  movimientos: number;
   anulados: number;
   desde: string | null;
   hasta: string | null;

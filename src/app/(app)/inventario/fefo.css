@@ -426,6 +426,11 @@
   color: var(--fe-gris); flex: none;
 }
 .fe .fe-si-no { display: flex; gap: 8px; flex: 1 }
+/* UN SOLO BOTÓN, Y OCUPA LO QUE OCUPABAN LOS DOS. Encogerlo a la mitad
+   lo convertiría en el control más pequeño del formulario justo cuando
+   dejó de ser obligatorio: lo que cambia es que ya no hay que
+   contestar, no que haya que apuntar mejor. */
+.fe .fe-si-no.una button { flex: 1 }
 .fe .fe-si-no button {
   flex: 1; min-height: 48px; cursor: pointer; border-radius: 2px;
   border: 1.5px solid var(--fe-linea); background: var(--fe-fondo);
@@ -450,19 +455,54 @@
 }
 .fe .fe-dma input:focus { outline: none; border-color: var(--fe-acento) }
 
-/* Lo raro va abajo y sin abultar: avería salió en 2 filas de 152 y PNC
-   en 1. Darles el peso del código sería cobrarle a los 150 renglones
-   normales el costo de los dos raros. */
+/* AVERÍA Y PNC: DOS CUADROS DEL MISMO TAMAÑO.
+   Eran dos casillas de verificación sueltas en una fila, y el área que
+   se podía tocar era la de la palabra: «PNC» daba tres letras. De pie y
+   con guante eso es apuntar. Dos cuadros de media fila cada uno se
+   tocan sin mirar, igual que el lado y el modo de contar — y son la
+   misma pieza visual, así que se aprenden una sola vez. */
 .fe .fe-marcas {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--fe-linea);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px; margin: 14px 0; padding-top: 12px;
+  border-top: 1px solid var(--fe-linea);
 }
-.fe .fe-estado { flex: 1 1 180px; min-width: 0 }
+.fe .fe-marca {
+  min-height: 48px; padding: 0 12px; cursor: pointer;
+  font: 700 14px var(--fe-texto); color: var(--fe-tinta);
+  background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
+}
+/* MARCADO SE RELLENA, igual que el lado y el modo de contar: el acento
+   de fondo con SU TINTA PAREJA —--fe-sobre—, que es la que el tema
+   garantiza encima del acento.
+
+   Lo tenía al revés —acento en la letra sobre papel— y el arnés lo
+   midió: 1,6 en ámbar, negro, gris y halo, 1,9 en tinta, 3,1 en
+   pizarra. Ilegible en seis de los siete temas. El acento está hecho
+   para ser FONDO, no letra, y por eso la app lo empareja con su tinta.
+   Es el mismo error que este proyecto ya pagó con --c-oro. */
+.fe .fe-marca.on {
+  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);
+}
+.fe .fe-marca:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 2px }
+
+/* EL ESTADO DEL ENVASE SE MUDÓ AL BLOQUE «CUÁNTO», debajo de las
+   cantidades: ahí va a lo ancho, que es donde se lee un desplegable con
+   nombres largos. */
+.fe .fe-estado { display: flex; flex-direction: column; gap: 5px; margin-top: 12px }
+.fe .fe-estado > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fe-gris);
+}
+/* 48 Y NO 44. Es el mínimo de ESTA pantalla —se usa de pie y a veces
+   con guantes— y al mudarse el campo desde la fila de marcas se trajo
+   el 44 que tenía allí de campo secundario. Ahora es un campo del
+   bloque «Cuánto» y se toca como los demás. */
 .fe .fe-estado select {
-  width: 100%; min-height: 44px; padding: 0 10px;
+  width: 100%; min-height: 48px; padding: 0 10px;
   font: 500 14px var(--fe-texto); color: var(--fe-tinta);
   background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
 }
+.fe .fe-estado select:focus { outline: none; border-color: var(--fe-acento) }
 
 .fe .btn.grande { width: 100%; min-height: 52px; font-size: 15px }
 
@@ -623,8 +663,6 @@
    primera pregunta de «cómo está» y ahora ocupa su renglón: la pregunta
    a la izquierda y los dos botones grandes a la derecha. */
 .fe .fe-anotar .fe-rota { margin: 0 0 12px }
-.fe .fe-tres.fe-marcas { align-items: center }
-.fe .fe-tres.fe-marcas .fe-check { min-height: 48px }
 
 /* Lo que va a quedar escrito en la ubicación combinada, armado a la
    vista. Es la columna con la que se agrupa el informe: una estiba
@@ -679,8 +717,6 @@
   .fe .fe-lado { padding: 0 10px; font-size: 13px }
   .fe .fe-lado-campo { margin-top: 9px }
   /* Avería · PNC · Estado */
-  .fe .fe-tres.fe-marcas { grid-template-columns: auto auto minmax(0, 1fr); padding-top: 10px }
-  .fe .fe-tres.fe-marcas .fe-check { min-height: 44px; font-size: 12px }
   .fe .fe-tres .fe-si-no { gap: 6px }
   .fe .fe-tres .fe-si-no button { min-width: 44px; padding: 0 8px }
 }
