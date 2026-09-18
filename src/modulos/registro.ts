@@ -345,6 +345,13 @@ export const MODULOS: Modulo[] = [
       { nombre: "Plan", ruta: "/traspasos/plan" },
       { nombre: "Registrar", ruta: "/traspasos" },
       { nombre: "Control", ruta: "/traspasos/control" },
+      /* EL CRUCE VA DESPUÉS DE CONTROL Y ANTES DEL MAESTRO, porque ese
+         es el orden del proceso: se planea, se registra lo que sale, se
+         mira si se cumplió el plan, y al final del día se comprueba
+         contra SAP que lo registrado es lo que de verdad salió. El
+         maestro no es un paso del día: es lo que se mantiene de vez en
+         cuando, y por eso cierra la lista. */
+      { nombre: "El cruce", ruta: "/traspasos/cruce" },
       { nombre: "Maestro", ruta: "/traspasos/maestro" },
     ],
   },
@@ -408,8 +415,14 @@ export const MODULOS: Modulo[] = [
     ruta: "/inventario",
     activo: true,
     secciones: [
-      /* TRES PANTALLAS Y EL ORDEN ES EL DEL PROCESO: se mantiene el
-         maestro, se camina la bodega, se valida lo contado.
+      /* CUATRO PANTALLAS Y EL ORDEN ES EL DEL PROCESO: se mantiene el
+         maestro, se camina la bodega, queda el registro de lo contado, y
+         sobre ese registro se decide qué sale primero.
+
+         LA BASE VA ANTES QUE EL TABLERO porque el tablero SALE de ella:
+         es la misma lectura, una entera y la otra recortada a una sola
+         pregunta. Puesta después, la pantalla que decide iría antes que
+         los datos con los que decide.
 
          Aquí había siete. Las otras cuatro —Resumen, Productos, Bodegas,
          Movimientos, Conteos físicos— eran la plantilla de demostración
@@ -420,6 +433,7 @@ export const MODULOS: Modulo[] = [
          personas se pisan el dato sin enterarse. */
       { nombre: "Maestro", ruta: "/inventario/maestro" },
       { nombre: "Contar", ruta: "/inventario/conteo" },
+      { nombre: "La base", ruta: "/inventario/base" },
       { nombre: "Tablero", ruta: "/inventario" },
     ],
   },

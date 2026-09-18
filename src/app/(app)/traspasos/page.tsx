@@ -3,7 +3,7 @@ import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
   tipos as leerTipos, puntos as leerPuntos, viajesDelDia, control,
-  placasRecientes, rutasFrecuentes, hoyLocal, placasMaestro,
+  placasRecientes, rutasFrecuentes, hoyLocal, placasMaestro, diaAbierto,
 } from "@/modulos/traspasos/datos";
 import { turnoDeAhora, TURNOS, conDia } from "@/modulos/traspasos/formato";
 import "./traspasos.css";
@@ -35,11 +35,24 @@ export default async function TraspasosPage({ searchParams }: {
 
   /* Las siete consultas en una sola tanda: en serie la pantalla
      tardaría lo que suman y aquí ninguna depende de otra. */
-  const [permisos, t, pts, dia, ctl, placas, rutas, nombres, pl] = await Promise.all([
+  const [permisos, t, pts, dia, ctl, placas, rutas, nombres, pl, abierto] = await Promise.all([
     misPermisos(), leerTipos(), leerPuntos(), viajesDelDia(fecha),
     control(fecha), placasRecientes(), rutasFrecuentes(), nombresTodos(),
-    placasMaestro(),
+    placasMaestro(), diaAbierto(fecha),
   ]);
+
+  /* EL DÍA CERRADO ES UN ESTADO DE LA PANTALLA, no del calendario.
+
+     `abierto` viene de la BASE —`traspaso_dia_abierto`— y es la misma
+     cuenta que usa el candado. No se calcula aquí a propósito: dos
+     versiones de «hasta cuándo se puede tocar» se separan a la primera
+     corrección, y el día que se separen el botón se verá habilitado y
+     el guardado reventará.
+
+     Y QUIEN ADMINISTRA NUNCA TIENE EL DÍA CERRADO. El candado de la
+     base ya lo deja pasar; si la pantalla se lo escondiera igual,
+     tendría el permiso y no la puerta. */
+  const cerrado = !esFuturo && !abierto && permisos.rol !== "admin";
 
   if (t.falta || dia.falta) return <div className="tp"><SinTablas /></div>;
 
@@ -133,7 +146,30 @@ export default async function TraspasosPage({ searchParams }: {
         </div>
       </section>
 
-      {permisos.puedeEditar("/traspasos") && !esFuturo ? (
+      {/* EL DÍA CERRADO SE DICE ANTES, no al tocar el botón.
+
+          El candado vive en la base y rechaza venga de donde venga —eso
+          no cambia—. Pero un rechazo que llega DESPUÉS de llenar ocho
+          campos y tocar «Registrar» se lee como un fallo de la
+          aplicación, no como una regla: la primera reacción es volver a
+          intentarlo, y la segunda es llamar a preguntar qué se rompió.
+          Aquí se dice de entrada, con la salida escrita al lado. */}
+      {cerrado && (
+        <section className="caja aviso-cerrado">
+          <h2>El {conDia(fecha)} ya está cerrado</h2>
+          <p>
+            Los viajes de días anteriores no se registran, ni se anulan, ni se corrigen: se
+            quedan como quedaron. Dentro del día sí — se anula y se vuelve a registrar las
+            veces que haga falta.
+          </p>
+          <p>
+            Si de verdad falta un viaje de ese día, o hay uno que no debió quedar, lo mueve un{" "}
+            <b>administrador</b>. Dale a <b>HOY</b> para volver.
+          </p>
+        </section>
+      )}
+
+      {permisos.puedeEditar("/traspasos") && !esFuturo && !cerrado ? (
         <Registrar tipos={t.tipos} puntos={pts} placas={placas} rutas={rutas}
                    placasM={pl.placas}
                    fecha={fecha} turnoSugerido={turno}
@@ -144,13 +180,23 @@ export default async function TraspasosPage({ searchParams }: {
         <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar={false} esHoy={esHoy} />
       )}
 
-      {permisos.puedeEditar("/traspasos") && !esFuturo && (
+      {permisos.puedeEditar("/traspasos") && !esFuturo && !cerrado && (
         /* CORREGIR ES SOLO DEL ADMINISTRADOR. Aquí solo se decide si se
            pinta el botón; el candado de verdad está en la base, que
            rechaza la corrección venga de donde venga. Esconder un botón
            no es un permiso. */
         <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar esHoy={esHoy}
                 esAdmin={permisos.rol === "admin"}
+                tipos={t.tipos} puntos={pts} placas={pl.placas} />
+      )}
+
+      {/* CON EL DÍA CERRADO, EL ADMINISTRADOR SIGUE PUDIENDO. No es una
+          excepción escondida: es la única forma de arreglar un error de
+          la semana pasada, y por eso se ve la lista con sus botones. */}
+      {permisos.puedeEditar("/traspasos") && !esFuturo && cerrado
+        && permisos.rol === "admin" && (
+        <Viajes viajes={dia.viajes} nombres={nombres} puedeEditar esHoy={esHoy}
+                esAdmin
                 tipos={t.tipos} puntos={pts} placas={pl.placas} />
       )}
     </div>

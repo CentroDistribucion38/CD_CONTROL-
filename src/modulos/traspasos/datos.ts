@@ -366,3 +366,95 @@ export async function promedioDelDia(fecha: string) {
     .select("turno, tipo, promedio, dias").eq("dia_semana", iso);
   return (data ?? []) as { turno: string; tipo: string; promedio: number; dias: number }[];
 }
+
+/* =====================================================================
+   ¿ESTÁ ABIERTO EL DÍA DE ESA FECHA?
+
+   LA CUENTA NO SE HACE AQUÍ: se le pregunta a la base. Es la misma
+   función que usa el candado —`traspaso_dia_abierto`— y ese es todo el
+   punto: si la pantalla tuviera su propia versión de «hasta cuándo se
+   puede tocar», bastaría con que una de las dos se corrija y la otra no
+   para que el botón se vea habilitado y el guardado reviente. Un
+   rechazo que llega DESPUÉS de tocar el botón se lee como un fallo de
+   la aplicación, no como una regla.
+
+   SI LA FUNCIÓN TODAVÍA NO ESTÁ —falta correr la migración— se contesta
+   ABIERTO. Es a propósito: una pantalla que se cierra sola porque le
+   falta un archivo de SQL deja a la bodega sin poder registrar y sin
+   ninguna pista de por qué. Abierto es como funcionaba ayer, y el
+   candado de la base sigue siendo el que manda el día que exista.
+   ===================================================================== */
+export async function diaAbierto(fecha: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("traspaso_dia_abierto", { p_fecha: fecha });
+  if (error) return true;
+  return data !== false;
+}
+
+/* =====================================================================
+   EL CRUCE CONTRA SAP
+   ===================================================================== */
+export type LineaCruce = {
+  documento: string;
+  estado: "falta" | "sobra" | "cuadra";
+  sap_fecha: string | null;
+  sap_hora: string | null;
+  sap_neto: number | null;
+  sap_movimientos: number | null;
+  sap_descripcion: string | null;
+  viaje_id: string | null;
+  viaje: string | null;
+  sis_fecha: string | null;
+  sis_turno: string | null;
+  sis_placa: string | null;
+  registrado_por: string | null;
+  dia_distinto: boolean;
+};
+
+/* EL TOPE VA ESCRITO. PostgREST contesta 1.000 filas por defecto y NO
+   AVISA: un corte de una semana entera pasa de mil documentos sin
+   despeinarse, y la lista llegaría corta sin que nada lo diga. */
+const TOPE_CRUCE = 20000;
+
+export async function cruceSap() {
+  const supabase = await createClient();
+  const [c, r] = await Promise.all([
+    supabase.from("v_traspasos_cruce").select("*").limit(TOPE_CRUCE),
+    supabase.from("traspasos_sap").select("fecha, importado_en, importado_por")
+      .order("importado_en", { ascending: false }).limit(TOPE_CRUCE),
+  ]);
+  if (c.error) {
+    return {
+      falta: /does not exist|schema cache/i.test(c.error.message),
+      lineas: [] as LineaCruce[], resumen: null, tope: false,
+    };
+  }
+  const filas = (r.data ?? []) as { fecha: string; importado_en: string; importado_por: string | null }[];
+  const fechas = filas.map((x) => x.fecha).sort();
+  return {
+    falta: false,
+    lineas: (c.data ?? []) as LineaCruce[],
+    tope: (c.data ?? []).length === TOPE_CRUCE,
+    resumen: filas.length === 0 ? null : {
+      documentos: filas.length,
+      desde: fechas[0] ?? null,
+      hasta: fechas[fechas.length - 1] ?? null,
+      importado_en: filas[0]?.importado_en ?? null,
+      quien: null as string | null,
+    },
+  };
+}
+
+/* LOS QUE FALTARON, PARA EL PIE DEL TABLERO.
+   El tablero no necesita el cruce entero: necesita la lista corta de lo
+   que hay que ir a buscar, y del día que se está mirando. Traer las mil
+   líneas para pintar ocho sería pagarlo en cada carga del tablero. */
+export async function faltantesDelDia(fecha: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("v_traspasos_cruce")
+    .select("*").eq("estado", "falta").eq("sap_fecha", fecha)
+    .order("sap_hora").limit(500);
+  if (error) return { falta: /does not exist|schema cache/i.test(error.message),
+                      lineas: [] as LineaCruce[] };
+  return { falta: false, lineas: (data ?? []) as LineaCruce[] };
+}

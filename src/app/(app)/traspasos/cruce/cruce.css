@@ -1,0 +1,110 @@
+/* ---------------------------------------------------------------------
+   EL CRUCE CONTRA SAP
+
+   Se mira SENTADO, con el Excel al lado, no de pie junto a un camión:
+   aquí no se miden 48 px. Lo que se mide es si doscientos documentos se
+   pueden recorrer sin perder el renglón.
+
+   Todo cuelga de .tp y de .cr- para no pisar nada. `.tabla` habría sido
+   el nombre corto, y este proyecto ya perdió una barra de herramientas
+   por reusar un nombre que existía cuatrocientas líneas más arriba.
+   --------------------------------------------------------------------- */
+.tp .cr-subir { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px }
+.tp .cr-subir input[type="file"] {
+  font: 500 13px var(--tp-texto); color: var(--tp-tinta);
+  padding: 10px; border: 1.5px dashed var(--tp-linea); border-radius: 3px;
+  background: var(--tp-fondo); max-width: 100%;
+}
+.tp .cr-nota { font-size: 12px; color: var(--tp-gris); line-height: 1.45 }
+
+/* LO QUE SE LEYÓ, ANTES DE GUARDARLO. Un archivo importado a ciegas que
+   sale mal obliga a deshacerlo; leído primero, el que lo sube ve que se
+   equivocó de hoja sin haber tocado nada. */
+.tp .cr-leido {
+  margin-top: 12px; padding: 12px 14px; border-radius: 3px;
+  background: var(--tp-fondo); border: 1px solid var(--tp-linea);
+}
+.tp .cr-leido p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; color: var(--tp-tinta) }
+.tp .cr-leido .cr-nota { display: block; margin-bottom: 10px }
+
+.tp .cr-tope {
+  margin: 0; padding: 10px 13px; border-radius: 2px;
+  background: #FDECEE; color: #8A1020; font-size: 12.5px; line-height: 1.5;
+  box-shadow: inset 4px 0 0 var(--tp-mal);
+}
+
+/* ---------------------------------------------------------------------
+   TRES MONTONES Y NO UNA ESCALA
+
+   Faltan · sobran · cuadran. Cada uno tiene una acción distinta —ir a
+   buscarlo, revisar el número tecleado, nada— y por eso son tres
+   botones y no tres cifras sueltas: se toca el montón que se va a
+   trabajar.
+   --------------------------------------------------------------------- */
+.tp .cr-marcador {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+  margin-top: 12px; background: var(--tp-linea);
+  border: 1px solid var(--tp-linea); border-radius: 3px; overflow: hidden;
+}
+.tp .cr-grupo {
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+  padding: 14px 16px; min-height: 96px; cursor: pointer; text-align: left;
+  background: var(--tp-papel); border: none; min-width: 0;
+}
+.tp .cr-grupo .n {
+  font: 900 30px/1 var(--tp-titulo); letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums; color: var(--tp-tinta);
+}
+.tp .cr-grupo .q {
+  font: 700 10.5px var(--tp-texto); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--tp-gris);
+}
+.tp .cr-grupo .p { font-size: 11.5px; line-height: 1.4; color: var(--tp-gris); overflow-wrap: anywhere }
+/* LA RAYA Y EL COLOR, NO SOLO EL COLOR. Con el sol de frente el rojo y
+   el ámbar se parecen, y quien no separa bien los colores no los
+   distingue nunca. */
+.tp .cr-grupo.mal .n { color: var(--tp-mal) }
+.tp .cr-grupo.mal { box-shadow: inset 4px 0 0 var(--tp-mal) }
+.tp .cr-grupo.ojo .n { color: #5E4100 }
+.tp .cr-grupo.ojo { box-shadow: inset 4px 0 0 #C08A16 }
+.tp .cr-grupo.bien .n { color: var(--tp-bien) }
+.tp .cr-grupo.bien { box-shadow: inset 4px 0 0 var(--tp-bien) }
+.tp .cr-grupo.on { background: var(--tp-fondo) }
+.tp .cr-grupo:focus-visible { outline: 2px solid var(--tp-acento); outline-offset: -2px }
+
+/* La tabla se desplaza DENTRO de su caja: si la que se va de lado es la
+   página, el menú y los montones quedan inalcanzables mientras se mira
+   la última columna. */
+.tp .cr-marco { overflow: auto; max-height: 62vh; overscroll-behavior: contain; margin-top: 4px }
+.tp .cr-tabla {
+  border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%;
+  font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.tp .cr-tabla th, .tp .cr-tabla td {
+  padding: 9px 11px; border-bottom: 1px solid var(--tp-linea);
+  text-align: left; white-space: nowrap;
+}
+/* La cabecera se queda pegada: con doscientas filas, la fila ciento
+   veinte es una hilera de números sin ningún título a la vista. */
+.tp .cr-tabla thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--tp-fondo); border-bottom: 2px solid var(--tp-linea);
+  font: 700 10.5px var(--tp-texto); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--tp-gris);
+}
+.tp .cr-tabla td { color: var(--tp-tinta) }
+.tp .cr-tabla td.num, .tp .cr-tabla th.num { text-align: right }
+.tp .cr-tabla .cr-doc { font-family: var(--tp-titulo); font-weight: 800; letter-spacing: .02em }
+.tp .cr-tabla tbody tr:nth-child(even) { background: color-mix(in srgb, var(--tp-fondo) 55%, #FFF) }
+.tp .cr-tabla tbody tr:hover { background: var(--tp-fondo) }
+/* El día cambiado: cuadra, pero el viaje quedó en un día y SAP lo
+   reporta en otro, y eso descuadra el cumplido de los dos a la vez. */
+.tp .cr-tabla tbody tr.ojo { background: #FFF8E6 }
+.tp .cr-tabla tbody tr.ojo td { color: #3D2A00 }
+
+@media (max-width: 760px) {
+  .tp .cr-marcador { grid-template-columns: minmax(0, 1fr) }
+  .tp .cr-grupo { min-height: 0; padding: 11px 13px }
+  .tp .cr-grupo .n { font-size: 24px }
+  .tp .cr-marco { max-height: 56vh }
+}

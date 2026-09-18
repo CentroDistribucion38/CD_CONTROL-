@@ -1,0 +1,134 @@
+Traspasos: el día se cierra, y el cruce contra SAP
+
+═══════════════════════════════════════════════════════════════════
+1 · EL DÍA SE CIERRA
+═══════════════════════════════════════════════════════════════════
+«Solo el super administrador puede editar o modificar algún registro de
+días anteriores. Porque empiezan a manipular eso y no puede ser así.»
+
+QUÉ ESTABA ABIERTO DE VERDAD, que no era lo que yo creía. Corregir un
+viaje YA era solo del administrador: al supervisor le contesta «anúlalo
+y vuelve a registrarlo». Lo que no tenía candado era lo otro dos:
+
+  · REGISTRAR con fecha de días atrás. Quedaba marcado —`atrasado`— y
+    nada más; una marca que nadie mira no impide nada.
+  · ANULAR un viaje viejo. Quien lo registró podía anularlo un mes
+    después, y con eso el viaje desaparece del cumplido de un día ya
+    reportado sin más rastro que un motivo escrito por él mismo.
+
+Anular y volver a registrar es justamente la pareja con la que se
+manipula. Las dos puertas se cierran juntas.
+
+EL TURNO C, QUE ES LO DELICADO. El turno C entra a las 22:00 y sale a
+las 6:00 de la mañana siguiente, y digita buena parte de sus viajes ya
+pasada la medianoche. Con la regla escrita como «fecha = hoy», a las
+00:01 perdería de golpe toda la noche: no podría corregir un documento
+mal tecleado a las 23:50 ni anular un viaje que no salió. Le partiría el
+turno en dos, todas las noches.
+
+Así que el día NO cierra a la medianoche sino cuando termina su turno C
+—las 06:00 del día siguiente—. Una sola expresión, sin números
+inventados ni «horas de gracia» a ojo:
+
+  abierto(D)  ⇔  ahora < arranque_turno(D,'C') + 8 horas
+
+  · Viaje de HOY, cualquier turno → abierto todo el día. El turno B
+    arregla el error del turno A sin llamar a nadie.
+  · Viaje de AYER → abierto solo mientras el turno C sigue digitando.
+  · Más viejo → cerrado.
+
+VA COMO DISPARADOR EN LA TABLA, no como `if` en cada función. Son tres
+puertas —registrar, editar, anular— y mañana puede haber una cuarta: la
+del mes que viene nacería sin candado y nadie se daría cuenta. Y se mira
+la fecha MÁS VIEJA de las dos en un UPDATE, o arrastrar un viaje de hace
+un mes a la fecha de hoy pasaría el candado.
+
+Y LA PANTALLA LO DICE ANTES, no al tocar el botón: un rechazo que llega
+después de llenar ocho campos se lee como un fallo de la aplicación, no
+como una regla. La cuenta la contesta la BASE —misma función— para que
+pantalla y candado no puedan separarse.
+
+═══════════════════════════════════════════════════════════════════
+2 · EL CRUCE CONTRA SAP
+═══════════════════════════════════════════════════════════════════
+«Ingresa lo de importar para comparar si lo que registraron coincide con
+lo del sistema, y en el tablero abajo debe decir qué documentos
+faltaron.»
+
+LA REGLA DE CONTEO ES TODO EL ASUNTO. El Excel trae MOVIMIENTOS:
+
+  7687019429  -36  ← salió
+  7687019429  +36  ← se anuló
+  7687019429  -28  ← se rehízo bien
+
+Eso es UN documento, no tres. Y +36 / -36 a secas es NINGUNO.
+
+La regla sale sola de los dos ejemplos: agrupar por referencia, SUMAR, y
+contar el que no dé cero. Tenga uno o cinco movimientos. No depende de
+conocer las clases de movimiento de SAP: si el signo está ahí, el signo
+ya lo dice.
+
+Y LO ANULADO NO SE TIRA, SE MARCA. Borrarlo dejaría a alguien buscando
+en el Excel por qué un documento que ve con sus ojos no aparece.
+
+LA REGLA VIVE EN LA BASE, no en el navegador. Decide qué falta y qué no,
+y una regla que vive en la pantalla se queda en esa pantalla: mañana la
+necesita el tablero, pasado un informe, y ahí empiezan las tres
+versiones que no se parecen.
+
+LOS DOS LADOS:
+  · FALTA — SAP lo tiene y nadie lo registró. Es lo que pediste.
+  · SOBRA — está registrado y SAP no lo tiene. No lo pediste, pero es
+    el que caza el DEDAZO: un documento tecleado mal sale como «falta»
+    el bueno, y sin este lado el malo no aparece por ningún sitio.
+  · CUADRA — los dos. Y se marca el que está en dos días distintos, que
+    descuadra el cumplido de los dos a la vez sin que nada lo diga.
+
+El cruce se encierra en las fechas del Excel: sin eso, todo viaje de
+otra semana saldría como «sobra».
+
+EN LA PANTALLA. «El cruce» va en Traspasos, entre Control y Maestro —el
+orden del proceso: se planea, se registra, se mira el cumplido, y al
+final se comprueba contra SAP—. Las columnas del Excel se reconocen POR
+SU NOMBRE y no por su posición, así que el corte se puede reordenar
+entero. Se lee antes de guardar: el que lo sube ve si se equivocó de
+hoja sin haber tocado nada. Volver a subirlo actualiza, no duplica.
+
+Y EL TABLERO, ABAJO, dice qué documentos faltaron ese día. Solo sale si
+hay corte subido: un «0 faltaron» sin haber comparado con nada se lee
+como que todo cuadra, y es peor que no decir nada.
+
+═══════════════════════════════════════════════════════════════════
+MEDIDO, NO MIRADO
+═══════════════════════════════════════════════════════════════════
+Los tres SQL contra Postgres 16 de verdad, dos veces, como
+no-superusuario y SIN AGRUPAR NADA —como lo corre el editor de Supabase—:
+
+· correr-traspasos-dia-cerrado.sh  — 18 comprobaciones. La del turno C
+  no se mide con el reloj de la máquina: se le pasa el reloj a la
+  función y se le pregunta a las 00:01, 03:00, 05:59, 06:00 y 07:00.
+· correr-traspasos-cruce.sh — tus dos ejemplos con sus números reales,
+  más el dedazo, el guion, el anulado, el reimportar y el permiso.
+· correr-traspasos-cruce-permiso.sh — 8 casos de permisos.
+
+Mutaciones: 8 + 12 + 8, las 28 rojas. Y cazaron cinco errores míos:
+
+· Dos mutaciones del candado apuntaban a un texto que yo mismo había
+  cambiado: `str.replace` no avisa cuando no encuentra, así que
+  escribían un archivo IDÉNTICO al original y salían VERDE. Ahora cada
+  mutación revienta si no aplicó.
+· La prueba del turno C medía mi propia copia de la fórmula contra sí
+  misma: romper la función la dejaba verde.
+· Tres mutaciones del cruce las cazaba Postgres y no mis aserciones
+  —una mutación cazada por el acusado equivocado no prueba nada—. Al
+  reescribirlas apareció un error de verdad: la comprobación de «archivo
+  vacío» miraba los documentos que ENTRARON en vez de las filas LEÍDAS,
+  así que un corte donde la bodega anuló todo lo de esa noche se
+  rechazaba como si el archivo estuviera malo.
+· La prueba del guion lo ponía del lado del viaje, que se normaliza solo
+  con una columna generada: no probaba nada.
+
+Build limpio. Las 42 rutas del registro tienen su página.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

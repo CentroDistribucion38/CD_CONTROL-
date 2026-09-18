@@ -1818,3 +1818,25 @@
   .tp .cifras.seis,
   .tp .medidor .avance { display: none }
 }
+
+/* ---------------------------------------------------------------------
+   EL DÍA CERRADO
+
+   Se dice ANTES de llenar nada, no al tocar «Registrar». El candado vive
+   en la base y rechaza venga de donde venga —eso no cambia—, pero un
+   rechazo que llega después de ocho campos se lee como un fallo de la
+   aplicación y no como una regla: la primera reacción es reintentar y la
+   segunda es llamar a preguntar qué se rompió.
+
+   VA EN ÁMBAR Y NO EN ROJO. No pasó nada malo: el día se cerró, que es
+   lo que tiene que pasar. El rojo es para lo que hay que arreglar.
+
+   El ámbar va a mano y no por token —--c-oro es ROJO PURO en tres de los
+   siete temas— y este par está medido contra el crema, no mirado.
+   --------------------------------------------------------------------- */
+.tp .aviso-cerrado {
+  background: #FFF8E6; box-shadow: inset 4px 0 0 #C08A16; border-color: #EBD9A6;
+}
+.tp .aviso-cerrado h2 { color: #3D2A00 }
+.tp .aviso-cerrado p { color: #5E4100; margin: 8px 0 0; line-height: 1.55; max-width: 74ch }
+.tp .aviso-cerrado p b { color: #3D2A00 }
