@@ -257,10 +257,24 @@ export function Contar({
                        siguiente?: RefObject<HTMLInputElement | null>) {
     const limpio = dosDigitos(v);
     pon(k, limpio);
-    if (limpio.length === 2 && siguiente?.current) {
+    if (limpio.length !== 2) return;
+    if (siguiente?.current) {
       siguiente.current.focus();
       siguiente.current.select();
+      return;
     }
+    /* Y AL ACABAR EL AÑO SE CIERRA EL TECLADO.
+       No hay casilla siguiente, así que el cursor se quedaba en el año
+       con el teclado abierto tapando media pantalla — justo cuando lo
+       que hay que mirar es el total y los días para salir, que están
+       debajo. Soltar el foco es lo único que cierra el teclado del
+       celular; no hay forma de pedírselo directamente.
+
+       SE HACE AQUÍ Y NO CON UN `blur()` DENTRO DEL onChange DEL AÑO:
+       puesto allí sería una regla más que recordar en el JSX, y el
+       siguiente que agregue una casilla de fecha no se enteraría. Aquí
+       es lo que significa «no hay siguiente»: el año es la última. */
+    document.activeElement instanceof HTMLElement && document.activeElement.blur();
   }
 
   function atrasFecha(e: KeyboardEvent<HTMLInputElement>, valor: string,

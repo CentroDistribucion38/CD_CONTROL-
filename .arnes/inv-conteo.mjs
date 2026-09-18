@@ -928,7 +928,13 @@ if (!/function tecleaFecha/.test(limpio))
               "152 fechas al día");
 {
   const fn = (limpio.match(/function tecleaFecha[\s\S]{0,600}?\n  \}/) ?? [""])[0];
-  if (!/limpio\.length === 2/.test(fn))
+  /* Se admite escrito de las dos formas —«=== 2» para saltar, o
+     «!== 2» para salir antes— porque lo que importa no es la forma sino
+     QUÉ dispara el salto: el LARGO de lo que quedó dentro de la
+     casilla, no cuántas teclas se pulsaron. Con un contador de teclas,
+     corregir borrando y volviendo a escribir, o pegar la fecha, no
+     saltaría. */
+  if (!/limpio\.length (===|!==) 2/.test(fn))
     fallas.push("el salto de casilla no se dispara por tener dos dígitos dentro: corregir " +
                 "borrando y volviendo a escribir, o pegar la fecha, no saltaría");
   if (!/\.focus\(\)/.test(fn))
@@ -958,6 +964,26 @@ if (!/function atrasFecha/.test(limpio))
   if (atras !== "mes←campoDia anio←campoMes")
     fallas.push(`el retroceso va [${atras || "a ninguna parte"}] y debe ir mes←campoDia ` +
                 "anio←campoMes");
+}
+
+/* Y AL ACABAR EL AÑO SE CIERRA EL TECLADO. La última casilla no tiene
+   siguiente, así que el cursor se quedaba ahí con el teclado abierto
+   tapando media pantalla — justo encima del total y de los días para
+   salir, que es lo que hay que mirar al terminar la fecha. Soltar el
+   foco es lo único que lo cierra en un celular.
+
+   SE COMPRUEBA DENTRO DE `tecleaFecha` y detrás del caso de «hay
+   siguiente»: un `blur()` suelto en otra parte cerraría el teclado
+   también al pasar de día a mes, que es lo contrario de lo que se
+   quiere. */
+{
+  const fn = (limpio.match(/function tecleaFecha\([\s\S]*?\n  \}/) ?? [""])[0];
+  if (!/\.blur\(\)/.test(fn))
+    fallas.push("al acabar el año no se cierra el teclado: se queda abierto tapando el total y los días para salir");
+  const iSig = fn.indexOf("siguiente.current.focus()");
+  const iBlur = fn.indexOf(".blur()");
+  if (iSig >= 0 && iBlur >= 0 && iBlur < iSig)
+    fallas.push("el teclado se cierra ANTES de pasar a la casilla siguiente: se cerraría también al pasar de día a mes");
 }
 
 /* LA OBSERVACIÓN SE GUARDABA Y NO SE PODÍA ESCRIBIR. El renglón manda

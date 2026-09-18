@@ -134,8 +134,10 @@ probar("el retroceso devuelve a la casilla anterior",
   "el retroceso va [");
 
 probar("el salto se dispara por dos dígitos DENTRO, no por dos teclas",
-  [[TSX, "if (limpio.length === 2 && siguiente?.current) {",
-         "if (v.length === 2 && siguiente?.current) {"]],
+  /* La forma cambió —ahora sale antes con `!== 2` en vez de entrar con
+     `=== 2`— pero lo que se rompe es lo mismo: que el salto lo dispare
+     lo TECLEADO en bruto y no lo que quedó dentro de la casilla. */
+  [[TSX, "if (limpio.length !== 2) return;", "if (v.length !== 2) return;"]],
   "no se dispara por tener dos dígitos dentro");
 
 probar("al saltar se selecciona lo que ya había",
@@ -251,10 +253,20 @@ probar("el estado del envase va debajo de las cantidades",
           '          <label className="fe-estado zzz"><span>Estado del envase X</span>']],
   "Estado del envase");
 
+probar("al acabar el año se cierra el teclado",
+  [[TSX, "    document.activeElement instanceof HTMLElement && document.activeElement.blur();",
+          "    void 0;"]],
+  "no se cierra el teclado");
+
+probar("el teclado se cierra DESPUÉS de intentar pasar a la siguiente",
+  [[TSX, "    if (limpio.length !== 2) return;\n    if (siguiente?.current) {",
+          "    if (limpio.length !== 2) return;\n    document.activeElement instanceof HTMLElement && document.activeElement.blur();\n    if (siguiente?.current) {"]],
+  "se cerraría también al pasar de día a mes");
+
 restaurar();
 console.log("");
 if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 37 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 39 se pusieron rojas. El arnés caza lo que dice cazar.");

@@ -3,6 +3,7 @@ import {
   controlRango, vaciosRango, tipos as leerTipos, hoyLocal, cruceDelDia, type Control,
 } from "@/modulos/traspasos/datos";
 import { fecha as fechaLarga, TURNOS } from "@/modulos/traspasos/formato";
+import { nombresTodos } from "@/modulos/sider/datos";
 import "../traspasos.css";
 import "../cruce/cruce.css";
 import { AlDia, SinTablas } from "../comunes";
@@ -57,7 +58,7 @@ export default async function ControlPage({ searchParams }: {
   const desde = new Date(Date.parse(hasta + "T12:00:00") - dias * 86400_000)
     .toISOString().slice(0, 10);
 
-  const [permisos, ctl, vacios, t, cruce] = await Promise.all([
+  const [permisos, ctl, vacios, t, cruce, nombres] = await Promise.all([
     misPermisos(), controlRango(desde, hasta), vaciosRango(desde, hasta), leerTipos(),
     /* EL CRUCE DEL DÍA QUE SE ESTÁ MIRANDO. Ya no hay pantalla de cruce:
        Importar solo sube el corte, y las diferencias salen aquí abajo,
@@ -65,6 +66,9 @@ export default async function ControlPage({ searchParams }: {
        —no el corte entero— porque esta consulta se paga en cada carga
        del tablero, y el tablero se queda puesto en la oficina. */
     cruceDelDia(dia),
+    /* Para poner NOMBRE a quien registró el viaje sin documento. Un id
+       no sirve para ir a preguntarle. */
+    nombresTodos(),
   ]);
   void permisos;
 
@@ -430,10 +434,13 @@ export default async function ControlPage({ searchParams }: {
           que mirar el día de ayer trae las diferencias de ayer sin
           tocar nada más.
           ================================================================= */}
+      {/* SE PINTA AUNQUE NO HAYA CORTE: el control de los viajes sin
+          documento no depende de SAP, y esconderlo los días que nadie
+          importó sería esconder el agujero más grande de los dos. */}
       {!cruce.falta && (
         <Diferencias lineas={cruce.lineas} hayCorte={cruce.hayCorte}
                      rotulo={fechaLarga(dia)} desde={cruce.desde} hasta={cruce.hasta}
-                     tope={cruce.tope} />
+                     tope={cruce.tope} sinDocumento={cruce.sinDocumento} nombres={nombres} />
       )}
 
     </div>

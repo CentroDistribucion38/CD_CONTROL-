@@ -1,100 +1,80 @@
-Conteo: el teclado que abre cada campo, y «Cómo está» deja de frenar
+Traspasos: el segundo control — lo registrado sin documento
 
-Seis cosas pedidas de pie, contando, que es donde se notan:
-
-=====================================================================
-1 · EL TECLADO QUE ABRE CADA CAMPO
-=====================================================================
-
-LA CALLE NO LO LEVANTA. Son doce calles de una letra: la lista entera
-cabe en la pantalla y escribir no ahorra un solo toque. El teclado, en
-cambio, tapa media pantalla y deja la lista debajo.
-
-EL MÓDULO ABRE EL NUMÉRICO, y por eso la opción perdió la letra: salía
-«A01» y ahora sale «01». Un campo que se teclea con teclado numérico no
-puede pedir una letra para llegar a su primera opción. Las teclas del
-numérico son del doble de tamaño y se aciertan con guante.
-
-LA CALLE NO SE PIERDE: cuando no hay ninguna escogida —la lista trae las
-428— va como pista al lado, que es lo único que distingue el 01 de A del
-01 de B. Con calle escogida no hay nada que distinguir y no se pinta.
-
-Se hace con `inputMode` y NO con `readOnly`: readOnly apagaría también
-el teclado de verdad de un PC, y esta pantalla se usa en los dos.
+«Que se evidencie también que ninguno de los registros que hicieron
+tiene documento. Que estén esos dos controles.»
 
 =====================================================================
-2 · EL ESTADO DEL ENVASE SUBE AL BLOQUE «CUÁNTO»
+1 · POR QUÉ HACÍA FALTA UN SEGUNDO CONTROL
 =====================================================================
 
-Va debajo de las estibas y el saldo. Dice QUÉ se contó —envase bueno,
-sucio, roto— y separa la estiba dentro del mismo módulo igual que la
-avería; al final, junto con lo raro, quien anotaba ya había dado el
-renglón por terminado en el total.
+El cruce empareja por NÚMERO DE DOCUMENTO. Un viaje al que nadie le
+apuntó el número no tiene con qué emparejarse, así que:
+
+  no está en «faltan»   — no hay documento de SAP que reclamarle
+  no está en «sobran»   — sobrar es tener un número que SAP no tiene
+  no está en «cuadran»  — no cuadra con nada
+
+Desaparece del tablero entero. Y es el agujero más grande de los dos:
+al documento de SAP que nadie registró se llega importando el corte; a
+este no se llega por ningún lado, porque nadie escribió el papel que los
+une.
+
+Ahora, al pie de Control, van LOS DOS:
+
+  1. VIAJES REGISTRADOS SIN DOCUMENTO  — con su turno, hora, placa,
+     tipo, carga, ruta y QUIÉN lo registró, que es a quien hay que ir a
+     preguntarle.
+  2. DIFERENCIAS CONTRA SAP            — faltan · sobran · cuadran.
 
 =====================================================================
-3 · «¿ROTA?» ES UN SOLO BOTÓN
+2 · TRES DECISIONES QUE VALE LA PENA DEJAR ESCRITAS
 =====================================================================
 
-No marcarlo ES decir que no. El «No» solo servía para contestar dos
-veces la misma cosa: una para decir que no y otra para que el formulario
-dejara anotar.
+NO DEPENDE DEL CORTE. El primer control se pinta haya corte importado o
+no. Atarlo al cruce lo escondería los días en que nadie importó el
+Excel, que son justo los días en que más falta hace.
 
-LO QUE SE PIERDE, DICHO: ya no se distingue «contestó que no» de «no
-contestó». Se acepta porque las dos llevan al mismo sitio y porque lo
-que costaba era el toque de más, 152 veces al día.
+LOS VACÍOS NO CUENTAN. Un viaje sin carga no lleva documento porque no
+hay papel que llevar; pedírselo obligaría a inventarlo. Se lee la marca
+`sin_documento` de la vista —«con carga, registrado y sin documento»— y
+no un `documento is null` escrito a mano, que se llevaría también los
+vacíos y llenaría la lista de viajes que no tienen nada malo.
 
-La pantalla manda la rotación RESUELTA —`b.rot === true`— y la base
-sigue rechazando el nulo. Así el guardián de la base queda como red: si
-algún día otra pantalla deja de contestarlo, se entera en vez de guardar
-una columna en blanco que nadie sabe leer.
-
-=====================================================================
-4 · DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA
-=====================================================================
-
-Rotación, avería, PNC, estado del envase y observación: si no se marca,
-no pasa nada. Se fue el «Falta decir si rota», que frenaba el renglón
-por algo que no cambia ninguna cifra — y un aviso así es un aviso que la
-gente aprende a esquivar.
+NO HAY MIGRACIÓN. La vista ya traía la marca desde
+2026-09-traspasos-documento.sql; lo que faltaba era enseñarla donde se
+mira el día. Y desde esa misma migración, registrar un viaje CON CARGA
+sin documento ya está prohibido: los que salgan en esta lista son los de
+antes de la regla. La lista debería ir bajando hasta cero y quedarse ahí.
 
 =====================================================================
-5 · AVERÍA Y PNC, DOS CUADROS DEL MISMO TAMAÑO
+3 · Y EN EL CONTEO: AL ACABAR EL AÑO SE CIERRA EL TECLADO
 =====================================================================
 
-Eran casillas de verificación y lo que se podía tocar era la palabra:
-«PNC» daba tres letras. Ahora son dos cuadros de media fila cada uno,
-la misma pieza que el lado y el modo de contar, así que se aprenden una
-sola vez.
+La casilla del año no tiene siguiente, así que el cursor se quedaba ahí
+con el teclado abierto tapando media pantalla — justo encima del total y
+de los días para salir, que es lo que hay que mirar al terminar la
+fecha. Soltar el foco es lo único que cierra el teclado de un celular.
+
+Va dentro de `tecleaFecha` y DETRÁS del caso de «hay casilla siguiente»:
+un `blur()` suelto en otro sitio cerraría el teclado también al pasar de
+día a mes, que es lo contrario de lo que se quiere. Hay una mutación que
+vigila ese orden.
 
 =====================================================================
-6 · LO QUE APARECIÓ AL MEDIRLO
+4 · COMPROBADO
 =====================================================================
 
-El arnés encontró tres cosas mías, todas en lo que acababa de escribir:
+  .arnes/tp-importar.mjs        19 mutaciones (4 nuevas del segundo
+  .arnes/mutar-tp-importar.mjs  control)
+  .arnes/inv-conteo.mjs         39 mutaciones (2 nuevas del teclado)
+  .arnes/mutar-inv-conteo.mjs
 
-  · EL CUADRO MARCADO USABA EL ACENTO DE LETRA sobre papel: 1,6 en
-    ámbar, negro, gris y halo; 1,9 en tinta; 3,1 en pizarra. Ilegible en
-    seis de los siete temas. El acento está hecho para ser FONDO y la
-    app lo empareja con su tinta —--fe-sobre—; es el mismo error que
-    este proyecto ya pagó con --c-oro.
-
-  · EL DESPLEGABLE DEL ESTADO se trajo de su fila anterior un alto de
-    44 px. El mínimo de esta pantalla es 48: se usa de pie y con
-    guantes.
-
-  · LA COMPROBACIÓN DEL TECLADO NO COMPROBABA NADA. Buscaba el campo
-    pidiendo su etiqueta de cierre, y el Buscador cierra cuatrocientas
-    líneas más abajo: no encontraba nada y aprobaba cualquier cosa.
-
-Y el propio arnés medía una pantalla que ya no existe —el botón «No» de
-¿Rota?, la fila de tres con las casillas—, así que se actualizó su
-armazón y se le añadió lo que se pidió hoy: que Avería y PNC midan LO
-MISMO, medido rectángulo contra rectángulo y no «parecido».
-
-  .arnes/inv-conteo.mjs        7 temas × 4 anchos
-  .arnes/mutar-inv-conteo.mjs  37 mutaciones — las 9 nuevas incluidas
-
-Las 37 se ponen rojas.
+Todas rojas. Y una afirmación mía no se sostenía: comprobaba que
+apareciera la palabra «sinDocumento», que el nombre del parámetro ya
+satisfacía — quitando el bloque de los dos `return` la pantalla se
+quedaba sin el control y el arnés seguía en verde. Ahora cuenta que el
+bloque se PINTE, y dos veces: hay dos salidas —con corte y sin corte— y
+el control tiene que estar en las dos.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

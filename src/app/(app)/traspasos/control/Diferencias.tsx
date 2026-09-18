@@ -25,7 +25,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { LineaCruce } from "@/modulos/traspasos/datos";
+import type { LineaCruce, Viaje } from "@/modulos/traspasos/datos";
+import { hora as horaDe, quien } from "@/modulos/traspasos/formato";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const dma = (s: string | null) =>
@@ -33,13 +34,16 @@ const dma = (s: string | null) =>
 
 type Monton = "falta" | "sobra" | "cuadra";
 
-export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope }: {
+export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
+                              sinDocumento, nombres }: {
   lineas: LineaCruce[];
   hayCorte: boolean;
   rotulo: string;
   desde: string | null;
   hasta: string | null;
   tope: boolean;
+  sinDocumento: Viaje[];
+  nombres: Record<string, string>;
 }) {
   const faltan = useMemo(() => lineas.filter((l) => l.estado === "falta"), [lineas]);
   const sobran = useMemo(() => lineas.filter((l) => l.estado === "sobra"), [lineas]);
@@ -53,8 +57,75 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope }: {
     faltan.length > 0 ? "falta" : sobran.length > 0 ? "sobra" : "cuadra");
   const vistas = monton === "falta" ? faltan : monton === "sobra" ? sobran : cuadran;
 
+  /* =================================================================
+     CONTROL 1 · LOS QUE SE REGISTRARON SIN DOCUMENTO
+
+     VA PRIMERO Y NO DEPENDE DEL CORTE. Es el agujero más grande de los
+     dos: un viaje sin número no aparece en NINGUNO de los tres montones
+     del cruce —no tiene con qué emparejarse— así que sin este bloque
+     desaparece del tablero entero. Y al documento de SAP que nadie
+     registró se llega por el corte; a este no se llega por ningún lado.
+     ================================================================= */
+  const sinDoc = (
+    <section className="caja">
+      <div className="cab">
+        <div>
+          <h2>
+            {sinDocumento.length === 0
+              ? `Todos los viajes con carga llevan su documento · ${rotulo}`
+              : `${sinDocumento.length} viaje${sinDocumento.length === 1 ? "" : "s"} registrado${sinDocumento.length === 1 ? "" : "s"} sin documento · ${rotulo}`}
+          </h2>
+          <p>
+            {sinDocumento.length === 0
+              ? <>Nada que completar. Los vacíos no llevan documento y no se cuentan aquí.</>
+              : <>Salieron con carga y nadie apuntó el número del papel. <b>No aparecen en el
+                 cruce de abajo</b> —no hay número con qué emparejarlos—, así que este es el
+                 único sitio donde se ven. Se completan entrando al viaje en Registrar.</>}
+          </p>
+        </div>
+      </div>
+
+      {sinDocumento.length > 0 && (
+        <div className="cr-marco">
+          <table className="cr-tabla">
+            <thead>
+              <tr>
+                <th>Viaje</th>
+                <th>Turno</th>
+                <th>Hora</th>
+                <th>Placa</th>
+                <th>Tipo</th>
+                <th className="num">Carga</th>
+                <th>Origen → destino</th>
+                <th>Registró</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sinDocumento.map((v) => (
+                <tr key={v.id} className="ojo">
+                  <td className="cr-doc">{v.codigo ?? "—"}</td>
+                  <td>{v.turno}</td>
+                  <td>{horaDe(v.hora)}</td>
+                  <td>{v.placa ?? "—"}</td>
+                  <td>{v.tipo_nombre ?? v.tipo ?? "—"}</td>
+                  <td className="num">
+                    {v.carga == null ? "—" : `${nf.format(v.carga)}${v.unidad ? " " + v.unidad : ""}`}
+                  </td>
+                  <td>{[v.origen_nombre, v.destino_nombre].filter(Boolean).join(" → ") || "—"}</td>
+                  <td>{quien(nombres, v.registrado_por)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+
   if (!hayCorte) {
     return (
+      <>
+        {sinDoc}
       <section className="caja">
         <div className="cab"><div>
           <h2>Diferencias contra SAP · {rotulo}</h2>
@@ -69,10 +140,13 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope }: {
           </p>
         </div></div>
       </section>
+      </>
     );
   }
 
   return (
+    <>
+    {sinDoc}
     <section className="caja">
       <div className="cab">
         <div>
@@ -167,5 +241,6 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope }: {
         </div>
       )}
     </section>
+    </>
   );
 }

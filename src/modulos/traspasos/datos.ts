@@ -435,7 +435,7 @@ const TOPE_DIA = 5000;
    ===================================================================== */
 export async function cruceDelDia(fecha: string) {
   const supabase = await createClient();
-  const [c, pri, ult] = await Promise.all([
+  const [c, pri, ult, sd] = await Promise.all([
     supabase.from("v_traspasos_cruce").select("*")
       .or(`sap_fecha.eq.${fecha},sis_fecha.eq.${fecha}`)
       .order("sap_hora").limit(TOPE_DIA),
@@ -447,6 +447,28 @@ export async function cruceDelDia(fecha: string) {
       .order("fecha", { ascending: true }).limit(1),
     supabase.from("traspasos_sap_mov").select("fecha")
       .order("fecha", { ascending: false }).limit(1),
+
+    /* ===============================================================
+       EL SEGUNDO CONTROL: LOS QUE SE REGISTRARON SIN DOCUMENTO.
+
+       NO SALE EN NINGUNO DE LOS TRES MONTONES, y ese es el punto. El
+       cruce empareja por número de documento; un viaje al que nadie le
+       apuntó el número no tiene con qué emparejarse, así que no está en
+       «faltan», no está en «sobran» y no está en «cuadran». Desaparece.
+
+       Y es el agujero más grande de los dos: al documento de SAP que
+       nadie registró se llega por el corte; al viaje sin documento no
+       se llega por ningún lado — ni SAP sabe que existe, porque nadie
+       escribió el papel que los une.
+
+       LOS VACÍOS NO CUENTAN. Un viaje sin carga no lleva documento
+       porque no hay papel que llevar; pedírselo obligaría a
+       inventarlo. La vista ya lo resuelve: `sin_documento` es «con
+       carga, registrado y sin documento».
+       =============================================================== */
+    supabase.from("v_traspasos_viajes").select("*")
+      .eq("fecha", fecha).eq("sin_documento", true)
+      .order("turno_orden").order("hora").limit(500),
   ]);
 
   if (c.error) {
@@ -454,6 +476,7 @@ export async function cruceDelDia(fecha: string) {
       falta: /does not exist|schema cache/i.test(c.error.message),
       lineas: [] as LineaCruce[], tope: false,
       hayCorte: false, desde: null as string | null, hasta: null as string | null,
+      sinDocumento: (sd.data ?? []) as Viaje[],
     };
   }
 
@@ -469,6 +492,10 @@ export async function cruceDelDia(fecha: string) {
     tope: (c.data ?? []).length === TOPE_DIA,
     hayCorte: desde != null && hasta != null && desde <= fecha && fecha <= hasta,
     desde, hasta,
+    /* VA APARTE DEL CRUCE Y NO DEPENDE DE ÉL: un viaje sin documento es
+       un problema haya corte importado o no. Atarlo al corte lo
+       escondería justo los días en que nadie importó nada. */
+    sinDocumento: (sd.data ?? []) as Viaje[],
   };
 }
 

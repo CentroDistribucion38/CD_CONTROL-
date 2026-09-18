@@ -59,6 +59,7 @@ const reg = readFileSync(U("../src/modulos/registro.ts"), "utf8");
 const ctl = readFileSync(U("../src/app/(app)/traspasos/control/page.tsx"), "utf8");
 const dif = readFileSync(U("../src/app/(app)/traspasos/control/Diferencias.tsx"), "utf8");
 const pag = readFileSync(U("../src/app/(app)/traspasos/cruce/page.tsx"), "utf8");
+const dat = readFileSync(U("../src/modulos/traspasos/datos.ts"), "utf8");
 
 /* ── EL LECTOR, SACADO DEL COMPONENTE ─────────────────────────────── */
 const desde = tsx.indexOf("const pelar =");
@@ -302,9 +303,57 @@ const conAdorno = [
   }
 }
 
+/* =====================================================================
+   10 · EL SEGUNDO CONTROL: LOS VIAJES REGISTRADOS SIN DOCUMENTO
+
+   NO SALEN EN NINGUNO DE LOS TRES MONTONES, y ese es justamente el
+   motivo de que haga falta un control aparte: el cruce empareja por
+   número, y un viaje al que nadie le apuntó el número no tiene con qué
+   emparejarse. No está en «faltan», no está en «sobran», no está en
+   «cuadran». Sin este bloque desaparece del tablero entero.
+
+   Y TIENE QUE PINTARSE AUNQUE NO HAYA CORTE. Al documento de SAP que
+   nadie registró se llega importando; a este no se llega por ningún
+   lado. Atarlo al corte lo escondería los días que nadie importó, que
+   son justo los días en que más falta hace.
+   ===================================================================== */
+{
+  /* SE MIDE QUE EL BLOQUE SE PINTE, no que la palabra aparezca. Buscar
+     «sinDocumento» a secas lo daba por bueno con que existiera el
+     nombre del parámetro: quitando el bloque de los dos `return` la
+     pantalla se quedaba sin el control y el arnés seguía en verde. Van
+     DOS porque hay dos salidas —con corte y sin corte— y el control
+     tiene que estar en las dos. */
+  const pintado = (dif.match(/\{sinDoc\}/g) ?? []).length;
+  if (pintado < 2)
+    mal(`10(el bloque de viajes sin documento se pinta ${pintado} vez/veces y son 2 —con corte y sin corte—: `
+      + "no salen en ningún montón del cruce, así que si no se pinta no se ven en ninguna parte)");
+
+  /* SE LEE LA MARCA DE LA VISTA, no un «documento is null» escrito a
+     mano: `sin_documento` ya quiere decir «con carga, registrado y sin
+     documento», y un vacío NO lleva documento porque no hay papel que
+     llevar. Pedírselo obligaría a inventarlo, y la lista se llenaría de
+     viajes que no tienen nada malo. */
+  if (!/\.eq\("sin_documento", true\)/.test(dat))
+    mal("10b(los viajes sin documento no se piden por la marca de la vista: un «documento is null» a mano se llevaría también los vacíos, que no llevan papel)");
+
+  /* Y NO CUELGA DEL CORTE. Se comprueba que el bloque esté también en la
+     rama de «no hay corte importado», que es la que se pinta los días
+     que nadie subió el Excel. */
+  const ramaSinCorte = (dif.match(/if \(!hayCorte\) \{[\s\S]*?\n  \}/) ?? [""])[0];
+  if (!/sinDoc/.test(ramaSinCorte))
+    mal("10c(sin corte importado el control de «sin documento» desaparece, y es justo cuando más falta hace)");
+
+  /* QUIEN LO REGISTRÓ, CON NOMBRE. Un identificador no sirve para ir a
+     preguntarle a nadie. */
+  if (!/quien\(nombres/.test(dif))
+    mal("10d(no dice quién registró el viaje sin documento, y sin nombre no hay a quién preguntarle)");
+}
+
 if (fallas.length) {
   console.error("IMPORTAR:\n  · " + fallas.join("\n  · "));
   process.exit(1);
 }
 console.log("IMPORTAR ok — encabezado con adorno encima, columnas sin robarse, cantidad entera,");
-console.log("               filas del Excel bien numeradas, ruta intacta y diferencias al pie de Control.");
+console.log("               filas del Excel bien numeradas, ruta intacta, y al pie de Control los");
+console.log("               DOS controles: lo que SAP tiene sin registrar y lo registrado sin documento.");

@@ -25,9 +25,11 @@ const IMP = U("../src/app/(app)/traspasos/cruce/Importar.tsx");
 const CSS = U("../src/app/(app)/traspasos/cruce/importar.css");
 const REG = U("../src/modulos/registro.ts");
 const CTL = U("../src/app/(app)/traspasos/control/page.tsx");
+const DIF = U("../src/app/(app)/traspasos/control/Diferencias.tsx");
+const DAT = U("../src/modulos/traspasos/datos.ts");
 
 const COPIA = new Map();
-for (const f of [IMP, REG, CTL, CSS]) {
+for (const f of [IMP, REG, CTL, CSS, DIF, DAT]) {
   const b = new URL(f.href + ".bak");
   copyFileSync(f, b); COPIA.set(f, b);
 }
@@ -151,6 +153,35 @@ const MUTACIONES = [
     espera: /el botón de importar quedó en/,
     hacer: () => cambia(CSS, "  height: 48px; padding: 0 24px; border: 0; border-radius: 8px; flex: none;",
                              "  height: 30px; padding: 0 24px; border: 0; border-radius: 8px; flex: none;"),
+  },
+  /* ── EL SEGUNDO CONTROL ──────────────────────────────────────── */
+  {
+    n: "16 · el tablero deja de mostrar los viajes registrados sin documento",
+    espera: /^\s*·\s*10\(/m,
+    hacer: () => {
+      cambia(DIF, "      <>\n        {sinDoc}\n      <section className=\"caja\">",
+                  "      <>\n      <section className=\"caja\">");
+      cambia(DIF, "    <>\n    {sinDoc}\n    <section className=\"caja\">",
+                  "    <>\n    <section className=\"caja\">");
+    },
+  },
+  {
+    n: "17 · los viajes sin documento se piden a mano y se cuelan los vacíos",
+    espera: /^\s*·\s*10b\(/m,
+    hacer: () => cambia(DAT, '.eq("fecha", fecha).eq("sin_documento", true)',
+                             '.eq("fecha", fecha).is("documento", null)'),
+  },
+  {
+    n: "18 · sin corte importado, el control de «sin documento» desaparece",
+    espera: /^\s*·\s*10c\(/m,
+    hacer: () => cambia(DIF, "      <>\n        {sinDoc}\n      <section className=\"caja\">",
+                             "      <>\n      <section className=\"caja\">"),
+  },
+  {
+    n: "19 · el viaje sin documento no dice quién lo registró",
+    espera: /^\s*·\s*10d\(/m,
+    hacer: () => cambia(DIF, "<td>{quien(nombres, v.registrado_por)}</td>",
+                             "<td>{v.registrado_por ?? \"\u2014\"}</td>"),
   },
   {
     n: "15 · el armazón que se mide se queda viejo cuando el componente cambia de clase",
