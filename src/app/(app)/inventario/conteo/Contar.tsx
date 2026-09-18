@@ -176,6 +176,14 @@ export function Contar({
   const campoDia = useRef<HTMLInputElement>(null);
   const campoMes = useRef<HTMLInputElement>(null);
   const campoAnio = useRef<HTMLInputElement>(null);
+  /* LA CASILLA DE LA CANTIDAD, UNA SOLA REFERENCIA PARA LAS DOS.
+     «Estibas completas» y «Cajas» no existen a la vez —son las dos
+     formas de contar— así que solo una está montada en cada momento y
+     la referencia apunta siempre a la que se ve. Con una referencia por
+     casilla habría que preguntar en qué modo estamos cada vez que se
+     salta, y ese `if` se olvida el día que aparezca un tercer modo. */
+  const campoCantidad = useRef<HTMLInputElement>(null);
+  const campoSaldo = useRef<HTMLInputElement>(null);
 
   /* ---------- EL RENGLÓN A MEDIO ESCRIBIR NO SE PIERDE ----------
      Lo anotado está a salvo desde el momento en que se toca «Anotar»:
@@ -263,18 +271,33 @@ export function Contar({
       siguiente.current.select();
       return;
     }
-    /* Y AL ACABAR EL AÑO SE CIERRA EL TECLADO.
-       No hay casilla siguiente, así que el cursor se quedaba en el año
-       con el teclado abierto tapando media pantalla — justo cuando lo
-       que hay que mirar es el total y los días para salir, que están
-       debajo. Soltar el foco es lo único que cierra el teclado del
-       celular; no hay forma de pedírselo directamente.
-
-       SE HACE AQUÍ Y NO CON UN `blur()` DENTRO DEL onChange DEL AÑO:
-       puesto allí sería una regla más que recordar en el JSX, y el
-       siguiente que agregue una casilla de fecha no se enteraría. Aquí
-       es lo que significa «no hay siguiente»: el año es la última. */
+    /* SI NO HAY SIGUIENTE, SE SUELTA EL FOCO. Es la red: hoy el año sí
+       tiene siguiente —la cantidad— pero si un día no la tuviera, dejar
+       el cursor ahí con el teclado abierto taparía el total y los días
+       para salir, que es lo que hay que mirar al terminar. Soltar el
+       foco es lo único que cierra el teclado de un celular; no hay
+       forma de pedírselo directamente. */
     document.activeElement instanceof HTMLElement && document.activeElement.blur();
+  }
+
+  /* EL SALTO CON ENTER, para las casillas cuyo largo NO se sabe.
+     El día, el mes y el año saltan solos porque son dos dígitos y ahí
+     se acaban. El código puede ser 3128 o 17740, y las estibas 8 o 112:
+     saltar por el largo ahí sería adivinar y dejaría a medias la mitad
+     de los renglones. Con Enter lo dice quien escribe, que es el único
+     que sabe que ya terminó.
+
+     OJO: el teclado numérico de iPhone no trae Enter. Por eso ESTE
+     salto es el de conveniencia y el de la fecha es el que de verdad
+     encadena el renglón — ese sí funciona en todos. */
+  function saltaCon(e: KeyboardEvent<HTMLInputElement>,
+                    destino?: RefObject<HTMLInputElement | null>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (destino?.current) { destino.current.focus(); destino.current.select(); return }
+    /* Sin destino, Enter cierra el teclado: es el final de la cadena y
+       lo que sigue es mirar el total. */
+    e.currentTarget.blur();
   }
 
   function atrasFecha(e: KeyboardEvent<HTMLInputElement>, valor: string,
@@ -854,7 +877,8 @@ export function Contar({
             <label><span>Código</span>
               <input ref={campoCodigo} inputMode="numeric" value={b.codigo}
                      placeholder="Teclea el código"
-                     onChange={(e) => pon("codigo", e.target.value)} /></label>
+                     onChange={(e) => pon("codigo", e.target.value)}
+                     onKeyDown={(e) => saltaCon(e, campoDia)} /></label>
             <label><span>Descripción</span>
               <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : "")}>
                 {!b.codigo ? <i>Teclea el código y te digo qué es.</i>
@@ -901,7 +925,13 @@ export function Contar({
                      onKeyDown={(e) => atrasFecha(e, b.mes, campoDia)} />
               <input ref={campoAnio} inputMode="numeric" maxLength={2} placeholder="AA"
                      aria-label="Año del vencimiento" value={b.anio}
-                     onChange={(e) => tecleaFecha("anio", e.target.value)}
+                     /* Y AL ACABAR EL AÑO, DERECHO A LA CANTIDAD. Era el
+                        único corte de la cadena: se terminaba la fecha y
+                        había que levantar la mano a tocar «Estibas
+                        completas», con el teclado ya abierto y la estiba
+                        delante. Ahora el renglón se escribe de corrido
+                        desde el código hasta el número. */
+                     onChange={(e) => tecleaFecha("anio", e.target.value, campoCantidad)}
                      onKeyDown={(e) => atrasFecha(e, b.anio, campoMes)} />
             </div>
 
@@ -957,17 +987,20 @@ export function Contar({
           {b.modo === "estibas" ? (
             <div className="fe-dos">
               <label><span>Estibas completas</span>
-                <input inputMode="numeric" value={b.estibas}
-                       onChange={(e) => pon("estibas", e.target.value)} /></label>
+                <input ref={campoCantidad} inputMode="numeric" value={b.estibas}
+                       onChange={(e) => pon("estibas", e.target.value)}
+                       onKeyDown={(e) => saltaCon(e, campoSaldo)} /></label>
               <label><span>Saldo · cajas sueltas</span>
-                <input inputMode="numeric" value={b.saldo}
-                       onChange={(e) => pon("saldo", e.target.value)} /></label>
+                <input ref={campoSaldo} inputMode="numeric" value={b.saldo}
+                       onChange={(e) => pon("saldo", e.target.value)}
+                       onKeyDown={(e) => saltaCon(e)} /></label>
             </div>
           ) : (
             <div className="fe-dos una">
               <label><span>Cajas</span>
-                <input inputMode="numeric" value={b.cajas}
-                       onChange={(e) => pon("cajas", e.target.value)} /></label>
+                <input ref={campoCantidad} inputMode="numeric" value={b.cajas}
+                       onChange={(e) => pon("cajas", e.target.value)}
+                       onKeyDown={(e) => saltaCon(e)} /></label>
             </div>
           )}
 

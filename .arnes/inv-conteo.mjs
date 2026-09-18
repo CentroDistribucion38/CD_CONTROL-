@@ -956,9 +956,13 @@ if (!/function atrasFecha/.test(limpio))
   const dma = (limpio.match(/<div className="fe-dma">[\s\S]*?<\/div>/) ?? [""])[0];
   const cadena = [...dma.matchAll(/tecleaFecha\("(\w+)"[^)]*?(?:, (campo\w+))?\)/g)]
     .map((m) => `${m[1]}→${m[2] ?? "fin"}`).join(" ");
-  if (cadena !== "dia→campoMes mes→campoAnio anio→fin")
+  /* LA CADENA NO SE ACABA EN EL AÑO: SIGUE A LA CANTIDAD. Era el único
+     corte del renglón —se terminaba la fecha y había que levantar la
+     mano a tocar «Estibas completas»— y es justo lo que se pidió
+     quitar. */
+  if (cadena !== "dia→campoMes mes→campoAnio anio→campoCantidad")
     fallas.push(`las casillas de la fecha están encadenadas [${cadena || "de ninguna forma"}] ` +
-                "y deben ir dia→campoMes mes→campoAnio anio→fin");
+                "y deben ir dia→campoMes mes→campoAnio anio→campoCantidad");
   const atras = [...dma.matchAll(/atrasFecha\(e, b\.(\w+), (campo\w+)\)/g)]
     .map((m) => `${m[1]}←${m[2]}`).join(" ");
   if (atras !== "mes←campoDia anio←campoMes")
@@ -978,13 +982,35 @@ if (!/function atrasFecha/.test(limpio))
    quiere. */
 {
   const fn = (limpio.match(/function tecleaFecha\([\s\S]*?\n  \}/) ?? [""])[0];
+  /* LA RED, POR SI ALGÚN DÍA LA ÚLTIMA CASILLA NO TIENE SIGUIENTE:
+     dejar el cursor ahí con el teclado abierto taparía el total y los
+     días para salir. Y va DETRÁS del salto: delante cerraría el teclado
+     también al pasar de día a mes, que es lo contrario. */
   if (!/\.blur\(\)/.test(fn))
-    fallas.push("al acabar el año no se cierra el teclado: se queda abierto tapando el total y los días para salir");
+    fallas.push("sin casilla siguiente el teclado se queda abierto, tapando el total y los días para salir");
   const iSig = fn.indexOf("siguiente.current.focus()");
   const iBlur = fn.indexOf(".blur()");
   if (iSig >= 0 && iBlur >= 0 && iBlur < iSig)
     fallas.push("el teclado se cierra ANTES de pasar a la casilla siguiente: se cerraría también al pasar de día a mes");
 }
+
+/* LA CASILLA DE LA CANTIDAD LLEVA LA MISMA REFERENCIA EN LOS DOS MODOS.
+   «Estibas completas» y «Cajas» no existen a la vez, así que una sola
+   referencia apunta siempre a la que está montada. Con una por modo
+   habría que preguntar en cuál estamos cada vez que se salta, y ese
+   `if` se olvida el día que aparezca un tercer modo. */
+{
+  const n = (limpio.match(/ref=\{campoCantidad\}/g) ?? []).length;
+  if (n !== 2)
+    fallas.push(`la referencia de la cantidad está en ${n} casilla(s) y van 2 —estibas y cajas—: `
+              + "en el modo que le falte, el año no sabría adónde saltar");
+}
+
+/* Y EL CÓDIGO Y LAS CANTIDADES SALTAN CON ENTER. Su largo no se sabe
+   —3128 o 17740, 8 estibas o 112— así que saltar por el largo sería
+   adivinar; lo dice quien escribe. */
+if (!/function saltaCon\(/.test(limpio))
+  fallas.push("el código y las cantidades no encadenan con Enter: el renglón se corta donde el largo no se sabe");
 
 /* LA OBSERVACIÓN SE GUARDABA Y NO SE PODÍA ESCRIBIR. El renglón manda
    `p_nota` desde el primer día y el formulario no tenía dónde teclearla:

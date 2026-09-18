@@ -253,10 +253,24 @@ probar("el estado del envase va debajo de las cantidades",
           '          <label className="fe-estado zzz"><span>Estado del envase X</span>']],
   "Estado del envase");
 
-probar("al acabar el año se cierra el teclado",
+probar("sin casilla siguiente el teclado se cierra",
   [[TSX, "    document.activeElement instanceof HTMLElement && document.activeElement.blur();",
           "    void 0;"]],
-  "no se cierra el teclado");
+  "el teclado se queda abierto");
+
+probar("al acabar el año el cursor pasa a la cantidad",
+  [[TSX, 'tecleaFecha("anio", e.target.value, campoCantidad)',
+          'tecleaFecha("anio", e.target.value)']],
+  "anio→campoCantidad");
+
+probar("la cantidad lleva la misma referencia en los dos modos",
+  [[TSX, '<input ref={campoCantidad} inputMode="numeric" value={b.cajas}',
+          '<input inputMode="numeric" value={b.cajas}']],
+  "y van 2 —estibas y cajas—");
+
+probar("el código y las cantidades encadenan con Enter",
+  [[TSX, "  function saltaCon(", "  function saltaConQuitado("]],
+  "no encadenan con Enter");
 
 probar("el teclado se cierra DESPUÉS de intentar pasar a la siguiente",
   [[TSX, "    if (limpio.length !== 2) return;\n    if (siguiente?.current) {",
@@ -269,4 +283,4 @@ if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 39 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 42 se pusieron rojas. El arnés caza lo que dice cazar.");

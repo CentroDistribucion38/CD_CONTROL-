@@ -1,80 +1,66 @@
-Traspasos: el segundo control — lo registrado sin documento
+Conteo: el renglón se escribe de corrido, del código al número
 
-«Que se evidencie también que ninguno de los registros que hicieron
-tiene documento. Que estén esos dos controles.»
-
-=====================================================================
-1 · POR QUÉ HACÍA FALTA UN SEGUNDO CONTROL
-=====================================================================
-
-El cruce empareja por NÚMERO DE DOCUMENTO. Un viaje al que nadie le
-apuntó el número no tiene con qué emparejarse, así que:
-
-  no está en «faltan»   — no hay documento de SAP que reclamarle
-  no está en «sobran»   — sobrar es tener un número que SAP no tiene
-  no está en «cuadran»  — no cuadra con nada
-
-Desaparece del tablero entero. Y es el agujero más grande de los dos:
-al documento de SAP que nadie registró se llega importando el corte; a
-este no se llega por ningún lado, porque nadie escribió el papel que los
-une.
-
-Ahora, al pie de Control, van LOS DOS:
-
-  1. VIAJES REGISTRADOS SIN DOCUMENTO  — con su turno, hora, placa,
-     tipo, carga, ruta y QUIÉN lo registró, que es a quien hay que ir a
-     preguntarle.
-  2. DIFERENCIAS CONTRA SAP            — faltan · sobran · cuadran.
+«La idea es que culmine la fecha y solo se ponga en estibas, o sea que
+todo sea así, que se vaya enfocando, para que sea mucho mejor.»
 
 =====================================================================
-2 · TRES DECISIONES QUE VALE LA PENA DEJAR ESCRITAS
+1 · LA CADENA YA NO SE CORTA EN EL AÑO
 =====================================================================
 
-NO DEPENDE DEL CORTE. El primer control se pinta haya corte importado o
-no. Atarlo al cruce lo escondería los días en que nadie importó el
-Excel, que son justo los días en que más falta hace.
+Era el único corte del renglón: se terminaba de teclear el año y había
+que levantar la mano a tocar «Estibas completas», con el teclado ya
+abierto y la estiba delante. Ahora el año pasa solo a la cantidad, como
+el día pasa al mes y el mes al año.
 
-LOS VACÍOS NO CUENTAN. Un viaje sin carga no lleva documento porque no
-hay papel que llevar; pedírselo obligaría a inventarlo. Se lee la marca
-`sin_documento` de la vista —«con carga, registrado y sin documento»— y
-no un `documento is null` escrito a mano, que se llevaría también los
-vacíos y llenaría la lista de viajes que no tienen nada malo.
+    código → DD → MM → AA → cantidad → saldo
 
-NO HAY MIGRACIÓN. La vista ya traía la marca desde
-2026-09-traspasos-documento.sql; lo que faltaba era enseñarla donde se
-mira el día. Y desde esa misma migración, registrar un viaje CON CARGA
-sin documento ya está prohibido: los que salgan en esta lista son los de
-antes de la regla. La lista debería ir bajando hasta cero y quedarse ahí.
+UNA SOLA REFERENCIA PARA LAS DOS CASILLAS DE CANTIDAD. «Estibas
+completas» y «Cajas» no existen a la vez —son las dos formas de contar—
+así que solo una está montada y la referencia apunta siempre a la que se
+ve. Con una referencia por modo habría que preguntar en cuál estamos
+cada vez que se salta, y ese `if` se olvida el día que aparezca un
+tercer modo.
 
-=====================================================================
-3 · Y EN EL CONTEO: AL ACABAR EL AÑO SE CIERRA EL TECLADO
-=====================================================================
-
-La casilla del año no tiene siguiente, así que el cursor se quedaba ahí
-con el teclado abierto tapando media pantalla — justo encima del total y
-de los días para salir, que es lo que hay que mirar al terminar la
-fecha. Soltar el foco es lo único que cierra el teclado de un celular.
-
-Va dentro de `tecleaFecha` y DETRÁS del caso de «hay casilla siguiente»:
-un `blur()` suelto en otro sitio cerraría el teclado también al pasar de
-día a mes, que es lo contrario de lo que se quiere. Hay una mutación que
-vigila ese orden.
+Lo de ayer —cerrar el teclado al acabar el año— se queda como RED: si un
+día la última casilla no tuviera siguiente, dejar el cursor ahí con el
+teclado abierto taparía el total y los días para salir, que es lo que
+hay que mirar al terminar. Y sigue yendo DETRÁS del salto: delante
+cerraría el teclado también al pasar de día a mes.
 
 =====================================================================
-4 · COMPROBADO
+2 · DONDE EL LARGO NO SE SABE, LO DICE ENTER
 =====================================================================
 
-  .arnes/tp-importar.mjs        19 mutaciones (4 nuevas del segundo
-  .arnes/mutar-tp-importar.mjs  control)
-  .arnes/inv-conteo.mjs         39 mutaciones (2 nuevas del teclado)
-  .arnes/mutar-inv-conteo.mjs
+El día, el mes y el año saltan solos porque son dos dígitos y ahí se
+acaban. El código puede ser 3128 o 17740, y las estibas 8 o 112: saltar
+por el largo ahí sería adivinar y dejaría a medias la mitad de los
+renglones. Con Enter lo dice quien escribe, que es el único que sabe que
+ya terminó.
 
-Todas rojas. Y una afirmación mía no se sostenía: comprobaba que
-apareciera la palabra «sinDocumento», que el nombre del parámetro ya
-satisfacía — quitando el bloque de los dos `return` la pantalla se
-quedaba sin el control y el arnés seguía en verde. Ahora cuenta que el
-bloque se PINTE, y dos veces: hay dos salidas —con corte y sin corte— y
-el control tiene que estar en las dos.
+    código  Enter → DD
+    estibas Enter → saldo
+    saldo   Enter → cierra el teclado (lo que sigue es mirar el total)
+    cajas   Enter → cierra el teclado
+
+DICHO CLARO: el teclado numérico de iPhone no trae Enter. Por eso este
+salto es el de conveniencia y el de la fecha es el que de verdad
+encadena el renglón — ese funciona en todos.
+
+=====================================================================
+3 · LO QUE APARECIÓ AL MEDIRLO
+=====================================================================
+
+Una mutación salió VERDE cuando debía salir roja, y el motivo vale la
+pena dejarlo escrito: la afirmación buscaba `function saltaCon` y la
+mutación renombraba a `function saltaConQuitado`, que CONTIENE ese
+texto. La comprobación seguía encontrando lo suyo dentro del nombre
+nuevo. Ahora pide el paréntesis, que es lo que de verdad distingue una
+función de otra.
+
+  .arnes/inv-conteo.mjs        7 temas × 4 anchos
+  .arnes/mutar-inv-conteo.mjs  42 mutaciones — las 3 nuevas incluidas
+
+Las 42 se ponen rojas.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
