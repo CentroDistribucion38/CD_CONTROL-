@@ -189,33 +189,35 @@
   color: var(--fe-gris);
 }
 
-/* SE RUEDAN DE LADO Y NO SE APILAN. El día que haya cuarenta
-   recorridos, apilados empujan la tabla cuatro pantallas hacia abajo;
-   en una fila que rueda, la pantalla mide siempre lo mismo y el más
-   nuevo —que es el que se busca— está siempre a la vista, a la
-   izquierda. El desplazamiento va DENTRO de la fila: una página que se
-   va de lado deja el menú inalcanzable. */
-.fe .ba-invs-fila {
-  display: flex; gap: 9px; overflow-x: auto; overscroll-behavior-x: contain;
-  padding-bottom: 4px; scroll-snap-type: x proximity;
-}
+/* UNA LÍNEA, MIDA LO QUE MIDA LA HISTORIA.
+
+   Era una fila de tarjetas que rodaba de lado, una por recorrido. Con
+   tres se veía bien; a un conteo diario son ciento ochenta en seis
+   meses, y rodar de lado deja de ser «a la vista». Ahora: un buscador
+   que se teclea —mide lo mismo con 3 que con 300— y TRES atajos fijos
+   para el caso normal, que es «el de ayer».
+
+   `flex-wrap` y no `overflow-x`: como son cuatro cosas y no crecen, en
+   el celular bajan a un segundo renglón en vez de esconderse. */
+.fe .ba-invs-fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch }
+/* El buscador manda y se lleva el espacio; los atajos son del tamaño de
+   su contenido. Al revés, con seis recorridos el buscador quedaba de
+   90 px y no se podía ni leer lo que se escribía. */
+.fe .ba-inv-buscar { flex: 1 1 280px; min-width: 0; display: block }
 .fe .ba-inv {
-  flex: 0 0 auto; min-width: 190px; max-width: 260px; scroll-snap-align: start;
-  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
-  min-height: 78px; padding: 11px 13px; cursor: pointer; text-align: left;
-  background: var(--fe-papel); border: 1.5px solid var(--fe-linea); border-radius: 3px;
+  flex: 0 0 auto; min-width: 118px;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  align-items: flex-start; min-height: 52px; padding: 8px 12px;
+  cursor: pointer; text-align: left;
+  background: var(--fe-papel); border: 1.5px solid var(--fe-linea); border-radius: 2px;
 }
 .fe .ba-inv b {
-  font: 800 16px var(--fe-titulo); color: var(--fe-tinta);
-  font-variant-numeric: tabular-nums;
+  font: 800 14px var(--fe-titulo); color: var(--fe-tinta);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .fe .ba-inv span {
-  font-size: 12px; color: var(--fe-gris); line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-.fe .ba-inv i {
-  font-style: normal; font-size: 11.5px; color: var(--fe-gris);
-  font-variant-numeric: tabular-nums; margin-top: auto;
+  font-size: 11.5px; color: var(--fe-gris); line-height: 1.3;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .fe .ba-inv:hover { border-color: var(--fe-acento) }
 .fe .ba-inv:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 2px }
@@ -226,7 +228,7 @@
 .fe .ba-inv.on {
   background: var(--fe-acento); border-color: var(--fe-acento);
 }
-.fe .ba-inv.on b, .fe .ba-inv.on span, .fe .ba-inv.on i { color: var(--fe-sobre) }
+.fe .ba-inv.on b, .fe .ba-inv.on span { color: var(--fe-sobre) }
 /* «Todos» va con una raya y no con otro color: es la misma clase de
    cosa que los demás —un recorrido más, el de la suma— y un color
    propio lo haría parecer un botón de acción. */
@@ -259,8 +261,12 @@
 }
 
 @media (max-width: 760px) {
-  .fe .ba-inv { min-width: 164px; min-height: 72px; padding: 10px 11px }
-  .fe .ba-inv b { font-size: 15px }
+  /* LOS ATAJOS SE REPARTEN EL RENGLÓN. En el celular el buscador se
+     lleva el primero entero y los tres atajos caben en el segundo. */
+  .fe .ba-inv-buscar { flex: 1 1 100% }
+  .fe .ba-inv { flex: 1 1 0; min-width: 0; min-height: 52px; padding: 8px 9px }
+  .fe .ba-inv b { font-size: 13px }
+  .fe .ba-inv span { font-size: 10.5px }
   .fe .ba-tipos { width: 100% }
   .fe .ba-tipos button { flex: 1; padding: 0 8px }
 }

@@ -797,15 +797,11 @@
 }
 .tp .ruta .voltear:hover { border-color: var(--tp-ojo) }
 .tp .ruta .voltear svg { width: 18px; height: 18px; stroke: var(--tp-gris); stroke-width: 1.9; fill: none }
-.tp .rutas-frec { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap }
-.tp .rutas-frec button {
-  border: 1.5px dashed var(--tp-linea); background: none; border-radius: 2px; padding: 8px 13px;
-  font: 500 13px var(--tp-texto); cursor: pointer; color: var(--tp-gris);
-}
-.tp .rutas-frec button:hover {
-  border-color: var(--tp-ojo); color: var(--tp-tinta);
-  background: color-mix(in srgb, var(--tp-ojo) 8%, #fff);
-}
+/* AQUÍ ESTABAN LAS RUTAS FRECUENTES —una fila de atajos «FABRICA →
+   BODEGA 38»— y las quitó Cristian. Se va también la regla: una hoja
+   que conserva estilos de lo que ya no existe es la que hace que el
+   siguiente arnés mida algo que no está en la pantalla, y este
+   proyecto ya pagó eso dos veces. */
 
 .tp .conteo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
 .tp .cel-step.grande button { width: 46px; height: 46px; font-size: 19px }

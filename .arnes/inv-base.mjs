@@ -92,24 +92,23 @@ const TABLA = `
 
 /* EL ESCOGEDOR DE INVENTARIO. Es lo primero de la pantalla y decide
    CUÁL tabla se mira, no cómo se recorta: por eso se mide aparte de los
-   filtros. Van seis recorridos para que la fila tenga que rodar —con
-   dos no se notaría que se apila y empuja la tabla fuera de la
-   pantalla. */
+   filtros.
+
+   Y MIDE LO MISMO CON 3 QUE CON 300. Era una fila de tarjetas, una por
+   recorrido; a un conteo diario eso son ciento ochenta en seis meses.
+   Ahora es un buscador que se teclea más TRES atajos fijos. Aquí van
+   seis recorridos en la lista del buscador a propósito: si el escogedor
+   creciera con ellos, la medida del alto lo cazaría. */
 const INVS = `
   <div class="ba-invs">
     <p class="ba-invs-rot">Qué inventario estás mirando<em>6 recorridos</em></p>
     <div class="ba-invs-fila">
-      <button type="button" class="ba-inv todos"><b>Todos</b>
-        <span>los 6 recorridos juntos</span><i>1.284 renglones</i></button>
-      ${[["18/09/2026", "FEFO-2026-09-18-A", "Génesis Visbal", "241", "58.420"],
-         ["17/09/2026", "FEFO-2026-09-17-C", "Samuel Leal", "198", "44.180"],
-         ["16/09/2026", "FEFO-2026-09-16-A", "Génesis Visbal", "226", "51.902"],
-         ["15/09/2026", "FEFO-2026-09-15-B", "Samuel Leal", "210", "49.330"],
-         ["14/09/2026", "FEFO-2026-09-14-A", "Génesis Visbal", "203", "47.006"],
-         ["11/09/2026", "FEFO-2026-09-11-C", "Samuel Leal", "206", "48.112"]]
-        .map(([f, c, q, n, cj], i) => `
-      <button type="button" class="ba-inv${i === 0 ? " on" : ""}"><b>${f}</b>
-        <span>${c} · ${q}</span><i>${n} renglones · ${cj} cajas</i></button>`).join("")}
+      <label class="ba-inv-buscar"><span class="sr">Buscar un recorrido</span>
+        <div class="bs"><input class="bs-campo" value="18/09/2026 · FEFO-2026-09-18-A">
+          <span class="bs-flecha">▾</span></div></label>
+      <button type="button" class="ba-inv todos"><b>Todos</b><span>6 recorridos</span></button>
+      <button type="button" class="ba-inv on"><b>18/09/2026</b><span>-A · 241 rengl.</span></button>
+      <button type="button" class="ba-inv"><b>17/09/2026</b><span>-C · 198 rengl.</span></button>
     </div>
   </div>`;
 
@@ -238,7 +237,7 @@ for (const t of TEMAS) {
          1,6 en tres temas y 6,9 en otro. */
       invOn: par(".ba-inv.on b"),
       invFecha: par(".ba-inv:not(.on) b"),
-      invPie: par(".ba-inv:not(.on) i"),
+      invPie: par(".ba-inv:not(.on) span"),
       tipoOn: par(".ba-tipos button.on"),
       tipoOff: par(".ba-tipos button:not(.on)"),
     };
@@ -257,6 +256,15 @@ for (const t of TEMAS) {
     const e = document.querySelector(".ba-tope");
     return { txt: getComputedStyle(e).color, fondo: getComputedStyle(e).backgroundColor };
   });
+
+  /* SI ALGO NO SE PINTA, SE DICE. Antes reventaba con «Cannot read
+     properties of null», que es un error del arnés y no un hallazgo:
+     el que lo lee no sabe si la pantalla está mal o si el armazón se
+     quedó viejo. */
+  for (const [k, v] of Object.entries(m))
+    if (!v) fallas.push(`tema ${t ?? "oficial"}: el armazón no pinta «${k}», así que lo que ` +
+                        "se mida con ello no dice nada de la pantalla");
+  if (Object.values(m).some((v) => !v)) continue;
 
   const c = {
     celda: razon(m.celda.txt, m.celda.fondo),
@@ -310,15 +318,13 @@ for (const [ancho, etiqueta] of ANCHOS) {
         const b = [...f.querySelectorAll(".ba-inv")];
         return {
           alto: Math.round(f.getBoundingClientRect().height),
-          rueda: getComputedStyle(f).overflowX,
-          /* ¿DE VERDAD HAY QUE RODAR? Si los seis caben, esta medida no
-             dice nada: sería una aserción que no puede fallar. */
-          desborda: Math.round(f.scrollWidth - f.clientWidth),
+          atajos: b.length,
+          buscador: !!f.querySelector(".ba-inv-buscar .bs-campo"),
           toque: Math.min(...b.map((e) => Math.round(e.getBoundingClientRect().height))),
-          /* Y EL PRIMERO A LA VISTA, sin rodar: es «Todos», el que más
-             se usa, y el escogido por defecto. */
-          primeroDentro: b.length > 0 &&
-            b[0].getBoundingClientRect().right <= f.getBoundingClientRect().right + 0.5,
+          /* TODOS A LA VISTA, sin rodar ni cortarse: son cuatro cosas y
+             no crecen, así que no hay excusa para esconder una. */
+          dentro: b.every((e) =>
+            e.getBoundingClientRect().right <= f.getBoundingClientRect().right + 0.5),
         };
       })(),
       tipos: (() => {
@@ -351,26 +357,29 @@ for (const [ancho, etiqueta] of ANCHOS) {
 
   if (!m.invs) fallas.push(`${etiqueta}: no está el escogedor de inventario`);
   else {
-    console.log(`         escogedor: ${m.invs.alto} px de alto · ${m.invs.rueda}` +
-                `${m.invs.desborda > 0 ? ` (+${m.invs.desborda} px)` : " (no desborda)"}` +
-                ` · tarjetas de ${m.invs.toque} px`);
-    if (!["auto", "scroll"].includes(m.invs.rueda))
-      fallas.push(`${etiqueta}: los inventarios no ruedan de lado (overflow-x: ` +
-                  `${m.invs.rueda}): apilados, el día que haya cuarenta recorridos la tabla ` +
-                  "queda cuatro pantallas más abajo");
-    if (m.invs.desborda <= 0)
-      fallas.push(`${etiqueta}: los seis recorridos del armazón caben sin rodar, así que la ` +
-                  "medida de que ruedan no midió nada");
-    /* NO SE PUEDE COMER LA PANTALLA. Alto de la fila: seis recorridos
-       en una fila miden lo mismo que uno. */
-    if (m.invs.alto > 140)
+    console.log(`         escogedor: ${m.invs.alto} px de alto · ` +
+                `${m.invs.atajos} atajos de ${m.invs.toque} px · ` +
+                `buscador ${m.invs.buscador ? "sí" : "NO"}`);
+    /* LO QUE SE PROMETE ES QUE NO CREZCA. Era una fila de tarjetas, una
+       por recorrido, y a un conteo diario eso son ciento ochenta en seis
+       meses. Ahora la historia entera vive dentro del buscador, y lo
+       que se pinta son tres atajos fijos. */
+    if (!m.invs.buscador)
+      fallas.push(`${etiqueta}: no está el buscador de recorridos: con cientos, escogerlos a ` +
+                  "botones vuelve a ser una fila interminable");
+    if (m.invs.atajos !== 3)
+      fallas.push(`${etiqueta}: hay ${m.invs.atajos} atajos de recorrido y son tres —«Todos» ` +
+                  "y los dos últimos—: si crecen con la historia, crece la pantalla");
+    /* NO SE PUEDE COMER LA PANTALLA. Dos renglones en el celular —el
+       buscador arriba y los tres atajos debajo— es el techo. */
+    if (m.invs.alto > 130)
       fallas.push(`${etiqueta}: el escogedor de inventario mide ${m.invs.alto} px de alto y ` +
                   "empuja la tabla fuera de la primera pantalla");
     if (m.invs.toque < 44)
-      fallas.push(`${etiqueta}: las tarjetas de inventario miden ${m.invs.toque} px (mínimo ` +
+      fallas.push(`${etiqueta}: los atajos de inventario miden ${m.invs.toque} px (mínimo ` +
                   "44: se tocan)");
-    if (!m.invs.primeroDentro)
-      fallas.push(`${etiqueta}: «Todos» no se ve sin rodar, y es el que está escogido al entrar`);
+    if (!m.invs.dentro)
+      fallas.push(`${etiqueta}: un atajo de inventario se sale de su fila`);
   }
 
   if (!m.tipos) fallas.push(`${etiqueta}: no están los botones de producto y envase`);
@@ -574,11 +583,52 @@ if (!/className=\{"ba-inv todos"/.test(limpio) ||
    posiciones del recorrido anterior: dejarlos puestos enseña una tabla
    vacía y hace pensar que ese inventario no contó nada. */
 {
-  const n = (limpio.match(/setFRecorrido\((?:""|rc\.codigo)\); setFCalle\(""\); setFModulo\(""\)/g) ?? []).length;
-  if (n !== 2)
-    fallas.push(`${n} de los 2 botones del escogedor sueltan la calle y el módulo al cambiar ` +
-                "de inventario: con el filtro del recorrido anterior puesto, la tabla sale " +
-                "vacía y parece que ese inventario no contó nada");
+  const n = (limpio.match(/setFCalle\(""\); setFModulo\(""\)/g) ?? []).length;
+  if (n !== 3)
+    fallas.push(`${n} de las 3 formas de cambiar de inventario —el buscador, «Todos» y los ` +
+                "atajos— sueltan la calle y el módulo: con el filtro del recorrido anterior " +
+                "puesto, la tabla sale vacía y parece que ese inventario no contó nada");
+}
+
+/* LOS ATAJOS NO CRECEN CON LA HISTORIA. Es la queja entera: una fila
+   de tarjetas, una por recorrido, con tres se ve bien y a un conteo
+   diario son ciento ochenta en seis meses. La historia vive dentro del
+   buscador; lo que se pinta son «Todos» y los DOS últimos. */
+if (!/recorridos\.slice\(0, 2\)\.map/.test(limpio))
+  fallas.push("los atajos de recorrido salen de la lista entera: vuelven a ser una fila que " +
+              "crece un botón por conteo hasta empujar la tabla fuera de la pantalla");
+if (!/<Buscador/.test(limpio))
+  fallas.push("no hay buscador de recorridos: con cientos, escogerlos a botones no cabe");
+
+/* Y AL ENTRAR SE MIRA EL ÚLTIMO, no la base entera. Con meses de
+   conteos, «todos» son miles de renglones cada vez que se abre la
+   pantalla, y la pregunta de todos los días es «¿cómo quedó el de
+   ayer?». Verlos todos juntos sigue estando, a un toque. */
+if (!/const recorridoActivo = fRecorrido \?\? recorridos\[0\]\?\.codigo \?\? "";/.test(limpio))
+  fallas.push("al entrar a La base no se abre el último recorrido: con meses de conteos, " +
+              "entrar a la base entera son miles de renglones cada vez");
+/* Y EL «NO HE ESCOGIDO NADA» ES DISTINTO DE «QUIERO VERLOS TODOS». Con
+   un solo `""` para las dos cosas no hay forma de volver al último al
+   cambiar de pestaña. */
+if (!/useState<string \| null>\(null\)/.test(limpio))
+  fallas.push("«no he escogido» y «todos» son el mismo valor: al cambiar de pestaña no habría " +
+              "forma de volver al último recorrido");
+
+/* CADA RECORRIDO SE OFRECE CON SU FECHA **Y** SU CÓDIGO. El mismo día
+   puede tener tres recorridos —turno A, B y C— y «18/9/2026» repetido
+   tres veces no distingue nada. */
+if (!/texto: `\$\{rc\.fecha \? fecha\(rc\.fecha\) : "sin fecha"\} · \$\{rc\.codigo\}`/.test(limpio))
+  fallas.push("el buscador ofrece los recorridos sin el código: dos del mismo día se leen " +
+              "idénticos y no hay cómo saber cuál se escogió");
+
+/* Y EL RECORRIDO NO CUENTA COMO FILTRO. Escoger cuál se mira no es
+   recortar una tabla: es decir CUÁL tabla. Contándolo, «Quitar filtros»
+   te sacaría del recorrido que estás mirando. */
+{
+  const linea = (limpio.match(/const filtrando = [\s\S]*?;/) ?? [""])[0];
+  if (/fRecorrido|recorridoActivo/.test(linea))
+    fallas.push("el recorrido cuenta como filtro: «Quitar filtros» sacaría del inventario " +
+                "que se está mirando, que es lo único que no se quería soltar");
 }
 
 /* PRODUCTO O ENVASE, Y QUE DE VERDAD FILTRE. Son los dos mundos de esta
@@ -601,13 +651,13 @@ if (!/const porTipo = useMemo/.test(limpio) || !/porTipo\[v\] \?\? 0/.test(limpi
 /* Y ESA CIFRA CUENTA DENTRO DEL INVENTARIO QUE SE ESTÁ MIRANDO. Contada
    sobre la base entera diría «376 envases» estando en un recorrido que
    no contó ninguno. */
-if (!/crudas\.filter\(\(r\) => fRecorrido === "" \|\| r\.conteo === fRecorrido\)/.test(limpio))
+if (!/crudas\.filter\(\(r\) => recorridoActivo === "" \|\| r\.conteo === recorridoActivo\)/.test(limpio))
   fallas.push("la cuenta de producto y envase se hace sobre la base entera y no sobre el " +
               "inventario escogido: diría «376 envases» en un recorrido que no contó ninguno");
 
 /* EL EXCEL SE LLAMA COMO LO QUE TRAE. Bajando tres recorridos seguidos
    salían tres archivos con el mismo nombre y un (1) y un (2) detrás. */
-if (!/fRecorrido \|\| "todos"/.test(limpio))
+if (!/recorridoActivo \|\| "todos"/.test(limpio))
   fallas.push("el archivo de Excel no dice de qué inventario es: tres recorridos seguidos " +
               "bajan tres archivos con el mismo nombre");
 

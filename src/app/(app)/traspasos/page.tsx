@@ -3,7 +3,7 @@ import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
   tipos as leerTipos, puntos as leerPuntos, viajesDelDia, control,
-  placasRecientes, rutasFrecuentes, hoyLocal, placasMaestro, diaAbierto,
+  placasRecientes, hoyLocal, placasMaestro, diaAbierto,
 } from "@/modulos/traspasos/datos";
 import { turnoDeAhora, TURNOS, conDia } from "@/modulos/traspasos/formato";
 import "./traspasos.css";
@@ -35,9 +35,9 @@ export default async function TraspasosPage({ searchParams }: {
 
   /* Las siete consultas en una sola tanda: en serie la pantalla
      tardaría lo que suman y aquí ninguna depende de otra. */
-  const [permisos, t, pts, dia, ctl, placas, rutas, nombres, pl, abierto] = await Promise.all([
+  const [permisos, t, pts, dia, ctl, placas, nombres, pl, abierto] = await Promise.all([
     misPermisos(), leerTipos(), leerPuntos(), viajesDelDia(fecha),
-    control(fecha), placasRecientes(), rutasFrecuentes(), nombresTodos(),
+    control(fecha), placasRecientes(), nombresTodos(),
     placasMaestro(), diaAbierto(fecha),
   ]);
 
@@ -170,7 +170,7 @@ export default async function TraspasosPage({ searchParams }: {
       )}
 
       {permisos.puedeEditar("/traspasos") && !esFuturo && !cerrado ? (
-        <Registrar tipos={t.tipos} puntos={pts} placas={placas} rutas={rutas}
+        <Registrar tipos={t.tipos} puntos={pts} placas={placas}
                    placasM={pl.placas}
                    fecha={fecha} turnoSugerido={turno}
                    planTurno={planTurno} hechosTurno={hechosTurno}

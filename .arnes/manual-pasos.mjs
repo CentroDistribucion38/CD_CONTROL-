@@ -94,7 +94,7 @@ ${campo("Ruta", `<div class="ruta">
 ${desple("Ag01<i>Bodega propia</i>")}
 <button class="voltear"><svg viewBox="0 0 24 24"><path d="M7 10h13M7 10l3-3M7 10l3 3"/><path d="M17 14H4M17 14l-3-3M17 14l-3 3"/></svg></button>
 ${desple("Planta Barranquilla<i>Planta</i>")}</div>
-<div class="rutas-frec"><button>Ag01 → Planta Barranquilla</button><button>Planta Barranquilla → Ag01</button></div>`, "c-ruta")}
+`, "c-ruta")}
 
 <div class="linea-campos">
 ${campo("Cuántos viajes", `<div class="conteo"><span class="cel-step grande"><button>−</button><input value="1"><button>+</button></span>

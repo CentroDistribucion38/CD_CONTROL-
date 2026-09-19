@@ -59,7 +59,7 @@ ${PLAN.map((p,i)=>chip(p,i===0)).join("")}
 <button class="voltear"><svg viewBox="0 0 24 24"><path d="M7 10h13M7 10l3-3M7 10l3 3"/><path d="M17 14H4M17 14l-3-3M17 14l-3 3"/></svg></button>
 <div class="desple"><button class="disparo"><span class="sin">A dónde va…</span>
 <svg class="flecha" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button></div></div>
-<div class="rutas-frec"><button>Ag01 → Planta Barranquilla</button><button>Planta Barranquilla → Ag01</button></div></div>
+</div>
 
 <div class="linea-campos">
 <div><span class="rot-campo">Cuántos viajes</span>

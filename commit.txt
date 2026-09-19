@@ -1,209 +1,124 @@
-Contar sin escribir, el día de traspasos en una frase y la base por inventario
+Tres cosas que ocupaban pantalla sin decir más, encogidas
 
-Cuatro cosas que pediste, cada una con su arnés y cada arnés con sus
-mutaciones. Las cuatro salieron de frases tuyas y están citadas donde se
-decidieron.
-
-=====================================================================
-1 · LA PRE-ANOTACIÓN D-1
-=====================================================================
-
-«Yo cuento hoy el A01 con 96 estibas de A1000. Que mañana, al
-seleccionar el módulo, me aparezca la misma información preguardada con
-la info de hoy, por si sigue igual, y un botón de registrar por si
-cambia.»
-
-Al escoger calle, módulo y lado salen las tarjetas de lo que se contó
-ahí la última vez —de cuándo sea— con la cantidad en grande y el
-vencimiento. Cada una tiene dos botones:
-
-  SIGUE IGUAL  guarda el renglón tal cual, sin tocar una casilla.
-  CAMBIÓ       baja la tarjeta al formulario con el cursor ya en la
-               cantidad, que es lo único que cambia casi siempre.
-
-Y «Aquí hay otra cosa» las quita todas de un toque, para el día que la
-posición cambió de material entero.
-
-CONFIRMAR Y ANOTAR SON EL MISMO GUARDADO. La tarjeta se vuelve un
-borrador y entra por la misma puerta. Con dos caminos, cualquier regla
-que se toque en uno queda distinta en el otro y el renglón confirmado
-sale del mismo módulo con otras cuentas.
-
-NO SE AUTOLLENA EL FORMULARIO. Llenar las casillas solo dejaría un
-renglón completo, a un toque de guardarse, sin que nadie haya mirado la
-estiba. Lo que se cuenta es lo que hay, no lo que había: aquí hay que
-decir que sí.
-
-LA TARJETA QUE YA SE CONTÓ HOY LO DICE y no se puede volver a
-confirmar. Esconderla se leería como que se perdió.
+Las tres salieron de mirarlas funcionando con datos de verdad, y las
+tres eran defectos de diseño míos: cosas que se ven bien con tres filas
+y dejan de servir a los seis meses.
 
 =====================================================================
-2 · SIEMPRE IZQUIERDO Y DERECHO
+1 · LA BASE: UNA LÍNEA, MIDA LO QUE MIDA LA HISTORIA
 =====================================================================
 
-«Coloco calle A módulo 01 y solo sale izquierdo, y no debe ser así.»
+«Así no, ya que será muy extenso: imagínate eso por meses.»
 
-Salían solo los lados que el maestro tenía cargados, y la bodega está a
-medias: A01 existe como A01_IZQ y no como A01_DER, así que ese lado del
-pasillo no se podía contar. Ahora salen los dos y EL QUE FALTE SE DA DE
-ALTA AL ANOTAR, heredando familia y capacidad del otro lado del mismo
-módulo. La pantalla no escribe en el maestro: le pide a la base que se
-asegure de que esa posición exista.
+Tenía razón. Era una fila de tarjetas, una por recorrido. Con tres se ve
+bien; a un conteo diario son ciento ochenta en seis meses, y rodar de
+lado deja de ser «a la vista». Ahora son dos cosas que NO crecen:
 
-LA EXCEPCIÓN ES DE VERDAD: un módulo cuyo maestro dice que NO tiene
-lados —EST07, JAULA_PNC— se respeta tal cual. Inventarle izquierdo y
-derecho crearía dos posiciones que en la bodega no existen y partiría en
-dos el conteo de ese sitio.
+  UN BUSCADOR   se teclea «18/09» o «FEFO-…-03» y queda uno, igual que
+                Calle y Módulo en Contar. Mide lo mismo con 3 que con
+                300, y la historia entera vive ahí dentro.
+  TRES ATAJOS   «Todos» y los DOS últimos recorridos. Es el caso normal
+                —«el de ayer», «el de antier»— y son tres siempre.
 
-Y DESPUÉS DE ANOTAR, EL CURSOR VUELVE A CALLE y el sitio se queda
-puesto. Lo devolviste dos veces antes y tenías razón las dos: un campo
-lleno del renglón anterior no se ve como un campo por llenar. Lo que
-cambió es que ahora el sitio SE VE —las tarjetas lo llevan escrito
-encima— y el cursor cae en el único campo que no levanta teclado.
+Medido: 52 px de alto en PC, 108 en celular (dos renglones). Antes
+crecía con cada conteo.
 
-=====================================================================
-3 · EL RESUMEN DEL DÍA DE TRASPASOS
-=====================================================================
+Y CADA UNO LLEVA SU CÓDIGO, no solo la fecha. En tu propia captura había
+DOS del 18/9/2026 —turnos distintos del mismo día— y «18/9/2026»
+repetido no distingue nada.
 
-Tal cual el diseño que mandaste. Abre con la respuesta en una frase
-—«ese día se registraron 16 traspasos: 7 con documento y 9 sin»— y
-debajo van los montones, cerrados, cada uno con su lista:
+AL ENTRAR SE ABRE EL ÚLTIMO, no la base entera. Con meses de conteos,
+«todos» son miles de renglones cada vez que se abre la pantalla, y la
+pregunta de todos los días es «¿cómo quedó el de ayer?». Verlos todos
+juntos sigue estando, a un toque.
 
-  CON DOCUMENTO Y EN SAP   nada que hacer.
-  CON DOCUMENTO Y SIN SAP  casi siempre un dedazo; el documento que
-                           aparece abajo como sin registrar suele ser
-                           este mismo con una cifra cambiada.
-  SIN DOCUMENTO            salió con carga y nadie apuntó el papel.
-  EN SAP Y SIN REGISTRAR   SAP lo tiene y no hay viaje.
-
-SON CUATRO Y NO TRES. El diseño traía tres y el cuarto —el dedazo— es
-donde está casi todo el trabajo de una jornada: quitarlo habría perdido
-la única pista de por qué un documento «falta».
-
-SE ABRE UNO SOLO, el que tenga trabajo. Con los cuatro desplegados la
-frase de arriba —que es la respuesta— queda a seis pantallazos.
-
-EL COLOR DICE GRAVEDAD, NO IDENTIDAD. Verde lo que está bien, rojo lo
-que SAP tiene y nadie registró, y el acento del módulo los dos del
-medio. Un cuarto color obligaría a un tono que en tres de los siete
-temas se colapsa contra el rojo.
+Y ESCOGER RECORRIDO YA NO CUENTA COMO FILTRO. Decidir CUÁL tabla se mira
+no es recortarla: contándolo, «Quitar filtros» te sacaba del inventario
+que estabas mirando, que es lo único que no querías soltar.
 
 =====================================================================
-4 · LA BASE, POR INVENTARIO Y POR PRODUCTO O ENVASE
+2 · LO QUE QUEDÓ SIN CONTAR: LA RESPUESTA EN UNA LÍNEA
 =====================================================================
 
-«Cuando entre a la base deberían aparecer por fecha los registros que
-hicieron, consolidados en una sola base, con el fin de seleccionar qué
-inventario ver… y dentro del inventario que se esté evaluando, que pueda
-filtrar por producto o por envase.»
+«Esto así extenso no me gusta: busca la manera de dar la información sin
+ser tan extenso.»
 
-Arriba de todo, una fila de recorridos con LA FECHA EN GRANDE, quién lo
-firmó y cuánto trae. Se escoge uno y la tabla entera es de ese; «Todos»
-sigue estando, de primero, porque la base ES la suma.
+Eran once barras de calle y sesenta filas, siempre abiertas: una
+pantalla entera para un dato que casi todos los días es «faltan tres». Y
+el día que falta TODO —427 de 427— las once barras salen al 100 % y no
+dicen absolutamente nada: cuando falta casi todo, el gráfico por calle
+es ruido.
 
-VA APARTE DE LOS FILTROS. Los filtros recortan una tabla; esto decide
-CUÁL. Metido entre los desplegables se leía como un filtro más, y un
-filtro se deja en blanco sin pensarlo: se acababa cuadrando contra todos
-los recorridos juntos creyendo estar mirando el de ayer.
+Ahora la caja nace CERRADA y la respuesta va en la tapa:
 
-RUEDAN DE LADO Y NO SE APILAN. El día que haya cuarenta recorridos,
-apilados empujan la tabla cuatro pantallas hacia abajo.
+    427  módulos sin contar en el último recorrido
+         de 427 activos · 420 nunca contados · FEFO-20260918-03
+    ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔  ← una sola barra
 
-Y PRODUCTO O ENVASE EN BOTONES, con la cuenta de cada uno DENTRO del
-inventario escogido. Un desplegable cerrado no dice cuál está puesto, y
-este filtro cambia el total de la pantalla. Un botón «Envase» que lleva
-a una tabla vacía hace dudar de si se perdió algo; con la cifra al lado
-se ve que ese recorrido no tocó envases.
+Debajo, si alguien la abre: las calles en FICHAS —«P 88/88 · B 70/70 ·
+A 69/70»— que dicen lo mismo que once barras en dos renglones, y la
+tabla de los sesenta más viejos.
 
-=====================================================================
-5 · LO QUE QUEDÓ SIN CONTAR, EN EL TABLERO
-=====================================================================
+Es un `<details>` del navegador y no un botón con estado: esta pantalla
+se dibuja en el servidor, y montar React aquí para abrir un cajón sería
+pagar con carga lo que el navegador hace solo.
 
-«Faltaría una tabla o algo que les muestre si quedó algún módulo sin
-contar; necesito información con la que yo pueda tener alertas y la
-visual.»
+EL ERROR QUE TENÍA LA CIFRA. Decía «420 nunca se han contado. 420 llevan
+más de dos semanas sin mirarse» — son LOS MISMOS 420, dichos como si
+fueran ochocientos cuarenta. Los que nunca se contaron entraban al
+segundo grupo con un `?? 999`. Un módulo que nunca se contó no lleva
+días sin mirarse: no tiene desde cuándo.
 
-Pegado a los grupos, porque es la ADVERTENCIA de todo lo de arriba: las
-cifras salen de lo que se caminó, y un módulo que nadie tocó no aparece
-como cero — no aparece.
-
-  · La cifra: cuántos módulos no tocó el último recorrido.
-  · La visual: una barra por calle, que es como se camina la bodega.
-    «38 módulos sin contar» no dice por dónde empezar; «la calle E casi
-    entera» sí.
-  · La alerta: la tabla ordenada POR DÍAS SIN CONTAR y no por calle. La
-    alfabética empieza siempre por A01 —contado ayer— y deja abajo el
-    que lleva tres semanas, que es el único que hay que ir a caminar.
-
-Y «NADA QUEDÓ SIN CONTAR» SE DICE, en verde. Sin ese renglón, la
-ausencia de la caja se lee igual que no haber mirado.
-
-DEL ÚLTIMO RECORRIDO Y NO DE TODOS JUNTOS. Sumando todos, la lista sale
-casi vacía siempre y no avisa de nada.
+Y LA TAPA DICE DE CUÁNTOS. «427 sin contar» no distingue una bodega que
+nadie ha caminado de media jornada pendiente; «427 de 427» sí.
 
 =====================================================================
-6 · LO QUE APARECIÓ AL MEDIRLO
+3 · EN RUTA: FUERA LOS ATAJOS DE RUTAS FRECUENTES
 =====================================================================
 
-Seis hallazgos que no se ven mirando la pantalla:
+«En ruta quita, que no quiero que se vea esto.»
 
-· EL BOTÓN DE CERRAR LAS TARJETAS se ponía al 100 % del ancho por una
-  regla de celular cuatrocientas líneas más arriba y empujaba la página
-  69 px de lado. Es la tercera vez en este proyecto que una regla pisa a
-  otra por el mismo nombre.
+Seis botones grandes debajo de los dos campos que acaban de contestar lo
+mismo, y con el mismo problema de fondo: cada par nuevo que alguien
+registra suma otro botón, así que la fila se alarga sola. Los dos
+desplegables ya se teclean y filtran; el atajo no ahorraba lo suficiente
+para pagar el sitio que ocupaba.
 
-· AL ARREGLARLO con `min-width: 0` en el rótulo, el desborde
-  desaparecía… porque el rótulo se encogía a CERO: decía «La última vez
-  en A01_IZQ» en una caja de 0 px y el arnés lo daba por bueno. Ahora
-  mide también si el rótulo se recorta.
+SE FUE TAMBIÉN LA CONSULTA. `rutasFrecuentes()` corría en cada carga de
+la pantalla solo para llenar esos botones. Dejarla pedida «por si acaso»
+es trabajo que alguien paga en tiempo de carga sin que nada lo use. La
+función sigue en `datos.ts` por si el dato hace falta algún día.
 
-· LA MEDIDA DE «NO SE SALE» DEL RESUMEN DE TRASPASOS no medía nada: el
-  paseo por los padres incluía `.caja`, que lleva `overflow: hidden`, y
-  con eso TODO contaba como «se rueda». Salió verde con la tabla
-  desbordada a propósito.
+Y SE FUE LA REGLA DE CSS, y el bloque de los dos arneses que la
+dibujaban. Una hoja que conserva estilos de lo que ya no existe es la
+que hace que el siguiente arnés mida algo que no está en la pantalla, y
+este proyecto ya pagó eso dos veces.
 
-· EL GRIS DE LAS NOTAS daba 4,39 en el tema ámbar sobre el fondo del
-  panel. El mínimo es 4,5. Va un `--tp-gris-panel` calibrado contra ese
-  fondo, como ya existía en inventario.
+=====================================================================
+4 · LO QUE APARECIÓ AL MEDIRLO
+=====================================================================
 
-· UNA AFIRMACIÓN MÍA NO SE SOSTENÍA: exigía que la frase del día fuera
-  más grande que la cifra de un montón, y se puso roja con un diseño que
-  está bien —30 px contra 34—. Comparar dos tamaños de letra no dice
-  cuál manda: la cifra es un glifo y la frase son dos renglones a peso
-  900 de lado a lado. Ahora mide un mínimo, que sí se puede afirmar.
+· EL ARNÉS DE LA BASE REVENTABA con «Cannot read properties of null»
+  cuando el armazón dejaba de pintar algo. Eso es un error del arnés, no
+  un hallazgo: el que lo lee no sabe si la pantalla está mal o si el
+  armazón se quedó viejo. Ahora lo dice con nombre propio.
 
-· Y CUATRO MUTACIONES SALIERON VERDES porque la aserción la sostenía
-  código que no era el suyo: `argumentos(bb, mat, idU)` aparece dos
-  veces y mutar una dejaba la otra; `enSap.has(...)` igual; `estado ===
-  "cerrado"` aparece en otra función del mismo archivo; y renombrar una
-  clase en el componente pasaba porque la regla vieja seguía en la hoja.
-  Las cuatro piden ahora las dos mitades.
+· CUATRO AFIRMACIONES SE QUEDARON SIN OBJETO al cambiar el diseño —«los
+  inventarios ruedan de lado», «el primero se ve sin rodar»— y en vez de
+  borrarlas se cambiaron por lo que el diseño nuevo SÍ promete: que el
+  escogedor no crezca (3 atajos fijos, ≤130 px de alto) y que el buscador
+  exista. Una aserción que ya no puede fallar es peor que ninguna.
 
 =====================================================================
 LOS ARNESES
 =====================================================================
 
   .arnes/inv-conteo.mjs        · mutar-inv-conteo.mjs      67 mutaciones
-  .arnes/inv-base.mjs          · mutar-inv-base.mjs        35 mutaciones
-  .arnes/fe-tablero.mjs        · mutar-fe-tablero.mjs      13 mutaciones
+  .arnes/inv-base.mjs          · mutar-inv-base.mjs        41 mutaciones
+  .arnes/fe-tablero.mjs        · mutar-fe-tablero.mjs      18 mutaciones
   .arnes/tp-resumen.mjs        · mutar-tp-resumen.mjs      15 mutaciones
 
-Las 130 se ponen rojas, cada una por su propia prueba.
-
-Y los tres de mutación que ya existían aprendieron a restaurar el árbol
-con SIGTERM: una corrida que se mató a los dos minutos dejó una mutación
-puesta en el archivo, y la corrida siguiente la tomó por el original. Lo
-cazó un `grep`, no el arnés.
-
-=====================================================================
-FALTA CORRER EN SUPABASE
-=====================================================================
-
-  supabase/migraciones/PENDIENTES-todo-en-uno.sql     (6 migraciones)
-  supabase/migraciones/2026-09-conteo-preanotacion.sql
-
-En ese orden. Sin la segunda, la pre-anotación y «lo que quedó sin
-contar» lo dicen en pantalla en vez de reventarse.
+Las 141 se ponen rojas, cada una por su propia prueba.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

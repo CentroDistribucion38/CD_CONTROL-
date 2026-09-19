@@ -158,38 +158,43 @@ const ARMAZON = `
 
   <!-- LO QUE QUEDÓ SIN CONTAR. Es la advertencia de todo lo de
        arriba: las cifras salen de lo que se caminó, y un módulo que
-       nadie tocó no aparece como cero — no aparece. -->
-  <section class="fe-caja fe-sincontar">
-    <div class="fe-caja-cab">
-      <h2>38 módulos sin contar en el último recorrido</h2>
-      <p>Posiciones activas que <b>CT-2026-0014</b> (12/09/2026) no tocó. Las cifras de
-        arriba salen de lo que se caminó: un módulo que nadie contó no aparece como cero,
-        <b>no aparece</b>. 4 no se han contado nunca. 11 llevan más de dos semanas sin
-        mirarse.</p>
+       nadie tocó no aparece como cero — no aparece.
+
+       CERRADO Y EN UNA LÍNEA. Aquí se mide ABIERTO, que es lo que hay
+       que poder leer; cerrado lo encoge el navegador solo. -->
+  <details class="fe-caja fe-sincontar" open>
+    <summary class="fe-sc-tapa">
+      <span class="n">427</span>
+      <span class="tx"><b>módulos sin contar en el último recorrido</b>
+        <span>de 427 activos · 420 nunca contados · 7 hace más de 2 semanas · CT-2026-0014</span></span>
+      <span class="fl">▾</span>
+    </summary>
+    <div class="fe-sc-barra"><i style="width:0%"></i></div>
+    <div class="fe-sc-cuerpo">
+      <p class="fe-sc-nota">Las cifras de arriba salen de lo que se caminó: un módulo que
+        nadie contó no aparece como cero, <b>no aparece</b>. Por calle:</p>
+      <p class="fe-sc-calles">
+        ${[["P", 88, 88], ["B", 70, 70], ["D", 70, 70], ["A", 69, 70], ["C", 55, 55],
+           ["E", 12, 37], ["EST", 27, 27], ["ALAR", 3, 18], ["BAHIA", 1, 1],
+           ["CARPA", 1, 1], ["JAULA_PNC", 1, 1]].map(([c, f, t]) =>
+          `<span class="${f / t > 0.5 ? "mal" : ""}">${c}<em>${f}/${t}</em></span>`).join("")}
+      </p>
+      <div class="fe-tabla">
+        <table>
+          <thead><tr><th>Módulo</th><th>Familia</th><th class="n">Cabe</th>
+            <th class="n">Sin contar hace</th><th>Última vez</th></tr></thead>
+          <tbody>
+            ${[["E06_IZQ", "RB F1000", "40", "nunca", "no se ha contado nunca", "mal"],
+               ["ALAR_BAHIA_6", "RETORNABLE", "96", "23 días", "26/08/2026", "mal"],
+               ["A01_DER", "RB F1000", "40", "6 días", "12/09/2026", ""]].map((f) => `
+            <tr class="${f[5]}"><td><b>${f[0]}</b></td><td>${f[1]}</td><td class="n">${f[2]}</td>
+              <td class="n dias">${f[3]}</td><td>${f[4]}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      <p class="fe-pie-nota">Salen los <b>60</b> que llevan más tiempo sin contarse, de 427.</p>
     </div>
-    <div class="fe-barras">
-      ${[["E", 17, 22], ["A", 9, 34], ["ALAR", 7, 18], ["JAULA_PNC", 5, 40]].map(([c, f, t]) => `
-      <div class="fe-mat">
-        <span class="nom"><b>Calle ${c}</b></span>
-        <span class="pista"><i class="${f / t > 0.5 ? "mal" : ""}" style="width:${(f / t) * 100}%"></i></span>
-        <span class="val">${f}<em>de ${t}</em></span>
-      </div>`).join("")}
-    </div>
-    <div class="fe-tabla">
-      <table>
-        <thead><tr><th>Módulo</th><th>Familia</th><th class="n">Cabe</th>
-          <th class="n">Sin contar hace</th><th>Última vez</th></tr></thead>
-        <tbody>
-          ${[["E06_IZQ", "RB F1000", "40", "nunca", "no se ha contado nunca", "mal"],
-             ["ALAR_BAHIA_6", "RETORNABLE", "96", "23 días", "26/08/2026", "mal"],
-             ["A01_DER", "RB F1000", "40", "6 días", "12/09/2026", ""]].map((f) => `
-          <tr class="${f[5]}"><td><b>${f[0]}</b></td><td>${f[1]}</td><td class="n">${f[2]}</td>
-            <td class="n dias">${f[3]}</td><td>${f[4]}</td></tr>`).join("")}
-        </tbody>
-      </table>
-    </div>
-    <p class="fe-pie-nota">Salen los <b>60</b> que llevan más tiempo sin contarse, de 38.</p>
-  </section>
+  </details>
 
   <section class="fe-caja">
     <div class="fe-caja-cab"><h2>Conteos enviados</h2><p>Quién caminó qué, y cuándo lo firmó.</p></div>
@@ -209,7 +214,7 @@ const ARMAZON = `
    ámbar —como el aviso de al lado— se leería como un problema. Va
    aparte porque es el otro estado real de la misma caja. */
 const COMPLETO = ARMAZON.replace(
-  /<!-- LO QUE QUEDÓ SIN CONTAR[\s\S]*?<\/section>\n\n  <section class="fe-caja">\n    <div class="fe-caja-cab"><h2>Conteos enviados<\/h2>/,
+  /<!-- LO QUE QUEDÓ SIN CONTAR[\s\S]*?<\/details>\n\n  <section class="fe-caja">\n    <div class="fe-caja-cab"><h2>Conteos enviados<\/h2>/,
   `<section class="fe-faltan bien"><p><b>Nada quedó sin contar</b> en el último recorrido
      (12/09/2026): se caminaron todas las posiciones activas de la bodega.</p></section>
 
@@ -317,18 +322,31 @@ for (const t of TEMAS) {
      alerta en decoración y el que la mira deja de distinguir la calle
      que hay que ir a caminar de la que le faltan dos módulos. */
   await monta(t, 1440);
-  const barras = await pag.evaluate(() => {
-    const g = (s) => { const e = document.querySelector(s); return e ? getComputedStyle(e).backgroundColor : null };
-    return { mal: g(".fe-sincontar .fe-mat .pista i.mal"),
-             suave: g(".fe-sincontar .fe-mat .pista i:not(.mal)") };
+  const fichas = await pag.evaluate(() => {
+    const par = (s) => {
+      const e = document.querySelector(s);
+      if (!e) return null;
+      const c = getComputedStyle(e);
+      return { txt: c.color, fondo: c.backgroundColor };
+    };
+    return { mal: par(".fe-sc-calles span.mal"), suave: par(".fe-sc-calles span:not(.mal)") };
   });
-  if (!barras.mal || !barras.suave)
-    fallas.push(`tema ${t ?? "oficial"}: el armazón no trae las dos clases de barra de lo ` +
-                "sin contar, así que esta medida no mide nada");
-  else if (barras.mal === barras.suave)
-    fallas.push(`tema ${t ?? "oficial"}: las barras de lo sin contar son todas del mismo ` +
-                "color, así que la calle a la que le faltan dos módulos se lee igual de " +
-                "grave que la que nadie caminó");
+  if (!fichas.mal || !fichas.suave)
+    fallas.push(`tema ${t ?? "oficial"}: el armazón no trae las dos clases de ficha de calle, ` +
+                "así que esta medida no mide nada");
+  else {
+    if (fichas.mal.fondo === fichas.suave.fondo)
+      fallas.push(`tema ${t ?? "oficial"}: las fichas de calle son todas del mismo color, ` +
+                  "así que la calle a la que le faltan dos módulos se lee igual de grave que " +
+                  "la que nadie caminó");
+    /* Y LAS DOS SE TIENEN QUE LEER. La roja no sale de los tokens del
+       tema: es un par a mano contra el rosa del aviso. */
+    for (const [k, v] of Object.entries(fichas)) {
+      const r = razon(v.txt, v.fondo);
+      if (r < 4.5)
+        fallas.push(`tema ${t ?? "oficial"}: la ficha de calle «${k}» contrasta ${r} (mínimo 4.5)`);
+    }
+  }
 
   await monta(t, 1440, VACIO);
   const v = await pag.evaluate(() => {
@@ -486,6 +504,31 @@ if (!/\(b\.dias_sin_contar \?\? Number\.MAX_SAFE_INTEGER\) - \(a\.dias_sin_conta
 if (!/for \(const u of m\.ubicaciones\)/.test(pgx))
   fallas.push("el «de cuántas» de cada calle no sale del maestro: la calle que nadie caminó " +
               "diría «2 de 2» en vez de «2 de 34»");
+
+/* Y NACE CERRADO. Once barras y sesenta filas siempre abiertas son una
+   pantalla entera para un dato que casi todos los días es «faltan
+   tres»; y el día que falta TODO, todas salen al 100 % y no dicen nada.
+   La respuesta va en la tapa; el detalle se abre si alguien lo pide. */
+if (/<details className="fe-caja fe-sincontar" open/.test(pgx))
+  fallas.push("la caja de lo sin contar nace abierta: sesenta filas empujan el tablero fuera " +
+              "de la pantalla todos los días");
+if (!/<summary className="fe-sc-tapa">/.test(pgx))
+  fallas.push("la caja de lo sin contar no se puede cerrar");
+/* Y LA TAPA TRAE LA RESPUESTA: cuántos, DE CUÁNTOS, y qué tan viejos.
+   «427 sin contar» sin el denominador no distingue una bodega que nadie
+   ha caminado de media jornada pendiente. */
+if (!/de \{nf\.format\(activas\)\} activos/.test(pgx))
+  fallas.push("la tapa no dice de cuántas posiciones: «427 sin contar» no distingue una " +
+              "bodega entera de media jornada pendiente");
+
+/* LO QUE NUNCA SE CONTÓ NO CUENTA COMO «HACE MÁS DE DOS SEMANAS».
+   Estaba entrando con un `?? 999` y se reportaba DOS VECES: «420 nunca
+   se han contado. 420 llevan más de dos semanas sin mirarse» — los
+   mismos 420, dichos como si fueran ochocientos cuarenta. Un módulo que
+   nunca se contó no lleva días sin mirarse: no tiene desde cuándo. */
+if (!/u\.dias_sin_contar != null && u\.dias_sin_contar > 14/.test(pgx))
+  fallas.push("los módulos que nunca se contaron se cuentan también como «hace más de dos " +
+              "semanas»: la tapa los dice dos veces");
 
 /* «NADA QUEDÓ SIN CONTAR» SE DICE. Sin ese renglón, la ausencia de la
    caja se lee igual que no haber mirado. */

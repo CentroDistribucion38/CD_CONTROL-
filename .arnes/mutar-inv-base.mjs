@@ -178,14 +178,51 @@ probar("las cifras del inventario salen de la cabecera del recorrido y no de las
   "con el tope puesto, la tarjeta y la tabla dirían cosas distintas");
 
 probar("ya no se puede volver a ver todos los recorridos juntos",
-  [[TSX, 'className={"ba-inv todos" + (fRecorrido === "" ? " on" : "")}',
-          'className={"ba-inv toditos" + (fRecorrido === "" ? " on" : "")}']],
+  [[TSX, 'className={"ba-inv todos" + (recorridoActivo === "" ? " on" : "")}',
+          'className={"ba-inv toditos" + (recorridoActivo === "" ? " on" : "")}']],
   "habría que escoger uno para poder entrar");
 
 probar("escoger otro inventario deja puesta la calle del anterior",
   [[TSX, "onClick={() => { setFRecorrido(rc.codigo); setFCalle(\"\"); setFModulo(\"\") }}",
           "onClick={() => setFRecorrido(rc.codigo)}"]],
   "sueltan la calle y el módulo");
+
+probar("los atajos de recorrido vuelven a crecer con la historia",
+  [[TSX, "{recorridos.slice(0, 2).map((rc) => (", "{recorridos.map((rc) => ("]],
+  "vuelven a ser una fila que crece");
+
+probar("el buscador de recorridos desaparece",
+  [[TSX, "              <Buscador\n                valor={recorridoActivo}",
+          "              <input\n                data-valor={recorridoActivo}"]],
+  "no hay buscador de recorridos");
+
+probar("al entrar a La base se abre la base entera y no el último recorrido",
+  [[TSX, 'const recorridoActivo = fRecorrido ?? recorridos[0]?.codigo ?? "";',
+         'const recorridoActivo = fRecorrido ?? "";']],
+  "no se abre el último recorrido");
+
+probar("«no he escogido» y «todos» vuelven a ser el mismo valor",
+  [[TSX, "useState<string | null>(null)", 'useState<string | null>("")']],
+  "son el mismo valor");
+
+probar("el buscador ofrece los recorridos sin el código",
+  [[TSX, 'texto: `${rc.fecha ? fecha(rc.fecha) : "sin fecha"} · ${rc.codigo}`',
+         'texto: `${rc.fecha ? fecha(rc.fecha) : "sin fecha"}`']],
+  "sin el código");
+
+probar("el recorrido vuelve a contar como un filtro más",
+  [[TSX, '  const filtrando = fTexto.trim() !== "" || fCalle !== ""',
+         '  const filtrando = recorridoActivo !== "" || fTexto.trim() !== "" || fCalle !== ""']],
+  "cuenta como filtro");
+
+probar("el escogedor se apila y empuja la tabla fuera de la pantalla",
+  [[CSS, ".fe .ba-invs-fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch }",
+          ".fe .ba-invs-fila { display: block }"],
+   [CSS, ".fe .ba-inv-buscar { flex: 1 1 280px; min-width: 0; display: block }",
+          ".fe .ba-inv-buscar { display: block }"],
+   [CSS, "  flex: 0 0 auto; min-width: 118px;\n  display: flex; flex-direction: column; justify-content: center; gap: 2px;",
+          "  min-width: 118px;\n  display: flex; flex-direction: column; justify-content: center; gap: 2px;"]],
+  "empuja la tabla fuera de la primera pantalla");
 
 probar("el botón de producto/envase deja de filtrar",
   [[TSX, "      if (fTipo && r.tipo_material !== fTipo) return false;", "      void fTipo;"]],
@@ -206,45 +243,39 @@ probar("los botones de producto y envase dejan de decir cuántos hay",
   "no dicen cuántos hay");
 
 probar("la cuenta de producto y envase se hace sobre la base entera",
-  [[TSX, '    const base = crudas.filter((r) => fRecorrido === "" || r.conteo === fRecorrido);',
+  [[TSX, '    const base = crudas.filter((r) => recorridoActivo === "" || r.conteo === recorridoActivo);',
           "    const base = crudas;"]],
   "y no sobre el inventario escogido");
 
 probar("el archivo de Excel deja de decir de qué inventario es",
-  [[TSX, '                  "conteo", pestania, fRecorrido || "todos",',
+  [[TSX, '                  "conteo", pestania, recorridoActivo || "todos",',
           '                  "conteo", pestania,']],
   "no dice de qué inventario es");
 
 /* ---------- LO QUE SE MIDE EN PANTALLA ---------- */
 
-probar("los inventarios se apilan en vez de rodar de lado",
-  [[CSS, "  display: flex; gap: 9px; overflow-x: auto; overscroll-behavior-x: contain;",
-          "  display: flex; gap: 9px; flex-wrap: wrap;"]],
-  "no ruedan de lado");
-
-probar("las tarjetas de inventario se encogen por debajo del dedo",
-  [[CSS, "  min-height: 78px; padding: 11px 13px; cursor: pointer; text-align: left;",
-          "  min-height: 0; padding: 1px 13px; cursor: pointer; text-align: left;"],
-   [CSS, "  .fe .ba-inv { min-width: 164px; min-height: 72px; padding: 10px 11px }",
-          "  .fe .ba-inv { min-width: 164px; min-height: 0; padding: 1px 11px }"],
-   [CSS, "  font: 800 16px var(--fe-titulo); color: var(--fe-tinta);",
-          "  font: 800 9px var(--fe-titulo); color: var(--fe-tinta);"],
-   [CSS, "  .fe .ba-inv b { font-size: 15px }", "  .fe .ba-inv b { font-size: 9px }"],
-   [CSS, "  font-size: 12px; color: var(--fe-gris); line-height: 1.35;",
-          "  font-size: 8px; color: var(--fe-gris); line-height: 1.35;"],
-   [CSS, "  font-style: normal; font-size: 11.5px; color: var(--fe-gris);",
-          "  font-style: normal; font-size: 8px; color: var(--fe-gris);"]],
-  "las tarjetas de inventario miden");
+probar("los atajos de inventario se encogen por debajo del dedo",
+  [[CSS, "  align-items: flex-start; min-height: 52px; padding: 8px 12px;",
+          "  align-items: flex-start; min-height: 0; padding: 1px 12px;"],
+   [CSS, "  .fe .ba-inv { flex: 1 1 0; min-width: 0; min-height: 52px; padding: 8px 9px }",
+          "  .fe .ba-inv { flex: 1 1 0; min-width: 0; min-height: 0; padding: 1px 9px }"],
+   [CSS, "  font: 800 14px var(--fe-titulo); color: var(--fe-tinta);",
+          "  font: 800 8px var(--fe-titulo); color: var(--fe-tinta);"],
+   [CSS, "  .fe .ba-inv b { font-size: 13px }", "  .fe .ba-inv b { font-size: 8px }"],
+   [CSS, "  font-size: 11.5px; color: var(--fe-gris); line-height: 1.3;",
+          "  font-size: 7px; color: var(--fe-gris); line-height: 1.3;"],
+   [CSS, "  .fe .ba-inv span { font-size: 10.5px }", "  .fe .ba-inv span { font-size: 7px }"]],
+  "los atajos de inventario miden");
 
 probar("el inventario escogido usa el acento como color de letra",
   [[CSS, `.fe .ba-inv.on {
   background: var(--fe-acento); border-color: var(--fe-acento);
 }
-.fe .ba-inv.on b, .fe .ba-inv.on span, .fe .ba-inv.on i { color: var(--fe-sobre) }`,
+.fe .ba-inv.on b, .fe .ba-inv.on span { color: var(--fe-sobre) }`,
           `.fe .ba-inv.on {
   border-color: var(--fe-acento);
 }
-.fe .ba-inv.on b, .fe .ba-inv.on span, .fe .ba-inv.on i { color: var(--fe-acento) }`]],
+.fe .ba-inv.on b, .fe .ba-inv.on span { color: var(--fe-acento) }`]],
   "«invOn» contrasta");
 
 probar("el tipo escogido usa el acento como color de letra",
@@ -260,4 +291,4 @@ if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 35 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 41 se pusieron rojas. El arnés caza lo que dice cazar.");

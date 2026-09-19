@@ -27,6 +27,7 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Renglon, ConteoFefo } from "@/modulos/inventario/fefo";
+import { Buscador } from "@/components/Buscador";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
@@ -167,7 +168,16 @@ export function Base({
 }) {
   const [pestania, setPestania] = useState<"base" | "borradores">("base");
   const [fTexto, setFTexto] = useState("");
-  const [fRecorrido, setFRecorrido] = useState("");
+  /* QUÉ RECORRIDO SE ESTÁ MIRANDO.
+     · null   nadie ha escogido todavía → vale el ÚLTIMO, que es el que
+              casi siempre se va a mirar.
+     · ""     escogió «Todos» a propósito.
+     · código ese recorrido.
+
+     Los tres estados hacen falta: con un `""` que valiera las dos cosas
+     no habría forma de distinguir «entré y no he tocado nada» de «quiero
+     verlos todos», y al cambiar de pestaña habría que adivinar cuál era. */
+  const [fRecorrido, setFRecorrido] = useState<string | null>(null);
   const [fCalle, setFCalle] = useState("");
   const [fModulo, setFModulo] = useState("");
   /* PRODUCTO O ENVASE. Son los dos mundos de esta bodega y casi nunca
@@ -229,6 +239,13 @@ export function Base({
       .sort((a, b) => (b.fecha ?? "").localeCompare(a.fecha ?? "")
                    || b.codigo.localeCompare(a.codigo, "es", { numeric: true }));
   }, [crudas, conteos]);
+  /* EL QUE SE ESTÁ MIRANDO DE VERDAD. Sin tocar nada vale el ÚLTIMO
+     —que es el que casi siempre se va a mirar— y no la base entera:
+     con meses de conteos, entrar a «todos» son miles de renglones cada
+     vez, y la pregunta de todos los días es «¿cómo quedó el de ayer?».
+     Verlos todos juntos sigue estando, a un toque. */
+  const recorridoActivo = fRecorrido ?? recorridos[0]?.codigo ?? "";
+
   const calles = useMemo(
     () => [...new Set(crudas.map((r) => r.calle).filter(Boolean))].sort() as string[],
     [crudas]);
@@ -243,7 +260,7 @@ export function Base({
     const vistas = crudas.filter((r) => {
       if (q && !`${r.codigo} ${r.material} ${r.familia ?? ""} ${r.nota ?? ""}`
         .toLowerCase().includes(q)) return false;
-      if (fRecorrido && r.conteo !== fRecorrido) return false;
+      if (recorridoActivo && r.conteo !== recorridoActivo) return false;
       if (fCalle && r.calle !== fCalle) return false;
       if (fModulo && r.ubicacion !== fModulo) return false;
       if (fTipo && r.tipo_material !== fTipo) return false;
@@ -262,9 +279,13 @@ export function Base({
         : String(va).localeCompare(String(vb), "es", { numeric: true });
       return orden.asc ? c : -c;
     });
-  }, [crudas, fTexto, fRecorrido, fCalle, fModulo, fTipo, soloPasados, orden]);
+  }, [crudas, fTexto, recorridoActivo, fCalle, fModulo, fTipo, soloPasados, orden]);
 
-  const filtrando = fTexto.trim() !== "" || fRecorrido !== "" || fCalle !== ""
+  /* «FILTRANDO» NO INCLUYE EL RECORRIDO. Escoger cuál se mira no es
+     recortar una tabla: es decir CUÁL tabla. Contarlo como filtro haría
+     que «Quitar filtros» te sacara del recorrido que estás mirando, que
+     es lo único que no querías soltar. */
+  const filtrando = fTexto.trim() !== "" || fCalle !== ""
     || fModulo !== "" || fTipo !== "" || soloPasados;
 
   /* CUÁNTOS HAY DE CADA UNO, en lo que queda después de los demás
@@ -272,13 +293,13 @@ export function Base({
      de si se perdió algo; con la cifra al lado se ve que ese recorrido
      no tocó envases y no hay nada que buscar. */
   const porTipo = useMemo(() => {
-    const base = crudas.filter((r) => fRecorrido === "" || r.conteo === fRecorrido);
+    const base = crudas.filter((r) => recorridoActivo === "" || r.conteo === recorridoActivo);
     return {
       PRODUCTO: base.filter((r) => r.tipo_material === "PRODUCTO").length,
       ENVASE: base.filter((r) => r.tipo_material === "ENVASE").length,
       "": base.length,
     } as Record<string, number>;
-  }, [crudas, fRecorrido]);
+  }, [crudas, recorridoActivo]);
   const cajas = filas.reduce((a, r) => a + Number(r.total_cajas), 0);
   const sitios = new Set(filas.map((r) => r.ubicacion_combinada ?? r.ubicacion)).size;
   const abiertos = conteos.filter((c) => c.estado === "en_proceso" || c.estado === "borrador");
@@ -291,12 +312,12 @@ export function Base({
       <div className="fe-pes ba-pes" role="tablist">
         <button type="button" role="tab" aria-selected={pestania === "base"}
                 className={pestania === "base" ? "on" : ""}
-                onClick={() => setPestania("base")}>
+                onClick={() => { setPestania("base"); setFRecorrido(null) }}>
           La base<em>{enviadas.length}</em>
         </button>
         <button type="button" role="tab" aria-selected={pestania === "borradores"}
                 className={pestania === "borradores" ? "on" : ""}
-                onClick={() => setPestania("borradores")}>
+                onClick={() => { setPestania("borradores"); setFRecorrido(null) }}>
           Borradores<em>{abiertas.length}</em>
         </button>
       </div>
@@ -333,16 +354,27 @@ export function Base({
       {/* ================= QUÉ INVENTARIO SE ESTÁ MIRANDO =================
 
           Va ANTES de los filtros porque es de otra clase de pregunta:
-          los filtros recortan una tabla; esto decide CUÁL tabla. Puesto
-          entre los demás desplegables se leía como un filtro más, y un
-          filtro se deja en blanco sin pensarlo — con lo que se acababa
+          los filtros recortan una tabla; esto decide CUÁL. Puesto entre
+          los demás desplegables se leía como un filtro más, y un filtro
+          se deja en blanco sin pensarlo — con lo que se acababa
           cuadrando contra todos los recorridos juntos creyendo estar
           mirando el de ayer.
 
-          Y «TODOS» ES UNA OPCIÓN, LA PRIMERA Y ESCRITA. La base ES la
-          suma de todos los recorridos; esconderlo obligaría a escoger
-          uno para poder entrar, y la pregunta «cuánto hay contado en
-          total» no tendría dónde contestarse. */}
+          UNA LÍNEA, MIDA LO QUE MIDA LA HISTORIA. La primera versión
+          era una fila de tarjetas, una por recorrido. Con tres se veía
+          bien; a un conteo diario son ciento ochenta en seis meses y
+          rodar de lado deja de ser «a la vista». Ahora son:
+
+            · UN BUSCADOR, que se teclea igual que Calle y Módulo en
+              Contar: se escribe «18/09» o «FEFO-…-03» y queda uno. Mide
+              lo mismo con 3 que con 300.
+            · TRES ATAJOS FIJOS —los dos últimos y «Todos»—, que es el
+              caso normal: «el de ayer» y «el de antier». Son tres
+              siempre, no crecen.
+
+          Y CADA UNO LLEVA SU CÓDIGO, no solo la fecha: el mismo día
+          puede tener dos y tres recorridos —turno A, B y C— y «18/9/2026»
+          repetido tres veces no distingue nada. */}
       {recorridos.length > 0 && (
         <div className="ba-invs">
           <p className="ba-invs-rot">
@@ -350,26 +382,39 @@ export function Base({
             <em>{recorridos.length} recorrido{recorridos.length === 1 ? "" : "s"}</em>
           </p>
           <div className="ba-invs-fila">
-            <button type="button" className={"ba-inv todos" + (fRecorrido === "" ? " on" : "")}
-                    aria-pressed={fRecorrido === ""}
+            <label className="ba-inv-buscar">
+              <span className="sr">Buscar un recorrido por fecha o código</span>
+              <Buscador
+                valor={recorridoActivo}
+                marcador="Escribe la fecha o el código…"
+                sinOpciones="Ningún recorrido coincide."
+                opciones={[
+                  { valor: "", texto: "Todos los recorridos",
+                    pista: `${nf.format(crudas.length)} renglones en total` },
+                  ...recorridos.map((rc) => ({
+                    valor: rc.codigo,
+                    texto: `${rc.fecha ? fecha(rc.fecha) : "sin fecha"} · ${rc.codigo}`,
+                    pista: [rc.quien, `${nf.format(rc.renglones)} renglones`,
+                            `${nf.format(rc.cajas)} cajas`].filter(Boolean).join(" · "),
+                  })),
+                ]}
+                onEscoge={(v) => { setFRecorrido(v); setFCalle(""); setFModulo("") }} />
+            </label>
+
+            {/* LOS ATAJOS. Dos recorridos y «Todos»: fijos, no crecen. */}
+            <button type="button" className={"ba-inv todos" + (recorridoActivo === "" ? " on" : "")}
+                    aria-pressed={recorridoActivo === ""}
                     onClick={() => { setFRecorrido(""); setFCalle(""); setFModulo("") }}>
               <b>Todos</b>
-              <span>los {recorridos.length} recorridos juntos</span>
-              <i>{nf.format(crudas.length)} renglones</i>
+              <span>{nf.format(recorridos.length)} recorridos</span>
             </button>
-            {recorridos.map((rc) => (
+            {recorridos.slice(0, 2).map((rc) => (
               <button key={rc.codigo}
-                      className={"ba-inv" + (fRecorrido === rc.codigo ? " on" : "")}
-                      type="button" aria-pressed={fRecorrido === rc.codigo}
+                      className={"ba-inv" + (recorridoActivo === rc.codigo ? " on" : "")}
+                      type="button" aria-pressed={recorridoActivo === rc.codigo}
                       onClick={() => { setFRecorrido(rc.codigo); setFCalle(""); setFModulo("") }}>
-                {/* LA FECHA PRIMERO Y EN GRANDE. El código —FEFO-0007—
-                    no le dice nada a nadie: lo que se recuerda es «el
-                    conteo del martes». */}
                 <b>{rc.fecha ? fecha(rc.fecha) : "sin fecha"}</b>
-                <span>{rc.codigo}{rc.quien ? ` · ${rc.quien}` : ""}</span>
-                <i>
-                  {nf.format(rc.renglones)} renglones · {nf.format(rc.cajas)} cajas
-                </i>
+                <span>{rc.codigo.slice(-2)} · {nf.format(rc.renglones)} rengl.</span>
               </button>
             ))}
           </div>
@@ -437,7 +482,7 @@ export function Base({
                    nombre y un (1) y un (2) detrás, y a la media hora
                    nadie sabía cuál era cuál. */
                 onClick={() => bajar(filas, [
-                  "conteo", pestania, fRecorrido || "todos",
+                  "conteo", pestania, recorridoActivo || "todos",
                   fTipo ? fTipo.toLowerCase() : null,
                   new Date().toISOString().slice(0, 10),
                 ].filter(Boolean).join("-") + ".csv")}>

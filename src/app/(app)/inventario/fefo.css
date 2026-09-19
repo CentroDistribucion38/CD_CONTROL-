@@ -1333,10 +1333,80 @@
 .fe .fe-faltan.bien p { color: #17543C }
 .fe .fe-faltan.bien b { color: #0C3927 }
 
-/* LAS BARRAS DE ESTA CAJA NO SON TODAS ROJAS. En «A quién llamar» el
-   rojo está bien —todo lo que sale ahí es urgente—; aquí lo normal es
-   que falten algunas posiciones, y pintarlas todas de rojo convierte la
-   alerta en decoración. Rojo es «más de la mitad de la calle». */
-.fe .fe-sincontar .fe-barras .fe-mat .pista i { background: var(--fe-acento) }
-.fe .fe-sincontar .fe-barras .fe-mat .pista i.mal { background: var(--fe-mal) }
-.fe .fe-sincontar .fe-barras .fe-mat .val em { margin-left: 5px }
+/* LA TAPA: LA RESPUESTA EN UNA LÍNEA, y el detalle cerrado.
+
+   Antes eran once barras de calle y sesenta filas, siempre abiertas:
+   una pantalla entera para un dato que casi todos los días es «faltan
+   tres». Y el día que falta TODO, las once barras salen al 100 % y no
+   dicen nada. */
+.fe details.fe-sincontar > summary { list-style: none; cursor: pointer }
+.fe details.fe-sincontar > summary::-webkit-details-marker { display: none }
+.fe .fe-sc-tapa {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 16px;
+  align-items: center; padding: 14px 20px; min-height: 64px;
+}
+.fe .fe-sc-tapa:hover { background: var(--fe-fondo) }
+.fe details.fe-sincontar > summary:focus-visible {
+  outline: 2px solid var(--fe-acento); outline-offset: -2px;
+}
+.fe .fe-sc-tapa .n {
+  font: 900 32px/1 var(--fe-titulo); letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums; color: var(--fe-mal); min-width: 48px;
+}
+.fe .fe-sc-tapa .tx b { display: block; font: 700 15px var(--fe-texto); color: var(--fe-tinta) }
+.fe .fe-sc-tapa .tx span {
+  display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.4;
+  color: var(--fe-gris-panel); overflow-wrap: anywhere;
+}
+.fe .fe-sc-tapa .fl {
+  width: 26px; height: 26px; display: grid; place-items: center; font-size: 12px;
+  border: 1.5px solid var(--fe-linea); border-radius: 2px; color: var(--fe-gris-panel);
+}
+.fe details.fe-sincontar[open] .fe-sc-tapa .fl {
+  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);
+  transform: rotate(180deg);
+}
+
+/* UNA SOLA BARRA, y de lo CONTADO: es la única proporción que se
+   compara contra sí misma día tras día. Se ve con la tapa cerrada,
+   porque es la mitad de la respuesta. */
+.fe .fe-sc-barra {
+  height: 6px; background: var(--fe-mal); overflow: hidden;
+  border-top: 1px solid var(--fe-linea);
+}
+.fe .fe-sc-barra i { display: block; height: 100%; background: var(--fe-bien) }
+
+.fe .fe-sc-cuerpo { border-top: 1px solid var(--fe-linea) }
+.fe .fe-sc-nota {
+  margin: 0; padding: 12px 20px 8px; font-size: 12.5px; line-height: 1.55;
+  color: var(--fe-gris-panel);
+}
+.fe .fe-sc-nota b { color: var(--fe-tinta) }
+
+/* POR CALLE, EN FICHAS Y NO EN BARRAS. «P 88/88» dice lo mismo que una
+   barra llena y cabe once veces en dos renglones. Y NO TODAS SON ROJAS:
+   lo normal es que falten algunas posiciones, y pintarlas todas de rojo
+   convierte la alerta en decoración. Rojo es «más de media calle». */
+.fe .fe-sc-calles {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0 20px 14px;
+}
+.fe .fe-sc-calles span {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  font: 700 11.5px var(--fe-titulo); letter-spacing: .04em;
+  background: var(--fe-fondo); color: var(--fe-gris-panel);
+  border: 1px solid var(--fe-linea); border-radius: 2px; padding: 4px 8px;
+}
+.fe .fe-sc-calles span em {
+  font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--fe-tinta);
+}
+.fe .fe-sc-calles span.mal {
+  background: #FDECEE; border-color: #F3C2C9; color: #8A1020;
+}
+.fe .fe-sc-calles span.mal em { color: #8A1020 }
+
+@media (max-width: 760px) {
+  .fe .fe-sc-tapa { gap: 11px; padding: 12px 13px }
+  .fe .fe-sc-tapa .n { font-size: 26px; min-width: 38px }
+  .fe .fe-sc-nota, .fe .fe-sc-calles { padding-left: 13px; padding-right: 13px }
+}

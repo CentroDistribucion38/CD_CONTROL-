@@ -142,8 +142,20 @@ export default async function InventarioTableroPage() {
   const nunca = sinContar.filter((u) => u.dias_sin_contar == null);
   /* DOS SEMANAS ES EL CORTE. No es un número mío: es el que separa «no
      tocó este recorrido» de «lleva sin mirarse más de lo que dura un
-     ciclo de conteo». Si el ciclo cambia, este número cambia con él. */
-  const viejos = sinContar.filter((u) => (u.dias_sin_contar ?? 999) > 14);
+     ciclo de conteo». Si el ciclo cambia, este número cambia con él.
+
+     Y LOS QUE NUNCA SE CONTARON NO CUENTAN AQUÍ. Estaban entrando con
+     un `?? 999` y se reportaban DOS VECES: «420 nunca se han contado.
+     420 llevan más de dos semanas sin mirarse» — los mismos 420, dichos
+     como si fueran ochocientos cuarenta. Un módulo que nunca se contó
+     no lleva días sin mirarse: no tiene desde cuándo. */
+  const viejos = sinContar.filter((u) => u.dias_sin_contar != null && u.dias_sin_contar > 14);
+
+  /* CUÁNTAS POSICIONES ACTIVAS TIENE LA BODEGA. Es el denominador de
+     todo este bloque: «427 sin contar» no dice nada sin decir de
+     cuántas. 427 de 427 es una bodega que nadie ha caminado; 427 de
+     1.200 es media jornada pendiente. */
+  const activas = m.ubicaciones.filter((u) => u.activa && u.bodega_id === bodega?.id).length;
   /* LA VISUAL: por calle, que es como se camina la bodega. «38 módulos
      sin contar» no dice por dónde empezar; «la calle E entera» sí. */
   const porCalle = (() => {
@@ -255,81 +267,105 @@ export default async function InventarioTableroPage() {
               <p>
                 <b>Nada quedó sin contar</b> en el último recorrido
                 {t.ultimo.fecha_analisis && <> ({fechaCorta(t.ultimo.fecha_analisis)})</>}: se
-                caminaron todas las posiciones activas de la bodega.
+                caminaron las {nf.format(activas)} posiciones activas.
               </p>
             </section>
           ) : t.ultimo && (
-            <section className="fe-caja fe-sincontar">
-              <div className="fe-caja-cab">
-                <h2>
-                  {nf.format(sinContar.length)} módulo{sinContar.length === 1 ? "" : "s"} sin
-                  contar en el último recorrido
-                </h2>
-                <p>
-                  Posiciones activas que <b>{t.ultimo.codigo}</b>
-                  {t.ultimo.fecha_analisis && <> ({fechaCorta(t.ultimo.fecha_analisis)})</>} no
-                  tocó. Las cifras de arriba salen de lo que se caminó: un módulo que nadie
-                  contó no aparece como cero, <b>no aparece</b>.
-                  {nunca.length > 0 && <> {nf.format(nunca.length)} no se {nunca.length === 1
-                    ? "ha contado nunca" : "han contado nunca"}.</>}
-                  {viejos.length > 0 && <> {nf.format(viejos.length)} llevan más de dos semanas
-                    sin mirarse.</>}
+            /* CERRADO AL ENTRAR, Y EN UNA LÍNEA.
+
+               La primera versión pintaba once barras de calle y una
+               tabla de sesenta filas, siempre abiertas: una pantalla
+               entera para un dato que casi todos los días es «faltan
+               tres». Y el día que falta TODO —427 de 427— las once
+               barras salen al 100 % y no dicen nada: cuando falta casi
+               todo, el gráfico por calle es ruido.
+
+               Así que la respuesta va en la tapa —cuántos, de cuántos,
+               y qué tan viejos— y el detalle se abre si alguien lo
+               pide. Es un `<details>` del navegador y no un botón con
+               estado: esta pantalla se dibuja en el servidor, y montar
+               React aquí para abrir un cajón sería pagar con carga lo
+               que el navegador hace solo. */
+            <details className="fe-caja fe-sincontar">
+              <summary className="fe-sc-tapa">
+                <span className="n">{nf.format(sinContar.length)}</span>
+                <span className="tx">
+                  <b>
+                    módulo{sinContar.length === 1 ? "" : "s"} sin contar en el último
+                    recorrido
+                  </b>
+                  <span>
+                    de {nf.format(activas)} activos
+                    {nunca.length > 0 && <> · {nf.format(nunca.length)} nunca contado{nunca.length === 1 ? "" : "s"}</>}
+                    {viejos.length > 0 && <> · {nf.format(viejos.length)} hace más de 2 semanas</>}
+                    {" · "}{t.ultimo.codigo}
+                  </span>
+                </span>
+                <span className="fl" aria-hidden="true">▾</span>
+              </summary>
+
+              {/* UNA SOLA BARRA: lo contado contra el total. Once barras
+                  al 100 % ocupaban una pantalla para decir lo que esta
+                  dice en 6 px de alto. */}
+              <div className="fe-sc-barra" role="img"
+                   aria-label={`${nf.format(activas - sinContar.length)} de ${nf.format(activas)} posiciones contadas`}>
+                <i style={{ width: `${activas > 0 ? ((activas - sinContar.length) / activas) * 100 : 0}%` }} />
+              </div>
+
+              <div className="fe-sc-cuerpo">
+                <p className="fe-sc-nota">
+                  Las cifras de arriba salen de lo que se caminó: un módulo que nadie contó
+                  no aparece como cero, <b>no aparece</b>. Por calle:
                 </p>
-              </div>
 
-              {/* LA VISUAL, POR CALLE: es como se camina la bodega.
-                  «38 módulos sin contar» no dice por dónde empezar; «la
-                  calle E casi entera» sí. */}
-              <div className="fe-barras">
-                {porCalle.map((c) => (
-                  <div key={c.calle} className="fe-mat">
-                    <span className="nom"><b>Calle {c.calle}</b></span>
-                    <span className="pista">
-                      <i className={c.total > 0 && c.falta / c.total > 0.5 ? "mal" : undefined}
-                         style={{ width: `${c.total > 0 ? (c.falta / c.total) * 100 : 100}%` }} />
+                {/* POR CALLE, EN FICHAS Y NO EN BARRAS. «P 88/88» dice lo
+                    mismo que una barra llena y cabe once veces en dos
+                    renglones. La barra solo gana cuando hay que comparar
+                    proporciones distintas, y aquí lo que se compara es
+                    un par de números que ya están escritos. */}
+                <p className="fe-sc-calles">
+                  {porCalle.map((c) => (
+                    <span key={c.calle}
+                          className={c.total > 0 && c.falta / c.total > 0.5 ? "mal" : undefined}>
+                      {c.calle}<em>{nf.format(c.falta)}/{nf.format(c.total)}</em>
                     </span>
-                    <span className="val">
-                      {nf.format(c.falta)}
-                      <em>de {nf.format(c.total)}</em>
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </p>
 
-              <div className="fe-tabla">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Módulo</th><th>Familia</th><th className="n">Cabe</th>
-                      <th className="n">Sin contar hace</th><th>Última vez</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sinContar.slice(0, 60).map((u) => (
-                      <tr key={u.ubicacion_id}
-                          className={u.dias_sin_contar == null || u.dias_sin_contar > 14 ? "mal" : undefined}>
-                        <td><b>{u.clave}</b></td>
-                        <td>{u.familia ?? "—"}</td>
-                        <td className="n">{u.capacidad == null ? "—" : nf.format(u.capacidad)}</td>
-                        <td className="n dias">
-                          {u.dias_sin_contar == null
-                            ? "nunca"
-                            : `${nf.format(u.dias_sin_contar)} día${u.dias_sin_contar === 1 ? "" : "s"}`}
-                        </td>
-                        <td>{u.ultimo_en ? fechaCorta(u.ultimo_en) : "no se ha contado nunca"}</td>
+                <div className="fe-tabla">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Módulo</th><th>Familia</th><th className="n">Cabe</th>
+                        <th className="n">Sin contar hace</th><th>Última vez</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {sinContar.slice(0, 60).map((u) => (
+                        <tr key={u.ubicacion_id}
+                            className={u.dias_sin_contar == null || u.dias_sin_contar > 14 ? "mal" : undefined}>
+                          <td><b>{u.clave}</b></td>
+                          <td>{u.familia ?? "—"}</td>
+                          <td className="n">{u.capacidad == null ? "—" : nf.format(u.capacidad)}</td>
+                          <td className="n dias">
+                            {u.dias_sin_contar == null
+                              ? "nunca"
+                              : `${nf.format(u.dias_sin_contar)} día${u.dias_sin_contar === 1 ? "" : "s"}`}
+                          </td>
+                          <td>{u.ultimo_en ? fechaCorta(u.ultimo_en) : "no se ha contado nunca"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {sinContar.length > 60 && (
+                  <p className="fe-pie-nota">
+                    Salen los <b>60</b> que llevan más tiempo sin contarse, de{" "}
+                    {nf.format(sinContar.length)}.
+                  </p>
+                )}
               </div>
-              {sinContar.length > 60 && (
-                <p className="fe-pie-nota">
-                  Salen los <b>60</b> que llevan más tiempo sin contarse, de{" "}
-                  {nf.format(sinContar.length)}. Los demás son los que se contaron hace poco
-                  en otro recorrido.
-                </p>
-              )}
-            </section>
+            </details>
           )}
 
           {sinFecha.length > 0 && (

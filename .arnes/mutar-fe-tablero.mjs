@@ -120,10 +120,38 @@ probar("«nada quedó sin contar» se pinta en ámbar, como si fuera un problema
          ".fe .fe-faltan.bien p { color: #B9D8C8 }"]],
   "«completo» contrasta");
 
-probar("todas las barras de lo sin contar vuelven a ser rojas",
-  [[CSS, ".fe .fe-sincontar .fe-barras .fe-mat .pista i { background: var(--fe-acento) }",
-          ".fe .fe-sincontar .fe-barras .fe-mat .pista i { background: var(--fe-mal) }"]],
+probar("todas las fichas de calle vuelven a ser rojas",
+  [[CSS, `.fe .fe-sc-calles span.mal {
+  background: #FDECEE; border-color: #F3C2C9; color: #8A1020;
+}`, `.fe .fe-sc-calles span.mal {
+  border-color: #F3C2C9;
+}`]],
   "son todas del mismo color");
+
+probar("la ficha roja de calle deja de leerse",
+  [[CSS, "  background: #FDECEE; border-color: #F3C2C9; color: #8A1020;",
+          "  background: #FDECEE; border-color: #F3C2C9; color: #F0B9C1;"]],
+  "ficha de calle «mal» contrasta");
+
+probar("la caja de lo sin contar vuelve a nacer abierta",
+  [[PGX, '<details className="fe-caja fe-sincontar">',
+         '<details className="fe-caja fe-sincontar" open>']],
+  "nace abierta");
+
+probar("la caja de lo sin contar deja de poderse cerrar",
+  [[PGX, '<summary className="fe-sc-tapa">', '<div className="fe-sc-tapa">'],
+   [PGX, "                <span className=\"fl\" aria-hidden=\"true\">▾</span>\n              </summary>",
+          "                <span className=\"fl\" aria-hidden=\"true\">▾</span>\n              </div>"]],
+  "no se puede cerrar");
+
+probar("la tapa deja de decir de cuántas posiciones",
+  [[PGX, "                    de {nf.format(activas)} activos", "                    activos"]],
+  "no dice de cuántas posiciones");
+
+probar("lo que nunca se contó se cuenta dos veces",
+  [[PGX, "sinContar.filter((u) => u.dias_sin_contar != null && u.dias_sin_contar > 14)",
+         "sinContar.filter((u) => (u.dias_sin_contar ?? 999) > 14)"]],
+  "la tapa los dice dos veces");
 
 restaurar();
 console.log("");
@@ -131,4 +159,4 @@ if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 13 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 18 se pusieron rojas. El arnés caza lo que dice cazar.");

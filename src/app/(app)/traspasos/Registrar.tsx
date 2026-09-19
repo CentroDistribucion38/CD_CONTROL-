@@ -40,13 +40,12 @@ export type PlanTipo = {
   tipo: string; nombre: string; planeado: number; cumplido: number;
 };
 
-export function Registrar({ tipos, puntos, placas, rutas, placasM,
+export function Registrar({ tipos, puntos, placas, placasM,
                             fecha, turnoSugerido,
                             planTurno, hechosTurno, planPorTipo, viajes, nombres }: {
   tipos: TipoViaje[];
   puntos: Punto[];
   placas: { placa: string; veces: number }[];
-  rutas: { origen: string; destino: string; veces: number }[];
   /** El maestro de placas. Lo que se puede escoger, ya no texto libre. */
   placasM: PlacaM[];
   fecha: string;
@@ -570,19 +569,28 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
                     </div>
                   )}
 
-                  {/* LAS RUTAS QUE MÁS SE REPITEN. No son un maestro: es
-                      una cuenta sobre los viajes ya registrados, así que
-                      funciona desde el primer día y se afina sola. */}
-                  {rutas.length > 0 && (
-                    <div className="rutas-frec">
-                      {rutas.map((r) => (
-                        <button key={r.origen + r.destino} type="button"
-                                onClick={() => { setOrigen(r.origen); setDestino(r.destino) }}>
-                          {nombreBodega(puntos, r.origen)} → {nombreBodega(puntos, r.destino)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {/* AQUÍ ESTABAN LAS RUTAS FRECUENTES —una fila de
+                      atajos «FABRICA → BODEGA 38»— y las quitó Cristian.
+
+                      La idea era ahorrar dos toques; lo que hacía era
+                      poner SEIS botones grandes debajo de los dos
+                      campos que acaban de contestar lo mismo. Y crecen:
+                      cada par nuevo que alguien registra suma otro
+                      botón, así que la fila se alarga sola hasta empujar
+                      el resto del formulario fuera de la pantalla.
+
+                      Los dos desplegables de arriba ya se teclean y
+                      filtran; el atajo no ahorraba lo suficiente para
+                      pagar el sitio que ocupaba.
+
+                      Y SE FUE TAMBIÉN LA CONSULTA. `rutasFrecuentes()`
+                      corría en cada carga de la pantalla para llenar
+                      estos seis botones; dejarla pedida «por si acaso»
+                      es trabajo que alguien paga en tiempo de carga sin
+                      que nada lo use. La cuenta sale de los viajes ya
+                      registrados, así que el día que se quiera —como
+                      pista al lado del destino, por ejemplo— se vuelve
+                      a pedir y ya. La función sigue en `datos.ts`. */}
 
                   {puntosVivos.length === 0 && (
                     <p className="guia" style={{ marginTop: 10 }}>
@@ -758,8 +766,4 @@ export function Registrar({ tipos, puntos, placas, rutas, placasM,
   );
 }
 
-/** El nombre de una bodega a partir de su clave. Las rutas frecuentes
- *  vienen de la base con claves; la pantalla muestra nombres. */
-function nombreBodega(puntos: Punto[], clave: string) {
-  return puntos.find((p) => p.clave === clave)?.nombre ?? clave;
-}
+
