@@ -1220,3 +1220,123 @@
      casillas DD/MM/AA empujaban la página 460 px de lado a 360. */
   .fe .fe-dma { min-width: 0 }
 }
+
+/* =====================================================================
+   LA PRE-ANOTACIÓN D-1
+
+   Lo que se contó la última vez en esta posición, como algo QUE HAY QUE
+   CONTESTAR y no como una nota al pie. Por eso aquí sí hay tarjetas
+   —con su borde— rompiendo la regla de arriba: los demás bloques del
+   formulario son campos por llenar y se separan con una línea; estas
+   son PREGUNTAS, una por renglón, cada una con sus dos botones. Sin el
+   borde, los pares de botones quedarían flotando en una lista y no se
+   vería a cuál cifra pertenece cada par.
+   ===================================================================== */
+.fe .fe-previo-cab {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
+}
+/* EL BOTÓN DE CERRAR NO SE ESTIRA. De 760 px para abajo `.fe-mini` se
+   pone al 100 % del ancho —tiene sentido donde está solo en su renglón,
+   como en «Dejarlo como estaba»— y aquí va al lado del rótulo: estirado
+   empujaba la página 69 px de lado en el celular. Lo cazó el arnés
+   midiendo, que es de lo que se trata. */
+.fe .fe-previo-cab .fe-mini { width: auto; margin-left: auto; flex: none }
+.fe .fe-previo-rot {
+  margin: 0; font: 800 11px var(--fe-titulo); letter-spacing: .16em;
+  text-transform: uppercase; color: var(--fe-gris-panel);
+}
+/* CUÁNDO FUE, PEGADO AL DÓNDE. «La última vez en A01_IZQ · hace 12
+   días» es una sola frase: separarlos en dos renglones obliga a juntar
+   a mano el dato con su antigüedad, que es lo único que dice si hay que
+   ir a caminar ese pasillo. */
+.fe .fe-previo-rot em {
+  font-style: normal; letter-spacing: 0; text-transform: none;
+  font-weight: 600; color: var(--fe-gris-panel);
+}
+.fe .fe-previo-rot em::before { content: " · " }
+
+.fe .fe-tarjeta {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea);
+  border-radius: 3px; box-shadow: inset 3px 0 0 var(--fe-acento);
+  padding: 11px 13px; margin-bottom: 9px;
+}
+.fe .fe-tarjeta:last-child { margin-bottom: 0 }
+.fe .fe-tarjeta-que { margin: 0; font: 500 14px var(--fe-texto); color: var(--fe-tinta) }
+.fe .fe-tarjeta-que b { font: 800 16px var(--fe-titulo); margin-right: 8px }
+.fe .fe-tarjeta-que span { color: var(--fe-gris) }
+/* LA CIFRA, DEL TAMAÑO DE LA RESPUESTA. Es lo único que se compara con
+   la estiba que se tiene delante: si «96 estibas» se lee del mismo
+   tamaño que el nombre del material, hay que buscarla. */
+.fe .fe-tarjeta-cifra {
+  margin: 6px 0 0; font: 800 20px var(--fe-titulo);
+  font-variant-numeric: tabular-nums; color: var(--fe-tinta);
+}
+.fe .fe-tarjeta-cifra em {
+  font: 600 12.5px var(--fe-texto); font-style: normal;
+  color: var(--fe-gris); margin-left: 10px;
+}
+.fe .fe-tarjeta-marcas { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0 }
+.fe .fe-tarjeta-marcas span {
+  font: 700 11px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase;
+  background: var(--fe-fondo); color: var(--fe-gris-panel);
+  border: 1px solid var(--fe-linea); border-radius: 2px; padding: 3px 7px;
+}
+
+/* LOS DOS BOTONES, DEL MISMO TAMAÑO Y DE 48 px. Son la respuesta entera
+   a la pregunta de la tarjeta y se tocan de pie, con guante: el mismo
+   tamaño que «Rota», «Avería» y «PNC» más abajo. */
+.fe .fe-tarjeta-pie { display: flex; gap: 8px; margin-top: 11px }
+.fe .fe-tarjeta-pie button {
+  flex: 1; min-height: 48px; cursor: pointer; border-radius: 2px;
+  font: 700 15px var(--fe-titulo);
+}
+.fe .fe-tarjeta-pie .fe-si {
+  background: var(--fe-acento); border: 1.5px solid var(--fe-acento); color: var(--fe-sobre);
+}
+.fe .fe-tarjeta-pie .fe-no {
+  background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); color: var(--fe-gris-panel);
+}
+.fe .fe-tarjeta-pie button:disabled { opacity: .55; cursor: default }
+
+/* YA CONTADA: se apaga, no se va. Desaparecer al confirmarla se leería
+   como que se perdió. */
+.fe .fe-tarjeta.hecha { background: var(--fe-fondo); box-shadow: inset 3px 0 0 var(--fe-linea) }
+.fe .fe-tarjeta.hecha .fe-tarjeta-que b,
+.fe .fe-tarjeta.hecha .fe-tarjeta-cifra { color: var(--fe-gris-panel) }
+.fe .fe-tarjeta-hecha {
+  margin: 10px 0 0; font: 600 12.5px var(--fe-texto); color: var(--fe-gris-panel);
+}
+
+@media (max-width: 760px) {
+  .fe .fe-tarjeta { padding: 10px 11px }
+  .fe .fe-tarjeta-cifra { font-size: 19px }
+}
+
+/* =====================================================================
+   LO QUE QUEDÓ SIN CONTAR
+
+   «Faltaría una tabla o algo que les muestre si quedó algún módulo sin
+   contar; necesito información con la que yo pueda tener alertas y la
+   visual.»
+
+   Es la advertencia de todo lo demás del tablero: las cifras de arriba
+   salen de lo que se caminó, y un módulo que nadie tocó no aparece
+   como cero — no aparece.
+   ===================================================================== */
+
+/* «NADA QUEDÓ SIN CONTAR» ES UNA AFIRMACIÓN, y se pinta como tal. El
+   aviso ámbar de al lado dice «ojo con esto»; este dice «está
+   completo», y en ámbar se leería como un problema. El par va medido
+   contra su propio fondo, no heredado. */
+.fe .fe-faltan.bien { background: #EAF6F0; border-color: #A9D8C2 }
+.fe .fe-faltan.bien p { color: #17543C }
+.fe .fe-faltan.bien b { color: #0C3927 }
+
+/* LAS BARRAS DE ESTA CAJA NO SON TODAS ROJAS. En «A quién llamar» el
+   rojo está bien —todo lo que sale ahí es urgente—; aquí lo normal es
+   que falten algunas posiciones, y pintarlas todas de rojo convierte la
+   alerta en decoración. Rojo es «más de la mitad de la calle». */
+.fe .fe-sincontar .fe-barras .fe-mat .pista i { background: var(--fe-acento) }
+.fe .fe-sincontar .fe-barras .fe-mat .pista i.mal { background: var(--fe-mal) }
+.fe .fe-sincontar .fe-barras .fe-mat .val em { margin-left: 5px }

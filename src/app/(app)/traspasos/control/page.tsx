@@ -440,7 +440,8 @@ export default async function ControlPage({ searchParams }: {
       {!cruce.falta && (
         <Diferencias lineas={cruce.lineas} hayCorte={cruce.hayCorte}
                      rotulo={fechaLarga(dia)} desde={cruce.desde} hasta={cruce.hasta}
-                     tope={cruce.tope} sinDocumento={cruce.sinDocumento} nombres={nombres} />
+                     tope={cruce.tope} sinDocumento={cruce.sinDocumento}
+                     conDocumento={cruce.conDocumento} nombres={nombres} />
       )}
 
     </div>

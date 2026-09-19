@@ -50,6 +50,27 @@ import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
 
 type Conteo = { id: string; codigo: string; estado: string; iniciado_en: string | null };
 
+/* LO QUE SE CONTÓ LA ÚLTIMA VEZ EN ESTA POSICIÓN. Sale de
+   `v_conteo_ultimo_por_ubicacion`: todos los renglones del ÚLTIMO
+   conteo que tocó ese módulo, venga de ayer o de hace tres días. */
+type Previo = {
+  linea_id: string;
+  codigo: string;
+  material: string;
+  contado_en: string;
+  estibas: number | null;
+  cajas: number | null;
+  venc_dia: number | null;
+  venc_mes: number | null;
+  venc_anio: number | null;
+  rotacion: boolean | null;
+  averia: boolean;
+  pnc: boolean;
+  estado_envase: string | null;
+  nota: string | null;
+  total_cajas: number;
+};
+
 const ent = (s: string): number | null => {
   const t = s.trim();
   if (t === "") return null;
@@ -137,6 +158,25 @@ const nombreLado = (l: string) =>
    dentro y la casilla nunca «se llenaba». */
 const dosDigitos = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 
+/* DOS CIFRAS PARA ENSEÑAR, que no es lo mismo que las dos cifras que se
+   teclean: `dosDigitos` recorta lo que entra y esto rellena lo que sale.
+   El 5 de mayo se lee «05», no «5». */
+const dd = (n: number | null) => n == null ? "··" : String(n).padStart(2, "0");
+
+/* CUÁNTOS DÍAS HACE. Es lo que convierte una cifra en una alerta: «96
+   estibas» no dice nada por sí solo; «96 estibas, hace 12 días» sí. */
+function diasDesde(cuando: string | null): number | null {
+  if (!cuando) return null;
+  const f = new Date(cuando);
+  if (Number.isNaN(f.getTime())) return null;
+  const a = new Date(f.getFullYear(), f.getMonth(), f.getDate());
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  return Math.round((hoy.getTime() - a.getTime()) / DIA);
+}
+
+const textoHace = (d: number) =>
+  d <= 0 ? "hoy mismo" : d === 1 ? "ayer" : `hace ${d} días`;
+
 export function Contar({
   bodegaId, conteoInicial, renglonesIniciales, materiales, ubicaciones, estados,
 }: {
@@ -163,6 +203,17 @@ export function Contar({
      vez que se anotaba algo la lista de abajo empujaba el formulario y
      había que buscarlo otra vez. */
   const [pestania, setPestania] = useState<"anotar" | "borrador">("anotar");
+
+  /* ---------- LA PRE-ANOTACIÓN ----------
+     Lo que se contó la última vez en la posición escogida. No es
+     historia: es el formulario ya lleno esperando un «sigue igual».
+     Contar deja de ser escribir once campos y pasa a ser mirar la
+     estiba y confirmar — o corregirle la cantidad, que es lo único que
+     cambia casi siempre. */
+  const [previo, setPrevio] = useState<Previo[]>([]);
+  /* Se puede cerrar: el día que la posición cambió de material entero,
+     las tarjetas estorban y hay que escribir de cero. */
+  const [verPrevio, setVerPrevio] = useState(true);
   /* EL BORRADOR SE FILTRA. Ciento cincuenta renglones en una jornada, y
      buscar el 3128 que se anotó hace dos horas rodando la lista es como
      se termina corrigiendo el renglón equivocado. */
@@ -170,6 +221,7 @@ export function Contar({
   const [fCalle, setFCalle] = useState("");
   const [fModulo, setFModulo] = useState("");
   const [b, setB] = useState<Borrador>(VACIO);
+  const campoCalle = useRef<HTMLInputElement>(null);
   const campoCodigo = useRef<HTMLInputElement>(null);
   /* LAS TRES CASILLAS DE LA FECHA SE CONOCEN ENTRE ELLAS: es lo que
      permite que el cursor pase solo de DD a MM y de MM a AA. */
@@ -184,6 +236,10 @@ export function Contar({
      salta, y ese `if` se olvida el día que aparezca un tercer modo. */
   const campoCantidad = useRef<HTMLInputElement>(null);
   const campoSaldo = useRef<HTMLInputElement>(null);
+  /* Sube de uno cada vez que hay que mandar el cursor a la cantidad.
+     Es un contador y no un `true/false` porque hay que poder pedirlo
+     dos veces seguidas: editar una tarjeta, arrepentirse, editar otra. */
+  const [enfocarCantidad, setEnfocarCantidad] = useState(0);
 
   /* ---------- EL RENGLÓN A MEDIO ESCRIBIR NO SE PIERDE ----------
      Lo anotado está a salvo desde el momento en que se toca «Anotar»:
@@ -339,31 +395,63 @@ export function Contar({
       x.modulo.localeCompare(y.modulo, "es", { numeric: true }));
   }, [ubicaciones, b.calle]);
 
-  /* LOS LADOS QUE ESE MÓDULO TIENE DE VERDAD, no los tres siempre.
-     Puede tener IZQ y DER, puede tener uno solo, y puede no tener
-     ninguno —EST07, JAULA_PNC—. Ofrecer «izquierdo» en un módulo que no
-     lo tiene es ofrecer una ubicación que no existe, que es exactamente
-     lo que dejó 38 de 152 filas de la hoja sin poder ubicar. */
-  const lados = useMemo(
-    () => ubicaciones
-      .filter((u) => u.activa && claveBase(u) === b.base)
-      .map((u) => u.lado ?? "")
-      .filter((v, i, xs) => xs.indexOf(v) === i)
-      .sort(),
-    [ubicaciones, b.base]);
+  /* SIEMPRE IZQUIERDO Y DERECHO.
 
-  /* La ubicación sale de módulo + lado. Con un solo lado posible no hace
-     falta escogerlo: se toma ese. */
+     Antes salían solo los lados que el maestro tenía cargados, y la
+     bodega tiene módulos a medias: A01 existe como A01_IZQ y no como
+     A01_DER, así que el lado derecho de ese pasillo no se podía contar.
+     Quien está parado frente al módulo ve los dos lados; la pantalla
+     tiene que ofrecerle los dos.
+
+     EL LADO QUE NO ESTÉ EN EL MAESTRO SE DA DE ALTA AL ANOTAR —lo hace
+     `conteo_ubicacion_asegurar`— heredando familia y capacidad del otro
+     lado del mismo módulo. La pantalla no escribe en el maestro: pide.
+
+     LA EXCEPCIÓN, Y ES DE VERDAD: un módulo cuyo maestro dice que NO
+     tiene lados —EST07, JAULA_PNC— se respeta tal cual. Inventarle
+     izquierdo y derecho crearía dos posiciones que en la bodega no
+     existen, y el conteo de ese sitio quedaría partido en dos para
+     siempre. */
+  const lados = useMemo(() => {
+    const delModulo = ubicaciones.filter((u) => u.activa && claveBase(u) === b.base);
+    if (delModulo.length > 0 && delModulo.every((u) => (u.lado ?? "") === "")) return [""];
+    return ["IZQ", "DER"];
+  }, [ubicaciones, b.base]);
+
+  /* LA UBICACIÓN SALE DE MÓDULO + LADO, Y PUEDE NO EXISTIR TODAVÍA.
+     Desde que la pantalla ofrece siempre los dos lados, escoger el
+     derecho de un módulo cargado a medias no encuentra fila — y eso ya
+     no es un error: la fila se crea al anotar. Por eso aquí puede salir
+     `null` sin que nada esté mal, y quien decide si falta algo es
+     `revisar()`, que mira el LADO escogido y no la fila. */
   const ubicacion = useMemo(() => {
     if (!b.base) return null;
     const delModulo = ubicaciones.filter((u) => u.activa && claveBase(u) === b.base);
-    if (delModulo.length === 1) return delModulo[0];
+    if (delModulo.length === 1 && (delModulo[0].lado ?? "") === "") return delModulo[0];
     return delModulo.find((u) => (u.lado ?? "") === b.lado) ?? null;
   }, [ubicaciones, b.base, b.lado]);
 
-  /* El material se reconoce MIENTRAS SE TECLEA. */
-  const material = useMemo(
-    () => materiales.find((m) => m.activo && m.sku === b.codigo.trim()) ?? null,
+  /* La clave que va a tener la posición escogida, exista o no. Es lo que
+     se enseña en «va a quedar como» y lo que se manda a crear. */
+  const claveEscogida = useMemo(() => {
+    if (!b.base) return null;
+    const [calle, modulo] = b.base.split("|");
+    if (lados.length === 1 && lados[0] === "") return `${calle}${modulo}`;
+    if (!b.lado) return null;
+    return `${calle}${modulo}_${b.lado}`;
+  }, [b.base, b.lado, lados]);
+
+  /* El material se reconoce MIENTRAS SE TECLEA.
+
+     VA COMO FUNCIÓN DE UN BORRADOR Y NO SOLO DEL QUE SE ESTÁ TECLEANDO
+     porque confirmar una pre-anotación guarda un renglón que NUNCA pasó
+     por las casillas: sale de la tarjeta y se va derecho a la base. Si
+     el guardado leyera el material «el que se está tecleando», al
+     confirmar leería el del renglón anterior. */
+  const materialDe = (bb: Borrador) =>
+    materiales.find((m) => m.activo && m.sku === bb.codigo.trim()) ?? null;
+  const material = useMemo(() => materialDe(b),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [materiales, b.codigo]);
   const esEnvase = material?.tipo_material === "ENVASE";
 
@@ -404,20 +492,23 @@ export function Contar({
 
      Es la misma suma que hace la base al guardar. Aquí no decide nada:
      lo que se manda son las tres cifras por separado. */
-  const cuenta = useMemo(() => {
-    if (b.modo === "cajas") {
-      const c = ent(b.cajas);
+  const cuentaDe = (bb: Borrador, mat: Material | null) => {
+    if (bb.modo === "cajas") {
+      const c = ent(bb.cajas);
       return c == null ? null : { formula: `${nf.format(c)}`, total: c };
     }
-    const e = ent(b.estibas), s = ent(b.saldo);
+    const e = ent(bb.estibas), s = ent(bb.saldo);
     if (e == null && s == null) return null;
-    const f = material?.cajas_por_estiba ?? null;
+    const f = mat?.cajas_por_estiba ?? null;
     if (e != null && f == null) return { formula: null, total: null };
     const total = (e ?? 0) * (f ?? 0) + (s ?? 0);
     const partes = [e != null ? `${e} × ${f}` : null, s != null ? nf.format(s) : null]
       .filter(Boolean).join(" + ");
     return { formula: partes, total };
-  }, [b.modo, b.estibas, b.saldo, b.cajas, material]);
+  };
+  const cuenta = useMemo(() => cuentaDe(b, material),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [b.modo, b.estibas, b.saldo, b.cajas, material]);
 
   /**
    * ANOTAR DEJA EL RENGLÓN ENTERO EN BLANCO. Calle, módulo, lado,
@@ -438,14 +529,91 @@ export function Contar({
    * sitio es una línea — pero tiene que ser una decisión, no un descuido
    * mío.
    */
-  function limpiar() {
+  /* SE PIDE AL ESCOGER LA POSICIÓN, no al abrir la pantalla. Traer las
+     428 de una sería una consulta enorme para enseñar tres renglones.
+
+     `vivo` corta la respuesta que llega tarde: escogiendo módulo tras
+     módulo, la de A01 puede aterrizar DESPUÉS de la de A02 y dejar en
+     pantalla la pre-anotación del módulo anterior — con la de al lado
+     delante, eso es contar una estiba creyendo que es otra. */
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      if (!ubicacion) { setPrevio([]); return }
+      const { data } = await supabase.from("v_conteo_ultimo_por_ubicacion")
+        .select("*").eq("ubicacion_id", ubicacion.id);
+      if (vivo) { setPrevio((data ?? []) as Previo[]); setVerPrevio(true) }
+    })();
+    return () => { vivo = false };
+  }, [supabase, ubicacion]);
+
+  useEffect(() => {
+    if (enfocarCantidad === 0) return;
+    campoCantidad.current?.focus();
+    campoCantidad.current?.select();
+  }, [enfocarCantidad]);
+
+  /* DE UNA PRE-ANOTACIÓN A UN RENGLÓN TECLEADO. Es el mismo objeto que
+     se llena a mano, así que confirmar y escribir acaban en el mismo
+     sitio: una sola forma de anotar, no dos que pueden discrepar. */
+  const desdePrevio = (p: Previo): Borrador => ({
+    ...b,
+    codigo: p.codigo,
+    dia: p.venc_dia == null ? "" : String(p.venc_dia).padStart(2, "0"),
+    mes: p.venc_mes == null ? "" : String(p.venc_mes).padStart(2, "0"),
+    anio: p.venc_anio == null ? "" : String(p.venc_anio).padStart(2, "0"),
+    modo: p.cajas != null ? "cajas" : "estibas",
+    estibas: p.estibas == null ? "" : String(p.estibas),
+    saldo: "",
+    cajas: p.cajas == null ? "" : String(p.cajas),
+    rot: p.rotacion,
+    averia: p.averia, pnc: p.pnc,
+    estado: p.estado_envase ?? "",
+    nota: p.nota ?? "",
+  });
+
+  /* YA CONTADO EN ESTE RECORRIDO. Una tarjeta que ya se anotó hoy tiene
+     que decirlo: confirmarla otra vez sería un renglón repetido, y la
+     base lo rechazaría con un mensaje que no habla de esto. */
+  const yaHoy = (p: Previo) => renglones.some((r) =>
+    r.ubicacion === claveEscogida && r.codigo === p.codigo &&
+    (r.venc_dia ?? null) === p.venc_dia && (r.venc_mes ?? null) === p.venc_mes &&
+    (r.venc_anio ?? null) === p.venc_anio);
+
+  /**
+   * DESPUÉS DE ANOTAR SE VACÍA EL RENGLÓN Y SE QUEDA EL SITIO.
+   *
+   * Lo devolvió dos veces antes —dejar la calle y el módulo puestos— y
+   * las dos veces tenía razón: un campo lleno del renglón anterior no se
+   * ve como un campo por llenar, se ve como uno ya contestado, y un
+   * renglón anotado en el módulo equivocado no da error, no avisa, y
+   * aparece cuadrando el mes.
+   *
+   * Lo que cambió es que AHORA EL SITIO SE VE. Al escoger la posición
+   * salen las tarjetas de lo que se contó ahí la última vez, con la
+   * calle, el módulo y el lado escritos en grande encima. El sitio dejó
+   * de ser tres campos que se arrastran en silencio y pasó a ser lo que
+   * se está mirando; y el cursor vuelve a «Calle», que es lo que pidió,
+   * así que cambiarlo es un toque y no hay que ir a buscarlo.
+   *
+   * `dejarSitio` es false en todo lo demás —«dejarlo como estaba»,
+   * cerrar el recorrido, borrar el renglón que se estaba corrigiendo—
+   * porque ahí no se sigue contando en el mismo módulo.
+   */
+  function limpiar(dejarSitio = false) {
     setCorrigiendo(null);
-    setB(VACIO);
+    setB((x) => dejarSitio
+      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }
+      : VACIO);
     /* Y se borra el guardado: el renglón ya quedó en la base, así que
        restaurarlo mañana sería ofrecer volver a anotar algo que ya está
        anotado. */
     try { if (llave) localStorage.removeItem(llave) } catch { /* da igual */ }
-    campoCodigo.current?.focus();
+    /* EL CURSOR VUELVE A CALLE, no al código: «apenas yo guarde el
+       registro me debe llevar el cursor automáticamente a calle». Es
+       además el único campo que no levanta teclado, así que volver no
+       tapa las tarjetas de la pre-anotación que hay justo debajo. */
+    campoCalle.current?.focus();
   }
 
   async function abrir() {
@@ -463,13 +631,19 @@ export function Contar({
     setRenglones((data ?? []) as Renglon[]);
   }
 
-  function revisar(): string | null {
-    if (!b.base) return "Escoge el módulo.";
-    if (!ubicacion) return "Falta decir de qué lado del módulo.";
-    if (!material) return `El código «${b.codigo}» no está en el maestro.`;
-    if (b.modo === "cajas") {
-      if (ent(b.cajas) == null) return "¿Cuántas cajas?";
-    } else if (ent(b.estibas) == null && ent(b.saldo) == null) {
+  function revisar(bb: Borrador): string | null {
+    const mat = materialDe(bb);
+    const env = mat?.tipo_material === "ENVASE";
+    if (!bb.base) return "Escoge el módulo.";
+    /* SE MIRA EL LADO ESCOGIDO Y NO LA FILA DEL MAESTRO. Desde que la
+       pantalla ofrece siempre los dos, el derecho de un módulo cargado
+       a medias no tiene fila todavía — y eso no es que falte contestar,
+       es que hay que crearla. */
+    if (!claveEscogida) return "Falta decir de qué lado del módulo.";
+    if (!mat) return `El código «${bb.codigo}» no está en el maestro.`;
+    if (bb.modo === "cajas") {
+      if (ent(bb.cajas) == null) return "¿Cuántas cajas?";
+    } else if (ent(bb.estibas) == null && ent(bb.saldo) == null) {
       return "¿Cuántas estibas? Si solo quedan sueltas, anótalas en el saldo.";
     }
     /* DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA. Rotación, avería,
@@ -478,7 +652,7 @@ export function Contar({
        una pregunta que ahora se contesta sola — no marcarla ES decir
        que no. Un aviso que para el renglón por algo que no cambia la
        cifra es un aviso que la gente aprende a esquivar. */
-    if (!esEnvase && (ent(b.dia) == null || ent(b.mes) == null || b.anio.trim() === ""))
+    if (!env && (ent(bb.dia) == null || ent(bb.mes) == null || bb.anio.trim() === ""))
       return "Falta la fecha de vencimiento.";
 
     /* LA FECHA SE REVISA AQUÍ Y CON NOMBRE PROPIO.
@@ -491,9 +665,9 @@ export function Contar({
        Y se comprueba que la fecha EXISTA, no solo que los rangos
        cuadren: el 31 de febrero pasa un `mes <= 12` y sigue sin ser un
        día. */
-    if (!esEnvase || b.anio.trim() !== "") {
-      const d = ent(b.dia), m = ent(b.mes);
-      const a = b.anio.trim() === "" ? null : Number(b.anio.trim());
+    if (!env || bb.anio.trim() !== "") {
+      const d = ent(bb.dia), m = ent(bb.mes);
+      const a = bb.anio.trim() === "" ? null : Number(bb.anio.trim());
       if (d != null && (d < 1 || d > 31)) return `El día del vencimiento dice ${d}. Va de 1 a 31.`;
       if (m != null && (m < 1 || m > 12)) return `El mes del vencimiento dice ${m}. Va de 1 a 12.`;
       if (a != null && (a < 0 || a > 99)) return `El año va de dos cifras: 27, no ${a}.`;
@@ -506,45 +680,77 @@ export function Contar({
     return null;
   }
 
-  const argumentos = () => ({
-    p_sku: material!.sku,
-    p_ubicacion: ubicacion!.id,
+  /* EL ID DE LA POSICIÓN, CREÁNDOLA SI EL MAESTRO NO LA TIENE.
+     La pantalla no escribe en el maestro —quien cuenta no lo
+     administra—: le pide a la base que se asegure de que esa posición
+     exista y le devuelva su id. Si ya existía, devuelve la de siempre;
+     nunca hay dos filas para el mismo sitio. */
+  async function idDeLaPosicion(bb: Borrador): Promise<string | null> {
+    if (ubicacion) return ubicacion.id;
+    const [calle, modulo] = bb.base.split("|");
+    const { data, error } = await supabase.rpc("conteo_ubicacion_asegurar", {
+      p_bodega: bodegaId, p_calle: calle, p_modulo: modulo, p_lado: bb.lado || null,
+    });
+    if (error) {
+      avisar.mal(/does not exist|schema cache/i.test(error.message)
+        ? "Falta correr supabase/migraciones/2026-09-conteo-preanotacion.sql en Supabase."
+        : error.message);
+      return null;
+    }
+    return data as string;
+  }
+
+  const argumentos = (bb: Borrador, mat: Material, idUbicacion: string) => ({
+    p_sku: mat.sku,
+    p_ubicacion: idUbicacion,
     /* NO MARCAR ES DECIR QUE NO, y eso se decide AQUÍ y se manda
        resuelto. La base sigue rechazando el nulo —«Falta decir si
        rota»— y así queda como red de seguridad: si algún día otra
        pantalla deja de contestarlo, se entera en vez de guardar una
        columna en blanco que nadie sabe leer. */
-    p_rotacion: b.rot === true,
+    p_rotacion: bb.rot === true,
     /* LAS ESTIBAS Y EL SALDO VIAJAN JUNTOS; las cajas, solas. Son las
        dos formas de contar un módulo, y mezclarlas dejaría el renglón
        sin decir cómo se contó — eso lo rechaza también la base. */
-    p_estibas: b.modo === "estibas" ? ent(b.estibas) : null,
-    p_saldo: b.modo === "estibas" ? ent(b.saldo) : null,
-    p_cajas: b.modo === "cajas" ? ent(b.cajas) : null,
+    p_estibas: bb.modo === "estibas" ? ent(bb.estibas) : null,
+    p_saldo: bb.modo === "estibas" ? ent(bb.saldo) : null,
+    p_cajas: bb.modo === "cajas" ? ent(bb.cajas) : null,
     /* SE MANDA EL VENCIMIENTO, que es lo que se lee en el cartón y lo que
        lleva años anotándose en la hoja. Los días para salir y para vencer
        los calcula la vista con el mínimo T1 del maestro: una sola
        fórmula, en un solo sitio. */
-    p_venc_dia: ent(b.dia),
-    p_venc_mes: ent(b.mes),
-    p_venc_anio: b.anio.trim() !== "" ? Number(b.anio.trim()) : null,
+    p_venc_dia: ent(bb.dia),
+    p_venc_mes: ent(bb.mes),
+    p_venc_anio: bb.anio.trim() !== "" ? Number(bb.anio.trim()) : null,
     p_fab_dia: null,
     p_fab_mes: null,
     p_fab_anio: null,
-    p_averia: b.averia, p_pnc: b.pnc,
-    p_estado: b.estado || null,
-    p_nota: b.nota.trim() || null,
+    p_averia: bb.averia, p_pnc: bb.pnc,
+    p_estado: bb.estado || null,
+    p_nota: bb.nota.trim() || null,
   });
 
-  async function anotar() {
+  /**
+   * ANOTAR Y CONFIRMAR SON EL MISMO GUARDADO, con distinto borrador.
+   *
+   * Confirmar una pre-anotación no pasa por las casillas: la tarjeta se
+   * vuelve un borrador y entra por aquí. Con dos caminos de guardado
+   * —uno para lo tecleado y otro para lo confirmado— cualquier regla
+   * que se toque en uno queda distinta en el otro, y el renglón
+   * confirmado saldría del mismo módulo con otras cuentas.
+   */
+  async function guardar(bb: Borrador) {
     if (!conteo) return;
-    const mal = revisar();
+    const mal = revisar(bb);
     if (mal) { avisar.mal(mal); return }
+    const mat = materialDe(bb)!;
 
     setGuardando(true);
+    const idU = await idDeLaPosicion(bb);
+    if (!idU) { setGuardando(false); return }
     const { error } = corrigiendo
-      ? await supabase.rpc("conteo_fefo_editar", { p_linea: corrigiendo, ...argumentos() })
-      : await supabase.rpc("conteo_fefo_agregar", { p_conteo: conteo.id, ...argumentos() });
+      ? await supabase.rpc("conteo_fefo_editar", { p_linea: corrigiendo, ...argumentos(bb, mat, idU) })
+      : await supabase.rpc("conteo_fefo_agregar", { p_conteo: conteo.id, ...argumentos(bb, mat, idU) });
     setGuardando(false);
     if (error) { avisar.mal(error.message); return }
 
@@ -552,9 +758,10 @@ export function Contar({
        cuentas las hace la base, y calcularlas otra vez en la pantalla es
        tener dos versiones de la verdad esperando a discrepar. */
     await releer(conteo.id);
+    const cta = cuentaDe(bb, mat);
     avisar.bien(corrigiendo
-      ? `${material!.sku} corregido.`
-      : `${material!.sku} · ${cuenta?.total != null ? nf.format(cuenta.total) + " cajas" : "anotado"}.`);
+      ? `${mat.sku} corregido.`
+      : `${mat.sku} · ${cta?.total != null ? nf.format(cta.total) + " cajas" : "anotado"}.`);
     /* LA ALERTA DE FECHA CORTA, EN EL MOMENTO. Quien acaba de anotar
        sigue parado frente a esa estiba: es el único instante en que
        puede mirarla otra vez, comprobar la fecha impresa y sacarla si
@@ -577,7 +784,31 @@ export function Contar({
        ahí es donde se comprueba que quedó bien. Anotar se queda en el
        formulario, que es donde va el siguiente renglón. */
     if (corrigiendo) setPestania("borrador");
-    limpiar();
+    limpiar(!corrigiendo);
+  }
+
+  /* Lo que se tecleó. */
+  const anotar = () => guardar(b);
+
+  /* «SIGUE IGUAL»: la tarjeta entra derecho a la base, sin pasar por el
+     formulario. Es el botón entero de la pre-anotación — si hubiera que
+     confirmar y después anotar, serían dos toques para decir que nada
+     cambió, que es lo mismo que teclearlo. */
+  const confirmar = (pv: Previo) => guardar(desdePrevio(pv));
+
+  /* «CAMBIÓ LA CANTIDAD»: la tarjeta baja a las casillas, llena, y
+     quien cuenta corrige lo único que cambió. No guarda nada todavía;
+     guarda «Anotar», como siempre. */
+  function editarPrevio(pv: Previo) {
+    setCorrigiendo(null);
+    setB(desdePrevio(pv));
+    /* EL FOCO VA DESPUÉS DE QUE LA PANTALLA SE REHAGA, y por eso pasa
+       por un contador y no se llama aquí: la casilla de la cantidad es
+       «Estibas» o «Cajas» según el modo que traiga la tarjeta, y en el
+       instante de este clic la que está montada todavía es la del modo
+       anterior. Enfocarla ahora sería enfocar la casilla que está a
+       punto de desaparecer. */
+    setEnfocarCantidad((n) => n + 1);
   }
 
   /* Cargar un renglón guardado de vuelta en el formulario, tal como
@@ -678,7 +909,11 @@ export function Contar({
   const semana = renglones.filter((r) =>
     r.dias_para_salir != null && r.dias_para_salir >= 0 && r.dias_para_salir <= 7);
 
-  const deAqui = renglones.filter((r) => r.ubicacion === ubicacion?.clave);
+  /* LO QUE YA LLEVAS EN ESTA POSICIÓN. Se compara contra la clave
+     ESCOGIDA y no contra la fila del maestro: el lado que todavía no
+     existe también es una posición, y quien está contándola quiere ver
+     lo que lleva ahí. */
+  const deAqui = renglones.filter((r) => r.ubicacion === claveEscogida);
   const cajasAqui = deAqui.reduce((a, r) => a + Number(r.total_cajas), 0);
   const cajasTotal = renglones.reduce((a, r) => a + Number(r.total_cajas), 0);
   const modulosHechos = new Set(renglones.map((r) => r.ubicacion)).size;
@@ -748,6 +983,10 @@ export function Contar({
           <div className="fe-tres dos">
             <label><span>Calle</span>
               <Buscador
+                /* AQUÍ VUELVE EL CURSOR DESPUÉS DE ANOTAR. Es el primer
+                   campo del recorrido y el único sin teclado, así que
+                   volver aquí no levanta nada que tape la pantalla. */
+                campo={campoCalle}
                 valor={b.calle}
                 marcador="Todas"
                 /* SIN TECLADO. Son doce calles de una letra: la lista
@@ -858,6 +1097,98 @@ export function Contar({
             )}
           </div>
         </div>
+
+        {/* ================= LA PRE-ANOTACIÓN D-1 =================
+
+            «Yo cuento hoy el A01 con 96 estibas de A1000. Que mañana, al
+            seleccionar el módulo, me aparezca la misma información
+            preguardada con la info de hoy, por si sigue igual, y un
+            botón de registrar por si cambia.»
+
+            VA AQUÍ Y NO ARRIBA NI ABAJO. Sale DESPUÉS de escoger el
+            sitio —antes no hay nada que enseñar— y ANTES del código,
+            porque si la respuesta es «sigue igual» el renglón se acabó y
+            las once casillas de abajo no se tocan. Puesta debajo del
+            formulario habría que rodar hasta el final para descubrir que
+            no hacía falta escribir nada.
+
+            NO ES HISTORIAL. Un historial se consulta; esto se contesta.
+            Por eso cada renglón trae sus dos botones y no un enlace a
+            «ver lo anterior»: lo que se pide es una respuesta, y la
+            respuesta casi siempre es la misma.
+
+            Y NO SE AUTOLLENA EL FORMULARIO. Llenar las casillas solo
+            dejaría un renglón completo sin que nadie haya mirado la
+            estiba, a un toque de guardarse; y lo que se cuenta es lo que
+            hay, no lo que había. Aquí hay que decir que sí. */}
+        {claveEscogida && verPrevio && previo.length > 0 && !corrigiendo && (
+          <div className="fe-bloque fe-previo">
+            <div className="fe-previo-cab">
+              {/* ROTULO PROPIO Y NO «fe-bloque-cab». Los otros cuatro
+                  rótulos —Dónde, Qué, Cuánto, Cómo está— son los momentos
+                  del renglón, y hay un arnés que comprueba que sean esos
+                  cuatro y en ese orden. Este no es un momento del
+                  renglón: es la pregunta que se hace antes de empezarlo. */}
+              <p className="fe-previo-rot">
+                La última vez en {claveEscogida}
+                {diasDesde(previo[0].contado_en) != null && (
+                  <em>{textoHace(diasDesde(previo[0].contado_en)!)}</em>
+                )}
+              </p>
+              {/* UN SOLO TOQUE PARA BORRAR TODO ESTO. «Si no es esa, sino
+                  que ya hay otra, que con un clic yo logre borrar la otra
+                  información.» El día que la posición cambió de material
+                  entero, las tarjetas estorban. */}
+              <button type="button" className="fe-mini" onClick={() => setVerPrevio(false)}>
+                Aquí hay otra cosa
+              </button>
+            </div>
+
+            {previo.map((pv) => {
+              const hecho = yaHoy(pv);
+              return (
+                <div key={pv.linea_id} className={"fe-tarjeta" + (hecho ? " hecha" : "")}>
+                  <p className="fe-tarjeta-que">
+                    <b>{pv.codigo}</b> <span>{pv.material}</span>
+                  </p>
+                  <p className="fe-tarjeta-cifra">
+                    {pv.cajas != null
+                      ? `${nf.format(pv.cajas)} cajas`
+                      : `${nf.format(pv.estibas ?? 0)} estiba${pv.estibas === 1 ? "" : "s"}`}
+                    {pv.venc_dia != null && (
+                      <em>vence {dd(pv.venc_dia)}/{dd(pv.venc_mes)}/{dd(pv.venc_anio)}</em>
+                    )}
+                  </p>
+                  {(pv.rotacion || pv.averia || pv.pnc || pv.estado_envase) && (
+                    <p className="fe-tarjeta-marcas">
+                      {pv.rotacion && <span>Rota</span>}
+                      {pv.averia && <span>Avería</span>}
+                      {pv.pnc && <span>PNC</span>}
+                      {pv.estado_envase && <span>{pv.estado_envase}</span>}
+                    </p>
+                  )}
+                  {/* YA CONTADO HOY SE DICE, NO SE ESCONDE. Escondida, la
+                      tarjeta desaparecería al confirmarla y parecería que
+                      se perdió; dicho así, se ve que quedó anotada. */}
+                  {hecho ? (
+                    <p className="fe-tarjeta-hecha">Ya lo contaste en este recorrido.</p>
+                  ) : (
+                    <div className="fe-tarjeta-pie">
+                      <button type="button" className="fe-si" disabled={guardando}
+                              onClick={() => confirmar(pv)}>
+                        Sigue igual
+                      </button>
+                      <button type="button" className="fe-no" disabled={guardando}
+                              onClick={() => editarPrevio(pv)}>
+                        Cambió
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* ============ 2 · QUÉ — CÓDIGO · DESCRIPCIÓN · D/M/A ============ */}
         <div className="fe-bloque">
@@ -1090,7 +1421,7 @@ export function Contar({
              sirve para agrupar. Se muestra armada para que quien anota
              vea qué va a quedar. */
           <p className="fe-combinada">
-            Va a quedar como <b>{[ubicacion?.clave ?? "…",
+            Va a quedar como <b>{[claveEscogida ?? "…",
               b.averia ? "AVERIA" : "", b.pnc ? "PNC" : "", b.estado].filter(Boolean).join(" ")}</b>
             {" "}— separada de lo bueno del mismo módulo.
           </p>
@@ -1213,9 +1544,9 @@ export function Contar({
           </p>
         )}
 
-        {ubicacion && deAqui.length > 0 && !filtrando && (
+        {claveEscogida && deAqui.length > 0 && !filtrando && (
           <p className="fe-aqui">
-            En <b>{ubicacion.clave}</b> llevas {deAqui.length} renglón{deAqui.length > 1 ? "es" : ""}{" "}
+            En <b>{claveEscogida}</b> llevas {deAqui.length} renglón{deAqui.length > 1 ? "es" : ""}{" "}
             ({nf.format(cajasAqui)} cajas)
           </p>
         )}

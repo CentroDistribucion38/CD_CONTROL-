@@ -220,17 +220,21 @@ export async function miConteoFefo(bodegaId: string | null) {
  */
 export async function tableroFefo(bodegaId: string | null, desde?: string, hasta?: string) {
   const supabase = await createClient();
-  if (!bodegaId) return { falta: false, lineas: [] as Renglon[], conteos: [] as ConteoFefo[] };
+  const vacio = {
+    falta: false, lineas: [] as Renglon[], conteos: [] as ConteoFefo[],
+    ultimo: null as ConteoFefo | null, sinContar: [] as SinContar[], faltaSinContar: false,
+  };
+  if (!bodegaId) return vacio;
 
   let q = supabase.from("v_conteos_fefo").select("*")
     .eq("bodega_id", bodegaId).order("enviado_en", { ascending: false }).limit(200);
   if (desde) q = q.gte("fecha_analisis", desde);
   if (hasta) q = q.lte("fecha_analisis", hasta);
   const { data: c, error } = await q;
-  if (error) return { falta: sinTablas(error.message), lineas: [] as Renglon[], conteos: [] as ConteoFefo[] };
+  if (error) return { ...vacio, falta: sinTablas(error.message) };
 
   const enviados = (c ?? []).filter((x) => x.estado === "cerrado");
-  if (enviados.length === 0) return { falta: false, lineas: [] as Renglon[], conteos: enviados as ConteoFefo[] };
+  if (enviados.length === 0) return { ...vacio, conteos: enviados as ConteoFefo[] };
 
   /* Los renglones de esos conteos, de una. El `in` va con los ids que ya
      se filtraron arriba: pedir todo y filtrar aquí sería traer la
@@ -238,8 +242,55 @@ export async function tableroFefo(bodegaId: string | null, desde?: string, hasta
   const { data: l } = await supabase.from("v_conteo_fefo").select("*")
     .in("conteo_id", enviados.map((x) => x.id)).limit(5000);
 
-  return { falta: false, lineas: (l ?? []) as Renglon[], conteos: enviados as ConteoFefo[] };
+  /* ===============================================================
+     LO QUE QUEDÓ SIN CONTAR EN EL ÚLTIMO RECORRIDO.
+
+     «Faltaría una tabla o algo que les muestre si quedó algún módulo
+     sin contar; necesito información con la que yo pueda tener alertas
+     y la visual.»
+
+     DEL ÚLTIMO Y NO DE TODOS JUNTOS. Un módulo que se contó la semana
+     pasada y no ayer no está «sin contar» en la historia — está sin
+     contar en el recorrido de ayer, que es el que se acaba de cerrar y
+     sobre el que alguien va a decidir hoy. Sumando todos los
+     recorridos, la lista sale casi vacía siempre y no avisa de nada.
+
+     `enviados` viene ordenado por `enviado_en` descendente, así que el
+     primero es el último que se cerró.
+
+     SI LA FUNCIÓN NO ESTÁ —falta correr la migración— no se revienta
+     la pantalla entera: el tablero contesta otra pregunta y la tiene
+     que poder seguir contestando. Se devuelve la lista vacía y un
+     `faltaSinContar` para poder decirlo donde corresponde. */
+  const ultimo = enviados[0] ?? null;
+  const sc = ultimo
+    ? await supabase.rpc("conteo_sin_contar", { p_conteo: ultimo.id })
+    : { data: [], error: null };
+
+  return {
+    falta: false,
+    lineas: (l ?? []) as Renglon[],
+    conteos: enviados as ConteoFefo[],
+    ultimo: ultimo as ConteoFefo | null,
+    sinContar: (sc.data ?? []) as SinContar[],
+    faltaSinContar: !!sc.error && sinTablas(sc.error.message),
+  };
 }
+
+/** Una posición activa que el último recorrido no tocó. */
+export type SinContar = {
+  ubicacion_id: string;
+  clave: string;
+  calle: string | null;
+  modulo: string | null;
+  lado: string | null;
+  familia: string | null;
+  capacidad: number | null;
+  /** Cuándo se contó por última vez, en cualquier otro recorrido. */
+  ultimo_en: string | null;
+  /** Días desde esa última vez. Null = nunca se ha contado. */
+  dias_sin_contar: number | null;
+};
 
 export type ConteoFefo = {
   id: string; codigo: string; estado: string; bodega: string;

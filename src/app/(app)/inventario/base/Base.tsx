@@ -170,6 +170,12 @@ export function Base({
   const [fRecorrido, setFRecorrido] = useState("");
   const [fCalle, setFCalle] = useState("");
   const [fModulo, setFModulo] = useState("");
+  /* PRODUCTO O ENVASE. Son los dos mundos de esta bodega y casi nunca
+     se miran juntos: el que cuadra producto terminado no quiere las
+     canastas en medio, y al revés. Va como botones y no como un
+     desplegable más porque es la primera pregunta que se hace sobre la
+     base, no la quinta. */
+  const [fTipo, setFTipo] = useState<"" | "PRODUCTO" | "ENVASE">("");
   const [soloPasados, setSoloPasados] = useState(false);
   /* El orden arranca por ubicación, que es el orden en que se camina la
      bodega y el de la hoja. Cualquier otro obliga a reordenar antes de
@@ -182,9 +188,47 @@ export function Base({
      del maestro: ofrecer la calle J cuando no hay nada contado en J es
      ofrecer un filtro que devuelve vacío y hace dudar de si se perdió
      algo. */
-  const recorridos = useMemo(
-    () => [...new Set(crudas.map((r) => r.conteo).filter(Boolean))].sort().reverse() as string[],
-    [crudas]);
+  /* LOS INVENTARIOS, POR FECHA Y CON SUS CIFRAS.
+
+     «Cuando entre a la base deberían aparecer por fecha los registros
+     que hicieron, consolidados en una sola base, con el fin de
+     seleccionar qué inventario ver.»
+
+     No es un desplegable más: es la PRIMERA pregunta de la pantalla.
+     Un desplegable que dice «FEFO-0007» no dice de qué día es ni cuánto
+     trae, así que había que escoger uno, mirar la tabla, y volver a
+     escoger otro para saber si era ese. Aquí cada uno trae su fecha,
+     quién lo firmó y cuánto pesa, y se escoge sabiendo.
+
+     LAS CIFRAS SE CUENTAN DE LAS FILAS QUE HAY AQUÍ, no de la cabecera
+     del recorrido: esta pestaña puede traer un tope, y enseñar «1.240
+     renglones» encima de una tabla que trae 800 sería decir dos cosas
+     distintas del mismo recorrido en la misma pantalla. */
+  const recorridos = useMemo(() => {
+    const cuenta = new Map<string, { renglones: number; cajas: number }>();
+    for (const r of crudas) {
+      if (!r.conteo) continue;
+      const a = cuenta.get(r.conteo) ?? { renglones: 0, cajas: 0 };
+      a.renglones += 1;
+      a.cajas += Number(r.total_cajas);
+      cuenta.set(r.conteo, a);
+    }
+    return [...cuenta.entries()]
+      .map(([codigo, n]) => {
+        const c = conteos.find((x) => x.codigo === codigo) ?? null;
+        return {
+          codigo, ...n,
+          fecha: c?.fecha_analisis ?? null,
+          quien: c?.envio_nombre ?? c?.responsable ?? null,
+          ubicaciones: c?.ubicaciones ?? null,
+        };
+      })
+      /* EL MÁS NUEVO ARRIBA. Se entra a mirar lo de ayer, no lo de hace
+         cuatro meses; y con el orden al revés, el recorrido de hoy
+         queda al final de la lista el día que haya cuarenta. */
+      .sort((a, b) => (b.fecha ?? "").localeCompare(a.fecha ?? "")
+                   || b.codigo.localeCompare(a.codigo, "es", { numeric: true }));
+  }, [crudas, conteos]);
   const calles = useMemo(
     () => [...new Set(crudas.map((r) => r.calle).filter(Boolean))].sort() as string[],
     [crudas]);
@@ -202,6 +246,7 @@ export function Base({
       if (fRecorrido && r.conteo !== fRecorrido) return false;
       if (fCalle && r.calle !== fCalle) return false;
       if (fModulo && r.ubicacion !== fModulo) return false;
+      if (fTipo && r.tipo_material !== fTipo) return false;
       if (soloPasados && !(r.dias_para_salir != null && r.dias_para_salir < 0)) return false;
       return true;
     });
@@ -217,10 +262,23 @@ export function Base({
         : String(va).localeCompare(String(vb), "es", { numeric: true });
       return orden.asc ? c : -c;
     });
-  }, [crudas, fTexto, fRecorrido, fCalle, fModulo, soloPasados, orden]);
+  }, [crudas, fTexto, fRecorrido, fCalle, fModulo, fTipo, soloPasados, orden]);
 
   const filtrando = fTexto.trim() !== "" || fRecorrido !== "" || fCalle !== ""
-    || fModulo !== "" || soloPasados;
+    || fModulo !== "" || fTipo !== "" || soloPasados;
+
+  /* CUÁNTOS HAY DE CADA UNO, en lo que queda después de los demás
+     filtros. Un botón «Envase» que lleva a una tabla vacía hace dudar
+     de si se perdió algo; con la cifra al lado se ve que ese recorrido
+     no tocó envases y no hay nada que buscar. */
+  const porTipo = useMemo(() => {
+    const base = crudas.filter((r) => fRecorrido === "" || r.conteo === fRecorrido);
+    return {
+      PRODUCTO: base.filter((r) => r.tipo_material === "PRODUCTO").length,
+      ENVASE: base.filter((r) => r.tipo_material === "ENVASE").length,
+      "": base.length,
+    } as Record<string, number>;
+  }, [crudas, fRecorrido]);
   const cajas = filas.reduce((a, r) => a + Number(r.total_cajas), 0);
   const sitios = new Set(filas.map((r) => r.ubicacion_combinada ?? r.ubicacion)).size;
   const abiertos = conteos.filter((c) => c.estado === "en_proceso" || c.estado === "borrador");
@@ -272,19 +330,73 @@ export function Base({
         </p>
       )}
 
+      {/* ================= QUÉ INVENTARIO SE ESTÁ MIRANDO =================
+
+          Va ANTES de los filtros porque es de otra clase de pregunta:
+          los filtros recortan una tabla; esto decide CUÁL tabla. Puesto
+          entre los demás desplegables se leía como un filtro más, y un
+          filtro se deja en blanco sin pensarlo — con lo que se acababa
+          cuadrando contra todos los recorridos juntos creyendo estar
+          mirando el de ayer.
+
+          Y «TODOS» ES UNA OPCIÓN, LA PRIMERA Y ESCRITA. La base ES la
+          suma de todos los recorridos; esconderlo obligaría a escoger
+          uno para poder entrar, y la pregunta «cuánto hay contado en
+          total» no tendría dónde contestarse. */}
+      {recorridos.length > 0 && (
+        <div className="ba-invs">
+          <p className="ba-invs-rot">
+            Qué inventario estás mirando
+            <em>{recorridos.length} recorrido{recorridos.length === 1 ? "" : "s"}</em>
+          </p>
+          <div className="ba-invs-fila">
+            <button type="button" className={"ba-inv todos" + (fRecorrido === "" ? " on" : "")}
+                    aria-pressed={fRecorrido === ""}
+                    onClick={() => { setFRecorrido(""); setFCalle(""); setFModulo("") }}>
+              <b>Todos</b>
+              <span>los {recorridos.length} recorridos juntos</span>
+              <i>{nf.format(crudas.length)} renglones</i>
+            </button>
+            {recorridos.map((rc) => (
+              <button key={rc.codigo}
+                      className={"ba-inv" + (fRecorrido === rc.codigo ? " on" : "")}
+                      type="button" aria-pressed={fRecorrido === rc.codigo}
+                      onClick={() => { setFRecorrido(rc.codigo); setFCalle(""); setFModulo("") }}>
+                {/* LA FECHA PRIMERO Y EN GRANDE. El código —FEFO-0007—
+                    no le dice nada a nadie: lo que se recuerda es «el
+                    conteo del martes». */}
+                <b>{rc.fecha ? fecha(rc.fecha) : "sin fecha"}</b>
+                <span>{rc.codigo}{rc.quien ? ` · ${rc.quien}` : ""}</span>
+                <i>
+                  {nf.format(rc.renglones)} renglones · {nf.format(rc.cajas)} cajas
+                </i>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="ba-filtros">
         <label className="ancho">
           <span className="sr">Buscar por código, material, familia u observación</span>
           <input value={fTexto} onChange={(e) => setFTexto(e.target.value)}
                  placeholder="Código, material, familia u observación — 3128, aguila…" />
         </label>
-        <label>
-          <span className="sr">Recorrido</span>
-          <select value={fRecorrido} onChange={(e) => setFRecorrido(e.target.value)}>
-            <option value="">Todos los recorridos</option>
-            {recorridos.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
+        {/* PRODUCTO O ENVASE, EN BOTONES. «Que pueda filtrar por
+            producto o por envase» dentro del inventario que se está
+            mirando. Son dos mundos que casi nunca se miran juntos —el
+            que cuadra producto terminado no quiere las canastas en
+            medio— y por eso se ve de una cuál está puesto, sin abrir
+            nada. Un desplegable más, cerrado, no dice cuál está. */}
+        <div className="ba-tipos" role="group" aria-label="Producto o envase">
+          {([["", "Todo"], ["PRODUCTO", "Producto"], ["ENVASE", "Envase"]] as const).map(
+            ([v, t]) => (
+              <button key={v || "todo"} type="button" aria-pressed={fTipo === v}
+                      className={fTipo === v ? "on" : ""} onClick={() => setFTipo(v)}>
+                {t}<em>{nf.format(porTipo[v] ?? 0)}</em>
+              </button>
+            ))}
+        </div>
         <label>
           <span className="sr">Calle</span>
           <select value={fCalle} onChange={(e) => { setFCalle(e.target.value); setFModulo("") }}>
@@ -307,7 +419,7 @@ export function Base({
         {filtrando && (
           <button type="button" className="btn plano"
                   onClick={() => { setFTexto(""); setFRecorrido(""); setFCalle("");
-                                   setFModulo(""); setSoloPasados(false) }}>
+                                   setFModulo(""); setFTipo(""); setSoloPasados(false) }}>
             Quitar filtros
           </button>
         )}
@@ -320,8 +432,15 @@ export function Base({
           <b>{nf.format(cajas)}</b> cajas · {nf.format(sitios)} ubicacion{sitios === 1 ? "" : "es"}
         </p>
         <button type="button" className="btn" disabled={filas.length === 0}
-                onClick={() => bajar(filas,
-                  `conteo-${pestania}-${new Date().toISOString().slice(0, 10)}.csv`)}>
+                /* EL NOMBRE DEL ARCHIVO DICE QUÉ TRAE. Bajando tres
+                   recorridos seguidos salían tres archivos con el mismo
+                   nombre y un (1) y un (2) detrás, y a la media hora
+                   nadie sabía cuál era cuál. */
+                onClick={() => bajar(filas, [
+                  "conteo", pestania, fRecorrido || "todos",
+                  fTipo ? fTipo.toLowerCase() : null,
+                  new Date().toISOString().slice(0, 10),
+                ].filter(Boolean).join("-") + ".csv")}>
           Bajar a Excel
         </button>
       </div>

@@ -156,6 +156,41 @@ const ARMAZON = `
     </div>
   </section>
 
+  <!-- LO QUE QUEDÓ SIN CONTAR. Es la advertencia de todo lo de
+       arriba: las cifras salen de lo que se caminó, y un módulo que
+       nadie tocó no aparece como cero — no aparece. -->
+  <section class="fe-caja fe-sincontar">
+    <div class="fe-caja-cab">
+      <h2>38 módulos sin contar en el último recorrido</h2>
+      <p>Posiciones activas que <b>CT-2026-0014</b> (12/09/2026) no tocó. Las cifras de
+        arriba salen de lo que se caminó: un módulo que nadie contó no aparece como cero,
+        <b>no aparece</b>. 4 no se han contado nunca. 11 llevan más de dos semanas sin
+        mirarse.</p>
+    </div>
+    <div class="fe-barras">
+      ${[["E", 17, 22], ["A", 9, 34], ["ALAR", 7, 18], ["JAULA_PNC", 5, 40]].map(([c, f, t]) => `
+      <div class="fe-mat">
+        <span class="nom"><b>Calle ${c}</b></span>
+        <span class="pista"><i class="${f / t > 0.5 ? "mal" : ""}" style="width:${(f / t) * 100}%"></i></span>
+        <span class="val">${f}<em>de ${t}</em></span>
+      </div>`).join("")}
+    </div>
+    <div class="fe-tabla">
+      <table>
+        <thead><tr><th>Módulo</th><th>Familia</th><th class="n">Cabe</th>
+          <th class="n">Sin contar hace</th><th>Última vez</th></tr></thead>
+        <tbody>
+          ${[["E06_IZQ", "RB F1000", "40", "nunca", "no se ha contado nunca", "mal"],
+             ["ALAR_BAHIA_6", "RETORNABLE", "96", "23 días", "26/08/2026", "mal"],
+             ["A01_DER", "RB F1000", "40", "6 días", "12/09/2026", ""]].map((f) => `
+          <tr class="${f[5]}"><td><b>${f[0]}</b></td><td>${f[1]}</td><td class="n">${f[2]}</td>
+            <td class="n dias">${f[3]}</td><td>${f[4]}</td></tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
+    <p class="fe-pie-nota">Salen los <b>60</b> que llevan más tiempo sin contarse, de 38.</p>
+  </section>
+
   <section class="fe-caja">
     <div class="fe-caja-cab"><h2>Conteos enviados</h2><p>Quién caminó qué, y cuándo lo firmó.</p></div>
     <div class="fe-tabla">
@@ -169,6 +204,21 @@ const ARMAZON = `
     </div>
   </section>
 </div>`;
+
+/* «NADA QUEDÓ SIN CONTAR» ES UNA AFIRMACIÓN Y SE PINTA COMO TAL. En
+   ámbar —como el aviso de al lado— se leería como un problema. Va
+   aparte porque es el otro estado real de la misma caja. */
+const COMPLETO = ARMAZON.replace(
+  /<!-- LO QUE QUEDÓ SIN CONTAR[\s\S]*?<\/section>\n\n  <section class="fe-caja">\n    <div class="fe-caja-cab"><h2>Conteos enviados<\/h2>/,
+  `<section class="fe-faltan bien"><p><b>Nada quedó sin contar</b> en el último recorrido
+     (12/09/2026): se caminaron todas las posiciones activas de la bodega.</p></section>
+
+  <section class="fe-caja">
+    <div class="fe-caja-cab"><h2>Conteos enviados</h2>`);
+
+if (COMPLETO === ARMAZON)
+  throw new Error("la variante «nada quedó sin contar» salió idéntica al armazón: " +
+                  "lo que se mida con ella no dice nada");
 
 const VACIO = `
 <div class="fe">
@@ -190,7 +240,7 @@ const sueltas = [...pgx.matchAll(/["'`]([^"'`\n]{0,200})["'`]/g)]
   .map((m) => m[1]).join(" ").split(/[^A-Za-z0-9_-]+/).filter(Boolean);
 const palabras = new Set([...sueltas, ...sueltas.map((w) => w.toLowerCase()),
   ...[...fefo.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1])]);
-const inventadas = [...new Set([...`${ARMAZON}${VACIO}`.matchAll(/class="([^"]+)"/g)]
+const inventadas = [...new Set([...`${ARMAZON}${COMPLETO}${VACIO}`.matchAll(/class="([^"]+)"/g)]
   .flatMap((m) => m[1].split(/\s+/)))].filter(Boolean).filter((c) => !palabras.has(c));
 
 const canales = (c) => {
@@ -225,7 +275,7 @@ const monta = async (tema, ancho, html = ARMAZON) => {
 };
 
 /* ---------- 2. CONTRASTE ---------- */
-console.log("tema      alarma  días(mal)  grupo mal  rótulo tabla  «u» grupo  vacío");
+console.log("tema      alarma  días(mal)  grupo mal  rótulo tabla  «u» grupo  vacío  completo");
 for (const t of TEMAS) {
   await monta(t, 1440);
   const m = await pag.evaluate(() => {
@@ -250,6 +300,36 @@ for (const t of TEMAS) {
       uTxt: g(".fe-grupo .u", "color"), uFondo: fondoReal(".fe-grupo .u"),
     };
   });
+  /* «NADA QUEDÓ SIN CONTAR» ES VERDE Y SE TIENE QUE LEER. Es la única
+     pareja verde de la pantalla y no sale de los tokens del tema:
+     está medida contra su propio fondo, no heredada. */
+  await monta(t, 1440, COMPLETO);
+  const comp = await pag.evaluate(() => {
+    const e = document.querySelector(".fe-faltan.bien p");
+    if (!e) return null;
+    return { txt: getComputedStyle(e).color,
+             fondo: getComputedStyle(e.parentElement).backgroundColor };
+  });
+  if (!comp) fallas.push(`tema ${t ?? "oficial"}: no se pinta «nada quedó sin contar»`);
+
+  /* Y LAS BARRAS DE ESA CAJA NO SON TODAS DE ALARMA. Lo normal es que
+     falten algunas posiciones; pintarlas todas de rojo convierte la
+     alerta en decoración y el que la mira deja de distinguir la calle
+     que hay que ir a caminar de la que le faltan dos módulos. */
+  await monta(t, 1440);
+  const barras = await pag.evaluate(() => {
+    const g = (s) => { const e = document.querySelector(s); return e ? getComputedStyle(e).backgroundColor : null };
+    return { mal: g(".fe-sincontar .fe-mat .pista i.mal"),
+             suave: g(".fe-sincontar .fe-mat .pista i:not(.mal)") };
+  });
+  if (!barras.mal || !barras.suave)
+    fallas.push(`tema ${t ?? "oficial"}: el armazón no trae las dos clases de barra de lo ` +
+                "sin contar, así que esta medida no mide nada");
+  else if (barras.mal === barras.suave)
+    fallas.push(`tema ${t ?? "oficial"}: las barras de lo sin contar son todas del mismo ` +
+                "color, así que la calle a la que le faltan dos módulos se lee igual de " +
+                "grave que la que nadie caminó");
+
   await monta(t, 1440, VACIO);
   const v = await pag.evaluate(() => {
     const fondoReal = (sel) => {
@@ -269,6 +349,7 @@ for (const t of TEMAS) {
     rotulo: razon(m.thTxt, m.thFondo),
     u: razon(m.uTxt, m.uFondo),
     vacio: razon(v.txt, v.fondo),
+    completo: comp ? razon(comp.txt, comp.fondo) : 0,
   };
   const nombre = t ?? "oficial";
   console.log(nombre.padEnd(9) + Object.values(c).map((x) => String(x).padStart(8) + "  ").join(""));
@@ -363,10 +444,66 @@ if (!/l\.capacidad == null \|\| l\.capacidad <= 0/.test(pgx))
                 "sobreocupación, porque obligaría a anotar menos de lo que hay");
 }
 
+/* =====================================================================
+   LO QUE QUEDÓ SIN CONTAR
+
+   «Faltaría una tabla o algo que les muestre si quedó algún módulo sin
+   contar; necesito información con la que yo pueda tener alertas y la
+   visual.»
+   ===================================================================== */
+
+/* DEL ÚLTIMO RECORRIDO Y NO DE TODOS JUNTOS. Un módulo que se contó la
+   semana pasada y no ayer no está «sin contar» en la historia: está sin
+   contar en el recorrido que se acaba de cerrar, que es sobre el que
+   alguien decide hoy. Sumando todos los recorridos, la lista sale casi
+   vacía siempre y no avisa de nada. */
+if (!/const ultimo = enviados\[0\] \?\? null;/.test(dat) ||
+    !/conteo_sin_contar", \{ p_conteo: ultimo\.id \}/.test(dat))
+  fallas.push("lo que quedó sin contar no se pide del último recorrido: sumando todos, la " +
+              "lista sale casi vacía siempre y no avisa de nada");
+
+/* Y SI FALTA LA MIGRACIÓN, NO SE REVIENTA EL TABLERO. Contesta otra
+   pregunta y la tiene que poder seguir contestando; lo que se cae es
+   esta caja, y lo dice. */
+if (!/faltaSinContar: !!sc\.error && sinTablas\(sc\.error\.message\)/.test(dat))
+  fallas.push("si falta la función de lo sin contar, el tablero entero se cae en vez de " +
+              "decir qué falta correr");
+if (!/t\.faltaSinContar \?/.test(pgx))
+  fallas.push("la pantalla no dice qué migración falta cuando no se puede calcular lo sin " +
+              "contar: la caja desaparecería sin explicación");
+
+/* SE ORDENA POR DÍAS SIN CONTAR, NO POR CALLE. La lista alfabética
+   empieza siempre por A01 —que probablemente se contó ayer— y deja
+   abajo el que lleva tres semanas, que es el único que hay que ir a
+   caminar hoy. Lo que NUNCA se contó va de primero. */
+if (!/\(b\.dias_sin_contar \?\? Number\.MAX_SAFE_INTEGER\) - \(a\.dias_sin_contar \?\? Number\.MAX_SAFE_INTEGER\)/.test(pgx))
+  fallas.push("lo sin contar sale en orden alfabético: arriba quedaría A01 —contado ayer— y " +
+              "abajo el que lleva tres semanas, que es el que hay que ir a caminar");
+
+/* EL DENOMINADOR DE CADA CALLE SALE DEL MAESTRO. Contando solo las que
+   faltan, la calle que nadie caminó diría «2 de 2» en vez de «2 de 34»,
+   y la barra saldría llena en la calle equivocada. */
+if (!/for \(const u of m\.ubicaciones\)/.test(pgx))
+  fallas.push("el «de cuántas» de cada calle no sale del maestro: la calle que nadie caminó " +
+              "diría «2 de 2» en vez de «2 de 34»");
+
+/* «NADA QUEDÓ SIN CONTAR» SE DICE. Sin ese renglón, la ausencia de la
+   caja se lee igual que no haber mirado. */
+if (!/Nada quedó sin contar/.test(pgx))
+  fallas.push("cuando no falta nada por contar, la pantalla se queda callada: la ausencia " +
+              "de la caja se lee igual que no haber mirado");
+
 /* ---------- 5. NO AFIRMAR SOBRE BORRADORES ---------- */
-if (!/estado === "cerrado"/.test(dat))
-  fallas.push("`tableroFefo` no filtra por conteos cerrados: el tablero estaría afirmando " +
-              "sobre recorridos a medio caminar");
+/* SE MIRA DENTRO DE `tableroFefo` Y NO EL ARCHIVO ENTERO. Escrito a
+   secas, la misma frase aparece en otra función del mismo archivo y la
+   aserción seguía verde con el filtro del tablero quitado: la sostenía
+   código que no era el suyo. */
+{
+  const fn = (dat.match(/export async function tableroFefo[\s\S]*?\n\}/) ?? [""])[0];
+  if (!/estado === "cerrado"/.test(fn))
+    fallas.push("`tableroFefo` no filtra por conteos cerrados: el tablero estaría afirmando " +
+                "sobre recorridos a medio caminar");
+}
 if (!/Math\.max\(1,/.test(pgx))
   fallas.push("el tope de las barras puede ser cero: `width: NaN%` se descarta y las barras " +
               "desaparecen sin un solo error");

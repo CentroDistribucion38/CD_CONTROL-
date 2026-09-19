@@ -6,6 +6,14 @@ import "./fefo.css";
 export const dynamic = "force-dynamic";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+
+/* UNA FECHA, CORTA. Sirve para las dos formas en que llegan: la del
+   recorrido es un día pelado —«2026-09-18»—, y la última vez que se
+   contó una posición trae hora y zona. Sin el «T00:00:00» el día pelado
+   se interpreta en UTC y en Barranquilla sale el día anterior. */
+const fechaCorta = (s: string) =>
+  new Date(s.length === 10 ? s + "T00:00:00" : s)
+    .toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
 const dia = (s: string | null) =>
   s ? new Date(s).toLocaleDateString("es-CO", { day: "numeric", month: "short" }) : "—";
 
@@ -111,6 +119,57 @@ export default async function InventarioTableroPage() {
     x.renglones += 1;
     porModulo.set(l.ubicacion, x);
   }
+  /* =================================================================
+     LO QUE QUEDÓ SIN CONTAR EN EL ÚLTIMO RECORRIDO
+
+     «Faltaría una tabla o algo que les muestre si quedó algún módulo
+     sin contar; necesito información con la que yo pueda tener alertas
+     y la visual.»
+
+     ES LA ADVERTENCIA DE TODO LO DEMÁS. Las cifras de arriba salen de
+     lo que se caminó: un módulo que nadie tocó no sale como cero, sale
+     como que no existe, y sobre esa foto alguien despacha. Por eso va
+     pegado a los grupos y no al final.
+
+     SE ORDENA POR DÍAS SIN CONTAR Y NO POR CALLE. La lista alfabética
+     empieza siempre por A01 —que probablemente se contó ayer— y deja
+     abajo el que lleva tres semanas, que es el único que hay que ir a
+     caminar hoy. Lo que nunca se ha contado va de primero: no tiene
+     días que contar y es lo más grave. */
+  const sinContar = [...t.sinContar].sort((a, b) =>
+    (b.dias_sin_contar ?? Number.MAX_SAFE_INTEGER) - (a.dias_sin_contar ?? Number.MAX_SAFE_INTEGER)
+    || a.clave.localeCompare(b.clave, "es", { numeric: true }));
+  const nunca = sinContar.filter((u) => u.dias_sin_contar == null);
+  /* DOS SEMANAS ES EL CORTE. No es un número mío: es el que separa «no
+     tocó este recorrido» de «lleva sin mirarse más de lo que dura un
+     ciclo de conteo». Si el ciclo cambia, este número cambia con él. */
+  const viejos = sinContar.filter((u) => (u.dias_sin_contar ?? 999) > 14);
+  /* LA VISUAL: por calle, que es como se camina la bodega. «38 módulos
+     sin contar» no dice por dónde empezar; «la calle E entera» sí. */
+  const porCalle = (() => {
+    const cuenta = new Map<string, { calle: string; falta: number; total: number }>();
+    /* EL TOTAL DE CADA CALLE SALE DEL MAESTRO, que es quien sabe
+       cuántas posiciones tiene. Contarlas de lo contado daría el
+       denominador equivocado justo en la calle que nadie caminó: «2 de
+       2 sin contar» en vez de «2 de 34». */
+    for (const u of m.ubicaciones) {
+      if (!u.activa || u.bodega_id !== bodega?.id) continue;
+      const k = u.calle ?? "—";
+      const x = cuenta.get(k) ?? { calle: k, falta: 0, total: 0 };
+      x.total += 1;
+      cuenta.set(k, x);
+    }
+    for (const u of t.sinContar) {
+      const k = u.calle ?? "—";
+      const x = cuenta.get(k) ?? { calle: k, falta: 0, total: 0 };
+      x.falta += 1;
+      cuenta.set(k, x);
+    }
+    return [...cuenta.values()]
+      .filter((x) => x.falta > 0)
+      .sort((a, b) => b.falta - a.falta || a.calle.localeCompare(b.calle, "es", { numeric: true }));
+  })();
+
   const pasados = [...porModulo.values()]
     .filter((m) => m.estibas > m.capacidad)
     .map((m) => ({ ...m, sobra: m.estibas - m.capacidad, pct: m.estibas / m.capacidad }))
@@ -170,6 +229,108 @@ export default async function InventarioTableroPage() {
               </p>
             </div>
           </section>
+
+          {/* ============ QUÉ QUEDÓ SIN CONTAR ============
+
+              Va pegado a los grupos y no al final porque es la
+              ADVERTENCIA de todo lo de arriba: las cifras salen de lo
+              que se caminó, y un módulo que nadie tocó no sale como
+              cero —sale como que no existe—. Sobre esa foto alguien
+              despacha.
+
+              Y SE DICE TAMBIÉN CUANDO ESTÁ EN CERO. «Nada quedó sin
+              contar» es una afirmación que se puede hacer y que alguien
+              necesita: sin ella, la ausencia de la caja se lee igual
+              que no haber mirado. */}
+          {t.faltaSinContar ? (
+            <section className="fe-faltan">
+              <p>
+                <b>No se puede decir qué quedó sin contar.</b> Falta correr{" "}
+                <code>supabase/migraciones/2026-09-conteo-preanotacion.sql</code> en Supabase.
+                Todo lo demás del tablero funciona igual.
+              </p>
+            </section>
+          ) : t.ultimo && sinContar.length === 0 ? (
+            <section className="fe-faltan bien">
+              <p>
+                <b>Nada quedó sin contar</b> en el último recorrido
+                {t.ultimo.fecha_analisis && <> ({fechaCorta(t.ultimo.fecha_analisis)})</>}: se
+                caminaron todas las posiciones activas de la bodega.
+              </p>
+            </section>
+          ) : t.ultimo && (
+            <section className="fe-caja fe-sincontar">
+              <div className="fe-caja-cab">
+                <h2>
+                  {nf.format(sinContar.length)} módulo{sinContar.length === 1 ? "" : "s"} sin
+                  contar en el último recorrido
+                </h2>
+                <p>
+                  Posiciones activas que <b>{t.ultimo.codigo}</b>
+                  {t.ultimo.fecha_analisis && <> ({fechaCorta(t.ultimo.fecha_analisis)})</>} no
+                  tocó. Las cifras de arriba salen de lo que se caminó: un módulo que nadie
+                  contó no aparece como cero, <b>no aparece</b>.
+                  {nunca.length > 0 && <> {nf.format(nunca.length)} no se {nunca.length === 1
+                    ? "ha contado nunca" : "han contado nunca"}.</>}
+                  {viejos.length > 0 && <> {nf.format(viejos.length)} llevan más de dos semanas
+                    sin mirarse.</>}
+                </p>
+              </div>
+
+              {/* LA VISUAL, POR CALLE: es como se camina la bodega.
+                  «38 módulos sin contar» no dice por dónde empezar; «la
+                  calle E casi entera» sí. */}
+              <div className="fe-barras">
+                {porCalle.map((c) => (
+                  <div key={c.calle} className="fe-mat">
+                    <span className="nom"><b>Calle {c.calle}</b></span>
+                    <span className="pista">
+                      <i className={c.total > 0 && c.falta / c.total > 0.5 ? "mal" : undefined}
+                         style={{ width: `${c.total > 0 ? (c.falta / c.total) * 100 : 100}%` }} />
+                    </span>
+                    <span className="val">
+                      {nf.format(c.falta)}
+                      <em>de {nf.format(c.total)}</em>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="fe-tabla">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Módulo</th><th>Familia</th><th className="n">Cabe</th>
+                      <th className="n">Sin contar hace</th><th>Última vez</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sinContar.slice(0, 60).map((u) => (
+                      <tr key={u.ubicacion_id}
+                          className={u.dias_sin_contar == null || u.dias_sin_contar > 14 ? "mal" : undefined}>
+                        <td><b>{u.clave}</b></td>
+                        <td>{u.familia ?? "—"}</td>
+                        <td className="n">{u.capacidad == null ? "—" : nf.format(u.capacidad)}</td>
+                        <td className="n dias">
+                          {u.dias_sin_contar == null
+                            ? "nunca"
+                            : `${nf.format(u.dias_sin_contar)} día${u.dias_sin_contar === 1 ? "" : "s"}`}
+                        </td>
+                        <td>{u.ultimo_en ? fechaCorta(u.ultimo_en) : "no se ha contado nunca"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {sinContar.length > 60 && (
+                <p className="fe-pie-nota">
+                  Salen los <b>60</b> que llevan más tiempo sin contarse, de{" "}
+                  {nf.format(sinContar.length)}. Los demás son los que se contaron hace poco
+                  en otro recorrido.
+                </p>
+              )}
+            </section>
+          )}
 
           {sinFecha.length > 0 && (
             <section className="fe-faltan">

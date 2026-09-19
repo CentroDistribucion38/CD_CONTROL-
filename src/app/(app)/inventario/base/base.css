@@ -165,3 +165,102 @@
   .fe .ba-cuenta .btn { width: 100% }
   .fe .ba-filtros label.ancho { flex: 1 1 100% }
 }
+
+/* =====================================================================
+   QUÉ INVENTARIO SE ESTÁ MIRANDO
+
+   «Cuando entre a la base deberían aparecer por fecha los registros que
+   hicieron, consolidados en una sola base, con el fin de seleccionar
+   qué inventario ver.»
+
+   Es de otra clase que los filtros de abajo: los filtros recortan una
+   tabla, esto decide CUÁL. Por eso va aparte, arriba, y con la fecha en
+   grande — el código «FEFO-0007» no le dice nada a nadie; lo que se
+   recuerda es «el conteo del martes».
+   ===================================================================== */
+.fe .ba-invs { margin-bottom: 14px }
+.fe .ba-invs-rot {
+  display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px;
+  font: 800 11px var(--fe-titulo); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--fe-gris-panel);
+}
+.fe .ba-invs-rot em {
+  font-style: normal; letter-spacing: 0; text-transform: none; font-weight: 600;
+  color: var(--fe-gris);
+}
+
+/* SE RUEDAN DE LADO Y NO SE APILAN. El día que haya cuarenta
+   recorridos, apilados empujan la tabla cuatro pantallas hacia abajo;
+   en una fila que rueda, la pantalla mide siempre lo mismo y el más
+   nuevo —que es el que se busca— está siempre a la vista, a la
+   izquierda. El desplazamiento va DENTRO de la fila: una página que se
+   va de lado deja el menú inalcanzable. */
+.fe .ba-invs-fila {
+  display: flex; gap: 9px; overflow-x: auto; overscroll-behavior-x: contain;
+  padding-bottom: 4px; scroll-snap-type: x proximity;
+}
+.fe .ba-inv {
+  flex: 0 0 auto; min-width: 190px; max-width: 260px; scroll-snap-align: start;
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+  min-height: 78px; padding: 11px 13px; cursor: pointer; text-align: left;
+  background: var(--fe-papel); border: 1.5px solid var(--fe-linea); border-radius: 3px;
+}
+.fe .ba-inv b {
+  font: 800 16px var(--fe-titulo); color: var(--fe-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.fe .ba-inv span {
+  font-size: 12px; color: var(--fe-gris); line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.fe .ba-inv i {
+  font-style: normal; font-size: 11.5px; color: var(--fe-gris);
+  font-variant-numeric: tabular-nums; margin-top: auto;
+}
+.fe .ba-inv:hover { border-color: var(--fe-acento) }
+.fe .ba-inv:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 2px }
+
+/* EL ESCOGIDO SE PINTA CON EL ACENTO DE FONDO Y SU LETRA ENCIMA. De
+   color de letra, el acento dio 1,6 de contraste en tres de los siete
+   temas de esta misma app: está hecho para llevar texto encima. */
+.fe .ba-inv.on {
+  background: var(--fe-acento); border-color: var(--fe-acento);
+}
+.fe .ba-inv.on b, .fe .ba-inv.on span, .fe .ba-inv.on i { color: var(--fe-sobre) }
+/* «Todos» va con una raya y no con otro color: es la misma clase de
+   cosa que los demás —un recorrido más, el de la suma— y un color
+   propio lo haría parecer un botón de acción. */
+.fe .ba-inv.todos { box-shadow: inset 3px 0 0 var(--fe-linea) }
+.fe .ba-inv.todos.on { box-shadow: none }
+
+/* ---------- PRODUCTO O ENVASE ----------
+   Dos mundos que casi nunca se miran juntos: el que cuadra producto
+   terminado no quiere las canastas en medio. Va en botones y no en un
+   desplegable más porque un desplegable cerrado no dice cuál está
+   puesto, y este filtro cambia el total de la pantalla. */
+.fe .ba-tipos { display: flex; gap: 0; flex: 0 0 auto }
+.fe .ba-tipos button {
+  min-height: 40px; padding: 0 13px; cursor: pointer;
+  font: 600 13px var(--fe-texto); color: var(--fe-gris-panel);
+  background: #fff; border: 1.5px solid var(--fe-linea); margin-left: -1.5px;
+}
+.fe .ba-tipos button:first-child { margin-left: 0; border-radius: 2px 0 0 2px }
+.fe .ba-tipos button:last-child { border-radius: 0 2px 2px 0 }
+.fe .ba-tipos button.on {
+  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);
+  position: relative; z-index: 1;
+}
+/* CUÁNTOS HAY DE CADA UNO. Un botón «Envase» que lleva a una tabla
+   vacía hace dudar de si se perdió algo; con la cifra al lado se ve que
+   ese recorrido no tocó envases y no hay nada que buscar. */
+.fe .ba-tipos em {
+  font-style: normal; font-weight: 700; margin-left: 7px; opacity: .72;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .fe .ba-inv { min-width: 164px; min-height: 72px; padding: 10px 11px }
+  .fe .ba-inv b { font-size: 15px }
+  .fe .ba-tipos { width: 100% }
+  .fe .ba-tipos button { flex: 1; padding: 0 8px }
+}

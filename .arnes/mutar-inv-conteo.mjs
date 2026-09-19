@@ -20,6 +20,12 @@ const CSS = "src/app/(app)/inventario/fefo.css";
 const original = { [TSX]: readFileSync(TSX, "utf8"), [CSS]: readFileSync(CSS, "utf8") };
 const restaurar = () => { for (const [f, t] of Object.entries(original)) writeFileSync(f, t) };
 process.on("exit", restaurar);
+/* Y TAMBIÉN SI A ESTO LO MATAN. `exit` no salta con SIGTERM ni con
+   SIGINT, y un arnés que tarda seis minutos se mata: la vez que pasó,
+   el árbol se quedó con una mutación puesta y la siguiente corrida la
+   tomó por el original. Lo cazó un `grep`, no el arnés. */
+for (const s of ["SIGINT", "SIGTERM", "SIGHUP"])
+  process.on(s, () => { restaurar(); process.exit(130) });
 
 let fallos = 0;
 
@@ -98,7 +104,7 @@ probar("los cuatro momentos van en el orden en que se mira una estiba",
 
 /* ---------- EL VENCIMIENTO ---------- */
 probar("se manda el vencimiento que se teclea",
-  [[TSX, "p_venc_dia: ent(b.dia),", "p_venc_dia: null,"]],
+  [[TSX, "p_venc_dia: ent(bb.dia),", "p_venc_dia: null,"]],
   "no manda el vencimiento que se teclea");
 
 probar("no se manda además una fecha de fabricación",
@@ -151,8 +157,8 @@ probar("la casilla se limpia a dos dígitos",
 
 /* ---------- LAS DOS FORMAS DE CONTAR ---------- */
 probar("las estibas y el saldo viajan juntas",
-  [[TSX, 'p_saldo: b.modo === "estibas" ? ent(b.saldo) : null,',
-         'p_saldo: b.modo === "saldo" ? ent(b.saldo) : null,']],
+  [[TSX, 'p_saldo: bb.modo === "estibas" ? ent(bb.saldo) : null,',
+         'p_saldo: bb.modo === "saldo" ? ent(bb.saldo) : null,']],
   "no viajan juntas en el renglón de estibas");
 
 probar("las tres cifras no vuelven a compartir una casilla",
@@ -231,11 +237,11 @@ probar("sin calle escogida, la calle va como pista para distinguir el 01 de A de
 
 probar("no se frena el renglón por la rotación",
   [[TSX, "    /* DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA.",
-          '    if (b.rot == null) return "Falta decir si rota.";\n    /* DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA.']],
+          '    if (bb.rot == null) return "Falta decir si rota.";\n    /* DE «CÓMO ESTÁ» EN ADELANTE NO SE VALIDA NADA.']],
   "volvió a frenar el renglón por la rotación");
 
 probar("la rotación se manda resuelta y no nula",
-  [[TSX, "p_rotacion: b.rot === true,", "p_rotacion: b.rot,"]],
+  [[TSX, "p_rotacion: bb.rot === true,", "p_rotacion: bb.rot,"]],
   "se manda sin resolver");
 
 probar("Avería y PNC miden lo mismo",
@@ -277,10 +283,153 @@ probar("el teclado se cierra DESPUÉS de intentar pasar a la siguiente",
           "    if (limpio.length !== 2) return;\n    document.activeElement instanceof HTMLElement && document.activeElement.blur();\n    if (siguiente?.current) {"]],
   "se cerraría también al pasar de día a mes");
 
+/* =====================================================================
+   LA PRE-ANOTACIÓN D-1 Y EL LADO QUE FALTA
+
+   Todo lo que sigue nació de una queja concreta: «coloco Calle A módulo
+   01 y solo sale izquierdo, y no debe ser así», y de una idea suya:
+   «podríamos hacer una pre-anotación D-1, para que solo confirmen si la
+   posición sigue igual».
+
+   Cada aserción de allá tiene aquí su error de vuelta.
+   ===================================================================== */
+
+/* EL BLOQUE ENTERO DE LAS TARJETAS, sacado del archivo y no escrito
+   aquí: para mover algo de sitio hay que tener el texto exacto, y una
+   copia a mano se queda vieja el día que se toque una línea. Si el
+   recorte sale vacío, `probar` lo canta como «la mutación no aplica». */
+const BLOQUE_PREVIO = (original[TSX].match(
+  /        \{\/\* ================= LA PRE-ANOTACIÓN D-1[\s\S]*?\n        \)\}\n\n/) ?? [""])[0];
+const ANCLA_CUANTO = "        {/* ============ 3 · CUÁNTO";
+
+probar("los lados vuelven a salir de lo que el maestro tenga cargado",
+  [[TSX, '    return ["IZQ", "DER"];', "    return delModulo.map((u) => u.lado ?? \"\");"]],
+  "el lado derecho de un módulo a medias");
+
+probar("a un módulo sin lados se le inventan izquierdo y derecho",
+  [[TSX, 'delModulo.every((u) => (u.lado ?? "") === "")',
+         'delModulo.every((u) => (u.lado ?? "") === "ZZZ")']],
+  "se le inventan izquierdo y derecho");
+
+probar("el lado que falta en el maestro ya no se da de alta",
+  [[TSX, 'supabase.rpc("conteo_ubicacion_asegurar"', 'supabase.rpc("conteo_nada"']],
+  "no tendría dónde guardar el renglón");
+
+probar("el renglón corregido no va a la posición que se acaba de asegurar",
+  [[TSX, 'p_linea: corrigiendo, ...argumentos(bb, mat, idU)',
+         'p_linea: corrigiendo, ...argumentos(bb, mat, ubicacion!.id)']],
+  "no se guarda en la posición que se acaba de asegurar");
+
+probar("el renglón nuevo no va a la posición que se acaba de asegurar",
+  [[TSX, 'p_conteo: conteo.id, ...argumentos(bb, mat, idU)',
+         'p_conteo: conteo.id, ...argumentos(bb, mat, ubicacion!.id)']],
+  "no se guarda en la posición que se acaba de asegurar");
+
+probar("la pre-anotación deja de salir del último conteo de esa posición",
+  [[TSX, 'from("v_conteo_ultimo_por_ubicacion")', 'from("v_conteo_fefo")']],
+  "no sale de la vista del último conteo");
+
+probar("la consulta que llega tarde pinta igual",
+  [[TSX, "if (vivo) { setPrevio(", "if (true) { setPrevio("]],
+  "quedaría en pantalla la pre-anotación del módulo anterior");
+
+probar("«Sigue igual» se guarda por su propio camino",
+  [[TSX, "  const confirmar = (pv: Previo) => guardar(desdePrevio(pv));",
+         "  const confirmar = async (pv: Previo) => { await supabase.rpc(\"conteo_fefo_agregar\", { p_conteo: conteo!.id, p_sku: pv.codigo }) };"]],
+  "no guarda por el mismo camino");
+
+probar("dos sitios distintos agregan renglones",
+  [[TSX, "      : await supabase.rpc(\"conteo_fefo_agregar\", { p_conteo: conteo.id",
+         "      : await supabase.rpc(\"conteo_fefo_agregar\", { p_extra: \"conteo_fefo_agregar\", p_conteo: conteo.id"]],
+  "hay más de un sitio que agrega renglones");
+
+probar("el guardado lee el renglón que se está tecleando y no el que se le manda",
+  [[TSX, "    const mal = revisar(bb);", "    const mal = revisar(b);"]],
+  "confirmar una tarjeta guardaría otra cosa");
+
+probar("las tarjetas se caen debajo del formulario",
+  [[TSX, BLOQUE_PREVIO, ""], [TSX, ANCLA_CUANTO, BLOQUE_PREVIO + ANCLA_CUANTO]],
+  "la pre-anotación no va entre «Dónde» y «Qué»");
+
+probar("al escoger la posición se llenan solas las casillas",
+  [[TSX, "      if (vivo) { setPrevio(",
+         "      if (vivo) { setB((x) => x); setPrevio("]],
+  "se llenan solas las casillas");
+
+probar("una tarjeta ya contada hoy se puede volver a confirmar",
+  [[TSX, "              const hecho = yaHoy(pv);", "              const hecho = false;"]],
+  "renglón repetido");
+
+probar("las tarjetas no se pueden quitar de un toque",
+  [[TSX, "onClick={() => setVerPrevio(false)}", "onClick={() => setVerPrevio(true)}"]],
+  "no se pueden quitar");
+
+probar("«Cambió» guarda solo",
+  [[TSX, "    setB(desdePrevio(pv));\n    /*", "    setB(desdePrevio(pv));\n    void guardar(desdePrevio(pv));\n    /*"]],
+  "guardaría la cantidad de ayer");
+
+probar("al editar una tarjeta el cursor cae antes de que exista la casilla",
+  [[TSX, "    setEnfocarCantidad((n) => n + 1);", "    campoCantidad.current?.focus();"]],
+  "el cursor no cae en la cantidad");
+
+probar("la calle no recibe la referencia del cursor",
+  [[TSX, "                campo={campoCalle}\n", ""]],
+  "el cursor no puede volver ahí después de anotar");
+
+probar("después de anotar el cursor no vuelve a la calle",
+  [[TSX, "    campoCalle.current?.focus();\n  }", "    campoCodigo.current?.focus();\n  }"]],
+  "el cursor no vuelve a la calle");
+
+probar("anotar suelta la calle y el módulo",
+  [[TSX, "      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }",
+         "      ? { ...VACIO }"]],
+  "habría que volver a escogerlos para cada renglón del mismo pasillo");
+
+probar("el sitio se queda puesto también al corregir",
+  [[TSX, "    limpiar(!corrigiendo);", "    limpiar(true);"]],
+  "quedaría escogido un módulo que nadie tocó");
+
+probar("al anotar deja de vaciarse el renglón",
+  [[TSX, "      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }",
+         "      ? { ...x, codigo: x.codigo }"]],
+  "no se limpia el renglón ENTERO");
+
+probar("los botones de la tarjeta se encogen por debajo del dedo",
+  [[CSS, ".fe .fe-tarjeta-pie button {\n  flex: 1; min-height: 48px;",
+         ".fe .fe-tarjeta-pie button {\n  flex: 1; min-height: 34px;"]],
+  "los botones de la tarjeta miden");
+
+probar("la cabecera de las tarjetas no deja sitio al botón de cerrar",
+  [[CSS, "  gap: 10px; margin-bottom: 10px; flex-wrap: wrap;",
+         "  gap: 10px; margin-bottom: 10px;"],
+   [CSS, ".fe .fe-previo-cab .fe-mini { width: auto; margin-left: auto; flex: none }",
+         ".fe .fe-previo-cab .fe-mini { margin-left: auto }"]],
+  "la página se arrastra");
+
+probar("el rótulo de las tarjetas se encoge hasta desaparecer",
+  [[CSS, ".fe .fe-previo-cab .fe-mini { width: auto; margin-left: auto; flex: none }",
+         ".fe .fe-previo-cab .fe-mini { width: auto; margin-left: auto; flex: none }\n" +
+         ".fe .fe-previo-cab .fe-previo-rot { min-width: 0 }"],
+   [CSS, "  gap: 10px; margin-bottom: 10px; flex-wrap: wrap;",
+         "  gap: 10px; margin-bottom: 10px;"],
+   [CSS, ".fe .fe-previo-cab .fe-mini { width: auto; margin-left: auto; flex: none }\n.fe .fe-previo-cab .fe-previo-rot { min-width: 0 }",
+         ".fe .fe-previo-cab .fe-previo-rot { min-width: 0 }"]],
+  "el rótulo de las tarjetas se recorta");
+
+probar("la cantidad de la tarjeta se lee igual que el nombre del material",
+  [[CSS, "  margin: 6px 0 0; font: 800 20px var(--fe-titulo);",
+         "  margin: 6px 0 0; font: 500 14px var(--fe-titulo);"],
+   /* Y TAMBIÉN EN EL CELULAR, que es donde se mide: la media query de
+      abajo vuelve a fijar el tamaño y sin tocarla la mutación no
+      cambiaba nada de lo medido —salió verde y por eso está aquí. */
+   [CSS, "  .fe .fe-tarjeta-cifra { font-size: 19px }",
+         "  .fe .fe-tarjeta-cifra { font-size: 14px }"]],
+  "la cifra es lo que se compara con la estiba");
+
 restaurar();
 console.log("");
 if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 42 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 67 se pusieron rojas. El arnés caza lo que dice cazar.");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
 
 /**
  * UNA LISTA QUE SE FILTRA TECLEANDO.
@@ -27,7 +28,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 export type Opcion = { valor: string; texto: string; pista?: string | null };
 
 export function Buscador({
-  valor, opciones, onEscoge, marcador, id, sinOpciones, teclado = "texto",
+  valor, opciones, onEscoge, marcador, id, sinOpciones, teclado = "texto", campo: fuera,
 }: {
   valor: string;
   opciones: Opcion[];
@@ -52,6 +53,13 @@ export function Buscador({
    * el PC sigue filtrando al escribir.
    */
   teclado?: "texto" | "numerico" | "ninguno";
+  /**
+   * El campo de adentro, para quien necesite mandarle el foco desde
+   * fuera — la pantalla de conteo lo usa para volver a la calle después
+   * de anotar un renglón. Va como referencia y no como un `autoFocus`
+   * porque el momento lo decide quien llama, no el componente.
+   */
+  campo?: RefObject<HTMLInputElement | null>;
 }) {
   const auto = useId();
   const idLista = `${id ?? auto}-lista`;
@@ -59,7 +67,8 @@ export function Buscador({
   const [texto, setTexto] = useState("");
   const [activo, setActivo] = useState(0);
   const caja = useRef<HTMLDivElement>(null);
-  const campo = useRef<HTMLInputElement>(null);
+  const propia = useRef<HTMLInputElement>(null);
+  const campo = fuera ?? propia;
 
   const escogida = opciones.find((o) => o.valor === valor) ?? null;
 

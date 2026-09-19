@@ -33,44 +33,6 @@
   box-shadow: inset 4px 0 0 var(--tp-mal);
 }
 
-/* ---------------------------------------------------------------------
-   TRES MONTONES Y NO UNA ESCALA
-
-   Faltan · sobran · cuadran. Cada uno tiene una acción distinta —ir a
-   buscarlo, revisar el número tecleado, nada— y por eso son tres
-   botones y no tres cifras sueltas: se toca el montón que se va a
-   trabajar.
-   --------------------------------------------------------------------- */
-.tp .cr-marcador {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
-  margin-top: 12px; background: var(--tp-linea);
-  border: 1px solid var(--tp-linea); border-radius: 3px; overflow: hidden;
-}
-.tp .cr-grupo {
-  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
-  padding: 14px 16px; min-height: 96px; cursor: pointer; text-align: left;
-  background: var(--tp-papel); border: none; min-width: 0;
-}
-.tp .cr-grupo .n {
-  font: 900 30px/1 var(--tp-titulo); letter-spacing: -.04em;
-  font-variant-numeric: tabular-nums; color: var(--tp-tinta);
-}
-.tp .cr-grupo .q {
-  font: 700 10.5px var(--tp-texto); letter-spacing: .14em; text-transform: uppercase;
-  color: var(--tp-gris);
-}
-.tp .cr-grupo .p { font-size: 11.5px; line-height: 1.4; color: var(--tp-gris); overflow-wrap: anywhere }
-/* LA RAYA Y EL COLOR, NO SOLO EL COLOR. Con el sol de frente el rojo y
-   el ámbar se parecen, y quien no separa bien los colores no los
-   distingue nunca. */
-.tp .cr-grupo.mal .n { color: var(--tp-mal) }
-.tp .cr-grupo.mal { box-shadow: inset 4px 0 0 var(--tp-mal) }
-.tp .cr-grupo.ojo .n { color: #5E4100 }
-.tp .cr-grupo.ojo { box-shadow: inset 4px 0 0 #C08A16 }
-.tp .cr-grupo.bien .n { color: var(--tp-bien) }
-.tp .cr-grupo.bien { box-shadow: inset 4px 0 0 var(--tp-bien) }
-.tp .cr-grupo.on { background: var(--tp-fondo) }
-.tp .cr-grupo:focus-visible { outline: 2px solid var(--tp-acento); outline-offset: -2px }
 
 /* La tabla se desplaza DENTRO de su caja: si la que se va de lado es la
    página, el menú y los montones quedan inalcanzables mientras se mira
@@ -103,17 +65,129 @@
 .tp .cr-tabla tbody tr.ojo td { color: #3D2A00 }
 
 @media (max-width: 760px) {
-  .tp .cr-marcador { grid-template-columns: minmax(0, 1fr) }
-  .tp .cr-grupo { min-height: 0; padding: 11px 13px }
-  .tp .cr-grupo .n { font-size: 24px }
   .tp .cr-marco { max-height: 56vh }
 }
 
-/* LO QUE QUIERE DECIR EL MONTÓN QUE SE ESCOGIÓ. Va entre los botones y
-   la tabla porque es lo que hay que leer ANTES de recorrerla: «sobran»
-   sin la explicación se lee como un error del sistema, cuando casi
-   siempre es un dígito mal tecleado que se arregla en dos minutos. */
-.tp .cr-pista {
-  margin: 12px 0 0; padding: 0 16px 4px;
-  font-size: 12.5px; line-height: 1.55; color: var(--tp-gris); max-width: 86ch;
+
+/* =====================================================================
+   EL RESUMEN DEL DÍA
+
+   La respuesta primero —una frase, en grande— y debajo los montones,
+   cerrados. Antes la pantalla abría con un título que nombraba la
+   herramienta («Diferencias contra SAP») y cuatro tablas desplegadas:
+   quien entraba tenía que sumar de cabeza para saber cómo quedó el día.
+   ===================================================================== */
+.tp .tp-rz-ojo {
+  margin: 0; font: 700 10.5px var(--tp-titulo); letter-spacing: .16em;
+  text-transform: uppercase; color: var(--tp-gris);
+}
+/* LA FRASE ES EL TITULAR. Se lee de lejos y de una: el número dentro
+   de la frase, no en una tarjeta aparte que haya que emparejar con el
+   texto que lo explica. */
+.tp .tp-rz-frase {
+  margin: 10px 0 0; font: 900 30px/1.25 var(--tp-titulo); letter-spacing: -.035em;
+  color: var(--tp-tinta); text-wrap: balance;
+}
+/* EL RESALTADO ES FONDO, NO LETRA. El acento del módulo cambia con el
+   tema de cada quien y está hecho para llevar texto encima; usarlo como
+   color de letra dio 1,6 de contraste en tres temas de esta misma app. */
+.tp .tp-rz-frase em {
+  font-style: normal; padding: 0 9px;
+  background: var(--tp-acento); color: var(--tp-sobre-acento);
+}
+.tp .tp-rz-frase .mal { color: var(--tp-mal) }
+.tp .tp-rz-sub {
+  margin: 11px 0 18px; font-size: 13.5px; line-height: 1.55;
+  color: var(--tp-gris); max-width: 88ch;
+}
+
+/* LA BARRA ES LA FRASE, DIBUJADA. Mide lo mismo que la frase cuenta. */
+.tp .tp-rz-barra {
+  display: flex; height: 22px; overflow: hidden; border-radius: 2px;
+  border: 1px solid var(--tp-linea); background: var(--tp-papel);
+}
+.tp .tp-rz-barra i { display: block; height: 100% }
+.tp .tp-rz-barra i.bien { background: var(--tp-bien) }
+.tp .tp-rz-barra i.ojo  { background: var(--tp-acento) }
+.tp .tp-rz-leg {
+  display: flex; gap: 20px; flex-wrap: wrap; margin: 10px 0 0;
+  font-size: 12.5px; color: var(--tp-gris);
+}
+.tp .tp-rz-leg span { display: inline-flex; align-items: center; gap: 7px }
+.tp .tp-rz-leg i { width: 11px; height: 11px; display: inline-block; border-radius: 2px }
+.tp .tp-rz-leg i.bien { background: var(--tp-bien) }
+.tp .tp-rz-leg i.ojo  { background: var(--tp-acento) }
+
+.tp .tp-rz-lista { margin-top: 20px; display: flex; flex-direction: column; gap: 10px }
+.tp .tp-rz-monton {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+}
+.tp .tp-rz-monton.on { border-color: color-mix(in srgb, var(--tp-linea) 55%, var(--tp-tinta)) }
+
+/* LA TAPA ES UN BOTÓN ENTERO, no una flecha al final: tocar una cifra
+   de 34 px y que no pase nada es la forma más rápida de enseñarle a
+   alguien que esto no se abre. */
+.tp .tp-rz-tapa {
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto auto;
+  gap: 18px; align-items: center; padding: 15px 18px; min-height: 64px;
+  background: none; border: none; cursor: pointer; text-align: left;
+}
+.tp .tp-rz-tapa:hover { background: var(--tp-fondo) }
+.tp .tp-rz-tapa:focus-visible { outline: 2px solid var(--tp-acento); outline-offset: -2px }
+.tp .tp-rz-tapa .n {
+  font: 900 34px/1 var(--tp-titulo); letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums; min-width: 52px; color: var(--tp-tinta);
+}
+.tp .tp-rz-tapa .tx b { display: block; font: 600 15.5px var(--tp-texto); color: var(--tp-tinta) }
+.tp .tp-rz-tapa .tx span {
+  display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.4;
+  color: var(--tp-gris); overflow-wrap: anywhere;
+}
+.tp .tp-rz-tapa .pct {
+  font: 800 13px var(--tp-titulo); color: var(--tp-gris);
+  font-variant-numeric: tabular-nums;
+}
+.tp .tp-rz-tapa .fl {
+  width: 26px; height: 26px; display: grid; place-items: center; font-size: 12px;
+  border: 1.5px solid var(--tp-linea); border-radius: 2px; color: var(--tp-gris);
+}
+.tp .tp-rz-monton.on .tp-rz-tapa .fl {
+  background: var(--tp-acento); color: var(--tp-sobre-acento); border-color: var(--tp-acento);
+}
+
+/* LA RAYA Y EL COLOR, NO SOLO EL COLOR. Con el sol de frente el rojo y
+   el acento se parecen, y quien no separa bien los colores no los
+   distingue nunca: la raya de la izquierda va en el mismo sitio y el
+   rótulo dice cuál es cuál. */
+.tp .tp-rz-monton.mal  .tp-rz-tapa { box-shadow: inset 4px 0 0 var(--tp-mal) }
+.tp .tp-rz-monton.bien .tp-rz-tapa { box-shadow: inset 4px 0 0 var(--tp-bien) }
+.tp .tp-rz-monton.ojo  .tp-rz-tapa { box-shadow: inset 4px 0 0 var(--tp-acento) }
+.tp .tp-rz-monton.mal  .tp-rz-tapa .n { color: var(--tp-mal) }
+.tp .tp-rz-monton.bien .tp-rz-tapa .n { color: var(--tp-bien) }
+
+.tp .tp-rz-cuerpo { border-top: 1px solid var(--tp-linea) }
+.tp .tp-rz-nota {
+  margin: 0; padding: 12px 18px; background: var(--tp-fondo);
+  font-size: 12.5px; line-height: 1.55; color: var(--tp-gris-panel);
+}
+.tp .tp-rz-nota b { color: var(--tp-tinta) }
+.tp .tp-rz-cuerpo .cr-marco { margin-top: 0 }
+
+/* EL DÍA CAMBIADO, DICHO CON PALABRAS Y NO SOLO PINTADO. La fila
+   amarilla dice «mira esto» y no dice qué mirar; el que abre el montón
+   dos semanas después no tiene cómo saberlo. */
+.tp .tp-rz-marca {
+  display: block; margin-top: 2px; font-style: normal;
+  font: 700 10px var(--tp-texto); letter-spacing: .06em; text-transform: uppercase;
+  color: #6B4A00;
+}
+
+@media (max-width: 760px) {
+  .tp .tp-rz-frase { font-size: 22px }
+  .tp .tp-rz-tapa { grid-template-columns: auto 1fr auto; gap: 12px; padding: 12px 13px }
+  /* EL PORCENTAJE ES LO PRIMERO QUE SOBRA. La cifra ya está al lado y
+     el ancho de la barra de arriba dice la proporción; apretados en
+     360 px, el rótulo del montón se partía en cuatro renglones. */
+  .tp .tp-rz-tapa .pct { display: none }
+  .tp .tp-rz-tapa .n { font-size: 26px; min-width: 40px }
 }

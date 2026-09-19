@@ -435,7 +435,7 @@ const TOPE_DIA = 5000;
    ===================================================================== */
 export async function cruceDelDia(fecha: string) {
   const supabase = await createClient();
-  const [c, pri, ult, sd] = await Promise.all([
+  const [c, pri, ult, sd, cd] = await Promise.all([
     supabase.from("v_traspasos_cruce").select("*")
       .or(`sap_fecha.eq.${fecha},sis_fecha.eq.${fecha}`)
       .order("sap_hora").limit(TOPE_DIA),
@@ -469,6 +469,20 @@ export async function cruceDelDia(fecha: string) {
     supabase.from("v_traspasos_viajes").select("*")
       .eq("fecha", fecha).eq("sin_documento", true)
       .order("turno_orden").order("hora").limit(500),
+
+    /* ===============================================================
+       Y LOS QUE SÍ LO LLEVAN. No es adorno: el resumen del día no
+       puede decir «9 sin documento» sin decir sobre cuántos. «Nueve»
+       de doce es un día malo; «nueve» de ciento cuarenta es otra cosa,
+       y sin el denominador las dos se leen igual.
+
+       SON LOS VIAJES, NO LOS DOCUMENTOS DEL CORTE: aquí se cuenta lo
+       que la gente registró, que es lo que esta pantalla vigila. Lo
+       que SAP tiene y nadie registró va en su propio montón, abajo.
+       =============================================================== */
+    supabase.from("v_traspasos_viajes").select("*")
+      .eq("fecha", fecha).not("documento", "is", null)
+      .order("turno_orden").order("hora").limit(TOPE_DIA),
   ]);
 
   if (c.error) {
@@ -477,6 +491,7 @@ export async function cruceDelDia(fecha: string) {
       lineas: [] as LineaCruce[], tope: false,
       hayCorte: false, desde: null as string | null, hasta: null as string | null,
       sinDocumento: (sd.data ?? []) as Viaje[],
+      conDocumento: (cd.data ?? []) as Viaje[],
     };
   }
 
@@ -496,6 +511,7 @@ export async function cruceDelDia(fecha: string) {
        un problema haya corte importado o no. Atarlo al corte lo
        escondería justo los días en que nadie importó nada. */
     sinDocumento: (sd.data ?? []) as Viaje[],
+    conDocumento: (cd.data ?? []) as Viaje[],
   };
 }
 

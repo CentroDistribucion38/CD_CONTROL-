@@ -1,66 +1,209 @@
-Conteo: el renglón se escribe de corrido, del código al número
+Contar sin escribir, el día de traspasos en una frase y la base por inventario
 
-«La idea es que culmine la fecha y solo se ponga en estibas, o sea que
-todo sea así, que se vaya enfocando, para que sea mucho mejor.»
-
-=====================================================================
-1 · LA CADENA YA NO SE CORTA EN EL AÑO
-=====================================================================
-
-Era el único corte del renglón: se terminaba de teclear el año y había
-que levantar la mano a tocar «Estibas completas», con el teclado ya
-abierto y la estiba delante. Ahora el año pasa solo a la cantidad, como
-el día pasa al mes y el mes al año.
-
-    código → DD → MM → AA → cantidad → saldo
-
-UNA SOLA REFERENCIA PARA LAS DOS CASILLAS DE CANTIDAD. «Estibas
-completas» y «Cajas» no existen a la vez —son las dos formas de contar—
-así que solo una está montada y la referencia apunta siempre a la que se
-ve. Con una referencia por modo habría que preguntar en cuál estamos
-cada vez que se salta, y ese `if` se olvida el día que aparezca un
-tercer modo.
-
-Lo de ayer —cerrar el teclado al acabar el año— se queda como RED: si un
-día la última casilla no tuviera siguiente, dejar el cursor ahí con el
-teclado abierto taparía el total y los días para salir, que es lo que
-hay que mirar al terminar. Y sigue yendo DETRÁS del salto: delante
-cerraría el teclado también al pasar de día a mes.
+Cuatro cosas que pediste, cada una con su arnés y cada arnés con sus
+mutaciones. Las cuatro salieron de frases tuyas y están citadas donde se
+decidieron.
 
 =====================================================================
-2 · DONDE EL LARGO NO SE SABE, LO DICE ENTER
+1 · LA PRE-ANOTACIÓN D-1
 =====================================================================
 
-El día, el mes y el año saltan solos porque son dos dígitos y ahí se
-acaban. El código puede ser 3128 o 17740, y las estibas 8 o 112: saltar
-por el largo ahí sería adivinar y dejaría a medias la mitad de los
-renglones. Con Enter lo dice quien escribe, que es el único que sabe que
-ya terminó.
+«Yo cuento hoy el A01 con 96 estibas de A1000. Que mañana, al
+seleccionar el módulo, me aparezca la misma información preguardada con
+la info de hoy, por si sigue igual, y un botón de registrar por si
+cambia.»
 
-    código  Enter → DD
-    estibas Enter → saldo
-    saldo   Enter → cierra el teclado (lo que sigue es mirar el total)
-    cajas   Enter → cierra el teclado
+Al escoger calle, módulo y lado salen las tarjetas de lo que se contó
+ahí la última vez —de cuándo sea— con la cantidad en grande y el
+vencimiento. Cada una tiene dos botones:
 
-DICHO CLARO: el teclado numérico de iPhone no trae Enter. Por eso este
-salto es el de conveniencia y el de la fecha es el que de verdad
-encadena el renglón — ese funciona en todos.
+  SIGUE IGUAL  guarda el renglón tal cual, sin tocar una casilla.
+  CAMBIÓ       baja la tarjeta al formulario con el cursor ya en la
+               cantidad, que es lo único que cambia casi siempre.
+
+Y «Aquí hay otra cosa» las quita todas de un toque, para el día que la
+posición cambió de material entero.
+
+CONFIRMAR Y ANOTAR SON EL MISMO GUARDADO. La tarjeta se vuelve un
+borrador y entra por la misma puerta. Con dos caminos, cualquier regla
+que se toque en uno queda distinta en el otro y el renglón confirmado
+sale del mismo módulo con otras cuentas.
+
+NO SE AUTOLLENA EL FORMULARIO. Llenar las casillas solo dejaría un
+renglón completo, a un toque de guardarse, sin que nadie haya mirado la
+estiba. Lo que se cuenta es lo que hay, no lo que había: aquí hay que
+decir que sí.
+
+LA TARJETA QUE YA SE CONTÓ HOY LO DICE y no se puede volver a
+confirmar. Esconderla se leería como que se perdió.
 
 =====================================================================
-3 · LO QUE APARECIÓ AL MEDIRLO
+2 · SIEMPRE IZQUIERDO Y DERECHO
 =====================================================================
 
-Una mutación salió VERDE cuando debía salir roja, y el motivo vale la
-pena dejarlo escrito: la afirmación buscaba `function saltaCon` y la
-mutación renombraba a `function saltaConQuitado`, que CONTIENE ese
-texto. La comprobación seguía encontrando lo suyo dentro del nombre
-nuevo. Ahora pide el paréntesis, que es lo que de verdad distingue una
-función de otra.
+«Coloco calle A módulo 01 y solo sale izquierdo, y no debe ser así.»
 
-  .arnes/inv-conteo.mjs        7 temas × 4 anchos
-  .arnes/mutar-inv-conteo.mjs  42 mutaciones — las 3 nuevas incluidas
+Salían solo los lados que el maestro tenía cargados, y la bodega está a
+medias: A01 existe como A01_IZQ y no como A01_DER, así que ese lado del
+pasillo no se podía contar. Ahora salen los dos y EL QUE FALTE SE DA DE
+ALTA AL ANOTAR, heredando familia y capacidad del otro lado del mismo
+módulo. La pantalla no escribe en el maestro: le pide a la base que se
+asegure de que esa posición exista.
 
-Las 42 se ponen rojas.
+LA EXCEPCIÓN ES DE VERDAD: un módulo cuyo maestro dice que NO tiene
+lados —EST07, JAULA_PNC— se respeta tal cual. Inventarle izquierdo y
+derecho crearía dos posiciones que en la bodega no existen y partiría en
+dos el conteo de ese sitio.
+
+Y DESPUÉS DE ANOTAR, EL CURSOR VUELVE A CALLE y el sitio se queda
+puesto. Lo devolviste dos veces antes y tenías razón las dos: un campo
+lleno del renglón anterior no se ve como un campo por llenar. Lo que
+cambió es que ahora el sitio SE VE —las tarjetas lo llevan escrito
+encima— y el cursor cae en el único campo que no levanta teclado.
+
+=====================================================================
+3 · EL RESUMEN DEL DÍA DE TRASPASOS
+=====================================================================
+
+Tal cual el diseño que mandaste. Abre con la respuesta en una frase
+—«ese día se registraron 16 traspasos: 7 con documento y 9 sin»— y
+debajo van los montones, cerrados, cada uno con su lista:
+
+  CON DOCUMENTO Y EN SAP   nada que hacer.
+  CON DOCUMENTO Y SIN SAP  casi siempre un dedazo; el documento que
+                           aparece abajo como sin registrar suele ser
+                           este mismo con una cifra cambiada.
+  SIN DOCUMENTO            salió con carga y nadie apuntó el papel.
+  EN SAP Y SIN REGISTRAR   SAP lo tiene y no hay viaje.
+
+SON CUATRO Y NO TRES. El diseño traía tres y el cuarto —el dedazo— es
+donde está casi todo el trabajo de una jornada: quitarlo habría perdido
+la única pista de por qué un documento «falta».
+
+SE ABRE UNO SOLO, el que tenga trabajo. Con los cuatro desplegados la
+frase de arriba —que es la respuesta— queda a seis pantallazos.
+
+EL COLOR DICE GRAVEDAD, NO IDENTIDAD. Verde lo que está bien, rojo lo
+que SAP tiene y nadie registró, y el acento del módulo los dos del
+medio. Un cuarto color obligaría a un tono que en tres de los siete
+temas se colapsa contra el rojo.
+
+=====================================================================
+4 · LA BASE, POR INVENTARIO Y POR PRODUCTO O ENVASE
+=====================================================================
+
+«Cuando entre a la base deberían aparecer por fecha los registros que
+hicieron, consolidados en una sola base, con el fin de seleccionar qué
+inventario ver… y dentro del inventario que se esté evaluando, que pueda
+filtrar por producto o por envase.»
+
+Arriba de todo, una fila de recorridos con LA FECHA EN GRANDE, quién lo
+firmó y cuánto trae. Se escoge uno y la tabla entera es de ese; «Todos»
+sigue estando, de primero, porque la base ES la suma.
+
+VA APARTE DE LOS FILTROS. Los filtros recortan una tabla; esto decide
+CUÁL. Metido entre los desplegables se leía como un filtro más, y un
+filtro se deja en blanco sin pensarlo: se acababa cuadrando contra todos
+los recorridos juntos creyendo estar mirando el de ayer.
+
+RUEDAN DE LADO Y NO SE APILAN. El día que haya cuarenta recorridos,
+apilados empujan la tabla cuatro pantallas hacia abajo.
+
+Y PRODUCTO O ENVASE EN BOTONES, con la cuenta de cada uno DENTRO del
+inventario escogido. Un desplegable cerrado no dice cuál está puesto, y
+este filtro cambia el total de la pantalla. Un botón «Envase» que lleva
+a una tabla vacía hace dudar de si se perdió algo; con la cifra al lado
+se ve que ese recorrido no tocó envases.
+
+=====================================================================
+5 · LO QUE QUEDÓ SIN CONTAR, EN EL TABLERO
+=====================================================================
+
+«Faltaría una tabla o algo que les muestre si quedó algún módulo sin
+contar; necesito información con la que yo pueda tener alertas y la
+visual.»
+
+Pegado a los grupos, porque es la ADVERTENCIA de todo lo de arriba: las
+cifras salen de lo que se caminó, y un módulo que nadie tocó no aparece
+como cero — no aparece.
+
+  · La cifra: cuántos módulos no tocó el último recorrido.
+  · La visual: una barra por calle, que es como se camina la bodega.
+    «38 módulos sin contar» no dice por dónde empezar; «la calle E casi
+    entera» sí.
+  · La alerta: la tabla ordenada POR DÍAS SIN CONTAR y no por calle. La
+    alfabética empieza siempre por A01 —contado ayer— y deja abajo el
+    que lleva tres semanas, que es el único que hay que ir a caminar.
+
+Y «NADA QUEDÓ SIN CONTAR» SE DICE, en verde. Sin ese renglón, la
+ausencia de la caja se lee igual que no haber mirado.
+
+DEL ÚLTIMO RECORRIDO Y NO DE TODOS JUNTOS. Sumando todos, la lista sale
+casi vacía siempre y no avisa de nada.
+
+=====================================================================
+6 · LO QUE APARECIÓ AL MEDIRLO
+=====================================================================
+
+Seis hallazgos que no se ven mirando la pantalla:
+
+· EL BOTÓN DE CERRAR LAS TARJETAS se ponía al 100 % del ancho por una
+  regla de celular cuatrocientas líneas más arriba y empujaba la página
+  69 px de lado. Es la tercera vez en este proyecto que una regla pisa a
+  otra por el mismo nombre.
+
+· AL ARREGLARLO con `min-width: 0` en el rótulo, el desborde
+  desaparecía… porque el rótulo se encogía a CERO: decía «La última vez
+  en A01_IZQ» en una caja de 0 px y el arnés lo daba por bueno. Ahora
+  mide también si el rótulo se recorta.
+
+· LA MEDIDA DE «NO SE SALE» DEL RESUMEN DE TRASPASOS no medía nada: el
+  paseo por los padres incluía `.caja`, que lleva `overflow: hidden`, y
+  con eso TODO contaba como «se rueda». Salió verde con la tabla
+  desbordada a propósito.
+
+· EL GRIS DE LAS NOTAS daba 4,39 en el tema ámbar sobre el fondo del
+  panel. El mínimo es 4,5. Va un `--tp-gris-panel` calibrado contra ese
+  fondo, como ya existía en inventario.
+
+· UNA AFIRMACIÓN MÍA NO SE SOSTENÍA: exigía que la frase del día fuera
+  más grande que la cifra de un montón, y se puso roja con un diseño que
+  está bien —30 px contra 34—. Comparar dos tamaños de letra no dice
+  cuál manda: la cifra es un glifo y la frase son dos renglones a peso
+  900 de lado a lado. Ahora mide un mínimo, que sí se puede afirmar.
+
+· Y CUATRO MUTACIONES SALIERON VERDES porque la aserción la sostenía
+  código que no era el suyo: `argumentos(bb, mat, idU)` aparece dos
+  veces y mutar una dejaba la otra; `enSap.has(...)` igual; `estado ===
+  "cerrado"` aparece en otra función del mismo archivo; y renombrar una
+  clase en el componente pasaba porque la regla vieja seguía en la hoja.
+  Las cuatro piden ahora las dos mitades.
+
+=====================================================================
+LOS ARNESES
+=====================================================================
+
+  .arnes/inv-conteo.mjs        · mutar-inv-conteo.mjs      67 mutaciones
+  .arnes/inv-base.mjs          · mutar-inv-base.mjs        35 mutaciones
+  .arnes/fe-tablero.mjs        · mutar-fe-tablero.mjs      13 mutaciones
+  .arnes/tp-resumen.mjs        · mutar-tp-resumen.mjs      15 mutaciones
+
+Las 130 se ponen rojas, cada una por su propia prueba.
+
+Y los tres de mutación que ya existían aprendieron a restaurar el árbol
+con SIGTERM: una corrida que se mató a los dos minutos dejó una mutación
+puesta en el archivo, y la corrida siguiente la tomó por el original. Lo
+cazó un `grep`, no el arnés.
+
+=====================================================================
+FALTA CORRER EN SUPABASE
+=====================================================================
+
+  supabase/migraciones/PENDIENTES-todo-en-uno.sql     (6 migraciones)
+  supabase/migraciones/2026-09-conteo-preanotacion.sql
+
+En ese orden. Sin la segunda, la pre-anotación y «lo que quedó sin
+contar» lo dicen en pantalla en vez de reventarse.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

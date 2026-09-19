@@ -58,6 +58,11 @@
   --tp-bien: #0F7A4A;
   --tp-papel: #FFF;
   --tp-gris: var(--c-5b6b7f);
+  /* EL MISMO GRIS, OSCURECIDO PARA LOS PANELES. `--tp-gris` está
+     calibrado contra el PAPEL blanco; sobre `--tp-fondo`, que es más
+     oscuro, cae — en el tema ámbar da 4,39 y el mínimo es 4,5. Medido,
+     no supuesto: lo cazó el arnés del resumen del día. */
+  --tp-gris-panel: color-mix(in srgb, var(--c-5b6b7f) 72%, var(--c-04203f));
   --tp-linea: var(--c-d5dce5);
   --tp-fondo: var(--c-eef1f5);
 

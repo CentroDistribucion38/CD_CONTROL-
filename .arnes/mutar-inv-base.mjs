@@ -20,6 +20,11 @@ const archivos = [TSX, PGX, CSS, DAT, REG];
 const original = Object.fromEntries(archivos.map((f) => [f, readFileSync(f, "utf8")]));
 const restaurar = () => { for (const [f, t] of Object.entries(original)) writeFileSync(f, t) };
 process.on("exit", restaurar);
+/* Y TAMBIÉN SI A ESTO LO MATAN. `exit` no salta con SIGTERM ni con
+   SIGINT, y la vez que pasó el árbol se quedó con una mutación puesta
+   y la corrida siguiente la tomó por el original. */
+for (const s of ["SIGINT", "SIGTERM", "SIGHUP"])
+  process.on(s, () => { restaurar(); process.exit(130) });
 
 let fallos = 0;
 
@@ -151,10 +156,108 @@ probar("la puerta se comprueba en el servidor",
   [[PGX, '  if (!permisos.puedeVer("/inventario/base")) {', "  if (false) {"]],
   "no comprueba el permiso");
 
+/* =====================================================================
+   QUÉ INVENTARIO SE ESTÁ MIRANDO, Y PRODUCTO O ENVASE
+   ===================================================================== */
+
+probar("los inventarios dejan de salir por fecha con el más nuevo arriba",
+  [[TSX, '.sort((a, b) => (b.fecha ?? "").localeCompare(a.fecha ?? "")',
+          '.sort((a, b) => (a.fecha ?? "").localeCompare(b.fecha ?? "")']],
+  "el más nuevo arriba");
+
+probar("el inventario de la lista deja de decir de qué día es",
+  [[TSX, "          fecha: c?.fecha_analisis ?? null,", "          fecha: null,"]],
+  "no dice su fecha");
+
+probar("el inventario de la lista deja de decir cuánto trae",
+  [[TSX, "      a.cajas += Number(r.total_cajas);", "      a.cajas += 0;"]],
+  "no dice cuántas cajas");
+
+probar("las cifras del inventario salen de la cabecera del recorrido y no de las filas",
+  [[TSX, "          codigo, ...n,", "          codigo, ...n, renglones: c?.renglones ?? 0,"]],
+  "con el tope puesto, la tarjeta y la tabla dirían cosas distintas");
+
+probar("ya no se puede volver a ver todos los recorridos juntos",
+  [[TSX, 'className={"ba-inv todos" + (fRecorrido === "" ? " on" : "")}',
+          'className={"ba-inv toditos" + (fRecorrido === "" ? " on" : "")}']],
+  "habría que escoger uno para poder entrar");
+
+probar("escoger otro inventario deja puesta la calle del anterior",
+  [[TSX, "onClick={() => { setFRecorrido(rc.codigo); setFCalle(\"\"); setFModulo(\"\") }}",
+          "onClick={() => setFRecorrido(rc.codigo)}"]],
+  "sueltan la calle y el módulo");
+
+probar("el botón de producto/envase deja de filtrar",
+  [[TSX, "      if (fTipo && r.tipo_material !== fTipo) return false;", "      void fTipo;"]],
+  "no filtra nada");
+
+probar("con producto o envase puesto la pantalla no se da por filtrada",
+  [[TSX, '|| fModulo !== "" || fTipo !== "" || soloPasados;',
+          '|| fModulo !== "" || soloPasados;']],
+  "no se da por filtrada");
+
+probar("«Quitar filtros» deja puesto el de producto/envase",
+  [[TSX, 'setFModulo(""); setFTipo(""); setSoloPasados(false)',
+          'setFModulo(""); setSoloPasados(false)']],
+  "no quita el de producto/envase");
+
+probar("los botones de producto y envase dejan de decir cuántos hay",
+  [[TSX, "                {t}<em>{nf.format(porTipo[v] ?? 0)}</em>", "                {t}"]],
+  "no dicen cuántos hay");
+
+probar("la cuenta de producto y envase se hace sobre la base entera",
+  [[TSX, '    const base = crudas.filter((r) => fRecorrido === "" || r.conteo === fRecorrido);',
+          "    const base = crudas;"]],
+  "y no sobre el inventario escogido");
+
+probar("el archivo de Excel deja de decir de qué inventario es",
+  [[TSX, '                  "conteo", pestania, fRecorrido || "todos",',
+          '                  "conteo", pestania,']],
+  "no dice de qué inventario es");
+
+/* ---------- LO QUE SE MIDE EN PANTALLA ---------- */
+
+probar("los inventarios se apilan en vez de rodar de lado",
+  [[CSS, "  display: flex; gap: 9px; overflow-x: auto; overscroll-behavior-x: contain;",
+          "  display: flex; gap: 9px; flex-wrap: wrap;"]],
+  "no ruedan de lado");
+
+probar("las tarjetas de inventario se encogen por debajo del dedo",
+  [[CSS, "  min-height: 78px; padding: 11px 13px; cursor: pointer; text-align: left;",
+          "  min-height: 0; padding: 1px 13px; cursor: pointer; text-align: left;"],
+   [CSS, "  .fe .ba-inv { min-width: 164px; min-height: 72px; padding: 10px 11px }",
+          "  .fe .ba-inv { min-width: 164px; min-height: 0; padding: 1px 11px }"],
+   [CSS, "  font: 800 16px var(--fe-titulo); color: var(--fe-tinta);",
+          "  font: 800 9px var(--fe-titulo); color: var(--fe-tinta);"],
+   [CSS, "  .fe .ba-inv b { font-size: 15px }", "  .fe .ba-inv b { font-size: 9px }"],
+   [CSS, "  font-size: 12px; color: var(--fe-gris); line-height: 1.35;",
+          "  font-size: 8px; color: var(--fe-gris); line-height: 1.35;"],
+   [CSS, "  font-style: normal; font-size: 11.5px; color: var(--fe-gris);",
+          "  font-style: normal; font-size: 8px; color: var(--fe-gris);"]],
+  "las tarjetas de inventario miden");
+
+probar("el inventario escogido usa el acento como color de letra",
+  [[CSS, `.fe .ba-inv.on {
+  background: var(--fe-acento); border-color: var(--fe-acento);
+}
+.fe .ba-inv.on b, .fe .ba-inv.on span, .fe .ba-inv.on i { color: var(--fe-sobre) }`,
+          `.fe .ba-inv.on {
+  border-color: var(--fe-acento);
+}
+.fe .ba-inv.on b, .fe .ba-inv.on span, .fe .ba-inv.on i { color: var(--fe-acento) }`]],
+  "«invOn» contrasta");
+
+probar("el tipo escogido usa el acento como color de letra",
+  [[CSS, `.fe .ba-tipos button.on {
+  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);`,
+          `.fe .ba-tipos button.on {
+  border-color: var(--fe-acento); color: var(--fe-acento);`]],
+  "«tipoOn» contrasta");
+
 restaurar();
 console.log("");
 if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 19 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 35 se pusieron rojas. El arnés caza lo que dice cazar.");

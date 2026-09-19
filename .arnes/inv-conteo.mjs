@@ -239,6 +239,41 @@ const UN_LADO = ARMAZON.replace(
         </div>`,
   '<output class="fe-lado">Este módulo no tiene lados</output>');
 
+/* LA PRE-ANOTACIÓN D-1, que es el estado NORMAL de un módulo que ya se
+   ha contado alguna vez: se escoge la posición y salen las tarjetas de
+   lo que se contó ahí la última vez. Va aparte del armazón porque el
+   armazón mide el otro estado —posición nueva, o tarjetas cerradas— y
+   ahí «Anotar renglón» tiene que caber sin rodar.
+
+   Aquí lo que tiene que caber sin rodar son LOS DOS BOTONES de la
+   primera tarjeta: si la respuesta es «sigue igual», el renglón se
+   acabó ahí. */
+const TARJETAS = `
+    <div class="fe-bloque fe-previo">
+      <div class="fe-previo-cab">
+        <p class="fe-previo-rot">La última vez en ALAR06_IZQ<em>hace 12 días</em></p>
+        <button type="button" class="fe-mini">Aquí hay otra cosa</button>
+      </div>
+      <div class="fe-tarjeta">
+        <p class="fe-tarjeta-que"><b>3128</b>
+          <span>CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE</span></p>
+        <p class="fe-tarjeta-cifra">96 estibas<em>vence 11/03/27</em></p>
+        <p class="fe-tarjeta-marcas"><span>Rota</span><span>Avería</span><span>ENVASE SUCIO</span></p>
+        <div class="fe-tarjeta-pie">
+          <button type="button" class="fe-si">Sigue igual</button>
+          <button type="button" class="fe-no">Cambió</button>
+        </div>
+      </div>
+      <div class="fe-tarjeta hecha">
+        <p class="fe-tarjeta-que"><b>17740</b><span>CANASTA PLASTICA RETORNABLE</span></p>
+        <p class="fe-tarjeta-cifra">1.240 cajas</p>
+        <p class="fe-tarjeta-hecha">Ya lo contaste en este recorrido.</p>
+      </div>
+    </div>
+`;
+const PREVIO = ARMAZON.replace('    <div class="fe-bloque">\n      <p class="fe-bloque-cab">Qué</p>',
+  TARJETAS + '\n    <div class="fe-bloque">\n      <p class="fe-bloque-cab">Qué</p>');
+
 /* El aviso del código malo se mide aparte: solo existe cuando el código
    no está en el maestro, y es el que hay que leer con el sol de frente. */
 const ECO_MALO = `<div class="fe"><section class="fe-anotar">
@@ -254,7 +289,7 @@ const palabras = new Set([
   ...sueltas, ...sueltas.map((w) => w.toLowerCase()),
   ...[...fefo.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]),
 ]);
-const usadas = [...new Set([...`${ARMAZON}${ECO_MALO}`.matchAll(/class="([^"]+)"/g)]
+const usadas = [...new Set([...`${ARMAZON}${TARJETAS}${ECO_MALO}`.matchAll(/class="([^"]+)"/g)]
   .flatMap((m) => m[1].split(/\s+/)))].filter(Boolean);
 const inventadas = usadas.filter((c) => !palabras.has(c));
 
@@ -527,6 +562,84 @@ for (const [ancho, etiqueta] of ANCHOS) {
     fallas.push(`${etiqueta}, corrigiendo: un desplegable mide ${b.toque} px`);
 }
 
+/* ---------- 6a. LA PRE-ANOTACIÓN, MEDIDA ----------
+
+   Si la respuesta es «sigue igual», el renglón entero se acaba en ese
+   botón. Así que lo que tiene que caber en la primera pantalla no es
+   «Anotar renglón» —eso se mide con el otro armazón— sino LOS DOS
+   BOTONES DE LA PRIMERA TARJETA.
+
+   Y del mismo tamaño que todo lo demás que se toca aquí: 48 px. Son la
+   respuesta entera a la pregunta de la tarjeta y se tocan de pie, con
+   guante. */
+if (PREVIO === ARMAZON)
+  fallas.push("el armazón con tarjetas salió idéntico al de siempre: lo que se mida con él " +
+              "no dice nada de la pre-anotación");
+console.log("");
+for (const [ancho, etiqueta] of [[390, "celular"], [360, "360"]]) {
+  await monta(pag, null, ancho, 740, PREVIO);
+  const m = await pag.evaluate((BARRA) => {
+    const t = document.querySelector(".fe-tarjeta");
+    if (!t) return { falta: true };
+    const bs = [...t.querySelectorAll(".fe-tarjeta-pie button")];
+    const r = bs.length ? bs[bs.length - 1].getBoundingClientRect() : null;
+    const salen = [];
+    const c = t.getBoundingClientRect();
+    for (const e of t.querySelectorAll("*")) {
+      const b = e.getBoundingClientRect();
+      if (b.width > 0 && (b.right - c.right > 0.5 || c.left - b.left > 0.5))
+        salen.push((e.className || e.tagName).toString().split(" ")[0]);
+    }
+    const px = (s, p) => { const e = document.querySelector(s); return e ? parseFloat(getComputedStyle(e)[p]) : 0 };
+    const d = document.documentElement;
+    /* EL RÓTULO, ¿ENTERO O RECORTADO? Es la otra forma de «no se sale»:
+       medí el arrastre de la página y con `min-width: 0` en el rótulo
+       la página dejaba de arrastrarse porque el rótulo se encogía a
+       CERO —decía «La última vez en A01_IZQ» en un cuadro de 0 px—. El
+       arnés lo daba por bueno. */
+    const rot = document.querySelector(".fe-previo-rot");
+    return {
+      rotAncho: rot ? Math.round(rot.getBoundingClientRect().width) : 0,
+      rotTexto: rot ? rot.scrollWidth : 0,
+      botones: bs.length,
+      alto: r ? Math.round(r.height) : 0,
+      hasta: r ? Math.round(r.bottom) : 0,
+      cabe: r ? r.bottom <= 740 - BARRA : false,
+      salen: [...new Set(salen)],
+      lado: d.scrollWidth - d.clientWidth,
+      cifra: px(".fe-tarjeta-cifra", "fontSize"),
+      nombre: px(".fe-tarjeta-que span", "fontSize"),
+    };
+  }, BARRA);
+
+  if (m.falta) { fallas.push(`${etiqueta}: no se pinta ninguna tarjeta de pre-anotación`); continue }
+  console.log(`pre-anotación ${etiqueta}: ${m.botones} botones de ${m.alto} px · ` +
+              `el último acaba a ${m.hasta} px ${m.cabe ? "(cabe)" : "(HAY QUE BAJAR)"} · ` +
+              `cifra ${m.cifra} vs nombre ${m.nombre}`);
+  if (m.botones !== 2)
+    fallas.push(`${etiqueta}: la tarjeta tiene ${m.botones} botón(es) y son dos — «sigue ` +
+                "igual» y «cambió»");
+  if (m.alto < 48)
+    fallas.push(`${etiqueta}: los botones de la tarjeta miden ${m.alto} px (mínimo 48: son la ` +
+                "respuesta entera al renglón y se tocan de pie, con guante)");
+  if (!m.cabe)
+    fallas.push(`${etiqueta}: para contestar la primera tarjeta hay que bajar (acaba a ` +
+                `${m.hasta} px): si la respuesta es «sigue igual», el renglón se acaba ahí y ` +
+                "no debería costar un scroll");
+  if (m.salen.length)
+    fallas.push(`${etiqueta}: se sale de la tarjeta: ${m.salen.join(", ")}`);
+  if (m.lado > 0)
+    fallas.push(`${etiqueta}: con las tarjetas la página se arrastra ${m.lado} px de lado`);
+  if (m.rotAncho < m.rotTexto)
+    fallas.push(`${etiqueta}: el rótulo de las tarjetas se recorta (${m.rotAncho} px de ancho ` +
+                `para ${m.rotTexto} px de texto): es lo que dice DÓNDE se contó y CUÁNDO`);
+  /* LA CIFRA ES LO QUE SE COMPARA CON LA ESTIBA QUE SE TIENE DELANTE.
+     Del mismo tamaño que el nombre del material hay que buscarla. */
+  if (!(m.cifra > m.nombre + 3))
+    fallas.push(`${etiqueta}: la cantidad de la tarjeta se lee a ${m.cifra} px y el nombre ` +
+                `del material a ${m.nombre}: la cifra es lo que se compara con la estiba`);
+}
+
 /* ---------- 6b. LA FECHA Y EL BOTÓN DE ENVIAR ----------
 
    DOS COSAS QUE SE PIDIERON MIRANDO LA PANTALLA CON LA BODEGA DELANTE:
@@ -616,9 +729,11 @@ if (/\b(prompt|confirm|alert)\s*\(/.test(limpio))
   fallas.push("usa los diálogos del navegador en vez de los de la app");
 /* La ubicación tiene que ser una LLAVE, no un texto tecleado: es lo que
    arregla el cuarto del conteo que en la hoja no se podía ubicar. */
-if (/p_ubicacion:\s*(ubicacion\.clave|b\.codigo|busca)/.test(limpio))
+if (/p_ubicacion:\s*(ubicacion\.clave|bb?\.codigo|busca)/.test(limpio))
   fallas.push("manda la ubicación como texto en vez de la llave escogida");
-if (!/p_ubicacion:\s*ubicacion!\.id/.test(limpio))
+/* Y EL ID VIENE DE `idDeLaPosicion`, que devuelve la fila que ya estaba
+   o la que la base acaba de crear para el lado que faltaba. */
+if (!/p_ubicacion:\s*idUbicacion/.test(limpio))
   fallas.push("no manda el id de la ubicación escogida");
 /* EL RENGLÓN VA EN EL ORDEN DE LA HOJA. Es lo que pidió Cristian y lo
    que lleva años en el Excel: cambiarlo obliga a quien ya sabe llenarla
@@ -709,15 +824,15 @@ if (!/rot:\s*null/.test(limpio))
    ES decir que no. Un aviso que frena el renglón por algo que no cambia
    la cifra es un aviso que la gente aprende a esquivar. */
 {
-  const rev = (limpio.match(/function revisar\(\)[\s\S]*?\n  \}/) ?? [""])[0];
-  for (const [que, re] of [["la rotación", /b\.rot/], ["la avería", /b\.averia/],
-                           ["el PNC", /b\.pnc/], ["el estado del envase", /b\.estado/]]) {
+  const rev = (limpio.match(/function revisar\(bb: Borrador\)[\s\S]*?\n  \}/) ?? [""])[0];
+  for (const [que, re] of [["la rotación", /bb\.rot/], ["la avería", /bb\.averia/],
+                           ["el PNC", /bb\.pnc/], ["el estado del envase", /bb\.estado/]]) {
     if (re.test(rev))
       fallas.push(`volvió a frenar el renglón por ${que}, y de «Cómo está» en adelante no se valida nada`);
   }
   /* Y SE MANDA RESUELTO, no nulo: la base sigue rechazando el nulo, así
      que dejar de resolverlo aquí rompería el guardado entero. */
-  if (!/p_rotacion: b\.rot === true/.test(limpio))
+  if (!/p_rotacion: bb\.rot === true/.test(limpio))
     fallas.push("la rotación se manda sin resolver: sin marcar iría nula y la base la rechaza");
 }
 
@@ -746,11 +861,51 @@ if (!/texto: m\.modulo\b/.test(limpio))
     fallas.push("sin calle escogida, el 01 de A y el 01 de B se verían iguales: falta la pista de la calle");
 }
 
-/* Y EL LADO SE ESCOGE ENTRE LOS QUE EXISTEN, no entre los tres siempre.
-   Ofrecer «izquierdo» en un módulo que no lo tiene es ofrecer una
-   ubicación que no está — lo que dejó 38 de 152 filas sin ubicar. */
-if (!/const lados = useMemo/.test(limpio))
-  fallas.push("el lado no sale de las ubicaciones del módulo: ofrecería lados que no existen");
+/* ---------- SIEMPRE IZQUIERDO Y DERECHO ----------
+
+   La regla de antes era «solo los lados que el maestro tenga cargados»,
+   y con eso A01 —que está en el maestro como A01_IZQ y no como A01_DER—
+   dejaba el lado derecho del pasillo sin poder contarse. Quien está
+   parado frente al módulo ve los dos lados.
+
+   «Coloco Calle A módulo 01 y solo sale izquierdo, y no debe ser así.»
+
+   LA EXCEPCIÓN ES DE VERDAD Y SE COMPRUEBA APARTE: un módulo cuyo
+   maestro dice que NO tiene lados —EST07, JAULA_PNC— se respeta tal
+   cual. Inventarle izquierdo y derecho crearía dos posiciones que en la
+   bodega no existen y partiría en dos el conteo de ese sitio. */
+{
+  const bloque = (limpio.match(/const lados = useMemo\([\s\S]*?\}, \[[^\]]*\]\);/) ?? [""])[0];
+  if (!bloque)
+    fallas.push("no está el cálculo de los lados");
+  else {
+    if (!/return \["IZQ", "DER"\];/.test(bloque))
+      fallas.push("los lados vuelven a salir de lo que el maestro tenga cargado: el lado " +
+                  "derecho de un módulo a medias —A01_DER— seguiría sin poderse contar");
+    if (!/every\(\(u\) => \(u\.lado \?\? ""\) === ""\)/.test(bloque))
+      fallas.push("a un módulo sin lados —EST07, JAULA_PNC— se le inventan izquierdo y " +
+                  "derecho: dos posiciones que en la bodega no existen");
+  }
+}
+
+/* Y EL LADO QUE NO ESTÉ EN EL MAESTRO SE DA DE ALTA AL ANOTAR. Ofrecer
+   los dos lados sin poder crear el que falta sería ofrecer un botón que
+   revienta: la fila no existe y el renglón no tiene dónde guardarse.
+   La pantalla no escribe en el maestro —quien cuenta no lo administra—:
+   le pide a la base que se asegure de que esa posición exista. */
+if (!/conteo_ubicacion_asegurar/.test(limpio))
+  fallas.push("el lado que falta en el maestro no se da de alta: escoger A01_DER no tendría " +
+              "dónde guardar el renglón");
+/* Y EL RENGLÓN VA A ESA POSICIÓN, no a la que hubiera antes: el id que
+   devuelve la base es el que viaja en `argumentos`. Con `argumentos`
+   leyendo la ubicación por su cuenta, el lado recién creado se
+   guardaría en el lado viejo y las dos caras del pasillo se sumarían
+   en una. */
+/* Y SE COMPRUEBAN LAS DOS LLAMADAS —agregar y corregir—, no «que
+   aparezca». Con una sola bastando, mutar la otra salía verde: la
+   afirmación la sostenía la llamada que no se había tocado. */
+if ((limpio.match(/argumentos\(bb, mat, idU\)/g) ?? []).length !== 2)
+  fallas.push("el renglón no se guarda en la posición que se acaba de asegurar");
 
 /* ---------- EL LADO SE TOCA, NO SE DESPLIEGA ----------
 
@@ -795,6 +950,153 @@ if (!/const nombreLado =/.test(limpio) || !/"Izquierdo"/.test(limpio) || !/"Dere
   fallas.push("los botones del lado no dicen el nombre entero: «IZQ» y «DER» pegados se " +
               "distinguen por una letra y se tocan sin mirar");
 
+/* =====================================================================
+   LA PRE-ANOTACIÓN D-1
+
+   «Yo cuento hoy el A01 con 96 estibas de A1000. Que mañana, al
+   seleccionar el módulo, me aparezca la misma información preguardada
+   con la info de hoy, por si sigue igual, y un botón de registrar por
+   si cambia.»
+
+   Contar deja de ser escribir once campos y pasa a ser mirar la estiba
+   y contestar. Lo que se mide aquí es lo que hace que eso sea seguro.
+   ===================================================================== */
+
+/* 1 · LO QUE SE OFRECE ES LO QUE SE CONTÓ, y sale de la vista que
+   escoge el último conteo de esa posición. Armarlo con los renglones
+   que la pantalla ya tiene cargados traería los de HOY —los del
+   recorrido abierto— y ofrecería confirmar lo que se acaba de anotar. */
+if (!/v_conteo_ultimo_por_ubicacion/.test(limpio))
+  fallas.push("la pre-anotación no sale de la vista del último conteo de esa posición");
+
+/* 2 · Y LA RESPUESTA QUE LLEGA TARDE NO PINTA. Escogiendo módulo tras
+   módulo, la consulta de A01 puede aterrizar DESPUÉS de la de A02: sin
+   corte, en la pantalla queda la pre-anotación del módulo anterior con
+   el de al lado delante, que es contar una estiba creyendo que es
+   otra. */
+{
+  const ef = (limpio.match(/useEffect\(\(\) => \{\s*let vivo = true;[\s\S]*?\}, \[supabase, ubicacion\]\);/) ?? [""])[0];
+  if (!ef)
+    fallas.push("la pre-anotación no se vuelve a pedir al cambiar de posición");
+  else if (!/if \(vivo\) \{ setPrevio/.test(ef))
+    fallas.push("la consulta que llega tarde pinta igual: quedaría en pantalla la " +
+                "pre-anotación del módulo anterior");
+}
+
+/* 3 · CONFIRMAR GUARDA POR EL MISMO CAMINO QUE ANOTAR. Con dos caminos
+   —uno para lo tecleado y otro para lo confirmado— cualquier regla que
+   se toque en uno queda distinta en el otro, y el renglón confirmado
+   saldría del mismo módulo con otras cuentas. */
+if (!/const confirmar = \(pv: Previo\) => guardar\(desdePrevio\(pv\)\);/.test(limpio))
+  fallas.push("«Sigue igual» no guarda por el mismo camino que «Anotar»");
+if ((limpio.match(/conteo_fefo_agregar/g) ?? []).length !== 1)
+  fallas.push("hay más de un sitio que agrega renglones: las dos formas de anotar pueden " +
+              "discrepar");
+/* Y LO QUE SE GUARDA ES LA TARJETA, no el renglón que se estaba
+   tecleando. `guardar` recibe el borrador; si leyera el del estado,
+   confirmar una tarjeta guardaría el material a medio escribir. */
+if (!/async function guardar\(bb: Borrador\)/.test(limpio) ||
+    !/const mal = revisar\(bb\);/.test(limpio) ||
+    !/const mat = materialDe\(bb\)!;/.test(limpio))
+  fallas.push("el guardado lee el renglón que se está tecleando y no el que se le manda: " +
+              "confirmar una tarjeta guardaría otra cosa");
+
+/* 4 · LAS TARJETAS VAN ANTES DEL CÓDIGO. Si la respuesta es «sigue
+   igual» el renglón se acabó y las once casillas de abajo no se tocan.
+   Puestas debajo del formulario habría que rodar hasta el final para
+   descubrir que no hacía falta escribir nada. */
+{
+  const tarjetas = limpio.indexOf('className="fe-bloque fe-previo"');
+  const que = limpio.indexOf('<p className="fe-bloque-cab">Qué</p>');
+  const donde = limpio.indexOf('<p className="fe-bloque-cab">Dónde</p>');
+  if (tarjetas < 0) fallas.push("no están las tarjetas de la pre-anotación");
+  else if (!(donde < tarjetas && tarjetas < que))
+    fallas.push("la pre-anotación no va entre «Dónde» y «Qué»: o se ofrece antes de saber la " +
+                "posición, o hay que rodar el formulario entero para descubrir que no hacía " +
+                "falta escribirlo");
+}
+
+/* 5 · Y NO SE AUTOLLENA EL FORMULARIO. Llenar las casillas solo dejaría
+   un renglón completo sin que nadie haya mirado la estiba, a un toque
+   de guardarse. Lo que se cuenta es lo que hay, no lo que había: aquí
+   hay que decir que sí. */
+{
+  const ef = (limpio.match(/useEffect\(\(\) => \{\s*let vivo = true;[\s\S]*?\}, \[supabase, ubicacion\]\);/) ?? [""])[0];
+  if (/setB\(/.test(ef))
+    fallas.push("al escoger la posición se llenan solas las casillas: quedaría un renglón " +
+                "completo, a un toque de guardarse, sin que nadie haya mirado la estiba");
+}
+
+/* 6 · YA CONTADO EN ESTE RECORRIDO SE DICE. Confirmar dos veces la
+   misma tarjeta sería un renglón repetido, y lo rechazaría la base con
+   un mensaje que no habla de esto. */
+if (!/const yaHoy = /.test(limpio) || !/const hecho = yaHoy\(pv\);/.test(limpio))
+  fallas.push("una tarjeta ya contada hoy se puede volver a confirmar: renglón repetido");
+if (!/hecho \? \([\s\S]{0,200}?Ya lo contaste/.test(limpio))
+  fallas.push("la tarjeta ya contada sigue ofreciendo «Sigue igual»");
+
+/* 7 · Y SE QUITAN DE UN TOQUE. «Si no es esa, sino que ya hay otra, que
+   con un clic yo logre borrar la otra información.» El día que la
+   posición cambió de material entero, las tarjetas estorban. */
+if (!/setVerPrevio\(false\)/.test(limpio))
+  fallas.push("las tarjetas no se pueden quitar: el día que la posición cambió de material " +
+              "entero estorban y no hay cómo cerrarlas");
+
+/* 8 · «CAMBIÓ» NO GUARDA NADA. Baja la tarjeta a las casillas y ahí se
+   corrige lo único que cambió —casi siempre la cantidad—; guarda
+   «Anotar», como siempre. Un botón que dijera «cambió» y guardara sería
+   el peor de los dos mundos. */
+{
+  const fn = (limpio.match(/function editarPrevio\(pv: Previo\) \{[\s\S]*?\n  \}/) ?? [""])[0];
+  if (!fn) fallas.push("no se puede editar una pre-anotación: o se confirma tal cual o se " +
+                       "escribe de cero");
+  else if (/supabase\.|guardar\(/.test(fn))
+    fallas.push("«Cambió» guarda solo: guardaría la cantidad de ayer");
+}
+
+/* 9 · Y EL CURSOR CAE EN LA CANTIDAD, que es lo único que cambia casi
+   siempre. Va DESPUÉS de que la pantalla se rehaga —por eso pasa por un
+   contador— porque la casilla es «Estibas» o «Cajas» según el modo que
+   traiga la tarjeta, y en el instante del clic la montada todavía es la
+   del modo anterior. */
+if (!/setEnfocarCantidad\(\(n\) => n \+ 1\)/.test(limpio) ||
+    !/\}, \[enfocarCantidad\]\);/.test(limpio))
+  fallas.push("al editar una tarjeta el cursor no cae en la cantidad, o cae antes de que la " +
+              "casilla del modo nuevo exista");
+
+/* ---------- DESPUÉS DE ANOTAR: EL CURSOR A CALLE, EL SITIO PUESTO ----------
+
+   «Apenas yo guarde el registro me debe llevar el cursor automáticamente
+   a calle.» Y: «Cuando guarden la posición, que la calle y el módulo se
+   mantengan iguales.»
+
+   Son las dos mitades de lo mismo: se sigue contando en el mismo
+   módulo, así que el sitio se queda; y el cursor vuelve al primer campo
+   del recorrido, que además es el único sin teclado, para que cambiarlo
+   sea un toque y no haya que ir a buscarlo. */
+if (!/campo=\{campoCalle\}/.test(limpio))
+  fallas.push("la calle no recibe la referencia: el cursor no puede volver ahí después de " +
+              "anotar");
+{
+  const fn = (limpio.match(/function limpiar\(dejarSitio = false\) \{[\s\S]*?\n  \}/) ?? [""])[0];
+  if (!fn)
+    fallas.push("«limpiar» ya no sabe distinguir vaciar el renglón de soltar el sitio");
+  else {
+    if (!/campoCalle\.current\?\.focus\(\)/.test(fn))
+      fallas.push("después de anotar el cursor no vuelve a la calle");
+    if (!/calle: x\.calle, base: x\.base, lado: x\.lado/.test(fn))
+      fallas.push("anotar suelta la calle y el módulo: habría que volver a escogerlos para " +
+                  "cada renglón del mismo pasillo");
+  }
+}
+/* Y EL SITIO SE QUEDA SOLO AL ANOTAR. Corrigiendo se vuelve al
+   borrador, que es de donde se vino: arrastrar el sitio del renglón
+   corregido hasta el formulario dejaría puesto un módulo que nadie
+   escogió. */
+if (!/limpiar\(!corrigiendo\);/.test(limpio))
+  fallas.push("el sitio se queda puesto también al corregir: quedaría escogido un módulo " +
+              "que nadie tocó");
+
 /* LOS DOS BUSCADORES SE TECLEAN. Con 428 ubicaciones un `<select>` solo
    deja saltar por la primera letra. */
 if ((limpio.match(/<Buscador/g) ?? []).length < 2)
@@ -820,11 +1122,11 @@ if (!/modo: "estibas"/.test(limpio))
    avisar: la pantalla lo muestra en la casilla, el total de arriba lo
    suma, y la base guarda ocho cajas menos. Nadie lo nota hasta que el
    mes cuadra de menos. */
-if (!/p_estibas: b\.modo === "estibas" \? ent\(b\.estibas\) : null/.test(limpio) ||
-    !/p_saldo: b\.modo === "estibas" \? ent\(b\.saldo\) : null/.test(limpio))
+if (!/p_estibas: bb\.modo === "estibas" \? ent\(bb\.estibas\) : null/.test(limpio) ||
+    !/p_saldo: bb\.modo === "estibas" \? ent\(bb\.saldo\) : null/.test(limpio))
   fallas.push("las estibas y el saldo no viajan juntas en el renglón de estibas: el saldo se " +
               "perdería en silencio y el total guardado saldría corto");
-if (!/p_cajas: b\.modo === "cajas" \? ent\(b\.cajas\) : null/.test(limpio))
+if (!/p_cajas: bb\.modo === "cajas" \? ent\(bb\.cajas\) : null/.test(limpio))
   fallas.push("las cajas no van solas: mezcladas con estibas el renglón no dice cómo se contó");
 /* Y TRES CASILLAS DE VERDAD, no una compartida. Compartiendo `cuantas`,
    pasar de estibas a cajas conservaba el número: 56 estibas se volvían
@@ -845,18 +1147,26 @@ if (!/cajas_por_estiba/.test(limpio))
   fallas.push("el total no usa el factor estibado del maestro");
 
 /* ---------- ANOTAR DEJA EL RENGLÓN EN CERO ----------
-   Solo el sitio se queda —sigo parado frente al mismo módulo—. Código,
-   fecha, cantidad, ¿rota? y las marcas vuelven a vacío, porque el
-   siguiente renglón es otra estiba.
+   Código, fecha, cantidad, ¿rota? y las marcas vuelven a vacío, porque
+   el siguiente renglón es otra estiba.
 
    LA FECHA ES LA QUE IMPORTA AQUÍ. Se quedaba puesta a propósito, y
    estaba mal por dos razones: hay que borrar tres casillas antes de
    teclear otra, y —peor— una fecha que quedó del renglón anterior no se
    ve como un campo por llenar sino como uno ya lleno, así que se anota
-   sin que nadie lo note. */
-if (!/function limpiar\(\) \{\s*\n\s*setCorrigiendo\(null\);\s*\n\s*setB\(VACIO\);/.test(limpio))
-  fallas.push("al anotar no se limpia el renglón ENTERO: un campo que quedó lleno del " +
+   sin que nadie lo note.
+
+   EL SITIO ES LA EXCEPCIÓN Y SE MIDE APARTE, arriba: calle, módulo y
+   lado se quedan puestos porque se sigue contando en el mismo pasillo,
+   y AHORA SE VEN —las tarjetas de la pre-anotación los llevan escritos
+   encima—, que es lo que faltaba las dos veces que esto se devolvió. */
+{
+  const fn = (limpio.match(/function limpiar\(dejarSitio = false\) \{[\s\S]*?\n  \}/) ?? [""])[0];
+  const vacia = /codigo|dia|mes|anio|estibas|cajas|rot|averia|pnc|estado|nota/;
+  if (!/setCorrigiendo\(null\)/.test(fn) || !/\.\.\.VACIO/.test(fn) || vacia.test(fn))
+    fallas.push("al anotar no se limpia el renglón ENTERO: un campo que quedó lleno del " +
               "anterior no se ve como un campo por llenar, se ve como uno ya contestado");
+}
 
 /* Y EL MARCADOR DEL CÓDIGO NO PUEDE SER UN CÓDIGO DE VERDAD. Decía
    «3128» —la Águila 330— y en gris dentro de un campo grande se lee como
@@ -878,7 +1188,7 @@ if (/placeholder="\d+"/.test(limpio))
    estiba lee lo que dice el cartón, y hacer la cuenta de cabeza al revés
    —restarle la vida útil para saber qué teclear— es justo lo que la
    pantalla venía a quitar. */
-if (!/p_venc_dia: ent\(b\.dia\)/.test(limpio))
+if (!/p_venc_dia: ent\(bb\.dia\)/.test(limpio))
   fallas.push("la pantalla no manda el vencimiento que se teclea");
 if (!/p_fab_dia: null/.test(limpio))
   fallas.push("sigue mandando una fecha de fabricación: el renglón acabaría con las dos, y " +
