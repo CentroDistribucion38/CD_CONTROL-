@@ -38,12 +38,13 @@ export type Viaje = {
   tipo: string | null;
   tipo_nombre: string | null;
   placa: string | null;
-  /** El documento del papel que va con el vehículo. Obligatorio en los
-   *  viajes con carga y sin repetir: dos veces el mismo número son dos
-   *  viajes contados donde hubo uno. Un vacío no lleva. */
+  /** LA ORDEN DE CARGUE: el papel del patio. En la base la columna se
+   *  sigue llamando `documento` —renombrarla obligaba a reescribir las
+   *  funciones que la guardan—; en pantalla se llama «Orden de cargue».
+   *  Obligatoria en los viajes con carga y sin repetir. Un vacío no lleva. */
   documento: string | null;
-  /** Viaje con carga, registrado y sin documento: es de antes de que la
-   *  regla existiera. No es una columna guardada — se calcula. */
+  /** Viaje con carga, registrado y sin orden de cargue: es de antes de
+   *  que la regla existiera. No es una columna guardada — se calcula. */
   sin_documento: boolean;
   origen: string | null;
   origen_nombre: string | null;
@@ -77,6 +78,18 @@ export type Viaje = {
   motivo_anulacion: string | null;
   anulado_en: string | null;
   anulado_por: string | null;
+  /* ---- FACTURACIÓN. Opcionales: sin la migración no vienen. ---- */
+  /** El número de documento que pone facturación. Es el que se cruza con SAP. */
+  factura_documento?: string | null;
+  /** Cuándo confirmó facturación que el viaje salió. Null = no ha salido. */
+  salida_en?: string | null;
+  salida_por?: string | null;
+  salida_nombre?: string | null;
+  /** Salió antes de que existiera facturación: el número se copió de lo
+   *  que el patio escribía en «Documento». Nadie de facturación lo confirmó. */
+  salida_historica?: boolean;
+  /** Con carga, registrado y sin salida: lo que facturación tiene pendiente. */
+  por_facturar?: boolean;
 };
 
 export type Control = {
@@ -466,8 +479,12 @@ export async function cruceDelDia(fecha: string) {
        inventarlo. La vista ya lo resuelve: `sin_documento` es «con
        carga, registrado y sin documento».
        =============================================================== */
+    /* DESDE FACTURACIÓN, «SIN DOCUMENTO» ES «POR FACTURAR»: el número
+       que se cruza con SAP lo pone facturación al confirmar la salida.
+       Un viaje que facturación no ha confirmado no tiene con qué
+       emparejarse, igual que antes uno sin documento. */
     supabase.from("v_traspasos_viajes").select("*")
-      .eq("fecha", fecha).eq("sin_documento", true)
+      .eq("fecha", fecha).eq("por_facturar", true)
       .order("turno_orden").order("hora").limit(500),
 
     /* ===============================================================
@@ -481,7 +498,7 @@ export async function cruceDelDia(fecha: string) {
        que SAP tiene y nadie registró va en su propio montón, abajo.
        =============================================================== */
     supabase.from("v_traspasos_viajes").select("*")
-      .eq("fecha", fecha).not("documento", "is", null)
+      .eq("fecha", fecha).eq("vale", true).not("factura_documento", "is", null)
       .order("turno_orden").order("hora").limit(TOPE_DIA),
   ]);
 
@@ -549,4 +566,46 @@ export async function importacionesSap(cuantas = 8) {
     };
   }
   return { falta: false, lista: (data ?? []) as Importacion[] };
+}
+
+/* =====================================================================
+   FACTURACIÓN — la bandeja
+
+   «Un módulo de facturación, donde reposarían los viajes para que el de
+   facturación ponga el número de documento y confirme la salida.»
+
+   POR FACTURAR: todo viaje con carga, registrado, sin salida, desde que
+   facturación existe. Los de antes que el patio dejó sin documento no
+   entran: son de otra regla y esta bandeja se volvería una lista de
+   pendientes que nadie puede cerrar. Lo más viejo arriba, que es lo que
+   lleva más esperando.
+
+   SALIERON: los que facturación confirmó en los últimos días, lo más
+   nuevo arriba — para ver lo que se acaba de hacer y, si hubo un error,
+   que el administrador lo reabra.
+   ===================================================================== */
+export const FACTURACION_DESDE = "2026-09-21";
+
+export async function bandejaFacturacion(diasSalieron = 3) {
+  const supabase = await createClient();
+  const desde = new Date(Date.now() - diasSalieron * 86400000).toISOString();
+  const [pend, sal] = await Promise.all([
+    supabase.from("v_traspasos_viajes").select("*")
+      .eq("por_facturar", true).gte("fecha", FACTURACION_DESDE)
+      .order("fecha").order("turno_orden").order("hora").limit(500),
+    supabase.from("v_traspasos_viajes").select("*")
+      .eq("salida_historica", false).not("salida_en", "is", null).gte("salida_en", desde)
+      .order("salida_en", { ascending: false }).limit(200),
+  ]);
+  if (pend.error) {
+    return {
+      falta: /column|does not exist|schema cache/i.test(pend.error.message),
+      pendientes: [] as Viaje[], salieron: [] as Viaje[],
+    };
+  }
+  return {
+    falta: false,
+    pendientes: (pend.data ?? []) as Viaje[],
+    salieron: (sal.data ?? []) as Viaje[],
+  };
 }

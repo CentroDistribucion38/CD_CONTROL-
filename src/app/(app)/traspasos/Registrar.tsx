@@ -289,7 +289,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
       return "Falta correr supabase/migraciones/2026-09-traspasos-documento.sql en Supabase.";
     }
     if (/duplicate key|traspasos_viajes_documento_unico/i.test(m)) {
-      return `El documento ${documento.trim()} ya está registrado en otro viaje. `
+      return `La orden de cargue ${documento.trim()} ya está registrada en otro viaje. `
            + "Revisa el número; si el otro registro está malo, anúlalo y este entra.";
     }
     /* LA REGLA DE LAS DIEZ CIFRAS TAMBIÉN ESTÁ EN LA BASE, y ahí habla
@@ -299,7 +299,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
        así se traduce: un «violates check constraint» no le dice nada a
        quien está al lado de un camión. */
     if (/traspasos_viajes_documento_diez/i.test(m)) {
-      return "El documento va en números y con diez cifras como máximo.";
+      return "La orden de cargue va en números y con diez cifras como máximo.";
     }
     return m;
   }
@@ -357,13 +357,17 @@ export function Registrar({ tipos, puntos, placas, placasM,
                     DIEZ CIFRAS Y SOLO CIFRAS, limpiadas desde la tecla.
                     Así, pegar dos documentos seguidos —que es como se
                     cuelan los de veinte— se ve en el acto. */}
+                {/* SE LLAMA «ORDEN DE CARGUE» —«que el documento que está en
+                    Registrar se llame Orden de cargue»—. Es el papel del
+                    patio. El número de documento lo pone FACTURACIÓN al
+                    confirmar la salida, y es ese el que se cruza con SAP. */}
                 <div>
-                  <span className="rot-campo">Documento</span>
+                  <span className="rot-campo">Orden de cargue</span>
                   <input className="campo-suelto doc" value={documento}
                          autoComplete="off" spellCheck={false}
                          inputMode="numeric" maxLength={10}
-                         aria-label="Documento del viaje"
-                         placeholder="El número del papel — hasta 10 cifras"
+                         aria-label="Orden de cargue del viaje"
+                         placeholder="El número de la orden — hasta 10 cifras"
                          onChange={(e) => setDocumento(e.target.value.replace(/\D/g, "").slice(0, 10))} />
                   <p className="guia" style={{ marginTop: 8 }}>
                     Solo números, hasta diez. <b>No se puede repetir</b>: si este número ya
@@ -682,7 +686,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
               {mandando ? "Registrando…"
                 : modo === "vacio" ? `Registrar ${viajesN} vacío${viajesN === 1 ? "" : "s"}`
                 : !placa.trim() ? "Falta la placa"
-                : !documento.trim() ? "Falta el documento"
+                : !documento.trim() ? "Falta la orden de cargue"
                 : escogidos.length === 0 ? (hayPlan ? "Escoge del plan" : "Falta el tipo")
                 : !origen.trim() || !destino.trim() ? "Falta la ruta"
                 /* El botón dice lo que va a pasar. "Registrar viaje" cuando
@@ -751,7 +755,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
                            lista de al lado se mira para responder «¿ya
                            metí este papel?», y la respuesta es el
                            número, no la ruta. */
-                        : `${v.documento ?? "sin documento"} · ${v.tipo_nombre}`
+                        : `${v.documento ?? "sin orden de cargue"} · ${v.tipo_nombre}`
                           + ` · ${v.origen_nombre} → ${v.destino_nombre}`}
                     </span>
                   </span>

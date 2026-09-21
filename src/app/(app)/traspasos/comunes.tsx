@@ -111,10 +111,25 @@ export function FilaViaje({ v, nombres, derecha }: {
               nunca sale marcado — no le falta, es que no lleva. */}
           {v.sin_documento && (
             <span className="eti sin-doc"
-                  title="Este viaje es de antes de que el documento fuera obligatorio. Se completa al corregirlo.">
-              SIN DOCUMENTO
+                  title="Este viaje es de antes de que la orden de cargue fuera obligatoria. Se completa al corregirlo.">
+              SIN ORDEN DE CARGUE
             </span>
           )}
+          {/* LO QUE DIJO FACTURACIÓN. El patio ve en su propia lista si el
+              viaje ya salió —con el número que le puso facturación— o si
+              sigue esperando. Así nadie tiene que preguntar por radio. */}
+          {v.salida_en ? (
+            <span className="eti salio"
+                  title={v.salida_historica
+                    ? "De antes de Facturación: el número es el que se escribía en el patio."
+                    : `Facturación confirmó la salida${v.salida_nombre ? " (" + v.salida_nombre + ")" : ""}.`}>
+              SALIÓ · {v.factura_documento}
+            </span>
+          ) : v.por_facturar ? (
+            <span className="eti por-facturar" title="Facturación todavía no ha puesto el número ni confirmado la salida.">
+              POR FACTURAR
+            </span>
+          ) : null}
           {v.tipo_nombre && <span>{v.tipo_nombre}</span>}
           {/* Cuántos VIAJES vale la línea. Solo se dice si no es uno:
               "1 viaje" en cada renglón es ruido. */}

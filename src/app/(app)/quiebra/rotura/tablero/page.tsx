@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { maestros, tablero, hojasGuardadas } from "@/modulos/rotlinea/datos";
-import { HojasGeneradas } from "./Hojas";
+import { ResumenHojas } from "./Hojas";
+import { Pestanas } from "./Pestanas";
 import { letraDe } from "@/modulos/rotlinea/turnos";
 import "../rotura.css";
 import { Barras, Serie, Pareto, type Barra } from "./Graficas";
@@ -222,6 +223,8 @@ export default async function TableroRoturaPage({ searchParams }: {
 
   return (
     <div className="rl">
+      <Pestanas actual="tablero" desde={desde} hasta={hasta}
+                informes={hj.falta ? undefined : hj.hojas.filter((h) => h.anulada_en == null).length} />
       <Periodo desde={desde} hasta={hasta} linea={linea} hoy={hoy} lineas={m.lineas} />
 
       {/* 1 ─ LA CIFRA QUE MANDA */}
@@ -530,8 +533,8 @@ export default async function TableroRoturaPage({ searchParams }: {
 
       {/* LAS HOJAS DEL DÍA, después de las firmas de turno: es el orden
           del día —se registra, se firma el turno, se genera la hoja—. */}
-      <HojasGeneradas hojas={hj.hojas} dias={t.dias} conLinea={linea != null} falta={hj.falta}
-                      puedeAnular={permisos.manda} />
+      <ResumenHojas hojas={hj.hojas} dias={t.dias} conLinea={linea != null} falta={hj.falta}
+                    desde={desde} hasta={hasta} />
 
       {/* LA TABLA. Las gráficas se leen; la tabla se copia y se audita. */}
       <section className="rl-tarj">

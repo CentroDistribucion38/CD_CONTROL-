@@ -3,6 +3,11 @@
 /**
  * EL RESUMEN DEL DÍA, AL PIE DEL TABLERO.
  *
+ * DESDE FACTURACIÓN, «EL DOCUMENTO» ES EL QUE PONE FACTURACIÓN al
+ * confirmar la salida: es el que SAP trae. La orden de cargue es el papel
+ * del patio y no se cruza. Por eso los montones dicen «facturados» y
+ * «por facturar», y lo que falta se completa en Facturación.
+ *
  * QUÉ CONTESTA, EN UNA FRASE: de lo que se movió ese día, ¿qué quedó
  * bien anotado y qué no? La frase de arriba lo dice con palabras —«ese
  * día se registraron 16 traspasos: 7 con documento y 9 sin»— y debajo
@@ -52,6 +57,9 @@ import { hora as horaDe, quien } from "@/modulos/traspasos/formato";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const dma = (s: string | null) =>
   s ? new Date(s + "T00:00:00").toLocaleDateString("es-CO") : "—";
+/* EL NÚMERO CON QUE SE CRUZA: el de facturación, limpio como lo limpia
+   la base —sin guiones ni espacios—, que es como viene en el cruce. */
+const clave = (v: Viaje) => (v.factura_documento ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 const ruta = (v: Viaje) =>
   [v.origen_nombre, v.destino_nombre].filter(Boolean).join(" → ") || "—";
 
@@ -94,10 +102,10 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
   }, [lineas]);
 
   const cuadran = useMemo(
-    () => (hayCorte ? conDocumento.filter((v) => enSap.has(v.documento ?? "")) : conDocumento),
+    () => (hayCorte ? conDocumento.filter((v) => enSap.has(clave(v))) : conDocumento),
     [conDocumento, enSap, hayCorte]);
   const dedazos = useMemo(
-    () => (hayCorte ? conDocumento.filter((v) => !enSap.has(v.documento ?? "")) : []),
+    () => (hayCorte ? conDocumento.filter((v) => !enSap.has(clave(v))) : []),
     [conDocumento, enSap, hayCorte]);
 
   /* CUÁNTOS SE REGISTRARON ESE DÍA. Es el denominador de la frase de
@@ -163,6 +171,7 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
           <tr>
             <th>Viaje</th>
             {conDoc && <th>Documento</th>}
+            <th>Orden de cargue</th>
             <th>Turno</th>
             <th>Hora</th>
             <th>Placa</th>
@@ -174,16 +183,17 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
         </thead>
         <tbody>
           {vs.map((v) => (
-            <tr key={v.id} className={otroDia.has(v.documento ?? "") ? "ojo" : undefined}>
+            <tr key={v.id} className={otroDia.has(clave(v)) ? "ojo" : undefined}>
               <td className="cr-doc">{v.codigo ?? "—"}</td>
               {conDoc && (
                 <td>
-                  {v.documento ?? "—"}
-                  {otroDia.has(v.documento ?? "") && (
+                  {v.factura_documento ?? "—"}
+                  {otroDia.has(clave(v)) && (
                     <em className="tp-rz-marca">SAP lo reporta en otro día</em>
                   )}
                 </td>
               )}
+              <td>{v.documento ?? "—"}</td>
               <td>{v.turno}</td>
               <td>{horaDe(v.hora)}</td>
               <td>{v.placa ?? "—"}</td>
@@ -215,10 +225,10 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
           <>
             Ese día se registraron <em>{nf.format(registrados)} traspaso
             {registrados === 1 ? "" : "s"}</em>:{" "}
-            {nf.format(conDocumento.length)} con documento y{" "}
+            {nf.format(conDocumento.length)} facturado{conDocumento.length === 1 ? "" : "s"} y{" "}
             {sinDocumento.length === 0
-              ? <>ninguno sin documento.</>
-              : <><span className="mal">{nf.format(sinDocumento.length)} sin documento</span>.</>}
+              ? <>ninguno por facturar.</>
+              : <><span className="mal">{nf.format(sinDocumento.length)} por facturar</span>.</>}
           </>
         )}
       </h2>
@@ -227,18 +237,18 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
         {!hayCorte ? (
           desde == null
             ? <>Todavía no se ha subido ningún corte de SAP, así que de este día no se puede
-                decir qué salió y nadie registró.{" "}
+                decir qué salió y nadie facturó.{" "}
                 <Link href="/traspasos/cruce">Importar el corte</Link>.</>
             : <>El corte importado va del <b>{dma(desde)}</b> al <b>{dma(hasta)}</b>, y este día
                 no está adentro: mientras no se importe no se puede decir que falte nada.{" "}
                 <Link href="/traspasos/cruce">Importar el corte</Link>.</>
         ) : faltan.length === 0 ? (
-          <>Y en el corte de SAP no quedó ningún documento sin registrar. El corte va del{" "}
+          <>Y en el corte de SAP no quedó ningún documento sin facturar. El corte va del{" "}
             <b>{dma(desde)}</b> al <b>{dma(hasta)}</b> ·{" "}
             <Link href="/traspasos/cruce">Importar otro</Link>.</>
         ) : (
           <>Y en el corte de SAP hay <b>{nf.format(faltan.length)} documento
-            {faltan.length === 1 ? "" : "s"}</b> que salieron y nadie registró. El corte va del{" "}
+            {faltan.length === 1 ? "" : "s"}</b> que salieron y nadie facturó. El corte va del{" "}
             <b>{dma(desde)}</b> al <b>{dma(hasta)}</b> ·{" "}
             <Link href="/traspasos/cruce">Importar otro</Link>.</>
         )}
@@ -251,13 +261,13 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
       {registrados > 0 && (
         <>
           <div className="tp-rz-barra" role="img"
-               aria-label={`${conDocumento.length} con documento y ${sinDocumento.length} sin documento`}>
+               aria-label={`${conDocumento.length} facturados y ${sinDocumento.length} por facturar`}>
             <i className="bien" style={{ width: `${(conDocumento.length / registrados) * 100}%` }} />
             <i className="ojo" style={{ width: `${(sinDocumento.length / registrados) * 100}%` }} />
           </div>
           <p className="tp-rz-leg">
-            <span><i className="bien" /> {nf.format(conDocumento.length)} con documento</span>
-            <span><i className="ojo" /> {nf.format(sinDocumento.length)} sin documento</span>
+            <span><i className="bien" /> {nf.format(conDocumento.length)} facturados</span>
+            <span><i className="ojo" /> {nf.format(sinDocumento.length)} por facturar</span>
           </p>
         </>
       )}
@@ -274,18 +284,18 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
             hacer con él: es el denominador de todo lo demás. */}
         <Monton
           cual="ok" tono="bien" n={cuadran.length}
-          titulo={hayCorte ? "Con documento y en SAP" : "Con documento"}
+          titulo={hayCorte ? "Facturados y en SAP" : "Facturados"}
           pie={hayCorte
-            ? "El viaje tiene su número de papel y el corte lo confirma"
-            : "El viaje tiene su número de papel anotado"}
+            ? "Facturación puso el número y el corte lo confirma"
+            : "Facturación puso el número y confirmó la salida"}
           nota={hayCorte
             ? (otroDia.size > 0
                 ? <>Cuadran contra el corte de SAP. Los <b>{nf.format(otroDia.size)}</b> marcados
                     llevan el día cambiado: el viaje quedó en un día y SAP lo reporta en otro, y
                     eso descuadra el cumplido de los dos a la vez.</>
                 : <>Cuadran contra el corte de SAP. Nada que hacer con estos.</>)
-            : <>Sin corte importado no se puede decir si SAP los tiene. Llevan su documento, que
-                es lo que esta pantalla vigila.</>}
+            : <>Sin corte importado no se puede decir si SAP los tiene. Llevan su número de
+                facturación, que es lo que esta pantalla vigila.</>}
           hijos={tablaViajes(cuadran, true)} />
 
         {/* 2 · EL DEDAZO. Solo existe habiendo corte: sin él, «SAP no lo
@@ -293,11 +303,12 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
         {hayCorte && (
           <Monton
             cual="dedazo" tono="ojo" n={dedazos.length}
-            titulo="Con documento que SAP no tiene"
-            pie="El número está anotado, pero no aparece en el corte"
+            titulo="Facturados con un número que SAP no tiene"
+            pie="Facturación puso el número, pero no aparece en el corte"
             nota={<>Casi siempre es un dígito mal tecleado: el documento que aparece
-                   abajo como <b>sin registrar</b> suele ser este mismo con una cifra
-                   cambiada. Se corrige entrando al viaje en Registrar.</>}
+                   abajo como <b>sin facturar</b> suele ser este mismo con una cifra
+                   cambiada. Lo corrige el administrador: reabre la salida en{" "}
+                   <Link href="/facturacion">Facturación</Link> y se confirma con el número bueno.</>}
             hijos={tablaViajes(dedazos, true)} />
         )}
 
@@ -307,19 +318,20 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
             desaparece del tablero entero. */}
         <Monton
           cual="sindoc" tono="ojo" n={sinDocumento.length}
-          titulo="Sin documento"
-          pie="Salieron con carga y nadie apuntó el número del papel"
-          nota={<>No aparecen en el corte de SAP: no hay número con qué emparejarlos, así
-                 que este es el único sitio donde se ven. Los vacíos no llevan documento y
-                 no se cuentan aquí. Se completan entrando al viaje en Registrar.</>}
+          titulo="Por facturar"
+          pie="Salieron con carga y facturación no ha puesto el número"
+          nota={<>No aparecen en el corte de SAP: sin el número de facturación no hay con qué
+                 emparejarlos, así que este es el único sitio donde se ven. Los vacíos no
+                 llevan documento y no se cuentan aquí. Se completan en{" "}
+                 <Link href="/facturacion">Facturación</Link>.</>}
           hijos={tablaViajes(sinDocumento, false)} />
 
         {/* 4 · LO QUE SAP TIENE Y NADIE REGISTRÓ. */}
         {hayCorte && (
           <Monton
             cual="falta" tono="mal" n={faltan.length}
-            titulo="En SAP y sin registrar"
-            pie="SAP los tiene y nadie los registró en CONTROL"
+            titulo="En SAP y sin facturar"
+            pie="SAP los tiene y ningún viaje salió con ese número en CONTROL"
             nota={<>Un documento que se anuló y se rehízo cuenta <b>una vez</b>; uno que se
                    anuló y quedó en cero no aparece.</>}
             hijos={

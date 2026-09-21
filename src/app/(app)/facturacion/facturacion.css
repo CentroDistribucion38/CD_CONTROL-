@@ -1,0 +1,111 @@
+/* =====================================================================
+   FACTURACIÓN — la bandeja
+
+   Hereda los colores y las letras de Traspasos (`.tp`): es el mismo
+   viaje, en el paso siguiente. Lo propio es la tarjeta: la orden de
+   cargue en grande a la izquierda, y el número con su botón a la
+   derecha — que en el celular bajan debajo, sin salirse nunca.
+   ===================================================================== */
+
+.fc-cabeza {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 18px 24px; align-items: end;
+}
+.fc-cabeza > * { min-width: 0 }
+.fc-cabeza .ojo { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .16em; color: var(--tp-gris) }
+.fc-cabeza h1 {
+  margin: 4px 0 6px; font-family: var(--tp-titulo); font-weight: 900;
+  font-size: clamp(26px, 4vw, 38px); line-height: 1.05; letter-spacing: -.02em;
+  text-wrap: balance;
+}
+.fc-cabeza h1 em { font-style: normal; color: var(--tp-gris-panel) }
+.fc-cabeza .fc-n { font-variant-numeric: tabular-nums }
+.fc-cabeza .sub { margin: 0; font-size: 13px; color: var(--tp-gris); max-width: 70ch; line-height: 1.5 }
+.fc-cabeza .sub b { color: var(--tp-tinta) }
+
+.fc-busca { display: flex; flex-direction: column; gap: 5px }
+.fc-busca span, .fc-confirmar label span, .fc-reabrir label span {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--tp-gris);
+}
+.fc-busca input, .fc-confirmar input, .fc-reabrir input {
+  min-height: 46px; width: 100%; min-width: 0; padding: 10px 12px;
+  border: 1.5px solid var(--tp-linea); border-radius: 9px; background: #fff; color: #12263A;
+  font: 500 15px var(--tp-texto);
+}
+.fc-busca input:focus, .fc-confirmar input:focus, .fc-reabrir input:focus {
+  outline: 2px solid var(--tp-acento); outline-offset: 1px; border-color: var(--tp-acento);
+}
+
+.fc-solo-ver {
+  margin: 0; padding: 10px 14px; border: 1px dashed #C08A16; border-radius: 9px;
+  background: #fff; color: #5E4100; font-size: 13px;
+}
+
+/* ---------- Los pendientes ---------- */
+.fc-lista { display: flex; flex-direction: column; gap: 10px }
+.fc-viaje {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 380px); gap: 14px 22px;
+  align-items: center; padding: 16px 18px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-left: 4px dashed #C08A16;
+  border-radius: 9px;
+}
+.fc-viaje > * { min-width: 0 }
+.fc-datos p { margin: 0 }
+.fc-oc { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.fc-oc span, .fc-doc span {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--tp-gris);
+}
+.fc-oc b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 24px; letter-spacing: .01em;
+  color: var(--tp-tinta); font-variant-numeric: tabular-nums;
+}
+.fc-placa { font-family: var(--tp-titulo); font-weight: 800; font-size: 16px; margin-top: 2px !important }
+.fc-meta { font-size: 12.5px; color: var(--tp-gris); line-height: 1.5; margin-top: 2px !important;
+  overflow-wrap: anywhere }
+.fc-meta b { color: var(--tp-tinta) }
+
+.fc-confirmar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: end; margin: 0 }
+.fc-confirmar label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.fc-confirmar input { font-variant-numeric: tabular-nums; letter-spacing: .04em; font-weight: 700 }
+.fc-confirmar input::placeholder { font-weight: 500; letter-spacing: 0 }
+.fc-confirmar .btn { min-height: 46px; white-space: nowrap }
+.fc-error { grid-column: 1 / -1; margin: 0; font-size: 12.5px; font-weight: 700; color: #A30D25 }
+
+/* ---------- Los que salieron ---------- */
+.fc-salieron h2 {
+  margin: 10px 0 8px; font-family: var(--tp-titulo); font-weight: 800; font-size: 17px;
+}
+.fc-salieron h2 span { font-weight: 600; font-size: 13px; color: var(--tp-gris) }
+.fc-salieron { display: flex; flex-direction: column; gap: 8px }
+.fc-salido {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-left: 4px solid #2E8B57;
+  border-radius: 9px; padding: 12px 16px;
+}
+.fc-salido-fila { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 18px; align-items: center }
+.fc-salido-fila > * { min-width: 0; margin: 0 }
+.fc-doc { display: flex; flex-direction: column }
+.fc-doc b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 19px; color: #0B5D2E;
+  font-variant-numeric: tabular-nums;
+}
+.fc-reabrir { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--tp-linea);
+  display: flex; flex-direction: column; gap: 8px; max-width: 560px }
+.fc-reabrir label { display: flex; flex-direction: column; gap: 5px }
+.fc-reabrir p { margin: 0; font-size: 12.5px; color: var(--tp-gris); line-height: 1.5 }
+.fc-reabrir .btn { align-self: flex-start; min-height: 44px }
+
+.fc-vacio {
+  padding: 18px; text-align: center; font-size: 13px; color: var(--tp-gris);
+  background: var(--tp-papel); border: 1px dashed var(--tp-linea); border-radius: 9px;
+}
+
+@media (max-width: 760px) {
+  .fc-cabeza { grid-template-columns: 1fr }
+  .fc-viaje { grid-template-columns: 1fr }
+  .fc-salido-fila { grid-template-columns: minmax(0, 1fr) auto }
+  .fc-salido-fila .fc-meta { grid-column: 1 / -1; grid-row: 2 }
+}
+@media (max-width: 400px) {
+  .fc-confirmar { grid-template-columns: 1fr }
+  .fc-confirmar .btn { width: 100% }
+}

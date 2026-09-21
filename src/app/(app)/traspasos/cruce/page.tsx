@@ -68,7 +68,7 @@ export default async function ImportarPage() {
           <h1>Importar</h1>
           <p className="sub">
             El corte de SAP contra lo que se registró. Sirve para ver{" "}
-            <b>qué documentos salieron y nadie registró</b> — y eso sale al pie de
+            <b>qué documentos salieron y nadie facturó</b> — y eso sale al pie de
             Control, no aquí: aquí solo se sube el archivo.
           </p>
         </div>

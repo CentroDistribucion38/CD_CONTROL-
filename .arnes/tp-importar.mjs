@@ -298,9 +298,13 @@ const conAdorno = [
     mal("9f(ya no se comprueba que haya corte: un «0 faltaron» sin comparar se lee como que todo cuadra)");
   }
   /* LOS TRES MONTONES, cada uno con su acción distinta. */
-  for (const q of ["falta", "sobra", "cuadra"]) {
+  /* DESDE QUE LOS MONTONES SON DE VIAJES —el resumen del día—, «sobra»
+     ya no es un estado que se lea del cruce: sale de los facturados que
+     el corte no tiene (`dedazos`). Se exige lo que de verdad los parte. */
+  for (const q of ["falta", "cuadra"]) {
     if (!new RegExp(`"${q}"`).test(dif)) mal(`9g(falta el montón «${q}» en las diferencias)`);
   }
+  if (!/const dedazos = /.test(dif)) mal("9g(falta el montón de los que SAP no tiene)");
 }
 
 /* =====================================================================
@@ -324,9 +328,11 @@ const conAdorno = [
      pantalla se quedaba sin el control y el arnés seguía en verde. Van
      DOS porque hay dos salidas —con corte y sin corte— y el control
      tiene que estar en las dos. */
-  const pintado = (dif.match(/\{sinDoc\}/g) ?? []).length;
-  if (pintado < 2)
-    mal(`10(el bloque de viajes sin documento se pinta ${pintado} vez/veces y son 2 —con corte y sin corte—: `
+  /* DESDE EL RESUMEN DEL DÍA es un montón —«Por facturar»— y se pinta
+     con su tabla. */
+  const pintado = (dif.match(/tablaViajes\(sinDocumento, false\)/g) ?? []).length;
+  if (pintado < 1)
+    mal(`10(el bloque de viajes sin documento se pinta ${pintado} vez/veces: `
       + "no salen en ningún montón del cruce, así que si no se pinta no se ven en ninguna parte)");
 
   /* SE LEE LA MARCA DE LA VISTA, no un «documento is null» escrito a
@@ -334,14 +340,18 @@ const conAdorno = [
      documento», y un vacío NO lleva documento porque no hay papel que
      llevar. Pedírselo obligaría a inventarlo, y la lista se llenaría de
      viajes que no tienen nada malo. */
-  if (!/\.eq\("sin_documento", true\)/.test(dat))
+  /* DESDE FACTURACIÓN la marca es `por_facturar`: el número que se
+     cruza lo pone facturación, y «con carga, registrado y sin salida»
+     es lo que no tiene con qué emparejarse. Misma regla: los vacíos no. */
+  if (!/\.eq\("fecha", fecha\)\.eq\("por_facturar", true\)/.test(dat))
     mal("10b(los viajes sin documento no se piden por la marca de la vista: un «documento is null» a mano se llevaría también los vacíos, que no llevan papel)");
 
   /* Y NO CUELGA DEL CORTE. Se comprueba que el bloque esté también en la
      rama de «no hay corte importado», que es la que se pinta los días
      que nadie subió el Excel. */
-  const ramaSinCorte = (dif.match(/if \(!hayCorte\) \{[\s\S]*?\n  \}/) ?? [""])[0];
-  if (!/sinDoc/.test(ramaSinCorte))
+  /* Que el montón no esté envuelto en `{hayCorte && (`, como sí lo están
+     los dos que dependen del corte. */
+  if (/\{hayCorte && \(\s*<Monton\s+cual="sindoc"/.test(dif) || !/<Monton\s+cual="sindoc"/.test(dif))
     mal("10c(sin corte importado el control de «sin documento» desaparece, y es justo cuando más falta hace)");
 
   /* QUIEN LO REGISTRÓ, CON NOMBRE. Un identificador no sirve para ir a

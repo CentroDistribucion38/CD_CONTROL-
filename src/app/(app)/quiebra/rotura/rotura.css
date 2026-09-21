@@ -742,6 +742,93 @@
 .rl-oculto {
   position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
+/* ---------- Las dos hojas del tablero ----------
+   Pestañas de papel: la puesta se une a la página, la otra queda atrás. */
+.rl-pestanas { display: flex; gap: 4px; border-bottom: 2px solid var(--rl-linea); margin-bottom: 14px; overflow-x: auto }
+.rl-pestanas a {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px;
+  font: 600 14px var(--rl-titulo); color: var(--rl-tinta); text-decoration: none; white-space: nowrap;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+}
+.rl-pestanas a:hover { border-bottom-color: var(--rl-linea) }
+.rl-pestanas a[aria-current="page"] { font-weight: 800; border-bottom-color: var(--rl-ojo) }
+.rl-pestanas a b {
+  font-size: 11.5px; min-width: 22px; padding: 1px 7px; border-radius: 99px; text-align: center;
+  background: var(--rl-fondo); color: var(--rl-tinta); font-variant-numeric: tabular-nums;
+}
+
+/* ---------- En el tablero: el renglón que lleva a los informes ---------- */
+.rl-hojas-ir {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 14px 18px;
+  min-height: 48px; text-decoration: none; color: inherit;
+}
+.rl-hojas-ir:hover { border-color: var(--rl-tinta) }
+.rl-hojas-ir .rl-hojas-flecha { margin-left: auto; font: 700 13px var(--rl-titulo); color: var(--rl-tinta) }
+
+/* ---------- La hoja de informes ---------- */
+.rl-informes { display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.rl-inf-cabeza .rl-sub em { font-style: normal; font-weight: 700; color: #5E4100 }
+.rl-inf-pend p { margin: 0; padding: 12px 18px 0; font-size: 13px; color: var(--rl-gris) }
+.rl-inf-aviso { margin: 0; padding: 10px 14px; background: #fff; border: 1px solid #C8102E; border-radius: 3px }
+
+.rl-inf-marco {
+  display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 16px; align-items: start;
+}
+.rl-inf-lista { display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.rl-inf {
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-left: 4px solid var(--rl-linea);
+  border-radius: 3px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.rl-inf.elegida { border-left-color: var(--rl-ojo); box-shadow: 0 0 0 1px var(--rl-ojo) }
+/* La anulada y la vieja se distinguen por el borde punteado, no por un
+   fondo gris: el gris de la letra sobre un fondo gris no se lee. */
+.rl-inf.anulada, .rl-inf.vieja { border-left-style: dashed }
+.rl-inf p { margin: 0 }
+.rl-inf-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 10px }
+.rl-inf-dia { display: flex; flex-direction: column }
+.rl-inf-dia b { font: 800 16px var(--rl-titulo); color: var(--rl-tinta) }
+.rl-inf-dia span { font-size: 12px; color: var(--rl-gris) }
+.rl-inf-und { font: 800 18px var(--rl-titulo); color: var(--rl-tinta); font-variant-numeric: tabular-nums; white-space: nowrap }
+.rl-inf-und span { font: 600 11.5px var(--rl-texto); color: var(--rl-gris) }
+.rl-inf.anulada .rl-inf-und, .rl-inf.anulada .rl-inf-dia b { color: var(--rl-gris) }
+.rl-inf-quien { font-size: 12.5px; color: var(--rl-gris) }
+.rl-inf-quien b { color: var(--rl-tinta); font-weight: 600 }
+.rl-inf .rl-hojas-motivo { margin: 0; max-width: none; text-align: left; font-size: 12px }
+.rl-inf .rl-hojas-cambio { display: block; font-size: 12px }
+.rl-inf-nota { font-size: 12px; color: var(--rl-gris) }
+.rl-inf-acc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px }
+.rl-inf-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 12px;
+  border: 1px solid var(--rl-linea); border-radius: 3px; background: var(--rl-papel); color: var(--rl-tinta);
+  font: 700 12.5px var(--rl-titulo); text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.rl-inf-btn:hover { border-color: var(--rl-tinta) }
+.rl-inf-btn.si { background: var(--rl-ojo); border-color: var(--rl-ojo); color: var(--rl-sobre) }
+.rl-inf-acc .rl-hojas-accion { min-height: 40px; margin-left: auto }
+.rl-inf .rl-hojas-anular { background: var(--rl-fondo); padding: 10px 12px; border-radius: 3px }
+
+/* LA VISTA PREVIA se queda quieta mientras la lista rueda: se pasa de
+   una hoja a otra sin perder el papel de vista. */
+.rl-inf-vista {
+  position: sticky; top: 12px; display: flex; flex-direction: column; min-width: 0;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px; overflow: hidden;
+}
+.rl-inf-vista header {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid var(--rl-linea);
+}
+.rl-inf-vista header p { margin: 0; font-size: 13px; color: var(--rl-tinta) }
+.rl-inf-vista header em { font-style: normal; font-weight: 800; color: #A30D25 }
+.rl-inf-vista header div { display: flex; gap: 6px }
+.rl-inf-vista iframe { width: 100%; height: min(78vh, 1000px); border: 0; background: #525659 }
+
+/* EN PANTALLA CHICA NO HAY PANEL: «Ver» abre el PDF en su pestaña. */
+@media (max-width: 900px) {
+  .rl-inf-marco { grid-template-columns: 1fr }
+  .rl-inf-vista { display: none }
+  .rl-inf-btn { min-height: 44px; flex: 1 1 auto }
+  .rl-inf-acc .rl-hojas-accion { min-height: 44px; margin-left: 0; flex: 1 1 100% }
+}
 .rl-hojas-vacio, .rl-hojas-falta { margin: 0; padding: 12px 18px 16px; font-size: 12.5px; color: var(--rl-gris) }
 
 .rl-volver { margin: 4px 0 0; font-size: 13px }
@@ -1309,7 +1396,11 @@
 
 /* EL CUADRO. Un <dialog> del navegador: Escape lo cierra y el foco no se
    escapa a la página de atrás. */
+/* EN EL CENTRO, DICHO A MANO. El navegador centra un <dialog> con
+   `margin: auto`, pero Tailwind pone `margin: 0` a todo y la ventana se
+   iba a la esquina de arriba a la izquierda —así se vio en el PC—. */
 .rl-ventana {
+  position: fixed; inset: 0; margin: auto; height: fit-content;
   width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
   padding: 0; border: none; border-radius: 6px; overflow: auto;
   background: var(--rl-papel); color: var(--rl-tinta);
@@ -1328,7 +1419,7 @@
    que el PDF que sale de esta ventana. Sin tema es la de la marca. */
 [data-tema] .rl-ventana-cab {
   background:
-    linear-gradient(90deg, var(--c-marca-hondo) 0%, var(--c-marca) 100%) top / 100% 5px no-repeat,
+    linear-gradient(90deg, var(--c-marca-hondo) 0%, var(--c-marca) 35%, var(--c-04203f) 100%) top / 100% 5px no-repeat,
     var(--rl-papel);
 }
 .rl-ventana-ojo {

@@ -41,8 +41,13 @@ import type { Linea } from "@/modulos/rotlinea/datos";
  *   sintiéndose trabado la primera vez; el aviso sin prefetch seguiría
  *   tardando. Juntos, no.
  */
-export function Periodo({ desde, hasta, linea, hoy, lineas }: {
+export function Periodo({ desde, hasta, linea, hoy, lineas,
+                          base = "/quiebra/rotura/tablero", conLinea = true }: {
   desde: string; hasta: string; linea?: number; hoy: string; lineas: Linea[];
+  /** A qué pantalla lleva: el tablero o la hoja de informes generados. */
+  base?: string;
+  /** Los informes son del día entero, no de una línea: allá no se ofrece. */
+  conLinea?: boolean;
 }) {
   const router = useRouter();
   const [cargando, empezar] = useTransition();
@@ -55,7 +60,7 @@ export function Periodo({ desde, hasta, linea, hoy, lineas }: {
   const dir = (d: string, h: string, l?: number) => {
     const p = new URLSearchParams({ desde: d, hasta: h });
     if (l) p.set("linea", String(l));
-    return `/quiebra/rotura/tablero?${p.toString()}`;
+    return `${base}?${p.toString()}`;
   };
   /* La navegación va dentro de la transición: sin esto, `cargando`
      nunca se pone en true y el botón no se entera de nada. */
@@ -118,7 +123,7 @@ export function Periodo({ desde, hasta, linea, hoy, lineas }: {
           <input type="date" value={hasta} min={desde}
                  onChange={(e) => e.target.value && ir(desde, e.target.value, linea)} />
         </label>
-        <label>
+        {conLinea && <label>
           <span>Línea</span>
           <select value={linea ?? ""}
                   onChange={(e) => ir(desde, hasta, Number(e.target.value) || undefined)}>
@@ -127,7 +132,7 @@ export function Periodo({ desde, hasta, linea, hoy, lineas }: {
               <option key={l.linea} value={l.linea}>Línea {l.linea} · {l.tren}</option>
             ))}
           </select>
-        </label>
+        </label>}
       </div>
     </div>
   );

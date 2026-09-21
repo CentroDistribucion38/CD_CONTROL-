@@ -158,24 +158,22 @@ const MUTACIONES = [
   {
     n: "16 · el tablero deja de mostrar los viajes registrados sin documento",
     espera: /^\s*·\s*10\(/m,
-    hacer: () => {
-      cambia(DIF, "      <>\n        {sinDoc}\n      <section className=\"caja\">",
-                  "      <>\n      <section className=\"caja\">");
-      cambia(DIF, "    <>\n    {sinDoc}\n    <section className=\"caja\">",
-                  "    <>\n    <section className=\"caja\">");
-    },
+    hacer: () => cambia(DIF, "          hijos={tablaViajes(sinDocumento, false)} />",
+                             "          hijos={null} />"),
   },
   {
     n: "17 · los viajes sin documento se piden a mano y se cuelan los vacíos",
     espera: /^\s*·\s*10b\(/m,
-    hacer: () => cambia(DAT, '.eq("fecha", fecha).eq("sin_documento", true)',
-                             '.eq("fecha", fecha).is("documento", null)'),
+    hacer: () => cambia(DAT, '.eq("fecha", fecha).eq("por_facturar", true)',
+                             '.eq("fecha", fecha).is("factura_documento", null)'),
   },
   {
     n: "18 · sin corte importado, el control de «sin documento» desaparece",
     espera: /^\s*·\s*10c\(/m,
-    hacer: () => cambia(DIF, "      <>\n        {sinDoc}\n      <section className=\"caja\">",
-                             "      <>\n      <section className=\"caja\">"),
+    hacer: () => {
+      cambia(DIF, "        <Monton\n          cual=\"sindoc\"", "        {hayCorte && (<Monton\n          cual=\"sindoc\"");
+      cambia(DIF, "          hijos={tablaViajes(sinDocumento, false)} />", "          hijos={tablaViajes(sinDocumento, false)} />)}");
+    },
   },
   {
     n: "19 · el viaje sin documento no dice quién lo registró",

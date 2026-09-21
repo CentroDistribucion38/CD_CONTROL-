@@ -76,7 +76,11 @@ export function Viajes({ viajes, nombres, puedeEditar, esAdmin = false, esHoy = 
         viajes.map((v) => (
           <div key={v.id}>
             <FilaViaje v={v} nombres={nombres} derecha={
-              puedeEditar && v.vale ? (
+              /* LO QUE YA SALIÓ NO SE CORRIGE NI SE ANULA AQUÍ: facturación
+                 ya lo dio por salido con su documento. Si está mal, el
+                 administrador reabre la salida en Facturación. La base lo
+                 impide igual; esto evita el botón que lleva a un error. */
+              puedeEditar && v.vale && !v.salida_en ? (
                 <>
                   {/* CORREGIR VA ANTES QUE ANULAR: es lo que se quiere
                       hacer nueve de cada diez veces, y lo que menos
@@ -205,7 +209,7 @@ function Corregir({ v, tipos, puntos, placas, cerrar, listo, fallo }: {
       fallo(/does not exist|could not find the function|schema cache/i.test(error.message)
         ? "Falta correr supabase/migraciones/2026-09-traspasos-documento.sql en Supabase."
         : /duplicate key|traspasos_viajes_documento_unico/i.test(error.message)
-          ? `El documento ${documento.trim()} ya está en otro viaje registrado.`
+          ? `La orden de cargue ${documento.trim()} ya está en otro viaje registrado.`
           : error.message);
       return;
     }
@@ -218,7 +222,7 @@ function Corregir({ v, tipos, puntos, placas, cerrar, listo, fallo }: {
     ? null
     : !tipo ? "Falta el tipo de viaje"
     : !placa.trim() ? "Falta la placa"
-    : !documento.trim() ? "Falta el documento"
+    : !documento.trim() ? "Falta la orden de cargue"
     : !origen ? "Falta la bodega de origen"
     : !destino ? "Falta la bodega de destino"
     : origen === destino ? "El viaje sale y llega al mismo sitio"
@@ -293,10 +297,11 @@ function Corregir({ v, tipos, puntos, placas, cerrar, listo, fallo }: {
                 momento en que alguien está mirando ese viaje con el
                 papel al lado. */}
             <div className="campo">
-              <label htmlFor={"d-" + v.id}>Documento</label>
+              <label htmlFor={"d-" + v.id}>Orden de cargue</label>
               <input id={"d-" + v.id} value={documento} autoComplete="off" spellCheck={false}
                      placeholder={v.documento ? "" : "Este viaje todavía no lo tiene"}
-                     onChange={(e) => setDocumento(e.target.value.toUpperCase())} />
+                     inputMode="numeric" maxLength={10}
+                     onChange={(e) => setDocumento(e.target.value.replace(/\D/g, "").slice(0, 10))} />
             </div>
 
             <div className="campo">

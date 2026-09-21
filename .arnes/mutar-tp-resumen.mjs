@@ -93,8 +93,12 @@ probar("los montones ya no se cierran",
   "no se cierran");
 
 probar("«con documento» deja de partirse mirando el corte",
-  [[TSX, `    () => (hayCorte ? conDocumento.filter((v) => enSap.has(v.documento ?? "")) : conDocumento),`,
+  [[TSX, `    () => (hayCorte ? conDocumento.filter((v) => enSap.has(clave(v))) : conDocumento),`,
           `    () => conDocumento,`]],
+  "saldrían de dos cuentas distintas");
+
+probar("el resumen cruza con la orden de cargue y no con el número de facturación",
+  [[TSX, `const clave = (v: Viaje) => (v.factura_documento ?? "")`, `const clave = (v: Viaje) => (v.documento ?? "")`]],
   "saldrían de dos cuentas distintas");
 
 probar("el día cambiado desaparece del resumen",
@@ -161,4 +165,4 @@ if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 15 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 16 se pusieron rojas. El arnés caza lo que dice cazar.");

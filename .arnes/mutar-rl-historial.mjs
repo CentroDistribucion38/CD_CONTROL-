@@ -13,7 +13,10 @@ const COMP = "src/app/(app)/quiebra/rotura/tablero/Hojas.tsx";
 const PAG = "src/app/(app)/quiebra/rotura/tablero/page.tsx";
 const FILA = "src/app/(app)/quiebra/rotura/tablero/FilaHoja.tsx";
 const CSS = "src/app/(app)/quiebra/rotura/rotura.css";
-const original = Object.fromEntries([HIS, COMP, PAG, CSS, FILA].map((f) => [f, readFileSync(f, "utf8")]));
+const INF = "src/app/(app)/quiebra/rotura/tablero/informes/Informes.tsx";
+const PINF = "src/app/(app)/quiebra/rotura/tablero/informes/page.tsx";
+const PES = "src/app/(app)/quiebra/rotura/tablero/Pestanas.tsx";
+const original = Object.fromEntries([HIS, COMP, PAG, CSS, FILA, INF, PINF, PES].map((f) => [f, readFileSync(f, "utf8")]));
 const restaurar = () => { for (const [f, t] of Object.entries(original)) writeFileSync(f, t) };
 process.on("exit", restaurar);
 for (const s of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(s, () => { restaurar(); process.exit(130) });
@@ -72,19 +75,18 @@ probar("las anuladas se cuentan como hojas",
   [[HIS, "    total: hojas.length - anuladas,", "    total: hojas.length,"]],
   "y 2 anuladas; son 4 de 3");
 probar("la anulada no se distingue en la lista",
-  [[FILA, '<tr className={anulada ? "rl-hojas-anulada" : vieja ? "rl-hojas-vieja" : undefined}>',
-          '<tr className={vieja ? "rl-hojas-vieja" : undefined}>']],
-  "las hojas anuladas no se distinguen");
+  [[FILA, '"rl-inf" + (anulada ? " anulada" : vieja ? " vieja" : "")', '"rl-inf" + (vieja ? " vieja" : "")']],
+  "las anuladas no se distinguen");
 probar("la cifra de la anulada no sale tachada",
   [[FILA, '{anulada ? <s className="rl-hojas-cifra">{fmt(Number(h.unidades))}</s> : fmt(Number(h.unidades))}',
           '{fmt(Number(h.unidades))}']],
   "no sale tachada");
 probar("la anulada no dice quién ni por qué",
-  [[FILA, '<span className="rl-hojas-motivo">Anulada{h.anulada_nombre ? ` por ${h.anulada_nombre}` : ""}: {h.anulada_motivo}</span>',
-          '<span className="rl-hojas-motivo">Anulada</span>']],
+  [[FILA, '<p className="rl-hojas-motivo">Anulada{h.anulada_nombre ? ` por ${h.anulada_nombre}` : ""}: {h.anulada_motivo}</p>',
+          '<p className="rl-hojas-motivo">Anulada</p>']],
   "no dice quién la anuló ni por qué");
 probar("quien no administra ve el botón de anular",
-  [[FILA, "        {puedeAnular && (\n          <td className=\"cen\">", "        {true && (\n          <td className=\"cen\">"]],
+  [[FILA, "        {puedeAnular && (\n          <button", "        {true && (\n          <button"]],
   "quien no administra ve los botones");
 probar("aparece un botón de borrar",
   [[FILA, '{anulada ? "Quitar anulación" : "Anular"}', '{anulada ? "Quitar anulación" : "Borrar"}']],
@@ -92,60 +94,86 @@ probar("aparece un botón de borrar",
 probar("el motivo en un rojo que no se lee",
   [[CSS, "  color: #8A1C1C; white-space: normal; line-height: 1.35;", "  color: #E86A6A; white-space: normal; line-height: 1.35;"]],
   "«motivo de la anulación» contrasta");
-probar("la columna oculta se escapa del scroll y arrastra la página",
-  [[CSS, ".rl-hojas .rl-tabla-env { position: relative }\n", ""],
-   [CSS, "  position: absolute; left: 0; top: 0;", "  position: absolute;"]],
-  "las hojas arrastran la página");
-probar("el botón de anular queda chico para el dedo",
-  [[CSS, "  min-height: 36px; padding: 0 10px; border: 1px solid var(--rl-linea); border-radius: 3px;\n  background: var(--rl-papel); color: var(--rl-tinta); font: 600 12px var(--rl-texto);",
-         "  min-height: 0; padding: 0 10px; border: 1px solid var(--rl-linea); border-radius: 3px;\n  background: var(--rl-papel); color: var(--rl-tinta); font: 600 12px var(--rl-texto);"]],
-  "«Anular» mide");
+
+/* ---------- LA HOJA DE INFORMES ---------- */
+probar("no se puede ver el PDF en la pantalla",
+  [[FILA, '<button type="button" className="rl-inf-btn si" onClick={ver} aria-pressed={elegida}>Ver</button>', ""]],
+  "no hay «Ver» y «Descargar»");
+probar("no se puede descargar",
+  [[FILA, '<button type="button" className="rl-inf-btn" onClick={descargar}>Descargar</button>', ""]],
+  "no hay «Ver» y «Descargar»");
+probar("no se puede abrir en pestaña",
+  [[FILA, '<a className="rl-inf-btn" href={h.url} target="_blank" rel="noopener noreferrer">Abrir en pestaña</a>', ""]],
+  "no hay «Abrir en pestaña»");
+probar("al entrar la vista previa muestra la anulada",
+  [[INF, 'const primera = lista.find((h) => h.anulada_en == null && h.url) ?? lista.find((h) => h.url) ?? null;',
+         'const primera = lista.find((h) => h.url) ?? null;']],
+  "no muestra la hoja más nueva que vale");
+probar("la vista previa no se pinta",
+  [[INF, '<iframe key={elegida.id} src={elegida.url} title={`Hoja del día ${elegida.fecha}`} />', ""]],
+  "no muestra la hoja más nueva que vale");
+probar("se descarga con el nombre interno del archivo",
+  [[INF, "enlace.download = nombreDescarga(h);", 'enlace.download = "";']],
+  "no guarda el PDF con el nombre del día");
+probar("en el celular «Ver» no abre la pestaña",
+  [[INF, 'window.matchMedia("(max-width: 900px)").matches', "false"]],
+  "en el celular «Ver» no abre el PDF");
+probar("se pintan todos los informes del año",
+  [[INF, "const lista = r.ordenadas.slice(0, MAX);", "const lista = r.ordenadas;"]],
+  "pinta más de 60");
+probar("la hoja de informes pide otro permiso",
+  [[PINF, 'permisos.puedeVer("/quiebra/rotura/tablero")', 'permisos.puedeVer("/quiebra/rotura/informes")']],
+  "no pide el mismo permiso que el tablero");
+probar("en la hoja de informes no anula quien administra",
+  [[PINF, "puedeAnular={permisos.manda}", "puedeAnular={false}"]],
+  "no anula quien administra");
+probar("el período de los informes lleva al tablero",
+  [[PINF, 'base="/quiebra/rotura/tablero/informes" ', ""]],
+  "lleva al tablero y no a los informes");
 
 /* ---------- EL TABLERO ---------- */
 probar("el tablero no trae las hojas",
   [[PAG, "tablero(desde, hasta, linea), hojasGuardadas(desde, hasta),", "tablero(desde, hasta, linea), Promise.resolve({ falta: false, hojas: [] }),"]],
   "el tablero no trae las hojas del período");
-probar("las hojas van arriba de todo el tablero",
-  [[PAG, "      <HojasGeneradas hojas={hj.hojas} dias={t.dias} conLinea={linea != null} falta={hj.falta}\n                      puedeAnular={permisos.manda} />\n", ""],
-   [PAG, "      <Periodo desde={desde}", "      <HojasGeneradas hojas={hj.hojas} dias={t.dias} conLinea={linea != null} falta={hj.falta}\n                      puedeAnular={permisos.manda} />\n      <Periodo desde={desde}"]],
-  "ese es el orden del día");
-probar("el tablero no le da los botones al administrador",
-  [[PAG, "puedeAnular={permisos.manda}", "puedeAnular={false}"]],
-  "el tablero no deja anular a quien administra");
+probar("el tablero pierde las pestañas",
+  [[PAG, '<Pestanas actual="tablero"', '<span data-x="tablero"']],
+  "no tienen las pestañas");
 probar("el tablero no avisa del filtro de línea",
   [[PAG, "conLinea={linea != null}", "conLinea={false}"]],
   "no le dice a la sección si hay filtro de línea");
-probar("la sección sale abierta y larga, sin la respuesta en el renglón",
-  [[COMP, "<details className={`rl-tarj rl-hojas${ojo ? \" ojo\" : \"\"}`}>", "<section className={`rl-tarj rl-hojas${ojo ? \" ojo\" : \"\"}`}>"],
-   [COMP, "    </details>\n  );\n}", "    </section>\n  );\n}"]],
-  "no va cerrada con la respuesta en el renglón");
-probar("el renglón no dice cuántos días faltan",
+probar("el renglón del tablero no dice cuántos días faltan",
   [[COMP, "{pend > 0 && <> · <em>{pend} {pend === 1 ? \"día\" : \"días\"} sin hoja</em></>}", ""]],
-  "el renglón no dice la respuesta");
+  "el renglón del tablero no dice la respuesta");
+probar("el renglón del tablero no lleva a los informes con el período",
+  [[COMP, "href={`/quiebra/rotura/tablero/informes?${q}`}", 'href="/quiebra/rotura/tablero/informes"']],
+  "no lleva a la hoja de informes con el mismo período");
 probar("el día sin hoja lleva a Registrar sin abrir la ventana",
-  [[COMP, "href={`/quiebra/rotura?d=${d.fecha}&hoja=1`}", "href={`/quiebra/rotura?d=${d.fecha}`}"]],
+  [[INF, "href={`/quiebra/rotura?d=${d.fecha}&hoja=1`}", "href={`/quiebra/rotura?d=${d.fecha}`}"]],
   "no lleva directo a generarla");
-probar("la hoja no se puede abrir",
-  [[FILA, '? <a href={h.url} target="_blank" rel="noopener noreferrer">Abrir</a>', '? <span>Abrir</span>']],
-  "la hoja no tiene cómo abrirse");
-probar("se pintan todas las hojas del año",
-  [[COMP, "r.ordenadas.slice(0, MAX_FILAS)", "r.ordenadas"]],
-  "un año entero serían cientos");
 probar("sin la migración no dice qué correr",
   [[COMP, "<code>supabase/migraciones/2026-09-rotura-linea-hojas.sql</code>", "<code>la migración</code>"]],
   "sin la migración no dice qué correr");
 
 /* ---------- EN PANTALLA ---------- */
-probar("lo pendiente en un ámbar que no se lee",
-  [[CSS, ".rl-hojas-dice em { font-style: normal; font-weight: 700; color: #5E4100 }",
-         ".rl-hojas-dice em { font-style: normal; font-weight: 700; color: #E0A800 }"]],
-  "«lo pendiente» contrasta");
-probar("el renglón que abre se encoge por debajo del dedo",
-  [[CSS, "  padding: 14px 18px; min-height: 48px; cursor: pointer; list-style: none;", "  padding: 2px 18px; min-height: 0; cursor: pointer; list-style: none;"]],
-  "el renglón que abre mide");
-probar("«Abrir» es un enlace de 15 px",
-  [[CSS, "  display: inline-flex; align-items: center; min-height: 36px; padding: 0 10px;", "  display: inline; align-items: center; min-height: 0; padding: 0;"]],
-  "«Abrir» mide");
+probar("la pestaña de al lado en un gris que no se lee",
+  [[CSS, "  font: 600 14px var(--rl-titulo); color: var(--rl-tinta); text-decoration: none; white-space: nowrap;",
+         "  font: 600 14px var(--rl-titulo); color: var(--rl-gris); text-decoration: none; white-space: nowrap;"]],
+  "«pestaña de al lado» contrasta");
+probar("los botones se encogen por debajo del dedo en el celular",
+  [[CSS, "  .rl-inf-btn { min-height: 44px; flex: 1 1 auto }", "  .rl-inf-btn { min-height: 26px; flex: 1 1 auto; padding: 0 4px }"],
+   [CSS, "  display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 12px;",
+         "  display: inline-flex; align-items: center; justify-content: center; min-height: 26px; padding: 0 12px;"]],
+  "botones");
+probar("en el celular los botones no bajan y se salen de la pantalla",
+  [[CSS, ".rl-inf-acc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px }", ".rl-inf-acc { display: flex; flex-wrap: nowrap; gap: 6px; margin-top: 4px }"]],
+  "quedan fuera de la pantalla");
+probar("la vista previa se mete en el celular",
+  [[CSS, "  .rl-inf-vista { display: none }\n", ""]],
+  "la vista previa se mete en el celular");
+probar("en pantalla grande no hay vista previa al lado",
+  [[CSS, "  display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 16px; align-items: start;",
+         "  display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start;"]],
+  "no se ve la vista previa al lado");
 
 restaurar();
 console.log("");

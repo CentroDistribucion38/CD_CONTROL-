@@ -1,175 +1,189 @@
-Rotura en línea: guardar abre la hoja para firmar, cada PDF queda guardado y listado en el tablero, el administrador anula con motivo, y el papel sale con los colores del tema
-
-Cuatro pedidos sobre la hoja del día, en el orden en que se viven: se
-guarda, sale la hoja, queda en el tablero, el administrador la anula si
-salió mal; y el papel con los colores de quien lo genera.
+Facturación: la orden de cargue queda en el patio, facturación pone el documento y confirma la salida; En tránsito filtra por una lista de placas pegada; los informes de rotura en su propia hoja del tablero; y la hoja centrada, con su cinta por tema y el pie en Bavaria
 
 =====================================================================
-1 · GUARDAR Y SALE LA VENTANA DE LA HOJA
+1 · TRASPASOS: «DOCUMENTO» PASA A LLAMARSE «ORDEN DE CARGUE»
 =====================================================================
 
-«Que guarde y me salga el cuadro de generar el PDF.»
+«Que el documento que está en Registrar se llame Orden de cargue.»
 
-AL GUARDAR EN LA REJILLA SALE LA VENTANA, cada vez. La dirección queda
-con «hoja=1» y la ventana la lee: así la abre también un enlace, y
-recargar después de cerrarla no la vuelve a sacar. «Ahora no» o Escape
-la cierran.
+En Registrar, al corregir un viaje y en la lista del día. Es el papel
+del patio: sigue siendo obligatorio, en cifras, diez como máximo y sin
+repetir. En la base la columna se sigue llamando `documento`: renombrarla
+obligaba a reescribir las funciones que la guardan —y ya se han perdido
+reglas reescribiéndolas— por un cambio que la gente no ve.
 
-Debajo de la rejilla, la tarjeta dice en una línea cómo va la hoja del
-día: sin generar, generada a tal hora por tal persona, o VIEJA —el día
-cambió después de generarla— con las dos cifras, para generar otra.
-«Abrir la última» abre el PDF que se mandó.
-
-UN <dialog> DEL NAVEGADOR y no una caja pintada encima: Escape la
-cierra, el foco no se escapa a la página de atrás y el lector de
-pantalla sabe que es una ventana, sin una línea más de código.
+La lista del patio ahora dice qué pasó con cada viaje: SALIÓ con el
+número de facturación, o POR FACTURAR. Y un viaje que ya salió no ofrece
+Corregir ni Anular.
 
 =====================================================================
-2 · CADA PDF, GUARDADO TAL CUAL SE MANDÓ
+2 · EL MÓDULO FACTURACIÓN
 =====================================================================
 
-«Y si no, que en el tablero de rotura haya una hoja con todos los PDF
-generados.»
+«Un módulo de facturación, donde reposarían los viajes para que el de
+facturación ponga el número de documento y confirme la salida.»
 
-SE GUARDA EL ARCHIVO Y NO SOLO EL RENGLÓN: rehacer el PDF al abrirlo
-daría un papel DISTINTO del que se firmó si alguien corrigió una pesada
-después. El renglón guarda además las cifras que decía, para saber sin
-abrirlo si el día cambió.
+Va después de Traspasos en el menú: es el paso siguiente del mismo
+viaje. Una pantalla, /facturacion:
 
-SE GUARDA ANTES DE MANDAR. Al revés, el menú de compartir del teléfono
-se queda con la pantalla y quien lo cierra puede irse sin que quede.
+  · ARRIBA, LA RESPUESTA: «3 viajes por facturar», y cuál lleva más
+    esperando.
+  · CADA VIAJE, UNA TARJETA con la orden de cargue en grande —el papel
+    que facturación tiene en la mano—, placa, día, turno, tipo, ruta y
+    quién lo registró; al lado, el número de documento (cifras, diez
+    como máximo) y «Confirmar salida». Enter confirma.
+  · UN BUSCADOR por orden de cargue, placa o documento.
+  · DEBAJO, LO QUE SALIÓ en los últimos tres días, con su documento, la
+    hora y quién confirmó.
 
-LO GENERADO NO SE PISA NI SE BORRA. Si hace falta otra versión se
-genera otra y quedan las dos, cada una con su hora; si una salió mal, el
-administrador la anula (abajo). La guarda quien edita y a su nombre;
-quien solo consulta la ve y la abre. El PDF queda en un espacio privado, solo PDF y hasta 5 MB, y se abre con un enlace que vence en
-una hora.
+TARJETAS Y NO TABLA: en el celular una tabla de ocho columnas deja el
+botón fuera de la pantalla —ya pasó en el tablero de rotura—. Aquí el
+botón es lo que se viene a tocar, y se mide que quede entero a la vista
+a 1200, 768, 390 y 360 px.
 
-=====================================================================
-3 · EN EL TABLERO: «HOJAS DEL DÍA GENERADAS»
-=====================================================================
+ROL NUEVO «FACTURACIÓN», con su pantalla. Solo facturación confirma; el
+patio no. El administrador también entra.
 
-Cerrada, con la respuesta en el renglón:
+EL NÚMERO NO SE REPITE, y el repetido dice en qué viaje está: «El
+documento 7687019429 ya está en el viaje TP-12 (placa ABC123, 20/09)».
 
-    Hojas del día generadas   4 hojas de 3 días · 2 días sin hoja · 1 cambió después
+UN VIAJE DE AYER SE CONFIRMA aunque el día esté cerrado: facturación
+confirma cuando le llega el papel. El candado del día deja pasar SOLO el
+cambio de la salida; todo lo demás de un día cerrado sigue cerrado.
 
-Adentro, cada día sin hoja lleva directo a generarla —a Registrar con
-la ventana abierta—, y la lista con día y hora, quién la generó, a qué
-supervisor iba, las unidades que decía y «Abrir». Las versiones viejas
-de un día salen en gris debajo de la última.
-
-  · SIN HOJA cuenta solo desde hoy, que es cuando la hoja existe: los
-    260 días de antes serían una alarma que nadie puede cerrar, y una
-    alarma así se deja de mirar.
-  · CAMBIÓ DESPUÉS se mira solo sin filtro de línea: con una línea
-    escogida la base dice lo de esa línea y la hoja lo del día entero;
-    parecería que todas cambiaron.
-  · Van las 30 más recientes; un año entero serían cientos.
-
-Va después de «Turnos sin firmar» y antes del detalle: es el orden del
-día —se registra, se firma el turno, se genera la hoja—.
+LO QUE SALIÓ NO SE TOCA EN EL PATIO, ni siquiera el administrador,
+hasta que se reabre. Reabrir es del administrador, con motivo: el viaje
+vuelve a la bandeja, el patio lo corrige y facturación lo confirma otra
+vez. Confirmar y reabrir quedan en el rastro del viaje.
 
 =====================================================================
-4 · EL ADMINISTRADOR ANULA, CON MOTIVO; NADIE BORRA
+3 · EL CRUCE CON SAP VA CONTRA EL NÚMERO DE FACTURACIÓN
 =====================================================================
 
-«Que el administrador pueda corregir: lo máximo, anular.»
+Es el que SAP trae. En Control, los montones dicen «Facturados y en
+SAP», «Facturados con un número que SAP no tiene», «Por facturar» y «En
+SAP y sin facturar», y lo que falta se completa en Facturación. Las
+importaciones cuentan «sin facturar».
 
-ANULAR Y NO EDITAR. El PDF es el papel que se firmó: si se cambiaran el
-supervisor o las cifras del renglón, el PDF seguiría diciendo lo de
-antes y los dos dejarían de cuadrar.
-
-En la lista del tablero, quien administra tiene «Anular» en cada hoja.
-Se abre una fila debajo para escribir por qué —al menos 5 letras, una
-anulación sin motivo no se entiende después— y «Anular la hoja». La
-hoja queda a la vista, en gris, con la cifra tachada y «Anulada por
-Cristian: se generó antes de cerrar el turno C». Deja de contar: el día
-vuelve a salir «sin hoja», y en Registrar la tarjeta dice que se anuló
-y por qué, para generar otra.
-
-SE DESHACE: «Quitar anulación» la deja exactamente como estaba.
-
-ANULAR REEMPLAZA A BORRAR. Nada desaparece, ni el renglón ni el PDF,
-tampoco para el administrador: es lo que sirve si algún día auditan.
-
-VA POR FUNCIÓN Y NO POR UPDATE. La tabla sigue sin UPDATE para nadie; lo
-único que cambia de una hoja es si está anulada, y solo por las dos
-funciones, que revisan que quien llama administre. No se anula dos
-veces: la segunda pisaría quién y por qué.
-
-EL MOTIVO SE ESCRIBE EN LA MISMA LISTA y no en la ventanita del
-navegador: en el teléfono esa ventanita tapa la hoja que se anula.
-
-LA MIGRACIÓN ES LA MISMA. 2026-09-rotura-linea-hojas.sql ya trae la
-anulación; si ya corriste la primera versión —la que dejaba borrar al
-administrador—, se vuelve a correr y queda igual que una corrida por
-primera vez. El arnés lo prueba así: una base nueva y otra con la
-primera versión puesta, y las pruebas en las dos.
+LO QUE YA ESTABA: hasta hoy, lo que el patio escribía en «Documento» era
+el número de SAP. La migración lo pasa al número de facturación y marca
+esos viajes como salidos HISTÓRICOS —nadie de facturación los confirmó—,
+para que el cruce de esos días no se quede vacío. Por eso la migración
+va ANTES de publicar la app: un viaje registrado con la app nueva ya trae
+la orden de cargue, y copiarla como número de SAP sería inventar un dato.
 
 =====================================================================
-5 · LOS COLORES DEL INFORME SON LOS DEL TEMA; EL LOGO, EL DE SIEMPRE
+4 · LA HOJA DE ROTURA
 =====================================================================
 
-«Los colores del informe dependen de la preferencia: si tengo ámbar o
-gris, todo varía. Pero el logo sí debe permanecer normal.»
+«Que no aparezca en la esquina sino en el centro, bien centrado.» La
+ventana de generar la hoja se iba arriba a la izquierda: Tailwind le
+pone `margin: 0` a todo y el navegador centra un <dialog> con `margin:
+auto`. Ahora se centra a mano. La prueba no lo veía porque pintaba sin
+Tailwind; ahora pone lo mismo que Tailwind y mide el aire a cada lado.
 
-El PDF lee los colores de la pantalla de quien lo genera —las mismas
-variables que pintan la app, así un tema nuevo cambia también el papel—:
+«Abajo solo deja Bavaria.» El pie de cada hoja dice «Bavaria»; el
+centro de distribución ya lo dice la cabecera.
 
-  tinta          la banda del total, los títulos de columna y las rayas
-  acento         la raya de la banda y el cuadrito de cada línea
-  cinta          del acento hondo al acento, arriba, en las firmas y el pie
-
-Con el tema oficial sale la marca como estaba: el dorado del aro al
-rojo de la palabra. La cinta de la ventana también sigue el tema.
-
-EL ACENTO SOLO VA DE RELLENO, NUNCA DE LETRA: el amarillo #ffc000 de
-ámbar, gris, negro y halo, escrito sobre papel blanco, no se lee. Lo
-que va sobre la tinta va en blanco, y la tinta es oscura en los siete.
-
-LOS LOGOS NO CAMBIAN: los PNG tal cual en cualquier tema. El arnés
-compara las imágenes del PDF oficial y del de ámbar y exige que sean
-las mismas, byte por byte.
+«Ese degradado de arriba me gustaba: solo era variarlo de acuerdo al
+tema.» La cinta de un tema tiene ahora la misma forma que la de la
+marca —tres paradas, la del medio a un tercio—: del acento hondo al
+acento y del acento a la tinta. Con dos paradas, en ámbar salía casi
+lisa. La cinta de la ventana, igual.
 
 =====================================================================
-6 · MEDIDO
+4b · LOS INFORMES GENERADOS, EN SU PROPIA HOJA DEL TABLERO
 =====================================================================
 
-  .arnes/rl-hoja.mjs · mutar-rl-hoja.mjs            41 mutaciones, las 41 rojas
-      Nuevas: se guarda antes de mandar, Guardar abre la ventana, y los
-      colores del tema leídos EN EL PDF pieza por pieza. La banda se
-      reconoce por su tamaño y no por «algún relleno de ese color»: la
-      tinta pinta también los títulos, y una banda que se quedara en
-      azul pasaría escondida detrás de ellos.
-      La ventana, en los siete temas y a 360 px. Una mutación salió
-      verde: un <dialog> con tope de ancho no se sale de la pantalla,
-      se desborda POR DENTRO y deja el campo cortado. Ahora se mide que
-      cada campo y botón quepa en la ventana.
+«Quiero que esto sea una hoja dentro del tablero: que esa sea solo de
+los informes generados, y tener la visual de visualizar, descargar y
+demás.»
 
-  .arnes/rl-historial.mjs · mutar-rl-historial.mjs   30 mutaciones, las 30 rojas
-      El componente del tablero pintado de verdad con React. Una salió
-      verde: sumar el día con una sola línea no se notaba, porque el día
-      de dos líneas de la prueba ya salía «cambiado» por otra razón.
-      Ahora ese día cuadra justo con la suma de las dos.
-      Con la anulación salió un defecto que solo se ve en el celular:
-      el título oculto de la columna «Anular» se escapaba del scroll de
-      la tabla y arrastraba la página 189 px de lado a 360.
+El tablero de rotura tiene dos pestañas: TABLERO e INFORMES GENERADOS,
+con el número de informes del período. Cambiar de pestaña se lleva las
+fechas puestas. Es una hoja del tablero y no otra entrada del menú: mismo
+permiso —quien ve el tablero ve sus informes, sin otra casilla en Roles
+que alguien tendría que acordarse de marcar—.
 
-  .arnes/correr-rotura-linea-hojas.sh · mutar-...    22 mutaciones, las 22 rojas
-      Contra Postgres, como usuario —no como superusuario, que se salta
-      el RLS— y con los permisos con que Supabase crea las tablas: todo
-      para `authenticated`. Sin eso, el «revoke update» que impide pisar
-      una hoja no se estaría probando. La migración corre dos veces.
+EN EL TABLERO queda un renglón con la respuesta —«4 hojas de 3 días · 3
+días sin hoja»— que lleva a la hoja de informes.
+
+LA HOJA DE INFORMES (por defecto, los últimos 30 días):
+  · Cada informe es una TARJETA: día, hora, unidades, quién la generó y
+    el supervisor, y si quedó vieja, si es una versión anterior o si se
+    anuló y por qué.
+  · VER lo pone en la vista previa, al lado, sin salir de la pantalla;
+    al entrar ya se ve el más nuevo que vale.
+  · DESCARGAR lo guarda como rotura-linea-2026-09-21-0310.pdf, no con el
+    nombre interno del archivo.
+  · ABRIR EN PESTAÑA, y ANULAR / QUITAR ANULACIÓN para quien administra.
+  · Arriba, los días con rotura y sin hoja, cada uno lleva a generarla.
+
+EN EL CELULAR NO HAY PANEL: un PDF en un recuadro de 360 px no se lee y
+varios teléfonos ni lo pintan. Ahí «Ver» abre el PDF en su pestaña, y
+los botones bajan de renglón, todos a la vista. Antes, en la tabla,
+«Abrir» quedaba fuera de la pantalla y había que deslizar.
 
 =====================================================================
-FALTA CORRER EN SUPABASE
+5 · EN TRÁNSITO: VARIAS PLACAS PEGADAS DE UNA VEZ
 =====================================================================
 
-  supabase/migraciones/2026-09-rotura-linea-hojas.sql
-  (si ya la corriste, otra vez: trae la anulación y quita el borrar)
+«Que yo pueda copiar y pegar en un campo varias placas de una, que
+vengan de Excel, con el fin de filtrar y que me muestre cuáles vienen en
+camino y cuáles no.»
 
-Sin ella el PDF sale y se manda igual, pero no queda guardado: la
-ventana lo dice, y el tablero dice qué correr.
+Se pegan en el campo Placa, como vengan: una columna de Excel, una fila,
+o de un chat separadas por comas. Se lee lo que tiene forma de placa
+—«ABC 123», «abc-123» y «ABC123» son la misma—; el encabezado «PLACA» de
+la columna y las celdas vacías no cuentan. Una sola placa pegada se
+queda en el campo como si se hubiera escrito.
+
+  · EL CAMPO DICE «15 pegadas · Quitar la lista», en su mismo sitio.
+  · LAS TARJETAS se filtran a las de la lista.
+  · LA RESPUESTA arriba: «De 15 placas, 11 vienen en camino y 4 no», con
+    las 4 que no vienen —que no tienen tarjeta y por eso no se verían en
+    ninguna otra parte— y «Copiar las que no vienen», una por renglón,
+    para pegarlas de vuelta en Excel.
+
+Cuáles vienen se cuenta contra TODO lo que está en camino, no contra lo
+filtrado: que el filtro de origen esconda un camión no quiere decir que
+no venga.
+
+=====================================================================
+MEDIDO
+=====================================================================
+
+  .arnes/rl-historial.mjs · mutar-rl-historial.mjs    38 mutaciones, las 38 rojas
+      El renglón del tablero, las pestañas y la hoja de informes pintados
+      de verdad con React; en pantalla grande la vista previa AL LADO de
+      la lista —no debajo—, y en el celular sin panel y con los botones a
+      la vista. Una mutación ya no se puede provocar —«la columna oculta
+      se escapa del scroll»: sin tabla no hay scroll— y se quitó.
+  .arnes/sd-placas.mjs · mutar-sd-placas.mjs          13 mutaciones, las 13 rojas
+      El componente de verdad, empaquetado con React y pintado en
+      Chromium: se pega con un evento de pegar de verdad, se copia al
+      portapapeles de verdad (en https, como la app), siete temas y 360 px.
+
+  .arnes/correr-traspasos-facturacion.sh · mutar-...  16 mutaciones, las 16 rojas
+      Contra Postgres, como usuario, con viajes de antes —de hoy y de un
+      día cerrado, y un vacío— puestos ANTES de migrar.
+  .arnes/fc-bandeja.mjs · mutar-fc-bandeja.mjs        16 mutaciones, las 16 rojas
+      La bandeja pintada de verdad con React, siete temas, cuatro anchos.
+  .arnes/rl-hoja.mjs · mutar-rl-hoja.mjs              45 mutaciones, las 45 rojas
+  .arnes/tp-resumen.mjs · mutar-tp-resumen.mjs        16 mutaciones, las 16 rojas
+  .arnes/tp-importar.mjs · mutar-tp-importar.mjs      19 mutaciones, las 19 rojas
+      tp-importar tenía tres comprobaciones viejas en rojo desde que el
+      resumen del día pasó a montones: miraban un bloque que ya no
+      existe. Se pusieron al día con lo que hay.
+
+=====================================================================
+FALTA CORRER EN SUPABASE — ANTES DEL PUSH
+=====================================================================
+
+  supabase/migraciones/2026-09-traspasos-facturacion.sql
+
+Después, en Administración → Usuarios, a quien factura se le pone el
+rol «Facturación».
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

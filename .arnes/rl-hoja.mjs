@@ -229,6 +229,11 @@ ok(p.peso < 150_000, `el PDF pesa ${Math.round(p.peso / 1024)} KB: algo se está
   ok(n >= 2, `el día largo cupo en ${n} página: la prueba no midió nada sobre cómo se parte`);
   q.paginas.forEach((pg, i) =>
     ok(pg.includes(`Página ${i + 1} de ${n}`), `la página ${i + 1} no dice «Página ${i + 1} de ${n}»`));
+  /* «ABAJO SOLO DEJA BAVARIA»: el pie de cada hoja dice Bavaria y ya.
+     El centro de distribución lo dice la cabecera de la primera. */
+  q.paginas.forEach((pg, i) =>
+    ok(/\bBavaria\b/.test(pg) && !/Centro de distribución CD38/.test(pg),
+       `el pie de la página ${i + 1} no dice solo «Bavaria»`));
   const ult = q.paginas[n - 1];
   ok(/OBSERVACIONES/.test(ult) && /ELABORÓ/.test(ult) && /SUPERVISOR/.test(ult),
      "las observaciones y las dos firmas no quedaron juntas en la última página");
@@ -370,6 +375,12 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
       banda: pieza(182, 21), raya: pieza(3, 21), cuadrito: pieza(2.6, 2.6), titulos: pieza(182, 6.2),
       /* La primera franja de la cinta de arriba, pegada al borde. */
       cinta: piezas.find((q) => q.x === 0 && Math.abs(q.h - pt(4.5)) < 0.1)?.c ?? null,
+      /* LA ÚLTIMA franja de la cinta de arriba, pegada al borde derecho, y
+         si en el camino pasa por el acento: la misma forma de la cinta de
+         la marca, con los colores del tema. */
+      cintaFin: piezas.filter((q) => Math.abs(q.h - pt(4.5)) < 0.1).sort((a, b) => b.x - a.x)[0]?.c ?? null,
+      cintaPorAcento: piezas.filter((q) => Math.abs(q.h - pt(4.5)) < 0.1)
+        .some((q) => es(q.c, paleta ? paleta.acento : [236, 198, 68])),
       rojo: piezas.some((q) => es(q.c, [255, 0, 15])), imgs,
     };
   };
@@ -382,6 +393,8 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
   ok(es(ambar.raya, [255, 192, 0]), "con ámbar, la raya de la banda no es el acento del tema");
   ok(es(ambar.cuadrito, [255, 192, 0]), "con ámbar, el cuadrito de cada línea no es el acento del tema");
   ok(es(ambar.cinta, [221, 166, 0]), "con ámbar, la cinta no arranca del acento hondo del tema");
+  ok(es(ambar.cintaFin, [35, 38, 44]) && ambar.cintaPorAcento,
+     "con ámbar, la cinta no tiene la forma de la de la marca: del hondo al acento y del acento a la tinta");
   ok(!ambar.rojo, "con ámbar, la hoja todavía pinta el rojo de la marca en algún relleno");
   ok(ambar.imgs.length >= 2 && JSON.stringify(ambar.imgs) === JSON.stringify(marcaP.imgs),
      "el logo cambia con el tema: tiene que salir igual en todos");
@@ -440,11 +453,15 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
     const L1 = lum(a), L2 = lum(b);
     return +((Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05)).toFixed(2);
   };
+  /* LO QUE TAILWIND LE HACE A TODO ANTES DE NUESTRO CSS: `margin: 0` y
+     `padding: 0`. Sin ponerlo aquí, la ventana salía centrada en la prueba
+     y en la esquina en la app. */
+  const PREFLIGHT = "*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}";
   const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
   const pg = await nav.newPage();
   const monta = async (tema, ancho) => {
     await pg.setViewportSize({ width: ancho, height: 900 });
-    await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${shell}${css}
+    await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${PREFLIGHT}${glob}${shell}${css}
       html,body{margin:0}</style></head><body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}>
       <div class="sh-marco sin-riel"><main class="sh-main">${BLOQUE}</main></div></div></body></html>`);
     await pg.evaluate(() => document.querySelector("dialog").showModal());
@@ -477,8 +494,10 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
     /* LA CINTA DE LA VENTANA: la de la marca sin tema; la del tema con tema. */
     if (t) ok(cinta.includes(marca), `tema ${t}: la cinta de la ventana no es la del tema (${cinta.slice(0, 80)})`);
     else ok(/rgb\(255, 0, 15\)/.test(cinta), "sin tema, la cinta de la ventana no es la de la marca");
+    if (t) ok((cinta.match(/rgb\(|color\(/g) ?? []).length >= 3,
+              `tema ${t}: la cinta de la ventana no tiene tres paradas como la de la marca`);
   }
-  for (const ancho of [390, 360]) {
+  for (const ancho of [1920, 390, 360]) {
     await monta(null, ancho);
     const g = await pg.evaluate(() => {
       const v = document.querySelector(".rl-ventana").getBoundingClientRect();
@@ -488,6 +507,8 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
         /* Que la ventana quepa Y que lo de adentro quepa en la ventana:
            un <dialog> con tope de ancho no se sale, se desborda por dentro
            y el campo queda cortado. */
+        /* EN EL CENTRO: lo mismo de aire a cada lado, y arriba y abajo. */
+        centro: Math.abs(v.left - (innerWidth - v.right)) <= 2 && Math.abs(v.top - (innerHeight - v.bottom)) <= 2,
         ventana: v.left < 0 || v.right > innerWidth ||
           [...document.querySelectorAll(".rl-ventana input, .rl-ventana textarea, .rl-ventana button")]
             .some((e) => { const r = e.getBoundingClientRect(); return r.left < v.left - 0.5 || r.right > v.right + 0.5 }),
@@ -497,6 +518,7 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
     });
     ok(g.lado <= 0, `${ancho} px: la hoja arrastra la página ${g.lado} px de lado`);
     ok(!g.ventana, `${ancho} px: la ventana de la hoja se sale de la pantalla`);
+    ok(g.centro, `${ancho} px: la ventana de la hoja no sale en el centro de la pantalla`);
     ok(g.boton >= 44, `${ancho} px: el botón de generar mide ${g.boton} px (mínimo 44)`);
     ok(g.campo >= 44, `${ancho} px: los campos miden ${g.campo} px (mínimo 44)`);
   }

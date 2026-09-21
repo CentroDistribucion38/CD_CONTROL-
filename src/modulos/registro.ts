@@ -364,6 +364,27 @@ export const MODULOS: Modulo[] = [
       { nombre: "Maestro", ruta: "/traspasos/maestro" },
     ],
   },
+  /* FACTURACIÓN VA DESPUÉS DE TRASPASOS: es el paso siguiente del mismo
+     viaje. El patio registra con la orden de cargue; facturación pone el
+     número de documento y confirma que salió. Es un módulo aparte y no
+     una pantalla de Traspasos porque lo usa OTRA ÁREA, con su propio rol:
+     quien factura no tiene por qué ver el plan ni el registro del patio. */
+  {
+    id: "facturacion",
+    nombre: "Facturación",
+    eyebrow: "SALIDA DE LOS VIAJES",
+    descripcion:
+      "Los viajes que registró el patio esperan aquí su número de documento. Se pone el número, se confirma la salida, y ese es el que se cruza con SAP.",
+    acento: "#0B6B4F",
+    fondo: "#E4F2EC",
+    etiquetas: ["Por facturar", "Confirmar salida"],
+    imagen: "/modulos/facturacion.jpg",
+    ruta: "/facturacion",
+    activo: true,
+    secciones: [
+      { nombre: "Bandeja", ruta: "/facturacion" },
+    ],
+  },
   {
     id: "acciones",
     nombre: "Acciones",

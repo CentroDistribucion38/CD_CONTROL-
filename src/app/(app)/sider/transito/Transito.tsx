@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Viaje } from "@/modulos/sider/comun";
+import { leerPlacas, normPlaca } from "@/modulos/sider/placas";
 import type { MaestrosAi } from "@/modulos/sider/ai";
 import { FormularioAi } from "@/modulos/sider/FormularioAi";
 import {
@@ -153,6 +154,44 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
      tamaño es la pantalla. */
   const [verFiltros, setVerFiltros] = useState(false);
 
+  /* LA LISTA DE PLACAS PEGADA. Null = no hay lista y el campo filtra por
+     «parte de la placa» como siempre. Vive aparte del campo porque el
+     campo es de UNA placa escrita a mano, y la lista puede traer
+     cincuenta: metida en el campo no se podría leer. */
+  const [lista, setLista] = useState<string[] | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  const limpiar = () => { setF({ placa: "", origen: "", desde: "", hasta: "", solo: "" }); setLista(null) };
+
+  /* AL PEGAR VARIAS, SE VUELVEN LISTA. Una sola placa pegada se queda en
+     el campo como si se hubiera escrito: es lo que se espera. */
+  function alPegar(e: React.ClipboardEvent<HTMLInputElement>) {
+    const placas = leerPlacas(e.clipboardData.getData("text"));
+    if (placas.length < 2) return;
+    e.preventDefault();
+    setLista(placas);
+    setF({ ...f, placa: "" });
+    setCopiado(false);
+  }
+
+  /* DE LA LISTA, CUÁLES VIENEN Y CUÁLES NO — contra TODO lo que está en
+     camino, no contra lo ya filtrado: que el filtro de origen esconda un
+     camión no quiere decir que no venga. */
+  const cruce = useMemo(() => {
+    if (!lista) return null;
+    const enCamino = new Set(viajes.map((v) => normPlaca(v.placa)));
+    return {
+      vienen: lista.filter((p) => enCamino.has(p)),
+      noVienen: lista.filter((p) => !enCamino.has(p)),
+    };
+  }, [lista, viajes]);
+
+  async function copiarNoVienen() {
+    if (!cruce) return;
+    /* UNA POR RENGLÓN: así se pega de vuelta en Excel como columna. */
+    try { await navigator.clipboard.writeText(cruce.noVienen.join("\n")); setCopiado(true) }
+    catch { setCopiado(false) }
+  }
+
   /* Los orígenes que DE VERDAD tienen algo en camino. Ofrecer los 16 del
      maestro cuando solo cinco tienen vehículos hace buscar en una lista
      donde la mayoría de opciones no devuelve nada. */
@@ -163,7 +202,9 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
 
   const filtrados = useMemo(() => {
     const p = f.placa.trim().toUpperCase();
+    const enLista = lista ? new Set(lista) : null;
     return viajes.filter((v) => {
+      if (enLista && !enLista.has(normPlaca(v.placa))) return false;
       if (p && !v.placa.toUpperCase().includes(p)) return false;
       if (f.origen && v.cd_origen !== f.origen) return false;
       /* Los dos asuntos de la cinta. La misma cuenta que hace el
@@ -185,9 +226,9 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
       }
       return true;
     });
-  }, [viajes, f]);
+  }, [viajes, f, lista]);
 
-  const hayFiltro = !!f.placa.trim() || !!f.origen || !!f.desde || !!f.hasta || !!f.solo;
+  const hayFiltro = !!f.placa.trim() || !!f.origen || !!f.desde || !!f.hasta || !!f.solo || !!lista;
 
   /* AGRUPADAS POR CD ORIGEN, que era el problema: veinte tarjetas
      sueltas en una rejilla no dejan ver que doce vienen de Galapa.
@@ -293,11 +334,24 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
 
       {viajes.length > 1 && (
         <div className={"tr-filtros" + (verFiltros ? "" : " plegado")}>
-          <label className="tr-placa">
-            <span>Placa</span>
-            <input value={f.placa} placeholder="Parte de la placa"
-                   onChange={(e) => setF({ ...f, placa: e.target.value })} />
-          </label>
+          {lista ? (
+            <div className="tr-placa tr-lista-on">
+              <span>Placas</span>
+              <p>
+                <b>{lista.length} pegadas</b>
+                <button type="button" className="tr-enlace" onClick={() => setLista(null)}>
+                  Quitar la lista
+                </button>
+              </p>
+            </div>
+          ) : (
+            <label className="tr-placa">
+              <span>Placa</span>
+              <input value={f.placa} placeholder="Una placa, o pega varias de Excel"
+                     onPaste={alPegar}
+                     onChange={(e) => setF({ ...f, placa: e.target.value })} />
+            </label>
+          )}
           <label>
             <span>CD origen</span>
             <select value={f.origen} onChange={(e) => setF({ ...f, origen: e.target.value })}>
@@ -320,13 +374,35 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
                    onChange={(e) => setF({ ...f, hasta: e.target.value })} />
           </label>
           <button type="button" className="btn plano" disabled={!hayFiltro}
-                  onClick={() => setF({ placa: "", origen: "", desde: "", hasta: "", solo: "" })}>
+                  onClick={limpiar}>
             Limpiar
           </button>
           {hayFiltro && (
             <span className="tr-cuenta">{filtrados.length} de {viajes.length}</span>
           )}
         </div>
+      )}
+
+      {/* LA RESPUESTA A LA LISTA, ANTES DE LAS TARJETAS: cuántas vienen y,
+          sobre todo, CUÁLES NO — que no tienen tarjeta y por eso no se
+          verían en ninguna otra parte. Las que no vienen se pueden
+          copiar de vuelta, una por renglón, para pegarlas en Excel. */}
+      {cruce && lista && (
+        <section className="tr-lista" aria-live="polite">
+          <p className="tr-lista-frase">
+            De <b>{lista.length}</b> placas, <b className="si">{cruce.vienen.length} vienen en camino</b>
+            {" "}y <b className={cruce.noVienen.length ? "no" : ""}>{cruce.noVienen.length} no</b>.
+          </p>
+          {cruce.noVienen.length > 0 && (
+            <div className="tr-lista-no">
+              <span className="tr-lista-rot">NO VIENEN EN CAMINO</span>
+              <ul>{cruce.noVienen.map((p) => <li key={p}>{p}</li>)}</ul>
+              <button type="button" className="btn plano" onClick={copiarNoVienen}>
+                {copiado ? "Copiadas" : "Copiar las que no vienen"}
+              </button>
+            </div>
+          )}
+        </section>
       )}
 
       {/* UNA sola caja que rueda, con los grupos adentro. Si rodara cada
@@ -475,7 +551,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
           {viajes.length ? (
             <>Ningún vehículo coincide con el filtro.{" "}
               <button type="button" className="tr-enlace"
-                      onClick={() => setF({ placa: "", origen: "", desde: "", hasta: "", solo: "" })}>
+                      onClick={limpiar}>
                 Quitar el filtro
               </button></>
           ) : (

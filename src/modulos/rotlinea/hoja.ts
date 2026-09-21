@@ -246,10 +246,13 @@ export function aRGB(c: string): RGB | null {
   return null;
 }
 
-/** Los demás temas: la cinta va del acento hondo al acento, como la
- *  cabecera de las pantallas de ese tema. */
+/* LA MISMA FORMA DE LA CINTA DE LA MARCA —tres paradas, la del medio a
+   un tercio— con los colores del tema: del acento hondo al acento y del
+   acento a la tinta. «Ese degradado de arriba me gustaba: solo era
+   variarlo de acuerdo al tema.» Con dos paradas del hondo al acento, en
+   ámbar la cinta salía casi lisa: #dda600 y #ffc000 se confunden. */
 export const paletaDeTema = (tinta: RGB, acento: RGB, acentoHondo: RGB): Paleta =>
-  ({ tinta, acento, cinta: [[0, acentoHondo], [1, acento]] });
+  ({ tinta, acento, cinta: [[0, acentoHondo], [0.35, acento], [1, tinta]] });
 
 export function dibujarHoja(
   JsPDFCtor: typeof JsPDF,
@@ -586,7 +589,9 @@ export function dibujarHoja(
     cinta(M, PIE - 4.2, ANCHO, 0.6);
     fuente("normal", 7.5); gris();
     doc.text(`Rotura en línea · ${hoja.fecha}`, M, PIE);
-    doc.text("Bavaria · Centro de distribución CD38", W / 2, PIE, { align: "center" });
+    /* «Abajo solo deja Bavaria.» El centro de distribución ya lo dice la
+       cabecera de la primera hoja. */
+    doc.text("Bavaria", W / 2, PIE, { align: "center" });
     doc.text(`Página ${i} de ${n}`, W - M, PIE, { align: "right" });
   }
   return doc;

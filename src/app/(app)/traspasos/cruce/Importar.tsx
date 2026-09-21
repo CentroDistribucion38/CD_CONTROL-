@@ -666,7 +666,7 @@ export function Importar({ puedeImportar, importaciones }: {
                     {nf.format(i.documentos)} docs
                     {" · "}
                     <em className={i.sin_registrar > 0 ? "mal" : "bien"}>
-                      {i.sin_registrar} sin registrar
+                      {i.sin_registrar} sin facturar
                     </em>
                   </span>
                 </div>

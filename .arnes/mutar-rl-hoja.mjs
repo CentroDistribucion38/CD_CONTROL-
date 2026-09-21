@@ -252,8 +252,25 @@ probar("en el celular los campos no bajan a una columna y la ventana se sale",
          "  .rl-hoja-campos { grid-template-columns: repeat(2, 260px) }"]],
   "se sale de la pantalla");
 
+probar("el pie vuelve a decir el centro de distribución",
+  [[TS, '    doc.text("Bavaria", W / 2, PIE, { align: "center" });',
+        '    doc.text("Bavaria · Centro de distribución CD38", W / 2, PIE, { align: "center" });']],
+  "no dice solo «Bavaria»");
+
+probar("la cinta del tema vuelve a dos paradas y sale casi lisa",
+  [[TS, "cinta: [[0, acentoHondo], [0.35, acento], [1, tinta]] });", "cinta: [[0, acentoHondo], [1, acento]] });"]],
+  "la cinta no tiene la forma de la de la marca");
+
+probar("la cinta de la ventana vuelve a dos paradas",
+  [[CSS, "var(--c-marca-hondo) 0%, var(--c-marca) 35%, var(--c-04203f) 100%)", "var(--c-marca-hondo) 0%, var(--c-marca) 100%)"]],
+  "no tiene tres paradas");
+
+probar("la ventana se va a la esquina con el margin: 0 de Tailwind",
+  [[CSS, "  position: fixed; inset: 0; margin: auto; height: fit-content;\n", ""]],
+  "no sale en el centro de la pantalla");
+
 probar("la cinta de la ventana no cambia con el tema",
-  [[CSS, "    linear-gradient(90deg, var(--c-marca-hondo) 0%, var(--c-marca) 100%) top / 100% 5px no-repeat,",
+  [[CSS, "    linear-gradient(90deg, var(--c-marca-hondo) 0%, var(--c-marca) 35%, var(--c-04203f) 100%) top / 100% 5px no-repeat,",
          "    linear-gradient(90deg, #B58735 0%, #ECC644 35%, #FF000F 100%) top / 100% 5px no-repeat,"]],
   "la cinta de la ventana no es la del tema");
 

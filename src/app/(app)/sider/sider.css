@@ -873,6 +873,42 @@
 .sd .tr-placa { flex: 1 1 180px; max-width: 260px }
 .sd .tr-filtros .btn.plano { height: 42px }
 .sd .tr-cuenta { font-size: 12.5px; color: var(--sd-gris); white-space: nowrap; padding-bottom: 12px }
+
+/* ---------- La lista de placas pegada ----------
+   EN EL SITIO DEL CAMPO, con su tamaño: la fila de filtros no salta. */
+.sd .tr-lista-on { display: flex; flex-direction: column; gap: 5px }
+.sd .tr-lista-on > span {
+  font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--c-5b6b7f);
+}
+.sd .tr-lista-on p {
+  margin: 0; height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 0 12px; background: var(--sd-papel); border: 1.5px solid var(--sd-acento); border-radius: 3px;
+  font-size: 14px; color: var(--sd-tinta);
+}
+.sd .tr-lista-on .tr-enlace { font-size: 12.5px; min-height: 40px }
+
+/* LA RESPUESTA. Las que no vienen en chips de contorno —se leen como
+   una lista, no como botones— y el botón de copiarlas al final. */
+.sd .tr-lista {
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 16px;
+  background: var(--sd-papel); border: 1px solid var(--sd-linea); border-left: 4px solid var(--sd-acento);
+  border-radius: 3px;
+}
+.sd .tr-lista-frase { margin: 0; font-size: 15px; color: var(--sd-tinta) }
+.sd .tr-lista-frase b { font-family: var(--sd-titulo); font-weight: 800 }
+.sd .tr-lista-frase b.si { color: #0B5D2E }
+.sd .tr-lista-frase b.no { color: #A30D25 }
+.sd .tr-lista-no { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px }
+.sd .tr-lista-rot {
+  flex: 1 0 100%; font-size: 10.5px; font-weight: 700; letter-spacing: .14em; color: var(--c-5b6b7f);
+}
+.sd .tr-lista-no ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; min-width: 0 }
+.sd .tr-lista-no li {
+  font-family: var(--sd-titulo); font-weight: 800; font-size: 13px; letter-spacing: .03em;
+  padding: 4px 9px; border: 1px solid #C8102E; border-radius: 3px; color: #A30D25; background: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.sd .tr-lista-no .btn.plano { height: 40px }
 /* El botón de plegar solo existe en pantalla chica: en escritorio los
    filtros están siempre a la vista y un botón para abrirlos sería un
    clic de más para algo que ya se ve. */

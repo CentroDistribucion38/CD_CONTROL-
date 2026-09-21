@@ -1,103 +1,47 @@
 import Link from "next/link";
 import type { HojaGuardada } from "@/modulos/rotlinea/datos";
 import { resumirHojas } from "@/modulos/rotlinea/historial";
-import { FilaHoja } from "./FilaHoja";
-
-const fmt = (n: number) => Math.round(n).toLocaleString("es-CO");
-const dia = (f: string) =>
-  new Date(Date.parse(f + "T12:00:00")).toLocaleDateString("es-CO", { day: "numeric", month: "short" });
-
-/* Cuántas filas se pintan: un año entero serían cientos, y aquí se busca
-   la de esta semana. Las demás se abren desde el día, en Registrar. */
-const MAX_FILAS = 30;
-const MAX_PENDIENTES = 8;
 
 /**
- * HOJAS DEL DÍA GENERADAS — cerrado, con la respuesta en el renglón.
+ * EN EL TABLERO, LOS INFORMES VAN EN UN RENGLÓN QUE LLEVA A SU HOJA.
  *
- * Lo que se busca al entrar es «¿falta alguna?»; eso va en el resumen.
- * La lista de PDF está dentro, para quien vaya a abrir uno.
+ * La lista, la vista previa y la descarga viven en la hoja «Informes
+ * generados». Aquí queda solo la respuesta —cuántos hay y si falta
+ * alguno— y el camino. Los días sin hoja se dicen también aquí porque
+ * son trabajo pendiente, y lo pendiente no se esconde detrás de un clic.
  */
-export function HojasGeneradas({ hojas, dias, conLinea, falta, puedeAnular = false }: {
+export function ResumenHojas({ hojas, dias, conLinea, falta, desde, hasta }: {
   hojas: HojaGuardada[];
   dias: { fecha: string; und: number }[];
   conLinea: boolean;
   falta: boolean;
-  /** Quien administra anula hojas, con motivo. Nadie las borra. */
-  puedeAnular?: boolean;
+  desde: string;
+  hasta: string;
 }) {
+  const q = new URLSearchParams({ desde, hasta }).toString();
   if (falta) {
     return (
       <section className="rl-tarj rl-hojas">
         <p className="rl-hojas-falta">
-          Las hojas generadas se listan aquí cuando se corra{" "}
+          Los informes generados se listan cuando se corra{" "}
           <code>supabase/migraciones/2026-09-rotura-linea-hojas.sql</code>.
         </p>
       </section>
     );
   }
-
   const r = resumirHojas(hojas, dias, { conLinea });
   const pend = r.sinHoja.length;
-  const cambiaron = r.cambio.size;
-  const ojo = pend > 0 || cambiaron > 0;
-
+  const ojo = pend > 0 || r.cambio.size > 0;
   return (
-    <details className={`rl-tarj rl-hojas${ojo ? " ojo" : ""}`}>
-      <summary>
-        <span className="rl-hojas-tit">Hojas del día generadas</span>
-        <span className="rl-hojas-dice">
-          <b>{r.total}</b> {r.total === 1 ? "hoja" : "hojas"} de {r.dias} {r.dias === 1 ? "día" : "días"}
-          {pend > 0 && <> · <em>{pend} {pend === 1 ? "día" : "días"} sin hoja</em></>}
-          {cambiaron > 0 && <> · <em>{cambiaron} {cambiaron === 1 ? "cambió" : "cambiaron"} después</em></>}
-          {!ojo && r.total > 0 && <> · ninguna pendiente</>}
-          {r.anuladas > 0 && <> · {r.anuladas} {r.anuladas === 1 ? "anulada" : "anuladas"}</>}
-        </span>
-      </summary>
-
-      {pend > 0 && (
-        <div className="rl-lista-firma">
-          {r.sinHoja.slice(0, MAX_PENDIENTES).map((d) => (
-            <Link key={d.fecha} className="rl-chip-firma" href={`/quiebra/rotura?d=${d.fecha}&hoja=1`}>
-              <b>{dia(d.fecha)}</b>
-              <span>Generar la hoja</span>
-              <i>{fmt(d.und)} und</i>
-            </Link>
-          ))}
-          {pend > MAX_PENDIENTES && <span className="rl-mas-firma">y {pend - MAX_PENDIENTES} más</span>}
-        </div>
-      )}
-
-      {r.total + r.anuladas === 0 ? (
-        <p className="rl-hojas-vacio">Todavía no se ha generado ninguna hoja en este período.</p>
-      ) : (
-        <div className="rl-tabla-env">
-          <table className="rl-tabla rl-hojas-tabla">
-            <thead>
-              <tr>
-                <th>Día</th>
-                <th>Generó</th>
-                <th>Supervisor</th>
-                <th className="cen">Unidades</th>
-                <th className="cen">PDF</th>
-                {puedeAnular && <th className="cen"><span className="rl-oculto">Anular</span></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {r.ordenadas.slice(0, MAX_FILAS).map((h) => (
-                <FilaHoja key={h.id} h={h} vieja={!r.esUltima(h)} cambio={r.cambio.has(h.id)}
-                          puedeAnular={puedeAnular} />
-              ))}
-            </tbody>
-          </table>
-          {r.ordenadas.length > MAX_FILAS && (
-            <p className="rl-hojas-vacio">
-              Se ven las {MAX_FILAS} más recientes de {r.ordenadas.length}. Las demás se abren desde su día en
-              Registrar.
-            </p>
-          )}
-        </div>
-      )}
-    </details>
+    <Link href={`/quiebra/rotura/tablero/informes?${q}`} className={`rl-tarj rl-hojas rl-hojas-ir${ojo ? " ojo" : ""}`}>
+      <span className="rl-hojas-tit">Informes generados</span>
+      <span className="rl-hojas-dice">
+        <b>{r.total}</b> {r.total === 1 ? "hoja" : "hojas"} de {r.dias} {r.dias === 1 ? "día" : "días"}
+        {pend > 0 && <> · <em>{pend} {pend === 1 ? "día" : "días"} sin hoja</em></>}
+        {r.cambio.size > 0 && <> · <em>{r.cambio.size} {r.cambio.size === 1 ? "cambió" : "cambiaron"} después</em></>}
+        {!ojo && r.total > 0 && <> · ninguna pendiente</>}
+      </span>
+      <span className="rl-hojas-flecha">Ver, descargar y anular →</span>
+    </Link>
   );
 }

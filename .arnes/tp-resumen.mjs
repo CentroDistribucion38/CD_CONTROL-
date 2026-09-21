@@ -328,7 +328,10 @@ if (!/setAbierto\(\(x\) => \(x === cual \? null : cual\)\)/.test(limpio))
 /* LAS DOS MITADES, no «que aparezca». Con una sola bastando, mutar la
    otra salía verde: la afirmación la sostenía la mitad que no se había
    tocado. */
-if ((limpio.match(/enSap\.has\(v\.documento \?\? ""\)/g) ?? []).length !== 2)
+/* Y CON EL NÚMERO DE FACTURACIÓN, no con la orden de cargue: es el que
+   SAP trae. Con la orden, nada cuadraría nunca. */
+if ((limpio.match(/enSap\.has\(clave\(v\)\)/g) ?? []).length !== 2 ||
+    !/const clave = \(v: Viaje\) => \(v\.factura_documento \?\? ""\)/.test(limpio))
   fallas.push("«con documento» no se parte mirando el corte: los dos montones saldrían de " +
               "dos cuentas distintas de lo mismo");
 

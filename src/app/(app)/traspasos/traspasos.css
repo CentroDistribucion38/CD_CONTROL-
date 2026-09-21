@@ -1167,6 +1167,20 @@
   padding: 2px 6px;
 }
 
+/* ---------- Lo que dijo facturación ----------
+
+   SALIÓ en verde de contorno —está bien, no hay nada que hacer— con el
+   número de documento, que es lo que se busca. POR FACTURAR en el mismo
+   ámbar de rayitas de «falta completar»: no está mal, está esperando.
+   En duro porque --tp-papel es #FFF en los siete temas. */
+.tp .eti.salio {
+  background: transparent; color: #0B5D2E; border: 1px solid #2E8B57;
+  padding: 2px 6px; font-variant-numeric: tabular-nums;
+}
+.tp .eti.por-facturar {
+  background: transparent; color: #5E4100; border: 1px dashed #C08A16; padding: 2px 6px;
+}
+
 /* ---------- Posibles duplicados ---------- */
 .tp .duplicados {
   background: var(--tp-papel); border: 1px solid var(--tp-linea);
