@@ -2,18 +2,18 @@
    ROTURA DE LÍNEA EN EL CELULAR — la pantalla de verdad, en Chromium.
 
    «Algo así para el celular»: el día arriba, lo roto en una franja, los
-   pasos numerados 1 línea · 2 turno · 3 envase · 4 máquina · 5 kilos,
-   el resultado «38,5 ÷ 0,21 · salen solas → 184 u» y la barra oscura
-   pegada abajo. Se montan Rejilla.tsx, Dias.tsx y MasDelDia.tsx de
+   pasos numerados 1 línea · 2 turno · 3 envase · 4 kilos por máquina
+   —TODAS las máquinas a la vista: un registro relaciona varias causales—
+   y la barra oscura pegada abajo con lo que se va a guardar. Se montan Rejilla.tsx, Dias.tsx y MasDelDia.tsx de
    verdad con una base de mentiras que anota cada rpc.
 
    SE COMPRUEBA:
-   1. en 390 y 360: la rejilla de quince casillas NO está y sí la
-      máquina + kilos; los pasos salen numerados y en orden; nada se sale
-      ni arrastra la página de lado; lo que se toca mide ≥ 44;
+   1. en 390 y 360: las quince máquinas se ven, sin rodar de lado; los
+      pasos salen numerados y en orden; nada se sale; lo que se toca
+      mide ≥ 44;
    2. la barra de anotar está pegada abajo y en pantalla sin rodar;
    3. «38,5» con coma cuenta (el teclado en español pone coma);
-   4. dos máquinas en la misma pesada viajan juntas en UN rpc;
+   4. varias máquinas en la misma pesada viajan juntas en UN rpc;
    5. «Más del día» va plegado en el celular y se abre al tocarlo;
    6. en el PC sigue la rejilla completa y no aparece nada del celular;
    7. contraste ≥ 4.5 de lo nuevo en los siete temas.
@@ -113,10 +113,10 @@ const mide = () => pg.evaluate((ALTO) => {
            boton: bot ? Math.round(bot.bottom) : null, pasos };
 }, ALTO);
 
+const fila = (item) => `.rl-tabla input[aria-label="Kilos en ${item}"]`;
 for (const ancho of [390, 360]) {
   await monta(ancho);
   ok(!(await visible(".rl-cabeza")), `${ancho}: en el celular sigue la cabeza (título y panel rojo), que no aporta al anotar`);
-  ok(!(await visible(".rl-cel")), `${ancho}: la parte del celular sale antes de escoger el envase`);
   ok(await visible(".rl-rejilla .rl-vacio"), `${ancho}: antes del envase no dice que falta el envase`);
   let m = await mide();
   ok(m.pegada === "sticky", `${ancho}: la barra de anotar no va pegada abajo (${m.pegada})`);
@@ -124,31 +124,33 @@ for (const ancho of [390, 360]) {
   ok(await pg.$eval(".rl-pie-reg .rl-btn.si", (b) => b.disabled), `${ancho}: se puede anotar sin envase`);
 
   await escoge();
-  ok(await visible(".rl-cel"), `${ancho}: con el envase escogido no salen máquina y kilos`);
-  ok(!(await visible(".rl-tabla-env")), `${ancho}: en el celular sigue saliendo la rejilla de quince casillas`);
+  /* 1 · TODAS LAS MÁQUINAS A LA VISTA: una pesada relaciona varias. */
+  ok(await visible(".rl-tabla-env"), `${ancho}: en el celular no salen todas las máquinas`);
+  const n = await pg.$$eval(".rl-tabla tbody input", (l) => l.filter((i) => i.getBoundingClientRect().height > 0).length);
+  ok(n === 15, `${ancho}: se ven ${n} casillas de kilos y son 15, una por máquina`);
   m = await mide();
-  ok(m.pasos.join("|") === "1 Línea|2 Turno|3 Envase|4 Máquina|5 Kilos de la canastilla",
+  ok(m.pasos.join("|") === "1 Línea|2 Turno|3 Envase|4 Kilos por máquina",
      `${ancho}: los pasos no salen numerados y en orden: ${m.pasos.join(" | ")}`);
   ok(m.lado <= 0, `${ancho}: la página se arrastra ${m.lado} px de lado`);
   ok(!m.salen.length, `${ancho}: se sale: ${m.salen.join(", ")}`);
   const chicos = m.toques.filter(([h]) => h < 44);
   ok(!chicos.length, `${ancho}: se toca y mide menos de 44: ${chicos.map((x) => x.join(" px ")).join(" · ")}`);
   ok(m.boton <= ALTO, `${ancho}: con el envase escogido el botón se va de la pantalla (acaba a ${m.boton})`);
+  const tabla = await pg.$eval(".rl-tabla-env", (e) => e.scrollWidth - e.clientWidth);
+  ok(tabla <= 0, `${ancho}: la rejilla se rueda de lado ${tabla} px`);
 
   /* 3 · LA COMA */
-  await pg.selectOption(".rl-cel-maq", "6");
-  await pg.fill(".rl-kilos input", "38,5");
-  const salen = await pg.$eval(".rl-salen .v", (e) => e.textContent);
-  ok(salen === "184 u", `${ancho}: 38,5 kg ÷ 0,21 da «${salen}» y debe dar 184 u (hacia arriba)`);
+  await pg.fill(fila("SALIDA DE LAVADORA"), "38,5");
+  const u = await pg.$eval(`.rl-tabla tbody tr:nth-child(4) .rl-und`, (e) => e.textContent);
+  ok(u === "184", `${ancho}: 38,5 kg ÷ 0,21 da «${u}» y debe dar 184 (hacia arriba)`);
   ok(!(await pg.$eval(".rl-pie-reg .rl-btn.si", (b) => b.disabled)), `${ancho}: con kilos no se puede anotar`);
 
-  /* 4 · DOS MÁQUINAS, UNA PESADA */
-  await pg.selectOption(".rl-cel-maq", "13");
-  await pg.fill(".rl-kilos input", "20");
-  const lleva = await pg.$$eval(".rl-cel-lleva button", (b) => b.map((x) => x.querySelector("b").textContent));
-  ok(lleva.join("|") === "SALIDA DE LAVADORA|PASTEURIZADORA", `${ancho}: «En esta pesada» dice ${lleva.join(", ")}`);
-  await pg.click(".rl-cel-lleva button:first-of-type");
-  ok(await pg.$eval(".rl-kilos input", (i) => i.value) === "38,5", `${ancho}: tocar una máquina de la pesada no la vuelve a poner arriba`);
+  /* 4 · VARIAS MÁQUINAS, UNA PESADA — y la barra lo dice */
+  await pg.fill(fila("PASTEURIZADORA"), "20");
+  await pg.fill(fila("DESEMPACADORA"), "abc5");
+  ok(await pg.$eval(fila("DESEMPACADORA"), (i) => i.value) === "5", `${ancho}: la casilla acepta letras`);
+  const barra = await pg.$eval(".rl-pie-cuenta", (e) => e.textContent);
+  ok(/304 u/.test(barra) && /63,5 kg/.test(barra) && /3 máq/.test(barra), `${ancho}: la barra no dice lo que se va a guardar: «${barra}»`);
   m = await mide();
   ok(!m.salen.length && m.lado <= 0, `${ancho}: con la pesada llena algo se sale: ${m.salen.join(", ")}`);
   await pg.click(".rl-pie-reg .rl-btn.si");
@@ -156,7 +158,7 @@ for (const ancho of [390, 360]) {
   const rpcs = await pg.evaluate(() => window.rpcs);
   const g = rpcs.filter((r) => r.f === "rotlinea_guardar");
   ok(g.length === 1, `${ancho}: anotar hizo ${g.length} rpc y es uno por pesada`);
-  ok(g[0] && JSON.stringify(g[0].a.p_kilos) === JSON.stringify([{ maquina: 6, kg: 38.5 }, { maquina: 13, kg: 20 }]),
+  ok(g[0] && JSON.stringify(g[0].a.p_kilos) === JSON.stringify([{ maquina: 9, kg: 5 }, { maquina: 6, kg: 38.5 }, { maquina: 13, kg: 20 }]),
      `${ancho}: los kilos no viajan bien: ${JSON.stringify(g[0]?.a.p_kilos)}`);
 
   /* 5 · MÁS DEL DÍA */
@@ -165,7 +167,9 @@ for (const ancho of [390, 360]) {
   ok(await visible(".rl-lado .rl-caja"), `${ancho}: tocar «Más del día» no lo abre`);
   if (process.env.FOTO) {
     await monta(ancho); await escoge();
-    await pg.selectOption(".rl-cel-maq", "6"); await pg.fill(".rl-kilos input", "38,5");
+    await pg.fill(fila("SALIDA DE LAVADORA"), "38,5"); await pg.fill(fila("PASTEURIZADORA"), "20");
+    await pg.evaluate(() => document.activeElement?.blur());
+    await pg.setViewportSize({ width: ancho, height: 1400 });
     await pg.screenshot({ path: `${process.env.FOTO}/rl-cel-${ancho}.png` });
   }
 }
@@ -175,13 +179,38 @@ await monta(1200);
 await escoge();
 ok(await visible(".rl-tabla-env"), "PC: no está la rejilla completa");
 ok(await visible(".rl-cabeza"), "PC: se perdió la cabeza con lo roto del día");
-ok(!(await visible(".rl-cel")), "PC: sale la parte del celular");
+ok(!(await visible(".rl-paso-maq")), "PC: sale el rótulo de paso del celular");
 ok(!(await visible(".rl-n")), "PC: salen los números de paso");
 ok(!(await visible(".rl-mas-dia-btn")), "PC: sale el botón de «Más del día»");
 ok(await visible(".rl-lado .rl-caja"), "PC: la columna de la derecha no se ve");
 ok(await visible(".rl-nota"), "PC: se perdió la nota del peso");
 await pg.fill(".rl-tabla input >> nth=0", "12.5");
 ok((await pg.$eval(".rl-tabla tfoot td:last-child", (t) => t.textContent)) === "60", "PC: la rejilla no suma 12.5 kg ÷ 0.21 = 60 u");
+
+/* 8 · EL TECLADO, SOLO SI SE PIDE. En el PC abrir la lista pone el
+   cursor en el buscador; en un celular (dedo) NO: el teclado taparía la
+   lista. Se abre solo si se toca el buscador. */
+await pg.click(".rl-disparo");
+ok(await pg.evaluate(() => document.activeElement?.closest(".rl-filtro") != null),
+   "PC: al abrir los envases el cursor no queda en el buscador");
+{
+  const ctx = await nav.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: ALTO } });
+  const cel = await ctx.newPage();
+  await cel.setContent(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${glob}${shell}${css}</style></head>
+    <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="rl" id="r"></div></main></div></div><script>${js}</script></body></html>`);
+  await cel.waitForSelector(".rl-disparo");
+  ok(await cel.evaluate(() => matchMedia("(pointer: coarse)").matches), "no se pudo imitar un celular de dedo");
+  await cel.tap(".rl-disparo");
+  await cel.waitForSelector(".rl-rollo");
+  const foco = await cel.evaluate(() => document.activeElement?.tagName + "." + (document.activeElement?.closest(".rl-filtro") ? "buscador" : ""));
+  ok(!foco.includes("buscador"), `celular: al abrir los envases el cursor cae en el buscador y levanta el teclado (${foco})`);
+  const hay = await cel.$$eval(".rl-rollo button", (b) => b.length);
+  ok(hay === 2, `celular: con la lista abierta se ven ${hay} envases`);
+  await cel.tap(".rl-filtro input");
+  ok(await cel.evaluate(() => document.activeElement?.closest(".rl-filtro") != null),
+     "celular: tocar el buscador no pone el cursor (no se podría escribir)");
+  await ctx.close();
+}
 
 /* 7 · CONTRASTE */
 /* color-mix() sale como «color(srgb 0.81 0.83 0.85)», en 0–1 y no en 0–255:
@@ -192,28 +221,28 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
   await monta(390, t);
   const vacio = await pg.evaluate(() => { const b = document.querySelector(".rl-pie-reg .rl-btn.si"), s = getComputedStyle(b); return [s.color, s.backgroundColor] });
   await escoge();
-  await pg.fill(".rl-kilos input", "38,5");
+  await pg.fill(fila("SALIDA DE LAVADORA"), "38,5");
   const c = await pg.evaluate(() => {
     const g = (s, p) => getComputedStyle(document.querySelector(s))[p];
     const fondo = (s) => { for (let e = document.querySelector(s); e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c } return "rgb(255,255,255)" };
     return {
       numero: [g(".rl-n", "color"), g(".rl-n", "backgroundColor")],
-      salen: [g(".rl-salen .v", "color"), fondo(".rl-salen")],
-      salenK: [g(".rl-salen .k", "color"), fondo(".rl-salen")],
+      total: [g(".rl-tabla tfoot td:last-child", "color"), fondo(".rl-tabla tfoot td")],
       cuenta: [g(".rl-pie-cuenta", "color"), fondo(".rl-pie-reg")],
       boton: [g(".rl-pie-reg .rl-btn.si", "color"), g(".rl-pie-reg .rl-btn.si", "backgroundColor")],
-      kilos: [g(".rl-kilos input", "color"), fondo(".rl-kilos")],
-      kg: [g(".rl-kilos span", "color"), fondo(".rl-kilos")],
+      kilos: [g(".rl-tabla input", "color"), g(".rl-tabla input", "backgroundColor")],
+      maquina: [g(".rl-maq", "color"), fondo(".rl-tabla tbody tr.con")],
       panel: [g(".rl-panel .rl-pie", "color"), g(".rl-panel", "backgroundColor")],
     };
   });
   c.botonApagado = vacio;
-  const fila = Object.fromEntries(Object.entries(c).map(([k, [a, b]]) => [k, razon(a, b)]));
-  console.log((t ?? "oficial").padEnd(8), Object.entries(fila).map(([k, v]) => `${k} ${v}`).join(" · "));
-  for (const [k, v] of Object.entries(fila)) ok(v >= 4.5, `tema ${t ?? "oficial"}: «${k}» contrasta ${v}`);
+  const razones = Object.fromEntries(Object.entries(c).map(([k, [a, b]]) => [k, razon(a, b)]));
+  console.log((t ?? "oficial").padEnd(8), Object.entries(razones).map(([k, v]) => `${k} ${v}`).join(" · "));
+  for (const [k, v] of Object.entries(razones)) ok(v >= 4.5, `tema ${t ?? "oficial"}: «${k}» contrasta ${v}`);
 }
 
 await nav.close();
 if (fallas.length) { for (const f of fallas) console.log("✗ " + f); process.exit(1) }
-console.log("✓ Rotura de línea en el celular: pasos 1–5 numerados, una máquina a la vez con la coma que cuenta, " +
-            "dos máquinas en una sola pesada, la barra pegada abajo, «Más del día» plegado y el PC igual que antes.");
+console.log("✓ Rotura de línea en el celular: pasos numerados, las quince máquinas a la vista sin rodar de lado, la coma que cuenta, " +
+            "varias máquinas en una sola pesada, la barra pegada abajo con lo que se va a guardar, «Más del día» plegado, " +
+            "el teclado solo si se pide y el PC igual que antes.");

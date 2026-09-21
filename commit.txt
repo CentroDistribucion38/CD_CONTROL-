@@ -1,41 +1,23 @@
-Celular: Rotura de línea por pasos, Contar compacto y envases que se arrastran
+Rotura de línea en el celular: todas las máquinas, compacto y sin teclado solo
 
-ROTURA DE LÍNEA EN EL CELULAR
-  «Que no se vea lo que no aporte: entre más espacio, mejor.»
-  - Sin cabeza en el celular: ni título ni panel rojo de ROTAS HOY. En
-    tableta y PC siguen igual.
-  - Pasos numerados: 1 Línea · 2 Turno · 3 Envase · 4 Máquina · 5 Kilos.
-    Se llena UNA máquina a la vez (en vez de la rejilla de 15 casillas),
-    con el resultado grande «38,5 ÷ 0,21 · salen solas → 184 u».
-  - «En esta pesada» lista las máquinas ya llenas; tocar una la vuelve a
-    poner arriba. Todas viajan juntas en UNA pesada, como en el PC.
-  - La coma cuenta: «38,5» ya no se lee como cero.
-  - Barra oscura pegada abajo: «N pesadas hoy» y el botón de guardar.
-  - «Más del día» (por línea, sin dar de baja) va plegado en el celular.
-  - El pie y el rótulo del panel rojo ya no se llevan el gris y la raya
-    de la rejilla (se llamaban igual).
-
-CONTAR (INVENTARIO) COMPACTO
-  - Dónde: calle · módulo · lado en una fila.
-  - Qué: código · descripción · vence en una fila; la descripción leída
-    sale en verde con ✓ y las cajas por estiba.
-  - Cuánto: qué cuentas · estibas · saldo · total en la franja oscura.
-  - Datos adicionales plegado: estado, ¿rota? (No / Sí), marca (Ninguna
-    / Avería / PNC) y observación. Cerrado dice qué trae puesto.
-  - En el celular: sin cabeza, dos columnas y la barra de anotar oscura.
-
-ROTURA DE LÍNEA › MAESTRO
-  «Que yo lo pueda mover, no como el mamarracho.»
-  - Cada envase se arrastra desde su ⋮⋮ con el dedo o el ratón, igual que
-    en el maestro de traspasos. Se guarda solo lo que cambió de puesto.
-  - Se quitaron las flechas ▲ ▼ y «1º». Sigue «Ordenar por lo más usado».
+«En un solo registro se pueden relacionar varias causales» — y — «que el
+scroll no sea tan grande».
+  - En el celular vuelven TODAS las máquinas, cada una con su casilla de
+    kilos y sus unidades, como en el PC. Una pesada puede llevar kilos de
+    varias máquinas y hay que verlas todas para no dejarse ninguna.
+  - Compacto: filas de 44, el nombre de la máquina parte en dos renglones
+    sin cortar palabras, sin rodar de lado a 360. El turno va en un solo
+    renglón («B 08:00 · 16:00») y hay menos aire entre los pasos.
+  - El total de la pesada va en la barra de abajo (280 u · 58,5 kg ·
+    2 máq.) y no se repite en una franja al pie de la tabla.
+  - Las casillas aceptan coma: «38,5» cuenta (antes, en un campo numérico,
+    quedaba vacío sin avisar). Letras no entran.
+  - El teclado sale solo si se pide: abrir la lista de envases ya no pone
+    el cursor en el buscador en el celular. En el PC sigue igual.
 
 SQL: ninguno.
 
-MEDIDO:
-  .arnes/rl-celular.mjs (nuevo) · .arnes/rl-pantalla.mjs
-  .arnes/inv-conteo.mjs · .arnes/mutar-inv-conteo.mjs
-  .arnes/rl-orden-envases.mjs · next build
+MEDIDO: .arnes/rl-celular.mjs · .arnes/rl-pantalla.mjs · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

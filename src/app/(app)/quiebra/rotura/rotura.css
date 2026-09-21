@@ -1516,7 +1516,7 @@
    máquina a la vez; en el PC sigue la rejilla completa. Las dos
    escriben en los mismos kilos.
    ===================================================================== */
-.rl-n, .rl-cel, .rl-pie-cuenta, .rl-mas-dia-btn { display: none }
+.rl-n, .rl-paso-maq, .rl-pie-cuenta, .rl-mas-dia-btn { display: none }
 /* EL PIE Y EL RÓTULO DEL PANEL ROJO se llaman como los de la rejilla
    (.rl-pie, .rl-rot) y se llevaban su relleno, su raya de arriba y su
    gris —gris sobre el acento—. Aquí se les devuelve lo suyo. */
@@ -1555,7 +1555,11 @@
   .rl-corte { display: none }
 
   /* ---- Los pasos, uno debajo del otro y a todo el ancho ---- */
-  .rl-escoger { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 14px }
+  /* COMPACTO: menos aire entre pasos y botones de 44. Línea y turno no
+     caben lado a lado —el turno lleva sus horas— así que van uno debajo
+     del otro, pero más bajos. */
+  .rl-escoger { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 14px }
+  .rl-escoger .rl-rot { margin-bottom: 5px }
   .rl-rot { display: flex; align-items: center; gap: 7px }
   .rl-n {
     display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none;
@@ -1563,54 +1567,39 @@
     font: 800 10px/1 var(--rl-titulo); font-style: normal; letter-spacing: 0;
   }
   .rl-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100% }
-  .rl-seg button { min-width: 0; min-height: 48px; font-size: 16px }
-  .rl-seg.turnos button { min-height: 52px }
-  .rl-disparo { min-height: 52px }
+  .rl-seg button { min-width: 0; min-height: 44px; font-size: 16px }
+  /* El turno en UN renglón: «B 08:00 · 16:00» en vez de letra arriba y
+     horas abajo. */
+  .rl-seg.turnos button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 4px }
+  .rl-seg.turnos b { font-size: 15px }
+  .rl-seg.turnos i { font-size: 9.5px; letter-spacing: 0 }
+  .rl-disparo { min-height: 48px }
+  /* Sin el sombreado del ratón: en el dedo se quedaba pegado en la
+     última fila tocada y parecía una máquina con kilos. */
+  .rl-rejilla .rl-tabla tbody tr:hover:not(.con) { background: none }
 
-  /* ---- Máquina y kilos ---- */
-  .rl-cel { display: grid; gap: 14px; padding: 0 14px 14px }
-  .rl-cel-maq {
-    width: 100%; min-height: 52px; padding: 0 12px; font: 600 15px var(--rl-texto);
-    color: var(--rl-tinta); background: var(--rl-fondo);
-    border: 1.5px solid var(--rl-linea); border-radius: 3px;
-  }
-  .rl-kilos {
-    display: flex; align-items: center; min-height: 64px;
-    background: var(--rl-papel); border: 2px solid var(--rl-linea); border-radius: 3px;
-  }
-  .rl-kilos:focus-within { border-color: var(--rl-ojo) }
-  .rl-kilos input {
-    flex: 1; min-width: 0; height: 60px; border: 0; background: none; padding: 0 14px;
-    font: 900 30px var(--rl-titulo); color: var(--rl-tinta); font-variant-numeric: tabular-nums;
-  }
-  .rl-kilos input:focus { outline: none }
-  .rl-kilos span { padding: 0 16px; font: 700 15px var(--rl-titulo); color: var(--rl-gris) }
-  .rl-salen {
-    margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 12px 14px; border-radius: 3px; background: var(--rl-grupo); color: #fff;
-  }
-  .rl-salen .k { font-size: 12.5px; color: #fff; min-width: 0 }
-  .rl-salen .k b { font-weight: 800 }
-  .rl-salen .k b { color: #fff }
-  .rl-salen .v { font: 900 26px/1 var(--rl-titulo); font-variant-numeric: tabular-nums; white-space: nowrap }
-  .rl-cel-lleva { display: grid; gap: 6px }
-  .rl-cel-lleva .rl-rot { margin: 0 }
-  .rl-cel-lleva button {
-    display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    min-height: 44px; padding: 0 12px; text-align: left; cursor: pointer;
-    background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
-  }
-  .rl-cel-lleva button.on { border-color: var(--rl-ojo); box-shadow: inset 3px 0 0 var(--rl-ojo) }
-  .rl-cel-lleva b { font: 600 13px var(--rl-texto); color: var(--rl-tinta); min-width: 0; overflow-wrap: anywhere }
-  .rl-cel-lleva button span { font-size: 12.5px; color: var(--rl-gris); white-space: nowrap; font-variant-numeric: tabular-nums }
-  .rl-cel-total { font-size: 13px; color: var(--rl-gris); text-align: right }
-  .rl-cel-total b { color: var(--rl-tinta) }
-  /* La rejilla completa se queda para el PC. */
-  .rl-rejilla .rl-tabla-env { display: none }
+  /* ---- Todas las máquinas, apretadas para el dedo ----
+     Una pesada relaciona varias máquinas (causales): se ven todas.
+     Sin el ancho mínimo de 420 que obligaba a rodar de lado; el nombre
+     parte en dos renglones si hace falta y la casilla mide 48 de alto. */
+  .rl-paso-maq { display: block; margin: 0; padding: 2px 14px 0 }
+  .rl-rejilla .rl-tabla { min-width: 0; table-layout: fixed }
+  .rl-rejilla .rl-tabla th { padding: 6px 8px; font-size: 9.5px; letter-spacing: .06em; white-space: normal }
+  .rl-rejilla .rl-tabla th:first-child, .rl-rejilla .rl-tabla td:first-child { padding-left: 14px }
+  .rl-rejilla .rl-tabla th:nth-child(2) { width: 88px }
+  .rl-rejilla .rl-tabla th:nth-child(3) { width: 74px; padding-right: 14px }
+  .rl-rejilla .rl-tabla td { padding: 2px 8px }
+  .rl-rejilla .rl-tabla td:last-child { padding-right: 14px }
+  .rl-rejilla .rl-maq { display: table-cell; font-size: 12px; line-height: 1.25; overflow-wrap: break-word }
+  .rl-rejilla .rl-tabla input { width: 100%; min-height: 44px; font-size: 17px; padding: 0 4px }
+  .rl-rejilla .rl-und { font-size: 14px }
+  /* EL TOTAL YA VA EN LA BARRA DE ABAJO («280 u · 58,5 kg · 2 máq.»):
+     repetirlo en la tabla era una franja oscura más para rodar. */
+  .rl-rejilla .rl-tabla tfoot { display: none }
 
   /* «Escoge el envase», como hueco por llenar. */
   .rl-rejilla .rl-vacio {
-    margin: 0 14px 14px; padding: 18px 14px; border: 2px dashed var(--rl-linea); border-radius: 3px;
+    margin: 0 14px 14px; padding: 14px; border: 2px dashed var(--rl-linea); border-radius: 3px;
   }
 
   .rl-tomas { padding: 12px 14px }

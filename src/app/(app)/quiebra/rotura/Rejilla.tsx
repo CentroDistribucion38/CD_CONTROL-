@@ -60,11 +60,6 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
   const [kilos, setKilos] = useState<Record<number, string>>({});
   const [corrigiendo, setCorrigiendo] = useState<number | null>(null);
   const [mandando, setMandando] = useState(false);
-  /* EN EL CELULAR SE LLENA UNA MÁQUINA A LA VEZ: se escoge la máquina y
-     se digitan sus kilos. Es la MISMA rejilla de arriba —los mismos
-     kilos por máquina—, solo que vista de a un renglón, porque quince
-     casillas en una columna de 360 px obligan a rodar para cada una. */
-  const [maqCel, setMaqCel] = useState<number>(maquinas.find((m) => m.activo)?.item ?? 0);
 
   /* La firma de ESTE turno de ESTA línea. Es por turno completo, no por
      envase: el líder da por bueno el turno, no una canastilla. */
@@ -139,8 +134,6 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
   const campos = useRef<(HTMLInputElement | null)[]>([]);
   const siguiente = (i: number) => campos.current[i + 1]?.focus();
 
-  const maqPuesta = maqs.find((m) => m.item === maqCel) ?? maqs[0];
-  const llenas = maqs.filter((m) => num(kilos[m.item]) > 0);
   const fmtKg = (n: number) => n.toLocaleString("es-CO", { maximumFractionDigits: 2 });
 
   return (
@@ -255,68 +248,14 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
         </div>
       ) : (
         <>
-          {/* ---------- EL CELULAR: MÁQUINA Y KILOS, DE A UNA ----------
-              Se ve solo en pantallas angostas; en el PC está la rejilla
-              completa de abajo. Las dos escriben en los mismos kilos. */}
-          <div className="rl-cel">
-            <label className="rl-campo">
-              <span className="rl-rot"><i className="rl-n">4</i>Máquina</span>
-              <select className="rl-cel-maq" value={maqPuesta?.item ?? ""}
-                      onChange={(e) => setMaqCel(Number(e.target.value))}>
-                {maqs.map((m) => (
-                  <option key={m.item} value={m.item}>
-                    {m.nombre}{num(kilos[m.item]) > 0 ? ` · ${fmtKg(num(kilos[m.item]))} kg` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {maqPuesta && (
-              <label className="rl-campo">
-                <span className="rl-rot"><i className="rl-n">5</i>Kilos de la canastilla</span>
-                <span className="rl-kilos">
-                  <input type="text" inputMode="decimal" placeholder="0" disabled={!puedeEditar}
-                         aria-label={`Kilos en ${maqPuesta.nombre}`}
-                         value={kilos[maqPuesta.item] ?? ""}
-                         onChange={(e) => {
-                           const v = e.target.value.replace(/[^\d.,]/g, "");
-                           setKilos((k) => ({ ...k, [maqPuesta.item]: v }));
-                         }} />
-                  <span>kg</span>
-                </span>
-              </label>
-            )}
-            {maqPuesta && env && (
-              <p className="rl-salen">
-                <span className="k">
-                  {num(kilos[maqPuesta.item]) > 0
-                    ? <>{fmtKg(num(kilos[maqPuesta.item]))} ÷ {fmtKg(Number(env.peso_kg))} · <b>salen solas</b></>
-                    : <>÷ {fmtKg(Number(env.peso_kg))} kg por envase · <b>salen solas</b></>}
-                </span>
-                <span className="v">{und(kilos[maqPuesta.item] ?? "").toLocaleString("es-CO")} u</span>
-              </p>
-            )}
-            {/* LO QUE YA LLEVA ESTA PESADA, máquina por máquina. Tocar una
-                la vuelve a poner arriba para corregirla. */}
-            {llenas.length > 0 && (
-              <div className="rl-cel-lleva">
-                <span className="rl-rot">En esta pesada</span>
-                {llenas.map((m) => (
-                  <button key={m.item} type="button"
-                          className={m.item === maqPuesta?.item ? "on" : ""}
-                          onClick={() => setMaqCel(m.item)}>
-                    <b>{m.nombre}</b>
-                    <span>{fmtKg(num(kilos[m.item]))} kg · {und(kilos[m.item] ?? "").toLocaleString("es-CO")} u</span>
-                  </button>
-                ))}
-                {llenas.length > 1 && (
-                  <span className="rl-cel-total">
-                    Total: <b>{fmtKg(totalKg)} kg · {totalUnd.toLocaleString("es-CO")} u</b>
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
+          {/* TODAS LAS MÁQUINAS A LA VISTA, también en el celular. «En un
+              solo registro se pueden relacionar varias causales»: una
+              pesada lleva kilos de varias máquinas y hay que verlas todas
+              para no dejarse ninguna. En el celular la rejilla se aprieta
+              (rotura.css) pero no se esconde. */}
+          <p className="rl-paso-maq">
+            <span className="rl-rot"><i className="rl-n">4</i>Kilos por máquina</span>
+          </p>
           <div className="rl-tabla-env">
             <table className="rl-tabla">
               <thead>
@@ -341,10 +280,17 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
                       <td className="cen">
                         <input
                           ref={(el) => { campos.current[i] = el }}
-                          type="number" inputMode="decimal" min={0} step="0.01"
+                          /* TEXTO Y NO «number»: el teclado del celular en
+                             español pone coma, y un campo number con «38,5»
+                             queda vacío sin avisar. Se deja solo dígitos,
+                             punto y coma; `num` lee las dos. */
+                          type="text" inputMode="decimal"
                           value={kg} placeholder="0" disabled={!puedeEditar}
                           aria-label={`Kilos en ${m.nombre}`}
-                          onChange={(e) => setKilos((k) => ({ ...k, [m.item]: e.target.value }))}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/[^\d.,]/g, "");
+                            setKilos((k) => ({ ...k, [m.item]: v }));
+                          }}
                           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); siguiente(i) } }}
                         />
                       </td>
@@ -356,7 +302,7 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
               <tfoot>
                 <tr>
                   <td>TOTAL DE LA PESADA</td>
-                  <td className="cen">{totalKg ? totalKg.toFixed(2).replace(/\.00$/, "") : "—"}</td>
+                  <td className="cen">{totalKg ? fmtKg(totalKg) : "—"}</td>
                   <td className="cen">{totalUnd ? totalUnd.toLocaleString("es-CO") : "—"}</td>
                 </tr>
               </tfoot>
@@ -371,8 +317,12 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
           dónde vaya la pantalla, y dice cuántas pesadas lleva el día. */}
       {puedeEditar && !firmado && (
         <div className="rl-pie rl-pie-reg">
+          {/* Mientras se llena, la barra dice lo que va a guardar; en
+              blanco, cuántas pesadas lleva el día. */}
           <p className="rl-pie-cuenta">
-            <b>{pesadas.length}</b> pesada{pesadas.length === 1 ? "" : "s"} hoy
+            {hayAlgo
+              ? <><b>{totalUnd.toLocaleString("es-CO")} u</b>{fmtKg(totalKg)} kg · {maqs.filter((m) => num(kilos[m.item]) > 0).length} máq.</>
+              : <><b>{pesadas.length}</b>pesada{pesadas.length === 1 ? "" : "s"} hoy</>}
           </p>
           <button type="button" className="rl-btn si" disabled={mandando || !envase || !hayAlgo}
                   onClick={guardar}>
@@ -412,7 +362,18 @@ function Escoger({ valor, envases, alEscoger }: {
   const [abierto, setAbierto] = useState(false);
   const [filtro, setFiltro] = useState("");
   const caja = useRef<HTMLDivElement>(null);
+  const buscar = useRef<HTMLInputElement>(null);
   const puesto = envases.find((e) => e.material === valor);
+
+  /* EL TECLADO, SOLO SI SE PIDE. «Que no se me despliegue el teclado a
+     menos que yo lo quiera.» Con autoFocus, abrir la lista en el celular
+     levantaba el teclado y tapaba media lista: para escoger uno de
+     veinte envases se toca, no se escribe. En el PC —ratón, teclado de
+     verdad— sí se pone el cursor en el buscador, que ahí no tapa nada.
+     En el celular el teclado sale solo si se toca el buscador. */
+  useEffect(() => {
+    if (abierto && window.matchMedia("(pointer: fine)").matches) buscar.current?.focus();
+  }, [abierto]);
 
   useEffect(() => {
     if (!abierto) return;
@@ -441,7 +402,7 @@ function Escoger({ valor, envases, alEscoger }: {
       {abierto && (
         <div className="rl-opciones">
           <div className="rl-filtro">
-            <input autoFocus value={filtro} placeholder="Buscar — 330, marron, flint…"
+            <input ref={buscar} value={filtro} placeholder="Buscar — 330, marron, flint…"
                    aria-label="Buscar envase"
                    onChange={(e) => setFiltro(e.target.value)} />
           </div>

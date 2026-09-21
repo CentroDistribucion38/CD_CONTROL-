@@ -1,0 +1,4 @@
+1db7cd28e90c444cee4531f3e8bde0c3f7af12a437bdd6eb27366ec4191e8fb4  src/app/(app)/quiebra/rotura/Rejilla.tsx
+916426a972b4e3a18c90dc2ed2861f99ae7b4510cf6e2b5fb5d50de714e56133  src/app/(app)/quiebra/rotura/rotura.css
+8d947dd73091dd98a8879bad22b31cc666bc0eac09e43cadd8a7b3103a74a43b  .arnes/rl-celular.mjs
+2af839e3b550863a23065d251c430cd14f887cd2ba080a8518b32767fb75b4e6  commit.txt
