@@ -47,13 +47,6 @@ canastilla y se digita el kilo: <b>las unidades salen solas</b>, dividiendo por 
 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button></div></div>
 </div>
 
-<div class="rl-firmar">
-<div class="rl-firmar-txt"><b>Turno B sin firmar</b>
-<span>Firmar dice que alguien MIRÓ este turno y lo dio por bueno — con nombre y hora.
-Sin firma, un turno en cero y un turno olvidado se ven igual.</span></div>
-<input class="rl-nota-firma" placeholder="Novedad del turno (opcional)">
-<button class="rl-btn si">Firmar el turno B</button></div>
-
 <div class="rl-firmado">
 <div class="rl-firmado-txt"><b>Turno A firmado</b>
 <span>Cristian Padilla · 14 sept, 08:12 · <b>1.031</b> unidades · «turno sin novedad»</span>

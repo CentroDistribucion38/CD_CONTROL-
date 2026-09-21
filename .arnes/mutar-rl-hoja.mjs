@@ -14,15 +14,17 @@ const TS = "src/modulos/rotlinea/hoja.ts";
 const COMP = "src/app/(app)/quiebra/rotura/HojaFirma.tsx";
 const PAG = "src/app/(app)/quiebra/rotura/page.tsx";
 const REJ = "src/app/(app)/quiebra/rotura/Rejilla.tsx";
+const DEDO = "src/app/(app)/quiebra/rotura/FirmaDedo.tsx";
+const CSS0 = "src/app/(app)/quiebra/rotura/rotura.css";
 
-const original = Object.fromEntries([TS, COMP, PAG, REJ].map((f) => [f, readFileSync(f, "utf8")]));
+const original = Object.fromEntries([TS, COMP, PAG, REJ, DEDO, CSS0].map((f) => [f, readFileSync(f, "utf8")]));
 const restaurar = () => { for (const [f, t] of Object.entries(original)) writeFileSync(f, t) };
 process.on("exit", restaurar);
 for (const s of ["SIGINT", "SIGTERM", "SIGHUP"])
   process.on(s, () => { restaurar(); process.exit(130) });
 
 let fallos = 0, total = 0;
-function probar(nombre, cambios, espera) {
+function probar(nombre, cambios, espera, arnes = ".arnes/rl-hoja.mjs") {
   total++;
   restaurar();
   for (const [archivo, de, a] of cambios) {
@@ -36,7 +38,7 @@ function probar(nombre, cambios, espera) {
   }
   let salida;
   try {
-    salida = execFileSync("node", [".arnes/rl-hoja.mjs"], { encoding: "utf8" });
+    salida = execFileSync("node", [arnes], { encoding: "utf8" });
   } catch (e) {
     salida = (e.stdout ?? "") + (e.stderr ?? "");
     if (salida.includes(espera)) { console.log(`  ROJA  ✔  ${nombre}`); return }
@@ -273,6 +275,62 @@ probar("la cinta de la ventana no cambia con el tema",
   [[CSS, "    linear-gradient(90deg, var(--c-marca-hondo) 0%, var(--c-marca) 35%, var(--c-04203f) 100%) top / 100% 5px no-repeat,",
          "    linear-gradient(90deg, #B58735 0%, #ECC644 35%, #FF000F 100%) top / 100% 5px no-repeat,"]],
   "la cinta de la ventana no es la del tema");
+
+/* ---------- LA FIRMA CON EL DEDO ---------- */
+const FIRMA = ".arnes/rl-firma.mjs";
+probar("la firma dibujada no llega al PDF",
+  [[TS, '  firma(M, "ELABORÓ", datos.elaboro.trim(), datos.firmaElaboro);', '  firma(M, "ELABORÓ", datos.elaboro.trim());']],
+  "la firma dibujada no sale en el PDF");
+probar("la firma cae en el recuadro del supervisor",
+  [[TS, '  firma(M, "ELABORÓ", datos.elaboro.trim(), datos.firmaElaboro);\n  firma(M + media + 8, "REVISÓ Y APRUEBA — SUPERVISOR", datos.supervisor.trim());',
+        '  firma(M, "ELABORÓ", datos.elaboro.trim());\n  firma(M + media + 8, "REVISÓ Y APRUEBA — SUPERVISOR", datos.supervisor.trim(), datos.firmaElaboro);']],
+  "la firma no cae dentro del recuadro de quien elaboró");
+probar("la firma se estira a todo el hueco y se sale",
+  [[TS, "const altoMax = 14, anchoMax = media - 8;", "const altoMax = 22, anchoMax = media - 8;"]],
+  "se sale del hueco o sale diminuta");
+probar("la firma digital no lleva la fecha",
+  [[TS, "      ? `Fecha y hora: ${datos.generado.toLocaleDateString(\"es-CO\")} ` +", "      ? `Fecha y hora: ` +"]],
+  "la firma digital no lleva la fecha");
+probar("una firma que no se lee tumba la hoja",
+  [[TS, "      } catch { /* sin la imagen, se firma a mano */ }", "      } finally { /* sin la imagen, se firma a mano */ }"]],
+  "con una firma que no se puede leer");
+probar("se puede generar sin firma",
+  [[COMP, ': !firma ? "Falta la firma de quien elaboró" : null;', ': null;']],
+  "sin nombre o sin firma");
+probar("«Solo descargar» no se bloquea sin firma",
+  [[COMP, 'disabled={vacio || haciendo || !!falta}\n                  onClick={() => generar("descargar")}', 'disabled={vacio || haciendo}\n                  onClick={() => generar("descargar")}']],
+  "algún botón de generar no se bloquea");
+probar("la firma no se le pasa al PDF desde la ventana",
+  [[COMP, "firmaElaboro: firma ?? undefined", "firmaElaboro: undefined"]],
+  "la firma dibujada no llega al PDF");
+probar("la rejilla vuelve a pedir firmar el turno",
+  [[REJ, "export function Rejilla", "function firmar() {}\nexport function Rejilla"]],
+  "la rejilla todavía pide firmar el turno");
+probar("el espacio de firmar se encoge y no cabe un dedo",
+  [[CSS0, "  display: block; width: 100%; height: 150px;", "  display: block; width: 100%; height: 80px;"]],
+  "no cabe un dedo");
+probar("el dedo mueve la página en vez de firmar (ventana)",
+  [[CSS0, "  touch-action: none; cursor: crosshair;", "  cursor: crosshair;"]],
+  "touch-action");
+probar("el papel de la firma toma el fondo oscuro del tema",
+  [[CSS0, "calc(100% - 40px) 1px no-repeat, #FFFFFF }", "calc(100% - 40px) 1px no-repeat, var(--rl-tinta) }"]],
+  "el papel de la firma no es blanco");
+probar("«Borrar firma» se encoge por debajo del dedo",
+  [[CSS0, "  align-self: flex-end; min-height: 44px; padding: 0 12px;", "  align-self: flex-end; min-height: 24px; padding: 0 12px;"]],
+  "«Borrar firma» mide");
+/* Y EL COMPONENTE, EN EL NAVEGADOR. */
+probar("la firma se manda con el lienzo entero, sin recortar",
+  [[DEDO, "    if (c && hayYa.current) alCambiar(recortar(c));", "    if (c && hayYa.current) alCambiar(c.toDataURL(\"image/png\"));"]],
+  "no se recortó al trazo", FIRMA);
+probar("borrar no avisa que ya no hay firma",
+  [[DEDO, "    marcar(false);\n    alCambiar(null);\n  }", "    marcar(false);\n  }"]],
+  "«Borrar firma» no la quita", FIRMA);
+probar("el lienzo se dibuja a resolución de pantalla y sale escalonado",
+  [[DEDO, "const ESCALA = 2;", "const ESCALA = 1;"]],
+  "doble de resolución", FIRMA);
+probar("la firma trae fondo blanco pegado",
+  [[DEDO, "  out.getContext(\"2d\")?.drawImage(", "  { const o = out.getContext(\"2d\"); if (o) { o.fillStyle = \"#fff\"; o.fillRect(0, 0, out.width, out.height) } }\n  out.getContext(\"2d\")?.drawImage("]],
+  "la firma trae fondo", FIRMA);
 
 restaurar();
 console.log("");

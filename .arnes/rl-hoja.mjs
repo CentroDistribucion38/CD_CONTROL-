@@ -22,6 +22,7 @@
    ===================================================================== */
 import { readFileSync, writeFileSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { deflateSync } from "node:zlib";
 import { transformSync } from "esbuild";
 import { jsPDF } from "jspdf";
 
@@ -207,6 +208,65 @@ ok(p.peso < 150_000, `el PDF pesa ${Math.round(p.peso / 1024)} KB: algo se está
      "la marca de agua se pinta después de las cifras: quedaría encima de los números");
 }
 
+/* ---- LA FIRMA CON EL DEDO, EN EL RECUADRO DE QUIEN ELABORÓ ----
+   «Que ponga el nombre de quien elaboró y algo para la firma con el dedo.»
+   Un PNG transparente de verdad —un trazo en diagonal, 300 × 90—, como el
+   que entrega el lienzo: que salga en el papel, dentro del recuadro de
+   ELABORÓ y no en el del supervisor, y que diga que se firmó en CONTROL. */
+const pngFirma = (() => {
+  const W = 300, Hh = 90, filas = [];
+  for (let y = 0; y < Hh; y++) {
+    const f = Buffer.alloc(1 + W * 4);
+    for (let x = 0; x < W; x++) {
+      const enTrazo = Math.abs(y - (10 + x * 70 / W) - 8 * Math.sin(x / 18)) < 3;
+      if (enTrazo) f.set([18, 38, 58, 255], 1 + x * 4);
+    }
+    filas.push(f);
+  }
+  const crc = (b) => { let c = ~0; for (const v of b) { c ^= v; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1)) } return ~c >>> 0 };
+  const trozo = (t, d) => { const l = Buffer.alloc(4); l.writeUInt32BE(d.length);
+    const td = Buffer.concat([Buffer.from(t), d]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([l, td, c]) };
+  const ih = Buffer.alloc(13); ih.writeUInt32BE(W, 0); ih.writeUInt32BE(Hh, 4); ih.set([8, 6, 0, 0, 0], 8);
+  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), trozo("IHDR", ih),
+    trozo("IDAT", deflateSync(Buffer.concat(filas))), trozo("IEND", Buffer.alloc(0))]);
+  return "data:image/png;base64," + png.toString("base64");
+})();
+{
+  const conFirma = H.dibujarHoja(jsPDF, hoja, {
+    elaboro: "Santiago Leal", supervisor: "", observaciones: "", generado: new Date("2026-09-21T15:30:00"),
+    marca: MARCA, firmaElaboro: pngFirma,
+  });
+  const f = leer(conFirma, "rl-hoja-firma");
+  const crudo = readFileSync(f.ruta, "latin1");
+  const anchos = [...crudo.matchAll(/\/Subtype \/Image[\s\S]{0,200}?\/Width (\d+)/g)].map((m) => +m[1]);
+  ok(anchos.includes(300), "la firma dibujada no sale en el PDF");
+  ok(anchos.includes(540) && anchos.includes(128), "con la firma, se perdió un logo de la marca");
+  ok((f.todo.match(/Firma \(digital, en CONTROL\)/g) ?? []).length === 1,
+     "el recuadro de quien elaboró no dice que la firma es digital, o lo dice también el del supervisor");
+  ok(/Fecha y hora: 21\/9\/2026/.test(f.todo), "la firma digital no lleva la fecha en que se firmó");
+  ok((f.todo.match(/____:____/g) ?? []).length === 1, "el supervisor perdió su espacio para fecha y hora a mano");
+  /* DENTRO DEL RECUADRO DE ELABORÓ: a la izquierda de la mitad de la hoja.
+     La firma se pinta con `W 0 0 H x y cm` justo antes de su `Do`. */
+  const puesta = [...crudo.matchAll(/([\d.]+) 0 0 ([\d.]+) ([\d.]+) ([\d.]+) cm\s*\/(I\w+) Do/g)]
+    .map((m) => ({ w: +m[1], h: +m[2], x: +m[3], y: +m[4] }))
+    .filter((q) => Math.abs(q.w / q.h - 300 / 90) < 0.01);
+  ok(puesta.length === 1, `la firma se pinta ${puesta.length} veces (debía ser una)`);
+  if (puesta[0]) {
+    const mm = (v) => v * 25.4 / 72;
+    ok(mm(puesta[0].x) >= 14 && mm(puesta[0].x + puesta[0].w) < 595.28 / 2 * 25.4 / 72,
+       "la firma no cae dentro del recuadro de quien elaboró");
+    ok(mm(puesta[0].h) <= 14.01 && mm(puesta[0].h) > 10,
+       `la firma mide ${mm(puesta[0].h).toFixed(1)} mm de alto: se sale del hueco o sale diminuta`);
+  }
+  ok(f.peso < 160_000, `con la firma el PDF pesa ${Math.round(f.peso / 1024)} KB`);
+  /* Y SI LA IMAGEN NO SIRVE, NO SE CAE LA HOJA: queda la raya para firmar a mano. */
+  let rota = null;
+  try { rota = H.dibujarHoja(jsPDF, hoja, { elaboro: "Santiago Leal", supervisor: "", observaciones: "",
+    generado: new Date("2026-09-21T15:30:00"), marca: MARCA, firmaElaboro: "data:image/png;base64,AAAA" }) } catch { rota = null }
+  ok(rota && !/digital, en CONTROL/.test(leer(rota, "rl-hoja-rota").todo),
+     "con una firma que no se puede leer, la hoja no sale o dice que está firmada");
+}
+
 /* ======================= 3 · LAS PÁGINAS ======================= */
 {
   /* UN DÍA LARGO: cuatro líneas, todas las máquinas, y observaciones.
@@ -343,6 +403,22 @@ ok(/const vigentes = hojas\.filter\(\(h\) => h\.anulada_en == null\);/.test(limp
    /const ultima = vigentes\[0\] \?\? null;/.test(limpio),
    "la tarjeta toma una hoja anulada como la hoja del día");
 ok(/anuladaUltima\.anulada_motivo/.test(limpio), "la tarjeta no dice que la hoja del día se anuló, ni por qué");
+/* SIN NOMBRE O SIN FIRMA NO SE GENERA: «que cuando uno vaya a guardar
+   ponga el nombre de quien elaboró y la firma». */
+ok(/const falta = !elaboro\.trim\(\) \? "[^"]+" : !firma \? "[^"]+" : null;/.test(limpio),
+   "la hoja se puede generar sin nombre o sin firma de quien elaboró");
+ok((limpio.match(/disabled=\{vacio \|\| haciendo \|\| !!falta\}/g) ?? []).length === 2,
+   "algún botón de generar no se bloquea cuando falta el nombre o la firma");
+ok(/firmaElaboro: firma \?\? undefined/.test(limpio), "la firma dibujada no llega al PDF");
+ok(/<FirmaDedo alCambiar=\{setFirma\} \/>/.test(limpio), "la ventana no tiene dónde firmar");
+{
+  const campos = limpio.indexOf('className="rl-hoja-campos"'), fr = limpio.indexOf("<FirmaDedo"),
+        pie = limpio.indexOf('className="rl-hoja-pie"');
+  ok(campos > 0 && fr > campos && pie > fr, "la firma no va entre los campos y los botones: es lo último antes de generar");
+}
+/* LA FIRMA DEL TURNO SE QUITÓ DE LA REJILLA. */
+ok(!/rl-firmar\b/.test(rejilla) && !/function firmar\(/.test(rejilla),
+   "la rejilla todavía pide firmar el turno");
 /* LOS COLORES DEL TEMA LLEGAN AL PAPEL. */
 ok(/paleta: leerPaleta\(ventana\.current\)/.test(limpio), "el PDF no recibe los colores del tema de quien lo genera");
 ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`leer("${v}")`)),
@@ -432,7 +508,14 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
       <label class="ancho"><span>Observaciones</span><textarea rows="3"></textarea></label>
     </div>
     <p class="rl-hoja-aviso mal" role="status">El PDF salió, pero no quedó en el historial.</p>
+    <div class="rl-hoja-firma">
+      <span class="rl-hoja-firma-rot">Firma de quien elaboró</span>
+      <div class="rl-firma-dedo"><canvas></canvas>
+        <span class="rl-firma-guia">Firma aquí con el dedo o el mouse</span>
+        <button type="button" class="rl-firma-borrar">Borrar firma</button></div>
+    </div>
     <div class="rl-hoja-pie">
+      <p class="rl-hoja-falta" role="status">Falta la firma de quien elaboró para generar la hoja.</p>
       <button type="button" class="rl-hoja-si">Generar PDF y compartir</button>
       <button type="button" class="rl-hoja-no">Solo descargar</button>
       <button type="button" class="rl-hoja-luego">Ahora no</button>
@@ -441,8 +524,9 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
   /* LAS CLASES DEL ARMAZÓN TIENEN QUE SER LAS DEL COMPONENTE: medir una
      que la pantalla no usa aprueba siempre y no mide nada. */
   const usadas = [...new Set([...BLOQUE.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)))]
-    .filter((c) => /^rl-(hoja|ventana)/.test(c));
-  const huerfanas = usadas.filter((c) => !comp.includes(c));
+    .filter((c) => /^rl-(hoja|ventana|firma)/.test(c));
+  const dedo = readFileSync(U("../src/app/(app)/quiebra/rotura/FirmaDedo.tsx"), "utf8");
+  const huerfanas = usadas.filter((c) => !comp.includes(c) && !dedo.includes(c));
   ok(huerfanas.length === 0, `el armazón de la pantalla usa clases que el componente no tiene: ${huerfanas.join(", ")}`);
 
   const canales = (c) => { const n = (c.match(/[\d.]+/g) ?? [0,0,0]).slice(0,3).map(Number);
@@ -481,6 +565,8 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
         "ventana · ahora no": par(".rl-hoja-luego"), "ventana · rótulo": par(".rl-hoja-campos span"),
         "ventana · campo": par(".rl-hoja-campos input"), "ventana · título": par(".rl-ventana h2"),
         "ventana · aviso": par(".rl-ventana .rl-hoja-aviso"),
+        "ventana · rótulo de la firma": par(".rl-hoja-firma-rot"), "ventana · guía de la firma": par(".rl-firma-guia"),
+        "ventana · borrar firma": par(".rl-firma-borrar"), "ventana · lo que falta": par(".rl-hoja-falta"),
         cinta: getComputedStyle(document.querySelector(".rl-ventana-cab")).backgroundImage,
         marca: (() => { const t = document.createElement("span"); t.style.color = "var(--c-marca)";
                         document.querySelector(".sh").appendChild(t); const c = getComputedStyle(t).color; t.remove(); return c })(),
@@ -514,6 +600,14 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
             .some((e) => { const r = e.getBoundingClientRect(); return r.left < v.left - 0.5 || r.right > v.right + 0.5 }),
         boton: alto(".rl-hoja-si, .rl-hoja-no, .rl-hoja-luego"),
         campo: alto(".rl-hoja-campos input"),
+        borrar: alto(".rl-firma-borrar"),
+        lienzo: (() => { const c = document.querySelector(".rl-firma-dedo canvas"), r = c.getBoundingClientRect();
+          return { alto: Math.round(r.height), ancho: Math.round(r.width), tocar: getComputedStyle(c).touchAction,
+                   fondo: getComputedStyle(c).backgroundColor,
+                   dentro: r.left >= v.left && r.right <= v.right } })(),
+        guia: (() => { const g = document.querySelector(".rl-firma-guia").getBoundingClientRect(),
+                             c = document.querySelector(".rl-firma-dedo canvas").getBoundingClientRect();
+          return g.top >= c.top - 0.5 && g.bottom <= c.bottom + 0.5 })(),
       };
     });
     ok(g.lado <= 0, `${ancho} px: la hoja arrastra la página ${g.lado} px de lado`);
@@ -521,6 +615,12 @@ ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`
     ok(g.centro, `${ancho} px: la ventana de la hoja no sale en el centro de la pantalla`);
     ok(g.boton >= 44, `${ancho} px: el botón de generar mide ${g.boton} px (mínimo 44)`);
     ok(g.campo >= 44, `${ancho} px: los campos miden ${g.campo} px (mínimo 44)`);
+    ok(g.borrar >= 44, `${ancho} px: «Borrar firma» mide ${g.borrar} px (mínimo 44)`);
+    ok(g.lienzo.alto >= 140, `${ancho} px: el espacio para firmar mide ${g.lienzo.alto} px de alto: no cabe un dedo`);
+    ok(g.lienzo.ancho >= 280 && g.lienzo.dentro, `${ancho} px: el espacio para firmar mide ${g.lienzo.ancho} px o se sale de la ventana`);
+    ok(g.lienzo.tocar === "none", `${ancho} px: firmar con el dedo mueve la página (touch-action: ${g.lienzo.tocar})`);
+    ok(g.lienzo.fondo === "rgb(255, 255, 255)", `${ancho} px: el papel de la firma no es blanco (${g.lienzo.fondo}): la tinta oscura no se vería`);
+    ok(g.guia, `${ancho} px: la guía «firma aquí» no cae sobre el espacio para firmar`);
   }
   await nav.close();
 }

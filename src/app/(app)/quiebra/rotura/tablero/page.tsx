@@ -2,6 +2,7 @@ import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { maestros, tablero, hojasGuardadas } from "@/modulos/rotlinea/datos";
 import { ResumenHojas } from "./Hojas";
+import { resumirHojas } from "@/modulos/rotlinea/historial";
 import { Pestanas } from "./Pestanas";
 import { letraDe } from "@/modulos/rotlinea/turnos";
 import "../rotura.css";
@@ -209,13 +210,9 @@ export default async function TableroRoturaPage({ searchParams }: {
   /* CONTADOS EN LA BASE, no aquí. Contar las filas que llegaron daba
      exactamente 1000 —el tope de PostgREST— y nadie se enteraba: la
      consulta no falla, solo contesta de menos. */
-  const sinFirma = Number(t.resumenFirma?.turnos ?? 0);
-  const sinFirmaUnd = Number(t.resumenFirma?.unidades ?? 0);
-  /* Los que de verdad se pueden cerrar hoy: los que alguien registró en
-     la app. El histórico del Excel nunca lo firmó nadie ni lo va a
-     firmar, y contarlo como pendiente vuelve la alarma un adorno. */
-  const sinFirmaApp = Number(t.resumenFirma?.turnos_app ?? 0);
-  const ultimosSinFirma = t.sinFirma;
+  /* LOS DÍAS CON ROTURA Y SIN SU HOJA FIRMADA: la constancia que
+     reemplaza a la firma del turno. */
+  const diasSinHoja = hj.falta ? 0 : resumirHojas(hj.hojas, t.dias, { conLinea: linea != null }).sinHoja.length;
 
   const dia = (f: string) =>
     new Date(Date.parse(f + "T12:00:00")).toLocaleDateString("es-CO",
@@ -284,13 +281,17 @@ export default async function TableroRoturaPage({ searchParams }: {
           <div className="rl-c-n">{diasConDato ? fmt(und / diasConDato) : "—"}</div>
           <div className="rl-c-u">unidades, solo contando los días que tienen registro</div>
         </div>
-        <div className={"rl-cifra" + (sinFirma ? " ojo" : "")}>
-          <div className="rl-c-rot">TURNOS SIN FIRMAR</div>
-          <div className="rl-c-n">{sinFirma}</div>
+        {/* DÍAS SIN HOJA, donde antes iba la cuenta de firmas por turno: la firma
+            del turno se quitó y la constancia es ahora la hoja del día,
+            con el nombre y la firma de quien elaboró. */}
+        <div className={"rl-cifra" + (diasSinHoja ? " ojo" : "")}>
+          <div className="rl-c-rot">DÍAS SIN HOJA</div>
+          <div className="rl-c-n">{hj.falta ? "—" : diasSinHoja}</div>
           <div className="rl-c-u">
-            {sinFirma === 0
-              ? "todo lo del período está validado"
-              : <>con <b>{fmt(sinFirmaUnd)}</b> unidades que nadie ha dado por buenas</>}
+            {hj.falta ? "falta preparar los informes en Supabase"
+              : diasSinHoja === 0 ? "todos los días con rotura tienen su hoja firmada"
+              : <>con rotura y sin su hoja del día firmada ·{" "}
+                  <Link href={`/quiebra/rotura/tablero/informes?desde=${desde}&hasta=${hasta}`}>ver cuáles</Link></>}
           </div>
         </div>
         <div className={"rl-cifra" + (sinBaja ? " ojo" : "")}>
@@ -468,7 +469,7 @@ export default async function TableroRoturaPage({ searchParams }: {
 
       <Lectura maquinas={maquinas} total={und} dias={diasConDato} serie={serie}
                lineas={lineas} envases={envases} periodo={`${dia(desde)} a ${dia(hasta)}`}
-               sinFirmaApp={sinFirmaApp} sinBaja={sinBaja} />
+               diasSinHoja={diasSinHoja} sinBaja={sinBaja} />
 
       {/* 4 ─ CÓMO VIENE */}
       <section className="rl-tarj">
@@ -504,35 +505,8 @@ export default async function TableroRoturaPage({ searchParams }: {
         </section>
       </div>
 
-      {sinFirma > 0 && (
-        <section className="rl-tarj ojo">
-          <div className="rl-t-cab">
-            <div>
-              <h2>Turnos sin firmar</h2>
-              <p>
-                Tienen rotura registrada y nadie los ha dado por buenos. Un turno sin firma no
-                dice si el número está bien o si se quedó a medias.
-              </p>
-            </div>
-          </div>
-          <div className="rl-lista-firma">
-            {ultimosSinFirma.map((f) => (
-              <Link key={`${f.fecha}-${f.linea}-${f.turno}`} className="rl-chip-firma"
-                    href={`/quiebra/rotura?d=${f.fecha}`}>
-                <b>{dia(f.fecha)}</b>
-                <span>Línea {f.linea} · Turno {letraDe(f.turno)}</span>
-                <i>{fmt(Number(f.und))} und</i>
-              </Link>
-            ))}
-            {sinFirma > ultimosSinFirma.length && (
-              <span className="rl-mas-firma">y {sinFirma - ultimosSinFirma.length} más</span>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* LAS HOJAS DEL DÍA, después de las firmas de turno: es el orden
-          del día —se registra, se firma el turno, se genera la hoja—. */}
+      {/* LAS HOJAS DEL DÍA: la constancia firmada de cada día con rotura.
+          Se genera al guardar, con el nombre y la firma de quien elaboró. */}
       <ResumenHojas hojas={hj.hojas} dias={t.dias} conLinea={linea != null} falta={hj.falta}
                     desde={desde} hasta={hasta} />
 
@@ -635,11 +609,11 @@ type Casilla = {
 };
 
 function Lectura({ maquinas, total, dias, serie, lineas, envases,
-                   sinFirmaApp, sinBaja, periodo }: {
+                   diasSinHoja, sinBaja, periodo }: {
   maquinas: Barra[]; total: number; dias: number;
   serie: { fecha: string; valor: number }[];
   lineas: Barra[]; envases: Barra[];
-  sinFirmaApp: number; sinBaja: number;
+  diasSinHoja: number; sinBaja: number;
   periodo: string;
 }) {
   if (total <= 0 || maquinas.length === 0) return null;
@@ -707,11 +681,11 @@ function Lectura({ maquinas, total, dias, serie, lineas, envases,
 
   /* ---- 4. Lo que se puede cerrar HOY ---- */
   const pendientes: Casilla[] = [];
-  if (sinFirmaApp > 0) {
+  if (diasSinHoja > 0) {
     pendientes.push({
-      cifra: nfl(sinFirmaApp), ojo: true,
-      titulo: sinFirmaApp === 1 ? "turno sin firmar" : "turnos sin firmar",
-      dice: "Registrados en la app. Esos sí se pueden cerrar hoy.",
+      cifra: nfl(diasSinHoja), ojo: true,
+      titulo: diasSinHoja === 1 ? "día sin hoja firmada" : "días sin hoja firmada",
+      dice: "Tienen rotura y nadie generó su hoja. Se genera al guardar, con nombre y firma.",
     });
   }
   if (sinBaja > 0) {

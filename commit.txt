@@ -1,42 +1,35 @@
-Facturación va dentro de Traspasos, después de Registrar
+Rotura: se quita la firma del turno; al guardar se firma con el dedo
 
-«No debías crearlo allí, sino en el mismo módulo.»
+«Quita esa firma y que cuando uno vaya a guardar ponga el nombre de
+quien elaboró, y algo para firmar con el dedo, lo que sea, cursor.»
 
-Facturación deja de ser un módulo aparte y pasa a ser una pantalla de
-Traspasos, en el orden del viaje:
+SE QUITA LA FIRMA POR TURNO, del todo:
+  - la rejilla ya no muestra «Turno B sin firmar» ni el botón de firmar;
+  - el tablero ya no cuenta ni lista turnos sin firmar, y ya no los
+    pide a la base. En su lugar cuenta DÍAS SIN HOJA: los días con
+    rotura a los que nadie les generó la hoja firmada.
 
-    Plan · Registrar · FACTURACIÓN · Control · Importar · Maestro
+LA FIRMA VA EN LA VENTANA QUE SALE AL GUARDAR, debajo de los campos y
+antes de los botones:
+  - un espacio blanco donde se firma con el dedo, el lápiz o el mouse
+    (en el teléfono no mueve la página), con «Borrar firma»;
+  - sin nombre de quien elaboró o sin firma, los dos botones de generar
+    quedan bloqueados y la ventana dice qué falta;
+  - la firma sale dibujada en el recuadro ELABORÓ del PDF, recortada al
+    trazo y sin fondo, con «Firma (digital, en CONTROL)» y la fecha y
+    hora en que se generó. El recuadro del supervisor sigue para firmar
+    a mano.
 
-La dirección es /traspasos/facturacion. La vieja, /facturacion, se queda
-y manda para allá: alguien ya la guardó. Quien solo tiene el rol
-Facturación entra a Traspasos y ve esa sola pantalla.
+MEDIDO:
+  .arnes/rl-firma.mjs      el componente de verdad en Chromium: trazo,
+                           toque solo, borrar, recorte, transparencia
+  .arnes/rl-hoja.mjs       la firma en el PDF, dentro del recuadro,
+                           14 mm, una sola vez; la ventana en 7 temas
+                           y 3 anchos
+  .arnes/mutar-rl-hoja.mjs cada error se vuelve a meter y el arnés se
+                           pone rojo por su propia afirmación
 
-LOS PERMISOS SE GUARDAN COMO EL TEXTO DE LA DIRECCIÓN, así que mudar la
-pantalla sin mudar el permiso dejaría al rol Facturación sin su pantalla,
-en silencio. 2026-09-traspasos-facturacion-en-traspasos.sql muda el
-permiso de cada rol, el permiso propio de cada persona que lo tuviera, y
-la regla de quién confirma la salida, que pregunta por esa dirección.
-2026-09-traspasos-facturacion.sql ya trae la dirección nueva para quien
-lo corra por primera vez.
-
-MEDIDO. La prueba contra Postgres corre ahora en dos bases: una nueva, y
-otra con la primera versión de Facturación puesta y una persona con el
-permiso sobre la dirección vieja; en las dos el permiso tiene que quedar
-en /traspasos/facturacion y nada sobre /facturacion.
-
-Una trampa que cazó el arnés de mutaciones: la función de confirmar vive
-ahora en los dos archivos, y el segundo la vuelve a crear. Mutando solo
-el primero, el segundo tapaba la mutación y siete salían verdes sin
-haber probado nada. Ahora se mutan los dos.
-
-  .arnes/correr-traspasos-facturacion.sh · mutar-...  16 mutaciones, las 16 rojas
-  .arnes/fc-bandeja.mjs · mutar-fc-bandeja.mjs        17 mutaciones, las 17 rojas
-
-=====================================================================
-FALTA CORRER EN SUPABASE — ANTES DEL PUSH
-=====================================================================
-
-  supabase/migraciones/2026-09-traspasos-facturacion-en-traspasos.sql
+No hay SQL nuevo en este cambio.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

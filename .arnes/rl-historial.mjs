@@ -110,9 +110,17 @@ const pag = readFileSync(U("../src/app/(app)/quiebra/rotura/tablero/page.tsx"), 
 const pagInf = readFileSync(U("../src/app/(app)/quiebra/rotura/tablero/informes/page.tsx"), "utf8");
 ok(/hojasGuardadas\(desde, hasta\)/.test(pag), "el tablero no trae las hojas del período");
 {
-  const firma = pag.indexOf("Turnos sin firmar"), hj = pag.indexOf("<ResumenHojas"), det = pag.indexOf("El detalle, en números");
-  ok(firma > 0 && hj > firma && det > hj,
-     "el renglón de informes no va después de los turnos sin firmar y antes del detalle: ese es el orden del día");
+  const envs = pag.indexOf("Por envase"), hj = pag.indexOf("<ResumenHojas"), det = pag.indexOf("El detalle, en números");
+  ok(envs > 0 && hj > envs && det > hj,
+     "el renglón de informes no va después de las gráficas y antes del detalle");
+  /* LA FIRMA DEL TURNO SE QUITÓ: «quita esa firma». Ni la sección, ni la
+     cifra, ni la casilla de pendientes, ni las consultas que la llenaban. */
+  const dat = readFileSync("src/modulos/rotlinea/datos.ts", "utf8");
+  ok(!/sin firmar/i.test(pag) && !/sinFirma/.test(pag),
+     "el tablero todavía habla de turnos sin firmar");
+  ok(!/rotlinea_sin_firma/.test(dat), "datos.ts todavía pide los turnos sin firmar");
+  ok(/DÍAS SIN HOJA/.test(pag) && /días sin hoja firmada/.test(pag),
+     "el tablero no cuenta los días sin hoja, que es la constancia que reemplaza a la firma");
 }
 ok(/conLinea=\{linea != null\}/.test(pag), "el tablero no le dice a la sección si hay filtro de línea");
 ok(/<Pestanas actual="tablero"/.test(pag) && /<Pestanas actual="informes"/.test(pagInf),

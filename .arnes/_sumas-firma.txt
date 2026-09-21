@@ -1,0 +1,13 @@
+f2c9fd22229e65426592dd28a4d355fbf275aebc606a330c352b1ffa0476fbc5  src/app/(app)/quiebra/rotura/FirmaDedo.tsx
+b21a9d972a43cbf0878fc73d4103c4207b7fa0349ec6be78d35b6bde3af21c92  src/app/(app)/quiebra/rotura/HojaFirma.tsx
+74b89eb8229813182922b741dbc47b741f92817eaad25fefd3ee972aab80a541  src/app/(app)/quiebra/rotura/Rejilla.tsx
+1bec450b7f3d00444949eb39d38e00fce2bdbb6d8c886ee2db202199204a1772  src/app/(app)/quiebra/rotura/rotura.css
+c85728751328c27ab5a9602ef816e0ef1f2c8aca31db74144790eb5c3c9d7a12  src/app/(app)/quiebra/rotura/tablero/page.tsx
+5f6671b040fcfba0b2958a5275a21d7748090661103bee19f78384e7be2f9fcd  src/modulos/rotlinea/hoja.ts
+7c0318bb0473dbfdd90cd301286efb290fbd51c26f8efac37a09a2064baab87c  src/modulos/rotlinea/datos.ts
+6769d6aa5f21b59ce4101fafeef4523cfb007e5cf992247855c1319d06ea48da  .arnes/rl-hoja.mjs
+c8d734d609a91dd850c653fe60e6020ed0fdc0e3bc4fee65b11359391b7a637a  .arnes/rl-firma.mjs
+53fd326511ed0d538455f3c7391bdb124b239879eac91fce10004c297becf929  .arnes/mutar-rl-hoja.mjs
+e681e131e9d05b1d195d9faf2ece2d77cfeebea8638c04ea58492f947ddbd5f3  .arnes/rl-historial.mjs
+76c730f16c06131a2c30b5a5a5b8fb2fa9e2e32feb33ca51c0ae1ac3625549a8  .arnes/rl-pantalla.mjs
+627e9e44996f83b1558cf82d901248f94ddcbb0bce21de98d2f5981630acd5e2  commit.txt

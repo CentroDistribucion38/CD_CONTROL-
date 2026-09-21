@@ -257,7 +257,9 @@ export const paletaDeTema = (tinta: RGB, acento: RGB, acentoHondo: RGB): Paleta 
 export function dibujarHoja(
   JsPDFCtor: typeof JsPDF,
   hoja: Hoja,
-  datos: { elaboro: string; supervisor: string; observaciones: string; generado: Date; marca?: Marca; paleta?: Paleta },
+  datos: { elaboro: string; supervisor: string; observaciones: string; generado: Date; marca?: Marca; paleta?: Paleta;
+           /** La firma de quien elaboró, dibujada con el dedo: un PNG transparente. */
+           firmaElaboro?: string },
 ): JsPDF {
   const doc = new JsPDFCtor({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210, H = 297, M = 14, ANCHO = W - 2 * M;
@@ -554,7 +556,7 @@ export function dibujarHoja(
   /* LAS DOS FIRMAS: quien elaboró y el supervisor que revisa. Con
      nombre, firma y fecha, que es lo que hace que el papel valga. */
   const media = (ANCHO - 8) / 2;
-  const firma = (x: number, rotulo: string, nombre: string) => {
+  const firma = (x: number, rotulo: string, nombre: string, dibujada?: string) => {
     doc.setDrawColor(...TINTA);
     doc.setLineWidth(0.3);
     doc.rect(x, y, media, ALTO_FIRMAS);
@@ -572,11 +574,30 @@ export function dibujarHoja(
     doc.setDrawColor(150, 160, 172);
     doc.setLineWidth(0.25);
     doc.line(x + 4, y + 29, x + media - 4, y + 29);
+    /* LA FIRMA DIBUJADA, SOBRE LA RAYA. Se ajusta al hueco —14 mm de alto
+       y el ancho del recuadro— sin estirarla: una firma deformada no se
+       reconoce. Si no carga, queda la raya para firmar a mano. */
+    let firmada = false;
+    if (dibujada) {
+      try {
+        const pr = doc.getImageProperties(dibujada);
+        const altoMax = 14, anchoMax = media - 8;
+        const k = Math.min(anchoMax / pr.width, altoMax / pr.height);
+        const w = pr.width * k, h = pr.height * k;
+        doc.addImage(dibujada, "PNG", x + 4, y + 28.6 - h, w, h, undefined, "FAST");
+        firmada = true;
+      } catch { /* sin la imagen, se firma a mano */ }
+    }
     fuente("normal", 8); gris();
-    doc.text("Firma", x + 4, y + 33);
-    doc.text("Fecha y hora: ____ / ____ / ______   ____:____", x + 4, y + 37.5);
+    doc.text(firmada ? "Firma (digital, en CONTROL)" : "Firma", x + 4, y + 33);
+    /* LA FECHA Y HORA DE LA FIRMA DIGITAL es la de generar la hoja: es el
+       momento en que se firmó. A mano, se deja el espacio. */
+    doc.text(firmada
+      ? `Fecha y hora: ${datos.generado.toLocaleDateString("es-CO")} ` +
+        datos.generado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+      : "Fecha y hora: ____ / ____ / ______   ____:____", x + 4, y + 37.5);
   };
-  firma(M, "ELABORÓ", datos.elaboro.trim());
+  firma(M, "ELABORÓ", datos.elaboro.trim(), datos.firmaElaboro);
   firma(M + media + 8, "REVISÓ Y APRUEBA — SUPERVISOR", datos.supervisor.trim());
   y += ALTO_FIRMAS;
 

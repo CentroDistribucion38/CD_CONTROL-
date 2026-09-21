@@ -34,6 +34,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FirmaDedo } from "./FirmaDedo";
 import { createClient } from "@/lib/supabase/client";
 import {
   armarHoja, dibujarHoja, nombreArchivo, fechaLarga, paletaDeTema, aRGB, type Paleta,
@@ -115,6 +116,11 @@ export function HojaFirma({ fecha, filas, maquinas, lineas, firmas, elaboro: qui
   const [elaboro, setElaboro] = useState(quien);
   const [supervisor, setSupervisor] = useState(hojas[0]?.supervisor ?? "");
   const [observaciones, setObservaciones] = useState("");
+  /* LA FIRMA DE QUIEN ELABORÓ, dibujada: un PNG, o null si no ha firmado. */
+  const [firma, setFirma] = useState<string | null>(null);
+  /* SIN NOMBRE Y SIN FIRMA NO SALE LA HOJA: «que cuando uno vaya a
+     guardar ponga el nombre de quien elaboró, y algo para la firma». */
+  const falta = !elaboro.trim() ? "Escribe quién elaboró" : !firma ? "Falta la firma de quien elaboró" : null;
   const [haciendo, setHaciendo] = useState(false);
   const [aviso, setAviso] = useState<{ bien: boolean; texto: string } | null>(null);
 
@@ -178,7 +184,7 @@ export function HojaFirma({ fecha, filas, maquinas, lineas, firmas, elaboro: qui
         comoDataUrl("/marca/logo-b.png"),
       ]);
       const doc = dibujarHoja(jsPDF, hoja, {
-        elaboro, supervisor, observaciones, generado: new Date(),
+        elaboro, supervisor, observaciones, generado: new Date(), firmaElaboro: firma ?? undefined,
         /* Los logos, tal cual en cualquier tema; lo demás, del tema. */
         marca: { palabra: palabra ?? undefined, sello: sello ?? undefined },
         paleta: leerPaleta(ventana.current),
@@ -301,7 +307,7 @@ export function HojaFirma({ fecha, filas, maquinas, lineas, firmas, elaboro: qui
           <label>
             <span>Elaboró</span>
             <input value={elaboro} onChange={(e) => setElaboro(e.target.value)}
-                   maxLength={60} autoComplete="name" />
+                   maxLength={60} autoComplete="name" required aria-required="true" />
           </label>
           <label>
             <span>Supervisor que firma</span>
@@ -322,12 +328,21 @@ export function HojaFirma({ fecha, filas, maquinas, lineas, firmas, elaboro: qui
           <p className="rl-hoja-aviso mal" role="status">{aviso.texto}</p>
         )}
 
+        {/* LA FIRMA, DEBAJO DE LOS CAMPOS Y ANTES DE LOS BOTONES: es lo
+            último que se hace antes de generar, como en el papel. Sale
+            dibujada en el recuadro ELABORÓ del PDF. */}
+        <div className="rl-hoja-firma">
+          <span className="rl-hoja-firma-rot">Firma de quien elaboró</span>
+          <FirmaDedo alCambiar={setFirma} />
+        </div>
+
         <div className="rl-hoja-pie">
-          <button type="button" className="rl-hoja-si" disabled={vacio || haciendo}
+          {falta && <p className="rl-hoja-falta" role="status">{falta} para generar la hoja.</p>}
+          <button type="button" className="rl-hoja-si" disabled={vacio || haciendo || !!falta}
                   onClick={() => generar("compartir")}>
             {haciendo ? "Generando…" : "Generar PDF y compartir"}
           </button>
-          <button type="button" className="rl-hoja-no" disabled={vacio || haciendo}
+          <button type="button" className="rl-hoja-no" disabled={vacio || haciendo || !!falta}
                   onClick={() => generar("descargar")}>
             Solo descargar
           </button>

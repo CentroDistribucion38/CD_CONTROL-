@@ -59,24 +59,11 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
      a escribir, y el campo se pondría en 0 solo. */
   const [kilos, setKilos] = useState<Record<number, string>>({});
   const [corrigiendo, setCorrigiendo] = useState<number | null>(null);
-  const [notaFirma, setNotaFirma] = useState("");
   const [mandando, setMandando] = useState(false);
 
   /* La firma de ESTE turno de ESTA línea. Es por turno completo, no por
      envase: el líder da por bueno el turno, no una canastilla. */
   const firmado = firmas.find((f) => f.linea === linea && f.turno === turno);
-
-  async function firmar() {
-    setMandando(true);
-    const { error } = await supabase.rpc("rotlinea_firmar", {
-      p_fecha: fecha, p_linea: linea, p_turno: turno, p_nota: notaFirma.trim() || null,
-    });
-    setMandando(false);
-    if (error) { avisar.mal(error.message); return }
-    setNotaFirma("");
-    avisar.bien(`Turno ${letraDe(turno)} de la línea ${linea} firmado. Queda cerrado.`);
-    router.refresh();
-  }
 
   async function quitarFirma() {
     setMandando(true);
@@ -208,23 +195,11 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
                     onClick={quitarFirma}>Quitar la firma</button>
           )}
         </div>
-      ) : puedeEditar && (
-        <div className="rl-firmar">
-          <div className="rl-firmar-txt">
-            <b>Turno {letraDe(turno)} sin firmar</b>
-            <span>
-              Firmar dice que alguien MIRÓ este turno y lo dio por bueno — con nombre y hora.
-              Sin firma, un turno en cero y un turno olvidado se ven igual.
-            </span>
-          </div>
-          <input className="rl-nota-firma" value={notaFirma} placeholder="Novedad del turno (opcional)"
-                 aria-label="Novedad del turno"
-                 onChange={(e) => setNotaFirma(e.target.value)} />
-          <button type="button" className="rl-btn si" disabled={mandando} onClick={firmar}>
-            Firmar el turno {letraDe(turno)}
-          </button>
-        </div>
-      )}
+      ) : null}
+      {/* «FIRMAR EL TURNO» SE QUITÓ: la constancia de quién hizo el
+          registro va en la hoja del día, con el nombre de quien elaboró y
+          su firma dibujada. Los turnos que ya estaban firmados se siguen
+          mostrando arriba, y el administrador puede quitarles la firma. */}
 
       {/* LAS PESADAS QUE YA TIENE ESE TURNO. Van ARRIBA de la rejilla y
           no abajo: son lo que hay que saber ANTES de empezar a teclear,

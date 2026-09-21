@@ -1439,3 +1439,40 @@
   .rl-hoja-acciones > * { flex: 1 1 0 }
   .rl-ventana h2 { font-size: 22px }
 }
+
+/* LA FIRMA DE QUIEN ELABORÓ, con el dedo o el mouse, en la misma ventana
+   del guardado. La caja es blanca en los dos temas: es el papel donde se
+   firma, y la tinta es la misma azul oscura que sale en el PDF.
+   `touch-action: none` es lo que impide que el trazo del dedo mueva la
+   página en vez de dibujar. */
+.rl-hoja-firma { display: flex; flex-direction: column; gap: 6px; padding: 14px 18px 0 }
+.rl-hoja-firma-rot {
+  font: 700 11px var(--rl-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--rl-gris);
+}
+.rl-firma-dedo { position: relative; display: flex; flex-direction: column; gap: 6px }
+.rl-firma-dedo canvas {
+  display: block; width: 100%; height: 150px;
+  border: 1.5px dashed var(--rl-linea); border-radius: 3px;
+  touch-action: none; cursor: crosshair;
+}
+.rl-firma-dedo canvas { background: linear-gradient(#8A96A3, #8A96A3) 20px 112px / calc(100% - 40px) 1px no-repeat, #FFFFFF }
+.rl-firma-dedo.con canvas { border-style: solid; border-color: var(--rl-ojo) }
+.rl-firma-guia {
+  position: absolute; left: 0; right: 0; top: 0; height: 150px;
+  display: flex; align-items: center; justify-content: center; padding: 0 16px;
+  font: 500 14px var(--rl-texto); color: #5B6673; text-align: center;
+  pointer-events: none;
+}
+.rl-firma-borrar {
+  align-self: flex-end; min-height: 44px; padding: 0 12px;
+  background: none; border: none; cursor: pointer;
+  font: 600 13.5px var(--rl-texto); color: var(--rl-tinta);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.rl-firma-borrar:disabled { opacity: .45; cursor: default }
+.rl-hoja-falta { margin: 0; flex: 1 0 100%; font-size: 12.5px; line-height: 1.5; color: #5E4100 }
+@media (max-width: 560px) {
+  .rl-firma-dedo canvas, .rl-firma-guia { height: 170px }
+  .rl-firma-dedo canvas { background: linear-gradient(#8A96A3, #8A96A3) 16px 130px / calc(100% - 32px) 1px no-repeat, #FFFFFF }
+}
