@@ -1,35 +1,37 @@
-Roles: borrar arriba pasando a su gente, duplicar, quiénes lo tienen e historial
+Roles: Supervisor se puede borrar; las firmas de roturas y Quiebra van por permiso
 
-«No me deja eliminar un rol.» La base frenaba bien —un rol de sistema no
-se borra, y uno con usuarios tampoco— pero la pantalla no daba salida, y
-el botón de borrar estaba al final de 43 pantallas.
+«¿Por qué no me deja eliminar ese?» Supervisor era de sistema porque la
+app lo nombraba en dos sitios. Lo mismo pasaba —sin avisar— con ABI,
+Verificador y Validación en las firmas de roturas: borrar uno dejaba su
+firma sin nadie que la pudiera poner.
 
-  - Barra del rol ARRIBA, junto al título: pestañas Pantallas · Quiénes
-    lo tienen · Historial, y los botones Duplicar y Borrar rol.
-  - Borrar rol: si tiene gente, dice quiénes y pregunta a qué rol
-    pasarlos; confirma y la base pasa a la gente y borra el rol en un
-    solo paso. Los de sistema (Administrador, Supervisor, Operador) dicen
-    «De sistema · no se borra»: la aplicación los usa por su nombre.
-  - Duplicar: un rol nuevo con los mismos permisos, para ajustar.
-  - Quiénes lo tienen: la gente del rol, con su usuario, si está inactiva
-    y un enlace a editarla.
-  - Historial: cada guardado deja qué pantallas cambiaron, de qué a qué,
-    quién y cuándo; también rol creado, duplicado y borrado (a dónde pasó
-    su gente). Los roles borrados se ven en su propia tarjeta abajo.
+  - Firma quien tiene EDITAR en la pantalla de esa firma (o administra):
+      visto bueno      Roturas › Visto bueno
+      supervisor (a)   Roturas › Pesar
+      verificador      Roturas › Verificación
+      validador        Roturas › Validación
+    Cuenta lo del rol y lo puesto a la persona, igual que el menú. La
+    regla de tres personas distintas sigue igual.
+  - Quiebra (Tablero y Quiebra diaria): edita quien tiene Editar en esa
+    pantalla, no quien se llama Administrador o Supervisor.
+  - Nadie gana una firma que no tenía: la migración baja a «Ver» esas
+    cuatro pantallas en los roles que tenían Editar pero no firmaban (en
+    esas pantallas Editar no sirve para otra cosa). Al correrla dice en
+    Supabase quién firma cada cosa.
+  - Supervisor deja de ser de sistema y ya sale «Borrar rol». Administrador
+    y Operador siguen fijos.
 
-SQL: 2026-09-admin-roles.sql (rol_borrar, rol_crear, roles_historial, y
-rol_permisos_guardar igual que antes pero escribiendo lo que cambió).
+SQL: 2026-09-roles-supervisor-borrable.sql
 
-MEDIDO:
-  .arnes/correr-admin-roles.sh   contra la base completa
-  .arnes/ad-roles.mjs            la pantalla de verdad en Chromium, 3 anchos, 7 temas
-  .arnes/mutar-ad-roles.mjs      9 de 9 rojas
+MEDIDO: .arnes/correr-admin-roles.sh (base completa): firmas por permiso,
+lo de la persona cuenta y quita, un rol con Editar que no firmaba sigue
+sin firmar, y Supervisor se borra pasando a su gente.
 
 =====================================================================
 FALTA CORRER EN SUPABASE — ANTES DEL PUSH
 =====================================================================
 
-  supabase/migraciones/2026-09-admin-roles.sql
+  supabase/migraciones/2026-09-roles-supervisor-borrable.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -36,15 +36,6 @@ export function etapaDe(s: Salida): Papel | null {
   return null;
 }
 
-/** ¿Esta persona puede poner ESTA firma? Mismo criterio que rotura_puede
- *  en la base. Las dos capas dicen lo mismo, pero la que protege es la
- *  de abajo: a una pantalla escondida se llega escribiendo la URL. */
-export function puedeFirmar(papel: Papel, rol: string, manda: boolean) {
-  if (manda) return true;
-  if (papel === "supervisora") return rol === "supervisor";
-  return rol === papel;
-}
-
 export function Firmas({ salida, nombres }: {
   salida: Salida;
   nombres: Record<string, string>;

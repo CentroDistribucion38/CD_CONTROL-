@@ -1,3 +1,4 @@
+import { RUTA_FIRMA } from "@/modulos/roturas/firmas";
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import { porRevisar, roturas as leerRoturas } from "@/modulos/roturas/datos";
@@ -14,10 +15,11 @@ export default async function VistoBuenoPage() {
 
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
-  /* Mismo criterio que rotura_puede('visto_bueno') en la base. Las dos
+  /* Quien tiene EDITAR en Visto bueno (o administra), no un rol con
+     cierto nombre. Mismo criterio que rotura_puede('visto_bueno') en la base. Las dos
      capas dicen lo mismo, pero la que protege es la de abajo: a una
      pantalla escondida se llega igual escribiendo la URL. */
-  const puedeDecidir = permisos.manda || permisos.rol === "abi";
+  const puedeDecidir = permisos.puedeEditar(RUTA_FIRMA.visto_bueno);
 
   /* El mismo montón en tres momentos. Tres cifras en fila con flechas
      se leen como un recorrido; tres cajas iguales se leen como tres

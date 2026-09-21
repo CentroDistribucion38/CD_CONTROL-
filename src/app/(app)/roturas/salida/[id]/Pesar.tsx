@@ -7,7 +7,7 @@ import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import type { Salida, Tolva, TolvaPesada } from "@/modulos/roturas/datos";
 import { COLOR_VIDRIO, fecha, kilos, quien } from "@/modulos/roturas/formato";
-import { Firmas, etapaDe, puedeFirmar } from "../Firmas";
+import { Firmas, etapaDe } from "../Firmas";
 import { IlustracionTolva } from "../IlustracionTolva";
 
 /**
@@ -28,13 +28,13 @@ import { IlustracionTolva } from "../IlustracionTolva";
  * contestaba "quien pesó no verifica": la regla estaba bien, pero la
  * pantalla la convertía en un regaño en lugar de un camino.
  */
-export function Pesar({ salida, tolvas, maestro, nombres, rol, manda }: {
+export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
   salida: Salida;
   tolvas: TolvaPesada[];
   maestro: Tolva[];
   nombres: Record<string, string>;
-  rol: string;
-  manda: boolean;
+  /** Tiene EDITAR en Pesar (o administra): firma como supervisor (a). */
+  puedeFirmar: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -108,7 +108,7 @@ export function Pesar({ salida, tolvas, maestro, nombres, rol, manda }: {
   }
 
   const etapa = etapaDe(salida);
-  const meToca = etapa === "supervisora" && puedeFirmar("supervisora", rol, manda);
+  const meToca = etapa === "supervisora" && puedeFirmar;
 
   return (
     <>

@@ -8,7 +8,7 @@ import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import type { Salida } from "@/modulos/roturas/datos";
 import { fecha, kilos, quien } from "@/modulos/roturas/formato";
-import { Firmas, PAPELES, type Papel, puedeFirmar } from "./Firmas";
+import { Firmas, PAPELES, type Papel } from "./Firmas";
 
 /**
  * LA BANDEJA DE UNA ETAPA — Verificación y Validación.
@@ -27,12 +27,12 @@ import { Firmas, PAPELES, type Papel, puedeFirmar } from "./Firmas";
  * neto— y sus tolvas antes del botón. Una firma puesta sobre un código
  * y una fecha no es una verificación, es un trámite.
  */
-export function Bandeja({ salidas, nombres, papel, rol, manda }: {
+export function Bandeja({ salidas, nombres, papel, puede }: {
   salidas: Salida[];
   nombres: Record<string, string>;
   papel: Papel;
-  rol: string;
-  manda: boolean;
+  /** Tiene EDITAR en esta pantalla (o administra): puede firmar. */
+  puede: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -48,7 +48,6 @@ export function Bandeja({ salidas, nombres, papel, rol, manda }: {
   const [nota, setNota] = useState("");
 
   const info = PAPELES.find((p) => p.id === papel)!;
-  const puede = puedeFirmar(papel, rol, manda);
   const verbo = papel === "verificador" ? "Verificar" : "Dar salida";
 
   async function firmar(s: Salida, texto: string) {
@@ -77,8 +76,8 @@ export function Bandeja({ salidas, nombres, papel, rol, manda }: {
 
       {!puede && (
         <div className="aviso">
-          Estás viendo la bandeja, pero firmar aquí es del rol <b>{info.t}</b> o del
-          administrador. Los botones aparecen cuando tengas ese rol.
+          Estás viendo la bandeja, pero firmar como <b>{info.t}</b> es de quien tiene
+          <b> Editar</b> en esta pantalla, o del administrador. Se da en Administración › Roles.
         </div>
       )}
 

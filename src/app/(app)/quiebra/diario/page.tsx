@@ -1,3 +1,4 @@
+import { misPermisos } from "@/lib/permisos";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { leerRango, rangoDelMes } from "@/modulos/quiebra/diario";
@@ -39,7 +40,9 @@ export default async function DiarioPage({
     }),
   ]);
 
-  const esEditor = perfil?.rol === "admin" || perfil?.rol === "supervisor";
+  /* Quien tiene EDITAR en esta pantalla (o administra), no un rol con
+     cierto nombre: así Supervisor se puede renombrar o borrar. */
+  const esEditor = (await misPermisos()).puedeEditar("/quiebra/diario");
 
   return <Diario inicial={mes} fechaInicial={fecha} esEditor={esEditor} hoy={hoy} />;
 }

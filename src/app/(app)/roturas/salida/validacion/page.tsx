@@ -4,6 +4,7 @@ import { salidas as leerSalidas } from "@/modulos/roturas/datos";
 import { kilos } from "@/modulos/roturas/formato";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
+import { RUTA_FIRMA } from "@/modulos/roturas/firmas";
 import { Bandeja } from "../Bandeja";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ export default async function ValidacionPage() {
       </section>
 
       <Bandeja salidas={lista} nombres={nombres} papel="validador"
-               rol={permisos.rol} manda={permisos.manda} />
+               puede={permisos.puedeEditar(RUTA_FIRMA.validador)} />
     </div>
   );
 }

@@ -1,0 +1,15 @@
+9418b8fd13991172a979be4d22cd4902dcf08f5a15b0cbb68f0b4ef2b56701ac  supabase/migraciones/2026-09-roles-supervisor-borrable.sql
+a6e9f9b3fcf9d905c6c17a22d6069e979688cd0bff9f89b85afd88aa23f205b2  src/modulos/roturas/firmas.ts
+e0f1eee6f8d655ea2838838e29876011be55e9365e245e5bf9564199f1d17f9c  src/app/(app)/roturas/salida/Firmas.tsx
+bae0f5a3a068dcd1d9f95e50a9bd25999854654ea71e015d14591d03afcc92fd  src/app/(app)/roturas/salida/Bandeja.tsx
+9cc4df83a70724f02dbc84bc1f04e2b6b135b9a781f5c2eed58b35a326dcddd8  src/app/(app)/roturas/salida/verificacion/page.tsx
+5d80790e35dcee05f987b96b250fdab044ffb2e4c3529698d3f80f13eb14b3e4  src/app/(app)/roturas/salida/validacion/page.tsx
+d07006667f62a585115e431112056823775840965c75def831c1a56b0bbb4d31  src/app/(app)/roturas/salida/[id]/page.tsx
+30d8522680f641b89fc477893c986b336e93e3fcbd4f40bcc4ab51c32f0142e5  src/app/(app)/roturas/salida/[id]/Pesar.tsx
+df3b7722f6ad8e038ec72095556e7e5f1d95a505ed54930de40a0cb77758f29a  src/app/(app)/roturas/en-sitio/visto-bueno/page.tsx
+ae8168992f081189db053ed78031b46a2e591875c61fe2b4361680a2a045ac79  src/app/(app)/quiebra/tablero/page.tsx
+9b83e2eac4473bb538f02023aca4a44e709327a9bf175976796374b5e6d67731  src/app/(app)/quiebra/diario/page.tsx
+16e98e078bbb1720f3b88029d40fe15378056c8cd5fa8254d8dbca177405f356  .arnes/prueba-roles-supervisor.sql
+daca041f65d564aa9ddede41f84ee4a275e173d206a1da5bec6436a581c8dafd  .arnes/correr-admin-roles.sh
+4665a6246366fd8414b556e548e18aa866985d900337e7257d58def9da73a61d  .arnes/_base-completa.sh
+61efb20bd08ea4f147945781bf55b52c7b8d0b994b6c2218a87fed8140ff1ecc  commit.txt

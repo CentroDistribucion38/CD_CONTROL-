@@ -1,3 +1,4 @@
+import { RUTA_FIRMA } from "@/modulos/roturas/firmas";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { misPermisos } from "@/lib/permisos";
@@ -60,8 +61,7 @@ export default async function SalidaPage({ params }: { params: Promise<{ id: str
         tolvas={datos.tolvas}
         maestro={maestro}
         nombres={nombres}
-        rol={permisos.rol}
-        manda={permisos.manda}
+        puedeFirmar={permisos.puedeEditar(RUTA_FIRMA.supervisora)}
       />
     </div>
   );

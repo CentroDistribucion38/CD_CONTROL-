@@ -1,0 +1,19 @@
+/**
+ * DÓNDE SE PONE CADA FIRMA DE ROTURAS.
+ *
+ * Firmar es de quien tiene EDITAR en esa pantalla (o administra), no de
+ * un rol con cierto nombre: así los roles se pueden renombrar, duplicar
+ * o borrar sin que la cadena se quede sin quién firme. Es la misma regla
+ * que rotura_puede en la base, que es la que protege: la pantalla solo
+ * decide si enseña los botones.
+ *
+ * Va en un archivo aparte, sin "use client": las páginas del servidor lo
+ * leen para decidir, y un valor que sale de un archivo de cliente les
+ * llega como una referencia, no como el objeto.
+ */
+export const RUTA_FIRMA = {
+  visto_bueno: "/roturas/en-sitio/visto-bueno",
+  supervisora: "/roturas/salida",
+  verificador: "/roturas/salida/verificacion",
+  validador: "/roturas/salida/validacion",
+} as const;
