@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 /**
  * EL PANEL DE LADO — Cambiar rol, Nueva clave, Eliminar.
  *
- * Sale por la derecha y deja la lista a la vista: lo que se está
- * cambiando es a quienes se acaban de marcar, y taparlos con una ventana
- * en el medio obliga a acordarse de a quién se escogió. En el celular
- * ocupa la pantalla entera, con los botones pegados abajo.
+ * Va AL LADO de la tabla, en la misma tarjeta, no flotando encima: la
+ * versión flotante (position: fixed) no le abría en su equipo. Metido en
+ * la página no depende de capas ni de lo que haga el navegador con lo
+ * que flota. Al abrirse se trae a la vista.
  *
- * `fijo`: el panel de las claves no se cierra tocando fuera ni con Esc.
- * Las claves se muestran UNA vez; perderlas por un toque de más obliga a
- * generar otras.
+ * `fijo`: el panel de las claves no se cierra con Esc. Las claves se
+ * muestran UNA vez; perderlas por una tecla obliga a generar otras.
  */
 export function PanelLado({ titulo, sub, cerrar, pie, fijo, children }: {
   titulo: string;
@@ -22,6 +21,10 @@ export function PanelLado({ titulo, sub, cerrar, pie, fijo, children }: {
   fijo?: boolean;
   children: ReactNode;
 }) {
+  const caja = useRef<HTMLElement>(null);
+  /* Traerlo a la vista al abrir: en el celular va arriba de la tabla y,
+     si se abrió desde una fila de abajo, quedaría fuera de la pantalla. */
+  useEffect(() => { caja.current?.scrollIntoView({ block: "nearest" }) }, []);
   useEffect(() => {
     if (fijo) return;
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar() };
@@ -31,8 +34,7 @@ export function PanelLado({ titulo, sub, cerrar, pie, fijo, children }: {
 
   return (
     <>
-      <div className="us-pnl-velo" onClick={fijo ? undefined : cerrar} aria-hidden />
-      <aside className="us-pnl" role="dialog" aria-modal="true" aria-label={titulo}>
+      <aside className="us-pnl" ref={caja} role="region" aria-label={titulo}>
         <div className="us-pnl-cab">
           <button type="button" className="us-pnl-vol" onClick={cerrar} aria-label="Volver">
             <svg viewBox="0 0 24 24" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>

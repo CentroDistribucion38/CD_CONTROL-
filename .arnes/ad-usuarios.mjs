@@ -128,7 +128,7 @@ ok(await pg.isDisabled(".us-pnl-pie .btn:not(.sec)"), "se puede cambiar el rol s
 const hoy = await pg.$$eval(".us-pnl-ro", (b) => b.map((x) => x.querySelector(".hoy")?.textContent ?? ""));
 ok(hoy[1] === "HOY · Génesis Visbal" && hoy[2] === "HOY · Santiago Leal" && hoy[0] === "", `el panel no dice qué rol tiene HOY cada uno: ${hoy}`);
 ok(/Contar, registrar, roturas/.test(await pg.textContent(".us-pnl-roles")), "no sale la descripción del rol");
-ok((await pg.$$eval(".us-pnl-ro .pt", (t) => t.map((x) => x.firstChild.textContent))).join(",") === "0,2,1", "no dice cuántas pantallas da cada rol");
+ok((await pg.$$eval(".us-pnl-ro .pt", (t) => t.map((x) => x.textContent))).join(",") === "0,2,1", "no dice cuántas pantallas da cada rol");
 await pg.click(".us-pnl-ro:has-text('Portero')");
 const queda = await pg.textContent(".us-pnl-queda");
 ok(/Génesis Visbal\s*Operador\s*→\s*Portero/.test(queda) && /Santiago Leal\s*ya es Portero/.test(queda), `«Así queda» no dice de qué a qué: ${queda}`);
@@ -253,12 +253,19 @@ for (const ancho of [1200, 390, 360]) {
       const chicos = [...document.querySelectorAll(".us-pnl button, .us-pnl input")].map((x) => [Math.round(x.getBoundingClientRect().height), (x.className || x.tagName) + " " + x.textContent.trim().slice(0, 12)])
         .filter(([h]) => h < 44);
       const pie = document.querySelector(".us-pnl-pie").getBoundingClientRect();
-      return { fuera, chicos, pie: pie.bottom <= innerHeight + 0.5, ancho: Math.round(p.width) };
+      /* El panel va AL LADO de la tabla, dentro de la página. Lo que
+         importa: que esté en pantalla al abrirse, que su pie no quede
+         cortado, y en el PC que la tabla siga a la vista a su lado. */
+      const tabla = document.querySelector(".us-cuerpo .us-marco").getBoundingClientRect();
+      return { fuera, chicos, pie: pie.bottom <= p.bottom + 0.5 && pie.height > 40, ancho: Math.round(p.width),
+               visto: p.top < innerHeight && p.bottom > 0, alLado: tabla.right <= p.left + 1 && tabla.width > 300 };
     });
     ok(!q.fuera.length, `${ancho} px, panel «${boton}»: se sale ${q.fuera.join(", ")}`);
     ok(!q.chicos.filter(([, n]) => !/us-pnl-link/.test(n)).length, `${ancho} px, panel «${boton}»: se toca y mide menos de 44: ${JSON.stringify(q.chicos)}`);
-    ok(q.pie, `${ancho} px, panel «${boton}»: los botones de abajo no se ven`);
-    if (ancho < 700) ok(q.ancho === ancho, `${ancho} px: el panel no ocupa la pantalla (${q.ancho})`);
+    ok(q.pie, `${ancho} px, panel «${boton}»: los botones de abajo quedan cortados`);
+    ok(q.visto, `${ancho} px, panel «${boton}»: al abrirse no queda en pantalla`);
+    if (ancho >= 1200) ok(q.alLado, `${ancho} px, panel «${boton}»: no va al lado de la tabla`);
+    else ok(q.ancho >= ancho - 40, `${ancho} px: el panel no ocupa el ancho (${q.ancho})`);
     if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/us-${boton.replace(" ", "")}-${ancho}.png` });
     if (boton === "Nueva clave") await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
     else await pg.click(".us-pnl-x");

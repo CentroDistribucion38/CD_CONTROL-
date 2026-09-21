@@ -721,7 +721,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                       <em className="hoy">HOY · {hoy.length <= 2 ? hoy.join(", ") : `${hoy.length} de ellos`}</em>)}</b>
                     <small>{r.descripcion || (r.manda ? "Administra la plataforma, incluido Usuarios" : `${n} pantalla${n === 1 ? "" : "s"}`)}</small>
                   </span>
-                  <span className="pt" title={`${n} pantallas`}>{n}<small>pant.</small></span>
+                  <span className="pt" title={`${n} pantallas`} aria-label={`${n} pantallas`}>{n}</span>
                 </button>
               );
             })}
@@ -736,7 +736,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                     <b>{nom(p)}</b>
                     {p.rol === rolPanel
                       ? <span className="igual">ya es {nRol(rolPanel)}</span>
-                      : <><s>{nRol(p.rol)}</s><span aria-hidden>→</span><span className="a">{nRol(rolPanel)}</span></>}
+                      : <span className="cambio"><s>{nRol(p.rol)}</s><span aria-hidden>→</span><span className="a">{nRol(rolPanel)}</span></span>}
                   </div>
                 ))}
               </div>
@@ -828,8 +828,6 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
           nada. */}
       {mal && <p className="us-mal suelto" role="alert">{mal}</p>}
       {bien && <p className="us-bien suelto" role="status">{bien}</p>}
-
-      {panel && pintarPanel(panel)}
 
       <section className="tarjeta">
         <div className="cab">
@@ -1018,6 +1016,13 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
           </div>
         )}
 
+        {/* LA TABLA Y EL PANEL, LADO A LADO — como el diseño: al lado de la
+            lista, no encima. Así se ve a quién se marcó mientras se decide,
+            y no depende de nada flotando por encima de la página. En
+            tableta y celular el panel va arriba de la tabla, a todo lo
+            ancho. */}
+        <div className={"us-cuerpo" + (panel ? " con-panel" : "")}>
+        {panel && pintarPanel(panel)}
         <div className="us-marco">
           <table className="us-tabla">
             <thead>
@@ -1182,6 +1187,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
               )}
             </tbody>
           </table>
+        </div>
         </div>
       </section>
     </>

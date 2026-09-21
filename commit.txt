@@ -1,37 +1,24 @@
-Usuarios: panel de la derecha para Cambiar rol, Nueva clave y Eliminar
+Usuarios: el panel va al lado de la tabla, como el diseño
 
-Como el diseño: las acciones sobre uno o varios usuarios se hacen en un
-panel que sale por la derecha y deja la lista a la vista. En el celular
-ocupa la pantalla entera, con los botones abajo.
+«No se abría.» El panel flotaba encima de la página (position: fixed)
+y en el equipo de Cristian no aparecía al tocar Cambiar rol. Ahora va
+DENTRO de la tarjeta, al lado de la tabla, como en el diseño: no
+depende de nada flotando.
 
-CAMBIAR ROL
-  - Los roles en lista, con su descripción y cuántas pantallas da cada
-    uno. «HOY · ARENOSA» dice qué rol tiene hoy cada seleccionado.
-  - «Así queda»: cada persona con el rol viejo tachado → el nuevo. Quien
-    ya lo tiene dice «ya es …» y no se manda.
-  - El botón dice a qué rol: «Cambiar a Facturación». No pregunta otra
-    vez: el panel ya es la confirmación.
+  - PC: tabla a la izquierda, panel de 400 px a la derecha, con su propio
+    scroll y los botones abajo siempre a la vista.
+  - Tableta y celular: el panel va arriba de la tabla, a todo lo ancho, y
+    al abrirse se trae a la vista.
+  - Colores del diseño: el botón principal, la casilla marcada, la fila
+    escogida y el rol nuevo en el color de marca del tema (amarillo en el
+    tuyo), con su letra pensada para leerse encima.
+  - «Así queda» en un solo renglón por persona: viejo tachado → nuevo.
+  - El número a la derecha de cada rol va solo, como en el diseño.
 
-NUEVA CLAVE
-  - Ahora también a varios desde la barra de seleccionados.
-  - Las claves salen juntas en el panel, cada una con su botón de copiar,
-    y «Copiar las dos». Aviso: se muestran una sola vez.
-  - Ese panel no se cierra tocando fuera ni con Esc: solo con «Listo» o
-    la X, para no perder las claves por un toque.
-  - Crear un usuario y crear varios también entregan las claves aquí
-    (crear varios, además, con «Bajar Excel» y los que no se crearon).
+SQL: ninguno.
 
-ELIMINAR
-  - Dice lo que de verdad pasa: quien no ha registrado nada se borra del
-    todo; quien tiene registros se desactiva, para que los informes sigan
-    firmados con su nombre (y dice cuántos registros).
-  - Cada persona sale como ficha con ×, para quitarla sin volver atrás.
-  - «Desactivar en su lugar» a un toque.
-  - No deja eliminar hasta escribir ELIMINAR.
-
-SQL: ninguno (los roles ya tienen descripción; se edita en Roles).
-
-MEDIDO: .arnes/ad-usuarios.mjs (1200 · 390 · 360, siete temas)
+MEDIDO: .arnes/ad-usuarios.mjs (1200 · 390 · 360, siete temas; el panel
+va al lado de la tabla en el PC y está en pantalla al abrirse)
         .arnes/mutar-ad-usuarios.mjs — 14 de 14 rojas · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

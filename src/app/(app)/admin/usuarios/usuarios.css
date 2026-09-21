@@ -527,12 +527,16 @@
    Sale por la derecha y deja la lista a la vista. En el celular ocupa
    la pantalla entera, con los botones pegados abajo.
    ===================================================================== */
-.us-pnl-velo { position: fixed; inset: 0; z-index: 70; background: rgba(4, 32, 63, .18) }
+/* La tabla y el panel lado a lado. */
+.us .us-cuerpo.con-panel {
+  display: grid; grid-template-columns: minmax(0, 1fr) 400px; align-items: start;
+  border-top: 1px solid var(--rl-linea);
+}
+.us .us-cuerpo.con-panel > .us-marco { border-top: 0 }
 .us-pnl {
-  position: fixed; top: 0; right: 0; bottom: 0; z-index: 71;
-  width: min(440px, 100vw); display: flex; flex-direction: column;
+  grid-column: 2; grid-row: 1; min-width: 0; display: flex; flex-direction: column;
+  max-height: max(520px, calc(100dvh - 200px));
   background: var(--rl-papel); border-left: 1px solid var(--rl-linea);
-  box-shadow: -24px 0 48px -28px rgba(4, 32, 63, .45);
   font-family: var(--rl-texto); color: var(--rl-tinta);
 }
 .us-pnl * { box-sizing: border-box }
@@ -635,11 +639,14 @@
 .us-pnl-ro .pt small { display: block; font: 600 9.5px var(--rl-texto); color: var(--rl-gris); letter-spacing: .04em }
 
 .us-pnl-queda { background: var(--rl-papel); border: 1px solid var(--rl-linea) }
+/* Un renglón por persona: iniciales · nombre · viejo → nuevo. */
 .us-pnl-queda .l {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; min-height: 60px;
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 12px 16px; min-height: 60px;
 }
+.us-pnl-queda .cambio { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap }
 .us-pnl-queda .l + .l { border-top: 1px solid var(--rl-linea) }
-.us-pnl-queda .l > b { flex: 1 1 110px; min-width: 0; font-size: 14.5px; font-weight: 600; overflow-wrap: anywhere }
+.us-pnl-queda .l > b { min-width: 0; font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .us-pnl-queda s { color: var(--rl-gris); font-size: 13.5px }
 .us-pnl-queda .a {
   padding: 3px 8px; font: 800 13.5px var(--rl-titulo);
@@ -668,8 +675,12 @@
 .us-pnl-conf input::placeholder { color: var(--rl-gris); opacity: .7 }
 .us-pnl-conf input:focus { outline: none; border-color: #C8102E }
 
+@media (max-width: 1100px) {
+  .us .us-cuerpo.con-panel { grid-template-columns: minmax(0, 1fr) }
+  .us-pnl { grid-column: 1; grid-row: 1; max-height: none; border-left: 0; border-bottom: 3px solid var(--rl-tinta) }
+  .us .us-cuerpo.con-panel > .us-marco { grid-row: 2 }
+}
 @media (max-width: 620px) {
-  .us-pnl { width: 100vw; border-left: 0 }
   .us-pnl-cab { padding: 10px 12px; gap: 10px }
   .us-pnl-tit b { font-size: 18px }
   .us-pnl-cuerpo { padding: 14px 12px }
@@ -677,3 +688,15 @@
   .us-pnl-clave { padding: 12px; gap: 10px }
   .us-pnl-clave code { font-size: 19px }
 }
+
+/* ---- Como el diseño: el color de la marca del tema ----
+   El botón principal del panel, la casilla marcada, la fila escogida y
+   el rol nuevo van en el color de marca (--c-marca, con --c-marca-txt
+   encima, que es el par pensado para leerse). */
+.us-pnl-pie .btn:not(.sec):not(.rojo) { background: var(--c-marca, #FFC000); color: var(--c-marca-txt, #12263A) }
+.us-pnl-pie .btn:not(.sec):not(.rojo):hover:not(:disabled) { filter: brightness(.95); background: var(--c-marca, #FFC000) }
+.us-pnl-pie .btn:disabled { background: #E6E6E2; color: #6B6B66; filter: none }
+.us .us-marca input { accent-color: var(--c-marca, #FFC000) }
+.us .us-tabla tr.us-sel > td { background: color-mix(in srgb, var(--c-marca, #FFC000) 10%, #fff) }
+.us-pnl-ro.on { background: color-mix(in srgb, var(--c-marca, #FFC000) 12%, #fff) }
+.us-pnl-queda .a { background: var(--c-marca, #FFC000); color: var(--c-marca-txt, #12263A) }
