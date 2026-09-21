@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { normalizarUsuario } from "@/lib/auth";
 import { useConfirmar } from "@/components/Confirmar";
+import { PanelLado, Ini, Aviso } from "./PanelLado";
 
 type Persona = {
   id: string; usuario: string | null; nombre: string | null; rol: string;
@@ -29,7 +30,7 @@ type Persona = {
       es cómo se le quita una pantalla que su rol sí le da. */
   permisos_extra: Record<string, Nivel> | null;
 };
-type Rol = { clave: string; nombre: string; manda: boolean };
+type Rol = { clave: string; nombre: string; manda: boolean; descripcion?: string | null };
 /** Una línea de rol_permisos: qué le da un rol a una sección. */
 type PermisoRol = { rol: string; seccion: string; nivel: "ver" | "editar" };
 type Modulo = {
@@ -178,6 +179,13 @@ function haceCuanto(s: string | null | undefined): string {
 type Estado = "todos" | "activos" | "inactivos" | "provisional" | "nunca";
 type Orden = "nombre" | "ingreso" | "rol" | "registros";
 type Resultado = { nombre: string; usuario: string; ok: boolean; clave?: string; error?: string };
+/** Una clave lista para entregar. */
+type Clave = { nombre: string; usuario: string; clave: string };
+/** Lo que está abierto en el panel de la derecha. */
+type Panel =
+  | { tipo: "rol"; ids: string[] }
+  | { tipo: "eliminar"; ids: string[] }
+  | { tipo: "claves"; titulo: string; filas: Clave[]; fallas: Resultado[]; rol?: string };
 
 /** Los nombres pegados —de Excel, de un chat— a una fila por persona. */
 export function leerNombres(texto: string): string[] {
@@ -255,7 +263,6 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
 
   /* ---------- VARIOS A LA VEZ ---------- */
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [loteRol, setLoteRol] = useState("");
   const [enLote, setEnLote] = useState(false);
   const [bien, setBien] = useState<string | null>(null);
   const marcar = (id: string) => setSel((s0) => { const s1 = new Set(s0); if (s1.has(id)) s1.delete(id); else s1.add(id); return s1 });
@@ -267,7 +274,6 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
   const [texto, setTexto] = useState("");
   const [rolVarios, setRolVarios] = useState(roles.find((r) => !r.manda)?.clave ?? roles[0]?.clave ?? "");
   const [propuestos, setPropuestos] = useState<string[]>([]);
-  const [resultados, setResultados] = useState<Resultado[] | null>(null);
   const nombresLote = useMemo(() => leerNombres(texto), [texto]);
   useEffect(() => {
     setPropuestos(proponerLote(nombresLote, new Set(lista.map((p) => p.usuario ?? ""))));
@@ -282,8 +288,12 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
   const [libre, setLibre] = useState<boolean | null>(null);
   const [creando, setCreando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
-  /* Lo que se acaba de crear, con su clave. Sale una vez. */
-  const [reciente, setReciente] = useState<{ usuario: string; nombre: string; clave: string } | null>(null);
+  /* EL PANEL DE LA DERECHA: cambiar rol, eliminar, o las claves recién
+     generadas. Uno a la vez. */
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [rolPanel, setRolPanel] = useState("");
+  const [escrito, setEscrito] = useState("");
+  const abrir = (x: Panel) => { setPanel(x); setRolPanel(""); setEscrito(""); setMal(null); setBien(null) };
 
   /* Mientras nadie toque el campo del usuario, se propone del nombre. Al
      tocarlo, deja de moverse solo: nada peor que un campo que se
@@ -314,8 +324,10 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
      dictar, esta es la única salida. Sin esto quedaba una cuenta a la
      que nadie puede entrar y un usuario ocupado para siempre. */
   const [regenerando, setRegenerando] = useState<string | null>(null);
-  async function nuevaClave(p: Persona) {
-    setMal(null); setRegenerando(p.id);
+  /** Una clave nueva para una persona. Devuelve la clave, o null y deja
+   *  dicho el porqué en `mal`. */
+  async function generarClave(p: Persona): Promise<Clave | null> {
+    setRegenerando(p.id);
     const r = await fetch("/api/admin/usuarios", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -323,28 +335,36 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     });
     const j = await r.json().catch(() => ({} as Record<string, string>));
     setRegenerando(null);
+    /* La clave nueva cambia lo que se VE —el estado pasa a «clave
+       provisional»—, así que se pinta aquí y no se espera a consultar. */
+    setLista((l) => l.map((x) => (x.id === p.id ? { ...x, clave_provisional: true } : x)));
     /* Si la clave SÍ cambió pero algo más falló, el servidor la manda
        igual: perderla por un error posterior dejaría a la persona sin
        poder entrar y sin que nadie sepa con qué. */
-    if (j.clave) setReciente({ usuario: j.usuario, nombre: j.nombre || j.usuario, clave: j.clave });
-    if (!r.ok) {
-      setMal(j.error ?? "No se pudo generar la clave.");
-    } else if (!j.clave) {
-      /* 200 con el cuerpo vacío: Vercel corta la respuesta a mitad. Sin
-         esto el botón no hacía absolutamente nada y no había forma de
-         saber si la clave cambió o no. Y sí puede haber cambiado: el
-         corte pasa después. */
-      setMal(
-        `El servidor cortó la respuesta y la clave no llegó. Es posible que SÍ ` +
-        `haya cambiado, así que la anterior puede que ya no sirva: vuelve a darle ` +
-        `"Nueva clave" a ${p.nombre || p.usuario} y usa la que salga.`
-      );
+    if (j.clave) {
+      if (!r.ok) setMal(j.error ?? null);
+      return { usuario: j.usuario || p.usuario || "", nombre: j.nombre || p.nombre || j.usuario || "", clave: j.clave };
     }
-    /* La clave nueva cambia lo que se VE —el estado pasa a «clave
-       provisional»—, así que se pinta aquí igual que al editar y no se
-       espera a que vuelva a consultarse. */
-    setLista((l) => l.map((x) => (x.id === p.id ? { ...x, clave_provisional: true } : x)));
+    setMal(!r.ok ? (j.error ?? "No se pudo generar la clave.")
+      /* 200 con el cuerpo vacío: Vercel corta la respuesta a mitad. Y la
+         clave SÍ puede haber cambiado: el corte pasa después. */
+      : `El servidor cortó la respuesta y la clave no llegó. Es posible que SÍ ` +
+        `haya cambiado, así que la anterior puede que ya no sirva: vuelve a darle ` +
+        `"Nueva clave" a ${p.nombre || p.usuario} y usa la que salga.`);
+    return null;
+  }
+  /* GENERARLE UNA CLAVE NUEVA a una o a varias personas. Las claves salen
+     juntas en el panel, UNA vez, y no se guardan en ninguna parte. */
+  async function nuevasClaves(ps: Persona[]) {
+    if (ps.some((p) => p.id === yo)) { setMal("Tú estás en la selección: tu clave se cambia en Mi perfil."); return }
+    setMal(null); setBien(null);
+    const filas: Clave[] = [];
+    for (const p of ps) { const c = await generarClave(p); if (c) filas.push(c) }
     router.refresh();
+    if (filas.length) {
+      setPanel({ tipo: "claves", titulo: filas.length === 1 ? "Nueva clave" : `${filas.length} claves nuevas`, filas, fallas: [] });
+      setSel(new Set());
+    }
   }
 
   /* ---------- EDITAR NOMBRE Y USUARIO ----------
@@ -468,7 +488,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
         "vuelve a intentarlo."
       );
     }
-    setReciente({ usuario: j.usuario, nombre: j.nombre || j.usuario, clave: j.clave });
+    abrir({ tipo: "claves", titulo: "Usuario creado", rol,
+            filas: [{ usuario: j.usuario, nombre: j.nombre || j.usuario, clave: j.clave }], fallas: [] });
     setAbierto(false);
     limpiar();
     router.refresh();
@@ -482,13 +503,17 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     const n = ids.map((id) => { const p = lista.find((x) => x.id === id); return p?.nombre || p?.usuario || "?" });
     return n.length <= 5 ? n.join(", ") : `${n.slice(0, 5).join(", ")} y ${n.length - 5} más`;
   };
-  async function lote(accion: "rol" | "activar" | "desactivar" | "eliminar", ids: string[], rolNuevo?: string) {
+  async function lote(accion: "rol" | "activar" | "desactivar" | "eliminar", ids: string[], rolNuevo?: string,
+                      yaConfirmado = false) {
     if (ids.length === 0) return;
     const conmigo = ids.includes(yo) && accion !== "activar";
     if (conmigo) { setMal("Tú estás en la selección: quítate para cambiar el rol, desactivar o eliminar."); return }
     const quien = nomDe(ids);
     const conRastro = ids.filter((id) => (registros?.[id] ?? 0) > 0);
-    const ok = await pedir(
+    /* Cambiar rol y eliminar se confirman EN EL PANEL —que ya nombra a
+       quiénes y dice qué va a pasar—; preguntar otra vez sería pedir el
+       mismo sí dos veces. */
+    const ok = yaConfirmado || await pedir(
       accion === "rol" ? {
         titulo: `¿Pasar ${ids.length === 1 ? "a esta persona" : `a estas ${ids.length} personas`} a ${nRol(rolNuevo ?? "")}?`,
         dice: <><p>{quien}.</p><p>Desde que vuelvan a abrir una pantalla ven lo de <b>{nRol(rolNuevo ?? "")}</b>.</p></>,
@@ -535,6 +560,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
         + (Number(j.sinBloqueo) ? ` A ${j.sinBloqueo} no se les pudo bloquear la sesión abierta.` : ""));
     }
     setSel(new Set());
+    setPanel(null);
     router.refresh();
   }
 
@@ -561,19 +587,23 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       router.refresh();
       return;
     }
-    setResultados(rs);
+    abrir({ tipo: "claves", titulo: `${rs.filter((x) => x.ok).length} de ${rs.length} usuarios creados`,
+            filas: rs.filter((x) => x.ok).map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? "" })),
+            fallas: rs.filter((x) => !x.ok), rol: rolVarios });
     setTexto("");
     setVarios(false);
     router.refresh();
   }
-  const listaClaves = (rs: Resultado[]) => rs.filter((x) => x.ok);
-  function copiarClaves() {
-    const t = ["Nombre\tUsuario\tClave provisional", ...listaClaves(resultados ?? []).map((x) => `${x.nombre}\t${x.usuario}\t${x.clave}`)].join("\n");
-    navigator.clipboard?.writeText(t).then(() => setBien("Copiadas: pégalas en Excel o en un chat."), () => setMal("No se pudo copiar."));
+  function copiarClaves(filas: Clave[]) {
+    const t = filas.length === 1 ? `${filas[0].usuario}\t${filas[0].clave}`
+      : ["Nombre\tUsuario\tClave provisional", ...filas.map((x) => `${x.nombre}\t${x.usuario}\t${x.clave}`)].join("\n");
+    navigator.clipboard?.writeText(t).then(
+      () => setBien(filas.length === 1 ? `Copiada la de ${filas[0].nombre}.` : "Copiadas: pégalas en Excel o en un chat."),
+      () => setMal("No se pudo copiar."));
   }
-  function bajarClaves() {
-    const filas = [["Nombre", "Usuario", "Clave provisional", "Rol"], ...listaClaves(resultados ?? []).map((x) => [x.nombre, x.usuario, x.clave ?? "", nRol(rolVarios)])];
-    const csv = "\ufeff" + filas.map((f) => f.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+  function bajarClaves(filas: Clave[], rolNombre: string) {
+    const f = [["Nombre", "Usuario", "Clave provisional", "Rol"], ...filas.map((x) => [x.nombre, x.usuario, x.clave, rolNombre])];
+    const csv = "\ufeff" + f.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     a.download = `claves-provisionales-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -600,6 +630,167 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     }
     return ruta;
   };
+
+  /* ================= EL PANEL DE LA DERECHA ================= */
+  const persona = (id: string) => lista.find((x) => x.id === id);
+  const nom = (p?: Persona) => p?.nombre || p?.usuario || "?";
+  const cuantasPantallas = (clave: string) =>
+    roles.find((r) => r.clave === clave)?.manda ? catalogo.reduce((a, m) => a + m.secciones.length, 0)
+      : Object.keys(porRol[clave] ?? {}).length;
+
+  function pintarPanel(x: Panel) {
+    const cerrar = () => setPanel(null);
+
+    if (x.tipo === "claves") {
+      return (
+        <PanelLado fijo titulo={x.titulo} sub="Lista para entregar" cerrar={cerrar}
+          pie={<>
+            <button type="button" className="btn" onClick={() => copiarClaves(x.filas)} disabled={!x.filas.length}>
+              {x.filas.length === 1 ? "Copiar" : x.filas.length === 2 ? "Copiar las dos" : `Copiar las ${x.filas.length}`}
+            </button>
+            {/* El Excel es para un lote de creados; para una o dos claves
+                sobra un botón y en el celular no caben tres. */}
+            {x.filas.length > 2 && (
+              <button type="button" className="btn sec" onClick={() => bajarClaves(x.filas, nRol(x.rol ?? ""))}>Bajar Excel</button>
+            )}
+            <button type="button" className="btn sec" onClick={cerrar}>Listo</button>
+          </>}>
+          <Aviso tono="amb">
+            <b>Se muestra{x.filas.length === 1 ? "" : "n"} una sola vez.</b> Cópiala{x.filas.length === 1 ? "" : "s"} ahora;
+            al cerrar este panel ya no se puede{x.filas.length === 1 ? "" : "n"} volver a ver. En el primer ingreso
+            {x.filas.length === 1 ? " le" : " les"} pedirá cambiarla.
+          </Aviso>
+          <div className="us-pnl-claves">
+            {x.filas.map((c) => (
+              <div className="us-pnl-clave" key={c.usuario}>
+                <Ini de={c.nombre} />
+                <div><b>{c.nombre} · <span className="cod">{c.usuario}</span></b><code>{c.clave}</code></div>
+                <button type="button" className="us-pnl-copiar" onClick={() => copiarClaves([c])}
+                        aria-label={`Copiar la clave de ${c.nombre}`} title="Copiar">
+                  <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" /></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          {x.fallas.length > 0 && (
+            <Aviso tono="mal">
+              <b>{x.fallas.length === 1 ? "Uno no se creó" : `${x.fallas.length} no se crearon`}:</b>{" "}
+              {x.fallas.map((f) => `${f.nombre} (${f.usuario}): ${f.error}`).join(" · ")}
+            </Aviso>
+          )}
+        </PanelLado>
+      );
+    }
+
+    const gente = x.ids.map(persona).filter(Boolean) as Persona[];
+    const quitar = (id: string) => {
+      const ids = x.ids.filter((y) => y !== id);
+      if (ids.length === 0) { setPanel(null); return }
+      setPanel({ ...x, ids });
+      setSel(new Set(ids));
+    };
+    const conmigo = x.ids.includes(yo);
+
+    if (x.tipo === "rol") {
+      const nombres = gente.map(nom);
+      const sub = nombres.length <= 3 ? nombres.join(nombres.length === 2 ? " y " : ", ")
+        : `${nombres.slice(0, 2).join(", ")} y ${nombres.length - 2} más`;
+      const cambian = gente.filter((p) => p.rol !== rolPanel);
+      return (
+        <PanelLado titulo="Cambiar rol" sub={sub} cerrar={cerrar}
+          pie={<>
+            <button type="button" className="btn sec" onClick={cerrar}>Cancelar</button>
+            <button type="button" className="btn" disabled={!rolPanel || cambian.length === 0 || enLote || conmigo}
+                    onClick={() => lote("rol", cambian.map((p) => p.id), rolPanel, true)}>
+              {enLote ? "Cambiando…" : rolPanel ? `Cambiar a ${nRol(rolPanel)}` : "Escoge el rol"}
+            </button>
+          </>}>
+          {conmigo && <Aviso tono="mal">Tú estás en la selección: quítate para cambiar el rol.</Aviso>}
+          <p className="us-pnl-rot">Escoge el rol nuevo</p>
+          <div className="us-pnl-roles" role="radiogroup" aria-label="Rol nuevo">
+            {roles.map((r) => {
+              const hoy = gente.filter((p) => p.rol === r.clave).map(nom);
+              const n = cuantasPantallas(r.clave);
+              return (
+                <button key={r.clave} type="button" role="radio" aria-checked={rolPanel === r.clave}
+                        className={"us-pnl-ro" + (rolPanel === r.clave ? " on" : "")}
+                        onClick={() => setRolPanel(r.clave)}>
+                  <span className="rd" aria-hidden />
+                  <span className="tx">
+                    <b>{r.nombre}{hoy.length > 0 && (
+                      <em className="hoy">HOY · {hoy.length <= 2 ? hoy.join(", ") : `${hoy.length} de ellos`}</em>)}</b>
+                    <small>{r.descripcion || (r.manda ? "Administra la plataforma, incluido Usuarios" : `${n} pantalla${n === 1 ? "" : "s"}`)}</small>
+                  </span>
+                  <span className="pt" title={`${n} pantallas`}>{n}<small>pant.</small></span>
+                </button>
+              );
+            })}
+          </div>
+          {rolPanel && (
+            <>
+              <p className="us-pnl-rot">Así queda</p>
+              <div className="us-pnl-queda">
+                {gente.map((p) => (
+                  <div className="l" key={p.id}>
+                    <Ini de={nom(p)} />
+                    <b>{nom(p)}</b>
+                    {p.rol === rolPanel
+                      ? <span className="igual">ya es {nRol(rolPanel)}</span>
+                      : <><s>{nRol(p.rol)}</s><span aria-hidden>→</span><span className="a">{nRol(rolPanel)}</span></>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </PanelLado>
+      );
+    }
+
+    /* ELIMINAR. Lo que de verdad pasa, no lo que suena bien: quien no
+       ha registrado nada se borra del todo; quien sí, se DESACTIVA,
+       porque sus registros siguen en los informes con su nombre. */
+    const conRastro = gente.filter((p) => (registros?.[p.id] ?? 0) > 0);
+    const sinRastro = gente.filter((p) => (registros?.[p.id] ?? 0) === 0);
+    const regs = conRastro.reduce((a, p) => a + (registros?.[p.id] ?? 0), 0);
+    const listo = escrito.trim().toUpperCase() === "ELIMINAR";
+    const n = gente.length;
+    return (
+      <PanelLado titulo={`Eliminar ${n === 1 ? nom(gente[0]) : `${n} usuarios`}`} sub="Esto no se deshace" cerrar={cerrar}
+        pie={<>
+          <button type="button" className="btn sec" onClick={cerrar}>Cancelar</button>
+          <button type="button" className="btn rojo" disabled={!listo || enLote || conmigo}
+                  onClick={() => lote("eliminar", x.ids, undefined, true)}>
+            {enLote ? "Eliminando…" : `Eliminar ${n === 1 ? "usuario" : `${n} usuarios`}`}
+          </button>
+        </>}>
+        {conmigo && <Aviso tono="mal">Tú estás en la selección: quítate para poder eliminar.</Aviso>}
+        <Aviso tono="mal">
+          {sinRastro.length > 0 && <><b>{sinRastro.length === n ? (n === 1 ? "Se borra la cuenta" : "Se borran las cuentas") : `${sinRastro.length} se borran del todo`}</b>
+            {" "}y su usuario queda libre: no han registrado nada. </>}
+          {conRastro.length > 0 && <><b>{conRastro.length === 1 ? (n === 1 ? "Tiene" : `${nom(conRastro[0])} tiene`) : `${conRastro.length} tienen`} {regs.toLocaleString("es-CO")} registro{regs === 1 ? "" : "s"}</b>:
+            {" "}{conRastro.length === 1 ? "se desactiva" : "se desactivan"} en vez de borrarse, para que los informes sigan firmados con su nombre.</>}
+        </Aviso>
+        <div className="us-pnl-chips">
+          {gente.map((p) => (
+            <span className="us-pnl-chip" key={p.id}>
+              <Ini de={nom(p)} />{nom(p)}
+              <button type="button" onClick={() => quitar(p.id)} aria-label={`Quitar a ${nom(p)}`}>×</button>
+            </span>
+          ))}
+        </div>
+        <Aviso tono="amb">
+          Si solo quieres que no entren, <b>desactivar</b> es suficiente y se puede revertir.{" "}
+          <button type="button" className="us-pnl-link" disabled={enLote || conmigo}
+                  onClick={() => lote("desactivar", x.ids, undefined, true)}>Desactivar en su lugar</button>
+        </Aviso>
+        <label className="us-pnl-conf">
+          <span className="us-pnl-rot">Escribe ELIMINAR para confirmar</span>
+          <input value={escrito} onChange={(e) => setEscrito(e.target.value)} placeholder="ELIMINAR"
+                 autoComplete="off" autoCapitalize="characters" spellCheck={false} />
+        </label>
+      </PanelLado>
+    );
+  }
 
   return (
     <>
@@ -638,65 +829,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       {mal && <p className="us-mal suelto" role="alert">{mal}</p>}
       {bien && <p className="us-bien suelto" role="status">{bien}</p>}
 
-      {/* LAS CLAVES DE UN LOTE: una tabla para entregar, copiar o bajar.
-          Salen UNA vez, igual que la de uno solo. */}
-      {resultados && (
-        <section className="us-lote-claves" role="status">
-          <div className="us-lote-cab">
-            <div>
-              <p className="rot">CLAVES PROVISIONALES · {nRol(rolVarios).toUpperCase()}</p>
-              <p className="dice">
-                {listaClaves(resultados).length} de {resultados.length} creados. Entrégalas ahora:
-                <b> no se vuelven a mostrar</b>. Cada persona cambia la suya al entrar.
-              </p>
-            </div>
-            <div className="us-lote-bot">
-              <button type="button" className="btn" onClick={copiarClaves} disabled={listaClaves(resultados).length === 0}>Copiar todo</button>
-              <button type="button" className="btn sec" onClick={bajarClaves} disabled={listaClaves(resultados).length === 0}>Bajar Excel (CSV)</button>
-              <button type="button" className="btn plano" onClick={() => setResultados(null)}>Ya las entregué</button>
-            </div>
-          </div>
-          <div className="us-marco">
-            <table className="us-tabla us-tabla-claves">
-              <thead><tr><th>Nombre</th><th>Usuario</th><th>Clave</th></tr></thead>
-              <tbody>
-                {resultados.map((x, i) => (
-                  <tr key={i} className={x.ok ? "" : "us-no"}>
-                    <td>{x.nombre}</td>
-                    <td className="cod">{x.usuario}</td>
-                    <td>{x.ok ? <b className="us-clave-num">{x.clave}</b> : <span className="us-estado mal">{x.error}</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {/* La clave recién generada. Grande, para dictarla. */}
-      {reciente && (
-        <section className="us-clave" role="status">
-          <div>
-            {/* Con ?? por si acaso: esta tarjeta lleva la única copia de
-                la clave, y si revienta al dibujarse se pierde. */}
-            <p className="rot">
-              CLAVE PROVISIONAL DE {(reciente.nombre ?? reciente.usuario ?? "").toUpperCase()}
-            </p>
-            <p className="num">{reciente.clave}</p>
-            <p className="dice">
-              Entra con el usuario <b>{reciente.usuario}</b> y esta clave. La
-              aplicación le va a pedir cambiarla antes de dejarlo entrar a nada.
-            </p>
-            <p className="ojo">
-              Anótala o díctala ahora: <b>no se vuelve a mostrar</b> y no queda
-              guardada en ninguna parte. Si se pierde, se genera otra.
-            </p>
-          </div>
-          <button type="button" className="btn plano" onClick={() => setReciente(null)}>
-            Ya la dicté
-          </button>
-        </section>
-      )}
+      {panel && pintarPanel(panel)}
 
       <section className="tarjeta">
         <div className="cab">
@@ -872,17 +1005,15 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
         {sel.size > 0 && (
           <div className="us-lote" role="region" aria-label="Acciones para los seleccionados">
             <b>{sel.size} {sel.size === 1 ? "seleccionado" : "seleccionados"}</b>
-            <div className="us-lote-rol">
-              <select value={loteRol} onChange={(e) => setLoteRol(e.target.value)} aria-label="Rol nuevo">
-                <option value="">Cambiar rol a…</option>
-                {roles.map((r) => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
-              </select>
-              <button type="button" className="btn sec" disabled={!loteRol || enLote || !hayLlave}
-                      onClick={() => lote("rol", [...sel], loteRol)}>Aplicar</button>
-            </div>
+            <button type="button" className="btn sec" disabled={enLote || !hayLlave}
+                    onClick={() => abrir({ tipo: "rol", ids: [...sel] })}>Cambiar rol</button>
+            <button type="button" className="btn sec" disabled={enLote || !hayLlave || !!regenerando}
+                    onClick={() => nuevasClaves(lista.filter((p) => sel.has(p.id)))}>
+              {regenerando ? "Generando…" : "Nueva clave"}</button>
             <button type="button" className="btn sec" disabled={enLote || !hayLlave} onClick={() => lote("activar", [...sel])}>Activar</button>
             <button type="button" className="btn sec" disabled={enLote || !hayLlave} onClick={() => lote("desactivar", [...sel])}>Desactivar</button>
-            <button type="button" className="btn sec peligro" disabled={enLote || !hayLlave} onClick={() => lote("eliminar", [...sel])}>Eliminar</button>
+            <button type="button" className="btn sec peligro" disabled={enLote || !hayLlave}
+                    onClick={() => abrir({ tipo: "eliminar", ids: [...sel] })}>Eliminar</button>
             <button type="button" className="btn plano" onClick={() => setSel(new Set())}>Quitar selección</button>
           </div>
         )}
@@ -991,7 +1122,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                           ) : (
                             <button type="button" className="us-mini"
                                     disabled={!hayLlave || !!regenerando || !!editando}
-                                    onClick={() => nuevaClave(p)}>
+                                    onClick={() => nuevasClaves([p])}>
                               {regenerando === p.id ? "Generando…" : "Nueva clave"}
                             </button>
                           )}
@@ -1006,7 +1137,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                             <button type="button" className="us-mini peligro"
                                     disabled={!hayLlave || enLote || !!editando}
                                     title={(registros?.[p.id] ?? 0) > 0 ? "Tiene registros: se desactiva en vez de borrarse" : "No ha registrado nada: se borra del todo"}
-                                    onClick={() => lote("eliminar", [p.id])}>
+                                    onClick={() => abrir({ tipo: "eliminar", ids: [p.id] })}>
                               Eliminar
                             </button>
                           )}

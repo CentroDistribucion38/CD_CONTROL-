@@ -1,23 +1,38 @@
-Rotura de línea en el celular: todas las máquinas, compacto y sin teclado solo
+Usuarios: panel de la derecha para Cambiar rol, Nueva clave y Eliminar
 
-«En un solo registro se pueden relacionar varias causales» — y — «que el
-scroll no sea tan grande».
-  - En el celular vuelven TODAS las máquinas, cada una con su casilla de
-    kilos y sus unidades, como en el PC. Una pesada puede llevar kilos de
-    varias máquinas y hay que verlas todas para no dejarse ninguna.
-  - Compacto: filas de 44, el nombre de la máquina parte en dos renglones
-    sin cortar palabras, sin rodar de lado a 360. El turno va en un solo
-    renglón («B 08:00 · 16:00») y hay menos aire entre los pasos.
-  - El total de la pesada va en la barra de abajo (280 u · 58,5 kg ·
-    2 máq.) y no se repite en una franja al pie de la tabla.
-  - Las casillas aceptan coma: «38,5» cuenta (antes, en un campo numérico,
-    quedaba vacío sin avisar). Letras no entran.
-  - El teclado sale solo si se pide: abrir la lista de envases ya no pone
-    el cursor en el buscador en el celular. En el PC sigue igual.
+Como el diseño: las acciones sobre uno o varios usuarios se hacen en un
+panel que sale por la derecha y deja la lista a la vista. En el celular
+ocupa la pantalla entera, con los botones abajo.
 
-SQL: ninguno.
+CAMBIAR ROL
+  - Los roles en lista, con su descripción y cuántas pantallas da cada
+    uno. «HOY · ARENOSA» dice qué rol tiene hoy cada seleccionado.
+  - «Así queda»: cada persona con el rol viejo tachado → el nuevo. Quien
+    ya lo tiene dice «ya es …» y no se manda.
+  - El botón dice a qué rol: «Cambiar a Facturación». No pregunta otra
+    vez: el panel ya es la confirmación.
 
-MEDIDO: .arnes/rl-celular.mjs · .arnes/rl-pantalla.mjs · next build
+NUEVA CLAVE
+  - Ahora también a varios desde la barra de seleccionados.
+  - Las claves salen juntas en el panel, cada una con su botón de copiar,
+    y «Copiar las dos». Aviso: se muestran una sola vez.
+  - Ese panel no se cierra tocando fuera ni con Esc: solo con «Listo» o
+    la X, para no perder las claves por un toque.
+  - Crear un usuario y crear varios también entregan las claves aquí
+    (crear varios, además, con «Bajar Excel» y los que no se crearon).
+
+ELIMINAR
+  - Dice lo que de verdad pasa: quien no ha registrado nada se borra del
+    todo; quien tiene registros se desactiva, para que los informes sigan
+    firmados con su nombre (y dice cuántos registros).
+  - Cada persona sale como ficha con ×, para quitarla sin volver atrás.
+  - «Desactivar en su lugar» a un toque.
+  - No deja eliminar hasta escribir ELIMINAR.
+
+SQL: ninguno (los roles ya tienen descripción; se edita en Roles).
+
+MEDIDO: .arnes/ad-usuarios.mjs (1200 · 390 · 360, siete temas)
+        .arnes/mutar-ad-usuarios.mjs — 14 de 14 rojas · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

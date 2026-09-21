@@ -51,7 +51,7 @@ export default async function UsuariosPage({ searchParams }: {
       .from("perfiles")
       .select("id, usuario, nombre, rol, activo, clave_provisional, permisos_extra")
       .order("nombre", { nullsFirst: false }),
-    supabase.from("roles").select("clave, nombre, manda").order("orden", { nullsFirst: false }),
+    supabase.from("roles").select("clave, nombre, manda, descripcion").order("orden", { nullsFirst: false }),
     /* LO QUE YA DA EL ROL. Sin esto, el editor de pantallas extra se
        llena a ciegas: nadie sabe si la pantalla que está a punto de dar
        ya venía con el rol, y termina habiendo permisos sueltos que no

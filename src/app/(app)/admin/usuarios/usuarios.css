@@ -520,3 +520,160 @@
 }
 .us .us-tabla .us-cuantas:empty { display: none }
 .us .us-tabla .us-cuantas { margin-top: 4px }
+
+/* =====================================================================
+   EL PANEL DE LA DERECHA — Cambiar rol, Nueva clave, Eliminar
+   ---------------------------------------------------------------------
+   Sale por la derecha y deja la lista a la vista. En el celular ocupa
+   la pantalla entera, con los botones pegados abajo.
+   ===================================================================== */
+.us-pnl-velo { position: fixed; inset: 0; z-index: 70; background: rgba(4, 32, 63, .18) }
+.us-pnl {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 71;
+  width: min(440px, 100vw); display: flex; flex-direction: column;
+  background: var(--rl-papel); border-left: 1px solid var(--rl-linea);
+  box-shadow: -24px 0 48px -28px rgba(4, 32, 63, .45);
+  font-family: var(--rl-texto); color: var(--rl-tinta);
+}
+.us-pnl * { box-sizing: border-box }
+.us-pnl-cab {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 14px;
+  padding: 16px 20px; border-bottom: 1px solid var(--rl-linea);
+}
+.us-pnl-vol, .us-pnl-x {
+  width: 44px; height: 44px; display: grid; place-items: center; cursor: pointer;
+  background: none; border: 1px solid var(--rl-linea); border-radius: 2px; color: var(--rl-tinta);
+}
+.us-pnl-x { border-color: transparent }
+.us-pnl-vol:hover, .us-pnl-x:hover { border-color: var(--rl-tinta) }
+.us-pnl-vol svg, .us-pnl-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2 }
+.us-pnl-tit { min-width: 0 }
+.us-pnl-tit b { display: block; font: 900 20px/1.15 var(--rl-titulo); letter-spacing: -.01em; overflow-wrap: anywhere }
+.us-pnl-tit span { display: block; margin-top: 3px; font-size: 13px; color: var(--rl-gris); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+.us-pnl-cuerpo {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 20px; background: var(--c-f7f9fc, #F8FAFC);
+}
+.us-pnl-pie {
+  display: flex; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--rl-linea);
+  background: var(--rl-papel);
+}
+.us-pnl-pie .btn { flex: 1 1 auto; height: 48px; font-size: 15px; white-space: nowrap; min-width: 0 }
+.us-pnl-pie .btn.sec { flex: 0 0 auto; padding: 0 18px }
+
+.us-pnl-rot {
+  margin: 4px 0 -6px; font: 700 10.5px var(--rl-texto); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--rl-gris);
+}
+
+/* ---- Avisos ---- */
+.us-pnl-aviso {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start;
+  padding: 13px 14px; border-left: 4px solid; font-size: 13.5px; line-height: 1.5;
+}
+.us-pnl-aviso svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; margin-top: 1px }
+.us-pnl-aviso.amb { background: #FFF8E1; border-color: #F2B705; color: #5A4610 }
+.us-pnl-aviso.mal { background: #FDF0F1; border-color: #C8102E; color: #8A1020 }
+.us-pnl-aviso b { color: #1A1A1A; font-weight: 700 }
+.us-pnl-link {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-weight: 700;
+  color: #5A4610; text-decoration: underline; text-underline-offset: 2px; min-height: 24px;
+}
+.us-pnl-link:disabled { opacity: .5; cursor: not-allowed }
+
+/* ---- Iniciales ---- */
+.us-ini {
+  flex: none; width: 36px; height: 36px; border-radius: 50%; display: inline-grid; place-items: center;
+  background: #12263A; color: #FFC000; font: 800 12px/1 var(--rl-titulo); font-style: normal; letter-spacing: .02em;
+}
+
+/* ---- Nueva clave ---- */
+.us-pnl-claves { background: var(--rl-papel); border: 1px solid var(--rl-linea) }
+.us-pnl-clave {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) 48px; gap: 14px; align-items: center;
+  padding: 14px 16px;
+}
+.us-pnl-clave + .us-pnl-clave { border-top: 1px solid var(--rl-linea) }
+.us-pnl-clave b { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere }
+.us-pnl-clave b .cod { font-family: ui-monospace, Menlo, monospace; font-weight: 500; color: var(--rl-gris) }
+.us-pnl-clave code {
+  display: block; margin-top: 4px; font: 700 22px/1.1 ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: .06em; color: var(--rl-tinta); overflow-wrap: anywhere; user-select: all;
+}
+.us-pnl-copiar {
+  width: 48px; height: 48px; display: grid; place-items: center; cursor: pointer;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 2px; color: var(--rl-tinta);
+}
+.us-pnl-copiar:hover { border-color: var(--rl-tinta) }
+.us-pnl-copiar svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8 }
+
+/* ---- Cambiar rol ---- */
+.us-pnl-roles { background: var(--rl-papel); border: 1px solid var(--rl-linea) }
+.us-pnl-ro {
+  width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  padding: 13px 16px; min-height: 64px; text-align: left; cursor: pointer;
+  background: none; border: 0; color: var(--rl-tinta); font: inherit;
+}
+.us-pnl-ro + .us-pnl-ro { border-top: 1px solid var(--rl-linea) }
+.us-pnl-ro:hover { background: var(--c-f7f9fc, #F8FAFC) }
+.us-pnl-ro.on { background: color-mix(in srgb, var(--rl-acento) 9%, #fff) }
+.us-pnl-ro .rd {
+  width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--rl-gris); background: #fff;
+}
+.us-pnl-ro.on .rd { border: 2px solid var(--rl-tinta); box-shadow: inset 0 0 0 4px #fff; background: var(--rl-tinta) }
+.us-pnl-ro .tx { min-width: 0 }
+.us-pnl-ro .tx b { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 15px; font-weight: 600 }
+.us-pnl-ro .tx small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--rl-gris) }
+/* Sobre el tinte del escogido el gris se hunde en los temas ámbar. */
+.us-pnl-ro.on .tx small { color: color-mix(in srgb, var(--rl-gris) 55%, var(--rl-tinta)) }
+.us-pnl-ro .hoy {
+  font: 700 9.5px var(--rl-texto); font-style: normal; letter-spacing: .1em; text-transform: uppercase;
+  padding: 3px 7px; background: var(--c-eef1f5, #EEF1F5); color: var(--rl-tinta);
+}
+.us-pnl-ro .pt { font: 800 15px var(--rl-titulo); text-align: right; font-variant-numeric: tabular-nums }
+.us-pnl-ro .pt small { display: block; font: 600 9.5px var(--rl-texto); color: var(--rl-gris); letter-spacing: .04em }
+
+.us-pnl-queda { background: var(--rl-papel); border: 1px solid var(--rl-linea) }
+.us-pnl-queda .l {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; min-height: 60px;
+}
+.us-pnl-queda .l + .l { border-top: 1px solid var(--rl-linea) }
+.us-pnl-queda .l > b { flex: 1 1 110px; min-width: 0; font-size: 14.5px; font-weight: 600; overflow-wrap: anywhere }
+.us-pnl-queda s { color: var(--rl-gris); font-size: 13.5px }
+.us-pnl-queda .a {
+  padding: 3px 8px; font: 800 13.5px var(--rl-titulo);
+  background: color-mix(in srgb, var(--rl-acento) 16%, #fff); color: var(--rl-tinta);
+}
+.us-pnl-queda .igual { font-size: 12.5px; color: var(--rl-gris) }
+
+/* ---- Eliminar ---- */
+.us-pnl-chips { display: flex; flex-wrap: wrap; gap: 8px }
+.us-pnl-chip {
+  display: inline-flex; align-items: center; gap: 10px; padding: 0 0 0 6px;
+  background: var(--rl-papel); border: 1px solid var(--rl-linea);
+  font: 700 14px var(--rl-titulo); letter-spacing: .04em; max-width: 100%;
+}
+.us-pnl-chip .us-ini { width: 30px; height: 30px; font-size: 11px }
+.us-pnl-chip button {
+  width: 44px; height: 44px; border: 0; background: none; cursor: pointer;
+  font-size: 18px; color: var(--rl-gris);
+}
+.us-pnl-chip button:hover { color: #B3001F }
+.us-pnl-conf { display: flex; flex-direction: column; gap: 12px }
+.us-pnl-conf input {
+  height: 56px; padding: 0 16px; background: var(--rl-papel); border: 1.5px solid var(--rl-linea);
+  font: 800 20px var(--rl-titulo); letter-spacing: .08em; text-transform: uppercase; color: var(--rl-tinta);
+}
+.us-pnl-conf input::placeholder { color: var(--rl-gris); opacity: .7 }
+.us-pnl-conf input:focus { outline: none; border-color: #C8102E }
+
+@media (max-width: 620px) {
+  .us-pnl { width: 100vw; border-left: 0 }
+  .us-pnl-cab { padding: 10px 12px; gap: 10px }
+  .us-pnl-tit b { font-size: 18px }
+  .us-pnl-cuerpo { padding: 14px 12px }
+  .us-pnl-pie { padding: 10px 12px }
+  .us-pnl-clave { padding: 12px; gap: 10px }
+  .us-pnl-clave code { font-size: 19px }
+}

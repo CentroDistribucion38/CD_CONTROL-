@@ -6,10 +6,14 @@
    lo que se le manda. Se recorre:
    1. buscar (con y sin tildes), filtrar por rol y por «nunca han entrado»,
       ordenar por último ingreso;
-   2. seleccionar a varios: aparece la barra, cambiar el rol pide
-      confirmación nombrándolos y manda {accion:"rol", ids, rol};
+   2. seleccionar a varios: aparece la barra; «Cambiar rol» abre el panel
+      de la derecha con los roles, dice HOY quién tiene cuál, enseña «Así
+      queda» y manda {accion:"rol"} SOLO con los que cambian;
    3. uno mismo en la selección: no se manda nada y se dice por qué;
-   4. eliminar a quien tiene registros avisa que se desactiva;
+   4. eliminar abre el panel: avisa que quien tiene registros se
+      desactiva, se quita a uno con ×, y no deja hasta escribir ELIMINAR;
+   4b. «Nueva clave» a varios: las claves salen juntas en el panel, que no
+      se cierra tocando fuera;
    5. crear varios: se pegan nombres (con tildes, repetidos, de Excel),
       los usuarios salen sin chocar, se corrige uno, y las claves salen
       en una tabla que se copia y se baja;
@@ -27,8 +31,9 @@ writeFileSync(R(".arnes/_supa-us.ts"), `export const createClient = () => ({ rpc
 writeFileSync(R(".arnes/_us-entrada.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Usuarios } from "../src/app/(app)/admin/usuarios/Usuarios";
-const roles = [{ clave: "admin", nombre: "Administrador", manda: true }, { clave: "operador", nombre: "Operador", manda: false },
-               { clave: "portero", nombre: "Portero", manda: false }];
+const roles = [{ clave: "admin", nombre: "Administrador", manda: true, descripcion: "Todo, incluido Usuarios" },
+               { clave: "operador", nombre: "Operador", manda: false, descripcion: "Contar, registrar, roturas" },
+               { clave: "portero", nombre: "Portero", manda: false, descripcion: null }];
 const P = (id: string, nombre: string, usuario: string, rol: string, extra: any = {}) =>
   ({ id, nombre, usuario, rol, activo: true, clave_provisional: false, permisos_extra: {}, ...extra });
 const gente = [
@@ -43,7 +48,9 @@ const ingresos = { "00000000-0000-0000-0000-000000000001": hoy.toISOString(),
   "00000000-0000-0000-0000-000000000003": null, "00000000-0000-0000-0000-000000000004": null };
 const registros = { "00000000-0000-0000-0000-000000000001": 900, "00000000-0000-0000-0000-000000000002": 12,
   "00000000-0000-0000-0000-000000000003": 0, "00000000-0000-0000-0000-000000000004": 0 };
-createRoot(document.getElementById("r")!).render(<Usuarios gente={gente as any} roles={roles} delRol={[]} catalogo={[]}
+const delRol = [{ rol: "operador", seccion: "/inventario/conteo", nivel: "editar" }, { rol: "operador", seccion: "/quiebra/rotura", nivel: "editar" },
+                { rol: "portero", seccion: "/sider", nivel: "ver" }];
+createRoot(document.getElementById("r")!).render(<Usuarios gente={gente as any} roles={roles} delRol={delRol as any} catalogo={[]}
   hayLlave={true} yo="00000000-0000-0000-0000-000000000001" ingresos={ingresos} registros={registros} buscar="" />);
 `);
 const js = buildSync({ entryPoints: [R(".arnes/_us-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
@@ -68,6 +75,12 @@ await pg.route("**/*", async (r) => {
     if (b.accion === "eliminar") return r.fulfill({ status: 200, contentType: "application/json",
       body: JSON.stringify({ resultados: b.ids.map((id) => ({ id, nombre: "x", hecho: "desactivado", registros: 12 })) }) });
     return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ cambiados: b.ids.length, sinBloqueo: 0 }) });
+  }
+  if (u.endsWith("/api/admin/usuarios") && r.request().method() === "PATCH") {
+    const b = JSON.parse(r.request().postData());
+    mandados.push({ accion: "clave", ...b });
+    return r.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ clave: "Tolva-" + b.id.slice(-2), usuario: "u" + b.id.slice(-1), nombre: "" }) });
   }
   return r.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html><body></body></html>" });
 });
@@ -108,13 +121,24 @@ ok(!(await pg.isVisible(".us-lote")), "la barra de seleccionados sale sin selecc
 await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
 await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
 ok(/2 seleccionados/.test(await pg.textContent(".us-lote")), "la barra no dice cuántos");
-await pg.selectOption(".us-lote select", "portero");
-await pg.click(".us-lote .btn.sec:has-text('Aplicar')");
-await pg.waitForSelector(".cf-caja");
-ok(/Génesis Visbal, Santiago Leal/.test(await pg.textContent(".cf-caja")), "la confirmación no nombra a quiénes");
-await pg.click(".cf-caja .cf-btn:not(.plano)");
+await pg.click(".us-lote .btn.sec:has-text('Cambiar rol')");
+await pg.waitForSelector(".us-pnl");
+ok(/Génesis Visbal y Santiago Leal/.test(await pg.textContent(".us-pnl-tit")), "el panel de rol no nombra a quiénes");
+ok(await pg.isDisabled(".us-pnl-pie .btn:not(.sec)"), "se puede cambiar el rol sin escoger uno");
+const hoy = await pg.$$eval(".us-pnl-ro", (b) => b.map((x) => x.querySelector(".hoy")?.textContent ?? ""));
+ok(hoy[1] === "HOY · Génesis Visbal" && hoy[2] === "HOY · Santiago Leal" && hoy[0] === "", `el panel no dice qué rol tiene HOY cada uno: ${hoy}`);
+ok(/Contar, registrar, roturas/.test(await pg.textContent(".us-pnl-roles")), "no sale la descripción del rol");
+ok((await pg.$$eval(".us-pnl-ro .pt", (t) => t.map((x) => x.firstChild.textContent))).join(",") === "0,2,1", "no dice cuántas pantallas da cada rol");
+await pg.click(".us-pnl-ro:has-text('Portero')");
+const queda = await pg.textContent(".us-pnl-queda");
+ok(/Génesis Visbal\s*Operador\s*→\s*Portero/.test(queda) && /Santiago Leal\s*ya es Portero/.test(queda), `«Así queda» no dice de qué a qué: ${queda}`);
+ok(/Cambiar a Portero/.test(await pg.textContent(".us-pnl-pie .btn:not(.sec)")), "el botón no dice a qué rol");
+await pg.click(".us-pnl-pie .btn:not(.sec)");
 await pg.waitForSelector(".us-bien");
-ok(mandados[0]?.accion === "rol" && mandados[0].rol === "portero" && mandados[0].ids.length === 2, `no manda el cambio de rol: ${JSON.stringify(mandados[0])}`);
+ok(!(await pg.isVisible(".cf-caja")), "el cambio de rol pregunta otra vez después del panel");
+ok(mandados[0]?.accion === "rol" && mandados[0].rol === "portero" && mandados[0].ids.join() === "00000000-0000-0000-0000-000000000002",
+   `no manda el cambio de rol solo con los que cambian: ${JSON.stringify(mandados[0])}`);
+ok(!(await pg.isVisible(".us-pnl")), "el panel sigue abierto después de cambiar el rol");
 ok(!(await pg.isVisible(".us-lote")), "después de aplicar sigue la selección");
 ok((await pg.textContent(".us-tabla tbody")).split("Portero").length - 1 === 2, "la tabla no muestra el rol nuevo");
 
@@ -127,12 +151,49 @@ ok(/Tú estás en la selección/.test((await pg.textContent(".us-mal").catch(() 
 if (await pg.isVisible(".us-lote")) await pg.click(".us-lote .btn.plano");
 
 /* 4 · ELIMINAR A QUIEN TIENE REGISTROS */
-await pg.click('tr:has-text("Génesis Visbal") .us-mini.peligro');
-await pg.waitForSelector(".cf-caja");
-ok(/Tiene registros/.test(await pg.textContent(".cf-caja")) && /se desactiva en vez de borrarse/.test(await pg.textContent(".cf-caja")), "eliminar a quien tiene registros no avisa que se desactiva");
-await pg.click(".cf-caja .cf-btn:not(.plano)");
+await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
+await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
+await pg.click(".us-lote .btn.sec.peligro");
+await pg.waitForSelector(".us-pnl");
+ok(/Eliminar 2 usuarios/.test(await pg.textContent(".us-pnl-tit")), "el panel no dice a cuántos elimina");
+const aviso = await pg.textContent(".us-pnl-aviso.mal");
+ok(/1 se borran del todo/.test(aviso) && /Génesis Visbal tiene 12 registros/.test(aviso) && /se desactiva en vez de borrarse/.test(aviso),
+   `eliminar no dice qué pasa con cada uno: ${aviso}`);
+ok(await pg.isDisabled(".us-pnl-pie .btn.rojo"), "deja eliminar sin escribir ELIMINAR");
+await pg.fill(".us-pnl-conf input", "eliminr");
+ok(await pg.isDisabled(".us-pnl-pie .btn.rojo"), "deja eliminar con ELIMINAR mal escrito");
+await pg.click('.us-pnl-chip button[aria-label="Quitar a Santiago Leal"]');
+ok((await pg.$$(".us-pnl-chip")).length === 1 && /Eliminar Génesis Visbal/.test(await pg.textContent(".us-pnl-tit")), "quitar con × no saca a esa persona");
+await pg.fill(".us-pnl-conf input", "eliminar");
+await pg.click(".us-pnl-pie .btn.rojo");
 await pg.waitForFunction(() => /desactivado porque tenía registros/.test(document.querySelector(".us-bien")?.textContent ?? ""));
-ok(mandados.at(-1).accion === "eliminar", "no manda eliminar");
+ok(mandados.at(-1).accion === "eliminar" && mandados.at(-1).ids.length === 1, `no manda eliminar solo a quien quedó: ${JSON.stringify(mandados.at(-1))}`);
+ok(!(await pg.isVisible(".cf-caja")), "eliminar pregunta otra vez después del panel");
+
+/* 4b · NUEVA CLAVE A VARIOS */
+await monta(1200);
+await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
+await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
+await pg.click(".us-lote .btn.sec:has-text('Nueva clave')");
+await pg.waitForSelector(".us-pnl-clave");
+ok((await pg.$$(".us-pnl-clave")).length === 2 && /Tolva-02/.test(await pg.textContent(".us-pnl")) && /Tolva-03/.test(await pg.textContent(".us-pnl")),
+   "las dos claves no salen juntas en el panel");
+ok(/Se muestran una sola vez/.test(await pg.textContent(".us-pnl-aviso.amb")), "no avisa que las claves salen una sola vez");
+ok(/Copiar las dos/.test(await pg.textContent(".us-pnl-pie")), "no está «Copiar las dos»");
+await pg.mouse.click(20, 400);
+await pg.keyboard.press("Escape");
+ok(await pg.isVisible(".us-pnl-clave"), "el panel de las claves se cierra tocando fuera o con Esc: se pierden");
+/* Sin el panel no hay nada más que medir aquí: se corta con lo que hay. */
+if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
+await pg.click(".us-pnl-pie .btn:not(.sec)");
+await pg.waitForTimeout(150);
+const dos = await pg.evaluate(() => navigator.clipboard.readText());
+ok(dos.split("\n").length === 3 && /Tolva-02/.test(dos), `«Copiar las dos» no copia las dos: ${JSON.stringify(dos)}`);
+await pg.click(".us-pnl-clave:first-child .us-pnl-copiar");
+await pg.waitForTimeout(150);
+ok(/^u2\tTolva-02$/.test(await pg.evaluate(() => navigator.clipboard.readText())), "el botón de copiar de una fila no copia esa clave");
+await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
+ok(!(await pg.isVisible(".us-pnl")), "«Listo» no cierra el panel");
 ok(!(await pg.isVisible('tr:has-text("Cristian Padilla") .us-mini.peligro')), "uno mismo tiene botón de eliminar");
 
 /* 5 · CREAR VARIOS */
@@ -152,18 +213,18 @@ await pg.selectOption(".us-varios-rol select", "portero");
 ok(/Crear 4 usuarios · Portero/.test(await pg.textContent(".us-varios .btn:not(.plano)")), "el botón no dice cuántos ni con qué rol");
 await pg.click(".us-varios .btn:not(.plano)");
 await pg.click(".cf-caja .cf-btn:not(.plano)");
-await pg.waitForSelector(".us-lote-claves");
+await pg.waitForSelector(".us-pnl-clave");
 const c = mandados.find((m) => m.accion === "crear");
 ok(c && c.rol === "portero" && c.personas.map((p) => p.usuario).join(",") === "gvilla,gabriel,mperez,aperez2" && c.personas[2].nombre === "maria jose perez",
    `crear varios no manda lo que se ve: ${JSON.stringify(c)}`);
-const claves = await pg.textContent(".us-lote-claves");
-ok(/3 de 4 creados/.test(claves) && /100000/.test(claves) && /Ya está tomado/.test(claves), "la tabla de claves no dice cuáles salieron y cuál no");
-await pg.click(".us-lote-bot .btn:has-text('Copiar todo')");
+const claves = await pg.textContent(".us-pnl");
+ok(/3 de 4 usuarios creados/.test(claves) && /100000/.test(claves) && /Ya está tomado/.test(claves), "el panel de claves no dice cuáles salieron y cuál no");
+await pg.click(".us-pnl-pie .btn:has-text('Copiar las 3')");
 await pg.waitForTimeout(200);
 const copiado = await pg.evaluate(() => navigator.clipboard.readText());
 ok(copiado.split("\n").length === 4 && /gvilla\t100000/.test(copiado) && !/aperez2|mperez\t/.test(copiado.split("\n").find((l) => l.includes("mperez")) ? "x" : "")
    , `«Copiar todo» no copia una fila por clave creada: ${JSON.stringify(copiado)}`);
-const [d] = await Promise.all([pg.waitForEvent("download"), pg.click(".us-lote-bot .btn:has-text('Bajar')")]);
+const [d] = await Promise.all([pg.waitForEvent("download"), pg.click(".us-pnl-pie .btn:has-text('Bajar')")]);
 ok(/claves-provisionales-.*\.csv$/.test(d.suggestedFilename()), "el CSV no se baja con nombre");
 
 /* 6 · ANCHOS */
@@ -177,10 +238,36 @@ for (const ancho of [1200, 390, 360]) {
   });
   ok(g.lado <= 0 && g.fuera === 0, `${ancho} px: la página se sale (${g.lado} px, ${g.fuera} elementos)`);
   ok(g.tocar >= 40, `${ancho} px: un control de filtros o de la barra mide ${g.tocar} px`);
+  /* LOS TRES PANELES, en cada ancho: nada se sale y lo que se toca mide ≥ 44. */
+  await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
+  for (const [boton, antes] of [["Cambiar rol", async () => pg.click(".us-pnl-ro:has-text('Portero')")],
+                                ["Eliminar", async () => pg.fill(".us-pnl-conf input", "ELIMINAR")],
+                                ["Nueva clave", async () => {}]]) {
+    await pg.click(`.us-lote .btn.sec:has-text('${boton}')`);
+    await pg.waitForSelector(".us-pnl");
+    await antes();
+    const q = await pg.evaluate(() => {
+      const p = document.querySelector(".us-pnl").getBoundingClientRect();
+      const fuera = [...document.querySelectorAll(".us-pnl *")].filter((x) => { const r = x.getBoundingClientRect(); return r.width && (r.right > p.right + 0.5 || r.left < p.left - 0.5) })
+        .map((x) => (x.className || x.tagName) + "");
+      const chicos = [...document.querySelectorAll(".us-pnl button, .us-pnl input")].map((x) => [Math.round(x.getBoundingClientRect().height), (x.className || x.tagName) + " " + x.textContent.trim().slice(0, 12)])
+        .filter(([h]) => h < 44);
+      const pie = document.querySelector(".us-pnl-pie").getBoundingClientRect();
+      return { fuera, chicos, pie: pie.bottom <= innerHeight + 0.5, ancho: Math.round(p.width) };
+    });
+    ok(!q.fuera.length, `${ancho} px, panel «${boton}»: se sale ${q.fuera.join(", ")}`);
+    ok(!q.chicos.filter(([, n]) => !/us-pnl-link/.test(n)).length, `${ancho} px, panel «${boton}»: se toca y mide menos de 44: ${JSON.stringify(q.chicos)}`);
+    ok(q.pie, `${ancho} px, panel «${boton}»: los botones de abajo no se ven`);
+    if (ancho < 700) ok(q.ancho === ancho, `${ancho} px: el panel no ocupa la pantalla (${q.ancho})`);
+    if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/us-${boton.replace(" ", "")}-${ancho}.png` });
+    if (boton === "Nueva clave") await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
+    else await pg.click(".us-pnl-x");
+    if (boton !== "Nueva clave" && !(await pg.isVisible(".us-lote"))) await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
+  }
 }
 
 /* 7 · TEMAS */
-const lum = (c) => { const n = (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number).map((v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4 }); return .2126 * n[0] + .7152 * n[1] + .0722 * n[2] };
+const lum = (c) => { const k = c.startsWith("color(srgb") ? 1 : 255; const n = (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number).map((v) => { v /= k; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4 }); return .2126 * n[0] + .7152 * n[1] + .0722 * n[2] };
 const razon = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05) };
 for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
   await monta(1200, t);
@@ -192,6 +279,17 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
              "botón barra": par(".us-lote .btn.sec"), "quitar": par(".us-lote .btn.plano"), "eliminar fila": par(".us-mini.peligro"),
              "ingreso": par(".us-ingreso") };
   });
+  await pg.click(".us-lote .btn.sec:has-text('Cambiar rol')");
+  await pg.click(".us-pnl-ro:has-text('Portero')");
+  const pnl = await pg.evaluate(() => {
+    const fondo = (e) => { for (let p = e; p; p = p.parentElement) { const c = getComputedStyle(p).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c } return "rgb(255, 255, 255)" };
+    const par = (s) => { const e = document.querySelector(s); return [getComputedStyle(e).color, fondo(e)] };
+    return { "subtítulo panel": par(".us-pnl-tit span"), "rol escogido": par(".us-pnl-ro.on .tx b"), "descripción rol": par(".us-pnl-ro.on small"),
+             "hoy": par(".us-pnl-ro .hoy"), "rol nuevo": par(".us-pnl-queda .a"), "rol viejo": par(".us-pnl-queda s"),
+             "iniciales": par(".us-ini"), "botón panel": par(".us-pnl-pie .btn:not(.sec)"), "rótulo": par(".us-pnl-rot") };
+  });
+  Object.assign(pares, pnl);
+  await pg.click(".us-pnl-x");
   for (const [k, [a, b]] of Object.entries(pares)) ok(razon(a, b) >= 4.5, `tema ${t ?? "oficial"}: «${k}» contrasta ${razon(a, b).toFixed(2)}`);
 }
 await monta(390); await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
@@ -202,4 +300,6 @@ await nav.close();
 
 console.log("");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Usuarios: busca y filtra, cambia a varios nombrándolos, no se toca a uno mismo, eliminar avisa si desactiva, crea varios con claves para copiar y bajar; 3 anchos, 7 temas.");
+console.log("✓ Usuarios: busca y filtra; el panel de la derecha cambia el rol (HOY, pantallas, «Así queda», solo los que cambian), " +
+            "elimina escribiendo ELIMINAR y dice quién se desactiva, y entrega las claves juntas una sola vez; no se toca a uno mismo; " +
+            "crea varios con claves para copiar y bajar; 3 anchos, 7 temas.");

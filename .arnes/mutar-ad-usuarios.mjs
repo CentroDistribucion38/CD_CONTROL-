@@ -21,9 +21,13 @@ const P = "node .arnes/ad-usuarios.mjs", Q = "bash .arnes/correr-admin-usuarios.
 probar("buscar no ignora tildes", [UI, 'const plano = (x: string) => x.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();', "const plano = (x: string) => x.toLowerCase();"], "buscar sin tilde", P);
 probar("el filtro de rol no filtra", [UI, "(!fRol || p.rol === fRol) &&", "true &&"], "el filtro de rol", P);
 probar("uno mismo entra en la selección", [UI, 'const conmigo = ids.includes(yo) && accion !== "activar";', "const conmigo = false;"], "incluyéndose a uno mismo", P);
-probar("la confirmación no nombra", [UI, "dice: <><p>{quien}.</p><p>Desde que vuelvan", "dice: <><p>Varios.</p><p>Desde que vuelvan"], "no nombra a quiénes", P);
+probar("el panel de rol no nombra", [UI, 'const sub = nombres.length <= 3 ? nombres.join(nombres.length === 2 ? " y " : ", ")', 'const sub = nombres.length <= 0 ? ""'], "el panel de rol no nombra a quiénes", P);
+probar("el rol se manda con todos, aunque ya lo tengan", [UI, 'onClick={() => lote("rol", cambian.map((p) => p.id), rolPanel, true)}', 'onClick={() => lote("rol", x.ids, rolPanel, true)}'], "solo con los que cambian", P);
+probar("se elimina sin escribir ELIMINAR", [UI, 'const listo = escrito.trim().toUpperCase() === "ELIMINAR";', "const listo = true;"], "deja eliminar sin escribir ELIMINAR", P);
+probar("el panel de las claves se cierra tocando fuera", [UI, '<PanelLado fijo titulo={x.titulo}', '<PanelLado titulo={x.titulo}'], "se cierra tocando fuera o con Esc", P);
+probar("eliminar no dice quién se desactiva", [UI, '{" "}{conRastro.length === 1 ? "se desactiva" : "se desactivan"} en vez de borrarse', '{" "}se van'], "no dice qué pasa con cada uno", P);
 probar("los propuestos chocan", [UI, "    while (usados.has(u)) u = `${base}${k++}`;\n", ""], "chocan", P);
-probar("copiar incluye los que fallaron", [UI, "...listaClaves(resultados ?? []).map((x) => `${x.nombre}\\t${x.usuario}\\t${x.clave}`)", "...(resultados ?? []).map((x) => `${x.nombre}\\t${x.usuario}\\t${x.clave}`)"], "Copiar todo", P);
+probar("copiar incluye los que fallaron", [UI, "filas: rs.filter((x) => x.ok).map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? \"\" })),", "filas: rs.map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? \"\" })),"], "Copiar las 3", P);
 probar("deja crear con un usuario tomado", [UI, "propuestos.some((u, i) => u.length < 3 || lista.some((p) => p.usuario === u) || propuestos.indexOf(u) !== i)", "false"], "deja crear con un usuario que ya existe", P);
 probar("la base deja desactivarse a uno mismo", [SQL, "  if auth.uid() = any(p_ids) and p_accion in ('rol', 'desactivar') then", "  if false then"], "6(se desactivó a sí mismo)", Q);
 /* «Las …_por sin llave» no tiene mutación: hoy todas las columnas de
