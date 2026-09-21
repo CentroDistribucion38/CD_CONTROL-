@@ -13,10 +13,15 @@ import { useEffect, useRef, type ReactNode } from "react";
  * `fijo`: el panel de las claves no se cierra con Esc. Las claves se
  * muestran UNA vez; perderlas por una tecla obliga a generar otras.
  */
-export function PanelLado({ titulo, sub, cerrar, pie, fijo, children }: {
+export function PanelLado({ titulo, sub, cerrar, volver, menu, pie, fijo, children }: {
   titulo: string;
   sub?: ReactNode;
   cerrar: () => void;
+  /** ‹ : vuelve al paso anterior. Sin él, el ‹ no sale. */
+  volver?: () => void;
+  /** El paso 1 (qué hacer con los seleccionados): no se trae a la vista
+   *  al abrir, porque sale solo con marcar una casilla. */
+  menu?: boolean;
   pie: ReactNode;
   fijo?: boolean;
   children: ReactNode;
@@ -24,7 +29,7 @@ export function PanelLado({ titulo, sub, cerrar, pie, fijo, children }: {
   const caja = useRef<HTMLElement>(null);
   /* Traerlo a la vista al abrir: en el celular va arriba de la tabla y,
      si se abrió desde una fila de abajo, quedaría fuera de la pantalla. */
-  useEffect(() => { caja.current?.scrollIntoView({ block: "nearest" }) }, []);
+  useEffect(() => { if (!menu) caja.current?.scrollIntoView({ block: "nearest" }) }, [menu]);
   useEffect(() => {
     if (fijo) return;
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar() };
@@ -34,11 +39,13 @@ export function PanelLado({ titulo, sub, cerrar, pie, fijo, children }: {
 
   return (
     <>
-      <aside className="us-pnl" ref={caja} role="region" aria-label={titulo}>
-        <div className="us-pnl-cab">
-          <button type="button" className="us-pnl-vol" onClick={cerrar} aria-label="Volver">
-            <svg viewBox="0 0 24 24" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>
-          </button>
+      <aside className={"us-pnl" + (menu ? " menu" : "")} ref={caja} role="region" aria-label={titulo}>
+        <div className={"us-pnl-cab" + (volver ? "" : " sin-vol")}>
+          {volver && (
+            <button type="button" className="us-pnl-vol" onClick={volver} aria-label="Volver">
+              <svg viewBox="0 0 24 24" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>
+            </button>
+          )}
           <div className="us-pnl-tit">
             <b>{titulo}</b>
             {sub && <span>{sub}</span>}

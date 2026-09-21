@@ -93,6 +93,12 @@ const monta = async (ancho, tema) => {
   await pg.waitForSelector(".us-tabla");
   mandados = [];
 };
+/* Una acción sobre los seleccionados: en el PC sale en el panel de al lado
+   (paso 1); en tableta y celular, en la barra negra de arriba de la tabla. */
+const accion = async (que) => {
+  if (await pg.isVisible(".us-pnl.menu")) await pg.click(`.us-pnl-acc:has-text('${que}')`);
+  else await pg.click(`.us-lote .btn.sec:has-text('${que}')`);
+};
 const filas = () => pg.$$eval(".us-tabla:not(.us-tabla-lote):not(.us-tabla-claves) tbody tr td:nth-child(2)", (t) => t.map((x) => x.textContent.trim()));
 
 await monta(1200);
@@ -117,11 +123,22 @@ ok(ing[0].startsWith("hoy") && /hace \d+ días/.test(ing[1]) && ing[2] === "nunc
 await pg.selectOption(".us-filtros label:nth-child(4) select", "nombre");
 
 /* 2 · VARIOS: CAMBIAR ROL */
-ok(!(await pg.isVisible(".us-lote")), "la barra de seleccionados sale sin seleccionar a nadie");
+ok(!(await pg.isVisible(".us-pnl.menu")) && !(await pg.isVisible(".us-lote")), "el panel de seleccionados sale sin seleccionar a nadie");
 await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
 await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
-ok(/2 seleccionados/.test(await pg.textContent(".us-lote")), "la barra no dice cuántos");
-await pg.click(".us-lote .btn.sec:has-text('Cambiar rol')");
+ok(await pg.isVisible(".us-pnl.menu") && /2 seleccionados/.test(await pg.textContent(".us-pnl-tit")),
+   "en el PC, marcar a dos no abre al lado el panel con cuántos van");
+ok(!(await pg.isVisible(".us-lote")), "en el PC sigue saliendo la barra negra además del panel");
+const acc = await pg.$$eval(".us-pnl-acc b", (t) => t.map((x) => x.textContent));
+ok(acc.join("|") === "Cambiar rol|Nueva clave|Desactivar|Eliminar", `el paso 1 no ofrece lo que se puede hacer: ${acc}`);
+ok(await pg.$eval(".us-cuerpo .us-marco", (t) => t.getBoundingClientRect().right) <= (await pg.$eval(".us-pnl", (e) => e.getBoundingClientRect().left)) + 1,
+   "el panel no va al lado de la tabla");
+await accion("Cambiar rol");
+await pg.waitForSelector(".us-pnl-ro");
+await pg.click(".us-pnl-vol");
+ok(await pg.isVisible(".us-pnl.menu") && (await pg.$$('input[aria-label^="Seleccionar a "]:checked')).length === 2,
+   "‹ en Cambiar rol no vuelve al paso 1 con la selección");
+await accion("Cambiar rol");
 await pg.waitForSelector(".us-pnl");
 ok(/Génesis Visbal y Santiago Leal/.test(await pg.textContent(".us-pnl-tit")), "el panel de rol no nombra a quiénes");
 ok(await pg.isDisabled(".us-pnl-pie .btn:not(.sec)"), "se puede cambiar el rol sin escoger uno");
@@ -139,21 +156,21 @@ ok(!(await pg.isVisible(".cf-caja")), "el cambio de rol pregunta otra vez despu�
 ok(mandados[0]?.accion === "rol" && mandados[0].rol === "portero" && mandados[0].ids.join() === "00000000-0000-0000-0000-000000000002",
    `no manda el cambio de rol solo con los que cambian: ${JSON.stringify(mandados[0])}`);
 ok(!(await pg.isVisible(".us-pnl")), "el panel sigue abierto después de cambiar el rol");
-ok(!(await pg.isVisible(".us-lote")), "después de aplicar sigue la selección");
+ok(!(await pg.isVisible(".us-pnl.menu")) && !(await pg.isVisible(".us-lote")), "después de aplicar sigue la selección");
 ok((await pg.textContent(".us-tabla tbody")).split("Portero").length - 1 === 2, "la tabla no muestra el rol nuevo");
 
 /* 3 · UNO MISMO */
 await pg.check('input[aria-label="Seleccionar todos los de la lista"]');
-await pg.click(".us-lote .btn.sec:has-text('Desactivar')");
+await accion("Desactivar");
 if (await pg.isVisible(".cf-caja")) await pg.click(".cf-caja .cf-btn:not(.plano)");
 await pg.waitForSelector(".us-mal, .us-bien", { timeout: 5000 }).catch(() => {});
 ok(/Tú estás en la selección/.test((await pg.textContent(".us-mal").catch(() => "")) ?? "") && mandados.length === 1, "se manda desactivar incluyéndose a uno mismo");
-if (await pg.isVisible(".us-lote")) await pg.click(".us-lote .btn.plano");
+if (await pg.isVisible(".us-pnl.menu")) await pg.click(".us-pnl-pie .btn:has-text('Quitar selección')");
 
 /* 4 · ELIMINAR A QUIEN TIENE REGISTROS */
 await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
 await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
-await pg.click(".us-lote .btn.sec.peligro");
+await accion("Eliminar");
 await pg.waitForSelector(".us-pnl");
 ok(/Eliminar 2 usuarios/.test(await pg.textContent(".us-pnl-tit")), "el panel no dice a cuántos elimina");
 const aviso = await pg.textContent(".us-pnl-aviso.mal");
@@ -174,7 +191,7 @@ ok(!(await pg.isVisible(".cf-caja")), "eliminar pregunta otra vez después del p
 await monta(1200);
 await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
 await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
-await pg.click(".us-lote .btn.sec:has-text('Nueva clave')");
+await accion("Nueva clave");
 await pg.waitForSelector(".us-pnl-clave");
 ok((await pg.$$(".us-pnl-clave")).length === 2 && /Tolva-02/.test(await pg.textContent(".us-pnl")) && /Tolva-03/.test(await pg.textContent(".us-pnl")),
    "las dos claves no salen juntas en el panel");
@@ -232,7 +249,7 @@ for (const ancho of [1200, 390, 360]) {
   await monta(ancho);
   await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
   const g = await pg.evaluate(() => {
-    const alto = (s) => Math.min(...[...document.querySelectorAll(s)].map((x) => x.getBoundingClientRect().height));
+    const alto = (s) => Math.min(...[...document.querySelectorAll(s)].map((x) => x.getBoundingClientRect().height).filter((h) => h > 0));
     const fuera = [...document.querySelectorAll(".us-filtros *, .us-lote *")].filter((x) => x.getBoundingClientRect().right > innerWidth + 0.5);
     return { lado: document.documentElement.scrollWidth - innerWidth, fuera: fuera.length, tocar: alto(".us-filtros select, .us-filtros input, .us-lote .btn, .us-lote select") };
   });
@@ -243,7 +260,7 @@ for (const ancho of [1200, 390, 360]) {
   for (const [boton, antes] of [["Cambiar rol", async () => pg.click(".us-pnl-ro:has-text('Portero')")],
                                 ["Eliminar", async () => pg.fill(".us-pnl-conf input", "ELIMINAR")],
                                 ["Nueva clave", async () => {}]]) {
-    await pg.click(`.us-lote .btn.sec:has-text('${boton}')`);
+    await accion(boton);
     await pg.waitForSelector(".us-pnl");
     await antes();
     const q = await pg.evaluate(() => {
@@ -269,7 +286,8 @@ for (const ancho of [1200, 390, 360]) {
     if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/us-${boton.replace(" ", "")}-${ancho}.png` });
     if (boton === "Nueva clave") await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
     else await pg.click(".us-pnl-x");
-    if (boton !== "Nueva clave" && !(await pg.isVisible(".us-lote"))) await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
+    await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
+    await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
   }
 }
 
@@ -286,7 +304,15 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
              "botón barra": par(".us-lote .btn.sec"), "quitar": par(".us-lote .btn.plano"), "eliminar fila": par(".us-mini.peligro"),
              "ingreso": par(".us-ingreso") };
   });
-  await pg.click(".us-lote .btn.sec:has-text('Cambiar rol')");
+  const menu = await pg.evaluate(() => {
+    const e = document.querySelector(".us-pnl-acc small");
+    let f = e; for (; f; f = f.parentElement) { const c = getComputedStyle(f).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) break }
+    const r = document.querySelector(".us-pnl-acc.peligro b");
+    return { "acción · explica": [getComputedStyle(e).color, f ? getComputedStyle(f).backgroundColor : "rgb(255,255,255)"],
+             "acción eliminar": [getComputedStyle(r).color, "rgb(255,255,255)"] };
+  });
+  Object.assign(pares, menu);
+  await accion("Cambiar rol");
   await pg.click(".us-pnl-ro:has-text('Portero')");
   const pnl = await pg.evaluate(() => {
     const fondo = (e) => { for (let p = e; p; p = p.parentElement) { const c = getComputedStyle(p).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c } return "rgb(255, 255, 255)" };
@@ -307,6 +333,6 @@ await nav.close();
 
 console.log("");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Usuarios: busca y filtra; el panel de la derecha cambia el rol (HOY, pantallas, «Así queda», solo los que cambian), " +
+console.log("✓ Usuarios: busca y filtra; al marcar, el panel de al lado dice qué hacer (‹ vuelve, × suelta); cambia el rol (HOY, pantallas, «Así queda», solo los que cambian), " +
             "elimina escribiendo ELIMINAR y dice quién se desactiva, y entrega las claves juntas una sola vez; no se toca a uno mismo; " +
             "crea varios con claves para copiar y bajar; 3 anchos, 7 temas.");

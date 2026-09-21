@@ -183,6 +183,7 @@ type Resultado = { nombre: string; usuario: string; ok: boolean; clave?: string;
 type Clave = { nombre: string; usuario: string; clave: string };
 /** Lo que está abierto en el panel de la derecha. */
 type Panel =
+  | { tipo: "menu" }
   | { tipo: "rol"; ids: string[] }
   | { tipo: "eliminar"; ids: string[] }
   | { tipo: "claves"; titulo: string; filas: Clave[]; fallas: Resultado[]; rol?: string };
@@ -632,6 +633,9 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
   };
 
   /* ================= EL PANEL DE LA DERECHA ================= */
+  /* Con alguien marcado y nada abierto, el panel enseña qué se puede
+     hacer con ellos (paso 1). */
+  const visto: Panel | null = panel ?? (sel.size > 0 ? { tipo: "menu" } : null);
   const persona = (id: string) => lista.find((x) => x.id === id);
   const nom = (p?: Persona) => p?.nombre || p?.usuario || "?";
   const cuantasPantallas = (clave: string) =>
@@ -639,11 +643,56 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       : Object.keys(porRol[clave] ?? {}).length;
 
   function pintarPanel(x: Panel) {
-    const cerrar = () => setPanel(null);
+    /* ‹ VUELVE al paso anterior —lo que se puede hacer con los
+       seleccionados— y × CIERRA del todo, soltando la selección. */
+    const volver = () => setPanel(null);
+    const cerrar = () => { setPanel(null); setSel(new Set()) };
+
+    /* PASO 1 · QUÉ HACER CON LOS SELECCIONADOS. Sale solo al marcar a
+       alguien, al lado de la tabla —como el diseño—, sin tener que
+       buscar un botón. */
+    if (x.tipo === "menu") {
+      const ps = lista.filter((p) => sel.has(p.id));
+      const nombres = ps.map(nom);
+      const n = ps.length;
+      const conmigo = sel.has(yo);
+      const acciones: { que: string; dice: string; hacer: () => void; peligro?: boolean; no?: boolean }[] = [
+        { que: "Cambiar rol", dice: "Pasarlos a otro rol y ver cómo queda", hacer: () => abrir({ tipo: "rol", ids: [...sel] }) },
+        { que: "Nueva clave", dice: "Una clave provisional para entregar", hacer: () => nuevasClaves(ps), no: conmigo || !!regenerando },
+        ...(ps.some((p) => !p.activo) ? [{ que: "Activar", dice: "Que vuelvan a poder entrar", hacer: () => lote("activar", [...sel]) }] : []),
+        ...(ps.some((p) => p.activo) ? [{ que: "Desactivar", dice: "Que no entren; se puede revertir", hacer: () => lote("desactivar", [...sel]) }] : []),
+        { que: "Eliminar", dice: "Borrar la cuenta; quien tiene registros se desactiva", hacer: () => abrir({ tipo: "eliminar", ids: [...sel] }), peligro: true },
+      ];
+      return (
+        <PanelLado menu titulo={`${n} ${n === 1 ? "seleccionado" : "seleccionados"}`}
+          sub={n <= 3 ? nombres.join(n === 2 ? " y " : ", ") : `${nombres.slice(0, 2).join(", ")} y ${n - 2} más`}
+          cerrar={cerrar}
+          pie={<button type="button" className="btn sec" onClick={cerrar}>Quitar selección</button>}>
+          <p className="us-pnl-rot">Qué quieres hacer</p>
+          <div className="us-pnl-menu">
+            {acciones.map((a) => (
+              <button key={a.que} type="button" className={"us-pnl-acc" + (a.peligro ? " peligro" : "")}
+                      disabled={enLote || !hayLlave || !!a.no} onClick={a.hacer}>
+                <span><b>{a.que}</b><small>{a.dice}</small></span>
+                <svg viewBox="0 0 24 24" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
+              </button>
+            ))}
+          </div>
+          <div className="us-pnl-chips">
+            {ps.map((p) => (
+              <span className="us-pnl-chip" key={p.id}>
+                <Ini de={nom(p)} />{nom(p)}
+                <button type="button" onClick={() => marcar(p.id)} aria-label={`Quitar a ${nom(p)}`}>×</button>
+              </span>
+            ))}
+          </div>
+        </PanelLado>
+      );
+    }
 
     if (x.tipo === "claves") {
       return (
-        <PanelLado fijo titulo={x.titulo} sub="Lista para entregar" cerrar={cerrar}
+        <PanelLado fijo titulo={x.titulo} sub="Lista para entregar" cerrar={volver} volver={volver}
           pie={<>
             <button type="button" className="btn" onClick={() => copiarClaves(x.filas)} disabled={!x.filas.length}>
               {x.filas.length === 1 ? "Copiar" : x.filas.length === 2 ? "Copiar las dos" : `Copiar las ${x.filas.length}`}
@@ -653,7 +702,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
             {x.filas.length > 2 && (
               <button type="button" className="btn sec" onClick={() => bajarClaves(x.filas, nRol(x.rol ?? ""))}>Bajar Excel</button>
             )}
-            <button type="button" className="btn sec" onClick={cerrar}>Listo</button>
+            <button type="button" className="btn sec" onClick={volver}>Listo</button>
           </>}>
           <Aviso tono="amb">
             <b>Se muestra{x.filas.length === 1 ? "" : "n"} una sola vez.</b> Cópiala{x.filas.length === 1 ? "" : "s"} ahora;
@@ -685,7 +734,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     const gente = x.ids.map(persona).filter(Boolean) as Persona[];
     const quitar = (id: string) => {
       const ids = x.ids.filter((y) => y !== id);
-      if (ids.length === 0) { setPanel(null); return }
+      if (ids.length === 0) { setPanel(null); setSel(new Set()); return }
       setPanel({ ...x, ids });
       setSel(new Set(ids));
     };
@@ -697,9 +746,9 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
         : `${nombres.slice(0, 2).join(", ")} y ${nombres.length - 2} más`;
       const cambian = gente.filter((p) => p.rol !== rolPanel);
       return (
-        <PanelLado titulo="Cambiar rol" sub={sub} cerrar={cerrar}
+        <PanelLado titulo="Cambiar rol" sub={sub} cerrar={cerrar} volver={volver}
           pie={<>
-            <button type="button" className="btn sec" onClick={cerrar}>Cancelar</button>
+            <button type="button" className="btn sec" onClick={volver}>Cancelar</button>
             <button type="button" className="btn" disabled={!rolPanel || cambian.length === 0 || enLote || conmigo}
                     onClick={() => lote("rol", cambian.map((p) => p.id), rolPanel, true)}>
               {enLote ? "Cambiando…" : rolPanel ? `Cambiar a ${nRol(rolPanel)}` : "Escoge el rol"}
@@ -755,9 +804,9 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     const listo = escrito.trim().toUpperCase() === "ELIMINAR";
     const n = gente.length;
     return (
-      <PanelLado titulo={`Eliminar ${n === 1 ? nom(gente[0]) : `${n} usuarios`}`} sub="Esto no se deshace" cerrar={cerrar}
+      <PanelLado titulo={`Eliminar ${n === 1 ? nom(gente[0]) : `${n} usuarios`}`} sub="Esto no se deshace" cerrar={cerrar} volver={volver}
         pie={<>
-          <button type="button" className="btn sec" onClick={cerrar}>Cancelar</button>
+          <button type="button" className="btn sec" onClick={volver}>Cancelar</button>
           <button type="button" className="btn rojo" disabled={!listo || enLote || conmigo}
                   onClick={() => lote("eliminar", x.ids, undefined, true)}>
             {enLote ? "Eliminando…" : `Eliminar ${n === 1 ? "usuario" : `${n} usuarios`}`}
@@ -1021,8 +1070,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
             y no depende de nada flotando por encima de la página. En
             tableta y celular el panel va arriba de la tabla, a todo lo
             ancho. */}
-        <div className={"us-cuerpo" + (panel ? " con-panel" : "")}>
-        {panel && pintarPanel(panel)}
+        <div className={"us-cuerpo" + (visto ? " con-panel" + (visto.tipo === "menu" ? " es-menu" : "") : "")}>
+        {visto && pintarPanel(visto)}
         <div className="us-marco">
           <table className="us-tabla">
             <thead>

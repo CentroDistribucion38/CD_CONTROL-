@@ -1,24 +1,26 @@
-Usuarios: el panel va al lado de la tabla, como el diseño
+Usuarios: al marcar a alguien, el panel sale solo al lado de la tabla
 
-«No se abría.» El panel flotaba encima de la página (position: fixed)
-y en el equipo de Cristian no aparecía al tocar Cambiar rol. Ahora va
-DENTRO de la tarjeta, al lado de la tabla, como en el diseño: no
-depende de nada flotando.
+«No se ve el cambio que pasa.» El panel solo salía al tocar un botón de
+la barra negra, y marcar una casilla no mostraba nada distinto. Como en
+el diseño, ahora marcar es lo que lo abre:
 
-  - PC: tabla a la izquierda, panel de 400 px a la derecha, con su propio
-    scroll y los botones abajo siempre a la vista.
-  - Tableta y celular: el panel va arriba de la tabla, a todo lo ancho, y
-    al abrirse se trae a la vista.
-  - Colores del diseño: el botón principal, la casilla marcada, la fila
-    escogida y el rol nuevo en el color de marca del tema (amarillo en el
-    tuyo), con su letra pensada para leerse encima.
-  - «Así queda» en un solo renglón por persona: viejo tachado → nuevo.
-  - El número a la derecha de cada rol va solo, como en el diseño.
+  - PC: al marcar a uno o varios sale al lado de la tabla el panel
+    «N seleccionados» con lo que se puede hacer —Cambiar rol, Nueva
+    clave, Activar/Desactivar, Eliminar— y las fichas de quiénes van (×
+    quita a uno). La barra negra ya no sale en el PC: el panel la
+    reemplaza.
+  - Cada acción es un paso: ‹ vuelve a «qué quieres hacer» sin perder la
+    selección; × cierra y suelta la selección.
+  - Tableta y celular: sigue la barra negra pegada arriba de la tabla
+    (está donde está el dedo) y la acción abre el panel arriba de la
+    tabla.
+
+Probado también con el paquete de producción de Next (next build + next
+start): el panel abre.
 
 SQL: ninguno.
 
-MEDIDO: .arnes/ad-usuarios.mjs (1200 · 390 · 360, siete temas; el panel
-va al lado de la tabla en el PC y está en pantalla al abrirse)
+MEDIDO: .arnes/ad-usuarios.mjs (1200 · 390 · 360, siete temas)
         .arnes/mutar-ad-usuarios.mjs — 14 de 14 rojas · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
