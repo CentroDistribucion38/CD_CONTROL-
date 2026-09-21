@@ -260,3 +260,49 @@ export async function tablero(desde: string, hasta: string, linea?: number) {
                    : ((Array.isArray(sf.data) ? sf.data[0] : sf.data) ?? null)) as ResumenFirma | null,
   };
 }
+
+/* =====================================================================
+   LAS HOJAS DEL DÍA QUE SE GENERARON
+
+   Cada PDF que se generó para firmar, guardado tal cual se mandó. Se
+   piden con su ENLACE YA FIRMADO —vence en una hora— porque el espacio
+   donde viven es privado: una dirección fija se podría reenviar para
+   siempre.
+
+   Si la migración todavía no se corrió, vuelve vacío y `falta: true`: la
+   pantalla sigue, y dice qué falta en vez de reventarse.
+   ===================================================================== */
+export type HojaGuardada = {
+  id: string; fecha: string; ruta: string; bytes: number | null;
+  unidades: number; kg: number; lineas: number;
+  elaboro: string | null; supervisor: string | null; observaciones: string | null;
+  generado_nombre: string | null; generado_en: string;
+  /** Anulada por el administrador: sigue a la vista, tachada, y no cuenta. */
+  anulada_en?: string | null; anulada_motivo?: string | null; anulada_nombre?: string | null;
+  /** Enlace que abre el PDF, válido una hora. Null si no se pudo firmar. */
+  url: string | null;
+};
+
+export const BUCKET_HOJAS = "rotlinea-hojas";
+
+export async function hojasGuardadas(desde: string, hasta: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("v_rotlinea_hojas").select("*")
+    .gte("fecha", desde).lte("fecha", hasta)
+    .order("fecha", { ascending: false }).order("generado_en", { ascending: false })
+    /* EL TOPE VA ESCRITO: PostgREST corta en 1.000 sin avisar. Un año
+       entero, generando dos por día, no llega a 800. */
+    .limit(1000);
+  if (error) return { falta: sinTablas(error.message), hojas: [] as HojaGuardada[] };
+
+  const filas = (data ?? []) as Omit<HojaGuardada, "url">[];
+  /* TODOS LOS ENLACES DE UNA VEZ, no uno por fila: con un mes son treinta
+     viajes al servidor para pintar una tabla. */
+  const urls = new Map<string, string>();
+  if (filas.length > 0) {
+    const { data: firmadas } = await supabase.storage.from(BUCKET_HOJAS)
+      .createSignedUrls(filas.map((f) => f.ruta), 3600);
+    for (const s of firmadas ?? []) if (s.path && s.signedUrl) urls.set(s.path, s.signedUrl);
+  }
+  return { falta: false, hojas: filas.map((f) => ({ ...f, url: urls.get(f.ruta) ?? null })) };
+}

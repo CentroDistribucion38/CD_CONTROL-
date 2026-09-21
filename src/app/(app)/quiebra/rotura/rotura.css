@@ -678,6 +678,72 @@
 }
 .rl-mas-firma { font-size: 12.5px; color: var(--rl-gris) }
 
+/* ---------- Hojas del día generadas ----------
+   CERRADO, CON LA RESPUESTA EN EL RENGLÓN: «¿falta alguna?» se lee sin
+   abrir. La lista de PDF es para quien va a abrir uno. */
+.rl-hojas > summary {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+  padding: 14px 18px; min-height: 48px; cursor: pointer; list-style: none;
+}
+.rl-hojas > summary::-webkit-details-marker { display: none }
+.rl-hojas > summary::after { content: "▾"; margin-left: auto; color: var(--rl-gris) }
+.rl-hojas[open] > summary::after { content: "▴" }
+.rl-hojas > summary:focus-visible { outline: 2px solid var(--rl-ojo); outline-offset: -2px }
+.rl-hojas-tit { font: 800 15px var(--rl-titulo); color: var(--rl-tinta) }
+.rl-hojas-dice { font-size: 13px; color: var(--rl-gris); font-variant-numeric: tabular-nums }
+.rl-hojas-dice b { color: var(--rl-tinta) }
+.rl-hojas-dice em { font-style: normal; font-weight: 700; color: #5E4100 }
+.rl-hojas[open] > summary { border-bottom: 1px solid var(--rl-fondo) }
+.rl-hojas-tabla td small { display: block; font-size: 11px; color: var(--rl-gris) }
+.rl-hojas-tabla td a {
+  display: inline-flex; align-items: center; min-height: 36px; padding: 0 10px;
+  font-weight: 700; color: var(--rl-tinta);
+}
+.rl-hojas-vieja td { color: var(--rl-gris) }
+.rl-hojas-cambio {
+  display: block; font-size: 10.5px; font-weight: 700; color: #5E4100;
+}
+.rl-hojas-sin { color: var(--rl-gris) }
+/* ANULADA: sigue a la vista —se audita— pero se ve que no cuenta. */
+.rl-hojas-anulada td { color: var(--rl-gris) }
+.rl-hojas-anulada .rl-hojas-cifra { text-decoration: line-through }
+.rl-hojas-motivo {
+  display: block; max-width: 260px; margin: 2px auto 0; font-size: 10.5px; font-weight: 700;
+  color: #8A1C1C; white-space: normal; line-height: 1.35;
+}
+.rl-hojas-accion {
+  min-height: 36px; padding: 0 10px; border: 1px solid var(--rl-linea); border-radius: 3px;
+  background: var(--rl-papel); color: var(--rl-tinta); font: 600 12px var(--rl-texto);
+  cursor: pointer; white-space: nowrap;
+}
+.rl-hojas-accion:hover, .rl-hojas-accion[aria-expanded="true"] { border-color: var(--rl-tinta) }
+.rl-hojas-anular td { background: var(--rl-fondo); padding: 12px 16px 14px }
+.rl-hojas-anular p { margin: 0 0 10px; font-size: 13px; color: var(--rl-tinta) }
+.rl-hojas-anular label { display: flex; flex-direction: column; gap: 5px; max-width: 520px }
+.rl-hojas-anular label span { font-size: 12px; font-weight: 700; color: var(--rl-tinta) }
+.rl-hojas-anular input {
+  min-height: 44px; padding: 10px 12px; border: 1px solid var(--rl-linea); border-radius: 3px;
+  font: inherit; font-size: 14px; background: #fff; color: #12263A; width: 100%; min-width: 0;
+}
+.rl-hojas-anular input:focus { outline: 2px solid var(--rl-ojo); outline-offset: 1px }
+.rl-hojas-error { color: #8A1C1C !important; font-weight: 700 }
+.rl-hojas-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px }
+.rl-hojas-botones button {
+  min-height: 44px; padding: 0 16px; border-radius: 3px; font: 700 13px var(--rl-texto); cursor: pointer;
+}
+.rl-hojas-si { background: #8A1C1C; color: #fff; border: 1.5px solid #8A1C1C }
+.rl-hojas-si:disabled { opacity: .45; cursor: default }
+.rl-hojas-no { background: var(--rl-papel); color: var(--rl-tinta); border: 1px solid var(--rl-linea) }
+/* El título de la columna de anular es para el lector de pantalla. La
+   tabla va dentro de un contenedor con scroll propio: sin `relative`, un
+   elemento absoluto se escapa de ese scroll y arrastra la página entera
+   de lado en el celular —pasó, 189 px a 360—. */
+.rl-hojas .rl-tabla-env { position: relative }
+.rl-oculto {
+  position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+.rl-hojas-vacio, .rl-hojas-falta { margin: 0; padding: 12px 18px 16px; font-size: 12.5px; color: var(--rl-gris) }
+
 .rl-volver { margin: 4px 0 0; font-size: 13px }
 .rl-volver a { color: var(--rl-ojo); font-weight: 600 }
 
@@ -1178,14 +1244,30 @@
 /* =====================================================================
    LA HOJA DEL DÍA PARA FIRMAR
 
-   Debajo de todo, que es el último paso del día: se registra, se genera
-   la hoja, se firma. Tres campos —lo único que la base no sabe— y un
-   botón que en el celular abre «compartir» con el PDF ya adjunto.
+   Una tarjeta de UNA LÍNEA debajo de la rejilla —qué pasa con la hoja
+   de este día y el botón— y un cuadro que se abre encima al guardar.
+   El formulario ya no vive en la página: estaba siempre abierto debajo
+   de la rejilla y nadie lo veía en el momento en que servía, que es
+   justo después de guardar.
    ===================================================================== */
 .rl-hoja { margin-top: 14px }
+.rl-hoja-fila {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; padding: 14px 16px;
+}
+.rl-hoja-estado { min-width: 0; flex: 1 1 320px }
+.rl-hoja-estado h2 { margin: 0; font: 800 14px var(--rl-titulo); letter-spacing: -.01em }
+.rl-hoja-dice { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--rl-gris) }
+.rl-hoja-dice b { color: var(--rl-tinta) }
+/* EL ESTADO SE DICE CON UNA RAYA Y CON PALABRAS, no solo con color:
+   verde «generada», ámbar «falta o cambió después». */
+.rl-hoja-dice.bien { color: #0E5C35; padding-left: 9px; box-shadow: inset 3px 0 0 var(--rl-bien) }
+.rl-hoja-dice.ojo  { color: #5E4100; padding-left: 9px; box-shadow: inset 3px 0 0 #C08A16 }
+.rl-hoja-acciones { display: flex; gap: 8px; flex-wrap: wrap }
+
 .rl-hoja-campos {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
-  padding: 0 16px;
+  padding: 0 18px;
 }
 .rl-hoja-campos label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
 .rl-hoja-campos label.ancho { grid-column: 1 / -1 }
@@ -1203,28 +1285,66 @@
   outline: none; border-color: var(--rl-ojo);
 }
 
-/* EL BOTÓN GRANDE ES EL DE COMPARTIR: es lo que se hace casi siempre, y
-   desde el celular. «Solo descargar» queda al lado para el computador. */
-.rl-hoja-pie { display: flex; gap: 10px; flex-wrap: wrap; padding: 14px 16px 16px }
-.rl-hoja-pie button {
+/* LOS BOTONES: el grande es el de compartir, que es lo que se hace casi
+   siempre y desde el celular. «Ahora no» es texto: cerrar no es una
+   acción que compita con generar. */
+.rl-hoja-pie { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 16px 18px 18px }
+.rl-hoja-si, .rl-hoja-no {
+  display: inline-flex; align-items: center; justify-content: center;
   min-height: 48px; padding: 0 18px; cursor: pointer; border-radius: 3px;
-  font: 700 14.5px var(--rl-titulo);
+  font: 700 14.5px var(--rl-titulo); text-decoration: none;
 }
-.rl-hoja-si {
-  flex: 1 1 260px; background: var(--rl-ojo); color: var(--rl-sobre);
-  border: 1.5px solid var(--rl-ojo);
+.rl-hoja-si { background: var(--rl-ojo); color: var(--rl-sobre); border: 1.5px solid var(--rl-ojo) }
+.rl-hoja-no { background: var(--rl-papel); color: var(--rl-tinta); border: 1.5px solid var(--rl-linea) }
+.rl-hoja-pie .rl-hoja-si { flex: 1 1 240px }
+.rl-hoja-luego {
+  min-height: 48px; padding: 0 12px; background: none; border: none; cursor: pointer;
+  font: 600 14px var(--rl-texto); color: var(--rl-gris); text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.rl-hoja-no {
-  flex: 0 1 auto; background: var(--rl-papel); color: var(--rl-tinta);
-  border: 1.5px solid var(--rl-linea);
-}
-.rl-hoja-pie button:disabled { opacity: .5; cursor: default }
-.rl-hoja-aviso {
-  margin: -6px 16px 14px; font-size: 12.5px; line-height: 1.5; color: var(--rl-bien);
-}
+.rl-hoja-si:disabled, .rl-hoja-no:disabled, .rl-hoja-luego:disabled { opacity: .5; cursor: default }
+.rl-hoja-aviso { margin: 0 16px 14px; font-size: 12.5px; line-height: 1.5; color: #0E5C35 }
+.rl-ventana .rl-hoja-aviso { margin: 12px 18px 0 }
 .rl-hoja-aviso.mal { color: var(--rl-mal) }
+
+/* EL CUADRO. Un <dialog> del navegador: Escape lo cierra y el foco no se
+   escapa a la página de atrás. */
+.rl-ventana {
+  width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+  padding: 0; border: none; border-radius: 6px; overflow: auto;
+  background: var(--rl-papel); color: var(--rl-tinta);
+  box-shadow: 0 24px 60px -20px rgba(4, 20, 40, .55);
+}
+.rl-ventana::backdrop { background: rgba(8, 20, 36, .55) }
+/* LA CINTA DE LA MARCA, arriba: la misma del PDF, para que se reconozca
+   que lo que sale de aquí es esa hoja. */
+.rl-ventana-cab {
+  padding: 22px 18px 16px; border-bottom: 1px solid var(--rl-linea);
+  background:
+    linear-gradient(90deg, #B58735 0%, #ECC644 35%, #FF000F 100%) top / 100% 5px no-repeat,
+    var(--rl-papel);
+}
+/* CON TEMA, LA CINTA ES LA DEL TEMA —del acento hondo al acento—, igual
+   que el PDF que sale de esta ventana. Sin tema es la de la marca. */
+[data-tema] .rl-ventana-cab {
+  background:
+    linear-gradient(90deg, var(--c-marca-hondo) 0%, var(--c-marca) 100%) top / 100% 5px no-repeat,
+    var(--rl-papel);
+}
+.rl-ventana-ojo {
+  margin: 0; font: 800 10.5px var(--rl-titulo); letter-spacing: .16em; color: var(--rl-gris);
+}
+.rl-ventana h2 {
+  margin: 6px 0 0; font: 900 26px/1.15 var(--rl-titulo); letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.rl-ventana h2 span { font-size: 15px; font-weight: 600; color: var(--rl-gris); letter-spacing: 0 }
+.rl-ventana-sub { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--rl-gris) }
+.rl-ventana .rl-hoja-campos { padding-top: 16px }
 
 @media (max-width: 620px) {
   .rl-hoja-campos { grid-template-columns: 1fr }
-  .rl-hoja-no { flex: 1 1 100% }
+  .rl-hoja-acciones { width: 100% }
+  .rl-hoja-acciones > * { flex: 1 1 0 }
+  .rl-ventana h2 { font-size: 22px }
 }

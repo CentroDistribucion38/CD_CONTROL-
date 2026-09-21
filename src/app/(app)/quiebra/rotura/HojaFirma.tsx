@@ -3,35 +3,48 @@
 /**
  * LA HOJA DEL DÍA PARA FIRMAR.
  *
- * «Que llenen la información, la persona pueda generar el PDF,
- * enviárselo por WhatsApp o lo que sea al supervisor, y esté el espacio
- * para que lo firmen.»
+ * «Que guarde y me salga el cuadro de generar el PDF; y si no, que en el
+ * tablero de rotura haya una hoja con todos los PDF generados.»
  *
- * VA DEBAJO DE LA REJILLA, que es el orden del día: primero se registra,
- * después se genera la hoja, después se firma. Arriba sería ofrecer un
- * papel de un día que todavía no se ha llenado.
+ * DOS PIEZAS:
  *
- * UN BOTÓN, Y EN EL CELULAR ABRE «COMPARTIR». El teléfono ofrece
- * WhatsApp, correo o lo que tenga, con el PDF ya adjunto: un toque. En
- * un computador —donde compartir archivos casi nunca existe— el mismo
- * botón lo descarga. Imprimir desde el navegador para «guardar como PDF»
- * serían cinco pasos en un celular y un archivo que después hay que ir a
- * buscar para mandarlo.
+ *   EL CUADRO   una ventana encima de la pantalla con lo único que la
+ *               base no sabe —quién elaboró, qué supervisor firma,
+ *               observaciones— y el botón. Se abre SOLA después de cada
+ *               Guardar de la rejilla, y también con el botón de la
+ *               tarjeta de abajo.
+ *   LA TARJETA  debajo de la rejilla: si la hoja de este día ya se
+ *               generó, cuándo y quién, con el PDF a un toque; si no,
+ *               que falta.
  *
- * LO QUE SE LLENA AQUÍ es solo lo que la base no sabe: quién elaboró,
- * quién es el supervisor que va a firmar y las observaciones. Las cifras
- * no se tocan en la hoja: salen de lo registrado, y un papel donde se
- * pudieran corregir sería un segundo registro que no cuadra con el
- * primero.
+ * LA VENTANA LA ABRE LA DIRECCIÓN, NO UN AVISO ENTRE COMPONENTES. Al
+ * guardar, la rejilla cambia la dirección a «…&hoja=1» y la página se
+ * vuelve a armar EN EL SERVIDOR con la pesada nueva adentro; recién ahí
+ * se abre la ventana. Abrirla con un aviso directo —más corto de
+ * escribir— la abriría ANTES de que llegaran los datos nuevos, y el PDF
+ * saldría sin la pesada que se acababa de guardar: justo la que motivó
+ * abrirla.
+ *
+ * CADA PDF QUE SE GENERA SE GUARDA TAL CUAL SE MANDÓ, con su renglón:
+ * qué día, quién, a qué hora, a qué supervisor y qué cifras decía. Si
+ * guardarlo falla —sin señal, falta la migración, quien lo genera no es
+ * editor— el PDF se entrega igual y se dice que no quedó en el
+ * historial: el supervisor no tiene por qué esperar a que vuelva la red.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
-  armarHoja, dibujarHoja, nombreArchivo, fechaLarga,
+  armarHoja, dibujarHoja, nombreArchivo, fechaLarga, paletaDeTema, aRGB, type Paleta,
   type FilaDia, type MaqHoja, type LineaHoja, type FirmaHoja,
 } from "@/modulos/rotlinea/hoja";
+import type { HojaGuardada } from "@/modulos/rotlinea/datos";
 
+const BUCKET = "rotlinea-hojas";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+const hora = (s: string) =>
+  new Date(s).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" });
 
 /** Un PNG de /public como data URL, que es lo que jsPDF sabe pegar. Null
  *  si no carga: la hoja no se frena por un logo. */
@@ -51,7 +64,36 @@ async function comoDataUrl(url: string): Promise<string | null> {
   }
 }
 
-export function HojaFirma({ fecha, filas, maquinas, lineas, firmas, elaboro: quien }: {
+/**
+ * LOS COLORES DEL TEMA DE QUIEN GENERA LA HOJA, leídos de la pantalla.
+ *
+ * Sin tema puesto —el oficial— devuelve nada y la hoja sale con la marca.
+ * Con tema, se leen las mismas variables que pintan la app: así un tema
+ * nuevo en globals.css cambia también el papel sin tocar esto.
+ *
+ * `getPropertyValue` devuelve el texto crudo de la variable —a veces un
+ * `color-mix(…)` o `var(…)`—; se le pone de color a un elemento y se lee
+ * lo que el navegador calculó.
+ */
+function leerPaleta(dentro: Element | null): Paleta | undefined {
+  const conTema = dentro?.closest("[data-tema]");
+  if (!conTema) return undefined;
+  const leer = (v: string) => {
+    const t = document.createElement("span");
+    t.style.color = `var(${v})`;
+    t.style.display = "none";
+    conTema.appendChild(t);
+    const c = aRGB(getComputedStyle(t).color);
+    t.remove();
+    return c;
+  };
+  const tinta = leer("--c-04203f"), acento = leer("--c-marca"), hondo = leer("--c-marca-hondo");
+  if (!tinta || !acento) return undefined;
+  return paletaDeTema(tinta, acento, hondo ?? acento);
+}
+
+export function HojaFirma({ fecha, filas, maquinas, lineas, firmas, elaboro: quien,
+                            hojas, abrir, faltaHistorial }: {
   fecha: string;
   filas: FilaDia[];
   maquinas: MaqHoja[];
@@ -59,63 +101,136 @@ export function HojaFirma({ fecha, filas, maquinas, lineas, firmas, elaboro: qui
   firmas: FirmaHoja[];
   /** El nombre de quien está en la app: casi siempre es quien elaboró. */
   elaboro: string;
+  /** Las hojas que ya se generaron para ESTE día, la más nueva primero. */
+  hojas: HojaGuardada[];
+  /** La dirección trae «hoja=1»: se acaba de guardar, se abre sola. */
+  abrir: boolean;
+  /** Falta correr la migración del historial. */
+  faltaHistorial: boolean;
 }) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const ventana = useRef<HTMLDialogElement>(null);
+
   const [elaboro, setElaboro] = useState(quien);
-  const [supervisor, setSupervisor] = useState("");
+  const [supervisor, setSupervisor] = useState(hojas[0]?.supervisor ?? "");
   const [observaciones, setObservaciones] = useState("");
   const [haciendo, setHaciendo] = useState(false);
   const [aviso, setAviso] = useState<{ bien: boolean; texto: string } | null>(null);
 
-  /* LA HOJA SE ARMA AQUÍ MISMO, para enseñar lo que va a decir el papel
-     antes de generarlo: quien lo manda ve el total que va a firmar el
-     supervisor. */
   const hoja = useMemo(
     () => armarHoja({ fecha, filas, maquinas, lineas, firmas }),
     [fecha, filas, maquinas, lineas, firmas]);
+  const vacio = hoja.lineas.length === 0;
+  /* LA HOJA DEL DÍA ES LA ÚLTIMA QUE NO SE ANULÓ. Una anulada no cuenta:
+     si todas lo están, el día vuelve a pedir hoja. */
+  const vigentes = hojas.filter((h) => h.anulada_en == null);
+  const ultima = vigentes[0] ?? null;
+  const anuladaUltima = !ultima && hojas.length > 0 ? hojas[0] : null;
+  /* LA HOJA QUEDÓ VIEJA si el día cambió después de generarla: lo que se
+     firmó ya no es lo que dice la base. Se dice, para generar otra. */
+  const vieja = ultima != null && Number(ultima.unidades) !== hoja.und;
+
+  /* SE ABRE SOLA cuando la dirección lo pide —después de Guardar—, y
+     solo si hay algo que poner en la hoja. */
+  useEffect(() => {
+    if (abrir && !vacio && ventana.current && !ventana.current.open) {
+      setAviso(null);
+      ventana.current.showModal();
+    }
+  }, [abrir, vacio]);
+
+  /** Cierra y quita «hoja=1» de la dirección: si no, al recargar la
+   *  página la ventana volvería a salir sola. */
+  function cerrar() {
+    ventana.current?.close();
+    if (abrir) router.replace(`?d=${fecha}`, { scroll: false });
+  }
+
+  async function guardarEnHistorial(pdf: Blob): Promise<string | null> {
+    /* EL NOMBRE EMPIEZA POR LA FECHA —la base lo exige—, y la hora hace
+       que dos hojas del mismo día no se pisen. */
+    const ruta = `${fecha}/${new Date().toISOString().replace(/[:.]/g, "-")}.pdf`;
+    const sube = await supabase.storage.from(BUCKET)
+      .upload(ruta, pdf, { contentType: "application/pdf", upsert: false });
+    if (sube.error) return sube.error.message;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("rotlinea_hojas").insert({
+      fecha, ruta, bytes: pdf.size,
+      unidades: hoja.und, kg: Math.round(hoja.kg * 100) / 100, lineas: hoja.lineas.length,
+      elaboro: elaboro.trim() || null, supervisor: supervisor.trim() || null,
+      observaciones: observaciones.trim() || null,
+      generado_por: user?.id,
+    });
+    return error ? error.message : null;
+  }
 
   async function generar(modo: "compartir" | "descargar") {
     setHaciendo(true);
     setAviso(null);
     try {
-      /* jsPDF SE CARGA AL TOCAR, no al abrir la pantalla: son 350 KB que
-         quien solo viene a registrar no tiene por qué bajar. */
+      /* jsPDF Y LOS LOGOS SE CARGAN AL TOCAR, no al abrir la pantalla:
+         son 350 KB que quien solo viene a registrar no tiene por qué
+         bajar. Los logos son los PNG de public/marca/, tal cual. */
       const [{ jsPDF }, palabra, sello] = await Promise.all([
         import("jspdf"),
-        /* LOS LOGOS, LOS MISMOS PNG QUE SUBISTE A public/marca/. Se
-           piden al tocar, junto con jsPDF, y si alguno no llega la hoja
-           sale igual sin él: una hoja sin marca se firma, una que no
-           sale no. */
         comoDataUrl("/marca/logo-bavaria.png"),
         comoDataUrl("/marca/logo-b.png"),
       ]);
       const doc = dibujarHoja(jsPDF, hoja, {
         elaboro, supervisor, observaciones, generado: new Date(),
+        /* Los logos, tal cual en cualquier tema; lo demás, del tema. */
         marca: { palabra: palabra ?? undefined, sello: sello ?? undefined },
+        paleta: leerPaleta(ventana.current),
       });
+      const blob = doc.output("blob");
       const nombre = nombreArchivo(fecha);
-      const archivo = new File([doc.output("blob")], nombre, { type: "application/pdf" });
+      const archivo = new File([blob], nombre, { type: "application/pdf" });
 
-      /* COMPARTIR SOLO SI EL EQUIPO SABE COMPARTIR ARCHIVOS. `share` a
-         secas existe en muchos navegadores de escritorio que después no
-         aceptan un PDF: se pregunta con `canShare` y los archivos
-         puestos, que es lo que de verdad va a pasar. */
+      /* PRIMERO SE GUARDA, DESPUÉS SE MANDA. Al revés, el menú de
+         compartir del teléfono se queda con la pantalla y quien lo cierra
+         puede irse antes de que se guarde. Si guardar falla, se manda
+         igual. */
+      const fallo = await guardarEnHistorial(blob);
+
+      /* COMPARTIR SOLO SI EL EQUIPO SABE COMPARTIR ARCHIVOS: se pregunta
+         con `canShare` y los archivos puestos, que es lo que de verdad
+         va a pasar. En un PC casi nunca: ahí se descarga. */
+      let compartido = false;
       if (modo === "compartir" && typeof navigator !== "undefined" &&
           navigator.canShare?.({ files: [archivo] })) {
-        await navigator.share({
-          files: [archivo],
-          title: `Rotura en línea · ${fecha}`,
-          text: `Hoja de rotura en línea del ${fechaLarga(fecha)} para firmar.`,
-        });
-        setAviso({ bien: true, texto: "Listo. Se abrió para compartir." });
+        try {
+          await navigator.share({
+            files: [archivo],
+            title: `Rotura en línea · ${fecha}`,
+            text: `Hoja de rotura en línea del ${fechaLarga(fecha)} para firmar.`,
+          });
+          compartido = true;
+        } catch (e) {
+          /* CERRAR EL MENÚ DE COMPARTIR NO ES UN ERROR: el teléfono lo
+             cuenta como uno —AbortError— y decir «falló» porque alguien
+             cambió de idea es enseñarle a desconfiar del botón. La hoja
+             ya quedó guardada. */
+          if (!(e instanceof DOMException && e.name === "AbortError")) throw e;
+        }
       } else {
         doc.save(nombre);
-        setAviso({ bien: true, texto: `Se descargó «${nombre}». Mándalo por WhatsApp o correo.` });
       }
+
+      if (fallo) {
+        setAviso({ bien: false, texto: faltaHistorial
+          ? "El PDF salió, pero no quedó en el historial: falta correr 2026-09-rotura-linea-hojas.sql en Supabase."
+          : `El PDF salió, pero no quedó en el historial: ${fallo}` });
+        return;
+      }
+      /* QUEDÓ GUARDADA: se cierra y la tarjeta de abajo ya la muestra. */
+      ventana.current?.close();
+      router.replace(`?d=${fecha}`, { scroll: false });
+      router.refresh();
+      setAviso({ bien: true, texto: compartido
+        ? "Listo: quedó guardada y se abrió para compartir."
+        : `Listo: quedó guardada y se descargó «${nombre}».` });
     } catch (e) {
-      /* CERRAR EL MENÚ DE COMPARTIR NO ES UN ERROR. El teléfono lo
-         cuenta como uno —AbortError— y decirle a alguien «falló» porque
-         cambió de idea es enseñarle a desconfiar del botón. */
-      if (e instanceof DOMException && e.name === "AbortError") return;
       setAviso({ bien: false, texto: "No se pudo generar el PDF: " +
         (e instanceof Error ? e.message : String(e)) });
     } finally {
@@ -123,57 +238,106 @@ export function HojaFirma({ fecha, filas, maquinas, lineas, firmas, elaboro: qui
     }
   }
 
-  const vacio = hoja.lineas.length === 0;
-
   return (
-    <section className="rl-caja rl-hoja">
-      <div className="rl-cab">
-        <h2>Hoja del día para firmar</h2>
-      </div>
-      <p className="rl-explica">
-        {vacio
-          ? <>Todavía no hay rotura registrada este día. La hoja se genera con lo que se
-             registre arriba.</>
-          : <>Sale en PDF con las cifras de arriba —<b>{nf.format(hoja.und)} unidades</b> en{" "}
-             {hoja.lineas.length} línea{hoja.lineas.length === 1 ? "" : "s"}— y el espacio para que
-             el supervisor firme. En el celular se abre para mandarla por WhatsApp.</>}
-      </p>
+    <>
+      {/* ---------------- LA TARJETA ---------------- */}
+      <section className="rl-caja rl-hoja">
+        <div className="rl-hoja-fila">
+          <div className="rl-hoja-estado">
+            <h2>Hoja del día para firmar</h2>
+            <p className={"rl-hoja-dice" + (ultima && !vieja ? " bien" : vacio ? "" : " ojo")}>
+              {vacio
+                ? "Todavía no hay rotura registrada este día."
+                : anuladaUltima
+                  ? <>La hoja de este día se anuló{anuladaUltima.anulada_nombre && <> ({anuladaUltima.anulada_nombre})</>}:
+                     «{anuladaUltima.anulada_motivo}». Genera otra.</>
+                : !ultima
+                  ? "Todavía no se ha generado la hoja de este día."
+                  : vieja
+                    ? <>La última hoja ({hora(ultima.generado_en)}) decía <b>{nf.format(Number(ultima.unidades))}</b> unidades
+                       y el día ahora lleva <b>{nf.format(hoja.und)}</b>: cambió después. Genera otra.</>
+                    : <>Generada a las <b>{hora(ultima.generado_en)}</b>
+                       {ultima.generado_nombre && <> por {ultima.generado_nombre}</>}
+                       {vigentes.length > 1 && <> · {vigentes.length} versiones</>}.</>}
+            </p>
+          </div>
+          <div className="rl-hoja-acciones">
+            {ultima?.url && (
+              <a className="rl-hoja-no" href={ultima.url} target="_blank" rel="noreferrer">
+                Abrir la última
+              </a>
+            )}
+            <button type="button" className="rl-hoja-si" disabled={vacio}
+                    onClick={() => { setAviso(null); ventana.current?.showModal() }}>
+              {ultima ? "Generar otra" : "Generar hoja"}
+            </button>
+          </div>
+        </div>
+        {aviso && !haciendo && (
+          <p className={"rl-hoja-aviso" + (aviso.bien ? "" : " mal")} role="status">{aviso.texto}</p>
+        )}
+      </section>
 
-      <div className="rl-hoja-campos">
-        <label>
-          <span>Elaboró</span>
-          <input value={elaboro} onChange={(e) => setElaboro(e.target.value)}
-                 maxLength={60} autoComplete="name" />
-        </label>
-        <label>
-          <span>Supervisor que firma</span>
-          {/* SE PUEDE DEJAR EN BLANCO: entonces sale una raya para que lo
-              escriba a mano. Obligarlo aquí frenaría la hoja por un dato
-              que el propio supervisor pone al firmar. */}
-          <input value={supervisor} onChange={(e) => setSupervisor(e.target.value)}
-                 maxLength={60} placeholder="Opcional — si no, se escribe a mano" />
-        </label>
-        <label className="ancho">
-          <span>Observaciones</span>
-          <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)}
-                    rows={3} maxLength={600}
-                    placeholder="Opcional. Lo que el supervisor tenga que saber de este día." />
-        </label>
-      </div>
+      {/* ---------------- EL CUADRO ----------------
+          UN <dialog> DEL NAVEGADOR y no una caja pintada encima: trae
+          solo lo que una ventana tiene que traer —Escape la cierra, el
+          foco no se escapa a la página de atrás, el lector de pantalla
+          sabe que es una ventana— sin una línea más de código. */}
+      <dialog ref={ventana} className="rl-ventana" aria-labelledby="rl-ventana-titulo"
+              onCancel={(e) => { e.preventDefault(); cerrar() }}>
+        <div className="rl-ventana-cab">
+          <p className="rl-ventana-ojo">{abrir ? "GUARDADO · " : ""}HOJA DEL DÍA PARA FIRMAR</p>
+          <h2 id="rl-ventana-titulo">
+            {nf.format(hoja.und)} unidades
+            <span> · {hoja.lineas.length} línea{hoja.lineas.length === 1 ? "" : "s"}</span>
+          </h2>
+          <p className="rl-ventana-sub">
+            {fechaLarga(fecha).charAt(0).toUpperCase() + fechaLarga(fecha).slice(1)}.
+            Sale en PDF con estas cifras y el espacio para que el supervisor firme.
+          </p>
+        </div>
 
-      <div className="rl-hoja-pie">
-        <button type="button" className="rl-hoja-si" disabled={vacio || haciendo}
-                onClick={() => generar("compartir")}>
-          {haciendo ? "Generando…" : "Generar PDF y compartir"}
-        </button>
-        <button type="button" className="rl-hoja-no" disabled={vacio || haciendo}
-                onClick={() => generar("descargar")}>
-          Solo descargar
-        </button>
-      </div>
-      {aviso && (
-        <p className={"rl-hoja-aviso" + (aviso.bien ? "" : " mal")} role="status">{aviso.texto}</p>
-      )}
-    </section>
+        <div className="rl-hoja-campos">
+          <label>
+            <span>Elaboró</span>
+            <input value={elaboro} onChange={(e) => setElaboro(e.target.value)}
+                   maxLength={60} autoComplete="name" />
+          </label>
+          <label>
+            <span>Supervisor que firma</span>
+            {/* Opcional: si se deja en blanco sale una raya para que lo
+                escriba a mano. Obligarlo frenaría la hoja por un dato que
+                el propio supervisor pone al firmar. */}
+            <input value={supervisor} onChange={(e) => setSupervisor(e.target.value)}
+                   maxLength={60} placeholder="Opcional" />
+          </label>
+          <label className="ancho">
+            <span>Observaciones</span>
+            <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)}
+                      rows={3} maxLength={600} placeholder="Opcional" />
+          </label>
+        </div>
+
+        {aviso && haciendo === false && !aviso.bien && (
+          <p className="rl-hoja-aviso mal" role="status">{aviso.texto}</p>
+        )}
+
+        <div className="rl-hoja-pie">
+          <button type="button" className="rl-hoja-si" disabled={vacio || haciendo}
+                  onClick={() => generar("compartir")}>
+            {haciendo ? "Generando…" : "Generar PDF y compartir"}
+          </button>
+          <button type="button" className="rl-hoja-no" disabled={vacio || haciendo}
+                  onClick={() => generar("descargar")}>
+            Solo descargar
+          </button>
+          {/* «AHORA NO» NO PIERDE NADA: el día queda en el tablero como
+              pendiente de hoja, y desde ahí se genera cuando se quiera. */}
+          <button type="button" className="rl-hoja-luego" disabled={haciendo} onClick={cerrar}>
+            Ahora no
+          </button>
+        </div>
+      </dialog>
+    </>
   );
 }

@@ -1,157 +1,175 @@
-Rotura en línea: la hoja del día para firmar, con la marca Bavaria, y dos máquinas que se suman en otra
+Rotura en línea: guardar abre la hoja para firmar, cada PDF queda guardado y listado en el tablero, el administrador anula con motivo, y el papel sale con los colores del tema
 
-Dos pedidos del mismo módulo, en el orden en que se hacen en el día:
-primero cómo se suma, después el papel que firma el supervisor con esas
-sumas.
-
-=====================================================================
-1 · PALE-DEPA SE SUMA EN PASTEURIZADORA Y CARGADOR EN SALIDA DE LAVADORA
-=====================================================================
-
-«Cuando hagas la suma, PALE-DEPA y PASTEURIZADORA se sumen en uno solo
-que sea PASTEURIZADORA; y CARGADOR + SALIDA DE LAVADORA, que sea la suma
-de SALIDA DE LAVADORA.»
-
-    PALE-DEPA  (155)  ──se suma en──►  PASTEURIZADORA     (13)
-    CARGADOR    (66)  ──se suma en──►  SALIDA DE LAVADORA  (6)
-
-SE JUNTA EN LA SUMA, NO EN EL REGISTRO. Lo anotado en la rejilla sigue
-diciendo CARGADOR y PALE-DEPA, fila por fila, hacia atrás incluido.
-Reescribir los registros era una línea y se descartó: borra lo que de
-verdad se anotó y no tiene vuelta. Así, poniendo la regla en blanco, todo
-vuelve a separarse.
-
-VA COMO COLUMNA DEL MAESTRO —`suma_en`— y no como un `case` escondido en
-una consulta: una regla escondida es una que la próxima consulta que sume
-por máquina se olvida de copiar. La leen el tablero, la vista diaria y la
-hoja para firmar, y las tres dicen lo mismo.
-
-UN SOLO SALTO. Una máquina que recibe a otra no puede sumarse a su vez en
-una tercera; lo impide un disparador con un mensaje que dice qué hacer.
-
-Medido contra Postgres como usuario —no como superusuario, que se salta
-el RLS—: la suma cae exacta (100 + 7 = 107), no se pierde ni una
-botella, el histórico anotado ANTES de migrar sigue intacto, se deshace,
-el filtro de línea sigue filtrando y las cadenas se rechazan. La
-migración se corre dos veces seguidas. 10 mutaciones, las 10 rojas.
-
-Una no se sostenía al principio, y lo que falló fue la prueba: solo
-miraba filas insertadas DESPUÉS de migrar, así que una migración que
-reescribiera el histórico no se habría notado. Ahora el arnés deja dos
-filas anotadas antes y comprueba que sigan intactas.
+Cuatro pedidos sobre la hoja del día, en el orden en que se viven: se
+guarda, sale la hoja, queda en el tablero, el administrador la anula si
+salió mal; y el papel con los colores de quien lo genera.
 
 =====================================================================
-2 · LA HOJA DEL DÍA PARA FIRMAR
+1 · GUARDAR Y SALE LA VENTANA DE LA HOJA
 =====================================================================
 
-«Que los reportes del día los generes en una hoja con el fin de que el
-supervisor la pueda firmar: que llenen la información, la persona pueda
-generar el PDF, enviárselo por WhatsApp o lo que sea, y esté el espacio
-para que la firmen.»
+«Que guarde y me salga el cuadro de generar el PDF.»
 
-Debajo de la rejilla de Rotura de línea —que es el orden del día: se
-registra, se genera la hoja, se firma— hay un bloque con tres campos,
-lo único que la base no sabe:
+AL GUARDAR EN LA REJILLA SALE LA VENTANA, cada vez. La dirección queda
+con «hoja=1» y la ventana la lee: así la abre también un enlace, y
+recargar después de cerrarla no la vuelve a sacar. «Ahora no» o Escape
+la cierran.
 
-  ELABORÓ          viene lleno con el nombre de quien está en la app
-  SUPERVISOR       opcional; si se deja en blanco sale una raya
-  OBSERVACIONES    opcional; si se deja en blanco salen renglones
+Debajo de la rejilla, la tarjeta dice en una línea cómo va la hoja del
+día: sin generar, generada a tal hora por tal persona, o VIEJA —el día
+cambió después de generarla— con las dos cifras, para generar otra.
+«Abrir la última» abre el PDF que se mandó.
 
-y un botón: «Generar PDF y compartir». En el celular abre el menú de
-compartir con el PDF ya adjunto —WhatsApp, correo, lo que tenga—. En un
-computador, donde compartir archivos casi nunca existe, lo descarga.
-
-LA HOJA: el día con el total arriba; por cada línea una tabla de
-máquinas por turno A, B y C, con totales de unidades y kilos; por envase;
-las observaciones; y dos recuadros de firma —Elaboró y Revisó y aprueba,
-supervisor— con nombre, espacio de firma y fecha y hora. Si un turno ya
-se cerró en CONTROL, lo dice debajo de su tabla. Cada página dice
-«Página i de n» y el día.
-
-LAS CIFRAS NO SE TOCAN EN LA HOJA. Salen de lo registrado, con la misma
-regla de sumar que el tablero. Un papel donde se pudieran corregir sería
-un segundo registro que no cuadra con el primero.
-
-PDF DE VERDAD Y NO UNA FOTO DE LA PANTALLA. Dibujado con jsPDF se lee
-nítido en cualquier teléfono, el texto se puede buscar y copiar, y las
-apps de PDF del celular dejan firmar encima. Una captura con html2canvas
-saldría borrosa al ampliar y pesaría varias veces más.
-
-jsPDF SE CARGA AL TOCAR EL BOTÓN, no al abrir la pantalla: son 350 KB
-que quien solo viene a registrar no tiene por qué bajar.
+UN <dialog> DEL NAVEGADOR y no una caja pintada encima: Escape la
+cierra, el foco no se escapa a la página de atrás y el lector de
+pantalla sabe que es una ventana, sin una línea más de código.
 
 =====================================================================
-3 · CON LA MARCA BAVARIA
+2 · CADA PDF, GUARDADO TAL CUAL SE MANDÓ
 =====================================================================
 
-«Agrégale el logo de Bavaria, o sea algo espectacular.»
+«Y si no, que en el tablero de rotura haya una hoja con todos los PDF
+generados.»
 
-  · ARRIBA, el logo con la palabra Bavaria a la izquierda y a la derecha
-    qué es la hoja y de qué día. Sobre blanco: el logo es rojo sobre
-    transparente, y sobre la banda azul el rojo —que ES la marca— se
-    pierde.
-  · UNA CINTA del dorado al rojo, como el aro del logo, en el borde de
-    arriba, sobre cada recuadro de firma y en el pie. jsPDF no pinta
-    degradados: se arma con franjas de 1,5 mm, que a esa distancia el ojo
-    no ve como escalones.
-  · EL TOTAL DEL DÍA en una banda azul con raya roja y la cifra en
-    grande: es la única pieza oscura de la hoja, así que el ojo cae ahí
-    primero.
-  · EL SELLO de la B como marca de agua al 4 %, DETRÁS de las cifras:
-    se ve en la pantalla y en una impresora en blanco y negro no tapa un
-    número ni una firma.
-  · LAS HOJAS 2 EN ADELANTE llevan una cabecera chica con el sello, qué
-    es y de qué día.
+SE GUARDA EL ARCHIVO Y NO SOLO EL RENGLÓN: rehacer el PDF al abrirlo
+daría un papel DISTINTO del que se firmó si alguien corrigió una pesada
+después. El renglón guarda además las cifras que decía, para saber sin
+abrirlo si el día cambió.
 
-LOS COLORES SALEN DE LOS PÍXELES DEL LOGO, no de memoria: el rojo es el
-de la palabra y los dos dorados son los extremos del aro.
+SE GUARDA ANTES DE MANDAR. Al revés, el menú de compartir del teléfono
+se queda con la pantalla y quien lo cierra puede irse sin que quede.
 
-LOS LOGOS NO SE DIBUJAN CON CÓDIGO: se leen los PNG que subiste a
-public/marca/ tal cual. Si no cargan —sin señal en el patio— la hoja
-sale igual, sin logo: una hoja sin marca se firma, una que no sale no.
-
-Pesa 108 KB, medido: 15 KB la hoja sola, 49 con las cintas, 108 con los
-dos logos. Sospeché que el sello se pegaba dos veces —como marca de agua
-y en la cabecera— y lo medí: jsPDF ya lo pega una sola vez.
+LO GENERADO NO SE PISA NI SE BORRA. Si hace falta otra versión se
+genera otra y quedan las dos, cada una con su hora; si una salió mal, el
+administrador la anula (abajo). La guarda quien edita y a su nombre;
+quien solo consulta la ve y la abre. El PDF queda en un espacio privado, solo PDF y hasta 5 MB, y se abre con un enlace que vence en
+una hora.
 
 =====================================================================
-4 · MEDIDO: SE GENERA EL PDF Y SE LEE DE VUELTA
+3 · EN EL TABLERO: «HOJAS DEL DÍA GENERADAS»
 =====================================================================
 
-El arnés genera el PDF con el mismo jsPDF del teléfono y lo lee con
-pdftotext. Lo que se comprueba es lo que dice el papel, no lo que el
-código cree que escribió.
+Cerrada, con la respuesta en el renglón:
 
-DOS DEFECTOS SE VIERON MIRANDO EL PDF, y el arnés no los cazaba:
+    Hojas del día generadas   4 hojas de 3 días · 2 días sin hoja · 1 cambió después
 
-· LAS OBSERVACIONES SE SALÍAN DEL RECUADRO. Se medían con la letra de la
-  tabla de envases —9 puntos— y se escribían a 9,5: cada renglón salía
-  más largo de lo medido. pdftotext lo leía igual. Ahora el arnés mide
-  DÓNDE cae cada palabra y exige que ninguna pase el margen.
+Adentro, cada día sin hoja lleva directo a generarla —a Registrar con
+la ventana abierta—, y la lista con día y hora, quién la generó, a qué
+supervisor iba, las unidades que decía y «Abrir». Las versiones viejas
+de un día salen en gris debajo de la última.
 
-· LA TABLA QUE SEGUÍA EN LA HOJA 2 NO DECÍA DE QUÉ LÍNEA ERA. Empezaba
-  con «MÁQUINA DE PRUEBA 9 — 5 — 5», sin título ni columnas. Ahora repite
-  «Línea 2 · TREN-2 (continúa)» y los títulos.
+  · SIN HOJA cuenta solo desde hoy, que es cuando la hoja existe: los
+    260 días de antes serían una alarma que nadie puede cerrar, y una
+    alarma así se deja de mirar.
+  · CAMBIÓ DESPUÉS se mira solo sin filtro de línea: con una línea
+    escogida la base dice lo de esa línea y la hoja lo del día entero;
+    parecería que todas cambiaron.
+  · Van las 30 más recientes; un año entero serían cientos.
 
-Y UNA MUTACIÓN SALIÓ VERDE: separar las firmas de las observaciones no
-se notaba porque en el único día largo de la prueba sobraba sitio para
-las dos. Ahora se barre el largo del día fila por fila —41 largos— para
-que en alguna vuelta caigan justo en el borde de la hoja.
+Va después de «Turnos sin firmar» y antes del detalle: es el orden del
+día —se registra, se firma el turno, se genera la hoja—.
 
-Y con la marca, tres más: que estén los dos logos —reconocidos por su
-ancho, porque contar imágenes a secas pasaba con uno quitado— y que la
-marca de agua se pinte ANTES que las cifras en el contenido del PDF.
+=====================================================================
+4 · EL ADMINISTRADOR ANULA, CON MOTIVO; NADIE BORRA
+=====================================================================
 
-  .arnes/rl-hoja.mjs · mutar-rl-hoja.mjs      25 mutaciones, las 25 rojas
+«Que el administrador pueda corregir: lo máximo, anular.»
+
+ANULAR Y NO EDITAR. El PDF es el papel que se firmó: si se cambiaran el
+supervisor o las cifras del renglón, el PDF seguiría diciendo lo de
+antes y los dos dejarían de cuadrar.
+
+En la lista del tablero, quien administra tiene «Anular» en cada hoja.
+Se abre una fila debajo para escribir por qué —al menos 5 letras, una
+anulación sin motivo no se entiende después— y «Anular la hoja». La
+hoja queda a la vista, en gris, con la cifra tachada y «Anulada por
+Cristian: se generó antes de cerrar el turno C». Deja de contar: el día
+vuelve a salir «sin hoja», y en Registrar la tarjeta dice que se anuló
+y por qué, para generar otra.
+
+SE DESHACE: «Quitar anulación» la deja exactamente como estaba.
+
+ANULAR REEMPLAZA A BORRAR. Nada desaparece, ni el renglón ni el PDF,
+tampoco para el administrador: es lo que sirve si algún día auditan.
+
+VA POR FUNCIÓN Y NO POR UPDATE. La tabla sigue sin UPDATE para nadie; lo
+único que cambia de una hoja es si está anulada, y solo por las dos
+funciones, que revisan que quien llama administre. No se anula dos
+veces: la segunda pisaría quién y por qué.
+
+EL MOTIVO SE ESCRIBE EN LA MISMA LISTA y no en la ventanita del
+navegador: en el teléfono esa ventanita tapa la hoja que se anula.
+
+LA MIGRACIÓN ES LA MISMA. 2026-09-rotura-linea-hojas.sql ya trae la
+anulación; si ya corriste la primera versión —la que dejaba borrar al
+administrador—, se vuelve a correr y queda igual que una corrida por
+primera vez. El arnés lo prueba así: una base nueva y otra con la
+primera versión puesta, y las pruebas en las dos.
+
+=====================================================================
+5 · LOS COLORES DEL INFORME SON LOS DEL TEMA; EL LOGO, EL DE SIEMPRE
+=====================================================================
+
+«Los colores del informe dependen de la preferencia: si tengo ámbar o
+gris, todo varía. Pero el logo sí debe permanecer normal.»
+
+El PDF lee los colores de la pantalla de quien lo genera —las mismas
+variables que pintan la app, así un tema nuevo cambia también el papel—:
+
+  tinta          la banda del total, los títulos de columna y las rayas
+  acento         la raya de la banda y el cuadrito de cada línea
+  cinta          del acento hondo al acento, arriba, en las firmas y el pie
+
+Con el tema oficial sale la marca como estaba: el dorado del aro al
+rojo de la palabra. La cinta de la ventana también sigue el tema.
+
+EL ACENTO SOLO VA DE RELLENO, NUNCA DE LETRA: el amarillo #ffc000 de
+ámbar, gris, negro y halo, escrito sobre papel blanco, no se lee. Lo
+que va sobre la tinta va en blanco, y la tinta es oscura en los siete.
+
+LOS LOGOS NO CAMBIAN: los PNG tal cual en cualquier tema. El arnés
+compara las imágenes del PDF oficial y del de ámbar y exige que sean
+las mismas, byte por byte.
+
+=====================================================================
+6 · MEDIDO
+=====================================================================
+
+  .arnes/rl-hoja.mjs · mutar-rl-hoja.mjs            41 mutaciones, las 41 rojas
+      Nuevas: se guarda antes de mandar, Guardar abre la ventana, y los
+      colores del tema leídos EN EL PDF pieza por pieza. La banda se
+      reconoce por su tamaño y no por «algún relleno de ese color»: la
+      tinta pinta también los títulos, y una banda que se quedara en
+      azul pasaría escondida detrás de ellos.
+      La ventana, en los siete temas y a 360 px. Una mutación salió
+      verde: un <dialog> con tope de ancho no se sale de la pantalla,
+      se desborda POR DENTRO y deja el campo cortado. Ahora se mide que
+      cada campo y botón quepa en la ventana.
+
+  .arnes/rl-historial.mjs · mutar-rl-historial.mjs   30 mutaciones, las 30 rojas
+      El componente del tablero pintado de verdad con React. Una salió
+      verde: sumar el día con una sola línea no se notaba, porque el día
+      de dos líneas de la prueba ya salía «cambiado» por otra razón.
+      Ahora ese día cuadra justo con la suma de las dos.
+      Con la anulación salió un defecto que solo se ve en el celular:
+      el título oculto de la columna «Anular» se escapaba del scroll de
+      la tabla y arrastraba la página 189 px de lado a 360.
+
+  .arnes/correr-rotura-linea-hojas.sh · mutar-...    22 mutaciones, las 22 rojas
+      Contra Postgres, como usuario —no como superusuario, que se salta
+      el RLS— y con los permisos con que Supabase crea las tablas: todo
+      para `authenticated`. Sin eso, el «revoke update» que impide pisar
+      una hoja no se estaría probando. La migración corre dos veces.
 
 =====================================================================
 FALTA CORRER EN SUPABASE
 =====================================================================
 
-  supabase/migraciones/2026-09-rotura-linea-sumar-maquinas.sql
+  supabase/migraciones/2026-09-rotura-linea-hojas.sql
+  (si ya la corriste, otra vez: trae la anulación y quita el borrar)
 
-Sin ella la hoja sale igual, con CARGADOR y PALE-DEPA por separado —como
-el tablero en ese momento—. Con ella, las dos dicen lo mismo.
+Sin ella el PDF sale y se manda igual, pero no queda guardado: la
+ventana lo dice, y el tablero dice qué correr.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

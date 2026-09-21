@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
-import { maestros, delDia } from "@/modulos/rotlinea/datos";
+import { maestros, delDia, hojasGuardadas } from "@/modulos/rotlinea/datos";
 import { turnoDeAhora, letraDe, horarioDe } from "@/modulos/rotlinea/turnos";
 import "./rotura.css";
 import { Dias } from "./Dias";
@@ -30,15 +30,15 @@ function hoyLocal() {
  * báscula en el muelle y una canastilla de vidrio roto por máquina.
  */
 export default async function RoturaLineaPage({ searchParams }: {
-  searchParams: Promise<{ d?: string }>;
+  searchParams: Promise<{ d?: string; hoja?: string }>;
 }) {
   const q = await searchParams;
   const hoy = hoyLocal();
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.d ?? "") ? q.d! : hoy;
   const esHoy = fecha === hoy;
 
-  const [permisos, m, dia, quien] = await Promise.all([
-    misPermisos(), maestros(), delDia(fecha), nombreDeQuienEntra()]);
+  const [permisos, m, dia, quien, hj] = await Promise.all([
+    misPermisos(), maestros(), delDia(fecha), nombreDeQuienEntra(), hojasGuardadas(fecha, fecha)]);
   const puedeEditar = permisos.puedeEditar("/quiebra/rotura");
   /* El turno se calcula en el SERVIDOR. En el navegador dependería del
      reloj del equipo, y un computador de bodega con la hora corrida dos
@@ -165,8 +165,11 @@ export default async function RoturaLineaPage({ searchParams }: {
 
       {/* LA HOJA PARA FIRMAR, DEBAJO DE TODO: es el último paso del
           día. Primero se registra, después se genera, después se firma. */}
+      {/* «hoja=1» LO PONE LA REJILLA AL GUARDAR: la página vuelve con la
+          pesada nueva adentro y el cuadro de generar el PDF se abre solo. */}
       <HojaFirma fecha={fecha} filas={dia.filas} maquinas={m.maquinas} lineas={m.lineas}
-                 firmas={dia.firmas} elaboro={quien} />
+                 firmas={dia.firmas} elaboro={quien} hojas={hj.hojas}
+                 abrir={q.hoja === "1"} faltaHistorial={hj.falta} />
     </div>
   );
 }

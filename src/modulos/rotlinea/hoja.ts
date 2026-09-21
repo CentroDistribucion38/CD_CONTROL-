@@ -204,15 +204,57 @@ export type Marca = {
 /* LOS COLORES DE LA MARCA, sacados de los píxeles del propio logo y no
    de memoria: el rojo es el de la palabra «Bavaria» y los dos dorados son
    los extremos del aro. */
-const ROJO: [number, number, number] = [255, 0, 15];
-const ORO: [number, number, number] = [236, 198, 68];
-const ORO_HONDO: [number, number, number] = [181, 135, 53];
-const TINTA: [number, number, number] = [18, 38, 58];
+type RGB = [number, number, number];
+const ROJO: RGB = [255, 0, 15];
+const ORO: RGB = [236, 198, 68];
+const ORO_HONDO: RGB = [181, 135, 53];
+
+/**
+ * LOS COLORES DEL PAPEL, LOS DEL TEMA DE QUIEN LA GENERA.
+ *
+ * «Los colores del informe dependen de la preferencia: si tengo ámbar o
+ * gris, todo varía; pero el logo debe permanecer normal.»
+ *
+ *   tinta        la banda del total, los títulos de columna, las rayas y
+ *                el texto. Es oscura en TODOS los temas, así que lo que va
+ *                encima —en blanco— se lee siempre.
+ *   acento       la raya de la banda y el cuadrito de cada línea. Solo se
+ *                usa de RELLENO, nunca de letra: el ámbar #ffc000 sobre
+ *                papel blanco como letra no se lee.
+ *   cinta        las paradas del degradado del borde, del pie y de las
+ *                firmas.
+ *
+ * LOS LOGOS NO ENTRAN AQUÍ: son los PNG tal cual, en cualquier tema.
+ */
+export type Paleta = { tinta: RGB; acento: RGB; cinta: Array<[number, RGB]> };
+
+/* EL TEMA OFICIAL ES LA MARCA: la cinta del dorado del aro al rojo de la
+   palabra, sacados de los píxeles del logo. */
+export const PALETA_MARCA: Paleta = {
+  tinta: [18, 38, 58],
+  acento: ROJO,
+  cinta: [[0, ORO_HONDO], [0.35, ORO], [1, ROJO]],
+};
+
+/** Un color que el navegador ya calculó —`rgb(…)` o, si viene de un
+ *  `color-mix`, `color(srgb 0-1 …)`— como tres números de 0 a 255. */
+export function aRGB(c: string): RGB | null {
+  let m = c.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/);
+  if (m) return [+m[1], +m[2], +m[3]].map(Math.round) as RGB;
+  m = c.match(/^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+  if (m) return [+m[1], +m[2], +m[3]].map((v) => Math.round(v * 255)) as RGB;
+  return null;
+}
+
+/** Los demás temas: la cinta va del acento hondo al acento, como la
+ *  cabecera de las pantallas de ese tema. */
+export const paletaDeTema = (tinta: RGB, acento: RGB, acentoHondo: RGB): Paleta =>
+  ({ tinta, acento, cinta: [[0, acentoHondo], [1, acento]] });
 
 export function dibujarHoja(
   JsPDFCtor: typeof JsPDF,
   hoja: Hoja,
-  datos: { elaboro: string; supervisor: string; observaciones: string; generado: Date; marca?: Marca },
+  datos: { elaboro: string; supervisor: string; observaciones: string; generado: Date; marca?: Marca; paleta?: Paleta },
 ): JsPDF {
   const doc = new JsPDFCtor({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210, H = 297, M = 14, ANCHO = W - 2 * M;
@@ -220,7 +262,12 @@ export function dibujarHoja(
   const TOPE = PIE - 6;                // lo último que se puede escribir
   let y = M;
 
-  const tinta = () => doc.setTextColor(18, 38, 58);
+  const P = datos.paleta ?? PALETA_MARCA;
+  const TINTA = P.tinta;
+  /* Lo que va en letra clara sobre la tinta: blanco con un pelo de la
+     tinta, para que sea secundario sin dejar de leerse. */
+  const TENUE: RGB = TINTA.map((c) => Math.round(255 - (255 - c) * 0.16)) as RGB;
+  const tinta = () => doc.setTextColor(...TINTA);
   const gris = () => doc.setTextColor(95, 107, 121);
   const fuente = (peso: "normal" | "bold", tam: number) => { doc.setFont("helvetica", peso); doc.setFontSize(tam) };
   const marca = datos.marca ?? {};
@@ -234,7 +281,10 @@ export function dibujarHoja(
     const paso = ancho / N;
     for (let i = 0; i < N; i++) {
       const t = i / (N - 1);
-      const [a, b, u] = t < 0.35 ? [ORO_HONDO, ORO, t / 0.35] : [ORO, ROJO, (t - 0.35) / 0.65];
+      let k = 0;
+      while (k < P.cinta.length - 2 && t > P.cinta[k + 1][0]) k++;
+      const [ta, a] = P.cinta[k], [tb, b] = P.cinta[k + 1];
+      const u = Math.min(1, Math.max(0, (t - ta) / (tb - ta)));
       doc.setFillColor(
         Math.round(a[0] + (b[0] - a[0]) * u),
         Math.round(a[1] + (b[1] - a[1]) * u),
@@ -305,6 +355,7 @@ export function dibujarHoja(
     } catch { /* sin logo, la hoja sale igual */ }
   }
   if (!conLogo) {
+    /* Hace de logo: va en el rojo de la marca en cualquier tema. */
     fuente("bold", 16); doc.setTextColor(...ROJO);
     doc.text("Bavaria", M, 21);
   }
@@ -329,7 +380,7 @@ export function dibujarHoja(
   const ALTO_KPI = 21;
   doc.setFillColor(...TINTA);
   doc.rect(M, y, ANCHO, ALTO_KPI, "F");
-  doc.setFillColor(...ROJO);
+  doc.setFillColor(...P.acento);
   doc.rect(M, y, 3, ALTO_KPI, "F");
   doc.setTextColor(255, 255, 255);
   fuente("bold", 26);
@@ -337,11 +388,11 @@ export function dibujarHoja(
   doc.text(cifra, M + 9, y + 14);
   const anchoCifra = doc.getTextWidth(cifra);
   fuente("normal", 10.5);
-  doc.setTextColor(214, 223, 234);
+  doc.setTextColor(...TENUE);
   doc.text("unidades rotas", M + 11 + anchoCifra, y + 14);
   fuente("bold", 11); doc.setTextColor(255, 255, 255);
   doc.text(`${nf1.format(hoja.kg)} kg`, W - M - 6, y + 9.5, { align: "right" });
-  fuente("normal", 8.5); doc.setTextColor(214, 223, 234);
+  fuente("normal", 8.5); doc.setTextColor(...TENUE);
   doc.text(`${hoja.lineas.length} línea${hoja.lineas.length === 1 ? "" : "s"} · generado el ` +
            `${datos.generado.toLocaleDateString("es-CO")} a las ` +
            `${datos.generado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`,
@@ -374,14 +425,14 @@ export function dibujarHoja(
      5 — 5» sin decir de qué línea era ni qué turno era cada columna. En
      un papel que se firma, una fila que no se sabe de dónde es no vale. */
   const encabezado = (l: LineaDeHoja, sigue: boolean) => {
-    doc.setFillColor(...ROJO);
+    doc.setFillColor(...P.acento);
     doc.rect(M, y + 1.2, 2.6, 2.6, "F");
     fuente("bold", 11); tinta();
     doc.text(`Línea ${l.linea} · ${l.tren}${sigue ? " (continúa)" : ""}`, M + 4.5, y + 4);
     fuente("normal", 8.5); gris();
     if (l.centro_coste) doc.text(`Centro de coste ${l.centro_coste}`, W - M, y + 4, { align: "right" });
     y += 7;
-    doc.setFillColor(18, 38, 58);
+    doc.setFillColor(...TINTA);
     doc.rect(M, y, ANCHO, FILA, "F");
     doc.setTextColor(255, 255, 255);
     fuente("bold", 8.5);
@@ -419,7 +470,7 @@ export function dibujarHoja(
     /* LOS TOTALES VAN EN NEGRITA Y CON RAYA ARRIBA. Son las cifras que
        el supervisor firma: tienen que distinguirse de un renglón más. */
     cabeEnTabla(FILA * 2, l);
-    doc.setDrawColor(18, 38, 58);
+    doc.setDrawColor(...TINTA);
     doc.setLineWidth(0.4);
     doc.line(M, y, M + ANCHO, y);
     celdas(["Total unidades", ...l.und.map((v) => nf.format(v))], FILA, "bold");
@@ -482,7 +533,7 @@ export function dibujarHoja(
 
   fuente("bold", 9); tinta();
   doc.text("OBSERVACIONES", M, y + 4);
-  doc.setDrawColor(18, 38, 58);
+  doc.setDrawColor(...TINTA);
   doc.setLineWidth(0.3);
   doc.rect(M, y + 6, ANCHO, altoObs - 6);
   if (lineasObs.length > 0) {
@@ -501,7 +552,7 @@ export function dibujarHoja(
      nombre, firma y fecha, que es lo que hace que el papel valga. */
   const media = (ANCHO - 8) / 2;
   const firma = (x: number, rotulo: string, nombre: string) => {
-    doc.setDrawColor(18, 38, 58);
+    doc.setDrawColor(...TINTA);
     doc.setLineWidth(0.3);
     doc.rect(x, y, media, ALTO_FIRMAS);
     /* La cinta de la marca encima de cada firma: es lo que el ojo busca

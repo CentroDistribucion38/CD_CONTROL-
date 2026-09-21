@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
-import { maestros, tablero } from "@/modulos/rotlinea/datos";
+import { maestros, tablero, hojasGuardadas } from "@/modulos/rotlinea/datos";
+import { HojasGeneradas } from "./Hojas";
 import { letraDe } from "@/modulos/rotlinea/turnos";
 import "../rotura.css";
 import { Barras, Serie, Pareto, type Barra } from "./Graficas";
@@ -49,8 +50,8 @@ export default async function TableroRoturaPage({ searchParams }: {
   const hasta = fecha(q.hasta, hoy);
   const linea = Number(q.linea) || undefined;
 
-  const [permisos, m, t] = await Promise.all([
-    misPermisos(), maestros(), tablero(desde, hasta, linea),
+  const [permisos, m, t, hj] = await Promise.all([
+    misPermisos(), maestros(), tablero(desde, hasta, linea), hojasGuardadas(desde, hasta),
   ]);
   void permisos;
 
@@ -526,6 +527,11 @@ export default async function TableroRoturaPage({ searchParams }: {
           </div>
         </section>
       )}
+
+      {/* LAS HOJAS DEL DÍA, después de las firmas de turno: es el orden
+          del día —se registra, se firma el turno, se genera la hoja—. */}
+      <HojasGeneradas hojas={hj.hojas} dias={t.dias} conLinea={linea != null} falta={hj.falta}
+                      puedeAnular={permisos.manda} />
 
       {/* LA TABLA. Las gráficas se leen; la tabla se copia y se audita. */}
       <section className="rl-tarj">

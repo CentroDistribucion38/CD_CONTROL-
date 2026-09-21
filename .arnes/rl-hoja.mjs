@@ -13,9 +13,12 @@
       dos recuadros de firma con su espacio.
    3. LAS PÁGINAS. Que con un día largo la firma no quede partida ni
       separada de las observaciones, y que cada hoja diga «Página i de n».
-   4. LO QUE NO SE VE: jsPDF se carga al tocar, se pregunta si el equipo
-      sabe compartir archivos antes de intentarlo, y cerrar el menú de
-      compartir no se cuenta como error.
+   4. LO QUE NO SE VE: jsPDF se carga al tocar, se guarda antes de
+      mandar, Guardar abre la ventana, se pregunta si el equipo sabe
+      compartir archivos, y cerrar el menú no se cuenta como error.
+   5. LOS COLORES DEL TEMA: con ámbar el papel pinta ámbar, sin tema la
+      marca, y el logo sale idéntico en los dos.
+   6. EN PANTALLA: la tarjeta y la ventana, en los siete temas.
    ===================================================================== */
 import { readFileSync, writeFileSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -300,50 +303,132 @@ ok(p.peso < 150_000, `el PDF pesa ${Math.round(p.peso / 1024)} KB: algo se está
 }
 
 /* ======================= 4 · LO QUE NO SE VE ======================= */
+const rejilla = readFileSync(U("../src/app/(app)/quiebra/rotura/Rejilla.tsx"), "utf8");
 const limpio = comp.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 ok(!/^import .*jspdf/m.test(limpio) && /\bimport\("jspdf"\)/.test(limpio),
    "jsPDF se carga al abrir la pantalla: son 350 KB que quien solo registra no necesita");
 ok(/navigator\.canShare\?\.\(\{ files: \[archivo\] \}\)/.test(limpio),
    "se intenta compartir sin preguntar si el equipo sabe compartir archivos: en un PC fallaría en vez de descargar");
-ok(/e\.name === "AbortError"\) return;/.test(limpio),
+ok(/if \(!\(e instanceof DOMException && e\.name === "AbortError"\)\) throw e;/.test(limpio),
    "cerrar el menú de compartir se cuenta como error");
 ok(/doc\.save\(nombre\)/.test(limpio), "si no se puede compartir, no se descarga");
+/* PRIMERO SE GUARDA, DESPUÉS SE MANDA: el menú de compartir se queda con
+   la pantalla, y quien lo cierra puede irse antes de que se guarde. */
+{
+  const guarda = limpio.indexOf("await guardarEnHistorial(blob)");
+  const manda = limpio.indexOf("navigator.share(");
+  ok(guarda > 0 && manda > guarda, "la hoja se manda antes de guardarla: quien cierra el menú puede irse sin que quede");
+}
+/* «QUE GUARDE Y ME SALGA EL CUADRO»: Guardar pide la ventana en la
+   dirección, y la ventana la lee. */
+ok(/router\.replace\(`\?d=\$\{fecha\}&hoja=1`/.test(rejilla.replace(/\/\*[\s\S]*?\*\//g, "")),
+   "Guardar en la rejilla no pide la ventana de la hoja");
+ok(/abrir=\{q\.hoja === "1"\}/.test(pag), "la página no le pasa a la hoja que se acaba de guardar");
+ok(/if \(abrir && !vacio && ventana\.current && !ventana\.current\.open\)/.test(limpio) &&
+   /ventana\.current\.showModal\(\)/.test(limpio),
+   "después de guardar no sale la ventana de generar la hoja");
 {
   const rej = pag.indexOf("<Rejilla");
   const hj = pag.indexOf("<HojaFirma");
   ok(rej >= 0 && hj > rej,
      "la hoja para firmar no va después de la rejilla: se ofrecería el papel de un día sin llenar");
 }
+/* LA HOJA DEL DÍA ES LA ÚLTIMA QUE NO SE ANULÓ: una anulada no cuenta. */
+ok(/const vigentes = hojas\.filter\(\(h\) => h\.anulada_en == null\);/.test(limpio) &&
+   /const ultima = vigentes\[0\] \?\? null;/.test(limpio),
+   "la tarjeta toma una hoja anulada como la hoja del día");
+ok(/anuladaUltima\.anulada_motivo/.test(limpio), "la tarjeta no dice que la hoja del día se anuló, ni por qué");
+/* LOS COLORES DEL TEMA LLEGAN AL PAPEL. */
+ok(/paleta: leerPaleta\(ventana\.current\)/.test(limpio), "el PDF no recibe los colores del tema de quien lo genera");
+ok(["--c-04203f", "--c-marca", "--c-marca-hondo"].every((v) => limpio.includes(`leer("${v}")`)),
+   "la hoja no lee las variables del tema: con otro tema saldría con otros colores");
 
-/* ======================= 5 · EN PANTALLA =======================
-   El bloque donde se llena: que el botón se lea en los siete temas —
-   pinta --rl-sobre sobre --rl-ojo, y el acento cambia con cada quien—,
-   que se toque con el dedo y que nada arrastre la página de lado en un
-   celular de 360. */
+/* ======================= 5 · LOS COLORES DEL TEMA EN EL PAPEL =======================
+   «Si tengo ámbar o gris, todo varía; pero el logo debe permanecer
+   normal.» Se genera la misma hoja con la marca y con ámbar y se leen los
+   colores que el PDF de verdad pinta. */
+{
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  ok(JSON.stringify(H.aRGB("rgb(35, 38, 44)")) === "[35,38,44]" &&
+     JSON.stringify(H.aRGB("color(srgb 1 0.752941 0)")) === "[255,192,0]",
+     "no se leen bien los colores que calcula el navegador (rgb y color(srgb))");
+  const AMBAR = H.paletaDeTema(rgb("#23262c"), rgb("#ffc000"), rgb("#dda600"));
+  /* CADA PIEZA POR SU FORMA, no «algún relleno de ese color»: la tinta
+     pinta la banda del total Y los títulos de columna, y una banda que se
+     quedara en azul pasaría escondida detrás de los títulos. */
+  const pt = (mm) => mm * 72 / 25.4;
+  const pinta = (paleta) => {
+    const d = H.dibujarHoja(jsPDF, hoja, { elaboro: "Santiago", supervisor: "", observaciones: "",
+      generado: new Date(2026, 8, 21, 15, 30), marca: MARCA, paleta });
+    const txt = d.output();
+    const piezas = [...txt.matchAll(/([\d.]+) ([\d.]+) ([\d.]+) rg\n([\d.-]+) ([\d.-]+) ([\d.-]+) ([\d.-]+) re/g)]
+      .map((m) => ({ c: m.slice(1, 4).map(Number), x: +m[4], y: +m[5], w: +m[6], h: -m[7] }));
+    const imgs = [...txt.matchAll(/\/Subtype \/Image[\s\S]*?stream\r?\n([\s\S]*?)endstream/g)].map((m) => m[1]).sort();
+    const pieza = (w, h, x) => piezas.find((q) => Math.abs(q.w - pt(w)) < 0.1 && Math.abs(q.h - pt(h)) < 0.1 &&
+                                                  (x == null || Math.abs(q.x - pt(x)) < 0.1))?.c ?? null;
+    return {
+      banda: pieza(182, 21), raya: pieza(3, 21), cuadrito: pieza(2.6, 2.6), titulos: pieza(182, 6.2),
+      /* La primera franja de la cinta de arriba, pegada al borde. */
+      cinta: piezas.find((q) => q.x === 0 && Math.abs(q.h - pt(4.5)) < 0.1)?.c ?? null,
+      rojo: piezas.some((q) => es(q.c, [255, 0, 15])), imgs,
+    };
+  };
+  const es = (c, e) => c != null && c.every((v, i) => Math.abs(v - e[i] / 255) < 0.006);
+  const marcaP = pinta(undefined), ambar = pinta(AMBAR);
+  ok(es(marcaP.banda, [18, 38, 58]) && es(marcaP.raya, [255, 0, 15]) && es(marcaP.cinta, [181, 135, 53]),
+     "sin tema, la hoja no sale con la marca (azul, rojo y el dorado del aro)");
+  ok(es(ambar.banda, [35, 38, 44]), "con ámbar, la banda del total no es la tinta del tema");
+  ok(es(ambar.titulos, [35, 38, 44]), "con ámbar, los títulos de columna no son la tinta del tema");
+  ok(es(ambar.raya, [255, 192, 0]), "con ámbar, la raya de la banda no es el acento del tema");
+  ok(es(ambar.cuadrito, [255, 192, 0]), "con ámbar, el cuadrito de cada línea no es el acento del tema");
+  ok(es(ambar.cinta, [221, 166, 0]), "con ámbar, la cinta no arranca del acento hondo del tema");
+  ok(!ambar.rojo, "con ámbar, la hoja todavía pinta el rojo de la marca en algún relleno");
+  ok(ambar.imgs.length >= 2 && JSON.stringify(ambar.imgs) === JSON.stringify(marcaP.imgs),
+     "el logo cambia con el tema: tiene que salir igual en todos");
+}
+
+/* ======================= 6 · EN PANTALLA =======================
+   La tarjeta y la ventana, con las clases del componente: que se lean
+   en los siete temas, que se toquen con el dedo, que la ventana quepa en
+   un celular de 360 y que su cinta sea la del tema. */
 {
   const { chromium } = await import("playwright");
   const css = readFileSync(U("../src/app/(app)/quiebra/rotura/rotura.css"), "utf8");
   const glob = readFileSync(U("../src/app/globals.css"), "utf8");
   const shell = readFileSync(U("../src/app/(app)/shell.css"), "utf8");
   const BLOQUE = `<div class="rl"><section class="rl-caja rl-hoja">
-    <div class="rl-cab"><h2>Hoja del día para firmar</h2></div>
-    <p class="rl-explica">Sale en PDF con las cifras de arriba —<b>1.075 unidades</b> en 2 líneas— y el
-      espacio para que el supervisor firme. En el celular se abre para mandarla por WhatsApp.</p>
+    <div class="rl-hoja-fila">
+      <div class="rl-hoja-estado"><h2>Hoja del día para firmar</h2>
+        <p class="rl-hoja-dice ojo">La última hoja (15:30) decía <b>1.070</b> unidades y el día ahora lleva <b>1.075</b>: cambió después. Genera otra.</p></div>
+      <div class="rl-hoja-acciones">
+        <a class="rl-hoja-no" href="#">Abrir la última</a>
+        <button type="button" class="rl-hoja-si">Generar otra</button>
+      </div>
+    </div>
+    <p class="rl-hoja-aviso" role="status">Listo: quedó guardada y se abrió para compartir.</p>
+  </section>
+  <dialog class="rl-ventana">
+    <div class="rl-ventana-cab">
+      <p class="rl-ventana-ojo">GUARDADO · HOJA DEL DÍA PARA FIRMAR</p>
+      <h2>1.075 unidades<span> · 2 líneas</span></h2>
+      <p class="rl-ventana-sub">Lunes, 21 de septiembre de 2026. Sale en PDF con estas cifras y el espacio para que el supervisor firme.</p>
+    </div>
     <div class="rl-hoja-campos">
       <label><span>Elaboró</span><input value="Santiago Leal"></label>
-      <label><span>Supervisor que firma</span><input placeholder="Opcional — si no, se escribe a mano"></label>
+      <label><span>Supervisor que firma</span><input placeholder="Opcional"></label>
       <label class="ancho"><span>Observaciones</span><textarea rows="3"></textarea></label>
     </div>
+    <p class="rl-hoja-aviso mal" role="status">El PDF salió, pero no quedó en el historial.</p>
     <div class="rl-hoja-pie">
       <button type="button" class="rl-hoja-si">Generar PDF y compartir</button>
       <button type="button" class="rl-hoja-no">Solo descargar</button>
+      <button type="button" class="rl-hoja-luego">Ahora no</button>
     </div>
-    <p class="rl-hoja-aviso" role="status">Listo. Se abrió para compartir.</p>
-  </section></div>`;
-  /* LAS CLASES DEL BLOQUE TIENEN QUE SER LAS DEL COMPONENTE: medir una
+  </dialog></div>`;
+  /* LAS CLASES DEL ARMAZÓN TIENEN QUE SER LAS DEL COMPONENTE: medir una
      que la pantalla no usa aprueba siempre y no mide nada. */
   const usadas = [...new Set([...BLOQUE.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)))]
-    .filter((c) => c.startsWith("rl-hoja"));
+    .filter((c) => /^rl-(hoja|ventana)/.test(c));
   const huerfanas = usadas.filter((c) => !comp.includes(c));
   ok(huerfanas.length === 0, `el armazón de la pantalla usa clases que el componente no tiene: ${huerfanas.join(", ")}`);
 
@@ -362,33 +447,57 @@ ok(/doc\.save\(nombre\)/.test(limpio), "si no se puede compartir, no se descarga
     await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${glob}${shell}${css}
       html,body{margin:0}</style></head><body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}>
       <div class="sh-marco sin-riel"><main class="sh-main">${BLOQUE}</main></div></div></body></html>`);
+    await pg.evaluate(() => document.querySelector("dialog").showModal());
   };
   for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
     await monta(t, 1200);
     const m = await pg.evaluate(() => {
-      const par = (s) => { const e = document.querySelector(s); const c = getComputedStyle(e);
-                           return { txt: c.color, fondo: c.backgroundColor } };
-      const sube = (s) => { const e = document.querySelector(s);
+      const fondo = (e) => {
         for (let p = e; p; p = p.parentElement) { const c = getComputedStyle(p).backgroundColor;
-          if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return { txt: getComputedStyle(e).color, fondo: c } }
-        return { txt: getComputedStyle(e).color, fondo: "rgb(255, 255, 255)" } };
-      return { si: par(".rl-hoja-si"), no: par(".rl-hoja-no"), rot: sube(".rl-hoja-campos span"),
-               aviso: sube(".rl-hoja-aviso"), campo: par(".rl-hoja-campos input") };
+          if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c }
+        return "rgb(255, 255, 255)" };
+      const par = (s) => { const e = document.querySelector(s); return { txt: getComputedStyle(e).color, fondo: fondo(e) } };
+      return {
+        "tarjeta · generar": par(".rl-hoja .rl-hoja-si"), "tarjeta · abrir la última": par(".rl-hoja .rl-hoja-no"),
+        "tarjeta · lo que dice": par(".rl-hoja-dice"), "tarjeta · aviso": par(".rl-hoja > .rl-hoja-aviso"),
+        "ventana · generar": par(".rl-ventana .rl-hoja-si"), "ventana · descargar": par(".rl-ventana .rl-hoja-no"),
+        "ventana · ahora no": par(".rl-hoja-luego"), "ventana · rótulo": par(".rl-hoja-campos span"),
+        "ventana · campo": par(".rl-hoja-campos input"), "ventana · título": par(".rl-ventana h2"),
+        "ventana · aviso": par(".rl-ventana .rl-hoja-aviso"),
+        cinta: getComputedStyle(document.querySelector(".rl-ventana-cab")).backgroundImage,
+        marca: (() => { const t = document.createElement("span"); t.style.color = "var(--c-marca)";
+                        document.querySelector(".sh").appendChild(t); const c = getComputedStyle(t).color; t.remove(); return c })(),
+      };
     });
-    for (const [k, v] of Object.entries(m)) {
+    const { cinta, marca, ...pares } = m;
+    for (const [k, v] of Object.entries(pares)) {
       const r = razon(v.txt, v.fondo);
-      ok(r >= 4.5, `tema ${t ?? "oficial"}: «${k}» de la hoja contrasta ${r} (mínimo 4.5)`);
+      ok(r >= 4.5, `tema ${t ?? "oficial"}: «${k}» contrasta ${r} (mínimo 4.5)`);
     }
+    /* LA CINTA DE LA VENTANA: la de la marca sin tema; la del tema con tema. */
+    if (t) ok(cinta.includes(marca), `tema ${t}: la cinta de la ventana no es la del tema (${cinta.slice(0, 80)})`);
+    else ok(/rgb\(255, 0, 15\)/.test(cinta), "sin tema, la cinta de la ventana no es la de la marca");
   }
   for (const ancho of [390, 360]) {
     await monta(null, ancho);
-    const g = await pg.evaluate(() => ({
-      lado: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      boton: Math.round(document.querySelector(".rl-hoja-si").getBoundingClientRect().height),
-      campo: Math.round(document.querySelector(".rl-hoja-campos input").getBoundingClientRect().height),
-    }));
+    const g = await pg.evaluate(() => {
+      const v = document.querySelector(".rl-ventana").getBoundingClientRect();
+      const alto = (s) => Math.min(...[...document.querySelectorAll(s)].map((e) => Math.round(e.getBoundingClientRect().height)));
+      return {
+        lado: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        /* Que la ventana quepa Y que lo de adentro quepa en la ventana:
+           un <dialog> con tope de ancho no se sale, se desborda por dentro
+           y el campo queda cortado. */
+        ventana: v.left < 0 || v.right > innerWidth ||
+          [...document.querySelectorAll(".rl-ventana input, .rl-ventana textarea, .rl-ventana button")]
+            .some((e) => { const r = e.getBoundingClientRect(); return r.left < v.left - 0.5 || r.right > v.right + 0.5 }),
+        boton: alto(".rl-hoja-si, .rl-hoja-no, .rl-hoja-luego"),
+        campo: alto(".rl-hoja-campos input"),
+      };
+    });
     ok(g.lado <= 0, `${ancho} px: la hoja arrastra la página ${g.lado} px de lado`);
-    ok(g.boton >= 48, `${ancho} px: el botón de generar mide ${g.boton} px (mínimo 48)`);
+    ok(!g.ventana, `${ancho} px: la ventana de la hoja se sale de la pantalla`);
+    ok(g.boton >= 44, `${ancho} px: el botón de generar mide ${g.boton} px (mínimo 44)`);
     ok(g.campo >= 44, `${ancho} px: los campos miden ${g.campo} px (mínimo 44)`);
   }
   await nav.close();

@@ -130,7 +130,12 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
       ? `Pesada ${corrigiendo} corregida: ${totalUnd.toLocaleString("es-CO")} unidades.`
       : `Pesada guardada: ${totalKg} kg · ${totalUnd.toLocaleString("es-CO")} unidades.`);
     setKilos({}); setCorrigiendo(null);
-    router.refresh();
+    /* «hoja=1»: la página vuelve a armarse en el servidor CON LA PESADA
+       NUEVA, y al llegar abre sola el cuadro de generar la hoja del día.
+       Con un `refresh` y un aviso aparte, el cuadro se abriría antes de
+       que llegaran los datos y el PDF saldría sin lo que se acaba de
+       guardar. */
+    router.replace(`?d=${fecha}&hoja=1`, { scroll: false });
   }
 
   /* Enter baja a la máquina siguiente. Es una columna de quince campos

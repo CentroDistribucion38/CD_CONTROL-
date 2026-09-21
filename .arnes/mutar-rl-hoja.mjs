@@ -13,15 +13,17 @@ import { execFileSync } from "node:child_process";
 const TS = "src/modulos/rotlinea/hoja.ts";
 const COMP = "src/app/(app)/quiebra/rotura/HojaFirma.tsx";
 const PAG = "src/app/(app)/quiebra/rotura/page.tsx";
+const REJ = "src/app/(app)/quiebra/rotura/Rejilla.tsx";
 
-const original = Object.fromEntries([TS, COMP, PAG].map((f) => [f, readFileSync(f, "utf8")]));
+const original = Object.fromEntries([TS, COMP, PAG, REJ].map((f) => [f, readFileSync(f, "utf8")]));
 const restaurar = () => { for (const [f, t] of Object.entries(original)) writeFileSync(f, t) };
 process.on("exit", restaurar);
 for (const s of ["SIGINT", "SIGTERM", "SIGHUP"])
   process.on(s, () => { restaurar(); process.exit(130) });
 
-let fallos = 0;
+let fallos = 0, total = 0;
 function probar(nombre, cambios, espera) {
+  total++;
   restaurar();
   for (const [archivo, de, a] of cambios) {
     const antes = readFileSync(archivo, "utf8");
@@ -142,8 +144,8 @@ probar("la marca de agua se pinta encima de las cifras",
 
 /* ---------- LO QUE NO SE VE ---------- */
 probar("jsPDF se carga al abrir la pantalla",
-  [[COMP, 'import { useMemo, useState } from "react";',
-          'import { useMemo, useState } from "react";\nimport { jsPDF as _J } from "jspdf";']],
+  [[COMP, 'import { useEffect, useMemo, useRef, useState } from "react";',
+          'import { useEffect, useMemo, useRef, useState } from "react";\nimport { jsPDF as _J } from "jspdf";']],
   "son 350 KB que quien solo registra no necesita");
 
 probar("se comparte sin preguntar si el equipo sabe",
@@ -151,7 +153,7 @@ probar("se comparte sin preguntar si el equipo sabe",
   "sin preguntar si el equipo sabe compartir archivos");
 
 probar("cerrar el menú de compartir se cuenta como error",
-  [[COMP, '      if (e instanceof DOMException && e.name === "AbortError") return;\n', ""]],
+  [[COMP, '          if (!(e instanceof DOMException && e.name === "AbortError")) throw e;', "          throw e;"]],
   "cerrar el menú de compartir se cuenta como error");
 
 probar("sin compartir, tampoco se descarga",
@@ -162,24 +164,98 @@ probar("la hoja se ofrece antes de la rejilla",
   [[PAG, "        <Rejilla fecha={fecha}", "        <HojaFirma fecha={fecha} filas={dia.filas} maquinas={m.maquinas} lineas={m.lineas} firmas={dia.firmas} elaboro={quien} />\n        <Rejilla fecha={fecha}"]],
   "no va después de la rejilla");
 
+/* ---------- GUARDAR Y SALE LA VENTANA ---------- */
+probar("la hoja se manda antes de guardarla",
+  [[COMP, "      const fallo = await guardarEnHistorial(blob);\n", ""],
+   [COMP, "      if (fallo) {", "      const fallo = await guardarEnHistorial(blob);\n      if (fallo) {"]],
+  "la hoja se manda antes de guardarla");
+
+probar("Guardar en la rejilla ya no pide la ventana",
+  [[REJ, "router.replace(`?d=${fecha}&hoja=1`", "router.replace(`?d=${fecha}`"]],
+  "Guardar en la rejilla no pide la ventana");
+
+probar("la página no le dice a la hoja que se acaba de guardar",
+  [[PAG, 'abrir={q.hoja === "1"}', "abrir={false}"]],
+  "la página no le pasa a la hoja que se acaba de guardar");
+
+probar("la ventana no se abre sola después de guardar",
+  [[COMP, "if (abrir && !vacio && ventana.current && !ventana.current.open) {", "if (false) {"]],
+  "después de guardar no sale la ventana");
+
+/* ---------- LAS ANULADAS ---------- */
+probar("la tarjeta toma una anulada como la hoja del día",
+  [[COMP, "  const ultima = vigentes[0] ?? null;", "  const ultima = hojas[0] ?? null;"]],
+  "la tarjeta toma una hoja anulada");
+
+probar("la tarjeta no dice que se anuló",
+  [[COMP, "«{anuladaUltima.anulada_motivo}»", "«…»"]],
+  "la tarjeta no dice que la hoja del día se anuló");
+
+/* ---------- LOS COLORES DEL TEMA ---------- */
+probar("el PDF no recibe los colores del tema",
+  [[COMP, "        paleta: leerPaleta(ventana.current),\n", ""]],
+  "el PDF no recibe los colores del tema");
+
+probar("la hoja no lee el acento hondo del tema",
+  [[COMP, 'hondo = leer("--c-marca-hondo")', 'hondo = leer("--c-marca")']],
+  "la hoja no lee las variables del tema");
+
+probar("la banda del total se queda en el azul de la marca",
+  [[TS, "  doc.setFillColor(...TINTA);\n  doc.rect(M, y, ANCHO, ALTO_KPI, \"F\");",
+        "  doc.setFillColor(18, 38, 58);\n  doc.rect(M, y, ANCHO, ALTO_KPI, \"F\");"]],
+  "con ámbar, la banda del total no es la tinta del tema");
+
+probar("los títulos de columna se quedan en el azul de la marca",
+  [[TS, "    doc.setFillColor(...TINTA);\n    doc.rect(M, y, ANCHO, FILA, \"F\");",
+        "    doc.setFillColor(18, 38, 58);\n    doc.rect(M, y, ANCHO, FILA, \"F\");"]],
+  "con ámbar, los títulos de columna no son la tinta del tema");
+
+probar("la raya de la banda se queda roja",
+  [[TS, "  doc.setFillColor(...P.acento);\n  doc.rect(M, y, 3, ALTO_KPI, \"F\");",
+        "  doc.setFillColor(255, 0, 15);\n  doc.rect(M, y, 3, ALTO_KPI, \"F\");"]],
+  "con ámbar, la raya de la banda no es el acento del tema");
+
+probar("el cuadrito de cada línea se queda rojo",
+  [[TS, "    doc.setFillColor(...P.acento);\n    doc.rect(M, y + 1.2, 2.6, 2.6, \"F\");",
+        "    doc.setFillColor(255, 0, 15);\n    doc.rect(M, y + 1.2, 2.6, 2.6, \"F\");"]],
+  "con ámbar, el cuadrito de cada línea no es el acento del tema");
+
+probar("la cinta se queda con los colores del aro",
+  [[TS, "      const [ta, a] = P.cinta[k], [tb, b] = P.cinta[k + 1];",
+        "      const C = PALETA_MARCA.cinta; while (k > C.length - 2) k--;\n      const [ta, a] = C[k], [tb, b] = C[k + 1];"]],
+  "con ámbar, la cinta no arranca del acento hondo del tema");
+
+probar("sin tema, la hoja pierde la marca",
+  [[TS, "  const P = datos.paleta ?? PALETA_MARCA;",
+        "  const P = datos.paleta ?? paletaDeTema([18, 38, 58], [228, 0, 43], [184, 0, 31]);"]],
+  "sin tema, la hoja no sale con la marca");
+
+probar("se lee mal un color que el navegador calculó con color-mix",
+  [[TS, "map((v) => Math.round(v * 255)) as RGB", "map((v) => Math.round(v)) as RGB"]],
+  "no se leen bien los colores que calcula el navegador");
+
 /* ---------- EN PANTALLA ---------- */
 const CSS = "src/app/(app)/quiebra/rotura/rotura.css";
 original[CSS] = readFileSync(CSS, "utf8");
 
 probar("el botón de generar usa el acento de letra y no de fondo",
-  [[CSS, "  flex: 1 1 260px; background: var(--rl-ojo); color: var(--rl-sobre);",
-         "  flex: 1 1 260px; background: var(--rl-papel); color: var(--rl-ojo);"]],
-  "«si» de la hoja contrasta");
+  [[CSS, ".rl-hoja-si { background: var(--rl-ojo); color: var(--rl-sobre); border: 1.5px solid var(--rl-ojo) }",
+         ".rl-hoja-si { background: var(--rl-papel); color: var(--rl-ojo); border: 1.5px solid var(--rl-ojo) }"]],
+  "«ventana · generar» contrasta");
 
 probar("el botón de generar se encoge por debajo del dedo",
-  [[CSS, ".rl-hoja-pie button {\n  min-height: 48px; padding: 0 18px;",
-         ".rl-hoja-pie button {\n  min-height: 30px; padding: 0 18px;"]],
+  [[CSS, "min-height: 48px; padding: 0 18px;", "min-height: 30px; padding: 0 18px;"]],
   "el botón de generar mide");
 
-probar("en el celular los campos no bajan a una columna y arrastran la página",
+probar("en el celular los campos no bajan a una columna y la ventana se sale",
   [[CSS, "  .rl-hoja-campos { grid-template-columns: 1fr }",
          "  .rl-hoja-campos { grid-template-columns: repeat(2, 260px) }"]],
-  "la hoja arrastra la página");
+  "se sale de la pantalla");
+
+probar("la cinta de la ventana no cambia con el tema",
+  [[CSS, "    linear-gradient(90deg, var(--c-marca-hondo) 0%, var(--c-marca) 100%) top / 100% 5px no-repeat,",
+         "    linear-gradient(90deg, #B58735 0%, #ECC644 35%, #FF000F 100%) top / 100% 5px no-repeat,"]],
+  "la cinta de la ventana no es la del tema");
 
 restaurar();
 console.log("");
@@ -187,4 +263,4 @@ if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 25 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log(`Las ${total} se pusieron rojas. El arnés caza lo que dice cazar.`);
