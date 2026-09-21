@@ -44,15 +44,20 @@ export default async function RolesPage() {
   }
 
   const supabase = await createClient();
-  const [rolesR, permisosR, cuentaR] = await Promise.all([
+  const [rolesR, permisosR, cuentaR, histR] = await Promise.all([
     supabase.from("roles").select("clave, nombre, descripcion, manda, sistema, orden")
       .order("orden", { nullsFirst: false }).order("nombre"),
     supabase.from("rol_permisos").select("rol, seccion, nivel"),
-    supabase.from("perfiles").select("rol"),
+    supabase.from("perfiles").select("id, nombre, usuario, activo, rol").order("nombre", { nullsFirst: false }),
+    /* EL HISTORIAL. Si falta 2026-09-admin-roles.sql no existe, y la
+       pantalla lo dice en esa pestaña en vez de caerse entera. */
+    supabase.from("v_roles_historial").select("id, rol, rol_nombre, accion, detalle, hecho_nombre, hecho_en")
+      .order("hecho_en", { ascending: false }).limit(300),
   ]);
 
   const cuantos: Record<string, number> = {};
-  for (const p of (cuentaR.data ?? []) as { rol: string }[]) {
+  const gente = (cuentaR.data ?? []) as { id: string; nombre: string | null; usuario: string | null; activo: boolean; rol: string }[];
+  for (const p of gente) {
     cuantos[p.rol] = (cuantos[p.rol] ?? 0) + 1;
   }
 
@@ -84,6 +89,8 @@ export default async function RolesPage() {
         permisos={permisosR.data ?? []}
         catalogo={catalogo}
         cuantos={cuantos}
+        gente={gente}
+        historial={histR.error ? null : (histR.data ?? [])}
       />
     </div>
   );

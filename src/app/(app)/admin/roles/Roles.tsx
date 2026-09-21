@@ -26,6 +26,20 @@ type Rol = {
   manda: boolean; sistema: boolean; orden: number | null;
 };
 type Permiso = { rol: string; seccion: string; nivel: Nivel };
+type Persona = { id: string; nombre: string | null; usuario: string | null; activo: boolean; rol: string };
+type Hist = {
+  id: number; rol: string; rol_nombre: string; accion: "permisos" | "creado" | "duplicado" | "borrado";
+  detalle: {
+    cambios?: { seccion: string; antes: Nivel; despues: Nivel }[];
+    de_nombre?: string; pantallas?: number;
+    usuarios?: number; quienes?: string[]; a_nombre?: string | null;
+  };
+  hecho_nombre: string | null; hecho_en: string;
+};
+type Pestana = "pantallas" | "quienes" | "historial";
+const cuando = (s: string) => new Date(s).toLocaleString("es-CO",
+  { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const ROT_NIVEL: Record<Nivel, string> = { ninguno: "sin acceso", ver: "ver", editar: "editar" };
 type Modulo = {
   id: string; nombre: string; acento: string;
   secciones: { nombre: string; ruta: string }[];
@@ -44,11 +58,14 @@ function aClave(s: string) {
     .slice(0, 40);
 }
 
-export function Roles({ roles, permisos, catalogo, cuantos }: {
+export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: {
   roles: Rol[];
   permisos: Permiso[];
   catalogo: Modulo[];
   cuantos: Record<string, number>;
+  gente: Persona[];
+  /** null = falta correr 2026-09-admin-roles.sql. */
+  historial: Hist[] | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -70,6 +87,13 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
     return m;
   });
   const [sucio, setSucio] = useState(false);
+  const [pestana, setPestana] = useState<Pestana>("pantallas");
+  /* BORRAR y DUPLICAR se abren AQUÍ, debajo del título del rol, y no en
+     una ventana: lo que se decide —a qué rol pasar a la gente, cómo se
+     llama la copia— se decide mirando el rol. */
+  const [panel, setPanel] = useState<null | "borrar" | "duplicar">(null);
+  const [destino, setDestino] = useState("");
+  const [nombreCopia, setNombreCopia] = useState("");
 
   const rol = roles.find((r) => r.clave === cual);
 
@@ -88,6 +112,7 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
     setSucio(false);
     setNuevo(false);
     setAviso(null);
+    setPanel(null);
   }
 
   function poner(ruta: string, nivel: Nivel) {
@@ -142,9 +167,8 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
     setAviso(null);
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const cli = supabase as any;
-    const { error } = await cli.from("roles").insert({
-      clave, nombre, descripcion: descNueva.trim() || null,
-      orden: (roles.reduce((a, r) => Math.max(a, r.orden ?? 0), 0) || 0) + 1,
+    const { error } = await cli.rpc("rol_crear", {
+      p_clave: clave, p_nombre: nombre, p_descripcion: descNueva.trim() || null, p_copiar_de: null,
     });
     setGuardando(false);
     if (error) { setAviso({ mal: true, texto: traducir(error.message) }); return; }
@@ -156,25 +180,82 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
     router.refresh();
   }
 
+  const deEste = useMemo(() => gente.filter((p) => p.rol === cual), [gente, cual]);
+  const otros = roles.filter((r) => r.clave !== cual);
+
+  function abrir(que: "borrar" | "duplicar") {
+    setAviso(null);
+    if (panel === que) { setPanel(null); return }
+    setPanel(que);
+    if (que === "borrar") setDestino(otros.find((r) => r.clave === "operador")?.clave ?? otros.find((r) => !r.manda)?.clave ?? "");
+    if (que === "duplicar") setNombreCopia(`Copia de ${rol?.nombre ?? ""}`);
+  }
+
+  /* BORRAR, PASANDO A SU GENTE A OTRO ROL. Todo lo hace la base en un
+     solo paso: si algo falla, nadie queda a medio mover. */
   async function borrar() {
     if (!rol) return;
+    const hay = deEste.length;
+    const a = roles.find((r) => r.clave === destino);
+    if (hay > 0 && !a) { setAviso({ mal: true, texto: "Escoge a qué rol pasar a sus usuarios." }); return }
     if (!(await pedir({
       titulo: `¿Borrar el rol «${rol.nombre}»?`,
-      dice: <>Esto <b>no se puede deshacer</b>. Quien tenga este rol se queda sin
-            ninguno hasta que le asignes otro.</>,
+      dice: hay > 0
+        ? <>Sus <b>{hay}</b> {hay === 1 ? "usuario pasa" : "usuarios pasan"} a <b>{a!.nombre}</b>
+            {a!.manda && <> — <b>ojo: ese rol administra la plataforma</b></>}. El rol y sus permisos
+            se borran. Queda escrito en el historial.</>
+        : <>No tiene usuarios. El rol y sus permisos se borran. Queda escrito en el historial.</>,
       confirmar: "Borrar el rol",
       peligro: true,
     }))) return;
     setGuardando(true);
     setAviso(null);
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const cli = supabase as any;
-    const { error } = await cli.from("roles").delete().eq("clave", rol.clave);
+    const { data, error } = await (supabase as any).rpc("rol_borrar", {
+      p_clave: rol.clave, p_mover_a: hay > 0 ? destino : null,
+    });
     setGuardando(false);
     if (error) { setAviso({ mal: true, texto: traducir(error.message) }); return; }
-    setCual(roles[0]?.clave ?? "");
+    setPanel(null);
+    setAviso({ mal: false, texto: `Rol «${rol.nombre}» borrado.` +
+      (Number(data) > 0 ? ` ${data} ${Number(data) === 1 ? "usuario pasó" : "usuarios pasaron"} a ${a?.nombre}.` : "") });
+    const sig = roles.find((r) => r.clave !== rol.clave)?.clave ?? "";
+    const m: Record<string, Nivel> = {};
+    for (const x of permisos) if (x.rol === sig) m[x.seccion] = x.nivel;
+    setCual(sig); setMarcado(m); setSucio(false);
     router.refresh();
   }
+
+  /* DUPLICAR: un rol nuevo con los mismos permisos, para ajustar. */
+  async function duplicar() {
+    if (!rol) return;
+    const nombre = nombreCopia.trim();
+    const clave = aClave(nombre);
+    if (!clave) { setAviso({ mal: true, texto: "Ese nombre no deja armar una clave." }); return }
+    if (roles.some((r) => r.clave === clave || r.nombre.toLowerCase() === nombre.toLowerCase())) {
+      setAviso({ mal: true, texto: `Ya hay un rol que se llama así.` }); return;
+    }
+    setGuardando(true);
+    setAviso(null);
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const { error } = await (supabase as any).rpc("rol_crear", {
+      p_clave: clave, p_nombre: nombre, p_descripcion: rol.descripcion, p_copiar_de: rol.clave,
+    });
+    setGuardando(false);
+    if (error) { setAviso({ mal: true, texto: traducir(error.message) }); return; }
+    setPanel(null);
+    setAviso({ mal: false, texto: `«${nombre}» creado con los mismos permisos de ${rol.nombre}. Ya puedes ajustarlo.` });
+    router.refresh();
+  }
+
+  const histDeEste = useMemo(() => (historial ?? []).filter((h) => h.rol === cual), [historial, cual]);
+  const nRuta = (ruta: string) => {
+    for (const m of catalogo) {
+      const x = m.secciones.find((q) => q.ruta === ruta);
+      if (x) return `${m.nombre} · ${x.nombre}`;
+    }
+    return ruta;
+  };
 
   /** Cuántas pantallas tiene marcadas cada rol, para la lista. */
   const cuenta = useMemo(() => {
@@ -258,6 +339,71 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
             )}
           </div>
   
+          {/* LA BARRA DEL ROL: qué se mira de él, y qué se le puede hacer. */}
+          {!!rol && (
+            <div className="rl-herr">
+              <div className="rl-pest" role="tablist" aria-label="Del rol">
+                {([["pantallas", "Pantallas"], ["quienes", `Quiénes lo tienen · ${deEste.length}`],
+                   ["historial", `Historial${historial ? " · " + histDeEste.length : ""}`]] as [Pestana, string][]).map(([k, t]) => (
+                  <button key={k} type="button" role="tab" aria-selected={pestana === k}
+                          className={pestana === k ? "aqui" : ""} onClick={() => setPestana(k)}>{t}</button>
+                ))}
+              </div>
+              <div className="rl-herr-der">
+                <button type="button" className={"btn sec" + (panel === "duplicar" ? " abierto" : "")}
+                        onClick={() => abrir("duplicar")} disabled={guardando}>Duplicar</button>
+                {rol.sistema || rol.manda ? (
+                  <span className="rl-fijo" title="La aplicación usa este rol por su nombre: no se borra. Si no lo usas, quítale los permisos.">
+                    De sistema · no se borra
+                  </span>
+                ) : (
+                  <button type="button" className={"btn sec peligro" + (panel === "borrar" ? " abierto" : "")}
+                          onClick={() => abrir("borrar")} disabled={guardando}>Borrar rol</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {panel === "duplicar" && rol && (
+            <div className="rl-caja">
+              <p>Un rol nuevo con las mismas <b>{rol.manda ? "atribuciones" : `${marcadas} pantallas`}</b> de {rol.nombre}{rol.manda ? "" : ""}. Después lo ajustas.</p>
+              <label><span>Nombre del rol nuevo</span>
+                <input value={nombreCopia} onChange={(e) => setNombreCopia(e.target.value)} autoFocus /></label>
+              <div className="rl-caja-pie">
+                <button type="button" className="btn" disabled={!nombreCopia.trim() || guardando} onClick={duplicar}>
+                  {guardando ? "Creando…" : "Crear la copia"}</button>
+                <button type="button" className="btn plano" onClick={() => setPanel(null)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {panel === "borrar" && rol && (
+            <div className="rl-caja peligro">
+              {deEste.length === 0 ? (
+                <p>«{rol.nombre}» no tiene usuarios. Se borra con sus permisos.</p>
+              ) : (
+                <>
+                  <p>«{rol.nombre}» tiene <b>{deEste.length}</b> {deEste.length === 1 ? "usuario" : "usuarios"}:{" "}
+                    {deEste.slice(0, 6).map((x) => x.nombre || x.usuario).join(", ")}{deEste.length > 6 ? "…" : ""}.
+                    Antes de borrarlo, ¿a qué rol {deEste.length === 1 ? "pasa" : "pasan"}?</p>
+                  <label><span>Pasarlos a</span>
+                    <select value={destino} onChange={(e) => setDestino(e.target.value)}>
+                      {otros.map((r) => <option key={r.clave} value={r.clave}>{r.nombre}{r.manda ? " (administra)" : ""}</option>)}
+                    </select></label>
+                </>
+              )}
+              <div className="rl-caja-pie">
+                <button type="button" className="btn rojo" disabled={guardando || (deEste.length > 0 && !destino)} onClick={borrar}>
+                  {guardando ? "Borrando…" : deEste.length > 0 ? `Pasar ${deEste.length} y borrar el rol` : "Borrar el rol"}</button>
+                <button type="button" className="btn plano" onClick={() => setPanel(null)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {aviso && <div className={"aviso" + (aviso.mal ? " mal" : " bien")}>{aviso.texto}</div>}
+
+          {pestana === "pantallas" ? (
+            <>
           {rol?.manda ? (
             <p className="rl-vacio">
               Para quitarle el mando, primero marca otro rol como administrador — la
@@ -314,26 +460,81 @@ export function Roles({ roles, permisos, catalogo, cuantos }: {
             </div>
           )}
   
-          {aviso && <div className={"aviso" + (aviso.mal ? " mal" : " bien")}>{aviso.texto}</div>}
-  
-          {!!rol && !rol.sistema && (
-            <div className="rl-pie">
-              <button type="button" className="btn plano peligro" onClick={borrar} disabled={guardando}>
-                Borrar el rol «{rol.nombre}»
-              </button>
-              <span>
-                Solo si no tiene usuarios. Los roles de sistema no se pueden borrar.
-              </span>
-            </div>
+            </>
+          ) : pestana === "quienes" ? (
+            deEste.length === 0 ? (
+              <p className="rl-vacio">Nadie tiene este rol todavía. Se le asigna a alguien en <a href="/admin/usuarios">Usuarios</a>.</p>
+            ) : (
+              <ul className="rl-gente">
+                {deEste.map((x) => (
+                  <li key={x.id}>
+                    <span className="rl-ini" aria-hidden>{(x.nombre || x.usuario || "?").slice(0, 1).toUpperCase()}</span>
+                    <span className="rl-quien"><b>{x.nombre || x.usuario}</b><em>{x.usuario}</em></span>
+                    {!x.activo && <span className="rl-inactivo">inactivo</span>}
+                    <a className="rl-ir" href={`/admin/usuarios?q=${encodeURIComponent(x.usuario ?? x.nombre ?? "")}`}>Editar</a>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : historial === null ? (
+            <p className="rl-vacio">Falta correr <code>supabase/migraciones/2026-09-admin-roles.sql</code> en Supabase para guardar el historial.</p>
+          ) : histDeEste.length === 0 ? (
+            <p className="rl-vacio">Todavía no hay cambios guardados de este rol. Desde ahora queda escrito cada uno.</p>
+          ) : (
+            <ol className="rl-hist">
+              {histDeEste.map((h) => (
+                <li key={h.id}>
+                  <p className="rl-hist-cab"><b>{h.hecho_nombre ?? "—"}</b> · {cuando(h.hecho_en)}</p>
+                  {h.accion === "permisos" ? (
+                    <ul>
+                      {(h.detalle.cambios ?? []).map((c) => (
+                        <li key={c.seccion}>
+                          <span>{nRuta(c.seccion)}</span>
+                          <em className={"rl-de rl-" + c.antes}>{ROT_NIVEL[c.antes]}</em> → <em className={"rl-de rl-" + c.despues}>{ROT_NIVEL[c.despues]}</em>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : h.accion === "duplicado" ? (
+                    <p>Creado como copia de <b>{h.detalle.de_nombre}</b>, con {h.detalle.pantallas} pantallas.</p>
+                  ) : h.accion === "creado" ? (
+                    <p>Rol creado.</p>
+                  ) : (
+                    <p>Rol borrado{h.detalle.usuarios ? <>; {h.detalle.usuarios} pasaron a <b>{h.detalle.a_nombre}</b></> : null}.</p>
+                  )}
+                </li>
+              ))}
+            </ol>
           )}
         </section>
       </div>
+
+      {/* LOS ROLES QUE YA NO ESTÁN: su historial no se puede ver desde la
+          lista, porque ya no están en ella. Aquí queda a la vista. */}
+      {!!historial && historial.some((h) => h.accion === "borrado") && (
+        <section className="tarjeta">
+          <div className="cab"><div>
+            <h2>Roles borrados</h2>
+            <p>Quién los borró, cuándo y a dónde pasó su gente.</p>
+          </div></div>
+          <ol className="rl-hist">
+            {historial.filter((h) => h.accion === "borrado").slice(0, 20).map((h) => (
+              <li key={h.id}>
+                <p className="rl-hist-cab"><b>{h.rol_nombre}</b> · {h.hecho_nombre ?? "—"} · {cuando(h.hecho_en)}</p>
+                <p>{h.detalle.usuarios ? <>{h.detalle.usuarios} {h.detalle.usuarios === 1 ? "usuario pasó" : "usuarios pasaron"} a <b>{h.detalle.a_nombre}</b>: {(h.detalle.quienes ?? []).join(", ")}.</> : "No tenía usuarios."}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </>
   );
 }
 
 /** Los errores de Postgres no le explican nada a quien está mirando. */
 function traducir(m: string): string {
+  if (/rol_crear|rol_borrar|roles_historial/i.test(m) && /does not exist|schema cache|could not find/i.test(m)) {
+    return "Falta correr supabase/migraciones/2026-09-admin-roles.sql en el SQL Editor.";
+  }
   if (/does not exist|schema cache/i.test(m)) {
     return "Falta correr supabase/02-roles.sql en el SQL Editor.";
   }

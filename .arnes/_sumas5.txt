@@ -1,0 +1,9 @@
+942777508b63a2eabe8b0d2ca9ef545987457d7ec2f3b4261cc722b1b767eb6a  supabase/migraciones/2026-09-admin-roles.sql
+8b9fcd2229be8ced131c1657809ddc4acb92cd750e3eb509e73f74df77d042a2  src/app/(app)/admin/roles/page.tsx
+eee7825bd3ee4448c39bcb80193f238e3a207abc40440441f0f6d7e1871a9eab  src/app/(app)/admin/roles/Roles.tsx
+133e6e644fe764aed3dba7c229986a53ee5ad607238a493cb09c0d944cc00e7f  src/app/(app)/admin/roles/roles.css
+68617091c3e97f18f14800a7a4b181793237f0c3dc05d91ab34b82faa4042de8  .arnes/correr-admin-roles.sh
+b3e7a70e3229d2f2dba4b130a74993b7a0f5c2c0ce5cb3b77883b463ad78eff6  .arnes/prueba-admin-roles.sql
+2343ef2a0e9eaab792c882c2d155963ee82ef4ef1dea36c7131a17d9809d2297  .arnes/ad-roles.mjs
+1ec82fe77dd7355d291747c2f09154f1603d33ba87890ef2bb65a2a2e3a42e91  .arnes/mutar-ad-roles.mjs
+54162326f2c31a3c32c242de8c79b19b2ae05f42844a666123db918982f222f6  commit.txt

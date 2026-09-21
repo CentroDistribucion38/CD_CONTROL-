@@ -1,66 +1,35 @@
-Traspasos sin orden de cargue; Rotura: todos los informes en un PDF; Administración: borrar datos puntuales
+Roles: borrar arriba pasando a su gente, duplicar, quiénes lo tienen e historial
 
-TRASPASOS — «En el registro de traspaso elimina orden de cargue.»
+«No me deja eliminar un rol.» La base frenaba bien —un rol de sistema no
+se borra, y uno con usuarios tampoco— pero la pantalla no daba salida, y
+el botón de borrar estaba al final de 43 pantallas.
 
-  - Registrar ya no tiene el campo ni lo pide: el viaje se registra con
-    placa, tipo y ruta. El número que se cruza con SAP es el que pone
-    Facturación al confirmar la salida.
-  - Corregir un viaje tampoco la pide; al viaje viejo que sí la tenía
-    se le conserva.
-  - La lista del patio ya no marca «SIN ORDEN DE CARGUE».
-  - En Facturación la tarjeta pone la PLACA arriba; la orden de cargue
-    sale debajo solo en los viajes viejos que la traen.
-  - En Control, la tabla de viajes ya no trae la columna Orden de cargue.
+  - Barra del rol ARRIBA, junto al título: pestañas Pantallas · Quiénes
+    lo tienen · Historial, y los botones Duplicar y Borrar rol.
+  - Borrar rol: si tiene gente, dice quiénes y pregunta a qué rol
+    pasarlos; confirma y la base pasa a la gente y borra el rol en un
+    solo paso. Los de sistema (Administrador, Supervisor, Operador) dicen
+    «De sistema · no se borra»: la aplicación los usa por su nombre.
+  - Duplicar: un rol nuevo con los mismos permisos, para ajustar.
+  - Quiénes lo tienen: la gente del rol, con su usuario, si está inactiva
+    y un enlace a editarla.
+  - Historial: cada guardado deja qué pantallas cambiaron, de qué a qué,
+    quién y cuándo; también rol creado, duplicado y borrado (a dónde pasó
+    su gente). Los roles borrados se ven en su propia tarjeta abajo.
 
-  SQL: 2026-09-traspasos-sin-orden-cargue.sql vuelve a crear registrar y
-  corregir sin exigir el documento. Se puede correr dos veces. Si la base
-  todavía lo pide, la pantalla dice qué archivo falta correr.
-
-ROTURA — «Todos los informes que se generaron en ese período juntos en
-un PDF, así como están, en el período que uno filtra.»
-
-  - En Informes generados, «Descargar todos en un PDF» junta los PDF de
-    las hojas del período elegido arriba, tal como se guardaron, uno
-    detrás de otro: del día más viejo al más nuevo y, dentro del día, en
-    el orden en que se generaron. Las anuladas no entran.
-  - Se juntan en el navegador con pdf-lib (dependencia nueva).
-
-ADMINISTRACIÓN — «Algo donde pueda elegir algo en específico y borrar
-la data con el fin de empezar de cero. No módulos en general, sino
-puntos específicos.»
-
-  - Nueva pantalla Administración › Borrar datos (/admin/datos), solo
-    para quien administra. Tres pasos: qué (un punto de la lista, por
-    módulo: plan, viajes, SAP de Traspasos; pesadas, hojas, producción de
-    Rotura de línea; reportes y salidas de Roturas; diario, bajas y
-    producción de Quiebra; viajes, novedades, AI y ZLDE de Sider;
-    acciones; conteos), de qué fechas (rango o todo), y borrar.
-  - Cuenta sola y dice cuántas filas y archivos se van. No deja escribir
-    BORRAR sin bajar antes la copia en Excel, y el botón dice cuántas
-    filas. La base vuelve a contar: si algo cambió mientras se miraba, no
-    borra.
-  - Lo que cuelga se va con lo suyo (tipos, ediciones, fotos, hilos). Los
-    PDF y las fotos se quitan de Storage con la llave del servidor.
-  - Maestros, usuarios y roles no están en la lista.
-  - Queda escrito quién borró qué, cuándo y de qué fechas; se ve abajo
-    en la misma pantalla y nadie lo puede editar.
-
-  SQL: 2026-09-admin-borrar-datos.sql
-  .arnes/correr-admin-borrar.sh (base completa) · ad-datos.mjs · mutar-ad-datos.mjs  16 de 16 rojas
+SQL: 2026-09-admin-roles.sql (rol_borrar, rol_crear, roles_historial, y
+rol_permisos_guardar igual que antes pero escribiendo lo que cambió).
 
 MEDIDO:
-  .arnes/correr-traspasos-facturacion.sh + prueba-traspasos-sin-orden.sql
-      contra Postgres: sin la migración nueva las pruebas fallan; con
-      ella, registrar sin orden, facturar, corregir y la repetida frenada.
-  .arnes/fc-bandeja.mjs · mutar-fc-bandeja.mjs     20 de 20 rojas
-  .arnes/rl-juntar.mjs   las hojas de verdad, juntas en Chromium, leídas con pdftotext
+  .arnes/correr-admin-roles.sh   contra la base completa
+  .arnes/ad-roles.mjs            la pantalla de verdad en Chromium, 3 anchos, 7 temas
+  .arnes/mutar-ad-roles.mjs      9 de 9 rojas
 
 =====================================================================
 FALTA CORRER EN SUPABASE — ANTES DEL PUSH
 =====================================================================
 
-  supabase/migraciones/2026-09-traspasos-sin-orden-cargue.sql
-  supabase/migraciones/2026-09-admin-borrar-datos.sql
+  supabase/migraciones/2026-09-admin-roles.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
