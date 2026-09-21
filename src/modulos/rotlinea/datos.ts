@@ -14,7 +14,13 @@ export type Linea   = {
   linea: number; tren: string; centro_coste: string;
   activo: boolean; orden: number | null;
 };
-export type Maquina = { item: number; nombre: string; activo: boolean; orden: number | null };
+export type Maquina = {
+  item: number; nombre: string; activo: boolean; orden: number | null;
+  /** Al sumar, esta se cuenta dentro de otra (PALE-DEPA en PASTEURIZADORA,
+   *  CARGADOR en SALIDA DE LAVADORA). No viene hasta correr
+   *  `2026-09-rotura-linea-sumar-maquinas.sql`. */
+  suma_en?: number | null;
+};
 export type Envase  = {
   material: string; descripcion: string; peso_kg: number;
   activo: boolean; orden: number | null;

@@ -1,124 +1,157 @@
-Tres cosas que ocupaban pantalla sin decir más, encogidas
+Rotura en línea: la hoja del día para firmar, con la marca Bavaria, y dos máquinas que se suman en otra
 
-Las tres salieron de mirarlas funcionando con datos de verdad, y las
-tres eran defectos de diseño míos: cosas que se ven bien con tres filas
-y dejan de servir a los seis meses.
-
-=====================================================================
-1 · LA BASE: UNA LÍNEA, MIDA LO QUE MIDA LA HISTORIA
-=====================================================================
-
-«Así no, ya que será muy extenso: imagínate eso por meses.»
-
-Tenía razón. Era una fila de tarjetas, una por recorrido. Con tres se ve
-bien; a un conteo diario son ciento ochenta en seis meses, y rodar de
-lado deja de ser «a la vista». Ahora son dos cosas que NO crecen:
-
-  UN BUSCADOR   se teclea «18/09» o «FEFO-…-03» y queda uno, igual que
-                Calle y Módulo en Contar. Mide lo mismo con 3 que con
-                300, y la historia entera vive ahí dentro.
-  TRES ATAJOS   «Todos» y los DOS últimos recorridos. Es el caso normal
-                —«el de ayer», «el de antier»— y son tres siempre.
-
-Medido: 52 px de alto en PC, 108 en celular (dos renglones). Antes
-crecía con cada conteo.
-
-Y CADA UNO LLEVA SU CÓDIGO, no solo la fecha. En tu propia captura había
-DOS del 18/9/2026 —turnos distintos del mismo día— y «18/9/2026»
-repetido no distingue nada.
-
-AL ENTRAR SE ABRE EL ÚLTIMO, no la base entera. Con meses de conteos,
-«todos» son miles de renglones cada vez que se abre la pantalla, y la
-pregunta de todos los días es «¿cómo quedó el de ayer?». Verlos todos
-juntos sigue estando, a un toque.
-
-Y ESCOGER RECORRIDO YA NO CUENTA COMO FILTRO. Decidir CUÁL tabla se mira
-no es recortarla: contándolo, «Quitar filtros» te sacaba del inventario
-que estabas mirando, que es lo único que no querías soltar.
+Dos pedidos del mismo módulo, en el orden en que se hacen en el día:
+primero cómo se suma, después el papel que firma el supervisor con esas
+sumas.
 
 =====================================================================
-2 · LO QUE QUEDÓ SIN CONTAR: LA RESPUESTA EN UNA LÍNEA
+1 · PALE-DEPA SE SUMA EN PASTEURIZADORA Y CARGADOR EN SALIDA DE LAVADORA
 =====================================================================
 
-«Esto así extenso no me gusta: busca la manera de dar la información sin
-ser tan extenso.»
+«Cuando hagas la suma, PALE-DEPA y PASTEURIZADORA se sumen en uno solo
+que sea PASTEURIZADORA; y CARGADOR + SALIDA DE LAVADORA, que sea la suma
+de SALIDA DE LAVADORA.»
 
-Eran once barras de calle y sesenta filas, siempre abiertas: una
-pantalla entera para un dato que casi todos los días es «faltan tres». Y
-el día que falta TODO —427 de 427— las once barras salen al 100 % y no
-dicen absolutamente nada: cuando falta casi todo, el gráfico por calle
-es ruido.
+    PALE-DEPA  (155)  ──se suma en──►  PASTEURIZADORA     (13)
+    CARGADOR    (66)  ──se suma en──►  SALIDA DE LAVADORA  (6)
 
-Ahora la caja nace CERRADA y la respuesta va en la tapa:
+SE JUNTA EN LA SUMA, NO EN EL REGISTRO. Lo anotado en la rejilla sigue
+diciendo CARGADOR y PALE-DEPA, fila por fila, hacia atrás incluido.
+Reescribir los registros era una línea y se descartó: borra lo que de
+verdad se anotó y no tiene vuelta. Así, poniendo la regla en blanco, todo
+vuelve a separarse.
 
-    427  módulos sin contar en el último recorrido
-         de 427 activos · 420 nunca contados · FEFO-20260918-03
-    ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔  ← una sola barra
+VA COMO COLUMNA DEL MAESTRO —`suma_en`— y no como un `case` escondido en
+una consulta: una regla escondida es una que la próxima consulta que sume
+por máquina se olvida de copiar. La leen el tablero, la vista diaria y la
+hoja para firmar, y las tres dicen lo mismo.
 
-Debajo, si alguien la abre: las calles en FICHAS —«P 88/88 · B 70/70 ·
-A 69/70»— que dicen lo mismo que once barras en dos renglones, y la
-tabla de los sesenta más viejos.
+UN SOLO SALTO. Una máquina que recibe a otra no puede sumarse a su vez en
+una tercera; lo impide un disparador con un mensaje que dice qué hacer.
 
-Es un `<details>` del navegador y no un botón con estado: esta pantalla
-se dibuja en el servidor, y montar React aquí para abrir un cajón sería
-pagar con carga lo que el navegador hace solo.
+Medido contra Postgres como usuario —no como superusuario, que se salta
+el RLS—: la suma cae exacta (100 + 7 = 107), no se pierde ni una
+botella, el histórico anotado ANTES de migrar sigue intacto, se deshace,
+el filtro de línea sigue filtrando y las cadenas se rechazan. La
+migración se corre dos veces seguidas. 10 mutaciones, las 10 rojas.
 
-EL ERROR QUE TENÍA LA CIFRA. Decía «420 nunca se han contado. 420 llevan
-más de dos semanas sin mirarse» — son LOS MISMOS 420, dichos como si
-fueran ochocientos cuarenta. Los que nunca se contaron entraban al
-segundo grupo con un `?? 999`. Un módulo que nunca se contó no lleva
-días sin mirarse: no tiene desde cuándo.
-
-Y LA TAPA DICE DE CUÁNTOS. «427 sin contar» no distingue una bodega que
-nadie ha caminado de media jornada pendiente; «427 de 427» sí.
-
-=====================================================================
-3 · EN RUTA: FUERA LOS ATAJOS DE RUTAS FRECUENTES
-=====================================================================
-
-«En ruta quita, que no quiero que se vea esto.»
-
-Seis botones grandes debajo de los dos campos que acaban de contestar lo
-mismo, y con el mismo problema de fondo: cada par nuevo que alguien
-registra suma otro botón, así que la fila se alarga sola. Los dos
-desplegables ya se teclean y filtran; el atajo no ahorraba lo suficiente
-para pagar el sitio que ocupaba.
-
-SE FUE TAMBIÉN LA CONSULTA. `rutasFrecuentes()` corría en cada carga de
-la pantalla solo para llenar esos botones. Dejarla pedida «por si acaso»
-es trabajo que alguien paga en tiempo de carga sin que nada lo use. La
-función sigue en `datos.ts` por si el dato hace falta algún día.
-
-Y SE FUE LA REGLA DE CSS, y el bloque de los dos arneses que la
-dibujaban. Una hoja que conserva estilos de lo que ya no existe es la
-que hace que el siguiente arnés mida algo que no está en la pantalla, y
-este proyecto ya pagó eso dos veces.
+Una no se sostenía al principio, y lo que falló fue la prueba: solo
+miraba filas insertadas DESPUÉS de migrar, así que una migración que
+reescribiera el histórico no se habría notado. Ahora el arnés deja dos
+filas anotadas antes y comprueba que sigan intactas.
 
 =====================================================================
-4 · LO QUE APARECIÓ AL MEDIRLO
+2 · LA HOJA DEL DÍA PARA FIRMAR
 =====================================================================
 
-· EL ARNÉS DE LA BASE REVENTABA con «Cannot read properties of null»
-  cuando el armazón dejaba de pintar algo. Eso es un error del arnés, no
-  un hallazgo: el que lo lee no sabe si la pantalla está mal o si el
-  armazón se quedó viejo. Ahora lo dice con nombre propio.
+«Que los reportes del día los generes en una hoja con el fin de que el
+supervisor la pueda firmar: que llenen la información, la persona pueda
+generar el PDF, enviárselo por WhatsApp o lo que sea, y esté el espacio
+para que la firmen.»
 
-· CUATRO AFIRMACIONES SE QUEDARON SIN OBJETO al cambiar el diseño —«los
-  inventarios ruedan de lado», «el primero se ve sin rodar»— y en vez de
-  borrarlas se cambiaron por lo que el diseño nuevo SÍ promete: que el
-  escogedor no crezca (3 atajos fijos, ≤130 px de alto) y que el buscador
-  exista. Una aserción que ya no puede fallar es peor que ninguna.
+Debajo de la rejilla de Rotura de línea —que es el orden del día: se
+registra, se genera la hoja, se firma— hay un bloque con tres campos,
+lo único que la base no sabe:
+
+  ELABORÓ          viene lleno con el nombre de quien está en la app
+  SUPERVISOR       opcional; si se deja en blanco sale una raya
+  OBSERVACIONES    opcional; si se deja en blanco salen renglones
+
+y un botón: «Generar PDF y compartir». En el celular abre el menú de
+compartir con el PDF ya adjunto —WhatsApp, correo, lo que tenga—. En un
+computador, donde compartir archivos casi nunca existe, lo descarga.
+
+LA HOJA: el día con el total arriba; por cada línea una tabla de
+máquinas por turno A, B y C, con totales de unidades y kilos; por envase;
+las observaciones; y dos recuadros de firma —Elaboró y Revisó y aprueba,
+supervisor— con nombre, espacio de firma y fecha y hora. Si un turno ya
+se cerró en CONTROL, lo dice debajo de su tabla. Cada página dice
+«Página i de n» y el día.
+
+LAS CIFRAS NO SE TOCAN EN LA HOJA. Salen de lo registrado, con la misma
+regla de sumar que el tablero. Un papel donde se pudieran corregir sería
+un segundo registro que no cuadra con el primero.
+
+PDF DE VERDAD Y NO UNA FOTO DE LA PANTALLA. Dibujado con jsPDF se lee
+nítido en cualquier teléfono, el texto se puede buscar y copiar, y las
+apps de PDF del celular dejan firmar encima. Una captura con html2canvas
+saldría borrosa al ampliar y pesaría varias veces más.
+
+jsPDF SE CARGA AL TOCAR EL BOTÓN, no al abrir la pantalla: son 350 KB
+que quien solo viene a registrar no tiene por qué bajar.
 
 =====================================================================
-LOS ARNESES
+3 · CON LA MARCA BAVARIA
 =====================================================================
 
-  .arnes/inv-conteo.mjs        · mutar-inv-conteo.mjs      67 mutaciones
-  .arnes/inv-base.mjs          · mutar-inv-base.mjs        41 mutaciones
-  .arnes/fe-tablero.mjs        · mutar-fe-tablero.mjs      18 mutaciones
-  .arnes/tp-resumen.mjs        · mutar-tp-resumen.mjs      15 mutaciones
+«Agrégale el logo de Bavaria, o sea algo espectacular.»
 
-Las 141 se ponen rojas, cada una por su propia prueba.
+  · ARRIBA, el logo con la palabra Bavaria a la izquierda y a la derecha
+    qué es la hoja y de qué día. Sobre blanco: el logo es rojo sobre
+    transparente, y sobre la banda azul el rojo —que ES la marca— se
+    pierde.
+  · UNA CINTA del dorado al rojo, como el aro del logo, en el borde de
+    arriba, sobre cada recuadro de firma y en el pie. jsPDF no pinta
+    degradados: se arma con franjas de 1,5 mm, que a esa distancia el ojo
+    no ve como escalones.
+  · EL TOTAL DEL DÍA en una banda azul con raya roja y la cifra en
+    grande: es la única pieza oscura de la hoja, así que el ojo cae ahí
+    primero.
+  · EL SELLO de la B como marca de agua al 4 %, DETRÁS de las cifras:
+    se ve en la pantalla y en una impresora en blanco y negro no tapa un
+    número ni una firma.
+  · LAS HOJAS 2 EN ADELANTE llevan una cabecera chica con el sello, qué
+    es y de qué día.
+
+LOS COLORES SALEN DE LOS PÍXELES DEL LOGO, no de memoria: el rojo es el
+de la palabra y los dos dorados son los extremos del aro.
+
+LOS LOGOS NO SE DIBUJAN CON CÓDIGO: se leen los PNG que subiste a
+public/marca/ tal cual. Si no cargan —sin señal en el patio— la hoja
+sale igual, sin logo: una hoja sin marca se firma, una que no sale no.
+
+Pesa 108 KB, medido: 15 KB la hoja sola, 49 con las cintas, 108 con los
+dos logos. Sospeché que el sello se pegaba dos veces —como marca de agua
+y en la cabecera— y lo medí: jsPDF ya lo pega una sola vez.
+
+=====================================================================
+4 · MEDIDO: SE GENERA EL PDF Y SE LEE DE VUELTA
+=====================================================================
+
+El arnés genera el PDF con el mismo jsPDF del teléfono y lo lee con
+pdftotext. Lo que se comprueba es lo que dice el papel, no lo que el
+código cree que escribió.
+
+DOS DEFECTOS SE VIERON MIRANDO EL PDF, y el arnés no los cazaba:
+
+· LAS OBSERVACIONES SE SALÍAN DEL RECUADRO. Se medían con la letra de la
+  tabla de envases —9 puntos— y se escribían a 9,5: cada renglón salía
+  más largo de lo medido. pdftotext lo leía igual. Ahora el arnés mide
+  DÓNDE cae cada palabra y exige que ninguna pase el margen.
+
+· LA TABLA QUE SEGUÍA EN LA HOJA 2 NO DECÍA DE QUÉ LÍNEA ERA. Empezaba
+  con «MÁQUINA DE PRUEBA 9 — 5 — 5», sin título ni columnas. Ahora repite
+  «Línea 2 · TREN-2 (continúa)» y los títulos.
+
+Y UNA MUTACIÓN SALIÓ VERDE: separar las firmas de las observaciones no
+se notaba porque en el único día largo de la prueba sobraba sitio para
+las dos. Ahora se barre el largo del día fila por fila —41 largos— para
+que en alguna vuelta caigan justo en el borde de la hoja.
+
+Y con la marca, tres más: que estén los dos logos —reconocidos por su
+ancho, porque contar imágenes a secas pasaba con uno quitado— y que la
+marca de agua se pinte ANTES que las cifras en el contenido del PDF.
+
+  .arnes/rl-hoja.mjs · mutar-rl-hoja.mjs      25 mutaciones, las 25 rojas
+
+=====================================================================
+FALTA CORRER EN SUPABASE
+=====================================================================
+
+  supabase/migraciones/2026-09-rotura-linea-sumar-maquinas.sql
+
+Sin ella la hoja sale igual, con CARGADOR y PALE-DEPA por separado —como
+el tablero en ese momento—. Con ella, las dos dicen lo mismo.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

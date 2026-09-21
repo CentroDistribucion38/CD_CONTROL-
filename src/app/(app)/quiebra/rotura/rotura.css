@@ -1174,3 +1174,57 @@
   .rl-kpi-banda { padding: 9px 16px }
   .rl-kpi-chispa { padding: 0 16px 14px }
 }
+
+/* =====================================================================
+   LA HOJA DEL DÍA PARA FIRMAR
+
+   Debajo de todo, que es el último paso del día: se registra, se genera
+   la hoja, se firma. Tres campos —lo único que la base no sabe— y un
+   botón que en el celular abre «compartir» con el PDF ya adjunto.
+   ===================================================================== */
+.rl-hoja { margin-top: 14px }
+.rl-hoja-campos {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  padding: 0 16px;
+}
+.rl-hoja-campos label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.rl-hoja-campos label.ancho { grid-column: 1 / -1 }
+.rl-hoja-campos span {
+  font: 700 11px var(--rl-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--rl-gris);
+}
+.rl-hoja-campos input, .rl-hoja-campos textarea {
+  width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px;
+  font: 500 14px var(--rl-texto); color: var(--rl-tinta);
+  background: var(--rl-papel); border: 1.5px solid var(--rl-linea); border-radius: 3px;
+}
+.rl-hoja-campos textarea { resize: vertical; line-height: 1.45 }
+.rl-hoja-campos input:focus, .rl-hoja-campos textarea:focus {
+  outline: none; border-color: var(--rl-ojo);
+}
+
+/* EL BOTÓN GRANDE ES EL DE COMPARTIR: es lo que se hace casi siempre, y
+   desde el celular. «Solo descargar» queda al lado para el computador. */
+.rl-hoja-pie { display: flex; gap: 10px; flex-wrap: wrap; padding: 14px 16px 16px }
+.rl-hoja-pie button {
+  min-height: 48px; padding: 0 18px; cursor: pointer; border-radius: 3px;
+  font: 700 14.5px var(--rl-titulo);
+}
+.rl-hoja-si {
+  flex: 1 1 260px; background: var(--rl-ojo); color: var(--rl-sobre);
+  border: 1.5px solid var(--rl-ojo);
+}
+.rl-hoja-no {
+  flex: 0 1 auto; background: var(--rl-papel); color: var(--rl-tinta);
+  border: 1.5px solid var(--rl-linea);
+}
+.rl-hoja-pie button:disabled { opacity: .5; cursor: default }
+.rl-hoja-aviso {
+  margin: -6px 16px 14px; font-size: 12.5px; line-height: 1.5; color: var(--rl-bien);
+}
+.rl-hoja-aviso.mal { color: var(--rl-mal) }
+
+@media (max-width: 620px) {
+  .rl-hoja-campos { grid-template-columns: 1fr }
+  .rl-hoja-no { flex: 1 1 100% }
+}

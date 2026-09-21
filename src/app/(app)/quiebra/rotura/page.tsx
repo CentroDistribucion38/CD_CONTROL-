@@ -5,6 +5,9 @@ import { turnoDeAhora, letraDe, horarioDe } from "@/modulos/rotlinea/turnos";
 import "./rotura.css";
 import { Dias } from "./Dias";
 import { Rejilla } from "./Rejilla";
+import { HojaFirma } from "./HojaFirma";
+import { usuarioActual } from "@/lib/sesion";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +37,8 @@ export default async function RoturaLineaPage({ searchParams }: {
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.d ?? "") ? q.d! : hoy;
   const esHoy = fecha === hoy;
 
-  const [permisos, m, dia] = await Promise.all([misPermisos(), maestros(), delDia(fecha)]);
+  const [permisos, m, dia, quien] = await Promise.all([
+    misPermisos(), maestros(), delDia(fecha), nombreDeQuienEntra()]);
   const puedeEditar = permisos.puedeEditar("/quiebra/rotura");
   /* El turno se calcula en el SERVIDOR. En el navegador dependería del
      reloj del equipo, y un computador de bodega con la hora corrida dos
@@ -158,6 +162,22 @@ export default async function RoturaLineaPage({ searchParams }: {
           </div>
         </aside>
       </div>
+
+      {/* LA HOJA PARA FIRMAR, DEBAJO DE TODO: es el último paso del
+          día. Primero se registra, después se genera, después se firma. */}
+      <HojaFirma fecha={fecha} filas={dia.filas} maquinas={m.maquinas} lineas={m.lineas}
+                 firmas={dia.firmas} elaboro={quien} />
     </div>
   );
+}
+
+/** El nombre de quien está en la app, para prellenar «Elaboró». Si no
+ *  se puede leer, queda en blanco y se escribe: no vale la pena tumbar
+ *  la pantalla de registrar por un nombre. */
+async function nombreDeQuienEntra() {
+  const user = await usuarioActual();
+  if (!user) return "";
+  const supabase = await createClient();
+  const { data } = await supabase.from("perfiles").select("nombre").eq("id", user.id).maybeSingle();
+  return (data?.nombre as string | undefined) ?? "";
 }
