@@ -1,0 +1,12 @@
+16802b48ea5a4659f4e297757eca50fb50d5293d1b35a49befb027e13983ea16  src/app/(app)/quiebra/rotura/maestro/Maestro.tsx
+b438d4ce1f9af61c246ee04b293a04b915e80354fbaa306ac1223b2eab572dc6  src/app/(app)/quiebra/rotura/rotura.css
+00dda95f4961766215aea4226be39de8ead60613a0e83e9be89f8302f9c22b5d  src/app/(app)/quiebra/rotura/Rejilla.tsx
+b0a326a2b0b4a735bf4ccce7ac4d3a9d1c97894945a726a403468c2ba63607c5  src/app/(app)/quiebra/rotura/page.tsx
+ed3317cc3ef37aa4e3e40aee88b4fa7ab2e8c701e19cc9383677f83b9669964e  src/app/(app)/quiebra/rotura/MasDelDia.tsx
+df89d07b060808e16a9166d016f35def2600430421514e0e18454dffddf2ed62  src/app/(app)/inventario/conteo/Contar.tsx
+2bc112f73b6a90a33e508bab84ace7bac726de24a45440f496c7e8e69bfdb381  src/app/(app)/inventario/fefo.css
+c646426eb83525d6415d380516426e7782d83172ccd3e806b561d99b6500df98  .arnes/rl-orden-envases.mjs
+1336fc05e0da0d939bab4fdfdab6ab6f34ebaae84c2fea2333099ac5a6ef9911  .arnes/rl-celular.mjs
+5fbecd439ec3ae3c992bfd14e296819f0f8fc600ae8066f23aa8899297400fdf  .arnes/inv-conteo.mjs
+a9f20f01c2ad720b0e920ed682d140c1dbb507f79a12fa1817b60a8ddab6ed2f  .arnes/mutar-inv-conteo.mjs
+c81f903d8fdde07cdb47ddf380e37a6aab558cd0b3461e3aa219c89e5e190309  commit.txt

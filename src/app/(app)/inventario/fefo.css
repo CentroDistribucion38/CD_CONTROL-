@@ -1410,3 +1410,164 @@
   .fe .fe-sc-tapa .n { font-size: 26px; min-width: 38px }
   .fe .fe-sc-nota, .fe .fe-sc-calles { padding-left: 13px; padding-right: 13px }
 }
+
+/* =====================================================================
+   EL CONTEO COMPACTO
+   ---------------------------------------------------------------------
+   «En el celular, que el conteo sea compacto.» Tres filas y un plegado:
+
+     DÓNDE     calle · módulo · lado
+     QUÉ       código · descripción · vence       (celular: código y
+               vence lado a lado; la descripción abajo, a lo ancho)
+     CUÁNTO    qué cuentas · estibas · saldo · total   (celular: qué
+               cuentas arriba, estibas y saldo lado a lado, total abajo)
+     DATOS ADICIONALES, plegado: estado · rota · marca · observación
+
+   En la computadora cada momento es UNA fila; en el celular dos, y el
+   renglón normal —que no toca lo adicional— cabe sin rodar.
+   ===================================================================== */
+
+/* ---------- DÓNDE ---------- */
+.fe .fe-anotar .fe-tres.fe-donde3 {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr); align-items: end;
+}
+.fe .fe-donde3 .fe-lado-campo { margin-top: 0 }
+.fe .fe-donde3 .fe-lado-campo .fe-segmento { gap: 0; margin: 0 }
+.fe .fe-donde3 .fe-segmento button { border-radius: 0 }
+.fe .fe-donde3 .fe-segmento button + button { border-left-width: 0 }
+
+/* ---------- QUÉ ---------- */
+.fe .fe-anotar .fe-cod-dos.fe-que3 {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr) minmax(0, 1.1fr);
+  grid-template-areas: "cod desc vence"; align-items: end; margin-bottom: 0;
+}
+.fe .fe-que3 > label:first-child { grid-area: cod }
+.fe .fe-que3 > .fe-que-desc { grid-area: desc }
+.fe .fe-que3 > .fe-que-vence { grid-area: vence; min-width: 0 }
+.fe .fe-que-vence .fe-que-fecha { display: flex; margin-bottom: 5px }
+.fe .fe-que-vence .fe-etiq-fecha {
+  min-height: 0; line-height: 1.2; font: 600 10.5px var(--fe-texto); letter-spacing: .08em; color: var(--fe-gris);
+}
+.fe .fe-que-vence .fe-opcional { display: inline; margin: 0 }
+/* LA DESCRIPCIÓN LEÍDA, EN VERDE CON SU ✓: es la confirmación de que el
+   código tecleado es el que se quería. */
+.fe .fe-cod-dos .fe-desc-campo.leido { background: #F1F8F3; border-color: #9FD0B0; color: #10321F }
+.fe .fe-desc-campo .fe-tic { color: #0F6B3F; font-weight: 800; margin-right: 8px }
+.fe .fe-desc-campo.leido em { font-style: normal; font-weight: 500; color: #2B5A3E }
+/* Un solo hijo para que el flex centre el texto en alto y el «· 45
+   cajas/estiba» corra en la misma línea, no como otra columna. */
+.fe .fe-desc-campo .fe-desc-tx { display: block; min-width: 0 }
+.fe .fe-desc-campo .fe-desc-tx em { display: inline }
+.fe .fe-anotar .fe-bloque > .fe-eco { margin: 8px 0 0 }
+
+/* ---------- CUÁNTO ---------- */
+.fe .fe-cuanto4 {
+  display: grid; gap: 10px; align-items: end;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.fe .fe-cuanto4.cajas { grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) minmax(0, 1fr) }
+.fe .fe-cuanto4 > * { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.fe .fe-cuanto-rot, .fe .fe-cuanto-campo > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris);
+}
+.fe .fe-cuanto-modo .fe-segmento { gap: 0; margin: 0 }
+.fe .fe-cuanto-modo .fe-segmento button { border-radius: 0; min-height: 56px }
+.fe .fe-cuanto-modo .fe-segmento button + button { border-left-width: 0 }
+.fe .fe-cuanto-campo input {
+  min-height: 56px; padding: 0 14px; width: 100%;
+  font: 800 24px var(--fe-titulo); font-variant-numeric: tabular-nums;
+  background: #fff; border: 2px solid var(--fe-linea); border-radius: 2px; color: var(--fe-tinta);
+}
+.fe .fe-cuanto-campo input:focus { outline: none; border-color: var(--fe-acento) }
+/* EL TOTAL, EN LA FRANJA OSCURA: es la cifra que se mira de reojo. */
+.fe .fe-total-caja {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 56px; padding: 0 14px; border-radius: 2px;
+  background: var(--fe-tinta); color: var(--fe-papel);
+}
+.fe .fe-total-caja b {
+  font: 900 26px/1 var(--fe-titulo); letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+  color: var(--fe-papel);
+}
+.fe .fe-total-caja span { font-size: 12px; opacity: .85 }
+.fe .fe-total-caja.esperando b { opacity: .6 }
+.fe .fe-cuenta-linea {
+  margin: 8px 0 0; font: 600 12.5px var(--fe-texto); color: var(--fe-gris-panel);
+  font-variant-numeric: tabular-nums;
+}
+.fe .fe-cuenta-linea b { color: var(--fe-tinta) }
+.fe .fe-cuenta-linea b.ojo { color: var(--fe-mal) }
+
+/* ---------- DATOS ADICIONALES ---------- */
+.fe .fe-mas { border-top: 1px solid var(--fe-linea); margin: 0 -16px; }
+.fe .fe-mas > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; min-height: 60px;
+}
+.fe .fe-mas > summary::-webkit-details-marker { display: none }
+.fe .fe-mas > summary:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: -2px }
+.fe .fe-mas-ico {
+  flex: none; width: 38px; height: 38px; display: grid; place-items: center;
+  border: 1.5px solid var(--fe-tinta); border-radius: 2px;
+}
+.fe .fe-mas-ico svg { width: 19px; height: 19px; stroke: var(--fe-tinta); stroke-width: 1.8; fill: none; stroke-linecap: round }
+.fe .fe-mas[open] .fe-mas-ico { background: var(--fe-tinta) }
+.fe .fe-mas[open] .fe-mas-ico svg { stroke: var(--fe-papel) }
+.fe .fe-mas-tx { min-width: 0; flex: 1 }
+.fe .fe-mas-tx b { display: block; font: 800 14.5px var(--fe-titulo); color: var(--fe-tinta) }
+.fe .fe-mas-tx span { display: block; font-size: 12.5px; line-height: 1.35; color: var(--fe-gris-panel); margin-top: 2px }
+.fe .fe-mas-marcas { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end }
+.fe .fe-mas-marcas em {
+  font-style: normal; font: 700 10.5px var(--fe-titulo); letter-spacing: .08em;
+  padding: 4px 8px; border-radius: 2px; background: #FDECEE; color: #8A1020;
+}
+.fe .fe-mas-fl { color: var(--fe-gris-panel); font-size: 13px; transition: transform .15s }
+.fe .fe-mas[open] .fe-mas-fl { transform: rotate(180deg) }
+.fe .fe-mas-dentro { padding: 2px 16px 12px; display: flex; flex-direction: column; gap: 12px }
+.fe .fe-mas-dos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: end }
+.fe .fe-mas .fe-estado { margin-top: 0 }
+.fe .fe-mas .fe-rota { margin: 0; flex-direction: column; align-items: stretch; gap: 5px }
+.fe .fe-mas .fe-si-no { gap: 0 }
+.fe .fe-mas .fe-si-no button { border-radius: 0 }
+.fe .fe-mas .fe-si-no button + button { border-left-width: 0 }
+.fe .fe-marca-campo { display: flex; flex-direction: column; gap: 5px }
+.fe .fe-marca-campo > span {
+  font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris);
+}
+.fe .fe-mas .fe-marcas.tres {
+  grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0; padding: 0; border: 0;
+}
+.fe .fe-mas .fe-marcas.tres .fe-marca { border-radius: 0 }
+.fe .fe-mas .fe-marcas.tres .fe-marca + .fe-marca { border-left-width: 0 }
+.fe .fe-mas .fe-nota { margin-top: 0 }
+.fe .fe-mas .fe-combinada { margin: 0 }
+.fe .fe-anotar > .fe-mas + .fe-barra-fija { margin-top: 0 }
+
+@media (max-width: 760px) {
+  .fe .fe-anotar .fe-tres.fe-donde3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) }
+  .fe .fe-donde3 .fe-lado-campo { grid-column: 1 / -1 }
+  .fe .fe-anotar .fe-cod-dos.fe-que3 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-areas: "cod vence" "desc desc";
+  }
+  /* SIN CABEZA AL CONTAR EN EL CELULAR: el título y el panel del
+     borrador no aportan mientras se cuenta —la cuenta del borrador ya
+     va en la pestaña y en la barra de abajo— y se comen media pantalla. */
+  .fe.contando > .cabeza { display: none }
+  .fe .fe-que3 .fe-dma { gap: 6px }
+  .fe .fe-que3 .fe-dma input { font-size: 20px; letter-spacing: 0; padding: 0 }
+  .fe .fe-cuanto4, .fe .fe-cuanto4.cajas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) }
+  .fe .fe-cuanto-modo, .fe .fe-cuanto-total, .fe .fe-cuanto-campo.ancho { grid-column: 1 / -1 }
+  .fe .fe-mas { margin: 0 -14px }
+  .fe .fe-mas > summary { padding: 10px 14px }
+  .fe .fe-mas-dentro { padding: 2px 14px 12px }
+  /* EN EL CELULAR, LA BARRA DE ANOTAR VA OSCURA: se distingue del
+     formulario sin mirarla. */
+  .fe .fe-barra-fija { background: var(--fe-tinta); border-top-color: var(--fe-tinta) }
+  .fe .fe-barra-fija .fe-fija-cuenta { color: var(--fe-papel); opacity: .85 }
+  .fe .fe-barra-fija .fe-fija-cuenta b { color: var(--fe-papel) }
+}
+@media (max-width: 420px) {
+  .fe .fe-mas-dos { grid-template-columns: minmax(0, 1fr) }
+  .fe .fe-mas-marcas { display: none }
+}

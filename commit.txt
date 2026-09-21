@@ -1,44 +1,41 @@
-Usuarios a otro nivel y orden de envases en Rotura de línea
+Celular: Rotura de línea por pasos, Contar compacto y envases que se arrastran
 
-USUARIOS (Administración › Usuarios)
-  - Buscar por nombre o usuario (con o sin tildes), filtrar por rol y por
-    estado (activos, inactivos, clave provisional, nunca han entrado) y
-    ordenar por nombre, rol, último ingreso o registros.
-  - Último ingreso de cada persona («hoy 10:42», «hace 6 días», «nunca»)
-    y cuántos registros ha dejado en toda la base.
-  - Seleccionar a varios: cambiar el rol, activar, desactivar o eliminar
-    de una vez. La confirmación nombra a quiénes. Uno mismo no entra.
-  - Desactivar también bloquea la cuenta, para que una sesión abierta no
-    siga entrando; activar la desbloquea.
-  - Eliminar de verdad: quien no ha registrado nada se borra del todo y
-    su usuario queda libre; quien sí, se desactiva para no perder quién
-    hizo qué. Se dice cuál fue cuál.
-  - Crear varios en un mismo rol: se pegan los nombres (de Excel o de un
-    chat), el usuario de cada uno sale solo sin chocar con los que hay y
-    se puede corregir; al final una tabla con las claves provisionales
-    para copiar todo o bajar en CSV. Máximo 50 por vez.
-  - Crear una cuenta vive ahora en src/lib/cuentas.ts: la usan crear uno
-    y crear varios, con las mismas reglas.
+ROTURA DE LÍNEA EN EL CELULAR
+  «Que no se vea lo que no aporte: entre más espacio, mejor.»
+  - Sin cabeza en el celular: ni título ni panel rojo de ROTAS HOY. En
+    tableta y PC siguen igual.
+  - Pasos numerados: 1 Línea · 2 Turno · 3 Envase · 4 Máquina · 5 Kilos.
+    Se llena UNA máquina a la vez (en vez de la rejilla de 15 casillas),
+    con el resultado grande «38,5 ÷ 0,21 · salen solas → 184 u».
+  - «En esta pesada» lista las máquinas ya llenas; tocar una la vuelve a
+    poner arriba. Todas viajan juntas en UNA pesada, como en el PC.
+  - La coma cuenta: «38,5» ya no se lee como cero.
+  - Barra oscura pegada abajo: «N pesadas hoy» y el botón de guardar.
+  - «Más del día» (por línea, sin dar de baja) va plegado en el celular.
+  - El pie y el rótulo del panel rojo ya no se llevan el gris y la raya
+    de la rejilla (se llamaban igual).
+
+CONTAR (INVENTARIO) COMPACTO
+  - Dónde: calle · módulo · lado en una fila.
+  - Qué: código · descripción · vence en una fila; la descripción leída
+    sale en verde con ✓ y las cajas por estiba.
+  - Cuánto: qué cuentas · estibas · saldo · total en la franja oscura.
+  - Datos adicionales plegado: estado, ¿rota? (No / Sí), marca (Ninguna
+    / Avería / PNC) y observación. Cerrado dice qué trae puesto.
+  - En el celular: sin cabeza, dos columnas y la barra de anotar oscura.
 
 ROTURA DE LÍNEA › MAESTRO
-  «Que yo ubique primero lo que más van a usar para que en la lista
-  desplegable se vea de esa manera.»
-  - Cada envase dice su puesto y tiene ▲ ▼ y «1º» para moverlo, más
-    «Ordenar por lo más usado». La lista para escoger al registrar sale
-    en ese mismo orden.
+  «Que yo lo pueda mover, no como el mamarracho.»
+  - Cada envase se arrastra desde su ⋮⋮ con el dedo o el ratón, igual que
+    en el maestro de traspasos. Se guarda solo lo que cambió de puesto.
+  - Se quitaron las flechas ▲ ▼ y «1º». Sigue «Ordenar por lo más usado».
 
-SQL: 2026-09-admin-usuarios.sql (usuarios_ingreso, usuarios_rastro,
-usuarios_lote). El orden de envases no necesita SQL.
+SQL: ninguno.
 
 MEDIDO:
-  .arnes/correr-admin-usuarios.sh · ad-usuarios.mjs · mutar-ad-usuarios.mjs  10 de 10 rojas
-  .arnes/rl-orden-envases.mjs
-
-=====================================================================
-FALTA CORRER EN SUPABASE — ANTES DEL PUSH
-=====================================================================
-
-  supabase/migraciones/2026-09-admin-usuarios.sql
+  .arnes/rl-celular.mjs (nuevo) · .arnes/rl-pantalla.mjs
+  .arnes/inv-conteo.mjs · .arnes/mutar-inv-conteo.mjs
+  .arnes/rl-orden-envases.mjs · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

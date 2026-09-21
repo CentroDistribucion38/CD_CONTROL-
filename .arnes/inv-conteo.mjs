@@ -72,14 +72,13 @@ const ARMAZON = `
 
     <div class="fe-bloque">
       <p class="fe-bloque-cab">Dónde</p>
-      <div class="fe-tres dos">
+      <div class="fe-tres dos fe-donde3">
         <label><span>Calle</span>
           <div class="bs"><input class="bs-campo" value="Todas"><span class="bs-flecha">▾</span>
             <ul class="bs-lista"><li class="on"><b>A</b></li><li><b>ALAR</b></li>
               <li><b>JAULA_PNC</b><em>PRODUCTO NO CONFORME</em></li></ul></div></label>
         <label><span>Módulo</span>
           <div class="bs"><input class="bs-campo" value="ALAR06"><span class="bs-flecha">▾</span></div></label>
-      </div>
       <div class="fe-lado-campo">
         <span class="fe-lado-rot">Lado</span>
         <div class="fe-segmento" role="group">
@@ -87,60 +86,81 @@ const ARMAZON = `
           <button type="button">Derecho</button>
         </div>
       </div>
+      </div>
     </div>
 
     <div class="fe-bloque">
       <p class="fe-bloque-cab">Qué</p>
-      <div class="fe-cod-dos">
+      <div class="fe-cod-dos fe-que3">
         <label><span>Código</span><input inputmode="numeric" value="3128"></label>
-        <label><span>Descripción</span>
-          <output class="fe-desc-campo">CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE</output></label>
+        <label class="fe-que-desc"><span>Descripción</span>
+          <output class="fe-desc-campo leido"><span class="fe-desc-tx"><span class="fe-tic">✓</span>CERVEZA AGUILA LATA 269 CC X 6 UND TERMOENCOGIBLE<em> · 45 cajas/estiba</em></span></output></label>
+        <div class="fe-fecha fe-que-vence">
+          <div class="fe-que-fecha">
+            <span class="fe-etiq-fecha">Vence</span>
+            <em class="fe-opcional">sin fecha</em>
+          </div>
+          <div class="fe-dma">
+            <input inputmode="numeric" maxlength="2" placeholder="DD" value="11">
+            <input inputmode="numeric" maxlength="2" placeholder="MM" value="03">
+            <input inputmode="numeric" maxlength="2" placeholder="AA" value="27">
+          </div>
+        </div>
       </div>
-      <p class="fe-eco"><b>45</b> cajas por estiba</p>
-
-      <div class="fe-fecha">
-        <div class="fe-que-fecha">
-          <span class="fe-etiq-fecha">Vence</span>
-          <em class="fe-opcional">el envase no trae fecha</em>
-        </div>
-        <div class="fe-dma">
-          <input inputmode="numeric" maxlength="2" placeholder="DD" value="11">
-          <input inputmode="numeric" maxlength="2" placeholder="MM" value="03">
-          <input inputmode="numeric" maxlength="2" placeholder="AA" value="27">
-        </div>
-        <div class="fe-dias">
-          <span class="fe-dias-par"><b>249</b><em>días para salir</em></span>
-          <span class="fe-dias-par suave"><b>339</b><em>días para vencer</em></span>
-        </div>
+      <div class="fe-dias">
+        <span class="fe-dias-par"><b>249</b><em>días para salir</em></span>
+        <span class="fe-dias-par suave"><b>339</b><em>días para vencer</em></span>
       </div>
     </div>
 
     <div class="fe-bloque">
       <p class="fe-bloque-cab">Cuánto</p>
-      <div class="fe-segmento" role="group">
-        <button type="button" class="on">Estibas</button>
-        <button type="button">Cajas</button>
+      <div class="fe-cuanto4">
+        <div class="fe-cuanto-modo">
+          <span class="fe-cuanto-rot">Qué cuentas</span>
+          <div class="fe-segmento" role="group">
+            <button type="button" class="on">Estibas</button>
+            <button type="button">Cajas</button>
+          </div>
+        </div>
+        <label class="fe-cuanto-campo"><span>Estibas completas</span><input inputmode="numeric" value="12"></label>
+        <label class="fe-cuanto-campo"><span>Saldo · cajas</span><input inputmode="numeric" value="8"></label>
+        <div class="fe-cuanto-total">
+          <span class="fe-cuanto-rot">Total</span>
+          <output class="fe-total-caja"><b>548</b><span>cajas</span></output>
+        </div>
       </div>
-      <div class="fe-dos">
-        <label><span>Estibas completas</span><input inputmode="numeric" value="12"></label>
-        <label><span>Saldo · cajas sueltas</span><input inputmode="numeric" value="8"></label>
-      </div>
-      <label class="fe-estado"><span>Estado del envase</span>
-        <select><option>—</option><option>PIROGRABADO</option></select></label>
-      <p class="fe-total"><span class="fe-formula">12 × 45 + 8</span><b>548</b> cajas</p>
+      <p class="fe-cuenta-linea">12 × 45 + 8 = <b>548</b> cajas</p>
     </div>
 
-    <div class="fe-bloque">
-      <p class="fe-bloque-cab">Cómo está</p>
-      <div class="fe-rota"><span>¿Rota?</span>
-        <div class="fe-si-no una"><button type="button">Sí, rota</button></div></div>
-      <div class="fe-marcas dos">
-        <button type="button" class="fe-marca on">Avería</button>
-        <button type="button" class="fe-marca">PNC</button>
+    <details class="fe-mas" open>
+      <summary>
+        <span class="fe-mas-ico"><svg viewBox="0 0 24 24"><path d="M4 7h10"/></svg></span>
+        <span class="fe-mas-tx"><b>Datos adicionales</b>
+          <span>Estado del envase · rota · avería · PNC · observación</span></span>
+        <span class="fe-mas-marcas"><em>AVERÍA</em></span>
+        <span class="fe-mas-fl">▾</span>
+      </summary>
+      <div class="fe-mas-dentro">
+        <div class="fe-mas-dos">
+          <label class="fe-estado"><span>Estado del envase</span>
+            <select><option>—</option><option>PIROGRABADO</option></select></label>
+          <div class="fe-rota"><span>¿Rota?</span>
+            <div class="fe-si-no"><button type="button" class="on">No</button><button type="button">Sí, rota</button></div></div>
+        </div>
+        <div class="fe-marca-campo">
+          <span>Marca</span>
+          <div class="fe-marcas tres">
+            <button type="button" class="fe-marca">Ninguna</button>
+            <button type="button" class="fe-marca on">Avería</button>
+            <button type="button" class="fe-marca">PNC</button>
+          </div>
+        </div>
+        <label class="fe-nota"><span>Observación</span>
+          <input placeholder="Opcional — lo que haya que decir de esta estiba"></label>
+        <p class="fe-combinada">Va a quedar como <b>ALAR06 AVERIA</b> — separada de lo bueno del mismo módulo.</p>
       </div>
-      <label class="fe-nota"><span>Observación</span>
-        <input placeholder="Opcional — lo que haya que decir de esta estiba"></label>
-    </div>
+    </details>
 
     <div class="fe-barra-fija">
       <p class="fe-fija-cuenta"><b>152</b> en el borrador</p>
@@ -325,7 +345,15 @@ const monta = async (pag, tema, ancho, alto, html = ARMAZON) => {
 
 /* ---------- 4 y 6. CONTRASTE ---------- */
 const pag = await navegador.newPage();
-console.log("tema      código  eco  «sí» on  «sí» off  fecha  total  1 lado  d.salir  d.vencer  urgente  malo");
+/* FOTO=dir: solo retrata el armazón a 390 y 1440 y se va. */
+if (process.env.FOTO) {
+  for (const [w, h] of [[390, 1500], [1440, 1100]]) {
+    await monta(pag, null, w, h);
+    await pag.screenshot({ path: `${process.env.FOTO}/conteo-${w}.png`, fullPage: true });
+  }
+  await navegador.close(); process.exit(0);
+}
+console.log("tema      código  eco  marca on  «no» off rota on  fecha  total  1 lado  d.salir  d.vencer  urgente  malo");
 for (const t of TEMAS) {
   await monta(pag, t, 1440, 1200);
   const m = await pag.evaluate(() => {
@@ -342,7 +370,9 @@ for (const t of TEMAS) {
     };
     return {
       codTxt: g(".fe-cod-dos input", "color"), codFondo: g(".fe-cod-dos input", "background-color"),
-      ecoTxt: g(".fe-eco", "color"), ecoFondo: g(".fe-eco", "background-color"),
+      /* LA DESCRIPCIÓN LEÍDA —en verde, con ✓— es la confirmación del
+         código tecleado: se lee de reojo con el sol de frente. */
+      ecoTxt: g(".fe-desc-campo.leido", "color"), ecoFondo: g(".fe-desc-campo.leido", "background-color"),
       /* MARCADO Y SIN MARCAR, LA MISMA PIEZA EN SUS DOS ESTADOS. «¿Rota?»
          se quedó con un solo botón —no marcarlo es decir que no— así que
          el estado apagado se mide ahí, que es como se ve casi siempre, y
@@ -350,12 +380,13 @@ for (const t of TEMAS) {
          Medir un botón «No» que ya no existe daba contraste 1: no medía
          nada y salía en rojo por la razón equivocada. */
       siOnTxt: g(".fe-marca.on", "color"), siOnFondo: g(".fe-marca.on", "background-color"),
+      rotaOnTxt: g(".fe-si-no button.on", "color"), rotaOnFondo: g(".fe-si-no button.on", "background-color"),
       siOffTxt: g(".fe-si-no button:not(.on)", "color"), siOffFondo: g(".fe-si-no button:not(.on)", "background-color"),
       dmaTxt: g(".fe-dma input", "color"), dmaFondo: g(".fe-dma input", "background-color"),
       /* EL TOTAL VIVO. Es la cifra que se mira de reojo mientras se
          teclea —548 cajas— y descansa en el panel tintado, que es
          justo donde --fe-gris se cae por debajo de la norma. */
-      totTxt: g(".fe-total b", "color"), totFondo: fondoReal(".fe-total b"),
+      totTxt: g(".fe-total-caja b", "color"), totFondo: fondoReal(".fe-total-caja b"),
       urgTxt: g(".fe-cifras dd.falta", "color"), urgFondo: fondoReal(".fe-cifras dd.falta"),
     };
   });
@@ -403,6 +434,7 @@ for (const t of TEMAS) {
     eco: razon(m.ecoTxt, m.ecoFondo),
     siOn: razon(m.siOnTxt, m.siOnFondo),
     siOff: razon(m.siOffTxt, m.siOffFondo),
+    rotaOn: razon(m.rotaOnTxt, m.rotaOnFondo),
     fecha: razon(m.dmaTxt, m.dmaFondo),
     total: razon(m.totTxt, m.totFondo),
     unLado: razon(unlado.txt, unlado.fondo),
@@ -464,10 +496,10 @@ for (const [ancho, etiqueta] of ANCHOS) {
     return {
       salen: [...new Set(salen)], lado: d.scrollWidth - d.clientWidth,
       codigo: alto(".fe-cod-dos input"),
-      cifra: alto(".fe-dos input"),
+      cifra: alto(".fe-cuanto-campo input"),
       fechaAlto: alto(".fe-dma input"),
       toque: Math.min(alto(".fe-si-no button"), alto(".fe-segmento button"),
-                      alto(".fe-dma input"), alto(".fe-dos input"), alto(".fe-nota input"),
+                      alto(".fe-dma input"), alto(".fe-cuanto-campo input"), alto(".fe-nota input"),
                       alto(".fe-marca"), alto(".fe-estado select"),
                       alto(".fe-anotar .btn.grande"), alto(".fe-tres select, .fe-tres .bs-campo")),
       /* AVERÍA Y PNC, DEL MISMO TAMAÑO — lo pidió así, y el motivo se ve
@@ -510,10 +542,10 @@ for (const [ancho, etiqueta] of ANCHOS) {
     fallas.push(`${etiqueta}: las casillas de la fecha miden ${m.fechaAlto} px de alto ` +
                 "(mínimo 56: son las únicas que se teclean SIN MIRARLAS, porque el cursor " +
                 "entra solo y los dedos van a donde estaba el dedo anterior)");
-  if (m.marcas.length !== 2)
-    fallas.push(`${etiqueta}: hay ${m.marcas.length} cuadros de marca y son dos, Avería y PNC`);
-  else if (m.marcas[0][0] !== m.marcas[1][0] || m.marcas[0][1] !== m.marcas[1][1])
-    fallas.push(`${etiqueta}: Avería mide ${m.marcas[0].join("×")} y PNC ${m.marcas[1].join("×")}, `
+  if (m.marcas.length !== 3)
+    fallas.push(`${etiqueta}: hay ${m.marcas.length} cuadros de marca y son tres, Ninguna, Avería y PNC`);
+  else if (new Set(m.marcas.map((x) => x.join("×"))).size > 1)
+    fallas.push(`${etiqueta}: las marcas miden ${m.marcas.map((x) => x.join("×")).join(" / ")}, `
               + "y se pidieron del mismo tamaño");
   if (m.toque < 48)
     fallas.push(`${etiqueta}: algo que se toca mide ${m.toque} px de alto (mínimo 48: se usa ` +
@@ -678,7 +710,7 @@ const env = await pag.evaluate((BARRA) => {
 }, BARRA);
 
 console.log(`\nfecha: ${env.botones} botón(es) de escoger · rótulo «${env.rotulo ?? "NO HAY"}»`);
-console.log(`los cuatro momentos: ${env.bloques.join(" · ") || "NO ESTÁN"}`);
+console.log(`los momentos: ${env.bloques.join(" · ") || "NO ESTÁN"}`);
 console.log(`enviar arriba: ${env.falta ? "NO ESTÁ" : `alto ${env.alto} px · a ${env.desde} px del principio del borrador · ${env.cabe ? "cabe sin bajar" : "HAY QUE BAJAR"}`}`);
 
 if (env.botones > 0)
@@ -702,7 +734,14 @@ if (!env.rotulo)
    pantalla — si se separan, lo que se mide aquí deja de decir nada de
    lo que se usa allá. */
 {
-  const debe = ["Dónde", "Qué", "Cuánto", "Cómo está"];
+  /* Y LO RARO, PLEGADO AL FINAL: «Datos adicionales» es un <details>
+     —estado, rota, avería, PNC, nota— que va DESPUÉS de «Cuánto». */
+  const debe = ["Dónde", "Qué", "Cuánto"];
+  const iCuanto = tsx.indexOf('fe-bloque-cab">Cuánto<'), iMas = tsx.indexOf('<details className="fe-mas"');
+  if (!(iCuanto > 0 && iMas > iCuanto && /<b>Datos adicionales<\/b>/.test(tsx)))
+    fallas.push("«Datos adicionales» no va plegado después de «Cuánto»: lo raro tiene que ir de último");
+  if (/fe-bloque-cab">Cómo está</.test(tsx))
+    fallas.push("volvió el bloque «Cómo está» abierto: estado, rota y marcas van dentro de «Datos adicionales»");
   const enPantalla = [...tsx.matchAll(/className="fe-bloque-cab">([^<]+)</g)].map((m) => m[1].trim());
   if (enPantalla.join("|") !== debe.join("|"))
     fallas.push(`los momentos del renglón salen [${enPantalla.join(", ") || "ninguno"}] y ` +
@@ -746,13 +785,10 @@ const orden = [
      —«Se fabricó» casi siempre, «Vence» al corregir uno de antes— y un
      `indexOf(">Vence<")` diría que falta el paso entero. Se busca por el
      bloque, que es lo que de verdad ocupa ese lugar en el orden. */
-  ["La fecha", 'className={"fe-fecha"'],
-  ["Estibas completas", ">Estibas completas<"], ["Saldo", ">Saldo · cajas sueltas<"],
-  /* EL ESTADO DEL ENVASE SUBIÓ AL BLOQUE «CUÁNTO», debajo de las
-     cantidades. Lo pidió Cristian y tiene sentido: dice QUÉ se contó
-     —envase bueno, sucio, roto— y separa la estiba dentro del mismo
-     módulo; al final, quien anotaba ya había dado el renglón por
-     terminado en el total. */
+  ["La fecha", 'className={"fe-fecha fe-que-vence"'],
+  ["Estibas completas", ">Estibas completas<"], ["Saldo", ">Saldo · cajas<"],
+  /* ESTADO, ROTA, MARCA Y NOTA: plegados en «Datos adicionales», de
+     último — es lo raro (avería 2 de 152 filas, PNC 1). */
   ["Estado del envase", ">Estado del envase<"],
   ["¿Rota?", ">¿Rota?<"],
   ["Avería", ">Avería<"], ["PNC", ">PNC<"],
@@ -763,6 +799,14 @@ for (const [r, aguja] of orden) {
   const i = limpio.indexOf(aguja, desde);
   if (i < 0) { fallas.push(`falta el campo «${r}» en el renglón, o quedó fuera de orden`); break }
   desde = i;
+}
+/* LA MARCA SON TRES CUADROS EN LA PANTALLA DE VERDAD: Ninguna, Avería y
+   PNC. El armazón los pinta, pero el armazón lo escribo yo: esto ata la
+   cuenta al componente. */
+{
+  const marcas = [...limpio.matchAll(/className=\{"fe-marca"[\s\S]*?\)\)\}>([^<]+)<\/button>/g)].map((m) => m[1]);
+  if (marcas.join("|") !== "Ninguna|Avería|PNC")
+    fallas.push(`los cuadros de marca de la pantalla son [${marcas.join(", ")}] y son tres: Ninguna, Avería y PNC`);
 }
 /* Y el borrador tiene que poder corregirse y enviarse. */
 if (!/conteo_fefo_editar/.test(limpio))
@@ -1470,6 +1514,6 @@ await navegador.close();
 
 console.log("");
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
-console.log("✓ Plantilla de conteo: los cuatro momentos en el orden de la hoja, el " +
+console.log("✓ Plantilla de conteo: Dónde · Qué · Cuánto en el orden de la hoja y lo raro plegado en «Datos adicionales», el " +
             "vencimiento con sus días para salir, el cursor pasa solo de DD a MM a AA, " +
             "el total se arma a la vista y «Anotar» no se va de la pantalla.");

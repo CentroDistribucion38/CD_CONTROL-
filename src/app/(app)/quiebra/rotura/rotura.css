@@ -1488,28 +1488,163 @@
   .rl-inf-rel p { text-align: left }
 }
 
-/* ---------- EL PUESTO DEL ENVASE EN LA LISTA ----------
-   «Que yo ubique primero lo que más van a usar.» El número es el puesto
-   en la lista para escoger al registrar; las flechas lo mueven de a uno
-   y «1º» lo sube de una. Botones y no arrastrar: se tocan con el dedo en
-   el celular, y arrastrar dentro de una página que se desplaza no. */
-.rl-orden { display: flex; align-items: center; gap: 4px; flex: none }
-.rl-item-nom b .rl-orden-n { margin-right: 8px; vertical-align: 1px }
-.rl-orden-n {
-  min-width: 24px; height: 24px; padding: 0 6px; display: inline-grid; place-items: center; border-radius: 12px;
-  background: var(--rl-papel); color: var(--rl-tinta); border: 1.5px solid var(--rl-tinta);
-  font: normal 800 12px var(--rl-titulo); font-variant-numeric: tabular-nums;
+/* ---------- ARRASTRAR EL ENVASE A SU PUESTO ----------
+   «Que el maestro sea así, que yo lo pueda mover.» El asa ⋮⋮ a la
+   izquierda de cada renglón, como en el maestro de Traspasos: se toma
+   con el dedo o el ratón y se arrastra. El orden es el de la lista para
+   escoger al registrar. */
+.rl-item-cab.con-asa { padding-left: 8px }
+.rl-asa {
+  flex: none; width: 32px; min-height: 44px; display: grid; place-items: center;
+  background: none; border: 0; padding: 0; cursor: grab; opacity: .45;
+  /* Sin esto, arrastrar en el celular hace rodar la página en vez de
+     mover el renglón. */
+  touch-action: none;
 }
-.rl-orden button {
-  width: 36px; height: 36px; display: inline-grid; place-items: center; cursor: pointer;
-  border: 1.5px solid var(--rl-linea); border-radius: 3px; background: var(--rl-papel);
-  font: 700 13px var(--rl-texto); color: var(--rl-tinta);
-}
-.rl-orden button:hover:not(:disabled) { border-color: var(--rl-tinta) }
-.rl-orden button:disabled { opacity: .35; cursor: default }
-.rl-orden .rl-orden-1 { width: 42px }
+.rl-asa:hover { opacity: .95 }
+.rl-asa svg { width: 16px; height: 16px; stroke: var(--rl-gris); stroke-width: 2.8; stroke-linecap: round; fill: none }
+.rl-item.arrastrando { background: color-mix(in srgb, var(--rl-ojo) 16%, var(--rl-papel)); box-shadow: inset 3px 0 0 var(--rl-ojo) }
+.rl-item.arrastrando .rl-asa { cursor: grabbing; opacity: 1 }
 .rl-cab-m .rl-por-uso { margin-top: 10px }
-@media (max-width: 700px) {
-  .rl-orden button { width: 44px; height: 44px }
-  .rl-orden .rl-orden-1 { width: 48px }
+
+/* =====================================================================
+   ROTURA DE LÍNEA EN EL CELULAR
+   ---------------------------------------------------------------------
+   «Algo así para el celular»: arriba el día y lo que va roto; luego los
+   pasos numerados —1 línea, 2 turno, 3 envase, 4 máquina, 5 kilos— y
+   la barra oscura pegada abajo con el botón. En el celular se llena UNA
+   máquina a la vez; en el PC sigue la rejilla completa. Las dos
+   escriben en los mismos kilos.
+   ===================================================================== */
+.rl-n, .rl-cel, .rl-pie-cuenta, .rl-mas-dia-btn { display: none }
+/* EL PIE Y EL RÓTULO DEL PANEL ROJO se llaman como los de la rejilla
+   (.rl-pie, .rl-rot) y se llevaban su relleno, su raya de arriba y su
+   gris —gris sobre el acento—. Aquí se les devuelve lo suyo. */
+.rl-panel .rl-pie { display: block; padding: 0; border: 0 }
+.rl-panel .rl-rot { color: inherit; margin: 0; text-transform: none }
+.rl-pie-reg .rl-pie-cuenta { margin: 0 }
+
+@media (max-width: 760px) {
+  /* ---- El día: flechas a los lados, la fecha en el medio ---- */
+  .rl-dias { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px auto; gap: 6px }
+  .rl-dias > button:not(.rl-hoy) { width: 44px; height: 44px }
+  .rl-fecha { justify-content: center; min-height: 44px; min-width: 0 }
+  .rl-fecha span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .rl-fecha { padding: 0 8px; font-size: 13px }
+  .rl-fecha svg { display: none }
+  .rl-hoy { min-height: 44px }
+
+  /* ---- SIN CABEZA EN EL CELULAR ----
+     «Que no se vea lo que no aporte: entre más espacio, mejor.» El
+     título ya lo dice la barra de la app, y lo roto del día —el panel
+     rojo— no se necesita para anotar: las pesadas del día van en la
+     barra de abajo. En tableta y PC la cabeza sigue igual. */
+  .rl-rejilla ~ * .rl-cabeza, .rl > .rl-cabeza { display: none }
+  /* ---- La cabeza: sin el párrafo, y lo roto en una franja ---- */
+  .rl-cabeza { gap: 10px; margin-bottom: 12px }
+  .rl-cabeza > div:first-child { flex-basis: 100% }
+  .rl-cabeza h1 { font-size: 22px; margin-top: 4px }
+  .rl-sub { display: none }
+  .rl-panel {
+    flex: 1 1 100%; min-width: 0; padding: 12px 16px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 12px;
+  }
+  .rl-panel .rl-rot { grid-column: 1 }
+  .rl-panel .rl-num { grid-column: 1; margin: 4px 0 0; font-size: 34px }
+  .rl-panel .rl-pie { grid-column: 2; grid-row: 1 / span 2; text-align: right; line-height: 1.45; max-width: 16ch }
+  .rl-corte { display: none }
+
+  /* ---- Los pasos, uno debajo del otro y a todo el ancho ---- */
+  .rl-escoger { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 14px }
+  .rl-rot { display: flex; align-items: center; gap: 7px }
+  .rl-n {
+    display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none;
+    border-radius: 50%; background: var(--rl-grupo); color: #fff;
+    font: 800 10px/1 var(--rl-titulo); font-style: normal; letter-spacing: 0;
+  }
+  .rl-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100% }
+  .rl-seg button { min-width: 0; min-height: 48px; font-size: 16px }
+  .rl-seg.turnos button { min-height: 52px }
+  .rl-disparo { min-height: 52px }
+
+  /* ---- Máquina y kilos ---- */
+  .rl-cel { display: grid; gap: 14px; padding: 0 14px 14px }
+  .rl-cel-maq {
+    width: 100%; min-height: 52px; padding: 0 12px; font: 600 15px var(--rl-texto);
+    color: var(--rl-tinta); background: var(--rl-fondo);
+    border: 1.5px solid var(--rl-linea); border-radius: 3px;
+  }
+  .rl-kilos {
+    display: flex; align-items: center; min-height: 64px;
+    background: var(--rl-papel); border: 2px solid var(--rl-linea); border-radius: 3px;
+  }
+  .rl-kilos:focus-within { border-color: var(--rl-ojo) }
+  .rl-kilos input {
+    flex: 1; min-width: 0; height: 60px; border: 0; background: none; padding: 0 14px;
+    font: 900 30px var(--rl-titulo); color: var(--rl-tinta); font-variant-numeric: tabular-nums;
+  }
+  .rl-kilos input:focus { outline: none }
+  .rl-kilos span { padding: 0 16px; font: 700 15px var(--rl-titulo); color: var(--rl-gris) }
+  .rl-salen {
+    margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px; border-radius: 3px; background: var(--rl-grupo); color: #fff;
+  }
+  .rl-salen .k { font-size: 12.5px; color: #fff; min-width: 0 }
+  .rl-salen .k b { font-weight: 800 }
+  .rl-salen .k b { color: #fff }
+  .rl-salen .v { font: 900 26px/1 var(--rl-titulo); font-variant-numeric: tabular-nums; white-space: nowrap }
+  .rl-cel-lleva { display: grid; gap: 6px }
+  .rl-cel-lleva .rl-rot { margin: 0 }
+  .rl-cel-lleva button {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    min-height: 44px; padding: 0 12px; text-align: left; cursor: pointer;
+    background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+  }
+  .rl-cel-lleva button.on { border-color: var(--rl-ojo); box-shadow: inset 3px 0 0 var(--rl-ojo) }
+  .rl-cel-lleva b { font: 600 13px var(--rl-texto); color: var(--rl-tinta); min-width: 0; overflow-wrap: anywhere }
+  .rl-cel-lleva button span { font-size: 12.5px; color: var(--rl-gris); white-space: nowrap; font-variant-numeric: tabular-nums }
+  .rl-cel-total { font-size: 13px; color: var(--rl-gris); text-align: right }
+  .rl-cel-total b { color: var(--rl-tinta) }
+  /* La rejilla completa se queda para el PC. */
+  .rl-rejilla .rl-tabla-env { display: none }
+
+  /* «Escoge el envase», como hueco por llenar. */
+  .rl-rejilla .rl-vacio {
+    margin: 0 14px 14px; padding: 18px 14px; border: 2px dashed var(--rl-linea); border-radius: 3px;
+  }
+
+  .rl-tomas { padding: 12px 14px }
+  .rl-toma { flex: 1 1 140px; min-height: 44px }
+
+  /* ---- La barra oscura, pegada abajo ---- */
+  .rl-pie-reg {
+    position: sticky; bottom: 0; z-index: 5;
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px;
+    padding: 10px 14px; background: var(--rl-grupo); border-top: 0;
+    border-radius: 0 0 3px 3px;
+  }
+  .rl-pie-reg .rl-pie-cuenta {
+    display: block; color: #fff;
+    font-size: 11.5px; line-height: 1.2;
+  }
+  .rl-pie-reg .rl-pie-cuenta b { display: block; color: #fff; font: 900 20px/1 var(--rl-titulo) }
+  .rl-pie-reg .rl-btn.si { min-height: 52px; font-size: 14.5px; padding: 0 12px; white-space: nowrap; min-width: 0 }
+  /* APAGADO SIN BAJARLE LA OPACIDAD: con .5 el texto se hundía en la
+     barra (2,8 en pizarra). Se ve hueco —el borde punteado— y se lee. */
+  .rl-pie-reg .rl-btn.si:disabled {
+    opacity: 1; background: var(--rl-grupo); color: #fff;
+    border: 1.5px dashed color-mix(in srgb, #fff 55%, var(--rl-grupo));
+  }
+  .rl-pie-reg .rl-btn:not(.si) { grid-column: 1 / -1 }
+  .rl-pie-reg .rl-nota { display: none }
+
+  /* ---- «Más del día», plegado ---- */
+  .rl-mas-dia-btn {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+    min-height: 52px; padding: 0 16px; cursor: pointer; text-align: left;
+    background: var(--rl-papel); border: 1px solid var(--rl-linea); border-radius: 3px;
+    font: 800 14px var(--rl-titulo); color: var(--rl-tinta);
+  }
+  .rl-mas-dia-btn span { font: 500 12.5px var(--rl-texto); color: var(--rl-gris) }
+  .rl-lado.cerrado > :not(.rl-mas-dia-btn) { display: none }
 }

@@ -214,6 +214,11 @@ export function Contar({
   /* Se puede cerrar: el día que la posición cambió de material entero,
      las tarjetas estorban y hay que escribir de cero. */
   const [verPrevio, setVerPrevio] = useState(true);
+  /* «DATOS ADICIONALES» PLEGADO. Estado del envase, rota, avería, PNC y
+     observación salen en pocos renglones: van a un toque, y el renglón
+     normal —dónde, qué, cuánto— cabe en la pantalla del celular sin
+     rodar. Se abre solo al corregir un renglón que los traía. */
+  const [mas, setMas] = useState(false);
   /* EL BORRADOR SE FILTRA. Ciento cincuenta renglones en una jornada, y
      buscar el 3128 que se anotó hace dos horas rodando la lista es como
      se termina corrigiendo el renglón equivocado. */
@@ -602,6 +607,7 @@ export function Contar({
    */
   function limpiar(dejarSitio = false) {
     setCorrigiendo(null);
+    setMas(false);
     setB((x) => dejarSitio
       ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }
       : VACIO);
@@ -845,6 +851,7 @@ export function Contar({
       rot: r.rotacion, averia: r.averia, pnc: r.pnc,
       estado: r.estado_envase ?? "", nota: r.nota ?? "",
     });
+    setMas(!!(r.rotacion || r.averia || r.pnc || r.estado_envase || r.nota));
     campoCodigo.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -978,9 +985,10 @@ export function Contar({
             escribe «e06» y queda una. */}
         <div className="fe-bloque">
           <p className="fe-bloque-cab">Dónde</p>
-          {/* DOS COLUMNAS Y NO TRES: el lado se bajó a su propio renglón
-              para que quepa como dos botones. */}
-          <div className="fe-tres dos">
+          {/* CALLE · MÓDULO · LADO EN UNA FILA. En el celular calle y
+              módulo van lado a lado y el lado baja a todo el ancho, para
+              que sus dos botones midan media pantalla cada uno. */}
+          <div className="fe-tres dos fe-donde3">
             <label><span>Calle</span>
               <Buscador
                 /* AQUÍ VUELVE EL CURSOR DESPUÉS DE ANOTAR. Es el primer
@@ -1058,8 +1066,6 @@ export function Contar({
                                  lado: posibles.length === 1 ? (posibles[0].lado ?? "") : "" }));
                 }} /></label>
 
-          </div>
-
           {/* EL LADO SE TOCA, NO SE DESPLIEGA.
 
               Era un `<select>` y en un celular eso abre la rueda del
@@ -1095,6 +1101,7 @@ export function Contar({
                 ))}
               </div>
             )}
+          </div>
           </div>
         </div>
 
@@ -1204,95 +1211,64 @@ export function Contar({
               que es la Águila 330, y en gris claro dentro de un campo
               grande se lee como un campo YA LLENO — sobre todo después
               de anotar, que es justo cuando el campo acaba de vaciarse. */}
-          <div className="fe-cod-dos">
+          {/* CÓDIGO · DESCRIPCIÓN · VENCE EN UNA FILA. En el celular el
+              código y el vencimiento van lado a lado —los dos se teclean
+              con el numérico, uno detrás del otro— y la descripción baja
+              a todo el ancho: es la confirmación de lo tecleado, se lee
+              entera y en verde cuando el código existe. */}
+          <div className="fe-cod-dos fe-que3">
             <label><span>Código</span>
               <input ref={campoCodigo} inputMode="numeric" value={b.codigo}
                      placeholder="Teclea el código"
                      onChange={(e) => pon("codigo", e.target.value)}
                      onKeyDown={(e) => saltaCon(e, campoDia)} /></label>
-            <label><span>Descripción</span>
-              <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : "")}>
+            <label className="fe-que-desc"><span>Descripción</span>
+              <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : material ? " leido" : "")}>
                 {!b.codigo ? <i>Teclea el código y te digo qué es.</i>
-                  : material ? material.nombre
+                  : material ? <span className="fe-desc-tx"><span className="fe-tic" aria-hidden>✓</span>{material.nombre}
+                      {material.cajas_por_estiba != null && <em> · {material.cajas_por_estiba} cajas/estiba</em>}</span>
                   : <i>Ese código no está en el maestro.</i>}
               </output></label>
+            <div className={"fe-fecha fe-que-vence" + (esEnvase ? " opcional" : "")}>
+              <div className="fe-que-fecha">
+                <span className="fe-etiq-fecha">Vence</span>
+                {esEnvase && <em className="fe-opcional">sin fecha</em>}
+              </div>
+              <div className="fe-dma">
+                <input ref={campoDia} inputMode="numeric" maxLength={2} placeholder="DD"
+                       aria-label="Día del vencimiento" value={b.dia}
+                       onChange={(e) => tecleaFecha("dia", e.target.value, campoMes)} />
+                <input ref={campoMes} inputMode="numeric" maxLength={2} placeholder="MM"
+                       aria-label="Mes del vencimiento" value={b.mes}
+                       onChange={(e) => tecleaFecha("mes", e.target.value, campoAnio)}
+                       onKeyDown={(e) => atrasFecha(e, b.mes, campoDia)} />
+                {/* Y AL ACABAR EL AÑO, DERECHO A LA CANTIDAD: el renglón se
+                    escribe de corrido desde el código hasta el número. */}
+                <input ref={campoAnio} inputMode="numeric" maxLength={2} placeholder="AA"
+                       aria-label="Año del vencimiento" value={b.anio}
+                       onChange={(e) => tecleaFecha("anio", e.target.value, campoCantidad)}
+                       onKeyDown={(e) => atrasFecha(e, b.anio, campoMes)} />
+              </div>
+            </div>
           </div>
-          {material && (
-            <p className="fe-eco">
-              {material.cajas_por_estiba != null
-                ? <><b>{material.cajas_por_estiba}</b> cajas por estiba</>
-                : <><b className="ojo">sin factor estibado</b> — las estibas darían cero</>}
-              {esEnvase && <> · envase</>}
-            </p>
+          {material && material.cajas_por_estiba == null && (
+            <p className="fe-eco"><b className="ojo">sin factor estibado</b> — las estibas darían cero</p>
           )}
 
-          {/* ---------- LA FECHA ----------
-              SE ANOTA EL VENCIMIENTO, que es lo que trae impreso el
-              cartón y lo que lleva años poniéndose en la hoja. De ahí
-              salen las dos cifras que deciden el FEFO, y salen AQUÍ,
-              frente a la estiba: «sale en 249 días» es lo que dice si
-              esta estiba se queda o se programa.
-
-              EL CURSOR PASA SOLO de DD a MM y de MM a AA. Eran tres
-              toques por fecha y 152 fechas al día: 304 toques que no
-              hacían falta, cada uno con su ocasión de caer en la casilla
-              de al lado.
-
-              LOS 32 ENVASES NO TRAEN FECHA y no la necesitan: el
-              retornable no la lleva impresa, y para ellos la fecha
-              entera es opcional. */}
-          <div className={"fe-fecha" + (esEnvase ? " opcional" : "")}>
-            <div className="fe-que-fecha">
-              <span className="fe-etiq-fecha">Vence</span>
-              {esEnvase && <em className="fe-opcional">el envase no trae fecha</em>}
+          {/* «DÍAS PARA SALIR», DEBAJO Y DE UN RENGLÓN. No es cuándo vence:
+              es cuándo tiene que haber SALIDO para llegarle al cliente con
+              vida útil suficiente. Solo sale cuando hay fecha. */}
+          {dias && (
+            <div className={"fe-dias" + (dias.salir < 0 ? " mal" : dias.salir <= 7 ? " ojo" : "")}>
+              <span className="fe-dias-par">
+                <b>{dias.salir < 0 ? `se pasó por ${-dias.salir}` : dias.salir}</b>
+                <em>{dias.salir < 0 ? "días de su fecha de salida" : "días para salir"}</em>
+              </span>
+              <span className="fe-dias-par suave">
+                <b>{dias.vencer}</b><em>días para vencer</em>
+              </span>
             </div>
-            <div className="fe-dma">
-              <input ref={campoDia} inputMode="numeric" maxLength={2} placeholder="DD"
-                     aria-label="Día del vencimiento" value={b.dia}
-                     onChange={(e) => tecleaFecha("dia", e.target.value, campoMes)} />
-              <input ref={campoMes} inputMode="numeric" maxLength={2} placeholder="MM"
-                     aria-label="Mes del vencimiento" value={b.mes}
-                     onChange={(e) => tecleaFecha("mes", e.target.value, campoAnio)}
-                     onKeyDown={(e) => atrasFecha(e, b.mes, campoDia)} />
-              <input ref={campoAnio} inputMode="numeric" maxLength={2} placeholder="AA"
-                     aria-label="Año del vencimiento" value={b.anio}
-                     /* Y AL ACABAR EL AÑO, DERECHO A LA CANTIDAD. Era el
-                        único corte de la cadena: se terminaba la fecha y
-                        había que levantar la mano a tocar «Estibas
-                        completas», con el teclado ya abierto y la estiba
-                        delante. Ahora el renglón se escribe de corrido
-                        desde el código hasta el número. */
-                     onChange={(e) => tecleaFecha("anio", e.target.value, campoCantidad)}
-                     onKeyDown={(e) => atrasFecha(e, b.anio, campoMes)} />
-            </div>
-
-            {/* «DÍAS PARA SALIR» VA PRIMERO Y GRANDE. No es cuándo vence:
-                es cuándo tiene que haber SALIDO para llegarle al cliente
-                con vida útil suficiente. En negativo ya se pasó, aunque
-                falten meses para el vencimiento — y es justo el caso en
-                que hay que hacer algo con la estiba que se tiene
-                delante. */}
-            <div className={"fe-dias" + (dias == null ? " esperando"
-                            : dias.salir < 0 ? " mal" : dias.salir <= 7 ? " ojo" : "")}>
-              {dias ? (
-                <>
-                  <span className="fe-dias-par">
-                    <b>{dias.salir < 0 ? `se pasó por ${-dias.salir}` : dias.salir}</b>
-                    <em>{dias.salir < 0 ? "días de su fecha de salida" : "días para salir"}</em>
-                  </span>
-                  <span className="fe-dias-par suave">
-                    <b>{dias.vencer}</b><em>días para vencer</em>
-                  </span>
-                </>
-              ) : (
-                <span className="fe-dias-nada">
-                  {material
-                    ? "Teclea el vencimiento y te digo cuántos días le quedan para salir."
-                    : "Primero el código; después la fecha."}
-                </span>
-              )}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* ============ 3 · CUÁNTO — ESTIBAS · SALDO · CAJAS ============
@@ -1308,124 +1284,121 @@ export function Contar({
         <div className="fe-bloque">
           <p className="fe-bloque-cab">Cuánto</p>
 
-          <div className="fe-segmento" role="group" aria-label="Cómo se cuenta">
-            <button type="button" className={b.modo === "estibas" ? "on" : ""}
-                    onClick={() => pon("modo", "estibas")}>Estibas</button>
-            <button type="button" className={b.modo === "cajas" ? "on" : ""}
-                    onClick={() => pon("modo", "cajas")}>Cajas</button>
-          </div>
-
-          {b.modo === "estibas" ? (
-            <div className="fe-dos">
-              <label><span>Estibas completas</span>
-                <input ref={campoCantidad} inputMode="numeric" value={b.estibas}
-                       onChange={(e) => pon("estibas", e.target.value)}
-                       onKeyDown={(e) => saltaCon(e, campoSaldo)} /></label>
-              <label><span>Saldo · cajas sueltas</span>
-                <input ref={campoSaldo} inputMode="numeric" value={b.saldo}
-                       onChange={(e) => pon("saldo", e.target.value)}
-                       onKeyDown={(e) => saltaCon(e)} /></label>
+          {/* QUÉ CUENTAS · ESTIBAS · SALDO · TOTAL EN UNA FILA. En el
+              celular: qué cuentas arriba, estibas y saldo lado a lado, y
+              el total abajo, grande, en la franja oscura. */}
+          <div className={"fe-cuanto4" + (b.modo === "cajas" ? " cajas" : "")}>
+            <div className="fe-cuanto-modo">
+              <span className="fe-cuanto-rot" id="fe-rot-modo">Qué cuentas</span>
+              <div className="fe-segmento" role="group" aria-labelledby="fe-rot-modo">
+                <button type="button" className={b.modo === "estibas" ? "on" : ""}
+                        onClick={() => pon("modo", "estibas")}>Estibas</button>
+                <button type="button" className={b.modo === "cajas" ? "on" : ""}
+                        onClick={() => pon("modo", "cajas")}>Cajas</button>
+              </div>
             </div>
-          ) : (
-            <div className="fe-dos una">
-              <label><span>Cajas</span>
+            {b.modo === "estibas" ? (
+              <>
+                <label className="fe-cuanto-campo"><span>Estibas completas</span>
+                  <input ref={campoCantidad} inputMode="numeric" value={b.estibas}
+                         onChange={(e) => pon("estibas", e.target.value)}
+                         onKeyDown={(e) => saltaCon(e, campoSaldo)} /></label>
+                <label className="fe-cuanto-campo"><span>Saldo · cajas</span>
+                  <input ref={campoSaldo} inputMode="numeric" value={b.saldo}
+                         onChange={(e) => pon("saldo", e.target.value)}
+                         onKeyDown={(e) => saltaCon(e)} /></label>
+              </>
+            ) : (
+              <label className="fe-cuanto-campo ancho"><span>Cajas</span>
                 <input ref={campoCantidad} inputMode="numeric" value={b.cajas}
                        onChange={(e) => pon("cajas", e.target.value)}
                        onKeyDown={(e) => saltaCon(e)} /></label>
+            )}
+            <div className="fe-cuanto-total">
+              <span className="fe-cuanto-rot">Total</span>
+              <output className={"fe-total-caja" + (cuenta?.total == null ? " esperando" : "")}>
+                <b>{cuenta?.total != null ? nf.format(cuenta.total) : "—"}</b><span>cajas</span>
+              </output>
             </div>
+          </div>
+          {/* LA CUENTA A LA VISTA: el resultado solo hay que creérselo, la
+              cuenta —12 × 45 + 8— se mira contra la estiba. */}
+          {cuenta && (
+            <p className="fe-cuenta-linea">
+              {cuenta.total == null
+                ? <><b className="ojo">Sin factor estibado</b> — este material no dice cuántas cajas
+                    lleva una estiba. Cuéntalo por cajas o avísale a quien lleva el maestro.</>
+                : <>{cuenta.formula} = <b>{nf.format(cuenta.total)}</b> cajas</>}
+            </p>
           )}
-
-          {/* EL ESTADO DEL ENVASE VA AQUÍ, debajo de las cantidades y no
-              al final con lo raro. Es lo que dice QUÉ se contó —envase
-              bueno, sucio, roto— y separa la estiba dentro del mismo
-              módulo igual que la avería; puesto al final, quien anotaba
-              ya había dado el renglón por terminado en el total. */}
-          <label className="fe-estado"><span>Estado del envase</span>
-            <select value={b.estado} onChange={(e) => pon("estado", e.target.value)}>
-              <option value="">—</option>
-              {estados.map((e) => <option key={e} value={e}>{e}</option>)}
-            </select></label>
-
-          {/* EL TOTAL, ARMADO A LA VISTA. Se enseña la cuenta entera
-              —12 × 45 + 8— y no solo el 548: el resultado solo hay que
-              creérselo, la cuenta se mira contra la estiba. */}
-          <p className={"fe-total" + (cuenta?.total == null ? " esperando" : "")}>
-            {cuenta == null
-              ? <>Anota cuántas y te digo el total en cajas.</>
-              : cuenta.total == null
-                ? <><b className="ojo">Sin factor estibado</b> — este material no dice cuántas
-                    cajas lleva una estiba, así que las estibas darían cero. Cuéntalo por cajas
-                    o avísale a quien lleva el maestro.</>
-                : <><span className="fe-formula">{cuenta.formula}</span>
-                    <b>{nf.format(cuenta.total)}</b> cajas</>}
-          </p>
         </div>
 
-        {/* ========= 4 · CÓMO ESTÁ — ROT · AVER · PNC · ESTA =========
-            Lo raro va de último y sin abultar: avería salió en 2 filas de
-            152, PNC en 1 y el estado del envase en 10. Darles el peso del
-            código sería cobrarle a los 150 renglones normales el costo de
-            los tres raros.
-
-            «¿ROTA?» ES OTRA COSA Y POR ESO VA APARTE: es rotación —si esa
-            estiba se mueve o está quieta—, no si está rota. Se contesta
-            en las 152 filas de la hoja: 94 sí y 58 no. */}
-        <div className="fe-bloque">
-          <p className="fe-bloque-cab">Cómo está</p>
-
-          {/* UN SOLO BOTÓN, Y NO «SÍ / NO».
-
-              No marcarlo ES decir que no, así que el «No» solo servía
-              para obligar a contestar dos veces la misma cosa: una para
-              decir que no y otra para que el formulario dejara anotar.
-              Y con eso se fue también el aviso que frenaba el renglón.
-
-              LO QUE SE PIERDE, DICHO: ya no se distingue «contestó que
-              no» de «no contestó». Se acepta porque las dos llevan al
-              mismo sitio —la estiba no rota— y porque lo que estaba
-              costando era el toque de más, 152 veces al día. */}
-          <div className="fe-rota">
-            <span>¿Rota?</span>
-            <div className="fe-si-no una">
-              <button type="button" className={b.rot ? "on" : ""}
-                      aria-pressed={!!b.rot}
-                      onClick={() => pon("rot", !b.rot)}>Sí, rota</button>
+        {/* ========= 4 · DATOS ADICIONALES — ESTADO · ROTA · MARCA · NOTA =========
+            Lo raro va plegado: avería salió en 2 filas de 152, PNC en 1 y
+            el estado del envase en 10. Cerrado, dice qué trae puesto —ROTA,
+            AVERÍA…— para que nada quede escondido sin saberlo. */}
+        <details className="fe-mas" open={mas}
+                 onToggle={(e) => setMas((e.currentTarget as HTMLDetailsElement).open)}>
+          <summary>
+            <span className="fe-mas-ico" aria-hidden>
+              <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="17" r="2" /></svg>
+            </span>
+            <span className="fe-mas-tx"><b>Datos adicionales</b>
+              <span>Estado del envase · rota · avería · PNC · observación</span></span>
+            <span className="fe-mas-marcas">
+              {([b.rot && "ROTA", b.averia && "AVERÍA", b.pnc && "PNC", b.estado].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
+            </span>
+            <span className="fe-mas-fl" aria-hidden>▾</span>
+          </summary>
+          <div className="fe-mas-dentro">
+            <div className="fe-mas-dos">
+              <label className="fe-estado"><span>Estado del envase</span>
+                <select value={b.estado} onChange={(e) => pon("estado", e.target.value)}>
+                  <option value="">—</option>
+                  {estados.map((e) => <option key={e} value={e}>{e}</option>)}
+                </select></label>
+              {/* «¿ROTA?» ES ROTACIÓN —si la estiba se mueve o está quieta—,
+                  no si está rota. */}
+              <div className="fe-rota">
+                <span id="fe-rot-rota">¿Rota?</span>
+                <div className="fe-si-no" role="group" aria-labelledby="fe-rot-rota">
+                  <button type="button" className={!b.rot ? "on" : ""} aria-pressed={!b.rot}
+                          onClick={() => pon("rot", false)}>No</button>
+                  <button type="button" className={b.rot ? "on" : ""} aria-pressed={!!b.rot}
+                          onClick={() => pon("rot", true)}>Sí, rota</button>
+                </div>
+              </div>
             </div>
+            {/* LA MARCA, UNA SOLA: ninguna, avería o PNC. En la hoja nunca
+                van las dos juntas. */}
+            <div className="fe-marca-campo">
+              <span id="fe-rot-marca">Marca</span>
+              <div className="fe-marcas tres" role="group" aria-labelledby="fe-rot-marca">
+                <button type="button" className={"fe-marca" + (!b.averia && !b.pnc ? " on" : "")}
+                        aria-pressed={!b.averia && !b.pnc}
+                        onClick={() => setB((x) => ({ ...x, averia: false, pnc: false }))}>Ninguna</button>
+                <button type="button" className={"fe-marca" + (b.averia ? " on" : "")}
+                        aria-pressed={b.averia}
+                        onClick={() => setB((x) => ({ ...x, averia: true, pnc: false }))}>Avería</button>
+                <button type="button" className={"fe-marca" + (b.pnc ? " on" : "")}
+                        aria-pressed={b.pnc}
+                        onClick={() => setB((x) => ({ ...x, averia: false, pnc: true }))}>PNC</button>
+              </div>
+            </div>
+            <label className="fe-nota"><span>Observación</span>
+              <input value={b.nota} placeholder="Opcional — lo que haya que decir de esta estiba"
+                     onChange={(e) => pon("nota", e.target.value)} /></label>
+            {(b.averia || b.pnc || b.estado) && (
+              /* Las marcas separan la estiba dentro del mismo módulo: en el
+                 Excel es la columna «UBICACIÓN COMBINADA». */
+              <p className="fe-combinada">
+                Va a quedar como <b>{[claveEscogida ?? "…",
+                  b.averia ? "AVERIA" : "", b.pnc ? "PNC" : "", b.estado].filter(Boolean).join(" ")}</b>
+                {" "}— separada de lo bueno del mismo módulo.
+              </p>
+            )}
           </div>
-
-          {/* AVERÍA Y PNC, DOS CUADROS DEL MISMO TAMAÑO. Eran dos
-              casillas sueltas en una fila con el estado del envase, y en
-              el celular quedaban de un tamaño cada una: la de PNC medía
-              lo que mide la palabra. Ahora son dos cuadros iguales que
-              se tocan sin apuntar, como el lado y el modo de contar. */}
-          <div className="fe-marcas dos">
-            <button type="button" className={"fe-marca" + (b.averia ? " on" : "")}
-                    aria-pressed={b.averia}
-                    onClick={() => pon("averia", !b.averia)}>Avería</button>
-            <button type="button" className={"fe-marca" + (b.pnc ? " on" : "")}
-                    aria-pressed={b.pnc}
-                    onClick={() => pon("pnc", !b.pnc)}>PNC</button>
-          </div>
-
-          {/* LA OBSERVACIÓN SE GUARDABA Y NO SE PODÍA ESCRIBIR. El
-              renglón la manda desde el primer día —`p_nota`— pero el
-              formulario no tenía dónde teclearla: iba siempre vacía. */}
-          <label className="fe-nota"><span>Observación</span>
-            <input value={b.nota} placeholder="Opcional — lo que haya que decir de esta estiba"
-                   onChange={(e) => pon("nota", e.target.value)} /></label>
-        </div>
-
-        {(b.averia || b.pnc || b.estado) && (
-          /* Las tres marcas separan la estiba dentro del mismo módulo: en
-             el Excel es la columna «UBICACIÓN COMBINADA» y es la que
-             sirve para agrupar. Se muestra armada para que quien anota
-             vea qué va a quedar. */
-          <p className="fe-combinada">
-            Va a quedar como <b>{[claveEscogida ?? "…",
-              b.averia ? "AVERIA" : "", b.pnc ? "PNC" : "", b.estado].filter(Boolean).join(" ")}</b>
-            {" "}— separada de lo bueno del mismo módulo.
-          </p>
-        )}
+        </details>
 
         {/* ---------- LA BARRA QUE NO SE VA ----------
             «Anotar renglón» iba al final del formulario, y con cuatro

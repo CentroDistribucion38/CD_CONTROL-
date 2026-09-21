@@ -4,10 +4,10 @@
    «Que yo ubique primero lo que más van a usar, para que en la lista
    desplegable se vea de esa manera.» Se monta Maestro.tsx con una base
    de mentiras que anota cada upsert:
-   1. cada envase dice su puesto; ▲ ▼ y «1º» lo mueven;
+   1. cada envase tiene su asa ⋮⋮ y se arrastra con el dedo o el ratón;
    2. se guarda la lista renumerada 1, 2, 3… y SOLO los que cambiaron de
       puesto, con todos sus datos (no se pierde el peso ni el apagado);
-   3. el primero no sube y el último no baja;
+   3. tocar el asa sin mover no escribe nada;
    4. «Ordenar por lo más usado» pone primero el de más registros;
    5. la lista para escoger al registrar (Rejilla › Escoger) sale en el
       orden del maestro: lo mismo que se ordena aquí;
@@ -48,30 +48,42 @@ const monta = async (ancho, tema) => {
   await pg.setViewportSize({ width: ancho, height: 900 });
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}${glob}${shell}${css}</style></head>
     <body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}><div class="sh-marco sin-riel"><main class="sh-main"><div class="rl" id="r"></div></main></div></div><script>${js}</script></body></html>`);
-  await pg.waitForSelector(".rl-orden");
+  await pg.waitForSelector(".rl-asa");
   await pg.evaluate(() => { window.escritos = [] });
 };
 const escrito = async () => (await pg.evaluate(() => window.escritos)).at(-1);
 
 await monta(1200);
-const n = await pg.$$eval(".rl-orden-n", (t) => t.map((x) => x.textContent));
-ok(n.join(",") === "1,2,3,4", `cada envase no dice su puesto: ${n}`);
-ok(await pg.isDisabled('button[aria-label="Subir ENVASE MARRON 330NR CERVEZAS"]') && await pg.isDisabled('button[aria-label="Bajar Envase Marron 330R"]'),
-   "el primero sube o el último baja");
-
-await pg.click('button[aria-label="Subir Envase Costeñita 175R"]');
+ok((await pg.$$(".rl-asa")).length === 4, "no hay un asa ⋮⋮ por envase");
+/* ARRASTRAR: se toma el asa del tercero y se suelta encima del primero. */
+const arrastra = async (de, a) => {
+  const h = await pg.$$(".rl-asa"), filas = await pg.$$(".rl-caja-m .rl-item");
+  const bh = await h[de].boundingBox(), bf = await filas[a].boundingBox();
+  await pg.mouse.move(bh.x + bh.width / 2, bh.y + bh.height / 2);
+  await pg.mouse.down();
+  await pg.mouse.move(bh.x + bh.width / 2, bf.y + 4, { steps: 8 });
+  await pg.mouse.up();
+  await pg.waitForTimeout(100);
+};
+await arrastra(2, 0);
 let e = await escrito();
-ok(e?.t === "rotlinea_envases", "subir no guarda en los envases");
-ok(e && JSON.stringify(e.filas.map((f) => [f.material, f.orden])) === JSON.stringify([["3500005", 2], ["412644", 3]]),
-   `subir no guarda solo los dos que cambian de puesto con su número nuevo: ${JSON.stringify(e?.filas)}`);
+ok(e?.t === "rotlinea_envases", "arrastrar no guarda en los envases");
+ok(e && JSON.stringify(e.filas.map((f) => [f.material, f.orden])) === JSON.stringify([["3500005", 1], ["400733", 2], ["412644", 3]]),
+   `arrastrar al primero no guarda la lista renumerada, solo los que cambian: ${JSON.stringify(e?.filas)}`);
 ok(e && e.filas.every((f) => f.peso_kg === 0.21 && f.descripcion && f.activo === true), "al mover se pierde el peso, la descripción o el prendido");
+const nombres = await pg.$$eval(".rl-caja-m .rl-item-nom b", (t) => t.map((x) => x.textContent));
+ok(nombres[0] === "Envase Costeñita 175R", `la lista no se ve en el orden nuevo: ${nombres}`);
 
-await pg.evaluate(() => { window.escritos = [] });
-await pg.click('button[aria-label="Poner Envase Marron 330R de primero"]');
+await monta(1200);
+await pg.click(".rl-asa");
+await pg.waitForTimeout(100);
+ok(!(await escrito()), "tocar el asa sin mover escribe en la base");
+
+await monta(1200);
+await arrastra(3, 0);
 e = await escrito();
-ok(e && JSON.stringify(e.filas.map((f) => [f.material, f.orden])) === JSON.stringify([["3500162", 1], ["400733", 2], ["412644", 3], ["3500005", 4]]),
-   `«1º» no lo sube de primero y corre a los demás: ${JSON.stringify(e?.filas)}`);
-ok(e && e.filas.find((f) => f.material === "3500162").activo === false, "mover uno apagado lo prende");
+ok(e && e.filas.find((f) => f.material === "3500162")?.orden === 1 && e.filas.find((f) => f.material === "3500162").activo === false,
+   `mover uno apagado lo prende o no lo sube: ${JSON.stringify(e?.filas)}`);
 
 await pg.evaluate(() => { window.escritos = [] });
 await pg.click(".rl-por-uso");
@@ -91,10 +103,12 @@ for (const ancho of [390, 360]) {
   await monta(ancho);
   const g = await pg.evaluate(() => ({
     lado: document.documentElement.scrollWidth - innerWidth,
-    alto: Math.min(...[...document.querySelectorAll(".rl-orden button")].map((b) => b.getBoundingClientRect().height)),
+    alto: Math.min(...[...document.querySelectorAll(".rl-asa")].map((b) => b.getBoundingClientRect().height)),
+    tocar: getComputedStyle(document.querySelector(".rl-asa")).touchAction,
   }));
   ok(g.lado <= 0, `${ancho} px: la página se sale ${g.lado} px`);
-  ok(g.alto >= 44, `${ancho} px: las flechas miden ${g.alto} px`);
+  ok(g.alto >= 44, `${ancho} px: el asa mide ${g.alto} px`);
+  ok(g.tocar === "none", `${ancho} px: arrastrar con el dedo haría rodar la página`);
 }
 const lum = (c) => { const v = (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number).map((x) => { x /= 255; return x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4 }); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2] };
 const razon = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05) };
@@ -103,7 +117,7 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
   const p = await pg.evaluate(() => {
     const fondo = (e) => { for (let q = e; q; q = q.parentElement) { const c = getComputedStyle(q).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c } return "rgb(255, 255, 255)" };
     const par = (s) => { const e = document.querySelector(s); return [getComputedStyle(e).color, fondo(e)] };
-    return { "número": par(".rl-orden-n"), "flecha": par(".rl-orden button:not(:disabled)"), "ordenar": par(".rl-por-uso") };
+    return { "ordenar": par(".rl-por-uso"), "nombre": par(".rl-item-nom b") };
   });
   for (const [k, [a, b]] of Object.entries(p)) ok(razon(a, b) >= 4.5, `tema ${t ?? "oficial"}: «${k}» contrasta ${razon(a, b).toFixed(2)}`);
 }
@@ -113,4 +127,4 @@ await nav.close();
 
 console.log("");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Orden de envases: ▲ ▼ y 1º guardan la lista renumerada sin tocar lo demás, «por lo más usado» ordena, y la lista para escoger sigue ese orden.");
+console.log("✓ Orden de envases: arrastrar desde ⋮⋮ guarda la lista renumerada sin tocar lo demás, «por lo más usado» ordena, y la lista para escoger sigue ese orden.");

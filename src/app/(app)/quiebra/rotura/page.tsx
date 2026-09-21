@@ -5,6 +5,7 @@ import { turnoDeAhora, letraDe, horarioDe } from "@/modulos/rotlinea/turnos";
 import "./rotura.css";
 import { Dias } from "./Dias";
 import { Rejilla } from "./Rejilla";
+import { MasDelDia } from "./MasDelDia";
 import { HojaFirma } from "./HojaFirma";
 import { usuarioActual } from "@/lib/sesion";
 import { createClient } from "@/lib/supabase/server";
@@ -111,7 +112,7 @@ export default async function RoturaLineaPage({ searchParams }: {
                  pesadas={dia.pesadas} firmas={dia.firmas} turnoAhora={turnoAhora}
                  puedeEditar={puedeEditar} esAdmin={permisos.rol === "admin"} />
 
-        <aside className="rl-lado">
+        <MasDelDia pendientes={pendientes.length}>
           <div className="rl-caja">
             <div className="rl-cab"><h2>El día, por línea</h2></div>
             {porLinea.size === 0 ? (
@@ -160,7 +161,7 @@ export default async function RoturaLineaPage({ searchParams }: {
               <Link href="/quiebra/tablero">Volver al tablero</Link>
             </p>
           </div>
-        </aside>
+        </MasDelDia>
       </div>
 
       {/* LA HOJA PARA FIRMAR, DEBAJO DE TODO: es el último paso del

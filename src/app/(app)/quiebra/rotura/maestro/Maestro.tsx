@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
@@ -75,12 +75,49 @@ export function Maestro({ lineas, maquinas, envases, skus, uso, puedeEditar }: {
     avisar.bien(quees);
     router.refresh();
   }
-  const mover = (i: number, a: number) => {
-    const n = [...envases];
-    const [x] = n.splice(i, 1);
-    n.splice(Math.max(0, Math.min(n.length, a)), 0, x);
-    ordenarEnvases(n, a === 0 ? `${x.descripcion}: ahora sale primero en la lista.` : `${x.descripcion}: queda de ${a + 1}.`);
-  };
+  /* ARRASTRAR CON EL DEDO O CON EL RATÓN, desde el asa ⋮⋮ de cada
+     renglón —igual que el maestro de Traspasos—. Con eventos de puntero
+     y no con la API de arrastrar del navegador, que en el celular no
+     existe. El salto pasa cuando el dedo cruza la mitad del renglón. */
+  const [ordenEnv, setOrdenEnv] = useState<string[]>(() => envases.map((e) => e.material));
+  const llavesEnv = envases.map((e) => e.material).join("|");
+  useEffect(() => { setOrdenEnv(envases.map((e) => e.material)) },
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            [llavesEnv]);
+  const [moviendo, setMoviendo] = useState<string | null>(null);
+  const cajaEnv = useRef<HTMLDivElement>(null);
+  const envVistos = ordenEnv.map((m) => envases.find((e) => e.material === m)).filter(Boolean) as Envase[];
+  function tomar(e: React.PointerEvent, material: string) {
+    if (!puedeEditar || mandando) return;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    setMoviendo(material);
+  }
+  function arrastrar(e: React.PointerEvent) {
+    if (!moviendo || !cajaEnv.current) return;
+    const filas = Array.from(cajaEnv.current.querySelectorAll<HTMLElement>(":scope > .rl-item"));
+    let destino = filas.length - 1;
+    for (let i = 0; i < filas.length; i++) {
+      const r = filas[i].getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) { destino = i; break }
+    }
+    const desde = ordenEnv.indexOf(moviendo);
+    if (desde < 0 || desde === destino) return;
+    const sig = ordenEnv.slice();
+    sig.splice(destino, 0, sig.splice(desde, 1)[0]);
+    setOrdenEnv(sig);
+  }
+  function soltar() {
+    if (!moviendo) return;
+    const quien = envases.find((e) => e.material === moviendo);
+    setMoviendo(null);
+    /* Solo se guarda si de verdad cambió: tocar el asa sin mover no
+       escribe en la base. */
+    if (ordenEnv.join("|") !== llavesEnv) {
+      const puesto = ordenEnv.indexOf(quien?.material ?? "") + 1;
+      ordenarEnvases(envVistos, `${quien?.descripcion ?? "Envase"}: queda de ${puesto} en la lista.`);
+    }
+  }
+
   /* Por lo que más se usa: el número de registros que ya se ve en cada
      renglón. Un toque, y después se ajusta a mano lo que haga falta. */
   const porUso = () => ordenarEnvases(
@@ -107,7 +144,7 @@ export function Maestro({ lineas, maquinas, envases, skus, uso, puedeEditar }: {
           <p>
             Lo que se rompe. El <b>peso por botella</b> es lo que convierte los kilos de la
             báscula en unidades. <b>El orden de esta lista es el de la lista para escoger</b> al
-            registrar: sube lo que más se usa.
+            registrar: arrastra desde ⋮⋮ lo que más se usa hacia arriba.
           </p>
           {puedeEditar && envases.length > 1 && (
             <button type="button" className="rl-btn chico rl-por-uso" disabled={mandando} onClick={porUso}>
@@ -137,12 +174,12 @@ export function Maestro({ lineas, maquinas, envases, skus, uso, puedeEditar }: {
              }, "Envase")} />
         )}
 
-        {envases.map((e, i) => {
+        <div ref={cajaEnv} onPointerMove={arrastrar} onPointerUp={soltar} onPointerCancel={soltar}>
+        {envVistos.map((e) => {
           const u = usoDe("envase", e.material);
           return (
             <Renglon key={e.material} activo={e.activo} mandando={mandando}
-                     puesto={{ n: i + 1, primero: i === 0, ultimo: i === envases.length - 1,
-                               subir: () => mover(i, i - 1), bajar: () => mover(i, i + 1), arriba: () => mover(i, 0) }}
+                     asa={(ev) => tomar(ev, e.material)} arrastrando={moviendo === e.material}
                      puedeEditar={puedeEditar}
                      clave={e.material} titulo={e.descripcion}
                      sub={<><b>{Number(e.peso_kg)} kg</b> por botella</>}
@@ -161,6 +198,7 @@ export function Maestro({ lineas, maquinas, envases, skus, uso, puedeEditar }: {
                      alBorrar={() => borrar("rotlinea_envases", "material", e.material, e.descripcion)} />
           );
         })}
+        </div>
       </section>
 
       {/* ---------- MÁQUINAS ---------- */}
@@ -311,11 +349,12 @@ type Campo = {
 };
 
 function Renglon({ clave, titulo, sub, activo, uso, usoDice = "registros",
-                   campos, puedeEditar, mandando, sinBorrar, puesto,
+                   campos, puedeEditar, mandando, sinBorrar, asa, arrastrando,
                    alGuardar, alPrender, alBorrar }: {
   clave: string; titulo: string; sub: React.ReactNode; activo: boolean;
-  /** Mover en la lista: puesto, y subir, bajar o llevar al primero. */
-  puesto?: { n: number; primero: boolean; ultimo: boolean; subir: () => void; bajar: () => void; arriba: () => void };
+  /** El asa ⋮⋮ para arrastrar el renglón y cambiar su puesto en la lista. */
+  asa?: (e: React.PointerEvent) => void;
+  arrastrando?: boolean;
   uso?: { registros: number; unidades: number; ultima: string } | undefined;
   usoDice?: string;
   campos: Campo[];
@@ -333,10 +372,16 @@ function Renglon({ clave, titulo, sub, activo, uso, usoDice = "registros",
   const sePuedeBorrar = puedeEditar && !sinBorrar && !usado;
 
   return (
-    <div className={"rl-item" + (activo ? "" : " apagado")}>
-      <div className="rl-item-cab">
+    <div className={"rl-item" + (activo ? "" : " apagado") + (arrastrando ? " arrastrando" : "")}>
+      <div className={"rl-item-cab" + (asa ? " con-asa" : "")}>
+        {asa && (puedeEditar ? (
+          <button type="button" className="rl-asa" onPointerDown={asa}
+                  aria-label={`Mover ${titulo}`} title="Arrastrar para cambiar el orden">
+            <svg viewBox="0 0 24 24" aria-hidden><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01" /></svg>
+          </button>
+        ) : <span className="rl-asa" />)}
         <div className="rl-item-nom">
-          <b>{puesto && <em className="rl-orden-n" title="Puesto en la lista para escoger">{puesto.n}</em>}{titulo}</b>
+          <b>{titulo}</b>
           <span>{clave} · {sub}</span>
         </div>
 
@@ -359,16 +404,6 @@ function Renglon({ clave, titulo, sub, activo, uso, usoDice = "registros",
               {abierto ? "Cerrar" : "Editar"}
             </button>
           </>
-        )}
-        {puesto && puedeEditar && (
-          <div className="rl-orden" role="group" aria-label={`Puesto de ${titulo} en la lista`}>
-            <button type="button" disabled={mandando || puesto.primero} onClick={puesto.subir}
-                    aria-label={`Subir ${titulo}`} title="Subir uno">▲</button>
-            <button type="button" disabled={mandando || puesto.ultimo} onClick={puesto.bajar}
-                    aria-label={`Bajar ${titulo}`} title="Bajar uno">▼</button>
-            <button type="button" className="rl-orden-1" disabled={mandando || puesto.primero} onClick={puesto.arriba}
-                    aria-label={`Poner ${titulo} de primero`} title="Poner de primero">1º</button>
-          </div>
         )}
       </div>
 

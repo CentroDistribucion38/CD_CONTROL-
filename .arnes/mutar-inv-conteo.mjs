@@ -76,15 +76,15 @@ probar("las casillas de la fecha miden 56",
   "las casillas de la fecha miden 48 px de alto");
 
 probar("la casilla de las estibas mide 56",
-  [[CSS, `.fe .fe-dos input {
-  min-height: 56px;`, `.fe .fe-dos input {
+  [[CSS, `.fe .fe-cuanto-campo input {
+  min-height: 56px;`, `.fe .fe-cuanto-campo input {
   min-height: 44px;`]],
   "la casilla de las estibas mide 44 px");
 
 /* ---------- SE LEE ---------- */
-probar("el total vivo se lee sobre el panel",
-  [[CSS, "  font-variant-numeric: tabular-nums; color: var(--fe-tinta);\n}\n.fe .fe-total b.ojo",
-         "  font-variant-numeric: tabular-nums; color: #C9CDD2;\n}\n.fe .fe-total b.ojo"]],
+probar("el total vivo se lee sobre la franja oscura",
+  [[CSS, "letter-spacing: -.02em; font-variant-numeric: tabular-nums;\n  color: var(--fe-papel);",
+         "letter-spacing: -.02em; font-variant-numeric: tabular-nums;\n  color: #3A4A5C;"]],
   "«total» contrasta");
 
 probar("«ya se pasó» se lee sobre el rosa",
@@ -98,9 +98,22 @@ probar("«sale esta semana» se lee sobre el crema",
   "«diasVencer» contrasta");
 
 /* ---------- EL ORDEN DE LA HOJA ---------- */
-probar("los cuatro momentos van en el orden en que se mira una estiba",
+probar("los momentos van en el orden en que se mira una estiba",
   [[TSX, '<p className="fe-bloque-cab">Cuánto</p>', '<p className="fe-bloque-cab">Lo otro</p>']],
   "los momentos del renglón salen");
+
+probar("lo raro va plegado en «Datos adicionales», de último",
+  [[TSX, '<details className="fe-mas" open={mas}', '<div className="fe-mas" data-open={mas}']],
+  "«Datos adicionales» no va plegado después de «Cuánto»");
+
+probar("no vuelve el bloque «Cómo está» abierto",
+  [[TSX, '<p className="fe-bloque-cab">Cuánto</p>', '<p className="fe-bloque-cab">Cuánto</p><p className="fe-bloque-cab">Cómo está</p>']],
+  "volvió el bloque «Cómo está» abierto");
+
+probar("la marca vuelve a ser de dos cuadros",
+  [[TSX, `onClick={() => setB((x) => ({ ...x, averia: false, pnc: false }))}>Ninguna</button>`,
+         `onClick={() => setB((x) => ({ ...x, averia: false, pnc: false }))}>—</button>`]],
+  "los cuadros de marca de la pantalla son");
 
 /* ---------- EL VENCIMIENTO ---------- */
 probar("se manda el vencimiento que se teclea",
@@ -244,9 +257,9 @@ probar("la rotación se manda resuelta y no nula",
   [[TSX, "p_rotacion: bb.rot === true,", "p_rotacion: bb.rot,"]],
   "se manda sin resolver");
 
-probar("Avería y PNC miden lo mismo",
-  [[CSS, ".fe .fe-marcas {\n  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));",
-         ".fe .fe-marcas {\n  display: grid; grid-template-columns: 2fr 1fr;"]],
+probar("Ninguna, Avería y PNC miden lo mismo",
+  [[CSS, ".fe .fe-mas .fe-marcas.tres {\n  grid-template-columns: repeat(3, minmax(0, 1fr));",
+         ".fe .fe-mas .fe-marcas.tres {\n  grid-template-columns: 2fr 1fr 1fr;"]],
   "se pidieron del mismo tamaño");
 
 probar("el cuadro marcado se rellena con el acento y no lo usa de letra",
@@ -254,9 +267,9 @@ probar("el cuadro marcado se rellena con el acento y no lo usa de letra",
          ".fe .fe-marca.on {\n  background: var(--fe-papel); border-color: var(--fe-acento); color: var(--fe-acento);"]],
   "«siOn» contrasta");
 
-probar("el estado del envase va debajo de las cantidades",
-  [[TSX, '          <label className="fe-estado"><span>Estado del envase</span>',
-          '          <label className="fe-estado zzz"><span>Estado del envase X</span>']],
+probar("el estado del envase va en Datos adicionales, después de las cantidades",
+  [[TSX, '              <label className="fe-estado"><span>Estado del envase</span>',
+          '              <label className="fe-estado zzz"><span>Estado del envase X</span>']],
   "Estado del envase");
 
 probar("sin casilla siguiente el teclado se cierra",
