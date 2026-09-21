@@ -1,0 +1,5 @@
+9874a6df14c47214366964dc78d773f21f29e93d8efd0f503612993d59a71eec  src/app/(app)/quiebra/rotura/tablero/informes/Informes.tsx
+5c8138ab394de3a4fb62b41031422e87ebe55d05a2b4a39eb7b4ff8bead5c587  package.json
+2f98d9394a8743443d1a317633166729a729053dee09ca617b45d03e71bc81ba  package-lock.json
+9f8b6dff59d7c26d9f32abda74700db10813bc9ecf10fc2a5f7ce697f64b5598  .arnes/rl-juntar.mjs
+3aa85c6cd7cfcff00a4ddfd9c36d4b255f9c0c1adda5a60d3449b84a49207ec9  commit.txt

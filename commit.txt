@@ -1,4 +1,4 @@
-Traspasos sin orden de cargue; Rotura: relación del período; Administración: borrar datos puntuales
+Traspasos sin orden de cargue; Rotura: todos los informes en un PDF; Administración: borrar datos puntuales
 
 TRASPASOS — «En el registro de traspaso elimina orden de cargue.»
 
@@ -16,16 +16,14 @@ TRASPASOS — «En el registro de traspaso elimina orden de cargue.»
   corregir sin exigir el documento. Se puede correr dos veces. Si la base
   todavía lo pide, la pantalla dice qué archivo falta correr.
 
-ROTURA — «Descargar la relación de un rango de fechas en los informes.»
+ROTURA — «Todos los informes que se generaron en ese período juntos en
+un PDF, así como están, en el período que uno filtra.»
 
-  - En Informes generados, «Descargar relación (PDF)» baja un solo PDF
-    del rango que está elegido arriba: un día por fila con todos los
-    días que tuvieron rotura, las líneas sumadas, unidades, kg, y el
-    estado de su hoja —con hoja, cambió después (y qué decía), anulada,
-    sin hoja, o de antes de que la hoja existiera—, hora, quién elaboró
-    y supervisor. Arriba el total del período; abajo la fila de total.
-  - Mismo papel que la hoja del día: logos tal cual, colores del tema,
-    pie «Bavaria», «Página i de n», y los títulos se repiten en cada hoja.
+  - En Informes generados, «Descargar todos en un PDF» junta los PDF de
+    las hojas del período elegido arriba, tal como se guardaron, uno
+    detrás de otro: del día más viejo al más nuevo y, dentro del día, en
+    el orden en que se generaron. Las anuladas no entran.
+  - Se juntan en el navegador con pdf-lib (dependencia nueva).
 
 ADMINISTRACIÓN — «Algo donde pueda elegir algo en específico y borrar
 la data con el fin de empezar de cero. No módulos en general, sino
@@ -55,7 +53,7 @@ MEDIDO:
       contra Postgres: sin la migración nueva las pruebas fallan; con
       ella, registrar sin orden, facturar, corregir y la repetida frenada.
   .arnes/fc-bandeja.mjs · mutar-fc-bandeja.mjs     20 de 20 rojas
-  .arnes/rl-relacion.mjs · mutar-rl-relacion.mjs   15 de 15 rojas
+  .arnes/rl-juntar.mjs   las hojas de verdad, juntas en Chromium, leídas con pdftotext
 
 =====================================================================
 FALTA CORRER EN SUPABASE — ANTES DEL PUSH

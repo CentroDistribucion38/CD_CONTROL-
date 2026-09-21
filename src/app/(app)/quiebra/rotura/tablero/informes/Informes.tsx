@@ -15,13 +15,11 @@
  * DESCARGAR LO GUARDA CON NOMBRE DE PERSONA —rotura-linea-2026-09-21-1530.pdf—
  * y no con el nombre interno del archivo, que es la hora en UTC.
  */
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { HojaGuardada } from "@/modulos/rotlinea/datos";
 import { resumirHojas } from "@/modulos/rotlinea/historial";
-import { armarRelacion, dibujarRelacion, nombreRelacion } from "@/modulos/rotlinea/relacion";
 import { TarjetaHoja, nombreDescarga, dia, hora } from "../FilaHoja";
-import { comoDataUrl, leerPaleta } from "../../HojaFirma";
 
 const MAX = 60;
 
@@ -38,33 +36,42 @@ export function Informes({ hojas, dias, puedeAnular, desde, hasta }: {
   const [elegidaId, setElegidaId] = useState<string | null>(primera?.id ?? null);
   const elegida = lista.find((h) => h.id === elegidaId) ?? null;
   const [aviso, setAviso] = useState<string | null>(null);
-  const raiz = useRef<HTMLDivElement>(null);
-  const rel = useMemo(() => armarRelacion(dias, hojas, desde, hasta), [dias, hojas, desde, hasta]);
-  const [armando, setArmando] = useState(false);
+  /* TODOS LOS INFORMES DEL PERÍODO EN UN SOLO PDF.
+     «Todos los informes que se generaron en ese período juntos en un
+     PDF, así como están.» Son los mismos PDF guardados, pegados uno
+     detrás de otro —del día más viejo al más nuevo y, dentro del día, en
+     el orden en que se generaron—: no se vuelven a dibujar. Las anuladas
+     no entran: no cuentan. */
+  const juntables = useMemo(() => hojas
+    .filter((h) => h.anulada_en == null && h.url)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.generado_en.localeCompare(b.generado_en)), [hojas]);
+  const [juntando, setJuntando] = useState<string | null>(null);
 
-  /* LA RELACIÓN DEL PERÍODO: un solo PDF con todos los días que tuvieron
-     rotura, con hoja o sin ella. Se arma aquí mismo con lo que ya está en
-     la pantalla —no hay que pedirle nada más a la base— y con jsPDF, que
-     se carga al tocar. Los logos tal cual; los colores, del tema. */
-  async function descargarRelacion() {
-    setArmando(true);
+  async function descargarTodos() {
     setAviso(null);
     try {
-      const [{ jsPDF }, palabra, sello] = await Promise.all([
-        import("jspdf"),
-        comoDataUrl("/marca/logo-bavaria.png"),
-        comoDataUrl("/marca/logo-b.png"),
-      ]);
-      const doc = dibujarRelacion(jsPDF, rel, {
-        generado: new Date(),
-        marca: { palabra: palabra ?? undefined, sello: sello ?? undefined },
-        paleta: leerPaleta(raiz.current),
-      });
-      doc.save(nombreRelacion(desde, hasta));
+      const { PDFDocument } = await import("pdf-lib");
+      const todo = await PDFDocument.create();
+      for (let i = 0; i < juntables.length; i++) {
+        setJuntando(`${i + 1} de ${juntables.length}`);
+        const r = await fetch(juntables[i].url!);
+        if (!r.ok) throw new Error(String(r.status));
+        const uno = await PDFDocument.load(await r.arrayBuffer());
+        for (const pag of await todo.copyPages(uno, uno.getPageIndices())) todo.addPage(pag);
+      }
+      todo.setTitle(`Rotura en línea · informes del ${desde} al ${hasta}`);
+      const blob = new Blob([await todo.save() as BlobPart], { type: "application/pdf" });
+      const enlace = document.createElement("a");
+      enlace.href = URL.createObjectURL(blob);
+      enlace.download = `informes-rotura-linea-${desde}-a-${hasta}.pdf`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      setTimeout(() => URL.revokeObjectURL(enlace.href), 10_000);
     } catch {
-      setAviso("No se pudo armar la relación. Revisa la conexión y vuelve a intentar.");
+      setAviso("No se pudieron juntar los informes: el enlace de los PDF vence en una hora. Recarga la página y vuelve a intentar.");
     } finally {
-      setArmando(false);
+      setJuntando(null);
     }
   }
 
@@ -102,7 +109,7 @@ export function Informes({ hojas, dias, puedeAnular, desde, hasta }: {
   const pend = r.sinHoja.length;
 
   return (
-    <div className="rl-informes" ref={raiz}>
+    <div className="rl-informes">
       <section className="rl-cabeza rl-inf-cabeza">
         <div>
           <p className="rl-ojo">QUIEBRA · ROTURA DE LÍNEA · INFORMES</p>
@@ -117,16 +124,17 @@ export function Informes({ hojas, dias, puedeAnular, desde, hasta }: {
                   {" "}Toca <b>Ver</b> para mirarla aquí, o descárgala.</>}
           </p>
         </div>
-        {/* LA RELACIÓN, AL LADO DEL TÍTULO: es del período entero, no de
-            una hoja. Se desactiva si en el período no hubo rotura. */}
+        {/* TODOS JUNTOS, AL LADO DEL TÍTULO: es del período que está
+            elegido arriba, no de una hoja. */}
         <div className="rl-inf-rel">
-          <button type="button" className="rl-hoja-si" onClick={descargarRelacion}
-                  disabled={armando || rel.filas.length === 0}>
-            {armando ? "Armando…" : "Descargar relación (PDF)"}
+          <button type="button" className="rl-hoja-si" onClick={descargarTodos}
+                  disabled={!!juntando || juntables.length === 0}>
+            {juntando ? `Juntando ${juntando}…` : "Descargar todos en un PDF"}
           </button>
-          <p>{rel.filas.length === 0
-            ? "Sin rotura en este período."
-            : <>{rel.filas.length} {rel.filas.length === 1 ? "día" : "días"} con rotura, del {dia(desde)} al {dia(hasta)}. Cambia las fechas arriba.</>}</p>
+          <p>{juntables.length === 0
+            ? "No hay informes en este período."
+            : <>{juntables.length} {juntables.length === 1 ? "informe" : "informes"} del {dia(desde)} al {dia(hasta)}, en orden de fecha
+                {r.anuladas > 0 && <> (sin las {r.anuladas} anuladas)</>}. Cambia las fechas arriba.</>}</p>
         </div>
       </section>
 
