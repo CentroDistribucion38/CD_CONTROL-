@@ -44,9 +44,18 @@ ok(/puedeReabrir=\{permisos\.manda\}/.test(pag), "reabrir no queda solo para qui
 const regTsx = sinComentarios(readFileSync(U("../src/app/(app)/traspasos/Registrar.tsx"), "utf8"));
 const viajesTsx = sinComentarios(readFileSync(U("../src/app/(app)/traspasos/Viajes.tsx"), "utf8"));
 const comunes = sinComentarios(readFileSync(U("../src/app/(app)/traspasos/comunes.tsx"), "utf8"));
-ok(/<span className="rot-campo">Orden de cargue<\/span>/.test(regTsx) && !/rot-campo">Documento</.test(regTsx),
-   "en Registrar el campo no se llama «Orden de cargue»");
-ok(/>Orden de cargue<\/label>/.test(viajesTsx), "al corregir un viaje el campo no se llama «Orden de cargue»");
+/* «EN EL REGISTRO DE TRASPASO ELIMINA ORDEN DE CARGUE»: ni el campo, ni
+   el requisito, ni al corregir. Al corregir se manda la que el viaje ya
+   tenía, para no borrársela. */
+ok(!/rot-campo">(Orden de cargue|Documento)</.test(regTsx) && !/setDocumento|Falta la orden de cargue/.test(regTsx),
+   "Registrar todavía pide la orden de cargue");
+ok((regTsx.match(/p_documento:/g) ?? []).length === 2 && (regTsx.match(/p_documento: null,/g) ?? []).length === 2,
+   "Registrar todavía manda una orden de cargue");
+ok(!/>Orden de cargue<\/label>/.test(viajesTsx) && !/Falta la orden de cargue/.test(viajesTsx),
+   "al corregir un viaje todavía se pide la orden de cargue");
+ok(/p_documento: vacio \? null : v\.documento \?\? null,/.test(viajesTsx),
+   "al corregir un viaje viejo se le borra la orden de cargue que tenía");
+ok(!/SIN ORDEN DE CARGUE/.test(comunes), "la lista marca «SIN ORDEN DE CARGUE» a todos los viajes nuevos");
 ok(/puedeEditar && v\.vale && !v\.salida_en \?/.test(viajesTsx),
    "un viaje que ya salió todavía ofrece Corregir y Anular en el patio");
 ok(/className="eti salio"/.test(comunes) && /className="eti por-facturar"/.test(comunes),
@@ -90,7 +99,11 @@ const pinta = (p) => renderToStaticMarkup(createElement(B.Bandeja, {
 const html = pinta({});
 const texto = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 ok(/3 viajes por facturar/.test(texto), `arriba no dice cuántos esperan: «${texto.slice(0, 120)}»`);
-ok(html.includes(">5000000001<"), "el viaje no muestra su orden de cargue");
+ok(/<span>PLACA<\/span><b>ABC121<\/b>/.test(html), "la tarjeta no pone la placa arriba");
+ok(html.includes("Orden de cargue 5000000001"), "un viaje viejo con orden de cargue no la muestra");
+ok(!/Orden de cargue null|orden undefined/.test(html) &&
+   !pinta({ pendientes: [viaje("9", { documento: null })] }).includes("Orden de cargue"),
+   "un viaje sin orden de cargue muestra el rótulo vacío");
 ok((html.match(/inputMode="numeric"/g) ?? []).length === 3 && (html.match(/maxLength="10"/g) ?? []).length >= 3,
    "el número de documento no se pide en cifras y con diez como máximo en cada viaje");
 ok((html.match(/>Confirmar salida<\/button>/g) ?? []).length === 3, "no hay un «Confirmar salida» por viaje");
@@ -143,7 +156,7 @@ ok(/No hay viajes/.test(vacia), "sin pendientes no lo dice");
       const par = (s) => { const e = document.querySelector(s);
                            return e ? { txt: getComputedStyle(e).color, fondo: fondo(e) } : { falta: s } };
       return { "título": par(".fc-cabeza h1"), "lo que dice arriba": par(".fc-cabeza .sub"),
-               "orden de cargue": par(".fc-oc b"), "rótulo de la orden": par(".fc-oc span"),
+               "placa": par(".fc-oc b"), "rótulo de la placa": par(".fc-oc span"),
                "placa": par(".fc-placa"), "datos del viaje": par(".fc-meta"),
                "rótulo del número": par(".fc-confirmar label span"), "número": par(".fc-confirmar input"),
                "confirmar salida": par(".fc-confirmar .btn"), "error": par(".fc-error"),
@@ -178,5 +191,5 @@ ok(/No hay viajes/.test(vacia), "sin pendientes no lo dice");
 
 console.log("");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Facturación: va dentro de Traspasos después de Registrar, el patio dice «Orden de cargue», la bandeja pide el número " +
+console.log("✓ Facturación: va dentro de Traspasos después de Registrar, el patio registra sin orden de cargue, la bandeja pide el número " +
             "en cifras con su botón siempre a la vista, y se lee en los siete temas.");

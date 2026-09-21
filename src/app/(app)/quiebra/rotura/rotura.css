@@ -1476,3 +1476,14 @@
   .rl-firma-dedo canvas, .rl-firma-guia { height: 170px }
   .rl-firma-dedo canvas { background: linear-gradient(#8A96A3, #8A96A3) 16px 130px / calc(100% - 32px) 1px no-repeat, #FFFFFF }
 }
+
+/* LA RELACIÓN DEL PERÍODO: el botón al lado del título de Informes, y
+   debajo cuántos días lleva. En el celular baja debajo del título y ocupa
+   el ancho, para que se toque con el pulgar. */
+.rl-cabeza > .rl-inf-rel { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: 0 1 280px }
+.rl-inf-rel .rl-hoja-si { width: 100%; font-size: 14px }
+.rl-inf-rel p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--rl-gris); text-align: right }
+@media (max-width: 640px) {
+  .rl-cabeza > .rl-inf-rel { flex: 1 1 100%; align-items: stretch }
+  .rl-inf-rel p { text-align: left }
+}

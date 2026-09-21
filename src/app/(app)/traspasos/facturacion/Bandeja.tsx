@@ -78,7 +78,7 @@ export function Bandeja({ pendientes, salieron, nombres, puedeConfirmar, puedeRe
         <label className="fc-busca">
           <span>Buscar</span>
           <input value={busca} onChange={(e) => setBusca(e.target.value)} autoComplete="off"
-                 placeholder="Orden de cargue, placa o documento" spellCheck={false} />
+                 placeholder="Placa o número de documento" spellCheck={false} />
         </label>
       </section>
 
@@ -155,11 +155,14 @@ function Pendiente({ v, nombres, puede, listo, fallo }: {
   return (
     <article className="fc-viaje">
       <div className="fc-datos">
+        {/* LA PLACA ARRIBA: el registro ya no lleva orden de cargue, y
+            es la placa lo que facturación tiene al frente. Los viajes
+            de antes que sí la traen la muestran debajo. */}
         <p className="fc-oc">
-          <span>ORDEN DE CARGUE</span>
-          <b>{v.documento ?? "—"}</b>
+          <span>PLACA</span>
+          <b>{v.placa ?? "—"}</b>
         </p>
-        <p className="fc-placa">{v.placa ?? "—"}</p>
+        {v.documento && <p className="fc-placa">Orden de cargue {v.documento}</p>}
         <p className="fc-meta">
           {dia(v.fecha)} · turno {v.turno} · {hora(v.hora)}
           {v.tipo_nombre && <> · {v.tipo_nombre}</>}
@@ -217,7 +220,7 @@ function Salido({ v, puedeReabrir, listo, fallo }: {
       <div className="fc-salido-fila">
         <p className="fc-doc"><span>DOCUMENTO</span><b>{v.factura_documento}</b></p>
         <p className="fc-meta">
-          <b>{v.placa ?? "—"}</b> · orden {v.documento ?? "—"} · {dia(v.fecha)} turno {v.turno}
+          <b>{v.placa ?? "—"}</b>{v.documento && <> · orden {v.documento}</>} · {dia(v.fecha)} turno {v.turno}
           <br />
           Salió a las {v.salida_en ? hora(v.salida_en) : "—"}
           {v.salida_nombre && <> · confirmó {v.salida_nombre}</>}

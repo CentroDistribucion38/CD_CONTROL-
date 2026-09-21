@@ -49,7 +49,7 @@ const hora = (s: string) =>
 
 /** Un PNG de /public como data URL, que es lo que jsPDF sabe pegar. Null
  *  si no carga: la hoja no se frena por un logo. */
-async function comoDataUrl(url: string): Promise<string | null> {
+export async function comoDataUrl(url: string): Promise<string | null> {
   try {
     const r = await fetch(url);
     if (!r.ok) return null;
@@ -76,7 +76,7 @@ async function comoDataUrl(url: string): Promise<string | null> {
  * `color-mix(…)` o `var(…)`—; se le pone de color a un elemento y se lee
  * lo que el navegador calculó.
  */
-function leerPaleta(dentro: Element | null): Paleta | undefined {
+export function leerPaleta(dentro: Element | null): Paleta | undefined {
   const conTema = dentro?.closest("[data-tema]");
   if (!conTema) return undefined;
   const leer = (v: string) => {

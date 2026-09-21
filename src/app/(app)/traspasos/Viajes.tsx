@@ -166,7 +166,6 @@ function Corregir({ v, tipos, puntos, placas, cerrar, listo, fallo }: {
   const [vacio, setVacio] = useState(v.vacio);
   const [tipo, setTipo] = useState(v.tipo ?? "");
   const [placa, setPlaca] = useState(v.placa ?? "");
-  const [documento, setDocumento] = useState(v.documento ?? "");
   const [origen, setOrigen] = useState(v.origen ?? v.origen_nombre ?? "");
   const [destino, setDestino] = useState(v.destino ?? v.destino_nombre ?? "");
   const [cuantos, setCuantos] = useState(String(v.viajes));
@@ -202,14 +201,16 @@ function Corregir({ v, tipos, puntos, placas, cerrar, listo, fallo }: {
       p_unidad: vacio ? null : unidad.trim() || null,
       p_nota: nota.trim() || null,
       p_motivo: porque.trim() || null,
-      p_documento: vacio ? null : documento.trim() || null,
+      /* La orden de cargue ya no se pide ni se edita: se manda la que el
+         viaje tenía, para no borrársela al corregir otra cosa. */
+      p_documento: vacio ? null : v.documento ?? null,
     });
     setMandando(false);
     if (error) {
       fallo(/does not exist|could not find the function|schema cache/i.test(error.message)
         ? "Falta correr supabase/migraciones/2026-09-traspasos-documento.sql en Supabase."
-        : /duplicate key|traspasos_viajes_documento_unico/i.test(error.message)
-          ? `La orden de cargue ${documento.trim()} ya está en otro viaje registrado.`
+        : /Hay que decir el documento/i.test(error.message)
+          ? "Falta correr supabase/migraciones/2026-09-traspasos-sin-orden-cargue.sql en Supabase."
           : error.message);
       return;
     }
@@ -222,7 +223,6 @@ function Corregir({ v, tipos, puntos, placas, cerrar, listo, fallo }: {
     ? null
     : !tipo ? "Falta el tipo de viaje"
     : !placa.trim() ? "Falta la placa"
-    : !documento.trim() ? "Falta la orden de cargue"
     : !origen ? "Falta la bodega de origen"
     : !destino ? "Falta la bodega de destino"
     : origen === destino ? "El viaje sale y llega al mismo sitio"
@@ -289,19 +289,6 @@ function Corregir({ v, tipos, puntos, placas, cerrar, listo, fallo }: {
               <label>Placa</label>
               <Desplegable valor={placa} opciones={placasOp} vacio="Escoge la placa"
                            alEscoger={setPlaca} ariaLabel="Placa" />
-            </div>
-
-            {/* AQUÍ SE COMPLETAN LOS VIEJOS. Un viaje de antes de que el
-                documento existiera llega a este formulario vacío en este
-                campo, y no se puede guardar sin llenarlo: es el único
-                momento en que alguien está mirando ese viaje con el
-                papel al lado. */}
-            <div className="campo">
-              <label htmlFor={"d-" + v.id}>Orden de cargue</label>
-              <input id={"d-" + v.id} value={documento} autoComplete="off" spellCheck={false}
-                     placeholder={v.documento ? "" : "Este viaje todavía no lo tiene"}
-                     inputMode="numeric" maxLength={10}
-                     onChange={(e) => setDocumento(e.target.value.replace(/\D/g, "").slice(0, 10))} />
             </div>
 
             <div className="campo">

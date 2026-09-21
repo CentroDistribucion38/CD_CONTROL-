@@ -1,0 +1,77 @@
+/* BORRAR DATOS. Cuelga de .rl.bd; usa las fichas de roles.css. */
+.rl.bd .bd-marco { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start }
+.rl.bd .bd-lado { display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.rl.bd .bd-n {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px;
+  border-radius: 50%; background: var(--rl-tinta); color: #fff; font-size: 12px; vertical-align: 2px;
+}
+
+/* 1 · la lista */
+.rl.bd .bd-grupos { display: flex; flex-direction: column; gap: 4px; padding: 0 12px 14px }
+.rl.bd .bd-grupo { border: 0; margin: 0; padding: 6px 0 0; min-width: 0 }
+.rl.bd .bd-grupo legend {
+  padding: 6px 8px 4px; font: 700 10.5px var(--rl-texto); letter-spacing: .14em; text-transform: uppercase; color: var(--rl-gris);
+}
+.rl.bd .bd-punto {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px 10px; min-height: 48px;
+  border-radius: 3px; cursor: pointer; border: 1.5px solid transparent;
+}
+.rl.bd .bd-punto:hover { background: var(--c-f7f9fc) }
+.rl.bd .bd-punto.aqui { border-color: var(--rl-rojo); background: #FFF5F6 }
+.rl.bd .bd-punto input { width: 18px; height: 18px; margin: 2px 0 0; flex: 0 0 18px; accent-color: var(--rl-rojo); box-shadow: none }
+.rl.bd .bd-punto span { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.rl.bd .bd-punto b { font: 700 14px var(--rl-titulo) }
+.rl.bd .bd-punto i { font-style: normal; font-size: 12.5px; line-height: 1.4; color: var(--rl-gris) }
+
+/* 2 · el rango */
+.rl.bd .bd-rango { display: flex; flex-direction: column; gap: 12px; padding: 0 20px 18px }
+.rl.bd .bd-seg { display: inline-flex; border: 1.5px solid var(--rl-linea); border-radius: 3px; overflow: hidden; align-self: flex-start }
+.rl.bd .bd-seg button {
+  min-height: 44px; padding: 0 18px; border: 0; background: #fff; cursor: pointer;
+  font: 700 13.5px var(--rl-texto); color: var(--rl-tinta);
+}
+.rl.bd .bd-seg button + button { border-left: 1.5px solid var(--rl-linea) }
+.rl.bd .bd-seg button.on { background: var(--rl-tinta); color: #fff }
+.rl.bd .bd-fechas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.rl.bd .bd-fechas label, .rl.bd .bd-escribe { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.rl.bd .bd-fechas span, .rl.bd .bd-escribe span {
+  font: 700 11px var(--rl-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--rl-gris);
+}
+.rl.bd .bd-escribe span b { color: var(--rl-rojo) }
+.rl.bd .bd-fechas input, .rl.bd .bd-escribe input { height: 44px }
+.rl.bd .bd-mal { margin: 0; font-size: 12.5px; color: #A4271C }
+
+/* 3 · borrar */
+.rl.bd .bd-final.listo { border-color: var(--rl-rojo); box-shadow: inset 0 3px 0 var(--rl-rojo) }
+.rl.bd .bd-cuenta { padding: 0 20px 14px }
+.rl.bd .bd-cifra { margin: 0; font-size: 15px }
+.rl.bd .bd-cifra b { font: 900 30px var(--rl-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.rl.bd .bd-que { margin: 4px 0 0; font-size: 13px; color: var(--rl-gris) }
+.rl.bd .bd-vacio { margin: 0; font-size: 13px; line-height: 1.5; color: var(--rl-gris) }
+.rl.bd .bd-pad { padding: 0 20px 18px }
+.rl.bd .bd-acciones { display: flex; flex-direction: column; gap: 12px; padding: 0 20px 18px }
+.rl.bd .bd-acciones .btn { min-height: 48px; height: auto; display: inline-flex; align-items: center; justify-content: center; text-decoration: none }
+.rl.bd .bd-copia { background: var(--rl-tinta) }
+.rl.bd .bd-copia.hecha { background: var(--rl-verde) }
+.rl.bd .bd-copia[aria-disabled="true"] { background: var(--c-b4c0ce); cursor: not-allowed; pointer-events: none }
+.rl.bd .bd-borrar { background: var(--rl-rojo) }
+.rl.bd .bd-borrar:hover:not(:disabled) { background: #B80023 }
+/* Apagado se ve apagado: un botón rojo que no responde parece roto. */
+.rl.bd .bd-borrar:disabled { background: var(--c-b4c0ce); cursor: not-allowed }
+
+/* el registro */
+.rl.bd .bd-tabla-env { overflow-x: auto; border-top: 1px solid var(--rl-linea) }
+.rl.bd .bd-tabla { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px }
+.rl.bd .bd-tabla th {
+  text-align: left; padding: 9px 14px; font: 700 10.5px var(--rl-texto); letter-spacing: .1em;
+  text-transform: uppercase; color: var(--rl-gris); background: var(--c-f7f9fc);
+}
+.rl.bd .bd-tabla td { padding: 10px 14px; border-top: 1px solid var(--c-edf1f6) }
+.rl.bd .bd-tabla .num { text-align: right; font-variant-numeric: tabular-nums }
+
+@media (max-width: 900px) {
+  .rl.bd .bd-marco { grid-template-columns: minmax(0, 1fr) }
+}
+@media (max-width: 420px) {
+  .rl.bd .bd-fechas { grid-template-columns: minmax(0, 1fr) }
+}

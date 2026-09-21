@@ -171,7 +171,6 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
           <tr>
             <th>Viaje</th>
             {conDoc && <th>Documento</th>}
-            <th>Orden de cargue</th>
             <th>Turno</th>
             <th>Hora</th>
             <th>Placa</th>
@@ -193,7 +192,6 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
                   )}
                 </td>
               )}
-              <td>{v.documento ?? "—"}</td>
               <td>{v.turno}</td>
               <td>{horaDe(v.hora)}</td>
               <td>{v.placa ?? "—"}</td>

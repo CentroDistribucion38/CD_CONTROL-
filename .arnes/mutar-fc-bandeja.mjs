@@ -54,12 +54,18 @@ probar("la pantalla no pide permiso para confirmar",
 probar("cualquiera reabre",
   [[PAG, "puedeReabrir={permisos.manda}", "puedeReabrir={true}"]],
   "reabrir no queda solo para quien administra");
-probar("en Registrar sigue diciendo «Documento»",
-  [[RGT, '<span className="rot-campo">Orden de cargue</span>', '<span className="rot-campo">Documento</span>']],
-  "no se llama «Orden de cargue»");
-probar("al corregir sigue diciendo «Documento»",
-  [[VJ, '>Orden de cargue</label>', '>Documento</label>']],
-  "al corregir un viaje el campo no se llama");
+probar("Registrar vuelve a pedir la orden de cargue",
+  [[RGT, '                : !placa.trim() ? "Falta la placa"\n', '                : !placa.trim() ? "Falta la placa"\n                : !documento.trim() ? "Falta la orden de cargue"\n']],
+  "Registrar todavía pide la orden de cargue");
+probar("Registrar vuelve a mandar una orden",
+  [[RGT, "          p_documento: null,\n", "          p_documento: placa,\n"]],
+  "Registrar todavía manda una orden de cargue");
+probar("corregir le borra la orden al viaje viejo",
+  [[VJ, "p_documento: vacio ? null : v.documento ?? null,", "p_documento: null,"]],
+  "se le borra la orden de cargue que tenía");
+probar("la lista vuelve a marcar SIN ORDEN DE CARGUE",
+  [[COM, "          {/* LO QUE DIJO FACTURACIÓN.", "          {v.sin_documento && <span>SIN ORDEN DE CARGUE</span>}\n          {/* LO QUE DIJO FACTURACIÓN."]],
+  "marca «SIN ORDEN DE CARGUE»");
 probar("lo que salió se puede corregir y anular en el patio",
   [[VJ, "puedeEditar && v.vale && !v.salida_en ?", "puedeEditar && v.vale ?"]],
   "todavía ofrece Corregir y Anular");
@@ -69,9 +75,12 @@ probar("el patio no ve si salió",
 probar("arriba no dice cuántos esperan",
   [[BAN, '<><span className="fc-n">{nf.format(pendientes.length)}</span> viaje', "<>Viajes"]],
   "no dice cuántos esperan");
-probar("el viaje no muestra su orden de cargue",
-  [[BAN, "<b>{v.documento ?? \"—\"}</b>", "<b>{v.placa}</b>"]],
-  "no muestra su orden de cargue");
+probar("la tarjeta vuelve a la orden de cargue arriba",
+  [[BAN, "          <b>{v.placa ?? \"—\"}</b>\n        </p>", "          <b>{v.documento ?? \"—\"}</b>\n        </p>"]],
+  "no pone la placa arriba");
+probar("un viaje sin orden muestra el rótulo vacío",
+  [[BAN, '{v.documento && <p className="fc-placa">Orden de cargue {v.documento}</p>}', '<p className="fc-placa">Orden de cargue {v.documento}</p>']],
+  "muestra el rótulo vacío");
 probar("el número acepta cualquier cosa",
   [[BAN, '                   inputMode="numeric" maxLength={10} autoComplete="off" spellCheck={false}\n                   placeholder="Hasta 10 cifras"',
          '                   autoComplete="off" spellCheck={false}\n                   placeholder="Hasta 10 cifras"']],

@@ -174,6 +174,14 @@ const IconoFactura = () => (
   </svg>
 );
 
+/* BORRAR DATOS: la papelera, con su tapa y dos rayas. */
+const IconoPapelera = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+    <path d="M10 11v6M14 11v6" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   /* Roturas ya no es un módulo: se mudó dentro de Quiebra. Su dibujo
      sigue vivo como icono de las ramas «En sitio» y «Salida» y de sus
@@ -201,6 +209,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/sider/transito": IconoRuta,
   "/sider/maestro": IconoLlave,
   "/traspasos/facturacion": IconoFactura,
+  "/admin/datos": IconoPapelera,
   /* LAS TRES RAMAS DE QUIEBRA, con dibujo propio. Sin estas líneas las
      tres caerían al icono por defecto y habría que leer el rótulo para
      distinguirlas — que es justo lo que el riel existe para evitar. La

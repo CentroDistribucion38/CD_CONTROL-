@@ -99,3 +99,10 @@ SQL
 
 echo "--- las pruebas"
 $PSQL -d $DB -f .arnes/prueba-traspasos-facturacion.sql 2>&1 | grep -E "NOTICE|ERROR"
+
+# «EN EL REGISTRO DE TRASPASO ELIMINA ORDEN DE CARGUE»: dos veces, y sus pruebas.
+echo "--- sin orden de cargue"
+for i in 1 2; do
+  $PSQL -d $DB -f supabase/migraciones/2026-09-traspasos-sin-orden-cargue.sql 2>&1 | grep -E "ERROR" && exit 1
+done
+$PSQL -d $DB -f .arnes/prueba-traspasos-sin-orden.sql 2>&1 | grep -E "NOTICE|ERROR"

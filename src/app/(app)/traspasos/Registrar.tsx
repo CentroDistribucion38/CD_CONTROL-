@@ -76,13 +76,6 @@ export function Registrar({ tipos, puntos, placas, placasM,
      pierda al desescoger el de al lado. */
   const [tipos_, setTipos] = useState<Map<string, string>>(new Map());
   const [placa, setPlaca] = useState("");
-  /* EL DOCUMENTO ES UN NÚMERO Y LLEVA DIEZ CIFRAS COMO MÁXIMO.
-     Se limpia DESDE LA TECLA y no al guardar: quien teclea de más vería
-     una cosa en la pantalla y otra en la tabla de abajo, y la primera
-     pregunta sería si se guardó bien. Y quien pega dos documentos
-     seguidos —que es como se cuelan los de veinte cifras— ve en el acto
-     que solo entraron diez. */
-  const [documento, setDocumento] = useState("");
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
   const [viajesN, setViajesN] = useState(1);
@@ -189,7 +182,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
      puede repetir bloquea el día que alguien lo vuelva a inventar. */
   const puedeMandar = modo === "vacio"
     ? viajesN >= 1
-    : escogidos.length > 0 && placa.trim() !== "" && documento.trim() !== ""
+    : escogidos.length > 0 && placa.trim() !== ""
       && origen.trim() !== "" && destino.trim() !== "";
 
   /* CTRL+ENTER MANDA. Quien registra veinte viajes seguidos desde el
@@ -243,7 +236,9 @@ export function Registrar({ tipos, puntos, placas, placasM,
           p_placa: placa,
           p_origen: origen,
           p_destino: destino,
-          p_documento: documento.trim() || null,
+          /* SIN ORDEN DE CARGUE: «en el registro de traspaso elimina
+             orden de cargue». El número que cuenta lo pone facturación. */
+          p_documento: null,
           p_nota: nota.trim() || null,
         });
     setMandando(false);
@@ -266,11 +261,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
        varios seguidos del mismo tipo y la misma ruta no debería volver
        a escogerlos cada vez — es lo que hace que se dejen de registrar
        a media tarde. */
-    /* EL DOCUMENTO SE LIMPIA SIEMPRE, y es de las cosas que más
-       importan de esta pantalla: dejarlo puesto haría que el siguiente
-       viaje saliera rechazado por repetido —o peor, que alguien lo
-       registrara con el documento del anterior sin darse cuenta—. */
-    setPlaca(""); setDocumento(""); setNota(""); setViajesN(1);
+    setPlaca(""); setNota(""); setViajesN(1);
     /* LOS TIPOS TAMBIÉN SE LIMPIAN. Se quedaban puestos «porque el
        siguiente suele ser igual», y con varios tipos eso es otra cosa:
        un camión de casco registrado detrás de uno de casco+estibas+PET
@@ -288,18 +279,11 @@ export function Registrar({ tipos, puntos, placas, placasM,
     if (/does not exist|could not find the function|schema cache/i.test(m)) {
       return "Falta correr supabase/migraciones/2026-09-traspasos-documento.sql en Supabase.";
     }
-    if (/duplicate key|traspasos_viajes_documento_unico/i.test(m)) {
-      return `La orden de cargue ${documento.trim()} ya está registrada en otro viaje. `
-           + "Revisa el número; si el otro registro está malo, anúlalo y este entra.";
-    }
-    /* LA REGLA DE LAS DIEZ CIFRAS TAMBIÉN ESTÁ EN LA BASE, y ahí habla
-       en su idioma. La pantalla ya no deja teclear otra cosa, así que si
-       este mensaje llega es porque el registro entró por otra puerta —o
-       porque a alguien se le pasó un documento viejo con letras—. Aun
-       así se traduce: un «violates check constraint» no le dice nada a
-       quien está al lado de un camión. */
-    if (/traspasos_viajes_documento_diez/i.test(m)) {
-      return "La orden de cargue va en números y con diez cifras como máximo.";
+    /* SI LA BASE TODAVÍA PIDE LA ORDEN DE CARGUE es que falta correr
+       el archivo que la quita: se dice cuál, no «hay que decir el
+       documento», que ya no se puede poner en esta pantalla. */
+    if (/Hay que decir el documento/i.test(m)) {
+      return "Falta correr supabase/migraciones/2026-09-traspasos-sin-orden-cargue.sql en Supabase.";
     }
     return m;
   }
@@ -341,41 +325,10 @@ export function Registrar({ tipos, puntos, placas, placasM,
 
             {modo === "carga" && (
               <>
-                {/* EL DOCUMENTO VA PRIMERO, ANTES DE LA PLACA.
-
-                    Es el orden en que llega la información a la mano de
-                    quien registra: el papel se recibe, se lee su número,
-                    y de ese papel se saca de qué vehículo es. Pedir
-                    primero la placa obliga a mirar el vehículo, soltar,
-                    volver al papel y volver a mirar.
-
-                    Y ES EL CAMPO QUE PUEDE RECHAZAR EL REGISTRO: si ese
-                    número ya está en otro viaje, no entra. Descubrirlo
-                    de primero cuesta un campo; descubrirlo al final
-                    cuesta el formulario entero.
-
-                    DIEZ CIFRAS Y SOLO CIFRAS, limpiadas desde la tecla.
-                    Así, pegar dos documentos seguidos —que es como se
-                    cuelan los de veinte— se ve en el acto. */}
-                {/* SE LLAMA «ORDEN DE CARGUE» —«que el documento que está en
-                    Registrar se llame Orden de cargue»—. Es el papel del
-                    patio. El número de documento lo pone FACTURACIÓN al
-                    confirmar la salida, y es ese el que se cruza con SAP. */}
-                <div>
-                  <span className="rot-campo">Orden de cargue</span>
-                  <input className="campo-suelto doc" value={documento}
-                         autoComplete="off" spellCheck={false}
-                         inputMode="numeric" maxLength={10}
-                         aria-label="Orden de cargue del viaje"
-                         placeholder="El número de la orden — hasta 10 cifras"
-                         onChange={(e) => setDocumento(e.target.value.replace(/\D/g, "").slice(0, 10))} />
-                  <p className="guia" style={{ marginTop: 8 }}>
-                    Solo números, hasta diez. <b>No se puede repetir</b>: si este número ya
-                    está en otro viaje, la pantalla te dice en cuál. Si ese otro registro
-                    está malo, anúlalo y este entra.
-                  </p>
-                </div>
-
+                {/* SIN ORDEN DE CARGUE: «en el registro de traspaso elimina
+                    orden de cargue». El patio registra placa, tipo y ruta;
+                    el número del viaje lo pone facturación al confirmar la
+                    salida, y es ese el que se cruza con SAP. */}
                 <div>
                   <span className="rot-campo">Placa</span>
                   {/* DE LISTA, NO A MANO. Las placas salen del maestro: una
@@ -686,7 +639,6 @@ export function Registrar({ tipos, puntos, placas, placasM,
               {mandando ? "Registrando…"
                 : modo === "vacio" ? `Registrar ${viajesN} vacío${viajesN === 1 ? "" : "s"}`
                 : !placa.trim() ? "Falta la placa"
-                : !documento.trim() ? "Falta la orden de cargue"
                 : escogidos.length === 0 ? (hayPlan ? "Escoge del plan" : "Falta el tipo")
                 : !origen.trim() || !destino.trim() ? "Falta la ruta"
                 /* El botón dice lo que va a pasar. "Registrar viaje" cuando
@@ -755,7 +707,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
                            lista de al lado se mira para responder «¿ya
                            metí este papel?», y la respuesta es el
                            número, no la ruta. */
-                        : `${v.documento ?? "sin orden de cargue"} · ${v.tipo_nombre}`
+                        : `${v.documento ? v.documento + " · " : ""}${v.tipo_nombre}`
                           + ` · ${v.origen_nombre} → ${v.destino_nombre}`}
                     </span>
                   </span>

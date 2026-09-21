@@ -1,0 +1,13 @@
+46091df6b4b6ca31ffaf31a85dbdc6fca48d0fadd0a597e12097d863bead7435  supabase/migraciones/2026-09-admin-borrar-datos.sql
+93e3ab0b414eaa304a56844ad239dec9dcb3d3b81f1e39bebaf10edeb0e029e0  src/app/api/admin/datos/route.ts
+ad3de42fce46235e076d5ed3d3685415c6cdaa3a11d0f9745fcb1a60c3371b58  src/app/(app)/admin/datos/page.tsx
+b82bce463aa238e2532db60cf2ea8192553b1da8afb7da61677ceb34978bc577  src/app/(app)/admin/datos/BorrarDatos.tsx
+d305977565372095b50218d62072b4e1e95831ecd8a3e81708f8c3216ce5858d  src/app/(app)/admin/datos/datos.css
+a297580563ac6cfae9f4285b65bf0756c51afb4c851d33ad83f62a96ff8a3a02  src/modulos/registro.ts
+e502e859d6a040b103e33bf1e5663cb7775b630ef935439382a4a2b95673c6e5  src/components/Navegacion.tsx
+69e7410defe42b5f38efd4954fe1d09e4632b5d94a88177336adf4941b5289f6  .arnes/_base-completa.sh
+b40bf6c12ef659a29da99aa45b5cad90a9183085e44a8706c4d94aa6292e971a  .arnes/correr-admin-borrar.sh
+37ca17e0626fa2f67c1655e9b86559d115768f5de7ac53a7585276db6bfd098d  .arnes/prueba-admin-borrar.sql
+30237b682a6daf1e16bf9d6d87804706650156b818624979357cc821ced07f27  .arnes/ad-datos.mjs
+1cf0ed8686d389027c3d5e0652b4ec474e498932c38e48c43bf075b36b8b9fb9  .arnes/mutar-ad-datos.mjs
+5a8e2fc974ce2c1821dac6b341742171953d57ad205ccb89f891c772c0d8685c  commit.txt

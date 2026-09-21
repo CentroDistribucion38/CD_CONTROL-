@@ -60,7 +60,7 @@ export default async function InformesPage({ searchParams }: {
           </p>
         </section>
       ) : (
-        <Informes hojas={hj.hojas} dias={t.dias} puedeAnular={permisos.manda} />
+        <Informes hojas={hj.hojas} dias={t.dias} puedeAnular={permisos.manda} desde={desde} hasta={hasta} />
       )}
     </div>
   );

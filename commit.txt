@@ -1,35 +1,68 @@
-Rotura: se quita la firma del turno; al guardar se firma con el dedo
+Traspasos sin orden de cargue; Rotura: relación del período; Administración: borrar datos puntuales
 
-«Quita esa firma y que cuando uno vaya a guardar ponga el nombre de
-quien elaboró, y algo para firmar con el dedo, lo que sea, cursor.»
+TRASPASOS — «En el registro de traspaso elimina orden de cargue.»
 
-SE QUITA LA FIRMA POR TURNO, del todo:
-  - la rejilla ya no muestra «Turno B sin firmar» ni el botón de firmar;
-  - el tablero ya no cuenta ni lista turnos sin firmar, y ya no los
-    pide a la base. En su lugar cuenta DÍAS SIN HOJA: los días con
-    rotura a los que nadie les generó la hoja firmada.
+  - Registrar ya no tiene el campo ni lo pide: el viaje se registra con
+    placa, tipo y ruta. El número que se cruza con SAP es el que pone
+    Facturación al confirmar la salida.
+  - Corregir un viaje tampoco la pide; al viaje viejo que sí la tenía
+    se le conserva.
+  - La lista del patio ya no marca «SIN ORDEN DE CARGUE».
+  - En Facturación la tarjeta pone la PLACA arriba; la orden de cargue
+    sale debajo solo en los viajes viejos que la traen.
+  - En Control, la tabla de viajes ya no trae la columna Orden de cargue.
 
-LA FIRMA VA EN LA VENTANA QUE SALE AL GUARDAR, debajo de los campos y
-antes de los botones:
-  - un espacio blanco donde se firma con el dedo, el lápiz o el mouse
-    (en el teléfono no mueve la página), con «Borrar firma»;
-  - sin nombre de quien elaboró o sin firma, los dos botones de generar
-    quedan bloqueados y la ventana dice qué falta;
-  - la firma sale dibujada en el recuadro ELABORÓ del PDF, recortada al
-    trazo y sin fondo, con «Firma (digital, en CONTROL)» y la fecha y
-    hora en que se generó. El recuadro del supervisor sigue para firmar
-    a mano.
+  SQL: 2026-09-traspasos-sin-orden-cargue.sql vuelve a crear registrar y
+  corregir sin exigir el documento. Se puede correr dos veces. Si la base
+  todavía lo pide, la pantalla dice qué archivo falta correr.
+
+ROTURA — «Descargar la relación de un rango de fechas en los informes.»
+
+  - En Informes generados, «Descargar relación (PDF)» baja un solo PDF
+    del rango que está elegido arriba: un día por fila con todos los
+    días que tuvieron rotura, las líneas sumadas, unidades, kg, y el
+    estado de su hoja —con hoja, cambió después (y qué decía), anulada,
+    sin hoja, o de antes de que la hoja existiera—, hora, quién elaboró
+    y supervisor. Arriba el total del período; abajo la fila de total.
+  - Mismo papel que la hoja del día: logos tal cual, colores del tema,
+    pie «Bavaria», «Página i de n», y los títulos se repiten en cada hoja.
+
+ADMINISTRACIÓN — «Algo donde pueda elegir algo en específico y borrar
+la data con el fin de empezar de cero. No módulos en general, sino
+puntos específicos.»
+
+  - Nueva pantalla Administración › Borrar datos (/admin/datos), solo
+    para quien administra. Tres pasos: qué (un punto de la lista, por
+    módulo: plan, viajes, SAP de Traspasos; pesadas, hojas, producción de
+    Rotura de línea; reportes y salidas de Roturas; diario, bajas y
+    producción de Quiebra; viajes, novedades, AI y ZLDE de Sider;
+    acciones; conteos), de qué fechas (rango o todo), y borrar.
+  - Cuenta sola y dice cuántas filas y archivos se van. No deja escribir
+    BORRAR sin bajar antes la copia en Excel, y el botón dice cuántas
+    filas. La base vuelve a contar: si algo cambió mientras se miraba, no
+    borra.
+  - Lo que cuelga se va con lo suyo (tipos, ediciones, fotos, hilos). Los
+    PDF y las fotos se quitan de Storage con la llave del servidor.
+  - Maestros, usuarios y roles no están en la lista.
+  - Queda escrito quién borró qué, cuándo y de qué fechas; se ve abajo
+    en la misma pantalla y nadie lo puede editar.
+
+  SQL: 2026-09-admin-borrar-datos.sql
+  .arnes/correr-admin-borrar.sh (base completa) · ad-datos.mjs · mutar-ad-datos.mjs  16 de 16 rojas
 
 MEDIDO:
-  .arnes/rl-firma.mjs      el componente de verdad en Chromium: trazo,
-                           toque solo, borrar, recorte, transparencia
-  .arnes/rl-hoja.mjs       la firma en el PDF, dentro del recuadro,
-                           14 mm, una sola vez; la ventana en 7 temas
-                           y 3 anchos
-  .arnes/mutar-rl-hoja.mjs cada error se vuelve a meter y el arnés se
-                           pone rojo por su propia afirmación
+  .arnes/correr-traspasos-facturacion.sh + prueba-traspasos-sin-orden.sql
+      contra Postgres: sin la migración nueva las pruebas fallan; con
+      ella, registrar sin orden, facturar, corregir y la repetida frenada.
+  .arnes/fc-bandeja.mjs · mutar-fc-bandeja.mjs     20 de 20 rojas
+  .arnes/rl-relacion.mjs · mutar-rl-relacion.mjs   15 de 15 rojas
 
-No hay SQL nuevo en este cambio.
+=====================================================================
+FALTA CORRER EN SUPABASE — ANTES DEL PUSH
+=====================================================================
+
+  supabase/migraciones/2026-09-traspasos-sin-orden-cargue.sql
+  supabase/migraciones/2026-09-admin-borrar-datos.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

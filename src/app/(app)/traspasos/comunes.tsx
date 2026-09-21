@@ -105,16 +105,8 @@ export function FilaViaje({ v, nombres, derecha }: {
               un viaje en esta lista, casi siempre lo busca por el papel
               —«¿dónde está el 4500123456?»—, no por el tipo. */}
           {v.documento && <span className="doc-eti">{v.documento}</span>}
-          {/* Y CUANDO FALTA, SE DICE. Son los viajes de antes de que el
-              documento existiera: no se les inventa un número, se
-              marcan para que se completen al corregirlos. Un vacío
-              nunca sale marcado — no le falta, es que no lleva. */}
-          {v.sin_documento && (
-            <span className="eti sin-doc"
-                  title="Este viaje es de antes de que la orden de cargue fuera obligatoria. Se completa al corregirlo.">
-              SIN ORDEN DE CARGUE
-            </span>
-          )}
+          {/* SIN ORDEN DE CARGUE YA NO ES UN FALTANTE: se quitó del
+              registro. Lo que falta, si falta, lo dice «POR FACTURAR». */}
           {/* LO QUE DIJO FACTURACIÓN. El patio ve en su propia lista si el
               viaje ya salió —con el número que le puso facturación— o si
               sigue esperando. Así nadie tiene que preguntar por radio. */}

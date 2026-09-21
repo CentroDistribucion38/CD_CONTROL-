@@ -408,13 +408,15 @@ export const MODULOS: Modulo[] = [
       "Usuarios, roles y permisos: quién entra, quién ve qué pantalla y quién puede modificar. Los roles son datos, no código.",
     acento: "#4C3BCF",
     fondo: "#EDEBFA",
-    etiquetas: ["Crear usuarios", "Roles por sección"],
+    etiquetas: ["Crear usuarios", "Roles por sección", "Borrar datos puntuales"],
     imagen: "/modulos/admin.jpg",
     ruta: "/admin/roles",
     activo: true,
     secciones: [
       { nombre: "Roles", ruta: "/admin/roles" },
       { nombre: "Usuarios", ruta: "/admin/usuarios" },
+      /* AL FINAL: borrar es lo último que se hace, y lo más raro. */
+      { nombre: "Borrar datos", ruta: "/admin/datos" },
     ],
   },
   {
