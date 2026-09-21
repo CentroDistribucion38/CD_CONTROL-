@@ -20,7 +20,10 @@ export const dynamic = "force-dynamic";
  * si no está puesta, la pantalla lo dice con los pasos exactos en vez de
  * dejar llenar todo y fallar al guardar.
  */
-export default async function UsuariosPage() {
+export default async function UsuariosPage({ searchParams }: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const q = (await searchParams).q ?? "";
   const permisos = await misPermisos();
 
   if (!permisos.manda) {
@@ -43,7 +46,7 @@ export default async function UsuariosPage() {
 
   const supabase = await createClient();
   const user = await usuarioActual();
-  const [gente, roles, permisosRol] = await Promise.all([
+  const [gente, roles, permisosRol, ingresoR, rastroR] = await Promise.all([
     supabase
       .from("perfiles")
       .select("id, usuario, nombre, rol, activo, clave_provisional, permisos_extra")
@@ -55,7 +58,16 @@ export default async function UsuariosPage() {
        hacen nada —pero que después alguien lee como si hicieran algo—.
        Es la misma tabla que lee /admin/roles; aquí solo se mira. */
     supabase.from("rol_permisos").select("rol, seccion, nivel"),
+    /* LA ÚLTIMA VEZ QUE ENTRÓ Y CUÁNTO HA REGISTRADO. Si falta
+       2026-09-admin-usuarios.sql no existen, y las columnas dicen «—»
+       en vez de tumbar la pantalla. */
+    supabase.rpc("usuarios_ingreso"),
+    supabase.rpc("usuarios_rastro"),
   ]);
+  const ingresos = ingresoR.error ? null : Object.fromEntries(
+    ((ingresoR.data ?? []) as { id: string; ultimo_ingreso: string | null }[]).map((r) => [r.id, r.ultimo_ingreso]));
+  const registros = rastroR.error ? null : Object.fromEntries(
+    ((rastroR.data ?? []) as { id: string; registros: number }[]).map((r) => [r.id, Number(r.registros)]));
 
   /* Si falta 03-usuarios.sql, las dos columnas nuevas no vienen. La
      pantalla lo dice y no se dibuja a medias. */
@@ -102,6 +114,9 @@ export default async function UsuariosPage() {
           catalogo={catalogo}
           hayLlave={hayLlaveDeServicio()}
           yo={user?.id ?? ""}
+          ingresos={ingresos}
+          registros={registros}
+          buscar={q}
         />
       )}
     </div>

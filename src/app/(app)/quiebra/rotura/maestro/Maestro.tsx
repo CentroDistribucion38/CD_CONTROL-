@@ -59,6 +59,34 @@ export function Maestro({ lineas, maquinas, envases, skus, uso, puedeEditar }: {
     router.refresh();
   }
 
+  /* EL ORDEN DE LOS ENVASES ES EL DE LA LISTA PARA ESCOGER al registrar:
+     «que yo ubique primero lo que más van a usar para que en la lista
+     desplegable se vea de esa manera». Se renumera la lista entera —1, 2,
+     3…— y se guardan solo los que cambiaron de puesto, de una vez. */
+  async function ordenarEnvases(nueva: Envase[], quees: string) {
+    const cambian = nueva.map((e, i) => ({ e, orden: i + 1 })).filter((x) => x.e.orden !== x.orden);
+    if (cambian.length === 0) return;
+    setMandando(true);
+    const { error } = await supabase.from("rotlinea_envases").upsert(cambian.map(({ e, orden }) => ({
+      material: e.material, descripcion: e.descripcion, peso_kg: e.peso_kg, activo: e.activo, orden,
+    })));
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(quees);
+    router.refresh();
+  }
+  const mover = (i: number, a: number) => {
+    const n = [...envases];
+    const [x] = n.splice(i, 1);
+    n.splice(Math.max(0, Math.min(n.length, a)), 0, x);
+    ordenarEnvases(n, a === 0 ? `${x.descripcion}: ahora sale primero en la lista.` : `${x.descripcion}: queda de ${a + 1}.`);
+  };
+  /* Por lo que más se usa: el número de registros que ya se ve en cada
+     renglón. Un toque, y después se ajusta a mano lo que haga falta. */
+  const porUso = () => ordenarEnvases(
+    [...envases].sort((a, b) => (usoDe("envase", b.material)?.registros ?? 0) - (usoDe("envase", a.material)?.registros ?? 0)),
+    "Envases ordenados por lo que más se registra.");
+
   async function borrar(tabla: string, llave: string, valor: string | number, nombre: string) {
     setMandando(true);
     const { error } = await supabase.from(tabla).delete().eq(llave, valor);
@@ -78,8 +106,14 @@ export function Maestro({ lineas, maquinas, envases, skus, uso, puedeEditar }: {
           <h2>Envases <em>{envases.length}</em></h2>
           <p>
             Lo que se rompe. El <b>peso por botella</b> es lo que convierte los kilos de la
-            báscula en unidades.
+            báscula en unidades. <b>El orden de esta lista es el de la lista para escoger</b> al
+            registrar: sube lo que más se usa.
           </p>
+          {puedeEditar && envases.length > 1 && (
+            <button type="button" className="rl-btn chico rl-por-uso" disabled={mandando} onClick={porUso}>
+              Ordenar por lo más usado
+            </button>
+          )}
         </div>
 
         <div className="rl-ojo-nota">
@@ -103,10 +137,12 @@ export function Maestro({ lineas, maquinas, envases, skus, uso, puedeEditar }: {
              }, "Envase")} />
         )}
 
-        {envases.map((e) => {
+        {envases.map((e, i) => {
           const u = usoDe("envase", e.material);
           return (
             <Renglon key={e.material} activo={e.activo} mandando={mandando}
+                     puesto={{ n: i + 1, primero: i === 0, ultimo: i === envases.length - 1,
+                               subir: () => mover(i, i - 1), bajar: () => mover(i, i + 1), arriba: () => mover(i, 0) }}
                      puedeEditar={puedeEditar}
                      clave={e.material} titulo={e.descripcion}
                      sub={<><b>{Number(e.peso_kg)} kg</b> por botella</>}
@@ -275,9 +311,11 @@ type Campo = {
 };
 
 function Renglon({ clave, titulo, sub, activo, uso, usoDice = "registros",
-                   campos, puedeEditar, mandando, sinBorrar,
+                   campos, puedeEditar, mandando, sinBorrar, puesto,
                    alGuardar, alPrender, alBorrar }: {
   clave: string; titulo: string; sub: React.ReactNode; activo: boolean;
+  /** Mover en la lista: puesto, y subir, bajar o llevar al primero. */
+  puesto?: { n: number; primero: boolean; ultimo: boolean; subir: () => void; bajar: () => void; arriba: () => void };
   uso?: { registros: number; unidades: number; ultima: string } | undefined;
   usoDice?: string;
   campos: Campo[];
@@ -298,7 +336,7 @@ function Renglon({ clave, titulo, sub, activo, uso, usoDice = "registros",
     <div className={"rl-item" + (activo ? "" : " apagado")}>
       <div className="rl-item-cab">
         <div className="rl-item-nom">
-          <b>{titulo}</b>
+          <b>{puesto && <em className="rl-orden-n" title="Puesto en la lista para escoger">{puesto.n}</em>}{titulo}</b>
           <span>{clave} · {sub}</span>
         </div>
 
@@ -321,6 +359,16 @@ function Renglon({ clave, titulo, sub, activo, uso, usoDice = "registros",
               {abierto ? "Cerrar" : "Editar"}
             </button>
           </>
+        )}
+        {puesto && puedeEditar && (
+          <div className="rl-orden" role="group" aria-label={`Puesto de ${titulo} en la lista`}>
+            <button type="button" disabled={mandando || puesto.primero} onClick={puesto.subir}
+                    aria-label={`Subir ${titulo}`} title="Subir uno">▲</button>
+            <button type="button" disabled={mandando || puesto.ultimo} onClick={puesto.bajar}
+                    aria-label={`Bajar ${titulo}`} title="Bajar uno">▼</button>
+            <button type="button" className="rl-orden-1" disabled={mandando || puesto.primero} onClick={puesto.arriba}
+                    aria-label={`Poner ${titulo} de primero`} title="Poner de primero">1º</button>
+          </div>
         )}
       </div>
 

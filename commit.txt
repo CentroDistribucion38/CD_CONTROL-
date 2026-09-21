@@ -1,37 +1,44 @@
-Roles: Supervisor se puede borrar; las firmas de roturas y Quiebra van por permiso
+Usuarios a otro nivel y orden de envases en Rotura de línea
 
-«¿Por qué no me deja eliminar ese?» Supervisor era de sistema porque la
-app lo nombraba en dos sitios. Lo mismo pasaba —sin avisar— con ABI,
-Verificador y Validación en las firmas de roturas: borrar uno dejaba su
-firma sin nadie que la pudiera poner.
+USUARIOS (Administración › Usuarios)
+  - Buscar por nombre o usuario (con o sin tildes), filtrar por rol y por
+    estado (activos, inactivos, clave provisional, nunca han entrado) y
+    ordenar por nombre, rol, último ingreso o registros.
+  - Último ingreso de cada persona («hoy 10:42», «hace 6 días», «nunca»)
+    y cuántos registros ha dejado en toda la base.
+  - Seleccionar a varios: cambiar el rol, activar, desactivar o eliminar
+    de una vez. La confirmación nombra a quiénes. Uno mismo no entra.
+  - Desactivar también bloquea la cuenta, para que una sesión abierta no
+    siga entrando; activar la desbloquea.
+  - Eliminar de verdad: quien no ha registrado nada se borra del todo y
+    su usuario queda libre; quien sí, se desactiva para no perder quién
+    hizo qué. Se dice cuál fue cuál.
+  - Crear varios en un mismo rol: se pegan los nombres (de Excel o de un
+    chat), el usuario de cada uno sale solo sin chocar con los que hay y
+    se puede corregir; al final una tabla con las claves provisionales
+    para copiar todo o bajar en CSV. Máximo 50 por vez.
+  - Crear una cuenta vive ahora en src/lib/cuentas.ts: la usan crear uno
+    y crear varios, con las mismas reglas.
 
-  - Firma quien tiene EDITAR en la pantalla de esa firma (o administra):
-      visto bueno      Roturas › Visto bueno
-      supervisor (a)   Roturas › Pesar
-      verificador      Roturas › Verificación
-      validador        Roturas › Validación
-    Cuenta lo del rol y lo puesto a la persona, igual que el menú. La
-    regla de tres personas distintas sigue igual.
-  - Quiebra (Tablero y Quiebra diaria): edita quien tiene Editar en esa
-    pantalla, no quien se llama Administrador o Supervisor.
-  - Nadie gana una firma que no tenía: la migración baja a «Ver» esas
-    cuatro pantallas en los roles que tenían Editar pero no firmaban (en
-    esas pantallas Editar no sirve para otra cosa). Al correrla dice en
-    Supabase quién firma cada cosa.
-  - Supervisor deja de ser de sistema y ya sale «Borrar rol». Administrador
-    y Operador siguen fijos.
+ROTURA DE LÍNEA › MAESTRO
+  «Que yo ubique primero lo que más van a usar para que en la lista
+  desplegable se vea de esa manera.»
+  - Cada envase dice su puesto y tiene ▲ ▼ y «1º» para moverlo, más
+    «Ordenar por lo más usado». La lista para escoger al registrar sale
+    en ese mismo orden.
 
-SQL: 2026-09-roles-supervisor-borrable.sql
+SQL: 2026-09-admin-usuarios.sql (usuarios_ingreso, usuarios_rastro,
+usuarios_lote). El orden de envases no necesita SQL.
 
-MEDIDO: .arnes/correr-admin-roles.sh (base completa): firmas por permiso,
-lo de la persona cuenta y quita, un rol con Editar que no firmaba sigue
-sin firmar, y Supervisor se borra pasando a su gente.
+MEDIDO:
+  .arnes/correr-admin-usuarios.sh · ad-usuarios.mjs · mutar-ad-usuarios.mjs  10 de 10 rojas
+  .arnes/rl-orden-envases.mjs
 
 =====================================================================
 FALTA CORRER EN SUPABASE — ANTES DEL PUSH
 =====================================================================
 
-  supabase/migraciones/2026-09-roles-supervisor-borrable.sql
+  supabase/migraciones/2026-09-admin-usuarios.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

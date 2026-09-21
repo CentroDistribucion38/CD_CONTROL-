@@ -183,7 +183,10 @@
 /* Dos botones en la misma celda: en fila, y si no caben se van a la
    siguiente pegados a la derecha, que es donde está la columna. */
 .us .us-acc { text-align: right; white-space: nowrap }
-.us .us-acc { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; align-items: center }
+/* LA CELDA SIGUE SIENDO CELDA: con display:flex en el <td> la fila se
+   descuadraba —el borde y el fondo de esa columna no seguían al resto—
+   en cuanto hubo cuatro botones. El flex va en un envoltorio adentro. */
+.us .us-acc-in { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; align-items: center }
 
 /* ---------- Editar en la misma fila ----------
    La fila que se está editando se marca con un filo a la izquierda y un
@@ -437,3 +440,83 @@
   }
   .us .us-sec .us-niveles { grid-column: 1 / -1; justify-content: flex-end }
 }
+
+/* ---------------------------------------------------------------------
+   USUARIOS A OTRO NIVEL: buscar, filtrar, varios a la vez, crear varios.
+   --------------------------------------------------------------------- */
+.us .us-bien { margin: 0; padding: 12px 16px; border-radius: 3px; background: #E9F6EF; color: #14653F; font-size: 13.5px; border: 1px solid #BFE3CF }
+.us .us-cab-bot { display: flex; gap: 8px; flex-wrap: wrap }
+
+/* Filtros */
+.us .us-filtros {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
+  padding: 12px 20px 14px; border-top: 1px solid var(--rl-linea); background: var(--c-fafbfd);
+}
+.us .us-filtros label { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.us .us-filtros label > span { font: 700 10.5px var(--rl-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--rl-gris) }
+.us .us-filtros select, .us .us-lote select, .us .us-varios select {
+  height: 40px; padding: 0 10px; font: 500 14px var(--rl-texto); color: var(--rl-tinta);
+  background: #fff; border: 1.5px solid var(--rl-linea); border-radius: 2px; max-width: 100%;
+}
+.us .us-buscar { flex: 1 1 220px }
+.us .us-cuenta { margin: 0 0 10px auto; font: 700 12.5px var(--rl-texto); color: var(--rl-gris); white-space: nowrap }
+
+/* La barra de los seleccionados */
+.us .us-lote {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 20px; background: var(--rl-tinta); color: #fff;
+  position: sticky; top: 0; z-index: 3;
+}
+.us .us-lote > b { font: 800 14px var(--rl-titulo); margin-right: 6px }
+.us .us-lote-rol { display: flex; gap: 6px }
+.us .us-lote .btn.sec { background: #fff }
+.us .us-lote .btn.plano { color: #fff; text-decoration: underline }
+.us .us-lote .btn.plano:hover:not(:disabled) { color: #fff }
+
+/* La tabla */
+.us .us-marca { width: 44px; text-align: center }
+.us .us-marca input { width: 20px; height: 20px; accent-color: var(--rl-acento); cursor: pointer; box-shadow: none; padding: 0 }
+.us .us-tabla tr.us-sel > td { background: #F2F1FC }
+.us .us-tabla .num { text-align: right; font-variant-numeric: tabular-nums }
+.us .us-ingreso { white-space: nowrap; font-size: 13px; color: var(--c-2c4361) }
+.us .us-mini.peligro { color: #B3001F }
+.us .us-mini.peligro:hover:not(:disabled) { border-color: #B3001F; color: #B3001F }
+
+/* Crear varios */
+.us .us-varios-rej { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); gap: 14px }
+.us .us-varios label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.us .us-varios label > span { font-size: 11.5px; font-weight: 600; color: var(--c-2c4361) }
+.us .us-varios label > em { font-style: normal; font-size: 12px; color: var(--rl-gris) }
+.us .us-varios textarea {
+  width: 100%; min-height: 120px; padding: 10px 12px; resize: vertical;
+  font: 500 14px/1.5 var(--rl-texto); color: var(--rl-tinta);
+  background: var(--c-f7f9fc); border: 1.5px solid var(--rl-linea); border-radius: 2px;
+}
+.us .us-varios textarea:focus { outline: none; background: #fff; border-color: var(--rl-acento) }
+.us .us-varios .us-marco { margin-top: 12px; border: 1px solid var(--rl-linea); max-height: 320px; overflow: auto }
+.us .us-tabla-lote { min-width: 480px }
+.us .us-tabla-lote .us-campo { max-width: 240px }
+.us .us-choca { display: block; font-style: normal; font-size: 12px; font-weight: 700; color: #A4271C; margin-top: 3px }
+
+/* Las claves del lote */
+.us .us-lote-claves { background: var(--rl-papel); border: 1px solid var(--rl-linea); border-left: 5px solid var(--rl-oro, #E9A81F); border-radius: 3px }
+.us .us-lote-cab { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 16px 20px }
+.us .us-lote-cab .rot { margin: 0; font: 700 11px var(--rl-texto); letter-spacing: .14em; color: var(--rl-gris) }
+.us .us-lote-cab .dice { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; max-width: 70ch }
+.us .us-lote-bot { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.us .us-tabla-claves { min-width: 420px }
+.us .us-clave-num { font: 800 20px ui-monospace, monospace; letter-spacing: .12em }
+.us .us-tabla tr.us-no > td { background: #FFF7F8 }
+
+@media (max-width: 700px) {
+  .us .us-filtros, .us .us-lote { padding-left: 14px; padding-right: 14px }
+  .us .us-filtros label { flex: 1 1 140px }
+  .us .us-filtros select, .us .us-lote select { height: 44px; width: 100% }
+  .us .us-cuenta { margin: 0 }
+  .us .us-varios-rej { grid-template-columns: minmax(0, 1fr) }
+  .us .us-lote-rol { flex: 1 1 100% }
+  .us .us-lote-rol select { flex: 1 }
+  .us .us-marca input { width: 22px; height: 22px }
+}
+.us .us-tabla .us-cuantas:empty { display: none }
+.us .us-tabla .us-cuantas { margin-top: 4px }

@@ -163,7 +163,41 @@ function proponer(nombre: string): string {
   return normalizarUsuario(partes[0][0] + partes[partes.length - 1]);
 }
 
-export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
+/** «hace 3 días», «hoy 10:42», «nunca». Lo que se lee de un vistazo. */
+function haceCuanto(s: string | null | undefined): string {
+  if (!s) return "nunca";
+  const t = new Date(s), ahora = new Date();
+  const dias = Math.floor((ahora.getTime() - t.getTime()) / 86_400_000);
+  const hora = t.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+  if (t.toDateString() === ahora.toDateString()) return `hoy ${hora}`;
+  if (dias < 1) return `ayer ${hora}`;
+  if (dias < 30) return `hace ${dias + 1} días`;
+  return t.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });
+}
+
+type Estado = "todos" | "activos" | "inactivos" | "provisional" | "nunca";
+type Orden = "nombre" | "ingreso" | "rol" | "registros";
+type Resultado = { nombre: string; usuario: string; ok: boolean; clave?: string; error?: string };
+
+/** Los nombres pegados —de Excel, de un chat— a una fila por persona. */
+export function leerNombres(texto: string): string[] {
+  return texto.split(/\r?\n|;/).map((x) => x.split("\t")[0].replace(/\s+/g, " ").trim()).filter((x) => x.length >= 3);
+}
+
+/** Usuarios propuestos para un lote: sin chocar con los que ya existen
+ *  ni entre ellos. «gvisbal», «gvisbal2», «gvisbal3». */
+export function proponerLote(nombres: string[], tomados: Set<string>): string[] {
+  const usados = new Set(tomados);
+  return nombres.map((n) => {
+    const base = proponer(n) || "usuario";
+    let u = base, k = 2;
+    while (usados.has(u)) u = `${base}${k++}`;
+    usados.add(u);
+    return u;
+  });
+}
+
+export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingresos, registros, buscar }: {
   gente: Persona[];
   roles: Rol[];
   /** Lo que ya da cada rol, para no dar suelto lo que ya venía puesto. */
@@ -172,6 +206,12 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
   hayLlave: boolean;
   /** Quién está mirando: a uno mismo no se le genera clave desde aquí. */
   yo: string;
+  /** Última vez que entró cada uno. null = falta el SQL. */
+  ingresos: Record<string, string | null> | null;
+  /** Cuántos registros ha dejado cada uno. null = falta el SQL. */
+  registros: Record<string, number> | null;
+  /** Lo que llega en ?q= (desde Roles › Quiénes lo tienen). */
+  buscar: string;
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -187,6 +227,51 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
      vería aquí mismo en vez de descubrirse mañana. */
   const [lista, setLista] = useState(gente);
   useEffect(() => { setLista(gente) }, [gente]);
+
+  /* ---------- BUSCAR, FILTRAR Y ORDENAR ---------- */
+  const [q, setQ] = useState(buscar);
+  const [fRol, setFRol] = useState("");
+  const [fEstado, setFEstado] = useState<Estado>("todos");
+  const [orden, setOrden] = useState<Orden>("nombre");
+  const plano = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const visibles = useMemo(() => {
+    const t = plano(q.trim());
+    const out = lista.filter((p) =>
+      (!t || plano(`${p.nombre ?? ""} ${p.usuario ?? ""}`).includes(t)) &&
+      (!fRol || p.rol === fRol) &&
+      (fEstado === "todos" ? true
+        : fEstado === "activos" ? p.activo
+        : fEstado === "inactivos" ? !p.activo
+        : fEstado === "provisional" ? p.activo && p.clave_provisional
+        : !ingresos?.[p.id]));
+    const ing = (p: Persona) => (ingresos?.[p.id] ? Date.parse(ingresos[p.id]!) : 0);
+    out.sort((a, b) =>
+      orden === "ingreso" ? ing(b) - ing(a)
+      : orden === "registros" ? (registros?.[b.id] ?? 0) - (registros?.[a.id] ?? 0)
+      : orden === "rol" ? a.rol.localeCompare(b.rol) || (a.nombre ?? "").localeCompare(b.nombre ?? "")
+      : (a.nombre ?? a.usuario ?? "").localeCompare(b.nombre ?? b.usuario ?? "", "es"));
+    return out;
+  }, [lista, q, fRol, fEstado, orden, ingresos, registros]);
+
+  /* ---------- VARIOS A LA VEZ ---------- */
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [loteRol, setLoteRol] = useState("");
+  const [enLote, setEnLote] = useState(false);
+  const [bien, setBien] = useState<string | null>(null);
+  const marcar = (id: string) => setSel((s0) => { const s1 = new Set(s0); if (s1.has(id)) s1.delete(id); else s1.add(id); return s1 });
+  const todosVisibles = visibles.length > 0 && visibles.every((p) => sel.has(p.id));
+  const marcarTodos = () => setSel(todosVisibles ? new Set() : new Set(visibles.map((p) => p.id)));
+
+  /* ---------- CREAR VARIOS ---------- */
+  const [varios, setVarios] = useState(false);
+  const [texto, setTexto] = useState("");
+  const [rolVarios, setRolVarios] = useState(roles.find((r) => !r.manda)?.clave ?? roles[0]?.clave ?? "");
+  const [propuestos, setPropuestos] = useState<string[]>([]);
+  const [resultados, setResultados] = useState<Resultado[] | null>(null);
+  const nombresLote = useMemo(() => leerNombres(texto), [texto]);
+  useEffect(() => {
+    setPropuestos(proponerLote(nombresLote, new Set(lista.map((p) => p.usuario ?? ""))));
+  }, [nombresLote, lista]);
 
   const [abierto, setAbierto] = useState(false);
   const [nombre, setNombre] = useState("");
@@ -389,6 +474,113 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
     router.refresh();
   }
 
+  /* ---------- VARIOS: ROL, ACTIVAR, DESACTIVAR, ELIMINAR ----------
+     Todo pasa por la misma ruta y se confirma diciendo A QUIÉNES: una
+     acción de a varios que no nombra a nadie es cómo se desactiva a quien
+     no era. */
+  const nomDe = (ids: string[]) => {
+    const n = ids.map((id) => { const p = lista.find((x) => x.id === id); return p?.nombre || p?.usuario || "?" });
+    return n.length <= 5 ? n.join(", ") : `${n.slice(0, 5).join(", ")} y ${n.length - 5} más`;
+  };
+  async function lote(accion: "rol" | "activar" | "desactivar" | "eliminar", ids: string[], rolNuevo?: string) {
+    if (ids.length === 0) return;
+    const conmigo = ids.includes(yo) && accion !== "activar";
+    if (conmigo) { setMal("Tú estás en la selección: quítate para cambiar el rol, desactivar o eliminar."); return }
+    const quien = nomDe(ids);
+    const conRastro = ids.filter((id) => (registros?.[id] ?? 0) > 0);
+    const ok = await pedir(
+      accion === "rol" ? {
+        titulo: `¿Pasar ${ids.length === 1 ? "a esta persona" : `a estas ${ids.length} personas`} a ${nRol(rolNuevo ?? "")}?`,
+        dice: <><p>{quien}.</p><p>Desde que vuelvan a abrir una pantalla ven lo de <b>{nRol(rolNuevo ?? "")}</b>.</p></>,
+        confirmar: "Cambiar el rol",
+      } : accion === "activar" ? {
+        titulo: `¿Activar ${ids.length === 1 ? "a esta persona" : `a estas ${ids.length} personas`}?`,
+        dice: <p>{quien}. Vuelven a poder entrar con su usuario y su clave.</p>,
+        confirmar: "Activar",
+      } : accion === "desactivar" ? {
+        titulo: `¿Desactivar ${ids.length === 1 ? "a esta persona" : `a estas ${ids.length} personas`}?`,
+        dice: <><p>{quien}.</p><p>No pueden entrar más, ni con una sesión que tengan abierta. Lo que registraron
+          se queda con su nombre. Se puede volver a activar.</p></>,
+        confirmar: "Desactivar", peligro: true,
+      } : {
+        titulo: `¿Eliminar ${ids.length === 1 ? "a esta persona" : `a estas ${ids.length} personas`}?`,
+        dice: <><p>{quien}.</p>
+          {conRastro.length > 0 && <p><b>{conRastro.length === ids.length ? (ids.length === 1 ? "Tiene" : "Todas tienen") : `${conRastro.length} tienen`} registros</b>
+            ({nomDe(conRastro)}): {conRastro.length === 1 ? "esa se desactiva" : "esas se desactivan"} en vez de borrarse, para no perder quién hizo qué.</p>}
+          {conRastro.length < ids.length && <p>{conRastro.length > 0 ? "Las demás no" : ids.length === 1 ? "No" : "No"} han registrado nada: se borran del todo y su usuario queda libre. <b>No se puede deshacer.</b></p>}</>,
+        confirmar: "Eliminar", peligro: true,
+      });
+    if (!ok) return;
+    setEnLote(true); setMal(null); setBien(null);
+    const r = await fetch("/api/admin/usuarios/lote", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accion, ids, rol: rolNuevo }),
+    });
+    const j = await r.json().catch(() => ({} as Record<string, unknown>));
+    setEnLote(false);
+    if (!r.ok) { setMal(String(j.error ?? "No se pudo.")); return }
+    if (accion === "eliminar") {
+      const rs = (j.resultados ?? []) as { id: string; nombre: string; hecho: string; registros: number; error?: string }[];
+      const el = rs.filter((x) => x.hecho === "eliminado"), de = rs.filter((x) => x.hecho === "desactivado"), er = rs.filter((x) => x.hecho === "error");
+      setLista((l) => l.filter((x) => !el.some((e) => e.id === x.id)).map((x) => de.some((d) => d.id === x.id) ? { ...x, activo: false } : x));
+      const dicho = [el.length && `${el.length} eliminado${el.length === 1 ? "" : "s"}`,
+               de.length && `${de.length} desactivado${de.length === 1 ? "" : "s"} porque ${de.length === 1 ? "tenía" : "tenían"} registros`].filter(Boolean).join(" · ");
+      setBien(dicho ? dicho + "." : null);
+      if (er.length) setMal(er.map((x) => `${x.nombre}: ${x.error}`).join(" · "));
+    } else {
+      setLista((l) => l.map((x) => !ids.includes(x.id) ? x
+        : accion === "rol" ? { ...x, rol: rolNuevo! } : { ...x, activo: accion === "activar" }));
+      const n = Number(j.cambiados ?? ids.length);
+      setBien(`${n} ${n === 1 ? "persona" : "personas"}: ${accion === "rol" ? `ahora con rol ${nRol(rolNuevo!)}` : accion === "activar" ? "activadas" : "desactivadas"}.`
+        + (Number(j.sinBloqueo) ? ` A ${j.sinBloqueo} no se les pudo bloquear la sesión abierta.` : ""));
+    }
+    setSel(new Set());
+    router.refresh();
+  }
+
+  /* ---------- CREAR VARIOS ---------- */
+  async function crearVarios() {
+    const personas = nombresLote.map((nombre, i) => ({ nombre, usuario: propuestos[i] }));
+    if (personas.length === 0) return;
+    if (!(await pedir({
+      titulo: `¿Crear ${personas.length} ${personas.length === 1 ? "usuario" : "usuarios"} con rol ${nRol(rolVarios)}?`,
+      dice: <p>Cada uno sale con su clave provisional, que se muestra una sola vez al terminar.</p>,
+      confirmar: `Crear ${personas.length}`,
+    }))) return;
+    setEnLote(true); setMal(null); setBien(null);
+    const r = await fetch("/api/admin/usuarios/lote", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accion: "crear", rol: rolVarios, personas }),
+    });
+    const j = await r.json().catch(() => ({} as Record<string, unknown>));
+    setEnLote(false);
+    if (!r.ok) { setMal(String(j.error ?? "No se pudieron crear.")); return }
+    const rs = (j.resultados ?? []) as Resultado[];
+    if (rs.length === 0) {
+      setMal("El servidor cortó la respuesta y las claves no llegaron. Algunas cuentas PUEDEN haber quedado creadas: búscalas en la lista y, si están, genérales una clave nueva.");
+      router.refresh();
+      return;
+    }
+    setResultados(rs);
+    setTexto("");
+    setVarios(false);
+    router.refresh();
+  }
+  const listaClaves = (rs: Resultado[]) => rs.filter((x) => x.ok);
+  function copiarClaves() {
+    const t = ["Nombre\tUsuario\tClave provisional", ...listaClaves(resultados ?? []).map((x) => `${x.nombre}\t${x.usuario}\t${x.clave}`)].join("\n");
+    navigator.clipboard?.writeText(t).then(() => setBien("Copiadas: pégalas en Excel o en un chat."), () => setMal("No se pudo copiar."));
+  }
+  function bajarClaves() {
+    const filas = [["Nombre", "Usuario", "Clave provisional", "Rol"], ...listaClaves(resultados ?? []).map((x) => [x.nombre, x.usuario, x.clave ?? "", nRol(rolVarios)])];
+    const csv = "\ufeff" + filas.map((f) => f.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `claves-provisionales-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  }
+
   const puede = nombre.trim().length >= 3 && usuario.length >= 3 && !!rol && libre === true;
   /* LO QUE DA CADA ROL, indexado una vez. La tabla llega plana —una
      línea por rol y sección— y el selector la consulta por ruta en cada
@@ -444,6 +636,42 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
           nada. Medido: 403 y 200-vacío no mostraban absolutamente
           nada. */}
       {mal && <p className="us-mal suelto" role="alert">{mal}</p>}
+      {bien && <p className="us-bien suelto" role="status">{bien}</p>}
+
+      {/* LAS CLAVES DE UN LOTE: una tabla para entregar, copiar o bajar.
+          Salen UNA vez, igual que la de uno solo. */}
+      {resultados && (
+        <section className="us-lote-claves" role="status">
+          <div className="us-lote-cab">
+            <div>
+              <p className="rot">CLAVES PROVISIONALES · {nRol(rolVarios).toUpperCase()}</p>
+              <p className="dice">
+                {listaClaves(resultados).length} de {resultados.length} creados. Entrégalas ahora:
+                <b> no se vuelven a mostrar</b>. Cada persona cambia la suya al entrar.
+              </p>
+            </div>
+            <div className="us-lote-bot">
+              <button type="button" className="btn" onClick={copiarClaves} disabled={listaClaves(resultados).length === 0}>Copiar todo</button>
+              <button type="button" className="btn sec" onClick={bajarClaves} disabled={listaClaves(resultados).length === 0}>Bajar Excel (CSV)</button>
+              <button type="button" className="btn plano" onClick={() => setResultados(null)}>Ya las entregué</button>
+            </div>
+          </div>
+          <div className="us-marco">
+            <table className="us-tabla us-tabla-claves">
+              <thead><tr><th>Nombre</th><th>Usuario</th><th>Clave</th></tr></thead>
+              <tbody>
+                {resultados.map((x, i) => (
+                  <tr key={i} className={x.ok ? "" : "us-no"}>
+                    <td>{x.nombre}</td>
+                    <td className="cod">{x.usuario}</td>
+                    <td>{x.ok ? <b className="us-clave-num">{x.clave}</b> : <span className="us-estado mal">{x.error}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* La clave recién generada. Grande, para dictarla. */}
       {reciente && (
@@ -476,11 +704,75 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
             <h2>{lista.length} {lista.length === 1 ? "persona" : "personas"}</h2>
             <p>Quién entra a CONTROL y con qué rol.</p>
           </div>
-          <button type="button" className="btn" disabled={!hayLlave}
-                  onClick={() => setAbierto((v) => !v)}>
-            {abierto ? "Cerrar" : "Crear usuario"}
-          </button>
+          <div className="us-cab-bot">
+            <button type="button" className="btn" disabled={!hayLlave}
+                    onClick={() => { setAbierto((v) => !v); setVarios(false) }}>
+              {abierto ? "Cerrar" : "Crear usuario"}
+            </button>
+            <button type="button" className="btn sec" disabled={!hayLlave}
+                    onClick={() => { setVarios((v) => !v); setAbierto(false) }}>
+              {varios ? "Cerrar" : "Crear varios"}
+            </button>
+          </div>
         </div>
+
+        {/* CREAR VARIOS EN UN MISMO ROL: se pegan los nombres —de Excel, de
+            un chat—, uno por renglón; el usuario de cada uno se propone
+            solo, sin chocar con los que hay, y se puede corregir antes. */}
+        {varios && (
+          <div className="us-form us-varios">
+            <div className="us-varios-rej">
+              <label className="us-varios-rol">
+                <span>Rol para todos</span>
+                <select value={rolVarios} onChange={(e) => setRolVarios(e.target.value)}>
+                  {roles.map((r) => (
+                    <option key={r.clave} value={r.clave}>{r.nombre}{r.manda ? " · administra la plataforma" : ""}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="us-varios-texto">
+                <span>Nombres completos, uno por renglón</span>
+                <textarea value={texto} rows={6} onChange={(e) => setTexto(e.target.value)}
+                          placeholder={"Génesis Visbal\nSantiago Leal\nAna María Pérez"} />
+                <em>Puedes pegar una columna de Excel. Máximo 50 por vez.</em>
+              </label>
+            </div>
+            {nombresLote.length > 0 && (
+              <div className="us-marco">
+                <table className="us-tabla us-tabla-lote">
+                  <thead><tr><th>#</th><th>Nombre</th><th>Usuario con que entra</th></tr></thead>
+                  <tbody>
+                    {nombresLote.map((n, i) => {
+                      const u = propuestos[i] ?? "";
+                      const choca = lista.some((p) => p.usuario === u) || propuestos.filter((x) => x === u).length > 1;
+                      return (
+                        <tr key={i}>
+                          <td className="apagado">{i + 1}</td>
+                          <td>{n}</td>
+                          <td>
+                            <input className="us-campo cod" value={u} aria-label={`Usuario de ${n}`}
+                                   onChange={(e) => setPropuestos((ps) => ps.map((x, k) => k === i ? normalizarUsuario(e.target.value) : x))} />
+                            {(choca || u.length < 3) && <em className="us-choca">{u.length < 3 ? "muy corto" : "ya está tomado"}</em>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="us-acciones">
+              <button type="button" className="btn" onClick={crearVarios}
+                      disabled={enLote || nombresLote.length === 0 || nombresLote.length > 50 ||
+                        propuestos.some((u, i) => u.length < 3 || lista.some((p) => p.usuario === u) || propuestos.indexOf(u) !== i)}>
+                {enLote ? "Creando…" : nombresLote.length === 0 ? "Pega los nombres"
+                  : nombresLote.length > 50 ? `Son ${nombresLote.length}: máximo 50`
+                  : `Crear ${nombresLote.length} ${nombresLote.length === 1 ? "usuario" : "usuarios"} · ${nRol(rolVarios)}`}
+              </button>
+              <button type="button" className="btn plano" onClick={() => { setVarios(false); setTexto("") }}>Cancelar</button>
+            </div>
+          </div>
+        )}
 
         {abierto && (
           <div className="us-form">
@@ -540,20 +832,83 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
           </div>
         )}
 
+        {/* BUSCAR Y FILTRAR: arriba de la tabla, en una fila. */}
+        <div className="us-filtros">
+          <label className="us-buscar">
+            <span>Buscar</span>
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)}
+                   placeholder="Nombre o usuario" aria-label="Buscar por nombre o usuario" />
+          </label>
+          <label>
+            <span>Rol</span>
+            <select value={fRol} onChange={(e) => setFRol(e.target.value)}>
+              <option value="">Todos</option>
+              {roles.map((r) => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Estado</span>
+            <select value={fEstado} onChange={(e) => setFEstado(e.target.value as Estado)}>
+              <option value="todos">Todos</option>
+              <option value="activos">Activos</option>
+              <option value="inactivos">Inactivos</option>
+              <option value="provisional">Con clave provisional</option>
+              {ingresos && <option value="nunca">Nunca han entrado</option>}
+            </select>
+          </label>
+          <label>
+            <span>Ordenar</span>
+            <select value={orden} onChange={(e) => setOrden(e.target.value as Orden)}>
+              <option value="nombre">Por nombre</option>
+              <option value="rol">Por rol</option>
+              {ingresos && <option value="ingreso">Último ingreso</option>}
+              {registros && <option value="registros">Más registros</option>}
+            </select>
+          </label>
+          <p className="us-cuenta">{visibles.length === lista.length ? `${lista.length} en total` : `${visibles.length} de ${lista.length}`}</p>
+        </div>
+
+        {/* LA BARRA DE LOS SELECCIONADOS: solo aparece cuando hay alguno. */}
+        {sel.size > 0 && (
+          <div className="us-lote" role="region" aria-label="Acciones para los seleccionados">
+            <b>{sel.size} {sel.size === 1 ? "seleccionado" : "seleccionados"}</b>
+            <div className="us-lote-rol">
+              <select value={loteRol} onChange={(e) => setLoteRol(e.target.value)} aria-label="Rol nuevo">
+                <option value="">Cambiar rol a…</option>
+                {roles.map((r) => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
+              </select>
+              <button type="button" className="btn sec" disabled={!loteRol || enLote || !hayLlave}
+                      onClick={() => lote("rol", [...sel], loteRol)}>Aplicar</button>
+            </div>
+            <button type="button" className="btn sec" disabled={enLote || !hayLlave} onClick={() => lote("activar", [...sel])}>Activar</button>
+            <button type="button" className="btn sec" disabled={enLote || !hayLlave} onClick={() => lote("desactivar", [...sel])}>Desactivar</button>
+            <button type="button" className="btn sec peligro" disabled={enLote || !hayLlave} onClick={() => lote("eliminar", [...sel])}>Eliminar</button>
+            <button type="button" className="btn plano" onClick={() => setSel(new Set())}>Quitar selección</button>
+          </div>
+        )}
+
         <div className="us-marco">
           <table className="us-tabla">
             <thead>
               <tr>
+                <th className="us-marca"><input type="checkbox" checked={todosVisibles} onChange={marcarTodos}
+                                                aria-label="Seleccionar todos los de la lista" /></th>
                 <th>Nombre</th><th>Usuario</th><th>Rol</th>
-                <th>Pantallas extra</th><th>Estado</th><th className="us-acc">Acciones</th>
+                <th>Estado</th>
+                <th>Último ingreso</th><th className="num">Registros</th>
+                <th className="us-acc">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {lista.map((p) => {
+              {visibles.map((p) => {
                 const ex = Object.entries(p.permisos_extra ?? {});
                 const enEdicion = editando === p.id;
                 const fila = (
-                  <tr key={p.id} className={enEdicion ? "us-editando" : undefined}>
+                  <tr key={p.id} className={(enEdicion ? "us-editando" : "") + (sel.has(p.id) ? " us-sel" : "")}>
+                    <td className="us-marca">
+                      <input type="checkbox" checked={sel.has(p.id)} onChange={() => marcar(p.id)}
+                             aria-label={`Seleccionar a ${p.nombre || p.usuario}`} />
+                    </td>
                     <td>
                       {enEdicion ? (
                         <input className="us-campo" value={edNombre} autoFocus
@@ -577,22 +932,17 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
                           ))}
                         </select>
                       ) : nRol(p.rol)}
-                    </td>
-                    {/* LA CUENTA, NO LA LISTA. Aquí vivían las diecisiete
-                        chapas de Santiago Leal, una debajo de otra: la
-                        fila medía cinco veces las demás, la tabla dejaba
-                        de leerse de un vistazo —que es para lo único que
-                        sirve una tabla— y encima no se podía tocar
-                        ninguna. La lista completa está a un clic, en el
-                        editor, que es donde además se puede cambiar. */}
-                    <td className="us-cuantas">
+                      {/* LAS PANTALLAS SUELTAS, debajo de su rol: es de lo que
+                          se desvían. La cuenta, no la lista —la lista completa
+                          está a un clic, en el editor—. */}
+                      <div className="us-cuantas">
                       {enEdicion
                         ? <span className="us-editando-aqui">
                             {Object.keys(edExtra).length === 0
                               ? "ninguna" : `${Object.keys(edExtra).length} elegidas`} · abajo ↓
                           </span>
                         : ex.length === 0
-                          ? <span className="apagado">—</span>
+                          ? null
                           : <button type="button" className="us-chapa cuenta"
                                     disabled={!hayLlave || !!editando}
                                     title={ex.map(([r, n]) => `${nRuta(r)} · ${n}`).join("\n")}
@@ -600,6 +950,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
                               {ex.length} pantalla{ex.length === 1 ? "" : "s"}
                               <em>ver y cambiar</em>
                             </button>}
+                    </div>
                     </td>
                     <td>
                       {!p.activo
@@ -608,7 +959,9 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
                           ? <span className="us-estado ojo">clave provisional</span>
                           : <span className="us-estado bien">al día</span>}
                     </td>
-                    <td className="us-acc">
+                    <td className="us-ingreso">{ingresos ? haceCuanto(ingresos[p.id]) : "—"}</td>
+                    <td className="num">{registros ? (registros[p.id] ?? 0).toLocaleString("es-CO") : "—"}</td>
+                    <td className="us-acc"><div className="us-acc-in">
                       {enEdicion ? (
                         <>
                           <button type="button" className="us-mini fuerte" disabled={guardando}
@@ -642,9 +995,24 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
                               {regenerando === p.id ? "Generando…" : "Nueva clave"}
                             </button>
                           )}
+                          {p.id !== yo && (
+                            <button type="button" className="us-mini"
+                                    disabled={!hayLlave || enLote || !!editando}
+                                    onClick={() => lote(p.activo ? "desactivar" : "activar", [p.id])}>
+                              {p.activo ? "Desactivar" : "Activar"}
+                            </button>
+                          )}
+                          {p.id !== yo && (
+                            <button type="button" className="us-mini peligro"
+                                    disabled={!hayLlave || enLote || !!editando}
+                                    title={(registros?.[p.id] ?? 0) > 0 ? "Tiene registros: se desactiva en vez de borrarse" : "No ha registrado nada: se borra del todo"}
+                                    onClick={() => lote("eliminar", [p.id])}>
+                              Eliminar
+                            </button>
+                          )}
                         </>
                       )}
-                    </td>
+                    </div></td>
                   </tr>
                 );
                 /* EL PANEL DE PANTALLAS VA EN SU PROPIA FILA, a todo lo
@@ -658,7 +1026,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
                   <Fragment key={p.id}>
                     {fila}
                     <tr className="us-panel">
-                      <td colSpan={6}>
+                      <td colSpan={9}>
                         <p className="us-rot">
                           A qué entra {p.nombre || p.usuario}
                           <em> — y a qué no</em>
@@ -678,8 +1046,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo }: {
                   </Fragment>
                 ) : fila;
               })}
-              {lista.length === 0 && (
-                <tr><td colSpan={6} className="apagado">Todavía no hay nadie.</td></tr>
+              {visibles.length === 0 && (
+                <tr><td colSpan={9} className="apagado">{lista.length === 0 ? "Todavía no hay nadie." : "Nadie coincide con la búsqueda o los filtros."}</td></tr>
               )}
             </tbody>
           </table>

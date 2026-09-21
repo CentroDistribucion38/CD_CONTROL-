@@ -1,0 +1,15 @@
+c8e11a5e9d40b1fa7a65f01d3c25bf0368605abfd23c20fcdd1488fc8f5d1e39  supabase/migraciones/2026-09-admin-usuarios.sql
+6104bb1b5b2f642f66329ed5ce6d8c616f7bd240bf8dabdf0c042d742f82bb71  src/lib/cuentas.ts
+d3d6837083dd4fbb69846c95c1c534f24d8d128341672f7a30bab541bdad8b46  src/app/api/admin/usuarios/route.ts
+d3ac0942ec8a06a26efcc6a6b0ec54ec3b5290f7702638586fa3db001efb249c  src/app/api/admin/usuarios/lote/route.ts
+8c62833807040c21855a5bf89e2413c3d0f0f80a32b0029af7a3c5a4b1845cb2  src/app/(app)/admin/usuarios/page.tsx
+1a82dfd2999d523c3c9e8e882e724a32fd8c1c8f56ff2b78fccaeb15c856ac04  src/app/(app)/admin/usuarios/Usuarios.tsx
+33992dddb75f61b0c2e3b0cd245e02c24060679acb45613dd2a16a6bc01cbd7b  src/app/(app)/admin/usuarios/usuarios.css
+1eb18ecbcaee2f147fbfd979b0baee3b0b3564e80a99712d826ca823348b550d  src/app/(app)/quiebra/rotura/maestro/Maestro.tsx
+991ffa1ab270f0408810821e7e93ba06a2930bdf836f4ba1405d00d38f420bcd  src/app/(app)/quiebra/rotura/rotura.css
+7ec722993dc1d0904f01270c18e8ad5ece40f45a4fc4191290535a0b966e9696  .arnes/correr-admin-usuarios.sh
+d21fe7ba264db7d151f918d97cd213156d37c88495bd0a41dcd62859584e18f9  .arnes/prueba-admin-usuarios.sql
+8334f9bb9cd5f96314d28f9b782caff8e00a9f78b7458a1dccd426ede2929069  .arnes/ad-usuarios.mjs
+941312023e9b6a0b853eccffe287be1f9651b389ecdded6866618576d242b6eb  .arnes/mutar-ad-usuarios.mjs
+02363875e8ed36d50f6cbd6b87b65dde2ee5527febf4946547551eeb56bcbad5  .arnes/rl-orden-envases.mjs
+caf9e83d74dd7f2adb93a86173844b9b7aded634e60ad1363d843980680fc3ad  commit.txt

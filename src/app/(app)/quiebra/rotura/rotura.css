@@ -1487,3 +1487,29 @@
   .rl-cabeza > .rl-inf-rel { flex: 1 1 100%; align-items: stretch }
   .rl-inf-rel p { text-align: left }
 }
+
+/* ---------- EL PUESTO DEL ENVASE EN LA LISTA ----------
+   «Que yo ubique primero lo que más van a usar.» El número es el puesto
+   en la lista para escoger al registrar; las flechas lo mueven de a uno
+   y «1º» lo sube de una. Botones y no arrastrar: se tocan con el dedo en
+   el celular, y arrastrar dentro de una página que se desplaza no. */
+.rl-orden { display: flex; align-items: center; gap: 4px; flex: none }
+.rl-item-nom b .rl-orden-n { margin-right: 8px; vertical-align: 1px }
+.rl-orden-n {
+  min-width: 24px; height: 24px; padding: 0 6px; display: inline-grid; place-items: center; border-radius: 12px;
+  background: var(--rl-papel); color: var(--rl-tinta); border: 1.5px solid var(--rl-tinta);
+  font: normal 800 12px var(--rl-titulo); font-variant-numeric: tabular-nums;
+}
+.rl-orden button {
+  width: 36px; height: 36px; display: inline-grid; place-items: center; cursor: pointer;
+  border: 1.5px solid var(--rl-linea); border-radius: 3px; background: var(--rl-papel);
+  font: 700 13px var(--rl-texto); color: var(--rl-tinta);
+}
+.rl-orden button:hover:not(:disabled) { border-color: var(--rl-tinta) }
+.rl-orden button:disabled { opacity: .35; cursor: default }
+.rl-orden .rl-orden-1 { width: 42px }
+.rl-cab-m .rl-por-uso { margin-top: 10px }
+@media (max-width: 700px) {
+  .rl-orden button { width: 44px; height: 44px }
+  .rl-orden .rl-orden-1 { width: 48px }
+}

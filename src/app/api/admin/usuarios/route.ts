@@ -26,82 +26,13 @@
  */
 
 import { NextResponse } from "next/server";
-import { randomInt } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { clienteDeServicio } from "@/lib/supabase/servicio";
 import { misPermisos } from "@/lib/permisos";
 import { correoDeUsuario, normalizarUsuario } from "@/lib/auth";
+import { crearCuenta, claveSugerida, porQueLaClave, DIGITOS } from "@/lib/cuentas";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Cuántos dígitos tiene la clave que sugiere la plataforma.
- *
- * SEIS, y no cuatro, porque Supabase RECHAZA las claves de menos de
- * seis caracteres: "Password should be at least 6 characters". Con
- * cuatro, createUser fallaba y quedaba la cuenta a medias. No es una
- * preferencia, es el mínimo del proveedor.
- *
- * De paso son un millón de combinaciones en vez de diez mil, y seis
- * dígitos se dictan por teléfono igual de fácil que cuatro.
- *
- * Si un día se sube el mínimo en Authentication → Policies, hay que
- * subir esto también: el error de abajo lo dice con todas las letras.
- */
-const DIGITOS = 6;
-
-/**
- * Una clave de DIGITOS dígitos, uniforme y sin sesgo.
- * randomInt(min, max) del módulo crypto: no es Math.random, y el rango
- * se pide completo para que el 0 inicial no se pierda ("0417" es una
- * clave válida y descartarla quitaría cien mil de un millón).
- */
-function claveSugerida(): string {
-  const tope = 10 ** DIGITOS;
-  return String(randomInt(0, tope)).padStart(DIGITOS, "0");
-}
-
-/**
- * El id de la cuenta de auth que tiene ese correo, o null.
- *
- * Se pagina porque listUsers devuelve 50 por página y una cuenta vieja
- * puede estar en la tercera: pedir solo la primera y concluir "no está"
- * sería una respuesta equivocada disfrazada de dato. El tope de 20
- * páginas —mil cuentas— es para que un error de la API no deje esto
- * girando para siempre.
- */
-async function buscarPorCorreo(
-  admin: NonNullable<ReturnType<typeof clienteDeServicio>>,
-  correo: string
-): Promise<string | null> {
-  const buscado = correo.toLowerCase();
-  for (let pagina = 1; pagina <= 20; pagina++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page: pagina, perPage: 200 });
-    if (error || !data?.users?.length) return null;
-    const hallado = data.users.find((u) => (u.email ?? "").toLowerCase() === buscado);
-    if (hallado) return hallado.id;
-    if (data.users.length < 200) return null;
-  }
-  return null;
-}
-
-/**
- * Supabase contesta "Password should be at least 6 characters" cuando la
- * clave es más corta que el mínimo del proyecto. Ese mensaje en inglés,
- * crudo, no le dice a nadie qué hacer: lo que hay que cambiar es la
- * constante DIGITOS de arriba, y eso es lo que dice esta traducción.
- */
-function porQueLaClave(mensaje: string, usuario: string): string {
-  if (/at least \d+ characters/i.test(mensaje)) {
-    const min = mensaje.match(/at least (\d+)/i)?.[1] ?? "6";
-    return (
-      `Supabase pide claves de al menos ${min} caracteres y la plataforma está ` +
-      `generando de ${DIGITOS}. Sube DIGITOS en src/app/api/admin/usuarios/route.ts ` +
-      `a ${min} o más, o baja el mínimo en Supabase → Authentication → Policies.`
-    );
-  }
-  return `No se pudo crear la cuenta de "${usuario}": ${mensaje}`;
-}
 
 export async function POST(req: Request) {
   /* ---------- 1 y 2 · quién pide, y si puede ---------- */
@@ -161,159 +92,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Falta decir con qué rol entra." }, { status: 400 });
   }
 
-  /* El rol tiene que existir. Si no se comprobara, un rol mal escrito
-     crearía una persona que no puede ver ninguna pantalla y nadie
-     sabría por qué. */
-  const { data: elRol } = await supabase
-    .from("roles").select("clave").eq("clave", rol).maybeSingle();
-  if (!elRol) {
-    return NextResponse.json({ error: `El rol "${rol}" no existe.` }, { status: 400 });
+  const hecha = await crearCuenta(supabase, admin, { nombre, usuario, rol, extra });
+  if (!hecha.ok) {
+    const { status, ...resto } = hecha;
+    return NextResponse.json(resto, { status });
   }
-
-  /* Los permisos extra tienen que ser rutas reales y niveles reales: sin
-     esto, un typo deja un permiso que no aplica a nada y parece dado. */
-  for (const [ruta, nivel] of Object.entries(extra)) {
-    if (nivel !== "ver" && nivel !== "editar" && nivel !== "ninguno") {
-      return NextResponse.json({ error: `Nivel inválido en ${ruta}.` }, { status: 400 });
-    }
-  }
-
-  /* ¿Está libre el usuario? Se pregunta antes para poder decirlo claro;
-     de todas formas la creación fallaría abajo, pero con un error de
-     Supabase que no le sirve a nadie. */
-  const { data: libre } = await supabase.rpc("usuario_libre", { p_usuario: usuario });
-  if (libre === false) {
-    return NextResponse.json(
-      { error: `El usuario "${usuario}" ya está tomado.` },
-      { status: 409 }
-    );
-  }
-
-  /* ---------- Crear la cuenta ---------- */
-  const correo = correoDeUsuario(usuario);
-  const clave = claveSugerida();
-  const { data: creada, error: eAuth } = await admin.auth.admin.createUser({
-    email: correo,
-    password: clave,
-    /* Confirmado de entrada: CONTROL entra por usuario y el correo es
-       sintético —no existe buzón—, así que esperar una confirmación
-       dejaría la cuenta sin poder entrar para siempre. */
-    email_confirm: true,
-  });
-
-  /* LA CUENTA HUÉRFANA.
-     auth.users y perfiles son dos tablas. Si la cuenta se creó y su
-     perfil no, queda una cuenta que NO SE VE en ninguna pantalla y que
-     además bloquea el usuario para siempre: usuario_libre mira
-     perfiles, dice "libre", y createUser contesta "ya existe". Ese
-     callejón sin salida es exactamente lo que pasó.
-     Aquí se ADOPTA: se le pone una clave provisional nueva y se le
-     arma el perfil. No se borra la cuenta —borrar cuentas de auth por
-     una condición deducida es demasiado filo para un caso que se
-     arregla completándola—. */
-  let idCuenta = creada?.user?.id ?? null;
-  if (!idCuenta) {
-    const m = (eAuth?.message ?? "").toLowerCase();
-    const yaExiste = m.includes("already") || m.includes("registered");
-    if (!yaExiste) {
-      return NextResponse.json(
-        { error: porQueLaClave(eAuth?.message ?? "error desconocido", usuario) },
-        { status: 400 }
-      );
-    }
-
-    const suya = await buscarPorCorreo(admin, correo);
-    if (!suya) {
-      return NextResponse.json(
-        {
-          error:
-            `Supabase dice que "${usuario}" ya tiene cuenta, pero no aparece al ` +
-            `buscarla. Revísala en Authentication → Users antes de volver a intentar.`,
-        },
-        { status: 409 }
-      );
-    }
-
-    /* Si esa cuenta YA tiene perfil, entonces sí está tomada de verdad
-       y no hay nada que adoptar. */
-    const { data: yaTiene } = await admin
-      .from("perfiles").select("id, usuario").eq("id", suya).maybeSingle();
-    if (yaTiene?.usuario) {
-      return NextResponse.json(
-        { error: `El usuario "${usuario}" ya está tomado.` },
-        { status: 409 }
-      );
-    }
-
-    const { error: eClave } = await admin.auth.admin.updateUserById(suya, {
-      password: clave, email_confirm: true,
-    });
-    if (eClave) {
-      return NextResponse.json({ error: porQueLaClave(eClave.message, usuario) }, { status: 500 });
-    }
-    idCuenta = suya;
-  }
-
-  /* ---------- El perfil ----------
-     UPSERT y no update. Antes esto era un update, confiando en que el
-     disparador on_auth_user_created de 00-nucleo.sql ya hubiera creado
-     la fila. Cuando ese disparador no está —o no corrió— el update no
-     encuentra nada, Y NO DA ERROR: PostgREST devuelve éxito con cero
-     filas tocadas. La cuenta quedaba en auth.users sin perfil, invisible
-     en la pantalla y bloqueando el usuario para siempre.
-     Con upsert la fila queda escrita exista o no el disparador. Depender
-     de algo que no se comprueba fue el error; comprobarlo abajo, con
-     select(), es lo que lo cierra.
-
-     Se hace con la llave de servicio porque el disparador de columnas
-     protegidas solo deja tocar rol y permisos a un admin, y aquí quien
-     escribe es el servidor, no la sesión. Ya se comprobó arriba que
-     quien pidió esto sí es admin. */
-  const { data: filaPerfil, error: ePerfil } = await admin
-    .from("perfiles")
-    .upsert({
-      id: idCuenta,
-      usuario,
-      nombre,
-      rol,
-      activo: true,
-      clave_provisional: true,
-      permisos_extra: extra,
-    }, { onConflict: "id" })
-    .select("id")
-    .maybeSingle();
-
-  if (!ePerfil && !filaPerfil) {
-    return NextResponse.json(
-      {
-        error:
-          `La cuenta de "${usuario}" quedó creada pero su perfil no se escribió, ` +
-          `y la base no dijo por qué. Búscala en Authentication → Users.`,
-        usuario,
-      },
-      { status: 500 }
-    );
-  }
-
-  if (ePerfil) {
-    /* La cuenta quedó creada y el perfil no: se dice, con el usuario, en
-       vez de dejar una cuenta huérfana sin que nadie se entere. Borrarla
-       aquí sería peor —si el borrado también falla, se pierde el rastro
-       de que existe—. */
-    return NextResponse.json(
-      {
-        error:
-          `La cuenta de "${usuario}" quedó creada, pero su perfil no se pudo ` +
-          `completar: ${ePerfil.message}. Búscala en la lista y corrígela.`,
-        usuario,
-      },
-      { status: 500 }
-    );
-  }
-
-  /* La clave sale UNA vez y no se guarda: quien la necesita es el
-     administrador que la va a dictar, en este momento. */
-  return NextResponse.json({ usuario, nombre, rol, clave, digitos: DIGITOS });
+  const { ok: _ok, ...datos } = hecha;
+  void _ok;
+  return NextResponse.json(datos);
 }
 
 /**
