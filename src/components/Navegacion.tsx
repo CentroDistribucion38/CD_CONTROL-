@@ -166,6 +166,14 @@ const IconoRama = () => (
   </svg>
 );
 
+/* FACTURACIÓN: un recibo con el borde de abajo dentado y sus renglones. */
+const IconoFactura = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z" />
+    <path d="M9 8h6M9 12h6M9 16h3" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   /* Roturas ya no es un módulo: se mudó dentro de Quiebra. Su dibujo
      sigue vivo como icono de las ramas «En sitio» y «Salida» y de sus
@@ -174,6 +182,7 @@ const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   sider: IconoSider,
   inventario: IconoInventario,
   acciones: IconoAcciones,
+  facturacion: IconoFactura,
 };
 /* EL ICONO DE UNA RAMA VA POR SU ID Y NO POR SU RUTA.
    La rama «Envase» entra por /quiebra/tablero, que como SECCIÓN es el
@@ -192,6 +201,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/sider/certificar": IconoUbicacion,
   "/sider/transito": IconoRuta,
   "/sider/maestro": IconoLlave,
+  "/facturacion": IconoFactura,
   /* LAS TRES RAMAS DE QUIEBRA, con dibujo propio. Sin estas líneas las
      tres caerían al icono por defecto y habría que leer el rótulo para
      distinguirlas — que es justo lo que el riel existe para evitar. La

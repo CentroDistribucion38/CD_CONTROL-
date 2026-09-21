@@ -209,6 +209,20 @@ for (const [ancho, etiqueta] of ANCHOS) {
   const m = await pag.evaluate(() => {
     const d = document.documentElement;
     const salen = [];
+    /* EL AIRE: el texto no puede ir pegado al borde de la caja ni
+       cortarse arriba contra la esquina. «Que no se salga» no lo cazaba:
+       pegado al borde sigue estando adentro. */
+    for (const caja of document.querySelectorAll(".tp-rz")) {
+      const c = caja.getBoundingClientRect();
+      for (const s of [".tp-rz-ojo", ".tp-rz-frase", ".tp-rz-sub"]) {
+        const e = caja.querySelector(s);
+        if (!e) continue;
+        const r = e.getBoundingClientRect();
+        if (r.left - c.left < 12) salen.push("pegado al borde izquierdo: " + s);
+      }
+      const ojo = caja.querySelector(".tp-rz-ojo");
+      if (ojo && ojo.getBoundingClientRect().top - c.top < 12) salen.push("cortado arriba: .tp-rz-ojo");
+    }
     for (const caja of document.querySelectorAll(".tp-rz")) {
       const c = caja.getBoundingClientRect();
       for (const e of caja.querySelectorAll("*")) {

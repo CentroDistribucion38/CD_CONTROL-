@@ -108,6 +108,11 @@ probar("el día cambiado desaparece del resumen",
 
 /* ---------- LO QUE SE MIDE EN PANTALLA ---------- */
 
+probar("la caja pierde su aire y el texto se corta contra el borde",
+  [[CSS, ".tp .tp-rz { padding: 20px 22px 22px }\n", ""],
+   [CSS, "@media (max-width: 560px) { .tp .tp-rz { padding: 16px 14px 18px } }\n", ""]],
+  "pegado al borde izquierdo");
+
 probar("el resaltado de la frase vuelve a ser el acento de letra",
   [[CSS, `.tp .tp-rz-frase em {
   font-style: normal; padding: 0 9px;
@@ -165,4 +170,4 @@ if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 16 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 17 se pusieron rojas. El arnés caza lo que dice cazar.");

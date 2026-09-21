@@ -77,6 +77,11 @@
    herramienta («Diferencias contra SAP») y cuatro tablas desplegadas:
    quien entraba tenía que sumar de cabeza para saber cómo quedó el día.
    ===================================================================== */
+/* EL AIRE DE LA CAJA. Faltaba: el texto quedaba pegado al borde y la
+   primera línea se cortaba arriba contra la esquina redonda —`.caja`
+   lleva `overflow: hidden`—. Se vio en el PC: «RASPASOS» sin la T. */
+.tp .tp-rz { padding: 20px 22px 22px }
+@media (max-width: 560px) { .tp .tp-rz { padding: 16px 14px 18px } }
 .tp .tp-rz-ojo {
   margin: 0; font: 700 10.5px var(--tp-titulo); letter-spacing: .16em;
   text-transform: uppercase; color: var(--tp-gris);
