@@ -8,18 +8,27 @@
 set -u
 SQL=supabase/migraciones/2026-09-traspasos-facturacion.sql
 COPIA=/tmp/tp-fact-original.sql
-cp "$SQL" "$COPIA"
-restaurar() { cp "$COPIA" "$SQL"; }
+# LA FUNCIÓN DE CONFIRMAR VIVE EN LOS DOS ARCHIVOS: el de mudarla dentro
+# de Traspasos la vuelve a crear. Una mutación que tocara solo el primero
+# la taparía el segundo, y la prueba saldría verde sin haber probado nada.
+SQL2=supabase/migraciones/2026-09-traspasos-facturacion-en-traspasos.sql
+COPIA2=/tmp/tp-fact-en-traspasos.sql
+cp "$SQL" "$COPIA"; cp "$SQL2" "$COPIA2"
+restaurar() { cp "$COPIA" "$SQL"; cp "$COPIA2" "$SQL2"; }
 trap restaurar EXIT INT TERM HUP
 
 cambia() {
-  python3 - "$SQL" "$1" "$2" <<'PY'
+  python3 - "$SQL" "$SQL2" "$1" "$2" <<'PY'
 import sys
-ruta, de, a = sys.argv[1], sys.argv[2], sys.argv[3]
-s = open(ruta, encoding="utf-8").read()
-n = s.replace(de, a)
-assert n != s, f"la mutacion no aplico: {de[:70]}"
-open(ruta, "w", encoding="utf-8").write(n)
+r1, r2, de, a = sys.argv[1:5]
+hubo = False
+for ruta in (r1, r2):
+    s = open(ruta, encoding="utf-8").read()
+    n = s.replace(de, a)
+    if n != s:
+        hubo = True
+        open(ruta, "w", encoding="utf-8").write(n)
+assert hubo, f"la mutacion no aplico: {de[:70]}"
 PY
 }
 corre() { bash .arnes/correr-traspasos-facturacion.sh mut_tpf 2>&1; }
@@ -66,7 +75,7 @@ mutacion "el candado del día frena la migración y a facturación" "ese día es
   v_fecha" "  v_fecha"
 
 mutacion "el patio confirma salidas" "2(el supervisor del patio confirmó" \
-  "  if not public.puede_editar('/facturacion') then
+  "  if not public.puede_editar('/traspasos/facturacion') then
     raise exception 'Solo facturación confirma" "  if false then
     raise exception 'Solo facturación confirma"
 

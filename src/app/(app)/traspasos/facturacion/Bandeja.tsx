@@ -60,7 +60,7 @@ export function Bandeja({ pendientes, salieron, nombres, puedeConfirmar, puedeRe
       {avisos}
       <section className="fc-cabeza">
         <div>
-          <p className="ojo">FACTURACIÓN · SALIDA DE LOS VIAJES</p>
+          <p className="ojo">TRASPASOS · FACTURACIÓN</p>
           <h1>
             {pendientes.length === 0
               ? <>No hay viajes <em>por facturar</em></>

@@ -182,7 +182,6 @@ const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   sider: IconoSider,
   inventario: IconoInventario,
   acciones: IconoAcciones,
-  facturacion: IconoFactura,
 };
 /* EL ICONO DE UNA RAMA VA POR SU ID Y NO POR SU RUTA.
    La rama «Envase» entra por /quiebra/tablero, que como SECCIÓN es el
@@ -201,7 +200,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/sider/certificar": IconoUbicacion,
   "/sider/transito": IconoRuta,
   "/sider/maestro": IconoLlave,
-  "/facturacion": IconoFactura,
+  "/traspasos/facturacion": IconoFactura,
   /* LAS TRES RAMAS DE QUIEBRA, con dibujo propio. Sin estas líneas las
      tres caerían al icono por defecto y habría que leer el rótulo para
      distinguirlas — que es justo lo que el riel existe para evitar. La

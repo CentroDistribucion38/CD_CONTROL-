@@ -24,14 +24,21 @@ const sinComentarios = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*
 
 /* ======================= 1 · EL REGISTRO Y EL PATIO ======================= */
 const reg = readFileSync(U("../src/modulos/registro.ts"), "utf8");
+/* FACTURACIÓN VA DENTRO DE TRASPASOS, después de Registrar: «no debías
+   crearlo allí, sino en el mismo módulo». Y no como módulo aparte. */
 {
-  const iT = reg.indexOf('id: "traspasos"'), iF = reg.indexOf('id: "facturacion"');
-  ok(iT > 0 && iF > iT, "Facturación no va después de Traspasos en el menú: es el paso siguiente del mismo viaje");
-  ok(/ruta: "\/facturacion",\s*\n\s*activo: true/.test(reg), "el módulo Facturación no está activo en /facturacion");
+  const tr = reg.slice(reg.indexOf('id: "traspasos"'), reg.indexOf('id: "acciones"'));
+  const iR = tr.indexOf('{ nombre: "Registrar", ruta: "/traspasos" }');
+  const iF = tr.indexOf('{ nombre: "Facturación", ruta: "/traspasos/facturacion" }');
+  const iC = tr.indexOf('{ nombre: "Control", ruta: "/traspasos/control" }');
+  ok(iR > 0 && iF > iR && iC > iF, "Facturación no va dentro de Traspasos entre Registrar y Control: es el paso siguiente del mismo viaje");
+  ok(!/id: "facturacion"/.test(reg), "Facturación sigue siendo un módulo aparte");
 }
-const pag = readFileSync(U("../src/app/(app)/facturacion/page.tsx"), "utf8");
-ok(/puedeVer\("\/facturacion"\)/.test(pag) && /puedeConfirmar=\{permisos\.puedeEditar\("\/facturacion"\)\}/.test(pag),
-   "la pantalla no pide el permiso de /facturacion para ver y para confirmar");
+const pag = readFileSync(U("../src/app/(app)/traspasos/facturacion/page.tsx"), "utf8");
+ok(/puedeVer\("\/traspasos\/facturacion"\)/.test(pag) && /puedeConfirmar=\{permisos\.puedeEditar\("\/traspasos\/facturacion"\)\}/.test(pag),
+   "la pantalla no pide el permiso de /traspasos/facturacion para ver y para confirmar");
+ok(/redirect\("\/traspasos\/facturacion"\)/.test(readFileSync(U("../src/app/(app)/facturacion/page.tsx"), "utf8")),
+   "la dirección vieja /facturacion no manda a la nueva: quien la guardó se queda en un 404");
 ok(/puedeReabrir=\{permisos\.manda\}/.test(pag), "reabrir no queda solo para quien administra");
 
 const regTsx = sinComentarios(readFileSync(U("../src/app/(app)/traspasos/Registrar.tsx"), "utf8"));
@@ -49,7 +56,7 @@ ok(/className="eti salio"/.test(comunes) && /className="eti por-facturar"/.test(
 writeFileSync(U("./_nav.mjs"), `export const useRouter = () => ({ refresh() {}, replace() {}, push() {} });`);
 writeFileSync(U("./_supa.mjs"), `export const createClient = () => ({ rpc: async () => ({ error: null }) });`);
 buildSync({
-  entryPoints: [R("src/app/(app)/facturacion/Bandeja.tsx")],
+  entryPoints: [R("src/app/(app)/traspasos/facturacion/Bandeja.tsx")],
   bundle: true, format: "esm", platform: "node", jsx: "automatic",
   outfile: R(".arnes/_bandeja.mjs"),
   external: ["react", "react/jsx-runtime", "react-dom"],
@@ -103,7 +110,7 @@ ok(/No hay viajes/.test(vacia), "sin pendientes no lo dice");
 {
   const { chromium } = await import("playwright");
   const css = readFileSync(U("../src/app/(app)/traspasos/traspasos.css"), "utf8")
-            + readFileSync(U("../src/app/(app)/facturacion/facturacion.css"), "utf8");
+            + readFileSync(U("../src/app/(app)/traspasos/facturacion/facturacion.css"), "utf8");
   const glob = readFileSync(U("../src/app/globals.css"), "utf8");
   const shell = readFileSync(U("../src/app/(app)/shell.css"), "utf8");
   const PREFLIGHT = "*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}";
@@ -171,5 +178,5 @@ ok(/No hay viajes/.test(vacia), "sin pendientes no lo dice");
 
 console.log("");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Facturación: va después de Traspasos, el patio dice «Orden de cargue», la bandeja pide el número " +
+console.log("✓ Facturación: va dentro de Traspasos después de Registrar, el patio dice «Orden de cargue», la bandeja pide el número " +
             "en cifras con su botón siempre a la vista, y se lee en los siete temas.");

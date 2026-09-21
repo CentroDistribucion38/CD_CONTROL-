@@ -6,13 +6,14 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const REG = "src/modulos/registro.ts";
-const PAG = "src/app/(app)/facturacion/page.tsx";
-const BAN = "src/app/(app)/facturacion/Bandeja.tsx";
-const CSS = "src/app/(app)/facturacion/facturacion.css";
+const PAG = "src/app/(app)/traspasos/facturacion/page.tsx";
+const BAN = "src/app/(app)/traspasos/facturacion/Bandeja.tsx";
+const CSS = "src/app/(app)/traspasos/facturacion/facturacion.css";
+const VIEJA = "src/app/(app)/facturacion/page.tsx";
 const RGT = "src/app/(app)/traspasos/Registrar.tsx";
 const VJ = "src/app/(app)/traspasos/Viajes.tsx";
 const COM = "src/app/(app)/traspasos/comunes.tsx";
-const original = Object.fromEntries([REG, PAG, BAN, CSS, RGT, VJ, COM].map((f) => [f, readFileSync(f, "utf8")]));
+const original = Object.fromEntries([REG, PAG, BAN, CSS, RGT, VJ, COM, VIEJA].map((f) => [f, readFileSync(f, "utf8")]));
 const restaurar = () => { for (const [f, t] of Object.entries(original)) writeFileSync(f, t) };
 process.on("exit", restaurar);
 for (const s of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(s, () => { restaurar(); process.exit(130) });
@@ -40,13 +41,16 @@ function probar(nombre, cambios, espera) {
 }
 console.log("");
 
-probar("Facturación va antes que Traspasos en el menú",
-  [[REG, '    id: "facturacion",', '    id: "facturacion-x",'],
-   [REG, '    id: "traspasos",', '    id: "facturacion",\n    id2: "traspasos",']],
-  "no va después de Traspasos");
+probar("Facturación va antes de Registrar",
+  [[REG, '      { nombre: "Facturación", ruta: "/traspasos/facturacion" },\n', ""],
+   [REG, '      { nombre: "Plan", ruta: "/traspasos/plan" },', '      { nombre: "Plan", ruta: "/traspasos/plan" },\n      { nombre: "Facturación", ruta: "/traspasos/facturacion" },']],
+  "entre Registrar y Control");
+probar("la dirección vieja se queda en un 404",
+  [[VIEJA, 'redirect("/traspasos/facturacion");', 'redirect("/traspasos");']],
+  "la dirección vieja /facturacion no manda a la nueva");
 probar("la pantalla no pide permiso para confirmar",
-  [[PAG, 'puedeConfirmar={permisos.puedeEditar("/facturacion")}', "puedeConfirmar={true}"]],
-  "no pide el permiso de /facturacion");
+  [[PAG, 'puedeConfirmar={permisos.puedeEditar("/traspasos/facturacion")}', "puedeConfirmar={true}"]],
+  "no pide el permiso de /traspasos/facturacion");
 probar("cualquiera reabre",
   [[PAG, "puedeReabrir={permisos.manda}", "puedeReabrir={true}"]],
   "reabrir no queda solo para quien administra");

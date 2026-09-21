@@ -78,6 +78,19 @@ $PSQL -d $DB -f "$MIG" 2>&1 | grep -E "NOTICE:  (LISTO|Viajes)|ERROR" || true
 echo "--- segunda vuelta"
 $PSQL -d $DB -f "$MIG" 2>&1 | grep -E "^ERROR|psql:.*ERROR" && exit 1
 
+# FACTURACIÓN SE MUDÓ DENTRO DE TRASPASOS: el archivo que muda los
+# permisos corre siempre —sobre una base nueva no cambia nada; sobre la
+# que tenía la primera versión (MIG=.arnes/traspasos-facturacion-v1.sql)
+# muda /facturacion a /traspasos/facturacion—. Una persona con el permiso
+# puesto a mano sobre la dirección vieja tiene que conservarlo.
+$PSQL -d $DB >/dev/null 2>&1 <<'SQL'
+update public.perfiles set permisos_extra = coalesce(permisos_extra, '{}'::jsonb) || '{"/facturacion":"editar"}'::jsonb
+ where id = '33333333-3333-3333-3333-333333333333' and exists (
+   select 1 from public.rol_permisos where seccion = '/facturacion');
+SQL
+echo "--- facturación dentro de Traspasos"
+$PSQL -d $DB -f supabase/migraciones/2026-09-traspasos-facturacion-en-traspasos.sql 2>&1 | grep -E "NOTICE:  (LISTO|Roles)|ERROR" || true
+
 $PSQL -d $DB >/dev/null 2>&1 <<'SQL'
 insert into public.perfiles (id, usuario, nombre, rol, activo) values
   ('55555555-5555-5555-5555-555555555555','fac','Fanny Factura','facturacion',true)

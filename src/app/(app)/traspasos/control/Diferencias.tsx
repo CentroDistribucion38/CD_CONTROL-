@@ -308,7 +308,7 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
             nota={<>Casi siempre es un dígito mal tecleado: el documento que aparece
                    abajo como <b>sin facturar</b> suele ser este mismo con una cifra
                    cambiada. Lo corrige el administrador: reabre la salida en{" "}
-                   <Link href="/facturacion">Facturación</Link> y se confirma con el número bueno.</>}
+                   <Link href="/traspasos/facturacion">Facturación</Link> y se confirma con el número bueno.</>}
             hijos={tablaViajes(dedazos, true)} />
         )}
 
@@ -323,7 +323,7 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
           nota={<>No aparecen en el corte de SAP: sin el número de facturación no hay con qué
                  emparejarlos, así que este es el único sitio donde se ven. Los vacíos no
                  llevan documento y no se cuentan aquí. Se completan en{" "}
-                 <Link href="/facturacion">Facturación</Link>.</>}
+                 <Link href="/traspasos/facturacion">Facturación</Link>.</>}
           hijos={tablaViajes(sinDocumento, false)} />
 
         {/* 4 · LO QUE SAP TIENE Y NADIE REGISTRÓ. */}

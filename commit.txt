@@ -1,19 +1,42 @@
-Traspasos: el resumen del día con su aire, y Facturación con su icono en el menú
+Facturación va dentro de Traspasos, después de Registrar
 
-«Se corta la información.» La caja del resumen del día en Control no
-tenía relleno: el texto iba pegado al borde y la primera línea se
-cortaba arriba contra la esquina redonda —«RASPASOS» sin la T—. Ahora
-tiene su aire, y en el celular uno más corto.
+«No debías crearlo allí, sino en el mismo módulo.»
 
-LA PRUEBA NO LO CAZABA porque medía que nada se SALIERA de la caja, y
-pegado al borde sigue estando adentro. Ahora mide el aire: el texto a 12
-px o más del borde y la primera línea sin cortarse arriba.
+Facturación deja de ser un módulo aparte y pasa a ser una pantalla de
+Traspasos, en el orden del viaje:
 
-  .arnes/tp-resumen.mjs · mutar-tp-resumen.mjs        17 mutaciones, las 17 rojas
+    Plan · Registrar · FACTURACIÓN · Control · Importar · Maestro
 
-«¿Dónde encuentro el módulo donde el facturador pone el documento?»
-Facturación está en el Inicio, como tarjeta, y en el menú de módulos.
-Salía con el icono genérico de lista; ahora tiene el suyo, un recibo.
+La dirección es /traspasos/facturacion. La vieja, /facturacion, se queda
+y manda para allá: alguien ya la guardó. Quien solo tiene el rol
+Facturación entra a Traspasos y ve esa sola pantalla.
+
+LOS PERMISOS SE GUARDAN COMO EL TEXTO DE LA DIRECCIÓN, así que mudar la
+pantalla sin mudar el permiso dejaría al rol Facturación sin su pantalla,
+en silencio. 2026-09-traspasos-facturacion-en-traspasos.sql muda el
+permiso de cada rol, el permiso propio de cada persona que lo tuviera, y
+la regla de quién confirma la salida, que pregunta por esa dirección.
+2026-09-traspasos-facturacion.sql ya trae la dirección nueva para quien
+lo corra por primera vez.
+
+MEDIDO. La prueba contra Postgres corre ahora en dos bases: una nueva, y
+otra con la primera versión de Facturación puesta y una persona con el
+permiso sobre la dirección vieja; en las dos el permiso tiene que quedar
+en /traspasos/facturacion y nada sobre /facturacion.
+
+Una trampa que cazó el arnés de mutaciones: la función de confirmar vive
+ahora en los dos archivos, y el segundo la vuelve a crear. Mutando solo
+el primero, el segundo tapaba la mutación y siete salían verdes sin
+haber probado nada. Ahora se mutan los dos.
+
+  .arnes/correr-traspasos-facturacion.sh · mutar-...  16 mutaciones, las 16 rojas
+  .arnes/fc-bandeja.mjs · mutar-fc-bandeja.mjs        17 mutaciones, las 17 rojas
+
+=====================================================================
+FALTA CORRER EN SUPABASE — ANTES DEL PUSH
+=====================================================================
+
+  supabase/migraciones/2026-09-traspasos-facturacion-en-traspasos.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

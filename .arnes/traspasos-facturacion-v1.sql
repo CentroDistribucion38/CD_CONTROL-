@@ -195,7 +195,7 @@ values ('facturacion', 'Facturación',
 on conflict (clave) do nothing;
 
 insert into public.rol_permisos (rol, seccion, nivel)
-values ('facturacion', '/traspasos/facturacion', 'editar')
+values ('facturacion', '/facturacion', 'editar')
 on conflict (rol, seccion) do nothing;
 
 
@@ -213,7 +213,7 @@ declare
   v_clave text := nullif(upper(regexp_replace(coalesce(p_documento, ''), '[^A-Za-z0-9]', '', 'g')), '');
   v_otro record;
 begin
-  if not public.puede_editar('/traspasos/facturacion') then
+  if not public.puede_editar('/facturacion') then
     raise exception 'Solo facturación confirma la salida de un viaje.' using errcode = '42501';
   end if;
   if v_clave is null then
@@ -435,7 +435,7 @@ begin
     v_falta := v_falta || ' · la función para confirmar la salida'; end if;
   if to_regprocedure('public.traspaso_reabrir_salida(uuid, text)') is null then
     v_falta := v_falta || ' · la función para reabrir'; end if;
-  if not exists (select 1 from public.rol_permisos where rol = 'facturacion' and seccion = '/traspasos/facturacion') then
+  if not exists (select 1 from public.rol_permisos where rol = 'facturacion' and seccion = '/facturacion') then
     v_falta := v_falta || ' · el rol Facturación con su pantalla'; end if;
   if not exists (select 1 from pg_trigger where tgname = 'traspasos_viaje_salido_intocable') then
     v_falta := v_falta || ' · el candado de los viajes que ya salieron'; end if;

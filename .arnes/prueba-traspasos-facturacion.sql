@@ -31,6 +31,14 @@ declare
   v_old uuid; v_cerrado uuid; v_vacio uuid; v_nuevo uuid; v_ayer uuid; v_sap uuid; v_anul uuid;
   v_n int; t text; r record;
 begin
+  /* ---- 00 · LA PANTALLA ESTÁ DENTRO DE TRASPASOS ---- */
+  if not exists (select 1 from public.rol_permisos where rol = 'facturacion' and seccion = '/traspasos/facturacion') then
+    v_falla := v_falla || ' 00(el rol Facturación no tiene la pantalla /traspasos/facturacion)'; end if;
+  if exists (select 1 from public.rol_permisos where seccion = '/facturacion') then
+    v_falla := v_falla || ' 00b(quedaron permisos sobre /facturacion, que ya no existe)'; end if;
+  if exists (select 1 from public.perfiles where permisos_extra ? '/facturacion') then
+    v_falla := v_falla || ' 00c(un permiso propio quedó sobre /facturacion y la persona pierde la pantalla)'; end if;
+
   /* ---- 0 · LO DE ANTES ---- */
   select id into v_old     from public.traspasos_viajes where placa = 'OLD111';
   select id into v_cerrado from public.traspasos_viajes where placa = 'OLD222';
