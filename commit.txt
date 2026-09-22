@@ -1,17 +1,21 @@
-Tableros: el diseño tal cual — hoja blanca, raya fina y cifras compactas
+Acciones: quien administra corrige y elimina · Traspasos: «de o para Arenosa»
 
-Inventario › Tablero y Acciones › Tablero quedan como el diseño que se
-pidió, no como una versión inflada de él:
-- Las tarjetas son hojas blancas con una raya fina alrededor, esquinas
-  rectas y sin sombra.
-- Títulos, cifras y renglones en la escala del diseño (título 36, cifra
-  36, renglón 14); menos aire por dentro y entre bloques.
-- Botones, segmentos, chips y chapas cuadrados.
-- Acciones: la fila de una vencida es código · qué · quién · barra de
-  edad · días, con «DÍAS» en versales; el histograma va con barras
-  cuadradas y su raya de base.
-- Inventario: la chapa del estado va cuadrada y en versales, y la lista
-  usa rótulos en versales como el diseño.
+Acciones
+- En el panel de una acción, bloque «Solo administración»:
+  · Corregir la acción — título, descripción, área, prioridad y dónde.
+    Lo que cambia queda escrito en el seguimiento, con quién lo hizo.
+  · Anular con motivo (lo de siempre): se queda a la vista, marcada.
+  · Eliminar: borra la acción con sus fotos y su seguimiento, pregunta
+    antes y deja el rastro en Administración con el motivo y el código.
+- Quien no administra no ve nada de esto.
+- SQL nuevo: 2026-09-acciones-depurar.sql (accion_editar, accion_eliminar).
+
+Traspasos
+- La pregunta de estibas ahora dice «¿… de o para Arenosa?», y las
+  respuestas explican qué cuenta: sale de Arenosa o va para Arenosa.
+
+Arneses: .arnes/ac-depurar.mjs (pantalla, 1200/390) y
+.arnes/correr-acciones-depurar.sh (Postgres de verdad).
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

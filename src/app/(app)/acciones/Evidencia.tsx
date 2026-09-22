@@ -40,11 +40,13 @@ const RANURAS = [
   { id: "cierre", t: "Cómo quedó", d: "La foto de después, del momento de cerrar" },
 ] as const;
 
-export function Evidencia({ accion, puedeEditar, manda }: {
+export function Evidencia({ accion, puedeEditar, manda, areas }: {
   accion: Accion;
   puedeEditar: boolean;
   /** El administrador. Es el único que puede corregir y quitar del hilo. */
   manda?: boolean;
+  /** El maestro de áreas, para poder cambiarla al corregir. */
+  areas?: { clave: string; nombre: string }[];
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -59,6 +61,12 @@ export function Evidencia({ accion, puedeEditar, manda }: {
   /* Cuál comentario está en corrección, y con qué texto. */
   const [editando, setEditando] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState("");
+  /* LO DE ADMINISTRACIÓN: corregir la acción, anularla o borrarla.
+     «Que el súper admin pueda eliminar alguna que generó, editar, y así.» */
+  const [corrigiendo, setCorrigiendo] = useState(false);
+  const [campos, setCampos] = useState({ titulo: "", descripcion: "", area: "", prioridad: "media", ubicacion: "" });
+  const [modo, setModo] = useState<"anular" | "eliminar" | null>(null);
+  const [motivo, setMotivo] = useState("");
 
   const traer = useCallback(async () => {
     setCargando(true);
@@ -116,6 +124,61 @@ export function Evidencia({ accion, puedeEditar, manda }: {
     avisar.bien("Quitado del seguimiento.");
     await traer();
   }
+
+  function abrirCorreccion() {
+    setModo(null);
+    setCampos({
+      titulo: accion.titulo, descripcion: accion.descripcion ?? "",
+      area: accion.area, prioridad: accion.prioridad, ubicacion: accion.ubicacion ?? "",
+    });
+    setCorrigiendo(true);
+  }
+
+  async function guardarAccion() {
+    if (campos.titulo.trim().length < 3) { avisar.mal("El título no puede quedar vacío."); return }
+    setMandando(true);
+    const { error } = await supabase.rpc("accion_editar", {
+      p_id: accion.id, p_titulo: campos.titulo.trim(),
+      p_descripcion: campos.descripcion.trim() || null,
+      p_area: campos.area || null, p_prioridad: campos.prioridad || null,
+      p_ubicacion: campos.ubicacion.trim(),
+    });
+    setMandando(false);
+    if (error) { avisar.mal(faltaSql(error.message)); return }
+    avisar.bien("Corregida. Lo que cambiaste queda escrito en el seguimiento.");
+    setCorrigiendo(false);
+    await traer();
+    router.refresh();
+  }
+
+  async function depurar() {
+    if (motivo.trim().length < 3) { avisar.mal("Falta decir por qué."); return }
+    if (modo === "eliminar") {
+      const si = await pedir({
+        titulo: `¿Borrar ${accion.codigo} de verdad?`,
+        dice: "Se va la acción con sus fotos y su seguimiento, y no se puede deshacer. Queda " +
+              "escrito en Administración quién la borró y por qué. Si lo que pasó es que se " +
+              "reportó mal, lo que corresponde es anularla: esa se queda a la vista.",
+        confirmar: "Sí, borrarla",
+        peligro: true,
+      });
+      if (!si) return;
+    }
+    setMandando(true);
+    const { error } = modo === "eliminar"
+      ? await supabase.rpc("accion_eliminar", { p_ids: [accion.id], p_motivo: motivo.trim() })
+      : await supabase.rpc("accion_anular", { p_id: accion.id, p_motivo: motivo.trim() });
+    setMandando(false);
+    if (error) { avisar.mal(faltaSql(error.message)); return }
+    avisar.bien(modo === "eliminar" ? `${accion.codigo} borrada.` : `${accion.codigo} anulada: queda a la vista con su motivo.`);
+    setModo(null); setMotivo("");
+    router.refresh();
+  }
+
+  /* La base habla claro cuando la función todavía no existe. */
+  const faltaSql = (m: string) => /could not find the function|does not exist|schema cache/i.test(m)
+    ? "Falta correr supabase/migraciones/2026-09-acciones-depurar.sql en Supabase."
+    : m;
 
   const fecha = (s: string | null) =>
     s ? new Date(s).toLocaleString("es-CO", {
@@ -294,6 +357,73 @@ export function Evidencia({ accion, puedeEditar, manda }: {
             )}
           </div>
         ))}
+
+        {/* ---------- SOLO ADMINISTRACIÓN ----------
+            Corregir lo que se escribió mal, anular lo que no era, y
+            borrar lo que nunca debió existir. Las tres dejan rastro. */}
+        {manda && (
+          <div className="ev-admin">
+            <p className="rot">Solo administración</p>
+            {corrigiendo ? (
+              <div className="ev-ed">
+                <label><span>Título</span>
+                  <input value={campos.titulo} onChange={(e) => setCampos((c) => ({ ...c, titulo: e.target.value }))} /></label>
+                <label><span>Descripción</span>
+                  <textarea rows={2} value={campos.descripcion}
+                            onChange={(e) => setCampos((c) => ({ ...c, descripcion: e.target.value }))} /></label>
+                <div className="dos">
+                  <label><span>Área</span>
+                    <select value={campos.area} onChange={(e) => setCampos((c) => ({ ...c, area: e.target.value }))}>
+                      {(areas ?? [{ clave: accion.area, nombre: accion.area_nombre }]).map((x) => (
+                        <option key={x.clave} value={x.clave}>{x.nombre}</option>
+                      ))}
+                    </select></label>
+                  <label><span>Prioridad</span>
+                    <select value={campos.prioridad} onChange={(e) => setCampos((c) => ({ ...c, prioridad: e.target.value }))}>
+                      <option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option>
+                    </select></label>
+                </div>
+                <label><span>Dónde</span>
+                  <input value={campos.ubicacion} placeholder="Estante 4, nivel alto…"
+                         onChange={(e) => setCampos((c) => ({ ...c, ubicacion: e.target.value }))} /></label>
+                <p className="ev-nota">La prioridad no vuelve a calcular el plazo: la fecha de vencimiento se queda como está.</p>
+                <div className="ev-mandos">
+                  <button type="button" className="btn si" disabled={mandando} onClick={guardarAccion}>
+                    {mandando ? "Guardando…" : "Guardar la corrección"}
+                  </button>
+                  <button type="button" className="btn plano" onClick={() => setCorrigiendo(false)}>Cancelar</button>
+                </div>
+              </div>
+            ) : modo ? (
+              <div className="ev-motivo">
+                <label><span>{modo === "eliminar" ? "¿Por qué se borra?" : "¿Por qué se anula?"}</span>
+                  <input value={motivo} autoFocus placeholder={modo === "eliminar" ? "Se reportó dos veces, era una prueba…" : "Ya no aplica, se reportó por error…"}
+                         onChange={(e) => setMotivo(e.target.value)} /></label>
+                <div className="ev-mandos">
+                  <button type="button" className={"btn " + (modo === "eliminar" ? "mal" : "si")} disabled={mandando || motivo.trim().length < 3} onClick={depurar}>
+                    {mandando ? "Un momento…" : modo === "eliminar" ? `Borrar ${accion.codigo}` : `Anular ${accion.codigo}`}
+                  </button>
+                  <button type="button" className="btn plano" onClick={() => { setModo(null); setMotivo("") }}>Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="ev-mandos">
+                  <button type="button" onClick={abrirCorreccion}>Corregir la acción</button>
+                  {accion.estado !== "anulada" && (
+                    <button type="button" onClick={() => { setModo("anular"); setMotivo("") }}>Anular</button>
+                  )}
+                  <button type="button" className="mal" onClick={() => { setModo("eliminar"); setMotivo("") }}>Eliminar</button>
+                </div>
+                <p className="ev-nota">
+                  <b>Anular</b> la deja a la vista, marcada y con su motivo — es lo que corresponde
+                  casi siempre. <b>Eliminar</b> la borra con sus fotos y su seguimiento, sin vuelta
+                  atrás, y queda escrito en Administración quién la borró y por qué.
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
         {puedeEditar && (
           <div className="ev-decir">

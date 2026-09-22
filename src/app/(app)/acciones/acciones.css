@@ -1013,3 +1013,24 @@
   .ac .ac-prog-lista li { grid-template-columns: minmax(0, 1fr) auto }
   .ac .ac-prog-lista .q { grid-column: 1 / -1 }
 }
+
+/* =====================================================================
+   EVIDENCIA · SOLO ADMINISTRACIÓN — corregir la acción, anularla o
+   borrarla. Va al final del seguimiento y con su propia raya: no es
+   parte de la conversación, es lo que se puede hacer con ella.
+   ===================================================================== */
+.ac .ev-admin { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--ac-linea, #E4E4DF); border-left: 4px solid var(--ac-mal, #C8262B); background: var(--ac-papel, #fff) }
+.ac .ev-admin > .rot { margin: 0 0 10px; font: 800 10.5px var(--ac-titulo); letter-spacing: .14em; text-transform: uppercase; color: var(--ac-gris) }
+.ac .ev-admin .ev-mandos { flex-wrap: wrap; margin-top: 10px }
+.ac .ev-admin .ev-mandos button { min-height: 42px }
+.ac .ev-ed, .ac .ev-motivo { display: flex; flex-direction: column; gap: 10px }
+.ac .ev-ed .dos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+.ac .ev-ed label, .ac .ev-motivo label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.ac .ev-ed label > span, .ac .ev-motivo label > span { font: 700 10.5px var(--ac-titulo); letter-spacing: .1em; text-transform: uppercase; color: var(--ac-gris) }
+.ac .ev-ed input, .ac .ev-ed select, .ac .ev-ed textarea, .ac .ev-motivo input {
+  min-height: 42px; padding: 10px 12px; border: 1.5px solid var(--ac-linea, #E4E4DF); border-radius: 2px;
+  background: #fff; color: var(--ac-tinta); font: 500 14px var(--ac-texto); width: 100%;
+}
+.ac .ev-ed textarea { min-height: 60px; resize: vertical }
+.ac .ev-ed input:focus, .ac .ev-ed select:focus, .ac .ev-ed textarea:focus, .ac .ev-motivo input:focus { outline: none; border-color: var(--ac-tinta) }
+@media (max-width: 560px) { .ac .ev-ed .dos { grid-template-columns: minmax(0, 1fr) } }

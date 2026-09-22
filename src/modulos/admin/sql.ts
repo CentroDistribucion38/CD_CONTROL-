@@ -25,4 +25,5 @@ export const SQL_REVISAR: { archivo: string; objeto: string; para: string }[] = 
   { archivo: "2026-09-traspasos-documento.sql", objeto: "fn:public.traspaso_documento_donde", para: "Traspasos · documento" },
   { archivo: "2026-09-permiso-sin-acceso-por-persona.sql", objeto: "fn:public.permisos_extra_validos", para: "Usuarios · quitar una pantalla a una persona" },
   { archivo: "2026-09-traspasos-depurar.sql", objeto: "fn:public.traspaso_depurar", para: "Traspasos · depurar viajes (administración)" },
+  { archivo: "2026-09-acciones-depurar.sql", objeto: "fn:public.accion_eliminar", para: "Acciones · corregir y eliminar (administración)" },
 ];

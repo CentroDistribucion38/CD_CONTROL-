@@ -489,17 +489,17 @@ export function Registrar({ tipos, puntos, placas, placasM,
                 {pideArenosa && (
                   <div>
                     <span className="rot-campo">
-                      ¿{escogidos.filter((c) => tipos.find((t) => t.clave === c)?.pregunta_arenosa).map(nombreTipo).join(" y ")} de Arenosa?
+                      ¿{escogidos.filter((c) => tipos.find((t) => t.clave === c)?.pregunta_arenosa).map(nombreTipo).join(" y ")} de o para Arenosa?
                     </span>
                     <div className="chips tr-arenosa">
                       <button type="button" className={arenosa === true ? "on" : ""}
-                              aria-pressed={arenosa === true} onClick={() => setArenosa(true)}>Sí, de Arenosa</button>
+                              aria-pressed={arenosa === true} onClick={() => setArenosa(true)}>Sí · sale de Arenosa o va para Arenosa</button>
                       <button type="button" className={arenosa === false ? "on" : ""}
-                              aria-pressed={arenosa === false} onClick={() => setArenosa(false)}>No</button>
+                              aria-pressed={arenosa === false} onClick={() => setArenosa(false)}>No · es otra ruta</button>
                     </div>
                     <p className={"guia" + (arenosa === false ? " adicional" : "")} style={{ marginTop: 10 }}>
                       {arenosa === null
-                        ? <>Hay que contestarlo para registrar: <b>solo las de Arenosa cuentan</b> en el % de cumplimiento.</>
+                        ? <>Hay que contestarlo para registrar: <b>solo las que salen de Arenosa o van para Arenosa cuentan</b> en el % de cumplimiento.</>
                         : arenosa
                           ? <>Cuenta en el <b>% de cumplimiento</b> del turno.</>
                           : <>Se registra igual, pero <b>no cuenta</b> en el % de cumplimiento.</>}

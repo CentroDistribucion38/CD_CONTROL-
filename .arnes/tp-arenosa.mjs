@@ -75,16 +75,16 @@ const llenarRuta = async () => {
 await monta();
 await tipo("Estibas");
 ok(await pg.isVisible(".tr-arenosa"), "con Estibas no sale la pregunta de Arenosa");
-ok(/solo las de Arenosa cuentan/i.test(await texto()), "no dice por qué se pregunta");
+ok(/salen de Arenosa o van para Arenosa/i.test(await texto()), "no dice por qué se pregunta");
 await pg.click(`.tp .recientes button:text-is("FSV898")`);
 await llenarRuta();
 ok(!(await puedeRegistrar()), "se puede registrar sin contestar lo de Arenosa");
 
 /* 2 · SÍ Y NO */
-await pg.click('.tr-arenosa button:text-is("No")');
+await pg.click('.tr-arenosa button:has-text("No ·")');
 ok(/no cuenta/i.test(await texto()), "con «No» no avisa que ese viaje no cuenta");
 ok(await puedeRegistrar(), "con la respuesta puesta sigue bloqueado el registro");
-await pg.click('.tr-arenosa button:text-is("Sí, de Arenosa")');
+await pg.click('.tr-arenosa button:has-text("Sí ·")');
 ok(/Cuenta en el/i.test(await texto()), "con «Sí» no dice que cuenta");
 await pg.click(".tp .btn.si, .tp button.si");
 await pg.waitForFunction(() => (window.rpcs ?? []).length > 0);
@@ -101,7 +101,7 @@ ok(/no cuenta.*en el plan ni en el % de cumplimiento/is.test(await texto()),
 /* 4 · QUITAR ESTIBAS BORRA LA RESPUESTA */
 await monta();
 await tipo("Estibas");
-await pg.click('.tr-arenosa button:text-is("Sí, de Arenosa")');
+await pg.click('.tr-arenosa button:has-text("Sí ·")');
 await tipo("Estibas");
 ok(!(await pg.isVisible(".tr-arenosa")), "sin Estibas sigue la pregunta");
 await tipo("Casco vidrio");

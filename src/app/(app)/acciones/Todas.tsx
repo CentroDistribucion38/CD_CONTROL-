@@ -168,7 +168,7 @@ export function Todas({ acciones, nombres, zonas, motivos, areas, plazos, gente,
                 </div>
               )}
 
-              {abierta === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} manda={manda} />}
+              {abierta === a.id && <Evidencia accion={a} puedeEditar={puedeEditar} manda={manda} areas={areas} />}
             </Fila>
           ))}
         </div>
