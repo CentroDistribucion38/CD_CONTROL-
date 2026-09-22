@@ -578,20 +578,6 @@
 .tp-ci-hero .ci-mini .ci-v.bien { color: var(--tp-bien) }
 .tp-ci-hero .ci-mini .ci-v.mal { color: var(--tp-mal) }
 
-/* LOS AVISOS */
-.tp-ci-rev { padding: 20px 24px; border-bottom: 1px solid var(--tp-linea) }
-.tp-ci-rev h3 { font: 900 16px var(--tp-titulo); margin: 0 0 12px }
-.tp-ci-rev .ci-g { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
-.tp-ci-rev .ci-av {
-  border: 1px solid var(--tp-linea); border-left: 4px solid var(--tp-aviso);
-  padding: 12px 14px; background: var(--tp-papel); min-width: 0;
-}
-.tp-ci-rev .ci-av.mal { border-left-color: var(--tp-mal); background: #FFF6F7 }
-.tp-ci-rev .ci-av .ci-n { font: 900 24px var(--tp-titulo); line-height: 1 }
-.tp-ci-rev .ci-av.mal .ci-n { color: var(--tp-mal) }
-.tp-ci-rev .ci-av b { display: block; font-size: 13px; margin-top: 5px }
-.tp-ci-rev .ci-av span { display: block; font-size: 11.5px; color: var(--tp-gris); margin-top: 3px; line-height: 1.4 }
-
 /* LAS DOS TABLAS */
 .tp-ci-sec { padding: 18px 24px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px }
 .tp-ci-sec b { font: 900 16px var(--tp-titulo) }
@@ -682,18 +668,6 @@
   .tp-ci-hero .ci-mini > div { padding: 8px }
   .tp-ci-hero .ci-mini .ci-k { font-size: 7.5px; letter-spacing: .08em }
   .tp-ci-hero .ci-mini .ci-v { font-size: 15px; margin-top: 3px }
-
-  .tp-ci-rev { padding: 12px 14px }
-  .tp-ci-rev h3 { font-size: 14px; margin-bottom: 8px }
-  .tp-ci-rev .ci-g { grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--tp-linea) }
-  .tp-ci-rev .ci-av {
-    border: 0; border-bottom: 1px solid #F2F2EF; border-left: 4px solid var(--tp-aviso);
-    padding: 9px 12px; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: baseline; gap: 2px 8px;
-  }
-  .tp-ci-rev .ci-av.mal { border-left-color: var(--tp-mal); background: var(--tp-papel) }
-  .tp-ci-rev .ci-av .ci-n { font-size: 20px }
-  .tp-ci-rev .ci-av b { margin-top: 0; font-size: 12.5px }
-  .tp-ci-rev .ci-av span { font-size: 10.5px; margin-top: 1px; grid-column: 2 }
 
   .tp-ci-ancho { display: none }
   .tp-ci-movil { display: block; padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) }
@@ -837,12 +811,6 @@
   .tp-ci-hero .ci-pct { display: block !important }
   .tp-ci-hero .ci-pct .ci-v { font-size: 46px !important }
   .tp-ci-hero .ci-pct .ci-k { width: auto !important }
-  .tp-ci-rev { padding: 14px 18px !important }
-  .tp-ci-rev .ci-g { grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 8px !important; border: 0 !important }
-  .tp-ci-rev .ci-av { display: block !important; border: 1px solid var(--tp-linea) !important;
-    border-left: 4px solid var(--tp-aviso) !important; padding: 9px 11px !important }
-  .tp-ci-rev .ci-av.mal { border-left-color: var(--tp-mal) !important }
 
   /* Las tablas caben enteras: nada de deslizarse, que en papel no se
      desliza nada. */
@@ -860,12 +828,12 @@
      en blanco y el informe pierde la mitad de lo que dice. */
   .tp-ci-cab, .tp-ci-hero, .tp-ci-hero .ci-mini, .tp-ci-hero .ci-mini > div,
   .tp-ci-hero .ci-cinta, .tp-ci-hero .ci-cinta i, .tp-ci-hero .ci-ley i,
-  .tp-ci-rev .ci-av, .tp-ci-t th, .tp-ci-t .ci-eti, .ci-pctb i, .ci-pctb i span,
+  .tp-ci-t th, .tp-ci-t .ci-eti, .ci-pctb i, .ci-pctb i span,
   .tp-ci-fin {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   /* Y que una sección no se parta en dos hojas por la mitad. */
-  .tp-ci-cab, .tp-ci-hero, .tp-ci-rev, .tp-ci-fin { break-inside: avoid }
+  .tp-ci-cab, .tp-ci-hero, .tp-ci-fin { break-inside: avoid }
   .tp-ci-t tr { break-inside: avoid }
   .tp .panel-ojo { color: #000; background: none; border: 2px solid #000 }
   .tp .panel-ojo .corte { display: none }

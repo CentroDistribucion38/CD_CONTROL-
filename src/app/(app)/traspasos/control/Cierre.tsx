@@ -35,6 +35,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Control, Viaje } from "@/modulos/traspasos/datos";
 import { HORARIO } from "@/modulos/traspasos/formato";
+import { armarFoto, dibujarFoto, entregarFoto } from "@/modulos/traspasos/foto";
 
 type Props = {
   /** Las mismas filas que el tablero está pintando, ya filtradas. */
@@ -61,7 +62,8 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
   const [nombres, setNombres] = useState<Record<string, string>>({});
   const [vacios, setVacios] = useState<number | null>(null);
   const [mal, setMal] = useState<string | null>(null);
-  const [copiado, setCopiado] = useState(false);
+  const [copiado, setCopiado] = useState<null | "compartido" | "copiado" | "bajado" | "texto">(null);
+  const [armando, setArmando] = useState(false);
 
   /* La hora en que se armó la foto. Se fija UNA vez, al abrir: si se
      recalculara en cada dibujo, la hora del papel iría cambiando
@@ -122,28 +124,6 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
 
   const vivos = useMemo(() => (viajes ?? []).filter((v) => v.estado === "registrado"), [viajes]);
 
-  /* LO QUE HAY QUE MIRAR. Solo lo que hay: un renglón que dice «0 sin
-     orden de cargue» es un renglón que la gente aprende a saltarse, y
-     el día que diga 3 tampoco lo va a leer. */
-  const ojos = useMemo(() => {
-    const l: { que: string; n: number; detalle: string; grave?: boolean }[] = [];
-    const sinDoc = vivos.filter((v) => v.sin_documento).length;
-    if (sinDoc) l.push({ que: "Sin orden de cargue", n: sinDoc, grave: true,
-      detalle: "salió con carga y sin el papel del patio" });
-    const sinPlan = mias.filter((f) => f.sin_planear).length;
-    if (sinPlan) l.push({ que: sinPlan === 1 ? "Movido sin planear" : "Movidos sin planear", n: sinPlan,
-      detalle: "el plan publicado no los pedía" });
-    const tarde = vivos.filter((v) => v.atrasado).length;
-    if (tarde) l.push({ que: tarde === 1 ? "Digitado después" : "Digitados después", n: tarde,
-      detalle: "se registró días después de su fecha" });
-    const anulados = (viajes ?? []).filter((v) => v.estado === "anulado").length;
-    if (anulados) l.push({ que: anulados === 1 ? "Anulado" : "Anulados", n: anulados,
-      detalle: "no suma en ninguna cifra" });
-    if (faltan > 0) l.push({ que: "Sin salir", n: faltan, grave: true,
-      detalle: "del plan, no se movieron" });
-    return l;
-  }, [vivos, viajes, mias, faltan]);
-
   const titulo = turno ? `Cierre del turno ${turno}` : desde === hasta ? "Cierre del día" : "Cierre del período";
   const pct = (v: number | null) => (v == null ? "—" : `${v}%`);
   const clase = (v: number | null) => (v == null ? "" : v >= 100 ? "bien" : v > 0 ? "medio" : "mal");
@@ -182,11 +162,6 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
           + (t.adicionales ? ` · +${nf.format(t.adicionales)} adicional${t.adicionales === 1 ? "" : "es"}` : ""));
       }
     }
-    if (ojos.length) {
-      l.push("");
-      l.push("PARA MIRAR");
-      for (const o of ojos) l.push(`- ${nf.format(o.n)} ${o.que.toLowerCase()}`);
-    }
     if (viajes != null) {
       l.push("");
       l.push(`${vivos.length} viaje${vivos.length === 1 ? "" : "s"} registrado${vivos.length === 1 ? "" : "s"}.`);
@@ -197,7 +172,70 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
     return l.join("\n");
   }
 
-  async function copiar() {
+  /* Los colores del tema de quien lo manda, leídos del elemento: son
+     los mismos que pinta la pantalla, así que la foto sale del color
+     que esa persona ve. */
+  function coloresDelTema(): { tinta: string; acento: string; sobre: string } {
+    const hx = (v: string) => {
+      const m = v.match(/[\d.]+/g);
+      if (!m) return "12263A";
+      return m.slice(0, 3).map((x) => Math.round(Number(x)).toString(16).padStart(2, "0")).join("").toUpperCase();
+    };
+    const el = document.querySelector(".tp-ci") ?? document.body;
+    const leer = (v: string) => {
+      const n = document.createElement("span");
+      n.style.color = `var(${v})`; n.style.display = "none";
+      el.appendChild(n); const col = getComputedStyle(n).color; n.remove(); return hx(col);
+    };
+    return { tinta: leer("--tp-tinta"), acento: leer("--tp-acento"), sobre: leer("--tp-sobre-acento") };
+  }
+
+  function datosDeLaFoto() {
+    return {
+      titulo, ojo: turno ? `TURNO ${turno} · ${HORARIO[turno] ?? ""}` : "DÍA COMPLETO · LOS TRES TURNOS",
+      fecha: rotulo.replace(/^./, (c) => c.toUpperCase()), hora: hhmm(armado.toISOString()),
+      planeado, adheridos, adicionales, faltan, cumplido, carga,
+      vacios: nVacios, registrados: viajes == null ? null : vivos.length,
+      tipos: tipos.map((t) => ({ nombre: t.nombre, planeado: t.planeado, adheridos: t.adheridos,
+        adicionales: t.adicionales, faltan: t.faltan })),
+      enlace: typeof window === "undefined" ? "" : window.location.host + window.location.pathname
+        + window.location.search,
+    };
+  }
+
+  /* ==================================================================
+     COPIAR LA FOTO
+
+     «Debería copiarse como foto, algo espectacular.» El texto pelado se
+     lee, pero llega como un mensaje más entre cincuenta; la foto se
+     abre, se ve el porcentaje de lejos y se reenvía.
+
+     En el celular se abre el menú de compartir —de ahí sale WhatsApp—;
+     en el computador se copia al portapapeles para pegarla. Si ninguna
+     de las dos se puede, se baja, y el botón lo DICE: prometer «copiado»
+     cuando en realidad se descargó es peor que no tener el botón.
+     ================================================================== */
+  async function copiarFoto() {
+    if (armando) return;
+    setArmando(true);
+    try {
+      const plan = armarFoto(datosDeLaFoto());
+      const png = await dibujarFoto(plan, coloresDelTema());
+      const nombre = `cierre-${turno ? `turno-${turno}-` : ""}${desde}.png`;
+      const como = await entregarFoto(png, nombre, titulo);
+      setCopiado(como);
+    } catch {
+      /* Si el navegador no puede dibujar el canvas, queda el texto, que
+         nunca falla. */
+      await copiarTexto();
+      return;
+    } finally {
+      setArmando(false);
+    }
+    setTimeout(() => setCopiado(null), 2600);
+  }
+
+  async function copiarTexto() {
     const t = textoParaMandar();
     try {
       await navigator.clipboard.writeText(t);
@@ -212,9 +250,17 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
       try { document.execCommand("copy") } catch { /* ni modo */ }
       a.remove();
     }
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2200);
+    setCopiado("texto");
+    setTimeout(() => setCopiado(null), 2600);
   }
+
+  /* Lo que dice el botón depende de lo que DE VERDAD pasó. */
+  const rotuloCopia = armando ? "Armando…"
+    : copiado === "compartido" ? "¡Enviada!"
+    : copiado === "copiado" ? "¡Copiada!"
+    : copiado === "bajado" ? "Descargada"
+    : copiado === "texto" ? "Texto copiado"
+    : "Copiar foto";
 
   /* Las dos tablas se dibujan igual arriba y dentro del acordeón: una
      sola función, para que no se arreglen por separado. */
@@ -260,11 +306,20 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
             {/* En el celular este no va: copiar es el botón grande de
                 abajo, y tres botones aquí arriba le comen el renglón al
                 «TURNO A · 06:00 · 14:00». */}
-            <button type="button" className={"tp-ci-bt ci-copiar" + (copiado ? " listo" : "")} onClick={copiar}>
-              {copiado
+            {/* DOS BOTONES Y NO UNO: la foto es lo que se manda por
+                WhatsApp, y el texto sirve para pegarlo en un correo o
+                en una casilla donde una imagen no entra. */}
+            <button type="button" className={"tp-ci-bt ci-copiar" + (copiado ? " listo" : "")}
+                    onClick={copiarFoto} disabled={armando}>
+              {copiado && copiado !== "texto"
                 ? <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-                : <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M6 15H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1" /></svg>}
-              <span className="texto">{copiado ? "Copiado" : "Copiar"}</span>
+                : <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="10" r="1.6" /><path d="M21 16l-5-5-6 6" /></svg>}
+              <span className="texto">{rotuloCopia}</span>
+            </button>
+            <button type="button" className="tp-ci-bt ci-copiar" onClick={copiarTexto}
+                    title="Copiar el cierre como texto">
+              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M6 15H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1" /></svg>
+              <span className="texto">Texto</span>
             </button>
             <button type="button" className="tp-ci-bt" onClick={() => window.print()}>
               <svg viewBox="0 0 24 24"><path d="M7 9V4h10v5" /><rect x="4" y="9" width="16" height="7" rx="1.5" /><path d="M7 16h10v4H7z" /></svg>
@@ -305,22 +360,6 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
             </div>
           </div>
         </div>
-
-        {/* ─ LOS AVISOS. Solo si hay algo que mirar ─ */}
-        {ojos.length > 0 && (
-          <div className="tp-ci-rev">
-            <h3>Para mirar antes de darlo por bueno</h3>
-            <div className="ci-g">
-              {ojos.map((o) => (
-                <div className={"ci-av" + (o.grave ? " mal" : "")} key={o.que}>
-                  <div className="ci-n">{nf.format(o.n)}</div>
-                  <b>{o.que}</b>
-                  <span>{o.detalle}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* ─ EL DETALLE, A LO ANCHO ─ */}
         <div className="tp-ci-ancho">
@@ -435,7 +474,9 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
             {/* COPIAR ES LO QUE MÁS SE USA DESDE EL CELULAR: el turno se
                 manda por WhatsApp, no se imprime. Por eso se lleva el
                 botón grande y del color del tema. */}
-            <button type="button" onClick={copiar}>{copiado ? "¡Copiado!" : "Copiar para enviar"}</button>
+            <button type="button" onClick={copiarFoto} disabled={armando}>
+              {copiado || armando ? rotuloCopia : "Enviar foto"}
+            </button>
           </div>
         </div>
       </section>
