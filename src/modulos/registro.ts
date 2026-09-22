@@ -396,7 +396,7 @@ export const MODULOS: Modulo[] = [
       { nombre: "Por verificar", ruta: "/acciones/verificar" },
       { nombre: "Todas", ruta: "/acciones" },
       { nombre: "Tablero", ruta: "/acciones/tablero" },
-      { nombre: "Análisis", ruta: "/acciones/analisis" },
+      { nombre: "Indicadores", ruta: "/acciones/analisis" },
       { nombre: "Maestro", ruta: "/acciones/maestro" },
     ],
   },

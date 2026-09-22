@@ -470,3 +470,71 @@ export async function quienRecibe() {
     }[]).map((p) => ({ ...p, recibe: marcados.has(p.id) })),
   };
 }
+
+/* =====================================================================
+   PARA LOS INDICADORES
+   ===================================================================== */
+
+/** Las acciones del periodo MÁS todas las que siguen abiertas: para medir
+ *  hace falta lo de estos días y lo que viene arrastrado de antes. */
+export async function accionesParaMedir(dias: number, limite = 5000) {
+  const supabase = await createClient();
+  /* Un margen de 30 días antes del periodo: la reincidencia mira si la
+     misma falla ya había salido en el mes anterior. */
+  const desde = new Date(Date.now() - (dias + 30) * 86_400_000).toISOString();
+  const [a, b] = await Promise.all([
+    supabase.from("v_acciones").select("*").gte("reportada_en", desde).order("reportada_en", { ascending: false }).limit(limite),
+    supabase.from("v_acciones").select("*").eq("viva", true).lt("reportada_en", desde).limit(limite),
+  ]);
+  if (a.error) return { acciones: [] as Accion[], falta: sinTablas(a.error.message) };
+  const vistas = new Set<string>();
+  const todas = [...(a.data ?? []), ...(b.data ?? [])].filter((x) => !vistas.has(x.id) && vistas.add(x.id)) as Accion[];
+  return { acciones: todas, falta: false };
+}
+
+/** ANTES Y DESPUÉS: las últimas verificadas que tienen foto del hallazgo
+ *  Y foto del cierre. Es la evidencia que se enseña en una auditoría. */
+export async function antesDespues(n = 6) {
+  const supabase = await createClient();
+  const { data: ver } = await supabase.from("v_acciones")
+    .select("id, codigo, titulo, zona_nombre, ubicacion, efectiva, reportada_en, cerrada_en, verificada_en")
+    .eq("estado", "verificada").order("verificada_en", { ascending: false }).limit(60);
+  const ids = (ver ?? []).map((x) => x.id as string);
+  if (!ids.length) return [];
+  const { data: fotos } = await supabase.from("acciones_fotos")
+    .select("accion_id, ranura, ruta, subida_en").in("accion_id", ids).order("subida_en", { ascending: true });
+  const par = new Map<string, { hallazgo?: string; cierre?: string }>();
+  for (const f of (fotos ?? []) as { accion_id: string; ranura: "hallazgo" | "cierre"; ruta: string }[]) {
+    const x = par.get(f.accion_id) ?? {};
+    if (!x[f.ranura]) x[f.ranura] = f.ruta;
+    par.set(f.accion_id, x);
+  }
+  const con = (ver ?? []).filter((v) => par.get(v.id)?.hallazgo && par.get(v.id)?.cierre).slice(0, n);
+  const firma = async (ruta: string) =>
+    (await supabase.storage.from("acciones").createSignedUrl(ruta, 1800)).data?.signedUrl ?? null;
+  return Promise.all(con.map(async (v) => ({
+    id: v.id as string, codigo: v.codigo as string, titulo: v.titulo as string,
+    donde: (v.zona_nombre ?? v.ubicacion ?? "") as string, efectiva: v.efectiva as boolean | null,
+    reportada_en: v.reportada_en as string, cerrada_en: v.cerrada_en as string | null,
+    antes: await firma(par.get(v.id)!.hallazgo!), despues: await firma(par.get(v.id)!.cierre!),
+  })));
+}
+export type AntesDespues = Awaited<ReturnType<typeof antesDespues>>[number];
+
+export type Programada = {
+  id: string; titulo: string; motivo: string; zona: string | null; ubicacion: string | null;
+  prioridad: "alta" | "media" | "baja"; equipo: string | null; responsable: string | null;
+  cada: "dia" | "semana" | "quincena" | "mes" | "trimestre"; proxima: string; activo: boolean; ultima: string | null;
+};
+/** Las preventivas programadas. null = falta 2026-09-acciones-programadas.sql. */
+export async function programadas() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("acciones_programadas").select("*").order("proxima");
+  if (error) return null;
+  return (data ?? []) as Programada[];
+}
+/** Crea las preventivas que ya tocan. Callado: si falta el SQL no pasa nada. */
+export async function generarProgramadas() {
+  const supabase = await createClient();
+  await supabase.rpc("acciones_programadas_generar").then(() => null, () => null);
+}

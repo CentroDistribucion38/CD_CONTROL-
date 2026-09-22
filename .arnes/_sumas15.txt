@@ -1,0 +1,14 @@
+549bbfa708932ee1fdd14c106318716a9638736081f653310270ad7e69c65770  src/modulos/acciones/medir.ts
+cb7a50450b394eb3b969e6278b658a489b838be680f957499f0a31f0347d7735  src/modulos/acciones/datos.ts
+e69cf989a66fb421e4ea1892716d79a5063c329b10627b7d483342dc6401050a  src/app/(app)/acciones/analisis/page.tsx
+6806d55b09405296bcef624bf29df8ac606b1dc6e9537b4b738472aa5e7267d5  src/app/(app)/acciones/analisis/Indicadores.tsx
+5ec7b38b6c3c71de84601c79b88b2b443483b1a394e832cfd33a5691c4f0c33f  src/app/(app)/acciones/analisis/informe.ts
+555b32c7d1493b16699b9072ce7fead52f717a2e795fc2e88253b31555cd4f44  src/app/(app)/acciones/analisis/indicadores.css
+467a68c97ede02e7a64800d42d71986e11fdec2d39254f3c36259d2e331d2893  src/app/(app)/acciones/maestro/page.tsx
+36c961fa360b35d7dc14237312bcf2a1b24204953b3f0ce518fdcfd7cb4ed455  src/app/(app)/acciones/maestro/Programadas.tsx
+a6a21aa110269ff3578302ec33d7501a7f9486fbc425973d3a36a1e23042232a  src/app/(app)/acciones/layout.tsx
+c0f8e233acb0e9dbf09f7d763cc3654bc6d5a4e86a25fac82fd1bf594eb2fb38  src/app/(app)/acciones/acciones.css
+d9e4b10ea180c12e9c8393cb2eb591a68df5015e1f5f5a4e724cad142f5b43c1  src/modulos/registro.ts
+c5dde88e3f746c3339f8534d7f604ad1041f404fec39ee06893ab822ffbd2f15  supabase/migraciones/2026-09-acciones-programadas.sql
+25a40ab22c90f7e1bc652e8804fc0012be591a1927a21b47d884495ea61eaa5c  .arnes/ac-indicadores.mjs
+ae0bb4ee751827c72d67d7b26c32a3b2af97ff8bfcb18a03ccaa24bc1a3ba93c  commit.txt

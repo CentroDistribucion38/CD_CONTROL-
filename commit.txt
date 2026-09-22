@@ -1,27 +1,52 @@
-Usuarios: al marcar a alguien, el panel sale solo al lado de la tabla
+Acciones a otro nivel: Indicadores, mapa de calor, modo reunión, PDF y preventivas programadas
 
-«No se ve el cambio que pasa.» El panel solo salía al tocar un botón de
-la barra negra, y marcar una casilla no mostraba nada distinto. Como en
-el diseño, ahora marcar es lo que lo abre:
+«Quiero poder medir y que se vea wow.» Todo sale de lo que ya se
+registra —reportada, asignada, cerrada, verificada, efectiva, zona—:
+no hay que pedirle a nadie un dato nuevo.
 
-  - PC: al marcar a uno o varios sale al lado de la tabla el panel
-    «N seleccionados» con lo que se puede hacer —Cambiar rol, Nueva
-    clave, Activar/Desactivar, Eliminar— y las fichas de quiénes van (×
-    quita a uno). La barra negra ya no sale en el PC: el panel la
-    reemplaza.
-  - Cada acción es un paso: ‹ vuelve a «qué quieres hacer» sin perder la
-    selección; × cierra y suelta la selección.
-  - Tableta y celular: sigue la barra negra pegada arriba de la tabla
-    (está donde está el dedo) y la acción abre el panel arriba de la
-    tabla.
+ACCIONES › INDICADORES (antes «Análisis»)
+  - Arriba: abiertas (y cuántas más o menos que antes), vencidas, % a
+    tiempo contra su meta, efectividad contra su meta y la REAL, y el
+    tiempo de cierre (mediana). Periodo de 30, 90 o 180 días.
+  - Tiempos por prioridad contra su plazo: asignar, cerrar, el 90 %,
+    verificar y % a tiempo.
+  - Antigüedad de lo abierto: 0–3, 4–7, 8–15, 16–30, más de 30 días, con
+    lo vencido en rojo.
+  - Tendencia semanal: entran contra se cierran y la línea de lo que queda
+    abierto. Dice si el pendiente baja o no.
+  - Mapa de calor de la bodega: si las zonas tienen coordenadas, el plano
+    con cada zona en su sitio; si no, baldosas por zona. ↻ = veces que la
+    misma falla volvió antes de 30 días.
+  - ¿Sirvió? Efectividad real (verificada y que no se repitió en 30
+    días), repeticiones, no efectivas, reabiertas y dónde se repite.
+  - Pareto de motivos: los pocos que hacen el 80 %.
+  - Quién las tiene, con semáforo: abiertas, vencidas, cerradas, % a
+    tiempo, efectividad y cuánto tarda. Se mide a quien las resuelve, no
+    a quien reporta.
+  - Antes y después: las últimas verificadas con foto del hallazgo y del
+    cierre, lado a lado.
+  - Modo reunión: pantalla completa y va pasando solo de un bloque a otro
+    cada 15 s, para el televisor del arranque de turno.
+  - Informe PDF con el logo, listo para mandar.
 
-Probado también con el paquete de producción de Next (next build + next
-start): el panel abre.
+ACCIONES › MAESTRO › PREVENTIVAS PROGRAMADAS
+  - «Revisar extintores cada mes»: qué, motivo, zona, prioridad, dueño y
+    cada cuánto (día, semana, 15 días, mes, 3 meses). El día que le toca,
+    la preventiva se crea sola con su plazo y su dueño.
+  - Se generan al abrir Acciones (y a las 5 a. m. si la base tiene
+    pg_cron). No se duplican: si nadie entró en diez días, sale UNA.
 
-SQL: ninguno.
+SQL (correr en Supabase ANTES del push):
+  supabase/migraciones/2026-09-acciones-programadas.sql
+  Crea acciones_programadas, la columna acciones.programada, las funciones
+  para generar, guardar y borrar, y el parámetro meta_a_tiempo (95 %).
+  Los Indicadores funcionan sin él; las programadas no.
 
-MEDIDO: .arnes/ad-usuarios.mjs (1200 · 390 · 360, siete temas)
-        .arnes/mutar-ad-usuarios.mjs — 14 de 14 rojas · next build
+MEDIDO: .arnes/ac-indicadores.mjs — las cuentas con resultado conocido
+(a tiempo, medianas, tendencia, reincidencia, Pareto, semáforo) y la
+pantalla en 1300 · 820 · 390 · 360, periodo, plano y baldosas, modo
+reunión, PDF y siete temas. SQL probado en Postgres local: genera una
+sola vez aunque se llame dos. next build.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

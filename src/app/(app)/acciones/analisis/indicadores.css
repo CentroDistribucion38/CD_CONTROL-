@@ -1,0 +1,231 @@
+/* =====================================================================
+   ACCIONES · INDICADORES — cuelga de .ac y usa sus tokens.
+   Semáforo fijo (bien / ojo / mal): no cambia con el tema, porque si
+   cambiara dejaría de querer decir lo que dice.
+   ===================================================================== */
+.ai {
+  --ai-bien: #0F7A4A; --ai-ojo: #A15C00; --ai-mal: #C8102E;
+  --ai-bien-f: #E6F4EC; --ai-ojo-f: #FFF4DB; --ai-mal-f: #FDECEE;
+  --ai-fondo: var(--c-eef1f5, #EEF1F5);
+  /* El gris que va SOBRE el fondo gris: un paso más oscuro, o en ámbar no llega a 4,5. */
+  --ai-gris-f: color-mix(in srgb, var(--ac-gris) 78%, var(--ac-tinta));
+  --ai-dato: var(--ac-tinta);
+  display: flex; flex-direction: column; gap: 16px; min-width: 0;
+  font-family: var(--ac-texto); color: var(--ac-tinta);
+}
+.ai * { box-sizing: border-box }
+
+/* ---- Cabeza ---- */
+.ai-cab { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap }
+.ai-ojo { margin: 0; font: 700 10.5px var(--ac-texto); letter-spacing: .16em; color: var(--ac-gris) }
+.ai-cab h1 { margin: 6px 0 0; font: 900 clamp(26px, 4vw, 38px)/1.05 var(--ac-titulo); letter-spacing: -.03em }
+.ai-sub { margin: 6px 0 0; font-size: 13.5px; color: var(--ac-gris) }
+.ai-herr { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.ai-seg { display: inline-flex; border: 1px solid var(--ac-linea); background: var(--ai-fondo); border-radius: 3px; overflow: hidden }
+.ai-seg button {
+  min-height: 44px; padding: 0 14px; border: 0; background: none; cursor: pointer;
+  font: 700 13px var(--ac-titulo); color: var(--ai-gris-f);
+}
+.ai-seg button.on { background: var(--ac-tinta); color: #fff }
+.ai-btn {
+  min-height: 44px; padding: 0 18px; border-radius: 3px; cursor: pointer;
+  background: var(--c-marca, var(--ac-acento)); color: var(--c-marca-txt, #fff);
+  border: 1px solid transparent; font: 800 13.5px var(--ac-titulo);
+}
+.ai-btn.sec { background: var(--ac-papel); color: var(--ac-tinta); border-color: var(--ac-linea) }
+.ai-btn:disabled { opacity: .6; cursor: wait }
+
+/* ---- Bloques y cajas ---- */
+.ai-bloque { display: flex; flex-direction: column; gap: 16px; min-width: 0 }
+.ai-caja {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea); border-radius: 3px;
+  padding: 18px 20px; min-width: 0;
+}
+.ai-caja h2 {
+  margin: 0 0 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  font: 800 16px var(--ac-titulo); letter-spacing: -.01em;
+}
+.ai-caja h2 em { font: 500 12.5px var(--ac-texto); font-style: normal; color: var(--ac-gris) }
+.ai-caja h2 em.bien { color: var(--ai-bien); font-weight: 700 }
+.ai-caja h2 em.mal { color: var(--ai-mal); font-weight: 700 }
+.ai-caja h3 { margin: 18px 0 8px; font: 800 13px var(--ac-titulo) }
+.ai-dos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px }
+.ai-dos.ancho-iz { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) }
+.ai-vacio { margin: 0; padding: 18px 0; color: var(--ac-gris); font-size: 13.5px }
+
+/* ---- Leyendas ---- */
+.ai-ley { margin: 12px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 12px; color: var(--ac-gris) }
+.ai-ley i, .ai-ley .ai-sem { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: -8px; vertical-align: -1px }
+.ai-ley i.med, .ai-ley i.entran, .ai-ley i.en { background: var(--ai-dato) }
+.ai-ley i.p90 { background: color-mix(in srgb, var(--ai-dato) 22%, #fff) }
+.ai-ley i.plazo { width: 3px; background: var(--ai-mal) }
+.ai-ley i.ven { background: var(--ai-mal) }
+.ai-ley i.cierran { background: var(--ai-bien) }
+.ai-ley i.quedan { height: 3px; background: var(--ai-mal) }
+.ai-ley i.calor0 { background: var(--ai-fondo) }
+.ai-ley i.calor1 { background: var(--ai-mal) }
+.ai-ley i.vital { background: var(--ai-mal) }
+
+/* ---- KPIs ---- */
+.ai-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
+.ai-kpi {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea); border-top: 4px solid var(--ac-linea);
+  border-radius: 3px; padding: 14px 16px; min-width: 0;
+}
+.ai-kpi.bien { border-top-color: var(--ai-bien) }
+.ai-kpi.ojo { border-top-color: #E0A100 }
+.ai-kpi.mal { border-top-color: var(--ai-mal) }
+.ai-kpi .rot { font: 700 10.5px var(--ac-texto); letter-spacing: .14em; color: var(--ac-gris) }
+.ai-kpi .n { margin: 6px 0 4px; font: 900 clamp(30px, 3.4vw, 46px)/1 var(--ac-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.ai-kpi.mal .n { color: var(--ai-mal) }
+.ai-kpi .pie { font-size: 12px; color: var(--ac-gris); line-height: 1.4 }
+.ai-kpi .pie b { color: var(--ac-tinta) }
+.ai-meta { position: relative; height: 6px; margin: 8px 0 6px; background: var(--ai-fondo); border-radius: 3px }
+.ai-meta i { position: absolute; inset: 0 auto 0 0; background: var(--ai-dato); border-radius: 3px }
+.ai-kpi.bien .ai-meta i { background: var(--ai-bien) }
+.ai-kpi.mal .ai-meta i { background: var(--ai-mal) }
+.ai-meta b { position: absolute; top: -4px; width: 2px; height: 14px; background: var(--ac-tinta); transform: translateX(-1px) }
+
+/* ---- Tiempos ---- */
+.ai-tiempos { display: flex; flex-direction: column; gap: 16px }
+.ai-tp-cab { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.ai-tp-cab b { font: 800 14px var(--ac-titulo) }
+.ai-tp-cab span { font-size: 12px; color: var(--ac-gris) }
+.ai-tp-cab em { margin-left: auto; font-style: normal; font: 800 12px var(--ac-titulo); padding: 2px 8px; border-radius: 10px; background: var(--ai-fondo) }
+.ai-tp-cab em.bien { background: var(--ai-bien-f); color: var(--ai-bien) }
+.ai-tp-cab em.ojo { background: var(--ai-ojo-f); color: var(--ai-ojo) }
+.ai-tp-cab em.mal { background: var(--ai-mal-f); color: var(--ai-mal) }
+.ai-tp-pista { position: relative; height: 14px; margin: 8px 0; background: var(--ai-fondo); border-radius: 3px }
+.ai-tp-pista .p90, .ai-tp-pista .med { position: absolute; inset: 0 auto 0 0; border-radius: 3px }
+.ai-tp-pista .p90 { background: color-mix(in srgb, var(--ai-dato) 22%, #fff) }
+.ai-tp-pista .med { background: var(--ai-dato) }
+.ai-tp-pista .med.pasa { background: var(--ai-mal) }
+.ai-tp-pista .plazo { position: absolute; top: -4px; bottom: -4px; width: 3px; background: var(--ai-mal); transform: translateX(-1px) }
+.ai-tp-num { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--ac-gris) }
+.ai-tp-num b { color: var(--ac-tinta); font-variant-numeric: tabular-nums }
+
+/* ---- Antigüedad ---- */
+.ai-edad { display: flex; flex-direction: column; gap: 10px }
+.ai-edad-f { display: grid; grid-template-columns: 78px minmax(0, 1fr) 40px; align-items: center; gap: 10px }
+.ai-edad-f .rot { font-size: 12.5px; color: var(--ac-gris) }
+.ai-edad-f .pista { display: flex; height: 22px; background: var(--ai-fondo); border-radius: 3px; overflow: hidden }
+.ai-edad-f .pista i { display: block; height: 100% }
+.ai-edad-f .pista .en { background: var(--ai-dato) }
+.ai-edad-f .pista .ven { background: var(--ai-mal) }
+.ai-edad-f b { font: 800 15px var(--ac-titulo); text-align: right; font-variant-numeric: tabular-nums }
+
+/* ---- Gráficos SVG ---- */
+.ai-graf { width: 100%; overflow: hidden }
+.ai-graf svg { display: block; width: 100%; height: auto }
+.ai-graf .rej { stroke: var(--ac-linea); stroke-width: 1 }
+.ai-graf .eje { font: 500 11px var(--ac-texto); fill: var(--ac-gris) }
+.ai-graf .val { font: 800 13px var(--ac-titulo); fill: var(--ai-mal) }
+.ai-graf .entran { fill: var(--ai-dato) }
+.ai-graf .cierran { fill: var(--ai-bien) }
+.ai-graf .quedan { fill: none; stroke: var(--ai-mal); stroke-width: 2.5; stroke-linejoin: round }
+.ai-graf .quedan-p { fill: var(--ai-mal); stroke: #fff; stroke-width: 2 }
+.ai-graf .piso { fill: var(--ai-fondo); stroke: var(--ac-linea) }
+.ai-graf .pto { fill: color-mix(in srgb, var(--ai-mal) calc(var(--c) * 100%), #DDE3EA); stroke: #fff; stroke-width: 2 }
+.ai-graf .halo { fill: var(--ai-mal) }
+.ai-graf .lbl { font: 800 10px var(--ac-titulo); fill: var(--ac-tinta) }
+.ai-graf .lbl.claro { fill: #fff }
+
+/* ---- Mapa por zonas (sin coordenadas) ---- */
+.ai-zonas { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px }
+.ai-zona {
+  min-height: 78px; padding: 10px; border-radius: 3px;
+  background: color-mix(in srgb, var(--ai-mal) calc(var(--c) * 100%), var(--ai-fondo));
+  color: var(--ac-tinta); display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.ai-zona.fuerte { color: #fff }
+.ai-zona b { font: 800 13px var(--ac-titulo) }
+.ai-zona span { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ai-zona em { margin-top: auto; font: 900 20px var(--ac-titulo); font-style: normal }
+.ai-zona em i { font: 700 12px var(--ac-texto); font-style: normal }
+
+/* ---- ¿Sirvió? ---- */
+.ai-rein { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+.ai-rein div { background: var(--ai-fondo); border-radius: 3px; padding: 12px }
+.ai-rein b { display: block; font: 900 28px/1 var(--ac-titulo); font-variant-numeric: tabular-nums }
+.ai-rein span { display: block; margin-top: 4px; font-size: 12px; color: var(--ai-gris-f); line-height: 1.35 }
+.ai-rep { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column }
+.ai-rep li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--ac-linea) }
+.ai-rep b { font-size: 13px; font-weight: 700 }
+.ai-rep span { grid-row: 2; font-size: 12px; color: var(--ac-gris) }
+.ai-rep em { grid-row: 1 / span 2; grid-column: 2; align-self: center; font: 800 12.5px var(--ac-titulo); font-style: normal; color: var(--ai-mal) }
+
+/* ---- Pareto ---- */
+.ai-pareto { display: flex; flex-direction: column; gap: 8px }
+.ai-par { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr) 40px 48px; align-items: center; gap: 10px }
+.ai-par .rot { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ai-par .pista { height: 20px; background: var(--ai-fondo); border-radius: 3px; overflow: hidden }
+.ai-par .pista i { display: block; height: 100%; background: color-mix(in srgb, var(--ai-dato) 55%, #fff) }
+.ai-par.vital .pista i { background: var(--ai-mal) }
+.ai-par.vital .rot { font-weight: 700 }
+.ai-par b { font: 800 14px var(--ac-titulo); text-align: right; font-variant-numeric: tabular-nums }
+.ai-par em { font-style: normal; font-size: 12px; color: var(--ac-gris); text-align: right; font-variant-numeric: tabular-nums }
+
+/* ---- Responsables ---- */
+.ai-tabla-env { overflow-x: auto }
+.ai-tabla { width: 100%; border-collapse: collapse; min-width: 640px }
+.ai-tabla th { text-align: left; padding: 8px 10px; font: 700 10.5px var(--ac-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--ac-gris); border-bottom: 1px solid var(--ac-linea); white-space: nowrap }
+.ai-tabla td { padding: 10px; border-bottom: 1px solid var(--ai-fondo); font-size: 13.5px; vertical-align: middle }
+.ai-tabla td small { display: block; margin-left: 20px; font-size: 11.5px; color: var(--ac-gris) }
+.ai-tabla .n { text-align: right; font-variant-numeric: tabular-nums }
+.ai-tabla td.mal { color: var(--ai-mal); font-weight: 800 }
+.ai-sem { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: -1px }
+.ai-sem.bien { background: var(--ai-bien) }
+.ai-sem.ojo { background: #E0A100 }
+.ai-sem.mal { background: var(--ai-mal) }
+.ai-carga { display: inline-block; width: 90px; height: 8px; background: var(--ai-fondo); border-radius: 4px; overflow: hidden; vertical-align: middle; margin-right: 8px }
+.ai-carga i { display: block; height: 100%; background: var(--ai-dato) }
+.ai-tabla .cg { font-variant-numeric: tabular-nums }
+
+/* ---- Antes y después ---- */
+.ai-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px }
+.ai-foto { margin: 0; border: 1px solid var(--ac-linea); border-radius: 3px; overflow: hidden; background: var(--ac-papel) }
+.ai-foto .par { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--ac-linea) }
+.ai-foto .par span { position: relative; aspect-ratio: 4 / 3; background: var(--ai-fondo) }
+.ai-foto img { width: 100%; height: 100%; object-fit: cover; display: block }
+.ai-foto .par i {
+  position: absolute; left: 6px; top: 6px; padding: 2px 7px; font: 800 10px var(--ac-titulo); font-style: normal;
+  letter-spacing: .1em; background: var(--ai-mal); color: #fff; border-radius: 2px;
+}
+.ai-foto .par i.d { background: var(--ai-bien) }
+.ai-foto figcaption { padding: 10px 12px; font-size: 13px }
+.ai-foto figcaption small { display: block; margin-top: 2px; color: var(--ac-gris) }
+
+/* ---- Modo reunión: pantalla completa, un bloque a la vez ---- */
+.ai-puntos { display: flex; gap: 6px; flex-wrap: wrap }
+.ai-puntos button {
+  min-height: 36px; padding: 0 12px; border-radius: 18px; cursor: pointer;
+  border: 1px solid var(--ac-linea); background: var(--ac-papel); font: 700 12.5px var(--ac-titulo); color: var(--ac-gris);
+}
+.ai-puntos button.on { background: var(--ac-tinta); color: #fff; border-color: var(--ac-tinta) }
+.ai.reunion { background: var(--ai-fondo); }
+.ai.reunion:fullscreen { padding: 28px 36px; overflow: auto }
+.ai.reunion .ai-cab h1 { font-size: clamp(34px, 4vw, 56px) }
+.ai.reunion .ai-kpi .n { font-size: clamp(40px, 5vw, 80px) }
+.ai.reunion .ai-caja h2 { font-size: clamp(18px, 1.6vw, 26px) }
+
+@media (max-width: 1100px) {
+  .ai-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .ai-dos, .ai-dos.ancho-iz { grid-template-columns: minmax(0, 1fr) }
+}
+@media (max-width: 620px) {
+  .ai-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px }
+  .ai-kpi:last-child { grid-column: 1 / -1 }
+  .ai-caja { padding: 14px 12px }
+  .ai-herr { width: 100% }
+  .ai-seg { flex: 1 1 100% }
+  .ai-seg button { flex: 1 }
+  .ai-btn { flex: 1 1 0 }
+  .ai-par { grid-template-columns: minmax(0, 1fr) 34px 42px; }
+  .ai-par .pista { grid-column: 1 / -1; grid-row: 2 }
+  .ai-edad-f { grid-template-columns: 70px minmax(0, 1fr) 32px }
+  /* El gráfico se encoge a la mitad en el celular: su letra, en unidades
+     del dibujo, se dobla para seguir leyéndose a ~10 px. */
+  .ai-graf .eje { font-size: 21px }
+  .ai-graf .val { font-size: 24px }
+  .ai-graf .lbl { font-size: 18px }
+}

@@ -1,18 +1,19 @@
 import { misPermisos } from "@/lib/permisos";
 import {
   zonas, motivosTodos, areasTodas, equipos, usoDelMaestro, acciones as leerAcciones,
-  carga, responsableDefecto, quienRecibe,
+  carga, responsableDefecto, quienRecibe, programadas,
 } from "@/modulos/acciones/datos";
 import "../acciones.css";
 import { SinTablas } from "../comunes";
 import { Maestro } from "./Maestro";
 import { PorDefecto } from "./PorDefecto";
 import { QuienRecibe } from "./QuienRecibe";
+import { Programadas } from "./Programadas";
 
 export const dynamic = "force-dynamic";
 
 export default async function MaestroPage() {
-  const [permisos, zs, ms, as, eqs, uso, datos, quienes, defecto, recibe] = await Promise.all([
+  const [permisos, zs, ms, as, eqs, uso, datos, quienes, defecto, recibe, progs] = await Promise.all([
     misPermisos(),
     zonas(),
     /* Los DESACTIVADOS también: si no, al desactivar uno desaparecería de
@@ -29,6 +30,7 @@ export default async function MaestroPage() {
     carga(),
     responsableDefecto(),
     quienRecibe(),
+    programadas(),
   ]);
 
   if (datos.falta) return <div className="ac"><SinTablas /></div>;
@@ -72,6 +74,17 @@ export default async function MaestroPage() {
         actual={defecto.id}
         falta={defecto.falta}
         puedeEditar={permisos.rol === "admin"}
+      />
+
+      {/* Y AL FINAL LO QUE SE REPITE SOLO: con zonas, motivos y gente
+          listos, se programan las preventivas. */}
+      <Programadas
+        lista={progs}
+        zonas={zs.filter((z) => z.activo)}
+        motivos={ms.filter((m) => m.activo)}
+        equipos={eqs.filter((e) => e.activo)}
+        gente={quienes}
+        puedeEditar={permisos.puedeEditar("/acciones/maestro")}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { misPermisos } from "@/lib/permisos";
-import { zonas, motivos, parametros, carga } from "@/modulos/acciones/datos";
+import { zonas, motivos, parametros, carga, generarProgramadas } from "@/modulos/acciones/datos";
 import "./acciones.css";
 import { BarraAbajo } from "./BarraAbajo";
 import { Cola } from "./Cola";
@@ -13,6 +13,10 @@ import { Cola } from "./Cola";
  * no repite esas dos consultas.
  */
 export default async function AccionesLayout({ children }: { children: React.ReactNode }) {
+  /* LAS PREVENTIVAS PROGRAMADAS que ya tocan se crean al abrir el
+     módulo (y a las 5 a. m. si la base tiene pg_cron). Se llama las
+     veces que sea: la base no repite la de hoy. */
+  await generarProgramadas();
   const [permisos, zs, ms, par, gente] = await Promise.all([
     misPermisos(), zonas(), motivos(), parametros(),
     /* La carga de cada quien, para poder asignar al terminar de reportar
