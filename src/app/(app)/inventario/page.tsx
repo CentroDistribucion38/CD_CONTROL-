@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
-import { maestroInventario, tableroFefo, type Renglon } from "@/modulos/inventario/fefo";
+import { maestroInventario, tableroFefo } from "@/modulos/inventario/fefo";
+import { medirRiesgo } from "@/modulos/inventario/riesgo";
+import { Riesgo } from "./Riesgo";
 import "./fefo.css";
+import "./riesgo.css";
 
 export const dynamic = "force-dynamic";
 
@@ -58,42 +61,12 @@ export default async function InventarioTableroPage() {
   const bodega = m.bodegas.find((b) => b.activo && conUbi.has(b.id)) ?? m.bodegas[0] ?? null;
   const t = await tableroFefo(bodega?.id ?? null);
 
-  /* ---------- LO QUE DECIDE ----------
-     Tres grupos y no una escala continua: lo que ya se pasó, lo que se
-     pasa esta semana, y lo demás. Un semáforo de siete colores obliga a
-     interpretar; tres grupos se leen de una y cada uno tiene una acción
-     distinta —sacarlo hoy, programarlo, dejarlo quieto—. */
-  const conFecha = t.lineas.filter((l) => l.dias_para_salir != null);
-  const vencido = conFecha.filter((l) => (l.dias_para_salir ?? 0) < 0);
-  const semana = conFecha.filter((l) => (l.dias_para_salir ?? 0) >= 0 && (l.dias_para_salir ?? 0) <= 7);
-  const cajas = (xs: Renglon[]) => xs.reduce((a, l) => a + Number(l.total_cajas), 0);
+  /* EL RIESGO: la foto de la bodega (el último recorrido de cada
+     ubicación, no la suma de todos) por franja de salida y por material. */
+  const uxc = Object.fromEntries(m.materiales.map((x) => [x.sku, x.unidades_por_caja]));
+  const { foto, ...riesgo } = medirRiesgo(t.lineas, t.conteos, uxc);
 
-  /* Lo urgente primero y por lo que más pesa: dos estibas pasadas de
-     fecha no son lo mismo que doscientas cajas sueltas. */
-  const urgentes = [...vencido, ...semana]
-    .sort((a, b) => (a.dias_para_salir ?? 0) - (b.dias_para_salir ?? 0)
-                 || Number(b.total_cajas) - Number(a.total_cajas))
-    .slice(0, 40);
-
-  /* Por material, para saber a quién llamar: quince renglones del mismo
-     código en ocho módulos son UN problema, no quince. */
-  const porMaterial = new Map<string, { nombre: string; cajas: number; sitios: Set<string> }>();
-  for (const l of [...vencido, ...semana]) {
-    const x = porMaterial.get(l.codigo) ?? { nombre: l.material, cajas: 0, sitios: new Set<string>() };
-    x.cajas += Number(l.total_cajas);
-    if (l.ubicacion) x.sitios.add(l.ubicacion);
-    porMaterial.set(l.codigo, x);
-  }
-  const materiales = [...porMaterial.entries()].sort((a, b) => b[1].cajas - a[1].cajas).slice(0, 8);
-  /* EL TOPE NUNCA PUEDE SER CERO. Las barras se dibujan como fracción
-     del material que más pesa, y si ese pesa 0 —pasa: un material sin
-     factor estibado contado en estibas da total 0— la división sale NaN,
-     el `width: NaN%` se descarta y las barras desaparecen SIN UN SOLO
-     ERROR. Es el mismo silencio que dejó la chispa del tablero de rotura
-     en blanco con una serie plana. */
-  const tope = Math.max(1, ...materiales.map(([, x]) => x.cajas));
-
-  const sinFecha = t.lineas.filter((l) => l.dias_para_salir == null && l.tipo_material !== "ENVASE");
+  const sinFecha = foto.filter((l) => l.dias_para_salir == null && l.tipo_material !== "ENVASE");
 
   /* ---------- LOS MÓDULOS QUE SE PASARON DE CAPACIDAD ----------
      CONTAR NO LO IMPIDE, Y ES A PROPÓSITO. Un módulo por encima de su
@@ -111,7 +84,7 @@ export default async function InventarioTableroPage() {
      en estibas —A01_DER son 96— y comparar cajas contra estibas daría
      que todos los módulos están al 4.000 %. */
   const porModulo = new Map<string, { clave: string; capacidad: number; estibas: number; renglones: number }>();
-  for (const l of t.lineas) {
+  for (const l of foto) {
     if (!l.ubicacion || l.capacidad == null || l.capacidad <= 0) continue;
     const x = porModulo.get(l.ubicacion)
       ?? { clave: l.ubicacion, capacidad: l.capacidad, estibas: 0, renglones: 0 };
@@ -189,26 +162,14 @@ export default async function InventarioTableroPage() {
 
   return (
     <div className="fe">
-      <section className="cabeza">
-        <div>
-          <p className="ojo">INVENTARIO · FEFO{bodega ? ` · ${bodega.codigo}` : ""}</p>
-          <h1>Qué sale primero</h1>
-          <p className="sub">
-            De los conteos <b>enviados</b>. «Días para salir» no es cuándo se vence: es cuándo
-            tiene que haber salido para llegar con vida útil suficiente — el vencimiento menos
-            hoy menos el mínimo de cada material. En negativo ya se pasó.
-          </p>
-        </div>
-        <div className={"kpi" + (vencido.length > 0 ? " alarma" : "")}>
-          <div className="corte" />
-          <div className="rot">YA SE PASÓ DE SALIDA</div>
-          <div className="num">{nf.format(cajas(vencido))}</div>
-          <div className="pie">
-            cajas en {vencido.length} renglón{vencido.length === 1 ? "" : "es"}
+      {t.conteos.length === 0 && (
+        <section className="cabeza">
+          <div>
+            <p className="ojo">INVENTARIO · FEFO{bodega ? ` · ${bodega.codigo}` : ""}</p>
+            <h1>Qué se vence y dónde está</h1>
           </div>
-        </div>
-      </section>
-
+        </section>
+      )}
       {t.conteos.length === 0 ? (
         <section className="fe-vacio-grande">
           <h2>Todavía no hay conteos enviados</h2>
@@ -221,26 +182,8 @@ export default async function InventarioTableroPage() {
         </section>
       ) : (
         <>
-          <section className="fe-grupos">
-            <div className="fe-grupo mal">
-              <p className="rot">YA SE PASÓ</p>
-              <p className="n">{nf.format(cajas(vencido))}</p>
-              <p className="u">cajas · {vencido.length} renglones — sale hoy</p>
-            </div>
-            <div className="fe-grupo ojo">
-              <p className="rot">SALE ESTA SEMANA</p>
-              <p className="n">{nf.format(cajas(semana))}</p>
-              <p className="u">cajas · {semana.length} renglones — hay que programarlo</p>
-            </div>
-            <div className="fe-grupo">
-              <p className="rot">CONTADO</p>
-              <p className="n">{nf.format(cajas(t.lineas))}</p>
-              <p className="u">
-                cajas · {new Set(t.lineas.map((l) => l.ubicacion)).size} módulos ·{" "}
-                {t.conteos.length} conteo{t.conteos.length === 1 ? "" : "s"}
-              </p>
-            </div>
-          </section>
+          <Riesgo r={riesgo} bodega={bodega?.codigo ?? ""} sinContar={t.faltaSinContar ? 0 : sinContar.length}
+                  ultimo={t.ultimo?.codigo ?? null} />
 
           {/* ============ QUÉ QUEDÓ SIN CONTAR ============
 
@@ -417,70 +360,6 @@ export default async function InventarioTableroPage() {
               </p>
             </section>
           )}
-
-          {materiales.length > 0 && (
-            <section className="fe-caja">
-              <div className="fe-caja-cab">
-                <h2>A quién llamar</h2>
-                <p>
-                  Lo urgente agrupado por material. Quince renglones del mismo código en ocho
-                  módulos son <b>un</b> problema, no quince.
-                </p>
-              </div>
-              <div className="fe-barras">
-                {materiales.map(([cod, x]) => (
-                  <div key={cod} className="fe-mat">
-                    <span className="nom">
-                      <b>{cod}</b> {x.nombre}
-                    </span>
-                    <span className="pista">
-                      <i style={{ width: `${(x.cajas / tope) * 100}%` }} />
-                    </span>
-                    <span className="val">
-                      {nf.format(x.cajas)}
-                      <em>{x.sitios.size} módulo{x.sitios.size === 1 ? "" : "s"}</em>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section className="fe-caja">
-            <div className="fe-caja-cab">
-              <h2>Renglón por renglón</h2>
-              <p>Lo más urgente arriba. Con lo que pesa, para saber por dónde empezar.</p>
-            </div>
-            <div className="fe-tabla">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Días para salir</th><th>Material</th><th>Ubicación</th>
-                    <th className="n">Cajas</th><th>Vence</th><th>Contó</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {urgentes.map((l) => (
-                    <tr key={l.id} className={(l.dias_para_salir ?? 0) < 0 ? "mal" : ""}>
-                      <td className="dias">{l.dias_para_salir}</td>
-                      <td><b>{l.codigo}</b> <span>{l.material}</span></td>
-                      <td>{l.ubicacion_combinada ?? l.ubicacion}</td>
-                      <td className="n">{nf.format(Number(l.total_cajas))}</td>
-                      <td>{l.vencimiento
-                        ? new Date(l.vencimiento + "T00:00:00").toLocaleDateString("es-CO")
-                        : "—"}</td>
-                      <td>{l.conto ?? "—"}</td>
-                    </tr>
-                  ))}
-                  {urgentes.length === 0 && (
-                    <tr><td colSpan={6} className="nada">
-                      Nada urgente: todo lo contado sale con más de una semana de margen.
-                    </td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
 
           <section className="fe-caja">
             <div className="fe-caja-cab">

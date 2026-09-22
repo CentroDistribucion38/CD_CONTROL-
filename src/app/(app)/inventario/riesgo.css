@@ -1,0 +1,170 @@
+/* =====================================================================
+   INVENTARIO · RIESGO DE VENCIMIENTO
+   Tarjetas redondeadas como el tablero de acciones. Un color por franja,
+   del vino (vencido) al verde (con margen); el texto de color va siempre
+   en su tono oscuro para que se lea en los siete temas.
+   ===================================================================== */
+.ir {
+  --ir-v: #8C0C1E; --ir-p: #C8262B; --ir-s: #D96D1F; --ir-q: #E0A800; --ir-m: #7A8A2E; --ir-o: #1F7A45; --ir-n: #8C96A0;
+  --ir-vt: #8C0C1E; --ir-pt: #B3181F; --ir-st: #A4480C; --ir-qt: #7A5600; --ir-mt: #505C17; --ir-ot: #1A6B3C; --ir-nt: #55606B;
+  --ir-ln: #E6E9EE; --ir-fondo: #F2F4F7;
+  display: flex; flex-direction: column; gap: 16px; min-width: 0; color: var(--fe-tinta);
+}
+.ir svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round }
+.ir .mal { color: var(--ir-pt) }
+.ir-card { background: var(--fe-papel); border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -20px rgba(0,0,0,.28); min-width: 0 }
+
+/* ---- Arriba ---- */
+.ir-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px 24px; flex-wrap: wrap }
+.ir-o { margin: 0; font: 700 11px var(--fe-titulo); letter-spacing: .16em; color: var(--fe-gris-panel) }
+.ir-top h1 { margin: 8px 0 0; font: 900 clamp(28px, 3.6vw, 44px)/1.05 var(--fe-titulo); letter-spacing: -.035em }
+.ir-frase { margin: 10px 0 0; font-size: 15px; line-height: 1.45; color: var(--fe-gris-panel); max-width: 72ch }
+.ir-frase b { color: var(--fe-tinta) } .ir-frase b.mal { color: var(--ir-pt) }
+.ir-acc { display: flex; gap: 10px; flex-wrap: wrap; align-items: center }
+.ir-seg { display: inline-flex; background: var(--fe-papel); border: 1.5px solid var(--ir-ln); border-radius: 10px; padding: 3px }
+.ir-seg button { min-height: 40px; padding: 0 14px; border-radius: 7px; border: 0; background: none; cursor: pointer; font: 700 13.5px var(--fe-texto); color: var(--fe-gris) }
+.ir-seg button.on { background: #141414; color: #fff }
+.ir-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 18px; border-radius: 10px; cursor: pointer;
+  background: var(--fe-acento); color: var(--fe-sobre); border: 0; font: 700 14px var(--fe-texto);
+}
+.ir-btn:disabled { opacity: .6; cursor: progress }
+.ir-ojo { margin: 0; padding: 12px 16px; border-radius: 12px; background: #FFF6DB; color: #5C4300; font-size: 14px; line-height: 1.45; border-left: 4px solid var(--ir-q) }
+.ir-ojo b { color: #3D2C00 }
+
+/* ---- Alertas ---- */
+.ir-alertas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
+.ir-al {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; min-width: 0;
+  padding: 18px 18px 16px; border-radius: 14px; cursor: pointer; background: var(--fe-papel); color: var(--fe-tinta);
+  border: 2px solid transparent; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -20px rgba(0,0,0,.28); font: inherit; overflow: hidden;
+}
+.ir-al::before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 5px }
+.ir-al.vencido::before { background: var(--ir-v) } .ir-al.pasado::before { background: var(--ir-p) } .ir-al.semana::before { background: var(--ir-s) }
+.ir-al.quince::before { background: var(--ir-q) } .ir-al.mes::before { background: var(--ir-m) }
+.ir-al .rot { font: 700 11.5px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
+.ir-al .n { margin-top: 6px; font: 900 clamp(26px, 2.6vw, 38px)/1 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.ir-al.vencido .n { color: var(--ir-vt) } .ir-al.pasado .n { color: var(--ir-pt) } .ir-al.semana .n { color: var(--ir-st) }
+.ir-al.quince .n { color: var(--ir-qt) } .ir-al.mes .n { color: var(--ir-mt) }
+.ir-al.cero .n { color: var(--fe-gris) }
+.ir-al .u { font-size: 12.5px; font-weight: 600; color: var(--fe-gris) }
+.ir-al .s { margin-top: 8px; font-size: 12.5px; color: var(--fe-gris) }
+.ir-al:hover { border-color: var(--ir-ln) }
+.ir-al.on { border-color: #141414 }
+.ir-al:focus-visible, .ir-m:focus-visible, .ir-btn:focus-visible, .ir-seg button:focus-visible, .ir-chips button:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 2px }
+
+/* ---- Dos tarjetas ---- */
+.ir-dos { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px }
+.ir-h { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; padding: 20px 22px 10px }
+.ir-h h2 { margin: 0; font: 900 clamp(17px, 1.5vw, 21px) var(--fe-titulo); letter-spacing: -.01em }
+.ir-h > span { font-size: 13px; color: var(--fe-gris) }
+.ir-sem { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; height: 200px; padding: 8px 22px 0 }
+.ir-sem .col { display: flex; flex-direction: column; height: 100%; min-width: 0 }
+.ir-sem .bar-e { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 5px; border-bottom: 2px solid #141414 }
+.ir-sem .bar-e b { font: 800 12px var(--fe-titulo); font-variant-numeric: tabular-nums; white-space: nowrap }
+.ir-sem .bar-e i { display: block; width: 100%; max-width: 52px; border-radius: 6px 6px 0 0 }
+.ir-sem i.r { background: var(--ir-p) } .ir-sem i.n { background: var(--ir-s) } .ir-sem i.a { background: var(--ir-q) } .ir-sem i.g { background: #A7B1BD }
+.ir-sem i.cero { background: var(--ir-fondo); border-radius: 2px }
+.ir-sem .x { margin-top: 7px; text-align: center; font-size: 12px; color: var(--fe-gris); white-space: nowrap }
+.ir-dice { margin: 0; padding: 14px 22px 20px; font-size: 13px; color: var(--fe-gris) }
+
+.ir-reparto { display: flex; gap: 2px; height: 22px; margin: 10px 22px 0; border-radius: 8px; overflow: hidden; background: var(--ir-fondo) }
+.ir-reparto i { display: block; min-width: 3px }
+.ir .vencido { --c: var(--ir-v) } .ir .pasado { --c: var(--ir-p) } .ir .semana { --c: var(--ir-s) } .ir .quince { --c: var(--ir-q) }
+.ir .mes { --c: var(--ir-m) } .ir .ok { --c: var(--ir-o) } .ir .sinfecha { --c: var(--ir-n) }
+.ir-reparto i, .ir-ley li > i { background: var(--c) }
+.ir-ley { list-style: none; margin: 0; padding: 14px 22px 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px }
+.ir-ley li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; min-width: 0 }
+.ir-ley li > i { flex: none; width: 11px; height: 11px; border-radius: 3px }
+.ir-ley b { margin-left: auto; font-variant-numeric: tabular-nums }
+.ir-ley em { font-style: normal; width: 42px; text-align: right; color: var(--fe-gris); font-size: 12.5px; font-variant-numeric: tabular-nums }
+
+/* ---- Materiales ---- */
+.ir-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 22px 14px; border-bottom: 1px solid var(--ir-ln) }
+.ir-bar input { flex: 1 1 260px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 500 14.5px var(--fe-texto) }
+.ir-bar input:focus { outline: none; border-color: var(--fe-tinta) }
+.ir-chips { display: flex; gap: 8px; flex-wrap: wrap }
+.ir-chips button { min-height: 44px; padding: 0 16px; border-radius: 22px; cursor: pointer; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13.5px var(--fe-texto) }
+.ir-chips button em { font-style: normal; color: var(--fe-gris); margin-left: 3px; font-weight: 600 }
+.ir-chips button.on { background: #141414; border-color: #141414; color: #fff } .ir-chips button.on em { color: #FFC000 }
+.ir-lista { display: flex; flex-direction: column }
+.ir-m {
+  display: grid; grid-template-columns: 136px minmax(0, 2fr) repeat(5, minmax(72px, .7fr)) 20px; gap: 14px; align-items: center; text-align: left;
+  padding: 13px 22px; border: 0; border-bottom: 1px solid var(--ir-ln); background: none; cursor: pointer; font: inherit; color: inherit; width: 100%;
+}
+.ir-m:last-child { border-bottom: 0 }
+.ir-m:hover { background: #FAFBFC }
+.ir-m .que { min-width: 0 }
+.ir-m .que b { display: block; font-size: 15px; font-weight: 700; overflow-wrap: anywhere }
+.ir-m .que small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--fe-gris) }
+.ir-m .dato { display: flex; flex-direction: column; min-width: 0 }
+.ir-m .dato small { font-size: 11px; font-weight: 600; color: var(--fe-gris); text-transform: uppercase; letter-spacing: .04em }
+.ir-m .dato b { font-size: 14.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.ir-m .fl { color: var(--fe-gris) }
+.ir-pill { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 5px 10px; border-radius: 20px; font: 700 12px var(--fe-texto); white-space: nowrap;
+  background: color-mix(in srgb, var(--c) 13%, #fff); color: color-mix(in srgb, var(--c) 70%, #000) }
+.ir-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c) }
+.ir-vacio { margin: 0; padding: 22px; color: var(--fe-gris) }
+.ir-mas { display: block; width: calc(100% - 44px); margin: 0 22px 18px; min-height: 44px; border-radius: 10px; border: 1.5px dashed var(--ir-ln); background: none; cursor: pointer; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
+
+/* ---- Panel: dónde está ---- */
+.ir-velo { position: fixed; inset: 0; z-index: 80; background: rgba(8, 14, 24, .45); display: flex; justify-content: flex-end }
+.ir-panel {
+  width: min(560px, 100%); height: 100%; background: #F6F7F9; color: var(--fe-tinta); display: flex; flex-direction: column;
+  box-shadow: -20px 0 50px -20px rgba(0,0,0,.4); animation: ir-entra .18s ease-out;
+}
+@keyframes ir-entra { from { transform: translateX(24px); opacity: .6 } }
+@media (prefers-reduced-motion: reduce) { .ir-panel { animation: none } }
+.ir-pc { display: flex; justify-content: space-between; gap: 12px; padding: 20px 22px 14px; background: #fff; border-bottom: 1px solid var(--ir-ln) }
+.ir-pc h3 { margin: 10px 0 0; font: 900 22px/1.15 var(--fe-titulo); letter-spacing: -.02em }
+.ir-pc p { margin: 5px 0 0; font-size: 13px; color: var(--fe-gris) }
+.ir-x { flex: none; width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid var(--ir-ln); background: #fff; cursor: pointer; display: grid; place-items: center; color: var(--fe-tinta) }
+.ir-pk { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 14px 22px }
+.ir-pk > div { background: #fff; border-radius: 12px; padding: 12px 14px; min-width: 0 }
+.ir-pk small { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--fe-gris) }
+.ir-pk b { display: block; margin-top: 4px; font: 900 24px var(--fe-titulo); font-variant-numeric: tabular-nums }
+.ir-pk span { display: block; font-size: 12px; color: var(--fe-gris) }
+.ir-pk .mal b { color: var(--ir-pt) }
+.ir-sitios { flex: 1; overflow: auto; padding: 0 22px 14px; display: flex; flex-direction: column; gap: 10px }
+.ir-s { background: #fff; border-radius: 12px; padding: 14px 16px; border-left: 5px solid var(--c) }
+.ir-s .cab { display: flex; justify-content: space-between; align-items: center; gap: 10px }
+.ir-s .ub { font: 900 19px var(--fe-titulo); letter-spacing: -.01em; overflow-wrap: anywhere }
+.ir-s .donde { margin: 3px 0 0; font-size: 13px; color: var(--fe-gris) }
+.ir-s dl { margin: 12px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px }
+.ir-s dl div { min-width: 0 }
+.ir-s dt { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--fe-gris) }
+.ir-s dd { margin: 2px 0 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums }
+.ir-s dd.mal { color: var(--ir-pt); font-weight: 800 }
+.ir-s .tags { margin: 10px 0 0; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 13px }
+.ir-s .t { padding: 3px 8px; border-radius: 6px; background: #FDEBEB; color: var(--ir-pt); font-weight: 700; font-size: 12px }
+.ir-s .tags em { color: var(--fe-gris) }
+.ir-s .quien { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--ir-ln); font-size: 12.5px; color: var(--fe-gris) }
+.ir-pp { padding: 14px 22px 18px; background: #fff; border-top: 1px solid var(--ir-ln) }
+.ir-pp .ir-btn { width: 100% }
+
+@media (max-width: 1100px) {
+  .ir-alertas { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .ir-dos { grid-template-columns: minmax(0, 1fr) }
+  .ir-m { grid-template-columns: 132px minmax(0, 1fr) repeat(3, minmax(64px, auto)) 20px }
+  .ir-m .d2, .ir-m .d5 { display: none }
+}
+@media (max-width: 700px) {
+  .ir-acc { width: 100% } .ir-acc .ir-btn { flex: 1 }
+  .ir-alertas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+  .ir-al { padding: 14px 14px 12px } .ir-al .s { margin-top: 4px }
+  .ir-h, .ir-dice, .ir-ley { padding-left: 16px; padding-right: 16px }
+  .ir-sem { padding: 8px 12px 0; gap: 4px; height: 170px } .ir-sem .bar-e b { font-size: 10px }
+  .ir-reparto { margin: 10px 16px 0 }
+  .ir-ley { grid-template-columns: minmax(0, 1fr) }
+  .ir-bar { padding: 0 16px 12px }
+  .ir-m { grid-template-columns: minmax(0, 1fr) auto 18px; gap: 6px 10px; padding: 12px 16px }
+  .ir-m .ir-pill { grid-column: 1; grid-row: 1 }
+  .ir-m .que { grid-column: 1 / 3; grid-row: 2 }
+  .ir-m .dato { display: none }
+  .ir-m .d1 { display: flex; grid-column: 2; grid-row: 1; align-items: flex-end }
+  .ir-m .fl { grid-column: 3; grid-row: 1 / 3 }
+  .ir-mas { width: calc(100% - 32px); margin: 0 16px 16px }
+  .ir-pc, .ir-pk, .ir-pp { padding-left: 16px; padding-right: 16px } .ir-sitios { padding: 0 16px 14px }
+  .ir-pk b { font-size: 20px }
+  .ir-s dl { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+}

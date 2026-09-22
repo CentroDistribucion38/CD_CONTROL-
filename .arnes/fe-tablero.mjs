@@ -547,7 +547,8 @@ if (!/Nada quedó sin contar/.test(pgx))
     fallas.push("`tableroFefo` no filtra por conteos cerrados: el tablero estaría afirmando " +
                 "sobre recorridos a medio caminar");
 }
-if (!/Math\.max\(1,/.test(pgx))
+/* Las barras se mudaron a Riesgo.tsx (el riesgo de vencimiento). */
+if (!/Math\.max\(1,/.test(readFileSync(new URL("../src/app/(app)/inventario/Riesgo.tsx", import.meta.url), "utf8")))
   fallas.push("el tope de las barras puede ser cero: `width: NaN%` se descarta y las barras " +
               "desaparecen sin un solo error");
 
