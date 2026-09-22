@@ -28,6 +28,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { clienteDeServicio } from "@/lib/supabase/servicio";
+import { anotar } from "@/lib/historial";
 import { misPermisos } from "@/lib/permisos";
 import { correoDeUsuario, normalizarUsuario } from "@/lib/auth";
 import { crearCuenta, claveSugerida, porQueLaClave, DIGITOS } from "@/lib/cuentas";
@@ -99,6 +100,9 @@ export async function POST(req: Request) {
   }
   const { ok: _ok, ...datos } = hecha;
   void _ok;
+  const { data: nuevo } = await admin.from("perfiles").select("id").eq("usuario", hecha.usuario).maybeSingle();
+  await anotar(admin, user.id, [{ a_quien: nuevo?.id ?? null, nombre, usuario: hecha.usuario, accion: "creado",
+    detalle: { rol, pantallas_extra: Object.keys(extra).length } }]);
   return NextResponse.json(datos);
 }
 
@@ -188,7 +192,7 @@ export async function PUT(req: Request) {
   }
 
   const { data: antes } = await admin
-    .from("perfiles").select("id, usuario, nombre, rol").eq("id", id).maybeSingle();
+    .from("perfiles").select("id, usuario, nombre, rol, permisos_extra").eq("id", id).maybeSingle();
   if (!antes) {
     return NextResponse.json({ error: "Esa persona ya no está." }, { status: 404 });
   }
@@ -293,6 +297,19 @@ export async function PUT(req: Request) {
     );
   }
 
+  /* EL HISTORIAL: el rol en su propia fila (es lo que más se pregunta) y
+     lo demás que cambió en una fila «editado». */
+  const cambios: Record<string, unknown> = {};
+  if (antes.nombre !== despues.nombre) cambios.nombre = { de: antes.nombre, a: despues.nombre };
+  if (antes.usuario !== despues.usuario) cambios.usuario = { de: antes.usuario, a: despues.usuario };
+  if (JSON.stringify(antes.permisos_extra ?? {}) !== JSON.stringify(despues.permisos_extra ?? {}))
+    cambios.pantallas = { de: Object.keys(antes.permisos_extra ?? {}).length, a: Object.keys(despues.permisos_extra ?? {}).length };
+  await anotar(admin, user.id, [
+    ...(antes.rol !== despues.rol ? [{ a_quien: id, nombre: despues.nombre, usuario: despues.usuario, accion: "rol" as const,
+      detalle: { de: antes.rol, a: despues.rol } }] : []),
+    ...(Object.keys(cambios).length ? [{ a_quien: id, nombre: despues.nombre, usuario: despues.usuario, accion: "editado" as const, detalle: cambios }] : []),
+  ]);
+
   return NextResponse.json({
     id: despues.id,
     nombre: despues.nombre,
@@ -387,6 +404,7 @@ export async function PATCH(req: Request) {
     );
   }
 
+  await anotar(admin, user.id, [{ a_quien: id, nombre: quien.nombre, usuario: quien.usuario, accion: "clave" }]);
   return NextResponse.json({
     usuario: quien.usuario, nombre: quien.nombre, clave, digitos: DIGITOS,
   });

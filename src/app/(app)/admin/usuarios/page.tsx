@@ -7,6 +7,7 @@ import { hayLlaveDeServicio } from "@/lib/supabase/servicio";
 import "../roles/roles.css";
 import "./usuarios.css";
 import { Usuarios } from "./Usuarios";
+import { Historial, type Mov } from "./Historial";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,7 @@ export default async function UsuariosPage({ searchParams }: {
 
   const supabase = await createClient();
   const user = await usuarioActual();
-  const [gente, roles, permisosRol, ingresoR, rastroR] = await Promise.all([
+  const [gente, roles, permisosRol, ingresoR, rastroR, histR] = await Promise.all([
     supabase
       .from("perfiles")
       .select("id, usuario, nombre, rol, activo, clave_provisional, permisos_extra")
@@ -63,6 +64,9 @@ export default async function UsuariosPage({ searchParams }: {
        en vez de tumbar la pantalla. */
     supabase.rpc("usuarios_ingreso"),
     supabase.rpc("usuarios_rastro"),
+    supabase.from("v_usuarios_historial")
+      .select("id, a_quien, a_quien_nombre, a_quien_usuario, accion, detalle, hecho_nombre, hecho_en")
+      .order("hecho_en", { ascending: false }).limit(400),
   ]);
   const ingresos = ingresoR.error ? null : Object.fromEntries(
     ((ingresoR.data ?? []) as { id: string; ultimo_ingreso: string | null }[]).map((r) => [r.id, r.ultimo_ingreso]));
@@ -118,6 +122,10 @@ export default async function UsuariosPage({ searchParams }: {
           registros={registros}
           buscar={q}
         />
+      )}
+      {!faltaSql && (
+        <Historial movs={(histR.data ?? []) as Mov[]} falta={!!histR.error}
+          roles={Object.fromEntries(((roles.data ?? []) as { clave: string; nombre: string }[]).map((r) => [r.clave, r.nombre]))} />
       )}
     </div>
   );

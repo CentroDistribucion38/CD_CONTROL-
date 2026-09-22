@@ -410,9 +410,11 @@ export const MODULOS: Modulo[] = [
     fondo: "#EDEBFA",
     etiquetas: ["Crear usuarios", "Roles por sección", "Borrar datos puntuales"],
     imagen: "/modulos/admin.jpg",
-    ruta: "/admin/roles",
+    ruta: "/admin/inicio",
     activo: true,
     secciones: [
+      /* PRIMERO LA PORTADA: quién entra, qué falta y qué se cambió. */
+      { nombre: "Inicio", ruta: "/admin/inicio" },
       { nombre: "Roles", ruta: "/admin/roles" },
       { nombre: "Usuarios", ruta: "/admin/usuarios" },
       /* AL FINAL: borrar es lo último que se hace, y lo más raro. */

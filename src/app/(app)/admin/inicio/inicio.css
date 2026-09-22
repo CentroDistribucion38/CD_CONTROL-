@@ -1,0 +1,52 @@
+/* Administración · Inicio. Cuelga de .rl (roles.css) y usa sus tokens. */
+.rl.ain { display: flex; flex-direction: column; gap: 16px }
+.ain-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
+.ain-k {
+  display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; text-decoration: none; color: var(--rl-tinta);
+  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-top: 4px solid var(--rl-acento); border-radius: 3px;
+}
+.ain-k:hover { border-color: var(--rl-tinta) }
+.ain-k.ojo { border-top-color: #E0A100 }
+.ain-k .rot { font: 700 10.5px var(--rl-texto); letter-spacing: .14em; color: var(--rl-gris) }
+.ain-k b { font: 900 clamp(28px, 3vw, 40px)/1 var(--rl-titulo); letter-spacing: -.02em; font-variant-numeric: tabular-nums }
+.ain-k .pie { font-size: 12px; color: var(--rl-gris) }
+.ain-dos { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start }
+.ain-col { display: flex; flex-direction: column; gap: 16px; min-width: 0 }
+.ain-aviso { margin: 0; padding: 10px 20px; font-size: 12.5px; background: #FFF8E6; color: #5A4610 }
+.ain-movs { list-style: none; margin: 0; padding: 4px 20px 8px }
+.ain-movs li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--c-eef1f5, #EEF1F5) }
+.ain-movs li:last-child { border-bottom: 0 }
+.ain-movs .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--rl-acento); align-self: center }
+.ain-movs li.rol .punto { background: var(--rl-tinta) }
+.ain-movs li.datos .punto { background: #C8102E }
+.ain-movs .tx { font-size: 13.5px; line-height: 1.4; overflow-wrap: anywhere }
+.ain-movs time { font-size: 12px; color: var(--rl-gris); white-space: nowrap }
+.ain-movs .vacio, .ain-pend .vacio { display: block; color: var(--rl-gris); font-size: 13px }
+.ain-mas { margin: 0; padding: 0 20px 16px; font-size: 13px }
+.ain-mas a, .ain-pend a { color: var(--rl-acento); font-weight: 700 }
+.ain-estado.bien { border-left: 4px solid #0F7A4A }
+.ain-estado.ojo { border-left: 4px solid #E0A100 }
+.ain-estado code, .ain-aviso code { font: 600 12px ui-monospace, monospace; background: var(--c-eef1f5, #EEF1F5); padding: 1px 5px; border-radius: 2px; overflow-wrap: anywhere }
+.ain-chequeo { list-style: none; margin: 0; padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 10px }
+.ain-chequeo li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 10px; font-size: 13px }
+.ain-chequeo li::before { grid-row: 1 / span 2; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 800 12px var(--rl-titulo); color: #fff }
+.ain-chequeo li.si::before { content: "✓"; background: #0F7A4A }
+.ain-chequeo li.no::before { content: "!"; background: #C8102E }
+.ain-chequeo b { font-size: 13.5px }
+.ain-chequeo span { color: var(--rl-gris); line-height: 1.45 }
+.ain-pend { list-style: none; margin: 0; padding: 4px 20px 16px }
+.ain-pend li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 0; border-bottom: 1px solid var(--c-eef1f5, #EEF1F5); font-size: 13.5px }
+.ain-pend li:last-child { border-bottom: 0 }
+.ain-pend span { grid-row: 2; font-size: 12px; color: var(--rl-gris) }
+.ain-pend em { grid-row: 1 / span 2; grid-column: 2; align-self: center; font: 700 11.5px var(--rl-texto); font-style: normal; padding: 3px 8px; border-radius: 10px; background: #FFF4DB; color: #7A4B00 }
+@media (max-width: 1100px) {
+  .ain-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .ain-dos { grid-template-columns: minmax(0, 1fr) }
+}
+@media (max-width: 620px) {
+  .ain-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px }
+  .ain-kpis .ain-k:last-child { grid-column: 1 / -1 }
+  .ain-movs, .ain-chequeo, .ain-pend { padding-left: 14px; padding-right: 14px }
+  .ain-movs li { grid-template-columns: 12px minmax(0, 1fr) }
+  .ain-movs time { grid-column: 2 }
+}

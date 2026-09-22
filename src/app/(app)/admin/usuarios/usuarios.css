@@ -725,3 +725,38 @@
   .us-pnl.menu { display: none }
   .us .us-cuerpo.con-panel.es-menu > .us-marco { grid-row: 1 }
 }
+
+/* ---- Historial de cambios ---- */
+.us .us-hist { margin-top: 16px }
+.us .us-hist > .cab { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap }
+.us .us-hist-fil { display: flex; gap: 10px; flex-wrap: wrap }
+.us .us-hist-fil label { display: flex; flex-direction: column; gap: 4px; min-width: 160px }
+.us .us-hist-fil span { font: 700 10.5px var(--rl-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--rl-gris) }
+.us .us-hist-fil select { height: 44px; padding: 0 10px; border: 1.5px solid var(--rl-linea); border-radius: 2px; background: #fff; font: inherit; font-size: 14px; color: var(--rl-tinta) }
+.us .us-hist-vacio { margin: 0; padding: 16px 20px; font-size: 13px; color: var(--rl-gris) }
+.us .us-hist-vacio code { font: 600 12px ui-monospace, monospace; background: var(--c-eef1f5); padding: 1px 5px; overflow-wrap: anywhere }
+.us .us-hist-lista { list-style: none; margin: 0; padding: 0; max-height: 520px; overflow-y: auto; border-top: 1px solid var(--rl-linea) }
+.us .us-hist-lista li {
+  display: grid; grid-template-columns: 130px minmax(140px, 1fr) minmax(0, 1.4fr) 170px; gap: 12px; align-items: center;
+  padding: 10px 20px; border-bottom: 1px solid var(--c-eef1f5, #EEF1F5); font-size: 13.5px;
+}
+.us .us-hist-lista .ac {
+  justify-self: start; font: 700 11.5px var(--rl-texto); padding: 3px 9px; border-radius: 10px;
+  background: var(--c-eef1f5, #EEF1F5); color: var(--rl-tinta); white-space: nowrap;
+}
+.us .us-hist-lista li.rol .ac { background: color-mix(in srgb, var(--c-marca, #FFC000) 22%, #fff) }
+.us .us-hist-lista li.desactivado .ac, .us .us-hist-lista li.eliminado .ac { background: #FDECEE; color: #8A1020 }
+.us .us-hist-lista li.activado .ac, .us .us-hist-lista li.creado .ac { background: #E6F4EC; color: #0B5C37 }
+.us .us-hist-lista .quien { min-width: 0 }
+.us .us-hist-lista .quien small { display: block; font: 12px ui-monospace, monospace; color: var(--rl-gris) }
+.us .us-hist-lista .det { min-width: 0; color: var(--c-2c4361, #2C4361); overflow-wrap: anywhere }
+.us .us-hist-lista .det .cam { display: block }
+.us .us-hist-lista .por { text-align: right; font-size: 12.5px }
+.us .us-hist-lista .por time { display: block; color: var(--rl-gris); font-size: 12px }
+@media (max-width: 760px) {
+  .us .us-hist-lista li { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 14px }
+  .us .us-hist-lista .ac { grid-column: 1 }
+  .us .us-hist-lista .por { grid-column: 2; grid-row: 1 }
+  .us .us-hist-lista .quien, .us .us-hist-lista .det { grid-column: 1 / -1 }
+  .us .us-hist-fil, .us .us-hist-fil label { width: 100% }
+}

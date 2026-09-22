@@ -20,6 +20,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { clienteDeServicio } from "@/lib/supabase/servicio";
+import { anotar } from "@/lib/historial";
 import { misPermisos } from "@/lib/permisos";
 import { normalizarUsuario } from "@/lib/auth";
 import { crearCuenta } from "@/lib/cuentas";
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
       resultados.push(r.ok ? { nombre, usuario: r.usuario, ok: true, clave: r.clave }
                            : { nombre, usuario, ok: false, error: r.error });
     }
+    await anotar(admin, user.id, resultados.filter((r) => r.ok).map((r) => ({ nombre: r.nombre, usuario: r.usuario, accion: "creado" as const, detalle: { rol, lote: true } })));
     return NextResponse.json({ resultados });
   }
 
@@ -126,6 +128,10 @@ export async function POST(req: Request) {
         hecho: error ? "error" : "eliminado",
         error: error ? (/administre|administra/i.test(error.message) ? error.message : `No se pudo eliminar: ${error.message}`) : undefined });
     }
+    /* Los desactivados por tener registros ya los anotó usuarios_lote. */
+    const usuarioDe = new Map(((gente ?? []) as { id: string; usuario: string | null }[]).map((g) => [g.id, g.usuario]));
+    await anotar(admin, user.id, resultados.filter((r) => r.hecho === "eliminado")
+      .map((r) => ({ a_quien: r.id, nombre: r.nombre, usuario: usuarioDe.get(r.id) ?? null, accion: "eliminado" as const })));
     return NextResponse.json({ resultados });
   }
 
