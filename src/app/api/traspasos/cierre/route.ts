@@ -39,13 +39,13 @@ export async function GET(req: Request) {
   const dias = (Date.parse(hasta + "T12:00:00") - Date.parse(desde + "T12:00:00")) / 86400_000;
   if (dias > 366) return NextResponse.json({ error: "El rango no puede pasar de un año." }, { status: 400 });
 
-  /* Un turno o los tres. Se valida contra las letras que existen: un
+  /* UNO, DOS O LOS TRES. Se valida contra las letras que existen: un
      `?turno=` cualquiera devolvería una lista vacía que se lee como
      «ese turno no movió nada», que es una afirmación falsa. */
-  const turno = (q.get("turno") ?? "").trim().toUpperCase();
-  if (turno && !["A", "B", "C"].includes(turno)) {
-    return NextResponse.json({ error: "Ese turno no existe." }, { status: 400 });
-  }
+  const turnos = [...new Set((q.get("turno") ?? "").split(",")
+    .map((x) => x.trim().toUpperCase()).filter(Boolean))];
+  const malo = turnos.find((t) => !["A", "B", "C"].includes(t));
+  if (malo) return NextResponse.json({ error: `El turno «${malo}» no existe.` }, { status: 400 });
 
   const [vj, vacios, nombres] = await Promise.all([
     viajesRango(desde, hasta), vaciosRango(desde, hasta), nombresTodos(),
@@ -54,10 +54,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Falta preparar el módulo de traspasos en Supabase." }, { status: 503 });
   }
 
-  const viajes = vj.viajes.filter((v) => !turno || v.turno === turno);
+  const viajes = vj.viajes.filter((v) => !turnos.length || turnos.includes(v.turno));
   /* Los vacíos del turno se cuentan sobre los viajes ya filtrados; el
      total del rango solo sirve cuando el cierre es del día entero. */
-  const vaciosTurno = turno
+  const vaciosTurno = turnos.length
     ? viajes.filter((v) => v.vacio && v.estado === "registrado").reduce((a, v) => a + (v.viajes ?? 1), 0)
     : vacios;
 

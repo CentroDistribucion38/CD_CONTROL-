@@ -42,8 +42,11 @@ type Props = {
   filas: Control[];
   desde: string;
   hasta: string;
-  /** El turno del cierre, o null para el día (o el rango) entero. */
-  turno: string | null;
+  /** Los turnos del cierre. Vacío = el día (o el rango) entero.
+   *  Son VARIOS a propósito: «que en los turnos haya un icono que
+   *  seleccione los 3 para generar el cierre de los tres turnos, o dos,
+   *  y así». Un cierre de A+B no es la suma de dos fichas: es una. */
+  turnos: string[];
   rotulo: string;
   cerrar: () => void;
 };
@@ -57,7 +60,7 @@ const corto = (n: string) => {
   return p.length > 1 ? `${p[0][0]}. ${p[p.length - 1]}` : n;
 };
 
-export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
+export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
   const [viajes, setViajes] = useState<Viaje[] | null>(null);
   const [nombres, setNombres] = useState<Record<string, string>>({});
   const [vacios, setVacios] = useState<number | null>(null);
@@ -73,7 +76,7 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
   useEffect(() => {
     const corta = new AbortController();
     const p = new URLSearchParams({ desde, hasta });
-    if (turno) p.set("turno", turno);
+    if (turnos.length) p.set("turno", turnos.join(","));
     fetch(`/api/traspasos/cierre?${p}`, { signal: corta.signal })
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? `No se pudo (${r.status}).`);
@@ -82,7 +85,7 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
       .then((j) => { setViajes(j.viajes ?? []); setNombres(j.nombres ?? {}); setVacios(j.vacios ?? 0) })
       .catch((e) => { if (e.name !== "AbortError") setMal(String(e.message ?? e)) });
     return () => corta.abort();
-  }, [desde, hasta, turno]);
+  }, [desde, hasta, turnos]);
 
   /* Escape cierra. Es lo que la mano hace sola cuando algo se abre
      encima de lo que estaba mirando. */
@@ -92,7 +95,8 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
     return () => document.removeEventListener("keydown", alTeclear);
   }, [alTeclear]);
 
-  const mias = useMemo(() => filas.filter((f) => !turno || f.turno === turno), [filas, turno]);
+  const mias = useMemo(() => filas.filter((f) => !turnos.length || turnos.includes(f.turno)),
+    [filas, turnos]);
   const sum = (k: keyof Control) => mias.reduce((a, f) => a + (Number(f[k]) || 0), 0);
   const planeado = sum("planeado"), cumplido = sum("cumplido");
   const adheridos = sum("adheridos"), adicionales = sum("adicionales");
@@ -124,10 +128,23 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
 
   const vivos = useMemo(() => (viajes ?? []).filter((v) => v.estado === "registrado"), [viajes]);
 
-  const titulo = turno ? `Cierre del turno ${turno}` : desde === hasta ? "Cierre del día" : "Cierre del período";
+  /* CÓMO SE LLAMA ESTO. Un turno, su letra; dos o más, las letras
+     juntas; ninguno, el día entero. Escrito como se dice en la bodega:
+     «turnos A y B», no «turnos A, B». */
+  const letras = turnos.length > 1
+    ? turnos.slice(0, -1).join(", ") + " y " + turnos[turnos.length - 1]
+    : turnos[0] ?? "";
+  const titulo = turnos.length === 1 ? `Cierre del turno ${letras}`
+    : turnos.length > 1 ? `Cierre de los turnos ${letras}`
+    : desde === hasta ? "Cierre del día" : "Cierre del período";
   const pct = (v: number | null) => (v == null ? "—" : `${v}%`);
   const clase = (v: number | null) => (v == null ? "" : v >= 100 ? "bien" : v > 0 ? "medio" : "mal");
   const quien = (v: Viaje) => (v.registrado_por && nombres[v.registrado_por] ? corto(nombres[v.registrado_por]) : "—");
+  /* El renglón de arriba: el turno con su horario, o los que se
+     escogieron, o los tres. */
+  const ojoCab = turnos.length === 1 ? `TURNO ${letras} · ${HORARIO[letras] ?? ""}`
+    : turnos.length > 1 ? `TURNOS ${letras}`
+    : "DÍA COMPLETO · LOS TRES TURNOS";
   const nVacios = vacios == null ? null : vacios;
 
   const pie = `Los vacíos y los anulados no entran en la adherencia. La foto es de las `
@@ -144,8 +161,9 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
      ================================================================== */
   function textoParaMandar() {
     const l: string[] = [];
-    l.push(turno ? `CIERRE DEL TURNO ${turno}` : desde === hasta ? "CIERRE DEL DÍA" : "CIERRE DEL PERÍODO");
-    l.push(`${rotulo.replace(/^./, (c) => c.toUpperCase())}${turno && HORARIO[turno] ? ` · ${HORARIO[turno]}` : ""}`);
+    l.push(titulo.toUpperCase());
+    l.push(`${rotulo.replace(/^./, (c) => c.toUpperCase())}`
+      + (turnos.length === 1 && HORARIO[letras] ? ` · ${HORARIO[letras]}` : ""));
     l.push(`Foto de las ${hhmm(armado.toISOString())}`);
     l.push("");
     l.push(`Adherencia ${pct(adherencia)} — ${nf.format(adheridos)} de ${nf.format(planeado)} del plan`);
@@ -192,7 +210,7 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
 
   function datosDeLaFoto() {
     return {
-      titulo, ojo: turno ? `TURNO ${turno} · ${HORARIO[turno] ?? ""}` : "DÍA COMPLETO · LOS TRES TURNOS",
+      titulo, ojo: ojoCab,
       fecha: rotulo.replace(/^./, (c) => c.toUpperCase()), hora: hhmm(armado.toISOString()),
       planeado, adheridos, adicionales, faltan, cumplido, carga,
       vacios: nVacios, registrados: viajes == null ? null : vivos.length,
@@ -221,7 +239,7 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
     try {
       const plan = armarFoto(datosDeLaFoto());
       const png = await dibujarFoto(plan, coloresDelTema());
-      const nombre = `cierre-${turno ? `turno-${turno}-` : ""}${desde}.png`;
+      const nombre = `cierre-${turnos.length ? `turno-${turnos.join("")}-` : ""}${desde}.png`;
       const como = await entregarFoto(png, nombre, titulo);
       setCopiado(como);
     } catch {
@@ -292,9 +310,7 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
           {/* El sello va tal cual, nunca recoloreado con el tema. */}
           <img src="/marca/logo-b.png" alt="" width={34} height={34} />
           <div className="ci-tit">
-            <div className="ci-ojo">
-              {turno ? `TURNO ${turno} · ${HORARIO[turno] ?? ""}` : "DÍA COMPLETO · LOS TRES TURNOS"}
-            </div>
+            <div className="ci-ojo">{ojoCab}</div>
             <h2>{titulo}</h2>
             {/* LA HORA NO ES ADORNO: mientras alguien lee esto, otro puede
                 estar registrando un viaje de este mismo turno. */}

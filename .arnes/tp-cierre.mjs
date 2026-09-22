@@ -144,7 +144,7 @@ await monta();
     ok(o.op > 0.15 && o.op < 0.6, `el icono está a ${o.op} de opacidad: o no se ve o compite con el porcentaje`);
     ok(o.w > 0, "el icono no ocupa nada: no se ve");
   }
-  await pg.hover(".turnos .turno >> nth=0");
+  await pg.hover(".turnos .tp-abrir >> nth=0");
   await pg.waitForTimeout(250);
   const enc = await pg.evaluate(() => Number(getComputedStyle(document.querySelector(".turno .tp-ver")).opacity));
   ok(enc > 0.9, `al pasar por encima el icono queda en ${enc} y debería prenderse del todo`);
@@ -153,7 +153,7 @@ await monta();
 /* ---------- 2 · LO QUE SE TOCA ES LA TARJETA ---------- */
 {
   const m = await pg.evaluate(() => {
-    const t = document.querySelector(".turnos .turno");
+    const t = document.querySelector(".turnos .tp-abrir");
     const d = document.querySelector(".tp-cierre-dia");
     return { turno: t.getBoundingClientRect().height, tag: t.tagName, dia: d?.getBoundingClientRect().height ?? 0, dtag: d?.tagName };
   });
@@ -163,7 +163,7 @@ await monta();
 }
 
 /* ---------- 3 y 4 · EL CIERRE DEL TURNO DICE LO DE ESE TURNO ---------- */
-await pg.click(".turnos .turno >> nth=1");           // turno B: 5 de 8 = 63%
+await pg.click(".turnos .tp-abrir >> nth=1");           // turno B: 5 de 8 = 63%
 await pg.waitForSelector(".tp-ci");
 {
   const cab = await pg.textContent(".tp-ci-cab");
@@ -195,11 +195,11 @@ await pg.waitForSelector(".tp-ci");
 /* ---------- 8 · ESCAPE, LA X Y TOCAR POR FUERA ---------- */
 await pg.keyboard.press("Escape");
 ok(!(await pg.$(".tp-ci")), "Escape no cierra la ficha");
-await pg.click(".turnos .turno >> nth=0");
+await pg.click(".turnos .tp-abrir >> nth=0");
 await pg.waitForSelector(".tp-ci");
 await pg.click(".tp-ci-bt.ico");
 ok(!(await pg.$(".tp-ci")), "la X no cierra la ficha");
-await pg.click(".turnos .turno >> nth=0");
+await pg.click(".turnos .tp-abrir >> nth=0");
 await pg.waitForSelector(".tp-ci");
 await pg.mouse.click(8, 8);
 await pg.waitForTimeout(150);
@@ -207,7 +207,7 @@ ok(!(await pg.$(".tp-ci")), "tocar por fuera no cierra la ficha");
 
 /* ---------- 3bis · EL TURNO A, CON SUS AVISOS ---------- */
 await monta();
-await pg.click(".turnos .turno >> nth=0");           // turno A: 14 de 14 = 100%
+await pg.click(".turnos .tp-abrir >> nth=0");           // turno A: 14 de 14 = 100%
 await pg.waitForSelector(".tp-ci-t.tp-ci-viajes tbody tr");
 {
   const gran = (await pg.textContent(".tp-ci-hero .ci-pct")).replace(/\s+/g, " ");
@@ -233,6 +233,64 @@ await pg.waitForSelector(".tp-ci");
   ok(filas === VIAJES_TODOS.length, `el día trae ${filas} viajes y son ${VIAJES_TODOS.length}`);
   const anul = await pg.$(".tp-ci-t.tp-ci-viajes tr.anulado");
   ok(!!anul, "el viaje anulado no se distingue en la lista del día");
+}
+
+/* ---------- 7bis · VARIOS TURNOS EN UNA SOLA FICHA ----------
+   «Que en los turnos haya un icono que seleccione los 3 para generar el
+   cierre de los tres turnos, o dos, y así.» Dos turnos no son dos
+   fichas: son UNA, con las cifras sumadas. */
+{
+  await monta();
+  ok(!(await pg.$(".tp-sel")), "la barra de la selección sale sin haber marcado nada");
+  await pg.click(".turnos .tp-marca >> nth=0");     // turno A
+  await pg.click(".turnos .tp-marca >> nth=1");     // turno B
+  await pg.waitForSelector(".tp-sel");
+  const barra = (await pg.textContent(".tp-sel")).replace(/\s+/g, " ");
+  ok(/Turnos A y B/.test(barra), `la barra dice «${barra}» y debe decir «Turnos A y B»`);
+  /* Y LAS TRES PIEZAS VAN APILADAS. El medidor de la pantalla es una
+     rejilla de DOS columnas: sin una caja que las junte, la barra de la
+     selección se va a la columna de al lado y el botón del día queda
+     debajo del avance. Se comprueba que arranquen en la misma x y que
+     cada una vaya debajo de la anterior. */
+  {
+    const pos = await pg.evaluate(() => ["\u002eturnos", ".tp-sel", ".tp-cierre-dia"].map((s) => {
+      const r = document.querySelector(s).getBoundingClientRect();
+      return { x: Math.round(r.left), y: Math.round(r.top), ancho: Math.round(r.width) };
+    }));
+    ok(pos[0].x === pos[1].x && pos[1].x === pos[2].x,
+       `los anillos, la selección y el botón del día no arrancan en la misma columna: ${JSON.stringify(pos.map((p) => p.x))}`);
+    ok(pos[0].y < pos[1].y && pos[1].y < pos[2].y,
+       `no están apilados en orden: ${JSON.stringify(pos.map((p) => p.y))}`);
+  }
+  /* A: 14 de 14 · B: 5 de 8 → 19 de 22. */
+  ok(/19 de 22 del plan/.test(barra), `la barra dice «${barra}» y son 19 de 22`);
+
+  await pg.click('.tp-sel button:has-text("Ver el cierre")');
+  await pg.waitForSelector(".tp-ci");
+  const cab = (await pg.textContent(".tp-ci-cab")).replace(/\s+/g, " ");
+  ok(/Cierre de los turnos A y B/.test(cab), `la ficha se llama «${cab.slice(0, 60)}»`);
+  ok(/TURNOS A y B/.test(cab), "el renglón de arriba no dice qué turnos son");
+  const gran = (await pg.textContent(".tp-ci-hero .ci-pct")).replace(/\s+/g, " ");
+  ok(/19 de 22 del plan/.test(gran), `el cierre de A+B dice «${gran}» y son 19 de 22`);
+  ok(/86%/.test(gran), `19 de 22 es 86% y la ficha dice «${gran}»`);
+  /* Y le pide al servidor los DOS turnos, no uno. */
+  const ped = await pg.evaluate(() => window.pedidos.filter((u) => u.includes("/api/traspasos/cierre")).at(-1));
+  ok(new URL(ped, "https://control.prueba").searchParams.get("turno") === "A,B",
+     `el cierre pidió «${new URL(ped, "https://control.prueba").searchParams.get("turno")}» y debe pedir A,B`);
+  await pg.keyboard.press("Escape");
+
+  /* MARCAR NO ES ABRIR: la casilla suma a la selección y el anillo abre
+     ese turno solo. Si la casilla abriera la ficha, no habría forma de
+     escoger dos. */
+  ok(!(await pg.$(".tp-ci")), "la ficha quedó abierta después de Escape");
+  await pg.click(".turnos .tp-marca >> nth=2");
+  ok(!(await pg.$(".tp-ci")), "marcar un turno abre la ficha: entonces no se pueden escoger dos");
+  const b2 = (await pg.textContent(".tp-sel")).replace(/\s+/g, " ");
+  ok(/Turnos A, B y C/.test(b2), `con los tres marcados la barra dice «${b2}»`);
+
+  /* Quitar la selección la borra entera. */
+  await pg.click('.tp-sel button:has-text("Quitar")');
+  ok(!(await pg.$(".tp-sel")), "«Quitar» no borra la selección");
 }
 
 /* ---------- 8 · QUE QUEPA, Y QUE EL CELULAR SEA OTRA COSA ----------
@@ -394,6 +452,51 @@ for (const tema of TEMAS) {
   await pg.emulateMedia({ media: "screen" });
 }
 
+/* ---------- 10bis · EL PDF DEL TABLERO, SIN LA FICHA ----------
+   «En generar PDF mira cómo sale, y así no se puede: lo mismo que
+   pasaba antes.» En el papel salían la barra de CONTROL, las migas y
+   las pestañas del módulo —controles, cosas que en una hoja no se
+   pueden tocar— y empujaban el tablero a cuatro páginas. Con la ficha
+   CERRADA, lo que se imprime es el tablero y nada más. */
+{
+  await monta(1100, "");
+  await pg.evaluate(() => {
+    const b = document.createElement("div");
+    b.className = "sh-barra"; b.id = "falsa-barra"; b.textContent = "CONTROL · Traspasos";
+    document.querySelector(".sh").prepend(b);
+    const r = document.createElement("nav");
+    r.className = "sh-lado"; r.id = "falso-riel"; r.textContent = "Plan · Registrar · Control";
+    document.querySelector(".sh").prepend(r);
+    const f = document.createElement("div");
+    f.className = "fecha-nav"; f.id = "falsa-fecha"; f.textContent = "‹ mar 22 de septiembre ›";
+    document.querySelector(".tp").prepend(f);
+    const t = document.createElement("section");
+    t.className = "cifras"; t.id = "falso-tablero"; t.textContent = "26 planeados";
+    document.querySelector(".tp").prepend(t);
+  });
+  await pg.emulateMedia({ media: "print" });
+  const p = await pg.evaluate(() => {
+    const ver = (s) => { const e = document.querySelector(s); if (!e) return null;
+      const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).display !== "none" };
+    const exacto = (s) => { const e = document.querySelector(s); if (!e) return null;
+      const c = getComputedStyle(e); return (c.printColorAdjust || c.webkitPrintColorAdjust) === "exact" };
+    return { barra: ver("#falsa-barra"), riel: ver("#falso-riel"), fecha: ver("#falsa-fecha"),
+             tablero: ver("#falso-tablero"), anillos: ver(".turnos"),
+             diaBoton: ver(".tp-cierre-dia"), icono: ver(".turno .tp-ver"),
+             exactoCifra: exacto("#falso-tablero"), exactoTurnos: exacto(".turnos") };
+  });
+  ok(p.barra === false, "el PDF del tablero sale con la barra de la app");
+  ok(p.riel === false, "el PDF del tablero sale con las pestañas del módulo");
+  ok(p.fecha === false, "el PDF sale con las flechas de la fecha: en papel no se tocan");
+  ok(p.tablero === true, "el PDF del tablero NO trae el tablero");
+  ok(p.anillos === true, "el PDF del tablero no trae los anillos de turno");
+  ok(p.diaBoton === false, "el PDF trae el botón de «ver el cierre», que en papel no hace nada");
+  ok(p.icono === false, "el PDF trae el iconito de abrir, que en papel no hace nada");
+  ok(p.exactoCifra === true && p.exactoTurnos === true,
+     "el tablero no conserva sus fondos al imprimir: el anillo sin color no dice nada");
+  await pg.emulateMedia({ media: "screen" });
+}
+
 /* ---------- 11 · COPIAR PARA ENVIAR ----------
    «Y que esté un copiar para enviar la info.» Lo que se manda por
    WhatsApp no es una tabla: es texto corto, con la hora de la foto y
@@ -472,9 +575,16 @@ for (const tema of TEMAS) {
 
 /* Una foto para mirarla, cuando se pide. */
 if (process.env.FOTO) {
+  /* Los anillos con dos turnos marcados, antes de abrir nada. */
+  await monta(1100, "");
+  await pg.click(".turnos .tp-marca >> nth=0");
+  await pg.click(".turnos .tp-marca >> nth=1");
+  await pg.waitForSelector(".tp-sel");
+  await pg.screenshot({ path: `${process.env.FOTO}/turnos-sel.png`, clip: { x: 0, y: 0, width: 1100, height: 330 } });
+
   for (const [nom, ancho, turno] of [["pc", 1300, 0], ["cel", 390, 0], ["turno", 1300, 1]]) {
     await monta(ancho);
-    await pg.click(turno ? ".turnos .turno >> nth=0" : ".tp-cierre-dia");
+    await pg.click(turno ? ".turnos .tp-abrir >> nth=0" : ".tp-cierre-dia");
     if (ancho > 760) await pg.waitForSelector(".tp-ci-t.tp-ci-viajes tbody tr");
     else { await pg.waitForTimeout(500); await pg.click(".tp-ci-movil .tp-ci-acor:last-of-type summary") }
     await pg.waitForTimeout(200);

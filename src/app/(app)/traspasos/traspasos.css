@@ -431,33 +431,73 @@
   background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
   padding: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
 }
-/* CADA ANILLO ABRE SU CIERRE, así que es un botón. Lo que se toca es la
-   tarjeta entera y no el icono: en el celular un icono de 14 px no se
-   acierta, y el anillo completo pasa de cien. */
-.tp .turno {
-  position: relative; text-align: center; min-width: 0;
-  background: none; border: 1px solid transparent; border-radius: 3px;
-  padding: 6px 4px 8px; cursor: pointer; color: inherit; font: inherit;
+/* LA COLUMNA DE LOS TURNOS: los anillos, la selección y el botón del
+   día, apilados. Va en una caja porque el medidor es una rejilla de dos
+   columnas y sin ella cada pieza se iba a una celda distinta. */
+.tp .tp-turnos-caja { display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.tp .tp-turnos-caja .turnos { flex: 1 1 auto }
+.tp .tp-turnos-caja .tp-cierre-dia, .tp .tp-turnos-caja .tp-sel { margin-top: 0 }
+
+/* CADA ANILLO ABRE SU CIERRE Y ADEMÁS SE PUEDE MARCAR. La tarjeta lleva
+   dos botones: la casilla de la esquina, que lo suma a la selección, y
+   el anillo entero, que abre su cierre. Lo que se toca de verdad es el
+   anillo —en el celular un icono de 14 px no se acierta—. */
+.tp .turno { position: relative; min-width: 0 }
+.tp .tp-abrir {
+  width: 100%; text-align: center; background: none; border: 1px solid transparent;
+  border-radius: 3px; padding: 6px 4px 8px; cursor: pointer; color: inherit; font: inherit;
 }
-.tp .turno:hover, .tp .turno:focus-visible {
+.tp .tp-abrir:hover, .tp .tp-abrir:focus-visible {
   border-color: var(--tp-linea); background: var(--tp-fondo); outline: none;
 }
+.tp .turno.marcado .tp-abrir { border-color: var(--tp-acento); background: var(--tp-fondo) }
 .tp .turno svg { width: 100%; max-width: 86px }
 .tp .turno b { display: block; font-family: var(--tp-titulo); font-weight: 800; font-size: 14px; margin-top: 7px }
 .tp .turno span { display: block; font-size: 12px; color: var(--tp-gris); margin-top: 2px }
 
-/* EL ICONO, SUTIL. Lo que manda en esta pantalla es el porcentaje: el
-   acceso al cierre no puede competir con él. Casi apagado, y se prende
-   al pasar por encima o al llegar con el tabulador. */
+/* LA CASILLA. Se ve de 28 px y se toca de 44: es lo que necesita un
+   dedo con guante sin que el cuadrito le quite protagonismo al %. */
+.tp .tp-marca {
+  position: absolute; top: 0; left: 0; z-index: 2; width: 44px; height: 44px;
+  display: grid; place-items: center; background: none; cursor: pointer; padding: 0;
+}
+.tp .tp-marca i {
+  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 3px;
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+}
+.tp .tp-marca:hover i, .tp .tp-marca:focus-visible i { border-color: var(--tp-acento) }
+.tp .tp-marca:focus-visible { outline: none }
+.tp .tp-marca[aria-pressed="true"] i {
+  background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento);
+}
+.tp .tp-marca svg { width: 15px; height: 15px; max-width: none; stroke: currentColor;
+  stroke-width: 2.6; fill: none; stroke-linecap: round; stroke-linejoin: round }
+
+/* EL ICONO DE ABRIR, SUTIL. Lo que manda en esta pantalla es el
+   porcentaje: el acceso al cierre no puede competir con él. Casi
+   apagado, y se prende al pasar por encima o al llegar con el
+   tabulador. */
 .tp .tp-ver {
   position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
   display: grid; place-items: center; opacity: .3; transition: opacity .15s;
 }
 .tp .tp-ver svg { width: 14px; height: 14px; max-width: none; stroke: var(--tp-gris); stroke-width: 2;
   fill: none; stroke-linecap: round; stroke-linejoin: round }
-.tp .turno:hover .tp-ver, .tp .turno:focus-visible .tp-ver,
+.tp .tp-abrir:hover .tp-ver, .tp .tp-abrir:focus-visible .tp-ver,
 .tp .tp-cierre-dia:hover .tp-ver, .tp .tp-cierre-dia:focus-visible .tp-ver { opacity: 1 }
-.tp .turno:hover .tp-ver svg, .tp .tp-cierre-dia:hover .tp-ver svg { stroke: var(--tp-acento) }
+.tp .tp-abrir:hover .tp-ver svg, .tp .tp-cierre-dia:hover .tp-ver svg { stroke: var(--tp-acento) }
+
+/* LO QUE SE ESCOGIÓ. Sale solo cuando hay algo marcado. */
+.tp .tp-sel {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px;
+  padding: 10px 14px; background: var(--tp-papel);
+  border: 1px solid var(--tp-acento); border-left: 4px solid var(--tp-acento); border-radius: 3px;
+}
+.tp .tp-sel .q { font-size: 13.5px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.tp .tp-sel .q b { font-family: var(--tp-titulo); font-weight: 800 }
+.tp .tp-sel .q em { font-style: normal; font-size: 12.5px; color: var(--tp-gris) }
+.tp .tp-sel .limpiar { margin-left: auto; height: 40px }
+.tp .tp-sel .btn { min-height: 44px }
 
 /* EL CIERRE DEL DÍA ENTERO. No va escondido dentro de un turno porque
    no es de ningún turno: es la suma de los tres. */
@@ -764,8 +804,39 @@
    los filtros puestos—, que es lo que nadie logra con un PDF generado
    aparte. */
 @media print {
-  @page { size: A4 landscape; margin: 12mm }
-  .tp .filtros, .tp .acciones-informe { display: none !important }
+  @page { size: A4 landscape; margin: 10mm }
+
+  /* ==================================================================
+     LA APP NUNCA SE IMPRIME.
+
+     «En generar PDF mira cómo sale, y así no se puede: lo mismo que
+     pasaba antes.» En el papel salían la barra de CONTROL, las migas,
+     las pestañas del módulo y las flechas de la fecha —controles, cosas
+     que en una hoja no se pueden tocar— y encima empujaban el tablero a
+     cuatro páginas. Aquí se van TODAS: lo que se imprime es la pantalla,
+     no el programa que la muestra.
+     ================================================================== */
+  .sh-barra, .sh-lado, .sh-riel { display: none !important }
+  .sh-marco { display: block !important }
+  .sh-main { padding: 0 !important }
+  .tp .filtros, .tp .acciones-informe, .tp .fecha-nav,
+  .tp .tp-ver, .tp .tp-cierre-dia { display: none !important }
+
+  /* LOS FONDOS, TODOS. Por defecto el navegador los quita —es la
+     casilla «Gráficos de fondo» del diálogo de imprimir, que casi nadie
+     marca— y el tablero salía en blanco y negro: un anillo de turno sin
+     su color no dice nada, y la cinta tampoco.
+
+     Va sobre .tp entero y no sobre una lista de clases: esa lista se
+     queda vieja el día que alguien agregue una tarjeta, y el error no
+     se ve hasta que alguien imprime. */
+  .tp, .tp * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
+
+  /* Y que las tarjetas no se partan entre dos hojas. */
+  .tp .cabeza-ctl, .tp .cifras, .tp .medidor, .tp .alertas, .tp .avance,
+  .tp .turnos, .tp .panel-tabla { break-inside: avoid }
+  .tp tr { break-inside: avoid }
+  .tp thead { display: table-header-group }
 
   /* ==================================================================
      CON LA FICHA DEL CIERRE ABIERTA, LO QUE SE IMPRIME ES LA FICHA.
@@ -790,9 +861,20 @@
   body:has(.tp-velo) .sh-riel { display: none !important }
   body:has(.tp-velo) .sh-main { padding: 0 !important }
   body:has(.tp-velo) .sh-marco { display: block !important }
+  /* Se esconde, nivel por nivel, todo lo que NO contiene la ficha. Son
+     tres niveles porque la ficha cuelga del bloque de los turnos, que
+     cuelga del medidor: `:not(:has(.tp-velo))` deja pasar a la rama que
+     la lleva y tumba a sus hermanas. */
   .tp:has(.tp-velo) > *:not(:has(.tp-velo)) { display: none !important }
-  .tp:has(.tp-velo) .medidor { display: block; background: none; border: 0; padding: 0 }
-  .tp:has(.tp-velo) .medidor > *:not(.tp-velo) { display: none !important }
+  .tp:has(.tp-velo) .medidor,
+  .tp:has(.tp-velo) .tp-turnos-caja,
+  .tp:has(.tp-velo) .turnos:has(.tp-velo) {
+    display: block !important; background: none; border: 0; padding: 0; gap: 0;
+  }
+  .tp:has(.tp-velo) .medidor > *:not(:has(.tp-velo)):not(.tp-velo),
+  .tp:has(.tp-velo) .tp-turnos-caja > *:not(:has(.tp-velo)):not(.tp-velo) {
+    display: none !important;
+  }
 
   .tp-velo { position: static; display: block; background: none; padding: 0; overflow: visible }
   .tp-ci { width: 100%; max-height: none; overflow: visible; border: 0; min-height: 0 }
@@ -835,8 +917,8 @@
   /* Y que una sección no se parta en dos hojas por la mitad. */
   .tp-ci-cab, .tp-ci-hero, .tp-ci-fin { break-inside: avoid }
   .tp-ci-t tr { break-inside: avoid }
-  .tp .panel-ojo { color: #000; background: none; border: 2px solid #000 }
-  .tp .panel-ojo .corte { display: none }
+  /* El panel grande conserva su color: antes se pintaba en blanco y
+     negro porque los fondos no se imprimían, y ahora sí. */
   .tp .medidor { grid-template-columns: 1fr 300px }
   .tp .caja, .tp .panel-tabla, .tp .avance, .tp .turnos { break-inside: avoid }
   .tp tfoot td { background: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact }

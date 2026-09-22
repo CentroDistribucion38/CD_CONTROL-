@@ -1,51 +1,54 @@
-Traspasos: el cierre se copia COMO FOTO, y fuera el bloque de avisos
+Traspasos: el PDF del tablero, y el cierre de varios turnos
 
-COMO FOTO, NO COMO TEXTO
-El texto pelado se lee, pero llega como un mensaje mas entre cincuenta.
-La foto se abre, se ve el porcentaje de lejos y se reenvia. Asi que lo
-que copia el boton es la imagen: 1080 px de ancho (lo que WhatsApp
-respeta sin recomprimir), al doble de resolucion, con el sello, la
-banda, la franja del acento del tema de quien la manda, la cinta, las
-cuatro cifras, el desglose por tipo con su barrita, y al pie los viajes
-y el enlace a lo que se estaba viendo.
+EL PDF DEL TABLERO
+«Mira como sale y asi no se puede: lo mismo que pasaba antes.» En el
+papel salian la barra de CONTROL, las migas, las pestanas del modulo y
+las flechas de la fecha —controles, cosas que en una hoja no se pueden
+tocar— y encima empujaban el tablero a cuatro paginas. Ahora se van
+todas: lo que se imprime es la pantalla, no el programa que la muestra.
+Tampoco salen el iconito de abrir ni el boton de «ver el cierre», que
+en papel no hacen nada.
 
-En el celular abre el menu de compartir —de ahi sale WhatsApp—; en el
-computador la copia al portapapeles para pegarla. Si ninguna de las dos
-se puede, la baja, Y EL BOTON LO DICE: «Enviada», «Copiada» o
-«Descargada». Prometer «copiado» cuando en realidad se descargo es peor
-que no tener el boton.
-Queda un segundo boton, «Texto», para pegarlo donde una imagen no entra
-—un correo, una casilla—.
+Y LOS FONDOS SE IMPRIMEN. Por defecto el navegador los quita —es la
+casilla «Graficos de fondo» del dialogo, que casi nadie marca— y el
+tablero salia en blanco y negro: un anillo de turno sin su color no
+dice nada. La regla va sobre .tp entero y no sobre una lista de clases,
+porque esa lista se queda vieja el dia que alguien agregue una tarjeta
+y el error no se ve hasta que alguien imprime.
 
-DOS PIEZAS Y NO UNA
-armarFoto() junta las cifras en lo que la imagen ensena y es una
-funcion pura; dibujarFoto() la pinta. Separadas se pueden medir sin
-navegador, que es lo unico que sirve aqui: un total mal sumado se ve
-perfectamente normal DENTRO de una imagen. Es el mismo reparto que la
-hoja de rotura, por el mismo motivo.
+EL CIERRE DE VARIOS TURNOS
+«Que en los turnos haya un icono que seleccione los 3 para generar el
+cierre de los tres turnos, o dos, y asi.»
+Cada anillo lleva ahora una casilla en la esquina. Dos gestos distintos
+sobre la misma tarjeta: tocar el anillo abre el cierre de ESE turno
+—que es lo que se hace el 90% de las veces, y por eso sigue siendo el
+gesto grande—; tocar la casilla lo suma a una seleccion. Con uno o mas
+marcados sale una barra que dice cuales son y como van, y un boton que
+abre el cierre de TODOS ellos en UNA ficha, no en dos.
+La casilla se ve de 22 px y se toca de 44: es lo que necesita un dedo
+con guante sin quitarle protagonismo al porcentaje.
+La ficha, el texto y la foto se llaman solos: «Cierre del turno A»,
+«Cierre de los turnos A y B», «Cierre del dia». Y los turnos salen en
+el orden de la bodega, no en el que se tocaron: un cierre de «B y A» se
+lee como si alguien se hubiera equivocado.
 
-FUERA EL BLOQUE «PARA MIRAR ANTES DE DARLO POR BUENO»
-Lo pidio quitado. Sale de los tres sitios donde estaba —la pantalla, el
-texto y la foto—: dejarlo en uno solo haria que la foto que se manda
-dijera una cosa y la pantalla otra.
-
-DOS COSAS QUE SE PISABAN EN LA FOTO, Y SE VIERON AL MIRARLA
-- «Plan» y «Cumplido» se solapaban: se leia «PCamplido». Las columnas
-  estaban puestas a «tanto desde la derecha» sin comprobar que la
-  anterior cupiera. Ahora van con su ancho, de derecha a izquierda.
-- «CARGA MOVIDA» se salia de su tarjeta por el borde de la de al lado.
-  Ahora el rotulo se encoge hasta que cabe.
-Y el nombre del tipo tambien se encoge: «Averias / isotanque» no puede
-meterse debajo de la columna de Plan.
+UN ERROR QUE VI AL MIRAR LA PANTALLA, NO AL ESCRIBIRLA
+El medidor es una rejilla de DOS columnas —el avance y los turnos—, asi
+que la barra de la seleccion se iba a la columna de al lado y el boton
+del dia quedaba debajo del avance. Las tres piezas van ahora en una
+caja que las apila. El arnes lo comprueba: que arranquen en la misma
+columna y que cada una vaya debajo de la anterior.
 
 ARNES
-tp-foto (nuevo): las cifras se comprueban SIN navegador —la adherencia,
-que los tres tramos de la cinta sumen 1 (y que con adicionales de sobra
-el tramo se recorte en vez de pasarse), que un tipo planeado y no
-movido sea 0% y uno movido sin plan no tenga porcentaje, que el pie
-solo hable de vacios si hubo, y que el alto crezca con el contenido—; y
-despues, en Chromium, que el PNG salga de 2160 px, que no este en
-blanco, y que la banda y la franja lleven los colores del tema.
+tp-cierre: dos bloques nuevos.
+- Varios turnos: que la barra no salga sin marcar nada, que diga
+  «Turnos A y B · 19 de 22 del plan», que la ficha se llame «Cierre de
+  los turnos A y B» y sume 86%, que le pida al servidor «A,B» y no un
+  turno suelto, que MARCAR no sea ABRIR —si la casilla abriera la
+  ficha, no se podrian escoger dos— y que «Quitar» borre la seleccion.
+- El PDF del tablero con la ficha CERRADA: que no salgan la barra, el
+  riel ni las flechas de la fecha, que SI salgan el tablero y los
+  anillos, y que conserven sus fondos.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
