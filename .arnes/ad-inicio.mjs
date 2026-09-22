@@ -10,7 +10,7 @@ import Page from "../src/app/(app)/admin/inicio/page";
 export const html = async () => renderToStaticMarkup(await Page());`);
 buildSync({ entryPoints: [".arnes/_ain.tsx"], bundle: true, platform: "node", format: "cjs", outfile: ".arnes/_ain.cjs", jsx: "automatic",
   alias: { "@/lib/supabase/server": R(".arnes/ad-inicio-stub/server.ts"), "@/lib/permisos": R(".arnes/ad-inicio-stub/permisos.ts"),
-    "@/lib/supabase/servicio": R(".arnes/ad-inicio-stub/servicio.ts"), "next/link": R(".arnes/ad-inicio-stub/link.tsx"), "@": R("src") },
+    "@/lib/supabase/servicio": R(".arnes/ad-inicio-stub/servicio.ts"), "next/link": R(".arnes/ad-inicio-stub/link.tsx"), "@/components/Confirmar": R(".arnes/ad-inicio-stub/confirmar.tsx"), "@": R("src") },
   loader: { ".css": "empty" }, logLevel: "error" });
 const require = createRequire(import.meta.url);
 const { html } = require("./_ain.cjs");
@@ -27,7 +27,9 @@ for (const w of [1300, 390, 360]) {
   if (process.argv[2]) await p.screenshot({ path: process.argv[2] + `/ain-${w}.png`, fullPage: true });
 }
 const t = await p.textContent("body");
-for (const s of ["NUNCA HAN ENTRADO", "cambió el rol de ARENOSA: Genérico → Operador", "cambió 3 permisos del rol Operador", "borró 1.240 filas", "Falta correr", "2026-09-acciones-programadas.sql", "Llave del servidor"])
+for (const s of ["Nunca han entrado", "cambió el rol de ARENOSAGenérico→Operador", "cambió 3 permisos del rol Operador", "borró 1.240 filas", "Falta correr una migración",
+  "2026-09-acciones-programadas.sql", "Llave del servidor", "Salud de la plataforma", "1 / 2", "Casi todo listo: falta correr una migración y dos personas nunca han entrado.",
+  "3 pendientes", "HOY", "ESTA SEMANA", "Enviar acceso", "2 Administrador · 1 Operador · 1 otro"])
   if (!t.includes(s)) f.push("no dice: " + s);
 await b.close();
 if (f.length) { f.forEach((x) => console.log("✗ " + x)); process.exit(1) }

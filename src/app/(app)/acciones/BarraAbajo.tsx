@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Motivo, Zona } from "@/modulos/acciones/datos";
@@ -33,6 +33,13 @@ export function BarraAbajo({ zonas, motivos, plazos, gente, puedeEditar }: {
 }) {
   const [reportando, setReportando] = useState(false);
   const ruta = usePathname();
+  /* El botón «Reportar» del tablero abre este mismo formulario: un solo
+     sitio para reportar, esté uno donde esté del módulo. */
+  useEffect(() => {
+    const abrir = () => { if (puedeEditar) setReportando(true) };
+    window.addEventListener("ac:reportar", abrir);
+    return () => window.removeEventListener("ac:reportar", abrir);
+  }, [puedeEditar]);
 
   const items = [
     { r: "/acciones/verificar", t: "Verificar", i: (
@@ -44,7 +51,7 @@ export function BarraAbajo({ zonas, motivos, plazos, gente, puedeEditar }: {
     { r: "/acciones/tablero", t: "Tablero", i: (
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 16v-3.5M12 16V9M16 16v-5" /></svg>
     ) },
-    { r: "/acciones/analisis", t: "Análisis", i: (
+    { r: "/acciones/analisis", t: "Indicadores", i: (
       <svg viewBox="0 0 24 24"><path d="M4 17.5l5-5.5 3.5 3L20 6.5" /><path d="M20 11V6.5h-4.5" /></svg>
     ) },
   ];

@@ -1,52 +1,142 @@
-/* Administración · Inicio. Cuelga de .rl (roles.css) y usa sus tokens. */
-.rl.ain { display: flex; flex-direction: column; gap: 16px }
-.ain-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
-.ain-k {
-  display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; text-decoration: none; color: var(--rl-tinta);
-  background: var(--rl-papel); border: 1px solid var(--rl-linea); border-top: 4px solid var(--rl-acento); border-radius: 3px;
+/* =====================================================================
+   Administración · Inicio — como el diseño: tarjetas redondeadas con
+   sombra suave, el acento del tema (amarillo en el tuyo) para lo que
+   pide atención, rojo solo para lo que está mal.
+   ===================================================================== */
+.rl.ain {
+  --ain-ac: var(--c-marca, #FFC000); --ain-ac-txt: var(--c-marca-txt, #141414);
+  --ain-mal: #C8262B; --ain-ok: #1F7A45; --ain-gr: var(--rl-gris); --ain-ln: #E8E8E4;
+  --ain-ama: #FFF4D1; --ain-ama-txt: #6E4D00;
+  display: flex; flex-direction: column; gap: 18px; color: var(--rl-tinta);
 }
-.ain-k:hover { border-color: var(--rl-tinta) }
-.ain-k.ojo { border-top-color: #E0A100 }
-.ain-k .rot { font: 700 10.5px var(--rl-texto); letter-spacing: .14em; color: var(--rl-gris) }
-.ain-k b { font: 900 clamp(28px, 3vw, 40px)/1 var(--rl-titulo); letter-spacing: -.02em; font-variant-numeric: tabular-nums }
-.ain-k .pie { font-size: 12px; color: var(--rl-gris) }
-.ain-dos { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start }
-.ain-col { display: flex; flex-direction: column; gap: 16px; min-width: 0 }
-.ain-aviso { margin: 0; padding: 10px 20px; font-size: 12.5px; background: #FFF8E6; color: #5A4610 }
-.ain-movs { list-style: none; margin: 0; padding: 4px 20px 8px }
-.ain-movs li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--c-eef1f5, #EEF1F5) }
-.ain-movs li:last-child { border-bottom: 0 }
-.ain-movs .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--rl-acento); align-self: center }
-.ain-movs li.rol .punto { background: var(--rl-tinta) }
-.ain-movs li.datos .punto { background: #C8102E }
-.ain-movs .tx { font-size: 13.5px; line-height: 1.4; overflow-wrap: anywhere }
-.ain-movs time { font-size: 12px; color: var(--rl-gris); white-space: nowrap }
-.ain-movs .vacio, .ain-pend .vacio { display: block; color: var(--rl-gris); font-size: 13px }
-.ain-mas { margin: 0; padding: 0 20px 16px; font-size: 13px }
-.ain-mas a, .ain-pend a { color: var(--rl-acento); font-weight: 700 }
-.ain-estado.bien { border-left: 4px solid #0F7A4A }
-.ain-estado.ojo { border-left: 4px solid #E0A100 }
-.ain-estado code, .ain-aviso code { font: 600 12px ui-monospace, monospace; background: var(--c-eef1f5, #EEF1F5); padding: 1px 5px; border-radius: 2px; overflow-wrap: anywhere }
-.ain-chequeo { list-style: none; margin: 0; padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 10px }
-.ain-chequeo li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 10px; font-size: 13px }
-.ain-chequeo li::before { grid-row: 1 / span 2; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 800 12px var(--rl-titulo); color: #fff }
-.ain-chequeo li.si::before { content: "✓"; background: #0F7A4A }
-.ain-chequeo li.no::before { content: "!"; background: #C8102E }
-.ain-chequeo b { font-size: 13.5px }
-.ain-chequeo span { color: var(--rl-gris); line-height: 1.45 }
-.ain-pend { list-style: none; margin: 0; padding: 4px 20px 16px }
-.ain-pend li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 0; border-bottom: 1px solid var(--c-eef1f5, #EEF1F5); font-size: 13.5px }
-.ain-pend li:last-child { border-bottom: 0 }
-.ain-pend span { grid-row: 2; font-size: 12px; color: var(--rl-gris) }
-.ain-pend em { grid-row: 1 / span 2; grid-column: 2; align-self: center; font: 700 11.5px var(--rl-texto); font-style: normal; padding: 3px 8px; border-radius: 10px; background: #FFF4DB; color: #7A4B00 }
-@media (max-width: 1100px) {
-  .ain-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) }
-  .ain-dos { grid-template-columns: minmax(0, 1fr) }
+.ain svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round }
+.ain-card {
+  display: block; background: var(--rl-papel); border-radius: 14px; color: inherit; text-decoration: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -20px rgba(0,0,0,.28); min-width: 0;
+}
+
+/* ---- Arriba ---- */
+.ain-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap }
+.ain-o { margin: 0; font: 700 11px var(--rl-titulo); letter-spacing: .16em; color: var(--ain-gr) }
+.ain-top h1 { margin: 8px 0 0; font: 900 clamp(30px, 4vw, 40px)/1 var(--rl-titulo); letter-spacing: -.04em }
+.ain-frase { margin: 8px 0 0; font-size: 14.5px; color: var(--ain-gr); max-width: 70ch }
+.ain-frase b { color: var(--rl-tinta) }
+.ain-est { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 30px; background: var(--ain-ama); font: 700 13px var(--rl-texto); color: var(--ain-ama-txt) }
+.ain-est i { width: 9px; height: 9px; border-radius: 50%; background: #E0A800; box-shadow: 0 0 0 4px rgba(224,168,0,.2) }
+.ain-est.ok { background: #E6F4EC; color: #0B5C37 }
+.ain-est.ok i { background: var(--ain-ok); box-shadow: 0 0 0 4px rgba(31,122,69,.2) }
+
+/* ---- Las cifras de la gente ---- */
+.ain-gente { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr 1fr; gap: 16px }
+.ain-k { padding: 20px 22px; display: flex; flex-direction: column; transition: box-shadow .15s }
+.ain-k:hover { box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 16px 36px -18px rgba(0,0,0,.4) }
+.ain-k .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 14px; background: #F2F2EF; color: var(--rl-tinta) }
+.ain-k.warn .ic { background: var(--ain-ama); color: #8A6000 }
+.ain-k.hot .ic { background: #FDEBEB; color: var(--ain-mal) }
+.ain-k .n { font: 900 36px/1 var(--rl-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.ain-k .n small { font-size: 18px; color: #8C8C87; font-weight: 800 }
+.ain-k.hot .n { color: var(--ain-mal) }
+.ain-k .l { font-size: 13px; font-weight: 600; margin-top: 6px }
+.ain-k .s { font-size: 12px; color: var(--ain-gr); margin-top: 3px }
+.ain-k .avs { display: flex; margin-top: 12px }
+.ain-k .avs i {
+  width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--rl-papel); margin-left: -5px; display: grid; place-items: center;
+  font: 800 10.5px var(--rl-titulo); font-style: normal; background: #141414; color: #FFC000;
+}
+.ain-k .avs i:first-child { margin-left: 0 }
+.ain-k .avs i.off { background: #E4E4E0; color: #6B6B66 }
+.ain-k .avs i.mas { background: #F2F2EF; color: var(--rl-tinta) }
+.ain-k .barrita { height: 7px; border-radius: 7px; background: #F1F1EE; margin-top: 12px; overflow: hidden }
+.ain-k .barrita i { display: block; height: 100%; border-radius: 7px; background: var(--ain-ac) }
+.ain-k .roles { display: flex; gap: 2px; height: 7px; border-radius: 7px; overflow: hidden; margin: 12px 0 4px }
+.ain-k .roles i { display: block; height: 100% }
+.ain-k .roles .r0 { background: #141414 } .ain-k .roles .r1 { background: var(--ain-ac) } .ain-k .roles .r2 { background: #D8D8D4 }
+
+/* ---- Cuerpo ---- */
+.ain-cuerpo { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; align-items: start }
+.ain-lado { display: flex; flex-direction: column; gap: 18px; min-width: 0 }
+.ain-h { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 20px 24px 6px; flex-wrap: wrap }
+.ain-h h2, .ain-salud .cab h2 { margin: 0; font: 900 19px var(--rl-titulo); letter-spacing: -.01em }
+.ain-h a, .ain-h .cuenta { font-size: 13px; font-weight: 600; color: #8A6000; text-decoration: none }
+.ain-h a:hover { text-decoration: underline }
+.ain-dia { margin: 0; padding: 14px 24px 4px; font: 700 10.5px var(--rl-titulo); letter-spacing: .14em; color: var(--ain-gr) }
+.ain-ev { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 10px 24px }
+.ain-ev .ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: #F2F2EF; color: var(--rl-tinta) }
+.ain-ev .ic svg { width: 18px; height: 18px }
+.ain-ev.bor .ic { background: #FDEBEB; color: var(--ain-mal) }
+.ain-ev .t { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere }
+.ain-ev .t b { font-weight: 600 }
+.ain-ev .cam { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; flex-wrap: wrap }
+.ain-ev .cam s { color: var(--ain-gr) }
+.ain-ev .cam .a { background: var(--ain-ac); color: var(--ain-ac-txt); padding: 1px 8px; border-radius: 4px; font-weight: 600 }
+.ain-ev .num { color: var(--ain-mal); font-weight: 700 }
+.ain-ev time { font-size: 12.5px; color: var(--ain-gr); white-space: nowrap }
+.ain-fin { height: 14px }
+.ain-vacio { margin: 0; padding: 14px 24px; font-size: 13px; color: var(--ain-gr) }
+.ain-aviso { margin: 8px 24px; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; background: var(--ain-ama); color: var(--ain-ama-txt) }
+.ain-aviso code { font: 600 12px ui-monospace, monospace }
+
+/* ---- Salud ---- */
+.ain-salud { overflow: hidden }
+.ain-salud .cab { padding: 20px 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--ain-ln) }
+.ain-salud .cab > div:first-child span { font-size: 12.5px; color: var(--ain-gr) }
+.ain-salud .cab .pg { margin-left: auto; text-align: right }
+.ain-salud .cab .pg b { font: 900 22px var(--rl-titulo) }
+.ain-salud .cab .pg span { display: block; font-size: 11.5px; color: var(--ain-gr) }
+.ain-salud .chk { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 14px; padding: 16px 24px; border-bottom: 1px solid #F4F4F1 }
+.ain-salud .chk:last-child { border-bottom: 0 }
+.ain-salud .chk .m { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff }
+.ain-salud .chk .m svg { width: 16px; height: 16px; stroke-width: 2.6 }
+.ain-salud .chk.ok .m { background: var(--ain-ok) } .ain-salud .chk.no .m { background: var(--ain-mal) }
+.ain-salud .chk b { font-size: 14.5px; font-weight: 600 }
+.ain-salud .chk p { margin: 4px 0 0; font-size: 12.5px; color: var(--ain-gr); line-height: 1.45 }
+.ain-salud .chk p b { font-size: 12.5px; color: var(--rl-tinta) }
+.ain-salud .ruta {
+  display: flex; align-items: center; gap: 10px; margin-top: 11px; background: #141414; color: #E4E6E9; border-radius: 10px;
+  padding: 8px 8px 8px 14px; font: 500 12px ui-monospace, "IBM Plex Mono", monospace;
+}
+.ain-salud .ruta span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ain-salud .ruta button {
+  border: 0; background: #2A2E33; color: #FFC000; border-radius: 7px; padding: 0 12px; min-height: 36px; display: flex;
+  align-items: center; gap: 6px; font: 700 12px var(--rl-texto); cursor: pointer; flex: none;
+}
+.ain-salud .ruta button svg { width: 14px; height: 14px }
+
+/* ---- Por atender ---- */
+.ain-per { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 24px; border-top: 1px solid #F4F4F1 }
+.ain-per:first-of-type { margin-top: 8px }
+.ain-per .av { width: 42px; height: 42px; border-radius: 50%; background: var(--ain-ama); color: var(--ain-ama-txt); display: grid; place-items: center; font: 900 14px var(--rl-titulo) }
+.ain-per a { color: inherit; text-decoration: none }
+.ain-per a:hover b { text-decoration: underline }
+.ain-per b { display: block; font-size: 14.5px; font-weight: 600 }
+.ain-per > div > span { display: block; font-size: 12px; color: var(--ain-gr); margin-top: 2px }
+.ain-per .tag { display: inline-block; margin-top: 6px; font: 700 11px var(--rl-texto); font-style: normal; color: #7A5200; background: var(--ain-ama); padding: 3px 9px; border-radius: 20px }
+.ain-enviar {
+  border: 1.5px solid var(--ain-ln); background: var(--rl-papel); border-radius: 9px; padding: 0 14px; min-height: 42px; cursor: pointer;
+  font: 700 12.5px var(--rl-texto); white-space: nowrap; color: var(--rl-tinta);
+}
+.ain-enviar:hover { border-color: var(--rl-tinta) }
+.ain-mal { grid-column: 2 / -1; font-size: 12px; color: var(--ain-mal) }
+.ain-acceso { grid-column: 1 / -1; background: #141414; color: #E4E6E9; border-radius: 10px; padding: 12px 14px }
+.ain-acceso pre { margin: 0; white-space: pre-wrap; font: 500 12.5px/1.5 ui-monospace, monospace; overflow-wrap: anywhere }
+.ain-acceso div { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap }
+.ain-acceso button, .ain-acceso a {
+  min-height: 40px; padding: 0 14px; border-radius: 8px; border: 0; cursor: pointer; display: inline-flex; align-items: center;
+  font: 700 12.5px var(--rl-texto); text-decoration: none; background: #FFC000; color: #141414;
+}
+.ain-acceso a { background: #25D366; color: #0B2E17 }
+
+@media (max-width: 1150px) {
+  .ain-gente { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .ain-cuerpo { grid-template-columns: minmax(0, 1fr) }
 }
 @media (max-width: 620px) {
-  .ain-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px }
-  .ain-kpis .ain-k:last-child { grid-column: 1 / -1 }
-  .ain-movs, .ain-chequeo, .ain-pend { padding-left: 14px; padding-right: 14px }
-  .ain-movs li { grid-template-columns: 12px minmax(0, 1fr) }
-  .ain-movs time { grid-column: 2 }
+  .ain-gente { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+  .ain-gente .ain-k:first-child { grid-column: 1 / -1 }
+  .ain-k { padding: 16px }
+  .ain-h, .ain-dia, .ain-ev, .ain-salud .cab, .ain-salud .chk, .ain-per, .ain-vacio { padding-left: 16px; padding-right: 16px }
+  .ain-ev { grid-template-columns: 34px minmax(0, 1fr) }
+  .ain-ev time { grid-column: 2 }
+  .ain-per { grid-template-columns: 42px minmax(0, 1fr) }
+  .ain-per .ain-enviar { grid-column: 1 / -1 }
 }

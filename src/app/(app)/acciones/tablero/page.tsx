@@ -1,17 +1,20 @@
 import { nombresTodos } from "@/modulos/sider/datos";
+import { misPermisos } from "@/lib/permisos";
 import { acciones as leerAcciones, porArea, parametros } from "@/modulos/acciones/datos";
 import "../acciones.css";
+import "./tablero.css";
 import { SinTablas } from "../comunes";
 import { Tablero } from "./Tablero";
 
 export const dynamic = "force-dynamic";
 
 export default async function TableroPage() {
-  const [datos, areas, par, nombres] = await Promise.all([
+  const [datos, areas, par, nombres, permisos] = await Promise.all([
     leerAcciones(),
     porArea(),
     parametros(),
     nombresTodos(),
+    misPermisos(),
   ]);
 
   if (datos.falta) return <div className="ac"><SinTablas /></div>;
@@ -23,6 +26,7 @@ export default async function TableroPage() {
         areas={areas}
         nombres={nombres}
         meta={par.par["meta_efectividad"] ?? 90}
+        puedeReportar={permisos.puedeEditar("/acciones")}
       />
     </div>
   );

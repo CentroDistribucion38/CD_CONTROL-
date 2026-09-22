@@ -1,36 +1,29 @@
-Administración: Inicio, historial de usuarios y estado del sistema
+Admin › Inicio y Acciones › Tablero, como los diseños
 
-«¿Quién le quitó el acceso a ARENOSA?» Hasta hoy quedaba escrito quién
-cambió un rol y quién borró datos, pero no qué se le hizo a cada persona.
+ADMINISTRACIÓN › INICIO
+  - Una frase arriba que dice cómo estamos y cuántos pendientes hay.
+  - Cinco cifras con icono: activos (con caras), entraron esta semana,
+    nunca han entrado, clave provisional y roles con su reparto.
+  - Lo último que se cambió, en HOY / ESTA SEMANA / ANTES.
+  - Salud de la plataforma: n de m listo, qué SQL falta y la ruta para
+    copiar.
+  - Por atender: botón «Enviar acceso» que da clave nueva y arma el
+    mensaje (copiar o WhatsApp).
 
-ADMINISTRACIÓN › INICIO (nueva, es la entrada del módulo)
-  - Activos, quiénes entraron esta semana, quiénes NUNCA han entrado,
-    claves provisionales sin cambiar y roles.
-  - Lo último que se cambió, de personas, roles y datos borrados, con
-    quién y cuándo, en una sola lista.
-  - Estado del sistema: qué SQL falta correr (por nombre de archivo), si
-    está la llave del servidor y qué versión está publicada.
-  - Por atender: la gente activa que no ha entrado o no ha cambiado su
-    clave, con enlace a su fila en Usuarios.
+ACCIONES › TABLERO (arranque de turno)
+  - Frase: N vencidas, M sin responsable, cuántos días lleva la más
+    vieja. Reloj, «Modo reunión» (pantalla completa) y «+ Reportar».
+  - Cifras: vencidas, críticas, vencen hoy y efectividad con anillo.
+  - Vencidas con dueño o «Sin asignar» en rojo, barra por días (ámbar,
+    naranja, rojo) y filtros: Todas / Sin asignar / los 4 con más.
+  - Cuánto llevan vencidas: una barra por día (14+) y qué quiere decir.
+  - Efectividad por área contra la meta.
+  - En el menú de abajo, «Análisis» ahora se llama «Indicadores».
 
-ADMINISTRACIÓN › USUARIOS › HISTORIAL DE CAMBIOS
-  - Cada cambio a una persona queda escrito: creado, editado (qué
-    cambió), cambio de rol (de → a), activado, desactivado, clave nueva y
-    eliminado, con quién lo hizo y cuándo. Se filtra por persona y por
-    qué pasó.
-  - Lo anotan la base (cambios de a varios) y las rutas del servidor
-    (crear, editar, clave, eliminar). Si el historial falla, la acción se
-    hace igual.
+SQL: ninguno nuevo.
 
-SQL (correr en Supabase ANTES del push):
-  supabase/migraciones/2026-09-admin-historial.sql
-  (y, si no lo corriste con el push anterior:
-   supabase/migraciones/2026-09-acciones-programadas.sql)
-
-MEDIDO: .arnes/correr-admin-historial.sh (quien no administra no ve ni
-anota; rol de→a una sola vez; desactivar dos veces anota una; la llave de
-servicio anota; qué partes de la base están) · .arnes/ad-inicio.mjs ·
-.arnes/ad-usuarios.mjs · next build
+MEDIDO: .arnes/ac-tablero.mjs (frase, cifras, filtros, histograma,
+Reportar, 1300/820/390/360, 7 temas) · .arnes/ad-inicio.mjs · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
