@@ -347,6 +347,101 @@ for (const tema of TEMAS) {
   await pg.keyboard.press("Escape");
 }
 
+/* ---------- 11 · CÓMO SE IMPRIME ----------
+   «Mira cómo se imprime y nooo, debe ser igual a como está.» Salía la
+   barra de la app, las pestañas del módulo, y debajo la ficha en su
+   versión de CELULAR —acordeones cerrados— sin un solo fondo.
+
+   La hoja mide unos 700 px de ancho, o sea MENOS de 760: el navegador
+   aplicaba las reglas del celular. Por eso se mide con el ancho de una
+   hoja, no con el del monitor. */
+{
+  await monta(760, "");
+  await pg.click(".tp-cierre-dia");
+  /* A 760 px manda la versión de celular —es el ancho de una hoja—, así
+     que se espera por lo que SÍ está a la vista y después se cambia el
+     medio a «print», que es donde se comprueba que mande la ancha. */
+  await pg.waitForSelector(".tp-ci-hero .ci-pct");
+  await pg.waitForFunction(() => !/tray[eé]ndolos/.test(
+    document.querySelector(".tp-ci-movil .tp-ci-acor:last-of-type summary")?.textContent ?? "x"), null, { timeout: 8000 });
+  await pg.emulateMedia({ media: "print" });
+  /* Se mete una barra de la app de mentira para comprobar que no se
+     imprime: en el arnés no está el armazón entero. */
+  await pg.evaluate(() => {
+    const b = document.createElement("div");
+    b.className = "sh-barra"; b.id = "falsa-barra"; b.textContent = "CONTROL · Traspasos";
+    document.querySelector(".sh").prepend(b);
+    /* Y un pedazo del tablero, para comprobar que tampoco se imprime:
+       en el arnés solo está montado el bloque de los turnos. */
+    const t = document.createElement("section");
+    t.className = "cabeza-ctl"; t.id = "falso-tablero"; t.textContent = "Control y ejecución";
+    document.querySelector(".tp").prepend(t);
+  });
+  const p = await pg.evaluate(() => {
+    const ver = (s) => { const e = document.querySelector(s); if (!e) return null;
+      const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).display !== "none" };
+    const fondo = (s) => { const e = document.querySelector(s); return e ? getComputedStyle(e).backgroundColor : null };
+    const exacto = (s) => { const e = document.querySelector(s); if (!e) return null;
+      const c = getComputedStyle(e); return (c.printColorAdjust || c.webkitPrintColorAdjust) === "exact" };
+    return {
+      barra: ver("#falsa-barra"),
+      ancha: ver(".tp-ci-ancho"), movil: ver(".tp-ci-movil"),
+      tablero: ver("#falso-tablero"),
+      anillos: ver(".turnos"),
+      viajes: document.querySelectorAll(".tp-ci-t.tp-ci-viajes tbody tr").length,
+      fondoCab: fondo(".tp-ci-cab"), fondoHero: fondo(".tp-ci-hero"),
+      exactoCab: exacto(".tp-ci-cab"), exactoHero: exacto(".tp-ci-hero"),
+      saleFicha: Math.max(0, document.querySelector(".tp-ci").scrollWidth - document.querySelector(".tp-ci").clientWidth),
+    };
+  });
+  ok(p.barra === false, "al imprimir sale la barra de la app encima de la ficha");
+  ok(p.tablero === false, "al imprimir sale el tablero de atrás con la ficha");
+  ok(p.anillos === false, "al imprimir salen los anillos de turno detrás de la ficha");
+  ok(p.ancha === true, "al imprimir NO sale la versión ancha — se está imprimiendo la del celular");
+  ok(p.movil === false, "al imprimir sale también la versión de celular, con los acordeones cerrados");
+  ok(p.viajes === VIAJES_TODOS.length, `al imprimir salen ${p.viajes} viajes y son ${VIAJES_TODOS.length}`);
+  ok(p.saleFicha <= 1, `al imprimir la tabla se sale ${p.saleFicha} px del papel`);
+  /* Los fondos: sin print-color-adjust el navegador los quita y queda
+     texto suelto sobre blanco. */
+  ok(p.exactoCab === true, "la banda negra no lleva print-color-adjust: sale en blanco en el papel");
+  ok(p.exactoHero === true, "la franja del acento no lleva print-color-adjust: sale en blanco en el papel");
+  ok(/rgb/.test(p.fondoCab ?? "") && p.fondoCab !== "rgba(0, 0, 0, 0)", "la banda de arriba perdió su fondo al imprimir");
+  ok(/rgb/.test(p.fondoHero ?? "") && p.fondoHero !== "rgba(0, 0, 0, 0)", "la franja del acento perdió su fondo al imprimir");
+  if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/cierre-print.png`, fullPage: true });
+  await pg.emulateMedia({ media: "screen" });
+}
+
+/* ---------- 12 · COPIAR PARA ENVIAR ----------
+   «Y que esté un copiar para enviar la info.» Lo que se manda por
+   WhatsApp no es una tabla: es texto corto, con la hora de la foto y
+   las cifras que se están viendo. */
+{
+  await monta(1300, "");
+  await pg.evaluate(() => {
+    /* El portapapeles de verdad pide permisos que el arnés no tiene:
+       se apunta lo que se habría copiado. */
+    navigator.clipboard.writeText = async (t) => { window.copiado = t };
+  });
+  await pg.click(".tp-cierre-dia");
+  await pg.waitForSelector(".tp-ci-t.tp-ci-viajes tbody tr");
+  await pg.click('.tp-ci-bt:has-text("Copiar")');
+  await pg.waitForFunction(() => typeof window.copiado === "string", null, { timeout: 4000 });
+  const t = await pg.evaluate(() => window.copiado);
+  ok(/CIERRE DEL DÍA/.test(t), `el texto copiado no dice de qué es: «${t.slice(0, 40)}»`);
+  ok(new RegExp(`Adherencia ${ADH}%`).test(t), `el texto no trae la adherencia (${ADH}%)`);
+  ok(t.includes(`${ADHERIDOS} de ${PLANEADO} del plan`), "el texto no dice cuántos de cuántos");
+  ok(/Foto de las \d{1,2}:\d{2}/.test(t), "el texto no lleva la hora de la foto — sin ella la cifra no se ubica");
+  ok(/POR TIPO/.test(t) && /Casco vidrio/.test(t), "el texto no trae el desglose por tipo");
+  ok(/PARA MIRAR/.test(t) && /sin orden de cargue/.test(t), "el texto no trae lo que hay que mirar");
+  ok(/control\.prueba/.test(t), "el texto no lleva el enlace a lo que se está viendo");
+  /* Y nada de tablas ni markdown: esto se lee en WhatsApp. */
+  ok(!/\||#{1,6} |\*\*/.test(t), "el texto lleva formato de tabla o markdown: en WhatsApp se ve como basura");
+  /* El botón avisa que copió; si no, se toca cinco veces. */
+  ok(/Copiado/.test(await pg.textContent('.tp-ci-bt:has-text("Copiado")') ?? ""),
+     "después de copiar el botón no dice que copió");
+  await pg.keyboard.press("Escape");
+}
+
 /* Una foto para mirarla, cuando se pide. */
 if (process.env.FOTO) {
   for (const [nom, ancho, turno] of [["pc", 1300, 0], ["cel", 390, 0], ["turno", 1300, 1]]) {

@@ -518,6 +518,9 @@
   border: 1px solid #33373D; background: #1B1F24; color: #fff;
   font: 700 13px var(--tp-texto); cursor: pointer;
 }
+/* Copiado: se queda verde un momento, que es lo que dice «ya está» sin
+   sacar un aviso encima. */
+.tp-ci-bt.listo { background: var(--tp-bien); border-color: var(--tp-bien); color: #fff }
 .tp-ci-bt:hover, .tp-ci-bt:focus-visible {
   background: var(--tp-acento); color: var(--tp-sobre-acento); border-color: var(--tp-acento); outline: none;
 }
@@ -651,9 +654,16 @@
   /* Los dos botones se anclan arriba a la derecha, como en la maqueta,
      y el título se reserva ese ancho: en flujo, la fecha se metía
      debajo de ellos y quedaba medio tapada. */
-  .tp-ci-cab { align-items: flex-start }
-  .tp-ci-cab .ci-tit { padding-right: 96px }
-  .tp-ci-cab .ci-der { position: absolute; right: 12px; top: 12px; gap: 6px; margin: 0 }
+  /* LA MUESCA DEL TELÉFONO. Abierta a pantalla completa, la ficha
+     arranca en el pixel 0 y la hora, la señal y la batería del teléfono
+     quedan ENCIMA del título — que es justo lo que se veía. env() dice
+     cuánto mide esa franja en cada aparato; donde no existe vale 0 y
+     queda el relleno de siempre. */
+  .tp-ci-cab { align-items: flex-start; padding-top: calc(12px + env(safe-area-inset-top, 0px)) }
+  .tp-ci-cab .ci-der { top: calc(12px + env(safe-area-inset-top, 0px)) }
+  .tp-ci-cab .ci-tit { padding-right: 100px }
+  .tp-ci-cab .ci-copiar { display: none }
+  .tp-ci-cab .ci-der { position: absolute; right: 12px; gap: 6px; margin: 0 }
   .tp-ci-cab .ci-der .texto { display: none }
   /* En el celular los dos botones de arriba suben a 44: en la maqueta
      miden 40, que está bien con el ratón y se queda corto con el dedo.
@@ -686,7 +696,7 @@
   .tp-ci-rev .ci-av span { font-size: 10.5px; margin-top: 1px; grid-column: 2 }
 
   .tp-ci-ancho { display: none }
-  .tp-ci-movil { display: block; padding-bottom: 78px }
+  .tp-ci-movil { display: block; padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) }
   .tp-ci-acor { border-top: 1px solid var(--tp-linea) }
   .tp-ci-acor summary {
     list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
@@ -711,7 +721,8 @@
   .vcard .ci-oc.sin { color: var(--tp-mal); font-weight: 700 }
   .tp-ci-fija {
     position: fixed; left: 0; right: 0; bottom: 0; background: var(--tp-tinta);
-    display: flex; gap: 10px; padding: 10px 14px; z-index: 20;
+    display: flex; gap: 10px; z-index: 20;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
   }
   .tp-ci-fija button {
     flex: 1; height: 46px; border: 0; cursor: pointer;
@@ -782,20 +793,80 @@
   @page { size: A4 landscape; margin: 12mm }
   .tp .filtros, .tp .acciones-informe { display: none !important }
 
-  /* CON LA FICHA DEL CIERRE ABIERTA, LO QUE SE IMPRIME ES LA FICHA.
-     Antes salía el tablero de fondo con un rectángulo gris encima —el
-     velo— y la ficha cortada dentro. Se esconde todo lo que no la
-     contiene: la sección que sí la lleva se queda, y adentro se
-     esconden sus hermanos. */
+  /* ==================================================================
+     CON LA FICHA DEL CIERRE ABIERTA, LO QUE SE IMPRIME ES LA FICHA.
+
+     Lo que salía antes: la barra de la app, las pestañas del módulo, y
+     debajo la ficha en su versión de CELULAR —acordeones cerrados y la
+     barra de abajo— sin un solo color de fondo. Tres cosas distintas,
+     y las tres había que arreglarlas:
+
+     1. LA APP NO SE IMPRIME. La barra de arriba y el riel viven FUERA
+        de .tp, así que esconder los hermanos de la ficha no bastaba.
+     2. SE IMPRIME LA VERSIÓN ANCHA. La hoja mide unos 700 px, o sea
+        MENOS de 760, y el navegador aplicaba las reglas del celular:
+        las tablas salían cerradas dentro de acordeones que en papel no
+        se pueden abrir. Aquí se fuerzan al revés.
+     3. LOS FONDOS SE IMPRIMEN. Por defecto el navegador los quita —la
+        banda negra, la franja del acento— y quedaba texto suelto sobre
+        blanco. print-color-adjust: exact es lo que los conserva.
+     ================================================================== */
+  body:has(.tp-velo) .sh-barra,
+  body:has(.tp-velo) .sh-lado,
+  body:has(.tp-velo) .sh-riel { display: none !important }
+  body:has(.tp-velo) .sh-main { padding: 0 !important }
+  body:has(.tp-velo) .sh-marco { display: block !important }
   .tp:has(.tp-velo) > *:not(:has(.tp-velo)) { display: none !important }
   .tp:has(.tp-velo) .medidor { display: block; background: none; border: 0; padding: 0 }
   .tp:has(.tp-velo) .medidor > *:not(.tp-velo) { display: none !important }
-  .tp-velo { position: static; display: block; background: none; padding: 0 }
-  .tp-cierre { width: 100%; max-height: none; overflow: visible; border: 0 }
-  .tp-ci-bot { display: none }
-  .tp-ci-scroll { overflow: visible }
-  .tp-ci-tabla.viajes { min-width: 0; font-size: 10.5px }
-  .tp-ci-bloque, .tp-ci-ojos, .tp-ci-cifras { break-inside: avoid }
+
+  .tp-velo { position: static; display: block; background: none; padding: 0; overflow: visible }
+  .tp-ci { width: 100%; max-height: none; overflow: visible; border: 0; min-height: 0 }
+
+  /* La versión ancha manda, aunque la hoja mida menos de 760 px. */
+  .tp-ci-ancho { display: block !important }
+  .tp-ci-movil { display: none !important }
+
+  /* Y se deshacen los ajustes de celular que la hoja angosta activa. */
+  .tp-ci-cab { align-items: center !important; padding: 14px 18px !important }
+  .tp-ci-cab .ci-tit { padding-right: 0 !important }
+  .tp-ci-cab .ci-der { display: none !important }
+  .tp-ci-cab h2 { font-size: 22px !important }
+  .tp-ci-hero { grid-template-columns: auto minmax(0, 1fr) !important;
+    gap: 22px !important; padding: 16px 18px !important }
+  .tp-ci-hero .ci-pct { display: block !important }
+  .tp-ci-hero .ci-pct .ci-v { font-size: 46px !important }
+  .tp-ci-hero .ci-pct .ci-k { width: auto !important }
+  .tp-ci-rev { padding: 14px 18px !important }
+  .tp-ci-rev .ci-g { grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important; border: 0 !important }
+  .tp-ci-rev .ci-av { display: block !important; border: 1px solid var(--tp-linea) !important;
+    border-left: 4px solid var(--tp-aviso) !important; padding: 9px 11px !important }
+  .tp-ci-rev .ci-av.mal { border-left-color: var(--tp-mal) !important }
+
+  /* Las tablas caben enteras: nada de deslizarse, que en papel no se
+     desliza nada. */
+  .tp-ci-scroll { overflow: visible !important }
+  .tp-ci-t.tp-ci-viajes { min-width: 0 !important }
+  .tp-ci-t { font-size: 10.5px }
+  .tp-ci-t th { padding: 7px 18px; font-size: 8px }
+  .tp-ci-t td { padding: 6px 18px; font-size: 10.5px }
+  .tp-ci-sec { padding: 12px 18px 4px }
+  .tp-ci-sec b { font-size: 13px }
+  .tp-ci-fin { padding: 10px 18px; font-size: 9.5px }
+  .ci-pctb i { width: 44px }
+
+  /* LOS FONDOS. Sin esto, la banda negra y la franja del acento salen
+     en blanco y el informe pierde la mitad de lo que dice. */
+  .tp-ci-cab, .tp-ci-hero, .tp-ci-hero .ci-mini, .tp-ci-hero .ci-mini > div,
+  .tp-ci-hero .ci-cinta, .tp-ci-hero .ci-cinta i, .tp-ci-hero .ci-ley i,
+  .tp-ci-rev .ci-av, .tp-ci-t th, .tp-ci-t .ci-eti, .ci-pctb i, .ci-pctb i span,
+  .tp-ci-fin {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  /* Y que una sección no se parta en dos hojas por la mitad. */
+  .tp-ci-cab, .tp-ci-hero, .tp-ci-rev, .tp-ci-fin { break-inside: avoid }
+  .tp-ci-t tr { break-inside: avoid }
   .tp .panel-ojo { color: #000; background: none; border: 2px solid #000 }
   .tp .panel-ojo .corte { display: none }
   .tp .medidor { grid-template-columns: 1fr 300px }

@@ -61,6 +61,7 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
   const [nombres, setNombres] = useState<Record<string, string>>({});
   const [vacios, setVacios] = useState<number | null>(null);
   const [mal, setMal] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
 
   /* La hora en que se armó la foto. Se fija UNA vez, al abrir: si se
      recalculara en cada dibujo, la hora del papel iría cambiando
@@ -152,6 +153,69 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
   const pie = `Los vacíos y los anulados no entran en la adherencia. La foto es de las `
     + `${hhmm(armado.toISOString())}; si alguien registra algo después, el cierre cambia.`;
 
+  /* ==================================================================
+     EL CIERRE, EN TEXTO, PARA MANDARLO
+
+     «Y que esté un copiar para enviar la info.» Lo que se manda por
+     WhatsApp no es una tabla: es texto corto que se lee en la pantalla
+     del celular sin girar nada. Se arma de las MISMAS cifras que se
+     están viendo —no se vuelve a calcular— y lleva la hora de la foto,
+     porque el que lo recibe tiene que poder ubicar el número.
+     ================================================================== */
+  function textoParaMandar() {
+    const l: string[] = [];
+    l.push(turno ? `CIERRE DEL TURNO ${turno}` : desde === hasta ? "CIERRE DEL DÍA" : "CIERRE DEL PERÍODO");
+    l.push(`${rotulo.replace(/^./, (c) => c.toUpperCase())}${turno && HORARIO[turno] ? ` · ${HORARIO[turno]}` : ""}`);
+    l.push(`Foto de las ${hhmm(armado.toISOString())}`);
+    l.push("");
+    l.push(`Adherencia ${pct(adherencia)} — ${nf.format(adheridos)} de ${nf.format(planeado)} del plan`);
+    l.push(`Cumplimiento ${pct(cumplimiento)} · Adicionales ${nf.format(adicionales)} · Sin salir ${nf.format(faltan)}`);
+    l.push(`Carga movida ${nf.format(carga)}`
+      + (nVacios ? ` · ${nVacios} vacío${nVacios === 1 ? "" : "s"} (aparte)` : ""));
+    if (tipos.length) {
+      l.push("");
+      l.push("POR TIPO");
+      for (const t of tipos) {
+        const p = t.planeado > 0 ? Math.round((t.adheridos / t.planeado) * 100) : null;
+        l.push(`- ${t.nombre}: ${nf.format(t.adheridos)} de ${nf.format(t.planeado)}`
+          + (p == null ? " (sin plan)" : ` · ${p}%`)
+          + (t.adicionales ? ` · +${nf.format(t.adicionales)} adicional${t.adicionales === 1 ? "" : "es"}` : ""));
+      }
+    }
+    if (ojos.length) {
+      l.push("");
+      l.push("PARA MIRAR");
+      for (const o of ojos) l.push(`- ${nf.format(o.n)} ${o.que.toLowerCase()}`);
+    }
+    if (viajes != null) {
+      l.push("");
+      l.push(`${vivos.length} viaje${vivos.length === 1 ? "" : "s"} registrado${vivos.length === 1 ? "" : "s"}.`);
+    }
+    /* La dirección exacta de lo que se está viendo: el que lo recibe
+       abre esto mismo, con el mismo rango, en vez de buscarlo. */
+    if (typeof window !== "undefined") { l.push(""); l.push(window.location.href) }
+    return l.join("\n");
+  }
+
+  async function copiar() {
+    const t = textoParaMandar();
+    try {
+      await navigator.clipboard.writeText(t);
+    } catch {
+      /* Sin permiso de portapapeles —pasa en navegadores viejos y en
+         algunos WebView— se copia con el truco de siempre, que no
+         depende de ningún permiso. */
+      const a = document.createElement("textarea");
+      a.value = t; a.setAttribute("readonly", "");
+      a.style.position = "fixed"; a.style.opacity = "0";
+      document.body.appendChild(a); a.select();
+      try { document.execCommand("copy") } catch { /* ni modo */ }
+      a.remove();
+    }
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2200);
+  }
+
   /* Las dos tablas se dibujan igual arriba y dentro del acordeón: una
      sola función, para que no se arreglen por separado. */
   const filaTipo = (t: (typeof tipos)[number]) => {
@@ -193,6 +257,15 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
             </div>
           </div>
           <div className="ci-der">
+            {/* En el celular este no va: copiar es el botón grande de
+                abajo, y tres botones aquí arriba le comen el renglón al
+                «TURNO A · 06:00 · 14:00». */}
+            <button type="button" className={"tp-ci-bt ci-copiar" + (copiado ? " listo" : "")} onClick={copiar}>
+              {copiado
+                ? <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                : <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M6 15H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1" /></svg>}
+              <span className="texto">{copiado ? "Copiado" : "Copiar"}</span>
+            </button>
             <button type="button" className="tp-ci-bt" onClick={() => window.print()}>
               <svg viewBox="0 0 24 24"><path d="M7 9V4h10v5" /><rect x="4" y="9" width="16" height="7" rx="1.5" /><path d="M7 16h10v4H7z" /></svg>
               <span className="texto">Imprimir</span>
@@ -359,7 +432,10 @@ export function Cierre({ filas, desde, hasta, turno, rotulo, cerrar }: Props) {
               solo esconde la ficha es peor que no tenerlo. */}
           <div className="tp-ci-fija">
             <button type="button" className="ci-sec2" onClick={() => window.print()}>Imprimir</button>
-            <button type="button" onClick={cerrar}>Cerrar</button>
+            {/* COPIAR ES LO QUE MÁS SE USA DESDE EL CELULAR: el turno se
+                manda por WhatsApp, no se imprime. Por eso se lleva el
+                botón grande y del color del tema. */}
+            <button type="button" onClick={copiar}>{copiado ? "¡Copiado!" : "Copiar para enviar"}</button>
           </div>
         </div>
       </section>
