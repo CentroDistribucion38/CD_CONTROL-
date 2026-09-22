@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirmar } from "@/components/Confirmar";
@@ -31,6 +31,28 @@ export function Depurar({ ids, viajes, limpiar, listo, fallo }: {
   const [motivo, setMotivo] = useState("");
   const [mandando, setMandando] = useState(false);
   const n = ids.length;
+  /* SIEMPRE A LA VISTA: la barra va fija abajo de la ventana, alineada
+     con el contenido de la página (no encima del menú de la izquierda).
+     Sticky no alcanzaba: dentro de una tabla con su propio scroll la
+     barra se quedaba al final y había que bajar a buscarla. Un espacio
+     de su mismo alto queda en la página para que no tape la última fila. */
+  const barra = useRef<HTMLDivElement>(null);
+  const [caja, setCaja] = useState<{ left: number; width: number; alto: number } | null>(null);
+  useLayoutEffect(() => {
+    const medir = () => {
+      const main = barra.current?.closest(".sh-main") ?? document.querySelector(".sh-main");
+      const r = main?.getBoundingClientRect();
+      const cs = main ? getComputedStyle(main) : null;
+      const pl = cs ? parseFloat(cs.paddingLeft) : 16, pr = cs ? parseFloat(cs.paddingRight) : 16;
+      const left = r ? r.left + pl : 16, width = r ? r.width - pl - pr : innerWidth - 32;
+      setCaja({ left, width, alto: barra.current?.offsetHeight ?? 0 });
+    };
+    medir();
+    const ro = new ResizeObserver(medir);
+    if (barra.current) ro.observe(barra.current);
+    addEventListener("resize", medir);
+    return () => { ro.disconnect(); removeEventListener("resize", medir) };
+  }, []);
   const a = ACCIONES.find((x) => x.k === accion)!;
 
   async function hacer() {
@@ -54,7 +76,10 @@ export function Depurar({ ids, viajes, limpiar, listo, fallo }: {
   }
 
   return (
-    <div className="fc-dep" role="region" aria-label="Depurar viajes seleccionados">
+    <>
+    <div className="fc-dep-hueco" style={{ height: (caja?.alto ?? 0) + 12 }} aria-hidden />
+    <div className="fc-dep" role="region" aria-label="Depurar viajes seleccionados" ref={barra}
+         style={caja ? { left: caja.left, width: caja.width } : undefined}>
       {dialogo}
       <div className="fc-dep-in">
         <p className="fc-dep-n"><b>{n}</b> seleccionado{n === 1 ? "" : "s"}</p>
@@ -77,5 +102,6 @@ export function Depurar({ ids, viajes, limpiar, listo, fallo }: {
         <p className="fc-dep-dice">{a.dice}</p>
       </div>
     </div>
+    </>
   );
 }

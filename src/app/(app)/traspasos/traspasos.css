@@ -1912,7 +1912,9 @@
 /* LA BARRA DE DEPURAR, CLARA Y EN EL COLOR DEL TEMA: papel, una raya
    del acento arriba y la acción escogida en el acento. El rojo queda
    solo para «Eliminar», que es lo único que no tiene vuelta atrás. */
-.fc-dep { position: sticky; bottom: 10px; z-index: 30 }
+.fc-dep { position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); left: 16px; width: calc(100vw - 32px); z-index: 60; animation: fc-dep-sube .16s ease-out }
+@keyframes fc-dep-sube { from { transform: translateY(12px); opacity: .5 } }
+@media (prefers-reduced-motion: reduce) { .fc-dep { animation: none } }
 .fc-dep-in {
   display: grid; grid-template-columns: auto auto minmax(180px, 1fr) auto; gap: 10px 14px; align-items: center;
   padding: 14px 16px; border-radius: 14px; background: var(--tp-papel); color: var(--tp-tinta);
@@ -1944,4 +1946,3 @@
 .tp .cr-tabla .cr-sel { width: 44px; padding-top: 0; padding-bottom: 0 }
 .tp .cr-tabla .cr-sel .fc-check { min-height: 40px }
 .tp .cr-tabla tr.marcado td { background: color-mix(in srgb, var(--tp-acento) 9%, var(--tp-papel)) }
-.tp-rz .fc-dep { margin-top: 14px }

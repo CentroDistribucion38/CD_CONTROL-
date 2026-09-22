@@ -105,6 +105,8 @@ await monta2(1200);
 ok((await pg.$$("tbody .cr-sel input")).length === 3, "control: no hay casilla por facturado");
 await pg.click("thead .cr-sel input");
 ok(/3\s*seleccionados/.test(await pg.textContent(".fc-dep-n")), "control: seleccionar todos no marca los facturados");
+{ const v = await pg.evaluate(() => { const r = document.querySelector(".fc-dep").getBoundingClientRect(); return [r.top >= 0 && r.bottom <= innerHeight, r.left] });
+  ok(v[0], "control 1200: la barra no está a la vista sin bajar"); }
 await pg.fill(".fc-dep-motivo", "Facturado por error");
 await pg.evaluate(() => { window.__rpc = [] });
 await pg.click(".fc-dep-bot .btn.si");
@@ -116,6 +118,8 @@ for (const ancho of [390, 360]) {
   await monta2(ancho); await pg.click("tbody .cr-sel input >> nth=0");
   const lado = await pg.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   ok(lado <= 0, `control ${ancho}: la página se arrastra ${lado}`);
+  const vis = await pg.evaluate(() => { const r = document.querySelector(".fc-dep").getBoundingClientRect(); return r.bottom <= innerHeight && r.top >= 0 && r.left >= 0 && r.right <= innerWidth });
+  ok(vis, `control ${ancho}: la barra no queda a la vista al marcar`);
 }
 
 const lum = (c) => { const k = c.startsWith("color(srgb") ? 1 : 255; const v = c.match(/[\d.]+/g).slice(0, 3).map(Number).map((x) => { x /= k; return x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4 }); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2] };
