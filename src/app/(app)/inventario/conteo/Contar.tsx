@@ -460,6 +460,18 @@ export function Contar({
      confirmar leería el del renglón anterior. */
   const materialDe = (bb: Borrador) =>
     materiales.find((m) => m.activo && m.sku === bb.codigo.trim()) ?? null;
+  /* «SI ESCRIBO EL CÓDIGO, ¿POR QUÉ NO SALTA A VENCE?» Salta solo cuando
+     el código ya es uno del maestro y NINGÚN otro empieza igual: con
+     «312» no salta porque puede ser 3128 o 3129; con «3128» sí. Al
+     envase —que no trae fecha— lo manda a la cantidad. */
+  function saltarSiCompleto(v: string) {
+    const c = v.trim();
+    if (!c) return;
+    const activos = materiales.filter((m) => m.activo);
+    const exacto = activos.find((m) => m.sku === c);
+    if (!exacto || activos.some((m) => m.sku !== c && m.sku.startsWith(c))) return;
+    setTimeout(() => (exacto.tipo_material === "ENVASE" ? campoCantidad : campoDia).current?.focus(), 0);
+  }
   const material = useMemo(() => materialDe(b),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [materiales, b.codigo]);
@@ -1261,7 +1273,7 @@ export function Contar({
             <label><span>Código</span>
               <input ref={campoCodigo} inputMode="numeric" value={b.codigo}
                      placeholder="Teclea el código"
-                     onChange={(e) => pon("codigo", e.target.value)}
+                     onChange={(e) => { pon("codigo", e.target.value); saltarSiCompleto(e.target.value) }}
                      onKeyDown={(e) => saltaCon(e, campoDia)} /></label>
             <label className="fe-que-desc"><span>Descripción</span>
               <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : material ? " leido" : "")}>

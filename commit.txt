@@ -1,25 +1,21 @@
-Conteo: calle y módulo se quedan, el cursor va al lado y la tarjeta de la última vez ya no guarda sola
+Inventario: colores vivos en el riesgo de vencimiento · Conteo: el código completo salta solo a la fecha
 
-DESPUÉS DE ANOTAR
-  - Calle y módulo quedan iguales al renglón anterior; el lado se vuelve
-    a escoger (si el módulo tiene uno solo, se deja).
-  - El cursor va al LADO; al escoger el lado salta al CÓDIGO. Con un solo
-    lado va derecho al código.
+TABLERO DE RIESGO
+  - Colores más vivos por franja (rojo, naranja, amarillo, verde).
+  - La alerta que tiene algo se tiñe de su color; la que está en cero
+    queda en blanco con la cifra en gris. Barra del reparto más alta.
+  - Contraste ≥ 4.5 en los siete temas.
 
-LA TARJETA DE «LA ÚLTIMA VEZ», CON TRES RESPUESTAS
-  - Sigue igual: llena el renglón entero (código, fecha, cantidad,
-    marcas) y deja el cursor en «Anotar renglón». NO se guarda solo: se
-    revisa y se le da Anotar.
-  - Cambió cantidad: todo igual, fecha incluida; el cursor en la
-    cantidad para corregir solo eso.
-  - Otro SKU: se queda el sitio y el renglón se empieza de cero en el
-    código.
+CONTEO
+  - Al teclear un código que ya es del maestro y ningún otro empieza
+    igual, el cursor salta solo a la fecha (DD). Si es envase —sin
+    fecha—, salta a la cantidad. Con un código a medias («31» cuando
+    existen 3128 y 3129) no salta. Enter sigue funcionando igual.
 
 SQL: ninguno.
 
-MEDIDO: .arnes/inv-conteo-sitio.mjs (el componente de verdad en
-Chromium: sitio, foco lado → código, las tres respuestas, nada se guarda
-sin Anotar) · .arnes/inv-conteo.mjs · next build
+MEDIDO: .arnes/inv-riesgo.mjs (7 temas) · .arnes/inv-conteo-sitio.mjs
+(salta con 3128, no con 31; envase a la cantidad) · inv-conteo · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

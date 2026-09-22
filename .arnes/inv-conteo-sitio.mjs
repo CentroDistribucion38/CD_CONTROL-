@@ -18,7 +18,9 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1" conteoIni
 const js = buildSync({ entryPoints: [R(".arnes/_cs-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
   alias: { "@/lib/supabase/client": R(".arnes/_sb-conteo.js"), "next/navigation": R(".arnes/stub-nav.js"), "@": R("src") },
   define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
-const MAT = [{ id: "m1", sku: "900", nombre: "Canasta 30", unidades_por_caja: 30, cajas_por_estiba: 40, unidades_por_estiba: 1200, contenido: null,
+const PROD = (id, sku) => ({ id, sku, nombre: "Águila " + sku, unidades_por_caja: 30, cajas_por_estiba: 80, unidades_por_estiba: 2400, contenido: null,
+  familia: null, presentacion: null, vida_util: 180, f_limite_desp: null, dias_minimo: 30, origen: null, foraneo: null, tipo_material: "PRODUCTO", activo: true });
+const MAT = [PROD("m2", "3128"), PROD("m3", "3129"), { id: "m1", sku: "900", nombre: "Canasta 30", unidades_por_caja: 30, cajas_por_estiba: 40, unidades_por_estiba: 1200, contenido: null,
   familia: null, presentacion: null, vida_util: null, f_limite_desp: null, dias_minimo: 0, origen: null, foraneo: null, tipo_material: "ENVASE", activo: true }];
 const U = (calle, modulo, lado) => ({ id: `${calle}${modulo}${lado ?? ""}`, bodega_id: "b1", clave: `${calle}${modulo}${lado ? "_" + lado : ""}`, calle, modulo, lado, familia: null, capacidad: 10, activa: true });
 const UBI = [U("A", "01", "IZQ"), U("A", "01", "DER"), U("B", "02", null)];
@@ -59,6 +61,22 @@ await escoger(0, "B"); await escoger(1, "02");
 await renglon(null);
 ok(await pg.evaluate(() => document.activeElement?.getAttribute("placeholder") === "Teclea el código"), "con un solo lado, después de anotar el cursor no va al código");
 ok((await pg.evaluate(() => window.__rpc)).filter((f) => f === "conteo_fefo_agregar").length === 3, `no se anotaron los 3 renglones: ${await pg.evaluate(() => JSON.stringify(window.__rpc))}`);
+/* EL CÓDIGO COMPLETO SALTA SOLO: a la fecha si es producto, a la cantidad
+   si es envase; a medias («31» cuando hay 3128 y 3129) no salta. */
+await pg.fill('input[placeholder="Teclea el código"]', "");
+await pg.focus('input[placeholder="Teclea el código"]');
+await pg.keyboard.type("31");
+await pg.waitForTimeout(50);
+ok(await pg.evaluate(() => document.activeElement?.getAttribute("placeholder") === "Teclea el código"), "con «31» saltó aunque hay dos códigos que empiezan así");
+await pg.keyboard.type("28");
+await pg.waitForTimeout(50);
+ok(await pg.evaluate(() => document.activeElement?.getAttribute("placeholder") === "DD"), "con el código completo no salta a la fecha (DD)");
+await pg.fill('input[placeholder="Teclea el código"]', "");
+await pg.focus('input[placeholder="Teclea el código"]');
+await pg.keyboard.type("900");
+await pg.waitForTimeout(50);
+ok(await pg.evaluate(() => document.activeElement === document.querySelector(".fe-cuanto-campo input")), "un envase completo no salta a la cantidad");
+await pg.fill('input[placeholder="Teclea el código"]', "");
 /* LA TARJETA DE LA ÚLTIMA VEZ: «Sigue igual» llena y NO guarda; «Cambió
    cantidad» deja todo igual —fecha incluida— y el cursor en la cantidad;
    «Otro SKU» deja el sitio y vacía lo demás. */

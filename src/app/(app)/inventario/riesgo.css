@@ -5,8 +5,8 @@
    en su tono oscuro para que se lea en los siete temas.
    ===================================================================== */
 .ir {
-  --ir-v: #8C0C1E; --ir-p: #C8262B; --ir-s: #D96D1F; --ir-q: #E0A800; --ir-m: #7A8A2E; --ir-o: #1F7A45; --ir-n: #8C96A0;
-  --ir-vt: #8C0C1E; --ir-pt: #B3181F; --ir-st: #A4480C; --ir-qt: #7A5600; --ir-mt: #505C17; --ir-ot: #1A6B3C; --ir-nt: #55606B;
+  --ir-v: #B0102A; --ir-p: #EF3B2C; --ir-s: #FF7A1A; --ir-q: #FFC21A; --ir-m: #8BC34A; --ir-o: #22A45D; --ir-n: #9AA5B1;
+  --ir-vt: #A00D26; --ir-pt: #C8161D; --ir-st: #B84A00; --ir-qt: #8A5A00; --ir-mt: #4E7A12; --ir-ot: #137A40; --ir-nt: #55606B;
   --ir-ln: #E6E9EE; --ir-fondo: #F2F4F7;
   display: flex; flex-direction: column; gap: 16px; min-width: 0; color: var(--fe-tinta);
 }
@@ -102,7 +102,7 @@
 .ir-m .dato b { font-size: 14.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .ir-m .fl { color: var(--fe-gris) }
 .ir-pill { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 5px 10px; border-radius: 20px; font: 700 12px var(--fe-texto); white-space: nowrap;
-  background: color-mix(in srgb, var(--c) 13%, #fff); color: color-mix(in srgb, var(--c) 70%, #000) }
+  background: color-mix(in srgb, var(--c) 13%, #fff); color: color-mix(in srgb, var(--c) 55%, #000) }
 .ir-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c) }
 .ir-vacio { margin: 0; padding: 22px; color: var(--fe-gris) }
 .ir-mas { display: block; width: calc(100% - 44px); margin: 0 22px 18px; min-height: 44px; border-radius: 10px; border: 1.5px dashed var(--ir-ln); background: none; cursor: pointer; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
@@ -168,3 +168,14 @@
   .ir-pk b { font-size: 20px }
   .ir-s dl { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 }
+
+/* VIVAS, NO OPACAS: la tarjeta que tiene algo se tiñe de su color y la
+   raya de arriba es más gruesa; la que está en cero queda en blanco. */
+.ir-al::before { height: 6px }
+.ir-al.vencido:not(.cero) { background: #FDECEF } .ir-al.pasado:not(.cero) { background: #FEEDEB }
+.ir-al.semana:not(.cero) { background: #FFF2E6 } .ir-al.quince:not(.cero) { background: #FFF8E1 }
+.ir-al.mes:not(.cero) { background: #F2F8EA }
+.ir-al.cero::before { opacity: .45 }
+.ir-al.cero .n { color: #9AA5B1 }
+.ir-reparto { height: 26px }
+.ir-al:not(.cero) .rot, .ir-al:not(.cero) .u, .ir-al:not(.cero) .s { color: var(--fe-gris-panel) }
