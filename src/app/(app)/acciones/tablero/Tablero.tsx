@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Accion, PorArea } from "@/modulos/acciones/datos";
 import { MIN_MEDIR } from "@/modulos/acciones/medir";
+import { Evidencia } from "../Evidencia";
 
 /**
  * EL TABLERO DEL ARRANQUE DE TURNO.
@@ -21,17 +22,34 @@ const dias = (a: Accion) => Math.max(0, Math.floor(-a.horas_restantes / 24));
 const tono = (d: number) => (d >= 10 ? "r" : d >= 6 ? "n" : "a");
 const ini = (n: string) => { const p = n.trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : p[0].slice(0, 2)).toUpperCase() };
 
-export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
+export function Tablero({ acciones, areas, nombres, meta, puedeReportar, puedeEditar, manda }: {
   acciones: Accion[];
   areas: PorArea[];
   nombres: Record<string, string>;
   meta: number;
   puedeReportar: boolean;
+  puedeEditar?: boolean;
+  /** Quien administra: el único que corrige, anula y elimina. */
+  manda?: boolean;
 }) {
   const [reloj, setReloj] = useState("");
   const [dia, setDia] = useState("");
   const [filtro, setFiltro] = useState("todas");
+  /* LA ACCIÓN ABIERTA DESDE EL TABLERO. «Que desde el tablero yo pueda
+     ver en qué estado están, y si la elimino o qué»: se toca el renglón
+     y se abre la misma acción de la lista, con su evidencia, su
+     seguimiento y —si administras— corregir, anular y eliminar. */
+  const [abierta, setAbierta] = useState<Accion | null>(null);
   const caja = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!abierta) return;
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierta(null) };
+    addEventListener("keydown", k); return () => removeEventListener("keydown", k);
+  }, [abierta]);
+  /* Si la acción abierta desaparece o cambia de estado, el panel sigue
+     la versión nueva: al anularla desde adentro, la ficha lo dice. */
+  const viva = abierta ? acciones.find((x) => x.id === abierta.id) ?? null : null;
 
   useEffect(() => {
     const poner = () => {
@@ -161,7 +179,8 @@ export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
               {lista.map((a) => {
                 const d = dias(a); const q = dueno(a);
                 return (
-                  <div className="at-v" key={a.id}>
+                  <button type="button" className="at-v" key={a.id} onClick={() => setAbierta(a)}
+                          title={`Abrir ${a.codigo}`}>
                     <span className="cod">{a.codigo}</span>
                     <span className="que"><b>{a.titulo}</b><small>{a.area_nombre}</small></span>
                     <span className={"at-quien" + (q ? "" : " sin")}>
@@ -169,7 +188,7 @@ export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
                     </span>
                     <span className="barra" aria-hidden><i className={tono(d)} style={{ width: `${Math.max(6, (d / maxD) * 100)}%` }} /></span>
                     <span className={"dd " + tono(d)}><b>{d || "<1"}</b><small>día{d === 1 ? "" : "s"}</small></span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -219,6 +238,39 @@ export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
           </section>
         </div>
       </div>
+
+      {/* LA ACCIÓN, AL CENTRO. La misma ficha de la lista: en qué estado
+          está, quién responde, sus fotos y su seguimiento; y abajo, si
+          administras, corregirla, anularla o eliminarla. */}
+      {viva && (
+        <div className="at-velo" role="dialog" aria-modal="true" aria-label={`${viva.codigo} · ${viva.titulo}`}
+             onClick={() => setAbierta(null)}>
+          <div className="at-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="at-modal-cab">
+              <div>
+                <p className="cod">{viva.codigo} · {viva.area_nombre}</p>
+                <h3>{viva.titulo}</h3>
+                <p className="sub">
+                  <span className={"at-estado " + viva.estado}>{ROT_ESTADO[viva.estado]}</span>
+                  {viva.vencida && viva.viva && <span className="at-estado vencida">Vencida hace {dias(viva)} día{dias(viva) === 1 ? "" : "s"}</span>}
+                  <span>Responde: <b>{dueno(viva) ?? "Sin asignar"}</b></span>
+                  <span>Vence: <b>{new Date(viva.vence_en).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</b></span>
+                </p>
+              </div>
+              <button type="button" className="at-x" onClick={() => setAbierta(null)} aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+              </button>
+            </div>
+            <Evidencia accion={viva} puedeEditar={!!puedeEditar} manda={manda}
+                       areas={areas.map((x) => ({ clave: x.area, nombre: x.area_nombre }))} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const ROT_ESTADO: Record<Accion["estado"], string> = {
+  abierta: "Abierta", reabierta: "Reabierta", cerrada: "Cerrada, sin verificar",
+  verificada: "Verificada", anulada: "Anulada",
+};

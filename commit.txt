@@ -1,21 +1,28 @@
-Acciones: quien administra corrige y elimina · Traspasos: «de o para Arenosa»
+Acciones: abrir la accion desde el tablero; Maestro: buscar por calle
 
-Acciones
-- En el panel de una acción, bloque «Solo administración»:
-  · Corregir la acción — título, descripción, área, prioridad y dónde.
-    Lo que cambia queda escrito en el seguimiento, con quién lo hizo.
-  · Anular con motivo (lo de siempre): se queda a la vista, marcada.
-  · Eliminar: borra la acción con sus fotos y su seguimiento, pregunta
-    antes y deja el rastro en Administración con el motivo y el código.
-- Quien no administra no ve nada de esto.
-- SQL nuevo: 2026-09-acciones-depurar.sql (accion_editar, accion_eliminar).
+TABLERO DE ACCIONES · LA FICHA
+Cada vencida del tablero se abre: sale en que estado esta, quien
+responde, cuando vencia, y debajo la evidencia completa. Para quien
+administra, ahi mismo estan Corregir la accion, Anular y Eliminar, sin
+tener que pasar por «Todas». Se cierra con Escape o tocando por fuera.
 
-Traspasos
-- La pregunta de estibas ahora dice «¿… de o para Arenosa?», y las
-  respuestas explican qué cuenta: sale de Arenosa o va para Arenosa.
+MAESTRO · «FILTRO P Y NO ME SALE LA P»
+Escribir «P» buscaba la letra p DENTRO de la clave y de la familia: 331
+filas, se dibujaban las primeras 60, y las 60 eran de la calle A. Ahora,
+si lo escrito es el nombre de una calle, se busca esa calle y se
+muestran TODAS sus posiciones (no las primeras 60); el selector de calle
+se pone solo en ella para que se vea por que. Escribir algo que no es
+una calle —«P_4»— sigue buscando por clave, pero lo que EMPIEZA por lo
+escrito sale de primero.
 
-Arneses: .arnes/ac-depurar.mjs (pantalla, 1200/390) y
-.arnes/correr-acciones-depurar.sh (Postgres de verdad).
+ARNESES
+- ac-tablero: la ficha abre, trae el estado y Escape la cierra (con
+  dobles de Supabase y del router, que la evidencia los usa).
+- fe-calle (nuevo): monta el maestro de verdad con 430 ubicaciones y
+  comprueba las cinco reglas de arriba, y que a 390 no se salga.
+- fe-maestro: sabia de dos pantallas de inventario y ya son tres («La
+  base»); y marcaba como error un display distinto dentro de un @media,
+  que es responder al ancho, no prestarse el nombre.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

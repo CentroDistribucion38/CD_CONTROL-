@@ -92,19 +92,36 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
     (q === "" || x.codigo.toLowerCase().includes(q) || x.nombre.toLowerCase().includes(q))),
     [bods, q, verInactivos]);
 
-  const ubiFiltradas = useMemo(() => ubicaciones.filter((u) =>
-    (verInactivos || u.activa) &&
-    (fCalle === "" || u.calle === fCalle) &&
-    (q === "" || u.clave.toLowerCase().includes(q) ||
-     (u.familia ?? "").toLowerCase().includes(q))),
-    [ubicaciones, q, verInactivos, fCalle]);
-
   /* Las calles que existen de verdad, en el orden del almacén: las de
      una letra primero (A, B, … P) y después las nombradas (ALAR, EST…). */
   const calles = useMemo(() => {
     const cs = [...new Set(ubicaciones.map((u) => u.calle).filter(Boolean))] as string[];
     return cs.sort((a, b) => (a.length === 1 ? 0 : 1) - (b.length === 1 ? 0 : 1) || a.localeCompare(b, "es", { numeric: true }));
   }, [ubicaciones]);
+
+  /* «FILTRO P Y NO ME SALE LA P». Escribir P es buscar la calle P, no
+     las 331 claves que llevan una «p» en alguna parte —que era lo que
+     pasaba, y las primeras 60 eran todas de la calle A—. Si lo escrito
+     es el nombre de una calle, se busca esa calle y se muestran todas
+     sus posiciones. */
+  const calleEscrita = useMemo(
+    () => (q === "" ? "" : calles.find((c) => c.toLowerCase() === q) ?? ""),
+    [calles, q]);
+
+  const calleUsada = fCalle || calleEscrita;
+
+  const ubiFiltradas = useMemo(() => {
+    const base = ubicaciones.filter((u) =>
+      (verInactivos || u.activa) &&
+      (calleUsada === "" || u.calle === calleUsada));
+    if (q === "" || calleEscrita) return base;
+    const hit = base.filter((u) => u.clave.toLowerCase().includes(q) ||
+                                   (u.familia ?? "").toLowerCase().includes(q));
+    /* Lo que EMPIEZA por lo escrito va primero: buscando «P_4» lo útil
+       no puede quedar debajo de cien claves que solo la contienen. */
+    return [...hit.filter((u) => u.clave.toLowerCase().startsWith(q)),
+            ...hit.filter((u) => !u.clave.toLowerCase().startsWith(q))];
+  }, [ubicaciones, q, verInactivos, calleUsada, calleEscrita]);
 
   function abrir(clave: string, campos: Record<string, string>) {
     setEditando(clave);
@@ -308,7 +325,7 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
               : bods.filter((x) => !x.activo).length;
   /* Con una calle escogida se ven TODAS las suyas: una calle son 60-90
      posiciones y cortarlas en 60 es esconder media calle. */
-  const tope = pestania === "ubicaciones" && fCalle ? 500 : TOPE;
+  const tope = pestania === "ubicaciones" && calleUsada ? 500 : TOPE;
   const mostrados = lista.slice(0, tope);
 
   return (
@@ -335,14 +352,15 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                  placeholder={pestania === "materiales"
                    ? "Código, descripción o familia — 3128, aguila, lata…"
                    : pestania === "ubicaciones"
-                     ? "Clave o familia — A01, EST, RB F1000…"
+                     ? "Calle, clave o familia — P, A01, EST…"
                      : "Código o nombre — CD38…"} />
         </label>
 
         {pestania === "ubicaciones" && calles.length > 1 && (
           <label className="fe-filtro-calle">
             <span>Calle</span>
-            <select value={fCalle} onChange={(e) => setFCalle(e.target.value)}>
+            <select value={calleUsada}
+                    onChange={(e) => { setFCalle(e.target.value); if (calleEscrita) setBusca("") }}>
               <option value="">Todas</option>
               {calles.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -374,7 +392,7 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
           sobre la que alguien puede decidir. */}
       <p className="fe-cuenta">
         {lista.length === total ? <>Los {total}.</> : <>{lista.length} de {total}.</>}
-        {fCalle && <> Calle <b>{fCalle}</b>.</>}
+        {calleUsada && <> Calle <b>{calleUsada}</b>, toda.</>}
         {lista.length > tope && <> Se muestran los primeros {tope} — afina la búsqueda para
           llegar al resto.</>}
       </p>

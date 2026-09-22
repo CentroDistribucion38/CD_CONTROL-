@@ -9,14 +9,25 @@ import { buildSync } from "esbuild";
 const R = (p) => new URL("../" + p, import.meta.url).pathname;
 const fallas = []; const ok = (c, m) => { if (!c) fallas.push(m) };
 
+/* La ficha que abre el tablero monta Evidencia, y Evidencia habla con
+   Supabase y con el router: se les pone un doble. */
+writeFileSync(R(".arnes/_nav-at.ts"), `export const useRouter = () => ({ refresh() {}, push() {}, replace() {} });
+export const useSearchParams = () => new URLSearchParams("");`);
+writeFileSync(R(".arnes/_supa-at.ts"), `export const createClient = () => ({
+  rpc: async (f: string, a: any) => {
+    (window as any).rpcs = [...((window as any).rpcs ?? []), { f, a }];
+    return { error: null };
+  },
+});`);
 writeFileSync(R(".arnes/_at-entrada.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Tablero } from "../src/app/(app)/acciones/tablero/Tablero";
 const w = window as any;
-createRoot(document.getElementById("r")!).render(<Tablero acciones={w.ACC} areas={w.AR} nombres={w.NOM} meta={90} puedeReportar />);
+createRoot(document.getElementById("r")!).render(<Tablero acciones={w.ACC} areas={w.AR} nombres={w.NOM} meta={90} puedeReportar puedeEditar manda />);
 `);
 const js = buildSync({ entryPoints: [R(".arnes/_at-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
-  alias: { "@": R("src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
+  alias: { "next/navigation": R(".arnes/_nav-at.ts"), "@/lib/supabase/client": R(".arnes/_supa-at.ts"), "@": R("src") },
+  define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
 const css = readFileSync(R("src/app/(app)/acciones/acciones.css"), "utf8") + readFileSync(R("src/app/(app)/acciones/tablero/tablero.css"), "utf8");
 const glob = readFileSync(R("src/app/globals.css"), "utf8"), shell = readFileSync(R("src/app/(app)/shell.css"), "utf8");
 
@@ -55,7 +66,9 @@ const AR = [
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await nav.newPage();
-await pg.route("https://control.prueba/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html></html>" }));
+await pg.route("**/*", (r) => r.request().url().includes("/api/acciones/evidencia/")
+  ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fotos: [], hilo: [], nombres: {} }) })
+  : r.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html></html>" }));
 const monta = async (ancho, tema, acc = ACC) => {
   await pg.setViewportSize({ width: ancho, height: 900 });
   await pg.goto("https://control.prueba/acciones/tablero");
@@ -87,6 +100,15 @@ ok((await pg.$$(".at-ar")).length === 4 && (await pg.$$(".at-ar.bien")).length =
 await pg.evaluate(() => { window.__rep = 0; addEventListener("ac:reportar", () => window.__rep++) });
 await pg.click(".at-btn:has-text('Reportar')");
 ok((await pg.evaluate(() => window.__rep)) === 1, "«Reportar» no avisa a la barra");
+/* Desde el tablero se abre la acción: en qué estado está y qué se puede
+   hacer con ella. */
+await pg.click(".at-v >> nth=0");
+await pg.waitForSelector(".at-modal");
+{ const t = await pg.textContent(".at-modal-cab");
+  ok(/AC-101/.test(t) && /(Abierta|Reabierta|Vencida)/.test(t) && /Responde/.test(t),
+     `la ficha no dice cuál es ni en qué estado está: ${t.replace(/\s+/g, " ").slice(0, 160)}`); }
+await pg.keyboard.press("Escape");
+ok(!(await pg.$(".at-modal")), "Escape no cierra la ficha");
 if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/at-1300.png`, fullPage: true });
 
 await monta(1300, null, ACC.filter((a) => !(a.estado === "verificada" && a.efectiva === false)).filter((a, i, l) => a.estado !== "verificada" || l.filter((x) => x.estado === "verificada").indexOf(a) < 1));

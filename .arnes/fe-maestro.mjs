@@ -386,17 +386,18 @@ if (/\b(prompt|confirm|alert)\s*\(/.test(tsx.replace(/\/\*[\s\S]*?\*\//g, "")))
 const pantallas = readdirSync(new URL("../src/app/(app)/inventario/", import.meta.url),
                               { withFileTypes: true })
   .filter((e) => e.isDirectory()).map((e) => e.name).sort();
-if (pantallas.join(",") !== "conteo,maestro")
+if (pantallas.join(",") !== "base,conteo,maestro")
   fallas.push(`bajo /inventario hay pantallas de más: ${pantallas.join(", ")} ` +
-              "— el módulo es maestro, contar y tablero, y nada más");
+              "— el módulo es maestro, contar, la base y tablero, y nada más");
 
 const reg = readFileSync(new URL("../src/modulos/registro.ts", import.meta.url), "utf8");
 const secciones = [...(reg.match(/id: "inventario"[\s\S]*?\n  \},/) ?? [""])[0]
   .matchAll(/ruta: "(\/inventario[^"]*)"/g)].map((m) => m[1]);
-const espera = ["/inventario", "/inventario/maestro", "/inventario/conteo", "/inventario"];
+const espera = ["/inventario", "/inventario/maestro", "/inventario/conteo",
+                "/inventario/base", "/inventario"];
 if (secciones.join(" ") !== espera.join(" "))
   fallas.push(`el menú de Inventario dice [${secciones.join(", ")}] y el proceso es ` +
-              `[${espera.join(", ")}] — la ruta del módulo y luego maestro, contar, tablero`);
+              `[${espera.join(", ")}] — la ruta del módulo y luego maestro, contar, la base, tablero`);
 
 const pes = [...tsx.matchAll(/\["materiales", "ubicaciones", "bodegas"\]/g)];
 if (pes.length === 0)
@@ -414,9 +415,26 @@ if (pes.length === 0)
    es normal y está por toda la hoja—: es que dos bloques con el mismo
    selector NO PUEDEN DECLARAR `display` DISTINTO, porque eso ya no es un
    ajuste, es otro componente con el nombre prestado. */
+/* Solo el nivel de arriba: un `display: none` dentro de un @media es
+   responder al ancho, no prestarse el nombre. Se recortan los bloques
+   @ contando llaves, porque anidan. */
+const sinMedia = (txt) => {
+  let out = "", i = 0;
+  while (i < txt.length) {
+    const a = txt.indexOf("@", i);
+    if (a < 0) { out += txt.slice(i); break }
+    out += txt.slice(i, a);
+    const llave = txt.indexOf("{", a);
+    if (llave < 0) break;
+    let n = 1, j = llave + 1;
+    while (j < txt.length && n > 0) { if (txt[j] === "{") n++; else if (txt[j] === "}") n--; j++ }
+    i = j;
+  }
+  return out;
+};
+
 const cuerpos = new Map();
-for (const [, sel, cuerpo] of fefo
-       .replace(/\/\*[\s\S]*?\*\//g, "")
+for (const [, sel, cuerpo] of sinMedia(fefo.replace(/\/\*[\s\S]*?\*\//g, ""))
        .matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
   const s = sel.trim().replace(/\s+/g, " ");
   if (!s.startsWith(".fe")) continue;

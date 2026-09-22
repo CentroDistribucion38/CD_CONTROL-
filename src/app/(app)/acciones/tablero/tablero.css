@@ -156,3 +156,29 @@
   .at-v .barra { grid-column: 1 / -1; grid-row: 4 }
   .at-v .dd { grid-column: 2; grid-row: 1 / span 3; align-self: center }
 }
+
+/* =====================================================================
+   LA ACCIÓN ABIERTA DESDE EL TABLERO — «que desde el tablero yo pueda
+   ver en qué estado están, y si la elimino o qué». Va al centro, sobre
+   todo: mientras se mira una acción no se mira nada más.
+   ===================================================================== */
+.at-v { text-align: left; width: 100%; background: none; font: inherit; color: inherit; cursor: pointer }
+.at-v:hover { background: #FFFCF0 }
+.at-v:focus-visible { outline: 3px solid var(--c-marca, #FFC000); outline-offset: -3px }
+.at-velo { position: fixed; inset: 0; z-index: 90; background: rgba(8, 14, 24, .5); display: grid; place-items: center; padding: 16px; grid-template-columns: minmax(0, 1fr) }
+.at-modal {
+  justify-self: center; width: min(760px, 100%); max-height: calc(100dvh - 32px); overflow: auto;
+  background: var(--ac-papel); border: 1px solid var(--at-ln); border-radius: 2px;
+}
+.at-modal-cab { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px 14px; border-bottom: 1px solid var(--at-ln) }
+.at-modal-cab .cod { margin: 0; font: 700 10.5px var(--ac-titulo); letter-spacing: .14em; text-transform: uppercase; color: var(--at-gr) }
+.at-modal-cab h3 { margin: 6px 0 0; font: 900 clamp(18px, 2vw, 22px) var(--ac-titulo); letter-spacing: -.02em; overflow-wrap: anywhere }
+.at-modal-cab .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 10px 0 0; font-size: 12.5px; color: var(--at-gr) }
+.at-estado { padding: 5px 9px; border-radius: 2px; font: 800 10px var(--ac-titulo); letter-spacing: .1em; text-transform: uppercase; background: var(--at-fondo); color: var(--ac-tinta) }
+.at-estado.abierta, .at-estado.reabierta { background: #FFF4D1; color: #7A5C00 }
+.at-estado.cerrada { background: #E7EDF6; color: #274060 }
+.at-estado.verificada { background: #E6F4EC; color: var(--at-ok) }
+.at-estado.anulada, .at-estado.vencida { background: #FDEBEB; color: var(--at-mal) }
+.at-x { flex: none; margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center; border: 1.5px solid var(--at-ln); background: var(--ac-papel); border-radius: 2px; cursor: pointer; color: var(--ac-tinta) }
+.at-modal .ev { border: 0 }
+@media (max-width: 700px) { .at-modal-cab { padding: 14px 16px 12px } }
