@@ -15,8 +15,9 @@
 --                       lleva documento): se anula con el motivo
 --                       «No se factura: …», que es lo que queda a la vista.
 --      Solo manda(). Varios a la vez. Motivo obligatorio.
---   2. Un viaje que YA SALIÓ no se anula ni se elimina aquí: primero se
---      reabre la salida (con motivo), que es la puerta que ya existe.
+--   2. También los que YA SALIERON (facturados): al anular se les quita
+--      la salida primero y queda escrito en su rastro con el documento
+--      que tenían; al eliminar, el documento queda en admin_borrados.
 -- Se puede correr dos veces.
 -- =====================================================================
 begin;
@@ -26,7 +27,7 @@ returns integer
 language plpgsql security definer
 set search_path = public
 as $$
-declare n int; v_salidos int; v_codigos text;
+declare n int; v_docs text;
 begin
   if not public.manda() then
     raise exception 'Depurar viajes es solo de quien administra la plataforma';
@@ -39,20 +40,29 @@ begin
     raise exception 'Acción desconocida: %', p_accion;
   end if;
 
-  select count(*), string_agg(coalesce(codigo, placa, id::text), ', ')
-    into v_salidos, v_codigos
-    from public.traspasos_viajes where id = any(p_ids) and salida_en is not null;
-  if v_salidos > 0 then
-    raise exception 'Ya salieron con documento: %. Primero reabre la salida y después lo depuras', v_codigos;
+  /* LO QUE YA SALIÓ TAMBIÉN SE DEPURA, porque quien administra lo pide:
+     primero se le quita la salida —como «reabrir», y queda escrito en su
+     rastro con el documento que tenía— y después se anula. El candado de
+     «lo salido no se toca» sigue para todos los demás. Eliminar no
+     necesita ese paso: se borra entero. */
+  if p_accion <> 'eliminar' then
+    insert into public.traspasos_viajes_ediciones (viaje, editado_por, motivo, antes, despues)
+    select v.id, auth.uid(), 'Depurado desde administración (salida quitada): ' || btrim(p_motivo), to_jsonb(v), '{}'::jsonb
+      from public.traspasos_viajes v where v.id = any(p_ids) and v.salida_en is not null;
+    update public.traspasos_viajes
+       set factura_documento = null, salida_en = null, salida_por = null, salida_historica = false
+     where id = any(p_ids) and salida_en is not null;
   end if;
 
   if p_accion = 'eliminar' then
+    select string_agg(factura_documento, ', ') into v_docs
+      from public.traspasos_viajes where id = any(p_ids) and factura_documento is not null;
     delete from public.traspasos_viajes where id = any(p_ids);
     get diagnostics n = row_count;
     /* El motivo va en el nombre: así sale tal cual en Administración ›
        Inicio sin tocar la tabla ni su vista. */
     insert into public.admin_borrados (clave, nombre, filas)
-    values ('traspasos_depurar', 'Viajes de traspasos (Facturación) · ' || btrim(p_motivo), n);
+    values ('traspasos_depurar', 'Viajes de traspasos · ' || btrim(p_motivo) || coalesce(' · documentos ' || v_docs, ''), n);
   else
     update public.traspasos_viajes
        set estado = 'anulado',

@@ -77,6 +77,47 @@ for (const ancho of [1200, 390, 360]) {
   ok(g.lado <= 0, `${ancho}: la página se arrastra ${g.lado}`); ok(!g.fuera.length, `${ancho}: se sale ${g.fuera}`); ok(!g.chicos.length, `${ancho}: chicos ${g.chicos}`);
   if (process.env.FOTO && ancho === 390) await pg.screenshot({ path: `${process.env.FOTO}/fd-390.png`, fullPage: true });
 }
+
+/* ---------- CONTROL DEL DÍA: los FACTURADOS también se depuran ---------- */
+writeFileSync(R(".arnes/_fd2-entrada.tsx"), `
+import { createRoot } from "react-dom/client";
+import { Diferencias } from "../src/app/(app)/traspasos/control/Diferencias";
+const w = window as any;
+createRoot(document.getElementById("r")!).render(<div className="tp"><Diferencias lineas={[]} hayCorte={false} rotulo="martes, 22 de septiembre de 2026" desde="2026-09-16" hasta="2026-09-17"
+  tope={false} sinDocumento={[]} conDocumento={w.F} nombres={{}} puedeDepurar={w.D} /></div>);
+`);
+const js2 = buildSync({ entryPoints: [R(".arnes/_fd2-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
+  alias: { "@/lib/supabase/client": R(".arnes/_sb-graba.js"), "next/navigation": R(".arnes/stub-nav.js"), "next/link": R(".arnes/ad-inicio-stub/link.tsx"), "@": R("src") },
+  define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
+const css2 = css + readFileSync(R("src/app/(app)/traspasos/cruce/cruce.css"), "utf8");
+const F = [1, 2, 3].map((i) => viaje("f" + i, { codigo: "TR-014" + i, factura_documento: "768784021" + i, salida_en: "2026-09-22T14:00:00Z", por_facturar: false }));
+const monta2 = async (ancho, depura = true) => {
+  await pg.setViewportSize({ width: ancho, height: 900 });
+  await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}${css2}</style></head>
+    <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div id="r"></div></main></div></div>
+    <script>window.F=${JSON.stringify(F)};window.D=${depura};</script><script>${js2}</script></body></html>`);
+  await pg.waitForSelector(".tp-rz-tapa");
+  await pg.click(".tp-rz-tapa >> nth=0");
+};
+await monta2(1200, false);
+ok(!(await pg.$(".cr-sel")), "control: sin permiso salen casillas");
+await monta2(1200);
+ok((await pg.$$("tbody .cr-sel input")).length === 3, "control: no hay casilla por facturado");
+await pg.click("thead .cr-sel input");
+ok(/3\s*seleccionados/.test(await pg.textContent(".fc-dep-n")), "control: seleccionar todos no marca los facturados");
+await pg.fill(".fc-dep-motivo", "Facturado por error");
+await pg.evaluate(() => { window.__rpc = [] });
+await pg.click(".fc-dep-bot .btn.si");
+await pg.waitForFunction(() => window.__rpc?.length === 1, null, { timeout: 3000 }).catch(() => null);
+const ll2 = await pg.evaluate(() => window.__rpc?.[0]);
+ok(ll2?.fn === "traspaso_depurar" && ll2.args.p_accion === "anular" && ll2.args.p_ids.length === 3, `control: llamada ${JSON.stringify(ll2)}`);
+if (process.env.FOTO) { await monta2(1200); await pg.click("tbody .cr-sel input >> nth=0"); await pg.screenshot({ path: `${process.env.FOTO}/fd-control.png`, fullPage: true }) }
+for (const ancho of [390, 360]) {
+  await monta2(ancho); await pg.click("tbody .cr-sel input >> nth=0");
+  const lado = await pg.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  ok(lado <= 0, `control ${ancho}: la página se arrastra ${lado}`);
+}
+
 const lum = (c) => { const k = c.startsWith("color(srgb") ? 1 : 255; const v = c.match(/[\d.]+/g).slice(0, 3).map(Number).map((x) => { x /= k; return x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4 }); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2] };
 const razon = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05) };
 for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {

@@ -1,12 +1,23 @@
-Facturación: la barra de depurar, clara y en el color del tema
+Traspasos › Control: el administrador también depura los facturados
 
-La barra negra de abajo pasa a papel blanco con una raya del acento del
-tema arriba; la acción escogida va en el acento y solo «Eliminar» en
-rojo. El viaje marcado se resalta con el acento en vez de negro.
+En las tablas del control del día (Facturados, Por facturar…) quien
+administra la plataforma marca viajes —uno a uno o todos— y usa la misma
+barra que en Facturación: Anular, No se factura o Eliminar, con motivo.
 
-SQL: ninguno.
+  - Un facturado que se anula pierde la salida primero y el documento
+    que tenía queda en su rastro de ediciones; al eliminarlo, los
+    documentos quedan escritos en Administración › Inicio.
+  - Un usuario normal no ve casillas y la base lo rechaza (manda()).
+  - La barra de depurar vive ahora en un solo componente
+    (traspasos/Depurar.tsx) y su CSS en traspasos.css, para Facturación
+    y Control a la vez.
 
-MEDIDO: .arnes/fc-depurar.mjs (7 temas, 3 anchos) · next build
+SQL (correr en Supabase ANTES del push; reemplaza la versión anterior):
+  supabase/migraciones/2026-09-traspasos-depurar.sql
+
+MEDIDO: .arnes/correr-traspasos-depurar.sh (anular un facturado le
+quita la salida y deja el documento en el rastro) · .arnes/fc-depurar.mjs
+(Facturación y Control) · tp-resumen · tp-control · fc-bandeja · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

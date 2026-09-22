@@ -441,7 +441,8 @@ export default async function ControlPage({ searchParams }: {
         <Diferencias lineas={cruce.lineas} hayCorte={cruce.hayCorte}
                      rotulo={fechaLarga(dia)} desde={cruce.desde} hasta={cruce.hasta}
                      tope={cruce.tope} sinDocumento={cruce.sinDocumento}
-                     conDocumento={cruce.conDocumento} nombres={nombres} />
+                     conDocumento={cruce.conDocumento} nombres={nombres}
+                     puedeDepurar={permisos.manda} />
       )}
 
     </div>

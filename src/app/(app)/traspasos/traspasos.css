@@ -1902,3 +1902,46 @@
      «Averías/Isotanque» deja la casilla en una rendija. */
   .tp .pt-fila { grid-template-columns: minmax(0, 1fr); gap: 4px }
 }
+
+/* =====================================================================
+   DEPURAR VIAJES (solo quien administra) — la casilla y la barra de
+   abajo. Las usan Facturación y el Control del día.
+   ===================================================================== */
+.fc-check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-size: 13.5px; font-weight: 600 }
+.fc-check input { width: 22px; height: 22px; accent-color: var(--tp-tinta); cursor: pointer }
+/* LA BARRA DE DEPURAR, CLARA Y EN EL COLOR DEL TEMA: papel, una raya
+   del acento arriba y la acción escogida en el acento. El rojo queda
+   solo para «Eliminar», que es lo único que no tiene vuelta atrás. */
+.fc-dep { position: sticky; bottom: 10px; z-index: 30 }
+.fc-dep-in {
+  display: grid; grid-template-columns: auto auto minmax(180px, 1fr) auto; gap: 10px 14px; align-items: center;
+  padding: 14px 16px; border-radius: 14px; background: var(--tp-papel); color: var(--tp-tinta);
+  border: 1px solid var(--tp-linea); border-top: 4px solid var(--tp-acento);
+  box-shadow: 0 18px 40px -18px rgba(10, 30, 60, .35);
+}
+.fc-dep-n { margin: 0; font-size: 14px; white-space: nowrap; color: var(--tp-gris) }
+.fc-dep-n b { font: 900 20px var(--tp-titulo); color: var(--tp-tinta) }
+.fc-dep-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--tp-fondo); flex-wrap: wrap }
+.fc-dep-seg button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: none; color: var(--tp-tinta); font: 700 13px var(--tp-texto); cursor: pointer }
+.fc-dep-seg button.on { background: var(--tp-acento); color: var(--tp-sobre-acento) }
+.fc-dep-seg button.peligro.on { background: #C8102E; color: #fff }
+.fc-dep-motivo { min-height: 44px; min-width: 0; padding: 0 12px; border-radius: 9px; border: 1.5px solid var(--tp-linea); background: #fff; color: #12263A; font: 500 14px var(--tp-texto) }
+.fc-dep-motivo:focus { outline: 2px solid var(--tp-acento); outline-offset: 1px; border-color: var(--tp-acento) }
+.fc-dep-bot { display: flex; gap: 8px }
+.fc-dep-bot .btn { min-height: 44px; white-space: nowrap }
+.fc-dep-bot .btn.si.peligro { background: #C8102E; border-color: #C8102E; color: #fff }
+.fc-dep-dice { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--tp-gris) }
+
+@media (max-width: 1000px) {
+  .fc-dep-in { grid-template-columns: auto minmax(0, 1fr) }
+  .fc-dep-motivo, .fc-dep-bot { grid-column: 1 / -1 }
+  .fc-dep-bot .btn { flex: 1 }
+}@media (max-width: 760px) {
+  .fc-dep-in { grid-template-columns: minmax(0, 1fr) }
+  .fc-dep-seg { width: 100% } .fc-dep-seg button { flex: 1 }
+}
+/* La casilla dentro de las tablas del control del día. */
+.tp .cr-tabla .cr-sel { width: 44px; padding-top: 0; padding-bottom: 0 }
+.tp .cr-tabla .cr-sel .fc-check { min-height: 40px }
+.tp .cr-tabla tr.marcado td { background: color-mix(in srgb, var(--tp-acento) 9%, var(--tp-papel)) }
+.tp-rz .fc-dep { margin-top: 14px }

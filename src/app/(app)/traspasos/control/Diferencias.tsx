@@ -53,6 +53,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { LineaCruce, Viaje } from "@/modulos/traspasos/datos";
 import { hora as horaDe, quien } from "@/modulos/traspasos/formato";
+import { Depurar } from "../Depurar";
+import { useAvisos } from "@/components/Aviso";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const dma = (s: string | null) =>
@@ -67,7 +69,7 @@ const ruta = (v: Viaje) =>
 type Abierto = "ok" | "dedazo" | "sindoc" | "falta" | null;
 
 export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
-                              sinDocumento, conDocumento, nombres }: {
+                              sinDocumento, conDocumento, nombres, puedeDepurar = false }: {
   lineas: LineaCruce[];
   hayCorte: boolean;
   rotulo: string;
@@ -77,7 +79,13 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
   sinDocumento: Viaje[];
   conDocumento: Viaje[];
   nombres: Record<string, string>;
+  /** Solo quien administra: marcar viajes (facturados o no) y anularlos o eliminarlos. */
+  puedeDepurar?: boolean;
 }) {
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [avisar, avisos] = useAvisos();
+  const marcar = (id: string) => setSel((x) => { const y = new Set(x); if (y.has(id)) y.delete(id); else y.add(id); return y });
+  const todosLos = (vs: Viaje[], si: boolean) => setSel((x) => { const y = new Set(x); vs.forEach((v) => si ? y.add(v.id) : y.delete(v.id)); return y });
   const faltan = useMemo(() => lineas.filter((l) => l.estado === "falta"), [lineas]);
 
   /* LOS DOS MONTONES DE «CON DOCUMENTO» SALEN DEL CRUCE, no de una
@@ -169,6 +177,14 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
       <table className="cr-tabla">
         <thead>
           <tr>
+            {puedeDepurar && (
+              <th className="cr-sel">
+                <label className="fc-check" title="Seleccionar todos">
+                  <input type="checkbox" checked={vs.length > 0 && vs.every((v) => sel.has(v.id))}
+                         onChange={(e) => todosLos(vs, e.target.checked)} aria-label="Seleccionar todos" />
+                </label>
+              </th>
+            )}
             <th>Viaje</th>
             {conDoc && <th>Documento</th>}
             <th>Turno</th>
@@ -182,7 +198,15 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
         </thead>
         <tbody>
           {vs.map((v) => (
-            <tr key={v.id} className={otroDia.has(clave(v)) ? "ojo" : undefined}>
+            <tr key={v.id} className={[otroDia.has(clave(v)) ? "ojo" : "", sel.has(v.id) ? "marcado" : ""].join(" ").trim() || undefined}>
+              {puedeDepurar && (
+                <td className="cr-sel">
+                  <label className="fc-check">
+                    <input type="checkbox" checked={sel.has(v.id)} onChange={() => marcar(v.id)}
+                           aria-label={`Seleccionar ${v.codigo ?? v.placa ?? "viaje"}`} />
+                  </label>
+                </td>
+              )}
               <td className="cr-doc">{v.codigo ?? "—"}</td>
               {conDoc && (
                 <td>
@@ -210,6 +234,7 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
 
   return (
     <section className="caja tp-rz">
+      {avisos}
       <p className="tp-rz-ojo">TRASPASOS · {rotulo.toUpperCase()}</p>
 
       {/* LA RESPUESTA, EN UNA FRASE Y EN GRANDE. Lo que estaba arriba
@@ -364,6 +389,10 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
             } />
         )}
       </div>
+      {puedeDepurar && sel.size > 0 && (
+        <Depurar ids={[...sel]} viajes={[...sinDocumento, ...conDocumento].filter((v) => sel.has(v.id))}
+                 limpiar={() => setSel(new Set())} listo={(m) => avisar.bien(m)} fallo={(m) => avisar.mal(m)} />
+      )}
     </section>
   );
 }

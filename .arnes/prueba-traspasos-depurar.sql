@@ -31,7 +31,6 @@ begin
   perform set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
   set local role probador;
   begin perform public.traspaso_depurar(array[V1], 'anular', '  '); f := f || ' 2(sin motivo)'; exception when others then null; end;
-  begin perform public.traspaso_depurar(array[V5, V6], 'eliminar', 'x'); f := f || ' 3(eliminó uno que ya salió)'; exception when others then null; end;
   n := public.traspaso_depurar(array[V1, V2], 'anular', 'Duplicado');
   if n <> 2 then f := f || ' 4(anuló ' || n || ')'; end if;
   n := public.traspaso_depurar(array[V3], 'sin_factura', 'viaje interno');
@@ -41,7 +40,13 @@ begin
   if exists (select 1 from public.traspasos_viaje_tipos where viaje_id in (V4, V5)) then f := f || ' 7(quedaron sus tipos)'; end if;
   reset role;
   if not exists (select 1 from public.admin_borrados where clave = 'traspasos_depurar' and filas = 2 and nombre like '%Prueba del patio') then f := f || ' 8(no quedó escrito)'; end if;
-  if (select estado::text from public.traspasos_viajes where id = V6) <> 'registrado' then f := f || ' 9(tocó el salido)'; end if;
+  set local role probador;
+  n := public.traspaso_depurar(array[V6], 'anular', 'Facturado por error');
+  reset role;
+  if n <> 1 or (select estado::text || coalesce(factura_documento, '-') || coalesce(salida_en::text, '-') from public.traspasos_viajes where id = V6) <> 'anulado--'
+    then f := f || ' 9(no anuló el facturado o le dejó la salida)'; end if;
+  if not exists (select 1 from public.traspasos_viajes_ediciones where viaje = V6 and motivo like 'Depurado%' and antes->>'factura_documento' = '123')
+    then f := f || ' 10(no quedó el documento en el rastro)'; end if;
   if f <> '' then raise exception 'FALLA:%', f; end if;
   raise notice 'DEPURAR ok';
 end $p$;
