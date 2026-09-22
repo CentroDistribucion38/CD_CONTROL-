@@ -1,33 +1,12 @@
-Facturación: depurar viajes (solo administración) y código visible · PDF de inventario con logo y colores del tema
+Facturación: la barra de depurar, clara y en el color del tema
 
-TRASPASOS › FACTURACIÓN
-  - El código del viaje (TP-…) sale en cada tarjeta, junto a la placa, y
-    en lo que ya salió.
-  - Solo quien administra la plataforma: casilla en cada viaje,
-    «Seleccionar todos» y una barra abajo con tres acciones, siempre con
-    motivo:
-      · Anular: queda a la vista como anulado; sale de la bandeja y del
-        cumplido.
-      · No se factura: igual, con el motivo «No se factura: …».
-      · Eliminar: se borra de verdad (con sus tipos); pregunta otra vez y
-        queda escrito en Administración › Inicio.
-    Un usuario normal no ve nada de esto y la base lo rechaza aunque lo
-    intente (traspaso_depurar solo responde a manda()). Lo que ya salió
-    con documento no se depura: primero se reabre.
+La barra negra de abajo pasa a papel blanco con una raya del acento del
+tema arriba; la acción escogida va en el acento y solo «Eliminar» en
+rojo. El viaje marcado se resalta con el acento en vez de negro.
 
-INVENTARIO › INFORME PDF
-  - Encabezado como la hoja de rotura: logo Bavaria a la izquierda, qué
-    es a la derecha, sobre blanco, y la cinta de arriba en los colores
-    del tema de quien lo genera (oficial, ámbar, gris…). Las hojas
-    siguientes llevan el sello y el título.
+SQL: ninguno.
 
-SQL (correr en Supabase ANTES del push):
-  supabase/migraciones/2026-09-traspasos-depurar.sql
-
-MEDIDO: .arnes/correr-traspasos-depurar.sh (supervisor no puede, motivo
-obligatorio, anular, no se factura, eliminar con sus tipos, lo salido no
-se toca, queda escrito) · .arnes/fc-depurar.mjs · .arnes/fc-bandeja.mjs ·
-.arnes/inv-riesgo.mjs · next build
+MEDIDO: .arnes/fc-depurar.mjs (7 temas, 3 anchos) · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
