@@ -372,8 +372,13 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
   /* GENERARLE UNA CLAVE NUEVA a una o a varias personas. Las claves salen
      juntas en el panel, UNA vez, y no se guardan en ninguna parte. */
   async function nuevasClaves(ps: Persona[]) {
-    if (ps.some((p) => p.id === yo)) { setMal("Tú estás en la selección: tu clave se cambia en Mi perfil."); return }
-    setMal(null); setBien(null);
+    /* «Seleccionar todos y que exporten las tarjetas»: si tú vas en la
+       selección no se frena todo; se te salta (tu clave se cambia en Mi
+       perfil) y se dice. */
+    const conmigo = ps.some((p) => p.id === yo);
+    ps = ps.filter((p) => p.id !== yo);
+    if (!ps.length) { setMal("Tu clave se cambia en Mi perfil."); return }
+    setMal(null); setBien(conmigo ? "A ti no se te cambió la clave: la tuya se cambia en Mi perfil." : null);
     const filas: Clave[] = [];
     for (const p of ps) { const c = await generarClave(p); if (c) filas.push(c) }
     router.refresh();
@@ -679,6 +684,27 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     } catch { setMal("No se pudo armar la tarjeta.") }
     finally { setArmando(null) }
   }
+  /* TODAS LAS TARJETAS de una vez: en el celular se comparten juntas
+     (WhatsApp las manda en un solo envío); en el PC, un ZIP. */
+  async function todasLasTarjetas(filas: Clave[]) {
+    setArmando("todas"); setMal(null);
+    try {
+      const [{ dibujarTarjeta, bajarBlob }, { zipSync }] = await Promise.all([import("./tarjeta"), import("fflate")]);
+      const colores = coloresTema();
+      const imgs: { nombre: string; b: Blob }[] = [];
+      for (const c of filas) imgs.push({ nombre: `acceso-${c.usuario}.png`,
+        b: await dibujarTarjeta({ ...c, rolNombre: nRol(c.rol), roles, colores, lugar: LUGAR, host: location.host }) });
+      const archivos = imgs.map((x) => new File([x.b], x.nombre, { type: "image/png" }));
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+      if (/Android|iPhone|iPad/i.test(navigator.userAgent) && nav.canShare?.({ files: archivos })) {
+        try { await nav.share({ files: archivos, title: "Accesos a CONTROL" }); return } catch { /* cancelado: se baja */ }
+      }
+      const zip: Record<string, Uint8Array> = {};
+      for (const x of imgs) zip[x.nombre] = new Uint8Array(await x.b.arrayBuffer());
+      bajarBlob(new Blob([zipSync(zip, { level: 0 })], { type: "application/zip" }), `tarjetas-control-${new Date().toISOString().slice(0, 10)}.zip`);
+    } catch { setMal("No se pudieron armar las tarjetas.") }
+    finally { setArmando(null) }
+  }
   async function exportarUsuarios() {
     setArmando("usuarios"); setMal(null);
     try {
@@ -752,7 +778,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       const conmigo = sel.has(yo);
       const acciones: { que: string; dice: string; hacer: () => void; peligro?: boolean; no?: boolean }[] = [
         { que: "Cambiar rol", dice: "Pasarlos a otro rol y ver cómo queda", hacer: () => abrir({ tipo: "rol", ids: [...sel] }) },
-        { que: "Nueva clave", dice: "Una clave provisional para entregar", hacer: () => nuevasClaves(ps), no: conmigo || !!regenerando },
+        { que: "Tarjetas y pases", dice: n === 1 ? "Clave nueva, con su tarjeta y su pase para entregar" : "Clave nueva a cada uno, con sus tarjetas y pases para entregar",
+          hacer: () => nuevasClaves(ps), no: !ps.some((p) => p.id !== yo) || !!regenerando },
         ...(ps.some((p) => !p.activo) ? [{ que: "Activar", dice: "Que vuelvan a poder entrar", hacer: () => lote("activar", [...sel]) }] : []),
         ...(ps.some((p) => p.activo) ? [{ que: "Desactivar", dice: "Que no entren; se puede revertir", hacer: () => lote("desactivar", [...sel]) }] : []),
         { que: "Eliminar", dice: "Borrar la cuenta; quien tiene registros se desactiva", hacer: () => abrir({ tipo: "eliminar", ids: [...sel] }), peligro: true },
@@ -799,6 +826,11 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                 {armando?.startsWith("t:") ? "Armando…" : "Tarjeta para WhatsApp"}
               </button>
             )}
+            {x.filas.length > 1 && (
+              <button type="button" className="btn sec" onClick={() => todasLasTarjetas(x.filas)} disabled={!!armando}>
+                {armando === "todas" ? "Armando…" : `Las ${x.filas.length} tarjetas`}
+              </button>
+            )}
             <button type="button" className="btn sec" onClick={() => bajarPases(x.filas)} disabled={!x.filas.length || !!armando}>
               {armando === "pases" ? "Armando…" : x.filas.length === 1 ? "Pase en Excel" : "Pases en Excel"}
             </button>
@@ -814,25 +846,24 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
               por WhatsApp o correo con el enlace de entrada. */}
           <div className="us-marco us-claves-marco">
             <table className="us-tabla us-tabla-claves">
-              <thead><tr><th>#</th><th>Nombre</th><th>Usuario</th><th>Clave provisional</th><th /><th /></tr></thead>
+              <thead><tr><th className="us-c-num">#</th><th>Nombre</th><th className="us-c-usu">Usuario</th><th>Clave provisional</th><th /></tr></thead>
               <tbody>
                 {x.filas.map((c, i) => (
                   <tr key={c.usuario}>
-                    <td className="apagado">{i + 1}</td>
-                    <td>{c.nombre}<div className="us-rol-bajo">{pastilla(c.rol)}</div></td>
-                    <td><span className="cod">{c.usuario}</span></td>
+                    <td className="apagado us-c-num">{i + 1}</td>
+                    <td>{c.nombre}<div className="us-c-cel cod">{c.usuario}</div><div className="us-rol-bajo">{pastilla(c.rol)}</div></td>
+                    <td className="us-c-usu"><span className="cod">{c.usuario}</span></td>
                     <td><code className="us-clave-cod">{c.clave}</code></td>
-                    <td>
+                    <td><div className="us-c-bot">
                       <button type="button" className="us-pnl-copiar" onClick={() => copiarClaves([c])}
                               aria-label={`Copiar usuario y clave de ${c.nombre}`} title="Copiar">
                         <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" /></svg>
                       </button>
-                    </td>
-                    <td>
                       <button type="button" className="us-pnl-copiar" onClick={() => tarjeta(c)} disabled={!!armando}
                               aria-label={`Tarjeta de acceso de ${c.nombre}, en imagen`} title="Tarjeta para WhatsApp">
                         <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="11" r="2.2" /><path d="M5.5 17c.6-1.9 2-2.8 3.5-2.8s2.9.9 3.5 2.8M15 10h3.5M15 13.5h2.5" /></svg>
                       </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1189,7 +1220,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                     onClick={() => abrir({ tipo: "rol", ids: [...sel] })}>Cambiar rol</button>
             <button type="button" className="btn sec" disabled={enLote || !hayLlave || !!regenerando}
                     onClick={() => nuevasClaves(lista.filter((p) => sel.has(p.id)))}>
-              {regenerando ? "Generando…" : "Nueva clave"}</button>
+              {regenerando ? "Generando…" : "Tarjetas y pases"}</button>
             <button type="button" className="btn sec" disabled={enLote || !hayLlave} onClick={() => lote("activar", [...sel])}>Activar</button>
             <button type="button" className="btn sec" disabled={enLote || !hayLlave} onClick={() => lote("desactivar", [...sel])}>Desactivar</button>
             <button type="button" className="btn sec peligro" disabled={enLote || !hayLlave}

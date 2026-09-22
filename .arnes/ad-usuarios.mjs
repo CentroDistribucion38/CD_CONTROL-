@@ -132,7 +132,7 @@ ok(await pg.isVisible(".us-pnl.menu") && /2 seleccionados/.test(await pg.textCon
    "en el PC, marcar a dos no abre al lado el panel con cuántos van");
 ok(!(await pg.isVisible(".us-lote")), "en el PC sigue saliendo la barra negra además del panel");
 const acc = await pg.$$eval(".us-pnl-acc b", (t) => t.map((x) => x.textContent));
-ok(acc.join("|") === "Cambiar rol|Nueva clave|Desactivar|Eliminar", `el paso 1 no ofrece lo que se puede hacer: ${acc}`);
+ok(acc.join("|") === "Cambiar rol|Tarjetas y pases|Desactivar|Eliminar", `el paso 1 no ofrece lo que se puede hacer: ${acc}`);
 ok(await pg.$eval(".us-cuerpo .us-marco", (t) => t.getBoundingClientRect().right) <= (await pg.$eval(".us-pnl", (e) => e.getBoundingClientRect().left)) + 1,
    "el panel no va al lado de la tabla");
 await accion("Cambiar rol");
@@ -193,7 +193,7 @@ ok(!(await pg.isVisible(".cf-caja")), "eliminar pregunta otra vez después del p
 await monta(1200);
 await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
 await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
-await accion("Nueva clave");
+await accion("Tarjetas y pases");
 await pg.waitForSelector(".us-tabla-claves tbody tr");
 ok((await pg.$$(".us-tabla-claves tbody tr")).length === 2 && /Tolva-02/.test(await pg.textContent(".us-pnl")) && /Tolva-03/.test(await pg.textContent(".us-pnl")),
    "las dos claves no salen juntas en el panel");
@@ -213,6 +213,8 @@ await pg.click(".us-pnl-pie .btn:has-text('Copiar las dos')");
 await pg.waitForTimeout(150);
 const dos = await pg.evaluate(() => navigator.clipboard.readText());
 ok(dos.split("\n").length === 3 && /Tolva-02/.test(dos), `«Copiar las dos» no copia las dos: ${JSON.stringify(dos)}`);
+{ const [z] = await Promise.all([pg.waitForEvent("download"), pg.click(".us-pnl-pie .btn:has-text('Las 2 tarjetas')")]);
+  ok(/tarjetas-control-.*\.zip$/.test(z.suggestedFilename()), "las tarjetas no se bajan juntas en un ZIP"); }
 await pg.click(".us-tabla-claves tbody tr:first-child .us-pnl-copiar");
 await pg.waitForTimeout(150);
 ok(/^u2\tTolva-02$/.test(await pg.evaluate(() => navigator.clipboard.readText())), "el botón de copiar de una fila no copia esa clave");
@@ -267,7 +269,7 @@ for (const ancho of [1200, 390, 360]) {
   await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
   for (const [boton, antes] of [["Cambiar rol", async () => pg.click(".us-pnl-ro:has-text('Portero')")],
                                 ["Eliminar", async () => pg.fill(".us-pnl-conf input", "ELIMINAR")],
-                                ["Nueva clave", async () => {}]]) {
+                                ["Tarjetas y pases", async () => {}]]) {
     await accion(boton);
     await pg.waitForSelector(".us-pnl");
     await antes();
@@ -292,7 +294,7 @@ for (const ancho of [1200, 390, 360]) {
     if (ancho >= 1200) ok(q.alLado, `${ancho} px, panel «${boton}»: no va al lado de la tabla`);
     else ok(q.ancho >= ancho - 40, `${ancho} px: el panel no ocupa el ancho (${q.ancho})`);
     if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/us-${boton.replace(" ", "")}-${ancho}.png` });
-    if (boton === "Nueva clave") await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
+    if (boton === "Tarjetas y pases") await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
     else await pg.click(".us-pnl-x");
     await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
     await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');

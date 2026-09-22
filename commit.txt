@@ -1,22 +1,12 @@
-Exportables con diseño: consolidado de inventario, pases de acceso y usuarios en Excel, tarjeta en imagen
+Usuarios: QR centrado en el pase y tarjetas para todos los seleccionados
 
-Inventario
-- Se escogen qué FEFO del día entran en el consolidado.
-- Resumen con el diseño gris claro: banda, sello de la B, avance del
-  conteo, tarjetas, franjas con barrita, recorridos, cuadre de cajas y
-  aviso con vínculo a Validar. Colores del tema de quien exporta.
-- Hojas de datos con la misma banda, encabezado en la tinta del tema y
-  vínculo de vuelta al resumen; se conservan área de impresión y títulos.
-
-Usuarios
-- Pases en Excel al crear o dar clave nueva: un pase por persona con
-  sello, rol, usuario, clave y QR de la entrada, tres por hoja para
-  recortar; hoja Lista de respaldo con la clave y el rol en colores vivos.
-- Tarjeta de acceso en imagen para WhatsApp (se comparte en el celular).
-- Exportar Excel de la gente: cifras, rol, estado, clave, último
-  ingreso, registros y hoja por rol, con el filtro que haya.
-- El rol se ve como pastilla de color vivo en la tabla y en las claves.
-- Nueva dependencia: qrcode-generator.
+- El QR y el sello del pase se ubican en píxeles: el QR queda centrado
+  en el talón (antes quedaba pegado a la izquierda en Excel).
+- «Tarjetas y pases» con varios seleccionados: clave nueva a cada uno y,
+  en el panel, «Las N tarjetas» (ZIP en el PC, compartir en el celular)
+  y «Pases en Excel». Si tú vas en la selección, se te salta y se avisa.
+- La ventana de las claves no se sale en el celular: la tabla se acomoda
+  y los botones bajan de renglón.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

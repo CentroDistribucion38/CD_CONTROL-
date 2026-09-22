@@ -43,6 +43,16 @@ const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "so
 const letra = (size: number, color: string, bold = false, extra: Partial<ExcelJS.Font> = {}): Partial<ExcelJS.Font> =>
   ({ name: "Calibri", size, bold, color: { argb: color }, ...extra });
 const MONO = "Consolas";
+/** Dónde va una imagen, EN PÍXELES desde la esquina de una celda. Con
+ *  columnas fraccionarias exceljs mide el corrimiento en una unidad que
+ *  no es la de Excel y la imagen queda pegada a la izquierda («el cuadro
+ *  del QR está descuadrado»). col y fila empiezan en 0. */
+const EMU = 9525;
+const en = (col: number, dx: number, fila: number, dy: number) =>
+  ({ nativeCol: col, nativeColOff: Math.round(dx * EMU), nativeRow: fila, nativeRowOff: Math.round(dy * EMU) }) as unknown as ExcelJS.Anchor;
+/** Ancho en píxeles de una columna de Excel (Calibri 11). */
+const pxCol = (ancho: number) => Math.trunc(ancho * 7 + 5);
+const pxFila = (pt: number) => pt * 4 / 3;
 const hoy = (d: Date) => d.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 /** El QR de la entrada como GIF: exceljs lo pega sin canvas, en el
@@ -58,7 +68,7 @@ function cabecera(h: ExcelJS.Worksheet, P: Paleta, sello: number | null, titulo:
   h.getRow(1).height = 6;
   for (let c = 1; c <= ancho; c++) h.getCell(1, c).fill = relleno(P.BANDA);
   h.getRow(2).height = 9.75; h.getRow(3).height = 30; h.getRow(4).height = 16; h.getRow(5).height = 9.75;
-  if (sello != null) h.addImage(sello, { tl: { col: 1.08, row: 2.02 }, ext: { width: 40, height: 40 } });
+  if (sello != null) h.addImage(sello, { tl: en(1, 4, 2, 0), ext: { width: 40, height: 40 } });
   const t = h.getCell(3, 3); t.value = titulo; t.font = letra(18, P.TINTA, true); t.alignment = { vertical: "middle" };
   const s = h.getCell(4, 3); s.value = sub; s.font = letra(9.5, P.GRIS);
 }
@@ -117,7 +127,8 @@ export async function armarPases(o: {
   L.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true };
 
   /* ---------- PASES: uno por persona, tres por hoja ---------- */
-  H.columns = [3, 11, 10, 13, 10, 11, 10, 2, 12, 11, 3].map((w) => ({ width: w }));
+  const ANCHOS = [3, 11, 10, 13, 10, 11, 10, 2, 12, 11, 3];
+  H.columns = ANCHOS.map((w) => ({ width: w }));
   H.views = [{ showGridLines: false }];
   const pintar = (f: number, c1: number, c2: number, argb: string) => { for (let c = c1; c <= c2; c++) H.getCell(f, c).fill = relleno(argb) };
   const unir = (f1: number, c1: number, f2: number, c2: number) => H.mergeCells(f1, c1, f2, c2);
@@ -137,7 +148,9 @@ export async function armarPases(o: {
     for (let f = r0; f <= r0 + 7; f++) { pintar(f, 2, 7, BLANCO); pintar(f, 9, 10, BLANCO) }
     /* la franja de arriba: banda, sello, CONTROL y el rol */
     pintar(r0, 2, 5, P.BANDA); pintar(r0 + 1, 2, 5, P.BANDA);
-    if (sello != null) H.addImage(sello, { tl: { col: 1.2, row: r0 - 1 + 0.18 }, ext: { width: 36, height: 36 } });
+    /* el sello, centrado en la franja (dos filas) */
+    const franja = pxFila(ALTOS[0] + ALTOS[1]);
+    if (sello != null) H.addImage(sello, { tl: en(1, 10, r0 - 1, (franja - 38) / 2), ext: { width: 38, height: 38 } });
     unir(r0, 3, r0, 5); pon(r0, 3, "CONTROL", letra(16, P.TINTA, true), { vertical: "bottom" });
     unir(r0 + 1, 3, r0 + 1, 5); pon(r0 + 1, 3, `PASE DE ACCESO · ${o.lugar.toUpperCase()}`, letra(8.5, P.HONDO, true), { vertical: "top" });
     unir(r0, 6, r0 + 1, 7);
@@ -162,7 +175,12 @@ export async function armarPases(o: {
     pintar(r0 + 7, 2, 7, P.SUAVE);
     /* el talón: QR y la dirección, del otro lado de la línea punteada */
     for (let f = r0; f <= r0 + 7; f++) H.getCell(f, 9).border = { left: { style: "dashed", color: { argb: "FFB5B5B0" } } };
-    H.addImage(qrId, { tl: { col: 8.35, row: r0 - 1 + 0.25 }, ext: { width: 104, height: 104 } });
+    /* el QR, centrado en el talón: a lo ancho de I:J y a lo alto de las
+       seis filas de arriba */
+    const anchoTalon = pxCol(ANCHOS[8]) + pxCol(ANCHOS[9]);
+    const altoTalon = pxFila(ALTOS.slice(0, 6).reduce((a, b) => a + b, 0));
+    const lado = Math.min(128, altoTalon - 12, anchoTalon - 20);
+    H.addImage(qrId, { tl: en(8, (anchoTalon - lado) / 2, r0 - 1, (altoTalon - lado) / 2 + 4), ext: { width: lado, height: lado } });
     unir(r0 + 6, 9, r0 + 6, 10); pon(r0 + 6, 9, "ESCANEA Y ENTRA", letra(9, P.TINTA, true), { horizontal: "center", vertical: "bottom" });
     unir(r0 + 7, 9, r0 + 7, 10); pon(r0 + 7, 9, host, letra(7.5, P.GRIS), { horizontal: "center", vertical: "top" });
     if ((i + 1) % 3 === 0 && i + 1 < o.pases.length) H.getRow(r0 + 8).addPageBreak();

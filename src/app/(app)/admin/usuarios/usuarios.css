@@ -783,3 +783,24 @@
   font: 800 10.5px/1.3 var(--rl-texto); letter-spacing: .09em; text-transform: uppercase; white-space: nowrap;
 }
 .us .us-rol-bajo { margin-top: 4px }
+/* La ventana de las claves nunca se sale de la pantalla: la tabla se
+   desliza por dentro y los botones bajan de renglón (en el celular, con
+   la columna de la tarjeta, el velo crecía a lo ancho de la tabla). */
+.us-modal-velo { grid-template-columns: minmax(0, 1fr) }
+.us-modal { min-width: 0; justify-self: center }
+.us-modal .us-pnl { min-width: 0; max-width: 100% }
+.us-modal .us-claves-marco { max-width: 100%; overflow-x: auto }
+@media (max-width: 560px) { .us-modal .us-pnl-pie .btn, .us-modal .us-pnl-pie .btn.sec { flex: 1 1 calc(50% - 8px); padding: 0 10px; font-size: 14px } }
+.us-modal .us-c-bot { display: flex; gap: 6px; justify-content: flex-end }
+.us-modal .us-c-cel { display: none }
+@media (max-width: 560px) {
+  .us .us-tabla-claves, .us-modal .us-tabla-claves { min-width: 0 }
+  .us-modal .us-c-num, .us-modal .us-c-usu { display: none }
+  .us-modal .us-c-cel { display: block; margin-top: 2px; font-size: 12.5px }
+  .us-modal .us-tabla-claves td, .us-modal .us-tabla-claves th { padding: 8px 6px }
+  .us-modal .us-clave-cod { font-size: 14px; padding: 3px 5px; letter-spacing: .02em }
+  .us-modal .us-tabla-claves th { white-space: normal; letter-spacing: .04em }
+  .us-modal .us-tabla-claves td:first-child { overflow-wrap: anywhere }
+  .us-modal .us-c-bot { flex-direction: column }
+  .us-modal .us-pnl-pie .btn:not(.sec) { flex-basis: 100% }
+}
