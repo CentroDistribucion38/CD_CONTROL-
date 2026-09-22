@@ -22,6 +22,21 @@ import { createClient } from "@/lib/supabase/client";
 import { normalizarUsuario } from "@/lib/auth";
 import { useConfirmar } from "@/components/Confirmar";
 import { PanelLado, Ini, Aviso } from "./PanelLado";
+import { leerPaleta } from "../../inventario/informe";
+import { colorRol, type ColoresLibro } from "@/modulos/admin/colores-rol";
+
+/* Lo que va en los pases y en la tarjeta: el CD y la bodega, como la
+   cabecera de la app. */
+const LUGAR = "CD38 · bodega Ag01";
+/** Los colores del tema de quien exporta: la tinta y el de la banda. */
+function coloresTema(): ColoresLibro {
+  const P = leerPaleta(document.querySelector(".us"));
+  const hx = (c: number[]) => c.map((v) => v.toString(16).padStart(2, "0")).join("");
+  return { tinta: hx(P.tinta), banda: hx(P.cinta[1]?.[1] ?? P.acento) };
+}
+async function sello(): Promise<ArrayBuffer | null> {
+  return fetch("/marca/logo-b.png").then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+}
 
 type Persona = {
   id: string; usuario: string | null; nombre: string | null; rol: string;
@@ -180,7 +195,7 @@ type Estado = "todos" | "activos" | "inactivos" | "provisional" | "nunca";
 type Orden = "nombre" | "ingreso" | "rol" | "registros";
 type Resultado = { nombre: string; usuario: string; ok: boolean; clave?: string; error?: string };
 /** Una clave lista para entregar. */
-type Clave = { nombre: string; usuario: string; clave: string };
+type Clave = { nombre: string; usuario: string; clave: string; rol: string };
 /** Lo que está abierto en el panel de la derecha. */
 type Panel =
   | { tipo: "menu" }
@@ -344,7 +359,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
        poder entrar y sin que nadie sepa con qué. */
     if (j.clave) {
       if (!r.ok) setMal(j.error ?? null);
-      return { usuario: j.usuario || p.usuario || "", nombre: j.nombre || p.nombre || j.usuario || "", clave: j.clave };
+      return { usuario: j.usuario || p.usuario || "", nombre: j.nombre || p.nombre || j.usuario || "", clave: j.clave, rol: p.rol };
     }
     setMal(!r.ok ? (j.error ?? "No se pudo generar la clave.")
       /* 200 con el cuerpo vacío: Vercel corta la respuesta a mitad. Y la
@@ -492,7 +507,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       );
     }
     abrir({ tipo: "claves", titulo: "Usuario creado", rol,
-            filas: [{ usuario: j.usuario, nombre: j.nombre || j.usuario, clave: j.clave }], fallas: [] });
+            filas: [{ usuario: j.usuario, nombre: j.nombre || j.usuario, clave: j.clave, rol }], fallas: [] });
     setAbierto(false);
     limpiar();
     router.refresh();
@@ -615,7 +630,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       if (!rs.length) return;
     }
     abrir({ tipo: "claves", titulo: `${rs.filter((x) => x.ok).length} de ${personas.length} usuarios creados`,
-            filas: rs.filter((x) => x.ok).map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? "" })),
+            filas: rs.filter((x) => x.ok).map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? "", rol: rolVarios })),
             fallas: rs.filter((x) => !x.ok), rol: rolVarios });
     if (!corte) { setTexto(""); setVarios(false) }
   }
@@ -636,15 +651,60 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       () => setBien(filas.length === 1 ? `Copiada la de ${filas[0].nombre}.` : "Copiadas: pégalas en Excel o en un chat."),
       () => setMal("No se pudo copiar."));
   }
-  function bajarClaves(filas: Clave[], rolNombre: string) {
-    const f = [["Nombre", "Usuario", "Clave provisional", "Rol"], ...filas.map((x) => [x.nombre, x.usuario, x.clave, rolNombre])];
-    const csv = "\ufeff" + f.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    a.download = `claves-provisionales-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  /* LOS EXPORTABLES CON DISEÑO. «Nada puede descargarse así horrible»:
+     los pases en Excel (para imprimir y recortar, con QR), la tarjeta en
+     imagen (para WhatsApp) y la lista de la gente. Todo con el sello y
+     los colores del tema; se arma aquí porque las claves solo existen
+     aquí. exceljs se carga al pedirlo, no con la página. */
+  const [armando, setArmando] = useState<string | null>(null);
+  async function bajarPases(filas: Clave[]) {
+    setArmando("pases"); setMal(null);
+    try {
+      const [{ armarPases }, { bajarBlob }, logo] = await Promise.all([import("@/modulos/admin/libro-accesos"), import("./tarjeta"), sello()]);
+      const buf = await armarPases({
+        pases: filas.map((c) => ({ ...c, rolNombre: nRol(c.rol) })), roles, url: `${location.origin}/login`,
+        lugar: LUGAR, sello: logo, colores: coloresTema(),
+      });
+      bajarBlob(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+        `pases-control-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch { setMal("No se pudieron armar los pases.") }
+    finally { setArmando(null) }
   }
+  async function tarjeta(c: Clave) {
+    setArmando("t:" + c.usuario); setMal(null);
+    try {
+      const { dibujarTarjeta, entregarTarjeta } = await import("./tarjeta");
+      const b = await dibujarTarjeta({ ...c, rolNombre: nRol(c.rol), roles, colores: coloresTema(), lugar: LUGAR, host: location.host });
+      await entregarTarjeta(b, `acceso-${c.usuario}.png`);
+    } catch { setMal("No se pudo armar la tarjeta.") }
+    finally { setArmando(null) }
+  }
+  async function exportarUsuarios() {
+    setArmando("usuarios"); setMal(null);
+    try {
+      const [{ armarUsuarios }, { bajarBlob }, logo] = await Promise.all([import("@/modulos/admin/libro-accesos"), import("./tarjeta"), sello()]);
+      const filtro = [q.trim() && `búsqueda «${q.trim()}»`, fRol && `rol ${nRol(fRol)}`, fEstado !== "todos" && `estado: ${fEstado}`].filter(Boolean).join(" · ");
+      const buf = await armarUsuarios({
+        gente: visibles.map((p) => ({
+          nombre: p.nombre || p.usuario || "—", usuario: p.usuario ?? "", rol: p.rol, rolNombre: nRol(p.rol),
+          activo: p.activo, provisional: p.clave_provisional, ingreso: ingresos?.[p.id] ?? null,
+          registros: registros ? (registros[p.id] ?? 0) : null, aMano: Object.keys(p.permisos_extra ?? {}).length,
+        })),
+        roles: roles.map((r) => ({ ...r, pantallas: cuantasPantallas(r.clave) })),
+        quien: lista.find((p) => p.id === yo)?.nombre || "—", filtro: filtro || undefined, sello: logo, colores: coloresTema(),
+      });
+      bajarBlob(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+        `usuarios-control-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch { setMal("No se pudo armar el Excel de usuarios.") }
+    finally { setArmando(null) }
+  }
+  /** El rol como pastilla de color vivo, igual que en los exportables. */
+  const pastilla = (clave: string) => {
+    const r = roles.find((x) => x.clave === clave);
+    const c = colorRol(clave, roles);
+    const st = r?.manda ? { background: "var(--c-04203f)", color: "var(--c-marca)" } : { background: "#" + c.fondo, color: "#" + c.letra };
+    return <span className="us-rol" style={st}>{nRol(clave)}</span>;
+  };
 
   const puede = nombre.trim().length >= 3 && usuario.length >= 3 && !!rol && libre === true;
   /* LO QUE DA CADA ROL, indexado una vez. La tabla llega plana —una
@@ -734,11 +794,14 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
             <button type="button" className="btn sec" onClick={() => copiarClaves(x.filas)} disabled={!x.filas.length}>
               {x.filas.length === 1 ? "Copiar" : x.filas.length === 2 ? "Copiar las dos" : `Copiar las ${x.filas.length}`}
             </button>
-            {/* El Excel es para un lote de creados; para una o dos claves
-                sobra un botón y en el celular no caben tres. */}
-            {x.filas.length > 2 && (
-              <button type="button" className="btn sec" onClick={() => bajarClaves(x.filas, nRol(x.rol ?? ""))}>Bajar Excel</button>
+            {x.filas.length === 1 && (
+              <button type="button" className="btn sec" onClick={() => tarjeta(x.filas[0])} disabled={!!armando}>
+                {armando?.startsWith("t:") ? "Armando…" : "Tarjeta para WhatsApp"}
+              </button>
             )}
+            <button type="button" className="btn sec" onClick={() => bajarPases(x.filas)} disabled={!x.filas.length || !!armando}>
+              {armando === "pases" ? "Armando…" : x.filas.length === 1 ? "Pase en Excel" : "Pases en Excel"}
+            </button>
             <button type="button" className="btn sec" onClick={volver}>Listo</button>
           </>}>
           <Aviso tono="amb">
@@ -751,18 +814,24 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
               por WhatsApp o correo con el enlace de entrada. */}
           <div className="us-marco us-claves-marco">
             <table className="us-tabla us-tabla-claves">
-              <thead><tr><th>#</th><th>Nombre</th><th>Usuario</th><th>Clave provisional</th><th /></tr></thead>
+              <thead><tr><th>#</th><th>Nombre</th><th>Usuario</th><th>Clave provisional</th><th /><th /></tr></thead>
               <tbody>
                 {x.filas.map((c, i) => (
                   <tr key={c.usuario}>
                     <td className="apagado">{i + 1}</td>
-                    <td>{c.nombre}</td>
+                    <td>{c.nombre}<div className="us-rol-bajo">{pastilla(c.rol)}</div></td>
                     <td><span className="cod">{c.usuario}</span></td>
                     <td><code className="us-clave-cod">{c.clave}</code></td>
                     <td>
                       <button type="button" className="us-pnl-copiar" onClick={() => copiarClaves([c])}
                               aria-label={`Copiar usuario y clave de ${c.nombre}`} title="Copiar">
                         <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" /></svg>
+                      </button>
+                    </td>
+                    <td>
+                      <button type="button" className="us-pnl-copiar" onClick={() => tarjeta(c)} disabled={!!armando}
+                              aria-label={`Tarjeta de acceso de ${c.nombre}, en imagen`} title="Tarjeta para WhatsApp">
+                        <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="11" r="2.2" /><path d="M5.5 17c.6-1.9 2-2.8 3.5-2.8s2.9.9 3.5 2.8M15 10h3.5M15 13.5h2.5" /></svg>
                       </button>
                     </td>
                   </tr>
@@ -949,6 +1018,10 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
             <button type="button" className="btn sec" disabled={!hayLlave}
                     onClick={() => { setVarios((v) => !v); setAbierto(false) }}>
               {varios ? "Cerrar" : "Crear varios"}
+            </button>
+            <button type="button" className="btn sec" onClick={exportarUsuarios} disabled={!visibles.length || !!armando}
+                    title="La lista de abajo, con su filtro, en un Excel con el logo y los roles">
+              {armando === "usuarios" ? "Armando…" : "Exportar Excel"}
             </button>
           </div>
         </div>
@@ -1176,7 +1249,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                             <option key={r.clave} value={r.clave}>{r.nombre}</option>
                           ))}
                         </select>
-                      ) : nRol(p.rol)}
+                      ) : pastilla(p.rol)}
                       {/* LAS PANTALLAS SUELTAS, debajo de su rol: es de lo que
                           se desvían. La cuenta, no la lista —la lista completa
                           está a un clic, en el editor—. */}

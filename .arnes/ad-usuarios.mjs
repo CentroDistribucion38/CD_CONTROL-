@@ -249,8 +249,8 @@ await pg.waitForTimeout(200);
 const copiado = await pg.evaluate(() => navigator.clipboard.readText());
 ok(copiado.split("\n").length === 4 && /gvilla\t100000/.test(copiado) && !/aperez2|mperez\t/.test(copiado.split("\n").find((l) => l.includes("mperez")) ? "x" : "")
    , `«Copiar todo» no copia una fila por clave creada: ${JSON.stringify(copiado)}`);
-const [d] = await Promise.all([pg.waitForEvent("download"), pg.click(".us-pnl-pie .btn:has-text('Bajar')")]);
-ok(/claves-provisionales-.*\.csv$/.test(d.suggestedFilename()), "el CSV no se baja con nombre");
+const [d] = await Promise.all([pg.waitForEvent("download"), pg.click(".us-pnl-pie .btn:has-text('Pases en Excel')")]);
+ok(/pases-control-.*\.xlsx$/.test(d.suggestedFilename()), "los pases no se bajan en Excel");
 
 /* 6 · ANCHOS */
 for (const ancho of [1200, 390, 360]) {

@@ -37,20 +37,28 @@ export async function GET(req: Request) {
     .eq("bodega_id", bodega.id).eq("fecha_analisis", fecha).eq("estado", "cerrado")
     .order("enviado_en", { ascending: true }).limit(200);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  const conteos = (c ?? []) as ConteoFefo[];
-  if (!conteos.length) return NextResponse.json({ error: `El ${fecha} no tiene recorridos enviados.` }, { status: 404 });
+  /* ?ids=a,b: solo los FEFO que se marcaron. Se cruzan con los del día:
+     un id de otro día o sin enviar no entra aunque llegue en la URL. */
+  const ids = (new URL(req.url).searchParams.get("ids") ?? "").split(",").filter((x) => /^[0-9a-f-]{36}$/i.test(x));
+  const delDia = (c ?? []) as ConteoFefo[];
+  const conteos = ids.length ? delDia.filter((x) => ids.includes(x.id)) : delDia;
+  if (!conteos.length) return NextResponse.json({ error: ids.length ? "Ninguno de los FEFO escogidos es de ese día." : `El ${fecha} no tiene recorridos enviados.` }, { status: 404 });
 
   const { data: l } = await supabase.from("v_conteo_fefo").select("*")
     .in("conteo_id", conteos.map((x) => x.id)).limit(20000);
   const { data: yo } = await supabase.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle();
-  const logo = await readFile(path.join(process.cwd(), "public", "marca", "logo-bavaria.png")).catch(() => null);
+  /* El sello de la B, como el resumen que se escogió; los colores del
+     tema de quien exporta (si no llegan o no son un color, los de la marca). */
+  const logo = await readFile(path.join(process.cwd(), "public", "marca", "logo-b.png")).catch(() => null);
+  const q = new URL(req.url).searchParams, esHex = (x: string | null) => !!x && /^[0-9a-f]{6}$/i.test(x);
+  const colores = esHex(q.get("tinta")) && esHex(q.get("banda")) ? { tinta: q.get("tinta")!, banda: q.get("banda")! } : undefined;
 
   const archivo = await armarLibroDia({
     fecha, bodega: bodega.codigo, quien: yo?.nombre || yo?.usuario || "—",
     conteos, lineas: (l ?? []) as Renglon[], materiales: m.materiales,
-    ubicaciones: m.ubicaciones.filter((u) => u.bodega_id === bodega.id), logo,
+    ubicaciones: m.ubicaciones.filter((u) => u.bodega_id === bodega.id), logo, colores, totalDelDia: delDia.length,
   });
-  const nombre = `inventario-consolidado-${bodega.codigo}-${fecha}.xlsx`;
+  const nombre = `inventario-consolidado-${bodega.codigo}-${fecha}${conteos.length < delDia.length ? `-${conteos.length}de${delDia.length}` : ""}.xlsx`;
   return new NextResponse(new Uint8Array(archivo), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

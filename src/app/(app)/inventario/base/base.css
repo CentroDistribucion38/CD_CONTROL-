@@ -290,3 +290,23 @@
   .fe .ba-conso { grid-template-columns: minmax(0, 1fr) }
   .fe .ba-conso-acc label, .fe .ba-conso-acc select, .fe .ba-conso-acc .btn { flex: 1 1 100%; width: 100% }
 }
+
+/* Los FEFO del día, para escoger cuáles entran. */
+.fe .ba-conso-fefos { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--fe-linea) }
+.fe .ba-conso-fefos-cab { margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px }
+.fe .ba-conso-fefos-cab span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .ba-conso-todos { min-height: 36px; padding: 0 10px; border: 1px solid var(--fe-linea); border-radius: 3px; background: #fff; color: var(--fe-tinta); font: 700 12.5px var(--fe-texto); cursor: pointer }
+.fe .ba-conso-fefo {
+  display: grid; grid-template-columns: 24px auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; min-height: 46px;
+  padding: 6px 12px; border: 1.5px solid var(--fe-linea); border-radius: 4px; background: #fff; cursor: pointer; color: var(--fe-gris);
+}
+.fe .ba-conso-fefo input { width: 20px; height: 20px; accent-color: var(--fe-tinta); cursor: pointer }
+.fe .ba-conso-fefo b { font: 800 14px var(--fe-titulo); color: var(--fe-tinta) }
+.fe .ba-conso-fefo span { font-size: 13px; min-width: 0 }
+.fe .ba-conso-fefo em { font-style: normal; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap }
+.fe .ba-conso-fefo.on { border-color: var(--fe-tinta); background: color-mix(in srgb, var(--fe-acento) 7%, #fff) }
+.fe .ba-conso-fefo:not(.on) b { color: var(--fe-gris); text-decoration: line-through }
+@media (max-width: 760px) {
+  .fe .ba-conso-fefo { grid-template-columns: 24px minmax(0, 1fr) }
+  .fe .ba-conso-fefo span, .fe .ba-conso-fefo em { grid-column: 2 }
+}

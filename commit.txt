@@ -1,28 +1,22 @@
-Inventario › La base: el consolidado del día en un Excel con logo, listo para validar
+Exportables con diseño: consolidado de inventario, pases de acceso y usuarios en Excel, tarjeta en imagen
 
-En La base, arriba: «Consolidado del día · Excel». Se escoge el día y
-se baja un libro armado en el servidor con los recorridos ENVIADOS de
-ese día — de cada ubicación vale el último recorrido que pasó por ella
-(una calle caminada dos veces no se suma dos veces).
+Inventario
+- Se escogen qué FEFO del día entran en el consolidado.
+- Resumen con el diseño gris claro: banda, sello de la B, avance del
+  conteo, tarjetas, franjas con barrita, recorridos, cuadre de cajas y
+  aviso con vínculo a Validar. Colores del tema de quien exporta.
+- Hojas de datos con la misma banda, encabezado en la tinta del tema y
+  vínculo de vuelta al resumen; se conservan área de impresión y títulos.
 
-Seis hojas, con el logo, la cinta dorada y los colores de la app:
-  - Resumen: cajas, unidades, estibas, renglones, ubicaciones,
-    materiales, sin contar y por validar; riesgo de vencimiento por
-    franja; los recorridos que entran.
-  - Base: renglón por renglón (26 columnas), filtro, encabezado y
-    código fijos, franja pintada y totales que siguen al filtro.
-  - Por material y Por ubicación (ocupación contra la capacidad).
-  - Validar: repetidos, sin fecha, vencidos, pasados de salida, código
-    fuera del maestro, sin unidades por caja, avería/PNC, sobre
-    capacidad y lo reemplazado por un recorrido posterior; con columna
-    «Revisado ✓» para ir marcando.
-  - Sin contar: las posiciones activas que ese día nadie caminó.
-
-SQL: ninguno.
-
-MEDIDO: .arnes/inv-libro.mjs (arma el libro con datos de prueba, lo abre
-con openpyxl y LibreOffice: hojas, logo, base sin duplicar, totales,
-validaciones, sin contar) · .arnes/inv-base.mjs (7 temas) · next build
+Usuarios
+- Pases en Excel al crear o dar clave nueva: un pase por persona con
+  sello, rol, usuario, clave y QR de la entrada, tres por hoja para
+  recortar; hoja Lista de respaldo con la clave y el rol en colores vivos.
+- Tarjeta de acceso en imagen para WhatsApp (se comparte en el celular).
+- Exportar Excel de la gente: cifras, rol, estado, clave, último
+  ingreso, registros y hoja por rol, con el filtro que haya.
+- El rol se ve como pastilla de color vivo en la tabla y en las claves.
+- Nueva dependencia: qrcode-generator.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

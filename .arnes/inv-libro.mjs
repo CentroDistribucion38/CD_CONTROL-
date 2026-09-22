@@ -36,7 +36,7 @@ const MAT = ["3128", "3129", "3130", "900"].map((sku, i) => ({ id: "m" + i, sku,
   unidades_por_estiba: 2400, contenido: null, familia: null, presentacion: null, vida_util: 180, f_limite_desp: null, dias_minimo: 30, origen: null, foraneo: null,
   tipo_material: sku === "900" ? "ENVASE" : "PRODUCTO", activo: true }));
 const UBI = ["A01IZQ", "A01DER", "A02IZQ", "B01IZQ", "C01IZQ", "C02IZQ", "Z09DER", "D01IZQ", "D02DER"].map((k) => ({ id: "u-" + k, bodega_id: "b", clave: k, calle: k[0], modulo: k.slice(1, 3), lado: k.slice(3), familia: null, capacidad: 3, activa: true }));
-const buf = await armarLibroDia({ fecha: "2026-09-22", bodega: "AG01", quien: "Cristian", conteos: CONT, lineas: LIN, materiales: MAT, ubicaciones: UBI, logo: readFileSync(R("public/marca/logo-bavaria.png")) });
+const buf = await armarLibroDia({ fecha: "2026-09-22", bodega: "AG01", quien: "Cristian", conteos: CONT, lineas: LIN, materiales: MAT, ubicaciones: UBI, logo: readFileSync(R("public/marca/logo-b.png")), colores: process.env.COLORES ? JSON.parse(process.env.COLORES) : undefined });
 const dest = (process.env.FOTO ?? "/tmp") + "/inventario-dia.xlsx";
 writeFileSync(dest, buf);
 const py = execSync(`python3 - <<'P'

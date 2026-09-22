@@ -39,62 +39,89 @@ export type InsumosDia = {
   lineas: Renglon[];           // sus renglones
   materiales: Material[];
   ubicaciones: Ubicacion[];    // de la bodega
-  logo: Buffer | null;         // public/marca/logo-bavaria.png
+  logo: Buffer | null;         // public/marca/logo-b.png (el sello de la B)
+  /** Los colores del tema de quien exporta; sin ellos, los de la marca. */
+  colores?: ColoresLibro;
+  /** Cuántos FEFO se enviaron ese día, si se escogieron solo algunos. */
+  totalDelDia?: number;
 };
 
-/* ---------- La paleta: la de la app ---------- */
-const TINTA = "FF12263A", GRIS = "FF5B6B7F", LINEA = "FFD5DCE5", FONDO = "FFF3F5F8", ORO = "FFFFC000", BLANCO = "FFFFFFFF";
-const ROJO = "FFC8102E", VERDE = "FF1F7A45";
+/* ---------- La paleta: la del tema de quien exporta ----------
+   «Que quede así (el gris claro)… con el tema de ámbar y así: sabes que
+   varía dependiendo la preferencia.» Del tema llegan dos colores —la
+   tinta y el de la banda— y de la tinta salen los grises: con un pelo de
+   su tono, así el gris de pizarra tira a verde y el de la marca a azul.
+   Los colores que dicen algo (vencido, con margen…) no cambian. */
+export type ColoresLibro = { tinta: string; banda: string };   // RRGGBB
+export const COLORES_MARCA: ColoresLibro = { tinta: "12263A", banda: "FFC000" };
+const hex = (h: string) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+const aHex = (c: number[]) => "FF" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("").toUpperCase();
+/** La tinta llevada hacia el blanco: t = cuánto de tinta queda. */
+const aclarar = (h: string, t: number) => aHex(hex(h).map((c) => 255 - (255 - c) * t));
+const oscurecer = (h: string, k: number) => aHex(hex(h).map((c) => c * k));
+const BLANCO = "FFFFFFFF", ROJO = "FFC6202A", VERDE = "FF1F7A45", ROSA = "FFFFF4F4", MENTA = "FFEFF8F2";
+let TINTA = "", BANDA = "", GRIS = "", LINEA = "", FONDO = "", CAJA = "", PANEL = "", CABEZA = "", ENLACE = "";
+function usarColores(c: ColoresLibro) {
+  const ok = (x: string) => /^[0-9a-f]{6}$/i.test(x);
+  const t = ok(c.tinta) ? c.tinta : COLORES_MARCA.tinta, b = ok(c.banda) ? c.banda : COLORES_MARCA.banda;
+  TINTA = aHex(hex(t)); BANDA = aHex(hex(b));
+  GRIS = aclarar(t, 0.64);      // rótulos y notas
+  LINEA = aclarar(t, 0.12);     // la raya entre renglones
+  FONDO = aclarar(t, 0.045);    // rayado y fila de totales
+  CAJA = aclarar(t, 0.035);     // las tarjetas
+  PANEL = aclarar(t, 0.055);    // el avance del conteo
+  CABEZA = aclarar(t, 0.15);    // encabezado claro de las tablas del resumen
+  ENLACE = oscurecer(b, 0.54);  // el dorado hondo de los vínculos
+}
 const FR: Record<Franja, { fondo: string; tinta: string }> = {
-  vencido: { fondo: "FFF9D5DB", tinta: "FF8C0C1E" },
-  pasado: { fondo: "FFFDE0DD", tinta: "FFB3181F" },
-  semana: { fondo: "FFFFE6D1", tinta: "FFA4480C" },
-  quince: { fondo: "FFFFF3C4", tinta: "FF7A5600" },
-  mes: { fondo: "FFEAF4DA", tinta: "FF4E7A12" },
-  ok: { fondo: "FFDCF2E4", tinta: "FF137A40" },
-  sinfecha: { fondo: "FFECEFF3", tinta: "FF55606B" },
+  vencido: { fondo: "FFFDE3E3", tinta: "FFC6202A" },
+  pasado: { fondo: "FFFDE3E3", tinta: "FFC6202A" },
+  semana: { fondo: "FFFDEBDB", tinta: "FFB4530A" },
+  quince: { fondo: "FFFFF4D1", tinta: "FF8A6A00" },
+  mes: { fondo: "FFF1F6DC", tinta: "FF5E7314" },
+  ok: { fondo: "FFE3F2E8", tinta: "FF1F7A45" },
+  sinfecha: { fondo: "FFF0F0EE", tinta: "FF6B6B66" },
 };
 const rotFr = (f: Franja) => FRANJAS.find((x) => x.clave === f)!.rot;
+const NUM = "#,##0;\\-#,##0;\\–", PCT = "0.0%;\\-0.0%;\\–";
 
-const borde: Partial<ExcelJS.Borders> = {
-  top: { style: "thin", color: { argb: LINEA } }, bottom: { style: "thin", color: { argb: LINEA } },
-  left: { style: "thin", color: { argb: LINEA } }, right: { style: "thin", color: { argb: LINEA } },
-};
+const raya = () => ({ style: "thin" as const, color: { argb: LINEA } });
 const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
 const fechaLarga = (s: string) => new Date(s + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const aFecha = (s: string | null) => (s ? new Date((s.length === 10 ? s + "T12:00:00" : s)) : null);
 const col = (n: number) => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26) } return s };
+const letra = (size: number, color: string, bold = false, italic = false): Partial<ExcelJS.Font> => ({ name: "Calibri", size, bold, italic, color: { argb: color } });
+/** Un vínculo a otra hoja que se ve bien aunque no se recalcule. */
+const vinculo = (hoja: string, texto: string) => ({ formula: `HYPERLINK("#'${hoja}'!A1","${texto.replace(/"/g, '""')}")`, result: texto });
 
-/** La franja de arriba de cada hoja: logo, título, subtítulo y la cinta. */
-function cabecera(wb: ExcelJS.Workbook, h: ExcelJS.Worksheet, logoId: number | null, titulo: string, sub: string, ancho: number) {
+/** Lo de arriba de cada hoja de datos: la banda del tema, el título, el
+ *  día y el vínculo de vuelta al resumen. */
+function cabecera(h: ExcelJS.Worksheet, titulo: string, sub: string, ancho: number) {
   h.views = [{ showGridLines: false }];
-  h.getRow(1).height = 8;
-  for (let c = 1; c <= ancho; c++) h.getRow(1).getCell(c).fill = relleno(ORO);
-  h.getRow(2).height = 34; h.getRow(3).height = 20; h.getRow(4).height = 8;
-  if (logoId != null) h.addImage(logoId, { tl: { col: 0.15, row: 1.15 }, ext: { width: 150, height: 44 } });
-  const t = h.getCell(2, 3); t.value = titulo;
-  t.font = { name: "Calibri", size: 20, bold: true, color: { argb: TINTA } }; t.alignment = { vertical: "middle" };
-  const s = h.getCell(3, 3); s.value = sub;
-  s.font = { name: "Calibri", size: 11, color: { argb: GRIS } };
+  h.getRow(1).height = 6;
+  for (let c = 1; c <= ancho; c++) h.getRow(1).getCell(c).fill = relleno(BANDA);
+  h.getRow(2).height = 8; h.getRow(3).height = 26; h.getRow(4).height = 16; h.getRow(5).height = 16;
+  const t = h.getCell(3, 1); t.value = titulo; t.font = letra(16, TINTA, true); t.alignment = { vertical: "middle" };
+  const s = h.getCell(4, 1); s.value = sub; s.font = letra(9.5, GRIS);
+  const v = h.getCell(5, 1); v.value = vinculo("Resumen", "← volver al resumen"); v.font = letra(9.5, ENLACE, true);
 }
 
-/** Encabezado de tabla: tinta con letra blanca, alto y centrado. */
+/** Encabezado de tabla: la tinta del tema con letra blanca. */
 function encabezado(h: ExcelJS.Worksheet, fila: number, titulos: string[]) {
-  const r = h.getRow(fila); r.height = 30;
+  const r = h.getRow(fila); r.height = 26;
   titulos.forEach((t, i) => {
     const c = r.getCell(i + 1); c.value = t;
-    c.font = { bold: true, color: { argb: BLANCO }, size: 10 };
-    c.fill = relleno(TINTA); c.border = borde;
+    c.font = letra(9, BLANCO, true); c.fill = relleno(TINTA);
     c.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
   });
 }
 
-/** Rayado, bordes y formatos de una fila de datos. */
+/** Rayado suave, raya fina abajo y formatos de una fila de datos. */
 function filaDatos(r: ExcelJS.Row, n: number, par: boolean, fmts: Record<number, string>) {
   r.height = 18;
   for (let c = 1; c <= n; c++) {
     const cel = r.getCell(c);
-    cel.border = borde; cel.font = { size: 10, color: { argb: TINTA } };
+    cel.border = { bottom: raya() }; cel.font = letra(9.5, TINTA);
     cel.alignment = { vertical: "middle" };
     if (par) cel.fill = relleno(FONDO);
     if (fmts[c]) cel.numFmt = fmts[c];
@@ -104,7 +131,7 @@ function filaDatos(r: ExcelJS.Row, n: number, par: boolean, fmts: Record<number,
 /** Totales que SIGUEN AL FILTRO (SUBTOTAL 109): filtras y la cifra cambia. */
 function totales(h: ExcelJS.Worksheet, fila: number, desde: number, hasta: number, cols: number[], ancho: number, rotulo = "TOTAL (lo filtrado)") {
   const r = h.getRow(fila); r.height = 22;
-  for (let c = 1; c <= ancho; c++) { const cel = r.getCell(c); cel.fill = relleno(ORO); cel.border = borde; cel.font = { bold: true, color: { argb: TINTA } } }
+  for (let c = 1; c <= ancho; c++) { const cel = r.getCell(c); cel.fill = relleno(FONDO); cel.border = { top: { style: "medium", color: { argb: TINTA } } }; cel.font = letra(9.5, TINTA, true); cel.alignment = { vertical: "middle" } }
   r.getCell(1).value = rotulo;
   for (const c of cols) {
     const L = col(c);
@@ -113,18 +140,19 @@ function totales(h: ExcelJS.Worksheet, fila: number, desde: number, hasta: numbe
     let suma = 0;
     for (let f = desde; f <= hasta; f++) { const v = h.getRow(f).getCell(c).value; if (typeof v === "number") suma += v }
     r.getCell(c).value = { formula: `SUBTOTAL(109,${L}${desde}:${L}${hasta})`, result: suma };
-    r.getCell(c).numFmt = "#,##0";
+    r.getCell(c).numFmt = NUM;
   }
 }
 
 function pintarFranja(cel: ExcelJS.Cell, f: Franja) {
   cel.fill = relleno(FR[f].fondo);
-  cel.font = { size: 10, bold: true, color: { argb: FR[f].tinta } };
+  cel.font = letra(9.5, FR[f].tinta, true);
 }
 
 const siNo = (b: boolean | null | undefined) => (b ? "Sí" : "");
 
 export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
+  usarColores(d.colores ?? COLORES_MARCA);
   const wb = new ExcelJS.Workbook();
   wb.creator = "CONTROL · Inventario"; wb.created = new Date();
   wb.calcProperties = { fullCalcOnLoad: true };
@@ -138,7 +166,10 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   const orden = (a: Renglon, b: Renglon) => (a.ubicacion_combinada ?? a.ubicacion ?? "").localeCompare(b.ubicacion_combinada ?? b.ubicacion ?? "", "es", { numeric: true }) || a.codigo.localeCompare(b.codigo);
   const base = [...foto].sort(orden);
   const titulo = `Inventario consolidado · ${d.bodega}`;
-  const sub = `${fechaLarga(d.fecha).replace(/^./, (c) => c.toUpperCase())} · ${d.conteos.length} recorrido${d.conteos.length === 1 ? "" : "s"} enviado${d.conteos.length === 1 ? "" : "s"} · exportó ${d.quien}`;
+  const parcial = d.totalDelDia != null && d.totalDelDia > d.conteos.length;
+  const sub = `${fechaLarga(d.fecha).replace(/^./, (c) => c.toUpperCase())}  ·  ` +
+    (parcial ? `${d.conteos.length} de ${d.totalDelDia} FEFO del día (escogidos: ${d.conteos.map((c) => c.codigo).join(", ")})`
+             : `${d.conteos.length} FEFO enviado${d.conteos.length === 1 ? "" : "s"}`) + ` · exportó ${d.quien}`;
 
   /* ================= VALIDAR (se arma primero: el resumen la cuenta) ================= */
   type Ojo = { tipo: string; grave: boolean; ubicacion: string; codigo: string; material: string; detalle: string; recorrido: string };
@@ -177,59 +208,145 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     .sort((a, b) => a.clave.localeCompare(b.clave, "es", { numeric: true }));
   const activas = d.ubicaciones.filter((u) => u.activa).length;
 
-  /* ================= 1 · RESUMEN ================= */
+  /* ================= 1 · RESUMEN =================
+     Como el que mandó «gris claro»: la banda, el sello, el avance del
+     conteo con su barra, dos filas de tarjetas, las franjas con su barrita,
+     los recorridos con el cuadre de cajas y el aviso de lo que hay que
+     validar. A = margen; B..I = ocho columnas; J = margen. */
   {
-    const h = wb.addWorksheet("Resumen", { properties: { tabColor: { argb: ORO } } });
-    h.columns = [3, 22, 14, 14, 14, 14, 14, 14, 14].map((w) => ({ width: w }));
-    cabecera(wb, h, logoId, titulo, sub, 9);
-    /* LAS CIFRAS: ocho tarjetas en dos filas. */
-    const tarjetas: [string, number | string, string][] = [
-      ["CAJAS", totalCajas, "#,##0"], ["UNIDADES", totalUnidades, "#,##0"],
-      ["ESTIBAS", base.reduce((a, l) => a + Number(l.total_estibas ?? 0), 0), "#,##0"], ["RENGLONES", base.length, "#,##0"],
-      ["UBICACIONES", nUbi, "#,##0"], ["MATERIALES", materiales.length, "#,##0"],
-      ["SIN CONTAR", `${sinContar.length} de ${activas}`, "@"], ["POR VALIDAR", graves, "#,##0"],
-    ];
-    tarjetas.forEach(([rot, v, fmt], i) => {
-      const fila = 6 + Math.floor(i / 4) * 3, c0 = 2 + (i % 4) * 2;
-      h.mergeCells(fila, c0, fila, c0 + 1); h.mergeCells(fila + 1, c0, fila + 1, c0 + 1);
-      const a = h.getCell(fila, c0), b = h.getCell(fila + 1, c0);
-      const mal = rot === "POR VALIDAR" && Number(v) > 0;
-      a.value = rot; a.font = { size: 9, bold: true, color: { argb: GRIS } }; a.alignment = { vertical: "bottom", indent: 1 };
-      b.value = v; b.numFmt = fmt; b.font = { size: 20, bold: true, color: { argb: mal ? ROJO : TINTA } }; b.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
-      for (const cel of [a, b, h.getCell(fila, c0 + 1), h.getCell(fila + 1, c0 + 1)]) cel.fill = relleno(FONDO);
-      a.border = { left: { style: "thick", color: { argb: mal ? ROJO : ORO } } }; b.border = { left: { style: "thick", color: { argb: mal ? ROJO : ORO } } };
-      h.getRow(fila + 1).height = 32; h.getRow(fila).height = 18;
-    });
-    /* LAS FRANJAS */
-    let f = 13;
-    const t = h.getCell(f, 2); t.value = "Riesgo de vencimiento"; t.font = { size: 13, bold: true, color: { argb: TINTA } };
-    f += 1; encabezadoDesde(h, f, 2, ["Franja", "Cajas", "Unidades", "Materiales", "Ubicaciones", "% de cajas"]);
+    const h = wb.addWorksheet("Resumen", { properties: { tabColor: { argb: BANDA } } });
+    h.columns = [2, 13.5, 11, 11.5, 11.5, 11, 11.5, 11, 11, 2].map((w) => ({ width: w }));
+    h.views = [{ showGridLines: false }];
+    const alto = (f: number, v: number) => { h.getRow(f).height = v };
+    const pon = (f: number, c: number, v: ExcelJS.CellValue, fuente: Partial<ExcelJS.Font>, extra: Partial<ExcelJS.Cell> = {}) => {
+      const cel = h.getCell(f, c); cel.value = v; cel.font = fuente; Object.assign(cel, extra); return cel;
+    };
+    const pintar = (f: number, c1: number, c2: number, argb: string) => { for (let c = c1; c <= c2; c++) h.getCell(f, c).fill = relleno(argb) };
+    const unir = (f: number, c1: number, c2: number) => { if (c2 > c1) h.mergeCells(f, c1, f, c2) };
+
+    /* LA BANDA, EL SELLO, EL TÍTULO */
+    [6, 9.75, 33.75, 18, 13.5].forEach((v, i) => alto(i + 1, v));
+    pintar(1, 1, 10, BANDA);
+    if (logoId != null) h.addImage(logoId, { tl: { col: 1.05, row: 2.08 }, ext: { width: 42, height: 42 } });
+    pon(3, 3, titulo, letra(22, TINTA, true), { alignment: { vertical: "middle" } });
+    pon(4, 3, sub, letra(9.5, GRIS));
+    unir(3, 8, 9); pon(3, 8, "UBICACIONES DEL ALMACÉN", letra(7.5, GRIS, true), { alignment: { horizontal: "right", vertical: "bottom" } });
+    unir(4, 8, 9); pon(4, 8, activas, letra(12, TINTA, true), { numFmt: NUM, alignment: { horizontal: "right", vertical: "top" } });
+
+    /* EL AVANCE DEL CONTEO: cuánto del almacén se caminó ese día. */
+    const avance = activas ? nUbi / activas : 0, bloques = Math.max(avance > 0 ? 1 : 0, Math.round(avance * 18));
+    [15.75, 43.5, 19.5, 12].forEach((v, i) => alto(6 + i, v));
+    for (let f = 6; f <= 9; f++) { pintar(f, 2, 9, PANEL); h.getCell(f, 2).border = { left: { style: "thick", color: { argb: BANDA } } } }
+    pon(6, 2, "  AVANCE DEL CONTEO", letra(8.5, GRIS, true), { alignment: { vertical: "bottom" } });
+    unir(7, 2, 4); pon(7, 2, avance, letra(40, TINTA, true), { numFmt: "0.0%", alignment: { horizontal: "left", vertical: "middle", indent: 1 } });
+    unir(8, 2, 4); pon(8, 2, `${nUbi.toLocaleString("es-CO")} de ${activas.toLocaleString("es-CO")} ubicaciones`, letra(10, GRIS, true), { alignment: { vertical: "bottom", indent: 1 } });
+    unir(7, 5, 7); pon(7, 5, "█".repeat(bloques) + "░".repeat(18 - bloques), letra(20, BANDA), { alignment: { vertical: "middle" } });
+    unir(8, 5, 7); pon(8, 5, `cada bloque ≈ ${Math.max(1, Math.round(activas / 18))} ubicaciones`, letra(9, GRIS), { alignment: { vertical: "middle" } });
+    unir(7, 8, 9); pon(7, 8, sinContar.length, letra(32, sinContar.length ? ROJO : VERDE, true), { numFmt: "#,##0", alignment: { horizontal: "right", vertical: "middle", indent: 1 } });
+    unir(8, 8, 9); pon(8, 8, "SIN CONTAR  ", letra(9, GRIS, true), { alignment: { horizontal: "right", vertical: "bottom" } });
+
+    /* LAS TARJETAS: rótulo chiquito arriba, la cifra grande abajo, y la
+       raya de la izquierda que dice de qué color es la noticia. */
+    const tarjetas = (f: number, titulo: string, cs: [string, number, string, string, string?][]) => {
+      alto(f - 1, 13.5); alto(f, 15.75); alto(f + 1, 18); alto(f + 2, 33.75);
+      pon(f, 2, titulo, letra(8, TINTA, true));
+      cs.forEach(([rot, v, fmt, raya, color], i) => {
+        const c0 = 2 + i * 2;
+        unir(f + 1, c0, c0 + 1); unir(f + 2, c0, c0 + 1);
+        pintar(f + 1, c0, c0 + 1, CAJA); pintar(f + 2, c0, c0 + 1, CAJA);
+        const lados: Partial<ExcelJS.Borders> = { left: { style: "thick", color: { argb: raya } }, right: { style: "thick", color: { argb: BLANCO } } };
+        pon(f + 1, c0, rot, letra(7.5, GRIS, true), { border: lados, alignment: { horizontal: "left", vertical: "bottom", indent: 1 } });
+        pon(f + 2, c0, v, letra(22, color ?? TINTA, true), { numFmt: fmt, border: lados, alignment: { horizontal: "left", vertical: "middle", indent: 1 } });
+      });
+    };
+    const estibas = base.reduce((a, l) => a + Number(l.total_estibas ?? 0), 0);
+    tarjetas(11, "LO CONTADO", [["CAJAS", totalCajas, NUM, BANDA], ["UNIDADES", totalUnidades, NUM, BANDA], ["ESTIBAS", estibas, NUM, BANDA], ["RENGLONES", base.length, NUM, BANDA]]);
+    const vencidas = franjas.vencido.cajas + franjas.pasado.cajas;
+    const margen = totalCajas ? franjas.ok.cajas / totalCajas : 0;
+    tarjetas(15, "PARA REVISAR", [
+      ["MATERIALES", materiales.length, NUM, BANDA],
+      ["VENCIDAS · CAJAS", vencidas, NUM, vencidas ? ROJO : VERDE, vencidas ? ROJO : VERDE],
+      ["POR VALIDAR", graves, NUM, graves ? ROJO : VERDE, graves ? ROJO : VERDE],
+      ["CON MARGEN", margen, PCT, VERDE, VERDE],
+    ]);
+    alto(18, 13.5); alto(19, 6);
+
+    /* Una tabla del resumen: encabezado claro, raya fina, total con la
+       raya de la tinta encima. B:C van juntas en la primera columna. */
+    const cols = [[2, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9]];
+    const fila = (f: number, vals: (ExcelJS.CellValue | undefined)[], tipo: "cabeza" | "dato" | "total", fmts: (string | undefined)[] = []) => {
+      alto(f, tipo === "dato" ? 19.5 : 21.75);
+      vals.forEach((v, i) => {
+        const [a, b] = cols[i]; unir(f, a, b);
+        const cel = h.getCell(f, a);
+        if (v !== undefined) cel.value = v;
+        cel.font = tipo === "cabeza" ? letra(9, TINTA, true) : letra(9.5, TINTA, tipo === "total");
+        if (fmts[i]) cel.numFmt = fmts[i]!;
+        cel.alignment = { vertical: "middle", horizontal: i === 0 || (tipo === "cabeza" && i === 6) ? "left" : "right", indent: 1 };
+      });
+      for (let c = 2; c <= 9; c++) {
+        const cel = h.getCell(f, c);
+        if (tipo === "cabeza") cel.fill = relleno(CABEZA);
+        else if (tipo === "total") { cel.fill = relleno(FONDO); cel.border = { top: { style: "medium", color: { argb: TINTA } } } }
+        else cel.border = { bottom: raya() };
+      }
+    };
+
+    /* EL RIESGO DE VENCIMIENTO, por franja, con su barrita. */
+    alto(20, 19.5); pon(20, 2, "Riesgo de vencimiento", letra(11, TINTA, true));
+    fila(21, ["Franja", "Cajas", "Unidades", "Materiales", "Ubicaciones", "% de cajas", ""], "cabeza");
+    let f = 21;
     for (const x of FRANJAS) {
-      f += 1; const s = franjas[x.clave];
-      const vals = [x.rot, s.cajas, s.unidades, s.materiales, s.renglones, totalCajas ? s.cajas / totalCajas : 0];
-      vals.forEach((v, i) => { const cel = h.getCell(f, 2 + i); cel.value = v; cel.border = borde; cel.font = { size: 10, color: { argb: TINTA } };
-        cel.numFmt = i === 5 ? "0.0%" : i ? "#,##0" : "@" });
+      f += 1; const s = franjas[x.clave], pc = totalCajas ? s.cajas / totalCajas : 0;
+      fila(f, [x.rot, s.cajas, s.unidades, s.materiales, s.renglones, pc, pc > 0 ? "█".repeat(Math.max(1, Math.round(pc * 8))) : ""], "dato", [, NUM, NUM, NUM, NUM, PCT]);
       pintarFranja(h.getCell(f, 2), x.clave);
+      h.getCell(f, 8).font = letra(9.5, TINTA, true);
+      const barra = h.getCell(f, 9); barra.font = letra(10, FR[x.clave].tinta); barra.alignment = { horizontal: "left", vertical: "middle" };
     }
-    /* LOS RECORRIDOS */
-    f += 2; const t2 = h.getCell(f, 2); t2.value = "Recorridos que entran en la base"; t2.font = { size: 13, bold: true, color: { argb: TINTA } };
-    f += 1; encabezadoDesde(h, f, 2, ["Recorrido", "Contó", "Enviado", "Renglones", "Ubicaciones", "Cajas"]);
+    const d1 = 22, d2 = f; f += 1;
+    fila(f, ["Total", { formula: `SUM(D${d1}:D${d2})`, result: totalCajas }, { formula: `SUM(E${d1}:E${d2})`, result: totalUnidades },
+      `${materiales.length} distintos`, undefined, { formula: `SUM(H${d1}:H${d2})`, result: totalCajas ? 1 : 0 }, undefined], "total", [, NUM, NUM, , , PCT]);
+    h.getCell(f, 6).font = letra(8.5, GRIS);
+    const filaTotal = f;
+
+    /* LOS RECORRIDOS QUE ENTRAN, y el cuadre: lo que sumaban contra lo
+       que quedó en la base (la diferencia es lo que se volvió a contar). */
+    f += 1; alto(f, 13.5);
+    f += 1; alto(f, 19.5); pon(f, 2, "Recorridos que entran en la base", letra(11, TINTA, true));
+    f += 1; fila(f, ["Recorrido", "Contó", "Enviado", "Renglones", "Ubicaciones", "Cajas", ""], "cabeza");
+    for (const c of [3, 4]) h.getCell(f, c + 1).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    const r1 = f + 1;
     for (const c of d.conteos) {
       f += 1;
-      const vals: (string | number | Date | null)[] = [c.codigo, c.responsable ?? "—", aFecha(c.enviado_en), c.renglones, c.ubicaciones, Number(c.total_cajas)];
-      vals.forEach((v, i) => { const cel = h.getCell(f, 2 + i); cel.value = v; cel.border = borde; cel.font = { size: 10, color: { argb: TINTA } };
-        if (i === 2) cel.numFmt = "dd/mm/yyyy hh:mm"; else if (i >= 3) cel.numFmt = "#,##0" });
+      const env = aFecha(c.enviado_en);
+      fila(f, [c.codigo, c.responsable ?? "—", env ? env.toLocaleString("es-CO", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" }).replace(",", "") : "—",
+        c.renglones, c.ubicaciones, Number(c.total_cajas), ""], "dato", [, , , NUM, NUM, NUM]);
+      for (const k of [4, 5]) h.getCell(f, k).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
     }
-    /* LA VALIDACIÓN EN UNA LÍNEA */
-    f += 2;
-    const v = h.getCell(f, 2);
-    v.value = graves ? `⚠ ${graves} renglón(es) por validar: mira la hoja «Validar».` : "✓ Nada grave por validar.";
-    v.font = { size: 12, bold: true, color: { argb: graves ? ROJO : VERDE } };
+    const r2 = f, cajasRec = d.conteos.reduce((a, c) => a + Number(c.total_cajas), 0);
     f += 1;
-    const n = h.getCell(f, 2);
-    n.value = "La base toma, de cada ubicación, el ÚLTIMO recorrido del día que pasó por ella: una calle caminada dos veces no se suma dos veces.";
-    n.font = { size: 9, italic: true, color: { argb: GRIS } };
-    h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    fila(f, ["Total", undefined, undefined,
+      { formula: `SUM(F${r1}:F${r2})`, result: d.conteos.reduce((a, c) => a + c.renglones, 0) },
+      { formula: `SUM(G${r1}:G${r2})`, result: d.conteos.reduce((a, c) => a + c.ubicaciones, 0) },
+      { formula: `SUM(H${r1}:H${r2})`, result: cajasRec }, undefined], "total", [, , , NUM, NUM, NUM]);
+    const filaRec = f;
+    f += 1; alto(f, 21.75);
+    unir(f, 2, 3); pon(f, 2, "Cuadre de cajas", letra(9, GRIS, true), { alignment: { vertical: "middle", indent: 1 } });
+    unir(f, 4, 7); pon(f, 4, `${cajasRec.toLocaleString("es-CO")} en los recorridos  −  ${totalCajas.toLocaleString("es-CO")} en el consolidado (lo que se volvió a contar)`, letra(9, GRIS), { alignment: { vertical: "middle", wrapText: true } });
+    const dif = cajasRec - totalCajas;
+    pon(f, 8, { formula: `H${filaRec}-D${filaTotal}`, result: dif }, letra(10, dif ? ROJO : VERDE, true), { numFmt: NUM, alignment: { horizontal: "right", vertical: "middle", indent: 1 } });
+
+    /* EL AVISO: rojo con vínculo a «Validar», o verde si no hay nada. */
+    f += 1; alto(f, 12);
+    f += 1; alto(f, 27.75); unir(f, 2, 9); pintar(f, 2, 9, graves ? ROSA : MENTA);
+    pon(f, 2, graves ? vinculo("Validar", `  ⚠  ${graves} renglón${graves === 1 ? "" : "es"} por validar  →  abrir la hoja Validar`) : "  ✓  Nada grave por validar",
+      letra(10, graves ? ROJO : VERDE, true, false), { alignment: { vertical: "middle" }, border: { left: { style: "thick", color: { argb: graves ? ROJO : VERDE } } } });
+    if (graves) h.getCell(f, 2).font = { ...letra(10, ROJO, true), underline: true };
+    f += 1; alto(f, 31.5); unir(f, 2, 9);
+    pon(f, 2, "La base toma, de cada ubicación, el ÚLTIMO recorrido del día que pasó por ella: una calle caminada dos veces no se suma dos veces. El detalle está en las hojas Base, Por material, Por ubicación y Sin contar.",
+      letra(8, GRIS, false, true), { alignment: { wrapText: true, vertical: "top" } });
+    h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true };
+    h.pageSetup.printArea = `A1:J${f}`;
   }
 
   /* ================= 2 · BASE ================= */
@@ -239,7 +356,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       "Estibas", "Cajas sueltas", "Saldo", "Total cajas", "Unidades", "Fabricación", "Vencimiento", "Días p/vencer", "Días p/salir",
       "Franja", "Rota", "Avería", "PNC", "Estado envase", "Nota"];
     h.columns = [12, 18, 16, 7, 8, 7, 13, 10, 34, 11, 14, 9, 10, 8, 11, 12, 12, 12, 10, 10, 18, 6, 7, 6, 14, 30].map((w) => ({ width: w }));
-    cabecera(wb, h, logoId, "Base consolidada del día", sub, C.length);
+    cabecera(h, "Base consolidada del día", sub, C.length);
     encabezado(h, 6, C);
     base.forEach((l, i) => {
       const u = uxc[l.codigo];
@@ -249,10 +366,10 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         u ? Number(l.total_cajas) * u : null, aFecha(l.fabricacion), aFecha(l.vencimiento), l.dias_para_vencer, l.dias_para_salir,
         rotFr(franja(l)), siNo(l.rotacion), siNo(l.averia), siNo(l.pnc), l.estado_envase ?? "", l.nota ?? ""];
       filaDatos(r, C.length, i % 2 === 1, { 3: "dd/mm/yy hh:mm", 12: "#,##0", 13: "#,##0", 14: "#,##0", 15: "#,##0", 16: "#,##0", 17: "dd/mm/yyyy", 18: "dd/mm/yyyy", 19: "0", 20: "0" });
-      r.getCell(8).font = { size: 10, bold: true, color: { argb: TINTA } };
-      r.getCell(15).font = { size: 10, bold: true, color: { argb: TINTA } };
+      r.getCell(8).font = letra(9.5, TINTA, true);
+      r.getCell(15).font = letra(9.5, TINTA, true);
       if (l.tipo_material !== "ENVASE") pintarFranja(r.getCell(21), franja(l));
-      if ((l.dias_para_salir ?? 0) < 0) r.getCell(20).font = { size: 10, bold: true, color: { argb: ROJO } };
+      if ((l.dias_para_salir ?? 0) < 0) r.getCell(20).font = letra(9.5, ROJO, true);
     });
     const fin = 6 + Math.max(base.length, 1);
     totales(h, fin + 1, 7, fin, [12, 13, 14, 15, 16], C.length);
@@ -263,10 +380,10 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
 
   /* ================= 3 · POR MATERIAL ================= */
   {
-    const h = wb.addWorksheet("Por material", { properties: { tabColor: { argb: "FF1F7A45" } } });
+    const h = wb.addWorksheet("Por material", { properties: { tabColor: { argb: VERDE } } });
     const C = ["Código", "Material", "Tipo", "Familia", "Ubicaciones", "Estibas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)"];
     h.columns = [10, 36, 11, 14, 12, 10, 11, 12, 13, 11, 20, 14].map((w) => ({ width: w }));
-    cabecera(wb, h, logoId, "Por material", sub, C.length);
+    cabecera(h, "Por material", sub, C.length);
     encabezado(h, 6, C);
     const est = new Map<string, number>();
     for (const l of base) est.set(l.codigo, (est.get(l.codigo) ?? 0) + Number(l.total_estibas ?? 0));
@@ -276,7 +393,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "", m.familia ?? "", m.sitios.length, est.get(m.codigo) ?? 0, m.cajas, m.unidades,
         aFecha(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas];
       filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "dd/mm/yyyy", 10: "0", 12: "#,##0" });
-      r.getCell(1).font = { size: 10, bold: true, color: { argb: TINTA } };
+      r.getCell(1).font = letra(9.5, TINTA, true);
       pintarFranja(r.getCell(11), m.franja);
     });
     const fin = 6 + Math.max(mats.length, 1);
@@ -291,7 +408,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const h = wb.addWorksheet("Por ubicación", { properties: { tabColor: { argb: "FF2E6DA4" } } });
     const C = ["Ubicación", "Calle", "Módulo", "Lado", "Capacidad (estibas)", "Estibas", "Ocupación", "Cajas", "Materiales", "Renglones"];
     h.columns = [14, 8, 9, 8, 12, 10, 11, 11, 11, 11].map((w) => ({ width: w }));
-    cabecera(wb, h, logoId, "Por ubicación", sub, C.length);
+    cabecera(h, "Por ubicación", sub, C.length);
     encabezado(h, 6, C);
     const us = [...porUbi.values()].sort((a, b) => a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
     us.forEach((x, i) => {
@@ -299,8 +416,8 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       const occ = x.capacidad ? x.estibas / x.capacidad : null;
       r.values = [x.ubicacion, x.calle ?? "", x.modulo ?? "", x.lado ?? "", x.capacidad, x.estibas, occ, x.cajas, x.materiales.size, x.renglones];
       filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "0%", 8: "#,##0", 9: "0", 10: "0" });
-      r.getCell(1).font = { size: 10, bold: true, color: { argb: TINTA } };
-      if (occ != null && occ > 1) { r.getCell(7).fill = relleno(FR.pasado.fondo); r.getCell(7).font = { size: 10, bold: true, color: { argb: FR.pasado.tinta } } }
+      r.getCell(1).font = letra(9.5, TINTA, true);
+      if (occ != null && occ > 1) { r.getCell(7).fill = relleno(FR.pasado.fondo); r.getCell(7).font = letra(9.5, FR.pasado.tinta, true) }
     });
     const fin = 6 + Math.max(us.length, 1);
     totales(h, fin + 1, 7, fin, [6, 8, 10], C.length);
@@ -313,7 +430,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const h = wb.addWorksheet("Validar", { properties: { tabColor: { argb: ROJO } } });
     const C = ["Qué", "Grave", "Ubicación", "Código", "Material", "Detalle", "Recorrido", "Revisado ✓"];
     h.columns = [22, 8, 14, 10, 32, 60, 14, 12].map((w) => ({ width: w }));
-    cabecera(wb, h, logoId, "Para validar", `${graves} grave(s) · ${ojos.length - graves} para mirar · ${sub}`, C.length);
+    cabecera(h, "Para validar", `${graves} grave(s) · ${ojos.length - graves} para mirar · ${sub}`, C.length);
     encabezado(h, 6, C);
     const orden2 = [...ojos].sort((a, b) => Number(b.grave) - Number(a.grave) || a.tipo.localeCompare(b.tipo) || a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
     orden2.forEach((o, i) => {
@@ -322,10 +439,10 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       filaDatos(r, C.length, i % 2 === 1, {});
       r.getCell(6).alignment = { wrapText: true, vertical: "middle" };
       if (o.detalle.length > 70) r.height = 32;
-      if (o.grave) { r.getCell(1).font = { size: 10, bold: true, color: { argb: ROJO } }; r.getCell(2).font = { size: 10, bold: true, color: { argb: ROJO } } }
+      if (o.grave) { r.getCell(1).font = letra(9.5, ROJO, true); r.getCell(2).font = letra(9.5, ROJO, true) }
       r.getCell(8).dataValidation = { type: "list", allowBlank: true, formulae: ['"✓,Pendiente"'] };
     });
-    if (!orden2.length) { const c = h.getCell(7, 1); c.value = "✓ Nada para validar: la base del día está limpia."; c.font = { bold: true, color: { argb: VERDE } } }
+    if (!orden2.length) { const c = h.getCell(7, 1); c.value = "✓ Nada para validar: la base del día está limpia."; c.font = letra(10, VERDE, true) }
     const fin = 6 + Math.max(orden2.length, 1);
     h.autoFilter = `A6:${col(C.length)}${fin}`;
     h.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
@@ -336,7 +453,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const h = wb.addWorksheet("Sin contar", { properties: { tabColor: { argb: GRIS } } });
     const C = ["Ubicación", "Calle", "Módulo", "Lado", "Familia", "Capacidad"];
     h.columns = [14, 8, 9, 8, 18, 12].map((w) => ({ width: w }));
-    cabecera(wb, h, logoId, "Sin contar ese día", `${sinContar.length} de ${activas} posiciones activas · ${sub}`, C.length);
+    cabecera(h, "Sin contar ese día", `${sinContar.length} de ${activas} posiciones activas · ${sub}`, C.length);
     encabezado(h, 6, C);
     sinContar.forEach((u, i) => {
       const r = h.getRow(7 + i);
@@ -349,21 +466,12 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   }
 
   /* Cada hoja cabe a lo ancho de la página al imprimir. */
-  for (const h of wb.worksheets) h.pageSetup = { ...h.pageSetup, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+  for (const h of wb.worksheets) h.pageSetup = { ...h.pageSetup, fitToPage: true, fitToWidth: 1, fitToHeight: h.name === "Resumen" ? 1 : 0,
     orientation: h.name === "Resumen" ? "portrait" : "landscape", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
   /* Una sola letra en todo el libro: Calibri. */
   for (const h of wb.worksheets) h.eachRow((r) => r.eachCell((c) => { c.font = { name: "Calibri", ...(c.font ?? {}) } }));
   const crudo = Buffer.from(await wb.xlsx.writeBuffer());
   return remendarFiltros(crudo, wb);
-}
-
-function encabezadoDesde(h: ExcelJS.Worksheet, fila: number, desde: number, titulos: string[]) {
-  const r = h.getRow(fila); r.height = 24;
-  titulos.forEach((t, i) => {
-    const c = r.getCell(desde + i); c.value = t;
-    c.font = { bold: true, color: { argb: BLANCO }, size: 10 }; c.fill = relleno(TINTA); c.border = borde;
-    c.alignment = { vertical: "middle", horizontal: "center" };
-  });
 }
 
 /**
@@ -384,7 +492,11 @@ function remendarFiltros(zip: Buffer, wb: ExcelJS.Workbook): Buffer {
       const ref = /[\s()]/.test(h.name) || /[^A-Za-z0-9_]/.test(h.name) ? `'${h.name}'` : h.name;
       trozos.push(`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${ref}!${abs(a)}:${abs(b)}</definedName>`);
     });
-    const bloque = trozos.length ? `<definedNames>${trozos.join("")}</definedNames>` : "";
+    /* Los demás nombres (área de impresión, títulos que se repiten) se
+       quedan; solo se cambian los de los filtros. */
+    const otros = (xml.match(/<definedNames>([\s\S]*?)<\/definedNames>/)?.[1] ?? "")
+      .replace(/<definedName[^>]*name="_xlnm\._FilterDatabase"[^>]*>[\s\S]*?<\/definedName>/g, "");
+    const bloque = trozos.length || otros ? `<definedNames>${trozos.join("")}${otros}</definedNames>` : "";
     xml = xml.includes("<definedNames>")
       ? xml.replace(/<definedNames>[\s\S]*?<\/definedNames>/, bloque)
       : xml.replace("</sheets>", `</sheets>${bloque}`);

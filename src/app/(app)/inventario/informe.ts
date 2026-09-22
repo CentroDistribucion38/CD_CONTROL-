@@ -14,7 +14,7 @@ import { PALETA_MARCA, paletaDeTema, aRGB, type Paleta } from "@/modulos/rotline
 /** Los colores del tema de quien lo genera, como la hoja de rotura: el
  *  oficial sale con la marca; ámbar, gris… cambian la cinta, las rayas y
  *  los títulos. Los logos van siempre tal cual. */
-function leerPaleta(dentro: Element | null): Paleta {
+export function leerPaleta(dentro: Element | null): Paleta {
   const conTema = dentro?.closest("[data-tema]");
   if (!conTema) return PALETA_MARCA;
   const leer = (v: string) => {

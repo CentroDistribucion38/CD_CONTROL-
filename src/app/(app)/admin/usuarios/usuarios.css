@@ -775,3 +775,11 @@
 .us-modal .us-pnl-cuerpo, .us-modal .us-pnl > div:not(.us-pnl-cab):not(.us-pnl-pie) { min-height: 0 }
 .us-modal .us-pnl-pie { flex-wrap: wrap } .us-modal .us-pnl-pie .btn { flex: 1 1 auto }
 .us-modal .us-tabla-claves .cod { font: 700 14px ui-monospace, Menlo, monospace; color: var(--c-04203f) }
+
+/* EL ROL COMO PASTILLA de color vivo, igual que en los pases, la tarjeta
+   y el Excel. El color lo pone el componente (uno por rol). */
+.us .us-rol {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+  font: 800 10.5px/1.3 var(--rl-texto); letter-spacing: .09em; text-transform: uppercase; white-space: nowrap;
+}
+.us .us-rol-bajo { margin-top: 4px }

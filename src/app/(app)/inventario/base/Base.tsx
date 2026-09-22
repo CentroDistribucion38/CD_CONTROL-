@@ -28,6 +28,7 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Renglon, ConteoFefo } from "@/modulos/inventario/fefo";
 import { Buscador } from "@/components/Buscador";
+import { leerPaleta } from "../informe";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
@@ -561,17 +562,32 @@ function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
     return [...m.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   }, [conteos]);
   const [dia, setDia] = useState<string>("");
+  /* LOS FEFO QUE ENTRAN. Por defecto todos los del día; se pueden
+     desmarcar los que no se quieren en el consolidado (uno de prueba,
+     uno repetido, uno de otra zona). Se guardan los QUITADOS: así, al
+     cambiar de día, arranca otra vez con todos. */
+  const [quitados, setQuitados] = useState<Set<string>>(new Set());
   const [bajando, setBajando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
   const escogido = dia || dias[0]?.[0] || "";
-  const info = dias.find((d) => d[0] === escogido)?.[1];
+  const delDia = useMemo(() => conteos.filter((c) => c.estado === "cerrado" && c.fecha_analisis === escogido)
+    .sort((a, b) => (a.enviado_en ?? "").localeCompare(b.enviado_en ?? "")), [conteos, escogido]);
+  const incluidos = delDia.filter((c) => !quitados.has(c.id));
+  const alterna = (id: string) => setQuitados((x) => { const y = new Set(x); if (y.has(id)) y.delete(id); else y.add(id); return y });
+  const hora = (s: string | null) => s ? new Date(s).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—";
   const largo = (s: string) => new Date(s + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" });
 
   async function bajar() {
-    if (!escogido) return;
+    if (!escogido || !incluidos.length) return;
     setBajando(true); setMal(null);
     try {
-      const r = await fetch(`/api/inventario/exportar?fecha=${escogido}`);
+      const todos = incluidos.length === delDia.length;
+      /* LOS COLORES DEL TEMA de quien exporta, como la hoja de rotura y el
+         informe de riesgo: la tinta y el color de la banda. */
+      const P = leerPaleta(document.querySelector(".ba-conso"));
+      const hx = (c: number[]) => c.map((v) => v.toString(16).padStart(2, "0")).join("");
+      const r = await fetch(`/api/inventario/exportar?fecha=${escogido}` + (todos ? "" : `&ids=${incluidos.map((c) => c.id).join(",")}`)
+        + `&tinta=${hx(P.tinta)}&banda=${hx(P.cinta[1]?.[1] ?? P.acento)}`);
       if (!r.ok) { const j = await r.json().catch(() => null); setMal(j?.error ?? `No se pudo (${r.status}).`); return }
       const blob = await r.blob();
       const a = document.createElement("a");
@@ -593,15 +609,38 @@ function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
       </div>
       <div className="ba-conso-acc">
         <label><span>Día</span>
-          <select value={escogido} onChange={(e) => setDia(e.target.value)}>
+          <select value={escogido} onChange={(e) => { setDia(e.target.value); setQuitados(new Set()) }}>
             {dias.map(([d, x]) => <option key={d} value={d}>{largo(d)} · {x.recorridos} recorrido{x.recorridos === 1 ? "" : "s"}</option>)}
           </select>
         </label>
-        <button type="button" className="btn grande" onClick={bajar} disabled={bajando || !escogido}>
-          {bajando ? "Armando el Excel…" : "Exportar consolidado"}
+        <button type="button" className="btn grande" onClick={bajar} disabled={bajando || !incluidos.length}>
+          {bajando ? "Armando el Excel…" : !incluidos.length ? "Marca al menos un FEFO" : incluidos.length === delDia.length ? "Exportar consolidado" : `Exportar ${incluidos.length} de ${delDia.length} FEFO`}
         </button>
-        {info && <small>{nf.format(info.renglones)} renglones · {nf.format(info.cajas)} cajas enviadas</small>}
+        <small>{nf.format(incluidos.reduce((a, c) => a + Number(c.renglones ?? 0), 0))} renglones · {nf.format(incluidos.reduce((a, c) => a + Number(c.total_cajas ?? 0), 0))} cajas en {incluidos.length} FEFO</small>
         {mal && <p className="ba-conso-mal" role="alert">{mal}</p>}
+      </div>
+      {/* QUÉ FEFO ENTRAN: uno por renglón, marcados todos al empezar. */}
+      <div className="ba-conso-fefos" role="group" aria-label="FEFO que entran en el consolidado">
+        <p className="ba-conso-fefos-cab">
+          <span>FEFO de ese día · marca los que entran</span>
+          {delDia.length > 1 && (
+            <button type="button" className="ba-conso-todos"
+                    onClick={() => setQuitados(incluidos.length === delDia.length ? new Set(delDia.map((c) => c.id)) : new Set())}>
+              {incluidos.length === delDia.length ? "Quitar todos" : "Marcar todos"}
+            </button>
+          )}
+        </p>
+        {delDia.map((c) => {
+          const on = !quitados.has(c.id);
+          return (
+            <label key={c.id} className={"ba-conso-fefo" + (on ? " on" : "")}>
+              <input type="checkbox" checked={on} onChange={() => alterna(c.id)} />
+              <b>{c.codigo}</b>
+              <span>{c.responsable ?? "—"} · enviado {hora(c.enviado_en)}</span>
+              <em>{nf.format(Number(c.renglones ?? 0))} rengl. · {nf.format(Number(c.ubicaciones ?? 0))} ubic. · {nf.format(Number(c.total_cajas ?? 0))} cajas</em>
+            </label>
+          );
+        })}
       </div>
     </section>
   );
