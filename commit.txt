@@ -1,22 +1,17 @@
-Tableros: el riesgo de vencimiento y las acciones con el diseño nuevo
+Tableros: el diseño tal cual — hoja blanca, raya fina y cifras compactas
 
-Inventario › Tablero
-- Arriba, el peor material en grande: cuánto lleva vencido, cuántas
-  cajas, dónde está, en cuántas ubicaciones, qué parte de la bodega es,
-  y un botón para ver dónde está.
-- Al lado, el aro de la bodega: el % con margen y el reparto por franja.
-- Las otras franjas quedan en una fila de contexto y siguen filtrando.
-- El aviso de lo que quedó sin contar lleva barra de avance
-  («11 de 430 contados»).
-- «Cuándo tiene que salir» solo sale cuando hay algo que sacar.
-- La lista pierde la columna «Total»: el buscador y los filtros van en
-  la misma fila del título.
-
-Acciones › Tablero
-- Las cuatro cifras llevan raya de color a la izquierda y su icono.
-- La efectividad, cuando no se puede medir, sale con la chapa
-  «SIN MEDIR» en vez de un porcentaje inventado.
-- Efectividad por área: barra también cuando todavía va camino a medir.
+Inventario › Tablero y Acciones › Tablero quedan como el diseño que se
+pidió, no como una versión inflada de él:
+- Las tarjetas son hojas blancas con una raya fina alrededor, esquinas
+  rectas y sin sombra.
+- Títulos, cifras y renglones en la escala del diseño (título 36, cifra
+  36, renglón 14); menos aire por dentro y entre bloques.
+- Botones, segmentos, chips y chapas cuadrados.
+- Acciones: la fila de una vencida es código · qué · quién · barra de
+  edad · días, con «DÍAS» en versales; el histograma va con barras
+  cuadradas y su raya de base.
+- Inventario: la chapa del estado va cuadrada y en versales, y la lista
+  usa rótulos en versales como el diseño.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

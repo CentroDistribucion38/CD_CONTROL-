@@ -7,34 +7,36 @@
 .at {
   --at-mal: #C8262B; --at-nar: #D96D1F; --at-ama: #F5B800; --at-ok: #1F7A45;
   --at-gr: var(--ac-gris); --at-ln: #ECECE8; --at-fondo: #F1F1EE;
-  gap: 18px !important; color: var(--ac-tinta);
+  gap: 16px !important; color: var(--ac-tinta);
 }
 .at svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round }
-.at-card { background: var(--ac-papel); border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -20px rgba(0,0,0,.28); min-width: 0 }
+/* COMO EL DISEÑO: hoja blanca con una raya fina alrededor, esquinas
+   rectas y sin sombra. Nada de tarjetas infladas. */
+.at-card { background: var(--ac-papel); border: 1px solid var(--at-ln); border-radius: 2px; min-width: 0 }
 .at .mal { color: var(--at-mal) }
 
 /* ---- Arriba ---- */
 .at-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap }
 .at-o { margin: 0; font: 700 11px var(--ac-titulo); letter-spacing: .16em; color: var(--at-gr) }
-.at-top h1 { margin: 8px 0 0; font: 900 clamp(30px, 4vw, 48px)/1 var(--ac-titulo); letter-spacing: -.04em }
-.at-frase { margin: 10px 0 0; font-size: 15px; color: var(--at-gr) }
+.at-top h1 { margin: 9px 0 0; font: 900 clamp(26px, 3.2vw, 36px)/1 var(--ac-titulo); letter-spacing: -.04em }
+.at-frase { margin: 10px 0 0; font-size: 14px; color: var(--at-gr) }
 .at-frase b.mal { font-weight: 700 }
 .at-der { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
 .at-reloj { text-align: right; margin-right: 12px }
-.at-reloj b { display: block; font: 900 clamp(30px, 3.4vw, 46px)/1 var(--ac-titulo); letter-spacing: -.02em; font-variant-numeric: tabular-nums }
-.at-reloj span { display: block; margin-top: 6px; font-size: 13px; color: var(--at-gr) }
+.at-reloj b { display: block; font: 900 clamp(26px, 2.6vw, 30px)/1 var(--ac-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.at-reloj span { display: block; margin-top: 5px; font-size: 12px; color: var(--at-gr) }
 .at-reloj span::first-letter { text-transform: uppercase }
 .at-btn {
-  display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 20px; border-radius: 10px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 2px; cursor: pointer;
   background: var(--c-marca, #FFC000); color: var(--c-marca-txt, #141414); border: 1.5px solid transparent;
-  font: 700 14.5px var(--ac-texto);
+  font: 800 14px var(--ac-titulo);
 }
-.at-btn.sec { background: var(--ac-papel); color: var(--ac-tinta); border-color: var(--at-ln) }
+.at-btn.sec { background: var(--ac-papel); color: var(--ac-tinta); border-color: var(--at-ln); font: 700 13.5px var(--ac-texto) }
 .at-btn.sec:hover { border-color: var(--ac-tinta) }
 .at-btn svg { width: 18px; height: 18px }
 
 /* ---- Cifras ---- */
-.at-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px }
+.at-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px }
 .at-k { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-left: 4px solid var(--at-ln) }
 .at-k.mal { border-left-color: var(--at-mal) } .at-k.ojo { border-left-color: var(--at-ama) }
 .at-k.bien { border-left-color: var(--at-ok) } .at-k.nd { border-left-color: #C9C9C3 }
@@ -42,93 +44,93 @@
 .at-k .chapa { display: inline-block; padding: 6px 10px; border-radius: 6px; background: var(--at-fondo); color: var(--at-gr);
   font: 800 10.5px var(--ac-titulo); letter-spacing: .12em }
 .at-k .chapa + .l { margin-top: 8px }
-.at-k .ic { flex: none; width: 58px; height: 58px; border-radius: 14px; display: grid; place-items: center; background: var(--at-fondo) }
-.at-k .ic svg { width: 22px; height: 22px }
+.at-k .ic { flex: none; width: 44px; height: 44px; border-radius: 2px; display: grid; place-items: center; background: var(--at-fondo) }
+.at-k .ic svg { width: 21px; height: 21px }
 .at-k.mal .ic { background: #FDEBEB; color: var(--at-mal) }
 .at-k.ojo .ic { background: #FFF4D1; color: #8A6000 }
 .at-k.bien .ic { background: #E6F4EC; color: var(--at-ok) }
-.at-k .n { display: block; font: 900 clamp(34px, 3.4vw, 50px)/1 var(--ac-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.at-k .n { display: block; font: 900 clamp(28px, 2.8vw, 36px)/1 var(--ac-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
 .at-k.mal .n { color: var(--at-mal) }
 .at-k.anillo.bien .n { color: var(--at-ok) }
-.at-k .l { display: block; margin-top: 6px; font-size: 14px; font-weight: 700 }
-.at-k .s { display: block; margin-top: 3px; font-size: 12.5px; color: var(--at-gr) }
+.at-k .l { display: block; margin-top: 5px; font-size: 12.5px; font-weight: 700 }
+.at-k .s { display: block; margin-top: 3px; font-size: 11.5px; color: var(--at-gr) }
 .at-k .s.pend { color: #8A6000; font-weight: 600 }
-.at-k .aro { flex: none; width: 64px; height: 64px }
+.at-k .aro { flex: none; width: 52px; height: 52px }
 .at-k .aro .fondo { fill: none; stroke: var(--at-fondo); stroke-width: 6 }
 .at-k .aro .valor { fill: none; stroke: var(--ac-tinta); stroke-width: 6; stroke-linecap: round }
 .at-k.anillo.bien .aro .valor { stroke: var(--at-ok) }
 .at-k.anillo.mal .aro .valor { stroke: var(--at-mal) }
 
 /* ---- Cuerpo ---- */
-.at-cuerpo { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start }
-.at-lado { display: flex; flex-direction: column; gap: 18px; min-width: 0 }
-.at-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 22px 26px 12px }
-.at-h h2 { margin: 0; font: 900 clamp(18px, 1.6vw, 22px) var(--ac-titulo); letter-spacing: -.01em }
-.at-h > span { font-size: 13px; color: var(--at-gr) }
-.at-vacio { margin: 0; padding: 10px 26px 26px; color: var(--at-gr); font-size: 14px }
+.at-cuerpo { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start }
+.at-lado { display: flex; flex-direction: column; gap: 16px; min-width: 0 }
+.at-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 22px 12px }
+.at-h h2 { margin: 0; font: 900 clamp(17px, 1.4vw, 19px) var(--ac-titulo); letter-spacing: -.01em }
+.at-h > span { font-size: 12.5px; color: var(--at-gr) }
+.at-vacio { margin: 0; padding: 10px 22px 22px; color: var(--at-gr); font-size: 14px }
 
-.at-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 26px 14px; border-bottom: 1px solid var(--at-ln) }
+.at-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 22px 12px }
 .at-chips button {
-  min-height: 40px; padding: 0 16px; border-radius: 8px; cursor: pointer; border: 1.5px solid var(--at-ln); background: var(--ac-papel);
-  font: 700 13.5px var(--ac-texto); color: var(--ac-tinta);
+  min-height: 38px; padding: 0 14px; border-radius: 2px; cursor: pointer; border: 1.5px solid var(--at-ln); background: var(--ac-papel);
+  font: 600 12.5px var(--ac-texto); color: var(--ac-tinta);
 }
-.at-chips button em { font-style: normal; font-weight: 600; color: var(--at-gr); margin-left: 3px }
+.at-chips button em { font-style: normal; font-weight: 700; color: var(--at-gr); margin-left: 5px }
 .at-chips button.sin { color: var(--at-mal); border-color: #F2C5C5 }
 .at-chips button.on { background: #141414; border-color: #141414; color: #fff }
 .at-chips button.on em { color: #FFC000 }
 
 .at-lista { display: flex; flex-direction: column }
 .at-v {
-  display: grid; grid-template-columns: 64px minmax(0, 1.7fr) minmax(170px, 1fr) minmax(60px, .7fr) 48px; gap: 16px; align-items: center;
-  padding: 14px 26px; border-bottom: 1px solid var(--at-ln);
+  display: grid; grid-template-columns: 76px minmax(0, 1fr) minmax(140px, auto) minmax(120px, 150px) 54px; gap: 16px; align-items: center;
+  padding: 12px 22px; border-top: 1px solid #F2F2EF; border-bottom: 0;
 }
 .at-v:last-child { border-bottom: 0 }
-.at-v .cod { font: 600 13px var(--ac-texto); color: var(--at-gr); font-variant-numeric: tabular-nums }
+.at-v .cod { font: 600 11.5px var(--fe-mono, ui-monospace, monospace); color: var(--at-gr); font-variant-numeric: tabular-nums }
 .at-v .que { min-width: 0 }
-.at-v .que b { display: block; font-size: 15px; font-weight: 600; overflow-wrap: anywhere }
-.at-v .que small { display: block; margin-top: 2px; font-size: 13px; color: var(--at-gr) }
-.at-v .at-quien { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.25 }
+.at-v .que b { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere }
+.at-v .que small { display: block; margin-top: 2px; font-size: 12px; color: var(--at-gr) }
+.at-v .at-quien { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.25 }
 .at-v .at-quien i {
-  flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 800 11px var(--ac-titulo); font-style: normal;
+  flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 9.5px var(--ac-titulo); font-style: normal;
   background: #141414; color: #FFC000;
 }
 .at-v .at-quien.sin { color: var(--at-mal) }
-.at-v .at-quien.sin i { background: #FDEBEB; color: var(--at-mal); font-size: 14px }
-.at-v .barra { height: 9px; border-radius: 9px; background: var(--at-fondo); overflow: hidden }
-.at-v .barra i { display: block; height: 100%; border-radius: 9px }
+.at-v .at-quien.sin i { background: #FDEBEB; color: var(--at-mal); font-size: 12px }
+.at-v .barra { height: 8px; border-radius: 0; background: #F0F0EC; overflow: hidden }
+.at-v .barra i { display: block; height: 100% }
 .at-v .barra i.r, .at-hist i.r { background: var(--at-mal) }
 .at-v .barra i.n, .at-hist i.n { background: var(--at-nar) }
 .at-v .barra i.a, .at-hist i.a { background: var(--at-ama) }
 .at-v .dd { text-align: right; line-height: 1 }
-.at-v .dd b { display: block; font: 900 24px var(--ac-titulo); font-variant-numeric: tabular-nums }
-.at-v .dd small { font-size: 12px; font-weight: 600; color: var(--at-gr) }
+.at-v .dd b { display: block; font: 900 20px var(--ac-titulo); font-variant-numeric: tabular-nums }
+.at-v .dd small { display: block; margin-top: 3px; font: 700 9px var(--ac-titulo); letter-spacing: .12em; text-transform: uppercase; color: var(--at-gr) }
 .at-v .dd.r b { color: var(--at-mal) } .at-v .dd.n b { color: #B35512 } .at-v .dd.a b { color: #8A6000 }
 
 /* ---- Cuánto llevan vencidas ---- */
-.at-hist { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; height: 230px; padding: 6px 26px 0; align-items: end }
+.at-hist { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 9px; height: 196px; padding: 6px 22px 0; align-items: end }
 .at-hist .col { display: flex; flex-direction: column; height: 100%; min-width: 0 }
 .at-hist .bar-e { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; border-bottom: 2px solid #141414; gap: 6px }
 .at-hist .bar-e b { font: 900 15px var(--ac-titulo) }
-.at-hist .bar-e i { display: block; width: 100%; max-width: 56px; border-radius: 6px 6px 0 0 }
-.at-hist .bar-e i.cero { background: var(--at-fondo); border-radius: 2px }
-.at-hist .x { text-align: center; margin-top: 8px; font-size: 12.5px; color: var(--at-gr); font-variant-numeric: tabular-nums }
-.at-dice { margin: 0; padding: 16px 26px 22px; font-size: 14px; color: var(--at-gr); line-height: 1.5 }
+.at-hist .bar-e i { display: block; width: 100%; max-width: 48px; border-radius: 0 }
+.at-hist .bar-e i.cero { background: #E8E8E3 }
+.at-hist .x { text-align: center; margin-top: 7px; font: 700 11.5px var(--ac-titulo); color: var(--at-gr); font-variant-numeric: tabular-nums }
+.at-dice { margin: 0; padding: 14px 22px 18px; font-size: 13px; color: var(--at-gr); line-height: 1.5 }
 .at-dice b { color: var(--ac-tinta) } .at-dice b.mal { color: var(--at-mal) }
 
 /* ---- Efectividad por área ---- */
 .at-areas { display: flex; flex-direction: column; border-top: 1px solid var(--at-ln) }
-.at-ar { padding: 14px 26px; border-bottom: 1px solid var(--at-ln) }
+.at-ar { padding: 12px 22px; border-bottom: 1px solid #F2F2EF }
 .at-ar:last-child { border-bottom: 0 }
 .at-ar .at-fila { display: flex; justify-content: space-between; align-items: baseline; gap: 10px }
-.at-ar .at-fila b { font-size: 15px; font-weight: 600; color: var(--ac-tinta) }
-.at-ar .at-fila span { font: 900 20px var(--ac-titulo) }
-.at-ar.nd .at-fila span { font: 600 13px var(--ac-texto); color: var(--at-gr) }
+.at-ar .at-fila b { font-size: 14px; font-weight: 600; color: var(--ac-tinta) }
+.at-ar .at-fila span { font: 800 17px var(--ac-titulo) }
+.at-ar.nd .at-fila span { font: 800 13px var(--ac-titulo); color: var(--at-gr) }
 .at-ar.bien .at-fila span { color: var(--at-ok) } .at-ar.mal .at-fila span { color: var(--at-mal) }
-.at-ar .riel { display: block; height: 7px; margin-top: 8px; border-radius: 7px; background: var(--at-fondo); overflow: hidden }
-.at-ar .riel i { display: block; height: 100%; border-radius: 7px; background: var(--ac-tinta) }
+.at-ar .riel { display: block; height: 6px; margin-top: 8px; background: #F0F0EC; overflow: hidden }
+.at-ar .riel i { display: block; height: 100%; background: var(--ac-tinta) }
 .at-ar.bien .riel i { background: var(--at-ok) } .at-ar.mal .riel i { background: var(--at-mal) }
 .at-ar .riel i.camino { background: var(--at-ok) }
-.at-ar small { display: block; margin-top: 6px; font-size: 12.5px; color: var(--at-gr) }
+.at-ar small { display: block; margin-top: 6px; font-size: 12px; color: var(--at-gr) }
 
 /* ---- Pantalla completa (modo reunión) ---- */
 .at:fullscreen { background: #F2F2EF; padding: 28px 36px; overflow: auto }

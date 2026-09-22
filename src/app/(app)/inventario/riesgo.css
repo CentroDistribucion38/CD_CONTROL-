@@ -12,24 +12,26 @@
 }
 .ir svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round }
 .ir .mal { color: var(--ir-pt) }
-.ir-card { background: var(--fe-papel); border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -20px rgba(0,0,0,.28); min-width: 0 }
+/* COMO EL DISEÑO: hoja blanca con raya fina alrededor, esquinas rectas
+   y sin sombra. */
+.ir-card { background: var(--fe-papel); border: 1px solid var(--ir-ln); border-radius: 2px; min-width: 0 }
 
 /* ---- Arriba ---- */
 .ir-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px 24px; flex-wrap: wrap }
 .ir-o { margin: 0; font: 700 11px var(--fe-titulo); letter-spacing: .16em; color: var(--fe-gris-panel) }
-.ir-top h1 { margin: 8px 0 0; font: 900 clamp(28px, 3.6vw, 44px)/1.05 var(--fe-titulo); letter-spacing: -.035em }
-.ir-frase { margin: 10px 0 0; font-size: 15px; line-height: 1.45; color: var(--fe-gris-panel); max-width: 72ch }
+.ir-top h1 { margin: 9px 0 0; font: 900 clamp(26px, 3.2vw, 36px)/1.05 var(--fe-titulo); letter-spacing: -.04em }
+.ir-frase { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--fe-gris-panel); max-width: 72ch }
 .ir-frase b { color: var(--fe-tinta) } .ir-frase b.mal { color: var(--ir-pt) }
 .ir-acc { display: flex; gap: 10px; flex-wrap: wrap; align-items: center }
-.ir-seg { display: inline-flex; background: var(--fe-papel); border: 1.5px solid var(--ir-ln); border-radius: 10px; padding: 3px }
-.ir-seg button { min-height: 40px; padding: 0 14px; border-radius: 7px; border: 0; background: none; cursor: pointer; font: 700 13.5px var(--fe-texto); color: var(--fe-gris) }
+.ir-seg { display: inline-flex; background: var(--fe-papel); border: 1.5px solid var(--ir-ln); border-radius: 2px }
+.ir-seg button { min-height: 42px; padding: 0 18px; border-radius: 0; border: 0; background: none; cursor: pointer; font: 600 13.5px var(--fe-texto); color: var(--fe-gris) }
 .ir-seg button.on { background: #141414; color: #fff }
 .ir-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 18px; border-radius: 10px; cursor: pointer;
-  background: var(--fe-acento); color: var(--fe-sobre); border: 0; font: 700 14px var(--fe-texto);
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 45px; padding: 0 18px; border-radius: 2px; cursor: pointer;
+  background: var(--fe-acento); color: var(--fe-sobre); border: 0; font: 800 14px var(--fe-titulo);
 }
 .ir-btn:disabled { opacity: .6; cursor: progress }
-.ir-ojo { margin: 0; padding: 12px 16px; border-radius: 12px; background: #FFF6DB; color: #5C4300; font-size: 14px; line-height: 1.45; border-left: 4px solid var(--ir-q) }
+.ir-ojo { margin: 0; padding: 12px 16px; border-radius: 2px; background: #FFF6DB; color: #5C4300; font-size: 14px; line-height: 1.45; border-left: 4px solid var(--ir-q) }
 .ir-ojo b { color: #3D2C00 }
 
 /* ---- Alertas ---- */
@@ -37,7 +39,7 @@
 .ir-aviso {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   background: #FFF6D6; border: 1px solid #F0CE4E; border-left: 4px solid var(--ir-q);
-  border-radius: 12px; padding: 14px 18px;
+  border-radius: 2px; padding: 14px 18px;
 }
 .ir-aviso .ic { flex: none; width: 34px; height: 34px; display: grid; place-items: center; color: #8A6000 }
 .ir-aviso .ic svg { width: 21px; height: 21px }
@@ -45,8 +47,8 @@
 .ir-aviso span { display: block; font-size: 12.5px; color: #7A5A00; margin-top: 2px }
 .ir-aviso .prog { margin-left: auto; min-width: 200px; text-align: right }
 .ir-aviso .prog .t { font: 700 11.5px var(--fe-titulo); color: #7A5C00; letter-spacing: .04em }
-.ir-aviso .prog .p { height: 8px; border-radius: 5px; background: #F2DE9A; margin-top: 6px; overflow: hidden }
-.ir-aviso .prog .p i { display: block; height: 100%; border-radius: 5px; background: #8A6A00 }
+.ir-aviso .prog .p { height: 8px; background: #F2DE9A; margin-top: 6px; overflow: hidden }
+.ir-aviso .prog .p i { display: block; height: 100%; background: #8A6A00 }
 
 /* ---- Arriba: el peor, grande, y el aro de la bodega ---- */
 .ir-duo { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start }
@@ -68,7 +70,7 @@
 .ir-hero-3 .v { margin-top: 5px; font: 800 17px var(--fe-titulo) }
 .ir-hero-3 .v.mal { color: var(--ir-pt) }
 .ir-hero-3 .ver {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; border-radius: 10px;
+  margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 2px;
   background: #141414; color: #fff; border: 0; cursor: pointer; font: 800 13.5px var(--fe-texto);
 }
 .ir-hero-3 .ver svg { width: 15px; height: 15px }
@@ -90,9 +92,9 @@
 .ir-bod .l span { width: 42px; text-align: right; font-size: 12.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
 
 /* ---- Las otras franjas, de contexto y de filtro ---- */
-.ir-fr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--ir-ln); border: 1px solid var(--ir-ln); border-radius: 12px; overflow: hidden }
+.ir-fr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--ir-ln); border: 1px solid var(--ir-ln); border-radius: 2px; overflow: hidden }
 .ir-frb { display: block; text-align: left; padding: 14px 18px; background: var(--fe-papel); border: 0; cursor: pointer; font: inherit; color: inherit; min-width: 0 }
-.ir-frb .k { display: block; font: 700 9.5px var(--fe-titulo); letter-spacing: .13em; color: var(--fe-gris) }
+.ir-frb .k { display: block; font: 700 9.5px var(--fe-titulo); letter-spacing: .13em; text-transform: uppercase; color: var(--fe-gris) }
 .ir-frb .v { display: block; margin-top: 5px; font: 900 22px var(--fe-titulo); color: #B2B2AC; font-variant-numeric: tabular-nums }
 .ir-frb .v.pasado { color: var(--ir-pt) } .ir-frb .v.semana { color: var(--ir-st) }
 .ir-frb .v.quince { color: var(--ir-qt) } .ir-frb .v.mes { color: var(--ir-mt) } .ir-frb .v.vencido { color: var(--ir-vt) }
@@ -132,35 +134,36 @@
 /* ---- Materiales ---- */
 .ir-th { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 22px 14px; border-bottom: 1px solid var(--ir-ln) }
 .ir-th > b { font: 900 clamp(17px, 1.5vw, 19px) var(--fe-titulo); letter-spacing: -.01em }
-.ir-th input { flex: 1 1 240px; max-width: 420px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--ir-ln); background: #FAFAF8; color: var(--fe-tinta); font: 500 14px var(--fe-texto) }
+.ir-th input { flex: 1 1 240px; max-width: 420px; min-height: 42px; padding: 0 14px; border-radius: 2px; border: 1.5px solid var(--ir-ln); background: #FAFAF8; color: var(--fe-tinta); font: 500 14px var(--fe-texto) }
 .ir-th input:focus { outline: none; border-color: var(--fe-tinta) }
 .ir-th .ir-chips { margin-left: auto }
 .ir-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 22px 14px; border-bottom: 1px solid var(--ir-ln) }
 .ir-bar input { flex: 1 1 260px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 500 14.5px var(--fe-texto) }
 .ir-bar input:focus { outline: none; border-color: var(--fe-tinta) }
 .ir-chips { display: flex; gap: 8px; flex-wrap: wrap }
-.ir-chips button { min-height: 44px; padding: 0 16px; border-radius: 22px; cursor: pointer; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13.5px var(--fe-texto) }
+.ir-chips button { min-height: 40px; padding: 0 14px; border-radius: 2px; cursor: pointer; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 600 12.5px var(--fe-texto) }
 .ir-chips button em { font-style: normal; color: var(--fe-gris); margin-left: 3px; font-weight: 600 }
 .ir-chips button.on { background: #141414; border-color: #141414; color: #fff } .ir-chips button.on em { color: #FFC000 }
 .ir-lista { display: flex; flex-direction: column }
 .ir-m {
   display: grid; grid-template-columns: 124px minmax(0, 2fr) repeat(4, minmax(72px, .75fr)) 20px; gap: 14px; align-items: center; text-align: left;
-  padding: 13px 22px; border: 0; border-bottom: 1px solid var(--ir-ln); background: none; cursor: pointer; font: inherit; color: inherit; width: 100%;
+  padding: 12px 22px; border: 0; border-top: 1px solid #F2F2EF; background: none; cursor: pointer; font: inherit; color: inherit; width: 100%;
 }
-.ir-m:last-child { border-bottom: 0 }
-.ir-m:hover { background: #FAFBFC }
+.ir-m:hover { background: #FFFDF5 }
+
 .ir-m .que { min-width: 0 }
-.ir-m .que b { display: block; font-size: 15px; font-weight: 700; overflow-wrap: anywhere }
-.ir-m .que small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--fe-gris) }
+.ir-m .que b { display: block; font-size: 14.5px; font-weight: 600; overflow-wrap: anywhere }
+.ir-m .que small { display: block; margin-top: 2px; font: 500 12px var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
 .ir-m .dato { display: flex; flex-direction: column; min-width: 0 }
-.ir-m .dato small { font-size: 11px; font-weight: 600; color: var(--fe-gris); text-transform: uppercase; letter-spacing: .04em }
-.ir-m .dato b { font-size: 14.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.ir-m .dato small { font: 700 9.5px var(--fe-titulo); color: var(--fe-gris); text-transform: uppercase; letter-spacing: .12em }
+.ir-m .dato b { margin-top: 3px; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .ir-m .fl { color: var(--fe-gris) }
-.ir-pill { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 5px 10px; border-radius: 20px; font: 700 12px var(--fe-texto); white-space: nowrap;
+/* La chapa del estado: cuadrada y en versales, como el diseño. */
+.ir-pill { display: inline-flex; align-items: center; justify-content: center; justify-self: start; padding: 6px 9px; border-radius: 2px;
+  font: 800 10px var(--fe-titulo); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; text-align: center;
   background: color-mix(in srgb, var(--c) 13%, #fff); color: color-mix(in srgb, var(--c) 55%, #000) }
-.ir-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c) }
 .ir-vacio { margin: 0; padding: 22px; color: var(--fe-gris) }
-.ir-mas { display: block; width: calc(100% - 44px); margin: 0 22px 18px; min-height: 44px; border-radius: 10px; border: 1.5px dashed var(--ir-ln); background: none; cursor: pointer; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
+.ir-mas { display: block; width: calc(100% - 44px); margin: 14px 22px 18px; min-height: 44px; border-radius: 2px; border: 1.5px dashed var(--ir-ln); background: none; cursor: pointer; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
 
 /* ---- Panel: dónde está ---- */
 .ir-velo { position: fixed; inset: 0; z-index: 80; background: rgba(8, 14, 24, .45); display: flex; justify-content: flex-end }
