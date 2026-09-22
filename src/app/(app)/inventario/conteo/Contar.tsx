@@ -228,6 +228,7 @@ export function Contar({
   const [b, setB] = useState<Borrador>(VACIO);
   const campoCalle = useRef<HTMLInputElement>(null);
   const campoCodigo = useRef<HTMLInputElement>(null);
+  const grupoLado = useRef<HTMLDivElement>(null);
   /* LAS TRES CASILLAS DE LA FECHA SE CONOCEN ENTRE ELLAS: es lo que
      permite que el cursor pase solo de DD a MM y de MM a AA. */
   const campoDia = useRef<HTMLInputElement>(null);
@@ -245,6 +246,10 @@ export function Contar({
      Es un contador y no un `true/false` porque hay que poder pedirlo
      dos veces seguidas: editar una tarjeta, arrepentirse, editar otra. */
   const [enfocarCantidad, setEnfocarCantidad] = useState(0);
+  /* De dónde salió lo que está en el renglón: de una tarjeta que sigue
+     igual, de una a la que solo le cambia la cantidad, o de teclearlo. */
+  const [desdeTarjeta, setDesdeTarjeta] = useState<"igual" | "cantidad" | null>(null);
+  const botonAnotar = useRef<HTMLButtonElement>(null);
 
   /* ---------- EL RENGLÓN A MEDIO ESCRIBIR NO SE PIERDE ----------
      Lo anotado está a salvo desde el momento en que se toca «Anotar»:
@@ -607,9 +612,15 @@ export function Contar({
    */
   function limpiar(dejarSitio = false) {
     setCorrigiendo(null);
+    setDesdeTarjeta(null);
     setMas(false);
+    /* «TANTO LA CALLE COMO EL MÓDULO IGUAL AL ANTERIOR, Y YA EMPIEZO CON
+       EL LADO; APENAS ESCOJA LADO, SE SALE AL CÓDIGO.» Calle y módulo se
+       quedan; el lado se vuelve a escoger en cada renglón —salvo que el
+       módulo tenga uno solo, que no hay nada que escoger—. */
+    const unLado = lados.length === 1;
     setB((x) => dejarSitio
-      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }
+      ? { ...VACIO, calle: x.calle, base: x.base, lado: unLado ? x.lado : "" }
       : VACIO);
     /* Y se borra el guardado: el renglón ya quedó en la base, así que
        restaurarlo mañana sería ofrecer volver a anotar algo que ya está
@@ -619,7 +630,13 @@ export function Contar({
        registro me debe llevar el cursor automáticamente a calle». Es
        además el único campo que no levanta teclado, así que volver no
        tapa las tarjetas de la pre-anotación que hay justo debajo. */
-    campoCalle.current?.focus();
+    if (dejarSitio && b.base) {
+      /* El cursor va al LADO; si el módulo tiene uno solo, derecho al código. */
+      setTimeout(() => {
+        if (unLado) campoCodigo.current?.focus();
+        else grupoLado.current?.querySelector("button")?.focus();
+      }, 0);
+    } else campoCalle.current?.focus();
   }
 
   async function abrir() {
@@ -800,7 +817,26 @@ export function Contar({
      formulario. Es el botón entero de la pre-anotación — si hubiera que
      confirmar y después anotar, serían dos toques para decir que nada
      cambió, que es lo mismo que teclearlo. */
-  const confirmar = (pv: Previo) => guardar(desdePrevio(pv));
+  /* «SI SIGUE IGUAL NO DEBERÍA GUARDARSE: QUE SE REFLEJE, UNO LO VALIDA
+     Y LE DA GUARDAR — NO EN AUTOMÁTICO.» La tarjeta llena el renglón
+     entero —código, fecha, cantidad, marcas— y el cursor va a «Anotar»:
+     el renglón se guarda cuando quien cuenta lo mira y lo confirma. */
+  function sigueIgual(pv: Previo) {
+    setCorrigiendo(null);
+    setB(desdePrevio(pv));
+    setDesdeTarjeta("igual");
+    setTimeout(() => {
+      botonAnotar.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      botonAnotar.current?.focus();
+    }, 0);
+  }
+  /* «OTRO SKU»: se queda el sitio y se empieza el renglón de cero, en el código. */
+  function otroSku() {
+    setCorrigiendo(null);
+    setB((x) => ({ ...VACIO, calle: x.calle, base: x.base, lado: x.lado }));
+    setDesdeTarjeta(null);
+    setTimeout(() => campoCodigo.current?.focus(), 0);
+  }
 
   /* «CAMBIÓ LA CANTIDAD»: la tarjeta baja a las casillas, llena, y
      quien cuenta corrige lo único que cambió. No guarda nada todavía;
@@ -808,6 +844,7 @@ export function Contar({
   function editarPrevio(pv: Previo) {
     setCorrigiendo(null);
     setB(desdePrevio(pv));
+    setDesdeTarjeta("cantidad");
     /* EL FOCO VA DESPUÉS DE QUE LA PANTALLA SE REHAGA, y por eso pasa
        por un contador y no se llama aquí: la casilla de la cantidad es
        «Estibas» o «Cajas» según el modo que traiga la tarjeta, y en el
@@ -1093,11 +1130,11 @@ export function Contar({
             ) : lados.length === 1 ? (
               <output className="fe-lado">{nombreLado(lados[0])}</output>
             ) : (
-              <div className="fe-segmento" role="group" aria-labelledby="fe-rot-lado">
+              <div className="fe-segmento" role="group" aria-labelledby="fe-rot-lado" ref={grupoLado}>
                 {lados.map((l) => (
                   <button key={l} type="button" className={b.lado === l ? "on" : ""}
                           aria-pressed={b.lado === l}
-                          onClick={() => pon("lado", l)}>{nombreLado(l)}</button>
+                          onClick={() => { pon("lado", l); setTimeout(() => campoCodigo.current?.focus(), 0) }}>{nombreLado(l)}</button>
                 ))}
               </div>
             )}
@@ -1180,14 +1217,18 @@ export function Contar({
                   {hecho ? (
                     <p className="fe-tarjeta-hecha">Ya lo contaste en este recorrido.</p>
                   ) : (
-                    <div className="fe-tarjeta-pie">
+                    <div className="fe-tarjeta-pie tres">
                       <button type="button" className="fe-si" disabled={guardando}
-                              onClick={() => confirmar(pv)}>
+                              onClick={() => sigueIgual(pv)}>
                         Sigue igual
                       </button>
                       <button type="button" className="fe-no" disabled={guardando}
                               onClick={() => editarPrevio(pv)}>
-                        Cambió
+                        Cambió cantidad
+                      </button>
+                      <button type="button" className="fe-no" disabled={guardando}
+                              onClick={otroSku}>
+                        Otro SKU
                       </button>
                     </div>
                   )}
@@ -1413,7 +1454,14 @@ export function Contar({
           <p className="fe-fija-cuenta">
             <b>{renglones.length}</b> en el borrador
           </p>
-          <button type="button" className="btn grande" disabled={guardando} onClick={anotar}>
+          {desdeTarjeta && !corrigiendo && b.codigo && (
+            <p className="fe-desde-tarjeta" role="status">
+              {desdeTarjeta === "igual"
+                ? <>Quedó lleno como la última vez. <b>Revísalo y dale «Anotar renglón»</b> para guardarlo.</>
+                : <>Todo igual que la última vez, fecha incluida: <b>corrige solo la cantidad</b> y dale «Anotar renglón».</>}
+            </p>
+          )}
+          <button type="button" className="btn grande" disabled={guardando} onClick={anotar} ref={botonAnotar}>
             {guardando ? "Guardando…" : corrigiendo ? "Guardar la corrección" : "Anotar renglón"}
           </button>
         </div>

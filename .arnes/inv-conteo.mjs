@@ -1027,12 +1027,16 @@ if (!/v_conteo_ultimo_por_ubicacion/.test(limpio))
                 "pre-anotación del módulo anterior");
 }
 
-/* 3 · CONFIRMAR GUARDA POR EL MISMO CAMINO QUE ANOTAR. Con dos caminos
-   —uno para lo tecleado y otro para lo confirmado— cualquier regla que
-   se toque en uno queda distinta en el otro, y el renglón confirmado
-   saldría del mismo módulo con otras cuentas. */
-if (!/const confirmar = \(pv: Previo\) => guardar\(desdePrevio\(pv\)\);/.test(limpio))
-  fallas.push("«Sigue igual» no guarda por el mismo camino que «Anotar»");
+/* 3 · «SIGUE IGUAL» NO GUARDA SOLO: llena el renglón y se guarda con
+   «Anotar», que es un solo camino de guardado. «Si sigue igual no
+   debería guardarse sino reflejarse; uno lo valida y le da guardar.» */
+{
+  const fn = (limpio.match(/function sigueIgual\(pv: Previo\) \{[\s\S]*?\n  \}/) ?? [""])[0];
+  if (!fn || /guardar\(/.test(fn) || !/setB\(desdePrevio\(pv\)\)/.test(fn))
+    fallas.push("«Sigue igual» guarda solo o no llena el renglón: debe reflejarlo y esperar «Anotar»");
+  if (!/Otro SKU/.test(limpio) || !/Cambió cantidad/.test(limpio))
+    fallas.push("la tarjeta no ofrece las tres respuestas: sigue igual, cambió cantidad, otro SKU");
+}
 if ((limpio.match(/conteo_fefo_agregar/g) ?? []).length !== 1)
   fallas.push("hay más de un sitio que agrega renglones: las dos formas de anotar pueden " +
               "discrepar");
@@ -1126,11 +1130,12 @@ if (!/campo=\{campoCalle\}/.test(limpio))
   if (!fn)
     fallas.push("«limpiar» ya no sabe distinguir vaciar el renglón de soltar el sitio");
   else {
-    if (!/campoCalle\.current\?\.focus\(\)/.test(fn))
-      fallas.push("después de anotar el cursor no vuelve a la calle");
-    if (!/calle: x\.calle, base: x\.base, lado: x\.lado/.test(fn))
-      fallas.push("anotar suelta la calle y el módulo: habría que volver a escogerlos para " +
-                  "cada renglón del mismo pasillo");
+    /* «Tanto la calle como el módulo igual al anterior registro, y ya
+       empiezo con el lado; apenas escoja lado se sale al código.» */
+    if (!/grupoLado\.current\?\.querySelector\("button"\)\?\.focus\(\)/.test(fn))
+      fallas.push("después de anotar el cursor no va al lado");
+    if (!/calle: x\.calle, base: x\.base, lado: unLado \? x\.lado : ""/.test(fn))
+      fallas.push("anotar suelta la calle y el módulo, o deja el lado puesto cuando hay dos");
   }
 }
 /* Y EL SITIO SE QUEDA SOLO AL ANOTAR. Corrigiendo se vuelve al

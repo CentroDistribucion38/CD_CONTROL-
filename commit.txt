@@ -1,18 +1,25 @@
-Usuarios: al crear, los usuarios y sus claves salen al centro, listos para compartir
+Conteo: calle y módulo se quedan, el cursor va al lado y la tarjeta de la última vez ya no guarda sola
 
-Al crear uno o varios, se abre una ventana al centro de la pantalla con
-una tabla: #, nombre, usuario y clave provisional, con copiar por fila.
-  - «Copiar para compartir»: el enlace de entrada y, por persona, usuario
-    y clave — listo para pegar en WhatsApp o en un correo.
-  - «Copiar las N» (para Excel) y «Bajar Excel».
-  - Los que no se crearon, con el porqué.
-Antes las claves salían en el panel del lado de la lista y se podían
-quedar fuera de la vista.
+DESPUÉS DE ANOTAR
+  - Calle y módulo quedan iguales al renglón anterior; el lado se vuelve
+    a escoger (si el módulo tiene uno solo, se deja).
+  - El cursor va al LADO; al escoger el lado salta al CÓDIGO. Con un solo
+    lado va derecho al código.
+
+LA TARJETA DE «LA ÚLTIMA VEZ», CON TRES RESPUESTAS
+  - Sigue igual: llena el renglón entero (código, fecha, cantidad,
+    marcas) y deja el cursor en «Anotar renglón». NO se guarda solo: se
+    revisa y se le da Anotar.
+  - Cambió cantidad: todo igual, fecha incluida; el cursor en la
+    cantidad para corregir solo eso.
+  - Otro SKU: se queda el sitio y el renglón se empieza de cero en el
+    código.
 
 SQL: ninguno.
 
-MEDIDO: .arnes/ad-usuarios.mjs (las claves al centro; el mensaje trae
-enlace, usuarios y claves; copiar, bajar; 3 anchos, 7 temas) · next build
+MEDIDO: .arnes/inv-conteo-sitio.mjs (el componente de verdad en
+Chromium: sitio, foco lado → código, las tres respuestas, nada se guarda
+sin Anotar) · .arnes/inv-conteo.mjs · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

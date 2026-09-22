@@ -1571,3 +1571,10 @@
   .fe .fe-mas-dos { grid-template-columns: minmax(0, 1fr) }
   .fe .fe-mas-marcas { display: none }
 }
+/* TRES RESPUESTAS: sigue igual, cambió la cantidad, otro SKU. Ninguna
+   guarda sola: llenan el renglón y se guarda con «Anotar renglón». */
+.fe .fe-tarjeta-pie.tres button { font-size: 14px; padding: 0 6px; line-height: 1.15 }
+.fe .fe-desde-tarjeta {
+  margin: 0 0 10px; padding: 10px 12px; border-left: 4px solid var(--fe-acento); background: var(--fe-papel);
+  font-size: 14px; line-height: 1.4; color: var(--fe-tinta);
+}
