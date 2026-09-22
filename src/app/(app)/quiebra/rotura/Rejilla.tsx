@@ -27,6 +27,13 @@ import { TURNOS, horarioDe, letraDe, turnoDeAhora } from "@/modulos/rotlinea/tur
  * vez: la línea para, vuelve a arrancar, y hay otra canastilla. Las
  * pesadas de ese turno se ven arriba y se suman. Para corregir una, se
  * toca y la rejilla se llena con lo que decía.
+ *
+ * VARIAS LÍNEAS EN UN SOLO ENVÍO. «Relaciono la línea 1 y cuando pase a
+ * la 2 y vuelva a la 1 no se borre, y cuando le dé a enviar, todo se
+ * genere en un solo informe.» Lo que se teclea queda guardado EN LA
+ * PANTALLA por línea + turno + envase: cambiar de línea es cambiar de
+ * hoja, no borrar. Abajo se ve lo que hay pendiente, y «Enviar todo»
+ * manda cada pesada y abre UNA sola hoja del día con todas las líneas.
  */
 export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
                           puedeEditar, esAdmin, turnoAhora }: {
@@ -57,9 +64,29 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
   /* Kilos por máquina, como TEXTO. Guardar el número obligaría a
      decidir qué es "" y qué es 0 mientras la persona borra para volver
      a escribir, y el campo se pondría en 0 solo. */
-  const [kilos, setKilos] = useState<Record<number, string>>({});
-  const [corrigiendo, setCorrigiendo] = useState<number | null>(null);
+  /* EL BORRADOR, POR LÍNEA + TURNO + ENVASE. Antes era una sola rejilla
+     que se vaciaba al cambiar de línea; ahora cada combinación guarda lo
+     suyo hasta que se envía. */
+  const [borr, setBorr] = useState<Record<string, Record<number, string>>>({});
+  const [corr, setCorr] = useState<Record<string, number>>({});
+  /* CADA LÍNEA RECUERDA EN QUÉ TURNO Y CON QUÉ ENVASE se quedó: volver a
+     la línea 1 es volver a SU rejilla, no a la línea 1 con el envase de
+     la 4 —que estaría vacía y parecería que se borró—. */
+  const [ultimo, setUltimo] = useState<Record<number, { turno: number; envase: string }>>({});
   const [mandando, setMandando] = useState(false);
+
+  const clave = `${linea}|${turno}|${envase}`;
+  const irALinea = (l: number) => {
+    const u = ultimo[l];
+    setLinea(l);
+    if (u) { setTurno(u.turno); setEnvase(u.envase) }
+  };
+  const kilos = borr[clave] ?? {};
+  const corrigiendo = corr[clave] ?? null;
+  const setKilos = (f: (k: Record<number, string>) => Record<number, string>) =>
+    setBorr((b) => ({ ...b, [clave]: f(b[clave] ?? {}) }));
+  const ponerCorr = (t: number | null) =>
+    setCorr((c) => { const x = { ...c }; if (t == null) delete x[clave]; else x[clave] = t; return x });
 
   /* La firma de ESTE turno de ESTA línea. Es por turno completo, no por
      envase: el líder da por bueno el turno, no una canastilla. */
@@ -83,10 +110,10 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
     () => pesadas.filter((p) => p.linea === linea && p.turno === turno && p.envase === envase),
     [pesadas, linea, turno, envase]);
 
-  /* Al cambiar de turno, de línea o de envase, la rejilla se limpia: lo
-     que había escrito era de otra cosa, y dejarlo puesto es la forma
-     más fácil de guardar los kilos del turno anterior. */
-  useEffect(() => { setKilos({}); setCorrigiendo(null) }, [linea, turno, envase, fecha]);
+  /* Al cambiar de DÍA sí se limpia todo: el borrador es de ese día.
+     Cambiar de línea, de turno o de envase ya no borra nada. */
+  useEffect(() => { setBorr({}); setCorr({}); setUltimo({}) }, [fecha]);
+  useEffect(() => { if (envase) setUltimo((u) => ({ ...u, [linea]: { turno, envase } })) }, [linea, turno, envase]);
 
   /* «38,5» Y «38.5» SON LO MISMO. El teclado del celular en español
      pone coma, y Number("38,5") es NaN: la pesada saldría en cero. */
@@ -100,26 +127,53 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
   const totalUnd = maqs.reduce((a, m) => a + und(kilos[m.item] ?? ""), 0);
   const hayAlgo = totalKg > 0;
 
-  async function guardar() {
-    if (!envase) { avisar.mal("Falta escoger el envase"); return }
-    if (!hayAlgo) { avisar.mal("La rejilla está en cero: no hay nada que guardar"); return }
+  /* LO QUE HAY PENDIENTE DE ENVIAR, en todas las líneas. Se arma del
+     borrador: cada combinación con algo escrito es una pesada. */
+  const pendientes = useMemo(() => Object.entries(borr).map(([k, ks]) => {
+    const [l, t, e] = k.split("|");
+    const ev = envases.find((x) => x.material === e);
+    const filas = maqs.map((m) => ({ maquina: m.item, kg: num(ks[m.item]) })).filter((x) => x.kg > 0);
+    const kg = filas.reduce((a, x) => a + x.kg, 0);
+    const unds = ev ? filas.reduce((a, x) => a + Math.ceil(x.kg / Number(ev.peso_kg)), 0) : 0;
+    return { k, linea: Number(l), turno: Number(t), envase: e,
+             nombre: ev?.descripcion ?? e, filas, kg, und: unds, toma: corr[k] ?? null };
+  }).filter((x) => x.filas.length > 0 && x.envase)
+    .sort((a, b) => a.linea - b.linea || a.turno - b.turno || a.nombre.localeCompare(b.nombre)),
+    [borr, corr, envases, maqs, maquinas]);
+  const undPend = pendientes.reduce((a, x) => a + x.und, 0);
+  const lineasPend = [...new Set(pendientes.map((x) => x.linea))].sort((a, b) => a - b);
+  /* Un turno firmado está cerrado: lo que quedó escrito ahí no se manda. */
+  const cerrada = (l: number, t: number) => firmas.some((f) => f.linea === l && f.turno === t);
+
+  /* ENVIAR TODO: una llamada por pesada —la tabla guarda una fila por
+     máquina— y al final UNA sola hoja del día con todas las líneas. Lo
+     que falle se queda en el borrador con su aviso, para no perderlo. */
+  async function enviarTodo() {
+    if (!pendientes.length) { avisar.mal("No hay nada escrito para enviar"); return }
+    const trancadas = pendientes.filter((x) => cerrada(x.linea, x.turno));
+    if (trancadas.length) {
+      avisar.mal(`Turno firmado: la línea ${trancadas[0].linea} turno ${letraDe(trancadas[0].turno)} está cerrada. Quítale la firma o borra esa pesada del borrador.`);
+      return;
+    }
     setMandando(true);
-    const { error } = await supabase.rpc("rotlinea_guardar", {
-      p_fecha: fecha,
-      p_linea: linea,
-      p_turno: turno,
-      p_envase: envase,
-      p_kilos: maqs
-        .map((m) => ({ maquina: m.item, kg: num(kilos[m.item]) }))
-        .filter((x) => x.kg > 0),
-      p_toma: corrigiendo,
-    });
+    const malas: string[] = [];
+    const buenas: string[] = [];
+    for (const x of pendientes) {
+      const { error } = await supabase.rpc("rotlinea_guardar", {
+        p_fecha: fecha, p_linea: x.linea, p_turno: x.turno, p_envase: x.envase,
+        p_kilos: x.filas, p_toma: x.toma,
+      });
+      if (error) malas.push(`Línea ${x.linea} ${letraDe(x.turno)}: ${error.message}`);
+      else buenas.push(x.k);
+    }
     setMandando(false);
-    if (error) { avisar.mal(error.message); return }
-    avisar.bien(corrigiendo
-      ? `Pesada ${corrigiendo} corregida: ${totalUnd.toLocaleString("es-CO")} unidades.`
-      : `Pesada guardada: ${totalKg} kg · ${totalUnd.toLocaleString("es-CO")} unidades.`);
-    setKilos({}); setCorrigiendo(null);
+    /* Solo se saca del borrador lo que de verdad quedó guardado. */
+    setBorr((b) => { const y = { ...b }; for (const k of buenas) delete y[k]; return y });
+    setCorr((c) => { const y = { ...c }; for (const k of buenas) delete y[k]; return y });
+    if (malas.length) { avisar.mal(malas.join(" · ")); if (!buenas.length) return }
+    const n = buenas.length;
+    avisar.bien(`${n} pesada${n === 1 ? "" : "s"} guardada${n === 1 ? "" : "s"} · ${undPend.toLocaleString("es-CO")} unidades` +
+      (lineasPend.length > 1 ? ` · líneas ${lineasPend.join(", ")}` : ""));
     /* «hoja=1»: la página vuelve a armarse en el servidor CON LA PESADA
        NUEVA, y al llegar abre sola el cuadro de generar la hoja del día.
        Con un `refresh` y un aviso aparte, el cuadro se abriría antes de
@@ -146,7 +200,7 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
           <div className="rl-seg">
             {vivas.map((l) => (
               <button key={l.linea} type="button" className={linea === l.linea ? "on" : ""}
-                      onClick={() => setLinea(l.linea)}>{l.linea}</button>
+                      onClick={() => irALinea(l.linea)}>{l.linea}</button>
             ))}
           </div>
         </div>
@@ -219,8 +273,8 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
                     title={p.baja ? "Ya dada de baja en SAP: no se puede corregir"
                                   : "Tocar para corregir esta pesada"}
                     onClick={() => {
-                      if (corrigiendo === p.toma) { setCorrigiendo(null); setKilos({}); return }
-                      setCorrigiendo(p.toma);
+                      if (corrigiendo === p.toma) { ponerCorr(null); setKilos(() => ({})); return }
+                      ponerCorr(p.toma);
                       avisar.bien(`Corrigiendo la pesada ${p.toma}. Vuelve a llenar la rejilla como debe quedar.`);
                     }}>
               <b>Pesada {p.toma}</b>
@@ -312,33 +366,71 @@ export function Rejilla({ fecha, lineas, maquinas, envases, pesadas, firmas,
         </>
       )}
 
+      {/* LO QUE ESTÁ ESCRITO Y TODAVÍA NO SE HA MANDADO, de todas las
+          líneas. Tocar una lleva a su rejilla; la × la borra. Sin esta
+          lista, el borrador de otra línea sería invisible y se enviaría
+          sin querer —o se perdería creyendo que no había nada—. */}
+      {pendientes.length > 0 && (
+        <div className="rl-borr">
+          <span className="rl-rot">Escrito, sin enviar</span>
+          <div className="rl-borr-chips">
+            {pendientes.map((x) => (
+              <span key={x.k} className={"rl-borr-chip" + (x.k === clave ? " on" : "") + (cerrada(x.linea, x.turno) ? " mala" : "")}>
+                <button type="button" title="Abrir esta rejilla"
+                        onClick={() => { setLinea(x.linea); setTurno(x.turno); setEnvase(x.envase); }}>
+                  <b>Línea {x.linea} · {letraDe(x.turno)}</b>
+                  <i>{x.nombre}</i>
+                  <span>{x.und.toLocaleString("es-CO")} und · {fmtKg(x.kg)} kg{x.toma ? ` · corrige la ${x.toma}` : ""}</span>
+                  {cerrada(x.linea, x.turno) && <em>turno firmado: no se puede enviar</em>}
+                </button>
+                <button type="button" className="rl-borr-x" aria-label={`Borrar lo escrito de la línea ${x.linea} turno ${letraDe(x.turno)}`}
+                        onClick={() => {
+                          setBorr((b) => { const y = { ...b }; delete y[x.k]; return y });
+                          setCorr((c) => { const y = { ...c }; delete y[x.k]; return y });
+                        }}>×</button>
+              </span>
+            ))}
+          </div>
+          <span className="rl-suma">
+            En total: <b>{undPend.toLocaleString("es-CO")}</b> unidades en {lineasPend.length === 1 ? "una línea" : `${lineasPend.length} líneas`}
+          </span>
+        </div>
+      )}
+
       {/* EL PIE, SIEMPRE QUE SE PUEDA ANOTAR. En el celular es la barra
           oscura pegada abajo: el botón queda a un dedo sin importar por
           dónde vaya la pantalla, y dice cuántas pesadas lleva el día. */}
-      {puedeEditar && !firmado && (
+      {/* Con el turno firmado la rejilla se cierra, pero si hay otras
+          líneas escritas la barra sigue: si no, quedarse parado en un
+          turno firmado esconde el botón de enviar lo demás. */}
+      {puedeEditar && (!firmado || pendientes.length > 0) && (
         <div className="rl-pie rl-pie-reg">
           {/* Mientras se llena, la barra dice lo que va a guardar; en
               blanco, cuántas pesadas lleva el día. */}
           <p className="rl-pie-cuenta">
-            {hayAlgo
-              ? <><b>{totalUnd.toLocaleString("es-CO")} u</b>{fmtKg(totalKg)} kg · {maqs.filter((m) => num(kilos[m.item]) > 0).length} máq.</>
-              : <><b>{pesadas.length}</b>pesada{pesadas.length === 1 ? "" : "s"} hoy</>}
+            {pendientes.length === 0
+              ? <><b>{pesadas.length}</b>pesada{pesadas.length === 1 ? "" : "s"} hoy</>
+              : pendientes.length === 1
+                ? <><b>{undPend.toLocaleString("es-CO")} u</b>{fmtKg(pendientes[0].kg)} kg · {pendientes[0].filas.length} máq.</>
+                : <><b>{undPend.toLocaleString("es-CO")} u</b>{pendientes.length} pesadas · líneas {lineasPend.join(", ")}</>}
           </p>
-          <button type="button" className="rl-btn si" disabled={mandando || !envase || !hayAlgo}
-                  onClick={guardar}>
-            {mandando ? "Guardando…"
+          <button type="button" className="rl-btn si" disabled={mandando || !pendientes.length}
+                  onClick={enviarTodo}>
+            {mandando ? "Enviando…"
+              : pendientes.length > 1 ? `Enviar todo (${pendientes.length})`
               : corrigiendo ? `Corregir la pesada ${corrigiendo}`
               : `Guardar la pesada ${mias.length + 1}`}
           </button>
           {corrigiendo && (
             <button type="button" className="rl-btn" disabled={mandando}
-                    onClick={() => { setCorrigiendo(null); setKilos({}) }}>
+                    onClick={() => { ponerCorr(null); setKilos(() => ({})) }}>
               Dejar así
             </button>
           )}
           <span className="rl-nota">
             {env && <>Peso del envase: <b>{Number(env.peso_kg)} kg</b> por botella. </>}
-            Guardar <b>agrega</b> una pesada; no borra las anteriores.
+            Lo que escribes se queda al cambiar de línea; <b>enviar</b> las manda todas y arma
+            una sola hoja del día. Enviar <b>agrega</b>; no borra las pesadas anteriores.
           </span>
         </div>
       )}

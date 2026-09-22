@@ -1,9 +1,20 @@
-Usuarios: ver la tarjeta de acceso de una persona en pantalla
+Rotura de línea: varias líneas en un solo envío y una sola hoja del día
 
-- Con una persona marcada, «Ver tarjeta» la muestra al centro con su
-  nombre, rol y usuario, lista para bajar o compartir.
-- La clave no sale porque va cifrada; «Darle clave nueva» pregunta
-  antes y la pone en la tarjeta (se muestra una sola vez).
+- Lo que se teclea queda guardado por línea + turno + envase: cambiar de
+  línea ya no borra nada, y volver a la línea 1 vuelve a SU rejilla (con
+  el turno y el envase en los que se quedó).
+- Abajo sale lo que está escrito y sin enviar, de todas las líneas, con
+  su total; se toca para abrir esa rejilla y la × la bota.
+- «Enviar todo (N)» guarda una pesada por combinación y abre UNA sola
+  hoja del día con todas las líneas. Lo que falle se queda escrito.
+- Un turno firmado no se envía: avisa cuál es y no manda nada; la barra
+  de enviar sigue a la vista aunque se esté parado en ese turno.
+- Arnés nuevo: .arnes/rl-varias.mjs (1200/390/360).
+
+Conteo y Maestro (de la tanda anterior, si no se subieron):
+- La pista sale de la barra de anotar; «Otro SKU» quita las tarjetas;
+  la pestaña escogida va en el color del tema; filtro por calle en el
+  maestro y SQL de la calle P hasta 49.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

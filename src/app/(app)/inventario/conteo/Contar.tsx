@@ -842,9 +842,13 @@ export function Contar({
       botonAnotar.current?.focus();
     }, 0);
   }
-  /* «OTRO SKU»: se queda el sitio y se empieza el renglón de cero, en el código. */
+  /* «OTRO SKU»: se queda el sitio, se empieza el renglón de cero en el
+     código y SE QUITAN LAS TARJETAS de lo que había antes —eso es lo que
+     hacía «Aquí hay otra cosa», que sobraba como botón aparte: si aquí
+     hay otro SKU, lo de la última vez ya no sirve de referencia. */
   function otroSku() {
     setCorrigiendo(null);
+    setVerPrevio(false);
     setB((x) => ({ ...VACIO, calle: x.calle, base: x.base, lado: x.lado }));
     setDesdeTarjeta(null);
     setTimeout(() => campoCodigo.current?.focus(), 0);
@@ -1191,13 +1195,6 @@ export function Contar({
                   <em>{textoHace(diasDesde(previo[0].contado_en)!)}</em>
                 )}
               </p>
-              {/* UN SOLO TOQUE PARA BORRAR TODO ESTO. «Si no es esa, sino
-                  que ya hay otra, que con un clic yo logre borrar la otra
-                  información.» El día que la posición cambió de material
-                  entero, las tarjetas estorban. */}
-              <button type="button" className="fe-mini" onClick={() => setVerPrevio(false)}>
-                Aquí hay otra cosa
-              </button>
             </div>
 
             {previo.map((pv) => {
@@ -1462,17 +1459,20 @@ export function Contar({
             Y LLEVA LA CUENTA DEL BORRADOR AL LADO. Es la única cifra que
             se mira sin dejar de contar —cuántos van— y tenerla ahí
             ahorra cambiar de pestaña para averiguarlo. */}
+        {/* LA PISTA VA AFUERA DE LA BARRA. Adentro partía el renglón en
+            tres y, en el celular —donde la barra es oscura—, quedaba un
+            recuadro blanco encima del teclado que no dejaba ver nada. */}
+        {desdeTarjeta && !corrigiendo && b.codigo && (
+          <p className="fe-desde-tarjeta" role="status">
+            {desdeTarjeta === "igual"
+              ? <>Quedó lleno como la última vez. <b>Revísalo y dale «Anotar renglón»</b> para guardarlo.</>
+              : <>Todo igual que la última vez, fecha incluida: <b>corrige solo la cantidad</b> y dale «Anotar renglón».</>}
+          </p>
+        )}
         <div className="fe-barra-fija">
           <p className="fe-fija-cuenta">
             <b>{renglones.length}</b> en el borrador
           </p>
-          {desdeTarjeta && !corrigiendo && b.codigo && (
-            <p className="fe-desde-tarjeta" role="status">
-              {desdeTarjeta === "igual"
-                ? <>Quedó lleno como la última vez. <b>Revísalo y dale «Anotar renglón»</b> para guardarlo.</>
-                : <>Todo igual que la última vez, fecha incluida: <b>corrige solo la cantidad</b> y dale «Anotar renglón».</>}
-            </p>
-          )}
           <button type="button" className="btn grande" disabled={guardando} onClick={anotar} ref={botonAnotar}>
             {guardando ? "Guardando…" : corrigiendo ? "Guardar la corrección" : "Anotar renglón"}
           </button>
