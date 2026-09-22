@@ -659,8 +659,8 @@
      quedan ENCIMA del título — que es justo lo que se veía. env() dice
      cuánto mide esa franja en cada aparato; donde no existe vale 0 y
      queda el relleno de siempre. */
-  .tp-ci-cab { align-items: flex-start; padding-top: calc(12px + env(safe-area-inset-top, 0px)) }
-  .tp-ci-cab .ci-der { top: calc(12px + env(safe-area-inset-top, 0px)) }
+  .tp-ci-cab { align-items: flex-start; padding-top: calc(14px + env(safe-area-inset-top, 0px)) }
+  .tp-ci-cab .ci-der { top: calc(14px + env(safe-area-inset-top, 0px)) }
   .tp-ci-cab .ci-tit { padding-right: 100px }
   .tp-ci-cab .ci-copiar { display: none }
   .tp-ci-cab .ci-der { position: absolute; right: 12px; gap: 6px; margin: 0 }

@@ -35,20 +35,31 @@ Si el navegador no da permiso de portapapeles, cae al metodo viejo, que
 no depende de ningun permiso.
 
 LA MUESCA DEL TELEFONO
-Abierta a pantalla completa, la ficha arrancaba en el pixel 0 y la
-hora, la senal y la bateria del telefono quedaban ENCIMA del titulo.
-Ahora la cabecera y la barra de abajo respetan esa franja (env safe
-area); donde no existe vale 0 y queda el relleno de siempre.
+La app abre a pantalla completa (viewportFit: cover y la barra de
+estado translucida), asi que la hora, la senal y la bateria se dibujan
+ENCIMA de la ficha. Ahora la cabecera y la barra de abajo reservan esa
+franja con env(safe-area-inset-*), que es lo mismo que ya hacia la
+barra de la app; donde no existe vale 0 y queda el relleno de siempre.
 
 ARNES
-tp-cierre: dos bloques nuevos. Uno cambia el medio a «print» con el
-ancho de una hoja y comprueba que no salga la barra de la app ni el
-tablero de atras, que mande la version ancha y no la del celular, que
-los seis viajes esten, que nada se salga del papel y que la banda y la
-franja conserven su fondo. El otro comprueba el texto de copiar: que
-traiga la adherencia, el «de cuantos», la hora, el desglose, los avisos
-y el enlace — y que NO lleve tablas ni markdown, que en WhatsApp se ven
-como basura.
+tp-cierre: tres bloques nuevos.
+- Cambia el medio a «print» con el ancho de una hoja y comprueba que no
+  salga la barra de la app ni el tablero de atras, que mande la version
+  ancha y no la del celular, que los seis viajes esten, que nada se
+  salga del papel, y que la banda y la franja conserven su fondo.
+- Comprueba el texto de copiar: adherencia, el «de cuantos», la hora,
+  el desglose, los avisos y el enlace — y que NO lleve tablas ni
+  markdown, que en WhatsApp se ven como basura.
+- Comprueba que las reglas de la muesca existan y el navegador las haya
+  aceptado. Aqui no se puede simular una muesca —Chromium de escritorio
+  resuelve env() en 0— asi que se leen de la hoja de estilos. Probado
+  al reves: quitando el env(), el arnes falla.
+
+Y un error del propio arnes, que vale la pena dejar escrito: en los
+navegadores de ahora una regla CSS normal tambien expone `cssRules`
+—vacia— porque el CSS ya permite anidar. Un recorrido que hace
+«if (r.cssRules) recurre y sigue» nunca llega a mirar ninguna regla:
+decia que faltaban las tres reglas de la muesca y las tres estaban.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

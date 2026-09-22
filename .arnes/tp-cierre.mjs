@@ -442,6 +442,50 @@ for (const tema of TEMAS) {
   await pg.keyboard.press("Escape");
 }
 
+/* ---------- 13 · LA MUESCA DEL TELÉFONO ----------
+   La app abre a pantalla completa (viewportFit: "cover" y la barra de
+   estado translúcida), así que la hora, la señal y la batería del
+   teléfono se dibujan ENCIMA de la ficha — que es lo que se veía.
+
+   AQUÍ NO SE PUEDE SIMULAR UNA MUESCA: Chromium de escritorio resuelve
+   env(safe-area-inset-top) en 0 y no hay forma de darle otro valor. Lo
+   que SÍ se puede comprobar, y es lo que de verdad se rompe, es que la
+   regla exista y que el navegador la haya aceptado: si el calc()
+   estuviera mal escrito, el navegador tira la declaración entera y la
+   cabecera se queda sin ningún relleno. Se lee de la hoja de estilos,
+   no del elemento. */
+{
+  const reglas = await pg.evaluate(() => {
+    const out = [];
+    /* OJO CON LA RECURSIÓN: en los navegadores de ahora una regla normal
+       TAMBIÉN expone `cssRules` —vacía— porque el CSS ya permite anidar.
+       Un «if (r.cssRules) recurre y sigue» nunca llega a mirar ninguna
+       regla y el arnés aprueba o reprueba sin haber leído nada. Se
+       distingue por `style`, que solo tienen las reglas de verdad. */
+    const recorrer = (lista) => {
+      for (const r of lista) {
+        if (r.style && r.selectorText &&
+            /\.tp-ci-cab\b|\.tp-ci-fija\b|\.tp-ci-movil\b/.test(r.selectorText)) {
+          out.push(r.selectorText + " { " + r.style.cssText + " }");
+        }
+        if (r.cssRules && r.cssRules.length) recorrer(r.cssRules);
+      }
+    };
+    for (const h of document.styleSheets) {
+      let rs; try { rs = h.cssRules } catch { continue }
+      recorrer(rs);
+    }
+    return out;
+  });
+  const junto = reglas.join(" ");
+  ok(/\.tp-ci-cab[^{]*\{[^}]*padding-top:[^;}]*safe-area-inset-top/.test(junto),
+     "la cabecera de la ficha no reserva la muesca: en el celular la tapa la hora y la batería");
+  ok(/\.tp-ci-fija[^{]*\{[^}]*safe-area-inset-bottom/.test(junto),
+     "la barra de abajo no reserva el borde inferior: en un iPhone la raya del sistema le pasa por encima");
+  ok(/\.tp-ci-movil[^{]*\{[^}]*padding-bottom:[^;}]*safe-area-inset-bottom/.test(junto),
+     "el cuerpo no deja hueco para la barra de abajo más el borde del sistema: el último renglón queda tapado");
+}
+
 /* Una foto para mirarla, cuando se pide. */
 if (process.env.FOTO) {
   for (const [nom, ancho, turno] of [["pc", 1300, 0], ["cel", 390, 0], ["turno", 1300, 1]]) {
