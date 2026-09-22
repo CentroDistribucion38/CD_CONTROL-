@@ -618,8 +618,16 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
             filas: rs.filter((x) => x.ok).map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? "" })),
             fallas: rs.filter((x) => !x.ok), rol: rolVarios });
     if (!corte) { setTexto(""); setVarios(false) }
-    /* El panel de las claves puede quedar fuera de la vista: se lleva ahí. */
-    setTimeout(() => document.querySelector(".us-pnl")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  }
+  /* EL MENSAJE PARA MANDAR: el enlace de entrada y, por persona, su
+     usuario y su clave — listo para pegar en WhatsApp o en un correo. */
+  function copiarMensaje(filas: Clave[]) {
+    const url = typeof window === "undefined" ? "" : `${location.origin}/login`;
+    const t = [`Accesos a CONTROL · ${url}`, "", ...filas.map((x) => `${x.nombre}\nUsuario: ${x.usuario}\nClave: ${x.clave}\n`),
+      "Al entrar la primera vez te pide cambiar la clave."].join("\n");
+    navigator.clipboard?.writeText(t).then(
+      () => setBien("Mensaje copiado: pégalo en WhatsApp o en un correo."),
+      () => setMal("No se pudo copiar."));
   }
   function copiarClaves(filas: Clave[]) {
     const t = filas.length === 1 ? `${filas[0].usuario}\t${filas[0].clave}`
@@ -720,7 +728,10 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       return (
         <PanelLado fijo titulo={x.titulo} sub="Lista para entregar" cerrar={volver} volver={volver}
           pie={<>
-            <button type="button" className="btn" onClick={() => copiarClaves(x.filas)} disabled={!x.filas.length}>
+            <button type="button" className="btn" onClick={() => copiarMensaje(x.filas)} disabled={!x.filas.length}>
+              Copiar para compartir
+            </button>
+            <button type="button" className="btn sec" onClick={() => copiarClaves(x.filas)} disabled={!x.filas.length}>
               {x.filas.length === 1 ? "Copiar" : x.filas.length === 2 ? "Copiar las dos" : `Copiar las ${x.filas.length}`}
             </button>
             {/* El Excel es para un lote de creados; para una o dos claves
@@ -735,17 +746,29 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
             al cerrar este panel ya no se puede{x.filas.length === 1 ? "" : "n"} volver a ver. En el primer ingreso
             {x.filas.length === 1 ? " le" : " les"} pedirá cambiarla.
           </Aviso>
-          <div className="us-pnl-claves">
-            {x.filas.map((c) => (
-              <div className="us-pnl-clave" key={c.usuario}>
-                <Ini de={c.nombre} />
-                <div><b>{c.nombre} · <span className="cod">{c.usuario}</span></b><code>{c.clave}</code></div>
-                <button type="button" className="us-pnl-copiar" onClick={() => copiarClaves([c])}
-                        aria-label={`Copiar la clave de ${c.nombre}`} title="Copiar">
-                  <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" /></svg>
-                </button>
-              </div>
-            ))}
+          {/* LA TABLITA PARA ENTREGAR: nombre, usuario y clave, cada una
+              con su botón de copiar. Arriba, el mensaje listo para mandar
+              por WhatsApp o correo con el enlace de entrada. */}
+          <div className="us-marco us-claves-marco">
+            <table className="us-tabla us-tabla-claves">
+              <thead><tr><th>#</th><th>Nombre</th><th>Usuario</th><th>Clave provisional</th><th /></tr></thead>
+              <tbody>
+                {x.filas.map((c, i) => (
+                  <tr key={c.usuario}>
+                    <td className="apagado">{i + 1}</td>
+                    <td>{c.nombre}</td>
+                    <td><span className="cod">{c.usuario}</span></td>
+                    <td><code className="us-clave-cod">{c.clave}</code></td>
+                    <td>
+                      <button type="button" className="us-pnl-copiar" onClick={() => copiarClaves([c])}
+                              aria-label={`Copiar usuario y clave de ${c.nombre}`} title="Copiar">
+                        <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" /></svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           {x.fallas.length > 0 && (
             <Aviso tono="mal">
@@ -870,6 +893,14 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
   return (
     <>
       {dialogo}
+      {/* LAS CLAVES, EN GRANDE Y AL CENTRO: es lo único que importa en ese
+          momento y se ven una sola vez. Al lado de la lista se podían
+          quedar fuera de la vista. */}
+      {visto?.tipo === "claves" && (
+        <div className="us-modal-velo" role="dialog" aria-modal="true" aria-label={visto.titulo}>
+          <div className="us-modal">{pintarPanel(visto)}</div>
+        </div>
+      )}
       {!hayLlave && (
         <section className="us-aviso">
           <b>Falta la llave del servidor para poder crear cuentas.</b>
@@ -1100,7 +1131,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
             tableta y celular el panel va arriba de la tabla, a todo lo
             ancho. */}
         <div className={"us-cuerpo" + (visto ? " con-panel" + (visto.tipo === "menu" ? " es-menu" : "") : "")}>
-        {visto && pintarPanel(visto)}
+        {visto && visto.tipo !== "claves" && pintarPanel(visto)}
         <div className="us-marco">
           <table className="us-tabla">
             <thead>

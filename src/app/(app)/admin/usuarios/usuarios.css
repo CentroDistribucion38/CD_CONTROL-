@@ -760,3 +760,18 @@
   .us .us-hist-lista .quien, .us .us-hist-lista .det { grid-column: 1 / -1 }
   .us .us-hist-fil, .us .us-hist-fil label { width: 100% }
 }
+
+/* ---------- Las claves recién creadas, al centro ---------- */
+.us-modal-velo { position: fixed; inset: 0; z-index: 90; background: rgba(8, 14, 24, .5); display: grid; place-items: center; padding: 16px }
+.us-modal { width: min(760px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; min-height: 0 }
+.us-modal > * { max-height: 100%; min-height: 0 }
+.us .us-claves-marco, .us-modal .us-claves-marco { max-height: 46vh; overflow: auto; margin: 10px 0 }
+.us-modal .us-tabla-claves { width: 100%; border-collapse: collapse; font-size: 14px }
+.us-modal .us-tabla-claves th { position: sticky; top: 0; background: var(--c-eef1f5); text-align: left; padding: 8px 10px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--c-5b6b7f) 72%, var(--c-04203f)) }
+.us-modal .us-tabla-claves td { padding: 8px 10px; border-top: 1px solid var(--c-d5dce5); vertical-align: middle }
+.us-modal .us-clave-cod { font: 800 16px ui-monospace, Menlo, monospace; letter-spacing: .08em; padding: 3px 8px; border-radius: 6px; background: #FFF6DB; color: #3D2C00 }
+.us-modal .us-pnl { grid-column: auto; grid-row: auto; max-height: calc(100dvh - 32px); border-left: 0; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 30px 70px -20px rgba(0,0,0,.55) }
+.us-modal .us-pnl-cuerpo, .us-modal .us-pnl > div:not(.us-pnl-cab):not(.us-pnl-pie) { min-height: 0 }
+.us-modal .us-pnl-pie { flex-wrap: wrap } .us-modal .us-pnl-pie .btn { flex: 1 1 auto }
+.us-modal .us-tabla-claves .cod { font: 700 14px ui-monospace, Menlo, monospace; color: var(--c-04203f) }

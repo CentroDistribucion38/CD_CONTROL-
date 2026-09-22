@@ -194,21 +194,26 @@ await monta(1200);
 await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
 await pg.check('input[aria-label="Seleccionar a Santiago Leal"]');
 await accion("Nueva clave");
-await pg.waitForSelector(".us-pnl-clave");
-ok((await pg.$$(".us-pnl-clave")).length === 2 && /Tolva-02/.test(await pg.textContent(".us-pnl")) && /Tolva-03/.test(await pg.textContent(".us-pnl")),
+await pg.waitForSelector(".us-tabla-claves tbody tr");
+ok((await pg.$$(".us-tabla-claves tbody tr")).length === 2 && /Tolva-02/.test(await pg.textContent(".us-pnl")) && /Tolva-03/.test(await pg.textContent(".us-pnl")),
    "las dos claves no salen juntas en el panel");
 ok(/Se muestran una sola vez/.test(await pg.textContent(".us-pnl-aviso.amb")), "no avisa que las claves salen una sola vez");
 ok(/Copiar las dos/.test(await pg.textContent(".us-pnl-pie")), "no está «Copiar las dos»");
 await pg.mouse.click(20, 400);
 await pg.keyboard.press("Escape");
-ok(await pg.isVisible(".us-pnl-clave"), "el panel de las claves se cierra tocando fuera o con Esc: se pierden");
+ok(await pg.isVisible(".us-tabla-claves tbody tr"), "el panel de las claves se cierra tocando fuera o con Esc: se pierden");
 /* Sin el panel no hay nada más que medir aquí: se corta con lo que hay. */
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-await pg.click(".us-pnl-pie .btn:not(.sec)");
+await pg.click(".us-pnl-pie .btn:has-text('Copiar para compartir')");
+await pg.waitForTimeout(150);
+const msj = await pg.evaluate(() => navigator.clipboard.readText());
+ok(/\/login/.test(msj) && /Usuario: u2\nClave: Tolva-02/.test(msj) && /Clave: Tolva-03/.test(msj), `el mensaje para compartir no trae enlace, usuarios y claves: ${JSON.stringify(msj)}`);
+ok(await pg.isVisible(".us-modal-velo .us-tabla-claves"), "las claves no salen al centro de la pantalla");
+await pg.click(".us-pnl-pie .btn:has-text('Copiar las dos')");
 await pg.waitForTimeout(150);
 const dos = await pg.evaluate(() => navigator.clipboard.readText());
 ok(dos.split("\n").length === 3 && /Tolva-02/.test(dos), `«Copiar las dos» no copia las dos: ${JSON.stringify(dos)}`);
-await pg.click(".us-pnl-clave:first-child .us-pnl-copiar");
+await pg.click(".us-tabla-claves tbody tr:first-child .us-pnl-copiar");
 await pg.waitForTimeout(150);
 ok(/^u2\tTolva-02$/.test(await pg.evaluate(() => navigator.clipboard.readText())), "el botón de copiar de una fila no copia esa clave");
 await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
@@ -232,11 +237,12 @@ await pg.selectOption(".us-varios-rol select", "portero");
 ok(/Crear 4 usuarios · Portero/.test(await pg.textContent(".us-varios .btn:not(.plano)")), "el botón no dice cuántos ni con qué rol");
 await pg.click(".us-varios .btn:not(.plano)");
 await pg.click(".cf-caja .cf-btn:not(.plano)");
-await pg.waitForSelector(".us-pnl-clave");
+await pg.waitForSelector(".us-tabla-claves tbody tr");
 const c = mandados.find((m) => m.accion === "crear");
 ok(c && c.rol === "portero" && c.personas.map((p) => p.usuario).join(",") === "gvilla,gabriel,mperez,aperez2" && c.personas[2].nombre === "maria jose perez",
    `crear varios no manda lo que se ve: ${JSON.stringify(c)}`);
 const claves = await pg.textContent(".us-pnl");
+if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/us-claves.png` });
 ok(/3 de 4 usuarios creados/.test(claves) && /100000/.test(claves) && /Ya está tomado/.test(claves), "el panel de claves no dice cuáles salieron y cuál no");
 await pg.click(".us-pnl-pie .btn:has-text('Copiar las 3')");
 await pg.waitForTimeout(200);
