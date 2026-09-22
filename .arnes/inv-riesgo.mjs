@@ -75,7 +75,7 @@ const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" 
 const ctx = await nav.newContext({ acceptDownloads: true });
 const pg = await ctx.newPage();
 await pg.route("https://control.prueba/**", (q) => q.request().url().endsWith(".png")
-  ? q.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64") })
+  ? q.fulfill({ status: 200, contentType: "image/png", body: readFileSync(R("public" + new URL(q.request().url()).pathname)) })
   : q.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html></html>" }));
 const monta = async (ancho, tema, rr = RR, sc = 7) => {
   await pg.setViewportSize({ width: ancho, height: 900 });
@@ -113,7 +113,12 @@ ok(!(await pg.$(".ir-panel")), "Escape no cierra el panel");
 const [d2] = await Promise.all([pg.waitForEvent("download", { timeout: 20000 }), pg.click(".ir-top .ir-btn")]);
 const b2 = readFileSync(await d2.path());
 ok(d2.suggestedFilename().startsWith("riesgo-vencimiento-AG01-") && b2.subarray(0, 4).toString() === "%PDF" && b2.length > 6000, `PDF general ${d2.suggestedFilename()} ${b2.length}`);
-if (process.env.FOTO) { writeFileSync(`${process.env.FOTO}/riesgo.pdf`, b2); await pg.screenshot({ path: `${process.env.FOTO}/ir-1300.png`, fullPage: true }) }
+if (process.env.FOTO) {
+  await monta(1300, "ambar");
+  const [d3] = await Promise.all([pg.waitForEvent("download", { timeout: 20000 }), pg.click(".ir-top .ir-btn")]);
+  writeFileSync(`${process.env.FOTO}/riesgo-ambar.pdf`, readFileSync(await d3.path()));
+  await monta(1300);
+  writeFileSync(`${process.env.FOTO}/riesgo.pdf`, b2); await pg.screenshot({ path: `${process.env.FOTO}/ir-1300.png`, fullPage: true }) }
 
 for (const ancho of [1300, 820, 390, 360]) {
   await monta(ancho);

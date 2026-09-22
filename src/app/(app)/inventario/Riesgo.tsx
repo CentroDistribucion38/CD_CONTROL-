@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FRANJAS, enRiesgo, type Franja, type MaterialRiesgo, type Riesgo as R } from "@/modulos/inventario/riesgo";
 
 /**
@@ -32,6 +32,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo }: {
   const [abierto, setAbierto] = useState<MaterialRiesgo | null>(null);
   const [todos, setTodos] = useState(false);
   const [pdf, setPdf] = useState(false);
+  const caja = useRef<HTMLDivElement>(null);
 
   const U = unidad === "unidades";
   const cant = (c: number, u: number | null) => U ? (u == null ? "—" : nf.format(u)) : nf.format(c);
@@ -59,12 +60,12 @@ export function Riesgo({ r, bodega, sinContar, ultimo }: {
 
   async function informe(m?: MaterialRiesgo) {
     setPdf(true);
-    try { const { informeRiesgo } = await import("./informe"); await informeRiesgo(r, { bodega, unidad, material: m }) }
+    try { const { informeRiesgo } = await import("./informe"); await informeRiesgo(r, { bodega, unidad, material: m, dentro: caja.current }) }
     finally { setPdf(false) }
   }
 
   return (
-    <div className="ir">
+    <div className="ir" ref={caja}>
       <header className="ir-top">
         <div>
           <p className="ir-o">INVENTARIO · RIESGO DE VENCIMIENTO · {bodega}</p>

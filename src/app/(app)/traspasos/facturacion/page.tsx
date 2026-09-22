@@ -57,6 +57,6 @@ export default async function FacturacionPage() {
   return (
     <Bandeja pendientes={b.pendientes} salieron={b.salieron} nombres={nombres}
              puedeConfirmar={permisos.puedeEditar("/traspasos/facturacion")}
-             puedeReabrir={permisos.manda} />
+             puedeReabrir={permisos.manda} puedeDepurar={permisos.manda} />
   );
 }

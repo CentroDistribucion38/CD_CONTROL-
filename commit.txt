@@ -1,33 +1,33 @@
-Inventario › Tablero: riesgo de vencimiento con alertas, ubicaciones e informe PDF
+Facturación: depurar viajes (solo administración) y código visible · PDF de inventario con logo y colores del tema
 
-«Que emita alertas dentro del tablero: tantos materiales por vencer,
-tantos por salir; que tenga la visual y, si selecciono, me muestre dónde
-están, en qué ubicación, con toda la información, y un informe
-profesional.»
+TRASPASOS › FACTURACIÓN
+  - El código del viaje (TP-…) sale en cada tarjeta, junto a la placa, y
+    en lo que ya salió.
+  - Solo quien administra la plataforma: casilla en cada viaje,
+    «Seleccionar todos» y una barra abajo con tres acciones, siempre con
+    motivo:
+      · Anular: queda a la vista como anulado; sale de la bandeja y del
+        cumplido.
+      · No se factura: igual, con el motivo «No se factura: …».
+      · Eliminar: se borra de verdad (con sus tipos); pregunta otra vez y
+        queda escrito en Administración › Inicio.
+    Un usuario normal no ve nada de esto y la base lo rechaza aunque lo
+    intente (traspaso_depurar solo responde a manda()). Lo que ya salió
+    con documento no se depura: primero se reabre.
 
-  - LA FOTO, NO LA SUMA: cada ubicación toma el ÚLTIMO recorrido que la
-    contó. Antes se sumaban todos los recorridos enviados y una calle
-    contada dos veces salía con el doble de cajas.
-  - Cinco alertas tocables: ya vencido, ya no alcanza a salir, sale esta
-    semana, 8–15 días, 16–30 días; cada una con cajas (o unidades),
-    materiales y ubicaciones. Tocar una filtra la lista.
-  - Cajas o unidades (unidades por caja del maestro; avisa cuáles faltan).
-  - Cuándo tiene que salir: barras por semana, 8 semanas.
-  - Cómo está la bodega: reparto por franja.
-  - Materiales con buscador (código, nombre o ubicación). Al tocar uno se
-    abre el panel con TODAS sus ubicaciones: calle, módulo, lado, vence,
-    días para vencer y para salir, fabricación, estibas/cajas/saldo,
-    total, unidades, avería/PNC, nota, quién contó, cuándo y en qué
-    recorrido.
-  - Informe PDF (general y de un material): encabezado con logo, alertas,
-    semanas, reparto, cada material en riesgo con sus ubicaciones,
-    firmas y número de página.
-  - Aviso de módulos sin contar en el último recorrido.
+INVENTARIO › INFORME PDF
+  - Encabezado como la hoja de rotura: logo Bavaria a la izquierda, qué
+    es a la derecha, sobre blanco, y la cinta de arriba en los colores
+    del tema de quien lo genera (oficial, ámbar, gris…). Las hojas
+    siguientes llevan el sello y el título.
 
-SQL: ninguno.
+SQL (correr en Supabase ANTES del push):
+  supabase/migraciones/2026-09-traspasos-depurar.sql
 
-MEDIDO: .arnes/inv-riesgo.mjs (cuentas, filtros, panel, 2 PDF,
-1300/820/390/360, 7 temas) · .arnes/fe-tablero.mjs · next build
+MEDIDO: .arnes/correr-traspasos-depurar.sh (supervisor no puede, motivo
+obligatorio, anular, no se factura, eliminar con sus tipos, lo salido no
+se toca, queda escrito) · .arnes/fc-depurar.mjs · .arnes/fc-bandeja.mjs ·
+.arnes/inv-riesgo.mjs · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

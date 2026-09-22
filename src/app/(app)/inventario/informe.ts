@@ -9,9 +9,24 @@
  */
 import { FRANJAS, enRiesgo, type Franja, type MaterialRiesgo } from "@/modulos/inventario/riesgo";
 import type { DatosRiesgo } from "./Riesgo";
+import { PALETA_MARCA, paletaDeTema, aRGB, type Paleta } from "@/modulos/rotlinea/hoja";
+
+/** Los colores del tema de quien lo genera, como la hoja de rotura: el
+ *  oficial sale con la marca; ámbar, gris… cambian la cinta, las rayas y
+ *  los títulos. Los logos van siempre tal cual. */
+function leerPaleta(dentro: Element | null): Paleta {
+  const conTema = dentro?.closest("[data-tema]");
+  if (!conTema) return PALETA_MARCA;
+  const leer = (v: string) => {
+    const t = document.createElement("span"); t.style.color = `var(${v})`; t.style.display = "none";
+    conTema.appendChild(t); const c = aRGB(getComputedStyle(t).color); t.remove(); return c;
+  };
+  const tinta = leer("--c-04203f"), acento = leer("--c-marca"), hondo = leer("--c-marca-hondo");
+  return tinta && acento ? paletaDeTema(tinta, acento, hondo ?? acento) : PALETA_MARCA;
+}
 
 type RGB = [number, number, number];
-const TINTA: RGB = [4, 32, 63], GRIS: RGB = [91, 107, 127], LINEA: RGB = [213, 220, 229], FONDO: RGB = [243, 245, 248];
+const GRIS: RGB = [91, 107, 127], LINEA: RGB = [213, 220, 229], FONDO: RGB = [243, 245, 248];
 const COLOR: Record<Franja, RGB> = {
   vencido: [140, 12, 30], pasado: [200, 38, 43], semana: [217, 109, 31], quince: [201, 150, 0],
   mes: [120, 140, 60], ok: [31, 122, 69], sinfecha: [140, 150, 160],
@@ -22,11 +37,11 @@ const d = (x: number | null) => x == null ? "—" : String(x);
 const rot = (k: Franja) => FRANJAS.find((x) => x.clave === k)!;
 
 async function comoDataUrl(url: string) {
-  const r = await fetch(url); const b = await r.blob();
+  const r = await fetch(url); if (!r.ok) throw new Error(url); const b = await r.blob();
   return await new Promise<string>((ok, mal) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result)); fr.onerror = mal; fr.readAsDataURL(b) });
 }
 
-export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad: "cajas" | "unidades"; material?: MaterialRiesgo }) {
+export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad: "cajas" | "unidades"; material?: MaterialRiesgo; dentro?: Element | null }) {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "letter" });
   const W = 216, H = 279, M = 14, AN = W - M * 2;
@@ -34,28 +49,58 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
   const hoy = new Date();
   const hoyTx = hoy.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
   const cant = (c: number, u: number | null) => U ? (u == null ? "—" : nf.format(u)) : nf.format(c);
-  let logo: string | null = null;
-  try { logo = await comoDataUrl("/marca/logo-b.png") } catch { /* sin logo se sigue */ }
+  const P = leerPaleta(o.dentro ?? null);
+  const TINTA = P.tinta;
+  const [palabra, sello] = await Promise.all([
+    comoDataUrl("/marca/logo-bavaria.png").catch(() => null),
+    comoDataUrl("/marca/logo-b.png").catch(() => null),
+  ]);
 
-  /* ---------- ENCABEZADO ---------- */
+  /* LA CINTA DEL TEMA, como la hoja de rotura: jsPDF no pinta degradados,
+     así que se arma con franjas angostas que se pisan un pelo. */
+  const cinta = (x: number, yy: number, ancho: number, alto: number) => {
+    const N = Math.max(12, Math.round(ancho / 1.5)), paso = ancho / N;
+    for (let i = 0; i < N; i++) {
+      const t = i / (N - 1); let k = 0;
+      while (k < P.cinta.length - 2 && t > P.cinta[k + 1][0]) k++;
+      const [ta, a] = P.cinta[k], [tb, b] = P.cinta[k + 1];
+      const u = Math.min(1, Math.max(0, (t - ta) / (tb - ta)));
+      pdf.setFillColor(Math.round(a[0] + (b[0] - a[0]) * u), Math.round(a[1] + (b[1] - a[1]) * u), Math.round(a[2] + (b[2] - a[2]) * u));
+      pdf.rect(x + i * paso, yy, paso + 0.15, alto, "F");
+    }
+  };
+  const titular = o.material ? "Riesgo de vencimiento" : "Informe de riesgo de vencimiento";
+
+  /* ---------- ENCABEZADO: el logo a la izquierda, qué es a la derecha,
+     sobre blanco. El logo es rojo sobre transparente: sobre una banda
+     oscura perdería el rojo, y el rojo ES la marca. ---------- */
   const encabezado = (primera: boolean) => {
-    pdf.setFillColor(...TINTA); pdf.rect(0, 0, W, primera ? 34 : 14, "F");
-    pdf.setFillColor(255, 192, 0); pdf.rect(0, primera ? 34 : 14, W, 1.2, "F");
     if (primera) {
-      if (logo) try { pdf.addImage(logo, "PNG", M, 8, 18, 18) } catch { /* nada */ }
-      pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(18);
-      pdf.text(o.material ? "Riesgo de vencimiento · material" : "Informe de riesgo de vencimiento", M + 23, 16);
-      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9.5); pdf.setTextColor(210, 220, 232);
-      pdf.text(`Inventario · ${o.bodega} · ${hoyTx}`, M + 23, 22.5);
-      pdf.text(`Foto de ${r.recorridos} recorrido${r.recorridos === 1 ? "" : "s"} enviado${r.recorridos === 1 ? "" : "s"}${r.desde ? ` · ${f(r.desde)}${r.hasta !== r.desde ? ` al ${f(r.hasta)}` : ""}` : ""} · cifras en ${o.unidad}`, M + 23, 27.5);
+      cinta(0, 0, W, 4.5);
+      let conLogo = false;
+      if (palabra) try { pdf.addImage(palabra, "PNG", M, 11, 15 * 540 / 160, 15, "palabra", "FAST"); conLogo = true } catch { /* sigue */ }
+      if (!conLogo) { pdf.setFont("helvetica", "bold"); pdf.setFontSize(16); pdf.setTextColor(255, 0, 15); pdf.text("Bavaria", M, 21) }
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(7.5); pdf.setTextColor(...GRIS);
+      pdf.text(`CENTRO DE DISTRIBUCIÓN CD38 · INVENTARIO · ${o.bodega}`, W - M, 13.5, { align: "right" });
+      pdf.setFontSize(18); pdf.setTextColor(...TINTA);
+      pdf.text(titular, W - M, 21.5, { align: "right" });
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.setTextColor(...GRIS);
+      const foto = `Foto de ${r.recorridos} recorrido${r.recorridos === 1 ? "" : "s"}${r.desde ? ` · ${f(r.desde)}${r.hasta !== r.desde ? ` al ${f(r.hasta)}` : ""}` : ""}`;
+      pdf.text(`${hoyTx.charAt(0).toUpperCase() + hoyTx.slice(1)} · ${foto} · en ${o.unidad}`, W - M, 27.5, { align: "right" });
+      pdf.setDrawColor(...TINTA); pdf.setLineWidth(0.5); pdf.line(M, 32, W - M, 32); pdf.setLineWidth(0.2);
     } else {
-      pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(9);
-      pdf.text(`Riesgo de vencimiento · ${o.bodega}`, M, 9);
-      pdf.setFont("helvetica", "normal"); pdf.text(hoyTx, W - M, 9, { align: "right" });
+      cinta(0, 0, W, 2.2);
+      const x = sello ? M + 12 : M;
+      if (sello) try { pdf.addImage(sello, "PNG", M, 7, 9, 9, "sello", "FAST") } catch { /* sigue */ }
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.setTextColor(...TINTA);
+      pdf.text(titular, x, 12.2);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(...GRIS);
+      pdf.text(`Inventario · ${o.bodega} · ${hoyTx}`, x, 15.8);
+      pdf.setDrawColor(...TINTA); pdf.setLineWidth(0.3); pdf.line(M, 19.5, W - M, 19.5); pdf.setLineWidth(0.2);
     }
   };
   let y = 0;
-  const nueva = () => { pdf.addPage(); encabezado(false); y = 24 };
+  const nueva = () => { pdf.addPage(); encabezado(false); y = 26 };
   const cabe = (alto: number) => { if (y + alto > H - 18) nueva() };
   const titulo = (t: string, sub?: string) => {
     cabe(16);
@@ -63,7 +108,7 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
     if (sub) { pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(...GRIS); pdf.text(sub, W - M, y, { align: "right" }) }
     y += 6;
   };
-  encabezado(true); y = 46;
+  encabezado(true); y = 42;
 
   /* ---------- TABLA DE UBICACIONES DE UN MATERIAL ---------- */
   const COLS = [["Ubicación", 38], ["Franja", 26], ["Vence", 20], ["P/vencer", 16], ["P/salir", 15], ["Est.", 11], ["Cajas", 13], ["Saldo", 12], ["Total", 18], ["Contó", 19]] as const;
@@ -75,7 +120,7 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
   const sitios = (m: MaterialRiesgo) => {
     cabSitios();
     for (const s of m.sitios) {
-      cabe(6); if (y === 24) cabSitios();
+      cabe(6); if (y === 26) cabSitios();
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.6); pdf.setTextColor(...TINTA);
       const total = U ? (s.unidades == null ? "—" : nf.format(s.unidades)) : nf.format(s.total_cajas);
       const vals = [s.ubicacion, rot(s.franja).corto, f(s.vencimiento), d(s.dias_para_vencer), d(s.dias_para_salir),
