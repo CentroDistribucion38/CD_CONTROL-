@@ -189,6 +189,28 @@ await pg.waitForFunction(() => /desactivado porque tenía registros/.test(docume
 ok(mandados.at(-1).accion === "eliminar" && mandados.at(-1).ids.length === 1, `no manda eliminar solo a quien quedó: ${JSON.stringify(mandados.at(-1))}`);
 ok(!(await pg.isVisible(".cf-caja")), "eliminar pregunta otra vez después del panel");
 
+/* 4a · VER LA TARJETA DE UNO: se marca y sale en pantalla, sin clave;
+   «Darle clave nueva» pregunta y la pone en la tarjeta. */
+await monta(1200);
+await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
+ok((await pg.$$eval(".us-pnl-acc b", (t) => t.map((x) => x.textContent)))[0] === "Ver tarjeta", "con uno marcado no sale «Ver tarjeta» primero");
+await accion("Ver tarjeta");
+await pg.waitForSelector(".us-tj-vista img");
+{ const t = await pg.textContent(".us-pnl");
+  ok(/Tarjeta de Génesis Visbal/.test(t) && /cifrada/.test(t) && !/Tolva/.test(t), `la tarjeta sin clave no dice por qué: ${t.slice(0, 200)}`);
+  const iw = await pg.$eval(".us-tj-vista img", (i) => i.naturalWidth);
+  ok(iw === 1158, `la tarjeta no se dibuja a doble resolución: ${iw}`); }
+if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/us-tarjeta-1200.png` });
+await pg.click(".us-pnl-pie .btn:has-text('Darle clave nueva')");
+await pg.waitForSelector(".cf-caja");
+await pg.click(".cf-caja .cf-btn:not(.plano)");
+await pg.waitForFunction(() => /clave nueva/.test(document.querySelector(".us-pnl")?.textContent ?? "") && /una sola vez/.test(document.querySelector(".us-pnl")?.textContent ?? ""));
+await pg.waitForSelector(".us-tj-vista img");
+ok(!(await pg.isVisible(".us-pnl-aviso.amb")), "con la clave nueva sigue diciendo que no se puede leer");
+{ const [d] = await Promise.all([pg.waitForEvent("download"), pg.click(".us-pnl-pie .btn:has-text('Bajar o compartir')")]);
+  ok(/acceso-.*\.png$/.test(d.suggestedFilename()), "la tarjeta no se baja en imagen"); }
+await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
+
 /* 4b · NUEVA CLAVE A VARIOS */
 await monta(1200);
 await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');

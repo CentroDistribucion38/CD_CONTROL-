@@ -201,7 +201,10 @@ type Panel =
   | { tipo: "menu" }
   | { tipo: "rol"; ids: string[] }
   | { tipo: "eliminar"; ids: string[] }
-  | { tipo: "claves"; titulo: string; filas: Clave[]; fallas: Resultado[]; rol?: string };
+  | { tipo: "claves"; titulo: string; filas: Clave[]; fallas: Resultado[]; rol?: string }
+  /** La tarjeta de una persona, en pantalla. Sin clave hasta que se le
+      genere una: la que tiene va cifrada y no se puede leer. */
+  | { tipo: "tarjeta"; id: string; clave?: string };
 
 /** Los nombres pegados —de Excel, de un chat— a una fila por persona. */
 export function leerNombres(texto: string): string[] {
@@ -219,6 +222,26 @@ export function proponerLote(nombres: string[], tomados: Set<string>): string[] 
     usados.add(u);
     return u;
   });
+}
+
+/** LA TARJETA, DIBUJADA EN PANTALLA: la misma imagen que se baja. */
+function TarjetaVista({ datos, listo }: { datos: import("./tarjeta").DatosTarjeta; listo?: (b: Blob) => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const clave = JSON.stringify({ ...datos, roles: datos.roles.length });
+  useEffect(() => {
+    let vivo = true, u = "";
+    import("./tarjeta").then(({ dibujarTarjeta }) => dibujarTarjeta(datos)).then((b) => {
+      if (!vivo) return;
+      u = URL.createObjectURL(b); setUrl(u); listo?.(b);
+    }).catch(() => {});
+    return () => { vivo = false; if (u) URL.revokeObjectURL(u) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave]);
+  return (
+    <div className="us-tj-vista">
+      {url ? <img src={url} alt={`Tarjeta de acceso de ${datos.nombre}`} /> : <div className="us-tj-cargando">Dibujando la tarjeta…</div>}
+    </div>
+  );
 }
 
 export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingresos, registros, buscar }: {
@@ -675,11 +698,11 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     } catch { setMal("No se pudieron armar los pases.") }
     finally { setArmando(null) }
   }
-  async function tarjeta(c: Clave) {
+  async function tarjeta(c: Clave, sinClave = false) {
     setArmando("t:" + c.usuario); setMal(null);
     try {
       const { dibujarTarjeta, entregarTarjeta } = await import("./tarjeta");
-      const b = await dibujarTarjeta({ ...c, rolNombre: nRol(c.rol), roles, colores: coloresTema(), lugar: LUGAR, host: location.host });
+      const b = await dibujarTarjeta({ ...c, clave: sinClave ? null : c.clave, rolNombre: nRol(c.rol), roles, colores: coloresTema(), lugar: LUGAR, host: location.host });
       await entregarTarjeta(b, `acceso-${c.usuario}.png`);
     } catch { setMal("No se pudo armar la tarjeta.") }
     finally { setArmando(null) }
@@ -777,6 +800,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       const n = ps.length;
       const conmigo = sel.has(yo);
       const acciones: { que: string; dice: string; hacer: () => void; peligro?: boolean; no?: boolean }[] = [
+        ...(n === 1 ? [{ que: "Ver tarjeta", dice: "Su tarjeta de acceso, en pantalla", hacer: () => abrir({ tipo: "tarjeta", id: ps[0].id }) }] : []),
         { que: "Cambiar rol", dice: "Pasarlos a otro rol y ver cómo queda", hacer: () => abrir({ tipo: "rol", ids: [...sel] }) },
         { que: "Tarjetas y pases", dice: n === 1 ? "Clave nueva, con su tarjeta y su pase para entregar" : "Clave nueva a cada uno, con sus tarjetas y pases para entregar",
           hacer: () => nuevasClaves(ps), no: !ps.some((p) => p.id !== yo) || !!regenerando },
@@ -807,6 +831,46 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
               </span>
             ))}
           </div>
+        </PanelLado>
+      );
+    }
+
+    /* LA TARJETA DE UNA PERSONA. Se ve al instante con su usuario y su
+       rol; la clave no, porque va cifrada. «Darle clave nueva» la pone
+       en la tarjeta (y la que tenía deja de servir). */
+    if (x.tipo === "tarjeta") {
+      const p = lista.find((y) => y.id === x.id);
+      if (!p) return null;
+      const datos = { nombre: nom(p), usuario: p.usuario ?? "", clave: x.clave ?? null, rol: p.rol, rolNombre: nRol(p.rol),
+        roles, colores: coloresTema(), lugar: LUGAR, host: typeof location === "undefined" ? "" : location.host };
+      const esYo = p.id === yo;
+      return (
+        <PanelLado fijo={!!x.clave} titulo={`Tarjeta de ${nom(p)}`} sub={x.clave ? "Con su clave nueva: se muestra una sola vez" : "Así le llega"}
+          cerrar={volver} volver={volver}
+          pie={<>
+            <button type="button" className="btn" disabled={!!armando}
+                    onClick={() => tarjeta({ nombre: datos.nombre, usuario: datos.usuario, clave: x.clave ?? "", rol: p.rol }, !x.clave)}>
+              {armando?.startsWith("t:") ? "Armando…" : "Bajar o compartir"}
+            </button>
+            {!x.clave && !esYo && (
+              <button type="button" className="btn sec" disabled={!!regenerando || !hayLlave}
+                      onClick={async () => {
+                        if (!(await pedir({ titulo: `¿Darle clave nueva a ${nom(p)}?`,
+                          dice: "La que tiene deja de servir hasta que le entregues esta tarjeta.", confirmar: "Darle clave nueva" }))) return;
+                        const c = await generarClave(p); router.refresh();
+                        if (c) setPanel({ tipo: "tarjeta", id: p.id, clave: c.clave });
+                      }}>
+                {regenerando ? "Generando…" : "Darle clave nueva"}
+              </button>
+            )}
+            <button type="button" className="btn sec" onClick={volver}>Listo</button>
+          </>}>
+          {!x.clave && (
+            <Aviso tono="amb">
+              La clave no sale: se guarda cifrada y nadie la puede leer. {esYo ? "La tuya se cambia en Mi perfil." : <>Si la necesita, dale <b>clave nueva</b> y sale en la tarjeta.</>}
+            </Aviso>
+          )}
+          <TarjetaVista datos={datos} />
         </PanelLado>
       );
     }
@@ -996,8 +1060,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       {/* LAS CLAVES, EN GRANDE Y AL CENTRO: es lo único que importa en ese
           momento y se ven una sola vez. Al lado de la lista se podían
           quedar fuera de la vista. */}
-      {visto?.tipo === "claves" && (
-        <div className="us-modal-velo" role="dialog" aria-modal="true" aria-label={visto.titulo}>
+      {(visto?.tipo === "claves" || visto?.tipo === "tarjeta") && (
+        <div className="us-modal-velo" role="dialog" aria-modal="true" aria-label={visto.tipo === "claves" ? visto.titulo : "Tarjeta de acceso"}>
           <div className="us-modal">{pintarPanel(visto)}</div>
         </div>
       )}
@@ -1235,7 +1299,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
             tableta y celular el panel va arriba de la tabla, a todo lo
             ancho. */}
         <div className={"us-cuerpo" + (visto ? " con-panel" + (visto.tipo === "menu" ? " es-menu" : "") : "")}>
-        {visto && visto.tipo !== "claves" && pintarPanel(visto)}
+        {visto && visto.tipo !== "claves" && visto.tipo !== "tarjeta" && pintarPanel(visto)}
         <div className="us-marco">
           <table className="us-tabla">
             <thead>

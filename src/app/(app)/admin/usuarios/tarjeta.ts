@@ -10,7 +10,8 @@
 import { colorRol, type ColoresLibro } from "@/modulos/admin/colores-rol";
 
 export type DatosTarjeta = {
-  nombre: string; usuario: string; clave: string; rol: string; rolNombre: string;
+  /** null = se ve la tarjeta sin clave (la que tiene no se puede leer: va cifrada). */
+  nombre: string; usuario: string; clave: string | null; rol: string; rolNombre: string;
   roles: { clave: string; manda: boolean }[]; colores: ColoresLibro; lugar: string; host: string;
 };
 
@@ -26,7 +27,7 @@ export async function dibujarTarjeta(d: DatosTarjeta): Promise<Blob> {
   const cv = document.createElement("canvas"); cv.width = W * E; cv.height = H * E;
   const g = cv.getContext("2d")!; g.scale(E, E);
   const tinta = "#" + d.colores.tinta, banda = "#" + d.colores.banda;
-  const sans = getComputedStyle(document.body).fontFamily || "system-ui, sans-serif";
+  const sans = `${getComputedStyle(document.body).fontFamily || "system-ui"}, system-ui, sans-serif`;
   const mono = "ui-monospace, 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace";
   const esp = (px: number) => { (g as unknown as { letterSpacing: string }).letterSpacing = `${px}px` };
   const texto = (t: string, x: number, y: number, font: string, color: string, al: CanvasTextAlign = "left", ls = 0) => {
@@ -83,8 +84,14 @@ export async function dibujarTarjeta(d: DatosTarjeta): Promise<Blob> {
   const bx = x + 33, by = y + 390, bw = w - 66, bh = 134;
   g.beginPath(); g.roundRect(bx, by, bw, bh, 14); g.fillStyle = mezcla(d.colores.tinta, 0.05); g.fill();
   g.setLineDash([7, 5]); g.lineWidth = 2; g.strokeStyle = mezcla(d.colores.tinta, 0.2); g.stroke(); g.setLineDash([]);
-  texto("CLAVE PROVISIONAL", cx, by + 36, `800 12px ${sans}`, hondo(d.colores.banda, 0.55), "center", 2.4);
-  texto(d.clave, cx + 4, by + 102, `700 46px ${mono}`, tinta, "center", 8);
+  if (d.clave) {
+    texto("CLAVE PROVISIONAL", cx, by + 36, `800 12px ${sans}`, hondo(d.colores.banda, 0.55), "center", 2.4);
+    texto(d.clave, cx + 4, by + 102, `700 46px ${mono}`, tinta, "center", 8);
+  } else {
+    texto("CLAVE", cx, by + 36, `800 12px ${sans}`, hondo(d.colores.banda, 0.55), "center", 2.4);
+    texto("• • • • • •", cx, by + 88, `700 34px ${mono}`, mezcla(d.colores.tinta, 0.35), "center", 4);
+    texto("la que ya tienes", cx, by + 116, `500 14px ${sans}`, gris, "center");
+  }
 
   /* el pie */
   g.font = `400 15px ${sans}`; const a = "Entra en "; const aw2 = g.measureText(a).width;
@@ -92,7 +99,7 @@ export async function dibujarTarjeta(d: DatosTarjeta): Promise<Blob> {
   const x0 = cx - (aw2 + bw2) / 2;
   texto(a, x0, y + h - 52, `400 15px ${sans}`, gris);
   texto(d.host, x0 + aw2, y + h - 52, `700 15px ${sans}`, tinta);
-  texto("y cámbiala la primera vez que entres.", cx, y + h - 27, `400 15px ${sans}`, gris, "center");
+  texto(d.clave ? "y cámbiala la primera vez que entres." : "con tu usuario y tu clave.", cx, y + h - 27, `400 15px ${sans}`, gris, "center");
 
   return new Promise((ok, mal) => cv.toBlob((b) => (b ? ok(b) : mal(new Error("sin imagen"))), "image/png"));
 }

@@ -804,3 +804,11 @@
   .us-modal .us-c-bot { flex-direction: column }
   .us-modal .us-pnl-pie .btn:not(.sec) { flex-basis: 100% }
 }
+/* La ventana va debajo de la confirmación («¿Darle clave nueva?»). */
+.us-modal-velo { z-index: 85 }
+/* LA TARJETA EN PANTALLA: la misma imagen que se baja, a lo ancho del
+   panel y sin pasar del alto de la pantalla. */
+.us-tj-vista { display: grid; place-items: center; margin: 12px 0 4px }
+.us-tj-vista img { display: block; width: 100%; max-width: 420px; max-height: 62dvh; object-fit: contain; border-radius: 16px }
+.us-tj-cargando { display: grid; place-items: center; width: 100%; max-width: 420px; aspect-ratio: 579 / 725; border-radius: 16px;
+  background: var(--c-eef1f5, #eef1f5); color: var(--c-5b6b7f, #5b6b7f); font: 600 14px var(--rl-texto, inherit) }

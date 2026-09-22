@@ -1,12 +1,9 @@
-Usuarios: QR centrado en el pase y tarjetas para todos los seleccionados
+Usuarios: ver la tarjeta de acceso de una persona en pantalla
 
-- El QR y el sello del pase se ubican en píxeles: el QR queda centrado
-  en el talón (antes quedaba pegado a la izquierda en Excel).
-- «Tarjetas y pases» con varios seleccionados: clave nueva a cada uno y,
-  en el panel, «Las N tarjetas» (ZIP en el PC, compartir en el celular)
-  y «Pases en Excel». Si tú vas en la selección, se te salta y se avisa.
-- La ventana de las claves no se sale en el celular: la tabla se acomoda
-  y los botones bajan de renglón.
+- Con una persona marcada, «Ver tarjeta» la muestra al centro con su
+  nombre, rol y usuario, lista para bajar o compartir.
+- La clave no sale porque va cifrada; «Darle clave nueva» pregunta
+  antes y la pone en la tarjeta (se muestra una sola vez).
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
