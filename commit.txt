@@ -1,29 +1,17 @@
-Admin › Inicio y Acciones › Tablero, como los diseños
+Acciones: la efectividad no se dice con menos de 5 verificadas
 
-ADMINISTRACIÓN › INICIO
-  - Una frase arriba que dice cómo estamos y cuántos pendientes hay.
-  - Cinco cifras con icono: activos (con caras), entraron esta semana,
-    nunca han entrado, clave provisional y roles con su reparto.
-  - Lo último que se cambió, en HOY / ESTA SEMANA / ANTES.
-  - Salud de la plataforma: n de m listo, qué SQL falta y la ruta para
-    copiar.
-  - Por atender: botón «Enviar acceso» que da clave nueva y arma el
-    mensaje (copiar o WhatsApp).
+Con una sola acción verificada y efectiva, el tablero decía «100 %» en
+verde grande. Es una sola acción, no un logro.
 
-ACCIONES › TABLERO (arranque de turno)
-  - Frase: N vencidas, M sin responsable, cuántos días lleva la más
-    vieja. Reloj, «Modo reunión» (pantalla completa) y «+ Reportar».
-  - Cifras: vencidas, críticas, vencen hoy y efectividad con anillo.
-  - Vencidas con dueño o «Sin asignar» en rojo, barra por días (ámbar,
-    naranja, rojo) y filtros: Todas / Sin asignar / los 4 con más.
-  - Cuánto llevan vencidas: una barra por día (14+) y qué quiere decir.
-  - Efectividad por área contra la meta.
-  - En el menú de abajo, «Análisis» ahora se llama «Indicadores».
+  - Tablero e Indicadores: con menos de 5 verificadas sale «—» y
+    «1 verificada · faltan 4 para medir». Igual por área («1 de 5 para
+    medir») y por responsable.
+  - En la tarjeta de efectividad del tablero: «N cerradas sin verificar»,
+    que es donde está el cuello de botella.
 
-SQL: ninguno nuevo.
+SQL: ninguno.
 
-MEDIDO: .arnes/ac-tablero.mjs (frase, cifras, filtros, histograma,
-Reportar, 1300/820/390/360, 7 temas) · .arnes/ad-inicio.mjs · next build
+MEDIDO: .arnes/ac-tablero.mjs · .arnes/ac-indicadores.mjs · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

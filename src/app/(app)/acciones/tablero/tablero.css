@@ -46,6 +46,7 @@
 .at-k.anillo.bien .n { color: var(--at-ok) }
 .at-k .l { display: block; margin-top: 6px; font-size: 14px; font-weight: 700 }
 .at-k .s { display: block; margin-top: 3px; font-size: 12.5px; color: var(--at-gr) }
+.at-k .s.pend { color: #8A6000; font-weight: 600 }
 .at-k .aro { flex: none; width: 64px; height: 64px }
 .at-k .aro .fondo { fill: none; stroke: var(--at-fondo); stroke-width: 6 }
 .at-k .aro .valor { fill: none; stroke: var(--ac-tinta); stroke-width: 6; stroke-linecap: round }

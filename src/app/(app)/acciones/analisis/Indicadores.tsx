@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Accion, AntesDespues, Zona } from "@/modulos/acciones/datos";
-import { medir, horas, type Medida, type Metas } from "@/modulos/acciones/medir";
+import { medir, horas, MIN_MEDIR, type Medida, type Metas } from "@/modulos/acciones/medir";
 import { informePdf } from "./informe";
 
 /**
@@ -117,7 +117,8 @@ function Resumen({ m }: { m: Medida }) {
         <Kpi rot="CERRADAS A TIEMPO" n={k.aTiempo === null ? "—" : `${k.aTiempo}%`} meta={k.metas.aTiempo} valor={k.aTiempo}
              pie={`meta ${k.metas.aTiempo}% · ${nf(k.cerradas)} cerradas`} />
         <Kpi rot="EFECTIVIDAD" n={k.efectividad === null ? "—" : `${k.efectividad}%`} meta={k.metas.efectividad} valor={k.efectividad}
-             pie={<>meta {k.metas.efectividad}% · real <b>{m.reincidencia.real === null ? "—" : `${m.reincidencia.real}%`}</b></>} />
+             pie={k.efectividad === null ? `${k.verificadas} verificada${k.verificadas === 1 ? "" : "s"} · faltan ${MIN_MEDIR - k.verificadas} para medir`
+               : <>meta {k.metas.efectividad}% · real <b>{m.reincidencia.real === null ? "—" : `${m.reincidencia.real}%`}</b></>} />
         <Kpi rot="TIEMPO DE CIERRE" n={horas(k.cierreMedianaH)} tono="neutro" pie="mediana, del reporte al cierre" />
       </div>
 

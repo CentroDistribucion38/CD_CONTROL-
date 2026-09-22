@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Accion, PorArea } from "@/modulos/acciones/datos";
+import { MIN_MEDIR } from "@/modulos/acciones/medir";
 
 /**
  * EL TABLERO DEL ARRANQUE DE TURNO.
@@ -54,7 +55,9 @@ export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
   const vencenHoy = acciones.filter((a) => a.viva && !a.vencida && new Date(a.vence_en) <= finDelDia).length;
   const verificadas = acciones.filter((a) => a.estado === "verificada").length;
   const efectivas = acciones.filter((a) => a.efectiva).length;
-  const pct = verificadas ? Math.round((efectivas / verificadas) * 100) : null;
+  const pct = verificadas >= MIN_MEDIR ? Math.round((efectivas / verificadas) * 100) : null;
+  const sinVerificar = acciones.filter((a) => a.estado === "cerrada").length;
+  const faltan = MIN_MEDIR - verificadas;
   const masVieja = vencidas.length ? dias(vencidas[0]) : 0;
 
   /* LOS DUEÑOS de las vencidas, para los filtros: los que más tienen primero. */
@@ -127,7 +130,10 @@ export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
             <circle cx="32" cy="32" r="26" className="valor" strokeDasharray={`${((pct ?? 0) / 100) * 163.4} 163.4`} transform="rotate(-90 32 32)" />
           </svg>
           <div><b className="n">{pct === null ? "—" : `${pct}%`}</b><span className="l">Efectividad</span>
-            <span className="s">{pct === null ? "todavía no se ha verificado nada" : `meta ${meta} % · de ${verificadas} verificada${verificadas === 1 ? "" : "s"}`}</span></div>
+            <span className="s">{pct === null
+              ? (verificadas ? `${verificadas} verificada${verificadas === 1 ? "" : "s"} · faltan ${faltan} para medir` : `faltan ${MIN_MEDIR} verificadas para medir`)
+              : `meta ${meta} % · de ${verificadas} verificadas`}</span>
+            {sinVerificar > 0 && <span className="s pend">{sinVerificar} cerrada{sinVerificar === 1 ? "" : "s"} sin verificar</span>}</div>
         </div>
       </div>
 
@@ -185,12 +191,13 @@ export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
           </section>
 
           <section className="at-card">
-            <div className="at-h"><h2>Efectividad por área</h2><span>efectivas sobre verificadas</span></div>
+            <div className="at-h"><h2>Efectividad por área</h2><span>efectivas sobre verificadas · desde {MIN_MEDIR}</span></div>
             <div className="at-areas">
               {[...areas].sort((a, b) => (b.verificadas || 0) - (a.verificadas || 0)).map((x) => (
-                <div key={x.area} className={"at-ar" + (x.pct === null ? " nd" : x.pct >= meta ? " bien" : " mal")}>
-                  <div className="at-fila"><b>{x.area_nombre}</b><span>{x.pct === null ? "sin verificar" : `${x.pct} %`}</span></div>
-                  {x.pct !== null && <>
+                <div key={x.area} className={"at-ar" + (x.pct === null || x.verificadas < MIN_MEDIR ? " nd" : x.pct >= meta ? " bien" : " mal")}>
+                  <div className="at-fila"><b>{x.area_nombre}</b><span>{!x.verificadas ? "sin verificar"
+                    : x.verificadas < MIN_MEDIR ? `${x.verificadas} de ${MIN_MEDIR} para medir` : `${x.pct} %`}</span></div>
+                  {x.pct !== null && x.verificadas >= MIN_MEDIR && <>
                     <span className="riel" aria-hidden><i style={{ width: `${x.pct}%` }} /></span>
                     <small>{x.efectivas} de {x.verificadas} verificada{x.verificadas === 1 ? "" : "s"}</small>
                   </>}

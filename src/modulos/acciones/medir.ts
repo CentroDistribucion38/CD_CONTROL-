@@ -15,6 +15,9 @@ const HORA = 3_600_000;
 const DIA = 86_400_000;
 
 export type Metas = { efectividad: number; aTiempo: number };
+/** Con menos verificadas que esto, la efectividad no se dice: 1 de 1 sale
+ *  «100 %» y no es un logro, es una sola acción. */
+export const MIN_MEDIR = 5;
 
 const t = (s: string | null | undefined) => (s ? Date.parse(s) : NaN);
 const anulada = (a: Accion) => a.estado === "anulada";
@@ -67,7 +70,8 @@ export function medir(todas: Accion[], hoyD: Date, dias: number, metas: Metas,
     reportadas: reportadas.length,
     cerradas: cerradas.length,
     aTiempo: pct(cerradas.filter(aTiempo).length, cerradas.length),
-    efectividad: pct(verificadas.filter((a) => a.efectiva).length, verificadas.length),
+    efectividad: verificadas.length >= MIN_MEDIR ? pct(verificadas.filter((a) => a.efectiva).length, verificadas.length) : null,
+    verificadas: verificadas.length,
     cierreMedianaH: mediana(cerradas.map((a) => (t(a.cerrada_en) - t(a.reportada_en)) / HORA)),
     metas,
   };
@@ -180,7 +184,7 @@ export function medir(todas: Accion[], hoyD: Date, dias: number, metas: Metas,
     const carga = x.lista.filter((a) => a.viva).length;
     const vencidas = x.lista.filter((a) => a.vencida).length;
     const at = pct(c.filter(aTiempo).length, c.length);
-    const ef = pct(v.filter((a) => a.efectiva).length, v.length);
+    const ef = v.length >= MIN_MEDIR ? pct(v.filter((a) => a.efectiva).length, v.length) : null;
     const semaforo: "bien" | "ojo" | "mal" =
       k === "-" || vencidas >= 3 || (at !== null && at < metas.aTiempo - 15) ? "mal"
       : vencidas > 0 || (at !== null && at < metas.aTiempo) || (ef !== null && ef < metas.efectividad) ? "ojo" : "bien";

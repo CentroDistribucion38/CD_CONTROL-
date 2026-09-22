@@ -64,7 +64,7 @@ const metas = { efectividad: 90, aTiempo: 95 };
   const m = medir(lista, HOY, 30, metas, { p1: "Ana", p2: "Beto", p3: "Caro" });
   ok(m.kpis.cerradas === 5, `cerradas en 30 días: ${m.kpis.cerradas} (van 5)`);
   ok(m.kpis.aTiempo === 80, `a tiempo: ${m.kpis.aTiempo}% (4 de 5 = 80)`);
-  ok(m.kpis.efectividad === 50, `efectividad: ${m.kpis.efectividad}% (1 de 2)`);
+  ok(m.kpis.efectividad === null && m.kpis.verificadas === 2, `efectividad con 2 verificadas: ${m.kpis.efectividad} (no se dice: faltan 3)`);
   ok(m.kpis.abiertas === 3, `abiertas: ${m.kpis.abiertas} (3; la anulada no)`);
   ok(m.kpis.vencidas === 2, `vencidas: ${m.kpis.vencidas} (la de 40 días y la de 3)`);
   ok(m.kpis.cierreMedianaH === 20, `mediana de cierre: ${m.kpis.cierreMedianaH} h (10,20,20,30,60 → 20)`);

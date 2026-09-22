@@ -40,6 +40,7 @@ const ACC = [
   A({ d: 3, r: "p1" }), A({ d: 2, eq: "Easy Logística" }), A({ d: 2 }), A({ d: 1, r: "p3" }), A({ d: 0.2, r: "p2" }),
   A({ d: -0.06, r: "p1" }), A({ d: -5 }),
   A({ estado: "verificada", ef: true }), A({ estado: "verificada", ef: true }), A({ estado: "verificada", ef: false }),
+  A({ estado: "verificada", ef: true }), A({ estado: "verificada", ef: true }), A({ estado: "cerrada" }), A({ estado: "cerrada" }),
 ];
 const sinDueno = ACC.filter((a) => a.vencida && !a.responsable && !a.equipo_nombre).length;
 const venc = ACC.filter((a) => a.vencida).length;
@@ -48,6 +49,7 @@ const AR = [
   { area: "alm", area_nombre: "Almacén", orden: 1, total: 20, abiertas: 5, vencidas: 3, verificadas: 10, efectivas: 9, pct: 90 },
   { area: "dis", area_nombre: "Distribución", orden: 2, total: 9, abiertas: 2, vencidas: 1, verificadas: 6, efectivas: 4, pct: 67 },
   { area: "seg", area_nombre: "Seguridad", orden: 3, total: 2, abiertas: 1, vencidas: 0, verificadas: 0, efectivas: 0, pct: null },
+  { area: "tra", area_nombre: "Transporte", orden: 4, total: 2, abiertas: 0, vencidas: 0, verificadas: 1, efectivas: 1, pct: 100 },
 ];
 
 const { chromium } = await import("playwright");
@@ -68,7 +70,8 @@ const frase = await pg.textContent(".at-frase");
 ok(frase.includes(`${venc} vencidas`) && frase.includes(`${sinDueno} no tienen responsable`) && /lleva 16 días/.test(frase), `frase: «${frase}»`);
 ok((await pg.$$(".at-v")).length === venc, `lista: ${(await pg.$$(".at-v")).length} (van ${venc})`);
 ok((await pg.$$eval(".at-v .cod", (c) => c.map((x) => x.textContent)))[0] === "AC-101", "la más vieja no va arriba");
-ok((await pg.textContent(".at-k:nth-child(4) .n")).trim() === "67%", `efectividad: ${await pg.textContent(".at-k:nth-child(4) .n")} (2 de 3)`);
+ok((await pg.textContent(".at-k:nth-child(4) .n")).trim() === "80%", `efectividad: ${await pg.textContent(".at-k:nth-child(4) .n")} (4 de 5)`);
+ok(/2 cerradas sin verificar/.test(await pg.textContent(".at-k:nth-child(4)")), "no dice cuántas cerradas faltan por verificar");
 ok((await pg.textContent(".at-k:nth-child(3) .n")).trim() === "1", `vencen hoy: ${await pg.textContent(".at-k:nth-child(3) .n")} (1)`);
 await pg.click(".at-chips button.sin");
 ok((await pg.$$(".at-v")).length === sinDueno && (await pg.$$(".at-v .at-quien.sin")).length === sinDueno, "«Sin asignar» no filtra");
@@ -80,12 +83,14 @@ const hist = await pg.$$eval(".at-hist .col", (c) => c.map((x) => [x.querySelect
 ok(hist.length === 14 && hist.at(-1)[0] === "14+" && hist.at(-1)[1] === "1", `histograma: ${JSON.stringify(hist)}`);
 ok(hist.reduce((s, h) => s + +h[1], 0) === venc, "el histograma no suma las vencidas");
 ok(/de las 13/.test(await pg.textContent(".at-dice")), "no dice el resumen del histograma");
-ok((await pg.$$(".at-ar")).length === 3 && (await pg.$$(".at-ar.bien")).length === 1 && (await pg.$$(".at-ar.mal")).length === 1 && (await pg.$$(".at-ar.nd")).length === 1, "áreas: bien / mal / sin verificar");
+ok((await pg.$$(".at-ar")).length === 4 && (await pg.$$(".at-ar.bien")).length === 1 && (await pg.$$(".at-ar.mal")).length === 1 && (await pg.$$(".at-ar.nd")).length === 2 && /1 de 5 para medir/.test(await pg.textContent(".at-areas")), "áreas: bien / mal / sin verificar / pocas (1 de 1 no es 100 %)");
 await pg.evaluate(() => { window.__rep = 0; addEventListener("ac:reportar", () => window.__rep++) });
 await pg.click(".at-btn:has-text('Reportar')");
 ok((await pg.evaluate(() => window.__rep)) === 1, "«Reportar» no avisa a la barra");
 if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/at-1300.png`, fullPage: true });
 
+await monta(1300, null, ACC.filter((a) => !(a.estado === "verificada" && a.efectiva === false)).filter((a, i, l) => a.estado !== "verificada" || l.filter((x) => x.estado === "verificada").indexOf(a) < 1));
+ok((await pg.textContent(".at-k:nth-child(4) .n")).trim() === "—" && /1 verificada · faltan 4 para medir/.test(await pg.textContent(".at-k:nth-child(4)")), `con 1 verificada sale ${await pg.textContent(".at-k:nth-child(4)")}`);
 await monta(1300, null, ACC.filter((a) => !a.vencida));
 ok(/Ninguna vencida/.test(await pg.textContent(".at-frase")) && !(await pg.$(".at-chips")), "sin vencidas no queda limpio");
 
@@ -112,7 +117,7 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
     const fondo = (e) => { for (let x = e; x; x = x.parentElement) { const c = getComputedStyle(x).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c } return "rgb(255,255,255)" };
     const par = (s) => { const e = document.querySelector(s); if (!e) return null; return [getComputedStyle(e).color, fondo(e)] };
     return { "rótulo": par(".at-o"), "frase": par(".at-frase"), "roja": par(".at-frase b.mal"), "título": par(".at-top h1"), "reloj": par(".at-reloj span"),
-      "botón": par(".at-btn:not(.sec)"), "botón sec": par(".at-btn.sec"), "cifra roja": par(".at-k.mal .n"), "pie kpi": par(".at-k .s"),
+      "botón": par(".at-btn:not(.sec)"), "botón sec": par(".at-btn.sec"), "cifra roja": par(".at-k.mal .n"), "pie kpi": par(".at-k .s"), "sin verificar": par(".at-k .s.pend"),
       "chip": par(".at-chips button:not(.on):not(.sin)"), "chip sin": par(".at-chips button.sin"), "chip on": par(".at-chips button.on"),
       "código": par(".at-v .cod"), "área": par(".at-v .que small"), "sin asignar": par(".at-v .at-quien.sin"), "días r": par(".at-v .dd.r b"),
       "días n": par(".at-v .dd.n b"), "días a": par(".at-v .dd.a b"), "eje": par(".at-hist .x"), "dice": par(".at-dice"),
