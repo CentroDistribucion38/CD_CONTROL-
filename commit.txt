@@ -1,28 +1,48 @@
-Acciones: abrir la accion desde el tablero; Maestro: buscar por calle
+Traspasos: informes por fecha y turno, y bajar la data en Excel
 
-TABLERO DE ACCIONES · LA FICHA
-Cada vencida del tablero se abre: sale en que estado esta, quien
-responde, cuando vencia, y debajo la evidencia completa. Para quien
-administra, ahi mismo estan Corregir la accion, Anular y Eliminar, sin
-tener que pasar por «Todas». Se cierra con Escape o tocando por fuera.
+EL RANGO, COMO SE PIDA
+El Control tenia un desplegable de periodos fijos —hoy, ultimos 7,
+ultimos 30— y con eso no se podia pedir "del 1 al 15 de agosto, turno
+C". Ahora son dos campos, Desde y Hasta, mas dos atajos: Hoy y Manana
+(el plan antes de que empiece el turno). Los filtros de turno y tipo
+siguen igual y se combinan con el rango.
+Los enlaces viejos siguen abriendo lo mismo: si no viene desde/hasta,
+el rango sale del dia y la ventana como siempre. Y si alguien escribe
+las fechas al reves, se invierten en vez de no mostrar nada.
 
-MAESTRO · «FILTRO P Y NO ME SALE LA P»
-Escribir «P» buscaba la letra p DENTRO de la clave y de la familia: 331
-filas, se dibujaban las primeras 60, y las 60 eran de la calle A. Ahora,
-si lo escrito es el nombre de una calle, se busca esa calle y se
-muestran TODAS sus posiciones (no las primeras 60); el selector de calle
-se pone solo en ella para que se vea por que. Escribir algo que no es
-una calle —«P_4»— sigue buscando por clave, pero lo que EMPIEZA por lo
-escrito sale de primero.
+BAJAR EXCEL
+Boton nuevo al lado de Generar PDF. Baja EXACTAMENTE lo que la pantalla
+esta mostrando —mismo rango, mismo turno, mismo tipo— con el sello de
+la B, la banda y los colores del tema de quien exporta, como el
+consolidado de inventario. Cuatro hojas:
+
+  Resumen        adherencia con su barra, las cifras del periodo, el
+                 corte por turno y la nota de como se cuenta.
+  Dia por turno  una fila por fecha y turno, con filtro y totales que
+                 siguen al filtro.
+  Por tipo       casco, canastas, estibas... en todo el rango.
+  Viajes         viaje por viaje, la data cruda para cruzar con SAP:
+                 van todos, incluidos vacios y anulados, cada uno con
+                 su columna que lo dice.
+
+Las cifras salen de v_traspasos_control, la misma vista del tablero: el
+Excel no puede sumar con otra regla que la pantalla. Tope de un ano por
+informe.
 
 ARNESES
-- ac-tablero: la ficha abre, trae el estado y Escape la cierra (con
-  dobles de Supabase y del router, que la evidencia los usa).
-- fe-calle (nuevo): monta el maestro de verdad con 430 ubicaciones y
-  comprueba las cinco reglas de arriba, y que a 390 no se salga.
-- fe-maestro: sabia de dos pantallas de inventario y ya son tres («La
-  base»); y marcaba como error un display distinto dentro de un @media,
-  que es responder al ancho, no prestarse el nombre.
+- tp-libro (nuevo): arma el Excel con datos de prueba, lo abre con
+  openpyxl y compara cifra por cifra contra las cuentas hechas a mano;
+  comprueba que agrupe por dia y turno, que el detalle traiga vacios y
+  anulados, y que los filtros de las tres hojas no rompan el archivo.
+- tp-informe (nuevo): monta la barra de verdad y comprueba que escribir
+  una fecha borre d y dias, que los atajos dejen un dia solo, que el
+  Excel pida el mismo rango y los mismos filtros, que un fallo se vea,
+  y que quepa en 1440/820/390/360 y en los 7 temas.
+
+DE PASO
+- Los tres botones de arriba envuelven: a 360 px el tercero se salia.
+- La barra del resumen se pinta en dos colores y con 12 bloques: a 18
+  Excel recortaba el hueco y el 78% se veia igual de lleno que el 100%.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

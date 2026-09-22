@@ -276,7 +276,9 @@
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: center;
 }
 .tp .cabeza-ctl > * { min-width: 0 }
-.tp .acciones-informe { display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 10px }
+/* TRES BOTONES Y NO DOS desde que existe «Bajar Excel»: en una fila sin
+   envolver, a 360 px el tercero se salía 17 px de lado. */
+.tp .acciones-informe { display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 10px; flex-wrap: wrap }
 .tp .accion {
   display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 15px; cursor: pointer;
   background: var(--tp-papel); border: 1.5px solid var(--tp-linea); border-radius: 3px;
@@ -340,6 +342,46 @@
   border: 1.5px solid var(--tp-linea); border-radius: 2px; cursor: pointer;
 }
 .tp .sel select:focus-visible { outline: none; border-color: var(--tp-acento) }
+
+/* ---------- El rango: dos fechas y dos atajos ----------
+   Van pegadas entre sí y separadas del resto: son UN control, no dos
+   filtros que se parecen. En el celular ocupan la fila entera, porque
+   un campo de fecha de 100 px no se puede tocar. */
+.tp .rango-f { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap }
+.tp .sel.fecha > input {
+  height: 42px; min-width: 150px; padding: 0 10px; font: 500 14px var(--tp-texto);
+  color: var(--tp-tinta); background: var(--tp-fondo);
+  border: 1.5px solid var(--tp-linea); border-radius: 2px; cursor: pointer;
+}
+.tp .sel.fecha > input:focus-visible { outline: none; border-color: var(--tp-acento) }
+.tp .rango-f .atajo {
+  height: 42px; min-width: 62px; padding: 0 12px; cursor: pointer;
+  background: var(--tp-fondo); border: 1.5px solid var(--tp-linea); border-radius: 2px;
+  font: 600 13px var(--tp-texto); color: var(--tp-gris);
+}
+.tp .rango-f .atajo:hover { border-color: var(--tp-acento); color: var(--tp-acento) }
+.tp .rango-f .atajo.on {
+  background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento);
+}
+
+/* EN EL CELULAR EL RANGO OCUPA LA FILA ENTERA y las dos fechas se
+   reparten lo que haya. Con el ancho fijo de 150 px, a 360 las dos más
+   los dos atajos se salían 17 px de lado — y una pantalla que se
+   arrastra de lado se usa con una mano, en la bodega. */
+@media (max-width: 560px) {
+  .tp .rango-f { width: 100%; gap: 6px }
+  .tp .rango-f .sel.fecha { flex: 1 1 128px; min-width: 0 }
+  .tp .sel.fecha > input { min-width: 0; width: 100% }
+  .tp .rango-f .atajo { flex: 1 1 auto; min-width: 74px }
+}
+
+/* El aviso de que el Excel no salió. Ocupa la fila entera debajo de los
+   botones: al lado los empujaba fuera de la pantalla en el celular. */
+.tp .mal-informe {
+  flex-basis: 100%; margin: 6px 0 0; text-align: right;
+  font: 600 12.5px var(--tp-texto); color: var(--tp-mal);
+}
+
 .tp .limpiar {
   margin-left: auto; height: 42px; padding: 0 16px; cursor: pointer;
   background: none; border: 1.5px solid var(--tp-linea); border-radius: 2px;

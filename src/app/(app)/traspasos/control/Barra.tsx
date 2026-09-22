@@ -4,6 +4,26 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { TipoViaje } from "@/modulos/traspasos/datos";
 import { TURNOS } from "@/modulos/traspasos/formato";
+import { PALETA_MARCA, paletaDeTema, aRGB } from "@/modulos/rotlinea/hoja";
+
+/** Los colores del tema de quien exporta, para que el Excel salga con
+ *  ellos. Se leen del `[data-tema]` más cercano, igual que la hoja de
+ *  rotura y el consolidado de inventario. */
+function coloresDelTema(dentro: Element | null) {
+  const conTema = dentro?.closest("[data-tema]");
+  const P = (() => {
+    if (!conTema) return PALETA_MARCA;
+    const leer = (v: string) => {
+      const t = document.createElement("span");
+      t.style.color = `var(${v})`; t.style.display = "none";
+      conTema.appendChild(t); const c = aRGB(getComputedStyle(t).color); t.remove(); return c;
+    };
+    const tinta = leer("--c-04203f"), acento = leer("--c-marca"), hondo = leer("--c-marca-hondo");
+    return tinta && acento ? paletaDeTema(tinta, acento, hondo ?? acento) : PALETA_MARCA;
+  })();
+  const hx = (c: number[]) => c.map((v) => v.toString(16).padStart(2, "0")).join("");
+  return { tinta: hx(P.tinta), banda: hx(P.cinta[1]?.[1] ?? P.acento) };
+}
 
 /**
  * LOS FILTROS Y LOS DOS BOTONES.
@@ -20,11 +40,17 @@ import { TURNOS } from "@/modulos/traspasos/formato";
  * puestos—, que es justo lo que nunca cuadra cuando el PDF se genera
  * aparte.
  */
-export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
+export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta }: {
   tipos: TipoViaje[];
   /** El día de hoy y el día en el que está parada la pantalla. */
   hoy?: string;
   dia?: string;
+  /** El rango que la pantalla está mostrando, ya resuelto en el
+   *  servidor: puede venir de `desde`/`hasta` o del día y la ventana.
+   *  Es el que se le pide al Excel, para que el archivo diga lo mismo
+   *  que la pantalla — que es todo el punto de poder bajarlo. */
+  desde?: string;
+  hasta?: string;
   /* Se parte en dos porque las dos mitades van en sitios distintos de
      la página —los botones arriba a la derecha, los filtros a lo ancho
      debajo del título— y separarlas en dos componentes obligaría a
@@ -122,39 +148,80 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
     poner(clave, nuevos.join(","));
   }
 
-  const hay = valorDe("dias") || valorDe("turno") || valorDe("tipo") || params.get("d");
+  const hay = valorDe("dias") || valorDe("turno") || valorDe("tipo") || params.get("d")
+           || params.get("desde") || params.get("hasta");
 
-  /* MAÑANA ES UN PERÍODO, no un caso aparte.
-     El plan se arma para mañana y hasta ahora no había dónde mirarlo:
-     la ventana terminaba siempre en hoy. Poner la fecha en la barra de
-     arriba ya lo resuelve, pero nadie va a buscar ahí lo que todo el
-     mundo busca en «Período» — que es la palabra que dice qué rango se
-     está viendo. Así que mañana entra aquí, y de paso los rótulos dejan
-     de mentir cuando la pantalla está parada en otro día. */
+  /* ==================================================================
+     EL RANGO: DOS FECHAS Y YA.
+
+     Antes era un desplegable de períodos fijos —hoy, ayer y hoy,
+     últimos 7, últimos 30— y con eso no se podía pedir «del 1 al 15 de
+     agosto». Dos campos de fecha piden cualquier cosa, incluido un día
+     solo (las dos iguales) y MAÑANA, que es como se revisa el plan
+     antes de que empiece el turno.
+
+     LAS DOS FECHAS VIAJAN JUNTAS y borran `d` y `dias`: son la forma
+     vieja de decir lo mismo, y dejarlas puestas haría que la pantalla
+     obedeciera a una y el Excel a la otra.
+     ================================================================== */
   const mañana = hoy
     ? new Date(Date.parse(hoy + "T12:00:00") + 86400_000).toISOString().slice(0, 10)
     : "";
-  const enMañana = !!dia && dia === mañana;
-  const dias = params.get("dias") ?? "0";
-  const valor = enMañana ? "m" : dias;
+  const rDesde = valorDe("desde") || desde || dia || hoy || "";
+  const rHasta = valorDe("hasta") || hasta || dia || hoy || "";
 
-  /* El período y el día son el MISMO control: escoger "mañana" mueve la
-     fecha y deja la ventana en un día; escoger cualquier otro vuelve a
-     hoy. Si fueran dos, se podría pedir "últimos 30 días terminando
-     mañana", que no quiere decir nada. */
-  function periodo(v: string) {
-    /* Va por ponerYa y no por poner: un desplegable se escoge una sola
-       vez, no se encadena con otro, así que esperar 400 ms sería
-       retraso puro sin nada que agrupar. */
-    if (v === "m") ponerYa2({ d: mañana, dias: "" });
-    else ponerYa2({ d: "", dias: v === "0" ? "" : v });
-  }
-
-  /* Dos claves de un golpe: el período toca `d` y `dias` a la vez, y
-     mandarlas por separado dispararía dos consultas. */
-  function ponerYa2(vals: Record<string, string>) {
+  /* Las dos fechas se mandan juntas y con espera: escribir una fecha a
+     mano pasa por estados a medio escribir («0002-08-…»), y sin la
+     espera cada uno de esos sería una consulta. */
+  function rango(cual: "desde" | "hasta", v: string) {
+    const otro = cual === "desde" ? rHasta : rDesde;
+    const nuevo = { ...pendiente.current,
+      desde: cual === "desde" ? v : otro, hasta: cual === "hasta" ? v : otro,
+      d: "", dias: "" };
+    pendiente.current = nuevo;
+    setLocal(nuevo);
     if (reloj.current) clearTimeout(reloj.current);
-    mandar({ ...pendiente.current, ...vals });
+    reloj.current = setTimeout(() => mandar(nuevo), ESPERA);
+  }
+  const unDia = (f: string) => {
+    if (reloj.current) clearTimeout(reloj.current);
+    const nuevo = { ...pendiente.current, desde: f, hasta: f, d: "", dias: "" };
+    pendiente.current = nuevo; setLocal(nuevo);
+    mandar(nuevo);
+  };
+
+  /* ---------- BAJAR EL EXCEL ----------
+     Se le pide al servidor el MISMO rango y los MISMOS filtros que la
+     pantalla está mostrando: un archivo que dice otra cosa que el
+     tablero no sirve para evidenciar nada. */
+  const [bajando, setBajando] = useState(false);
+  const [mal, setMal] = useState<string | null>(null);
+  async function bajarExcel() {
+    if (bajando || !rDesde || !rHasta) return;
+    setBajando(true); setMal(null);
+    try {
+      const c = coloresDelTema(document.querySelector(".tp"));
+      const p = new URLSearchParams({ desde: rDesde, hasta: rHasta, tinta: c.tinta, banda: c.banda });
+      const tu = valorDe("turno"), ti = valorDe("tipo");
+      if (tu) p.set("turno", tu);
+      if (ti) p.set("tipo", ti);
+      const r = await fetch(`/api/traspasos/exportar?${p}`);
+      if (!r.ok) {
+        const j = await r.json().catch(() => null);
+        setMal(j?.error ?? `No se pudo bajar (${r.status}).`);
+        return;
+      }
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `traspasos-${rDesde}${rDesde === rHasta ? "" : `-a-${rHasta}`}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch {
+      setMal("No se pudo bajar el archivo. Revisa la conexión.");
+    } finally {
+      setBajando(false);
+    }
   }
 
   return (
@@ -169,25 +236,47 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
           <svg viewBox="0 0 24 24"><path d="M8 3.5h5.5L18 8v12.5H6V3.5z" /><path d="M13.5 3.5V8H18" /></svg>
           Generar PDF
         </button>
+        {/* EL EXCEL ES LA EVIDENCIA. El PDF es la foto de la pantalla;
+            esto es la data, con el detalle viaje por viaje para cruzar
+            con SAP. */}
+        <button type="button" className="accion hoja" onClick={bajarExcel} disabled={bajando}>
+          <svg viewBox="0 0 24 24"><path d="M12 3v12" /><path d="M7.5 10.5L12 15l4.5-4.5" /><path d="M4.5 20h15" /></svg>
+          {bajando ? "Armando el Excel…" : "Bajar Excel"}
+        </button>
+        {mal && <p className="mal-informe" role="alert">{mal}</p>}
       </div>
       )}
 
       {!soloBotones && (
       <section className={"filtros" + (cargando ? " cargando" : "")}>
         <div className="arriba">
-          <label className="sel">
-            <span>Período</span>
-            <select value={valor} onChange={(e) => periodo(e.target.value)}>
-              {/* MAÑANA VA DE PRIMERO: el plan se arma para mañana, y
-                  revisarlo antes de que empiece el turno es lo único
-                  que todavía se puede arreglar. Lo de atrás ya pasó. */}
-              {mañana && <option value="m">Mañana · solo el plan</option>}
-              <option value="0">Hoy</option>
-              <option value="1">Ayer y hoy</option>
-              <option value="6">Últimos 7 días</option>
-              <option value="29">Últimos 30 días</option>
-            </select>
-          </label>
+          {/* EL RANGO, A LA IZQUIERDA DE TODO: es lo primero que se
+              escoge en un informe —qué días— y después ya se afina por
+              turno y por tipo. */}
+          <div className="rango-f" role="group" aria-label="Rango de fechas">
+            <label className="sel fecha">
+              <span>Desde</span>
+              <input type="date" value={rDesde} max={rHasta || undefined}
+                     onChange={(e) => rango("desde", e.target.value)} />
+            </label>
+            <label className="sel fecha">
+              <span>Hasta</span>
+              <input type="date" value={rHasta} min={rDesde || undefined}
+                     onChange={(e) => rango("hasta", e.target.value)} />
+            </label>
+            {/* DOS ATAJOS Y NO CINCO. «Hoy» es a donde se vuelve, y
+                «Mañana» es la única fecha del futuro que tiene sentido
+                mirar: el plan antes de que empiece el turno. Todo lo
+                demás se escribe en los dos campos de al lado. */}
+            {hoy && (
+              <button type="button" className={"atajo" + (rDesde === hoy && rHasta === hoy ? " on" : "")}
+                      onClick={() => unDia(hoy)}>Hoy</button>
+            )}
+            {mañana && (
+              <button type="button" className={"atajo" + (rDesde === mañana && rHasta === mañana ? " on" : "")}
+                      onClick={() => unDia(mañana)}>Mañana</button>
+            )}
+          </div>
 
           <Grupo rotulo="Turno" clave="turno" vacio="Todos"
                  opciones={TURNOS.map((t) => ({ id: t, nombre: t }))}
@@ -201,7 +290,7 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia }: {
             <button type="button" className="limpiar" onClick={() => {
               if (reloj.current) clearTimeout(reloj.current);
               pendiente.current = {};
-              setLocal({ dias: "", turno: "", tipo: "" });
+              setLocal({ dias: "", turno: "", tipo: "", desde: "", hasta: "" });
               empezar(() => router.push(pathname));
             }}>
               Restablecer

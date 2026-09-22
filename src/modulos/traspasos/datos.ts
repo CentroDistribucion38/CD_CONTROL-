@@ -201,6 +201,30 @@ export async function viajesDelDia(fecha: string) {
   return { viajes: (data ?? []) as Viaje[], falta: false };
 }
 
+/**
+ * LOS VIAJES DE UN RANGO — para el informe en Excel.
+ *
+ * VAN TODOS, incluidos los vacíos y los anulados: la hoja de detalle es
+ * para cruzar con SAP, y lo que falta es justo lo que se anda buscando.
+ * Cada uno trae su columna que dice qué es. Las cifras de adherencia no
+ * salen de aquí sino de `v_traspasos_control`, que ya aplica las reglas.
+ *
+ * EL TOPE ES REAL. Un rango de un año son miles de viajes y el Excel se
+ * arma en memoria; 20.000 es holgado para un año de operación y evita
+ * que un rango escrito mal tumbe la exportación.
+ */
+export async function viajesRango(desde: string, hasta: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_traspasos_viajes").select("*")
+    .gte("fecha", desde).lte("fecha", hasta)
+    .order("fecha", { ascending: false })
+    .order("hora", { ascending: false })
+    .limit(20000);
+  if (error) return { viajes: [] as Viaje[], falta: sinTablas(error.message) };
+  return { viajes: (data ?? []) as Viaje[], falta: false };
+}
+
 /** El plan contra lo real, de un día. Es la pantalla del turno. */
 export async function control(fecha: string) {
   const supabase = await createClient();

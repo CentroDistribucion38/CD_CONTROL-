@@ -20,13 +20,18 @@ import { EscogerDia } from "./Calendario";
  * entra por arriba.
  */
 export function Fechas({ dia, hoy, esHoy, hayBorrador = false,
-                         ruta = "/traspasos/plan", param = "d", extra }: {
+                         ruta = "/traspasos/plan", param = "d", limpia, extra }: {
   dia: string; hoy: string; esHoy: boolean;
   hayBorrador?: boolean;
   /** A qué pantalla se navega al cambiar de día. */
   ruta?: string;
   /** Con qué nombre viaja la fecha en la dirección. */
   param?: string;
+  /** Parámetros que se borran al moverse de día. En Control hay además
+   *  un rango libre (`desde`/`hasta`) que manda sobre el día: si no se
+   *  borrara, las flechas cambiarían la dirección y la pantalla
+   *  seguiría pintando el rango — que se lee como «no me hace caso». */
+  limpia?: string[];
   extra?: React.ReactNode;
 }) {
   const router = useRouter();
@@ -38,6 +43,7 @@ export function Fechas({ dia, hoy, esHoy, hayBorrador = false,
      poner. Se copia lo que hay y solo se toca la fecha. */
   const con = (cambio: (p: URLSearchParams) => void) => {
     const p = new URLSearchParams(params.toString());
+    for (const k of limpia ?? []) p.delete(k);
     cambio(p);
     const q = p.toString();
     router.push(q ? `${ruta}?${q}` : ruta);

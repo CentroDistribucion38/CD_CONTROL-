@@ -41,22 +41,42 @@ export const dynamic = "force-dynamic";
  * que verse como un hueco.
  */
 export default async function ControlPage({ searchParams }: {
-  searchParams: Promise<{ dias?: string; turno?: string; tipo?: string; d?: string }>;
+  searchParams: Promise<{ dias?: string; turno?: string; tipo?: string; d?: string;
+                          desde?: string; hasta?: string }>;
 }) {
   const q = await searchParams;
   const hoy = hoyLocal();
+  const esFecha = (x?: string) => /^\d{4}-\d{2}-\d{2}$/.test(x ?? "");
 
   /* EL DÍA EN EL QUE TERMINA LA VENTANA, y puede ser MAÑANA.
      Antes esto era hoy y punto, y eso dejaba el plan de mañana sin
      forma de mirarse: se armaba en Plan y no había dónde verlo contra
      nada. Un plan que no se puede revisar antes de que empiece el turno
      es un plan que solo se revisa cuando ya no se puede arreglar. */
-  const dia = /^\d{4}-\d{2}-\d{2}$/.test(q.d ?? "") ? q.d! : hoy;
+  const dia = esFecha(q.d) ? q.d! : hoy;
   const esHoy = dia === hoy;
-  const hasta = dia;
+
+  /* ==================================================================
+     EL RANGO: DESDE Y HASTA, COMO SE PIDA.
+
+     «Necesito que traspasos me genere informes por turno, por fecha,
+     como yo quiera.» Los períodos fijos —hoy, últimos 7, últimos 30—
+     resolvían la reunión de la mañana y nada más: para "del 1 al 15 de
+     agosto, turno C" no había forma de pedirlo.
+
+     LOS ENLACES VIEJOS SIGUEN SIRVIENDO. Un WhatsApp con `?dias=6` o
+     con `?d=2026-08-12` abre lo mismo que abría antes: si no viene
+     `desde`/`hasta`, el rango sale del día y la ventana, como siempre.
+     Se invierten si llegan al revés, que es lo que pasa cuando alguien
+     escribe primero el «hasta».
+     ================================================================== */
+  const rangoLibre = esFecha(q.desde) || esFecha(q.hasta);
   const dias = Math.min(Math.max(Number(q.dias) || 0, 0), 365);
-  const desde = new Date(Date.parse(hasta + "T12:00:00") - dias * 86400_000)
-    .toISOString().slice(0, 10);
+  const a = esFecha(q.desde) ? q.desde! : esFecha(q.hasta) ? q.hasta! : dia;
+  const b = esFecha(q.hasta) ? q.hasta! : esFecha(q.desde) ? q.desde! : dia;
+  const desde = rangoLibre ? (a <= b ? a : b)
+    : new Date(Date.parse(dia + "T12:00:00") - dias * 86400_000).toISOString().slice(0, 10);
+  const hasta = rangoLibre ? (a <= b ? b : a) : dia;
 
   const [permisos, ctl, vacios, t, cruce, nombres] = await Promise.all([
     misPermisos(), controlRango(desde, hasta), vaciosRango(desde, hasta), leerTipos(),
@@ -123,7 +143,8 @@ export default async function ControlPage({ searchParams }: {
   });
 
   const alCien = filas.filter((f) => f.planeado > 0 && f.adherencia === 100);
-  const rotulo = dias === 0 ? fechaLarga(hasta) : `${fechaLarga(desde)} a ${fechaLarga(hasta)}`;
+  const unDia = desde === hasta;
+  const rotulo = unDia ? fechaLarga(hasta) : `${fechaLarga(desde)} a ${fechaLarga(hasta)}`;
 
   /* La circunferencia del anillo: 2·π·34. Se calcula y no se escribe a
      mano porque el radio y el número tienen que ir juntos — si alguien
@@ -148,7 +169,8 @@ export default async function ControlPage({ searchParams }: {
           de atrás y, sobre todo, para mirar MAÑANA: revisar el plan
           antes de que empiece el turno, que es cuando todavía se puede
           arreglar. */}
-      <Fechas dia={dia} hoy={hoy} esHoy={esHoy} ruta="/traspasos/control" param="d" />
+      <Fechas dia={rangoLibre ? hasta : dia} hoy={hoy} esHoy={esHoy && !rangoLibre}
+              ruta="/traspasos/control" param="d" limpia={["desde", "hasta"]} />
 
       {/* 1 ─ LA CIFRA QUE MANDA */}
       <section className="cabeza-ctl">
@@ -165,7 +187,7 @@ export default async function ControlPage({ searchParams }: {
           </p>
         </div>
         <div className="der-ctl">
-          <Barra tipos={t.tipos} soloBotones hoy={hoy} dia={dia} />
+          <Barra tipos={t.tipos} soloBotones hoy={hoy} dia={dia} desde={desde} hasta={hasta} />
           <div className="panel-ojo">
             <div className="corte" aria-hidden />
             <div className="rot">ADHERENCIA AL PLAN</div>
@@ -178,7 +200,7 @@ export default async function ControlPage({ searchParams }: {
       {/* LOS FILTROS, a lo ancho y debajo del título: son de toda la
           pantalla, no del panel de la derecha. Metidos en la columna
           derecha le comían el ancho al título. */}
-      <Barra tipos={t.tipos} soloFiltros hoy={hoy} dia={dia} />
+      <Barra tipos={t.tipos} soloFiltros hoy={hoy} dia={dia} desde={desde} hasta={hasta} />
 
       {/* LA MISMA INFORMACIÓN, EN UNA SOLA TARJETA, para el celular.
           Solo se ve por debajo de 900 px; ahí el CSS esconde el panel
@@ -402,7 +424,7 @@ export default async function ControlPage({ searchParams }: {
               </tbody>
               <tfoot>
                 <tr>
-                  <td>Total{dias === 0 ? " del día" : " del período"}</td>
+                  <td>Total{unDia ? " del día" : " del período"}</td>
                   {dias > 0 && <td />}
                   <td />
                   <td className="n">{planeado}</td>
