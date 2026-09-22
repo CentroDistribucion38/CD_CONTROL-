@@ -1,48 +1,49 @@
-Traspasos: informes por fecha y turno, y bajar la data en Excel
+Traspasos: la ficha del cierre, con el diseno de la maqueta
 
-EL RANGO, COMO SE PIDA
-El Control tenia un desplegable de periodos fijos —hoy, ultimos 7,
-ultimos 30— y con eso no se podia pedir "del 1 al 15 de agosto, turno
-C". Ahora son dos campos, Desde y Hasta, mas dos atajos: Hoy y Manana
-(el plan antes de que empiece el turno). Los filtros de turno y tipo
-siguen igual y se combinan con el rango.
-Los enlaces viejos siguen abriendo lo mismo: si no viene desde/hasta,
-el rango sale del dia y la ventana como siempre. Y si alguien escribe
-las fechas al reves, se invierten en vez de no mostrar nada.
+LA MAQUETA, PIEZA POR PIEZA
+Banda negra con el sello de la B y rayas diagonales; franja del acento
+con la adherencia en 66 px, la cinta repartida sobre el plan con su
+leyenda, y cuatro tarjetas blancas (planeados, cumplimiento, carga
+movida, sin salir); los avisos en tarjetas con su raya de color; y las
+dos tablas —por tipo, con barrita de adherencia, y los viajes— con el
+pie que explica que la foto se mueve.
 
-BAJAR EXCEL
-Boton nuevo al lado de Generar PDF. Baja EXACTAMENTE lo que la pantalla
-esta mostrando —mismo rango, mismo turno, mismo tipo— con el sello de
-la B, la banda y los colores del tema de quien exporta, como el
-consolidado de inventario. Cuatro hojas:
+EL COLOR SALE DEL TEMA, NO DE UN AMARILLO ESCRITO A MANO
+La franja usa el acento de la app y la letra de encima su PAREJA
+(--tp-sobre-acento): en ambar sale ambar, en turquesa turquesa, en rojo
+rojo — que es lo que mostraban las tres variantes de la maqueta— y
+ningun tema queda con texto oscuro sobre fondo oscuro.
+Medido en los siete: el peor da 4,71 y el mejor 11,84.
+Los rotulos van a color entero y no al 80% de la maqueta: al 80% daban
+4,31 en TODOS los temas. La jerarquia la hacen el tamano y el peso, que
+no cuestan contraste.
 
-  Resumen        adherencia con su barra, las cifras del periodo, el
-                 corte por turno y la nota de como se cuenta.
-  Dia por turno  una fila por fecha y turno, con filtro y totales que
-                 siguen al filtro.
-  Por tipo       casco, canastas, estibas... en todo el rango.
-  Viajes         viaje por viaje, la data cruda para cruzar con SAP:
-                 van todos, incluidos vacios y anulados, cada uno con
-                 su columna que lo dice.
+EL CELULAR NO ES LA MISMA PAGINA ENCOGIDA
+Las dos tablas se cierran en acordeones y los viajes se vuelven
+tarjetas: de pie se mira el porcentaje y los avisos, y el detalle se
+abre solo si alguien lo busca. Abajo, la barra fija. Los botones de
+arriba suben de 40 a 44 px —unico sitio donde me aparto de la maqueta,
+y solo hacia arriba: 40 esta bien con el raton y se queda corto con el
+dedo.
 
-Las cifras salen de v_traspasos_control, la misma vista del tablero: el
-Excel no puede sumar con otra regla que la pantalla. Tope de un ano por
-informe.
+EL BOTON DE ABAJO DICE «CERRAR», NO «DAR POR BUENO»
+Dar algo por bueno es un acto que deja rastro —quien y cuando— y eso
+todavia no existe en la base. Un boton que promete cerrar el turno y
+solo esconde la ficha es peor que no tenerlo. Cuando se arme el cierre
+de verdad (tabla nueva + SQL), ese boton cambia de nombre y de oficio.
 
-ARNESES
-- tp-libro (nuevo): arma el Excel con datos de prueba, lo abre con
-  openpyxl y compara cifra por cifra contra las cuentas hechas a mano;
-  comprueba que agrupe por dia y turno, que el detalle traiga vacios y
-  anulados, y que los filtros de las tres hojas no rompan el archivo.
-- tp-informe (nuevo): monta la barra de verdad y comprueba que escribir
-  una fecha borre d y dias, que los atajos dejen un dia solo, que el
-  Excel pida el mismo rango y los mismos filtros, que un fallo se vea,
-  y que quepa en 1440/820/390/360 y en los 7 temas.
+UN ERROR QUE ENCONTRE AL DIBUJARLO
+Las clases de la ficha se llamaban como las del tablero —cinta, mini,
+pct, eti, num— y el navegador las mezclo: la cinta salio encogida a la
+derecha y los avisos deshechos. Todas las de la ficha llevan ahora
+prefijo ci-. Es exactamente el error que el arnes del maestro vigila
+desde hace semanas en otra hoja.
 
-DE PASO
-- Los tres botones de arriba envuelven: a 360 px el tercero se salia.
-- La barra del resumen se pinta en dos colores y con 12 bloques: a 18
-  Excel recortaba el hueco y el 78% se veia igual de lleno que el 100%.
+ARNES
+tp-cierre: ademas de lo que ya medía, ahora comprueba que debajo de 760
+px salga la version de celular y no la ancha, que los acordeones
+arranquen cerrados, que las tarjetas de viaje sean tantas como los
+viajes, y el contraste de la franja en los siete temas.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

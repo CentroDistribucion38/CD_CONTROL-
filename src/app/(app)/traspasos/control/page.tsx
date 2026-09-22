@@ -8,6 +8,7 @@ import "../traspasos.css";
 import "../cruce/cruce.css";
 import { AlDia, SinTablas } from "../comunes";
 import { Barra } from "./Barra";
+import { Turnos } from "./Turnos";
 import { TarjetaKpi } from "./TarjetaKpi";
 import { Diferencias } from "./Diferencias";
 import { Fechas } from "../plan/Fechas";
@@ -146,10 +147,9 @@ export default async function ControlPage({ searchParams }: {
   const unDia = desde === hasta;
   const rotulo = unDia ? fechaLarga(hasta) : `${fechaLarga(desde)} a ${fechaLarga(hasta)}`;
 
-  /* La circunferencia del anillo: 2·π·34. Se calcula y no se escribe a
-     mano porque el radio y el número tienen que ir juntos — si alguien
-     cambia el radio y el número se queda, el anillo miente. */
-  const R = 34, C = 2 * Math.PI * R;
+  /* El anillo y su circunferencia se mudaron a Turnos.tsx, que es donde
+     se dibujan ahora: el radio y el número tienen que vivir juntos o el
+     día que alguien cambie uno, el anillo miente. */
 
   const color = (p: number | null) =>
     p == null ? "var(--tp-gris)" : p >= 100 ? "var(--tp-bien)"
@@ -317,25 +317,14 @@ export default async function ControlPage({ searchParams }: {
           </div>
         </div>
 
-        <div className="turnos">
-          {porTurno.map((x) => (
-            <div className="turno" key={x.turno}>
-              <svg viewBox="0 0 86 86">
-                <circle cx="43" cy="43" r={R} fill="none" stroke="var(--tp-fondo)" strokeWidth="10" />
-                <circle cx="43" cy="43" r={R} fill="none" stroke={color(x.hay ? x.pct : null)}
-                        strokeWidth="10" strokeLinecap="butt"
-                        strokeDasharray={`${(Math.min(x.pct, 100) / 100) * C} ${C}`}
-                        transform="rotate(-90 43 43)" />
-                <text x="43" y="49" textAnchor="middle" fontFamily="Archivo" fontWeight="900"
-                      fontSize="20" fill="var(--tp-tinta)">
-                  {x.hay ? `${x.pct}%` : "—"}
-                </text>
-              </svg>
-              <b>Turno {x.turno}</b>
-              <span>{x.hay ? `${x.adheridos} de ${x.planeado}` : "sin plan"}</span>
-            </div>
-          ))}
-        </div>
+        {/* LOS TRES ANILLOS, Y CADA UNO ABRE SU CIERRE. Las cifras se
+            calculan aquí arriba y bajan hechas: si la ficha del cierre
+            las volviera a sumar, un redondeo distinto bastaría para que
+            el cierre y el tablero dijeran cosas distintas del mismo
+            turno. */}
+        <Turnos anillos={porTurno} filas={filas} desde={desde} hasta={hasta}
+                rotulo={rotulo} adherencia={adherencia}
+                adheridos={adheridos} planeado={planeado} />
       </section>
 
       {/* 3 ─ LO QUE ESTÁ MAL. Solo se pinta lo que hay: una alerta que
@@ -382,7 +371,7 @@ export default async function ControlPage({ searchParams }: {
               <thead>
                 <tr>
                   <th>Tipo</th>
-                  {dias > 0 && <th>Fecha</th>}
+                  {!unDia && <th>Fecha</th>}
                   <th>Turno</th>
                   <th className="n">Planeado</th>
                   <th>Cumplido</th>
@@ -399,7 +388,7 @@ export default async function ControlPage({ searchParams }: {
                       {f.tipo_nombre}
                       {f.sin_planear && <> <span className="eti ojo">SIN PLANEAR</span></>}
                     </td>
-                    {dias > 0 && <td>{f.fecha}</td>}
+                    {!unDia && <td>{f.fecha}</td>}
                     <td>{f.turno}</td>
                     <td className="n">{f.planeado || "—"}</td>
                     <td>
@@ -425,7 +414,7 @@ export default async function ControlPage({ searchParams }: {
               <tfoot>
                 <tr>
                   <td>Total{unDia ? " del día" : " del período"}</td>
-                  {dias > 0 && <td />}
+                  {!unDia && <td />}
                   <td />
                   <td className="n">{planeado}</td>
                   <td className="n">{cumplido}</td>

@@ -68,6 +68,10 @@
 
   --tp-titulo: "Archivo", system-ui, sans-serif;
   --tp-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  /* Los códigos —TR-1001, ABC123, OC-5001— en monoespaciada: alineados
+     uno debajo de otro se comparan de un vistazo, que es justo lo que
+     alguien hace cuando cruza una lista contra otra. */
+  --tp-mono: ui-monospace, "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
 
   font-family: var(--tp-texto);
   color: var(--tp-tinta);
@@ -427,10 +431,294 @@
   background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
   padding: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
 }
-.tp .turno { text-align: center; min-width: 0 }
+/* CADA ANILLO ABRE SU CIERRE, así que es un botón. Lo que se toca es la
+   tarjeta entera y no el icono: en el celular un icono de 14 px no se
+   acierta, y el anillo completo pasa de cien. */
+.tp .turno {
+  position: relative; text-align: center; min-width: 0;
+  background: none; border: 1px solid transparent; border-radius: 3px;
+  padding: 6px 4px 8px; cursor: pointer; color: inherit; font: inherit;
+}
+.tp .turno:hover, .tp .turno:focus-visible {
+  border-color: var(--tp-linea); background: var(--tp-fondo); outline: none;
+}
 .tp .turno svg { width: 100%; max-width: 86px }
 .tp .turno b { display: block; font-family: var(--tp-titulo); font-weight: 800; font-size: 14px; margin-top: 7px }
 .tp .turno span { display: block; font-size: 12px; color: var(--tp-gris); margin-top: 2px }
+
+/* EL ICONO, SUTIL. Lo que manda en esta pantalla es el porcentaje: el
+   acceso al cierre no puede competir con él. Casi apagado, y se prende
+   al pasar por encima o al llegar con el tabulador. */
+.tp .tp-ver {
+  position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
+  display: grid; place-items: center; opacity: .3; transition: opacity .15s;
+}
+.tp .tp-ver svg { width: 14px; height: 14px; max-width: none; stroke: var(--tp-gris); stroke-width: 2;
+  fill: none; stroke-linecap: round; stroke-linejoin: round }
+.tp .turno:hover .tp-ver, .tp .turno:focus-visible .tp-ver,
+.tp .tp-cierre-dia:hover .tp-ver, .tp .tp-cierre-dia:focus-visible .tp-ver { opacity: 1 }
+.tp .turno:hover .tp-ver svg, .tp .tp-cierre-dia:hover .tp-ver svg { stroke: var(--tp-acento) }
+
+/* EL CIERRE DEL DÍA ENTERO. No va escondido dentro de un turno porque
+   no es de ningún turno: es la suma de los tres. */
+.tp .tp-cierre-dia {
+  position: relative; width: 100%; margin-top: 10px; cursor: pointer; text-align: left;
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  min-height: 44px; padding: 11px 34px 11px 14px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  font: inherit; color: var(--tp-tinta);
+}
+.tp .tp-cierre-dia:hover, .tp .tp-cierre-dia:focus-visible { border-color: var(--tp-acento); outline: none }
+.tp .tp-cierre-dia .q { font-family: var(--tp-titulo); font-weight: 800; font-size: 13.5px }
+.tp .tp-cierre-dia .d { font-size: 12.5px; color: var(--tp-gris) }
+.tp .tp-cierre-dia .tp-ver { top: 50%; right: 12px; margin-top: -9px }
+
+/* ---------- LA FICHA DEL CIERRE ----------
+   La maqueta que mandó: banda negra con el sello, la franja del acento
+   con el porcentaje y la cinta, los avisos, y las dos tablas. En el
+   celular las tablas se vuelven acordeones y abajo queda una barra fija.
+
+   EL ACENTO SALE DEL TEMA —ámbar, turquesa, rojo…— y la letra de encima
+   sale de su PAREJA (--tp-sobre-acento), no de un negro escrito a mano:
+   la app empareja los dos justamente para que ningún tema quede con
+   texto oscuro sobre fondo oscuro. */
+.tp-velo {
+  position: fixed; inset: 0; z-index: 90; background: rgba(8, 14, 24, .55);
+  display: grid; place-items: start center; padding: 16px; grid-template-columns: minmax(0, 1fr);
+  overflow: auto;
+}
+.tp-ci {
+  justify-self: center; width: min(1180px, 100%); min-width: 0;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+}
+
+/* LA BANDA NEGRA. Las rayas diagonales son las de la marca, al 7%: se
+   notan en la banda y no compiten con el título. */
+.tp-ci-cab {
+  display: flex; align-items: center; gap: 18px; padding: 20px 24px;
+  background: var(--tp-tinta); color: #fff; position: relative; overflow: hidden;
+}
+.tp-ci-cab::before {
+  content: ""; position: absolute; inset: 0; opacity: .4;
+  background-image: repeating-linear-gradient(116deg, rgba(255,255,255,.07) 0 2px, transparent 2px 20px);
+}
+.tp-ci-cab > * { position: relative }
+.tp-ci-cab img { width: 34px; height: 34px; flex: none }
+.tp-ci-cab .ci-tit { min-width: 0 }
+.tp-ci-cab .ci-ojo {
+  font: 700 10px var(--tp-titulo); letter-spacing: .16em; color: var(--tp-acento);
+}
+.tp-ci-cab h2 {
+  font: 900 27px var(--tp-titulo); letter-spacing: -.03em; margin: 5px 0 0; color: #fff;
+}
+.tp-ci-cab .ci-f { font-size: 12.5px; color: #9A9A95; margin-top: 4px }
+.tp-ci-cab .ci-der { margin-left: auto; display: flex; gap: 10px; flex: none }
+.tp-ci-bt {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 15px;
+  border: 1px solid #33373D; background: #1B1F24; color: #fff;
+  font: 700 13px var(--tp-texto); cursor: pointer;
+}
+.tp-ci-bt:hover, .tp-ci-bt:focus-visible {
+  background: var(--tp-acento); color: var(--tp-sobre-acento); border-color: var(--tp-acento); outline: none;
+}
+.tp-ci-bt svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.9; fill: none;
+  stroke-linecap: round; stroke-linejoin: round }
+.tp-ci-bt.ico { width: 40px; padding: 0; justify-content: center }
+
+/* LA FRANJA DEL ACENTO */
+.tp-ci-hero {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 30px; padding: 24px;
+  background: var(--tp-acento); align-items: center; position: relative; overflow: hidden;
+  color: var(--tp-sobre-acento);
+}
+/* El corte diagonal de la derecha, como en la maqueta. */
+.tp-ci-hero::after {
+  content: ""; position: absolute; top: -40px; bottom: -40px; right: -30px; width: 150px;
+  background: color-mix(in srgb, var(--tp-sobre-acento) 8%, transparent);
+  transform: skewX(-18deg); pointer-events: none;
+}
+.tp-ci-hero > * { position: relative; min-width: 0 }
+.tp-ci-hero .ci-lado { min-width: 0 }
+.tp-ci-hero .ci-pct { border-left: 6px solid var(--tp-sobre-acento); padding-left: 18px }
+/* LOS RÓTULOS VAN A COLOR ENTERO, no a un 80% como la maqueta. Medido:
+   la pareja acento/tinta de la app da 4,85 a plena fuerza —justo lo que
+   hace falta— y bajarla al 80% la dejaba en 4,31 en los SIETE temas.
+   La jerarquía la hacen el tamaño y el peso, que no cuestan contraste. */
+.tp-ci-hero .ci-pct .ci-k { font: 700 10px var(--tp-titulo); letter-spacing: .15em; opacity: .92 }
+.tp-ci-hero .ci-pct .ci-v {
+  font: 900 66px var(--tp-titulo); line-height: .9; letter-spacing: -.055em;
+  color: var(--tp-sobre-acento); margin-top: 6px;
+}
+.tp-ci-hero .ci-pct .ci-s { font-size: 13px; font-weight: 600; margin-top: 7px }
+/* LA CINTA REPARTE SOBRE EL PLAN: lo cumplido, lo de más, y el hueco. */
+.tp-ci-hero .ci-cinta {
+  display: flex; height: 28px; overflow: hidden;
+  background: color-mix(in srgb, var(--tp-sobre-acento) 14%, transparent);
+}
+.tp-ci-hero .ci-cinta i { display: block; height: 100% }
+.tp-ci-hero .ci-ok { background: var(--tp-sobre-acento) }
+.tp-ci-hero .ci-extra { background: color-mix(in srgb, var(--tp-sobre-acento) 45%, transparent) }
+.tp-ci-hero .ci-falta { background: transparent }
+.tp-ci-hero .ci-ley {
+  display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; font-weight: 600;
+}
+.tp-ci-hero .ci-ley span { display: inline-flex; align-items: center; gap: 7px }
+.tp-ci-hero .ci-ley i { width: 11px; height: 11px; flex: none }
+.tp-ci-hero .ci-ley .ci-falta { background: color-mix(in srgb, var(--tp-sobre-acento) 22%, transparent) }
+.tp-ci-hero .ci-mini {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 16px;
+  background: color-mix(in srgb, var(--tp-sobre-acento) 14%, transparent);
+}
+.tp-ci-hero .ci-mini > div { background: var(--tp-papel); padding: 11px 14px; min-width: 0 }
+.tp-ci-hero .ci-mini .ci-k { font: 700 9px var(--tp-titulo); letter-spacing: .12em; color: var(--tp-gris) }
+.tp-ci-hero .ci-mini .ci-v { font: 900 19px var(--tp-titulo); margin-top: 4px; color: var(--tp-tinta) }
+.tp-ci-hero .ci-mini .ci-v.bien { color: var(--tp-bien) }
+.tp-ci-hero .ci-mini .ci-v.mal { color: var(--tp-mal) }
+
+/* LOS AVISOS */
+.tp-ci-rev { padding: 20px 24px; border-bottom: 1px solid var(--tp-linea) }
+.tp-ci-rev h3 { font: 900 16px var(--tp-titulo); margin: 0 0 12px }
+.tp-ci-rev .ci-g { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.tp-ci-rev .ci-av {
+  border: 1px solid var(--tp-linea); border-left: 4px solid var(--tp-aviso);
+  padding: 12px 14px; background: var(--tp-papel); min-width: 0;
+}
+.tp-ci-rev .ci-av.mal { border-left-color: var(--tp-mal); background: #FFF6F7 }
+.tp-ci-rev .ci-av .ci-n { font: 900 24px var(--tp-titulo); line-height: 1 }
+.tp-ci-rev .ci-av.mal .ci-n { color: var(--tp-mal) }
+.tp-ci-rev .ci-av b { display: block; font-size: 13px; margin-top: 5px }
+.tp-ci-rev .ci-av span { display: block; font-size: 11.5px; color: var(--tp-gris); margin-top: 3px; line-height: 1.4 }
+
+/* LAS DOS TABLAS */
+.tp-ci-sec { padding: 18px 24px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px }
+.tp-ci-sec b { font: 900 16px var(--tp-titulo) }
+.tp-ci-sec span { font-size: 12.5px; color: var(--tp-gris); text-align: right }
+/* Las tablas anchas se deslizan dentro de su caja. Sin esto, los hijos
+   de la ficha crecen con su contenido y a 820 px la tabla de viajes
+   —nueve columnas— empujaba la ficha entera 41 px de lado. */
+.tp-ci-scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch }
+.tp-ci-t { width: 100%; border-collapse: collapse }
+.tp-ci-t.tp-ci-viajes { min-width: 840px }
+.tp-ci-t th {
+  text-align: left; font: 700 9.5px var(--tp-titulo); letter-spacing: .12em; color: var(--tp-gris);
+  padding: 10px 24px; border-bottom: 1px solid var(--tp-linea); white-space: nowrap;
+}
+.tp-ci-t td { padding: 12px 24px; font-size: 13.5px; border-bottom: 1px solid #F2F2EF; vertical-align: middle }
+.tp-ci-t .ci-num { text-align: right; font-variant-numeric: tabular-nums }
+.tp-ci-t th.ci-num { text-align: right }
+.tp-ci-t .ci-cod { font: 600 12px var(--tp-mono) }
+.tp-ci-t .ci-ruta { color: var(--tp-gris) }
+.tp-ci-t .ci-sin { color: var(--tp-mal); font-weight: 700 }
+.tp-ci-t tr.anulado td { opacity: .55 }
+.tp-ci-t .ci-eti {
+  display: inline-block; margin-left: 6px; padding: 2px 5px;
+  background: var(--tp-fondo); color: var(--tp-gris);
+  font: 800 9px var(--tp-titulo); letter-spacing: .08em;
+}
+.tp-ci-t .ci-eti.mal { background: var(--tp-mal); color: #fff }
+/* La barrita del porcentaje: ver 65% al lado de una barra a un tercio
+   dice más que el número solo. */
+.ci-pctb { display: flex; align-items: center; gap: 10px; justify-content: flex-end }
+.ci-pctb i { display: block; height: 7px; width: 70px; background: #F0F0EC; flex: none }
+.ci-pctb i span { display: block; height: 100%; background: var(--tp-gris) }
+.ci-pctb i span.bien { background: var(--tp-bien) }
+.ci-pctb i span.medio { background: var(--tp-aviso) }
+.ci-pctb i span.mal { background: var(--tp-mal) }
+.ci-pctb b { font: 800 13px var(--tp-titulo); width: 42px; text-align: right }
+.ci-pctb b.bien { color: var(--tp-bien) }
+.ci-pctb b.medio { color: var(--tp-aviso) }
+.ci-pctb b.mal { color: var(--tp-mal) }
+
+.tp-ci-fin {
+  padding: 14px 24px; font-size: 12px; color: var(--tp-gris);
+  background: #FAFAF8; border-top: 1px solid var(--tp-linea);
+}
+.tp-ci-nada, .tp-ci-mal { padding: 4px 24px 14px; font-size: 12.5px; color: var(--tp-gris) }
+.tp-ci-mal { color: var(--tp-mal); font-weight: 600 }
+
+/* EL CELULAR. No es la misma página encogida: las tablas se cierran en
+   acordeones, los viajes se vuelven tarjetas, y abajo queda fija la
+   barra con lo que se hace desde aquí. */
+.tp-ci-movil { display: none }
+@media (max-width: 760px) {
+  .tp-velo { padding: 0 }
+  .tp-ci { border: 0; width: 100%; min-height: 100dvh }
+  .tp-ci-cab { padding: 12px 14px; gap: 10px }
+  .tp-ci-cab img { width: 28px; height: 28px }
+  .tp-ci-cab h2 { font-size: 19px; margin-top: 3px }
+  .tp-ci-cab .ci-f { font-size: 11px; margin-top: 2px }
+  .tp-ci-cab .ci-ojo { font-size: 8.5px }
+  /* Los dos botones se anclan arriba a la derecha, como en la maqueta,
+     y el título se reserva ese ancho: en flujo, la fecha se metía
+     debajo de ellos y quedaba medio tapada. */
+  .tp-ci-cab { align-items: flex-start }
+  .tp-ci-cab .ci-tit { padding-right: 96px }
+  .tp-ci-cab .ci-der { position: absolute; right: 12px; top: 12px; gap: 6px; margin: 0 }
+  .tp-ci-cab .ci-der .texto { display: none }
+  /* En el celular los dos botones de arriba suben a 44: en la maqueta
+     miden 40, que está bien con el ratón y se queda corto con el dedo.
+     Es el único sitio donde me aparto del diseño, y solo hacia arriba. */
+  .tp-ci-bt { height: 44px; padding: 0 11px } .tp-ci-bt.ico { width: 44px }
+
+  .tp-ci-hero { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 14px }
+  .tp-ci-hero .ci-pct { border-left-width: 4px; padding-left: 12px;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap }
+  .tp-ci-hero .ci-pct .ci-k { width: 100%; font-size: 9px }
+  .tp-ci-hero .ci-pct .ci-v { font-size: 44px; margin-top: 2px }
+  .tp-ci-hero .ci-pct .ci-s { margin-top: 0 }
+  .tp-ci-hero .ci-cinta { height: 16px }
+  .tp-ci-hero .ci-ley { gap: 12px; margin-top: 7px; font-size: 11.5px }
+  .tp-ci-hero .ci-mini { margin-top: 10px }
+  .tp-ci-hero .ci-mini > div { padding: 8px }
+  .tp-ci-hero .ci-mini .ci-k { font-size: 7.5px; letter-spacing: .08em }
+  .tp-ci-hero .ci-mini .ci-v { font-size: 15px; margin-top: 3px }
+
+  .tp-ci-rev { padding: 12px 14px }
+  .tp-ci-rev h3 { font-size: 14px; margin-bottom: 8px }
+  .tp-ci-rev .ci-g { grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--tp-linea) }
+  .tp-ci-rev .ci-av {
+    border: 0; border-bottom: 1px solid #F2F2EF; border-left: 4px solid var(--tp-aviso);
+    padding: 9px 12px; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: baseline; gap: 2px 8px;
+  }
+  .tp-ci-rev .ci-av.mal { border-left-color: var(--tp-mal); background: var(--tp-papel) }
+  .tp-ci-rev .ci-av .ci-n { font-size: 20px }
+  .tp-ci-rev .ci-av b { margin-top: 0; font-size: 12.5px }
+  .tp-ci-rev .ci-av span { font-size: 10.5px; margin-top: 1px; grid-column: 2 }
+
+  .tp-ci-ancho { display: none }
+  .tp-ci-movil { display: block; padding-bottom: 78px }
+  .tp-ci-acor { border-top: 1px solid var(--tp-linea) }
+  .tp-ci-acor summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 14px; min-height: 50px; font: 900 15px var(--tp-titulo);
+  }
+  .tp-ci-acor summary::-webkit-details-marker { display: none }
+  .tp-ci-acor summary em {
+    font-style: normal; font-size: 12px; color: var(--tp-gris); font-family: var(--tp-texto); font-weight: 500;
+  }
+  .tp-ci-acor td { padding: 10px 14px; font-size: 12.5px }
+  .tp-ci-acor .tp-ci-nada, .tp-ci-acor .tp-ci-mal { padding: 0 14px 12px }
+  .vcard {
+    border-top: 1px solid #F2F2EF; padding: 11px 14px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px;
+  }
+  .vcard.anulado { opacity: .55 }
+  .vcard .ci-c { font: 600 11px var(--tp-mono); color: var(--tp-gris) }
+  .vcard .ci-t2 { font-size: 13.5px; font-weight: 600 }
+  .vcard .ci-r { font-size: 11.5px; color: var(--tp-gris) }
+  .vcard .ci-dcha { text-align: right }
+  .vcard .ci-oc { font: 600 12px var(--tp-mono) }
+  .vcard .ci-oc.sin { color: var(--tp-mal); font-weight: 700 }
+  .tp-ci-fija {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--tp-tinta);
+    display: flex; gap: 10px; padding: 10px 14px; z-index: 20;
+  }
+  .tp-ci-fija button {
+    flex: 1; height: 46px; border: 0; cursor: pointer;
+    background: var(--tp-acento); color: var(--tp-sobre-acento); font: 800 14px var(--tp-titulo);
+  }
+  .tp-ci-fija .ci-sec2 { background: #23262B; color: #fff; flex: 0 0 120px }
+}
 
 /* ---------- Las alertas ---------- */
 .tp .alertas { display: flex; gap: 10px; flex-wrap: wrap }
@@ -493,6 +781,21 @@
 @media print {
   @page { size: A4 landscape; margin: 12mm }
   .tp .filtros, .tp .acciones-informe { display: none !important }
+
+  /* CON LA FICHA DEL CIERRE ABIERTA, LO QUE SE IMPRIME ES LA FICHA.
+     Antes salía el tablero de fondo con un rectángulo gris encima —el
+     velo— y la ficha cortada dentro. Se esconde todo lo que no la
+     contiene: la sección que sí la lleva se queda, y adentro se
+     esconden sus hermanos. */
+  .tp:has(.tp-velo) > *:not(:has(.tp-velo)) { display: none !important }
+  .tp:has(.tp-velo) .medidor { display: block; background: none; border: 0; padding: 0 }
+  .tp:has(.tp-velo) .medidor > *:not(.tp-velo) { display: none !important }
+  .tp-velo { position: static; display: block; background: none; padding: 0 }
+  .tp-cierre { width: 100%; max-height: none; overflow: visible; border: 0 }
+  .tp-ci-bot { display: none }
+  .tp-ci-scroll { overflow: visible }
+  .tp-ci-tabla.viajes { min-width: 0; font-size: 10.5px }
+  .tp-ci-bloque, .tp-ci-ojos, .tp-ci-cifras { break-inside: avoid }
   .tp .panel-ojo { color: #000; background: none; border: 2px solid #000 }
   .tp .panel-ojo .corte { display: none }
   .tp .medidor { grid-template-columns: 1fr 300px }
