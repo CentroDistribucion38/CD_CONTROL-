@@ -118,14 +118,28 @@ const quedan = (await tarjetas()).sort();
 ok(igual(quedan, ["ABC123", "JGY577"]), `pegando la lista quedan ${JSON.stringify(quedan)} y deben quedar ABC123 y JGY577`);
 const frase = await pg.$eval(".tr-lista-frase", (e) => e.textContent.replace(/\s+/g, " ").trim()).catch(() => "");
 ok(/De 4 placas, 2 vienen en camino y 2 no\./.test(frase), `la respuesta no dice cuántas vienen y cuántas no: «${frase}»`);
-const no = await pg.$$eval(".tr-lista-no li", (xs) => xs.map((x) => x.textContent));
-ok(igual(no, ["QWE321", "ZZZ999"]), `las que no vienen salen ${JSON.stringify(no)} y son QWE321 y ZZZ999`);
+/* LA TABLITA: una fila por placa pegada, en el orden pegado. */
+const filasT = await pg.$$eval(".tr-pl tbody tr", (xs) => xs.map((x) => [x.querySelector(".placa").textContent, x.className]));
+ok(JSON.stringify(filasT) === JSON.stringify([["JGY577", "si"], ["QWE321", "no"], ["ABC123", "si"], ["ZZZ999", "no"]]),
+   `la tabla sale ${JSON.stringify(filasT)}: una fila por placa en el orden pegado, sí/no`);
+ok(/CD /.test(await pg.$eval(".tr-pl tr.si td:nth-child(4)", (e) => e.textContent).catch(() => "")), "la que viene no dice su CD origen");
+if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/sd-placas.png` });
+await pg.click(".tr-pl-seg button.no");
+ok((await pg.$$(".tr-pl tbody tr")).length === 2, "«No vienen» no filtra la tabla");
+await pg.click(".tr-pl-seg button.todas");
+await pg.click(".tr-pl tr.si .tr-pl-ir >> nth=0");
+await pg.waitForTimeout(200);
+ok(await pg.$eval("#tr-vh-JGY577", (e) => e.classList.contains("resalta")).catch(() => false), "«Ver tarjeta» no lleva a su tarjeta");
 ok(await pg.$eval(".tr-placa input", () => false).catch(() => true),
    "con la lista puesta sigue el campo de una placa: la lista no se ve en su sitio");
 ok(/4 pegadas/.test(await pg.$eval(".tr-lista-on", (e) => e.textContent).catch(() => "")),
    "en el sitio del campo no dice cuántas se pegaron");
+await pg.click(".tr-pl-bar .btn.plano >> text=Copiar la tabla");
+await pg.waitForTimeout(100);
+const tablaCop = await pg.evaluate(() => navigator.clipboard.readText());
+ok(tablaCop.split("\n").length === 5 && tablaCop.startsWith("Placa\tViene") && /QWE321\tNo/.test(tablaCop), `la tabla copiada no sirve para Excel: ${JSON.stringify(tablaCop.slice(0, 80))}`);
 /* COPIAR LAS QUE NO VIENEN, una por renglón, para pegarlas en Excel. */
-const botonCopiar = await pg.$(".tr-lista-no .btn.plano");
+const botonCopiar = await pg.$(".tr-pl-bar .btn.plano >> text=Copiar las que no vienen");
 if (botonCopiar) { await botonCopiar.click(); await pg.waitForTimeout(100) }
 const copiado = botonCopiar ? await pg.evaluate(() => navigator.clipboard.readText()) : "";
 ok(copiado === "QWE321\nZZZ999", `al copiar las que no vienen sale ${JSON.stringify(copiado)} y debe ser una por renglón`);
@@ -162,8 +176,8 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
       if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c } return "rgb(255, 255, 255)" };
     const par = (s) => { const e = document.querySelector(s); return e ? { txt: getComputedStyle(e).color, fondo: fondo(e) } : { falta: s } };
     return { "la frase": par(".tr-lista-frase"), "las que vienen": par(".tr-lista-frase b.si"),
-             "las que no": par(".tr-lista-frase b.no"), "rótulo": par(".tr-lista-rot"),
-             "placa que no viene": par(".tr-lista-no li"), "copiar": par(".tr-lista-no .btn.plano"),
+             "las que no": par(".tr-lista-frase b.no"),
+             "sí viene": par(".tr-pl-pill.si"), "no viene": par(".tr-pl-pill.no"), "celda": par(".tr-pl tr.si td:nth-child(4)"), "nada": par(".tr-pl td.nada"), "encabezado": par(".tr-pl th"), "copiar": par(".tr-pl-bar .btn.plano"), "ver tarjeta": par(".tr-pl-ir"),
              "cuántas pegadas": par(".tr-lista-on p"), "quitar la lista": par(".tr-lista-on .tr-enlace") };
   });
   for (const [k, v] of Object.entries(m)) {
@@ -178,8 +192,8 @@ for (const ancho of [390, 360]) {
   await pg.waitForTimeout(80);
   const g = await pg.evaluate(() => ({
     lado: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    boton: Math.round(document.querySelector(".tr-lista-no .btn.plano")?.getBoundingClientRect().height ?? 0),
-    fuera: [...document.querySelectorAll(".tr-lista-no li, .tr-lista-no .btn")]
+    boton: Math.round(document.querySelector(".tr-pl-bar .btn.plano")?.getBoundingClientRect().height ?? 0),
+    fuera: [...document.querySelectorAll(".tr-pl-bar button, .tr-pl-marco")]
       .filter((e) => e.getBoundingClientRect().right > innerWidth + 0.5).length,
   }));
   ok(g.lado <= 0, `${ancho} px: la lista arrastra la página ${g.lado} px de lado`);

@@ -159,7 +159,8 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
      campo es de UNA placa escrita a mano, y la lista puede traer
      cincuenta: metida en el campo no se podría leer. */
   const [lista, setLista] = useState<string[] | null>(null);
-  const [copiado, setCopiado] = useState(false);
+  const [copiado, setCopiado] = useState<"" | "no" | "tabla">("");
+  const [verPl, setVerPl] = useState<"todas" | "si" | "no">("todas");
   const limpiar = () => { setF({ placa: "", origen: "", desde: "", hasta: "", solo: "" }); setLista(null) };
 
   /* AL PEGAR VARIAS, SE VUELVEN LISTA. Una sola placa pegada se queda en
@@ -170,7 +171,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
     e.preventDefault();
     setLista(placas);
     setF({ ...f, placa: "" });
-    setCopiado(false);
+    setCopiado("");
   }
 
   /* DE LA LISTA, CUÁLES VIENEN Y CUÁLES NO — contra TODO lo que está en
@@ -178,19 +179,45 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
      camión no quiere decir que no venga. */
   const cruce = useMemo(() => {
     if (!lista) return null;
-    const enCamino = new Set(viajes.map((v) => normPlaca(v.placa)));
+    /* De cada placa que SÍ viene, su viaje: de dónde sale y hace cuánto.
+       Si trae dos viajes abiertos se muestra el más viejo. */
+    const porPlaca = new Map<string, Viaje>();
+    for (const v of viajes) {
+      const k = normPlaca(v.placa);
+      const ya = porPlaca.get(k);
+      if (!ya || horasEnCamino(v.en_camino) > horasEnCamino(ya.en_camino)) porPlaca.set(k, v);
+    }
     return {
-      vienen: lista.filter((p) => enCamino.has(p)),
-      noVienen: lista.filter((p) => !enCamino.has(p)),
+      vienen: lista.filter((p) => porPlaca.has(p)).map((p) => ({ placa: p, v: porPlaca.get(p)! })),
+      noVienen: lista.filter((p) => !porPlaca.has(p)),
     };
   }, [lista, viajes]);
 
-  async function copiarNoVienen() {
+  /* LAS FILAS DE LA TABLITA, en el orden en que se pegaron. */
+  const filas = useMemo(() => {
+    if (!lista || !cruce) return [];
+    const m = new Map(cruce.vienen.map((x) => [x.placa, x.v]));
+    return lista.map((placa, i) => ({ i: i + 1, placa, v: m.get(placa) ?? null }));
+  }, [lista, cruce]);
+
+  async function copiar(cual: "no" | "tabla") {
     if (!cruce) return;
-    /* UNA POR RENGLÓN: así se pega de vuelta en Excel como columna. */
-    try { await navigator.clipboard.writeText(cruce.noVienen.join("\n")); setCopiado(true) }
-    catch { setCopiado(false) }
+    /* UNA POR RENGLÓN y separada por tabuladores: así se pega en Excel
+       como columnas. */
+    const t = cual === "no" ? cruce.noVienen.join("\n")
+      : ["Placa\tViene\tCD origen\tMaterial\tEstibas\tHL\tSalió\tEn camino",
+         ...filas.map((x) => x.v
+           ? [x.placa, "Sí", x.v.cd_origen, x.v.descripcion, x.v.estibas, x.v.hl ?? "", hora(x.v.salida_en), enCamino(x.v.en_camino)].join("\t")
+           : [x.placa, "No"].join("\t"))].join("\n");
+    try { await navigator.clipboard.writeText(t); setCopiado(cual) }
+    catch { setCopiado("") }
   }
+  /* Tocar una placa que sí viene lleva a su tarjeta. */
+  const irA = (placa: string) => {
+    const el = document.getElementById("tr-vh-" + placa);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.classList.add("resalta"); setTimeout(() => el?.classList.remove("resalta"), 1600);
+  };
 
   /* Los orígenes que DE VERDAD tienen algo en camino. Ofrecer los 16 del
      maestro cuando solo cinco tienen vehículos hace buscar en una lista
@@ -393,15 +420,54 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
             De <b>{lista.length}</b> placas, <b className="si">{cruce.vienen.length} vienen en camino</b>
             {" "}y <b className={cruce.noVienen.length ? "no" : ""}>{cruce.noVienen.length} no</b>.
           </p>
-          {cruce.noVienen.length > 0 && (
-            <div className="tr-lista-no">
-              <span className="tr-lista-rot">NO VIENEN EN CAMINO</span>
-              <ul>{cruce.noVienen.map((p) => <li key={p}>{p}</li>)}</ul>
-              <button type="button" className="btn plano" onClick={copiarNoVienen}>
-                {copiado ? "Copiadas" : "Copiar las que no vienen"}
-              </button>
+          {/* LA TABLITA: cada placa pegada en su renglón, en el orden en
+              que se pegó, con si viene o no y —la que viene— de dónde,
+              qué trae y hace cuánto salió. Se filtra por Sí / No y se
+              copia entera para Excel. Tocar una que viene lleva a su
+              tarjeta. */}
+          <div className="tr-pl-bar">
+            <div className="tr-pl-seg" role="group" aria-label="Ver">
+              {([["todas", `Todas · ${lista.length}`], ["si", `Sí vienen · ${cruce.vienen.length}`], ["no", `No vienen · ${cruce.noVienen.length}`]] as const).map(([k, t]) => (
+                <button key={k} type="button" className={(verPl === k ? "on " : "") + k} onClick={() => setVerPl(k)}>{t}</button>
+              ))}
             </div>
-          )}
+            <button type="button" className="btn plano" onClick={() => copiar("tabla")}>
+              {copiado === "tabla" ? "Copiada" : "Copiar la tabla (Excel)"}
+            </button>
+            {cruce.noVienen.length > 0 && (
+              <button type="button" className="btn plano" onClick={() => copiar("no")}>
+                {copiado === "no" ? "Copiadas" : "Copiar las que no vienen"}
+              </button>
+            )}
+          </div>
+          <div className="tr-pl-marco">
+            <table className="tr-pl">
+              <thead>
+                <tr><th className="n">#</th><th>Placa</th><th>¿Viene?</th><th>CD origen</th><th>Material</th>
+                  <th className="n">Estibas</th><th className="n">HL</th><th>Salió</th><th>En camino</th><th /></tr>
+              </thead>
+              <tbody>
+                {filas.filter((x) => verPl === "todas" || (verPl === "si") === !!x.v).map((x) => (
+                  <tr key={x.placa + x.i} className={x.v ? "si" : "no"}>
+                    <td className="n">{x.i}</td>
+                    <td><b className="placa">{x.placa}</b></td>
+                    <td><span className={"tr-pl-pill " + (x.v ? "si" : "no")}>{x.v ? "Sí viene" : "No viene"}</span></td>
+                    {x.v ? (<>
+                      <td>{x.v.cd_origen}</td>
+                      <td className="mat">{x.v.descripcion}<small>{x.v.sku}</small></td>
+                      <td className="n">{nf.format(x.v.estibas)}</td>
+                      <td className="n">{x.v.hl == null ? "—" : nf2.format(Number(x.v.hl))}</td>
+                      <td>{hora(x.v.salida_en)}</td>
+                      <td className={horasEnCamino(x.v.en_camino) > HORAS_LARGAS ? "tarde" : ""}>{enCamino(x.v.en_camino)}</td>
+                      <td><button type="button" className="tr-pl-ir" onClick={() => irA(x.placa)}>Ver tarjeta</button></td>
+                    </>) : (
+                      <td colSpan={7} className="nada">No está en tránsito: no salió certificada hacia Barranquilla o ya llegó.</td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
@@ -431,7 +497,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
              en la carretera, está esperando a alguien. */
           const cls = "tr-vh" + (v.ai_pendiente ? " ai-falta" : v.requiere_ai ? " ai" : largo ? " largo" : "");
           return (
-            <article key={v.id} className={cls}>
+            <article key={v.id} className={cls} id={"tr-vh-" + normPlaca(v.placa)}>
               <header>
                 <b className="placa">{v.placa}</b>
                 {/* EL SELLO DE AI VA EN LA CABECERA, junto a la placa y

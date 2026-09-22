@@ -909,6 +909,35 @@
   font-variant-numeric: tabular-nums;
 }
 .sd .tr-lista-no .btn.plano { height: 40px }
+/* LA TABLITA DE LAS PLACAS PEGADAS: una fila por placa, en el orden
+   pegado; la que viene en verde con sus datos, la que no en rojo. En el
+   celular la tabla se desliza de lado dentro de su marco, no la página. */
+.sd .tr-pl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px }
+.sd .tr-pl-seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 6px; background: var(--c-eef1f5); flex-wrap: wrap }
+.sd .tr-pl-seg button { min-height: 38px; padding: 0 12px; border: 0; border-radius: 4px; background: none; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 13px; color: var(--sd-tinta) }
+.sd .tr-pl-seg button.on { background: var(--sd-papel); box-shadow: 0 1px 2px rgba(0,0,0,.12) }
+.sd .tr-pl-seg button.on.si { color: #0B5D2E } .sd .tr-pl-seg button.on.no { color: #A30D25 }
+.sd .tr-pl-bar .btn.plano { height: 40px }
+.sd .tr-pl-marco { overflow: auto; max-height: 420px; border: 1px solid var(--sd-linea); border-radius: 3px }
+.sd .tr-pl { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 13.5px; color: var(--sd-tinta) }
+.sd .tr-pl th {
+  position: sticky; top: 0; z-index: 1; background: var(--c-eef1f5); text-align: left; padding: 9px 10px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: color-mix(in srgb, var(--c-5b6b7f) 72%, var(--c-04203f)); white-space: nowrap;
+}
+.sd .tr-pl td { padding: 8px 10px; border-top: 1px solid var(--sd-linea); vertical-align: middle; white-space: nowrap }
+.sd .tr-pl .n { text-align: right; font-variant-numeric: tabular-nums }
+.sd .tr-pl .placa { font-family: var(--sd-titulo); font-weight: 800; letter-spacing: .03em }
+.sd .tr-pl tr.no td { background: #FFF7F8 }
+.sd .tr-pl td.mat { white-space: normal; min-width: 180px } .sd .tr-pl td.mat small { display: block; color: var(--c-5b6b7f); font-size: 11.5px }
+.sd .tr-pl td.nada { white-space: normal; color: #7A1020; font-size: 12.5px }
+.sd .tr-pl td.tarde { color: #8A5A00; font-weight: 700 }
+.sd .tr-pl-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 12px; font-weight: 700; font-size: 12px }
+.sd .tr-pl-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50% }
+.sd .tr-pl-pill.si { background: #E6F4EC; color: #0B5D2E } .sd .tr-pl-pill.si::before { background: #1F7A45 }
+.sd .tr-pl-pill.no { background: #FDE8EB; color: #A30D25 } .sd .tr-pl-pill.no::before { background: #C8102E }
+.sd .tr-pl-ir { min-height: 34px; padding: 0 10px; border: 1px solid var(--sd-linea); border-radius: 3px; background: var(--sd-papel); color: var(--sd-tinta); font-family: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer }
+.sd .tr-pl-ir:hover { border-color: var(--sd-tinta) }
+.sd .tr-vh.resalta { outline: 3px solid #1F7A45; outline-offset: 3px }
 /* El botón de plegar solo existe en pantalla chica: en escritorio los
    filtros están siempre a la vista y un botón para abrirlos sería un
    clic de más para algo que ya se ve. */

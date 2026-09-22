@@ -1,14 +1,15 @@
-Traspasos: la barra de depurar aparece a la vista apenas se marca un viaje
+T1/T2 › En tránsito: las placas pegadas en una tablita organizada
 
-Iba al final de la sección (sticky) y dentro de una tabla con su propio
-scroll había que bajar a buscarla. Ahora es fija abajo de la ventana,
-alineada con el contenido y sin tapar el menú, y deja un espacio de su
-alto para no tapar la última fila. Facturación y Control.
+Al pegar placas sale una tabla, una fila por placa en el orden pegado:
+#, placa, ¿viene? (Sí en verde / No en rojo), CD origen, material,
+estibas, HL, salió, en camino y «Ver tarjeta». Las que no vienen dicen
+por qué no aparecen. Se filtra por Todas / Sí vienen / No vienen, y se
+copia la tabla entera para Excel (o solo las que no vienen).
 
 SQL: ninguno.
 
-MEDIDO: .arnes/fc-depurar.mjs (la barra queda dentro de la ventana al
-marcar, en 1200/390/360) · fc-bandeja · next build
+MEDIDO: .arnes/sd-placas.mjs (orden pegado, sí/no, filtro, Ver tarjeta,
+copiar para Excel, siete temas y 360 px) · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
