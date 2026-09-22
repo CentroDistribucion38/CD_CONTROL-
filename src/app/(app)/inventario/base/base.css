@@ -270,3 +270,23 @@
   .fe .ba-tipos { width: 100% }
   .fe .ba-tipos button { flex: 1; padding: 0 8px }
 }
+
+/* ---------- El consolidado del día ---------- */
+.fe .ba-conso {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 24px; align-items: end;
+  padding: 18px 20px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-top: 4px solid var(--fe-acento); border-radius: 4px;
+}
+.fe .ba-conso-o { margin: 0; font: 700 10.5px var(--fe-titulo); letter-spacing: .16em; color: var(--fe-gris) }
+.fe .ba-conso h2 { margin: 4px 0 6px; font: 900 20px var(--fe-titulo); color: var(--fe-tinta) }
+.fe .ba-conso-tx p:last-child { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--fe-gris); max-width: 70ch }
+.fe .ba-conso-acc { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px }
+.fe .ba-conso-acc label { display: flex; flex-direction: column; gap: 4px }
+.fe .ba-conso-acc label span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .ba-conso-acc select { min-height: 46px; padding: 0 10px; border: 1.5px solid var(--fe-linea); border-radius: 3px; background: #fff; color: var(--fe-tinta); font: 600 14px var(--fe-texto) }
+.fe .ba-conso-acc .btn { min-height: 46px }
+.fe .ba-conso-acc small { flex-basis: 100%; font-size: 12.5px; color: var(--fe-gris) }
+.fe .ba-conso-mal { flex-basis: 100%; margin: 0; font-size: 13px; font-weight: 700; color: #A30D25 }
+@media (max-width: 760px) {
+  .fe .ba-conso { grid-template-columns: minmax(0, 1fr) }
+  .fe .ba-conso-acc label, .fe .ba-conso-acc select, .fe .ba-conso-acc .btn { flex: 1 1 100%; width: 100% }
+}

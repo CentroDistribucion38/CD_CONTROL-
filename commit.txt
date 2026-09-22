@@ -1,21 +1,28 @@
-Inventario: colores vivos en el riesgo de vencimiento · Conteo: el código completo salta solo a la fecha
+Inventario › La base: el consolidado del día en un Excel con logo, listo para validar
 
-TABLERO DE RIESGO
-  - Colores más vivos por franja (rojo, naranja, amarillo, verde).
-  - La alerta que tiene algo se tiñe de su color; la que está en cero
-    queda en blanco con la cifra en gris. Barra del reparto más alta.
-  - Contraste ≥ 4.5 en los siete temas.
+En La base, arriba: «Consolidado del día · Excel». Se escoge el día y
+se baja un libro armado en el servidor con los recorridos ENVIADOS de
+ese día — de cada ubicación vale el último recorrido que pasó por ella
+(una calle caminada dos veces no se suma dos veces).
 
-CONTEO
-  - Al teclear un código que ya es del maestro y ningún otro empieza
-    igual, el cursor salta solo a la fecha (DD). Si es envase —sin
-    fecha—, salta a la cantidad. Con un código a medias («31» cuando
-    existen 3128 y 3129) no salta. Enter sigue funcionando igual.
+Seis hojas, con el logo, la cinta dorada y los colores de la app:
+  - Resumen: cajas, unidades, estibas, renglones, ubicaciones,
+    materiales, sin contar y por validar; riesgo de vencimiento por
+    franja; los recorridos que entran.
+  - Base: renglón por renglón (26 columnas), filtro, encabezado y
+    código fijos, franja pintada y totales que siguen al filtro.
+  - Por material y Por ubicación (ocupación contra la capacidad).
+  - Validar: repetidos, sin fecha, vencidos, pasados de salida, código
+    fuera del maestro, sin unidades por caja, avería/PNC, sobre
+    capacidad y lo reemplazado por un recorrido posterior; con columna
+    «Revisado ✓» para ir marcando.
+  - Sin contar: las posiciones activas que ese día nadie caminó.
 
 SQL: ninguno.
 
-MEDIDO: .arnes/inv-riesgo.mjs (7 temas) · .arnes/inv-conteo-sitio.mjs
-(salta con 3128, no con 31; envase a la cantidad) · inv-conteo · next build
+MEDIDO: .arnes/inv-libro.mjs (arma el libro con datos de prueba, lo abre
+con openpyxl y LibreOffice: hojas, logo, base sin duplicar, totales,
+validaciones, sin contar) · .arnes/inv-base.mjs (7 temas) · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

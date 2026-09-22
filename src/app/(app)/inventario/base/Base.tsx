@@ -309,6 +309,7 @@ export function Base({
 
   return (
     <>
+      <Consolidado conteos={conteos} />
       <div className="fe-pes ba-pes" role="tablist">
         <button type="button" role="tab" aria-selected={pestania === "base"}
                 className={pestania === "base" ? "on" : ""}
@@ -533,5 +534,75 @@ export function Base({
         </div>
       )}
     </>
+  );
+}
+
+/* =====================================================================
+   EL CONSOLIDADO DEL DÍA
+
+   «Consolidar los inventarios del día en una base y exportar la data
+   espectacular, con el logo, como lo del sider: un Excel donde yo pueda
+   validar todo.»
+
+   Se escoge el DÍA —no el recorrido— y el servidor arma el libro con los
+   recorridos enviados de ese día: de cada ubicación vale el último que
+   pasó por ella. Seis hojas: resumen con el logo, la base, por material,
+   por ubicación, validar y sin contar.
+   ===================================================================== */
+function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
+  const dias = useMemo(() => {
+    const m = new Map<string, { recorridos: number; cajas: number; renglones: number }>();
+    for (const c of conteos) {
+      if (c.estado !== "cerrado" || !c.fecha_analisis) continue;
+      const x = m.get(c.fecha_analisis) ?? { recorridos: 0, cajas: 0, renglones: 0 };
+      x.recorridos += 1; x.cajas += Number(c.total_cajas ?? 0); x.renglones += Number(c.renglones ?? 0);
+      m.set(c.fecha_analisis, x);
+    }
+    return [...m.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [conteos]);
+  const [dia, setDia] = useState<string>("");
+  const [bajando, setBajando] = useState(false);
+  const [mal, setMal] = useState<string | null>(null);
+  const escogido = dia || dias[0]?.[0] || "";
+  const info = dias.find((d) => d[0] === escogido)?.[1];
+  const largo = (s: string) => new Date(s + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" });
+
+  async function bajar() {
+    if (!escogido) return;
+    setBajando(true); setMal(null);
+    try {
+      const r = await fetch(`/api/inventario/exportar?fecha=${escogido}`);
+      if (!r.ok) { const j = await r.json().catch(() => null); setMal(j?.error ?? `No se pudo (${r.status}).`); return }
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `inventario-consolidado-${escogido}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    } catch { setMal("Se cortó la conexión con el servidor.") }
+    finally { setBajando(false) }
+  }
+
+  if (!dias.length) return null;
+  return (
+    <section className="ba-conso" aria-label="Consolidado del día">
+      <div className="ba-conso-tx">
+        <p className="ba-conso-o">CONSOLIDADO DEL DÍA · EXCEL</p>
+        <h2>Toda la bodega de un día, en una base</h2>
+        <p>Los recorridos enviados de ese día juntos —de cada ubicación vale el último que pasó—, con resumen, por material, por ubicación, lo que hay que validar y lo que quedó sin contar.</p>
+      </div>
+      <div className="ba-conso-acc">
+        <label><span>Día</span>
+          <select value={escogido} onChange={(e) => setDia(e.target.value)}>
+            {dias.map(([d, x]) => <option key={d} value={d}>{largo(d)} · {x.recorridos} recorrido{x.recorridos === 1 ? "" : "s"}</option>)}
+          </select>
+        </label>
+        <button type="button" className="btn grande" onClick={bajar} disabled={bajando || !escogido}>
+          {bajando ? "Armando el Excel…" : "Exportar consolidado"}
+        </button>
+        {info && <small>{nf.format(info.renglones)} renglones · {nf.format(info.cajas)} cajas enviadas</small>}
+        {mal && <p className="ba-conso-mal" role="alert">{mal}</p>}
+      </div>
+    </section>
   );
 }

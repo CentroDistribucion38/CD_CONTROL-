@@ -143,7 +143,11 @@ const cabeza = `
     <button type="button" role="tab">Borradores<em>37</em></button>
   </div>`;
 
-const ARMAZON = `<div class="fe">${cabeza}
+const CONSO = `<section class="ba-conso"><div class="ba-conso-tx"><p class="ba-conso-o">CONSOLIDADO DEL DÍA · EXCEL</p>
+  <h2>Toda la bodega de un día, en una base</h2><p>Los recorridos enviados de ese día juntos.</p></div>
+  <div class="ba-conso-acc"><label><span>Día</span><select><option>mar, 22 sept · 2 recorridos</option></select></label>
+  <button type="button" class="btn grande">Exportar consolidado</button><small>152 renglones · 10.200 cajas enviadas</small></div></section>`;
+const ARMAZON = `<div class="fe">${cabeza}${CONSO}
   <p class="ba-dice">Recorridos <b>enviados</b>: firmados con nombre, fecha y hora, y ya no se
     pueden corregir. Es lo único sobre lo que se puede afirmar algo.</p>
   ${FILTROS}${TABLA}</div>`;
@@ -231,6 +235,8 @@ for (const t of TEMAS) {
       titulo: par(".ba-tabla thead button"),
       malo: par(".ba-tabla .ba-mal"),
       cuenta: par(".ba-cuenta p"),
+      consoRot: par(".ba-conso-o"), consoTit: par(".ba-conso h2"), consoTx: par(".ba-conso-tx p:last-child"),
+      consoDia: par(".ba-conso-acc label span"), consoPie: par(".ba-conso-acc small"),
       /* EL INVENTARIO ESCOGIDO Y EL TIPO ESCOGIDO pintan --fe-sobre
          SOBRE --fe-acento, y el acento cambia con las preferencias de
          cada quien: en otra pantalla de esta app la misma pareja dio
