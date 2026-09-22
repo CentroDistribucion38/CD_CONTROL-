@@ -23,8 +23,13 @@ const ALERTAS: Franja[] = ["vencido", "pasado", "semana", "quince", "mes"];
 const info = (f: Franja) => FRANJAS.find((x) => x.clave === f)!;
 const dias = (d: number | null) => d == null ? "—" : d < 0 ? `hace ${nf.format(-d)} d` : `${nf.format(d)} d`;
 
-export function Riesgo({ r, bodega, sinContar, ultimo }: {
+/** La letra de la variable de color de cada franja, para pintar el aro. */
+const VAR: Record<Franja, string> = { vencido: "v", pasado: "p", semana: "s", quince: "q", mes: "m", ok: "o", sinfecha: "n" };
+
+export function Riesgo({ r, bodega, sinContar, ultimo, activas }: {
   r: DatosRiesgo; bodega: string; sinContar: number; ultimo: string | null;
+  /** Cuántas posiciones activas tiene la bodega, para la barra de avance. */
+  activas?: number;
 }) {
   const [unidad, setUnidad] = useState<"cajas" | "unidades">("cajas");
   const [filtro, setFiltro] = useState<Franja | "riesgo" | "todos">("riesgo");
@@ -58,6 +63,28 @@ export function Riesgo({ r, bodega, sinContar, ultimo }: {
   const maxS = Math.max(1, ...r.semanas.map((s) => U ? s.unidades : s.cajas));
   const total = U ? r.totalUnidades : r.totalCajas;
 
+  /* EL PEOR, ARRIBA Y GRANDE. Un tablero que empieza por cinco cifras
+     iguales obliga a buscar cuál importa; este empieza por la que
+     importa y las demás quedan de contexto. */
+  const enRiesgoL = useMemo(() => r.materiales.filter((m) => enRiesgo(m.franja)), [r.materiales]);
+  const peor = useMemo(() => [...enRiesgoL].sort((a, b) =>
+    ALERTAS.indexOf(a.franja) - ALERTAS.indexOf(b.franja) || b.enRiesgoCajas - a.enRiesgoCajas)[0] ?? null,
+    [enRiesgoL]);
+  const contados = activas != null ? Math.max(0, activas - sinContar) : null;
+  const pctBodega = (v: number) => total ? (v / total) * 100 : 0;
+  /* El aro: una vuelta, un pedazo por franja con algo. */
+  const RAD = 60, CIRC = 2 * Math.PI * RAD;
+  const aro = useMemo(() => {
+    let giro = -90;
+    return FRANJAS.map((f) => {
+      const v = U ? r.franjas[f.clave].unidades : r.franjas[f.clave].cajas;
+      const largo = total ? (v / total) * CIRC : 0;
+      const y = giro; giro += total ? (v / total) * 360 : 0;
+      return { clave: f.clave, rot: f.corto, v, largo, giro: y };
+    }).filter((x) => x.largo > 0);
+  }, [r.franjas, total, U, CIRC]);
+  const conMargen = Math.round(pctBodega(U ? r.franjas.ok.unidades : r.franjas.ok.cajas));
+
   async function informe(m?: MaterialRiesgo) {
     setPdf(true);
     try { const { informeRiesgo } = await import("./informe"); await informeRiesgo(r, { bodega, unidad, material: m, dentro: caja.current }) }
@@ -70,11 +97,22 @@ export function Riesgo({ r, bodega, sinContar, ultimo }: {
         <div>
           <p className="ir-o">INVENTARIO · RIESGO DE VENCIMIENTO · {bodega}</p>
           <h1>Qué se vence y dónde está</h1>
+          {/* LA FRASE DICE LO QUE PASA HOY, en palabras. «Una sola
+              referencia está vencida: Poker R 330cc X30, 540 cajas, en
+              una ubicación»: eso se entiende sin mirar ninguna cifra. */}
           <p className="ir-frase">
-            {urgentes > 0
-              ? <><b className="mal">{urgentes} material{urgentes === 1 ? "" : "es"}</b> ya {urgentes === 1 ? "está vencido o no alcanza" : "están vencidos o no alcanzan"} a salir</>
-              : <>Nada vencido ni pasado de salida</>}
-            {semana.materiales > 0 && <> y <b>{semana.materiales}</b> {semana.materiales === 1 ? "tiene" : "tienen"} que salir esta semana</>}.
+            {peor ? (
+              <>
+                {enRiesgoL.length === 1 ? "Una sola referencia" : `${enRiesgoL.length} referencias`}{" "}
+                {peor.franja === "vencido" ? (enRiesgoL.length === 1 ? "está vencida" : "están en riesgo")
+                  : enRiesgoL.length === 1 ? "está en riesgo" : "están en riesgo"}:{" "}
+                <b className="mal">{peor.nombre}, {cant(peor.enRiesgoCajas, peor.enRiesgoUnidades)} {U ? "unidades" : "cajas"}</b>,
+                {" "}en {peor.sitios.length === 1 ? "una ubicación" : `${peor.sitios.length} ubicaciones`}.
+                {enRiesgoL.length === 1 && <> Nada más entra a riesgo en los próximos 30 días.</>}
+              </>
+            ) : (
+              <>Nada vencido ni por salir en los próximos 30 días. La bodega está con margen.</>
+            )}
             {" "}Foto de {r.recorridos} recorrido{r.recorridos === 1 ? "" : "s"}{r.desde && <> · {fecha(r.desde)}{r.hasta !== r.desde && <> al {fecha(r.hasta)}</>}</>}.
           </p>
         </div>
@@ -90,10 +128,21 @@ export function Riesgo({ r, bodega, sinContar, ultimo }: {
       </header>
 
       {sinContar > 0 && (
-        <p className="ir-ojo">
-          <b>{nf.format(sinContar)} módulo{sinContar === 1 ? "" : "s"} sin contar</b> en el último recorrido{ultimo && <> ({ultimo})</>}: lo que
-          esté ahí no aparece en estas cifras.
-        </p>
+        <div className="ir-aviso">
+          <span className="ic" aria-hidden>
+            <svg viewBox="0 0 24 24"><path d="M12 4l9 16H3z" /><path d="M12 10v4M12 17v.5" /></svg>
+          </span>
+          <div>
+            <b>{nf.format(sinContar)} módulo{sinContar === 1 ? "" : "s"} sin contar en el último recorrido</b>
+            <span>{ultimo ? `${ultimo} · ` : ""}lo que esté ahí no aparece en estas cifras</span>
+          </div>
+          {contados != null && activas ? (
+            <div className="prog">
+              <div className="t">{nf.format(contados)} de {nf.format(activas)} contados</div>
+              <div className="p"><i style={{ width: `${Math.max(1, Math.round((contados / activas) * 100))}%` }} /></div>
+            </div>
+          ) : null}
+        </div>
       )}
       {U && sinUxc > 0 && (
         <p className="ir-ojo">
@@ -102,24 +151,110 @@ export function Riesgo({ r, bodega, sinContar, ultimo }: {
         </p>
       )}
 
-      {/* ---------- LAS ALERTAS ---------- */}
-      <div className="ir-alertas" role="group" aria-label="Filtrar por franja">
-        {ALERTAS.map((f) => {
+      {/* ---------- ARRIBA: EL PEOR Y CÓMO ESTÁ LA BODEGA ---------- */}
+      <div className="ir-duo">
+        <section className={"ir-card ir-hero " + (peor ? peor.franja : "ok")}>
+          {peor ? (
+            <>
+              <div className="ir-hero-1">
+                <span className={"ir-pill " + peor.franja}>{info(peor.franja).corto}</span>
+                <span>
+                  {(peor.sitios[0]?.dias_para_vencer ?? null) != null && peor.sitios[0].dias_para_vencer! < 0
+                    ? <>venció hace {nf.format(-peor.sitios[0].dias_para_vencer!)} día{peor.sitios[0].dias_para_vencer === -1 ? "" : "s"}</>
+                    : peor.diasSalir != null && peor.diasSalir < 0
+                      ? <>debió salir hace {nf.format(-peor.diasSalir)} día{peor.diasSalir === -1 ? "" : "s"}</>
+                      : <>sale en {dias(peor.diasSalir)}</>}
+                  {peor.vence && <> · {corta(peor.vence)}</>}
+                </span>
+              </div>
+              <div className="ir-hero-2">
+                <p className="n">
+                  {cant(peor.enRiesgoCajas, peor.enRiesgoUnidades)}
+                  <small>{U ? "UNIDADES" : <>CAJAS{peor.enRiesgoUnidades != null && <> · {nf.format(peor.enRiesgoUnidades)} UNIDADES</>}</>}</small>
+                </p>
+                <div className="qu">
+                  <h2>{peor.nombre}</h2>
+                  <p className="meta">{peor.codigo}{peor.familia ? ` · ${peor.familia}` : ""}</p>
+                </div>
+              </div>
+              <div className="ir-hero-3">
+                <div className="d">
+                  <div className="k">DÓNDE ESTÁ</div>
+                  <div className="v">
+                    {peor.sitios[0] ? (peor.sitios[0].calle && peor.sitios[0].modulo
+                      ? `${peor.sitios[0].calle}${peor.sitios[0].modulo} · módulo ${peor.sitios[0].modulo}`
+                      : peor.sitios[0].ubicacion) : "—"}
+                  </div>
+                </div>
+                <div className="d"><div className="k">UBICACIONES</div><div className="v">{peor.sitios.length}</div></div>
+                <div className="d"><div className="k">% DE LA BODEGA</div>
+                  <div className="v mal">{pctBodega(U ? (peor.enRiesgoUnidades ?? 0) : peor.enRiesgoCajas).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %</div></div>
+                <button type="button" className="ver" onClick={() => setAbierto(peor)}>
+                  <svg viewBox="0 0 24 24" aria-hidden><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" /><circle cx="12" cy="10" r="2.6" /></svg>
+                  Ver dónde está ›
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="ir-hero-1"><span className="ir-pill ok">Con margen</span><span>nada que sacar con afán</span></div>
+              <div className="ir-hero-2">
+                <p className="n bien">{cant(r.totalCajas, r.totalUnidades)}<small>{U ? "UNIDADES" : "CAJAS"} EN LA BODEGA</small></p>
+                <div className="qu"><h2>Nada vencido ni por salir</h2>
+                  <p className="meta">{r.materiales.length} materiales · {r.ubicaciones} ubicaciones</p></div>
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="ir-card ir-bod">
+          <svg className="aro" viewBox="0 0 140 140" role="img" aria-label={`${conMargen} % del inventario con margen`}>
+            <circle cx="70" cy="70" r={RAD} className="pista" />
+            {aro.map((x) => (
+              <circle key={x.clave} cx="70" cy="70" r={RAD} className="trozo"
+                      style={{ stroke: `var(--ir-${VAR[x.clave]})` }}
+                      strokeDasharray={`${x.largo} ${CIRC - x.largo}`}
+                      transform={`rotate(${x.giro} 70 70)`} />
+            ))}
+            <text x="70" y="70" className="pc" textAnchor="middle" dominantBaseline="middle" fontSize="25">{conMargen}%</text>
+            <text x="70" y="88" className="pcr" textAnchor="middle" fontSize="8.5">CON MARGEN</text>
+          </svg>
+          <div className="lado">
+            <h3>Cómo está la bodega</h3>
+            <p className="sub">{nf.format(total)} {U ? "unidades" : "cajas"} · {r.ubicaciones} ubicaciones</p>
+            {FRANJAS.map((f) => { const x = r.franjas[f.clave]; const v = U ? x.unidades : x.cajas; return v > 0 ? (
+              <div className="l" key={f.clave}>
+                <i className={f.clave} />{f.corto}<b>{nf.format(v)}</b>
+                <span>{Math.round(pctBodega(v))} %</span>
+              </div>
+            ) : null })}
+            {aro.length < FRANJAS.length && (
+              <div className="l"><i className="nada" />Todo lo demás<b>0</b><span>0 %</span></div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* ---------- LAS OTRAS FRANJAS: contexto, y filtran la lista ---------- */}
+      <div className="ir-fr" role="group" aria-label="Filtrar por franja">
+        {ALERTAS.filter((f) => !peor || f !== peor.franja).map((f) => {
           const x = r.franjas[f]; const i = info(f);
           return (
-            <button type="button" key={f} className={`ir-al ${f}` + (filtro === f ? " on" : "") + (x.renglones ? "" : " cero")}
+            <button type="button" key={f} className={`ir-frb ${f}` + (filtro === f ? " on" : "") + (x.renglones ? "" : " cero")}
                     onClick={() => setFiltro(filtro === f ? "riesgo" : f)} aria-pressed={filtro === f}>
-              <span className="rot">{i.rot}</span>
-              <b className="n">{cant(x.cajas, x.unidades)}</b>
-              <span className="u">{U ? "unidades" : "cajas"}</span>
-              <span className="s">{x.materiales} material{x.materiales === 1 ? "" : "es"} · {x.renglones} ubicaci{x.renglones === 1 ? "ón" : "ones"}</span>
+              <span className="k">{i.rot}</span>
+              <span className={"v " + (x.renglones ? f : "")}>{cant(x.cajas, x.unidades)}</span>
+              {x.renglones > 0 && <span className="s">{x.materiales} material{x.materiales === 1 ? "" : "es"} · {x.renglones} ubicaci{x.renglones === 1 ? "ón" : "ones"}</span>}
             </button>
           );
         })}
       </div>
 
-      <div className="ir-dos">
-        <section className="ir-card">
+      {/* ---------- CUÁNDO TIENE QUE SALIR ----------
+          Solo cuando hay algo que sacar: con la bodega limpia es una
+          rejilla de ceros que no dice nada. */}
+      {r.semanas.some((s) => (U ? s.unidades : s.cajas) > 0) && (
+        <section className="ir-card ir-sem-caja">
           <div className="ir-h"><h2>Cuándo tiene que salir</h2><span>{U ? "unidades" : "cajas"} por semana de salida</span></div>
           <div className="ir-sem" role="img" aria-label="Cantidad que tiene que salir por semana">
             {r.semanas.map((s, i) => {
@@ -135,32 +270,15 @@ export function Riesgo({ r, bodega, sinContar, ultimo }: {
           </div>
           <p className="ir-dice">«Pasó» es lo que ya debió salir. «Esta» son los próximos 7 días.</p>
         </section>
-
-        <section className="ir-card">
-          <div className="ir-h"><h2>Cómo está la bodega</h2><span>{nf.format(total)} {U ? "unidades" : "cajas"} · {r.ubicaciones} ubicaciones</span></div>
-          <div className="ir-reparto" role="img" aria-label="Reparto del inventario por franja">
-            {FRANJAS.map((f) => { const v = U ? r.franjas[f.clave].unidades : r.franjas[f.clave].cajas;
-              return v > 0 ? <i key={f.clave} className={f.clave} style={{ flexGrow: v }} title={`${f.rot}: ${nf.format(v)}`} /> : null })}
-          </div>
-          <ul className="ir-ley">
-            {FRANJAS.map((f) => { const x = r.franjas[f.clave]; const v = U ? x.unidades : x.cajas;
-              return (
-                <li key={f.clave}><i className={f.clave} />{f.corto}<b>{nf.format(v)}</b><em>{total ? Math.round((v / total) * 100) : 0} %</em></li>
-              ) })}
-          </ul>
-        </section>
-      </div>
+      )}
 
       {/* ---------- LOS MATERIALES ---------- */}
       <section className="ir-card">
-        <div className="ir-h">
-          <h2>{filtro === "riesgo" ? "Materiales en riesgo" : filtro === "todos" ? "Todos los materiales" : info(filtro).rot}</h2>
-          <span>toca uno para ver dónde está</span>
-        </div>
-        <div className="ir-bar">
+        <div className="ir-th">
+          <b>{filtro === "riesgo" ? "Materiales en riesgo" : filtro === "todos" ? "Todos los materiales" : info(filtro).rot}</b>
           <input type="search" placeholder="Buscar código, material o ubicación" value={buscar} onChange={(e) => setBuscar(e.target.value)} aria-label="Buscar" />
           <div className="ir-chips">
-            <button type="button" className={filtro === "riesgo" ? "on" : ""} onClick={() => setFiltro("riesgo")}>En riesgo</button>
+            <button type="button" className={filtro === "riesgo" ? "on" : ""} onClick={() => setFiltro("riesgo")}>En riesgo <em>{enRiesgoL.length}</em></button>
             <button type="button" className={filtro === "todos" ? "on" : ""} onClick={() => setFiltro("todos")}>Todos <em>{r.materiales.length}</em></button>
           </div>
         </div>
@@ -173,8 +291,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo }: {
                 <span className="dato d1"><small>Sale</small><b>{dias(m.diasSalir)}</b></span>
                 <span className="dato d2"><small>Vence</small><b>{corta(m.vence)}</b></span>
                 <span className="dato d3"><small>En riesgo</small><b className={m.enRiesgoCajas ? "mal" : ""}>{cant(m.enRiesgoCajas, m.enRiesgoUnidades)}</b></span>
-                <span className="dato d4"><small>Total</small><b>{cant(m.cajas, m.unidades)}</b></span>
-                <span className="dato d5"><small>Ubicaciones</small><b>{m.sitios.length}</b></span>
+                <span className="dato d4"><small>Ubicaciones</small><b>{m.sitios.length}</b></span>
                 <svg className="fl" viewBox="0 0 24 24" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
               </button>
             ))}

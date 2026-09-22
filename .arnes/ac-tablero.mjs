@@ -90,7 +90,7 @@ ok((await pg.evaluate(() => window.__rep)) === 1, "«Reportar» no avisa a la ba
 if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/at-1300.png`, fullPage: true });
 
 await monta(1300, null, ACC.filter((a) => !(a.estado === "verificada" && a.efectiva === false)).filter((a, i, l) => a.estado !== "verificada" || l.filter((x) => x.estado === "verificada").indexOf(a) < 1));
-ok((await pg.textContent(".at-k:nth-child(4) .n")).trim() === "—" && /1 verificada · faltan 4 para medir/.test(await pg.textContent(".at-k:nth-child(4)")), `con 1 verificada sale ${await pg.textContent(".at-k:nth-child(4)")}`);
+ok((await pg.textContent(".at-k:nth-child(4) .chapa")).trim() === "SIN MEDIR" && /1 verificada · faltan 4 para medir/.test(await pg.textContent(".at-k:nth-child(4)")), `con 1 verificada sale ${await pg.textContent(".at-k:nth-child(4)")}`);
 await monta(1300, null, ACC.filter((a) => !a.vencida));
 ok(/Ninguna vencida/.test(await pg.textContent(".at-frase")) && !(await pg.$(".at-chips")), "sin vencidas no queda limpio");
 

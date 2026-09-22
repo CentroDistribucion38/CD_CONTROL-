@@ -33,28 +33,78 @@
 .ir-ojo b { color: #3D2C00 }
 
 /* ---- Alertas ---- */
-.ir-alertas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
-.ir-al {
-  position: relative; display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; min-width: 0;
-  padding: 18px 18px 16px; border-radius: 14px; cursor: pointer; background: var(--fe-papel); color: var(--fe-tinta);
-  border: 2px solid transparent; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -20px rgba(0,0,0,.28); font: inherit; overflow: hidden;
+/* ---- El aviso de lo que quedó sin contar ---- */
+.ir-aviso {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: #FFF6D6; border: 1px solid #F0CE4E; border-left: 4px solid var(--ir-q);
+  border-radius: 12px; padding: 14px 18px;
 }
-.ir-al::before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 5px }
-.ir-al.vencido::before { background: var(--ir-v) } .ir-al.pasado::before { background: var(--ir-p) } .ir-al.semana::before { background: var(--ir-s) }
-.ir-al.quince::before { background: var(--ir-q) } .ir-al.mes::before { background: var(--ir-m) }
-.ir-al .rot { font: 700 11.5px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
-.ir-al .n { margin-top: 6px; font: 900 clamp(26px, 2.6vw, 38px)/1 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
-.ir-al.vencido .n { color: var(--ir-vt) } .ir-al.pasado .n { color: var(--ir-pt) } .ir-al.semana .n { color: var(--ir-st) }
-.ir-al.quince .n { color: var(--ir-qt) } .ir-al.mes .n { color: var(--ir-mt) }
-.ir-al.cero .n { color: var(--fe-gris) }
-.ir-al .u { font-size: 12.5px; font-weight: 600; color: var(--fe-gris) }
-.ir-al .s { margin-top: 8px; font-size: 12.5px; color: var(--fe-gris) }
-.ir-al:hover { border-color: var(--ir-ln) }
-.ir-al.on { border-color: #141414 }
+.ir-aviso .ic { flex: none; width: 34px; height: 34px; display: grid; place-items: center; color: #8A6000 }
+.ir-aviso .ic svg { width: 21px; height: 21px }
+.ir-aviso b { font-size: 14.5px; color: #3D2C00 }
+.ir-aviso span { display: block; font-size: 12.5px; color: #7A5A00; margin-top: 2px }
+.ir-aviso .prog { margin-left: auto; min-width: 200px; text-align: right }
+.ir-aviso .prog .t { font: 700 11.5px var(--fe-titulo); color: #7A5C00; letter-spacing: .04em }
+.ir-aviso .prog .p { height: 8px; border-radius: 5px; background: #F2DE9A; margin-top: 6px; overflow: hidden }
+.ir-aviso .prog .p i { display: block; height: 100%; border-radius: 5px; background: #8A6A00 }
+
+/* ---- Arriba: el peor, grande, y el aro de la bodega ---- */
+.ir-duo { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start }
+.ir-hero { padding: 22px 24px; border-left: 5px solid var(--c, var(--ir-o)) }
+.ir-hero-1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.ir-hero-1 > span:not(.ir-pill) { font-size: 13px; color: var(--fe-gris) }
+.ir-hero-2 { display: flex; align-items: flex-end; gap: 16px 28px; margin-top: 18px; flex-wrap: wrap }
+.ir-hero-2 .n {
+  margin: 0; font: 900 clamp(40px, 5vw, 60px)/.9 var(--fe-titulo); letter-spacing: -.045em;
+  color: color-mix(in srgb, var(--c, var(--ir-o)) 62%, #000); font-variant-numeric: tabular-nums;
+}
+.ir-hero-2 .n.bien { color: var(--ir-ot) }
+.ir-hero-2 .n small { display: block; margin-top: 9px; font: 700 10.5px var(--fe-titulo); letter-spacing: .13em; color: var(--fe-gris) }
+.ir-hero-2 .qu { flex: 1 1 220px; min-width: 0 }
+.ir-hero-2 h2 { margin: 0; font: 900 clamp(18px, 2vw, 23px) var(--fe-titulo); letter-spacing: -.02em; overflow-wrap: anywhere }
+.ir-hero-2 .meta { margin: 6px 0 0; font: 500 13px var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
+.ir-hero-3 { display: flex; align-items: center; gap: 16px 30px; flex-wrap: wrap; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--ir-ln) }
+.ir-hero-3 .k { font: 700 9.5px var(--fe-titulo); letter-spacing: .14em; color: var(--fe-gris) }
+.ir-hero-3 .v { margin-top: 5px; font: 800 17px var(--fe-titulo) }
+.ir-hero-3 .v.mal { color: var(--ir-pt) }
+.ir-hero-3 .ver {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; border-radius: 10px;
+  background: #141414; color: #fff; border: 0; cursor: pointer; font: 800 13.5px var(--fe-texto);
+}
+.ir-hero-3 .ver svg { width: 15px; height: 15px }
+
+.ir-bod { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 20px 22px }
+.ir-bod .aro { width: 150px; height: 150px; flex: none }
+.ir-bod .aro circle { fill: none; stroke-width: 20 }
+.ir-bod .aro .pista { stroke: var(--ir-fondo) }
+.ir-bod .aro .pc { font-family: var(--fe-titulo); font-weight: 900; fill: var(--fe-tinta); stroke: none }
+.ir-bod .aro .pcr { font-family: var(--fe-texto); font-weight: 600; fill: var(--fe-gris); stroke: none; letter-spacing: .04em }
+.ir-bod .lado { flex: 1 1 220px; min-width: 0 }
+.ir-bod h3 { margin: 0; font: 900 17px var(--fe-titulo) }
+.ir-bod .sub { margin: 4px 0 10px; font-size: 12.5px; color: var(--fe-gris) }
+.ir-bod .l { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13.5px; border-bottom: 1px solid var(--ir-ln) }
+.ir-bod .l:last-child { border-bottom: 0 }
+.ir-bod .l i { flex: none; width: 11px; height: 11px; border-radius: 3px; background: var(--c, var(--ir-fondo)) }
+.ir-bod .l i.nada { background: #DEDED8 }
+.ir-bod .l b { margin-left: auto; font: 800 14px var(--fe-titulo); font-variant-numeric: tabular-nums }
+.ir-bod .l span { width: 42px; text-align: right; font-size: 12.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
+
+/* ---- Las otras franjas, de contexto y de filtro ---- */
+.ir-fr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--ir-ln); border: 1px solid var(--ir-ln); border-radius: 12px; overflow: hidden }
+.ir-frb { display: block; text-align: left; padding: 14px 18px; background: var(--fe-papel); border: 0; cursor: pointer; font: inherit; color: inherit; min-width: 0 }
+.ir-frb .k { display: block; font: 700 9.5px var(--fe-titulo); letter-spacing: .13em; color: var(--fe-gris) }
+.ir-frb .v { display: block; margin-top: 5px; font: 900 22px var(--fe-titulo); color: #B2B2AC; font-variant-numeric: tabular-nums }
+.ir-frb .v.pasado { color: var(--ir-pt) } .ir-frb .v.semana { color: var(--ir-st) }
+.ir-frb .v.quince { color: var(--ir-qt) } .ir-frb .v.mes { color: var(--ir-mt) } .ir-frb .v.vencido { color: var(--ir-vt) }
+.ir-frb .s { display: block; margin-top: 4px; font-size: 12px; color: var(--fe-gris) }
+.ir-frb:hover:not(.cero) { background: #FFFDF5 }
+.ir-frb.on { background: #141414 } .ir-frb.on .k, .ir-frb.on .s { color: #C9CCD1 } .ir-frb.on .v { color: #fff }
+
 .ir-al:focus-visible, .ir-m:focus-visible, .ir-btn:focus-visible, .ir-seg button:focus-visible, .ir-chips button:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 2px }
 
 /* ---- Dos tarjetas ---- */
 .ir-dos { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px }
+.ir-sem-caja { min-width: 0 }
 .ir-h { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; padding: 20px 22px 10px }
 .ir-h h2 { margin: 0; font: 900 clamp(17px, 1.5vw, 21px) var(--fe-titulo); letter-spacing: -.01em }
 .ir-h > span { font-size: 13px; color: var(--fe-gris) }
@@ -80,6 +130,11 @@
 .ir-ley em { font-style: normal; width: 42px; text-align: right; color: var(--fe-gris); font-size: 12.5px; font-variant-numeric: tabular-nums }
 
 /* ---- Materiales ---- */
+.ir-th { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 22px 14px; border-bottom: 1px solid var(--ir-ln) }
+.ir-th > b { font: 900 clamp(17px, 1.5vw, 19px) var(--fe-titulo); letter-spacing: -.01em }
+.ir-th input { flex: 1 1 240px; max-width: 420px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--ir-ln); background: #FAFAF8; color: var(--fe-tinta); font: 500 14px var(--fe-texto) }
+.ir-th input:focus { outline: none; border-color: var(--fe-tinta) }
+.ir-th .ir-chips { margin-left: auto }
 .ir-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 22px 14px; border-bottom: 1px solid var(--ir-ln) }
 .ir-bar input { flex: 1 1 260px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 500 14.5px var(--fe-texto) }
 .ir-bar input:focus { outline: none; border-color: var(--fe-tinta) }
@@ -89,7 +144,7 @@
 .ir-chips button.on { background: #141414; border-color: #141414; color: #fff } .ir-chips button.on em { color: #FFC000 }
 .ir-lista { display: flex; flex-direction: column }
 .ir-m {
-  display: grid; grid-template-columns: 136px minmax(0, 2fr) repeat(5, minmax(72px, .7fr)) 20px; gap: 14px; align-items: center; text-align: left;
+  display: grid; grid-template-columns: 124px minmax(0, 2fr) repeat(4, minmax(72px, .75fr)) 20px; gap: 14px; align-items: center; text-align: left;
   padding: 13px 22px; border: 0; border-bottom: 1px solid var(--ir-ln); background: none; cursor: pointer; font: inherit; color: inherit; width: 100%;
 }
 .ir-m:last-child { border-bottom: 0 }
@@ -144,9 +199,10 @@
 
 @media (max-width: 1100px) {
   .ir-alertas { grid-template-columns: repeat(3, minmax(0, 1fr)) }
-  .ir-dos { grid-template-columns: minmax(0, 1fr) }
-  .ir-m { grid-template-columns: 132px minmax(0, 1fr) repeat(3, minmax(64px, auto)) 20px }
-  .ir-m .d2, .ir-m .d5 { display: none }
+  .ir-dos, .ir-duo { grid-template-columns: minmax(0, 1fr) }
+  .ir-fr { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .ir-m { grid-template-columns: 124px minmax(0, 1fr) repeat(3, minmax(64px, auto)) 20px }
+  .ir-m .d2 { display: none }
 }
 @media (max-width: 700px) {
   .ir-acc { width: 100% } .ir-acc .ir-btn { flex: 1 }
@@ -156,12 +212,20 @@
   .ir-sem { padding: 8px 12px 0; gap: 4px; height: 170px } .ir-sem .bar-e b { font-size: 10px }
   .ir-reparto { margin: 10px 16px 0 }
   .ir-ley { grid-template-columns: minmax(0, 1fr) }
-  .ir-bar { padding: 0 16px 12px }
+  .ir-bar, .ir-th { padding-left: 16px; padding-right: 16px }
+  .ir-th .ir-chips { margin-left: 0 }
+  .ir-hero { padding: 16px 16px 18px }
+  .ir-hero-3 .ver { margin-left: 0; width: 100% }
+  .ir-bod { padding: 16px; justify-content: center }
+  .ir-bod .aro { width: 128px; height: 128px }
+  .ir-aviso { padding: 12px 14px }
+  .ir-aviso .prog { margin-left: 0; width: 100%; text-align: left }
   .ir-m { grid-template-columns: minmax(0, 1fr) auto 18px; gap: 6px 10px; padding: 12px 16px }
   .ir-m .ir-pill { grid-column: 1; grid-row: 1 }
   .ir-m .que { grid-column: 1 / 3; grid-row: 2 }
   .ir-m .dato { display: none }
-  .ir-m .d1 { display: flex; grid-column: 2; grid-row: 1; align-items: flex-end }
+  .ir-m .d1, .ir-m .d3 { display: flex; grid-column: 2; grid-row: 1; align-items: flex-end }
+  .ir-m .d1 { display: none }
   .ir-m .fl { grid-column: 3; grid-row: 1 / 3 }
   .ir-mas { width: calc(100% - 32px); margin: 0 16px 16px }
   .ir-pc, .ir-pk, .ir-pp { padding-left: 16px; padding-right: 16px } .ir-sitios { padding: 0 16px 14px }

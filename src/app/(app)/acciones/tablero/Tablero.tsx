@@ -124,12 +124,19 @@ export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
           <span className="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg></span>
           <div><b className="n">{vencenHoy}</b><span className="l">Vencen hoy</span><span className="s">antes de las 23:59</span></div>
         </div>
-        <div className={"at-card at-k anillo" + (pct === null ? "" : pct >= meta ? " bien" : " mal")}>
-          <svg className="aro" viewBox="0 0 64 64" aria-hidden>
-            <circle cx="32" cy="32" r="26" className="fondo" />
-            <circle cx="32" cy="32" r="26" className="valor" strokeDasharray={`${((pct ?? 0) / 100) * 163.4} 163.4`} transform="rotate(-90 32 32)" />
-          </svg>
-          <div><b className="n">{pct === null ? "—" : `${pct}%`}</b><span className="l">Efectividad</span>
+        {/* LA EFECTIVIDAD, CUANDO SE PUEDE MEDIR. Con una sola verificada
+            un porcentaje es un número inventado: mientras tanto va la
+            chapa «sin medir» y cuántas faltan. */}
+        <div className={"at-card at-k" + (pct === null ? " nd" : pct >= meta ? " bien anillo" : " mal anillo")}>
+          {pct === null ? (
+            <span className="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.2 8.3-7 10-3.8-1.7-7-5-7-10V6z" /><path d="M8.8 12.2l2.2 2.2 4.3-4.6" /></svg></span>
+          ) : (
+            <svg className="aro" viewBox="0 0 64 64" aria-hidden>
+              <circle cx="32" cy="32" r="26" className="fondo" />
+              <circle cx="32" cy="32" r="26" className="valor" strokeDasharray={`${(pct / 100) * 163.4} 163.4`} transform="rotate(-90 32 32)" />
+            </svg>
+          )}
+          <div>{pct === null ? <span className="chapa">SIN MEDIR</span> : <b className="n">{pct}%</b>}<span className="l">Efectividad</span>
             <span className="s">{pct === null
               ? (verificadas ? `${verificadas} verificada${verificadas === 1 ? "" : "s"} · faltan ${faltan} para medir` : `faltan ${MIN_MEDIR} verificadas para medir`)
               : `meta ${meta} % · de ${verificadas} verificadas`}</span>
@@ -197,10 +204,15 @@ export function Tablero({ acciones, areas, nombres, meta, puedeReportar }: {
                 <div key={x.area} className={"at-ar" + (x.pct === null || x.verificadas < MIN_MEDIR ? " nd" : x.pct >= meta ? " bien" : " mal")}>
                   <div className="at-fila"><b>{x.area_nombre}</b><span>{!x.verificadas ? "sin verificar"
                     : x.verificadas < MIN_MEDIR ? `${x.verificadas} de ${MIN_MEDIR} para medir` : `${x.pct} %`}</span></div>
-                  {x.pct !== null && x.verificadas >= MIN_MEDIR && <>
-                    <span className="riel" aria-hidden><i style={{ width: `${x.pct}%` }} /></span>
-                    <small>{x.efectivas} de {x.verificadas} verificada{x.verificadas === 1 ? "" : "s"}</small>
-                  </>}
+                  {x.pct !== null && x.verificadas >= MIN_MEDIR ? (
+                    <>
+                      <span className="riel" aria-hidden><i style={{ width: `${x.pct}%` }} /></span>
+                      <small>{x.efectivas} de {x.verificadas} verificada{x.verificadas === 1 ? "" : "s"}</small>
+                    </>
+                  ) : x.verificadas > 0 ? (
+                    /* Todavía no mide, pero se ve cuánto le falta para medir. */
+                    <span className="riel" aria-hidden><i className="camino" style={{ width: `${Math.round((x.verificadas / MIN_MEDIR) * 100)}%` }} /></span>
+                  ) : null}
                 </div>
               ))}
             </div>

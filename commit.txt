@@ -1,17 +1,22 @@
-Traspasos: qué cuenta en el % de cumplimiento — estibas solo de Arenosa, tolvas de vidrio fuera
+Tableros: el riesgo de vencimiento y las acciones con el diseño nuevo
 
-- Al registrar un viaje de Estibas sale «¿Estibas de Arenosa? Sí / No»
-  y sin contestarlo no se registra: de esa respuesta depende que cuente.
-  Solo el «Sí» suma en el % de cumplimiento; el «No» se registra igual
-  y la pantalla lo dice antes de guardar.
-- Las Tolvas de Vidrio se registran y se ven en los viajes del día,
-  pero no entran en el plan ni en el % de cumplimiento; también avisa.
-- Las dos reglas viven en el maestro de tipos (cuenta_plan y
-  pregunta_arenosa), no escritas a mano en una consulta.
-- La respuesta queda en el viaje, no en la ruta.
-- SQL: 2026-09-traspasos-cumplimiento.sql (se puede correr dos veces).
-- Arneses: .arnes/tp-arenosa.mjs (pantalla, 1200/390/360) y
-  .arnes/correr-traspasos-cumplimiento.sh (Postgres de verdad).
+Inventario › Tablero
+- Arriba, el peor material en grande: cuánto lleva vencido, cuántas
+  cajas, dónde está, en cuántas ubicaciones, qué parte de la bodega es,
+  y un botón para ver dónde está.
+- Al lado, el aro de la bodega: el % con margen y el reparto por franja.
+- Las otras franjas quedan en una fila de contexto y siguen filtrando.
+- El aviso de lo que quedó sin contar lleva barra de avance
+  («11 de 430 contados»).
+- «Cuándo tiene que salir» solo sale cuando hay algo que sacar.
+- La lista pierde la columna «Total»: el buscador y los filtros van en
+  la misma fila del título.
+
+Acciones › Tablero
+- Las cuatro cifras llevan raya de color a la izquierda y su icono.
+- La efectividad, cuando no se puede medir, sale con la chapa
+  «SIN MEDIR» en vez de un porcentaje inventado.
+- Efectividad por área: barra también cuando todavía va camino a medir.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

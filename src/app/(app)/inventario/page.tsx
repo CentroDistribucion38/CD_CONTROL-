@@ -183,7 +183,7 @@ export default async function InventarioTableroPage() {
       ) : (
         <>
           <Riesgo r={riesgo} bodega={bodega?.codigo ?? ""} sinContar={t.faltaSinContar ? 0 : sinContar.length}
-                  ultimo={t.ultimo?.codigo ?? null} />
+                  ultimo={t.ultimo?.codigo ?? null} activas={activas} />
 
           {/* ============ QUÉ QUEDÓ SIN CONTAR ============
 

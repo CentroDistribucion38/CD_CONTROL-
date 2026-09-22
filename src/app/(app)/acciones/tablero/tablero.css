@@ -35,7 +35,13 @@
 
 /* ---- Cifras ---- */
 .at-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px }
-.at-k { display: flex; align-items: center; gap: 18px; padding: 22px 26px }
+.at-k { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-left: 4px solid var(--at-ln) }
+.at-k.mal { border-left-color: var(--at-mal) } .at-k.ojo { border-left-color: var(--at-ama) }
+.at-k.bien { border-left-color: var(--at-ok) } .at-k.nd { border-left-color: #C9C9C3 }
+.at-k.nd .ic { background: var(--at-fondo); color: #6B6F6B }
+.at-k .chapa { display: inline-block; padding: 6px 10px; border-radius: 6px; background: var(--at-fondo); color: var(--at-gr);
+  font: 800 10.5px var(--ac-titulo); letter-spacing: .12em }
+.at-k .chapa + .l { margin-top: 8px }
 .at-k .ic { flex: none; width: 58px; height: 58px; border-radius: 14px; display: grid; place-items: center; background: var(--at-fondo) }
 .at-k .ic svg { width: 22px; height: 22px }
 .at-k.mal .ic { background: #FDEBEB; color: var(--at-mal) }
@@ -63,7 +69,7 @@
 
 .at-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 26px 14px; border-bottom: 1px solid var(--at-ln) }
 .at-chips button {
-  min-height: 40px; padding: 0 16px; border-radius: 22px; cursor: pointer; border: 1.5px solid var(--at-ln); background: var(--ac-papel);
+  min-height: 40px; padding: 0 16px; border-radius: 8px; cursor: pointer; border: 1.5px solid var(--at-ln); background: var(--ac-papel);
   font: 700 13.5px var(--ac-texto); color: var(--ac-tinta);
 }
 .at-chips button em { font-style: normal; font-weight: 600; color: var(--at-gr); margin-left: 3px }
@@ -121,6 +127,7 @@
 .at-ar .riel { display: block; height: 7px; margin-top: 8px; border-radius: 7px; background: var(--at-fondo); overflow: hidden }
 .at-ar .riel i { display: block; height: 100%; border-radius: 7px; background: var(--ac-tinta) }
 .at-ar.bien .riel i { background: var(--at-ok) } .at-ar.mal .riel i { background: var(--at-mal) }
+.at-ar .riel i.camino { background: var(--at-ok) }
 .at-ar small { display: block; margin-top: 6px; font-size: 12.5px; color: var(--at-gr) }
 
 /* ---- Pantalla completa (modo reunión) ---- */
