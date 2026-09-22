@@ -79,6 +79,10 @@ export function Registrar({ tipos, puntos, placas, placasM,
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
   const [viajesN, setViajesN] = useState(1);
+  /* ¿ES DE ARENOSA? Solo sale con los tipos que lo piden —estibas—, y
+     hasta que no se conteste no se registra: de esa respuesta depende
+     que el viaje cuente en el % de cumplimiento. */
+  const [arenosa, setArenosa] = useState<boolean | null>(null);
   /* LA CANTIDAD YA NO ES UNA SOLA: va por tipo, dentro de `tipos_`. La
      del PRIMER tipo se guarda además en la columna `carga` del viaje
      —lo hace la base— para que todo lo que ya la lee siga leyéndola. */
@@ -167,6 +171,12 @@ export function Registrar({ tipos, puntos, placas, placasM,
   const nombreTipo = (c: string) =>
     tipos.find((t) => t.clave === c)?.nombre ?? c;
 
+  /* LAS DOS REGLAS DEL CUMPLIMIENTO, que vienen del maestro de tipos:
+     unos tipos no miden (tolvas de vidrio) y otros solo miden si el
+     viaje es de Arenosa (estibas). */
+  const pideArenosa = escogidos.some((c) => tipos.find((t) => t.clave === c)?.pregunta_arenosa);
+  const noMiden = escogidos.filter((c) => tipos.find((t) => t.clave === c)?.cuenta_plan === false);
+
   /* CUÁLES DE LOS TIPOS ESCOGIDOS SE SALEN DEL PLAN.
      Cada tipo avanza SU plan, así que la cuenta es por tipo: uno puede
      ir dentro del plan y el de al lado por encima, en el mismo viaje.
@@ -183,10 +193,15 @@ export function Registrar({ tipos, puntos, placas, placasM,
   const puedeMandar = modo === "vacio"
     ? viajesN >= 1
     : escogidos.length > 0 && placa.trim() !== ""
-      && origen.trim() !== "" && destino.trim() !== "";
+      && origen.trim() !== "" && destino.trim() !== ""
+      && (!pideArenosa || arenosa !== null);
 
   /* CTRL+ENTER MANDA. Quien registra veinte viajes seguidos desde el
      escritorio no quiere soltar el teclado para buscar el botón. */
+  /* Si se quita el tipo que preguntaba, la respuesta sobra: dejarla
+     puesta marcaría «de Arenosa» un viaje que ya no lleva estibas. */
+  useEffect(() => { if (!pideArenosa && arenosa !== null) setArenosa(null) }, [pideArenosa, arenosa]);
+
   useEffect(() => {
     const t = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && puedeMandar && !mandando) {
@@ -240,6 +255,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
              orden de cargue». El número que cuenta lo pone facturación. */
           p_documento: null,
           p_nota: nota.trim() || null,
+          p_arenosa: pideArenosa ? arenosa === true : false,
         });
     setMandando(false);
     if (error) { avisar.mal(mensajeRegistro(error.message)); return }
@@ -266,7 +282,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
        siguiente suele ser igual», y con varios tipos eso es otra cosa:
        un camión de casco registrado detrás de uno de casco+estibas+PET
        avanzaría tres planes sin que nadie lo tocara. */
-    setTipos(new Map());
+    setTipos(new Map()); setArenosa(null);
     campoPlaca.current?.focus();
     router.refresh();
   }
@@ -466,6 +482,38 @@ export function Registrar({ tipos, puntos, placas, placasM,
                     </>
                   )}
                 </div>
+
+                {/* ¿ES DE ARENOSA? Va pegado a los tipos porque es parte
+                    de escoger el tipo: de esta respuesta depende que el
+                    viaje cuente en el % de cumplimiento. */}
+                {pideArenosa && (
+                  <div>
+                    <span className="rot-campo">
+                      ¿{escogidos.filter((c) => tipos.find((t) => t.clave === c)?.pregunta_arenosa).map(nombreTipo).join(" y ")} de Arenosa?
+                    </span>
+                    <div className="chips tr-arenosa">
+                      <button type="button" className={arenosa === true ? "on" : ""}
+                              aria-pressed={arenosa === true} onClick={() => setArenosa(true)}>Sí, de Arenosa</button>
+                      <button type="button" className={arenosa === false ? "on" : ""}
+                              aria-pressed={arenosa === false} onClick={() => setArenosa(false)}>No</button>
+                    </div>
+                    <p className={"guia" + (arenosa === false ? " adicional" : "")} style={{ marginTop: 10 }}>
+                      {arenosa === null
+                        ? <>Hay que contestarlo para registrar: <b>solo las de Arenosa cuentan</b> en el % de cumplimiento.</>
+                        : arenosa
+                          ? <>Cuenta en el <b>% de cumplimiento</b> del turno.</>
+                          : <>Se registra igual, pero <b>no cuenta</b> en el % de cumplimiento.</>}
+                    </p>
+                  </div>
+                )}
+
+                {noMiden.length > 0 && (
+                  <p className="guia adicional">
+                    <b>{noMiden.map(nombreTipo).join(", ")}</b> se registra{noMiden.length === 1 ? "" : "n"} y
+                    queda{noMiden.length === 1 ? "" : "n"} en los viajes del día, pero <b>no cuenta
+                    {noMiden.length === 1 ? "" : "n"}</b> en el plan ni en el % de cumplimiento.
+                  </p>
+                )}
 
                 <div>
                   <span className="rot-campo">Ruta</span>

@@ -19,6 +19,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export type TipoViaje = {
   clave: string; nombre: string; activo: boolean; orden: number | null;
+  /** false = se registra pero no mide: no entra en el plan ni en el %. */
+  cuenta_plan?: boolean;
+  /** true = al registrarlo se pregunta si es de Arenosa; solo esos cuentan. */
+  pregunta_arenosa?: boolean;
 };
 
 export type Punto = {
@@ -158,7 +162,10 @@ export function hoyLocal() {
 
 export async function tipos(soloActivos = true) {
   const supabase = await createClient();
-  let q = supabase.from("traspasos_tipos").select("clave, nombre, activo, orden");
+  /* `*` y no la lista de columnas: las banderas de cumplimiento
+     (cuenta_plan, pregunta_arenosa) llegan con su SQL, y pedirlas por
+     nombre antes de correrlo dejaría la pantalla en blanco. */
+  let q = supabase.from("traspasos_tipos").select("*");
   if (soloActivos) q = q.eq("activo", true);
   const { data, error } = await q.order("orden", { ascending: true, nullsFirst: false });
   if (error) return { tipos: [] as TipoViaje[], falta: sinTablas(error.message) };
