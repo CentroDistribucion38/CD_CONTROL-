@@ -70,6 +70,8 @@ await pg.route("**/*", async (r) => {
   if (u.endsWith("/api/admin/usuarios/lote")) {
     const b = JSON.parse(r.request().postData());
     mandados.push(b);
+    if (b.accion === "crear" && globalThis.CORTAR && mandados.filter((m) => m.accion === "crear").length > 1)
+      return r.fulfill({ status: 504, contentType: "text/html", body: "<html>timeout</html>" });
     if (b.accion === "crear") return r.fulfill({ status: 200, contentType: "application/json",
       body: JSON.stringify({ resultados: b.personas.map((p, i) => i === 2 ? { ...p, ok: false, error: "Ya está tomado." } : { ...p, ok: true, clave: String(100000 + i) }) }) });
     if (b.accion === "eliminar") return r.fulfill({ status: 200, contentType: "application/json",
@@ -329,6 +331,22 @@ await monta(390); await pg.check('input[aria-label="Seleccionar a Génesis Visba
 await pg.screenshot({ path: "/tmp/claude-0/ad-us-390.png" });
 await monta(1300); await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
 await pg.screenshot({ path: "/tmp/claude-0/ad-us-1300.png" });
+/* DE A CINCO Y SI SE CORTA, SE DICE: 7 nombres = dos tandas; la segunda
+   da 504 → las 5 primeras salen con clave, el error se ve AL LADO del
+   botón y las 2 que faltan quedan en la caja para volver a intentar. */
+await monta(1200);
+mandados = []; globalThis.CORTAR = true;
+await pg.click(".us-cab-bot .btn.sec");
+await pg.fill(".us-varios textarea", ["Uno Prueba", "Dos Prueba", "Tres Prueba", "Cuatro Prueba", "Cinco Prueba", "Seis Prueba", "Siete Prueba"].join("\n"));
+await pg.click(".us-varios .btn:not(.plano)");
+await pg.click(".cf-caja .cf-btn:not(.plano)");
+await pg.waitForSelector(".us-varios .us-mal", { timeout: 5000 }).catch(() => null);
+const tandas = mandados.filter((m) => m.accion === "crear").map((m) => m.personas.length);
+ok(JSON.stringify(tandas) === "[5,2]", `crear varios no va de a cinco: ${JSON.stringify(tandas)}`);
+ok(/tardó demasiado/.test(await pg.textContent(".us-varios .us-mal").catch(() => "")), "si el servidor se corta, no se dice al lado del botón");
+ok((await pg.inputValue(".us-varios textarea")).split("\n").length === 2, "las que faltaron no quedan en la caja para reintentar");
+ok(/de 7 usuarios creados/.test(await pg.textContent(".us-pnl").catch(() => "")), "las claves de la primera tanda no se muestran");
+globalThis.CORTAR = false;
 await nav.close();
 
 console.log("");

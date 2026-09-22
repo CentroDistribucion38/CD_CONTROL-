@@ -1,15 +1,26 @@
-T1/T2 › En tránsito: las placas pegadas en una tablita organizada
+Usuarios: crear varios de a cinco, con avance y el error a la vista · Inicio sin la falsa alarma del cruce SAP
 
-Al pegar placas sale una tabla, una fila por placa en el orden pegado:
-#, placa, ¿viene? (Sí en verde / No en rojo), CD origen, material,
-estibas, HL, salió, en camino y «Ver tarjeta». Las que no vienen dicen
-por qué no aparecen. Se filtra por Todas / Sí vienen / No vienen, y se
-copia la tabla entera para Excel (o solo las que no vienen).
+CREAR VARIOS
+  Con muchos nombres de una sola vez el servidor se pasaba del tiempo,
+  cortaba la respuesta y la pantalla se quedaba como si nada: sin
+  claves, sin la gente en la lista y con el error escrito arriba de la
+  página, donde nadie lo veía.
+  - Ahora se mandan de a 5: el botón dice «Creando… 5 de 12».
+  - Si una tanda se corta, se dice AL LADO del botón, se muestran las
+    claves de lo que sí se creó y los nombres que faltan quedan en la
+    caja para darle «Crear» otra vez.
+  - Al terminar, la pantalla lleva al panel de las claves.
+
+ADMINISTRACIÓN › INICIO
+  - «Falta correr 2026-09-traspasos-cruce-sap.sql» era falsa: se miraba
+    la tabla traspasos_sap, que la migración de movimientos SAP jubila
+    (la renombra). Ahora se mira traspaso_sap_importar, que sí sigue.
 
 SQL: ninguno.
 
-MEDIDO: .arnes/sd-placas.mjs (orden pegado, sí/no, filtro, Ver tarjeta,
-copiar para Excel, siete temas y 360 px) · next build
+MEDIDO: .arnes/ad-usuarios.mjs (7 nombres = tandas de 5 y 2; la segunda
+da 504 → claves de las 5, error al lado del botón, 2 quedan en la caja) ·
+.arnes/ad-inicio.mjs · next build
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

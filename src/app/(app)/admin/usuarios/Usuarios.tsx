@@ -384,6 +384,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
   const [edExtra, setEdExtra] = useState<Record<string, Nivel>>({});
   const [guardando, setGuardando] = useState(false);
   const [pedir, dialogo] = useConfirmar();
+  const [errVarios, setErrVarios] = useState<string | null>(null);
+  const [avance, setAvance] = useState<string | null>(null);
 
   function abrirEdicion(p: Persona) {
     setMal(null);
@@ -574,26 +576,50 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       dice: <p>Cada uno sale con su clave provisional, que se muestra una sola vez al terminar.</p>,
       confirmar: `Crear ${personas.length}`,
     }))) return;
-    setEnLote(true); setMal(null); setBien(null);
-    const r = await fetch("/api/admin/usuarios/lote", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accion: "crear", rol: rolVarios, personas }),
-    });
-    const j = await r.json().catch(() => ({} as Record<string, unknown>));
-    setEnLote(false);
-    if (!r.ok) { setMal(String(j.error ?? "No se pudieron crear.")); return }
-    const rs = (j.resultados ?? []) as Resultado[];
-    if (rs.length === 0) {
-      setMal("El servidor cortó la respuesta y las claves no llegaron. Algunas cuentas PUEDEN haber quedado creadas: búscalas en la lista y, si están, genérales una clave nueva.");
-      router.refresh();
-      return;
+    /* DE A CINCO, NO TODOS DE UNA. Crear una cuenta son varias idas a
+       Supabase; con quince de una sola vez el servidor se pasaba del
+       tiempo, cortaba la respuesta y la pantalla se quedaba como si nada
+       —las cuentas quedaban creadas o no, sin que nadie supiera—. Así
+       cada tanda llega con sus claves, y el avance se ve en el botón. */
+    setEnLote(true); setMal(null); setBien(null); setErrVarios(null); setAvance(`0 de ${personas.length}`);
+    const rs: Resultado[] = [];
+    let corte: string | null = null;
+    for (let i = 0; i < personas.length; i += 5) {
+      const tanda = personas.slice(i, i + 5);
+      try {
+        const r = await fetch("/api/admin/usuarios/lote", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accion: "crear", rol: rolVarios, personas: tanda }),
+        });
+        const j = await r.json().catch(() => null) as { resultados?: Resultado[]; error?: string } | null;
+        if (!r.ok || !j?.resultados?.length) {
+          corte = j?.error ?? (r.status === 504 || r.status === 502
+            ? "El servidor tardó demasiado en contestar."
+            : `El servidor contestó ${r.status} sin decir qué pasó.`);
+          break;
+        }
+        rs.push(...j.resultados);
+      } catch {
+        corte = "Se cortó la conexión con el servidor.";
+        break;
+      }
+      setAvance(`${Math.min(i + 5, personas.length)} de ${personas.length}`);
     }
-    abrir({ tipo: "claves", titulo: `${rs.filter((x) => x.ok).length} de ${rs.length} usuarios creados`,
+    setEnLote(false); setAvance(null);
+    router.refresh();
+    if (corte) {
+      const faltan = personas.slice(rs.length).map((p) => p.nombre);
+      setErrVarios(`${corte} ${rs.length ? `Se alcanzaron a procesar ${rs.length}; ` : ""}` +
+        `faltan: ${faltan.join(", ")}. Quedaron en la lista de nombres: dale «Crear» otra vez.`);
+      setTexto(faltan.join("\n"));
+      if (!rs.length) return;
+    }
+    abrir({ tipo: "claves", titulo: `${rs.filter((x) => x.ok).length} de ${personas.length} usuarios creados`,
             filas: rs.filter((x) => x.ok).map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? "" })),
             fallas: rs.filter((x) => !x.ok), rol: rolVarios });
-    setTexto("");
-    setVarios(false);
-    router.refresh();
+    if (!corte) { setTexto(""); setVarios(false) }
+    /* El panel de las claves puede quedar fuera de la vista: se lleva ahí. */
+    setTimeout(() => document.querySelector(".us-pnl")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   }
   function copiarClaves(filas: Clave[]) {
     const t = filas.length === 1 ? `${filas[0].usuario}\t${filas[0].clave}`
@@ -945,12 +971,15 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
               <button type="button" className="btn" onClick={crearVarios}
                       disabled={enLote || nombresLote.length === 0 || nombresLote.length > 50 ||
                         propuestos.some((u, i) => u.length < 3 || lista.some((p) => p.usuario === u) || propuestos.indexOf(u) !== i)}>
-                {enLote ? "Creando…" : nombresLote.length === 0 ? "Pega los nombres"
+                {enLote ? `Creando… ${avance ?? ""}` : nombresLote.length === 0 ? "Pega los nombres"
                   : nombresLote.length > 50 ? `Son ${nombresLote.length}: máximo 50`
                   : `Crear ${nombresLote.length} ${nombresLote.length === 1 ? "usuario" : "usuarios"} · ${nRol(rolVarios)}`}
               </button>
               <button type="button" className="btn plano" onClick={() => { setVarios(false); setTexto("") }}>Cancelar</button>
             </div>
+            {/* EL ERROR AQUÍ, al lado del botón que se tocó: arriba de la
+                página nadie lo ve si bajó a pegar los nombres. */}
+            {errVarios && <p className="us-mal" role="alert">{errVarios}</p>}
           </div>
         )}
 

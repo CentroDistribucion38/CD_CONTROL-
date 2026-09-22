@@ -18,7 +18,7 @@ export const SQL_REVISAR: { archivo: string; objeto: string; para: string }[] = 
   { archivo: "2026-09-rotura-linea-hojas.sql", objeto: "tabla:public.rotlinea_hojas", para: "Rotura de línea · hojas firmadas" },
   { archivo: "2026-09-rotura-linea-sumar-maquinas.sql", objeto: "fn:public.rotlinea_maquinas_un_salto", para: "Rotura de línea · máquinas que suman en otra" },
   { archivo: "2026-09-conteo-preanotacion.sql", objeto: "fn:public.conteo_ubicacion_asegurar", para: "Conteo · pre-anotación D-1" },
-  { archivo: "2026-09-traspasos-cruce-sap.sql", objeto: "tabla:public.traspasos_sap", para: "Traspasos · cruce con SAP" },
+  { archivo: "2026-09-traspasos-cruce-sap.sql", objeto: "fn:public.traspaso_sap_importar", para: "Traspasos · cruce con SAP" },
   { archivo: "2026-09-traspasos-sap-movimientos.sql", objeto: "tabla:public.traspasos_sap_mov", para: "Traspasos · movimientos SAP" },
   { archivo: "2026-09-traspasos-varios-tipos.sql", objeto: "tabla:public.traspasos_viaje_tipos", para: "Traspasos · varios tipos por viaje" },
   { archivo: "2026-09-traspasos-dia-cerrado.sql", objeto: "fn:public.traspaso_dia_abierto", para: "Traspasos · día cerrado" },
