@@ -236,7 +236,22 @@ export const MODULOS: Modulo[] = [
          ERAN TRES Y AHORA SON DOS: se quitó Verificación. Lo que no se
          quitó es que sean DOS PERSONAS: quien pesa no da la salida. */
       { nombre: "Pesar", ruta: "/roturas/salida", rama: "salida" },
-      { nombre: "Validación", ruta: "/roturas/salida/validacion", rama: "salida" },
+      /* VALIDACIÓN SE FUE, Y SE QUEDA OCULTA EN VEZ DE BORRARSE.
+         «Que facturación no haga doble trabajo validando allá en salida
+         y en traspaso.» El aval del vidrio se da ahora en
+         /traspasos/facturacion, al dar la salida al viaje: se escoge la
+         cédula —el código con el que la salida nace, SR-0001—, se
+         cuentan las tolvas, y si cuadran el Vh sale con las dos cosas
+         resueltas de una.
+
+         QUITARLA DEL REGISTRO EN VEZ DE OCULTARLA SERÍA OTRA COSA: le
+         quitaría su casilla en /admin/roles, y entonces las filas de
+         permiso que cada rol ya tiene sobre «/roturas/salida/validacion»
+         quedarían sin forma de verse ni de cambiarse. La migración las
+         borra; el registro conserva la pantalla por si hay que
+         devolverla. */
+      { nombre: "Validación (se mudó a Facturación)", ruta: "/roturas/salida/validacion",
+        rama: "salida", oculto: true },
       { nombre: "Análisis", ruta: "/roturas/salida/analisis", rama: "salida" },
       { nombre: "Tolvas", ruta: "/roturas/salida/tolvas", rama: "salida" },
 

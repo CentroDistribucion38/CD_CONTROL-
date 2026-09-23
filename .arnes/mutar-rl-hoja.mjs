@@ -25,6 +25,10 @@ for (const s of ["SIGINT", "SIGTERM", "SIGHUP"])
 
 let fallos = 0, total = 0;
 function probar(nombre, cambios, espera, arnes = ".arnes/rl-hoja.mjs") {
+  /* PARA TRABAJAR SIN ESPERAR LA CORRIDA ENTERA: con SOLO="firma" puesto
+     solo se prueban las mutaciones cuyo nombre lleve esa palabra. Sin
+     SOLO no cambia nada, para que una corrida normal siga siendo todas. */
+  if (process.env.SOLO && !nombre.includes(process.env.SOLO)) return;
   total++;
   restaurar();
   for (const [archivo, de, a] of cambios) {
@@ -97,8 +101,12 @@ probar("falta el recuadro del supervisor",
   [[TS, '  firma(M + media + 8, "REVISÓ Y APRUEBA — SUPERVISOR", datos.supervisor.trim());', ""]],
   "falta el recuadro del supervisor");
 
+/* El rótulo del espacio de firma dejó de ser fijo: cuando la firma va
+   dibujada dice «Firma (digital, en CONTROL)». Se quita el renglón
+   entero, que es lo mismo que rompía antes: los recuadros se quedan sin
+   dónde firmar. */
 probar("los recuadros quedan sin espacio de firma",
-  [[TS, '    doc.text("Firma", x + 4, y + 33);', ""]],
+  [[TS, '    doc.text(firmada ? "Firma (digital, en CONTROL)" : "Firma", x + 4, y + 33);', ""]],
   "no hay un espacio de firma en cada recuadro");
 
 probar("la firma que ya hay en la app no sale en el papel",
@@ -259,6 +267,16 @@ probar("el pie vuelve a decir el centro de distribución",
         '    doc.text("Bavaria · Centro de distribución CD38", W / 2, PIE, { align: "center" });']],
   "no dice solo «Bavaria»");
 
+/* ESTA SE QUEDA ROTA A PROPÓSITO, Y NO SE BORRA.
+   No es que la mutación haya caducado: es que la pantalla YA ESTÁ ASÍ.
+   `paletaDeTema` en src/modulos/rotlinea/hoja.ts devuelve hoy
+   `cinta: [[0, acentoHondo], [1, acento]]` —dos paradas—, que es
+   exactamente lo que esta mutación metía a propósito, y encima del
+   propio comentario que explica por qué tienen que ser tres. El arnés lo
+   dice en limpio, sin mutar nada: «con ámbar, la cinta no tiene la forma
+   de la de la marca». O sea que el arnés SÍ caza esto; lo que falta es
+   arreglar la pantalla, y eso no se toca desde aquí. Cuando la cinta
+   vuelva a tener las tres paradas, esta mutación vuelve a aplicar sola. */
 probar("la cinta del tema vuelve a dos paradas y sale casi lisa",
   [[TS, "cinta: [[0, acentoHondo], [0.35, acento], [1, tinta]] });", "cinta: [[0, acentoHondo], [1, acento]] });"]],
   "la cinta no tiene la forma de la de la marca");

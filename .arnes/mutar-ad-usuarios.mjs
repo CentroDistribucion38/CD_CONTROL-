@@ -8,6 +8,7 @@ const restaurar = () => { for (const [f, t] of Object.entries(orig)) writeFileSy
 process.on("exit", restaurar);
 let fallos = 0, total = 0;
 function probar(nombre, [archivo, de, a], espera, arnes) {
+  if (process.env.SOLO && !nombre.includes(process.env.SOLO)) return;
   total++; restaurar();
   if (!orig[archivo].includes(de)) { console.log(`  ROTA  ✘  ${nombre}`); fallos++; return }
   writeFileSync(archivo, orig[archivo].replace(de, a));
@@ -27,8 +28,22 @@ probar("se elimina sin escribir ELIMINAR", [UI, 'const listo = escrito.trim().to
 probar("el panel de las claves se cierra tocando fuera", [UI, '<PanelLado fijo titulo={x.titulo}', '<PanelLado titulo={x.titulo}'], "se cierra tocando fuera o con Esc", P);
 probar("eliminar no dice quién se desactiva", [UI, '{" "}{conRastro.length === 1 ? "se desactiva" : "se desactivan"} en vez de borrarse', '{" "}se van'], "no dice qué pasa con cada uno", P);
 probar("los propuestos chocan", [UI, "    while (usados.has(u)) u = `${base}${k++}`;\n", ""], "chocan", P);
-probar("copiar incluye los que fallaron", [UI, "filas: rs.filter((x) => x.ok).map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? \"\" })),", "filas: rs.map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? \"\" })),"], "Copiar las 3", P);
+/* La fila del panel de claves ahora lleva también el rol (rol: rolVarios),
+   así que la mutación se reescribió con ese trozo: rompe lo mismo de antes
+   —meter en la lista para copiar a los que NO se pudieron crear— y el arnés
+   lo caza porque el botón deja de decir «Copiar las 3». */
+probar("copiar incluye los que fallaron", [UI, "filas: rs.filter((x) => x.ok).map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? \"\", rol: rolVarios })),", "filas: rs.map((x) => ({ nombre: x.nombre, usuario: x.usuario, clave: x.clave ?? \"\", rol: rolVarios })),"], "Copiar las 3", P);
 probar("deja crear con un usuario tomado", [UI, "propuestos.some((u, i) => u.length < 3 || lista.some((p) => p.usuario === u) || propuestos.indexOf(u) !== i)", "false"], "deja crear con un usuario que ya existe", P);
+/* SALE ROTA ✘ Y ESO ES LA NOTICIA, NO UN DESCUIDO DE LA MUTACIÓN.
+   Hoy usuarios_lote NO frena a quien se mete a sí mismo en la selección: en
+   el SQL está escrito «if false then» en lugar de
+   «if auth.uid() = any(p_ids) and p_accion in ('rol', 'desactivar') then»,
+   o sea que quien administra se puede quitar el rol o apagarse la cuenta de
+   un clic y quedarse fuera de la plataforma. La mutación se deja tal cual
+   —nombra la línea que DEBERÍA estar— y vuelve sola a ROJA el día que se
+   arregle el SQL. Mientras tanto la prueba de Postgres ya lo canta:
+   6(se desactivó a sí mismo). NO se toca el SQL desde aquí: eso es arreglo
+   de la aplicación, no del arnés. */
 probar("la base deja desactivarse a uno mismo", [SQL, "  if auth.uid() = any(p_ids) and p_accion in ('rol', 'desactivar') then", "  if false then"], "6(se desactivó a sí mismo)", Q);
 /* «Las …_por sin llave» no tiene mutación: hoy todas las columnas de
    persona tienen llave, así que esa parte solo cubre las que se agreguen

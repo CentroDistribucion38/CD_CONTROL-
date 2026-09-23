@@ -15,8 +15,11 @@ const PGX = "src/app/(app)/inventario/page.tsx";
 const DAT = "src/modulos/inventario/fefo.ts";
 const CSS = "src/app/(app)/inventario/fefo.css";
 const CON = "src/app/(app)/inventario/conteo/Contar.tsx";
+/* Las barras se mudaron aquí (el riesgo de vencimiento): el tope de las
+   barras de semana vive en `Riesgo.tsx`, no en la página. */
+const RSG = "src/app/(app)/inventario/Riesgo.tsx";
 
-const archivos = [PGX, DAT, CSS, CON];
+const archivos = [PGX, DAT, CSS, CON, RSG];
 const original = Object.fromEntries(archivos.map((f) => [f, readFileSync(f, "utf8")]));
 const restaurar = () => { for (const [f, t] of Object.entries(original)) writeFileSync(f, t) };
 process.on("exit", restaurar);
@@ -29,6 +32,11 @@ for (const s of ["SIGINT", "SIGTERM", "SIGHUP"])
 let fallos = 0;
 
 function probar(nombre, cambios, espera) {
+  /* Atajo para trabajar: `SOLO="barras" node .arnes/mutar-fe-tablero.mjs`
+     corre nada más las mutaciones cuyo nombre contenga eso. Va ANTES de
+     tocar nada y de contar fallos, para que una corrida normal —sin
+     SOLO— salga exactamente igual que siempre. */
+  if (process.env.SOLO && !nombre.includes(process.env.SOLO)) return;
   restaurar();
   for (const [archivo, de, a] of cambios) {
     const antes = readFileSync(archivo, "utf8");
@@ -79,8 +87,12 @@ probar("el tablero afirma sobre borradores",
   [[DAT, '.filter((x) => x.estado === "cerrado")', ".filter(() => true)"]],
   "no filtra por conteos cerrados");
 
+/* El tope estaba en la página y se mudó a `Riesgo.tsx`, así que la
+   mutación vieja —«Math.max(1,» en la página— dejó de aplicar. La misma
+   conducta rota, en el sitio donde ahora vive: el tope de las barras de
+   semana, bajado a cero. */
 probar("el tope de las barras puede ser cero",
-  [[PGX, "Math.max(1,", "Math.max(0,"]],
+  [[RSG, "const maxS = Math.max(1,", "const maxS = Math.max(0,"]],
   "puede ser cero");
 
 /* ---------- LO QUE QUEDÓ SIN CONTAR ---------- */

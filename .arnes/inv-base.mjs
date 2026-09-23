@@ -40,7 +40,8 @@
       alguien cuadra contra ella.
    ===================================================================== */
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { buildSync } from "esbuild";
 
 const fefo = readFileSync(new URL("../src/app/(app)/inventario/fefo.css", import.meta.url), "utf8");
 const base = readFileSync(new URL("../src/app/(app)/inventario/base/base.css", import.meta.url), "utf8");
@@ -420,6 +421,89 @@ for (const [ancho, etiqueta] of ANCHOS) {
                 "basta un `overflow` en el ancestro equivocado para que sticky deje de " +
                 "funcionar sin un solo error");
   console.log(`\ncabecera al desplazar 120 px: ${m.antes} → ${m.despues} px`);
+}
+
+/* ---------- QUÉ INVENTARIO SALE PUESTO AL ENTRAR — EL COMPONENTE DE VERDAD
+
+   POR QUÉ ESTO SE MIDE Y NO SE LEE. «No he escogido nada» y «quiero
+   verlos todos» son dos cosas distintas: con un solo `""` valiendo las
+   dos, la pantalla abre en la base entera —miles de renglones— cuando lo
+   que se venía a mirar era el de ayer. Leerlo del código no lo caza: el
+   archivo tiene más de un `useState<string | null>(null)`, y al que
+   decide esto se le puede cambiar el valor de arranque sin que la
+   lectura se entere de nada. Aquí se monta el componente de verdad, con
+   dos recorridos enviados y uno abierto, y se mira CUÁL atajo queda
+   marcado al entrar sin haber tocado nada. */
+{
+  const U = (p) => new URL(p, import.meta.url);
+  const R = (p) => U("../" + p).pathname;
+  const ren = (id, conteo, estado) => ({
+    id, conteo_id: "c-" + conteo, conteo, estado, codigo: "3500231",
+    material: "ENVASE COSTEÑITA 175 ML RETORNABLE CAJA X 30", tipo_material: "ENVASE",
+    familia: "RETORNABLE", factor_estibado: 54, ubicacion: "BAHIA_6", ubicacion_combinada: "ALAR_BAHIA_6",
+    calle: "ALAR", modulo: "BAHIA_6", lado: "DER", estibas: 80, cajas: 12, saldo: null,
+    total_cajas: 4320, total_estibas: 80, capacidad: 90, venc_dia: null, venc_mes: null,
+    venc_anio: null, fabricacion: null, vencimiento: "2026-09-13", dias_para_salir: -3,
+    dias_para_vencer: 12, rotacion: true, averia: false, pnc: false, estado_envase: "VACIOS",
+    nota: null, conto: "jefe", contado_en: "2026-09-18T10:41:00Z",
+  });
+  const cnt = (codigo, fecha, estado) => ({
+    id: "c-" + codigo, codigo, estado, bodega: "BQ", responsable: "Génesis", fecha_analisis: fecha,
+    enviado_en: fecha + "T17:00:00Z", envio_nombre: "Jefe de bodega",
+    renglones: 2, ubicaciones: 1, total_cajas: 8640,
+  });
+  writeFileSync(U("./_base-entrada.tsx"), `
+import { createRoot } from "react-dom/client";
+import { Base } from "@/app/(app)/inventario/base/Base";
+const D = ${JSON.stringify({
+    enviadas: [ren("1", "FEFO-2026-09-17-C", "cerrado"), ren("2", "FEFO-2026-09-18-A", "cerrado")],
+    abiertas: [ren("3", "FEFO-2026-09-19-B", "en_proceso")],
+    conteos: [cnt("FEFO-2026-09-17-C", "2026-09-17", "cerrado"),
+              cnt("FEFO-2026-09-18-A", "2026-09-18", "cerrado"),
+              cnt("FEFO-2026-09-19-B", "2026-09-19", "en_proceso")],
+  })};
+createRoot(document.getElementById("r")).render(
+  <Base enviadas={D.enviadas} abiertas={D.abiertas} conteos={D.conteos} tope={false} />);
+`);
+  let js = "";
+  try {
+    js = buildSync({
+      entryPoints: [R(".arnes/_base-entrada.tsx")], bundle: true, format: "iife", platform: "browser",
+      jsx: "automatic", write: false, define: { "process.env.NODE_ENV": '"production"' },
+      alias: { "@": R("src") }, logLevel: "silent",
+    }).outputFiles[0].text;
+  } catch (e) {
+    fallas.push(`la pantalla de la base ni siquiera se puede empaquetar: ${String(e).slice(0, 160)}`);
+  }
+  if (js) {
+    const rotos = [];
+    pag.on("pageerror", (e) => rotos.push(e.message));
+    await pag.setViewportSize({ width: 1440, height: 1000 });
+    await pag.setContent(`<!doctype html><html><head><meta charset="utf-8">
+      <style>${glob}${shell}${fefo}${base} html,body{margin:0}</style></head>
+      <body><div class="sh flex min-h-screen flex-col"><div class="sh-marco sin-riel">
+      <main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div>
+      <script>${js.replace(/<\/script/g, "<\\/script")}</script></body></html>`);
+    await pag.waitForSelector(".ba-invs .ba-inv", { timeout: 10000 }).catch(() => {});
+    const m = await pag.evaluate(() => ({
+      puesto: (document.querySelector(".ba-inv.on")?.textContent ?? "").replace(/\s+/g, " ").trim(),
+      todosPuesto: !!document.querySelector(".ba-inv.todos.on"),
+      cuantosOn: document.querySelectorAll(".ba-inv.on").length,
+      atajos: [...document.querySelectorAll(".ba-inv")].map((b) => b.textContent.replace(/\s+/g, " ").trim()),
+    }));
+    if (rotos.length)
+      fallas.push(`la pantalla de la base tiró un error al montarse: ${rotos[0]}`);
+    /* AL ENTRAR, EL ÚLTIMO RECORRIDO. Uno solo, y NO «Todos». */
+    /* Se reconoce por el código —«-A», el del 18— y no por la fecha
+       escrita: el día se pinta con el formato del sistema y un «18/9» o
+       un «18/09» no debe decidir si la prueba pasa. */
+    else if (m.todosPuesto || m.cuantosOn !== 1 || !m.puesto.includes("-A"))
+      fallas.push("«no he escogido» y «todos» son el mismo valor: al entrar sin tocar nada queda " +
+                  `puesto «${m.puesto || "nada"}» y no el último recorrido —los atajos salieron ` +
+                  `${JSON.stringify(m.atajos)}—; abrir la base entera son miles de renglones cada vez ` +
+                  "y al cambiar de pestaña no habría forma de volver al último");
+    console.log(`\nal entrar queda puesto: «${m.puesto || "nada"}»`);
+  }
 }
 
 await navegador.close();

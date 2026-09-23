@@ -196,6 +196,11 @@ if (corre() !== null || corre(MIDE) !== null) {
 
 const sordas = [];
 for (const m of MUTACIONES) {
+  /* Atajo para trabajar: `SOLO="ruta" node .arnes/mutar-tp-importar.mjs`
+     corre nada más las mutaciones cuyo nombre contenga eso. Va ANTES de
+     tocar nada y de apuntar sordas, para que una corrida normal —sin
+     SOLO— salga exactamente igual que siempre. */
+  if (process.env.SOLO && !m.n.includes(process.env.SOLO)) continue;
   restaurar();
   try { m.hacer() } catch (e) { restaurar(); console.error(`✗ ${m.n}\n   ${e.message}`); process.exit(1) }
   const salida = corre(m.arnes ?? "./tp-importar.mjs");

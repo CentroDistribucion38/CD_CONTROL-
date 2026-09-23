@@ -79,6 +79,21 @@ export type Salida = {
    *  un administrador; a los demás la base se lo impide. No bloquea nada
    *  —es un dato para que la pantalla lo diga. */
   mismo_firmante: boolean;
+
+  /* EL DESPACHO: en qué viaje de traspaso se fue el vidrio.
+     Va opcional —con `?`— a propósito: si la migración del vidrio
+     todavía no se ha corrido, la vista no trae estas columnas y las
+     pantallas tienen que seguir pintándose. Exigirlas convertiría un
+     «falta correr un SQL» en una pantalla en blanco. */
+  despachada_en?: string | null;
+  despachada_por?: string | null;
+  /** El viaje de traspaso en el que salió. */
+  viaje?: string | null;
+  /** Las que facturación contó frente al Vh. Hoy tienen que ser las
+   *  mismas que se pesaron; queda escrito igual. */
+  tolvas_contadas?: number | null;
+  viaje_codigo?: string | null;
+  viaje_documento?: string | null;
 };
 
 export type TolvaPesada = {

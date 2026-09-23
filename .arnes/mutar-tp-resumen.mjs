@@ -28,6 +28,11 @@ let fallos = 0;
 
 /** Rompe una cosa y exige un mensaje. `cambios` es [archivo, de, a]. */
 function probar(nombre, cambios, espera) {
+  /* Atajo para trabajar: `SOLO="montón" node .arnes/mutar-tp-resumen.mjs`
+     corre nada más las mutaciones cuyo nombre contenga eso. Va ANTES de
+     tocar nada y de contar fallos, para que una corrida normal —sin
+     SOLO— salga exactamente igual que siempre. */
+  if (process.env.SOLO && !nombre.includes(process.env.SOLO)) return;
   restaurar();
   for (const [archivo, de, a] of cambios) {
     const antes = readFileSync(archivo, "utf8");

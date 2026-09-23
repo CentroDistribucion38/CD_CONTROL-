@@ -35,7 +35,8 @@
       justo el que hay que leer con el sol de frente.
    ===================================================================== */
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { buildSync } from "esbuild";
 
 const fefo  = readFileSync(new URL("../src/app/(app)/inventario/fefo.css", import.meta.url), "utf8");
 const glob  = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
@@ -1513,6 +1514,141 @@ if (!/setPestania\("anotar"\);\s*\n\s*setCorrigiendo/.test(limpio))
     return d === "none" ? null : `con [hidden] y un display propio queda en display:${d}`;
   });
   if (mal) fallas.push(`el borrador no se ocultaría al cambiar de pestaña — ${mal}`);
+}
+
+/* =====================================================================
+   8. LA PANTALLA DE VERDAD, MONTADA — y el paquete que sale hacia la base
+
+   POR QUÉ EXISTE ESTO. Cuatro cosas de aquí arriba se comprobaban
+   leyendo el código fuente con una expresión regular: que los momentos
+   del renglón sean Dónde · Qué · Cuánto, que los cuadros de marca sean
+   Ninguna · Avería · PNC, que se mande el vencimiento tecleado y que NO
+   se mande además una fecha de fabricación.
+
+   Leer el fuente prueba que la línea está escrita, no que la pantalla
+   la haga. Y tiene el defecto que este proyecto ya conoce: el día que
+   alguien reordene un `argumentos` o cambie la forma de escribir el
+   mismo rótulo, la expresión regular deja de encontrar nada y APRUEBA
+   —que es como caducaron siete mutaciones de un golpe—.
+
+   Así que aquí se monta el componente de verdad en Chromium, se llena
+   un renglón como se llena de pie frente a un módulo, y se mira:
+   los rótulos LEÍDOS DEL DOM y el PAQUETE que sale hacia el RPC. Si la
+   pantalla no se puede montar, eso también es una falla: una pantalla
+   de contar que no arranca no cuenta nada.
+   ===================================================================== */
+{
+  const R = (p) => new URL("../" + p, import.meta.url).pathname;
+  let paso = "compilar la pantalla";
+  try {
+    writeFileSync(R(".arnes/_ic-entrada.tsx"), `
+import { createRoot } from "react-dom/client";
+import { Contar } from "../src/app/(app)/inventario/conteo/Contar";
+const w = window as any;
+createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
+  conteoInicial={{ id: "c1", codigo: "INV-1", estado: "en_proceso", iniciado_en: null }}
+  renglonesIniciales={[]} materiales={w.MAT} ubicaciones={w.UBI} estados={["PIROGRABADO"]} />);
+`);
+    const js = buildSync({
+      entryPoints: [R(".arnes/_ic-entrada.tsx")], bundle: true, write: false, format: "iife",
+      jsx: "automatic",
+      alias: { "@/lib/supabase/client": R(".arnes/_sb-conteo.js"),
+               "next/navigation": R(".arnes/stub-nav.js"), "@": R("src") },
+      define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
+    }).outputFiles[0].text;
+
+    /* 45 cajas por estiba y 30 días de mínimo T1: son los números con los
+       que se enseña la cuenta —12 × 45 + 8— y los que hacen que «días
+       para salir» sea distinto de «días para vencer». */
+    const MAT = [{ id: "m1", sku: "3128", nombre: "CERVEZA AGUILA LATA 269 CC X 6 UND",
+      unidades_por_caja: 6, cajas_por_estiba: 45, unidades_por_estiba: 270, contenido: null,
+      familia: null, presentacion: null, vida_util: 180, f_limite_desp: null, dias_minimo: 30,
+      origen: null, foraneo: null, tipo_material: "PRODUCTO", activo: true }];
+    const U = (calle, modulo, lado) => ({ id: `${calle}${modulo}${lado ?? ""}`, bodega_id: "b1",
+      clave: `${calle}${modulo}${lado ? "_" + lado : ""}`, calle, modulo, lado, familia: null,
+      capacidad: 10, activa: true });
+    const UBI = [U("A", "01", "IZQ"), U("A", "01", "DER")];
+
+    paso = "montarla";
+    const pgm = await navegador.newPage();
+    await pgm.setViewportSize({ width: 390, height: 900 });
+    await pgm.setContent(`<!doctype html><html><head><meta charset="utf-8">
+      <style>${glob}${shell}${fefo} html,body{margin:0}</style></head>
+      <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main">
+        <div id="r" class="fe contando"></div>
+      </main></div></div>
+      <script>window.MAT=${JSON.stringify(MAT)};window.UBI=${JSON.stringify(UBI)};</script>
+      <script>${js}</script></body></html>`);
+    await pgm.waitForSelector(".fe-anotar", { timeout: 8000 });
+
+    /* LOS MOMENTOS, LEÍDOS DE LA PANTALLA. Es el orden de la hoja —dónde
+       estoy, qué es, cuánto hay— y es lo que se pidió: quien lleva años
+       llenándola tiene que encontrar cada campo donde siempre. */
+    paso = "leer los momentos del renglón";
+    const momentos = await pgm.$$eval(".fe-anotar .fe-bloque-cab",
+      (es) => es.map((e) => e.textContent.trim()));
+    if (momentos.join("|") !== "Dónde|Qué|Cuánto")
+      fallas.push(`montada, los momentos del renglón salen [${momentos.join(", ") || "ninguno"}] ` +
+                  "y deben salir [Dónde, Qué, Cuánto]: es el orden en que se mira una estiba");
+
+    /* LA MARCA SON TRES CUADROS, y se cuentan abriendo «Datos
+       adicionales», que es como se llega a ellos de verdad. */
+    paso = "abrir «Datos adicionales» y contar los cuadros de marca";
+    await pgm.evaluate(() => document.querySelector(".fe-mas summary").click());
+    await pgm.waitForTimeout(50);
+    const marcas = await pgm.$$eval(".fe-marca", (es) => es.map((e) => e.textContent.trim()));
+    if (marcas.join("|") !== "Ninguna|Avería|PNC")
+      fallas.push(`montada, los cuadros de marca de la pantalla son ` +
+                  `[${marcas.join(", ") || "ninguno"}] y son tres: Ninguna, Avería y PNC`);
+
+    /* Y AHORA EL RENGLÓN ENTERO, COMO SE LLENA DE PIE: calle, módulo,
+       lado, código, 11/03/27 y doce estibas. Lo que interesa no es que
+       no reviente: es QUÉ PAQUETE sale hacia la base. */
+    paso = "llenar el renglón y anotarlo";
+    const escoger = async (n, texto) => {
+      const campo = pgm.locator(".bs-campo").nth(n);
+      await campo.click(); await campo.fill(texto);
+      await pgm.locator(".bs-lista [role=option]").first().dispatchEvent("mousedown");
+    };
+    await escoger(0, "A");
+    await escoger(1, "01");
+    await pgm.click('[aria-labelledby=fe-rot-lado] button:has-text("Izquierdo")');
+    await pgm.fill('input[placeholder="Teclea el código"]', "3128");
+    await pgm.fill('input[placeholder="DD"]', "11");
+    await pgm.fill('input[placeholder="MM"]', "03");
+    await pgm.fill('input[placeholder="AA"]', "27");
+    await pgm.locator(".fe-cuanto-campo input").first().fill("12");
+    await pgm.evaluate(() => { window.__llamadas = [] });
+    await pgm.click(".fe-anotar .btn.grande");
+    await pgm.waitForTimeout(300);
+    const envio = await pgm.evaluate(() =>
+      (window.__llamadas ?? []).find((c) => c.fn === "conteo_fefo_agregar")?.args ?? null);
+
+    if (!envio)
+      fallas.push("montada, tocar «Anotar renglón» con el renglón lleno no manda nada a la " +
+                  "base: la estiba se contó y no quedó guardada en ninguna parte");
+    else {
+      /* SE MANDA EL VENCIMIENTO QUE SE TECLEA. Es lo que trae impreso el
+         cartón y lo que lleva años en la hoja; los días para salir los
+         saca la vista con el mínimo T1. */
+      const puesto = `${envio.p_venc_dia}/${envio.p_venc_mes}/${envio.p_venc_anio}`;
+      if (puesto !== "11/3/27")
+        fallas.push("montada, la pantalla no manda el vencimiento que se teclea: puse " +
+                    `11/03/27 en las casillas y al guardar salió ${puesto}`);
+      /* Y NO SE MANDA ADEMÁS UNA FECHA DE FABRICACIÓN. El renglón
+         acabaría con las dos y el vencimiento guardado dejaría de ser el
+         que se leyó en el cartón. */
+      const fab = [envio.p_fab_dia, envio.p_fab_mes, envio.p_fab_anio];
+      if (fab.some((v) => v != null))
+        fallas.push("montada, sigue mandando una fecha de fabricación " +
+                    `(${fab.join("/")}): el renglón acabaría con las dos y el vencimiento ` +
+                    "guardado no sería el que se leyó en el cartón");
+    }
+    await pgm.close();
+  } catch (e) {
+    fallas.push(`la pantalla de conteo no se puede montar de verdad —falló al ${paso}: ` +
+                `${e.message.split("\n")[0]}—, así que nadie puede contar con ella`);
+  }
 }
 
 await navegador.close();

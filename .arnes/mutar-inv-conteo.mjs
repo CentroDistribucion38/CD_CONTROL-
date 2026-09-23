@@ -28,9 +28,23 @@ for (const s of ["SIGINT", "SIGTERM", "SIGHUP"])
   process.on(s, () => { restaurar(); process.exit(130) });
 
 let fallos = 0;
+/* LAS QUE DE VERDAD SE CORRIERON. El recuento del final estaba escrito a
+   mano —«Las 67»— y llevaba tres mutaciones de retraso: un número que
+   se escribe a mano es un número que miente en cuanto alguien agrega
+   una. Se cuenta solo, y así el recuento también cuadra cuando se corre
+   con SOLO. */
+let total = 0;
 
 /** Rompe una cosa y exige un mensaje. `cambios` es [archivo, de, a]. */
 function probar(nombre, cambios, espera) {
+  /* PARA TRABAJAR EN UNA SOLA. Sesenta y tantas mutaciones a seis
+     minutos cada corrida es media hora por cada línea que se toca, y
+     entonces uno deja de correrlo. `SOLO="rueda" node …` corre las que
+     lleven esa palabra en el nombre. Sin la variable no cambia nada:
+     una corrida normal sigue siendo las mismas de siempre, y el
+     recuento de abajo sigue cuadrando. */
+  if (process.env.SOLO && !nombre.includes(process.env.SOLO)) return;
+  total++;
   restaurar();
   for (const [archivo, de, a] of cambios) {
     const antes = readFileSync(archivo, "utf8");
@@ -184,12 +198,17 @@ probar("el total se arma a la vista",
   "no se ve el total en cajas mientras se anota");
 
 /* ---------- EL LADO ---------- */
+/* EL GRUPO DE BOTONES LLEVA HOY DOS COSAS MÁS —la referencia del cursor
+   y el salto al código al escoger— así que el recorte viejo ya no
+   encontraba el texto y la mutación caducó. Se vuelve a copiar tal cual
+   está; lo que se rompe es lo mismo: que el lado deje de ser dos
+   botones y vuelva a ser la rueda del sistema. */
 probar("el lado no vuelve a ser una rueda",
-  [[TSX, `<div className="fe-segmento" role="group" aria-labelledby="fe-rot-lado">
+  [[TSX, `<div className="fe-segmento" role="group" aria-labelledby="fe-rot-lado" ref={grupoLado}>
                 {lados.map((l) => (
                   <button key={l} type="button" className={b.lado === l ? "on" : ""}
                           aria-pressed={b.lado === l}
-                          onClick={() => pon("lado", l)}>{nombreLado(l)}</button>
+                          onClick={() => { pon("lado", l); setTimeout(() => campoCodigo.current?.focus(), 0) }}>{nombreLado(l)}</button>
                 ))}
               </div>`,
          `<select value={b.lado} onChange={(e) => pon("lado", e.target.value)}>
@@ -346,10 +365,17 @@ probar("la consulta que llega tarde pinta igual",
   [[TSX, "if (vivo) { setPrevio(", "if (true) { setPrevio("]],
   "quedaría en pantalla la pre-anotación del módulo anterior");
 
+/* LA CONDUCTA SIGUE, PERO CAMBIÓ DE FORMA. «Sigue igual» guardaba
+   derecho, por el mismo `guardar` que «Anotar», y la mutación rompía
+   ESO. Después Cristian lo devolvió —«si sigue igual no debería
+   guardarse: que se refleje, uno lo valida y le da guardar, no en
+   automático»— así que hoy la tarjeta LLENA el renglón y espera. Es la
+   misma regla de fondo: la tarjeta no tiene un camino propio a la base.
+   Se rompe igual, haciéndola guardar sola. */
 probar("«Sigue igual» se guarda por su propio camino",
-  [[TSX, "  const confirmar = (pv: Previo) => guardar(desdePrevio(pv));",
-         "  const confirmar = async (pv: Previo) => { await supabase.rpc(\"conteo_fefo_agregar\", { p_conteo: conteo!.id, p_sku: pv.codigo }) };"]],
-  "no guarda por el mismo camino");
+  [[TSX, "    setB(desdePrevio(pv));\n    setDesdeTarjeta(\"igual\");",
+         "    void guardar(desdePrevio(pv));\n    setDesdeTarjeta(\"igual\");"]],
+  "«Sigue igual» guarda solo");
 
 probar("dos sitios distintos agregan renglones",
   [[TSX, "      : await supabase.rpc(\"conteo_fefo_agregar\", { p_conteo: conteo.id",
@@ -373,12 +399,21 @@ probar("una tarjeta ya contada hoy se puede volver a confirmar",
   [[TSX, "              const hecho = yaHoy(pv);", "              const hecho = false;"]],
   "renglón repetido");
 
+/* EL TOQUE QUE LAS QUITA YA NO ES UN BOTÓN DE CERRAR EN LA CABECERA:
+   es «Otro SKU», que absorbió al viejo «Aquí hay otra cosa» —si aquí
+   hay otro SKU, lo de la última vez ya no sirve de referencia—. La
+   conducta es la misma y se rompe en el sitio donde vive hoy. */
 probar("las tarjetas no se pueden quitar de un toque",
-  [[TSX, "onClick={() => setVerPrevio(false)}", "onClick={() => setVerPrevio(true)}"]],
+  [[TSX, "    setVerPrevio(false);", "    setVerPrevio(true);"]],
   "no se pueden quitar");
 
+/* El ancla era el comentario que venía justo detrás y ahora hay una
+   línea en medio —`setDesdeTarjeta("cantidad")`—, así que la mutación
+   caducó. Se vuelve a anclar en esas dos líneas, que además distinguen
+   «Cambió» de «Sigue igual»: las dos llaman a `desdePrevio`. */
 probar("«Cambió» guarda solo",
-  [[TSX, "    setB(desdePrevio(pv));\n    /*", "    setB(desdePrevio(pv));\n    void guardar(desdePrevio(pv));\n    /*"]],
+  [[TSX, "    setB(desdePrevio(pv));\n    setDesdeTarjeta(\"cantidad\");",
+         "    setB(desdePrevio(pv));\n    void guardar(desdePrevio(pv));\n    setDesdeTarjeta(\"cantidad\");"]],
   "guardaría la cantidad de ayer");
 
 probar("al editar una tarjeta el cursor cae antes de que exista la casilla",
@@ -389,21 +424,34 @@ probar("la calle no recibe la referencia del cursor",
   [[TSX, "                campo={campoCalle}\n", ""]],
   "el cursor no puede volver ahí después de anotar");
 
-probar("después de anotar el cursor no vuelve a la calle",
-  [[TSX, "    campoCalle.current?.focus();\n  }", "    campoCodigo.current?.focus();\n  }"]],
-  "el cursor no vuelve a la calle");
+/* EL DESTINO CAMBIÓ, LA CONDUCTA NO. Antes el cursor volvía a «Calle»
+   después de anotar; ahora Cristian lo pidió al LADO —«tanto la calle
+   como el módulo igual al anterior registro, y ya empiezo con el lado;
+   apenas escoja lado se sale al código»— y al código directo cuando el
+   módulo tiene un solo lado. Lo que se sigue rompiendo es lo mismo:
+   que después de anotar el cursor caiga solo donde sigue el renglón y
+   no haya que ir a buscarlo. */
+probar("después de anotar el cursor no cae en el lado",
+  [[TSX, "        else grupoLado.current?.querySelector(\"button\")?.focus();",
+         "        else campoCalle.current?.focus();"]],
+  "el cursor no va al lado");
 
+/* EL RENGLÓN DE `limpiar` LLEVA AHORA EL LADO CONDICIONADO —se queda
+   solo si el módulo tiene uno— y por eso la copia vieja ya no pegaba.
+   Se rompe lo mismo: soltar el sitio al anotar. */
 probar("anotar suelta la calle y el módulo",
-  [[TSX, "      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }",
+  [[TSX, "      ? { ...VACIO, calle: x.calle, base: x.base, lado: unLado ? x.lado : \"\" }",
          "      ? { ...VACIO }"]],
-  "habría que volver a escogerlos para cada renglón del mismo pasillo");
+  "anotar suelta la calle y el módulo");
 
 probar("el sitio se queda puesto también al corregir",
   [[TSX, "    limpiar(!corrigiendo);", "    limpiar(true);"]],
   "quedaría escogido un módulo que nadie tocó");
 
+/* La otra mitad del mismo renglón de `limpiar`, y por lo mismo caducó.
+   Aquí se rompe al revés: que NO se vacíe lo tecleado. */
 probar("al anotar deja de vaciarse el renglón",
-  [[TSX, "      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }",
+  [[TSX, "      ? { ...VACIO, calle: x.calle, base: x.base, lado: unLado ? x.lado : \"\" }",
          "      ? { ...x, codigo: x.codigo }"]],
   "no se limpia el renglón ENTERO");
 
@@ -442,7 +490,7 @@ probar("la cantidad de la tarjeta se lee igual que el nombre del material",
 restaurar();
 console.log("");
 if (fallos > 0) {
-  console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
+  console.log(`${fallos} de ${total} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 67 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log(`Las ${total} se pusieron rojas. El arnés caza lo que dice cazar.`);

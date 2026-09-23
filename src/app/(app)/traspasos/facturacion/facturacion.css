@@ -66,10 +66,101 @@
 
 .fc-confirmar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: end; margin: 0 }
 .fc-confirmar label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
-.fc-confirmar input { font-variant-numeric: tabular-nums; letter-spacing: .04em; font-weight: 700 }
+.fc-confirmar input, .fc-confirmar select { font-variant-numeric: tabular-nums; letter-spacing: .04em; font-weight: 700 }
 .fc-confirmar input::placeholder { font-weight: 500; letter-spacing: 0 }
 .fc-confirmar .btn { min-height: 46px; white-space: nowrap }
 .fc-error { grid-column: 1 / -1; margin: 0; font-size: 12.5px; font-weight: 700; color: #A30D25 }
+
+/* ---------------------------------------------------------------------
+   EL VIDRIO QUE SE VA CON EL VIAJE
+
+   Casi ningún viaje lleva tolvas, así que esto no se pinta casi nunca.
+   Cuando se pinta, es lo más importante de la tarjeta: son cientos de
+   kilos de vidrio que después nadie puede devolver. Por eso ocupa el
+   ancho entero y va ARRIBA del número de documento — que es el orden en
+   que pasa: primero se mira el camión, después se escribe el papel.
+
+   NO LLEVA EL ACENTO DE LA MARCA: lleva el ámbar del vidrio. Es la
+   única cosa de esta pantalla que puede frenar un camión, y tiene que
+   distinguirse del resto de un vistazo, no mimetizarse.
+   --------------------------------------------------------------------- */
+/* OJO: aquí NO va un `.fc-confirmar.con-vidrio { grid-template-columns }`.
+   Lo tuvo, y con él el celular quedaba con el campo del número reducido
+   a tres letras: `.fc-confirmar.con-vidrio` pesa más que el
+   `.fc-confirmar` del @media de 400 px, así que le ganaba y seguía en
+   dos columnas. Es la misma trampa de siempre en este proyecto —un
+   selector más específico comiéndose una regla nueva— y la regla no
+   hacía falta: decía exactamente lo mismo que la de arriba. */
+/* CON VIDRIO, EL NÚMERO Y EL BOTÓN BAJAN CADA UNO A SU RENGLÓN.
+   El botón pasa a decir «Confirmar salida y despachar» —cinco palabras
+   sin cortar— y al lado, en la columna `auto`, le dejaba al campo del
+   documento 122 px: diez cifras en un hueco donde caben cuatro. Se
+   cambia DÓNDE se ponen, no el número de columnas, que es lo que el
+   @media del celular necesita poder mandar. */
+.fc-confirmar.con-vidrio .fc-numero { grid-column: 1 / -1 }
+.fc-confirmar.con-vidrio .btn { grid-column: 1 / -1; width: 100% }
+
+.fc-vidrio {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 14px; border-radius: 9px;
+  border: 1.5px solid #C08A16; background: #FFF9EC;
+}
+.fc-vidrio-ojo {
+  margin: 0; font-size: 10px; font-weight: 800; letter-spacing: .14em; color: #7A5600;
+}
+.fc-vidrio-ojo span { font-weight: 700; letter-spacing: .06em }
+.fc-vidrio select {
+  min-height: 46px; width: 100%; min-width: 0; max-width: 100%; padding: 10px 12px;
+  border: 1.5px solid #C08A16; border-radius: 9px; background: #fff; color: #12263A;
+  font: 700 14px var(--tp-texto);
+}
+.fc-vidrio select:focus { outline: 2px solid var(--tp-acento); outline-offset: 1px }
+.fc-cedula-una { margin: 0; font-size: 14px; color: #5E4100; overflow-wrap: anywhere }
+.fc-cedula-una b {
+  font: 900 18px var(--tp-titulo); color: #12263A; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}
+.fc-espera { color: #A30D25; font-weight: 700 }
+
+/* Lo pesado a la izquierda, lo contado a la derecha. `fit-content` y no
+   `auto`: `auto` toma el max-content y no cede, y el campo de contar se
+   quedaría sin ancho — ya pasó en la base del inventario. */
+.fc-cuenta {
+  display: grid; grid-template-columns: fit-content(150px) minmax(0, 1fr);
+  gap: 8px 16px; align-items: end;
+}
+.fc-cuenta > * { min-width: 0 }
+.fc-pesadas { display: flex; flex-direction: column; margin: 0 }
+.fc-pesadas span { font-size: 9.5px; font-weight: 800; letter-spacing: .14em; color: #7A5600 }
+.fc-pesadas b {
+  font: 900 34px/1 var(--tp-titulo); color: #12263A; font-variant-numeric: tabular-nums;
+}
+.fc-pesadas i { font-style: normal; font-size: 12px; color: var(--tp-gris); font-variant-numeric: tabular-nums }
+.fc-cuenta label { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.fc-cuenta label span { font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--tp-gris) }
+.fc-cuenta input {
+  min-height: 46px; width: 100%; min-width: 0; padding: 10px 12px;
+  border: 1.5px solid var(--tp-linea); border-radius: 9px; background: #fff; color: #12263A;
+  font: 900 20px var(--tp-texto); font-variant-numeric: tabular-nums;
+}
+.fc-cuenta input::placeholder { font: 500 14px var(--tp-texto) }
+.fc-cuadra {
+  grid-column: 1 / -1; margin: 0; font-size: 13px; line-height: 1.45; font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.fc-cuadra.si { color: #0B5D2E }
+.fc-cuadra.no { color: #A30D25; font-weight: 700 }
+.fc-obs { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--tp-gris) }
+
+.fc-falta-vidrio {
+  margin: 0; padding: 10px 14px; border: 1px dashed #C08A16; border-radius: 9px;
+  background: #FFF9EC; color: #5E4100; font-size: 13px; line-height: 1.5;
+}
+.fc-falta-vidrio code {
+  font: 700 12px ui-monospace, "SFMono-Regular", Menlo, monospace; overflow-wrap: anywhere;
+}
 
 /* ---------- Los que salieron ---------- */
 .fc-salieron h2 {
@@ -127,4 +218,13 @@
 @media (max-width: 400px) {
   .fc-confirmar { grid-template-columns: 1fr }
   .fc-confirmar .btn { width: 100% }
+}
+
+/* En el celular lo pesado y lo contado no caben al lado: la cifra
+   grande se encoge hasta no leerse. Bajan uno debajo del otro, y el
+   campo de contar queda a ancho completo — que es donde va el dedo. */
+@media (max-width: 480px) {
+  .fc-cuenta { grid-template-columns: minmax(0, 1fr) }
+  .fc-pesadas { flex-direction: row; align-items: baseline; gap: 8px; flex-wrap: wrap }
+  .fc-pesadas b { font-size: 26px }
 }

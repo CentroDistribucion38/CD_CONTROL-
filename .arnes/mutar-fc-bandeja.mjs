@@ -20,6 +20,10 @@ for (const s of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(s, () => { restaurar
 
 let fallos = 0, total = 0;
 function probar(nombre, cambios, espera) {
+  /* PARA TRABAJAR SIN ESPERAR LA CORRIDA ENTERA: con SOLO="firma" puesto
+     solo se prueban las mutaciones cuyo nombre lleve esa palabra. Sin
+     SOLO no cambia nada, para que una corrida normal siga siendo todas. */
+  if (process.env.SOLO && !nombre.includes(process.env.SOLO)) return;
   total++; restaurar();
   for (const [archivo, de, a] of cambios) {
     const antes = readFileSync(archivo, "utf8");
@@ -75,8 +79,10 @@ probar("el patio no ve si salió",
 probar("arriba no dice cuántos esperan",
   [[BAN, '<><span className="fc-n">{nf.format(pendientes.length)}</span> viaje', "<>Viajes"]],
   "no dice cuántos esperan");
+/* La tarjeta creció: debajo de la placa quedó el código del viaje, así que
+   el renglón ya no termina en </p>. Se muta solo la cifra grande. */
 probar("la tarjeta vuelve a la orden de cargue arriba",
-  [[BAN, "          <b>{v.placa ?? \"—\"}</b>\n        </p>", "          <b>{v.documento ?? \"—\"}</b>\n        </p>"]],
+  [[BAN, "          <b>{v.placa ?? \"—\"}</b>\n", "          <b>{v.documento ?? \"—\"}</b>\n"]],
   "no pone la placa arriba");
 probar("un viaje sin orden muestra el rótulo vacío",
   [[BAN, '{v.documento && <p className="fc-placa">Orden de cargue {v.documento}</p>}', '<p className="fc-placa">Orden de cargue {v.documento}</p>']],

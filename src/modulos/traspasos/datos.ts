@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { placaClave, type Cedula } from "./formato";
 
 /**
  * LO QUE LEE EL MÓDULO DE TRASPASOS.
@@ -638,26 +639,51 @@ export async function importacionesSap(cuantas = 8) {
    ===================================================================== */
 export const FACTURACION_DESDE = "2026-09-21";
 
+/* El tipo Cedula y placaClave viven en formato.ts: los usa también la
+   bandeja, que es "use client", y este archivo es del SERVIDOR. */
+export type { Cedula } from "./formato";
+
 export async function bandejaFacturacion(diasSalieron = 3) {
   const supabase = await createClient();
   const desde = new Date(Date.now() - diasSalieron * 86400000).toISOString();
-  const [pend, sal] = await Promise.all([
+  const [pend, sal, ced] = await Promise.all([
     supabase.from("v_traspasos_viajes").select("*")
       .eq("por_facturar", true).gte("fecha", FACTURACION_DESDE)
       .order("fecha").order("turno_orden").order("hora").limit(500),
     supabase.from("v_traspasos_viajes").select("*")
       .eq("salida_historica", false).not("salida_en", "is", null).gte("salida_en", desde)
       .order("salida_en", { ascending: false }).limit(200),
+    /* LAS CÉDULAS DE VIDRIO, TODAS DE UNA VEZ Y AQUÍ.
+       Una consulta por tarjeta serían cincuenta llamadas en una bandeja
+       de cincuenta viajes, y la pantalla tardaría más en pintarse que
+       en leerse. Se traen todas —son las que están sin despachar, no el
+       histórico— y la tarjeta se queda con las de su placa. */
+    supabase.from("v_salidas_por_despachar")
+      .select("id, cedula, placa, tolvas, neto_kg, observacion, dias_esperando")
+      .order("dias_esperando", { ascending: false }).limit(300),
   ]);
   if (pend.error) {
     return {
       falta: /column|does not exist|schema cache/i.test(pend.error.message),
       pendientes: [] as Viaje[], salieron: [] as Viaje[],
+      cedulas: {} as Record<string, Cedula[]>, faltaCedulas: false,
     };
   }
+
+  /* SI LA VISTA NO ESTÁ, LA BANDEJA SIGUE SIRVIENDO. Quitarle a
+     facturación su pantalla entera porque falta una migración del
+     vidrio sería cambiar un aviso por una pared. La pantalla lo dice y
+     confirma sin cédula, que es exactamente como trabajaba ayer. */
+  const faltaCedulas = !!ced.error && /does not exist|schema cache|relation/i.test(ced.error.message);
+  const cedulas: Record<string, Cedula[]> = {};
+  for (const c of (ced.data ?? []) as Cedula[]) {
+    (cedulas[placaClave(c.placa)] ??= []).push(c);
+  }
+
   return {
     falta: false,
     pendientes: (pend.data ?? []) as Viaje[],
     salieron: (sal.data ?? []) as Viaje[],
+    cedulas, faltaCedulas,
   };
 }

@@ -8,6 +8,7 @@ const restaurar = () => { for (const [f, t] of Object.entries(orig)) writeFileSy
 process.on("exit", restaurar);
 let fallos = 0, total = 0;
 function probar(nombre, [archivo, de, a], espera, arnes) {
+  if (process.env.SOLO && !nombre.includes(process.env.SOLO)) return;
   total++; restaurar();
   if (!orig[archivo].includes(de)) { console.log(`  ROTA  ✘  ${nombre}`); fallos++; return }
   writeFileSync(archivo, orig[archivo].replace(de, a));

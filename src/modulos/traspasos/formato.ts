@@ -146,3 +146,42 @@ export const topeAdelante = (hoy: string, dias = DIAS_ADELANTE) =>
     .toISOString().slice(0, 10);
 
 export { MESES };
+
+/* =====================================================================
+   EL VIDRIO QUE SE VA CON EL VIAJE
+   ===================================================================== */
+
+/**
+ * UNA CÉDULA DE VIDRIO ESPERANDO VH.
+ *
+ * Es una salida de vidrio pesada y cerrada que todavía no se ha
+ * despachado. El número —SR-0001— no es nuevo: es el código con el que
+ * la salida nace, y es lo que facturación escoge al dar la salida al
+ * viaje. Inventar un segundo número único al lado habría dejado dos
+ * identidades para la misma carga y, el día que no cuadren, nadie
+ * sabría cuál manda.
+ */
+export type Cedula = {
+  id: string;
+  cedula: string;
+  placa: string;
+  tolvas: number;
+  neto_kg: number;
+  observacion: string | null;
+  dias_esperando: number;
+};
+
+/**
+ * LA PLACA, SIN ESPACIOS NI GUIONES: "abc 123", "ABC-123" y "abc123"
+ * son el mismo Vh. Es el mismo criterio con el que la base la guarda.
+ *
+ * VIVE AQUÍ Y NO EN datos.ts, y no es capricho: datos.ts es del
+ * SERVIDOR —importa el cliente de Supabase del servidor, que a su vez
+ * pide next/headers—. Una pantalla "use client" que importe de ahí una
+ * función se arrastra el módulo del servidor entero al navegador y
+ * revienta con «Dynamic require of react is not supported», que no dice
+ * nada de lo que de verdad pasó. Es el mismo motivo por el que existe
+ * este archivo.
+ */
+export const placaClave = (p?: string | null) =>
+  (p ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();

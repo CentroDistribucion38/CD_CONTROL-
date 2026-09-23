@@ -116,6 +116,15 @@ await pegar("PLACA\r\nJGY577\r\nqwe321\r\nabc-123\r\nZZZ999\r\n");
 await pg.waitForTimeout(100);
 const quedan = (await tarjetas()).sort();
 ok(igual(quedan, ["ABC123", "JGY577"]), `pegando la lista quedan ${JSON.stringify(quedan)} y deben quedar ABC123 y JGY577`);
+/* QUE LO PEGADO SE HAYA VUELTO LISTA, DICHO AQUÍ Y NO MÁS ABAJO.
+   Es lo primero que se pidió —«que yo pueda copiar y pegar varias
+   placas de una»— y si no pasa no hay nada más que medir: la prueba
+   seguía haciendo clic en botones que no existen y se caía con un error
+   de Playwright, que no dice qué está mal sino dónde se tropezó. */
+const hayTabla = !!(await pg.$(".tr-pl tbody tr"));
+ok(hayTabla, "pegar varias placas de una vez no arma la lista: el campo se quedó como estaba y " +
+             "no salió la tabla de las placas pegadas");
+if (!hayTabla) { fallas.forEach((x) => console.log("✗ " + x)); await nav.close(); process.exit(1) }
 const frase = await pg.$eval(".tr-lista-frase", (e) => e.textContent.replace(/\s+/g, " ").trim()).catch(() => "");
 ok(/De 4 placas, 2 vienen en camino y 2 no\./.test(frase), `la respuesta no dice cuántas vienen y cuántas no: «${frase}»`);
 /* LA TABLITA: una fila por placa pegada, en el orden pegado. */
@@ -190,15 +199,38 @@ for (const ancho of [390, 360]) {
   await monta(null, ancho);
   await pegar(Array.from({ length: 14 }, (_, i) => "QQQ" + String(100 + i)).join("\n") + "\nJGY577");
   await pg.waitForTimeout(80);
-  const g = await pg.evaluate(() => ({
-    lado: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    boton: Math.round(document.querySelector(".tr-pl-bar .btn.plano")?.getBoundingClientRect().height ?? 0),
-    fuera: [...document.querySelectorAll(".tr-pl-bar button, .tr-pl-marco")]
-      .filter((e) => e.getBoundingClientRect().right > innerWidth + 0.5).length,
-  }));
+  const g = await pg.evaluate(() => {
+    /* LA TABLA SE DESLIZA DENTRO DE SU MARCO, NO LA PANTALLA. La tabla
+       mide 860 px y el celular 390: algo se tiene que ir de lado. Si el
+       que rueda es el marco, se mira la columna de la derecha con los
+       filtros y las tarjetas quietos en su sitio; si el que rueda es lo
+       de afuera, mirar la última columna se lleva la pantalla entera y
+       hay que volver a buscar dónde quedó todo. Se EMPUJA de verdad y
+       se mira si se movió: «overflow: auto» escrito no prueba nada
+       cuando quien lo atrapa es una caja de más arriba. */
+    const m = document.querySelector(".tr-pl-marco");
+    let rueda = null;
+    if (m) {
+      m.scrollLeft = 300;
+      rueda = { sobra: Math.round(m.scrollWidth - m.clientWidth), movio: Math.round(m.scrollLeft) };
+      m.scrollLeft = 0;
+    }
+    return {
+      lado: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      boton: Math.round(document.querySelector(".tr-pl-bar .btn.plano")?.getBoundingClientRect().height ?? 0),
+      fuera: [...document.querySelectorAll(".tr-pl-bar button, .tr-pl-marco")]
+        .filter((e) => e.getBoundingClientRect().right > innerWidth + 0.5).length,
+      rueda,
+    };
+  });
   ok(g.lado <= 0, `${ancho} px: la lista arrastra la página ${g.lado} px de lado`);
   ok(g.fuera === 0, `${ancho} px: ${g.fuera} placa(s) o el botón se salen de la pantalla`);
   ok(g.boton >= 40, `${ancho} px: «Copiar las que no vienen» mide ${g.boton} px`);
+  ok(g.rueda != null && g.rueda.sobra > 0 && g.rueda.movio > 0,
+     `${ancho} px: la tabla de las placas pegadas no se desliza dentro de su marco ` +
+     `(le sobran ${g.rueda?.sobra ?? 0} px y al empujarla se movió ${g.rueda?.movio ?? 0}): ` +
+     "la que se va de lado es la pantalla entera, y mirar la última columna deja los filtros " +
+     "y las tarjetas fuera de la vista");
 }
 ok(errores.length === 0, `la pantalla tiró errores: ${errores.slice(0, 2).join(" | ")}`);
 await nav.close();

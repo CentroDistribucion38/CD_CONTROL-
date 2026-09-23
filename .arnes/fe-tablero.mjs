@@ -44,7 +44,7 @@
       tiene que filtrar por conteos cerrados.
    ===================================================================== */
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 const U = (p) => new URL(p, import.meta.url);
 
@@ -225,6 +225,23 @@ if (COMPLETO === ARMAZON)
   throw new Error("la variante «nada quedó sin contar» salió idéntica al armazón: " +
                   "lo que se mida con ella no dice nada");
 
+/* SIN LA MIGRACIÓN, LA CAJA NO SE PUEDE CALCULAR — Y ESO SE DICE.
+   El tablero no se cae (contesta otra pregunta y la tiene que poder
+   seguir contestando), pero TAMPOCO se puede callar: una caja que
+   desaparece sin decir nada se lee igual que «nada quedó sin contar»,
+   que es justo la respuesta contraria, y alguien despacha sobre eso.
+
+   EL AVISO NO SE ESCRIBE AQUÍ: SE SACA DE LA PÁGINA. Copiado a mano,
+   esta prueba seguiría midiendo la copia —y la copia seguiría diciendo
+   la frase el día que la pantalla dejara de decirla. Lo que se monta es
+   el texto literal de la rama que la página pinta cuando
+   `faltaSinContar` viene en verdadero. */
+const ramaFalta =
+  (pgx.match(/\{t\.faltaSinContar \? \(\s*(<section[\s\S]*?<\/section>)\s*\)\s*:/) ?? [])[1] ?? "";
+const FALTA = ARMAZON.replace(
+  /<section class="fe-faltan">[\s\S]*?<\/section>/,
+  ramaFalta.replace(/className=/g, "class=").replace(/\{" "\}/g, " ").replace(/\{[^{}]*\}/g, ""));
+
 const VACIO = `
 <div class="fe">
   <section class="fe-vacio-grande">
@@ -245,7 +262,7 @@ const sueltas = [...pgx.matchAll(/["'`]([^"'`\n]{0,200})["'`]/g)]
   .map((m) => m[1]).join(" ").split(/[^A-Za-z0-9_-]+/).filter(Boolean);
 const palabras = new Set([...sueltas, ...sueltas.map((w) => w.toLowerCase()),
   ...[...fefo.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1])]);
-const inventadas = [...new Set([...`${ARMAZON}${COMPLETO}${VACIO}`.matchAll(/class="([^"]+)"/g)]
+const inventadas = [...new Set([...`${ARMAZON}${COMPLETO}${VACIO}${FALTA}`.matchAll(/class="([^"]+)"/g)]
   .flatMap((m) => m[1].split(/\s+/)))].filter(Boolean).filter((c) => !palabras.has(c));
 
 const canales = (c) => {
@@ -435,6 +452,60 @@ for (const [ancho, etiqueta] of ANCHOS) {
                 "así que o se encogió hasta ser ilegible o se está saliendo");
 }
 
+/* ---------- EL AVISO DE «FALTA LA MIGRACIÓN», MEDIDO ----------
+   Tres cosas, y las tres son de pantalla y no de código:
+
+   · QUE SE PINTE. Si la rama no existe, la caja desaparece y su
+     ausencia se lee igual que «nada quedó sin contar».
+   · QUE DIGA QUÉ CORRER, con el nombre del archivo. «No se puede
+     calcular» a secas deja a quien lo lee sin nada que hacer.
+   · QUE QUEPA EN EL CELULAR. La ruta de la migración son cuarenta y
+     pico caracteres seguidos sin un espacio donde partir: es
+     exactamente lo que se sale de la tarjeta en 360 px, y se sale sin
+     un solo error. */
+if (!ramaFalta)
+  fallas.push("la pantalla no dice qué migración falta cuando no se puede calcular lo sin " +
+              "contar: la caja desaparecería sin explicación");
+else
+  for (const ancho of [1440, 360]) {
+    await monta(null, ancho, FALTA);
+    const f = await pag.evaluate(() => {
+      const s = document.querySelector(".fe-faltan");
+      if (!s) return null;
+      const c = s.getBoundingClientRect();
+      const salen = [...s.querySelectorAll("*")]
+        .filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && (r.right - c.right > 0.5 || c.left - r.left > 0.5);
+        })
+        .map((e) => e.tagName.toLowerCase());
+      const p = s.querySelector("p");
+      if (!p) return { salen, texto: "", txt: "", fondo: "" };
+      let fondo = "rgb(255, 255, 255)";
+      for (let e = p; e; e = e.parentElement) {
+        const b = getComputedStyle(e).backgroundColor;
+        if (b && !/rgba\(0, 0, 0, 0\)|transparent/.test(b)) { fondo = b; break }
+      }
+      return { salen, texto: s.textContent.replace(/\s+/g, " ").trim(),
+               txt: getComputedStyle(p).color, fondo };
+    });
+    if (!f || !f.texto) {
+      fallas.push("la pantalla no dice qué migración falta cuando no se puede calcular lo sin " +
+                  "contar: la caja desaparecería sin explicación");
+      break;
+    }
+    if (!/\.sql\b/.test(f.texto))
+      fallas.push("el aviso de que falta la migración no nombra el archivo que hay que correr: " +
+                  "quien lo lee se queda sin nada que hacer");
+    if (f.salen.length)
+      fallas.push(`${ancho} px: el aviso de la migración se sale de su tarjeta ` +
+                  `(${[...new Set(f.salen)].join(", ")}): la ruta del archivo no tiene dónde ` +
+                  "partirse y se sale sin un solo error");
+    const rf = razon(f.txt, f.fondo);
+    if (rf < 4.5)
+      fallas.push(`${ancho} px: el aviso de que falta la migración contrasta ${rf} (mínimo 4.5)`);
+  }
+
 await navegador.close();
 
 /* ---------- LA SOBREOCUPACIÓN SE INFORMA, NO SE IMPIDE ----------
@@ -486,9 +557,27 @@ if (!/const ultimo = enviados\[0\] \?\? null;/.test(dat) ||
 if (!/faltaSinContar: !!sc\.error && sinTablas\(sc\.error\.message\)/.test(dat))
   fallas.push("si falta la función de lo sin contar, el tablero entero se cae en vez de " +
               "decir qué falta correr");
-if (!/t\.faltaSinContar \?/.test(pgx))
-  fallas.push("la pantalla no dice qué migración falta cuando no se puede calcular lo sin " +
-              "contar: la caja desaparecería sin explicación");
+/* Y LA MIGRACIÓN QUE NOMBRA TIENE QUE SER LA QUE HACE FALTA. Que la
+   pantalla diga un nombre no basta: mandar a correr un archivo que no
+   está en el repositorio —o que sí está pero no crea la función que el
+   código llama— es peor que no decir nada. Se corre, no pasa nada, la
+   caja sigue sin salir y quien lo leyó ya no tiene a dónde mirar. Así
+   que se cruza el nombre que PINTA la pantalla contra el `rpc(...)` que
+   PIDE `fefo.ts` y contra lo que ese .sql de verdad define.
+   (Que el aviso se pinte, diga un .sql y quepa en el celular se mide
+   arriba, montado con el texto literal de la página.) */
+{
+  const archivo = (ramaFalta.match(/<code>([^<]+\.sql)<\/code>/) ?? [])[1] ?? "";
+  const rpc = (dat.match(/\.rpc\("([a-z_]+)"/) ?? [])[1] ?? "";
+  const ruta = archivo && new URL("../" + archivo, import.meta.url);
+  if (archivo && !existsSync(ruta))
+    fallas.push(`la pantalla manda a correr «${archivo}» y ese archivo no está en el ` +
+                "repositorio: quien lo busque no lo encuentra y la caja sigue sin salir");
+  else if (archivo && rpc && !readFileSync(ruta, "utf8").includes(`function public.${rpc}(`))
+    fallas.push(`la pantalla manda a correr «${archivo}», pero quien crea «${rpc}» —que es lo ` +
+                "que el tablero pide— es otro archivo: se corre, no pasa nada, y la caja sigue " +
+                "sin salir");
+}
 
 /* SE ORDENA POR DÍAS SIN CONTAR, NO POR CALLE. La lista alfabética
    empieza siempre por A01 —que probablemente se contó ayer— y deja
@@ -547,10 +636,35 @@ if (!/Nada quedó sin contar/.test(pgx))
     fallas.push("`tableroFefo` no filtra por conteos cerrados: el tablero estaría afirmando " +
                 "sobre recorridos a medio caminar");
 }
-/* Las barras se mudaron a Riesgo.tsx (el riesgo de vencimiento). */
-if (!/Math\.max\(1,/.test(readFileSync(new URL("../src/app/(app)/inventario/Riesgo.tsx", import.meta.url), "utf8")))
-  fallas.push("el tope de las barras puede ser cero: `width: NaN%` se descarta y las barras " +
-              "desaparecen sin un solo error");
+/* Las barras se mudaron a Riesgo.tsx (el riesgo de vencimiento), y el
+   tope de esas barras es `maxS`.
+
+   NO SE BUSCA EL TEXTO «Math.max(1,» EN EL ARCHIVO: así estaba escrito y
+   así se quedó verde con el tope roto, porque el mismo archivo tiene
+   otro `Math.max(1, …)` treinta líneas más abajo —el piso de ancho de la
+   barra de avance— que no tiene nada que ver y sostenía la aserción
+   solo. Lo que se hace ahora es SACAR LA FÓRMULA DEL TOPE y CORRERLA con
+   todas las semanas en cero, que es el caso que la rompe: si el tope da
+   cero, `v / tope` da NaN, `width: NaN%` se DESCARTA sin un solo error
+   en la consola y la barra se estira hasta llenar la pista — o sea que
+   el fallo no se ve como una barra que falta, se ve como un dato. */
+{
+  const rsg = readFileSync(new URL("../src/app/(app)/inventario/Riesgo.tsx", import.meta.url), "utf8");
+  const formula = (rsg.match(/const maxS = ([^;]+);/) ?? [])[1] ?? "";
+  let tope = null;
+  if (formula) {
+    /* En cero TODAS: unidades y cajas, y con las dos caras del
+       interruptor de unidades, porque la fórmula mira `U`. */
+    const semanas = [{ unidades: 0, cajas: 0 }, { unidades: 0, cajas: 0 }];
+    try {
+      const f = new Function("r", "U", `return ${formula}`);
+      tope = Math.min(f({ semanas }, false), f({ semanas }, true));
+    } catch { tope = null }
+  }
+  if (!(Number.isFinite(tope) && tope > 0))
+    fallas.push("el tope de las barras puede ser cero: `width: NaN%` se descarta y las barras " +
+                "desaparecen sin un solo error");
+}
 
 console.log("");
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }

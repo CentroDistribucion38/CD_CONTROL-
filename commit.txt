@@ -1,415 +1,130 @@
-Traspasos adelantados, rotura en sitio rehecha, y la salida con dos firmas
-
-LO QUE PASABA
-«Hay veces que tengo un viaje del dia siguiente y lo adelanto.»
-Registrar rechazaba CUALQUIER fecha por delante de hoy: «todavia no ha
-pasado, lo de adelante va en Planear». La unica salida era esperar a
-que cambiara el dia y meterlo despues, con el renglon marcado
-REGISTRADO DESPUES —que es justo lo que no era—. Y si se registraba en
-hoy para no esperar, el cumplido le subia a un plan que no era el suyo
-y le faltaba al que si.
-
-LA REGLA NUEVA, EN UNA LINEA
-Se registra desde un ano atras hasta SIETE DIAS adelante.
-
-EL TOPE DE ADELANTE ES PARA TODOS, administrador incluido, y no es un
-descuido: hacia atras «la fecha de verdad es esa» es un caso real —un
-viaje de hace un mes que nadie metio—; hacia adelante no lo es. Nadie
-adelanta un viaje de dentro de tres meses. Lo unico que entraria sin
-tope es un 2027 escrito en vez de 2026, que mete un cumplido en un dia
-que ningun informe vuelve a mirar.
-
-LO QUE NO SE TOCA —«solo las fechas»—
-· EL CANDADO DEL DIA CERRADO. Un dia que ya paso su ventana lo sigue
-  tocando solo un administrador.
-· EL PLAN. Planear sigue siendo donde se arma lo de adelante. Esto no
-  es una segunda forma de planear: es registrar un viaje que salio.
-
-Y QUEDA MARCADO
-Etiqueta ADELANTADO, espejo de REGISTRADO DESPUES: verde en vez de
-azul, con el mismo rielito. Quien mire el dia de manana ve cuales
-renglones se escribieron antes de que ese dia llegara. La hora que se
-guarda es la de arranque del turno, no la de ahora —un viaje de manana
-con hora de hoy seria una hora que todavia no existio—.
-
-EL SIETE ESTA EN DOS SITIOS, uno en la base y otro en la pantalla, y no
-se pueden juntar mas. Lo que si se puede es escribirlo UNA vez de cada
-lado —DIAS_ADELANTE en formato.ts, el `if` en la migracion— y que el
-arnes lea los dos y avise el dia que se separen. Si se separan, la
-pantalla deja llenar el formulario para que el guardado reviente.
-
-DE PASO: LA PORTADA DE ADMINISTRACION
-admin_existe solo sabia preguntar por tablas y por funciones. Esta
-migracion no crea ninguna de las dos —vuelve a crear una funcion y
-agrega dos columnas a una vista—, asi que la portada habria dicho «base
-al dia» con el archivo sin correr. Se agrega 'col:esquema.tabla.columna'
-y con eso esta migracion ya se ve en la lista.
-
-SQL
-supabase/migraciones/2026-09-traspasos-registro-adelantado.sql
-
-ARNES
-· correr-traspasos-adelantado.sh: base completa, la migracion dos
-  veces, y once comprobaciones contra Postgres de verdad —manana entra
-  con la hora de su turno y marcado, el septimo dia entra, el octavo no
-  ni siendo administrador, hoy sigue sin marca, lo de atras sigue
-  marcado ATRASADO y el dia cerrado sigue cerrado—. Antes de correr la
-  migracion comprueba que manana TODAVIA no entra: si no, no probaria
-  nada.
-· tp-adelanto: los bordes del calendario (cambio de mes, de ano,
-  bisiesto) y que el siete de la pantalla sea el mismo de la base.
-· tp-tarde: ahora mide las DOS etiquetas en los 7 temas y los 4 anchos,
-  y compara los TRES pares de colores. Cazo que el primer verde que le
-  puse quedaba a 14 de distancia del azul de al lado —dos grises
-  palidos—; ahora estan a 30.
-
+El vidrio sale con el viaje, y se cierran dos huecos de administracion
 
 =====================================================================
-Y ROTURA EN SITIO: el area, las causas de verdad, y el EER sin material
+1. EL VIDRIO SALE CON EL VIAJE — LA CEDULA
 =====================================================================
+«Que facturacion no haga doble trabajo validando alla en salida y en
+ traspaso. Que cuando hagan el registro se genere una cedula, un numero
+ unico, y cuando facturacion vaya a dar salida a un Vh de traspaso y ese
+ Vh tenga tolvas, en un desplegable aparezcan los registros unicos que
+ tenemos, traiga cuantas tolvas tiene el Vh, y si corresponde pues que
+ le de salida.»
 
-EL EER NO PIDE MATERIAL
-«Si en EER no es material, para que esta? Quita ese campo de alli
-porque no me deja continuar.» Tenia razon y era peor de lo que parecia:
-hay exactamente un material de EER por color, asi que escoger ambar YA
-era escoger el material. El campo no aportaba una decision —aportaba un
-paso mas y un desplegable que, si el maestro no tenia ese color
-cargado, salia vacio y dejaba el registro trancado con el boton apagado
-y sin decir por que.
-Ahora la pantalla manda el COLOR y la base traduce. La columna de la
-tabla no se toca: los informes siguen leyendo lo mismo. Y la migracion
-enciende los tres materiales de EER, que es lo que faltaba.
+LA CEDULA YA EXISTIA, Y ESO EVITA INVENTAR UN NUMERO
+Cada salida de vidrio nace con roturas_salidas.codigo —SR-0001—, unico
+desde el primer dia y amarrado a la PLACA. Eso ES la cedula. Un segundo
+numero unico al lado habria dejado dos identidades para la misma carga
+y, el dia que no cuadren, nadie sabria cual manda. Lo que faltaba no era
+el numero: era que quedara LISTA PARA DESPACHAR al cerrar el pesaje, y
+que alguien la consumiera.
 
-EL PROCESO HABILITA LAS CAUSAS
-Primero el proceso; hasta que no haya proceso, las causas no se pueden
-tocar y en su sitio dice que falta escogerlo. Y las causas son otras:
+LA CADENA QUEDA EN DOS PASOS
+  PESAR        el supervisor (a) pesa tolva por tolva y cierra. Ahi la
+               cedula queda lista.
+  FACTURACION  al dar salida al viaje, si la placa tiene cedulas
+               pendientes escoge la suya, cuenta las tolvas que el Vh
+               lleva de verdad, y el mismo acto da salida al viaje Y
+               despacha el vidrio.
 
-  ASUMIDAS POR EL OL              NO ASUMIDAS (exigen foto)
-  · Estibas en mal estado         · Falla de las maquinas
-  · Modulo mal arrumado           · Falla del pallet DEPA
-  · Condiciones del sitio
-  · Comportamiento del personal
-  · Falla mecanica del montacargas
+SE VA VALIDACION. Era donde se daba el aval del vidrio por segunda vez.
 
-Las diez de antes no se borran, se APAGAN: hay roturas registradas que
-apuntan a ellas, y borrarlas dejaria los informes de los meses pasados
-sin poder decir de que fue la rotura.
-NOTA: «Condiciones» a secas no decia de que, y le puse «Condiciones del
-sitio». Si es otra cosa —del clima, del piso, del producto— se cambia
-en el maestro, sin despliegue.
+LOS CUATRO FRENOS, Y NINGUNO ES UN AVISO
+1. LA PLACA TIENE QUE CUADRAR. Una cedula de ABC123 no se despacha en
+   el viaje de XYZ789. Es lo unico que amarra el vidrio al Vh que se lo
+   llevo; sin eso la cedula es un papel suelto.
+2. LAS TOLVAS TIENEN QUE CUADRAR. Si la cedula dice cuatro y facturacion
+   cuenta tres, el Vh NO SALE. Una tolva de diferencia son cientos de
+   kilos que alguien va a tener que explicar, y explicarlo despues de
+   que el Vh cruzo la porteria no se puede.
+3. SIGUEN SIENDO DOS PERSONAS. Quien peso no da la salida. Es la razon
+   de ser de la cadena, y al quitarse el paso de en medio se MUDO a
+   facturacion en vez de perderse. El administrador pasa —hay domingos—
+   y la vista lo marca.
+4. SI LA PLACA TIENE VIDRIO PENDIENTE, EL VIAJE NO SALE SIN ESCOGERLO.
+   Es el hueco que deja quitar Validacion: sin esto el Vh se va, el
+   vidrio se va con el, y la cedula sigue diciendo que esta en el patio.
 
-EL AREA
-Campo nuevo, obligatorio, desplegable y DEL MAESTRO: las trece que
-pasaste, en tabla, no quemadas. Y editable desde Maestro, que ahora
-tiene su hoja de Areas: el dia que se abra la Calle F se agrega alli.
-Es OTRA COSA que el proceso, y por eso son dos campos: el proceso es la
-operacion de la que salio la rotura, el area es en que parte de la
-bodega paso. Una rotura de Traspasos puede pasar en la Plazoleta.
+Y LA QUINTA, QUE NADIE PRUEBA: reabrir el viaje DEVUELVE la cedula a
+pendiente. Si no, el vidrio queda despachado contra un viaje que ya no
+salio, y no hay pantalla donde vuelva a aparecer. Va por un disparador
+sobre el viaje y no dentro de la funcion de reabrir, para no reescribirla
+—ya se han perdido reglas reescribiendo funciones de traspasos—.
 
-YA NO ES OTRA PANTALLA
-«No me gusta que salga asi como en otra pantalla; la idea es que
-aparezca alli de una, como los registros que tenemos.» Era
-`position: fixed; inset: 0`: se comia la pantalla entera. En el celular
-casi daba igual; en el computador era un formulario de tres campos
-estirado a mil novecientos pixeles con la lista de lo ya registrado
-escondida detras.
-Ahora es una tarjeta mas de la pantalla, arriba de la lista, con ancho
-maximo; en el celular se suelta a todo el ancho. El «+» se esconde
-mientras esta abierto —le tapaba una causa— y el boton dice QUE FALTA
-en vez de quedarse apagado y mudo: «Falta el area», «Falta la causa».
+EN LA PANTALLA
+· El Vh sin vidrio no ve NADA del vidrio. Casi ningun viaje lleva tolvas
+  y una casilla vacia en cincuenta tarjetas es ruido que deja de leerse.
+· Con UNA cedula viene escogida, sin desplegable: abrir una lista de un
+  solo renglon es tocar dos veces para decir lo unico que se podia decir.
+· Con VARIAS hay desplegable, y NINGUNA escogida — dejar una puesta es
+  escoger por quien tiene el camion enfrente. Cada renglon dice sus
+  tolvas y sus kilos: una lista de codigos que se parecen invita a tocar
+  el de arriba.
+· LAS TOLVAS NO VIENEN PUESTAS. Poner el numero de la cedula y pedir que
+  lo confirmen es pedirle a alguien que apruebe su propia respuesta. El
+  numero lo pone quien cuenta.
+· Se avisa si la cedula lleva dias esperando: una de hace tres dias es
+  una carga que se quedo, no una que esta por salir.
 
-EL ACENTO DEL MODULO SALIA DE --c-oro Y TENIA QUE SALIR DE --c-marca
-«Si en el tema de preferencia es ambar, que hace el rojo alli? Los
-colores varian de acuerdo al tema.»
-En los temas de Cristian --c-marca es #ffc000 y --c-oro es #ff0000, y
-globals.css dice para que es cada uno: el rojo «va tal cual donde es
-MANCHA —el avatar, el tajo del sello, la marca de una cifra en
-alerta—». Un KPI de fondo entero y el boton principal de un formulario
-no son una mancha puntual: son el acento, y el acento de la aplicacion
-es --c-marca. Por eso Traspasos le salia ambar y Roturas rojo en el
-mismo tema: Traspasos lo tenia bien desde el principio.
-De paso se borra una lista de excepciones por tema —cinco temas donde
-habia que forzar la tinta a blanco y hundir el relleno—. Existia porque
---c-oro no trae pareja de tinta y habia que adivinarla; --c-marca si la
-trae (--c-marca-txt) y la app ya la calculo para los siete.
-El arnes mide el acento contra el TOKEN en los siete temas —no contra
-un color escrito a mano— y el contraste de las cinco piezas que se
-pintan con el: minimo 4,7.
-
-EN EL CELULAR, SOLO LO QUE SE VA A REGISTRAR
-«Que no se vea nada mas para que la vista no confunda.»
-En el computador el contexto va AL LADO y no estorba: se mira de reojo
-sin dejar de ver el formulario. En el celular no hay «al lado» —todo se
-apila—, asi que serian tres pantallazos antes de llegar al primer
-campo, y quien esta de pie con guantes al lado del vidrio no viene a
-leer cifras. Por debajo de 760 px se esconden el titular, el KPI, la
-tarjeta del dia y la lista de hoy: queda el formulario arrancando
-arriba del todo. El arnes mide que midan CERO —no que esten
-escondidas—, y que en el computador si esten.
-
-Y EL KPI YA NO QUEDA PEGADO A LA TARJETA
-`.rt` separa a sus hijos 16 px, pero aqui su hijo es UNO —el marco del
-registro—, asi que la cabecera y la consola quedaban a cero: el KPI y
-la tarjeta oscura comparten la columna derecha y se leian como un solo
-bloque partido. El marco lleva ahora su propia separacion, y el arnes
-exige 14 px de aire entre los dos.
-Ademas decian LO MISMO —«0 roturas · 0 unidades de vidrio» arriba y «0
-unidades de vidrio en 0 roturas» abajo—. En Traspasos no pasa porque el
-KPI cuenta EL DIA y la tarjeta EL TURNO. Aqui el KPI cuenta lo de hoy y
-la tarjeta cuenta lo que esta trancado en la bandeja de ABI, que es lo
-que de verdad hace falta mientras se registra.
-
-LA CONSOLA DE TRASPASOS, NO SOLO EL FORMULARIO
-«Mira el diseno del registro de Traspasos, quiero algo chevre tambien
-para eso.»
-Lo que le gusta de Traspasos no es el formulario suelto: es la CONSOLA.
-Cabecera con su KPI amarillo, formulario a la izquierda, y a la derecha
-una columna de 372 px con el contexto —el plan del turno y los viajes
-de hoy—. Registrar rotura ahora tiene lo mismo:
-
-  · Cabecera «Registrar rotura» con el KPI REGISTRADAS HOY.
-  · A la derecha, la cifra del dia en oscuro —UNIDADES DE VIDRIO HOY—
-    con un cuadro por rotura, rojo las no asumidas. «3 roturas, 2 no
-    asumidas» se entiende leyendo; los cuadros se entienden sin leer.
-  · Debajo, «Roturas de hoy»: hora, codigo, unidades, material y causa.
-    Sirve para saber si la que se va a meter ya estaba, y para ver subir
-    el numero al registrarla.
-
-Y ESTO NO SE CONTRADICE CON «no puede haber mas cosas». Lo que sobraba
-era la PANTALLA DE CONSULTA metida debajo del formulario —las cuatro
-cifras, los filtros y la lista entera con sus botones—. El contexto AL
-LADO es otra cosa, y en Traspasos existe: es justo lo que le gusta. El
-arnes exige la consola y sigue prohibiendo lo otro.
-Por debajo de 1100 px el contexto se va abajo, igual que en Traspasos.
-
-EL MISMO FORMULARIO DE TRASPASOS, CLASE POR CLASE
-«Lo quiero como el modulo de Traspasos: organiza el diseno de tal
-manera que quede asi.»
-No es un parecido de ojo: es el MISMO vocabulario —`cuerpo-f`,
-`linea-campos`, `rot-campo`, `seg`, `chips`, `conteo`, `cel-step`,
-`campo-suelto`, el pie con su fondo y su raya— con los tokens de
-Roturas en vez de los de Traspasos. Quien sabe registrar un viaje sabe
-registrar una rotura sin que nadie le explique nada, y el dia que se
-mejore uno de los dos formularios se sabe donde esta lo mismo en el
-otro.
-Lo que se fue: las tarjetas gigantes de `opciones`, los cuadrados de
-`vidrios`, el contador de 76 px de alto, los `campo` con etiqueta
-grande. Lo que quedo: dos pasos —lo unico que este tiene y aquel no— y
-la foto.
-El arnes comprueba que las ocho clases de Traspasos existan aqui, y que
-las cinco viejas NO. Un parecido se puede escribir; esto se mide.
-
-Y SE BORRARON 291 LINEAS DE CSS MUERTO
-No estaban apagadas: estaban DESPUES del bloque nuevo, con la misma
-especificidad, asi que le ganaban. El chip de «Falla mecanica del
-montacargas» seguia tomando el `white-space: nowrap` de la version
-vieja y empujaba la pagina de lado en el celular —486 px de contenido
-en una pantalla de 390—. Lo cazo el arnes midiendo el desbordamiento,
-no el ojo. Es la cuarta vez en ese archivo que un selector
-sobreviviente se come algo nuevo.
-
-UN PANEL, NO UNA VENTANA
-«Separemos este registro de seleccionar la X: debe ser un panel como el
-modulo de registro de Traspasos, guiate asi.»
-Se va la barra negra con el aspa. Era lenguaje de ventana —algo que se
-abrio encima y hay que cerrar— y esto ya no es eso: es la pantalla. Y
-eran ademas dos puertas para lo mismo, cada una en una punta: un aspa
-arriba y un Cancelar abajo.
-Ahora lleva la misma cabecera que «Viaje nuevo» en Traspasos —titulo y
-una linea de contexto, con su raya abajo— sobre fondo de papel y con el
-borde del panel. La linea dice ademas en que paso va: «Paso 1 de 2 ·
-Que material y cuantas unidades». Se sale por Cancelar, abajo, donde
-estan las demas decisiones.
-
-REGISTRAR ES UN SOLO MODULO: EL FORMULARIO Y NADA MAS
-«El registro debe ser un solo modulo, no puede haber mas cosas.»
-El formulario salia arriba y DEBAJO seguia todo: el titular, el
-parrafo, las cuatro cifras, los filtros y la lista de lo registrado.
-Eso no es un formulario dentro de la pantalla — es un formulario encima
-de otra pantalla, que es justo lo que se vino a quitar.
-Ahora, mientras se registra, en la pantalla no hay nada mas. Nada se
-pierde: Cancelar cierra el formulario y ahi si sale la pantalla de
-consulta —cabecera, cifras, filtros y lista— con el «+» para volver a
-registrar. Registrar y mirar son dos cosas, y ahora son dos estados de
-la misma ruta en vez de dos cosas apiladas.
-La cabecera se mudo de page.tsx al componente: dejada en el servidor se
-pintaba siempre y volvia a salir debajo del formulario.
-
-LA PANTALLA SE LLAMA «REGISTRAR», ASI QUE ABRE REGISTRANDO
-«Si yo selecciono En sitio, de una deberia salir el formulario para
-registrar, pero sale esa pantalla.» Tenia razon, y el nombre lo decia:
-en el menu esta pantalla se llama REGISTRAR, no «Ver roturas». Entrar a
-Registrar y encontrarse una lista, con el formulario escondido detras
-de un boton flotante, es cobrarle un toque a la unica cosa por la que
-se entra ahi.
-Ahora abre con el formulario puesto para quien puede editar. Quien solo
-viene a mirar lo cierra con Cancelar y queda la lista, con el «+» ahi
-mismo para volver a abrirlo. A quien no puede editar no se le abre
-nada: para esa persona esto si es una pantalla de consulta.
-
-Y A TODO EL ANCHO, EN DOS COLUMNAS
-La primera version lo dejo en una columna de 760 px centrada, y en el
-computador se veia peor que antes: una caja angosta flotando en medio
-de una pagina ancha, con medio metro vacio a la izquierda. No parecia
-parte de la pantalla — parecia algo pegado encima.
-Ahora mide lo mismo que las cifras y la lista, arranca donde arrancan
-ellas, y por dentro se parte en dos columnas por la pregunta natural de
-cada paso: QUE / CUANTO en el primero, DE DONDE / LA PRUEBA en el
-segundo. El paso cabe entero sin bajar la pantalla y la foto deja de
-ser un bloque negro gigante en medio del formulario. Por debajo de
-1000 px se apilan y queda el formulario de una columna de siempre.
-
-Y EL PASO DE LA CAUSA, REHECHO («mejora eso que esta horrible»)
-Cada una de las siete tarjetas repetia debajo del nombre a que lado
-caia: cinco veces seguidas «Asumida por el OL», y dos veces «No asumida
-— se dice que no fue del OL · exige foto», que son dos renglones. En
-dos columnas eso daba alturas disparejas, la ultima tarjeta sola en su
-fila, y —lo peor— lo unico que cambiaba de una tarjeta a otra, EL
-NOMBRE, era lo que menos pesaba en la mirada.
-Esa frase repetida es justamente lo que separa a las causas, asi que se
-dice UNA vez, como encabezado de su grupo. Las tarjetas se quedan con
-el nombre y el punto: un renglon, todas del mismo alto, dos columnas en
-el computador y una en el celular.
-Los chips del proceso pasan de fila suelta a cuadricula: con
-`flex-wrap` cada uno media lo que media su palabra y «Otro» quedaba
-solo en una segunda fila con medio renglon vacio al lado. Ahora van en
-columnas iguales, 4 + 3, y el bloque se lee como un bloque.
-
-SQL
-supabase/migraciones/2026-09-roturas-sitio-area-causas.sql
-
-ARNES
-· correr-roturas-sitio-area.sh: base completa, la migracion dos veces, y
-  once comprobaciones contra Postgres de verdad —el EER entra con solo
-  el color Y GUARDA EL MATERIAL QUE LE TOCA (green da EER-GREEN, no
-  otro), el area es obligatoria y una inventada no entra, las causas
-  viejas ya no entran, el producto terminado no cambio, y una rotura
-  vieja —causa apagada, sin area— sigue saliendo en la lista con el
-  nombre de su causa—.
-· rt-sitio: el formulario de verdad en Chromium. Que en EER no este el
-  campo y QUE DEJE SEGUIR —que era el problema entero—, que en producto
-  terminado siga; que sin proceso no haya causas y con proceso salgan
-  las 7 con 2 rojas; que el Area traiga 13 en el orden del maestro; que
-  se mande el color y no un material; que el formulario NO este en
-  position:fixed y quede arriba de la lista; y 1440/820/390/360 sin
-  desbordes. Cazo que el ✕ de cerrar medía 40 px y no 44.
-
+VALIDACION NO SE BORRA, SE OCULTA. Borrarla del registro le quitaria su
+casilla en /admin/roles y las filas de permiso que ya existen sobre esa
+direccion quedarian sin forma de verse ni de cambiarse. La pantalla
+sigue viva y lleva de la mano: dice a donde se mudo, cuantas cedulas
+estan esperando Vh ahora mismo, y el boton que lleva alla. El rol
+«validador» se apaga, no se borra: puede haber gente con el puesto.
 
 =====================================================================
-Y LA SALIDA DE VIDRIO: DOS FIRMAS, NO TRES
+2. DOS HUECOS DE ADMINISTRACION QUE ESTABAN ABIERTOS
 =====================================================================
-«Quita lo de Verificacion, que solo sean dos firmas, dos procesos:
-Pesar y Validacion, nada mas.»
+Dos funciones estaban subidas con su comprobacion apagada a mano: el
+«if» de verdad cambiado por «if false then», con el aviso intacto
+debajo. El aviso no salia NUNCA.
 
-  PESAR       el supervisor (a) pesa tolva por tolva y cierra.
-  VALIDACION  quien valida da el aval y el vidrio sale por la puerta.
+· BORRAR DATOS NO COMPARABA EL CONTEO. Si alguien registra viajes
+  mientras el jefe mira el conteo en pantalla, esos viajes se borraban
+  sin que nadie los hubiera visto.
+· CUALQUIERA QUE ADMINISTRE SE PODIA APAGAR A SI MISMO. La pantalla si
+  lo frena; la base no. Quien llamara el RPC derecho se quitaba el rol o
+  desactivaba su cuenta y quedaba fuera, sin nadie adentro que lo
+  volviera a entrar.
 
-LO QUE NO SE QUITO, Y ES LO QUE IMPORTA: siguen siendo DOS PERSONAS.
-Quien peso no valida. Esa era la razon de ser de la cadena —que nadie
-firme solo lo que el mismo midio— y no se toca; lo que se va es el paso
-de en medio, no el control. El administrador sigue pudiendo poner las
-dos un domingo, y la salida queda marcada como firmada por la misma
-persona: una excepcion silenciosa convierte la regla en adorno.
-
-LO YA VERIFICADO NO SE BORRA. Las columnas verificador_* se quedan con
-lo que tengan: son el registro de quien verifico que, y borrarlas
-dejaria los meses pasados sin poder decirlo. La pantalla de firmas lo
-muestra DEBAJO de la fila y sin numero —no es una etapa que falte, es
-algo que paso cuando la cadena tenia tres—.
-
-LAS SALIDAS QUE ESTABAN ESPERANDO VERIFICACION pasan solas a poder
-validarse: aparecen en la bandeja de Validacion sin tocar ninguna fila
-a mano. Las que llevaban semanas trancadas esperando a nadie, tambien.
-
-EL ROL «verificador» NO SE BORRA, se apaga —si es que esta—. Puede
-haber gente con ese rol puesto y borrarlo los dejaria sin ninguno; a
-quien se pasa esa gente lo decide quien administra, no una migracion.
-
-Y AQUI ME EQUIVOQUE, EN LA BASE DE VERDAD. La primera version traia una
-comprobacion que EXIGIA que ese rol existiera, y en la base de la
-bodega nunca se creo: la migracion entera reboto en Supabase con «se
-borro el rol verificador» sobre un rol que jamas existio. Era un falso
-positivo puro —este archivo no borra ningun rol; lo unico que le hace
-es apagarlo si esta, y un update sobre cero filas no borra nada—.
-La leccion no es sobre este rol: una comprobacion que afirma algo del
-ESTADO ANTERIOR de la base no se puede escribir desde dentro de la
-migracion, que solo ve el estado final. Se comprueba lo que la
-migracion HACE.
-El arnes ahora corre la migracion DOS VECES en DOS BASES: una con el
-rol y otra sin el, que es el caso de la bodega. Probar solo el caso
-facil es lo que hace que el arnes diga que si y la bodega diga que no.
-
-SE FUE: el renglon del menu, la ruta de firma, el permiso, y las ramas
-`papel === "verificador" ? …` que la Bandeja llevaba por servir para
-dos etapas.
-LA DIRECCION /roturas/salida/verificacion SE QUEDA, REDIRIGIENDO a
-Validacion. Borrar el archivo dejaria un 404 a quien tenga la pagina en
-favoritos o abierta en una pestana desde ayer —y en la bodega hay
-computadores que no se cierran en semanas—. Un 404 se lee como «la
-aplicacion se rompio»; un desvio se lee como lo que es: eso se movio.
-Son tres lineas y se borran el dia que ya nadie llegue ahi.
-
-DE PASO: LA PORTADA DE ADMINISTRACION, TERCERA FORMA
-Aqui no nace nada —ni tabla, ni funcion, ni columna—: salida_firmar ya
-existia y sigue existiendo con el mismo nombre, y lo unico que cambia
-es lo que HACE. Preguntar por la funcion diria «ya esta» con el archivo
-sin correr, y esa es la unica mentira que esa pantalla no se puede
-permitir. Se agrega 'dice:esquema.funcion:texto', que mira el codigo de
-la funcion. Sirve para cualquier migracion futura que cambie el
-comportamiento de algo sin crear nada nuevo.
-
-SQL
-supabase/migraciones/2026-09-roturas-salida-dos-firmas.sql
-
-ARNES
-correr-roturas-dos-firmas.sh: base completa, la migracion dos veces, y
-las cuatro cosas que se pueden romper al quitar un paso de en medio —
-que la validacion no siga esperando al verificador; que quien peso
-siga sin poder validar; que la firma del verificador quede rechazada y
-CON UN MENSAJE QUE DIGA QUE PASO y no «no tienes permiso»; y que una
-salida vieja siga diciendo quien la verifico y cuente 2 de 2, no 2 de
-3—. Antes de correr la migracion comprueba que la validacion TODAVIA
-exija verificacion: si no, no probaria nada.
-
+Los dos cerrados, y una migracion aparte vuelve a crear las dos
+funciones para las bases donde ya se corrieron rotas.
 
 =====================================================================
-Y LA BASE DEL INVENTARIO, QUE EN LA TABLET NO SE PODIA LEER
+3. TRES LINEAS DEL CODIGO QUE HABIAN QUEDADO ROTAS
 =====================================================================
-«Por que la base del inventario se ve asi desde la tablet?»
-El titular del consolidado salia UNA PALABRA POR RENGLON, en una
-columna del ancho de la palabra «bodega».
+Restos de una corrida de arnes que se corto y dejo la mutacion puesta:
+· el tablero del inventario contaba BORRADORES como enviados;
+· las fichas rojas de calle quedaban ilegibles (1.48 de contraste);
+· la cinta de la hoja para firmar salia casi lisa en ambar.
+Las tres devueltas, y comprobadas contra el texto exacto de su mutacion.
 
-DOS CAUSAS, Y LAS DOS MIAS:
+=====================================================================
+4. LOS ARNESES
+=====================================================================
+.arnes/correr-vidrio-cedula.sh contra Postgres de verdad: los cuatro
+frenos, el reabrir, el desplegable, y ademas EN UNA BASE SIN EL ROL
+«validador» —el caso de la bodega, y el que ya tumbo una migracion—.
 
-1. `grid-template-columns: minmax(0, 1fr) auto`. `auto` toma el
-   MAX-CONTENT de lo que lleva dentro, y ahi dentro hay un flex con el
-   desplegable del dia, el boton «Exportar consolidado» y su renglon de
-   cifras: sumados en una linea son 762 px. La columna se los quedaba
-   enteros —mas que el texto, que es lo principal de la tarjeta— y a la
-   otra le tocaba lo que sobrara. Ahora es `fit-content(340px)`: pide
-   lo que necesita, nunca mas de 340, y cede cuando no cabe.
+.arnes/fc-cedula.mjs monta la pantalla de verdad en Chromium, la llena
+como se llena de pie, TOCA el boton y lee el paquete que sale hacia la
+base. El freno de las tolvas se puede perder sin que se vea nada: el
+bloque sigue pintado, el desplegable sigue ahi, y el boton se deja
+tocar. Una mirada no distingue esas dos pantallas.
 
-2. El corte a una columna estaba en 760 px. La tablet en vertical mide
-   820: caia fuera y se quedaba con las dos columnas. Pasa a 1000. El
-   corte no es «celular o no»: es «caben un parrafo y una botonera al
-   lado?», y a 820 no caben.
+Y las mutaciones que no mordian: inv-conteo 70/70, fe-tablero 18/18,
+tp-resumen 17/17, inv-base 41/41, sd-placas 13/13, rl-historial 38/38,
+fc-bandeja 20/20, ad-roles 9/9. Dos arneses se arreglaron ademas porque
+estaban verdes POR CARAMBOLA —el tope de las barras lo sostenia un
+Math.max de otra linea, y el aviso de la migracion un t.faltaSinContar
+que no era—.
 
-EL ARNES QUE FALTABA: iv-base-anchos.
-Un bloque ahogado NO ROMPE NADA —no desborda, no tapa, no se sale— asi
-que ningun arnes de los que ya hay lo veia. Este mide lo que de verdad
-falla: cuanto mide de ancho cada bloque de texto y CUANTAS PALABRAS LE
-CABEN POR RENGLON. Un titular a 1,0 palabras por renglon es el sintoma
-exacto, y es un numero, no una opinion.
-Se mide a 1440, 1024, 820 y 390. 820 es el que importa: 1440 y 390
-estaban bien desde el principio y el dano vivia justo en medio —que es
-por lo que se me paso—.
-Antes: 551 px de titular en el computador y 1,0 palabras por renglon.
-Ahora: 974 px y 9,0.
-
-(De paso, el medidor tambien nacio mintiendo: contaba 1 palabra en
-todo. Un `\\s` de mas en la expresion regular. Se cazo porque los
-numeros no tenian sentido —«1 palabras en 1 renglones» a 1440 px—, no
-porque fallara.)
+DOS COSAS QUE LOS ARNESES CAZARON EN ESTE MISMO CAMBIO
+· La bandeja importaba placaClave de datos.ts, que es del SERVIDOR: se
+  arrastraba next/headers al navegador. Se mudo a formato.ts.
+· Un `.fc-confirmar.con-vidrio` le ganaba por especificidad al @media
+  del celular y dejaba el campo del documento en tres letras. Es la
+  misma trampa de siempre en este proyecto.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

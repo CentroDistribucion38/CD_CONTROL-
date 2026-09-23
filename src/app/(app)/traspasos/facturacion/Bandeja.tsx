@@ -25,7 +25,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { Depurar } from "../Depurar";
 import type { Viaje } from "@/modulos/traspasos/datos";
-import { quien } from "@/modulos/traspasos/formato";
+/* placaClave y Cedula salen de formato.ts y NO de datos.ts: datos.ts es
+   del servidor —pide next/headers— y esta pantalla es "use client".
+   Importar de allá se arrastra el módulo del servidor al navegador. */
+import { quien, placaClave, type Cedula } from "@/modulos/traspasos/formato";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const dia = (f: string) =>
@@ -43,10 +46,15 @@ const coincide = (v: Viaje, q: string) => {
     .some((x) => (x ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase().includes(n));
 };
 
-export function Bandeja({ pendientes, salieron, nombres, puedeConfirmar, puedeReabrir, puedeDepurar = false }: {
+export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, faltaCedulas = false,
+                         puedeConfirmar, puedeReabrir, puedeDepurar = false }: {
   pendientes: Viaje[];
   salieron: Viaje[];
   nombres: Record<string, string>;
+  /** Las cédulas de vidrio sin despachar, agrupadas por placa normalizada. */
+  cedulas?: Record<string, Cedula[]>;
+  /** La migración del vidrio todavía no se ha corrido en esta base. */
+  faltaCedulas?: boolean;
   puedeConfirmar: boolean;
   puedeReabrir: boolean;
   /** Solo quien administra la plataforma: anular, no se factura, eliminar. */
@@ -105,6 +113,18 @@ export function Bandeja({ pendientes, salieron, nombres, puedeConfirmar, puedeRe
         </p>
       )}
 
+      {/* SI FALTA LA MIGRACIÓN DEL VIDRIO, SE DICE Y SE SIGUE TRABAJANDO.
+          La bandeja confirma sin cédula, que es como trabajaba ayer.
+          Quitarle a facturación la pantalla entera por esto sería cambiar
+          un aviso por una pared. */}
+      {faltaCedulas && puedeConfirmar && (
+        <p className="fc-falta-vidrio">
+          El vidrio todavía no sale con el viaje: falta correr{" "}
+          <code>supabase/migraciones/2026-09-vidrio-cedula-facturacion.sql</code> en Supabase.
+          Mientras tanto se confirma la salida sin cédula, como siempre.
+        </p>
+      )}
+
       <section className="fc-lista" aria-label="Viajes por facturar">
         {pend.length === 0 ? (
           <div className="fc-vacio">
@@ -112,6 +132,7 @@ export function Bandeja({ pendientes, salieron, nombres, puedeConfirmar, puedeRe
           </div>
         ) : pend.map((v) => (
           <Pendiente key={v.id} v={v} nombres={nombres} puede={puedeConfirmar}
+                     cedulas={cedulas[placaClave(v.placa)] ?? []}
                      depurar={puedeDepurar ? { marcado: sel.has(v.id), marcar: () => marcar(v.id) } : null}
                      listo={(m) => avisar.bien(m)} fallo={(m) => avisar.mal(m)} />
         ))}
@@ -140,10 +161,12 @@ export function Bandeja({ pendientes, salieron, nombres, puedeConfirmar, puedeRe
 /* =====================================================================
    UN VIAJE ESPERANDO SU NÚMERO
    ===================================================================== */
-function Pendiente({ v, nombres, puede, depurar, listo, fallo }: {
+function Pendiente({ v, nombres, puede, cedulas, depurar, listo, fallo }: {
   v: Viaje;
   depurar: { marcado: boolean; marcar: () => void } | null;
   nombres: Record<string, string>;
+  /** Las cédulas de vidrio sin despachar de ESTA placa. Casi siempre vacío. */
+  cedulas: Cedula[];
   puede: boolean;
   listo: (m: string) => void;
   fallo: (m: string) => void;
@@ -153,12 +176,33 @@ function Pendiente({ v, nombres, puede, depurar, listo, fallo }: {
   const [mandando, setMandando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* EL VIDRIO. Si la placa no tiene nada pendiente, nada de esto se
+     pinta: la inmensa mayoría de los viajes no llevan tolvas y una
+     casilla vacía en cada tarjeta sería ruido en cincuenta tarjetas.
+
+     CUANDO HAY UNA SOLA —que es el caso normal— VIENE ESCOGIDA. Obligar
+     a abrir un desplegable de un solo renglón es hacer tocar dos veces
+     para decir lo único que se podía decir. */
+  const hayVidrio = cedulas.length > 0;
+  const [cedulaId, setCedulaId] = useState<string>(cedulas.length === 1 ? cedulas[0].id : "");
+  const [tolvas, setTolvas] = useState("");
+  const ced = cedulas.find((c) => c.id === cedulaId) ?? null;
+
+  /* LAS TOLVAS NO VIENEN PUESTAS A PROPÓSITO. Poner el número que dice
+     la cédula y pedir que lo confirmen es pedirle a alguien que apruebe
+     su propia respuesta: se toca «Confirmar» sin mirar el camión y el
+     freno no frena nada. El número lo pone quien cuenta. */
+  const contadas = tolvas === "" ? null : Number(tolvas);
+  const cuadra = ced != null && contadas != null && contadas === ced.tolvas;
+  const listoParaMandar = !!numero && (!hayVidrio || cuadra);
+
   async function confirmar() {
-    if (!numero || mandando) return;
+    if (!listoParaMandar || mandando) return;
     setMandando(true);
     setError(null);
     const { error } = await createClient().rpc("traspaso_confirmar_salida", {
       p_id: v.id, p_documento: numero,
+      ...(hayVidrio ? { p_cedula: cedulaId, p_tolvas: contadas } : {}),
     });
     setMandando(false);
     if (error) {
@@ -171,7 +215,9 @@ function Pendiente({ v, nombres, puede, depurar, listo, fallo }: {
       fallo(m);
       return;
     }
-    listo(`Salió: ${v.placa ?? "el viaje"} con el documento ${numero}.`);
+    listo(hayVidrio
+      ? `Salió: ${v.placa ?? "el viaje"} con el documento ${numero} y la cédula ${ced?.cedula} (${contadas} tolva${contadas === 1 ? "" : "s"}).`
+      : `Salió: ${v.placa ?? "el viaje"} con el documento ${numero}.`);
     router.refresh();
   }
 
@@ -202,15 +248,88 @@ function Pendiente({ v, nombres, puede, depurar, listo, fallo }: {
       </div>
 
       {puede && (
-        <form className="fc-confirmar" onSubmit={(e) => { e.preventDefault(); confirmar() }}>
-          <label>
+        <form className={"fc-confirmar" + (hayVidrio ? " con-vidrio" : "")}
+              onSubmit={(e) => { e.preventDefault(); confirmar() }}>
+
+          {/* EL VIDRIO VA ANTES DEL NÚMERO, y no es un detalle de
+              maquetación: es el orden en que pasa. Primero se mira el
+              camión y se cuentan las tolvas, después se escribe el
+              documento y sale. Con el número arriba, el campo que ya se
+              sabe llenar se llena primero y el del camión se toca de
+              afán. */}
+          {hayVidrio && (
+            <div className="fc-vidrio">
+              <p className="fc-vidrio-ojo">
+                ESTE VH LLEVA VIDRIO
+                {cedulas.length > 1 && <span> · {cedulas.length} cédulas pendientes</span>}
+              </p>
+
+              {cedulas.length > 1 ? (
+                <label>
+                  <span>Cédula de la salida</span>
+                  <select value={cedulaId}
+                          onChange={(e) => { setCedulaId(e.target.value); setTolvas(""); setError(null) }}>
+                    <option value="">Escoge la cédula…</option>
+                    {cedulas.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.cedula} · {c.tolvas} tolva{c.tolvas === 1 ? "" : "s"} · {nf.format(c.neto_kg)} kg
+                        {c.dias_esperando > 0 && ` · lleva ${c.dias_esperando} día${c.dias_esperando === 1 ? "" : "s"}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="fc-cedula-una">
+                  Cédula <b>{cedulas[0].cedula}</b>
+                  {cedulas[0].dias_esperando > 0 &&
+                    <span className="fc-espera"> · lleva {cedulas[0].dias_esperando} día
+                      {cedulas[0].dias_esperando === 1 ? "" : "s"} esperando</span>}
+                </p>
+              )}
+
+              {ced && (
+                <div className="fc-cuenta">
+                  {/* LO PESADO EN GRANDE, A LA IZQUIERDA. Es contra lo
+                      que se cuenta, así que tiene que leerse de un
+                      vistazo desde el muelle. */}
+                  <p className="fc-pesadas">
+                    <span>PESADAS</span>
+                    <b>{ced.tolvas}</b>
+                    <i>{nf.format(ced.neto_kg)} kg</i>
+                  </p>
+                  <label>
+                    <span>¿Cuántas lleva el Vh?</span>
+                    <input value={tolvas}
+                           onChange={(e) => { setTolvas(e.target.value.replace(/\D/g, "").slice(0, 3)); setError(null) }}
+                           inputMode="numeric" maxLength={3} autoComplete="off"
+                           placeholder="Cuéntalas"
+                           aria-invalid={contadas != null && !cuadra ? true : undefined} />
+                  </label>
+                  {/* EL AVISO SOLO APARECE CUANDO YA SE CONTÓ. Un «no
+                      cuadra» en rojo sobre un campo vacío regaña por no
+                      haber empezado. */}
+                  {contadas != null && (
+                    <p className={"fc-cuadra" + (cuadra ? " si" : " no")} role="status">
+                      {cuadra
+                        ? <>Cuadra: {ced.tolvas} y {ced.tolvas}.</>
+                        : <>No cuadra: la cédula tiene <b>{ced.tolvas}</b> y contaste <b>{contadas}</b>.
+                            El Vh no sale hasta que cuadre.</>}
+                    </p>
+                  )}
+                  {ced.observacion && <p className="fc-obs">Nota del pesaje: {ced.observacion}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          <label className="fc-numero">
             <span>Número de documento</span>
             <input value={numero} onChange={(e) => { setNumero(limpio(e.target.value)); setError(null) }}
                    inputMode="numeric" maxLength={10} autoComplete="off" spellCheck={false}
                    placeholder="Hasta 10 cifras" aria-invalid={error ? true : undefined} />
           </label>
-          <button type="submit" className="btn si" disabled={!numero || mandando}>
-            {mandando ? "Confirmando…" : "Confirmar salida"}
+          <button type="submit" className="btn si" disabled={!listoParaMandar || mandando}>
+            {mandando ? "Confirmando…" : hayVidrio ? "Confirmar salida y despachar" : "Confirmar salida"}
           </button>
           {error && <p className="fc-error" role="alert">{error}</p>}
         </form>

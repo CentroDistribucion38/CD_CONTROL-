@@ -29,6 +29,10 @@ for (const s of ["SIGINT", "SIGTERM", "SIGHUP"])
 let fallos = 0;
 
 function probar(nombre, cambios, espera) {
+  /* PARA TRABAJAR SIN ESPERAR LA CORRIDA ENTERA: con SOLO="firma" puesto
+     solo se prueban las mutaciones cuyo nombre lleve esa palabra. Sin
+     SOLO no cambia nada, para que una corrida normal siga siendo todas. */
+  if (process.env.SOLO && !nombre.includes(process.env.SOLO)) return;
   restaurar();
   for (const [archivo, de, a] of cambios) {
     const antes = readFileSync(archivo, "utf8");
