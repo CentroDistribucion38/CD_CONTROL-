@@ -838,29 +838,27 @@
      se ve hasta que alguien imprime. */
   .tp, .tp * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
 
-  /* NO PARTIR LO CHIQUITO; DEJAR PARTIR LO GRANDE.
-     Poner «break-inside: avoid» en los bloques grandes —el medidor, la
-     tabla— era lo que llenaba el papel de huecos: si el bloque no cabe
-     en lo que queda de hoja, salta entero a la siguiente y deja media
-     página en blanco. Cuatro páginas para un tablero que cabe en una.
-     Se protege lo que de verdad no se puede partir: una tarjeta, un
-     anillo, un renglón. */
+  /* EL TABLERO NO ES LO QUE SE MANDA. Lo que sale de la app es la ficha
+     del cierre —con su banda, su franja y sus tablas—, y el botón de
+     arriba abre esa ficha. Esto de aquí es solo para quien le dé Ctrl+P
+     estando en el tablero: que salga decente y en pocas hojas, no que
+     compita con la ficha.
+
+     NO PARTIR LO CHIQUITO; DEJAR PARTIR LO GRANDE. «break-inside:
+     avoid» en los bloques grandes era lo que llenaba el papel de
+     huecos: si el bloque no cabe en lo que queda de hoja, salta entero
+     a la siguiente. Se protege lo que de verdad no se puede partir: una
+     tarjeta, un anillo, un renglón. */
   .tp .cifra, .tp .turno, .tp .alerta, .tp .avance, .tp tr { break-inside: avoid }
   .tp thead { display: table-header-group }
 
-  /* EN PAPEL, .tp DEJA DE SER UNA COLUMNA FLEXIBLE.
-     Esto era lo que de verdad llenaba las hojas de blanco: un hijo de
-     un contenedor flex NO se parte entre dos páginas. La tabla —que es
-     un hijo de .tp— se iba entera a la hoja siguiente y dejaba media
-     página vacía, y lo mismo cada sección. En bloque se parten por
-     donde toca. El `gap` del flex se reemplaza por margen, o las
-     secciones quedarían pegadas. */
-  .tp { display: block !important }
+  /* EN PAPEL, .tp DEJA DE SER UNA COLUMNA FLEXIBLE: un hijo de un
+     contenedor flex NO se parte entre dos páginas, y la tabla se iba
+     entera a la hoja siguiente. El `gap` se reemplaza por margen. */
+  .tp { display: block !important; font-size: 11px }
   .tp > * { margin-bottom: 10px }
 
-  /* Y SE APRIETA. En pantalla el aire ayuda a leer; en papel, cada
-     milímetro de más es media hoja al final. */
-  .tp { font-size: 11px }
+  /* Y se aprieta: en papel, cada milímetro de más es media hoja al final. */
   .tp .cabeza-ctl { gap: 12px; margin-bottom: 8px }
   .tp .cabeza-ctl h1 { font-size: 22px }
   .tp .cabeza-ctl .sub { font-size: 11px }
@@ -874,6 +872,8 @@
   .tp .avance { padding: 10px 14px }
   .tp .turnos { padding: 10px }
   .tp .turno svg { max-width: 64px }
+  .tp table { font-size: 10px }
+  .tp th, .tp td { padding: 4px 8px !important }
   .tp .panel-tabla .cab-tabla p { display: none }
   /* UN «overflow» QUE NO SEA «visible» VUELVE AL BLOQUE INDIVISIBLE.
      La tabla vive dentro de una caja que se desliza de lado en pantalla

@@ -293,6 +293,34 @@ await pg.waitForSelector(".tp-ci");
   ok(!(await pg.$(".tp-sel")), "«Quitar» no borra la selección");
 }
 
+/* ---------- 7ter · EL BOTÓN DE ARRIBA ABRE ESTA MISMA FICHA ----------
+   «Así como generas PDF y fotos por turno, así mismo debe ser del
+   resumen del día.»  El botón del encabezado imprimía LA PANTALLA —el
+   tablero con sus filtros y sus botones, repartido en dos hojas—
+   mientras el cierre por turno salía en una ficha con su banda y sus
+   tablas. Ahora abre la ficha del día: un solo diseño para todo lo que
+   sale de la app. */
+{
+  await monta();
+  /* El botón vive en otra parte de la pantalla y avisa con un evento;
+     aquí se lanza el mismo aviso, que es lo que el botón hace. */
+  await pg.evaluate(() => window.dispatchEvent(new CustomEvent("tp:cierre-dia")));
+  await pg.waitForSelector(".tp-ci");
+  const cab = (await pg.textContent(".tp-ci-cab")).replace(/\s+/g, " ");
+  ok(/Cierre del d[ií]a/.test(cab), `el aviso abrió «${cab.slice(0, 50)}» y tiene que abrir el cierre del día`);
+  ok(/DÍA COMPLETO/.test(cab), "la ficha que abre no es la del día completo");
+  /* Y desde ahí salen el PDF y la foto, como en la de los turnos. */
+  ok(!!(await pg.$('.tp-ci-bt:has-text("Imprimir")')), "la ficha del día no trae el botón de imprimir");
+  ok(!!(await pg.$('.tp-ci-bt:has-text("Copiar foto")')), "la ficha del día no trae el botón de la foto");
+  await pg.keyboard.press("Escape");
+  /* Y el aviso se desengancha al cerrar: si quedara puesto, abrir y
+     cerrar diez veces dejaría diez fichas escuchando. */
+  await pg.evaluate(() => window.dispatchEvent(new CustomEvent("tp:cierre-dia")));
+  await pg.waitForSelector(".tp-ci");
+  ok((await pg.$$(".tp-ci")).length === 1, "el aviso abre más de una ficha a la vez");
+  await pg.keyboard.press("Escape");
+}
+
 /* ---------- 8 · QUE QUEPA, Y QUE EL CELULAR SEA OTRA COSA ----------
    Debajo de 760 px la ficha no es la misma pagina encogida: las dos
    tablas se cierran en acordeones y los viajes se vuelven tarjetas. Se

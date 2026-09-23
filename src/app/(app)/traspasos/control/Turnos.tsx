@@ -28,7 +28,7 @@
  * que hace imposible que el cierre diga un número y el tablero otro.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Control } from "@/modulos/traspasos/datos";
 import { Cierre } from "./Cierre";
 
@@ -50,6 +50,16 @@ export function Turnos({ anillos, filas, desde, hasta, rotulo, adherencia, adher
   /* null = cerrado; [] = el día entero; ["A","B"] = esos turnos. */
   const [abierto, setAbierto] = useState<string[] | null>(null);
   const [marcados, setMarcados] = useState<string[]>([]);
+
+  /* EL BOTÓN DE ARRIBA ABRE ESTA MISMA FICHA. Vive en otra parte de la
+     pantalla —la barra del encabezado— y no puede llamar a este estado
+     directamente sin subir la ficha entera hasta la página. Un aviso
+     suelto los conecta sin mover nada de sitio. */
+  useEffect(() => {
+    const abrir = () => setAbierto([]);
+    window.addEventListener("tp:cierre-dia", abrir);
+    return () => window.removeEventListener("tp:cierre-dia", abrir);
+  }, []);
 
   const R = 34, C = 2 * Math.PI * R;
   const color = (p: number | null) =>

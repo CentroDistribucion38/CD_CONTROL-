@@ -35,10 +35,12 @@ function coloresDelTema(dentro: Element | null) {
  * el filtrado lo hace la base: con un año de viajes, filtrar en el
  * navegador obligaría a bajarlos todos para mirar un turno.
  *
- * EL PDF LO HACE EL NAVEGADOR. No hay librería ni servidor que lo arme:
- * lo que imprime es exactamente lo que se está viendo —con los filtros
- * puestos—, que es justo lo que nunca cuadra cuando el PDF se genera
- * aparte.
+ * LO QUE SALE DE LA APP TIENE UN SOLO DISEÑO. El botón del PDF imprimía
+ * ESTA PANTALLA —con sus filtros, sus anillos y sus botones, repartida
+ * en dos hojas— mientras el cierre por turno salía en una ficha con su
+ * banda y sus tablas. Dos cosas distintas para lo mismo. Ahora el botón
+ * abre la ficha del día, que es la misma de los turnos, y de ahí salen
+ * el PDF y la foto.
  */
 export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta }: {
   tipos: TipoViaje[];
@@ -232,9 +234,22 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta 
           <svg viewBox="0 0 24 24"><path d="M20 11.5A8 8 0 1 1 17.7 6" /><path d="M20 4v6h-6" /></svg>
           Actualizar
         </button>
-        <button type="button" className="accion" onClick={() => window.print()}>
+        {/* «ASÍ COMO GENERAS PDF Y FOTOS POR TURNO, ASÍ MISMO DEBE SER
+            DEL RESUMEN DEL DÍA.»
+
+            Este botón imprimía LA PANTALLA: el tablero con sus filtros,
+            sus anillos y sus botones, repartido en dos hojas. Al lado de
+            la ficha del cierre —con su banda, su franja y sus tablas—
+            eso no se podía mandar a nadie.
+
+            Ahora abre la ficha del día, que es la misma de los turnos, y
+            desde ahí salen el PDF y la foto. Un solo diseño para todo lo
+            que sale de la app: si mañana se cambia la ficha, cambian los
+            tres a la vez. */}
+        <button type="button" className="accion"
+                onClick={() => window.dispatchEvent(new CustomEvent("tp:cierre-dia"))}>
           <svg viewBox="0 0 24 24"><path d="M8 3.5h5.5L18 8v12.5H6V3.5z" /><path d="M13.5 3.5V8H18" /></svg>
-          Generar PDF
+          Cierre del día
         </button>
         {/* EL EXCEL ES LA EVIDENCIA. El PDF es la foto de la pantalla;
             esto es la data, con el detalle viaje por viaje para cruzar

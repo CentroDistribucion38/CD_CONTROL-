@@ -1,53 +1,34 @@
-Traspasos: el dia operativo arranca a las 22:00 con el turno C
+Traspasos: «Generar PDF» abre la ficha del dia, no imprime la pantalla
 
-LO QUE PASABA
-«El dia 23/09 en la app debe empezar el 22/09 a las 22:00 con el turno
-C. No deja registrar hasta que cambie el dia.»
-La plataforma usaba el dia del CALENDARIO: a las 22:30 del 22, «hoy»
-era el 22, y el turno C que acababa de entrar —que es el primer turno
-del 23— no podia registrar nada. La base lo rechazaba con «todavia no
-ha pasado» y tocaba esperar a la medianoche. Media noche de trabajo sin
-poder digitar.
+LO QUE ESTABA MAL, Y ERA MIO
+«Asi como generas PDF y fotos por turno, asi mismo debe ser del resumen
+del dia.»
+El boton de arriba imprimia LA PANTALLA: el tablero con sus filtros,
+sus anillos y sus botones, repartido en dos hojas, en blanco y negro.
+Al lado de la ficha del cierre —banda negra con el sello, franja del
+acento, tablas— eso no se le manda a nadie.
 
-LA REGLA, ESCRITA UNA VEZ
-  El dia 23 = turno C (22/09 22:00 → 06:00) + turno A (06:00 → 14:00)
-              + turno B (14:00 → 22:00 del 23).
-El turno C ABRE el dia, no lo cierra. Antes era al reves, y por eso
-cambia tambien el orden de los turnos: C, A, B. De ese orden salen los
-renglones del plan, las columnas del control y los anillos del tablero:
-si el C abre el dia y se pinta de ultimo, el tablero cuenta el dia al
-reves.
+Y yo estuve arreglando lo que no era: dos entregas apretando margenes y
+saltos de pagina para que el tablero se imprimiera decente, cuando lo
+que hacia falta era no imprimir el tablero.
 
-QUE SE TOCO
-- traspaso_hoy(): desde las 22:00, hoy es manana. Y ahora recibe el
-  reloj por parametro —con now() por defecto—, como ya lo hacia
-  traspaso_dia_abierto: escrita con now() por dentro, la regla de las
-  22:00 solo se podria comprobar corriendo el arnes a las diez de la
-  noche.
-- traspaso_arranque_turno(): el C del dia 23 arranca el 22 a las 22:00,
-  el dia ANTERIOR. Es la funcion que le pone la hora a un viaje
-  registrado en otro dia; sin esto los viajes de la noche quedarian con
-  una hora que no existio.
-- traspaso_dia_abierto(): sale de la misma funcion, y da EL MISMO
-  INSTANTE que antes —el dia 23 se cerraba el 24 a las 06:00 y se sigue
-  cerrando el 24 a las 06:00—. Nadie pierde tiempo de digitacion.
-- traspaso_orden_turno(): C=1, A=2, B=3.
-- hoyLocal() y TURNOS en la app, con la misma regla y el mismo orden.
+QUE HACE AHORA
+El boton se llama «Cierre del dia» y abre LA MISMA FICHA que abren los
+anillos de turno. De ahi salen el PDF y la foto, iguales a los del
+turno. Un solo diseno para todo lo que sale de la app: si manana se
+cambia la ficha, cambian los tres a la vez.
+Por dentro el boton vive en la barra del encabezado y la ficha en el
+medidor: se conectan con un aviso, sin subir la ficha entera hasta la
+pagina.
 
-LO YA REGISTRADO NO SE TOCA —asi se decidio—: cada viaje conserva la
-fecha con la que se guardo. Queda una junta el dia que se corra esto:
-los turnos C de antes estan en el dia en que arrancaron. Moverlos
-cambiaria cifras de dias ya cerrados y ya reportados.
+EL Ctrl+P DEL TABLERO se queda arreglado —2 hojas, sin la barra de la
+app y con sus colores— pero deja de ser algo que la app ofrezca. Es
+para quien lo haga por su cuenta, no el camino.
 
 ARNES
-tp-dia (nuevo): once horas de reloj —21:59, 22:00, medianoche, fin de
-mes, fin de ano— contra la pantalla Y contra la base, con el reloj
-movido. No copia la formula: le pregunta a las funciones, que para eso
-reciben la hora. Y compara las dos respuestas entre si: si la base
-dijera otro dia que la pantalla, el boton se veria habilitado y el
-guardado reventaria despues de escribir placa, ruta y cantidad.
-Probado al reves: quitando la regla de las 22:00, el arnes falla en los
-tres casos de la noche.
+tp-cierre: el aviso abre la ficha DEL DIA y no otra; la ficha trae los
+botones de imprimir y de foto; y abrir, cerrar y volver a abrir no deja
+dos fichas escuchando.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
