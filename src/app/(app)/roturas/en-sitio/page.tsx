@@ -23,28 +23,19 @@ export default async function RoturasPage() {
 
   const esperando = datos.roturas.filter((r) => r.esperando).length;
 
+  /* LA CABECERA SE LA LLEVA EnSitio, no se pinta aquí.
+
+     «El registro debe ser un solo módulo, no puede haber más cosas.»
+     Mientras se está registrando, la pantalla es EL FORMULARIO Y NADA
+     MÁS: ni el titular, ni el párrafo, ni el contador de lo que espera
+     visto bueno. Y eso solo se puede decidir donde se sabe si el
+     formulario está abierto, que es adentro. Dejada aquí, la cabecera
+     se pintaría siempre —es del servidor— y volvería a salir debajo
+     del formulario. */
   return (
     <div className="rt">
-      <section className="cabeza">
-        <div>
-          <p className="ojo">ROTURAS · EN SITIO · CD38 AG01</p>
-          <h1>Lo que se rompió</h1>
-          <p className="sub">
-            Se cuenta en unidades, por causa y por proceso: es lo que contesta de quién fue la
-            rotura y de dónde salió. Los kilos son otra cosa y viven en Salidas —el vidrio se
-            acumula días antes de salir y parte de lo que se pesa nunca se contó aquí—, así que
-            las dos cifras no se cuadran entre sí a propósito.
-          </p>
-        </div>
-        <div className="kpi">
-          <span className="corte" aria-hidden />
-          <div className="rot">ESPERANDO VISTO BUENO</div>
-          <div className="num">{esperando}<span className="u">roturas</span></div>
-          <div className="pie">ABI decide si cuentan o no</div>
-        </div>
-      </section>
-
       <EnSitio
+        esperando={esperando}
         roturas={datos.roturas}
         nombres={nombres}
         materiales={mats}

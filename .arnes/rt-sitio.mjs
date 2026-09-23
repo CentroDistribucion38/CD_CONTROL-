@@ -17,9 +17,13 @@
 
    Y dos más que son del rediseño:
 
-   4. NO ES OTRA PANTALLA. El formulario no puede estar en
-      `position: fixed` ni taparlo todo: tiene que vivir DENTRO de la
-      página, con la lista de lo ya registrado abajo.
+   0. REGISTRAR ES UN SOLO MÓDULO. Mientras se registra no puede haber
+      titular, ni cifras, ni filtros, ni lista: el formulario y nada
+      más. Y Cancelar devuelve la pantalla de consulta con todo eso.
+
+   4. NO ES OTRA PANTALLA DEL NAVEGADOR. El formulario no puede estar en
+      `position: fixed`: vive en el flujo de la página, arriba del
+      todo y del ancho de la pantalla.
 
    5. NADA SE SALE a 1440 / 820 / 390 / 360, y lo que se toca mide
       44 px o más.
@@ -103,7 +107,7 @@ const roturas = [1, 2, 3].map((i) => ({
 }));
 
 createRoot(document.getElementById("r")!).render(
-  <EnSitio roturas={roturas as any} nombres={{ u1: "Genesis Visbal" }}
+  <EnSitio esperando={3} roturas={roturas as any} nombres={{ u1: "Genesis Visbal" }}
            materiales={materiales as any} procesos={procesos as any}
            areas={areas as any} causas={causas as any} puedeEditar />);
 `);
@@ -136,7 +140,9 @@ const monta = async (ancho = 1440, tema = "", alto = 900) => {
     <div class="sh-marco sin-riel"><main class="sh-main">
     <div class="rt" id="r"></div></main></div></div>
     <script>${js}</script></body></html>`);
-  await pg.waitForSelector(".cifras");
+  /* La pantalla abre REGISTRANDO, así que lo primero que existe es el
+     formulario, no las cifras. */
+  await pg.waitForSelector(".rt-rep");
   await pg.evaluate(() => { window.llamadas = [] });
 };
 /* LA PANTALLA ABRE CON EL FORMULARIO PUESTO: quien puede editar entra a
@@ -145,17 +151,36 @@ const abrir = async () => { await pg.waitForSelector(".rt-rep") };
 const llamadas = () => pg.evaluate(() => window.llamadas ?? []);
 
 /* ---------------------------------------------------------------------
-   0 · LA PANTALLA SE LLAMA «REGISTRAR» Y ABRE REGISTRANDO
+   0 · REGISTRAR ES UN SOLO MÓDULO: EL FORMULARIO Y NADA MÁS
+
+   «El registro debe ser un solo módulo, no puede haber más cosas.»
+   Mientras se registra, en la pantalla NO puede haber ni titular, ni
+   cifras, ni filtros, ni lista. Se mide contando lo que hay, no
+   mirándolo.
    ------------------------------------------------------------------ */
 await monta();
 ok(await pg.isVisible(".rt-rep"),
    "al entrar no sale el formulario: la pantalla se llama Registrar y obliga a tocar el «+»");
-ok(await pg.isVisible(".cifras"),
-   "al abrir con el formulario puesto se perdieron las cifras de la pantalla");
-/* Y se cierra con Cancelar, que devuelve la lista y el «+». */
+for (const [sel, que] of [
+    [".cabeza", "el titular y el párrafo"],
+    [".cifras", "las cuatro cifras"],
+    [".filtros", "los filtros"],
+    [".filas", "la lista de lo registrado"],
+    [".mas", "el botón «+»"]]) {
+  ok((await pg.$$(sel)).length === 0,
+     `registrando todavía sale ${que}: el registro tiene que ser el formulario y nada más`);
+}
+
+/* Y CANCELAR DEVUELVE LA PANTALLA DE CONSULTA, con todo lo que se
+   quitó. No se pierde nada: se separa. */
 await pg.click(".rt-rep .pie button:has-text('Cancelar')");
+await pg.waitForSelector(".cifras");
 ok(!(await pg.isVisible(".rt-rep")), "Cancelar no cierra el formulario");
-ok(await pg.isVisible(".mas"), "al cerrarlo no vuelve el «+» para abrirlo otra vez");
+for (const [sel, que] of [
+    [".cabeza", "el titular"], [".cifras", "las cifras"],
+    [".filtros", "los filtros"], [".filas", "la lista"], [".mas", "el «+»"]]) {
+  ok(await pg.isVisible(sel), `al cerrar el formulario no volvió ${que}`);
+}
 await pg.click(".mas");
 await pg.waitForSelector(".rt-rep");
 
@@ -235,24 +260,18 @@ await abrir();
 const sitio = await pg.evaluate(() => {
   const r = document.querySelector(".rt-rep");
   const cs = getComputedStyle(r), b = r.getBoundingClientRect();
-  const cifras = document.querySelector(".cifras").getBoundingClientRect();
-  const filas = document.querySelector(".filas").getBoundingClientRect();
   return {
     posicion: cs.position, ancho: Math.round(b.width),
     anchoPagina: document.documentElement.clientWidth,
-    /* ¿El formulario está ARRIBA de lo que ya está registrado? */
-    antesDeLaLista: b.top < filas.top,
-    cifrasVisibles: cifras.width > 0,
+    arriba: Math.round(b.top),
   };
 });
 ok(sitio.posicion !== "fixed",
-   "el formulario sigue en position:fixed — sigue siendo otra pantalla");
+   "el formulario sigue en position:fixed — sigue siendo otra pantalla del navegador");
 ok(sitio.ancho < sitio.anchoPagina,
-   `el formulario ocupa todo el ancho de la página (${sitio.ancho} de ${sitio.anchoPagina})`);
-ok(sitio.antesDeLaLista, "el formulario no quedó arriba de la lista de roturas");
-ok(sitio.cifrasVisibles, "al abrir el formulario se perdieron las cifras de la pantalla");
-ok(!(await pg.isVisible(".mas")),
-   "el «+» flotante sigue encima del formulario abierto: le tapa una causa");
+   `el formulario ocupa todo el ancho de la ventana (${sitio.ancho} de ${sitio.anchoPagina})`);
+ok(sitio.arriba < 120,
+   `el formulario no arranca arriba de la pantalla (empieza en ${sitio.arriba} px)`);
 
 /* ---------------------------------------------------------------------
    4bis · EN EL COMPUTADOR, DOS COLUMNAS Y A TODO EL ANCHO
@@ -261,16 +280,18 @@ await monta(1440);
 await abrir();
 const anchos = await pg.evaluate(() => {
   const r = document.querySelector(".rt-rep").getBoundingClientRect();
-  const c = document.querySelector(".cifras").getBoundingClientRect();
+  /* Contra el contenedor de la pantalla: mientras se registra no hay
+     cifras con las que compararse, que es justo lo que se quiere. */
+  const c = document.querySelector(".rt").getBoundingClientRect();
   const cols = [...document.querySelectorAll(".rt-rep .dos-col > .col")]
     .map((e) => Math.round(e.getBoundingClientRect().top));
   return { form: Math.round(r.width), pagina: Math.round(c.width),
            izq: Math.round(r.left), izqPagina: Math.round(c.left), cols };
 });
 ok(Math.abs(anchos.form - anchos.pagina) < 4,
-   `el formulario no mide lo mismo que el resto de la pantalla (${anchos.form} contra ${anchos.pagina})`);
+   `el formulario no mide lo mismo que la pantalla (${anchos.form} contra ${anchos.pagina})`);
 ok(Math.abs(anchos.izq - anchos.izqPagina) < 4,
-   `el formulario no arranca donde arranca el resto de la pantalla (${anchos.izq} contra ${anchos.izqPagina})`);
+   `el formulario no arranca donde arranca la pantalla (${anchos.izq} contra ${anchos.izqPagina})`);
 ok(anchos.cols.length === 2, `esperaba dos columnas y hay ${anchos.cols.length}`);
 ok(anchos.cols[0] === anchos.cols[1],
    `las dos columnas no arrancan a la misma altura (${anchos.cols})`);
@@ -329,4 +350,4 @@ if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\n✓ Rotura en sitio: el EER no pide material y deja seguir, el proceso habilita las causas, el área sale del maestro, y el formulario vive DENTRO de la pantalla.");
+console.log("\n✓ Rotura en sitio: Registrar es SOLO el formulario, el EER no pide material y deja seguir, el proceso habilita las causas, y el área sale del maestro.");

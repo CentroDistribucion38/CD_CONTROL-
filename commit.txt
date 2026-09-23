@@ -118,6 +118,20 @@ maximo; en el celular se suelta a todo el ancho. El «+» se esconde
 mientras esta abierto —le tapaba una causa— y el boton dice QUE FALTA
 en vez de quedarse apagado y mudo: «Falta el area», «Falta la causa».
 
+REGISTRAR ES UN SOLO MODULO: EL FORMULARIO Y NADA MAS
+«El registro debe ser un solo modulo, no puede haber mas cosas.»
+El formulario salia arriba y DEBAJO seguia todo: el titular, el
+parrafo, las cuatro cifras, los filtros y la lista de lo registrado.
+Eso no es un formulario dentro de la pantalla — es un formulario encima
+de otra pantalla, que es justo lo que se vino a quitar.
+Ahora, mientras se registra, en la pantalla no hay nada mas. Nada se
+pierde: Cancelar cierra el formulario y ahi si sale la pantalla de
+consulta —cabecera, cifras, filtros y lista— con el «+» para volver a
+registrar. Registrar y mirar son dos cosas, y ahora son dos estados de
+la misma ruta en vez de dos cosas apiladas.
+La cabecera se mudo de page.tsx al componente: dejada en el servidor se
+pintaba siempre y volvia a salir debajo del formulario.
+
 LA PANTALLA SE LLAMA «REGISTRAR», ASI QUE ABRE REGISTRANDO
 «Si yo selecciono En sitio, de una deberia salir el formulario para
 registrar, pero sale esa pantalla.» Tenia razon, y el nombre lo decia:

@@ -17,8 +17,11 @@ import { Reportar } from "../Reportar";
  * se contó aquí. Cuadrar las dos cifras sería inventar un factor de
  * conversión que no existe.
  */
-export function EnSitio({ roturas, nombres, materiales, procesos, areas, causas,
-                          puedeEditar }: {
+export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, procesos,
+                          areas, causas, puedeEditar }: {
+  /** Cuántas esperan el visto bueno de ABI. Para el contador de la
+   *  cabecera, que solo se pinta cuando NO se está registrando. */
+  esperando: number;
   roturas: Rotura[];
   nombres: Record<string, string>;
   materiales: Material[];
@@ -74,25 +77,55 @@ export function EnSitio({ roturas, nombres, materiales, procesos, areas, causas,
   const vidrio = vivas.filter((r) => r.cuenta)
     .reduce((s, r) => s + r.unidades_vidrio, 0);
 
+  /* ---------------------------------------------------------------
+     REGISTRANDO: LA PANTALLA ES EL FORMULARIO Y NADA MÁS.
+
+     «El registro debe ser un solo módulo, no puede haber más cosas.»
+     Antes el formulario salía ARRIBA y debajo seguía todo: el titular,
+     el párrafo, las cuatro cifras, los filtros y la lista de lo
+     registrado. Eso no es un formulario dentro de la pantalla: es un
+     formulario encima de otra pantalla, que es justo lo que se vino a
+     quitar. Quien entra a Registrar entra a registrar.
+
+     Lo demás no se pierde: Cancelar cierra el formulario y ahí sí sale
+     la pantalla de consulta —cifras, filtros y lista—, con el «+» para
+     volver a registrar.
+     --------------------------------------------------------------- */
+  if (reportando) {
+    return (
+      <div ref={caja}>
+        <Reportar materiales={materiales} procesos={procesos} areas={areas} causas={causas}
+                  cerrar={() => setReportando(false)} />
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* EL REGISTRO VA AQUÍ, EN LA PANTALLA, no encima de ella.
-
-          Antes se abría a pantalla completa —`position: fixed; inset:
-          0`— y tapaba todo: «no me gusta que salga así como en otra
-          pantalla». En el celular casi daba igual; en el computador era
-          un formulario de tres campos estirado a 1900 píxeles, con la
-          lista de lo que ya se registró escondida detrás.
-
-          Ahora es una tarjeta más de la pantalla, arriba de la lista,
-          como se registra un viaje en Traspasos: se llena viendo lo que
-          ya está. */}
-      {reportando && (
-        <div ref={caja}>
-          <Reportar materiales={materiales} procesos={procesos} areas={areas} causas={causas}
-                    cerrar={() => setReportando(false)} />
+      <section className="cabeza">
+        <div>
+          <p className="ojo">ROTURAS · EN SITIO · CD38 AG01</p>
+          <h1>Lo que se rompió</h1>
+          <p className="sub">
+            Se cuenta en unidades, por causa y por proceso: es lo que contesta de quién fue la
+            rotura y de dónde salió. Los kilos son otra cosa y viven en Salidas —el vidrio se
+            acumula días antes de salir y parte de lo que se pesa nunca se contó aquí—, así que
+            las dos cifras no se cuadran entre sí a propósito.
+          </p>
         </div>
-      )}
+        <div className="kpi">
+          <span className="corte" aria-hidden />
+          <div className="rot">ESPERANDO VISTO BUENO</div>
+          <div className="num">{enEspera}<span className="u">roturas</span></div>
+          <div className="pie">ABI decide si cuentan o no</div>
+        </div>
+      </section>
+
+      {/* ANTES ESTABA AQUÍ EL FORMULARIO Y NO VUELVE:
+
+          esta es la pantalla de CONSULTA, y no lleva formulario.
+          Registrar y mirar son dos cosas y ahora son dos pantallas de
+          la misma ruta: el «+» de abajo lleva de esta a la otra. */}
 
       <section className="cifras">
         <div className={"cifra" + (esperando ? " ojo" : "")}>
