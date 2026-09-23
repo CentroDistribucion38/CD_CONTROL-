@@ -1,6 +1,6 @@
 import { misPermisos } from "@/lib/permisos";
 import {
-  materiales, procesos, causas, usoDeMaestros,
+  materiales, procesos, areas, causas, usoDeMaestros,
 } from "@/modulos/roturas/datos";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
@@ -16,8 +16,9 @@ export const dynamic = "force-dynamic";
 export default async function MaestroEnSitioPage() {
   /* Aquí se piden TODOS, activos y desactivados: el maestro es
      justamente donde se vuelve a activar lo que alguien apagó. */
-  const [permisos, mats, pros, cas, uso] = await Promise.all([
-    misPermisos(), materiales(false), procesos(false), causas(false), usoDeMaestros(),
+  const [permisos, mats, pros, ars, cas, uso] = await Promise.all([
+    misPermisos(), materiales(false), procesos(false), areas(false), causas(false),
+    usoDeMaestros(),
   ]);
 
   if (!mats.length && !pros.length && !cas.length) {
@@ -31,16 +32,16 @@ export default async function MaestroEnSitioPage() {
           <p className="ojo">ROTURAS · EN SITIO · MAESTRO</p>
           <h1>Lo que se puede escoger</h1>
           <p className="sub">
-            Los materiales, los procesos y las causas del registro en sitio. Son datos y no
-            código: el día que Bavaria agregue un formato o aparezca una causa nueva, se arregla
-            aquí y no esperando un despliegue.
+            Los materiales, los procesos, las áreas y las causas del registro en sitio. Son
+            datos y no código: el día que se abra una calle nueva o aparezca una causa que no
+            estaba, se arregla aquí y no esperando un despliegue.
           </p>
         </div>
       </section>
 
       <Maestro
-        hojas={["materiales", "procesos", "causas"]}
-        materiales={mats} procesos={pros} causas={cas} tolvas={[]}
+        hojas={["materiales", "procesos", "areas", "causas"]}
+        materiales={mats} procesos={pros} areas={ars} causas={cas} tolvas={[]}
         uso={uso} puedeEditar={permisos.puedeEditar("/roturas/en-sitio/maestro")}
       />
     </div>

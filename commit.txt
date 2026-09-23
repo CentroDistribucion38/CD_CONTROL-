@@ -1,34 +1,157 @@
-Traspasos: «Generar PDF» abre la ficha del dia, no imprime la pantalla
+Traspasos adelantados, y rotura en sitio sin el campo que trancaba
 
-LO QUE ESTABA MAL, Y ERA MIO
-«Asi como generas PDF y fotos por turno, asi mismo debe ser del resumen
-del dia.»
-El boton de arriba imprimia LA PANTALLA: el tablero con sus filtros,
-sus anillos y sus botones, repartido en dos hojas, en blanco y negro.
-Al lado de la ficha del cierre —banda negra con el sello, franja del
-acento, tablas— eso no se le manda a nadie.
+LO QUE PASABA
+«Hay veces que tengo un viaje del dia siguiente y lo adelanto.»
+Registrar rechazaba CUALQUIER fecha por delante de hoy: «todavia no ha
+pasado, lo de adelante va en Planear». La unica salida era esperar a
+que cambiara el dia y meterlo despues, con el renglon marcado
+REGISTRADO DESPUES —que es justo lo que no era—. Y si se registraba en
+hoy para no esperar, el cumplido le subia a un plan que no era el suyo
+y le faltaba al que si.
 
-Y yo estuve arreglando lo que no era: dos entregas apretando margenes y
-saltos de pagina para que el tablero se imprimiera decente, cuando lo
-que hacia falta era no imprimir el tablero.
+LA REGLA NUEVA, EN UNA LINEA
+Se registra desde un ano atras hasta SIETE DIAS adelante.
 
-QUE HACE AHORA
-El boton se llama «Cierre del dia» y abre LA MISMA FICHA que abren los
-anillos de turno. De ahi salen el PDF y la foto, iguales a los del
-turno. Un solo diseno para todo lo que sale de la app: si manana se
-cambia la ficha, cambian los tres a la vez.
-Por dentro el boton vive en la barra del encabezado y la ficha en el
-medidor: se conectan con un aviso, sin subir la ficha entera hasta la
-pagina.
+EL TOPE DE ADELANTE ES PARA TODOS, administrador incluido, y no es un
+descuido: hacia atras «la fecha de verdad es esa» es un caso real —un
+viaje de hace un mes que nadie metio—; hacia adelante no lo es. Nadie
+adelanta un viaje de dentro de tres meses. Lo unico que entraria sin
+tope es un 2027 escrito en vez de 2026, que mete un cumplido en un dia
+que ningun informe vuelve a mirar.
 
-EL Ctrl+P DEL TABLERO se queda arreglado —2 hojas, sin la barra de la
-app y con sus colores— pero deja de ser algo que la app ofrezca. Es
-para quien lo haga por su cuenta, no el camino.
+LO QUE NO SE TOCA —«solo las fechas»—
+· EL CANDADO DEL DIA CERRADO. Un dia que ya paso su ventana lo sigue
+  tocando solo un administrador.
+· EL PLAN. Planear sigue siendo donde se arma lo de adelante. Esto no
+  es una segunda forma de planear: es registrar un viaje que salio.
+
+Y QUEDA MARCADO
+Etiqueta ADELANTADO, espejo de REGISTRADO DESPUES: verde en vez de
+azul, con el mismo rielito. Quien mire el dia de manana ve cuales
+renglones se escribieron antes de que ese dia llegara. La hora que se
+guarda es la de arranque del turno, no la de ahora —un viaje de manana
+con hora de hoy seria una hora que todavia no existio—.
+
+EL SIETE ESTA EN DOS SITIOS, uno en la base y otro en la pantalla, y no
+se pueden juntar mas. Lo que si se puede es escribirlo UNA vez de cada
+lado —DIAS_ADELANTE en formato.ts, el `if` en la migracion— y que el
+arnes lea los dos y avise el dia que se separen. Si se separan, la
+pantalla deja llenar el formulario para que el guardado reviente.
+
+DE PASO: LA PORTADA DE ADMINISTRACION
+admin_existe solo sabia preguntar por tablas y por funciones. Esta
+migracion no crea ninguna de las dos —vuelve a crear una funcion y
+agrega dos columnas a una vista—, asi que la portada habria dicho «base
+al dia» con el archivo sin correr. Se agrega 'col:esquema.tabla.columna'
+y con eso esta migracion ya se ve en la lista.
+
+SQL
+supabase/migraciones/2026-09-traspasos-registro-adelantado.sql
 
 ARNES
-tp-cierre: el aviso abre la ficha DEL DIA y no otra; la ficha trae los
-botones de imprimir y de foto; y abrir, cerrar y volver a abrir no deja
-dos fichas escuchando.
+· correr-traspasos-adelantado.sh: base completa, la migracion dos
+  veces, y once comprobaciones contra Postgres de verdad —manana entra
+  con la hora de su turno y marcado, el septimo dia entra, el octavo no
+  ni siendo administrador, hoy sigue sin marca, lo de atras sigue
+  marcado ATRASADO y el dia cerrado sigue cerrado—. Antes de correr la
+  migracion comprueba que manana TODAVIA no entra: si no, no probaria
+  nada.
+· tp-adelanto: los bordes del calendario (cambio de mes, de ano,
+  bisiesto) y que el siete de la pantalla sea el mismo de la base.
+· tp-tarde: ahora mide las DOS etiquetas en los 7 temas y los 4 anchos,
+  y compara los TRES pares de colores. Cazo que el primer verde que le
+  puse quedaba a 14 de distancia del azul de al lado —dos grises
+  palidos—; ahora estan a 30.
+
+
+=====================================================================
+Y ROTURA EN SITIO: el area, las causas de verdad, y el EER sin material
+=====================================================================
+
+EL EER NO PIDE MATERIAL
+«Si en EER no es material, para que esta? Quita ese campo de alli
+porque no me deja continuar.» Tenia razon y era peor de lo que parecia:
+hay exactamente un material de EER por color, asi que escoger ambar YA
+era escoger el material. El campo no aportaba una decision —aportaba un
+paso mas y un desplegable que, si el maestro no tenia ese color
+cargado, salia vacio y dejaba el registro trancado con el boton apagado
+y sin decir por que.
+Ahora la pantalla manda el COLOR y la base traduce. La columna de la
+tabla no se toca: los informes siguen leyendo lo mismo. Y la migracion
+enciende los tres materiales de EER, que es lo que faltaba.
+
+EL PROCESO HABILITA LAS CAUSAS
+Primero el proceso; hasta que no haya proceso, las causas no se pueden
+tocar y en su sitio dice que falta escogerlo. Y las causas son otras:
+
+  ASUMIDAS POR EL OL              NO ASUMIDAS (exigen foto)
+  · Estibas en mal estado         · Falla de las maquinas
+  · Modulo mal arrumado           · Falla del pallet DEPA
+  · Condiciones del sitio
+  · Comportamiento del personal
+  · Falla mecanica del montacargas
+
+Las diez de antes no se borran, se APAGAN: hay roturas registradas que
+apuntan a ellas, y borrarlas dejaria los informes de los meses pasados
+sin poder decir de que fue la rotura.
+NOTA: «Condiciones» a secas no decia de que, y le puse «Condiciones del
+sitio». Si es otra cosa —del clima, del piso, del producto— se cambia
+en el maestro, sin despliegue.
+
+EL AREA
+Campo nuevo, obligatorio, desplegable y DEL MAESTRO: las trece que
+pasaste, en tabla, no quemadas. Y editable desde Maestro, que ahora
+tiene su hoja de Areas: el dia que se abra la Calle F se agrega alli.
+Es OTRA COSA que el proceso, y por eso son dos campos: el proceso es la
+operacion de la que salio la rotura, el area es en que parte de la
+bodega paso. Una rotura de Traspasos puede pasar en la Plazoleta.
+
+YA NO ES OTRA PANTALLA
+«No me gusta que salga asi como en otra pantalla; la idea es que
+aparezca alli de una, como los registros que tenemos.» Era
+`position: fixed; inset: 0`: se comia la pantalla entera. En el celular
+casi daba igual; en el computador era un formulario de tres campos
+estirado a mil novecientos pixeles con la lista de lo ya registrado
+escondida detras.
+Ahora es una tarjeta mas de la pantalla, arriba de la lista, con ancho
+maximo; en el celular se suelta a todo el ancho. El «+» se esconde
+mientras esta abierto —le tapaba una causa— y el boton dice QUE FALTA
+en vez de quedarse apagado y mudo: «Falta el area», «Falta la causa».
+
+Y EL PASO DE LA CAUSA, REHECHO («mejora eso que esta horrible»)
+Cada una de las siete tarjetas repetia debajo del nombre a que lado
+caia: cinco veces seguidas «Asumida por el OL», y dos veces «No asumida
+— se dice que no fue del OL · exige foto», que son dos renglones. En
+dos columnas eso daba alturas disparejas, la ultima tarjeta sola en su
+fila, y —lo peor— lo unico que cambiaba de una tarjeta a otra, EL
+NOMBRE, era lo que menos pesaba en la mirada.
+Esa frase repetida es justamente lo que separa a las causas, asi que se
+dice UNA vez, como encabezado de su grupo. Las tarjetas se quedan con
+el nombre y el punto: un renglon, todas del mismo alto, dos columnas en
+el computador y una en el celular.
+Los chips del proceso pasan de fila suelta a cuadricula: con
+`flex-wrap` cada uno media lo que media su palabra y «Otro» quedaba
+solo en una segunda fila con medio renglon vacio al lado. Ahora van en
+columnas iguales, 4 + 3, y el bloque se lee como un bloque.
+
+SQL
+supabase/migraciones/2026-09-roturas-sitio-area-causas.sql
+
+ARNES
+· correr-roturas-sitio-area.sh: base completa, la migracion dos veces, y
+  once comprobaciones contra Postgres de verdad —el EER entra con solo
+  el color Y GUARDA EL MATERIAL QUE LE TOCA (green da EER-GREEN, no
+  otro), el area es obligatoria y una inventada no entra, las causas
+  viejas ya no entran, el producto terminado no cambio, y una rotura
+  vieja —causa apagada, sin area— sigue saliendo en la lista con el
+  nombre de su causa—.
+· rt-sitio: el formulario de verdad en Chromium. Que en EER no este el
+  campo y QUE DEJE SEGUIR —que era el problema entero—, que en producto
+  terminado siga; que sin proceso no haya causas y con proceso salgan
+  las 7 con 2 rojas; que el Area traiga 13 en el orden del maestro; que
+  se mande el color y no un material; que el formulario NO este en
+  position:fixed y quede arriba de la lista; y 1440/820/390/360 sin
+  desbordes. Cazo que el ✕ de cerrar medía 40 px y no 44.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

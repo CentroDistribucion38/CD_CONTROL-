@@ -57,7 +57,7 @@ export default async function TolvasPage() {
 
       <Maestro
         hojas={["tolvas"]}
-        materiales={[]} procesos={[]} causas={[]} tolvas={tols}
+        materiales={[]} procesos={[]} areas={[]} causas={[]} tolvas={tols}
         uso={uso} puedeEditar={permisos.puedeEditar("/roturas/salida/tolvas")}
       />
     </div>

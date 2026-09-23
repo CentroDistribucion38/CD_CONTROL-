@@ -1650,6 +1650,28 @@
   padding-left: 9px;
 }
 
+/* ---------- Registrado antes de su día ----------
+
+   EL ESPEJO DE «REGISTRADO DESPUÉS», y por eso comparte la forma: el
+   mismo rielito, el mismo tamaño. Cambia el tono —verde frío en vez de
+   azul— porque las dos se pueden ver en la misma pantalla el mismo día
+   y hay que poder separarlas de un vistazo, sin leerlas.
+
+   TAMPOCO ES ALARMA. Adelantar el viaje de mañana es normal: el camión
+   salió, y el viaje pertenece al día que le toca. La marca solo dice
+   que ese renglón se escribió antes de que el día llegara.
+
+   EL VERDE ES MÁS CARGADO QUE EL AZUL DE AL LADO, a propósito. El
+   primer tono que le puse quedaba a 14 de distancia del de «registrado
+   después» —dos grises pálidos, uno con una gota de azul y otro con una
+   gota de verde—, y las dos marcas aparecen el mismo día en la misma
+   pantalla. Lo cazó el arnés, no el ojo. */
+.tp .eti.pronto {
+  background: #D6EDDB; color: #1E4433;
+  box-shadow: inset 2.5px 0 0 #3F8760;
+  padding-left: 9px;
+}
+
 /* ---------- El documento del viaje ----------
 
    EL NÚMERO, DE PRIMERO Y EN TINTA. No es una etiqueta de estado: es lo

@@ -27,6 +27,10 @@ export type Rotura = {
   unidades_vidrio: number;
   proceso: string;
   proceso_nombre: string;
+  /** Opcionales: lo registrado antes de que existiera el campo no tiene
+   *  área, y no se le puede inventar una. */
+  area?: string | null;
+  area_nombre?: string | null;
   causa: string;
   causa_nombre: string;
   grupo: "asumida" | "no_asumida";
@@ -96,6 +100,11 @@ export type Material = {
   activo: boolean; orden: number | null;
 };
 export type Proceso = { clave: string; nombre: string; activo: boolean; orden: number | null };
+/** EN QUÉ PARTE DE LA BODEGA pasó. No es el proceso: el proceso es la
+ *  operación de la que salió la rotura, el área es el sitio. Se parecen
+ *  en los nombres porque la bodega está organizada por lo que se hace en
+ *  cada sitio, pero una rotura de Traspasos puede pasar en la Plazoleta. */
+export type Area = { clave: string; nombre: string; activo: boolean; orden: number | null };
 export type Causa = {
   clave: string; nombre: string;
   grupo: "asumida" | "no_asumida";
@@ -173,6 +182,14 @@ export async function procesos(soloActivos = true) {
   return (data ?? []) as Proceso[];
 }
 
+export async function areas(soloActivas = true) {
+  const supabase = await createClient();
+  let q = supabase.from("roturas_areas").select("clave, nombre, activo, orden");
+  if (soloActivas) q = q.eq("activo", true);
+  const { data } = await q.order("orden", { ascending: true, nullsFirst: false });
+  return (data ?? []) as Area[];
+}
+
 export async function causas(soloActivas = true) {
   const supabase = await createClient();
   let q = supabase.from("roturas_causas")
@@ -209,11 +226,12 @@ export async function usoDeMaestros() {
 
   const vacio = () => ({} as Record<string, number>);
   const uso = {
-    materiales: vacio(), procesos: vacio(), causas: vacio(), tolvas: vacio(),
+    materiales: vacio(), procesos: vacio(), areas: vacio(), causas: vacio(), tolvas: vacio(),
   };
   for (const f of (data ?? []) as { tipo: string; clave: string; usos: number }[]) {
     if (f.tipo === "material") uso.materiales[f.clave] = f.usos;
     else if (f.tipo === "proceso") uso.procesos[f.clave] = f.usos;
+    else if (f.tipo === "area") uso.areas[f.clave] = f.usos;
     else if (f.tipo === "causa") uso.causas[f.clave] = f.usos;
     else if (f.tipo === "tolva") uso.tolvas[f.clave] = f.usos;
   }

@@ -1,5 +1,5 @@
 /* =====================================================================
-   LA ETIQUETA «REGISTRADO DESPUÉS»
+   LAS ETIQUETAS DE FECHA: «REGISTRADO DESPUÉS» Y «ADELANTADO»
 
    Se mide, no se mira. Dos cosas:
 
@@ -8,6 +8,7 @@
       «CORREGIDO»— y va en una línea de meta que ya lleva tipo, turno,
       hora, nombre y código. En el celular, o cabe envolviendo o se
       sale de la tarjeta: la diferencia no se ve escribiéndola.
+      «ADELANTADO · 7 días» se mide igual, por lo mismo.
 
    2. QUE SE LEA. El texto sobre su propio fondo, en los siete temas.
       La etiqueta lleva colores fijos —como CORREGIDO— y por eso hay
@@ -36,6 +37,7 @@ const PAGINA = (tema) => `<!doctype html><html${tema ? ` data-tema="${tema}"` : 
       <span>Genesis Visbal</span><span>TR-0184</span>
       <span class="eti corregido" id="corr">CORREGIDO</span>
       <span class="eti tarde" id="tarde">REGISTRADO DESPUÉS · 12 días</span>
+      <span class="eti pronto" id="pronto">ADELANTADO · 7 días</span>
     </div>
   </div><div class="der"></div></div>
 </div></div></body></html>`;
@@ -60,10 +62,10 @@ for (const tema of TEMAS) {
   const pagina = await navegador.newPage();
   await pagina.setContent(PAGINA(tema));
 
-  for (const ancho of ANCHOS) {
+  for (const ancho of ANCHOS) for (const cual of ["tarde", "pronto"]) {
     await pagina.setViewportSize({ width: ancho, height: 500 });
-    const r = await pagina.evaluate(() => {
-      const t = document.getElementById("tarde");
+    const r = await pagina.evaluate((cual) => {
+      const t = document.getElementById(cual);
       const meta = t.parentElement;
       const fila = t.closest(".fila");
       const et = t.getBoundingClientRect(), fr = fila.getBoundingClientRect();
@@ -78,34 +80,41 @@ for (const tema of TEMAS) {
         metaAlto: Math.round(meta.getBoundingClientRect().height),
         fondo: e.backgroundColor, tinta: e.color,
       };
-    });
+    }, cual);
 
-    const donde = `${tema || "claro"} @${ancho}`;
+    const donde = `${tema || "claro"} @${ancho} ${cual}`;
     if (r.derrame > 0) fallas.push(`${donde}: se sale ${r.derrame}px de la fila`);
     if (r.alto > 26) fallas.push(`${donde}: la etiqueta se partió (alto ${r.alto})`);
     const c = contraste(r.tinta, r.fondo);
     if (c < 4.5) fallas.push(`${donde}: contraste ${c.toFixed(2)} (mínimo 4.5)`);
-    if (ancho === 1440) console.log(`${tema || "claro"}: contraste ${c.toFixed(2)}  ${r.fondo} / ${r.tinta}`);
+    if (ancho === 1440) console.log(`${(tema || "claro").padEnd(10)} ${cual.padEnd(6)} contraste ${c.toFixed(2)}  ${r.fondo} / ${r.tinta}`);
   }
   await pagina.close();
 }
 
-/* Y que las dos etiquetas NO se parezcan: si comparten color hay que
-   leerlas para distinguirlas, y entonces el color no está haciendo
-   nada. Se mide la distancia entre los dos fondos. */
+/* Y QUE LAS TRES NO SE PAREZCAN ENTRE SÍ: si dos comparten color hay
+   que leerlas para distinguirlas, y entonces el color no está haciendo
+   nada. Se miden LOS TRES PARES, no uno: con solo comparar cada nueva
+   contra CORREGIDO, «adelantado» y «atrasado» podrían quedar iguales
+   entre ellas —que son justo las dos que aparecen el mismo día en la
+   misma pantalla—. */
 const pagina = await navegador.newPage();
 await pagina.setContent(PAGINA(""));
-const dos = await pagina.evaluate(() => ({
-  a: getComputedStyle(document.getElementById("corr")).backgroundColor,
-  b: getComputedStyle(document.getElementById("tarde")).backgroundColor,
-}));
-const dif = Math.abs(lum(dos.a) - lum(dos.b));
+const fondos = await pagina.evaluate(() => {
+  const f = {};
+  for (const id of ["corr", "tarde", "pronto"])
+    f[id] = getComputedStyle(document.getElementById(id)).backgroundColor;
+  return f;
+});
 const rgb = (c) => c.match(/\d+/g).slice(0, 3).map(Number);
-const [ra, ga, ba] = rgb(dos.a), [rb, gb, bb] = rgb(dos.b);
-const dist = Math.hypot(ra - rb, ga - gb, ba - bb);
-console.log(`corregido ${dos.a} vs tarde ${dos.b} · distancia ${dist.toFixed(0)}`);
-if (dist < 25) fallas.push(`las dos etiquetas casi no se distinguen (distancia ${dist.toFixed(0)})`);
+for (const [a, b] of [["corr","tarde"], ["corr","pronto"], ["tarde","pronto"]]) {
+  const [ra, ga, ba] = rgb(fondos[a]), [rb, gb, bb] = rgb(fondos[b]);
+  const dist = Math.hypot(ra - rb, ga - gb, ba - bb);
+  console.log(`${a} ${fondos[a]} vs ${b} ${fondos[b]} · distancia ${dist.toFixed(0)}`);
+  if (dist < 25) fallas.push(`${a} y ${b} casi no se distinguen (distancia ${dist.toFixed(0)})`);
+}
+await pagina.screenshot({ path: ".arnes/tp-etiquetas.png" });
 await navegador.close();
 
 if (fallas.length) { console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n")); process.exit(1); }
-console.log(`\nListo: ${TEMAS.length * ANCHOS.length} combinaciones, sin derrames y todas legibles.`);
+console.log(`\nListo: ${TEMAS.length * ANCHOS.length * 2} combinaciones, sin derrames y todas legibles.`);

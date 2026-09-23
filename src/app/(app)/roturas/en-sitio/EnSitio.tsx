@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { Causa, Material, Proceso, Rotura } from "@/modulos/roturas/datos";
+import { useEffect, useRef, useState } from "react";
+import type { Area, Causa, Material, Proceso, Rotura } from "@/modulos/roturas/datos";
 import { Fila } from "../comunes";
 import { Evidencia } from "../Evidencia";
 import { Reportar } from "../Reportar";
@@ -17,15 +17,24 @@ import { Reportar } from "../Reportar";
  * se contó aquí. Cuadrar las dos cifras sería inventar un factor de
  * conversión que no existe.
  */
-export function EnSitio({ roturas, nombres, materiales, procesos, causas, puedeEditar }: {
+export function EnSitio({ roturas, nombres, materiales, procesos, areas, causas,
+                          puedeEditar }: {
   roturas: Rotura[];
   nombres: Record<string, string>;
   materiales: Material[];
   procesos: Proceso[];
+  areas: Area[];
   causas: Causa[];
   puedeEditar: boolean;
 }) {
   const [reportando, setReportando] = useState(false);
+  /* AL ABRIRLO SE VA A ÉL. Metido dentro de la pantalla, el formulario
+     puede quedar fuera de la vista si la persona estaba mirando la
+     lista: se tocaría el botón «+» y no pasaría nada visible. */
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (reportando) caja.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [reportando]);
   const [abierta, setAbierta] = useState<string | null>(null);
   const [f, setF] = useState({ estado: "", grupo: "", proceso: "", texto: "" });
 
@@ -49,9 +58,22 @@ export function EnSitio({ roturas, nombres, materiales, procesos, causas, puedeE
 
   return (
     <>
+      {/* EL REGISTRO VA AQUÍ, EN LA PANTALLA, no encima de ella.
+
+          Antes se abría a pantalla completa —`position: fixed; inset:
+          0`— y tapaba todo: «no me gusta que salga así como en otra
+          pantalla». En el celular casi daba igual; en el computador era
+          un formulario de tres campos estirado a 1900 píxeles, con la
+          lista de lo que ya se registró escondida detrás.
+
+          Ahora es una tarjeta más de la pantalla, arriba de la lista,
+          como se registra un viaje en Traspasos: se llena viendo lo que
+          ya está. */}
       {reportando && (
-        <Reportar materiales={materiales} procesos={procesos} causas={causas}
-                  cerrar={() => setReportando(false)} />
+        <div ref={caja}>
+          <Reportar materiales={materiales} procesos={procesos} areas={areas} causas={causas}
+                    cerrar={() => setReportando(false)} />
+        </div>
       )}
 
       <section className="cifras">
@@ -145,7 +167,12 @@ export function EnSitio({ roturas, nombres, materiales, procesos, causas, puedeE
           ))}
       </div>
 
-      {puedeEditar && (
+      {/* EL «+» SE ESCONDE MIENTRAS SE REGISTRA. Flota encima de la
+          pantalla, y con el formulario abierto se le montaba a una de
+          las causas: el dedo apuntaba a «Comportamiento del personal» y
+          tocaba el botón de abrir otro registro. Además ya no ofrece
+          nada — lo que abre ya está abierto. */}
+      {puedeEditar && !reportando && (
         <button type="button" className="mas" onClick={() => setReportando(true)}
                 aria-label="Registrar una rotura">+</button>
       )}

@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
-import type { Causa, Material, Proceso, Tolva } from "@/modulos/roturas/datos";
+import type { Area, Causa, Material, Proceso, Tolva } from "@/modulos/roturas/datos";
 import { COLOR_VIDRIO, kilos } from "@/modulos/roturas/formato";
 
 /**
- * MAESTRO — materiales, procesos, causas y tolvas.
+ * MAESTRO — materiales, procesos, áreas, causas y tolvas.
  *
  * Son DATOS, no código: el día que llegue una tolva nueva o que Bavaria
  * agregue un formato, nadie debería tener que esperar un despliegue.
@@ -33,15 +33,17 @@ import { COLOR_VIDRIO, kilos } from "@/modulos/roturas/formato";
  * cambia normalmente teme justo lo contrario.
  */
 
-export type Hoja = "materiales" | "procesos" | "causas" | "tolvas";
+export type Hoja = "materiales" | "procesos" | "areas" | "causas" | "tolvas";
 
 const NOMBRE: Record<Hoja, string> = {
-  materiales: "Materiales", procesos: "Procesos", causas: "Causas", tolvas: "Tolvas",
+  materiales: "Materiales", procesos: "Procesos", areas: "Áreas",
+  causas: "Causas", tolvas: "Tolvas",
 };
 
 const TABLA: Record<Hoja, string> = {
   materiales: "roturas_materiales",
   procesos: "roturas_procesos",
+  areas: "roturas_areas",
   causas: "roturas_causas",
   tolvas: "roturas_tolvas",
 };
@@ -52,7 +54,8 @@ function aClave(s: string) {
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
 }
 
-export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, puedeEditar }: {
+export function Maestro({ hojas, materiales, procesos, areas, causas, tolvas,
+                          uso, puedeEditar }: {
   /* QUÉ HOJAS LLEVA ESTA PANTALLA. El maestro está partido igual que el
      módulo: los materiales, los procesos y las causas son de En sitio;
      las tolvas, de la Salida. Un solo maestro con las cuatro hojas
@@ -60,11 +63,13 @@ export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, pued
   hojas: Hoja[];
   materiales: Material[];
   procesos: Proceso[];
+  areas: Area[];
   causas: Causa[];
   tolvas: Tolva[];
   /** Cuántas roturas usan cada clave. Decide si el botón de borrar sale. */
   uso: { materiales: Record<string, number>; procesos: Record<string, number>;
-         causas: Record<string, number>; tolvas: Record<string, number> };
+         areas: Record<string, number>; causas: Record<string, number>;
+         tolvas: Record<string, number> };
   puedeEditar: boolean;
 }) {
   const router = useRouter();
@@ -104,6 +109,9 @@ export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, pued
     } else if (hoja === "procesos") {
       const p = procesos.find((x) => x.clave === id)!;
       setF({ ...vacio, clave: p.clave, nombre: p.nombre });
+    } else if (hoja === "areas") {
+      const a = areas.find((x) => x.clave === id)!;
+      setF({ ...vacio, clave: a.clave, nombre: a.nombre });
     } else if (hoja === "causas") {
       const c = causas.find((x) => x.clave === id)!;
       setF({ ...vacio, clave: c.clave, nombre: c.nombre, grupo: c.grupo, exige_foto: c.exige_foto });
@@ -122,7 +130,10 @@ export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, pued
       color: f.tipo === "eer" ? f.color : null,
       botellas_x_empaque: f.tipo === "producto_terminado" ? (Number(f.botellas) || null) : null,
     };
-    if (hoja === "procesos") return { clave, nombre: f.nombre.trim() };
+    /* El área y el proceso llevan lo mismo —clave y nombre—, y por eso
+       van en el mismo renglón: separarlos sería repetir la línea para
+       que un día una de las dos se quede atrás. */
+    if (hoja === "procesos" || hoja === "areas") return { clave, nombre: f.nombre.trim() };
     if (hoja === "causas") return {
       clave, nombre: f.nombre.trim(), grupo: f.grupo, exige_foto: f.exige_foto,
     };
@@ -191,6 +202,9 @@ export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, pued
     : hoja === "procesos" ? procesos.map((p) => ({
       id: p.clave, titulo: p.nombre, activo: p.activo, detalle: p.clave,
     }))
+    : hoja === "areas" ? areas.map((a) => ({
+      id: a.clave, titulo: a.nombre, activo: a.activo, detalle: a.clave,
+    }))
     : hoja === "causas" ? causas.map((c) => ({
       id: c.clave, titulo: c.nombre, activo: c.activo,
       detalle: (c.grupo === "no_asumida" ? "No asumida — no fue del OL" : "Asumida por el OL")
@@ -207,7 +221,8 @@ export function Maestro({ hojas, materiales, procesos, causas, tolvas, uso, pued
         <>
           <label htmlFor="m-nom">Nombre</label>
           <input id="m-nom" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })}
-                 placeholder={hoja === "causas" ? "Caída en el cargue" : "Líneas"} />
+                 placeholder={hoja === "causas" ? "Estibas en mal estado"
+                            : hoja === "areas" ? "Calle F" : "Líneas"} />
         </>
       ) : (
         <>

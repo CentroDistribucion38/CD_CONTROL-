@@ -24,7 +24,9 @@ for (const tema of TEMAS) {
 <div class="ruta">Ag01 → Planta</div>
 <div class="meta"><span class="doc-eti">4500123456</span>
 <span class="eti sin-doc">SIN DOCUMENTO</span>
-<span class="eti corregido">CORREGIDO</span></div></div></div></div>
+<span class="eti corregido">CORREGIDO</span>
+<span class="eti tarde">REGISTRADO DESPUÉS</span>
+<span class="eti pronto">ADELANTADO</span></div></div></div></div>
 </div></div>`;
   const pg = await nav.newPage({ viewport:{width:420,height:420}, deviceScaleFactor:2 });
   await pg.setContent(HTML,{waitUntil:"load"});
@@ -53,7 +55,12 @@ for (const tema of TEMAS) {
         ["gana",".par-dup .tx.gana", "propio"],["seg",".seg button.on", "propio"],
         ["doc",".fila .meta .doc-eti", ".fila"],
         ["sin-doc",".fila .meta .eti.sin-doc", ".fila"],
-        ["corregido",".fila .meta .eti.corregido", "propio"]]) {
+        ["corregido",".fila .meta .eti.corregido", "propio"],
+        /* LAS DOS MARCAS DE FECHA. Tienen fondo propio y color propio,
+           fijos en los siete temas: si alguno oscurece la fila y estas
+           se quedan claras, aquí se ve. */
+        ["tarde",".fila .meta .eti.tarde", "propio"],
+        ["pronto",".fila .meta .eti.pronto", "propio"]]) {
       const el = document.querySelector(sel);
       let caja = cajaSel === "propio" ? el
                : cajaSel ? el.closest(cajaSel)

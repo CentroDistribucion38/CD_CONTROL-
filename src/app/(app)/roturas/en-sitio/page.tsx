@@ -1,7 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
-  roturas as leerRoturas, materiales, procesos, causas,
+  roturas as leerRoturas, materiales, procesos, areas, causas,
 } from "@/modulos/roturas/datos";
 import "../roturas.css";
 import { SinTablas } from "../comunes";
@@ -10,12 +10,13 @@ import { EnSitio } from "./EnSitio";
 export const dynamic = "force-dynamic";
 
 /**
- * EN SITIO. Las seis consultas van en una sola tanda: en serie la
+ * EN SITIO. Las siete consultas van en una sola tanda: en serie la
  * pantalla tardaría lo que suman, y aquí ninguna depende de otra.
  */
 export default async function RoturasPage() {
-  const [permisos, datos, mats, pros, cas, nombres] = await Promise.all([
-    misPermisos(), leerRoturas(), materiales(), procesos(), causas(), nombresTodos(),
+  const [permisos, datos, mats, pros, ars, cas, nombres] = await Promise.all([
+    misPermisos(), leerRoturas(), materiales(), procesos(), areas(), causas(),
+    nombresTodos(),
   ]);
 
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
@@ -48,6 +49,7 @@ export default async function RoturasPage() {
         nombres={nombres}
         materiales={mats}
         procesos={pros}
+        areas={ars}
         causas={cas}
         puedeEditar={permisos.puedeEditar("/roturas/en-sitio")}
       />

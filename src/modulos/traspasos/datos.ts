@@ -73,6 +73,11 @@ export type Viaje = {
   /** El viaje se metió después de su día. No es una columna guardada:
    *  sale de comparar la fecha con el día en que se digitó. */
   atrasado: boolean;
+  /** El espejo: se metió ANTES de su día —el viaje de mañana que sale
+   *  esta noche—. Opcionales: sin la migración de registro adelantado
+   *  no vienen, y entonces no se pinta ninguna marca. */
+  adelantado?: boolean;
+  dias_adelante?: number;
   /** Cuántas veces lo corrigió un administrador. 0 = tal como se registró. */
   ediciones: number;
   editado_en: string | null;

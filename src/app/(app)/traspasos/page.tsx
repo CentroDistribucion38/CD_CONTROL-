@@ -5,7 +5,8 @@ import {
   tipos as leerTipos, puntos as leerPuntos, viajesDelDia, control,
   placasRecientes, hoyLocal, placasMaestro, diaAbierto,
 } from "@/modulos/traspasos/datos";
-import { turnoDeAhora, TURNOS, conDia } from "@/modulos/traspasos/formato";
+import { turnoDeAhora, TURNOS, conDia, DIAS_ADELANTE, topeAdelante }
+  from "@/modulos/traspasos/formato";
 import "./traspasos.css";
 import { AlDia, SinTablas } from "./comunes";
 import { Fechas } from "./plan/Fechas";
@@ -26,12 +27,26 @@ export default async function TraspasosPage({ searchParams }: {
   const hoy = hoyLocal();
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.d ?? "") ? q.d! : hoy;
   const esHoy = fecha === hoy;
-  /* HACIA ADELANTE NO SE REGISTRA. La base lo rechaza —un viaje que no
-     ha salido no es un registro, es un plan—, pero enterarse por un
-     mensaje rojo después de escribir placa, ruta y cantidad es la peor
-     forma de enterarse. Aquí se dice antes y se ofrece el sitio
-     correcto. */
-  const esFuturo = fecha > hoy;
+  /* HACIA ADELANTE SE REGISTRA HASTA SIETE DÍAS. «Hay veces que tengo
+     un viaje del día siguiente y lo adelanto»: ese viaje salió, y
+     pertenece al día que le toca —contarlo en hoy le sube el cumplido
+     a un plan que no era el suyo—.
+
+     MÁS ALLÁ DE SIETE DÍAS, NO. La base lo rechaza (el tope está en
+     traspaso_registrar y es el mismo para todos), pero enterarse por
+     un mensaje rojo después de escribir placa, ruta y cantidad es la
+     peor forma de enterarse. Aquí se dice antes y se ofrece el sitio
+     correcto, que es Planear.
+
+     EL NÚMERO NO SE ESCRIBE AQUÍ. Vive en `DIAS_ADELANTE`, al lado de
+     la cuenta que lo usa, porque el mismo siete está también en la
+     base: si los dos se separan, la pantalla deja llenar el formulario
+     para que el guardado reviente. */
+  const tope = topeAdelante(hoy);
+  const esFuturo = fecha > tope;
+  /* Adelantado: entre mañana y el tope. Se registra, pero no es hoy y
+     hay que decirlo. */
+  const esAdelanto = fecha > hoy && fecha <= tope;
 
   /* Las siete consultas en una sola tanda: en serie la pantalla
      tardaría lo que suman y aquí ninguna depende de otra. */
@@ -115,15 +130,23 @@ export default async function TraspasosPage({ searchParams }: {
           </p>
           <h1>
             {esHoy ? "Registrar viaje"
-                   : esFuturo ? "Ese día no ha pasado" : "Registrar en otro día"}
+                   : esFuturo ? "Ese día está muy lejos"
+                   : esAdelanto ? "Registrar un viaje adelantado"
+                   : "Registrar en otro día"}
           </h1>
           <p className="sub">
             {esHoy ? (
               <>Cada viaje que sale, con su placa y su ruta. El cumplido del plan no se escribe:
               sube solo con lo que se registra aquí.</>
             ) : esFuturo ? (
-              <>Estás en <b>{conDia(fecha)}</b>, que todavía no llega. Los viajes se registran
-              cuando ya salieron; lo de adelante se arma en{" "}
+              <>Estás en <b>{conDia(fecha)}</b>, a más de {DIAS_ADELANTE} días. Se puede adelantar
+              el viaje de los próximos días —el que ya salió—, no armar el mes: eso se hace en{" "}
+              <Link href={`/traspasos/plan?d=${fecha}`}>Planear</Link>. Dale a HOY para volver.</>
+            ) : esAdelanto ? (
+              <>Estás en <b>{conDia(fecha)}</b>, que todavía no llega. Registra aquí el viaje que
+              ya salió y que <b>cuenta para ese día</b>; queda marcado <b>ADELANTADO</b>, con tu
+              nombre y la fecha en que lo metiste. La hora que se guarda es la de arranque del
+              turno. Si es un viaje que todavía no ha salido, va en{" "}
               <Link href={`/traspasos/plan?d=${fecha}`}>Planear</Link>. Dale a HOY para volver.</>
             ) : (
               <>Estás en <b>{conDia(fecha)}</b>, no en hoy. Lo que registres aquí cuenta para

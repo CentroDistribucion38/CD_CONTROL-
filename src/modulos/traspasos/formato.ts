@@ -120,4 +120,29 @@ export const bonita = (f: string) => {
  *  semana, saber que el 15 es martes es la mitad de la información. */
 export const conDia = (f: string) => `${SEM[diaSemana(f)]} ${bonita(f)}`;
 
+/* =====================================================================
+   HASTA DÓNDE SE PUEDE REGISTRAR HACIA ADELANTE
+
+   «Hay veces que tengo un viaje del día siguiente y lo adelanto.» Ese
+   viaje ya salió y pertenece al día que le toca, así que se registra en
+   ese día, no en hoy.
+
+   SIETE DÍAS, Y EL NÚMERO ESTÁ DOS VECES: aquí y en el `if` de
+   `traspaso_registrar` (supabase/migraciones/2026-09-traspasos-registro-adelantado.sql).
+   No se puede juntar más —uno vive en la base y el otro en la pantalla—,
+   pero sí se puede dejar escrito en UN solo sitio de cada lado, que es
+   lo que hace esta constante: si mañana pasan a diez, se cambian dos
+   líneas y no siete pantallas. Si los dos números se separan, la
+   pantalla deja llenar el formulario para que el guardado reviente.
+   ===================================================================== */
+export const DIAS_ADELANTE = 7;
+
+/** El último día en que se puede registrar, contando desde el día
+ *  operativo. Se ancla al mediodía a propósito: sumar días sobre una
+ *  fecha leída como medianoche UTC se cae en el cambio de mes por el
+ *  huso de Colombia. */
+export const topeAdelante = (hoy: string, dias = DIAS_ADELANTE) =>
+  new Date(Date.parse(hoy + "T12:00:00") + dias * 86400_000)
+    .toISOString().slice(0, 10);
+
 export { MESES };

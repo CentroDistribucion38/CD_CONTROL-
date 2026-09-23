@@ -5,13 +5,30 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
 import { COLOR_VIDRIO } from "@/modulos/roturas/formato";
-import type { Causa, Material, Proceso } from "@/modulos/roturas/datos";
+import type { Area, Causa, Material, Proceso } from "@/modulos/roturas/datos";
 
 /**
  * REGISTRAR UNA ROTURA — dos pasos, en el orden en que pasan las cosas.
  *
  *   PASO 1  ¿QUÉ SE ROMPIÓ?      tipo, vidrio, material y cuántas
- *   PASO 2  ¿DE QUÉ PROCESO?     proceso, causa, foto y qué pasó
+ *   PASO 2  ¿DE DÓNDE SALIÓ?     proceso, área, causa, foto y qué pasó
+ *
+ * EL EER NO PREGUNTA MATERIAL. «Si en EER no es material, ¿para qué
+ * está?» Tenía razón: hay exactamente un material de EER por color, así
+ * que escoger ámbar YA es escoger el material. El campo no aportaba una
+ * decisión —aportaba un paso más y un desplegable que, si el maestro no
+ * tenía ese color cargado, salía vacío y dejaba el registro trancado.
+ * Ahora la pantalla manda el color y la base traduce.
+ *
+ * EL PROCESO VA ANTES QUE LA CAUSA, y la causa no se puede tocar hasta
+ * que haya proceso: «que primero pongan a qué proceso corresponde y así
+ * es que se habilitan las causas».
+ *
+ * EL ÁREA ES OTRA COSA QUE EL PROCESO. El proceso es la operación de la
+ * que salió la rotura; el área es en qué parte de la bodega pasó. Se
+ * parecen en los nombres porque la bodega está organizada por lo que se
+ * hace en cada sitio, pero una rotura de Traspasos puede pasar en la
+ * Plazoleta.
  *
  * DOS PASOS Y NO UNO. Quien registra está de pie al lado del vidrio, con
  * guantes y con el celular en una mano. Un formulario de catorce campos
@@ -30,9 +47,10 @@ import type { Causa, Material, Proceso } from "@/modulos/roturas/datos";
  * cuadro nunca.
  */
 
-export function Reportar({ materiales, procesos, causas, cerrar }: {
+export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   materiales: Material[];
   procesos: Proceso[];
+  areas: Area[];
   causas: Causa[];
   cerrar: () => void;
 }) {
@@ -55,6 +73,7 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
   const [tocoBotellas, setTocoBotellas] = useState(false);
 
   const [proceso, setProceso] = useState("");
+  const [area, setArea] = useState("");
   const [causa, setCausa] = useState("");
   const [descripcion, setDescripcion] = useState("");
 
@@ -68,21 +87,25 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
 
   const { ubi, direccion, pedir } = usePosicion();
 
-  /* En EER el vidrio se separa por color porque se vende por color, así
-     que escoger el color es escoger de qué lista salen los materiales.
-     En producto terminado no hay color: el vidrio va dentro del líquido. */
-  const delTipo = materiales.filter((m) =>
-    m.tipo === tipo && (tipo !== "eer" || m.color === vidrio));
+  /* SOLO EL PRODUCTO TERMINADO TIENE LISTA DE MATERIALES. En EER el
+     color ES el material —uno por color—, así que la lista no se pinta
+     ni se filtra: el color que ya se escogió arriba lo dice todo. */
+  const delTipo = materiales.filter((m) => m.tipo === "producto_terminado");
   const mat = materiales.find((m) => m.clave === material) ?? null;
   const cau = causas.find((c) => c.clave === causa) ?? null;
   const exigeFoto = !!cau?.exige_foto;
 
-  /* Si al cambiar de tipo o de color el material escogido ya no está en
-     la lista, se suelta. Dejarlo puesto haría enviar un EER ámbar con
-     "flint" marcado en la pantalla. */
+  /* Al pasar a EER se suelta el material: si quedara puesto, se
+     mandaría un envase retornable con la clave de una cerveza. */
   useEffect(() => {
-    if (material && !delTipo.some((m) => m.clave === material)) setMaterial("");
-  }, [material, delTipo]);
+    if (tipo === "eer" && material) setMaterial("");
+  }, [tipo, material]);
+
+  /* Y AL CAMBIAR DE PROCESO SE SUELTA LA CAUSA. Hoy las causas son las
+     mismas para todos los procesos, así que esto no cambia nada a la
+     vista; el día que se amarren por proceso —que es a dónde va
+     esto— dejar la causa puesta mandaría una que ese proceso no tiene. */
+  useEffect(() => { setCausa("") }, [proceso]);
 
   /* TODAS LAS BOTELLAS COMO PROPUESTA, no como dato fijo. Cuando una
      estiba se cae, lo más probable es que se rompa todo lo que iba
@@ -128,16 +151,24 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
   useEffect(() => () => { if (foto) URL.revokeObjectURL(foto.url); }, [foto]);
 
   const esPT = tipo === "producto_terminado";
+  /* EN EER NO HAY MATERIAL QUE ESPERAR: con el color y las unidades ya
+     se puede seguir. Antes se exigía `material` para los dos, y en EER
+     eso era un desplegable que muchas veces salía vacío: el botón se
+     quedaba apagado sin decir por qué. */
   const puedeSeguir = paso === 1
-    ? !!material && (unidades + (esPT ? contaminadas : 0)) > 0
-    : !!proceso && !!causa && (!exigeFoto || !!foto);
+    ? (esPT ? !!material : true) && (unidades + (esPT ? contaminadas : 0)) > 0
+    : !!proceso && !!area && !!causa && (!exigeFoto || !!foto);
 
   async function mandar() {
     setMandando(true);
     setMal(null);
 
     const { data, error } = await supabase.rpc("rotura_registrar", {
-      p_material: material,
+      /* En EER va el COLOR y no el material: la base traduce. Ver la
+         nota de arriba. */
+      p_material: esPT ? material : null,
+      p_color: esPT ? null : vidrio,
+      p_area: area,
       p_unidades: unidades,
       p_contaminadas: esPT ? contaminadas : null,
       p_botellas: esPT ? botellas : null,
@@ -202,7 +233,9 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
         <div className="cuerpo">
           <h2>Quedó registrada</h2>
           <p className="guia">
-            <b>{listo}</b> — {mat?.nombre}. Pasa a la bandeja de ABI para el visto bueno.
+            <b>{listo}</b> — {esPT ? mat?.nombre
+                                   : `Envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()}`}.
+            Pasa a la bandeja de ABI para el visto bueno.
           </p>
           {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
           <button type="button" className="otra" onClick={() => {
@@ -271,22 +304,26 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
               </>
             )}
 
-            <div className="campo">
-              <label htmlFor="rt-mat">Material</label>
-              <select id="rt-mat" value={material}
-                      onChange={(e) => { setMaterial(e.target.value); setTocoBotellas(false) }}>
-                <option value="">Escoge el material</option>
-                {delTipo.map((m) => (
-                  <option key={m.clave} value={m.clave}>{m.nombre} · {m.clave}</option>
-                ))}
-              </select>
-              {delTipo.length === 0 && (
-                <p className="nota">
-                  No hay materiales {tipo === "eer" ? `de vidrio ${COLOR_VIDRIO[vidrio].toLowerCase()}` : "de producto terminado"} en
-                  el maestro. Se agregan en Maestro, sin esperar un despliegue.
-                </p>
-              )}
-            </div>
+            {/* EL MATERIAL, SOLO EN PRODUCTO TERMINADO. En EER el color
+                que se escogió arriba ya es el material. */}
+            {esPT && (
+              <div className="campo">
+                <label htmlFor="rt-mat">Material</label>
+                <select id="rt-mat" value={material}
+                        onChange={(e) => { setMaterial(e.target.value); setTocoBotellas(false) }}>
+                  <option value="">Escoge el material</option>
+                  {delTipo.map((m) => (
+                    <option key={m.clave} value={m.clave}>{m.nombre} · {m.clave}</option>
+                  ))}
+                </select>
+                {delTipo.length === 0 && (
+                  <p className="nota">
+                    No hay materiales de producto terminado en el maestro. Se agregan en
+                    Maestro, sin esperar un despliegue.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="campo">
               <label>Unidades rotas</label>
@@ -342,9 +379,10 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
           </>
         ) : (
           <>
-            <h2>¿De qué proceso viene?</h2>
+            <h2>¿De dónde salió?</h2>
 
-            <div className="chips" style={{ marginTop: 18 }}>
+            <span className="rotulo primero">Proceso</span>
+            <div className="chips">
               {procesos.map((p) => (
                 <button key={p.clave} type="button"
                         className={proceso === p.clave ? "on" : ""}
@@ -354,22 +392,78 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
               ))}
             </div>
 
-            <span className="rotulo">Causa</span>
-            <div className="opciones">
-              {causas.map((c) => (
-                <button key={c.clave} type="button"
-                        className={(causa === c.clave ? "on" : "") + (c.grupo === "no_asumida" ? " roja" : "")}
-                        onClick={() => setCausa(c.clave)}>
-                  <span className="p conpunto"><i className="punto" aria-hidden />{c.nombre}</span>
-                  <span className="h">
-                    {c.grupo === "no_asumida"
-                      ? "No asumida — se dice que no fue del OL"
-                      : "Asumida por el OL"}
-                    {c.exige_foto ? " · exige foto" : ""}
-                  </span>
-                </button>
-              ))}
+            {/* EL ÁREA, DEL MAESTRO. Desplegable y no chips: son trece y
+                crecen; trece botones ocupan media pantalla del celular y
+                empujan la causa fuera de la vista. */}
+            <div className="campo">
+              <label htmlFor="rt-area">Área *</label>
+              <select id="rt-area" value={area} onChange={(e) => setArea(e.target.value)}>
+                <option value="">¿En qué parte de la bodega?</option>
+                {areas.map((a) => (
+                  <option key={a.clave} value={a.clave}>{a.nombre}</option>
+                ))}
+              </select>
+              {areas.length === 0 && (
+                <p className="nota">
+                  No hay áreas en el maestro. Se agregan en Maestro, sin esperar un despliegue.
+                </p>
+              )}
             </div>
+
+            {/* LA CAUSA SE HABILITA CON EL PROCESO. Sin proceso no se
+                puede tocar: es el orden que se pidió, y se ve —apagada—
+                en vez de no estar, para que se sepa que sigue ahí.
+
+                Y VAN EN DOS GRUPOS, NO EN UNA LISTA DE SIETE.
+
+                Antes cada tarjeta repetía debajo del nombre «Asumida por
+                el OL» —cinco veces seguidas la misma frase— y las dos de
+                abajo «No asumida — se dice que no fue del OL · exige
+                foto», que son dos renglones. El resultado era una
+                cuadrícula de alturas disparejas donde lo único que
+                cambiaba de una tarjeta a otra —el nombre— era lo que
+                menos se veía.
+
+                Eso que se repetía es lo único que de verdad separa las
+                causas, así que se dice UNA vez, arriba de su grupo. Las
+                tarjetas se quedan con el nombre y el punto, de un solo
+                renglón y todas iguales. */}
+            <span className="rotulo">Causa</span>
+            {!proceso ? (
+              <p className="nota espera">Escoge primero el proceso y aquí salen las causas.</p>
+            ) : (
+              <>
+                {([
+                  ["asumida", "Asumidas por el OL", "La rotura fue nuestra."],
+                  ["no_asumida", "No asumidas · exigen foto",
+                   "Se está diciendo que no fue del OL, y hay que probarlo."],
+                ] as const).map(([grupo, titulo, pie]) => {
+                  const suyas = causas.filter((c) => c.grupo === grupo);
+                  if (!suyas.length) return null;
+                  return (
+                    <div key={grupo} className={"grupo-causa " + grupo}>
+                      <div className="tit">
+                        <i className="punto" aria-hidden />
+                        <b>{titulo}</b>
+                        <span>{pie}</span>
+                      </div>
+                      <div className="opciones compacta">
+                        {suyas.map((c) => (
+                          <button key={c.clave} type="button"
+                                  className={(causa === c.clave ? "on" : "")
+                                             + (grupo === "no_asumida" ? " roja" : "")}
+                                  onClick={() => setCausa(c.clave)}>
+                            <span className="p conpunto">
+                              <i className="punto" aria-hidden />{c.nombre}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
 
             {exigeFoto && (
               <div className="exige">
@@ -413,6 +507,12 @@ export function Reportar({ materiales, procesos, causas, cerrar }: {
                 onClick={() => (paso === 1 ? setPaso(2) : mandar())}>
           {paso === 1 ? "Siguiente"
             : mandando ? "Enviando…"
+            /* EL BOTÓN DICE QUÉ FALTA. Un botón apagado sin explicación
+               es la forma más cara de pedir un dato: la persona lo toca
+               tres veces y llama a preguntar. */
+            : !proceso ? "Falta el proceso"
+            : !area ? "Falta el área"
+            : !causa ? "Falta la causa"
             : exigeFoto && !foto ? "Falta la foto" : "Enviar a ABI"}
         </button>
       </div>

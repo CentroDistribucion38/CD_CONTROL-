@@ -162,6 +162,19 @@ export function FilaViaje({ v, nombres, derecha }: {
               REGISTRADO DESPUÉS{v.dias_atras > 1 ? ` · ${v.dias_atras} días` : ""}
             </span>
           )}
+          {/* Y ADELANTADO, por el mismo motivo. «Hay veces que tengo un
+              viaje del día siguiente y lo adelanto»: ese viaje salió y
+              cuenta para el día que le toca, pero quien mire ese día
+              tiene derecho a saber que el renglón se escribió antes de
+              que el día llegara. La hora que se ve al lado es la de
+              arranque del turno, igual que en los atrasados. */}
+          {v.adelantado && (
+            <span className="eti pronto"
+                  title={`Registrado ${v.dias_adelante} día${v.dias_adelante === 1 ? "" : "s"} antes`
+                         + ` por ${quien(nombres, v.registrado_por)}`}>
+              ADELANTADO{(v.dias_adelante ?? 0) > 1 ? ` · ${v.dias_adelante} días` : ""}
+            </span>
+          )}
         </div>
 
         {v.nota && <div className="meta"><span>{v.nota}</span></div>}

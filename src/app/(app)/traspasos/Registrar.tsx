@@ -301,6 +301,13 @@ export function Registrar({ tipos, puntos, placas, placasM,
     if (/Hay que decir el documento/i.test(m)) {
       return "Falta correr supabase/migraciones/2026-09-traspasos-sin-orden-cargue.sql en Supabase.";
     }
+    /* Y SI LA BASE TODAVÍA RECHAZA MAÑANA, la pantalla y la base se
+       separaron: aquí ya se deja escoger el día siguiente. Decirlo así
+       ahorra la llamada preguntando por qué el botón deja pero el
+       guardado no. */
+    if (/todavía no ha pasado/i.test(m)) {
+      return "Falta correr supabase/migraciones/2026-09-traspasos-registro-adelantado.sql en Supabase.";
+    }
     return m;
   }
 

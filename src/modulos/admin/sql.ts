@@ -28,4 +28,12 @@ export const SQL_REVISAR: { archivo: string; objeto: string; para: string }[] = 
   { archivo: "2026-09-acciones-depurar.sql", objeto: "fn:public.accion_eliminar", para: "Acciones · corregir y eliminar (administración)" },
   { archivo: "2026-09-traspasos-dia-operativo.sql", objeto: "fn:public.traspaso_hoy",
     para: "Traspasos · el día arranca a las 22:00 con el turno C" },
+  /* Esta no crea tabla ni función: vuelve a crear `traspaso_registrar`
+     y le agrega dos columnas a la vista. Por eso pregunta por una
+     COLUMNA —la tercera forma, que la trae ese mismo archivo—. */
+  { archivo: "2026-09-traspasos-registro-adelantado.sql",
+    objeto: "col:public.v_traspasos_viajes.adelantado",
+    para: "Traspasos · registrar un viaje adelantado (hasta 7 días)" },
+  { archivo: "2026-09-roturas-sitio-area-causas.sql", objeto: "tabla:public.roturas_areas",
+    para: "Roturas en sitio · área, las causas que se usan y el EER sin material" },
 ];

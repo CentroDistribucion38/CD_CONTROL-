@@ -45,7 +45,14 @@ const PREFIJOS: [RegExp, string][] = [
 
   /* Traspasos, igual: lo fino antes que lo grueso. Este módulo faltaba
      entero en la lista y mandaba al mensaje genérico —el que dice "el
-     archivo del módulo" y deja a quien lo lee con la mitad del trabajo. */
+     archivo del módulo" y deja a quien lo lee con la mitad del trabajo.
+
+     Y «adelantado» va ANTES que «atrasado» y que traspaso_hoy: las dos
+     marcas son parientes y sus nombres se parecen, pero la de adelante
+     la trae otra migración. Con el orden al revés, faltar
+     `dias_adelante` mandaría a correr el archivo equivocado. */
+  [/\b(adelantado|dias_adelante)/,
+   "supabase/migraciones/2026-09-traspasos-registro-adelantado.sql"],
   [/\b(traspaso_hoy|traspaso_arranque_turno|dias_atras|atrasado)/,
    "supabase/migraciones/2026-09-traspasos-registro-atrasado.sql"],
   [/\b(traspaso_editar_viaje|traspasos_viajes_ediciones)/,
@@ -61,6 +68,10 @@ const PREFIJOS: [RegExp, string][] = [
    "supabase/migraciones/2026-09-traspasos-plan-rejilla.sql"],
   [/\b(traspasos?_|v_traspasos)/, "supabase/modulos/traspasos.sql"],
 
+  /* Lo fino antes que lo grueso, como en traspasos: el área y las
+     causas nuevas las trae una migración, no el archivo del módulo. */
+  [/\b(roturas_areas|p_area|area_nombre)/,
+   "supabase/migraciones/2026-09-roturas-sitio-area-causas.sql"],
   [/\b(roturas?_|salida_|v_roturas)/, "supabase/modulos/roturas.sql"],
   [/\b(acciones?_|accion_)/, "supabase/modulos/acciones.sql"],
   /* La revisión AI va ANTES que Sider a secas: sider_ai_guardar empieza
