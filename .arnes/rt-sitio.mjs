@@ -139,8 +139,25 @@ const monta = async (ancho = 1440, tema = "", alto = 900) => {
   await pg.waitForSelector(".cifras");
   await pg.evaluate(() => { window.llamadas = [] });
 };
-const abrir = async () => { await pg.click(".mas"); await pg.waitForSelector(".rt-rep") };
+/* LA PANTALLA ABRE CON EL FORMULARIO PUESTO: quien puede editar entra a
+   «Registrar» y ya está registrando. Abrir ya no es tocar el «+». */
+const abrir = async () => { await pg.waitForSelector(".rt-rep") };
 const llamadas = () => pg.evaluate(() => window.llamadas ?? []);
+
+/* ---------------------------------------------------------------------
+   0 · LA PANTALLA SE LLAMA «REGISTRAR» Y ABRE REGISTRANDO
+   ------------------------------------------------------------------ */
+await monta();
+ok(await pg.isVisible(".rt-rep"),
+   "al entrar no sale el formulario: la pantalla se llama Registrar y obliga a tocar el «+»");
+ok(await pg.isVisible(".cifras"),
+   "al abrir con el formulario puesto se perdieron las cifras de la pantalla");
+/* Y se cierra con Cancelar, que devuelve la lista y el «+». */
+await pg.click(".rt-rep .pie button:has-text('Cancelar')");
+ok(!(await pg.isVisible(".rt-rep")), "Cancelar no cierra el formulario");
+ok(await pg.isVisible(".mas"), "al cerrarlo no vuelve el «+» para abrirlo otra vez");
+await pg.click(".mas");
+await pg.waitForSelector(".rt-rep");
 
 /* ---------------------------------------------------------------------
    1 · EL EER NO PIDE MATERIAL
@@ -236,6 +253,46 @@ ok(sitio.antesDeLaLista, "el formulario no quedó arriba de la lista de roturas"
 ok(sitio.cifrasVisibles, "al abrir el formulario se perdieron las cifras de la pantalla");
 ok(!(await pg.isVisible(".mas")),
    "el «+» flotante sigue encima del formulario abierto: le tapa una causa");
+
+/* ---------------------------------------------------------------------
+   4bis · EN EL COMPUTADOR, DOS COLUMNAS Y A TODO EL ANCHO
+   ------------------------------------------------------------------ */
+await monta(1440);
+await abrir();
+const anchos = await pg.evaluate(() => {
+  const r = document.querySelector(".rt-rep").getBoundingClientRect();
+  const c = document.querySelector(".cifras").getBoundingClientRect();
+  const cols = [...document.querySelectorAll(".rt-rep .dos-col > .col")]
+    .map((e) => Math.round(e.getBoundingClientRect().top));
+  return { form: Math.round(r.width), pagina: Math.round(c.width),
+           izq: Math.round(r.left), izqPagina: Math.round(c.left), cols };
+});
+ok(Math.abs(anchos.form - anchos.pagina) < 4,
+   `el formulario no mide lo mismo que el resto de la pantalla (${anchos.form} contra ${anchos.pagina})`);
+ok(Math.abs(anchos.izq - anchos.izqPagina) < 4,
+   `el formulario no arranca donde arranca el resto de la pantalla (${anchos.izq} contra ${anchos.izqPagina})`);
+ok(anchos.cols.length === 2, `esperaba dos columnas y hay ${anchos.cols.length}`);
+ok(anchos.cols[0] === anchos.cols[1],
+   `las dos columnas no arrancan a la misma altura (${anchos.cols})`);
+
+/* Y en el celular se apilan: una debajo de otra, no media y media. */
+await monta(390);
+await abrir();
+const apila = await pg.evaluate(() => {
+  const c = [...document.querySelectorAll(".rt-rep .dos-col > .col")]
+    .map((e) => e.getBoundingClientRect());
+  return c.length === 2 && c[1].top >= c[0].bottom - 1;
+});
+ok(apila, "en el celular las dos columnas no se apilan");
+
+await monta(1440, "", 1000);
+await abrir();
+await pg.screenshot({ path: ".arnes/rt-sitio-paso1.png" });
+await pg.click(".rt-rep .opciones.dos button:has-text('EER')");
+await pg.click(".rt-rep .pie button.si");
+await pg.waitForSelector("#rt-area");
+await pg.click(".rt-rep .chips button:has-text('Líneas')");
+await pg.screenshot({ path: ".arnes/rt-sitio-paso2.png" });
 
 /* ---------------------------------------------------------------------
    5 · LOS CUATRO ANCHOS, Y LO QUE SE TOCA

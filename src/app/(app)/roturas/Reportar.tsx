@@ -276,7 +276,14 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           <>
             <h2>¿Qué se rompió?</h2>
 
-            <div className="opciones dos" style={{ marginTop: 18 }}>
+            {/* DOS COLUMNAS EN EL COMPUTADOR: a la izquierda QUÉ es —el
+                tipo, el color, el material—; a la derecha CUÁNTO —los
+                contadores—. Son las dos preguntas del paso y se
+                contestan sin bajar. En el celular se apilan solas. */}
+            <div className="dos-col">
+            <div className="col">
+
+            <div className="opciones dos">
               {(["producto_terminado", "eer"] as const).map((t) => (
                 <button key={t} type="button" className={tipo === t ? "on" : ""}
                         onClick={() => { setTipo(t); setContaminadas(0); setTocoBotellas(false) }}>
@@ -324,6 +331,9 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                 )}
               </div>
             )}
+
+            </div>
+            <div className="col">
 
             <div className="campo">
               <label>Unidades rotas</label>
@@ -376,10 +386,21 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                        }} />
               </div>
             )}
+
+            </div>
+            </div>
           </>
         ) : (
           <>
             <h2>¿De dónde salió?</h2>
+
+            {/* Izquierda: DE DÓNDE —proceso, área y causa—. Derecha: LA
+                PRUEBA —la foto y lo que pasó—. La foto es una caja
+                grande: al lado de las causas llena el ancho que en una
+                sola columna quedaba vacío, y de paso se ve mientras se
+                escoge la causa que la exige. */}
+            <div className="dos-col">
+            <div className="col">
 
             <span className="rotulo primero">Proceso</span>
             <div className="chips">
@@ -472,6 +493,9 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
               </div>
             )}
 
+            </div>
+            <div className="col">
+
             <div className="foto">
               <div className="lienzo">
                 {foto
@@ -495,6 +519,9 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
             </div>
 
             {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
+
+            </div>
+            </div>
           </>
         )}
       </div>

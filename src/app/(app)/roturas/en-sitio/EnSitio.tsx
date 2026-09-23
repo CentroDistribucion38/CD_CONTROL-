@@ -27,12 +27,30 @@ export function EnSitio({ roturas, nombres, materiales, procesos, areas, causas,
   causas: Causa[];
   puedeEditar: boolean;
 }) {
-  const [reportando, setReportando] = useState(false);
-  /* AL ABRIRLO SE VA A ÉL. Metido dentro de la pantalla, el formulario
-     puede quedar fuera de la vista si la persona estaba mirando la
-     lista: se tocaría el botón «+» y no pasaría nada visible. */
+  /* LA PANTALLA SE LLAMA «REGISTRAR», ASÍ QUE ABRE REGISTRANDO.
+
+     «Si yo selecciono En sitio, de una debería salir el formulario para
+     registrar, pero sale esa pantalla.» Tenía razón, y el nombre lo
+     decía: en el menú esta pantalla se llama Registrar —no «Ver
+     roturas»—. Entrar a Registrar y encontrarse una lista, con el
+     formulario escondido detrás de un botón flotante, es cobrarle un
+     toque a la única cosa por la que se entra.
+
+     Quien solo viene a mirar lo cierra con Cancelar y queda la lista,
+     con el «+» ahí mismo para volver a abrirlo. A quien no puede
+     editar no se le abre nada: para esa persona esto SÍ es una
+     pantalla de consulta. */
+  const [reportando, setReportando] = useState(puedeEditar);
+
+  /* AL ABRIRLO SE VA A ÉL —pero no al cargar la pantalla—. Metido
+     dentro de la página, el formulario puede quedar fuera de la vista
+     si la persona estaba mirando la lista: se tocaría el «+» y no
+     pasaría nada visible. Al entrar no se desplaza nada: ya está
+     arriba, y saltar solo al llegar se siente como un error. */
   const caja = useRef<HTMLDivElement>(null);
+  const primera = useRef(true);
   useEffect(() => {
+    if (primera.current) { primera.current = false; return }
     if (reportando) caja.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [reportando]);
   const [abierta, setAbierta] = useState<string | null>(null);
