@@ -151,24 +151,40 @@ const abrir = async () => { await pg.waitForSelector(".rt-rep") };
 const llamadas = () => pg.evaluate(() => window.llamadas ?? []);
 
 /* ---------------------------------------------------------------------
-   0 · REGISTRAR ES UN SOLO MÓDULO: EL FORMULARIO Y NADA MÁS
+   0 · REGISTRAR ES LA CONSOLA DE TRASPASOS: formulario + contexto
 
-   «El registro debe ser un solo módulo, no puede haber más cosas.»
-   Mientras se registra, en la pantalla NO puede haber ni titular, ni
-   cifras, ni filtros, ni lista. Se mide contando lo que hay, no
-   mirándolo.
+   «El registro debe ser un solo módulo, no puede haber más cosas» y
+   «mira el diseño del registro de Traspasos, quiero algo chévere
+   también para eso» son la misma cosa dicha dos veces: lo que sobraba
+   era la PANTALLA DE CONSULTA metida debajo —las cuatro cifras, los
+   filtros y la lista entera—, no el contexto al lado, que en Traspasos
+   existe y es justo lo que le gusta.
+
+   Así que aquí se exige la consola: cabecera con su KPI, formulario a
+   la izquierda, contexto a la derecha. Y se prohíbe lo otro.
    ------------------------------------------------------------------ */
 await monta();
 ok(await pg.isVisible(".rt-rep"),
    "al entrar no sale el formulario: la pantalla se llama Registrar y obliga a tocar el «+»");
+
+/* LA CABECERA DICE REGISTRAR, no «Lo que se rompió»: es la pantalla de
+   registrar, y su titular tiene que decirlo. */
+ok(/Registrar/i.test(await pg.textContent(".cabeza h1")),
+   `el titular de la pantalla de registro dice «${await pg.textContent(".cabeza h1")}»`);
+ok(await pg.isVisible(".cabeza .kpi"), "falta el KPI de la cabecera, como en Traspasos");
+for (const c of ["consola", "hoy-cifra", "hoy"]) {
+  ok((await pg.$$(`.rt .${c}`)).length > 0,
+     `falta «${c}»: el registro tiene que ser la consola de Traspasos, no el formulario suelto`);
+}
+
+/* Y NADA DE LA PANTALLA DE CONSULTA. Eso es lo que sobraba. */
 for (const [sel, que] of [
-    [".cabeza", "el titular y el párrafo"],
     [".cifras", "las cuatro cifras"],
     [".filtros", "los filtros"],
-    [".filas", "la lista de lo registrado"],
+    [".filas", "la lista entera de roturas"],
     [".mas", "el botón «+»"]]) {
   ok((await pg.$$(sel)).length === 0,
-     `registrando todavía sale ${que}: el registro tiene que ser el formulario y nada más`);
+     `registrando todavía sale ${que}: eso es la pantalla de consulta, no el registro`);
 }
 
 /* ES UN PANEL, NO UNA VENTANA: no lleva barra negra ni aspa de cerrar.
@@ -208,6 +224,10 @@ for (const [sel, que] of [
     [".filtros", "los filtros"], [".filas", "la lista"], [".mas", "el «+»"]]) {
   ok(await pg.isVisible(sel), `al cerrar el formulario no volvió ${que}`);
 }
+ok(/Lo que se rompió/i.test(await pg.textContent(".cabeza h1")),
+   "al cerrar, el titular sigue diciendo Registrar: esa ya es la pantalla de consulta");
+ok((await pg.$$(".rt .consola")).length === 0,
+   "la consola del registro se quedó puesta en la pantalla de consulta");
 await pg.click(".mas");
 await pg.waitForSelector(".rt-rep");
 
@@ -302,8 +322,8 @@ ok(sitio.posicion !== "fixed",
    "el formulario sigue en position:fixed — sigue siendo otra pantalla del navegador");
 ok(sitio.ancho < sitio.anchoPagina,
    `el formulario ocupa todo el ancho de la ventana (${sitio.ancho} de ${sitio.anchoPagina})`);
-ok(sitio.arriba < 120,
-   `el formulario no arranca arriba de la pantalla (empieza en ${sitio.arriba} px)`);
+ok(sitio.arriba < 520,
+   `el formulario queda demasiado abajo: hay que bajar la pantalla para llegar a él (${sitio.arriba} px)`);
 
 /* ---------------------------------------------------------------------
    4bis · EN EL COMPUTADOR, DOS COLUMNAS Y A TODO EL ANCHO
@@ -312,18 +332,28 @@ await monta(1440);
 await abrir();
 const anchos = await pg.evaluate(() => {
   const r = document.querySelector(".rt-rep").getBoundingClientRect();
-  /* Contra el contenedor de la pantalla: mientras se registra no hay
-     cifras con las que compararse, que es justo lo que se quiere. */
-  const c = document.querySelector(".rt").getBoundingClientRect();
+  /* Contra SU COLUMNA de la consola: a la derecha va el contexto, así
+     que el formulario no mide la pantalla entera —mide su mitad—. */
+  const c = document.querySelector(".rt .consola > *").getBoundingClientRect();
   const cols = [...document.querySelectorAll(".rt-rep .linea-campos:first-of-type > *")]
     .map((e) => Math.round(e.getBoundingClientRect().top));
   return { form: Math.round(r.width), pagina: Math.round(c.width),
            izq: Math.round(r.left), izqPagina: Math.round(c.left), cols };
 });
 ok(Math.abs(anchos.form - anchos.pagina) < 4,
-   `el formulario no mide lo mismo que la pantalla (${anchos.form} contra ${anchos.pagina})`);
+   `el formulario no llena su columna de la consola (${anchos.form} contra ${anchos.pagina})`);
 ok(Math.abs(anchos.izq - anchos.izqPagina) < 4,
-   `el formulario no arranca donde arranca la pantalla (${anchos.izq} contra ${anchos.izqPagina})`);
+   `el formulario no arranca donde arranca su columna (${anchos.izq} contra ${anchos.izqPagina})`);
+
+/* Y LA CONSOLA ES DE DOS COLUMNAS EN EL COMPUTADOR: el contexto AL
+   LADO, no debajo. Debajo es exactamente lo que se quitó. */
+const consola = await pg.evaluate(() => {
+  const f = document.querySelector(".rt-rep").getBoundingClientRect();
+  const a = document.querySelector(".rt .hoy-cifra").getBoundingClientRect();
+  return { alLado: a.left > f.right - 2, mismaAltura: Math.abs(a.top - f.top) < 4 };
+});
+ok(consola.alLado, "el contexto quedó DEBAJO del formulario y no al lado");
+ok(consola.mismaAltura, "el contexto no arranca a la misma altura que el formulario");
 ok(anchos.cols.length === 2, `esperaba dos columnas y hay ${anchos.cols.length}`);
 ok(anchos.cols[0] === anchos.cols[1],
    `las dos columnas no arrancan a la misma altura (${anchos.cols})`);
@@ -338,7 +368,7 @@ const apila = await pg.evaluate(() => {
 });
 ok(apila, "en el celular los dos campos de una línea no se apilan");
 
-await monta(1440, "", 1000);
+await monta(1440, "", 1100);
 await abrir();
 await pg.screenshot({ path: ".arnes/rt-sitio-paso1.png" });
 await pg.click(".rt-rep .seg button:has-text('EER')");
@@ -386,4 +416,4 @@ if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\n✓ Rotura en sitio: Registrar es SOLO el formulario, el EER no pide material y deja seguir, el proceso habilita las causas, y el área sale del maestro.");
+console.log("\n✓ Rotura en sitio: Registrar es la consola de Traspasos —formulario y contexto al lado—, el EER no pide material y deja seguir, el proceso habilita las causas, y el área sale del maestro.");

@@ -587,6 +587,93 @@
    Lo que ESTE tiene y aquel no son los dos pasos —«qué se rompió» y
    «de dónde salió»— y la foto. Lo demás se lee igual.
    ===================================================================== */
+/* ---------- LA CONSOLA: formulario + contexto ----------
+
+   El mismo reparto de Traspasos: el formulario manda y a su derecha una
+   columna de 372 px con lo que hace falta PARA registrar —cuánto se
+   lleva hoy y lo que ya se metió—. No es «más cosas» debajo del
+   formulario, que es lo que se quitó: es contexto al lado, y sirve para
+   saber si la rotura que se va a meter ya estaba y para ver subir el
+   número al registrarla. */
+.rt .consola {
+  display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 18px; align-items: start;
+}
+.rt .consola > * { min-width: 0 }
+
+/* La cifra del día, en oscuro: es la que se mira de reojo mientras se
+   llena el formulario, así que tiene que pesar más que una tarjeta
+   blanca más. */
+.rt .hoy-cifra {
+  background: var(--rt-negro); color: #fff; padding: 20px 22px; border-radius: 3px;
+  position: relative; overflow: hidden;
+}
+.rt .hoy-cifra .corte {
+  position: absolute; top: -30%; bottom: -30%; right: -14px; width: 90px;
+  background: color-mix(in srgb, var(--rt-oro) 16%, transparent); transform: skewX(-26deg);
+}
+.rt .hoy-cifra .rot {
+  position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .15em; opacity: .65;
+}
+.rt .hoy-cifra .marca {
+  position: relative; display: flex; align-items: baseline; gap: 10px; margin-top: 7px;
+}
+.rt .hoy-cifra .marca b {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 50px; line-height: 1;
+  color: var(--rt-oro);
+}
+.rt .hoy-cifra .marca span { font-size: 15px; opacity: .75 }
+
+/* UN CUADRO POR ROTURA DE HOY, rojo las no asumidas. «3 roturas, 2 no
+   asumidas» se entiende leyendo; los cuadros se entienden sin leer. */
+.rt .hoy-cifra .huecos {
+  position: relative; display: flex; gap: 5px; margin-top: 16px; flex-wrap: wrap;
+}
+.rt .hoy-cifra .huecos i {
+  flex: 0 0 auto; width: 16px; height: 14px; border-radius: 2px;
+  background: rgba(255, 255, 255, .14);
+}
+.rt .hoy-cifra .huecos i.lleno { background: var(--rt-oro) }
+.rt .hoy-cifra .huecos i.mal { background: var(--rt-mal) }
+.rt .hoy-cifra .pie-cifra {
+  position: relative; margin-top: 13px; font-size: 12.5px; opacity: .7; line-height: 1.5;
+}
+
+/* La lista de hoy, igual que «Viajes de hoy». */
+.rt .hoy {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea); border-radius: 3px;
+  margin-top: 16px;
+}
+.rt .hoy .cab {
+  padding: 16px 20px 13px; border-bottom: 1px solid var(--rt-linea);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+}
+.rt .hoy h3 { font-family: var(--rt-titulo); font-weight: 800; font-size: 16px; margin: 0 }
+.rt .hoy .cuantos { font-size: 12.5px; color: var(--rt-gris) }
+.rt .hoy .rota {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  padding: 12px 20px; border-bottom: 1px solid var(--rt-linea);
+}
+.rt .hoy .rota:last-child { border-bottom: 0 }
+.rt .hoy .rota.anulada { opacity: .45 }
+.rt .hoy .rota .hora { font: 700 12px var(--rt-titulo); color: var(--rt-gris) }
+.rt .hoy .rota .pl { display: block; font: 900 14px var(--rt-titulo); letter-spacing: .06em }
+.rt .hoy .rota .det { display: block; font-size: 12.5px; color: var(--rt-gris); margin-top: 2px }
+.rt .hoy .rota .pt {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--rt-verde);
+}
+.rt .hoy .rota .pt.mal { background: var(--rt-mal) }
+.rt .vacio-hoy {
+  padding: 30px 20px; text-align: center; color: var(--rt-gris); font-size: 13px; line-height: 1.6;
+}
+
+/* Por debajo de 1100 px el contexto se va abajo del formulario, igual
+   que en Traspasos: dos columnas en una tableta dejan el formulario sin
+   ancho para dos campos al lado. */
+@media (max-width: 1100px) {
+  .rt .consola { grid-template-columns: 1fr }
+  .rt .hoy-cifra { margin-top: 18px }
+}
+
 .rt-rep {
   background: var(--rt-papel); border: 1px solid var(--rt-linea); border-radius: 3px;
   margin: 0 0 18px;

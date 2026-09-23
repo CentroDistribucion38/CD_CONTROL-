@@ -118,6 +118,29 @@ maximo; en el celular se suelta a todo el ancho. El «+» se esconde
 mientras esta abierto —le tapaba una causa— y el boton dice QUE FALTA
 en vez de quedarse apagado y mudo: «Falta el area», «Falta la causa».
 
+LA CONSOLA DE TRASPASOS, NO SOLO EL FORMULARIO
+«Mira el diseno del registro de Traspasos, quiero algo chevre tambien
+para eso.»
+Lo que le gusta de Traspasos no es el formulario suelto: es la CONSOLA.
+Cabecera con su KPI amarillo, formulario a la izquierda, y a la derecha
+una columna de 372 px con el contexto —el plan del turno y los viajes
+de hoy—. Registrar rotura ahora tiene lo mismo:
+
+  · Cabecera «Registrar rotura» con el KPI REGISTRADAS HOY.
+  · A la derecha, la cifra del dia en oscuro —UNIDADES DE VIDRIO HOY—
+    con un cuadro por rotura, rojo las no asumidas. «3 roturas, 2 no
+    asumidas» se entiende leyendo; los cuadros se entienden sin leer.
+  · Debajo, «Roturas de hoy»: hora, codigo, unidades, material y causa.
+    Sirve para saber si la que se va a meter ya estaba, y para ver subir
+    el numero al registrarla.
+
+Y ESTO NO SE CONTRADICE CON «no puede haber mas cosas». Lo que sobraba
+era la PANTALLA DE CONSULTA metida debajo del formulario —las cuatro
+cifras, los filtros y la lista entera con sus botones—. El contexto AL
+LADO es otra cosa, y en Traspasos existe: es justo lo que le gusta. El
+arnes exige la consola y sigue prohibiendo lo otro.
+Por debajo de 1100 px el contexto se va abajo, igual que en Traspasos.
+
 EL MISMO FORMULARIO DE TRASPASOS, CLASE POR CLASE
 «Lo quiero como el modulo de Traspasos: organiza el diseno de tal
 manera que quede asi.»

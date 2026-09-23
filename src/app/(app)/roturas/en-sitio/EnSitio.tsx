@@ -70,6 +70,19 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, pro
     return true;
   });
 
+  /* LO DE HOY, para el panel de la derecha. Se cuenta por el día de
+     Barranquilla y no por el del navegador: la app se abre desde
+     teléfonos que a veces vienen con otra zona puesta, y un «hoy» que
+     cambia según el aparato es peor que no tener el dato. */
+  const hoyBog = new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 10);
+  const deHoy = roturas.filter((r) =>
+    new Date(Date.parse(r.reportada_en) - 5 * 3600_000).toISOString().slice(0, 10) === hoyBog
+    && r.estado !== "anulada");
+  const vidrioHoy = deHoy.reduce((s, r) => s + r.unidades_vidrio, 0);
+  const noAsumidasHoy = deHoy.filter((r) => r.grupo === "no_asumida").length;
+  const hora = (s: string) =>
+    new Date(s).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+
   const vivas = roturas.filter((r) => r.estado !== "anulada");
   const esperando = vivas.filter((r) => r.esperando).length;
   const sinFoto = vivas.filter((r) => r.le_falta_foto).length;
@@ -94,8 +107,88 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, pro
   if (reportando) {
     return (
       <div ref={caja}>
-        <Reportar materiales={materiales} procesos={procesos} areas={areas} causas={causas}
-                  cerrar={() => setReportando(false)} />
+        <section className="cabeza">
+          <div>
+            <p className="ojo">ROTURAS · EN SITIO · CD38 AG01</p>
+            <h1>Registrar rotura</h1>
+            <p className="sub">
+              Lo que se rompió en la bodega, en unidades y con su causa. Es lo que contesta de
+              quién fue y de dónde salió. Los kilos son otra cosa y viven en Salidas.
+            </p>
+          </div>
+          <div className="kpi">
+            <span className="corte" aria-hidden />
+            <div className="rot">REGISTRADAS HOY</div>
+            <div className="num">{deHoy.length}<span className="u">roturas</span></div>
+            <div className="pie">{vidrioHoy} unidades de vidrio</div>
+          </div>
+        </section>
+
+        {/* LA CONSOLA: el formulario a la izquierda y el contexto a la
+            derecha, como en Traspasos.
+
+            Esto NO es «más cosas» debajo del formulario —eso fue lo que
+            se quitó—: es lo que hace falta PARA registrar. En Traspasos,
+            a la derecha está el plan del turno y los viajes de hoy;
+            aquí, cuánto se lleva roto hoy y las roturas de hoy. Sirve
+            para lo mismo: saber si la que se está metiendo ya estaba, y
+            ver subir el número al registrarla. */}
+        <div className="consola">
+          <div>
+            <Reportar materiales={materiales} procesos={procesos} areas={areas} causas={causas}
+                      cerrar={() => setReportando(false)} />
+          </div>
+
+          <aside>
+            <div className="hoy-cifra">
+              <span className="corte" aria-hidden />
+              <div className="rot">UNIDADES DE VIDRIO HOY</div>
+              <div className="marca">
+                <b>{vidrioHoy}</b>
+                <span>en {deHoy.length} rotura{deHoy.length === 1 ? "" : "s"}</span>
+              </div>
+              {/* Un cuadro por rotura de hoy, rojo las no asumidas. Es la
+                  misma idea de los cuadros del plan en Traspasos: «2 de
+                  10» se entiende leyendo; los cuadros se entienden sin
+                  leer, que es lo que hace falta a las cinco de la
+                  mañana. */}
+              <div className="huecos">
+                {deHoy.slice(0, 24).map((r) => (
+                  <i key={r.id} className={r.grupo === "no_asumida" ? "mal" : "lleno"} />
+                ))}
+                {deHoy.length === 0 && <i />}
+              </div>
+              <div className="pie-cifra">
+                {noAsumidasHoy > 0
+                  ? `${noAsumidasHoy} de hoy se están dando por no asumidas: esas exigen foto.`
+                  : "Ninguna de hoy se está dando por no asumida."}
+              </div>
+            </div>
+
+            <div className="hoy">
+              <div className="cab">
+                <h3>Roturas de hoy</h3>
+                <span className="cuantos">{deHoy.length} registradas</span>
+              </div>
+              {deHoy.length === 0 ? (
+                <div className="vacio-hoy">
+                  Todavía no se ha registrado nada hoy.<br />Lo que se registre aquí va saliendo.
+                </div>
+              ) : deHoy.slice(0, 8).map((r) => (
+                <div key={r.id} className={"rota" + (r.estado === "anulada" ? " anulada" : "")}>
+                  <span className="hora">{hora(r.reportada_en)}</span>
+                  <span>
+                    <b className="pl">{r.codigo}</b>
+                    <span className="det">
+                      {r.unidades} · {r.material_nombre} · {r.causa_nombre}
+                    </span>
+                  </span>
+                  <span className={"pt" + (r.grupo === "no_asumida" ? " mal" : "")} aria-hidden />
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
       </div>
     );
   }
