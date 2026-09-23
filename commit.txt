@@ -1,130 +1,136 @@
-El vidrio sale con el viaje, y se cierran dos huecos de administracion
+El cumplido cuenta solo lo que salio, y EER pide material
 
 =====================================================================
-1. EL VIDRIO SALE CON EL VIAJE — LA CEDULA
+1. TRASPASOS: EL CUMPLIDO CONTABA CAMIONES PARADOS EN EL PATIO
 =====================================================================
-«Que facturacion no haga doble trabajo validando alla en salida y en
- traspaso. Que cuando hagan el registro se genere una cedula, un numero
- unico, y cuando facturacion vaya a dar salida a un Vh de traspaso y ese
- Vh tenga tolvas, en un desplegable aparezcan los registros unicos que
- tenemos, traiga cuantas tolvas tiene el Vh, y si corresponde pues que
- le de salida.»
+«La validacion de que cuenten si facturacion le dio la salida. Porque
+ ahora esta contando hasta con los que facturacion no le ha dado salida,
+ y asi no funciona.»
 
-LA CEDULA YA EXISTIA, Y ESO EVITA INVENTAR UN NUMERO
-Cada salida de vidrio nace con roturas_salidas.codigo —SR-0001—, unico
-desde el primer dia y amarrado a la PLACA. Eso ES la cedula. Un segundo
-numero unico al lado habria dejado dos identidades para la misma carga
-y, el dia que no cuadren, nadie sabria cual manda. Lo que faltaba no era
-el numero: era que quedara LISTA PARA DESPACHAR al cerrar el pesaje, y
-que alguien la consumiera.
+QUE PASABA
+El cumplido se contaba sobre los viajes REGISTRADOS. Registrar es lo que
+hace el patio cuando el camion se carga; la salida la confirma
+facturacion cuando el Vh se va de verdad. Entre una cosa y la otra pasan
+horas —o un turno entero si el documento se atrasa— y en ese rato el
+tablero daba el plan por cumplido con camiones que seguian parados.
 
-LA CADENA QUEDA EN DOS PASOS
-  PESAR        el supervisor (a) pesa tolva por tolva y cierra. Ahi la
-               cedula queda lista.
-  FACTURACION  al dar salida al viaje, si la placa tiene cedulas
-               pendientes escoge la suya, cuenta las tolvas que el Vh
-               lleva de verdad, y el mismo acto da salida al viaje Y
-               despacha el vidrio.
+Un cumplimiento asi no sirve para lo que sirve un cumplimiento: no se
+puede llamar a nadie con el, porque el numero de la tarde se desdecia
+solo.
 
-SE VA VALIDACION. Era donde se daba el aval del vidrio por segunda vez.
+LA REGLA NUEVA: cuenta el viaje que SALIO.
 
-LOS CUATRO FRENOS, Y NINGUNO ES UN AVISO
-1. LA PLACA TIENE QUE CUADRAR. Una cedula de ABC123 no se despacha en
-   el viaje de XYZ789. Es lo unico que amarra el vidrio al Vh que se lo
-   llevo; sin eso la cedula es un papel suelto.
-2. LAS TOLVAS TIENEN QUE CUADRAR. Si la cedula dice cuatro y facturacion
-   cuenta tres, el Vh NO SALE. Una tolva de diferencia son cientos de
-   kilos que alguien va a tener que explicar, y explicarlo despues de
-   que el Vh cruzo la porteria no se puede.
-3. SIGUEN SIENDO DOS PERSONAS. Quien peso no da la salida. Es la razon
-   de ser de la cadena, y al quitarse el paso de en medio se MUDO a
-   facturacion en vez de perderse. El administrador pasa —hay domingos—
-   y la vista lo marca.
-4. SI LA PLACA TIENE VIDRIO PENDIENTE, EL VIAJE NO SALE SIN ESCOGERLO.
-   Es el hueco que deja quitar Validacion: sin esto el Vh se va, el
-   vidrio se va con el, y la cedula sigue diciendo que esta en el patio.
+Y LO QUE FALTA NO SE ESCONDE — ES LA MITAD DEL ARREGLO
+Bajar el numero a secas habria cambiado un problema por otro: el patio
+veria «3 de 8» sin saber por que, despues de haber cargado ocho.
+Pareceria que el tablero perdio viajes. Por eso la vista trae ademas
+POR_SALIR, y el cierre dice, en su propio renglon: «5 viajes cargados
+esperando a que facturacion confirme la salida. Cuando salgan, el
+cumplimiento sube a 92%.» Eso contesta «¿vamos mal, o vamos bien y el
+papel esta atrasado?», que son dos conversaciones muy distintas y hoy se
+veian igual. Va tambien en lo que se copia: pegar el resumen sin esa
+frase hace concluir que se movio menos de lo que se movio.
 
-Y LA QUINTA, QUE NADIE PRUEBA: reabrir el viaje DEVUELVE la cedula a
-pendiente. Si no, el vidrio queda despachado contra un viaje que ya no
-salio, y no hay pantalla donde vuelva a aparecer. Va por un disparador
-sobre el viaje y no dentro de la funcion de reabrir, para no reescribirla
-—ya se han perdido reglas reescribiendo funciones de traspasos—.
-
-EN LA PANTALLA
-· El Vh sin vidrio no ve NADA del vidrio. Casi ningun viaje lleva tolvas
-  y una casilla vacia en cincuenta tarjetas es ruido que deja de leerse.
-· Con UNA cedula viene escogida, sin desplegable: abrir una lista de un
-  solo renglon es tocar dos veces para decir lo unico que se podia decir.
-· Con VARIAS hay desplegable, y NINGUNA escogida — dejar una puesta es
-  escoger por quien tiene el camion enfrente. Cada renglon dice sus
-  tolvas y sus kilos: una lista de codigos que se parecen invita a tocar
-  el de arriba.
-· LAS TOLVAS NO VIENEN PUESTAS. Poner el numero de la cedula y pedir que
-  lo confirmen es pedirle a alguien que apruebe su propia respuesta. El
-  numero lo pone quien cuenta.
-· Se avisa si la cedula lleva dias esperando: una de hace tres dias es
-  una carga que se quedo, no una que esta por salir.
-
-VALIDACION NO SE BORRA, SE OCULTA. Borrarla del registro le quitaria su
-casilla en /admin/roles y las filas de permiso que ya existen sobre esa
-direccion quedarian sin forma de verse ni de cambiarse. La pantalla
-sigue viva y lleva de la mano: dice a donde se mudo, cuantas cedulas
-estan esperando Vh ahora mismo, y el boton que lleva alla. El rol
-«validador» se apaga, no se borra: puede haber gente con el puesto.
+LO HISTORICO SIGUE CONTANDO. Los viajes de antes de que existiera
+facturacion quedaron con su salida puesta y marcados como historicos.
+Tienen salida_en, asi que entran. Dejarlos fuera habria vaciado todos
+los informes de los meses pasados de un dia para otro.
 
 =====================================================================
-2. DOS HUECOS DE ADMINISTRACION QUE ESTABAN ABIERTOS
+2. ROTURA EN SITIO: EER TAMBIEN PIDE MATERIAL
 =====================================================================
-Dos funciones estaban subidas con su comprobacion apagada a mano: el
-«if» de verdad cambiado por «if false then», con el aviso intacto
-debajo. El aviso no salia NUNCA.
+«En sitio, en EER debe aparecer tambien el desplegable del material.»
 
-· BORRAR DATOS NO COMPARABA EL CONTEO. Si alguien registra viajes
-  mientras el jefe mira el conteo en pantalla, esos viajes se borraban
-  sin que nadie los hubiera visto.
-· CUALQUIERA QUE ADMINISTRE SE PODIA APAGAR A SI MISMO. La pantalla si
-  lo frena; la base no. Quien llamara el RPC derecho se quitaba el rol o
-  desactivaba su cuenta y quedaba fuera, sin nadie adentro que lo
-  volviera a entrar.
+UN DIA NO LO PIDIO, y el argumento era bueno mientras fue cierto: el
+color ES el material —uno por color— y la base traduce. Deja de ser
+cierto en cuanto el maestro tiene dos ambar (330 y 750): entonces la
+traduccion escoge el primero por orden EN SILENCIO, nadie lo ve en la
+pantalla, y el informe del mes reparte el vidrio en el formato que no
+era.
 
-Los dos cerrados, y una migracion aparte vuelve a crear las dos
-funciones para las bases donde ya se corrieron rotas.
+COMO QUEDO
+· El color sigue arriba, en el sitio que tenia, y ACOTA la lista.
+· El material baja a su propia linea, filtrado por ese color.
+· Si solo hay uno de ese color —el caso normal— VIENE PUESTO: abrir un
+  desplegable de un renglon para escoger lo unico que se podia escoger
+  es un toque cobrado por nada.
+· Si hay varios, hay que decir cual, y el boton lo pide.
+· Cambiar de color suelta el material del color anterior: si quedara
+  puesto se mandaria un ambar marcado como flint, y en la pantalla las
+  dos cosas se ven igual de bien.
+· Se mandan LOS DOS a la base: el material escogido y el color. La
+  funcion prefiere el material cuando llega y cae al color solo si el
+  maestro no tiene ninguno de ese color.
+
+LA LINEA SIGUE CON DOS COLUMNAS EN LOS DOS TIPOS. Dejarla con una en un
+tipo y dos en el otro hace que la pantalla salte al cambiar de pestaña.
 
 =====================================================================
-3. TRES LINEAS DEL CODIGO QUE HABIAN QUEDADO ROTAS
+3. SE FUE «BOTELLAS ROTAS ADENTRO — CABEN 150»
 =====================================================================
-Restos de una corrida de arnes que se corto y dejo la mutacion puesta:
-· el tablero del inventario contaba BORRADORES como enviados;
-· las fichas rojas de calle quedaban ilegibles (1.48 de contraste);
-· la cinta de la hoja para firmar salia casi lisa en ambar.
-Las tres devueltas, y comprobadas contra el texto exacto de su mutacion.
+Proponia todas las botellas del empaque y pedia corregirlas a mano. En
+la practica nadie las contaba: el numero propuesto se quedaba tal cual,
+asi que no media nada — solo alargaba el registro con un contador que
+siempre decia lo mismo.
+
+LA COLUMNA NO SE BORRA DE LA BASE. `botellas` se queda con lo que ya
+tenga, que es el registro de lo que se anoto en su momento. Deja de
+pedirse, no de existir.
 
 =====================================================================
-4. LOS ARNESES
+4. INVENTARIO: EL DESPLEGABLE ARRANCA DONDE UNO QUEDO
 =====================================================================
-.arnes/correr-vidrio-cedula.sh contra Postgres de verdad: los cuatro
-frenos, el reabrir, el desplegable, y ademas EN UNA BASE SIN EL ROL
-«validador» —el caso de la bodega, y el que ya tumbo una migracion—.
+«Cuando vaya a seguir, que me quede cerca en el desplegable: si antes
+ tenia P40 y sigo, me debe aparecer el 41, o sea los que siguen, con el
+ fin de que el scroll sea menos.»
 
-.arnes/fc-cedula.mjs monta la pantalla de verdad en Chromium, la llena
-como se llena de pie, TOCA el boton y lee el paquete que sale hacia la
-base. El freno de las tolvas se puede perder sin que se vea nada: el
-bloque sigue pintado, el desplegable sigue ahi, y el boton se deja
-tocar. Una mirada no distingue esas dos pantallas.
+Contando una bodega no se salta de sitio: se va A01, A02, A03. Con la
+lista abriendo siempre arriba, quien va por el modulo 40 tenia que rodar
+cuarenta renglones CADA VEZ — y son cientos de renglones al dia, de pie
+y con guante.
 
-Y las mutaciones que no mordian: inv-conteo 70/70, fe-tablero 18/18,
-tp-resumen 17/17, inv-base 41/41, sd-placas 13/13, rl-historial 38/38,
-fc-bandeja 20/20, ad-roles 9/9. Dos arneses se arreglaron ademas porque
-estaban verdes POR CARAMBOLA —el tope de las barras lo sostenia un
-Math.max de otra linea, y el aviso de la migracion un t.faltaSinContar
-que no era—.
+LO QUE **NO** SE HACE ES REORDENAR LA LISTA. El orden de la bodega es el
+que la gente tiene en la cabeza; moverlo para poner primero lo probable
+deja a quien busca hacia atras sin saber donde esta parado. Se mueve el
+SCROLL, no el orden: la lista abre con el que ya esta puesto arriba del
+todo y el siguiente resaltado debajo. Ver de donde viene uno es lo que
+hace que el siguiente se lea como «el siguiente».
+
+Y TRES REGLAS QUE LO MANTIENEN HONESTO
+· Sin nada escogido abre arriba, como siempre: es el primer renglon del
+  dia y saltar a la mitad de la lista seria peor que el problema.
+· Teclear manda sobre todo: quien escribe «07» busca el 07, no el
+  siguiente al 40.
+· Es opcional (`desdeElSiguiente`), y solo lo piden Calle y Modulo de
+  Contar. Un desplegable donde uno CORRIGE tiene que abrir en lo que
+  esta puesto.
+
+=====================================================================
+5. LOS ARNESES
+=====================================================================
+.arnes/iv-siguiente.mjs monta el Buscador de verdad y mide CUANTOS
+RENGLONES HAY QUE RODAR. Una lista que abre arriba y una que abre en el
+renglon 41 se ven exactamente igual en una captura; la diferencia solo
+se ve en el scrollTop. Ocho comprobaciones, incluida la del ultimo de la
+lista y la de teclear.
+
+.arnes/rt-sitio.mjs se reescribio en la parte de EER: el fixture ahora
+tiene DOS ambar y DOS de producto terminado a proposito, que es el caso
+por el que existe el desplegable. Con un solo material de cada cosa, las
+comprobaciones pasarian solas sin medir nada.
 
 DOS COSAS QUE LOS ARNESES CAZARON EN ESTE MISMO CAMBIO
-· La bandeja importaba placaClave de datos.ts, que es del SERVIDOR: se
-  arrastraba next/headers al navegador. Se mudo a formato.ts.
-· Un `.fc-confirmar.con-vidrio` le ganaba por especificidad al @media
-  del celular y dejaba el campo del documento en tres letras. Es la
-  misma trampa de siempre en este proyecto.
+· `pg.fill` sobre un campo controlado por React dejaba el DOM en 15 y el
+  componente en 0: la pantalla se veia bien y el boton se quedaba
+  apagado sin motivo. Ahora se teclea con el setter nativo, que es lo
+  que hace el navegador cuando una persona escribe.
+· El scroll de la lista se calculaba con `offsetTop`, que cuenta desde
+  el ancestro posicionado y da una cuenta corrida. Ahora se mide por
+  rectangulos.
+
+Y UNA TERCERA, DEL PROPIO ARNES: la primera version montaba el Buscador
+fuera de `.fe`, donde la lista no tiene alto maximo. Salia entera, no
+habia nada que rodar, y decia que si.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

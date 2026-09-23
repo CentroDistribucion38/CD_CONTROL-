@@ -105,6 +105,16 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
   const adherencia = planeado > 0 ? Math.round((adheridos / planeado) * 100) : null;
   const cumplimiento = planeado > 0 ? Math.round((cumplido / planeado) * 100) : null;
 
+  /* LO QUE EL PATIO YA CARGÓ Y FACTURACIÓN NO HA DESPACHADO.
+     El cumplido cuenta solo lo que salió —un camión parado en el patio
+     no es un viaje hecho—, pero el número a secas dejaría al patio
+     viendo «3 de 8» después de haber cargado ocho, como si el tablero
+     hubiera perdido viajes. Aquí se dice el resto de la verdad, y a
+     cuánto llegaría el cumplimiento cuando salga el papel. */
+  const porSalir = sum("por_salir");
+  const cumplimientoTecho = planeado > 0
+    ? Math.round(((cumplido + porSalir) / planeado) * 100) : null;
+
   /* LA CINTA REPARTE SOBRE EL PLAN, no sobre lo movido. Si se hicieron
      más de los planeados, el tramo de adicionales se recorta para que
      la cinta no se pase de largo: lo de más ya está dicho al lado. */
@@ -168,6 +178,11 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
     l.push("");
     l.push(`Adherencia ${pct(adherencia)} — ${nf.format(adheridos)} de ${nf.format(planeado)} del plan`);
     l.push(`Cumplimiento ${pct(cumplimiento)} · Adicionales ${nf.format(adicionales)} · Sin salir ${nf.format(faltan)}`);
+    /* EN LO QUE SE COPIA TAMBIÉN VA: si alguien pega este resumen en un
+       grupo sin la frase, el que lo lea concluye que se movió menos de
+       lo que se movió. */
+    if (porSalir > 0)
+      l.push(`${nf.format(porSalir)} esperando a facturación — con ellos el cumplimiento sería ${pct(cumplimientoTecho)}`);
     l.push(`Carga movida ${nf.format(carga)}`
       + (nVacios ? ` · ${nVacios} vacío${nVacios === 1 ? "" : "s"} (aparte)` : ""));
     if (tipos.length) {
@@ -376,6 +391,19 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
             </div>
           </div>
         </div>
+
+        {/* ─ LO QUE ESPERA EL PAPEL ─
+            Solo se pinta si hay algo esperando. Un renglón que casi
+            siempre dice «0 esperando a facturación» deja de leerse, y
+            el día que diga 7 tampoco se va a leer. */}
+        {porSalir > 0 && (
+          <p className="tp-ci-espera">
+            <b>{nf.format(porSalir)}</b> viaje{porSalir === 1 ? "" : "s"} cargado
+            {porSalir === 1 ? "" : "s"} esperando a que facturación confirme la salida.
+            No cuentan todavía en el cumplido: cuando salgan, el cumplimiento sube a{" "}
+            <b>{pct(cumplimientoTecho)}</b>.
+          </p>
+        )}
 
         {/* ─ EL DETALLE, A LO ANCHO ─ */}
         <div className="tp-ci-ancho">

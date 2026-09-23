@@ -129,6 +129,25 @@ export type Control = {
   adherencia: number | null;
   /** Mide si se movió lo que había que mover, adicionales incluidos. */
   cumplimiento: number | null;
+
+  /* ---- LO QUE ESTÁ ESPERANDO A FACTURACIÓN ----
+     El cumplido cuenta SOLO lo que facturación dio por salido: un
+     camión cargado que sigue en el patio no es un viaje hecho. Pero
+     bajar el número a secas dejaría al patio viendo «3 de 8» sin saber
+     por qué, después de haber cargado ocho. Esto es la otra mitad de la
+     verdad: trabajo hecho que todavía no tiene documento.
+
+     Opcionales: sin la migración no vienen, y entonces no se pinta
+     nada. La pantalla no se puede caer por el orden en que se corran
+     los SQL. */
+  por_salir?: number;
+  registros_por_salir?: number;
+  carga_por_salir?: number;
+  placas_por_salir?: number;
+  /** A cuánto llegaría el cumplimiento si saliera todo lo que espera.
+   *  Contesta «¿vamos mal, o vamos bien y el papel está atrasado?»,
+   *  que son dos conversaciones distintas y se veían igual. */
+  cumplimiento_con_pendientes?: number | null;
 };
 
 /**

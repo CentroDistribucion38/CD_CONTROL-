@@ -29,6 +29,7 @@ export type Opcion = { valor: string; texto: string; pista?: string | null };
 
 export function Buscador({
   valor, opciones, onEscoge, marcador, id, sinOpciones, teclado = "texto", campo: fuera,
+  desdeElSiguiente = false,
 }: {
   valor: string;
   opciones: Opcion[];
@@ -60,6 +61,25 @@ export function Buscador({
    * porque el momento lo decide quien llama, no el componente.
    */
   campo?: RefObject<HTMLInputElement | null>;
+  /**
+   * AL ABRIR, ARRANCAR EN EL QUE SIGUE AL QUE YA ESTÁ PUESTO.
+   *
+   * «Cuando vaya a seguir, que me quede cerca en el desplegable: si
+   * antes tenía P40 y sigo, me debe aparecer el 41, o sea los que
+   * siguen, con el fin de que el scroll sea menos.»
+   *
+   * Contando una bodega no se salta de sitio: se va A01, A02, A03. Con
+   * la lista abriendo siempre arriba, quien va por el módulo 40 tiene
+   * que rodar cuarenta renglones CADA VEZ — y son cientos de renglones
+   * al día, de pie y con guante.
+   *
+   * Lo que NO se hace es reordenar la lista. El orden de la bodega es
+   * el que la gente tiene en la cabeza; moverlo para poner primero lo
+   * probable deja a quien busca hacia atrás sin saber dónde está
+   * parado. Se mueve el SCROLL, no el orden: la lista abre con el que
+   * ya está puesto arriba del todo y el siguiente resaltado debajo.
+   */
+  desdeElSiguiente?: boolean;
 }) {
   const auto = useId();
   const idLista = `${id ?? auto}-lista`;
@@ -67,6 +87,7 @@ export function Buscador({
   const [texto, setTexto] = useState("");
   const [activo, setActivo] = useState(0);
   const caja = useRef<HTMLDivElement>(null);
+  const lista = useRef<HTMLUListElement>(null);
   const propia = useRef<HTMLInputElement>(null);
   const campo = fuera ?? propia;
 
@@ -90,6 +111,36 @@ export function Buscador({
   useEffect(() => {
     setActivo((i) => Math.min(i, Math.max(0, filtradas.length - 1)));
   }, [filtradas.length]);
+
+  /* AL ABRIR, CAER EN EL QUE SIGUE. Ver `desdeElSiguiente` arriba.
+
+     Se mueve el scroll con `scrollTop` y no con `scrollIntoView`:
+     scrollIntoView mueve también la PÁGINA cuando el elemento no cabe,
+     y en el celular eso saca de la vista el campo que se acaba de
+     tocar. Aquí solo rueda la lista.
+
+     El que ya está puesto queda ARRIBA DEL TODO y el siguiente justo
+     debajo: ver de dónde viene uno es lo que hace que el siguiente se
+     lea como «el siguiente» y no como un renglón cualquiera. */
+  useEffect(() => {
+    if (!abierto || !desdeElSiguiente || texto !== "") return;
+    const i = opciones.findIndex((o) => o.valor === valor);
+    if (i < 0) return;
+    const sigue = Math.min(i + 1, opciones.length - 1);
+    setActivo(sigue);
+    /* En el siguiente cuadro: la lista todavía no está en el DOM cuando
+       este efecto corre la primera vez. */
+    requestAnimationFrame(() => {
+      const ul = lista.current;
+      const li = ul?.children[i] as HTMLElement | undefined;
+      if (!ul || !li) return;
+      /* Por rectángulos y no por `offsetTop`: `offsetTop` cuenta desde
+         el ancestro POSICIONADO, que no siempre es la lista, y entonces
+         la cuenta queda corrida sin que se note en el computador y sí
+         en el celular. Esto es cuánto hay que rodar, medido. */
+      ul.scrollTop += li.getBoundingClientRect().top - ul.getBoundingClientRect().top;
+    });
+  }, [abierto, desdeElSiguiente, texto, valor, opciones]);
 
   /* Cerrar al tocar fuera. Va en `mousedown` y no en `click` para que
      cerrar no le robe el toque al campo de al lado: con `click` hay que
@@ -155,7 +206,7 @@ export function Buscador({
       <span className="bs-flecha" aria-hidden="true">▾</span>
 
       {abierto && (
-        <ul className="bs-lista" id={idLista} role="listbox">
+        <ul className="bs-lista" id={idLista} role="listbox" ref={lista}>
           {filtradas.length === 0 && (
             <li className="bs-nada">
               {opciones.length === 0

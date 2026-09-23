@@ -59,7 +59,16 @@ const materiales = [
   { clave: "EER-AMBAR", nombre: "Envase retornable ámbar", tipo: "eer", color: "ambar", botellas_x_empaque: null, activo: true, orden: 1 },
   { clave: "EER-FLINT", nombre: "Envase retornable flint", tipo: "eer", color: "flint", botellas_x_empaque: null, activo: true, orden: 2 },
   { clave: "EER-GREEN", nombre: "Envase retornable green", tipo: "eer", color: "green", botellas_x_empaque: null, activo: true, orden: 3 },
+  /* DOS ÁMBAR A PROPÓSITO. Es el caso que obliga a que EER tenga su
+     desplegable: con uno solo, la base puede traducir color → material
+     sin equivocarse; con dos, escoge uno EN SILENCIO y el informe del
+     mes reparte el vidrio en el formato que no era. */
+  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, activo: true, orden: 4 },
   { clave: "PT-COST-330", nombre: "Cerveza Costeña 330 ml", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, activo: true, orden: 11 },
+  /* Y DOS DE PRODUCTO TERMINADO, para que «no deja seguir sin escoger
+     material» siga midiendo algo: con uno solo vendría puesto y la
+     comprobación pasaría sola. */
+  { clave: "PT-COST-175", nombre: "Envase Costeña 175R", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, activo: true, orden: 12 },
 ];
 const procesos = [
   { clave: "lineas", nombre: "Líneas", activo: true, orden: 1 },
@@ -232,26 +241,95 @@ await pg.click(".mas");
 await pg.waitForSelector(".rt-rep");
 
 /* ---------------------------------------------------------------------
-   1 · EL EER NO PIDE MATERIAL
+   1 · EL EER TAMBIÉN PIDE MATERIAL, Y FILTRADO POR EL COLOR
+
+   «En sitio, en EER debe aparecer también el desplegable del material.»
+
+   UN DÍA NO LO PIDIÓ, y el argumento era bueno mientras fue cierto: el
+   color ES el material, uno por color, y la base traduce. Deja de ser
+   cierto en cuanto el maestro tiene dos ámbar —330 y 750—: entonces la
+   traducción escoge el primero por orden EN SILENCIO, nadie lo ve en la
+   pantalla, y el informe del mes reparte el vidrio en el formato que no
+   era. Por eso el fixture de arriba tiene dos ámbar.
+
+   LO QUE SE MIDE NO ES QUE EL CAMPO ESTÉ: es que la lista traiga SOLO
+   los del color escogido, que cambie al cambiar el color, y que cuando
+   hay uno solo venga puesto — si hay que abrir un desplegable de un
+   renglón para escoger lo único que se podía escoger, el campo es un
+   toque cobrado por nada y la gente lo va a odiar.
    ------------------------------------------------------------------ */
 await monta();
 await abrir();
 await pg.click(".rt-rep .seg button:has-text('EER')");
-ok(!(await pg.isVisible("#rt-mat")),
-   "en EER sigue apareciendo el campo Material");
+ok(await pg.isVisible("#rt-mat"),
+   "en EER no aparece el desplegable del material");
 ok(await pg.isVisible(".rt-rep .seg.vidrio"),
-   "en EER no está el color del vidrio, que es lo que ahora hace de material");
+   "en EER no está el color del vidrio, que es lo que acota la lista");
 
-/* LO QUE DE VERDAD SE PIDIÓ: que DEJE CONTINUAR. */
-ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
-   "en EER el botón de Siguiente sigue apagado — que era el problema entero");
+/* ÁMBAR: hay dos, así que no puede venir puesto ninguno y hay que
+   escoger. Es justo el caso por el que el campo existe. */
+await pg.click(".rt-rep .seg.vidrio button.ambar");
+{
+  const op = await pg.$$eval("#rt-mat option", (o) => o.map((x) => x.value).filter(Boolean));
+  ok(op.length === 2 && op.every((c) => c.startsWith("EER-AMBAR")),
+     `en ámbar la lista trae ${JSON.stringify(op)} y debería traer solo los ámbar`);
+  ok((await pg.inputValue("#rt-mat")) === "",
+     "con dos ámbar ya viene uno escogido: eso es escoger por quien está mirando la estiba");
+  ok(await pg.isDisabled(".rt-rep .pie button.si"),
+     "con dos ámbar deja seguir sin decir cuál era: la base va a adivinar");
+}
 
-/* Y en producto terminado el campo sigue, porque ahí sí decide algo. */
+/* FLINT: hay uno solo, así que viene puesto y no hay que tocar nada. */
+await pg.click(".rt-rep .seg.vidrio button.flint");
+{
+  const op = await pg.$$eval("#rt-mat option", (o) => o.map((x) => x.value).filter(Boolean));
+  ok(op.length === 1 && op[0] === "EER-FLINT",
+     `al cambiar a flint la lista quedó en ${JSON.stringify(op)}: no se filtró por el color nuevo`);
+  /* SE ESPERA A QUE SE ACOMODE. El material lo pone un efecto, que
+     corre DESPUÉS del render: leerlo en el instante del clic lo
+     encuentra todavía vacío y la prueba falla por rápida, no por rota.
+     Dos segundos de tope: si de verdad no se pone, sigue fallando. */
+  const puesto = await pg.waitForFunction(
+    () => document.querySelector("#rt-mat")?.value === "EER-FLINT",
+    null, { timeout: 2000 }).then(() => true, () => false);
+  ok(puesto,
+     "con un solo flint no viene puesto: obliga a abrir un desplegable de un renglón");
+  ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
+     "en flint el botón de Siguiente está apagado y no hay nada más que escoger");
+}
+
+/* Y NO SE QUEDA UN MATERIAL DE OTRO COLOR. Volver a ámbar tiene que
+   soltar el flint: si quedara puesto se mandaría un ámbar marcado como
+   flint, y en la pantalla las dos cosas se ven igual de bien. */
+await pg.click(".rt-rep .seg.vidrio button.ambar");
+ok((await pg.inputValue("#rt-mat")) === "",
+   "al volver a ámbar se quedó puesto el material del flint");
+
+/* Y en producto terminado el campo sigue donde estaba, y sigue pidiéndose. */
 await pg.click(".rt-rep .seg button:has-text('Producto terminado')");
 ok(await pg.isVisible("#rt-mat"),
    "en producto terminado desapareció el Material, y ahí sí hace falta");
+ok((await pg.inputValue("#rt-mat")) === "",
+   "al pasar de EER a producto terminado se quedó puesto un envase retornable");
 ok(await pg.isDisabled(".rt-rep .pie button.si"),
    "en producto terminado deja seguir sin escoger material");
+
+/* ---------------------------------------------------------------------
+   1b · «BOTELLAS ROTAS ADENTRO» SE FUE
+
+   Proponía todas las botellas del empaque y pedía corregirlas a mano.
+   Nadie las contaba: el número propuesto se quedaba tal cual, así que
+   no medía nada — solo alargaba el registro con un contador que siempre
+   decía lo mismo.
+   ------------------------------------------------------------------ */
+await pg.selectOption("#rt-mat", "PT-COST-330");
+{
+  const txt = await pg.textContent(".rt-rep");
+  ok(!/Botellas rotas adentro/i.test(txt),
+     "en producto terminado sigue saliendo «Botellas rotas adentro»");
+  ok(!/caben \d/i.test(txt),
+     "sigue saliendo el «caben N» del contador de botellas");
+}
 
 /* ---------------------------------------------------------------------
    2 · EL PROCESO HABILITA LAS CAUSAS · 3 · EL ÁREA
@@ -260,7 +338,21 @@ await monta();
 await abrir();
 await pg.click(".rt-rep .seg button:has-text('EER')");
 await pg.click(".rt-rep .seg.vidrio button.flint");
-await pg.fill(".rt-rep .cel-step input", "15");
+/* SE TECLEA COMO SE TECLEA DE VERDAD, y no con `fill`.
+   `fill` pone el valor en el DOM y dispara el evento, pero en un campo
+   controlado por React el rastreador de valor puede no ver el cambio y
+   entonces el DOM dice 15 y el componente sigue en 0: la pantalla se ve
+   bien y el botón se queda apagado sin motivo. Costó media hora
+   encontrarlo. Esto usa el setter nativo, que es lo que hace el
+   navegador cuando una persona escribe. */
+await pg.evaluate(() => {
+  const el = document.querySelector(".rt-rep .cel-step input");
+  const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+  set.call(el, "15");
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+});
+ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
+   "con material, color y 15 unidades el botón de Siguiente sigue apagado");
 await pg.click(".rt-rep .pie button.si");
 await pg.waitForSelector("#rt-area");
 
@@ -295,12 +387,18 @@ await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')")
 ok(/Enviar a ABI/.test(await pg.textContent(".rt-rep .pie button.si")),
    "con proceso, área y causa el botón todavía dice que falta algo");
 
-/* Y SE MANDA EL COLOR, NO UN MATERIAL INVENTADO. */
+/* Y SE MANDAN LOS DOS: EL MATERIAL ESCOGIDO Y EL COLOR.
+   La función prefiere el material cuando llega —«quien ya lo sabe no
+   tiene por qué dejar de decirlo»— y cae al color solo si el maestro no
+   tiene ninguno de ese color. Mandar solo el color dejaba a la base
+   eligiendo entre dos ámbar en silencio, que es lo que esto vino a
+   quitar. Y ya no viaja ninguna botella: ese contador se fue. */
 await pg.click(".rt-rep .pie button.si");
 await pg.waitForFunction(() => (window.llamadas ?? []).some((l) => l.f === "rotura_registrar"));
 const l = (await llamadas()).find((x) => x.f === "rotura_registrar");
-ok(l.a.p_material === null, `en EER se mandó un material: ${l.a.p_material}`);
+ok(l.a.p_material === "EER-FLINT", `en EER no se mandó el material escogido: ${l.a.p_material}`);
 ok(l.a.p_color === "flint", `en EER no se mandó el color escogido: ${l.a.p_color}`);
+ok(l.a.p_botellas === null, `todavía se mandan botellas de adentro: ${l.a.p_botellas}`);
 ok(l.a.p_area === "plazoleta", `no se mandó el área: ${l.a.p_area}`);
 ok(l.a.p_unidades === 15, `no se mandaron las unidades: ${l.a.p_unidades}`);
 
@@ -424,6 +522,10 @@ await pg.screenshot({ path: ".arnes/rt-sitio-movil.png", fullPage: true });
 await monta(1440, "ambar", 1100);
 await abrir();
 await pg.click(".rt-rep .seg button:has-text('EER')");
+/* FLINT porque en el maestro de prueba hay UNO SOLO: el material viene
+   puesto y se puede pasar de paso sin tocar el desplegable. En ámbar
+   hay dos a propósito y ahí sí hay que escoger. */
+await pg.click(".rt-rep .seg.vidrio button.flint");
 await pg.click(".rt-rep .pie button.si");
 await pg.waitForSelector("#rt-area");
 await pg.click(".rt-rep .chips button:has-text('Líneas')");
@@ -510,6 +612,8 @@ for (const [ancho, nombre] of [[1440, "pc"], [820, "tab"], [390, "cel"], [360, "
   await monta(ancho);
   await abrir();
   await pg.click(".rt-rep .seg button:has-text('EER')");
+  /* Flint: un solo material, viene puesto, se pasa de paso. */
+  await pg.click(".rt-rep .seg.vidrio button.flint");
   await pg.click(".rt-rep .pie button.si");
   await pg.waitForSelector("#rt-area");
   await pg.click(".rt-rep .chips button:has-text('Líneas')");
@@ -542,4 +646,4 @@ if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\n✓ Rotura en sitio: Registrar es la consola de Traspasos —formulario y contexto al lado—, el EER no pide material y deja seguir, el proceso habilita las causas, y el área sale del maestro.");
+console.log("\n✓ Rotura en sitio: Registrar es la consola de Traspasos —formulario y contexto al lado—, el EER pide material filtrado por el color (y puesto cuando solo hay uno), «botellas rotas adentro» se fue, el proceso habilita las causas, y el área sale del maestro.");

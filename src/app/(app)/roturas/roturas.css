@@ -763,6 +763,11 @@
 
 .rt-rep .linea-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px }
 .rt-rep .linea-campos > * { min-width: 0 }
+/* UNA LÍNEA DE UN SOLO CAMPO, con el ancho de la primera columna y no
+   el de toda la línea: es el Material de EER, que va debajo del color
+   al que pertenece. A ancho completo se leería como otro bloque y no
+   como la continuación del color que se acaba de tocar. */
+.rt-rep .linea-campos.una > * { grid-column: 1 }
 .rt-rep .rot-campo {
   display: block; font-size: 11px; font-weight: 700; letter-spacing: .12em;
   color: var(--rt-gris); margin-bottom: 9px; text-transform: uppercase;

@@ -69,8 +69,11 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
      da de baja el líquido. Sumarlas en un solo número obligaría después
      a adivinar cuánto vidrio salió de ahí. */
   const [contaminadas, setContaminadas] = useState(0);
-  const [botellas, setBotellas] = useState<number | null>(null);
-  const [tocoBotellas, setTocoBotellas] = useState(false);
+  /* `tocoBotellas` se queda aunque el contador se fuera: lo sigue
+     tocando el reacomodo del material, y quitarlo obligaba a repasar
+     tres efectos por un booleano que no cuesta nada. `botellas` sí se
+     fue: hoy siempre viajaría en null. */
+  const [, setTocoBotellas] = useState(false);
 
   const [proceso, setProceso] = useState("");
   const [area, setArea] = useState("");
@@ -87,35 +90,47 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
 
   const { ubi, direccion, pedir } = usePosicion();
 
-  /* SOLO EL PRODUCTO TERMINADO TIENE LISTA DE MATERIALES. En EER el
-     color ES el material —uno por color—, así que la lista no se pinta
-     ni se filtra: el color que ya se escogió arriba lo dice todo. */
-  const delTipo = materiales.filter((m) => m.tipo === "producto_terminado");
+  /* LOS DOS TIPOS TIENEN SU LISTA DE MATERIALES, y en EER además se
+     filtra por el color que se acaba de escoger.
+
+     ESTUVO SIN LISTA EN EER, con el argumento de que el color ES el
+     material. Es cierto MIENTRAS haya uno solo por color: la base
+     traduce color → material tomando el primero por orden. En cuanto el
+     maestro tenga dos ámbar —330 y 750, por decir— esa traducción
+     escoge uno de los dos EN SILENCIO, y el informe del mes reparte el
+     vidrio en el formato equivocado sin que nadie pueda verlo.
+
+     Con la lista a la vista: si hay uno solo, viene puesto y nadie
+     tiene que tocar nada; si hay varios, hay que decir cuál. */
+  const delTipo = materiales.filter((m) =>
+    m.tipo === tipo && (tipo !== "eer" || m.color === vidrio));
   const mat = materiales.find((m) => m.clave === material) ?? null;
   const cau = causas.find((c) => c.clave === causa) ?? null;
   const exigeFoto = !!cau?.exige_foto;
 
-  /* Al pasar a EER se suelta el material: si quedara puesto, se
-     mandaría un envase retornable con la clave de una cerveza. */
+  /* AL CAMBIAR DE TIPO O DE COLOR, EL MATERIAL SE REACOMODA SOLO.
+     Si quedara el de antes se mandaría un envase retornable con la
+     clave de una cerveza, o un ámbar marcado como flint — y las dos
+     cosas se ven igual de bien en la pantalla.
+
+     Y SI SOLO HAY UNO POSIBLE, VIENE PUESTO. Es el caso normal en EER:
+     un desplegable de un solo renglón que hay que abrir para escoger lo
+     único que se podía escoger es un toque cobrado por nada. */
   useEffect(() => {
-    if (tipo === "eer" && material) setMaterial("");
-  }, [tipo, material]);
+    const posibles = materiales.filter((m) =>
+      m.tipo === tipo && (tipo !== "eer" || m.color === vidrio));
+    setMaterial((antes) => {
+      if (antes && posibles.some((m) => m.clave === antes)) return antes;
+      return posibles.length === 1 ? posibles[0].clave : "";
+    });
+    setTocoBotellas(false);
+  }, [tipo, vidrio, materiales]);
 
   /* Y AL CAMBIAR DE PROCESO SE SUELTA LA CAUSA. Hoy las causas son las
      mismas para todos los procesos, así que esto no cambia nada a la
      vista; el día que se amarren por proceso —que es a dónde va
      esto— dejar la causa puesta mandaría una que ese proceso no tiene. */
   useEffect(() => { setCausa("") }, [proceso]);
-
-  /* TODAS LAS BOTELLAS COMO PROPUESTA, no como dato fijo. Cuando una
-     estiba se cae, lo más probable es que se rompa todo lo que iba
-     dentro; y si no, se corrige con dos toques. Proponer cero obligaría
-     a teclear el número correcto SIEMPRE, y el que no lo teclee deja el
-     vidrio de adentro fuera del conteo. */
-  useEffect(() => {
-    if (tipo !== "producto_terminado" || !mat?.botellas_x_empaque) { setBotellas(null); return }
-    if (!tocoBotellas) setBotellas(unidades * mat.botellas_x_empaque);
-  }, [tipo, mat, unidades, tocoBotellas]);
 
   async function abrirCamara() {
     /* Se pide el punto AQUÍ y no al abrir el asistente. Si la persona
@@ -151,12 +166,46 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   useEffect(() => () => { if (foto) URL.revokeObjectURL(foto.url); }, [foto]);
 
   const esPT = tipo === "producto_terminado";
-  /* EN EER NO HAY MATERIAL QUE ESPERAR: con el color y las unidades ya
-     se puede seguir. Antes se exigía `material` para los dos, y en EER
-     eso era un desplegable que muchas veces salía vacío: el botón se
-     quedaba apagado sin decir por qué. */
+
+  /* EL MISMO CAMPO EN DOS SITIOS, escrito una vez. En producto terminado
+     va en la primera línea, al lado de «¿Qué se rompió?»; en EER ese
+     sitio lo ocupa el color y el material baja a su propia línea.
+     Copiarlo dos veces es cómo se termina con dos campos que se parecen
+     y se comportan distinto. */
+  const campoMaterial = (
+    <div>
+      <span className="rot-campo">Material</span>
+      <select id="rt-mat" className="campo-suelto" value={material}
+              onChange={(e) => { setMaterial(e.target.value); setTocoBotellas(false) }}>
+        <option value="">Escoge el material</option>
+        {delTipo.map((m) => (
+          <option key={m.clave} value={m.clave}>{m.nombre} · {m.clave}</option>
+        ))}
+      </select>
+      {delTipo.length === 0 && (
+        <p className="nota">
+          {esPT
+            ? <>No hay materiales de producto terminado en el maestro. Se agregan en
+                Maestro, sin esperar un despliegue.</>
+            : <>No hay envase retornable <b>{COLOR_VIDRIO[vidrio].toLowerCase()}</b> en el
+                maestro. Se agrega en Maestro, sin esperar un despliegue.</>}
+        </p>
+      )}
+    </div>
+  );
+  /* EL MATERIAL SE EXIGE EN LOS DOS, Y AHORA SÍ SE PUEDE.
+     Un día no se exigió en EER porque el desplegable salía vacío y el
+     botón se quedaba apagado sin decir por qué. La causa no era la
+     regla: era que la lista no estaba filtrada por color. Con la lista
+     filtrada —y puesta sola cuando solo hay una— exigirlo no traba a
+     nadie, y evita que la base tenga que adivinar cuál de dos ámbar era.
+
+     SALVO QUE NO HAYA NINGUNO EN EL MAESTRO. Ahí sí se deja seguir: la
+     base traduce por color como siempre, y el mensaje de abajo dice qué
+     falta agregar. Trabar el registro de una rotura que ya ocurrió por
+     un maestro incompleto es perder el dato para siempre. */
   const puedeSeguir = paso === 1
-    ? (esPT ? !!material : true) && (unidades + (esPT ? contaminadas : 0)) > 0
+    ? (!!material || delTipo.length === 0) && (unidades + (esPT ? contaminadas : 0)) > 0
     : !!proceso && !!area && !!causa && (!exigeFoto || !!foto);
 
   async function mandar() {
@@ -164,14 +213,20 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
     setMal(null);
 
     const { data, error } = await supabase.rpc("rotura_registrar", {
-      /* En EER va el COLOR y no el material: la base traduce. Ver la
-         nota de arriba. */
-      p_material: esPT ? material : null,
+      /* VAN LOS DOS EN EER: el material escogido Y el color. La función
+         prefiere el material cuando llega —«quien ya lo sabe no tiene
+         por qué dejar de decirlo»— y cae al color solo si el maestro no
+         tiene ninguno de ese color, que es el único caso en que se deja
+         seguir sin escoger. Mandar solo el color dejaba a la base
+         eligiendo entre dos ámbar en silencio. */
+      p_material: material || null,
       p_color: esPT ? null : vidrio,
       p_area: area,
       p_unidades: unidades,
       p_contaminadas: esPT ? contaminadas : null,
-      p_botellas: esPT ? botellas : null,
+      /* SIEMPRE NULL: el contador de botellas de adentro se quitó del
+         registro. La columna sigue en la base con lo que ya tenga. */
+      p_botellas: null,
       p_proceso: proceso,
       p_causa: causa,
       p_descripcion: descripcion.trim() || null,
@@ -232,8 +287,8 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
         </div>
         <div className="cuerpo">
           <p className="guia">
-            <b>{listo}</b> — {esPT ? mat?.nombre
-                                   : `Envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()}`}.
+            <b>{listo}</b> — {mat?.nombre
+                              ?? `Envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()}`}.
             Pasa a la bandeja de ABI para el visto bueno.
           </p>
           {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
@@ -306,10 +361,15 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                 </div>
               </div>
 
-              {/* EN EER, EL COLOR ES EL MATERIAL —uno por color—, así que
-                  ocupa el sitio del desplegable en vez de sumarse a él.
-                  En producto terminado no hay color: el vidrio va dentro
-                  del líquido, y ahí sí se escoge el formato. */}
+              {/* EN EER, EL COLOR OCUPA EL SEGUNDO SITIO DE LA LÍNEA: es
+                  lo primero que se ve de un envase vacío y es lo que
+                  acota la lista de materiales que sale debajo.
+                  En producto terminado no hay color que escoger —el
+                  vidrio va dentro del líquido— así que ahí el segundo
+                  sitio lo ocupa el material, como siempre. La línea
+                  siempre lleva dos columnas: dejarla con una sola en un
+                  tipo y dos en el otro hace que la pantalla salte al
+                  cambiar de pestaña. */}
               {tipo === "eer" ? (
                 <div>
                   <span className="rot-campo">Tipo de vidrio</span>
@@ -323,25 +383,15 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                     ))}
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <span className="rot-campo">Material</span>
-                  <select id="rt-mat" className="campo-suelto" value={material}
-                          onChange={(e) => { setMaterial(e.target.value); setTocoBotellas(false) }}>
-                    <option value="">Escoge el material</option>
-                    {delTipo.map((m) => (
-                      <option key={m.clave} value={m.clave}>{m.nombre} · {m.clave}</option>
-                    ))}
-                  </select>
-                  {delTipo.length === 0 && (
-                    <p className="nota">
-                      No hay materiales de producto terminado en el maestro. Se agregan en
-                      Maestro, sin esperar un despliegue.
-                    </p>
-                  )}
-                </div>
-              )}
+              ) : campoMaterial}
             </div>
+
+            {/* Y EN EER EL MATERIAL VA EN SU PROPIA LÍNEA, debajo del
+                color y filtrado por él. Viene puesto cuando solo hay uno
+                de ese color —que es el caso normal— así que casi nunca
+                hay que tocarlo; está para el día que el maestro tenga
+                dos ámbar y la base, sin esto, tenga que adivinar cuál. */}
+            {tipo === "eer" && <div className="linea-campos una">{campoMaterial}</div>}
 
             <div className="linea-campos">
               <div>
@@ -388,34 +438,18 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
               )}
             </div>
 
-            {esPT && unidades > 0 && mat?.botellas_x_empaque && (
-              <div>
-                <span className="rot-campo">
-                  Botellas rotas adentro — caben {unidades * mat.botellas_x_empaque}
-                </span>
-                <div className="conteo">
-                  <span className="cel-step grande">
-                    <button type="button"
-                            onClick={() => { setTocoBotellas(true); setBotellas((n) => Math.max(0, (n ?? 0) - 1)) }}
-                            aria-label="una menos">−</button>
-                    <input value={botellas ?? 0} inputMode="numeric" aria-label="botellas rotas"
-                           onChange={(e) => {
-                             setTocoBotellas(true);
-                             setBotellas(Math.min(unidades * mat.botellas_x_empaque!,
-                               Math.max(0, Number(e.target.value.replace(/\D/g, "")) || 0)));
-                           }} />
-                    <button type="button"
-                            onClick={() => { setTocoBotellas(true);
-                              setBotellas((n) => Math.min(unidades * mat.botellas_x_empaque!, (n ?? 0) + 1)) }}
-                            aria-label="una más">+</button>
-                  </span>
-                  <span className="nota-conteo">
-                    Se proponen todas: cuando una estiba se cae, lo normal es que se rompa todo lo
-                    de adentro. Se corrige con dos toques.
-                  </span>
-                </div>
-              </div>
-            )}
+            {/* AQUÍ ESTABA «BOTELLAS ROTAS ADENTRO — CABEN N», Y SE FUE.
+                Proponía todas las botellas del empaque y pedía
+                corregirlas a mano. En la práctica nadie las contaba: el
+                número propuesto se quedaba tal cual, así que no medía
+                nada — solo alargaba el registro con un contador que
+                siempre decía lo mismo.
+
+                LA COLUMNA NO SE BORRA DE LA BASE: `botellas` se queda
+                con lo que ya tenga, que es el registro de lo que se
+                anotó en su momento. Deja de pedirse, no de existir; y
+                `p_botellas` viaja en null, que es lo que la función ya
+                acepta. */}
           </>
         ) : (
           <>

@@ -1055,6 +1055,10 @@ export function Contar({
                    toque. El teclado del celular, en cambio, tapa media
                    pantalla y deja la lista debajo. */
                 teclado="ninguno"
+                /* Y ABRE EN LA CALLE QUE SIGUE. Se cuenta calle por
+                   calle: al terminar la B lo que viene es la C, y
+                   tenerla resaltada ahorra rodar la lista entera. */
+                desdeElSiguiente
                 opciones={[{ valor: "", texto: "Todas" },
                            ...calles.map((c) => ({ valor: c, texto: c }))]}
                 onEscoge={(nueva) => {
@@ -1093,6 +1097,11 @@ export function Contar({
                    doscientas filas solo alarga el renglón; sigue en el
                    maestro, que es donde se consulta. */
                 teclado="numerico"
+                /* Y ABRE EN EL MÓDULO QUE SIGUE. Es donde más se nota:
+                   quien va por el 40 tenía que rodar cuarenta renglones
+                   cada vez que abría la lista, y son cientos de
+                   renglones al día. */
+                desdeElSiguiente
                 opciones={modulos.map((m) => ({
                   valor: m.base,
                   texto: m.modulo,

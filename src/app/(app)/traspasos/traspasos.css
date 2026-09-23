@@ -569,6 +569,18 @@
 .tp-ci-bt.ico { width: 40px; padding: 0; justify-content: center }
 
 /* LA FRANJA DEL ACENTO */
+/* LO QUE ESPERA EL PAPEL.
+   Va debajo de la franja del acento y antes del detalle, que es donde
+   cae la vista después de leer el porcentaje y preguntarse por qué es
+   ese. Ámbar y no rojo a propósito: no es una falta del patio —el
+   trabajo está hecho—, es un documento que no ha salido. */
+.tp-ci-espera {
+  margin: 10px 0 0; padding: 10px 14px; border-radius: 9px;
+  border: 1.5px solid #C08A16; background: #FFF9EC; color: #5E4100;
+  font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere;
+}
+.tp-ci-espera b { color: #12263A; font-variant-numeric: tabular-nums }
+
 .tp-ci-hero {
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 30px; padding: 24px;
   background: var(--tp-acento); align-items: center; position: relative; overflow: hidden;
