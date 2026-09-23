@@ -118,6 +118,32 @@ maximo; en el celular se suelta a todo el ancho. El «+» se esconde
 mientras esta abierto —le tapaba una causa— y el boton dice QUE FALTA
 en vez de quedarse apagado y mudo: «Falta el area», «Falta la causa».
 
+EL MISMO FORMULARIO DE TRASPASOS, CLASE POR CLASE
+«Lo quiero como el modulo de Traspasos: organiza el diseno de tal
+manera que quede asi.»
+No es un parecido de ojo: es el MISMO vocabulario —`cuerpo-f`,
+`linea-campos`, `rot-campo`, `seg`, `chips`, `conteo`, `cel-step`,
+`campo-suelto`, el pie con su fondo y su raya— con los tokens de
+Roturas en vez de los de Traspasos. Quien sabe registrar un viaje sabe
+registrar una rotura sin que nadie le explique nada, y el dia que se
+mejore uno de los dos formularios se sabe donde esta lo mismo en el
+otro.
+Lo que se fue: las tarjetas gigantes de `opciones`, los cuadrados de
+`vidrios`, el contador de 76 px de alto, los `campo` con etiqueta
+grande. Lo que quedo: dos pasos —lo unico que este tiene y aquel no— y
+la foto.
+El arnes comprueba que las ocho clases de Traspasos existan aqui, y que
+las cinco viejas NO. Un parecido se puede escribir; esto se mide.
+
+Y SE BORRARON 291 LINEAS DE CSS MUERTO
+No estaban apagadas: estaban DESPUES del bloque nuevo, con la misma
+especificidad, asi que le ganaban. El chip de «Falla mecanica del
+montacargas» seguia tomando el `white-space: nowrap` de la version
+vieja y empujaba la pagina de lado en el celular —486 px de contenido
+en una pantalla de 390—. Lo cazo el arnes midiendo el desbordamiento,
+no el ojo. Es la cuarta vez en ese archivo que un selector
+sobreviviente se come algo nuevo.
+
 UN PANEL, NO UNA VENTANA
 «Separemos este registro de seleccionar la X: debe ser un panel como el
 modulo de registro de Traspasos, guiate asi.»

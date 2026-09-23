@@ -284,216 +284,210 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
         {[1, 2, 3, 4].map((i) => <i key={i} className={paso * 2 >= i ? "on" : ""} />)}
       </div>
 
-      <div className="cuerpo">
+      {/* EL CUERPO, CON EL VOCABULARIO DE TRASPASOS: `cuerpo-f` es una
+          columna de campos separados parejo, `linea-campos` pone dos
+          campos al lado, `rot-campo` es el rotulito de arriba, `seg` es
+          el segmentado de dos o tres opciones que se excluyen, `chips`
+          la fila de opciones y `conteo` el contador con sus dos
+          botones. Es el mismo formulario que ya se sabe llenar. */}
+      <div className="cuerpo-f">
         {paso === 1 ? (
           <>
-
-            {/* DOS COLUMNAS EN EL COMPUTADOR: a la izquierda QUÉ es —el
-                tipo, el color, el material—; a la derecha CUÁNTO —los
-                contadores—. Son las dos preguntas del paso y se
-                contestan sin bajar. En el celular se apilan solas. */}
-            <div className="dos-col">
-            <div className="col">
-
-            <div className="opciones dos">
-              {(["producto_terminado", "eer"] as const).map((t) => (
-                <button key={t} type="button" className={tipo === t ? "on" : ""}
-                        onClick={() => { setTipo(t); setContaminadas(0); setTocoBotellas(false) }}>
-                  <span className="p">{t === "eer" ? "EER" : "Producto terminado"}</span>
-                  <span className="h">
-                    {t === "eer" ? "Envase retornable vacío" : "Cerveza envasada"}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {tipo === "eer" && (
-              <>
-                <span className="rotulo">Tipo de vidrio</span>
-                <div className="vidrios">
-                  {(["ambar", "flint", "green"] as const).map((c) => (
-                    <button key={c} type="button"
-                            className={c + (vidrio === c ? " on" : "")}
-                            onClick={() => setVidrio(c)}>
-                      <i aria-hidden />
-                      <b>{COLOR_VIDRIO[c]}</b>
+            <div className="linea-campos">
+              <div>
+                <span className="rot-campo">¿Qué se rompió?</span>
+                <div className="seg">
+                  {(["producto_terminado", "eer"] as const).map((t) => (
+                    <button key={t} type="button" className={tipo === t ? "on" : ""}
+                            onClick={() => { setTipo(t); setContaminadas(0); setTocoBotellas(false) }}>
+                      {t === "eer" ? "EER · envase vacío" : "Producto terminado"}
                     </button>
                   ))}
                 </div>
-              </>
-            )}
-
-            {/* EL MATERIAL, SOLO EN PRODUCTO TERMINADO. En EER el color
-                que se escogió arriba ya es el material. */}
-            {esPT && (
-              <div className="campo">
-                <label htmlFor="rt-mat">Material</label>
-                <select id="rt-mat" value={material}
-                        onChange={(e) => { setMaterial(e.target.value); setTocoBotellas(false) }}>
-                  <option value="">Escoge el material</option>
-                  {delTipo.map((m) => (
-                    <option key={m.clave} value={m.clave}>{m.nombre} · {m.clave}</option>
-                  ))}
-                </select>
-                {delTipo.length === 0 && (
-                  <p className="nota">
-                    No hay materiales de producto terminado en el maestro. Se agregan en
-                    Maestro, sin esperar un despliegue.
-                  </p>
-                )}
               </div>
-            )}
 
-            </div>
-            <div className="col">
-
-            <div className="campo">
-              <label>Unidades rotas</label>
-              <div className="contador">
-                <button type="button" onClick={() => setUnidades((n) => Math.max(0, n - 1))}
-                        aria-label="Una menos">−</button>
-                <input type="number" inputMode="numeric" min={0} value={unidades}
-                       onChange={(e) => setUnidades(Math.max(0, Number(e.target.value) || 0))} />
-                <button type="button" onClick={() => setUnidades((n) => n + 1)}
-                        aria-label="Una más">+</button>
-              </div>
-              <p className="nota">
-                {esPT
-                  ? "Se rompió la botella: se da de baja el líquido y el vidrio."
-                  : "En sitio siempre se cuenta en unidades. Los kilos son de la salida, no de aquí."}
-              </p>
-            </div>
-
-            {/* EL SEGUNDO CONTADOR, solo en producto terminado. Un envase
-                retornable vacío no tiene líquido que contaminar. */}
-            {esPT && (
-              <div className="campo">
-                <label>Unidades contaminadas</label>
-                <div className="contador">
-                  <button type="button" onClick={() => setContaminadas((n) => Math.max(0, n - 1))}
-                          aria-label="Una menos">−</button>
-                  <input type="number" inputMode="numeric" min={0} value={contaminadas}
-                         onChange={(e) => setContaminadas(Math.max(0, Number(e.target.value) || 0))} />
-                  <button type="button" onClick={() => setContaminadas((n) => n + 1)}
-                          aria-label="Una más">+</button>
+              {/* EN EER, EL COLOR ES EL MATERIAL —uno por color—, así que
+                  ocupa el sitio del desplegable en vez de sumarse a él.
+                  En producto terminado no hay color: el vidrio va dentro
+                  del líquido, y ahí sí se escoge el formato. */}
+              {tipo === "eer" ? (
+                <div>
+                  <span className="rot-campo">Tipo de vidrio</span>
+                  <div className="seg vidrio">
+                    {(["ambar", "flint", "green"] as const).map((c) => (
+                      <button key={c} type="button"
+                              className={c + (vidrio === c ? " on" : "")}
+                              onClick={() => setVidrio(c)}>
+                        <i aria-hidden />{COLOR_VIDRIO[c]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <p className="nota">
-                  La botella quedó entera: se da de baja <b>solo el líquido</b> y el envase
-                  vuelve a la línea. Por eso no cuenta como vidrio roto.
-                </p>
+              ) : (
+                <div>
+                  <span className="rot-campo">Material</span>
+                  <select id="rt-mat" className="campo-suelto" value={material}
+                          onChange={(e) => { setMaterial(e.target.value); setTocoBotellas(false) }}>
+                    <option value="">Escoge el material</option>
+                    {delTipo.map((m) => (
+                      <option key={m.clave} value={m.clave}>{m.nombre} · {m.clave}</option>
+                    ))}
+                  </select>
+                  {delTipo.length === 0 && (
+                    <p className="nota">
+                      No hay materiales de producto terminado en el maestro. Se agregan en
+                      Maestro, sin esperar un despliegue.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="linea-campos">
+              <div>
+                <span className="rot-campo">Unidades rotas</span>
+                <div className="conteo">
+                  <span className="cel-step grande">
+                    <button type="button" onClick={() => setUnidades((n) => Math.max(0, n - 1))}
+                            aria-label="una menos">−</button>
+                    <input value={unidades} inputMode="numeric" aria-label="unidades rotas"
+                           onChange={(e) =>
+                             setUnidades(Math.max(0, Number(e.target.value.replace(/\D/g, "")) || 0))} />
+                    <button type="button" onClick={() => setUnidades((n) => n + 1)}
+                            aria-label="una más">+</button>
+                  </span>
+                  <span className="nota-conteo">
+                    {esPT
+                      ? "Se rompió la botella: se da de baja el líquido y el vidrio."
+                      : "Los kilos son de la salida, no de aquí."}
+                  </span>
+                </div>
               </div>
-            )}
+
+              {/* EL SEGUNDO CONTADOR, solo en producto terminado. Un
+                  envase retornable vacío no tiene líquido que contaminar. */}
+              {esPT && (
+                <div>
+                  <span className="rot-campo">Unidades contaminadas</span>
+                  <div className="conteo">
+                    <span className="cel-step grande">
+                      <button type="button" onClick={() => setContaminadas((n) => Math.max(0, n - 1))}
+                              aria-label="una menos">−</button>
+                      <input value={contaminadas} inputMode="numeric" aria-label="unidades contaminadas"
+                             onChange={(e) =>
+                               setContaminadas(Math.max(0, Number(e.target.value.replace(/\D/g, "")) || 0))} />
+                      <button type="button" onClick={() => setContaminadas((n) => n + 1)}
+                              aria-label="una más">+</button>
+                    </span>
+                    <span className="nota-conteo">
+                      La botella quedó entera: se da de baja <b>solo el líquido</b> y el envase
+                      vuelve a la línea. No cuenta como vidrio roto.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {esPT && unidades > 0 && mat?.botellas_x_empaque && (
-              <div className="campo">
-                <label htmlFor="rt-bot">
+              <div>
+                <span className="rot-campo">
                   Botellas rotas adentro — caben {unidades * mat.botellas_x_empaque}
-                </label>
-                <input id="rt-bot" type="number" inputMode="numeric" min={0}
-                       max={unidades * mat.botellas_x_empaque}
-                       value={botellas ?? 0}
-                       onChange={(e) => {
-                         setTocoBotellas(true);
-                         setBotellas(Math.max(0, Number(e.target.value) || 0));
-                       }} />
+                </span>
+                <div className="conteo">
+                  <span className="cel-step grande">
+                    <button type="button"
+                            onClick={() => { setTocoBotellas(true); setBotellas((n) => Math.max(0, (n ?? 0) - 1)) }}
+                            aria-label="una menos">−</button>
+                    <input value={botellas ?? 0} inputMode="numeric" aria-label="botellas rotas"
+                           onChange={(e) => {
+                             setTocoBotellas(true);
+                             setBotellas(Math.min(unidades * mat.botellas_x_empaque!,
+                               Math.max(0, Number(e.target.value.replace(/\D/g, "")) || 0)));
+                           }} />
+                    <button type="button"
+                            onClick={() => { setTocoBotellas(true);
+                              setBotellas((n) => Math.min(unidades * mat.botellas_x_empaque!, (n ?? 0) + 1)) }}
+                            aria-label="una más">+</button>
+                  </span>
+                  <span className="nota-conteo">
+                    Se proponen todas: cuando una estiba se cae, lo normal es que se rompa todo lo
+                    de adentro. Se corrige con dos toques.
+                  </span>
+                </div>
               </div>
             )}
-
-            </div>
-            </div>
           </>
         ) : (
           <>
-            {/* Izquierda: DE DÓNDE —proceso, área y causa—. Derecha: LA
-                PRUEBA —la foto y lo que pasó—. La foto es una caja
-                grande: al lado de las causas llena el ancho que en una
-                sola columna quedaba vacío, y de paso se ve mientras se
-                escoge la causa que la exige. */}
-            <div className="dos-col">
-            <div className="col">
-
-            <span className="rotulo primero">Proceso</span>
-            <div className="chips">
-              {procesos.map((p) => (
-                <button key={p.clave} type="button"
-                        className={proceso === p.clave ? "on" : ""}
-                        onClick={() => setProceso(p.clave)}>
-                  {p.nombre}
-                </button>
-              ))}
+            <div>
+              <span className="rot-campo">Proceso</span>
+              <div className="chips">
+                {procesos.map((p) => (
+                  <button key={p.clave} type="button"
+                          className={proceso === p.clave ? "on" : ""}
+                          onClick={() => setProceso(p.clave)}>
+                    {p.nombre}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* EL ÁREA, DEL MAESTRO. Desplegable y no chips: son trece y
                 crecen; trece botones ocupan media pantalla del celular y
                 empujan la causa fuera de la vista. */}
-            <div className="campo">
-              <label htmlFor="rt-area">Área *</label>
-              <select id="rt-area" value={area} onChange={(e) => setArea(e.target.value)}>
-                <option value="">¿En qué parte de la bodega?</option>
-                {areas.map((a) => (
-                  <option key={a.clave} value={a.clave}>{a.nombre}</option>
-                ))}
-              </select>
-              {areas.length === 0 && (
-                <p className="nota">
-                  No hay áreas en el maestro. Se agregan en Maestro, sin esperar un despliegue.
-                </p>
-              )}
+            <div className="linea-campos">
+              <div>
+                <span className="rot-campo">Área *</span>
+                <select id="rt-area" className="campo-suelto" value={area}
+                        onChange={(e) => setArea(e.target.value)}>
+                  <option value="">¿En qué parte de la bodega?</option>
+                  {areas.map((a) => (
+                    <option key={a.clave} value={a.clave}>{a.nombre}</option>
+                  ))}
+                </select>
+                {areas.length === 0 && (
+                  <p className="nota">
+                    No hay áreas en el maestro. Se agregan en Maestro, sin esperar un despliegue.
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* LA CAUSA SE HABILITA CON EL PROCESO. Sin proceso no se
-                puede tocar: es el orden que se pidió, y se ve —apagada—
-                en vez de no estar, para que se sepa que sigue ahí.
+            {/* LA CAUSA SE HABILITA CON EL PROCESO, y va en dos grupos.
 
-                Y VAN EN DOS GRUPOS, NO EN UNA LISTA DE SIETE.
-
-                Antes cada tarjeta repetía debajo del nombre «Asumida por
-                el OL» —cinco veces seguidas la misma frase— y las dos de
-                abajo «No asumida — se dice que no fue del OL · exige
-                foto», que son dos renglones. El resultado era una
-                cuadrícula de alturas disparejas donde lo único que
-                cambiaba de una tarjeta a otra —el nombre— era lo que
-                menos se veía.
-
-                Eso que se repetía es lo único que de verdad separa las
-                causas, así que se dice UNA vez, arriba de su grupo. Las
-                tarjetas se quedan con el nombre y el punto, de un solo
-                renglón y todas iguales. */}
-            <span className="rotulo">Causa</span>
+                Lo que separa a las causas —de qué lado caen— se dice UNA
+                vez, en el rotulito de su grupo, y no repetido debajo de
+                cada una. Así las opciones se quedan con el nombre y el
+                punto de color: se leen de un golpe, que es para lo que
+                existe una lista de causas. */}
             {!proceso ? (
-              <p className="nota espera">Escoge primero el proceso y aquí salen las causas.</p>
+              <div>
+                <span className="rot-campo">Causa</span>
+                <p className="nota espera">Escoge primero el proceso y aquí salen las causas.</p>
+              </div>
             ) : (
-              <>
-                {([
-                  ["asumida", "Asumidas por el OL", "La rotura fue nuestra."],
-                  ["no_asumida", "No asumidas · exigen foto",
-                   "Se está diciendo que no fue del OL, y hay que probarlo."],
-                ] as const).map(([grupo, titulo, pie]) => {
-                  const suyas = causas.filter((c) => c.grupo === grupo);
-                  if (!suyas.length) return null;
-                  return (
-                    <div key={grupo} className={"grupo-causa " + grupo}>
-                      <div className="tit">
-                        <i className="punto" aria-hidden />
-                        <b>{titulo}</b>
-                        <span>{pie}</span>
-                      </div>
-                      <div className="opciones compacta">
-                        {suyas.map((c) => (
-                          <button key={c.clave} type="button"
-                                  className={(causa === c.clave ? "on" : "")
-                                             + (grupo === "no_asumida" ? " roja" : "")}
-                                  onClick={() => setCausa(c.clave)}>
-                            <span className="p conpunto">
-                              <i className="punto" aria-hidden />{c.nombre}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
+              ([
+                ["asumida", "Causa · asumidas por el OL"],
+                ["no_asumida", "No asumidas · exigen foto"],
+              ] as const).map(([grupo, titulo]) => {
+                const suyas = causas.filter((c) => c.grupo === grupo);
+                if (!suyas.length) return null;
+                return (
+                  <div key={grupo} className={"grupo-causa " + grupo}>
+                    <span className="rot-campo"><i className="punto" aria-hidden />{titulo}</span>
+                    <div className="chips causas">
+                      {suyas.map((c) => (
+                        <button key={c.clave} type="button"
+                                className={(causa === c.clave ? "on" : "")
+                                           + (grupo === "no_asumida" ? " roja" : "")}
+                                onClick={() => setCausa(c.clave)}>
+                          <i className="punto" aria-hidden /><span>{c.nombre}</span>
+                        </button>
+                      ))}
                     </div>
-                  );
-                })}
-              </>
+                  </div>
+                );
+              })
             )}
 
             {exigeFoto && (
@@ -503,35 +497,34 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
               </div>
             )}
 
-            </div>
-            <div className="col">
-
-            <div className="foto">
-              <div className="lienzo">
-                {foto
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  ? <img src={foto.url} alt="La rotura" />
-                  : <span>{sellando ? "SELLANDO…" : "FOTO DE LA NOVEDAD"}</span>}
+            <div className="linea-campos">
+              <div>
+                <span className="rot-campo">Foto de la novedad</span>
+                <div className="foto">
+                  <div className="lienzo">
+                    {foto
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      ? <img src={foto.url} alt="La rotura" />
+                      : <span>{sellando ? "SELLANDO…" : "SIN FOTO"}</span>}
+                  </div>
+                  <div className="sello">{sello}</div>
+                </div>
+                <input ref={camara} type="file" accept="image/*" capture="environment"
+                       onChange={tomarFoto} hidden />
+                <button type="button" className="otra" onClick={abrirCamara} disabled={sellando}>
+                  {foto ? "Tomar otra foto" : "Tomar la foto"}
+                </button>
               </div>
-              <div className="sello">{sello}</div>
-            </div>
-            <input ref={camara} type="file" accept="image/*" capture="environment"
-                   onChange={tomarFoto} hidden />
-            <button type="button" className="otra" onClick={abrirCamara} disabled={sellando}>
-              {foto ? "Tomar otra foto" : "Tomar la foto"}
-            </button>
 
-            <div className="campo">
-              <label htmlFor="rt-des">Qué pasó</label>
-              <textarea id="rt-des" rows={3} value={descripcion}
-                        onChange={(e) => setDescripcion(e.target.value)}
-                        placeholder="La transportadora de la T1 se atascó y tumbó la fila de envase." />
+              <div>
+                <span className="rot-campo">Qué pasó</span>
+                <textarea id="rt-des" className="campo-suelto texto" rows={7} value={descripcion}
+                          onChange={(e) => setDescripcion(e.target.value)}
+                          placeholder="La transportadora de la T1 se atascó y tumbó la fila de envase." />
+              </div>
             </div>
 
             {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
-
-            </div>
-            </div>
           </>
         )}
       </div>

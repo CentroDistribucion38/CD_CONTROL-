@@ -181,6 +181,23 @@ ok((await pg.$$eval(".rt-rep button", (b) => b.filter((x) => /✕|×/.test(x.tex
 ok(await pg.isVisible(".rt-rep > .cab h2"),
    "el panel no tiene la cabecera con titulo, como «Viaje nuevo» en Traspasos");
 
+/* EL MISMO VOCABULARIO QUE TRASPASOS, clase por clase. «Lo quiero como
+   el modulo de Traspasos.» No es un parecido de ojo: las clases del
+   formulario de viajes tienen que existir en este. */
+/* Las del paso 1. */
+for (const c of ["cuerpo-f", "linea-campos", "rot-campo", "seg", "conteo",
+                 "cel-step", "campo-suelto"]) {
+  ok((await pg.$$(`.rt-rep .${c}`)).length > 0,
+     `falta la clase «${c}» en el paso 1: el formulario tiene que ser el mismo de Traspasos, no uno parecido`);
+}
+/* Y las de la version vieja no pueden quedar vivas: CSS y marcado de
+   algo que ya no existe es lo que hace que el proximo arnes mida lo
+   que no esta en la pantalla. */
+for (const c of ["opciones", "vidrios", "contador", "dos-col", "barra"]) {
+  ok((await pg.$$(`.rt-rep .${c}`)).length === 0,
+     `quedo viva la clase vieja «${c}»`);
+}
+
 /* Y CANCELAR DEVUELVE LA PANTALLA DE CONSULTA, con todo lo que se
    quitó. No se pierde nada: se separa. */
 await pg.click(".rt-rep .pie button:has-text('Cancelar')");
@@ -199,10 +216,10 @@ await pg.waitForSelector(".rt-rep");
    ------------------------------------------------------------------ */
 await monta();
 await abrir();
-await pg.click(".rt-rep .opciones.dos button:has-text('EER')");
+await pg.click(".rt-rep .seg button:has-text('EER')");
 ok(!(await pg.isVisible("#rt-mat")),
    "en EER sigue apareciendo el campo Material");
-ok(await pg.isVisible(".rt-rep .vidrios"),
+ok(await pg.isVisible(".rt-rep .seg.vidrio"),
    "en EER no está el color del vidrio, que es lo que ahora hace de material");
 
 /* LO QUE DE VERDAD SE PIDIÓ: que DEJE CONTINUAR. */
@@ -210,7 +227,7 @@ ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
    "en EER el botón de Siguiente sigue apagado — que era el problema entero");
 
 /* Y en producto terminado el campo sigue, porque ahí sí decide algo. */
-await pg.click(".rt-rep .opciones.dos button:has-text('Producto terminado')");
+await pg.click(".rt-rep .seg button:has-text('Producto terminado')");
 ok(await pg.isVisible("#rt-mat"),
    "en producto terminado desapareció el Material, y ahí sí hace falta");
 ok(await pg.isDisabled(".rt-rep .pie button.si"),
@@ -221,13 +238,13 @@ ok(await pg.isDisabled(".rt-rep .pie button.si"),
    ------------------------------------------------------------------ */
 await monta();
 await abrir();
-await pg.click(".rt-rep .opciones.dos button:has-text('EER')");
-await pg.click(".rt-rep .vidrios button.flint");
-await pg.fill(".rt-rep .contador input", "15");
+await pg.click(".rt-rep .seg button:has-text('EER')");
+await pg.click(".rt-rep .seg.vidrio button.flint");
+await pg.fill(".rt-rep .cel-step input", "15");
 await pg.click(".rt-rep .pie button.si");
 await pg.waitForSelector("#rt-area");
 
-ok((await pg.$$(".rt-rep .opciones button")).length === 0,
+ok((await pg.$$(".rt-rep .chips.causas button")).length === 0,
    "las causas salen sin haber escogido proceso");
 ok(await pg.isVisible(".rt-rep .nota.espera"),
    "sin proceso no dice que hay que escogerlo primero: el paso se ve vacío y ya");
@@ -237,19 +254,24 @@ ok(areas.length === 14, `el desplegable de Área trae ${areas.length - 1} áreas
 ok(areas[1] === "Bahías T1" && areas[13] === "Estantería",
    `las áreas no vienen en el orden del maestro: ${areas.slice(1, 4)} … ${areas[13]}`);
 
+/* Y las del paso 2. */
+for (const c of ["chips", "campo-suelto", "rot-campo"]) {
+  ok((await pg.$$(`.rt-rep .${c}`)).length > 0, `falta la clase «${c}» en el paso 2`);
+}
+
 await pg.click(".rt-rep .chips button:has-text('Líneas')");
-const causas = await pg.$$eval(".rt-rep .opciones button .p", (b) => b.map((x) => x.textContent.trim()));
+const causas = await pg.$$eval(".rt-rep .chips.causas button", (b) => b.map((x) => x.textContent.trim()));
 ok(causas.length === 7, `con proceso salen ${causas.length} causas y tienen que ser 7`);
 ok(causas[0] === "Estibas en mal estado" && causas.includes("Falla del pallet DEPA"),
    `las causas no son las que se pidieron: ${causas.join(" | ")}`);
-ok((await pg.$$(".rt-rep .opciones button.roja")).length === 2,
+ok((await pg.$$(".rt-rep .chips.causas button.roja")).length === 2,
    "las no asumidas no son exactamente dos (máquinas y pallet DEPA)");
 
 /* EL BOTÓN DICE QUÉ FALTA, en vez de quedarse apagado y mudo. */
 ok(/Falta el área/.test(await pg.textContent(".rt-rep .pie button.si")),
    "sin área el botón no dice que falta el área");
 await pg.selectOption("#rt-area", "plazoleta");
-await pg.click(".rt-rep .opciones button:has-text('Estibas en mal estado')");
+await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
 ok(/Enviar a ABI/.test(await pg.textContent(".rt-rep .pie button.si")),
    "con proceso, área y causa el botón todavía dice que falta algo");
 
@@ -293,7 +315,7 @@ const anchos = await pg.evaluate(() => {
   /* Contra el contenedor de la pantalla: mientras se registra no hay
      cifras con las que compararse, que es justo lo que se quiere. */
   const c = document.querySelector(".rt").getBoundingClientRect();
-  const cols = [...document.querySelectorAll(".rt-rep .dos-col > .col")]
+  const cols = [...document.querySelectorAll(".rt-rep .linea-campos:first-of-type > *")]
     .map((e) => Math.round(e.getBoundingClientRect().top));
   return { form: Math.round(r.width), pagina: Math.round(c.width),
            izq: Math.round(r.left), izqPagina: Math.round(c.left), cols };
@@ -310,16 +332,16 @@ ok(anchos.cols[0] === anchos.cols[1],
 await monta(390);
 await abrir();
 const apila = await pg.evaluate(() => {
-  const c = [...document.querySelectorAll(".rt-rep .dos-col > .col")]
+  const c = [...document.querySelectorAll(".rt-rep .linea-campos:first-of-type > *")]
     .map((e) => e.getBoundingClientRect());
   return c.length === 2 && c[1].top >= c[0].bottom - 1;
 });
-ok(apila, "en el celular las dos columnas no se apilan");
+ok(apila, "en el celular los dos campos de una línea no se apilan");
 
 await monta(1440, "", 1000);
 await abrir();
 await pg.screenshot({ path: ".arnes/rt-sitio-paso1.png" });
-await pg.click(".rt-rep .opciones.dos button:has-text('EER')");
+await pg.click(".rt-rep .seg button:has-text('EER')");
 await pg.click(".rt-rep .pie button.si");
 await pg.waitForSelector("#rt-area");
 await pg.click(".rt-rep .chips button:has-text('Líneas')");
@@ -331,7 +353,7 @@ await pg.screenshot({ path: ".arnes/rt-sitio-paso2.png" });
 for (const [ancho, nombre] of [[1440, "pc"], [820, "tab"], [390, "cel"], [360, "360"]]) {
   await monta(ancho);
   await abrir();
-  await pg.click(".rt-rep .opciones.dos button:has-text('EER')");
+  await pg.click(".rt-rep .seg button:has-text('EER')");
   await pg.click(".rt-rep .pie button.si");
   await pg.waitForSelector("#rt-area");
   await pg.click(".rt-rep .chips button:has-text('Líneas')");
@@ -344,10 +366,14 @@ for (const [ancho, nombre] of [[1440, "pc"], [820, "tab"], [390, "cel"], [360, "
       if ((el.tagName === "BUTTON" || el.tagName === "SELECT") && b.height > 0 && b.height < 44)
         chicos.push((el.className || el.tagName) + " h=" + Math.round(b.height));
     }
+    const anchos = [...document.querySelectorAll(".rt-rep *")]
+      .filter((e) => e.scrollWidth > e.clientWidth + 1)
+      .map((e) => (e.className || e.tagName) + " " + e.scrollWidth + ">" + e.clientWidth);
     return { scroll: document.documentElement.scrollWidth, ancho: a,
+             anchos: [...new Set(anchos)].slice(0, 5).join(" | "),
              fuera: [...new Set(fuera)].slice(0, 4), chicos: [...new Set(chicos)].slice(0, 4) };
   });
-  ok(r.scroll <= r.ancho + .5, `${nombre}: la página se desplaza a lo ancho`);
+  ok(r.scroll <= r.ancho + .5, `${nombre}: la página se desplaza a lo ancho (${r.scroll} > ${r.ancho}) · ${r.anchos}`);
   ok(!r.fuera.length, `${nombre}: se sale ${r.fuera.join(" | ")}`);
   ok(!r.chicos.length, `${nombre}: no se alcanza con el dedo ${r.chicos.join(" | ")}`);
   await pg.screenshot({ path: `.arnes/rt-sitio-${nombre}.png`, fullPage: ancho < 900 });

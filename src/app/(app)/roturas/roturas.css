@@ -571,335 +571,250 @@
    creyendo que está en uso. */
 
 /* =====================================================================
-   REGISTRAR EN SITIO — una tarjeta DE la pantalla, no encima de ella.
+   REGISTRAR EN SITIO — EL MISMO PANEL DE «VIAJE NUEVO» EN TRASPASOS
 
-   Antes era `position: fixed; inset: 0`: se comía la pantalla entera.
-   «No me gusta que salga así como en otra pantalla; la idea es que
-   aparezca allí de una, como los registros que tenemos.»
+   «Lo quiero como el módulo de Traspasos: organiza el diseño de tal
+   manera que quede así.»
 
-   En el celular casi daba igual —a 390 px una tarjeta ancha y una
-   pantalla completa se ven parecido—. En el computador no: era un
-   formulario de tres campos estirado a mil novecientos píxeles, con los
-   bloques del tamaño de una mano y la lista de lo ya registrado
-   escondida detrás.
+   No es un parecido: es el MISMO vocabulario, clase por clase —
+   `cuerpo-f`, `linea-campos`, `rot-campo`, `seg`, `chips`, `conteo`,
+   `cel-step`, `campo-suelto`, `pie-reg`—, con los tokens de Roturas en
+   vez de los de Traspasos. Quien sabe registrar un viaje sabe
+   registrar una rotura sin que nadie le explique nada, y el día que se
+   mejore uno de los dos formularios se sabe dónde está lo mismo en el
+   otro.
 
-   Ahora vive en el flujo, con un ancho máximo como cualquier otra
-   tarjeta, y por debajo de 760 px se suelta a todo el ancho porque ahí
-   el ancho ya es el del teléfono.
+   Lo que ESTE tiene y aquel no son los dos pasos —«qué se rompió» y
+   «de dónde salió»— y la foto. Lo demás se lee igual.
    ===================================================================== */
 .rt-rep {
-  background: var(--rt-papel);
-  border: 1px solid var(--rt-linea);
-  border-radius: 3px;
+  background: var(--rt-papel); border: 1px solid var(--rt-linea); border-radius: 3px;
   margin: 0 0 18px;
-  display: flex; flex-direction: column;
-  /* ANCHO COMPLETO, como las cifras y la lista.
-
-     La primera versión lo dejó en una columna de 760 px centrada, y en
-     el computador se veía peor que antes: una caja angosta flotando en
-     medio de una página ancha, con medio metro vacío a la izquierda.
-     No parecía parte de la pantalla — parecía algo que se quedó
-     pegado encima.
-
-     Ocupa el ancho de la pantalla, como todo lo demás, y por dentro se
-     parte en DOS COLUMNAS para que los campos no se estiren. Ver
-     `.dos-col`, abajo.
-
-     NO LLEVA ALTO FIJO. Con `height` o `100vh` el cuerpo tendría su
-     propia barra de desplazamiento dentro de la página —dos barras, y
-     la de adentro invisible hasta que alguien la busca—. */
+  /* NO LLEVA ALTO FIJO NI `position: fixed`: es un panel de la página,
+     no una ventana encima de ella. Con `height` o `100vh` el cuerpo
+     tendría su propia barra de desplazamiento dentro de la página
+     —dos barras, y la de adentro invisible hasta que alguien la
+     busca—. */
 }
 
-/* =====================================================================
-   LAS DOS COLUMNAS DEL FORMULARIO
-
-   Un formulario a todo el ancho con los campos uno debajo de otro
-   tiene el problema contrario al de la caja angosta: renglones de mil
-   ochocientos píxeles para escribir un número de dos cifras.
-
-   Cada paso se parte por su pregunta natural —qué / cuánto en el
-   primero, de dónde / la prueba en el segundo—, no por la mitad de la
-   lista de campos. Así cada columna se lee entera y el paso cabe sin
-   bajar la pantalla.
-
-   POR DEBAJO DE 1000 px SE APILAN, y queda exactamente el formulario
-   de una columna de siempre: en el celular no hay ancho que repartir.
-   ===================================================================== */
-/* LA SEPARACIÓN DEL TÍTULO LA PONE EL CONTENEDOR, no el primer campo.
-   Si cada columna trajera su propio margen de arriba, la izquierda
-   arrancaría con el del rótulo y la derecha con el de su campo, y las
-   dos quedarían desniveladas por unos píxeles que se ven. */
-.rt-rep .dos-col { display: grid; gap: 0 28px; margin-top: 18px }
-.rt-rep .dos-col > .col { min-width: 0 }
-@media (min-width: 1000px) {
-  .rt-rep .dos-col { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .rt-rep .dos-col > .col > *:first-child { margin-top: 0 }
-}
-/* LA CABECERA DEL PANEL, la misma de «Viaje nuevo» en Traspasos.
-
-   Antes era una barra negra con un aspa a la derecha: lenguaje de
-   ventana —algo que se abrió encima y hay que cerrar—. Esto ya no es
-   una ventana, es la pantalla, así que lleva cabecera de panel: el
-   título, una línea que dice en qué paso va, y una raya abajo. Se sale
-   por Cancelar, con el resto de las decisiones. */
+/* La cabecera, igual que la de «Viaje nuevo»: título, una línea de
+   contexto y una raya. Antes era una barra negra con un aspa —lenguaje
+   de ventana—, y eran dos puertas para lo mismo, una en cada punta. */
 .rt-rep > .cab { padding: 18px 22px 15px; border-bottom: 1px solid var(--rt-linea) }
 .rt-rep > .cab h2 {
   font-family: var(--rt-titulo); font-weight: 800; font-size: 19px; margin: 0;
   color: var(--rt-tinta);
 }
 .rt-rep > .cab p { margin: 5px 0 0; font-size: 13px; color: var(--rt-gris) }
-/* Cuatro tramos y se llenan de a dos por paso: el asistente tiene dos
-   pantallas, pero la barra avanza a la mitad cuando uno termina la
-   primera mitad de la primera. Un solo tramo por paso da la sensación
-   de que no se ha movido nada. */
-.rt-rep .pasos { display: flex; gap: 8px; padding: 14px 22px 0; flex: 0 0 auto }
-.rt-rep .pasos i { height: 4px; background: var(--c-d5dce5); flex: 1 1 0 }
+
+/* Cuatro tramos que se llenan de a dos: un tramo por paso, con dos
+   pasos, deja la barra en la mitad todo el tiempo y no se siente que
+   avance. */
+.rt-rep .pasos { display: flex; gap: 8px; padding: 14px 22px 0 }
+.rt-rep .pasos i { height: 4px; background: var(--rt-linea); flex: 1 1 0 }
 .rt-rep .pasos i.on { background: var(--rt-oro) }
 
-/* El cuerpo ya no desplaza por su cuenta: la página lo hace. */
-.rt-rep .cuerpo { padding: 14px 22px 22px }
-/* El h2 del CUERPO —el de «Quedó registrada»— ya no existe: el título
-   del panel vive en la cabecera. Esta regla se queda para cualquier h2
-   que alguien meta dentro del cuerpo, y deliberadamente NO es un
-   cartel: dentro de un panel el titular manda es el de arriba. */
-.rt-rep .cuerpo h2 {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(20px, 2.6vw, 23px);
-  letter-spacing: -.04em; margin: 12px 0 0; text-wrap: balance;
-}
-.rt-rep .guia { margin: 14px 0 0; font-size: 14px; line-height: 1.55; color: var(--rt-gris) }
+.rt-rep .cuerpo-f { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px }
 
-.rt-rep .pie {
-  flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1.25fr; gap: 12px;
-  padding: 14px 22px; background: var(--c-eef1f5); border-top: 1px solid var(--rt-linea);
+.rt-rep .linea-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px }
+.rt-rep .linea-campos > * { min-width: 0 }
+.rt-rep .rot-campo {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .12em;
+  color: var(--rt-gris); margin-bottom: 9px; text-transform: uppercase;
 }
-.rt-rep .pie button {
-  font: inherit; font-family: var(--rt-titulo); font-weight: 800; font-size: 16px;
-  min-height: 54px; border: 1px solid var(--rt-linea); background: var(--rt-papel);
-  color: var(--rt-tinta); cursor: pointer;
+
+/* EL SEGMENTADO. Dos o tres opciones que se excluyen se leen mejor
+   pegadas que como botones sueltos: el hueco entre botones invita a
+   pensar que se pueden tocar los dos. */
+.rt-rep .seg {
+  display: inline-flex; background: var(--c-eef1f5); padding: 4px; border-radius: 2px; gap: 4px;
+  flex-wrap: wrap; max-width: 100%;
 }
-.rt-rep .pie button.si { background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro) }
-.rt-rep .pie button:disabled { opacity: .45; cursor: not-allowed }
-
-.rt-rep .rotulo {
-  display: block; font-family: var(--rt-titulo); font-size: 15px; font-weight: 800;
-  margin: 22px 0 10px;
+.rt-rep .seg button {
+  border: 0; background: none; padding: 12px 18px; border-radius: 2px; cursor: pointer;
+  font: 600 14px inherit; color: var(--rt-gris); min-height: 44px;
 }
-/* El primero de un paso va pegado al título: los 22 px de arriba son
-   para separarlo de lo ANTERIOR, y ahí no hay nada anterior. */
-.rt-rep .rotulo.primero { margin-top: 18px }
+.rt-rep .seg button.on { background: var(--rt-oro); color: var(--rt-sobre-oro); font-weight: 700 }
 
-/* Los botones grandes de escoger. Nada de teclado si se puede evitar. */
-.rt-rep .opciones { display: grid; gap: 10px }
-.rt-rep .opciones.dos { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-.rt-rep .opciones.tres { grid-template-columns: repeat(3, minmax(0, 1fr)) }
-.rt-rep .opciones button {
-  font: inherit; background: #fff; border: 1px solid var(--rt-linea);
-  padding: 16px 16px; cursor: pointer; min-height: 64px; color: var(--rt-tinta);
-  text-align: left;
+/* El color del vidrio lleva su cuadrito: se vende por color, y el color
+   se reconoce antes de leer la palabra. */
+.rt-rep .seg.vidrio button { display: inline-flex; align-items: center; gap: 9px }
+.rt-rep .seg.vidrio button i {
+  width: 14px; height: 14px; border-radius: 2px; border: 1px solid rgba(0,0,0,.18); flex: none;
 }
-.rt-rep .opciones button .p { display: block; font-family: var(--rt-titulo); font-weight: 800; font-size: 17px; line-height: 1.2 }
-.rt-rep .opciones button .h { display: block; font-size: 13.5px; color: var(--rt-gris); margin-top: 5px; line-height: 1.4 }
-.rt-rep .opciones button.on { border-color: var(--rt-oro); border-width: 2px; background: var(--rt-crema) }
+.rt-rep .seg.vidrio button.ambar i { background: #C08A16 }
+.rt-rep .seg.vidrio button.flint i { background: #E7EAE6 }
+.rt-rep .seg.vidrio button.green i { background: #2F6B43 }
 
-/* La causa: una opción con su punto de color. El punto dice, antes de
-   leer, de qué lado cae —verde el OL lo asume, rojo estamos diciendo
-   que no fue nuestro—. */
-.rt-rep .opciones button .p.conpunto { display: flex; align-items: center; gap: 11px }
-.rt-rep .opciones button .p .punto {
-  width: 13px; height: 13px; border-radius: 50%; background: var(--rt-verde); flex: none;
-}
-.rt-rep .opciones button.roja .p .punto { background: var(--rt-mal) }
-
-/* =====================================================================
-   LAS CAUSAS, EN DOS GRUPOS
-
-   Antes eran siete tarjetas iguales y cada una repetía debajo del
-   nombre a qué lado caía: cinco veces «Asumida por el OL» y dos veces
-   «No asumida — se dice que no fue del OL · exige foto», que son dos
-   renglones. En dos columnas eso daba alturas disparejas, la última
-   tarjeta sola en su fila, y —lo peor— lo único que cambiaba de una
-   tarjeta a otra, el nombre, era lo que menos pesaba en la mirada.
-
-   Esa frase repetida es justamente lo que separa a las causas, así que
-   se dice UNA vez, en el encabezado del grupo. Las tarjetas se quedan
-   con el nombre y el punto: un renglón, todas del mismo alto.
-   ===================================================================== */
-.rt-rep .grupo-causa { margin-top: 14px }
-.rt-rep .grupo-causa:first-of-type { margin-top: 0 }
-
-/* El encabezado no es una tarjeta más: es un rótulo. Por eso no lleva
-   caja ni fondo —solo el punto, el nombre del grupo y la frase—, para
-   que no compita con lo que sí se toca. */
-.rt-rep .grupo-causa .tit {
-  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 9px;
-  padding: 0 2px 9px;
-}
-.rt-rep .grupo-causa .tit .punto {
-  width: 10px; height: 10px; border-radius: 50%; flex: none;
-  background: var(--rt-verde); transform: translateY(-1px);
-}
-.rt-rep .grupo-causa.no_asumida .tit .punto { background: var(--rt-mal) }
-.rt-rep .grupo-causa .tit b {
-  font-family: var(--rt-titulo); font-weight: 800; font-size: 13px;
-  letter-spacing: .1em; text-transform: uppercase; color: var(--rt-tinta);
-}
-.rt-rep .grupo-causa.no_asumida .tit b { color: var(--rt-mal) }
-.rt-rep .grupo-causa .tit span { font-size: 13px; color: var(--rt-gris) }
-
-/* Las tarjetas compactas: un renglón, sin el pie que ahora vive arriba.
-   Bajan de 64 a 54 px de alto —siguen por encima de los 44 que se
-   alcanzan con el guante puesto— y así los siete grupos enteros caben
-   sin bajar la pantalla. */
-.rt-rep .opciones.compacta button {
-  min-height: 54px; padding: 13px 15px; display: flex; align-items: center;
-}
-.rt-rep .opciones.compacta button .p { font-size: 15.5px }
-.rt-rep .opciones.compacta button .p .punto { width: 11px; height: 11px }
-
-/* Los procesos, en chips: son siete y caben; un desplegable escondería
-   la lista completa detrás de un toque.
-
-   EN CUADRÍCULA Y NO EN FILA SUELTA. Con `flex-wrap` cada chip medía lo
-   que medía su palabra, y siete palabras de largos distintos dejaban
-   «Otro» solo en una segunda fila, con medio renglón vacío al lado.
-   Repartidos en columnas iguales, las filas quedan parejas y el bloque
-   se lee como un bloque. */
-.rt-rep .chips {
-  display: grid; gap: 10px;
-  /* 152 px es lo que mide «Sin identificar» con su margen: por debajo
-     de eso el chip parte el nombre en dos renglones y desnivela la
-     fila entera. */
-  grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));
-}
+/* LOS CHIPS: el proceso y las causas. Mismo botón que en Traspasos. */
+.rt-rep .chips { display: flex; flex-wrap: wrap; gap: 8px }
 .rt-rep .chips button {
-  font: inherit; font-family: var(--rt-titulo); font-weight: 700; font-size: 15px;
-  background: #fff; border: 1px solid var(--rt-linea); color: var(--rt-tinta);
-  padding: 14px 12px; min-height: 52px; cursor: pointer; white-space: nowrap;
+  border: 1.5px solid var(--rt-linea); background: var(--rt-papel); border-radius: 2px;
+  padding: 11px 15px; font: 600 13.5px inherit; cursor: pointer; color: var(--rt-tinta);
+  min-height: 44px;
+  /* SE ENCOGE Y ENVUELVE. Sin esto, «Falla mecánica del montacargas»
+     medía 219 px dentro de una columna de 154 y empujaba la página
+     entera a moverse de lado en el celular. Un flex item no baja de su
+     contenido mínimo por su cuenta: hay que decírselo. */
+  max-width: 100%; text-align: left;
 }
-.rt-rep .chips button.on { border-color: var(--rt-oro); border-width: 2px; background: var(--rt-crema) }
-
-/* El tipo de vidrio, con la muestra grande: se escoge mirando el color,
-   no leyendo la palabra. */
-.rt-rep .vidrios { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
-.rt-rep .vidrios button {
-  font: inherit; background: #fff; border: 1px solid var(--rt-linea); cursor: pointer;
-  padding: 16px 10px; text-align: center; color: var(--rt-tinta);
-}
-.rt-rep .vidrios button.on { border-color: var(--rt-oro); border-width: 2px; background: var(--rt-crema) }
-.rt-rep .vidrios button i {
-  display: block; width: 38px; height: 38px; margin: 0 auto 10px;
-  border: 1px solid rgba(0,0,0,.18);
-}
-.rt-rep .vidrios button.ambar i { background: #C8801F }
-.rt-rep .vidrios button.flint i { background: #E7EBE7 }
-.rt-rep .vidrios button.green i { background: #2F6B3C }
-.rt-rep .vidrios button b { font-family: var(--rt-titulo); font-weight: 800; font-size: 15px }
-
-/* El contador de unidades. Bloques grises de 64 px: se toca con guantes
-   y sin mirar. */
-.rt-rep .contador {
-  display: grid; grid-template-columns: 82px minmax(0, 1fr) 82px;
-  align-items: stretch; border: 1px solid var(--rt-linea); background: #fff;
-}
-.rt-rep .contador button {
-  font: inherit; font-size: 30px; font-weight: 700; min-height: 76px;
-  border: 0; background: var(--c-eef1f5); color: var(--rt-tinta); cursor: pointer;
-}
-.rt-rep .contador input {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: 38px; text-align: center;
-  min-height: 76px; width: 100%; border: 0; background: #fff;
-  color: var(--rt-tinta); font-variant-numeric: tabular-nums;
+.rt-rep .chips button.on {
+  border-color: var(--rt-oro); background: color-mix(in srgb, var(--rt-oro) 12%, #fff);
+  font-weight: 700;
 }
 
-.rt-rep .campo { margin-top: 18px }
-.rt-rep .campo label {
-  display: block; font-family: var(--rt-titulo); font-size: 15px; font-weight: 800;
-  margin-bottom: 10px;
+/* LA CAUSA, CON SU PUNTO. El punto dice, antes de leer, de qué lado
+   cae: verde el OL lo asume, rojo estamos diciendo que no fue nuestro.
+   Y lo que separa a las causas se dice UNA vez, en el rótulo del
+   grupo, no repetido debajo de cada una: repetido cinco veces, lo
+   único que cambiaba —el nombre— era lo que menos se veía. */
+.rt-rep .chips.causas button { display: inline-flex; align-items: center; gap: 10px }
+.rt-rep .chips.causas button > span { min-width: 0 }
+.rt-rep .chips.causas button .punto {
+  width: 11px; height: 11px; border-radius: 50%; background: var(--rt-verde); flex: none;
 }
-.rt-rep .campo input, .rt-rep .campo textarea, .rt-rep .campo select {
-  font: inherit; font-size: 16px; width: 100%; padding: 15px 16px; min-height: 54px;
-  border: 1px solid var(--rt-linea); background: #fff;
-  color: var(--rt-tinta); resize: vertical;
+.rt-rep .chips.causas button.roja .punto { background: var(--rt-mal) }
+.rt-rep .chips.causas button.roja.on {
+  border-color: var(--rt-mal); background: var(--rt-mal-suave);
 }
-.rt-rep .nota { margin-top: 12px; font-size: 13.5px; line-height: 1.5; color: var(--rt-gris) }
+.rt-rep .grupo-causa .rot-campo { display: flex; align-items: center; gap: 8px }
+.rt-rep .grupo-causa .rot-campo .punto {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--rt-verde); flex: none;
+}
+.rt-rep .grupo-causa.no_asumida .rot-campo { color: var(--rt-mal) }
+.rt-rep .grupo-causa.no_asumida .rot-campo .punto { background: var(--rt-mal) }
 
-/* LA CAUSA, ESPERANDO EL PROCESO. Ocupa el sitio donde van a salir las
-   causas —en vez de no estar— para que se vea que el paso sigue ahí y
-   que falta algo antes, no que la pantalla se quedó corta. */
+/* EL CONTADOR: dos botones grandes para los guantes y un campo para el
+   teclado. Quien registra desde el escritorio escribe 15 y sigue; quien
+   está al lado del vidrio toca el más. */
+.rt-rep .conteo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+.rt-rep .cel-step {
+  display: inline-flex; align-items: center; border: 1.5px solid var(--rt-linea);
+  border-radius: 2px; overflow: hidden; background: var(--rt-papel);
+}
+.rt-rep .cel-step button {
+  width: 46px; height: 46px; border: 0; background: var(--c-eef1f5); cursor: pointer;
+  font: 800 19px var(--rt-titulo); color: var(--rt-gris);
+}
+.rt-rep .cel-step button:hover { background: var(--rt-oro); color: var(--rt-sobre-oro) }
+.rt-rep .cel-step input {
+  width: 62px; height: 46px; border: 0; padding: 0; text-align: center;
+  background: none; font: 900 20px var(--rt-titulo); color: var(--rt-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.rt-rep .cel-step input:focus {
+  outline: none; background: color-mix(in srgb, var(--rt-oro) 18%, #fff);
+}
+.rt-rep .nota-conteo { font-size: 12.5px; color: var(--rt-gris); line-height: 1.5; flex: 1 1 140px }
+
+.rt-rep .campo-suelto {
+  width: 100%; height: 50px; border: 1.5px solid var(--rt-linea); border-radius: 2px;
+  padding: 0 14px; font: 500 15px inherit; background: var(--c-eef1f5); color: var(--rt-tinta);
+}
+.rt-rep .campo-suelto.texto {
+  height: auto; padding: 12px 14px; line-height: 1.55; resize: vertical;
+  background: var(--rt-papel);
+}
+.rt-rep .nota { margin-top: 10px; font-size: 13px; line-height: 1.5; color: var(--rt-gris) }
+/* La causa esperando el proceso: ocupa el sitio donde van a salir, en
+   vez de no estar, para que se vea que falta algo antes y no que la
+   pantalla se quedó corta. */
 .rt-rep .nota.espera {
-  margin-top: 0; padding: 18px 16px; background: #fff;
+  margin-top: 0; padding: 16px; background: var(--c-eef1f5);
   border: 1px dashed var(--rt-linea); text-align: center;
 }
 
-/* EN EL COMPUTADOR, LAS CAUSAS EN DOS COLUMNAS. Son siete tarjetas de
-   64 px: en una sola columna el paso mide seiscientos píxeles de alto y
-   hay que bajar para ver la última, con media tarjeta de ancho vacía al
-   lado. En el celular se quedan en una, que es lo que cabe. */
-@media (min-width: 900px) {
-  .rt-rep .opciones { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  /* Dentro de una columna del formulario ya no hay ancho para dos
-     tarjetas de causa: se quedan en una. El ancho lo reparte
-     `.dos-col`, no cada rejilla por su cuenta. */
-  .rt-rep .dos-col .opciones.compacta { grid-template-columns: minmax(0, 1fr) }
-  /* DOS COLUMNAS Y NO TRES. Con tres, «Comportamiento del personal» y
-     «Falla mecánica del montacargas» se parten en dos renglones y la
-     cuadrícula vuelve a verse rota — que es lo que se vino a arreglar.
-     Mejor dos anchas con el nombre entero de un solo renglón: se lee de
-     un golpe, que es para lo que existe una lista de causas. */
-  .rt-rep .opciones.compacta { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  /* Menos las de «¿Qué se rompió?», que ya son dos y son las grandes. */
-  .rt-rep .opciones.dos { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-}
-
-/* EN EL CELULAR SE SUELTA A TODO EL ANCHO. Los 760 px de máximo y el
-   borde lateral son para que en el computador se lea como una tarjeta;
-   a 390 px el ancho ya es el del teléfono y un borde a cada lado solo
-   roba doce píxeles de formulario. */
-@media (max-width: 760px) {
-  .rt-rep { border-left: 0; border-right: 0; margin-bottom: 14px }
-  .rt-rep > .cab { padding: 16px 16px 13px }
-  .rt-rep .pasos { padding: 12px 16px 0 }
-  .rt-rep .cuerpo { padding: 12px 16px 18px }
-  .rt-rep .pie { padding: 12px 16px }
-}
-
-/* El aviso de que la causa exige foto: fondo rojo claro y filo rojo.
-   Es la única advertencia del asistente y tiene que verse como tal. */
+/* EL AVISO DE LA FOTO. No es decoración: es la diferencia entre que ABI
+   la cuente o la devuelva. */
 .rt-rep .exige {
-  border-left: 5px solid var(--rt-mal); background: var(--rt-mal-suave);
-  padding: 18px 20px; margin-top: 18px; font-size: 14.5px; line-height: 1.55;
-  color: var(--rt-mal);
+  border-left: 3px solid var(--rt-mal); background: var(--rt-mal-suave);
+  padding: 13px 15px; font-size: 13.5px; line-height: 1.55; color: var(--rt-tinta);
 }
-.rt-rep .exige b { color: var(--rt-tinta) }
 
-.rt-rep .foto { background: #2B2B2B; margin-top: 18px }
+.rt-rep .foto { border: 1.5px solid var(--rt-linea); border-radius: 2px; overflow: hidden }
+/* ALTO FIJO Y CORTO. Con `aspect-ratio: 4/3` sobre media pantalla de
+   computador, el lienzo vacío medía más de quinientos píxeles: un
+   agujero oscuro más alto que todo el resto del paso junto. La foto es
+   una prueba, no el asunto de la pantalla; cuando hay una, se ve
+   entera al tocarla desde la lista. */
 .rt-rep .foto .lienzo {
-  aspect-ratio: 4 / 3; max-width: 100%; display: grid; place-items: center;
-  color: rgba(255,255,255,.75); font-size: 17px; font-weight: 500; letter-spacing: .02em;
+  height: 210px; background: var(--rt-negro); display: grid; place-items: center;
 }
 .rt-rep .foto .lienzo img { width: 100%; height: 100%; object-fit: cover }
-/* La banda del sello, dentro del recuadro negro: hora, sitio y
-   precisión quedan GRABADAS en la imagen, y esto lo enseña. */
+.rt-rep .foto .lienzo span {
+  font: 700 12px var(--rt-titulo); letter-spacing: .18em; color: rgba(255,255,255,.55);
+}
 .rt-rep .foto .sello {
-  margin: 0 14px 14px; padding: 13px; background: #0A0A0A; text-align: center;
-  font-size: 13px; color: rgba(255,255,255,.82); font-variant-numeric: tabular-nums;
+  background: #000; color: rgba(255,255,255,.8); padding: 8px 10px;
+  font-size: 11px; line-height: 1.4; text-align: center;
 }
 .rt-rep .otra {
-  display: block; width: 100%; margin-top: 12px; padding: 16px;
-  border: 2px dashed var(--c-b4c0ce); background: transparent;
-  font: inherit; font-family: var(--rt-titulo); font-size: 15px; font-weight: 700;
-  color: var(--rt-tinta); cursor: pointer; min-height: 54px;
+  width: 100%; margin-top: 10px; min-height: 48px; cursor: pointer;
+  border: 1.5px dashed var(--rt-linea); background: var(--rt-papel); color: var(--rt-tinta);
+  font: 700 14px var(--rt-titulo);
 }
-.rt-rep .otra:hover { border-color: var(--rt-oro) }
+.rt-rep .otra:disabled { opacity: .5; cursor: not-allowed }
+
 .rt-rep .negro {
-  background: var(--rt-negro); color: #fff; padding: 16px 18px; margin-top: 18px;
-  font-size: 14px; line-height: 1.5; display: flex; gap: 12px; align-items: flex-start;
+  display: flex; align-items: flex-start; gap: 10px; background: var(--rt-negro); color: #fff;
+  padding: 13px 15px; font-size: 13.5px; line-height: 1.5;
 }
 .rt-rep .negro .punto {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--rt-oro-claro);
-  flex: 0 0 auto; margin-top: 7px;
+  width: 9px; height: 9px; border-radius: 50%; background: var(--rt-mal); flex: none; margin-top: 6px;
 }
-.rt-rep .negro b { color: var(--rt-oro-claro) }
+.rt-rep .guia { margin: 0; font-size: 14px; line-height: 1.55; color: var(--rt-gris) }
+.rt-rep .cuerpo { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px }
+
+/* EL PIE, como el `pie-reg` de Traspasos: fondo distinto del cuerpo y
+   una raya arriba, para que se lea como «aquí se decide» y no como un
+   campo más. */
+.rt-rep .pie {
+  display: grid; grid-template-columns: 1fr 1.25fr; gap: 12px;
+  padding: 16px 22px; background: var(--c-eef1f5); border-top: 1px solid var(--rt-linea);
+}
+.rt-rep .pie button {
+  font: 800 16px var(--rt-titulo); min-height: 54px; cursor: pointer;
+  border: 1.5px solid var(--rt-linea); background: var(--rt-papel); color: var(--rt-tinta);
+  border-radius: 2px;
+}
+.rt-rep .pie button.si {
+  background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro);
+}
+.rt-rep .pie button:disabled { opacity: .45; cursor: not-allowed }
+
+/* EN EL CELULAR, UNA COLUMNA. Es lo mismo que hace Traspasos por
+   debajo de 620 px: a ese ancho dos campos al lado son dos campos
+   ilegibles. */
+@media (max-width: 760px) {
+  .rt-rep { border-left: 0; border-right: 0; border-radius: 0; margin-bottom: 14px }
+  .rt-rep > .cab { padding: 16px 16px 13px }
+  .rt-rep .pasos { padding: 12px 16px 0 }
+  .rt-rep .cuerpo-f, .rt-rep .cuerpo { padding: 16px }
+  .rt-rep .pie { padding: 14px 16px }
+}
+/* DOS CAMPOS AL LADO NECESITAN ANCHO. Por debajo de 900 px son dos
+   campos ilegibles, igual que la consola de Traspasos se pone en una
+   sola columna a 1100. */
+@media (max-width: 900px) {
+  .rt-rep .linea-campos { grid-template-columns: 1fr }
+}
+@media (max-width: 620px) {
+  .rt-rep .seg { display: grid; grid-template-columns: 1fr 1fr; width: 100% }
+  .rt-rep .seg.vidrio { grid-template-columns: repeat(3, 1fr) }
+}
+
+/* AQUÍ VIVÍAN TRESCIENTAS LÍNEAS DE LA VERSIÓN ANTERIOR del
+   formulario —`.opciones`, `.vidrios`, `.contador`, `.campo`,
+   `.dos-col`, `.grupo-causa .tit`— y se borran enteras.
+
+   No estaban apagadas: estaban DESPUÉS del bloque nuevo, con la misma
+   especificidad, así que le ganaban. El chip de «Falla mecánica del
+   montacargas» seguía tomando el `white-space: nowrap` de la versión
+   vieja y empujaba la página de lado en el celular. Lo cazó el arnés
+   midiendo el desbordamiento, no el ojo.
+
+   Es la cuarta vez en este archivo que un selector sobreviviente se
+   come algo nuevo. Por eso se borra en vez de quedarse por si acaso. */
 
 /* El botón "+" flotante: registrar es la acción del módulo. */
 .rt .mas {
