@@ -24,10 +24,16 @@
 -- validarse: la validación ya no la exige. No hay que tocar ninguna
 -- fila a mano.
 --
--- EL ROL «verificador» NO SE BORRA. Puede haber gente con ese rol
--- puesto, y borrarlo los dejaría sin ninguno. Se queda inactivo: no
--- tiene pantalla ni firma que poner, y quien administra decide a qué
--- rol pasa a esa gente. Borrarlo aquí sería decidirlo por él.
+-- EL ROL «verificador» NO SE BORRA —si es que está—. Puede haber gente
+-- con ese rol puesto, y borrarlo los dejaría sin ninguno. Se queda
+-- inactivo: no tiene pantalla ni firma que poner, y quien administra
+-- decide a qué rol pasa a esa gente. Borrarlo aquí sería decidirlo por
+-- él.
+--
+-- Y SI NO ESTÁ, no pasa nada. En la base de la bodega ese rol nunca se
+-- creó: los tres papeles de la cadena se resuelven por PERMISO de
+-- pantalla, no por el nombre del rol. Esta migración no falla por eso
+-- —una primera versión sí lo hacía, y estaba mal—.
 --
 -- Se puede correr dos veces.
 -- =====================================================================
@@ -289,11 +295,22 @@ begin
     raise exception 'Se perdió verificador_en: lo ya verificado tiene que seguir leyéndose';
   end if;
 
-  /* Y el rol no se borró. */
-  if to_regclass('public.roles') is not null
-     and not exists (select 1 from public.roles where clave = 'verificador') then
-    raise exception 'Se borró el rol verificador: tenía que quedarse, apagado';
-  end if;
+  /* AQUÍ HABÍA UNA COMPROBACIÓN QUE EXIGÍA QUE EL ROL «verificador»
+     EXISTIERA, y hacía fallar la migración entera en la base de la
+     bodega —donde ese rol nunca se creó—.
+
+     Era un falso positivo puro: esta migración no borra ningún rol. Lo
+     único que le hace es apagarlo SI ESTÁ, y un `update` sobre cero
+     filas no borra nada. La guardia protegía contra un error que el
+     archivo no puede cometer, y a cambio rompía el caso normal de una
+     base que nunca tuvo ese rol.
+
+     Se queda escrito porque la lección no es sobre este rol: una
+     comprobación que afirma algo del ESTADO ANTERIOR de la base —«esto
+     tenía que estar»— no se puede escribir desde dentro de la
+     migración, que solo ve el estado final. Lo que sí se puede
+     comprobar es lo que la migración hace, y eso es lo que queda
+     arriba. */
 
   /* Y LA PORTADA SABE PREGUNTAR POR LO QUE UNA FUNCIÓN DICE. Se
      comprueba con un texto que está y con uno que no: una forma nueva

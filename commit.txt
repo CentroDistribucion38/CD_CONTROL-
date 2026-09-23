@@ -321,9 +321,23 @@ LAS SALIDAS QUE ESTABAN ESPERANDO VERIFICACION pasan solas a poder
 validarse: aparecen en la bandeja de Validacion sin tocar ninguna fila
 a mano. Las que llevaban semanas trancadas esperando a nadie, tambien.
 
-EL ROL «verificador» NO SE BORRA, se apaga. Puede haber gente con ese
-rol puesto y borrarlo los dejaria sin ninguno; a quien se pasa esa
-gente lo decide quien administra, no una migracion.
+EL ROL «verificador» NO SE BORRA, se apaga —si es que esta—. Puede
+haber gente con ese rol puesto y borrarlo los dejaria sin ninguno; a
+quien se pasa esa gente lo decide quien administra, no una migracion.
+
+Y AQUI ME EQUIVOQUE, EN LA BASE DE VERDAD. La primera version traia una
+comprobacion que EXIGIA que ese rol existiera, y en la base de la
+bodega nunca se creo: la migracion entera reboto en Supabase con «se
+borro el rol verificador» sobre un rol que jamas existio. Era un falso
+positivo puro —este archivo no borra ningun rol; lo unico que le hace
+es apagarlo si esta, y un update sobre cero filas no borra nada—.
+La leccion no es sobre este rol: una comprobacion que afirma algo del
+ESTADO ANTERIOR de la base no se puede escribir desde dentro de la
+migracion, que solo ve el estado final. Se comprueba lo que la
+migracion HACE.
+El arnes ahora corre la migracion DOS VECES en DOS BASES: una con el
+rol y otra sin el, que es el caso de la bodega. Probar solo el caso
+facil es lo que hace que el arnes diga que si y la bodega diga que no.
 
 SE FUE: el renglon del menu, la ruta de firma, el permiso, y las ramas
 `papel === "verificador" ? …` que la Bandeja llevaba por servir para
@@ -356,6 +370,46 @@ CON UN MENSAJE QUE DIGA QUE PASO y no «no tienes permiso»; y que una
 salida vieja siga diciendo quien la verifico y cuente 2 de 2, no 2 de
 3—. Antes de correr la migracion comprueba que la validacion TODAVIA
 exija verificacion: si no, no probaria nada.
+
+
+=====================================================================
+Y LA BASE DEL INVENTARIO, QUE EN LA TABLET NO SE PODIA LEER
+=====================================================================
+«Por que la base del inventario se ve asi desde la tablet?»
+El titular del consolidado salia UNA PALABRA POR RENGLON, en una
+columna del ancho de la palabra «bodega».
+
+DOS CAUSAS, Y LAS DOS MIAS:
+
+1. `grid-template-columns: minmax(0, 1fr) auto`. `auto` toma el
+   MAX-CONTENT de lo que lleva dentro, y ahi dentro hay un flex con el
+   desplegable del dia, el boton «Exportar consolidado» y su renglon de
+   cifras: sumados en una linea son 762 px. La columna se los quedaba
+   enteros —mas que el texto, que es lo principal de la tarjeta— y a la
+   otra le tocaba lo que sobrara. Ahora es `fit-content(340px)`: pide
+   lo que necesita, nunca mas de 340, y cede cuando no cabe.
+
+2. El corte a una columna estaba en 760 px. La tablet en vertical mide
+   820: caia fuera y se quedaba con las dos columnas. Pasa a 1000. El
+   corte no es «celular o no»: es «caben un parrafo y una botonera al
+   lado?», y a 820 no caben.
+
+EL ARNES QUE FALTABA: iv-base-anchos.
+Un bloque ahogado NO ROMPE NADA —no desborda, no tapa, no se sale— asi
+que ningun arnes de los que ya hay lo veia. Este mide lo que de verdad
+falla: cuanto mide de ancho cada bloque de texto y CUANTAS PALABRAS LE
+CABEN POR RENGLON. Un titular a 1,0 palabras por renglon es el sintoma
+exacto, y es un numero, no una opinion.
+Se mide a 1440, 1024, 820 y 390. 820 es el que importa: 1440 y 390
+estaban bien desde el principio y el dano vivia justo en medio —que es
+por lo que se me paso—.
+Antes: 551 px de titular en el computador y 1,0 palabras por renglon.
+Ahora: 974 px y 9,0.
+
+(De paso, el medidor tambien nacio mintiendo: contaba 1 palabra en
+todo. Un `\\s` de mas en la expresion regular. Se cazo porque los
+numeros no tenian sentido —«1 palabras en 1 renglones» a 1440 px—, no
+porque fallara.)
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

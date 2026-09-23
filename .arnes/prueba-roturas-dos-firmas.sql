@@ -142,12 +142,20 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
--- EL ROL NO SE BORRÓ
+-- EL ROL, SI ESTABA, SIGUE ESTANDO
+--
+-- Condicional a propósito: en la base de la bodega ese rol NUNCA SE
+-- CREÓ. Una primera versión de esta prueba —y de la migración— exigía
+-- que estuviera, y la migración entera reventó en Supabase con «se
+-- borró el rol verificador» sobre un rol que jamás existió. La
+-- comprobación tiene que hablar de lo que la migración HACE, no de lo
+-- que la base tenía antes.
 -- ---------------------------------------------------------------------
 do $$
 begin
-  if not exists (select 1 from public.roles where clave = 'verificador') then
-    raise exception 'Se borro el rol verificador: tenia que quedarse, por si hay gente con el puesto';
+  if exists (select 1 from public.roles where clave = 'verificador') then
+    raise notice 'ROL: bien. El verificador seguia existiendo y sigue, sin pantalla y sin firma que poner.';
+  else
+    raise notice 'ROL: esta base no tiene el rol verificador, y la migracion no se cae por eso.';
   end if;
-  raise notice 'ROL: bien. El verificador sigue existiendo, sin pantalla y sin firma que poner.';
 end $$;

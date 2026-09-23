@@ -272,8 +272,33 @@
 }
 
 /* ---------- El consolidado del día ---------- */
+/* EL TEXTO A LA IZQUIERDA Y LAS ACCIONES A LA DERECHA — pero la
+   derecha TIENE QUE PODER ENCOGERSE.
+
+   «¿Por qué la base del inventario se ve así desde la tablet?»: el
+   titular salía una palabra por renglón, en una columna del ancho de
+   «bodega».
+
+   La culpa era de `auto` a secas en la segunda columna. `auto` toma el
+   MAX-CONTENT de lo que lleva dentro, y ahí dentro hay un flex con el
+   desplegable del día, el botón «Exportar consolidado» y su renglón de
+   cifras: sumados en una sola línea son cientos de píxeles. La columna
+   se los quedaba enteros y a `minmax(0, 1fr)` le tocaba lo que sobrara
+   —nada—, así que el texto se partía palabra por palabra.
+
+   `fit-content(340px)` es lo que arregla las dos mitades del problema:
+   la botonera pide lo que necesita, pero NUNCA más de 340 px, y cede
+   por debajo cuando hace falta. Sin ese tope se llevaba 762 de 1440 en
+   el computador —más que el texto, que es lo principal de la tarjeta—
+   porque su max-content es el desplegable, el botón y el renglón de
+   cifras sumados en una línea, aunque luego se envuelvan.
+
+   Y la izquierda pide 260 px de mínimo: por debajo de eso ya no es una
+   columna de texto, es una tira. Cuando no caben los dos, el grid se va
+   a una sola columna. */
 .fe .ba-conso {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 24px; align-items: end;
+  display: grid; grid-template-columns: minmax(260px, 1fr) fit-content(340px);
+  gap: 14px 24px; align-items: end;
   padding: 18px 20px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-top: 4px solid var(--fe-acento); border-radius: 4px;
 }
 .fe .ba-conso-o { margin: 0; font: 700 10.5px var(--fe-titulo); letter-spacing: .16em; color: var(--fe-gris) }
@@ -286,7 +311,11 @@
 .fe .ba-conso-acc .btn { min-height: 46px }
 .fe .ba-conso-acc small { flex-basis: 100%; font-size: 12.5px; color: var(--fe-gris) }
 .fe .ba-conso-mal { flex-basis: 100%; margin: 0; font-size: 13px; font-weight: 700; color: #A30D25 }
-@media (max-width: 760px) {
+/* 1000 Y NO 760. La tablet en vertical mide 820 px: caía fuera del
+   corte y se quedaba con las dos columnas, que es justo donde se veía
+   mal. El corte no es «celular o no»: es «¿caben un párrafo y una
+   botonera al lado?», y a 820 px no caben. */
+@media (max-width: 1000px) {
   .fe .ba-conso { grid-template-columns: minmax(0, 1fr) }
   .fe .ba-conso-acc label, .fe .ba-conso-acc select, .fe .ba-conso-acc .btn { flex: 1 1 100%; width: 100% }
 }
