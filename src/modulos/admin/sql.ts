@@ -26,4 +26,6 @@ export const SQL_REVISAR: { archivo: string; objeto: string; para: string }[] = 
   { archivo: "2026-09-permiso-sin-acceso-por-persona.sql", objeto: "fn:public.permisos_extra_validos", para: "Usuarios · quitar una pantalla a una persona" },
   { archivo: "2026-09-traspasos-depurar.sql", objeto: "fn:public.traspaso_depurar", para: "Traspasos · depurar viajes (administración)" },
   { archivo: "2026-09-acciones-depurar.sql", objeto: "fn:public.accion_eliminar", para: "Acciones · corregir y eliminar (administración)" },
+  { archivo: "2026-09-traspasos-dia-operativo.sql", objeto: "fn:public.traspaso_hoy",
+    para: "Traspasos · el día arranca a las 22:00 con el turno C" },
 ];

@@ -1,54 +1,53 @@
-Traspasos: el PDF del tablero, y el cierre de varios turnos
+Traspasos: el dia operativo arranca a las 22:00 con el turno C
 
-EL PDF DEL TABLERO
-«Mira como sale y asi no se puede: lo mismo que pasaba antes.» En el
-papel salian la barra de CONTROL, las migas, las pestanas del modulo y
-las flechas de la fecha —controles, cosas que en una hoja no se pueden
-tocar— y encima empujaban el tablero a cuatro paginas. Ahora se van
-todas: lo que se imprime es la pantalla, no el programa que la muestra.
-Tampoco salen el iconito de abrir ni el boton de «ver el cierre», que
-en papel no hacen nada.
+LO QUE PASABA
+«El dia 23/09 en la app debe empezar el 22/09 a las 22:00 con el turno
+C. No deja registrar hasta que cambie el dia.»
+La plataforma usaba el dia del CALENDARIO: a las 22:30 del 22, «hoy»
+era el 22, y el turno C que acababa de entrar —que es el primer turno
+del 23— no podia registrar nada. La base lo rechazaba con «todavia no
+ha pasado» y tocaba esperar a la medianoche. Media noche de trabajo sin
+poder digitar.
 
-Y LOS FONDOS SE IMPRIMEN. Por defecto el navegador los quita —es la
-casilla «Graficos de fondo» del dialogo, que casi nadie marca— y el
-tablero salia en blanco y negro: un anillo de turno sin su color no
-dice nada. La regla va sobre .tp entero y no sobre una lista de clases,
-porque esa lista se queda vieja el dia que alguien agregue una tarjeta
-y el error no se ve hasta que alguien imprime.
+LA REGLA, ESCRITA UNA VEZ
+  El dia 23 = turno C (22/09 22:00 → 06:00) + turno A (06:00 → 14:00)
+              + turno B (14:00 → 22:00 del 23).
+El turno C ABRE el dia, no lo cierra. Antes era al reves, y por eso
+cambia tambien el orden de los turnos: C, A, B. De ese orden salen los
+renglones del plan, las columnas del control y los anillos del tablero:
+si el C abre el dia y se pinta de ultimo, el tablero cuenta el dia al
+reves.
 
-EL CIERRE DE VARIOS TURNOS
-«Que en los turnos haya un icono que seleccione los 3 para generar el
-cierre de los tres turnos, o dos, y asi.»
-Cada anillo lleva ahora una casilla en la esquina. Dos gestos distintos
-sobre la misma tarjeta: tocar el anillo abre el cierre de ESE turno
-—que es lo que se hace el 90% de las veces, y por eso sigue siendo el
-gesto grande—; tocar la casilla lo suma a una seleccion. Con uno o mas
-marcados sale una barra que dice cuales son y como van, y un boton que
-abre el cierre de TODOS ellos en UNA ficha, no en dos.
-La casilla se ve de 22 px y se toca de 44: es lo que necesita un dedo
-con guante sin quitarle protagonismo al porcentaje.
-La ficha, el texto y la foto se llaman solos: «Cierre del turno A»,
-«Cierre de los turnos A y B», «Cierre del dia». Y los turnos salen en
-el orden de la bodega, no en el que se tocaron: un cierre de «B y A» se
-lee como si alguien se hubiera equivocado.
+QUE SE TOCO
+- traspaso_hoy(): desde las 22:00, hoy es manana. Y ahora recibe el
+  reloj por parametro —con now() por defecto—, como ya lo hacia
+  traspaso_dia_abierto: escrita con now() por dentro, la regla de las
+  22:00 solo se podria comprobar corriendo el arnes a las diez de la
+  noche.
+- traspaso_arranque_turno(): el C del dia 23 arranca el 22 a las 22:00,
+  el dia ANTERIOR. Es la funcion que le pone la hora a un viaje
+  registrado en otro dia; sin esto los viajes de la noche quedarian con
+  una hora que no existio.
+- traspaso_dia_abierto(): sale de la misma funcion, y da EL MISMO
+  INSTANTE que antes —el dia 23 se cerraba el 24 a las 06:00 y se sigue
+  cerrando el 24 a las 06:00—. Nadie pierde tiempo de digitacion.
+- traspaso_orden_turno(): C=1, A=2, B=3.
+- hoyLocal() y TURNOS en la app, con la misma regla y el mismo orden.
 
-UN ERROR QUE VI AL MIRAR LA PANTALLA, NO AL ESCRIBIRLA
-El medidor es una rejilla de DOS columnas —el avance y los turnos—, asi
-que la barra de la seleccion se iba a la columna de al lado y el boton
-del dia quedaba debajo del avance. Las tres piezas van ahora en una
-caja que las apila. El arnes lo comprueba: que arranquen en la misma
-columna y que cada una vaya debajo de la anterior.
+LO YA REGISTRADO NO SE TOCA —asi se decidio—: cada viaje conserva la
+fecha con la que se guardo. Queda una junta el dia que se corra esto:
+los turnos C de antes estan en el dia en que arrancaron. Moverlos
+cambiaria cifras de dias ya cerrados y ya reportados.
 
 ARNES
-tp-cierre: dos bloques nuevos.
-- Varios turnos: que la barra no salga sin marcar nada, que diga
-  «Turnos A y B · 19 de 22 del plan», que la ficha se llame «Cierre de
-  los turnos A y B» y sume 86%, que le pida al servidor «A,B» y no un
-  turno suelto, que MARCAR no sea ABRIR —si la casilla abriera la
-  ficha, no se podrian escoger dos— y que «Quitar» borre la seleccion.
-- El PDF del tablero con la ficha CERRADA: que no salgan la barra, el
-  riel ni las flechas de la fecha, que SI salgan el tablero y los
-  anillos, y que conserven sus fondos.
+tp-dia (nuevo): once horas de reloj —21:59, 22:00, medianoche, fin de
+mes, fin de ano— contra la pantalla Y contra la base, con el reloj
+movido. No copia la formula: le pregunta a las funciones, que para eso
+reciben la hora. Y compara las dos respuestas entre si: si la base
+dijera otro dia que la pantalla, el boton se veria habilitado y el
+guardado reventaria despues de escribir placa, ruta y cantidad.
+Probado al reves: quitando la regla de las 22:00, el arnes falla en los
+tres casos de la noche.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -1,5 +1,7 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
+import { execSync } from "node:child_process";
+let malos = 0;
 
 const css  = fs.readFileSync("src/app/(app)/traspasos/traspasos.css","utf8");
 const glob = fs.readFileSync("src/app/globals.css","utf8");
@@ -107,4 +109,44 @@ for (const [w,h,nom] of [[1440,1400,"pc"],[820,1500,"tab"],[390,2100,"cel"],[360
   console.log(`${nom} (${w}px): desplaza a lo ancho = ${mal.scrollX}`, mal.fuera.length?mal.fuera:"");
   await p.close();
 }
+/* ---------------------------------------------------------------------
+   EL PDF: CUÁNTAS HOJAS.
+
+   «Generar PDF» es el navegador imprimiendo la pantalla, así que la
+   única forma honesta de saber cómo queda es GENERARLO y contar las
+   hojas. Cuatro páginas para un tablero que cabe en una no es un
+   detalle: es que nadie lo va a mandar.
+
+   Lo que las multiplicaba era «break-inside: avoid» en los bloques
+   grandes: si el medidor no cabe en lo que queda de hoja, salta entero
+   a la siguiente y deja media página en blanco.
+   --------------------------------------------------------------------- */
+{
+  const p = await nav.newPage({ viewport: { width: 1280, height: 900 } });
+  await p.setContent(html);
+  await p.waitForTimeout(300);
+  /* Una barra de la app de mentira, para comprobar que no se imprime. */
+  await p.evaluate(() => {
+    const b = document.createElement("div");
+    b.className = "sh-barra"; b.style.height = "70px"; b.textContent = "CONTROL";
+    document.body.prepend(b);
+  });
+  await p.pdf({ path: ".arnes/tpc-impreso.pdf", format: "A4", landscape: true,
+                printBackground: true, margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" } });
+  await p.close();
+  const info = execSync("pdfinfo .arnes/tpc-impreso.pdf", { encoding: "utf8" });
+  const hojas = Number(info.match(/Pages:\s+(\d+)/)?.[1] ?? 0);
+  const texto = execSync("pdftotext .arnes/tpc-impreso.pdf - 2>/dev/null", { encoding: "utf8" });
+  console.log(`PDF: ${hojas} hoja(s)`);
+  if (hojas > 2) { console.log(`✗ el PDF sale en ${hojas} hojas y el tablero cabe en 1 o 2`); malos++ }
+  if (/CONTROL\n/.test(texto.slice(0, 60))) { console.log("✗ el PDF sale con la barra de la app"); malos++ }
+  /* Y que no le falte nada: el título, los tres turnos y la tabla. */
+  for (const q of ["Control y ejecución", "Turno A", "Turno B", "Turno C", "Por tipo de viaje", "PET"]) {
+    if (!texto.includes(q)) { console.log(`✗ al PDF le falta «${q}»`); malos++ }
+  }
+}
+
 await nav.close();
+
+if (malos) process.exit(1);
+console.log("\n✓ Control: nada se sale a 1440/820/390/360 y el PDF sale limpio y en pocas hojas.");

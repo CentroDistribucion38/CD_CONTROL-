@@ -817,10 +817,16 @@
      no el programa que la muestra.
      ================================================================== */
   .sh-barra, .sh-lado, .sh-riel { display: none !important }
-  .sh-marco { display: block !important }
-  .sh-main { padding: 0 !important }
+  /* Y SIN ALTOS MÍNIMOS. El armazón pide 100dvh para que el pie quede
+     abajo en pantalla; en papel eso es «esta hoja mide una hoja
+     entera», y lo que sigue arranca en la siguiente. */
+  .sh-marco { display: block !important; min-height: 0 !important }
+  .sh-main { padding: 0 !important; min-height: 0 !important }
+  .sh { min-height: 0 !important }
   .tp .filtros, .tp .acciones-informe, .tp .fecha-nav,
-  .tp .tp-ver, .tp .tp-cierre-dia { display: none !important }
+  .tp .tp-ver, .tp .tp-cierre-dia, .tp .tp-sel, .tp .tp-marca { display: none !important }
+  /* El anillo deja de parecer un botón: en papel no se toca. */
+  .tp .tp-abrir { border-color: transparent !important; background: none !important; padding: 0 !important }
 
   /* LOS FONDOS, TODOS. Por defecto el navegador los quita —es la
      casilla «Gráficos de fondo» del diálogo de imprimir, que casi nadie
@@ -832,11 +838,53 @@
      se ve hasta que alguien imprime. */
   .tp, .tp * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
 
-  /* Y que las tarjetas no se partan entre dos hojas. */
-  .tp .cabeza-ctl, .tp .cifras, .tp .medidor, .tp .alertas, .tp .avance,
-  .tp .turnos, .tp .panel-tabla { break-inside: avoid }
-  .tp tr { break-inside: avoid }
+  /* NO PARTIR LO CHIQUITO; DEJAR PARTIR LO GRANDE.
+     Poner «break-inside: avoid» en los bloques grandes —el medidor, la
+     tabla— era lo que llenaba el papel de huecos: si el bloque no cabe
+     en lo que queda de hoja, salta entero a la siguiente y deja media
+     página en blanco. Cuatro páginas para un tablero que cabe en una.
+     Se protege lo que de verdad no se puede partir: una tarjeta, un
+     anillo, un renglón. */
+  .tp .cifra, .tp .turno, .tp .alerta, .tp .avance, .tp tr { break-inside: avoid }
   .tp thead { display: table-header-group }
+
+  /* EN PAPEL, .tp DEJA DE SER UNA COLUMNA FLEXIBLE.
+     Esto era lo que de verdad llenaba las hojas de blanco: un hijo de
+     un contenedor flex NO se parte entre dos páginas. La tabla —que es
+     un hijo de .tp— se iba entera a la hoja siguiente y dejaba media
+     página vacía, y lo mismo cada sección. En bloque se parten por
+     donde toca. El `gap` del flex se reemplaza por margen, o las
+     secciones quedarían pegadas. */
+  .tp { display: block !important }
+  .tp > * { margin-bottom: 10px }
+
+  /* Y SE APRIETA. En pantalla el aire ayuda a leer; en papel, cada
+     milímetro de más es media hoja al final. */
+  .tp { font-size: 11px }
+  .tp .cabeza-ctl { gap: 12px; margin-bottom: 8px }
+  .tp .cabeza-ctl h1 { font-size: 22px }
+  .tp .cabeza-ctl .sub { font-size: 11px }
+  .tp .panel-ojo { min-width: 220px; padding: 10px 16px }
+  .tp .panel-ojo .num { font-size: 34px }
+  .tp .cifras { gap: 6px }
+  .tp .cifra { padding: 8px 10px }
+  .tp .cifra .n { font-size: 22px }
+  .tp .cifra .rot, .tp .cifra .u { font-size: 9px }
+  .tp .medidor { gap: 10px }
+  .tp .avance { padding: 10px 14px }
+  .tp .turnos { padding: 10px }
+  .tp .turno svg { max-width: 64px }
+  .tp .panel-tabla .cab-tabla p { display: none }
+  /* UN «overflow» QUE NO SEA «visible» VUELVE AL BLOQUE INDIVISIBLE.
+     La tabla vive dentro de una caja que se desliza de lado en pantalla
+     —`overflow-x: auto`— y el panel recorta sus esquinas con
+     `overflow: hidden`. En papel eso significa: si la tabla no cabe
+     entera en lo que queda de hoja, salta completa a la siguiente y
+     deja media página en blanco. Aquí se sueltan las dos, y la tabla se
+     parte por un renglón como debe ser. */
+  .tp .tabla-envuelta, .tp .panel-tabla { overflow: visible !important }
+  .tp table { font-size: 10px }
+  .tp th, .tp td { padding: 4px 8px !important }
 
   /* ==================================================================
      CON LA FICHA DEL CIERRE ABIERTA, LO QUE SE IMPRIME ES LA FICHA.
@@ -920,7 +968,11 @@
   /* El panel grande conserva su color: antes se pintaba en blanco y
      negro porque los fondos no se imprimían, y ahora sí. */
   .tp .medidor { grid-template-columns: 1fr 300px }
-  .tp .caja, .tp .panel-tabla, .tp .avance, .tp .turnos { break-inside: avoid }
+  /* Y el panel de la tabla SÍ se puede partir: con «break-inside:
+     avoid» —que es lo que decía esta línea— una tabla de nueve tipos no
+     cabía en lo que quedaba de hoja, saltaba entera a la siguiente y
+     dejaba media página en blanco. Lo que no se parte es un renglón. */
+  .tp .caja, .tp .avance, .tp .turnos { break-inside: avoid }
   .tp tfoot td { background: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact }
 }
 

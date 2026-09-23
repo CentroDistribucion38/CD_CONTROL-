@@ -154,10 +154,26 @@ function sinTablas(msg: string | undefined) {
   return t.includes("does not exist") || t.includes("schema cache");
 }
 
-/** Hoy en hora de Colombia. El servidor está en UTC: sin esto, después
- *  de las 7 p. m. la pantalla propondría la fecha de mañana. */
+/**
+ * QUÉ DÍA ES HOY — el día OPERATIVO, no el del calendario.
+ *
+ * «Toca revisar que el día 23/09 en la app empiece el 22/09 a las 22:00
+ * con el turno C. No deja registrar hasta que cambie el día.»
+ *
+ * DESDE LAS 22:00, HOY ES MAÑANA. A esa hora entra el turno C, que es
+ * el PRIMER turno del día siguiente: el día 23 son el C que arranca el
+ * 22 a las 22:00, el A de las 06:00 y el B de las 14:00 del 23. Con el
+ * día del calendario, ese turno C no podía registrar nada hasta la
+ * medianoche — media noche de trabajo sin poder digitar.
+ *
+ * LA MISMA REGLA ESTÁ EN LA BASE, en `traspaso_hoy()`, y tiene que
+ * seguir estándolo: si la pantalla y el candado no dijeran el mismo
+ * «hoy», el botón se vería habilitado y el guardado reventaría.
+ */
 export function hoyLocal() {
-  return new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 10);
+  const bogota = new Date(Date.now() - 5 * 3600_000);
+  if (bogota.getUTCHours() >= 22) bogota.setUTCDate(bogota.getUTCDate() + 1);
+  return bogota.toISOString().slice(0, 10);
 }
 
 export async function tipos(soloActivos = true) {

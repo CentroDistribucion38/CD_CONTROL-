@@ -9,24 +9,31 @@
  */
 
 /**
- * LOS TURNOS SON A, B y C, CON SUS HORARIOS.
+ * LOS TURNOS SON C, A y B, CON SUS HORARIOS.
  *
- * No son 1, 2 y 3: así los llama la bodega. El orden sale del horario
- * —A abre el día— y no del orden en que aparecían en una lista
- * desplegable, que es de donde salió el C-A-B de la primera versión.
- * Un horario explícito le gana siempre a un orden inferido.
+ * No son 1, 2 y 3: así los llama la bodega. Y el orden sale del
+ * horario: EL TURNO C ABRE EL DÍA, a las 22:00 del día anterior. El
+ * día 23 son el C que arranca el 22 a las 22:00, el A de las 06:00 y
+ * el B de las 14:00 del 23.
  *
- * Los horarios también viven en la base (traspaso_horario_turno), que
- * es la que manda: aquí están para que la pantalla no tenga que
- * preguntarlos en cada renglón de una rejilla de veintisiete celdas.
+ * ESTUVO AL REVÉS —A, B, C— y con eso el turno C que entraba a las
+ * 22:00 no podía registrar nada hasta la medianoche. De este orden
+ * salen los renglones del plan, las columnas del control y los anillos
+ * del tablero: si el C abre el día y se pinta de último, el tablero
+ * cuenta el día al revés.
+ *
+ * Los horarios también viven en la base (traspaso_orden_turno,
+ * traspaso_arranque_turno), que es la que manda: aquí están para que la
+ * pantalla no tenga que preguntarlos en cada renglón de una rejilla de
+ * veintisiete celdas.
  */
-export const TURNOS = ["A", "B", "C"] as const;
+export const TURNOS = ["C", "A", "B"] as const;
 export type Turno = (typeof TURNOS)[number];
 
 export const HORARIO: Record<string, string> = {
+  C: "22:00 · 06:00",
   A: "06:00 · 14:00",
   B: "14:00 · 22:00",
-  C: "22:00 · 06:00",
 };
 
 /** Qué turno va según la hora de Colombia. Se PROPONE, no se impone:
