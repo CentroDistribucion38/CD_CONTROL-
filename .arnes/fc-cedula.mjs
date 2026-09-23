@@ -109,7 +109,8 @@ await monta(1200);
 const T = { sin: ".fc-lista > .fc-viaje:nth-child(1)",
             una: ".fc-lista > .fc-viaje:nth-child(2)",
             dos: ".fc-lista > .fc-viaje:nth-child(3)",
-            bas: ".fc-lista > .fc-viaje:nth-child(4)" };
+            bas: ".fc-lista > .fc-viaje:nth-child(4)",
+            ya:  ".fc-lista > .fc-viaje:nth-child(5)" };
 
 const r1 = await pg.evaluate((T) => {
   const q = (s) => document.querySelector(s);
@@ -228,6 +229,41 @@ ok(r1.botones.every((b) => b.off), "se puede confirmar antes de llenar nada");
   ok(b.limpioSinAviso, "un Vh sin vidrio recibe el aviso de la báscula");
 }
 
+/* ---------------------------------------------------------------------
+   1e · LA CÉDULA QUE YA VIENE AMARRADA DEL REGISTRO
+
+   «Que ya venga resuelto»: si el patio escogió la placa desde la lista
+   del vidrio, el viaje nace amarrado y facturación solo pone el
+   documento.
+
+   LO QUE SE MIDE ES QUE NO SE VUELVA A PREGUNTAR. Un bloque que se ve
+   igual pero sigue pidiendo contar las tolvas sería el mismo trabajo
+   dos veces, que es de lo que se trataba escaparse.
+   ------------------------------------------------------------------ */
+{
+  const y = await pg.evaluate((T) => {
+    const q = (s) => document.querySelector(s);
+    const txt = (s) => (q(s)?.textContent ?? "").replace(/\s+/g, " ").trim();
+    return {
+      sale: !!q(T.ya + " .fc-vidrio.ya"),
+      dice: txt(T.ya + " .fc-vidrio.ya"),
+      sinSelect: !q(T.ya + " select"),
+      sinContar: !q(T.ya + " .fc-cuenta"),
+      sinBascula: !q(T.ya + " .fc-bascula"),
+      boton: q(T.ya + " button[type=submit]")?.textContent.trim(),
+    };
+  }, T);
+  ok(y.sale, "un viaje que YA trae su cédula del registro no lo dice: facturación no sabe qué lleva ese camión");
+  ok(/SR-0046/.test(y.dice), `no dice cuál cédula lleva: «${y.dice.slice(0, 80)}»`);
+  ok(/3 tolvas/.test(y.dice), `no dice cuántas tolvas lleva: «${y.dice.slice(0, 80)}»`);
+  ok(/patio/.test(y.dice), "no dice QUIÉN la amarró: sin eso parece que la puso la pantalla sola");
+  ok(y.sinSelect, "con la cédula ya amarrada igual pide escogerla otra vez");
+  ok(y.sinContar, "con la cédula ya amarrada igual pide contar las tolvas: es el mismo trabajo dos veces");
+  ok(y.sinBascula, "con la cédula ya amarrada le sale además el aviso de la báscula");
+  ok(/despachar/i.test(y.boton ?? ""),
+     `el botón dice «${y.boton}» y debería prometer que también despacha`);
+}
+
 /* ======================= 2 · EL FRENO, TOCÁNDOLO ======================= */
 /* Aquí es donde un arnés que solo mire el marcado se queda corto: el
    bloque se pinta igual con el freno puesto y sin él. */
@@ -331,6 +367,8 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
       "el aviso de la báscula": par(T.bas + " .fc-bascula-ojo"),
       "qué hay que hacer con la báscula": par(T.bas + " .fc-bascula-que"),
       "la salida de la báscula": par(T.bas + " .fc-bascula li b"),
+      "la cédula ya amarrada": par(T.ya + " .fc-vidrio.ya .fc-cedula-una"),
+      "qué pasa con la ya amarrada": par(T.ya + " .fc-ya-que"),
     };
   }, T);
   for (const [k, v] of Object.entries(m)) {

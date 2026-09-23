@@ -116,6 +116,15 @@
   font: 700 14px var(--tp-texto);
 }
 .fc-vidrio select:focus { outline: 2px solid var(--tp-acento); outline-offset: 1px }
+/* LA QUE YA VIENE AMARRADA DEL REGISTRO. Verde y no ámbar: el ámbar
+   dice «resuelve esto aquí»; esto ya está resuelto y solo se lee.
+   Pedirle atención a alguien por algo que no tiene que hacer es como se
+   gastan los avisos. */
+.fc-vidrio.ya { border-color: #2E8B57; background: #EEF8F1 }
+.fc-vidrio.ya .fc-vidrio-ojo { color: #0B5D2E }
+.fc-vidrio.ya .fc-cedula-una { color: #12263A; font-size: 15px }
+.fc-ya-que { margin: 0; font-size: 12.5px; line-height: 1.5; color: #1E4433 }
+
 .fc-cedula-una { margin: 0; font-size: 14px; color: #5E4100; overflow-wrap: anywhere }
 .fc-cedula-una b {
   font: 900 18px var(--tp-titulo); color: #12263A; letter-spacing: .02em;

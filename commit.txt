@@ -1,58 +1,96 @@
-La salida deja de mandar a Validacion, que ya no existe
+El vidrio se amarra al REGISTRAR el viaje, no al facturarlo
 
 =====================================================================
-QUE PASABA
+LO QUE ESTABA MAL, Y ERA DE FONDO
 =====================================================================
-«Cree un pesaje en salida y no lo veo en traspasos.»
+«Coloque tolva y no veo que placas tengo alli con tolva y la cantidad.
+ Eso viene del registro de salida: es lo que te trato de decir.»
 
-Quitamos Validacion y cambiamos la cadena, pero la MITAD DE LOS
-LETREROS siguio mandando alla. Quien cerraba un pesaje leia «quedo
-cerrada y paso a Validacion», se iba a buscar esa pantalla, no la
-encontraba —porque se oculto— y concluia que la cosa no servia. Paso.
+El vidrio se amarraba al viaje POR LA PLACA, al final, en facturacion.
+Eso funciona solo si alguien escribio la misma placa en los dos sitios;
+y si se equivoca, NO PASA NADA VISIBLE: el viaje sale sin vidrio y la
+cedula se queda esperando un camion que ya se fue.
 
-Ninguno de estos daba error. La app funcionaba perfecto y mentia en
-cada pantalla del dia.
-
-=====================================================================
-LO QUE DECIA Y LO QUE DICE AHORA
-=====================================================================
-· Al cerrar: «paso a Validacion»
-  → «SR-0044 quedo lista. Facturacion la despacha cuando de la salida al
-     viaje de la placa PRUEBA.» Con el numero y con la placa, que es lo
-     que amarra las dos cosas.
-
-· El boton: «Cerrar y enviar a verificacion» —un paso que se fue hace
-  dos versiones— → «Cerrar y dejar la cedula lista».
-
-· La cabecera de Pesar: «aparece en Validacion, que es de otra persona»
-  → «queda como cedula, esperando el Vh: facturacion la despacha al dar
-     la salida al viaje de traspaso de esa misma placa».
-
-· El KPI: «8 esperando firma» → «8 cedulas esperando Vh». Lo que esperan
-  desde que se quito Validacion es un camion, no una firma. Y DEJA DE
-  IR EN ROJO: una cedula esperando su Vh es lo normal, no un problema.
-
-· La lista: «En Validacion, esperando el aval» → «Cedula lista,
-  esperando el Vh NLW428» / «Despachada en el viaje TR-0168».
-
-· La cadena de firmas: el segundo paso se llamaba «Validacion» y ahora
-  se llama «Facturacion · despacha el vidrio con el viaje», y cuando ya
-  se despacho dice en QUE VIAJE y con que documento — que es lo que
-  contesta la pregunta del dia que Peldar reclame.
+El problema no estaba al final: estaba al principio. Quien registra un
+traspaso de Tolvas de Vidrio SABE que va a cargar vidrio, y es justo
+ahi donde la pantalla tenia la informacion y no la mostraba.
 
 =====================================================================
-Y DOS FALLOS DE VERDAD QUE SALIERON DE AHI
+COMO QUEDA
 =====================================================================
-1. `etapaDe()` miraba `validador_en` para saber en que paso va la
-   salida. Esa firma YA NO SE PONE NUNCA, asi que toda salida cerrada se
-   quedaba para siempre «esperando» un paso que nadie podia dar.
+AL REGISTRAR, escogiendo un tipo de tolvas, sale arriba de la placa:
 
-2. EL INFORME DE SALIDA AGRUPABA POR MES CON `validador_en!`. Con esa
-   firma siempre nula, `new Date(null)` da «Invalid Date» y el mes
-   entero se iba a una barra con ese nombre. No revienta, no avisa, y el
-   informe del mes simplemente deja de tener meses. Ahora cae en
-   cascada: despachada_en → validador_en → supervisora_en, que es la
-   historia del modulo escrita en las filas de la tabla.
+  VIDRIO PESADO ESPERANDO CAMION · toca una y se ponen la placa y las tolvas
+  [ NLW428 · 3 tolvas · SR-0044 · 2.413 kg ]  [ FSV898 · 5 tolvas · ... ]
+
+Se toca una y quedan puestas LA PLACA y LA CANTIDAD —el numero de
+tolvas pesadas—. Tecleare esa cifra a mano al lado de un numero que la
+bascula ya sabe es pedir que alguien se equivoque. Queda corregible.
+
+EN FACTURACION ya viene resuelto: un bloque verde que solo se lee —«este
+viaje ya lleva su vidrio, cedula SR-0046, 3 tolvas, lo amarro el patio
+al registrar»— y el documento. No se escoge ni se cuenta: es el doble
+trabajo del que se trataba escaparse. Verde y no ambar a proposito: el
+ambar dice «resuelve esto aqui»; esto ya esta resuelto.
+
+Y SI LA PLACA NO TIENE VIDRIO, se dice y se dice QUE HACER: «La placa
+PRUEBA no tiene vidrio pesado esperando. Si acaba de pesarse, quien peso
+tiene que CERRAR la salida en Quiebra -> Salida -> Pesar.» Ese es
+exactamente el caso que hizo perder una tarde.
+
+=====================================================================
+TRES ESTADOS, Y HACEN FALTA LOS TRES
+=====================================================================
+  DISPONIBLE   cerrada, sin viaje. Se puede escoger al registrar.
+  RESERVADA    tiene viaje y no tiene despacho. El patio ya la cargo en
+               ese camion; el camion todavia no ha salido.
+  DESPACHADA   salio por la puerta.
+
+RESERVADA NO ES DESPACHADA, y mezclarlas seria mentir en las dos
+direcciones: una cedula cargada pero sin documento no ha salido del CD,
+y contarla como salida inflaria los kilos que salieron.
+
+=====================================================================
+LO QUE NO SE PIERDE, Y LO QUE PASA AL DESHACER
+=====================================================================
+· SIGUEN SIENDO DOS PERSONAS. Quien peso no da la salida — con cedula
+  amarrada o sin ella. Es la razon de ser de la cadena y se comprueba
+  igual en los dos caminos.
+· LA PLACA SE COMPRUEBA EN LA BASE, no solo en la pantalla. Una pantalla
+  es una sugerencia; una funcion es una regla.
+· UNA CEDULA CARGADA NO SE OFRECE PARA OTRO VIAJE. Sin eso, el mismo
+  vidrio se carga dos veces.
+· ANULAR el viaje SUELTA la cedula: el vidrio no se fue a ninguna parte.
+· REABRIR la salida NO la suelta: reabrir es corregir un DOCUMENTO, no
+  descargar el camion. (El disparador de antes la soltaba entera, y con
+  el amarre en el registro eso borraria un dato que nadie volvio a
+  escribir.)
+· EL CAMINO VIEJO SIGUE VIVO para lo que ya estaba registrado sin
+  amarre: escoger la cedula y contar las tolvas. Quitarlo dejaria sin
+  salida a todo lo que hay en la bandeja hoy.
+
+EL AMARRE VA EN SU PROPIA FUNCION y no como un argumento mas de
+traspaso_registrar. Esa funcion tiene cuatrocientas lineas de reglas
+acumuladas y en PostgreSQL no se remienda el cuerpo de una funcion: para
+agregarle un argumento hay que reescribirla entera, y ya se han perdido
+reglas reescribiendola. La pantalla registra y, si escogio cedula,
+amarra. SI LO SEGUNDO FALLA, EL VIAJE YA EXISTE y eso es lo correcto —el
+viaje ocurrio— pero se DICE, con el numero de la cedula, para poder
+amarrarla despues en vez de dejar creer que todo quedo bien.
+
+=====================================================================
+LOS ARNESES
+=====================================================================
+.arnes/tp-vidrio-registro.mjs monta Registrar en Chromium, TOCA una
+cedula y comprueba que queden puestas la placa y la cantidad, que el
+viaje salga AMARRADO —leyendo el paquete que sale hacia la base, y el
+ORDEN: primero registrar, despues amarrar—, que si el amarre falla se
+diga, y que una placa sin vidrio diga que hacer y donde. Cinco anchos.
+Una captura no distingue una pantalla que amarra de una que no.
+
+.arnes/correr-amarre-vidrio.sh comprueba contra Postgres los seis frenos
+de arriba, incluidos los dos que nadie prueba: reabrir no descarga el
+camion, y anular si suelta el vidrio.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -3,7 +3,7 @@ import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
   tipos as leerTipos, puntos as leerPuntos, viajesDelDia, control,
-  placasRecientes, hoyLocal, placasMaestro, diaAbierto,
+  placasRecientes, hoyLocal, placasMaestro, diaAbierto, vidrioEsperando,
 } from "@/modulos/traspasos/datos";
 import { turnoDeAhora, TURNOS, conDia, DIAS_ADELANTE, topeAdelante }
   from "@/modulos/traspasos/formato";
@@ -50,10 +50,14 @@ export default async function TraspasosPage({ searchParams }: {
 
   /* Las siete consultas en una sola tanda: en serie la pantalla
      tardaría lo que suman y aquí ninguna depende de otra. */
-  const [permisos, t, pts, dia, ctl, placas, nombres, pl, abierto] = await Promise.all([
+  const [permisos, t, pts, dia, ctl, placas, nombres, pl, abierto, vidrio] = await Promise.all([
     misPermisos(), leerTipos(), leerPuntos(), viajesDelDia(fecha),
     control(fecha), placasRecientes(), nombresTodos(),
     placasMaestro(), diaAbierto(fecha),
+    /* EL VIDRIO QUE ESPERA CAMIÓN. Se ofrece al escoger «Tolvas de
+       Vidrio»: es donde quien registra ya sabe que va a cargar vidrio, y
+       donde hasta hoy la pantalla tenía el dato y no lo mostraba. */
+    vidrioEsperando(),
   ]);
 
   /* EL DÍA CERRADO ES UN ESTADO DE LA PANTALLA, no del calendario.
@@ -195,6 +199,7 @@ export default async function TraspasosPage({ searchParams }: {
       {permisos.puedeEditar("/traspasos") && !esFuturo && !cerrado ? (
         <Registrar tipos={t.tipos} puntos={pts} placas={placas}
                    placasM={pl.placas}
+                   vidrio={vidrio.cedulas} faltaVidrio={vidrio.falta}
                    fecha={fecha} turnoSugerido={turno}
                    planTurno={planTurno} hechosTurno={hechosTurno}
                    planPorTipo={planPorTipo}

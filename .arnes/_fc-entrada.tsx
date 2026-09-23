@@ -38,7 +38,7 @@ const bascula = (id: string, cedula: string, placa: string, tolvas: number, hora
 createRoot(document.getElementById("r")!).render(
   <Bandeja
     pendientes={[viaje("1", "SIN01"), viaje("2", "UNA-11"), viaje("3", "DOS22"),
-                 viaje("4", "BAS44")]}
+                 viaje("4", "BAS44"), viaje("5", "YA-55")]}
     salieron={[]}
     nombres={{ u1: "Santiago Leal" }}
     cedulas={{
@@ -46,4 +46,7 @@ createRoot(document.getElementById("r")!).render(
       DOS22: [ced("c2", "SR-0042", "DOS22", 2), ced("c3", "SR-0043", "DOS22", 5, 9)],
     }}
     bascula={{ BAS44: [bascula("b1", "SR-0044", "BAS44", 2, 5)] }}
+    /* Y EL QUINTO: el que YA trae su cédula del registro. Facturación no
+       escoge ni cuenta; solo pone el documento. */
+    reservadas={{ "5": ced("r1", "SR-0046", "YA-55", 3) } as any}
     puedeConfirmar puedeReabrir={false} />);

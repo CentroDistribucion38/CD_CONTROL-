@@ -47,7 +47,7 @@ const coincide = (v: Viaje, q: string) => {
 };
 
 export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula = {},
-                         faltaCedulas = false,
+                         reservadas = {}, faltaCedulas = false,
                          puedeConfirmar, puedeReabrir, puedeDepurar = false }: {
   pendientes: Viaje[];
   salieron: Viaje[];
@@ -57,6 +57,9 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula =
   /** Las salidas de vidrio que siguen ABIERTAS en la báscula, por placa.
    *  No se pueden despachar, pero hay que decir que están ahí. */
   bascula?: Record<string, EnBascula[]>;
+  /** LA CÉDULA QUE EL VIAJE YA TRAE DEL REGISTRO, por id de viaje.
+   *  Cuando la hay no se escoge ni se cuenta: ya está decidida. */
+  reservadas?: Record<string, Cedula>;
   /** La migración del vidrio todavía no se ha corrido en esta base. */
   faltaCedulas?: boolean;
   puedeConfirmar: boolean;
@@ -138,6 +141,7 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula =
           <Pendiente key={v.id} v={v} nombres={nombres} puede={puedeConfirmar}
                      cedulas={cedulas[placaClave(v.placa)] ?? []}
                      bascula={bascula[placaClave(v.placa)] ?? []}
+                     reservada={reservadas[v.id] ?? null}
                      depurar={puedeDepurar ? { marcado: sel.has(v.id), marcar: () => marcar(v.id) } : null}
                      listo={(m) => avisar.bien(m)} fallo={(m) => avisar.mal(m)} />
         ))}
@@ -166,7 +170,7 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula =
 /* =====================================================================
    UN VIAJE ESPERANDO SU NÚMERO
    ===================================================================== */
-function Pendiente({ v, nombres, puede, cedulas, bascula, depurar, listo, fallo }: {
+function Pendiente({ v, nombres, puede, cedulas, bascula, reservada, depurar, listo, fallo }: {
   v: Viaje;
   depurar: { marcado: boolean; marcar: () => void } | null;
   nombres: Record<string, string>;
@@ -174,6 +178,8 @@ function Pendiente({ v, nombres, puede, cedulas, bascula, depurar, listo, fallo 
   cedulas: Cedula[];
   /** Lo que esta placa tiene en la báscula, sin cerrar. */
   bascula: EnBascula[];
+  /** La cédula que este viaje YA trae del registro, si la trae. */
+  reservada: Cedula | null;
   puede: boolean;
   listo: (m: string) => void;
   fallo: (m: string) => void;
@@ -190,12 +196,19 @@ function Pendiente({ v, nombres, puede, cedulas, bascula, depurar, listo, fallo 
      CUANDO HAY UNA SOLA —que es el caso normal— VIENE ESCOGIDA. Obligar
      a abrir un desplegable de un solo renglón es hacer tocar dos veces
      para decir lo único que se podía decir. */
-  const hayVidrio = cedulas.length > 0;
+  /* SI EL VIAJE YA TRAE SU CÉDULA DEL REGISTRO, NO HAY NADA QUE
+     ESCOGER NI QUE CONTAR. El patio ya dijo qué vidrio va en ese
+     camión, y las tolvas las contó y las cerró quien pesó: volver a
+     pedirlas aquí sería pedir que se cuente un camión ya cargado y
+     sellado. Solo se muestra, para que quien pone el documento sepa
+     qué lleva. */
+  const yaAmarrada = reservada != null;
+  const hayVidrio = !yaAmarrada && cedulas.length > 0;
   /* EN LA BÁSCULA. No es una cédula todavía —el número de tolvas puede
      cambiar hasta que quien pesó cierre— pero facturación tiene que
      saber que está ahí. Se pinta aunque también haya cédulas listas:
      son cosas distintas y puede haber las dos a la vez. */
-  const enBascula = bascula.length > 0;
+  const enBascula = !yaAmarrada && bascula.length > 0;
   const [cedulaId, setCedulaId] = useState<string>(cedulas.length === 1 ? cedulas[0].id : "");
   const [tolvas, setTolvas] = useState("");
   const ced = cedulas.find((c) => c.id === cedulaId) ?? null;
@@ -227,9 +240,11 @@ function Pendiente({ v, nombres, puede, cedulas, bascula, depurar, listo, fallo 
       fallo(m);
       return;
     }
-    listo(hayVidrio
-      ? `Salió: ${v.placa ?? "el viaje"} con el documento ${numero} y la cédula ${ced?.cedula} (${contadas} tolva${contadas === 1 ? "" : "s"}).`
-      : `Salió: ${v.placa ?? "el viaje"} con el documento ${numero}.`);
+    listo(yaAmarrada && reservada
+      ? `Salió: ${v.placa ?? "el viaje"} con el documento ${numero} y la cédula ${reservada.cedula} (${reservada.tolvas} tolva${reservada.tolvas === 1 ? "" : "s"}).`
+      : hayVidrio
+        ? `Salió: ${v.placa ?? "el viaje"} con el documento ${numero} y la cédula ${ced?.cedula} (${contadas} tolva${contadas === 1 ? "" : "s"}).`
+        : `Salió: ${v.placa ?? "el viaje"} con el documento ${numero}.`);
     router.refresh();
   }
 
@@ -260,7 +275,7 @@ function Pendiente({ v, nombres, puede, cedulas, bascula, depurar, listo, fallo 
       </div>
 
       {puede && (
-        <form className={"fc-confirmar" + (hayVidrio || enBascula ? " con-vidrio" : "")}
+        <form className={"fc-confirmar" + (hayVidrio || enBascula || yaAmarrada ? " con-vidrio" : "")}
               onSubmit={(e) => { e.preventDefault(); confirmar() }}>
 
           {/* EL VIDRIO VA ANTES DEL NÚMERO, y no es un detalle de
@@ -289,6 +304,22 @@ function Pendiente({ v, nombres, puede, cedulas, bascula, depurar, listo, fallo 
                 Todavía no se puede despachar: quien pesó tiene que <b>cerrarla</b> en
                 Quiebra → Salida → Pesar. Apenas la cierre aparece aquí para escogerla.
               </p>
+            </div>
+          )}
+
+          {/* LA CÉDULA QUE YA VIENE DEL REGISTRO. Solo se lee. */}
+          {yaAmarrada && reservada && (
+            <div className="fc-vidrio ya">
+              <p className="fc-vidrio-ojo">ESTE VIAJE YA LLEVA SU VIDRIO</p>
+              <p className="fc-cedula-una">
+                Cédula <b>{reservada.cedula}</b> · {reservada.tolvas} tolva
+                {reservada.tolvas === 1 ? "" : "s"} · {nf.format(reservada.neto_kg)} kg
+              </p>
+              <p className="fc-ya-que">
+                Lo amarró el patio al registrar el viaje. Al confirmar la salida, esta cédula
+                se despacha sola: no hay nada que escoger ni que contar.
+              </p>
+              {reservada.observacion && <p className="fc-obs">Nota del pesaje: {reservada.observacion}</p>}
             </div>
           )}
 
@@ -364,7 +395,8 @@ function Pendiente({ v, nombres, puede, cedulas, bascula, depurar, listo, fallo 
                    placeholder="Hasta 10 cifras" aria-invalid={error ? true : undefined} />
           </label>
           <button type="submit" className="btn si" disabled={!listoParaMandar || mandando}>
-            {mandando ? "Confirmando…" : hayVidrio ? "Confirmar salida y despachar" : "Confirmar salida"}
+            {mandando ? "Confirmando…"
+              : (hayVidrio || yaAmarrada) ? "Confirmar salida y despachar" : "Confirmar salida"}
           </button>
           {error && <p className="fc-error" role="alert">{error}</p>}
         </form>

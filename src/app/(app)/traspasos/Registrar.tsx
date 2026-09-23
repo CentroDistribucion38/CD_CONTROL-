@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import type { PlacaM, Punto, TipoViaje, Viaje } from "@/modulos/traspasos/datos";
-import { TURNOS, hora, quien } from "@/modulos/traspasos/formato";
+import { TURNOS, hora, quien, placaClave, type Cedula } from "@/modulos/traspasos/formato";
 import { Desplegable } from "./comunes";
+
+const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
 /**
  * REGISTRAR UN VIAJE.
@@ -41,6 +43,7 @@ export type PlanTipo = {
 };
 
 export function Registrar({ tipos, puntos, placas, placasM,
+                            vidrio = [], faltaVidrio = false,
                             fecha, turnoSugerido,
                             planTurno, hechosTurno, planPorTipo, viajes, nombres }: {
   tipos: TipoViaje[];
@@ -48,6 +51,12 @@ export function Registrar({ tipos, puntos, placas, placasM,
   placas: { placa: string; veces: number }[];
   /** El maestro de placas. Lo que se puede escoger, ya no texto libre. */
   placasM: PlacaM[];
+  /** EL VIDRIO PESADO QUE ESTÁ ESPERANDO CAMIÓN. Se ofrece al escoger
+   *  un tipo de tolvas: quien registra ya sabe que va a cargar vidrio, y
+   *  la placa y la cantidad salen del pesaje en vez de tecleárselas. */
+  vidrio?: Cedula[];
+  /** La migración del vidrio todavía no se ha corrido en esta base. */
+  faltaVidrio?: boolean;
   fecha: string;
   turnoSugerido: string;
   /** Cuántos viajes lleva planeados el turno escogido, y cuántos van. */
@@ -90,6 +99,9 @@ export function Registrar({ tipos, puntos, placas, placasM,
   const [mandando, setMandando] = useState(false);
   const [verOtros, setVerOtros] = useState(false);
   const [placaNueva, setPlacaNueva] = useState<string | null>(null);
+  /* LA CÉDULA ESCOGIDA. El viaje nace amarrado a ella: no hay que
+     acordarse de nada después, y facturación solo pone el documento. */
+  const [cedula, setCedula] = useState<Cedula | null>(null);
   const [bodegaNueva, setBodegaNueva] = useState<{ lado: "o" | "d"; texto: string } | null>(null);
   const campoPlaca = useRef<HTMLButtonElement>(null);
 
@@ -222,6 +234,51 @@ export function Registrar({ tipos, puntos, placas, placasM,
       return n;
     });
   }
+  /* ------------------------------------------------------------------
+     EL VIDRIO, CUANDO EL VIAJE ES DE TOLVAS
+
+     SE RECONOCE POR EL NOMBRE DEL TIPO, no por una clave fija: el tipo
+     «Tolvas de Vidrio» no lo creó ninguna migración — lo agregó alguien
+     en el Maestro— así que su clave puede ser cualquiera y mañana puede
+     haber «Tolvas de vidrio T2». Lo que no cambia es la palabra.
+     ------------------------------------------------------------------ */
+  const esDeTolvas = escogidos.some((c) => {
+    const n = (tipos.find((x) => x.clave === c)?.nombre ?? c).toLowerCase();
+    return n.includes("tolva");
+  });
+
+  /* Si ya hay placa escogida, solo el vidrio de ESA placa: ofrecer el de
+     otra sería ofrecer cargar vidrio ajeno. Sin placa, todo lo que
+     espera — y escoger uno pone su placa. */
+  const vidrioOfrecido = placa
+    ? vidrio.filter((c) => placaClave(c.placa) === placaClave(placa))
+    : vidrio;
+
+  /* AL ESCOGER LA CÉDULA SE PONEN LA PLACA Y LA CANTIDAD.
+     La cantidad es el número de tolvas pesadas: es lo que el camión
+     lleva, y tecleárselo a mano al lado de un número que la báscula ya
+     sabe es pedir que alguien se equivoque. Queda corregible. */
+  function escogerCedula(c: Cedula) {
+    setCedula(c);
+    setPlaca(c.placa);
+    setTipos((m) => {
+      const n = new Map(m);
+      for (const clave of escogidos) {
+        const nom = (tipos.find((x) => x.clave === clave)?.nombre ?? clave).toLowerCase();
+        if (nom.includes("tolva")) n.set(clave, String(c.tolvas));
+      }
+      return n;
+    });
+  }
+
+  /* Y SE SUELTA SOLA SI CAMBIA LA PLACA O SE QUITA EL TIPO. Una cédula
+     que se queda pegada a un viaje que ya no es el suyo se manda a la
+     base y la base la rechaza — un error que la pantalla pudo evitar. */
+  useEffect(() => {
+    if (!cedula) return;
+    if (!esDeTolvas || (placa && placaClave(placa) !== placaClave(cedula.placa))) setCedula(null);
+  }, [cedula, esDeTolvas, placa]);
+
   function ponCantidad(clave: string, v: string) {
     setTipos((m) => new Map(m).set(clave, v.replace(/\D/g, "")));
   }
@@ -234,7 +291,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
        función de varios tipos obligaría a inventarle un tipo.
        El viaje con carga va por `traspaso_registrar_varios`, que cuelga
        los tipos y fuerza el viaje en 1 — un vehículo es un viaje. */
-    const { error } = esVacio
+    const { data, error } = esVacio
       ? await supabase.rpc("traspaso_registrar", {
           p_fecha: fecha, p_turno: turno,
           p_tipo: null, p_placa: null, p_origen: null, p_destino: null,
@@ -257,8 +314,36 @@ export function Registrar({ tipos, puntos, placas, placasM,
           p_nota: nota.trim() || null,
           p_arenosa: pideArenosa ? arenosa === true : false,
         });
+    if (error) { setMandando(false); avisar.mal(mensajeRegistro(error.message)); return }
+
+    /* ------------------------------------------------------------------
+       Y SE AMARRA LA CÉDULA, si se escogió.
+
+       VA EN UNA LLAMADA APARTE y no como un argumento más de registrar:
+       esa función tiene cuatrocientas líneas de reglas acumuladas —el
+       día operativo, el tope de siete días, el candado del día cerrado—
+       y en PostgreSQL no se remienda el cuerpo de una función; para
+       agregarle un argumento hay que reescribirla entera. Ya se han
+       perdido reglas reescribiéndola.
+
+       SI EL AMARRE FALLA, EL VIAJE YA EXISTE Y ESO ESTÁ BIEN: el viaje
+       ocurrió. Se dice lo que pasó y con qué cédula, para poder
+       amarrarla después, en vez de dejar creer que no se registró nada.
+       ------------------------------------------------------------------ */
+    let avisoVidrio = "";
+    const fila = Array.isArray(data) ? data[0] : data;
+    const idViaje = (fila as { id?: string } | null)?.id;
+    if (cedula && idViaje) {
+      const r = await supabase.rpc("traspaso_amarrar_cedula", {
+        p_viaje: idViaje, p_cedula: cedula.id,
+      });
+      avisoVidrio = r.error
+        ? ` · OJO: el viaje quedó registrado pero la cédula ${cedula.cedula} NO se amarró (${r.error.message})`
+        : ` · lleva la cédula ${cedula.cedula} con ${cedula.tolvas} tolva${cedula.tolvas === 1 ? "" : "s"}`;
+      if (r.error) avisar.mal(`El viaje se registró, pero la cédula ${cedula.cedula} no quedó amarrada: ${r.error.message}`);
+    }
+
     setMandando(false);
-    if (error) { avisar.mal(mensajeRegistro(error.message)); return }
 
     const cuantos = escogidos.length;
     avisar.bien(esVacio
@@ -268,16 +353,16 @@ export function Registrar({ tipos, puntos, placas, placasM,
          quien lo registró tiene que saberlo en el momento, no
          descubrirlo en Control preguntándose de dónde salieron. */
       : fueraDelPlan.length === 0
-        ? `${placa.toUpperCase()} registrado · ${cuantos} tipo${cuantos === 1 ? "" : "s"}. El plan del turno ya lo cuenta.`
+        ? `${placa.toUpperCase()} registrado · ${cuantos} tipo${cuantos === 1 ? "" : "s"}. El plan del turno ya lo cuenta.${avisoVidrio}`
         : fueraDelPlan.length === cuantos
-          ? `${placa.toUpperCase()} registrado · ${cuantos} tipo${cuantos === 1 ? "" : "s"}, ${cuantos === 1 ? "fuera del plan" : "todos fuera del plan"}. Va a salir en Control por encima.`
-          : `${placa.toUpperCase()} registrado · ${cuantos - fueraDelPlan.length} del plan y ${fueraDelPlan.length} por encima.`);
+          ? `${placa.toUpperCase()} registrado · ${cuantos} tipo${cuantos === 1 ? "" : "s"}, ${cuantos === 1 ? "fuera del plan" : "todos fuera del plan"}. Va a salir en Control por encima.${avisoVidrio}`
+          : `${placa.toUpperCase()} registrado · ${cuantos - fueraDelPlan.length} del plan y ${fueraDelPlan.length} por encima.${avisoVidrio}`);
 
     /* SE LIMPIA LO DEL VIAJE Y SE DEJA LO DEL TURNO: quien registra
        varios seguidos del mismo tipo y la misma ruta no debería volver
        a escogerlos cada vez — es lo que hace que se dejen de registrar
        a media tarde. */
-    setPlaca(""); setNota(""); setViajesN(1);
+    setPlaca(""); setNota(""); setViajesN(1); setCedula(null);
     /* LOS TIPOS TAMBIÉN SE LIMPIAN. Se quedaban puestos «porque el
        siguiente suele ser igual», y con varios tipos eso es otra cosa:
        un camión de casco registrado detrás de uno de casco+estibas+PET
@@ -352,6 +437,72 @@ export function Registrar({ tipos, puntos, placas, placasM,
                     orden de cargue». El patio registra placa, tipo y ruta;
                     el número del viaje lo pone facturación al confirmar la
                     salida, y es ese el que se cruza con SAP. */}
+                {/* ─ EL VIDRIO QUE ESTÁ ESPERANDO CAMIÓN ─
+
+                    «Coloqué tolva y no veo qué placas tengo allí con
+                     tolva y la cantidad. Eso viene del registro de
+                     salida.»
+
+                    VA ARRIBA DE LA PLACA, y ese es el punto entero: si
+                    fuera abajo, la placa ya estaría escrita a mano y
+                    esto sería una comprobación. Arriba es la forma de
+                    escogerla — se toca la cédula y quedan puestas la
+                    placa Y la cantidad de tolvas.
+
+                    SOLO CUANDO EL VIAJE ES DE TOLVAS. En los demás no
+                    tiene nada que decir, y un bloque que sale siempre
+                    deja de leerse. */}
+                {esDeTolvas && (
+                  <div className="tp-vidrio">
+                    {faltaVidrio ? (
+                      <p className="tp-vidrio-falta">
+                        Falta correr <code>2026-09-vidrio-cedula-facturacion.sql</code> en
+                        Supabase para poder amarrar el vidrio al viaje. Mientras tanto se
+                        registra como siempre.
+                      </p>
+                    ) : vidrioOfrecido.length === 0 ? (
+                      <p className="tp-vidrio-falta">
+                        {placa
+                          ? <>La placa <b>{placa}</b> no tiene vidrio pesado esperando. Si acaba de
+                              pesarse, quien pesó tiene que <b>cerrar</b> la salida en
+                              Quiebra → Salida → Pesar.</>
+                          : <>No hay vidrio pesado esperando camión. Se pesa y se cierra en
+                              Quiebra → Salida → Pesar, y aquí aparece solo.</>}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="tp-vidrio-ojo">
+                          VIDRIO PESADO ESPERANDO CAMIÓN
+                          <span> · toca una y se ponen la placa y las tolvas</span>
+                        </p>
+                        <ul className="tp-vidrio-lista">
+                          {vidrioOfrecido.map((c) => (
+                            <li key={c.id}>
+                              <button type="button"
+                                      className={cedula?.id === c.id ? "on" : ""}
+                                      aria-pressed={cedula?.id === c.id}
+                                      onClick={() => cedula?.id === c.id ? setCedula(null) : escogerCedula(c)}>
+                                <b>{c.placa}</b>
+                                <span>{c.tolvas} tolva{c.tolvas === 1 ? "" : "s"}</span>
+                                <em>{c.cedula} · {nf.format(c.neto_kg)} kg
+                                  {c.dias_esperando > 0 && ` · ${c.dias_esperando} d`}</em>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        {cedula && (
+                          <p className="tp-vidrio-puesta">
+                            Este viaje va a llevar la cédula <b>{cedula.cedula}</b> —{" "}
+                            {cedula.tolvas} tolva{cedula.tolvas === 1 ? "" : "s"},{" "}
+                            {nf.format(cedula.neto_kg)} kg. Facturación ya no tiene que
+                            escogerla: solo pone el documento.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <span className="rot-campo">Placa</span>
                   {/* DE LISTA, NO A MANO. Las placas salen del maestro: una

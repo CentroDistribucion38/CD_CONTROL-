@@ -465,6 +465,31 @@ export async function planDelDia(fecha: string) {
 
 /** Las placas de los últimos siete días, la más reciente primero. Es lo
  *  que convierte teclear una placa en tocar un botón. */
+/**
+ * EL VIDRIO QUE ESTÁ ESPERANDO CAMIÓN, para ofrecerlo AL REGISTRAR.
+ *
+ * «Coloqué tolva y no veo qué placas tengo allí con tolva y la
+ * cantidad. Eso viene del registro de salida.»
+ *
+ * El amarre no puede depender de que alguien escriba la misma placa en
+ * dos pantallas distintas: si se equivoca, no pasa nada visible —el
+ * viaje sale sin vidrio y la cédula se queda esperando un camión que ya
+ * se fue—. Se ofrecen las placas que de verdad tienen vidrio pesado, y
+ * se escoge de la lista.
+ */
+export async function vidrioEsperando() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_salidas_por_despachar")
+    .select("id, cedula, placa, tolvas, neto_kg, observacion, dias_esperando")
+    .order("dias_esperando", { ascending: false }).limit(100);
+  /* SI LA VISTA NO ESTÁ, EL REGISTRO SIGUE FUNCIONANDO. Quitarle al
+     patio la pantalla de registrar porque falta una migración del
+     vidrio sería cambiar un aviso por una pared. */
+  if (error) return { cedulas: [] as Cedula[], falta: true };
+  return { cedulas: (data ?? []) as Cedula[], falta: false };
+}
+
 export async function placasRecientes(limite = 8) {
   const supabase = await createClient();
   const { data } = await supabase.from("v_traspasos_placas")
@@ -712,7 +737,7 @@ export type { Cedula, EnBascula } from "./formato";
 export async function bandejaFacturacion(diasSalieron = 3) {
   const supabase = await createClient();
   const desde = new Date(Date.now() - diasSalieron * 86400000).toISOString();
-  const [pend, sal, ced, basc] = await Promise.all([
+  const [pend, sal, ced, basc, resv] = await Promise.all([
     supabase.from("v_traspasos_viajes").select("*")
       .eq("por_facturar", true).gte("fecha", FACTURACION_DESDE)
       .order("fecha").order("turno_orden").order("hora").limit(500),
@@ -735,13 +760,18 @@ export async function bandejaFacturacion(diasSalieron = 3) {
     supabase.from("v_salidas_en_bascula")
       .select("id, cedula, placa, tolvas, neto_kg, observacion, horas_abierta")
       .order("horas_abierta", { ascending: false }).limit(300),
+    /* LAS QUE YA VIENEN AMARRADAS DEL REGISTRO. Facturación no las
+       escoge ni las cuenta: ya están decididas. Solo las muestra para
+       que quien pone el documento sepa qué va en ese camión. */
+    supabase.from("v_salidas_reservadas")
+      .select("id, viaje, cedula, placa, tolvas, neto_kg, observacion").limit(500),
   ]);
   if (pend.error) {
     return {
       falta: /column|does not exist|schema cache/i.test(pend.error.message),
       pendientes: [] as Viaje[], salieron: [] as Viaje[],
       cedulas: {} as Record<string, Cedula[]>, bascula: {} as Record<string, EnBascula[]>,
-      faltaCedulas: false,
+      reservadas: {} as Record<string, Cedula>, faltaCedulas: false,
     };
   }
 
@@ -759,10 +789,18 @@ export async function bandejaFacturacion(diasSalieron = 3) {
     (bascula[placaClave(b.placa)] ??= []).push(b);
   }
 
+  /* POR VIAJE Y NO POR PLACA: una cédula reservada pertenece a UN
+     viaje, no a todos los de esa placa. Agruparla por placa haría que
+     dos viajes del mismo camión se pelearan la misma. */
+  const reservadas: Record<string, Cedula> = {};
+  for (const r of (resv.data ?? []) as (Cedula & { viaje: string })[]) {
+    reservadas[r.viaje] = r;
+  }
+
   return {
     falta: false,
     pendientes: (pend.data ?? []) as Viaje[],
     salieron: (sal.data ?? []) as Viaje[],
-    cedulas, bascula, faltaCedulas,
+    cedulas, bascula, reservadas, faltaCedulas,
   };
 }

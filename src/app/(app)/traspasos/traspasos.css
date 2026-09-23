@@ -1899,6 +1899,71 @@
    material de verdad. Apagarlo hasta el gris lo volvería a esconder,
    que es justo de donde viene.
    ===================================================================== */
+/* =====================================================================
+   EL VIDRIO QUE ESPERA CAMIÓN, EN EL REGISTRO
+
+   «Coloqué tolva y no veo qué placas tengo allí con tolva y la
+    cantidad. Eso viene del registro de salida.»
+
+   VA ARRIBA DE LA PLACA y ocupa el ancho entero de la línea. No es un
+   aviso: es la forma de escoger la placa cuando el viaje lleva vidrio.
+   Por eso las tarjetas son botones grandes —se tocan con guante— y no
+   renglones de una lista.
+
+   ÁMBAR, como el resto del vidrio en esta plataforma. Es la misma cosa
+   que se ve en Facturación y en Pesar; cambiarle el color aquí la haría
+   parecer otra.
+   ===================================================================== */
+.tp .tp-vidrio {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 14px; border-radius: 10px;
+  border: 1.5px solid #C08A16; background: #FFF9EC;
+}
+.tp .tp-vidrio-ojo {
+  margin: 0; font-size: 10px; font-weight: 800; letter-spacing: .14em; color: #7A5600;
+}
+.tp .tp-vidrio-ojo span { font-weight: 600; letter-spacing: .04em; text-transform: none;
+  font-size: 11.5px }
+.tp .tp-vidrio-falta {
+  margin: 0; font-size: 13px; line-height: 1.5; color: #5E4100; overflow-wrap: anywhere;
+}
+.tp .tp-vidrio-falta b { color: var(--tp-tinta) }
+.tp .tp-vidrio-falta code {
+  font: 700 12px ui-monospace, "SFMono-Regular", Menlo, monospace; overflow-wrap: anywhere;
+}
+
+/* AUTO-FILL Y NO UNA FILA QUE SE DESLIZA: un carrusel horizontal
+   esconde lo que no cabe, y lo que no cabe puede ser justo la placa que
+   está en la puerta. Se envuelven. */
+.tp .tp-vidrio-lista {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));
+  gap: 8px; margin: 0; padding: 0; list-style: none;
+}
+.tp .tp-vidrio-lista button {
+  width: 100%; min-height: 62px; display: flex; flex-direction: column; gap: 2px;
+  align-items: flex-start; text-align: left;
+  padding: 9px 12px; border-radius: 9px; cursor: pointer;
+  background: #fff; border: 1.5px solid var(--tp-linea); color: var(--tp-tinta);
+}
+.tp .tp-vidrio-lista button:hover { border-color: #C08A16 }
+.tp .tp-vidrio-lista button.on {
+  border-color: #C08A16; border-width: 2px; background: #FFF4D9;
+  box-shadow: 0 0 0 1px #C08A16 inset;
+}
+.tp .tp-vidrio-lista b {
+  font: 900 18px var(--tp-titulo); letter-spacing: .02em; line-height: 1.1;
+}
+.tp .tp-vidrio-lista span { font-size: 13px; font-weight: 700; color: #7A5600 }
+.tp .tp-vidrio-lista em {
+  font-style: normal; font-size: 11.5px; color: var(--tp-gris);
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.tp .tp-vidrio-puesta {
+  margin: 0; font-size: 13px; line-height: 1.5; color: #5E4100; overflow-wrap: anywhere;
+}
+.tp .tp-vidrio-puesta b { color: var(--tp-tinta); font-variant-numeric: tabular-nums }
+
 .tp .tp-nomide {
   border: 1px solid var(--tp-linea); border-left: 3px dashed var(--tp-gris);
   border-radius: 10px; padding: 13px 15px;
