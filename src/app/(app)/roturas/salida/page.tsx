@@ -16,7 +16,11 @@ export default async function SalidasPage() {
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
   const abiertas = datos.salidas.filter((s) => s.estado === "abierta");
-  const porFirmar = datos.salidas.filter((s) => s.estado === "cerrada" && !s.completa).length;
+  /* LAS QUE YA SON CÉDULA Y ESPERAN VH. Cerradas por quien pesó y sin
+     despachar. Se llamaban «esperando firma» cuando después venía
+     Validación; hoy lo que esperan es un camión, no una firma, y decir
+     «esperando firma» manda a buscar una pantalla que ya no existe. */
+  const esperandoVh = datos.salidas.filter((s) => s.estado === "cerrada" && !s.completa).length;
   const enPiso = abiertas.reduce((t, s) => t + s.neto_kg, 0);
 
   return (
@@ -29,7 +33,8 @@ export default async function SalidasPage() {
             Aquí se pesa: bruto menos la tara de la tolva. La tara vive en el maestro y se copia
             a la línea al pesar, así que el día que cambie una tolva las salidas viejas siguen
             mostrando la tara con la que de verdad se pesaron. Al cerrar, la salida se va de
-            esta pantalla y aparece en <b>Validación</b>, que es de otra persona.
+            esta pantalla y queda como <b>cédula</b>, esperando el Vh: facturación la despacha
+            al dar la salida al viaje de traspaso de esa misma placa.
           </p>
         </div>
         <div className="kpi">
@@ -38,7 +43,8 @@ export default async function SalidasPage() {
           <div className="num">{kilos(enPiso)}<span className="u">kg</span></div>
           <div className="pie">
             {abiertas.length} abierta{abiertas.length === 1 ? "" : "s"}
-            {porFirmar > 0 && ` · ${porFirmar} esperando firma`}
+            {esperandoVh > 0 &&
+              ` · ${esperandoVh} cédula${esperandoVh === 1 ? "" : "s"} esperando Vh`}
           </div>
         </div>
       </section>

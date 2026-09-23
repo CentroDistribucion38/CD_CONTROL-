@@ -100,10 +100,16 @@ export default async function QuiebraPortada() {
     },
     salida: sal.falta ? null : {
       n: kilos(kgAbiertos), u: "kg",
+      /* «ESPERANDO VH» Y NO «ESPERANDO FIRMA»: lo que esperan desde que
+         se quitó Validación es un camión, no una firma. Decir «esperando
+         firma» manda a alguien a buscar una pantalla que ya no existe.
+         Y NO VA EN ROJO: una cédula esperando su Vh es lo normal, no un
+         problema. Se pintaba en rojo cuando esperaba una firma que
+         alguien tenía que ir a poner. */
       pie: porFirmar
-        ? `en ${abiertas.length} salida${abiertas.length === 1 ? "" : "s"} abierta${abiertas.length === 1 ? "" : "s"} · ${porFirmar} esperando firma`
+        ? `en ${abiertas.length} salida${abiertas.length === 1 ? "" : "s"} abierta${abiertas.length === 1 ? "" : "s"} · ${porFirmar} cédula${porFirmar === 1 ? "" : "s"} esperando Vh`
         : `en ${abiertas.length} salida${abiertas.length === 1 ? "" : "s"} abierta${abiertas.length === 1 ? "" : "s"}`,
-      mal: porFirmar > 0,
+      mal: false,
     },
   };
 

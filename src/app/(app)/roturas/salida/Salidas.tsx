@@ -179,9 +179,10 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
                       mirar; el nombre de la etapa ya dice a quién hay
                       que ir a buscar. */}
                   <span>
-                    {!s.supervisora_en ? "Falta pesar, cerrar y enviar a validación"
-                      : !s.validador_en ? "En Validación, esperando el aval"
-                      : "Las dos firmas puestas"}
+                    {!s.supervisora_en ? "Falta pesar y cerrar"
+                      : !s.despachada_en
+                        ? `Cédula lista, esperando el Vh ${s.placa ?? ""}`.trim()
+                        : `Despachada${s.viaje_codigo ? ` en el viaje ${s.viaje_codigo}` : ""}`}
                   </span>
                 </div>
               </div>

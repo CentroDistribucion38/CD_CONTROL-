@@ -92,8 +92,8 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
   async function cerrar() {
     const ok = await pedir({
       titulo: "¿Cerrar y enviar a verificación?",
-      dice: `Después no se pueden agregar ni quitar tolvas. Van ${salida.tolvas} tolva${salida.tolvas === 1 ? "" : "s"} y ${kilos(salida.neto_kg)} kg netos, y pasa a la bandeja de otra persona: tú no la verificas.`,
-      confirmar: "Cerrar y enviar",
+      dice: `Después no se pueden agregar ni quitar tolvas. Van ${salida.tolvas} tolva${salida.tolvas === 1 ? "" : "s"} y ${kilos(salida.neto_kg)} kg netos. Queda como cédula ${salida.codigo}, esperando el Vh de la placa ${salida.placa}: facturación la despacha al darle la salida al viaje.`,
+      confirmar: "Cerrar y dejar la cédula lista",
     });
     if (!ok) return;
     setMandando(true);
@@ -102,7 +102,11 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
     });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
-    avisar.bien(`${salida.codigo} quedó cerrada y pasó a Validación.`);
+    /* EL MENSAJE DICE QUÉ PASA AHORA Y DÓNDE, con el número y la placa.
+       Decía «pasó a Validación», una pantalla que ya no existe: quien
+       cerraba se iba a buscarla, no la encontraba, y concluía que la
+       cosa no servía. Pasó de verdad. */
+    avisar.bien(`${salida.codigo} quedó lista. Facturación la despacha cuando dé la salida al viaje de la placa ${salida.placa}.`);
     router.push("/roturas/salida");
     router.refresh();
   }
@@ -283,8 +287,8 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
           <div>
             <h2>Firmas</h2>
             <p>
-              Tres personas, tres momentos. Nadie firma por otro, y cada una lo hace desde su
-              propia pantalla: Pesar y Validación.
+              Dos personas, dos momentos, y nadie firma por otro: aquí se <b>pesa y se cierra</b>,
+              y quien da la salida es <b>facturación</b>, al despachar el viaje de esta placa.
             </p>
           </div>
         </div>
@@ -296,10 +300,11 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
               <button type="button" className="btn si"
                       disabled={salida.tolvas === 0}
                       onClick={() => { setCerrando(true); setNota("") }}>
-                {salida.tolvas === 0 ? "Falta pesar una tolva" : "Cerrar y enviar a verificación"}
+                {salida.tolvas === 0 ? "Falta pesar una tolva" : "Cerrar y dejar la cédula lista"}
               </button>
               <span style={{ alignSelf: "center", fontSize: 13, color: "var(--rt-gris)" }}>
-                Después de esto la salida pasa a otra persona. Tú no la verificas.
+                Queda como cédula <b>{salida.codigo}</b>, esperando el Vh de la placa{" "}
+                <b>{salida.placa}</b>. La salida la da facturación: tú no te la das a ti mismo.
               </span>
             </div>
           )}
@@ -312,7 +317,7 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
                         placeholder="La TOLVA-3 entró con vidrio de dos colores mezclado." />
               <div className="acciones-panel">
                 <button type="button" className="btn si" disabled={mandando} onClick={cerrar}>
-                  {mandando ? "Cerrando…" : "Cerrar y enviar a verificación"}
+                  {mandando ? "Cerrando…" : "Cerrar y dejar la cédula lista"}
                 </button>
                 <button type="button" className="btn plano"
                         onClick={() => { setCerrando(false); setNota("") }}>
@@ -324,13 +329,17 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
 
           {etapa && etapa !== "supervisora" && (
             <div className="aviso" style={{ marginTop: 18 }}>
-              Esta salida está esperando la firma de <b>Validación</b>.
-              Se firma desde esa pantalla, no desde aquí.
+              Esta salida ya está cerrada: es la cédula <b>{salida.codigo}</b> y está esperando el
+              Vh de la placa <b>{salida.placa}</b>. Se despacha en{" "}
+              <b>Traspasos → Facturación</b>, al darle la salida al viaje de esa placa — no desde
+              aquí.
             </div>
           )}
           {salida.completa && (
             <div className="aviso" style={{ marginTop: 18, borderLeftColor: "var(--rt-verde)" }}>
-              Salida completa: {kilos(salida.neto_kg)} kg netos con las dos firmas.
+              Salida completa: {kilos(salida.neto_kg)} kg netos, pesados y despachados
+              {salida.viaje_codigo && <> en el viaje <b>{salida.viaje_codigo}</b></>}
+              {salida.viaje_documento && <> · documento {salida.viaje_documento}</>}.
             </div>
           )}
           {salida.estado === "anulada" && (

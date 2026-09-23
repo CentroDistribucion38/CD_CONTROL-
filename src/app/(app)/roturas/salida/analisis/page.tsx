@@ -32,13 +32,31 @@ export default async function AnalisisSalidaPage() {
   const nTolvas = completas.reduce((t, s) => t + s.tolvas, 0);
   const promedio = nTolvas ? kg / nTolvas : 0;
 
-  /* Cuánto sale por mes. Se agrupa por la fecha de la ÚLTIMA firma y no
-     por la de apertura: una salida es del mes en que quedó facturada,
-     que es cuando de verdad salió de la contabilidad. */
+  /* CUÁNTO SALE POR MES. Se agrupa por la fecha en que la salida quedó
+     TERMINADA y no por la de apertura: una salida es del mes en que de
+     verdad salió de la contabilidad.
+
+     TRES CAMPOS EN CASCADA, Y NO ES INDECISIÓN — ES LA HISTORIA DEL
+     MÓDULO, que está escrita en las filas de la tabla:
+       · despachada_en  las de hoy: facturación despachó el vidrio con
+                        el viaje;
+       · validador_en   las de cuando existía Validación;
+       · supervisora_en el último recurso, para que una fila rara no se
+                        pierda del informe.
+
+     ESTABA EN `validador_en!` A SECAS, y esa firma ya no se pone nunca:
+     toda salida nueva daba `new Date(null)` → «Invalid Date», y el mes
+     entero se iba a una barra con ese nombre. No revienta, no avisa, y
+     el informe del mes simplemente deja de tener los meses. Es la clase
+     de fallo que sobrevive años. */
+  const cuandoSalio = (s: typeof completas[number]) =>
+    s.despachada_en ?? s.validador_en ?? s.supervisora_en;
+
   const porMes = new Map<string, number>();
   for (const s of completas) {
-    const d = new Date(s.validador_en!);
-    const k = d.toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
+    const cuando = cuandoSalio(s);
+    if (!cuando) continue;
+    const k = new Date(cuando).toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
     porMes.set(k, (porMes.get(k) ?? 0) + Number(s.neto_kg));
   }
   const meses = [...porMes.entries()].slice(-8);

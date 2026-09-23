@@ -1,72 +1,58 @@
-Facturacion avisa cuando el vidrio del Vh sigue en la bascula
+La salida deja de mandar a Validacion, que ya no existe
 
 =====================================================================
-QUE PASABA, Y NO ERA UN ERROR — ERA UN SILENCIO
+QUE PASABA
 =====================================================================
-«Cree un pesaje en salida y no lo veo en traspasos: genere un viaje y me
- sale para colocar el documento, mas no para confirmar esas tolvas.»
+«Cree un pesaje en salida y no lo veo en traspasos.»
 
-Una salida de vidrio nace ABIERTA y se va llenando tolva por tolva. Solo
-se vuelve cedula cuando quien peso la CIERRA con su firma: hasta ese
-momento el numero de tolvas todavia puede cambiar, asi que ofrecersela a
-facturacion seria despachar una carga a medio medir. Eso esta bien y no
-se toca.
+Quitamos Validacion y cambiamos la cadena, pero la MITAD DE LOS
+LETREROS siguio mandando alla. Quien cerraba un pesaje leia «quedo
+cerrada y paso a Validacion», se iba a buscar esa pantalla, no la
+encontraba —porque se oculto— y concluia que la cosa no servia. Paso.
 
-LO QUE ESTABA MAL ERA EL SILENCIO. Facturacion abria el viaje, veia solo
-el campo del documento, y no tenia forma de saber que en la bascula
-habia un pesaje a medias de ESA MISMA PLACA. Dos finales, los dos malos:
-o se piensa que la funcion no sirve —que es lo que paso—, o se le da
-salida al Vh y el vidrio se va con el mientras el registro dice que
-sigue en el patio.
-
-UN FRENO QUE NO SE VE NO ES UN FRENO: ES UNA TRAMPA.
+Ninguno de estos daba error. La app funcionaba perfecto y mentia en
+cada pantalla del dia.
 
 =====================================================================
-COMO QUEDA
+LO QUE DECIA Y LO QUE DICE AHORA
 =====================================================================
-Una vista mas, hermana de v_salidas_por_despachar, con las salidas que
-estan ABIERTAS. La tarjeta del viaje lo dice arriba del todo, en rojo, y
-con el nombre de la salida:
+· Al cerrar: «paso a Validacion»
+  → «SR-0044 quedo lista. Facturacion la despacha cuando de la salida al
+     viaje de la placa PRUEBA.» Con el numero y con la placa, que es lo
+     que amarra las dos cosas.
 
-  ESTE VH TIENE VIDRIO EN LA BASCULA, SIN CERRAR
-  SR-0044 · 2 tolvas pesadas · 1.625 kg · lleva 5 h abierta
-  Todavia no se puede despachar: quien peso tiene que CERRARLA en
-  Quiebra -> Salida -> Pesar. Apenas la cierre aparece aqui para
-  escogerla.
+· El boton: «Cerrar y enviar a verificacion» —un paso que se fue hace
+  dos versiones— → «Cerrar y dejar la cedula lista».
 
-TRES DECISIONES QUE VALE LA PENA DEJAR DICHAS
+· La cabecera de Pesar: «aparece en Validacion, que es de otra persona»
+  → «queda como cedula, esperando el Vh: facturacion la despacha al dar
+     la salida al viaje de traspaso de esa misma placa».
 
-1. VA ARRIBA DEL TODO, antes del numero de documento. Es lo unico de esa
-   tarjeta que dice «espera»: si va debajo, se lee cuando el documento
-   ya esta escrito.
+· El KPI: «8 esperando firma» → «8 cedulas esperando Vh». Lo que esperan
+  desde que se quito Validacion es un camion, no una firma. Y DEJA DE
+  IR EN ROJO: una cedula esperando su Vh es lo normal, no un problema.
 
-2. ES ROJO Y NO AMBAR. El ambar de al lado quiere decir «esto lleva
-   vidrio, resuelvelo aqui». Esto quiere decir «esto todavia no se puede
-   resolver». Dos mensajes distintos no pueden llevar el mismo color en
-   la misma tarjeta.
+· La lista: «En Validacion, esperando el aval» → «Cedula lista,
+  esperando el Vh NLW428» / «Despachada en el viaje TR-0168».
 
-3. AVISA, NO FRENA. Una salida abierta puede ser de un viaje que todavia
-   no existe, y trancar el patio por un pesaje que alguien dejo a medias
-   ayer cambia un problema por otro. La que SI frena es la cedula
-   cerrada sin despachar, que ya estaba puesta.
-
-Y DICE QUE HACER Y DONDE. Un letrero que solo diga «no se puede» manda a
-alguien a buscar a quien sepa; este nombra la pantalla.
+· La cadena de firmas: el segundo paso se llamaba «Validacion» y ahora
+  se llama «Facturacion · despacha el vidrio con el viaje», y cuando ya
+  se despacho dice en QUE VIAJE y con que documento — que es lo que
+  contesta la pregunta del dia que Peldar reclame.
 
 =====================================================================
-EL ARNES
+Y DOS FALLOS DE VERDAD QUE SALIERON DE AHI
 =====================================================================
-.arnes/fc-cedula.mjs gana una cuarta placa en el fixture: la que tiene
-el pesaje sin cerrar. Comprueba que el aviso salga, que diga cual
-salida, cuantas tolvas van, cuanto lleva abierta, QUE hay que hacer y
-DONDE; que ese pesaje NO se ofrezca como cedula ni pida contar tolvas
-—las tolvas todavia pueden cambiar—; que el boton no prometa despachar
-nada; y que el Vh sin vidrio siga sin ver nada. Mas contraste en los
-siete temas y geometria en los cinco anchos.
+1. `etapaDe()` miraba `validador_en` para saber en que paso va la
+   salida. Esa firma YA NO SE PONE NUNCA, asi que toda salida cerrada se
+   quedaba para siempre «esperando» un paso que nadie podia dar.
 
-La migracion lleva su propia cuenta adentro: NINGUNA salida puede estar
-a la vez en la vista de la bascula y en la de las listas para despachar.
-Si lo estuviera, la tarjeta la ofreceria y la avisaria al mismo tiempo.
+2. EL INFORME DE SALIDA AGRUPABA POR MES CON `validador_en!`. Con esa
+   firma siempre nula, `new Date(null)` da «Invalid Date» y el mes
+   entero se iba a una barra con ese nombre. No revienta, no avisa, y el
+   informe del mes simplemente deja de tener meses. Ahora cae en
+   cascada: despachada_en → validador_en → supervisora_en, que es la
+   historia del modulo escrita en las filas de la tabla.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
