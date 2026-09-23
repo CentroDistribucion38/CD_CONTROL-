@@ -6,13 +6,39 @@ import { Download, RefreshCw, X } from "lucide-react";
 /**
  * Dos botones chiquitos en la barra superior:
  *
- *  · Instalar — aparece cuando el navegador ofrece instalar CONTROL como app.
- *    En iPhone no existe ese ofrecimiento, así que ahí se explica el camino
- *    a mano (Compartir → Agregar a pantalla de inicio).
- *
+ *  · Instalar — SIEMPRE está, mientras la app no esté instalada.
  *  · Actualizar — aparece SOLO cuando hay una versión nueva publicada. Se
  *    sabe comparando la versión horneada en este paquete con la que responde
  *    /api/version, que siempre viene del despliegue vivo.
+ *
+ * ---------------------------------------------------------------------
+ * POR QUÉ «SIEMPRE ESTÁ» Y NO «CUANDO EL NAVEGADOR OFREZCA»
+ * ---------------------------------------------------------------------
+ * «No me sale para descargar.»
+ *
+ * El botón colgaba de `beforeinstallprompt`, el evento con el que Chrome
+ * avisa que puede instalar. Si ese evento no llega, el botón NO SE
+ * PINTABA: ni el botón, ni una explicación, ni un motivo. La persona se
+ * queda mirando una pantalla que no menciona la palabra instalar.
+ *
+ * Y ese evento no llega en un montón de casos normales:
+ *   · Safari —iPhone, iPad y Mac— no lo tiene, y nunca lo va a tener.
+ *   · Chrome en iPhone/iPad tampoco: en iOS todos los navegadores son
+ *     Safari por dentro.
+ *   · Chrome lo dispara UNA vez por visita, y no lo vuelve a disparar si
+ *     ya lo descartaron hace poco.
+ *   · Firefox y algunos navegadores de fábrica no lo implementan.
+ *
+ * Y EL IPAD ADEMÁS MIENTE: desde iPadOS 13 dice ser un Mac en su
+ * identificación. Mirar «ipad» en el texto da falso en el aparato en el
+ * que más se usa esto en la bodega. Se distingue por otro lado: un Mac
+ * de verdad no tiene pantalla táctil.
+ *
+ * ASÍ QUE EL BOTÓN NO PREGUNTA SI SE PUEDE: se pinta mientras la app no
+ * esté instalada. Si el navegador ofrece el instalador, se usa; si no,
+ * se explica el camino DE ESE NAVEGADOR, con el nombre del menú que esa
+ * persona tiene enfrente. «Instálala desde el menú» no sirve cuando hay
+ * tres menús.
  */
 
 type EventoInstalar = Event & {
@@ -34,6 +60,35 @@ function yaInstalada(): boolean {
   );
 }
 
+/** Dónde está parada la persona, para poder decirle el camino de SU navegador. */
+type Donde = "ios-safari" | "ios-otro" | "android" | "escritorio" | "otro";
+
+function donde(): Donde {
+  if (typeof window === "undefined") return "otro";
+  const ua = window.navigator.userAgent;
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+
+  /* EL IPAD DICE SER UN MAC desde iPadOS 13, así que «ipad» en el texto
+     no aparece. Lo que lo delata es el tacto: un Mac de verdad no
+     reporta puntos táctiles. Es el aparato en el que más se usa esto en
+     la bodega, y mirarlo mal lo dejaba sin instrucciones. */
+  const esIPadDisfrazado = /Macintosh/.test(ua) && nav.maxTouchPoints > 1;
+  const esIOS = /iPhone|iPad|iPod/i.test(ua) || esIPadDisfrazado;
+
+  if (esIOS) {
+    /* EN iOS TODOS LOS NAVEGADORES SON SAFARI POR DENTRO, pero solo
+       Safari tiene «Añadir a pantalla de inicio». Chrome y Edge ahí no
+       pueden, y decirle a alguien que busque un botón que no existe es
+       peor que no decirle nada. */
+    const enSafari = !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+    return enSafari ? "ios-safari" : "ios-otro";
+  }
+  if (/Android/i.test(ua)) return "android";
+  /* Sin tacto y sin Android: un computador. */
+  if (nav.maxTouchPoints <= 1) return "escritorio";
+  return "otro";
+}
+
 /**
  * "barra"  → botones redondos, para la barra superior de la app.
  * "enlace" → un enlace discreto, para el pie de la pantalla de acceso
@@ -46,7 +101,11 @@ export function AccionesApp({
   variante?: "barra" | "enlace";
 }) {
   const [evento, setEvento] = useState<EventoInstalar | null>(null);
-  const [enIOS, setEnIOS] = useState(false);
+  const [sitio, setSitio] = useState<Donde>("otro");
+  /* ARRANCA EN «instalada» Y NO EN «no instalada» a propósito: hasta que
+     el navegador no conteste, no se sabe, y pintar un botón de instalar
+     dentro de la app ya instalada —medio segundo, en cada carga— es un
+     parpadeo que se ve mal y confunde. */
   const [instalada, setInstalada] = useState(true);
   const [verPasos, setVerPasos] = useState(false);
   const [hayNueva, setHayNueva] = useState(false);
@@ -55,7 +114,7 @@ export function AccionesApp({
   // ---- ¿se puede instalar? -------------------------------------------
   useEffect(() => {
     setInstalada(yaInstalada());
-    setEnIOS(/iphone|ipad|ipod/i.test(window.navigator.userAgent));
+    setSitio(donde());
 
     const alOfrecer = (e: Event) => {
       // Sin esto el navegador muestra su propia barra y perdemos el control
@@ -111,11 +170,11 @@ export function AccionesApp({
   }, []);
 
   async function instalar() {
-    if (enIOS && !evento) {
-      setVerPasos(true);
-      return;
-    }
-    if (!evento) return;
+    /* SI EL NAVEGADOR OFRECE EL INSTALADOR, se usa: es un toque y ya.
+       Si no —Safari, Chrome en iPhone, o Chrome que ya preguntó hoy—
+       NO SE DEJA A NADIE SIN RESPUESTA: se explica el camino de ese
+       navegador. Antes, en ese caso, el botón ni se pintaba. */
+    if (!evento) { setVerPasos(true); return }
     await evento.prompt();
     await evento.userChoice;
     setEvento(null);
@@ -138,7 +197,11 @@ export function AccionesApp({
     window.location.reload();
   }
 
-  const puedeInstalar = !instalada && (evento !== null || enIOS);
+  /* MIENTRAS NO ESTÉ INSTALADA, EL BOTÓN ESTÁ. No se pregunta si el
+     navegador puede: si puede, instala; si no, explica. Ver la nota de
+     arriba — colgarlo de `beforeinstallprompt` es lo que dejaba a la
+     gente sin botón y sin motivo. */
+  const puedeInstalar = !instalada;
 
   // ---- variante de la pantalla de acceso ------------------------------
   if (variante === "enlace") {
@@ -148,7 +211,7 @@ export function AccionesApp({
         <button type="button" className="pedir" onClick={instalar}>
           Instalar app
         </button>
-        {verPasos && <PasosIOS cerrar={() => setVerPasos(false)} />}
+        {verPasos && <PasosInstalar sitio={sitio} cerrar={() => setVerPasos(false)} />}
       </>
     );
   }
@@ -180,17 +243,75 @@ export function AccionesApp({
         </button>
       )}
 
-      {verPasos && <PasosIOS cerrar={() => setVerPasos(false)} />}
+      {verPasos && <PasosInstalar sitio={sitio} cerrar={() => setVerPasos(false)} />}
     </>
   );
 }
 
-/** iOS no tiene beforeinstallprompt: el camino toca explicarlo. */
-function PasosIOS({ cerrar }: { cerrar: () => void }) {
+/* =====================================================================
+   EL CAMINO A MANO, POR NAVEGADOR
+
+   Un solo texto que diga «instálala desde el menú» no sirve: hay tres
+   menús distintos y en uno de ellos la opción no existe. Cada sitio
+   tiene el nombre EXACTO de lo que esa persona va a ver.
+   ===================================================================== */
+const PASOS: Record<Donde, { titulo: string; pasos: React.ReactNode[]; nota?: React.ReactNode }> = {
+  "ios-safari": {
+    titulo: "Instalar en iPhone o iPad",
+    pasos: [
+      <>Toca el botón <b>Compartir</b> de Safari — el cuadrito con la flecha hacia arriba.</>,
+      <>Baja en la lista y elige <b>Añadir a pantalla de inicio</b>.</>,
+      <>Confirma con <b>Añadir</b>, arriba a la derecha.</>,
+    ],
+    nota: <>Queda como una app más, con su ícono, y abre sin la barra del navegador.</>,
+  },
+  "ios-otro": {
+    titulo: "Ábrela en Safari para instalarla",
+    pasos: [
+      <>En el iPhone y el iPad, <b>solo Safari</b> puede instalar aplicaciones. Chrome, Edge y
+        Firefox no tienen esa opción, aunque se vean iguales.</>,
+      <>Copia la dirección de arriba y ábrela en <b>Safari</b>.</>,
+      <>Ahí: <b>Compartir</b> → <b>Añadir a pantalla de inicio</b>.</>,
+    ],
+  },
+  android: {
+    titulo: "Instalar en Android",
+    pasos: [
+      <>Toca los <b>tres puntos</b> de arriba a la derecha del navegador.</>,
+      <>Busca <b>Instalar aplicación</b>. Si no aparece con ese nombre, es
+        <b> Añadir a pantalla de inicio</b>.</>,
+      <>Confirma con <b>Instalar</b>.</>,
+    ],
+    nota: <>Si no ves ninguna de las dos, cierra el navegador y vuelve a entrar: Chrome solo
+      ofrece instalar una vez por visita.</>,
+  },
+  escritorio: {
+    titulo: "Instalar en el computador",
+    pasos: [
+      <>Mira el <b>final de la barra de direcciones</b>, donde está la dirección de la página:
+        ahí sale un ícono de instalar — una pantallita con una flecha.</>,
+      <>Si no está, abre los <b>tres puntos</b> del navegador y busca
+        <b> Instalar CD38</b> o <b>Guardar y compartir → Instalar página como aplicación</b>.</>,
+    ],
+    nota: <>Funciona en Chrome, Edge y Opera. Firefox en computador no instala aplicaciones.</>,
+  },
+  otro: {
+    titulo: "Instalar CD38",
+    pasos: [
+      <>Abre el <b>menú del navegador</b> — casi siempre los tres puntos o las tres rayas.</>,
+      <>Busca <b>Instalar aplicación</b> o <b>Añadir a pantalla de inicio</b>.</>,
+    ],
+    nota: <>Si tu navegador no tiene ninguna de las dos, ábrela en <b>Chrome</b> —o en
+      <b> Safari</b>, si es un iPhone o un iPad— y vuelve a intentarlo.</>,
+  },
+};
+
+function PasosInstalar({ sitio, cerrar }: { sitio: Donde; cerrar: () => void }) {
+  const { titulo, pasos, nota } = PASOS[sitio];
   return (
     <div
       role="dialog"
-      aria-label="Cómo instalar en iPhone"
+      aria-label={titulo}
       className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
       style={{ background: "rgba(4,32,63,.45)" }}
       onClick={cerrar}
@@ -201,19 +322,15 @@ function PasosIOS({ cerrar }: { cerrar: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-[16px] font-medium">Instalar en iPhone</h2>
+          <h2 className="text-[16px] font-medium">{titulo}</h2>
           <button type="button" onClick={cerrar} aria-label="Cerrar">
             <X size={18} />
           </button>
         </div>
         <ol className="mt-3 space-y-2 text-[13px] leading-[1.6] text-slate-600">
-          <li>1. Toca el botón <b>Compartir</b> de Safari (el cuadro con la flecha).</li>
-          <li>2. Baja y elige <b>Agregar a pantalla de inicio</b>.</li>
-          <li>3. Confirma con <b>Agregar</b>.</li>
+          {pasos.map((p, i) => <li key={i}>{i + 1}. {p}</li>)}
         </ol>
-        <p className="mt-3 text-[12px] text-slate-500">
-          Safari es el único navegador del iPhone que puede hacerlo.
-        </p>
+        {nota && <p className="mt-3 text-[12px] text-slate-500">{nota}</p>}
       </div>
     </div>
   );

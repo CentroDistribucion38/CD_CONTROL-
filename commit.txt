@@ -1,136 +1,123 @@
-El cumplido cuenta solo lo que salio, y EER pide material
+Lo que no mide se ve, y el boton de instalar deja de esconderse
 
 =====================================================================
-1. TRASPASOS: EL CUMPLIDO CONTABA CAMIONES PARADOS EN EL PATIO
+1. «NO ME SALE PARA DESCARGAR»
 =====================================================================
-«La validacion de que cuenten si facturacion le dio la salida. Porque
- ahora esta contando hasta con los que facturacion no le ha dado salida,
- y asi no funciona.»
+EL FALLO, Y ES DE LOS FEOS: el boton de instalar colgaba de
+`beforeinstallprompt`, el evento con el que Chrome avisa que puede
+instalar. Si ese evento no llegaba, NO SE PINTABA NADA: ni boton, ni
+explicacion, ni motivo. La persona se queda mirando una pantalla que no
+menciona la palabra instalar y concluye que la app no se puede instalar.
+
+Y ese evento no llega en un monton de casos normales:
+ · Safari —iPhone, iPad y Mac— no lo tiene, y nunca lo va a tener.
+ · Chrome en iPhone/iPad tampoco: en iOS todos los navegadores son
+   Safari por dentro.
+ · Chrome lo dispara UNA vez por visita, y no lo repite si ya lo
+   descartaron hace poco.
+ · Firefox y varios navegadores de fabrica no lo implementan.
+
+Y EL IPAD ADEMAS MIENTE. Desde iPadOS 13 dice ser un Mac en su
+identificacion, asi que buscar «ipad» en el texto da FALSO justo en el
+aparato en el que mas se usa esto en la bodega. Se distingue por otro
+lado: un Mac de verdad no reporta puntos tactiles.
+
+COMO QUEDA
+El boton esta SIEMPRE, mientras la app no este instalada. No pregunta si
+el navegador puede: si puede, instala de un toque; si no, explica el
+camino DE ESE NAVEGADOR, con el nombre exacto del menu que esa persona
+tiene enfrente. «Instalala desde el menu» no sirve cuando hay tres menus
+y en uno la opcion no existe.
+
+ · iPhone y iPad en Safari .... Compartir -> Añadir a pantalla de inicio
+ · iPhone y iPad en otro ...... que solo Safari puede, y como abrirla ahi
+ · Android .................... tres puntos -> Instalar aplicacion
+ · Computador ................. el icono al final de la barra de
+                                direcciones, o los tres puntos
+ · Cualquier otro ............. el camino generico, y a que navegador ir
+
+Y DOS COSAS QUE FALTABAN Y NO DAN ERROR EN NINGUNA PARTE:
+ · el enlace al manifiesto, escrito a mano en el layout. Sin el, el
+   navegador NUNCA ofrece instalar, y la app funciona perfecto igual;
+ · el apple-touch-icon. Safari no lee los iconos del manifiesto: sin
+   este, recorta una foto de la pantalla de acceso y la deja de icono.
+
+=====================================================================
+2. LO QUE SE MOVIO Y NO MIDE, A LA VISTA
+=====================================================================
+«Nosotros dejamos que los viajes de tolvas y estibas que no eran para
+ Arenosa no contaran en el %. Pero necesitamos dejar la tarjeta para
+ visualizar cuantos viajes hicieron: que no entre en el %, pero puedan
+ ver cuantos viajes hicieron de eso.»   — Santiago L, Bavaria
 
 QUE PASABA
-El cumplido se contaba sobre los viajes REGISTRADOS. Registrar es lo que
-hace el patio cuando el camion se carga; la salida la confirma
-facturacion cuando el Vh se va de verdad. Entre una cosa y la otra pasan
-horas —o un turno entero si el documento se atrasa— y en ese rato el
-tablero daba el plan por cumplido con camiones que seguian parados.
+Los tipos que no miden salian de la vista ENTERA, y con razon: dentro,
+con «planeado 3, cumplido 0», pintaban un 0% que no era verdad. Pero
+irse de la vista es irse tambien de la pantalla. Un turno que movio
+nueve tolvas veia un tablero que no mencionaba ni una: el trabajo se
+hizo, costo horas y montacargas, y en la reunion de la mañana no
+existia. Nadie discute un porcentaje que no le cuenta lo que hizo.
 
-Un cumplimiento asi no sirve para lo que sirve un cumplimiento: no se
-puede llamar a nadie con el, porque el numero de la tarde se desdecia
-solo.
+LA REGLA: no entra en el %. Si entra en la pantalla.
 
-LA REGLA NUEVA: cuenta el viaje que SALIO.
+Son dos preguntas distintas y por eso son DOS VISTAS distintas, no una
+columna mas en la de siempre — mezclarlas es exactamente como alguien
+termina sumando tolvas al cumplido «porque estaban ahi»:
 
-Y LO QUE FALTA NO SE ESCONDE — ES LA MITAD DEL ARREGLO
-Bajar el numero a secas habria cambiado un problema por otro: el patio
-veria «3 de 8» sin saber por que, despues de haber cargado ocho.
-Pareceria que el tablero perdio viajes. Por eso la vista trae ademas
-POR_SALIR, y el cierre dice, en su propio renglon: «5 viajes cargados
-esperando a que facturacion confirme la salida. Cuando salgan, el
-cumplimiento sube a 92%.» Eso contesta «¿vamos mal, o vamos bien y el
-papel esta atrasado?», que son dos conversaciones muy distintas y hoy se
-veian igual. Va tambien en lo que se copia: pegar el resumen sin esa
-frase hace concluir que se movio menos de lo que se movio.
+  v_traspasos_control          lo que MIDE el plan.
+  v_traspasos_fuera_del_plan   lo que se movio y NO mide.
 
-LO HISTORICO SIGUE CONTANDO. Los viajes de antes de que existiera
-facturacion quedaron con su salida puesta y marcados como historicos.
-Tienen salida_en, asi que entran. Dejarlos fuera habria vaciado todos
-los informes de los meses pasados de un dia para otro.
+LOS DOS MOTIVOS VAN SEPARADOS Y CON NOMBRE —«No cuenta en el plan» y
+«No era de Arenosa»— y no juntos en un «otros»: son dos decisiones
+distintas del negocio y el dia que una cambie hay que poder ver cuantos
+viajes toca.
 
-=====================================================================
-2. ROTURA EN SITIO: EER TAMBIEN PIDE MATERIAL
-=====================================================================
-«En sitio, en EER debe aparecer tambien el desplegable del material.»
+LA TARJETA va debajo de las seis cifras y no entre ellas. Las seis
+cierran solas —adherencia y cumplimiento salen de ellas— y meter una
+septima que no entra en ninguna de las dos formulas rompe justo lo que
+hace que la fila se pueda rehacer a mano. Lleva el filo punteado de
+«aparte», el mismo que los viajes vacios, porque es la señal que ya
+existe en esta pantalla para decir «esto no se suma». Pero el numero va
+en tinta y no en gris: los vacios son un costo sin producto; esto es
+trabajo hecho que movio material de verdad.
 
-UN DIA NO LO PIDIO, y el argumento era bueno mientras fue cierto: el
-color ES el material —uno por color— y la base traduce. Deja de ser
-cierto en cuanto el maestro tiene dos ambar (330 y 750): entonces la
-traduccion escoge el primero por orden EN SILENCIO, nadie lo ve en la
-pantalla, y el informe del mes reparte el vidrio en el formato que no
-era.
-
-COMO QUEDO
-· El color sigue arriba, en el sitio que tenia, y ACOTA la lista.
-· El material baja a su propia linea, filtrado por ese color.
-· Si solo hay uno de ese color —el caso normal— VIENE PUESTO: abrir un
-  desplegable de un renglon para escoger lo unico que se podia escoger
-  es un toque cobrado por nada.
-· Si hay varios, hay que decir cual, y el boton lo pide.
-· Cambiar de color suelta el material del color anterior: si quedara
-  puesto se mandaria un ambar marcado como flint, y en la pantalla las
-  dos cosas se ven igual de bien.
-· Se mandan LOS DOS a la base: el material escogido y el color. La
-  funcion prefiere el material cuando llega y cae al color solo si el
-  maestro no tiene ninguno de ese color.
-
-LA LINEA SIGUE CON DOS COLUMNAS EN LOS DOS TIPOS. Dejarla con una en un
-tipo y dos en el otro hace que la pantalla salte al cambiar de pestaña.
+NO SE PINTA EN CERO, al contrario que las seis de arriba. Aquellas
+contestan una pregunta todos los dias —«adicionales: 0» ES la
+respuesta—; esta no. Un renglon que casi siempre dice «0 viajes que no
+miden» deja de leerse, y el dia que diga nueve tampoco se va a leer.
 
 =====================================================================
-3. SE FUE «BOTELLAS ROTAS ADENTRO — CABEN 150»
+3. LOS ARNESES
 =====================================================================
-Proponia todas las botellas del empaque y pedia corregirlas a mano. En
-la practica nadie las contaba: el numero propuesto se quedaba tal cual,
-asi que no media nada — solo alargaba el registro con un contador que
-siempre decia lo mismo.
+.arnes/app-instalar.mjs monta el componente con la identificacion de
+CINCO aparatos —iPhone, iPad disfrazado de Mac, Chrome en iOS, Android y
+computador— y mide que en los cinco salga el boton y que cada uno reciba
+los pasos de SU navegador, no los de otro. Probarlo a mano pedia tener
+los cinco aparatos, y volver a tenerlos cada vez que alguien toque el
+archivo. Comprueba ademas las cinco cosas sin las cuales el navegador no
+puede instalar y que no dan error en ninguna parte.
 
-LA COLUMNA NO SE BORRA DE LA BASE. `botellas` se queda con lo que ya
-tenga, que es el registro de lo que se anoto en su momento. Deja de
-pedirse, no de existir.
+.arnes/correr-lo-que-no-mide.sh comprueba contra Postgres lo que de
+verdad puede romperse al sacar algo de un porcentaje y a la vez
+mostrarlo: que lo que no mide SIGA sin contar, que ya se vea, que las
+estibas SI de Arenosa cuenten y no salgan en la tarjeta, y —la que vale
+por todas— que NINGUN viaje este en las dos vistas y que entre las dos
+esten TODOS. Un viaje que se cae de las dos no da error: deja de
+existir. La migracion lleva esa misma cuenta adentro.
 
-=====================================================================
-4. INVENTARIO: EL DESPLEGABLE ARRANCA DONDE UNO QUEDO
-=====================================================================
-«Cuando vaya a seguir, que me quede cerca en el desplegable: si antes
- tenia P40 y sigo, me debe aparecer el 41, o sea los que siguen, con el
- fin de que el scroll sea menos.»
-
-Contando una bodega no se salta de sitio: se va A01, A02, A03. Con la
-lista abriendo siempre arriba, quien va por el modulo 40 tenia que rodar
-cuarenta renglones CADA VEZ — y son cientos de renglones al dia, de pie
-y con guante.
-
-LO QUE **NO** SE HACE ES REORDENAR LA LISTA. El orden de la bodega es el
-que la gente tiene en la cabeza; moverlo para poner primero lo probable
-deja a quien busca hacia atras sin saber donde esta parado. Se mueve el
-SCROLL, no el orden: la lista abre con el que ya esta puesto arriba del
-todo y el siguiente resaltado debajo. Ver de donde viene uno es lo que
-hace que el siguiente se lea como «el siguiente».
-
-Y TRES REGLAS QUE LO MANTIENEN HONESTO
-· Sin nada escogido abre arriba, como siempre: es el primer renglon del
-  dia y saltar a la mitad de la lista seria peor que el problema.
-· Teclear manda sobre todo: quien escribe «07» busca el 07, no el
-  siguiente al 40.
-· Es opcional (`desdeElSiguiente`), y solo lo piden Calle y Modulo de
-  Contar. Un desplegable donde uno CORRIGE tiene que abrir en lo que
-  esta puesto.
-
-=====================================================================
-5. LOS ARNESES
-=====================================================================
-.arnes/iv-siguiente.mjs monta el Buscador de verdad y mide CUANTOS
-RENGLONES HAY QUE RODAR. Una lista que abre arriba y una que abre en el
-renglon 41 se ven exactamente igual en una captura; la diferencia solo
-se ve en el scrollTop. Ocho comprobaciones, incluida la del ultimo de la
-lista y la de teclear.
-
-.arnes/rt-sitio.mjs se reescribio en la parte de EER: el fixture ahora
-tiene DOS ambar y DOS de producto terminado a proposito, que es el caso
-por el que existe el desplegable. Con un solo material de cada cosa, las
-comprobaciones pasarian solas sin medir nada.
-
-DOS COSAS QUE LOS ARNESES CAZARON EN ESTE MISMO CAMBIO
-· `pg.fill` sobre un campo controlado por React dejaba el DOM en 15 y el
-  componente en 0: la pantalla se veia bien y el boton se quedaba
-  apagado sin motivo. Ahora se teclea con el setter nativo, que es lo
-  que hace el navegador cuando una persona escribe.
-· El scroll de la lista se calculaba con `offsetTop`, que cuenta desde
-  el ancestro posicionado y da una cuenta corrida. Ahora se mide por
-  rectangulos.
-
-Y UNA TERCERA, DEL PROPIO ARNES: la primera version montaba el Buscador
-fuera de `.fe`, donde la lista no tiene alto maximo. Salia entera, no
-habia nada que rodar, y decia que si.
+TRES COSAS QUE LOS ARNESES CAZARON EN ESTE MISMO CAMBIO, y las tres eran
+del arnes y no del codigo — que es justo lo que hay que dejar escrito
+para no volver a perder la media hora:
+ · `addInitScript` no siempre llega antes que el paquete con
+   `setContent`: el disfraz del iPad no se aplicaba y la prueba decia
+   que el iPad es un computador. El disfraz se mudo a la propia pagina.
+ · buscar «Compartir» a secas daba falla en el computador, porque Chrome
+   tiene un menu «Guardar y compartir» de verdad.
+ · buscar «pantalla de inicio» daba falla en Android, donde Chrome llama
+   asi a la opcion en algunas versiones.
+ · y una cuarta, de la prueba SQL: unir la vista con los viajes por
+   fecha/turno/tipo pega los DOS viajes de estibas, asi que la
+   comprobacion decia que si siempre.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

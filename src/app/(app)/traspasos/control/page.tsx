@@ -1,6 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
 import {
-  controlRango, vaciosRango, tipos as leerTipos, hoyLocal, cruceDelDia, type Control,
+  controlRango, vaciosRango, tipos as leerTipos, hoyLocal, cruceDelDia, fueraDelPlanRango,
+  type Control,
 } from "@/modulos/traspasos/datos";
 import { fecha as fechaLarga, TURNOS } from "@/modulos/traspasos/formato";
 import { nombresTodos } from "@/modulos/sider/datos";
@@ -79,7 +80,7 @@ export default async function ControlPage({ searchParams }: {
     : new Date(Date.parse(dia + "T12:00:00") - dias * 86400_000).toISOString().slice(0, 10);
   const hasta = rangoLibre ? (a <= b ? b : a) : dia;
 
-  const [permisos, ctl, vacios, t, cruce, nombres] = await Promise.all([
+  const [permisos, ctl, vacios, t, cruce, nombres, fuera] = await Promise.all([
     misPermisos(), controlRango(desde, hasta), vaciosRango(desde, hasta), leerTipos(),
     /* EL CRUCE DEL DÍA QUE SE ESTÁ MIRANDO. Ya no hay pantalla de cruce:
        Importar solo sube el corte, y las diferencias salen aquí abajo,
@@ -90,6 +91,11 @@ export default async function ControlPage({ searchParams }: {
     /* Para poner NOMBRE a quien registró el viaje sin documento. Un id
        no sirve para ir a preguntarle. */
     nombresTodos(),
+    /* LO QUE SE MOVIÓ Y NO MIDE. Va en su propia consulta y en su
+       propia vista: es trabajo hecho que no entra en el porcentaje, y
+       meterlo en la misma vista que el cumplido es cómo alguien termina
+       sumando tolvas al plan «porque estaban ahí». */
+    fueraDelPlanRango(desde, hasta),
   ]);
   void permisos;
 
@@ -119,6 +125,32 @@ export default async function ControlPage({ searchParams }: {
   const adicionales = sum(filas, "adicionales");
   const faltan = planeado - adheridos;
   const sinPlanear = filas.filter((f) => f.sin_planear).length;
+
+  /* ------------------------------------------------------------------
+     LO QUE SE MOVIÓ Y NO MIDE — mismo filtro de turno y de tipo que
+     arriba, para que la tarjeta hable del mismo recorte que el resto de
+     la pantalla. Si el filtro de tipo deja fuera las tolvas, la tarjeta
+     tampoco las cuenta: una tarjeta que ignora el filtro es una cifra
+     que no cuadra con nada de lo que se está mirando.
+     ------------------------------------------------------------------ */
+  const fueraFilas = fuera.filas.filter((f) =>
+    (!turnos.size || turnos.has(f.turno)) && (!tipos.size || tipos.has(f.tipo)));
+  const fueraViajes = fueraFilas.reduce((a, f) => a + (Number(f.viajes) || 0), 0);
+  const fueraPorSalir = fueraFilas.reduce((a, f) => a + (Number(f.por_salir) || 0), 0);
+  /* POR TIPO, que es la pregunta de verdad: «¿cuántas tolvas movimos?»,
+     no «¿cuántos viajes que no miden?». Se junta por tipo —no por
+     motivo— porque es el tipo lo que la gente nombra. */
+  const fueraPorTipo = [...fueraFilas.reduce((m, f) => {
+    const x = m.get(f.tipo) ?? {
+      nombre: f.tipo_nombre ?? f.tipo, orden: f.tipo_orden ?? 99,
+      motivo: f.motivo_nombre, viajes: 0, porSalir: 0,
+    };
+    x.viajes += Number(f.viajes) || 0;
+    x.porSalir += Number(f.por_salir) || 0;
+    m.set(f.tipo, x);
+    return m;
+  }, new Map<string, { nombre: string; orden: number; motivo: string; viajes: number; porSalir: number }>())
+    .values()].sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, "es"));
 
   /* Se calculan UNA vez sobre las sumas y no por renglón: promediar los
      porcentajes de cada tipo daría otro número —el tipo con 2 planeados
@@ -286,6 +318,55 @@ export default async function ControlPage({ searchParams }: {
           <div className="u">(cumplidos + adicionales) ÷ planeados</div>
         </div>
       </section>
+
+      {/* ─ LO QUE SE MOVIÓ Y NO MIDE ─
+
+          «Los viajes de tolvas y estibas que no eran para Arenosa no
+           contaban en el %. Pero necesitamos dejar la tarjeta para
+           visualizar cuántos viajes hicieron.»  — Santiago L
+
+          ESTABAN FUERA DE LA VISTA ENTERA, y con razón: dentro, con
+          «planeado 3, cumplido 0», pintaban un 0 % que no era verdad.
+          Pero irse de la vista es irse también de la pantalla, y un
+          turno que movió nueve tolvas veía un tablero que no mencionaba
+          ni una. El trabajo se hizo, costó horas y montacargas, y en la
+          reunión de la mañana no existía.
+
+          POR QUÉ ABAJO Y NO ENTRE LAS SEIS: las seis cifras cierran
+          solas —adherencia y cumplimiento salen de ellas—. Meter aquí
+          una séptima que no entra en ninguna de las dos fórmulas rompe
+          justo lo que hace que la fila se pueda rehacer a mano. Va
+          después, con su propio marco y diciendo en el rótulo que no
+          entra, que es la única forma de que nadie la sume.
+
+          NO SE PINTA EN CERO. Al contrario que las seis de arriba:
+          aquellas contestan una pregunta todos los días —«adicionales:
+          0» ES la respuesta—; esta no. Un renglón que casi siempre dice
+          «0 viajes que no miden» deja de leerse, y el día que diga
+          nueve tampoco se va a leer. */}
+      {fueraViajes > 0 && (
+        <section className="tp-nomide">
+          <div className="tp-nomide-cab">
+            <div>
+              <div className="rot">SE MOVIÓ Y <b>NO ENTRA EN EL %</b></div>
+              <div className="n">{fueraViajes}</div>
+              <div className="u">
+                viaje{fueraViajes === 1 ? "" : "s"} hechos que el plan no mide
+                {fueraPorSalir > 0 && <> · {fueraPorSalir} esperando a facturación</>}
+              </div>
+            </div>
+            <ul className="tp-nomide-tipos">
+              {fueraPorTipo.map((x) => (
+                <li key={x.nombre}>
+                  <b>{x.viajes}</b>
+                  <span>{x.nombre}</span>
+                  <em>{x.motivo}</em>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {/* 2 ─ CÓMO VA REPARTIDA */}
       <section className="medidor">

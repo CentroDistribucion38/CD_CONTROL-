@@ -291,6 +291,53 @@ export async function controlRango(desde: string, hasta: string) {
   return { filas: (data ?? []) as Control[], falta: false };
 }
 
+/**
+ * UN VIAJE QUE SE MOVIÓ Y NO MIDE.
+ *
+ * «Los viajes de tolvas y estibas que no eran para Arenosa no contaban
+ * en el %. Pero necesitamos dejar la tarjeta para visualizar cuántos
+ * viajes hicieron: que no entre en el %, pero puedan ver cuántos.»
+ *
+ * Son dos cosas distintas y por eso son dos vistas distintas, no una
+ * columna más en Control: mezclarlas es exactamente cómo alguien
+ * termina sumando tolvas al cumplido «porque estaban ahí».
+ */
+export type FueraDelPlan = {
+  fecha: string;
+  turno: string;
+  turno_orden: number;
+  tipo: string;
+  tipo_nombre: string | null;
+  tipo_orden: number | null;
+  /** `no_mide` (el tipo no cuenta en el plan) o `no_arenosa`. */
+  motivo: "no_mide" | "no_arenosa";
+  /** El motivo en cristiano, dicho por la base: el día que se agregue
+   *  uno nuevo no hay que tocar el navegador para que se lea. */
+  motivo_nombre: string;
+  viajes: number;
+  registros: number;
+  carga: number;
+  placas: number;
+  salidos: number;
+  por_salir: number;
+};
+
+/**
+ * LO QUE SE MOVIÓ Y NO MIDE, en un rango.
+ *
+ * Si la vista todavía no existe devuelve vacío y `falta: true`: el
+ * tablero entero no se puede caer porque falte una tarjeta informativa.
+ */
+export async function fueraDelPlanRango(desde: string, hasta: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_traspasos_fuera_del_plan").select("*")
+    .gte("fecha", desde).lte("fecha", hasta)
+    .order("tipo_orden", { ascending: true, nullsFirst: false });
+  if (error) return { filas: [] as FueraDelPlan[], falta: sinTablas(error.message) };
+  return { filas: (data ?? []) as FueraDelPlan[], falta: false };
+}
+
 /** Los viajes vacíos de un rango. Van aparte porque no llevan tipo:
  *  un viaje sin carga no mueve un material. */
 export async function vaciosRango(desde: string, hasta: string) {

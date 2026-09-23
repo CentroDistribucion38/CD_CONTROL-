@@ -1885,6 +1885,69 @@
 @media (max-width: 420px) { .tp .cifras.seis { grid-template-columns: 1fr } }
 
 /* =====================================================================
+   LO QUE SE MOVIÓ Y NO MIDE
+
+   «Que no entre en el %, pero puedan ver cuántos viajes hicieron.»
+
+   LLEVA EL FILO PUNTEADO DE «APARTE», igual que los viajes vacíos, y
+   por el mismo motivo: es la señal que ya existe en esta pantalla para
+   decir «esto no se suma». Inventarle una marca propia obligaría a
+   aprender dos formas de decir lo mismo.
+
+   PERO NO ES GRIS DEL TODO: el número va en tinta, no en gris. Los
+   vacíos son un costo sin producto; esto es trabajo hecho que movió
+   material de verdad. Apagarlo hasta el gris lo volvería a esconder,
+   que es justo de donde viene.
+   ===================================================================== */
+.tp .tp-nomide {
+  border: 1px solid var(--tp-linea); border-left: 3px dashed var(--tp-gris);
+  border-radius: 10px; padding: 13px 15px;
+  background: color-mix(in srgb, var(--tp-fondo) 55%, #fff);
+}
+.tp .tp-nomide-cab {
+  display: grid; grid-template-columns: fit-content(330px) minmax(0, 1fr);
+  gap: 10px 26px; align-items: center;
+}
+.tp .tp-nomide-cab > * { min-width: 0 }
+.tp .tp-nomide .rot {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--tp-gris);
+}
+.tp .tp-nomide .rot b { color: var(--tp-tinta); font-weight: 800 }
+.tp .tp-nomide .n {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 30px; line-height: 1;
+  margin-top: 5px; font-variant-numeric: tabular-nums; color: var(--tp-tinta);
+}
+.tp .tp-nomide .u { font-size: 11px; color: var(--tp-gris); margin-top: 4px; line-height: 1.3 }
+
+/* EL DESGLOSE POR TIPO, que es la pregunta de verdad: «¿cuántas tolvas
+   movimos?», no «¿cuántos viajes que no miden?». En renglones que se
+   envuelven y no en una tabla: son dos o tres tipos, y una tabla de dos
+   filas es más marco que dato. */
+.tp .tp-nomide-tipos {
+  display: flex; flex-wrap: wrap; gap: 8px 10px; margin: 0; padding: 0; list-style: none;
+}
+.tp .tp-nomide-tipos li {
+  display: flex; align-items: baseline; gap: 7px; min-width: 0;
+  padding: 7px 11px; border-radius: 8px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+}
+.tp .tp-nomide-tipos b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 19px;
+  font-variant-numeric: tabular-nums; color: var(--tp-tinta);
+}
+.tp .tp-nomide-tipos span { font-size: 13px; font-weight: 600; color: var(--tp-tinta) }
+.tp .tp-nomide-tipos em {
+  font-style: normal; font-size: 11px; color: var(--tp-gris); white-space: nowrap;
+}
+
+/* En el celular la cifra y los tipos no caben al lado: la cifra grande
+   se encoge hasta no leerse. Bajan uno debajo del otro. */
+@media (max-width: 700px) {
+  .tp .tp-nomide-cab { grid-template-columns: minmax(0, 1fr) }
+  .tp .tp-nomide-tipos em { white-space: normal }
+}
+
+/* =====================================================================
    EL CALENDARIO DEL PLAN
    ---------------------------------------------------------------------
    Propio del módulo y no el de Quiebra: aquel vive dentro de
