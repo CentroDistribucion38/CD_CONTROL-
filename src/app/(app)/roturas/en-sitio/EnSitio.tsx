@@ -79,7 +79,11 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, pro
     new Date(Date.parse(r.reportada_en) - 5 * 3600_000).toISOString().slice(0, 10) === hoyBog
     && r.estado !== "anulada");
   const vidrioHoy = deHoy.reduce((s, r) => s + r.unidades_vidrio, 0);
-  const noAsumidasHoy = deHoy.filter((r) => r.grupo === "no_asumida").length;
+  /* Lo que está trancado en la bandeja de ABI. Va en la tarjeta oscura
+     del panel: es otra cifra que la de hoy, no la misma dicha dos
+     veces. */
+  const esperandoLista = roturas.filter((r) => r.esperando);
+  const sinFotoEsperando = esperandoLista.filter((r) => r.le_falta_foto).length;
   const hora = (s: string) =>
     new Date(s).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 
@@ -106,8 +110,13 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, pro
      --------------------------------------------------------------- */
   if (reportando) {
     return (
-      <div ref={caja}>
-        <section className="cabeza">
+      /* EL MARCO LLEVA LA SEPARACIÓN. `.rt` es una columna con 16 px de
+         hueco entre sus hijos, pero aquí sus hijos son UNO —este div—,
+         así que la cabecera y la consola quedaban pegadas: el KPI y la
+         tarjeta oscura del panel comparten la columna derecha y se
+         leían como un solo bloque partido. «Quedó pegado.» */
+      <div ref={caja} className="reg-marco">
+        <section className="cabeza reg">
           <div>
             <p className="ojo">ROTURAS · EN SITIO · CD38 AG01</p>
             <h1>Registrar rotura</h1>
@@ -140,28 +149,43 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, pro
           </div>
 
           <aside>
+            {/* LA TARJETA OSCURA DICE OTRA COSA QUE EL KPI DE ARRIBA.
+
+                La primera versión ponía las dos con lo mismo —«0 roturas
+                · 0 unidades de vidrio» arriba y «0 unidades de vidrio en
+                0 roturas» abajo—, una pegada a la otra: se leían como un
+                solo bloque partido en dos. En Traspasos no pasa porque
+                el KPI cuenta EL DÍA y la tarjeta cuenta EL TURNO: son
+                dos cifras distintas.
+
+                Aquí el KPI cuenta lo de hoy y la tarjeta cuenta lo que
+                está trancado: lo que ABI todavía no ha resuelto. Es la
+                que de verdad hace falta mientras se registra, porque es
+                la que dice si se está acumulando trabajo pendiente. */}
             <div className="hoy-cifra">
               <span className="corte" aria-hidden />
-              <div className="rot">UNIDADES DE VIDRIO HOY</div>
+              <div className="rot">ESPERANDO VISTO BUENO</div>
               <div className="marca">
-                <b>{vidrioHoy}</b>
-                <span>en {deHoy.length} rotura{deHoy.length === 1 ? "" : "s"}</span>
+                <b>{enEspera}</b>
+                <span>rotura{enEspera === 1 ? "" : "s"}</span>
               </div>
-              {/* Un cuadro por rotura de hoy, rojo las no asumidas. Es la
-                  misma idea de los cuadros del plan en Traspasos: «2 de
-                  10» se entiende leyendo; los cuadros se entienden sin
-                  leer, que es lo que hace falta a las cinco de la
-                  mañana. */}
+              {/* Un cuadro por rotura que espera, rojo las no asumidas.
+                  Es la misma idea de los cuadros del plan en Traspasos:
+                  «5 roturas, 2 no asumidas» se entiende leyendo; los
+                  cuadros se entienden sin leer, que es lo que hace falta
+                  a las cinco de la mañana. */}
               <div className="huecos">
-                {deHoy.slice(0, 24).map((r) => (
+                {esperandoLista.slice(0, 24).map((r) => (
                   <i key={r.id} className={r.grupo === "no_asumida" ? "mal" : "lleno"} />
                 ))}
-                {deHoy.length === 0 && <i />}
+                {enEspera === 0 && <i />}
               </div>
               <div className="pie-cifra">
-                {noAsumidasHoy > 0
-                  ? `${noAsumidasHoy} de hoy se están dando por no asumidas: esas exigen foto.`
-                  : "Ninguna de hoy se está dando por no asumida."}
+                {enEspera === 0
+                  ? "ABI está al día: no hay nada esperando decisión."
+                  : sinFotoEsperando > 0
+                    ? `${sinFotoEsperando} de esas no tienen la foto que exigen: ABI las va a devolver.`
+                    : "ABI decide si cuentan o no."}
               </div>
             </div>
 

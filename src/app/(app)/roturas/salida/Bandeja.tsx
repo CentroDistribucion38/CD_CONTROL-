@@ -11,14 +11,14 @@ import { fecha, kilos, quien } from "@/modulos/roturas/formato";
 import { Firmas, PAPELES, type Papel } from "./Firmas";
 
 /**
- * LA BANDEJA DE UNA ETAPA — Verificación y Validación.
+ * LA BANDEJA DE VALIDACIÓN.
  *
  * Una sola pantalla para las dos porque hacen exactamente lo mismo:
  * enseñan lo que llegó a SU etapa y ponen UN botón. Dos copias serían
  * dos sitios donde arreglar el mismo detalle, y una se quedaría vieja.
  *
  * AQUÍ SOLO LLEGA LO QUE LE TOCA A ESTA ETAPA. Lo que el supervisor (a) no
- * ha cerrado no aparece en Verificación; lo que nadie verificó no
+ * ha cerrado no aparece en Validación; lo que nadie pesó no
  * aparece en Validación. Quien entra no tiene que buscar lo suyo entre
  * lo de los demás, y sobre todo no ve un botón que la base le va a
  * negar.
@@ -48,14 +48,20 @@ export function Bandeja({ salidas, nombres, papel, puede }: {
   const [nota, setNota] = useState("");
 
   const info = PAPELES.find((p) => p.id === papel)!;
-  const verbo = papel === "verificador" ? "Verificar" : "Dar salida";
+  /* LA BANDEJA QUEDÓ CON UNA SOLA ETAPA. Antes servía para dos
+     —Verificación y Validación— y por eso todo iba con un `papel ===
+     "verificador" ? … : …` al lado. Se quitó Verificación y las ramas
+     se fueron con ella: lo que queda es lo que hace una sola de las
+     dos, escrito de corrido. El componente sigue recibiendo el papel
+     porque es lo que manda a la base y lo que decide el permiso. */
+  const verbo = "Dar salida";
 
   async function firmar(s: Salida, texto: string) {
     const ok = await pedir({
       titulo: `¿${verbo} ${s.codigo}?`,
-      dice: papel === "verificador"
-        ? `Vh ${s.placa}. Estás diciendo que revisaste ${kilos(s.neto_kg)} kg netos en ${s.tolvas} tolva${s.tolvas === 1 ? "" : "s"} y que la cuenta está bien. Queda escrito tu nombre y la hora.`
-        : `Vh ${s.placa}. Estás dando el aval para que salgan ${kilos(s.neto_kg)} kg netos. Es la última firma: después la salida queda cerrada.`,
+      dice: `Vh ${s.placa}. Estás dando el aval para que salgan ${kilos(s.neto_kg)} kg netos `
+        + `en ${s.tolvas} tolva${s.tolvas === 1 ? "" : "s"}. Es la segunda y última firma: `
+        + `después la salida queda cerrada. Queda escrito tu nombre y la hora.`,
       confirmar: verbo,
     });
     if (!ok) return;
@@ -65,7 +71,7 @@ export function Bandeja({ salidas, nombres, papel, puede }: {
     });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
-    avisar.bien(`${s.codigo} ${papel === "verificador" ? "quedó verificada" : "quedó lista para salir"}.`);
+    avisar.bien(`${s.codigo} quedó lista para salir.`);
     setNotando(null); setNota("");
     router.refresh();
   }
@@ -85,17 +91,15 @@ export function Bandeja({ salidas, nombres, papel, puede }: {
         {salidas.length === 0 && (
           <div className="caja"><div className="vacio">
             <b>Bandeja limpia</b>
-            {papel === "verificador"
-              ? "No hay salidas cerradas esperando verificación."
-              : "No hay salidas verificadas esperando el aval de salida."}
+            No hay salidas pesadas y cerradas esperando el aval de salida.
           </div></div>
         )}
 
         {salidas.map((s) => {
+          /* CUÁNTO LLEVA ESPERANDO: desde que la cerró quien pesó, que
+             ahora es el paso anterior. */
           const espera = s.supervisora_en
-            ? Math.round((Date.now() - new Date(
-                papel === "verificador" ? s.supervisora_en : (s.verificador_en ?? s.supervisora_en)
-              ).getTime()) / 60000)
+            ? Math.round((Date.now() - new Date(s.supervisora_en).getTime()) / 60000)
             : 0;
 
           return (
@@ -152,15 +156,11 @@ export function Bandeja({ salidas, nombres, papel, puede }: {
                 {notando === s.id && (
                   <div className="panel">
                     <label htmlFor={`nota-${s.id}`}>
-                      {papel === "verificador"
-                        ? "¿Alguna novedad al revisar? (opcional)"
-                        : "¿Alguna novedad antes de dar salida? (opcional)"}
+                      ¿Alguna novedad antes de dar salida? (opcional)
                     </label>
                     <textarea id={`nota-${s.id}`} rows={2} value={nota} autoFocus
                               onChange={(e) => setNota(e.target.value)}
-                              placeholder={papel === "verificador"
-                                ? "El bruto de la TOLVA-2 no cuadraba; se volvió a pesar."
-                                : "Sale con la guía 4471."} />
+                              placeholder="Sale con la guía 4471." />
                     <div className="acciones-panel">
                       <button type="button" className="btn si" disabled={mandando}
                               onClick={() => firmar(s, nota)}>

@@ -1,4 +1,4 @@
-Traspasos adelantados, y rotura en sitio sin el campo que trancaba
+Traspasos adelantados, rotura en sitio rehecha, y la salida con dos firmas
 
 LO QUE PASABA
 «Hay veces que tengo un viaje del dia siguiente y lo adelanto.»
@@ -117,6 +117,47 @@ Ahora es una tarjeta mas de la pantalla, arriba de la lista, con ancho
 maximo; en el celular se suelta a todo el ancho. El «+» se esconde
 mientras esta abierto —le tapaba una causa— y el boton dice QUE FALTA
 en vez de quedarse apagado y mudo: «Falta el area», «Falta la causa».
+
+EL ACENTO DEL MODULO SALIA DE --c-oro Y TENIA QUE SALIR DE --c-marca
+«Si en el tema de preferencia es ambar, que hace el rojo alli? Los
+colores varian de acuerdo al tema.»
+En los temas de Cristian --c-marca es #ffc000 y --c-oro es #ff0000, y
+globals.css dice para que es cada uno: el rojo «va tal cual donde es
+MANCHA —el avatar, el tajo del sello, la marca de una cifra en
+alerta—». Un KPI de fondo entero y el boton principal de un formulario
+no son una mancha puntual: son el acento, y el acento de la aplicacion
+es --c-marca. Por eso Traspasos le salia ambar y Roturas rojo en el
+mismo tema: Traspasos lo tenia bien desde el principio.
+De paso se borra una lista de excepciones por tema —cinco temas donde
+habia que forzar la tinta a blanco y hundir el relleno—. Existia porque
+--c-oro no trae pareja de tinta y habia que adivinarla; --c-marca si la
+trae (--c-marca-txt) y la app ya la calculo para los siete.
+El arnes mide el acento contra el TOKEN en los siete temas —no contra
+un color escrito a mano— y el contraste de las cinco piezas que se
+pintan con el: minimo 4,7.
+
+EN EL CELULAR, SOLO LO QUE SE VA A REGISTRAR
+«Que no se vea nada mas para que la vista no confunda.»
+En el computador el contexto va AL LADO y no estorba: se mira de reojo
+sin dejar de ver el formulario. En el celular no hay «al lado» —todo se
+apila—, asi que serian tres pantallazos antes de llegar al primer
+campo, y quien esta de pie con guantes al lado del vidrio no viene a
+leer cifras. Por debajo de 760 px se esconden el titular, el KPI, la
+tarjeta del dia y la lista de hoy: queda el formulario arrancando
+arriba del todo. El arnes mide que midan CERO —no que esten
+escondidas—, y que en el computador si esten.
+
+Y EL KPI YA NO QUEDA PEGADO A LA TARJETA
+`.rt` separa a sus hijos 16 px, pero aqui su hijo es UNO —el marco del
+registro—, asi que la cabecera y la consola quedaban a cero: el KPI y
+la tarjeta oscura comparten la columna derecha y se leian como un solo
+bloque partido. El marco lleva ahora su propia separacion, y el arnes
+exige 14 px de aire entre los dos.
+Ademas decian LO MISMO —«0 roturas · 0 unidades de vidrio» arriba y «0
+unidades de vidrio en 0 roturas» abajo—. En Traspasos no pasa porque el
+KPI cuenta EL DIA y la tarjeta EL TURNO. Aqui el KPI cuenta lo de hoy y
+la tarjeta cuenta lo que esta trancado en la bandeja de ABI, que es lo
+que de verdad hace falta mientras se registra.
 
 LA CONSOLA DE TRASPASOS, NO SOLO EL FORMULARIO
 «Mira el diseno del registro de Traspasos, quiero algo chevre tambien
@@ -252,6 +293,69 @@ ARNES
   se mande el color y no un material; que el formulario NO este en
   position:fixed y quede arriba de la lista; y 1440/820/390/360 sin
   desbordes. Cazo que el ✕ de cerrar medía 40 px y no 44.
+
+
+=====================================================================
+Y LA SALIDA DE VIDRIO: DOS FIRMAS, NO TRES
+=====================================================================
+«Quita lo de Verificacion, que solo sean dos firmas, dos procesos:
+Pesar y Validacion, nada mas.»
+
+  PESAR       el supervisor (a) pesa tolva por tolva y cierra.
+  VALIDACION  quien valida da el aval y el vidrio sale por la puerta.
+
+LO QUE NO SE QUITO, Y ES LO QUE IMPORTA: siguen siendo DOS PERSONAS.
+Quien peso no valida. Esa era la razon de ser de la cadena —que nadie
+firme solo lo que el mismo midio— y no se toca; lo que se va es el paso
+de en medio, no el control. El administrador sigue pudiendo poner las
+dos un domingo, y la salida queda marcada como firmada por la misma
+persona: una excepcion silenciosa convierte la regla en adorno.
+
+LO YA VERIFICADO NO SE BORRA. Las columnas verificador_* se quedan con
+lo que tengan: son el registro de quien verifico que, y borrarlas
+dejaria los meses pasados sin poder decirlo. La pantalla de firmas lo
+muestra DEBAJO de la fila y sin numero —no es una etapa que falte, es
+algo que paso cuando la cadena tenia tres—.
+
+LAS SALIDAS QUE ESTABAN ESPERANDO VERIFICACION pasan solas a poder
+validarse: aparecen en la bandeja de Validacion sin tocar ninguna fila
+a mano. Las que llevaban semanas trancadas esperando a nadie, tambien.
+
+EL ROL «verificador» NO SE BORRA, se apaga. Puede haber gente con ese
+rol puesto y borrarlo los dejaria sin ninguno; a quien se pasa esa
+gente lo decide quien administra, no una migracion.
+
+SE FUE: el renglon del menu, la ruta de firma, el permiso, y las ramas
+`papel === "verificador" ? …` que la Bandeja llevaba por servir para
+dos etapas.
+LA DIRECCION /roturas/salida/verificacion SE QUEDA, REDIRIGIENDO a
+Validacion. Borrar el archivo dejaria un 404 a quien tenga la pagina en
+favoritos o abierta en una pestana desde ayer —y en la bodega hay
+computadores que no se cierran en semanas—. Un 404 se lee como «la
+aplicacion se rompio»; un desvio se lee como lo que es: eso se movio.
+Son tres lineas y se borran el dia que ya nadie llegue ahi.
+
+DE PASO: LA PORTADA DE ADMINISTRACION, TERCERA FORMA
+Aqui no nace nada —ni tabla, ni funcion, ni columna—: salida_firmar ya
+existia y sigue existiendo con el mismo nombre, y lo unico que cambia
+es lo que HACE. Preguntar por la funcion diria «ya esta» con el archivo
+sin correr, y esa es la unica mentira que esa pantalla no se puede
+permitir. Se agrega 'dice:esquema.funcion:texto', que mira el codigo de
+la funcion. Sirve para cualquier migracion futura que cambie el
+comportamiento de algo sin crear nada nuevo.
+
+SQL
+supabase/migraciones/2026-09-roturas-salida-dos-firmas.sql
+
+ARNES
+correr-roturas-dos-firmas.sh: base completa, la migracion dos veces, y
+las cuatro cosas que se pueden romper al quitar un paso de en medio —
+que la validacion no siga esperando al verificador; que quien peso
+siga sin poder validar; que la firma del verificador quede rechazada y
+CON UN MENSAJE QUE DIGA QUE PASO y no «no tienes permiso»; y que una
+salida vieja siga diciendo quien la verifico y cuente 2 de 2, no 2 de
+3—. Antes de correr la migracion comprueba que la validacion TODAVIA
+exija verificacion: si no, no probaria nada.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -36,4 +36,12 @@ export const SQL_REVISAR: { archivo: string; objeto: string; para: string }[] = 
     para: "Traspasos · registrar un viaje adelantado (hasta 7 días)" },
   { archivo: "2026-09-roturas-sitio-area-causas.sql", objeto: "tabla:public.roturas_areas",
     para: "Roturas en sitio · área, las causas que se usan y el EER sin material" },
+  /* AQUÍ NO NACE NADA: ni tabla, ni función, ni columna. salida_firmar
+     ya existía y sigue existiendo con el mismo nombre; lo único que
+     cambia es lo que HACE. Preguntar por la función diría «ya está» con
+     el archivo sin correr. Por eso se pregunta por lo que la función
+     DICE —la cuarta forma, que trae ese mismo archivo—. */
+  { archivo: "2026-09-roturas-salida-dos-firmas.sql",
+    objeto: "dice:public.salida_firmar:La firma de verificación ya no existe",
+    para: "Roturas salida · dos firmas (se quita Verificación)" },
 ];

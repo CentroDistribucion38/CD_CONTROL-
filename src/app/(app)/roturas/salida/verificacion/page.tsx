@@ -1,59 +1,21 @@
-import { misPermisos } from "@/lib/permisos";
-import { nombresTodos } from "@/modulos/sider/datos";
-import { salidas as leerSalidas } from "@/modulos/roturas/datos";
-import { kilos } from "@/modulos/roturas/formato";
-import "../../roturas.css";
-import { SinTablas } from "../../comunes";
-import { RUTA_FIRMA } from "@/modulos/roturas/firmas";
-import { Bandeja } from "../Bandeja";
-
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 
 /**
- * VERIFICACIÓN — la segunda firma.
+ * VERIFICACIÓN YA NO EXISTE — esto es el desvío.
  *
- * Solo llega lo que el supervisor (a) ya cerró. Lo que todavía se está
- * pesando no aparece aquí: no hay nada que verificar de una salida a la
- * que le pueden entrar dos tolvas más.
+ * «Quita lo de Verificación: que solo sean dos firmas, dos procesos.»
+ * La salida va de Pesar a Validación y esta etapa se fue: ya no está en
+ * el menú, no tiene firma que poner y `salida_firmar` la rechaza por
+ * nombre.
+ *
+ * PERO LA DIRECCIÓN SE QUEDA, redirigiendo. Borrar el archivo dejaría
+ * un 404 a quien tenga la página guardada en favoritos o abierta en una
+ * pestaña desde ayer —y en la bodega hay computadores que no se cierran
+ * en semanas—. Un 404 se lee como «la aplicación se rompió»; un desvío
+ * a Validación se lee como lo que es: eso se movió.
+ *
+ * Es de una línea y se puede borrar el día que ya nadie llegue aquí.
  */
-export default async function VerificacionPage() {
-  const [permisos, datos, nombres] = await Promise.all([
-    misPermisos(), leerSalidas(300), nombresTodos(),
-  ]);
-
-  if (datos.falta) return <div className="rt"><SinTablas /></div>;
-
-  /* Cerradas por el supervisor (a) y todavía sin verificar. Lo más viejo
-     primero: al revés, lo de hace tres días no se mira nunca porque
-     cada turno entra algo encima. */
-  const lista = datos.salidas
-    .filter((s) => s.estado === "cerrada" && s.supervisora_en && !s.verificador_en)
-    .sort((a, b) => (a.supervisora_en ?? "").localeCompare(b.supervisora_en ?? ""));
-
-  const kg = lista.reduce((t, s) => t + Number(s.neto_kg), 0);
-
-  return (
-    <div className="rt">
-      <section className="cabeza">
-        <div>
-          <p className="ojo">ROTURAS · SALIDA · VERIFICACIÓN</p>
-          <h1>Por verificar</h1>
-          <p className="sub">
-            Salidas que el supervisor (a) ya cerró y que esperan que alguien más revise la cuenta.
-            Quien pesó no verifica: es la regla que evita que el mismo par de manos pese,
-            apruebe y despache.
-          </p>
-        </div>
-        <div className="kpi">
-          <span className="corte" aria-hidden />
-          <div className="rot">ESPERANDO VERIFICACIÓN</div>
-          <div className="num">{lista.length}<span className="u">salidas</span></div>
-          <div className="pie"><b>{kilos(kg)}</b> kg netos en juego</div>
-        </div>
-      </section>
-
-      <Bandeja salidas={lista} nombres={nombres} papel="verificador"
-               puede={permisos.puedeEditar(RUTA_FIRMA.verificador)} />
-    </div>
-  );
+export default function VerificacionSeFuePage() {
+  redirect("/roturas/salida/validacion");
 }

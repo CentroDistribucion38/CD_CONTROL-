@@ -14,6 +14,8 @@
 export const RUTA_FIRMA = {
   visto_bueno: "/roturas/en-sitio/visto-bueno",
   supervisora: "/roturas/salida",
-  verificador: "/roturas/salida/verificacion",
+  /* Verificación se quitó: la salida va de Pesar a Validación, con dos
+     firmas y dos personas. El renglón se borra en vez de quedarse
+     apuntando a una pantalla que ya no existe. */
   validador: "/roturas/salida/validacion",
 } as const;

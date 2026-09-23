@@ -12,12 +12,15 @@ import { fecha, kilos, quien } from "../comunes";
  * LAS SALIDAS DE VIDRIO — lo que se pesa, en KILOS.
  *
  * Una salida es un Vh: se van pesando tolvas, y cuando está completo
- * se firma. Las tres firmas van en cadena y en orden —supervisor (a),
- * verificador, validación— y CADA UNA VIVE EN SU PROPIA PANTALLA, porque
- * son tres personas distintas y cada una trabaja en un sitio distinto.
- * Con los tres botones en una sola hoja, la misma persona tocaba dos y
- * la base le contestaba que no: la regla estaba bien, la pantalla la
- * convertía en un regaño.
+ * se firma. Las dos firmas van en cadena y en orden —supervisor (a),
+ * validación— y CADA UNA VIVE EN SU PROPIA PANTALLA, porque son dos
+ * personas distintas y cada una trabaja en un sitio distinto. Con los
+ * botones en una sola hoja, la misma persona los tocaba todos y la base
+ * le contestaba que no: la regla estaba bien, la pantalla la convertía
+ * en un regaño.
+ *
+ * ERAN TRES Y AHORA SON DOS: se quitó Verificación. Lo que no se quitó
+ * es que sean dos PERSONAS: quien pesa no da la salida.
  *
  * Esta pantalla es la del SUPERVISOR (A): solo enseña lo que todavía se
  * está pesando. Lo cerrado ya no es suyo.
@@ -176,17 +179,16 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
                       mirar; el nombre de la etapa ya dice a quién hay
                       que ir a buscar. */}
                   <span>
-                    {!s.supervisora_en ? "Falta cerrar y enviar a verificación"
-                      : !s.verificador_en ? "En Verificación, esperando"
+                    {!s.supervisora_en ? "Falta pesar, cerrar y enviar a validación"
                       : !s.validador_en ? "En Validación, esperando el aval"
-                      : "Las tres firmas puestas"}
+                      : "Las dos firmas puestas"}
                   </span>
                 </div>
               </div>
 
               <div className="der">
                 <span className={"eti " + (s.completa ? "cuenta" : "esperando")}>
-                  {s.completa ? "COMPLETA" : `${s.firmas} DE 3 FIRMAS`}
+                  {s.completa ? "COMPLETA" : `${s.firmas} DE 2 FIRMAS`}
                 </span>
                 {s.mismo_firmante && (
                   <span className="eti falta" title="Dos firmas de la misma persona">

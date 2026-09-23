@@ -29,7 +29,7 @@ export default async function SalidasPage() {
             Aquí se pesa: bruto menos la tara de la tolva. La tara vive en el maestro y se copia
             a la línea al pesar, así que el día que cambie una tolva las salidas viejas siguen
             mostrando la tara con la que de verdad se pesaron. Al cerrar, la salida se va de
-            esta pantalla y aparece en <b>Verificación</b>, que es de otra persona.
+            esta pantalla y aparece en <b>Validación</b>, que es de otra persona.
           </p>
         </div>
         <div className="kpi">

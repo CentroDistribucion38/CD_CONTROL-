@@ -102,7 +102,7 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
     });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
-    avisar.bien(`${salida.codigo} quedó cerrada y pasó a Verificación.`);
+    avisar.bien(`${salida.codigo} quedó cerrada y pasó a Validación.`);
     router.push("/roturas/salida");
     router.refresh();
   }
@@ -284,7 +284,7 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
             <h2>Firmas</h2>
             <p>
               Tres personas, tres momentos. Nadie firma por otro, y cada una lo hace desde su
-              propia pantalla: Pesar, Verificación y Validación.
+              propia pantalla: Pesar y Validación.
             </p>
           </div>
         </div>
@@ -324,13 +324,13 @@ export function Pesar({ salida, tolvas, maestro, nombres, puedeFirmar }: {
 
           {etapa && etapa !== "supervisora" && (
             <div className="aviso" style={{ marginTop: 18 }}>
-              Esta salida está esperando la firma de <b>{etapa === "verificador" ? "Verificación" : "Validación"}</b>.
+              Esta salida está esperando la firma de <b>Validación</b>.
               Se firma desde esa pantalla, no desde aquí.
             </div>
           )}
           {salida.completa && (
             <div className="aviso" style={{ marginTop: 18, borderLeftColor: "var(--rt-verde)" }}>
-              Salida completa: {kilos(salida.neto_kg)} kg netos con las tres firmas.
+              Salida completa: {kilos(salida.neto_kg)} kg netos con las dos firmas.
             </div>
           )}
           {salida.estado === "anulada" && (

@@ -5,23 +5,27 @@
    cambiar Roturas como cambia todo lo demás; un módulo que se queda
    igual se ve como si no fuera de la misma aplicación.
 
-   Se llegó aquí por dos errores seguidos, y los dos vale la pena dejar
-   escritos porque son el mismo malentendido visto por sus dos caras:
+   Se llegó aquí por TRES errores seguidos, y los tres vale la pena
+   dejar escritos porque son el mismo malentendido visto por tres caras:
 
      1. Primero el acento colgaba de var(--c-oro) a secas. En los temas
-        negro, gris y halo ese token vale #ff0000, así que el NETO de una
+        de Cristian ese token vale #ff0000, así que el NETO de una
         salida salía en rojo bombero CON TEXTO OSCURO ENCIMA: ilegible.
      2. Al arreglarlo puse la paleta en literales. Se leía bien, pero el
         módulo dejó de reaccionar al tema.
+     3. Al arreglar ESO volví a --c-oro, ahora con una pareja de tinta
+        inventada tema por tema. Ya se leía y ya cambiaba con el tema…
+        pero cambiaba al color equivocado: «si en el tema de preferencia
+        es ámbar, ¿qué hace el rojo ahí?».
 
-   Lo que faltaba no era escoger entre las dos: era el PAR. La app ya
-   resuelve esto para su acento de marca —define --c-marca junto con
-   --c-marca-txt, "el acento y el texto que va ENCIMA de él", por tema y
-   a propósito—. --c-oro no traía su pareja, así que el módulo la pone:
-   --rt-sobre-oro. Sobre los acentos claros va tinta oscura; sobre los
-   oscuros o muy saturados, blanco.
-
-   Así el módulo cambia con el tema Y sigue siendo legible en los siete.
+   El error de fondo era el mismo las tres veces: --c-oro NO es el
+   acento. globals.css lo dice — el rojo «va tal cual donde es MANCHA:
+   el avatar, el tajo del sello, la marca de una cifra en alerta». Un
+   KPI de fondo entero y el botón principal de un formulario no son una
+   mancha puntual. El acento de la aplicación es --c-marca, y viene con
+   su pareja --c-marca-txt, «el acento y el texto que va ENCIMA de él»,
+   por tema y a propósito. Traspasos lo tenía bien desde el principio;
+   este módulo llevaba tres vueltas sin verlo.
 
    Los tokens van en las tres raíces —.rt, .rt-rep y .rt-modal— porque
    los overlays se abren por encima de todo y las variables de CSS se
@@ -29,21 +33,33 @@
    --------------------------------------------------------------------- */
 
 .rt, .rt-rep, .rt-modal {
-  /* EL ACENTO, del tema. Es el "ojo con esto" de la aplicación. */
-  --rt-oro: var(--c-oro);
-  --rt-oro-hondo: color-mix(in srgb, var(--c-oro) 82%, #000);
-  /* Su pareja: la tinta que va ENCIMA del acento. Se sobreescribe abajo
-     en los temas donde el acento es oscuro. */
-  --rt-sobre-oro: #1A1200;
+  /* EL ACENTO SALE DE --c-marca, NO DE --c-oro. Y esto era un error de
+     bulto que se veía en cada pantalla del módulo.
+
+     «Si en el tema de preferencia es ámbar, ¿qué hace el rojo ahí?»
+     En los temas de Cristian, --c-marca es #ffc000 y --c-oro es
+     #ff0000, y globals.css dice para qué es cada uno: el rojo «va tal
+     cual donde es MANCHA —el avatar, el tajo del sello, la marca de una
+     cifra en alerta—». Un KPI de fondo entero y el botón principal de
+     un formulario no son una mancha puntual: son el acento, y el acento
+     de la aplicación es --c-marca. Por eso Traspasos le salía ámbar y
+     Roturas rojo en el mismo tema — Traspasos lo tenía bien.
+
+     Y --c-marca VIENE CON SU PAREJA, --c-marca-txt: la tinta que se lee
+     encima. Eso deja de ser una lista de excepciones por tema —que era
+     lo que había abajo— y pasa a ser un dato que la app ya calculó. */
+  --rt-oro: var(--c-marca);
+  --rt-oro-hondo: var(--c-marca-hondo);
+  --rt-sobre-oro: var(--c-marca-txt);
   /* El antetítulo: el acento llevado a tinta, para que se lea sobre
      papel sin dejar de ser del mismo color. */
-  --rt-ojo: color-mix(in srgb, var(--c-oro) 58%, #000);
-  --rt-crema: color-mix(in srgb, var(--c-oro) 11%, #fff);
+  --rt-ojo: color-mix(in srgb, var(--c-marca) 58%, #000);
+  --rt-crema: color-mix(in srgb, var(--c-marca) 11%, #fff);
   /* EL ACENTO SOBRE LA BANDA OSCURA. El acento crudo no siempre se lee
-     ahí: en el tema tinta es azul (#0b4ea2) y la banda es azul oscuro
-     (#0a3a6e) — el número quedaría invisible. Aclarado, en los siete
-     temas se despega del fondo sin dejar de ser el mismo color. */
-  --rt-oro-claro: color-mix(in srgb, var(--c-oro) 60%, #fff);
+     ahí: en el tema tinta la banda es azul oscuro y el acento azul — el
+     número quedaría invisible. Aclarado, en los siete temas se despega
+     del fondo sin dejar de ser el mismo color. */
+  --rt-oro-claro: color-mix(in srgb, var(--c-marca) 60%, #fff);
 
   /* La banda oscura —el total de la salida, la barra del asistente—.
      Sale de --c-grupo, que la app define por tema justamente para esto:
@@ -73,26 +89,21 @@
   color: var(--rt-tinta);
 }
 
-/* LOS TEMAS DE ACENTO OSCURO O MUY SATURADO. En tinta el acento es azul
-   (#0b4ea2), en ámbar oliva (#8c6d00) y en negro, gris y halo es rojo
-   pleno: sobre esos, la tinta oscura no se lee. Va blanca.
-   El selector lleva el tema como ANCESTRO porque el atributo vive en el
-   armazón de la app, no en el módulo. */
-[data-tema="tinta"] .rt,    [data-tema="tinta"] .rt-rep,    [data-tema="tinta"] .rt-modal,
-[data-tema="ambar"] .rt,    [data-tema="ambar"] .rt-rep,    [data-tema="ambar"] .rt-modal,
-[data-tema="negro"] .rt,    [data-tema="negro"] .rt-rep,    [data-tema="negro"] .rt-modal,
-[data-tema="gris"] .rt,     [data-tema="gris"] .rt-rep,     [data-tema="gris"] .rt-modal,
-[data-tema="halo"] .rt,     [data-tema="halo"] .rt-rep,     [data-tema="halo"] .rt-modal {
-  --rt-sobre-oro: #fff;
-  /* Y el antetítulo no se oscurece más: ya nace oscuro. */
-  --rt-ojo: color-mix(in srgb, var(--c-oro) 78%, #000);
-  /* EL RELLENO, UN PUNTO MÁS HONDO. Blanco sobre el rojo pleno de estos
-     temas da 4,0 de contraste: alcanza para una cifra grande, no para
-     la etiqueta de 11 px que va encima ni para el rótulo de un botón.
-     Bajarlo al 88% lo lleva a 4,8 y sigue siendo el mismo color del
-     tema. En los temas de acento claro no se toca: ahí la tinta es
-     oscura y el oro vivo se lee de sobra. */
-  --rt-oro: color-mix(in srgb, var(--c-oro) 88%, #000);
+/* AQUÍ VIVÍA UNA LISTA DE EXCEPCIONES POR TEMA —cinco temas donde
+   había que forzar la tinta a blanco y oscurecer el relleno— y se borra
+   entera. Existía porque el acento salía de --c-oro, que no trae pareja
+   de tinta: había que adivinarla tema por tema. --c-marca sí la trae
+   (--c-marca-txt), y la app ya la calculó bien para los siete. Una
+   excepción que se puede borrar es una que no había que escribir.
+
+   El antetítulo sí sigue derivándose, porque tiene que leerse sobre
+   PAPEL y no sobre el acento: en los temas de acento claro hay que
+   hundirlo o se pierde en el blanco. */
+[data-tema="ambar"] .rt,  [data-tema="ambar"] .rt-rep,  [data-tema="ambar"] .rt-modal,
+[data-tema="negro"] .rt,  [data-tema="negro"] .rt-rep,  [data-tema="negro"] .rt-modal,
+[data-tema="gris"] .rt,   [data-tema="gris"] .rt-rep,   [data-tema="gris"] .rt-modal,
+[data-tema="halo"] .rt,   [data-tema="halo"] .rt-rep,   [data-tema="halo"] .rt-modal {
+  --rt-ojo: color-mix(in srgb, var(--c-marca) 42%, #000);
 }
 
 .rt { display: flex; flex-direction: column; gap: 16px; min-width: 0 }
@@ -486,7 +497,10 @@
    vistazo que no se puede facturar antes de verificar. La que sigue es
    la única con botón; las otras dos esperan o ya están.
    ===================================================================== */
-.rt .firmas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 }
+/* DOS COLUMNAS, NO TRES. Se quitó Verificación: la salida va de Pesar
+   a Validación. Con `repeat(3, …)` y dos firmas quedaba una columna
+   vacía al lado, que se lee como un paso que falta. */
+.rt .firmas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 }
 .rt .firma {
   border: 1px solid var(--rt-linea); border-right: 0; padding: 18px 20px;
   background: #fff; min-width: 0;
@@ -504,6 +518,22 @@
 .rt .firma .cuando { font-size: 13px; color: var(--rt-gris); margin-top: 12px }
 .rt .firma.lista .n { background: var(--rt-verde); color: #fff }
 .rt .firma.turno { background: var(--rt-crema); border-color: var(--rt-oro) }
+
+/* LA FIRMA QUE YA NO SE PIDE. Las salidas de antes llevan la del
+   verificador, y la pantalla tiene que poder decir quién fue: borrar el
+   dato dejaría los meses pasados sin poder contarlo.
+
+   VA DEBAJO Y NO DENTRO DE LA FILA, y sin número. Pintada como una
+   tercera firma, una salida vieja parecería estar en un paso que hoy no
+   existe; puesta aparte y en gris, se lee como lo que es: algo que
+   ocurrió cuando la cadena tenía tres. */
+.rt .firma-vieja {
+  border: 1px solid var(--rt-linea); border-top: 0; padding: 13px 20px;
+  background: var(--c-eef1f5); display: flex; flex-direction: column; gap: 3px;
+}
+.rt .firma-vieja b { font-family: var(--rt-titulo); font-weight: 800; font-size: 14px }
+.rt .firma-vieja span { font-size: 12.5px; color: var(--rt-gris); line-height: 1.5 }
+.rt .firma-vieja .nota { color: var(--rt-tinta) }
 .rt .firma.turno + .firma { border-left: 0 }
 .rt .firma.turno .n { background: var(--rt-oro); color: var(--rt-sobre-oro) }
 .rt .firma.turno .cuando { color: var(--rt-ojo); font-weight: 600 }
@@ -595,6 +625,7 @@
    formulario, que es lo que se quitó: es contexto al lado, y sirve para
    saber si la rotura que se va a meter ya estaba y para ver subir el
    número al registrarla. */
+.rt .reg-marco { display: flex; flex-direction: column; gap: 16px }
 .rt .consola {
   display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 18px; align-items: start;
 }
@@ -672,6 +703,33 @@
 @media (max-width: 1100px) {
   .rt .consola { grid-template-columns: 1fr }
   .rt .hoy-cifra { margin-top: 18px }
+}
+
+/* =====================================================================
+   EN EL CELULAR, SOLO LO QUE SE VA A REGISTRAR
+
+   «En el celular la idea es que solo se vea lo que se va a registrar,
+   que no se vea nada más para que la vista no confunda.»
+
+   Es la misma regla de antes llevada al sitio donde de verdad pesa. En
+   el computador el contexto va AL LADO y no estorba: se mira de reojo
+   sin dejar de ver el formulario. En el celular no hay «al lado» —todo
+   se apila—, así que el contexto se convierte en tres pantallazos que
+   hay que pasar antes de llegar al primer campo, y quien está de pie
+   con guantes al lado del vidrio no viene a leer cifras.
+
+   Así que en el celular la pantalla de Registrar es el formulario y
+   nada más: ni titular, ni KPI, ni tarjeta del día, ni lista de hoy.
+   Todo eso sigue estando —a un toque, en Cancelar— y sigue saliendo
+   entero en el computador.
+
+   Se esconde SOLO la cabecera del registro (`.cabeza.reg`): la de la
+   pantalla de consulta es otra y ahí sí tiene que verse.
+   ===================================================================== */
+@media (max-width: 760px) {
+  .rt .cabeza.reg { display: none }
+  .rt .consola > aside { display: none }
+  .rt .reg-marco { gap: 0 }
 }
 
 .rt-rep {

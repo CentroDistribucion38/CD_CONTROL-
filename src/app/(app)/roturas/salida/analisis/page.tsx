@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * unidades por causa y por proceso viven en el análisis de En sitio y
  * contestan otra pregunta.
  *
- * TODO SE MIDE SOBRE SALIDAS COMPLETAS —las tres firmas—. Una salida a
+ * TODO SE MIDE SOBRE SALIDAS COMPLETAS —las dos firmas—. Una salida a
  * medio firmar todavía se puede corregir: contarla aquí sería publicar
  * un número que mañana cambia, y un informe que cambia solo deja de
  * creerse a la tercera vez.
@@ -56,7 +56,7 @@ export default async function AnalisisSalidaPage() {
           <p className="ojo">ROTURAS · SALIDA · ANÁLISIS</p>
           <h1>Cuánto vidrio salió</h1>
           <p className="sub">
-            Kilos netos de las salidas con las tres firmas. Las abiertas y las que esperan firma
+            Kilos netos de las salidas con las dos firmas. Las abiertas y las que esperan firma
             no entran: todavía se pueden corregir, y un informe que cambia solo deja de creerse
             a la tercera vez.
           </p>
@@ -83,7 +83,7 @@ export default async function AnalisisSalidaPage() {
         <div className={"cifra" + (porFirmar.length ? " mal" : "")}>
           <div className="rot">ESPERANDO FIRMA</div>
           <div className="n">{porFirmar.length}</div>
-          <div className="u">cerradas sin las tres firmas. No cuentan todavía</div>
+          <div className="u">cerradas sin las dos firmas. No cuentan todavía</div>
         </div>
         <div className={"cifra" + (abiertas.length ? " ojo" : "")}>
           <div className="rot">ABIERTAS</div>
@@ -118,7 +118,7 @@ export default async function AnalisisSalidaPage() {
         </div></div>
         <div className="barras">
           {meses.length === 0 && (
-            <div className="vacio"><b>Sin datos</b>Todavía no hay salidas con las tres firmas.</div>
+            <div className="vacio"><b>Sin datos</b>Todavía no hay salidas con las dos firmas.</div>
           )}
           {meses.map(([mes, v]) => (
             <div key={mes} className="b">

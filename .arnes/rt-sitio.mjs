@@ -354,9 +354,56 @@ const consola = await pg.evaluate(() => {
 });
 ok(consola.alLado, "el contexto quedó DEBAJO del formulario y no al lado");
 ok(consola.mismaAltura, "el contexto no arranca a la misma altura que el formulario");
+
+/* NI PEGADO NI ENCIMADO. «Quedó pegado»: el KPI de la cabecera y la
+   tarjeta oscura del panel comparten la columna derecha, uno encima
+   del otro, y sin aire entre ellos se leen como un solo bloque roto. */
+const aire = await pg.evaluate(() => {
+  const k = document.querySelector(".rt .cabeza .kpi").getBoundingClientRect();
+  const t = document.querySelector(".rt .hoy-cifra").getBoundingClientRect();
+  return { hueco: Math.round(t.top - k.bottom), mismaColumna: Math.abs(t.right - k.right) < 4 };
+});
+ok(aire.mismaColumna, "el KPI y la tarjeta del panel no están alineados en la misma columna");
+ok(aire.hueco >= 14,
+   `el KPI y la tarjeta del panel quedaron pegados: ${aire.hueco} px de aire entre los dos`);
 ok(anchos.cols.length === 2, `esperaba dos columnas y hay ${anchos.cols.length}`);
 ok(anchos.cols[0] === anchos.cols[1],
    `las dos columnas no arrancan a la misma altura (${anchos.cols})`);
+
+/* ---------------------------------------------------------------------
+   4quater · EN EL CELULAR, SOLO LO QUE SE VA A REGISTRAR
+
+   «En el celular la idea es que solo se vea lo que se va a registrar,
+   que no se vea nada más para que la vista no confunda.»
+
+   En el computador el contexto va AL LADO y no estorba. En el celular
+   todo se apila, así que sería tres pantallazos antes del primer
+   campo. Se mide que NO esté, no que esté escondido detrás: un bloque
+   con `visibility: hidden` sigue ocupando el sitio.
+   ------------------------------------------------------------------ */
+await monta(390);
+await abrir();
+for (const [sel, que] of [
+    [".cabeza", "el titular y el KPI"],
+    [".rt .hoy-cifra", "la tarjeta del día"],
+    [".rt .hoy", "la lista de hoy"]]) {
+  const alto = await pg.evaluate((s) => {
+    const e = document.querySelector(s);
+    return e ? Math.round(e.getBoundingClientRect().height) : 0;
+  }, sel);
+  ok(alto === 0, `en el celular todavía se ve ${que} (${alto} px de alto)`);
+}
+/* Y el formulario arranca arriba del todo: lo primero que se ve al
+   entrar es el primer campo, no algo que haya que pasar. */
+const arribaCel = await pg.evaluate(() =>
+  Math.round(document.querySelector(".rt-rep").getBoundingClientRect().top));
+ok(arribaCel < 60, `en el celular el formulario arranca en ${arribaCel} px, no arriba del todo`);
+
+/* En el computador, en cambio, el contexto SÍ está. */
+await monta(1440);
+await abrir();
+ok(await pg.isVisible(".rt .hoy-cifra"),
+   "en el computador se perdió el contexto del panel, que ahí sí cabe al lado");
 
 /* Y en el celular se apilan: una debajo de otra, no media y media. */
 await monta(390);
@@ -368,14 +415,93 @@ const apila = await pg.evaluate(() => {
 });
 ok(apila, "en el celular los dos campos de una línea no se apilan");
 
-await monta(1440, "", 1100);
+await monta(1440, "ambar", 1100);
 await abrir();
 await pg.screenshot({ path: ".arnes/rt-sitio-paso1.png" });
+await monta(390, "ambar", 900);
+await abrir();
+await pg.screenshot({ path: ".arnes/rt-sitio-movil.png", fullPage: true });
+await monta(1440, "ambar", 1100);
+await abrir();
 await pg.click(".rt-rep .seg button:has-text('EER')");
 await pg.click(".rt-rep .pie button.si");
 await pg.waitForSelector("#rt-area");
 await pg.click(".rt-rep .chips button:has-text('Líneas')");
 await pg.screenshot({ path: ".arnes/rt-sitio-paso2.png" });
+
+/* ---------------------------------------------------------------------
+   4ter · EL ACENTO ES EL DEL TEMA, Y SE LEE EN LOS SIETE
+
+   «Si en el tema de preferencia es ámbar, ¿qué hace el rojo ahí?
+   Acuérdate de que los colores varían de acuerdo al tema.»
+
+   Se comprueban dos cosas y las dos hacen falta:
+     · que el acento del módulo sea --c-marca —el acento de la app, el
+       mismo que usa Traspasos— y no --c-oro, que en los temas de
+       Cristian es el rojo de MANCHA;
+     · que la tinta que va encima se lea, porque cambiar el token de
+       fondo sin mirar la pareja es la forma clásica de dejar una
+       pantalla ilegible en dos de los siete temas.
+   ------------------------------------------------------------------ */
+{
+  const TEMAS = ["", "tinta", "pizarra", "ambar", "negro", "gris", "halo"];
+  for (const tema of TEMAS) {
+    await monta(1440, tema, 1100);
+    await abrir();
+    const r = await pg.evaluate(() => {
+      /* LOS TOKENS SE LEEN DESDE .rt, NO DESDE <html>. El atributo del
+         tema vive en el armazón de la app —un div de por medio—, así
+         que preguntarle a la raíz devuelve siempre el tema oficial y la
+         comprobación pasaría o fallaría por la razón equivocada. */
+      const val = (n) => getComputedStyle(document.querySelector(".rt"))
+        .getPropertyValue(n).trim();
+      const leer = (c) => {
+        const m = c.match(/color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/);
+        if (m) return [1, 2, 3].map((i) => Number(m[i]) * 255);
+        return (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+      };
+      const lum = (c) => { const [r, g, b] = c.map((v) => {
+        const x = v / 255; return x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4; });
+        return .2126 * r + .7152 * g + .0722 * b; };
+      const razon = (a, b) => { const [A, B] = [lum(leer(a)), lum(leer(b))].sort((x, y) => y - x);
+        return Math.round(((A + .05) / (B + .05)) * 10) / 10; };
+      const cs = (sel) => getComputedStyle(document.querySelector(sel));
+      const acento = cs(".rt").getPropertyValue("--rt-oro").trim();
+      const out = { marca: val("--c-marca"), oro: val("--c-oro"), acento };
+      for (const [nom, sel] of [
+          ["kpi-rot", ".rt .kpi .rot"], ["kpi-num", ".rt .kpi .num"],
+          ["kpi-pie", ".rt .kpi .pie"],
+          ["boton", ".rt-rep .pie button.si"],
+          ["seg-on", ".rt-rep .seg button.on"]]) {
+        const el = document.querySelector(sel);
+        if (!el) continue;
+        let caja = el;
+        const pinta = (n) => { const c = getComputedStyle(n).backgroundColor;
+          return c && c !== "transparent" && !/rgba\([^)]*,\s*0\s*\)/.test(c); };
+        while (caja && caja !== document.documentElement && !pinta(caja)) caja = caja.parentElement;
+        out[nom] = razon(getComputedStyle(el).color, getComputedStyle(caja).backgroundColor);
+      }
+      return out;
+    });
+
+    /* EL ACENTO TIENE QUE SER --c-marca. Comparar contra el token, no
+       contra un color escrito a mano: así sigue valiendo el día que se
+       cambie la paleta. */
+    const mismo = (a, b) => a.replace(/\s/g, "").toLowerCase() === b.replace(/\s/g, "").toLowerCase();
+    ok(mismo(r.acento, r.marca),
+       `${tema || "oficial"}: el acento es ${r.acento} y tenía que ser --c-marca (${r.marca})`);
+    if (r.oro && !mismo(r.marca, r.oro)) {
+      ok(!mismo(r.acento, r.oro),
+         `${tema || "oficial"}: el acento sigue colgando de --c-oro (${r.oro}), que es el rojo de mancha`);
+    }
+
+    const flojos = Object.entries(r).filter(([k, v]) => typeof v === "number" && v < 4.5);
+    ok(flojos.length === 0,
+       `${tema || "oficial"}: no se lee ${flojos.map(([k, v]) => `${k}=${v}`).join(", ")}`);
+    console.log(`${(tema || "oficial").padEnd(8)} acento ${r.acento.padEnd(9)} · ` +
+      ["kpi-rot", "kpi-num", "kpi-pie", "boton", "seg-on"].map((k) => `${k} ${r[k]}`).join("  "));
+  }
+}
 
 /* ---------------------------------------------------------------------
    5 · LOS CUATRO ANCHOS, Y LO QUE SE TOCA

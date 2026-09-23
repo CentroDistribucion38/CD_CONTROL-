@@ -10,14 +10,18 @@ import { Bandeja } from "../Bandeja";
 export const dynamic = "force-dynamic";
 
 /**
- * VALIDACIÓN — la tercera y última firma, la que deja salir el Vh.
+ * VALIDACIÓN — la segunda y última firma, la que deja salir el Vh.
  *
- * Solo llega lo que ya verificó otra persona. Y quien valida no puede
- * ser ninguna de las dos anteriores: son tres personas y tres momentos.
- * Lo impone salida_firmar —no esta pantalla, y ya no una restricción de
- * la tabla: una restricción no sabe QUIÉN firma y por eso no podía dejar
- * pasar al administrador—. Cuando el administrador usa esa excepción, la
- * salida queda marcada como firmada por la misma persona.
+ * ANTES ERA LA TERCERA. Se quitó Verificación —«que solo sean dos
+ * firmas, dos procesos»—, así que aquí llega lo que acaba de pesar y
+ * cerrar el supervisor (a), sin paso intermedio.
+ *
+ * LO QUE NO SE QUITÓ: quien valida no puede ser quien pesó. Son dos
+ * personas y dos momentos, y esa es la razón de ser de la cadena. Lo
+ * impone salida_firmar —no esta pantalla, y ya no una restricción de la
+ * tabla: una restricción no sabe QUIÉN firma y por eso no podía dejar
+ * pasar al administrador—. Cuando el administrador usa esa excepción,
+ * la salida queda marcada como firmada por la misma persona.
  */
 export default async function ValidacionPage() {
   const [permisos, datos, nombres] = await Promise.all([
@@ -26,9 +30,13 @@ export default async function ValidacionPage() {
 
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
+  /* LO QUE ESPERA EL AVAL: cerrada por quien pesó y sin validar. Antes
+     pedía además la firma del verificador; al quitarla, las salidas que
+     llevaban semanas trancadas esperando a nadie aparecen aquí solas.
+     La más vieja primero, que es la que lleva más tiempo parada. */
   const lista = datos.salidas
-    .filter((s) => s.estado === "cerrada" && s.verificador_en && !s.validador_en)
-    .sort((a, b) => (a.verificador_en ?? "").localeCompare(b.verificador_en ?? ""));
+    .filter((s) => s.estado === "cerrada" && s.supervisora_en && !s.validador_en)
+    .sort((a, b) => (a.supervisora_en ?? "").localeCompare(b.supervisora_en ?? ""));
 
   const kg = lista.reduce((t, s) => t + Number(s.neto_kg), 0);
 
@@ -39,8 +47,9 @@ export default async function ValidacionPage() {
           <p className="ojo">ROTURAS · SALIDA · VALIDACIÓN</p>
           <h1>Por dar salida</h1>
           <p className="sub">
-            Salidas ya verificadas, esperando el aval para que el Vh salga. Es la última
-            firma: después la salida queda cerrada y sus kilos entran al informe del mes.
+            Salidas ya pesadas y cerradas, esperando el aval para que el Vh salga. Es la
+            segunda y última firma: después la salida queda cerrada y sus kilos entran al
+            informe del mes.
           </p>
         </div>
         <div className="kpi">
