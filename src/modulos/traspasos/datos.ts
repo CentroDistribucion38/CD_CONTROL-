@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { placaClave, type Cedula } from "./formato";
+import { placaClave, type Cedula, type EnBascula } from "./formato";
 
 /**
  * LO QUE LEE EL MÓDULO DE TRASPASOS.
@@ -707,12 +707,12 @@ export const FACTURACION_DESDE = "2026-09-21";
 
 /* El tipo Cedula y placaClave viven en formato.ts: los usa también la
    bandeja, que es "use client", y este archivo es del SERVIDOR. */
-export type { Cedula } from "./formato";
+export type { Cedula, EnBascula } from "./formato";
 
 export async function bandejaFacturacion(diasSalieron = 3) {
   const supabase = await createClient();
   const desde = new Date(Date.now() - diasSalieron * 86400000).toISOString();
-  const [pend, sal, ced] = await Promise.all([
+  const [pend, sal, ced, basc] = await Promise.all([
     supabase.from("v_traspasos_viajes").select("*")
       .eq("por_facturar", true).gte("fecha", FACTURACION_DESDE)
       .order("fecha").order("turno_orden").order("hora").limit(500),
@@ -727,12 +727,21 @@ export async function bandejaFacturacion(diasSalieron = 3) {
     supabase.from("v_salidas_por_despachar")
       .select("id, cedula, placa, tolvas, neto_kg, observacion, dias_esperando")
       .order("dias_esperando", { ascending: false }).limit(300),
+    /* Y LAS QUE ESTÁN EN LA BÁSCULA, sin cerrar. No se pueden despachar
+       —el número de tolvas todavía puede cambiar— pero facturación
+       tiene que SABER que están ahí. Sin esto, o se piensa que la
+       función no sirve, o el Vh sale y el vidrio se va con el registro
+       diciendo que sigue en el patio. */
+    supabase.from("v_salidas_en_bascula")
+      .select("id, cedula, placa, tolvas, neto_kg, observacion, horas_abierta")
+      .order("horas_abierta", { ascending: false }).limit(300),
   ]);
   if (pend.error) {
     return {
       falta: /column|does not exist|schema cache/i.test(pend.error.message),
       pendientes: [] as Viaje[], salieron: [] as Viaje[],
-      cedulas: {} as Record<string, Cedula[]>, faltaCedulas: false,
+      cedulas: {} as Record<string, Cedula[]>, bascula: {} as Record<string, EnBascula[]>,
+      faltaCedulas: false,
     };
   }
 
@@ -745,11 +754,15 @@ export async function bandejaFacturacion(diasSalieron = 3) {
   for (const c of (ced.data ?? []) as Cedula[]) {
     (cedulas[placaClave(c.placa)] ??= []).push(c);
   }
+  const bascula: Record<string, EnBascula[]> = {};
+  for (const b of (basc.data ?? []) as EnBascula[]) {
+    (bascula[placaClave(b.placa)] ??= []).push(b);
+  }
 
   return {
     falta: false,
     pendientes: (pend.data ?? []) as Viaje[],
     salieron: (sal.data ?? []) as Viaje[],
-    cedulas, faltaCedulas,
+    cedulas, bascula, faltaCedulas,
   };
 }

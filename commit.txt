@@ -1,123 +1,72 @@
-Lo que no mide se ve, y el boton de instalar deja de esconderse
+Facturacion avisa cuando el vidrio del Vh sigue en la bascula
 
 =====================================================================
-1. «NO ME SALE PARA DESCARGAR»
+QUE PASABA, Y NO ERA UN ERROR — ERA UN SILENCIO
 =====================================================================
-EL FALLO, Y ES DE LOS FEOS: el boton de instalar colgaba de
-`beforeinstallprompt`, el evento con el que Chrome avisa que puede
-instalar. Si ese evento no llegaba, NO SE PINTABA NADA: ni boton, ni
-explicacion, ni motivo. La persona se queda mirando una pantalla que no
-menciona la palabra instalar y concluye que la app no se puede instalar.
+«Cree un pesaje en salida y no lo veo en traspasos: genere un viaje y me
+ sale para colocar el documento, mas no para confirmar esas tolvas.»
 
-Y ese evento no llega en un monton de casos normales:
- · Safari —iPhone, iPad y Mac— no lo tiene, y nunca lo va a tener.
- · Chrome en iPhone/iPad tampoco: en iOS todos los navegadores son
-   Safari por dentro.
- · Chrome lo dispara UNA vez por visita, y no lo repite si ya lo
-   descartaron hace poco.
- · Firefox y varios navegadores de fabrica no lo implementan.
+Una salida de vidrio nace ABIERTA y se va llenando tolva por tolva. Solo
+se vuelve cedula cuando quien peso la CIERRA con su firma: hasta ese
+momento el numero de tolvas todavia puede cambiar, asi que ofrecersela a
+facturacion seria despachar una carga a medio medir. Eso esta bien y no
+se toca.
 
-Y EL IPAD ADEMAS MIENTE. Desde iPadOS 13 dice ser un Mac en su
-identificacion, asi que buscar «ipad» en el texto da FALSO justo en el
-aparato en el que mas se usa esto en la bodega. Se distingue por otro
-lado: un Mac de verdad no reporta puntos tactiles.
+LO QUE ESTABA MAL ERA EL SILENCIO. Facturacion abria el viaje, veia solo
+el campo del documento, y no tenia forma de saber que en la bascula
+habia un pesaje a medias de ESA MISMA PLACA. Dos finales, los dos malos:
+o se piensa que la funcion no sirve —que es lo que paso—, o se le da
+salida al Vh y el vidrio se va con el mientras el registro dice que
+sigue en el patio.
 
+UN FRENO QUE NO SE VE NO ES UN FRENO: ES UNA TRAMPA.
+
+=====================================================================
 COMO QUEDA
-El boton esta SIEMPRE, mientras la app no este instalada. No pregunta si
-el navegador puede: si puede, instala de un toque; si no, explica el
-camino DE ESE NAVEGADOR, con el nombre exacto del menu que esa persona
-tiene enfrente. «Instalala desde el menu» no sirve cuando hay tres menus
-y en uno la opcion no existe.
+=====================================================================
+Una vista mas, hermana de v_salidas_por_despachar, con las salidas que
+estan ABIERTAS. La tarjeta del viaje lo dice arriba del todo, en rojo, y
+con el nombre de la salida:
 
- · iPhone y iPad en Safari .... Compartir -> Añadir a pantalla de inicio
- · iPhone y iPad en otro ...... que solo Safari puede, y como abrirla ahi
- · Android .................... tres puntos -> Instalar aplicacion
- · Computador ................. el icono al final de la barra de
-                                direcciones, o los tres puntos
- · Cualquier otro ............. el camino generico, y a que navegador ir
+  ESTE VH TIENE VIDRIO EN LA BASCULA, SIN CERRAR
+  SR-0044 · 2 tolvas pesadas · 1.625 kg · lleva 5 h abierta
+  Todavia no se puede despachar: quien peso tiene que CERRARLA en
+  Quiebra -> Salida -> Pesar. Apenas la cierre aparece aqui para
+  escogerla.
 
-Y DOS COSAS QUE FALTABAN Y NO DAN ERROR EN NINGUNA PARTE:
- · el enlace al manifiesto, escrito a mano en el layout. Sin el, el
-   navegador NUNCA ofrece instalar, y la app funciona perfecto igual;
- · el apple-touch-icon. Safari no lee los iconos del manifiesto: sin
-   este, recorta una foto de la pantalla de acceso y la deja de icono.
+TRES DECISIONES QUE VALE LA PENA DEJAR DICHAS
+
+1. VA ARRIBA DEL TODO, antes del numero de documento. Es lo unico de esa
+   tarjeta que dice «espera»: si va debajo, se lee cuando el documento
+   ya esta escrito.
+
+2. ES ROJO Y NO AMBAR. El ambar de al lado quiere decir «esto lleva
+   vidrio, resuelvelo aqui». Esto quiere decir «esto todavia no se puede
+   resolver». Dos mensajes distintos no pueden llevar el mismo color en
+   la misma tarjeta.
+
+3. AVISA, NO FRENA. Una salida abierta puede ser de un viaje que todavia
+   no existe, y trancar el patio por un pesaje que alguien dejo a medias
+   ayer cambia un problema por otro. La que SI frena es la cedula
+   cerrada sin despachar, que ya estaba puesta.
+
+Y DICE QUE HACER Y DONDE. Un letrero que solo diga «no se puede» manda a
+alguien a buscar a quien sepa; este nombra la pantalla.
 
 =====================================================================
-2. LO QUE SE MOVIO Y NO MIDE, A LA VISTA
+EL ARNES
 =====================================================================
-«Nosotros dejamos que los viajes de tolvas y estibas que no eran para
- Arenosa no contaran en el %. Pero necesitamos dejar la tarjeta para
- visualizar cuantos viajes hicieron: que no entre en el %, pero puedan
- ver cuantos viajes hicieron de eso.»   — Santiago L, Bavaria
+.arnes/fc-cedula.mjs gana una cuarta placa en el fixture: la que tiene
+el pesaje sin cerrar. Comprueba que el aviso salga, que diga cual
+salida, cuantas tolvas van, cuanto lleva abierta, QUE hay que hacer y
+DONDE; que ese pesaje NO se ofrezca como cedula ni pida contar tolvas
+—las tolvas todavia pueden cambiar—; que el boton no prometa despachar
+nada; y que el Vh sin vidrio siga sin ver nada. Mas contraste en los
+siete temas y geometria en los cinco anchos.
 
-QUE PASABA
-Los tipos que no miden salian de la vista ENTERA, y con razon: dentro,
-con «planeado 3, cumplido 0», pintaban un 0% que no era verdad. Pero
-irse de la vista es irse tambien de la pantalla. Un turno que movio
-nueve tolvas veia un tablero que no mencionaba ni una: el trabajo se
-hizo, costo horas y montacargas, y en la reunion de la mañana no
-existia. Nadie discute un porcentaje que no le cuenta lo que hizo.
-
-LA REGLA: no entra en el %. Si entra en la pantalla.
-
-Son dos preguntas distintas y por eso son DOS VISTAS distintas, no una
-columna mas en la de siempre — mezclarlas es exactamente como alguien
-termina sumando tolvas al cumplido «porque estaban ahi»:
-
-  v_traspasos_control          lo que MIDE el plan.
-  v_traspasos_fuera_del_plan   lo que se movio y NO mide.
-
-LOS DOS MOTIVOS VAN SEPARADOS Y CON NOMBRE —«No cuenta en el plan» y
-«No era de Arenosa»— y no juntos en un «otros»: son dos decisiones
-distintas del negocio y el dia que una cambie hay que poder ver cuantos
-viajes toca.
-
-LA TARJETA va debajo de las seis cifras y no entre ellas. Las seis
-cierran solas —adherencia y cumplimiento salen de ellas— y meter una
-septima que no entra en ninguna de las dos formulas rompe justo lo que
-hace que la fila se pueda rehacer a mano. Lleva el filo punteado de
-«aparte», el mismo que los viajes vacios, porque es la señal que ya
-existe en esta pantalla para decir «esto no se suma». Pero el numero va
-en tinta y no en gris: los vacios son un costo sin producto; esto es
-trabajo hecho que movio material de verdad.
-
-NO SE PINTA EN CERO, al contrario que las seis de arriba. Aquellas
-contestan una pregunta todos los dias —«adicionales: 0» ES la
-respuesta—; esta no. Un renglon que casi siempre dice «0 viajes que no
-miden» deja de leerse, y el dia que diga nueve tampoco se va a leer.
-
-=====================================================================
-3. LOS ARNESES
-=====================================================================
-.arnes/app-instalar.mjs monta el componente con la identificacion de
-CINCO aparatos —iPhone, iPad disfrazado de Mac, Chrome en iOS, Android y
-computador— y mide que en los cinco salga el boton y que cada uno reciba
-los pasos de SU navegador, no los de otro. Probarlo a mano pedia tener
-los cinco aparatos, y volver a tenerlos cada vez que alguien toque el
-archivo. Comprueba ademas las cinco cosas sin las cuales el navegador no
-puede instalar y que no dan error en ninguna parte.
-
-.arnes/correr-lo-que-no-mide.sh comprueba contra Postgres lo que de
-verdad puede romperse al sacar algo de un porcentaje y a la vez
-mostrarlo: que lo que no mide SIGA sin contar, que ya se vea, que las
-estibas SI de Arenosa cuenten y no salgan en la tarjeta, y —la que vale
-por todas— que NINGUN viaje este en las dos vistas y que entre las dos
-esten TODOS. Un viaje que se cae de las dos no da error: deja de
-existir. La migracion lleva esa misma cuenta adentro.
-
-TRES COSAS QUE LOS ARNESES CAZARON EN ESTE MISMO CAMBIO, y las tres eran
-del arnes y no del codigo — que es justo lo que hay que dejar escrito
-para no volver a perder la media hora:
- · `addInitScript` no siempre llega antes que el paquete con
-   `setContent`: el disfraz del iPad no se aplicaba y la prueba decia
-   que el iPad es un computador. El disfraz se mudo a la propia pagina.
- · buscar «Compartir» a secas daba falla en el computador, porque Chrome
-   tiene un menu «Guardar y compartir» de verdad.
- · buscar «pantalla de inicio» daba falla en Android, donde Chrome llama
-   asi a la opcion en algunas versiones.
- · y una cuarta, de la prueba SQL: unir la vista con los viajes por
-   fecha/turno/tipo pega los DOS viajes de estibas, asi que la
-   comprobacion decia que si siempre.
+La migracion lleva su propia cuenta adentro: NINGUNA salida puede estar
+a la vez en la vista de la bascula y en la de las listas para despachar.
+Si lo estuviera, la tarjeta la ofreceria y la avisaria al mismo tiempo.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

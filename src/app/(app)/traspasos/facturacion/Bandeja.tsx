@@ -28,7 +28,7 @@ import type { Viaje } from "@/modulos/traspasos/datos";
 /* placaClave y Cedula salen de formato.ts y NO de datos.ts: datos.ts es
    del servidor —pide next/headers— y esta pantalla es "use client".
    Importar de allá se arrastra el módulo del servidor al navegador. */
-import { quien, placaClave, type Cedula } from "@/modulos/traspasos/formato";
+import { quien, placaClave, type Cedula, type EnBascula } from "@/modulos/traspasos/formato";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const dia = (f: string) =>
@@ -46,13 +46,17 @@ const coincide = (v: Viaje, q: string) => {
     .some((x) => (x ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase().includes(n));
 };
 
-export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, faltaCedulas = false,
+export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula = {},
+                         faltaCedulas = false,
                          puedeConfirmar, puedeReabrir, puedeDepurar = false }: {
   pendientes: Viaje[];
   salieron: Viaje[];
   nombres: Record<string, string>;
   /** Las cédulas de vidrio sin despachar, agrupadas por placa normalizada. */
   cedulas?: Record<string, Cedula[]>;
+  /** Las salidas de vidrio que siguen ABIERTAS en la báscula, por placa.
+   *  No se pueden despachar, pero hay que decir que están ahí. */
+  bascula?: Record<string, EnBascula[]>;
   /** La migración del vidrio todavía no se ha corrido en esta base. */
   faltaCedulas?: boolean;
   puedeConfirmar: boolean;
@@ -133,6 +137,7 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, faltaCedu
         ) : pend.map((v) => (
           <Pendiente key={v.id} v={v} nombres={nombres} puede={puedeConfirmar}
                      cedulas={cedulas[placaClave(v.placa)] ?? []}
+                     bascula={bascula[placaClave(v.placa)] ?? []}
                      depurar={puedeDepurar ? { marcado: sel.has(v.id), marcar: () => marcar(v.id) } : null}
                      listo={(m) => avisar.bien(m)} fallo={(m) => avisar.mal(m)} />
         ))}
@@ -161,12 +166,14 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, faltaCedu
 /* =====================================================================
    UN VIAJE ESPERANDO SU NÚMERO
    ===================================================================== */
-function Pendiente({ v, nombres, puede, cedulas, depurar, listo, fallo }: {
+function Pendiente({ v, nombres, puede, cedulas, bascula, depurar, listo, fallo }: {
   v: Viaje;
   depurar: { marcado: boolean; marcar: () => void } | null;
   nombres: Record<string, string>;
   /** Las cédulas de vidrio sin despachar de ESTA placa. Casi siempre vacío. */
   cedulas: Cedula[];
+  /** Lo que esta placa tiene en la báscula, sin cerrar. */
+  bascula: EnBascula[];
   puede: boolean;
   listo: (m: string) => void;
   fallo: (m: string) => void;
@@ -184,6 +191,11 @@ function Pendiente({ v, nombres, puede, cedulas, depurar, listo, fallo }: {
      a abrir un desplegable de un solo renglón es hacer tocar dos veces
      para decir lo único que se podía decir. */
   const hayVidrio = cedulas.length > 0;
+  /* EN LA BÁSCULA. No es una cédula todavía —el número de tolvas puede
+     cambiar hasta que quien pesó cierre— pero facturación tiene que
+     saber que está ahí. Se pinta aunque también haya cédulas listas:
+     son cosas distintas y puede haber las dos a la vez. */
+  const enBascula = bascula.length > 0;
   const [cedulaId, setCedulaId] = useState<string>(cedulas.length === 1 ? cedulas[0].id : "");
   const [tolvas, setTolvas] = useState("");
   const ced = cedulas.find((c) => c.id === cedulaId) ?? null;
@@ -248,7 +260,7 @@ function Pendiente({ v, nombres, puede, cedulas, depurar, listo, fallo }: {
       </div>
 
       {puede && (
-        <form className={"fc-confirmar" + (hayVidrio ? " con-vidrio" : "")}
+        <form className={"fc-confirmar" + (hayVidrio || enBascula ? " con-vidrio" : "")}
               onSubmit={(e) => { e.preventDefault(); confirmar() }}>
 
           {/* EL VIDRIO VA ANTES DEL NÚMERO, y no es un detalle de
@@ -257,6 +269,29 @@ function Pendiente({ v, nombres, puede, cedulas, depurar, listo, fallo }: {
               documento y sale. Con el número arriba, el campo que ya se
               sabe llenar se llena primero y el del camión se toca de
               afán. */}
+          {/* LO QUE ESTÁ EN LA BÁSCULA, ANTES QUE TODO. Es lo único de
+              esta tarjeta que dice «espera»: si va debajo del número, se
+              lee cuando el documento ya está escrito. */}
+          {enBascula && (
+            <div className="fc-bascula">
+              <p className="fc-bascula-ojo">ESTE VH TIENE VIDRIO EN LA BÁSCULA, SIN CERRAR</p>
+              <ul>
+                {bascula.map((b) => (
+                  <li key={b.id}>
+                    <b>{b.cedula}</b>
+                    <span>{b.tolvas} tolva{b.tolvas === 1 ? "" : "s"} pesada
+                      {b.tolvas === 1 ? "" : "s"} · {nf.format(b.neto_kg)} kg</span>
+                    {b.horas_abierta >= 2 && <em>lleva {b.horas_abierta} h abierta</em>}
+                  </li>
+                ))}
+              </ul>
+              <p className="fc-bascula-que">
+                Todavía no se puede despachar: quien pesó tiene que <b>cerrarla</b> en
+                Quiebra → Salida → Pesar. Apenas la cierre aparece aquí para escogerla.
+              </p>
+            </div>
+          )}
+
           {hayVidrio && (
             <div className="fc-vidrio">
               <p className="fc-vidrio-ojo">

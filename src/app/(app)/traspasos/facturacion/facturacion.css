@@ -154,6 +154,42 @@
 .fc-cuadra.no { color: #A30D25; font-weight: 700 }
 .fc-obs { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--tp-gris) }
 
+/* ---------------------------------------------------------------------
+   EL VIDRIO QUE SIGUE EN LA BÁSCULA
+
+   No es una cédula: es un pesaje a medias de esta misma placa. Va
+   ARRIBA DEL TODO y con el filo rojo, porque es lo único de esta
+   tarjeta que dice «espera» — y si se lee después de escribir el
+   documento, se lee tarde.
+
+   ROJO Y NO ÁMBAR: el ámbar de al lado quiere decir «esto lleva vidrio,
+   resuélvelo aquí». Esto quiere decir «esto todavía no se puede
+   resolver». Dos mensajes distintos no pueden llevar el mismo color en
+   la misma tarjeta.
+   --------------------------------------------------------------------- */
+.fc-bascula {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 14px; border-radius: 9px;
+  border: 1.5px solid #A30D25; border-left-width: 4px; background: #FDECEE;
+}
+.fc-bascula-ojo {
+  margin: 0; font-size: 10px; font-weight: 800; letter-spacing: .14em; color: #7A0A1B;
+  overflow-wrap: anywhere;
+}
+.fc-bascula ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px }
+.fc-bascula li {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0;
+  font-size: 13px; color: #5E1018;
+}
+.fc-bascula li b {
+  font: 900 18px var(--tp-titulo); color: #12263A; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}
+.fc-bascula li em { font-style: normal; font-size: 12px; font-weight: 700; color: #A30D25 }
+.fc-bascula-que { margin: 0; font-size: 12.5px; line-height: 1.5; color: #5E1018 }
+.fc-bascula-que b { color: #12263A }
+
 .fc-falta-vidrio {
   margin: 0; padding: 10px 14px; border: 1px dashed #C08A16; border-radius: 9px;
   background: #FFF9EC; color: #5E4100; font-size: 13px; line-height: 1.5;

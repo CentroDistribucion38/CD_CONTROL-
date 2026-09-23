@@ -172,6 +172,29 @@ export type Cedula = {
 };
 
 /**
+ * UNA SALIDA DE VIDRIO QUE TODAVÍA ESTÁ EN LA BÁSCULA.
+ *
+ * Nace abierta y se llena tolva por tolva; solo es cédula cuando quien
+ * pesó la CIERRA. Hasta entonces el número de tolvas puede cambiar, así
+ * que ofrecérsela a facturación sería despachar una carga a medio
+ * medir.
+ *
+ * PERO SE AVISA. Facturación tiene que saber que en la báscula hay un
+ * pesaje a medias de esa misma placa: si no, o piensa que la función no
+ * sirve, o le da salida al Vh y el vidrio se va con el registro
+ * diciendo que sigue en el patio. Un freno que no se ve es una trampa.
+ */
+export type EnBascula = {
+  id: string;
+  cedula: string;
+  placa: string;
+  tolvas: number;
+  neto_kg: number;
+  observacion: string | null;
+  horas_abierta: number;
+};
+
+/**
  * LA PLACA, SIN ESPACIOS NI GUIONES: "abc 123", "ABC-123" y "abc123"
  * son el mismo Vh. Es el mismo criterio con el que la base la guarda.
  *

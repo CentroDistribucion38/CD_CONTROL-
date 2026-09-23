@@ -108,7 +108,8 @@ await monta(1200);
 /* La tarjeta de cada placa, por el orden en que se pintaron. */
 const T = { sin: ".fc-lista > .fc-viaje:nth-child(1)",
             una: ".fc-lista > .fc-viaje:nth-child(2)",
-            dos: ".fc-lista > .fc-viaje:nth-child(3)" };
+            dos: ".fc-lista > .fc-viaje:nth-child(3)",
+            bas: ".fc-lista > .fc-viaje:nth-child(4)" };
 
 const r1 = await pg.evaluate((T) => {
   const q = (s) => document.querySelector(s);
@@ -173,6 +174,59 @@ ok(r1.botones[0].t === "Confirmar salida",
 ok(/despachar/i.test(r1.botones[1].t),
    `con vidrio el botón no dice que también despacha: «${r1.botones[1].t}»`);
 ok(r1.botones.every((b) => b.off), "se puede confirmar antes de llenar nada");
+
+/* ---------------------------------------------------------------------
+   1d · EL VIDRIO QUE SIGUE EN LA BÁSCULA
+
+   «Creé un pesaje en salida y no lo veo en traspasos: me sale para
+    colocar el documento, mas no para confirmar esas tolvas.»
+
+   Una salida nace ABIERTA y solo es cédula cuando quien pesó la cierra.
+   Hasta entonces no se puede ofrecer —el número de tolvas todavía puede
+   cambiar— y eso está bien. LO QUE ESTABA MAL ERA EL SILENCIO: la
+   tarjeta no mencionaba que en la báscula había un pesaje a medias de
+   esa misma placa. O se piensa que la función no sirve, o el Vh sale y
+   el vidrio se va con él.
+
+   UN FRENO QUE NO SE VE NO ES UN FRENO: ES UNA TRAMPA. Y esto no se ve
+   en una captura: una tarjeta con el aviso y una sin él se distinguen,
+   sí, pero solo si alguien se acuerda de montar el caso. Por eso está
+   en el fixture.
+   ------------------------------------------------------------------ */
+{
+  const b = await pg.evaluate((T) => {
+    const q = (s) => document.querySelector(s);
+    const txt = (s) => (q(s)?.textContent ?? "").replace(/\s+/g, " ").trim();
+    return {
+      avisa: !!q(T.bas + " .fc-bascula"),
+      dice: txt(T.bas + " .fc-bascula"),
+      /* NO SE OFRECE COMO CÉDULA: no hay desplegable ni contador de
+         tolvas, porque todavía no hay nada firme que contar. */
+      sinCedula: !q(T.bas + " .fc-vidrio"),
+      sinContar: !q(T.bas + " .fc-cuenta"),
+      /* Y EL BOTÓN NO FRENA. Se avisa, no se traba: una salida abierta
+         puede ser de un viaje que todavía no existe, y trancar el patio
+         por un pesaje que alguien dejó a medias ayer cambia un problema
+         por otro. La que SÍ frena es la cédula cerrada sin despachar. */
+      boton: q(T.bas + " button[type=submit]")?.textContent.trim(),
+      off: q(T.bas + " button[type=submit]")?.disabled,
+      /* Y EL VH SIN NADA SIGUE SIN VER NADA. */
+      limpioSinAviso: !q(T.sin + " .fc-bascula"),
+    };
+  }, T);
+
+  ok(b.avisa, "un Vh con el pesaje SIN CERRAR no recibe ningún aviso: es el silencio que hacía pensar que la función no servía");
+  ok(/SR-0044/.test(b.dice), `el aviso no dice cuál salida es: «${b.dice.slice(0, 80)}»`);
+  ok(/2 tolvas/.test(b.dice), `el aviso no dice cuántas tolvas van pesadas: «${b.dice.slice(0, 80)}»`);
+  ok(/cerrarla/i.test(b.dice), "el aviso no dice QUÉ HAY QUE HACER: sin eso es un letrero de «no se puede» y ya");
+  ok(/Pesar/.test(b.dice), "el aviso no dice DÓNDE se cierra");
+  ok(/5 h/.test(b.dice), `el aviso no dice cuánto lleva abierta: «${b.dice.slice(0, 120)}»`);
+  ok(b.sinCedula, "un pesaje sin cerrar se está ofreciendo como cédula: las tolvas todavía pueden cambiar");
+  ok(b.sinContar, "un pesaje sin cerrar ya pide contar las tolvas");
+  ok(b.boton === "Confirmar salida",
+     `con el vidrio en la báscula el botón dice «${b.boton}» y no debería prometer despachar nada`);
+  ok(b.limpioSinAviso, "un Vh sin vidrio recibe el aviso de la báscula");
+}
 
 /* ======================= 2 · EL FRENO, TOCÁNDOLO ======================= */
 /* Aquí es donde un arnés que solo mire el marcado se queda corto: el
@@ -274,6 +328,9 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
       "¿cuántas lleva el Vh?": par(T.una + " .fc-cuenta label span"),
       "lo que se cuenta": par(T.una + " .fc-cuenta input"),
       "el desplegable": par(T.dos + " select"),
+      "el aviso de la báscula": par(T.bas + " .fc-bascula-ojo"),
+      "qué hay que hacer con la báscula": par(T.bas + " .fc-bascula-que"),
+      "la salida de la báscula": par(T.bas + " .fc-bascula li b"),
     };
   }, T);
   for (const [k, v] of Object.entries(m)) {
@@ -305,7 +362,7 @@ for (const [ancho, nombre] of [[1440, "pc"], [1024, "tablet apaisada"], [820, "t
     const rg = document.createRange(); rg.selectNodeContents(b);
     return {
       lado: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      fuera: [...document.querySelectorAll(".fc-vidrio, .fc-cuenta input, .fc-viaje select, .fc-viaje button[type=submit]")]
+      fuera: [...document.querySelectorAll(".fc-vidrio, .fc-bascula, .fc-cuenta input, .fc-viaje select, .fc-viaje button[type=submit]")]
                .filter((e) => { const r = e.getBoundingClientRect();
                                 return r.right > innerWidth + 0.5 || r.left < -0.5 }).length,
       marco: marco?.width ?? 0,
@@ -348,4 +405,4 @@ await nav.close();
 console.log("");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
 console.log("✓ La cédula: el Vh sin vidrio no ve nada, con una viene escogida, con varias hay desplegable con sus tolvas y sus kilos, " +
-            "las tolvas descuadradas NO dejan mandar la salida, y el paquete lleva la cédula y lo contado. En los siete temas y en los cinco anchos.");
+            "las tolvas descuadradas NO dejan mandar la salida, y el pesaje SIN CERRAR se avisa con qué hacer y dónde, y el paquete lleva la cédula y lo contado. En los siete temas y en los cinco anchos.");

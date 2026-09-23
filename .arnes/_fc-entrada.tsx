@@ -28,13 +28,22 @@ const ced = (id: string, cedula: string, placa: string, tolvas: number, dias = 0
    Y LA PLACA DE «UNA11» VIENE ESCRITA DISTINTO EN LOS DOS LADOS —«UNA
    11» en la cédula, «UNA-11» en el viaje— a propósito: si el agrupado
    no normaliza, ese Vh sale sin su vidrio y nadie se entera. */
+/* Y UNA CUARTA PLACA: la que tiene el vidrio TODAVÍA EN LA BÁSCULA.
+   «Creé un pesaje en salida y no lo veo en traspasos.» Es el caso en
+   que la pantalla se quedaba muda: no hay cédula porque el pesaje no se
+   ha cerrado, y sin aviso parece que la función no sirve. */
+const bascula = (id: string, cedula: string, placa: string, tolvas: number, horas = 0) =>
+  ({ id, cedula, placa, tolvas, neto_kg: tolvas * 812.3, observacion: null, horas_abierta: horas });
+
 createRoot(document.getElementById("r")!).render(
   <Bandeja
-    pendientes={[viaje("1", "SIN01"), viaje("2", "UNA-11"), viaje("3", "DOS22")]}
+    pendientes={[viaje("1", "SIN01"), viaje("2", "UNA-11"), viaje("3", "DOS22"),
+                 viaje("4", "BAS44")]}
     salieron={[]}
     nombres={{ u1: "Santiago Leal" }}
     cedulas={{
       UNA11: [ced("c1", "SR-0041", "UNA 11", 4, 3)],
       DOS22: [ced("c2", "SR-0042", "DOS22", 2), ced("c3", "SR-0043", "DOS22", 5, 9)],
     }}
+    bascula={{ BAS44: [bascula("b1", "SR-0044", "BAS44", 2, 5)] }}
     puedeConfirmar puedeReabrir={false} />);
