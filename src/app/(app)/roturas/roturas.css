@@ -588,8 +588,9 @@
    el ancho ya es el del teléfono.
    ===================================================================== */
 .rt-rep {
-  background: var(--rt-papel, #F1F1F1);
-  border: 1px solid var(--c-d5dce5);
+  background: var(--rt-papel);
+  border: 1px solid var(--rt-linea);
+  border-radius: 3px;
   margin: 0 0 18px;
   display: flex; flex-direction: column;
   /* ANCHO COMPLETO, como las cifras y la lista.
@@ -634,48 +635,49 @@
   .rt-rep .dos-col { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .rt-rep .dos-col > .col > *:first-child { margin-top: 0 }
 }
-.rt-rep .barra {
-  background: var(--rt-negro); color: #fff; padding: 16px 20px;
-  display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 4px solid var(--rt-oro); flex: 0 0 auto;
+/* LA CABECERA DEL PANEL, la misma de «Viaje nuevo» en Traspasos.
+
+   Antes era una barra negra con un aspa a la derecha: lenguaje de
+   ventana —algo que se abrió encima y hay que cerrar—. Esto ya no es
+   una ventana, es la pantalla, así que lleva cabecera de panel: el
+   título, una línea que dice en qué paso va, y una raya abajo. Se sale
+   por Cancelar, con el resto de las decisiones. */
+.rt-rep > .cab { padding: 18px 22px 15px; border-bottom: 1px solid var(--rt-linea) }
+.rt-rep > .cab h2 {
+  font-family: var(--rt-titulo); font-weight: 800; font-size: 19px; margin: 0;
+  color: var(--rt-tinta);
 }
-.rt-rep .barra .t { font-family: var(--rt-titulo); font-weight: 800; font-size: 15px; letter-spacing: .22em }
-/* 44 Y NO 40. Es el ✕ de cerrar, y es lo que se toca con el guante
-   puesto al lado del vidrio. Cuarenta píxeles se aciertan sentado; de
-   pie y con prisa, no. Lo cazó el arnés midiéndolo, no el ojo. */
-.rt-rep .barra button {
-  background: transparent; border: 0; color: rgba(255,255,255,.7); font-size: 24px; line-height: 1;
-  cursor: pointer; padding: 4px 8px; min-height: 44px; min-width: 44px;
-}
+.rt-rep > .cab p { margin: 5px 0 0; font-size: 13px; color: var(--rt-gris) }
 /* Cuatro tramos y se llenan de a dos por paso: el asistente tiene dos
    pantallas, pero la barra avanza a la mitad cuando uno termina la
    primera mitad de la primera. Un solo tramo por paso da la sensación
    de que no se ha movido nada. */
-.rt-rep .pasos { display: flex; gap: 8px; padding: 18px 20px 0; flex: 0 0 auto }
+.rt-rep .pasos { display: flex; gap: 8px; padding: 14px 22px 0; flex: 0 0 auto }
 .rt-rep .pasos i { height: 4px; background: var(--c-d5dce5); flex: 1 1 0 }
 .rt-rep .pasos i.on { background: var(--rt-oro) }
 
 /* El cuerpo ya no desplaza por su cuenta: la página lo hace. */
-.rt-rep .cuerpo { padding: 16px 20px 24px }
-/* EL TÍTULO BAJA DE TAMAÑO. A pantalla completa `6.5vw` daba 34 px y se
-   veía bien; dentro de una tarjeta de 760 px, ese mismo 6.5vw en un
-   monitor grande seguía dando 34 px sobre un bloque tres veces más
-   angosto, y el formulario entero parecía un cartel. */
-.rt-rep h2 {
-  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(22px, 3.4vw, 27px);
+.rt-rep .cuerpo { padding: 14px 22px 22px }
+/* El h2 del CUERPO —el de «Quedó registrada»— ya no existe: el título
+   del panel vive en la cabecera. Esta regla se queda para cualquier h2
+   que alguien meta dentro del cuerpo, y deliberadamente NO es un
+   cartel: dentro de un panel el titular manda es el de arriba. */
+.rt-rep .cuerpo h2 {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(20px, 2.6vw, 23px);
   letter-spacing: -.04em; margin: 12px 0 0; text-wrap: balance;
 }
 .rt-rep .guia { margin: 14px 0 0; font-size: 14px; line-height: 1.55; color: var(--rt-gris) }
 
 .rt-rep .pie {
   flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1.25fr; gap: 12px;
-  padding: 14px 20px; background: #fff; border-top: 1px solid var(--rt-linea);
+  padding: 14px 22px; background: var(--c-eef1f5); border-top: 1px solid var(--rt-linea);
 }
 .rt-rep .pie button {
   font: inherit; font-family: var(--rt-titulo); font-weight: 800; font-size: 16px;
-  min-height: 54px; border: 0; background: var(--c-eef1f5); color: var(--rt-tinta); cursor: pointer;
+  min-height: 54px; border: 1px solid var(--rt-linea); background: var(--rt-papel);
+  color: var(--rt-tinta); cursor: pointer;
 }
-.rt-rep .pie button.si { background: var(--rt-oro); color: var(--rt-sobre-oro) }
+.rt-rep .pie button.si { background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro) }
 .rt-rep .pie button:disabled { opacity: .45; cursor: not-allowed }
 
 .rt-rep .rotulo {
@@ -855,7 +857,9 @@
    roba doce píxeles de formulario. */
 @media (max-width: 760px) {
   .rt-rep { border-left: 0; border-right: 0; margin-bottom: 14px }
-  .rt-rep .cuerpo { padding: 14px 16px 20px }
+  .rt-rep > .cab { padding: 16px 16px 13px }
+  .rt-rep .pasos { padding: 12px 16px 0 }
+  .rt-rep .cuerpo { padding: 12px 16px 18px }
   .rt-rep .pie { padding: 12px 16px }
 }
 

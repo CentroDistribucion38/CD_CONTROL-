@@ -171,6 +171,16 @@ for (const [sel, que] of [
      `registrando todavía sale ${que}: el registro tiene que ser el formulario y nada más`);
 }
 
+/* ES UN PANEL, NO UNA VENTANA: no lleva barra negra ni aspa de cerrar.
+   «Separemos este registro de seleccionar la X: debe ser un panel como
+   el modulo de registro de Traspasos.» */
+ok((await pg.$$(".rt-rep .barra")).length === 0,
+   "el formulario sigue con la barra negra de ventana");
+ok((await pg.$$eval(".rt-rep button", (b) => b.filter((x) => /✕|×/.test(x.textContent)).length)) === 0,
+   "el formulario sigue con el aspa de cerrar: se sale por Cancelar");
+ok(await pg.isVisible(".rt-rep > .cab h2"),
+   "el panel no tiene la cabecera con titulo, como «Viaje nuevo» en Traspasos");
+
 /* Y CANCELAR DEVUELVE LA PANTALLA DE CONSULTA, con todo lo que se
    quitó. No se pierde nada: se separa. */
 await pg.click(".rt-rep .pie button:has-text('Cancelar')");

@@ -118,6 +118,19 @@ maximo; en el celular se suelta a todo el ancho. El «+» se esconde
 mientras esta abierto —le tapaba una causa— y el boton dice QUE FALTA
 en vez de quedarse apagado y mudo: «Falta el area», «Falta la causa».
 
+UN PANEL, NO UNA VENTANA
+«Separemos este registro de seleccionar la X: debe ser un panel como el
+modulo de registro de Traspasos, guiate asi.»
+Se va la barra negra con el aspa. Era lenguaje de ventana —algo que se
+abrio encima y hay que cerrar— y esto ya no es eso: es la pantalla. Y
+eran ademas dos puertas para lo mismo, cada una en una punta: un aspa
+arriba y un Cancelar abajo.
+Ahora lleva la misma cabecera que «Viaje nuevo» en Traspasos —titulo y
+una linea de contexto, con su raya abajo— sobre fondo de papel y con el
+borde del panel. La linea dice ademas en que paso va: «Paso 1 de 2 ·
+Que material y cuantas unidades». Se sale por Cancelar, abajo, donde
+estan las demas decisiones.
+
 REGISTRAR ES UN SOLO MODULO: EL FORMULARIO Y NADA MAS
 «El registro debe ser un solo modulo, no puede haber mas cosas.»
 El formulario salia arriba y DEBAJO seguia todo: el titular, el

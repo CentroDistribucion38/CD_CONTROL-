@@ -225,13 +225,12 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
 
   if (listo !== null) {
     return (
-      <div className="rt-rep">
-        <div className="barra">
-          <span className="t">REGISTRADA</span>
-          <button type="button" onClick={cerrar} aria-label="Cerrar">✕</button>
+      <section className="rt-rep">
+        <div className="cab">
+          <h2>Quedó registrada</h2>
+          <p>Ya está en la bandeja de ABI. Se puede registrar otra sin salir de aquí.</p>
         </div>
         <div className="cuerpo">
-          <h2>Quedó registrada</h2>
           <p className="guia">
             <b>{listo}</b> — {esPT ? mat?.nombre
                                    : `Envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()}`}.
@@ -251,18 +250,32 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           </button>
         </div>
         <div className="pie">
-          <button type="button" onClick={cerrar}>Cerrar</button>
+          <button type="button" onClick={cerrar}>Ver lo registrado</button>
           <button type="button" className="si" onClick={cerrar}>Listo</button>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="rt-rep" role="dialog" aria-modal="true" aria-label="Registrar una rotura">
-      <div className="barra">
-        <span className="t">ROTURA EN SITIO</span>
-        <button type="button" onClick={cerrar} aria-label="Cerrar">✕</button>
+    /* UN PANEL, NO UNA VENTANA.
+
+       «Separemos este registro de seleccionar la X: debe ser un panel
+       como el módulo de registro de Traspasos.» La barra negra con el
+       aspa era lenguaje de ventana —algo que se abrió encima y hay que
+       cerrar—, y esto ya no es eso: es la pantalla. Así que lleva la
+       misma cabecera que «Viaje nuevo» en Traspasos —título y una
+       línea— y se sale por Cancelar, abajo, donde están las decisiones.
+       Un aspa arriba y un Cancelar abajo eran además dos puertas para
+       lo mismo, cada una en una punta. */
+    <section className="rt-rep" aria-label="Registrar una rotura">
+      <div className="cab">
+        <h2>{paso === 1 ? "¿Qué se rompió?" : "¿De dónde salió?"}</h2>
+        <p>
+          {paso === 1
+            ? "Paso 1 de 2 · Qué material y cuántas unidades. En sitio siempre se cuenta en unidades."
+            : "Paso 2 de 2 · De qué proceso salió, en qué área pasó y por qué."}
+        </p>
       </div>
       {/* Cuatro tramos que se llenan de a dos. Un tramo por paso, con dos
           pasos, deja la barra en la mitad todo el tiempo y no se siente
@@ -274,7 +287,6 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
       <div className="cuerpo">
         {paso === 1 ? (
           <>
-            <h2>¿Qué se rompió?</h2>
 
             {/* DOS COLUMNAS EN EL COMPUTADOR: a la izquierda QUÉ es —el
                 tipo, el color, el material—; a la derecha CUÁNTO —los
@@ -392,8 +404,6 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           </>
         ) : (
           <>
-            <h2>¿De dónde salió?</h2>
-
             {/* Izquierda: DE DÓNDE —proceso, área y causa—. Derecha: LA
                 PRUEBA —la foto y lo que pasó—. La foto es una caja
                 grande: al lado de las causas llena el ancho que en una
@@ -543,6 +553,6 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
             : exigeFoto && !foto ? "Falta la foto" : "Enviar a ABI"}
         </button>
       </div>
-    </div>
+    </section>
   );
 }
