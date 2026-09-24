@@ -127,6 +127,12 @@
   color: var(--rt-gris); max-width: 68ch;
 }
 
+/* LA COLUMNA DERECHA DE LA CABECERA: el botón del informe encima del
+   KPI. Existe para que `.cabeza` siga teniendo DOS hijos — ver la nota
+   en la pantalla. */
+.rt .cabeza-der { display: flex; flex-direction: column; align-items: stretch; gap: 12px }
+@media (max-width: 720px) { .rt .cabeza-der { align-items: stretch } }
+
 /* EL KPI DORADO. Cuadrado, sin esquinas redondeadas y con la cuña
    diagonal más oscura a la derecha: es la firma visual del módulo y lo
    que hace que una cifra de operación no se lea como una tarjeta más. */

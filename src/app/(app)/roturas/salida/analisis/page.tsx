@@ -215,12 +215,20 @@ export default async function AnalisisSalidaPage({ searchParams }: {
             )}
           </p>
         </div>
+        {/* EL BOTÓN Y EL KPI VAN EN LA MISMA COLUMNA, envueltos.
+            `.cabeza` es una rejilla de DOS columnas; sueltos eran tres
+            hijos, el tercero se iba al renglón de abajo Y A LA COLUMNA
+            ANCHA: la barra dorada salía estirada de lado a lado con la
+            cuña cortada —«la barra ámbar está mocha»—. No daba error de
+            nada. */}
+        <div className="cabeza-der">
         <BotonInforme datos={datosInforme} />
         <div className="kpi">
           <span className="corte" aria-hidden />
           <div className="rot">NETO DESPACHADO</div>
           <div className="num">{kilos(kg)}<span className="u">kg</span></div>
           <div className="pie">{completas.length} salida{completas.length === 1 ? "" : "s"} completas</div>
+        </div>
         </div>
       </section>
 

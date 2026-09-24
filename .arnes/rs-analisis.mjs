@@ -495,6 +495,76 @@ const abrir = async (rotulo) => {
   ok(d.seDesliza, "con veinte placas la lista no se desliza: se estira y tapa la pantalla");
 }
 
+/* ============ 3g · LA CABECERA NO DEJA LA BARRA DORADA «MOCHA» ========
+   `.cabeza` es una rejilla de DOS columnas. Al meterle el botón del
+   informe quedaron TRES hijos: el tercero se fue al renglón de abajo y
+   a la columna ancha, y la barra dorada salió estirada de lado a lado
+   con la cuña diagonal cortada. No dio error de nada, no rompió ningún
+   margen, y solo se vio abriendo la pantalla.
+
+   SE MIDE EL ANCHO DE LA BARRA CONTRA EL DE LA CABECERA: estirada pasa
+   del 90 %, bien puesta se queda en su columna. */
+{
+  writeFileSync(R(".arnes/_rs-cab.tsx"), `
+import { createRoot } from "react-dom/client";
+createRoot(document.getElementById("r")!).render(
+  <div className="rt">
+    <section className="cabeza">
+      <div>
+        <p className="ojo">ROTURAS · SALIDA · ANÁLISIS</p>
+        <h1>Cuánto vidrio salió</h1>
+        <p className="sub">Kilos netos de lo que ya salió por la puerta.</p>
+      </div>
+      <div className="cabeza-der">
+        <div className="inf-bajar"><button className="inf-bt">Informe PDF</button></div>
+        <div className="kpi">
+          <span className="corte" />
+          <div className="rot">NETO DESPACHADO</div>
+          <div className="num">189<span className="u">kg</span></div>
+          <div className="pie">1 salida completa</div>
+        </div>
+      </div>
+    </section>
+  </div>);
+`);
+  const js3 = buildSync({
+    entryPoints: [R(".arnes/_rs-cab.tsx")], bundle: true, write: false,
+    format: "iife", jsx: "automatic",
+    alias: { "next/navigation": R(".arnes/_nav-rs.ts"), "@": R("src") },
+    define: { "process.env.NODE_ENV": '"production"' },
+    banner: { js: "window.process = window.process || { env: {} };" },
+    logLevel: "silent",
+  }).outputFiles[0].text;
+  for (const ancho of [1440, 1024, 390]) {
+    await pg.setViewportSize({ width: ancho, height: 700 });
+    await pg.setContent(`<!doctype html><html><head><meta charset="utf-8">
+      <style>${PREFLIGHT}${glob}${shell}${css} html,body{margin:0}</style></head>
+      <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main">
+      <div id="r"></div></main></div></div><script>${js3}</script></body></html>`);
+    await pg.waitForSelector(".rt .kpi");
+    const g = await pg.evaluate(() => {
+      const cab = document.querySelector(".rt .cabeza").getBoundingClientRect();
+      const kpi = document.querySelector(".rt .kpi").getBoundingClientRect();
+      const corte = document.querySelector(".rt .kpi .corte")?.getBoundingClientRect();
+      return {
+        hijos: document.querySelector(".rt .cabeza").children.length,
+        pct: Math.round(100 * kpi.width / cab.width),
+        /* LA CUÑA DIAGONAL TIENE QUE QUEDAR DENTRO de la barra: es la
+           firma visual del módulo, y cortada se ve como un error. */
+        corteDentro: !corte || corte.left >= kpi.left - 1,
+        mismaFila: Math.abs(kpi.top - cab.top) < cab.height,
+      };
+    });
+    ok(g.hijos === 2,
+       `${ancho}: la cabecera tiene ${g.hijos} hijos y la rejilla es de dos columnas`);
+    if (ancho > 720) {
+      ok(g.pct <= 60,
+         `${ancho}: la barra dorada ocupa el ${g.pct}% de la cabecera: quedó estirada y mocha`);
+    }
+    ok(g.corteDentro, `${ancho}: la cuña diagonal de la barra quedó cortada`);
+  }
+}
+
 /* ======================= 4 · QUE SE LEA, EN LOS SIETE TEMAS ============ */
 /* CON UN FILTRO PUESTO, a propósito: el chip encendido y «Limpiar» solo
    existen cuando hay algo puesto, y son justo los dos que cambian de

@@ -1,129 +1,81 @@
-Filtros de una linea con calendario flotante, e informe PDF de la salida
+El informe de salida usa el diseno de la hoja de rotura de linea
 
 =====================================================================
-LOS FILTROS, COMO EL BOCETO
+LO QUE SE PIDIO
 =====================================================================
-«Que los filtros sean asi, mejor el calendario flotante asi.»
+«El exportable en PDF va bien, pero que tenga el mismo diseno que los
+ demas. Mira el de la rotura de linea.»
 
-UNA SOLA LINEA, y cada chip dice su rotulo Y SU VALOR:
+LAS PIEZAS SE IMPORTAN DE `@/modulos/rotlinea/hoja`, NO SE COPIAN. Dos
+copias del mismo diseno se separan a la tercera vez que alguien cambia
+una — y aqui «parecido» no sirve, porque los dos papeles salen del
+mismo centro y se mandan a las mismas personas.
 
-  [ 7 - 23 sep 2026 · 17 dias v] [Placa todas v] [Color ambar v]
-  [Tolva todas v]   1 salida en el filtro                   Limpiar
+De ahi vienen, y por eso son iguales al milimetro:
+· A4 vertical, margenes de 14 mm, el pie a 10 del borde;
+· la cinta de 4,5 mm del dorado hondo al dorado y de ahi al rojo,
+  armada con franjas porque jsPDF no pinta degradados;
+· el sello al 4 % detras de todo, puesto ANTES de escribir nada —jsPDF
+  pinta en el orden en que se le pide, y al final taparia las cifras—;
+· la cabecera: «Bavaria» a la izquierda y a la derecha el centro, el
+  titulo y la fecha;
+· la banda oscura del total con su raya de acento, la unica pieza
+  oscura del papel y por eso donde cae el ojo primero;
+· las tablas de cabecera oscura y filas alternadas;
+· el pie con la cinta fina, «Bavaria» y «pagina i de n».
 
-EL QUE TIENE ALGO PUESTO SE PINTA. De un vistazo se ve si la cifra de
-al lado es el total o un pedazo — que es el error caro de una pantalla
-de informe. Se acabo el boton «Filtros» y el panel que se abria: un
-panel esconde lo puesto justo cuando importa, y cuesta dos toques
-cambiar una placa.
-
-EN TODOS SE PUEDE ESCRIBIR PARA IR FILTRANDO. Placa, color y tolva
-abren una lista con un campo de texto arriba QUE TOMA EL FOCO SOLO: se
-toca el chip y se teclea, sin apuntarle a nada mas. Se busca en
-cualquier parte del texto —«428» encuentra la NLW428— y SIN TILDES NI
-MAYUSCULAS: «ambar» encuentra «Ambar», que es como lo escribe cualquiera
-con prisa. Se escoge con Enter o con el dedo, «Todas» es el primer
-renglon de la lista y no una X escondida, y cuando no queda ninguna se
-dice en vez de dejar un hueco blanco que parece que la pantalla se
-rompio.
-
-ESO REEMPLAZO A UN `select` DEL SISTEMA que habia primero. El nativo
-tiene una ventaja real —en el celular abre la rueda grande, facil con
-guante— y NO COMPENSA no poder escribir: con cuarenta placas es
-recorrer esa rueda de a seis renglones buscando una que uno ya sabe
-como se llama.
-
-EL DE FECHA SI ES PROPIO, porque un rango no cabe en un desplegable:
-atajos a la izquierda (Hoy, Ayer, 7 dias, 30 dias, Este mes, Mes
-pasado, Este ano, Todo), dos meses con el rango pintado, y abajo lo
-escogido en palabras: «Del lunes 7 al miercoles 23 de septiembre · 17
-dias».
-
-SE APLICA CON «APLICAR», no a cada toque. Escoger un rango son DOS
-toques y el primero deja un rango de un dia que nadie pidio: aplicar al
-vuelo recargaria la pantalla con ese rango. Y tocar 23 y despues 7 da
-del 7 al 23, no un error.
-
-LA SEMANA EMPIEZA EN LUNES. `getUTCDay()` cuenta desde el domingo, y un
-calendario corrido un dia se lee mal sin que nadie sepa por que.
-
-EN EL CELULAR se esconde el segundo mes y los atajos pasan a ser una
-fila que se desliza: dos meses en 360 px son columnas de 18 px que
-nadie acierta.
+LOS COLORES SALEN DEL TEMA de quien lo genera y LOS LOGOS NO. Misma
+regla de la hoja de linea, y con LA MISMA FUNCION —`leerPaleta`—: dos
+maneras de leer el tema se separan el dia que alguien agregue uno.
 
 =====================================================================
-EL INFORME PDF
+LA BARRA AMBAR QUE ESTABA MOCHA — ERA MIO
 =====================================================================
-«Que genere informe asi como el de rotura, asi como los manejamos.»
+`.cabeza` es una rejilla de DOS columnas. Al meterle el boton del
+informe quedaron TRES hijos: el tercero se fue al renglon de abajo Y A
+LA COLUMNA ANCHA, asi que la barra dorada salia estirada de lado a lado
+con la cuna diagonal cortada.
 
-Mismo camino que el de Acciones: jsPDF, carta vertical, el logo de
-public/marca, y SE ARMA EN EL NAVEGADOR —no pasa por el servidor, no se
-guarda en ninguna parte, no hay nada que pueda quedar desfasado—.
-
-LLEVA: la cifra grande con bruto − tara = neto al lado, las cuatro
-cifras, las dos graficas (por mes y por color del vidrio) y la tabla de
-las salidas con su placa y sus kilos.
-
-EL PDF NO CALCULA NADA. Recibe lo ya calculado por la pantalla, y esta
-es la unica decision importante del asunto: lo natural seria pasarle
-las salidas y que sacara sus totales, y el dia que alguien cambie una
-regla —que entra, que es «completa», que fecha manda— el informe
-seguiria con la regla vieja y diria OTRA CIFRA. Nadie se daria cuenta:
-las dos son creibles, y la que se manda por correo es la del PDF. Asi,
-si una cifra esta mal, esta mal en los dos lados.
-
-LLEVA ESCRITOS LOS FILTROS, en una franja arriba y en el pie de TODAS
-las paginas. Un PDF se lee tres semanas despues sin la pantalla al
-lado; un informe filtrado por una placa que no diga que esta filtrado
-es un informe que alguien va a leer como el total del mes.
-
-DE PASO, «POR COLOR DEL VIDRIO» EN LA PANTALLA. Sale de las LINEAS y no
-de la salida —una salida de tres tolvas puede llevar dos ambar y una
-green—, y los tres colores salen siempre aunque uno este en cero: un
-color que desaparece se lee como «no hay», y lo que dice es «este mes
-no salio ni un kilo de flint».
+No dio error de nada, no rompio ningun margen, y solo se veia abriendo
+la pantalla. El boton y el KPI van ahora en un mismo envoltorio, y el
+arnes MIDE el ancho de la barra contra el de la cabecera: estirada pasa
+del 88 %, bien puesta se queda en su columna.
 
 =====================================================================
-CUATRO COSAS QUE ENCONTRO EL ARNES Y NO EL OJO
+TRES COSAS QUE SOLO SE VIERON MIRANDO EL PAPEL
 =====================================================================
-1. `.rt .hoy` YA EXISTIA en este modulo —la lista de «Viajes de hoy»—
-   con `margin-top: 16px`, y se lo ponia al dia de hoy dentro de la
-   rejilla: el 23 se bajaba un renglon el solo y le abria un hueco al
-   mes. No daba error de nada. QUINTA vez que este archivo se come la
-   misma trampa de nombres; se llama `cal-hoy`.
+1. EL MENOS DE «BRUTO − TARA» salia como comilla doble: «7.150 " 2.330
+   = 4.820». U+2212 no existe en WinAnsi, que es la codificacion de la
+   helvetica de jsPDF. Justo en la cuenta que sostiene el informe.
+2. EL PIE SE MONTABA SOBRE «BAVARIA» —«…color ÁmbarBavaria»—: el choque
+   es en la mitad de la hoja y ninguna comprobacion del margen derecho
+   lo ve.
+3. «ESPERANDO VH» SE CORTABA en «Esperando», que pierde justo el dato.
 
-2. LA PUNTA DEL RANGO EN ORO SOBRE AZUL contrasta 3.38 y el minimo
-   legible es 4.5. El boceto la pinta asi y se ve bien en una captura.
-   Va en blanco: se distingue igual del tramo, que es amarillo claro.
-
-3. EN EL CELULAR, al esconder el segundo mes, el primero se quedaba del
-   tamano de su contenido —es hijo de flex— y los dias salian pegados:
-   «10111213» en un renglon. Cabia en el marco y medía sus 42 px de
-   alto, asi que ninguna comprobacion de las que habia lo veia.
-
-4. LOS ATAJOS Y LAS FLECHAS DEL MES median 33-35 px. Esto se toca con
-   guante: 40. Los dias de la rejilla son la excepcion y van a 34, como
-   en cualquier calendario del sistema.
+Las tres quedaron escritas como comprobaciones.
 
 =====================================================================
 EL ARNES
 =====================================================================
-.arnes/rs-analisis.mjs, sobre lo que se pinta de verdad:
+.arnes/rs-informe.mjs genera el PDF DE VERDAD con el mismo jsPDF del
+navegador y lo LEE DE VUELTA con pdftotext: se comprueba lo que dice el
+papel, no lo que el codigo cree que escribio. Un total mal sumado se ve
+perfectamente normal en un PDF bonito.
 
-· que la barra sea UNA linea, que cada chip diga su valor y que solo se
-  encienda el que tiene algo puesto;
-· que los tres lleven un `select` de verdad, y que veinte placas no le
-  agreguen un renglon;
-· que el calendario traiga los ocho atajos y DOS meses, empiece en
-  lunes, y QUE LA REJILLA SIGA SIENDO UNA REJILLA —lo unico que atrapa
-  el choque de `.hoy`—;
-· que tocar un atajo NO recargue nada y «Aplicar» si, que «Cancelar» no
-  deje nada, y que dos toques al reves den el rango al derecho;
-· que el flotante no se salga de la pantalla por la derecha —lo unico
-  que no atrapa «nada se sale del marco», porque esta posicionado—;
-· que un dia no quede mas angosto de 30 px;
-· contraste en los siete temas CON UN FILTRO PUESTO (el chip encendido
-  y «Limpiar» solo existen entonces, y son los dos que cambian de
-  color), y geometria en cinco anchos.
+· que bruto menos tara DE el neto, leido del papel;
+· que los filtros esten escritos en TODAS las paginas;
+· QUE SEA EL MISMO DISENO, medido CONTRA LA HOJA DE LINEA generandola
+  al lado — no contra numeros copiados aqui, que se quedarian viejos el
+  dia que la hoja cambie, que es justo cuando esto tiene que avisar;
+· con 70 salidas: parte paginas, vuelve a encabezar la tabla y nada se
+  sale del margen;
+· los colores del tema salen como RELLENOS de verdad —leyendo los
+  operadores `rg` del PDF—, y el logo es el mismo archivo en todos.
+
+Se comprobo que muerde: ocho mutaciones, ocho ROJAS. Una de ellas
+destapo un fallo del propio arnes —`pdftotext -bbox` devuelve XML y la
+comilla llegaba como `&quot;`, asi que buscar `"` no la encontraba
+nunca—.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
