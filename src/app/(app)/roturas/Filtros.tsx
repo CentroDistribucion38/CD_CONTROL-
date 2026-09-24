@@ -32,16 +32,19 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
  * placa.
  *
  * ---------------------------------------------------------------------
- * EL CHIP DE FECHA ABRE UN CALENDARIO; LOS DEMÁS, LA LISTA DEL SISTEMA
+ * TODOS LOS CHIPS ABREN ALGO DONDE SE PUEDE ESCRIBIR
  * ---------------------------------------------------------------------
- * Los chips de placa, color y tolva llevan ENCIMA un `<select>` de
- * verdad, transparente y del tamaño del chip. Se ve el chip y se abre
- * la lista nativa. Es a propósito y no un truco de última hora: en el
- * celular eso abre el selector del sistema —rueda grande, se acierta con
- * guante— que ninguna lista dibujada a mano iguala, y de paso se hereda
- * el teclado y el lector de pantalla gratis.
+ * «Que en los filtros pueda escribir para ir filtrando.»
  *
- * El de fecha SÍ es propio, porque un rango no cabe en un `<select>`:
+ * Placa, color y tolva abren una lista con un campo de texto arriba que
+ * toma el foco solo: se toca el chip y se teclea. La primera versión
+ * usaba un `<select>` de verdad —que en el celular abre el selector del
+ * sistema, grande y fácil con guante— y esa ventaja NO COMPENSA no
+ * poder escribir: con cuarenta placas, el selector nativo es recorrer
+ * una rueda de a seis renglones buscando una que uno ya sabe cómo se
+ * llama.
+ *
+ * El de fecha abre un calendario, porque un rango no cabe en una lista:
  * atajos a la izquierda, dos meses con el rango pintado, y abajo lo que
  * se escogió en palabras —«del lunes 7 al miércoles 23 · 17 días»—.
  *
@@ -161,20 +164,9 @@ export function Filtros({ hoy, campos, cuenta }: {
         </ChipFecha>
 
         {campos.map((c) => c.opciones.length === 0 ? null : (
-          <span key={c.clave} className={"chip" + (leer(c.clave) ? " on" : "")}>
-            <b>{c.rotulo}</b>
-            <span className="flojo">
-              {c.opciones.find((o) => o.id === leer(c.clave))?.nombre ?? c.todas}
-            </span>
-            <i className="pico" aria-hidden />
-            {/* EL `select` DE VERDAD, ENCIMA Y TRANSPARENTE. Ver la nota
-                de arriba: en el celular abre el selector del sistema. */}
-            <select value={leer(c.clave)} aria-label={c.rotulo}
-                    onChange={(e) => empujar({ [c.clave]: e.target.value })}>
-              <option value="">{c.todas[0].toUpperCase() + c.todas.slice(1)}</option>
-              {c.opciones.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
-            </select>
-          </span>
+          <ChipLista key={c.clave} campo={c} puesto={leer(c.clave)}
+                     dice={c.opciones.find((o) => o.id === leer(c.clave))?.nombre ?? c.todas}
+                     onEscoger={(v) => empujar({ [c.clave]: v })} />
         ))}
 
         {cuenta && <span className="cuantas">{cuenta}</span>}
@@ -362,6 +354,105 @@ function Mes({ ancla, d1, d2, hoy, tocar }: {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* =====================================================================
+   UN CHIP QUE ABRE UNA LISTA CON BUSCADOR
+   =====================================================================
+   «Que en placa yo pueda filtrar por desplegable y pueda escribir.»
+
+   POR QUÉ ESTE NO USA EL `select` DEL SISTEMA. Los otros sí, y a
+   propósito: en el celular abren el selector nativo, que se acierta con
+   guante mejor que cualquier lista dibujada. Pero un `<select>` NO SE
+   PUEDE ESCRIBIR, y con cuarenta placas eso es recorrer la rueda de a
+   seis renglones buscando una. Aquí se cambia el selector nativo por
+   poder teclear tres letras, que con esa cantidad gana de lejos.
+
+   SE ESCRIBE Y YA: el campo toma el foco solo al abrir, así que quien
+   toca el chip puede teclear sin apuntarle a nada más.
+
+   BUSCA EN CUALQUIER PARTE DEL TEXTO, no solo al principio: quien
+   recuerda «428» de la NLW428 la encuentra igual. Y sin tildes ni
+   mayúsculas — «ambar» encuentra «Ámbar», que es como lo va a escribir
+   cualquiera con prisa.
+
+   «TODAS» ES LA PRIMERA OPCIÓN DE LA LISTA y no una X escondida: quitar
+   el filtro tiene que estar donde se puso.
+*/
+const pelado = (t: string) =>
+  t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function ChipLista({ campo, puesto, dice, onEscoger }: {
+  campo: Campo;
+  puesto: string;
+  dice: string;
+  onEscoger: (valor: string) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState("");
+  const [activo, setActivo] = useState(0);
+  const caja = useRef<HTMLDivElement>(null);
+  const campoTexto = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    setTexto(""); setActivo(0);
+    campoTexto.current?.focus();
+    const fuera = (e: MouseEvent) => {
+      if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false);
+    };
+    document.addEventListener("mousedown", fuera);
+    return () => document.removeEventListener("mousedown", fuera);
+  }, [abierto]);
+
+  const t = pelado(texto.trim());
+  const filtradas = t ? campo.opciones.filter((o) => pelado(o.nombre).includes(t)) : campo.opciones;
+  /* «Todas» solo cuando no se está buscando: escribiendo «NLW» estorba. */
+  const lista = t ? filtradas : [{ id: "", nombre: campo.todas[0].toUpperCase() + campo.todas.slice(1) }, ...filtradas];
+
+  function escoger(v: string) { onEscoger(v); setAbierto(false) }
+
+  function tecla(e: React.KeyboardEvent) {
+    if (e.key === "Escape") { setAbierto(false); return }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActivo((i) => Math.min(i + 1, lista.length - 1)) }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActivo((i) => Math.max(i - 1, 0)) }
+    else if (e.key === "Enter") { e.preventDefault(); if (lista[activo]) escoger(lista[activo].id) }
+  }
+
+  return (
+    <div className="chip-f" ref={caja}>
+      <button type="button" className={"chip" + (puesto ? " on" : "")}
+              aria-expanded={abierto} onClick={() => setAbierto((x) => !x)}>
+        <b>{campo.rotulo}</b>
+        <span className="flojo">{dice}</span>
+        <i className="pico" aria-hidden />
+      </button>
+      {abierto && (
+        <div className="busca" role="dialog" aria-label={campo.rotulo}>
+          <input ref={campoTexto} value={texto} type="search"
+                 placeholder={`Buscar ${campo.rotulo.toLowerCase()}…`}
+                 aria-label={`Buscar ${campo.rotulo.toLowerCase()}`}
+                 onChange={(e) => { setTexto(e.target.value); setActivo(0) }}
+                 onKeyDown={tecla} />
+          <ul className="busca-lista">
+            {lista.length === 0 && (
+              <li className="busca-nada">Ninguna dice «{texto.trim()}».</li>
+            )}
+            {lista.map((o, i) => (
+              <li key={o.id || "_todas"}>
+                <button type="button"
+                        className={(i === activo ? "activo " : "") + (o.id === puesto ? "on" : "")}
+                        onMouseEnter={() => setActivo(i)}
+                        onClick={() => escoger(o.id)}>
+                  {o.nombre}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

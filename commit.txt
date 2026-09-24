@@ -16,11 +16,21 @@ de informe. Se acabo el boton «Filtros» y el panel que se abria: un
 panel esconde lo puesto justo cuando importa, y cuesta dos toques
 cambiar una placa.
 
-PLACA, COLOR Y TOLVA LLEVAN UN `select` DE VERDAD ENCIMA, transparente
-y del tamano del chip: se ve el chip y se abre la lista del sistema. Es
-a proposito. En el celular eso es el selector nativo —rueda grande, se
-acierta con guante— que ninguna lista dibujada a mano iguala, y de paso
-se hereda el teclado y el lector de pantalla gratis.
+EN TODOS SE PUEDE ESCRIBIR PARA IR FILTRANDO. Placa, color y tolva
+abren una lista con un campo de texto arriba QUE TOMA EL FOCO SOLO: se
+toca el chip y se teclea, sin apuntarle a nada mas. Se busca en
+cualquier parte del texto —«428» encuentra la NLW428— y SIN TILDES NI
+MAYUSCULAS: «ambar» encuentra «Ambar», que es como lo escribe cualquiera
+con prisa. Se escoge con Enter o con el dedo, «Todas» es el primer
+renglon de la lista y no una X escondida, y cuando no queda ninguna se
+dice en vez de dejar un hueco blanco que parece que la pantalla se
+rompio.
+
+ESO REEMPLAZO A UN `select` DEL SISTEMA que habia primero. El nativo
+tiene una ventaja real —en el celular abre la rueda grande, facil con
+guante— y NO COMPENSA no poder escribir: con cuarenta placas es
+recorrer esa rueda de a seis renglones buscando una que uno ya sabe
+como se llama.
 
 EL DE FECHA SI ES PROPIO, porque un rango no cabe en un desplegable:
 atajos a la izquierda (Hoy, Ayer, 7 dias, 30 dias, Este mes, Mes

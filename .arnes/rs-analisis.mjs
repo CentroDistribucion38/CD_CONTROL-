@@ -275,7 +275,7 @@ await monta();
   const r = await pg.evaluate(() => ({
     chips: [...document.querySelectorAll(".filtros-inf .chip")].map((c) => c.textContent.trim()),
     cal: !!document.querySelector(".filtros-inf .cal"),
-    selects: document.querySelectorAll(".filtros-inf .chip > select").length,
+    selects: document.querySelectorAll(".filtros-inf select").length,
     cuantas: document.querySelector(".filtros-inf .cuantas")?.textContent.trim() ?? "",
     alto: Math.round(document.querySelector(".filtros-inf").getBoundingClientRect().height),
   }));
@@ -294,17 +294,62 @@ await monta();
   ok(r.alto <= 76, `la barra mide ${r.alto} px: no es una sola linea`);
   ok(r.cuantas.includes("1 salida"), `la barra no dice cuantas quedaron: «${r.cuantas}»`);
 
-  /* LOS TRES LLEVAN UN `select` DE VERDAD ENCIMA. Es lo que hace que en
-     el celular salga el selector del sistema y no una lista dibujada. */
-  ok(r.selects === 3, `hay ${r.selects} select de verdad y deben ser tres`);
+  /* NINGUNO ES UN `select` DEL SISTEMA: en uno no se puede escribir, y
+     «que en los filtros pueda escribir para ir filtrando». */
+  ok(r.selects === 0, `quedan ${r.selects} desplegables del sistema, donde no se puede escribir`);
 }
 
 /* 3b. Y DE VERDAD FILTRAN. */
+const abrir = async (rotulo) => {
+  await pg.click(`.filtros-inf .chip:has(> b:text-is("${rotulo}"))`);
+  await pg.waitForSelector(".filtros-inf .busca");
+};
 {
   await pg.evaluate(() => { window.__ruta = "" });
-  await pg.selectOption(".filtros-inf .chip:has(> b:text-is('Color')) select", "ambar");
+  await abrir("Color");
+  await pg.click('.filtros-inf .busca-lista button:text-is("Ámbar")');
   const u = await pg.evaluate(() => window.__ruta);
   ok(/color=ambar/.test(u ?? ""), `escoger «Ámbar» no puso el filtro en la direccion: «${u}»`);
+}
+/* 3b-bis. SE ESCRIBE Y VA FILTRANDO. Es lo que se pidio, y lo unico que
+   distingue esta lista de la del sistema. */
+{
+  await pg.evaluate(() => { window.__q = ""; window.__ruta = "" });
+  await monta();
+  await abrir("Placa");
+  ok(await pg.evaluate(() =>
+       document.activeElement === document.querySelector(".filtros-inf .busca > input")),
+     "al abrir la lista el campo de texto no toma el foco: hay que apuntarle antes de escribir");
+  await pg.type(".filtros-inf .busca > input", "bbb");
+  const q1 = await pg.evaluate(() =>
+    [...document.querySelectorAll(".filtros-inf .busca-lista button")].map((b) => b.textContent.trim()));
+  ok(q1.length === 1 && q1[0] === "BBB222", `escribir «bbb» deberia dejar solo BBB222: ${JSON.stringify(q1)}`);
+
+  /* SIN TILDES NI MAYUSCULAS: «ambar» tiene que encontrar «Ámbar», que
+     es como lo escribe cualquiera con prisa. */
+  await pg.evaluate(() => { window.__q = "" });
+  await monta();
+  await abrir("Color");
+  await pg.type(".filtros-inf .busca > input", "ambar");
+  const q2 = await pg.evaluate(() =>
+    [...document.querySelectorAll(".filtros-inf .busca-lista button")].map((b) => b.textContent.trim()));
+  ok(q2.includes("Ámbar"), `«ambar» sin tilde no encontro «Ámbar»: ${JSON.stringify(q2)}`);
+
+  /* Y SE ESCOGE CON ENTER, sin soltar el teclado. */
+  await pg.evaluate(() => { window.__ruta = "" });
+  await pg.keyboard.press("Enter");
+  const u = await pg.evaluate(() => window.__ruta);
+  ok(/color=ambar/.test(u ?? ""), `Enter sobre el resultado no escogio nada: «${u}»`);
+}
+{
+  /* CUANDO NO HAY NINGUNA SE DICE, en vez de dejar un hueco blanco que
+     parece que la pantalla se rompio. */
+  await pg.evaluate(() => { window.__q = "" });
+  await monta();
+  await abrir("Placa");
+  await pg.type(".filtros-inf .busca > input", "zzzz");
+  const t = await pg.textContent(".filtros-inf .busca-nada");
+  ok(/zzzz/.test(t ?? ""), `buscando algo que no existe deberia decirlo: «${t}»`);
 }
 {
   /* EL QUE TIENE ALGO PUESTO SE PINTA DISTINTO. Sin eso hay que leer
@@ -431,13 +476,23 @@ await monta();
     <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main">
     <div id="r"></div></main></div></div><script>${js2}</script></body></html>`);
   await pg.waitForSelector(".filtros-inf");
-  const d = await pg.evaluate(() => ({
-    alto: Math.round(document.querySelector(".filtros-inf").getBoundingClientRect().height),
-    placas: [...document.querySelectorAll(".filtros-inf .chip > select option")]
-      .filter((o) => /^PL\d{4}$/.test(o.textContent?.trim() ?? "")).length,
-  }));
-  ok(d.alto <= 76, `con veinte placas la barra crecio a ${d.alto} px`);
+  const alto = await pg.evaluate(() =>
+    Math.round(document.querySelector(".filtros-inf").getBoundingClientRect().height));
+  ok(alto <= 76, `con veinte placas la barra crecio a ${alto} px`);
+  await pg.click('.filtros-inf .chip:has(> b:text-is("Placa"))');
+  await pg.waitForSelector(".filtros-inf .busca");
+  const d = await pg.evaluate(() => {
+    const l = document.querySelector(".filtros-inf .busca-lista");
+    return {
+      placas: [...l.querySelectorAll("button")]
+        .filter((b) => /^PL\d{4}$/.test(b.textContent?.trim() ?? "")).length,
+      /* QUE LA LISTA SE DESLICE Y NO SE ESTIRE HASTA ABAJO: veinte
+         renglones sin tope tapan la pantalla entera. */
+      seDesliza: l.scrollHeight > l.clientHeight + 4,
+    };
+  });
   ok(d.placas === 20, `la lista trae ${d.placas} placas y no las 20`);
+  ok(d.seDesliza, "con veinte placas la lista no se desliza: se estira y tapa la pantalla");
 }
 
 /* ======================= 4 · QUE SE LEA, EN LOS SIETE TEMAS ============ */
@@ -457,9 +512,13 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
   await monta(1300, t);
   /* CON EL CALENDARIO ABIERTO: ahí viven la mitad de los colores, y
      cerrado no hay ninguno que medir. */
+  /* DOS PASADAS, Y NO UNA: los dos flotantes cuelgan del mismo sitio y
+     abrir uno cierra el otro —tocar afuera los cierra, que es lo que
+     tienen que hacer—. Medirlos juntos daba «no está» en la mitad de
+     los colores, y no porque estuvieran mal. */
   await pg.click(".filtros-inf .chip.fecha").catch(() => {});
   await pg.click('.filtros-inf .cal-atajos button:text-is("Este mes")').catch(() => {});
-  const m = await pg.evaluate(() => {
+  const mirar = () => pg.evaluate(() => {
     const fondo = (e) => {
       for (let p = e; p; p = p.parentElement) { const c = getComputedStyle(p).backgroundColor;
         if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c }
@@ -481,8 +540,16 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
       "la punta del rango": par(".filtros-inf .cal-d.punta"),
       "el pie del calendario": par(".filtros-inf .cal-frase"),
       "«Aplicar»": par(".filtros-inf .cal-si"),
+      "el campo de buscar": par(".filtros-inf .busca > input"),
+      "un renglón de la lista": par(".filtros-inf .busca-lista button:not(.activo)"),
+      "el renglón señalado": par(".filtros-inf .busca-lista button.activo"),
     };
   });
+  const m = await mirar();
+  /* Segunda pasada: se cierra el calendario y se abre la lista. Lo que
+     solo existe en uno de los dos se toma de la pasada donde exista. */
+  await pg.click('.filtros-inf .chip:has(> b:text-is("Tolva"))').catch(() => {});
+  for (const [k, v] of Object.entries(await mirar())) if (!v.falta) m[k] = v;
   for (const [k, v] of Object.entries(m)) {
     if (v.falta) { ok(false, `tema ${t ?? "oficial"}: no está «${k}» (${v.falta})`); continue }
     const x = razon(v.txt, v.fondo);
@@ -563,7 +630,8 @@ await nav.close();
 console.log("");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
 console.log("✓ Los dos análisis filtran: la barra es UNA línea de chips que dicen su valor y se pintan cuando tienen algo puesto; " +
-            "el de fecha abre un calendario flotante con atajos y dos meses, que empieza en lunes, arma el rango en dos toques " +
-            "—al derecho y al revés— y no aplica nada hasta «Aplicar». " +
+            "EN TODOS SE PUEDE ESCRIBIR —el campo toma el foco solo, busca sin tildes y en cualquier parte del texto, se escoge con Enter " +
+            "y dice cuando no hay ninguna—; el de fecha abre un calendario con atajos y dos meses, que empieza en lunes, arma el rango " +
+            "en dos toques —al derecho y al revés— y no aplica nada hasta «Aplicar». " +
             "El rango de Salida mira la fecha en que SALIÓ y el de En sitio la del reporte, el color mira las líneas y dos filtros se cruzan. " +
             "Veinte placas no le agregan un renglón, y se lee en los siete temas y en los cinco anchos.");
