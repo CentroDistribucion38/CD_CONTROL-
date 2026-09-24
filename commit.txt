@@ -1,89 +1,93 @@
-Corregir y anular una salida de vidrio: solo quien manda
+Un solo maestro para el desplegable de roturas, y el PIN del OPM
 
 =====================================================================
-LO QUE SE PIDIO
+EL DESPLEGABLE SALE DEL MAESTRO DE INVENTARIO
 =====================================================================
-«Que aqui yo pueda editar o eliminar o anular esas tolvas, y que solo
- el super admin tenga acceso.»
+«Tenemos un maestro de producto y envase; esa data la necesito tambien
+ para el desplegable de Quiebra en sitio: si dice producto terminado
+ debe salir producto terminado, y si dice EER debe salir el envase.»
 
-HASTA HOY UNA SALIDA CERRADA ERA DEFINITIVA. `salida_quitar_tolva` solo
-funciona con la salida ABIERTA, asi que un peso mal tecleado quedaba mal
-para siempre y el informe del mes lo arrastraba. Y anular existia en la
-base pero NO TENIA BOTON EN NINGUNA PANTALLA.
+NO HUBO QUE INVENTAR NADA: `productos.tipo_material` ya es 'PRODUCTO' o
+'ENVASE' —494 y 32—, que es exactamente la distincion pedida.
 
-=====================================================================
-SE REABRE, NO SE «EDITA DIRECTO»
-=====================================================================
-Se pidio «editar las tolvas» y se hace REABRIENDO la salida, por dos
-razones:
+POR QUE NO SE DEJAN LOS DOS MAESTROS. Un material que existe en dos
+tablas se edita en una y se queda viejo en la otra. Hoy el desplegable
+de roturas ofrece SIETE materiales sembrados a mano mientras el
+inventario tiene 494: quien registra una rotura de un producto que no
+esta en esos siete, la registra con otro.
 
-  1. YA EXISTE TODO LO DE EDITAR. Con la salida abierta, pesar y quitar
-     tolvas funciona como el primer dia, con sus reglas y su arnes. Un
-     segundo camino seria una segunda copia de esas reglas, y las dos
-     copias se separan.
-  2. REABRIR DEJA RASTRO Y «EDITAR» NO. Queda quien, cuando, por que, y
-     CUANTAS VECES. Una salida reabierta tres veces es un dato que
-     alguien tiene que ver, y en la lista sale marcada.
+FALTABAN DOS COLUMNAS, y no son un capricho de roturas:
 
-REABRIR TUMBA LAS FIRMAS. Una salida que se vuelve a tocar se vuelve a
-firmar: dejar la firma puesta seria sostener con la firma de ayer unos
-kilos de hoy. Es la regla entera de esta cadena.
+  color_vidrio      de que color es el vidrio. Solo lo necesitan los 32
+                    ENVASES. Sin el, el analisis de salida por color deja
+                    de cuadrar: el color no esta en la salida, esta en el
+                    material.
+  unidades_x_caja   cuantas botellas trae una caja. Es lo que convierte
+                    «12 cajas» en «360 unidades». El `factor_estibado`
+                    NO sirve para eso: dice cuantas cajas caben en una
+                    estiba.
 
-LO QUE YA SALIO POR LA PUERTA NO SE REABRE NI SE ANULA desde aqui: esos
-kilos ya se fueron con un viaje y un documento, y cambiarlos es cambiar
-un numero que ya se facturo. Si de verdad esta mal, primero se deshace
-el despacho en Facturacion —que deja su propio rastro— y despues se
-reabre.
-
-Y LO ANULADO NO SE REABRE: anular es decir «esto no paso». Para volver
-atras se abre una salida nueva.
-
-BORRAR DE VERDAD NO SE OFRECE, a proposito: una salida borrada no deja
-nada que mirar cuando alguien pregunte por que el mes cerro distinto.
+Lo que ya estaba en el maestro viejo se copia emparejando por nombre. Lo
+demas queda vacio —que es la verdad— y LA VISTA LO DICE: `le_falta_color`
+y `le_falta_caja`. Callarlo es lo que hace que nadie lo llene nunca.
 
 =====================================================================
-«SUPER ADMIN» ES `manda()`, NO EL TEXTO 'admin'
+EL PIN DEL OPM
 =====================================================================
-`salida_anular` preguntaba `mi_rol() <> 'admin'`. Eso compara contra un
-NOMBRE, y los roles de este proyecto son datos: el dia que se cree un
-segundo rol que mande —o que alguien renombre el de siempre— la
-comprobacion deja de proteger lo que cree proteger, y en la direccion
-peligrosa. `manda()` lee la casilla del rol, que es lo que de verdad
-quiere decir «super admin».
+«Colocare el PIN a cada OPM, que ese sera como la clave para que en el
+ informe oculto tengamos hora, turno, fecha, nombre del operador.»
 
-El arnes lo prueba creando un rol «dueno» que manda y NO se llama admin.
+NO SON USUARIOS DE LA APP: no entran, no tienen pantalla, no tienen
+clave. Se identifican con cuatro digitos delante de quien registra.
+Meterlos como usuarios seria crear cien cuentas que nadie va a usar.
+
+EL PIN SE GUARDA TAL CUAL, Y ESO ES UNA DECISION. Lo primero que uno
+piensa es cifrarlo; con cuatro digitos NO SIRVE DE NADA —son diez mil
+combinaciones— y ademas impediria que el administrador se lo recuerde al
+operario que lo olvido. Lo que si protege es NO ENSEÑARLO: la tabla NO
+se le da a la aplicacion. Quien registra manda el PIN a una funcion y le
+vuelve el NOMBRE; el PIN no viaja de vuelta.
+
+UN PIN APAGADO CONTESTA IGUAL QUE UNO INVENTADO. Si un operario dado de
+baja contestara distinto, el maestro se podria ir adivinando de a cuatro
+digitos desde la pantalla de registrar.
 
 =====================================================================
-UN CAMBIO QUE EL ARNES DEMOSTRO QUE SOBRABA
+DE DONDE SALE LA ROTURA
 =====================================================================
-La primera version le agregaba `manda()` a `salida_quitar_tolva`, para
-que el administrador que acaba de reabrir pudiera quitar la tolva mal
-pesada. El arnes aviso de que el rol «dueno» YA tenia ese permiso:
-`rotura_puede` pasa por `mi_nivel_pantalla`, que le devuelve «editar» a
-quien manda.
+«La primera pregunta, antes de iniciar: rotura reportada por OPM o
+ encontrada.»
 
-Se quito en vez de dejarla «por si acaso». Una condicion que nunca
-cambia nada hace creer que ahi habia una regla, y el dia que alguien
-toque `mi_nivel_pantalla` va a respetar una que no existe.
+Son dos cosas distintas y hay que poder separarlas: una reportada es el
+sistema funcionando; una encontrada es una que nadie reporto, y un mes
+con muchas encontradas dice algo que ninguna otra cifra dice.
+
+UNA «ENCONTRADA» NO LLEVA OPM, aunque le manden un PIN: poner ahi a
+alguien seria decir que el la reporto. Lo sostienen dos frenos —la
+funcion y un CHECK— y el arnes exige que el primero funcione, no solo
+que el segundo salve el dato: que la base rechace no es lo mismo que que
+la pantalla funcione.
+
+SE MARCA EN SU PROPIA FUNCION y no dentro de `rotura_registrar`, que
+tiene doce argumentos y ciento quince lineas de reglas: en PostgreSQL
+agregarle un argumento obliga a reescribirla entera, y en este proyecto
+ya se han perdido reglas asi. LO QUE QUEDA SIN ORIGEN SE VE —`sin_origen`
+en la vista—: no es un error que se pueda esconder, es uno que hay que ir
+a completar.
 
 =====================================================================
 EL ARNES
 =====================================================================
-bash .arnes/correr-salida-reabrir.sh, contra Postgres de verdad:
+bash .arnes/correr-maestro-opm.sh. Seis frenos, seis mutaciones, seis
+ROJAS. Una de ellas destapo un fallo del propio arnes: al romper la
+regla de la «encontrada», el CHECK de la base levantaba una excepcion
+que mataba la prueba y el resumen no se imprimia —ni verde ni roja, que
+es lo unico que no sirve—. Ahora cualquier excepcion ahi es una falla.
 
-· el supervisor no reabre ni anula;
-· un rol que MANDA y no se llama «admin» si puede —es la prueba de que
-  ya no se compara contra el nombre—;
-· reabrir tumba las firmas, exige motivo y cuenta las veces;
-· lo ya despachado no se reabre ni se anula;
-· lo anulado no se reabre, y no se anula dos veces;
-· la vista trae el rastro.
-
-LA VISTA SE RECONSTRUYE SOBRE SU PROPIA DEFINICION con
-`pg_get_viewdef`, metida como subconsulta: `create or replace view` no
-acepta que la vista se nombre a si misma, y copiar aqui una definicion
-de cuarenta columnas la dejaria vieja a la primera migracion que la
-toque.
+FALTA, Y NO LO PUEDE HACER EL SQL:
+· llenar el COLOR DEL VIDRIO de los envases en Inventario -> Maestro;
+· cargar los OPERARIOS con su PIN.
+El SQL imprime cuantos envases estan sin color al terminar.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
