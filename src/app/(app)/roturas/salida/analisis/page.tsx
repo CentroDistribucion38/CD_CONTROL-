@@ -8,6 +8,8 @@ import { hoyLocal } from "@/modulos/traspasos/datos";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
 import { Filtros } from "../../Filtros";
+import { BotonInforme } from "./BotonInforme";
+import type { DatosInforme } from "./informe";
 
 export const dynamic = "force-dynamic";
 
@@ -75,14 +77,14 @@ export default async function AnalisisSalidaPage({ searchParams }: {
   };
   const mismaPlaca = (s: Salida) => !placa || s.placa === placa;
 
-  /* LAS LÍNEAS SOLO SI HACE FALTA. Filtrar por color o por tolva obliga
-     a mirar tolva por tolva; sin esos filtros no se piden, y la
-     pantalla cuesta una consulta menos. */
+  /* LAS LÍNEAS, SOBRE LAS CANDIDATAS. Antes se pedían solo al filtrar
+     por color o por tolva; ahora también las necesita la gráfica «por
+     color del vidrio», que es la pregunta propia de este módulo. Se
+     piden sobre lo YA RECORTADO por fecha y placa, no sobre las dos mil
+     salidas: es la diferencia entre una consulta y una descarga. */
   const porLinea = !!color || !!tolvaF;
   const candidatas = sal.salidas.filter((s) => enRango(s) && mismaPlaca(s));
-  const lineas: TolvaPesada[] = porLinea
-    ? await lineasDeSalidas(candidatas.map((s) => s.id))
-    : [];
+  const lineas: TolvaPesada[] = await lineasDeSalidas(candidatas.map((s) => s.id));
   const dejaPasar = (id: string) => {
     if (!porLinea) return true;
     return lineas.some((l) =>
@@ -134,6 +136,65 @@ export default async function AnalisisSalidaPage({ searchParams }: {
   const meses = [...porMes.entries()].slice(-8);
   const maxMes = Math.max(1, ...meses.map(([, v]) => v));
 
+  /* CUÁNTO SALIÓ DE CADA COLOR. Sale de las LÍNEAS y no de la salida:
+     el color no está en la cabecera —una salida de tres tolvas puede
+     llevar dos ámbar y una green— y por eso esta cifra no se puede
+     deducir de los totales de arriba.
+
+     SOLO DE LAS COMPLETAS, igual que el neto: si contara las que están
+     en báscula, las dos cifras de la misma pantalla no cuadrarían y la
+     gráfica parecería el error. */
+  const idsCompletas = new Set(completas.map((s) => s.id));
+  const porColor = new Map<string, number>();
+  for (const l of lineas) {
+    if (!idsCompletas.has(l.salida_id)) continue;
+    if (tolvaF && l.tolva !== tolvaF) continue;
+    porColor.set(l.color, (porColor.get(l.color) ?? 0) + (Number(l.bruto_kg) - Number(l.tara_kg)));
+  }
+  /* LOS TRES COLORES SIEMPRE, aunque uno esté en cero: un color que
+     desaparece de la gráfica se lee como «no hay», y lo que dice es
+     «este mes no salió ni un kilo de flint», que es otra cosa. */
+  const colores = COLORES.map((c) => ({ etiqueta: c.nombre, kg: Math.round(porColor.get(c.id) ?? 0) }));
+  const maxColor = Math.max(1, ...colores.map((c) => c.kg));
+
+  /* LO QUE LLEVA EL PDF. Se arma AQUÍ, del mismo cálculo que pinta la
+     pantalla: ver la nota larga de informe.ts. */
+  const fLargo = (x: string) => x.split("-").reverse().join("/");
+  const periodo = desde && hasta ? `del ${fLargo(desde)} al ${fLargo(hasta)}`
+    : desde ? `desde el ${fLargo(desde)}`
+    : hasta ? `hasta el ${fLargo(hasta)}`
+    : "todo el histórico";
+  const filtros = [
+    placa && `placa ${placa}`,
+    color && `color ${COLORES.find((c) => c.id === color)?.nombre ?? color}`,
+    tolvaF && `tolva ${tolvaF}`,
+  ].filter(Boolean).join(" · ");
+  const estadoDe = (s: Salida) =>
+    s.estado === "abierta" ? "En báscula" : s.completa ? "Despachada" : "Esperando Vh";
+  const datosInforme: DatosInforme = {
+    hoy, periodo, filtros,
+    mirando: (desde || hasta || placa || color || tolvaF)
+      ? { de: vivas.length, total: sal.salidas.length } : null,
+    kg: Math.round(kg), bruto: Math.round(bruto), tara: Math.round(tara),
+    completas: completas.length, tolvas: nTolvas, promedio: Math.round(promedio),
+    porSalir: porSalir.length, abiertas: abiertas.length,
+    meses: meses.map(([etiqueta, v]) => ({ etiqueta, kg: Math.round(v) })),
+    colores,
+    /* LA MÁS NUEVA ARRIBA, igual que en la pantalla. Y con tope: un PDF
+       de cuatrocientas páginas no lo abre nadie, y el informe que se
+       manda es el del mes. */
+    salidas: vivas.slice(0, 300).map((s) => ({
+      codigo: s.codigo,
+      fecha: (cuandoSalio(s) ?? s.creada_en ?? "").slice(0, 10).split("-").reverse().join("/"),
+      placa: s.placa ?? "—",
+      tolvas: s.tolvas,
+      bruto: Math.round(Number(s.bruto_kg)),
+      tara: Math.round(Number(s.tara_kg)),
+      neto: Math.round(Number(s.neto_kg)),
+      estado: estadoDe(s),
+    })),
+  };
+
   /* Las taras en uso. Es el número que más silenciosamente puede estar
      mal: se teclea una vez en el maestro y después se copia a cada
      línea sin que nadie lo vuelva a mirar. */
@@ -154,6 +215,7 @@ export default async function AnalisisSalidaPage({ searchParams }: {
             )}
           </p>
         </div>
+        <BotonInforme datos={datosInforme} />
         <div className="kpi">
           <span className="corte" aria-hidden />
           <div className="rot">NETO DESPACHADO</div>
@@ -165,11 +227,13 @@ export default async function AnalisisSalidaPage({ searchParams }: {
       {/* LOS FILTROS, DEBAJO DEL TÍTULO Y A LO ANCHO: son de toda la
           pantalla, no de una de sus cajas. Es el mismo sitio en que
           están en el control de Traspasos. */}
-      <Filtros hoy={hoy} campos={[
-        { clave: "placa", rotulo: "Placa", todas: "las placas",
+      <Filtros hoy={hoy}
+        cuenta={`${vivas.length} salida${vivas.length === 1 ? "" : "s"} en el filtro`}
+        campos={[
+        { clave: "placa", rotulo: "Placa", todas: "todas",
           opciones: (placasTodas as string[]).map((p) => ({ id: p, nombre: p })) },
-        { clave: "color", rotulo: "Color del vidrio", todas: "los colores", opciones: COLORES },
-        { clave: "tolva", rotulo: "Tolva", todas: "las tolvas",
+        { clave: "color", rotulo: "Color del vidrio", todas: "todos", opciones: COLORES },
+        { clave: "tolva", rotulo: "Tolva", todas: "todas",
           opciones: tolvasTodas.map((t) => ({ id: t, nombre: t })) },
       ]} />
 

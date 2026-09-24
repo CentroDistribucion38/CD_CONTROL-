@@ -129,14 +129,16 @@ export default async function AnalisisEnSitioPage(
         </div>
       </section>
 
-      <Filtros hoy={hoyLocal()} campos={[
-        { clave: "causa",   rotulo: "Causa",   todas: "las causas",
+      <Filtros hoy={hoyLocal()}
+        cuenta={`${vivas.length} rotura${vivas.length === 1 ? "" : "s"} en el filtro`}
+        campos={[
+        { clave: "causa",   rotulo: "Causa",   todas: "todas",
           opciones: opciones((r) => r.causa, (r) => r.causa_nombre) },
-        { clave: "proceso", rotulo: "Proceso", todas: "los procesos",
+        { clave: "proceso", rotulo: "Proceso", todas: "todos",
           opciones: opciones((r) => r.proceso, (r) => r.proceso_nombre) },
-        { clave: "area",    rotulo: "Área",    todas: "las áreas",
+        { clave: "area",    rotulo: "Área",    todas: "todas",
           opciones: opciones((r) => r.area, (r) => r.area_nombre) },
-        { clave: "grupo",   rotulo: "Quién la asume", todas: "asumidas y no", opciones: [
+        { clave: "grupo",   rotulo: "Quién la asume", todas: "todas", opciones: [
           { id: "asumida",    nombre: "Asumida por el OL" },
           { id: "no_asumida", nombre: "No asumida" }] },
       ]} />

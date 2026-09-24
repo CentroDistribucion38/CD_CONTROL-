@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 /**
@@ -17,90 +17,125 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
  * botón de atrás deshaga el filtro en vez de salirse del módulo.
  *
  * ---------------------------------------------------------------------
- * UN RENGLÓN, Y LO DEMÁS DETRÁS DE «FILTROS»
+ * UNA SOLA LÍNEA, Y CADA FILTRO DICE LO QUE TIENE PUESTO
  * ---------------------------------------------------------------------
- * «Todas esas placas así no me gustan, igual el color del vidrio» y
- * «ese desde-hasta puede ir en una sola, no así por separado».
+ *   [📅 7 – 23 sep 2026 · 17 días ▾] [Placa todas ▾] [Color ámbar ▾]
+ *   [Tolva todas ▾]   1 salida en el filtro                  Limpiar
  *
- * La primera versión pintaba TODO a la vez: dos campos de fecha, cuatro
- * atajos y una fila de botones por cada dimensión —siete placas, tres
- * colores, las tolvas—. Doce a quince controles antes de la primera
- * cifra, que de lejos parecen un menú de navegación y no un filtro.
+ * CADA CHIP LLEVA SU RÓTULO Y SU VALOR. No hay que abrir nada para
+ * saber qué está puesto, y el que tiene algo puesto se pinta en oro: de
+ * un vistazo se ve si la cifra de al lado es el total o un pedazo. Ese
+ * es el error caro de una pantalla de informe y esto es lo que lo evita.
  *
- * Ahora el renglón lleva SOLO lo que se toca todos los días —los cuatro
- * atajos de tiempo— y a su lado, en texto, LO QUE ESTÁ PUESTO. El resto
- * vive detrás de «Filtros» y se abre cuando hace falta.
+ * NO HAY BOTÓN «FILTROS» NI PANEL QUE SE ABRA. Un panel esconde lo
+ * puesto justo cuando importa, y obliga a dos toques para cambiar una
+ * placa.
  *
- * EL RESUMEN NO ES DECORACIÓN: es lo único que evita el error caro de
- * esta pantalla, que es leer una cifra filtrada creyendo que es el
- * total. Con el panel cerrado, sigue diciendo en letras que se está
- * mirando una sola placa.
+ * ---------------------------------------------------------------------
+ * EL CHIP DE FECHA ABRE UN CALENDARIO; LOS DEMÁS, LA LISTA DEL SISTEMA
+ * ---------------------------------------------------------------------
+ * Los chips de placa, color y tolva llevan ENCIMA un `<select>` de
+ * verdad, transparente y del tamaño del chip. Se ve el chip y se abre
+ * la lista nativa. Es a propósito y no un truco de última hora: en el
+ * celular eso abre el selector del sistema —rueda grande, se acierta con
+ * guante— que ninguna lista dibujada a mano iguala, y de paso se hereda
+ * el teclado y el lector de pantalla gratis.
  *
- * LOS ATAJOS SÍ SON BOTONES, y los de adentro no. No es contradicción:
- * cuatro botones que siempre son los mismos se aprenden de memoria y se
- * aciertan de un toque; veinte placas en botones son dos renglones que
- * tapan la pantalla. La forma la decide cuántos son y cada cuánto se
- * usan, no la coherencia.
+ * El de fecha SÍ es propio, porque un rango no cabe en un `<select>`:
+ * atajos a la izquierda, dos meses con el rango pintado, y abajo lo que
+ * se escogió en palabras —«del lunes 7 al miércoles 23 · 17 días»—.
  *
- * LA DIRECCIÓN LLEVA `desde` Y `hasta`, no el nombre del atajo. Un
- * enlace que diga «este mes» significa otra cosa el mes que viene; uno
- * que diga 01/09 a 23/09 significa lo mismo siempre. Cuál atajo está
- * prendido SE DEDUCE de esas dos fechas.
+ * SE APLICA CON «APLICAR», no a cada toque. Escoger un rango son DOS
+ * toques y el primero deja un rango que no es el que se quiere: aplicar
+ * al vuelo recargaría la pantalla con un rango de un día que nadie pidió.
  */
 
 type Campo = {
   clave: string;
   rotulo: string;
-  /** Cómo se lee en el resumen: «Todas las placas», «Todos los colores». */
+  /** Cómo se lee cuando no hay nada puesto: «todas», «todos». */
   todas: string;
   opciones: { id: string; nombre: string }[];
 };
 
-const dia = (hoy: string, n: number) =>
-  new Date(Date.parse(hoy + "T12:00:00") - n * 86400_000).toISOString().slice(0, 10);
-
-function mesDe(ancla: string) {
-  const d = new Date(Date.parse(ancla + "T12:00:00"));
+const ISO = (d: Date) => d.toISOString().slice(0, 10);
+const deISO = (s: string) => new Date(Date.parse(s + "T12:00:00"));
+const menos = (s: string, n: number) => ISO(new Date(Date.parse(s + "T12:00:00") - n * 86400_000));
+const mesDe = (s: string) => {
+  const d = deISO(s);
   return [
-    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10),
-    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10),
+    ISO(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1))),
+    ISO(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0))),
   ] as const;
-}
+};
+const MES_CORTO = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const MES_LARGO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+                   "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const DIA_LARGO = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
-/* CUATRO Y NO DOCE. Cubren lo que se pregunta todos los días; cualquier
-   otro rango se escribe adentro. Poner doce atajos es obligar a leer
-   doce para encontrar el que se usa siempre. */
 function atajos(hoy: string) {
   const [m1] = mesDe(hoy);
+  const [p1, p2] = mesDe(menos(m1, 1));
+  const a = deISO(hoy).getUTCFullYear();
   return [
-    { id: "hoy", nombre: "Hoy",       desde: hoy,          hasta: hoy },
-    { id: "7",   nombre: "7 días",    desde: dia(hoy, 6),  hasta: hoy },
-    { id: "mes", nombre: "Este mes",  desde: m1,           hasta: hoy },
-    { id: "todo", nombre: "Todo",     desde: "",           hasta: "" },
+    { id: "hoy",    nombre: "Hoy",             desde: hoy,           hasta: hoy },
+    { id: "ayer",   nombre: "Ayer",            desde: menos(hoy, 1), hasta: menos(hoy, 1) },
+    { id: "7",      nombre: "Últimos 7 días",  desde: menos(hoy, 6), hasta: hoy },
+    { id: "30",     nombre: "Últimos 30 días", desde: menos(hoy, 29), hasta: hoy },
+    { id: "mes",    nombre: "Este mes",        desde: m1,            hasta: hoy },
+    { id: "pasado", nombre: "Mes pasado",      desde: p1,            hasta: p2 },
+    { id: "anio",   nombre: "Este año",        desde: `${a}-01-01`,  hasta: hoy },
+    { id: "todo",   nombre: "Todo",            desde: "",            hasta: "" },
   ];
 }
 
-const ICONO = (
-  <svg viewBox="0 0 24 24" aria-hidden><path d="M4 6h16M7 12h10M10 18h4" /></svg>
+/** «7 – 23 sep 2026», «23 sep 2026», «7 sep – 3 oct 2026». */
+function comoSeLee(desde: string, hasta: string) {
+  if (!desde && !hasta) return "Todo el histórico";
+  if (!desde) return `Hasta el ${corto(hasta)}`;
+  if (!hasta) return `Desde el ${corto(desde)}`;
+  const a = deISO(desde), b = deISO(hasta);
+  if (desde === hasta) return corto(desde);
+  if (a.getUTCFullYear() === b.getUTCFullYear()) {
+    if (a.getUTCMonth() === b.getUTCMonth()) {
+      return `${a.getUTCDate()} – ${b.getUTCDate()} ${MES_CORTO[b.getUTCMonth()]} ${b.getUTCFullYear()}`;
+    }
+    return `${a.getUTCDate()} ${MES_CORTO[a.getUTCMonth()]} – ${corto(hasta)}`;
+  }
+  return `${corto(desde)} – ${corto(hasta)}`;
+}
+function corto(s: string) {
+  const d = deISO(s);
+  return `${d.getUTCDate()} ${MES_CORTO[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+const cuantos = (desde: string, hasta: string) =>
+  !desde || !hasta ? 0
+    : Math.round((Date.parse(hasta + "T12:00:00") - Date.parse(desde + "T12:00:00")) / 86400_000) + 1;
+
+const CAL = (
+  <svg viewBox="0 0 24 24" aria-hidden>
+    <path d="M7 3v3m10-3v3M3.5 9h17M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v12A1.5 1.5 0 0 1 19 20.5H5A1.5 1.5 0 0 1 3.5 19V7A1.5 1.5 0 0 1 5 5.5Z" />
+  </svg>
 );
 
-export function Filtros({ hoy, campos }: { hoy: string; campos: Campo[] }) {
+export function Filtros({ hoy, campos, cuenta }: {
+  hoy: string;
+  campos: Campo[];
+  /** «1 salida en el filtro». Lo arma la pantalla porque solo ella sabe
+   *  si cuenta salidas, roturas o kilos. */
+  cuenta?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const q = useSearchParams();
   const [cargando, empezar] = useTransition();
-  const [abierto, setAbierto] = useState(false);
 
-  /* UNA COPIA LOCAL MIENTRAS LA PÁGINA SE VUELVE A PEDIR. Sin ella el
-     control se queda pintando lo viejo hasta que el servidor conteste, y
+  /* UNA COPIA LOCAL MIENTRAS LA PÁGINA SE VUELVE A PEDIR: sin ella el
+     chip se queda pintando lo viejo hasta que el servidor conteste, y
      quien acaba de escoger cree que no le registró el toque. */
   const [local, setLocal] = useState<Record<string, string> | null>(null);
   const leer = (k: string) => local?.[k] ?? q.get(k) ?? "";
-
-  const lista = atajos(hoy);
-  const desde = leer("desde");
-  const hasta = leer("hasta");
-  const cual = lista.find((a) => a.desde === desde && a.hasta === hasta);
+  const desde = leer("desde"), hasta = leer("hasta");
 
   function empujar(cambios: Record<string, string>) {
     setLocal((x) => ({ ...(x ?? {}), ...cambios }));
@@ -112,84 +147,221 @@ export function Filtros({ hoy, campos }: { hoy: string; campos: Campo[] }) {
     empezar(() => router.push(s ? `${pathname}?${s}` : pathname));
   }
 
-  /* CUÁNTOS FILTROS HAY PUESTOS ADENTRO. Va en el botón, porque un panel
-     cerrado que esconde tres filtros puestos es justo cómo se lee mal
-     una cifra. */
-  const puestos = campos.filter((c) => leer(c.clave)).length + (!cual ? 1 : 0);
+  const hay = !!desde || !!hasta || campos.some((c) => leer(c.clave));
+  const dias = cuantos(desde, hasta);
 
   return (
-    <section className={"filtros-inf" + (cargando ? " cargando" : "") + (abierto ? " abierto" : "")}>
+    <section className={"filtros-inf" + (cargando ? " cargando" : "")}>
       <div className="renglon">
-        {lista.map((a) => (
-          <button key={a.id} type="button"
-                  className={"chip" + (cual?.id === a.id ? " on" : "")}
-                  aria-pressed={cual?.id === a.id}
-                  onClick={() => empujar({ desde: a.desde, hasta: a.hasta })}>
-            {a.nombre}
-          </button>
+        <ChipFecha hoy={hoy} desde={desde} hasta={hasta}
+                   onAplicar={(d, h) => empujar({ desde: d, hasta: h })}>
+          {CAL}
+          <b>{comoSeLee(desde, hasta)}</b>
+          {dias > 1 && <span className="flojo">· {dias} días</span>}
+        </ChipFecha>
+
+        {campos.map((c) => c.opciones.length === 0 ? null : (
+          <span key={c.clave} className={"chip" + (leer(c.clave) ? " on" : "")}>
+            <b>{c.rotulo}</b>
+            <span className="flojo">
+              {c.opciones.find((o) => o.id === leer(c.clave))?.nombre ?? c.todas}
+            </span>
+            <i className="pico" aria-hidden />
+            {/* EL `select` DE VERDAD, ENCIMA Y TRANSPARENTE. Ver la nota
+                de arriba: en el celular abre el selector del sistema. */}
+            <select value={leer(c.clave)} aria-label={c.rotulo}
+                    onChange={(e) => empujar({ [c.clave]: e.target.value })}>
+              <option value="">{c.todas[0].toUpperCase() + c.todas.slice(1)}</option>
+              {c.opciones.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+            </select>
+          </span>
         ))}
 
-        <span className="sep" aria-hidden />
+        {cuenta && <span className="cuantas">{cuenta}</span>}
 
-        <span className="resumen">
-          {!cual && (desde || hasta) && (
-            <><b>{desde || "…"} a {hasta || "…"}</b>{campos.length ? " · " : ""}</>
-          )}
-          {campos.map((c, i) => {
-            const v = leer(c.clave);
-            const o = c.opciones.find((x) => x.id === v);
-            return (
-              <span key={c.clave}>
-                {i > 0 && " · "}
-                {v ? <b>{o?.nombre ?? v}</b> : <><b>Todas</b> {c.todas}</>}
-              </span>
-            );
-          })}
-        </span>
+        {hay && (
+          <button type="button" className="limpiar" onClick={() => {
+            setLocal(Object.fromEntries(
+              ["desde", "hasta", ...campos.map((c) => c.clave)].map((k) => [k, ""])));
+            empezar(() => router.push(pathname));
+          }}>
+            Limpiar
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
 
-        <button type="button" className={"bt" + (puestos ? " con" : "")}
-                aria-expanded={abierto} onClick={() => setAbierto((x) => !x)}>
-          {ICONO}Filtros{puestos > 0 && <i className="cu">{puestos}</i>}
-        </button>
+/* =====================================================================
+   EL CHIP DE FECHA Y SU CALENDARIO
+   ===================================================================== */
+function ChipFecha({ hoy, desde, hasta, onAplicar, children }: {
+  hoy: string; desde: string; hasta: string;
+  onAplicar: (desde: string, hasta: string) => void;
+  children: React.ReactNode;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const caja = useRef<HTMLDivElement>(null);
+
+  /* SE CIERRA AL TOCAR AFUERA Y CON ESCAPE. Un flotante que solo se
+     cierra con su propio botón se queda abierto tapando la pantalla. */
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => {
+      if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierto(false) };
+    document.addEventListener("mousedown", fuera);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [abierto]);
+
+  return (
+    <div className="chip-f" ref={caja}>
+      <button type="button" className={"chip fecha" + ((desde || hasta) ? " on" : "")}
+              aria-expanded={abierto} onClick={() => setAbierto((x) => !x)}>
+        {children}
+        <i className="pico" aria-hidden />
+      </button>
+      {abierto && (
+        <Calendario hoy={hoy} desde={desde} hasta={hasta}
+                    onCerrar={() => setAbierto(false)}
+                    onAplicar={(d, h) => { onAplicar(d, h); setAbierto(false) }} />
+      )}
+    </div>
+  );
+}
+
+function Calendario({ hoy, desde, hasta, onAplicar, onCerrar }: {
+  hoy: string; desde: string; hasta: string;
+  onAplicar: (d: string, h: string) => void;
+  onCerrar: () => void;
+}) {
+  /* EL BORRADOR. Tocar un día NO recarga la pantalla: escoger un rango
+     son dos toques, y el primero deja un rango de un día que nadie
+     pidió. Se aplica con «Aplicar». */
+  const [d1, setD1] = useState(desde);
+  const [d2, setD2] = useState(hasta);
+  /* En qué mes está parado el calendario. Arranca donde está el rango,
+     no en hoy: quien abre «mes pasado» quiere ver mes pasado. */
+  const [ancla, setAncla] = useState(() => mesDe(desde || hasta || hoy)[0]);
+
+  const lista = atajos(hoy);
+  const cual = lista.find((a) => a.desde === d1 && a.hasta === d2);
+
+  function tocar(f: string) {
+    /* PRIMER TOQUE ABRE, SEGUNDO CIERRA. Y si el segundo es anterior al
+       primero se voltean, en vez de rechazarlo: quien toca 23 y después
+       7 quiere del 7 al 23, no un error. */
+    if (!d1 || (d1 && d2)) { setD1(f); setD2("") }
+    else if (f < d1) { setD2(d1); setD1(f) }
+    else setD2(f);
+  }
+
+  const mover = (n: number) => {
+    const d = deISO(ancla);
+    setAncla(ISO(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1))));
+  };
+
+  const finDia = d2 || d1;
+  const dias = cuantos(d1, finDia);
+  const frase = !d1 && !d2 ? "Todo el histórico"
+    : !d2 ? `Desde el ${enPalabras(d1)} · falta el día final`
+    : d1 === d2 ? `Solo el ${enPalabras(d1)}`
+    : `Del ${enPalabras(d1)} al ${enPalabras(d2)} · ${dias} días`;
+
+  const segundo = (() => {
+    const d = deISO(ancla);
+    return ISO(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)));
+  })();
+
+  return (
+    <div className="cal" role="dialog" aria-label="Escoger el rango de fechas">
+      <div className="cal-cuerpo">
+        <div className="cal-atajos">
+          <p className="cal-rot">ATAJOS</p>
+          {lista.map((a) => (
+            <button key={a.id} type="button" className={cual?.id === a.id ? "on" : ""}
+                    onClick={() => { setD1(a.desde); setD2(a.hasta);
+                                     if (a.desde) setAncla(mesDe(a.desde)[0]) }}>
+              {a.nombre}
+            </button>
+          ))}
+        </div>
+
+        <div className="cal-meses">
+          <div className="cal-cab">
+            <button type="button" aria-label="Mes anterior" onClick={() => mover(-1)}>‹</button>
+            <span>{deISO(ancla).getUTCFullYear()}</span>
+            <button type="button" aria-label="Mes siguiente" onClick={() => mover(1)}>›</button>
+          </div>
+          <div className="cal-dos">
+            <Mes ancla={ancla} d1={d1} d2={finDia} hoy={hoy} tocar={tocar} />
+            {/* EL SEGUNDO MES SE ESCONDE EN EL CELULAR, no se quita: dos
+                meses en 360 px son columnas de 18 px que nadie acierta. */}
+            <div className="cal-mes2">
+              <Mes ancla={segundo} d1={d1} d2={finDia} hoy={hoy} tocar={tocar} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {abierto && (
-        <div className="panel-f">
-          <div className="rango-f" role="group" aria-label="Otras fechas">
-            <label className="sel fecha">
-              <span>Desde</span>
-              <input type="date" value={desde} max={hasta || undefined}
-                     onChange={(e) => empujar({ desde: e.target.value })} />
-            </label>
-            <label className="sel fecha">
-              <span>Hasta</span>
-              <input type="date" value={hasta} min={desde || undefined}
-                     onChange={(e) => empujar({ hasta: e.target.value })} />
-            </label>
-          </div>
+      <div className="cal-pie">
+        <p className="cal-frase">{frase}</p>
+        <button type="button" className="cal-no" onClick={onCerrar}>Cancelar</button>
+        <button type="button" className="cal-si" disabled={!!d1 && !d2}
+                onClick={() => onAplicar(d1, d2)}>Aplicar</button>
+      </div>
+    </div>
+  );
+}
 
-          {campos.map((c) => c.opciones.length === 0 ? null : (
-            <label className="sel" key={c.clave}>
-              <span>{c.rotulo}</span>
-              <select value={leer(c.clave)}
-                      onChange={(e) => empujar({ [c.clave]: e.target.value })}>
-                <option value="">Todas</option>
-                {c.opciones.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
-              </select>
-            </label>
-          ))}
+function enPalabras(s: string) {
+  const d = deISO(s);
+  return `${DIA_LARGO[d.getUTCDay()]} ${d.getUTCDate()} de ${MES_LARGO[d.getUTCMonth()]}`;
+}
 
-          {puestos > 0 && (
-            <button type="button" className="limpiar" onClick={() => {
-              setLocal(Object.fromEntries(
-                ["desde", "hasta", ...campos.map((c) => c.clave)].map((k) => [k, ""])));
-              empezar(() => router.push(pathname));
-            }}>
-              Restablecer
-            </button>
-          )}
-        </div>
-      )}
-    </section>
+function Mes({ ancla, d1, d2, hoy, tocar }: {
+  ancla: string; d1: string; d2: string; hoy: string; tocar: (f: string) => void;
+}) {
+  const d = deISO(ancla);
+  const a = d.getUTCFullYear(), m = d.getUTCMonth();
+  const ultimo = new Date(Date.UTC(a, m + 1, 0)).getUTCDate();
+  /* LUNES PRIMERO. `getUTCDay()` cuenta desde el domingo; la semana de
+     la bodega empieza el lunes y un calendario corrido un día se lee
+     mal sin que nadie sepa por qué. */
+  const salto = (new Date(Date.UTC(a, m, 1)).getUTCDay() + 6) % 7;
+
+  const celdas: (string | null)[] = [
+    ...Array(salto).fill(null),
+    ...Array.from({ length: ultimo }, (_, i) => ISO(new Date(Date.UTC(a, m, i + 1)))),
+  ];
+
+  return (
+    <div className="cal-mes">
+      <p className="cal-mes-t">{MES_LARGO[m][0].toUpperCase() + MES_LARGO[m].slice(1)}</p>
+      <div className="cal-rejilla">
+        {["L", "M", "M", "J", "V", "S", "D"].map((x, i) => (
+          <span key={i} className="cal-dia-r">{x}</span>
+        ))}
+        {celdas.map((f, i) => f === null ? <span key={i} /> : (
+          <button key={i} type="button"
+                  className={[
+                    "cal-d",
+                    f === d1 || f === d2 ? "punta" : "",
+                    d1 && d2 && f > d1 && f < d2 ? "medio" : "",
+                    f === hoy ? "cal-hoy" : "",
+                  ].filter(Boolean).join(" ")}
+                  aria-pressed={f === d1 || f === d2}
+                  onClick={() => tocar(f)}>
+            {deISO(f).getUTCDate()}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

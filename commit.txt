@@ -1,104 +1,119 @@
-Los filtros de los dos analisis: un renglon, y lo demas detras de «Filtros»
+Filtros de una linea con calendario flotante, e informe PDF de la salida
 
 =====================================================================
-LO QUE ESTABA MAL DE LA PRIMERA VERSION
+LOS FILTROS, COMO EL BOCETO
 =====================================================================
-«Ese desde-hasta puede ir en una sola, no asi por separado. Todas esas
- placas asi no me gustan, igual el color del vidrio.»
+«Que los filtros sean asi, mejor el calendario flotante asi.»
 
-Tenia razon y el diagnostico estaba en el boceto que mando: el problema
-no eran los botones —los cuatro atajos de tiempo son botones y siguen
-siendolo— sino QUE ESTABA TODO A LA VEZ. Dos campos de fecha, cuatro
-atajos, siete placas, tres colores y las tolvas: quince controles antes
-de la primera cifra, que de lejos parecen un menu de navegacion y no un
-filtro.
+UNA SOLA LINEA, y cada chip dice su rotulo Y SU VALOR:
 
-=====================================================================
-COMO QUEDA
-=====================================================================
-UN RENGLON:
+  [ 7 - 23 sep 2026 · 17 dias v] [Placa todas v] [Color ambar v]
+  [Tolva todas v]   1 salida en el filtro                   Limpiar
 
-  [Hoy] [7 dias] [Este mes] [Todo] | Todas las placas · Todos los
-                                     colores · Todas las tolvas [Filtros 2]
+EL QUE TIENE ALGO PUESTO SE PINTA. De un vistazo se ve si la cifra de
+al lado es el total o un pedazo — que es el error caro de una pantalla
+de informe. Se acabo el boton «Filtros» y el panel que se abria: un
+panel esconde lo puesto justo cuando importa, y cuesta dos toques
+cambiar una placa.
 
-Los cuatro atajos, EN TEXTO lo que esta puesto, y todo lo demas detras
-de «Filtros». Adentro: las dos fechas y los tres filtros, como
-desplegables.
+PLACA, COLOR Y TOLVA LLEVAN UN `select` DE VERDAD ENCIMA, transparente
+y del tamano del chip: se ve el chip y se abre la lista del sistema. Es
+a proposito. En el celular eso es el selector nativo —rueda grande, se
+acierta con guante— que ninguna lista dibujada a mano iguala, y de paso
+se hereda el teclado y el lector de pantalla gratis.
 
-EL RESUMEN NO ES DECORACION. Es lo unico que evita el error caro de
-esta pantalla —leer una cifra filtrada creyendo que es el total— cuando
-el panel esta cerrado. Y el boton lleva el NUMERO de filtros puestos,
-por lo mismo: un panel cerrado que esconde tres filtros es justo como
-se lee mal un informe.
+EL DE FECHA SI ES PROPIO, porque un rango no cabe en un desplegable:
+atajos a la izquierda (Hoy, Ayer, 7 dias, 30 dias, Este mes, Mes
+pasado, Este ano, Todo), dos meses con el rango pintado, y abajo lo
+escogido en palabras: «Del lunes 7 al miercoles 23 de septiembre · 17
+dias».
 
-LOS ATAJOS SI SON BOTONES Y LOS DE ADENTRO NO, y no es contradiccion:
-cuatro botones que siempre son los mismos se aprenden de memoria y se
-aciertan de un toque; veinte placas en botones son dos renglones que
-tapan la pantalla. La forma la decide cuantos son y cada cuanto se
-usan.
+SE APLICA CON «APLICAR», no a cada toque. Escoger un rango son DOS
+toques y el primero deja un rango de un dia que nadie pidio: aplicar al
+vuelo recargaria la pantalla con ese rango. Y tocar 23 y despues 7 da
+del 7 al 23, no un error.
 
-LA DIRECCION SIGUE LLEVANDO `desde` Y `hasta`, no el nombre del atajo.
-Un enlace que diga «este mes» significa otra cosa el mes que viene; uno
-que diga 01/09 a 23/09 significa lo mismo siempre. Cual atajo esta
-prendido se DEDUCE de esas dos fechas.
+LA SEMANA EMPIEZA EN LUNES. `getUTCDay()` cuenta desde el domingo, y un
+calendario corrido un dia se lee mal sin que nadie sepa por que.
+
+EN EL CELULAR se esconde el segundo mes y los atajos pasan a ser una
+fila que se desliza: dos meses en 360 px son columnas de 18 px que
+nadie acierta.
 
 =====================================================================
-Y EN SITIO TAMBIEN FILTRA
+EL INFORME PDF
 =====================================================================
-«Aqui deben haber filtros.»
+«Que genere informe asi como el de rotura, asi como los manejamos.»
 
-Quiebra -> En sitio -> Analisis era la otra pantalla de informe sin un
-solo filtro: mostraba las ultimas mil roturas y punto. Ahora filtra por
-CAUSA, PROCESO, AREA y QUIEN LA ASUME, con la misma barra.
+Mismo camino que el de Acciones: jsPDF, carta vertical, el logo de
+public/marca, y SE ARMA EN EL NAVEGADOR —no pasa por el servidor, no se
+guarda en ninguna parte, no hay nada que pueda quedar desfasado—.
 
-CADA PANTALLA MIDE POR SU PROPIA FECHA, y esto no es un detalle:
+LLEVA: la cifra grande con bruto − tara = neto al lado, las cuatro
+cifras, las dos graficas (por mes y por color del vidrio) y la tabla de
+las salidas con su placa y sus kilos.
 
-  EN SITIO  la fecha del REPORTE      — pregunta cuando se ROMPIO
-  SALIDA    la fecha del DESPACHO     — pregunta cuando SALIO
+EL PDF NO CALCULA NADA. Recibe lo ya calculado por la pantalla, y esta
+es la unica decision importante del asunto: lo natural seria pasarle
+las salidas y que sacara sus totales, y el dia que alguien cambie una
+regla —que entra, que es «completa», que fecha manda— el informe
+seguiria con la regla vieja y diria OTRA CIFRA. Nadie se daria cuenta:
+las dos son creibles, y la que se manda por correo es la del PDF. Asi,
+si una cifra esta mal, esta mal en los dos lados.
 
-Filtrarlas por la misma fecha pondria en agosto roturas de julio que
-salieron en agosto.
+LLEVA ESCRITOS LOS FILTROS, en una franja arriba y en el pie de TODAS
+las paginas. Un PDF se lee tres semanas despues sin la pantalla al
+lado; un informe filtrado por una placa que no diga que esta filtrado
+es un informe que alguien va a leer como el total del mes.
 
-LAS OPCIONES SALEN DE TODAS LAS ROTURAS, no de las ya filtradas: si
-salieran de lo filtrado, escoger una causa borraria las demas del
-desplegable y no habria como cambiar de opinion.
-
-UNA SOLA BARRA PARA LAS DOS PANTALLAS —src/app/(app)/roturas/Filtros—.
-Dos componentes parecidos terminan siempre igual: se arregla uno y el
-otro se queda atras.
+DE PASO, «POR COLOR DEL VIDRIO» EN LA PANTALLA. Sale de las LINEAS y no
+de la salida —una salida de tres tolvas puede llevar dos ambar y una
+green—, y los tres colores salen siempre aunque uno este en cero: un
+color que desaparece se lee como «no hay», y lo que dice es «este mes
+no salio ni un kilo de flint».
 
 =====================================================================
-DOS COSAS QUE ENCONTRO EL ARNES Y NO EL OJO
+CUATRO COSAS QUE ENCONTRO EL ARNES Y NO EL OJO
 =====================================================================
-1. LOS CHIPS MEDIAN 36 px DE ALTO. Es lo que traia el boceto y se ve
-   bien en una captura; por debajo de 40 px se falla el objetivo con
-   guante. La forma la copia del boceto, la medida la manda la bodega.
+1. `.rt .hoy` YA EXISTIA en este modulo —la lista de «Viajes de hoy»—
+   con `margin-top: 16px`, y se lo ponia al dia de hoy dentro de la
+   rejilla: el 23 se bajaba un renglon el solo y le abria un hueco al
+   mes. No daba error de nada. QUINTA vez que este archivo se come la
+   misma trampa de nombres; se llama `cal-hoy`.
 
-2. EL PANEL SE PINTABA EN COLUMNA Y PEGADO A LA DERECHA, con media
-   pantalla en blanco al lado. En este modulo ya hay un `.rt .panel`
-   —el de escribir una nota, en columna— que le ganaba el
-   `flex-direction`. No daba error de nada. Se llama `panel-f`, por lo
-   mismo que `filtros-inf` no se llama `filtros`: es la cuarta vez que
-   este archivo se come la misma trampa.
+2. LA PUNTA DEL RANGO EN ORO SOBRE AZUL contrasta 3.38 y el minimo
+   legible es 4.5. El boceto la pinta asi y se ve bien en una captura.
+   Va en blanco: se distingue igual del tramo, que es amarillo claro.
+
+3. EN EL CELULAR, al esconder el segundo mes, el primero se quedaba del
+   tamano de su contenido —es hijo de flex— y los dias salian pegados:
+   «10111213» en un renglon. Cabia en el marco y medía sus 42 px de
+   alto, asi que ninguna comprobacion de las que habia lo veia.
+
+4. LOS ATAJOS Y LAS FLECHAS DEL MES median 33-35 px. Esto se toca con
+   guante: 40. Los dias de la rejilla son la excepcion y van a 34, como
+   en cualquier calendario del sistema.
 
 =====================================================================
 EL ARNES
 =====================================================================
-.arnes/rs-analisis.mjs comprueba, sobre lo que se pinta de verdad:
+.arnes/rs-analisis.mjs, sobre lo que se pinta de verdad:
 
-· que la barra sea UN renglon —cuatro chips, resumen, boton— y que con
-  el panel cerrado no haya ni una fecha ni un desplegable a la vista;
-· que veinte placas NO le agreguen un renglon;
-· que adentro no quede ni un boton de filtro: son desplegables;
-· que el panel se pinte EN FILA y arranque pegado a la izquierda —lo
-  unico que atrapa la colision de nombres de arriba—;
-· que tocar cada uno CAMBIE LA DIRECCION, y que «Este mes» arranque el
-  dia 1 y «Todo» la quite de un toque;
-· que con filtros puestos y el panel cerrado el resumen los diga y el
-  boton los cuente;
-· la cuenta de los kilos contra datos de mentira: ocho numeros, no una
-  captura;
-· contraste en los siete temas y geometria en cinco anchos.
+· que la barra sea UNA linea, que cada chip diga su valor y que solo se
+  encienda el que tiene algo puesto;
+· que los tres lleven un `select` de verdad, y que veinte placas no le
+  agreguen un renglon;
+· que el calendario traiga los ocho atajos y DOS meses, empiece en
+  lunes, y QUE LA REJILLA SIGA SIENDO UNA REJILLA —lo unico que atrapa
+  el choque de `.hoy`—;
+· que tocar un atajo NO recargue nada y «Aplicar» si, que «Cancelar» no
+  deje nada, y que dos toques al reves den el rango al derecho;
+· que el flotante no se salga de la pantalla por la derecha —lo unico
+  que no atrapa «nada se sale del marco», porque esta posicionado—;
+· que un dia no quede mas angosto de 30 px;
+· contraste en los siete temas CON UN FILTRO PUESTO (el chip encendido
+  y «Limpiar» solo existen entonces, y son los dos que cambian de
+  color), y geometria en cinco anchos.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
