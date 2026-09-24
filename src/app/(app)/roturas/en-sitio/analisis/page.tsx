@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { roturas as leerRoturas } from "@/modulos/roturas/datos";
+import { Filtros } from "../../Filtros";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
 
@@ -20,11 +21,59 @@ export const dynamic = "force-dynamic";
  * pide seis consultas más para decir lo que ya estaba en la primera es
  * lenta sin necesidad.
  */
-export default async function AnalisisEnSitioPage() {
-  const datos = await leerRoturas(1000);
+/** EL DÍA DE HOY EN BARRANQUILLA, no en UTC. A las 7 de la noche UTC ya
+ *  es mañana, y «Hoy» traería el día equivocado media jornada. */
+function hoyLocal() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+}
+
+export default async function AnalisisEnSitioPage(
+  { searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }
+) {
+  const datos = await leerRoturas(2000);
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
-  const vivas = datos.roturas.filter((r) => r.estado !== "anulada");
+  const q = await searchParams;
+  const uno = (k: string) => { const v = q[k]; return (Array.isArray(v) ? v[0] : v) ?? "" };
+  const desde = uno("desde"), hasta = uno("hasta");
+  const fCausa = uno("causa"), fProceso = uno("proceso"), fArea = uno("area"), fGrupo = uno("grupo");
+
+  const todas = datos.roturas.filter((r) => r.estado !== "anulada");
+
+  /* LA FECHA QUE MANDA ES LA DEL REPORTE, no la del visto bueno: aquí se
+     pregunta CUÁNDO SE ROMPIÓ. En el análisis de la salida manda la del
+     despacho porque allá se pregunta cuándo salió; son dos preguntas y
+     por eso son dos fechas distintas. */
+  const enRango = (r: typeof todas[number]) => {
+    const d = (r.reportada_en ?? "").slice(0, 10);
+    if (!d) return !desde && !hasta;
+    if (desde && d < desde) return false;
+    if (hasta && d > hasta) return false;
+    return true;
+  };
+  const pasa = (r: typeof todas[number]) =>
+    enRango(r)
+    && (!fCausa   || r.causa === fCausa)
+    && (!fProceso || r.proceso === fProceso)
+    && (!fArea    || r.area === fArea)
+    && (!fGrupo   || r.grupo === fGrupo);
+
+  /* LAS OPCIONES SALEN DE LO QUE HAY, y de TODAS —no de lo ya filtrado—:
+     si salieran de lo filtrado, escoger una causa borraría del
+     desplegable las demás y no habría cómo cambiar de opinión. */
+  const opciones = (
+    clave: (r: typeof todas[number]) => string | null | undefined,
+    nombre: (r: typeof todas[number]) => string | null | undefined,
+  ) => {
+    const m = new Map<string, string>();
+    for (const r of todas) { const k = clave(r); if (k) m.set(k, nombre(r) ?? k) }
+    return [...m.entries()].map(([id, n]) => ({ id, nombre: n }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  };
+
+  const vivas = todas.filter(pasa);
   /* Se agrupa sobre lo que CUENTA, no sobre todo lo reportado: incluir
      lo que ABI devolvió haría que el ranking de causas midiera también
      los errores de digitación, y la conclusión saldría torcida. */
@@ -76,9 +125,21 @@ export default async function AnalisisEnSitioPage() {
           <span className="corte" aria-hidden />
           <div className="rot">BAJA DE VIDRIO</div>
           <div className="num">{total}<span className="u">und</span></div>
-          <div className="pie">{cuentan.length} roturas con visto bueno</div>
+          <div className="pie">{cuentan.length} roturas con visto bueno{vivas.length !== todas.length && <> · mirando {vivas.length} de {todas.length}</>}</div>
         </div>
       </section>
+
+      <Filtros hoy={hoyLocal()} campos={[
+        { clave: "causa",   rotulo: "Causa",   todas: "las causas",
+          opciones: opciones((r) => r.causa, (r) => r.causa_nombre) },
+        { clave: "proceso", rotulo: "Proceso", todas: "los procesos",
+          opciones: opciones((r) => r.proceso, (r) => r.proceso_nombre) },
+        { clave: "area",    rotulo: "Área",    todas: "las áreas",
+          opciones: opciones((r) => r.area, (r) => r.area_nombre) },
+        { clave: "grupo",   rotulo: "Quién la asume", todas: "asumidas y no", opciones: [
+          { id: "asumida",    nombre: "Asumida por el OL" },
+          { id: "no_asumida", nombre: "No asumida" }] },
+      ]} />
 
       <section className="cifras">
         <div className={"cifra" + (pctNoAsumida > 25 ? " mal" : "")}>

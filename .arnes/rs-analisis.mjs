@@ -51,6 +51,34 @@ const ok = (c, m) => { if (!c) fallas.push(m) };
      "la pantalla todavía habla de «las dos firmas», y esa firma ya no se pone nunca");
   ok(/ESPERANDO VH/.test(pag),
      "la cifra sigue diciendo «esperando firma»: lo que esperan es un camión");
+
+  /* Y LA OTRA PANTALLA DE ANÁLISIS TAMBIÉN FILTRA. Era la única de
+     informe del módulo sin un solo filtro: mostraba las últimas mil
+     roturas y punto, sin forma de preguntarle por un mes ni por un
+     proceso. */
+  const sit = readFileSync(R("src/app/(app)/roturas/en-sitio/analisis/page.tsx"), "utf8");
+  ok(/<Filtros\s/.test(sit), "el análisis de EN SITIO sigue sin filtros");
+  for (const [clave, que] of [
+      ["desde", "el desde"], ["hasta", "el hasta"], ["causa", "la causa"],
+      ["proceso", "el proceso"], ["area", "el área"], ["grupo", "quién la asume"]]) {
+    ok(new RegExp(`uno\\("${clave}"\\)`).test(sit),
+       `el análisis de EN SITIO no lee ${que} de la dirección`);
+  }
+  /* CADA PANTALLA MIDE POR SU PROPIA FECHA. En sitio pregunta CUÁNDO SE
+     ROMPIÓ —reportada_en—; Salida pregunta cuándo SALIÓ —despachada_en—.
+     Filtrar las dos por la misma fecha pondría en agosto roturas de
+     julio que salieron en agosto, o al revés. */
+  ok(/reportada_en/.test(sit),
+     "el análisis de EN SITIO no filtra por la fecha del reporte");
+  ok(/despachada_en/.test(pag),
+     "el análisis de SALIDA no filtra por la fecha en que salió");
+
+  /* LOS DOS USAN LA MISMA BARRA. Dos componentes parecidos terminan
+     siempre igual: se arregla uno y el otro se queda atrás. */
+  for (const [f, cual] of [[pag, "salida"], [sit, "en sitio"]]) {
+    ok(/from "\.\.\/\.\.\/Filtros"/.test(f),
+       `el análisis de ${cual} no usa la barra de filtros compartida`);
+  }
 }
 
 /* ======================= 2 · LA CUENTA, CON DATOS DE MENTIRA ===========
@@ -173,19 +201,24 @@ export const useRouter = () => ({
 export const usePathname = () => "/roturas/salida/analisis";
 export const useSearchParams = () => new URLSearchParams((window as any).__q ?? "");
 `);
-writeFileSync(R(".arnes/_rs-entrada.tsx"), `
+const ENTRADA = (placas) => `
 import { createRoot } from "react-dom/client";
-import { Filtros } from "../src/app/(app)/roturas/salida/analisis/Filtros";
+import { Filtros } from "../src/app/(app)/roturas/Filtros";
 createRoot(document.getElementById("r")!).render(
   <div className="rt" style={{ padding: 16 }}>
-    <Filtros hoy="2026-09-23"
-             placas={["AAA111", "BBB222", "CCC333"]}
-             tolvas={["TOLVA-1", "TOLVA-2", "TOLVA-3"]}
-             colores={[{ id: "ambar", nombre: "Ámbar" },
-                       { id: "flint", nombre: "Flint" },
-                       { id: "green", nombre: "Green" }]} />
+    <Filtros hoy="2026-09-23" campos={[
+      { clave: "placa", rotulo: "Placa", todas: "las placas", opciones: ${placas} },
+      { clave: "color", rotulo: "Color del vidrio", todas: "los colores", opciones: [
+        { id: "ambar", nombre: "Ámbar" }, { id: "flint", nombre: "Flint" },
+        { id: "green", nombre: "Green" }] },
+      { clave: "tolva", rotulo: "Tolva", todas: "las tolvas", opciones: [
+        { id: "TOLVA-1", nombre: "TOLVA-1" }, { id: "TOLVA-2", nombre: "TOLVA-2" }] },
+    ]} />
   </div>);
-`);
+`;
+writeFileSync(R(".arnes/_rs-entrada.tsx"), ENTRADA(
+  `[{ id: "AAA111", nombre: "AAA111" }, { id: "BBB222", nombre: "BBB222" },
+     { id: "CCC333", nombre: "CCC333" }]`));
 
 let js;
 try {
@@ -225,52 +258,119 @@ await monta();
 /* 3a. ESTÁN LOS CINCO FILTROS. */
 {
   const r = await pg.evaluate(() => ({
+    chips: [...document.querySelectorAll(".filtros-inf .chip")].map((b) => b.textContent.trim()),
+    resumen: document.querySelector(".filtros-inf .resumen")?.textContent.trim() ?? "",
+    boton: !!document.querySelector(".filtros-inf .bt"),
+    panel: !!document.querySelector(".filtros-inf .panel-f"),
     fechas: document.querySelectorAll('.filtros-inf input[type=date]').length,
-    atajos: [...document.querySelectorAll(".filtros-inf .atajo")].map((b) => b.textContent.trim()),
-    grupos: [...document.querySelectorAll(".filtros-inf .grupo-r")].map((s) => s.textContent.trim()),
-    selects: [...document.querySelectorAll(".filtros-inf select")].length,
+    selects: document.querySelectorAll(".filtros-inf select").length,
+    alto: Math.round(document.querySelector(".filtros-inf").getBoundingClientRect().height),
   }));
-  ok(r.fechas === 2, `hay ${r.fechas} campos de fecha y deben ser dos: desde y hasta`);
-  ok(r.atajos.includes("Hoy") && r.atajos.includes("7 días") &&
-     r.atajos.includes("Este mes") && r.atajos.includes("Todo"),
-     `faltan atajos: ${JSON.stringify(r.atajos)}`);
-  /* «TODO» ES UN ATAJO Y NO LA AUSENCIA DE FILTRO: sin él hay que
-     borrar dos campos de fecha a mano y acordarse de que eran dos. */
-  ok(r.atajos.includes("Todo"), "no hay forma de quitar el rango de un toque");
-  ok(r.grupos.length + r.selects >= 3,
-     `faltan filtros de placa, color o tolva: ${JSON.stringify(r.grupos)}`);
+
+  /* EL RENGLÓN LLEVA SOLO LOS CUATRO ATAJOS. Pintarlo todo a la vez eran
+     quince controles antes de la primera cifra. */
+  ok(JSON.stringify(r.chips) === JSON.stringify(["Hoy", "7 días", "Este mes", "Todo"]),
+     `los atajos deberían ser cuatro y son: ${JSON.stringify(r.chips)}`);
+  ok(!r.panel, "el panel de filtros arranca abierto y debería arrancar cerrado");
+  ok(r.fechas === 0 && r.selects === 0,
+     `con el panel cerrado hay ${r.fechas} fechas y ${r.selects} desplegables a la vista`);
+  ok(r.boton, "no hay botón «Filtros» para abrir lo demás");
+  ok(r.alto <= 72, `el renglón mide ${r.alto} px de alto: no es un renglón`);
+
+  /* EL RESUMEN DICE LO QUE ESTÁ PUESTO. Es lo único que evita el error
+     caro de esta pantalla —leer una cifra filtrada creyendo que es el
+     total— cuando el panel está cerrado. */
+  for (const q of ["las placas", "los colores", "las tolvas"]) {
+    ok(r.resumen.includes(q), `el resumen no menciona ${q}: «${r.resumen}»`);
+  }
 }
 
 /* 3b. Y DE VERDAD FILTRAN: tocar uno cambia la dirección.
        Es lo único que distingue una barra que filtra de una pintada. */
-{
+const tocar = async (sel) => {
   await pg.evaluate(() => { window.__ruta = "" });
-  await pg.click('.filtros-inf .grupo-b button:text-is("Ámbar")');
-  const u = await pg.evaluate(() => window.__ruta);
-  ok(/color=ambar/.test(u ?? ""), `tocar «Ámbar» no puso el filtro en la dirección: «${u}»`);
-}
+  await pg.click(sel);
+  return await pg.evaluate(() => window.__ruta);
+};
 {
-  await pg.evaluate(() => { window.__ruta = "" });
-  await pg.click('.filtros-inf .atajo:text-is("Hoy")');
-  const u = await pg.evaluate(() => window.__ruta);
+  const u = await tocar('.filtros-inf .chip:text-is("Hoy")');
   ok(/desde=2026-09-23/.test(u ?? "") && /hasta=2026-09-23/.test(u ?? ""),
      `el atajo «Hoy» no puso el día en la dirección: «${u}»`);
 }
 {
-  await pg.evaluate(() => { window.__ruta = "" });
-  await pg.click('.filtros-inf .atajo:text-is("Este mes")');
-  const u = await pg.evaluate(() => window.__ruta);
+  const u = await tocar('.filtros-inf .chip:text-is("Este mes")');
   ok(/desde=2026-09-01/.test(u ?? ""), `«Este mes» no arranca el día 1: «${u}»`);
 }
+{
+  /* «TODO» ES UN ATAJO Y NO LA AUSENCIA DE FILTRO: sin él hay que
+     borrar dos campos de fecha a mano y acordarse de que eran dos. */
+  await pg.evaluate(() => { window.__q = "desde=2026-09-01&hasta=2026-09-23" });
+  await monta();
+  const u = await tocar('.filtros-inf .chip:text-is("Todo")');
+  ok(u === "/roturas/salida/analisis", `«Todo» no quitó el rango de un toque: «${u}»`);
+  await pg.evaluate(() => { window.__q = "" });
+  await monta();
+}
 
-/* 3c. CON FILTROS PUESTOS SALE «RESTABLECER», y limpia. Sin él, quitar
-       cuatro filtros son cuatro toques y hay que acordarse de cuáles
-       estaban puestos. */
+/* 3c. EL BOTÓN ABRE EL PANEL, y adentro están los tres filtros y las
+       dos fechas — como desplegables, no como filas de botones. */
+{
+  await pg.click(".filtros-inf .bt");
+  const d = await pg.evaluate(() => ({
+    fechas: document.querySelectorAll('.filtros-inf .panel-f input[type=date]').length,
+    selects: document.querySelectorAll(".filtros-inf .panel-f select").length,
+    botonesDeFiltro: document.querySelectorAll(".filtros-inf .panel-f button:not(.limpiar)").length,
+    rotulos: [...document.querySelectorAll(".filtros-inf .panel-f .sel > span")]
+      .map((x) => x.textContent.trim()),
+    direccion: getComputedStyle(document.querySelector(".filtros-inf .panel-f")).flexDirection,
+    izquierda: Math.round(
+      document.querySelector(".filtros-inf .panel-f .sel").getBoundingClientRect().left
+      - document.querySelector(".filtros-inf .panel-f").getBoundingClientRect().left) - 14,
+  }));
+  ok(d.fechas === 2, `el panel trae ${d.fechas} campos de fecha y deben ser dos`);
+  /* EN FILA, NO EN COLUMNA. Había un `.rt .panel` en este módulo que le
+     ganaba el `flex-direction`, y el panel salía en columna pegado a la
+     derecha con media pantalla en blanco. No daba error de nada. */
+  ok(d.direccion === "row",
+     `el panel se está pintando en «${d.direccion}»: otra regla le está ganando`);
+  ok(d.izquierda <= 4,
+     `el panel arranca a ${d.izquierda} px del borde: quedó pegado a la derecha`);
+  ok(d.selects === 3, `el panel trae ${d.selects} desplegables y deben ser tres`);
+  /* «TODAS ESAS PLACAS ASÍ NO ME GUSTAN, IGUAL EL COLOR DEL VIDRIO». */
+  ok(d.botonesDeFiltro === 0,
+     `quedan ${d.botonesDeFiltro} botones de filtro en el panel: son desplegables`);
+  for (const q of ["Placa", "Color del vidrio", "Tolva"]) {
+    ok(d.rotulos.includes(q), `falta el filtro «${q}»: ${JSON.stringify(d.rotulos)}`);
+  }
+}
+{
+  await pg.evaluate(() => { window.__ruta = "" });
+  await pg.selectOption('.filtros-inf .sel:has(> span:text-is("Color del vidrio")) select', "ambar");
+  const u = await pg.evaluate(() => window.__ruta);
+  ok(/color=ambar/.test(u ?? ""), `escoger «Ámbar» no puso el filtro en la dirección: «${u}»`);
+}
+
+/* 3d. CON FILTROS PUESTOS Y EL PANEL CERRADO, SE SIGUE VIENDO QUÉ HAY:
+       en el resumen y en el número del botón. Un panel cerrado que
+       esconde tres filtros puestos es justo cómo se lee mal una cifra. */
 {
   await pg.evaluate(() => { window.__q = "color=ambar&placa=AAA111"; window.__ruta = "" });
   await monta();
-  ok(await pg.isVisible(".filtros-inf .limpiar"),
-     "con filtros puestos no sale «Restablecer»");
+  const d = await pg.evaluate(() => ({
+    resumen: document.querySelector(".filtros-inf .resumen")?.textContent.trim() ?? "",
+    cuenta: document.querySelector(".filtros-inf .bt .cu")?.textContent.trim() ?? "",
+    panel: !!document.querySelector(".filtros-inf .panel-f"),
+  }));
+  ok(!d.panel, "con filtros en la dirección el panel se abre solo y tapa la pantalla");
+  ok(d.resumen.includes("AAA111") && d.resumen.includes("Ámbar"),
+     `el resumen no dice lo que está puesto: «${d.resumen}»`);
+  ok(d.cuenta === "2", `el botón debería decir 2 filtros puestos y dice «${d.cuenta}»`);
+}
+
+/* 3e. «RESTABLECER» SOLO CUANDO HAY QUE QUITAR ALGO. */
+{
+  await pg.click(".filtros-inf .bt");
+  ok(await pg.isVisible(".filtros-inf .limpiar"), "con filtros puestos no sale «Restablecer»");
   await pg.click(".filtros-inf .limpiar");
   const u = await pg.evaluate(() => window.__ruta);
   ok(u === "/roturas/salida/analisis", `«Restablecer» dejó filtros puestos: «${u}»`);
@@ -278,24 +378,17 @@ await monta();
 {
   await pg.evaluate(() => { window.__q = "" });
   await monta();
+  await pg.click(".filtros-inf .bt");
   ok(!(await pg.isVisible(".filtros-inf .limpiar")),
      "sin filtros puestos igual sale «Restablecer»: es un botón que no hace nada");
 }
 
-/* 3d. CON MUCHAS PLACAS SE VUELVE DESPLEGABLE. Veinte botones son dos
-       renglones de ruido que tapan los filtros de al lado, y con guante
-       veinte objetivos pequeños se aciertan peor que una lista. */
+/* 3f. CON VEINTE PLACAS EL RENGLÓN NO CRECE. Es lo que se rompería si
+       alguien volviera a meter botones «porque son poquitas». */
 {
-  writeFileSync(R(".arnes/_rs-entrada.tsx"), `
-import { createRoot } from "react-dom/client";
-import { Filtros } from "../src/app/(app)/roturas/salida/analisis/Filtros";
-const muchas = Array.from({ length: 20 }, (_, i) => "PL" + String(i).padStart(4, "0"));
-createRoot(document.getElementById("r")!).render(
-  <div className="rt" style={{ padding: 16 }}>
-    <Filtros hoy="2026-09-23" placas={muchas} tolvas={["T1"]}
-             colores={[{ id: "ambar", nombre: "Ámbar" }]} />
-  </div>);
-`);
+  writeFileSync(R(".arnes/_rs-entrada.tsx"), ENTRADA(
+    `Array.from({ length: 20 }, (_, i) => { const p = "PL" + String(i).padStart(4, "0");
+       return { id: p, nombre: p } })`));
   const js2 = buildSync({
     entryPoints: [R(".arnes/_rs-entrada.tsx")], bundle: true, write: false,
     format: "iife", jsx: "automatic",
@@ -310,24 +403,14 @@ createRoot(document.getElementById("r")!).render(
     <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main">
     <div id="r"></div></main></div></div><script>${js2}</script></body></html>`);
   await pg.waitForSelector(".filtros-inf");
-  /* SE MIDEN LAS PLACAS, NO LOS BOTONES DEL BLOQUE. Contar todos los
-     botones del bloque mete en la cuenta los grupos de al lado —tolva y
-     color, que con una opción cada uno son cuatro botones legítimos— y
-     hace fallar la comprobación por algo que está bien. Lo que se está
-     probando es que NINGUNA PLACA quedó de botón. */
-  const n = await pg.evaluate(() => {
-    const ops = [...document.querySelectorAll(".filtros-inf select option")]
-      .map((o) => o.textContent?.trim());
-    return {
-      selects: document.querySelectorAll(".filtros-inf select").length,
-      placasEnLista: ops.filter((t) => /^PL\d{4}$/.test(t ?? "")).length,
-      placasEnBoton: [...document.querySelectorAll(".filtros-inf .grupo-b button")]
-        .filter((b) => /^PL\d{4}$/.test(b.textContent?.trim() ?? "")).length,
-    };
-  });
-  ok(n.selects >= 1, "con veinte placas no se volvió desplegable: son veinte botones de ruido");
-  ok(n.placasEnLista === 20, `el desplegable trae ${n.placasEnLista} placas y no las 20`);
-  ok(n.placasEnBoton === 0, `con veinte placas quedaron ${n.placasEnBoton} placas de botón`);
+  const alto = await pg.evaluate(() =>
+    Math.round(document.querySelector(".filtros-inf").getBoundingClientRect().height));
+  ok(alto <= 72, `con veinte placas la barra creció a ${alto} px: volvieron los botones`);
+  await pg.click(".filtros-inf .bt");
+  const n = await pg.evaluate(() =>
+    [...document.querySelectorAll(".filtros-inf .panel-f select option")]
+      .filter((o) => /^PL\d{4}$/.test(o.textContent?.trim() ?? "")).length);
+  ok(n === 20, `el desplegable trae ${n} placas y no las 20`);
 }
 
 /* ======================= 4 · QUE SE LEA, EN LOS SIETE TEMAS ============ */
@@ -342,7 +425,10 @@ const razon = (a, b) => {
 };
 for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
   await monta(1300, t);
-  await pg.click('.filtros-inf .atajo:text-is("Todo")').catch(() => {});
+  /* CON EL PANEL ABIERTO: se miden también los controles de adentro, y
+     un panel cerrado no tiene ninguno que medir. */
+  await pg.click('.filtros-inf .chip:text-is("Este mes")').catch(() => {});
+  await pg.click(".filtros-inf .bt").catch(() => {});
   const m = await pg.evaluate(() => {
     const fondo = (e) => {
       for (let p = e; p; p = p.parentElement) { const c = getComputedStyle(p).backgroundColor;
@@ -353,11 +439,12 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
     return {
       "el rótulo del desde": par(".filtros-inf .sel.fecha > span"),
       "el campo de fecha": par(".filtros-inf .sel.fecha > input"),
-      "un atajo apagado": par(".filtros-inf .atajo:not(.on)"),
-      "el atajo prendido": par(".filtros-inf .atajo.on"),
-      "el rótulo de un grupo": par(".filtros-inf .grupo-r"),
-      "un botón de grupo": par(".filtros-inf .grupo-b button:not(.on)"),
-      "el botón prendido": par(".filtros-inf .grupo-b button.on"),
+      "un desplegable": par(".filtros-inf .panel-f select"),
+      "un atajo apagado": par(".filtros-inf .chip:not(.on)"),
+      "el atajo prendido": par(".filtros-inf .chip.on"),
+      "el resumen": par(".filtros-inf .resumen"),
+      "lo que dice el resumen": par(".filtros-inf .resumen b"),
+      "el botón de filtros": par(".filtros-inf .bt"),
     };
   });
   for (const [k, v] of Object.entries(m)) {
@@ -371,6 +458,8 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
 for (const [ancho, nombre] of [[1440, "pc"], [1024, "tablet apaisada"], [820, "tablet"],
                                [390, "celular"], [360, "celular chico"]]) {
   await monta(ancho);
+  /* ABIERTO, porque lo que se sale de lado se sale adentro del panel. */
+  await pg.click(".filtros-inf .bt").catch(() => {});
   const g = await pg.evaluate(() => {
     const caja = document.querySelector(".filtros-inf").getBoundingClientRect();
     const tocables = [...document.querySelectorAll(
@@ -389,9 +478,9 @@ for (const [ancho, nombre] of [[1440, "pc"], [1024, "tablet apaisada"], [820, "t
          de lado a lado: los dos pasan todas las demás comprobaciones
          —nada se sale, todo se toca— y solo el segundo pinta una barra
          del ancho de la pantalla que se lee como el botón principal. */
-      atajoMax: Math.round(100 * Math.max(...[...document.querySelectorAll(".filtros-inf .atajo")]
+      atajoMax: Math.round(100 * Math.max(...[...document.querySelectorAll(".filtros-inf .chip")]
         .map((e) => e.getBoundingClientRect().width)) /
-        document.querySelector(".filtros-inf .rango-f").getBoundingClientRect().width),
+        document.querySelector(".filtros-inf .renglon").getBoundingClientRect().width),
     };
   });
   ok(g.lado <= 0, `${nombre} (${ancho}): la página se arrastra ${g.lado} px de lado`);
@@ -408,6 +497,7 @@ await nav.close();
 
 console.log("");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Análisis de salida: los cinco filtros están y de verdad filtran —el rango mira la fecha en que SALIÓ, el color mira las líneas, " +
-            "y dos filtros se cruzan—, «Restablecer» solo sale cuando hay algo que quitar, con muchas placas se vuelve desplegable, " +
-            "y se lee en los siete temas y en los cinco anchos.");
+console.log("✓ Los dos análisis filtran: la barra es UN renglón —cuatro atajos y el resumen de lo puesto—, lo demás vive detrás de «Filtros» " +
+            "y son desplegables, no filas de botones; el botón dice cuántos hay puestos con el panel cerrado. " +
+            "El rango de Salida mira la fecha en que SALIÓ y el de En sitio la del reporte, el color mira las líneas y dos filtros se cruzan. " +
+            "Veinte placas no le agregan un renglón, y se lee en los siete temas y en los cinco anchos.");

@@ -7,7 +7,7 @@ import { kilos } from "@/modulos/roturas/formato";
 import { hoyLocal } from "@/modulos/traspasos/datos";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
-import { Filtros } from "./Filtros";
+import { Filtros } from "../../Filtros";
 
 export const dynamic = "force-dynamic";
 
@@ -165,7 +165,13 @@ export default async function AnalisisSalidaPage({ searchParams }: {
       {/* LOS FILTROS, DEBAJO DEL TÍTULO Y A LO ANCHO: son de toda la
           pantalla, no de una de sus cajas. Es el mismo sitio en que
           están en el control de Traspasos. */}
-      <Filtros hoy={hoy} placas={placasTodas as string[]} tolvas={tolvasTodas} colores={COLORES} />
+      <Filtros hoy={hoy} campos={[
+        { clave: "placa", rotulo: "Placa", todas: "las placas",
+          opciones: (placasTodas as string[]).map((p) => ({ id: p, nombre: p })) },
+        { clave: "color", rotulo: "Color del vidrio", todas: "los colores", opciones: COLORES },
+        { clave: "tolva", rotulo: "Tolva", todas: "las tolvas",
+          opciones: tolvasTodas.map((t) => ({ id: t, nombre: t })) },
+      ]} />
 
       <section className="cifras">
         <div className="cifra ojo">

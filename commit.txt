@@ -1,104 +1,104 @@
-Los filtros del analisis de salida de vidrio
+Los filtros de los dos analisis: un renglon, y lo demas detras de «Filtros»
 
 =====================================================================
-LO QUE FALTABA
+LO QUE ESTABA MAL DE LA PRIMERA VERSION
 =====================================================================
-«Agrega los filtros de todo, osea falta.»
+«Ese desde-hasta puede ir en una sola, no asi por separado. Todas esas
+ placas asi no me gustan, igual el color del vidrio.»
 
-Quiebra -> Salida -> Analisis era la unica pantalla de informe del
-sistema SIN FILTROS: mostraba las ultimas 200 salidas y punto. No habia
-manera de preguntarle «cuantos kilos saco la NLW428 en agosto» ni
-«cuanto vidrio ambar salio esta semana» — la pantalla que existe para
-contestar eso era la unica que no dejaba preguntar.
-
-=====================================================================
-CINCO FILTROS, EN EL ORDEN EN QUE SE PREGUNTA
-=====================================================================
-  DESDE / HASTA + atajos   Hoy · 7 dias · Este mes · Todo
-  PLACA
-  COLOR DEL VIDRIO         ambar · flint · green
-  TOLVA
-
-Primero QUE DIAS, que es lo primero que se escoge en un informe, y
-despues se afina. Los atajos son cuatro y cubren lo que se pregunta de
-verdad; cualquier otro rango se escribe en los dos campos.
-
-«TODO» ES UN ATAJO Y NO LA AUSENCIA DE FILTRO. Sin el, quitar un rango
-obliga a borrar dos campos de fecha a mano y a acordarse de que eran
-dos.
+Tenia razon y el diagnostico estaba en el boceto que mando: el problema
+no eran los botones —los cuatro atajos de tiempo son botones y siguen
+siendolo— sino QUE ESTABA TODO A LA VEZ. Dos campos de fecha, cuatro
+atajos, siete placas, tres colores y las tolvas: quince controles antes
+de la primera cifra, que de lejos parecen un menu de navegacion y no un
+filtro.
 
 =====================================================================
-EL RANGO MIRA LA FECHA EN QUE SALIO, NO EN QUE SE CREO
+COMO QUEDA
 =====================================================================
-Una salida se abre un dia, se pesa ese mismo dia o el siguiente y sale
-cuando facturacion le da el documento. Filtrar por «creada_en» habria
-puesto en agosto kilos que salieron en septiembre.
+UN RENGLON:
 
-La fecha que manda es, en este orden: despachada_en, si no validador_en
-—las salidas viejas, de antes de que facturacion entrara— y si no
-supervisora_en. Lo que NO ha salido todavia no tiene ninguna de las
-tres: sale solo cuando no hay rango puesto, que es lo correcto — una
-salida sin fecha no pertenece a ningun mes.
+  [Hoy] [7 dias] [Este mes] [Todo] | Todas las placas · Todos los
+                                     colores · Todas las tolvas [Filtros 2]
 
-=====================================================================
-COLOR Y TOLVA MIRAN LAS LINEAS, NO LA CABECERA
-=====================================================================
-El color y la tolva no estan en la salida: estan en cada tolva pesada.
-Una salida de tres tolvas puede llevar dos ambar y una green. Por eso
-esos dos filtros DEJAN PASAR LA SALIDA SI ALGUNA DE SUS LINEAS CUADRA,
-y cruzados —ambar + TOLVA-1— exigen que sea LA MISMA LINEA la que
-cumpla las dos. Pedir «ambar» y «TOLVA-1» y que conteste una salida
-donde la TOLVA-1 traia green seria mentir.
+Los cuatro atajos, EN TEXTO lo que esta puesto, y todo lo demas detras
+de «Filtros». Adentro: las dos fechas y los tres filtros, como
+desplegables.
 
-LAS LINEAS SOLO SE BAJAN SI SE USAN esos dos filtros. Traerlas siempre
-le costaria a cada carga de la pantalla sin que nadie las mire.
+EL RESUMEN NO ES DECORACION. Es lo unico que evita el error caro de
+esta pantalla —leer una cifra filtrada creyendo que es el total— cuando
+el panel esta cerrado. Y el boton lleva el NUMERO de filtros puestos,
+por lo mismo: un panel cerrado que esconde tres filtros es justo como
+se lee mal un informe.
 
-=====================================================================
-DE PASO: «ESPERANDO FIRMA» DECIA MENTIRAS
-=====================================================================
-La cifra seguia contando la firma de validacion, que se fue del todo
-cuando facturacion tomo ese paso. Ahora dice ESPERANDO VH —vidrio
-pesado y cerrado que todavia no se monta en un camion— y no va en rojo:
-esperar camion no es un problema, es el estado normal entre pesar y
-despachar. Debajo dice «Mirando N de M salidas» para que nunca se lea
-un total filtrado creyendo que es el total.
+LOS ATAJOS SI SON BOTONES Y LOS DE ADENTRO NO, y no es contradiccion:
+cuatro botones que siempre son los mismos se aprenden de memoria y se
+aciertan de un toque; veinte placas en botones son dos renglones que
+tapan la pantalla. La forma la decide cuantos son y cada cuanto se
+usan.
+
+LA DIRECCION SIGUE LLEVANDO `desde` Y `hasta`, no el nombre del atajo.
+Un enlace que diga «este mes» significa otra cosa el mes que viene; uno
+que diga 01/09 a 23/09 significa lo mismo siempre. Cual atajo esta
+prendido se DEDUCE de esas dos fechas.
 
 =====================================================================
-EN EL CELULAR
+Y EN SITIO TAMBIEN FILTRA
 =====================================================================
-El rango ocupa la fila entera y las dos fechas se reparten lo que haya;
-los cuatro atajos se reparten DE A DOS. Con el reparto automatico caben
-tres y el cuarto —«Todo»— se estira de lado a lado: queda una barra roja
-del ancho de la pantalla que se lee como el boton principal, cuando lo
-unico que dice es «sin rango».
+«Aqui deben haber filtros.»
 
-Con mas de ocho opciones un grupo se vuelve desplegable. Veinte placas
-en botones son dos renglones de ruido que tapan los filtros de al lado,
-y con guante veinte objetivos pequenos se aciertan peor que una lista.
+Quiebra -> En sitio -> Analisis era la otra pantalla de informe sin un
+solo filtro: mostraba las ultimas mil roturas y punto. Ahora filtra por
+CAUSA, PROCESO, AREA y QUIEN LA ASUME, con la misma barra.
 
-EL BLOQUE SE LLAMA `filtros-inf` Y NO `filtros` a proposito: en Roturas
-ya hay tres pantallas con un `div class=filtros` que es otra cosa y
-tiene su propia regla. Reutilizar el nombre habria dejado dos reglas
-peleandose por el mismo bloque — la trampa que este proyecto ya se comio
-cuatro veces.
+CADA PANTALLA MIDE POR SU PROPIA FECHA, y esto no es un detalle:
+
+  EN SITIO  la fecha del REPORTE      — pregunta cuando se ROMPIO
+  SALIDA    la fecha del DESPACHO     — pregunta cuando SALIO
+
+Filtrarlas por la misma fecha pondria en agosto roturas de julio que
+salieron en agosto.
+
+LAS OPCIONES SALEN DE TODAS LAS ROTURAS, no de las ya filtradas: si
+salieran de lo filtrado, escoger una causa borraria las demas del
+desplegable y no habria como cambiar de opinion.
+
+UNA SOLA BARRA PARA LAS DOS PANTALLAS —src/app/(app)/roturas/Filtros—.
+Dos componentes parecidos terminan siempre igual: se arregla uno y el
+otro se queda atras.
+
+=====================================================================
+DOS COSAS QUE ENCONTRO EL ARNES Y NO EL OJO
+=====================================================================
+1. LOS CHIPS MEDIAN 36 px DE ALTO. Es lo que traia el boceto y se ve
+   bien en una captura; por debajo de 40 px se falla el objetivo con
+   guante. La forma la copia del boceto, la medida la manda la bodega.
+
+2. EL PANEL SE PINTABA EN COLUMNA Y PEGADO A LA DERECHA, con media
+   pantalla en blanco al lado. En este modulo ya hay un `.rt .panel`
+   —el de escribir una nota, en columna— que le ganaba el
+   `flex-direction`. No daba error de nada. Se llama `panel-f`, por lo
+   mismo que `filtros-inf` no se llama `filtros`: es la cuarta vez que
+   este archivo se come la misma trampa.
 
 =====================================================================
 EL ARNES
 =====================================================================
-.arnes/rs-analisis.mjs, cinco partes:
+.arnes/rs-analisis.mjs comprueba, sobre lo que se pinta de verdad:
 
-1. La pantalla lee los cinco filtros de la direccion y ya no dice «las
-   dos firmas».
-2. LA CUENTA, contra cinco salidas y cuatro lineas de mentira: sin
-   filtro 370 kg, un solo dia 100, agosto 300, julio —que solo tiene
-   validador_en— 70, por placa 270, ambar 100, green 70, por tolva 270,
-   y tolva+color cruzados 200. Ocho numeros, no una captura.
-3. Monta los filtros en Chromium y COMPRUEBA QUE TOCARLOS CAMBIA LA
-   DIRECCION. Un filtro que se pinta y no filtra pasa cualquier captura.
-4. Contraste en los siete temas.
-5. Geometria en cinco anchos, incluido cuanto del renglon se come el
-   atajo mas ancho — es lo unico que distingue cuatro atajos parejos de
-   tres arriba y uno estirado: los dos pasan todo lo demas.
+· que la barra sea UN renglon —cuatro chips, resumen, boton— y que con
+  el panel cerrado no haya ni una fecha ni un desplegable a la vista;
+· que veinte placas NO le agreguen un renglon;
+· que adentro no quede ni un boton de filtro: son desplegables;
+· que el panel se pinte EN FILA y arranque pegado a la izquierda —lo
+  unico que atrapa la colision de nombres de arriba—;
+· que tocar cada uno CAMBIE LA DIRECCION, y que «Este mes» arranque el
+  dia 1 y «Todo» la quite de un toque;
+· que con filtros puestos y el panel cerrado el resumen los diga y el
+  boton los cuente;
+· la cuenta de los kilos contra datos de mentira: ocho numeros, no una
+  captura;
+· contraste en los siete temas y geometria en cinco anchos.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
