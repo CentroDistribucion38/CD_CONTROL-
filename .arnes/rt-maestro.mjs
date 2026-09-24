@@ -67,7 +67,11 @@ process.on("unhandledRejection", caerse);
    2. NADA REDONDO — se lee del CSS
    ------------------------------------------------------------------ */
 for (const [arch, nom] of [["src/app/(app)/roturas/roturas.css", "roturas.css"]]) {
-  const css = readFileSync(R(arch), "utf8");
+  /* FUERA LOS COMENTARIOS ANTES DE MEDIR. Este proyecto explica cada
+     regla, y la explicación de por qué algo dejó de ser redondo lleva
+     escrito «border-radius: 14px» en la prosa: el arnés lo leía como
+     una regla de verdad y se ponía rojo por su propio texto. */
+  const css = readFileSync(R(arch), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const malos = [...css.matchAll(/border-radius:\s*([^;}]+)/g)]
     .map((m) => m[1].trim())
     .filter((v) => !/^0$/.test(v) && !/50%/.test(v));

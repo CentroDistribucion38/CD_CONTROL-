@@ -326,7 +326,40 @@ arnes lo mide: radio, sombra y relleno de la barra, y que ningun
 control de adentro salga redondeado.
 
 =====================================================================
-11. SQL POR CORRER — EN ESTE ORDEN
+11. ACCIONES: TODO CUADRADO Y EL SUPER ADMIN ELIMINA EN LOTE
+=====================================================================
+«Quitales el borde, ponlas mas rectangulares. Y que al super admin le
+ permita eliminar una, varias o todas.»
+
+LO REDONDO OTRA VEZ ERA HERENCIA, no una decision. `globals.css` tiene
+`.filtros` Y `.cifras` desde la plantilla con la que nacio el
+repositorio —fondo, borde, radio 14, relleno y sombra— y las dos barras
+de Acciones lo heredaban enteras. Es el mismo choque que ya apague en
+Roturas: el decimo del proyecto. Se barrieron ademas las 68 esquinas de
+acciones.css e indicadores.css.
+
+ELIMINAR EN LOTE: casilla por fila, «escoger las N que se ven», y se
+van juntas en UNA sola llamada a `accion_eliminar`, que ya existia en
+la base. Antes de confirmar se dice cuantas hay YA CERRADAS —eso es
+historia que alguien verifico, no un error de dedo de hoy— y se pide el
+motivo Y teclear «ELIMINAR N». El motivo queda en Administracion →
+Inicio con los codigos: es lo unico que queda, porque la accion se va
+con su hilo y sus fotos.
+
+DOS COSAS LAS CAZO EL ARNES, NO EL OJO:
+  · CAMBIAR DE FILTRO NO SOLTABA LA SELECCION. Se escogian tres en
+    «abiertas», se pasaba a «todas», y el boton seguia diciendo
+    «Eliminar 3» sin que se viera cuales — se eliminaria a ciegas.
+    Ahora lo suelta cualquier cambio de filtro, tambien escribir en el
+    buscador: tres letras pueden sacar de pantalla lo que estaba
+    marcado.
+  · EL ARNES SE PONIA ROJO POR SU PROPIO TEXTO. Mide que no queden
+    esquinas redondas leyendo el CSS, y el comentario que explica por
+    que algo dejo de ser redondo lleva escrito «border-radius: 14px» en
+    la prosa. Ahora quita los comentarios antes de medir.
+
+=====================================================================
+12. SQL POR CORRER — EN ESTE ORDEN
 =====================================================================
   1) supabase/migraciones/2026-09-averias.sql          (si no lo has corrido)
   2) supabase/migraciones/2026-09-roturas-visto-bueno-easy.sql

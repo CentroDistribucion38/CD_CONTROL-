@@ -41,18 +41,30 @@ export function quien(nombres: Record<string, string>, id: string | null) {
  * propósito: quien escribe qué hizo tiene que seguir viendo de cuál
  * acción está hablando.
  */
-export function Fila({ a, nombres, derecha, children }: {
+export function Fila({ a, nombres, derecha, children, casilla }: {
   a: Accion;
   nombres: Record<string, string>;
   derecha?: React.ReactNode;
   children?: React.ReactNode;
+  /* LA CASILLA DE ESCOGER, cuando la pantalla la ofrece. Va como dato y
+     no dentro de `Fila`: la bandeja de «mis acciones» y la de verificar
+     usan la misma fila y ahí no se borra nada — una casilla que sobra
+     en dos de tres pantallas es ruido en todas para servir en una. */
+  casilla?: React.ReactNode;
 }) {
   const v = cuandoVence(a);
   const hoy = a.viva && a.horas_restantes >= 0 && a.horas_restantes < 24;
 
   return (
-    <div className={"fila" + (a.vencida ? " vencida" : hoy ? " hoy" : "")}>
-      <div className="cod">{a.codigo}</div>
+    <div className={"fila" + (a.vencida ? " vencida" : hoy ? " hoy" : "")
+                    + (casilla ? " ac-sel" : "")}>
+      <div className="cod">
+        {/* LA CASILLA PEGADA AL CÓDIGO y no en una columna propia: el
+            código es lo que identifica la fila, y marcar «la AC-0003»
+            mirándolo es lo que evita marcar la de al lado. */}
+        {casilla}
+        {a.codigo}
+      </div>
 
       <div>
         <div className="tit">{a.titulo}</div>
