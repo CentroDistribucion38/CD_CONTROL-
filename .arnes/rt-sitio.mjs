@@ -37,6 +37,19 @@ const R = (p) => new URL("../" + p, import.meta.url).pathname;
 const fallas = [];
 const ok = (c, m) => { if (!c) fallas.push(m) };
 
+/* UN ARNÉS TIENE QUE HABLAR ANTES DE MORIRSE. Ya pasó dos veces en este
+   proyecto: la mutación SE DETECTA, y dos pasos después el script
+   revienta por otra cosa —un selector que ya no existe, un click sobre
+   algo que no está— y no imprime nada. Ni verde ni roja es lo único que
+   de verdad no sirve: parece que no se probó. */
+const caerse = (e) => {
+  if (fallas.length) { console.log(""); fallas.forEach((x) => console.log("✗ " + x)) }
+  console.log("✗ el arnés no pudo terminar: " + ((e && e.message) || e));
+  process.exit(1);
+};
+process.on("uncaughtException", caerse);
+process.on("unhandledRejection", caerse);
+
 writeFileSync(R(".arnes/_nav-rt.ts"),
   `export const useRouter = () => ({ refresh() {}, replace() {}, push() {} });`);
 
@@ -45,6 +58,16 @@ writeFileSync(R(".arnes/_nav-rt.ts"),
 writeFileSync(R(".arnes/_supa-rt.ts"), `export const createClient = () => ({
   rpc: async (f: string, a: any) => {
     (window as any).llamadas = [...((window as any).llamadas ?? []), { f, a }];
+    /* EL MAESTRO DE OPERARIOS DE MENTIRA: un solo PIN bueno. Un PIN
+       apagado y uno inventado contestan IGUAL —lista vacía—, que es lo
+       que hace la función de verdad: si el apagado contestara distinto,
+       el maestro se podría ir adivinando de a cuatro dígitos desde la
+       pantalla de registrar. */
+    if (f === "operario_por_pin") {
+      return a.p_pin === "4021"
+        ? { data: [{ id: "o-1", nombre: "Genesis Visbal", empresa: "Easy", turno: "B" }], error: null }
+        : { data: [], error: null };
+    }
     return { data: [{ id: "id-1", codigo: "RB-0099", exige_foto: false }], error: null };
   },
   storage: { from: () => ({ upload: async () => ({ error: null }) }) },
@@ -155,8 +178,22 @@ const monta = async (ancho = 1440, tema = "", alto = 900) => {
   await pg.evaluate(() => { window.llamadas = [] });
 };
 /* LA PANTALLA ABRE CON EL FORMULARIO PUESTO: quien puede editar entra a
-   «Registrar» y ya está registrando. Abrir ya no es tocar el «+». */
-const abrir = async () => { await pg.waitForSelector(".rt-rep") };
+   «Registrar» y ya está registrando. Abrir ya no es tocar el «+».
+
+   Y AHORA ABRE EN EL PASO 0 —«la primera pregunta que debe salir, antes
+   de iniciar, es rotura reportada por OPM o encontrada»—, así que
+   «abrir» incluye contestarla. Se contesta «Me la encontré», que es la
+   que no pide PIN: todo lo que se mide más abajo es del material y del
+   proceso, y hacerlo pasar por el PIN en cada prueba sería medir el PIN
+   catorce veces y el resto una. El PIN tiene su propia sección. */
+const abrir = async () => {
+  await pg.waitForSelector(".rt-rep");
+  if (await pg.isVisible(".rt-rep .rp-origen")) {
+    await pg.click(".rt-rep .rp-origen button:has-text('Me la encontré')");
+    await pg.click(".rt-rep .pie button.si");
+  }
+  await pg.waitForSelector(".rt-rep .cel-step");
+};
 const llamadas = () => pg.evaluate(() => window.llamadas ?? []);
 
 /* ---------------------------------------------------------------------
@@ -175,6 +212,15 @@ const llamadas = () => pg.evaluate(() => window.llamadas ?? []);
 await monta();
 ok(await pg.isVisible(".rt-rep"),
    "al entrar no sale el formulario: la pantalla se llama Registrar y obliga a tocar el «+»");
+
+/* ESTA VA DE PRIMERA A PROPÓSITO, antes de cualquier click. Si el paso 0
+   desaparece, todo lo que sigue se cae por su cuenta —el botón de abajo
+   deja de decir «Cancelar», el click se queda esperando treinta
+   segundos— y el arnés acaba muriéndose de un timeout que no explica
+   nada. Puesta aquí, la razón de verdad queda escrita ANTES del
+   accidente. */
+ok(await pg.isVisible(".rt-rep .rp-origen"),
+   "la pantalla no abre preguntando de dónde salió la rotura: abre en el material, y esa pregunta va antes de iniciar");
 
 /* LA CABECERA DICE REGISTRAR, no «Lo que se rompió»: es la pantalla de
    registrar, y su titular tiene que decirlo. */
@@ -206,6 +252,24 @@ ok((await pg.$$eval(".rt-rep button", (b) => b.filter((x) => /✕|×/.test(x.tex
 ok(await pg.isVisible(".rt-rep > .cab h2"),
    "el panel no tiene la cabecera con titulo, como «Viaje nuevo» en Traspasos");
 
+/* Y CANCELAR DEVUELVE LA PANTALLA DE CONSULTA, con todo lo que se
+   quitó. No se pierde nada: se separa. Se prueba desde el paso 0, que
+   es donde abre y donde el botón dice «Cancelar». */
+await pg.click(".rt-rep .pie button:has-text('Cancelar')");
+await pg.waitForSelector(".cifras");
+ok(!(await pg.isVisible(".rt-rep")), "Cancelar no cierra el formulario");
+for (const [sel, que] of [
+    [".cabeza", "el titular"], [".cifras", "las cifras"],
+    [".filtros", "los filtros"], [".filas", "la lista"], [".mas", "el «+»"]]) {
+  ok(await pg.isVisible(sel), `al cerrar el formulario no volvió ${que}`);
+}
+ok(/Lo que se rompió/i.test(await pg.textContent(".cabeza h1")),
+   "al cerrar, el titular sigue diciendo Registrar: esa ya es la pantalla de consulta");
+ok((await pg.$$(".rt .consola")).length === 0,
+   "la consola del registro se quedó puesta en la pantalla de consulta");
+await pg.click(".mas");
+await abrir();
+
 /* EL MISMO VOCABULARIO QUE TRASPASOS, clase por clase. «Lo quiero como
    el modulo de Traspasos.» No es un parecido de ojo: las clases del
    formulario de viajes tienen que existir en este. */
@@ -223,22 +287,133 @@ for (const c of ["opciones", "vidrios", "contador", "dos-col", "barra"]) {
      `quedo viva la clase vieja «${c}»`);
 }
 
-/* Y CANCELAR DEVUELVE LA PANTALLA DE CONSULTA, con todo lo que se
-   quitó. No se pierde nada: se separa. */
-await pg.click(".rt-rep .pie button:has-text('Cancelar')");
-await pg.waitForSelector(".cifras");
-ok(!(await pg.isVisible(".rt-rep")), "Cancelar no cierra el formulario");
-for (const [sel, que] of [
-    [".cabeza", "el titular"], [".cifras", "las cifras"],
-    [".filtros", "los filtros"], [".filas", "la lista"], [".mas", "el «+»"]]) {
-  ok(await pg.isVisible(sel), `al cerrar el formulario no volvió ${que}`);
+/* =====================================================================
+   0bis · LA PRIMERA PREGUNTA, ANTES DE TODO
+
+   «La primera pregunta que debe salir, antes de iniciar, es rotura
+   reportada por OPM o encontrada. Como validación colocaré el PIN a
+   cada OPM, que ese será como la clave para que en el informe oculto
+   tengamos hora, turno, fecha, nombre del operador.»
+
+   LO QUE SE MIDE AQUÍ ES LA PANTALLA, no la base. La base ya tiene su
+   arnés —seis frenos, seis mutaciones— y ya frena la «encontrada con
+   PIN» con una función y un CHECK. Pero que la base rechace no es lo
+   mismo que que la pantalla funcione: si la pantalla manda un PIN
+   debajo de una encontrada, lo que ve quien registra es la rotura
+   guardándose bien y un error críptico, o nada.
+   ===================================================================== */
+await monta();
+{
+  /* 1. SALE PRIMERO Y NO SE PUEDE SALTAR. */
+  ok(await pg.isVisible(".rt-rep .rp-origen"),
+     "la pantalla no abre preguntando de dónde salió la rotura: abre en el material");
+  ok((await pg.$$(".rt-rep .cel-step")).length === 0,
+     "el contador de unidades ya está a la vista en la primera pregunta: los pasos se encimaron");
+  ok(await pg.isDisabled(".rt-rep .pie button.si"),
+     "deja pasar sin contestar quién la reportó");
+  ok(/Falta decir quién la reportó/i.test(await pg.textContent(".rt-rep .pie button.si")),
+     "el botón se queda apagado y mudo en la primera pregunta");
+
+  /* 2. EL PIN SOLO SALE SI LA REPORTÓ UN OPM. Una encontrada no lleva
+     operario: pedirle el PIN sería pedirle que ponga a alguien en un
+     reporte que nadie hizo. */
+  await pg.click(".rt-rep .rp-origen button:has-text('Me la encontré')");
+  ok((await pg.$$(".rt-rep .rp-pin")).length === 0,
+     "en «me la encontré» igual pide el PIN de un operario que no reportó nada");
+  ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
+     "con «me la encontré» contestada el botón sigue apagado y no falta nada más");
+
+  await pg.click(".rt-rep .rp-origen button:has-text('La reportó un OPM')");
+  ok(await pg.isVisible(".rt-rep .rp-pin input"), "al decir que la reportó un OPM no pide el PIN");
+  ok(await pg.isDisabled(".rt-rep .pie button.si"),
+     "con OPM escogido y sin PIN ya deja seguir");
+
+  /* 3. NO BASTA CON TECLEAR CUATRO DÍGITOS: TIENE QUE SALIR EL NOMBRE.
+     Cuatro dígitos con guante se equivocan, y un PIN que nadie confirma
+     acaba firmando lo que registró otro. El fixture contesta vacío al
+     PIN que no existe. */
+  const teclear = async (v) => {
+    await pg.evaluate((val) => {
+      const el = document.querySelector(".rt-rep .rp-pin input");
+      const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+      set.call(el, val);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }, v);
+  };
+  await teclear("9999");
+  await pg.waitForSelector(".rt-rep .rp-mal", { timeout: 2000 }).catch(() => {});
+  ok(await pg.isVisible(".rt-rep .rp-mal"),
+     "un PIN que no existe no dice nada: se queda callado y la persona lo teclea tres veces");
+  ok(await pg.isDisabled(".rt-rep .pie button.si"),
+     "deja seguir con un PIN que la base no reconoció");
+
+  await teclear("4021");
+  await pg.waitForSelector(".rt-rep .rp-quien", { timeout: 2000 }).catch(() => {});
+  ok(/Genesis Visbal/i.test((await pg.textContent(".rt-rep .rp-quien")) ?? ""),
+     "con un PIN bueno no sale el NOMBRE del operario: no hay cómo saber si se tecleó mal");
+  ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
+     "con el operario confirmado el botón sigue apagado");
+
+  /* 4. CAMBIAR A «ENCONTRADA» BORRA EL PIN. Es la regla que la base
+     sostiene con un CHECK; aquí se exige que la PANTALLA no llegue a
+     mandarlo, porque un CHECK que salta es un error que ve el usuario. */
+  await pg.click(".rt-rep .rp-origen button:has-text('Me la encontré')");
+  await pg.click(".rt-rep .rp-origen button:has-text('La reportó un OPM')");
+  ok((await pg.inputValue(".rt-rep .rp-pin input")) === "",
+     "al pasar por «me la encontré» el PIN se quedó escrito: vuelve a quedar alguien puesto");
+
+  /* 5. Y LO QUE SE CONTESTÓ LLEGA A LA BASE. Sin esto, todo lo de
+     arriba es una pantalla bonita que no guarda nada — que es
+     exactamente lo que pasó con la primera entrega. */
+  await teclear("4021");
+  await pg.waitForSelector(".rt-rep .rp-quien", { timeout: 2000 }).catch(() => {});
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForSelector(".rt-rep .cel-step");
+  await pg.click(".rt-rep .seg button:has-text('EER')");
+  await pg.click(".rt-rep .seg.vidrio button.flint");
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForSelector("#rt-area");
+  await pg.click(".rt-rep .chips button:has-text('Líneas')");
+  await pg.selectOption("#rt-area", "plazoleta");
+  await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForFunction(
+    () => (window.llamadas ?? []).some((l) => l.f === "rotura_marcar_origen"),
+    null, { timeout: 3000 }).catch(() => {});
+  const o = (await llamadas()).find((x) => x.f === "rotura_marcar_origen");
+  ok(!!o, "la rotura se guardó SIN decir de dónde salió: la pregunta no llega a la base");
+  ok(o?.a?.p_origen === "opm", `se mandó el origen «${o?.a?.p_origen}» y era «opm»`);
+  ok(o?.a?.p_pin === "4021", `no se mandó el PIN del operario: ${JSON.stringify(o?.a?.p_pin)}`);
+  /* Y VA DESPUÉS DE REGISTRAR, con el id de la rotura. Si fuera al
+     revés no habría a qué pegarle el origen. */
+  const reg = (await llamadas()).findIndex((x) => x.f === "rotura_registrar");
+  const org = (await llamadas()).findIndex((x) => x.f === "rotura_marcar_origen");
+  ok(reg >= 0 && org > reg, "el origen se marca antes de que la rotura exista");
+  ok(o?.a?.p_id === "id-1", `el origen no va pegado al id de la rotura: ${o?.a?.p_id}`);
 }
-ok(/Lo que se rompió/i.test(await pg.textContent(".cabeza h1")),
-   "al cerrar, el titular sigue diciendo Registrar: esa ya es la pantalla de consulta");
-ok((await pg.$$(".rt .consola")).length === 0,
-   "la consola del registro se quedó puesta en la pantalla de consulta");
-await pg.click(".mas");
-await pg.waitForSelector(".rt-rep");
+
+/* Y LA ENCONTRADA NO MANDA PIN. */
+await monta();
+{
+  await pg.click(".rt-rep .rp-origen button:has-text('Me la encontré')");
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForSelector(".rt-rep .cel-step");
+  await pg.click(".rt-rep .seg button:has-text('EER')");
+  await pg.click(".rt-rep .seg.vidrio button.flint");
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForSelector("#rt-area");
+  await pg.click(".rt-rep .chips button:has-text('Líneas')");
+  await pg.selectOption("#rt-area", "plazoleta");
+  await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForFunction(
+    () => (window.llamadas ?? []).some((l) => l.f === "rotura_marcar_origen"),
+    null, { timeout: 3000 }).catch(() => {});
+  const o = (await llamadas()).find((x) => x.f === "rotura_marcar_origen");
+  ok(o?.a?.p_origen === "encontrada", `en «me la encontré» se mandó «${o?.a?.p_origen}»`);
+  ok(o?.a?.p_pin === null,
+     `en una encontrada se mandó un PIN: ${JSON.stringify(o?.a?.p_pin)} — eso pone a alguien en un reporte que no hizo`);
+}
 
 /* ---------------------------------------------------------------------
    1 · EL EER TAMBIÉN PIDE MATERIAL, Y FILTRADO POR EL COLOR
@@ -610,6 +785,33 @@ await pg.screenshot({ path: ".arnes/rt-sitio-paso2.png" });
    ------------------------------------------------------------------ */
 for (const [ancho, nombre] of [[1440, "pc"], [820, "tab"], [390, "cel"], [360, "360"]]) {
   await monta(ancho);
+
+  /* EL PASO 0 SE MIDE EN SU PROPIO ANCHO, antes de pasarlo. Si solo se
+     midiera lo de después, la primera pantalla —la única que TODOS ven,
+     porque es obligatoria— sería la única sin medir. El PIN se cuenta
+     aquí aunque sea un `input` y no un botón: es el campo más fácil de
+     errar con guante de toda la pantalla. */
+  await pg.click(".rt-rep .rp-origen button:has-text('La reportó un OPM')");
+  {
+    const p0 = await pg.evaluate(() => {
+      const a = document.documentElement.clientWidth, fuera = [], chicos = [];
+      for (const el of document.querySelectorAll(".rt-rep *")) {
+        const b = el.getBoundingClientRect();
+        if (b.width > 0 && (b.right > a + .5 || b.left < -.5)) fuera.push(el.className || el.tagName);
+        if (["BUTTON", "SELECT", "INPUT"].includes(el.tagName) && b.height > 0 && b.height < 44)
+          chicos.push((el.className || el.tagName) + " h=" + Math.round(b.height));
+      }
+      return { scroll: document.documentElement.scrollWidth, ancho: a,
+               fuera: [...new Set(fuera)].slice(0, 4), chicos: [...new Set(chicos)].slice(0, 4) };
+    });
+    ok(p0.scroll <= p0.ancho + .5,
+       `${nombre}: la primera pregunta desplaza la página a lo ancho (${p0.scroll} > ${p0.ancho})`);
+    ok(!p0.fuera.length, `${nombre}: en la primera pregunta se sale ${p0.fuera.join(" | ")}`);
+    ok(!p0.chicos.length,
+       `${nombre}: en la primera pregunta no se alcanza con el dedo ${p0.chicos.join(" | ")}`);
+    if (ancho === 390) await pg.screenshot({ path: ".arnes/rt-sitio-paso0.png", fullPage: true });
+  }
+
   await abrir();
   await pg.click(".rt-rep .seg button:has-text('EER')");
   /* Flint: un solo material, viene puesto, se pasa de paso. */
@@ -646,4 +848,4 @@ if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\n✓ Rotura en sitio: Registrar es la consola de Traspasos —formulario y contexto al lado—, el EER pide material filtrado por el color (y puesto cuando solo hay uno), «botellas rotas adentro» se fue, el proceso habilita las causas, y el área sale del maestro.");
+console.log("\n✓ Rotura en sitio: la PRIMERA pregunta es de dónde salió —y el PIN solo sale si la reportó un OPM, y no deja seguir hasta que sale el NOMBRE—, Registrar es la consola de Traspasos —formulario y contexto al lado—, el EER pide material filtrado por el color (y puesto cuando solo hay uno), «botellas rotas adentro» se fue, el proceso habilita las causas, y el área sale del maestro.");

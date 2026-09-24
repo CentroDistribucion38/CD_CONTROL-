@@ -137,6 +137,38 @@ export type Tolva = {
   codigo: string; modelo: string; tara_kg: number; activo: boolean; orden: number | null;
 };
 
+/**
+ * UN OPERARIO OPM. No es un usuario de la app: no entra, no tiene
+ * pantalla, no tiene clave. Se identifica con cuatro dígitos delante de
+ * quien registra la rotura, y eso es todo lo que hace.
+ *
+ * `roturas` es cuántas ha reportado — lo único que dice si el PIN se
+ * está usando de verdad o si se cargó y nadie lo tocó nunca.
+ */
+export type Operario = {
+  id: string; pin: string; nombre: string; empresa: string;
+  turno: string | null; activo: boolean; nota: string | null; roturas: number;
+};
+
+/**
+ * EL MAESTRO DE OPERARIOS, POR FUNCIÓN Y NO POR TABLA.
+ *
+ * La tabla NO se le da a la aplicación: `revoke all ... from
+ * authenticated`. Si se leyera directo, cualquiera con la sesión
+ * abierta podría bajarse la lista entera de PIN desde el navegador, y
+ * entonces el PIN no probaría nada — que es justo para lo que existe.
+ *
+ * `operarios_listar()` solo contesta a quien MANDA, y a los demás les
+ * devuelve vacío. Por eso aquí una lista vacía no es un error: es la
+ * respuesta correcta para quien no debería verla.
+ */
+export async function operarios(): Promise<{ lista: Operario[]; sinTabla: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("operarios_listar");
+  if (error) return { lista: [], sinTabla: sinTablas(error.message) };
+  return { lista: (data ?? []) as Operario[], sinTabla: false };
+}
+
 function sinTablas(msg: string | undefined) {
   const t = (msg ?? "").toLowerCase();
   return t.includes("does not exist") || t.includes("schema cache");
@@ -212,6 +244,31 @@ export async function materiales(soloActivos = true) {
   if (soloActivos) q = q.eq("activo", true);
   const { data } = await q.order("orden", { ascending: true, nullsFirst: false });
   return (data ?? []) as Material[];
+}
+
+/**
+ * EL MAESTRO DE MATERIALES, DESDE INVENTARIO.
+ *
+ * «Tenemos un maestro de producto y envase; esa data la necesito también
+ *  para el desplegable de Quiebra en sitio.»
+ *
+ * CAE AL MAESTRO VIEJO SI LA VISTA NO EXISTE. Mientras
+ * `2026-09-roturas-maestro-unico-y-opm.sql` no se haya corrido, la
+ * pantalla tiene que seguir funcionando con los siete de siempre:
+ * dejarla sin desplegable convertiría un «falta correr un SQL» en no
+ * poder registrar una rotura que ya ocurrió.
+ */
+export async function materialesMaestro(): Promise<{ materiales: Material[]; delInventario: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_roturas_materiales_maestro")
+    .select("clave, nombre, tipo, color, botellas_x_empaque")
+    .order("nombre");
+  if (error || !data) return { materiales: await materiales(), delInventario: false };
+  return {
+    materiales: (data as Material[]).map((m) => ({ ...m, activo: true, orden: null })),
+    delInventario: true,
+  };
 }
 
 export async function procesos(soloActivos = true) {

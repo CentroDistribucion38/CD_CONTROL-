@@ -223,6 +223,11 @@ export const MODULOS: Modulo[] = [
       { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
       { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
       { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
+      /* OPERARIOS VA DE ÚLTIMA, detrás del Maestro, y es la única de la
+         rama que no la ve todo el mundo: aquí se ven los PIN. No es una
+         hoja del Maestro por eso mismo —una hoja más habría amarrado el
+         permiso de los PIN al de materiales y causas—. */
+      { nombre: "Operarios", ruta: "/roturas/en-sitio/operarios", rama: "en-sitio" },
 
       /* SALIDA: una pantalla por etapa de la cadena, y en el orden en que
          pasa. Las dos firmas son de dos personas distintas y cada una

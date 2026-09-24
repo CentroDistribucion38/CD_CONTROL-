@@ -1,93 +1,111 @@
-Un solo maestro para el desplegable de roturas, y el PIN del OPM
+Las pantallas del PIN: la primera pregunta al registrar, y el maestro de operarios
 
 =====================================================================
-EL DESPLEGABLE SALE DEL MAESTRO DE INVENTARIO
+LO QUE FALTABA ERA JUSTO ESTO
 =====================================================================
-«Tenemos un maestro de producto y envase; esa data la necesito tambien
- para el desplegable de Quiebra en sitio: si dice producto terminado
- debe salir producto terminado, y si dice EER debe salir el envase.»
+«No veo los cambios en el modulo de quiebra de pin y demas cosas.»
 
-NO HUBO QUE INVENTAR NADA: `productos.tipo_material` ya es 'PRODUCTO' o
-'ENVASE' —494 y 32—, que es exactamente la distincion pedida.
-
-POR QUE NO SE DEJAN LOS DOS MAESTROS. Un material que existe en dos
-tablas se edita en una y se queda viejo en la otra. Hoy el desplegable
-de roturas ofrece SIETE materiales sembrados a mano mientras el
-inventario tiene 494: quien registra una rotura de un producto que no
-esta en esos siete, la registra con otro.
-
-FALTABAN DOS COLUMNAS, y no son un capricho de roturas:
-
-  color_vidrio      de que color es el vidrio. Solo lo necesitan los 32
-                    ENVASES. Sin el, el analisis de salida por color deja
-                    de cuadrar: el color no esta en la salida, esta en el
-                    material.
-  unidades_x_caja   cuantas botellas trae una caja. Es lo que convierte
-                    «12 cajas» en «360 unidades». El `factor_estibado`
-                    NO sirve para eso: dice cuantas cajas caben en una
-                    estiba.
-
-Lo que ya estaba en el maestro viejo se copia emparejando por nombre. Lo
-demas queda vacio —que es la verdad— y LA VISTA LO DICE: `le_falta_color`
-y `le_falta_caja`. Callarlo es lo que hace que nadie lo llene nunca.
+Tenia razon. El commit anterior entrego LA BASE —el maestro de
+operarios, la funcion que traduce PIN → nombre, el origen de la
+rotura— y NINGUNA PANTALLA. Nada de eso se podia ver ni usar: el
+maestro no tenia donde cargarse y la pregunta no tenia donde hacerse.
+Esto son las dos pantallas.
 
 =====================================================================
-EL PIN DEL OPM
+1. REGISTRAR ABRE PREGUNTANDO DE DONDE SALIO
 =====================================================================
-«Colocare el PIN a cada OPM, que ese sera como la clave para que en el
- informe oculto tengamos hora, turno, fecha, nombre del operador.»
+«La primera pregunta que debe salir, antes de iniciar, es rotura
+ reportada por OPM o encontrada.»
 
-NO SON USUARIOS DE LA APP: no entran, no tienen pantalla, no tienen
-clave. Se identifican con cuatro digitos delante de quien registra.
-Meterlos como usuarios seria crear cien cuentas que nadie va a usar.
+VA DE PRIMERA Y NO AL FINAL, porque cambia a quien se le carga lo que
+sigue. Preguntado al final seria preguntarlo cuando ya nadie lo va a
+cambiar.
 
-EL PIN SE GUARDA TAL CUAL, Y ESO ES UNA DECISION. Lo primero que uno
-piensa es cifrarlo; con cuatro digitos NO SIRVE DE NADA —son diez mil
-combinaciones— y ademas impediria que el administrador se lo recuerde al
-operario que lo olvido. Lo que si protege es NO ENSEÑARLO: la tabla NO
-se le da a la aplicacion. Quien registra manda el PIN a una funcion y le
-vuelve el NOMBRE; el PIN no viaja de vuelta.
+EL PIN SOLO SALE SI LA REPORTO UN OPM. Una encontrada no lleva
+operario: pedirle el PIN seria pedirle que ponga a alguien en un
+reporte que nadie hizo. Y al cambiar a «me la encontre» el PIN
+ESCRITO SE BORRA —no se deja «por si vuelve»—.
 
-UN PIN APAGADO CONTESTA IGUAL QUE UNO INVENTADO. Si un operario dado de
-baja contestara distinto, el maestro se podria ir adivinando de a cuatro
-digitos desde la pantalla de registrar.
+NO BASTA CON TECLEAR CUATRO DIGITOS: TIENE QUE SALIR EL NOMBRE. Se
+busca solo al completar el cuarto digito, sin boton, y hasta que la
+base no conteste con un nombre el boton de abajo no deja seguir.
+Cuatro digitos tecleados con guante se equivocan, y un numero que
+nadie confirma acaba firmando lo que registro otro.
 
-=====================================================================
-DE DONDE SALE LA ROTURA
-=====================================================================
-«La primera pregunta, antes de iniciar: rotura reportada por OPM o
- encontrada.»
+«REGISTRAR OTRA» VUELVE AL PASO 1, NO AL 0. Cuando se cae una estiba
+no se rompe una sola caja: es el mismo operario en el mismo momento, y
+volver a teclear su PIN por cada caja es lo que hace que la quinta no
+se registre.
 
-Son dos cosas distintas y hay que poder separarlas: una reportada es el
-sistema funcionando; una encontrada es una que nadie reporto, y un mes
-con muchas encontradas dice algo que ninguna otra cifra dice.
-
-UNA «ENCONTRADA» NO LLEVA OPM, aunque le manden un PIN: poner ahi a
-alguien seria decir que el la reporto. Lo sostienen dos frenos —la
-funcion y un CHECK— y el arnes exige que el primero funcione, no solo
-que el segundo salve el dato: que la base rechace no es lo mismo que que
-la pantalla funcione.
-
-SE MARCA EN SU PROPIA FUNCION y no dentro de `rotura_registrar`, que
-tiene doce argumentos y ciento quince lineas de reglas: en PostgreSQL
-agregarle un argumento obliga a reescribirla entera, y en este proyecto
-ya se han perdido reglas asi. LO QUE QUEDA SIN ORIGEN SE VE —`sin_origen`
-en la vista—: no es un error que se pueda esconder, es uno que hay que ir
-a completar.
+SI EL ORIGEN NO SE PUDO GUARDAR, SE DICE. La rotura YA existe y eso es
+lo correcto —perder el reporte por eso seria cambiar lo importante por
+lo accesorio—, pero queda marcada «sin origen» y la pantalla lo avisa
+en la misma linea donde avisa lo de la foto.
 
 =====================================================================
-EL ARNES
+2. EL MAESTRO DE OPERARIOS
 =====================================================================
-bash .arnes/correr-maestro-opm.sh. Seis frenos, seis mutaciones, seis
-ROJAS. Una de ellas destapo un fallo del propio arnes: al romper la
-regla de la «encontrada», el CHECK de la base levantaba una excepcion
-que mataba la prueba y el resumen no se imprimia —ni verde ni roja, que
-es lo unico que no sirve—. Ahora cualquier excepcion ahi es una falla.
+Sin esta pantalla la otra no sirve: pide un PIN y contesta «ese PIN no
+es de ningun operario activo» PARA SIEMPRE, porque no hay donde
+cargarlos.
 
-FALTA, Y NO LO PUEDE HACER EL SQL:
-· llenar el COLOR DEL VIDRIO de los envases en Inventario -> Maestro;
-· cargar los OPERARIOS con su PIN.
-El SQL imprime cuantos envases estan sin color al terminar.
+EL PIN SE VE EN CLARO, Y ES UNA DECISION. Lo primero que uno piensa es
+taparlo con puntitos; entonces el administrador no puede recordarselo
+al operario que lo olvido, que es media razon de entrar aqui. Lo que
+si protege es no darselo a nadie mas: la tabla NO se le da a la
+aplicacion y `operarios_listar()` devuelve vacio a quien no manda.
+
+NO HAY BORRAR, SE APAGA. Borrar a quien ya reporto deja esas roturas
+apuntando a nadie; y uno que no reporto ninguna tampoco hace daño
+apagado. Apagar corta el PIN y deja lo viejo diciendo quien lo hizo.
+
+SE DICE CUANTOS NO HAN REPORTADO NADA. Es la unica cifra que distingue
+un maestro que se usa de uno que se cargo y ahi quedo.
+
+Y VACIO SE EXPLICA: «mientras este vacio, en Registrar solo se puede
+decir me la encontre». Es el estado en que nace el modulo y el unico
+en que la pantalla TIENE que explicarse.
+
+VA EN SU PROPIA PANTALLA Y NO COMO HOJA DEL MAESTRO. El Maestro de En
+sitio es «lo que se puede escoger» —lo que todo el mundo ve en un
+desplegable—. Esto es lo contrario: son los PIN, y justamente no se le
+enseñan a quien registra. Una hoja mas habria amarrado el permiso de
+los PIN al de materiales y causas.
+
+=====================================================================
+DOS COSAS QUE DESTAPO EL ARNES
+=====================================================================
+LO QUE SE TOCA MEDIA 42 Y 40 PX, NO 44. No era de estas pantallas: el
+boton `.btn` y los campos de `.panel` son de TODOS los maestros de
+Roturas y estaban asi desde el primero. Esto se llena con guante en
+una bodega. Corregido en los dos sitios; los diez arneses del modulo
+siguen verdes.
+
+UN FILTRO QUE NUNCA FILTRABA. `guardar()` limpiaba el PIN otra vez con
+`.replace(/\D/g,"")`, y la mutacion que lo rompia salia VERDE: el
+campo ya filtra al teclear. Se quito en vez de dejarlo «por si acaso»
+—un filtro que nunca filtra hace creer que ahi hay una regla—. Es la
+segunda vez en este modulo que el arnes demuestra que una condicion
+sobra; la primera fue el `manda()` de `salida_quitar_tolva`.
+
+=====================================================================
+LOS ARNESES
+=====================================================================
+node .arnes/rt-sitio.mjs      · 6 mutaciones, 6 ROJAS
+node .arnes/rt-operarios.mjs  · 7 mutaciones, 7 ROJAS
+
+La primera mutacion de rt-sitio —quitar el paso 0— mataba el arnes de
+un timeout treinta segundos despues, sin decir por que. Por eso esa
+comprobacion quedo ANTES de cualquier click, y el arnes ahora imprime
+lo que llevaba antes de morirse.
+
+FALTA, Y NO LO PUEDE HACER EL CODIGO:
+· correr 2026-09-salida-reabrir-y-anular.sql
+· correr 2026-09-roturas-maestro-unico-y-opm.sql
+· llenar el COLOR DEL VIDRIO de los envases en Inventario -> Maestro
+· cargar los OPERARIOS con su PIN en Roturas -> En sitio -> Operarios
+Mientras no esten cargados, Registrar solo deja decir «me la
+encontre», y lo dice.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

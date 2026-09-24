@@ -57,7 +57,19 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   const router = useRouter();
   const supabase = createClient();
 
-  const [paso, setPaso] = useState(1);
+  /* ARRANCA EN EL PASO 0: «la primera pregunta que debe salir, antes de
+     iniciar, es rotura reportada por OPM o encontrada». Va antes de todo
+     porque cambia a quién se le carga lo que sigue, y preguntarlo al
+     final sería preguntarlo cuando ya nadie lo va a cambiar. */
+  const [paso, setPaso] = useState(0);
+  const [origen, setOrigen] = useState<"opm" | "encontrada" | null>(null);
+  const [pin, setPin] = useState("");
+  /* QUIÉN ES ESE PIN, confirmado por la base. Se enseña el NOMBRE antes
+     de dejar seguir: cuatro dígitos tecleados con guante se equivocan, y
+     un número que nadie confirma acaba firmando lo que registró otro. */
+  const [opm, setOpm] = useState<{ nombre: string; turno: string | null } | null>(null);
+  const [pinMal, setPinMal] = useState(false);
+  const [buscandoPin, setBuscandoPin] = useState(false);
 
   const [tipo, setTipo] = useState<"producto_terminado" | "eer">("producto_terminado");
   const [vidrio, setVidrio] = useState<"ambar" | "flint" | "green">("ambar");
@@ -204,9 +216,35 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
      base traduce por color como siempre, y el mensaje de abajo dice qué
      falta agregar. Trabar el registro de una rotura que ya ocurrió por
      un maestro incompleto es perder el dato para siempre. */
-  const puedeSeguir = paso === 1
+  /* EL PASO 0 EXIGE EL NOMBRE, NO EL PIN. Dejar seguir con cuatro
+     dígitos tecleados y sin confirmar sería dejar pasar un PIN
+     equivocado hasta el final, donde ya no se puede arreglar sin
+     volver a registrar la rotura entera. */
+  const puedeSeguir = paso === 0
+    ? origen === "encontrada" || (origen === "opm" && !!opm)
+    : paso === 1
     ? (!!material || delTipo.length === 0) && (unidades + (esPT ? contaminadas : 0)) > 0
     : !!proceso && !!area && !!causa && (!exigeFoto || !!foto);
+
+  /* SE BUSCA AL COMPLETAR LOS CUATRO DÍGITOS, no con un botón: un botón
+     más para algo que se sabe cuándo está listo es un toque de más con
+     guante. */
+  useEffect(() => {
+    setOpm(null); setPinMal(false);
+    const limpio = pin.replace(/\D/g, "");
+    if (limpio.length < 4) return;
+    let vivo = true;
+    setBuscandoPin(true);
+    (async () => {
+      const { data } = await supabase.rpc("operario_por_pin", { p_pin: limpio });
+      if (!vivo) return;
+      const o = Array.isArray(data) ? data[0] : data;
+      setBuscandoPin(false);
+      if (o?.nombre) setOpm({ nombre: o.nombre, turno: o.turno ?? null });
+      else setPinMal(true);
+    })();
+    return () => { vivo = false };
+  }, [pin, supabase]);
 
   async function mandar() {
     setMandando(true);
@@ -240,6 +278,23 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
     const fila = Array.isArray(data) ? data[0] : data;
     const id = fila?.id as string;
 
+    /* EL ORIGEN, EN SU PROPIA LLAMADA. `rotura_registrar` tiene doce
+       argumentos y ciento quince líneas de reglas; en PostgreSQL
+       agregarle uno obliga a reescribirla entera, y aquí ya se han
+       perdido reglas así. SI ESTO FALLA LA ROTURA YA EXISTE, que es lo
+       correcto —ocurrió—, pero se dice: queda marcada «sin origen» y hay
+       que ir a completarla. */
+    let avisoOrigen = "";
+    if (id && origen) {
+      const { error: eOrig } = await supabase.rpc("rotura_marcar_origen", {
+        p_id: id, p_origen: origen, p_pin: origen === "opm" ? pin.replace(/\D/g, "") : null,
+      });
+      if (eOrig) {
+        avisoOrigen = "La rotura quedó registrada, pero sin decir de dónde salió: "
+          + "ábrela desde la lista y márcala. " + eOrig.message;
+      }
+    }
+
     /* La foto va DESPUÉS, porque su ruta lleva el id de la rotura. Si
        falla, la rotura YA existe y eso es lo correcto: perder el reporte
        porque no subió una imagen sería cambiar lo importante por lo
@@ -267,7 +322,11 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
 
     setMandando(false);
     setListo((fila?.codigo as string) ?? "");
-    if (aviso) setMal(aviso);
+    /* LOS DOS AVISOS, NO UNO. Si falla el origen Y la foto, enseñar solo
+       el último deja el otro problema sin nadie que lo sepa —y el del
+       origen es justamente el que no se ve después en la pantalla. */
+    const todo = [avisoOrigen, aviso].filter(Boolean).join(" ");
+    if (todo) setMal(todo);
     router.refresh();
   }
 
@@ -296,7 +355,12 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
             /* Se vuelve al paso 1 con todo puesto menos la cuenta:
                cuando se cae una estiba no se rompe una sola caja, y
                volver a escoger el mismo material cinco veces es lo que
-               hace que la quinta no se registre. */
+               hace que la quinta no se registre.
+
+               EL ORIGEN Y EL OPM TAMBIÉN SE QUEDAN —por eso vuelve al 1
+               y no al 0—: es el mismo operario en el mismo momento, y
+               volver a teclear su PIN por cada caja sería el toque que
+               hace que la quinta no se registre, igual que el material. */
             setListo(null); setMal(null); setPaso(1);
             setUnidades(1); setContaminadas(0); setTocoBotellas(false);
             if (foto) { URL.revokeObjectURL(foto.url); setFoto(null) }
@@ -325,18 +389,24 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
        lo mismo, cada una en una punta. */
     <section className="rt-rep" aria-label="Registrar una rotura">
       <div className="cab">
-        <h2>{paso === 1 ? "¿Qué se rompió?" : "¿De dónde salió?"}</h2>
+        <h2>
+          {paso === 0 ? "¿Quién la reportó?"
+            : paso === 1 ? "¿Qué se rompió?"
+            : "¿De dónde salió?"}
+        </h2>
         <p>
-          {paso === 1
-            ? "Paso 1 de 2 · Qué material y cuántas unidades. En sitio siempre se cuenta en unidades."
-            : "Paso 2 de 2 · De qué proceso salió, en qué área pasó y por qué."}
+          {paso === 0
+            ? "Paso 1 de 3 · Si la reportó un operario o si alguien se la encontró ya rota."
+            : paso === 1
+            ? "Paso 2 de 3 · Qué material y cuántas unidades. En sitio siempre se cuenta en unidades."
+            : "Paso 3 de 3 · De qué proceso salió, en qué área pasó y por qué."}
         </p>
       </div>
-      {/* Cuatro tramos que se llenan de a dos. Un tramo por paso, con dos
-          pasos, deja la barra en la mitad todo el tiempo y no se siente
-          que avance. */}
+      {/* Tres tramos, uno por paso. Antes eran cuatro llenándose de a dos
+          porque los pasos eran dos y la barra se quedaba en la mitad todo
+          el tiempo; con tres pasos ya avanza sola. */}
       <div className="pasos">
-        {[1, 2, 3, 4].map((i) => <i key={i} className={paso * 2 >= i ? "on" : ""} />)}
+        {[0, 1, 2].map((i) => <i key={i} className={paso >= i ? "on" : ""} />)}
       </div>
 
       {/* EL CUERPO, CON EL VOCABULARIO DE TRASPASOS: `cuerpo-f` es una
@@ -346,7 +416,67 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           la fila de opciones y `conteo` el contador con sus dos
           botones. Es el mismo formulario que ya se sabe llenar. */}
       <div className="cuerpo-f">
-        {paso === 1 ? (
+        {paso === 0 ? (
+          <>
+            <div>
+              <span className="rot-campo">¿Cómo apareció esta rotura?</span>
+              <div className="seg rp-origen">
+                <button type="button" className={origen === "opm" ? "on" : ""}
+                        onClick={() => setOrigen("opm")}>
+                  La reportó un OPM
+                </button>
+                <button type="button" className={origen === "encontrada" ? "on" : ""}
+                        /* AL CAMBIAR A «ENCONTRADA» SE BORRA EL PIN, y no se
+                           deja escrito «por si vuelve»: un PIN guardado
+                           debajo de una encontrada es alguien puesto en un
+                           reporte que no hizo. La base lo frena también
+                           —función y CHECK—, pero que la base rechace no es
+                           lo mismo que que la pantalla funcione. */
+                        onClick={() => { setOrigen("encontrada"); setPin("") }}>
+                  Me la encontré
+                </button>
+              </div>
+              <p className="rp-dice">
+                {origen === "encontrada"
+                  ? "Nadie la reportó: alguien la encontró ya rota. Se registra igual, y no lleva operario."
+                  : origen === "opm"
+                  ? "Un operario la vio y la reportó. Su PIN trae el nombre, el turno y la hora."
+                  : "Son dos cosas distintas y hay que poder separarlas: un mes con muchas encontradas dice algo que ninguna otra cifra dice."}
+              </p>
+            </div>
+
+            {origen === "opm" && (
+              <div className="rp-pin">
+                <span className="rot-campo">PIN del operario</span>
+                {/* `inputMode` numérico para que el teléfono abra el teclado
+                    de números, pero `type="text"`: con `type="number"` el
+                    navegador se come los ceros de adelante y «0412» entra
+                    como «412». */}
+                <input type="text" inputMode="numeric" autoComplete="off"
+                       maxLength={8} value={pin} placeholder="••••"
+                       aria-label="PIN del operario que reportó"
+                       onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))} />
+                {/* QUIÉN ES, ANTES DE SEGUIR. Cuatro dígitos tecleados con
+                    guante se equivocan; un número que nadie confirma acaba
+                    firmando lo que registró otro. */}
+                {opm ? (
+                  <div className="rp-quien">
+                    <b>{opm.nombre}</b>
+                    <span>{opm.turno ? `Turno ${opm.turno}` : "Sin turno en el maestro"}</span>
+                  </div>
+                ) : buscandoPin ? (
+                  <div className="rp-esp">Buscando…</div>
+                ) : pinMal ? (
+                  <div className="rp-mal">
+                    Ese PIN no es de ningún operario activo. Se revisa en Roturas → Operarios.
+                  </div>
+                ) : (
+                  <div className="rp-esp">Cuatro dígitos. El nombre sale solo.</div>
+                )}
+              </div>
+            )}
+          </>
+        ) : paso === 1 ? (
           <>
             <div className="linea-campos">
               <div>
@@ -564,12 +694,15 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
       </div>
 
       <div className="pie">
-        <button type="button" onClick={() => (paso === 1 ? cerrar() : setPaso(1))}>
-          {paso === 1 ? "Cancelar" : "Atrás"}
+        <button type="button" onClick={() => (paso === 0 ? cerrar() : setPaso(paso - 1))}>
+          {paso === 0 ? "Cancelar" : "Atrás"}
         </button>
         <button type="button" className="si" disabled={!puedeSeguir || mandando}
-                onClick={() => (paso === 1 ? setPaso(2) : mandar())}>
-          {paso === 1 ? "Siguiente"
+                onClick={() => (paso === 2 ? mandar() : setPaso(paso + 1))}>
+          {paso === 0
+            ? (!origen ? "Falta decir quién la reportó"
+              : origen === "opm" && !opm ? "Falta el PIN del operario" : "Siguiente")
+            : paso === 1 ? "Siguiente"
             : mandando ? "Enviando…"
             /* EL BOTÓN DICE QUÉ FALTA. Un botón apagado sin explicación
                es la forma más cara de pedir un dato: la persona lo toca

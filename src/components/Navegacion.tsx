@@ -114,6 +114,16 @@ const IconoLlave = () => (
   </svg>
 );
 
+/* OPERARIOS: una persona. Se pensó en un teclado de PIN, pero un
+   cuadrado con puntos al lado de «Operarios» se lee como calculadora;
+   la pantalla es de personas y el PIN es cómo se las llama. */
+const IconoOperario = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <circle cx="12" cy="8" r="3.4" />
+    <path d="M5.5 20c.6-3.4 3.3-5.2 6.5-5.2s5.9 1.8 6.5 5.2" />
+  </svg>
+);
+
 const IconoAcciones = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M12 3.2l8 3.4v5.1c0 4.4-3.3 7.6-8 9.1-4.7-1.5-8-4.7-8-9.1V6.6z" />
@@ -238,6 +248,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/roturas/en-sitio/visto-bueno": IconoSello,
   "/roturas/en-sitio/analisis": IconoAnalisis,
   "/roturas/en-sitio/maestro": IconoLlave,
+  "/roturas/en-sitio/operarios": IconoOperario,
   "/roturas/salida": IconoTolva,
   "/roturas/salida/verificacion": IconoVerificar,
   "/roturas/salida/validacion": IconoSello,

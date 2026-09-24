@@ -310,7 +310,7 @@
   font: inherit; font-family: var(--rt-titulo); font-size: 14px; font-weight: 700;
   padding: 9px 18px; border: 1px solid var(--rt-linea);
   background: #fff; color: var(--rt-tinta); cursor: pointer;
-  min-height: 42px; white-space: nowrap; text-decoration: none;
+  min-height: 44px; white-space: nowrap; text-decoration: none;
   display: inline-flex; align-items: center; justify-content: center;
 }
 .rt .btn:hover { border-color: var(--rt-gris2) }
@@ -606,6 +606,12 @@
 }
 .rt .panel label { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; color: var(--rt-gris) }
 .rt .panel textarea, .rt .panel input, .rt .panel select {
+  /* 44 px, NO 42 NI 40. Esto se llena con guante en una bodega, y la
+     diferencia entre 40 y 44 es la diferencia entre acertar y tocar la
+     etiqueta de al lado. Estaba en 40 desde el primer maestro y el
+     arnés de Operarios lo destapó: no era de esta pantalla, era de
+     todas las que usan `.panel`. */
+  min-height: 44px;
   font: inherit; font-size: 14px; padding: 11px 13px; width: 100%;
   border: 1px solid var(--rt-linea); background: #fff;
   color: var(--rt-tinta); resize: vertical;
@@ -1137,6 +1143,92 @@
   background: var(--rt-papel);
 }
 .rt-rep .nota { margin-top: 10px; font-size: 13px; line-height: 1.5; color: var(--rt-gris) }
+
+/* =====================================================================
+   EL MAESTRO DE OPERARIOS · solo lo suyo
+   ---------------------------------------------------------------------
+   Casi todo se reusa del maestro que ya existe —`.caja`, `.rueda`,
+   `.fila`, `.cod`, `.tit`, `.meta`, `.der`, `.par`, `.panel`—: es la
+   misma pantalla de siempre con otras filas, y darle un aspecto propio
+   solo la haría distinta sin hacerla mejor. Lo único que cambia son
+   dos cosas que sí son de aquí.
+   ===================================================================== */
+/* EL PIN VA EN LA COLUMNA DEL CÓDIGO, y ahí es un número que se compara
+   con lo que alguien tiene apuntado en un papel: tabular para que los
+   dígitos queden uno debajo del otro, y con aire entre ellos porque se
+   lee de a uno. */
+.rt .cod.op-pin {
+  font-variant-numeric: tabular-nums; letter-spacing: .14em; font-weight: 700;
+}
+/* La búsqueda: 44 px, como todo lo que se toca con guante. */
+.rt .op-busca {
+  width: 100%; height: 44px; border: 1.5px solid var(--rt-linea); border-radius: 2px;
+  padding: 0 14px; font: 500 14px inherit; background: var(--rt-papel); color: var(--rt-tinta);
+}
+
+/* =====================================================================
+   PASO 0 · DE DÓNDE SALIÓ LA ROTURA
+   ---------------------------------------------------------------------
+   TODO AQUÍ LLEVA `rp-`, Y NO SE REPITE UN NOMBRE DENTRO DEL PREFIJO.
+   Este archivo lleva SIETE choques de nombre —`.filtros`, `.panel`,
+   `.hoy`, `.fila`, `.cuenta`, y dos que me hice yo solo reusando
+   `an-neto`—: cada uno se vio primero como «la pantalla se ve rara» y
+   costó media hora encontrarlo. El prefijo es barato y el choque no.
+
+   El segmentado y el rótulo se REUSAN tal cual (`.seg`, `.rot-campo`):
+   es la misma pregunta de siempre —dos opciones que se excluyen— y
+   darle un aspecto propio solo porque es nueva haría que se leyera como
+   otra cosa.
+   ===================================================================== */
+.rt-rep .seg.rp-origen { display: flex; width: 100% }
+.rt-rep .seg.rp-origen button { flex: 1 1 0; min-width: 0 }
+
+/* LA LÍNEA QUE EXPLICA. No es decoración: la diferencia entre
+   «reportada» y «encontrada» es justo la que se va a equivocar si nadie
+   la dice, y es la cifra que después se mira sola. */
+.rt-rep .rp-dice {
+  margin: 10px 0 0; font-size: 13px; line-height: 1.55; color: var(--rt-gris);
+  max-width: 62ch;
+}
+
+.rt-rep .rp-pin { max-width: 320px }
+/* EL PIN SE TECLEA CON GUANTE: 54 px de alto y los dígitos grandes y
+   separados. Es el campo más fácil de errar de toda la pantalla —no
+   tiene ninguna palabra que avise que va mal— así que se le da tamaño. */
+.rt-rep .rp-pin input {
+  width: 100%; height: 54px; border: 1.5px solid var(--rt-linea); border-radius: 2px;
+  padding: 0 16px; background: var(--c-eef1f5); color: var(--rt-tinta);
+  font: 700 22px/1 var(--rt-texto); letter-spacing: .34em;
+}
+.rt-rep .rp-pin input:focus-visible {
+  outline: 2px solid var(--rt-oro); outline-offset: 2px; border-color: var(--rt-oro);
+}
+
+/* QUIÉN ES: la confirmación ocupa sitio SIEMPRE —esperando, mal o
+   bien—, para que el bloque no salte hacia abajo justo cuando la
+   persona está leyendo el nombre. */
+.rt-rep .rp-quien, .rt-rep .rp-esp, .rt-rep .rp-mal {
+  margin-top: 10px; min-height: 44px; display: flex; align-items: center;
+  padding: 8px 12px; border-radius: 2px; font-size: 13px; line-height: 1.45;
+}
+.rt-rep .rp-quien {
+  flex-direction: column; align-items: flex-start; gap: 2px;
+  background: var(--rt-verde-suave); border-left: 3px solid var(--rt-verde);
+}
+.rt-rep .rp-quien b { font: 700 15px var(--rt-titulo); color: var(--rt-tinta) }
+.rt-rep .rp-quien span { font-size: 12px; color: var(--rt-gris) }
+.rt-rep .rp-esp { color: var(--rt-gris); padding-left: 0 }
+.rt-rep .rp-mal {
+  background: var(--rt-mal-suave); border-left: 3px solid var(--rt-mal); color: var(--rt-mal);
+}
+
+/* En teléfono el segmentado de dos opciones no cabe en una línea con
+   texto de 14 px: se parte en dos filas antes que encoger la letra. */
+@media (max-width: 480px) {
+  .rt-rep .seg.rp-origen { flex-wrap: wrap }
+  .rt-rep .seg.rp-origen button { flex: 1 1 100% }
+  .rt-rep .rp-pin { max-width: none }
+}
 /* La causa esperando el proceso: ocupa el sitio donde van a salir, en
    vez de no estar, para que se vea que falta algo antes y no que la
    pantalla se quedó corta. */
@@ -1297,3 +1389,188 @@
 }
 .rt .firma.turno .nota-firma { border-left-color: var(--rt-oro) }
 .rt .firma.lista .nota-firma { border-left-color: color-mix(in srgb, var(--rt-verde) 45%, #fff) }
+
+/* ---------------------------------------------------------------------
+   EL ANÁLISIS DE SALIDA  ·  `an-…`
+   ---------------------------------------------------------------------
+   TODO CON PREFIJO `an-`, y no `hero`, `bal`, `kp`, `tri` como venían en
+   el boceto. En este archivo ya se perdieron cinco veces horas por un
+   nombre que otra pantalla del módulo usaba para otra cosa —`.filtros`,
+   `.panel`, `.hoy`—: un prefijo de tres letras cuesta nada y cierra esa
+   puerta de una vez.
+
+   BLANCO A PELO Y NO UN TOKEN en los fondos: este módulo no tiene
+   `--rt-fondo`, y escrito así el fondo sale transparente sin avisar.
+   --------------------------------------------------------------------- */
+.rt .an-hero {
+  display: grid; grid-template-columns: 1.1fr 1fr; margin-bottom: 16px;
+  border: 1.5px solid var(--rt-linea); border-radius: 12px; overflow: hidden;
+}
+/* LA CIFRA Y SU RESTA SON UNA SOLA PIEZA, con un solo borde: una cifra
+   suelta no deja comprobar nada; al lado de su bruto y su tara, sí. */
+.rt .an-neto {
+  position: relative; overflow: hidden;
+  background: var(--rt-oro); color: var(--rt-sobre-oro); padding: 24px 26px;
+}
+.rt .an-neto > * { position: relative }
+.rt .an-neto .corte {
+  position: absolute; top: -60px; bottom: -60px; right: -50px; width: 170px;
+  background: rgba(255, 255, 255, .26); transform: skewX(-26deg);
+}
+.rt .an-neto .k {
+  font: 700 10.5px var(--rt-titulo); letter-spacing: .16em; opacity: .7;
+}
+.rt .an-neto .v {
+  font: 900 clamp(56px, 7vw, 92px) var(--rt-titulo);
+  line-height: .86; letter-spacing: -.06em; margin-top: 8px;
+}
+.rt .an-neto .v em { font-style: normal; font-size: 28px; letter-spacing: 0; margin-left: 8px }
+.rt .an-neto .s { font-size: 13.5px; font-weight: 600; opacity: .78; margin-top: 12px }
+.rt .an-neto .chispa {
+  margin-top: 16px; border-top: 1px solid rgba(0, 0, 0, .2); padding-top: 10px;
+}
+.rt .an-neto .chispa .t {
+  font: 700 9.5px var(--rt-titulo); letter-spacing: .14em; opacity: .62; margin-bottom: 4px;
+}
+.rt .an-neto .chispa svg { width: 100%; height: 34px; display: block }
+
+.rt .an-bal {
+  background: #fff; padding: 24px 26px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.rt .an-bal .k { font: 700 10.5px var(--rt-titulo); letter-spacing: .16em; color: var(--rt-gris) }
+.rt .an-bal .pila {
+  display: flex; height: 44px; margin-top: 14px; border: 2px solid var(--rt-tinta);
+}
+.rt .an-bal .pila i {
+  display: flex; align-items: center; justify-content: center; min-width: 0;
+  font: 800 13px var(--rt-titulo); font-style: normal; white-space: nowrap; overflow: hidden;
+}
+.rt .an-bal .pila .tara { background: #EDEDE8; color: #5E625E }
+.rt .an-bal .pila .neto { background: var(--rt-oro); color: var(--rt-sobre-oro) }
+.rt .an-bal .ley {
+  display: flex; justify-content: space-between; gap: 12px;
+  margin-top: 9px; font-size: 12.5px; color: var(--rt-gris); flex-wrap: wrap;
+}
+.rt .an-bal .ley b { color: var(--rt-tinta); font: 800 14px var(--rt-titulo) }
+.rt .an-bal p { margin: 14px 0 0; font-size: 12.5px; color: var(--rt-gris); line-height: 1.5 }
+
+.rt .an-kp { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px }
+.rt .an-k4 {
+  padding: 15px 17px; background: #fff;
+  border: 1.5px solid var(--rt-linea); border-left-width: 4px; border-radius: 10px;
+}
+/* `an-cif` Y NO `fila`. En este módulo hay CATORCE reglas sueltas para
+   `.rt .fila` —la lista de salidas—, y aunque mi selector gana por
+   especificidad, TODO LO QUE YO NO DECLARO SE COLA: el borde, el fondo
+   y el relleno de aquella fila salían dibujando un recuadro dentro de
+   cada cifra. Sexta vez que este archivo se come la misma trampa, y la
+   primera en la que estaba escrito tres líneas más arriba que no lo
+   hiciera. */
+.rt .an-k4 .an-cif { display: flex; align-items: center; gap: 12px }
+.rt .an-k4 .ic {
+  width: 38px; height: 38px; flex: none; display: grid; place-items: center;
+  background: #F2F2EE; color: #5E625E; border-radius: 8px;
+}
+.rt .an-k4 .ic svg {
+  width: 19px; height: 19px; stroke: currentColor; stroke-width: 1.8;
+  fill: none; stroke-linecap: round; stroke-linejoin: round;
+}
+.rt .an-k4 .n { font: 900 30px var(--rt-titulo); line-height: 1 }
+.rt .an-k4 .l { font: 700 12.5px var(--rt-texto); margin-top: 4px }
+.rt .an-k4 .s { font-size: 11.5px; color: var(--rt-gris); margin-top: 6px; line-height: 1.35 }
+/* EN ÁMBAR Y NO EN ROJO: esperar camión es el estado normal entre pesar
+   y despachar, no un problema. El rojo era de cuando esperaba una firma
+   que alguien tenía que ir a poner. */
+.rt .an-k4.aten { border-left-color: var(--rt-oro) }
+.rt .an-k4.aten .ic { background: #FFF6D6; color: #B07800 }
+.rt .an-k4.aten .n { color: #B07800 }
+
+.rt .an-tri { display: grid; grid-template-columns: 1.1fr .9fr 1.5fr; gap: 16px; align-items: start }
+.rt .an-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 16px 18px 9px;
+}
+.rt .an-h b { font: 900 17px var(--rt-titulo) }
+.rt .an-h span { font-size: 12px; color: var(--rt-gris) }
+.rt .an-fl {
+  display: grid; grid-template-columns: 78px 1fr 62px; gap: 12px; align-items: center;
+  padding: 8px 18px; font-size: 13px;
+}
+.rt .an-fl .p { height: 18px; background: #F0F0EC; border-radius: 3px; overflow: hidden }
+.rt .an-fl .p i { display: block; height: 100%; background: var(--rt-oro) }
+.rt .an-fl .v { text-align: right; font: 900 15px var(--rt-titulo) }
+.rt .an-fl.cero .v { color: #B5B5B0 }
+
+.rt .an-donac { display: flex; align-items: center; gap: 16px; padding: 4px 18px 16px; flex-wrap: wrap }
+.rt .an-donac > svg { width: 150px; height: 150px; flex: none }
+.rt .an-donac-n { font: 900 26px var(--rt-titulo); fill: var(--rt-tinta) }
+.rt .an-donac-u { font: 400 10.5px var(--rt-texto); fill: var(--rt-gris) }
+.rt .an-donac .ley { flex: 1 1 130px; min-width: 0 }
+.rt .an-donac .l {
+  display: flex; align-items: center; gap: 9px; padding: 7px 0;
+  font-size: 13px; border-bottom: 1px solid #F4F4F1;
+}
+.rt .an-donac .l:last-child { border-bottom: 0 }
+.rt .an-donac .l i { width: 11px; height: 11px; flex: none; border-radius: 2px }
+.rt .an-donac .l b { margin-left: auto; font: 800 14px var(--rt-titulo) }
+
+/* LA TABLA SE DESLIZA DENTRO DE SU CAJA y no arrastra la página: nueve
+   columnas no caben en un portátil, y una pantalla que se arrastra de
+   lado se usa con una mano en la bodega. */
+.rt .an-tabla { overflow-x: auto }
+.rt .an-tabla table { width: 100%; border-collapse: collapse; min-width: 620px }
+.rt .an-tabla th {
+  text-align: left; padding: 8px 14px; white-space: nowrap;
+  font: 700 9.5px var(--rt-titulo); letter-spacing: .12em; color: var(--rt-gris);
+  border-bottom: 1.5px solid var(--rt-linea);
+}
+.rt .an-tabla td {
+  padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #F2F2EF; vertical-align: middle;
+}
+.rt .an-tabla tr:last-child td { border-bottom: 0 }
+.rt .an-tabla .num { text-align: right; font-variant-numeric: tabular-nums }
+.rt .an-tabla .cod { font-family: var(--rt-titulo); font-weight: 800; white-space: nowrap }
+/* `an-nt` Y NO `an-neto`: `.rt .an-neto` es la banda dorada de arriba,
+   en este mismo archivo. Séptima colisión de nombres del módulo y la
+   primera contra mí mismo: la celda del neto salía con el fondo de la
+   banda. Un prefijo no basta si dentro del prefijo se repite el nombre. */
+.rt .an-tabla .an-nt { font-weight: 800 }
+
+/* EL CHIP DEL ESTADO, con nombre propio por lo mismo. */
+.rt .an-chip {
+  display: inline-block; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  font: 800 10px var(--rt-texto); letter-spacing: .07em;
+}
+.rt .an-chip.an-ok  { background: #E7F5EC; color: #0F7A4A }
+.rt .an-chip.an-esp { background: #FFF6D6; color: #8A6100 }
+.rt .an-tabla .an-hora { color: var(--rt-gris) }
+.rt .an-tabla .an-vacio { padding: 22px 14px; color: var(--rt-gris); text-align: center }
+.rt .an-minibar {
+  display: flex; width: 90px; height: 10px; border-radius: 3px; overflow: hidden;
+  background: #F0F0EC;
+}
+.rt .an-minibar i { display: block; height: 100% }
+.rt .an-mas { margin: 0; padding: 10px 18px 16px; font-size: 12px; color: var(--rt-gris) }
+
+/* EN TABLET Y CELULAR: las tres columnas se apilan y la banda se parte
+   en dos. Con `1.1fr 1fr` en 390 px, la cifra de 92 px se sale del
+   renglón y el reparto del bruto queda de 40 px de ancho. */
+/* LA TABLA SE VA A SU PROPIO RENGLÓN ANTES DE QUE SE APRIETE. El boceto
+   tiene las tres cajas en fila, pero está dibujado a 2000 px: en un
+   portátil de 1440 las nueve columnas no caben y «Neto» y «Estado»
+   quedan cortadas contra el borde —medido: a 1440 la columna «Neto» se
+   parte—. Solo por encima de 1560 px caben las tres en fila. */
+@media (max-width: 1560px) {
+  .rt .an-tri { grid-template-columns: 1fr 1fr }
+  .rt .an-tri > .caja:last-child { grid-column: 1 / -1 }
+}
+@media (max-width: 860px) {
+  .rt .an-hero { grid-template-columns: 1fr }
+  .rt .an-kp { grid-template-columns: repeat(2, 1fr) }
+  .rt .an-tri { grid-template-columns: 1fr }
+}
+@media (max-width: 520px) {
+  .rt .an-kp { grid-template-columns: 1fr }
+  .rt .an-donac { justify-content: center }
+}
