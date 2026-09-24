@@ -1,0 +1,355 @@
+// src/modulos/registro.ts
+function ramaDeRuta(m, pathname) {
+  if (!m.ramas?.length) return void 0;
+  if (pathname === m.ruta) return void 0;
+  const porRuta = m.ramas.filter((r) => pathname === r.ruta || pathname.startsWith(r.ruta + "/")).sort((a, b) => b.ruta.length - a.ruta.length)[0];
+  if (porRuta) return porRuta;
+  const seccion = m.secciones.filter((s) => !!s.rama && (pathname === s.ruta || pathname.startsWith(s.ruta + "/"))).sort((a, b) => b.ruta.length - a.ruta.length)[0];
+  return seccion ? m.ramas.find((r) => r.id === seccion.rama) : void 0;
+}
+var MODULOS = [
+  {
+    id: "quiebra",
+    nombre: "Quiebra",
+    eyebrow: "P\xC9RDIDA DE MATERIAL",
+    descripcion: "Todo lo que se pierde: el envase retornable medido contra producci\xF3n, lo que se rompe en la bodega y el vidrio que sale por la puerta.",
+    acento: "#E4002B",
+    fondo: "#FBEFD6",
+    etiquetas: ["Envase contra producci\xF3n", "Roturas en sitio y a la salida"],
+    imagen: "/modulos/quiebra.jpg",
+    ruta: "/quiebra",
+    activo: true,
+    /* ROTURAS SE MUDÓ AQUÍ ADENTRO, Y LAS DIRECCIONES NO SE TOCARON.
+           Sus pantallas siguen viviendo en /roturas/... a propósito: los
+           permisos de cada persona están guardados EN LA BASE como el texto
+           de la dirección —«/roturas/salida», «/roturas/en-sitio/maestro»—,
+           en rol_permisos y en los permisos extra de cada perfil. Cambiar
+           una ruta deja esas filas apuntando a algo que no existe y la
+           persona pierde la pantalla EN SILENCIO: no da error, deja de
+           verse. Es el mismo motivo por el que el módulo que la gente llama
+           T1/T2 sigue viviendo en /sider.
+    
+           TRES RAMAS, Y NINGUNA SE SUMA CON OTRA:
+             Envase   mide un PORCENTAJE contra la producción del mes.
+             En sitio cuenta UNIDADES por causa y por proceso.
+             Salida   pesa KILOS de vidrio.
+           No existe el factor que convierta una en otra —una botella de 330
+           y una de 750 pesan distinto, el vidrio se acumula días antes de
+           salir, y parte de lo que se pesa nunca se contó en sitio—. Un
+           menú plano con las catorce pantallas seguidas invita justamente a
+           leerlas como una sola cuenta. */
+    ramas: [
+      {
+        id: "envase",
+        nombre: "Envase",
+        eyebrow: "% CONTRA PRODUCCI\xD3N",
+        ruta: "/quiebra/tablero",
+        descripcion: "El envase retornable que se da de baja, medido contra lo que se produjo. Contesta c\xF3mo vamos contra la meta del mes."
+      },
+      {
+        id: "en-sitio",
+        nombre: "En sitio",
+        eyebrow: "UNIDADES",
+        ruta: "/roturas/en-sitio",
+        descripcion: "Lo que se rompi\xF3 en la bodega, contado por causa y por proceso. Contesta de qui\xE9n fue y de d\xF3nde sali\xF3."
+      },
+      {
+        id: "salida",
+        nombre: "Salida",
+        eyebrow: "KILOS",
+        ruta: "/roturas/salida",
+        descripcion: "El vidrio que sale por la puerta, pesado en tolvas y firmado por tres personas. Contesta cu\xE1nto sali\xF3."
+      }
+    ],
+    secciones: [
+      /* ENVASE. El tablero se mudó de /quiebra a /quiebra/tablero porque
+         /quiebra pasó a ser la bifurcación. Es la ÚNICA ruta que cambió
+         en todo esto, y va con su migración: el nivel que cada rol tenía
+         en /quiebra se copia a /quiebra/tablero, así que nadie pierde
+         nada. */
+      { nombre: "Tablero", ruta: "/quiebra/tablero", rama: "envase" },
+      { nombre: "Quiebra diaria", ruta: "/quiebra/diario", rama: "envase" },
+      { nombre: "Importar", ruta: "/quiebra/importar", rama: "envase" },
+      /* ROTURA DE LÍNEA VA DE ÚLTIMA, y el maestro detrás de ella. Es
+         una pérdida de material como las otras, medida también contra la
+         producción, pero es su propio flujo: quien entra a Envase va al
+         tablero, al día a día y a importar. Meterla en medio partía en
+         dos lo que se lee de corrido. */
+      { nombre: "Rotura de l\xEDnea", ruta: "/quiebra/rotura", rama: "envase" },
+      { nombre: "Tablero de rotura", ruta: "/quiebra/rotura/tablero", rama: "envase" },
+      { nombre: "Maestro de rotura", ruta: "/quiebra/rotura/maestro", rama: "envase" },
+      /* EN SITIO. El orden del recorrido: se registra → ABI decide → por
+         qué se rompe → la configuración. */
+      { nombre: "Registrar", ruta: "/roturas/en-sitio", rama: "en-sitio" },
+      { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
+      { nombre: "An\xE1lisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
+      { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
+      /* SALIDA: una pantalla por etapa de la cadena, y en el orden en que
+               pasa. Las dos firmas son de dos personas distintas y cada una
+               trabaja en un sitio distinto: la supervisora en la báscula y
+               quien valida dando el aval de salida. Con las dos firmas en una
+               sola hoja, la misma persona ve los dos botones, toca los dos, y
+               la base le contesta que no —que es tener la regla como regaño
+               en vez de como camino—. Aquí la salida AVANZA: sale de una
+               bandeja y aparece en la siguiente.
+      
+               ERAN TRES Y AHORA SON DOS: se quitó Verificación. Lo que no se
+               quitó es que sean DOS PERSONAS: quien pesa no da la salida. */
+      { nombre: "Pesar", ruta: "/roturas/salida", rama: "salida" },
+      { nombre: "Validaci\xF3n", ruta: "/roturas/salida/validacion", rama: "salida" },
+      { nombre: "An\xE1lisis", ruta: "/roturas/salida/analisis", rama: "salida" },
+      { nombre: "Tolvas", ruta: "/roturas/salida/tolvas", rama: "salida" },
+      /* LA VIEJA PORTADA DE ROTURAS. Ya no se lista —su trabajo lo hace
+               ahora la de Quiebra— pero la pantalla sigue existiendo y manda
+               para acá: hay gente con ese enlace guardado y en la app
+               instalada no hay barra de direcciones donde corregirlo.
+      
+               Y SE QUEDA REGISTRADA, oculta, en vez de borrarse: quitarla del
+               registro le quitaría su casilla en /admin/roles, y entonces la
+               fila de permiso que cada rol ya tiene sobre «/roturas» quedaría
+               sin forma de verse ni de cambiarse. */
+      { nombre: "Roturas (portada vieja)", ruta: "/roturas", oculto: true }
+    ]
+  },
+  {
+    id: "sider",
+    /* El nombre es literal: así se llama el módulo en el CD. La RUTA
+       sigue siendo /sider y no se toca — las direcciones están guardadas
+       como texto en rol_permisos y en los permisos extra de cada persona
+       ("/sider", "/sider/certificar", …), así que cambiarlas dejaría esas
+       filas apuntando a algo que ya no existe y todo el mundo perdería el
+       permiso EN SILENCIO: la pantalla no da error, simplemente deja de
+       verse. Lo que lee la gente y lo que identifica la pantalla son dos
+       cosas distintas y aquí se separan. */
+    nombre: "T1 / T2",
+    eyebrow: "ENVASE EN TR\xC1NSITO",
+    descripcion: "Certificaci\xF3n de veh\xEDculos con ubicaci\xF3n y evidencia fotogr\xE1fica, en la salida del CD origen y en la llegada a Barranquilla.",
+    acento: "#0B7285",
+    fondo: "#DFF1F3",
+    etiquetas: ["Certificaci\xF3n en dos puntas", "% de certificaci\xF3n"],
+    imagen: "/modulos/sider.jpg",
+    ruta: "/sider",
+    /* Quien abre Sider está casi siempre al lado de un vehículo, no
+       revisando la tabla. */
+    entrada: "/sider/certificar",
+    activo: true,
+    // OJO: aquí solo van secciones que YA tienen su página. Registrar una
+    // ruta que no existe pone un enlace en el menú que lleva a un 404, y
+    // quien lo toca no tiene forma de saber que es una pantalla pendiente
+    // y no una app rota. scripts/rutas.mjs revienta el build si pasa.
+    // EL MENÚ VA EN EL ORDEN DEL PROCESO, no en el orden en que se fueron
+    // construyendo las pantallas. De arriba abajo es lo que pasa de
+    // verdad con un vehículo:
+    //
+    //   Certificar        sale del CD origen
+    //   En tránsito       llega a Barranquilla
+    //   Fuente principal  ahí queda el viaje, ya completo
+    //   Seguimiento       el informe de todos
+    //   Novedades         lo que salió mal, que solo se sabe al final
+    //
+    // Maestro cierra porque no es un paso: es la configuración —los
+    // orígenes y los materiales— y se toca una vez cada mucho.
+    secciones: [
+      { nombre: "Certificar", ruta: "/sider/certificar" },
+      { nombre: "En tr\xE1nsito", ruta: "/sider/transito" },
+      /* LA REVISIÓN AI NO TIENE ENTRADA PROPIA, y es la decisión
+         correcta: vive DENTRO de Tránsito, que es donde se pide y donde
+         se hace. Tuvo su pantalla un día y era un módulo que obligaba a
+         quien recibe el camión a saber que existe, a entrar y a buscar
+         la placa en una lista. En el muelle eso no pasa: se descarga y
+         la revisión queda sin hacer. */
+      { nombre: "Fuente principal", ruta: "/sider" },
+      { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
+      /* EL INFORME DE LA REVISIÓN AI va detrás del seguimiento de
+         envase y no antes: las dos son análisis de lo que ya pasó, pero
+         el de envase es el del flujo principal —T1/T2— y el de AI es el
+         del cobro al socio, que es una conversación aparte. */
+      { nombre: "Revisi\xF3n AI", ruta: "/sider/seguimiento/ai" },
+      /* Se entra por el botón Importar de Seguimiento, que es donde se
+         necesita. En el menú era el mismo destino dicho dos veces. */
+      { nombre: "Importar", ruta: "/sider/importar", oculto: true },
+      { nombre: "Novedades", ruta: "/sider/novedades" },
+      { nombre: "Maestro", ruta: "/sider/maestro" }
+    ]
+  },
+  /* ROTURAS YA NO ES UN MÓDULO APARTE: se mudó dentro de Quiebra, arriba,
+       como dos de sus tres ramas —«En sitio» y «Salida»—. Las tres miden
+       material perdido y ahora se entra a las tres por la misma puerta.
+  
+       SUS DIRECCIONES NO CAMBIARON. Siguen siendo /roturas/…, y eso es a
+       propósito: los permisos están guardados en la base como el TEXTO de
+       la dirección, y moverlas habría dejado a cada persona sin sus
+       pantallas en silencio. Lo que cambió es dónde se entra, no dónde
+       vive. */
+  {
+    id: "traspasos",
+    nombre: "Traspasos",
+    eyebrow: "VIAJES ENTRE PUNTOS",
+    descripcion: "Lo que se planea mover en cada turno y lo que de verdad se movi\xF3, viaje por viaje y con su placa. El cumplido no se escribe: se cuenta.",
+    acento: "#0B4EA2",
+    fondo: "#E6EEF9",
+    etiquetas: ["Plan del turno", "Viajes con placa"],
+    imagen: "/modulos/traspasos.jpg",
+    ruta: "/traspasos",
+    /* Quien abre Traspasos casi siempre viene a registrar un viaje que
+       tiene enfrente, no a mirar el plan. El plan se hace una vez por
+       turno; los viajes se registran todo el turno. */
+    entrada: "/traspasos",
+    activo: true,
+    /* EL ORDEN DEL PROCESO, no el de las pantallas: primero se planea el
+       turno, después se registra lo que sale, después se compara, y la
+       configuración de último. */
+    secciones: [
+      { nombre: "Plan", ruta: "/traspasos/plan" },
+      { nombre: "Registrar", ruta: "/traspasos" },
+      /* FACTURACIÓN, DESPUÉS DE REGISTRAR: es el paso siguiente del mismo
+         viaje. El patio lo registra con la orden de cargue; facturación
+         le pone el número de documento y confirma que salió. Va DENTRO de
+         Traspasos —«no debías crearlo allí, sino en el mismo módulo»—.
+         Quien solo tiene el rol Facturación ve Traspasos con esta sola
+         pantalla. */
+      { nombre: "Facturaci\xF3n", ruta: "/traspasos/facturacion" },
+      { nombre: "Control", ruta: "/traspasos/control" },
+      /* IMPORTAR VA DESPUÉS DE CONTROL Y ANTES DEL MAESTRO, porque ese
+               es el orden del proceso: se planea, se registra lo que sale, se
+               mira si se cumplió el plan, y al final del día se sube el corte
+               de SAP para comprobar que lo registrado es lo que de verdad
+               salió. El maestro no es un paso del día: es lo que se mantiene
+               de vez en cuando, y por eso cierra la lista.
+      
+               SE LLAMA «IMPORTAR» Y VIVE EN /traspasos/cruce. El nombre
+               cambió porque la pantalla cambió —ya no muestra el cruce, solo
+               sube el archivo; las diferencias salen al pie de Control—, pero
+               LA DIRECCIÓN NO SE PUEDE TOCAR: los permisos de cada persona
+               están guardados en la base como el texto de la ruta, en
+               rol_permisos y en los permisos extra de cada perfil. Renombrar
+               la ruta deja esas filas apuntando a algo que no existe y la
+               gente pierde la pantalla EN SILENCIO. */
+      { nombre: "Importar", ruta: "/traspasos/cruce" },
+      { nombre: "Maestro", ruta: "/traspasos/maestro" }
+    ]
+  },
+  {
+    id: "acciones",
+    nombre: "Acciones",
+    eyebrow: "CORRECTIVAS Y PREVENTIVAS",
+    descripcion: "Lo que se encontr\xF3 mal, con plazo seg\xFAn la prioridad, responsable con nombre y verificaci\xF3n de si de verdad sirvi\xF3.",
+    /* Rojo de la casa: es el módulo que habla de lo que está mal, y el
+       día que se abre no es para dar una buena noticia. */
+    acento: "#E4002B",
+    fondo: "#FDE8EC",
+    etiquetas: ["Plazo por prioridad", "Se verifica, no se cierra y ya"],
+    imagen: "/modulos/acciones.jpg",
+    ruta: "/acciones",
+    /* Quien abre Acciones casi siempre viene a ver LO SUYO, no el
+       tablero de todos: el tablero es de la reunión de arranque de
+       turno, y a esa se entra con la pantalla ya puesta en la TV. */
+    entrada: "/acciones/mias",
+    activo: true,
+    // El orden del proceso, de arriba abajo: me toca → lo hice → alguien
+    // verifica → así vamos → por qué se repite → la configuración.
+    secciones: [
+      { nombre: "Mis acciones", ruta: "/acciones/mias" },
+      { nombre: "Por verificar", ruta: "/acciones/verificar" },
+      { nombre: "Todas", ruta: "/acciones" },
+      { nombre: "Tablero", ruta: "/acciones/tablero" },
+      { nombre: "Indicadores", ruta: "/acciones/analisis" },
+      { nombre: "Maestro", ruta: "/acciones/maestro" }
+    ]
+  },
+  {
+    id: "admin",
+    nombre: "Administraci\xF3n",
+    eyebrow: "PLATAFORMA",
+    descripcion: "Usuarios, roles y permisos: qui\xE9n entra, qui\xE9n ve qu\xE9 pantalla y qui\xE9n puede modificar. Los roles son datos, no c\xF3digo.",
+    acento: "#4C3BCF",
+    fondo: "#EDEBFA",
+    etiquetas: ["Crear usuarios", "Roles por secci\xF3n", "Borrar datos puntuales"],
+    imagen: "/modulos/admin.jpg",
+    ruta: "/admin/inicio",
+    activo: true,
+    secciones: [
+      /* PRIMERO LA PORTADA: quién entra, qué falta y qué se cambió. */
+      { nombre: "Inicio", ruta: "/admin/inicio" },
+      { nombre: "Roles", ruta: "/admin/roles" },
+      { nombre: "Usuarios", ruta: "/admin/usuarios" },
+      /* AL FINAL: borrar es lo último que se hace, y lo más raro. */
+      { nombre: "Borrar datos", ruta: "/admin/datos" }
+    ]
+  },
+  {
+    id: "inventario",
+    nombre: "Inventario",
+    eyebrow: "STOCK",
+    descripcion: "Maestro de materiales y ubicaciones, conteo por m\xF3dulo con vencimientos, kardex de movimientos y existencias por bodega.",
+    acento: "#E9A81F",
+    fondo: "#E2EDF9",
+    etiquetas: ["Conteo por ubicaci\xF3n", "D\xEDas para salir"],
+    imagen: "/modulos/inventario.jpg",
+    ruta: "/inventario",
+    activo: true,
+    secciones: [
+      /* CUATRO PANTALLAS Y EL ORDEN ES EL DEL PROCESO: se mantiene el
+               maestro, se camina la bodega, queda el registro de lo contado, y
+               sobre ese registro se decide qué sale primero.
+      
+               LA BASE VA ANTES QUE EL TABLERO porque el tablero SALE de ella:
+               es la misma lectura, una entera y la otra recortada a una sola
+               pregunta. Puesta después, la pantalla que decide iría antes que
+               los datos con los que decide.
+      
+               Aquí había siete. Las otras cuatro —Resumen, Productos, Bodegas,
+               Movimientos, Conteos físicos— eran la plantilla de demostración
+               con la que nació el repositorio, y al montar FEFO encima
+               quedaron DUPLICANDO lo mismo: «Productos» editaba `productos`
+               con un formulario más pobre que el del maestro, y «Bodegas»
+               hacía lo propio. Dos editores para una misma tabla es cómo dos
+               personas se pisan el dato sin enterarse. */
+      { nombre: "Maestro", ruta: "/inventario/maestro" },
+      { nombre: "Contar", ruta: "/inventario/conteo" },
+      { nombre: "La base", ruta: "/inventario/base" },
+      { nombre: "Tablero", ruta: "/inventario" }
+    ]
+  }
+];
+function rutasRegistradas() {
+  const out = [];
+  for (const m of MODULOS) {
+    if (!m.activo) continue;
+    out.push(m.ruta);
+    for (const s of m.secciones) out.push(s.ruta);
+  }
+  return [...new Set(out)];
+}
+var modulosActivos = () => MODULOS.filter((m) => m.activo);
+function modulosVisibles(rol) {
+  return MODULOS.filter((m) => !m.oculto && puedeVer(m, rol));
+}
+function moduloPorRuta(pathname) {
+  let mejor;
+  let largo = -1;
+  for (const m of MODULOS) {
+    if (!m.activo) continue;
+    for (const r of [m.ruta, ...m.secciones.map((s) => s.ruta)]) {
+      if (pathname !== r && !pathname.startsWith(`${r}/`)) continue;
+      if (r.length > largo) {
+        largo = r.length;
+        mejor = m;
+      }
+    }
+  }
+  return mejor;
+}
+function puedeVer(modulo, rol) {
+  if (!modulo.roles || modulo.roles.length === 0) return true;
+  return modulo.roles.includes(rol);
+}
+export {
+  MODULOS,
+  moduloPorRuta,
+  modulosActivos,
+  modulosVisibles,
+  puedeVer,
+  ramaDeRuta,
+  rutasRegistradas
+};

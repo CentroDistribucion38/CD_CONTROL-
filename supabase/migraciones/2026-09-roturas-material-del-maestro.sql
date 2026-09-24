@@ -94,6 +94,20 @@ begin
   select * into m from public.v_roturas_materiales_maestro v where v.clave = v_clave;
   if not found then return null; end if;
 
+  /* UN ENVASE SIN COLOR DE VIDRIO NO SE PUEDE COPIAR, y no es un
+     capricho de la tabla: el vidrio se separa POR COLOR porque se vende
+     por color, y un EER sin color acaba en un análisis de salida que no
+     cuadra. La restricción `roturas_mat_color` lo impide, y está bien
+     que lo impida.
+
+     SE DEVUELVE NULO Y NO SE INVENTA UN COLOR. Poner «ámbar» por
+     defecto habría hecho pasar el registro y ensuciado el análisis en
+     silencio, que es peor que un error a la cara. Quien llama dice qué
+     falta y dónde se arregla. */
+  if m.tipo = 'eer' and m.color is null then
+    return null;
+  end if;
+
   insert into public.roturas_materiales
          (clave, nombre, tipo, color, botellas_x_empaque, activo)
   values (m.clave, m.nombre, m.tipo::rotura_tipo,
@@ -118,6 +132,18 @@ select v.clave, v.nombre, v.tipo::rotura_tipo, v.color::vidrio_color,
        v.botellas_x_empaque, true
   from public.v_roturas_materiales_maestro v
  where not exists (select 1 from public.roturas_materiales r where r.clave = v.clave)
+   /* LOS ENVASES SIN COLOR SE QUEDAN FUERA, y por eso este archivo no
+      se cae al correrlo: la restricción `roturas_mat_color` exige color
+      a los EER, y en el maestro de Inventario hay envases que todavía
+      no lo tienen puesto —«ENVASE MARRON 330NR CERVEZAS» es uno—.
+      Copiarlos con un color inventado habría ensuciado el análisis por
+      color en silencio. Se quedan fuera y el aviso del final dice
+      cuántos son y dónde se arreglan. */
+   and not (v.tipo = 'eer' and v.color is null)
+   /* Y UN COLOR QUE NO ESTÉ EN LA LISTA tampoco entra: el cast a
+      `vidrio_color` reventaría el archivo entero por una sola fila. */
+   and (v.color is null
+        or v.color::text = any (enum_range(null::vidrio_color)::text[]))
 on conflict (clave) do nothing;
 
 -- ---------------------------------------------------------------------
@@ -191,6 +217,13 @@ begin
       if exists (select 1 from public.roturas_materiales r where r.clave = v_pedido) then
         raise exception 'El material % está apagado en el maestro de Roturas: préndelo ahí y vuelve a intentar', v_pedido;
       end if;
+      /* AL ENVASE SIN COLOR SE LE DICE QUÉ LE FALTA Y DÓNDE. «No está
+         en el maestro» sería mentira: está, y lo único que le falta es
+         un dato que se pone en Inventario. */
+      if exists (select 1 from public.v_roturas_materiales_maestro v
+                  where v.clave = v_pedido and v.tipo = 'eer' and v.color is null) then
+        raise exception 'Al envase % le falta el color del vidrio en el maestro de Inventario: pónselo ahí y vuelve a intentar', v_pedido;
+      end if;
       raise exception 'El material % no está en el maestro de Inventario', v_pedido;
     end if;
   end if;
@@ -262,12 +295,19 @@ grant execute on function public.rotura_registrar(text, integer, integer, intege
   to authenticated;
 
 do $$
-declare v_n int; v_tot int;
+declare v_n int; v_tot int; v_sin int;
 begin
   select count(*) into v_tot from public.roturas_materiales;
   select count(*) into v_n from public.v_roturas_materiales_maestro v
-   where not exists (select 1 from public.roturas_materiales r where r.clave = v.clave);
+   where not exists (select 1 from public.roturas_materiales r where r.clave = v.clave)
+     and not (v.tipo = 'eer' and v.color is null);
+  select count(*) into v_sin from public.v_roturas_materiales_maestro v
+   where v.tipo = 'eer' and v.color is null;
   raise notice 'Maestro de roturas: % materiales. Del maestro de Inventario quedan % sin copiar (deberia ser 0).', v_tot, v_n;
+  if v_sin > 0 then
+    raise notice '% envase(s) del maestro de Inventario NO tienen color de vidrio y por eso no se copiaron. No es un error de este archivo: el color se pone en Inventario -> Maestro, y hasta que se ponga, esos envases no se pueden registrar como rotura.', v_sin;
+    raise notice 'Para verlos:  select sku, nombre from public.productos where tipo_material = ''ENVASE'' and color_vidrio is null and activo;';
+  end if;
   raise notice 'La pantalla y la base ya miran el mismo maestro: escoger un producto de Inventario deja de dar «Ese material no existe».';
 end $$;
 

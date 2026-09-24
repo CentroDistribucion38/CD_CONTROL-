@@ -1,0 +1,31 @@
+
+import { createRoot } from "react-dom/client";
+import { Desacuerdos } from "../src/app/(app)/roturas/en-sitio/desacuerdos/Desacuerdos";
+
+const base = (i, o) => ({
+  id: "r" + i, codigo: "RB-000" + i, material: "EER-AMBAR",
+  material_nombre: "Envase retornable ámbar", tipo: "eer", color: "ambar",
+  unidades: 10, contaminadas: null, botellas: null,
+  unidades_liquido: 0, unidades_vidrio: 10,
+  proceso: "lineas", proceso_nombre: "Líneas",
+  area: "plazoleta", area_nombre: "Plazoleta",
+  causa: "estibas_malas", causa_nombre: "Estibas en mal estado",
+  grupo: "asumida", exige_foto: false, descripcion: "Se cayó una estiba",
+  lat: null, lng: null, precision_m: null,
+  estado: "esperando", esperando: true, cuenta: false,
+  reportada_por: "u1", reportada_en: "2026-09-20T12:00:00Z",
+  decidida_por: null, decidida_en: null, nota_decision: null,
+  fotos: 1, le_falta_foto: false, minutos: 400,
+  ol_respuesta: null, ol_por: null, ol_en: null, ol_nota: null,
+  etapa: "espera_ol", cobro_por: null, fotos_descargo: 0, ...o,
+});
+const nombres = { u1: "Genesis Visbal", u2: "Easy OL" };
+
+const roturas = [
+  base(3, { ol_respuesta: "rechaza", ol_por: "u2", ol_en: "2026-09-21T09:00:00Z",
+            ol_nota: "El montacargas de ese turno no era nuestro",
+            etapa: "desacuerdo", fotos: 2, fotos_descargo: 1 }),
+];
+createRoot(document.getElementById("r")!).render(
+  <Desacuerdos roturas={roturas as any} nombres={nombres} puedeResolver
+               cifras={{ porAcuerdo: 12, loSostuvoAbi: 2, noSeCobran: 1 }} />);

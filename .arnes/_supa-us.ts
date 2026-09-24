@@ -1,0 +1,1 @@
+export const createClient = () => ({ rpc: async () => ({ data: true, error: null }) });

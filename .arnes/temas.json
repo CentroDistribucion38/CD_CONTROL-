@@ -1,0 +1,1028 @@
+{
+ "negro": [
+  {
+   "n": "--c-fdfdff",
+   "v": "#FCFCFC",
+   "viejo": "#fdfdff"
+  },
+  {
+   "n": "--c-fbfbfe",
+   "v": "#F9F9F9",
+   "viejo": "#fbfbfe"
+  },
+  {
+   "n": "--c-fafbfd",
+   "v": "#F8F8F8",
+   "viejo": "#fafbfd"
+  },
+  {
+   "n": "--c-f7fcfd",
+   "v": "#F8F8F8",
+   "viejo": "#f7fcfd"
+  },
+  {
+   "n": "--c-f7f9fc",
+   "v": "#F5F5F5",
+   "viejo": "#f7f9fc"
+  },
+  {
+   "n": "--c-f4f7fb",
+   "v": "#F1F1F1",
+   "viejo": "#f4f7fb"
+  },
+  {
+   "n": "--c-f4f6f9",
+   "v": "#F1F1F1",
+   "viejo": "#f4f6f9"
+  },
+  {
+   "n": "--c-f2f5f9",
+   "v": "#F1F1F1",
+   "viejo": "#f2f5f9"
+  },
+  {
+   "n": "--c-f1f5fa",
+   "v": "#F1F1F1",
+   "viejo": "#f1f5fa"
+  },
+  {
+   "n": "--c-f1f4f8",
+   "v": "#F1F1F1",
+   "viejo": "#f1f4f8"
+  },
+  {
+   "n": "--c-f1f3f6",
+   "v": "#F1F1F1",
+   "viejo": "#f1f3f6"
+  },
+  {
+   "n": "--c-eef3f9",
+   "v": "#F1F1F1",
+   "viejo": "#eef3f9"
+  },
+  {
+   "n": "--c-f2f1fc",
+   "v": "#F1F1F1",
+   "viejo": "#f2f1fc"
+  },
+  {
+   "n": "--c-eaf4f6",
+   "v": "#F1F1F1",
+   "viejo": "#eaf4f6"
+  },
+  {
+   "n": "--c-eef1f5",
+   "v": "#F1F1F1",
+   "viejo": "#eef1f5"
+  },
+  {
+   "n": "--c-edf1f6",
+   "v": "#F1F1F1",
+   "viejo": "#edf1f6"
+  },
+  {
+   "n": "--c-eaf0f7",
+   "v": "#EFEFEF",
+   "viejo": "#eaf0f7"
+  },
+  {
+   "n": "--c-edeff4",
+   "v": "#EFEFEF",
+   "viejo": "#edeff4"
+  },
+  {
+   "n": "--c-e7ecf3",
+   "v": "#EBEBEB",
+   "viejo": "#e7ecf3"
+  },
+  {
+   "n": "--c-e7ecf2",
+   "v": "#EBEBEB",
+   "viejo": "#e7ecf2"
+  },
+  {
+   "n": "--c-e4e9ef",
+   "v": "#E8E8E8",
+   "viejo": "#e4e9ef"
+  },
+  {
+   "n": "--c-dce8f6",
+   "v": "#E6E6E6",
+   "viejo": "#dce8f6"
+  },
+  {
+   "n": "--c-dbe4f0",
+   "v": "#E2E2E2",
+   "viejo": "#dbe4f0"
+  },
+  {
+   "n": "--c-d6e4f4",
+   "v": "#E1E1E1",
+   "viejo": "#d6e4f4"
+  },
+  {
+   "n": "--c-dce2e9",
+   "v": "#E0E0E0",
+   "viejo": "#dce2e9"
+  },
+  {
+   "n": "--c-d9e2ec",
+   "v": "#DFDFDF",
+   "viejo": "#d9e2ec"
+  },
+  {
+   "n": "--c-c9e4e8",
+   "v": "#DCDCDC",
+   "viejo": "#c9e4e8"
+  },
+  {
+   "n": "--c-d5dce5",
+   "v": "#D9D9D9",
+   "viejo": "#d5dce5"
+  },
+  {
+   "n": "--c-c9dcf0",
+   "v": "#D7D7D7",
+   "viejo": "#c9dcf0"
+  },
+  {
+   "n": "--c-c6d3e2",
+   "v": "#D0D0D0",
+   "viejo": "#c6d3e2"
+  },
+  {
+   "n": "--c-c6d0dc",
+   "v": "#CDCDCD",
+   "viejo": "#c6d0dc"
+  },
+  {
+   "n": "--c-c3cedb",
+   "v": "#CBCBCB",
+   "viejo": "#c3cedb"
+  },
+  {
+   "n": "--c-9fd3d9",
+   "v": "#C7C7C7",
+   "viejo": "#9fd3d9"
+  },
+  {
+   "n": "--c-bcc7d4",
+   "v": "#C4C4C4",
+   "viejo": "#bcc7d4"
+  },
+  {
+   "n": "--c-b9c4d2",
+   "v": "#C1C1C1",
+   "viejo": "#b9c4d2"
+  },
+  {
+   "n": "--c-a9c2de",
+   "v": "#BEBEBE",
+   "viejo": "#a9c2de"
+  },
+  {
+   "n": "--c-b4c0ce",
+   "v": "#BDBDBD",
+   "viejo": "#b4c0ce"
+  },
+  {
+   "n": "--c-8fc7cf",
+   "v": "#BBBBBB",
+   "viejo": "#8fc7cf"
+  },
+  {
+   "n": "--c-9fbede",
+   "v": "#B9B9B9",
+   "viejo": "#9fbede"
+  },
+  {
+   "n": "--c-a9b6c6",
+   "v": "#B4B4B4",
+   "viejo": "#a9b6c6"
+  },
+  {
+   "n": "--c-8fb6e8",
+   "v": "#B2B2B2",
+   "viejo": "#8fb6e8"
+  },
+  {
+   "n": "--c-9fb4cc",
+   "v": "#B1B1B1",
+   "viejo": "#9fb4cc"
+  },
+  {
+   "n": "--c-9aa9bb",
+   "v": "#A7A7A7",
+   "viejo": "#9aa9bb"
+  },
+  {
+   "n": "--c-94a3b4",
+   "v": "#A1A1A1",
+   "viejo": "#94a3b4"
+  },
+  {
+   "n": "--c-93a3b6",
+   "v": "#A1A1A1",
+   "viejo": "#93a3b6"
+  },
+  {
+   "n": "--c-7e97b5",
+   "v": "#959595",
+   "viejo": "#7e97b5"
+  },
+  {
+   "n": "--c-8494a8",
+   "v": "#939393",
+   "viejo": "#8494a8"
+  },
+  {
+   "n": "--c-4c93ea",
+   "v": "#929292",
+   "viejo": "#4c93ea"
+  },
+  {
+   "n": "--c-7d8ca0",
+   "v": "#8B8B8B",
+   "viejo": "#7d8ca0"
+  },
+  {
+   "n": "--c-6f87a5",
+   "v": "#868686",
+   "viejo": "#6f87a5"
+  },
+  {
+   "n": "--c-3e7bc4",
+   "v": "#7B7B7B",
+   "viejo": "#3e7bc4"
+  },
+  {
+   "n": "--c-1f6fd0",
+   "v": "#727272",
+   "viejo": "#1f6fd0"
+  },
+  {
+   "n": "--c-5a7192",
+   "v": "#717171",
+   "viejo": "#5a7192"
+  },
+  {
+   "n": "--c-2e6fbe",
+   "v": "#707070",
+   "viejo": "#2e6fbe"
+  },
+  {
+   "n": "--c-5b6b7f",
+   "v": "#6B6B6B",
+   "viejo": "#5b6b7f"
+  },
+  {
+   "n": "--c-0b7285",
+   "v": "#666666",
+   "viejo": "#0b7285"
+  },
+  {
+   "n": "--c-0060b0",
+   "v": "#5F5F5F",
+   "viejo": "#0060b0"
+  },
+  {
+   "n": "--c-4c3bcf",
+   "v": "#595959",
+   "viejo": "#4c3bcf"
+  },
+  {
+   "n": "--c-0b4ea2",
+   "v": "#4D4D4D",
+   "viejo": "#0b4ea2"
+  },
+  {
+   "n": "--c-075661",
+   "v": "#454545",
+   "viejo": "#075661"
+  },
+  {
+   "n": "--c-004a8a",
+   "v": "#424242",
+   "viejo": "#004a8a"
+  },
+  {
+   "n": "--c-17505c",
+   "v": "#404040",
+   "viejo": "#17505c"
+  },
+  {
+   "n": "--c-372a9b",
+   "v": "#393939",
+   "viejo": "#372a9b"
+  },
+  {
+   "n": "--c-2c4361",
+   "v": "#383838",
+   "viejo": "#2c4361"
+  },
+  {
+   "n": "--c-0a3a6e",
+   "v": "#2E2E2E",
+   "viejo": "#0a3a6e"
+  },
+  {
+   "n": "--c-0a2f55",
+   "v": "#1F1F1F",
+   "viejo": "#0a2f55"
+  },
+  {
+   "n": "--c-04203f",
+   "v": "#0D0D0D",
+   "viejo": "#04203f"
+  },
+  {
+   "n": "--c-0b1f35",
+   "v": "#0C0C0C",
+   "viejo": "#0b1f35"
+  }
+ ],
+ "gris": [
+  {
+   "n": "--c-fdfdff",
+   "v": "#FBFBFB",
+   "viejo": "#fdfdff"
+  },
+  {
+   "n": "--c-fbfbfe",
+   "v": "#F7F7F7",
+   "viejo": "#fbfbfe"
+  },
+  {
+   "n": "--c-fafbfd",
+   "v": "#F6F6F6",
+   "viejo": "#fafbfd"
+  },
+  {
+   "n": "--c-f7fcfd",
+   "v": "#F6F6F6",
+   "viejo": "#f7fcfd"
+  },
+  {
+   "n": "--c-f7f9fc",
+   "v": "#F2F2F2",
+   "viejo": "#f7f9fc"
+  },
+  {
+   "n": "--c-f4f7fb",
+   "v": "#EDEDED",
+   "viejo": "#f4f7fb"
+  },
+  {
+   "n": "--c-f4f6f9",
+   "v": "#EDEDED",
+   "viejo": "#f4f6f9"
+  },
+  {
+   "n": "--c-f2f5f9",
+   "v": "#EDEDED",
+   "viejo": "#f2f5f9"
+  },
+  {
+   "n": "--c-f1f5fa",
+   "v": "#EDEDED",
+   "viejo": "#f1f5fa"
+  },
+  {
+   "n": "--c-f1f4f8",
+   "v": "#EDEDED",
+   "viejo": "#f1f4f8"
+  },
+  {
+   "n": "--c-f1f3f6",
+   "v": "#EDEDED",
+   "viejo": "#f1f3f6"
+  },
+  {
+   "n": "--c-eef3f9",
+   "v": "#EDEDED",
+   "viejo": "#eef3f9"
+  },
+  {
+   "n": "--c-f2f1fc",
+   "v": "#EDEDED",
+   "viejo": "#f2f1fc"
+  },
+  {
+   "n": "--c-eaf4f6",
+   "v": "#EDEDED",
+   "viejo": "#eaf4f6"
+  },
+  {
+   "n": "--c-eef1f5",
+   "v": "#EDEDED",
+   "viejo": "#eef1f5"
+  },
+  {
+   "n": "--c-edf1f6",
+   "v": "#EDEDED",
+   "viejo": "#edf1f6"
+  },
+  {
+   "n": "--c-eaf0f7",
+   "v": "#ECECEC",
+   "viejo": "#eaf0f7"
+  },
+  {
+   "n": "--c-edeff4",
+   "v": "#EBEBEB",
+   "viejo": "#edeff4"
+  },
+  {
+   "n": "--c-e7ecf3",
+   "v": "#E8E8E8",
+   "viejo": "#e7ecf3"
+  },
+  {
+   "n": "--c-e7ecf2",
+   "v": "#E8E8E8",
+   "viejo": "#e7ecf2"
+  },
+  {
+   "n": "--c-e4e9ef",
+   "v": "#E5E5E5",
+   "viejo": "#e4e9ef"
+  },
+  {
+   "n": "--c-dce8f6",
+   "v": "#E3E3E3",
+   "viejo": "#dce8f6"
+  },
+  {
+   "n": "--c-dbe4f0",
+   "v": "#E0E0E0",
+   "viejo": "#dbe4f0"
+  },
+  {
+   "n": "--c-d6e4f4",
+   "v": "#E0E0E0",
+   "viejo": "#d6e4f4"
+  },
+  {
+   "n": "--c-dce2e9",
+   "v": "#DFDFDF",
+   "viejo": "#dce2e9"
+  },
+  {
+   "n": "--c-d9e2ec",
+   "v": "#DEDEDE",
+   "viejo": "#d9e2ec"
+  },
+  {
+   "n": "--c-c9e4e8",
+   "v": "#DCDCDC",
+   "viejo": "#c9e4e8"
+  },
+  {
+   "n": "--c-d5dce5",
+   "v": "#D9D9D9",
+   "viejo": "#d5dce5"
+  },
+  {
+   "n": "--c-c9dcf0",
+   "v": "#D7D7D7",
+   "viejo": "#c9dcf0"
+  },
+  {
+   "n": "--c-c6d3e2",
+   "v": "#D0D0D0",
+   "viejo": "#c6d3e2"
+  },
+  {
+   "n": "--c-c6d0dc",
+   "v": "#CDCDCD",
+   "viejo": "#c6d0dc"
+  },
+  {
+   "n": "--c-c3cedb",
+   "v": "#CBCBCB",
+   "viejo": "#c3cedb"
+  },
+  {
+   "n": "--c-9fd3d9",
+   "v": "#C7C7C7",
+   "viejo": "#9fd3d9"
+  },
+  {
+   "n": "--c-bcc7d4",
+   "v": "#C4C4C4",
+   "viejo": "#bcc7d4"
+  },
+  {
+   "n": "--c-b9c4d2",
+   "v": "#C1C1C1",
+   "viejo": "#b9c4d2"
+  },
+  {
+   "n": "--c-a9c2de",
+   "v": "#BEBEBE",
+   "viejo": "#a9c2de"
+  },
+  {
+   "n": "--c-b4c0ce",
+   "v": "#BDBDBD",
+   "viejo": "#b4c0ce"
+  },
+  {
+   "n": "--c-8fc7cf",
+   "v": "#BBBBBB",
+   "viejo": "#8fc7cf"
+  },
+  {
+   "n": "--c-9fbede",
+   "v": "#B9B9B9",
+   "viejo": "#9fbede"
+  },
+  {
+   "n": "--c-a9b6c6",
+   "v": "#B4B4B4",
+   "viejo": "#a9b6c6"
+  },
+  {
+   "n": "--c-8fb6e8",
+   "v": "#B2B2B2",
+   "viejo": "#8fb6e8"
+  },
+  {
+   "n": "--c-9fb4cc",
+   "v": "#B1B1B1",
+   "viejo": "#9fb4cc"
+  },
+  {
+   "n": "--c-9aa9bb",
+   "v": "#A7A7A7",
+   "viejo": "#9aa9bb"
+  },
+  {
+   "n": "--c-94a3b4",
+   "v": "#A1A1A1",
+   "viejo": "#94a3b4"
+  },
+  {
+   "n": "--c-93a3b6",
+   "v": "#A1A1A1",
+   "viejo": "#93a3b6"
+  },
+  {
+   "n": "--c-7e97b5",
+   "v": "#959595",
+   "viejo": "#7e97b5"
+  },
+  {
+   "n": "--c-8494a8",
+   "v": "#939393",
+   "viejo": "#8494a8"
+  },
+  {
+   "n": "--c-4c93ea",
+   "v": "#929292",
+   "viejo": "#4c93ea"
+  },
+  {
+   "n": "--c-7d8ca0",
+   "v": "#8B8B8B",
+   "viejo": "#7d8ca0"
+  },
+  {
+   "n": "--c-6f87a5",
+   "v": "#868686",
+   "viejo": "#6f87a5"
+  },
+  {
+   "n": "--c-3e7bc4",
+   "v": "#7B7B7B",
+   "viejo": "#3e7bc4"
+  },
+  {
+   "n": "--c-1f6fd0",
+   "v": "#727272",
+   "viejo": "#1f6fd0"
+  },
+  {
+   "n": "--c-5a7192",
+   "v": "#717171",
+   "viejo": "#5a7192"
+  },
+  {
+   "n": "--c-2e6fbe",
+   "v": "#707070",
+   "viejo": "#2e6fbe"
+  },
+  {
+   "n": "--c-5b6b7f",
+   "v": "#6B6B6B",
+   "viejo": "#5b6b7f"
+  },
+  {
+   "n": "--c-0b7285",
+   "v": "#686868",
+   "viejo": "#0b7285"
+  },
+  {
+   "n": "--c-0060b0",
+   "v": "#636363",
+   "viejo": "#0060b0"
+  },
+  {
+   "n": "--c-4c3bcf",
+   "v": "#5F5F5F",
+   "viejo": "#4c3bcf"
+  },
+  {
+   "n": "--c-0b4ea2",
+   "v": "#575757",
+   "viejo": "#0b4ea2"
+  },
+  {
+   "n": "--c-075661",
+   "v": "#4F4F4F",
+   "viejo": "#075661"
+  },
+  {
+   "n": "--c-004a8a",
+   "v": "#4C4C4C",
+   "viejo": "#004a8a"
+  },
+  {
+   "n": "--c-17505c",
+   "v": "#494949",
+   "viejo": "#17505c"
+  },
+  {
+   "n": "--c-372a9b",
+   "v": "#424242",
+   "viejo": "#372a9b"
+  },
+  {
+   "n": "--c-2c4361",
+   "v": "#414141",
+   "viejo": "#2c4361"
+  },
+  {
+   "n": "--c-0a3a6e",
+   "v": "#373737",
+   "viejo": "#0a3a6e"
+  },
+  {
+   "n": "--c-0a2f55",
+   "v": "#272727",
+   "viejo": "#0a2f55"
+  },
+  {
+   "n": "--c-04203f",
+   "v": "#141414",
+   "viejo": "#04203f"
+  },
+  {
+   "n": "--c-0b1f35",
+   "v": "#131313",
+   "viejo": "#0b1f35"
+  }
+ ],
+ "halo": [
+  {
+   "n": "--c-fdfdff",
+   "v": "#FCFCFC",
+   "viejo": "#fdfdff"
+  },
+  {
+   "n": "--c-fbfbfe",
+   "v": "#F9F9F9",
+   "viejo": "#fbfbfe"
+  },
+  {
+   "n": "--c-fafbfd",
+   "v": "#F8F8F8",
+   "viejo": "#fafbfd"
+  },
+  {
+   "n": "--c-f7fcfd",
+   "v": "#F8F8F8",
+   "viejo": "#f7fcfd"
+  },
+  {
+   "n": "--c-f7f9fc",
+   "v": "#F5F5F5",
+   "viejo": "#f7f9fc"
+  },
+  {
+   "n": "--c-f4f7fb",
+   "v": "#F1F1F1",
+   "viejo": "#f4f7fb"
+  },
+  {
+   "n": "--c-f4f6f9",
+   "v": "#F1F1F1",
+   "viejo": "#f4f6f9"
+  },
+  {
+   "n": "--c-f2f5f9",
+   "v": "#F1F1F1",
+   "viejo": "#f2f5f9"
+  },
+  {
+   "n": "--c-f1f5fa",
+   "v": "#F1F1F1",
+   "viejo": "#f1f5fa"
+  },
+  {
+   "n": "--c-f1f4f8",
+   "v": "#F1F1F1",
+   "viejo": "#f1f4f8"
+  },
+  {
+   "n": "--c-f1f3f6",
+   "v": "#F1F1F1",
+   "viejo": "#f1f3f6"
+  },
+  {
+   "n": "--c-eef3f9",
+   "v": "#F1F1F1",
+   "viejo": "#eef3f9"
+  },
+  {
+   "n": "--c-f2f1fc",
+   "v": "#F1F1F1",
+   "viejo": "#f2f1fc"
+  },
+  {
+   "n": "--c-eaf4f6",
+   "v": "#F1F1F1",
+   "viejo": "#eaf4f6"
+  },
+  {
+   "n": "--c-eef1f5",
+   "v": "#F1F1F1",
+   "viejo": "#eef1f5"
+  },
+  {
+   "n": "--c-edf1f6",
+   "v": "#F1F1F1",
+   "viejo": "#edf1f6"
+  },
+  {
+   "n": "--c-eaf0f7",
+   "v": "#EFEFEF",
+   "viejo": "#eaf0f7"
+  },
+  {
+   "n": "--c-edeff4",
+   "v": "#EFEFEF",
+   "viejo": "#edeff4"
+  },
+  {
+   "n": "--c-e7ecf3",
+   "v": "#EBEBEB",
+   "viejo": "#e7ecf3"
+  },
+  {
+   "n": "--c-e7ecf2",
+   "v": "#EBEBEB",
+   "viejo": "#e7ecf2"
+  },
+  {
+   "n": "--c-e4e9ef",
+   "v": "#E8E8E8",
+   "viejo": "#e4e9ef"
+  },
+  {
+   "n": "--c-dce8f6",
+   "v": "#E6E6E6",
+   "viejo": "#dce8f6"
+  },
+  {
+   "n": "--c-dbe4f0",
+   "v": "#E2E2E2",
+   "viejo": "#dbe4f0"
+  },
+  {
+   "n": "--c-d6e4f4",
+   "v": "#E1E1E1",
+   "viejo": "#d6e4f4"
+  },
+  {
+   "n": "--c-dce2e9",
+   "v": "#E0E0E0",
+   "viejo": "#dce2e9"
+  },
+  {
+   "n": "--c-d9e2ec",
+   "v": "#DFDFDF",
+   "viejo": "#d9e2ec"
+  },
+  {
+   "n": "--c-c9e4e8",
+   "v": "#DCDCDC",
+   "viejo": "#c9e4e8"
+  },
+  {
+   "n": "--c-d5dce5",
+   "v": "#D9D9D9",
+   "viejo": "#d5dce5"
+  },
+  {
+   "n": "--c-c9dcf0",
+   "v": "#D7D7D7",
+   "viejo": "#c9dcf0"
+  },
+  {
+   "n": "--c-c6d3e2",
+   "v": "#D0D0D0",
+   "viejo": "#c6d3e2"
+  },
+  {
+   "n": "--c-c6d0dc",
+   "v": "#CDCDCD",
+   "viejo": "#c6d0dc"
+  },
+  {
+   "n": "--c-c3cedb",
+   "v": "#CBCBCB",
+   "viejo": "#c3cedb"
+  },
+  {
+   "n": "--c-9fd3d9",
+   "v": "#C7C7C7",
+   "viejo": "#9fd3d9"
+  },
+  {
+   "n": "--c-bcc7d4",
+   "v": "#C4C4C4",
+   "viejo": "#bcc7d4"
+  },
+  {
+   "n": "--c-b9c4d2",
+   "v": "#C1C1C1",
+   "viejo": "#b9c4d2"
+  },
+  {
+   "n": "--c-a9c2de",
+   "v": "#BEBEBE",
+   "viejo": "#a9c2de"
+  },
+  {
+   "n": "--c-b4c0ce",
+   "v": "#BDBDBD",
+   "viejo": "#b4c0ce"
+  },
+  {
+   "n": "--c-8fc7cf",
+   "v": "#BBBBBB",
+   "viejo": "#8fc7cf"
+  },
+  {
+   "n": "--c-9fbede",
+   "v": "#B9B9B9",
+   "viejo": "#9fbede"
+  },
+  {
+   "n": "--c-a9b6c6",
+   "v": "#B4B4B4",
+   "viejo": "#a9b6c6"
+  },
+  {
+   "n": "--c-8fb6e8",
+   "v": "#B2B2B2",
+   "viejo": "#8fb6e8"
+  },
+  {
+   "n": "--c-9fb4cc",
+   "v": "#B1B1B1",
+   "viejo": "#9fb4cc"
+  },
+  {
+   "n": "--c-9aa9bb",
+   "v": "#A7A7A7",
+   "viejo": "#9aa9bb"
+  },
+  {
+   "n": "--c-94a3b4",
+   "v": "#A1A1A1",
+   "viejo": "#94a3b4"
+  },
+  {
+   "n": "--c-93a3b6",
+   "v": "#A1A1A1",
+   "viejo": "#93a3b6"
+  },
+  {
+   "n": "--c-7e97b5",
+   "v": "#959595",
+   "viejo": "#7e97b5"
+  },
+  {
+   "n": "--c-8494a8",
+   "v": "#939393",
+   "viejo": "#8494a8"
+  },
+  {
+   "n": "--c-4c93ea",
+   "v": "#929292",
+   "viejo": "#4c93ea"
+  },
+  {
+   "n": "--c-7d8ca0",
+   "v": "#8B8B8B",
+   "viejo": "#7d8ca0"
+  },
+  {
+   "n": "--c-6f87a5",
+   "v": "#868686",
+   "viejo": "#6f87a5"
+  },
+  {
+   "n": "--c-3e7bc4",
+   "v": "#7B7B7B",
+   "viejo": "#3e7bc4"
+  },
+  {
+   "n": "--c-1f6fd0",
+   "v": "#727272",
+   "viejo": "#1f6fd0"
+  },
+  {
+   "n": "--c-5a7192",
+   "v": "#717171",
+   "viejo": "#5a7192"
+  },
+  {
+   "n": "--c-2e6fbe",
+   "v": "#707070",
+   "viejo": "#2e6fbe"
+  },
+  {
+   "n": "--c-5b6b7f",
+   "v": "#6B6B6B",
+   "viejo": "#5b6b7f"
+  },
+  {
+   "n": "--c-0b7285",
+   "v": "#666666",
+   "viejo": "#0b7285"
+  },
+  {
+   "n": "--c-0060b0",
+   "v": "#5F5F5F",
+   "viejo": "#0060b0"
+  },
+  {
+   "n": "--c-4c3bcf",
+   "v": "#595959",
+   "viejo": "#4c3bcf"
+  },
+  {
+   "n": "--c-0b4ea2",
+   "v": "#4D4D4D",
+   "viejo": "#0b4ea2"
+  },
+  {
+   "n": "--c-075661",
+   "v": "#464646",
+   "viejo": "#075661"
+  },
+  {
+   "n": "--c-004a8a",
+   "v": "#434343",
+   "viejo": "#004a8a"
+  },
+  {
+   "n": "--c-17505c",
+   "v": "#414141",
+   "viejo": "#17505c"
+  },
+  {
+   "n": "--c-372a9b",
+   "v": "#3A3A3A",
+   "viejo": "#372a9b"
+  },
+  {
+   "n": "--c-2c4361",
+   "v": "#393939",
+   "viejo": "#2c4361"
+  },
+  {
+   "n": "--c-0a3a6e",
+   "v": "#303030",
+   "viejo": "#0a3a6e"
+  },
+  {
+   "n": "--c-0a2f55",
+   "v": "#222222",
+   "viejo": "#0a2f55"
+  },
+  {
+   "n": "--c-04203f",
+   "v": "#111111",
+   "viejo": "#04203f"
+  },
+  {
+   "n": "--c-0b1f35",
+   "v": "#101010",
+   "viejo": "#0b1f35"
+  }
+ ]
+}

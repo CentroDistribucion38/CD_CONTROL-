@@ -1,0 +1,1 @@
+export const useRouter = () => ({ refresh() {}, replace() {}, push() {} }); export const usePathname = () => "/";

@@ -1,0 +1,47 @@
+
+/* 1 · Negro y ámbar — negro plano y rayas diagonales muy finas en ámbar,
+   con el filo en ámbar. Tal cual el mockup. */
+.sh[data-tema="negro"] {
+  --sh-barra-fondo: #0D0D0D;
+  --sh-filo: #FFC000;
+  --sh-trama: repeating-linear-gradient(116deg, rgba(255,192,0,.10) 0 2px, transparent 2px 18px);
+  --sh-trama-op: .35;
+  --sh-trama-tapa: none;
+}
+
+/* 2 · Gris claro y ámbar — LA ÚNICA BARRA CLARA de la plataforma, y por
+   eso el tema que más piezas mueve: el texto de la barra estaba en
+   blanco en duro y sobre #D9D9D9 no se veía. Las variables --sh-barra-*
+   existen para esto y su valor por defecto es el blanco de siempre, así
+   que ningún otro tema cambia.
+   El riel de la izquierda SIGUE oscuro, como en tu mockup: se aclara la
+   barra, no la navegación. */
+.sh[data-tema="gris"] {
+  --sh-barra-fondo: #D9D9D9;
+  --sh-barra-borde: 1px solid #C4C4C4;
+  --sh-filo: #FFC000;
+  --sh-filo-alto: 4px;
+  --sh-trama: radial-gradient(rgba(0,0,0,.10) 1.1px, transparent 1.2px);
+  --sh-trama-medida: 16px 16px;
+  --sh-trama-op: .5;
+  --sh-trama-tapa: none;
+
+  --sh-barra-txt:   #141414;
+  --sh-barra-txt-2: #5E5E5E;
+  --sh-barra-wm:    #7A7A7A;
+  --sh-barra-sep:   #9A9A9A;
+  --sh-barra-filo:  #BFBFBF;
+  --sh-avatar-filo: #D9D9D9;
+}
+
+/* 3 · Negro con halo ámbar y rojo — negro puro con los dos resplandores,
+   sin trama, y el filo en degradado de rojo a ámbar. */
+.sh[data-tema="halo"] {
+  --sh-barra-fondo:
+    radial-gradient(520px 190px at 12% 130%, rgba(255,0,0,.30) 0%, transparent 70%),
+    radial-gradient(700px 240px at 88% -30%, rgba(255,192,0,.35) 0%, transparent 72%),
+    #000000;
+  --sh-filo: linear-gradient(90deg, #FF0000 0%, #FFC000 100%);
+  --sh-trama: none;
+  --sh-trama-op: 0;
+}

@@ -1,0 +1,258 @@
+<title>Presentar CONTROL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  /* Los colores de CONTROL: el azul marino de la barra y el turquesa que
+     identifica a Sider. El papel lleva una pizca de azul, no es blanco. */
+  :root {
+    --papel:      #FBFCFD;
+    --papel-2:    #F1F5F9;
+    --tinta:      #04203F;
+    --gris:       #5B6B7F;
+    --linea:      #D9E1EA;
+    --sider:      #0B7285;
+    --sider-piso: #EAF5F7;
+    --rojo:       #E4002B;
+    --rojo-piso:  #FDEEF1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --papel: #0B1826; --papel-2: #142739; --tinta: #E8EEF5; --gris: #9BADC0;
+      --linea: #24394F; --sider: #63C2D2; --sider-piso: #10303A;
+      --rojo: #FF6B85; --rojo-piso: #2E1620;
+    }
+  }
+  :root[data-theme="dark"] {
+    --papel: #0B1826; --papel-2: #142739; --tinta: #E8EEF5; --gris: #9BADC0;
+    --linea: #24394F; --sider: #63C2D2; --sider-piso: #10303A;
+    --rojo: #FF6B85; --rojo-piso: #2E1620;
+  }
+
+  * { box-sizing: border-box }
+  body {
+    background: var(--papel); color: var(--tinta);
+    font: 400 16px/1.55 "IBM Plex Sans", system-ui, sans-serif;
+    padding-block: 36px 64px; padding-left: 20px; padding-right: 20px;
+  }
+  .hoja { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 34px }
+
+  h1, h2, h3 { font-family: Archivo, system-ui, sans-serif; margin: 0; text-wrap: balance }
+  h1 { font-weight: 900; font-size: 36px; letter-spacing: -.025em; line-height: 1.1 }
+  h2 { font-weight: 800; font-size: 22px; letter-spacing: -.015em }
+  p  { margin: 0 }
+
+  .ojo {
+    font: 700 11px/1 "IBM Plex Sans", sans-serif;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--sider);
+  }
+
+  header { display: flex; flex-direction: column; gap: 10px }
+  header .sub { color: var(--gris); max-width: 58ch }
+
+  section { display: flex; flex-direction: column; gap: 14px }
+  .cab {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-top: 2px solid var(--tinta); padding-top: 11px;
+  }
+  .cab .dato { font-size: 14px; color: var(--gris) }
+
+  /* Los pasos van numerados porque de verdad son una secuencia: el paso 2
+     no se abre hasta que el 1 esté. */
+  ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column }
+  ol li {
+    display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 14px;
+    align-items: baseline; padding: 10px 2px; border-bottom: 1px solid var(--linea);
+  }
+  ol li:first-child { border-top: 1px solid var(--linea) }
+  ol i {
+    font: 800 15px Archivo, sans-serif; font-style: normal; color: var(--sider);
+    font-variant-numeric: tabular-nums;
+  }
+  ol b { font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px }
+  ol span { display: block; font-size: 14.5px; color: var(--gris); line-height: 1.5 }
+
+  /* Pantallas de revisión: no son una secuencia, así que no van numeradas. */
+  .donde { display: flex; flex-direction: column; gap: 1px }
+  .donde > div {
+    display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px;
+    padding: 10px 2px; border-bottom: 1px solid var(--linea); align-items: baseline;
+  }
+  .donde > div:first-child { border-top: 1px solid var(--linea) }
+  .donde b { font-family: Archivo, sans-serif; font-weight: 800; font-size: 15px; color: var(--sider) }
+  .donde span { font-size: 14.5px; color: var(--gris); line-height: 1.5 }
+
+  .aviso {
+    border-left: 3px solid var(--sider); background: var(--sider-piso);
+    padding: 12px 16px; border-radius: 0 3px 3px 0; font-size: 15px; line-height: 1.55;
+  }
+
+  .trabas { display: flex; flex-direction: column; gap: 8px }
+  .traba {
+    border-left: 3px solid var(--rojo); background: var(--rojo-piso);
+    padding: 11px 15px; border-radius: 0 3px 3px 0;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .traba b { font-family: Archivo, sans-serif; font-weight: 800; font-size: 15px }
+  .traba span { font-size: 14.5px; line-height: 1.5 }
+
+  .modulos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+  .modulo {
+    border: 1px solid var(--linea); border-radius: 3px; padding: 13px 15px;
+    background: var(--papel-2); display: flex; flex-direction: column; gap: 4px;
+  }
+  .modulo b { font-family: Archivo, sans-serif; font-weight: 800; font-size: 15px }
+  .modulo span { font-size: 14px; color: var(--gris); line-height: 1.45 }
+
+  .cifras {
+    border: 1px solid var(--linea); border-radius: 3px; overflow: hidden;
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px; background: var(--linea);
+  }
+  .cifras > div { background: var(--papel); padding: 11px 13px }
+  .cifras dt {
+    font: 700 10px/1.6 "IBM Plex Sans", sans-serif; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--gris);
+  }
+  .cifras dd {
+    margin: 2px 0 0; font: 800 15px Archivo, sans-serif; font-variant-numeric: tabular-nums;
+  }
+  .cifras dd em { font-style: normal; font-weight: 500; font-size: 12px; color: var(--gris); display: block }
+
+  footer { color: var(--gris); font-size: 13px; border-top: 1px solid var(--linea); padding-top: 12px }
+
+  /* ---- Impresión / PDF ----
+     Se fuerza la paleta clara: en papel el modo oscuro sale negro sólido
+     y se come la tinta. Y ningún bloque se parte a mitad de página: un
+     paso cortado entre dos hojas se lee como dos pasos. */
+  @media print {
+    :root {
+      --papel: #FFF; --papel-2: #F1F5F9; --tinta: #04203F; --gris: #46586E;
+      --linea: #C9D5E1; --sider: #0B7285; --sider-piso: #EAF5F7;
+      --rojo: #C2001F; --rojo-piso: #FDEEF1;
+    }
+    body { padding: 0; font-size: 11pt }
+    .hoja { max-width: none; gap: 20px }
+    h1 { font-size: 26pt }
+    h2 { font-size: 15pt }
+    /* NO se protege <section> entera: con eso cada bloque saltaba a una
+       página nueva y quedaban cuatro hojas con la mitad en blanco. Se
+       protege lo que de verdad no puede partirse —un paso, una tarjeta,
+       una fila— y el texto fluye. */
+    .traba, .modulo, .aviso, .cifras { break-inside: avoid }
+    ol li, .donde > div, .cab { break-inside: avoid }
+    .cab { break-after: avoid }
+    footer { break-inside: avoid }
+  }
+
+  @media (max-width: 600px) {
+    body { padding-block: 26px 44px }
+    h1 { font-size: 28px }
+    h2 { font-size: 20px }
+    .hoja { gap: 28px }
+    .modulos { grid-template-columns: 1fr }
+    .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+    ol li { grid-template-columns: 24px minmax(0, 1fr); gap: 10px }
+    .donde > div { grid-template-columns: 1fr; gap: 2px }
+  }
+</style>
+
+<div class="hoja">
+
+  <header>
+    <div class="ojo">CD38 Barranquilla</div>
+    <h1>Presentar CONTROL</h1>
+    <p class="sub">
+      Qué hacer, en orden. Alcanza para dejar a alguien certificando el mismo día.
+    </p>
+  </header>
+
+  <section>
+    <div class="cab"><h2>Entrar</h2></div>
+    <div class="aviso">
+      Usuario y clave que da el administrador — no correo. Si la clave es
+      provisional, hay que cambiarla antes de entrar a cualquier módulo.
+    </div>
+    <div class="modulos">
+      <div class="modulo"><b>Sider Certificado</b><span>Certificar vehículos en las dos puntas del viaje.</span></div>
+      <div class="modulo"><b>Quiebra</b><span>Rotura de envase contra producción.</span></div>
+      <div class="modulo"><b>Inventario</b><span>Productos, bodegas, movimientos y conteos.</span></div>
+      <div class="modulo"><b>Administración</b><span>Usuarios, roles y permisos.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="cab">
+      <h2>Certificar una salida</h2>
+      <span class="dato">Sider → Certificar · seis pasos</span>
+    </div>
+    <ol>
+      <li><i>1</i><div><b>Ubicación</b><span>Activar el GPS. Los demás pasos no se abren hasta que esté.</span></div></li>
+      <li><i>2</i><div><b>Origen</b><span>De qué CD viene el vehículo.</span></div></li>
+      <li><i>3</i><div><b>Material</b><span>Qué trae. Se escoge del maestro.</span></div></li>
+      <li><i>4</i><div><b>Carga</b><span>Estibas y placa.</span></div></li>
+      <li><i>5</i><div><b>Tres fotos</b><span>Costado izquierdo, costado derecho y placa. Salen selladas con placa, fecha, hora y coordenadas.</span></div></li>
+      <li><i>6</i><div><b>Confirmar</b><span>Queda en tránsito. Sale un <b>+</b> para el siguiente vehículo sin volver a pedir ubicación.</span></div></li>
+    </ol>
+    <p class="sub" style="font-size:15px">
+      Solo se teclean dos números: estibas y placa. El resto se calcula.
+    </p>
+    <dl class="cifras">
+      <div><dt>Estibas</dt><dd>36<em>se teclea</em></dd></div>
+      <div><dt>Sider</dt><dd>1,00<em>÷ 36</em></dd></div>
+      <div><dt>Cajas</dt><dd>2.520<em>del maestro</em></dd></div>
+      <div><dt>HL</dt><dd>168,48<em>del maestro</em></dd></div>
+    </dl>
+  </section>
+
+  <section>
+    <div class="cab">
+      <h2>Certificar una llegada</h2>
+      <span class="dato">Sider → En tránsito</span>
+    </div>
+    <ol>
+      <li><i>1</i><div><b>Buscar la placa y abrirla</b><span>Origen, material y estibas ya vienen de la salida: no se vuelven a escribir.</span></div></li>
+      <li><i>2</i><div><b>Dónde llegó</b><span>Activar el GPS. La dirección sale sola y se puede corregir.</span></div></li>
+      <li><i>3</i><div><b>Tres fotos</b><span>Las mismas tres.</span></div></li>
+      <li><i>4</i><div><b>Observación, si algo llegó mal</b><span>Sello roto, estibas golpeadas, faltantes. Con el <b>+</b> se le añade una foto.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="cab"><h2>Dónde se revisa</h2></div>
+    <div class="donde">
+      <div><b>Fuente principal</b><span>Todos los viajes. El ojito de cada fila abre las fotos y los datos de las dos puntas.</span></div>
+      <div><b>En tránsito</b><span>Lo que va en camino, agrupado por CD de origen. Marca el que lleva más de 24 horas.</span></div>
+      <div><b>Seguimiento</b><span>Lo de SAP contra lo certificado. De ahí sale el porcentaje de certificación.</span></div>
+      <div><b>Maestro</b><span>Los materiales y sus factores. Si a uno le faltan, no se calculan cajas ni HL.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="cab"><h2>Si se traba</h2></div>
+    <div class="trabas">
+      <div class="traba">
+        <b>No pasa del primer paso</b>
+        <span>Falta activar la ubicación, en los permisos del navegador.</span>
+      </div>
+      <div class="traba">
+        <b>Llené las tres fotos y no deja certificar la llegada</b>
+        <span>Las que faltan son las de la <b>salida</b>, no las de la pantalla. El aviso rojo trae los huecos para completarlas ahí mismo.</span>
+      </div>
+      <div class="traba">
+        <b>Una foto sale marcada «AÑADIDA DESPUÉS»</b>
+        <span>Es correcto: se completó más tarde y lleva la hora y el sitio reales de cuando se tomó.</span>
+      </div>
+      <div class="traba">
+        <b>Entró y no puede hacer nada</b>
+        <span>Clave provisional. Se cambia una vez. Si se perdió, el administrador genera otra en Usuarios.</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Centro de Distribución 38 · Bavaria Barranquilla · Las cifras del ejemplo son de muestra.
+  </footer>
+
+</div>

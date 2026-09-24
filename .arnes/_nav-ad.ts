@@ -1,0 +1,1 @@
+export const useRouter = () => ({ refresh() { (window as any).refrescos = ((window as any).refrescos ?? 0) + 1 } });

@@ -1,0 +1,1 @@
+export default function Link(p: any) { const { href, ...r } = p; return <a href={href} {...r} /> }

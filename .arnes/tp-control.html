@@ -1,0 +1,4024 @@
+<!doctype html><meta charset="utf-8"><style>
+@import "tailwindcss";
+
+/* =====================================================================
+   LA PALETA — un solo lugar donde vive el color
+   =====================================================================
+
+   Cada tono de marca de la aplicación es una variable. El nombre del
+   token ES su valor en el tema oficial: --c-2c4361 vale #2C4361. Así,
+   leyendo cualquier hoja de estilos, se sabe de qué color se habla sin
+   venir a buscar la tabla.
+
+   Cambiar de tema es cambiar los VALORES, nunca las hojas.
+
+   LOS CUATRO TEMAS
+     oficial   El azul marino y el rojo de siempre. El que ve todo el
+               mundo si no cambia nada.
+     tinta     El mismo azul marino, con el acento en ámbar. Los neutros
+               son idénticos al oficial: solo cambia el acento.
+     pizarra   Pizarra y turquesa.
+     ambar     Grafito y ámbar sobre papel cálido.
+
+   CÓMO SE ARMARON
+   Los tonos que elegiste van tal cual, como ANCLAS —van marcados con
+   «← tuyo»—. Los otros sesenta y tres se derivan de ellas: cada uno
+   conserva EXACTAMENTE su lightness y solo se le mueve el tono y el
+   croma, interpolados entre tus anclas. Al conservar el lightness se
+   conserva el contraste, así que ningún texto se vuelve ilegible al
+   cambiar de tema.
+
+   EL ACENTO Y SU TEXTO VAN JUNTOS
+   --c-marca y --c-marca-txt son un par. Un acento claro necesita texto
+   oscuro; separarlos es como se termina con blanco sobre amarillo. En
+   los tres temas tuyos el texto sobre el acento es la tinta del propio
+   tema, y los cuatro pares pasan 4,5:1 —el turquesa con blanco daba
+   3,07:1 y no pasaba, por eso lleva su tinta encima—.
+
+   LO QUE NO CAMBIA EN NINGÚN TEMA
+   El verde de "cumple", el rojo de "por encima de la meta" y el vino de
+   "el mes va corto" son SEMÁFORO: significan algo. Si cambiaran de tema
+   en tema el color dejaría de decir nada. El logo tampoco se toca: es
+   una imagen, no un color.
+   --------------------------------------------------------------------- */
+
+:root {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:     #fdfdff;   /* 1× */
+  --c-fbfbfe:     #fbfbfe;   /* 1× */
+  --c-fafbfd:     #fafbfd;   /* 35× */
+  --c-f7fcfd:     #f7fcfd;   /* 2× */
+  --c-f7f9fc:     #f7f9fc;   /* 16× */
+  --c-f4f7fb:     #f4f7fb;   /* 4× */
+  --c-f4f6f9:     #f4f6f9;   /* 3× */
+  --c-f2f5f9:     #f2f5f9;   /* 1× */
+  --c-f1f5fa:     #f1f5fa;   /* 3× */
+  --c-f1f4f8:     #f1f4f8;   /* 1× */
+  --c-f1f3f6:     #f1f3f6;   /* 1× */
+  --c-eef3f9:     #eef3f9;   /* 1× */
+  --c-f2f1fc:     #f2f1fc;   /* 1× */
+  --c-eaf4f6:     #eaf4f6;   /* 1× */
+  --c-eef1f5:     #eef1f5;   /* 6× */
+  --c-edf1f6:     #edf1f6;   /* 18× */
+  --c-eaf0f7:     #eaf0f7;   /* 1× */
+  --c-edeff4:     #edeff4;   /* 1× */
+  --c-e7ecf3:     #e7ecf3;   /* 2× */
+  --c-e7ecf2:     #e7ecf2;   /* 1× */
+  --c-e4e9ef:     #e4e9ef;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:     #dce8f6;   /* 1× */
+  --c-dbe4f0:     #dbe4f0;   /* 2× */
+  --c-d6e4f4:     #d6e4f4;   /* 2× */
+  --c-dce2e9:     #dce2e9;   /* 1× */
+  --c-d9e2ec:     #d9e2ec;   /* 1× */
+  --c-c9e4e8:     #c9e4e8;   /* 1× */
+  --c-d5dce5:     #d5dce5;   /* 6× */
+  --c-c9dcf0:     #c9dcf0;   /* 1× */
+  --c-c6d3e2:     #c6d3e2;   /* 1× */
+  --c-c6d0dc:     #c6d0dc;   /* 10× */
+  --c-c3cedb:     #c3cedb;   /* 1× */
+  --c-9fd3d9:     #9fd3d9;   /* 3× */
+  --c-bcc7d4:     #bcc7d4;   /* 1× */
+  --c-b9c4d2:     #b9c4d2;   /* 4× */
+  --c-a9c2de:     #a9c2de;   /* 3× */
+  --c-b4c0ce:     #b4c0ce;   /* 7× */
+  --c-8fc7cf:     #8fc7cf;   /* 1× */
+  --c-9fbede:     #9fbede;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:     #a9b6c6;   /* 8× */
+  --c-8fb6e8:     #8fb6e8;   /* 1× */
+  --c-9fb4cc:     #9fb4cc;   /* 1× */
+  --c-9aa9bb:     #9aa9bb;   /* 3× */
+  --c-94a3b4:     #94a3b4;   /* 3× */
+  --c-93a3b6:     #93a3b6;   /* 24× */
+  --c-7e97b5:     #7e97b5;   /* 4× */
+  --c-8494a8:     #8494a8;   /* 3× */
+  --c-4c93ea:     #4c93ea;   /* 1× */
+  --c-7d8ca0:     #7d8ca0;   /* 1× */
+  --c-6f87a5:     #6f87a5;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:     #3e7bc4;   /* 1× */
+  --c-1f6fd0:     #1f6fd0;   /* 1× */
+  --c-5a7192:     #5a7192;   /* 2× */
+  --c-2e6fbe:     #2e6fbe;   /* 1× */
+  --c-5b6b7f:     #5b6b7f;   /* 8× */
+  --c-0b7285:     #0b7285;   /* 1× */
+  --c-0060b0:     #0060b0;   /* 2× */
+  --c-4c3bcf:     #4c3bcf;   /* 1× */
+  --c-0b4ea2:     #0b4ea2;   /* 3× */
+  --c-075661:     #075661;   /* 1× */
+  --c-004a8a:     #004a8a;   /* 2× */
+  --c-17505c:     #17505c;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:     #372a9b;   /* 1× */
+  --c-2c4361:     #2c4361;   /* 29× */
+  --c-0a3a6e:     #0a3a6e;   /* 1× */
+  --c-0a2f55:     #0a2f55;   /* 1× */
+  --c-04203f:     #04203f;   /* 6× */
+  --c-0b1f35:     #0b1f35;   /* 2× */
+
+  /* Translúcidos */
+  --c-velo:       rgba(4,32,63,.62);
+  --c-velo-hondo: rgba(4,32,63,.90);
+  --c-raya:       rgba(11,114,133,.35);
+  --c-degrade:    rgba(139,155,179,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. Van
+     juntos a propósito: un acento claro necesita texto oscuro,
+     y separarlos es como se termina con blanco sobre amarillo. */
+  --c-marca:      #e4002b;
+  --c-marca-txt:  #ffffff;
+  /* Estos dos van con el hex de siempre, no con el derivado: el tema
+     oficial tiene que quedar idéntico al que ya estaba. */
+  --c-marca-vivo: #ff1c38;   /* hover */
+  --c-marca-hondo: #b8001f;
+  --c-marca-filo: #e2313c;
+  --c-marca-velo: rgba(228,0,43,.14);
+  --c-oro:        #e9a81f;   /* "ojo con esto" */
+
+  /* La alarma del KPI: "el mes va corto de meta". Sigue siendo roja en
+     todos los temas porque significa algo, pero cada tema la lleva a la
+     temperatura de su mundo y, sobre todo, SATURADA. El #8A2033 de
+     siempre tiene el croma en 0,14 y sobre papel cálido se veía apagado
+     y medio morado; estos van en el 94% del máximo de su tono. */
+  --c-alarma:     #8a2033;
+  --c-alarma-txt: #ffffff;
+
+  /* La franja oscura que agrupa columnas en las tablas —VEHÍCULOS,
+     HECTOLITROS—. No se deriva del acento: en el tema ámbar el acento
+     oscurecido da oliva, y una franja oliva al lado de una gris se ve
+     como un error, no como un diseño. Cada tema lleva su propio azul
+     oscuro; en ámbar es el grafito, que es el que tú elegiste. */
+  --c-grupo:      #075661;
+}
+
+/* --- Tinta y ámbar ------------------------------------------------- */
+[data-tema="tinta"] {
+  /* Los neutros son los MISMOS del oficial: en este tema solo
+     cambia el acento, y por eso no hay que redeclarar los 68
+     tonos. Menos texto que mantener, y una diferencia menos
+     que se pueda desincronizar. */
+
+  /* El acento de marca y el texto que va ENCIMA de él. Van
+     juntos a propósito: un acento claro necesita texto oscuro,
+     y separarlos es como se termina con blanco sobre amarillo. */
+  --c-marca:      #f0b429;
+  --c-marca-txt:  #04203f;
+  --c-marca-vivo: #ffc859;   /* hover */
+  --c-marca-hondo: #d19900;
+  --c-marca-filo: #f0b429;
+  --c-marca-velo: rgba(240,180,41,.16);
+  --c-oro:        #0b4ea2;   /* "ojo con esto" */
+  --c-alarma:     #a6143b;
+  --c-alarma-txt: #ffffff;
+  --c-grupo:      #0a3a6e;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque, así que hay que volver a
+     declararlos aquí. Es el mismo texto: cambia contra qué se resuelve. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo: `body { color: var(--bv-texto) }`
+     ya quedó resuelto en el body con el valor oficial, así que todo texto
+     que solo HEREDA su color se veía del tema anterior. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+/* --- Pizarra y turquesa -------------------------------------------- */
+[data-tema="pizarra"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:     #fcfefe;   /* 1× */
+  --c-fbfbfe:     #f9fcfc;   /* 1× */
+  --c-fafbfd:     #f9fcfc;   /* 35× */
+  --c-f7fcfd:     #f8fcfc;   /* 2× */
+  --c-f7f9fc:     #f6fafa;   /* 16× */
+  --c-f4f7fb:     #f3f8f8;   /* 4× */
+  --c-f4f6f9:     #f3f7f7;   /* 3× */
+  --c-f2f5f9:     #f1f6f6;   /* 1× */
+  --c-f1f5fa:     #f0f6f6;   /* 3× */
+  --c-f1f4f8:     #f0f5f5;   /* 1× */
+  --c-f1f3f6:     #f0f4f4;   /* 1× */
+  --c-eef3f9:     #edf4f4;   /* 1× */
+  --c-f2f1fc:     #eaf5f5;   /* 1× */
+  --c-eaf4f6:     #ebf4f4;   /* 1× */
+  --c-eef1f5:     #eef3f3;   /* 6× ← tuyo */
+  --c-edf1f6:     #ecf2f2;   /* 18× */
+  --c-eaf0f7:     #e8f1f1;   /* 1× */
+  --c-edeff4:     #ebf0f0;   /* 1× */
+  --c-e7ecf3:     #e5eeee;   /* 2× */
+  --c-e7ecf2:     #e6eded;   /* 1× */
+  --c-e4e9ef:     #e3eaea;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:     #d9ebeb;   /* 1× */
+  --c-dbe4f0:     #d8e7e7;   /* 2× */
+  --c-d6e4f4:     #d2e7e7;   /* 2× */
+  --c-dce2e9:     #dae3e3;   /* 1× */
+  --c-d9e2ec:     #d7e4e4;   /* 1× */
+  --c-c9e4e8:     #cce4e4;   /* 1× */
+  --c-d5dce5:     #d3dede;   /* 6× ← tuyo */
+  --c-c9dcf0:     #c4e0e0;   /* 1× */
+  --c-c6d3e2:     #c2d6d6;   /* 1× */
+  --c-c6d0dc:     #c3d2d3;   /* 10× */
+  --c-c3cedb:     #c0d1d1;   /* 1× */
+  --c-9fd3d9:     #a7d2d3;   /* 3× */
+  --c-bcc7d4:     #b9caca;   /* 1× */
+  --c-b9c4d2:     #b6c7c7;   /* 4× */
+  --c-a9c2de:     #a3c7c9;   /* 3× */
+  --c-b4c0ce:     #b1c3c3;   /* 7× */
+  --c-8fc7cf:     #8fc8c5;   /* 1× */
+  --c-9fbede:     #90c7c3;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:     #a6b9ba;   /* 8× */
+  --c-8fb6e8:     #6fc4c0;   /* 1× */
+  --c-9fb4cc:     #9ab8ba;   /* 1× */
+  --c-9aa9bb:     #97acae;   /* 3× */
+  --c-94a3b4:     #92a6a7;   /* 3× */
+  --c-93a3b6:     #90a6a8;   /* 24× */
+  --c-7e97b5:     #799c9f;   /* 4× */
+  --c-8494a8:     #819799;   /* 3× */
+  --c-4c93ea:     #00a7a3;   /* 1× */
+  --c-7d8ca0:     #7a8f92;   /* 1× */
+  --c-6f87a5:     #6b8c90;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:     #008c88;   /* 1× */
+  --c-1f6fd0:     #00827f;   /* 1× */
+  --c-5a7192:     #447b78;   /* 2× */
+  --c-2e6fbe:     #00807c;   /* 1× */
+  --c-5b6b7f:     #5a6e71;   /* 8× ← tuyo */
+  --c-0b7285:     #007572;   /* 1× */
+  --c-0060b0:     #006f6c;   /* 2× */
+  --c-4c3bcf:     #006a67;   /* 1× */
+  --c-0b4ea2:     #0e7490;   /* 3× ← tuyo */
+  --c-075661:     #065856;   /* 1× */
+  --c-004a8a:     #005653;   /* 2× */
+  --c-17505c:     #155250;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:     #004e4c;   /* 1× */
+  --c-2c4361:     #0e4c4a;   /* 29× */
+  --c-0a3a6e:     #004442;   /* 1× */
+  --c-0a2f55:     #003735;   /* 1× */
+  --c-04203f:     #0b2e33;   /* 6× ← tuyo */
+  --c-0b1f35:     #0b2226;   /* 2× */
+
+  /* Translúcidos */
+  --c-velo:       rgba(11,46,51,.62);
+  --c-velo-hondo: rgba(11,46,51,.90);
+  --c-raya:       rgba(0,117,114,.35);
+  --c-degrade:    rgba(144,166,168,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. Van
+     juntos a propósito: un acento claro necesita texto oscuro,
+     y separarlos es como se termina con blanco sobre amarillo. */
+  --c-marca:      #12a4a0;
+  --c-marca-txt:  #0b2e33;
+  --c-marca-vivo: #34b7b2;   /* hover */
+  --c-marca-hondo: #008784;
+  --c-marca-filo: #12a4a0;
+  --c-marca-velo: rgba(18,164,160,.18);
+  --c-oro:        #f0b429;   /* "ojo con esto" */
+  --c-alarma:     #a51448;
+  --c-alarma-txt: #ffffff;
+  --c-grupo:      #0e7490;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque, así que hay que volver a
+     declararlos aquí. Es el mismo texto: cambia contra qué se resuelve. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo: `body { color: var(--bv-texto) }`
+     ya quedó resuelto en el body con el valor oficial, así que todo texto
+     que solo HEREDA su color se veía del tema anterior. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+/* --- Ámbar sobre blanco -------------------------------------------- */
+[data-tema="ambar"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:     #fdfdfc;   /* 1× */
+  --c-fbfbfe:     #fbfbf9;   /* 1× */
+  --c-fafbfd:     #fbfbfa;   /* 35× */
+  --c-f7fcfd:     #fbfbf8;   /* 2× */
+  --c-f7f9fc:     #f9f9f7;   /* 16× */
+  --c-f4f7fb:     #f7f7f4;   /* 4× */
+  --c-f4f6f9:     #f6f6f4;   /* 3× */
+  --c-f2f5f9:     #f5f5f2;   /* 1× */
+  --c-f1f5fa:     #f5f5f1;   /* 3× */
+  --c-f1f4f8:     #f4f4f1;   /* 1× */
+  --c-f1f3f6:     #f3f3f1;   /* 1× */
+  --c-eef3f9:     #f3f3ee;   /* 1× */
+  --c-f2f1fc:     #f3f3ec;   /* 1× */
+  --c-eaf4f6:     #f2f2ed;   /* 1× */
+  --c-eef1f5:     #f4f4f1;   /* 6× ← tuyo */
+  --c-edf1f6:     #f1f1ed;   /* 18× */
+  --c-eaf0f7:     #f0f0ea;   /* 1× */
+  --c-edeff4:     #efefec;   /* 1× */
+  --c-e7ecf3:     #ecece7;   /* 2× */
+  --c-e7ecf2:     #ecece7;   /* 1× */
+  --c-e4e9ef:     #e9e9e4;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:     #e7e7dc;   /* 1× */
+  --c-dbe4f0:     #e4e4db;   /* 2× */
+  --c-d6e4f4:     #e3e3d6;   /* 2× */
+  --c-dce2e9:     #e2e2dc;   /* 1× */
+  --c-d9e2ec:     #e1e1d9;   /* 1× */
+  --c-c9e4e8:     #dfdfd1;   /* 1× */
+  --c-d5dce5:     #dfdfd8;   /* 6× ← tuyo */
+  --c-c9dcf0:     #dadbcb;   /* 1× */
+  --c-c6d3e2:     #d0d3c8;   /* 1× */
+  --c-c6d0dc:     #cdd0c7;   /* 10× */
+  --c-c3cedb:     #cacec5;   /* 1× */
+  --c-9fd3d9:     #c0cdb6;   /* 3× */
+  --c-bcc7d4:     #c2c8bf;   /* 1× */
+  --c-b9c4d2:     #bec5bc;   /* 4× */
+  --c-a9c2de:     #b4c5b3;   /* 3× */
+  --c-b4c0ce:     #b9c1b9;   /* 7× */
+  --c-8fc7cf:     #cdb991;   /* 1× */
+  --c-9fbede:     #cbb891;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:     #acb8b0;   /* 8× */
+  --c-8fb6e8:     #ccaf74;   /* 1× */
+  --c-9fb4cc:     #a4b7ad;   /* 1× */
+  --c-9aa9bb:     #9baca7;   /* 3× */
+  --c-94a3b4:     #95a5a3;   /* 3× */
+  --c-93a3b6:     #94a6a3;   /* 24× */
+  --c-7e97b5:     #7d9b9d;   /* 4× */
+  --c-8494a8:     #839799;   /* 3× */
+  --c-4c93ea:     #b88900;   /* 1× */
+  --c-7d8ca0:     #7c8e93;   /* 1× */
+  --c-6f87a5:     #708a94;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:     #9a7200;   /* 1× */
+  --c-1f6fd0:     #8f6b00;   /* 1× */
+  --c-5a7192:     #806d47;   /* 2× */
+  --c-2e6fbe:     #8d6800;   /* 1× */
+  --c-5b6b7f:     #6b7280;   /* 8× ← tuyo */
+  --c-0b7285:     #7d6122;   /* 1× */
+  --c-0060b0:     #7a5a00;   /* 2× */
+  --c-4c3bcf:     #755600;   /* 1× */
+  --c-0b4ea2:     #3c4451;   /* 3× ← tuyo */
+  --c-075661:     #5e4919;   /* 1× */
+  --c-004a8a:     #5f4500;   /* 2× */
+  --c-17505c:     #57451e;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:     #563f00;   /* 1× */
+  --c-2c4361:     #503f19;   /* 29× */
+  --c-0a3a6e:     #4c3700;   /* 1× */
+  --c-0a2f55:     #3d2b00;   /* 1× */
+  --c-04203f:     #23262c;   /* 6× ← tuyo */
+  --c-0b1f35:     #1c1e23;   /* 2× */
+
+  /* Translúcidos */
+  --c-velo:       rgba(35,38,44,.62);
+  --c-velo-hondo: rgba(35,38,44,.90);
+  --c-raya:       rgba(125,97,34,.35);
+  --c-degrade:    rgba(148,166,163,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. Van
+     juntos a propósito: un acento claro necesita texto oscuro,
+     y separarlos es como se termina con blanco sobre amarillo. */
+  --c-marca:      #ffc000;
+  --c-marca-txt:  #23262c;
+  --c-marca-vivo: #ffd98a;   /* hover */
+  --c-marca-hondo: #dda600;
+  --c-marca-filo: #ffc000;
+  --c-marca-velo: rgba(255,192,0,.16);
+  --c-oro:        #8c6d00;   /* "ojo con esto" */
+  --c-alarma:     #ae1519;
+  --c-alarma-txt: #ffffff;
+  --c-grupo:      #3c4451;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque, así que hay que volver a
+     declararlos aquí. Es el mismo texto: cambia contra qué se resuelve. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo: `body { color: var(--bv-texto) }`
+     ya quedó resuelto en el body con el valor oficial, así que todo texto
+     que solo HEREDA su color se veía del tema anterior. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+[data-tema="negro"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:   #fcfcfc;   /* 1× */
+  --c-fbfbfe:   #f9f9f9;   /* 1× */
+  --c-fafbfd:   #f8f8f8;   /* 35× */
+  --c-f7fcfd:   #f8f8f8;   /* 2× */
+  --c-f7f9fc:   #f5f5f5;   /* 16× */
+  --c-f4f7fb:   #f1f1f1;   /* 4×   ← tuyo */
+  --c-f4f6f9:   #f1f1f1;   /* 3× */
+  --c-f2f5f9:   #f1f1f1;   /* 1× */
+  --c-f1f5fa:   #f1f1f1;   /* 3× */
+  --c-f1f4f8:   #f1f1f1;   /* 1× */
+  --c-f1f3f6:   #f1f1f1;   /* 1× */
+  --c-eef3f9:   #f1f1f1;   /* 1× */
+  --c-f2f1fc:   #f1f1f1;   /* 1× */
+  --c-eaf4f6:   #f1f1f1;   /* 1× */
+  --c-eef1f5:   #f1f1f1;   /* 6×   ← tuyo */
+  --c-edf1f6:   #f1f1f1;   /* 18× */
+  --c-eaf0f7:   #efefef;   /* 1× */
+  --c-edeff4:   #efefef;   /* 1× */
+  --c-e7ecf3:   #ebebeb;   /* 2× */
+  --c-e7ecf2:   #ebebeb;   /* 1× */
+  --c-e4e9ef:   #e8e8e8;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:   #e6e6e6;   /* 1× */
+  --c-dbe4f0:   #e2e2e2;   /* 2× */
+  --c-d6e4f4:   #e1e1e1;   /* 2× */
+  --c-dce2e9:   #e0e0e0;   /* 1× */
+  --c-d9e2ec:   #dfdfdf;   /* 1× */
+  --c-c9e4e8:   #dcdcdc;   /* 1× */
+  --c-d5dce5:   #d9d9d9;   /* 6×   ← tuyo */
+  --c-c9dcf0:   #d7d7d7;   /* 1× */
+  --c-c6d3e2:   #d0d0d0;   /* 1× */
+  --c-c6d0dc:   #cdcdcd;   /* 10× */
+  --c-c3cedb:   #cbcbcb;   /* 1× */
+  --c-9fd3d9:   #c7c7c7;   /* 3× */
+  --c-bcc7d4:   #c4c4c4;   /* 1× */
+  --c-b9c4d2:   #c1c1c1;   /* 4× */
+  --c-a9c2de:   #bebebe;   /* 3× */
+  --c-b4c0ce:   #bdbdbd;   /* 7× */
+  --c-8fc7cf:   #bbbbbb;   /* 1× */
+  --c-9fbede:   #b9b9b9;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:   #b4b4b4;   /* 8× */
+  --c-8fb6e8:   #b2b2b2;   /* 1× */
+  --c-9fb4cc:   #b1b1b1;   /* 1× */
+  --c-9aa9bb:   #a7a7a7;   /* 3× */
+  --c-94a3b4:   #a1a1a1;   /* 3× */
+  --c-93a3b6:   #a1a1a1;   /* 24× */
+  --c-7e97b5:   #959595;   /* 4× */
+  --c-8494a8:   #939393;   /* 3× */
+  --c-4c93ea:   #929292;   /* 1× */
+  --c-7d8ca0:   #8b8b8b;   /* 1× */
+  --c-6f87a5:   #868686;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:   #7b7b7b;   /* 1× */
+  --c-1f6fd0:   #727272;   /* 1× */
+  --c-5a7192:   #717171;   /* 2× */
+  --c-2e6fbe:   #707070;   /* 1× */
+  --c-5b6b7f:   #6b6b6b;   /* 8×   ← tuyo */
+  --c-0b7285:   #666666;   /* 1× */
+  --c-0060b0:   #5f5f5f;   /* 2× */
+  --c-4c3bcf:   #595959;   /* 1× */
+  --c-0b4ea2:   #4d4d4d;   /* 3×   ← tuyo */
+  --c-075661:   #454545;   /* 1× */
+  --c-004a8a:   #424242;   /* 2× */
+  --c-17505c:   #404040;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:   #393939;   /* 1× */
+  --c-2c4361:   #383838;   /* 29× */
+  --c-0a3a6e:   #2e2e2e;   /* 1× */
+  --c-0a2f55:   #1f1f1f;   /* 1× */
+  --c-04203f:   #0d0d0d;   /* 6×   ← tuyo */
+  --c-0b1f35:   #0c0c0c;   /* 2× */
+
+  /* Translúcidos */
+
+  /* Translúcidos */
+  --c-velo:       rgba(13,13,13,.62);
+  --c-velo-hondo: rgba(13,13,13,.90);
+  --c-raya:       rgba(255,192,0,.35);
+  --c-degrade:    rgba(150,150,150,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. */
+  --c-marca:      #ffc000;   /* ← tuyo */
+  --c-marca-txt:  #0d0d0d;
+  --c-marca-vivo: #ffd24d;   /* hover */
+  --c-marca-hondo: #d9a300;
+  --c-marca-filo: #ffc000;
+  --c-marca-velo: rgba(255,192,0,.16);
+
+  /* Tu #FF0000 es el "ojo con esto" de estos tres temas. Va tal cual
+     donde es MANCHA —el avatar, el tajo del sello, la marca de una
+     cifra en alerta—, que es como lo usaste en el mockup. */
+  --c-oro:        #ff0000;   /* ← tuyo */
+
+  /* La alarma del KPI —"el mes va corto de meta"— lleva texto blanco
+     encima. #FF0000 con blanco da 4,00:1 y no pasa 4,5:1, así que aquí
+     va el mismo rojo un paso más hondo: 5,9:1 y se lee como el mismo
+     color. Es el único sitio donde tu rojo no va literal, y es porque
+     ahí es texto y no mancha. */
+  --c-alarma:     #c00000;
+  --c-alarma-txt: #ffffff;
+
+  /* La franja que agrupa columnas en las tablas. Gris oscuro, como
+     todo lo demás de estos temas. */
+  --c-grupo:      #3a3a3a;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque: hay que volver a declararlos. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+[data-tema="gris"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:   #fbfbfb;   /* 1× */
+  --c-fbfbfe:   #f7f7f7;   /* 1× */
+  --c-fafbfd:   #f6f6f6;   /* 35× */
+  --c-f7fcfd:   #f6f6f6;   /* 2× */
+  --c-f7f9fc:   #f2f2f2;   /* 16× */
+  --c-f4f7fb:   #ededed;   /* 4×   ← tuyo */
+  --c-f4f6f9:   #ededed;   /* 3× */
+  --c-f2f5f9:   #ededed;   /* 1× */
+  --c-f1f5fa:   #ededed;   /* 3× */
+  --c-f1f4f8:   #ededed;   /* 1× */
+  --c-f1f3f6:   #ededed;   /* 1× */
+  --c-eef3f9:   #ededed;   /* 1× */
+  --c-f2f1fc:   #ededed;   /* 1× */
+  --c-eaf4f6:   #ededed;   /* 1× */
+  --c-eef1f5:   #ededed;   /* 6×   ← tuyo */
+  --c-edf1f6:   #ededed;   /* 18× */
+  --c-eaf0f7:   #ececec;   /* 1× */
+  --c-edeff4:   #ebebeb;   /* 1× */
+  --c-e7ecf3:   #e8e8e8;   /* 2× */
+  --c-e7ecf2:   #e8e8e8;   /* 1× */
+  --c-e4e9ef:   #e5e5e5;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:   #e3e3e3;   /* 1× */
+  --c-dbe4f0:   #e0e0e0;   /* 2× */
+  --c-d6e4f4:   #e0e0e0;   /* 2× */
+  --c-dce2e9:   #dfdfdf;   /* 1× */
+  --c-d9e2ec:   #dedede;   /* 1× */
+  --c-c9e4e8:   #dcdcdc;   /* 1× */
+  --c-d5dce5:   #d9d9d9;   /* 6×   ← tuyo */
+  --c-c9dcf0:   #d7d7d7;   /* 1× */
+  --c-c6d3e2:   #d0d0d0;   /* 1× */
+  --c-c6d0dc:   #cdcdcd;   /* 10× */
+  --c-c3cedb:   #cbcbcb;   /* 1× */
+  --c-9fd3d9:   #c7c7c7;   /* 3× */
+  --c-bcc7d4:   #c4c4c4;   /* 1× */
+  --c-b9c4d2:   #c1c1c1;   /* 4× */
+  --c-a9c2de:   #bebebe;   /* 3× */
+  --c-b4c0ce:   #bdbdbd;   /* 7× */
+  --c-8fc7cf:   #bbbbbb;   /* 1× */
+  --c-9fbede:   #b9b9b9;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:   #b4b4b4;   /* 8× */
+  --c-8fb6e8:   #b2b2b2;   /* 1× */
+  --c-9fb4cc:   #b1b1b1;   /* 1× */
+  --c-9aa9bb:   #a7a7a7;   /* 3× */
+  --c-94a3b4:   #a1a1a1;   /* 3× */
+  --c-93a3b6:   #a1a1a1;   /* 24× */
+  --c-7e97b5:   #959595;   /* 4× */
+  --c-8494a8:   #939393;   /* 3× */
+  --c-4c93ea:   #929292;   /* 1× */
+  --c-7d8ca0:   #8b8b8b;   /* 1× */
+  --c-6f87a5:   #868686;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:   #7b7b7b;   /* 1× */
+  --c-1f6fd0:   #727272;   /* 1× */
+  --c-5a7192:   #717171;   /* 2× */
+  --c-2e6fbe:   #707070;   /* 1× */
+  --c-5b6b7f:   #6b6b6b;   /* 8×   ← tuyo */
+  --c-0b7285:   #686868;   /* 1× */
+  --c-0060b0:   #636363;   /* 2× */
+  --c-4c3bcf:   #5f5f5f;   /* 1× */
+  --c-0b4ea2:   #575757;   /* 3×   ← tuyo */
+  --c-075661:   #4f4f4f;   /* 1× */
+  --c-004a8a:   #4c4c4c;   /* 2× */
+  --c-17505c:   #494949;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:   #424242;   /* 1× */
+  --c-2c4361:   #414141;   /* 29× */
+  --c-0a3a6e:   #373737;   /* 1× */
+  --c-0a2f55:   #272727;   /* 1× */
+  --c-04203f:   #141414;   /* 6×   ← tuyo */
+  --c-0b1f35:   #131313;   /* 2× */
+
+  /* Translúcidos */
+
+  /* Translúcidos */
+  --c-velo:       rgba(20,20,20,.62);
+  --c-velo-hondo: rgba(20,20,20,.90);
+  --c-raya:       rgba(255,192,0,.35);
+  --c-degrade:    rgba(150,150,150,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. */
+  --c-marca:      #ffc000;   /* ← tuyo */
+  --c-marca-txt:  #141414;
+  --c-marca-vivo: #ffd24d;   /* hover */
+  --c-marca-hondo: #d9a300;
+  --c-marca-filo: #ffc000;
+  --c-marca-velo: rgba(255,192,0,.18);
+
+  /* Tu #FF0000 es el "ojo con esto" de estos tres temas. Va tal cual
+     donde es MANCHA —el avatar, el tajo del sello, la marca de una
+     cifra en alerta—, que es como lo usaste en el mockup. */
+  --c-oro:        #ff0000;   /* ← tuyo */
+
+  /* La alarma del KPI —"el mes va corto de meta"— lleva texto blanco
+     encima. #FF0000 con blanco da 4,00:1 y no pasa 4,5:1, así que aquí
+     va el mismo rojo un paso más hondo: 5,9:1 y se lee como el mismo
+     color. Es el único sitio donde tu rojo no va literal, y es porque
+     ahí es texto y no mancha. */
+  --c-alarma:     #c00000;
+  --c-alarma-txt: #ffffff;
+
+  /* La franja que agrupa columnas en las tablas. Gris oscuro, como
+     todo lo demás de estos temas. */
+  --c-grupo:      #3f3f3f;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque: hay que volver a declararlos. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+[data-tema="halo"] {
+
+  /* Fondos y líneas muy claras */
+  --c-fdfdff:   #fcfcfc;   /* 1× */
+  --c-fbfbfe:   #f9f9f9;   /* 1× */
+  --c-fafbfd:   #f8f8f8;   /* 35× */
+  --c-f7fcfd:   #f8f8f8;   /* 2× */
+  --c-f7f9fc:   #f5f5f5;   /* 16× */
+  --c-f4f7fb:   #f1f1f1;   /* 4×   ← tuyo */
+  --c-f4f6f9:   #f1f1f1;   /* 3× */
+  --c-f2f5f9:   #f1f1f1;   /* 1× */
+  --c-f1f5fa:   #f1f1f1;   /* 3× */
+  --c-f1f4f8:   #f1f1f1;   /* 1× */
+  --c-f1f3f6:   #f1f1f1;   /* 1× */
+  --c-eef3f9:   #f1f1f1;   /* 1× */
+  --c-f2f1fc:   #f1f1f1;   /* 1× */
+  --c-eaf4f6:   #f1f1f1;   /* 1× */
+  --c-eef1f5:   #f1f1f1;   /* 6×   ← tuyo */
+  --c-edf1f6:   #f1f1f1;   /* 18× */
+  --c-eaf0f7:   #efefef;   /* 1× */
+  --c-edeff4:   #efefef;   /* 1× */
+  --c-e7ecf3:   #ebebeb;   /* 2× */
+  --c-e7ecf2:   #ebebeb;   /* 1× */
+  --c-e4e9ef:   #e8e8e8;   /* 1× */
+
+  /* Bordes */
+  --c-dce8f6:   #e6e6e6;   /* 1× */
+  --c-dbe4f0:   #e2e2e2;   /* 2× */
+  --c-d6e4f4:   #e1e1e1;   /* 2× */
+  --c-dce2e9:   #e0e0e0;   /* 1× */
+  --c-d9e2ec:   #dfdfdf;   /* 1× */
+  --c-c9e4e8:   #dcdcdc;   /* 1× */
+  --c-d5dce5:   #d9d9d9;   /* 6×   ← tuyo */
+  --c-c9dcf0:   #d7d7d7;   /* 1× */
+  --c-c6d3e2:   #d0d0d0;   /* 1× */
+  --c-c6d0dc:   #cdcdcd;   /* 10× */
+  --c-c3cedb:   #cbcbcb;   /* 1× */
+  --c-9fd3d9:   #c7c7c7;   /* 3× */
+  --c-bcc7d4:   #c4c4c4;   /* 1× */
+  --c-b9c4d2:   #c1c1c1;   /* 4× */
+  --c-a9c2de:   #bebebe;   /* 3× */
+  --c-b4c0ce:   #bdbdbd;   /* 7× */
+  --c-8fc7cf:   #bbbbbb;   /* 1× */
+  --c-9fbede:   #b9b9b9;   /* 1× */
+
+  /* Texto apagado */
+  --c-a9b6c6:   #b4b4b4;   /* 8× */
+  --c-8fb6e8:   #b2b2b2;   /* 1× */
+  --c-9fb4cc:   #b1b1b1;   /* 1× */
+  --c-9aa9bb:   #a7a7a7;   /* 3× */
+  --c-94a3b4:   #a1a1a1;   /* 3× */
+  --c-93a3b6:   #a1a1a1;   /* 24× */
+  --c-7e97b5:   #959595;   /* 4× */
+  --c-8494a8:   #939393;   /* 3× */
+  --c-4c93ea:   #929292;   /* 1× */
+  --c-7d8ca0:   #8b8b8b;   /* 1× */
+  --c-6f87a5:   #868686;   /* 1× */
+
+  /* Acentos y texto secundario */
+  --c-3e7bc4:   #7b7b7b;   /* 1× */
+  --c-1f6fd0:   #727272;   /* 1× */
+  --c-5a7192:   #717171;   /* 2× */
+  --c-2e6fbe:   #707070;   /* 1× */
+  --c-5b6b7f:   #6b6b6b;   /* 8×   ← tuyo */
+  --c-0b7285:   #666666;   /* 1× */
+  --c-0060b0:   #5f5f5f;   /* 2× */
+  --c-4c3bcf:   #595959;   /* 1× */
+  --c-0b4ea2:   #4d4d4d;   /* 3×   ← tuyo */
+  --c-075661:   #464646;   /* 1× */
+  --c-004a8a:   #434343;   /* 2× */
+  --c-17505c:   #414141;   /* 2× */
+
+  /* Tintas oscuras */
+  --c-372a9b:   #3a3a3a;   /* 1× */
+  --c-2c4361:   #393939;   /* 29× */
+  --c-0a3a6e:   #303030;   /* 1× */
+  --c-0a2f55:   #222222;   /* 1× */
+  --c-04203f:   #111111;   /* 6×   ← tuyo */
+  --c-0b1f35:   #101010;   /* 2× */
+
+  /* Translúcidos */
+
+  /* Translúcidos */
+  --c-velo:       rgba(17,17,17,.62);
+  --c-velo-hondo: rgba(17,17,17,.90);
+  --c-raya:       rgba(255,192,0,.35);
+  --c-degrade:    rgba(150,150,150,.40);
+
+  /* El acento de marca y el texto que va ENCIMA de él. */
+  --c-marca:      #ffc000;   /* ← tuyo */
+  --c-marca-txt:  #111111;
+  --c-marca-vivo: #ffd24d;   /* hover */
+  --c-marca-hondo: #d9a300;
+  --c-marca-filo: #ffc000;
+  --c-marca-velo: rgba(255,192,0,.18);
+
+  /* Tu #FF0000 es el "ojo con esto" de estos tres temas. Va tal cual
+     donde es MANCHA —el avatar, el tajo del sello, la marca de una
+     cifra en alerta—, que es como lo usaste en el mockup. */
+  --c-oro:        #ff0000;   /* ← tuyo */
+
+  /* La alarma del KPI —"el mes va corto de meta"— lleva texto blanco
+     encima. #FF0000 con blanco da 4,00:1 y no pasa 4,5:1, así que aquí
+     va el mismo rojo un paso más hondo: 5,9:1 y se lee como el mismo
+     color. Es el único sitio donde tu rojo no va literal, y es porque
+     ahí es texto y no mancha. */
+  --c-alarma:     #c00000;
+  --c-alarma-txt: #ffffff;
+
+  /* La franja que agrupa columnas en las tablas. Gris oscuro, como
+     todo lo demás de estos temas. */
+  --c-grupo:      #3a3a3a;
+
+  /* Los alias de Tailwind y los antiguos --bv-* se resuelven en :root,
+     que está por FUERA de este bloque: hay que volver a declararlos. */
+  --color-bv-azul:        var(--c-0060b0);
+  --color-bv-azul-oscuro: var(--c-004a8a);
+  --color-bv-tinta:       var(--c-f4f7fb);
+  --color-bv-linea:       var(--c-dbe4f0);
+  --color-bv-texto:       var(--c-0b1f35);
+  --color-bv-texto-2:     var(--c-5a7192);
+  --bv-azul:              var(--c-0060b0);
+  --bv-azul-oscuro:       var(--c-004a8a);
+  --bv-tinta:             var(--c-f4f7fb);
+  --bv-linea:             var(--c-dbe4f0);
+  --bv-texto:             var(--c-0b1f35);
+  --bv-texto-2:           var(--c-5a7192);
+
+  /* Y el color y el fondo, por lo mismo. */
+  color: var(--bv-texto);
+  background: var(--bv-tinta);
+}
+
+/* El fondo del body, por el rebote del celular: cuando se arrastra más
+   allá del final, asoma el body y se vería la franja del otro tema. */
+body:has(.sh[data-tema="tinta"])   { background: #f4f7fb }
+body:has(.sh[data-tema="pizarra"]) { background: #f2f6f6 }
+body:has(.sh[data-tema="ambar"])   { background: #f7f7f3 }
+body:has(.sh[data-tema="negro"])   { background: #f1f1f1 }
+body:has(.sh[data-tema="gris"])    { background: #ededed }
+body:has(.sh[data-tema="halo"])    { background: #f1f1f1 }
+body:has(.sh[data-tema="negro"])   { background: #f1f1f1 }
+body:has(.sh[data-tema="gris"])    { background: #ededed }
+body:has(.sh[data-tema="halo"])    { background: #f1f1f1 }
+
+
+/* ---------------------------------------------------------------------
+   Paleta clara. Los nombres de las variables se mantienen para no tener
+   que tocar los componentes: solo cambian los valores.
+     bv-tinta   → fondo de la página
+     bv-panel   → fondo de tarjetas y menús
+     bv-linea   → bordes
+     bv-texto   → texto principal
+     bv-texto-2 → texto secundario
+   --------------------------------------------------------------------- */
+
+@theme {
+  --color-bv-azul: #0060b0;
+  --color-bv-azul-oscuro: #004a8a;
+  --color-bv-tinta: #f4f7fb;
+  --color-bv-panel: #ffffff;
+  --color-bv-linea: #dbe4f0;
+  --color-bv-texto: #0b1f35;
+  --color-bv-texto-2: #5a7192;
+  --color-bv-alerta: #b26a00;
+  --color-bv-ok: #16794a;
+
+  --sombra-suave: 0 1px 2px rgba(16,32,58,.05), 0 10px 24px -14px rgba(16,32,58,.28);
+  --radius-bv: 12px;
+  --radius-bv-sm: 6px;
+}
+
+:root {
+  --bv-azul: var(--c-0060b0);
+  --bv-azul-oscuro: var(--c-004a8a);
+  --bv-tinta: var(--c-f4f7fb);
+  --bv-panel: #ffffff;
+  --bv-linea: var(--c-dbe4f0);
+  --bv-texto: var(--c-0b1f35);
+  --bv-texto-2: var(--c-5a7192);
+  --bv-alerta: #b26a00;
+
+  --sombra-suave: 0 1px 2px rgba(16,32,58,.05), 0 10px 24px -14px rgba(16,32,58,.28);
+  --bv-radio: 12px;
+  --bv-radio-sm: 6px;
+
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--bv-tinta);
+  color: var(--bv-texto);
+}
+
+/* --- Superficies ---------------------------------------------------- */
+.tarjeta {
+  @apply rounded-xl border border-bv-linea bg-bv-panel p-5 shadow-sm;
+}
+
+/* --- Botones -------------------------------------------------------- */
+.btn,
+.btn-primario,
+.btn-secundario,
+.btn-peligro {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50;
+}
+
+.btn-primario {
+  @apply bg-bv-azul text-white hover:bg-bv-azul-oscuro;
+}
+
+.btn-secundario {
+  @apply border border-bv-linea bg-white text-bv-texto hover:border-bv-azul hover:text-bv-azul;
+}
+
+.btn-peligro {
+  @apply border border-bv-linea bg-white text-bv-texto-2 hover:border-red-400 hover:text-red-600;
+}
+
+/* --- Formularios ---------------------------------------------------- */
+.campo,
+.campo-claro {
+  @apply w-full rounded-lg border border-bv-linea bg-white px-3 py-2 text-sm text-bv-texto outline-none placeholder:text-bv-texto-2/60 focus:border-bv-azul focus:ring-2 focus:ring-bv-azul/20;
+}
+
+.etiqueta {
+  @apply mb-1 block text-[11px] font-medium uppercase tracking-[0.14em] text-bv-texto-2;
+}
+
+/* --- Tablas --------------------------------------------------------- */
+.tabla {
+  @apply w-full border-collapse text-sm;
+}
+
+.tabla th {
+  @apply border-b border-bv-linea px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.14em] text-bv-texto-2;
+}
+
+.tabla td {
+  @apply border-b border-bv-linea/70 px-3 py-2 text-bv-texto;
+}
+
+.tabla tbody tr:hover td {
+  @apply bg-bv-tinta;
+}
+
+/* --- Accesibilidad -------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--bv-azul);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* =====================================================================
+   Módulo Quiebra — tablero
+   ===================================================================== */
+.sub{color:var(--bv-texto-2);font-size:12.5px;margin:2px 0 0}
+.enlace{color:var(--bv-azul);text-decoration:underline;text-underline-offset:2px}
+
+/* banda de título con el KPI destacado */
+.banda{position:relative;display:flex;align-items:center;justify-content:space-between;
+  gap:24px;flex-wrap:wrap;padding:15px 24px;border-radius:14px;overflow:hidden;
+  background:
+    linear-gradient(116deg,rgba(226,0,15,0) 58%,rgba(226,0,15,.014) 66%,rgba(226,0,15,.028) 71%,
+      rgba(226,0,15,.055) 76%,rgba(226,0,15,.082) 79%,rgba(226,0,15,.106) 81%,
+      rgba(226,0,15,.132) 85%,rgba(226,0,15,.152) 89%,rgba(226,0,15,.170) 100%),
+    linear-gradient(92deg,#fff 0%,var(--c-fdfdff) 58%,var(--c-fbfbfe) 100%);
+  box-shadow:0 1px 2px rgba(15,31,56,.05),0 14px 34px -24px rgba(15,31,56,.55)}
+.banda .titulo{position:relative;flex:1;min-width:300px;padding-left:16px}
+.banda .titulo::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:3px;
+  background:linear-gradient(180deg,var(--c-marca-filo) 0%,var(--c-marca-filo) 34%,var(--c-degrade) 100%)}
+.banda .eyebrow{font-size:10px;font-weight:600;letter-spacing:.20em;text-transform:uppercase;
+  color:var(--bv-texto-2);margin:0 0 6px}
+.banda h1{font-size:24px;font-weight:700;letter-spacing:-.022em;line-height:1.1;margin:0}
+.banda .titulo p{margin:6px 0 0;color:var(--bv-texto-2);font-size:12.5px;line-height:1.5;max-width:62ch}
+
+.hero{position:relative;overflow:hidden;min-width:318px;border-radius:12px;padding:12px 18px 13px;color:#fff}
+.hero.sobre{background:
+    radial-gradient(120% 170% at 74% -24%,rgba(255,255,255,.34) 0%,rgba(255,255,255,.10) 32%,rgba(255,255,255,0) 60%),
+    radial-gradient(80% 120% at 106% 118%,rgba(120,0,10,.45) 0%,rgba(120,0,10,0) 62%),
+    linear-gradient(115deg,#c1000f 0%,#d00110 18%,#e30312 38%,#f50614 60%,#ff1a22 84%,#f20614 95%,#d70211 100%);
+  box-shadow:0 14px 34px -12px rgba(255,20,35,.52),0 5px 12px -6px rgba(170,4,20,.48),
+    inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(110,0,10,.38)}
+.hero.bajo{background:
+    radial-gradient(120% 170% at 74% -24%,rgba(255,255,255,.32) 0%,rgba(255,255,255,.09) 32%,rgba(255,255,255,0) 60%),
+    radial-gradient(80% 120% at 106% 118%,rgba(2,38,24,.45) 0%,rgba(2,38,24,0) 62%),
+    linear-gradient(115deg,#07553a 0%,#08633f 18%,#0a7449 38%,#0d8a55 60%,#17b06d 84%,#0f9a5e 95%,#0a7449 100%);
+  box-shadow:0 14px 34px -12px rgba(23,176,109,.46),0 5px 12px -6px rgba(8,80,52,.46),
+    inset 0 1px 0 rgba(255,255,255,.38),inset 0 -1px 0 rgba(2,38,24,.38)}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(116deg,rgba(255,255,255,0) 50%,rgba(255,255,255,.13) 65%,rgba(255,255,255,0) 80%)}
+.hero>*{position:relative;z-index:2}
+.ht{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(255,255,255,.82);text-align:center}
+.hv{font-size:34px;font-weight:700;letter-spacing:-.032em;line-height:1.05;margin-top:1px;
+  font-variant-numeric:tabular-nums}
+.hr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;flex-wrap:wrap}
+.hmeta{font-size:11.5px;font-weight:600;color:rgba(255,255,255,.92)}
+.hbadge{display:inline-flex;align-items:center;gap:6px;background:#fff;border-radius:99px;
+  padding:4px 10px;font-size:11px;font-weight:600;white-space:nowrap}
+.hero.sobre .hbadge{color:#c20b12}
+.hero.bajo  .hbadge{color:#0f5c3c}
+
+/* filtros */
+.filtros{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;background:var(--bv-panel);
+  border:1px solid var(--bv-linea);border-radius:14px;padding:15px 20px;box-shadow:var(--sombra-suave)}
+.f{display:flex;flex-direction:column;gap:6px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-size:12px;font-weight:500;border:1px solid var(--bv-linea);background:var(--bv-tinta);
+  color:var(--bv-texto-2);border-radius:99px;padding:6px 12px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;transition:border-color .14s,color .14s,background .14s}
+.chip i{width:8px;height:8px;border-radius:99px;display:inline-block;opacity:.3;transition:opacity .14s}
+.chip[aria-pressed="true"]{border-color:var(--bv-texto);color:var(--bv-texto);background:#fff}
+.chip[aria-pressed="true"] i{opacity:1}
+
+/* cifras */
+.cifras{background:var(--bv-panel);border:1px solid var(--bv-linea);border-radius:14px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));overflow:hidden;
+  box-shadow:var(--sombra-suave)}
+.cifra{padding:16px 20px;border-right:1px solid var(--bv-linea)}
+.cifra:last-child{border-right:0}
+.ct{font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--bv-texto-2)}
+.cv{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.cn{font-size:11.5px;color:var(--bv-texto-2);margin-top:3px}
+.malo{color:#c33b2e}.bien{color:#1b8a5a}
+
+/* rejilla de bloques */
+.rej{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;align-items:stretch}
+.rej>section{display:flex}
+.rej>section>.bloque{flex:1;display:flex;flex-direction:column;margin:0}
+.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}
+.c7{grid-column:span 7}.c8{grid-column:span 8}
+@media(max-width:1340px){.c3,.c4,.c5{grid-column:span 6}.c7,.c8{grid-column:span 12}}
+@media(max-width:840px){.rej>*{grid-column:span 12!important}}
+.bloque{background:var(--bv-panel);border:1px solid var(--bv-linea);border-radius:14px;
+  padding:18px 20px;box-shadow:var(--sombra-suave)}
+.bh{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.bh h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
+.bh p{margin:3px 0 0;font-size:12px;color:var(--bv-texto-2)}
+.leyenda{display:flex;gap:13px;flex-wrap:wrap;font-size:11.5px;color:var(--bv-texto-2);align-items:center}
+.leyenda i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px;vertical-align:-1px}
+
+.bloque svg{display:block;width:100%;height:auto;overflow:visible}
+.eje{font-size:10.5px;fill:var(--bv-texto-2)}
+.gridline{stroke:var(--c-eef3f9);stroke-width:1}
+.dato{font-size:10.5px;font-weight:600}
+.cod{color:var(--bv-texto-2);font-size:10.5px}
+.barrita{height:5px;border-radius:99px;min-width:3px;
+  background:linear-gradient(90deg,var(--c-4c93ea) 0%,var(--c-1f6fd0) 100%)}
+.vacio{padding:34px 0;text-align:center;color:var(--bv-texto-2);font-size:13px}
+.pie{font-size:11.5px;color:var(--bv-texto-2);margin:6px 0 0}
+
+/* columnas numéricas de las tablas del tablero */
+.tabla th.n,
+.tabla td.n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tabla tbody tr:last-child td { border-bottom: 0 }
+.tabla td { vertical-align: middle }
+
+/* =====================================================================
+   EL COLOR DE CADA MÓDULO EN LA PORTADA
+   =====================================================================
+   Las tarjetas de la portada llevan el color de su módulo. En el tema
+   oficial es el del registro; en los demás se recalcula DENTRO de la
+   familia del tema, para que la portada se vea de una pieza sin que los
+   módulos se confundan entre ellos.
+
+   CADA COLOR VA EN SU PUNTO MÁS SATURADO, no en una claridad fija. El
+   primer intento los metió en una banda estrecha con el croma tope en
+   0,12 y salieron muertos: salmón, ocre y oliva. El croma máximo que
+   aguanta sRGB depende del tono Y de la claridad, así que forzar la
+   claridad mata el color. Ahora se busca la cresta —dónde ese tono da
+   más croma— y se toma el 93% de ella.
+
+   Los tonos cálidos tienen su cresta entre 0,63 y 0,86 de claridad y
+   ahí se ven vivos: rojo, naranja, ámbar, lima. Los fríos la tienen en
+   0,88-0,90, que ya es neón de resaltador; a esos se les pone techo y
+   se les reparte la claridad a mano, o dos vecinos salen iguales.
+
+   Cada color va con la flecha que se lee encima —la de más contraste de
+   las dos—, y todas pasan 3:1, que es el mínimo para un dibujo.
+
+   Un módulo nuevo que nadie haya pintado aquí se queda con el color de
+   su registro: se ve fuera de tono, no invisible. La portada usa
+   var(--c-mod-<id>, <el del registro>).
+   --------------------------------------------------------------------- */
+
+[data-tema="tinta"] {
+  --c-mod-quiebra: #f72735;      --c-mod-quiebra-txt: #04203f;
+  --c-mod-sider: #f97d25;        --c-mod-sider-txt: #04203f;
+  --c-mod-admin: #fcc231;        --c-mod-admin-txt: #04203f;
+  --c-mod-inventario: #c6df32;   --c-mod-inventario-txt: #04203f;
+}
+[data-tema="pizarra"] {
+  --c-mod-quiebra: #2fd173;      --c-mod-quiebra-txt: #0b2e33;
+  --c-mod-sider: #29b499;        --c-mod-sider-txt: #0b2e33;
+  --c-mod-admin: #229aa0;        --c-mod-admin-txt: #0b2e33;
+  --c-mod-inventario: #1b80a1;   --c-mod-inventario-txt: #fff;
+}
+[data-tema="ambar"] {
+  --c-mod-quiebra: #f72735;      --c-mod-quiebra-txt: #fff;
+  --c-mod-sider: #f97d25;        --c-mod-sider-txt: #23262c;
+  --c-mod-admin: #fcc231;        --c-mod-admin-txt: #23262c;
+  --c-mod-inventario: #c6df32;   --c-mod-inventario-txt: #23262c;
+}
+/* Negro, gris y halo tienen DOS colores y nada más: tu #FFC000 y tu
+   #FF0000. En vez de traerles verdes y azules de otro mundo, los cuatro
+   módulos se reparten la rampa entre esos dos. Siguen distinguiéndose
+   uno de otro y ninguno se sale del tema. */
+[data-tema="negro"], [data-tema="gris"], [data-tema="halo"] {
+  --c-mod-quiebra: #ff0000;      --c-mod-quiebra-txt: #fff;
+  --c-mod-sider: #ff6a00;        --c-mod-sider-txt: #fff;
+  --c-mod-admin: #ff9800;        --c-mod-admin-txt: #171717;
+  --c-mod-inventario: #ffc000;   --c-mod-inventario-txt: #171717;
+}
+/* Negro, gris y halo tienen DOS colores y nada más: tu #FFC000 y tu
+   #FF0000. En vez de traerles verdes y azules de otro mundo, los cuatro
+   módulos se reparten la rampa entre esos dos. Siguen distinguiéndose
+   uno de otro y ninguno se sale del tema. */
+[data-tema="negro"], [data-tema="gris"], [data-tema="halo"] {
+  --c-mod-quiebra: #ff0000;      --c-mod-quiebra-txt: #fff;
+  --c-mod-sider: #ff6a00;        --c-mod-sider-txt: #fff;
+  --c-mod-admin: #ff9800;        --c-mod-admin-txt: #171717;
+  --c-mod-inventario: #ffc000;   --c-mod-inventario-txt: #171717;
+}
+
+/* =====================================================================
+   LA TRAMA DE LA BARRA, POR TEMA
+   =====================================================================
+   La barra oscura es lo primero que se ve al entrar, así que cada tema
+   la viste distinto. Se declaran aquí y no en shell.css porque son
+   decisiones DEL TEMA, no del cascarón: shell.css solo las dibuja.
+
+   OJO CON EL SELECTOR: va .sh[data-tema=...] y no [data-tema=...] a
+   secas. shell.css declara estas mismas variables en .sh, y .sh y
+   [data-tema] tienen LA MISMA especificidad: gana la que cargue de
+   última, y ese orden lo decide el empaquetador y cambia entre builds.
+   Con .sh delante la del tema pesa más siempre. Se probó: sin esto,
+   pizarra y ámbar salían con los rombos del tema oficial.
+   --------------------------------------------------------------------- */
+
+/* Tinta y ámbar — el mismo azul marino, con rayas verticales que se
+   desvanecen hacia arriba y el filo en ámbar. */
+.sh[data-tema="tinta"] {
+  --sh-trama: repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 9px);
+  --sh-trama-op: .55;
+  --sh-trama-tapa: linear-gradient(180deg, transparent 0%, #000 100%);
+  --sh-barra-fondo:
+    radial-gradient(600px 200px at 12% 130%, rgba(240,180,41,.20) 0%, transparent 72%),
+    radial-gradient(700px 240px at 90% -30%, rgba(11,78,162,.45) 0%, transparent 72%),
+    var(--c-04203f);
+}
+
+/* Pizarra y turquesa — los dos resplandores y el filo en degradado, tal
+   como lo mandaste. */
+.sh[data-tema="pizarra"] {
+  --sh-trama: repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 9px);
+  --sh-trama-op: .5;
+  --sh-trama-tapa: linear-gradient(180deg, transparent 0%, #000 100%);
+  --sh-barra-fondo:
+    radial-gradient(560px 190px at 14% 130%, rgba(18,164,160,.55) 0%, transparent 72%),
+    radial-gradient(680px 230px at 88% -30%, rgba(14,116,144,.55) 0%, transparent 72%),
+    #051417;
+  --sh-filo: linear-gradient(90deg,
+    rgba(18,164,160,0) 0%, #12A4A0 30%, #0E7490 70%, rgba(14,116,144,0) 100%);
+}
+
+/* Ámbar sobre blanco — la textura 1: los dos resplandores, sin rayas.
+   El grafito es casi negro y una trama de líneas encima lo ensucia; los
+   resplandores en cambio le dan hondura sin dibujarle nada. Los alfas
+   van mucho más bajos que en pizarra (.26 y .14 contra .55) porque el
+   ámbar sobre grafito pesa más que el turquesa sobre pizarra: con .55
+   el resplandor se comía la barra, y con el ocre a .40 el lado derecho
+   salía verdoso y sucio. */
+.sh[data-tema="ambar"] {
+  --sh-trama: none;
+  --sh-trama-op: 0;
+  --sh-barra-fondo:
+    radial-gradient(560px 190px at 14% 130%, rgba(255,192,0,.26) 0%, transparent 72%),
+    radial-gradient(680px 230px at 92% -34%, rgba(255,192,0,.14) 0%, transparent 66%),
+    #1B1D22;
+}
+
+/* 1 · Negro y ámbar — negro plano y rayas diagonales muy finas en ámbar,
+   con el filo en ámbar. Tal cual el mockup. */
+.sh[data-tema="negro"] {
+  --sh-barra-fondo: #0D0D0D;
+  --sh-filo: #FFC000;
+  --sh-trama: repeating-linear-gradient(116deg, rgba(255,192,0,.10) 0 2px, transparent 2px 18px);
+  --sh-trama-op: .35;
+  --sh-trama-tapa: none;
+}
+
+/* 2 · Gris claro y ámbar — LA ÚNICA BARRA CLARA de la plataforma, y por
+   eso el tema que más piezas mueve: el texto de la barra estaba en
+   blanco en duro y sobre #D9D9D9 no se veía. Las variables --sh-barra-*
+   existen para esto y su valor por defecto es el blanco de siempre, así
+   que ningún otro tema cambia.
+   El riel de la izquierda SIGUE oscuro, como en tu mockup: se aclara la
+   barra, no la navegación. */
+.sh[data-tema="gris"] {
+  --sh-barra-fondo: #D9D9D9;
+  --sh-barra-borde: 1px solid #C4C4C4;
+  --sh-filo: #FFC000;
+  --sh-filo-alto: 4px;
+  --sh-trama: radial-gradient(rgba(0,0,0,.10) 1.1px, transparent 1.2px);
+  --sh-trama-medida: 16px 16px;
+  --sh-trama-op: .5;
+  --sh-trama-tapa: none;
+
+  --sh-barra-txt:   #141414;
+  /* Tus dos grises de texto bajan un paso cada uno. Es el único sitio
+     donde este tema no va literal al mockup, y es porque medido no se
+     leía: tu #7A7A7A sobre #D9D9D9 da 3,04:1 en un texto de 13,5px, y
+     el mínimo para leer es 4,5:1. #5E5E5E da 4,59 y #4F4F4F da 5,80.
+     Se bajaron LOS DOS para no perder la jerarquía que tenías: el
+     "CONTROL" sigue más claro que la hoja de la ruta. */
+  --sh-barra-txt-2: #4F4F4F;
+  --sh-barra-wm:    #5E5E5E;
+  --sh-barra-sep:   #7A7A7A;
+  --sh-barra-filo:  #BFBFBF;
+  --sh-avatar-filo: #D9D9D9;
+}
+
+/* 3 · Negro con halo ámbar y rojo — negro puro con los dos resplandores,
+   sin trama, y el filo en degradado de rojo a ámbar. */
+.sh[data-tema="halo"] {
+  --sh-barra-fondo:
+    radial-gradient(520px 190px at 12% 130%, rgba(255,0,0,.30) 0%, transparent 70%),
+    radial-gradient(700px 240px at 88% -30%, rgba(255,192,0,.35) 0%, transparent 72%),
+    #000000;
+  --sh-filo: linear-gradient(90deg, #FF0000 0%, #FFC000 100%);
+  --sh-trama: none;
+  --sh-trama-op: 0;
+}
+
+/* =====================================================================
+   LA PANTALLA DE ENTRADA, POR TEMA
+   =====================================================================
+   El login no sabe quién va a entrar, así que se pinta con el tema de la
+   última persona que entró EN ESE EQUIPO. Lo recuerda el navegador, no
+   la base: es una preferencia del equipo, no un dato de nadie.
+
+   Casi todo sale solo, porque acceso.css lee --c-marca y los neutros del
+   tema. Lo único aparte es el campo oscuro de la izquierda: ahí va el
+   discurso de la marca y necesita ser MÁS CLARO que la barra de la app,
+   que es casi negra. Si reusara la tinta del tema, en negro y en halo el
+   discurso quedaría sobre un fondo plano sin relieve.
+   --------------------------------------------------------------------- */
+/* OJO CON EL SELECTOR: va .acc[data-tema=...] y no [data-tema=...] a
+   secas, por lo mismo que las barras van con .sh delante. acceso.css
+   declara --acc-izq-fondo en .acc, y .acc y [data-tema] tienen LA MISMA
+   especificidad: gana la que cargue de última, y ese orden lo decide el
+   empaquetador. Medido: sin el .acc, los tres temas salían con la tinta
+   de la barra en vez del grafito. */
+.acc[data-tema="negro"] {
+  --acc-izq-fondo: #1F1F1F;
+  --acc-izq-halo:  #3A3A3A;
+}
+/* Grafito, tal cual tu mockup del login. */
+.acc[data-tema="gris"] {
+  --acc-izq-fondo: #262626;
+  --acc-izq-halo:  #3A3A3A;
+}
+.acc[data-tema="halo"] {
+  --acc-izq-fondo: #171717;
+  --acc-izq-halo:  #4A2A00;
+}
+
+/* =====================================================================
+   CONFIRMAR — el reemplazo de window.confirm()
+   =====================================================================
+   Vive en globals.css y no en la hoja de un módulo porque lo usan
+   Roles, Maestro, Quiebra y Sider: una copia por módulo son cuatro
+   sitios donde se desincroniza.
+   Se viste con los tokens del tema, así que los siete lo pintan solos.
+   ===================================================================== */
+.cf-velo {
+  position: fixed; inset: 0; z-index: 90;
+  background: var(--c-velo);
+  display: grid; place-items: center; padding: 20px;
+  overflow-y: auto;
+  animation: cf-entra .12s ease-out;
+}
+@keyframes cf-entra { from { opacity: 0 } to { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .cf-velo { animation: none } }
+
+.cf-caja {
+  width: 100%; max-width: 440px;
+  background: #fff;
+  border-radius: 3px;
+  /* El filo de arriba dice de qué se trata antes de leer: el acento del
+     tema para lo normal, rojo para lo que destruye. */
+  border-top: 4px solid var(--c-marca);
+  padding: 24px 26px 20px;
+  box-shadow: 0 24px 60px rgba(4, 32, 63, .32);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  color: var(--c-04203f);
+}
+.cf-caja.peligro { border-top-color: #E4002B }
+
+.cf-caja h2 {
+  margin: 0; font-family: "Archivo", system-ui, sans-serif;
+  font-weight: 800; font-size: 19px; line-height: 1.25; letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.cf-dice {
+  margin: 10px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--c-2c4361);
+}
+.cf-dice b { font-weight: 600 }
+
+.cf-botones {
+  display: flex; justify-content: flex-end; gap: 10px;
+  margin-top: 20px; flex-wrap: wrap;
+}
+.cf-btn {
+  min-height: 42px; padding: 0 20px; border: 0; border-radius: 2px; cursor: pointer;
+  font-family: "Archivo", system-ui, sans-serif; font-weight: 800; font-size: 14px;
+  background: var(--c-marca); color: var(--c-marca-txt);
+}
+.cf-btn:hover { background: var(--c-marca-vivo) }
+.cf-btn.mal { background: #E4002B; color: #fff }
+.cf-btn.mal:hover { background: #B8001F }
+.cf-btn.plano {
+  background: none; color: var(--c-5b6b7f);
+  border: 1px solid var(--c-d5dce5); font-weight: 600;
+}
+.cf-btn.plano:hover { background: var(--c-f7f9fc); color: var(--c-04203f) }
+.cf-btn:focus-visible { outline: 3px solid var(--c-04203f); outline-offset: 2px }
+
+@media (max-width: 480px) {
+  .cf-caja { padding: 20px 18px 18px }
+  .cf-botones { flex-direction: column-reverse }
+  .cf-btn { width: 100% }
+}
+
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .banda .eyebrow { font-size: 11.5px }
+  .ht { font-size: 11.5px }
+  .hmeta { font-size: 12px }
+  .hbadge { font-size: 12px }
+  .ct { font-size: 11.5px }
+  .cn { font-size: 12px }
+  .leyenda { font-size: 12px }
+  .eje { font-size: 12px }
+  .dato { font-size: 12px }
+  .cod { font-size: 12px }
+  .pie { font-size: 12px }
+}
+
+/* =====================================================================
+   AVISOS — lo que la aplicación contesta cuando algo pasa.
+
+   Viven en globals.css y no en el CSS de un módulo por la misma razón
+   que el diálogo de confirmar: los usan todos los módulos y los visten
+   los siete temas sin que haya que repetir la regla siete veces.
+
+   Abajo a la derecha en PC; ARRIBA en celular, porque abajo los tapa el
+   teclado y la barra de navegación del módulo.
+   ===================================================================== */
+.av-pila {
+  position: fixed; right: 18px; bottom: 18px; z-index: 90;
+  display: flex; flex-direction: column; gap: 9px;
+  width: min(420px, calc(100vw - 36px));
+  pointer-events: none;
+}
+
+.av {
+  pointer-events: auto;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) 26px;
+  gap: 11px; align-items: start;
+  background: var(--bv-panel); color: var(--bv-texto);
+  border: 1px solid var(--bv-linea); border-left: 3px solid var(--bv-linea);
+  border-radius: 10px; padding: 12px 13px;
+  box-shadow: var(--sombra-suave);
+  font-size: 13px; line-height: 1.45;
+  /* Entra desde abajo y no aparece de golpe: un cartel que se
+     materializa se lee como un error del navegador, uno que entra se
+     lee como una respuesta de la aplicación. */
+  animation: av-entra .18s ease-out;
+}
+@keyframes av-entra {
+  from { opacity: 0; transform: translateY(8px) }
+  to   { opacity: 1; transform: none }
+}
+@media (prefers-reduced-motion: reduce) { .av { animation: none } }
+
+.av .av-icono svg {
+  width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9;
+  stroke-linecap: round; stroke-linejoin: round; display: block; margin-top: 1px;
+}
+.av .av-txt { min-width: 0; overflow-wrap: anywhere }
+.av .av-x {
+  font: inherit; font-size: 15px; line-height: 1; background: transparent; border: 0;
+  color: var(--bv-texto-2); cursor: pointer; padding: 2px 4px; border-radius: 5px;
+  /* 26 px de ancho de caja pero blanco de toque de 38: el área táctil se
+     estira con el padding sin empujar el texto de al lado. */
+  min-height: 26px;
+}
+.av .av-x:hover { background: var(--c-eef1f5); color: var(--bv-texto) }
+
+.av.bien { border-left-color: #0F7A4A }
+.av.bien .av-icono { color: #0F7A4A }
+.av.mal  { border-left-color: #E4002B; background: #FEF4F6 }
+.av.mal  .av-icono { color: #E4002B }
+.av.info { border-left-color: var(--c-oro) }
+.av.info .av-icono { color: #8A5A00 }
+
+@media (max-width: 760px) {
+  .av-pila {
+    right: 12px; left: 12px; width: auto;
+    top: calc(10px + env(safe-area-inset-top)); bottom: auto;
+  }
+  @keyframes av-entra {
+    from { opacity: 0; transform: translateY(-8px) }
+    to   { opacity: 1; transform: none }
+  }
+}
+
+*{box-sizing:border-box} body{margin:0;background:var(--c-eef1f5,#EEF1F5);font:14px system-ui}
+.marco{min-height:100vh;padding:18px}
+/* ---------------------------------------------------------------------
+   TRASPASOS — viajes entre puntos.
+
+   Todo cuelga de .tp para no pisar nada de la app. Mismo lenguaje visual
+   que Acciones y Roturas, con su propio acento: el módulo se reconoce
+   por el color antes de leer el título.
+
+   EL ACENTO SALE DEL TEMA, no de un azul escrito a mano. La app empareja
+   un acento con su tinta —--c-marca con --c-marca-txt— justamente para
+   que al cambiar de preferencias no quede texto oscuro sobre fondo
+   oscuro. --c-oro no trae pareja, así que este módulo pone la suya.
+
+   A LO ANCHO NO SE DESPLAZA NUNCA: lo que no cabe se apila o se recorta
+   dentro de su propio recuadro, nunca empujando la página de lado.
+   --------------------------------------------------------------------- */
+
+/* Los tokens van en las dos raíces: .tp-reg se abre por encima de todo
+   y lo lanza la barra de abajo, que vive FUERA de .tp. Las variables se
+   heredan por el árbol del documento, no por dónde se ve el elemento. */
+.tp, .tp-reg {
+  --tp-tinta: var(--c-04203f);
+  --tp-acento: var(--c-marca);
+  --tp-sobre-acento: var(--c-marca-txt);
+
+  /* EL COLOR DEL MÓDULO ES EL ACENTO DEL TEMA, no el token de alarma.
+     Colgaba de --c-oro, que NO es el acento: es el "ojo con esto" de la
+     app, y en los temas negro, gris y halo vale #ff0000. El resultado
+     era una carcasa ámbar con un módulo rojo adentro — dos colores que
+     nadie escogió juntos.
+
+     --c-marca sí es el acento, y la app lo define EMPAREJADO con
+     --c-marca-txt, la tinta que va encima. Tomando el par no hace falta
+     oscurecer nada a mano: el contraste lo garantiza el tema. */
+  --tp-ojo: var(--c-marca);
+  --tp-sobre-ojo: var(--c-marca-txt);
+  --tp-panel: var(--c-marca);
+
+  /* EL ACENTO ACLARADO, para lo que va ENCIMA de la banda oscura
+     (--c-grupo). El acento y la banda son tokens independientes: nada
+     garantiza que contrasten. Medido, el acento sobre la banda daba 1,7
+     en los temas oficial y pizarra —ilegible— mientras que en negro daba
+     6,9.
+
+     EL PORCENTAJE SALE DE MEDIR, no de mirar: 55% daba 3,0 y 30% daba
+     3,9 en el tema pizarra, cuya banda no es oscura sino un verde medio
+     (#0e7490). Al 15% los siete pasan de 4,5 —pizarra queda en 4,6— y
+     todavía se le nota el tinte del módulo. Es el mismo arreglo que ya
+     tiene Roturas. */
+  --tp-sobre-grupo: color-mix(in srgb, var(--c-marca) 15%, #fff);
+
+  /* Y LO QUE DE VERDAD ES UN AVISO se queda con --c-oro. Un viaje sin
+     planear o un punto escrito a mano tienen que verse distintos del
+     color del módulo; si compartieran tono dejarían de decir nada. */
+  --tp-aviso: var(--c-oro);
+  /* Semáforo. NO sale del tema a propósito: si cambiara con las
+     preferencias dejaría de querer decir "esto está mal". */
+  --tp-mal: #C8102E;
+  --tp-bien: #0F7A4A;
+  --tp-papel: #FFF;
+  --tp-gris: var(--c-5b6b7f);
+  /* EL MISMO GRIS, OSCURECIDO PARA LOS PANELES. `--tp-gris` está
+     calibrado contra el PAPEL blanco; sobre `--tp-fondo`, que es más
+     oscuro, cae — en el tema ámbar da 4,39 y el mínimo es 4,5. Medido,
+     no supuesto: lo cazó el arnés del resumen del día. */
+  --tp-gris-panel: color-mix(in srgb, var(--c-5b6b7f) 72%, var(--c-04203f));
+  --tp-linea: var(--c-d5dce5);
+  --tp-fondo: var(--c-eef1f5);
+
+  --tp-titulo: "Archivo", system-ui, sans-serif;
+  --tp-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  /* Los códigos —TR-1001, ABC123, OC-5001— en monoespaciada: alineados
+     uno debajo de otro se comparan de un vistazo, que es justo lo que
+     alguien hace cuando cruza una lista contra otra. */
+  --tp-mono: ui-monospace, "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+
+  font-family: var(--tp-texto);
+  color: var(--tp-tinta);
+}
+
+.tp { display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.tp *, .tp *::before, .tp *::after,
+.tp-reg *, .tp-reg *::before, .tp-reg *::after { box-sizing: border-box }
+
+/* ====================== Encabezado ====================== */
+.tp .cabeza { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: stretch }
+.tp .cabeza h1 {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: clamp(26px, 4vw, 38px);
+  margin: 4px 0 6px; line-height: 1.04; letter-spacing: -.02em;
+}
+.tp .cabeza .ojo {
+  margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .16em; color: var(--tp-gris);
+}
+.tp .cabeza .sub { margin: 0; font-size: 13px; color: var(--tp-gris); max-width: 72ch; line-height: 1.5 }
+
+/* El recuadro de la cifra del turno. */
+.tp .kpi {
+  position: relative; background: var(--c-grupo); color: #fff;
+  border-radius: 12px; padding: 16px 20px; min-width: 190px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.tp .kpi .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; opacity: .75 }
+.tp .kpi .num {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 40px; line-height: 1;
+  margin-top: 6px; font-variant-numeric: tabular-nums;
+}
+.tp .kpi .num .u { font-size: 12px; font-weight: 600; opacity: .8; margin-left: 7px }
+.tp .kpi .pie { font-size: 11px; opacity: .8; margin-top: 6px }
+
+/* ====================== Cifras ====================== */
+.tp .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.tp .cifra {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-left: 3px solid var(--tp-acento); border-radius: 10px; padding: 13px 15px;
+}
+.tp .cifra .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--tp-gris) }
+.tp .cifra .n {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 27px; line-height: 1;
+  margin-top: 5px; font-variant-numeric: tabular-nums;
+}
+.tp .cifra .u { font-size: 11px; color: var(--tp-gris); margin-top: 4px; line-height: 1.3 }
+.tp .cifra.mal { border-left-color: var(--tp-mal) }
+.tp .cifra.mal .n { color: var(--tp-mal) }
+.tp .cifra.ojo { border-left-color: var(--tp-aviso) }
+
+/* ====================== Caja ====================== */
+.tp .caja {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-radius: 12px; overflow: hidden; min-width: 0;
+}
+.tp .caja > .cab {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
+  padding: 14px 16px; border-bottom: 1px solid var(--tp-linea); flex-wrap: wrap;
+}
+.tp .caja > .cab h2 {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 16px; margin: 0;
+}
+.tp .caja > .cab p { margin: 3px 0 0; font-size: 11.5px; color: var(--tp-gris); max-width: 72ch }
+
+.tp .vacio { padding: 26px 16px; text-align: center; color: var(--tp-gris); font-size: 13px }
+.tp .vacio b { display: block; font-family: var(--tp-titulo); font-size: 15px; color: var(--tp-tinta); margin-bottom: 4px }
+
+/* ====================== La tabla del seguimiento ======================
+   Es la única cosa ancha del módulo y por eso se desplaza DENTRO de su
+   propio recuadro. La página nunca se mueve de lado. */
+.tp .tabla-envuelta { overflow-x: auto; -webkit-overflow-scrolling: touch }
+.tp table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px }
+.tp th {
+  text-align: left; font-size: 9.5px; font-weight: 700; letter-spacing: .12em;
+  color: var(--tp-gris); padding: 9px 12px; border-bottom: 1px solid var(--tp-linea);
+  white-space: nowrap;
+}
+.tp td { padding: 11px 12px; border-bottom: 1px solid var(--tp-linea); vertical-align: middle }
+.tp tr:last-child td { border-bottom: 0 }
+.tp td.n, .tp th.n { text-align: right; font-variant-numeric: tabular-nums }
+.tp td.tipo { font-weight: 700 }
+
+/* La barra de cumplimiento dentro de la celda. Se lee antes que el
+   número: de un vistazo se ve cuál turno va corto. */
+.tp .barra {
+  display: block; height: 7px; border-radius: 4px; background: var(--tp-fondo);
+  overflow: hidden; min-width: 70px; margin-top: 5px;
+}
+.tp .barra i { display: block; height: 100%; background: var(--tp-bien) }
+.tp .barra.corto i { background: var(--tp-mal) }
+
+/* SIN PLANEAR: se movió y nadie lo planeó. Filo de color, no fila roja:
+   no está MAL, está fuera del plan, que es otra cosa. */
+.tp tr.sin-plan td:first-child { box-shadow: inset 3px 0 0 var(--tp-aviso) }
+.tp .eti {
+  display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
+  padding: 3px 7px; border-radius: 5px; background: var(--tp-fondo); color: var(--tp-gris);
+  white-space: nowrap;
+}
+.tp .eti.ojo { background: var(--tp-aviso); color: #fff }
+.tp .eti.mal { background: var(--tp-mal); color: #fff }
+.tp .eti.vacio-eti { background: transparent; border: 1px dashed var(--tp-gris) }
+
+/* ====================== Filas de viajes ====================== */
+.tp .fila {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px;
+  padding: 13px 16px; border-bottom: 1px solid var(--tp-linea); align-items: start;
+}
+.tp .fila:last-child { border-bottom: 0 }
+.tp .fila.anulada { opacity: .5 }
+.tp .fila .placa {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 15px;
+  background: var(--tp-fondo); border-radius: 7px; padding: 7px 10px;
+  letter-spacing: .04em; white-space: nowrap;
+}
+.tp .fila .ruta { font-family: var(--tp-titulo); font-weight: 800; font-size: 15px }
+.tp .fila .ruta .fl { color: var(--tp-gris); margin: 0 7px; font-weight: 400 }
+.tp .fila .meta {
+  display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px;
+  font-size: 12px; color: var(--tp-gris); align-items: center;
+}
+.tp .fila .meta .cant { font-weight: 800; color: var(--tp-tinta) }
+/* El punto escrito a mano se ve distinto: es lo que hay que agregar al
+   maestro, no un sitio más. */
+.tp .fila .suelto { border-bottom: 1px dashed var(--tp-aviso) }
+.tp .fila .der { display: flex; flex-direction: column; gap: 6px; align-items: flex-end }
+
+/* ====================== Botones ====================== */
+.tp .btn {
+  font: inherit; font-family: var(--tp-titulo); font-weight: 800; font-size: 13px;
+  min-height: 42px; padding: 0 16px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--tp-linea); background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .btn.si { background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento) }
+.tp .btn.chico { min-height: 34px; font-size: 12px; padding: 0 11px }
+.tp .btn.mal { background: var(--tp-mal); border-color: var(--tp-mal); color: #fff }
+.tp .btn:disabled { opacity: .5; cursor: not-allowed }
+
+/* ====================== Campos ====================== */
+.tp .campo, .tp-reg .campo { display: block; margin-bottom: 13px }
+.tp .campo label, .tp-reg .campo label {
+  display: block; font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  color: var(--tp-gris); margin-bottom: 6px; text-transform: uppercase;
+}
+.tp .campo input, .tp .campo select, .tp .campo textarea,
+.tp-reg .campo input, .tp-reg .campo select, .tp-reg .campo textarea {
+  font: inherit; font-size: 16px; width: 100%; min-height: 48px;
+  padding: 11px 13px; border-radius: 9px; border: 1px solid var(--tp-linea);
+  background: var(--tp-papel); color: var(--tp-tinta);
+}
+.tp .campo textarea, .tp-reg .campo textarea { min-height: 76px; resize: vertical }
+
+/* Los turnos y los tipos, como botones grandes: se toca con guantes. */
+.tp .opciones, .tp-reg .opciones { display: flex; flex-wrap: wrap; gap: 8px }
+.tp .op, .tp-reg .op {
+  font: inherit; font-family: var(--tp-titulo); font-weight: 800; font-size: 14px;
+  min-height: 46px; padding: 0 16px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--tp-linea); background: var(--tp-papel); color: var(--tp-tinta);
+}
+.tp .op.on, .tp-reg .op.on {
+  background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento);
+}
+.tp .op:disabled, .tp-reg .op:disabled { opacity: .5; cursor: not-allowed }
+
+/* ====================== Avisos ====================== */
+.tp .aviso, .tp-reg .aviso {
+  background: #FFFBEB; border-left: 3px solid var(--tp-ojo);
+  padding: 11px 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.5;
+}
+.tp .aviso.malo, .tp-reg .aviso.malo { background: #FEF2F2; border-left-color: var(--tp-mal) }
+.tp .guia, .tp-reg .guia { font-size: 12px; color: var(--tp-gris); line-height: 1.5; margin: 0 }
+
+.tp .sin-tablas { background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-left: 3px solid var(--tp-mal); border-radius: 12px; padding: 20px }
+.tp .sin-tablas h2 { font-family: var(--tp-titulo); font-weight: 800; font-size: 17px; margin: 0 0 7px }
+.tp .sin-tablas p { margin: 0; font-size: 13px; color: var(--tp-gris); line-height: 1.55 }
+.tp .sin-tablas code {
+  font-family: ui-monospace, monospace; font-size: 12.5px;
+  background: var(--tp-fondo); padding: 2px 6px; border-radius: 5px;
+}
+
+/* ====================== Celular ====================== */
+@media (max-width: 720px) {
+  .tp .cabeza { grid-template-columns: 1fr }
+  .tp .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .tp .fila { grid-template-columns: auto 1fr; }
+  .tp .fila .der { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start }
+}
+
+/* =====================================================================
+   CONTROL Y EJECUCIÓN
+   La pantalla de la reunión. Se lee de arriba abajo en este orden:
+   la cifra grande → cómo va repartida → lo que está mal → el detalle.
+   ===================================================================== */
+
+/* Antes aquí vivía un parche por tema: --c-oro no trae tinta pareja, así
+   que el módulo escogía blanco o casi-negro según el tema y oscurecía el
+   relleno a mano. Con --c-marca ese trabajo lo hace el tema y el parche
+   sobra. Se borra en vez de dejarlo apagado: un parche que ya no aplica
+   es lo que el mes que viene alguien "arregla" sin saber para qué era. */
+
+
+
+/* ---------- Encabezado con botones ---------- */
+.tp .cabeza-ctl {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: center;
+}
+.tp .cabeza-ctl > * { min-width: 0 }
+/* TRES BOTONES Y NO DOS desde que existe «Bajar Excel»: en una fila sin
+   envolver, a 360 px el tercero se salía 17 px de lado. */
+.tp .acciones-informe { display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 10px; flex-wrap: wrap }
+.tp .accion {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 15px; cursor: pointer;
+  background: var(--tp-papel); border: 1.5px solid var(--tp-linea); border-radius: 3px;
+  font: 600 13px var(--tp-texto); color: var(--tp-tinta);
+}
+.tp .accion:hover { border-color: var(--tp-acento); color: var(--tp-acento) }
+.tp .accion svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.8; fill: none;
+  stroke-linecap: round; stroke-linejoin: round }
+
+/* EL PANEL GRANDE. Es lo primero que se ve y por eso lleva la cifra que
+   de verdad manda: la adherencia al plan. */
+.tp .panel-ojo {
+  position: relative; overflow: hidden; border-radius: 3px;
+  background: var(--tp-panel); color: var(--tp-sobre-ojo);
+  padding: 18px 26px 17px 22px; min-width: 300px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.tp .panel-ojo .corte {
+  position: absolute; top: -20%; bottom: -20%; right: -12px; width: 80px;
+  background: rgba(0, 0, 0, .12); transform: skewX(-26deg);
+}
+.tp .panel-ojo .rot {
+  position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .16em;
+  /* SIN opacidad. Apagar el rótulo le quitaba un punto entero de
+     contraste justo al texto más chico del panel. La jerarquía ya la
+     dan el tamaño y las mayúsculas. */
+  color: var(--tp-sobre-ojo);
+}
+.tp .panel-ojo .num {
+  position: relative; font-family: var(--tp-titulo); font-weight: 900; font-size: 46px;
+  line-height: .9; letter-spacing: -.05em; margin-top: 5px;
+}
+/* EL COLOR VA ESCRITO, NO HEREDADO. globals.css trae una clase suelta
+   —`.pie{color:var(--bv-texto-2)}`, sin prefijo de módulo— y cualquier
+   regla que ponga color le gana a lo que se hereda del padre. El
+   resultado era gris #717171 sobre el rojo del panel: ilegible, y en
+   los siete temas, porque el que manda es el gris de la clase global y
+   no el acento.
+
+   Se arregla aquí y no allá: esa clase la usan otras pantallas y
+   cambiarla las tocaría todas. Lo que este módulo necesita es decir
+   cuál es su tinta —la misma del panel— en vez de callarse. */
+.tp .panel-ojo .pie {
+  position: relative; margin-top: 9px; font-size: 12.5px;
+  color: var(--tp-sobre-ojo);
+}
+.tp .panel-ojo .pie b { color: var(--tp-sobre-ojo); font-weight: 700 }
+
+/* El mismo choque en el recuadro oscuro: hereda blanco del padre y la
+   clase global se lo pisaba con gris. */
+.tp .kpi .pie, .tp .kpi .pie b { color: #fff }
+
+/* ---------- Filtros ---------- */
+.tp .filtros { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px }
+.tp .filtros .arriba { display: flex; align-items: flex-end; gap: 14px; padding: 16px 20px; flex-wrap: wrap }
+.tp .sel { display: flex; flex-direction: column; gap: 6px }
+.tp .sel > span { font-size: 11.5px; font-weight: 600; color: var(--tp-tinta) }
+.tp .sel select {
+  height: 42px; min-width: 150px; padding: 0 12px; font: 500 14px var(--tp-texto);
+  color: var(--tp-tinta); background: var(--tp-fondo);
+  border: 1.5px solid var(--tp-linea); border-radius: 2px; cursor: pointer;
+}
+.tp .sel select:focus-visible { outline: none; border-color: var(--tp-acento) }
+
+/* ---------- El rango: dos fechas y dos atajos ----------
+   Van pegadas entre sí y separadas del resto: son UN control, no dos
+   filtros que se parecen. En el celular ocupan la fila entera, porque
+   un campo de fecha de 100 px no se puede tocar. */
+.tp .rango-f { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap }
+.tp .sel.fecha > input {
+  height: 42px; min-width: 150px; padding: 0 10px; font: 500 14px var(--tp-texto);
+  color: var(--tp-tinta); background: var(--tp-fondo);
+  border: 1.5px solid var(--tp-linea); border-radius: 2px; cursor: pointer;
+}
+.tp .sel.fecha > input:focus-visible { outline: none; border-color: var(--tp-acento) }
+.tp .rango-f .atajo {
+  height: 42px; min-width: 62px; padding: 0 12px; cursor: pointer;
+  background: var(--tp-fondo); border: 1.5px solid var(--tp-linea); border-radius: 2px;
+  font: 600 13px var(--tp-texto); color: var(--tp-gris);
+}
+.tp .rango-f .atajo:hover { border-color: var(--tp-acento); color: var(--tp-acento) }
+.tp .rango-f .atajo.on {
+  background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento);
+}
+
+/* EN EL CELULAR EL RANGO OCUPA LA FILA ENTERA y las dos fechas se
+   reparten lo que haya. Con el ancho fijo de 150 px, a 360 las dos más
+   los dos atajos se salían 17 px de lado — y una pantalla que se
+   arrastra de lado se usa con una mano, en la bodega. */
+@media (max-width: 560px) {
+  .tp .rango-f { width: 100%; gap: 6px }
+  .tp .rango-f .sel.fecha { flex: 1 1 128px; min-width: 0 }
+  .tp .sel.fecha > input { min-width: 0; width: 100% }
+  .tp .rango-f .atajo { flex: 1 1 auto; min-width: 74px }
+}
+
+/* El aviso de que el Excel no salió. Ocupa la fila entera debajo de los
+   botones: al lado los empujaba fuera de la pantalla en el celular. */
+.tp .mal-informe {
+  flex-basis: 100%; margin: 6px 0 0; text-align: right;
+  font: 600 12.5px var(--tp-texto); color: var(--tp-mal);
+}
+
+.tp .limpiar {
+  margin-left: auto; height: 42px; padding: 0 16px; cursor: pointer;
+  background: none; border: 1.5px solid var(--tp-linea); border-radius: 2px;
+  font: 600 13px var(--tp-texto); color: var(--tp-gris);
+}
+.tp .limpiar:hover { border-color: var(--tp-acento); color: var(--tp-acento) }
+
+/* ---------- El medidor: la cinta y los tres turnos ---------- */
+.tp .medidor {
+  display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: stretch;
+}
+.tp .medidor > * { min-width: 0 }
+.tp .avance {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  padding: 22px 24px; display: flex; flex-direction: column; justify-content: center;
+}
+.tp .avance .arr { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap }
+.tp .avance .arr b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: clamp(38px, 6vw, 60px);
+  letter-spacing: -.05em; line-height: 1;
+}
+.tp .avance .arr span { font-size: 14.5px; color: var(--tp-gris) }
+.tp .avance .arr span b { font-size: 34px; color: var(--tp-tinta) }
+
+/* LA CINTA. Tres tramos que suman el plan: lo que se hizo dentro del
+   plan, lo que se hizo de más, y lo que no salió. El tercero va con
+   borde punteado y sin color: un hueco tiene que verse como un hueco. */
+.tp .cinta {
+  margin-top: 18px; height: 32px; background: var(--tp-fondo);
+  display: flex; overflow: hidden; border-radius: 2px;
+}
+.tp .cinta i { display: block; height: 100% }
+.tp .cinta .ok    { background: var(--tp-ojo) }
+.tp .cinta .extra { background: color-mix(in srgb, var(--tp-ojo) 45%, #fff) }
+.tp .cinta .falta { background: var(--tp-fondo); border-left: 2px dashed var(--tp-linea) }
+.tp .leyenda-cinta {
+  display: flex; gap: 18px; margin-top: 11px; font-size: 12.5px; color: var(--tp-gris); flex-wrap: wrap;
+}
+.tp .leyenda-cinta span { display: inline-flex; align-items: center; gap: 8px }
+.tp .leyenda-cinta i { width: 12px; height: 12px; border-radius: 2px; display: inline-block }
+
+.tp .turnos {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  padding: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+/* LA COLUMNA DE LOS TURNOS: los anillos, la selección y el botón del
+   día, apilados. Va en una caja porque el medidor es una rejilla de dos
+   columnas y sin ella cada pieza se iba a una celda distinta. */
+.tp .tp-turnos-caja { display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.tp .tp-turnos-caja .turnos { flex: 1 1 auto }
+.tp .tp-turnos-caja .tp-cierre-dia, .tp .tp-turnos-caja .tp-sel { margin-top: 0 }
+
+/* CADA ANILLO ABRE SU CIERRE Y ADEMÁS SE PUEDE MARCAR. La tarjeta lleva
+   dos botones: la casilla de la esquina, que lo suma a la selección, y
+   el anillo entero, que abre su cierre. Lo que se toca de verdad es el
+   anillo —en el celular un icono de 14 px no se acierta—. */
+.tp .turno { position: relative; min-width: 0 }
+.tp .tp-abrir {
+  width: 100%; text-align: center; background: none; border: 1px solid transparent;
+  border-radius: 3px; padding: 6px 4px 8px; cursor: pointer; color: inherit; font: inherit;
+}
+.tp .tp-abrir:hover, .tp .tp-abrir:focus-visible {
+  border-color: var(--tp-linea); background: var(--tp-fondo); outline: none;
+}
+.tp .turno.marcado .tp-abrir { border-color: var(--tp-acento); background: var(--tp-fondo) }
+.tp .turno svg { width: 100%; max-width: 86px }
+.tp .turno b { display: block; font-family: var(--tp-titulo); font-weight: 800; font-size: 14px; margin-top: 7px }
+.tp .turno span { display: block; font-size: 12px; color: var(--tp-gris); margin-top: 2px }
+
+/* LA CASILLA. Se ve de 28 px y se toca de 44: es lo que necesita un
+   dedo con guante sin que el cuadrito le quite protagonismo al %. */
+.tp .tp-marca {
+  position: absolute; top: 0; left: 0; z-index: 2; width: 44px; height: 44px;
+  display: grid; place-items: center; background: none; cursor: pointer; padding: 0;
+}
+.tp .tp-marca i {
+  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 3px;
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+}
+.tp .tp-marca:hover i, .tp .tp-marca:focus-visible i { border-color: var(--tp-acento) }
+.tp .tp-marca:focus-visible { outline: none }
+.tp .tp-marca[aria-pressed="true"] i {
+  background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento);
+}
+.tp .tp-marca svg { width: 15px; height: 15px; max-width: none; stroke: currentColor;
+  stroke-width: 2.6; fill: none; stroke-linecap: round; stroke-linejoin: round }
+
+/* EL ICONO DE ABRIR, SUTIL. Lo que manda en esta pantalla es el
+   porcentaje: el acceso al cierre no puede competir con él. Casi
+   apagado, y se prende al pasar por encima o al llegar con el
+   tabulador. */
+.tp .tp-ver {
+  position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
+  display: grid; place-items: center; opacity: .3; transition: opacity .15s;
+}
+.tp .tp-ver svg { width: 14px; height: 14px; max-width: none; stroke: var(--tp-gris); stroke-width: 2;
+  fill: none; stroke-linecap: round; stroke-linejoin: round }
+.tp .tp-abrir:hover .tp-ver, .tp .tp-abrir:focus-visible .tp-ver,
+.tp .tp-cierre-dia:hover .tp-ver, .tp .tp-cierre-dia:focus-visible .tp-ver { opacity: 1 }
+.tp .tp-abrir:hover .tp-ver svg, .tp .tp-cierre-dia:hover .tp-ver svg { stroke: var(--tp-acento) }
+
+/* LO QUE SE ESCOGIÓ. Sale solo cuando hay algo marcado. */
+.tp .tp-sel {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px;
+  padding: 10px 14px; background: var(--tp-papel);
+  border: 1px solid var(--tp-acento); border-left: 4px solid var(--tp-acento); border-radius: 3px;
+}
+.tp .tp-sel .q { font-size: 13.5px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.tp .tp-sel .q b { font-family: var(--tp-titulo); font-weight: 800 }
+.tp .tp-sel .q em { font-style: normal; font-size: 12.5px; color: var(--tp-gris) }
+.tp .tp-sel .limpiar { margin-left: auto; height: 40px }
+.tp .tp-sel .btn { min-height: 44px }
+
+/* EL CIERRE DEL DÍA ENTERO. No va escondido dentro de un turno porque
+   no es de ningún turno: es la suma de los tres. */
+.tp .tp-cierre-dia {
+  position: relative; width: 100%; margin-top: 10px; cursor: pointer; text-align: left;
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  min-height: 44px; padding: 11px 34px 11px 14px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  font: inherit; color: var(--tp-tinta);
+}
+.tp .tp-cierre-dia:hover, .tp .tp-cierre-dia:focus-visible { border-color: var(--tp-acento); outline: none }
+.tp .tp-cierre-dia .q { font-family: var(--tp-titulo); font-weight: 800; font-size: 13.5px }
+.tp .tp-cierre-dia .d { font-size: 12.5px; color: var(--tp-gris) }
+.tp .tp-cierre-dia .tp-ver { top: 50%; right: 12px; margin-top: -9px }
+
+/* ---------- LA FICHA DEL CIERRE ----------
+   La maqueta que mandó: banda negra con el sello, la franja del acento
+   con el porcentaje y la cinta, los avisos, y las dos tablas. En el
+   celular las tablas se vuelven acordeones y abajo queda una barra fija.
+
+   EL ACENTO SALE DEL TEMA —ámbar, turquesa, rojo…— y la letra de encima
+   sale de su PAREJA (--tp-sobre-acento), no de un negro escrito a mano:
+   la app empareja los dos justamente para que ningún tema quede con
+   texto oscuro sobre fondo oscuro. */
+.tp-velo {
+  position: fixed; inset: 0; z-index: 90; background: rgba(8, 14, 24, .55);
+  display: grid; place-items: start center; padding: 16px; grid-template-columns: minmax(0, 1fr);
+  overflow: auto;
+}
+.tp-ci {
+  justify-self: center; width: min(1180px, 100%); min-width: 0;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+}
+
+/* LA BANDA NEGRA. Las rayas diagonales son las de la marca, al 7%: se
+   notan en la banda y no compiten con el título. */
+.tp-ci-cab {
+  display: flex; align-items: center; gap: 18px; padding: 20px 24px;
+  background: var(--tp-tinta); color: #fff; position: relative; overflow: hidden;
+}
+.tp-ci-cab::before {
+  content: ""; position: absolute; inset: 0; opacity: .4;
+  background-image: repeating-linear-gradient(116deg, rgba(255,255,255,.07) 0 2px, transparent 2px 20px);
+}
+.tp-ci-cab > * { position: relative }
+.tp-ci-cab img { width: 34px; height: 34px; flex: none }
+.tp-ci-cab .ci-tit { min-width: 0 }
+.tp-ci-cab .ci-ojo {
+  font: 700 10px var(--tp-titulo); letter-spacing: .16em; color: var(--tp-acento);
+}
+.tp-ci-cab h2 {
+  font: 900 27px var(--tp-titulo); letter-spacing: -.03em; margin: 5px 0 0; color: #fff;
+}
+.tp-ci-cab .ci-f { font-size: 12.5px; color: #9A9A95; margin-top: 4px }
+.tp-ci-cab .ci-der { margin-left: auto; display: flex; gap: 10px; flex: none }
+.tp-ci-bt {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 15px;
+  border: 1px solid #33373D; background: #1B1F24; color: #fff;
+  font: 700 13px var(--tp-texto); cursor: pointer;
+}
+/* Copiado: se queda verde un momento, que es lo que dice «ya está» sin
+   sacar un aviso encima. */
+.tp-ci-bt.listo { background: var(--tp-bien); border-color: var(--tp-bien); color: #fff }
+.tp-ci-bt:hover, .tp-ci-bt:focus-visible {
+  background: var(--tp-acento); color: var(--tp-sobre-acento); border-color: var(--tp-acento); outline: none;
+}
+.tp-ci-bt svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.9; fill: none;
+  stroke-linecap: round; stroke-linejoin: round }
+.tp-ci-bt.ico { width: 40px; padding: 0; justify-content: center }
+
+/* LA FRANJA DEL ACENTO */
+.tp-ci-hero {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 30px; padding: 24px;
+  background: var(--tp-acento); align-items: center; position: relative; overflow: hidden;
+  color: var(--tp-sobre-acento);
+}
+/* El corte diagonal de la derecha, como en la maqueta. */
+.tp-ci-hero::after {
+  content: ""; position: absolute; top: -40px; bottom: -40px; right: -30px; width: 150px;
+  background: color-mix(in srgb, var(--tp-sobre-acento) 8%, transparent);
+  transform: skewX(-18deg); pointer-events: none;
+}
+.tp-ci-hero > * { position: relative; min-width: 0 }
+.tp-ci-hero .ci-lado { min-width: 0 }
+.tp-ci-hero .ci-pct { border-left: 6px solid var(--tp-sobre-acento); padding-left: 18px }
+/* LOS RÓTULOS VAN A COLOR ENTERO, no a un 80% como la maqueta. Medido:
+   la pareja acento/tinta de la app da 4,85 a plena fuerza —justo lo que
+   hace falta— y bajarla al 80% la dejaba en 4,31 en los SIETE temas.
+   La jerarquía la hacen el tamaño y el peso, que no cuestan contraste. */
+.tp-ci-hero .ci-pct .ci-k { font: 700 10px var(--tp-titulo); letter-spacing: .15em; opacity: .92 }
+.tp-ci-hero .ci-pct .ci-v {
+  font: 900 66px var(--tp-titulo); line-height: .9; letter-spacing: -.055em;
+  color: var(--tp-sobre-acento); margin-top: 6px;
+}
+.tp-ci-hero .ci-pct .ci-s { font-size: 13px; font-weight: 600; margin-top: 7px }
+/* LA CINTA REPARTE SOBRE EL PLAN: lo cumplido, lo de más, y el hueco. */
+.tp-ci-hero .ci-cinta {
+  display: flex; height: 28px; overflow: hidden;
+  background: color-mix(in srgb, var(--tp-sobre-acento) 14%, transparent);
+}
+.tp-ci-hero .ci-cinta i { display: block; height: 100% }
+.tp-ci-hero .ci-ok { background: var(--tp-sobre-acento) }
+.tp-ci-hero .ci-extra { background: color-mix(in srgb, var(--tp-sobre-acento) 45%, transparent) }
+.tp-ci-hero .ci-falta { background: transparent }
+.tp-ci-hero .ci-ley {
+  display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; font-weight: 600;
+}
+.tp-ci-hero .ci-ley span { display: inline-flex; align-items: center; gap: 7px }
+.tp-ci-hero .ci-ley i { width: 11px; height: 11px; flex: none }
+.tp-ci-hero .ci-ley .ci-falta { background: color-mix(in srgb, var(--tp-sobre-acento) 22%, transparent) }
+.tp-ci-hero .ci-mini {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 16px;
+  background: color-mix(in srgb, var(--tp-sobre-acento) 14%, transparent);
+}
+.tp-ci-hero .ci-mini > div { background: var(--tp-papel); padding: 11px 14px; min-width: 0 }
+.tp-ci-hero .ci-mini .ci-k { font: 700 9px var(--tp-titulo); letter-spacing: .12em; color: var(--tp-gris) }
+.tp-ci-hero .ci-mini .ci-v { font: 900 19px var(--tp-titulo); margin-top: 4px; color: var(--tp-tinta) }
+.tp-ci-hero .ci-mini .ci-v.bien { color: var(--tp-bien) }
+.tp-ci-hero .ci-mini .ci-v.mal { color: var(--tp-mal) }
+
+/* LAS DOS TABLAS */
+.tp-ci-sec { padding: 18px 24px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px }
+.tp-ci-sec b { font: 900 16px var(--tp-titulo) }
+.tp-ci-sec span { font-size: 12.5px; color: var(--tp-gris); text-align: right }
+/* Las tablas anchas se deslizan dentro de su caja. Sin esto, los hijos
+   de la ficha crecen con su contenido y a 820 px la tabla de viajes
+   —nueve columnas— empujaba la ficha entera 41 px de lado. */
+.tp-ci-scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch }
+.tp-ci-t { width: 100%; border-collapse: collapse }
+.tp-ci-t.tp-ci-viajes { min-width: 840px }
+.tp-ci-t th {
+  text-align: left; font: 700 9.5px var(--tp-titulo); letter-spacing: .12em; color: var(--tp-gris);
+  padding: 10px 24px; border-bottom: 1px solid var(--tp-linea); white-space: nowrap;
+}
+.tp-ci-t td { padding: 12px 24px; font-size: 13.5px; border-bottom: 1px solid #F2F2EF; vertical-align: middle }
+.tp-ci-t .ci-num { text-align: right; font-variant-numeric: tabular-nums }
+.tp-ci-t th.ci-num { text-align: right }
+.tp-ci-t .ci-cod { font: 600 12px var(--tp-mono) }
+.tp-ci-t .ci-ruta { color: var(--tp-gris) }
+.tp-ci-t .ci-sin { color: var(--tp-mal); font-weight: 700 }
+.tp-ci-t tr.anulado td { opacity: .55 }
+.tp-ci-t .ci-eti {
+  display: inline-block; margin-left: 6px; padding: 2px 5px;
+  background: var(--tp-fondo); color: var(--tp-gris);
+  font: 800 9px var(--tp-titulo); letter-spacing: .08em;
+}
+.tp-ci-t .ci-eti.mal { background: var(--tp-mal); color: #fff }
+/* La barrita del porcentaje: ver 65% al lado de una barra a un tercio
+   dice más que el número solo. */
+.ci-pctb { display: flex; align-items: center; gap: 10px; justify-content: flex-end }
+.ci-pctb i { display: block; height: 7px; width: 70px; background: #F0F0EC; flex: none }
+.ci-pctb i span { display: block; height: 100%; background: var(--tp-gris) }
+.ci-pctb i span.bien { background: var(--tp-bien) }
+.ci-pctb i span.medio { background: var(--tp-aviso) }
+.ci-pctb i span.mal { background: var(--tp-mal) }
+.ci-pctb b { font: 800 13px var(--tp-titulo); width: 42px; text-align: right }
+.ci-pctb b.bien { color: var(--tp-bien) }
+.ci-pctb b.medio { color: var(--tp-aviso) }
+.ci-pctb b.mal { color: var(--tp-mal) }
+
+.tp-ci-fin {
+  padding: 14px 24px; font-size: 12px; color: var(--tp-gris);
+  background: #FAFAF8; border-top: 1px solid var(--tp-linea);
+}
+.tp-ci-nada, .tp-ci-mal { padding: 4px 24px 14px; font-size: 12.5px; color: var(--tp-gris) }
+.tp-ci-mal { color: var(--tp-mal); font-weight: 600 }
+
+/* EL CELULAR. No es la misma página encogida: las tablas se cierran en
+   acordeones, los viajes se vuelven tarjetas, y abajo queda fija la
+   barra con lo que se hace desde aquí. */
+.tp-ci-movil { display: none }
+@media (max-width: 760px) {
+  .tp-velo { padding: 0 }
+  .tp-ci { border: 0; width: 100%; min-height: 100dvh }
+  .tp-ci-cab { padding: 12px 14px; gap: 10px }
+  .tp-ci-cab img { width: 28px; height: 28px }
+  .tp-ci-cab h2 { font-size: 19px; margin-top: 3px }
+  .tp-ci-cab .ci-f { font-size: 11px; margin-top: 2px }
+  .tp-ci-cab .ci-ojo { font-size: 8.5px }
+  /* Los dos botones se anclan arriba a la derecha, como en la maqueta,
+     y el título se reserva ese ancho: en flujo, la fecha se metía
+     debajo de ellos y quedaba medio tapada. */
+  /* LA MUESCA DEL TELÉFONO. Abierta a pantalla completa, la ficha
+     arranca en el pixel 0 y la hora, la señal y la batería del teléfono
+     quedan ENCIMA del título — que es justo lo que se veía. env() dice
+     cuánto mide esa franja en cada aparato; donde no existe vale 0 y
+     queda el relleno de siempre. */
+  .tp-ci-cab { align-items: flex-start; padding-top: calc(14px + env(safe-area-inset-top, 0px)) }
+  .tp-ci-cab .ci-der { top: calc(14px + env(safe-area-inset-top, 0px)) }
+  .tp-ci-cab .ci-tit { padding-right: 100px }
+  .tp-ci-cab .ci-copiar { display: none }
+  .tp-ci-cab .ci-der { position: absolute; right: 12px; gap: 6px; margin: 0 }
+  .tp-ci-cab .ci-der .texto { display: none }
+  /* En el celular los dos botones de arriba suben a 44: en la maqueta
+     miden 40, que está bien con el ratón y se queda corto con el dedo.
+     Es el único sitio donde me aparto del diseño, y solo hacia arriba. */
+  .tp-ci-bt { height: 44px; padding: 0 11px } .tp-ci-bt.ico { width: 44px }
+
+  .tp-ci-hero { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 14px }
+  .tp-ci-hero .ci-pct { border-left-width: 4px; padding-left: 12px;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap }
+  .tp-ci-hero .ci-pct .ci-k { width: 100%; font-size: 9px }
+  .tp-ci-hero .ci-pct .ci-v { font-size: 44px; margin-top: 2px }
+  .tp-ci-hero .ci-pct .ci-s { margin-top: 0 }
+  .tp-ci-hero .ci-cinta { height: 16px }
+  .tp-ci-hero .ci-ley { gap: 12px; margin-top: 7px; font-size: 11.5px }
+  .tp-ci-hero .ci-mini { margin-top: 10px }
+  .tp-ci-hero .ci-mini > div { padding: 8px }
+  .tp-ci-hero .ci-mini .ci-k { font-size: 7.5px; letter-spacing: .08em }
+  .tp-ci-hero .ci-mini .ci-v { font-size: 15px; margin-top: 3px }
+
+  .tp-ci-ancho { display: none }
+  .tp-ci-movil { display: block; padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) }
+  .tp-ci-acor { border-top: 1px solid var(--tp-linea) }
+  .tp-ci-acor summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 14px; min-height: 50px; font: 900 15px var(--tp-titulo);
+  }
+  .tp-ci-acor summary::-webkit-details-marker { display: none }
+  .tp-ci-acor summary em {
+    font-style: normal; font-size: 12px; color: var(--tp-gris); font-family: var(--tp-texto); font-weight: 500;
+  }
+  .tp-ci-acor td { padding: 10px 14px; font-size: 12.5px }
+  .tp-ci-acor .tp-ci-nada, .tp-ci-acor .tp-ci-mal { padding: 0 14px 12px }
+  .vcard {
+    border-top: 1px solid #F2F2EF; padding: 11px 14px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px;
+  }
+  .vcard.anulado { opacity: .55 }
+  .vcard .ci-c { font: 600 11px var(--tp-mono); color: var(--tp-gris) }
+  .vcard .ci-t2 { font-size: 13.5px; font-weight: 600 }
+  .vcard .ci-r { font-size: 11.5px; color: var(--tp-gris) }
+  .vcard .ci-dcha { text-align: right }
+  .vcard .ci-oc { font: 600 12px var(--tp-mono) }
+  .vcard .ci-oc.sin { color: var(--tp-mal); font-weight: 700 }
+  .tp-ci-fija {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--tp-tinta);
+    display: flex; gap: 10px; z-index: 20;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .tp-ci-fija button {
+    flex: 1; height: 46px; border: 0; cursor: pointer;
+    background: var(--tp-acento); color: var(--tp-sobre-acento); font: 800 14px var(--tp-titulo);
+  }
+  .tp-ci-fija .ci-sec2 { background: #23262B; color: #fff; flex: 0 0 120px }
+}
+
+/* ---------- Las alertas ---------- */
+.tp .alertas { display: flex; gap: 10px; flex-wrap: wrap }
+.tp .alerta {
+  display: flex; align-items: center; gap: 10px; background: var(--tp-papel);
+  border: 1px solid var(--tp-linea); border-left: 4px solid var(--tp-mal);
+  border-radius: 3px; padding: 12px 16px; font-size: 13px;
+}
+.tp .alerta b { font-family: var(--tp-titulo); font-weight: 900; font-size: 19px }
+.tp .alerta.bien   { border-left-color: var(--tp-bien) }
+.tp .alerta.neutra { border-left-color: var(--tp-linea) }
+
+/* ---------- La tabla del detalle ---------- */
+.tp .panel-tabla { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px; overflow: hidden }
+.tp .panel-tabla .cab-tabla { padding: 16px 22px; border-bottom: 1px solid var(--tp-linea) }
+.tp .panel-tabla h2 { font-family: var(--tp-titulo); font-weight: 800; font-size: 18px; margin: 0 }
+.tp .panel-tabla .cab-tabla p { margin: 5px 0 0; font-size: 13px; color: var(--tp-gris); max-width: 82ch }
+.tp .panel-tabla th { padding: 10px 22px; background: var(--tp-fondo); text-transform: uppercase }
+.tp .panel-tabla td { padding: 12px 22px }
+.tp .panel-tabla tr:hover { background: var(--tp-fondo) }
+.tp .panel-tabla td.nom { font-family: var(--tp-titulo); font-weight: 800; font-size: 14.5px }
+
+/* LA CIFRA CUMPLIDA VA EN SU RECUADRO, y el recuadro NO tiene botones
+   de más y de menos a propósito. El cumplido lo cuentan los viajes
+   registrados: un par de flechas aquí volvería a poner dos números que
+   hablan de lo mismo, que es justo lo que este módulo vino a quitar. */
+.tp .cuenta {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 62px; height: 32px; padding: 0 12px;
+  border: 1.5px solid var(--tp-linea); border-radius: 2px; background: var(--tp-papel);
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.tp td.mini { width: 150px; padding-left: 0; padding-right: 10px }
+.tp td.mini .pista { height: 8px; background: var(--tp-fondo); border-radius: 2px; overflow: hidden }
+.tp td.mini .relleno { height: 100% }
+.tp .pct { font-family: var(--tp-titulo); font-weight: 800 }
+.tp .pct.bien { color: var(--tp-bien) }
+.tp .pct.medio { color: var(--tp-ojo) }
+.tp .pct.mal { color: var(--tp-mal) }
+.tp tfoot td {
+  background: var(--c-grupo); color: #fff; font-weight: 600; padding: 14px 22px;
+  border-bottom: 0; font-size: 14px;
+}
+.tp tfoot td:first-child { font-family: var(--tp-titulo); font-weight: 800 }
+
+/* ---------- Celular ---------- */
+@media (max-width: 900px) {
+  .tp .cabeza-ctl { grid-template-columns: 1fr }
+  .tp .acciones-informe { justify-content: flex-start }
+  .tp .medidor { grid-template-columns: 1fr }
+  .tp .alertas .alerta { flex: 1 1 160px }
+}
+
+/* ---------- Al imprimir: el PDF sale de aquí ----------
+   No hay librería de PDF ni servidor que lo arme: el navegador ya sabe
+   hacerlo, y lo que imprime es exactamente lo que se está viendo —con
+   los filtros puestos—, que es lo que nadie logra con un PDF generado
+   aparte. */
+@media print {
+  @page { size: A4 landscape; margin: 10mm }
+
+  /* ==================================================================
+     LA APP NUNCA SE IMPRIME.
+
+     «En generar PDF mira cómo sale, y así no se puede: lo mismo que
+     pasaba antes.» En el papel salían la barra de CONTROL, las migas,
+     las pestañas del módulo y las flechas de la fecha —controles, cosas
+     que en una hoja no se pueden tocar— y encima empujaban el tablero a
+     cuatro páginas. Aquí se van TODAS: lo que se imprime es la pantalla,
+     no el programa que la muestra.
+     ================================================================== */
+  .sh-barra, .sh-lado, .sh-riel { display: none !important }
+  /* Y SIN ALTOS MÍNIMOS. El armazón pide 100dvh para que el pie quede
+     abajo en pantalla; en papel eso es «esta hoja mide una hoja
+     entera», y lo que sigue arranca en la siguiente. */
+  .sh-marco { display: block !important; min-height: 0 !important }
+  .sh-main { padding: 0 !important; min-height: 0 !important }
+  .sh { min-height: 0 !important }
+  .tp .filtros, .tp .acciones-informe, .tp .fecha-nav,
+  .tp .tp-ver, .tp .tp-cierre-dia, .tp .tp-sel, .tp .tp-marca { display: none !important }
+  /* El anillo deja de parecer un botón: en papel no se toca. */
+  .tp .tp-abrir { border-color: transparent !important; background: none !important; padding: 0 !important }
+
+  /* LOS FONDOS, TODOS. Por defecto el navegador los quita —es la
+     casilla «Gráficos de fondo» del diálogo de imprimir, que casi nadie
+     marca— y el tablero salía en blanco y negro: un anillo de turno sin
+     su color no dice nada, y la cinta tampoco.
+
+     Va sobre .tp entero y no sobre una lista de clases: esa lista se
+     queda vieja el día que alguien agregue una tarjeta, y el error no
+     se ve hasta que alguien imprime. */
+  .tp, .tp * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
+
+  /* EL TABLERO NO ES LO QUE SE MANDA. Lo que sale de la app es la ficha
+     del cierre —con su banda, su franja y sus tablas—, y el botón de
+     arriba abre esa ficha. Esto de aquí es solo para quien le dé Ctrl+P
+     estando en el tablero: que salga decente y en pocas hojas, no que
+     compita con la ficha.
+
+     NO PARTIR LO CHIQUITO; DEJAR PARTIR LO GRANDE. «break-inside:
+     avoid» en los bloques grandes era lo que llenaba el papel de
+     huecos: si el bloque no cabe en lo que queda de hoja, salta entero
+     a la siguiente. Se protege lo que de verdad no se puede partir: una
+     tarjeta, un anillo, un renglón. */
+  .tp .cifra, .tp .turno, .tp .alerta, .tp .avance, .tp tr { break-inside: avoid }
+  .tp thead { display: table-header-group }
+
+  /* EN PAPEL, .tp DEJA DE SER UNA COLUMNA FLEXIBLE: un hijo de un
+     contenedor flex NO se parte entre dos páginas, y la tabla se iba
+     entera a la hoja siguiente. El `gap` se reemplaza por margen. */
+  .tp { display: block !important; font-size: 11px }
+  .tp > * { margin-bottom: 10px }
+
+  /* Y se aprieta: en papel, cada milímetro de más es media hoja al final. */
+  .tp .cabeza-ctl { gap: 12px; margin-bottom: 8px }
+  .tp .cabeza-ctl h1 { font-size: 22px }
+  .tp .cabeza-ctl .sub { font-size: 11px }
+  .tp .panel-ojo { min-width: 220px; padding: 10px 16px }
+  .tp .panel-ojo .num { font-size: 34px }
+  .tp .cifras { gap: 6px }
+  .tp .cifra { padding: 8px 10px }
+  .tp .cifra .n { font-size: 22px }
+  .tp .cifra .rot, .tp .cifra .u { font-size: 9px }
+  .tp .medidor { gap: 10px }
+  .tp .avance { padding: 10px 14px }
+  .tp .turnos { padding: 10px }
+  .tp .turno svg { max-width: 64px }
+  .tp table { font-size: 10px }
+  .tp th, .tp td { padding: 4px 8px !important }
+  .tp .panel-tabla .cab-tabla p { display: none }
+  /* UN «overflow» QUE NO SEA «visible» VUELVE AL BLOQUE INDIVISIBLE.
+     La tabla vive dentro de una caja que se desliza de lado en pantalla
+     —`overflow-x: auto`— y el panel recorta sus esquinas con
+     `overflow: hidden`. En papel eso significa: si la tabla no cabe
+     entera en lo que queda de hoja, salta completa a la siguiente y
+     deja media página en blanco. Aquí se sueltan las dos, y la tabla se
+     parte por un renglón como debe ser. */
+  .tp .tabla-envuelta, .tp .panel-tabla { overflow: visible !important }
+  .tp table { font-size: 10px }
+  .tp th, .tp td { padding: 4px 8px !important }
+
+  /* ==================================================================
+     CON LA FICHA DEL CIERRE ABIERTA, LO QUE SE IMPRIME ES LA FICHA.
+
+     Lo que salía antes: la barra de la app, las pestañas del módulo, y
+     debajo la ficha en su versión de CELULAR —acordeones cerrados y la
+     barra de abajo— sin un solo color de fondo. Tres cosas distintas,
+     y las tres había que arreglarlas:
+
+     1. LA APP NO SE IMPRIME. La barra de arriba y el riel viven FUERA
+        de .tp, así que esconder los hermanos de la ficha no bastaba.
+     2. SE IMPRIME LA VERSIÓN ANCHA. La hoja mide unos 700 px, o sea
+        MENOS de 760, y el navegador aplicaba las reglas del celular:
+        las tablas salían cerradas dentro de acordeones que en papel no
+        se pueden abrir. Aquí se fuerzan al revés.
+     3. LOS FONDOS SE IMPRIMEN. Por defecto el navegador los quita —la
+        banda negra, la franja del acento— y quedaba texto suelto sobre
+        blanco. print-color-adjust: exact es lo que los conserva.
+     ================================================================== */
+  body:has(.tp-velo) .sh-barra,
+  body:has(.tp-velo) .sh-lado,
+  body:has(.tp-velo) .sh-riel { display: none !important }
+  body:has(.tp-velo) .sh-main { padding: 0 !important }
+  body:has(.tp-velo) .sh-marco { display: block !important }
+  /* Se esconde, nivel por nivel, todo lo que NO contiene la ficha. Son
+     tres niveles porque la ficha cuelga del bloque de los turnos, que
+     cuelga del medidor: `:not(:has(.tp-velo))` deja pasar a la rama que
+     la lleva y tumba a sus hermanas. */
+  .tp:has(.tp-velo) > *:not(:has(.tp-velo)) { display: none !important }
+  .tp:has(.tp-velo) .medidor,
+  .tp:has(.tp-velo) .tp-turnos-caja,
+  .tp:has(.tp-velo) .turnos:has(.tp-velo) {
+    display: block !important; background: none; border: 0; padding: 0; gap: 0;
+  }
+  .tp:has(.tp-velo) .medidor > *:not(:has(.tp-velo)):not(.tp-velo),
+  .tp:has(.tp-velo) .tp-turnos-caja > *:not(:has(.tp-velo)):not(.tp-velo) {
+    display: none !important;
+  }
+
+  .tp-velo { position: static; display: block; background: none; padding: 0; overflow: visible }
+  .tp-ci { width: 100%; max-height: none; overflow: visible; border: 0; min-height: 0 }
+
+  /* La versión ancha manda, aunque la hoja mida menos de 760 px. */
+  .tp-ci-ancho { display: block !important }
+  .tp-ci-movil { display: none !important }
+
+  /* Y se deshacen los ajustes de celular que la hoja angosta activa. */
+  .tp-ci-cab { align-items: center !important; padding: 14px 18px !important }
+  .tp-ci-cab .ci-tit { padding-right: 0 !important }
+  .tp-ci-cab .ci-der { display: none !important }
+  .tp-ci-cab h2 { font-size: 22px !important }
+  .tp-ci-hero { grid-template-columns: auto minmax(0, 1fr) !important;
+    gap: 22px !important; padding: 16px 18px !important }
+  .tp-ci-hero .ci-pct { display: block !important }
+  .tp-ci-hero .ci-pct .ci-v { font-size: 46px !important }
+  .tp-ci-hero .ci-pct .ci-k { width: auto !important }
+
+  /* Las tablas caben enteras: nada de deslizarse, que en papel no se
+     desliza nada. */
+  .tp-ci-scroll { overflow: visible !important }
+  .tp-ci-t.tp-ci-viajes { min-width: 0 !important }
+  .tp-ci-t { font-size: 10.5px }
+  .tp-ci-t th { padding: 7px 18px; font-size: 8px }
+  .tp-ci-t td { padding: 6px 18px; font-size: 10.5px }
+  .tp-ci-sec { padding: 12px 18px 4px }
+  .tp-ci-sec b { font-size: 13px }
+  .tp-ci-fin { padding: 10px 18px; font-size: 9.5px }
+  .ci-pctb i { width: 44px }
+
+  /* LOS FONDOS. Sin esto, la banda negra y la franja del acento salen
+     en blanco y el informe pierde la mitad de lo que dice. */
+  .tp-ci-cab, .tp-ci-hero, .tp-ci-hero .ci-mini, .tp-ci-hero .ci-mini > div,
+  .tp-ci-hero .ci-cinta, .tp-ci-hero .ci-cinta i, .tp-ci-hero .ci-ley i,
+  .tp-ci-t th, .tp-ci-t .ci-eti, .ci-pctb i, .ci-pctb i span,
+  .tp-ci-fin {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  /* Y que una sección no se parta en dos hojas por la mitad. */
+  .tp-ci-cab, .tp-ci-hero, .tp-ci-fin { break-inside: avoid }
+  .tp-ci-t tr { break-inside: avoid }
+  /* El panel grande conserva su color: antes se pintaba en blanco y
+     negro porque los fondos no se imprimían, y ahora sí. */
+  .tp .medidor { grid-template-columns: 1fr 300px }
+  /* Y el panel de la tabla SÍ se puede partir: con «break-inside:
+     avoid» —que es lo que decía esta línea— una tabla de nueve tipos no
+     cabía en lo que quedaba de hoja, saltaba entera a la siguiente y
+     dejaba media página en blanco. Lo que no se parte es un renglón. */
+  .tp .caja, .tp .avance, .tp .turnos { break-inside: avoid }
+  .tp tfoot td { background: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact }
+}
+
+/* La columna derecha del encabezado: los dos botones y el panel grande.
+   Los filtros NO van aquí —van a lo ancho, debajo del título—: metidos
+   en esta columna le comen el ancho al título, que es lo primero que
+   alguien lee al entrar. */
+.tp .der-ctl { display: flex; flex-direction: column; min-width: 300px }
+
+/* =====================================================================
+   PLAN DEL DÍA — la rejilla
+   ===================================================================== */
+.tp .fecha-nav { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; flex-wrap: wrap }
+/* `> button` Y NO `button` A SECAS. La regla apuntaba a cualquier botón
+   de adentro, así que el día que la barra ganó un control propio —el
+   calendario— quedó aplastado a un cuadrito de 36 px con el texto
+   saliéndose por fuera del borde. Los hijos directos son las flechas y
+   HOY; lo que viva dentro de otro componente se peina solo. */
+.tp .fecha-nav > button {
+  width: 38px; height: 38px; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+  border-radius: 2px; cursor: pointer; display: grid; place-items: center;
+}
+.tp .fecha-nav > button:hover { border-color: var(--tp-ojo) }
+.tp .fecha-nav > button svg {
+  width: 15px; height: 15px; stroke: var(--tp-tinta); stroke-width: 2.2; fill: none;
+}
+.tp .fecha-nav > button.hoy {
+  border: 0; background: var(--c-grupo); color: var(--tp-sobre-grupo); width: auto; padding: 0 15px;
+  font: 700 12.5px var(--tp-titulo); letter-spacing: .06em;
+}
+/* HOY se apaga cuando ya estás en hoy: un botón que no va a ninguna
+   parte no debería verse como el que sí va. */
+.tp .fecha-nav > button.hoy.on { opacity: .45; cursor: default }
+
+/* La fecha es el control del medio y por eso es el ancho: es lo que se
+   lee, y lo que se toca para saltar a cualquier día. */
+.tp .fecha-nav .cal-disparo { height: 38px; font-weight: 700; padding: 0 14px }
+.tp .estado-plan {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: color-mix(in srgb, var(--tp-ojo) 14%, #fff);
+  border: 1px solid color-mix(in srgb, var(--tp-ojo) 55%, #fff);
+  padding: 7px 13px; font-size: 12.5px; font-weight: 600; color: var(--tp-tinta);
+}
+.tp .estado-plan i {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--tp-ojo); display: block;
+}
+
+/* min-width:0 EN LOS HIJOS, y no es adorno. Un hijo de grid nace con
+   min-width:auto, así que la tabla de 680 px de ancho estiraba su
+   columna entera y con ella la página — el overflow-x del recuadro de
+   la tabla nunca llegaba a actuar porque el recuadro ya era de 680.
+   Es el mismo motivo por el que el módulo lleva min-width:0 en .tp. */
+.tp .plan-marco {
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start;
+}
+.tp .plan-marco > * { min-width: 0 }
+
+.tp .matriz { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px }
+.tp .matriz table { min-width: 680px }
+.tp .matriz thead th {
+  padding: 13px 16px; background: var(--tp-fondo); text-transform: uppercase;
+  border-bottom: 1px solid var(--tp-linea);
+}
+.tp .matriz thead th.cen { text-align: center }
+.tp .matriz thead th .hor {
+  display: block; margin-top: 4px; font-size: 9.5px; font-weight: 500;
+  letter-spacing: .04em; opacity: .75; text-transform: none;
+}
+.tp .matriz thead th.dia { background: var(--c-grupo); color: var(--tp-sobre-grupo) }
+.tp .matriz td { padding: 10px 16px; text-align: center }
+.tp .matriz td.tipo { text-align: left; font-weight: 600; font-size: 14px }
+.tp .matriz td.cen { text-align: center }
+.tp .matriz td.tot {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 17px; background: var(--tp-fondo);
+}
+.tp .matriz tr:hover { background: color-mix(in srgb, var(--tp-ojo) 6%, #fff) }
+.tp .matriz tfoot td {
+  padding: 14px 16px; text-align: center; background: var(--c-grupo); color: #fff;
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 19px; border: 0;
+}
+/* SE APAGA EL TEXTO, NO LA CELDA. Con opacity se aclaraba también el
+   fondo, y clavada al borde quedaba de otro verde que el resto de su
+   propia fila. */
+.tp .matriz tfoot td:first-child {
+  text-align: left; font-size: 12px; letter-spacing: .1em; font-weight: 700;
+  color: color-mix(in srgb, #fff 72%, transparent);
+}
+.tp .matriz tfoot td.dia { color: var(--tp-sobre-grupo); font-size: 23px }
+
+/* LA CELDA. Dos botones grandes para los guantes y un campo para el
+   teclado: quien planea desde el escritorio escribe 6 y sigue; quien
+   ajusta desde el celular en la bodega toca el más. */
+.tp .cel-step {
+  display: inline-flex; align-items: center; border: 1.5px solid var(--tp-linea);
+  border-radius: 2px; overflow: hidden; background: var(--tp-papel);
+}
+.tp .cel-step button {
+  width: 30px; height: 34px; border: 0; background: var(--tp-fondo); cursor: pointer;
+  font: 800 15px var(--tp-titulo); color: var(--tp-gris);
+}
+.tp .cel-step button:hover { background: var(--tp-ojo); color: var(--tp-sobre-ojo) }
+.tp .cel-step input {
+  width: 42px; min-height: 0; height: 34px; border: 0; padding: 0; text-align: center;
+  background: none; font: 900 15px var(--tp-titulo); color: var(--tp-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.tp .cel-step input:focus { outline: none; background: color-mix(in srgb, var(--tp-ojo) 18%, #fff) }
+.tp .cel-step.vacia input { color: var(--tp-linea) }
+.tp .solo-ver { font-family: var(--tp-titulo); font-weight: 900; font-size: 15px }
+.tp .hecho {
+  display: block; margin-top: 5px; font-size: 10.5px; color: var(--tp-bien); font-weight: 700;
+}
+
+/* Los vacíos viven en el tfoot, debajo del total. La fila es blanca y
+   el total negro: son dos cosas distintas y la tabla lo dice sin
+   necesidad de un rótulo. */
+.tp .matriz tfoot tr.vacios td {
+  background: var(--tp-papel); color: var(--tp-tinta);
+  font-family: var(--tp-texto); font-weight: 600; font-size: 14px;
+  border-top: 1px solid var(--tp-linea); padding: 12px 16px;
+}
+.tp .matriz tfoot tr.vacios td:first-child {
+  text-align: left; letter-spacing: 0; opacity: 1; font-weight: 600;
+}
+.tp .matriz tfoot tr.vacios td:first-child span {
+  display: block; font-size: 11.5px; color: var(--tp-gris); font-weight: 400; margin-top: 2px;
+}
+.tp .matriz tfoot tr.vacios td.tot {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 17px; background: var(--tp-fondo);
+}
+
+.tp .pie-publicar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  border-top: 1px solid var(--tp-linea); padding: 16px;
+}
+.tp .pie-publicar .btn.si { height: 50px; padding: 0 28px; font-size: 15px }
+.tp .aviso-cambios { font-size: 13px; color: var(--tp-gris) }
+.tp .aviso-cambios b { color: var(--tp-tinta) }
+
+/* BORRAR EL PLAN DEL DÍA. Renglón aparte y al final: no compite con
+   «Publicar» por el mismo dedo. Sin pedir, es solo un enlace; pedido,
+   se convierte en dos botones y dice qué se lleva por delante. */
+.tp .borrar-plan {
+  flex: 1 1 100%; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  border-top: 1px dashed var(--tp-linea); padding-top: 14px; margin-top: 2px;
+}
+.tp .enlace-mal {
+  border: 0; background: none; cursor: pointer; padding: 6px 0; min-height: 34px;
+  font: 600 13px var(--tp-texto); color: var(--tp-mal);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.tp .enlace-mal:hover { text-decoration-thickness: 2px }
+.tp .enlace-mal:disabled { opacity: .5; cursor: not-allowed }
+.tp .nota-borrar {
+  font-size: 12.5px; color: var(--tp-gris); line-height: 1.5; flex: 1 1 260px; min-width: 0;
+}
+
+/* ---------- La columna derecha ---------- */
+.tp .lado-plan { display: flex; flex-direction: column; gap: 16px }
+.tp .resumen-dia {
+  background: var(--c-grupo); color: #fff; padding: 20px 22px;
+  position: relative; overflow: hidden; border-radius: 3px;
+}
+.tp .resumen-dia .corte {
+  position: absolute; top: -30%; bottom: -30%; right: -14px; width: 90px;
+  background: color-mix(in srgb, var(--tp-ojo) 16%, transparent); transform: skewX(-26deg);
+}
+.tp .resumen-dia .rot {
+  position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .15em; opacity: .65;
+}
+.tp .resumen-dia .gran {
+  position: relative; font-family: var(--tp-titulo); font-weight: 900; font-size: 50px;
+  line-height: 1; color: var(--tp-ojo); margin-top: 7px;
+}
+.tp .resumen-dia .sub { position: relative; font-size: 12.5px; opacity: .75; margin-top: 6px }
+.tp .barras-turno { position: relative; margin-top: 18px; display: flex; flex-direction: column; gap: 10px }
+.tp .bt { display: grid; grid-template-columns: 62px 1fr 32px; gap: 10px; align-items: center; font-size: 13px }
+.tp .bt .pista { height: 12px; background: rgba(255, 255, 255, .14); border-radius: 2px; overflow: hidden }
+.tp .bt .pista i { display: block; height: 100%; background: var(--tp-ojo) }
+.tp .bt .v { text-align: right; font-family: var(--tp-titulo); font-weight: 800 }
+
+.tp .atajos-plan, .tp .referencia {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px; padding: 18px 20px;
+}
+.tp .atajos-plan h3, .tp .referencia h3 {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 15.5px; margin: 0 0 6px;
+}
+.tp .atajos-plan p, .tp .referencia p {
+  font-size: 12.5px; color: var(--tp-gris); line-height: 1.5; margin: 0;
+}
+.tp .atajos-plan .fila-a { display: flex; flex-direction: column; gap: 9px; margin-top: 14px }
+.tp .atajos-plan button {
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); padding: 12px 14px;
+  text-align: left; cursor: pointer; font: 600 13.5px var(--tp-texto); color: var(--tp-tinta);
+  display: flex; align-items: center; gap: 11px; border-radius: 2px;
+}
+.tp .atajos-plan button:hover:not(:disabled) {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 8%, #fff);
+}
+.tp .atajos-plan button:disabled { opacity: .45; cursor: not-allowed }
+.tp .atajos-plan button span { margin-left: auto; font-weight: 400; font-size: 12px; color: var(--tp-gris) }
+
+.tp .ref-fila {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--tp-linea); font-size: 13.5px;
+}
+.tp .ref-fila:first-of-type { margin-top: 10px }
+.tp .ref-fila:last-child { border-bottom: 0 }
+.tp .ref-fila .prom { color: var(--tp-gris); font-size: 12.5px }
+.tp .ref-fila .dif {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 13px; width: 38px; text-align: right;
+  color: var(--tp-gris);
+}
+.tp .ref-fila .dif.mas { color: var(--tp-bien) }
+.tp .ref-fila .dif.menos { color: var(--tp-mal) }
+
+/* =====================================================================
+   LA COLUMNA DEL TIPO, CLAVADA
+   =====================================================================
+   En el celular la rejilla no cabe: se rueda de lado para llegar al
+   turno C. Y al rodar, la columna de la izquierda se iba con todo lo
+   demás, así que quedaban cuatro casillas con números y ninguna pista
+   de a qué material pertenecían. Planear a ciegas.
+
+   Ahora esa columna se queda quieta y los turnos pasan por debajo.
+
+   POR QUÉ CAMBIA border-collapse. Con `collapse` los bordes no son de
+   la celda sino de la tabla, así que una celda clavada viaja SIN sus
+   bordes y se ve como un recorte flotando. Con `separate` y
+   border-spacing: 0 se dibuja exactamente igual —cada celda pone su
+   propia raya de abajo, nadie las duplica— y los bordes se quedan
+   pegados a la celda donde van.
+
+   CADA FILA PONE SU PROPIO FONDO. Una celda clavada pasa POR ENCIMA de
+   las que van corriendo: si fuera transparente, se leerían los números
+   del turno C a través del nombre del material. */
+.tp .matriz table { border-collapse: separate; border-spacing: 0 }
+.tp .matriz th:first-child,
+.tp .matriz td:first-child {
+  position: sticky; left: 0; z-index: 2; background: var(--tp-papel);
+}
+.tp .matriz thead th:first-child { z-index: 3; background: var(--tp-fondo) }
+.tp .matriz tfoot tr.total td:first-child { z-index: 3; background: var(--c-grupo) }
+.tp .matriz tfoot tr.vacios td:first-child { z-index: 3; background: var(--tp-papel) }
+/* El hover de la fila no llegaba a la celda clavada porque esta trae su
+   propio fondo opaco: se repite aquí o la fila se ilumina a medias. */
+.tp .matriz tbody tr:hover td:first-child {
+  background: color-mix(in srgb, var(--tp-ojo) 6%, #fff);
+}
+@media (max-width: 1100px) {
+  .tp .plan-marco { grid-template-columns: 1fr }
+}
+@media (max-width: 700px) {
+  .tp .cel-step input { width: 34px }
+  /* Clavada y además angosta: si se queda con los 300 px que le daba el
+     texto largo, los turnos no caben ni de a uno en la pantalla. */
+  .tp .matriz th:first-child,
+  .tp .matriz td:first-child { width: 132px; min-width: 132px }
+  .tp .matriz td.tipo { font-size: 13px; overflow-wrap: anywhere }
+  /* "TOTAL CON CARGA" en 132 px parte en dos líneas y se pega al
+     número del turno. Más chico y con aire a la derecha. */
+  .tp .matriz tfoot td:first-child { font-size: 10px; letter-spacing: .06em; padding-right: 12px }
+  /* La sombra dice que hay más tabla a la derecha. Va solo aquí: en el
+     escritorio la rejilla cabe entera y una sombra sin nada detrás se
+     lee como una raya suelta en mitad de la tabla. */
+  .tp .matriz th:first-child,
+  .tp .matriz td:first-child { box-shadow: 7px 0 11px -9px rgba(0, 0, 0, .55) }
+}
+
+/* =====================================================================
+   REGISTRAR — la consola del turno
+   ===================================================================== */
+.tp .consola {
+  display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 18px; align-items: start;
+}
+.tp .consola > * { min-width: 0 }
+.tp .tarj-reg { background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px }
+.tp .tarj-reg > .cab { padding: 18px 22px 15px; border-bottom: 1px solid var(--tp-linea) }
+.tp .tarj-reg h2 { font-family: var(--tp-titulo); font-weight: 800; font-size: 19px; margin: 0 }
+.tp .tarj-reg > .cab p { margin: 5px 0 0; font-size: 13px; color: var(--tp-gris) }
+.tp .cuerpo-f { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px }
+
+.tp .linea-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px }
+.tp .rot-campo {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .12em;
+  color: var(--tp-gris); margin-bottom: 9px; text-transform: uppercase;
+}
+
+/* EL SEGMENTADO. Dos o tres opciones que se excluyen se leen mejor
+   pegadas que como botones sueltos: el hueco entre botones invita a
+   pensar que se pueden tocar los dos. */
+.tp .seg { display: inline-flex; background: var(--tp-fondo); padding: 4px; border-radius: 2px; gap: 4px }
+.tp .seg button {
+  border: 0; background: none; padding: 10px 18px; border-radius: 2px; cursor: pointer;
+  font: 600 14px var(--tp-texto); color: var(--tp-gris);
+}
+.tp .seg button.on { background: var(--c-grupo); color: var(--tp-sobre-grupo); font-weight: 700 }
+.tp .seg.turno button { min-width: 48px; font-family: var(--tp-titulo); font-weight: 800 }
+.tp .seg.turno button.on { background: var(--tp-ojo); color: var(--tp-sobre-ojo) }
+
+/* LA PLACA, GRANDE. Es el único dato que no se puede reconstruir de
+   memoria si se escribe mal, y el que se lee a un metro de distancia
+   para comprobarlo contra el vehículo. */
+/* Aquí vivía el campo gigante de escribir la placa. La placa ya se
+   escoge de una lista, así que la regla quedó sin dueño — y como
+   apuntaba a CUALQUIER input de adentro, se comió el buscador del
+   desplegable: 38 px, centrado y en mayúsculas, un "BUSCAR…" del
+   tamaño de un titular. El CSS muerto no es inofensivo cuando su
+   selector sigue siendo ancho. */
+.tp .recientes { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap }
+.tp .recientes button {
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 2px;
+  padding: 7px 12px; font: 700 13px var(--tp-titulo); letter-spacing: .06em;
+  cursor: pointer; color: var(--tp-tinta);
+}
+.tp .recientes button:hover {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 8%, #fff);
+}
+
+.tp .chips { display: flex; flex-wrap: wrap; gap: 8px }
+.tp .chips button {
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 2px;
+  padding: 11px 15px; font: 600 13.5px var(--tp-texto); cursor: pointer; color: var(--tp-tinta);
+  min-height: 44px;
+}
+.tp .chips button.on {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 12%, #fff);
+  font-weight: 700;
+}
+
+.tp .ruta { display: grid; grid-template-columns: minmax(0,1fr) 46px minmax(0,1fr); gap: 10px; align-items: start }
+/* Aquí vivían las reglas del campo de ESCRIBIR el sitio. Los dos lados
+   de la ruta ya son desplegables, así que la regla quedó sin dueño — y
+   apuntaba a cualquier input de adentro, incluido el buscador del
+   desplegable. Es la tercera vez hoy que un selector ancho sobreviviente
+   se come algo nuevo; por eso se borra en vez de quedarse apagado. */
+.tp .ruta .voltear {
+  height: 50px; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+  border-radius: 2px; cursor: pointer; display: grid; place-items: center;
+}
+.tp .ruta .voltear:hover { border-color: var(--tp-ojo) }
+.tp .ruta .voltear svg { width: 18px; height: 18px; stroke: var(--tp-gris); stroke-width: 1.9; fill: none }
+/* AQUÍ ESTABAN LAS RUTAS FRECUENTES —una fila de atajos «FABRICA →
+   BODEGA 38»— y las quitó Cristian. Se va también la regla: una hoja
+   que conserva estilos de lo que ya no existe es la que hace que el
+   siguiente arnés mida algo que no está en la pantalla, y este
+   proyecto ya pagó eso dos veces. */
+
+.tp .conteo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+.tp .cel-step.grande button { width: 46px; height: 46px; font-size: 19px }
+.tp .cel-step.grande input { width: 56px; height: 46px; font-size: 20px }
+.tp .nota-conteo { font-size: 12.5px; color: var(--tp-gris); line-height: 1.5; flex: 1 1 140px }
+.tp .campo-suelto {
+  width: 100%; height: 50px; border: 1.5px solid var(--tp-linea); border-radius: 2px;
+  padding: 0 14px; font: 500 15px var(--tp-texto); background: var(--tp-fondo); color: var(--tp-tinta);
+}
+
+/* EL DOCUMENTO SE TECLEA CON GUANTES Y SE COMPARA CONTRA UN PAPEL. Más
+   grande que el resto y con cifras de ancho fijo, que es lo que permite
+   cotejar dígito por dígito sin ir contando con el dedo. La mayúscula
+   la pone el `onChange`, no el CSS: `text-transform` cambia lo que se
+   ve y no lo que se manda, y entonces la pantalla y la base dirían
+   cosas distintas el día que alguien mire las dos. */
+.tp .campo-suelto.doc {
+  font-weight: 700; font-size: 17px; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tp .extra { border-top: 1px solid var(--tp-linea); padding-top: 15px }
+.tp .extra summary {
+  cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--tp-acento); list-style: none;
+}
+.tp .extra summary::-webkit-details-marker { display: none }
+.tp .extra summary::before { content: "+ "; font-family: var(--tp-titulo) }
+.tp .extra textarea {
+  width: 100%; margin-top: 12px; min-height: 74px; border: 1.5px solid var(--tp-linea);
+  border-radius: 2px; padding: 11px 13px; font: 400 14px var(--tp-texto); resize: vertical;
+  background: var(--tp-papel); color: var(--tp-tinta);
+}
+
+.tp .pie-reg {
+  display: flex; align-items: center; gap: 16px; padding: 16px 22px; flex-wrap: wrap;
+  background: var(--tp-fondo); border-top: 1px solid var(--tp-linea);
+}
+.tp .pie-reg .btn.si { height: 54px; padding: 0 32px; font-size: 16px }
+.tp .pie-reg .atajo { font-size: 12.5px; color: var(--tp-gris) }
+.tp .pie-reg kbd {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-bottom-width: 2px;
+  border-radius: 3px; padding: 2px 7px; font: 600 11.5px var(--tp-texto);
+}
+
+/* ---------- La columna derecha ---------- */
+.tp .plan-turno {
+  background: var(--c-grupo); color: #fff; padding: 20px 22px; border-radius: 3px;
+  position: relative; overflow: hidden;
+}
+.tp .plan-turno .corte {
+  position: absolute; top: -30%; bottom: -30%; right: -14px; width: 90px;
+  background: color-mix(in srgb, var(--tp-ojo) 16%, transparent); transform: skewX(-26deg);
+}
+.tp .plan-turno .rot {
+  position: relative; font-size: 10.5px; font-weight: 700; letter-spacing: .15em; opacity: .65;
+}
+.tp .plan-turno .marca { position: relative; display: flex; align-items: baseline; gap: 10px; margin-top: 7px }
+.tp .plan-turno .marca b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 50px; line-height: 1; color: var(--tp-ojo);
+}
+.tp .plan-turno .marca span { font-size: 15px; opacity: .75 }
+
+/* UN CUADRO POR VIAJE PLANEADO. "4 de 16" se entiende leyendo; doce
+   cuadros apagados se entienden sin leer, que es lo que hace falta a
+   las cinco de la mañana. */
+.tp .huecos { position: relative; display: flex; gap: 5px; margin-top: 16px; flex-wrap: wrap }
+.tp .huecos i {
+  flex: 1 1 14px; min-width: 10px; max-width: 26px; height: 14px;
+  background: rgba(255, 255, 255, .14); border-radius: 2px;
+}
+.tp .huecos i.lleno { background: var(--tp-ojo) }
+.tp .plan-turno .pie-plan {
+  position: relative; margin-top: 13px; font-size: 12.5px; opacity: .7; line-height: 1.5;
+}
+
+.tp .hoy {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px; margin-top: 16px;
+}
+.tp .hoy .cab {
+  padding: 16px 20px 13px; border-bottom: 1px solid var(--tp-linea);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+}
+.tp .hoy h3 { font-family: var(--tp-titulo); font-weight: 800; font-size: 16px; margin: 0 }
+.tp .hoy .cuantos { font-size: 12.5px; color: var(--tp-gris) }
+.tp .viaje {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  padding: 12px 20px; border-bottom: 1px solid var(--tp-linea);
+}
+.tp .viaje:last-child { border-bottom: 0 }
+.tp .viaje.anulado { opacity: .45 }
+.tp .viaje .hora { font: 700 12px var(--tp-titulo); color: var(--tp-gris) }
+.tp .viaje .pl { display: block; font: 900 14px var(--tp-titulo); letter-spacing: .06em }
+.tp .viaje .det { display: block; font-size: 12.5px; color: var(--tp-gris); margin-top: 2px }
+.tp .vacio-hoy {
+  padding: 30px 20px; text-align: center; color: var(--tp-gris); font-size: 13px; line-height: 1.6;
+}
+
+@media (max-width: 1100px) { .tp .consola { grid-template-columns: 1fr } }
+@media (max-width: 620px) {
+  .tp .linea-campos { grid-template-columns: 1fr }
+  .tp .ruta { grid-template-columns: 1fr; }
+  .tp .ruta .voltear { height: 42px }
+}
+
+/* =====================================================================
+   EL MAESTRO
+   ---------------------------------------------------------------------
+   Dos columnas —puntos y tipos— porque son dos listas que se miran a la
+   vez y ninguna es más importante. Debajo, los posibles duplicados:
+   van al final y no arriba porque son los que la persona revisa después
+   de agregar, no antes.
+
+   LAS DOS COLUMNAS LLEVAN min-width: 0. Un hijo de rejilla nace con
+   min-width: auto y estira su columna hasta donde llegue su contenido
+   más largo: un nombre de punto sin espacios empujaría la página de
+   lado en el celular.
+   ===================================================================== */
+/* DOS COLUMNAS QUE SE APILAN SOLAS, no una rejilla.
+
+   Con `grid-template-columns: 1fr 1fr` cada FILA mide lo que mide su
+   caja más alta: Tipos trae nueve renglones, así que Placas —que va en
+   la segunda fila de la izquierda— caía muy por debajo de Bodegas y
+   dejaba medio metro de vacío en medio. La rejilla alinea filas, y aquí
+   las filas no significan nada: lo que significa algo es la columna.
+
+   Cada columna es su propia pila, así que las cajas se pegan una debajo
+   de otra y el largo de la vecina no las mueve. */
+.tp .maestro { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start }
+.tp .maestro > .col {
+  display: flex; flex-direction: column; gap: 16px; min-width: 0;
+}
+
+/* SIN overflow: hidden, A PROPÓSITO.
+   Lo tenía para que el fondo del último renglón no se saliera de la
+   esquina redondeada. Pero overflow: hidden recorta TODO lo que sea
+   descendiente, y el menú de los tres puntos del último renglón es un
+   absoluto que cae por debajo del borde: se cortaba a la mitad y el
+   «Borrar» quedaba invisible. La esquina se resuelve redondeando el
+   último renglón —tres píxeles— y no a costa de los menús. */
+.tp .caja-m {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-radius: 3px; min-width: 0;
+}
+.tp .caja-m > .item:last-child { border-radius: 0 0 2px 2px }
+.tp .caja-m .cab-m { padding: 16px 18px 13px; border-bottom: 1px solid var(--tp-linea) }
+.tp .caja-m h2 {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 17px; margin: 0;
+  letter-spacing: -.02em; display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+}
+.tp .caja-m h2 em {
+  font-style: normal; background: var(--tp-fondo); color: var(--tp-gris);
+  font-family: var(--tp-texto); font-weight: 600; font-size: 12px;
+  padding: 3px 8px; border-radius: 3px;
+}
+.tp .caja-m .cab-m p { margin: 6px 0 0; font-size: 12.5px; color: var(--tp-gris); line-height: 1.5 }
+
+/* La franja de "escritos a mano" y sus chips vivían aquí. Se fueron con
+   la pantalla: Registrar ya escoge del maestro, así que por ahí no entra
+   ningún sitio nuevo y la franja solo podía mostrar restos viejos. Se
+   borran las reglas en vez de dejarlas apagadas — el CSS muerto es lo
+   que el mes que viene alguien "arregla" sin saber para qué era. */
+
+/* ---------- Agregar ---------- */
+.tp .agregar-m {
+  display: flex; gap: 9px; padding: 14px 18px; border-bottom: 1px solid var(--tp-linea);
+}
+.tp .agregar-m input {
+  font: inherit; font-size: 16px; flex: 1 1 140px; min-width: 0; min-height: 46px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; padding: 0 13px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .agregar-m input:focus {
+  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+.tp .agregar-m button {
+  min-height: 46px; padding: 0 18px; border: 0; border-radius: 3px; cursor: pointer;
+  background: var(--c-grupo); color: var(--tp-sobre-grupo); font: 800 13px var(--tp-titulo);
+  white-space: nowrap;
+}
+.tp .agregar-m button:hover:not(:disabled) { background: var(--tp-ojo); color: var(--tp-sobre-ojo) }
+.tp .agregar-m button:disabled { opacity: .45; cursor: not-allowed }
+
+/* ---------- Un renglón del maestro ---------- */
+.tp .item {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 38px 30px;
+  gap: 10px; align-items: center; padding: 10px 18px;
+  border-bottom: 1px solid var(--tp-fondo);
+}
+.tp .item:last-child { border-bottom: 0 }
+.tp .item > * { min-width: 0 }
+.tp .item:hover { background: color-mix(in srgb, var(--tp-ojo) 5%, #fff) }
+.tp .item.arrastrando {
+  background: color-mix(in srgb, var(--tp-ojo) 16%, #fff);
+  box-shadow: inset 3px 0 0 var(--tp-ojo);
+}
+.tp .item .asa {
+  cursor: grab; opacity: .4; display: grid; place-items: center;
+  background: none; border: 0; padding: 0; min-height: 30px;
+  /* Sin esto, arrastrar en el celular hace rodar la página en vez de
+     mover el renglón. */
+  touch-action: none;
+}
+.tp .item .asa:hover { opacity: .9 }
+.tp .item .asa svg {
+  width: 15px; height: 15px; stroke: var(--tp-gris);
+  stroke-width: 2.6; stroke-linecap: round; fill: none;
+}
+.tp .item .nom b { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere }
+.tp .item .nom span { display: block; font-size: 11.5px; color: var(--tp-gris); margin-top: 1px }
+.tp .item .uso {
+  font-size: 12px; color: var(--tp-gris); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.tp .item.apagado { background: var(--tp-fondo) }
+.tp .item.apagado .nom b { color: var(--tp-gris); text-decoration: line-through }
+
+/* El interruptor. Es un <input> de verdad debajo: se enfoca con el
+   teclado y se prende con la barra espaciadora como cualquier casilla. */
+.tp .sw { position: relative; display: inline-block; width: 38px; height: 22px; cursor: pointer }
+/* LA ZONA QUE SE TOCA ES MÁS ALTA QUE LA QUE SE VE. El riel mide 22 px
+   —así se ve un interruptor— pero 22 px es menos de lo que acierta un
+   dedo con guante en la tableta del muelle. El <input> se estira 9 px
+   por arriba y por abajo: 40 px de blanco para tocar, sin cambiar el
+   dibujo ni empujar el renglón. */
+.tp .sw input {
+  position: absolute; left: 0; top: -9px; width: 100%; height: 40px;
+  opacity: 0; margin: 0; cursor: pointer;
+}
+.tp .sw i {
+  position: absolute; inset: 0; background: color-mix(in srgb, var(--tp-gris) 45%, #fff);
+  border-radius: 20px; transition: background .15s; pointer-events: none;
+}
+.tp .sw i::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; transition: transform .15s;
+}
+.tp .sw input:checked + i { background: var(--tp-ojo) }
+.tp .sw input:checked + i::after { transform: translateX(16px) }
+.tp .sw input:focus-visible + i { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 40%, transparent) }
+.tp .sw input:disabled { cursor: not-allowed }
+.tp .sw input:disabled + i { opacity: .45 }
+
+/* El menú de los tres puntos. */
+.tp .mas { position: relative; justify-self: end }
+.tp .mas > button {
+  border: 0; background: none; cursor: pointer; color: var(--tp-gris);
+  font-size: 17px; line-height: 1; min-height: 30px; min-width: 28px; border-radius: 3px;
+}
+.tp .mas > button:hover { color: var(--tp-tinta); background: var(--tp-fondo) }
+.tp .mas .menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 190px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  box-shadow: 0 20px 40px -22px rgba(0, 0, 0, .5); padding: 4px 0;
+}
+/* Abierto hacia arriba: mismo menú, al otro lado del botón. */
+.tp .mas .menu.arriba { top: auto; bottom: calc(100% + 4px) }
+/* El cuadro que se pinta para medirlo. Ocupa su sitio pero no se ve, así
+   que el ojo nunca lo alcanza abajo antes de que suba. */
+.tp .mas .menu.midiendo { visibility: hidden }
+.tp .mas .menu::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--tp-ojo);
+}
+.tp .mas .menu button {
+  display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
+  font: 500 13.5px var(--tp-texto); color: var(--tp-tinta); padding: 10px 13px; min-height: 40px;
+}
+.tp .mas .menu button:first-child { margin-top: 3px }
+.tp .mas .menu button:hover { background: var(--tp-fondo) }
+.tp .mas .menu button.mal { color: var(--tp-mal) }
+.tp .mas .menu button:disabled { opacity: .45; cursor: not-allowed }
+.tp .mas .menu .nota {
+  padding: 9px 13px; font-size: 11.5px; color: var(--tp-gris); line-height: 1.45;
+  border-top: 1px solid var(--tp-fondo); margin-top: 3px;
+}
+
+/* =====================================================================
+   ANULAR Y CORREGIR — lo que se abre debajo del renglón del viaje
+   ===================================================================== */
+.tp .pie-accion { padding: 0 16px 16px; border-top: 1px solid var(--tp-fondo); padding-top: 14px }
+.tp .pie-accion .guia { margin: 0 0 10px }
+
+/* La rejilla del formulario de corrección. Dos columnas en el
+   escritorio y una en el celular: son campos cortos, y uno debajo de
+   otro obliga a rodar media pantalla para ver ocho cosas que caben. */
+.tp .rejilla-corregir {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px; margin-bottom: 14px;
+}
+.tp .rejilla-corregir > .ancho { grid-column: 1 / -1 }
+.tp .rejilla-corregir .campo { min-width: 0 }
+@media (max-width: 620px) {
+  .tp .rejilla-corregir { grid-template-columns: 1fr }
+}
+.tp .fila-btn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+
+/* CORREGIDO. Ámbar y no rojo: el viaje vale, solo que lo reescribieron.
+   El rojo está tomado por ANULADO, que sí quiere decir que no cuenta.
+
+   ESTE ÁMBAR VA EN DURO Y NO SIGUE AL TEMA, que es la excepción en todo
+   el módulo. El token de aviso es --c-oro, y --c-oro es ROJO PURO en
+   negro, gris y halo; el acento del tema es rojo en el oficial. Por
+   cualquiera de los dos caminos, «CORREGIDO» acabaría rojo en la misma
+   fila donde el rojo ya quiere decir ANULADO — y son cosas opuestas:
+   una vale y la otra no. Antes que un color que cambia de significado,
+   un ámbar que no cambia. Medido: 8.31 de contraste en los siete temas. */
+.tp .eti.corregido {
+  background: #FDF0D0; color: #5E4100;
+  box-shadow: inset 2.5px 0 0 #C08A16;
+  padding-left: 9px;
+}
+
+/* ---------- Registrado después de su día ----------
+
+   MISMA FORMA QUE «CORREGIDO» —el rielito a la izquierda— porque son
+   parientes: las dos marcas dicen «este renglón no es exactamente lo
+   que parece, mira el detalle». Y OTRO TONO, frío, porque no son la
+   misma cosa: corregido es alguien reescribiendo un dato; atrasado es
+   un dato que llegó tarde pero nadie tocó. Si compartieran color
+   habría que leer el texto para distinguirlas, y una etiqueta que hay
+   que leer entera no está haciendo su trabajo.
+
+   NO ES ROJO A PROPÓSITO. Registrar el día anterior es normal: el
+   turno C sale a las seis de la mañana y muchas veces digita después.
+   Pintarlo de alarma enseñaría a la gente a ignorar las alarmas. */
+.tp .eti.tarde {
+  background: #E6EDF4; color: #2A4257;
+  box-shadow: inset 2.5px 0 0 #5B7C9B;
+  padding-left: 9px;
+}
+
+/* ---------- Registrado antes de su día ----------
+
+   EL ESPEJO DE «REGISTRADO DESPUÉS», y por eso comparte la forma: el
+   mismo rielito, el mismo tamaño. Cambia el tono —verde frío en vez de
+   azul— porque las dos se pueden ver en la misma pantalla el mismo día
+   y hay que poder separarlas de un vistazo, sin leerlas.
+
+   TAMPOCO ES ALARMA. Adelantar el viaje de mañana es normal: el camión
+   salió, y el viaje pertenece al día que le toca. La marca solo dice
+   que ese renglón se escribió antes de que el día llegara.
+
+   EL VERDE ES MÁS CARGADO QUE EL AZUL DE AL LADO, a propósito. El
+   primer tono que le puse quedaba a 14 de distancia del de «registrado
+   después» —dos grises pálidos, uno con una gota de azul y otro con una
+   gota de verde—, y las dos marcas aparecen el mismo día en la misma
+   pantalla. Lo cazó el arnés, no el ojo. */
+.tp .eti.pronto {
+  background: #D6EDDB; color: #1E4433;
+  box-shadow: inset 2.5px 0 0 #3F8760;
+  padding-left: 9px;
+}
+
+/* ---------- El documento del viaje ----------
+
+   EL NÚMERO, DE PRIMERO Y EN TINTA. No es una etiqueta de estado: es lo
+   que identifica el viaje para quien lo busca, y tiene el mismo peso
+   que la placa. Por eso no usa `.eti` —que es gris y minúscula, para
+   cosas que se miran de reojo— sino su propia clase. */
+.tp .fila .meta .doc-eti {
+  font-weight: 800; color: var(--tp-tinta);
+  font-variant-numeric: tabular-nums; letter-spacing: .01em;
+}
+
+/* ---------- Le falta el documento ----------
+
+   DE RAYITAS, Y NO POR ADORNO. En este módulo el borde discontinuo ya
+   quiere decir «esto hay que completar»: lo usa el punto escrito a mano
+   que todavía no está en el maestro, y el registro de vacíos para decir
+   que no lleva carga. Un viaje sin documento es exactamente eso — algo
+   que falta por llenar, no algo que esté mal.
+
+   EL ÁMBAR ES EL MISMO DE «CORREGIDO», relleno allá y solo de contorno
+   aquí: son parientes —«mira este renglón»— con distinto peso. Un
+   cuarto color habría que aprendérselo; este ya se conoce.
+
+   Y NO ES ROJO, a propósito y por la misma razón que «CORREGIDO» no lo
+   es: en esta fila el rojo ya quiere decir ANULADO. Un viaje viejo sin
+   documento no es un viaje que no pasó.
+
+   Va en duro porque --tp-papel es #FFF en los siete temas: el contraste
+   de #5E4100 sobre blanco es 9.4, medido. */
+.tp .eti.sin-doc {
+  background: transparent; color: #5E4100;
+  border: 1px dashed #C08A16;
+  padding: 2px 6px;
+}
+
+/* ---------- Lo que dijo facturación ----------
+
+   SALIÓ en verde de contorno —está bien, no hay nada que hacer— con el
+   número de documento, que es lo que se busca. POR FACTURAR en el mismo
+   ámbar de rayitas de «falta completar»: no está mal, está esperando.
+   En duro porque --tp-papel es #FFF en los siete temas. */
+.tp .eti.salio {
+  background: transparent; color: #0B5D2E; border: 1px solid #2E8B57;
+  padding: 2px 6px; font-variant-numeric: tabular-nums;
+}
+.tp .eti.por-facturar {
+  background: transparent; color: #5E4100; border: 1px dashed #C08A16; padding: 2px 6px;
+}
+
+/* ---------- Posibles duplicados ---------- */
+.tp .duplicados {
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-left: 4px solid var(--tp-mal); border-radius: 3px; padding: 18px 20px; min-width: 0;
+}
+.tp .duplicados h3 { font-family: var(--tp-titulo); font-weight: 800; font-size: 16px; margin: 0 }
+.tp .duplicados > p {
+  font-size: 13px; color: var(--tp-gris); margin: 6px 0 0; line-height: 1.55; max-width: 70ch;
+}
+.tp .par-dup {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  padding: 13px 0; border-bottom: 1px solid var(--tp-fondo);
+}
+.tp .par-dup:last-child { border-bottom: 0 }
+.tp .par-dup .tx {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 14px;
+  background: var(--tp-fondo); padding: 6px 11px; border-radius: 3px;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.tp .par-dup .tx.gana { background: var(--c-grupo); color: var(--tp-sobre-grupo) }
+.tp .par-dup .cuantos { font-size: 12px; color: var(--tp-gris); white-space: nowrap }
+.tp .par-dup .fl { color: var(--tp-gris) }
+.tp .par-dup .unir {
+  margin-left: auto; border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
+  border-radius: 3px; padding: 0 15px; min-height: 40px; cursor: pointer;
+  font: 600 13px var(--tp-texto); color: var(--tp-tinta); white-space: nowrap;
+}
+.tp .par-dup .unir:hover:not(:disabled) {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 8%, #fff);
+}
+.tp .par-dup .unir:disabled { opacity: .5; cursor: not-allowed }
+
+@media (max-width: 900px) {
+  .tp .maestro { grid-template-columns: 1fr }
+}
+@media (max-width: 480px) {
+  /* En el celular el nombre se lleva el renglón y el resto se va abajo:
+     cinco columnas en 360 px dejarían el nombre en una tira de letras
+     de una en una. */
+  .tp .item {
+    grid-template-columns: 20px minmax(0, 1fr) 38px 30px;
+    row-gap: 4px;
+  }
+  .tp .item .asa { grid-column: 1; grid-row: 1 }
+  .tp .item .nom { grid-column: 2; grid-row: 1 }
+  .tp .item .uso { grid-column: 2; grid-row: 2 }
+  .tp .item .sw  { grid-column: 3; grid-row: 1 / span 2 }
+  .tp .item .mas { grid-column: 4; grid-row: 1 / span 2 }
+  .tp .par-dup .unir { margin-left: 0; width: 100% }
+}
+
+/* =====================================================================
+   ESCOGER DEL PLAN
+   ---------------------------------------------------------------------
+   El tipo de viaje deja de ser una lista de nueve y pasa a ser el plan
+   del turno. Cada chip lleva tres renglones y el orden no es casual:
+
+     nombre      qué es
+     FALTAN 3    lo que hay que hacer  <- lo grande, es la pregunta
+     4 / 7       de dónde sale ese 3
+
+   "4 / 7" solo, que es lo que casi todas las pantallas muestran, obliga
+   a restar mentalmente en la puerta de la bodega a las cinco de la
+   mañana. El que ya se completó no se esconde —se sigue usando— pero se
+   apaga para que la vista caiga en lo que falta.
+
+   RECORRE A LO ANCHO SI NO CABE, dentro de su propio riel. Apilar nueve
+   chips de tres renglones deja el botón de registrar fuera de la
+   pantalla en el celular, que es la forma más segura de que alguien
+   deje de registrar a media tarde.
+   ===================================================================== */
+.tp .chips-plan {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+}
+.tp .chips-plan::-webkit-scrollbar { height: 6px }
+.tp .chips-plan::-webkit-scrollbar-thumb { background: var(--tp-linea); border-radius: 3px }
+
+.tp .chip-plan, .tp .chip-mas {
+  flex: 0 0 auto; scroll-snap-align: start; min-width: 118px; text-align: left;
+  display: flex; flex-direction: column; gap: 2px; cursor: pointer;
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 2px;
+  padding: 10px 13px 9px; min-height: 68px; color: var(--tp-tinta);
+}
+.tp .chip-plan b, .tp .chip-mas b {
+  font: 600 12.5px var(--tp-texto); line-height: 1.25; overflow-wrap: anywhere;
+}
+.tp .chip-plan .falta, .tp .chip-mas .falta {
+  font: 900 15px var(--tp-titulo); letter-spacing: -.02em; margin-top: auto;
+}
+.tp .chip-plan .prog, .tp .chip-mas .prog {
+  font-size: 11px; color: var(--tp-gris); font-variant-numeric: tabular-nums;
+}
+.tp .chip-plan:hover, .tp .chip-mas:hover { border-color: var(--tp-ojo) }
+
+.tp .chip-plan.on, .tp .chip-mas.on {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 12%, #fff);
+  box-shadow: inset 3px 0 0 var(--tp-ojo);
+}
+
+/* EL QUE YA COMPLETÓ SU PLAN. Se apaga, no se quita: quien acaba de
+   mover cuatro de casco vidrio y trae el quinto lo busca donde lo
+   tocó las cuatro veces anteriores, no dentro de un menú. */
+.tp .chip-plan.lleno { background: var(--tp-fondo) }
+.tp .chip-plan.lleno b { color: var(--tp-gris) }
+.tp .chip-plan.lleno .falta { color: var(--tp-gris); font-size: 13px }
+.tp .chip-plan.lleno.on { background: color-mix(in srgb, var(--tp-ojo) 12%, #fff) }
+.tp .chip-plan.lleno.on b { color: var(--tp-tinta) }
+
+.tp .chip-mas { border-style: dashed; min-width: 104px }
+.tp .chip-mas b { font: 900 19px var(--tp-titulo); line-height: 1; color: var(--tp-gris) }
+.tp .chip-mas .falta { font-size: 13px }
+
+.tp .otros-tipos { margin-top: 9px }
+
+.tp .guia.adicional {
+  margin-top: 9px; padding: 9px 12px; border-radius: 2px;
+  border-left: 3px solid var(--tp-ojo);
+  background: color-mix(in srgb, var(--tp-ojo) 10%, #fff);
+  color: color-mix(in srgb, var(--tp-ojo) 68%, #000);
+}
+.tp .guia.adicional b { color: var(--tp-tinta) }
+
+/* =====================================================================
+   LAS SEIS CIFRAS DE CONTROL
+   ---------------------------------------------------------------------
+   Tres columnas y no cuatro: con cuatro, la sexta tarjeta se queda sola
+   en un segundo renglón y se lee como si fuera aparte. Con tres son dos
+   filas llenas de a tres.
+   ===================================================================== */
+.tp .cifras.seis { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+.tp .cifras.seis .n { font-size: 30px }
+
+.tp .cifra.bien  { border-left-color: var(--tp-bien) }
+.tp .cifra.bien .n  { color: var(--tp-bien) }
+.tp .cifra.medio { border-left-color: var(--tp-ojo) }
+.tp .cifra.ojo .n { color: color-mix(in srgb, var(--tp-ojo) 78%, #000) }
+
+/* APARTE quiere decir aparte. El filo punteado es lo mismo que dice el
+   texto de abajo —esta cifra no entra en el cálculo— dicho de una
+   manera que se ve sin leer. */
+.tp .cifra.aparte {
+  border-left: 3px dashed var(--tp-gris);
+  background: color-mix(in srgb, var(--tp-fondo) 55%, #fff);
+}
+.tp .cifra.aparte .n { color: var(--tp-gris) }
+.tp .cifra.aparte .u b { color: var(--tp-tinta) }
+
+@media (max-width: 900px) { .tp .cifras.seis { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 420px) { .tp .cifras.seis { grid-template-columns: 1fr } }
+
+/* =====================================================================
+   EL CALENDARIO DEL PLAN
+   ---------------------------------------------------------------------
+   Propio del módulo y no el de Quiebra: aquel vive dentro de
+   quiebra.css, y traerlo aquí sería cargar la hoja entera de otro
+   módulo para dibujar siete columnas.
+
+   Flota por encima y se ancla a su botón. Va con z-index alto porque
+   cae sobre la rejilla del plan, que tiene cabecera pegada.
+   ===================================================================== */
+.tp .cal-caja { position: relative; display: inline-block }
+
+.tp .cal-disparo {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 13px;
+  border: 1.5px solid var(--tp-linea); background: var(--tp-papel); border-radius: 3px;
+  font: 600 13px var(--tp-texto); color: var(--tp-tinta); cursor: pointer; white-space: nowrap;
+}
+.tp .cal-disparo:hover { border-color: var(--tp-ojo) }
+.tp .cal-disparo svg {
+  width: 15px; height: 15px; stroke: var(--tp-gris); stroke-width: 1.8; fill: none;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tp .cal-disparo[aria-expanded="true"] { border-color: var(--tp-ojo) }
+
+.tp .cal-flota {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  box-shadow: 0 24px 48px -22px rgba(0, 0, 0, .45); padding: 12px;
+  /* Nunca más ancho que la pantalla, ancle donde ancle. */
+  max-width: calc(100vw - 24px);
+}
+.tp .cal-flota::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--tp-ojo);
+}
+.tp .cal-flota.ancho { width: 300px; max-width: calc(100vw - 32px) }
+
+.tp .cal-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 9px }
+.tp .cal-cab button {
+  width: 30px; height: 30px; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--tp-linea); background: var(--tp-papel); border-radius: 3px;
+}
+.tp .cal-cab button:hover { border-color: var(--tp-ojo) }
+.tp .cal-cab svg { width: 15px; height: 15px; stroke: var(--tp-tinta); stroke-width: 2.2; fill: none }
+.tp .cal-titulo {
+  flex: 1; text-align: center; font: 800 13.5px var(--tp-titulo); text-transform: capitalize;
+}
+
+.tp .cal-sem, .tp .cal-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px }
+.tp .cal-sem span {
+  text-align: center; font-size: 10px; font-weight: 700; color: var(--tp-gris);
+  padding-bottom: 5px; letter-spacing: .06em;
+}
+/* ALTO FIJO Y min-width:0, NO aspect-ratio.
+
+   Con `aspect-ratio: 1` el ancho mínimo de la celda sale de su alto, y
+   como el alto sale del ancho la cuenta se muerde la cola: el navegador
+   la resolvía en 56 px por celda, así que las siete columnas pedían
+   378 px dentro de un calendario de 294 y la rejilla se desbordaba de
+   su propio recuadro. Solo se veía midiendo — a 1440 px sobraba sitio
+   y no se notaba. */
+.tp .cal-dias button {
+  height: 38px; min-width: 0; border: 0; background: none; cursor: pointer;
+  font: 600 13px var(--tp-texto); color: var(--tp-tinta); border-radius: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.tp .cal-dias button:hover { background: var(--tp-fondo) }
+.tp .cal-dias button.cal-hoy { box-shadow: inset 0 0 0 1.5px var(--tp-gris) }
+.tp .cal-dias button.dentro { background: color-mix(in srgb, var(--tp-ojo) 16%, #fff) }
+.tp .cal-dias button.punta {
+  background: var(--tp-panel); color: var(--tp-sobre-ojo); font-weight: 800;
+}
+
+/* YA TIENE PLAN. Un punto y no un color de fondo: el fondo ya lo usa el
+   rango, y dos cosas distintas pintadas igual se leen como una sola. */
+.tp .cal-dias button.ocupado { position: relative }
+.tp .cal-dias button.ocupado::after {
+  content: ""; position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--tp-mal);
+}
+.tp .cal-dias button.punta.ocupado::after { background: var(--tp-sobre-ojo) }
+
+/* ---------- Repetir en varios días ---------- */
+.tp .rep-cab { margin-bottom: 10px }
+.tp .rep-cab b { display: block; font: 800 14px var(--tp-titulo) }
+.tp .rep-cab span { display: block; font-size: 11.5px; color: var(--tp-gris); margin-top: 3px; line-height: 1.45 }
+
+.tp .rep-sem {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+  margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--tp-fondo);
+}
+.tp .rep-sem label {
+  display: grid; place-items: center; min-height: 34px; cursor: pointer; border-radius: 3px;
+  border: 1.5px solid var(--tp-linea); font: 700 12px var(--tp-titulo); color: var(--tp-gris);
+}
+.tp .rep-sem label.on {
+  border-color: var(--tp-ojo); background: color-mix(in srgb, var(--tp-ojo) 14%, #fff);
+  color: var(--tp-tinta);
+}
+/* La casilla de verdad sigue ahí debajo: se enfoca con el teclado y se
+   marca con la barra espaciadora. Solo no se dibuja. */
+.tp .rep-sem input { position: absolute; opacity: 0; width: 0; height: 0 }
+.tp .rep-sem label:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 35%, transparent) }
+
+.tp .rep-cuenta {
+  margin-top: 11px; font-size: 12.5px; color: var(--tp-gris); line-height: 1.5;
+}
+.tp .rep-cuenta b { font: 900 17px var(--tp-titulo); color: var(--tp-tinta); margin-right: 3px }
+.tp .rep-cuenta .saltan { display: block; margin-top: 2px; color: var(--tp-mal) }
+.tp .rep-cuenta .nada { color: var(--tp-mal) }
+
+.tp .rep-pie { margin-top: 12px; display: flex; flex-direction: column; gap: 7px }
+.tp .rep-pie .btn { width: 100% }
+.tp .rep-nota { font-size: 11px; color: var(--tp-gris); line-height: 1.45 }
+
+/* EN PANTALLA CHICA DEJA DE COLGAR DEL BOTÓN Y SE CENTRA.
+
+   Anclarlo al botón —por la izquierda o por la derecha, da igual— se
+   sale de la pantalla en cuanto el botón queda cerca de un borde: un
+   calendario de 300 px colgando de un botón de 150 no cabe de ninguna
+   de las dos formas. Medido a 390 px, se salía 160 px por la izquierda.
+
+   Centrado y fijo cabe siempre y en cualquier posición del botón, que
+   es lo que un calendario en un celular tiene que hacer. Se cierra
+   tocando por fuera, igual que antes. */
+@media (max-width: 640px) {
+  .tp .cal-flota {
+    position: fixed; left: 50%; right: auto; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(320px, calc(100vw - 24px));
+    max-height: calc(100vh - 32px); overflow-y: auto;
+  }
+  .tp .cal-flota.ancho { width: min(320px, calc(100vw - 24px)) }
+}
+
+/* La ruta se arma con dos desplegables y la flecha en medio, que es como
+   se lee. En el celular se apilan: dos selects de 46 px uno al lado del
+   otro no dejan leer ninguno de los dos nombres. */
+.tp .agregar-m.ruta-nueva { flex-wrap: wrap; align-items: center }
+.tp .agregar-m.ruta-nueva select {
+  font: inherit; font-size: 16px; flex: 1 1 130px; min-width: 0; min-height: 46px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; padding: 0 10px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .agregar-m.ruta-nueva select:focus {
+  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+.tp .agregar-m.ruta-nueva .fl { color: var(--tp-gris); flex: none }
+.tp .agregar-m.ruta-nueva button { flex: 1 1 100% }
+@media (min-width: 560px) { .tp .agregar-m.ruta-nueva button { flex: 0 0 auto } }
+
+/* ---------- Placa y ruta, ya de lista ----------
+   LA LETRA GRANDE ERA DEL CAMPO DE ESCRIBIR, NO DE LA LISTA. Cuando la
+   placa se tecleaba, el tamaño hacía trabajo: quien está al lado del
+   vehículo compara lo que escribió con el papel. Al pasar a
+   desplegable heredó esos 32 px — y el menú nativo copia el tamaño del
+   control, así que salía una lista de siete placas ocupando media
+   pantalla. Escoger de una lista no necesita ese tamaño: el error de
+   dedo que el tamaño prevenía ya no existe.
+
+   Queda del mismo alto y la misma familia que el de ruta, con la placa
+   un punto más grande y espaciada, que es como se lee una placa. */
+
+
+
+.tp .ruta-sel .voltear:disabled { opacity: .35; cursor: not-allowed }
+
+/* El alta rápida, la que cuelga del «＋». Va con fondo propio para que
+   se lea como "estás agregando algo", no como un campo más del viaje. */
+.tp .alta {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 9px;
+  padding: 10px; border-radius: 3px;
+  background: color-mix(in srgb, var(--tp-ojo) 10%, #fff);
+  border: 1px solid color-mix(in srgb, var(--tp-ojo) 45%, #fff);
+}
+.tp .alta input, .tp .alta select {
+  font: inherit; font-size: 16px; flex: 1 1 140px; min-width: 0; height: 44px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; padding: 0 12px;
+  background: var(--tp-papel); color: var(--tp-tinta);
+}
+.tp .alta .fl { color: var(--tp-gris); flex: none }
+.tp .alta .btn { flex: 0 0 auto }
+@media (max-width: 520px) { .tp .alta .btn { flex: 1 1 100% } }
+
+/* =====================================================================
+   EL DESPLEGABLE PROPIO
+   ---------------------------------------------------------------------
+   Reemplaza al <select> nativo, cuya lista la dibuja el sistema
+   operativo: el azul, la letra y el alto de cada renglón no los pone el
+   CSS y no hay propiedad que los cambie.
+
+   FLOTA POR ENCIMA, no empuja. Una lista que abre empujando el
+   formulario hacia abajo mueve el botón de registrar mientras alguien
+   lo está mirando.
+   ===================================================================== */
+.tp .desple { position: relative }
+
+.tp .desple .disparo {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 50px;
+  padding: 0 12px; cursor: pointer; text-align: left;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+  font: 500 16px var(--tp-texto);
+}
+.tp .desple .disparo:hover { border-color: var(--tp-ojo) }
+.tp .desple .disparo[aria-expanded="true"],
+.tp .desple .disparo:focus-visible {
+  outline: none; background: var(--tp-papel); border-color: var(--tp-ojo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-ojo) 25%, transparent);
+}
+.tp .desple .disparo > span {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Lo que todavía no se ha escogido no se ve igual que lo escogido. */
+.tp .desple .disparo .sin { color: var(--tp-gris) }
+.tp .desple .disparo i {
+  font-style: normal; color: var(--tp-gris); font-weight: 400; margin-left: 8px; font-size: 13px;
+}
+.tp .desple .disparo .flecha {
+  width: 15px; height: 15px; flex: none; stroke: var(--tp-gris); stroke-width: 2.2;
+  fill: none; stroke-linecap: round; stroke-linejoin: round; transition: transform .14s;
+}
+.tp .desple .disparo[aria-expanded="true"] .flecha { transform: rotate(180deg) }
+
+/* La placa se lee un punto más grande y espaciada, como una placa. */
+.tp .desple.grande .disparo .puesto {
+  font-family: var(--tp-titulo); font-weight: 800; font-size: 17px; letter-spacing: .06em;
+}
+
+.tp .desple .opciones {
+  /* `display: block` ESCRITO, no heredado. En este mismo archivo hay
+     un `.tp .opciones { display: flex }` —los botones de opción de un
+     formulario, otra cosa con el mismo nombre—. Mi regla gana por
+     especificidad en todo lo que SÍ declara, pero nunca declaró
+     `display`, así que la lista heredaba aquel flex y se encogía al
+     contenido: 99 px de ancho dentro de un desplegable de 492. */
+  display: block;
+  position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 70;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
+  box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .45); overflow: hidden;
+}
+/* El filo del módulo arriba: es lo que hace que la lista se lea como
+   parte de esta pantalla y no como una ventana de otro programa. */
+.tp .desple .opciones::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  background: var(--tp-ojo); z-index: 1;
+}
+.tp .desple .rollo { max-height: 268px; overflow-y: auto; padding: 4px 0 }
+.tp .desple .filtro { padding: 9px 9px 7px; border-bottom: 1px solid var(--tp-fondo) }
+.tp .desple .filtro input {
+  font: inherit; font-size: 15px; width: 100%; height: 38px; padding: 0 11px;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px;
+  background: var(--tp-fondo); color: var(--tp-tinta);
+}
+.tp .desple .filtro input:focus { outline: none; border-color: var(--tp-ojo); background: var(--tp-papel) }
+
+.tp .desple .opciones button {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 42px;
+  padding: 9px 13px; border: 0; background: none; cursor: pointer; text-align: left;
+  font: 500 15px var(--tp-texto); color: var(--tp-tinta);
+  border-left: 3px solid transparent;
+}
+.tp .desple .opciones button > span {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tp .desple .opciones button i {
+  font-style: normal; color: var(--tp-gris); font-size: 12.5px; margin-left: 8px;
+}
+/* MARCADA es donde está el cursor —teclado o mouse—; ELEGIDA es la que
+   está puesta. Son dos cosas distintas y por eso se ven distinto: una
+   es fondo, la otra es el tic y el filo. */
+.tp .desple .opciones button.marcada { background: var(--tp-fondo) }
+.tp .desple .opciones button.elegida {
+  font-weight: 700; border-left-color: var(--tp-ojo);
+  background: color-mix(in srgb, var(--tp-ojo) 10%, #fff);
+}
+.tp .desple .opciones .tic {
+  width: 15px; height: 15px; flex: none; stroke: var(--tp-ojo); stroke-width: 2.6;
+  fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0;
+}
+.tp .desple .opciones button.elegida .tic { opacity: 1 }
+
+.tp .desple.grande .opciones button {
+  font-family: var(--tp-titulo); font-weight: 700; font-size: 15px; letter-spacing: .05em;
+}
+.tp .desple.grande .opciones button.elegida { font-weight: 900 }
+
+.tp .desple .opciones button.mas {
+  border-top: 1px solid var(--tp-fondo); color: var(--tp-gris); font-weight: 600;
+}
+.tp .desple .opciones button.mas.marcada { color: var(--tp-tinta) }
+.tp .desple .nada { padding: 14px 13px; font-size: 13px; color: var(--tp-gris) }
+
+/* ====================== Filtros de varios a la vez ======================
+
+   REEMPLAZAN A LOS DESPLEGABLES DE TURNO Y TIPO. Un <select> escoge UNA
+   cosa: para ver el turno A y el C juntos —dejando fuera el B— no había
+   forma de decírselo. Estos botones se prenden y se apagan, así que
+   escoger dos es tocar dos.
+
+   OCUPAN MÁS SITIO QUE UN DESPLEGABLE CERRADO, y eso se paga a cambio
+   de ver qué está puesto sin abrir nada. Con tres turnos y nueve tipos
+   cabe; el día que sean treinta tipos habrá que volver a pensarlo.
+
+   `.grupo-f` Y NO `.grupo`: en este proyecto ya se han pisado cinco
+   clases con nombre genérico entre módulos. El sufijo no es feo, es
+   barato.
+   ======================================================================= */
+.tp .grupo-f { min-width: 0; display: grid; gap: 6px; align-content: start }
+.tp .grupo-r {
+  display: flex; align-items: center; gap: 6px;
+  font: 700 10px var(--tp-texto); letter-spacing: .13em;
+  text-transform: uppercase; color: var(--tp-gris);
+}
+/* Cuántos hay puestos. Con nueve tipos y tres escogidos, contar los
+   botones prendidos es trabajo que puede hacer la pantalla. */
+.tp .grupo-r i {
+  font-style: normal; font-size: 9px; letter-spacing: 0;
+  background: var(--tp-ojo); color: #fff;
+  min-width: 15px; height: 15px; border-radius: 8px;
+  display: inline-grid; place-items: center; padding: 0 4px;
+}
+.tp .grupo-b { display: flex; gap: 5px; flex-wrap: wrap }
+.tp .grupo-b button {
+  min-height: 38px; padding: 0 12px; cursor: pointer; border-radius: 3px;
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  font: 700 12.5px var(--tp-titulo); color: var(--tp-gris);
+  white-space: nowrap;
+}
+.tp .grupo-b button:hover { border-color: var(--tp-ojo); color: var(--tp-tinta) }
+/* EL PRENDIDO VA EN --tp-grupo, NO EN EL ACENTO, y eso se midió: el
+   acento del tema es ámbar en cuatro de los siete, y ámbar con letra
+   blanca a 12,5 px da 3.38 de contraste — por debajo de 4.5, que es el
+   mínimo para texto de ese tamaño. Es la misma lección que ya costó el
+   color de las barras del tablero: el acento es una marca, no un fondo
+   para texto chico.
+
+   EL TOKEN SE LLAMA --c-grupo, no --tp-grupo. Se escribió mal la
+   primera vez y `background: var(--tp-grupo)` con un token inexistente
+   no es un error: la declaración se descarta en silencio, el fondo se
+   queda transparente y la letra blanca desaparece sobre el papel. Es la
+   peor clase de fallo de CSS, el que no se queja.
+
+   --c-grupo es el azul casi negro que ya usan la cabecera, el botón HOY
+   y las cabeceras de la matriz, así que además queda consistente sin
+   inventar un color nuevo. */
+.tp .grupo-b button.on {
+  background: var(--c-grupo); color: var(--tp-sobre-grupo, #fff);
+  border-color: var(--c-grupo);
+}
+/* El foco se ve: son botones y se navegan con el tabulador. */
+.tp .grupo-b button:focus-visible {
+  outline: 2px solid var(--tp-tinta); outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+  .tp .grupo-b button { min-height: 36px; padding: 0 10px; font-size: 12px }
+}
+
+/* ---------- Mientras se aplica un filtro ----------
+
+   LA RAYITA VA ABAJO DE LA TARJETA, no encima de los botones: lo que se
+   está mirando es el botón que se acaba de prender, y un giradorcito en
+   el medio taparía justo eso.
+
+   NADA SE APAGA NI SE PONE EL CURSOR DE ESPERA. Bloquear los botones
+   mientras carga impediría seguir escogiendo —prender A y C seguidos es
+   exactamente lo que hay que poder hacer— y de paso rompería el
+   agrupado, que es lo que hace esto rápido. */
+.tp .filtros { position: relative }
+.tp .filtros.cargando::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  border-radius: 0 0 3px 3px;
+  background-image: linear-gradient(90deg, transparent, var(--c-grupo), transparent);
+  background-size: 40% 100%; background-repeat: no-repeat;
+  animation: tp-corre 1s linear infinite;
+}
+@keyframes tp-corre {
+  from { background-position: -40% 0 }
+  to   { background-position: 140% 0 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp .filtros.cargando::after { animation: none; background-position: 50% 0 }
+}
+
+/* ===================== LA TARJETA DE ADHERENCIA (CELULAR) ===========
+
+   EN EL ESCRITORIO la misma información va en tres bloques —el panel
+   del porcentaje, las seis cifras y la cinta con su leyenda— y ahí
+   funciona: caben lado a lado.
+
+   EN EL CELULAR esos tres, apilados, miden más de una pantalla entera:
+   hay que rodar para ver el 63 %, rodar otra vez para ver de cuántos, y
+   rodar de nuevo para saber cuántos faltan. Tres viajes por la misma
+   respuesta. Así que por debajo de 900 px se esconden y en su lugar va
+   ESTA, que dice lo mismo en el orden en que alguien lo pregunta.
+
+   LOS COLORES SALEN DE LOS TOKENS DEL MÓDULO, no de hexadecimales
+   escritos aquí: --tp-ojo es el acento del tema y --c-grupo la banda
+   oscura, así que la tarjeta cambia con los siete temas sin una sola
+   regla por tema. Medido en `.arnes/tp-kpi.mjs`.
+   ==================================================================== */
+.tp .tk { display: none }
+
+.tp .tk-cab { padding: 18px 20px 0 }
+.tp .tk-r {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .16em; color: var(--tp-gris);
+}
+.tp .tk-fila {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 12px; margin-top: 10px;
+}
+.tp .tk-pct {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 62px;
+  line-height: .88; letter-spacing: -.05em;
+}
+.tp .tk-frac { text-align: right }
+.tp .tk-frac b {
+  display: block; font-family: var(--tp-titulo); font-weight: 900; font-size: 26px; line-height: 1;
+}
+.tp .tk-frac span {
+  display: block; font-size: 11.5px; color: var(--tp-gris); margin-top: 3px; letter-spacing: .04em;
+}
+
+/* LA CINTA NO LLEVA EL TRAMO QUE FALTA como un hijo más: lo que falta
+   es el fondo. Así, si los dos tramos no suman 100, lo que sobra se ve
+   igual — y no depende de que un tercer porcentaje esté bien. */
+.tp .tk-barra {
+  display: flex; height: 16px; margin: 16px 20px 0;
+  background: var(--tp-fondo); overflow: hidden;
+}
+.tp .tk-barra i { display: block; height: 100% }
+.tp .tk-barra .c, .tp .tk-ley i.c { background: var(--tp-ojo) }
+/* El acento un escalón más hondo para los adicionales: es el MISMO
+   color, no otro —son viajes que sí salieron—, y por eso se mezcla con
+   negro en vez de escoger un tono aparte que habría que mantener por
+   tema.
+
+   EL 50 % SALE DE MEDIR, no de mirar: con 62 % la cifra «3
+   ADICIONALES» contrastaba 4,12 contra el papel blanco en los temas
+   ámbar, negro, gris y halo —por debajo del 4,5 que pide letra de 22
+   px—. Al 50 % los siete pasan, y de paso los dos tramos de la cinta se
+   separan más. */
+.tp .tk-barra .a, .tp .tk-ley i.a { background: color-mix(in srgb, var(--tp-ojo) 50%, #000) }
+
+.tp .tk-ley {
+  display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 20px 16px;
+  font-size: 11px; color: var(--tp-gris);
+}
+.tp .tk-ley span { display: inline-flex; align-items: center; gap: 6px }
+.tp .tk-ley i { width: 10px; height: 10px; display: inline-block; flex: none }
+.tp .tk-ley i.f { background: var(--tp-fondo); border: 1px solid var(--tp-linea) }
+
+.tp .tk-rejilla {
+  display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--tp-linea);
+}
+.tp .tk-rejilla > div {
+  padding: 14px 6px; text-align: center;
+  border-right: 1px solid var(--tp-linea); border-bottom: 1px solid var(--tp-linea);
+}
+.tp .tk-rejilla > div:nth-child(3n) { border-right: 0 }
+.tp .tk-rejilla > div:nth-child(n+4) { border-bottom: 0 }
+.tp .tk-rejilla b {
+  display: block; font-family: var(--tp-titulo); font-weight: 900; font-size: 22px; line-height: 1;
+}
+.tp .tk-rejilla span {
+  display: block; font-size: 9.5px; letter-spacing: .1em; color: var(--tp-gris); margin-top: 6px;
+}
+.tp .tk-rejilla .mal b { color: var(--tp-mal) }
+.tp .tk-rejilla .ac b { color: color-mix(in srgb, var(--tp-ojo) 50%, #000) }
+.tp .tk-rejilla .apag b { color: var(--tp-gris) }
+
+/* LA BANDA CIERRA, y es la única línea de la tarjeta que dice qué
+   HACER: lo de arriba informa, esto es lo que queda por mover antes de
+   cerrar el turno. Por eso va en el color de banda del módulo y el
+   número en el acento aclarado —el token que ya está medido para leerse
+   encima de esa banda en los siete temas—. */
+.tp .tk-pie {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 15px 20px; background: var(--c-grupo); color: #fff;
+}
+/* .95 y no .82: la banda del tema pizarra no es oscura sino un verde
+   medio, y con el blanco rebajado al 82 % el rótulo daba 4,16. */
+.tp .tk-pie span { font-size: 12px; letter-spacing: .04em; opacity: .95 }
+.tp .tk-pie b {
+  font-family: var(--tp-titulo); font-weight: 900; font-size: 26px;
+  color: var(--tp-sobre-grupo);
+}
+
+@media (max-width: 900px) {
+  .tp .tk {
+    display: block; background: var(--tp-papel);
+    border: 1px solid var(--tp-linea); border-radius: 3px; overflow: hidden;
+  }
+  /* Y SE VAN LOS TRES QUE ESTA REEMPLAZA. No se esconde `.medidor`
+     entero: los anillos por turno siguen ahí abajo, que es información
+     que la tarjeta no trae. */
+  .tp .cabeza-ctl .panel-ojo,
+  .tp .cifras.seis,
+  .tp .medidor .avance { display: none }
+}
+
+/* ---------------------------------------------------------------------
+   EL DÍA CERRADO
+
+   Se dice ANTES de llenar nada, no al tocar «Registrar». El candado vive
+   en la base y rechaza venga de donde venga —eso no cambia—, pero un
+   rechazo que llega después de ocho campos se lee como un fallo de la
+   aplicación y no como una regla: la primera reacción es reintentar y la
+   segunda es llamar a preguntar qué se rompió.
+
+   VA EN ÁMBAR Y NO EN ROJO. No pasó nada malo: el día se cerró, que es
+   lo que tiene que pasar. El rojo es para lo que hay que arreglar.
+
+   El ámbar va a mano y no por token —--c-oro es ROJO PURO en tres de los
+   siete temas— y este par está medido contra el crema, no mirado.
+   --------------------------------------------------------------------- */
+.tp .aviso-cerrado {
+  background: #FFF8E6; box-shadow: inset 4px 0 0 #C08A16; border-color: #EBD9A6;
+}
+.tp .aviso-cerrado h2 { color: #3D2A00 }
+.tp .aviso-cerrado p { color: #5E4100; margin: 8px 0 0; line-height: 1.55; max-width: 74ch }
+.tp .aviso-cerrado p b { color: #3D2A00 }
+
+/* ---------------------------------------------------------------------
+   CUÁNTO LLEVA DE CADA TIPO
+
+   Aparece SOLO cuando hay tipos escogidos, y crece con ellos. Un bloque
+   fijo con diez casillas —una por tipo del maestro— sería pedir diez
+   cifras para llenar una, y empujaría el botón de registrar fuera de la
+   pantalla en el celular.
+
+   EL CONTADOR DE VIAJES SE FUE DE AQUÍ. Un vehículo es un viaje; lo que
+   puede ser más de uno son los tipos que lleva. El contador sigue
+   existiendo para los vacíos, que sí son un número de viajes del turno.
+   --------------------------------------------------------------------- */
+.tp .rot-suave {
+  font-style: normal; font-weight: 500; letter-spacing: 0;
+  text-transform: none; color: var(--tp-gris);
+}
+.tp .por-tipo { display: flex; flex-direction: column; gap: 8px }
+.tp .pt-fila {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 200px);
+  gap: 10px; align-items: center;
+}
+.tp .pt-nombre {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0;
+  font: 600 14px var(--tp-texto); color: var(--tp-tinta); overflow-wrap: anywhere;
+}
+/* CUÁL ES EL PRINCIPAL, DICHO. Es el que queda en la columna del viaje y
+   el que sale en la lista de abajo; sin decirlo, el orden en que se
+   tocaron los chips sería una regla invisible. */
+.tp .pt-nombre i {
+  flex: none; font-style: normal;
+  font: 700 9.5px var(--tp-texto); letter-spacing: .12em; text-transform: uppercase;
+  color: #5E4100; background: #FFF8E6; border: 1px solid #EBD9A6;
+  padding: 2px 6px; border-radius: 2px;
+}
+.tp .pt-fila input {
+  min-height: 44px; padding: 0 12px; width: 100%; min-width: 0;
+  font: 500 14px var(--tp-texto); color: var(--tp-tinta);
+  background: #fff; border: 1.5px solid var(--tp-linea); border-radius: 2px;
+}
+.tp .pt-fila input:focus { outline: none; border-color: var(--tp-acento) }
+
+@media (max-width: 620px) {
+  /* En el celular el nombre y la cifra se apilan: con dos columnas,
+     «Averías/Isotanque» deja la casilla en una rendija. */
+  .tp .pt-fila { grid-template-columns: minmax(0, 1fr); gap: 4px }
+}
+
+/* =====================================================================
+   DEPURAR VIAJES (solo quien administra) — la casilla y la barra de
+   abajo. Las usan Facturación y el Control del día.
+   ===================================================================== */
+.fc-check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-size: 13.5px; font-weight: 600 }
+.fc-check input { width: 22px; height: 22px; accent-color: var(--tp-tinta); cursor: pointer }
+/* LA BARRA DE DEPURAR, CLARA Y EN EL COLOR DEL TEMA: papel, una raya
+   del acento arriba y la acción escogida en el acento. El rojo queda
+   solo para «Eliminar», que es lo único que no tiene vuelta atrás. */
+.fc-dep { position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); left: 16px; width: calc(100vw - 32px); z-index: 60; animation: fc-dep-sube .16s ease-out }
+@keyframes fc-dep-sube { from { transform: translateY(12px); opacity: .5 } }
+@media (prefers-reduced-motion: reduce) { .fc-dep { animation: none } }
+.fc-dep-in {
+  display: grid; grid-template-columns: auto auto minmax(180px, 1fr) auto; gap: 10px 14px; align-items: center;
+  padding: 14px 16px; border-radius: 14px; background: var(--tp-papel); color: var(--tp-tinta);
+  border: 1px solid var(--tp-linea); border-top: 4px solid var(--tp-acento);
+  box-shadow: 0 18px 40px -18px rgba(10, 30, 60, .35);
+}
+.fc-dep-n { margin: 0; font-size: 14px; white-space: nowrap; color: var(--tp-gris) }
+.fc-dep-n b { font: 900 20px var(--tp-titulo); color: var(--tp-tinta) }
+.fc-dep-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--tp-fondo); flex-wrap: wrap }
+.fc-dep-seg button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: none; color: var(--tp-tinta); font: 700 13px var(--tp-texto); cursor: pointer }
+.fc-dep-seg button.on { background: var(--tp-acento); color: var(--tp-sobre-acento) }
+.fc-dep-seg button.peligro.on { background: #C8102E; color: #fff }
+.fc-dep-motivo { min-height: 44px; min-width: 0; padding: 0 12px; border-radius: 9px; border: 1.5px solid var(--tp-linea); background: #fff; color: #12263A; font: 500 14px var(--tp-texto) }
+.fc-dep-motivo:focus { outline: 2px solid var(--tp-acento); outline-offset: 1px; border-color: var(--tp-acento) }
+.fc-dep-bot { display: flex; gap: 8px }
+.fc-dep-bot .btn { min-height: 44px; white-space: nowrap }
+.fc-dep-bot .btn.si.peligro { background: #C8102E; border-color: #C8102E; color: #fff }
+.fc-dep-dice { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--tp-gris) }
+
+@media (max-width: 1000px) {
+  .fc-dep-in { grid-template-columns: auto minmax(0, 1fr) }
+  .fc-dep-motivo, .fc-dep-bot { grid-column: 1 / -1 }
+  .fc-dep-bot .btn { flex: 1 }
+}@media (max-width: 760px) {
+  .fc-dep-in { grid-template-columns: minmax(0, 1fr) }
+  .fc-dep-seg { width: 100% } .fc-dep-seg button { flex: 1 }
+}
+/* La casilla dentro de las tablas del control del día. */
+.tp .cr-tabla .cr-sel { width: 44px; padding-top: 0; padding-bottom: 0 }
+.tp .cr-tabla .cr-sel .fc-check { min-height: 40px }
+.tp .cr-tabla tr.marcado td { background: color-mix(in srgb, var(--tp-acento) 9%, var(--tp-papel)) }
+
+</style><div><div class="marco"><div class="tp">
+<section class="cabeza-ctl"><div>
+<p class="ojo">TRASPASOS · CD38 AG01 · LUNES 14 DE SEPTIEMBRE</p>
+<h1>Control y ejecución</h1>
+<p class="sub">Lo que se planeó contra lo que de verdad salió, turno por turno y tipo por tipo.</p></div>
+<div class="der-ctl">
+<div class="acciones-informe">
+<button class="accion"><svg viewBox="0 0 24 24"><path d="M20 11.5A8 8 0 1 1 17.7 6"/><path d="M20 4v6h-6"/></svg>Actualizar</button>
+<button class="accion"><svg viewBox="0 0 24 24"><path d="M8 3.5h5.5L18 8v12.5H6V3.5z"/><path d="M13.5 3.5V8H18"/></svg>Generar PDF</button></div>
+<div class="panel-ojo"><div class="corte"></div><div class="rot">ADHERENCIA AL PLAN</div>
+<div class="num">64%</div><div class="pie">del plan salieron <b>18 de 28</b></div></div>
+</div></section>
+
+<section class="filtros"><div class="arriba">
+<label class="sel"><span>Período</span><select><option>Hoy</option></select></label>
+<label class="sel"><span>Turno</span><select><option>Todos los turnos</option></select></label>
+<label class="sel"><span>Tipo de viaje</span><select><option>Todos los tipos</option></select></label>
+<button class="limpiar">Restablecer</button></div></section>
+
+<section class="medidor"><div class="avance">
+<div class="arr"><b>64%</b><span>de cumplimiento · <b>18</b> de <b>28</b> viajes planeados</span></div>
+<div class="cinta"><i class="ok" style="width:64.28571428571429%"></i><i class="extra" style="width:10.714285714285714%"></i><i class="falta" style="width:24.999999999999993%"></i></div>
+<div class="leyenda-cinta"><span><i style="background:var(--tp-ojo)"></i> 18 del plan</span>
+<span><i style="background:color-mix(in srgb,var(--tp-ojo) 45%,#fff)"></i> 3 adicionales</span>
+<span><i style="background:var(--tp-fondo);border:1px dashed var(--tp-linea)"></i> 10 sin salir</span></div></div>
+<div class="turnos">
+<div class="turno"><svg viewBox="0 0 86 86">
+<circle cx="43" cy="43" r="34" fill="none" stroke="var(--tp-fondo)" stroke-width="10"/>
+<circle cx="43" cy="43" r="34" fill="none" stroke="var(--tp-ojo)" stroke-width="10"
+ stroke-linecap="butt" stroke-dasharray="160.22122533307947 213.62830044410595" transform="rotate(-90 43 43)"/>
+<text x="43" y="49" text-anchor="middle" font-family="Archivo" font-weight="900" font-size="20"
+ fill="var(--tp-tinta)">75%</text></svg><b>Turno C</b><span>12 de 16</span></div>
+<div class="turno"><svg viewBox="0 0 86 86">
+<circle cx="43" cy="43" r="34" fill="none" stroke="var(--tp-fondo)" stroke-width="10"/>
+<circle cx="43" cy="43" r="34" fill="none" stroke="var(--tp-ojo)" stroke-width="10"
+ stroke-linecap="butt" stroke-dasharray="160.22122533307947 213.62830044410595" transform="rotate(-90 43 43)"/>
+<text x="43" y="49" text-anchor="middle" font-family="Archivo" font-weight="900" font-size="20"
+ fill="var(--tp-tinta)">75%</text></svg><b>Turno A</b><span>6 de 8</span></div>
+<div class="turno"><svg viewBox="0 0 86 86">
+<circle cx="43" cy="43" r="34" fill="none" stroke="var(--tp-fondo)" stroke-width="10"/>
+<circle cx="43" cy="43" r="34" fill="none" stroke="var(--tp-mal)" stroke-width="10"
+ stroke-linecap="butt" stroke-dasharray="0 213.62830044410595" transform="rotate(-90 43 43)"/>
+<text x="43" y="49" text-anchor="middle" font-family="Archivo" font-weight="900" font-size="20"
+ fill="var(--tp-tinta)">0%</text></svg><b>Turno B</b><span>0 de 4</span></div></div></section>
+
+<section class="alertas">
+<div class="alerta"><b>10</b> viajes sin salir</div>
+<div class="alerta"><b>2</b> viajes vacíos</div>
+<div class="alerta neutra"><b>3</b> adicionales no planeados</div>
+<div class="alerta bien"><b>1</b> tipo al 100% · Estibas</div></section>
+
+<section class="panel-tabla"><div class="cab-tabla"><h2>Por tipo de viaje</h2>
+<p>El cumplido no se escribe aquí: lo cuentan los viajes registrados. Si un número no cuadra, lo que falta es registrar el viaje —y ahí queda con su placa, que es lo que después permite decir cuál fue.</p></div>
+<div class="tabla-envuelta"><table>
+<thead><tr><th>Tipo</th><th>Turno</th><th class="n">Planeado</th><th>Cumplido</th><th class="mini"></th><th class="n">%</th><th class="n">Faltan</th></tr></thead>
+<tbody><tr><td class="nom">PET</td><td>C</td><td class="n">8</td>
+  <td><span class="cuenta">6</span></td>
+  <td class="mini"><div class="pista"><div class="relleno" style="width:75%;background:var(--tp-ojo)"></div></div></td>
+  <td class="n pct medio">75%</td><td class="n">2</td></tr><tr><td class="nom">Vidrio</td><td>C</td><td class="n">7</td>
+  <td><span class="cuenta">4</span></td>
+  <td class="mini"><div class="pista"><div class="relleno" style="width:57%;background:var(--tp-ojo)"></div></div></td>
+  <td class="n pct medio">57%</td><td class="n">3</td></tr><tr><td class="nom">Canastas</td><td>C</td><td class="n">6</td>
+  <td><span class="cuenta">5</span></td>
+  <td class="mini"><div class="pista"><div class="relleno" style="width:83%;background:var(--tp-ojo)"></div></div></td>
+  <td class="n pct medio">83%</td><td class="n">1</td></tr><tr><td class="nom">Tarros</td><td>C</td><td class="n">3</td>
+  <td><span class="cuenta">2</span></td>
+  <td class="mini"><div class="pista"><div class="relleno" style="width:67%;background:var(--tp-ojo)"></div></div></td>
+  <td class="n pct medio">67%</td><td class="n">1</td></tr><tr><td class="nom">Estibas</td><td>C</td><td class="n">1</td>
+  <td><span class="cuenta">1</span></td>
+  <td class="mini"><div class="pista"><div class="relleno" style="width:100%;background:var(--tp-bien)"></div></div></td>
+  <td class="n pct bien">100%</td><td class="n">—</td></tr><tr><td class="nom">Plástico</td><td>C</td><td class="n">1</td>
+  <td><span class="cuenta">0</span></td>
+  <td class="mini"><div class="pista"><div class="relleno" style="width:0%;background:var(--tp-mal)"></div></div></td>
+  <td class="n pct mal">0%</td><td class="n">1</td></tr><tr><td class="nom">Preforma</td><td>C</td><td class="n">2</td>
+  <td><span class="cuenta">0</span></td>
+  <td class="mini"><div class="pista"><div class="relleno" style="width:0%;background:var(--tp-mal)"></div></div></td>
+  <td class="n pct mal">0%</td><td class="n">2</td></tr></tbody>
+<tfoot><tr><td>Total del día</td><td></td><td class="n">28</td><td class="n">18</td><td class="mini"></td><td class="n">64%</td><td class="n">10</td></tr></tfoot>
+</table></div></section>
+</div></div>

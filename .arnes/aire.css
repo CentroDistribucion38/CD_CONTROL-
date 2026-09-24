@@ -1,0 +1,201 @@
+
+===== src/app/globals.css =====
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .banda .eyebrow { font-size: 11.5px }
+  .ht { font-size: 11.5px }
+  .hmeta { font-size: 12px }
+  .hbadge { font-size: 12px }
+  .ct { font-size: 11.5px }
+  .cn { font-size: 12px }
+  .leyenda { font-size: 12px }
+  .eje { font-size: 12px }
+  .dato { font-size: 12px }
+  .cod { font-size: 12px }
+  .pie { font-size: 12px }
+}
+// A MANO (no son blancos de toque o viven en una rejilla): .chip i  (8px)
+
+===== src/app/(app)/shell.css =====
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .sh-lado .grupo { font-size: 12px }
+  .sh-lado .sello .letras span { font-size: 12px }
+}
+// A MANO (no son blancos de toque o viven en una rejilla): .cp-ojo::before  (3px)
+
+===== src/app/(app)/quiebra/quiebra.css =====
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .qb .kpi .rot { font-size: 12px }
+  .qb .semana span { font-size: 12px }
+  .qb .cifra .rot { font-size: 12px }
+  .qb .grafico .eje { font-size: 12px }
+  .qb .grafico .val { font-size: 12px }
+  .qb .cuerpo.doble .rotulo { font-size: 12.5px }
+  .qb .hoja-impresa .sello-fecha { font-size: 12px }
+  .qb .cabeza .sub { font-size: 12px }
+  .qb .tarjeta .cab p { font-size: 12px }
+  .qb .leyenda { font-size: 12.5px }
+  .qb .fila .nom, .qb .fila .pct { font-size: 12px }
+  .qb tbody td { font-size: 12px }
+  .qb tbody td .cod { font-size: 12.5px }
+  .qb thead th { font-size: 12.5px }
+  .qb .nota-pie { font-size: 12px }
+  .qb .conteo .rot { font-size: 12px }
+
+  /* Blancos de toque cortos */
+  .qb .opciones button .tic { height: 44px }
+  .qb .mes-cab button { height: 44px }
+  .qb .chip { height: 44px }
+}
+// A MANO (no son blancos de toque o viven en una rejilla): .qb .mes-cab button svg  (13px), .qb .dias button  (32px), .qb .chip i  (9px)
+
+===== src/app/(app)/quiebra/diario/diario.css =====
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .qd .qd-sello { font-size: 11px }
+  .qd .qd-mini-c .rot { font-size: 12px }
+  .qd .qd-fila-dia.ancla td.mes::after { font-size: 11px }
+  .qd .rj th.rot em { font-size: 12px }
+  .qd .rj thead th button span { font-size: 12px }
+  .qd .rj-mas { font-size: 12px }
+  .qd .qd-linea .num::before { font-size: 11.5px }
+
+  /* Blancos de toque cortos */
+  .qd .qd-atajos button { height: 44px }
+  .qd .qd-le input { height: 44px }
+  .qd .qd-caja input { height: 44px }
+}
+// A MANO (no son blancos de toque o viven en una rejilla): .qd .dias button.escrito::after  (4px), .qd td.tic input  (16px), .qd .rj td.cel input  (34px)
+
+===== src/app/(app)/sider/sider.css =====
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .sd .kpi .chip { font-size: 12px }
+  .sd .cifra .rot { font-size: 12px }
+  .sd .m-faltan .cuales { font-size: 12px }
+  .sd .ct-ubi .rot { font-size: 12px }
+  .sd .ct-tiquete .rot { font-size: 12px }
+  .sd .ct-tiquete .cifras-t span { font-size: 12.5px }
+  .sd .ct-pasos button { font-size: 12px }
+  .sd .ct-op span { font-size: 12px }
+  .sd .ct-revision dt { font-size: 12.5px }
+  .sd .ct-revision dd em { font-size: 12px }
+  .sd .tr-grupo-cab .tr-tarde { font-size: 12px }
+  .sd .tr-mat em { font-size: 12px }
+  .sd .tr-salio em { font-size: 12px }
+  .sd .tr-rot { font-size: 12px }
+  .sd .sg-barra label span { font-size: 12px }
+  .sd .ev-ojo i { font-size: 12px }
+  .sd .ev-hoja header .rot { font-size: 12px }
+  .sd .ev-rot { font-size: 12px }
+  .sd .ev-forms dt { font-size: 11.5px }
+  .sd .ev-forms dd em { font-size: 12px }
+  .sd .ev-donde span { font-size: 12px }
+  .sd .ev-fotos figcaption { font-size: 12px }
+  .sd .ex-mes span { font-size: 12px }
+  .sd .zl-mapa span { font-size: 12px }
+  .sd .im-pes button span { font-size: 12px }
+  .sd .sg-grupo th { font-size: 11px }
+  .sd .sg-orden i { font-size: 12.5px }
+  .sd .sg-aparte-det > summary { font-size: 12px }
+  .sd .sg-seg > label > span { font-size: 11.5px }
+  .sd .sg-seg-cifras span { font-size: 12.5px }
+  .sd .sg-marca { font-size: 11.5px }
+  .sd .sg-mes .mes-semana span { font-size: 12.5px }
+  .sd .sg-panel .resumen span { font-size: 12.5px }
+  .sd .chapa-gris { font-size: 12.5px }
+  .sd .cabeza .ojo { font-size: 12px }
+  .sd .kpi .delta { font-size: 12.5px }
+  .sd .sg-filtros .sel > span { font-size: 12px }
+  .sd .sg-paso .bolita { font-size: 12px }
+  .sd .vj-ojo { font-size: 12px }
+  .sd .vj-motivo-campo em { font-size: 12px }
+  .sd .ex-todo.on em { font-size: 12px }
+
+  /* Blancos de toque cortos */
+  .sd input[type="text"], .sd input[type="number"], .sd select { height: 44px }
+  .sd .ct-campos label.ancho input { height: 44px }
+  .sd .tr-filtros input, .sd .tr-filtros select { height: 44px }
+  .sd .ex-fotos input { height: 44px }
+  .sd .ex-btn { height: 44px }
+  .sd .zl-mapa select, .sd .zl-mapa input { height: 44px }
+  .sd .im-filtro select { height: 44px }
+  .sd .sg-filtros select { height: 44px }
+  .sd .sg-mes .mes-anio button { height: 40px }
+  .sd .sg-mes .mes-dias button { height: 40px }
+  .sd .sg-mes .mes-doce button { height: 40px }
+  .sd .vj-filtros input, .sd .vj-filtros select { height: 44px }
+  .sd .vj-filtros .btn.plano { height: 44px }
+  .sd .vj-motivo-campo input { height: 44px }
+}
+// A MANO (no son blancos de toque o viven en una rejilla): .sd .ct-pasos button i  (25px), .sd .ct-pasos button i  (24px), .sd .btn .ic  (16px), .sd .ev-ojo svg  (17px), .sd .sg-mes .mes-anio button svg  (13px)
+
+===== src/app/(app)/admin/roles/roles.css =====
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .rl .rl-roles span { font-size: 12px }
+  .rl .rl-manda { font-size: 11.5px }
+  .rl .rl-nuevo span { font-size: 12px }
+  .rl .rl-nuevo em { font-size: 12px }
+  .rl .rl-todo button { font-size: 12px }
+  .rl .rl-sec em { font-size: 12px }
+  .rl .rl-n { font-size: 12px }
+  .rl .rl-pie span { font-size: 12px }
+
+  /* Blancos de toque cortos */
+  .rl .btn { height: 44px }
+  .rl input { height: 44px }
+}
+
+===== src/app/(app)/admin/usuarios/usuarios.css =====
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+  /* Letra que no se leía */
+  .us .us-clave .rot { font-size: 12px }
+  .us .us-campos span { font-size: 12px }
+
+  /* Blancos de toque cortos */
+  .us .us-campos select { height: 44px }
+}
+
+===== src/app/(app)/perfil/perfil.css =====
+/* ---------- El celular respira ----------
+   Generado desde la auditoría de densidad y comprobado midiendo: la
+   letra sube al suelo de lectura y los botones al blanco que pide un
+   dedo. Solo aplica en pantalla chica; en escritorio no cambia nada. */
+@media (max-width: 700px) {
+
+  /* Blancos de toque cortos */
+  .pf-switch input { height: 44px }
+  .pf-ojo { height: 44px }
+}
+// A MANO (no son blancos de toque o viven en una rejilla): .pf-nav button svg  (17px), .pf-switch input::after  (20px)
