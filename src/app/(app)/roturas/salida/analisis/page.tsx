@@ -48,8 +48,7 @@ const COLORES = [
  * mantener.
  */
 export default async function AnalisisSalidaPage({ searchParams }: {
-  searchParams: Promise<{ desde?: string; hasta?: string; placa?: string; tolva?: string;
-                          color?: string; estado?: string }>;
+  searchParams: Promise<{ desde?: string; hasta?: string; placa?: string; tolva?: string; color?: string }>;
 }) {
   const q = await searchParams;
   const [sal, tol] = await Promise.all([leerSalidas(2000), leerTolvas(false)]);
@@ -62,11 +61,6 @@ export default async function AnalisisSalidaPage({ searchParams }: {
   const placa = (q.placa ?? "").trim();
   const color = COLORES.some((c) => c.id === q.color) ? q.color! : "";
   const tolvaF = (q.tolva ?? "").trim();
-  /* EL ESTADO VIVE EN LA DIRECCIÓN Y NO EN UN useState. Así el filtro
-     se puede mandar por chat —«mira las 8 que esperan Vh»— y volver
-     atrás con el botón del navegador hace lo que uno espera. Un estado
-     en el navegador se pierde al recargar y no se puede pasar. */
-  const estadoF = ["vh", "desp"].includes(q.estado ?? "") ? q.estado! : "";
 
   /* CUÁNDO SALIÓ DE VERDAD. Ver la nota de arriba: tres columnas en
      cascada, que son las tres épocas de este módulo. */
@@ -221,30 +215,6 @@ export default async function AnalisisSalidaPage({ searchParams }: {
     })),
   };
 
-  /* LO QUE SE LISTA SEGÚN EL CHIP. Las cifras de arriba NO cambian con
-     él: son del período, no de la pestaña. Si cambiaran, «Despachado
-     1.167 kg» diría 0 al pararse en «Esperando VH» y parecería que se
-     perdió el mes. */
-  const enLista = estadoF === "desp" ? vivas.filter((s) => s.completa)
-    : estadoF === "vh" ? vivas.filter((s) => s.estado === "cerrada" && !s.completa)
-    : vivas;
-
-  /* LA MÁS VIEJA ESPERANDO. Es lo que convierte «8 sin firmar» en algo
-     sobre lo que alguien hace algo hoy: ocho de ayer es el ritmo
-     normal; una del 11 es una cédula olvidada. */
-  const viejaEsperando = porSalir
-    .map((s) => (cuandoSalio(s) ?? s.creada_en ?? "").slice(0, 10))
-    .filter(Boolean).sort()[0] ?? null;
-  const kgEsperando = porSalir.reduce((t, s) => t + Number(s.neto_kg), 0);
-
-  /* EL MES DE LA CIFRA GRANDE, cuando no hay filtro de fechas: «cuánto
-     salió» sin decir de cuándo no contesta ninguna pregunta. */
-  const mesDeLaCifra = periodoCorto
-    || (completas.length
-        ? new Date((cuandoSalio(completas[0]) ?? hoy) + "").toLocaleDateString("es-CO",
-            { month: "long", year: "numeric" })
-        : "");
-
   /* Las taras en uso. Es el número que más silenciosamente puede estar
      mal: se teclea una vez en el maestro y después se copia a cada
      línea sin que nadie lo vuelva a mirar. */
@@ -362,216 +332,210 @@ export default async function AnalisisSalidaPage({ searchParams }: {
           opciones: tolvasTodas.map((t) => ({ id: t, nombre: t })) },
       ]} />
 
-      {/* =====================================================================
-          TRES TARJETAS Y UNA TABLA
+      {/* ------------------------------------------------------------
+          LA BANDA: LA CIFRA Y DE DÓNDE SALE, JUNTAS.
 
-          «Esto de aquí cambiémoslo por esto para que se vea mejor.»
+          Una cifra sola arriba no deja comprobar nada. Al lado de su
+          bruto y su tara, sí: bruto = tara + neto es una resta que
+          cualquiera puede hacer contra la báscula. Por eso las dos
+          mitades son una sola pieza, con un solo borde.
 
-          LO QUE HABÍA ERAN SEIS BLOQUES: la banda con la cifra y la
-          línea de siete días, cuatro KPI en fila, «Por mes», el anillo
-          de colores y la tabla. Cada uno contestaba algo, y JUNTOS no
-          contestaban nada — al entrar había que decidir por dónde
-          empezar a mirar, que es el trabajo que una pantalla de
-          análisis viene a ahorrar.
-
-          AHORA SON TRES CIFRAS Y LA LISTA:
-            · LO QUE SALIÓ    el número del período. Es el dato.
-            · POR COLOR       de qué está hecho ese número.
-            · LO QUE ESPERA   lo único que no es historia: cédulas
-                              cerradas que todavía no salen. Va en
-                              NEGRO porque es donde alguien tiene que
-                              hacer algo hoy; las otras dos ya pasaron.
-
-          LO QUE SE FUE, Y LO DIGO:
-            · LA LÍNEA DE 7 DÍAS y «Por mes». Con dos meses de datos una
-              tendencia de siete días es ruido; vuelven cuando haya con
-              qué, y mientras tanto el informe en PDF trae los meses.
-            · EL ANILLO. Ocupaba media pantalla para tres cifras que en
-              una barra apilada caben en un renglón — y la barra además
-              deja comparar los tres de un vistazo, que es lo que un
-              anillo hace peor.
-            · «Tolvas despachadas» y «Promedio por tolva». Eran datos de
-              quien afina la operación, no de quien viene a mirar cuánto
-              salió; siguen en el PDF.
-
-          LO QUE **NO** SE FUE: bruto = tara + neto. Es la única resta
-          que deja comprobar la cifra contra la báscula, así que va en
-          el pie de la primera tarjeta en vez de en un bloque propio.
-          ===================================================================== */}
-      <section className="sa-tarjetas">
-        <div className="sa-t">
-          <div className="sa-h">
-            <b>Despachado</b>
-            <span>{mesDeLaCifra ? `${mesDeLaCifra} · ` : ""}kg netos</span>
+          Y LA LÍNEA DE LOS SIETE DÍAS VA DENTRO: contesta «¿esto es
+          mucho?», que es la pregunta que sigue a cualquier cifra y que
+          ningún número suelto contesta.
+          ------------------------------------------------------------ */}
+      <section className="an-hero">
+        <div className="an-neto">
+          <span className="corte" aria-hidden />
+          <div className="k">NETO DESPACHADO</div>
+          <div className="v">{kilos(kg)}<em>kg</em></div>
+          <div className="s">
+            {completas.length} salida{completas.length === 1 ? "" : "s"} completa
+            {completas.length === 1 ? "" : "s"} · {nTolvas} tolva{nTolvas === 1 ? "" : "s"}
+            {periodoCorto && <> · {periodoCorto}</>}
           </div>
-          <div className="sa-n">{kilos(kg)}<em>kg</em></div>
-          <div className="sa-p">
-            {completas.length} salida{completas.length === 1 ? "" : "s"} despachada
-            {completas.length === 1 ? "" : "s"}
-            {/* LA RESTA QUE DEJA COMPROBAR LA CIFRA. Un neto suelto no
-                se puede contrastar contra la báscula; bruto − tara, sí. */}
-            {bruto > 0 && (
-              <em className="sa-resta">
-                {kilos(bruto)} bruto − {kilos(tara)} de tara
-              </em>
-            )}
+          <div className="chispa">
+            <div className="t">ÚLTIMOS 7 DÍAS</div>
+            {/* SIEMPRE CONTRA HOY, esté el filtro donde esté: una
+                tendencia que se mueve con el filtro no es una
+                tendencia, es el mismo dato otra vez. */}
+            <svg viewBox="0 0 110 34" preserveAspectRatio="none" role="img"
+                 aria-label={`Kilos de los últimos siete días: ${dia7.map((d) => Math.round(d.kg)).join(", ")}`}>
+              <polygon points={`0,34 ${puntos} 110,34`} fill="#0D0D0D" opacity=".16" />
+              <polyline points={puntos} fill="none" stroke="#0D0D0D"
+                        strokeWidth="2.4" strokeLinejoin="round" />
+            </svg>
           </div>
         </div>
 
-        <div className="sa-t">
-          <div className="sa-h"><b>Por color</b><span>kg netos despachados</span></div>
-          {/* UNA BARRA APILADA Y NO UN ANILLO. Los tres tramos se
-              comparan de un vistazo porque comparten la misma línea de
-              base; en un anillo hay que estimar ángulos. Y ocupa un
-              renglón en vez de media pantalla.
-              LOS TRES COLORES SIEMPRE EN LA LEYENDA, aunque uno esté en
-              cero: un color que desaparece se lee como «no hay», y lo
-              que dice es «este mes no salió ni un kilo de flint». */}
-          <div className="sa-barra" role="img"
-               aria-label={`Kilos por color: ${colores.map((c) => `${c.etiqueta} ${c.kg}`).join(", ")}`}>
-            {totalColor === 0
-              ? <i className="sa-vacia" style={{ width: "100%" }} />
-              : colores.filter((c) => c.kg > 0).map((c) => (
-                  <i key={c.etiqueta} title={`${c.etiqueta}: ${kilos(c.kg)} kg`}
-                     style={{ width: `${(c.kg / totalColor) * 100}%`,
-                              background: TONO[c.etiqueta] ?? "#C9C9C3" }} />
-                ))}
+        <div className="an-bal">
+          <div className="k">CÓMO SE REPARTE EL BRUTO</div>
+          <div className="pila">
+            <i className="tara" style={{ width: `${pctTara}%` }}>{kilos(tara)}</i>
+            <i className="neto" style={{ width: `${100 - pctTara}%` }}>{kilos(kg)} kg netos</i>
           </div>
-          <div className="sa-ley">
-            {colores.map((c) => (
-              <span key={c.etiqueta}>
-                <i style={{ background: TONO[c.etiqueta] ?? "#C9C9C3" }} aria-hidden />
-                {c.etiqueta}<b>{c.kg > 0 ? kilos(c.kg) : "—"}</b>
-              </span>
-            ))}
+          <div className="ley">
+            <span>Tara de la tolva <b>{kilos(tara)}</b></span>
+            <span>Bruto pesado <b>{kilos(bruto)}</b></span>
           </div>
+          <p>
+            El neto sale de sumar las tolvas, aquí igual que en cada salida. No hay ningún total
+            guardado en la base que pueda quedar desfasado de sus partes.
+          </p>
         </div>
+      </section>
 
-        {/* EN NEGRO PORQUE ES LO ÚNICO QUE NO ES HISTORIA. Las otras dos
-            cifras ya pasaron y no se pueden cambiar; esta son cédulas
-            que están esperando un camión ahora mismo.
-            Y NO VA EN ROJO: esperar el Vh es el estado normal entre
-            pesar y despachar, no un problema. El rojo se gasta en lo que
-            de verdad está mal. */}
-        <div className={"sa-t sa-negra" + (porSalir.length ? "" : " sa-limpia")}>
-          <div className="sa-h"><b>Esperando visto bueno</b><span>kg netos</span></div>
-          <div className="sa-n">{kilos(kgEsperando)}<em>kg</em></div>
-          <div className="sa-p">
-            {porSalir.length} salida{porSalir.length === 1 ? "" : "s"} sin firmar
-            {/* LA MÁS VIEJA CONVIERTE EL NÚMERO EN ALGO QUE SE HACE HOY:
-                ocho de ayer es el ritmo normal; una del 11 es una cédula
-                olvidada. */}
-            {viejaEsperando && <> · la más vieja del {viejaEsperando.slice(8, 10)}/{viejaEsperando.slice(5, 7)}</>}
-            {porSalir.length === 0 && <> · nada pendiente</>}
+      <section className="an-kp">
+        <div className="an-k4">
+          <div className="an-cif">
+            <span className="ic" aria-hidden>
+              <svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z" /></svg>
+            </span>
+            <div><div className="n">{nTolvas}</div><div className="l">Tolvas despachadas</div></div>
+          </div>
+          <div className="s">en esas mismas salidas</div>
+        </div>
+        <div className="an-k4">
+          <div className="an-cif">
+            <span className="ic" aria-hidden>
+              <svg viewBox="0 0 24 24"><path d="M12 4v16M5 8l7-4 7 4M4 12h5l-2.5 5L4 12Zm11 0h5l-2.5 5L15 12Z" /></svg>
+            </span>
+            <div><div className="n">{kilos(promedio)}</div><div className="l">Promedio por tolva</div></div>
+          </div>
+          <div className="s">kg netos · si una salida se sale mucho de aquí, vale la pena mirarla</div>
+        </div>
+        {/* «ESPERANDO VH» Y NO «ESPERANDO FIRMA»: lo que esperan desde
+            que se quitó Validación es un camión. En ámbar y no en rojo:
+            esperar camión es el estado normal entre pesar y despachar. */}
+        <div className={"an-k4" + (porSalir.length ? " aten" : "")}>
+          <div className="an-cif">
+            <span className="ic" aria-hidden>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><path d="M12 8v4.5l3 1.8" /></svg>
+            </span>
+            <div><div className="n">{porSalir.length}</div><div className="l">Esperando Vh</div></div>
+          </div>
+          <div className="s">cédulas cerradas sin salir · no cuentan aquí</div>
+        </div>
+        <div className={"an-k4" + (abiertas.length ? " aten" : "")}>
+          <div className="an-cif">
+            <span className="ic" aria-hidden>
+              <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="1.5" /><path d="M8 10V7a4 4 0 0 1 7-2.6" /></svg>
+            </span>
+            <div><div className="n">{abiertas.length}</div><div className="l">Abiertas</div></div>
+          </div>
+          <div className="s">
+            {kilos(abiertas.reduce((t, s) => t + Number(s.neto_kg), 0))} kg todavía pesándose
           </div>
         </div>
       </section>
 
-      <section className="caja sa-caja">
-        <div className="sa-cab">
-          <h2>Las salidas</h2>
-          {/* LOS CHIPS FILTRAN LA LISTA Y NO LAS CIFRAS DE ARRIBA: si
-              cambiaran, «Despachado 1.167 kg» diría 0 al pararse en
-              «Esperando VH» y parecería que se perdió el mes.
-              SON ENLACES Y NO BOTONES: el filtro queda en la dirección,
-              así se puede mandar por chat y el botón de atrás hace lo
-              que uno espera. */}
-          <div className="sa-chips">
-            {([["", "Todas", vivas.length],
-               ["vh", "Esperando VH", porSalir.length],
-               ["desp", "Despachadas", completas.length]] as const).map(([v, txt, n]) => {
-              const u = new URLSearchParams();
-              if (desde) u.set("desde", desde);
-              if (hasta) u.set("hasta", hasta);
-              if (placa) u.set("placa", placa);
-              if (color) u.set("color", color);
-              if (tolvaF) u.set("tolva", tolvaF);
-              if (v) u.set("estado", v);
-              const qs = u.toString();
-              return (
-                <Link key={v || "todas"} scroll={false}
-                      href={`/roturas/salida/analisis${qs ? `?${qs}` : ""}`}
-                      className={"btn sa-chip" + (estadoF === v ? " on" : "")}
-                      aria-current={estadoF === v ? "true" : undefined}>
-                  {txt} <em>{n}</em>
-                </Link>
-              );
-            })}
+      <section className="an-tri">
+        <div className="caja">
+          <div className="an-h"><b>Por mes</b><span>kg netos facturados</span></div>
+          {meses.length === 0 && (
+            <div className="vacio"><b>Sin datos</b>
+              {desde || hasta || placa || color || tolvaF
+                ? "Ninguna salida despachada cae en este filtro. Prueba con «Todo»."
+                : "Todavía no hay vidrio despachado."}
+            </div>
+          )}
+          {meses.map(([mes, v]) => (
+            <div key={mes} className={"an-fl" + (v === 0 ? " cero" : "")}>
+              <span>{mes}</span>
+              <span className="p"><i style={{ width: `${Math.round((v / maxMes) * 100)}%` }} /></span>
+              <span className="v">{v > 0 ? kilos(v) : "—"}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="caja">
+          <div className="an-h"><b>Por color</b><span>kg</span></div>
+          {/* EL ANILLO, DIBUJADO AQUÍ. Los colores en cero no se dibujan
+              —un tramo de largo cero pinta un punto— pero SÍ salen en la
+              leyenda: un color que desaparece se lee como «no hay», y lo
+              que dice es «este mes no salió ni un kilo de flint». */}
+          <div className="an-donac">
+            <svg viewBox="0 0 150 150" role="img"
+                 aria-label={`Kilos por color: ${colores.map((c) => `${c.etiqueta} ${c.kg}`).join(", ")}`}>
+              {totalColor === 0 && (
+                <circle cx="75" cy="75" r={R} fill="none" stroke="#E9ECF0" strokeWidth="26" />
+              )}
+              {tramos.filter((t) => t.largo > 0).map((t) => (
+                <circle key={t.etiqueta} cx="75" cy="75" r={R} fill="none"
+                        stroke={TONO[t.etiqueta] ?? "#C9C9C3"} strokeWidth="26"
+                        strokeDasharray={`${t.largo.toFixed(1)} ${(CIRC - t.largo).toFixed(1)}`}
+                        strokeDashoffset={`${(-t.desde).toFixed(1)}`}
+                        transform="rotate(-90 75 75)" />
+              ))}
+              <text x="75" y="73" textAnchor="middle" className="an-donac-n">{kilos(kg)}</text>
+              <text x="75" y="91" textAnchor="middle" className="an-donac-u">KG NETOS</text>
+            </svg>
+            <div className="ley">
+              {colores.map((c) => (
+                <div key={c.etiqueta} className="l">
+                  <i style={{ background: TONO[c.etiqueta] ?? "#C9C9C3" }} aria-hidden />
+                  {c.etiqueta}<b>{c.kg > 0 ? kilos(c.kg) : "—"}</b>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="an-tabla sa-tabla">
-          <table>
-            <thead><tr>
-              <th>Salida</th><th>Fecha</th><th>Placa</th><th>Color</th>
-              <th className="num">Bruto</th><th className="num">Tara</th><th className="num">Neto</th>
-              <th>Tara / neto</th>
-              <th>Estado</th>
-            </tr></thead>
-            <tbody>
-              {enLista.length === 0 && (
-                <tr><td colSpan={9} className="an-vacio">
-                  No hay salidas en este período con estos filtros.
-                </td></tr>
-              )}
-              {enLista.slice(0, 60).map((s) => {
-                const ch = chipDe(s);
-                const b = Number(s.bruto_kg);
-                const pt = b > 0 ? Math.round((Number(s.tara_kg) / b) * 100) : 0;
-                const c = colorDe(s.id);
-                return (
-                  <tr key={s.id}>
-                    <td className="cod">{s.codigo}</td>
-                    <td>{(cuandoSalio(s) ?? s.creada_en ?? "").slice(8, 10)}/
-                        {(cuandoSalio(s) ?? s.creada_en ?? "").slice(5, 7)}{" "}
-                      <span className="an-hora">{fechaHora(cuandoSalio(s) ?? s.creada_en)}</span></td>
-                    {/* SIN PLACA EN ROJO: una salida sin placa no se
-                        puede cruzar con portería ni con el viaje, y un
-                        «—» se lee como «no aplica». */}
-                    <td className={"cod" + (s.placa ? "" : " sa-sin")}>{s.placa ?? "Sin placa"}</td>
-                    <td>
-                      {/* EL CUADRITO ADEMÁS DEL NOMBRE, no en vez del
-                          nombre: el color solo no se lee en gris, ni
-                          impreso, ni por quien no distingue el ámbar
-                          del green. */}
-                      {c && c !== "varios" && (
-                        <i className="sa-swatch" aria-hidden
-                           style={{ background: TONO[nombreColor(c)] ?? "#C9C9C3" }} />
-                      )}
-                      {nombreColor(c)}
-                    </td>
-                    <td className="num">{kilos(b)}</td>
-                    <td className="num">{kilos(s.tara_kg)}</td>
-                    <td className="num an-nt">{kilos(s.neto_kg)}</td>
-                    <td>
-                      {/* LA MISMA RESTA DE ARRIBA, POR RENGLÓN. Es lo
-                          que deja ver de un vistazo la salida cuya tara
-                          se comió media carga. */}
-                      {/* LA TARA EN GRIS Y EL NETO EN TINTA.
-                          Estaba en `--rt-oro`, y en el tema oficial ESE
-                          TOKEN ES EL ROJO DE LA MARCA: cada renglón
-                          pintaba una barra roja y la tabla entera
-                          parecía una lista de problemas. Esto es una
-                          proporción, no un estado — y el rojo de esta
-                          pantalla ya significa otra cosa. */}
-                      <span className="an-minibar" title={`Tara ${kilos(s.tara_kg)} de ${kilos(b)}`}>
-                        <i style={{ width: `${pt}%`, background: "var(--rt-linea)" }} />
-                        <i style={{ width: `${100 - pt}%`, background: "var(--rt-tinta)" }} />
-                      </span>
-                    </td>
-                    <td><span className={"an-chip " + ch.c}>{ch.t}</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="caja">
+          <div className="an-h"><b>Las salidas</b>
+            <span>{vivas.length} en el filtro</span></div>
+          <div className="an-tabla">
+            <table>
+              <thead><tr>
+                <th>Salida</th><th>Fecha</th><th>Placa</th><th>Color</th>
+                <th>Tara / neto</th>
+                <th className="num">Bruto</th><th className="num">Tara</th><th className="num">Neto</th>
+                <th>Estado</th>
+              </tr></thead>
+              <tbody>
+                {vivas.length === 0 && (
+                  <tr><td colSpan={9} className="an-vacio">
+                    No hay salidas en este período con estos filtros.
+                  </td></tr>
+                )}
+                {vivas.slice(0, 60).map((s) => {
+                  const ch = chipDe(s);
+                  const b = Number(s.bruto_kg);
+                  const pt = b > 0 ? Math.round((Number(s.tara_kg) / b) * 100) : 0;
+                  return (
+                    <tr key={s.id}>
+                      <td className="cod">{s.codigo}</td>
+                      <td>{(cuandoSalio(s) ?? s.creada_en ?? "").slice(8, 10)}/
+                          {(cuandoSalio(s) ?? s.creada_en ?? "").slice(5, 7)}{" "}
+                        <span className="an-hora">{fechaHora(cuandoSalio(s) ?? s.creada_en)}</span></td>
+                      <td className="cod">{s.placa ?? "—"}</td>
+                      <td>{nombreColor(colorDe(s.id))}</td>
+                      <td>
+                        {/* LA MISMA RESTA DE ARRIBA, POR RENGLÓN. Es lo
+                            que deja ver de un vistazo la salida cuya
+                            tara se comió media carga. */}
+                        <span className="an-minibar" title={`Tara ${kilos(s.tara_kg)} de ${kilos(b)}`}>
+                          <i style={{ width: `${pt}%`, background: "#EDEDE8" }} />
+                          <i style={{ width: `${100 - pt}%`, background: "var(--rt-oro)" }} />
+                        </span>
+                      </td>
+                      <td className="num">{kilos(b)}</td>
+                      <td className="num">{kilos(s.tara_kg)}</td>
+                      <td className="num an-nt">{kilos(s.neto_kg)}</td>
+                      <td><span className={"an-chip " + ch.c}>{ch.t}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {vivas.length > 60 && (
+            <p className="an-mas">
+              Se muestran las 60 más nuevas de {vivas.length}. Afina el filtro para llegar al resto,
+              o baja el informe en PDF, que las trae todas.
+            </p>
+          )}
         </div>
-        {enLista.length > 60 && (
-          <p className="an-mas">
-            Se muestran las 60 más nuevas de {enLista.length}. Afina el filtro para llegar al
-            resto, o baja el informe en PDF, que las trae todas.
-          </p>
-        )}
       </section>
 
       <section className="caja">

@@ -7,6 +7,7 @@ import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import type { Area, Causa, Material, Proceso, Tolva } from "@/modulos/roturas/datos";
 import { COLOR_VIDRIO, kilos } from "@/modulos/roturas/formato";
+import { ListaMaestro } from "@/components/MaestroLista";
 
 /**
  * MAESTRO — materiales, procesos, áreas, causas y tolvas.
@@ -323,63 +324,82 @@ export function Maestro({ hojas, materiales, procesos, areas, causas, tolvas,
         </div>
       )}
 
-      <section className="caja">
-        <div className="cab">
-          <div>
-            <h2>{items.length} {NOMBRE[hoja].toLowerCase()}</h2>
-            <p>
-              Desactivar deja de ofrecerlo al registrar y no toca lo viejo. Borrar solo aparece
-              cuando nadie lo ha usado nunca.
-            </p>
-          </div>
-          {puedeEditar && !nueva && (
-            <button type="button" className="btn si" onClick={abrirNueva}>+ Agregar</button>
-          )}
+      {/* =====================================================================
+          LA MISMA LISTA DEL MAESTRO DE TRASPASOS
+
+          «Copia el diseño del maestro de traspaso.»
+
+          Y NO SE COPIÓ: SE EXTRAJO. La lista vive ahora en
+          `src/components/MaestroLista.tsx` y la usan los dos módulos.
+          Copiar doscientas líneas habría dado la misma pantalla HOY y
+          dos pantallas distintas dentro de tres meses.
+
+          LO QUE CAMBIA RESPECTO A LO QUE HABÍA:
+           · EL INTERRUPTOR A LA VISTA. «Desactivar» era un botón del
+             mismo tamaño y color que «Editar», y es lo que se hace
+             casi siempre. Ahora se toca sin leer.
+           · «BORRAR» SE FUE AL MENÚ «⋯». Estaba en rojo al lado de
+             «Editar», que se toca a diario. Un botón irreversible ahí
+             se toca por error tarde o temprano.
+           · SE PUEDE ARRASTRAR PARA ORDENAR. El orden de esta lista es
+             el orden en que sale el desplegable al registrar, y hasta
+             hoy no había forma de cambiarlo sin tocar la base.
+           · LA CUENTA DE USO EN SU COLUMNA, siempre — no solo cuando
+             es cero. Es lo que decide si se puede borrar, y tiene que
+             verse ANTES de abrir el menú.
+          ===================================================================== */}
+      <section className="ml-caja">
+        <div className="ml-cab">
+          <h2>{NOMBRE[hoja]} <em>{items.length}</em></h2>
+          <p>
+            Desactivar deja de ofrecerlo al registrar y no toca lo viejo. Borrar solo aparece
+            cuando nadie lo ha usado nunca. Se arrastra para cambiar el orden en que sale al
+            registrar.
+          </p>
         </div>
 
+        {/* AGREGAR ABRE EL FORMULARIO COMPLETO Y NO UN CAMPO SUELTO:
+            aquí una causa necesita su grupo y si exige foto, y un
+            material su tipo y su color. En Traspasos basta el nombre;
+            aquí no, y fingir que sí sería guardar una causa a medias. */}
+        {puedeEditar && !nueva && (
+          <div className="ml-agregar">
+            <button type="button" onClick={abrirNueva} style={{ flex: "0 0 auto" }}>
+              + Agregar {NOMBRE[hoja].toLowerCase().replace(/s$/, "")}
+            </button>
+          </div>
+        )}
         {nueva && <div style={{ padding: 12 }}>{formulario}</div>}
 
-        <div className="rueda">
-          {items.length === 0 && (
-            <div className="vacio"><b>Vacío</b>Agrega el primero con el botón de arriba.</div>
-          )}
-          {items.map((it) => {
-            const n = usos[it.id] ?? 0;
-            return (
-              <div key={it.id} className={"fila" + (it.activo ? "" : " gris")}>
-                <div className="cod">{it.id}</div>
-                <div>
-                  <div className="tit">{it.titulo}</div>
-                  <div className="meta">
-                    <span>{it.detalle}</span>
-                    {!it.activo && <><span>·</span><span className="eti">DESACTIVADO</span></>}
-                    {n > 0 && <><span>·</span><span>usado en {n}</span></>}
-                  </div>
-                  {editando === it.id && formulario}
-                </div>
-                <div className="der">
-                  {puedeEditar && (
-                    <div className="par">
-                      <button type="button" className="btn" onClick={() => abrirEditar(it.id)}>
-                        {editando === it.id ? "Cerrar" : "Editar"}
-                      </button>
-                      <button type="button" className="btn"
-                              onClick={() => alternar(it.id, it.activo)}>
-                        {it.activo ? "Desactivar" : "Activar"}
-                      </button>
-                      {n === 0 && (
-                        <button type="button" className="btn mal"
-                                onClick={() => borrar(it.id, it.titulo)}>
-                          Borrar
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {items.length === 0 ? (
+          <div className="vacio"><b>Vacío</b>Agrega el primero con el botón de arriba.</div>
+        ) : (
+          <ListaMaestro
+            unidad={hoja === "tolvas" ? "salida" : "rotura"}
+            puedeEditar={puedeEditar} mandando={mandando} sinUso={false}
+            filas={items.map((it) => ({
+              clave: it.id, nombre: it.titulo, sub: it.detalle,
+              activo: it.activo, viajes: usos[it.id] ?? 0,
+            }))}
+            /* EL ORDEN NO SE GUARDA TODAVÍA: estas tablas no tienen
+               columna `orden`. Se dice en vez de dejar que alguien
+               arrastre y pierda el cambio al recargar — un cambio que
+               no se guarda y no avisa es peor que no poder hacerlo. */
+            alOrdenar={() => avisar.mal(
+              "El orden todavía no se guarda en este maestro: falta la columna en la base. " +
+              "Se arregla en la próxima migración.")}
+            alPrender={(c, a) => alternar(c, !a)}
+            /* RENOMBRAR ABRE EL FORMULARIO DE LA HOJA y no el campo
+               suelto del menú: una causa no es solo un nombre. */
+            alRenombrar={(c) => abrirEditar(c)}
+            alBorrar={(c, n) => borrar(c, n)}
+          />
+        )}
+
+        {/* EL FORMULARIO DE EDITAR, DEBAJO DE LA LISTA y no dentro del
+            renglón: metido adentro empujaba los renglones de abajo y se
+            perdía de vista cuál se estaba editando. */}
+        {editando && <div style={{ padding: 12, borderTop: "1px solid var(--rt-linea)" }}>{formulario}</div>}
       </section>
     </>
   );

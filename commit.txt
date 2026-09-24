@@ -189,8 +189,70 @@ LO QUE SE PIERDE, Y LO DIGO: la observacion y el aviso de reabierta ya
 no caben en el renglon. Van en el titulo del chip y enteras al entrar.
 
 =====================================================================
-9. EL ANALISIS DE SALIDA: TRES CIFRAS Y LA LISTA
+9. EL MAESTRO DE EN SITIO: LA LISTA DE TRASPASOS, Y SIN «MATERIALES»
 =====================================================================
+«Mira el maestro de traspaso, que sea asi. Y quita Materiales.»
+
+SE EXTRAJO, NO SE COPIO. La lista vive ahora en
+`src/components/MaestroLista.tsx` y su CSS en globals.css, con tokens
+neutrales. Copiar doscientas lineas de componente y ciento cincuenta de
+CSS habria dado la misma pantalla HOY y dos pantallas distintas dentro
+de tres meses: se arregla el menu que se salia en una y no en la otra, y
+nadie se entera hasta que alguien lo ve. Es el mismo error que este
+proyecto ya cometio con dos editores para la misma tabla en Inventario.
+
+LO QUE CAMBIA EN LA PANTALLA:
+  · EL INTERRUPTOR A LA VISTA. «Desactivar» era un boton del mismo
+    tamaño y color que «Editar», y es lo que se hace casi siempre.
+  · «BORRAR» SE FUE AL MENU «···». Estaba en rojo al lado de «Editar»,
+    que se toca a diario. Un boton irreversible ahi se toca por error
+    tarde o temprano. Y solo aparece en lo que nadie ha usado.
+  · LA CUENTA DE USO EN SU COLUMNA, SIEMPRE. Es lo que decide si se
+    puede borrar, asi que tiene que verse ANTES de abrir el menu. Dice
+    «159 roturas» y no «159 viajes»: la palabra va como dato, porque en
+    el maestro de causas «viajes» seria mentira.
+  · SE PUEDE ARRASTRAR PARA ORDENAR. Ese es el orden del desplegable al
+    registrar, y hasta hoy no habia forma de cambiarlo sin tocar la
+    base. OJO: el orden TODAVIA NO SE GUARDA —falta la columna— y la
+    pantalla lo dice en vez de dejar que alguien arrastre y pierda el
+    cambio al recargar.
+
+«MATERIALES» SE FUE, Y NO ESTABA VACIA: ESTABA MINTIENDO. Los
+materiales del registro en sitio salen del MAESTRO DE INVENTARIO desde
+que el desplegable paso de siete a 494. Esa hoja quedo apuntando a
+`roturas_materiales`, que ya nadie llena, y salia en cero — una pestaña
+que dice «0 materiales» no dice «no hay», dice «se agregan aqui», y eso
+es falso. Ahora la pantalla dice donde estan.
+
+EL INTERRUPTOR USA EL COLOR DE MARCA DEL TEMA, igual que en Traspasos.
+En el tema oficial eso es el rojo de Bavaria, asi que un interruptor
+PRENDIDO se ve rojo. Funciona, pero rojo quiere decir «alarma» en todo
+el resto de la aplicacion. No lo cambio por mi cuenta porque cambiarlo
+aqui y no en Traspasos serian dos interruptores distintos — dilo y lo
+cambio en los dos.
+
+=====================================================================
+10. TODO CUADRADO
+=====================================================================
+«Todo debe quedar cuadrado, o sea ASI.»
+
+No era gusto: lo redondo venia de la plantilla con la que nacio el
+repositorio. Se barrio el modulo entero —48 reglas— y quedan en cero
+todas menos dos clases de excepcion:
+
+  · LOS CIRCULOS (50%): un punto de color, una inicial, las ruedas S—V
+    de las firmas. Son redondos POR LO QUE SON.
+  · EL RIEL DEL INTERRUPTOR. Cuadrado se lee como una casilla, y una
+    casilla y un interruptor no significan lo mismo: una escoge, el
+    otro prende.
+
+Y EL ANALISIS DE SALIDA VUELVE A COMO ESTABA. Lo rehice con la maqueta
+de las tres tarjetas y no era eso lo que pedias — la embarre. Volvio al
+diseño de antes, y lo unico que cambia ahi son las esquinas. El CSS del
+rediseño se borro en vez de dejarlo apagado: el CSS muerto es lo que
+alguien «arregla» el mes que viene sin saber para que era.
+
+
 Eran SEIS bloques —la banda con la linea de siete dias, cuatro KPI en
 fila, «Por mes», el anillo de colores y la tabla—. Cada uno contestaba
 algo y JUNTOS no contestaban nada: al entrar habia que decidir por
@@ -302,13 +364,12 @@ node .arnes/inv-base.mjs         4 comprobaciones nuevas
   sitio del archivo», y el `raise notice` del final la nombra — asi que
   el archivo seguia conteniendola con el insert roto.
 
-node .arnes/sa-analisis.mjs     NUEVO · el analisis de salida
-  Cazo que lo que tiene que alinear es LA CIFRA y no el pie —el pie de
-  la primera lleva un renglon mas y empieza mas arriba, y su base si
-  coincide—, y que la tarjeta del medio se quedaba con un hueco de
-  60 px debajo porque era la unica sin nada pegado abajo.
-  Y lee del archivo que las cifras NO salgan de la lista filtrada, que
-  es el error que haria decir 0 al pararse en una pestaña.
+node .arnes/rt-maestro.mjs      NUEVO · el maestro de en sitio
+  Comprueba que «Materiales» ya no este Y que se diga donde estan
+  ahora —quitar la pestaña sin decirlo deja a alguien buscandola—, que
+  «Borrar» no vuelva al renglon, que solo aparezca en lo que nadie uso,
+  y que NO QUEDE NI UNA ESQUINA REDONDEADA en todo el modulo. Cazo el
+  contador del titulo, que contrastaba 4.39 en el tema ambar.
 
 node .arnes/sl-borrar.mjs        NUEVO · la tabla de salidas y el borrado
   Mide que a quien no manda no le salgan las casillas, que «todas» sea

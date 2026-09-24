@@ -1316,7 +1316,7 @@ body {
 .cf-caja {
   width: 100%; max-width: 440px;
   background: #fff;
-  border-radius: 3px;
+  border-radius: 0;
   /* El filo de arriba dice de qué se trata antes de leer: el acento del
      tema para lo normal, rojo para lo que destruye. */
   border-top: 4px solid var(--c-marca);
@@ -1487,4 +1487,177 @@ body {
     from { opacity: 0; transform: translateY(-8px) }
     to   { opacity: 1; transform: none }
   }
+}
+
+
+/* =====================================================================
+   LA LISTA DEL MAESTRO (componente src/components/MaestroLista.tsx)
+
+   VIVE AQUÍ Y NO EN LA HOJA DE UN MÓDULO porque la usan Traspasos y
+   Roturas. Una copia por módulo son dos sitios donde se desincroniza:
+   se arregla el menú que se salía en una y no en la otra, y nadie se
+   entera hasta que alguien lo ve.
+
+   Se viste con los tokens neutrales —los `--c-*` que ya comparten
+   todos los módulos— así que los siete temas la pintan solos.
+
+   BORDES RECTOS: 3 px y no 14. «Los bordes más rectangulares porque
+   todo está así» — y era verdad: lo redondo venía de la plantilla con
+   la que nació el repositorio.
+   ===================================================================== */
+.ml-caja, .ml-agregar, .ml-item, .ml-sw, .ml-mas {
+  --c-papel-m: #fff;
+  --c-mal-m: #C8102E;
+  --ml-titulo: "Archivo", system-ui, sans-serif;
+  --ml-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+}
+.ml-caja {
+  background: var(--c-papel-m); border: 1px solid var(--c-d5dce5);
+  border-radius: 0; min-width: 0;
+}
+.ml-caja > .item:last-child { border-radius: 0}
+.ml-caja .ml-cab { padding: 16px 18px 13px; border-bottom: 1px solid var(--c-d5dce5) }
+.ml-caja h2 {
+  font-family: var(--ml-titulo); font-weight: 800; font-size: 17px; margin: 0;
+  letter-spacing: -.02em; display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+}
+/* EL CONTADOR DEL TÍTULO: gris sobre gris claro daba 4,39 en el tema
+   ámbar —por debajo del piso de 4,5— y en los otros seis pasaba raspando.
+   Va en tinta: es un número, y un número que hay que adivinar no sirve
+   de nada. */
+.ml-caja h2 em {
+  font-style: normal; background: var(--c-eef1f5); color: var(--c-04203f);
+  font-family: var(--ml-texto); font-weight: 600; font-size: 12px;
+  padding: 3px 8px; border-radius: 0;
+}
+.ml-caja .ml-cab p { margin: 6px 0 0; font-size: 12.5px; color: var(--c-5b6b7f); line-height: 1.5 }
+
+/* La franja de "escritos a mano" y sus chips vivían aquí. Se fueron con
+   la pantalla: Registrar ya escoge del maestro, así que por ahí no entra
+   ningún sitio nuevo y la franja solo podía mostrar restos viejos. Se
+   borran las reglas en vez de dejarlas apagadas — el CSS muerto es lo
+   que el mes que viene alguien "arregla" sin saber para qué era. */
+
+/* ---------- Agregar ---------- */
+.ml-agregar {
+  display: flex; gap: 9px; padding: 14px 18px; border-bottom: 1px solid var(--c-d5dce5);
+}
+.ml-agregar input {
+  font: inherit; font-size: 16px; flex: 1 1 140px; min-width: 0; min-height: 46px;
+  border: 1.5px solid var(--c-d5dce5); border-radius: 0; padding: 0 13px;
+  background: var(--c-eef1f5); color: var(--c-04203f);
+}
+.ml-agregar input:focus {
+  outline: none; background: var(--c-papel-m); border-color: var(--c-marca);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-marca) 25%, transparent);
+}
+.ml-agregar button {
+  min-height: 46px; padding: 0 18px; border: 0; border-radius: 0; cursor: pointer;
+  background: var(--c-grupo); color: var(--c-grupo-txt); font: 800 13px var(--ml-titulo);
+  white-space: nowrap;
+}
+.ml-agregar button:hover:not(:disabled) { background: var(--c-marca); color: var(--c-marca-txt) }
+.ml-agregar button:disabled { opacity: .45; cursor: not-allowed }
+
+/* ---------- Un renglón del maestro ---------- */
+.ml-item {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 38px 30px;
+  gap: 10px; align-items: center; padding: 10px 18px;
+  border-bottom: 1px solid var(--c-eef1f5);
+}
+.ml-item:last-child { border-bottom: 0 }
+.ml-item > * { min-width: 0 }
+.ml-item:hover { background: color-mix(in srgb, var(--c-marca) 5%, #fff) }
+.ml-item.ml-moviendo {
+  background: color-mix(in srgb, var(--c-marca) 16%, #fff);
+  box-shadow: inset 3px 0 0 var(--c-marca);
+}
+.ml-item .ml-asa {
+  cursor: grab; opacity: .4; display: grid; place-items: center;
+  background: none; border: 0; padding: 0; min-height: 30px;
+  /* Sin esto, arrastrar en el celular hace rodar la página en vez de
+     mover el renglón. */
+  touch-action: none;
+}
+.ml-item .ml-asa:hover { opacity: .9 }
+.ml-item .ml-asa svg {
+  width: 15px; height: 15px; stroke: var(--c-5b6b7f);
+  stroke-width: 2.6; stroke-linecap: round; fill: none;
+}
+.ml-item .ml-nom b { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere }
+.ml-item .ml-nom span { display: block; font-size: 11.5px; color: var(--c-5b6b7f); margin-top: 1px }
+.ml-item .ml-uso {
+  font-size: 12px; color: var(--c-5b6b7f); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ml-item.ml-apagado { background: var(--c-eef1f5) }
+.ml-item.ml-apagado .ml-nom b { color: var(--c-5b6b7f); text-decoration: line-through }
+
+/* LA MARCA DE UNA BANDERA DEL TIPO —hoy «vidrio»—. Va pegada al nombre
+   y no en una columna aparte: son una o dos filas de la lista las que la
+   llevan, y una columna vacía en veinte filas para marcar dos es ruido
+   en todas para informar en dos. */
+.ml-item .ml-nom .ml-bandera {
+  display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 0;
+  background: var(--c-marca); color: var(--c-marca-txt);
+  font: 700 10px var(--ml-texto); font-style: normal; letter-spacing: .06em;
+  text-transform: uppercase; vertical-align: 2px;
+}
+
+/* El interruptor. Es un <input> de verdad debajo: se enfoca con el
+   teclado y se prende con la barra espaciadora como cualquier casilla. */
+.ml-sw { position: relative; display: inline-block; width: 38px; height: 22px; cursor: pointer }
+/* LA ZONA QUE SE TOCA ES MÁS ALTA QUE LA QUE SE VE. El riel mide 22 px
+   —así se ve un interruptor— pero 22 px es menos de lo que acierta un
+   dedo con guante en la tableta del muelle. El <input> se estira 9 px
+   por arriba y por abajo: 40 px de blanco para tocar, sin cambiar el
+   dibujo ni empujar el renglón. */
+.ml-sw input {
+  position: absolute; left: 0; top: -9px; width: 100%; height: 40px;
+  opacity: 0; margin: 0; cursor: pointer;
+}
+.ml-sw i {
+  position: absolute; inset: 0; background: color-mix(in srgb, var(--c-5b6b7f) 45%, #fff);
+  border-radius: 20px; transition: background .15s; pointer-events: none;
+}
+.ml-sw i::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; transition: transform .15s;
+}
+.ml-sw input:checked + i { background: var(--c-marca) }
+.ml-sw input:checked + i::after { transform: translateX(16px) }
+.ml-sw input:focus-visible + i { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-marca) 40%, transparent) }
+.ml-sw input:disabled { cursor: not-allowed }
+.ml-sw input:disabled + i { opacity: .45 }
+
+/* El menú de los tres puntos. */
+.ml-mas { position: relative; justify-self: end }
+.ml-mas > button {
+  border: 0; background: none; cursor: pointer; color: var(--c-5b6b7f);
+  font-size: 17px; line-height: 1; min-height: 30px; min-width: 28px; border-radius: 0;
+}
+.ml-mas > button:hover { color: var(--c-04203f); background: var(--c-eef1f5) }
+.ml-mas .ml-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 190px;
+  background: var(--c-papel-m); border: 1px solid var(--c-d5dce5); border-radius: 0;
+  box-shadow: 0 20px 40px -22px rgba(0, 0, 0, .5); padding: 4px 0;
+}
+/* Abierto hacia arriba: mismo menú, al otro lado del botón. */
+.ml-mas .ml-menu.ml-arriba { top: auto; bottom: calc(100% + 4px) }
+/* El cuadro que se pinta para medirlo. Ocupa su sitio pero no se ve, así
+   que el ojo nunca lo alcanza abajo antes de que suba. */
+.ml-mas .ml-menu.ml-midiendo { visibility: hidden }
+.ml-mas .ml-menu::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--c-marca);
+}
+.ml-mas .ml-menu button {
+  display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
+  font: 500 13.5px var(--ml-texto); color: var(--c-04203f); padding: 10px 13px; min-height: 40px;
+}
+.ml-mas .ml-menu button:first-child { margin-top: 3px }
+.ml-mas .ml-menu button:hover { background: var(--c-eef1f5) }
+.ml-mas .ml-menu button.ml-mal { color: var(--c-mal-m) }
+.ml-mas .ml-menu button:disabled { opacity: .45; cursor: not-allowed }
+.ml-mas .ml-menu .ml-nota {
+  padding: 9px 13px; font-size: 11.5px; color: var(--c-5b6b7f); line-height: 1.45;
+  border-top: 1px solid var(--c-eef1f5); margin-top: 3px;
 }

@@ -32,15 +32,22 @@ export default async function MaestroEnSitioPage() {
           <p className="ojo">ROTURAS · EN SITIO · MAESTRO</p>
           <h1>Lo que se puede escoger</h1>
           <p className="sub">
-            Los materiales, los procesos, las áreas y las causas del registro en sitio. Son
-            datos y no código: el día que se abra una calle nueva o aparezca una causa que no
-            estaba, se arregla aquí y no esperando un despliegue.
+            Los procesos, las áreas y las causas del registro en sitio. Son datos y no
+            código: el día que se abra una calle nueva o aparezca una causa que no estaba, se
+            arregla aquí y no esperando un despliegue. <b>Los materiales no están aquí</b>:
+            salen del maestro de Inventario, que es donde viven los 494.
           </p>
         </div>
       </section>
 
       <Maestro
-        hojas={["materiales", "procesos", "areas", "causas"]}
+        /* SIN «MATERIALES». Los materiales del registro en sitio salen
+           del MAESTRO DE INVENTARIO desde que el desplegable pasó de
+           siete a 494: esta hoja quedó apuntando a `roturas_materiales`,
+           que ya nadie llena, y salía en cero. Una pestaña que siempre
+           dice «0 materiales» no es una pestaña vacía — es una pestaña
+           que MIENTE sobre dónde se agregan. */
+        hojas={["procesos", "areas", "causas"]}
         materiales={mats} procesos={pros} areas={ars} causas={cas} tolvas={[]}
         uso={uso} puedeEditar={permisos.puedeEditar("/roturas/en-sitio/maestro")}
       />
