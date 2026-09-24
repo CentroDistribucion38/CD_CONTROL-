@@ -150,6 +150,33 @@ ok((await pg.$$(".rt .sl-caja")).length === 0,
 ok((await pg.$$(".rt .sl-sel")).length === 0,
    "a quien no manda le sale la barra de borrar");
 
+/* ---------- 1b. LA BARRA DE FILTROS ES RECTA ----------
+   «Aquí solo pon los bordecitos rectangulares, porque todo está así.»
+   No era gusto: `globals.css` tiene un `.filtros` de la plantilla vieja
+   con radio 14, sombra y relleno, y esta barra lo heredaba entero. No
+   da error y solo se ve mirando — por eso ahora se mide. */
+await monta(true);
+{
+  const f = await pg.evaluate(() => {
+    const el = document.querySelector(".rt .filtros");
+    if (!el) return null;
+    const c = getComputedStyle(el);
+    return { radio: c.borderTopLeftRadius, sombra: c.boxShadow, relleno: c.paddingLeft };
+  });
+  ok(f, "no está la barra de filtros");
+  if (f) {
+    ok(parseFloat(f.radio) === 0, `la barra de filtros tiene las esquinas redondeadas (${f.radio})`);
+    ok(f.sombra === "none", `la barra de filtros lleva sombra: ${f.sombra}`);
+    ok(parseFloat(f.relleno) === 0, `la barra de filtros lleva relleno heredado (${f.relleno})`);
+  }
+  /* Y LOS CHIPS TAMBIÉN RECTOS: el módulo entero es recto, y un botón
+     redondeado en medio se lee como de otra aplicación. */
+  const r = await pg.$$eval(".rt .filtros .btn, .rt .filtros select, .rt .filtros input",
+    (e) => e.map((x) => getComputedStyle(x).borderTopLeftRadius));
+  const curvos = r.filter((x) => parseFloat(x) > 2);
+  ok(curvos.length === 0, `hay ${curvos.length} controles redondeados en la barra: ${curvos.join(", ")}`);
+}
+
 /* ---------- 2. «TODAS» ES TODAS LAS QUE SE VEN ---------- */
 await monta(true);
 {

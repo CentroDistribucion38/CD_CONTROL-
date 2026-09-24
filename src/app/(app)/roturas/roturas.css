@@ -591,7 +591,29 @@
 }
 .rt .inf-mal { margin: 0; max-width: 240px; font-size: 12px; color: var(--rt-ojo); text-align: right }
 
-.rt .filtros { display: flex; gap: 9px; flex-wrap: wrap; align-items: center }
+/* =====================================================================
+   `.filtros` — EL DÉCIMO CHOQUE DE NOMBRES DE ESTE PROYECTO
+
+   «Aquí solo pon los bordecitos rectangulares, porque todo está así.»
+
+   No era una decisión de diseño: era `globals.css` colándose.
+   `.filtros` EXISTE ALLÍ desde la plantilla con la que nació el
+   repositorio —`background: var(--bv-panel); border-radius: 14px;
+   padding: 15px 20px; box-shadow`— y esta barra la heredaba entera. De
+   ahí la caja blanca redondeada con sombra alrededor de los chips, en
+   una pantalla donde todo lo demás es recto.
+
+   No da error, no avisa, y solo se ve mirando. Van diez así, y varios
+   fueron míos: la regla de la casa es prefijar y comprobar que el
+   prefijo esté libre en roturas.css, globals.css y shell.css ANTES de
+   escribir. Esta clase es anterior a la regla; se apaga aquí en vez de
+   renombrarla porque el nombre está en cuatro pantallas y renombrarlo
+   es cambiar cuatro sitios para arreglar uno.
+   ===================================================================== */
+.rt .filtros {
+  display: flex; gap: 9px; flex-wrap: wrap; align-items: center;
+  background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none;
+}
 .rt .filtros select, .rt .filtros input {
   font: inherit; font-size: 13.5px; padding: 9px 12px; min-height: 42px;
   border: 1px solid var(--rt-linea); background: #fff;
@@ -2251,4 +2273,132 @@
 @media (max-width: 700px) {
   .rt .sx-cab, .rt .sx-fila { gap: 12px; padding: 0 14px }
   .rt .sx-fila { padding-top: 10px; padding-bottom: 10px }
+}
+
+/* =====================================================================
+   ANÁLISIS DE SALIDA — TRES CIFRAS Y LA LISTA
+
+   «Esto de aquí cambiémoslo por esto para que se vea mejor.»
+
+   Eran seis bloques y cada uno contestaba algo; juntos no contestaban
+   nada, porque al entrar había que decidir por dónde empezar a mirar —
+   que es justo el trabajo que una pantalla de análisis viene a ahorrar.
+
+   Prefijo `sa-`, comprobado libre en roturas.css, globals.css y
+   shell.css antes de escribirlo.
+   ===================================================================== */
+.rt .sa-tarjetas {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
+}
+.rt .sa-t {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  padding: 16px 20px 18px; min-width: 0;
+  display: flex; flex-direction: column;
+}
+.rt .sa-h {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.rt .sa-h b { font: 900 16px var(--rt-titulo); color: var(--rt-tinta) }
+.rt .sa-h span {
+  font: 600 11.5px var(--rt-texto); color: var(--rt-gris); text-align: right;
+}
+.rt .sa-n {
+  font: 900 clamp(30px, 3.4vw, 42px)/1 var(--rt-titulo); letter-spacing: -.04em;
+  color: var(--rt-tinta); margin-top: 12px; font-variant-numeric: tabular-nums;
+}
+.rt .sa-n em { font-style: normal; font-size: 16px; font-weight: 800; margin-left: 5px }
+/* EL PIE SE PEGA ABAJO para que las tres tarjetas alineen su última
+   línea aunque el contenido de arriba tenga altos distintos. */
+.rt .sa-p {
+  margin-top: auto; padding-top: 12px; font-size: 12.5px; line-height: 1.5;
+  color: var(--rt-gris);
+}
+/* LA RESTA QUE DEJA COMPROBAR LA CIFRA contra la báscula. Va en su
+   propio renglón y en monoespaciada: son números para cuadrar, no
+   prosa. */
+.rt .sa-resta {
+  display: block; margin-top: 3px; font-style: normal;
+  font: 500 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--rt-gris);
+}
+
+/* LA TERCERA EN NEGRO: es lo único que no es historia. Las otras dos ya
+   pasaron; esta son cédulas esperando un camión ahora mismo.
+   EL PAR DE COLORES VA FIJO, y es deliberado: con los tokens, en el
+   tema oficial `--rt-oro` ES EL ROJO de la marca y la cifra salía roja
+   sobre negro. Fijar el par ENTERO —fondo y letra— es distinto de fijar
+   una mitad: lo que rompe un tema es que una cambie y la otra no. */
+.rt .sa-t.sa-negra { background: #111111; border-color: #111111 }
+.rt .sa-negra .sa-h b { color: #fff }
+.rt .sa-negra .sa-h span, .rt .sa-negra .sa-p { color: rgba(255, 255, 255, .72) }
+.rt .sa-negra .sa-n { color: #FFC400 }
+/* SIN NADA PENDIENTE NO GRITA: la cifra en blanco en vez de en ámbar.
+   Un cero destacado enseña a ignorar el destacado. */
+.rt .sa-negra.sa-limpia .sa-n { color: #fff }
+
+/* UNA BARRA APILADA Y NO UN ANILLO: los tres tramos comparten la línea
+   de base y se comparan de un vistazo; en un anillo hay que estimar
+   ángulos. Y ocupa un renglón en vez de media pantalla. */
+/* `margin-top: auto` PARA QUE LA LEYENDA CAIGA A LA ALTURA DE LOS PIES
+   DE LAS OTRAS DOS. Sin esto, la tarjeta del medio pintaba la barra
+   arriba y dejaba un hueco de 60 px debajo: las tres tienen el mismo
+   alto porque la rejilla las estira, y la única que no tenía nada
+   pegado abajo se veía a medio llenar. */
+.rt .sa-barra {
+  display: flex; height: 14px; margin-top: auto; overflow: hidden;
+  background: var(--rt-fondo);
+}
+.rt .sa-barra i { display: block; min-width: 0 }
+.rt .sa-barra .sa-vacia { background: var(--rt-linea) }
+.rt .sa-ley {
+  display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px;
+  font-size: 12.5px; color: var(--rt-gris);
+}
+.rt .sa-ley span { display: inline-flex; align-items: center; gap: 6px }
+.rt .sa-ley i { width: 10px; height: 10px; flex: none }
+.rt .sa-ley b { color: var(--rt-tinta); font-variant-numeric: tabular-nums }
+
+/* ---------------------------------------------------------------------
+   LA LISTA, CON SUS PESTAÑAS
+   ------------------------------------------------------------------ */
+.rt .sa-caja { padding: 0 }
+.rt .sa-cab {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--rt-linea);
+}
+.rt .sa-cab h2 { margin: 0; font: 900 18px var(--rt-titulo); color: var(--rt-tinta) }
+.rt .sa-chips { display: flex; gap: 8px; flex-wrap: wrap }
+.rt .sa-chip {
+  min-height: 44px;   /* con guante */
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+}
+.rt .sa-chip em {
+  font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--rt-gris);
+}
+/* LA PESTAÑA EN LA QUE UNO ESTÁ, EN NEGRO Y NO EN EL ACENTO: el acento
+   ya lo lleva el botón del informe, y dos amarillos en la misma barra
+   se leen como lo mismo. */
+.rt .sa-chip.on {
+  background: var(--rt-negro); border-color: var(--rt-negro); color: #fff;
+}
+.rt .sa-chip.on em { color: rgba(255, 255, 255, .8) }
+
+.rt .sa-swatch {
+  display: inline-block; width: 10px; height: 10px; margin-right: 7px;
+  vertical-align: baseline;
+}
+/* SIN PLACA EN ROJO: una salida sin placa no se puede cruzar con
+   portería ni con el viaje, y un «—» se lee como «no aplica». */
+.rt .sa-sin { color: var(--rt-mal); font-weight: 700 }
+
+@media (max-width: 1000px) {
+  .rt .sa-tarjetas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) }
+  .rt .sa-t.sa-negra { grid-column: 1 / -1 }
+}
+@media (max-width: 620px) {
+  .rt .sa-tarjetas { grid-template-columns: minmax(0, 1fr) }
+  .rt .sa-t.sa-negra { grid-column: auto }
+  .rt .sa-chips { width: 100% }
+  .rt .sa-chip { flex: 1 1 0; justify-content: center }
 }

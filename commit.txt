@@ -189,7 +189,67 @@ LO QUE SE PIERDE, Y LO DIGO: la observacion y el aviso de reabierta ya
 no caben en el renglon. Van en el titulo del chip y enteras al entrar.
 
 =====================================================================
-9. SQL POR CORRER — EN ESTE ORDEN
+9. EL ANALISIS DE SALIDA: TRES CIFRAS Y LA LISTA
+=====================================================================
+Eran SEIS bloques —la banda con la linea de siete dias, cuatro KPI en
+fila, «Por mes», el anillo de colores y la tabla—. Cada uno contestaba
+algo y JUNTOS no contestaban nada: al entrar habia que decidir por
+donde empezar a mirar, que es el trabajo que una pantalla de analisis
+viene a ahorrar.
+
+Ahora son tres cifras y la lista:
+  LO QUE SALIO        el numero del periodo. Es el dato.
+  POR COLOR           de que esta hecho ese numero.
+  LO QUE ESPERA       en NEGRO, porque es lo unico que no es historia:
+                      cedulas cerradas esperando camion AHORA. Con la
+                      mas vieja al lado — ocho de ayer es el ritmo
+                      normal, una del 11 es una cedula olvidada.
+
+LOS CHIPS FILTRAN LA LISTA Y NO LAS CIFRAS. Si cambiaran, «Despachado
+1.167 kg» diria 0 al pararse en «Esperando VH» y pareceria que se
+perdio el mes. Y el filtro va EN LA DIRECCION: se puede mandar por chat
+y el boton de atras hace lo que uno espera. El arnes comprueba ademas
+que el chip no se coma el rango de fechas — perderlo es como alguien
+lee el año entero creyendo que lee el mes.
+
+LO QUE SE FUE, Y LO DIGO:
+  · LA LINEA DE 7 DIAS y «Por mes». Con dos meses de datos una
+    tendencia de siete dias es ruido. Vuelven cuando haya con que; el
+    PDF sigue trayendo los meses.
+  · EL ANILLO. Media pantalla para tres cifras que en una barra
+    apilada caben en un renglon — y la barra deja compararlas de un
+    vistazo, que es lo que un anillo hace peor.
+  · «Tolvas despachadas» y «Promedio por tolva». Eran de quien afina la
+    operacion, no de quien viene a mirar cuanto salio. Siguen en el PDF.
+
+LO QUE **NO** SE FUE: bruto = tara + neto, en el pie de la primera
+tarjeta. Es la unica resta que deja comprobar la cifra contra la
+bascula.
+
+Y LA BARRA `tara / neto` DE CADA RENGLON DEJO DE SER ROJA. Estaba en
+`--rt-oro`, y en el tema oficial ESE TOKEN ES EL ROJO DE LA MARCA: cada
+renglon pintaba una barra roja y la tabla entera parecia una lista de
+problemas. Es una proporcion, no un estado.
+
+=====================================================================
+10. LA BARRA DE FILTROS ERA REDONDA, Y NO ERA A PROPOSITO
+=====================================================================
+«Aqui solo pon los bordecitos rectangulares porque todo esta asi.»
+
+Tenias razon y no era una decision de diseño: era `globals.css`
+colandose. `.filtros` EXISTE ALLI desde la plantilla con la que nacio
+el repositorio —fondo, borde, `border-radius: 14px`, relleno y sombra—
+y esta barra lo heredaba entero. De ahi la caja blanca redondeada con
+sombra alrededor de los chips, en una pantalla donde todo lo demas es
+recto.
+
+ES EL DECIMO CHOQUE DE NOMBRES DE CLASE DE ESTE PROYECTO, y varios
+fueron mios. No da error, no avisa, y solo se ve mirando. Ahora el
+arnes lo mide: radio, sombra y relleno de la barra, y que ningun
+control de adentro salga redondeado.
+
+=====================================================================
+11. SQL POR CORRER — EN ESTE ORDEN
 =====================================================================
   1) supabase/migraciones/2026-09-averias.sql          (si no lo has corrido)
   2) supabase/migraciones/2026-09-roturas-visto-bueno-easy.sql
@@ -241,6 +301,14 @@ node .arnes/inv-base.mjs         4 comprobaciones nuevas
   esas dos salieron VERDES: preguntaban si la ruta aparecia «en algun
   sitio del archivo», y el `raise notice` del final la nombra — asi que
   el archivo seguia conteniendola con el insert roto.
+
+node .arnes/sa-analisis.mjs     NUEVO · el analisis de salida
+  Cazo que lo que tiene que alinear es LA CIFRA y no el pie —el pie de
+  la primera lleva un renglon mas y empieza mas arriba, y su base si
+  coincide—, y que la tarjeta del medio se quedaba con un hueco de
+  60 px debajo porque era la unica sin nada pegado abajo.
+  Y lee del archivo que las cifras NO salgan de la lista filtrada, que
+  es el error que haria decir 0 al pararse en una pestaña.
 
 node .arnes/sl-borrar.mjs        NUEVO · la tabla de salidas y el borrado
   Mide que a quien no manda no le salgan las casillas, que «todas» sea
