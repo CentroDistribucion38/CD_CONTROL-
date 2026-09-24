@@ -26,6 +26,7 @@ export default async function VistoBuenoPage() {
      medidas distintas, que es otra cosa. */
   const cuentan = todas.roturas.filter((r) => r.estado === "cuenta").length;
   const noCuentan = todas.roturas.filter((r) => r.estado === "no_cuenta").length;
+  const enPleito = todas.roturas.filter((r) => r.etapa === "desacuerdo").length;
   const enJuego = datos.roturas.reduce((s, r) => s + r.unidades_vidrio, 0);
 
   const viejo = datos.roturas.length
@@ -36,17 +37,17 @@ export default async function VistoBuenoPage() {
     <div className="rt">
       <section className="cabeza">
         <div>
-          <p className="ojo">ROTURAS · VISTO BUENO DE ABI</p>
-          <h1>Cuenta o no cuenta</h1>
+          <p className="ojo">ROTURAS · VISTO BUENO DEL OPERADOR LOGÍSTICO</p>
+          <h1>¿Estás de acuerdo?</h1>
           <p className="sub">
-            Lo que el turno registró, esperando la decisión. Una causa no asumida sin foto no se
-            puede marcar como que cuenta: es lo que se devolvería de todas formas, y la base lo
-            impide antes de que haya que explicarlo.
+            Lo que el turno registró, esperando tu respuesta. Lo que aceptes <b>pasa a cobro
+            de una</b> y no le llega a ABI: queda en la data del mes. Lo que objetes va a ABI
+            con tu motivo y tu evidencia, y ahí ABI tiene la última palabra.
           </p>
         </div>
         <div className="kpi">
           <span className="corte" aria-hidden />
-          <div className="rot">ESPERANDO VISTO BUENO</div>
+          <div className="rot">ESPERANDO TU RESPUESTA</div>
           <div className="num">{datos.roturas.length}</div>
           <div className="pie">
             <b>{enJuego}</b> unidades en juego
@@ -55,27 +56,44 @@ export default async function VistoBuenoPage() {
         </div>
       </section>
 
+      {/* LA CADENA, COMO ES AHORA. Cuatro eslabones y no tres: el
+          desacuerdo es un sitio donde una rotura se queda, no un paso
+          invisible, y quien mira la bandeja tiene que poder ver cuántas
+          hay paradas ahí esperando a ABI. */}
       <div className="cadena">
         <div className="eslabon aqui">
           <div className="n">{datos.roturas.length}</div>
-          <div className="r">POR REVISAR</div>
+          <div className="r">ESPERAN TU RESPUESTA</div>
         </div>
         <div className="flecha" aria-hidden>›</div>
         <div className="eslabon">
           <div className="n">{cuentan}</div>
-          <div className="r">CUENTAN</div>
+          <div className="r">A COBRO</div>
+        </div>
+        <div className="flecha" aria-hidden>›</div>
+        <div className="eslabon">
+          <div className="n">{enPleito}</div>
+          <div className="r">EN DESACUERDO · ABI</div>
         </div>
         <div className="flecha" aria-hidden>›</div>
         <div className="eslabon mal">
           <div className="n">{noCuentan}</div>
-          <div className="r">NO CUENTAN</div>
+          <div className="r">NO SE COBRAN</div>
         </div>
       </div>
 
       {!puedeDecidir && (
         <div className="aviso">
-          Estás viendo la bandeja, pero decidir es del rol <b>ABI</b> o del administrador.
-          Los botones aparecen cuando tengas ese rol.
+          Estás viendo la bandeja, pero contestar es de quien tenga <b>Editar</b> en esta
+          pantalla — el operador logístico. Los botones aparecen cuando tengas ese permiso.
+        </div>
+      )}
+
+      {datos.vieja && (
+        <div className="aviso rojo">
+          <b>Falta correr el SQL de la cadena nueva.</b> Mientras tanto esta bandeja mezcla lo
+          que espera tu respuesta con lo que ya objetaste. Se arregla corriendo
+          <b> supabase/migraciones/2026-09-roturas-visto-bueno-easy.sql</b>.
         </div>
       )}
 

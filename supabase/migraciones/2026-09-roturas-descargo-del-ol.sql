@@ -1,4 +1,24 @@
 -- =====================================================================
+-- !!! NO CORRER ESTE ARCHIVO. QUEDÓ REEMPLAZADO. !!!
+-- ---------------------------------------------------------------------
+-- Lo reemplaza `2026-09-roturas-visto-bueno-easy.sql`, que INVIERTE la
+-- cadena: aquí ABI decidía primero y el OL objetaba después; lo pedido
+-- es que EASY decida primero y ABI solo resuelva lo que se objete.
+--
+-- Se deja en el repositorio y no se borra: el porqué de la cadena
+-- —los cinco estados del cobro, el plazo que se mide al leer y no con
+-- un reloj— se razonó aquí, y ese razonamiento sigue valiendo para el
+-- día que haga falta un plazo. Borrarlo dejaría la decisión sin
+-- historia.
+--
+-- Nunca se corrió en la base de Cristian.
+-- =====================================================================
+
+do $$ begin raise exception 'Este archivo quedó reemplazado por 2026-09-roturas-visto-bueno-easy.sql: no se corre.'; end $$;
+
+/* Lo de abajo se conserva solo como historia.
+
+-- =====================================================================
 -- ROTURAS EN SITIO · EL DESCARGO DEL OPERADOR LOGÍSTICO
 -- ---------------------------------------------------------------------
 -- HASTA HOY la cadena tenía dos eslabones y se acababa en el que cobra:
@@ -585,3 +605,5 @@ begin
 end $$;
 
 commit;
+
+*/

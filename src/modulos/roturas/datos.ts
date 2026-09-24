@@ -9,6 +9,20 @@ import { createClient } from "@/lib/supabase/server";
  * inventar un factor de conversión que no existe.
  */
 
+/**
+ * EN QUÉ PARTE DE LA CADENA VA UNA ROTURA.
+ *
+ *   espera_ol   registrada; Easy todavía no contesta.
+ *   desacuerdo  Easy objetó, con motivo y evidencia. La mira ABI.
+ *   cobro       se cobra —por acuerdo o porque ABI lo sostuvo—.
+ *   no_cuenta   ABI le dio la razón a Easy.
+ *
+ * LA CALCULA LA VISTA, no la pantalla: tres pantallas preguntándose
+ * «¿esta a quién le toca?» por su cuenta son tres sitios donde se
+ * puede contestar distinto.
+ */
+export type Etapa = "espera_ol" | "desacuerdo" | "cobro" | "no_cuenta" | "anulada";
+
 export type Rotura = {
   id: string;
   codigo: string;
@@ -48,6 +62,16 @@ export type Rotura = {
   decidida_en: string | null;
   nota_decision: string | null;
   fotos: number;
+  /* Opcionales porque la vista no los trae hasta que se corra
+     2026-09-roturas-visto-bueno-easy.sql. Sin ellos la pantalla se
+     comporta como antes en vez de reventar. */
+  ol_respuesta?: "acepta" | "rechaza" | null;
+  ol_por?: string | null;
+  ol_en?: string | null;
+  ol_nota?: string | null;
+  etapa?: Etapa;
+  cobro_por?: "acuerdo" | "abi" | "antes" | null;
+  fotos_descargo?: number;
   le_falta_foto: boolean;
   minutos: number;
 };
@@ -185,14 +209,55 @@ export async function roturas(limite = 500) {
 }
 
 /** La bandeja de ABI: lo que espera visto bueno, lo más viejo primero. */
+/**
+ * LA BANDEJA DE EASY: lo registrado que todavía no ha contestado.
+ *
+ * SE FILTRA POR `etapa` Y NO POR `estado`, y eso importa: desde que la
+ * cadena se invirtió, `estado = 'esperando'` son DOS montones —lo que
+ * espera a Easy y lo que Easy ya objetó y espera a ABI—. Filtrar por
+ * estado le pondría a Easy en la bandeja las que ella misma rechazó.
+ *
+ * SI LA COLUMNA NO EXISTE —porque falta correr el SQL— se cae al
+ * filtro viejo en vez de reventar: una pantalla en blanco no le dice a
+ * nadie que falta una migración.
+ */
 export async function porRevisar(limite = 300) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("v_roturas").select("*")
+    .eq("etapa", "espera_ol")
+    .order("reportada_en", { ascending: true })
+    .limit(limite);
+  if (!error) return { roturas: (data ?? []) as Rotura[], falta: false, vieja: false };
+
+  const viejo = await supabase
+    .from("v_roturas").select("*")
     .eq("estado", "esperando")
     .order("reportada_en", { ascending: true })
     .limit(limite);
-  if (error) return { roturas: [] as Rotura[], falta: sinTablas(error.message) };
+  if (viejo.error) {
+    return { roturas: [] as Rotura[], falta: sinTablas(viejo.error.message), vieja: false };
+  }
+  /* `vieja` lo dice la pantalla: mientras el SQL no esté corrido, la
+     bandeja mezcla los dos montones y hay que avisarlo, no disimularlo. */
+  return { roturas: (viejo.data ?? []) as Rotura[], falta: false, vieja: true };
+}
+
+/**
+ * LA BANDEJA DE ABI: SOLO lo que Easy objetó.
+ *
+ * Es la mitad de la razón de invertir la cadena. Antes ABI tenía que
+ * mirar las cien roturas del mes; ahora mira las que alguien objetó,
+ * que son las únicas donde su criterio cambia algo.
+ */
+export async function enDesacuerdo(limite = 300) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_roturas").select("*")
+    .eq("etapa", "desacuerdo")
+    .order("ol_en", { ascending: true })
+    .limit(limite);
+  if (error) return { roturas: [] as Rotura[], falta: true };
   return { roturas: (data ?? []) as Rotura[], falta: false };
 }
 

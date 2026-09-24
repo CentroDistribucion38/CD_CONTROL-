@@ -220,7 +220,13 @@ export const MODULOS: Modulo[] = [
       /* EN SITIO. El orden del recorrido: se registra → ABI decide → por
          qué se rompe → la configuración. */
       { nombre: "Registrar", ruta: "/roturas/en-sitio", rama: "en-sitio" },
+      /* EL ORDEN ES EL DE LA CADENA, y la cadena cambió: ahora EASY
+         contesta primero en Visto bueno, y solo lo que objeta llega a
+         Desacuerdos, donde ABI tiene la última palabra. Poner
+         Desacuerdos antes del Visto bueno haría leer el menú al revés
+         de como pasan las cosas. */
       { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
+      { nombre: "Desacuerdos", ruta: "/roturas/en-sitio/desacuerdos", rama: "en-sitio" },
       { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
       { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
       /* OPERARIOS VA DE ÚLTIMA, detrás del Maestro, y es la única de la

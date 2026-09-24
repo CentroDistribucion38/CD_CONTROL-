@@ -1,122 +1,98 @@
-Averias: las pantallas. Y borrar para el admin en averias y operarios
+La cadena al derecho: EASY contesta primero, ABI solo lo que se objete
 
 =====================================================================
-AVERIAS YA SE VE
+LO QUE CAMBIA
 =====================================================================
-«No veo el modulo de averias dentro de inventarios.»
+«Registran, llega a Visto bueno, alli EASY dice si esta de acuerdo o
+ no. Si esta de acuerdo va para cobro de una y no llega notificacion,
+ sino que llega a la data. Si no esta de acuerdo llega la notificacion
+ a ABI, y ABI culmina de decir si se cobra o no. Y en todo se requiere
+ evidencia.»
 
-Tenia razon: existian el motor de hallazgos y el informe en PDF, y
-NINGUNA PANTALLA. Ahora hay dos, en Inventario -> Averias y
-Inventario -> Analisis de averias, con su SQL y su arnes.
+ANTES:  registro -> ABI dice si cuenta -> se acabo
+AHORA:  registro -> EASY dice si esta de acuerdo
+                      de acuerdo    -> cobro, y ABI ni se entera
+                      en desacuerdo -> ABI resuelve, y es la ultima
 
-LA PANTALLA SE ORGANIZA POR EL ESTADO DE LA BAJA, no por fecha, y esa
-es la decision de diseño entera:
+NO ES UN DETALLE DE ORDEN. En la cadena vieja, ABI tenia que mirar las
+cien roturas del mes y Easy recibia una cuenta sin haber podido decir
+nada: eso no se concilia, se discute a fin de mes sobre una lista que
+nadie objeto a tiempo porque nadie tuvo donde objetarla. Ahora ABI solo
+mira LO QUE ALGUIEN OBJETO, que son las unicas donde su criterio cambia
+algo. Lo demas se concilia solo.
 
-  SIN DOCUMENTO  la averia SIGUE CONTANDO en el inventario. Esta
-                 apartada en la bodega, nadie la va a vender, pero el
-                 sistema cree que esta. Esa diferencia es exactamente
-                 lo que descuadra un conteo.
-  CON DOCUMENTO  ya salio de la cuenta. Es historia.
-
-Por eso abre en «sin dar de baja» y el KPI cuenta ESAS. Una lista
-ordenada por fecha enseñaria arriba lo de ayer —que no urge— y dejaria
-abajo lo de hace tres semanas, que es lo que hay que ir a cobrar.
-
-LAS TRES CIFRAS DE ARRIBA SON LAS QUE CAMBIAN LO QUE SE HACE HOY:
-· LA MAS VIEJA SIN BAJA, en dias. Dice si el papeleo esta al dia o si
-  hay algo represado desde hace un mes.
-· LAS QUE SE VENCEN Y ADEMAS SIGUEN CONTANDO. Es lo peor de los dos
-  mundos: producto que ya no sirve y que el sistema cree que esta.
-· DONDE SE CONCENTRAN. LA CALLE ES LA LETRA —«A03 · M12» es la calle
-  A—; agrupar por el modulo reparte una misma calle en tantos grupos
-  como modulos tenga y la concentracion no sale nunca.
-
-LA CAUSAL VA EN BOTONES Y NO EN UN DESPLEGABLE: son tres, cual es
-decide A QUIEN SE LE COBRA, y un desplegable esconde dos y hace ganar
-a la primera por costumbre. La de transporte dice «llega averiado»,
-que es la distincion que no se puede sacar del nombre sin adivinar.
-
-LAS UBICACIONES SE PROPONEN Y NO HAY MAESTRO DE ELLAS. Un maestro
-obligaria a dar de alta la calle antes de poder registrar, y asi es
-como se pierde el registro de algo que YA paso. Proponer las que ya se
-usaron evita que la misma calle se escriba de cuatro formas, que es lo
-que revienta el hallazgo de concentracion.
-
-EN EL ANALISIS, LOS HALLAZGOS VAN ARRIBA DE LAS GRAFICAS. Una grafica
-enseña un numero; un hallazgo dice que hacer con el. Y son LOS MISMOS
-que van al PDF: si la pantalla y el papel sacaran cada uno sus
-cuentas, el dia que cambie una regla dirian cosas distintas y quien
-esta en la reunion con el papel no tendria como saber cual es la
-buena.
+EL ARCHIVO ANTERIOR QUEDA MUERTO. `2026-09-roturas-descargo-del-ol.sql`
+tenia la cadena al reves —ABI cobraba primero y el OL objetaba
+despues—. Nunca se corrio. No se borra: el porque de sus decisiones
+—los cinco estados del cobro, el plazo que se mide al leer y no con un
+reloj— sigue valiendo para el dia que haga falta un plazo. Se le puso
+un `raise exception` al principio para que no se corra por error.
 
 =====================================================================
-EDITAR, ANULAR, BORRAR
+LAS DOS PANTALLAS
 =====================================================================
-«Que el admin yo pueda editar, eliminar, anular, borrar.»
+VISTO BUENO CAMBIO DE DUEÑO. Era de ABI y decia «cuenta / no cuenta»
+—el idioma de quien cobra—; ahora es de Easy y dice «de acuerdo / en
+desacuerdo». Dejarle el boton viejo seria pedirle a Easy que decida su
+propio cobro.
 
-Son tres cosas distintas y hacen falta las tres:
-  CORREGIR  un dedo de mas en las cajas, la ubicacion mal escrita.
-  ANULAR    «esto no paso». Deja la fila, el motivo y quien, porque
-            una averia que desaparece es un mes que cerro distinto y
-            nadie sabe por que.
-  BORRAR    para el error de dedo del mismo dia.
+«DE ACUERDO» NO PIDE NADA Y «EN DESACUERDO» PIDE DOS COSAS —motivo y
+foto—, y esa asimetria es deliberada: quien acepta no esta probando
+nada, y cobrarle un tramite por estar de acuerdo es exactamente lo que
+enseña a rechazar por costumbre.
 
-BORRAR NO SE OFRECE A LA QUE YA TIENE DOCUMENTO DE SAP: ese numero
-quedaria apuntando a algo que no existe, y el dia que alguien audite
-la baja no encuentra contra que cuadrarla. Esa se anula. El boton ni
-sale, y la base lo frena igual.
+LA FOTO DEL DESCARGO SUBE ANTES QUE LA RESPUESTA. La funcion la exige;
+al reves, la base rechazaria el rechazo y la persona veria un error
+criptico teniendo la foto en la mano. Y se guarda con `papel =
+'descargo'`: la foto de la rotura no prueba que la rotura no fue tuya.
 
-Y EN OPERARIOS, LO MISMO: borrar solo al que NO ha reportado ninguna
-rotura. Al que si, sus roturas quedarian sin quien las vio; ese se
-apaga, y lo que reporto se queda diciendo su nombre.
-
-=====================================================================
-TRES COSAS QUE NO ERAN DE AVERIAS
-=====================================================================
-1. TODOS LOS ARNESES SQL DEL PROYECTO DECIAN «VERDE» PASARA LO QUE
-   PASARA. El codigo de salida de `psql -f prueba.sql | grep NOTICE`
-   es el de GREP, no el de psql: grep encontraba lineas y salia 0
-   aunque la prueba hubiera levantado FALLA. Lo destapo una mutacion
-   de averias que salio verde con el freno arrancado. Arreglados los
-   29: ahora se captura la salida y se falla si dice FALLA.
-   Esto quiere decir que cualquier «verde» que te haya reportado de un
-   arnes SQL hasta hoy valia lo que valia la vista de los NOTICE.
-
-2. EL PIE DEL KPI DE INVENTARIO CONTRASTA 1.7 —ilegible— en las siete
-   pantallas que lo usan. `globals.css` tiene un `.pie` suelto en gris
-   oscuro, y una regla puesta sobre el elemento le gana SIEMPRE al
-   color heredado del padre. Se veia «apagado» y nadie lo midio.
-
-3. LOS BOTONES Y CAMPOS DE INVENTARIO MEDIAN 40 PX. Esto se llena con
-   guante en una bodega. A 44, como el resto.
+DESACUERDOS es nueva y es la unica donde ABI decide. Enseña el descargo
+SIN ABRIR NADA: si estuviera detras de un «Ver», la decision se tomaria
+habiendo leido un solo lado, que es el error entero. Los dos botones
+exigen argumento —no solo el que va en contra de alguien—: un
+desacuerdo cerrado sin una linea se vuelve a discutir el mes entrante,
+gane quien gane.
 
 =====================================================================
-UN ERROR MIO, EL OCTAVO CHOQUE DE NOMBRE
+POR QUE `estado` NO SE TOCA
 =====================================================================
-Llame `.av` a la pantalla de Averias. `.av` YA ERA el cartel de avisos
-en globals.css —con su rejilla de tres columnas, su fondo y su borde—.
-La pantalla la heredo entera: la barra de pestañas terminaba a un
-quinto del ancho. El arnes pasaba en verde —nada se salia, todo se
-leia— y solo se vio MIRANDO la captura.
+Lo evidente seria meterle estados nuevos al enum. Seria caro: `estado =
+'cuenta'` lo leen la vista, las cifras, tres indices y toda pantalla que
+pregunte si una rotura se cobra. Agregarle significados reinterpreta
+todo lo ya decidido, hacia atras y en silencio.
 
-Renombrado a `avr-`. Y el arnes ahora MIDE que los bloques llenen el
-ancho, que es lo que convierte esto en una falla y no en una foto
-rara. Es el tercero que me hago yo solo con la regla escrita.
+Una rotura que Easy rechazo SIGUE EN 'esperando' —todavia no esta
+decidida—; lo que la pone en la bandeja de ABI es `ol_respuesta`.
+La vista calcula `etapa` en UN solo sitio: tres pantallas
+preguntandose «¿esta a quien le toca?» por su cuenta son tres sitios
+donde se puede contestar distinto.
+
+Y `cobro_por` distingue «por acuerdo» de «lo sostuvo ABI»: los dos se
+cobran y aun asi son dos cosas distintas —en uno las partes estuvieron
+de acuerdo y en el otro una le gano a la otra—. Lo decidido con la
+cadena vieja sale como 'antes' y NO se reescribe: decir hoy que
+aquello fue «por acuerdo» seria inventar un acuerdo que nadie dio.
 
 =====================================================================
 LOS ARNESES
 =====================================================================
-bash .arnes/correr-averias.sh   · 10 mutaciones, 10 ROJAS
-node .arnes/av-pantallas.mjs    · 5 ancho/alto, 7 temas
-bash .arnes/correr-maestro-opm.sh · 2 mutaciones nuevas, 2 ROJAS
-node .arnes/rt-operarios.mjs    · 1 mutacion nueva, ROJA
+bash .arnes/correr-visto-bueno-easy.sh · 8 mutaciones, 8 ROJAS
+node .arnes/rt-cadena.mjs              · 6 mutaciones, 6 ROJAS
 
-Dos mutaciones de averias se DETECTABAN y mataban la prueba antes de
-imprimir —el supervisor quitaba el documento, y una llamada de mas
-abajo reventaba—. El bloque va envuelto: ahora imprime lo que llevaba
-antes de morirse.
+DOS COSAS QUE DESTAPARON:
+· Una mutacion salio VERDE: quitar el filtro `papel = 'descargo'` no
+  fallaba, porque la unica rotura que se rechazaba en la prueba no
+  tenia ninguna otra foto. Se agrego el caso que faltaba —una con foto
+  de la ROTURA que intenta rechazarse—, y ahora muerde.
+· Mi primer fixture puso a ABI como `admin`. El super admin de este
+  proyecto pasa por encima de todo permiso de pantalla, asi que probar
+  «ABI no puede dar el visto bueno» con un admin no probaba la cadena:
+  probaba que el admin es admin. ABI es el rol `abi`, que no manda.
 
-FALTA CORRER: supabase/migraciones/2026-09-averias.sql
+FALTA CORRER: supabase/migraciones/2026-09-roturas-visto-bueno-easy.sql
+Y DESPUES, en Admin -> Roles: dejar /en-sitio/visto-bueno en EDITAR
+solo para el rol de EASY, y /en-sitio/desacuerdos en EDITAR solo para
+ABI. El SQL da el punto de partida y lo imprime al terminar.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

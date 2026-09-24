@@ -120,6 +120,16 @@ const IconoLlave = () => (
 /* AVERÍAS: una caja con el filo roto. No un triángulo de alerta —eso
    es cualquier problema— ni una papelera —esto no se bota, se aparta
    hasta que llegue el documento de baja—. */
+/* DESACUERDOS: dos flechas que se cruzan. No un martillo de juez —esto
+   no es un juicio— ni un signo de admiración —eso es cualquier
+   alerta—: son dos partes que dicen cosas distintas. */
+const IconoDesacuerdo = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4 8h9m0 0-3-3m3 3-3 3" />
+    <path d="M20 16h-9m0 0 3-3m-3 3 3 3" />
+  </svg>
+);
+
 const IconoAveria = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M4 8.5 12 5l8 3.5v7L12 19l-8-3.5z" />
@@ -258,6 +268,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/acciones/maestro": IconoLlave,
   "/roturas/en-sitio": IconoRoturas,
   "/roturas/en-sitio/visto-bueno": IconoSello,
+  "/roturas/en-sitio/desacuerdos": IconoDesacuerdo,
   "/roturas/en-sitio/analisis": IconoAnalisis,
   "/roturas/en-sitio/maestro": IconoLlave,
   "/roturas/en-sitio/operarios": IconoOperario,
