@@ -13,8 +13,21 @@ import type { Causal } from "./hallazgos";
 export type AveriaFila = {
   id: string;
   codigo: string;
+  /** El día del REGISTRO, que lo pone la base. Ya no se teclea. */
   fecha: string;
+  /** La hora del registro, ya en hora de Colombia: «15:10». */
+  hora: string | null;
+  /** 1 (06–14), 2 (14–22) o 3 (22–06). Congelado al guardar. */
+  turno: number | null;
+  /** Lo que alguien dice que pasó antes. Opcional y aparte de `fecha`. */
+  paso_antes: string | null;
+  /** El texto combinado: «A03 · M12 · IZQ». */
   ubicacion: string;
+  ubicacion_id: string | null;
+  ubicacion_clave: string | null;
+  calle: string | null;
+  modulo: string | null;
+  lado: string | null;
   producto_sku: string;
   producto: string;
   cajas: number;
@@ -41,8 +54,26 @@ export type CausalFila = {
   clave: string; nombre: string; externa: boolean; activo: boolean; orden: number | null;
 };
 
-/** El producto como lo ofrece el desplegable: del maestro de inventario. */
+/** El producto como lo ofrece el buscador: del maestro de inventario. */
 export type ProductoFila = { sku: string; nombre: string };
+
+/**
+ * UNA UBICACIÓN DEL MAESTRO DE INVENTARIO.
+ *
+ * ES EL MISMO MAESTRO, no una copia. Averías lo LEE y no lo escribe:
+ * las ubicaciones se dan de alta en Inventario → Maestro, que es donde
+ * se ven junto a todo lo demás. Dos maestros para el mismo pasillo es
+ * como una calle termina llamándose de dos formas y los dos tableros
+ * dejan de cuadrar.
+ */
+export type UbicacionFila = {
+  id: string;
+  clave: string;
+  calle: string;
+  modulo: string;
+  lado: "IZQ" | "DER" | null;
+  activa: boolean;
+};
 
 function sinTablas(msg: string | undefined) {
   const t = (msg ?? "").toLowerCase();
@@ -89,22 +120,34 @@ export async function productosDeAverias(): Promise<ProductoFila[]> {
 }
 
 /**
- * LAS UBICACIONES QUE YA SE HAN USADO, para proponerlas al registrar.
+ * LAS UBICACIONES DEL MAESTRO DE INVENTARIO.
  *
- * NO ES UN MAESTRO, y por eso no hay tabla: es lo que ya se tecleó
- * antes. Un maestro de ubicaciones obligaría a darlas de alta antes de
- * poder registrar una avería en una calle nueva, y eso es exactamente
- * cómo se pierde el registro de algo que ya pasó.
+ * ---------------------------------------------------------------------
+ * ESTO CAMBIÓ DE OPINIÓN, Y VALE LA PENA DEJARLO ESCRITO
+ * ---------------------------------------------------------------------
+ * Antes aquí se leían las ubicaciones QUE YA SE HABÍAN TECLEADO, para
+ * proponerlas, y el comentario decía que un maestro obligaría a dar de
+ * alta la calle antes de poder registrar — y que así es como se pierde
+ * el registro de algo que ya pasó.
  *
- * Proponerlas sí evita que la misma calle se escriba de cuatro formas
- * —«A03 M12», «a03-m12», «A3 · M12»—, que es lo que revienta el
- * hallazgo de concentración por calle.
+ * El argumento no era malo; la otra mitad pesa más. Con texto libre la
+ * misma calle se escribe «A03 M12», «a03-m12» y «A3 · M12», y entonces
+ * la concentración por calle reparte un mismo pasillo en tres y no
+ * detecta nada — que es justo para lo que existe el tablero. El maestro
+ * YA EXISTE con sus cientos de filas: no había que inventarlo.
+ *
+ * SOLO LAS ACTIVAS: una ubicación apagada es una que la bodega dejó de
+ * usar, y registrar ahí es registrar en un sitio al que nadie va a ir a
+ * mirar. La base lo comprueba también.
  */
-export async function ubicacionesUsadas(): Promise<string[]> {
+export async function ubicacionesMaestro(): Promise<UbicacionFila[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("v_averias")
-    .select("ubicacion").order("fecha", { ascending: false }).limit(500);
-  const vistas = new Set<string>();
-  for (const f of (data ?? []) as { ubicacion: string }[]) vistas.add(f.ubicacion);
-  return [...vistas].sort();
+  const { data } = await supabase.from("ubicaciones")
+    .select("id, clave, calle, modulo, lado, activa")
+    .eq("activa", true)
+    /* EN EL ORDEN EN QUE SE CAMINA LA BODEGA: calle, módulo, lado. El
+       orden alfabético de la clave pondría «A10» antes que «A2». */
+    .order("calle").order("modulo").order("lado", { nullsFirst: true })
+    .limit(5000);
+  return (data ?? []) as UbicacionFila[];
 }

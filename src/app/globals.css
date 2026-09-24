@@ -1661,3 +1661,58 @@ body {
   padding: 9px 13px; font-size: 11.5px; color: var(--c-5b6b7f); line-height: 1.45;
   border-top: 1px solid var(--c-eef1f5); margin-top: 3px;
 }
+
+/* =====================================================================
+   BUSCAR EN UNA LISTA LARGA · prefijo `bl-`
+   ---------------------------------------------------------------------
+   Comprobado libre en globals.css, shell.css, roturas.css y averias.css.
+
+   VIVE AQUÍ Y NO EN UN MÓDULO porque lo usan dos —Roturas y Averías— y
+   una copia por módulo son dos sitios donde se desincronizan. Es la
+   misma razón por la que `ml-` está arriba.
+
+   NO DEPENDE DE `campo-suelto` NI DE LOS TOKENS DE NINGÚN MÓDULO.
+   `--rt-oro` es el ROJO de la marca en el tema oficial —ya mordió tres
+   veces— y `campo-suelto` solo existe dentro de `.rt-rep` y `.tp`: un
+   componente compartido que hereda de ellos se ve bien en Roturas y sin
+   borde en Averías. Aquí está todo lo que necesita.
+   ===================================================================== */
+.bl { position: relative }
+
+.bl-campo {
+  width: 100%; min-height: 50px; padding: 0 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 1.5px solid var(--c-d5dce5); border-radius: 0; cursor: pointer;
+  font: 500 15px inherit; text-align: left;
+  background: var(--c-eef1f5); color: var(--c-5b6b7f);
+}
+/* CON ALGO PUESTO SE VE PUESTO: en tinta y en negrita. Un campo lleno
+   que se ve igual que uno vacío se vuelve a llenar. */
+.bl-campo.on { color: var(--c-04203f); font-weight: 600 }
+.bl-campo > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.bl-campo > i { font-style: normal; flex: none; color: var(--c-5b6b7f) }
+.bl-teclea {
+  display: block; background: var(--c-papel-m); color: var(--c-04203f);
+  border-color: var(--c-marca); outline: none;
+}
+
+.bl-lista {
+  position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px);
+  max-height: 320px; overflow-y: auto;
+  background: var(--c-papel-m); border: 1.5px solid var(--c-d5dce5); border-radius: 0;
+  box-shadow: 0 12px 28px rgba(0,0,0,.16);
+}
+.bl-op {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
+  /* 48 px: se escoge de pie y con guante, igual que todo lo demás. */
+  min-height: 48px; padding: 8px 13px; border: 0; background: none; cursor: pointer;
+  border-bottom: 1px solid var(--c-d5dce5);
+}
+.bl-op b { font: 600 14px inherit; color: var(--c-04203f); line-height: 1.3 }
+.bl-op span {
+  font: 500 11.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--c-5b6b7f);
+}
+.bl-op.marcado { background: var(--c-eef1f5) }
+.bl-op.puesto { background: var(--c-grupo); color: var(--c-grupo-txt) }
+.bl-nada { padding: 14px; font-size: 12.5px; line-height: 1.5; color: var(--c-5b6b7f); margin: 0 }

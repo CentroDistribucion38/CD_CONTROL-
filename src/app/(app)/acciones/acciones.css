@@ -28,6 +28,15 @@
      puede cambiar con el tema, porque si cambiara dejaría de querer
      decir "esto está mal". */
   --ac-mal: #E4002B;
+  /* «OJO CON ESTO» Y «ESTO ESTÁ ESCOGIDO» SON DOS COSAS.
+     `--c-oro` NO ES DORADO: en los tres temas de la marca vale
+     #ff0000, rojo puro — es la alerta. Este módulo lo usaba para 25
+     cosas que no alertaban nada: la pestaña activa, el botón de
+     confirmar, las barras, el avatar. En el tema ámbar la pestaña
+     escogida salía ROJA, que se lee como «algo está mal aquí».
+     Ahora todo eso usa `--c-marca` con su propio color de texto, y
+     `--c-oro` se queda solo donde de verdad avisa. Es la cuarta vez
+     que este token me muerde; queda escrito para que sea la última. */
   --ac-ojo: var(--c-oro);
   --ac-verde: #0F7A4A;
   --ac-papel: #FFF;
@@ -185,7 +194,7 @@
   min-height: 38px; white-space: nowrap;
 }
 .ac .btn:hover { border-color: var(--ac-gris) }
-.ac .btn.si { background: var(--c-oro); border-color: var(--c-oro); color: #1A1200 }
+.ac .btn.si { background: var(--c-marca); border-color: var(--c-marca); color: var(--c-marca-txt) }
 /* 62% y no 45%: al 45% el borde verde sobre el papel blanco quedaba
    tan pálido que los dos botones se leían como texto suelto y no como
    botones. Solo se notaba en las filas blancas —sobre el rosado de las
@@ -256,13 +265,13 @@
 .ac .quien:hover { background: var(--c-fafbfd) }
 .ac .quien.on { background: #FFFBEF }
 .ac .quien .ini {
-  width: 38px; height: 38px; border-radius: 50%; background: #15171A; color: var(--c-oro);
+  width: 38px; height: 38px; border-radius: 50%; background: #15171A; color: var(--c-marca);
   display: grid; place-items: center; font-weight: 800; font-size: 12px; letter-spacing: .02em;
 }
 .ac .quien .n { font-weight: 700; font-size: 13.5px }
 .ac .quien .c { font-size: 11.5px; color: var(--ac-gris) }
 .ac .quien .barra { height: 7px; border-radius: 0; background: var(--c-eef1f5); overflow: hidden }
-.ac .quien .barra i { display: block; height: 100%; background: var(--c-oro) }
+.ac .quien .barra i { display: block; height: 100%; background: var(--c-marca) }
 .ac .quien.sat .barra i { background: var(--ac-mal) }
 .ac .quien .num { text-align: right; font-size: 11.5px; line-height: 1.25; white-space: nowrap }
 .ac .quien .num b { display: block; font-family: var(--ac-titulo); font-size: 15px; font-weight: 900 }
@@ -273,7 +282,7 @@
 .ac .barras .b { display: grid; grid-template-columns: 130px minmax(0, 1fr) 48px; gap: 12px; align-items: center }
 .ac .barras .b .et { font-size: 12.5px; font-weight: 600 }
 .ac .barras .b .riel { height: 10px; border-radius: 0; background: var(--c-eef1f5); overflow: hidden }
-.ac .barras .b .riel i { display: block; height: 100%; background: var(--c-oro); border-radius: 0}
+.ac .barras .b .riel i { display: block; height: 100%; background: var(--c-marca); border-radius: 0}
 .ac .barras .b.mal .riel i { background: var(--ac-mal) }
 .ac .barras .b .pct {
   text-align: right; font-family: var(--ac-titulo); font-weight: 900; font-size: 14px;
@@ -295,7 +304,7 @@
 .ac-rep .barra {
   background: #0D0D0D; color: #fff; padding: 13px 16px;
   display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 3px solid var(--c-oro); flex: 0 0 auto;
+  border-bottom: 3px solid var(--c-marca); flex: 0 0 auto;
 }
 .ac-rep .barra .t { font-family: var(--ac-titulo); font-weight: 800; font-size: 14px; letter-spacing: .16em }
 .ac-rep .barra button {
@@ -307,7 +316,7 @@
    cuántos faltan; la barra se entiende sin contar. */
 .ac-rep .pasos { display: flex; gap: 6px; padding: 14px 16px 0; flex: 0 0 auto }
 .ac-rep .pasos i { height: 4px; border-radius: 0; background: var(--c-d5dce5); flex: 1 1 0 }
-.ac-rep .pasos i.on { background: var(--c-oro) }
+.ac-rep .pasos i.on { background: var(--c-marca) }
 
 .ac-rep .cuerpo { flex: 1 1 auto; overflow: auto; padding: 14px 16px 18px; min-height: 0 }
 .ac-rep h2 {
@@ -325,12 +334,12 @@
   border-radius: 0; border: 1px solid var(--c-d5dce5); background: var(--c-eef1f5);
   color: var(--c-04203f); cursor: pointer;
 }
-.ac-rep .pie button.si { background: var(--c-oro); border-color: var(--c-oro); color: #1A1200 }
+.ac-rep .pie button.si { background: var(--c-marca); border-color: var(--c-marca); color: var(--c-marca-txt) }
 .ac-rep .pie button:disabled { opacity: .5; cursor: not-allowed }
 
 /* La tarjeta de la zona detectada / leída. */
 .ac-rep .zona {
-  background: #fff; border: 1px solid var(--c-d5dce5); border-left: 3px solid var(--c-oro);
+  background: #fff; border: 1px solid var(--c-d5dce5); border-left: 3px solid var(--c-marca);
   border-radius: 0; padding: 13px 15px; margin-bottom: 12px;
 }
 .ac-rep .zona .rot { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: var(--c-5b6b7f) }
@@ -345,7 +354,7 @@
   border-radius: 0; border: 1px solid var(--c-d5dce5); background: var(--c-eef1f5); cursor: pointer;
   color: var(--c-04203f); flex: 1 1 auto;
 }
-.ac-rep .zona .dos button.si { background: var(--c-oro); border-color: var(--c-oro); color: #1A1200 }
+.ac-rep .zona .dos button.si { background: var(--c-marca); border-color: var(--c-marca); color: var(--c-marca-txt) }
 
 /* La lista de zonas. */
 .ac-rep .lista { background: #fff; border: 1px solid var(--c-d5dce5); border-radius: 0; overflow: hidden }
@@ -397,7 +406,7 @@
   gap: 10px; padding: 11px 13px; background: #101010;
   font-size: 11.5px; line-height: 1.4; color: rgba(255,255,255,.78);
 }
-.ac-rep .foto .sello b { color: var(--c-oro); font-weight: 700 }
+.ac-rep .foto .sello b { color: var(--c-marca); font-weight: 700 }
 
 /* Los tres botones de prioridad. */
 .ac-rep .prio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 12px }
@@ -427,10 +436,10 @@
   font-size: 12.5px; line-height: 1.45; display: flex; gap: 10px; align-items: flex-start;
 }
 .ac-rep .negro .punto {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--c-oro);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--c-marca);
   flex: 0 0 auto; margin-top: 6px;
 }
-.ac-rep .negro b { color: var(--c-oro) }
+.ac-rep .negro b { color: var(--c-marca) }
 
 /* =====================================================================
    TABLERO DE REUNIÓN — la pantalla del arranque de turno.
@@ -540,7 +549,7 @@
 .ac .mas {
   position: fixed; right: 20px; bottom: 20px; z-index: 40;
   width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;
-  background: var(--c-oro); color: #1A1200; font-size: 30px; line-height: 1;
+  background: var(--c-marca); color: var(--c-marca-txt); font-size: 30px; line-height: 1;
   box-shadow: 0 6px 20px -4px rgba(0,0,0,.35);
   display: grid; place-items: center;
 }
@@ -638,13 +647,13 @@
     width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7;
     stroke-linecap: round; stroke-linejoin: round;
   }
-  .ac-abajo a.on { color: var(--c-oro) }
+  .ac-abajo a.on { color: var(--c-marca) }
 
   .ac-abajo .hueco { position: relative }
   .ac-abajo .hueco .mas {
     position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
     width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer;
-    background: var(--c-oro); color: #1A1200; font-size: 29px; line-height: 1;
+    background: var(--c-marca); color: var(--c-marca-txt); font-size: 29px; line-height: 1;
     display: grid; place-items: center;
     /* El resplandor lo separa de la barra negra: sin él, el círculo
        dorado sobre negro se lee pegado y no levantado. */
@@ -716,7 +725,7 @@
   border-radius: 0; border: 1px solid var(--ac-linea); background: #fff;
   color: var(--ac-tinta); cursor: pointer;
 }
-.ac-modal .pie button.si { background: var(--c-oro); border-color: var(--c-oro); color: #1A1200 }
+.ac-modal .pie button.si { background: var(--c-marca); border-color: var(--c-marca); color: var(--c-marca-txt) }
 .ac-modal .pie button.plano { border-color: transparent; background: transparent; color: var(--ac-gris) }
 .ac-modal .pie button:disabled { opacity: .5; cursor: not-allowed }
 
@@ -725,7 +734,7 @@
    ===================================================================== */
 .ac-plazo {
   position: relative; overflow: hidden; border-radius: 0;
-  background: var(--c-oro); color: #1A1200;
+  background: var(--c-marca); color: var(--c-marca-txt);
   padding: 15px 22px 14px; min-width: 260px;
   display: flex; flex-direction: column; justify-content: center;
 }
@@ -760,16 +769,16 @@
   font-size: 12.5px; line-height: 1.45;
 }
 .ac-cola .punto {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--c-oro); flex: 0 0 auto;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--c-marca); flex: 0 0 auto;
 }
 .ac-cola .txt { flex: 1 1 220px; min-width: 0 }
-.ac-cola b { color: var(--c-oro) }
+.ac-cola b { color: var(--c-marca) }
 .ac-cola button {
   font: inherit; font-weight: 700; font-size: 12.5px; min-height: 38px; padding: 0 14px;
   border-radius: 0; border: 1px solid rgba(255,255,255,.25); background: transparent;
   color: #fff; cursor: pointer;
 }
-.ac-cola button:hover { border-color: var(--c-oro); color: var(--c-oro) }
+.ac-cola button:hover { border-color: var(--c-marca); color: var(--c-marca) }
 .ac-cola button:disabled { opacity: .5; cursor: not-allowed }
 
 /* =====================================================================
@@ -837,7 +846,7 @@
   flex-wrap: wrap; padding: 12px 16px; background: #0D0D0D;
   color: rgba(255,255,255,.78); font-size: 12px; line-height: 1.45;
 }
-.ac-modal .ventana.foto-grande .pie-foto b { color: var(--c-oro) }
+.ac-modal .ventana.foto-grande .pie-foto b { color: var(--c-marca) }
 .ac-modal .ventana.foto-grande .pie-foto button {
   font: inherit; font-weight: 700; font-size: 12.5px; min-height: 38px; padding: 0 16px;
   border-radius: 0; border: 1px solid rgba(255,255,255,.25);
@@ -953,28 +962,82 @@
 .ac-rep .ac-rep-ir {
   display: block; width: 100%; margin-top: 10px; cursor: pointer;
   font: inherit; font-family: var(--ac-titulo); font-weight: 800; font-size: 16px;
-  background: var(--c-oro); color: #1A1200;
-  border: 1px solid var(--c-oro); border-radius: 0; padding: 16px;
+  background: var(--c-marca); color: var(--c-marca-txt);
+  border: 1px solid var(--c-marca); border-radius: 0; padding: 16px;
 }
 
 /* A quién nacen asignadas las acciones nuevas. Una fila por persona,
    la escogida marcada: es una sola decisión, no un formulario. */
-.ac .ac-defecto { display: grid; gap: 8px; padding: 12px }
+/* ---------- ¿Quién recibe acciones? ----------
+   EN VARIAS COLUMNAS Y CON CASILLA. Era UNA columna de tarjetas de
+   56 px de alto: con treinta usuarios son tres pantallazos de bajar
+   para marcar a dos personas, y lo único que decía si alguien estaba
+   marcado era un filo de color a la izquierda —que no se ve si no hay
+   otro al lado para comparar—. La casilla dice lo que hay de un
+   vistazo, y en el alto de tres tarjetas caben ocho personas. */
+.ac .ac-q-busca {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 12px 0;
+}
+.ac .ac-q-busca input {
+  flex: 1 1 260px; min-height: 44px; padding: 10px 12px;
+  border: 1px solid var(--c-d5dce5); border-radius: 0;
+  background: #fff; color: var(--c-04203f); font: inherit; font-size: 14px;
+}
+.ac .ac-q-busca span {
+  font-size: 12px; font-weight: 700; color: var(--c-5b6b7f);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+.ac .ac-defecto {
+  display: grid;
+  /* EL MÍNIMO CAMBIA CON LA PANTALLA, y es a propósito.
+     Con 230 fijo, a 390 px solo cabía UNA columna y veinte personas
+     volvían a ser tres pantallazos de bajar. Con 160 fijo caben dos en
+     el teléfono, pero en el monitor salen ocho columnas tan estrechas
+     que «Andrespalacio» se lee «Andrespal…» — y si hay que adivinar
+     quién es, la lista tampoco sirve.
+     Así que 200 donde hay sitio y 160 donde no. */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px; padding: 12px;
+}
 .ac .ac-def-q {
+  display: flex; align-items: center; gap: 10px;
   font: inherit; text-align: left; cursor: pointer;
   background: #fff; border: 1px solid var(--c-d5dce5); border-radius: 0;
-  padding: 13px 15px; min-height: 56px; color: var(--c-04203f);
+  /* 48 px: se marca con el dedo, igual que todo lo demás. */
+  padding: 8px 12px; min-height: 48px; color: var(--c-04203f);
 }
 .ac .ac-def-q:hover { border-color: var(--c-5b6b7f) }
 .ac .ac-def-q:disabled { opacity: .55; cursor: not-allowed }
-.ac .ac-def-q.on { border-color: var(--c-oro); border-left: 4px solid var(--c-oro) }
-.ac .ac-def-q .n {
-  display: block; font-family: var(--ac-titulo); font-weight: 800; font-size: 16px;
+.ac .ac-def-q.on { border-color: var(--c-marca) }
+
+/* LA CASILLA — con el color de la MARCA y su propio color de texto.
+   Con `--c-oro` salía roja en tres temas, y una casilla marcada en
+   rojo se lee como «este está mal», que es lo contrario de lo que
+   dice. */
+.ac .ac-def-q .ac-q-caja {
+  flex: 0 0 auto; width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--c-d5dce5); border-radius: 0;
+  background: #fff; color: transparent;
+  font-size: 14px; font-weight: 900; line-height: 1;
 }
-.ac .ac-def-q .c { display: block; font-size: 12.5px; color: var(--c-5b6b7f); margin-top: 3px }
-.ac .ac-def-q .n b.si {
-  font-size: 11px; font-weight: 800; letter-spacing: .08em;
-  color: var(--c-oro); margin-left: 8px;
+.ac .ac-def-q.on .ac-q-caja {
+  background: var(--c-marca); border-color: var(--c-marca); color: var(--c-marca-txt);
+}
+.ac .ac-def-q .ac-q-txt { min-width: 0; display: grid; gap: 1px }
+.ac .ac-def-q .n {
+  display: block; font-family: var(--ac-titulo); font-weight: 800; font-size: 14.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ac .ac-def-q .c {
+  display: block; font-size: 12px; color: var(--c-5b6b7f);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ac .ac-q-nada {
+  grid-column: 1 / -1; margin: 0; padding: 20px 4px; text-align: center;
+  font-size: 13px; color: var(--c-5b6b7f);
 }
 
 /* ---------- Preventivas programadas (Maestro) ---------- */
@@ -1231,4 +1294,63 @@
 @media (max-width: 560px) {
   .ac .ac-p-rama { padding: 22px 20px 20px }
   .ac .ac-p-rama .ac-p-cifra b { font-size: 34px }
+}
+
+/* =====================================================================
+   MAESTRO · ESCOGER VARIAS Y ELIMINARLAS · prefijo `ac-m-`
+   ---------------------------------------------------------------------
+   Comprobado libre en acciones.css, globals.css y shell.css.
+   ===================================================================== */
+.ac .ac-m-sel {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ac-linea);
+  background: var(--c-eef1f5);
+}
+.ac .ac-m-todas {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px; cursor: pointer; margin-right: auto;
+  font-size: 13.5px; font-weight: 600; color: var(--c-04203f);
+}
+.ac .ac-m-todas input,
+.ac .ac-m-caja input { width: 20px; height: 20px; accent-color: var(--c-marca) }
+
+.ac .ac-m-acc { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.ac .ac-m-acc .btn { min-height: 44px; border-radius: 0 }
+.ac .ac-m-cuenta { font-size: 13px; color: var(--c-5b6b7f) }
+.ac .ac-m-cuenta b { color: var(--c-04203f) }
+
+/* LA CASILLA VA PEGADA AL NOMBRE y no en una columna aparte: en una
+   columna propia empuja el nombre de las filas que SÍ se pueden borrar
+   y deja las otras descuadradas — y las que no se pueden borrar son
+   justo las que no llevan casilla. */
+.ac .ac-m-caja {
+  display: inline-flex; align-items: center; justify-content: center;
+  /* 44 px de área tocable aunque el cuadrito mida 20: fallar el clic
+     aquí es marcar la fila de al lado en una pantalla cuyo botón
+     siguiente dice «Eliminar». */
+  min-width: 44px; min-height: 44px; margin: -12px 2px -12px -12px;
+  cursor: pointer; vertical-align: middle;
+}
+
+/* ESCOGIDA SE MARCA CON UN FILO, no con el fondo: el fondo de color
+   detrás del código de la zona lo vuelve más difícil de leer, y el
+   código es lo que va pegado en la pared. */
+.ac .fila.ac-m-puesta {
+  box-shadow: inset 3px 0 0 0 var(--c-marca);
+  background: var(--c-eef1f5);
+}
+
+@media (max-width: 560px) {
+  .ac .ac-defecto { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) }
+  .ac .ac-m-todas { margin-right: 0; flex: 1 0 100% }
+  .ac .ac-m-acc { flex: 1 0 100% }
+  .ac .ac-m-acc .btn { flex: 1 1 auto }
+}
+
+/* EL HUECO DE LA FILA QUE NO SE PUEDE BORRAR — del mismo ancho que la
+   casilla, para que todos los nombres arranquen en la misma raya. */
+.ac .ac-m-hueco {
+  display: inline-block; width: 22px; min-width: 22px;
+  margin-right: 2px; vertical-align: middle;
 }

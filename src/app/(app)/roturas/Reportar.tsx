@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
-import { BuscarMaterial } from "./BuscarMaterial";
+import { BuscarEnLista } from "@/components/BuscarEnLista";
 import { COLOR_VIDRIO } from "@/modulos/roturas/formato";
 import type { Area, Causa, Material, Proceso } from "@/modulos/roturas/datos";
 
@@ -206,7 +206,14 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           una lista de treinta pantallazos donde solo se puede saltar
           tecleando el PRINCIPIO del nombre. Quien busca «355» no
           encuentra nada. */}
-      <BuscarMaterial id="rt-mat" materiales={delTipo} valor={material}
+      <BuscarEnLista id="rt-mat" valor={material}
+        /* EL MISMO COMPONENTE QUE AVERÍAS. Era de aquí y se sacó a
+           `components/` cuando Averías necesitó exactamente esto:
+           copiarlo habría dado dos cajas de búsqueda que se
+           desincronizan. `clave` es lo que se guarda, `codigo` es lo
+           que está pegado en la estiba y por lo que también se busca. */
+        opciones={delTipo.map((m) => ({ clave: m.clave, nombre: m.nombre, codigo: m.clave }))}
+        rotulo="Escribe para buscar el material"
         cambiar={(c) => { setMaterial(c); setTocoBotellas(false) }}
         vacio={esPT
           ? "No hay materiales de producto terminado en el maestro de inventario."

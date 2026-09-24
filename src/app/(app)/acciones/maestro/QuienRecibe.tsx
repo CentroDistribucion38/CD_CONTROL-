@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
@@ -37,8 +37,27 @@ export function QuienRecibe({ gente, todos, falta, puedeEditar }: {
   const [avisar, avisos] = useAvisos();
   const [lista, setLista] = useState(gente);
   const [mandando, setMandando] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
 
   const marcados = lista.filter((p) => p.recibe).length;
+
+  /* BUSCADOR SOLO CUANDO ESTORBA. Con seis personas, un campo de buscar
+     encima es un campo de más; con treinta, bajar hasta encontrar a
+     «Cañizares» es lo que hace que nadie use esta pantalla. */
+  const muchos = lista.length > 12;
+  const pelado = (t: string) =>
+    t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const vistos = useMemo(() => {
+    const q = pelado(busca.trim());
+    /* LOS MARCADOS PRIMERO, SIEMPRE. Son los que importan y son pocos;
+       mezclados por orden alfabético entre treinta hay que buscarlos
+       uno por uno para saber quién está puesto. */
+    const orden = [...lista].sort((a, b) =>
+      Number(b.recibe) - Number(a.recibe)
+      || (a.nombre || a.usuario || "").localeCompare(b.nombre || b.usuario || ""));
+    if (!q) return orden;
+    return orden.filter((p) => pelado(`${p.nombre ?? ""} ${p.usuario ?? ""} ${p.rol}`).includes(q));
+  }, [lista, busca]);
 
   async function cambiar(p: Persona) {
     setMandando(p.id);
@@ -78,18 +97,38 @@ export function QuienRecibe({ gente, todos, falta, puedeEditar }: {
             </div>
           )}
 
+          {muchos && (
+            <div className="ac-q-busca">
+              <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)}
+                     placeholder={`Buscar entre ${lista.length} personas — nombre, usuario o rol`}
+                     aria-label="Buscar a quién marcar" />
+              <span>{marcados} marcado{marcados === 1 ? "" : "s"}</span>
+            </div>
+          )}
+
+          {/* EN VARIAS COLUMNAS Y CON CASILLA.
+              Antes era UNA columna de tarjetas de 56 px: con treinta
+              usuarios eso son tres pantallazos de bajar, y lo único que
+              decía si alguien estaba marcado era un filo de color a la
+              izquierda que no se ve si no hay otro al lado para
+              comparar. Ahora la casilla dice lo que hay, y caben ocho
+              en el alto de una. */}
           <div className="ac-defecto">
-            {lista.map((p) => (
+            {vistos.map((p) => (
               <button key={p.id} type="button" disabled={!puedeEditar || mandando === p.id}
+                      role="switch" aria-checked={p.recibe}
                       className={"ac-def-q" + (p.recibe ? " on" : "")}
                       onClick={() => cambiar(p)}>
-                <span className="n">
-                  {p.nombre || p.usuario}
-                  {p.recibe && <b className="si"> ✓ recibe</b>}
+                <span className="ac-q-caja" aria-hidden>{p.recibe ? "✓" : ""}</span>
+                <span className="ac-q-txt">
+                  <span className="n">{p.nombre || p.usuario}</span>
+                  <span className="c">{p.rol}{p.usuario && p.nombre ? ` · ${p.usuario}` : ""}</span>
                 </span>
-                <span className="c">{p.rol}</span>
               </button>
             ))}
+            {vistos.length === 0 && (
+              <p className="ac-q-nada">Nadie dice «{busca}». Prueba con el usuario o el rol.</p>
+            )}
           </div>
 
           {marcados > 0 && (

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
+import { usePedirTexto } from "@/components/PedirTexto";
 import type { Area, Motivo, Zona } from "@/modulos/acciones/datos";
 
 /**
@@ -60,11 +61,13 @@ export function Maestro({ zonas, motivos, areas, equipos, uso, puedeEditar }: {
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
   const [pedir, dialogo] = useConfirmar();
+  const [pedirTexto, cuadro] = usePedirTexto();
 
   const [hoja, setHoja] = useState<Hoja>("zonas");
   const [nueva, setNueva] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [mandando, setMandando] = useState(false);
+  const [escogidas, setEscogidas] = useState<Set<string>>(new Set());
 
   /* Un solo formulario para las tres hojas: los campos que no aplican no
      se pintan. Tres formularios separados serían tres sitios donde
@@ -138,6 +141,48 @@ export function Maestro({ zonas, motivos, areas, equipos, uso, puedeEditar }: {
     setEditando(null); router.refresh();
   }
 
+  /* ---------- ESCOGER VARIAS Y ELIMINARLAS ----------
+     «Que aquí yo pueda seleccionar varios y eliminar.»
+
+     SOLO LAS QUE NADIE HA USADO. Es la misma regla que ya tenía el
+     botón de una sola fila, y aquí importa MÁS: con las casillas es
+     fácil marcar seis de un barrido, y si una de esas seis tiene
+     acciones colgando, borrarla se llevaría el histórico que cuenta la
+     reincidencia. Las que no se pueden ni siquiera ofrecen casilla. */
+  async function borrarEscogidas() {
+    const van = filas.filter((x) => escogidas.has(x.id));
+    if (van.length === 0) return;
+    const m = await pedirTexto({
+      titulo: van.length === 1 ? `¿Eliminar ${van[0].nombre}?` : `¿Eliminar ${van.length}?`,
+      dice: (
+        <>
+          {van.length === 1 ? <>Se va <b>{van[0].nombre}</b>.</>
+            : <>Se van <b>{van.length}</b>: {van.slice(0, 4).map((x) => x.nombre).join(", ")}
+               {van.length > 4 ? ` y ${van.length - 4} más` : ""}.</>}
+          {" "}Ninguna se ha usado todavía, así que no se pierde histórico — pero{" "}
+          <b>no hay deshacer</b>. Si lo que quieres es que dejen de ofrecerse al reportar,{" "}
+          <b>desactívalas</b>: eso las quita de la lista y deja el histórico intacto.
+        </>
+      ),
+      rotulo: "Por qué se eliminan",
+      marcador: "Queda en el historial de administración",
+      confirmar: `Eliminar ${van.length}`, peligro: true, minimo: 4, largo: true,
+      debesEscribir: `ELIMINAR ${van.length}`,
+    });
+    if (m === null) return;
+
+    setMandando(true);
+    /* UNA SOLA LLAMADA CON TODAS LAS CLAVES. Una por fila serían seis
+       formas de quedar a medias: se borran cuatro, se cae la red, y el
+       maestro queda en un estado que nadie escogió. */
+    const { error } = await supabase.from(tabla).delete().in(llave, van.map((x) => x.id));
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(`Se eliminaron ${van.length}.`);
+    setEscogidas(new Set());
+    router.refresh();
+  }
+
   async function alternar(id: string, activo: boolean) {
     const { error } = await supabase.from(tabla).update({ activo: !activo }).eq(llave, id);
     if (error) { avisar.mal(error.message); return }
@@ -203,6 +248,13 @@ export function Maestro({ zonas, motivos, areas, equipos, uso, puedeEditar }: {
               activo: a.activo,
             }));
 
+  /* LAS QUE SE PUEDEN ELIMINAR: las que nadie ha usado. Se calcula una
+     vez y de ahí salen la casilla de cada fila y la de «escoger
+     todas» — contarlo en dos sitios es cómo un día «las 6» marca 5. */
+  const borrables = filas.filter((x) => (hoja === "areas" ? usosArea(x.id) : usos(x.id)) === 0);
+  const todasPuestas = borrables.length > 0
+    && borrables.every((x) => escogidas.has(x.id));
+
   const puedeGuardar = f.nombre.trim().length >= 2 &&
     (hoja !== "zonas" || f.clave.trim().length >= 4);
 
@@ -210,11 +262,19 @@ export function Maestro({ zonas, motivos, areas, equipos, uso, puedeEditar }: {
     <>
       {avisos}
       {dialogo}
+      {cuadro}
 
       <div className="filtros">
         {(["zonas", "motivos", "areas"] as Hoja[]).map((h) => (
           <button key={h} type="button" className={"btn" + (hoja === h ? " si" : "")}
-                  onClick={() => { setHoja(h); setNueva(false); setEditando(null); }}>
+                  onClick={() => {
+                    /* LA SELECCIÓN SE LIMPIA AL CAMBIAR DE HOJA. Sin
+                       esto, marcar tres zonas, pasarse a Motivos y dar
+                       Eliminar borraría cosas que ya no están en
+                       pantalla — y eso no se ve hasta después. */
+                    setHoja(h); setNueva(false); setEditando(null);
+                    setEscogidas(new Set());
+                  }}>
             {h === "zonas" ? `Zonas (${zonas.length})`
              : h === "motivos" ? `Motivos (${motivos.length})`
              : `Áreas (${areas.length})`}
@@ -249,6 +309,38 @@ export function Maestro({ zonas, motivos, areas, equipos, uso, puedeEditar }: {
           </div>
         )}
 
+        {/* ESCOGER VARIAS — solo las que se pueden eliminar.
+            Ofrecer casilla en una zona con acciones colgando sería
+            ofrecer algo que después la pantalla niega, y una regla
+            correcta contada como un regaño es peor que no tenerla. */}
+        {puedeEditar && borrables.length > 0 && (
+          <div className="ac-m-sel">
+            <label className="ac-m-todas">
+              <input type="checkbox" checked={todasPuestas}
+                     aria-label={`Escoger las ${borrables.length} que se pueden eliminar`}
+                     onChange={() => setEscogidas(todasPuestas
+                       ? new Set() : new Set(borrables.map((x) => x.id)))} />
+              <span>
+                {todasPuestas
+                  ? `Las ${borrables.length} sin usar están escogidas`
+                  : `Escoger las ${borrables.length} que nunca se han usado`}
+              </span>
+            </label>
+            {escogidas.size > 0 && (
+              <div className="ac-m-acc">
+                <span className="ac-m-cuenta"><b>{escogidas.size}</b> escogida
+                  {escogidas.size === 1 ? "" : "s"}</span>
+                <button type="button" className="btn plano" disabled={mandando}
+                        onClick={() => setEscogidas(new Set())}>Quitar la selección</button>
+                <button type="button" className="btn mal" disabled={mandando}
+                        onClick={borrarEscogidas}>
+                  {mandando ? "Eliminando…" : `Eliminar ${escogidas.size}`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="rueda">
           {filas.length === 0 && (
             <div className="vacio">
@@ -260,9 +352,29 @@ export function Maestro({ zonas, motivos, areas, equipos, uso, puedeEditar }: {
           {filas.map((x) => {
             const n = hoja === "areas" ? usosArea(x.id) : usos(x.id);
             return (
-              <div className={"fila dos" + (x.activo ? "" : " apagada")} key={x.id}>
+              <div className={"fila dos" + (x.activo ? "" : " apagada")
+                              + (escogidas.has(x.id) ? " ac-m-puesta" : "")} key={x.id}>
                 <div>
-                  <div className="tit">{x.nombre}</div>
+                  <div className="tit">
+                    {/* LA QUE NO SE PUEDE BORRAR LLEVA UN HUECO DEL
+                        MISMO ANCHO. Sin él, su nombre empieza treinta
+                        píxeles a la izquierda de los demás y la lista
+                        se lee torcida — parece un error de la pantalla
+                        y no la regla que es. */}
+                    {puedeEditar && n > 0 && <span className="ac-m-hueco" aria-hidden />}
+                    {puedeEditar && n === 0 && (
+                      <label className="ac-m-caja">
+                        <input type="checkbox" checked={escogidas.has(x.id)}
+                               aria-label={`Escoger ${x.nombre}`}
+                               onChange={() => setEscogidas((a) => {
+                                 const s = new Set(a);
+                                 s.has(x.id) ? s.delete(x.id) : s.add(x.id);
+                                 return s;
+                               })} />
+                      </label>
+                    )}
+                    {x.nombre}
+                  </div>
                   <div className="meta">
                     <code className="clave">{x.id}</code>
                     <span>·</span>

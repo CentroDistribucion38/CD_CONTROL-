@@ -3,7 +3,7 @@ import { misPermisos } from "@/lib/permisos";
 import { usuarioActual } from "@/lib/sesion";
 import { createClient } from "@/lib/supabase/server";
 import {
-  averias, causales, productosDeAverias, ubicacionesUsadas,
+  averias, causales, productosDeAverias, ubicacionesMaestro,
 } from "@/modulos/averias/datos";
 import "../../fefo.css";
 import "./../averias.css";
@@ -33,7 +33,7 @@ export const dynamic = "force-dynamic";
 export default async function AveriasTableroPage() {
   const [permisos, user, av, cau, prods, ubis] = await Promise.all([
     misPermisos(), usuarioActual(), averias(), causales(),
-    productosDeAverias(), ubicacionesUsadas(),
+    productosDeAverias(), ubicacionesMaestro(),
   ]);
 
   if (av.sinTabla) {

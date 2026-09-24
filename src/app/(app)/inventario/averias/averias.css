@@ -175,3 +175,60 @@
 .avr .avr-chk span { font-size: 12.5px; line-height: 1.55; color: var(--fe-gris) }
 .avr .avr-chk b { color: var(--fe-tinta) }
 .avr .avr-chk i { font-style: italic }
+
+/* =====================================================================
+   LA UBICACIÓN EN CASCADA, «PASÓ ANTES» Y EL SELLO DEL REGISTRO
+   ---------------------------------------------------------------------
+   Comprobado libre en averias.css, globals.css y shell.css.
+   ===================================================================== */
+
+/* UN DESPLEGABLE APAGADO TIENE QUE VERSE APAGADO. Con el mismo aspecto
+   que uno encendido se toca tres veces antes de que alguien entienda
+   que falta llenar el de la izquierda. */
+.avr .avr-c select:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  background: var(--c-eef1f5);
+}
+
+/* «¿ESTO PASÓ ANTES DE HOY?» — un enlace y no un botón con borde: es
+   el caso raro, y un botón de verdad ahí compite con Guardar. */
+.avr .avr-enlace {
+  /* A LA IZQUIERDA Y DEL ANCHO DE SU TEXTO. Como hijo de un grid se
+     estiraba a todo el ancho y su texto salía centrado en mitad del
+     formulario, como si fuera un título. */
+  align-self: start;
+  justify-self: start;
+  text-align: left;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-marca);
+  font: 600 13px inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.avr .avr-antes { display: grid; gap: 6px; align-content: start }
+.avr .avr-antes .avr-nota {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--c-5b6b7f);
+}
+
+/* LO QUE SE VA A GUARDAR SOLO, DICHO ANTES DE GUARDAR. Es lo que hace
+   que nadie busque el campo de la fecha que se quitó. */
+.avr .avr-sello {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--c-d5dce5);
+  border-left: 3px solid var(--c-04203f);
+  border-radius: 0;
+  background: var(--c-eef1f5);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--c-5b6b7f);
+}
+.avr .avr-sello b { color: var(--c-04203f) }
