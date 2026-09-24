@@ -16,7 +16,60 @@ const html = `<!doctype html><meta charset="utf-8">${head}<style>
 <section class="comomide"><div><div class="rot">CÓMO SE MIDE</div><h2>Bruto menos tolva</h2>
 <p>Se pesa la tolva llena en la báscula y el sistema descuenta los 111 kg del recipiente. Si mañana entra una tolva de otro modelo, se cambia la tara en el maestro, no a mano en cada salida.</p>
 <div class="formula"><span class="chip">BRUTO</span><span class="signo">−</span><span class="chip tara">TARA 111</span><span class="signo">=</span><span class="chip neto">NETO</span></div></div>
-<div class="tara-sello"><div class="r">TARA</div><div class="v">111 kg</div></div></section>
+<div class="dibujo"><svg viewBox="0 0 380 250" role="img"
+         aria-label="Una tolva vacía sobre el riel, con su tara señalada al lado">
+      <defs>
+        
+        <pattern id="rt-riel" width="10" height="10" patternUnits="user-space-on-use"
+                 patternTransform="rotate(62)">
+          <rect width="10" height="10" fill="#E3-e3-dF" />
+          <line x1="0" y1="0" x2="0" y2="10" stroke="#B8-b8-b2" stroke-width="4" />
+        </pattern>
+        <linear-gradient id="rt-oro-cara" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#F-fD23-f" />
+          <stop offset="1" stop-color="#E3-a900" />
+        </linear-gradient>
+      </defs>
+
+      
+      <path d="M18 214 L300 186 L318 200 L36 228 Z" fill="url(#rt-riel)" />
+      <path d="M18 214 L300 186" stroke="#9-a9-a94" stroke-width="1.5" fill="none" />
+
+      
+      <ellipse cx="168" cy="196" rx="118" ry="12" fill="#000" opacity=".1" />
+
+      
+      <path d="M58 62 L286 42 L252 148 L96 162 Z" fill="url(#rt-oro-cara)" />
+      
+      <path d="M96 162 L252 148 L246 170 L100 182 Z" fill="#C79400" />
+      
+      <path d="M58 62 L286 42 L268 30 L74 48 Z" fill="#2-b2-b2-b" />
+      <path d="M74 48 L268 30 L262 38 L80 55 Z" fill="#3-d3-d3-d" />
+      
+      <path d="M58 62 L286 42 L280 48 L64 68 Z" fill="#F-fD-c63" />
+
+      
+      <circle cx="104" cy="168" r="3.5" fill="#F-fC000" />
+      <circle cx="172" cy="162" r="3.5" fill="#F-fC000" />
+      <circle cx="238" cy="155" r="3.5" fill="#C8102-e" />
+
+      
+      <path d="M92 168 L256 152 L258 166 L94 182 Z" fill="#2-b2-b2-b" />
+      <rect x="108" y="178" width="14" height="16" rx="2" fill="#3-d3-d3-d" transform="rotate(-4 115 186)" />
+      <rect x="222" y="162" width="14" height="16" rx="2" fill="#3-d3-d3-d" transform="rotate(-4 229 170)" />
+      <circle cx="115" cy="196" r="9" fill="#1-a1-a1-a" />
+      <circle cx="115" cy="196" r="3.5" fill="#6-a6-a66" />
+      <circle cx="229" cy="180" r="9" fill="#1-a1-a1-a" />
+      <circle cx="229" cy="180" r="3.5" fill="#6-a6-a66" />
+
+      
+      <g stroke="#5-e625-e" stroke-width="1.5" fill="none">
+        <path d="M306 40 L306 196" />
+        <path d="M298 44 L314 44-m298 192 L314 192" />
+      </g>
+      <path d="M264 34 L306 40-m240 186 L306 192" stroke="#C8-c8-c2"
+            stroke-width="1" stroke-dasharray="3 3" fill="none" />
+    </svg><div class="tara-sello"><div class="r">TARA</div><div class="v">111 kg</div></div></div></section>
 
 <section class="caja"><div class="cab"><div><h2>Tolvas de esta salida</h2><p>Una salida puede llevar varios vidrios. Cada tolva guarda la tara que tenía el día en que se pesó.</p></div></div>
 <div class="tolvas">${tolva("TOLVA 1","ambar",523,111)}${tolva("TOLVA 2","ambar",498,111)}${tolva("TOLVA 3","flint",414,111)}

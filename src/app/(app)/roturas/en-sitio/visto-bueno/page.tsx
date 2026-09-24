@@ -56,32 +56,6 @@ export default async function VistoBuenoPage() {
         </div>
       </section>
 
-      {/* LA CADENA, COMO ES AHORA. Cuatro eslabones y no tres: el
-          desacuerdo es un sitio donde una rotura se queda, no un paso
-          invisible, y quien mira la bandeja tiene que poder ver cuántas
-          hay paradas ahí esperando a ABI. */}
-      <div className="cadena">
-        <div className="eslabon aqui">
-          <div className="n">{datos.roturas.length}</div>
-          <div className="r">ESPERAN TU RESPUESTA</div>
-        </div>
-        <div className="flecha" aria-hidden>›</div>
-        <div className="eslabon">
-          <div className="n">{cuentan}</div>
-          <div className="r">A COBRO</div>
-        </div>
-        <div className="flecha" aria-hidden>›</div>
-        <div className="eslabon">
-          <div className="n">{enPleito}</div>
-          <div className="r">EN DESACUERDO · ABI</div>
-        </div>
-        <div className="flecha" aria-hidden>›</div>
-        <div className="eslabon mal">
-          <div className="n">{noCuentan}</div>
-          <div className="r">NO SE COBRAN</div>
-        </div>
-      </div>
-
       {!puedeDecidir && (
         <div className="aviso">
           Estás viendo la bandeja, pero contestar es de quien tenga <b>Editar</b> en esta
@@ -97,7 +71,8 @@ export default async function VistoBuenoPage() {
         </div>
       )}
 
-      <VistoBueno roturas={datos.roturas} nombres={nombres} puedeDecidir={puedeDecidir} />
+      <VistoBueno roturas={datos.roturas} nombres={nombres} puedeDecidir={puedeDecidir}
+                  cifras={{ aCobro: cuentan, enDesacuerdo: enPleito, noSeCobran: noCuentan }} />
     </div>
   );
 }
