@@ -30,10 +30,16 @@ import { fecha, kilos, quien } from "../comunes";
  * que alguien corrija uno de los dos, y la salida diría un número que no
  * sale de sus propias tolvas.
  */
-export function Salidas({ salidas, nombres, puedeAbrir }: {
+export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
   salidas: Salida[];
   nombres: Record<string, string>;
   puedeAbrir: boolean;
+  /* CORREGIR Y ANULAR SON DE QUIEN MANDA, y solo de quien manda. La
+     base lo impide igual —`salida_reabrir` y `salida_anular` preguntan
+     por `manda()`—; esto es para que a los demás ni siquiera les salga
+     el botón. Una pantalla que ofrece algo y después la base lo niega
+     convierte una regla correcta en un regaño. */
+  manda: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -54,6 +60,30 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
      guardara "ABC123", el primer reclamo sería por qué no aparece la
      placa que alguien juró haber escrito. */
   const placaLimpia = placa.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
+  /* REABRIR Y ANULAR, LOS DOS CON MOTIVO OBLIGATORIO. La base lo exige;
+     aquí se pide antes para no mandar una llamada que se sabe que va a
+     fallar. `prompt` y no un panel propio a propósito: son dos acciones
+     de administrador que se usan una vez al mes, y un panel más en esta
+     pantalla es una pantalla más difícil para quien la usa a diario. */
+  async function corregir(s: Salida, que: "reabrir" | "anular") {
+    const texto = que === "reabrir"
+      ? `Reabrir ${s.codigo} para corregir sus tolvas.\n\nSe le caen las firmas y hay que volver a cerrarla.\n\n¿Por qué se reabre?`
+      : `ANULAR ${s.codigo}.\n\nNo se borra: queda con el motivo y quién lo hizo.\n\n¿Por qué se anula?`;
+    const motivo = window.prompt(texto, "");
+    if (motivo === null) return;
+    if (!motivo.trim()) { avisar.mal("Hay que decir por qué."); return }
+    setMandando(true);
+    const { error } = await supabase.rpc(
+      que === "reabrir" ? "salida_reabrir" : "salida_anular",
+      { p_id: s.id, p_motivo: motivo.trim() });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(que === "reabrir"
+      ? `${s.codigo} quedó abierta otra vez. Corrige las tolvas y vuelve a cerrarla.`
+      : `${s.codigo} quedó anulada.`);
+    router.refresh();
+  }
 
   async function abrir() {
     setMandando(true);
@@ -173,6 +203,12 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
                   <span className="eti">{s.estado.toUpperCase()}</span>
                   <span>abierta {fecha(s.creada_en)} por {quien(nombres, s.creada_por)}</span>
                   {s.observacion && <span>{s.observacion}</span>}
+                  {(s.reaperturas ?? 0) > 0 && (
+                    <span className="eti falta"
+                          title={s.reabierta_nota ?? undefined}>
+                      REABIERTA {s.reaperturas! > 1 ? `${s.reaperturas} VECES` : ""}
+                    </span>
+                  )}
                 </div>
                 <div className="meta">
                   {/* CUÁL falta, no cuántas van. "2 de 3" obliga a ir a
@@ -195,6 +231,22 @@ export function Salidas({ salidas, nombres, puedeAbrir }: {
                   <span className="eti falta" title="Dos firmas de la misma persona">
                     MISMA PERSONA
                   </span>
+                )}
+                {/* SOLO EN LO CERRADO Y NO DESPACHADO. Lo abierto ya se
+                    corrige pesando; lo que ya salió por la puerta lleva
+                    un número que se facturó, y para tocarlo hay que
+                    deshacer el despacho en Facturación primero. */}
+                {manda && s.estado === "cerrada" && !s.despachada_en && (
+                  <button type="button" className="btn" disabled={mandando}
+                          onClick={() => corregir(s, "reabrir")}>
+                    Reabrir
+                  </button>
+                )}
+                {manda && s.estado !== "anulada" && !s.despachada_en && (
+                  <button type="button" className="btn mal" disabled={mandando}
+                          onClick={() => corregir(s, "anular")}>
+                    Anular
+                  </button>
                 )}
                 <Link href={`/roturas/salida/${s.id}`} className="btn">
                   {s.estado === "abierta" ? "Pesar" : "Ver"}

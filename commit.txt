@@ -1,81 +1,89 @@
-El informe de salida usa el diseno de la hoja de rotura de linea
+Corregir y anular una salida de vidrio: solo quien manda
 
 =====================================================================
 LO QUE SE PIDIO
 =====================================================================
-«El exportable en PDF va bien, pero que tenga el mismo diseno que los
- demas. Mira el de la rotura de linea.»
+«Que aqui yo pueda editar o eliminar o anular esas tolvas, y que solo
+ el super admin tenga acceso.»
 
-LAS PIEZAS SE IMPORTAN DE `@/modulos/rotlinea/hoja`, NO SE COPIAN. Dos
-copias del mismo diseno se separan a la tercera vez que alguien cambia
-una — y aqui «parecido» no sirve, porque los dos papeles salen del
-mismo centro y se mandan a las mismas personas.
-
-De ahi vienen, y por eso son iguales al milimetro:
-· A4 vertical, margenes de 14 mm, el pie a 10 del borde;
-· la cinta de 4,5 mm del dorado hondo al dorado y de ahi al rojo,
-  armada con franjas porque jsPDF no pinta degradados;
-· el sello al 4 % detras de todo, puesto ANTES de escribir nada —jsPDF
-  pinta en el orden en que se le pide, y al final taparia las cifras—;
-· la cabecera: «Bavaria» a la izquierda y a la derecha el centro, el
-  titulo y la fecha;
-· la banda oscura del total con su raya de acento, la unica pieza
-  oscura del papel y por eso donde cae el ojo primero;
-· las tablas de cabecera oscura y filas alternadas;
-· el pie con la cinta fina, «Bavaria» y «pagina i de n».
-
-LOS COLORES SALEN DEL TEMA de quien lo genera y LOS LOGOS NO. Misma
-regla de la hoja de linea, y con LA MISMA FUNCION —`leerPaleta`—: dos
-maneras de leer el tema se separan el dia que alguien agregue uno.
+HASTA HOY UNA SALIDA CERRADA ERA DEFINITIVA. `salida_quitar_tolva` solo
+funciona con la salida ABIERTA, asi que un peso mal tecleado quedaba mal
+para siempre y el informe del mes lo arrastraba. Y anular existia en la
+base pero NO TENIA BOTON EN NINGUNA PANTALLA.
 
 =====================================================================
-LA BARRA AMBAR QUE ESTABA MOCHA — ERA MIO
+SE REABRE, NO SE «EDITA DIRECTO»
 =====================================================================
-`.cabeza` es una rejilla de DOS columnas. Al meterle el boton del
-informe quedaron TRES hijos: el tercero se fue al renglon de abajo Y A
-LA COLUMNA ANCHA, asi que la barra dorada salia estirada de lado a lado
-con la cuna diagonal cortada.
+Se pidio «editar las tolvas» y se hace REABRIENDO la salida, por dos
+razones:
 
-No dio error de nada, no rompio ningun margen, y solo se veia abriendo
-la pantalla. El boton y el KPI van ahora en un mismo envoltorio, y el
-arnes MIDE el ancho de la barra contra el de la cabecera: estirada pasa
-del 88 %, bien puesta se queda en su columna.
+  1. YA EXISTE TODO LO DE EDITAR. Con la salida abierta, pesar y quitar
+     tolvas funciona como el primer dia, con sus reglas y su arnes. Un
+     segundo camino seria una segunda copia de esas reglas, y las dos
+     copias se separan.
+  2. REABRIR DEJA RASTRO Y «EDITAR» NO. Queda quien, cuando, por que, y
+     CUANTAS VECES. Una salida reabierta tres veces es un dato que
+     alguien tiene que ver, y en la lista sale marcada.
+
+REABRIR TUMBA LAS FIRMAS. Una salida que se vuelve a tocar se vuelve a
+firmar: dejar la firma puesta seria sostener con la firma de ayer unos
+kilos de hoy. Es la regla entera de esta cadena.
+
+LO QUE YA SALIO POR LA PUERTA NO SE REABRE NI SE ANULA desde aqui: esos
+kilos ya se fueron con un viaje y un documento, y cambiarlos es cambiar
+un numero que ya se facturo. Si de verdad esta mal, primero se deshace
+el despacho en Facturacion —que deja su propio rastro— y despues se
+reabre.
+
+Y LO ANULADO NO SE REABRE: anular es decir «esto no paso». Para volver
+atras se abre una salida nueva.
+
+BORRAR DE VERDAD NO SE OFRECE, a proposito: una salida borrada no deja
+nada que mirar cuando alguien pregunte por que el mes cerro distinto.
 
 =====================================================================
-TRES COSAS QUE SOLO SE VIERON MIRANDO EL PAPEL
+«SUPER ADMIN» ES `manda()`, NO EL TEXTO 'admin'
 =====================================================================
-1. EL MENOS DE «BRUTO − TARA» salia como comilla doble: «7.150 " 2.330
-   = 4.820». U+2212 no existe en WinAnsi, que es la codificacion de la
-   helvetica de jsPDF. Justo en la cuenta que sostiene el informe.
-2. EL PIE SE MONTABA SOBRE «BAVARIA» —«…color ÁmbarBavaria»—: el choque
-   es en la mitad de la hoja y ninguna comprobacion del margen derecho
-   lo ve.
-3. «ESPERANDO VH» SE CORTABA en «Esperando», que pierde justo el dato.
+`salida_anular` preguntaba `mi_rol() <> 'admin'`. Eso compara contra un
+NOMBRE, y los roles de este proyecto son datos: el dia que se cree un
+segundo rol que mande —o que alguien renombre el de siempre— la
+comprobacion deja de proteger lo que cree proteger, y en la direccion
+peligrosa. `manda()` lee la casilla del rol, que es lo que de verdad
+quiere decir «super admin».
 
-Las tres quedaron escritas como comprobaciones.
+El arnes lo prueba creando un rol «dueno» que manda y NO se llama admin.
+
+=====================================================================
+UN CAMBIO QUE EL ARNES DEMOSTRO QUE SOBRABA
+=====================================================================
+La primera version le agregaba `manda()` a `salida_quitar_tolva`, para
+que el administrador que acaba de reabrir pudiera quitar la tolva mal
+pesada. El arnes aviso de que el rol «dueno» YA tenia ese permiso:
+`rotura_puede` pasa por `mi_nivel_pantalla`, que le devuelve «editar» a
+quien manda.
+
+Se quito en vez de dejarla «por si acaso». Una condicion que nunca
+cambia nada hace creer que ahi habia una regla, y el dia que alguien
+toque `mi_nivel_pantalla` va a respetar una que no existe.
 
 =====================================================================
 EL ARNES
 =====================================================================
-.arnes/rs-informe.mjs genera el PDF DE VERDAD con el mismo jsPDF del
-navegador y lo LEE DE VUELTA con pdftotext: se comprueba lo que dice el
-papel, no lo que el codigo cree que escribio. Un total mal sumado se ve
-perfectamente normal en un PDF bonito.
+bash .arnes/correr-salida-reabrir.sh, contra Postgres de verdad:
 
-· que bruto menos tara DE el neto, leido del papel;
-· que los filtros esten escritos en TODAS las paginas;
-· QUE SEA EL MISMO DISENO, medido CONTRA LA HOJA DE LINEA generandola
-  al lado — no contra numeros copiados aqui, que se quedarian viejos el
-  dia que la hoja cambie, que es justo cuando esto tiene que avisar;
-· con 70 salidas: parte paginas, vuelve a encabezar la tabla y nada se
-  sale del margen;
-· los colores del tema salen como RELLENOS de verdad —leyendo los
-  operadores `rg` del PDF—, y el logo es el mismo archivo en todos.
+· el supervisor no reabre ni anula;
+· un rol que MANDA y no se llama «admin» si puede —es la prueba de que
+  ya no se compara contra el nombre—;
+· reabrir tumba las firmas, exige motivo y cuenta las veces;
+· lo ya despachado no se reabre ni se anula;
+· lo anulado no se reabre, y no se anula dos veces;
+· la vista trae el rastro.
 
-Se comprobo que muerde: ocho mutaciones, ocho ROJAS. Una de ellas
-destapo un fallo del propio arnes —`pdftotext -bbox` devuelve XML y la
-comilla llegaba como `&quot;`, asi que buscar `"` no la encontraba
-nunca—.
+LA VISTA SE RECONSTRUYE SOBRE SU PROPIA DEFINICION con
+`pg_get_viewdef`, metida como subconsulta: `create or replace view` no
+acepta que la vista se nombre a si misma, y copiar aqui una definicion
+de cuarenta columnas la dejaria vieja a la primera migracion que la
+toque.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

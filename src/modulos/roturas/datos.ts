@@ -94,6 +94,14 @@ export type Salida = {
   tolvas_contadas?: number | null;
   viaje_codigo?: string | null;
   viaje_documento?: string | null;
+
+  /* EL RASTRO DE LAS CORRECCIONES. Opcionales por lo mismo que las de
+     arriba: si `2026-09-salida-reabrir-y-anular.sql` no se ha corrido,
+     la vista no las trae y la pantalla tiene que seguir pintándose. */
+  reabierta_por?: string | null;
+  reabierta_en?: string | null;
+  reabierta_nota?: string | null;
+  reaperturas?: number | null;
 };
 
 export type TolvaPesada = {
