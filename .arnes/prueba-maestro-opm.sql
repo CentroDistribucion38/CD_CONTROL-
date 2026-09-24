@@ -209,6 +209,132 @@ begin
   select count(*) into v_n from public.operarios_listar();
   if v_n < 2 then v_falla := v_falla || format(' 6c(el administrador solo ve %s operarios)', v_n); end if;
 
+  -- ================================================================
+  -- 7. PEGAR LA LISTA Y QUE LA BASE PONGA LOS PIN
+  --
+  -- «Yo solo coloco los nombres: copio en Excel, pego allí, y de una
+  --  genera los PIN.»
+  -- ================================================================
+  perform set_config('request.jwt.claim.sub', JEFE, true);
+  set role probador;
+
+  -- 7a · CADA UNO SALE CON SU PIN, Y NINGUNO REPETIDO.
+  --      Veinte de una para que «ninguno repetido» mida algo: con tres
+  --      nombres, un sorteo roto pasaría la prueba casi siempre.
+  declare
+    v_lista jsonb := '[]'::jsonb;
+    v_pines text[];
+    v_nuevos int;
+  begin
+    for v_n in 1..20 loop
+      v_lista := v_lista || jsonb_build_array(
+        jsonb_build_object('nombre', 'Operario Pegado ' || v_n, 'turno', 'A'));
+    end loop;
+    select array_agg(c.pin), count(*) filter (where c.estado = 'nuevo')
+      into v_pines, v_nuevos
+      from public.operarios_cargar(v_lista) c;
+
+    if v_nuevos <> 20 then
+      v_falla := v_falla || format(' 7a(se cargaron %s de 20)', v_nuevos);
+    end if;
+    if exists (select 1 from unnest(v_pines) p where p !~ '^[0-9]{4}$') then
+      v_falla := v_falla || ' 7a(algun PIN no son cuatro digitos)';
+    end if;
+    if (select count(distinct p) from unnest(v_pines) p) <> 20 then
+      v_falla := v_falla || ' 7b(dos operarios salieron con el mismo PIN)';
+    end if;
+    -- NO CORRELATIVO: con 0001, 0002, 0003 quien ve un PIN sabe los de
+    -- todos sus compañeros, y el PIN existe para poder creerle al que
+    -- registra. Veinte seguidos por sorteo es imposible.
+    if (select count(*) from (
+          select p::int - lag(p::int) over (order by p::int) as d
+            from unnest(v_pines) p) s where d = 1) > 8 then
+      v_falla := v_falla || ' 7c(los PIN salieron correlativos, no sorteados)';
+    end if;
+    -- Y NO SALEN LOS QUE CUALQUIERA TECLEA PARA PROBAR SUERTE.
+    if exists (select 1 from unnest(v_pines) p
+                where p in ('0000','1111','2222','3333','4444','5555',
+                            '6666','7777','8888','9999','1234','4321')) then
+      v_falla := v_falla || ' 7d(salio un PIN de los que cualquiera prueba)';
+    end if;
+  end;
+
+  -- 7b · PEGAR LA MISMA LISTA OTRA VEZ NO DUPLICA A NADIE, y devuelve
+  --      el PIN que ya tenían: es la forma de volver a sacarlos todos.
+  declare v_antes int; v_despues int; v_pin1 text; v_pin2 text; v_est text;
+  begin
+    select count(*) into v_antes from public.operarios_listar();
+    select c.pin into v_pin1 from public.operarios_cargar(
+      '[{"nombre":"Operario Pegado 1"}]'::jsonb) c;
+    select c.pin, c.estado into v_pin2, v_est from public.operarios_cargar(
+      '[{"nombre":"  operario   PEGADO 1  "}]'::jsonb) c;
+    select count(*) into v_despues from public.operarios_listar();
+
+    if v_despues <> v_antes then
+      v_falla := v_falla || format(' 7e(pegar lo mismo creo %s filas nuevas)', v_despues - v_antes);
+    end if;
+    if v_pin1 is distinct from v_pin2 then
+      v_falla := v_falla || ' 7f(el repetido no devolvio el PIN que ya tenia)';
+    end if;
+    if v_est <> 'ya estaba' then
+      v_falla := v_falla || format(' 7g(el repetido dijo «%s» en vez de «ya estaba»)', v_est);
+    end if;
+  end;
+
+  -- 7c · SI LA LISTA YA TRAE PIN, SE RESPETA. Y si ese PIN ya es de
+  --      otro, se dice y NO se pisa: pisarlo dejaría a dos personas
+  --      respondiendo al mismo número y al primero sin poder reportar.
+  declare v_pin text; v_est text; v_nom text;
+  begin
+    select c.pin, c.estado into v_pin, v_est from public.operarios_cargar(
+      '[{"nombre":"Con Pin Propio","pin":"7654"}]'::jsonb) c;
+    if v_pin <> '7654' or v_est <> 'nuevo' then
+      v_falla := v_falla || format(' 7h(no se respeto el PIN de la lista: %s / %s)', v_pin, v_est);
+    end if;
+
+    select c.estado into v_est from public.operarios_cargar(
+      '[{"nombre":"Otro Distinto","pin":"7654"}]'::jsonb) c;
+    if v_est not like '%ya es de otro%' then
+      v_falla := v_falla || format(' 7i(un PIN ya usado no se aviso: %s)', v_est);
+    end if;
+    select o.nombre into v_nom from public.operarios_listar() o where o.pin = '7654';
+    if v_nom <> 'Con Pin Propio' then
+      v_falla := v_falla || ' 7j(el PIN repetido le quito el suyo al primero)';
+    end if;
+
+    -- Un PIN mal escrito en el Excel tampoco tumba la carga entera.
+    select c.estado into v_est from public.operarios_cargar(
+      '[{"nombre":"Pin Torcido","pin":"12"}]'::jsonb) c;
+    if v_est not like '%mal escrito%' then
+      v_falla := v_falla || format(' 7k(un PIN de dos digitos no se aviso: %s)', v_est);
+    end if;
+  end;
+
+  -- 7d · LAS LÍNEAS EN BLANCO NO CREAN OPERARIOS SIN NOMBRE. Pegar de
+  --      Excel arrastra filas vacías del final casi siempre.
+  declare v_antes int; v_despues int; v_n2 int;
+  begin
+    select count(*) into v_antes from public.operarios_listar();
+    select count(*) into v_n2 from public.operarios_cargar(
+      '[{"nombre":"  "},{"nombre":""},{"turno":"A"}]'::jsonb) c;
+    select count(*) into v_despues from public.operarios_listar();
+    if v_despues <> v_antes or v_n2 <> 0 then
+      v_falla := v_falla || ' 7l(las lineas en blanco crearon operarios sin nombre)';
+    end if;
+  end;
+
+  -- 7e · Y ESTO TAMBIÉN ES DEL ADMINISTRADOR. Si no, cualquiera con la
+  --      sesión abierta se llena el maestro de PIN que él conoce.
+  perform set_config('request.jwt.claim.sub', SUP, true);
+  begin
+    perform public.operarios_cargar('[{"nombre":"Colado Por Lista"}]'::jsonb);
+    v_falla := v_falla || ' 7m(el supervisor pudo cargar la lista de operarios)';
+  exception when others then
+    if position('administrador' in sqlerrm) = 0 then
+      v_falla := v_falla || ' 7m(fallo por otra cosa: ' || sqlerrm || ')';
+    end if;
+  end;
+
   set role postgres;
   if v_falla <> '' then raise exception 'FALLA:%', v_falla; end if;
   raise notice 'BIEN: el desplegable sale del maestro de inventario, separa PRODUCTO de ENVASE,';
@@ -217,4 +343,7 @@ begin
   raise notice 'BIEN: igual que uno inventado; dos operarios no comparten PIN;';
   raise notice 'BIEN: el origen queda escrito, una «encontrada» no lleva OPM aunque manden PIN,';
   raise notice 'BIEN: y el maestro de operarios es solo de quien manda.';
+  raise notice 'BIEN: pegar la lista sortea PIN distintos, no correlativos y sin los que';
+  raise notice 'BIEN: cualquiera prueba; pegarla otra vez no duplica a nadie y devuelve el';
+  raise notice 'BIEN: PIN que ya tenian; un PIN de la lista se respeta y uno ya usado se avisa.';
 end $$;

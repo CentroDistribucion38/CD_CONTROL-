@@ -1,111 +1,84 @@
-Las pantallas del PIN: la primera pregunta al registrar, y el maestro de operarios
+Pegar la lista de operarios desde Excel, y el rediseño de Salida -> Analisis que no habia entregado
 
 =====================================================================
-LO QUE FALTABA ERA JUSTO ESTO
+EL REDISEÑO DE ANALISIS ESTABA HECHO Y NO LO MANDE
 =====================================================================
-«No veo los cambios en el modulo de quiebra de pin y demas cosas.»
+«Por que el diseño no ha cambiado, o sea, no he visto cambios en los
+ diseños del tablero.»
 
-Tenia razon. El commit anterior entrego LA BASE —el maestro de
-operarios, la funcion que traduce PIN → nombre, el origen de la
-rotura— y NINGUNA PANTALLA. Nada de eso se podia ver ni usar: el
-maestro no tenia donde cargarse y la pregunta no tenia donde hacerse.
-Esto son las dos pantallas.
+Porque no lo entregue. La pantalla estaba rediseñada contra tu maqueta
+—`roturas-salida-analisis 1.html`—, verificada y con los arneses en
+verde, y se quedo en mi copia. Error mio, y de los caros: te deje
+mirando la version vieja creyendo que asi habia quedado.
 
-=====================================================================
-1. REGISTRAR ABRE PREGUNTANDO DE DONDE SALIO
-=====================================================================
-«La primera pregunta que debe salir, antes de iniciar, es rotura
- reportada por OPM o encontrada.»
-
-VA DE PRIMERA Y NO AL FINAL, porque cambia a quien se le carga lo que
-sigue. Preguntado al final seria preguntarlo cuando ya nadie lo va a
-cambiar.
-
-EL PIN SOLO SALE SI LA REPORTO UN OPM. Una encontrada no lleva
-operario: pedirle el PIN seria pedirle que ponga a alguien en un
-reporte que nadie hizo. Y al cambiar a «me la encontre» el PIN
-ESCRITO SE BORRA —no se deja «por si vuelve»—.
-
-NO BASTA CON TECLEAR CUATRO DIGITOS: TIENE QUE SALIR EL NOMBRE. Se
-busca solo al completar el cuarto digito, sin boton, y hasta que la
-base no conteste con un nombre el boton de abajo no deja seguir.
-Cuatro digitos tecleados con guante se equivocan, y un numero que
-nadie confirma acaba firmando lo que registro otro.
-
-«REGISTRAR OTRA» VUELVE AL PASO 1, NO AL 0. Cuando se cae una estiba
-no se rompe una sola caja: es el mismo operario en el mismo momento, y
-volver a teclear su PIN por cada caja es lo que hace que la quinta no
-se registre.
-
-SI EL ORIGEN NO SE PUDO GUARDAR, SE DICE. La rotura YA existe y eso es
-lo correcto —perder el reporte por eso seria cambiar lo importante por
-lo accesorio—, pero queda marcada «sin origen» y la pantalla lo avisa
-en la misma linea donde avisa lo de la foto.
+LO QUE CAMBIA:
+· El titular con el NETO en grande y su linea de los ultimos 7 dias al
+  lado, contra HOY siempre —no contra el ultimo dia que tenga datos,
+  que hace que una semana sin despachos se vea igual que una normal—.
+· La barra BRUTO / TARA apilada en una sola pieza, con el porcentaje
+  de tara: es la cifra que dice si las tolvas estan saliendo pesadas.
+· Las cuatro cifras en su fila propia.
+· Y abajo, tres columnas: Por mes, la dona por color del vidrio, y la
+  tabla de salidas. Antes eran tres bloques uno debajo de otro y habia
+  que bajar toda la pantalla para comparar dos cosas que se miran
+  juntas.
 
 =====================================================================
-2. EL MAESTRO DE OPERARIOS
+PEGAR LA LISTA DE OPERARIOS
 =====================================================================
-Sin esta pantalla la otra no sirve: pide un PIN y contesta «ese PIN no
-es de ningun operario activo» PARA SIEMPRE, porque no hay donde
-cargarlos.
+«La idea es que yo solo coloque los nombres de los operadores: copio en
+ Excel, pego alli, y de una genera los PIN y los nombres.»
 
-EL PIN SE VE EN CLARO, Y ES UNA DECISION. Lo primero que uno piensa es
-taparlo con puntitos; entonces el administrador no puede recordarselo
-al operario que lo olvido, que es media razon de entrar aqui. Lo que
-si protege es no darselo a nadie mas: la tabla NO se le da a la
-aplicacion y `operarios_listar()` devuelve vacio a quien no manda.
+EL PIN LO SORTEA LA BASE Y NO LA PANTALLA. Dos personas cargando su
+lista al mismo tiempo desde dos computadores sortearian el mismo numero
+sin enterarse. En la base, el sorteo y la comprobacion de que esta libre
+ocurren dentro de la misma transaccion.
 
-NO HAY BORRAR, SE APAGA. Borrar a quien ya reporto deja esas roturas
-apuntando a nadie; y uno que no reporto ninguna tampoco hace daño
-apagado. Apagar corta el PIN y deja lo viejo diciendo quien lo hizo.
+ES AL AZAR Y NO CORRELATIVO. Lo comodo seria 0001, 0002, 0003; con eso
+cualquiera que vea un PIN sabe los de todos sus compañeros, y el PIN
+existe justamente para poder creerle al que registra. El arnes carga
+VEINTE de una y exige que no haya dos iguales, que no salgan
+correlativos, y que no salga ninguno de los que cualquiera teclea para
+probar suerte —0000, 1111 … 1234, 4321—.
 
-SE DICE CUANTOS NO HAN REPORTADO NADA. Es la unica cifra que distingue
-un maestro que se usa de uno que se cargo y ahi quedo.
+LO QUE SE LEE SE ENSEÑA ANTES DE CARGAR. Un pegado de Excel llega como
+llegue: una columna, tres, con la cabecera pegada de arrastre, con
+lineas en blanco del final. Adivinar en silencio es como se crean cien
+operarios mal. La previa es la respuesta: no se adivina, se muestra, y
+se marca cual ya estaba.
 
-Y VACIO SE EXPLICA: «mientras este vacio, en Registrar solo se puede
-decir me la encontre». Es el estado en que nace el modulo y el unico
-en que la pantalla TIENE que explicarse.
+LA COMA NO PARTE COLUMNAS, y es a proposito: «Padilla, Cristian» es un
+nombre escrito al reves —el apellido-primero de toda planilla de
+RR.HH.—, no dos columnas. Partirlo ahi crea dos operarios de una
+persona. Se parte por TABULADOR, que es lo que pega Excel, y por punto
+y coma, que es lo que sale de un CSV en español.
 
-VA EN SU PROPIA PANTALLA Y NO COMO HOJA DEL MAESTRO. El Maestro de En
-sitio es «lo que se puede escoger» —lo que todo el mundo ve en un
-desplegable—. Esto es lo contrario: son los PIN, y justamente no se le
-enseñan a quien registra. Una hoja mas habria amarrado el permiso de
-los PIN al de materiales y causas.
+PEGAR LA MISMA LISTA OTRA VEZ NO DUPLICA A NADIE: devuelve el PIN que
+ya tenian. Es, de paso, la forma de volver a sacar los PIN de todos sin
+tocar nada. Se comparan los nombres en minuscula, sin espacios de sobra
+y sin tildes.
+
+Y AL TERMINAR SE VEN LOS PIN, con un boton para copiarlos a Excel. Sin
+eso, la pantalla acaba de sortear cien numeros que hay que repartir y
+tocaria teclearlos a mano mirando la lista.
 
 =====================================================================
-DOS COSAS QUE DESTAPO EL ARNES
+EL SQL
 =====================================================================
-LO QUE SE TOCA MEDIA 42 Y 40 PX, NO 44. No era de estas pantallas: el
-boton `.btn` y los campos de `.panel` son de TODOS los maestros de
-Roturas y estaban asi desde el primero. Esto se llena con guante en
-una bodega. Corregido en los dos sitios; los diez arneses del modulo
-siguen verdes.
-
-UN FILTRO QUE NUNCA FILTRABA. `guardar()` limpiaba el PIN otra vez con
-`.replace(/\D/g,"")`, y la mutacion que lo rompia salia VERDE: el
-campo ya filtra al teclear. Se quito en vez de dejarlo «por si acaso»
-—un filtro que nunca filtra hace creer que ahi hay una regla—. Es la
-segunda vez en este modulo que el arnes demuestra que una condicion
-sobra; la primera fue el `manda()` de `salida_quitar_tolva`.
+`operarios_cargar` se AGREGO al mismo archivo que ya te pase
+—2026-09-roturas-maestro-unico-y-opm.sql—, no a uno nuevo. Si todavia
+no lo has corrido, corre ese y ya viene. Si ya lo corriste, correlo otra
+vez: se puede correr dos veces.
 
 =====================================================================
 LOS ARNESES
 =====================================================================
-node .arnes/rt-sitio.mjs      · 6 mutaciones, 6 ROJAS
-node .arnes/rt-operarios.mjs  · 7 mutaciones, 7 ROJAS
+bash .arnes/correr-maestro-opm.sh  · cinco comprobaciones nuevas
+node .arnes/rt-operarios.mjs       · 11 mutaciones, 11 ROJAS
 
-La primera mutacion de rt-sitio —quitar el paso 0— mataba el arnes de
-un timeout treinta segundos despues, sin decir por que. Por eso esa
-comprobacion quedo ANTES de cualquier click, y el arnes ahora imprime
-lo que llevaba antes de morirse.
-
-FALTA, Y NO LO PUEDE HACER EL CODIGO:
-· correr 2026-09-salida-reabrir-y-anular.sql
-· correr 2026-09-roturas-maestro-unico-y-opm.sql
-· llenar el COLOR DEL VIDRIO de los envases en Inventario -> Maestro
-· cargar los OPERARIOS con su PIN en Roturas -> En sitio -> Operarios
-Mientras no esten cargados, Registrar solo deja decir «me la
-encontre», y lo dice.
+EL LECTOR DEL PEGADO SE PRUEBA SIN NAVEGADOR. Es una funcion pura y los
+casos raros de un Excel pegado son quince: abrir Chromium quince veces
+para probarlos seria no probarlos.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

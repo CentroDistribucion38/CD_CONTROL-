@@ -38,6 +38,54 @@ import type { Operario } from "@/modulos/roturas/datos";
 
 const VACIO = { pin: "", nombre: "", empresa: "Easy", turno: "", nota: "" };
 
+type Fila = { nombre: string; turno: string; empresa: string; pin: string };
+type Cargado = Fila & { estado: string };
+
+/**
+ * LEER LO QUE SE PEGÓ DE EXCEL.
+ *
+ * Excel copia con TABULADOR entre columnas y salto de línea entre
+ * filas. También se acepta punto y coma —es lo que sale de un CSV
+ * guardado en español— y, si no hay ninguno de los dos, la línea
+ * entera es el nombre, que es el caso de pegar una sola columna.
+ *
+ * LA COMA NO SE PARTE, a propósito: «Padilla, Cristian» es un nombre
+ * escrito al revés, no dos columnas, y partirlo ahí crearía dos
+ * operarios de una persona.
+ *
+ * EL ORDEN ES NOMBRE · TURNO · EMPRESA, salvo que la primera columna
+ * sean puros dígitos: entonces es PIN · NOMBRE · TURNO · EMPRESA. Se
+ * puede distinguir sin adivinar porque un nombre nunca es solo
+ * números — y por eso se acepta, en vez de obligarlo a reordenar el
+ * Excel.
+ *
+ * NADA DE ESTO SE HACE A CIEGAS: lo leído se enseña en una tabla
+ * antes de cargar. Es la única respuesta honesta a un formato que
+ * llega como llegue.
+ */
+export function leerPegado(texto: string): Fila[] {
+  const filas: Fila[] = [];
+  for (const cruda of texto.split(/\r?\n/)) {
+    const linea = cruda.trim();
+    if (!linea) continue;
+    const cols = (/[\t;]/.test(linea) ? linea.split(/[\t;]/) : [linea])
+      .map((c) => c.trim().replace(/\s+/g, " "));
+
+    let pin = "";
+    let resto = cols;
+    if (/^\d{3,9}$/.test(cols[0] ?? "")) { pin = cols[0]; resto = cols.slice(1) }
+
+    const nombre = resto[0] ?? "";
+    if (!nombre) continue;
+    /* UNA CABECERA PEGADA DE ARRASTRE NO ES UN OPERARIO. Copiar desde
+       Excel con el título incluido es lo más normal del mundo. */
+    if (/^(nombre|operario|nombres?|opm)$/i.test(nombre)) continue;
+
+    filas.push({ nombre, turno: resto[1] ?? "", empresa: resto[2] ?? "", pin });
+  }
+  return filas;
+}
+
 export function Operarios({ lista, puedeEditar }: {
   lista: Operario[];
   puedeEditar: boolean;
@@ -51,6 +99,12 @@ export function Operarios({ lista, puedeEditar }: {
   const [f, setF] = useState(VACIO);
   const [mandando, setMandando] = useState(false);
   const [busca, setBusca] = useState("");
+
+  /* PEGAR LA LISTA DE EXCEL. «Yo solo coloco los nombres: copio en
+     Excel, pego allí, y de una genera los PIN.» */
+  const [pegando, setPegando] = useState(false);
+  const [pegado, setPegado] = useState("");
+  const [cargado, setCargado] = useState<Cargado[] | null>(null);
 
   const pelado = (t: string) =>
     t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -124,6 +178,53 @@ export function Operarios({ lista, puedeEditar }: {
     router.refresh();
   }
 
+  const leidas = leerPegado(pegado);
+  /* LOS QUE YA ESTÁN SE MARCAN ANTES DE MANDAR NADA. La base los
+     resuelve igual —devuelve el PIN que ya tenían—, pero verlo antes
+     evita el susto de «pegué cien y solo entraron cuarenta». */
+  const yaEstaba = (n: string) => lista.some((o) =>
+    pelado(o.nombre).replace(/\s+/g, " ") === pelado(n).replace(/\s+/g, " "));
+  const nuevos = leidas.filter((x) => !yaEstaba(x.nombre)).length;
+
+  async function cargarLista() {
+    if (!leidas.length) return;
+    setMandando(true);
+    const { data, error } = await supabase.rpc("operarios_cargar", {
+      p_lista: leidas.map((x) => ({
+        nombre: x.nombre, turno: x.turno || null,
+        empresa: x.empresa || null, pin: x.pin || null,
+      })),
+    });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    const r = (data ?? []) as Cargado[];
+    setCargado(r);
+    setPegado("");
+    const n = r.filter((x) => x.estado === "nuevo").length;
+    avisar.bien(n ? `${n} operario${n === 1 ? "" : "s"} con PIN nuevo.` : "No había ninguno nuevo.");
+    router.refresh();
+  }
+
+  /* COPIAR LA LISTA CON LOS PIN. Sin esto, la pantalla acaba de
+     generar cien números que hay que repartir y no hay forma de
+     sacarlos: tocaría teclearlos a mano uno por uno mirando la
+     pantalla. Se copia con tabulador, que es lo que Excel pega en
+     columnas. */
+  async function copiarPines(filas: Cargado[]) {
+    const txt = ["PIN\tNombre\tTurno\tEmpresa",
+      ...filas.filter((x) => x.estado === "nuevo" || x.estado === "ya estaba")
+              .map((x) => [x.pin, x.nombre, x.turno ?? "", x.empresa ?? ""].join("\t"))].join("\n");
+    try {
+      await navigator.clipboard.writeText(txt);
+      avisar.bien("Copiado. Se pega en Excel y cae en columnas.");
+    } catch {
+      /* SIN PORTAPAPELES NO SE PIERDE LA LISTA. El navegador lo niega
+         sin https o sin permiso, y ahí lo peor sería un aviso de
+         error y unos PIN que ya no se pueden sacar. */
+      avisar.mal("El navegador no dejó copiar. La lista está abajo: se puede seleccionar a mano.");
+    }
+  }
+
   const formulario = (
     <div className="panel">
       <label htmlFor="op-pin">PIN — de cuatro a ocho dígitos</label>
@@ -175,12 +276,128 @@ export function Operarios({ lista, puedeEditar }: {
               {mudos > 0 && ` ${mudos} todavía no ha${mudos === 1 ? "" : "n"} reportado ninguna.`}
             </p>
           </div>
-          {puedeEditar && !nuevo && (
-            <button type="button" className="btn si" onClick={abrirNuevo}>+ Agregar</button>
+          {puedeEditar && !nuevo && !pegando && (
+            <div className="par">
+              {/* PEGAR LA LISTA VA DE PRIMERO Y ES EL BOTÓN LLENO: es lo
+                  que se hace UNA VEZ con los cien operarios, y agregar
+                  de a uno es lo de después, cuando entra alguien. */}
+              <button type="button" className="btn si"
+                      onClick={() => { setPegando(true); setCargado(null) }}>
+                Pegar lista de Excel
+              </button>
+              <button type="button" className="btn" onClick={abrirNuevo}>+ Agregar uno</button>
+            </div>
           )}
         </div>
 
         {nuevo && <div style={{ padding: 12 }}>{formulario}</div>}
+
+        {pegando && (
+          <div className="panel op-pegar">
+            <label htmlFor="op-pegado">
+              Pega aquí los nombres — uno por línea, tal como salen de Excel
+            </label>
+            <textarea id="op-pegado" rows={7} value={pegado} autoFocus
+                      onChange={(e) => setPegado(e.target.value)}
+                      placeholder={"Genesis Visbal\nJose Palacio\nMarta Ospino"} />
+            <p className="op-como">
+              Solo los nombres basta: el PIN lo pone el sistema, distinto para cada uno.
+              Si tu Excel tiene más columnas, el orden es <b>Nombre · Turno · Empresa</b>;
+              y si la primera columna son puros números, se lee como <b>PIN · Nombre · Turno · Empresa</b>.
+              Lo que se lea se ve abajo antes de cargar nada.
+            </p>
+
+            {leidas.length > 0 && (
+              <>
+                <div className="op-cuenta">
+                  <b>{leidas.length}</b> {leidas.length === 1 ? "línea leída" : "líneas leídas"}
+                  {nuevos !== leidas.length && (
+                    <span> · {nuevos} {nuevos === 1 ? "nuevo" : "nuevos"},{" "}
+                      {leidas.length - nuevos} ya {leidas.length - nuevos === 1 ? "está" : "están"} en el maestro
+                    </span>
+                  )}
+                </div>
+                {/* LO LEÍDO SE VE ANTES DE CARGARLO. Es la única
+                    respuesta honesta a un pegado que llega como
+                    llegue: no se adivina en silencio, se enseña. */}
+                <div className="op-previa">
+                  <table>
+                    <thead>
+                      <tr><th>Nombre</th><th>Turno</th><th>Empresa</th><th>PIN</th></tr>
+                    </thead>
+                    <tbody>
+                      {leidas.slice(0, 60).map((x, i) => (
+                        <tr key={i} className={yaEstaba(x.nombre) ? "op-repe" : ""}>
+                          <td>{x.nombre}</td>
+                          <td>{x.turno || <em>—</em>}</td>
+                          <td>{x.empresa || <em>Easy</em>}</td>
+                          <td>{x.pin || <em>lo pone el sistema</em>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {leidas.length > 60 && (
+                    <p className="op-mas">y {leidas.length - 60} más, que también se cargan</p>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="acciones-panel">
+              <button type="button" className="btn si" disabled={mandando || !leidas.length}
+                      onClick={cargarLista}>
+                {mandando ? "Cargando…"
+                  : !leidas.length ? "Pega la lista arriba"
+                  : `Cargar ${leidas.length}`}
+              </button>
+              <button type="button" className="btn plano"
+                      onClick={() => { setPegando(false); setPegado("") }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* EL RESULTADO, CON LOS PIN A LA VISTA Y COPIABLES. La pantalla
+            acaba de sortear cien números que hay que repartir: si no se
+            pueden sacar de aquí, hay que teclearlos a mano mirando la
+            lista. */}
+        {cargado && cargado.length > 0 && (
+          <div className="panel op-hecho">
+            <div className="op-cuenta">
+              <b>{cargado.filter((x) => x.estado === "nuevo").length}</b> con PIN nuevo
+              {cargado.some((x) => x.estado !== "nuevo") && (
+                <span> · {cargado.filter((x) => x.estado === "ya estaba").length} ya estaban
+                  {cargado.some((x) => x.estado !== "nuevo" && x.estado !== "ya estaba") &&
+                    ` · ${cargado.filter((x) => x.estado !== "nuevo" && x.estado !== "ya estaba").length} con problema`}
+                </span>
+              )}
+            </div>
+            <div className="op-previa">
+              <table>
+                <thead><tr><th>PIN</th><th>Nombre</th><th>Turno</th><th></th></tr></thead>
+                <tbody>
+                  {cargado.map((x, i) => (
+                    <tr key={i} className={x.estado === "nuevo" ? "" : "op-repe"}>
+                      <td className="op-pin">{x.pin}</td>
+                      <td>{x.nombre}</td>
+                      <td>{x.turno || <em>—</em>}</td>
+                      <td><span className="eti">{x.estado}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="acciones-panel">
+              <button type="button" className="btn si" onClick={() => copiarPines(cargado)}>
+                Copiar los PIN
+              </button>
+              <button type="button" className="btn plano" onClick={() => setCargado(null)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* BUSCAR, PORQUE ESTO SE CARGA DE A CIEN. Un maestro de siete
             filas no lo necesita; uno de operarios de un centro de

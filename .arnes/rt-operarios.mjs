@@ -51,6 +51,15 @@ writeFileSync(R(".arnes/_nav-op.ts"),
 writeFileSync(R(".arnes/_supa-op.ts"), `export const createClient = () => ({
   rpc: async (f: string, a: any) => {
     (window as any).llamadas = [...((window as any).llamadas ?? []), { f, a }];
+    /* La carga por lista contesta lo que contesta la funcion de verdad:
+       una fila por nombre, con su PIN y su estado. */
+    if (f === "operarios_cargar") {
+      return { data: (a.p_lista ?? []).map((x: any, i: number) => ({
+        nombre: x.nombre, pin: x.pin ?? String(3300 + i),
+        empresa: x.empresa ?? "Easy", turno: x.turno ?? null,
+        estado: i === 0 ? "nuevo" : "nuevo",
+      })), error: null };
+    }
     return { data: "id-nuevo", error: null };
   },
 });`);
@@ -91,9 +100,9 @@ createRoot(document.getElementById("r")!).render(
   <Operarios lista={[]} puedeEditar />);
 `);
 
-const armar = (entrada) => buildSync({
+const armar = (entrada, formato = "iife") => buildSync({
   entryPoints: [R(entrada)], bundle: true, write: false,
-  format: "iife", jsx: "automatic",
+  format: formato, jsx: "automatic",
   alias: {
     "next/navigation": R(".arnes/_nav-op.ts"),
     "@/lib/supabase/client": R(".arnes/_supa-op.ts"),
@@ -134,7 +143,11 @@ const teclear = async (sel, v) => {
      Costó media hora encontrarlo la primera vez. */
   await pg.evaluate(([s, val]) => {
     const el = document.querySelector(s);
-    const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    /* EL PROTOTIPO DEPENDE DEL CAMPO: el setter de HTMLInputElement
+       sobre un <textarea> revienta con «Illegal invocation». */
+    const proto = el.tagName === "TEXTAREA"
+      ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+    const set = Object.getOwnPropertyDescriptor(proto, "value").set;
     set.call(el, val);
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }, [sel, v]);
@@ -307,6 +320,110 @@ await monta(1440, "", jsVacio);
      "con la lista vacía ni siquiera está el botón de agregar el primero");
   ok((await pg.$$(".rt .op-busca")).length === 0,
      "con la lista vacía sale un buscador para buscar entre cero");
+}
+
+/* =====================================================================
+   9bis · PEGAR LA LISTA DE EXCEL
+
+   «La idea es que yo solo coloque los nombres de los operadores: copio
+    en Excel, pego allí, y de una genera los PIN y los nombres.»
+
+   LO QUE SE LEE SE ENSEÑA ANTES DE CARGAR. Un pegado llega como llega
+   —una columna, tres, con cabecera, con líneas en blanco— y adivinar
+   en silencio es como se crean cien operarios mal. La previa es la
+   respuesta: no se adivina, se muestra.
+   ===================================================================== */
+{
+  /* 1. LA LECTURA, SIN NAVEGADOR. Es una función pura y se prueba
+        como tal: los casos raros de un pegado son quince, y abrir
+        Chromium quince veces para probarlos sería no probarlos. */
+  const { leerPegado } = await import(
+    "data:text/javascript;base64," + Buffer.from(
+      armar(".arnes/_op-lector.tsx", "esm")).toString("base64"));
+
+  const caso = (t, esperado, dice) => {
+    const r = leerPegado(t);
+    const igual = JSON.stringify(r) === JSON.stringify(esperado);
+    ok(igual, `${dice} — leyó ${JSON.stringify(r)}`);
+  };
+  const F = (nombre, turno = "", empresa = "", pin = "") => ({ nombre, turno, empresa, pin });
+
+  caso("Genesis Visbal\nJose Palacio", [F("Genesis Visbal"), F("Jose Palacio")],
+       "una sola columna de nombres no se lee bien, que es el caso normal");
+  caso("Genesis Visbal\tB\nJose Palacio\tA",
+       [F("Genesis Visbal", "B"), F("Jose Palacio", "A")],
+       "dos columnas de Excel (tabulador) no se parten en nombre y turno");
+  caso("Genesis Visbal\tB\tEasy", [F("Genesis Visbal", "B", "Easy")],
+       "tres columnas no se leen como nombre, turno y empresa");
+  caso("4021\tGenesis Visbal\tB", [F("Genesis Visbal", "B", "", "4021")],
+       "una primera columna de puros dígitos no se lee como el PIN");
+  /* LA COMA NO PARTE: «Padilla, Cristian» es un nombre escrito al
+     revés, no dos columnas. Partirlo ahí crea dos operarios de una
+     persona, y es el apellido-primero de toda planilla de RR.HH. */
+  caso("Padilla, Cristian", [F("Padilla, Cristian")],
+       "una coma partió el nombre en dos: «Apellido, Nombre» es UNA persona");
+  caso("Genesis Visbal;B", [F("Genesis Visbal", "B")],
+       "el punto y coma de un CSV en español no se lee como separador");
+  /* Lo que arrastra un pegado de Excel y no es nadie. */
+  caso("Nombre\nGenesis Visbal\n\n   \n", [F("Genesis Visbal")],
+       "la cabecera y las líneas en blanco del Excel se volvieron operarios");
+  caso("  Jose   Palacio  ", [F("Jose Palacio")],
+       "los espacios de sobra no se limpian: «Jose  Palacio» sería otra persona que «Jose Palacio»");
+  caso("", [], "un pegado vacío no da la lista vacía");
+}
+
+/* 2. Y LA PANTALLA: la previa, la cuenta, y lo que se manda. */
+await monta();
+{
+  ok(await pg.isVisible(".rt .caja .cab button:has-text('Pegar lista de Excel')"),
+     "no hay forma de pegar la lista: cargar cien operarios de a uno es lo que hace que no se carguen");
+  await pg.click(".rt .caja .cab button:has-text('Pegar lista de Excel')");
+  await pg.waitForSelector("#op-pegado");
+  ok(await pg.isDisabled(".rt .op-pegar .acciones-panel button.si"),
+     "con el cuadro vacío ya deja cargar");
+
+  /* Dos nuevos y UNO QUE YA ESTÁ en el maestro de prueba. */
+  await teclear("#op-pegado", "Rosa Perez\tA\nHugo Lara\tB\nJose Palacio\tA");
+  await pg.waitForSelector(".rt .op-previa tr", { timeout: 2000 }).catch(() => {});
+  const filas = await pg.$$eval(".rt .op-previa tbody tr",
+    (t) => t.map((x) => [...x.querySelectorAll("td")].map((c) => c.textContent.trim())));
+  ok(filas.length === 3, `la previa enseña ${filas.length} filas y se pegaron 3`);
+  ok(filas[0][0] === "Rosa Perez" && filas[0][1] === "A",
+     `la previa leyó mal la primera fila: ${JSON.stringify(filas[0])}`);
+  ok(/lo pone el sistema/i.test(filas[0][3]),
+     "la previa no dice que el PIN lo pone el sistema: quien pega cree que tiene que inventarlos");
+
+  /* EL QUE YA ESTÁ SE VE ANTES DE MANDAR NADA. Si no, pegar cien y
+     que entren cuarenta parece que se perdieron sesenta. */
+  ok((await pg.$$(".rt .op-previa tr.op-repe")).length === 1,
+     "el que ya estaba en el maestro no se marca en la previa");
+  ok(/2 nuevos/.test(await pg.textContent(".rt .op-pegar .op-cuenta")),
+     `la cuenta no separa los nuevos de los que ya están: «${await pg.textContent(".rt .op-pegar .op-cuenta")}»`);
+
+  /* 3. LO QUE VIAJA. */
+  await pg.click(".rt .op-pegar .acciones-panel button.si");
+  await pg.waitForFunction(
+    () => (window.llamadas ?? []).some((l) => l.f === "operarios_cargar"),
+    null, { timeout: 3000 }).catch(() => {});
+  const l = (await llamadas()).find((x) => x.f === "operarios_cargar");
+  ok(!!l, "pegar la lista no llama a la base");
+  ok(Array.isArray(l?.a?.p_lista) && l.a.p_lista.length === 3,
+     `se mandaron ${l?.a?.p_lista?.length} y eran 3`);
+  ok(l?.a?.p_lista?.[0]?.nombre === "Rosa Perez", `el primero viajó como ${JSON.stringify(l?.a?.p_lista?.[0])}`);
+  /* EL PIN VIAJA EN NULL Y NO EN "": la función distingue «ponle uno»
+     de «este es el que quiero», y "" caería en el segundo. */
+  ok(l?.a?.p_lista?.[0]?.pin === null,
+     `el PIN viajó como ${JSON.stringify(l?.a?.p_lista?.[0]?.pin)} y debe ir en null para que la base lo sortee`);
+
+  /* 4. Y EL RESULTADO ENSEÑA LOS PIN, que es lo que hay que repartir. */
+  await pg.waitForSelector(".rt .op-hecho", { timeout: 3000 }).catch(() => {});
+  ok(await pg.isVisible(".rt .op-hecho"),
+     "después de cargar no se ven los PIN que se acaban de generar: habría que sacarlos uno por uno de la lista");
+  const pines = await pg.$$eval(".rt .op-hecho td.op-pin", (e) => e.map((x) => x.textContent.trim()));
+  ok(pines.length === 3 && pines.every((p) => /^\d{4}$/.test(p)),
+     `los PIN generados no salen en el resultado: ${JSON.stringify(pines)}`);
+  ok(await pg.isVisible(".rt .op-hecho button:has-text('Copiar los PIN')"),
+     "no hay cómo sacar los PIN: tocaría teclear cien números a mano mirando la pantalla");
 }
 
 /* ---------------------------------------------------------------------

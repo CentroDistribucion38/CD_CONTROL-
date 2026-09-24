@@ -343,6 +343,131 @@ begin
 end $$;
 grant select on public.v_roturas to authenticated;
 
+-- =====================================================================
+-- 5. CARGAR LA LISTA DE UNA, Y QUE EL PIN LO PONGA LA BASE
+-- ---------------------------------------------------------------------
+-- «La idea es que yo solo coloque los nombres de los operadores: copio
+--  en Excel, pego allí, y de una genera los PIN y los nombres.»
+--
+-- EL PIN LO SORTEA LA BASE Y NO LA PANTALLA, y no es un detalle: dos
+-- personas cargando su lista al mismo tiempo desde dos computadores
+-- sortearían el mismo número sin enterarse. Aquí el sorteo y la
+-- comprobación de que está libre ocurren dentro de la misma
+-- transacción, y el índice único es el que manda.
+--
+-- ES AL AZAR Y NO CORRELATIVO. Lo cómodo sería 0001, 0002, 0003; con
+-- eso, cualquiera que vea un PIN sabe los de todos sus compañeros, y el
+-- PIN existe justamente para poder creerle al que registra.
+--
+-- Y SE SALTAN LOS PIN QUE NADIE DEBERÍA TENER: 0000, 1111 … 9999, 1234
+-- y 4321. No son más débiles que otros —todos valen lo mismo en un
+-- sorteo—, pero son los que alguien teclea cuando quiere probar suerte.
+--
+-- UN NOMBRE QUE YA ESTÁ NO SE DUPLICA: devuelve el PIN que ya tenía.
+-- Así, pegar la lista entera otra vez no crea cien filas repetidas —es
+-- la forma de volver a sacar los PIN de todos sin tocar nada—.
+-- Se comparan los nombres en minúscula, sin espacios de sobra y sin
+-- tildes; dos personas que de verdad se llamen igual quedan como una
+-- sola, y eso hay que resolverlo con el segundo apellido.
+-- =====================================================================
+/* SIN TILDES, A MANO Y NO CON `unaccent`. La extensión existe pero hay
+   que instalarla, y una migración que se cae con «extension unaccent is
+   not available» en el proyecto de alguien no vale el ahorro: son seis
+   vocales. */
+create or replace function public.sin_tildes(t text)
+returns text
+language sql
+immutable
+set search_path = public
+as $$ select translate(coalesce(t, ''), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunAEIOUUN') $$;
+
+create or replace function public.operarios_cargar(p_lista jsonb)
+returns table (nombre text, pin text, empresa text, turno text, estado text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  it        jsonb;
+  v_nombre  text;
+  v_turno   text;
+  v_empresa text;
+  v_pedido  text;
+  v_pin     text;
+  v_intento int;
+  v_ya      public.roturas_operarios%rowtype;
+begin
+  if not public.manda() then
+    raise exception 'Cargar la lista de operarios es del administrador';
+  end if;
+
+  for it in select * from jsonb_array_elements(coalesce(p_lista, '[]'::jsonb))
+  loop
+    v_nombre  := btrim(coalesce(it->>'nombre', ''));
+    /* Los espacios de adentro también: pegado de Excel es normal que
+       venga «Jose  Palacio» con dos. */
+    v_nombre  := regexp_replace(v_nombre, '\s+', ' ', 'g');
+    v_turno   := nullif(btrim(coalesce(it->>'turno', '')), '');
+    v_empresa := coalesce(nullif(btrim(coalesce(it->>'empresa', '')), ''), 'Easy');
+    v_pedido  := nullif(btrim(coalesce(it->>'pin', '')), '');
+
+    if v_nombre = '' then
+      continue;                              -- una línea en blanco no es nadie
+    end if;
+
+    /* ¿YA ESTÁ? Se contesta con el PIN que ya tiene. */
+    select * into v_ya from public.roturas_operarios o
+     where public.sin_tildes(lower(o.nombre)) = public.sin_tildes(lower(v_nombre))
+     limit 1;
+    if found then
+      nombre := v_ya.nombre; pin := v_ya.pin; empresa := v_ya.empresa;
+      turno := v_ya.turno;   estado := 'ya estaba';
+      return next;
+      continue;
+    end if;
+
+    /* EL PIN: el que vino en la lista, o uno sorteado. */
+    if v_pedido is not null then
+      if v_pedido !~ '^[0-9]{4,8}$' then
+        nombre := v_nombre; pin := v_pedido; empresa := v_empresa;
+        turno := v_turno;   estado := 'PIN mal escrito';
+        return next;
+        continue;
+      end if;
+      if exists (select 1 from public.roturas_operarios o where o.pin = v_pedido) then
+        nombre := v_nombre; pin := v_pedido; empresa := v_empresa;
+        turno := v_turno;   estado := 'ese PIN ya es de otro';
+        return next;
+        continue;
+      end if;
+      v_pin := v_pedido;
+    else
+      v_pin := null;
+      for v_intento in 1..300 loop
+        v_pin := lpad((floor(random() * 10000))::int::text, 4, '0');
+        exit when v_pin not in ('0000','1111','2222','3333','4444','5555',
+                                '6666','7777','8888','9999','1234','4321')
+              and not exists (select 1 from public.roturas_operarios o where o.pin = v_pin);
+        v_pin := null;
+      end loop;
+      if v_pin is null then
+        /* Trescientos intentos fallidos con diez mil casillas significa
+           que quedan muy pocas libres. Se dice, en vez de dejar al
+           operario sin PIN y sin explicación. */
+        raise exception 'Ya casi no quedan PIN de cuatro dígitos libres: hay que usar PIN más largos';
+      end if;
+    end if;
+
+    insert into public.roturas_operarios (pin, nombre, empresa, turno, activo)
+      values (v_pin, v_nombre, v_empresa, v_turno, true);
+
+    nombre := v_nombre; pin := v_pin; empresa := v_empresa;
+    turno := v_turno;   estado := 'nuevo';
+    return next;
+  end loop;
+end $$;
+grant execute on function public.operarios_cargar(jsonb) to authenticated;
+
 do $$
 declare v_sin int; v_env int;
 begin

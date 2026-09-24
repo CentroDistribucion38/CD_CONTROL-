@@ -1166,6 +1166,37 @@
   padding: 0 14px; font: 500 14px inherit; background: var(--rt-papel); color: var(--rt-tinta);
 }
 
+/* PEGAR LA LISTA DE EXCEL. El área de pegado es MONOESPACIADA: lo que
+   se pega viene en columnas separadas por tabulador, y con letra
+   proporcional las columnas se ven torcidas y parece que se pegó mal. */
+.rt .op-pegar textarea {
+  font: 13px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  white-space: pre; overflow-x: auto;
+}
+.rt .op-como { font-size: 12.5px; line-height: 1.55; color: var(--rt-gris); margin: 0 }
+.rt .op-cuenta { font-size: 13px; color: var(--rt-gris) }
+.rt .op-cuenta b { font: 700 16px var(--rt-titulo); color: var(--rt-tinta) }
+
+/* LA PREVIA. Se le pone tope de alto: cien nombres empujarían el botón
+   de cargar fuera de la pantalla, y entonces habría que bajar toda la
+   lista para encontrarlo. */
+.rt .op-previa { max-height: 320px; overflow: auto; border: 1px solid var(--rt-linea) }
+.rt .op-previa table { width: 100%; border-collapse: collapse; font-size: 13px }
+.rt .op-previa th {
+  position: sticky; top: 0; background: var(--c-eef1f5); text-align: left;
+  font: 700 10.5px/1 var(--rt-texto); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--rt-gris); padding: 9px 10px; border-bottom: 1px solid var(--rt-linea);
+}
+.rt .op-previa td { padding: 8px 10px; border-bottom: 1px solid var(--rt-linea) }
+.rt .op-previa td em { color: var(--rt-gris2); font-style: normal }
+.rt .op-previa td.op-pin {
+  font-variant-numeric: tabular-nums; letter-spacing: .12em; font-weight: 700;
+}
+/* Los que ya estaban, apagados: no es un error —se les devuelve su PIN—
+   pero tampoco es lo que se vino a hacer. */
+.rt .op-previa tr.op-repe td { color: var(--rt-gris) }
+.rt .op-mas { font-size: 12px; color: var(--rt-gris); padding: 8px 10px; margin: 0 }
+
 /* =====================================================================
    PASO 0 · DE DÓNDE SALIÓ LA ROTURA
    ---------------------------------------------------------------------
