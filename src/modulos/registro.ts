@@ -489,8 +489,13 @@ export const MODULOS: Modulo[] = [
          que se dañó y no va a salir nunca se aparta aquí. Mientras no
          tenga documento de baja sigue contando en «La base», que es
          justamente la diferencia que descuadra un conteo. */
-      { nombre: "Averías", ruta: "/inventario/averias" },
-      { nombre: "Análisis de averías", ruta: "/inventario/averias/analisis" },
+      /* AVERÍAS ES UN MÓDULO ENTERO, no dos enlaces sueltos: se
+         registra, se le hace seguimiento, se analiza y se configura,
+         igual que rotura de línea. Y el orden es el del proceso. */
+      { nombre: "Averías · registrar", ruta: "/inventario/averias" },
+      { nombre: "Averías · tablero", ruta: "/inventario/averias/tablero" },
+      { nombre: "Averías · análisis", ruta: "/inventario/averias/analisis" },
+      { nombre: "Averías · maestro", ruta: "/inventario/averias/maestro" },
     ],
   },
 ];

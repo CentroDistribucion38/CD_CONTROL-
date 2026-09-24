@@ -48,7 +48,8 @@ const VACIO = {
   causal: "", reporto: "", vence: "", fecha: "", nota: "",
 };
 
-export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, manda, quien }: {
+export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, manda, quien,
+                          modo = "tablero" }: {
   lista: AveriaFila[];
   causales: CausalFila[];
   productos: ProductoFila[];
@@ -57,6 +58,21 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
   manda: boolean;
   /** El nombre de quien está mirando: se propone como «reporta». */
   quien: string;
+  /**
+   * LA MISMA PIEZA EN DOS PANTALLAS, y no dos copias.
+   *
+   *   registrar  el formulario abierto y SOLO lo de hoy al lado. Quien
+   *              entra a registrar viene a registrar: las pestañas y
+   *              el buscador son tres toques antes del primer campo.
+   *   tablero    todo lo que existe, con sus estados y sus filtros.
+   *              Es donde se da de baja, se corrige y se anula.
+   *
+   * Dos componentes separados serían dos copias del formulario y de la
+   * fila, y el día que se agregue un campo habría que acordarse de las
+   * dos. Lo que cambia entre una pantalla y otra es POCO: qué se ve
+   * primero y qué lista se enseña.
+   */
+  modo?: "registrar" | "tablero";
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -66,7 +82,10 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
   const hoy = hoyBogota();
   const [vista, setVista] = useState<Vista>("pendientes");
   const [busca, setBusca] = useState("");
-  const [registrando, setRegistrando] = useState(false);
+  /* EN «REGISTRAR» EL FORMULARIO ABRE PUESTO: la pantalla se llama
+     Registrar; obligar a tocar un «+» primero es un toque cobrado por
+     nada, con guante. */
+  const [registrando, setRegistrando] = useState(modo === "registrar");
   const [editando, setEditando] = useState<string | null>(null);
   const [f, setF] = useState({ ...VACIO, reporto: quien, causal: causales[0]?.clave ?? "" });
   const [mandando, setMandando] = useState(false);
@@ -91,6 +110,11 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
      mundos: producto que ya no sirve y que además sigue contando. */
   const venciendo = pendientes.filter(
     (a) => a.dias_para_vencer !== null && a.dias_para_vencer <= 30);
+
+  /* LO DE HOY, para la pantalla de registrar: quien acaba de cargar
+     una quiere verla aparecer, y quien lleva cinco quiere no repetir
+     la misma. El histórico entero ahí sería tres pantallazos de ruido. */
+  const deHoy = lista.filter((a) => a.fecha === hoy && !a.anulada_en);
 
   const q = pelado(busca.trim());
   const vistas = useMemo(() => {
@@ -319,25 +343,34 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
 
       <section className="cabeza">
         <div>
-          <p className="ojo">INVENTARIO · AVERÍAS</p>
-          <h1>Lo que se dañó, y si ya salió de la cuenta</h1>
+          <p className="ojo">INVENTARIO · AVERÍAS · {modo === "registrar" ? "REGISTRAR" : "TABLERO"}</p>
+          <h1>{modo === "registrar" ? "Registrar una avería" : "Lo que se dañó, y si ya salió de la cuenta"}</h1>
           <p className="sub">
-            Mientras una avería no tenga <b>documento de baja</b>, sigue contando en el
-            inventario: está apartada en la bodega y nadie la va a vender, pero el sistema
-            cree que está. Esa diferencia es la que descuadra un conteo, y es lo que esta
-            pantalla pone primero.
+            {modo === "registrar" ? (
+              <>Lo que se dañó en la bodega, con su ubicación y su causal. Queda apartado y
+              <b> sigue contando en el inventario</b> hasta que llegue el documento de baja de
+              SAP — por eso se registra aquí y se le hace seguimiento en el Tablero.</>
+            ) : (
+              <>Mientras una avería no tenga <b>documento de baja</b>, sigue contando en el
+              inventario: está apartada en la bodega y nadie la va a vender, pero el sistema
+              cree que está. Esa diferencia es la que descuadra un conteo, y es lo que esta
+              pantalla pone primero.</>
+            )}
           </p>
         </div>
         <div className="kpi">
           <i className="corte" />
-          <div className="rot">SIN DAR DE BAJA</div>
-          <div className="num">{pendientes.length}</div>
+          <div className="rot">{modo === "registrar" ? "REGISTRADAS HOY" : "SIN DAR DE BAJA"}</div>
+          <div className="num">{modo === "registrar" ? deHoy.length : pendientes.length}</div>
           <div className="pie">
-            {cajasPend} cajas{unidPend > 0 && ` y ${unidPend} unidades`} que todavía cuentan
+            {modo === "registrar"
+              ? <>{deHoy.reduce((s, a) => s + a.cajas, 0)} cajas · {pendientes.length} sin dar de baja en total</>
+              : <>{cajasPend} cajas{unidPend > 0 && ` y ${unidPend} unidades`} que todavía cuentan</>}
           </div>
         </div>
       </section>
 
+      {modo === "tablero" && <>
       {/* LAS TRES CIFRAS QUE CAMBIAN LO QUE SE HACE HOY. No son «cuántas
           averías hemos tenido» —eso no es una pregunta que alguien
           tenga a las siete de la mañana— sino qué está represado. */}
@@ -395,18 +428,22 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
           <button type="button" className="btn" onClick={abrirNueva}>+ Registrar avería</button>
         )}
       </div>
+      </>}
 
       {registrando && formulario}
 
       <p className="fe-cuenta">
-        {vistas.length} {vistas.length === 1 ? "avería" : "averías"}
-        {q && ` que dicen «${busca}»`}
+        {modo === "registrar"
+          ? `${deHoy.length} ${deHoy.length === 1 ? "avería registrada" : "averías registradas"} hoy`
+          : `${vistas.length} ${vistas.length === 1 ? "avería" : "averías"}${q ? ` que dicen «${busca}»` : ""}`}
       </p>
 
       <div className="fe-lista">
-        {vistas.length === 0 && (
+        {(modo === "registrar" ? deHoy : vistas).length === 0 && (
           <p className="fe-vacio">
-            {lista.length === 0
+            {modo === "registrar"
+              ? "Todavía no se ha registrado nada hoy. Lo que registres aquí va saliendo en esta lista."
+              : lista.length === 0
               ? "Todavía no hay averías registradas. La primera se agrega con el botón de arriba."
               : vista === "pendientes"
               ? "Ninguna pendiente: todo lo averiado ya tiene su documento de baja."
@@ -414,7 +451,7 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
           </p>
         )}
 
-        {vistas.map((a) => {
+        {(modo === "registrar" ? deHoy : vistas).map((a) => {
           const vencido = a.dias_para_vencer !== null && a.dias_para_vencer < 0;
           const pronto = a.dias_para_vencer !== null
             && a.dias_para_vencer >= 0 && a.dias_para_vencer <= 30;

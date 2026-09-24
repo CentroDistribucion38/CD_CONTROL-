@@ -617,7 +617,8 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
      en «La base», que es la diferencia que descuadra un conteo. */
   const debe = ["/inventario", "/inventario/maestro", "/inventario/conteo",
                 "/inventario/base", "/inventario",
-                "/inventario/averias", "/inventario/averias/analisis"];
+                "/inventario/averias", "/inventario/averias/tablero",
+                "/inventario/averias/analisis", "/inventario/averias/maestro"];
   if (rutas.join("|") !== debe.join("|"))
     fallas.push(`las pantallas de Inventario salen [${rutas.join(", ")}] y deben salir ` +
                 `[${debe.join(", ")}]: la base va antes que el tablero porque el tablero ` +

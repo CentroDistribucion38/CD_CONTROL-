@@ -1,7 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import {
-  roturas as leerRoturas, materiales, procesos, areas, causas,
+  roturas as leerRoturas, materialesMaestro, procesos, areas, causas,
 } from "@/modulos/roturas/datos";
 import "../roturas.css";
 import { SinTablas } from "../comunes";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function RoturasPage() {
   const [permisos, datos, mats, pros, ars, cas, nombres] = await Promise.all([
-    misPermisos(), leerRoturas(), materiales(), procesos(), areas(), causas(),
+    misPermisos(), leerRoturas(), materialesMaestro(), procesos(), areas(), causas(),
     nombresTodos(),
   ]);
 
@@ -38,7 +38,8 @@ export default async function RoturasPage() {
         esperando={esperando}
         roturas={datos.roturas}
         nombres={nombres}
-        materiales={mats}
+        materiales={mats.materiales}
+        materialesDe={mats.de}
         procesos={pros}
         areas={ars}
         causas={cas}

@@ -140,7 +140,8 @@ const roturas = [1, 2, 3].map((i) => ({
 
 createRoot(document.getElementById("r")!).render(
   <EnSitio esperando={3} roturas={roturas as any} nombres={{ u1: "Genesis Visbal" }}
-           materiales={materiales as any} procesos={procesos as any}
+           materiales={materiales as any} materialesDe={(window as any).DE ?? "inventario"}
+           procesos={procesos as any}
            areas={areas as any} causas={causas as any} puedeEditar />);
 `);
 
@@ -171,6 +172,7 @@ const monta = async (ancho = 1440, tema = "", alto = 900) => {
     <body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}>
     <div class="sh-marco sin-riel"><main class="sh-main">
     <div class="rt" id="r"></div></main></div></div>
+    <script>window.DE="inventario"</script>
     <script>${js}</script></body></html>`);
   /* La pantalla abre REGISTRANDO, así que lo primero que existe es el
      formulario, no las cifras. */
@@ -779,6 +781,42 @@ await pg.screenshot({ path: ".arnes/rt-sitio-paso2.png" });
       ["kpi-rot", "kpi-num", "kpi-pie", "boton", "seg-on"].map((k) => `${k} ${r[k]}`).join("  "));
   }
 }
+
+/* ---------------------------------------------------------------------
+   4quinquies · SI EL DESPLEGABLE NO SALE DEL MAESTRO, SE DICE
+
+   «¿Por qué en materiales no has tomado el listado de los materiales
+    que están en el maestro de inventario?»
+
+   Porque faltaba correr el SQL — y LA PANTALLA NO LO DECÍA. La función
+   devolvía «esto no viene del inventario» y la pantalla lo tiraba a la
+   basura: el desplegable seguía enseñando los pocos sembrados a mano,
+   nadie sabía por qué, y parecía que la función no servía.
+
+   Callarlo es lo que hace que nadie corra el SQL nunca, y mientras
+   tanto quien registra una rotura de un producto que no está en la
+   lista corta la registra CON OTRO.
+   ------------------------------------------------------------------ */
+for (const [de, dice] of [["sin_vista", /2026-09-roturas-maestro-unico/],
+                          ["vacia", /Inventario . Maestro/]]) {
+  await pg.setViewportSize({ width: 1440, height: 1100 });
+  await pg.setContent(`<!doctype html><html><head><meta charset="utf-8">
+    <style>${PREFLIGHT}${glob}${shell}${css}</style></head>
+    <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main">
+    <div class="rt" id="r"></div></main></div></div>
+    <script>window.DE=${JSON.stringify(de)}</script>
+    <script>${js}</script></body></html>`);
+  await pg.waitForSelector(".rt-rep");
+  const t = await pg.textContent(".rt");
+  ok(/no está saliendo del maestro de inventario/i.test(t),
+     `con «${de}» la pantalla no avisa que el desplegable no viene del inventario`);
+  ok(dice.test(t), `con «${de}» no se dice QUÉ hacer para arreglarlo`);
+}
+/* Y cuando SÍ sale del inventario, no se avisa nada: un cartel que
+   sale siempre deja de querer decir algo a la semana. */
+await monta();
+ok(!/no está saliendo del maestro/i.test(await pg.textContent(".rt")),
+   "el aviso sale aunque el desplegable SÍ venga del maestro de inventario");
 
 /* ---------------------------------------------------------------------
    5 · LOS CUATRO ANCHOS, Y LO QUE SE TOCA

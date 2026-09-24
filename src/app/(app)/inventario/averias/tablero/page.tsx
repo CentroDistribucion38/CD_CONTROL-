@@ -5,14 +5,22 @@ import { createClient } from "@/lib/supabase/server";
 import {
   averias, causales, productosDeAverias, ubicacionesUsadas,
 } from "@/modulos/averias/datos";
-import "../fefo.css";
-import "./averias.css";
-import { Averias } from "./Averias";
+import "../../fefo.css";
+import "./../averias.css";
+import { Averias } from "../Averias";
 
 export const dynamic = "force-dynamic";
 
 /**
- * INVENTARIO · AVERÍAS · REGISTRAR.
+ * INVENTARIO · AVERÍAS · TABLERO.
+ *
+ * TODO lo que existe, con su estado, sus filtros y las acciones del
+ * administrador: dar de baja, corregir, anular y borrar.
+ *
+ * VA APARTE DE REGISTRAR y no en pestañas de la misma pantalla: quien
+ * entra a registrar viene a registrar —con guante, de pie, al lado de
+ * la estiba— y quien entra al tablero viene a hacer papeleo, sentado.
+ * Son dos trabajos distintos en dos momentos distintos.
  *
  * «Dentro del inventario pon un módulo de avería.»
  *
@@ -22,7 +30,7 @@ export const dynamic = "force-dynamic";
  * vender pero que sigue en la estiba, en su ubicación, contando en el
  * inventario hasta que llegue el documento de baja de SAP.
  */
-export default async function AveriasPage() {
+export default async function AveriasTableroPage() {
   const [permisos, user, av, cau, prods, ubis] = await Promise.all([
     misPermisos(), usuarioActual(), averias(), causales(),
     productosDeAverias(), ubicacionesUsadas(),
@@ -58,7 +66,7 @@ export default async function AveriasPage() {
   return (
     <div className="fe avr">
       <Averias
-        modo="registrar"
+        modo="tablero"
         lista={av.lista}
         causales={cau}
         productos={prods}
@@ -69,7 +77,7 @@ export default async function AveriasPage() {
       />
 
       <p className="avr-pie-link">
-        <Link href="/inventario/averias/tablero">Ver el tablero completo →</Link>
+        <Link href="/inventario/averias">← Registrar una avería</Link>
         {"  ·  "}
         <Link href="/inventario/averias/analisis">Análisis e informe →</Link>
       </p>

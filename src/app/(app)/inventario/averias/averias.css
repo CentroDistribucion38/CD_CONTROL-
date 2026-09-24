@@ -163,3 +163,15 @@
   .avr .avr-cod { flex-direction: row; align-items: baseline; gap: 8px }
   .avr .avr-btns .btn { flex: 1 1 calc(50% - 3px) }
 }
+
+/* La casilla del maestro: el texto explica lo que decide, así que no
+   puede ser un renglón corto al lado de un cuadrito. */
+.avr .avr-chk {
+  display: flex; gap: 11px; align-items: flex-start; cursor: pointer;
+  background: var(--fe-fondo); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 12px 14px;
+}
+.avr .avr-chk input { width: 20px; height: 20px; flex: none; margin-top: 1px }
+.avr .avr-chk span { font-size: 12.5px; line-height: 1.55; color: var(--fe-gris) }
+.avr .avr-chk b { color: var(--fe-tinta) }
+.avr .avr-chk i { font-style: italic }

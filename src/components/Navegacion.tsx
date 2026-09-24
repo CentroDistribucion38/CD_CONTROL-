@@ -257,7 +257,9 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
      es justo lo que el riel existe para evitar. */
   "/inventario": IconoTablero,
   "/inventario/averias": IconoAveria,
+  "/inventario/averias/tablero": IconoTablero,
   "/inventario/averias/analisis": IconoAnalisis,
+  "/inventario/averias/maestro": IconoLlave,
   "/inventario/maestro": IconoLlave,
   "/inventario/conteo": IconoCaja,
   "/acciones": IconoLista,

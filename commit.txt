@@ -1,98 +1,70 @@
-La cadena al derecho: EASY contesta primero, ABI solo lo que se objete
+Averias es un modulo entero, y el desplegable de materiales dice cuando no viene del inventario
 
 =====================================================================
-LO QUE CAMBIA
+1. EL DESPLEGABLE DE MATERIALES — EL BUG NO ERA LA CONSULTA
 =====================================================================
-«Registran, llega a Visto bueno, alli EASY dice si esta de acuerdo o
- no. Si esta de acuerdo va para cobro de una y no llega notificacion,
- sino que llega a la data. Si no esta de acuerdo llega la notificacion
- a ABI, y ABI culmina de decir si se cobra o no. Y en todo se requiere
- evidencia.»
+«¿Por que en materiales no has tomado el listado de los materiales que
+ estan en el maestro de inventario?»
 
-ANTES:  registro -> ABI dice si cuenta -> se acabo
-AHORA:  registro -> EASY dice si esta de acuerdo
-                      de acuerdo    -> cobro, y ABI ni se entera
-                      en desacuerdo -> ABI resuelve, y es la ultima
+Porque faltaba correr el SQL — Y LA PANTALLA NO LO DECIA. La funcion
+`materialesMaestro()` devolvia `delInventario: false` cuando no podia
+leer la vista, y la pantalla TIRABA ESE DATO A LA BASURA: el
+desplegable seguia enseñando los pocos sembrados a mano, sin una
+palabra, y parecia que la funcion no servia.
 
-NO ES UN DETALLE DE ORDEN. En la cadena vieja, ABI tenia que mirar las
-cien roturas del mes y Easy recibia una cuenta sin haber podido decir
-nada: eso no se concilia, se discute a fin de mes sobre una lista que
-nadie objeto a tiempo porque nadie tuvo donde objetarla. Ahora ABI solo
-mira LO QUE ALGUIEN OBJETO, que son las unicas donde su criterio cambia
-algo. Lo demas se concilia solo.
+Es exactamente la leccion que yo mismo escribi en el commit del color
+del vidrio —«callarlo es lo que hace que nadie lo llene nunca»— y la
+rompi dos pantallas despues.
 
-EL ARCHIVO ANTERIOR QUEDA MUERTO. `2026-09-roturas-descargo-del-ol.sql`
-tenia la cadena al reves —ABI cobraba primero y el OL objetaba
-despues—. Nunca se corrio. No se borra: el porque de sus decisiones
-—los cinco estados del cobro, el plazo que se mide al leer y no con un
-reloj— sigue valiendo para el dia que haga falta un plazo. Se le puso
-un `raise exception` al principio para que no se corra por error.
+AHORA LO DICE, en rojo, arriba del formulario, y dice QUE HACER:
+· si falta la vista → nombra el SQL que hay que correr;
+· si la vista existe pero no devuelve nada → manda a Inventario ->
+  Maestro, porque lo que pasa es que no hay productos activos.
+Y cero filas TAMBIEN cuenta como caerse: un desplegable vacio no es «el
+maestro esta vacio», es una pantalla que no deja registrar una rotura
+que YA ocurrio.
 
 =====================================================================
-LAS DOS PANTALLAS
+2. AVERIAS: REGISTRAR · TABLERO · ANALISIS · MAESTRO
 =====================================================================
-VISTO BUENO CAMBIO DE DUEÑO. Era de ABI y decia «cuenta / no cuenta»
-—el idioma de quien cobra—; ahora es de Easy y dice «de acuerdo / en
-desacuerdo». Dejarle el boton viejo seria pedirle a Easy que decida su
-propio cobro.
+«Queria entrar a inventario y que averias trajiera su registro, su
+ tablero, su analisis y su maestro.»
 
-«DE ACUERDO» NO PIDE NADA Y «EN DESACUERDO» PIDE DOS COSAS —motivo y
-foto—, y esa asimetria es deliberada: quien acepta no esta probando
-nada, y cobrarle un tramite por estar de acuerdo es exactamente lo que
-enseña a rechazar por costumbre.
+Eran dos enlaces sueltos. Ahora son cuatro pantallas en el orden del
+proceso, como rotura de linea.
 
-LA FOTO DEL DESCARGO SUBE ANTES QUE LA RESPUESTA. La funcion la exige;
-al reves, la base rechazaria el rechazo y la persona veria un error
-criptico teniendo la foto en la mano. Y se guarda con `papel =
-'descargo'`: la foto de la rotura no prueba que la rotura no fue tuya.
+REGISTRAR Y TABLERO SON DOS PANTALLAS Y NO DOS PESTAÑAS. Quien entra a
+registrar viene a registrar —con guante, de pie, al lado de la
+estiba—: el formulario abre PUESTO y al lado va SOLO LO DE HOY. Las
+pestañas, el buscador y el historico entero serian tres toques antes
+del primer campo. Quien entra al tablero viene a hacer papeleo,
+sentado: ahi si estan todos los registros, sus estados y los botones
+del administrador —dar de baja, corregir, anular, borrar—.
 
-DESACUERDOS es nueva y es la unica donde ABI decide. Enseña el descargo
-SIN ABRIR NADA: si estuviera detras de un «Ver», la decision se tomaria
-habiendo leido un solo lado, que es el error entero. Los dos botones
-exigen argumento —no solo el que va en contra de alguien—: un
-desacuerdo cerrado sin una linea se vuelve a discutir el mes entrante,
-gane quien gane.
+ES LA MISMA PIEZA CON UN `modo`, no dos componentes. Dos serian dos
+copias del formulario y de la fila, y el dia que se agregue un campo
+habria que acordarse de las dos.
 
-=====================================================================
-POR QUE `estado` NO SE TOCA
-=====================================================================
-Lo evidente seria meterle estados nuevos al enum. Seria caro: `estado =
-'cuenta'` lo leen la vista, las cifras, tres indices y toda pantalla que
-pregunte si una rotura se cobra. Agregarle significados reinterpreta
-todo lo ya decidido, hacia atras y en silencio.
-
-Una rotura que Easy rechazo SIGUE EN 'esperando' —todavia no esta
-decidida—; lo que la pone en la bandeja de ABI es `ol_respuesta`.
-La vista calcula `etapa` en UN solo sitio: tres pantallas
-preguntandose «¿esta a quien le toca?» por su cuenta son tres sitios
-donde se puede contestar distinto.
-
-Y `cobro_por` distingue «por acuerdo» de «lo sostuvo ABI»: los dos se
-cobran y aun asi son dos cosas distintas —en uno las partes estuvieron
-de acuerdo y en el otro una le gano a la otra—. Lo decidido con la
-cadena vieja sale como 'antes' y NO se reescribe: decir hoy que
-aquello fue «por acuerdo» seria inventar un acuerdo que nadie dio.
+EL MAESTRO son las causales, y son DATOS y no un enum: hoy son tres y
+ya se menciono una cuarta —«averia del proveedor»—. Con enum, agregarla
+obliga a una migracion y quitarla no se puede. «Si la culpa es de
+afuera» es una CASILLA y no se saca del nombre: adivinarla leyendo la
+palabra «transporte» funciona hasta la primera causal que se llame
+distinto, y es justo el dato que decide a quien se le cobra.
 
 =====================================================================
 LOS ARNESES
 =====================================================================
-bash .arnes/correr-visto-bueno-easy.sh · 8 mutaciones, 8 ROJAS
-node .arnes/rt-cadena.mjs              · 6 mutaciones, 6 ROJAS
+node .arnes/av-pantallas.mjs · 3 mutaciones nuevas, 3 ROJAS
+node .arnes/rt-sitio.mjs     · mide que el aviso salga cuando el
+                               desplegable NO viene del inventario, y
+                               que NO salga cuando si — un cartel que
+                               sale siempre deja de querer decir algo.
 
-DOS COSAS QUE DESTAPARON:
-· Una mutacion salio VERDE: quitar el filtro `papel = 'descargo'` no
-  fallaba, porque la unica rotura que se rechazaba en la prueba no
-  tenia ninguna otra foto. Se agrego el caso que faltaba —una con foto
-  de la ROTURA que intenta rechazarse—, y ahora muerde.
-· Mi primer fixture puso a ABI como `admin`. El super admin de este
-  proyecto pasa por encima de todo permiso de pantalla, asi que probar
-  «ABI no puede dar el visto bueno» con un admin no probaba la cadena:
-  probaba que el admin es admin. ABI es el rol `abi`, que no manda.
-
-FALTA CORRER: supabase/migraciones/2026-09-roturas-visto-bueno-easy.sql
-Y DESPUES, en Admin -> Roles: dejar /en-sitio/visto-bueno en EDITAR
-solo para el rol de EASY, y /en-sitio/desacuerdos en EDITAR solo para
-ABI. El SQL da el punto de partida y lo imprime al terminar.
+FALTA, Y ES LO QUE SIGUE:
+· la tabla de todos los registros de roturas con sus estados;
+· el diseño de los analisis de En sitio y Quiebra, como el de rotura
+  de linea.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

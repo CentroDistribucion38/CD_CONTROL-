@@ -111,6 +111,7 @@ ${FILAS}
 createRoot(document.getElementById("r")!).render(
   <Averias lista={lista as any} causales={causales as any} productos={productos as any}
            ubicaciones={["A03 · M12", "A07 · M02", "B01 · M01"]}
+           modo={(window as any).MODO ?? "tablero"}
            puedeEditar manda quien="Cristian Padilla" />);
 `);
 
@@ -167,6 +168,7 @@ const monta = async (ancho = 1440, tema = "", cual = js, alto = 1100) => {
     <div class="sh-marco sin-riel"><main class="sh-main"
       style="display:flex;flex-direction:column;gap:16px">
     <div class="fe avr" id="r"></div></main></div></div>
+    <script>window.MODO="tablero"</script>
     <script>${cual}</script></body></html>`);
   await pg.waitForSelector(".fe-barra");
   await pg.evaluate(() => { window.llamadas = [] });
@@ -379,6 +381,53 @@ await monta();
 await monta(1440, "", jsVacio);
 ok(/Todavía no hay averías/.test(await pg.textContent(".fe-lista")),
    "con la lista vacía no se dice que está vacía ni cómo se agrega la primera");
+
+/* ---------------------------------------------------------------------
+   6bis · REGISTRAR Y TABLERO SON DOS PANTALLAS, NO DOS PESTAÑAS
+
+   «Quería entrar a inventario y que me apareciera el módulo de averías
+    y que averías trajera su registro, su tablero, su análisis y su
+    maestro.»
+
+   Quien entra a REGISTRAR viene a registrar —con guante, de pie, al
+   lado de la estiba—: el formulario abre PUESTO y al lado va solo lo
+   de hoy. Las pestañas, el buscador y el histórico entero son tres
+   toques antes del primer campo.
+
+   Quien entra al TABLERO viene a hacer papeleo, sentado: ahí sí están
+   todos los registros, sus estados y los botones del administrador.
+   ------------------------------------------------------------------ */
+{
+  await pg.setViewportSize({ width: 1440, height: 1100 });
+  await pg.setContent(`<!doctype html><html><head><meta charset="utf-8">
+    <style>${PREFLIGHT}${glob}${shell}${fefo}${avcss}</style></head>
+    <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"
+      style="display:flex;flex-direction:column;gap:16px">
+    <div class="fe avr" id="r"></div></main></div></div>
+    <script>window.MODO="registrar"</script>
+    <script>${js}</script></body></html>`);
+  await pg.waitForSelector(".avr-form");
+
+  ok(await pg.isVisible(".avr-form"),
+     "en Registrar el formulario no abre puesto: un «+» antes del primer campo es un toque cobrado por nada");
+  ok((await pg.$$(".fe-pes")).length === 0,
+     "en Registrar salen las pestañas del tablero: son tres toques antes de poder registrar");
+  ok((await pg.$$(".avr-cifras")).length === 0,
+     "en Registrar salen las cifras del tablero: eso es contexto de papeleo, no de muelle");
+  /* Y AL LADO, LO DE HOY: quien acaba de cargar una quiere verla
+     aparecer, y quien lleva cinco quiere no repetir la misma. */
+  ok(/registrada.? hoy/i.test(await pg.textContent(".fe-cuenta")),
+     `en Registrar la lista no es la de hoy: «${await pg.textContent(".fe-cuenta")}»`);
+  ok(/REGISTRADAS HOY/.test(await pg.textContent(".kpi")),
+     "en Registrar el KPI no cuenta lo de hoy");
+
+  /* Y el tablero SÍ los tiene. */
+  await monta();
+  ok((await pg.$$(".fe-pes")).length === 1, "el tablero perdió las pestañas");
+  ok((await pg.$$(".avr-cifras")).length === 1, "el tablero perdió las tres cifras");
+  ok(/SIN DAR DE BAJA/.test(await pg.textContent(".kpi")),
+     "el tablero no abre por lo que falta");
+}
 
 /* ---------------------------------------------------------------------
    7 · LOS CUATRO ANCHOS, Y LO QUE SE TOCA

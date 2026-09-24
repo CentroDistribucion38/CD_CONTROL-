@@ -17,7 +17,7 @@ import { Reportar } from "../Reportar";
  * se contó aquí. Cuadrar las dos cifras sería inventar un factor de
  * conversión que no existe.
  */
-export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, procesos,
+export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, materialesDe, procesos,
                           areas, causas, puedeEditar }: {
   /** Cuántas esperan el visto bueno de ABI. Para el contador de la
    *  cabecera, que solo se pinta cuando NO se está registrando. */
@@ -25,6 +25,11 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, pro
   roturas: Rotura[];
   nombres: Record<string, string>;
   materiales: Material[];
+  /* DE DÓNDE SALEN los del desplegable. Si no salen del maestro de
+     inventario, la pantalla lo DICE: callarlo es lo que hace que nadie
+     corra el SQL nunca, y mientras tanto quien registra una rotura de
+     un producto que no está en la lista corta la registra con otro. */
+  materialesDe?: "inventario" | "sin_vista" | "vacia";
   procesos: Proceso[];
   areas: Area[];
   causas: Causa[];
@@ -144,6 +149,19 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, pro
             ver subir el número al registrarla. */}
         <div className="consola">
           <div>
+            {materialesDe && materialesDe !== "inventario" && (
+              <div className="aviso rojo">
+                <b>El desplegable de material no está saliendo del maestro de inventario.</b>{" "}
+                {materialesDe === "sin_vista"
+                  ? <>Falta correr <b>supabase/migraciones/2026-09-roturas-maestro-unico-y-opm.sql</b> en
+                     el editor de SQL de Supabase. Se puede correr varias veces sin romper nada.</>
+                  : <>El maestro de inventario no tiene ningún producto activo. Se revisa en
+                     Inventario → Maestro.</>}{" "}
+                Mientras tanto salen los {materiales.length} sembrados a mano, y una rotura de un
+                producto que no esté en esa lista corta se va a registrar con otro.
+              </div>
+            )}
+
             <Reportar materiales={materiales} procesos={procesos} areas={areas} causas={causas}
                       cerrar={() => setReportando(false)} />
           </div>

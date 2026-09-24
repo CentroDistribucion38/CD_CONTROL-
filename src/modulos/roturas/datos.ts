@@ -323,16 +323,42 @@ export async function materiales(soloActivos = true) {
  * dejarla sin desplegable convertiría un «falta correr un SQL» en no
  * poder registrar una rotura que ya ocurrió.
  */
-export async function materialesMaestro(): Promise<{ materiales: Material[]; delInventario: boolean }> {
+/**
+ * POR QUÉ SE CAE, Y POR QUÉ SE DICE.
+ *
+ * `sin_vista`  falta correr el SQL del maestro único. El desplegable
+ *              ofrece los pocos sembrados a mano, que es mejor que no
+ *              ofrecer nada — pero HAY QUE DECIRLO.
+ * `vacia`      la vista existe y no devuelve ni un producto. Pasa si
+ *              todo el maestro de inventario está apagado. Caer a la
+ *              lista vieja es lo correcto: un desplegable vacío traba
+ *              el registro de una rotura que YA ocurrió.
+ * `inventario` lo normal: salen los del maestro de inventario.
+ *
+ * LA PRIMERA VERSIÓN DE ESTO DEVOLVÍA `delInventario` Y LA PANTALLA LO
+ * TIRABA A LA BASURA. El resultado: el desplegable seguía enseñando los
+ * siete sembrados a mano, nadie sabía por qué, y parecía que la función
+ * no servía. Callarlo es exactamente lo que hace que nadie corra el
+ * SQL nunca — la misma lección que el color del vidrio.
+ */
+export type DeDondeSalen = "inventario" | "sin_vista" | "vacia";
+
+export async function materialesMaestro():
+  Promise<{ materiales: Material[]; de: DeDondeSalen }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("v_roturas_materiales_maestro")
     .select("clave, nombre, tipo, color, botellas_x_empaque")
     .order("nombre");
-  if (error || !data) return { materiales: await materiales(), delInventario: false };
+
+  if (error || !data) return { materiales: await materiales(), de: "sin_vista" };
+  /* CERO FILAS TAMBIÉN ES CAERSE. Un desplegable vacío no es «el
+     maestro está vacío»: es una pantalla que no deja registrar. */
+  if (data.length === 0) return { materiales: await materiales(), de: "vacia" };
+
   return {
     materiales: (data as Material[]).map((m) => ({ ...m, activo: true, orden: null })),
-    delInventario: true,
+    de: "inventario",
   };
 }
 
