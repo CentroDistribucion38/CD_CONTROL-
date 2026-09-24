@@ -295,6 +295,79 @@ end $$;
 grant execute on function public.rotura_resolver(uuid, boolean, text) to authenticated;
 
 -- ---------------------------------------------------------------------
+-- 5b. CORREGIR EL HISTÓRICO: ANULAR Y BORRAR
+-- ---------------------------------------------------------------------
+-- «La tabla de todos los registros con sus estados, para borrar o
+--  anular si eres súper admin.»
+--
+-- `rotura_anular` PREGUNTABA `mi_rol() <> 'admin'`. Eso compara contra
+-- un NOMBRE, y los roles de este proyecto son datos: el día que se cree
+-- un segundo rol que mande —o que alguien renombre el de siempre— la
+-- comprobación deja de proteger lo que cree proteger, Y EN LA DIRECCIÓN
+-- PELIGROSA. `manda()` lee la casilla del rol, que es lo que de verdad
+-- quiere decir «súper admin». Es el mismo arreglo que ya se le hizo a
+-- `salida_anular`.
+create or replace function public.rotura_anular(p_id uuid, p_motivo text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_estado rotura_estado;
+begin
+  if not public.manda() then
+    raise exception 'Anular una rotura es del administrador';
+  end if;
+  if btrim(coalesce(p_motivo, '')) = '' then
+    raise exception 'Hay que decir por qué se anula';
+  end if;
+  select estado into v_estado from public.roturas where id = p_id;
+  if not found then raise exception 'Esa rotura no existe'; end if;
+  if v_estado = 'anulada' then raise exception 'Esa rotura ya está anulada'; end if;
+
+  update public.roturas
+     set estado = 'anulada', motivo_anulacion = btrim(p_motivo),
+         anulada_por = auth.uid(), anulada_en = now()
+   where id = p_id;
+end $$;
+grant execute on function public.rotura_anular(uuid, text) to authenticated;
+
+-- BORRAR ES PARA EL ERROR DE DEDO DEL MISMO DÍA: se registró dos veces,
+-- o se registró en la pantalla equivocada. Y SOLO MIENTRAS NADIE LA
+-- HAYA DECIDIDO: una rotura que ya pasó por el visto bueno entró en la
+-- conciliación de alguien —se cobró o se descartó—, y borrarla cambia
+-- un mes que ya se cerró sin dejar nada que mirar cuando pregunten por
+-- qué. Esa se ANULA: la fila se queda, con el motivo y con quién.
+create or replace function public.rotura_borrar(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v public.roturas%rowtype;
+begin
+  if not public.manda() then
+    raise exception 'Borrar una rotura es del administrador';
+  end if;
+  select * into v from public.roturas where id = p_id;
+  if not found then raise exception 'Esa rotura no existe'; end if;
+
+  if v.estado <> 'esperando' then
+    raise exception
+      'Esa rotura ya se decidió (%): se anula, no se borra —o el mes que la contó cambia sin dejar rastro', v.estado;
+  end if;
+  if v.ol_respuesta is not null then
+    raise exception
+      'El operador logístico ya contestó esa rotura: se anula, no se borra';
+  end if;
+
+  /* Las fotos se van con ella por la llave foránea; el archivo del
+     bucket lo limpia la pantalla. */
+  delete from public.roturas where id = p_id;
+end $$;
+grant execute on function public.rotura_borrar(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------
 -- 6. LO QUE LEE LA PANTALLA
 -- ---------------------------------------------------------------------
 -- Las columnas nuevas van AL FINAL: `create or replace view` no deja

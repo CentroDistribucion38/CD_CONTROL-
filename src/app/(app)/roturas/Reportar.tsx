@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
+import { BuscarMaterial } from "./BuscarMaterial";
 import { COLOR_VIDRIO } from "@/modulos/roturas/formato";
 import type { Area, Causa, Material, Proceso } from "@/modulos/roturas/datos";
 
@@ -114,8 +115,21 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
 
      Con la lista a la vista: si hay uno solo, viene puesto y nadie
      tiene que tocar nada; si hay varios, hay que decir cuál. */
-  const delTipo = materiales.filter((m) =>
-    m.tipo === tipo && (tipo !== "eer" || m.color === vidrio));
+  /* EL FILTRO POR COLOR SOLO SE APLICA SI ALGUIEN LLENÓ EL COLOR.
+     Los 32 envases del maestro de inventario nacen sin `color_vidrio`
+     —el SQL no lo puede adivinar—, así que filtrar por color dejaba el
+     desplegable de EER COMPLETAMENTE VACÍO y el registro trabado, sin
+     una palabra que dijera por qué. Trabar el registro de una rotura
+     que YA ocurrió por un maestro incompleto es perder el dato para
+     siempre.
+
+     Así que: si hay envases con color, se filtra; si NINGUNO lo tiene,
+     se ofrecen todos y la pantalla dice qué falta llenar y dónde. */
+  const eer = materiales.filter((m) => m.tipo === "eer");
+  const hayColores = eer.some((m) => !!m.color);
+  const delTipo = tipo !== "eer"
+    ? materiales.filter((m) => m.tipo === tipo)
+    : hayColores ? eer.filter((m) => m.color === vidrio) : eer;
   const mat = materiales.find((m) => m.clave === material) ?? null;
   const cau = causas.find((c) => c.clave === causa) ?? null;
   const exigeFoto = !!cau?.exige_foto;
@@ -187,20 +201,33 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   const campoMaterial = (
     <div>
       <span className="rot-campo">Material</span>
-      <select id="rt-mat" className="campo-suelto" value={material}
-              onChange={(e) => { setMaterial(e.target.value); setTocoBotellas(false) }}>
-        <option value="">Escoge el material</option>
-        {delTipo.map((m) => (
-          <option key={m.clave} value={m.clave}>{m.nombre} · {m.clave}</option>
-        ))}
-      </select>
+      {/* SE BUSCA ESCRIBIENDO, y no es un capricho: el desplegable pasó
+          de siete materiales a 494, y un `<select>` nativo con 494 es
+          una lista de treinta pantallazos donde solo se puede saltar
+          tecleando el PRINCIPIO del nombre. Quien busca «355» no
+          encuentra nada. */}
+      <BuscarMaterial id="rt-mat" materiales={delTipo} valor={material}
+        cambiar={(c) => { setMaterial(c); setTocoBotellas(false) }}
+        vacio={esPT
+          ? "No hay materiales de producto terminado en el maestro de inventario."
+          : `No hay envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()} en el maestro.`} />
+
+      {/* NINGÚN ENVASE TIENE COLOR: se ofrecen todos y se dice. Antes
+          esto dejaba el desplegable vacío y el registro trabado. */}
+      {tipo === "eer" && !hayColores && eer.length > 0 && (
+        <p className="nota">
+          <b>Ningún envase tiene el color del vidrio puesto</b>, así que aquí salen los{" "}
+          {eer.length} sin filtrar. Mientras siga así, el análisis de salida por color no
+          cuadra. Se llena en <b>Inventario → Maestro</b>.
+        </p>
+      )}
       {delTipo.length === 0 && (
         <p className="nota">
           {esPT
             ? <>No hay materiales de producto terminado en el maestro. Se agregan en
-                Maestro, sin esperar un despliegue.</>
+                Inventario → Maestro, sin esperar un despliegue.</>
             : <>No hay envase retornable <b>{COLOR_VIDRIO[vidrio].toLowerCase()}</b> en el
-                maestro. Se agrega en Maestro, sin esperar un despliegue.</>}
+                maestro. Se agrega en Inventario → Maestro.</>}
         </p>
       )}
     </div>

@@ -72,6 +72,9 @@ export type Rotura = {
   etapa?: Etapa;
   cobro_por?: "acuerdo" | "abi" | "antes" | null;
   fotos_descargo?: number;
+  /* Lo trae la vista desde siempre; faltaba en el tipo y nadie lo
+     había pedido hasta que el tablero quiso enseñarlo. */
+  motivo_anulacion?: string | null;
   le_falta_foto: boolean;
   minutos: number;
 };

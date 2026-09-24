@@ -609,16 +609,32 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
    el tablero SALE de ella. */
 {
   const bloque = (reg.match(/id: "inventario"[\s\S]*?\n  \},/) ?? [""])[0];
-  const rutas = [...bloque.matchAll(/ruta: "(\/inventario[^"]*)"/g)].map((m) => m[1]);
+  /* SOLO LAS SECCIONES. Desde que Inventario tiene ramas, cada rama
+     trae su propia `ruta:` y el patrón las contaba como pantallas: el
+     arnés fallaba diciendo que sobraban tres, que era su propio error
+     de lectura y no un error del menú. */
+  const secciones = (bloque.match(/secciones: \[[\s\S]*$/) ?? [""])[0];
+  const rutas = [...secciones.matchAll(/ruta: "(\/inventario[^"]*)"/g)].map((m) => m[1]);
   /* AVERÍAS VA AL FINAL, y su análisis detrás. Es el mismo orden del
      proceso: se mantiene el maestro, se cuenta, queda el registro, se
      decide qué sale primero — y lo que se dañó y no va a salir nunca se
      aparta al final. Mientras no tenga documento de baja sigue contando
      en «La base», que es la diferencia que descuadra un conteo. */
-  const debe = ["/inventario", "/inventario/maestro", "/inventario/conteo",
+  const debe = ["/inventario/maestro", "/inventario/conteo",
                 "/inventario/base", "/inventario",
                 "/inventario/averias", "/inventario/averias/tablero",
                 "/inventario/averias/analisis", "/inventario/averias/maestro"];
+  /* Y VAN EN DOS RAMAS, no en una lista de ocho. Comparten tema —lo
+     que hay en la bodega— y no comparten cifras: los conteos miden
+     EXISTENCIAS y las averías lo que ya no se puede vender. Con las
+     ocho juntas, «Maestro» salía dos veces queriendo decir cosas
+     distintas. */
+  const conRama = [...secciones.matchAll(/ruta: "(\/inventario[^"]*)", rama: "(\w+)"/g)]
+    .map((m) => m[2]);
+  if (conRama.length !== rutas.length)
+    fallas.push(`${rutas.length - conRama.length} pantallas de Inventario sin rama: el menú las pone todas juntas`);
+  if (new Set(conRama).size !== 2)
+    fallas.push(`Inventario tiene ${new Set(conRama).size} ramas y deben ser dos: conteos y averías`);
   if (rutas.join("|") !== debe.join("|"))
     fallas.push(`las pantallas de Inventario salen [${rutas.join(", ")}] y deben salir ` +
                 `[${debe.join(", ")}]: la base va antes que el tablero porque el tablero ` +

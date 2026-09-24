@@ -226,6 +226,7 @@ export const MODULOS: Modulo[] = [
          Desacuerdos antes del Visto bueno haría leer el menú al revés
          de como pasan las cosas. */
       { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
+      { nombre: "Tablero", ruta: "/roturas/en-sitio/tablero", rama: "en-sitio" },
       { nombre: "Desacuerdos", ruta: "/roturas/en-sitio/desacuerdos", rama: "en-sitio" },
       { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
       { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
@@ -462,6 +463,32 @@ export const MODULOS: Modulo[] = [
     imagen: "/modulos/inventario.jpg",
     ruta: "/inventario",
     activo: true,
+    /* DOS RAMAS, igual que Roturas. Comparten tema —lo que hay en la
+       bodega— y NO comparten cifras: los conteos miden EXISTENCIAS y
+       las averías miden lo que ya no se puede vender. Con las ocho
+       pantallas en una sola lista, el menú de Inventario pedía leerse
+       entero para encontrar cualquier cosa, y «Maestro» aparecía dos
+       veces queriendo decir cosas distintas. */
+    ramas: [
+      {
+        id: "conteos",
+        nombre: "Conteos",
+        eyebrow: "EXISTENCIAS",
+        ruta: "/inventario",
+        descripcion:
+          "El maestro de materiales y ubicaciones, el conteo por módulo con sus " +
+          "vencimientos y la base de lo contado. Contesta qué hay y qué sale primero.",
+      },
+      {
+        id: "averias",
+        nombre: "Averías",
+        eyebrow: "CAJAS",
+        ruta: "/inventario/averias",
+        descripcion:
+          "Lo que se dañó y sigue en la estiba. Mientras no tenga documento de baja " +
+          "cuenta en el inventario: contesta cuánto hay apartado y desde cuándo.",
+      },
+    ],
     secciones: [
       /* CUATRO PANTALLAS Y EL ORDEN ES EL DEL PROCESO: se mantiene el
          maestro, se camina la bodega, queda el registro de lo contado, y
@@ -479,10 +506,10 @@ export const MODULOS: Modulo[] = [
          con un formulario más pobre que el del maestro, y «Bodegas»
          hacía lo propio. Dos editores para una misma tabla es cómo dos
          personas se pisan el dato sin enterarse. */
-      { nombre: "Maestro", ruta: "/inventario/maestro" },
-      { nombre: "Contar", ruta: "/inventario/conteo" },
-      { nombre: "La base", ruta: "/inventario/base" },
-      { nombre: "Tablero", ruta: "/inventario" },
+      { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
+      { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
+      { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
+      { nombre: "Tablero", ruta: "/inventario", rama: "conteos" },
       /* AVERÍAS VA DESPUÉS DEL TABLERO, y el análisis detrás de ella.
          Es el mismo orden del proceso: se mantiene el maestro, se
          cuenta, queda el registro, se decide qué sale primero — y lo
@@ -492,10 +519,10 @@ export const MODULOS: Modulo[] = [
       /* AVERÍAS ES UN MÓDULO ENTERO, no dos enlaces sueltos: se
          registra, se le hace seguimiento, se analiza y se configura,
          igual que rotura de línea. Y el orden es el del proceso. */
-      { nombre: "Averías · registrar", ruta: "/inventario/averias" },
-      { nombre: "Averías · tablero", ruta: "/inventario/averias/tablero" },
-      { nombre: "Averías · análisis", ruta: "/inventario/averias/analisis" },
-      { nombre: "Averías · maestro", ruta: "/inventario/averias/maestro" },
+      { nombre: "Registrar", ruta: "/inventario/averias", rama: "averias" },
+      { nombre: "Tablero", ruta: "/inventario/averias/tablero", rama: "averias" },
+      { nombre: "Análisis", ruta: "/inventario/averias/analisis", rama: "averias" },
+      { nombre: "Maestro", ruta: "/inventario/averias/maestro", rama: "averias" },
     ],
   },
 ];

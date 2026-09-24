@@ -75,6 +75,7 @@ grant authenticated to probador;
 do $$
 declare
   JEFE constant text := '11111111-1111-1111-1111-111111111111';
+  ROOT constant text := '44444444-4444-4444-4444-444444444444';
   EASY constant text := '22222222-2222-2222-2222-222222222222';
   SUP  constant text := '33333333-3333-3333-3333-333333333333';
   v_falla text := ''; v_n int; v_txt text; v_id uuid;
@@ -358,6 +359,100 @@ begin
     end if;
   end;
 
+  -- ================================================================
+  -- 8. ANULAR Y BORRAR — del administrador, y con sus límites
+  -- ================================================================
+  -- «La tabla de todos los registros con sus estados, para borrar o
+  --  anular si eres súper admin.»
+  declare v_borrable uuid; v_decidida uuid;
+  begin
+    perform set_config('request.jwt.claim.sub', EASY, true);
+    select r.id into v_borrable from public.rotura_registrar(
+      p_material => 'EER-AMBAR', p_unidades => 5, p_proceso => 'lineas',
+      p_causa => 'estibas_malas', p_descripcion => 'Para borrar',
+      p_area => 'plazoleta', p_color => 'ambar') r;
+
+    /* NI EASY NI EL SUPERVISOR: es del administrador. `rotura_anular`
+       preguntaba por el NOMBRE del rol —`mi_rol() <> 'admin'`— y eso
+       deja de proteger el día que alguien cree un segundo rol que
+       mande. Ahora pregunta por la casilla. */
+    begin
+      perform public.rotura_borrar(v_borrable);
+      v_falla := v_falla || ' 8a(Easy pudo borrar una rotura)';
+    exception when others then
+      if position('administrador' in sqlerrm) = 0 then
+        v_falla := v_falla || ' 8a(falló por otra cosa: ' || sqlerrm || ')';
+      end if;
+    end;
+    begin
+      perform public.rotura_anular(v_borrable, 'porque sí');
+      v_falla := v_falla || ' 8b(Easy pudo anular una rotura)';
+    exception when others then
+      if position('administrador' in sqlerrm) = 0 then
+        v_falla := v_falla || ' 8b(falló por otra cosa: ' || sqlerrm || ')';
+      end if;
+    end;
+
+    /* EL ADMINISTRADOR SÍ, mientras nadie la haya decidido. */
+    perform set_config('request.jwt.claim.sub', ROOT, true);
+    perform public.rotura_borrar(v_borrable);
+    select count(*) into v_n from public.v_roturas v where v.id = v_borrable;
+    if v_n <> 0 then v_falla := v_falla || ' 8c(borrar no borró)'; end if;
+
+    /* PERO UNA YA DECIDIDA NO SE BORRA: entró en la conciliación de
+       alguien, y borrarla cambia un mes que ya se cerró sin dejar nada
+       que mirar cuando pregunten por qué. */
+    /* SE USA r5 Y NO r1, y la diferencia importa: r1 está en 'cuenta'
+       PORQUE Easy la aceptó, así que la frenarían los dos guardas —el
+       de «ya decidida» y el de «el OL ya contestó»— y quitar uno de
+       los dos seguiría saliendo verde. r5 se decidió con la cadena
+       vieja: está decidida y NADIE contestó, así que solo la frena el
+       primero. Lo destapó una mutación que salió VERDE. */
+    begin
+      perform public.rotura_borrar(r5);
+      v_falla := v_falla || ' 8d(se borró una rotura ya decidida)';
+    exception when others then
+      if position('se anula, no se borra' in sqlerrm) = 0 then
+        v_falla := v_falla || ' 8d(falló por otra cosa: ' || sqlerrm || ')';
+      end if;
+    end;
+    select count(*) into v_n from public.v_roturas v where v.id = r5;
+    if v_n <> 1 then v_falla := v_falla || ' 8e(el intento igual la borró)'; end if;
+
+    /* NI UNA QUE EASY YA CONTESTÓ, aunque siga en 'esperando': el
+       descargo de alguien no se borra por debajo. */
+    perform set_config('request.jwt.claim.sub', EASY, true);
+    select r.id into v_decidida from public.rotura_registrar(
+      p_material => 'EER-AMBAR', p_unidades => 5, p_proceso => 'lineas',
+      p_causa => 'estibas_malas', p_descripcion => 'Objetada',
+      p_area => 'plazoleta', p_color => 'ambar') r;
+    insert into public.roturas_fotos (rotura_id, ruta, papel)
+      values (v_decidida, v_decidida || '/d.jpg', 'descargo');
+    perform public.rotura_visto_bueno(v_decidida, false, 'No fue nuestra');
+    perform set_config('request.jwt.claim.sub', ROOT, true);
+    begin
+      perform public.rotura_borrar(v_decidida);
+      v_falla := v_falla || ' 8f(se borró una rotura que el OL ya había objetado)';
+    exception when others then
+      if position('ya contestó' in sqlerrm) = 0 then
+        v_falla := v_falla || ' 8f(falló por otra cosa: ' || sqlerrm || ')';
+      end if;
+    end;
+
+    /* Y ANULAR DEJA LA FILA, con el motivo. */
+    perform public.rotura_anular(v_decidida, 'Se conto dos veces');
+    select v.estado, v.motivo_anulacion into v_txt, v_txt
+      from public.v_roturas v where v.id = v_decidida;
+    select v.estado into v_txt from public.v_roturas v where v.id = v_decidida;
+    if v_txt <> 'anulada' then
+      v_falla := v_falla || format(' 8g(anular dejó el estado en «%s»)', v_txt);
+    end if;
+    select v.motivo_anulacion into v_txt from public.v_roturas v where v.id = v_decidida;
+    if v_txt is null then v_falla := v_falla || ' 8h(anular no guardó el motivo)'; end if;
+    select count(*) into v_n from public.v_roturas v where v.id = v_decidida;
+    if v_n <> 1 then v_falla := v_falla || ' 8i(anular borró la fila en vez de marcarla)'; end if;
+  end;
+
   exception when others then
     set role postgres;
     raise exception 'FALLA:% — y ademas se murio en el camino: %', v_falla, sqlerrm;
@@ -370,5 +465,7 @@ begin
   raise notice 'BIEN: rechazar exige motivo Y foto del descargo, aceptar no exige la del';
   raise notice 'BIEN: descargo pero si la de la rotura cuando la causa la pide, y una no vale';
   raise notice 'BIEN: por la otra; ABI solo toca lo que se objeto y su palabra es la ultima;';
-  raise notice 'BIEN: y lo decidido con la cadena vieja no se reescribe como «por acuerdo».';
+  raise notice 'BIEN: y lo decidido con la cadena vieja no se reescribe como «por acuerdo»;';
+  raise notice 'BIEN: anular y borrar son del ADMINISTRADOR —por la casilla del rol, no por el';
+  raise notice 'BIEN: nombre «admin»—, y lo ya decidido o ya contestado se anula, no se borra.';
 end $$;

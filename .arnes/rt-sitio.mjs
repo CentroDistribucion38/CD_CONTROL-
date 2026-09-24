@@ -92,7 +92,19 @@ const materiales = [
      material» siga midiendo algo: con uno solo vendría puesto y la
      comprobación pasaría sola. */
   { clave: "PT-COST-175", nombre: "Envase Costeña 175R", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, activo: true, orden: 12 },
+  /* Y CIEN MÁS, porque el maestro de inventario trae 494 y un
+     desplegable de siete no prueba lo que pasa con 494. */
+  ...Array.from({ length: 100 }, (_, i) => ({
+    clave: "PT-" + (2000 + i), nombre: "Aguila Cero Lta 355Cc X " + (i + 1),
+    tipo: "producto_terminado", color: null, botellas_x_empaque: 24, activo: true, orden: 100 + i,
+  })),
 ];
+/* LOS ENVASES SIN COLOR: es como llega el maestro de inventario el
+   primer día —el SQL no puede adivinar de qué color es cada vidrio— y
+   es el caso que dejaba el desplegable de EER vacío y el registro
+   trabado. */
+const sinColor = materiales.map((m: any) =>
+  m.tipo === "eer" ? { ...m, color: null } : m);
 const procesos = [
   { clave: "lineas", nombre: "Líneas", activo: true, orden: 1 },
   { clave: "t1", nombre: "T1", activo: true, orden: 2 },
@@ -140,7 +152,8 @@ const roturas = [1, 2, 3].map((i) => ({
 
 createRoot(document.getElementById("r")!).render(
   <EnSitio esperando={3} roturas={roturas as any} nombres={{ u1: "Genesis Visbal" }}
-           materiales={materiales as any} materialesDe={(window as any).DE ?? "inventario"}
+           materiales={((window as any).SINCOLOR ? sinColor : materiales) as any}
+           materialesDe={(window as any).DE ?? "inventario"}
            procesos={procesos as any}
            areas={areas as any} causas={causas as any} puedeEditar />);
 `);
@@ -172,7 +185,7 @@ const monta = async (ancho = 1440, tema = "", alto = 900) => {
     <body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}>
     <div class="sh-marco sin-riel"><main class="sh-main">
     <div class="rt" id="r"></div></main></div></div>
-    <script>window.DE="inventario"</script>
+    <script>window.DE="inventario";window.SINCOLOR=false</script>
     <script>${js}</script></body></html>`);
   /* La pantalla abre REGISTRANDO, así que lo primero que existe es el
      formulario, no las cifras. */
@@ -438,19 +451,29 @@ await monta();
 await monta();
 await abrir();
 await pg.click(".rt-rep .seg button:has-text('EER')");
-ok(await pg.isVisible("#rt-mat"),
-   "en EER no aparece el desplegable del material");
+ok(await pg.isVisible("#rt-mat"), "en EER no aparece el campo del material");
 ok(await pg.isVisible(".rt-rep .seg.vidrio"),
    "en EER no está el color del vidrio, que es lo que acota la lista");
+
+/* LO QUE OFRECE EL CAMPO SE LEE ABRIÉNDOLO, no leyendo `option`s: ya no
+   es un `<select>`. Se abre, se leen los códigos y se cierra. */
+const ofrece = async () => {
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bm-lista", { timeout: 2000 }).catch(() => {});
+  const v = await pg.$$eval(".rt-rep .bm-op span", (e) => e.map((x) => x.textContent.trim()));
+  await pg.keyboard.press("Escape");
+  return v;
+};
+const puesto = async () => (await pg.textContent("#rt-mat")) ?? "";
 
 /* ÁMBAR: hay dos, así que no puede venir puesto ninguno y hay que
    escoger. Es justo el caso por el que el campo existe. */
 await pg.click(".rt-rep .seg.vidrio button.ambar");
 {
-  const op = await pg.$$eval("#rt-mat option", (o) => o.map((x) => x.value).filter(Boolean));
+  const op = await ofrece();
   ok(op.length === 2 && op.every((c) => c.startsWith("EER-AMBAR")),
      `en ámbar la lista trae ${JSON.stringify(op)} y debería traer solo los ámbar`);
-  ok((await pg.inputValue("#rt-mat")) === "",
+  ok(/Escribe para buscar/.test(await puesto()),
      "con dos ámbar ya viene uno escogido: eso es escoger por quien está mirando la estiba");
   ok(await pg.isDisabled(".rt-rep .pie button.si"),
      "con dos ámbar deja seguir sin decir cuál era: la base va a adivinar");
@@ -459,18 +482,15 @@ await pg.click(".rt-rep .seg.vidrio button.ambar");
 /* FLINT: hay uno solo, así que viene puesto y no hay que tocar nada. */
 await pg.click(".rt-rep .seg.vidrio button.flint");
 {
-  const op = await pg.$$eval("#rt-mat option", (o) => o.map((x) => x.value).filter(Boolean));
+  const op = await ofrece();
   ok(op.length === 1 && op[0] === "EER-FLINT",
      `al cambiar a flint la lista quedó en ${JSON.stringify(op)}: no se filtró por el color nuevo`);
-  /* SE ESPERA A QUE SE ACOMODE. El material lo pone un efecto, que
-     corre DESPUÉS del render: leerlo en el instante del clic lo
-     encuentra todavía vacío y la prueba falla por rápida, no por rota.
-     Dos segundos de tope: si de verdad no se pone, sigue fallando. */
-  const puesto = await pg.waitForFunction(
-    () => document.querySelector("#rt-mat")?.value === "EER-FLINT",
+  /* SE ESPERA A QUE SE ACOMODE: el material lo pone un efecto, que
+     corre DESPUÉS del render. Dos segundos de tope. */
+  const ok1 = await pg.waitForFunction(
+    () => /EER-FLINT/.test(document.querySelector("#rt-mat")?.textContent ?? ""),
     null, { timeout: 2000 }).then(() => true, () => false);
-  ok(puesto,
-     "con un solo flint no viene puesto: obliga a abrir un desplegable de un renglón");
+  ok(ok1, "con un solo flint no viene puesto: obliga a abrir una lista de un renglón");
   ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
      "en flint el botón de Siguiente está apagado y no hay nada más que escoger");
 }
@@ -479,14 +499,14 @@ await pg.click(".rt-rep .seg.vidrio button.flint");
    soltar el flint: si quedara puesto se mandaría un ámbar marcado como
    flint, y en la pantalla las dos cosas se ven igual de bien. */
 await pg.click(".rt-rep .seg.vidrio button.ambar");
-ok((await pg.inputValue("#rt-mat")) === "",
+ok(/Escribe para buscar/.test(await puesto()),
    "al volver a ámbar se quedó puesto el material del flint");
 
 /* Y en producto terminado el campo sigue donde estaba, y sigue pidiéndose. */
 await pg.click(".rt-rep .seg button:has-text('Producto terminado')");
 ok(await pg.isVisible("#rt-mat"),
    "en producto terminado desapareció el Material, y ahí sí hace falta");
-ok((await pg.inputValue("#rt-mat")) === "",
+ok(/Escribe para buscar/.test(await puesto()),
    "al pasar de EER a producto terminado se quedó puesto un envase retornable");
 ok(await pg.isDisabled(".rt-rep .pie button.si"),
    "en producto terminado deja seguir sin escoger material");
@@ -499,7 +519,18 @@ ok(await pg.isDisabled(".rt-rep .pie button.si"),
    no medía nada — solo alargaba el registro con un contador que siempre
    decía lo mismo.
    ------------------------------------------------------------------ */
-await pg.selectOption("#rt-mat", "PT-COST-330");
+/* SE ESCOGE ESCRIBIENDO, como se escoge de verdad desde que son 494. */
+const escogerMat = async (texto, cod) => {
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bm-teclea");
+  await pg.evaluate((v) => {
+    const el = document.querySelector(".rt-rep .bm-teclea");
+    const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true }));
+  }, texto);
+  await pg.click(`.rt-rep .bm-op:has(span:text-is("${cod}"))`);
+};
+await escogerMat("Costeña 330", "PT-COST-330");
 {
   const txt = await pg.textContent(".rt-rep");
   ok(!/Botellas rotas adentro/i.test(txt),
@@ -817,6 +848,110 @@ for (const [de, dice] of [["sin_vista", /2026-09-roturas-maestro-unico/],
 await monta();
 ok(!/no está saliendo del maestro/i.test(await pg.textContent(".rt")),
    "el aviso sale aunque el desplegable SÍ venga del maestro de inventario");
+
+/* =====================================================================
+   4sexies · EL MATERIAL SE BUSCA ESCRIBIENDO
+
+   «Agregaste producto, perfecto, pero que yo pueda ir escribiendo y a
+    la vez filtrando.»
+
+   EL DESPLEGABLE PASÓ DE SIETE A 494. Un `<select>` nativo con 494 es
+   una lista de treinta pantallazos donde solo se puede saltar tecleando
+   el PRINCIPIO del nombre: quien busca «355» no encuentra nada.
+   ===================================================================== */
+await monta();
+await abrir();
+{
+  ok((await pg.$$("select#rt-mat")).length === 0,
+     "el material sigue siendo un <select> nativo: con 494 materiales eso es una lista de treinta pantallazos");
+  ok(await pg.isVisible("#rt-mat"), "no está el campo del material");
+
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bm-lista");
+  ok(await pg.isVisible(".rt-rep .bm-teclea"),
+     "al abrir el material no aparece dónde escribir");
+  /* NO SE PINTAN LOS 494: cada letra tecleada repintaría 494 renglones
+     y el teléfono se cuelga medio segundo. */
+  const todos = (await pg.$$(".rt-rep .bm-op")).length;
+  ok(todos > 0 && todos <= 60,
+     `se pintan ${todos} renglones de una: con 494 el teléfono se cuelga en cada letra`);
+  ok(/más/.test(await pg.textContent(".rt-rep .bm-lista")),
+     "no se dice cuántos quedan sin pintar: parece que la lista se acabó ahí");
+
+  const teclear2 = async (v) => pg.evaluate((val) => {
+    const el = document.querySelector(".rt-rep .bm-teclea");
+    const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    set.call(el, val);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }, v);
+
+  /* SE BUSCA EN CUALQUIER PARTE DEL TEXTO, no solo al principio: es la
+     razón entera de haber cambiado el <select>. */
+  await teclear2("355");
+  const con355 = await pg.$$eval(".rt-rep .bm-op b", (b) => b.map((x) => x.textContent));
+  ok(con355.length > 0 && con355.every((t) => /355/.test(t)),
+     `buscar «355» —que va en la MITAD del nombre— trajo ${con355.length} y no todos lo tienen`);
+
+  /* Y POR EL CÓDIGO, que es lo que está pegado en la estiba. */
+  await teclear2("PT-COST-330");
+  const porSku = await pg.$$eval(".rt-rep .bm-op span", (b) => b.map((x) => x.textContent));
+  ok(porSku.includes("PT-COST-330"),
+     `no se puede buscar por el código: ${JSON.stringify(porSku.slice(0, 3))}`);
+
+  /* SIN TILDES: nadie teclea «Águila» con acento y con guante. */
+  await teclear2("costena");
+  ok((await pg.$$(".rt-rep .bm-op")).length > 0,
+     "buscar sin tildes no encuentra «Costeña»");
+
+  /* CUANDO NO HAY NINGUNO SE DICE, y con qué se buscó: una lista en
+     blanco hace pensar que la pantalla se rompió. */
+  await teclear2("zzzzz");
+  ok(/Ninguno dice/.test(await pg.textContent(".rt-rep .bm-lista")),
+     "sin resultados la lista se queda en blanco sin decir por qué");
+
+  /* SE ESCOGE Y SE VE ESCOGIDO. */
+  await teclear2("Costeña 330");
+  await pg.click(".rt-rep .bm-op");
+  ok((await pg.$$(".rt-rep .bm-lista")).length === 0, "al escoger no se cierra la lista");
+  ok(/PT-COST-330/.test(await pg.textContent("#rt-mat")),
+     `tras escoger, el campo dice «${await pg.textContent("#rt-mat")}»`);
+  ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
+     "con material escogido el botón sigue apagado");
+}
+
+/* ---------------------------------------------------------------------
+   4septies · SI NINGÚN ENVASE TIENE COLOR, NO SE FILTRA POR COLOR
+
+   Los 32 envases del maestro de inventario nacen sin `color_vidrio`
+   —el SQL no lo puede adivinar—. Filtrando por color, el desplegable
+   de EER quedaba COMPLETAMENTE VACÍO y el registro trabado, sin una
+   palabra que dijera por qué. Trabar el registro de una rotura que YA
+   ocurrió por un maestro incompleto es perder el dato para siempre.
+   ------------------------------------------------------------------ */
+{
+  await pg.setViewportSize({ width: 1440, height: 1100 });
+  await pg.setContent(`<!doctype html><html><head><meta charset="utf-8">
+    <style>${PREFLIGHT}${glob}${shell}${css}</style></head>
+    <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main">
+    <div class="rt" id="r"></div></main></div></div>
+    <script>window.DE="inventario";window.SINCOLOR=true</script>
+    <script>${js}</script></body></html>`);
+  await pg.waitForSelector(".rt-rep");
+  await abrir();
+  await pg.click(".rt-rep .seg button:has-text('EER')");
+
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bm-lista");
+  const ops = (await pg.$$(".rt-rep .bm-op")).length;
+  ok(ops > 0,
+     "con los envases sin color el desplegable de EER queda VACÍO: el registro se traba y se pierde una rotura que ya ocurrió");
+  await pg.keyboard.press("Escape");
+
+  ok(/Ningún envase tiene el color/i.test(await pg.textContent(".rt-rep")),
+     "no se avisa que ningún envase tiene color: callarlo es lo que hace que nadie lo llene nunca");
+  ok(/Inventario . Maestro/.test(await pg.textContent(".rt-rep")),
+     "no se dice DÓNDE se llena el color del vidrio");
+}
 
 /* ---------------------------------------------------------------------
    5 · LOS CUATRO ANCHOS, Y LO QUE SE TOCA

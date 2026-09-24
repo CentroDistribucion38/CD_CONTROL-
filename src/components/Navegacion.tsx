@@ -271,6 +271,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/roturas/en-sitio": IconoRoturas,
   "/roturas/en-sitio/visto-bueno": IconoSello,
   "/roturas/en-sitio/desacuerdos": IconoDesacuerdo,
+  "/roturas/en-sitio/tablero": IconoTablero,
   "/roturas/en-sitio/analisis": IconoAnalisis,
   "/roturas/en-sitio/maestro": IconoLlave,
   "/roturas/en-sitio/operarios": IconoOperario,

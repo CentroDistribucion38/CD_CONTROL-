@@ -1,98 +1,102 @@
-El recorrido de las unidades: causa -> proceso -> en que termina
+Inventario en dos ramas, el tablero de roturas, y el material se busca escribiendo
 
 =====================================================================
-LO QUE CAMBIA EN EN SITIO · ANALISIS
+1. INVENTARIO SE PARTE EN DOS RAMAS
 =====================================================================
-Contra la maqueta que mandaste. Las dos barras de antes —«por causa» y
-«por proceso», una debajo de otra— se van y entra UN SOLO DIBUJO con
-las tres columnas.
+«Dentro de inventario debia estar un modulo de CONTEOS que trajera
+ todo lo que teniamos, y aparte el de AVERIAS con registrar, tablero,
+ analisis y maestro.»
 
-NO ES UN CAMBIO DE ADORNO. Cada barra estaba bien y ninguna contestaba
-la pregunta que las une: de las tres mil de estibas malas, ¿cuantas
-pasaron por T1? Eso no se ve en dos rankings puestos uno debajo del
-otro, por mucho que cada uno este bien.
+La embarre: deje las ocho pantallas en una sola lista. Ahora son dos
+ramas, igual que Roturas:
 
-LA GEOMETRIA ES UNA FUNCION PURA, `modulos/roturas/sankey.ts`, con su
-propio arnes sin navegador. La razon es concreta: UN SANKEY MAL ARMADO
-NO SE VE MAL. Se ve perfecto y miente —una cinta mas gorda de lo que le
-toca, un nodo que no suma lo que dice— y nadie lo nota, porque la unica
-forma de comprobarlo es rehacer la cuenta a mano. El arnes la rehace.
+  CONTEOS · EXISTENCIAS   Maestro, Contar, La base, Tablero
+  AVERIAS · CAJAS         Registrar, Tablero, Analisis, Maestro
 
-NO SE USA `d3-sankey`: son 60 KB y un algoritmo que REORDENA nodos para
-cruzar menos cintas. El dia que una causa cambie de sitio entre dos
-visitas sin que los datos hayan cambiado, nadie va a saber si fue el
-algoritmo o si de verdad cambio algo. Aqui el orden es el de los datos
-—de mayor a menor— y no se mueve.
+COMPARTEN TEMA —lo que hay en la bodega— Y NO COMPARTEN CIFRAS: los
+conteos miden EXISTENCIAS y las averias lo que ya no se puede vender.
+Con las ocho juntas, «Maestro» aparecia DOS VECES queriendo decir
+cosas distintas, y el menu pedia leerse entero para encontrar algo.
 
 =====================================================================
-LOS TONOS SON LOS DE LA MAQUETA, Y LA SEGUNDA SALIDA
+2. EL TABLERO DE ROTURAS
 =====================================================================
-Oro #FFC400 para lo que asume el OL, rojo #E4002B para lo que no, ocre
-#B87F00 para el proceso que mas pesa y gris #8A8E8A para los demas
-—el proceso dice DONDE paso, no de quien fue: si compitiera de color
-con la causa, el ojo leeria dos alarmas donde solo hay una—. Cintas al
-45% y 40% de opacidad, que es lo que deja ver los cruces.
+«Otra pagina donde pueda ver absolutamente todos los registros y sus
+ estados; es como una tabla para borrar, eliminar y demas si el super
+ admin quiere.»
 
-Y LA TERCERA COLUMNA TIENE DOS SALIDAS. Aqui hay UN CAMBIO CONTRA LA
-MAQUETA, y va explicado porque es de fondo:
+ES UNA TABLA Y NO TARJETAS, al reves que las bandejas, y la diferencia
+no es de gusto: en una bandeja cada rotura es UNA DECISION y se lee de
+una en una. Aqui se viene a BUSCAR una entre trescientas, o a ver de
+un vistazo cuantas quedaron sin origen. Para eso las columnas tienen
+que alinearse, y eso solo lo hace una tabla.
 
-La maqueta parte 4.230 en «baja de vidrio 3.589» + «baja de liquido
-641». ESO NO SE PUEDE SUMAR: una unidad ROTA pierde el liquido Y la
-botella, asi que estaria en las dos columnas y el dibujo la contaria
-dos veces. El numero se ve bien y esta mal, que es lo peor que le
-puede pasar a un tablero.
+BORRAR Y ANULAR NO SON LO MISMO:
+  BORRAR  solo lo que NADIE ha decidido todavia. Es el error de dedo
+          del mismo dia: se registro dos veces, o donde no era.
+  ANULAR  todo lo demas. Deja la fila, el motivo y quien.
+El boton de borrar NI APARECE en lo ya decidido — no esta apagado «por
+ahora», es que a eso no se le borra nunca. La base lo frena igual.
 
-Lo que si son dos montones que no se pisan:
-  BAJA DE VIDRIO        las rotas. Pierden botella (y liquido).
-  SOLO BAJA DE LIQUIDO  las contaminadas. El envase vuelve a la linea,
-                        asi que NO son baja de vidrio.
-Cada unidad esta en un solo sitio, el total del dibujo cuadra, y las
-dos cifras del pie siguen siendo las de siempre.
-
-=====================================================================
-TRES COSAS QUE SOLO SE VIERON MIRANDO LA CAPTURA
-=====================================================================
-1. LAS DOS CAUSAS SALIAN DEL MISMO COLOR. Use `--rt-oro` para «asumida»
-   —el acento de la app— y en el tema OFICIAL de Bavaria ese acento ES
-   EL ROJO. El dibujo perdia lo unico que venia a decir: separar lo que
-   el OL asume de lo que no. Ahora son dos colores FIJOS, fuera del
-   tema, y el arnes MIDE la distancia entre ellos.
-
-2. EL ROTULO DE «Lineas 30» SE MONTABA sobre el borde de la caja. El
-   rotulo son tres lineas y ocupa 58 px; el hueco entre nodos era 14.
-   El hueco no es aire: es el sitio del texto. Y el lienzo tampoco
-   reservaba sitio abajo para el rotulo del ultimo nodo.
-
-3. LAS CINTAS SUMABAN MAS QUE SU NODO. Cada cinta tiene un piso de
-   1,5 px para que una de once unidades no desaparezca; con dos asi,
-   las cintas no caben dentro del nodo y el dibujo dice que de ahi sale
-   mas de lo que entro. El minimo del nodo es ahora LO QUE SUMAN SUS
-   CINTAS. El arnes lo destapo dos veces seguidas.
-
-EL PISO ES UNA MENTIRA DELIBERADA SOBRE EL TAMAÑO —«no se ve» no es lo
-mismo que «no existe»— y el arnes lo dice asi: la regla de la escala se
-exige a los nodos por encima del piso, y a los que estan en el piso se
-les exige que sea EXACTAMENTE el piso y no un numero inventado.
+Y `rotura_anular` PREGUNTABA `mi_rol() <> 'admin'`: comparaba contra un
+NOMBRE, y los roles de este proyecto son datos. El dia que se cree un
+segundo rol que mande, esa comprobacion deja de proteger lo que cree
+proteger Y EN LA DIRECCION PELIGROSA. Ahora pregunta por la casilla,
+igual que `salida_anular`.
 
 =====================================================================
-UN ERROR MIO EN EL PROPIO ARNES
+3. EL MATERIAL SE BUSCA ESCRIBIENDO
 =====================================================================
-La comprobacion de que las cintas se pintan ANTES que las barras usaba
-`indexOf("<path") < indexOf("<rect")`. `indexOf` devuelve -1 cuando no
-encuentra, y -1 siempre es menor: un dibujo SIN NINGUNA CINTA pasaba la
-prueba. Lo destapo una mutacion que borraba las cintas enteras y salia
-VERDE.
+«Que yo pueda ir escribiendo y a la vez filtrando.»
+
+EL DESPLEGABLE PASO DE SIETE A 494. Un `<select>` nativo con 494 es una
+lista de treinta pantallazos donde solo se puede saltar tecleando el
+PRINCIPIO del nombre: quien busca «355» no encuentra nada. Ahora se
+busca en cualquier parte del texto, por nombre Y por codigo —que es lo
+que esta pegado en la estiba—, sin tildes y sin mayusculas.
+
+SE PINTAN 60 RENGLONES Y SE DICE CUANTOS QUEDAN. Pintar 494 cuelga el
+telefono medio segundo en cada letra tecleada, y nadie baja al 300.
+
+LO QUE SE PIERDE, Y LO DIGO: en el telefono un `<select>` nativo abre
+la ruedita del sistema, que se maneja con el pulgar sin mirar. Esto es
+una lista en la pagina. Con siete materiales el nativo era mejor; con
+494 es lo unico que permite encontrar uno.
+
+=====================================================================
+4. EL EER SALIA VACIO, Y ESO ERA MIO
+=====================================================================
+Los 32 envases del maestro de inventario nacen SIN `color_vidrio` —el
+SQL no lo puede adivinar—, y yo filtraba el desplegable por color. El
+resultado: EER completamente vacio, el registro trabado, y NI UNA
+PALABRA que dijera por que.
+
+Trabar el registro de una rotura que YA OCURRIO por un maestro
+incompleto es perder el dato para siempre. Ahora: si hay envases con
+color, se filtra; si NINGUNO lo tiene, se ofrecen todos y la pantalla
+dice que falta llenarlo y DONDE.
+
+Es la tercera vez en este proyecto que el error es el mismo —la
+pantalla se calla— y la tercera vez que lo destapa una captura tuya y
+no un arnes. Ahora el arnes lo mide.
 
 =====================================================================
 LOS ARNESES
 =====================================================================
-node .arnes/rt-sankey.mjs · 11 comprobaciones, 8 mutaciones, 8 ROJAS
-Prueba la geometria SIN navegador —los casos raros de un diagrama son
-quince y abrir Chromium quince veces seria no probarlos— y ademas monta
-el componente para comprobar que PINTA lo que dice la geometria.
+node .arnes/rt-sitio.mjs · 3 mutaciones nuevas, 3 ROJAS
+  El fixture pasa de siete materiales a CIENTO SIETE, y trae los
+  envases sin color: un desplegable de siete no prueba lo que pasa
+  con 494.
+bash .arnes/correr-visto-bueno-easy.sh · 4 mutaciones nuevas, 4 ROJAS
+  Una salio VERDE al principio: el caso que usaba estaba frenado por
+  DOS guardas a la vez, asi que quitar una seguia pasando. Se cambio
+  por uno que solo toca la primera.
 
-FALTA: el analisis de Quiebra con el mismo tratamiento, y la tabla de
-todos los registros con sus estados.
+FALTA, Y ES LO UNICO QUE QUEDA: el analisis de Quiebra con el mismo
+tratamiento del recorrido.
+
+SQL POR CORRER: 2026-09-roturas-visto-bueno-easy.sql (trae tambien
+`rotura_borrar` y el arreglo de `rotura_anular`).
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
