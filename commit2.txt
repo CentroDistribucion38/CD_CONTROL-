@@ -1,75 +1,93 @@
-Que lleve vidrio en tolvas lo dice el maestro, no el nombre del tipo
+Averias: el motor de hallazgos y el informe (primera pieza)
 
 =====================================================================
-EL ERROR ERA MIO, Y DE FONDO
+QUE ES ESTO Y QUE NO
 =====================================================================
-«Que esas tolvas solo le aparezcan a TOLVAS, no a CASCO DE VIDRIO.»
+«Haz con averias algo brutal y sobre todo profesional, con hallazgos y
+ todo en el informe.»
 
-El bloque de «VIDRIO PESADO ESPERANDO CAMION» —el que al registrar
-ofrece las cedulas y llena la placa y la cantidad— se estaba decidiendo
-LEYENDO EL NOMBRE DEL TIPO: si el nombre contenia la palabra «tolva»,
-salia.
-
-Eso lo escribi yo, y estuvo mal desde el primer dia. No por un
-descuido: ADIVINAR UNA REGLA LEYENDO TEXTO LIBRE FALLA SIEMPRE, tarde o
-temprano. El nombre de un tipo se edita desde el Maestro y nadie tiene
-por que saber que esa palabra decide algo. Basta con que un tipo se
-llame «Casco vidrio (tolvas)» para que le salga un bloque que no le
-toca, y con que el de verdad se llame «Vidrio a granel» para que no le
-salga el que si. La pantalla cambia de comportamiento sin que nadie
-toque una linea de codigo ni entienda por que.
+ESTA ES LA PRIMERA PIEZA: el motor de hallazgos y el papel. Faltan la
+base de datos y las pantallas (registrar, tablero, ficha, analisis), que
+van en su propio paso. Se empieza por aqui porque es la parte que no
+estaba en los bocetos y la que decide si el modulo sirve de algo.
 
 =====================================================================
-COMO QUEDA
+QUE ES UN HALLAZGO AQUI, Y QUE NO
 =====================================================================
-ES UNA CASILLA DEL TIPO, al lado de las otras dos que ya existian por
-tipo (`cuenta_plan`, `pregunta_arenosa`):
+Un hallazgo NO es una cifra. «36 cajas este mes» es una cifra: ya esta
+en el tablero y no le dice a nadie que hacer. Un hallazgo es una cifra
+MAS la comparacion que la vuelve accionable:
 
-  Traspasos -> Maestro -> Tipos -> menu de la fila (⋯)
-    «Lleva vidrio en tolvas»
+  cifra     «22 cajas en la calle A»
+  hallazgo  «el 61 % de las cajas esta en la calle A, y dos tercios de
+             esas son averia de deposito y no de transporte: el problema
+             es del sitio, no del viaje»
 
-Se prende y se apaga sin desplegar nada. El tipo que la tenga puesta
-lleva una marca VIDRIO al lado del nombre, EN LA LISTA: una bandera que
-solo se asoma dentro de un menu de tres puntos es una bandera que nadie
-sabe que existe, y esta decide si al registrar sale el bloque.
+Y ESA SEGUNDA LINEA SE DA VUELTA SOLA. Con la misma concentracion pero
+de transporte, el papel dice lo CONTRARIO —«llega averiado, no se averia
+ahi»—, porque el camion no es de la calle. Es el hallazgo que mas facil
+se saca al reves, y por eso tiene su propia comprobacion.
 
-De paso queda el mecanismo para las otras dos, que hasta hoy no se
-podian ver ni cambiar desde ninguna pantalla.
+CADA HALLAZGO LLEVA LA CUENTA QUE LO SOSTIENE: «22 de 36 cajas · 3
+averias · 22 cajas de deposito». Un informe que afirma cosas sin mostrar
+de donde salen es un informe al que hay que creerle.
 
-LA SEMILLA ES UNA SUGERENCIA. La migracion la prende donde el nombre
-dice «tolva» Y NO dice «casco» —la distincion que se pidio—, lo hace UNA
-sola vez, y IMPRIME las dos listas para que se miren:
+Los siete que salen hoy:
+· donde se concentra, y si es del sitio o del viaje;
+· CUANTAS SIGUEN CONTANDO EN EL INVENTARIO —el de plata: producto que
+  ya no existe y que el sistema sigue contando, con cuantos dias lleva
+  esperando el documento—;
+· cuanto tarda la baja en SAP, y la mas lenta;
+· lo que VENCE EN 30 DIAS estando ya averiado: despues de esa fecha ya
+  no se le reclama a nadie;
+· la causal que manda, y a quien se le reclama esa;
+· el producto que mas se averia;
+· si todo lo reporta una sola persona: en un centro de varios turnos eso
+  casi nunca significa que los demas no rompan.
 
-  LLEVAN VIDRIO EN TOLVAS: ...
-  NO LLEVAN: ...
+NINGUNO SE INVENTA CUANDO NO HAY DE DONDE. Cada regla tiene un piso: un
+porcentaje sobre cuatro cajas no es una concentracion, es el azar. Un
+informe con dos hallazgos ciertos vale mas que uno con seis rellenos.
 
-Correrla dos veces no deshace una correccion hecha a mano.
-
-SI EL SQL NO SE HA CORRIDO, la columna no existe y la pantalla cae al
-criterio viejo. Es peor que la casilla, pero es lo que habia: dejar el
-bloque sin salir seria quitarle algo que hoy funciona a quien todavia
-no ha corrido la migracion.
+LO ALTO VA PRIMERO. Un informe que empieza por un dato de color y
+esconde la plata en el cuarto renglon es un informe que se lee hasta el
+segundo.
 
 =====================================================================
-EL ARNES, Y UNA FALLA DEL ARNES
+EL PAPEL
 =====================================================================
-.arnes/tp-vidrio-registro.mjs monta ahora DOS TIPOS TRAMPA:
+Mismas piezas que la hoja de rotura de linea, importadas y no copiadas.
+LOS HALLAZGOS VAN ARRIBA, ANTES DE CUALQUIER TABLA: un informe que
+empieza por veinte renglones obliga a cada quien a sacar sus propias
+conclusiones, y cada quien saca otra.
 
-  «Casco vidrio (tolvas)»  con la casilla APAGADA  -> no debe salir
-  «Vidrio a granel»        con la casilla PUESTA   -> debe salir
+La tabla lleva LA FOTO de cada averia, y no es adorno: una averia sin
+foto no se le reclama a nadie. Cuando falta, queda el recuadro punteado
+—un hueco marcado dice «a esta le falta la prueba»; uno liso no dice
+nada—.
 
-Los dos estan escogidos a proposito: al primero el criterio viejo le
-sacaba el bloque y al segundo no se lo encontraba. Si alguien vuelve a
-decidir por el nombre, estas dos lineas lo delatan.
+=====================================================================
+UN ERROR QUE ENCONTRO EL ARNES ANTES QUE NADIE
+=====================================================================
+`calleDe("A03 · M12")` devolvia «A03» y no «A». Agrupando asi, las
+averias de una misma calle se reparten en tantos grupos como modulos
+tenga: ninguno llega al 40 % y LA CONCENTRACION —el hallazgo que mas
+vale de todo el informe— no sale nunca. El papel se habria visto
+perfectamente bien, solo que sin el unico renglon por el que se hace.
 
-Y SE COMPROBO QUE MUERDE — pero al hacerlo aparecio otra cosa: el arnes
-detectaba la mutacion y SE MORIA DOS PASOS DESPUES esperando un boton
-que ya no existia. Lo unico que se veia era un «Timeout» de Playwright:
-cierto, inutil, y que no distingue «lo rompi yo» de «se rompio el
-arnes». Los dos arneses de esta tanda imprimen ahora lo que ya sabian
-que estaba mal ANTES de caerse. Es la segunda vez en esta sesion que
-aparece el mismo defecto —la primera fue en el de SQL— y por eso quedo
-escrito en los dos.
+=====================================================================
+EL ARNES
+=====================================================================
+.arnes/av-informe.mjs. Los hallazgos son una FUNCION PURA y se miden
+sin navegador y sin generar un PDF: entra una lista de averias, sale una
+lista de conclusiones, y se comprueba numero por numero —22 de 36 = 61 %,
+21 cajas y 630 unidades sin documento, 12 cajas que vencen, 4 dias la
+mas proxima—. Dentro del dibujo, la unica forma de comprobarlo seria
+leer el papel, y una conclusion mal sacada se lee normal.
+
+Ademas: que NO se inventen sin material, que lo alto vaya primero, que
+ninguno quede sin su cuenta, que el papel los ponga ANTES de la tabla,
+y que con 60 averias parta paginas sin salirse del margen.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
