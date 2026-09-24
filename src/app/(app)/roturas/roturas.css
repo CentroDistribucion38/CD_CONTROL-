@@ -1784,3 +1784,169 @@
 .rt-rep .bm-op.marcado { background: var(--c-eef1f5) }
 .rt-rep .bm-op.puesto { background: var(--rt-crema) }
 .rt-rep .bm-nada { padding: 14px; font-size: 12.5px; line-height: 1.5; color: var(--rt-gris); margin: 0 }
+
+/* =====================================================================
+   VISTO BUENO DEL OL · prefijo `vb-`
+   ---------------------------------------------------------------------
+   Comprobado libre en roturas.css, globals.css y shell.css.
+   ===================================================================== */
+.rt .vb-cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 }
+.rt .vb-c {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea); border-left: 0;
+  padding: 16px 20px; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.rt .vb-c:first-child { border-left: 1px solid var(--rt-linea) }
+.rt .vb-c b {
+  font: 900 30px/1 var(--rt-titulo); color: var(--rt-tinta);
+  font-variant-numeric: tabular-nums;
+}
+/* LA PRIMERA ES LA SUYA: la que decide él. Fondo crema y filo de color
+   abajo, como la pestaña de la que uno está parado. */
+.rt .vb-c.vb-aqui { background: var(--rt-crema); box-shadow: inset 0 -4px 0 var(--rt-oro) }
+.rt .vb-c.vb-mal b { color: var(--rt-mal) }
+.rt .vb-rot {
+  font: 700 10.5px var(--rt-texto); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--rt-gris); margin-top: 5px;
+}
+.rt .vb-pie { font-size: 12px; color: var(--rt-gris); line-height: 1.4 }
+
+.rt .vb-caja { padding: 0 }
+.rt .vb-cab {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid var(--rt-linea);
+}
+.rt .vb-cab h2 { margin: 0; font: 900 18px var(--rt-titulo); color: var(--rt-tinta) }
+.rt .vb-izq { min-width: 0; flex: 1 1 320px }
+/* QUÉ HACE CADA BOTÓN, ESCRITO ARRIBA. Los dos se ven igual de
+   inocentes y uno de los dos cierra el cobro sin que nadie más lo
+   mire. */
+.rt .vb-como {
+  margin: 4px 0 0; font-size: 12.5px; line-height: 1.5;
+  color: var(--rt-gris); max-width: 66ch;
+}
+.rt .vb-como b { color: var(--rt-tinta); font-weight: 700 }
+.rt .vb-der { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+.rt .vb-nota { font-size: 12.5px; color: var(--rt-gris) }
+.rt .vb-nota b { color: var(--rt-tinta); font-variant-numeric: tabular-nums }
+
+/* ---------------------------------------------------------------------
+   LA FILA
+   ---------------------------------------------------------------------
+   ES UNA FILA Y NO UNA TARJETA. Aquí se barren quince de corrido, y en
+   quince tarjetas apiladas la unidad, la causa y el botón caen en
+   sitios distintos en cada una. En filas, la columna de unidades es una
+   columna: el ojo baja en línea recta y compara sin leer. */
+.rt .vb-grupo { border-bottom: 1px solid var(--rt-linea) }
+.rt .vb-grupo:last-child { border-bottom: 0 }
+.rt .vb-fila {
+  display: grid; align-items: center; gap: 16px; padding: 12px 20px;
+  grid-template-columns: 70px minmax(0, 1.6fr) 90px minmax(0, 1.5fr) minmax(0, 1.2fr) auto;
+}
+.rt .vb-foto {
+  width: 70px; height: 52px; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--c-d5dce5); position: relative; padding: 0;
+}
+/* SIN FOTO SE VE VACÍA y no se puede abrir nada: es la diferencia que
+   hay que ver ANTES de tocar Aceptar, porque una causa que exige foto
+   y no la tiene no se puede aceptar. */
+.rt .vb-foto.sin { background: var(--c-eef1f5); cursor: default }
+.rt .vb-foto i {
+  position: absolute; left: 0; bottom: 0; font-style: normal;
+  font: 700 9.5px var(--rt-texto); letter-spacing: .1em; padding: 2px 6px;
+  background: var(--rt-negro); color: #fff;
+}
+.rt .vb-tit { font: 700 14.5px var(--rt-titulo); color: var(--rt-tinta) }
+.rt .vb-sub { margin-top: 2px; font-size: 12px; color: var(--rt-gris); line-height: 1.4 }
+.rt .vb-cod {
+  font: 600 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--rt-gris);
+}
+.rt .vb-und { text-align: left }
+.rt .vb-und b {
+  display: block; font: 900 24px/1 var(--rt-titulo); color: var(--rt-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.rt .vb-und span {
+  font: 700 9.5px var(--rt-texto); letter-spacing: .14em; color: var(--rt-gris);
+}
+.rt .vb-causa > div:first-child { font-size: 13.5px; color: var(--rt-tinta) }
+/* La que dice que NO fue del OL, en rojo: es plata que alguien va a
+   discutir y se tiene que ver sin leer. */
+.rt .vb-causa .vb-no { color: var(--rt-mal); font-weight: 600 }
+.rt .vb-falta { color: var(--rt-mal); font-weight: 700 }
+.rt .vb-quien > div:first-child { font-size: 13px; color: var(--rt-tinta) }
+/* LA ANTIGÜEDAD ES LA QUE APURA: de tres días en adelante, en rojo. */
+.rt .vb-sub.vb-viejo { color: var(--rt-mal); font-weight: 700 }
+.rt .vb-btns { display: flex; gap: 8px; justify-content: flex-end }
+.rt .vb-btns .btn { min-height: 44px; padding: 0 20px }
+/* EL «ACEPTAR» QUE NO SE PUEDE TOCAR DICE POR QUÉ, y se ve apagado sin
+   perder la letra: `opacity: .45` sobre un botón lleno dejaba el texto
+   —que es justamente el aviso— por debajo del piso de contraste. Aquí
+   se apaga cambiando el relleno, no la opacidad. */
+.rt .vb-btns .btn.vb-sin,
+.rt .vb-btns .btn.si.vb-sin:disabled {
+  background: transparent; border: 1px dashed var(--rt-mal);
+  color: var(--rt-mal); opacity: 1; cursor: not-allowed;
+  font-weight: 700; white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------
+   OBJETAR
+   ---------------------------------------------------------------------
+   LOS MOTIVOS SON BOTONES Y NO UN CAMPO. Pedirlo escribiendo, con
+   guante y de pie, es lo que hace que la gente acepte por no teclear —
+   y entonces la conciliación deja de medir lo que pasa y mide quién
+   tiene tiempo. */
+.rt .vb-obj {
+  background: var(--rt-crema); padding: 14px 20px 16px;
+  border-top: 1px solid var(--rt-linea);
+}
+.rt .vb-motivos { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 10px }
+.rt .vb-motivos .btn { min-height: 44px }
+/* El escogido en negro y no en el acento: el acento ya lo lleva
+   «Aceptar», y dos amarillos en la misma fila se leen como lo mismo. */
+.rt .vb-motivos .btn.vb-on {
+  background: var(--rt-negro); border-color: var(--rt-negro); color: #fff;
+}
+.rt .vb-linea { display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+.rt .vb-detalle {
+  flex: 1 1 260px; min-width: 0; height: 44px; padding: 0 14px;
+  border: 1.5px solid var(--rt-linea); border-radius: 2px;
+  font: 500 13.5px inherit; background: var(--rt-papel); color: var(--rt-tinta);
+}
+.rt .vb-foto-bt {
+  min-height: 44px; padding: 0 16px; cursor: pointer; border-radius: 2px;
+  border: 1.5px dashed var(--rt-gris2); background: none; color: var(--rt-gris);
+  font: 600 13px inherit; white-space: nowrap;
+}
+.rt .vb-foto-bt.puesta {
+  border-style: solid; border-color: var(--rt-verde); color: var(--rt-verde);
+  background: var(--rt-verde-suave);
+}
+.rt .vb-enviar {
+  background: var(--rt-negro); border-color: var(--rt-negro); color: #fff; font-weight: 800;
+}
+.rt .vb-enviar:disabled { opacity: .45 }
+.rt .vb-ev { padding: 0 20px 16px }
+
+/* ---------------------------------------------------------------------
+   TABLET Y TELÉFONO
+   ---------------------------------------------------------------------
+   Seis columnas no caben por debajo de 1100. Se apila en dos bloques y
+   los botones pasan a línea completa: se tocan con el pulgar. */
+@media (max-width: 1100px) {
+  .rt .vb-cifras { grid-template-columns: 1fr 1fr }
+  .rt .vb-c { border-left: 1px solid var(--rt-linea) }
+  .rt .vb-fila {
+    grid-template-columns: 70px minmax(0, 1fr) 90px;
+    row-gap: 10px;
+  }
+  .rt .vb-causa, .rt .vb-quien { grid-column: 2 / -1 }
+  .rt .vb-btns { grid-column: 1 / -1; justify-content: stretch }
+  .rt .vb-btns .btn { flex: 1 1 0 }
+}
+@media (max-width: 560px) {
+  .rt .vb-cifras { grid-template-columns: 1fr }
+  .rt .vb-fila { grid-template-columns: 70px minmax(0, 1fr) }
+  .rt .vb-und { grid-column: 2 }
+  .rt .vb-linea > * { flex: 1 1 100% }
+}

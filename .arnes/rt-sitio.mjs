@@ -486,10 +486,17 @@ await pg.click(".rt-rep .seg.vidrio button.flint");
   ok(op.length === 1 && op[0] === "EER-FLINT",
      `al cambiar a flint la lista quedó en ${JSON.stringify(op)}: no se filtró por el color nuevo`);
   /* SE ESPERA A QUE SE ACOMODE: el material lo pone un efecto, que
-     corre DESPUÉS del render. Dos segundos de tope. */
+     corre DESPUÉS del render — y en una máquina cargada esos dos
+     segundos de tope se quedaban cortos y el arnés se ponía rojo por
+     lentitud, no por un error de la pantalla. Un arnés que falla a
+     veces se acaba ignorando siempre. */
   const ok1 = await pg.waitForFunction(
     () => /EER-FLINT/.test(document.querySelector("#rt-mat")?.textContent ?? ""),
-    null, { timeout: 2000 }).then(() => true, () => false);
+    null, { timeout: 8000 }).then(() => true, () => false);
+  if (!ok1) console.log("DEBUG flint:", JSON.stringify(await pg.evaluate(() => {
+    const e = document.querySelector("#rt-mat");
+    return { hay: !!e, tag: e?.tagName, txt: e?.textContent, val: e?.value };
+  })));
   ok(ok1, "con un solo flint no viene puesto: obliga a abrir una lista de un renglón");
   ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
      "en flint el botón de Siguiente está apagado y no hay nada más que escoger");

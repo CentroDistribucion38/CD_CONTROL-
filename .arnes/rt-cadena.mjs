@@ -103,7 +103,8 @@ const roturas = [
             grupo: "no_asumida", exige_foto: true, le_falta_foto: true, fotos: 0 }),
 ];
 createRoot(document.getElementById("r")!).render(
-  <VistoBueno roturas={roturas as any} nombres={nombres} puedeDecidir />);
+  <VistoBueno roturas={roturas as any} nombres={nombres} puedeDecidir
+              cifras={{ aCobro: 4, enDesacuerdo: 0, noSeCobran: 3 }} />);
 `);
 
 writeFileSync(R(".arnes/_cad-des.tsx"), `
@@ -179,31 +180,44 @@ const teclear = async (sel, v) => pg.evaluate(([s, val]) => {
 await monta(jsVB);
 {
   const t = await pg.textContent(".rt");
-  ok(/De acuerdo/.test(t) && /En desacuerdo/.test(t),
-     "los botones no dicen «de acuerdo / en desacuerdo»");
-  /* «CUENTA / NO CUENTA» ERA EL LENGUAJE DE QUIEN COBRA. Dejarlo sería
-     pedirle a Easy que decida su propio cobro. */
-  const btns = await pg.$$eval(".rt .par button", (b) => b.map((x) => x.textContent.trim()));
-  ok(!btns.some((x) => /^Cuenta$|^No cuenta$/.test(x)),
+  /* LA MAQUETA CAMBIÓ LAS PALABRAS —«Aceptar / Objetar» en vez de «De
+     acuerdo / En desacuerdo»— y ESO NO ES LO QUE ESTA PRUEBA CUIDA. Lo
+     que cuida es que no vuelvan «Cuenta / No cuenta», que era el idioma
+     de quien COBRA: con ese botón la pantalla le estaría pidiendo a
+     Easy que decida su propio cobro. Clavar la copia exacta convierte
+     cualquier retoque de redacción en una prueba roja, y una prueba que
+     se pone roja por motivos que no importan se acaba desactivando. */
+  const btns = await pg.$$eval(".rt .vb-btns button", (b) => b.map((x) => x.textContent.trim()));
+  ok(btns.some((x) => /^Aceptar/.test(x)) && btns.some((x) => /^Objetar$/.test(x)),
+     `los dos botones de la fila no están: ${btns.join(" | ")}`);
+  ok(!btns.some((x) => /^Cuenta$|^No cuenta$/i.test(x)),
      `los botones viejos siguen vivos: ${btns.join(" | ")}`);
   /* Y SE DICE QUE LO ACEPTADO NO PASA POR ABI: es la parte del pedido
      que una pantalla puede tragarse sin que se note. */
-  ok(/no le llega a ABI|no pasa por ABI|sin pasar/i.test(t),
-     "no se dice que lo aceptado pasa a cobro SIN llegarle a ABI");
+  ok(/no le llega a ABI|no pasa por ABI|va a ABI|sin pasar/i.test(t),
+     "no se dice qué le pasa a lo aceptado frente a lo objetado");
+
+  /* LAS CUATRO CIFRAS, Y LA PRIMERA ES LA SUYA. Las otras tres están
+     para que sepa cómo va la conciliación sin ir a otra pantalla; si la
+     suya no fuera la destacada, entraría a leer la del mes. */
+  const cifras = await pg.$$eval(".rt .vb-cifras .vb-c",
+    (d) => d.map((x) => ({ n: x.querySelector("b")?.textContent, aqui: x.classList.contains("vb-aqui") })));
+  ok(cifras.length === 4, `salen ${cifras.length} cifras y deben ser cuatro`);
+  ok(cifras[0]?.aqui && cifras[0]?.n === "2",
+     `la primera cifra debe ser la que decide él (2 esperando) y salió ${JSON.stringify(cifras[0])}`);
+
+  /* LA MÁS VIEJA ARRIBA. Al revés, lo de hace tres días no se mira
+     nunca porque cada mañana entra algo encima. */
+  const codigos = await pg.$$eval(".rt .vb-grupo .vb-cod", (d) => d.map((x) => x.textContent));
+  ok(codigos[0] === "RB-0001", `la lista no arranca por la más vieja: ${codigos.join(" | ")}`);
 }
 
 /* ---------------------------------------------------------------------
-   2 · «DE ACUERDO» NO PIDE NADA
+   2 · ACEPTAR NO PIDE NADA
    ------------------------------------------------------------------ */
 {
-  await pg.click(".rt .filas .par button:has-text('De acuerdo')");
-  await pg.waitForSelector(".rt .panel");
-  ok(!(await pg.isDisabled(".rt .panel .acciones-panel button.bien")),
-     "aceptar pide algo antes de dejar: cobrarle un trámite a quien está de acuerdo enseña a rechazar por costumbre");
-  ok((await pg.$$(".rt .panel input[type=file]")).length === 0,
-     "aceptar pide foto de descargo: quien acepta no está probando nada");
-
-  await pg.click(".rt .panel .acciones-panel button.bien");
+  /* La primera fila —RB-0001— es la que SÍ se puede aceptar. */
+  await pg.click(".rt .vb-grupo >> nth=0 >> .vb-btns button.si");
   await pg.waitForFunction(() => (window.llamadas ?? []).length > 0, null, { timeout: 2000 })
     .catch(() => {});
   const l = (await llamadas()).find((x) => x.que === "rpc");
@@ -214,33 +228,56 @@ await monta(jsVB);
      `no se manda p_de_acuerdo: ${JSON.stringify(Object.keys(l?.a ?? {}))}`);
   ok(l?.a?.p_de_acuerdo === true, `p_de_acuerdo viajó como ${l?.a?.p_de_acuerdo}`);
   ok(!("p_cuenta" in (l?.a ?? {})), "todavía se manda p_cuenta, que ya no existe");
-  /* Y ACEPTAR NO SUBE NINGUNA FOTO. */
+  /* Y ACEPTAR NO SUBE NINGUNA FOTO NI ABRE NINGÚN PANEL: cobrarle un
+     trámite a quien está de acuerdo es lo que enseña a rechazar por
+     costumbre. */
   ok(!(await llamadas()).some((x) => x.que === "subir"),
      "aceptar subió una foto que nadie pidió");
+  ok((await pg.$$(".rt .vb-obj")).length === 0,
+     "aceptar abrió un panel: quien acepta no está probando nada");
 }
 
 /* ---------------------------------------------------------------------
-   3 · «EN DESACUERDO» PIDE MOTIVO **Y** FOTO, Y LA FOTO VA PRIMERO
+   3 · OBJETAR PIDE MOTIVO **Y** FOTO, Y LA FOTO VA PRIMERO
    ------------------------------------------------------------------ */
 await monta(jsVB);
 {
-  await pg.click(".rt .filas .par button:has-text('En desacuerdo')");
-  await pg.waitForSelector(".rt .panel");
+  await pg.click(".rt .vb-grupo >> nth=0 >> .vb-btns button:not(.si)");
+  await pg.waitForSelector(".rt .vb-obj");
 
-  ok(/Falta decir por qué/i.test(await pg.textContent(".rt .panel button.mal")),
+  /* EL BOTÓN DICE QUÉ FALTA. Apagado y mudo se toca tres veces y
+     después se llama a preguntar. */
+  ok(/Escoge el motivo/i.test(await pg.textContent(".rt .vb-enviar")),
      "sin motivo el botón no dice qué falta");
-  await teclear(".rt .panel textarea", "El montacargas de ese turno no era nuestro");
-  ok(/Falta la evidencia/i.test(await pg.textContent(".rt .panel button.mal")),
+  ok(await pg.isDisabled(".rt .vb-enviar"), "deja objetar sin motivo");
+
+  /* LOS MOTIVOS SON BOTONES Y NO UN CAMPO DE TEXTO: pedirlo escribiendo,
+     con guante y de pie, es lo que hace que la gente acepte por no
+     teclear — y entonces la conciliación mide quién tiene tiempo. */
+  const motivos = await pg.$$eval(".rt .vb-motivos button", (b) => b.length);
+  ok(motivos >= 4, `hay ${motivos} motivos de un toque y deben ser al menos cuatro`);
+  await pg.click(".rt .vb-motivos button:first-child");
+
+  ok(/Falta la foto/i.test(await pg.textContent(".rt .vb-enviar")),
      "con motivo y sin foto el botón no pide la evidencia: «en todo se requiere evidencia»");
-  ok(await pg.isDisabled(".rt .panel button.mal"),
+  ok(await pg.isDisabled(".rt .vb-enviar"),
      "deja mandar el desacuerdo sin evidencia");
 
-  await pg.setInputFiles(".rt .panel input[type=file]",
-    { name: "descargo.jpg", mimeType: "image/jpeg", buffer: Buffer.from("x".repeat(64)) });
-  ok(!(await pg.isDisabled(".rt .panel button.mal")),
-     "con motivo y foto el botón sigue apagado");
+  /* EL DETALLE ES OPCIONAL Y LA FOTO NO. No es incoherente: sin foto,
+     ABI resuelve un pleito donde una parte trajo pruebas y la otra una
+     opinión. El detalle lo puede suplir el motivo; la prueba no. */
+  await teclear(".rt .vb-detalle", "El montacargas de ese turno no era nuestro");
+  ok(await pg.isDisabled(".rt .vb-enviar"),
+     "con detalle y sin foto ya deja mandar: el detalle no suple la prueba");
 
-  await pg.click(".rt .panel button.mal");
+  await pg.setInputFiles(".rt .vb-obj input[type=file]",
+    { name: "descargo.jpg", mimeType: "image/jpeg", buffer: Buffer.from("x".repeat(64)) });
+  ok(!(await pg.isDisabled(".rt .vb-enviar")),
+     "con motivo y foto el botón sigue apagado");
+  ok(/Enviar a ABI/i.test(await pg.textContent(".rt .vb-enviar")),
+     "el botón no dice adónde va lo objetado");
+
+  await pg.click(".rt .vb-enviar");
   await pg.waitForFunction(
     () => (window.llamadas ?? []).some((x) => x.que === "rpc"), null, { timeout: 3000 })
     .catch(() => {});
@@ -264,14 +301,38 @@ await monta(jsVB);
   const l = ls.find((x) => x.que === "rpc");
   ok(l?.a?.p_de_acuerdo === false, `p_de_acuerdo viajó como ${l?.a?.p_de_acuerdo}`);
   ok((l?.a?.p_nota ?? "").length > 5, `no viajó el motivo: ${JSON.stringify(l?.a?.p_nota)}`);
+  /* EL MOTIVO VA PRIMERO EN LA NOTA y el detalle detrás: es lo que ABI
+     lee de un vistazo en su bandeja. Con el detalle delante, cuatro
+     objeciones distintas empiezan las cuatro con una frase distinta y
+     no se pueden agrupar de un barrido. */
+  ok(/^No fue en nuestro turno/.test(l?.a?.p_nota ?? ""),
+     `la nota no empieza por el motivo: ${JSON.stringify(l?.a?.p_nota)}`);
+  ok(/montacargas/.test(l?.a?.p_nota ?? ""), "el detalle no viajó");
 }
 
 /* ---------------------------------------------------------------------
-   4 · LA QUE EXIGE FOTO Y NO LA TIENE, SE DICE
+   4 · LA QUE EXIGE FOTO Y NO LA TIENE, SE DICE EN EL BOTÓN
+
+   Un «SIN FOTO» en rojo al lado de la causa dice que falta algo, no que
+   por eso no se pueda aceptar. Y un «Aceptar» normal que revienta al
+   tocarlo se toca tres veces y después se llama a preguntar. El botón
+   se apaga y DICE.
    ------------------------------------------------------------------ */
 await monta(jsVB);
-ok(/No se puede aceptar/i.test(await pg.textContent(".rt .filas")),
-   "no se avisa que una causa que exige foto y no la tiene no se puede aceptar");
+{
+  const fila = ".rt .vb-grupo >> nth=1";
+  ok(/SIN FOTO/.test(await pg.textContent(fila + " >> .vb-causa")),
+     "no se marca la rotura a la que le falta la foto que exige su causa");
+  const bt = fila + " >> .vb-btns button.si";
+  ok(/No se puede aceptar/i.test(await pg.textContent(bt)),
+     `el botón de aceptar dice «${(await pg.textContent(bt)).trim()}» y debe decir por qué no se puede`);
+  ok(await pg.isDisabled(bt),
+     "deja aceptar una rotura cuya causa exige foto y no la tiene: la base la va a rechazar");
+  /* NO SE ESCONDE: escondido parecería que a esa rotura no hay nada que
+     hacerle, y sí lo hay — objetarla. */
+  ok((await pg.$$(fila + " >> .vb-btns button:not(.si)")).length === 1,
+     "sin foto también se escondió «Objetar», y objetar sí se puede");
+}
 
 /* ---------------------------------------------------------------------
    5 · LA BANDEJA DE ABI ENSEÑA EL DESCARGO SIN ABRIR NADA
@@ -326,11 +387,19 @@ ok(/No fue nuestra/.test(await pg.textContent(".rt .filas")),
 /* ---------------------------------------------------------------------
    6 · LOS CUATRO ANCHOS, Y LO QUE SE TOCA
    ------------------------------------------------------------------ */
+/* SE MIDE CON EL PANEL ABIERTO: es cuando más cosas hay en la fila, y
+   es justo lo que se sale. Las dos pantallas lo abren distinto — el
+   visto bueno lo despliega DENTRO de la fila («Objetar»), la de ABI
+   sigue abriendo su panel — así que cada una dice cómo. */
+const ABRIR = {
+  vb: [".rt .vb-grupo >> nth=0 >> .vb-btns button:not(.si)", ".rt .vb-obj"],
+  des: [".rt .filas .par button:nth-child(2)", ".rt .panel"],
+};
 for (const [cual, nombre] of [[jsVB, "vb"], [jsDes, "des"]]) {
   for (const ancho of [1440, 820, 390, 360]) {
     await monta(cual, ancho);
-    await pg.click(".rt .filas .par button:nth-child(2)");
-    await pg.waitForSelector(".rt .panel");
+    await pg.click(ABRIR[nombre][0]);
+    await pg.waitForSelector(ABRIR[nombre][1]);
     const r = await pg.evaluate(() => {
       const a = document.documentElement.clientWidth, fuera = [], chicos = [];
       for (const el of document.querySelectorAll(".rt *")) {

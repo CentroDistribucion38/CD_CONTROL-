@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
+import { usePedirTexto } from "@/components/PedirTexto";
 import type { AveriaFila, CausalFila, ProductoFila } from "@/modulos/averias/datos";
 
 /**
@@ -78,6 +79,7 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
   const [pedir, dialogo] = useConfirmar();
+  const [pedirTexto, cuadro] = usePedirTexto();
 
   const hoy = hoyBogota();
   const [vista, setVista] = useState<Vista>("pendientes");
@@ -182,31 +184,44 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
   }
 
   async function darBaja(a: AveriaFila) {
-    /* EL NÚMERO SE PIDE CON `prompt` Y NO CON UN CAMPO EN LA FILA: es
+    /* EL NÚMERO SE PIDE EN UN CUADRO Y NO CON UN CAMPO EN LA FILA: es
        un dato que se teclea una vez en la vida de cada avería, mirando
        la pantalla de SAP que está al lado. Un campo permanente en cada
-       renglón sería cien campos vacíos en la lista. */
-    const doc = window.prompt(
-      `Documento de baja de ${a.codigo} — ${a.producto}\n\n` +
-      "Es el número de SAP. Con él, la avería deja de contar en el inventario.");
+       renglón sería cien campos vacíos en la lista.
+
+       EL CUADRO ES EL DE LA CASA, NO EL DEL NAVEGADOR. `window.prompt`
+       salía con «cd-control-one.vercel.app dice» encima, en gris y con
+       un campo pelado que no decía de qué avería hablaba. */
+    const doc = await pedirTexto({
+      titulo: `Documento de baja de ${a.codigo}`,
+      dice: <>{a.producto} · <b>{a.cajas} cajas</b>. Es el número de SAP: con él, la avería
+             deja de contar en el inventario.</>,
+      rotulo: "Número del documento",
+      marcador: "Como sale en SAP",
+      confirmar: "Dar de baja",
+    });
     if (doc === null) return;
-    if (!doc.trim()) { avisar.mal("Sin número no hay baja."); return }
     setMandando(true);
-    const { error } = await supabase.rpc("averia_dar_baja", { p_id: a.id, p_documento: doc.trim() });
+    const { error } = await supabase.rpc("averia_dar_baja", { p_id: a.id, p_documento: doc });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
-    avisar.bien(`${a.codigo} salió del inventario con el documento ${doc.trim()}.`);
+    avisar.bien(`${a.codigo} salió del inventario con el documento ${doc}.`);
     router.refresh();
   }
 
   async function quitarBaja(a: AveriaFila) {
-    const motivo = window.prompt(
-      `Quitarle el documento ${a.documento} a ${a.codigo}\n\n` +
-      "Esto la devuelve a la cuenta del inventario. ¿Por qué?");
+    const motivo = await pedirTexto({
+      titulo: `¿Quitarle el documento a ${a.codigo}?`,
+      dice: <>Tiene el <b>{a.documento}</b>. Quitárselo la devuelve a la cuenta del
+             inventario: sus {a.cajas} cajas vuelven a sumar.</>,
+      rotulo: "Por qué se le quita",
+      confirmar: "Quitar el documento",
+      minimo: 4,
+      largo: true,
+    });
     if (motivo === null) return;
-    if (!motivo.trim()) { avisar.mal("Hay que decir por qué."); return }
     setMandando(true);
-    const { error } = await supabase.rpc("averia_quitar_baja", { p_id: a.id, p_motivo: motivo.trim() });
+    const { error } = await supabase.rpc("averia_quitar_baja", { p_id: a.id, p_motivo: motivo });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien(`${a.codigo} vuelve a contar en el inventario.`);
@@ -214,11 +229,19 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
   }
 
   async function anular(a: AveriaFila) {
-    const motivo = window.prompt(`Anular ${a.codigo}\n\n¿Por qué?`);
+    const motivo = await pedirTexto({
+      titulo: `¿Anular ${a.codigo}?`,
+      dice: <>La fila <b>se queda</b> con el motivo y con quién la anuló, y deja de contar.
+             Es lo que se hace con lo que de verdad pasó y ya no aplica.</>,
+      rotulo: "Por qué se anula",
+      marcador: "Queda escrito en la fila",
+      confirmar: "Anular",
+      minimo: 4,
+      largo: true,
+    });
     if (motivo === null) return;
-    if (!motivo.trim()) { avisar.mal("Hay que decir por qué se anula."); return }
     setMandando(true);
-    const { error } = await supabase.rpc("averia_anular", { p_id: a.id, p_motivo: motivo.trim() });
+    const { error } = await supabase.rpc("averia_anular", { p_id: a.id, p_motivo: motivo });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien(`${a.codigo} quedó anulada. La fila se queda, con el motivo.`);
@@ -339,7 +362,7 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
 
   return (
     <>
-      {avisos}{dialogo}
+      {avisos}{dialogo}{cuadro}
 
       <section className="cabeza">
         <div>

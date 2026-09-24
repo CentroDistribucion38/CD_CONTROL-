@@ -1,0 +1,146 @@
+/* =====================================================================
+   LA BIFURCACIÓN DE INVENTARIO — dos ramas y hay que escoger una.
+
+   MISMA FORMA QUE LA DE QUIEBRA, A PROPÓSITO. Quien ya conoció aquella
+   no tiene que aprender otra: la misma tarjeta alta, el mismo corte en
+   la esquina, la cifra viva clavada abajo y el «Entrar» al pie. Lo que
+   cambia son los tokens —aquí manda la paleta de FEFO, `--fe-*`, no la
+   de Quiebra— porque el resto del módulo está pintado con ella y una
+   portada de otro color haría dudar de si se cambió de módulo.
+
+   TODO VA PREFIJADO CON `inv-`. En este proyecto van nueve choques de
+   nombres de clase, y el último fue mío: `.av` para la pantalla de
+   averías cuando `globals.css` ya tenía `.av` para el aviso flotante.
+   `inv-` se comprobó libre en roturas.css, globals.css y shell.css
+   antes de escribir esto; lo único parecido es `.ba-inv-buscar`, que ya
+   viene prefijado por su pantalla.
+   ===================================================================== */
+
+/* `minmax(0, 1fr)` Y NO EL `auto` POR DEFECTO. Una columna de rejilla
+   `auto` se estira hasta el max-content de lo que lleve dentro, y lo que
+   lleva dentro es una rejilla de tarjetas de 300 px mínimo: a 390 px la
+   cabecera y las tarjetas salían midiendo 616 px —se iban de lado y las
+   dos tarjetas quedaban en la misma fila— mientras el contenedor de
+   afuera medía 354 y parecía correcto. El `0` es lo que le permite a la
+   columna encogerse por debajo de su contenido. Lo cazó el arnés a 390
+   y a 360; a 1440 no se ve. */
+.fe.inv-p { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px }
+
+.inv-p .inv-cabeza { max-width: 1180px }
+.inv-p .inv-cabeza .ojo {
+  margin: 0; font: 700 10.5px var(--fe-texto); letter-spacing: .15em;
+  text-transform: uppercase; color: var(--fe-gris-panel);
+}
+.inv-p .inv-cabeza h1 {
+  margin: 8px 0 0; font: 900 clamp(28px, 3vw, 40px)/1.02 var(--fe-titulo);
+  letter-spacing: -.04em; color: var(--fe-tinta);
+}
+/* EL PÁRRAFO VA SOBRE EL FONDO DE LA PÁGINA, no sobre el papel blanco
+   de las tarjetas: `--fe-gris` está calibrado contra el blanco y sobre
+   este fondo cae a 4,39. Por eso aquí manda `--fe-gris-panel`. */
+.inv-p .inv-cabeza .sub {
+  margin: 12px 0 0; font-size: 14.5px; line-height: 1.62;
+  color: var(--fe-gris-panel); max-width: 72ch;
+}
+.inv-p .inv-cabeza .sub b { color: var(--fe-tinta); font-weight: 700 }
+
+/* DOS EN UNA FILA EN PANTALLA GRANDE Y UNA DEBAJO DE OTRA EN EL
+   CELULAR. `auto-fit` con mínimo y no `repeat(2, 1fr)`: a quien su rol
+   solo le abra una rama, con dos columnas fijas la vería ocupando media
+   pantalla y un hueco al lado. */
+.inv-p .inv-ramas {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px; max-width: 1180px;
+}
+.inv-p .inv-rama {
+  position: relative; overflow: hidden; min-width: 0;
+  display: flex; flex-direction: column;
+  background: var(--fe-papel); border: 1px solid var(--fe-linea);
+  border-left: 5px solid var(--fe-tinta);
+  padding: 26px 28px 24px; text-decoration: none; color: var(--fe-tinta);
+}
+.inv-p .inv-rama:hover { border-left-color: var(--fe-acento) }
+/* EL ADORNO DE LA ESQUINA, CHICO Y CALLADO.
+   La primera versión copió el de Quiebra tal cual: 130×170 px del color
+   de acento al 18 %. En Quiebra ese color es el rojo del módulo y ahí
+   significa algo; aquí `--fe-acento` sale rojo también y el resultado
+   era una mancha rosada que cruzaba por encima de la descripción y se
+   leía como si la tarjeta estuviera marcada. Justo al lado hay una
+   cifra que SÍ se pinta de rojo cuando algo va mal —una avería lleva 41
+   días esperando la baja— y dos rojos que quieren decir cosas distintas
+   en la misma tarjeta es cómo se deja de mirar el que importa.
+
+   Ahora es la banda azul del módulo, al 8 % y del tamaño de la esquina:
+   se ve que la tarjeta tiene un corte y no se ve nada más. El arnés no
+   lo cazó —contrastaba bien y no se salía—; lo cazó mirar la captura. */
+.inv-p .inv-rama .inv-corte {
+  position: absolute; top: -28px; right: -40px; width: 96px; height: 116px;
+  background: var(--fe-banda); opacity: .08; transform: skewX(-20deg);
+}
+.inv-p .inv-rama .inv-rot {
+  position: relative; font-size: 11.5px; font-weight: 600; letter-spacing: .18em;
+  color: var(--fe-gris);
+}
+.inv-p .inv-rama .inv-nom {
+  position: relative; font-family: var(--fe-titulo); font-weight: 900;
+  font-size: clamp(30px, 3.2vw, 44px); line-height: 1; letter-spacing: -.05em;
+  margin-top: 8px;
+}
+.inv-p .inv-rama .inv-des {
+  font-size: 14px; line-height: 1.55; color: var(--fe-gris);
+  margin-top: 12px; max-width: 42ch;
+}
+
+/* LA CIFRA VIVA, CLAVADA ABAJO. `margin-top: auto` la pega al pie
+   aunque las dos descripciones tengan largos distintos: si cada tarjeta
+   pusiera su número donde le toque, los dos quedarían desalineados y
+   habría que buscarlos de uno en uno. */
+.inv-p .inv-rama .inv-cifra {
+  display: block; margin-top: auto; padding-top: 18px;
+  border-top: 1px solid var(--fe-linea);
+}
+.inv-p .inv-rama .inv-cifra b {
+  font-family: var(--fe-titulo); font-weight: 900; font-size: 38px;
+  letter-spacing: -.045em; font-variant-numeric: tabular-nums;
+}
+.inv-p .inv-rama .inv-cifra i {
+  font-style: normal; font-size: 14px; font-weight: 600; margin-left: 7px;
+  color: var(--fe-gris);
+}
+/* EL PIE RESERVA DOS RENGLONES AUNQUE OCUPE UNO. Sin esto los dos
+   números NO quedan a la misma altura: el bloque se pega al fondo de la
+   tarjeta, así que un pie de dos líneas empuja su número un renglón más
+   arriba que el de la tarjeta de al lado — y el número es justo lo que
+   se lee de un barrido. Lo mismo que hizo falta en Quiebra, y allí lo
+   cazó el arnés y no el ojo. */
+.inv-p .inv-rama .inv-cifra em {
+  display: block; font-style: normal; font-size: 12.5px;
+  color: var(--fe-gris); margin-top: 4px; line-height: 1.4;
+  min-height: 2.8em;
+}
+.inv-p .inv-rama .inv-cifra.mal b { color: var(--fe-mal) }
+
+.inv-p .inv-rama .inv-entrar {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 18px;
+  font-family: var(--fe-titulo); font-size: 14px; font-weight: 800;
+  min-height: 44px;   /* con guante */
+}
+.inv-p .inv-rama .inv-entrar svg {
+  width: 28px; height: 28px; padding: 5px; border-radius: 50%;
+  background: var(--fe-tinta); color: #fff; stroke: currentColor; stroke-width: 2;
+  fill: none; flex: none;
+}
+.inv-p .inv-rama:hover .inv-entrar svg { background: var(--fe-banda) }
+
+/* NINGUNA RAMA ABIERTA. Se dice QUÉ HACER, no solo que no hay nada:
+   quien llega aquí no tiene forma de adivinar que es cosa de permisos. */
+.inv-p .inv-aviso {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea);
+  border-left: 4px solid var(--fe-mal); padding: 18px 20px;
+  font-size: 14px; line-height: 1.6; max-width: 70ch; color: var(--fe-tinta);
+}
+
+@media (max-width: 560px) {
+  .inv-p .inv-rama { padding: 22px 20px 20px }
+  .inv-p .inv-rama .inv-cifra b { font-size: 34px }
+}

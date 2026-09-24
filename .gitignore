@@ -9,10 +9,4 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
-
-# Las vistas previas que Claude entrega en el chat caen aqui dentro de
-# la carpeta conectada. Son entregables, no codigo del proyecto.
-Claude outputs/
-
-# Lo que los arneses generan al correr: se rehace cada vez.
-.arnes/_*.mjs
+.arnes/.respaldo/

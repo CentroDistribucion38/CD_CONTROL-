@@ -255,7 +255,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
      de abajo caían al icono por defecto, y tres secciones con el mismo
      dibujo en el riel obligan a leer el rótulo para distinguirlas — que
      es justo lo que el riel existe para evitar. */
-  "/inventario": IconoTablero,
+  "/inventario/tablero": IconoTablero,
   "/inventario/averias": IconoAveria,
   "/inventario/averias/tablero": IconoTablero,
   "/inventario/averias/analisis": IconoAnalisis,

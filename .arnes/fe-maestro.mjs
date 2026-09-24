@@ -386,18 +386,29 @@ if (/\b(prompt|confirm|alert)\s*\(/.test(tsx.replace(/\/\*[\s\S]*?\*\//g, "")))
 const pantallas = readdirSync(new URL("../src/app/(app)/inventario/", import.meta.url),
                               { withFileTypes: true })
   .filter((e) => e.isDirectory()).map((e) => e.name).sort();
-if (pantallas.join(",") !== "base,conteo,maestro")
-  fallas.push(`bajo /inventario hay pantallas de más: ${pantallas.join(", ")} ` +
-              "— el módulo es maestro, contar, la base y tablero, y nada más");
+/* LAS CARPETAS SE LEEN, NO SE ESCRIBEN A MANO Y YA. Desde que Inventario
+   tiene dos ramas hay cinco: las tres de conteos, el tablero —que se
+   mudó de /inventario a /inventario/tablero para dejar libre la ruta del
+   módulo, que es la bifurcación— y averías, que trae las suyas dentro. */
+if (pantallas.join(",") !== "averias,base,conteo,maestro,tablero")
+  fallas.push(`bajo /inventario las carpetas son [${pantallas.join(", ")}] ` +
+              "y deben ser [averias, base, conteo, maestro, tablero]");
 
 const reg = readFileSync(new URL("../src/modulos/registro.ts", import.meta.url), "utf8");
-const secciones = [...(reg.match(/id: "inventario"[\s\S]*?\n  \},/) ?? [""])[0]
+/* SOLO EL BLOQUE `secciones`. El módulo y cada rama traen su propia
+   `ruta:`, y contarlas como pantallas hacía que este arnés fallara
+   diciendo que sobraban tres — su propio error de lectura, no un error
+   del menú. */
+const bloqueInv = (reg.match(/id: "inventario"[\s\S]*?\n  \},/) ?? [""])[0];
+const secciones = [...(bloqueInv.match(/secciones: \[[\s\S]*$/) ?? [""])[0]
   .matchAll(/ruta: "(\/inventario[^"]*)"/g)].map((m) => m[1]);
-const espera = ["/inventario", "/inventario/maestro", "/inventario/conteo",
-                "/inventario/base", "/inventario"];
+const espera = ["/inventario/maestro", "/inventario/conteo",
+                "/inventario/base", "/inventario/tablero",
+                "/inventario/averias", "/inventario/averias/tablero",
+                "/inventario/averias/analisis", "/inventario/averias/maestro"];
 if (secciones.join(" ") !== espera.join(" "))
   fallas.push(`el menú de Inventario dice [${secciones.join(", ")}] y el proceso es ` +
-              `[${espera.join(", ")}] — la ruta del módulo y luego maestro, contar, la base, tablero`);
+              `[${espera.join(", ")}] — maestro, contar, la base, tablero; y después averías`);
 
 const pes = [...tsx.matchAll(/\["materiales", "ubicaciones", "bodegas"\]/g)];
 if (pes.length === 0)

@@ -7,7 +7,7 @@
 
      node .arnes/mutar-inv-base.mjs
    ===================================================================== */
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const TSX = "src/app/(app)/inventario/base/Base.tsx";
@@ -15,10 +15,50 @@ const PGX = "src/app/(app)/inventario/base/page.tsx";
 const CSS = "src/app/(app)/inventario/base/base.css";
 const DAT = "src/modulos/inventario/fefo.ts";
 const REG = "src/modulos/registro.ts";
+const SQL = "supabase/migraciones/2026-09-inventario-portada.sql";
 
-const archivos = [TSX, PGX, CSS, DAT, REG];
+const archivos = [TSX, PGX, CSS, DAT, REG, SQL];
+
+/* =====================================================================
+   EL RESPALDO VIVE EN DISCO, Y SE MIRA ANTES DE EMPEZAR.
+
+   PASÓ DE VERDAD. Esta corrida se pasó del tiempo que le daba la
+   consola y la mataron a mitad de una mutación. Los manejadores de
+   abajo —`exit` y las tres señales— no alcanzaron a correr, y la
+   migración se quedó EN DISCO con el `insert` roto que le había metido
+   la mutación. La corrida siguiente lo leyó como si fuera el original y
+   dijo «la mutación ya no aplica»: el archivo mutado estaba a un commit
+   de irse para arriba.
+
+   Guardar el original en memoria solo protege de las muertes
+   ordenadas. El disco protege también de las otras: si al arrancar hay
+   respaldo de una corrida anterior, esa corrida no terminó y lo primero
+   que se hace es devolver los archivos y DECIRLO — en silencio sería
+   otra vez lo mismo.
+   ===================================================================== */
+const RESP = new URL("./.respaldo/", import.meta.url);
+const donde = (f) => new URL(f.replace(/[/\\]/g, "__"), RESP);
+
+if (existsSync(RESP)) {
+  let devueltos = 0;
+  for (const f of archivos) {
+    const g = donde(f);
+    if (!existsSync(g)) continue;
+    writeFileSync(f, readFileSync(g, "utf8"));
+    devueltos++;
+  }
+  console.log(`⚠  La corrida anterior no terminó (la mataron). Se devolvieron ` +
+              `${devueltos} archivo(s) a su original antes de empezar.\n`);
+}
+
+mkdirSync(RESP, { recursive: true });
 const original = Object.fromEntries(archivos.map((f) => [f, readFileSync(f, "utf8")]));
-const restaurar = () => { for (const [f, t] of Object.entries(original)) writeFileSync(f, t) };
+for (const [f, t] of Object.entries(original)) writeFileSync(donde(f), t);
+
+const restaurar = () => {
+  for (const [f, t] of Object.entries(original)) writeFileSync(f, t);
+  rmSync(RESP, { recursive: true, force: true });
+};
 process.on("exit", restaurar);
 /* Y TAMBIÉN SI A ESTO LO MATAN. `exit` no salta con SIGTERM ni con
    SIGINT, y la vez que pasó el árbol se quedó con una mutación puesta
@@ -152,8 +192,8 @@ probar("la celda se lee sobre el rayado",
 
 /* ---------- EL MENÚ Y LA PUERTA ---------- */
 probar("la base va antes que el tablero en el menú",
-  [[REG, '      { nombre: "La base", ruta: "/inventario/base" },\n      { nombre: "Tablero", ruta: "/inventario" },',
-         '      { nombre: "Tablero", ruta: "/inventario" },\n      { nombre: "La base", ruta: "/inventario/base" },']],
+  [[REG, '{ nombre: "La base", ruta: "/inventario/base", rama: "conteos" },',
+         '{ nombre: "Tablero", ruta: "/inventario/tablero", rama: "conteos" },']],
   "las pantallas de Inventario salen");
 
 probar("la puerta se comprueba en el servidor",
@@ -289,10 +329,38 @@ probar("el tipo escogido usa el acento como color de letra",
   border-color: var(--fe-acento); color: var(--fe-acento);`]],
   "«tipoOn» contrasta");
 
+/* ---------- LA BIFURCACIÓN ----------
+   Es el error que se acaba de arreglar: con el tablero encima de
+   /inventario, entrar al módulo era entrar ya a Conteos y no había
+   dónde escoger. No daba error, no avisaba: salía una pantalla
+   cualquiera donde debía estar la portada. */
+probar("ninguna sección vive en la ruta del módulo",
+  [[REG, '{ nombre: "Tablero", ruta: "/inventario/tablero", rama: "conteos" },',
+         '{ nombre: "Tablero", ruta: "/inventario", rama: "conteos" },']],
+  "tiene una sección en su propia ruta");
+
+probar("la rama de conteos no se devuelve a la portada",
+  [[REG, '        ruta: "/inventario/tablero",',
+         '        ruta: "/inventario",']],
+  "que es la portada");
+
+/* ---------- EL PERMISO SE MUDÓ CON LA PANTALLA ----------
+   Los permisos se guardan como el TEXTO de la dirección. Sin la
+   migración, quien podía ver el tablero lo pierde EN SILENCIO. */
+probar("la migración copia el permiso del rol",
+  [[SQL, "insert into public.rol_permisos (rol, seccion, nivel)",
+         "insert into public.roles_que_no_existen (rol, seccion, nivel)"]],
+  "no copia el permiso del ROL");
+
+probar("la migración copia los permisos sueltos de cada persona",
+  [[SQL, "           || jsonb_build_object('/inventario/tablero',",
+         "           || jsonb_build_object('/inventario/tablero_x',"]],
+  "no copia los permisos SUELTOS");
+
 restaurar();
 console.log("");
 if (fallos > 0) {
   console.log(`${fallos} aserción(es) no cazan lo que dicen cazar.`);
   process.exit(1);
 }
-console.log("Las 41 se pusieron rojas. El arnés caza lo que dice cazar.");
+console.log("Las 45 se pusieron rojas. El arnés caza lo que dice cazar.");

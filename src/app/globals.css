@@ -855,6 +855,9 @@ body:has(.sh[data-tema="ambar"])   { background: #f7f7f3 }
 body:has(.sh[data-tema="negro"])   { background: #f1f1f1 }
 body:has(.sh[data-tema="gris"])    { background: #ededed }
 body:has(.sh[data-tema="halo"])    { background: #f1f1f1 }
+body:has(.sh[data-tema="negro"])   { background: #f1f1f1 }
+body:has(.sh[data-tema="gris"])    { background: #ededed }
+body:has(.sh[data-tema="halo"])    { background: #f1f1f1 }
 
 
 /* ---------------------------------------------------------------------
@@ -1138,6 +1141,16 @@ body {
   --c-mod-admin: #ff9800;        --c-mod-admin-txt: #171717;
   --c-mod-inventario: #ffc000;   --c-mod-inventario-txt: #171717;
 }
+/* Negro, gris y halo tienen DOS colores y nada más: tu #FFC000 y tu
+   #FF0000. En vez de traerles verdes y azules de otro mundo, los cuatro
+   módulos se reparten la rampa entre esos dos. Siguen distinguiéndose
+   uno de otro y ninguno se sale del tema. */
+[data-tema="negro"], [data-tema="gris"], [data-tema="halo"] {
+  --c-mod-quiebra: #ff0000;      --c-mod-quiebra-txt: #fff;
+  --c-mod-sider: #ff6a00;        --c-mod-sider-txt: #fff;
+  --c-mod-admin: #ff9800;        --c-mod-admin-txt: #171717;
+  --c-mod-inventario: #ffc000;   --c-mod-inventario-txt: #171717;
+}
 
 /* =====================================================================
    LA TRAMA DE LA BARRA, POR TEMA
@@ -1328,8 +1341,11 @@ body {
   display: flex; justify-content: flex-end; gap: 10px;
   margin-top: 20px; flex-wrap: wrap;
 }
+/* 44 PX Y NO 42. Este cuadro sale en el muelle, con guante, y 42 era un
+   número heredado que nunca se midió: el arnés del cuadro de escribir lo
+   destapó y vale para los dos, porque comparten botones. */
 .cf-btn {
-  min-height: 42px; padding: 0 20px; border: 0; border-radius: 2px; cursor: pointer;
+  min-height: 44px; padding: 0 20px; border: 0; border-radius: 2px; cursor: pointer;
   font-family: "Archivo", system-ui, sans-serif; font-weight: 800; font-size: 14px;
   background: var(--c-marca); color: var(--c-marca-txt);
 }
@@ -1342,6 +1358,42 @@ body {
 }
 .cf-btn.plano:hover { background: var(--c-f7f9fc); color: var(--c-04203f) }
 .cf-btn:focus-visible { outline: 3px solid var(--c-04203f); outline-offset: 2px }
+
+/* ---------------------------------------------------------------------
+   EL CAMPO DEL CUADRO QUE PIDE ESCRIBIR (usePedirTexto)
+
+   Comparte la caja, el velo y los botones con el de confirmar: son el
+   mismo cuadro y tienen que verse igual. Lo único suyo es el campo.
+   Vive aquí por lo mismo que el otro — lo usan Roturas, Averías y
+   Salida, y una copia por módulo son tres sitios donde se desincroniza.
+   ------------------------------------------------------------------ */
+.pt-campo { display: block; margin-top: 16px }
+.pt-campo > span {
+  display: block; font: 700 10.5px "Archivo", system-ui, sans-serif;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--c-5b6b7f);
+  margin-bottom: 6px;
+}
+.pt-campo > span b { color: var(--c-04203f); letter-spacing: 0; font-size: 12px }
+.pt-campo input, .pt-campo textarea {
+  /* `border-box` NO ES DECORACIÓN AQUÍ. Con el `content-box` que traía
+     por defecto, el 100 % es el ANCHO DEL TEXTO y el relleno y el borde
+     se suman encima: a 390 px el campo se salía de la caja del cuadro
+     por 26 px. En el PC no se nota. */
+  box-sizing: border-box;
+  width: 100%; min-height: 44px;   /* con guante */
+  padding: 10px 12px; border-radius: 2px;
+  border: 1px solid var(--c-d5dce5); background: #fff; color: var(--c-04203f);
+  font: 400 15px "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  line-height: 1.45; resize: vertical;
+}
+.pt-campo input:focus-visible, .pt-campo textarea:focus-visible {
+  outline: 3px solid var(--c-04203f); outline-offset: 1px; border-color: var(--c-04203f);
+}
+.pt-copia { margin-top: 12px }
+/* EL BOTÓN APAGADO SIGUE LEYÉNDOSE: es el que dice qué falta, así que
+   bajarle la opacidad hasta que no se lea lo deja mudo otra vez. */
+.cf-btn:disabled { opacity: 1; background: var(--c-eef1f5); color: var(--c-5b6b7f); cursor: not-allowed }
+.cf-btn.mal:disabled { background: var(--c-eef1f5); color: var(--c-5b6b7f) }
 
 @media (max-width: 480px) {
   .cf-caja { padding: 20px 18px 18px }

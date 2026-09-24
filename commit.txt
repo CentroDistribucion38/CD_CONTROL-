@@ -1,102 +1,167 @@
-Inventario en dos ramas, el tablero de roturas, y el material se busca escribiendo
+La portada de Inventario, los cuadros del navegador se fueron, y el super admin sí puede borrar
 
 =====================================================================
-1. INVENTARIO SE PARTE EN DOS RAMAS
+1. «LE DOY A CONTEOS Y NO ME SALE NADA»
 =====================================================================
-«Dentro de inventario debia estar un modulo de CONTEOS que trajera
- todo lo que teniamos, y aparte el de AVERIAS con registrar, tablero,
- analisis y maestro.»
+No salía nada porque /inventario ERA el tablero de FEFO. Entrar al
+modulo era entrar YA a Conteos, y la pantalla donde se escoge rama
+—la que tiene Quiebra— no existia.
 
-La embarre: deje las ocho pantallas en una sola lista. Ahora son dos
-ramas, igual que Roturas:
+EL TABLERO SE MUDO A /inventario/tablero y en /inventario quedo la
+bifurcacion, con la misma forma que la de Quiebra a proposito: quien
+ya conocio aquella no tiene que aprender otra.
 
-  CONTEOS · EXISTENCIAS   Maestro, Contar, La base, Tablero
-  AVERIAS · CAJAS         Registrar, Tablero, Analisis, Maestro
+  CONTEOS · EXISTENCIAS   cajas contadas en el ultimo recorrido
+  AVERIAS · CAJAS         cajas apartadas esperando el documento de baja
 
-COMPARTEN TEMA —lo que hay en la bodega— Y NO COMPARTEN CIFRAS: los
-conteos miden EXISTENCIAS y las averias lo que ya no se puede vender.
-Con las ocho juntas, «Maestro» aparecia DOS VECES queriendo decir
-cosas distintas, y el menu pedia leerse entero para encontrar algo.
+Y LAS DOS CIFRAS NO SE RESTAN, y la pantalla lo dice. «Contadas menos
+averiadas = buenas» esta mal por dos lados: la averia sigue en su
+posicion y YA ESTA DENTRO de lo contado —hasta que llegue el documento
+de SAP—, y las dos cifras ni siquiera son del mismo momento.
 
-=====================================================================
-2. EL TABLERO DE ROTURAS
-=====================================================================
-«Otra pagina donde pueda ver absolutamente todos los registros y sus
- estados; es como una tabla para borrar, eliminar y demas si el super
- admin quiere.»
-
-ES UNA TABLA Y NO TARJETAS, al reves que las bandejas, y la diferencia
-no es de gusto: en una bandeja cada rotura es UNA DECISION y se lee de
-una en una. Aqui se viene a BUSCAR una entre trescientas, o a ver de
-un vistazo cuantas quedaron sin origen. Para eso las columnas tienen
-que alinearse, y eso solo lo hace una tabla.
-
-BORRAR Y ANULAR NO SON LO MISMO:
-  BORRAR  solo lo que NADIE ha decidido todavia. Es el error de dedo
-          del mismo dia: se registro dos veces, o donde no era.
-  ANULAR  todo lo demas. Deja la fila, el motivo y quien.
-El boton de borrar NI APARECE en lo ya decidido — no esta apagado «por
-ahora», es que a eso no se le borra nunca. La base lo frena igual.
-
-Y `rotura_anular` PREGUNTABA `mi_rol() <> 'admin'`: comparaba contra un
-NOMBRE, y los roles de este proyecto son datos. El dia que se cree un
-segundo rol que mande, esa comprobacion deja de proteger lo que cree
-proteger Y EN LA DIRECCION PELIGROSA. Ahora pregunta por la casilla,
-igual que `salida_anular`.
+MOVER UNA PANTALLA MUEVE SU PERMISO, y eso es lo delicado: aqui los
+permisos se guardan como el TEXTO de la direccion. Sin eso, quien
+podia ver el tablero lo perdia EN SILENCIO —ni error, ni aviso: deja
+de verse—. Por eso hay SQL (punto 5).
 
 =====================================================================
-3. EL MATERIAL SE BUSCA ESCRIBIENDO
+2. «PORQUE ME SALE ESE MENSAJE ASI, SI DEBE SALIR ALGO PRESENTABLE»
 =====================================================================
-«Que yo pueda ir escribiendo y a la vez filtrando.»
+Salia el cuadro del NAVEGADOR: «cd-control-one.vercel.app dice»
+encima, en gris, con un campo pelado que no dice de que fila habla.
 
-EL DESPLEGABLE PASO DE SIETE A 494. Un `<select>` nativo con 494 es una
-lista de treinta pantallazos donde solo se puede saltar tecleando el
-PRINCIPIO del nombre: quien busca «355» no encuentra nada. Ahora se
-busca en cualquier parte del texto, por nombre Y por codigo —que es lo
-que esta pegado en la estiba—, sin tildes y sin mayusculas.
+Y NO ERA SOLO FEO. El navegador puede ofrecer «no permitir mas cuadros
+de este sitio», y desde ese momento anular deja de funcionar EN
+SILENCIO — el boton se toca y no pasa nada.
 
-SE PINTAN 60 RENGLONES Y SE DICE CUANTOS QUEDAN. Pintar 494 cuelga el
-telefono medio segundo en cada letra tecleada, y nadie baja al 300.
+Ahora hay un cuadro de la casa, `usePedirTexto`, hermano del de
+confirmar. Se cambiaron LOS CINCO sitios que quedaban: anular una
+rotura, anular una averia, darle y quitarle el documento de baja, y
+reabrir o anular una salida. El arnes barre el arbol entero y ya no
+queda ni un `window.prompt` en toda la aplicacion — arreglar una
+pantalla y dejar cuatro es exactamente lo que habia pasado.
 
-LO QUE SE PIERDE, Y LO DIGO: en el telefono un `<select>` nativo abre
-la ruedita del sistema, que se maneja con el pulgar sin mirar. Esto es
-una lista en la pagina. Con siete materiales el nativo era mejor; con
-494 es lo unico que permite encontrar uno.
+VA APARTE DEL DE CONFIRMAR A PROPOSITO. Aquel pone el foco en CANCELAR
+y deja que Enter cancele, porque con Enter apretado por costumbre un
+foco en «Borrar» borra sin leer. Aqui hay algo que escribir, asi que el
+foco arranca EN EL CAMPO y Enter confirma. Las dos reglas no caben en
+un mismo componente.
+
+DE PASO: los botones de los dos cuadros median 42 px y ahora miden 44.
+Era un numero heredado que nunca se midio, y este cuadro sale en el
+muelle, con guante.
 
 =====================================================================
-4. EL EER SALIA VACIO, Y ESO ERA MIO
+3. «ME DEBE DEJAR ELIMINAR»
 =====================================================================
-Los 32 envases del maestro de inventario nacen SIN `color_vidrio` —el
-SQL no lo puede adivinar—, y yo filtraba el desplegable por color. El
-resultado: EER completamente vacio, el registro trabado, y NI UNA
-PALABRA que dijera por que.
+El boton de Borrar solo aparecia en lo que nadie habia decidido. Eso
+defendia algo real —borrar no deja rastro— PERO DE LA FORMA
+EQUIVOCADA: un boton que no existe no explica nada, asi que la
+pantalla contestaba «no» sin decir por que ni ofrecer la salida buena.
 
-Trabar el registro de una rotura que YA OCURRIO por un maestro
-incompleto es perder el dato para siempre. Ahora: si hay envases con
-color, se filtra; si NINGUNO lo tiene, se ofrecen todos y la pantalla
-dice que falta llenarlo y DONDE.
+AHORA QUIEN MANDA BORRA CUALQUIERA, y lo que cambia es LO QUE CUESTA:
 
-Es la tercera vez en este proyecto que el error es el mismo —la
-pantalla se calla— y la tercera vez que lo destapa una captura tuya y
-no un arnes. Ahora el arnes lo mide.
+  SIN DECIDIR    se pregunta «¿seguro?» y ya. Es el error de dedo del
+                 mismo dia.
+  YA DECIDIDA    pide el motivo Y teclear el codigo de la fila. En una
+                 tabla de trescientas filas con el boton en la misma
+                 columna, borrar la de al lado es cuestion de tiempo.
+
+Y LA FILA ENTERA QUEDA EN `roturas_borradas` —con el motivo, con quien
+y con el jsonb completo—, que solo lee quien manda. Sin eso, borrar es
+exactamente lo que se temia: una cifra que desaparece de un mes cerrado
+y nadie puede decir que decia.
+
+TE LO DIGO IGUAL: anular sigue siendo lo correcto en casi todos los
+casos. Anular deja la fila, el motivo y tu nombre; borrar no deja nada
+mas que un renglon en una bitacora que nadie mira por costumbre.
+
+=====================================================================
+4. EL VISTO BUENO, TERMINADO
+=====================================================================
+La pantalla nueva —la de tu maqueta— ya esta medida. Dos cosas que
+faltaban y las destapo el arnes:
+
+LA QUE EXIGE FOTO Y NO LA TIENE. Decia «SIN FOTO» en rojo al lado de la
+causa, que dice que falta algo pero no que POR ESO no se pueda aceptar,
+y el boton «Aceptar» de al lado reventaba al tocarlo. Ahora el boton se
+apaga y dice «No se puede aceptar». Y no se esconde: escondido
+pareceria que a esa rotura no hay nada que hacerle, y si lo hay
+—objetarla—.
+
+«ACEPTAR TODAS» YA NO LAS MANDA TODAS. Las que no se pueden aceptar se
+quedan fuera y se dice cuantas y por que ANTES de confirmar. Mandarlas
+para que la base las rechace y despues contarlas como fallo es hacerte
+creer que algo salio mal cuando estaba dicho desde antes.
+
+Y SE DICE QUE PASA CON CADA BOTON: «lo que aceptas pasa a cobro de una
+y no le llega a ABI; lo que objetas va a ABI con tu foto». Los dos
+botones se ven igual de inocentes y uno de los dos cierra el cobro sin
+que nadie mas lo mire.
+
+=====================================================================
+5. SQL POR CORRER — EN ESTE ORDEN
+=====================================================================
+  1) supabase/migraciones/2026-09-averias.sql          (si no lo has corrido)
+  2) supabase/migraciones/2026-09-roturas-visto-bueno-easy.sql
+  3) supabase/migraciones/2026-09-inventario-portada.sql
+
+El 2 cambio desde la ultima vez: trae `roturas_borradas` y el
+`rotura_borrar` nuevo. Si ya lo corriste, correlo otra vez — se puede.
+
+El 3 es el que muda el permiso del tablero de /inventario a
+/inventario/tablero. Sin el, quien veia el tablero deja de verlo.
+
+DESPUES, EN ADMIN → ROLES:
+  · /roturas/en-sitio/visto-bueno   Editar solo para Easy
+  · /roturas/en-sitio/desacuerdos   solo para ABI
+Y en Inventario → Maestro, llenar `color_vidrio` de los 32 envases.
 
 =====================================================================
 LOS ARNESES
 =====================================================================
-node .arnes/rt-sitio.mjs · 3 mutaciones nuevas, 3 ROJAS
-  El fixture pasa de siete materiales a CIENTO SIETE, y trae los
-  envases sin color: un desplegable de siete no prueba lo que pasa
-  con 494.
-bash .arnes/correr-visto-bueno-easy.sh · 4 mutaciones nuevas, 4 ROJAS
-  Una salio VERDE al principio: el caso que usaba estaba frenado por
-  DOS guardas a la vez, asi que quitar una seguia pasando. Se cambio
-  por uno que solo toca la primera.
+node .arnes/inv-portada.mjs      NUEVO · monta la portada de verdad
+  Cazo dos cosas que a 1440 no se ven: la rejilla se estiraba al
+  max-content de las tarjetas y a 390 px la cabecera media 616 px
+  dentro de un contenedor de 354; y el adorno de la esquina salia rojo
+  al 18 % cruzando por encima de la descripcion — dos rojos que querian
+  decir cosas distintas en la misma tarjeta, al lado de una cifra que
+  SI se pinta de rojo cuando algo va mal. Eso ultimo no lo cazo el
+  arnes: lo cazo mirar la captura.
+
+node .arnes/pedir-texto.mjs      NUEVO · el cuadro de escribir
+  Barre el arbol entero buscando cuadros del navegador, en vez de una
+  lista escrita a mano que se queda vieja. Y midio dos errores reales:
+  el campo se salia 26 px de la caja a 390 px (faltaba border-box) y
+  los botones median 42.
+
+bash .arnes/mutar-visto-bueno-easy.sh   NUEVO · 6 mutaciones, 6 ROJAS
+  Dos salieron mal la primera vez y las dos eran culpa MIA: una
+  mutacion que no aplicaba por una coma, y otra que insertaba una fila
+  vacia antes de la buena — o sea que no probaba nada.
+
+node .arnes/inv-base.mjs         4 comprobaciones nuevas
+  Dos generales: que NINGUN modulo con ramas tenga una seccion en su
+  propia ruta, y que ninguna rama entre por ahi. Es la trampa para el
+  siguiente modulo que se parta en dos.
+  Y dos sobre la migracion del permiso. Las primeras dos versiones de
+  esas dos salieron VERDES: preguntaban si la ruta aparecia «en algun
+  sitio del archivo», y el `raise notice` del final la nombra — asi que
+  el archivo seguia conteniendola con el insert roto.
+
+node .arnes/rt-cadena.mjs        reescrito para la pantalla nueva
+  Y se le quito el clavo a la copia exacta de los botones: lo que hay
+  que cuidar es que no vuelvan «Cuenta / No cuenta» —el idioma de quien
+  COBRA—, no que digan una frase u otra. Una prueba que se pone roja
+  por un retoque de redaccion se acaba desactivando.
+
+ADEMAS, UN ERROR DEL ARNES QUE CASI SE SUBE: a mutar-inv-base.mjs lo
+mataron por tiempo a mitad de una mutacion y dejo la migracion EN DISCO
+con el insert roto. La corrida siguiente lo leyo como si fuera el
+original. Ahora el respaldo vive en disco y se mira al arrancar.
 
 FALTA, Y ES LO UNICO QUE QUEDA: el analisis de Quiebra con el mismo
 tratamiento del recorrido.
-
-SQL POR CORRER: 2026-09-roturas-visto-bueno-easy.sql (trae tambien
-`rotura_borrar` y el arreglo de `rotura_anular`).
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

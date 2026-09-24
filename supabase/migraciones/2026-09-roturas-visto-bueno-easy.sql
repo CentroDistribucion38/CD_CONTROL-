@@ -338,13 +338,63 @@ grant execute on function public.rotura_anular(uuid, text) to authenticated;
 -- conciliación de alguien —se cobró o se descartó—, y borrarla cambia
 -- un mes que ya se cerró sin dejar nada que mirar cuando pregunten por
 -- qué. Esa se ANULA: la fila se queda, con el motivo y con quién.
-create or replace function public.rotura_borrar(p_id uuid)
+-- «El admin: yo puedo editar, eliminar, anular, borrar.»
+--
+-- QUIEN MANDA BORRA CUALQUIERA, Y LO QUE CAMBIA ES LO QUE CUESTA.
+-- La primera versión frenaba en seco todo lo ya decidido —«se anula, no
+-- se borra»—. Defendía algo real: borrar no deja rastro, y una rotura
+-- decidida puede estar dentro de un informe que alguien ya leyó. Pero
+-- lo defendía convirtiendo una decisión del dueño de los datos en un
+-- error de la base, y eso no es proteger: es que la pantalla conteste
+-- «no» sin ofrecer la salida buena.
+--
+-- Ahora: borrar lo que NADIE ha decidido no pide nada más —es el error
+-- de dedo del mismo día—; borrar algo YA DECIDIDO exige un motivo
+-- escrito, y el motivo NO queda en la fila (la fila se va): queda en
+-- `roturas_borradas`, que es el único sitio donde después se puede ver
+-- que esa rotura existió.
+--
+-- ESO SÍ LO DIGO: anular sigue siendo lo correcto en casi todos los
+-- casos. Anular deja la fila, el motivo y quién; esto no deja nada más
+-- que un renglón en una bitácora que nadie mira por costumbre.
+
+create table if not exists public.roturas_borradas (
+  id          uuid primary key,
+  codigo      text,
+  -- La fila entera tal como estaba, para poder contestar «¿qué decía?».
+  fila        jsonb not null,
+  motivo      text not null,
+  borrada_por uuid references auth.users(id),
+  borrada_en  timestamptz not null default now()
+);
+alter table public.roturas_borradas enable row level security;
+-- SOLO LA LEE QUIEN MANDA. Es el registro de lo que se hizo
+-- desaparecer; si lo pudiera leer cualquiera, sería una segunda copia
+-- de las roturas borradas al alcance de todos.
+drop policy if exists roturas_borradas_ver on public.roturas_borradas;
+create policy roturas_borradas_ver on public.roturas_borradas
+  for select to authenticated using (public.manda());
+-- EL GRANT Y LA POLÍTICA SON DOS COSAS Y HACEN FALTA LAS DOS. Sin el
+-- grant, Postgres contesta «permission denied for table» —un error de
+-- permiso de tabla, no de fila— y eso NO es lo mismo que la política
+-- negando: la política devuelve cero filas, que es lo que se quiere.
+-- Solo select: escribir aquí lo hace `rotura_borrar`, que es security
+-- definer; nadie más tiene por qué tocar el registro de lo borrado.
+grant select on public.roturas_borradas to authenticated;
+
+-- El parámetro es nuevo, así que la firma cambia y hay que soltar la
+-- vieja: `create or replace` no puede cambiar la lista de argumentos.
+drop function if exists public.rotura_borrar(uuid);
+
+create or replace function public.rotura_borrar(p_id uuid, p_motivo text default null)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare v public.roturas%rowtype;
+declare
+  v public.roturas%rowtype;
+  v_fila jsonb;
 begin
   if not public.manda() then
     raise exception 'Borrar una rotura es del administrador';
@@ -352,20 +402,29 @@ begin
   select * into v from public.roturas where id = p_id;
   if not found then raise exception 'Esa rotura no existe'; end if;
 
-  if v.estado <> 'esperando' then
+  /* LO YA DECIDIDO EXIGE MOTIVO. Lo que nadie ha tocado, no: pedirle
+     una justificación escrita a quien está deshaciendo el registro
+     duplicado que acaba de hacer es el trámite que enseña a escribir
+     «error» en todos los campos. */
+  if (v.estado <> 'esperando' or v.ol_respuesta is not null)
+     and btrim(coalesce(p_motivo, '')) = '' then
     raise exception
-      'Esa rotura ya se decidió (%): se anula, no se borra —o el mes que la contó cambia sin dejar rastro', v.estado;
+      'Esa rotura ya se decidió (%): para borrarla hay que decir por qué, y queda en el registro de borradas. Si solo quieres que deje de contar, anúlala —eso deja la fila y el motivo', v.estado;
   end if;
-  if v.ol_respuesta is not null then
-    raise exception
-      'El operador logístico ya contestó esa rotura: se anula, no se borra';
-  end if;
+
+  select to_jsonb(v) into v_fila;
+  insert into public.roturas_borradas (id, codigo, fila, motivo, borrada_por)
+  values (v.id, v.codigo, v_fila,
+          coalesce(nullif(btrim(coalesce(p_motivo, '')), ''),
+                   'Sin decidir: se borró sin motivo escrito'),
+          auth.uid())
+  on conflict (id) do nothing;
 
   /* Las fotos se van con ella por la llave foránea; el archivo del
      bucket lo limpia la pantalla. */
   delete from public.roturas where id = p_id;
 end $$;
-grant execute on function public.rotura_borrar(uuid) to authenticated;
+grant execute on function public.rotura_borrar(uuid, text) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 6. LO QUE LEE LA PANTALLA

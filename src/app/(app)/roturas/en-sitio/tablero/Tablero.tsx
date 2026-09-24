@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
+import { usePedirTexto } from "@/components/PedirTexto";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { Evidencia } from "../../Evidencia";
 
@@ -72,6 +73,7 @@ export function Tablero({ roturas, nombres, manda }: {
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
   const [pedir, dialogo] = useConfirmar();
+  const [pedirTexto, cuadro] = usePedirTexto();
 
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "espera_ol" | "desacuerdo" | "cobro" | "anulada">("todas");
@@ -101,11 +103,25 @@ export function Tablero({ roturas, nombres, manda }: {
     && (r as { sin_origen?: boolean }).sin_origen).length;
 
   async function anular(r: Rotura) {
-    const motivo = window.prompt(`Anular ${r.codigo}\n\n¿Por qué? Queda escrito en la fila.`);
+    /* NADA DE `window.prompt()`. Salía con «cd-control-one.vercel.app
+       dice» encima, en gris, con un campo pelado y con los botones del
+       navegador: enseñar eso en una reunión parece que la aplicación se
+       rompió. Y peor que feo — el navegador puede ofrecer «no permitir
+       más cuadros de este sitio», y desde ahí anular deja de funcionar
+       EN SILENCIO. */
+    const motivo = await pedirTexto({
+      titulo: `¿Anular ${r.codigo}?`,
+      dice: <>La fila <b>se queda</b> con el motivo y con quién la anuló, y deja de contar
+             en los informes. Es lo que se hace con lo que de verdad pasó y ya no aplica.</>,
+      rotulo: "Por qué se anula",
+      marcador: "Queda escrito en la fila",
+      confirmar: "Anular",
+      minimo: 4,
+      largo: true,
+    });
     if (motivo === null) return;
-    if (!motivo.trim()) { avisar.mal("Hay que decir por qué se anula."); return }
     setMandando(true);
-    const { error } = await supabase.rpc("rotura_anular", { p_id: r.id, p_motivo: motivo.trim() });
+    const { error } = await supabase.rpc("rotura_anular", { p_id: r.id, p_motivo: motivo });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien(`${r.codigo} quedó anulada. La fila se queda, con el motivo.`);
@@ -113,16 +129,54 @@ export function Tablero({ roturas, nombres, manda }: {
   }
 
   async function borrar(r: Rotura) {
-    if (!(await pedir({
-      titulo: `¿Borrar ${r.codigo}?`,
-      dice: "Borrar es para el error de dedo del mismo día: se registró dos veces, o donde " +
-            "no era. Si de verdad pasó y ya no aplica, se ANULA — así queda la fila y el " +
-            "motivo. Esto no se puede deshacer.",
-      confirmar: "Borrar",
-      peligro: true,
-    }))) return;
+    /* DOS CUADROS DISTINTOS PARA LA MISMA PALABRA, y la diferencia es
+       real. Borrar lo que NADIE ha decidido es deshacer un error de
+       dedo del mismo día: se pregunta y ya. Borrar algo que YA SE
+       DECIDIÓ —o que el OL ya contestó— desaparece una cifra que puede
+       estar dentro de un informe que alguien ya leyó, y no hay forma de
+       saber después que estuvo ahí. Eso no se pide con un «¿seguro?»:
+       se pide tecleando el código.
+
+       LO DIGO AQUÍ PORQUE LO DIJE EN EL CHAT: esto es peor que anular.
+       Anular deja la fila, el motivo y quién; borrar no deja nada. */
+    const virgen = r.estado === "esperando" && !r.ol_respuesta;
+    let motivo: string | null = null;
+
+    if (virgen) {
+      if (!(await pedir({
+        titulo: `¿Borrar ${r.codigo}?`,
+        dice: "Borrar es para el error de dedo del mismo día: se registró dos veces, o donde " +
+              "no era. Si de verdad pasó y ya no aplica, se ANULA — así queda la fila y el " +
+              "motivo. Esto no se puede deshacer.",
+        confirmar: "Borrar",
+        peligro: true,
+      }))) return;
+    } else {
+      const razon = await pedirTexto({
+        titulo: `¿Borrar ${r.codigo}, que ya se decidió?`,
+        dice: <>Esta rotura ya tiene decisión ({etiquetaDe(r).txt.toLowerCase()}) y sus{" "}
+               <b>{r.unidades} unidades</b> pueden estar dentro de un informe que alguien
+               ya leyó. Borrarla <b>no deja rastro</b>: después no hay forma de saber que
+               estuvo. Si lo que quieres es que deje de contar, <b>anúlala</b> — eso deja
+               la fila, el motivo y tu nombre.</>,
+        rotulo: "Por qué se borra",
+        marcador: "Queda en el registro de la plataforma, no en la fila",
+        confirmar: "Borrar sin rastro",
+        peligro: true,
+        minimo: 8,
+        largo: true,
+        /* TECLEAR EL CÓDIGO no es un obstáculo decorativo: es la
+           diferencia entre borrar la fila que se quería y la de al
+           lado. En una tabla de trescientas filas con el botón en la
+           misma columna, eso pasa. */
+        debesEscribir: r.codigo,
+      });
+      if (razon === null) return;
+      motivo = razon;
+    }
+
     setMandando(true);
-    const { error } = await supabase.rpc("rotura_borrar", { p_id: r.id });
+    const { error } = await supabase.rpc("rotura_borrar", { p_id: r.id, p_motivo: motivo });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien(`${r.codigo} se borró.`);
@@ -131,7 +185,7 @@ export function Tablero({ roturas, nombres, manda }: {
 
   return (
     <>
-      {avisos}{dialogo}
+      {avisos}{dialogo}{cuadro}
 
       <div className="filtros">
         {([["todas", "Todas"], ["espera_ol", "Esperan al OL"],
@@ -189,11 +243,22 @@ export function Tablero({ roturas, nombres, manda }: {
               )}
               {vistas.map((r) => {
                 const e = etiquetaDe(r);
-                /* BORRAR SOLO LO QUE NADIE HA DECIDIDO. Es la misma
-                   regla de la base, y el botón ni aparece en lo demás:
-                   no está apagado «por ahora», es que a eso no se le
-                   borra nunca. */
-                const sePuedeBorrar = manda && r.estado === "esperando" && !r.ol_respuesta;
+                /* QUIEN MANDA PUEDE BORRAR CUALQUIERA. «El admin: yo
+                   puedo editar, eliminar, anular, borrar.»
+
+                   La versión anterior escondía el botón en todo lo ya
+                   decidido, y estaba defendiendo algo real —borrar no
+                   deja rastro— pero de la forma equivocada: un botón
+                   que no existe no explica nada, así que la pantalla
+                   contestaba «no» sin decir por qué ni ofrecer la
+                   salida buena.
+
+                   Ahora el botón está siempre para quien manda, y lo
+                   que cambia es LO QUE CUESTA: lo que nadie decidió se
+                   borra con un «¿seguro?»; lo ya decidido pide el
+                   motivo Y teclear el código. La fricción está donde
+                   está el riesgo, no en esconder la puerta. */
+                const sePuedeBorrar = manda;
                 return (
                   <tr key={r.id} className={r.estado === "anulada" ? "tb-anulada" : ""}>
                     <td className="tb-cod">
@@ -212,15 +277,16 @@ export function Tablero({ roturas, nombres, manda }: {
                     <td>{nombres[r.reportada_por ?? ""] ?? "—"}</td>
                     <td><span className={"tb-eti " + e.clase}>{e.txt}</span></td>
                     <td className="tb-acc">
+                      {/* ANULAR SOLO LO QUE NO ESTÉ YA ANULADO; BORRAR
+                          hasta lo anulado, que es precisamente lo que
+                          alguien querría sacar de la lista del todo. */}
                       {manda && r.estado !== "anulada" && (
-                        <>
-                          <button type="button" className="btn" disabled={mandando}
-                                  onClick={() => anular(r)}>Anular</button>
-                          {sePuedeBorrar && (
-                            <button type="button" className="btn mal" disabled={mandando}
-                                    onClick={() => borrar(r)}>Borrar</button>
-                          )}
-                        </>
+                        <button type="button" className="btn" disabled={mandando}
+                                onClick={() => anular(r)}>Anular</button>
+                      )}
+                      {sePuedeBorrar && (
+                        <button type="button" className="btn mal" disabled={mandando}
+                                onClick={() => borrar(r)}>Borrar</button>
                       )}
                     </td>
                   </tr>

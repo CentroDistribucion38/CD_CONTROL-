@@ -474,7 +474,11 @@ export const MODULOS: Modulo[] = [
         id: "conteos",
         nombre: "Conteos",
         eyebrow: "EXISTENCIAS",
-        ruta: "/inventario",
+        /* ENTRA POR EL TABLERO Y NO POR "/inventario": "/inventario" es
+           ahora la portada, y una tarjeta que apunta a la pantalla
+           donde está la tarjeta es un botón que no lleva a ningún
+           lado. */
+        ruta: "/inventario/tablero",
         descripcion:
           "El maestro de materiales y ubicaciones, el conteo por módulo con sus " +
           "vencimientos y la base de lo contado. Contesta qué hay y qué sale primero.",
@@ -509,7 +513,14 @@ export const MODULOS: Modulo[] = [
       { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
       { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
-      { nombre: "Tablero", ruta: "/inventario", rama: "conteos" },
+      /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.
+         Ocupando la ruta del módulo, entrar a Inventario era entrar ya
+         a Conteos y la bifurcación no existía: «le doy a conteos y no
+         me sale nada». `ramaDeRuta` lo dice arriba con todas las
+         letras — la ruta del módulo nunca puede caer dentro de una
+         rama, porque estando parado ahí el riel tiene que mostrar las
+         ramas y no las pantallas de una de ellas. */
+      { nombre: "Tablero", ruta: "/inventario/tablero", rama: "conteos" },
       /* AVERÍAS VA DESPUÉS DEL TABLERO, y el análisis detrás de ella.
          Es el mismo orden del proceso: se mantiene el maestro, se
          cuenta, queda el registro, se decide qué sale primero — y lo

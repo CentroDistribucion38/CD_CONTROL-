@@ -621,7 +621,7 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
      aparta al final. Mientras no tenga documento de baja sigue contando
      en «La base», que es la diferencia que descuadra un conteo. */
   const debe = ["/inventario/maestro", "/inventario/conteo",
-                "/inventario/base", "/inventario",
+                "/inventario/base", "/inventario/tablero",
                 "/inventario/averias", "/inventario/averias/tablero",
                 "/inventario/averias/analisis", "/inventario/averias/maestro"];
   /* Y VAN EN DOS RAMAS, no en una lista de ocho. Comparten tema —lo
@@ -639,6 +639,87 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
     fallas.push(`las pantallas de Inventario salen [${rutas.join(", ")}] y deben salir ` +
                 `[${debe.join(", ")}]: la base va antes que el tablero porque el tablero ` +
                 "sale de ella");
+
+  /* NINGUNA SECCIÓN PUEDE VIVIR EN LA RUTA DEL MÓDULO. Es EL error que
+     dejó a Inventario sin bifurcación: el tablero de FEFO ocupaba
+     /inventario, así que entrar al módulo era entrar ya a Conteos y no
+     había dónde escoger —«le doy a conteos y no me sale nada»—.
+     `ramaDeRuta` devuelve undefined en la ruta del módulo A PROPÓSITO:
+     estando parado ahí el riel tiene que mostrar las ramas. Una sección
+     ahí no da error, no avisa: se ve una pantalla cualquiera donde
+     debería estar la portada.
+
+     Y APLICA A CUALQUIER MÓDULO CON RAMAS, no solo a Inventario: es la
+     misma trampa para el siguiente que se parta en dos. */
+  for (const m of [...reg.matchAll(/id: "(\w+)",\n(?:.|\n)*?\n  \},/g)]) {
+    const txt = m[0];
+    if (!/ramas: \[/.test(txt)) continue;
+    const suya = (txt.match(/\n    ruta: "([^"]+)"/) ?? [])[1];
+    const secs = (txt.match(/secciones: \[[\s\S]*$/) ?? [""])[0];
+    if (!suya) continue;
+    if (new RegExp(`ruta: "${suya}",`).test(secs))
+      fallas.push(`el módulo ${m[1]} tiene una sección en su propia ruta (${suya}): ` +
+                  "esa dirección es la bifurcación y con una pantalla encima no hay dónde escoger");
+  }
+
+  /* Y LA RAMA TAMPOCO ENTRA POR LA RUTA DEL MÓDULO: una tarjeta que
+     apunta a la pantalla donde está la tarjeta es un botón que no lleva
+     a ningún lado. */
+  {
+    const bloqueRamas = (bloque.match(/ramas: \[[\s\S]*?\n    \],/) ?? [""])[0];
+    const rutasRama = [...bloqueRamas.matchAll(/ruta: "([^"]+)"/g)].map((x) => x[1]);
+    if (rutasRama.includes("/inventario"))
+      fallas.push("una rama de Inventario entra por /inventario, que es la portada: " +
+                  "la tarjeta se devuelve a sí misma");
+    if (rutasRama.join("|") !== "/inventario/tablero|/inventario/averias")
+      fallas.push(`las ramas de Inventario entran por [${rutasRama.join(", ")}] y deben ` +
+                  "entrar por [/inventario/tablero, /inventario/averias]");
+  }
+}
+
+/* =====================================================================
+   8b. EL PERMISO SE MUDÓ CON LA PANTALLA
+
+   En este proyecto los permisos se guardan como EL TEXTO DE LA
+   DIRECCIÓN. Mover el tablero de /inventario a /inventario/tablero deja
+   las filas viejas apuntando a algo que ya no existe y la persona pierde
+   la pantalla EN SILENCIO: no da error, deja de verse. Es el mismo
+   motivo por el que las pantallas de Roturas no se movieron al meterlas
+   en Quiebra.
+
+   Así que la migración que muda el permiso tiene que existir, y tiene
+   que copiar LOS DOS sitios donde vive: el rol y la persona.
+   ===================================================================== */
+{
+  let sql = "";
+  try {
+    sql = readFileSync(new URL("../supabase/migraciones/2026-09-inventario-portada.sql",
+                               import.meta.url), "utf8");
+  } catch { /* no está */ }
+
+  if (!sql)
+    fallas.push("el tablero cambió de dirección y no hay migración que mude el permiso: " +
+                "quien podía verlo lo pierde en silencio");
+  else {
+    /* SE MIRA LA SENTENCIA QUE HACE EL TRABAJO, no «que la ruta aparezca
+       en algún sitio del archivo». La primera versión de estas dos
+       aserciones preguntaba eso —`/rol_permisos[\s\S]*\/inventario\/tablero/`—
+       y las dos mutaciones volvieron VERDES: el `raise notice` del final
+       nombra las dos cosas, así que el archivo seguía «conteniéndolas»
+       con el insert roto. La distancia va acotada para que el bloque de
+       abajo no pueda volver a rescatar a un insert de arriba. */
+    if (!/insert\s+into\s+public\.rol_permisos[\s\S]{0,300}'\/inventario\/tablero'/i.test(sql))
+      fallas.push("la migración no copia el permiso del ROL a /inventario/tablero");
+    if (!/update\s+public\.perfiles[\s\S]{0,300}jsonb_build_object\('\/inventario\/tablero'/i.test(sql))
+      fallas.push("la migración no copia los permisos SUELTOS de cada persona: " +
+                  "el de portería que además miraba el tablero lo pierde");
+    /* NO BORRA /inventario: sigue siendo la ruta del módulo y es lo que
+       decide si Inventario aparece en el menú. Borrarla dejaría a
+       alguien con el tablero abierto y sin puerta por donde llegar. */
+    if (/delete\s+from\s+public\.rol_permisos/i.test(sql))
+      fallas.push("la migración BORRA el permiso de /inventario: esa ruta es la portada " +
+                  "del módulo y sin ella el módulo desaparece del menú");
+  }
 }
 
 /* =====================================================================

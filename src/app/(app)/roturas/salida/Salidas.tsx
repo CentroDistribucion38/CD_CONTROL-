@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
+import { usePedirTexto } from "@/components/PedirTexto";
 import type { Salida } from "@/modulos/roturas/datos";
 import { fecha, kilos, quien } from "../comunes";
 
@@ -44,6 +45,7 @@ export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
   const router = useRouter();
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
+  const [pedirTexto, cuadro] = usePedirTexto();
 
   const [abriendo, setAbriendo] = useState(false);
   const [placa, setPlaca] = useState("");
@@ -63,20 +65,40 @@ export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
 
   /* REABRIR Y ANULAR, LOS DOS CON MOTIVO OBLIGATORIO. La base lo exige;
      aquí se pide antes para no mandar una llamada que se sabe que va a
-     fallar. `prompt` y no un panel propio a propósito: son dos acciones
-     de administrador que se usan una vez al mes, y un panel más en esta
-     pantalla es una pantalla más difícil para quien la usa a diario. */
+     fallar. Un cuadro y no un panel propio en la pantalla, a propósito:
+     son dos acciones de administrador que se usan una vez al mes, y un
+     panel más aquí es una pantalla más difícil para quien la usa a
+     diario.
+
+     EL CUADRO ES EL DE LA CASA. Esto usaba `window.prompt`, que sale
+     con «cd-control-one.vercel.app dice» encima, en gris y con los
+     botones del navegador. Y el navegador puede ofrecer «no permitir
+     más cuadros de este sitio»: desde ahí, anular dejaba de funcionar
+     en silencio. */
   async function corregir(s: Salida, que: "reabrir" | "anular") {
-    const texto = que === "reabrir"
-      ? `Reabrir ${s.codigo} para corregir sus tolvas.\n\nSe le caen las firmas y hay que volver a cerrarla.\n\n¿Por qué se reabre?`
-      : `ANULAR ${s.codigo}.\n\nNo se borra: queda con el motivo y quién lo hizo.\n\n¿Por qué se anula?`;
-    const motivo = window.prompt(texto, "");
+    const motivo = await pedirTexto(que === "reabrir"
+      ? {
+          titulo: `¿Reabrir ${s.codigo}?`,
+          dice: <>Se le <b>caen las firmas</b> y hay que volver a cerrarla. Es para corregir
+                 sus tolvas.</>,
+          rotulo: "Por qué se reabre",
+          confirmar: "Reabrir",
+          minimo: 4, largo: true,
+        }
+      : {
+          titulo: `¿Anular ${s.codigo}?`,
+          dice: <>No se borra: la salida <b>se queda</b> con el motivo y con quién lo
+                 hizo, y deja de contar en los kilos del mes.</>,
+          rotulo: "Por qué se anula",
+          confirmar: "Anular",
+          peligro: true,
+          minimo: 4, largo: true,
+        });
     if (motivo === null) return;
-    if (!motivo.trim()) { avisar.mal("Hay que decir por qué."); return }
     setMandando(true);
     const { error } = await supabase.rpc(
       que === "reabrir" ? "salida_reabrir" : "salida_anular",
-      { p_id: s.id, p_motivo: motivo.trim() });
+      { p_id: s.id, p_motivo: motivo });
     setMandando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien(que === "reabrir"
@@ -103,7 +125,7 @@ export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
 
   return (
     <>
-      {avisos}
+      {avisos}{cuadro}
 
       <div className="filtros">
         <select value={ver} onChange={(e) => setVer(e.target.value as "abiertas" | "todas")}>

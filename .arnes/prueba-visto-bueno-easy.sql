@@ -399,25 +399,50 @@ begin
     select count(*) into v_n from public.v_roturas v where v.id = v_borrable;
     if v_n <> 0 then v_falla := v_falla || ' 8c(borrar no borró)'; end if;
 
-    /* PERO UNA YA DECIDIDA NO SE BORRA: entró en la conciliación de
-       alguien, y borrarla cambia un mes que ya se cerró sin dejar nada
-       que mirar cuando pregunten por qué. */
-    /* SE USA r5 Y NO r1, y la diferencia importa: r1 está en 'cuenta'
+    /* UNA YA DECIDIDA SÍ SE BORRA —el dueño de los datos puede—, PERO
+       PIDE MOTIVO Y DEJA RASTRO. Antes se frenaba en seco y eso no
+       protegía: convertía una decisión del administrador en un error
+       de la base. Lo que protege es que quede escrito QUÉ se borró y
+       POR QUÉ, porque la fila desaparece.
+
+       SE USA r5 Y NO r1, y la diferencia importa: r1 está en 'cuenta'
        PORQUE Easy la aceptó, así que la frenarían los dos guardas —el
        de «ya decidida» y el de «el OL ya contestó»— y quitar uno de
        los dos seguiría saliendo verde. r5 se decidió con la cadena
-       vieja: está decidida y NADIE contestó, así que solo la frena el
-       primero. Lo destapó una mutación que salió VERDE. */
+       vieja: está decidida y NADIE contestó. Lo destapó una mutación
+       que salió VERDE. */
     begin
       perform public.rotura_borrar(r5);
-      v_falla := v_falla || ' 8d(se borró una rotura ya decidida)';
+      v_falla := v_falla || ' 8d(se borró una rotura ya decidida SIN motivo)';
     exception when others then
-      if position('se anula, no se borra' in sqlerrm) = 0 then
+      if position('hay que decir por qué' in sqlerrm) = 0 then
         v_falla := v_falla || ' 8d(falló por otra cosa: ' || sqlerrm || ')';
       end if;
     end;
     select count(*) into v_n from public.v_roturas v where v.id = r5;
-    if v_n <> 1 then v_falla := v_falla || ' 8e(el intento igual la borró)'; end if;
+    if v_n <> 1 then v_falla := v_falla || ' 8e(el intento sin motivo igual la borró)'; end if;
+
+    /* CON MOTIVO SÍ, Y QUEDA EN `roturas_borradas` CON LA FILA ENTERA.
+       Sin eso, borrar es exactamente lo que se temía: una cifra que
+       desaparece de un mes ya cerrado y nadie puede decir qué decía. */
+    perform public.rotura_borrar(r5, 'Se registró dos veces el mismo turno');
+    select count(*) into v_n from public.v_roturas v where v.id = r5;
+    if v_n <> 0 then v_falla := v_falla || ' 8e2(con motivo no borró)'; end if;
+    select count(*) into v_n from public.roturas_borradas b
+      where b.id = r5 and b.motivo like '%dos veces%'
+        and b.fila ? 'unidades' and b.borrada_por is not null;
+    if v_n <> 1 then
+      v_falla := v_falla || ' 8e3(no quedó el rastro en roturas_borradas con la fila y quién)';
+    end if;
+
+    /* Y ESE REGISTRO SOLO LO LEE QUIEN MANDA: si lo leyera cualquiera,
+       sería una segunda copia de lo borrado al alcance de todos. */
+    perform set_config('request.jwt.claim.sub', EASY, true);
+    select count(*) into v_n from public.roturas_borradas;
+    if v_n <> 0 then
+      v_falla := v_falla || ' 8e4(Easy puede leer el registro de lo borrado)';
+    end if;
+    perform set_config('request.jwt.claim.sub', ROOT, true);
 
     /* NI UNA QUE EASY YA CONTESTÓ, aunque siga en 'esperando': el
        descargo de alguien no se borra por debajo. */
@@ -430,11 +455,16 @@ begin
       values (v_decidida, v_decidida || '/d.jpg', 'descargo');
     perform public.rotura_visto_bueno(v_decidida, false, 'No fue nuestra');
     perform set_config('request.jwt.claim.sub', ROOT, true);
+    /* EL DESCARGO DE ALGUIEN NO SE BORRA POR DEBAJO: también pide
+       motivo, aunque la rotura siga en 'esperando'. Es el caso más
+       delicado de los dos —hay una persona que escribió algo y subió
+       una foto— y por eso el guarda mira las DOS cosas: el estado y si
+       el OL ya contestó. */
     begin
       perform public.rotura_borrar(v_decidida);
-      v_falla := v_falla || ' 8f(se borró una rotura que el OL ya había objetado)';
+      v_falla := v_falla || ' 8f(se borró sin motivo una rotura que el OL ya había objetado)';
     exception when others then
-      if position('ya contestó' in sqlerrm) = 0 then
+      if position('hay que decir por qué' in sqlerrm) = 0 then
         v_falla := v_falla || ' 8f(falló por otra cosa: ' || sqlerrm || ')';
       end if;
     end;
