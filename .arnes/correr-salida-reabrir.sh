@@ -26,4 +26,7 @@ $PSQL -d $DB -f supabase/migraciones/2026-09-salida-reabrir-y-anular.sql 2>&1 | 
 if $PSQL -d $DB -f supabase/migraciones/2026-09-salida-reabrir-y-anular.sql 2>&1 | grep -E "^ERROR|ERROR:"; then exit 1; fi
 
 echo "--- las pruebas"
-$PSQL -d $DB -f .arnes/prueba-salida-reabrir.sql 2>&1 | grep -E "NOTICE|ERROR"
+salida=$($PSQL -d $DB -f .arnes/prueba-salida-reabrir.sql 2>&1) || true; echo "$salida" | grep -E "NOTICE|ERROR" || true
+# Y SE FALLA DE VERDAD: ver la palabra FALLA en pantalla y que el
+# script salga 0 es lo que hizo que esto pasara por verde meses.
+if echo "$salida" | grep -qE "FALLA:|^psql.*ERROR"; then exit 1; fi

@@ -1,84 +1,122 @@
-Pegar la lista de operarios desde Excel, y el rediseño de Salida -> Analisis que no habia entregado
+Averias: las pantallas. Y borrar para el admin en averias y operarios
 
 =====================================================================
-EL REDISEÑO DE ANALISIS ESTABA HECHO Y NO LO MANDE
+AVERIAS YA SE VE
 =====================================================================
-«Por que el diseño no ha cambiado, o sea, no he visto cambios en los
- diseños del tablero.»
+«No veo el modulo de averias dentro de inventarios.»
 
-Porque no lo entregue. La pantalla estaba rediseñada contra tu maqueta
-—`roturas-salida-analisis 1.html`—, verificada y con los arneses en
-verde, y se quedo en mi copia. Error mio, y de los caros: te deje
-mirando la version vieja creyendo que asi habia quedado.
+Tenia razon: existian el motor de hallazgos y el informe en PDF, y
+NINGUNA PANTALLA. Ahora hay dos, en Inventario -> Averias y
+Inventario -> Analisis de averias, con su SQL y su arnes.
 
-LO QUE CAMBIA:
-· El titular con el NETO en grande y su linea de los ultimos 7 dias al
-  lado, contra HOY siempre —no contra el ultimo dia que tenga datos,
-  que hace que una semana sin despachos se vea igual que una normal—.
-· La barra BRUTO / TARA apilada en una sola pieza, con el porcentaje
-  de tara: es la cifra que dice si las tolvas estan saliendo pesadas.
-· Las cuatro cifras en su fila propia.
-· Y abajo, tres columnas: Por mes, la dona por color del vidrio, y la
-  tabla de salidas. Antes eran tres bloques uno debajo de otro y habia
-  que bajar toda la pantalla para comparar dos cosas que se miran
-  juntas.
+LA PANTALLA SE ORGANIZA POR EL ESTADO DE LA BAJA, no por fecha, y esa
+es la decision de diseño entera:
 
-=====================================================================
-PEGAR LA LISTA DE OPERARIOS
-=====================================================================
-«La idea es que yo solo coloque los nombres de los operadores: copio en
- Excel, pego alli, y de una genera los PIN y los nombres.»
+  SIN DOCUMENTO  la averia SIGUE CONTANDO en el inventario. Esta
+                 apartada en la bodega, nadie la va a vender, pero el
+                 sistema cree que esta. Esa diferencia es exactamente
+                 lo que descuadra un conteo.
+  CON DOCUMENTO  ya salio de la cuenta. Es historia.
 
-EL PIN LO SORTEA LA BASE Y NO LA PANTALLA. Dos personas cargando su
-lista al mismo tiempo desde dos computadores sortearian el mismo numero
-sin enterarse. En la base, el sorteo y la comprobacion de que esta libre
-ocurren dentro de la misma transaccion.
+Por eso abre en «sin dar de baja» y el KPI cuenta ESAS. Una lista
+ordenada por fecha enseñaria arriba lo de ayer —que no urge— y dejaria
+abajo lo de hace tres semanas, que es lo que hay que ir a cobrar.
 
-ES AL AZAR Y NO CORRELATIVO. Lo comodo seria 0001, 0002, 0003; con eso
-cualquiera que vea un PIN sabe los de todos sus compañeros, y el PIN
-existe justamente para poder creerle al que registra. El arnes carga
-VEINTE de una y exige que no haya dos iguales, que no salgan
-correlativos, y que no salga ninguno de los que cualquiera teclea para
-probar suerte —0000, 1111 … 1234, 4321—.
+LAS TRES CIFRAS DE ARRIBA SON LAS QUE CAMBIAN LO QUE SE HACE HOY:
+· LA MAS VIEJA SIN BAJA, en dias. Dice si el papeleo esta al dia o si
+  hay algo represado desde hace un mes.
+· LAS QUE SE VENCEN Y ADEMAS SIGUEN CONTANDO. Es lo peor de los dos
+  mundos: producto que ya no sirve y que el sistema cree que esta.
+· DONDE SE CONCENTRAN. LA CALLE ES LA LETRA —«A03 · M12» es la calle
+  A—; agrupar por el modulo reparte una misma calle en tantos grupos
+  como modulos tenga y la concentracion no sale nunca.
 
-LO QUE SE LEE SE ENSEÑA ANTES DE CARGAR. Un pegado de Excel llega como
-llegue: una columna, tres, con la cabecera pegada de arrastre, con
-lineas en blanco del final. Adivinar en silencio es como se crean cien
-operarios mal. La previa es la respuesta: no se adivina, se muestra, y
-se marca cual ya estaba.
+LA CAUSAL VA EN BOTONES Y NO EN UN DESPLEGABLE: son tres, cual es
+decide A QUIEN SE LE COBRA, y un desplegable esconde dos y hace ganar
+a la primera por costumbre. La de transporte dice «llega averiado»,
+que es la distincion que no se puede sacar del nombre sin adivinar.
 
-LA COMA NO PARTE COLUMNAS, y es a proposito: «Padilla, Cristian» es un
-nombre escrito al reves —el apellido-primero de toda planilla de
-RR.HH.—, no dos columnas. Partirlo ahi crea dos operarios de una
-persona. Se parte por TABULADOR, que es lo que pega Excel, y por punto
-y coma, que es lo que sale de un CSV en español.
+LAS UBICACIONES SE PROPONEN Y NO HAY MAESTRO DE ELLAS. Un maestro
+obligaria a dar de alta la calle antes de poder registrar, y asi es
+como se pierde el registro de algo que YA paso. Proponer las que ya se
+usaron evita que la misma calle se escriba de cuatro formas, que es lo
+que revienta el hallazgo de concentracion.
 
-PEGAR LA MISMA LISTA OTRA VEZ NO DUPLICA A NADIE: devuelve el PIN que
-ya tenian. Es, de paso, la forma de volver a sacar los PIN de todos sin
-tocar nada. Se comparan los nombres en minuscula, sin espacios de sobra
-y sin tildes.
-
-Y AL TERMINAR SE VEN LOS PIN, con un boton para copiarlos a Excel. Sin
-eso, la pantalla acaba de sortear cien numeros que hay que repartir y
-tocaria teclearlos a mano mirando la lista.
+EN EL ANALISIS, LOS HALLAZGOS VAN ARRIBA DE LAS GRAFICAS. Una grafica
+enseña un numero; un hallazgo dice que hacer con el. Y son LOS MISMOS
+que van al PDF: si la pantalla y el papel sacaran cada uno sus
+cuentas, el dia que cambie una regla dirian cosas distintas y quien
+esta en la reunion con el papel no tendria como saber cual es la
+buena.
 
 =====================================================================
-EL SQL
+EDITAR, ANULAR, BORRAR
 =====================================================================
-`operarios_cargar` se AGREGO al mismo archivo que ya te pase
-—2026-09-roturas-maestro-unico-y-opm.sql—, no a uno nuevo. Si todavia
-no lo has corrido, corre ese y ya viene. Si ya lo corriste, correlo otra
-vez: se puede correr dos veces.
+«Que el admin yo pueda editar, eliminar, anular, borrar.»
+
+Son tres cosas distintas y hacen falta las tres:
+  CORREGIR  un dedo de mas en las cajas, la ubicacion mal escrita.
+  ANULAR    «esto no paso». Deja la fila, el motivo y quien, porque
+            una averia que desaparece es un mes que cerro distinto y
+            nadie sabe por que.
+  BORRAR    para el error de dedo del mismo dia.
+
+BORRAR NO SE OFRECE A LA QUE YA TIENE DOCUMENTO DE SAP: ese numero
+quedaria apuntando a algo que no existe, y el dia que alguien audite
+la baja no encuentra contra que cuadrarla. Esa se anula. El boton ni
+sale, y la base lo frena igual.
+
+Y EN OPERARIOS, LO MISMO: borrar solo al que NO ha reportado ninguna
+rotura. Al que si, sus roturas quedarian sin quien las vio; ese se
+apaga, y lo que reporto se queda diciendo su nombre.
+
+=====================================================================
+TRES COSAS QUE NO ERAN DE AVERIAS
+=====================================================================
+1. TODOS LOS ARNESES SQL DEL PROYECTO DECIAN «VERDE» PASARA LO QUE
+   PASARA. El codigo de salida de `psql -f prueba.sql | grep NOTICE`
+   es el de GREP, no el de psql: grep encontraba lineas y salia 0
+   aunque la prueba hubiera levantado FALLA. Lo destapo una mutacion
+   de averias que salio verde con el freno arrancado. Arreglados los
+   29: ahora se captura la salida y se falla si dice FALLA.
+   Esto quiere decir que cualquier «verde» que te haya reportado de un
+   arnes SQL hasta hoy valia lo que valia la vista de los NOTICE.
+
+2. EL PIE DEL KPI DE INVENTARIO CONTRASTA 1.7 —ilegible— en las siete
+   pantallas que lo usan. `globals.css` tiene un `.pie` suelto en gris
+   oscuro, y una regla puesta sobre el elemento le gana SIEMPRE al
+   color heredado del padre. Se veia «apagado» y nadie lo midio.
+
+3. LOS BOTONES Y CAMPOS DE INVENTARIO MEDIAN 40 PX. Esto se llena con
+   guante en una bodega. A 44, como el resto.
+
+=====================================================================
+UN ERROR MIO, EL OCTAVO CHOQUE DE NOMBRE
+=====================================================================
+Llame `.av` a la pantalla de Averias. `.av` YA ERA el cartel de avisos
+en globals.css —con su rejilla de tres columnas, su fondo y su borde—.
+La pantalla la heredo entera: la barra de pestañas terminaba a un
+quinto del ancho. El arnes pasaba en verde —nada se salia, todo se
+leia— y solo se vio MIRANDO la captura.
+
+Renombrado a `avr-`. Y el arnes ahora MIDE que los bloques llenen el
+ancho, que es lo que convierte esto en una falla y no en una foto
+rara. Es el tercero que me hago yo solo con la regla escrita.
 
 =====================================================================
 LOS ARNESES
 =====================================================================
-bash .arnes/correr-maestro-opm.sh  · cinco comprobaciones nuevas
-node .arnes/rt-operarios.mjs       · 11 mutaciones, 11 ROJAS
+bash .arnes/correr-averias.sh   · 10 mutaciones, 10 ROJAS
+node .arnes/av-pantallas.mjs    · 5 ancho/alto, 7 temas
+bash .arnes/correr-maestro-opm.sh · 2 mutaciones nuevas, 2 ROJAS
+node .arnes/rt-operarios.mjs    · 1 mutacion nueva, ROJA
 
-EL LECTOR DEL PEGADO SE PRUEBA SIN NAVEGADOR. Es una funcion pura y los
-casos raros de un Excel pegado son quince: abrir Chromium quince veces
-para probarlos seria no probarlos.
+Dos mutaciones de averias se DETECTABAN y mataban la prueba antes de
+imprimir —el supervisor quitaba el documento, y una llamada de mas
+abajo reventaba—. El bloque va envuelto: ahora imprime lo que llevaba
+antes de morirse.
+
+FALTA CORRER: supabase/migraciones/2026-09-averias.sql
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

@@ -175,8 +175,23 @@ await monta();
    ------------------------------------------------------------------ */
 {
   const botones = await pg.$$eval(".rt .fila .par button", (b) => b.map((x) => x.textContent.trim()));
-  ok(!botones.some((t) => /borrar|eliminar/i.test(t)),
-     "hay un botón de borrar: borrar a quien ya reportó deja esas roturas apuntando a nadie");
+  /* BORRAR EXISTE, PERO SOLO PARA EL QUE NO HA REPORTADO NADA. Es para
+     el error de dedo —la lista cargada dos veces, el operario de
+     prueba—. Al que ya reportó, el botón NI APARECE: no está apagado
+     «por ahora», es que a ese no se le borra nunca. */
+  ok(botones.includes("Borrar"), `falta el botón de borrar: ${[...new Set(botones)].join(" | ")}`);
+  {
+    const conRoturas = await pg.$$eval(".rt .fila", (fs) => fs.map((f) => ({
+      roturas: /sin roturas reportadas/.test(f.querySelector(".meta")?.textContent ?? "") ? 0 : 1,
+      borrar: [...f.querySelectorAll(".par button")].some((b) => /Borrar/.test(b.textContent)),
+    })));
+    const malos = conRoturas.filter((f) => f.roturas > 0 && f.borrar);
+    ok(malos.length === 0,
+       `${malos.length} operarios que YA reportaron tienen botón de borrar: borrarlos deja esas roturas sin quién las vio`);
+    const sinNada = conRoturas.filter((f) => f.roturas === 0);
+    ok(sinNada.length > 0 && sinNada.every((f) => f.borrar),
+       "al que no ha reportado nada no se le ofrece borrar: un maestro lleno de filas apagadas que nunca sirvieron es ruido");
+  }
   ok(botones.includes("Apagar"), `no está el botón de apagar: ${[...new Set(botones)].join(" | ")}`);
   /* El apagado ofrece ENCENDER y se ve distinto. */
   ok((await pg.$$(".rt .fila.gris")).length === 1,
@@ -495,4 +510,4 @@ if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\n✓ Operarios: los PIN se ven (a propósito), no hay borrar sino apagar, el PIN repetido y el corto se frenan en la pantalla, el PIN viaja limpio, se dice cuántos no han reportado nada, y la lista vacía explica qué pasa mientras tanto en Registrar.");
+console.log("\n✓ Operarios: los PIN se ven (a propósito), se borra solo al que no ha reportado nada —al que sí, se apaga—, el PIN repetido y el corto se frenan en la pantalla, el PIN viaja limpio, se dice cuántos no han reportado nada, y la lista vacía explica qué pasa mientras tanto en Registrar.");

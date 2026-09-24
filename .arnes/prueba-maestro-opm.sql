@@ -335,6 +335,61 @@ begin
     end if;
   end;
 
+  -- ================================================================
+  -- 8. BORRAR UN OPERARIO — del administrador, y no al que ya reportó
+  -- ================================================================
+  perform set_config('request.jwt.claim.sub', JEFE, true);
+  declare v_libre uuid; v_usado uuid; v_pin_libre text;
+  begin
+    select c.pin into v_pin_libre
+      from public.operarios_cargar('[{"nombre":"Para Borrar"}]'::jsonb) c;
+    select o.id into v_libre from public.operarios_listar() o where o.pin = v_pin_libre;
+
+    /* Uno que SÍ reportó: es el caso que hay que frenar. */
+    select o.id into v_usado from public.operarios_listar() o where o.nombre = 'Genesis Visbal';
+    if v_usado is null then
+      select c.pin into v_pin_libre
+        from public.operarios_cargar('[{"nombre":"Genesis Visbal"}]'::jsonb) c;
+      select o.id into v_usado from public.operarios_listar() o where o.pin = v_pin_libre;
+    end if;
+    set role postgres;
+    update public.roturas set opm_id = v_usado, origen = 'opm'
+     where id = (select id from public.roturas limit 1);
+    set role probador;
+    perform set_config('request.jwt.claim.sub', JEFE, true);
+
+    -- EL QUE NO REPORTÓ NADA SE BORRA: es para el error de dedo.
+    perform public.operario_borrar(v_libre);
+    select count(*) into v_n from public.operarios_listar() o where o.id = v_libre;
+    if v_n <> 0 then v_falla := v_falla || ' 8a(borrar no borró al que no reportó nada)'; end if;
+
+    -- EL QUE YA REPORTÓ, NO: sus roturas quedarían sin quién las vio.
+    if exists (select 1 from public.roturas r where r.opm_id = v_usado) then
+      begin
+        perform public.operario_borrar(v_usado);
+        v_falla := v_falla || ' 8b(se borró un operario que ya había reportado roturas)';
+      exception when others then
+        if position('se apaga, no se borra' in sqlerrm) = 0 then
+          v_falla := v_falla || ' 8b(falló por otra cosa: ' || sqlerrm || ')';
+        end if;
+      end;
+      select count(*) into v_n from public.operarios_listar() o where o.id = v_usado;
+      if v_n <> 1 then v_falla := v_falla || ' 8c(el intento igual lo borró)'; end if;
+    end if;
+
+    -- Y NO LO BORRA QUIEN NO MANDA.
+    perform set_config('request.jwt.claim.sub', SUP, true);
+    begin
+      perform public.operario_borrar(v_usado);
+      v_falla := v_falla || ' 8d(el supervisor pudo borrar un operario)';
+    exception when others then
+      if position('administrador' in sqlerrm) = 0 then
+        v_falla := v_falla || ' 8d(falló por otra cosa: ' || sqlerrm || ')';
+      end if;
+    end;
+    perform set_config('request.jwt.claim.sub', JEFE, true);
+  end;
+
   set role postgres;
   if v_falla <> '' then raise exception 'FALLA:%', v_falla; end if;
   raise notice 'BIEN: el desplegable sale del maestro de inventario, separa PRODUCTO de ENVASE,';

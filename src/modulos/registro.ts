@@ -477,6 +477,14 @@ export const MODULOS: Modulo[] = [
       { nombre: "Contar", ruta: "/inventario/conteo" },
       { nombre: "La base", ruta: "/inventario/base" },
       { nombre: "Tablero", ruta: "/inventario" },
+      /* AVERÍAS VA DESPUÉS DEL TABLERO, y el análisis detrás de ella.
+         Es el mismo orden del proceso: se mantiene el maestro, se
+         cuenta, queda el registro, se decide qué sale primero — y lo
+         que se dañó y no va a salir nunca se aparta aquí. Mientras no
+         tenga documento de baja sigue contando en «La base», que es
+         justamente la diferencia que descuadra un conteo. */
+      { nombre: "Averías", ruta: "/inventario/averias" },
+      { nombre: "Análisis de averías", ruta: "/inventario/averias/analisis" },
     ],
   },
 ];

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
+import { useConfirmar } from "@/components/Confirmar";
 import type { Operario } from "@/modulos/roturas/datos";
 
 /**
@@ -93,6 +94,7 @@ export function Operarios({ lista, puedeEditar }: {
   const router = useRouter();
   const supabase = createClient();
   const [avisar, avisos] = useAvisos();
+  const [pedir, dialogo] = useConfirmar();
 
   const [nuevo, setNuevo] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
@@ -225,6 +227,30 @@ export function Operarios({ lista, puedeEditar }: {
     }
   }
 
+  /* BORRAR ES PARA EL ERROR DE DEDO, y solo para eso: se cargó la lista
+     dos veces, o se creó uno de prueba. Al que YA REPORTÓ no se le
+     ofrece —el botón no está—, porque borrarlo dejaría esas roturas sin
+     quién las vio. Ese se apaga: el PIN deja de servir y lo que reportó
+     se queda diciendo su nombre.
+
+     NO SE OFRECE Y ADEMÁS LA BASE LO FRENA. Que el botón no esté es
+     comodidad; la regla vive en `operario_borrar`. */
+  async function borrar(o: Operario) {
+    if (!(await pedir({
+      titulo: `¿Borrar a ${o.nombre}?`,
+      dice: "No ha reportado ninguna rotura, así que no se pierde nada. " +
+            "Su PIN queda libre para otra persona. Esto no se puede deshacer.",
+      confirmar: "Borrar",
+      peligro: true,
+    }))) return;
+    setMandando(true);
+    const { error } = await supabase.rpc("operario_borrar", { p_id: o.id });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(`${o.nombre} se borró.`);
+    router.refresh();
+  }
+
   const formulario = (
     <div className="panel">
       <label htmlFor="op-pin">PIN — de cuatro a ocho dígitos</label>
@@ -264,7 +290,7 @@ export function Operarios({ lista, puedeEditar }: {
 
   return (
     <>
-      {avisos}
+      {avisos}{dialogo}
 
       <section className="caja">
         <div className="cab">
@@ -449,6 +475,15 @@ export function Operarios({ lista, puedeEditar }: {
                             onClick={() => alternar(o)}>
                       {o.activo ? "Apagar" : "Encender"}
                     </button>
+                    {/* BORRAR SOLO AL QUE NO HA REPORTADO NADA. Al que
+                        sí, el botón ni aparece: no es que esté apagado
+                        «por ahora», es que a ese no se le borra nunca. */}
+                    {o.roturas === 0 && (
+                      <button type="button" className="btn mal" disabled={mandando}
+                              onClick={() => borrar(o)}>
+                        Borrar
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

@@ -610,8 +610,14 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
 {
   const bloque = (reg.match(/id: "inventario"[\s\S]*?\n  \},/) ?? [""])[0];
   const rutas = [...bloque.matchAll(/ruta: "(\/inventario[^"]*)"/g)].map((m) => m[1]);
+  /* AVERÍAS VA AL FINAL, y su análisis detrás. Es el mismo orden del
+     proceso: se mantiene el maestro, se cuenta, queda el registro, se
+     decide qué sale primero — y lo que se dañó y no va a salir nunca se
+     aparta al final. Mientras no tenga documento de baja sigue contando
+     en «La base», que es la diferencia que descuadra un conteo. */
   const debe = ["/inventario", "/inventario/maestro", "/inventario/conteo",
-                "/inventario/base", "/inventario"];
+                "/inventario/base", "/inventario",
+                "/inventario/averias", "/inventario/averias/analisis"];
   if (rutas.join("|") !== debe.join("|"))
     fallas.push(`las pantallas de Inventario salen [${rutas.join(", ")}] y deben salir ` +
                 `[${debe.join(", ")}]: la base va antes que el tablero porque el tablero ` +

@@ -9,4 +9,7 @@ PSQL="sudo -u postgres psql -q -v ON_ERROR_STOP=1"
 $PSQL -d $DB -c "grant probador to postgres; grant authenticated to probador; grant select on all tables in schema public to probador;" >/dev/null 2>&1 || true
 $PSQL -d $DB -c "alter table auth.users add column if not exists last_sign_in_at timestamptz; alter table auth.users add column if not exists created_at timestamptz default now();" >/dev/null 2>&1 || true
 for i in 1 2; do $PSQL -d $DB -f supabase/migraciones/2026-09-admin-usuarios.sql 2>&1 | grep -E "ERROR|LISTO"; done
-$PSQL -d $DB -f .arnes/prueba-admin-usuarios.sql 2>&1 | grep -E "NOTICE|ERROR"
+salida=$($PSQL -d $DB -f .arnes/prueba-admin-usuarios.sql 2>&1) || true; echo "$salida" | grep -E "NOTICE|ERROR" || true
+# Y SE FALLA DE VERDAD: ver la palabra FALLA en pantalla y que el
+# script salga 0 es lo que hizo que esto pasara por verde meses.
+if echo "$salida" | grep -qE "FALLA:|^psql.*ERROR"; then exit 1; fi

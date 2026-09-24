@@ -117,6 +117,16 @@ const IconoLlave = () => (
 /* OPERARIOS: una persona. Se pensó en un teclado de PIN, pero un
    cuadrado con puntos al lado de «Operarios» se lee como calculadora;
    la pantalla es de personas y el PIN es cómo se las llama. */
+/* AVERÍAS: una caja con el filo roto. No un triángulo de alerta —eso
+   es cualquier problema— ni una papelera —esto no se bota, se aparta
+   hasta que llegue el documento de baja—. */
+const IconoAveria = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4 8.5 12 5l8 3.5v7L12 19l-8-3.5z" />
+    <path d="M9 10.2l2.2 2.1-1.4 1.5 2.4 2" />
+  </svg>
+);
+
 const IconoOperario = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <circle cx="12" cy="8" r="3.4" />
@@ -236,6 +246,8 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
      dibujo en el riel obligan a leer el rótulo para distinguirlas — que
      es justo lo que el riel existe para evitar. */
   "/inventario": IconoTablero,
+  "/inventario/averias": IconoAveria,
+  "/inventario/averias/analisis": IconoAnalisis,
   "/inventario/maestro": IconoLlave,
   "/inventario/conteo": IconoCaja,
   "/acciones": IconoLista,

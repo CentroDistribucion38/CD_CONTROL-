@@ -344,6 +344,54 @@ end $$;
 grant select on public.v_roturas to authenticated;
 
 -- =====================================================================
+-- 4b. BORRAR UN OPERARIO — del administrador, y solo si no reportó nada
+-- ---------------------------------------------------------------------
+-- «Que el admin yo pueda editar, eliminar, anular, borrar.»
+--
+-- EDITAR y APAGAR ya estaban: `operario_guardar` hace las dos.
+-- BORRAR es lo que faltaba, y es PARA EL ERROR DE DEDO: se cargó dos
+-- veces la misma lista con un nombre mal escrito, o se creó uno de
+-- prueba. Eso hoy solo se podía apagar, y un maestro lleno de filas
+-- apagadas que nunca sirvieron es ruido.
+--
+-- PERO NO AL QUE YA REPORTÓ. Sus roturas apuntan a él: borrarlo las
+-- deja sin nadie, y el informe oculto —que existe justamente para
+-- decir quién reportó qué— empieza a tener huecos que nadie puede
+-- volver a llenar. Ese se APAGA: el PIN deja de servir y lo que
+-- reportó se queda diciendo su nombre.
+--
+-- Es la misma regla del maestro de materiales: borrar solo lo que
+-- nadie ha usado. La base lo rechazaría igual por la llave foránea,
+-- pero «violates foreign key constraint» no le explica nada a quien
+-- está mirando la pantalla; decirlo con el número sí.
+-- =====================================================================
+create or replace function public.operario_borrar(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_n bigint; v_nombre text;
+begin
+  if not public.manda() then
+    raise exception 'Borrar un operario es del administrador';
+  end if;
+
+  select o.nombre into v_nombre from public.roturas_operarios o where o.id = p_id;
+  if v_nombre is null then raise exception 'Ese operario no existe'; end if;
+
+  select count(*) into v_n from public.roturas r where r.opm_id = p_id;
+  if v_n > 0 then
+    raise exception
+      '% ya reportó % rotura(s): se apaga, no se borra —si no, esas roturas quedan sin quién las vio',
+      v_nombre, v_n;
+  end if;
+
+  delete from public.roturas_operarios where id = p_id;
+end $$;
+grant execute on function public.operario_borrar(uuid) to authenticated;
+
+-- =====================================================================
 -- 5. CARGAR LA LISTA DE UNA, Y QUE EL PIN LO PONGA LA BASE
 -- ---------------------------------------------------------------------
 -- «La idea es que yo solo coloque los nombres de los operadores: copio

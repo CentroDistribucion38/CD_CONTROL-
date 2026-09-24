@@ -1,0 +1,165 @@
+/* =====================================================================
+   AVERÍAS — lo suyo, encima del vocabulario de Inventario.
+   ---------------------------------------------------------------------
+   TODO LLEVA `avr-`, Y NO SE REPITE UN NOMBRE DENTRO DEL PREFIJO. En el
+   CSS de Roturas ya van SIETE choques de nombre, dos de ellos contra mí
+   mismo por reusar un nombre que ya había usado tres pantallas antes.
+   Cada uno se vio primero como «la pantalla se ve rara» y costó media
+   hora encontrarlo. El prefijo es barato y el choque no.
+
+   Se reusa de `fefo.css`: `.cabeza`, `.kpi`, `.fe-barra`, `.fe-pes`,
+   `.fe-busca`, `.fe-lista`, `.fe-vacio`, `.fe-cuenta`, `.btn`. Es la
+   misma pantalla de Inventario con otras filas, y darle un aspecto
+   propio solo la haría distinta sin hacerla mejor.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   LAS TRES CIFRAS QUE CAMBIAN LO QUE SE HACE HOY
+   ------------------------------------------------------------------ */
+.avr .avr-cifras {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.avr .avr-cif {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+/* EL FILO ROJO SOLO CUANDO HAY ALGO QUE HACER. Un borde de color
+   permanente en las tres deja de querer decir nada a la semana. */
+.avr .avr-cif.avr-alerta { border-left: 4px solid var(--fe-mal) }
+.avr .avr-rot {
+  font: 700 10.5px var(--fe-texto); letter-spacing: .13em; color: var(--fe-gris);
+  text-transform: uppercase;
+}
+.avr .avr-cif b {
+  font: 900 26px/1.05 var(--fe-titulo); letter-spacing: -.03em; color: var(--fe-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.avr .avr-pie { font-size: 12px; line-height: 1.45; color: var(--fe-gris) }
+
+/* ---------------------------------------------------------------------
+   EL FORMULARIO
+   ------------------------------------------------------------------ */
+.avr .avr-form {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 16px; display: flex; flex-direction: column; gap: 16px;
+}
+.avr .avr-campos {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+}
+.avr .avr-campos > * { min-width: 0 }
+/* El producto y la nota son largos: ocupan dos columnas en vez de
+   quedar recortados en una. */
+.avr .avr-ancho { grid-column: span 2 }
+.avr .avr-c { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.avr .avr-c > span {
+  font: 700 10.5px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris);
+  text-transform: uppercase;
+}
+/* 44 px, porque esto se llena con guante en una bodega. */
+.avr .avr-c input, .avr .avr-c select {
+  width: 100%; min-height: 44px; padding: 0 12px;
+  font: 500 14px var(--fe-texto); color: var(--fe-tinta);
+  background: var(--fe-fondo); border: 1.5px solid var(--fe-linea); border-radius: 2px;
+}
+.avr .avr-c input:focus, .avr .avr-c select:focus {
+  outline: none; background: #fff; border-color: var(--fe-acento);
+}
+
+/* LA CAUSAL EN BOTONES Y NO EN UN DESPLEGABLE: son tres, se ven las
+   tres de una, y cuál es decide a quién se le cobra. Un desplegable
+   esconde dos de las tres y hace que gane la primera por costumbre. */
+.avr .avr-seg { display: flex; gap: 8px; flex-wrap: wrap }
+.avr .avr-seg button {
+  flex: 1 1 200px; min-height: 52px; padding: 8px 14px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
+  border: 1.5px solid var(--fe-linea); border-radius: 2px; background: var(--fe-fondo);
+  font: 700 13.5px var(--fe-titulo); color: var(--fe-tinta); text-align: left;
+}
+.avr .avr-seg button.on {
+  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);
+}
+.avr .avr-seg button em {
+  font: 600 11px var(--fe-texto); font-style: normal; opacity: .78;
+}
+.avr .avr-acciones { display: flex; gap: 10px; flex-wrap: wrap }
+
+/* ---------------------------------------------------------------------
+   LA LISTA
+   ------------------------------------------------------------------ */
+.avr .avr-fila {
+  display: grid; grid-template-columns: 96px 1fr 210px auto; gap: 14px; align-items: center;
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 12px 14px;
+}
+.avr .avr-fila.avr-anulada { opacity: .62 }
+.avr .avr-cod { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.avr .avr-cod b {
+  font: 800 14px var(--fe-titulo); color: var(--fe-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.avr .avr-cod span { font-size: 11.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
+
+.avr .avr-que { min-width: 0 }
+.avr .avr-tit { font: 700 14.5px var(--fe-titulo); color: var(--fe-tinta) }
+.avr .avr-meta {
+  margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px;
+  font-size: 12.5px; line-height: 1.5; color: var(--fe-gris);
+}
+/* LA UBICACIÓN EN MONOESPACIADO: se compara con lo que está escrito en
+   el piso, carácter por carácter. */
+.avr .avr-ubi {
+  font: 600 12.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--fe-tinta);
+}
+/* «Llega averiado» no es del depósito: se marca, porque es lo que
+   decide a quién se le cobra. */
+.avr .avr-ext { color: var(--fe-mal); font-weight: 600 }
+.avr .avr-motivo {
+  margin-top: 5px; font-size: 12px; color: var(--fe-mal); font-weight: 600;
+}
+
+.avr .avr-estado { display: flex; flex-direction: column; gap: 4px; align-items: flex-start }
+.avr .avr-eti {
+  display: inline-block; padding: 3px 8px; border-radius: 2px;
+  font: 700 10px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase;
+}
+.avr .avr-eti.avr-esp { background: #FFF3D6; color: #6B5518 }
+.avr .avr-eti.avr-ok  { background: #E6F4EC; color: var(--fe-bien) }
+.avr .avr-eti.avr-mal { background: #FDEEF1; color: var(--fe-mal) }
+.avr .avr-eti.avr-ojo { background: #FFF3D6; color: #6B5518 }
+.avr .avr-eti.avr-gris{ background: var(--fe-fondo); color: var(--fe-gris) }
+.avr .avr-sub { font-size: 11.5px; color: var(--fe-gris) }
+
+.avr .avr-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end }
+.avr .avr-btns .btn { min-height: 44px; padding: 0 13px; font-size: 12.5px }
+.avr .avr-borrar { color: var(--fe-mal); border-color: #E8A3AF }
+
+.avr .avr-editando { grid-column: 1 / -1; margin-top: 12px }
+
+.avr .avr-pie-link { margin: 0; font-size: 13px }
+.avr .avr-pie-link a { color: var(--fe-acento); font-weight: 700; text-decoration: none }
+.avr .avr-pie-link a:hover { text-decoration: underline }
+
+/* ---------------------------------------------------------------------
+   TABLET Y TELÉFONO
+   ---------------------------------------------------------------------
+   La fila de cuatro columnas no cabe por debajo de 1100: los botones
+   se montan encima del estado y el producto se parte en tres líneas.
+   Se apila, que es lo que se lee de corrido en un teléfono. */
+@media (max-width: 1100px) {
+  .avr .avr-cifras { grid-template-columns: 1fr 1fr }
+  .avr .avr-campos { grid-template-columns: 1fr 1fr }
+  .avr .avr-fila { grid-template-columns: 96px 1fr; row-gap: 10px }
+  .avr .avr-estado, .avr .avr-btns { grid-column: 2 }
+  .avr .avr-btns { justify-content: flex-start }
+  .avr .avr-estado { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px }
+}
+@media (max-width: 640px) {
+  .avr .avr-cifras { grid-template-columns: 1fr }
+  .avr .avr-campos { grid-template-columns: 1fr }
+  .avr .avr-ancho { grid-column: span 1 }
+  .avr .avr-fila { grid-template-columns: 1fr }
+  .avr .avr-estado, .avr .avr-btns { grid-column: 1 }
+  .avr .avr-cod { flex-direction: row; align-items: baseline; gap: 8px }
+  .avr .avr-btns .btn { flex: 1 1 calc(50% - 3px) }
+}
