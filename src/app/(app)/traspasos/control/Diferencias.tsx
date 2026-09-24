@@ -59,6 +59,17 @@ import { useAvisos } from "@/components/Aviso";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const dma = (s: string | null) =>
   s ? new Date(s + "T00:00:00").toLocaleDateString("es-CO") : "—";
+
+/* EL DÍA DEL RELOJ, cortito: «23/09». Sale del MISMO instante que la
+   hora de al lado, y no del campo `fecha` del viaje, que es otra cosa:
+   `fecha` es el DÍA OPERATIVO —el que cuenta para el plan y para el
+   turno— y el turno C cruza la medianoche. Un viaje de las 10:40 p. m.
+   del 22 puede ser del día operativo 23, y pintar «23/09 10:40 p. m.»
+   sería decir una hora que ese día no ocurrió. */
+const diaCorto = (iso: string) =>
+  new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit" });
+const mismoDia = (iso: string, fecha: string) =>
+  new Date(iso).toLocaleDateString("en-CA") === fecha;
 /* EL NÚMERO CON QUE SE CRUZA: el de facturación, limpio como lo limpia
    la base —sin guiones ni espacios—, que es como viene en el cruce. */
 const clave = (v: Viaje) => (v.factura_documento ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
@@ -188,7 +199,7 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
             <th>Viaje</th>
             {conDoc && <th>Documento</th>}
             <th>Turno</th>
-            <th>Hora</th>
+            <th>Fecha y hora</th>
             <th>Placa</th>
             <th>Tipo</th>
             <th className="num">Carga</th>
@@ -217,7 +228,19 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
                 </td>
               )}
               <td>{v.turno}</td>
-              <td>{horaDe(v.hora)}</td>
+              {/* LA FECHA JUNTO A LA HORA. Y cuando el día del reloj no
+                  es el día operativo del viaje —turno C, que cruza la
+                  medianoche— se dice cuál es el otro: sin eso, quien
+                  busca un viaje «del 23» no lo encuentra porque el reloj
+                  dice 22, y acaba creyendo que se perdió. */}
+              <td className="cr-cuando">
+                {diaCorto(v.hora)} <span>{horaDe(v.hora)}</span>
+                {!mismoDia(v.hora, v.fecha) && (
+                  <em className="tp-rz-marca" title={`Día operativo: ${dma(v.fecha)}`}>
+                    cuenta al {dma(v.fecha).slice(0, 5)}
+                  </em>
+                )}
+              </td>
               <td>{v.placa ?? "—"}</td>
               <td>{v.tipo_nombre ?? v.tipo ?? "—"}</td>
               <td className="num">

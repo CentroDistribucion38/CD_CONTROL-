@@ -57,6 +57,12 @@
 .tp .cr-tabla td { color: var(--tp-tinta) }
 .tp .cr-tabla td.num, .tp .cr-tabla th.num { text-align: right }
 .tp .cr-tabla .cr-doc { font-family: var(--tp-titulo); font-weight: 800; letter-spacing: .02em }
+
+/* LA FECHA Y LA HORA EN LA MISMA CELDA, pero no con el mismo peso: se
+   busca por día y la hora es el detalle. Sin la diferencia, la columna
+   se vuelve un bloque de cifras que hay que leer entero. */
+.tp .cr-tabla .cr-cuando { white-space: nowrap }
+.tp .cr-tabla .cr-cuando > span { color: var(--tp-gris) }
 .tp .cr-tabla tbody tr:nth-child(even) { background: color-mix(in srgb, var(--tp-fondo) 55%, #FFF) }
 .tp .cr-tabla tbody tr:hover { background: var(--tp-fondo) }
 /* El día cambiado: cuadra, pero el viaje quedó en un día y SAP lo
