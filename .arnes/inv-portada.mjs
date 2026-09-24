@@ -229,7 +229,15 @@ if (js) {
   for (const tema of TEMAS) {
     await montar(tema, 1440);
     const r = await pag.evaluate((pares) => {
-      const rgb = (s) => (s.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+      /* `color(srgb 0.98 0.89 0.90)` viene en 0–1 y NO en 0–255: así es
+         como este Chromium devuelve un `color-mix()` ya resuelto.
+         Leerlo como 0–255 da un color casi negro y el arnés reporta un
+         contraste de 1.3 donde de verdad hay 13. */
+      const rgb = (s) => {
+        const c = String(s).match(/^color\(srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/);
+        if (c) return [1, 2, 3].map((i) => Number(c[i]) * 255);
+        return (String(s).match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+      };
       const lum = ([r, g, b]) => {
         const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 };
         return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);

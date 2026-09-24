@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -31,6 +31,38 @@ import { fecha, kilos, quien } from "../comunes";
  * que alguien corrija uno de los dos, y la salida diría un número que no
  * sale de sus propias tolvas.
  */
+/* =====================================================================
+   EL ESTADO, EN UN SOLO SITIO
+
+   Cuatro estados y UN chip. Antes la fila pintaba tres etiquetas
+   sueltas —CERRADA, COMPLETA, 1 DE 2 FIRMAS— que se leían como tres
+   cosas distintas cuando son la misma: en qué punto va esta salida.
+
+   Y LA CUENTA VIVE AQUÍ Y NO EN LA FILA: «esperando Vh» se calcula
+   igual en el chip, en el filtro y en el resumen de arriba. Tres sitios
+   preguntándoselo por su cuenta son tres sitios donde puede contestarse
+   distinto el día que cambie la regla.
+   ===================================================================== */
+function estadoDe(s: Salida): { txt: string; clase: string; detalle: string } {
+  if (s.estado === "anulada")
+    return { txt: "ANULADA", clase: "sx-anulada",
+             detalle: "Anulada: no cuenta en los kilos del mes" };
+  if (s.estado === "abierta")
+    return { txt: "PESÁNDOSE", clase: "sx-pesando",
+             detalle: "Todavía se está pesando: falta cerrarla" };
+  if (s.despachada_en)
+    return { txt: "DESPACHADA", clase: "sx-despachada",
+             detalle: s.viaje_codigo
+               ? `Despachada en el viaje ${s.viaje_codigo}`
+               : "Ya salió por la puerta" };
+  /* «ESPERANDO VH» Y NO «ESPERANDO FIRMA»: lo que espera una cédula
+     desde que se quitó Validación es un camión, no una firma. Decir
+     «esperando firma» manda a alguien a buscar una pantalla que ya no
+     existe. */
+  return { txt: "ESPERANDO VH", clase: "sx-esperando",
+           detalle: `Cédula lista, esperando el Vh ${s.placa ?? ""}`.trim() };
+}
+
 export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
   salidas: Salida[];
   nombres: Record<string, string>;
@@ -52,6 +84,24 @@ export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
   const [obs, setObs] = useState("");
   const [mandando, setMandando] = useState(false);
   const [ver, setVer] = useState<"abiertas" | "todas">("abiertas");
+
+  /* LO QUE ESTÁ ESCOGIDO PARA BORRAR.
+     «Que el súper admin pueda seleccionar una o varias y eliminarlas,
+     por si quiero empezar mi data de cero.»
+
+     UN Set Y NO UN ARREGLO: se pregunta «¿está esta?» una vez por fila
+     en cada pintada, y con once da igual, pero con trescientas un
+     `includes` dentro del map es recorrer la lista trescientas veces.
+
+     SE GUARDA EL id Y NO LA FILA: la fila que vino del servidor se
+     reemplaza en cada `router.refresh()`, y una selección que guarde
+     objetos viejos borraría lo que ya no está en pantalla. */
+  const [escogidas, setEscogidas] = useState<Set<string>>(new Set());
+
+  /* QUÉ MENÚ «···» ESTÁ ABIERTO. Uno solo a la vez: dos abiertos se
+     solapan y se toca el de la fila de abajo creyendo que es el de
+     arriba — en una lista cuyo menú tiene «Anular». */
+  const [menu, setMenu] = useState<string | null>(null);
 
   const lista = salidas.filter((s) =>
     ver === "todas" ? true : s.estado === "abierta");
@@ -107,6 +157,99 @@ export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
     router.refresh();
   }
 
+  /* SE CIERRA AL TOCAR FUERA Y CON ESCAPE. Un menú que solo se cierra
+     volviendo a tocar «···» se queda abierto encima de la fila
+     siguiente, y lo que queda tapado es justamente la columna de
+     acciones de esa fila. */
+  useEffect(() => {
+    if (!menu) return;
+    const fuera = (ev: MouseEvent) => {
+      if (!(ev.target as HTMLElement)?.closest?.(".sx-menu")) setMenu(null);
+    };
+    const tecla = (ev: KeyboardEvent) => { if (ev.key === "Escape") setMenu(null) };
+    document.addEventListener("mousedown", fuera);
+    document.addEventListener("keydown", tecla);
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      document.removeEventListener("keydown", tecla);
+    };
+  }, [menu]);
+
+  /* AL CAMBIAR DE FILTRO SE SUELTA LA SELECCIÓN. Si no, se escogen
+     tres en «las que estoy pesando», se cambia a «todas», y el botón
+     sigue diciendo «borrar 3» sin que se vea cuáles: se estaría
+     borrando a ciegas. */
+  function cambiarFiltro(v: "abiertas" | "todas") {
+    setVer(v); setEscogidas(new Set()); setMenu(null);
+  }
+
+  function alternar(id: string) {
+    setEscogidas((antes) => {
+      const n = new Set(antes);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+
+  const escogidasVisibles = lista.filter((s) => escogidas.has(s.id));
+  const todasPuestas = lista.length > 0 && escogidasVisibles.length === lista.length;
+  const kgEscogidos = escogidasVisibles.reduce((t, s) => t + Number(s.neto_kg), 0);
+  const despachadasEscogidas = escogidasVisibles.filter((s) => !!s.despachada_en).length;
+
+  async function borrarEscogidas() {
+    const n = escogidasVisibles.length;
+    if (n === 0) return;
+
+    /* BORRAR NO ES ANULAR, Y LA DIFERENCIA NO ES DE GUSTO: anular deja
+       la fila con su motivo y su firma; esto se lleva la salida Y SUS
+       TOLVAS —el peso que alguien leyó en la báscula y la tara con la
+       que se pesó ese día—. Por eso se pide el motivo y se pide
+       teclearlo: en una lista de once filas con la casilla en la misma
+       columna, marcar una de más es cuestión de tiempo. */
+    const motivo = await pedirTexto({
+      titulo: n === 1 ? `¿Borrar ${escogidasVisibles[0].codigo}?` : `¿Borrar ${n} salidas?`,
+      dice: (
+        <>
+          Se van con <b>sus tolvas</b>: el peso que se leyó en la báscula y la tara con la
+          que se pesó ese día. <b>No se puede deshacer.</b> Son{" "}
+          <b>{kilos(kgEscogidos)} kg</b> netos.
+          {despachadasEscogidas > 0 && (
+            <> Y {despachadasEscogidas === 1
+              ? <>una de ellas <b>ya se despachó</b>: ese número se facturó.</>
+              : <><b>{despachadasEscogidas} ya se despacharon</b>: esos números se facturaron.</>}</>
+          )}
+          {" "}Si solo quieres que dejen de contar, <b>anúlalas</b> — eso deja la fila y el motivo.
+        </>
+      ),
+      rotulo: "Por qué se borran",
+      marcador: "Queda en el registro de borradas, no en la fila",
+      confirmar: `Borrar ${n}`,
+      peligro: true,
+      minimo: 8,
+      largo: true,
+      debesEscribir: `BORRAR ${n}`,
+    });
+    if (motivo === null) return;
+
+    setMandando(true);
+    /* UNA SOLA LLAMADA CON TODOS LOS ids, no una por salida. Once
+       llamadas son once formas de quedar a medias: se borran cinco, se
+       cae la red, y quedan seis que nadie sabe si iban a irse. Así o se
+       van todas o no se va ninguna. */
+    const { data, error } = await supabase.rpc("salidas_borrar", {
+      p_ids: escogidasVisibles.map((s) => s.id), p_motivo: motivo,
+    });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    /* SE DICE EL NÚMERO QUE CONTESTÓ LA BASE, no el que la pantalla
+       creía tener escogido: si alguien borró una desde otro lado
+       mientras tanto, los dos números no son el mismo. */
+    const cuantas = Number(data ?? n);
+    avisar.bien(cuantas === 1 ? "Se borró 1 salida." : `Se borraron ${cuantas} salidas.`);
+    setEscogidas(new Set());
+    router.refresh();
+  }
+
   async function abrir() {
     setMandando(true);
     const { data, error } = await supabase.rpc("salida_abrir", {
@@ -128,7 +271,7 @@ export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
       {avisos}{cuadro}
 
       <div className="filtros">
-        <select value={ver} onChange={(e) => setVer(e.target.value as "abiertas" | "todas")}>
+        <select value={ver} onChange={(e) => cambiarFiltro(e.target.value as "abiertas" | "todas")}>
           <option value="abiertas">Las que estoy pesando</option>
           <option value="todas">Todas, incluidas las que ya salieron</option>
         </select>
@@ -196,87 +339,233 @@ export function Salidas({ salidas, nombres, puedeAbrir, manda }: {
             </button>
           )}
         </div>
+
+        {/* ===================================================
+            ESCOGER VARIAS Y BORRARLAS
+
+            «Que el súper admin pueda seleccionar una o varias y
+             eliminarlas, por si quiero empezar mi data de cero.»
+
+            LA BARRA SOLO APARECE CUANDO HAY ALGO ESCOGIDO. Un
+            «Borrar 0 salidas» permanente es un botón rojo que se
+            aprende a ignorar, y el día que sí tiene algo escogido
+            ya nadie lo lee.
+
+            «TODAS» ES TODAS LAS QUE SE VEN, no todas las que hay.
+            Con el filtro en «las que estoy pesando», marcar la
+            casilla de arriba y borrar se llevaría también las que
+            no están en pantalla — y eso no se ve hasta después.
+            =================================================== */}
+        {manda && lista.length > 0 && (
+          <div className="sl-sel">
+            <label className="sl-todas">
+              <input type="checkbox" checked={todasPuestas}
+                     aria-label="Escoger todas las que se ven"
+                     onChange={() => setEscogidas(todasPuestas
+                       ? new Set()
+                       : new Set(lista.map((s) => s.id)))} />
+              {/* NO DICE «QUITAR LA SELECCIÓN»: eso ya lo dice el botón
+                  de la derecha, y dos controles con el mismo texto en la
+                  misma barra hacen dudar de cuál es cuál. Aquí dice en
+                  qué estado está. */}
+              <span>
+                {todasPuestas
+                  ? `Las ${lista.length} están escogidas`
+                  : `Escoger las ${lista.length} que se ven`}
+              </span>
+            </label>
+
+            {escogidasVisibles.length > 0 && (
+              <div className="sl-acc">
+                <span className="sl-cuenta">
+                  <b>{escogidasVisibles.length}</b> escogida{escogidasVisibles.length === 1 ? "" : "s"}
+                  {" · "}<b>{kilos(kgEscogidos)} kg</b> netos
+                  {despachadasEscogidas > 0 && (
+                    <em className="sl-ojo">
+                      {" · "}{despachadasEscogidas} ya despachada{despachadasEscogidas === 1 ? "" : "s"}
+                    </em>
+                  )}
+                </span>
+                <button type="button" className="btn plano" disabled={mandando}
+                        onClick={() => setEscogidas(new Set())}>
+                  Quitar la selección
+                </button>
+                <button type="button" className="btn mal" disabled={mandando}
+                        onClick={borrarEscogidas}>
+                  {mandando ? "Borrando…" : `Borrar ${escogidasVisibles.length}`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
-      {/* Las salidas van FUERA de la caja del encabezado: cada una es su
-          propia tarjeta. Metidas dentro se leen como renglones de una
-          tabla, y una salida es una cosa con la que se trabaja, no una
-          fila que se consulta. */}
-      <div className="filas">
-          {lista.length === 0 && (
-            <div className="caja"><div className="vacio">
-              <b>Sin salidas</b>
-              {salidas.length
-                ? "No hay ninguna abierta. Cambia el filtro para ver las que ya salieron."
-                : "Todavía no se ha abierto ninguna salida de vidrio."}
-            </div></div>
-          )}
+      {/* =====================================================================
+          LA LISTA ES UNA TABLA Y NO TARJETAS
 
-          {lista.map((s) => (
-            <div key={s.id} className={"fila" + (s.estado === "anulada" ? " gris" : "")}>
-              <div className="cod">{s.codigo}</div>
+          «Deben verse mejor así, porque mira la tercera foto cómo se ve.»
 
-              <div>
-                <div className="tit">
-                  <span className="placa">{s.placa}</span>
-                  {s.tolvas} tolva{s.tolvas === 1 ? "" : "s"} · {kilos(s.neto_kg)} kg netos
-                </div>
-                <div className="meta">
-                  <span className="eti">{s.estado.toUpperCase()}</span>
-                  <span>abierta {fecha(s.creada_en)} por {quien(nombres, s.creada_por)}</span>
-                  {s.observacion && <span>{s.observacion}</span>}
-                  {(s.reaperturas ?? 0) > 0 && (
-                    <span className="eti falta"
-                          title={s.reabierta_nota ?? undefined}>
-                      REABIERTA {s.reaperturas! > 1 ? `${s.reaperturas} VECES` : ""}
+          Y LA RAZÓN ES REAL, no de gusto. Eran tarjetas porque «una
+          salida es una cosa con la que se trabaja»: eso vale mientras
+          hay tres. Con once ya no se trabaja con una, SE BUSCA UNA
+          ENTRE ONCE —o se mira de un barrido cuántas están esperando el
+          Vh—, y para eso las columnas tienen que alinearse. En tarjetas,
+          el peso de la SR-0011 y el de la SR-0005 caen en sitios
+          distintos y hay que leer cada una.
+
+          LO QUE SE GANA AL PASAR A TABLA:
+           · El kilaje en su columna: el ojo baja en línea recta.
+           · UN SOLO chip de estado, siempre del mismo tamaño y en el
+             mismo sitio. Antes eran tres etiquetas sueltas —CERRADA,
+             COMPLETA, MISMA PERSONA— que cambiaban de ancho por fila y
+             movían todo lo demás.
+           · Las firmas como cadena S—V: cuál falta se ve sin leer. «1 de
+             2» obliga a ir a mirar cuál.
+           · Las acciones raras (Reabrir, Anular) detrás de «···». Estaban
+             a la misma altura que «Ver», que es la que se usa siempre, y
+             «Anular» en rojo al lado de «Ver» se toca por error.
+
+          LO QUE SE PIERDE, Y LO DIGO: la observación y el aviso de
+          reabierta ya no caben en el renglón. Van en el título del chip
+          —se ven al pasar el puntero— y enteras al entrar a la salida.
+          ===================================================================== */}
+      <section className={"caja sx-lista" + (manda ? " sl-lista" : "")}>
+        {lista.length === 0 ? (
+          <div className="vacio">
+            <b>Sin salidas</b>
+            {salidas.length
+              ? "No hay ninguna abierta. Cambia el filtro para ver las que ya salieron."
+              : "Todavía no se ha abierto ninguna salida de vidrio."}
+          </div>
+        ) : (
+          <div className="sx-rueda">
+            <div className="sx-tabla" role="table"
+                 aria-label="Las salidas de vidrio y su estado">
+              <div className="sx-cab" role="row">
+                {manda && <span role="columnheader" aria-label="Escoger" />}
+                <span role="columnheader">Salida</span>
+                <span role="columnheader">Placa</span>
+                <span role="columnheader">Peso</span>
+                <span role="columnheader">Estado</span>
+                <span role="columnheader">Firmas</span>
+                <span role="columnheader" aria-label="Acciones" />
+              </div>
+
+              {lista.map((s) => {
+                const e = estadoDe(s);
+                /* REABRIR SOLO EN LO CERRADO Y NO DESPACHADO; ANULAR en
+                   todo lo que no esté ya anulado ni despachado. Lo
+                   abierto se corrige pesando; lo que ya salió por la
+                   puerta lleva un número que se facturó, y para tocarlo
+                   hay que deshacer el despacho en Facturación primero. */
+                const puedeReabrir = manda && s.estado === "cerrada" && !s.despachada_en;
+                const puedeAnular = manda && s.estado !== "anulada" && !s.despachada_en;
+                const hayMenu = puedeReabrir || puedeAnular;
+
+                return (
+                  <div key={s.id} role="row"
+                       className={"sx-fila" + (s.estado === "anulada" ? " sx-anu" : "")
+                                  + (escogidas.has(s.id) ? " sl-puesta" : "")}>
+                    {manda && (
+                      <label className="sl-caja" role="cell">
+                        <input type="checkbox" checked={escogidas.has(s.id)}
+                               aria-label={`Escoger ${s.codigo}`}
+                               onChange={() => alternar(s.id)} />
+                      </label>
+                    )}
+
+                    <span className="sx-id" role="cell">{s.codigo}</span>
+
+                    <span role="cell">
+                      {s.placa
+                        ? <span className="sx-placa">{s.placa}</span>
+                        : <span className="sx-sinplaca">Sin placa</span>}
                     </span>
-                  )}
-                </div>
-                <div className="meta">
-                  {/* CUÁL falta, no cuántas van. "2 de 3" obliga a ir a
-                      mirar; el nombre de la etapa ya dice a quién hay
-                      que ir a buscar. */}
-                  <span>
-                    {!s.supervisora_en ? "Falta pesar y cerrar"
-                      : !s.despachada_en
-                        ? `Cédula lista, esperando el Vh ${s.placa ?? ""}`.trim()
-                        : `Despachada${s.viaje_codigo ? ` en el viaje ${s.viaje_codigo}` : ""}`}
-                  </span>
-                </div>
-              </div>
 
-              <div className="der">
-                <span className={"eti " + (s.completa ? "cuenta" : "esperando")}>
-                  {s.completa ? "COMPLETA" : `${s.firmas} DE 2 FIRMAS`}
-                </span>
-                {s.mismo_firmante && (
-                  <span className="eti falta" title="Dos firmas de la misma persona">
-                    MISMA PERSONA
-                  </span>
-                )}
-                {/* SOLO EN LO CERRADO Y NO DESPACHADO. Lo abierto ya se
-                    corrige pesando; lo que ya salió por la puerta lleva
-                    un número que se facturó, y para tocarlo hay que
-                    deshacer el despacho en Facturación primero. */}
-                {manda && s.estado === "cerrada" && !s.despachada_en && (
-                  <button type="button" className="btn" disabled={mandando}
-                          onClick={() => corregir(s, "reabrir")}>
-                    Reabrir
-                  </button>
-                )}
-                {manda && s.estado !== "anulada" && !s.despachada_en && (
-                  <button type="button" className="btn mal" disabled={mandando}
-                          onClick={() => corregir(s, "anular")}>
-                    Anular
-                  </button>
-                )}
-                <Link href={`/roturas/salida/${s.id}`} className="btn">
-                  {s.estado === "abierta" ? "Pesar" : "Ver"}
-                </Link>
-              </div>
+                    <span className="sx-peso" role="cell">
+                      <b>{kilos(s.neto_kg)} kg</b>
+                      <i>{s.tolvas} tolva{s.tolvas === 1 ? "" : "s"}</i>
+                      <em title={s.observacion ?? undefined}>
+                        abierta {fecha(s.creada_en)} · {quien(nombres, s.creada_por)}
+                        {(s.reaperturas ?? 0) > 0 &&
+                          ` · reabierta ${s.reaperturas! > 1 ? `${s.reaperturas} veces` : "1 vez"}`}
+                      </em>
+                    </span>
+
+                    <span role="cell">
+                      {/* UN SOLO CHIP, SIEMPRE DEL MISMO TAMAÑO. El
+                          título lleva la frase larga: qué está
+                          esperando exactamente. */}
+                      <span className={"sx-est " + e.clase} title={e.detalle}>
+                        <i aria-hidden />{e.txt}
+                      </span>
+                    </span>
+
+                    <span role="cell">
+                      {/* LA CADENA S—V: CUÁL falta se ve sin leer. «1 de
+                          2» obliga a ir a mirar cuál de las dos es.
+                          En lo abierto y en lo anulado no hay firmas que
+                          enseñar, y un «0 de 2» ahí parecería un
+                          pendiente cuando no lo es. */}
+                      {s.estado === "abierta" || s.estado === "anulada" ? (
+                        <span className="sx-nada">—</span>
+                      ) : (
+                        <>
+                          <span className="sx-fir">
+                            <b className={s.supervisora_en ? "ok" : ""}
+                               title={s.supervisora_en ? "Pesó y cerró" : "Falta pesar y cerrar"}>S</b>
+                            <u className={s.verificador_en ? "ok" : ""} />
+                            <b className={s.verificador_en ? "ok" : ""}
+                               title={s.verificador_en ? "Verificada" : "Falta verificar"}>V</b>
+                            <em>{s.firmas} de 2</em>
+                          </span>
+                          {s.mismo_firmante && (
+                            <span className="sx-alerta">⚠ firmó la misma persona</span>
+                          )}
+                        </>
+                      )}
+                    </span>
+
+                    <span className="sx-acc" role="cell">
+                      {hayMenu && (
+                        <span className="sx-menu">
+                          <button type="button" className="btn sx-mas"
+                                  aria-label={`Más acciones de ${s.codigo}`}
+                                  aria-expanded={menu === s.id}
+                                  disabled={mandando}
+                                  onClick={() => setMenu(menu === s.id ? null : s.id)}>
+                            ···
+                          </button>
+                          {menu === s.id && (
+                            <span className="sx-lista-menu" role="menu">
+                              {puedeReabrir && (
+                                <button type="button" role="menuitem"
+                                        onClick={() => { setMenu(null); corregir(s, "reabrir") }}>
+                                  Reabrir
+                                </button>
+                              )}
+                              {puedeAnular && (
+                                <button type="button" role="menuitem" className="sx-rojo"
+                                        onClick={() => { setMenu(null); corregir(s, "anular") }}>
+                                  Anular
+                                </button>
+                              )}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      <Link href={`/roturas/salida/${s.id}`}
+                            className={"btn" + (s.estado === "abierta" ? " si" : "")}>
+                        {s.estado === "abierta" ? "Pesar" : "Ver"}
+                      </Link>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-      </div>
+          </div>
+        )}
+      </section>
     </>
   );
 }

@@ -141,3 +141,49 @@ export function SinTablas() {
     </section>
   );
 }
+
+/* =====================================================================
+   LA FILA DE CIFRAS DE LA CADENA
+
+   LA MISMA EN LAS DOS BANDEJAS, Y A PROPÓSITO. El visto bueno y los
+   desacuerdos miden EL MISMO MONTÓN en momentos distintos: lo que
+   espera, lo que se acordó, lo que está en pleito y lo que no se cobra.
+   Dos filas de cifras dibujadas por separado se desincronizan —una
+   cuenta anuladas y la otra no— y entonces las dos pantallas dicen
+   números distintos del mismo mes, que es peor que no decir ninguno.
+
+   LA PRIMERA ES LA DE QUIEN ESTÁ MIRANDO: la que él decide. Va con
+   fondo crema y filo de color, como la pestaña en la que uno está
+   parado. Las otras están para saber cómo va la conciliación sin tener
+   que ir a otra pantalla.
+
+   NO REEMPLAZA AL TÍTULO DE LA PÁGINA: lo reemplaza al `kpi` de la
+   cabecera, que decía exactamente el mismo número dos dedos más
+   arriba.
+   ===================================================================== */
+export type Cifra = {
+  n: number;
+  /** El rótulo en mayúsculas. */
+  rot: string;
+  /** La línea de abajo: qué significa ese número, no cómo se llama. */
+  pie: string;
+  /** La de quien está mirando: la que él decide. Solo una. */
+  aqui?: boolean;
+  /** Se pinta en rojo. Para lo que se perdió, no para lo que espera. */
+  mal?: boolean;
+};
+
+export function Cifras({ cifras }: { cifras: Cifra[] }) {
+  return (
+    <div className="rt-cifras">
+      {cifras.map((c) => (
+        <div key={c.rot}
+             className={"rt-c" + (c.aqui ? " aqui" : "") + (c.mal ? " mal" : "")}>
+          <b>{c.n}</b>
+          <span className="rt-cr">{c.rot}</span>
+          <span className="rt-cp">{c.pie}</span>
+        </div>
+      ))}
+    </div>
+  );
+}

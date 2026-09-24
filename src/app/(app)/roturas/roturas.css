@@ -1790,25 +1790,30 @@
    ---------------------------------------------------------------------
    Comprobado libre en roturas.css, globals.css y shell.css.
    ===================================================================== */
-.rt .vb-cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 }
-.rt .vb-c {
+/* LA MISMA FILA EN LAS DOS BANDEJAS, así que el nombre no puede ser el
+   de una de ellas. Se llamaba `vb-` —de visto bueno— y los desacuerdos
+   la iban a copiar con otro prefijo: dos copias que se desincronizan
+   es como las dos pantallas acaban diciendo números distintos del
+   mismo mes. La dibuja <Cifras> en comunes.tsx. */
+.rt .rt-cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 }
+.rt .rt-c {
   background: var(--rt-papel); border: 1px solid var(--rt-linea); border-left: 0;
   padding: 16px 20px; display: flex; flex-direction: column; gap: 2px; min-width: 0;
 }
-.rt .vb-c:first-child { border-left: 1px solid var(--rt-linea) }
-.rt .vb-c b {
+.rt .rt-c:first-child { border-left: 1px solid var(--rt-linea) }
+.rt .rt-c b {
   font: 900 30px/1 var(--rt-titulo); color: var(--rt-tinta);
   font-variant-numeric: tabular-nums;
 }
-/* LA PRIMERA ES LA SUYA: la que decide él. Fondo crema y filo de color
-   abajo, como la pestaña de la que uno está parado. */
-.rt .vb-c.vb-aqui { background: var(--rt-crema); box-shadow: inset 0 -4px 0 var(--rt-oro) }
-.rt .vb-c.vb-mal b { color: var(--rt-mal) }
-.rt .vb-rot {
+/* LA PRIMERA ES LA SUYA: la que decide quien está mirando. Fondo crema
+   y filo de color abajo, como la pestaña en la que uno está parado. */
+.rt .rt-c.aqui { background: var(--rt-crema); box-shadow: inset 0 -4px 0 var(--rt-oro) }
+.rt .rt-c.mal b { color: var(--rt-mal) }
+.rt .rt-cr {
   font: 700 10.5px var(--rt-texto); letter-spacing: .14em; text-transform: uppercase;
   color: var(--rt-gris); margin-top: 5px;
 }
-.rt .vb-pie { font-size: 12px; color: var(--rt-gris); line-height: 1.4 }
+.rt .rt-cp { font-size: 12px; color: var(--rt-gris); line-height: 1.4 }
 
 .rt .vb-caja { padding: 0 }
 .rt .vb-cab {
@@ -1928,14 +1933,64 @@
 .rt .vb-enviar:disabled { opacity: .45 }
 .rt .vb-ev { padding: 0 20px 16px }
 
+/* =====================================================================
+   LOS DESACUERDOS — LAS DOS VERSIONES, ENFRENTADAS
+
+   Todo lo demás de esta pantalla es el mismo `vb-` del visto bueno, a
+   propósito: es la bandeja hermana y quien conoce una no tiene que
+   aprender la otra. Lo único suyo es este bloque, que es su trabajo.
+
+   DEL MISMO ANCHO LAS DOS COLUMNAS. Una más angosta que la otra dice,
+   sin decirlo, cuál de las dos versiones pesa más — y quien decide no
+   puede llegar con eso puesto.
+
+   Y SIN «VER» DE POR MEDIO: con el descargo detrás de un botón, la
+   decisión se toma habiendo leído un solo lado, y el lado que se lee
+   siempre es el de arriba. Eso no es decidir, es firmar.
+   ===================================================================== */
+.rt .ds-caras {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--rt-linea);
+  border-top: 1px solid var(--rt-linea);
+}
+.rt .ds-cara {
+  background: var(--rt-papel); padding: 12px 20px 14px; min-width: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+/* LA OBJECIÓN SOBRE CREMA: es la versión que llegó después y la que
+   obliga a mirar. No va en rojo — el rojo de esta pantalla es «no se
+   cobra», y dos rojos que quieren decir cosas distintas en el mismo
+   renglón es cómo se deja de mirar el que importa. */
+.rt .ds-cara.ds-contra { background: var(--rt-crema) }
+.rt .ds-quien {
+  font: 700 10px var(--rt-texto); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--rt-gris);
+}
+.rt .ds-dice {
+  margin: 0; font-size: 14px; line-height: 1.5; color: var(--rt-tinta);
+  overflow-wrap: anywhere;
+}
+/* QUIEN NO ESCRIBIÓ NADA SE DICE, no se deja en blanco. Un hueco se lee
+   como que la pantalla no cargó; «no escribió nada» es un dato que
+   pesa en la decisión. */
+.rt .ds-nada { color: var(--rt-gris); font-style: italic }
+.rt .ds-pruebas { font-size: 12px; color: var(--rt-gris); margin-top: auto; padding-top: 4px }
+.rt .ds-acta { margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--rt-gris) }
+.rt .ds-acta b { color: var(--rt-tinta) }
+/* «No se cobra» confirma en rojo: cerrar contra quien registró y cerrar
+   contra quien objetó no pueden verse igual. */
+.rt .btn.vb-enviar.ds-no {
+  background: var(--rt-mal); border-color: var(--rt-mal); color: #fff;
+}
+
 /* ---------------------------------------------------------------------
    TABLET Y TELÉFONO
    ---------------------------------------------------------------------
    Seis columnas no caben por debajo de 1100. Se apila en dos bloques y
    los botones pasan a línea completa: se tocan con el pulgar. */
 @media (max-width: 1100px) {
-  .rt .vb-cifras { grid-template-columns: 1fr 1fr }
-  .rt .vb-c { border-left: 1px solid var(--rt-linea) }
+  .rt .rt-cifras { grid-template-columns: 1fr 1fr }
+  .rt .rt-c { border-left: 1px solid var(--rt-linea) }
   .rt .vb-fila {
     grid-template-columns: 70px minmax(0, 1fr) 90px;
     row-gap: 10px;
@@ -1943,10 +1998,257 @@
   .rt .vb-causa, .rt .vb-quien { grid-column: 2 / -1 }
   .rt .vb-btns { grid-column: 1 / -1; justify-content: stretch }
   .rt .vb-btns .btn { flex: 1 1 0 }
+  /* LAS DOS VERSIONES, UNA DEBAJO DE OTRA. Dos columnas de 170 px
+     parten cada frase en seis renglones y ninguna de las dos se lee. */
+  .rt .ds-caras { grid-template-columns: 1fr }
 }
 @media (max-width: 560px) {
-  .rt .vb-cifras { grid-template-columns: 1fr }
+  .rt .rt-cifras { grid-template-columns: 1fr }
   .rt .vb-fila { grid-template-columns: 70px minmax(0, 1fr) }
   .rt .vb-und { grid-column: 2 }
   .rt .vb-linea > * { flex: 1 1 100% }
+}
+
+/* =====================================================================
+   ESCOGER SALIDAS Y BORRARLAS EN LOTE
+
+   «Que el súper admin pueda seleccionar una o varias y eliminarlas, por
+    si quiero empezar mi data de cero.»
+
+   Prefijo `sl-` (salida-lote). Se comprobó libre en roturas.css,
+   globals.css y shell.css antes de escribirlo: en este proyecto van
+   nueve choques de nombres de clase y el último fue mío.
+   ===================================================================== */
+.rt .sl-sel {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 16px; border-top: 1px solid var(--rt-linea);
+  background: var(--rt-fondo2, transparent);
+}
+.rt .sl-todas { display: flex; align-items: center; gap: 9px; cursor: pointer; min-height: 44px }
+.rt .sl-todas > span { font-size: 13px; color: var(--rt-gris) }
+/* 20 px Y NO EL TAMAÑO POR DEFECTO. La casilla del sistema mide 13 px:
+   con guante no se acierta, y fallar el clic aquí significa marcar la
+   fila de al lado en una pantalla cuyo botón siguiente dice «Borrar». */
+.rt .sl-todas input, .rt .sl-caja input {
+  width: 20px; height: 20px; margin: 0; cursor: pointer; accent-color: var(--rt-mal);
+}
+/* EL ÁREA QUE SE TOCA ES DE 44 px AUNQUE LA CASILLA MIDA 20: la
+   etiqueta la envuelve y se estira. Agrandar la casilla hasta 44 la
+   haría parecer un botón. */
+.rt .sl-caja {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin: -12px 4px -12px -12px; cursor: pointer;
+  vertical-align: middle;
+}
+.rt .sl-acc { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto }
+.rt .sl-cuenta { font-size: 13px; color: var(--rt-gris) }
+.rt .sl-cuenta b { color: var(--rt-tinta); font-variant-numeric: tabular-nums }
+/* LO YA DESPACHADO SE AVISA EN LA MISMA LÍNEA: ese número se facturó, y
+   es la diferencia entre limpiar pruebas y borrar un mes cerrado. */
+.rt .sl-cuenta .sl-ojo { font-style: normal; color: var(--rt-mal); font-weight: 700 }
+/* LA COLUMNA DEL CÓDIGO CRECE PARA LA CASILLA.
+   Son 96 px fijos; metiéndole 48 de casilla, «SR-0011» se partía en
+   «SR-» y «0011» y la fila crecía un renglón. El código es lo que
+   identifica la fila que se va a borrar: partido en dos se lee mal
+   justo donde no se puede leer mal. Solo crece cuando hay casillas. */
+/* LA FILA ESCOGIDA SE VE ESCOGIDA. Sin esto, la única señal de que una
+   fila se va a borrar es una casilla de 20 px al otro extremo de la
+   pantalla. */
+.rt .fila.sl-puesta {
+  background: var(--rt-crema);
+  box-shadow: inset 4px 0 0 var(--rt-mal);
+}
+@media (max-width: 700px) {
+  .rt .sl-acc { margin-left: 0; width: 100% }
+  .rt .sl-acc .btn { flex: 1 1 0 }
+}
+
+/* =====================================================================
+   LAS SALIDAS, EN TABLA
+
+   «Deben verse mejor así, porque mira la tercera foto cómo se ve.»
+
+   Eran tarjetas, y con tres estaba bien. Con once ya no se trabaja con
+   una: SE BUSCA UNA ENTRE ONCE, o se mira de un barrido cuántas
+   esperan el Vh. Para eso las columnas tienen que alinearse, y eso solo
+   lo hace una tabla.
+
+   ES UNA REJILLA Y NO UN <table>. La fila lleva dos renglones en la
+   celda del peso —kilos arriba, quién y cuándo abajo— y una tabla de
+   verdad obligaría a partir eso en dos columnas o a meter un div dentro
+   del td, que es lo mismo con más etiquetas. Los `role` dejan la
+   semántica donde debe estar para quien navega con lector.
+
+   Prefijo `sx-`, comprobado libre en roturas.css, globals.css y
+   shell.css antes de escribirlo.
+   ===================================================================== */
+.rt .sx-lista { padding: 0; overflow: visible }
+/* LA TABLA SE DESPLAZA SOLA A LO ANCHO Y NO ARRASTRA LA PÁGINA: seis
+   columnas no caben en un teléfono, y una página que se mueve entera al
+   deslizar es lo que hace que nadie la use de pie.
+   `overflow-y: visible` NO EXISTE junto a `overflow-x: auto` —el
+   navegador lo convierte en `auto`— así que el menú «···» quedaría
+   recortado por el borde de la tabla. Por eso el menú se ancla a la
+   fila y la rueda solo aparece cuando de verdad hace falta. */
+.rt .sx-rueda { overflow-x: auto; overflow-y: visible }
+.rt .sx-tabla { min-width: 860px }
+
+.rt .sx-cab, .rt .sx-fila {
+  display: grid; align-items: center; gap: 16px; padding: 0 18px;
+  grid-template-columns: 96px 108px minmax(190px, 1fr) 168px 190px 132px;
+}
+/* CON CASILLAS, UNA COLUMNA MÁS ADELANTE. */
+.rt .sl-lista .sx-cab, .rt .sl-lista .sx-fila {
+  grid-template-columns: 44px 96px 108px minmax(190px, 1fr) 168px 190px 132px;
+}
+.rt .sx-cab {
+  height: 38px; border-bottom: 1px solid var(--rt-linea);
+  font: 700 9.5px var(--rt-titulo); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--rt-gris);
+}
+.rt .sx-fila {
+  min-height: 74px; border-bottom: 1px solid var(--rt-linea);
+  padding-top: 10px; padding-bottom: 10px;
+}
+.rt .sx-fila:last-child { border-bottom: 0 }
+.rt .sx-fila:hover { background: var(--rt-fondo) }
+/* LO ANULADO NO SE ESCONDE, SE APAGA: sigue estando y se puede abrir,
+   pero no compite por la mirada con lo que sí hay que atender. */
+.rt .sx-fila.sx-anu { opacity: .62 }
+
+.rt .sx-id {
+  font: 600 12.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--rt-gris); white-space: nowrap;
+}
+/* LA PLACA EN NEGRO: es lo que se busca cuando Peldar reclama, y en
+   una columna de once tiene que saltar sin leerse. */
+.rt .sx-placa {
+  display: inline-block; padding: 5px 8px; letter-spacing: .06em;
+  font: 700 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  background: var(--rt-negro); color: #fff;
+}
+/* SIN PLACA SE DICE, en rojo y sin caja: una salida sin placa no se
+   puede cruzar con portería ni con el viaje, y un hueco en blanco se
+   lee como que la pantalla no cargó. */
+.rt .sx-sinplaca {
+  font: 700 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--rt-mal);
+}
+
+.rt .sx-peso { min-width: 0 }
+.rt .sx-peso b {
+  font: 900 17px var(--rt-titulo); color: var(--rt-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.rt .sx-peso i {
+  font-style: normal; font-size: 12.5px; color: var(--rt-gris); margin-left: 6px;
+}
+.rt .sx-peso em {
+  display: block; font-style: normal; font-size: 12px; color: var(--rt-gris);
+  margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------
+   UN SOLO CHIP DE ESTADO, SIEMPRE DEL MISMO TAMAÑO
+
+   Antes eran tres etiquetas sueltas que cambiaban de ancho por fila y
+   movían todo lo demás. El punto de color va además del texto y no en
+   vez del texto: el color solo no se lee en gris, ni impreso, ni por
+   quien no distingue el verde del ámbar.
+   ------------------------------------------------------------------ */
+.rt .sx-est {
+  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px;
+  font: 800 10px var(--rt-titulo); letter-spacing: .12em; white-space: nowrap;
+}
+.rt .sx-est i { width: 7px; height: 7px; border-radius: 50%; display: block; flex: none }
+.rt .sx-est.sx-despachada { background: var(--rt-verde-suave); color: var(--rt-verde) }
+.rt .sx-est.sx-despachada i { background: var(--rt-verde) }
+/* EL MISMO PAR QUE YA USA `.eti.esperando` EN TODO EL MÓDULO: crema
+   sobre tinta-ojo. Puse un `#FFF3CC` a mano copiándolo de la maqueta y
+   eso es exactamente cómo se rompe el tema ámbar — un color fijo no
+   cambia con el tema y el texto se queda encima del fondo que no era. */
+.rt .sx-est.sx-esperando { background: var(--rt-crema); color: var(--rt-ojo) }
+.rt .sx-est.sx-esperando i { background: var(--rt-oro) }
+/* PESÁNDOSE VA EN NEGRO: es la única que está pasando AHORA, y es la
+   única fila en la que alguien tiene algo que hacer en este momento.
+
+   EL PAR ES FIJO, Y ES LA EXCEPCIÓN A LA REGLA DE LA CASA.
+   Lo puse primero como `--rt-negro` + `--rt-oro`, que es lo que haría
+   cualquiera, y el arnés lo midió en 1.72 en el tema oficial: en ESE
+   tema `--rt-oro` ES EL ROJO de la marca, así que el chip salía rojo
+   sobre negro. Es el mismo error que ya me costó el diagrama del
+   recorrido, donde las dos causas quedaron del mismo color por lo
+   mismo.
+
+   Aquí el par se fija ENTERO —fondo y letra—, que es distinto de fijar
+   solo uno: lo que rompe un tema es que una mitad cambie y la otra no.
+   Fijadas las dos, el chip es el mismo en los siete y contrasta 11,8.
+   Es además lo que pedía la maqueta. */
+.rt .sx-est.sx-pesando { background: #111111; color: #FFC400 }
+.rt .sx-est.sx-pesando i { background: #FFC400 }
+.rt .sx-est.sx-anulada {
+  background: var(--rt-fondo); color: var(--rt-gris); text-decoration: line-through;
+}
+.rt .sx-est.sx-anulada i { background: var(--rt-gris) }
+
+/* ---------------------------------------------------------------------
+   LAS FIRMAS COMO CADENA
+
+   «1 de 2» obliga a ir a mirar CUÁL de las dos falta. S—V lo dice sin
+   leer: el círculo apagado es el que falta.
+   ------------------------------------------------------------------ */
+.rt .sx-fir { display: flex; align-items: center; gap: 6px }
+.rt .sx-fir b {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  font: 800 10px var(--rt-titulo); border: 2px solid var(--rt-linea);
+  color: var(--rt-gris); background: var(--rt-papel); flex: none;
+}
+.rt .sx-fir b.ok { background: var(--rt-verde); border-color: var(--rt-verde); color: #fff }
+.rt .sx-fir u { width: 14px; height: 2px; background: var(--rt-linea); text-decoration: none }
+.rt .sx-fir u.ok { background: var(--rt-verde) }
+.rt .sx-fir em { font-style: normal; font-size: 12px; color: var(--rt-gris); margin-left: 4px }
+.rt .sx-nada { font-size: 12px; color: var(--rt-gris) }
+/* DOS FIRMAS DE LA MISMA PERSONA NO ES UN DETALLE: es la única
+   comprobación que tiene esta cadena, y sin avisarlo la cédula parece
+   firmada por dos. */
+.rt .sx-alerta {
+  display: block; margin-top: 5px;
+  font: 700 11.5px var(--rt-texto); color: var(--rt-mal);
+}
+
+/* ---------------------------------------------------------------------
+   LAS ACCIONES: LA DE SIEMPRE A LA VISTA, LAS RARAS DETRÁS DE «···»
+
+   «Anular» estaba a la misma altura y del mismo tamaño que «Ver», que
+   es la que se usa siempre. Un botón rojo e irreversible al lado del
+   que se toca cien veces al día se toca por error tarde o temprano.
+   ------------------------------------------------------------------ */
+.rt .sx-acc { display: flex; gap: 6px; justify-content: flex-end; align-items: center }
+.rt .sx-acc .btn { min-height: 40px }
+.rt .sx-menu { position: relative; display: inline-flex }
+.rt .sx-mas { width: 40px; padding: 0; font: 800 16px var(--rt-titulo); letter-spacing: .1em }
+.rt .sx-lista-menu {
+  position: absolute; right: 0; top: 44px; z-index: 5; min-width: 160px;
+  background: var(--rt-papel); border: 1.5px solid var(--rt-tinta);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .18); display: block;
+}
+.rt .sx-lista-menu button {
+  display: block; width: 100%; min-height: 44px;   /* con guante */
+  border: 0; background: none; text-align: left; padding: 0 14px; cursor: pointer;
+  font: 600 13px var(--rt-texto); color: var(--rt-tinta);
+}
+.rt .sx-lista-menu button:hover { background: var(--rt-fondo) }
+.rt .sx-lista-menu button.sx-rojo { color: var(--rt-mal); border-top: 1px solid var(--rt-linea) }
+
+/* ---------------------------------------------------------------------
+   TELÉFONO
+
+   POR DEBAJO DE 860 px LA TABLA SE DESPLAZA a lo ancho en vez de
+   apilarse. Apilada, cada salida vuelve a ser una tarjeta y se pierde
+   exactamente lo que se vino a ganar: que las columnas se alineen. Se
+   desplaza SOLA, sin arrastrar la página.
+   ------------------------------------------------------------------ */
+@media (max-width: 700px) {
+  .rt .sx-cab, .rt .sx-fila { gap: 12px; padding: 0 14px }
+  .rt .sx-fila { padding-top: 10px; padding-bottom: 10px }
 }

@@ -27,11 +27,6 @@ export default async function VistoBuenoPage() {
   const cuentan = todas.roturas.filter((r) => r.estado === "cuenta").length;
   const noCuentan = todas.roturas.filter((r) => r.estado === "no_cuenta").length;
   const enPleito = todas.roturas.filter((r) => r.etapa === "desacuerdo").length;
-  const enJuego = datos.roturas.reduce((s, r) => s + r.unidades_vidrio, 0);
-
-  const viejo = datos.roturas.length
-    ? Math.max(...datos.roturas.map((r) => r.minutos))
-    : 0;
 
   return (
     <div className="rt">
@@ -45,16 +40,14 @@ export default async function VistoBuenoPage() {
             con tu motivo y tu evidencia, y ahí ABI tiene la última palabra.
           </p>
         </div>
-        <div className="kpi">
-          <span className="corte" aria-hidden />
-          <div className="rot">ESPERANDO TU RESPUESTA</div>
-          <div className="num">{datos.roturas.length}</div>
-          <div className="pie">
-            <b>{enJuego}</b> unidades en juego
-            {viejo > 0 && ` · la más vieja, ${viejo < 60 ? `${viejo} min` : `${Math.round(viejo / 60)} h`}`}
-          </div>
-        </div>
       </section>
+
+      {/* EL `kpi` DE LA CABECERA SE FUE: decía «esperando tu respuesta:
+          N» dos dedos por encima de la fila de cifras de la bandeja,
+          que dice exactamente eso. Dos dibujos del mismo número son dos
+          sitios donde puede quedar uno viejo. Las unidades en juego y
+          la más vieja no se perdieron: viven en la cabecera de la
+          bandeja y en cada fila, que es donde se usan. */}
 
       {!puedeDecidir && (
         <div className="aviso">

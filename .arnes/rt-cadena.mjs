@@ -117,7 +117,8 @@ const roturas = [
             etapa: "desacuerdo", fotos: 2, fotos_descargo: 1 }),
 ];
 createRoot(document.getElementById("r")!).render(
-  <Desacuerdos roturas={roturas as any} nombres={nombres} puedeResolver />);
+  <Desacuerdos roturas={roturas as any} nombres={nombres} puedeResolver
+               cifras={{ porAcuerdo: 12, loSostuvoAbi: 2, noSeCobran: 1 }} />);
 `);
 
 /* Y la de ABI sin poder resolver: los botones no pueden estar. */
@@ -128,7 +129,8 @@ ${ROTURAS}
 createRoot(document.getElementById("r")!).render(
   <Desacuerdos roturas={[base(3, { ol_respuesta: "rechaza", ol_por: "u2",
     ol_en: "2026-09-21T09:00:00Z", ol_nota: "No fue nuestra", etapa: "desacuerdo" })] as any}
-    nombres={nombres} puedeResolver={false} />);
+    nombres={nombres} puedeResolver={false}
+    cifras={{ porAcuerdo: 12, loSostuvoAbi: 2, noSeCobran: 1 }} />);
 `);
 
 const armar = (e) => buildSync({
@@ -200,8 +202,8 @@ await monta(jsVB);
   /* LAS CUATRO CIFRAS, Y LA PRIMERA ES LA SUYA. Las otras tres están
      para que sepa cómo va la conciliación sin ir a otra pantalla; si la
      suya no fuera la destacada, entraría a leer la del mes. */
-  const cifras = await pg.$$eval(".rt .vb-cifras .vb-c",
-    (d) => d.map((x) => ({ n: x.querySelector("b")?.textContent, aqui: x.classList.contains("vb-aqui") })));
+  const cifras = await pg.$$eval(".rt .rt-cifras .rt-c",
+    (d) => d.map((x) => ({ n: x.querySelector("b")?.textContent, aqui: x.classList.contains("aqui") })));
   ok(cifras.length === 4, `salen ${cifras.length} cifras y deben ser cuatro`);
   ok(cifras[0]?.aqui && cifras[0]?.n === "2",
      `la primera cifra debe ser la que decide él (2 esperando) y salió ${JSON.stringify(cifras[0])}`);
@@ -335,38 +337,65 @@ await monta(jsVB);
 }
 
 /* ---------------------------------------------------------------------
-   5 · LA BANDEJA DE ABI ENSEÑA EL DESCARGO SIN ABRIR NADA
+   5 · LA BANDEJA DE ABI ENSEÑA LAS DOS VERSIONES SIN ABRIR NADA
 
-   Quien decide tiene que leer LAS DOS versiones. Si el descargo
-   estuviera detrás de un «Ver», la decisión se toma habiendo leído
-   solo un lado, que es el error entero.
+   ES EL TRABAJO DE ESA PANTALLA. Quien decide tiene que leer lo que
+   dijo el que registró Y lo que dijo el que objetó. Si una de las dos
+   estuviera detrás de un «Ver», la decisión se toma habiendo leído un
+   solo lado —y el lado que se lee siempre es el de arriba—. Eso no es
+   decidir, es firmar.
    ------------------------------------------------------------------ */
 await monta(jsDes);
 {
-  const t = await pg.textContent(".rt .filas");
-  ok(/El montacargas de ese turno no era nuestro/.test(t),
+  const t = await pg.textContent(".rt .vb-caja");
+
+  /* LAS DOS CARAS, LAS DOS VISIBLES. */
+  const caras = await pg.$$eval(".rt .ds-cara", (d) => d.map((x) => ({
+    quien: (x.querySelector(".ds-quien")?.textContent ?? "").trim(),
+    dice: (x.querySelector(".ds-dice")?.textContent ?? "").trim(),
+    ancho: Math.round(x.getBoundingClientRect().width),
+  })));
+  ok(caras.length === 2, `salen ${caras.length} versiones y deben salir las dos`);
+  ok(/REGISTR/i.test(caras[0]?.quien ?? ""), `la primera cara dice «${caras[0]?.quien}»`);
+  ok(/OPERADOR LOG/i.test(caras[1]?.quien ?? ""), `la segunda cara dice «${caras[1]?.quien}»`);
+  ok(/El montacargas de ese turno no era nuestro/.test(caras[1]?.dice ?? ""),
      "el descargo no se ve sin abrir nada: se decidiría habiendo leído solo un lado");
-  ok(/Dice el operador log/i.test(t), "no se dice de quién es ese texto");
-  ok(/1 foto de descargo/.test(t),
-     "no se dice cuánta evidencia trajo el descargo");
+  ok(/Se cayó una estiba/.test(caras[0]?.dice ?? ""),
+     "no se ve lo que dijo quien la registró: la otra mitad de la decisión");
+
+  /* DEL MISMO ANCHO LAS DOS. Una más angosta que la otra dice, sin
+     decirlo, cuál de las dos versiones pesa más — y quien decide no
+     puede llegar con eso puesto. */
+  if (caras.length === 2) {
+    const d = Math.abs(caras[0].ancho - caras[1].ancho);
+    ok(d <= 2, `una versión mide ${caras[0].ancho} px y la otra ${caras[1].ancho}: ` +
+               "la columna más ancha dice cuál de las dos pesa más");
+  }
+
+  ok(/1 foto de descargo/.test(t), "no se dice cuánta evidencia trajo el descargo");
+  ok(/foto.? de la rotura|sin foto de la rotura/.test(t),
+     "no se dice cuánta evidencia trajo quien registró");
   ok(/Se cobra igual/.test(t) && /No se cobra/.test(t),
      "los dos botones de ABI no están");
 
   /* LOS DOS LADOS EXIGEN MOTIVO, no solo el que va en contra de
      alguien: un desacuerdo cerrado sin una línea se vuelve a discutir
      el mes entrante, gane quien gane. */
-  for (const [boton, clase] of [["Se cobra igual", "bien"], ["No se cobra", "mal"]]) {
-    await pg.click(`.rt .filas .par button:has-text('${boton}')`);
-    await pg.waitForSelector(".rt .panel");
-    ok(await pg.isDisabled(`.rt .panel .acciones-panel button.${clase}`),
+  for (const [boton, sel] of [["Se cobra igual", ".vb-btns button.si"],
+                              ["No se cobra", ".vb-btns button.mal"]]) {
+    await pg.click(".rt .vb-grupo >> nth=0 >> " + sel);
+    await pg.waitForSelector(".rt .vb-obj");
+    ok(await pg.isDisabled(".rt .vb-enviar"),
        `«${boton}» deja cerrar el desacuerdo sin decir por qué`);
-    await pg.click(".rt .panel .acciones-panel button.plano");
+    ok(/Escribe por qué/i.test(await pg.textContent(".rt .vb-enviar")),
+       `«${boton}» no dice qué falta con el botón apagado`);
+    await pg.click(".rt .vb-obj .btn.plano");
   }
 
-  await pg.click(".rt .filas .par button:has-text('Se cobra igual')");
-  await pg.waitForSelector(".rt .panel");
-  await teclear(".rt .panel textarea", "El acta de entrega del turno los tiene a ellos");
-  await pg.click(".rt .panel .acciones-panel button.bien");
+  await pg.click(".rt .vb-grupo >> nth=0 >> .vb-btns button.si");
+  await pg.waitForSelector(".rt .vb-obj");
+  await teclear(".rt .vb-detalle", "El acta de entrega del turno los tiene a ellos");
+  await pg.click(".rt .vb-enviar");
   await pg.waitForFunction(() => (window.llamadas ?? []).length > 0, null, { timeout: 2000 })
     .catch(() => {});
   const l = (await llamadas()).find((x) => x.que === "rpc");
@@ -377,23 +406,23 @@ await monta(jsDes);
 
 /* Y quien solo mira no toca nada. */
 await monta(jsDesVe);
-ok((await pg.$$(".rt .filas .par button.bien, .rt .filas .par button.mal")).length === 0,
+ok((await pg.$$(".rt .vb-btns button")).length === 0,
    "a quien solo VE le salen los botones de resolver");
-/* Pero SÍ lee el descargo: mirar la bandeja es media razón de tener
-   permiso de ver. */
-ok(/No fue nuestra/.test(await pg.textContent(".rt .filas")),
+/* Pero SÍ lee las dos versiones: mirar la bandeja es media razón de
+   tener permiso de ver. */
+ok(/No fue nuestra/.test(await pg.textContent(".rt .vb-caja")),
    "quien solo mira no puede leer el descargo");
 
 /* ---------------------------------------------------------------------
    6 · LOS CUATRO ANCHOS, Y LO QUE SE TOCA
    ------------------------------------------------------------------ */
 /* SE MIDE CON EL PANEL ABIERTO: es cuando más cosas hay en la fila, y
-   es justo lo que se sale. Las dos pantallas lo abren distinto — el
-   visto bueno lo despliega DENTRO de la fila («Objetar»), la de ABI
-   sigue abriendo su panel — así que cada una dice cómo. */
+   es justo lo que se sale. Las dos pantallas lo abren con un botón
+   distinto —«Objetar» en el visto bueno, «Se cobra igual» en la de
+   ABI— así que cada una dice cuál. */
 const ABRIR = {
   vb: [".rt .vb-grupo >> nth=0 >> .vb-btns button:not(.si)", ".rt .vb-obj"],
-  des: [".rt .filas .par button:nth-child(2)", ".rt .panel"],
+  des: [".rt .vb-grupo >> nth=0 >> .vb-btns button.si", ".rt .vb-obj"],
 };
 for (const [cual, nombre] of [[jsVB, "vb"], [jsDes, "des"]]) {
   for (const ancho of [1440, 820, 390, 360]) {
@@ -436,8 +465,49 @@ for (const [cual, nombre] of [[jsVB, "vb"], [jsDes, "des"]]) {
 for (const tema of ["", "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
   await monta(jsDes, 1440, tema);
   const r = await pg.evaluate(() => {
+    /* ESTE CHROMIUM NO RESUELVE `color-mix()` EN getComputedStyle: lo
+       devuelve tal cual, «color-mix(in srgb, rgb(228,0,43) 11%, #fff)».
+       El lector de antes agarraba los tres primeros números que
+       encontraba —228, 0, 43— y media contra el ROJO PURO en vez de
+       contra la crema. Resultado: decía que el descargo contrastaba 1.3
+       en los siete temas, y no era verdad ni en uno.
+
+       Es el mismo error de siempre visto al revés: una medida que
+       miente en rojo es tan inútil como una que miente en verde, y
+       cuesta más —se va media hora arreglando un color que estaba
+       bien—. Lo que NO se puede leer devuelve null y el arnés se pone
+       rojo diciendo cuál, en vez de inventarse un número. */
+    const nums = (c) => (c.match(/[\d.]+/g) ?? []).map(Number);
+    const rgbDe = (c) => {
+      if (!c) return null;
+      const mix = c.match(/^color-mix\(in srgb,\s*(rgba?\([^)]*\))\s*([\d.]+)%,\s*(\S[^)]*?)\s*\)$/);
+      if (mix) {
+        const a = rgbDe(mix[1]), b = rgbDe(mix[3]), p = Number(mix[2]) / 100;
+        if (!a || !b) return null;
+        return [0, 1, 2].map((i) => a[i] * p + b[i] * (1 - p));
+      }
+      /* `color(srgb 0.98 0.89 0.90)` — ASÍ es como este Chromium
+         devuelve un `color-mix()` ya resuelto, y viene en 0–1, NO en
+         0–255. Leerlo como 0–255 daba un color casi negro: por eso la
+         crema salía contrastando 1.3 contra la tinta, cuando en la
+         captura se ve perfectamente. La primera sospecha —que no
+         resolvía el color-mix— era falsa; lo resolvía, y en otra
+         escala. */
+      const srgb = c.match(/^color\(srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/);
+      if (srgb) return [1, 2, 3].map((i) => Number(srgb[i]) * 255);
+      if (/^#/.test(c)) {
+        const h = c.slice(1);
+        const x = h.length === 3 ? [...h].map((k) => parseInt(k + k, 16))
+                                 : [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+        return x.some(Number.isNaN) ? null : x;
+      }
+      const n = nums(c);
+      return n.length >= 3 ? n.slice(0, 3) : null;
+    };
     const lum = (c) => {
-      const [r, g, b] = c.match(/[\d.]+/g).slice(0, 3).map(Number).map((v) => {
+      const p = rgbDe(c);
+      if (!p) return null;
+      const [r, g, b] = p.map((v) => {
         const s = v / 255; return s <= .03928 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4;
       });
       return .2126 * r + .7152 * g + .0722 * b;
@@ -449,17 +519,31 @@ for (const tema of ["", "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
       }
       return "rgb(255,255,255)";
     };
+    /* `0` Y NO `99` CUANDO EL ELEMENTO NO ESTÁ.
+       Devolvía 99 —un contraste altísimo— así que un selector que
+       dejaba de existir pasaba la prueba sin medir nada. Pasó de
+       verdad: al rehacer la pantalla, los cuatro selectores viejos
+       murieron a la vez y la tabla salió «99 99 99 99» en los siete
+       temas, toda en verde. Con 0 el arnés se pone rojo y dice cuál. */
     const razon = (sel) => {
       const el = document.querySelector(sel);
-      if (!el) return 99;
+      if (!el) return 0;
       const a = lum(getComputedStyle(el).color), b = lum(fondoDe(el));
+      /* -1 = no se pudo leer el color. Se distingue del 0 de «no está
+         el elemento» para no salir a buscar la pantalla equivocada. */
+      if (a == null || b == null) return -1;
       return Math.round(((Math.max(a, b) + .05) / (Math.min(a, b) + .05)) * 10) / 10;
     };
-    return { titulo: razon(".rt .caja .cab h2"), texto: razon(".rt .caja .cab p"),
-             /* EL DESCARGO ES EL DATO DE ESTA PANTALLA: si no se lee en
-                dos de los siete temas, la pantalla no sirve donde se usa. */
-             descargo: razon(".rt .aviso.rojo b"),
-             boton: razon(".rt .par button") };
+    return { titulo: razon(".rt .vb-cab h2"), texto: razon(".rt .vb-como"),
+             /* LAS DOS VERSIONES SON EL DATO DE ESTA PANTALLA: si una
+                no se lee en dos de los siete temas, la pantalla no
+                sirve donde se usa. Y la de la objeción va sobre crema,
+                que es el fondo que más se rompe al cambiar de tema. */
+             registro: razon(".rt .ds-cara .ds-dice"),
+             descargo: razon(".rt .ds-cara.ds-contra .ds-dice"),
+             quien: razon(".rt .ds-cara.ds-contra .ds-quien"),
+             cifra: razon(".rt .rt-c.aqui b"),
+             boton: razon(".rt .vb-btns button") };
   });
   const flojos = Object.entries(r).filter(([, v]) => v < 4.5);
   ok(flojos.length === 0,

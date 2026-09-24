@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import type { Rotura } from "@/modulos/roturas/datos";
-import { Fila } from "../../comunes";
+import { Cifras } from "../../comunes";
 import { Evidencia } from "../../Evidencia";
 
 /**
@@ -16,28 +16,47 @@ import { Evidencia } from "../../Evidencia";
  *
  * AQUÍ SOLO LLEGA LO QUE ALGUIEN OBJETÓ, y esa es la mitad de la razón
  * de haber invertido la cadena. Antes ABI tenía que mirar las cien
- * roturas del mes para decir cuáles cobraba; ahora mira las que Easy
- * no aceptó, que son las únicas donde su criterio cambia algo. Lo
- * demás se concilia solo.
+ * roturas del mes para decir cuáles cobraba; ahora mira las que el
+ * operador logístico no aceptó, que son las únicas donde su criterio
+ * cambia algo. Lo demás se concilia solo.
  *
- * LO MÁS VIEJO ARRIBA, por fecha del descargo y no del registro: lo que
- * lleva más tiempo esperando una respuesta es lo que la necesita.
+ * ---------------------------------------------------------------------
+ * MISMA FORMA QUE EL VISTO BUENO, Y UNA COSA DE MÁS
+ * ---------------------------------------------------------------------
+ * Filas y no tarjetas, la misma fila de cifras arriba, los mismos
+ * botones al final del renglón. Es la bandeja hermana: quien conoce una
+ * no tiene que aprender la otra.
  *
- * LAS DOS VERSIONES, UNA AL LADO DE LA OTRA. Quien decide tiene que
- * poder leer lo que dijo el que registró Y lo que dijo el que objetó,
- * sin abrir dos pantallas. Una decisión tomada viendo solo un lado es
- * la que se vuelve a discutir el mes entrante.
+ * LO QUE CAMBIA ES QUE AQUÍ HAY DOS VERSIONES Y SE VEN LAS DOS, una al
+ * lado de la otra y SIN ABRIR NADA. Ese es el trabajo de esta pantalla.
+ * Si el descargo estuviera detrás de un «Ver», la decisión se toma
+ * habiendo leído un solo lado — y eso no es decidir, es firmar.
  *
  * NO HAY «DEVOLVER». Una vez ABI resuelve, se acabó: es lo que quiere
  * decir «la última palabra». Si de verdad se equivocó, se corrige donde
  * se corrigen los errores —con el rastro que eso deja— y no con un
  * botón que deja la cadena dando vueltas.
  */
-export function Desacuerdos({ roturas, nombres, puedeResolver }: {
+
+const dm = (iso: string) =>
+  new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit" });
+
+/** «hace 3 días», «ayer», «hoy». La antigüedad es la que apura. */
+function hace(iso: string | null | undefined) {
+  if (!iso) return { txt: "—", viejo: false };
+  const d = Math.floor((Date.now() - Date.parse(iso)) / 86400_000);
+  if (d <= 0) return { txt: "hoy", viejo: false };
+  if (d === 1) return { txt: "ayer", viejo: false };
+  return { txt: `hace ${d} días`, viejo: d >= 3 };
+}
+
+export function Desacuerdos({ roturas, nombres, puedeResolver, cifras }: {
   roturas: Rotura[];
   nombres: Record<string, string>;
   /** Quien tenga «Editar» en esta pantalla: ABI. */
   puedeResolver: boolean;
+  /** Las otras tres cifras del mes, para no tener que ir a otra pantalla. */
+  cifras: { porAcuerdo: number; loSostuvoAbi: number; noSeCobran: number };
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -47,6 +66,15 @@ export function Desacuerdos({ roturas, nombres, puedeResolver }: {
   const [resolviendo, setResolviendo] = useState<{ id: string; cuenta: boolean } | null>(null);
   const [nota, setNota] = useState("");
   const [mandando, setMandando] = useState(false);
+
+  /* LO MÁS VIEJO ARRIBA, por fecha del DESCARGO y no del registro: lo
+     que lleva más tiempo esperando una respuesta es lo que la
+     necesita, y una rotura vieja objetada ayer no espera hace un mes. */
+  const lista = [...roturas].sort(
+    (a, b) => Date.parse(a.ol_en ?? a.reportada_en) - Date.parse(b.ol_en ?? b.reportada_en));
+  const enJuego = lista.reduce((s, r) => s + r.unidades, 0);
+
+  function cerrar() { setResolviendo(null); setNota("") }
 
   async function resolver(id: string, cuenta: boolean, texto: string) {
     setMandando(true);
@@ -59,124 +87,191 @@ export function Desacuerdos({ roturas, nombres, puedeResolver }: {
     avisar.bien(cuenta
       ? `${r?.codigo ?? "La rotura"} se cobra. Queda escrito que fue ABI quien lo sostuvo.`
       : `${r?.codigo ?? "La rotura"} no se cobra. El descargo tenía razón.`);
-    setResolviendo(null); setNota("");
+    cerrar();
     router.refresh();
   }
-
-  const dias = (iso?: string | null) => {
-    if (!iso) return 0;
-    return Math.round((Date.now() - Date.parse(iso)) / 86400_000);
-  };
 
   return (
     <>
       {avisos}
 
-      <section className="caja">
-        <div className="cab">
-          <div>
-            <h2>{roturas.length} {roturas.length === 1 ? "desacuerdo" : "desacuerdos"}</h2>
-            <p>
-              Solo lo que el operador logístico no aceptó. Lo que aceptó ya se fue a cobro sin
-              pasar por aquí — por eso esta bandeja es corta, y por eso vale la pena mirarla
-              entera. Lo que decidas aquí es definitivo.
+      <Cifras cifras={[
+        { n: lista.length, rot: "ESPERAN TU DECISIÓN", pie: "decides tú, y es definitivo", aqui: true },
+        { n: cifras.porAcuerdo, rot: "A COBRO POR ACUERDO", pie: "el OL las aceptó, no pasaron por aquí" },
+        { n: cifras.loSostuvoAbi, rot: "LO SOSTUVO ABI", pie: "se cobraron tras el pleito" },
+        { n: cifras.noSeCobran, rot: "NO SE COBRAN", pie: "el descargo tenía razón", mal: true },
+      ]} />
+
+      <section className="caja vb-caja">
+        <div className="vb-cab">
+          <div className="vb-izq">
+            <h2>{lista.length} {lista.length === 1 ? "desacuerdo" : "desacuerdos"}</h2>
+            <p className="vb-como">
+              Solo lo que el operador logístico <b>no aceptó</b>. Lo que aceptó ya se fue a
+              cobro sin pasar por aquí — por eso esta bandeja es corta y vale la pena mirarla
+              entera. Lo que decidas es <b>definitivo</b>.
             </p>
           </div>
+          <div className="vb-der">
+            <span className="vb-nota">
+              la que lleva más esperando, arriba · <b>{enJuego} und</b> en juego
+            </span>
+          </div>
         </div>
-      </section>
 
-      <div className="filas">
-        {roturas.length === 0 && (
-          <div className="caja"><div className="vacio">
+        {lista.length === 0 && (
+          <div className="vacio">
             <b>Ningún desacuerdo</b>
             Todo lo que se registró se aceptó y ya está en cobro. No hay nada que resolver.
-          </div></div>
+          </div>
         )}
 
-        {roturas.map((r) => {
-          const espera = dias(r.ol_en);
+        {lista.map((r) => {
+          const h = hace(r.ol_en);
           return (
-            <Fila key={r.id} r={r} nombres={nombres}
-                  derecha={
-                    <div className="par">
-                      <button type="button" className="btn"
-                              onClick={() => setAbierta(abierta === r.id ? null : r.id)}>
-                        {abierta === r.id ? "Cerrar" : `Ver las fotos${r.fotos ? ` · ${r.fotos}` : ""}`}
-                      </button>
-                      {puedeResolver && (
-                        <>
-                          <button type="button" className="btn bien"
-                                  onClick={() => { setResolviendo({ id: r.id, cuenta: true }); setNota("") }}>
-                            Se cobra igual
-                          </button>
-                          <button type="button" className="btn mal"
-                                  onClick={() => { setResolviendo({ id: r.id, cuenta: false }); setNota("") }}>
-                            No se cobra
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  }>
-              {/* EL DESCARGO, DESTACADO. Es lo nuevo de esta pantalla:
-                  el resto ya se veía en la bandeja de antes. Sin
-                  resaltarlo, quien decide lee la rotura y decide sin
-                  haber leído la objeción, que es el error entero. */}
-              <div className="panel-f" style={{ marginTop: 10 }}>
-                <div className="aviso rojo">
-                  <b>Dice el operador logístico:</b> «{r.ol_nota}»
-                  <div className="meta" style={{ marginTop: 6 }}>
-                    {r.ol_por ? (nombres[r.ol_por] ?? "alguien") : "alguien"}
-                    {espera > 0 && ` · hace ${espera} ${espera === 1 ? "día" : "días"}`}
+            <div key={r.id} className="vb-grupo">
+              <div className="vb-fila ds-fila">
+                {/* LA MINIATURA ABRE LAS FOTOS DE LAS DOS PARTES. */}
+                <button type="button" className={"vb-foto" + (r.fotos ? "" : " sin")}
+                        onClick={() => setAbierta(abierta === r.id ? null : r.id)}
+                        aria-label={r.fotos ? "Ver las fotos" : "No hay fotos"}>
+                  {r.fotos > 0 && <i>{r.fotos} foto{r.fotos === 1 ? "" : "s"}</i>}
+                </button>
+
+                <div className="vb-que">
+                  <div className="vb-tit">{r.material_nombre}</div>
+                  <div className="vb-sub">
+                    <span className="vb-cod">{r.codigo}</span> · {r.proceso_nombre}
+                  </div>
+                </div>
+
+                <div className="vb-und">
+                  <b>{r.unidades}</b>
+                  <span>UNIDADES</span>
+                </div>
+
+                <div className="vb-causa">
+                  <div className={r.grupo === "no_asumida" ? "vb-no" : ""}>{r.causa_nombre}</div>
+                  <div className="vb-sub">
+                    {r.grupo === "no_asumida" ? "no asumida" : "la asume el OL"}
+                  </div>
+                </div>
+
+                <div className="vb-quien">
+                  <div>objetada {dm(r.ol_en ?? r.reportada_en)}</div>
+                  <div className={"vb-sub" + (h.viejo ? " vb-viejo" : "")}>
+                    esperándote {h.txt}
+                  </div>
+                </div>
+
+                {puedeResolver && (
+                  <div className="vb-btns">
+                    <button type="button" className="btn mal" disabled={mandando}
+                            onClick={() => {
+                              if (resolviendo?.id === r.id && !resolviendo.cuenta) { cerrar(); return }
+                              cerrar(); setResolviendo({ id: r.id, cuenta: false });
+                            }}>
+                      No se cobra
+                    </button>
+                    <button type="button" className="btn si" disabled={mandando}
+                            onClick={() => {
+                              if (resolviendo?.id === r.id && resolviendo.cuenta) { cerrar(); return }
+                              cerrar(); setResolviendo({ id: r.id, cuenta: true });
+                            }}>
+                      Se cobra igual
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* =========================================================
+                  LAS DOS VERSIONES, ENFRENTADAS Y SIN ABRIR NADA
+
+                  ES EL TRABAJO DE ESTA PANTALLA. Con el descargo detrás
+                  de un «Ver», la decisión se toma habiendo leído un solo
+                  lado — y el lado que se lee siempre es el de arriba.
+
+                  DEL MISMO ANCHO LAS DOS, a propósito: una columna más
+                  angosta que la otra dice, sin decirlo, cuál de las dos
+                  versiones pesa más.
+                  ======================================================== */}
+              <div className="ds-caras">
+                <div className="ds-cara">
+                  <span className="ds-quien">
+                    DICE QUIEN LA REGISTRÓ · {nombres[r.reportada_por ?? ""] ?? "—"}
+                  </span>
+                  <p className="ds-dice">
+                    {r.descripcion?.trim()
+                      ? `«${r.descripcion.trim()}»`
+                      : <i className="ds-nada">No escribió nada: solo registró la rotura.</i>}
+                  </p>
+                  <span className="ds-pruebas">
+                    {dm(r.reportada_en)}
+                    {" · "}
+                    {r.fotos - (r.fotos_descargo ?? 0) > 0
+                      ? `${r.fotos - (r.fotos_descargo ?? 0)} foto${r.fotos - (r.fotos_descargo ?? 0) === 1 ? "" : "s"} de la rotura`
+                      : <b className="vb-falta">sin foto de la rotura</b>}
+                  </span>
+                </div>
+
+                <div className="ds-cara ds-contra">
+                  <span className="ds-quien">
+                    DICE EL OPERADOR LOGÍSTICO · {nombres[r.ol_por ?? ""] ?? "—"}
+                  </span>
+                  <p className="ds-dice">«{r.ol_nota}»</p>
+                  <span className="ds-pruebas">
+                    {dm(r.ol_en ?? r.reportada_en)}
                     {" · "}
                     {r.fotos_descargo
                       ? `${r.fotos_descargo} foto${r.fotos_descargo === 1 ? "" : "s"} de descargo`
-                      : "sin foto de descargo"}
-                  </div>
+                      : <b className="vb-falta">sin foto de descargo</b>}
+                  </span>
                 </div>
               </div>
 
               {resolviendo?.id === r.id && (
-                <div className="panel">
-                  <label htmlFor={`res-${r.id}`}>
+                <div className="vb-obj">
+                  <span className="vb-rot">
                     {resolviendo.cuenta
-                      ? "Por qué se cobra igual — obligatorio"
-                      : "Por qué no se cobra — obligatorio"}
-                  </label>
-                  <textarea id={`res-${r.id}`} rows={2} value={nota}
-                            onChange={(e) => setNota(e.target.value)}
-                            placeholder={resolviendo.cuenta
-                              ? "El acta de entrega del turno los tiene a ellos con el montacargas."
-                              : "Tienen razón: ese día el equipo era de la planta."} />
-                  {/* LOS DOS LADOS EXIGEN MOTIVO, y no solo el que va
-                      en contra de alguien. Un desacuerdo que se cierra
-                      sin una línea es el que se vuelve a discutir el
-                      mes entrante, gane quien gane. */}
-                  <div className="aviso">
-                    Esto es definitivo y es lo que queda en el acta del mes. Sea cual sea la
-                    decisión, la línea es lo que la sostiene cuando alguien la lea en enero.
-                  </div>
-                  <div className="acciones-panel">
+                      ? "¿POR QUÉ SE COBRA IGUAL?"
+                      : "¿POR QUÉ NO SE COBRA?"}
+                  </span>
+                  {/* LOS DOS LADOS EXIGEN MOTIVO, y no solo el que va en
+                      contra de alguien. Un desacuerdo que se cierra sin
+                      una línea es el que se vuelve a discutir el mes
+                      entrante, gane quien gane. */}
+                  <div className="vb-linea" style={{ marginTop: 8 }}>
+                    <input className="vb-detalle" value={nota}
+                           aria-label="Por qué"
+                           placeholder={resolviendo.cuenta
+                             ? "El acta de entrega del turno los tiene a ellos con el montacargas"
+                             : "Tienen razón: ese día el equipo era de la planta"}
+                           onChange={(e) => setNota(e.target.value)} />
+                    <button type="button" className="btn plano" onClick={cerrar}>Cancelar</button>
                     <button type="button"
-                            className={"btn " + (resolviendo.cuenta ? "bien" : "mal")}
+                            className={"btn vb-enviar" + (resolviendo.cuenta ? "" : " ds-no")}
                             disabled={mandando || nota.trim().length < 4}
                             onClick={() => resolver(r.id, resolviendo.cuenta, nota)}>
+                      {/* EL BOTÓN DICE QUÉ FALTA: apagado y mudo se toca
+                          tres veces y después se llama a preguntar. */}
                       {mandando ? "Guardando…"
-                        : nota.trim().length < 4 ? "Falta decir por qué"
+                        : nota.trim().length < 4 ? "Escribe por qué"
                         : resolviendo.cuenta ? "Confirmar: se cobra" : "Confirmar: no se cobra"}
                     </button>
-                    <button type="button" className="btn plano"
-                            onClick={() => { setResolviendo(null); setNota("") }}>
-                      Cancelar
-                    </button>
                   </div>
+                  <p className="ds-acta">
+                    Esto es <b>definitivo</b> y es lo que queda en el acta del mes. Sea cual
+                    sea la decisión, esa línea es lo que la sostiene cuando alguien la lea en
+                    enero.
+                  </p>
                 </div>
               )}
 
-              {abierta === r.id && <Evidencia id={r.id} />}
-            </Fila>
+              {abierta === r.id && <div className="vb-ev"><Evidencia id={r.id} /></div>}
+            </div>
           );
         })}
-      </div>
+      </section>
     </>
   );
 }

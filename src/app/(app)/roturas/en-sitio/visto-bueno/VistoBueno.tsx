@@ -7,6 +7,7 @@ import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { Evidencia } from "../../Evidencia";
+import { Cifras } from "../../comunes";
 
 /**
  * EL VISTO BUENO — DEL OPERADOR LOGÍSTICO.
@@ -192,29 +193,18 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
 
       {/* LAS CUATRO CIFRAS DEL MES, y la primera es la que decide él:
           las otras tres están para que sepa cómo va la conciliación sin
-          tener que ir a otra pantalla. */}
-      <div className="vb-cifras">
-        <div className="vb-c vb-aqui">
-          <b>{lista.length}</b>
-          <span className="vb-rot">ESPERAN TU RESPUESTA</span>
-          <span className="vb-pie">decides tú</span>
-        </div>
-        <div className="vb-c">
-          <b>{cifras.aCobro}</b>
-          <span className="vb-rot">A COBRO</span>
-          <span className="vb-pie">aceptadas este mes</span>
-        </div>
-        <div className="vb-c">
-          <b>{cifras.enDesacuerdo}</b>
-          <span className="vb-rot">EN DESACUERDO · ABI</span>
-          <span className="vb-pie">ABI tiene la última palabra</span>
-        </div>
-        <div className="vb-c vb-mal">
-          <b>{cifras.noSeCobran}</b>
-          <span className="vb-rot">NO SE COBRAN</span>
-          <span className="vb-pie">ABI dijo que no cuentan</span>
-        </div>
-      </div>
+          tener que ir a otra pantalla.
+
+          LA DIBUJA <Cifras>, que es la MISMA de los desacuerdos: las
+          dos bandejas miden el mismo montón en momentos distintos, y
+          dos copias del dibujo se desincronizan —una cuenta anuladas y
+          la otra no— hasta decir números distintos del mismo mes. */}
+      <Cifras cifras={[
+        { n: lista.length, rot: "ESPERAN TU RESPUESTA", pie: "decides tú", aqui: true },
+        { n: cifras.aCobro, rot: "A COBRO", pie: "aceptadas este mes" },
+        { n: cifras.enDesacuerdo, rot: "EN DESACUERDO · ABI", pie: "ABI tiene la última palabra" },
+        { n: cifras.noSeCobran, rot: "NO SE COBRAN", pie: "ABI dijo que no cuentan", mal: true },
+      ]} />
 
       <section className="caja vb-caja">
         <div className="vb-cab">

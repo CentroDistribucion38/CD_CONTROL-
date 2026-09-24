@@ -48,7 +48,6 @@ export default async function DesacuerdosPage() {
   const porAcuerdo = todas.roturas.filter((r) => r.cobro_por === "acuerdo").length;
   const porAbi = todas.roturas.filter((r) => r.cobro_por === "abi").length;
   const noCuentan = todas.roturas.filter((r) => r.estado === "no_cuenta").length;
-  const enJuego = datos.roturas.reduce((s, r) => s + r.unidades_vidrio, 0);
 
   return (
     <div className="rt">
@@ -62,39 +61,14 @@ export default async function DesacuerdosPage() {
             esta bandeja es corta. Lo que decidas aquí es <b>definitivo</b>.
           </p>
         </div>
-        <div className="kpi">
-          <span className="corte" aria-hidden />
-          <div className="rot">ESPERANDO TU DECISIÓN</div>
-          <div className="num">{datos.roturas.length}</div>
-          <div className="pie"><b>{enJuego}</b> unidades en juego</div>
-        </div>
       </section>
 
-      {/* CÓMO SE ESTÁ CONCILIANDO. Si «por acuerdo» es mucho mayor que
-          «lo sostuvo ABI», la cadena está funcionando: las partes se
-          entienden solas. Si se parecen, hay algo de fondo que discutir
-          que no se arregla rotura por rotura. */}
-      <div className="cadena">
-        <div className="eslabon">
-          <div className="n">{porAcuerdo}</div>
-          <div className="r">A COBRO POR ACUERDO</div>
-        </div>
-        <div className="flecha" aria-hidden>·</div>
-        <div className="eslabon aqui">
-          <div className="n">{datos.roturas.length}</div>
-          <div className="r">EN DESACUERDO</div>
-        </div>
-        <div className="flecha" aria-hidden>·</div>
-        <div className="eslabon">
-          <div className="n">{porAbi}</div>
-          <div className="r">LO SOSTUVO ABI</div>
-        </div>
-        <div className="flecha" aria-hidden>·</div>
-        <div className="eslabon mal">
-          <div className="n">{noCuentan}</div>
-          <div className="r">NO SE COBRAN</div>
-        </div>
-      </div>
+      {/* EL `kpi` DE LA CABECERA Y LA TIRA DE ESLABONES SE FUERON, y no
+          por gusto: los dos decían «en desacuerdo: N» a dos dedos de
+          distancia, y la fila de cifras de la bandeja lo dice una vez
+          sola, con la suya destacada y con la misma forma que la del
+          visto bueno. Tres dibujos del mismo número son tres sitios
+          donde puede quedar uno viejo. */}
 
       {!puedeResolver && (
         <div className="aviso">
@@ -103,7 +77,8 @@ export default async function DesacuerdosPage() {
         </div>
       )}
 
-      <Desacuerdos roturas={datos.roturas} nombres={nombres} puedeResolver={puedeResolver} />
+      <Desacuerdos roturas={datos.roturas} nombres={nombres} puedeResolver={puedeResolver}
+                   cifras={{ porAcuerdo, loSostuvoAbi: porAbi, noSeCobran: noCuentan }} />
 
       <div className="aviso">
         <b>Esto no se devuelve.</b> Una vez resuelto, se acabó: es lo que quiere decir «la
