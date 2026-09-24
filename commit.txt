@@ -211,11 +211,26 @@ LO QUE CAMBIA EN LA PANTALLA:
     puede borrar, asi que tiene que verse ANTES de abrir el menu. Dice
     «159 roturas» y no «159 viajes»: la palabra va como dato, porque en
     el maestro de causas «viajes» seria mentira.
-  · SE PUEDE ARRASTRAR PARA ORDENAR. Ese es el orden del desplegable al
-    registrar, y hasta hoy no habia forma de cambiarlo sin tocar la
-    base. OJO: el orden TODAVIA NO SE GUARDA —falta la columna— y la
-    pantalla lo dice en vez de dejar que alguien arrastre y pierda el
-    cambio al recargar.
+  · SE PUEDE ARRASTRAR PARA ORDENAR, Y EL ORDEN SE GUARDA. Ese es el
+    orden del desplegable al registrar: poner de primera la que mas
+    pasa ahorra un desplazamiento por cada rotura, y eso son cientos al
+    mes.
+
+    ME EQUIVOQUE Y LO CORREGI EN LA MISMA SESION: primero puse un aviso
+    que decia «falta la columna en la base». NO LO COMPROBE, y era
+    falso — las tres tablas tienen `orden` desde el dia que se crearon.
+    Lo que faltaba era la funcion que la escribe, y ahi esta.
+
+    VIAJA UNA SOLA LLAMADA CON LA LISTA ENTERA. Arrastrar un renglon
+    cambia la posicion de todos los de abajo: con veinte causas, soltar
+    la primera serian veinte llamadas y veinte formas de quedar a
+    medias. Y el orden ES LA POSICION EN EL ARREGLO, no un numero que
+    mande la pantalla: asi dos renglones nunca quedan con el mismo, que
+    es lo que hace que una lista se reordene sola al recargar.
+
+    LA HOJA VIAJA COMO TEXTO Y SE TRADUCE EN LA FUNCION, no se arma la
+    tabla concatenando lo que mando el navegador: eso es una inyeccion
+    de SQL con otro nombre.
 
 «MATERIALES» SE FUE, Y NO ESTABA VACIA: ESTABA MINTIENDO. Los
 materiales del registro en sitio salen del MAESTRO DE INVENTARIO desde
@@ -317,6 +332,7 @@ control de adentro salga redondeado.
   2) supabase/migraciones/2026-09-roturas-visto-bueno-easy.sql
   3) supabase/migraciones/2026-09-inventario-portada.sql
   4) supabase/migraciones/2026-09-salidas-borrar-en-lote.sql
+  5) supabase/migraciones/2026-09-roturas-maestro-orden.sql
 
 El 2 cambio desde la ultima vez: trae `roturas_borradas` y el
 `rotura_borrar` nuevo. Si ya lo corriste, correlo otra vez — se puede.
@@ -326,6 +342,10 @@ El 3 es el que muda el permiso del tablero de /inventario a
 
 El 4 trae `salidas_borrar` y el registro de salidas borradas. Sin el,
 las casillas salen pero el boton de borrar falla.
+
+El 5 hace que el orden del maestro de en sitio se guarde. Sin el se
+puede arrastrar y la pantalla avisa que falta correrlo, con el nombre
+del archivo.
 
 DESPUES, EN ADMIN → ROLES:
   · /roturas/en-sitio/visto-bueno   Editar solo para Easy
@@ -363,6 +383,18 @@ node .arnes/inv-base.mjs         4 comprobaciones nuevas
   esas dos salieron VERDES: preguntaban si la ruta aparecia «en algun
   sitio del archivo», y el `raise notice` del final la nombra — asi que
   el archivo seguia conteniendola con el insert roto.
+
+bash .arnes/mutar-maestro-orden.sh  NUEVO · 6 mutaciones, 6 ROJAS
+  Tres salieron mal a la primera y las tres eran de la PRUEBA:
+  · una mutacion mal construida —no compilaba, asi que se ponia roja
+    por un error de sintaxis y no por lo que decia probar—;
+  · el guarda de la lista vacia se caza por el MENSAJE y no por el
+    efecto: sin el no se reordena nada igual, pero contesta «ninguna de
+    esas claves existe», que manda a buscar el problema donde no esta;
+  · y el relleno de las filas sin orden estaba en un `do $$ … $$`, que
+    NO SE PUEDE LLAMAR — o sea que no se podia probar. La mutacion que
+    lo desactivaba volvio VERDE. Se convirtio en funcion para que el
+    arnes pueda meter una fila sin orden, llamarla y comprobar.
 
 node .arnes/rt-maestro.mjs      NUEVO · el maestro de en sitio
   Comprueba que «Materiales» ya no este Y que se diga donde estan

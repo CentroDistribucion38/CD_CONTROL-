@@ -191,6 +191,36 @@ export function Maestro({ hojas, materiales, procesos, areas, causas, tolvas,
     router.refresh();
   }
 
+  /* EL ORDEN, DE UNA SOLA VEZ. La posición es el sitio en el arreglo y
+     no un número que mande la pantalla: así dos renglones nunca pueden
+     quedar con el mismo, que es lo que hace que una lista se reordene
+     sola al recargar. */
+  async function ordenar(claves: string[]) {
+    if (hoja === "tolvas") {
+      avisar.mal("Las tolvas no se ordenan desde aquí todavía.");
+      return;
+    }
+    setMandando(true);
+    const { error } = await supabase.rpc("rotura_maestro_ordenar", {
+      p_hoja: hoja, p_claves: claves,
+    });
+    setMandando(false);
+    if (error) {
+      /* SI FALTA LA FUNCIÓN SE DICE QUÉ CORRER, no «error de la base»:
+         quien está mirando el maestro puede arreglarlo en dos minutos
+         si sabe cuál es el archivo. */
+      const falta = /does not exist|schema cache|could not find the function/i
+        .test(error.message);
+      avisar.mal(falta
+        ? "Falta correr supabase/migraciones/2026-09-roturas-maestro-orden.sql en Supabase. " +
+          "Mientras tanto el orden no se guarda."
+        : error.message);
+      router.refresh();
+      return;
+    }
+    router.refresh();
+  }
+
   /* ================= Una fila, según la hoja ================= */
   type Item = { id: string; titulo: string; detalle: string; activo: boolean };
   const items: Item[] =
@@ -353,8 +383,9 @@ export function Maestro({ hojas, materiales, procesos, areas, causas, tolvas,
           <h2>{NOMBRE[hoja]} <em>{items.length}</em></h2>
           <p>
             Desactivar deja de ofrecerlo al registrar y no toca lo viejo. Borrar solo aparece
-            cuando nadie lo ha usado nunca. Se arrastra para cambiar el orden en que sale al
-            registrar.
+            cuando nadie lo ha usado nunca. <b>Se arrastra para cambiar el orden</b>, y ese es
+            el orden en que salen al registrar: poner de primera la que más pasa ahorra un
+            desplazamiento por cada rotura.
           </p>
         </div>
 
@@ -381,13 +412,18 @@ export function Maestro({ hojas, materiales, procesos, areas, causas, tolvas,
               clave: it.id, nombre: it.titulo, sub: it.detalle,
               activo: it.activo, viajes: usos[it.id] ?? 0,
             }))}
-            /* EL ORDEN NO SE GUARDA TODAVÍA: estas tablas no tienen
-               columna `orden`. Se dice en vez de dejar que alguien
-               arrastre y pierda el cambio al recargar — un cambio que
-               no se guarda y no avisa es peor que no poder hacerlo. */
-            alOrdenar={() => avisar.mal(
-              "El orden todavía no se guarda en este maestro: falta la columna en la base. " +
-              "Se arregla en la próxima migración.")}
+            /* EL ORDEN SÍ SE GUARDA. Puse un aviso diciendo que faltaba
+               la columna en la base SIN COMPROBARLO, y era falso: las
+               tres tablas tienen `orden` desde el día que se crearon.
+               Lo que faltaba era la función que la escribe.
+
+               UNA SOLA LLAMADA CON LA LISTA ENTERA. Arrastrar un
+               renglón cambia la posición de todos los de abajo: con
+               veinte causas, soltar la primera serían veinte llamadas
+               y veinte formas de quedar a medias — se escriben doce, se
+               cae la red, y la lista queda en un orden que nadie
+               escogió. */
+            alOrdenar={ordenar}
             alPrender={(c, a) => alternar(c, !a)}
             /* RENOMBRAR ABRE EL FORMULARIO DE LA HOJA y no el campo
                suelto del menú: una causa no es solo un nombre. */
