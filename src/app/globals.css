@@ -1553,7 +1553,12 @@ body {
 }
 .ml-agregar button {
   min-height: 46px; padding: 0 18px; border: 0; border-radius: 0; cursor: pointer;
-  background: var(--c-grupo); color: var(--c-grupo-txt); font: 800 13px var(--ml-titulo);
+  /* `--c-grupo-txt` NO EXISTE en ningún tema: lo encontré buscando por
+     qué la lista del buscador salía transparente, y es el mismo error.
+     Sin el respaldo, el texto se quedaba con el color heredado encima
+     del fondo del grupo — a veces legible y a veces no, según la
+     pantalla. */
+  background: var(--c-grupo); color: var(--c-grupo-txt, #04203f); font: 800 13px var(--ml-titulo);
   white-space: nowrap;
 }
 .ml-agregar button:hover:not(:disabled) { background: var(--c-marca); color: var(--c-marca-txt) }
@@ -1671,48 +1676,92 @@ body {
    una copia por módulo son dos sitios donde se desincronizan. Es la
    misma razón por la que `ml-` está arriba.
 
-   NO DEPENDE DE `campo-suelto` NI DE LOS TOKENS DE NINGÚN MÓDULO.
-   `--rt-oro` es el ROJO de la marca en el tema oficial —ya mordió tres
-   veces— y `campo-suelto` solo existe dentro de `.rt-rep` y `.tp`: un
-   componente compartido que hereda de ellos se ve bien en Roturas y sin
-   borde en Averías. Aquí está todo lo que necesita.
+   LOS TOKENS SE DECLARAN AQUÍ, Y ESO NO ES ADORNO.
+   La primera versión de este bloque tomó `--c-papel-m` del bloque de
+   `ml-` sin mirar dónde estaba declarado: es una variable LOCAL de
+   `.ml-caja`, no un token de tema. Fuera de ese selector no resuelve, y
+   `background: var(--c-papel-m)` se quedó en TRANSPARENTE — la lista de
+   materiales salió encima del formulario dejando ver los botones y el
+   contador atravesados con el texto. Se veía rota.
+
+   Mismo error con `--c-grupo-txt`, que directamente no existe en
+   ninguna parte.
+
+   La regla que queda: un componente compartido declara sus propios
+   colores o usa tokens que estén en LOS SIETE TEMAS. No hereda
+   variables de otro componente.
+
+   NO DEPENDE TAMPOCO DE `campo-suelto` NI DE `--rt-oro`: el primero
+   solo existe dentro de `.rt-rep` y `.tp`, y el segundo es el ROJO de
+   la marca en tres temas.
    ===================================================================== */
-.bl { position: relative }
+.bl {
+  position: relative;
+  /* EL PAPEL ES BLANCO FIJO, igual que en `ml-`: es el mismo papel de
+     las tarjetas del resto de la plataforma y los siete temas ya lo
+     pintan así. */
+  --bl-papel: #ffffff;
+  /* LA TINTA TAMBIÉN VA FIJA, y por la misma razón que el papel: si el
+     papel no cambia con el tema, el texto encima tampoco puede. Con el
+     gris del tema, en ámbar el código de la estiba contrastaba 4.39
+     —por debajo del piso de 4.5— sobre un papel que era blanco igual
+     en los siete. Medido, no supuesto. */
+  --bl-tinta: #04203f;
+  --bl-gris:  #52627a;
+  --bl-linea: #d5dce5;
+  --bl-suave: #eef1f5;
+}
 
 .bl-campo {
   width: 100%; min-height: 50px; padding: 0 14px;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  border: 1.5px solid var(--c-d5dce5); border-radius: 0; cursor: pointer;
+  border: 1.5px solid var(--bl-linea); border-radius: 0; cursor: pointer;
   font: 500 15px inherit; text-align: left;
-  background: var(--c-eef1f5); color: var(--c-5b6b7f);
+  background: var(--bl-suave); color: var(--bl-gris);
 }
 /* CON ALGO PUESTO SE VE PUESTO: en tinta y en negrita. Un campo lleno
    que se ve igual que uno vacío se vuelve a llenar. */
-.bl-campo.on { color: var(--c-04203f); font-weight: 600 }
+.bl-campo.on { color: var(--bl-tinta); font-weight: 600 }
 .bl-campo > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.bl-campo > i { font-style: normal; flex: none; color: var(--c-5b6b7f) }
+.bl-campo > i { font-style: normal; flex: none; color: var(--bl-gris) }
 .bl-teclea {
-  display: block; background: var(--c-papel-m); color: var(--c-04203f);
-  border-color: var(--c-marca); outline: none;
+  display: block; background: var(--bl-papel); color: var(--bl-tinta);
+  border-color: var(--c-marca, #e4002b); outline: none;
 }
 
+/* LA LISTA VA ENCIMA DEL FORMULARIO: tiene que ser OPACA y estar por
+   encima de todo lo que hay debajo. Sin fondo, el texto de las opciones
+   se mezcla con los botones y el contador de unidades y no se lee
+   ninguno de los dos. */
 .bl-lista {
-  position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px);
+  position: absolute; z-index: 60; left: 0; right: 0; top: calc(100% + 4px);
   max-height: 320px; overflow-y: auto;
-  background: var(--c-papel-m); border: 1.5px solid var(--c-d5dce5); border-radius: 0;
-  box-shadow: 0 12px 28px rgba(0,0,0,.16);
+  background: var(--bl-papel);
+  border: 1.5px solid var(--bl-linea); border-radius: 0;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .22);
 }
 .bl-op {
   display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
   /* 48 px: se escoge de pie y con guante, igual que todo lo demás. */
-  min-height: 48px; padding: 8px 13px; border: 0; background: none; cursor: pointer;
-  border-bottom: 1px solid var(--c-d5dce5);
+  min-height: 48px; padding: 8px 13px; border: 0; cursor: pointer;
+  background: var(--bl-papel);
+  border-bottom: 1px solid var(--bl-linea);
 }
-.bl-op b { font: 600 14px inherit; color: var(--c-04203f); line-height: 1.3 }
+.bl-op b { font: 600 14px inherit; color: var(--bl-tinta); line-height: 1.3 }
 .bl-op span {
   font: 500 11.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  color: var(--c-5b6b7f);
+  color: var(--bl-gris);
 }
-.bl-op.marcado { background: var(--c-eef1f5) }
-.bl-op.puesto { background: var(--c-grupo); color: var(--c-grupo-txt) }
-.bl-nada { padding: 14px; font-size: 12.5px; line-height: 1.5; color: var(--c-5b6b7f); margin: 0 }
+.bl-op.marcado { background: var(--bl-suave) }
+/* LA ESCOGIDA, CON UN FILO Y NO CON UN FONDO DE COLOR: el fondo detrás
+   del código de la estiba lo vuelve más difícil de leer, y el código es
+   lo que está pegado en el material. */
+.bl-op.puesto {
+  background: var(--bl-suave);
+  box-shadow: inset 3px 0 0 0 var(--c-marca, #e4002b);
+}
+.bl-nada {
+  padding: 14px; margin: 0;
+  background: var(--bl-papel);
+  font-size: 12.5px; line-height: 1.5; color: var(--bl-gris);
+}
