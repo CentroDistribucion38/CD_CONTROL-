@@ -28,6 +28,21 @@ const R = (p) => U("../" + p).pathname;
 const fallas = [];
 const ok = (c, m) => { if (!c) fallas.push(m) };
 
+/* QUE EL ARNÉS HABLE AUNQUE SE CAIGA.
+   Al romper el código a propósito para comprobar que este arnés muerde,
+   pasó esto: la comprobación SÍ registró la falla, y dos pasos después
+   el guion se murió esperando un botón que ya no existía. Lo único que
+   se veía era un «Timeout» de Playwright — cierto, inútil, y que no
+   distingue «lo rompí yo» de «se rompió el arnés». Ahora, pase lo que
+   pase, primero se imprime lo que ya se sabía que estaba mal. */
+const caerse = (e) => {
+  if (fallas.length) { console.log(""); fallas.forEach((x) => console.log("✗ " + x)) }
+  console.log("✗ el arnés no pudo terminar: " + ((e && e.message) || e));
+  process.exit(1);
+};
+process.on("uncaughtException", caerse);
+process.on("unhandledRejection", caerse);
+
 /* ======================= 1 · LA PÁGINA PIDE LOS FILTROS ================
    Que el componente exista no sirve de nada si la pantalla no lo pinta
    ni le pasa lo que hay. Se comprueba en el archivo, que es donde vive
