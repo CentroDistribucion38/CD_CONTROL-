@@ -53,7 +53,7 @@ export function Asignar({ accion, carga, nombres, saturado }: {
     if (error) { avisar.mal(error); return }
     /* El aviso se deja puesto y se vuelve a la lista: la confirmación se
        lee allá, que es donde la persona sigue trabajando. */
-    router.push("/acciones");
+    router.push("/acciones/todas");
     router.refresh();
   }
 

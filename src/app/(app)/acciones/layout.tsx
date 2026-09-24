@@ -33,7 +33,7 @@ export default async function AccionesLayout({ children }: { children: React.Rea
       <div className="ac" style={{ gap: 0 }}><Cola /></div>
       {children}
       <BarraAbajo zonas={zs} motivos={ms} plazos={par.plazos} gente={gente}
-                  puedeEditar={permisos.puedeEditar("/acciones")} />
+                  puedeEditar={permisos.puedeEditar("/acciones/todas")} />
     </>
   );
 }

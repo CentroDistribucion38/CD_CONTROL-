@@ -418,15 +418,65 @@ export const MODULOS: Modulo[] = [
        turno, y a esa se entra con la pantalla ya puesta en la TV. */
     entrada: "/acciones/mias",
     activo: true,
+    /* DOS RAMAS, igual que Roturas e Inventario. Comparten tema —lo
+       que se encontró mal— y NO comparten unidad ni ritmo:
+
+         OL   una ACCIÓN: algo que hay que corregir, con responsable,
+              plazo y verificación de si de verdad sirvió. Se abre
+              todos los días.
+         ABI  un HALLAZGO: lo que se encontró en una auditoría, con su
+              evidencia y una redacción que va a un informe que sale
+              del CD. Se levanta el día de la auditoría.
+
+       Un hallazgo no es una acción a medias: es el paso de antes. De
+       un hallazgo PUEDE nacer una acción —y quedan amarrados— pero hay
+       hallazgos que solo se documentan, y meterlos en la lista de
+       acciones los volvería acciones sin dueño que el tablero
+       señalaría para siempre. */
+    ramas: [
+      {
+        id: "ol",
+        nombre: "OL",
+        eyebrow: "ACCIONES",
+        ruta: "/acciones/mias",
+        descripcion:
+          "Lo que hay que corregir, con responsable y plazo. El plazo lo pone la prioridad " +
+          "y cerrar no es resolver: después alguien verifica si de verdad sirvió.",
+      },
+      {
+        id: "abi",
+        nombre: "ABI",
+        eyebrow: "HALLAZGOS",
+        ruta: "/acciones/abi",
+        descripcion:
+          "Lo que se encuentra en la auditoría: evidencia, la redacción técnica y el " +
+          "informe. De un hallazgo se puede abrir una acción sin salir de aquí.",
+      },
+    ],
     // El orden del proceso, de arriba abajo: me toca → lo hice → alguien
     // verifica → así vamos → por qué se repite → la configuración.
     secciones: [
-      { nombre: "Mis acciones", ruta: "/acciones/mias" },
-      { nombre: "Por verificar", ruta: "/acciones/verificar" },
-      { nombre: "Todas", ruta: "/acciones" },
-      { nombre: "Tablero", ruta: "/acciones/tablero" },
-      { nombre: "Indicadores", ruta: "/acciones/analisis" },
-      { nombre: "Maestro", ruta: "/acciones/maestro" },
+      { nombre: "Mis acciones", ruta: "/acciones/mias", rama: "ol" },
+      { nombre: "Por verificar", ruta: "/acciones/verificar", rama: "ol" },
+      /* «TODAS» SE MUDÓ DE /acciones A /acciones/todas, y es lo mismo
+         que pasó en Inventario: con dos ramas, la ruta del módulo tiene
+         que ser la BIFURCACIÓN. Con «Todas» encima de /acciones, entrar
+         a Acciones sería entrar ya a OL y no habría dónde escoger.
+         El permiso se muda con ella en 2026-09-acciones-abi-hallazgos.sql:
+         los permisos se guardan como el TEXTO de la dirección, y mover
+         la pantalla sin mover el permiso deja a la gente sin ella EN
+         SILENCIO. */
+      { nombre: "Todas", ruta: "/acciones/todas", rama: "ol" },
+      { nombre: "Tablero", ruta: "/acciones/tablero", rama: "ol" },
+      { nombre: "Indicadores", ruta: "/acciones/analisis", rama: "ol" },
+      { nombre: "Maestro", ruta: "/acciones/maestro", rama: "ol" },
+      /* ABI, EN EL ORDEN DEL PROCESO: se levanta el hallazgo con su
+         evidencia, se redacta, y de ahí sale el informe. El maestro de
+         temas al final, como en todos los módulos. */
+      { nombre: "Levantar", ruta: "/acciones/abi", rama: "abi" },
+      { nombre: "Hallazgos", ruta: "/acciones/abi/hallazgos", rama: "abi" },
+      { nombre: "Informe", ruta: "/acciones/abi/informe", rama: "abi" },
+      { nombre: "Maestro", ruta: "/acciones/abi/maestro", rama: "abi" },
     ],
   },
   {

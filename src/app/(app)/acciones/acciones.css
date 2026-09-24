@@ -1104,3 +1104,131 @@
   .ac .ac-acc { margin-left: 0; width: 100% }
   .ac .ac-acc .btn { flex: 1 1 0 }
 }
+
+/* =====================================================================
+   LA PORTADA DE ACCIONES — dos ramas y hay que escoger una
+
+   Misma forma que las de Quiebra e Inventario, a propósito: quien ya
+   conoció una no tiene que aprender otra. Lo que cambia son los tokens
+   —aquí manda la paleta de Acciones— porque el resto del módulo está
+   pintado con ella y una portada de otro color haría dudar de si se
+   cambió de módulo.
+
+   Prefijo `ac-p-`, comprobado libre antes de escribirlo.
+   ===================================================================== */
+.ac.ac-portada { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px }
+
+.ac .ac-p-cabeza { max-width: 1180px }
+/* EL OJO DE LA PORTADA: la regla de la casa vive en `.ac .cabeza .ojo`
+   y esta pantalla no tiene `.cabeza`. Se repite aquí en vez de
+   aflojar el selector de allá, que se usa en seis pantallas. */
+.ac .ac-p-cabeza .ojo {
+  margin: 0; font: 700 10.5px var(--ac-texto, inherit); letter-spacing: .15em;
+  text-transform: uppercase; color: var(--ac-gris);
+}
+.ac .ac-p-cabeza h1 {
+  margin: 8px 0 0; font: 900 clamp(28px, 3vw, 40px)/1.02 var(--ac-titulo);
+  letter-spacing: -.04em; color: var(--ac-tinta);
+}
+.ac .ac-p-cabeza .sub {
+  margin: 12px 0 0; font-size: 14.5px; line-height: 1.62;
+  color: var(--ac-gris); max-width: 74ch;
+}
+.ac .ac-p-cabeza .sub b { color: var(--ac-tinta); font-weight: 700 }
+
+/* DOS EN UNA FILA EN PANTALLA GRANDE Y UNA DEBAJO DE OTRA EN EL
+   CELULAR. `auto-fit` con mínimo y no `repeat(2, 1fr)`: a quien su rol
+   solo le abra una rama, con dos columnas fijas la vería ocupando media
+   pantalla y un hueco al lado. */
+.ac .ac-p-ramas {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px; max-width: 1180px;
+}
+.ac .ac-p-rama {
+  position: relative; overflow: hidden; min-width: 0;
+  display: flex; flex-direction: column;
+  background: var(--ac-papel); border: 1px solid var(--ac-linea);
+  border-left: 5px solid var(--ac-tinta);
+  padding: 26px 28px 24px; text-decoration: none; color: var(--ac-tinta);
+}
+.ac .ac-p-rama:hover { border-left-color: var(--ac-mal) }
+/* EL ADORNO DE LA ESQUINA, CHICO Y CALLADO: al 8 % y del tamaño de la
+   esquina. Al 18 % cruzaba por encima de la descripción y se leía como
+   si la tarjeta estuviera marcada — y en esta pantalla el rojo ya
+   significa «vencida». */
+.ac .ac-p-rama .ac-p-corte {
+  position: absolute; top: -28px; right: -40px; width: 96px; height: 116px;
+  background: var(--ac-tinta); opacity: .08; transform: skewX(-20deg);
+}
+.ac .ac-p-rama .ac-p-rot {
+  position: relative; font-size: 11.5px; font-weight: 600; letter-spacing: .18em;
+  color: var(--ac-gris);
+}
+.ac .ac-p-rama .ac-p-nom {
+  position: relative; font-family: var(--ac-titulo); font-weight: 900;
+  font-size: clamp(30px, 3.2vw, 44px); line-height: 1; letter-spacing: -.05em;
+  margin-top: 8px;
+}
+.ac .ac-p-rama .ac-p-des {
+  font-size: 14px; line-height: 1.55; color: var(--ac-gris);
+  margin-top: 12px; max-width: 42ch;
+}
+/* LA CIFRA VIVA, CLAVADA ABAJO. `margin-top: auto` la pega al pie
+   aunque las dos descripciones tengan largos distintos: si cada tarjeta
+   pusiera su número donde le toque, los dos quedarían desalineados y
+   habría que buscarlos de uno en uno. */
+.ac .ac-p-rama .ac-p-cifra {
+  display: block; margin-top: auto; padding-top: 18px;
+  border-top: 1px solid var(--ac-linea);
+}
+.ac .ac-p-rama .ac-p-cifra b {
+  font-family: var(--ac-titulo); font-weight: 900; font-size: 38px;
+  letter-spacing: -.045em; font-variant-numeric: tabular-nums;
+}
+.ac .ac-p-rama .ac-p-cifra i {
+  font-style: normal; font-size: 14px; font-weight: 600; margin-left: 7px;
+  color: var(--ac-gris);
+}
+/* EL PIE RESERVA DOS RENGLONES AUNQUE OCUPE UNO: sin esto los dos
+   números no quedan a la misma altura, y el número es justo lo que se
+   lee de un barrido. */
+.ac .ac-p-rama .ac-p-cifra em {
+  display: block; font-style: normal; font-size: 12.5px;
+  color: var(--ac-gris); margin-top: 4px; line-height: 1.4; min-height: 2.8em;
+}
+.ac .ac-p-rama .ac-p-cifra.mal b { color: var(--ac-mal) }
+.ac .ac-p-rama .ac-p-entrar {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 18px;
+  font-family: var(--ac-titulo); font-size: 14px; font-weight: 800;
+  min-height: 44px;   /* con guante */
+}
+.ac .ac-p-rama .ac-p-entrar svg {
+  width: 28px; height: 28px; padding: 5px; border-radius: 50%;
+  background: var(--ac-tinta); color: #fff; stroke: currentColor; stroke-width: 2;
+  fill: none; flex: none;
+}
+.ac .ac-p-rama:hover .ac-p-entrar svg { background: var(--ac-mal) }
+
+/* LA ÚNICA CIFRA QUE CRUZA LAS DOS RAMAS va aparte: metida dentro de
+   una de las dos tarjetas parecería suya. */
+.ac .ac-p-cruce {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea);
+  border-left: 4px solid var(--ac-tinta); padding: 14px 18px;
+  font-size: 13.5px; line-height: 1.6; max-width: 1180px; color: var(--ac-gris);
+}
+.ac .ac-p-cruce b { color: var(--ac-tinta); font-variant-numeric: tabular-nums }
+
+.ac .ac-p-aviso {
+  background: var(--ac-papel); border: 1px solid var(--ac-linea);
+  border-left: 4px solid var(--ac-mal); padding: 18px 20px;
+  font-size: 14px; line-height: 1.6; max-width: 74ch; color: var(--ac-tinta);
+}
+.ac .ac-p-aviso code {
+  font: 600 12.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  background: var(--c-eef1f5); padding: 2px 6px;
+}
+
+@media (max-width: 560px) {
+  .ac .ac-p-rama { padding: 22px 20px 20px }
+  .ac .ac-p-rama .ac-p-cifra b { font-size: 34px }
+}

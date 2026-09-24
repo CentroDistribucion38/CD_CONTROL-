@@ -26,8 +26,8 @@ export default async function TableroPage() {
         areas={areas}
         nombres={nombres}
         meta={par.par["meta_efectividad"] ?? 90}
-        puedeReportar={permisos.puedeEditar("/acciones")}
-        puedeEditar={permisos.puedeEditar("/acciones")}
+        puedeReportar={permisos.puedeEditar("/acciones/todas")}
+        puedeEditar={permisos.puedeEditar("/acciones/todas")}
         manda={permisos.manda}
       />
     </div>

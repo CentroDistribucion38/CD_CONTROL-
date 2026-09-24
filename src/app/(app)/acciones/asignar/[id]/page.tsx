@@ -32,7 +32,7 @@ export default async function AsignarPage({ params }: { params: Promise<{ id: st
      dirección se llega escribiéndola. La base lo rechazaría igual —la
      función pide es_editor()—, pero es mejor no dejar entrar a una
      pantalla que no va a funcionar. */
-  if (!permisos.puedeEditar("/acciones")) redirect("/acciones");
+  if (!permisos.puedeEditar("/acciones/todas")) redirect("/acciones/todas");
 
   const accion = una.data as Accion;
 

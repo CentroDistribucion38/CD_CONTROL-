@@ -70,8 +70,23 @@ begin
                   where table_schema = 'public' and table_name = 'traspasos_viajes'
                     and column_name = 'salida_en') then
     v_falta := v_falta || ' 2026-09-traspasos-facturacion.sql'; end if;
+
+  /* Y LA QUE DE VERDAD IMPORTA, QUE SE ME PASÓ: la comprobación del
+     final suma `por_salir` de v_traspasos_control, y esa columna la
+     crea la migración de «cuenta lo que salió». Sin ella esto no falla
+     aquí arriba —donde el mensaje dice qué correr— sino ciento treinta
+     renglones más abajo, con un «column por_salir does not exist» que
+     no menciona ningún archivo y deja a quien lo corre adivinando.
+
+     UNA GUARDIA QUE NO CUBRE TODO LO QUE EL ARCHIVO USA no sirve de
+     nada: da la falsa seguridad de que si pasa, el resto corre. */
+  if not exists (select 1 from information_schema.columns
+                  where table_schema = 'public' and table_name = 'v_traspasos_control'
+                    and column_name = 'por_salir') then
+    v_falta := v_falta || ' 2026-09-traspasos-cuenta-lo-que-salio.sql'; end if;
+
   if v_falta <> '' then
-    raise exception 'Falta correr antes:%', v_falta;
+    raise exception 'Falta correr antes:% — corre ese o esos archivos primero, en ese orden, y vuelve a correr este.', v_falta;
   end if;
 end $bloque$;
 

@@ -73,6 +73,108 @@
 --      confundirlas.
 -- =====================================================================
 
+-- =====================================================================
+-- 0. PUESTA AL DÍA DE UNA INSTALACIÓN ANTERIOR
+--
+-- La primera versión de este módulo guardaba el turno como número
+-- (1, 2, 3) y llamaba `cantidad` a la carga. Las dos cosas estaban mal
+-- y se corrigieron; pero "create table if not exists" NO cambia una
+-- tabla que ya existe, así que una base donde ya se corrió aquella
+-- versión se quedaría con las columnas viejas y el archivo reventaría
+-- más abajo —que es exactamente lo que pasa: "la función
+-- traspaso_orden_turno(smallint) no existe", porque la columna sigue
+-- siendo un número.
+--
+-- Esto la pone al día. Si la base está limpia no hace nada.
+--
+-- EL TURNO SE TRADUCE 1→C, 2→A, 3→B, que es el mismo horario: en la
+-- versión de números, el 1 era el de las 6 de la mañana, y ese es el C.
+-- Traducir en vez de vaciar es lo correcto aunque hoy no haya datos: el
+-- día que alguien corra esto sobre una base con un turno cargado, no se
+-- pierde.
+-- =====================================================================
+do $$
+begin
+  /* LAS FUNCIONES VIEJAS SE BOTAN POR SU FIRMA EXACTA. Postgres deja
+     convivir dos funciones con el mismo nombre si reciben tipos
+     distintos, así que "create or replace" NO reemplaza a la vieja: la
+     deja al lado. Y ahí está el peligro de verdad —peor que un error—:
+     PostgREST escoge cuál llamar según lo que le mande la pantalla, y
+     el día que alguien mande un número donde va una letra se ejecuta la
+     regla vieja, en silencio y sin que nada falle. */
+  drop function if exists public.traspaso_registrar(
+    date, smallint, text, text, text, text, integer, boolean, text, text);
+  drop function if exists public.traspaso_planear(
+    date, smallint, text, integer, integer, boolean, text);
+
+  /* Las vistas viejas: una vista que mira una columna bloquea el cambio
+     de tipo de esa columna. Se vuelven a crear más abajo. */
+  drop view if exists public.v_traspasos_seguimiento;
+  drop view if exists public.v_traspasos_control;
+  drop view if exists public.v_traspasos_viajes;
+  drop view if exists public.v_traspasos_puntos_faltantes;
+
+  -- ---------------- EL PLAN ----------------
+  if to_regclass('public.traspasos_plan') is not null then
+    alter table public.traspasos_plan
+      drop constraint if exists traspasos_plan_turno_valido;
+
+    if exists (select 1 from information_schema.columns
+                where table_schema='public' and table_name='traspasos_plan'
+                  and column_name='turno' and data_type <> 'text') then
+      alter table public.traspasos_plan
+        alter column turno type text
+        using case turno::int when 1 then 'C' when 2 then 'A' when 3 then 'B'
+                              else 'C' end;
+      raise notice 'plan: el turno pasó de número a letra (1=C, 2=A, 3=B)';
+    end if;
+
+    /* es_adicional se va: un adicional es un viaje que se hizo y no
+       estaba planeado, y eso se cuenta solo. Guardarlo como una línea
+       de plan con planeado=0 era un plan que no planeaba nada. */
+    alter table public.traspasos_plan drop column if exists es_adicional;
+  end if;
+
+  -- ---------------- LOS VIAJES ----------------
+  if to_regclass('public.traspasos_viajes') is not null then
+    alter table public.traspasos_viajes
+      drop constraint if exists traspasos_viajes_turno_valido,
+      drop constraint if exists traspasos_viajes_cantidad_valida,
+      drop constraint if exists traspasos_viajes_vacio_sin_carga,
+      drop constraint if exists traspasos_viajes_tiene_origen,
+      drop constraint if exists traspasos_viajes_tiene_destino;
+
+    if exists (select 1 from information_schema.columns
+                where table_schema='public' and table_name='traspasos_viajes'
+                  and column_name='turno' and data_type <> 'text') then
+      alter table public.traspasos_viajes
+        alter column turno type text
+        using case turno::int when 1 then 'C' when 2 then 'A' when 3 then 'B'
+                              else 'C' end;
+      raise notice 'viajes: el turno pasó de número a letra (1=C, 2=A, 3=B)';
+    end if;
+
+    /* `cantidad` era la carga; ahora la cifra que cuenta el plan son los
+       VIAJES. No se renombra: son cosas distintas. La carga se conserva
+       en su propia columna y los viajes arrancan en 1, que es lo que
+       valía cada línea. */
+    if exists (select 1 from information_schema.columns
+                where table_schema='public' and table_name='traspasos_viajes'
+                  and column_name='cantidad') then
+      alter table public.traspasos_viajes
+        add column if not exists viajes integer not null default 1,
+        add column if not exists carga  integer;
+      update public.traspasos_viajes set carga = cantidad where carga is null;
+      alter table public.traspasos_viajes drop column cantidad;
+      raise notice 'viajes: "cantidad" era la carga; ahora la carga va aparte y se cuentan viajes';
+    end if;
+
+    /* Un registro de vacíos no lleva tipo ni placa: no los tiene. */
+    alter table public.traspasos_viajes alter column tipo  drop not null;
+    alter table public.traspasos_viajes alter column placa drop not null;
+  end if;
+end $$;
+
 -- ---------------------------------------------------------------------
 -- 1. LOS TIPOS
 -- ---------------------------------------------------------------------
@@ -743,6 +845,8 @@ begin
   select count(*) into v_tipos from public.traspasos_tipos;
 
   raise notice 'las cuatro tablas ........ %', case when v_tablas = 4 then 'ok' else 'MAL (' || v_tablas || ')' end;
+  /* Si esto dice más de 6, quedó una función vieja conviviendo con la
+     nueva y hay que mirarlo: no es un adorno del conteo. */
   raise notice 'las seis funciones ....... %', case when v_fun = 6 then 'ok' else 'MAL (' || v_fun || ')' end;
   raise notice 'las tres vistas .......... %', case when v_vistas = 3 then 'ok' else 'MAL (' || v_vistas || ')' end;
   raise notice 'tipos sembrados .......... % (%)', case when v_tipos >= 9 then 'ok' else 'MAL' end, v_tipos;

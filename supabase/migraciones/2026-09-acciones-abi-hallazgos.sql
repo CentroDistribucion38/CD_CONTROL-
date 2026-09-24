@@ -173,9 +173,30 @@ create table if not exists public.acciones_hallazgos_fotos (
   lat         numeric(10,7),
   lng         numeric(10,7),
   precision_m numeric(8,2),
+
+  /* ANTES O DESPUÉS, y es una columna y no una nota escrita a mano.
+     El informe pone las dos una al lado de la otra, y para eso tiene
+     que poder SABER cuál es cuál: con la palabra escrita en `nota`,
+     basta que alguien escriba «Despues» sin tilde para que la foto se
+     vaya al lado equivocado en el PDF que se manda a gerencia. */
+  momento     text not null default 'antes'
+                check (momento in ('antes', 'despues')),
+
   subida_por  uuid references public.perfiles(id) on delete set null,
   subida_en   timestamptz not null default now()
 );
+-- Para la base que ya se creó sin la columna: el archivo se corre
+-- varias veces y `create table if not exists` no agrega columnas.
+alter table public.acciones_hallazgos_fotos
+  add column if not exists momento text not null default 'antes';
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'hallazgo_foto_momento') then
+    alter table public.acciones_hallazgos_fotos
+      add constraint hallazgo_foto_momento check (momento in ('antes', 'despues'));
+  end if;
+end $$;
+
 create index if not exists acciones_hallazgos_fotos_idx
   on public.acciones_hallazgos_fotos (hallazgo_id);
 
@@ -193,6 +214,13 @@ set search_path = public
 as $$
   select public.manda()
       or public.mi_nivel_pantalla('/acciones/abi') = 'editar'
+      /* TAMBIÉN POR LA PANTALLA DE REDACTAR. El permiso se guarda como
+         el TEXTO de la dirección, y la rama tiene cuatro: quien tiene
+         Editar en Hallazgos pero solo Ver en Levantar vería los botones
+         y se estrellaría contra un «no puedes» de la base. Un botón que
+         se ve y no funciona es peor que uno que no está. */
+      or public.mi_nivel_pantalla('/acciones/abi/hallazgos') = 'editar'
+      or public.mi_nivel_pantalla('/acciones/abi/maestro') = 'editar'
 $$;
 grant execute on function public.hallazgo_puede_editar() to authenticated;
 
@@ -514,6 +542,14 @@ select h.*,
        z.nombre  as zona_nombre,
        (select count(*) from public.acciones_hallazgos_fotos f where f.hallazgo_id = h.id)
          as fotos,
+       /* LAS DEL ANTES Y LAS DEL DESPUÉS, CONTADAS APARTE. Es lo que
+          deja decir en la lista «le falta la del después» sin abrir el
+          hallazgo, que es justo lo que hace falta saber el día que se
+          arma el informe. */
+       (select count(*) from public.acciones_hallazgos_fotos f
+         where f.hallazgo_id = h.id and f.momento = 'antes') as fotos_antes,
+       (select count(*) from public.acciones_hallazgos_fotos f
+         where f.hallazgo_id = h.id and f.momento = 'despues') as fotos_despues,
        (h.estado = 'borrador' and btrim(coalesce(h.redaccion, '')) = '') as falta_redaccion,
        /* LO ESCRIBIÓ LA MÁQUINA Y NADIE LO TOCÓ. No es un error —puede
           estar perfecto— pero un informe donde TODO salió así es un

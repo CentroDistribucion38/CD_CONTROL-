@@ -205,6 +205,17 @@ const IconoFactura = () => (
 );
 
 /* BORRAR DATOS: la papelera, con su tapa y dos rayas. */
+/* EL HALLAZGO: una lupa. Es lo que hace una auditoría —ir a mirar— y
+   se distingue del icono de acciones, que es el escudo de lo que hay
+   que corregir. Dos secciones con el mismo dibujo en el riel obligan a
+   leer el rótulo, que es justo lo que el riel existe para evitar. */
+const IconoHallazgo = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+       strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="6" /><path d="M15.5 15.5 21 21" />
+  </svg>
+);
+
 const IconoPapelera = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
@@ -262,7 +273,11 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/averias/maestro": IconoLlave,
   "/inventario/maestro": IconoLlave,
   "/inventario/conteo": IconoCaja,
-  "/acciones": IconoLista,
+  "/acciones/todas": IconoLista,
+  "/acciones/abi": IconoHallazgo,
+  "/acciones/abi/hallazgos": IconoLista,
+  "/acciones/abi/informe": IconoAnalisis,
+  "/acciones/abi/maestro": IconoLlave,
   "/acciones/mias": IconoMias,
   "/acciones/verificar": IconoVerificar,
   "/acciones/tablero": IconoTablero,
