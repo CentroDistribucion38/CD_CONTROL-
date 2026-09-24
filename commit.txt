@@ -1,70 +1,98 @@
-Averias es un modulo entero, y el desplegable de materiales dice cuando no viene del inventario
+El recorrido de las unidades: causa -> proceso -> en que termina
 
 =====================================================================
-1. EL DESPLEGABLE DE MATERIALES — EL BUG NO ERA LA CONSULTA
+LO QUE CAMBIA EN EN SITIO · ANALISIS
 =====================================================================
-«¿Por que en materiales no has tomado el listado de los materiales que
- estan en el maestro de inventario?»
+Contra la maqueta que mandaste. Las dos barras de antes —«por causa» y
+«por proceso», una debajo de otra— se van y entra UN SOLO DIBUJO con
+las tres columnas.
 
-Porque faltaba correr el SQL — Y LA PANTALLA NO LO DECIA. La funcion
-`materialesMaestro()` devolvia `delInventario: false` cuando no podia
-leer la vista, y la pantalla TIRABA ESE DATO A LA BASURA: el
-desplegable seguia enseñando los pocos sembrados a mano, sin una
-palabra, y parecia que la funcion no servia.
+NO ES UN CAMBIO DE ADORNO. Cada barra estaba bien y ninguna contestaba
+la pregunta que las une: de las tres mil de estibas malas, ¿cuantas
+pasaron por T1? Eso no se ve en dos rankings puestos uno debajo del
+otro, por mucho que cada uno este bien.
 
-Es exactamente la leccion que yo mismo escribi en el commit del color
-del vidrio —«callarlo es lo que hace que nadie lo llene nunca»— y la
-rompi dos pantallas despues.
+LA GEOMETRIA ES UNA FUNCION PURA, `modulos/roturas/sankey.ts`, con su
+propio arnes sin navegador. La razon es concreta: UN SANKEY MAL ARMADO
+NO SE VE MAL. Se ve perfecto y miente —una cinta mas gorda de lo que le
+toca, un nodo que no suma lo que dice— y nadie lo nota, porque la unica
+forma de comprobarlo es rehacer la cuenta a mano. El arnes la rehace.
 
-AHORA LO DICE, en rojo, arriba del formulario, y dice QUE HACER:
-· si falta la vista → nombra el SQL que hay que correr;
-· si la vista existe pero no devuelve nada → manda a Inventario ->
-  Maestro, porque lo que pasa es que no hay productos activos.
-Y cero filas TAMBIEN cuenta como caerse: un desplegable vacio no es «el
-maestro esta vacio», es una pantalla que no deja registrar una rotura
-que YA ocurrio.
+NO SE USA `d3-sankey`: son 60 KB y un algoritmo que REORDENA nodos para
+cruzar menos cintas. El dia que una causa cambie de sitio entre dos
+visitas sin que los datos hayan cambiado, nadie va a saber si fue el
+algoritmo o si de verdad cambio algo. Aqui el orden es el de los datos
+—de mayor a menor— y no se mueve.
 
 =====================================================================
-2. AVERIAS: REGISTRAR · TABLERO · ANALISIS · MAESTRO
+LOS TONOS SON LOS DE LA MAQUETA, Y LA SEGUNDA SALIDA
 =====================================================================
-«Queria entrar a inventario y que averias trajiera su registro, su
- tablero, su analisis y su maestro.»
+Oro #FFC400 para lo que asume el OL, rojo #E4002B para lo que no, ocre
+#B87F00 para el proceso que mas pesa y gris #8A8E8A para los demas
+—el proceso dice DONDE paso, no de quien fue: si compitiera de color
+con la causa, el ojo leeria dos alarmas donde solo hay una—. Cintas al
+45% y 40% de opacidad, que es lo que deja ver los cruces.
 
-Eran dos enlaces sueltos. Ahora son cuatro pantallas en el orden del
-proceso, como rotura de linea.
+Y LA TERCERA COLUMNA TIENE DOS SALIDAS. Aqui hay UN CAMBIO CONTRA LA
+MAQUETA, y va explicado porque es de fondo:
 
-REGISTRAR Y TABLERO SON DOS PANTALLAS Y NO DOS PESTAÑAS. Quien entra a
-registrar viene a registrar —con guante, de pie, al lado de la
-estiba—: el formulario abre PUESTO y al lado va SOLO LO DE HOY. Las
-pestañas, el buscador y el historico entero serian tres toques antes
-del primer campo. Quien entra al tablero viene a hacer papeleo,
-sentado: ahi si estan todos los registros, sus estados y los botones
-del administrador —dar de baja, corregir, anular, borrar—.
+La maqueta parte 4.230 en «baja de vidrio 3.589» + «baja de liquido
+641». ESO NO SE PUEDE SUMAR: una unidad ROTA pierde el liquido Y la
+botella, asi que estaria en las dos columnas y el dibujo la contaria
+dos veces. El numero se ve bien y esta mal, que es lo peor que le
+puede pasar a un tablero.
 
-ES LA MISMA PIEZA CON UN `modo`, no dos componentes. Dos serian dos
-copias del formulario y de la fila, y el dia que se agregue un campo
-habria que acordarse de las dos.
+Lo que si son dos montones que no se pisan:
+  BAJA DE VIDRIO        las rotas. Pierden botella (y liquido).
+  SOLO BAJA DE LIQUIDO  las contaminadas. El envase vuelve a la linea,
+                        asi que NO son baja de vidrio.
+Cada unidad esta en un solo sitio, el total del dibujo cuadra, y las
+dos cifras del pie siguen siendo las de siempre.
 
-EL MAESTRO son las causales, y son DATOS y no un enum: hoy son tres y
-ya se menciono una cuarta —«averia del proveedor»—. Con enum, agregarla
-obliga a una migracion y quitarla no se puede. «Si la culpa es de
-afuera» es una CASILLA y no se saca del nombre: adivinarla leyendo la
-palabra «transporte» funciona hasta la primera causal que se llame
-distinto, y es justo el dato que decide a quien se le cobra.
+=====================================================================
+TRES COSAS QUE SOLO SE VIERON MIRANDO LA CAPTURA
+=====================================================================
+1. LAS DOS CAUSAS SALIAN DEL MISMO COLOR. Use `--rt-oro` para «asumida»
+   —el acento de la app— y en el tema OFICIAL de Bavaria ese acento ES
+   EL ROJO. El dibujo perdia lo unico que venia a decir: separar lo que
+   el OL asume de lo que no. Ahora son dos colores FIJOS, fuera del
+   tema, y el arnes MIDE la distancia entre ellos.
+
+2. EL ROTULO DE «Lineas 30» SE MONTABA sobre el borde de la caja. El
+   rotulo son tres lineas y ocupa 58 px; el hueco entre nodos era 14.
+   El hueco no es aire: es el sitio del texto. Y el lienzo tampoco
+   reservaba sitio abajo para el rotulo del ultimo nodo.
+
+3. LAS CINTAS SUMABAN MAS QUE SU NODO. Cada cinta tiene un piso de
+   1,5 px para que una de once unidades no desaparezca; con dos asi,
+   las cintas no caben dentro del nodo y el dibujo dice que de ahi sale
+   mas de lo que entro. El minimo del nodo es ahora LO QUE SUMAN SUS
+   CINTAS. El arnes lo destapo dos veces seguidas.
+
+EL PISO ES UNA MENTIRA DELIBERADA SOBRE EL TAMAÑO —«no se ve» no es lo
+mismo que «no existe»— y el arnes lo dice asi: la regla de la escala se
+exige a los nodos por encima del piso, y a los que estan en el piso se
+les exige que sea EXACTAMENTE el piso y no un numero inventado.
+
+=====================================================================
+UN ERROR MIO EN EL PROPIO ARNES
+=====================================================================
+La comprobacion de que las cintas se pintan ANTES que las barras usaba
+`indexOf("<path") < indexOf("<rect")`. `indexOf` devuelve -1 cuando no
+encuentra, y -1 siempre es menor: un dibujo SIN NINGUNA CINTA pasaba la
+prueba. Lo destapo una mutacion que borraba las cintas enteras y salia
+VERDE.
 
 =====================================================================
 LOS ARNESES
 =====================================================================
-node .arnes/av-pantallas.mjs · 3 mutaciones nuevas, 3 ROJAS
-node .arnes/rt-sitio.mjs     · mide que el aviso salga cuando el
-                               desplegable NO viene del inventario, y
-                               que NO salga cuando si — un cartel que
-                               sale siempre deja de querer decir algo.
+node .arnes/rt-sankey.mjs · 11 comprobaciones, 8 mutaciones, 8 ROJAS
+Prueba la geometria SIN navegador —los casos raros de un diagrama son
+quince y abrir Chromium quince veces seria no probarlos— y ademas monta
+el componente para comprobar que PINTA lo que dice la geometria.
 
-FALTA, Y ES LO QUE SIGUE:
-· la tabla de todos los registros de roturas con sus estados;
-· el diseño de los analisis de En sitio y Quiebra, como el de rotura
-  de linea.
+FALTA: el analisis de Quiebra con el mismo tratamiento, y la tabla de
+todos los registros con sus estados.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK

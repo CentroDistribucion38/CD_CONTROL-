@@ -1605,3 +1605,69 @@
   .rt .an-kp { grid-template-columns: 1fr }
   .rt .an-donac { justify-content: center }
 }
+
+/* =====================================================================
+   EL RECORRIDO DE LAS UNIDADES · prefijo `rq-`
+   ---------------------------------------------------------------------
+   `rq-` y no `rt-` ni `an-`: en este archivo ya van OCHO choques de
+   nombre, tres de ellos contra mí mismo por reusar un prefijo que ya
+   estaba en otra pantalla. `rq-` no lo usa nadie —comprobado en
+   roturas.css, globals.css y shell.css antes de escribir esto—.
+   ===================================================================== */
+.rt .rq-flujo { padding: 18px 22px 14px }
+.rt .rq-h {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.rt .rq-h b { font: 900 19px var(--rt-titulo); letter-spacing: -.02em; color: var(--rt-tinta) }
+.rt .rq-h span { font-size: 12.5px; color: var(--rt-gris) }
+
+.rt .rq-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 6px 0 2px }
+.rt .rq-cols div {
+  font: 700 10px var(--rt-texto); letter-spacing: .16em; color: var(--rt-gris);
+  text-transform: uppercase;
+}
+.rt .rq-cols div:nth-child(2) { text-align: center }
+.rt .rq-cols div:last-child { text-align: right }
+
+/* EL SVG SE ESCALA CON EL ANCHO y conserva su proporción: el viewBox
+   es fijo y el alto lo pone el propio dibujo. Un alto en píxeles haría
+   que en un teléfono las cintas se aplastaran hasta no distinguirse. */
+.rt .rq-svg { width: 100%; height: auto; display: block; overflow: visible }
+.rt .rq-t-rot {
+  font: 900 15px var(--rt-titulo); fill: var(--rt-tinta);
+}
+.rt .rq-t-n {
+  font: 900 21px var(--rt-titulo); fill: var(--rt-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.rt .rq-t-pie { font: 400 11.5px var(--rt-texto); fill: var(--rt-gris) }
+
+/* LA LECTURA: una sola línea que dice QUÉ MIRAR. Un diagrama sin ella
+   es un dibujo bonito, y a los treinta segundos la gente se va
+   habiendo visto cintas. */
+.rt .rq-lectura {
+  display: flex; align-items: flex-start; gap: 14px;
+  border-top: 1px solid var(--rt-linea); padding: 14px 0 6px; margin-top: 6px;
+}
+.rt .rq-lectura .n {
+  font: 900 30px/1 var(--rt-titulo); color: var(--rt-mal); flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.rt .rq-lectura b { font-size: 14.5px; color: var(--rt-tinta) }
+.rt .rq-lectura span {
+  display: block; font-size: 12.5px; color: var(--rt-gris); margin-top: 3px; line-height: 1.5;
+}
+.rt .rq-mas {
+  margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--rt-gris);
+}
+
+/* EN TELÉFONO EL TEXTO DEL SVG SE AGRANDA, porque el dibujo se encoge
+   con el ancho: a 390 px, una letra de 15 en un lienzo de 1160 queda
+   en 5 px reales y no se lee. */
+@media (max-width: 720px) {
+  .rt .rq-t-rot { font-size: 26px }
+  .rt .rq-t-n { font-size: 34px }
+  .rt .rq-t-pie { font-size: 20px }
+  .rt .rq-cols div { font-size: 9px; letter-spacing: .1em }
+}
