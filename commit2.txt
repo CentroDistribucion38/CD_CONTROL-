@@ -1,0 +1,121 @@
+El operador logistico responde el cobro, con evidencia (solo la base)
+
+=====================================================================
+LO QUE FALTABA
+=====================================================================
+«En sitio hacen el registro y llega a ABI para ver si se cobra o no.
+ Ahora la idea es que al operador logistico le llegue esa notificacion
+ y conteste si esta de acuerdo con ese cobro o no, y adjunte evidencia,
+ con el fin de ir conciliando —diario, semanal o mensual.»
+
+La cadena tenia dos eslabones y se acababa en el que cobra:
+
+  alguien registra en sitio  ->  ABI dice si cuenta  ->  se acabo
+
+Una de las dos partes decide sola cuanto le cobra a la otra, y la otra
+se entera cuando le llega la cuenta. Eso no se concilia: se discute, al
+final del mes, sobre una lista que nadie objeto a tiempo porque nadie
+tuvo donde objetarla.
+
+Ahora hay un tercer eslabon:
+
+  registro -> ABI cobra -> EL OL RESPONDE -> (si no esta de acuerdo)
+                                             ABI resuelve
+
+ESTE COMMIT ES SOLO LA BASE. Las bandejas van en el siguiente paso.
+
+=====================================================================
+`estado` NO SE TOCA
+=====================================================================
+Lo evidente seria meterle estados nuevos al enum `rotura_estado`
+—«en_disputa», «aceptada»— y seria un error caro: `estado = 'cuenta'`
+lo leen hoy la vista, las cifras, tres indices y toda pantalla que
+pregunte si una rotura se cobra. Agregarle significados reinterpreta
+TODO lo ya decidido, hacia atras y en silencio.
+
+`estado` sigue queriendo decir LO QUE ABI DECIDIO. La conversacion con
+el OL va en su propia columna, `cobro`, que solo existe cuando
+estado = 'cuenta'.
+
+  por_responder  ABI cobro; el OL no contesta todavia. Corre el plazo.
+  aceptado       el OL dijo que si — o se le vencio el plazo.
+  en_disputa     el OL dijo que no, con nota y con evidencia.
+  sostenido      hubo disputa y ABI la sostuvo. Se cobra.
+  retirado       hubo disputa y ABI le dio la razon al OL. No se cobra.
+
+`aceptado` Y `sostenido` LOS DOS SE COBRAN, y aun asi son dos cosas
+distintas: en uno las partes estuvieron de acuerdo y en el otro una le
+gano a la otra. El acta del mes tiene que poder decir cual fue cual.
+
+=====================================================================
+EL PLAZO SE MIDE AL LEER, NO CON UN RELOJ
+=====================================================================
+«Si no contesta en N dias se da por aceptada» necesita que algo pase a
+las 00:00. Este proyecto NO TIENE nada corriendo solo, y montar un cron
+para esto seria poner la verdad de la plata a depender de que un
+trabajo no se caiga un domingo.
+
+La vista devuelve `cobro_efectivo`, que es `aceptado` en cuanto pasa la
+fecha aunque la fila todavia diga `por_responder`. Nunca hay un rato en
+que la pantalla y la base digan cosas distintas.
+
+Y PARA QUE NO SEA UNA MENTIRA A MEDIAS, la funcion que escribe respeta
+lo mismo: `rotura_responder` rechaza una rotura vencida aunque la fila
+siga diciendo `por_responder`. Sin esa guarda, al OL le bastaria con
+abrir la pantalla tarde para seguir objetando lo ya aceptado.
+
+El plazo arranca en 3 dias y vive en `roturas_parametros`: se cambia
+sin desplegar.
+
+=====================================================================
+LA TRAMPA MAS FACIL DE CAER Y MAS DIFICIL DE VER
+=====================================================================
+`exige_foto` existe «porque es la que sostiene que la rotura no fue del
+OL». Si la foto que sube EL OL PARA DEFENDERSE contara para eso, el
+acusado estaria firmando la prueba en su contra.
+
+Por eso `roturas_fotos` gana una columna `papel` —rotura o descargo— y
+TODO lo que cuenta fotos filtra papel='rotura': la vista y el visto
+bueno. La evidencia del descargo se cuenta aparte, en `descargo_fotos`.
+
+=====================================================================
+LO DEMAS QUE QUEDA AMARRADO
+=====================================================================
+· NO SE CREA NINGUN ROL. Desde «roles-supervisor-borrable» quien firma
+  es quien tiene «Editar» en la pantalla de esa firma. El OL es quien
+  tenga «Editar» en /roturas/en-sitio/descargo, y eso se asigna desde
+  Admin -> Roles sin tocar codigo.
+· DOS PARTES, DOS PERSONAS: quien dio el visto bueno no puede responder
+  ese cobro. Un administrador tiene los dos permisos y sin esta linea
+  podria cerrar solo una conciliacion entre dos empresas.
+· OBJETAR EXIGE NOTA Y EVIDENCIA. Una objecion vacia no se puede llevar
+  a la reunion del mes.
+· RESOLVER EXIGE NOTA SIEMPRE, sostenga o retire: es la ultima palabra
+  de un pleito, y «sostenido» a secas no lo defiende nadie tres meses
+  despues.
+· ANULAR BORRA LA CONVERSACION. Anular es decir «esto no paso»; dejarle
+  el cobro puesto la mandaria a la bandeja del OL a responder por algo
+  que ya no existe.
+· LO QUE YA ESTABA COBRADO ENTRA A LA COLA con el plazo contado DESDE
+  HOY, no desde el dia en que ABI lo decidio. Contarlo desde entonces
+  dejaria vencido de entrada todo el historico —el OL nunca tuvo esa
+  pantalla— y la primera conciliacion arrancaria con cientos de
+  «aceptadas por silencio» que nadie callo.
+
+=====================================================================
+EL ARNES
+=====================================================================
+bash .arnes/correr-descargo-ol.sh, contra Postgres de verdad. Once
+comprobaciones, y SE PROBO QUE MUERDE: se rompieron a proposito los
+seis frenos —la foto del descargo, el plazo, las dos partes, la
+evidencia, el vencimiento en la vista y la limpieza al anular— y los
+seis dieron ROJA.
+
+La primera version del arnes solo protegia lo que debia fallar: al
+romper una guarda, pasaba el paso roto y REVENTABA dos lineas despues
+con un error cierto que no decia nada, y el resumen nunca se imprimia.
+Ahora toda llamada queda registrada, la que debe fallar y la que debe
+pasar.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
