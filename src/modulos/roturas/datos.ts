@@ -147,6 +147,10 @@ export type Material = {
   tipo: "producto_terminado" | "eer";
   color: "ambar" | "flint" | "green" | null;
   botellas_x_empaque: number | null;
+  /** Lata, Pet, Ret, Tw, Barril… — la del maestro de Inventario. Es lo
+   *  que deja sacar del desplegable de «en sitio» lo que no se rompe
+   *  como vidrio. Nula cuando el material viene del maestro viejo. */
+  familia: string | null;
   activo: boolean; orden: number | null;
 };
 export type Proceso = { clave: string; nombre: string; activo: boolean; orden: number | null };
@@ -309,9 +313,13 @@ export async function materiales(soloActivos = true) {
   const supabase = await createClient();
   let q = supabase.from("roturas_materiales")
     .select("clave, nombre, tipo, color, botellas_x_empaque, activo, orden");
+  /* LA TABLA VIEJA NO TIENE FAMILIA: son los siete de siempre y todos
+     son vidrio. Se rellena en nulo para que el tipo cuadre y el filtro
+     de «en sitio» los deje pasar, que es lo correcto. */
   if (soloActivos) q = q.eq("activo", true);
   const { data } = await q.order("orden", { ascending: true, nullsFirst: false });
-  return (data ?? []) as Material[];
+  return ((data ?? []) as Omit<Material, "familia">[])
+    .map((m) => ({ ...m, familia: null })) as Material[];
 }
 
 /**
@@ -351,7 +359,7 @@ export async function materialesMaestro():
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("v_roturas_materiales_maestro")
-    .select("clave, nombre, tipo, color, botellas_x_empaque")
+    .select("clave, nombre, tipo, color, botellas_x_empaque, familia")
     .order("nombre");
 
   if (error || !data) return { materiales: await materiales(), de: "sin_vista" };

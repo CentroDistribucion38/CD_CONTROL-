@@ -48,6 +48,30 @@ import type { Area, Causa, Material, Proceso } from "@/modulos/roturas/datos";
  * cuadro nunca.
  */
 
+/**
+ * LO QUE SE ROMPE COMO VIDRIO, Y LO QUE NO.
+ *
+ * «En quiebra en sitio, que en materiales, en producto, no salga ni PET
+ *  ni lata.»
+ *
+ * SE MIRA LA FAMILIA DEL MAESTRO DE INVENTARIO, que es donde está el
+ * dato: `Lata`, `Pet`, `Ret`, `Tw`, `Barril`. Adivinarlo por el nombre
+ * —buscar «Lta» o «Pet» en el texto— habría dejado fuera cualquier
+ * producto que alguien escriba distinto mañana, y dentro los que lleven
+ * esas letras por casualidad.
+ *
+ * LO QUE NO TIENE FAMILIA SE QUEDA. Un producto al que nadie le puso la
+ * familia en el maestro no se esconde: esconder algo por un dato que
+ * falta es cómo alguien se queda sin poder registrar una rotura que sí
+ * pasó, y sin saber por qué.
+ *
+ * EL BARRIL SE QUEDA TAMBIÉN, a propósito: no se pidió quitarlo, y
+ * quitarlo «de paso» sería decidir por él.
+ */
+const FUERA_DE_SITIO = new Set(["lata", "pet"]);
+const esVidrio = (m: { familia: string | null }) =>
+  !FUERA_DE_SITIO.has((m.familia ?? "").trim().toLowerCase());
+
 export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   materiales: Material[];
   procesos: Proceso[];
@@ -125,10 +149,15 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
 
      Así que: si hay envases con color, se filtra; si NINGUNO lo tiene,
      se ofrecen todos y la pantalla dice qué falta llenar y dónde. */
+  /* CUÁNTOS PRODUCTOS HAY EN TOTAL, antes de quitar lata y PET: es lo
+     que deja distinguir «el maestro está vacío» de «están todos, pero
+     ninguno se rompe como vidrio». Son dos cosas distintas y se
+     arreglan en sitios distintos. */
+  const ptTotal = materiales.filter((m) => m.tipo === "producto_terminado").length;
   const eer = materiales.filter((m) => m.tipo === "eer");
   const hayColores = eer.some((m) => !!m.color);
   const delTipo = tipo !== "eer"
-    ? materiales.filter((m) => m.tipo === tipo)
+    ? materiales.filter((m) => m.tipo === tipo && esVidrio(m))
     : hayColores ? eer.filter((m) => m.color === vidrio) : eer;
   const mat = materiales.find((m) => m.clave === material) ?? null;
   const cau = causas.find((c) => c.clave === causa) ?? null;
@@ -143,8 +172,14 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
      un desplegable de un solo renglón que hay que abrir para escoger lo
      único que se podía escoger es un toque cobrado por nada. */
   useEffect(() => {
+    /* EL MISMO FILTRO QUE EL DESPLEGABLE, y no uno parecido. Si aquí
+       se dejara `m.tipo === tipo` a secas, el «si solo hay uno posible
+       viene puesto» podría dejar puesta una lata que el desplegable ni
+       siquiera ofrece — y se guardaría sin que nadie la escogiera. Dos
+       sitios filtrando lo mismo por su cuenta es cómo se cuela
+       exactamente lo que se quería bloquear. */
     const posibles = materiales.filter((m) =>
-      m.tipo === tipo && (tipo !== "eer" || m.color === vidrio));
+      m.tipo === tipo && esVidrio(m) && (tipo !== "eer" || m.color === vidrio));
     setMaterial((antes) => {
       if (antes && posibles.some((m) => m.clave === antes)) return antes;
       return posibles.length === 1 ? posibles[0].clave : "";
@@ -215,8 +250,14 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
         opciones={delTipo.map((m) => ({ clave: m.clave, nombre: m.nombre, codigo: m.clave }))}
         rotulo="Escribe para buscar el material"
         cambiar={(c) => { setMaterial(c); setTocoBotellas(false) }}
+        /* EL MENSAJE DICE LA VERDAD: «no hay materiales en el maestro»
+           sería mentira cuando sí los hay y lo que pasa es que todos
+           son lata o PET. Mandar a alguien a buscar al maestro algo
+           que ya está ahí es media hora perdida. */
         vacio={esPT
-          ? "No hay materiales de producto terminado en el maestro de inventario."
+          ? (ptTotal > 0
+              ? `Los ${ptTotal} productos del maestro son lata o PET, y aquí no se ofrecen: en sitio se registra lo que se rompe como vidrio.`
+              : "No hay materiales de producto terminado en el maestro de inventario.")
           : `No hay envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()} en el maestro.`} />
 
       {/* NINGÚN ENVASE TIENE COLOR: se ofrecen todos y se dice. Antes
@@ -231,8 +272,11 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
       {delTipo.length === 0 && (
         <p className="nota">
           {esPT
-            ? <>No hay materiales de producto terminado en el maestro. Se agregan en
-                Inventario → Maestro, sin esperar un despliegue.</>
+            ? (ptTotal > 0
+                ? <>Los <b>{ptTotal}</b> productos del maestro son <b>lata o PET</b>, y en sitio
+                    no se ofrecen: aquí se registra lo que se rompe como vidrio.</>
+                : <>No hay materiales de producto terminado en el maestro. Se agregan en
+                    Inventario → Maestro, sin esperar un despliegue.</>)
             : <>No hay envase retornable <b>{COLOR_VIDRIO[vidrio].toLowerCase()}</b> en el
                 maestro. Se agrega en Inventario → Maestro.</>}
         </p>
