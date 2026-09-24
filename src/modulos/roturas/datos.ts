@@ -166,6 +166,23 @@ export async function salidas(limite = 200) {
   return { salidas: (data ?? []) as Salida[], falta: false };
 }
 
+/**
+ * LAS LÍNEAS DE VARIAS SALIDAS, para poder filtrar el análisis por
+ * tolva y por color.
+ *
+ * VA APARTE Y NO DENTRO DE `salidas()`: la inmensa mayoría de las
+ * pantallas solo necesitan el total de cada salida, y bajarles todas
+ * las líneas les costaría en cada carga sin que nadie las mire.
+ */
+export async function lineasDeSalidas(ids: string[]) {
+  if (ids.length === 0) return [] as TolvaPesada[];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("roturas_salida_tolvas").select("*")
+    .in("salida_id", ids);
+  return (data ?? []) as TolvaPesada[];
+}
+
 export async function unaSalida(id: string) {
   const supabase = await createClient();
   const [s, t] = await Promise.all([

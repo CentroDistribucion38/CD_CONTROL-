@@ -1,96 +1,104 @@
-El vidrio se amarra al REGISTRAR el viaje, no al facturarlo
+Los filtros del analisis de salida de vidrio
 
 =====================================================================
-LO QUE ESTABA MAL, Y ERA DE FONDO
+LO QUE FALTABA
 =====================================================================
-«Coloque tolva y no veo que placas tengo alli con tolva y la cantidad.
- Eso viene del registro de salida: es lo que te trato de decir.»
+«Agrega los filtros de todo, osea falta.»
 
-El vidrio se amarraba al viaje POR LA PLACA, al final, en facturacion.
-Eso funciona solo si alguien escribio la misma placa en los dos sitios;
-y si se equivoca, NO PASA NADA VISIBLE: el viaje sale sin vidrio y la
-cedula se queda esperando un camion que ya se fue.
-
-El problema no estaba al final: estaba al principio. Quien registra un
-traspaso de Tolvas de Vidrio SABE que va a cargar vidrio, y es justo
-ahi donde la pantalla tenia la informacion y no la mostraba.
+Quiebra -> Salida -> Analisis era la unica pantalla de informe del
+sistema SIN FILTROS: mostraba las ultimas 200 salidas y punto. No habia
+manera de preguntarle «cuantos kilos saco la NLW428 en agosto» ni
+«cuanto vidrio ambar salio esta semana» — la pantalla que existe para
+contestar eso era la unica que no dejaba preguntar.
 
 =====================================================================
-COMO QUEDA
+CINCO FILTROS, EN EL ORDEN EN QUE SE PREGUNTA
 =====================================================================
-AL REGISTRAR, escogiendo un tipo de tolvas, sale arriba de la placa:
+  DESDE / HASTA + atajos   Hoy · 7 dias · Este mes · Todo
+  PLACA
+  COLOR DEL VIDRIO         ambar · flint · green
+  TOLVA
 
-  VIDRIO PESADO ESPERANDO CAMION · toca una y se ponen la placa y las tolvas
-  [ NLW428 · 3 tolvas · SR-0044 · 2.413 kg ]  [ FSV898 · 5 tolvas · ... ]
+Primero QUE DIAS, que es lo primero que se escoge en un informe, y
+despues se afina. Los atajos son cuatro y cubren lo que se pregunta de
+verdad; cualquier otro rango se escribe en los dos campos.
 
-Se toca una y quedan puestas LA PLACA y LA CANTIDAD —el numero de
-tolvas pesadas—. Tecleare esa cifra a mano al lado de un numero que la
-bascula ya sabe es pedir que alguien se equivoque. Queda corregible.
-
-EN FACTURACION ya viene resuelto: un bloque verde que solo se lee —«este
-viaje ya lleva su vidrio, cedula SR-0046, 3 tolvas, lo amarro el patio
-al registrar»— y el documento. No se escoge ni se cuenta: es el doble
-trabajo del que se trataba escaparse. Verde y no ambar a proposito: el
-ambar dice «resuelve esto aqui»; esto ya esta resuelto.
-
-Y SI LA PLACA NO TIENE VIDRIO, se dice y se dice QUE HACER: «La placa
-PRUEBA no tiene vidrio pesado esperando. Si acaba de pesarse, quien peso
-tiene que CERRAR la salida en Quiebra -> Salida -> Pesar.» Ese es
-exactamente el caso que hizo perder una tarde.
+«TODO» ES UN ATAJO Y NO LA AUSENCIA DE FILTRO. Sin el, quitar un rango
+obliga a borrar dos campos de fecha a mano y a acordarse de que eran
+dos.
 
 =====================================================================
-TRES ESTADOS, Y HACEN FALTA LOS TRES
+EL RANGO MIRA LA FECHA EN QUE SALIO, NO EN QUE SE CREO
 =====================================================================
-  DISPONIBLE   cerrada, sin viaje. Se puede escoger al registrar.
-  RESERVADA    tiene viaje y no tiene despacho. El patio ya la cargo en
-               ese camion; el camion todavia no ha salido.
-  DESPACHADA   salio por la puerta.
+Una salida se abre un dia, se pesa ese mismo dia o el siguiente y sale
+cuando facturacion le da el documento. Filtrar por «creada_en» habria
+puesto en agosto kilos que salieron en septiembre.
 
-RESERVADA NO ES DESPACHADA, y mezclarlas seria mentir en las dos
-direcciones: una cedula cargada pero sin documento no ha salido del CD,
-y contarla como salida inflaria los kilos que salieron.
-
-=====================================================================
-LO QUE NO SE PIERDE, Y LO QUE PASA AL DESHACER
-=====================================================================
-· SIGUEN SIENDO DOS PERSONAS. Quien peso no da la salida — con cedula
-  amarrada o sin ella. Es la razon de ser de la cadena y se comprueba
-  igual en los dos caminos.
-· LA PLACA SE COMPRUEBA EN LA BASE, no solo en la pantalla. Una pantalla
-  es una sugerencia; una funcion es una regla.
-· UNA CEDULA CARGADA NO SE OFRECE PARA OTRO VIAJE. Sin eso, el mismo
-  vidrio se carga dos veces.
-· ANULAR el viaje SUELTA la cedula: el vidrio no se fue a ninguna parte.
-· REABRIR la salida NO la suelta: reabrir es corregir un DOCUMENTO, no
-  descargar el camion. (El disparador de antes la soltaba entera, y con
-  el amarre en el registro eso borraria un dato que nadie volvio a
-  escribir.)
-· EL CAMINO VIEJO SIGUE VIVO para lo que ya estaba registrado sin
-  amarre: escoger la cedula y contar las tolvas. Quitarlo dejaria sin
-  salida a todo lo que hay en la bandeja hoy.
-
-EL AMARRE VA EN SU PROPIA FUNCION y no como un argumento mas de
-traspaso_registrar. Esa funcion tiene cuatrocientas lineas de reglas
-acumuladas y en PostgreSQL no se remienda el cuerpo de una funcion: para
-agregarle un argumento hay que reescribirla entera, y ya se han perdido
-reglas reescribiendola. La pantalla registra y, si escogio cedula,
-amarra. SI LO SEGUNDO FALLA, EL VIAJE YA EXISTE y eso es lo correcto —el
-viaje ocurrio— pero se DICE, con el numero de la cedula, para poder
-amarrarla despues en vez de dejar creer que todo quedo bien.
+La fecha que manda es, en este orden: despachada_en, si no validador_en
+—las salidas viejas, de antes de que facturacion entrara— y si no
+supervisora_en. Lo que NO ha salido todavia no tiene ninguna de las
+tres: sale solo cuando no hay rango puesto, que es lo correcto — una
+salida sin fecha no pertenece a ningun mes.
 
 =====================================================================
-LOS ARNESES
+COLOR Y TOLVA MIRAN LAS LINEAS, NO LA CABECERA
 =====================================================================
-.arnes/tp-vidrio-registro.mjs monta Registrar en Chromium, TOCA una
-cedula y comprueba que queden puestas la placa y la cantidad, que el
-viaje salga AMARRADO —leyendo el paquete que sale hacia la base, y el
-ORDEN: primero registrar, despues amarrar—, que si el amarre falla se
-diga, y que una placa sin vidrio diga que hacer y donde. Cinco anchos.
-Una captura no distingue una pantalla que amarra de una que no.
+El color y la tolva no estan en la salida: estan en cada tolva pesada.
+Una salida de tres tolvas puede llevar dos ambar y una green. Por eso
+esos dos filtros DEJAN PASAR LA SALIDA SI ALGUNA DE SUS LINEAS CUADRA,
+y cruzados —ambar + TOLVA-1— exigen que sea LA MISMA LINEA la que
+cumpla las dos. Pedir «ambar» y «TOLVA-1» y que conteste una salida
+donde la TOLVA-1 traia green seria mentir.
 
-.arnes/correr-amarre-vidrio.sh comprueba contra Postgres los seis frenos
-de arriba, incluidos los dos que nadie prueba: reabrir no descarga el
-camion, y anular si suelta el vidrio.
+LAS LINEAS SOLO SE BAJAN SI SE USAN esos dos filtros. Traerlas siempre
+le costaria a cada carga de la pantalla sin que nadie las mire.
+
+=====================================================================
+DE PASO: «ESPERANDO FIRMA» DECIA MENTIRAS
+=====================================================================
+La cifra seguia contando la firma de validacion, que se fue del todo
+cuando facturacion tomo ese paso. Ahora dice ESPERANDO VH —vidrio
+pesado y cerrado que todavia no se monta en un camion— y no va en rojo:
+esperar camion no es un problema, es el estado normal entre pesar y
+despachar. Debajo dice «Mirando N de M salidas» para que nunca se lea
+un total filtrado creyendo que es el total.
+
+=====================================================================
+EN EL CELULAR
+=====================================================================
+El rango ocupa la fila entera y las dos fechas se reparten lo que haya;
+los cuatro atajos se reparten DE A DOS. Con el reparto automatico caben
+tres y el cuarto —«Todo»— se estira de lado a lado: queda una barra roja
+del ancho de la pantalla que se lee como el boton principal, cuando lo
+unico que dice es «sin rango».
+
+Con mas de ocho opciones un grupo se vuelve desplegable. Veinte placas
+en botones son dos renglones de ruido que tapan los filtros de al lado,
+y con guante veinte objetivos pequenos se aciertan peor que una lista.
+
+EL BLOQUE SE LLAMA `filtros-inf` Y NO `filtros` a proposito: en Roturas
+ya hay tres pantallas con un `div class=filtros` que es otra cosa y
+tiene su propia regla. Reutilizar el nombre habria dejado dos reglas
+peleandose por el mismo bloque — la trampa que este proyecto ya se comio
+cuatro veces.
+
+=====================================================================
+EL ARNES
+=====================================================================
+.arnes/rs-analisis.mjs, cinco partes:
+
+1. La pantalla lee los cinco filtros de la direccion y ya no dice «las
+   dos firmas».
+2. LA CUENTA, contra cinco salidas y cuatro lineas de mentira: sin
+   filtro 370 kg, un solo dia 100, agosto 300, julio —que solo tiene
+   validador_en— 70, por placa 270, ambar 100, green 70, por tolva 270,
+   y tolva+color cruzados 200. Ocho numeros, no una captura.
+3. Monta los filtros en Chromium y COMPRUEBA QUE TOCARLOS CAMBIA LA
+   DIRECCION. Un filtro que se pinta y no filtra pasa cualquier captura.
+4. Contraste en los siete temas.
+5. Geometria en cinco anchos, incluido cuanto del renglon se come el
+   atajo mas ancho — es lo unico que distingue cuatro atajos parejos de
+   tres arriba y uno estirado: los dos pasan todo lo demas.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
