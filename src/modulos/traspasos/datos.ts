@@ -24,6 +24,11 @@ export type TipoViaje = {
   cuenta_plan?: boolean;
   /** true = al registrarlo se pregunta si es de Arenosa; solo esos cuentan. */
   pregunta_arenosa?: boolean;
+  /** true = al registrarlo se ofrecen las cédulas de vidrio pesado.
+   *  VA OPCIONAL con `?` a propósito: si la migración
+   *  `2026-09-traspasos-tipo-lleva-vidrio.sql` todavía no se ha corrido,
+   *  la columna no existe y la pantalla tiene que seguir pintándose. */
+  lleva_vidrio?: boolean;
 };
 
 export type Punto = {

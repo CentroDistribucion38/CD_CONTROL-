@@ -1548,6 +1548,17 @@
 .tp .item.apagado { background: var(--tp-fondo) }
 .tp .item.apagado .nom b { color: var(--tp-gris); text-decoration: line-through }
 
+/* LA MARCA DE UNA BANDERA DEL TIPO —hoy «vidrio»—. Va pegada al nombre
+   y no en una columna aparte: son una o dos filas de la lista las que la
+   llevan, y una columna vacía en veinte filas para marcar dos es ruido
+   en todas para informar en dos. */
+.tp .item .nom .bandera-m {
+  display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px;
+  background: var(--tp-acento); color: var(--tp-sobre-acento);
+  font: 700 10px var(--tp-texto); font-style: normal; letter-spacing: .06em;
+  text-transform: uppercase; vertical-align: 2px;
+}
+
 /* El interruptor. Es un <input> de verdad debajo: se enfoca con el
    teclado y se prende con la barra espaciadora como cualquier casilla. */
 .tp .sw { position: relative; display: inline-block; width: 38px; height: 22px; cursor: pointer }

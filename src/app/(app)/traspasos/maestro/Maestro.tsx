@@ -336,6 +336,13 @@ export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: 
           <Lista filas={filasTipos} puedeEditar={puedeEditar} mandando={mandando}
                  sinUso={uso.falta} sinSub
                  alOrdenar={(cs) => ordenar("traspaso_ordenar_tipos", cs)}
+                 bandera={{
+                   rotulo: "Lleva vidrio en tolvas",
+                   marca: "vidrio",
+                   puesta: (c) => tipos.find((t) => t.clave === c)?.lleva_vidrio === true,
+                   alCambiar: (c, v) =>
+                     cambiar("traspasos_tipos", "clave", c, { lleva_vidrio: v }),
+                 }}
                  alPrender={(c, a) => cambiar("traspasos_tipos", "clave", c, { activo: a })}
                  alRenombrar={(c, nom) => cambiar("traspasos_tipos", "clave", c, { nombre: nom })}
                  alBorrar={(c, n) => borrar("traspasos_tipos", "clave", c, n)} />
@@ -378,7 +385,7 @@ export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: 
    ===================================================================== */
 
 function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar, borrarSiempre,
-                 alOrdenar, alPrender, alRenombrar, alBorrar }: {
+                 bandera, alOrdenar, alPrender, alRenombrar, alBorrar }: {
   filas: Fila[];
   puedeEditar: boolean;
   mandando: boolean;
@@ -390,6 +397,18 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar, bor
   /** SE PUEDE BORRAR AUNQUE SE HAYA USADO. Vale para placas y rutas, y
    *  no por relajar la regla: es que la regla no aplica. Ver abajo. */
   borrarSiempre?: boolean;
+  /* UNA CASILLA MÁS DE LA FILA, la que solo tiene sentido en una de las
+     listas. Hoy es «lleva vidrio en tolvas», de los tipos. Va aquí
+     genérica y no dentro de `Fila` porque las otras tres listas no
+     tienen ninguna, y una propiedad que casi siempre sobra se vuelve
+     una que nadie sabe si hay que llenar. */
+  bandera?: {
+    rotulo: string;
+    /** Lo que se pinta al lado del nombre cuando está puesta. */
+    marca: string;
+    puesta: (clave: string) => boolean;
+    alCambiar: (clave: string, valor: boolean) => void;
+  };
   alOrdenar: (claves: string[]) => void;
   alPrender: (clave: string, activo: boolean) => void;
   alRenombrar: (clave: string, nombre: string, sub: string | null) => void;
@@ -456,6 +475,7 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar, bor
                  puedeEditar={puedeEditar} mandando={mandando}
                  moviendo={moviendo === f.clave}
                  alTomar={(e) => tomar(e, f.clave)}
+                 bandera={bandera}
                  alPrender={alPrender} alRenombrar={alRenombrar} alBorrar={alBorrar} />
       ))}
     </div>
@@ -463,7 +483,7 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar, bor
 }
 
 function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, mandando,
-                   moviendo, alTomar, alPrender, alRenombrar, alBorrar }: {
+                   moviendo, bandera, alTomar, alPrender, alRenombrar, alBorrar }: {
   f: Fila;
   sinSub?: boolean;
   sinRenombrar?: boolean;
@@ -472,6 +492,11 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
   puedeEditar: boolean;
   mandando: boolean;
   moviendo: boolean;
+  bandera?: {
+    rotulo: string; marca: string;
+    puesta: (clave: string) => boolean;
+    alCambiar: (clave: string, valor: boolean) => void;
+  };
   alTomar: (e: React.PointerEvent) => void;
   alPrender: (clave: string, activo: boolean) => void;
   alRenombrar: (clave: string, nombre: string, sub: string | null) => void;
@@ -584,6 +609,11 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
 
       <div className="nom">
         <b>{f.nombre}</b>
+        {/* LA MARCA SE VE SIN ABRIR NADA. Una bandera que solo se
+            asoma dentro de un menú de tres puntos es una bandera que
+            nadie sabe que existe — y esta decide si al registrar sale
+            el bloque del vidrio. */}
+        {bandera?.puesta(f.clave) && <em className="bandera-m">{bandera.marca}</em>}
         {!sinSub || f.sub ? <span>{f.sub}</span> : null}
       </div>
 
@@ -614,6 +644,13 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
                     onClick={() => { setMenu(false); alPrender(f.clave, !f.activo) }}>
               {f.activo ? "Apagar" : "Prender"}
             </button>
+            {bandera && (
+              <button type="button" disabled={!puedeEditar || mandando}
+                      onClick={() => { setMenu(false);
+                                       bandera.alCambiar(f.clave, !bandera.puesta(f.clave)) }}>
+                {bandera.puesta(f.clave) ? `Quitar: ${bandera.rotulo}` : bandera.rotulo}
+              </button>
+            )}
             {sePuedeBorrar ? (
               <>
                 <button type="button" className="mal" disabled={mandando}

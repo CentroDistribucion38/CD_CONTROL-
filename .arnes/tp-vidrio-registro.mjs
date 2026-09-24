@@ -27,6 +27,21 @@ const R = (p) => new URL("../" + p, import.meta.url).pathname;
 const fallas = [];
 const ok = (c, m) => { if (!c) fallas.push(m) };
 
+/* QUE EL ARNÉS HABLE AUNQUE SE CAIGA.
+   Al romper el código a propósito para comprobar que este arnés muerde,
+   pasó esto: la comprobación SÍ registró la falla, y dos pasos después
+   el guion se murió esperando un botón que ya no existía. Lo único que
+   se veía era un «Timeout» de Playwright — cierto, inútil, y que no
+   distingue «lo rompí yo» de «se rompió el arnés». Ahora, pase lo que
+   pase, primero se imprime lo que ya se sabía que estaba mal. */
+const caerse = (e) => {
+  if (fallas.length) { console.log(""); fallas.forEach((x) => console.log("✗ " + x)) }
+  console.log("✗ el arnés no pudo terminar: " + ((e && e.message) || e));
+  process.exit(1);
+};
+process.on("uncaughtException", caerse);
+process.on("unhandledRejection", caerse);
+
 writeFileSync(R(".arnes/_nav-tv.ts"),
   `export const useRouter = () => ({ refresh() {}, push() {}, replace() {} });
    export const useSearchParams = () => new URLSearchParams("");`);
@@ -55,8 +70,17 @@ writeFileSync(R(".arnes/_tv-entrada.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Registrar } from "../src/app/(app)/traspasos/Registrar";
 const tipos = [
-  { clave: "casco_vidrio", nombre: "Casco vidrio", activo: true, orden: 1, cuenta_plan: true, pregunta_arenosa: false },
-  { clave: "tolvas_vidrio", nombre: "Tolvas de Vidrio", activo: true, orden: 10, cuenta_plan: false, pregunta_arenosa: false },
+  /* «CASCO VIDRIO (TOLVAS)» ES EL CASO QUE ROMPIÓ ESTO. Con el criterio
+     viejo —si el nombre dice «tolva», lleva vidrio— a este le salía el
+     bloque, y es justo el tipo al que NO le debe salir. Se deja con ese
+     nombre a propósito: si alguien vuelve al criterio del nombre, esta
+     línea lo delata. */
+  { clave: "casco_vidrio", nombre: "Casco vidrio (tolvas)", activo: true, orden: 1,
+    cuenta_plan: true, pregunta_arenosa: false, lleva_vidrio: false },
+  /* Y ESTE NO DICE «TOLVA» EN NINGUNA PARTE y sí lo lleva: el criterio
+     viejo tampoco lo encontraba. */
+  { clave: "tolvas_vidrio", nombre: "Vidrio a granel", activo: true, orden: 10,
+    cuenta_plan: false, pregunta_arenosa: false, lleva_vidrio: true },
 ];
 const puntos = [
   { clave: "fabrica", nombre: "FABRICA", externo: false, activo: true, orden: 1, descripcion: "Planta" },
@@ -125,9 +149,9 @@ const ultima = async (f) =>
    mayoría de los traspasos no llevan vidrio.
    ------------------------------------------------------------------ */
 await monta();
-await tipo("Casco vidrio");
+await tipo("Casco vidrio (tolvas)");
 ok(!(await pg.isVisible(".tp-vidrio")),
-   "con Casco vidrio sale el bloque del vidrio y no tiene nada que decir ahí");
+   "«Casco vidrio (tolvas)» NO lleva vidrio en el maestro y aun así le sale el bloque: se está mirando el nombre");
 
 /* ---------------------------------------------------------------------
    2 · CON TOLVAS SALEN LAS PLACAS, CON SUS TOLVAS Y SUS KILOS
@@ -136,7 +160,7 @@ ok(!(await pg.isVisible(".tp-vidrio")),
    cantidad». Una lista de códigos SR-00xx no contesta esa pregunta.
    ------------------------------------------------------------------ */
 await monta();
-await tipo("Tolvas de Vidrio");
+await tipo("Vidrio a granel");
 ok(await pg.isVisible(".tp-vidrio"),
    "con Tolvas de Vidrio no sale el vidrio que está esperando camión");
 {
@@ -233,7 +257,7 @@ await pg.waitForFunction(() => (window.rpcs ?? []).some((r) => r.f === "traspaso
    ------------------------------------------------------------------ */
 await monta();
 await pg.evaluate(() => { window.amarreFalla = true });
-await tipo("Tolvas de Vidrio");
+await tipo("Vidrio a granel");
 await pg.click('.tp-vidrio-lista button:has-text("FSV898")');
 await llenarRuta();
 await pg.click(".tp .btn.si, .tp button.si");
@@ -259,7 +283,7 @@ await pg.waitForFunction(() => (window.rpcs ?? []).some((r) => r.f === "traspaso
     document.getElementById("r").innerHTML = "";
   });
   await monta();
-  await tipo("Tolvas de Vidrio");
+  await tipo("Vidrio a granel");
   /* Se escoge desde «las placas de la semana», que es como se escoge de
      verdad en el muelle: el camión que está en la puerta casi siempre ya
      pasó esta semana. */
@@ -277,7 +301,7 @@ await pg.waitForFunction(() => (window.rpcs ?? []).some((r) => r.f === "traspaso
 for (const [ancho, nombre] of [[1440, "pc"], [1024, "tablet apaisada"], [820, "tablet"],
                                [390, "celular"], [360, "celular chico"]]) {
   await monta(ancho);
-  await tipo("Tolvas de Vidrio");
+  await tipo("Vidrio a granel");
   const m = await pg.evaluate(() => {
     const caja = document.querySelector(".tp").getBoundingClientRect();
     const bs = [...document.querySelectorAll(".tp-vidrio-lista button")];

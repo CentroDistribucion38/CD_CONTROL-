@@ -235,17 +235,28 @@ export function Registrar({ tipos, puntos, placas, placasM,
     });
   }
   /* ------------------------------------------------------------------
-     EL VIDRIO, CUANDO EL VIAJE ES DE TOLVAS
+     EL VIDRIO, CUANDO EL TIPO LO LLEVA
 
-     SE RECONOCE POR EL NOMBRE DEL TIPO, no por una clave fija: el tipo
-     «Tolvas de Vidrio» no lo creó ninguna migración — lo agregó alguien
-     en el Maestro— así que su clave puede ser cualquiera y mañana puede
-     haber «Tolvas de vidrio T2». Lo que no cambia es la palabra.
+     LO DICE EL MAESTRO, NO EL NOMBRE. Antes se miraba si el nombre del
+     tipo contenía la palabra «tolva», y eso estuvo mal desde el primer
+     día: «que esas tolvas solo le aparezcan a TOLVAS, no a CASCO DE
+     VIDRIO». El nombre se edita desde el Maestro sin que nadie sepa que
+     esa palabra decide algo, y mañana puede haber «Casco vidrio
+     (tolvas)» o «Tolvas de PET». Ahora es una casilla del tipo.
+
+     SI LA MIGRACIÓN NO SE HA CORRIDO, la columna no existe y `tipos`
+     llega sin ella. Ahí —y SOLO ahí— se cae al criterio viejo: es peor
+     que la casilla, pero es lo que había, y dejar la pantalla sin el
+     bloque sería quitarle algo que hoy funciona a quien todavía no ha
+     corrido el SQL.
      ------------------------------------------------------------------ */
-  const esDeTolvas = escogidos.some((c) => {
-    const n = (tipos.find((x) => x.clave === c)?.nombre ?? c).toLowerCase();
-    return n.includes("tolva");
-  });
+  const hayCasilla = tipos.some((t) => t.lleva_vidrio !== undefined);
+  const llevaVidrio = (clave: string) => {
+    const t = tipos.find((x) => x.clave === clave);
+    if (hayCasilla) return t?.lleva_vidrio === true;
+    return (t?.nombre ?? clave).toLowerCase().includes("tolva");
+  };
+  const esDeTolvas = escogidos.some(llevaVidrio);
 
   /* Si ya hay placa escogida, solo el vidrio de ESA placa: ofrecer el de
      otra sería ofrecer cargar vidrio ajeno. Sin placa, todo lo que
@@ -264,8 +275,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
     setTipos((m) => {
       const n = new Map(m);
       for (const clave of escogidos) {
-        const nom = (tipos.find((x) => x.clave === clave)?.nombre ?? clave).toLowerCase();
-        if (nom.includes("tolva")) n.set(clave, String(c.tolvas));
+        if (llevaVidrio(clave)) n.set(clave, String(c.tolvas));
       }
       return n;
     });

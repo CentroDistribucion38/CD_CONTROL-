@@ -1,121 +1,75 @@
-El operador logistico responde el cobro, con evidencia (solo la base)
+Que lleve vidrio en tolvas lo dice el maestro, no el nombre del tipo
 
 =====================================================================
-LO QUE FALTABA
+EL ERROR ERA MIO, Y DE FONDO
 =====================================================================
-«En sitio hacen el registro y llega a ABI para ver si se cobra o no.
- Ahora la idea es que al operador logistico le llegue esa notificacion
- y conteste si esta de acuerdo con ese cobro o no, y adjunte evidencia,
- con el fin de ir conciliando —diario, semanal o mensual.»
+«Que esas tolvas solo le aparezcan a TOLVAS, no a CASCO DE VIDRIO.»
 
-La cadena tenia dos eslabones y se acababa en el que cobra:
+El bloque de «VIDRIO PESADO ESPERANDO CAMION» —el que al registrar
+ofrece las cedulas y llena la placa y la cantidad— se estaba decidiendo
+LEYENDO EL NOMBRE DEL TIPO: si el nombre contenia la palabra «tolva»,
+salia.
 
-  alguien registra en sitio  ->  ABI dice si cuenta  ->  se acabo
-
-Una de las dos partes decide sola cuanto le cobra a la otra, y la otra
-se entera cuando le llega la cuenta. Eso no se concilia: se discute, al
-final del mes, sobre una lista que nadie objeto a tiempo porque nadie
-tuvo donde objetarla.
-
-Ahora hay un tercer eslabon:
-
-  registro -> ABI cobra -> EL OL RESPONDE -> (si no esta de acuerdo)
-                                             ABI resuelve
-
-ESTE COMMIT ES SOLO LA BASE. Las bandejas van en el siguiente paso.
+Eso lo escribi yo, y estuvo mal desde el primer dia. No por un
+descuido: ADIVINAR UNA REGLA LEYENDO TEXTO LIBRE FALLA SIEMPRE, tarde o
+temprano. El nombre de un tipo se edita desde el Maestro y nadie tiene
+por que saber que esa palabra decide algo. Basta con que un tipo se
+llame «Casco vidrio (tolvas)» para que le salga un bloque que no le
+toca, y con que el de verdad se llame «Vidrio a granel» para que no le
+salga el que si. La pantalla cambia de comportamiento sin que nadie
+toque una linea de codigo ni entienda por que.
 
 =====================================================================
-`estado` NO SE TOCA
+COMO QUEDA
 =====================================================================
-Lo evidente seria meterle estados nuevos al enum `rotura_estado`
-—«en_disputa», «aceptada»— y seria un error caro: `estado = 'cuenta'`
-lo leen hoy la vista, las cifras, tres indices y toda pantalla que
-pregunte si una rotura se cobra. Agregarle significados reinterpreta
-TODO lo ya decidido, hacia atras y en silencio.
+ES UNA CASILLA DEL TIPO, al lado de las otras dos que ya existian por
+tipo (`cuenta_plan`, `pregunta_arenosa`):
 
-`estado` sigue queriendo decir LO QUE ABI DECIDIO. La conversacion con
-el OL va en su propia columna, `cobro`, que solo existe cuando
-estado = 'cuenta'.
+  Traspasos -> Maestro -> Tipos -> menu de la fila (⋯)
+    «Lleva vidrio en tolvas»
 
-  por_responder  ABI cobro; el OL no contesta todavia. Corre el plazo.
-  aceptado       el OL dijo que si — o se le vencio el plazo.
-  en_disputa     el OL dijo que no, con nota y con evidencia.
-  sostenido      hubo disputa y ABI la sostuvo. Se cobra.
-  retirado       hubo disputa y ABI le dio la razon al OL. No se cobra.
+Se prende y se apaga sin desplegar nada. El tipo que la tenga puesta
+lleva una marca VIDRIO al lado del nombre, EN LA LISTA: una bandera que
+solo se asoma dentro de un menu de tres puntos es una bandera que nadie
+sabe que existe, y esta decide si al registrar sale el bloque.
 
-`aceptado` Y `sostenido` LOS DOS SE COBRAN, y aun asi son dos cosas
-distintas: en uno las partes estuvieron de acuerdo y en el otro una le
-gano a la otra. El acta del mes tiene que poder decir cual fue cual.
+De paso queda el mecanismo para las otras dos, que hasta hoy no se
+podian ver ni cambiar desde ninguna pantalla.
 
-=====================================================================
-EL PLAZO SE MIDE AL LEER, NO CON UN RELOJ
-=====================================================================
-«Si no contesta en N dias se da por aceptada» necesita que algo pase a
-las 00:00. Este proyecto NO TIENE nada corriendo solo, y montar un cron
-para esto seria poner la verdad de la plata a depender de que un
-trabajo no se caiga un domingo.
+LA SEMILLA ES UNA SUGERENCIA. La migracion la prende donde el nombre
+dice «tolva» Y NO dice «casco» —la distincion que se pidio—, lo hace UNA
+sola vez, y IMPRIME las dos listas para que se miren:
 
-La vista devuelve `cobro_efectivo`, que es `aceptado` en cuanto pasa la
-fecha aunque la fila todavia diga `por_responder`. Nunca hay un rato en
-que la pantalla y la base digan cosas distintas.
+  LLEVAN VIDRIO EN TOLVAS: ...
+  NO LLEVAN: ...
 
-Y PARA QUE NO SEA UNA MENTIRA A MEDIAS, la funcion que escribe respeta
-lo mismo: `rotura_responder` rechaza una rotura vencida aunque la fila
-siga diciendo `por_responder`. Sin esa guarda, al OL le bastaria con
-abrir la pantalla tarde para seguir objetando lo ya aceptado.
+Correrla dos veces no deshace una correccion hecha a mano.
 
-El plazo arranca en 3 dias y vive en `roturas_parametros`: se cambia
-sin desplegar.
+SI EL SQL NO SE HA CORRIDO, la columna no existe y la pantalla cae al
+criterio viejo. Es peor que la casilla, pero es lo que habia: dejar el
+bloque sin salir seria quitarle algo que hoy funciona a quien todavia
+no ha corrido la migracion.
 
 =====================================================================
-LA TRAMPA MAS FACIL DE CAER Y MAS DIFICIL DE VER
+EL ARNES, Y UNA FALLA DEL ARNES
 =====================================================================
-`exige_foto` existe «porque es la que sostiene que la rotura no fue del
-OL». Si la foto que sube EL OL PARA DEFENDERSE contara para eso, el
-acusado estaria firmando la prueba en su contra.
+.arnes/tp-vidrio-registro.mjs monta ahora DOS TIPOS TRAMPA:
 
-Por eso `roturas_fotos` gana una columna `papel` —rotura o descargo— y
-TODO lo que cuenta fotos filtra papel='rotura': la vista y el visto
-bueno. La evidencia del descargo se cuenta aparte, en `descargo_fotos`.
+  «Casco vidrio (tolvas)»  con la casilla APAGADA  -> no debe salir
+  «Vidrio a granel»        con la casilla PUESTA   -> debe salir
 
-=====================================================================
-LO DEMAS QUE QUEDA AMARRADO
-=====================================================================
-· NO SE CREA NINGUN ROL. Desde «roles-supervisor-borrable» quien firma
-  es quien tiene «Editar» en la pantalla de esa firma. El OL es quien
-  tenga «Editar» en /roturas/en-sitio/descargo, y eso se asigna desde
-  Admin -> Roles sin tocar codigo.
-· DOS PARTES, DOS PERSONAS: quien dio el visto bueno no puede responder
-  ese cobro. Un administrador tiene los dos permisos y sin esta linea
-  podria cerrar solo una conciliacion entre dos empresas.
-· OBJETAR EXIGE NOTA Y EVIDENCIA. Una objecion vacia no se puede llevar
-  a la reunion del mes.
-· RESOLVER EXIGE NOTA SIEMPRE, sostenga o retire: es la ultima palabra
-  de un pleito, y «sostenido» a secas no lo defiende nadie tres meses
-  despues.
-· ANULAR BORRA LA CONVERSACION. Anular es decir «esto no paso»; dejarle
-  el cobro puesto la mandaria a la bandeja del OL a responder por algo
-  que ya no existe.
-· LO QUE YA ESTABA COBRADO ENTRA A LA COLA con el plazo contado DESDE
-  HOY, no desde el dia en que ABI lo decidio. Contarlo desde entonces
-  dejaria vencido de entrada todo el historico —el OL nunca tuvo esa
-  pantalla— y la primera conciliacion arrancaria con cientos de
-  «aceptadas por silencio» que nadie callo.
+Los dos estan escogidos a proposito: al primero el criterio viejo le
+sacaba el bloque y al segundo no se lo encontraba. Si alguien vuelve a
+decidir por el nombre, estas dos lineas lo delatan.
 
-=====================================================================
-EL ARNES
-=====================================================================
-bash .arnes/correr-descargo-ol.sh, contra Postgres de verdad. Once
-comprobaciones, y SE PROBO QUE MUERDE: se rompieron a proposito los
-seis frenos —la foto del descargo, el plazo, las dos partes, la
-evidencia, el vencimiento en la vista y la limpieza al anular— y los
-seis dieron ROJA.
-
-La primera version del arnes solo protegia lo que debia fallar: al
-romper una guarda, pasaba el paso roto y REVENTABA dos lineas despues
-con un error cierto que no decia nada, y el resumen nunca se imprimia.
-Ahora toda llamada queda registrada, la que debe fallar y la que debe
-pasar.
+Y SE COMPROBO QUE MUERDE — pero al hacerlo aparecio otra cosa: el arnes
+detectaba la mutacion y SE MORIA DOS PASOS DESPUES esperando un boton
+que ya no existia. Lo unico que se veia era un «Timeout» de Playwright:
+cierto, inutil, y que no distingue «lo rompi yo» de «se rompio el
+arnes». Los dos arneses de esta tanda imprimen ahora lo que ya sabian
+que estaba mal ANTES de caerse. Es la segunda vez en esta sesion que
+aparece el mismo defecto —la primera fue en el de SQL— y por eso quedo
+escrito en los dos.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
