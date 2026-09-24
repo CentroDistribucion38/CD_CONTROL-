@@ -1,93 +1,35 @@
-Averias: el motor de hallazgos y el informe (primera pieza)
+La fecha al lado de la hora en Facturados y Por facturar
+
+«Aqui agrega la fecha junto con la hora, por favor, en Facturados y por
+ facturar.»
+
+La columna decia «07:19 a. m.» y nada mas. En una lista que puede traer
+varios dias —el tablero mira un periodo, no un dia— una hora sin fecha
+obliga a mirar el encabezado y suponer.
+
+Las dos listas y la tercera —«Facturados con un numero que SAP no
+tiene»— salen de la misma funcion, asi que las tres quedan igual.
 
 =====================================================================
-QUE ES ESTO Y QUE NO
+LA FECHA ES LA DEL RELOJ, NO LA DEL DIA OPERATIVO
 =====================================================================
-«Haz con averias algo brutal y sobre todo profesional, con hallazgos y
- todo en el informe.»
+Un viaje tiene DOS dias y no son el mismo:
 
-ESTA ES LA PRIMERA PIEZA: el motor de hallazgos y el papel. Faltan la
-base de datos y las pantallas (registrar, tablero, ficha, analisis), que
-van en su propio paso. Se empieza por aqui porque es la parte que no
-estaba en los bocetos y la que decide si el modulo sirve de algo.
+  `hora`   el instante en que se registro
+  `fecha`  el DIA OPERATIVO, el que cuenta para el plan y para el turno
 
-=====================================================================
-QUE ES UN HALLAZGO AQUI, Y QUE NO
-=====================================================================
-Un hallazgo NO es una cifra. «36 cajas este mes» es una cifra: ya esta
-en el tablero y no le dice a nadie que hacer. Un hallazgo es una cifra
-MAS la comparacion que la vuelve accionable:
+EL TURNO C CRUZA LA MEDIANOCHE. Un viaje de las 10:40 p. m. del 22
+puede ser del dia operativo 23. Pintar «23/09 10:40 p. m.» seria decir
+una hora que ese dia no ocurrio — y es justo lo que habria salido si se
+pega el campo `fecha` al lado de la hora, que era lo evidente.
 
-  cifra     «22 cajas en la calle A»
-  hallazgo  «el 61 % de las cajas esta en la calle A, y dos tercios de
-             esas son averia de deposito y no de transporte: el problema
-             es del sitio, no del viaje»
+Asi que la fecha sale del MISMO instante que la hora, y CUANDO LOS DOS
+DIAS NO COINCIDEN se dice el otro: «cuenta al 23/09». Sin eso, quien
+busca un viaje «del 23» no lo encuentra porque el reloj dice 22, y
+acaba creyendo que se perdio.
 
-Y ESA SEGUNDA LINEA SE DA VUELTA SOLA. Con la misma concentracion pero
-de transporte, el papel dice lo CONTRARIO —«llega averiado, no se averia
-ahi»—, porque el camion no es de la calle. Es el hallazgo que mas facil
-se saca al reves, y por eso tiene su propia comprobacion.
-
-CADA HALLAZGO LLEVA LA CUENTA QUE LO SOSTIENE: «22 de 36 cajas · 3
-averias · 22 cajas de deposito». Un informe que afirma cosas sin mostrar
-de donde salen es un informe al que hay que creerle.
-
-Los siete que salen hoy:
-· donde se concentra, y si es del sitio o del viaje;
-· CUANTAS SIGUEN CONTANDO EN EL INVENTARIO —el de plata: producto que
-  ya no existe y que el sistema sigue contando, con cuantos dias lleva
-  esperando el documento—;
-· cuanto tarda la baja en SAP, y la mas lenta;
-· lo que VENCE EN 30 DIAS estando ya averiado: despues de esa fecha ya
-  no se le reclama a nadie;
-· la causal que manda, y a quien se le reclama esa;
-· el producto que mas se averia;
-· si todo lo reporta una sola persona: en un centro de varios turnos eso
-  casi nunca significa que los demas no rompan.
-
-NINGUNO SE INVENTA CUANDO NO HAY DE DONDE. Cada regla tiene un piso: un
-porcentaje sobre cuatro cajas no es una concentracion, es el azar. Un
-informe con dos hallazgos ciertos vale mas que uno con seis rellenos.
-
-LO ALTO VA PRIMERO. Un informe que empieza por un dato de color y
-esconde la plata en el cuarto renglon es un informe que se lee hasta el
-segundo.
-
-=====================================================================
-EL PAPEL
-=====================================================================
-Mismas piezas que la hoja de rotura de linea, importadas y no copiadas.
-LOS HALLAZGOS VAN ARRIBA, ANTES DE CUALQUIER TABLA: un informe que
-empieza por veinte renglones obliga a cada quien a sacar sus propias
-conclusiones, y cada quien saca otra.
-
-La tabla lleva LA FOTO de cada averia, y no es adorno: una averia sin
-foto no se le reclama a nadie. Cuando falta, queda el recuadro punteado
-—un hueco marcado dice «a esta le falta la prueba»; uno liso no dice
-nada—.
-
-=====================================================================
-UN ERROR QUE ENCONTRO EL ARNES ANTES QUE NADIE
-=====================================================================
-`calleDe("A03 · M12")` devolvia «A03» y no «A». Agrupando asi, las
-averias de una misma calle se reparten en tantos grupos como modulos
-tenga: ninguno llega al 40 % y LA CONCENTRACION —el hallazgo que mas
-vale de todo el informe— no sale nunca. El papel se habria visto
-perfectamente bien, solo que sin el unico renglon por el que se hace.
-
-=====================================================================
-EL ARNES
-=====================================================================
-.arnes/av-informe.mjs. Los hallazgos son una FUNCION PURA y se miden
-sin navegador y sin generar un PDF: entra una lista de averias, sale una
-lista de conclusiones, y se comprueba numero por numero —22 de 36 = 61 %,
-21 cajas y 630 unidades sin documento, 12 cajas que vencen, 4 dias la
-mas proxima—. Dentro del dibujo, la unica forma de comprobarlo seria
-leer el papel, y una conclusion mal sacada se lee normal.
-
-Ademas: que NO se inventen sin material, que lo alto vaya primero, que
-ninguno quede sin su cuenta, que el papel los ponga ANTES de la tabla,
-y que con 60 averias parta paginas sin salirse del margen.
+La hora va en gris y la fecha en tinta: se busca por dia y la hora es el
+detalle.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_011eGKqn2gUS8cs5eYR1TxLK
