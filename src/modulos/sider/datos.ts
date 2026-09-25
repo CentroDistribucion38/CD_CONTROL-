@@ -113,7 +113,16 @@ export async function viajesEnTransito() {
   const ids = pend.error ? [] : ((pend.data ?? []) as { viaje_id: string }[]).map((p) => p.viaje_id);
   let pendientes: Viaje[] = [];
   if (ids.length) {
-    const { data: dp } = await supabase.from("v_sider_viajes").select("*").in("id", ids);
+    /* Y AQUÍ SE VUELVE A DEJAR FUERA A LOS ANULADOS.
+       El arreglo de verdad está en la vista —`v_sider_ai_pendientes` ya
+       no los devuelve, porque un viaje anulado no está esperando que
+       nadie cuente su muestra—, y este renglón es el cinturón: mientras
+       el SQL no se haya corrido, la pantalla YA se comporta bien, y el
+       día que alguien reescriba esa vista y se le olvide el estado,
+       Tránsito no vuelve a llenarse de vehículos anulados sin que nadie
+       se entere. Cuesta una palabra en una consulta que ya se hacía. */
+    const { data: dp } = await supabase.from("v_sider_viajes").select("*")
+      .in("id", ids).neq("estado", "anulado");
     const extra = await supabase.from("sider_viajes")
       .select("id, ai_motivo, ai_pedido_por, ai_pedido_en").in("id", ids);
     const porId = new Map<string, M>();
