@@ -82,11 +82,20 @@ const materiales = [
   { clave: "EER-AMBAR", nombre: "Envase retornable ámbar", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 1 },
   { clave: "EER-FLINT", nombre: "Envase retornable flint", tipo: "eer", color: "flint", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 2 },
   { clave: "EER-GREEN", nombre: "Envase retornable green", tipo: "eer", color: "green", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 3 },
-  /* DOS ÁMBAR A PROPÓSITO. Es el caso que obliga a que EER tenga su
-     desplegable: con uno solo, la base puede traducir color → material
-     sin equivocarse; con dos, escoge uno EN SILENCIO y el informe del
-     mes reparte el vidrio en el formato que no era. */
-  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 4 },
+  /* DOS ÁMBAR A PROPÓSITO, Y LOS DOS MARCADOS. Es el caso que obliga a
+     que EER tenga su desplegable: con uno solo, la base puede traducir
+     color → material sin equivocarse; con dos, escoge uno EN SILENCIO
+     y el informe del mes reparte el vidrio en el formato que no era.
+
+     ESTÁN LOS DOS MARCADOS porque así está el maestro de verdad: de los
+     doce envases que él marcó, SEIS son marrones —330, 750, Club Col
+     330, 1000, 250 y 850—. La marca no escoge entre dos del mismo
+     color; los trae a los dos. */
+  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 4 },
+  /* Y UN TERCER ÁMBAR SIN MARCAR: el que no se rompe en sitio. No debe
+     salir de entrada, y TIENE que salir al buscarlo — si se escondiera
+     de verdad, una rotura que pasó no se podría registrar. */
+  { clave: "EER-AMBAR-VIEJO", nombre: "Envase retornable ámbar viejo", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 5 },
   { clave: "PT-COST-330", nombre: "Cerveza Costeña 330 ml", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: "Ret", en_sitio: true, activo: true, orden: 11 },
   /* UNA LATA, UN PET Y UNO SIN FAMILIA. Sin ellos, «en producto no
      sale ni PET ni lata» pasaría sin probar nada — y el de la familia
@@ -493,8 +502,14 @@ const puesto = async () => (await pg.textContent("#rt-mat")) ?? "";
 await pg.click(".rt-rep .seg.vidrio button.ambar");
 {
   const op = await ofrece();
-  ok(op.length === 2 && op.every((c) => c.startsWith("EER-AMBAR")),
-     `en ámbar la lista trae ${JSON.stringify(op)} y debería traer solo los ámbar`);
+  /* DOS COSAS DISTINTAS, EN DOS RENGLONES, porque juntas mentían: con
+     los tres ámbar salidos, el mensaje único decía «debería traer solo
+     los ámbar» —que era falso, todos eran ámbar— y mandaba a revisar
+     el filtro de color en vez de la marca, que era lo roto. */
+  ok(op.every((c) => c.startsWith("EER-AMBAR")),
+     `en ámbar la lista trae ${JSON.stringify(op)}: se coló uno de otro color`);
+  ok(op.length === 2,
+     `en ámbar salen ${op.length} y deben ser los 2 marcados: ${JSON.stringify(op)}`);
   ok(/Escribe para buscar/.test(await puesto()),
      "con dos ámbar ya viene uno escogido: eso es escoger por quien está mirando la estiba");
   ok(await pg.isDisabled(".rt-rep .pie button.si"),
@@ -645,24 +660,50 @@ ok(/Escribe para buscar/.test(await puesto()),
   ok(buscado.includes("PT-2050"),
      `un material sin marcar no aparece ni buscándolo por su código: ${buscado.join(", ")}`);
 
-  /* EN EER **NO** SE APLICA LA LISTA CORTA, y esta comprobación es la
-     que lo sostiene.
+  /* EN EER **TAMBIÉN** SE APLICA LA LISTA CORTA. Una versión de esto
+     decía lo contrario y estaba mal: se apoyaba en que el color ya
+     dejaba la lista en uno o dos, y en el maestro de verdad NINGÚN
+     envase tiene color puesto, así que EER abría con los 32 —estibas
+     de madera y cilindros de CO2 incluidos—. La lista que «ya era
+     corta» era la lista entera.
 
-     Allí la lista ya es corta: el color del vidrio la deja en uno o
-     dos. Aplicando además la marca desaparecía el segundo ámbar —el
-     maestro tiene un 330 y un 750— y ese es justo el caso por el que
-     EER tiene desplegable: con dos del mismo color la base escoge el
-     primero EN SILENCIO y el informe del mes reparte el vidrio en el
-     formato que no era. Resolver un scroll que no existe a cambio de
-     reabrir ese agujero es un mal negocio. */
+     LO QUE SÍ HAY QUE SOSTENER son las dos mitades: que los DOS ámbar
+     marcados salgan —esconder uno haría que la base escogiera el otro
+     en silencio— y que el no marcado siga apareciendo al buscarlo. */
   await pg.keyboard.press("Escape");
   await pg.click(".rt-rep .seg button:has-text('EER')");
   await pg.click("#rt-mat");
   await pg.waitForSelector(".rt-rep .bl-lista", { timeout: 2000 }).catch(() => {});
   const eerEntrada = await pg.$$eval(".rt-rep .bl-op span", (e) => e.map((x) => x.textContent.trim()));
   ok(eerEntrada.includes("EER-AMBAR") && eerEntrada.includes("EER-AMBAR-750"),
-     `en EER se escondió uno de los dos ámbar: ${eerEntrada.join(", ")} — con dos del mismo ` +
-     "color, esconder uno hace que la base escoja el otro en silencio");
+     `en EER se escondió uno de los dos ámbar marcados: ${eerEntrada.join(", ")} — con dos del ` +
+     "mismo color, esconder uno hace que la base escoja el otro en silencio");
+  ok(!eerEntrada.includes("EER-AMBAR-VIEJO"),
+     `en EER salió de entrada un envase SIN marcar: ${eerEntrada.join(", ")} — la marca no está ` +
+     "filtrando y el desplegable vuelve a ser el de los 32");
+
+  /* Y EL NO MARCADO APARECE AL BUSCARLO. Esta es la mitad que evita el
+     daño: esconder un envase sería impedir registrar una rotura que de
+     verdad pasó, y eso es peor que un scroll largo. */
+  await pg.fill(".rt-rep .bl-teclea", "EER-AMBAR-VIEJO");
+  await pg.waitForTimeout(80);
+  const eerBuscado = await pg.$$eval(".rt-rep .bl-op span", (e) => e.map((x) => x.textContent.trim()));
+  ok(eerBuscado.includes("EER-AMBAR-VIEJO"),
+     `un envase sin marcar no aparece ni buscándolo por su código: ${eerBuscado.join(", ")}`);
+
+  /* UN COLOR SIN NINGUNO MARCADO NO SE QUEDA VACÍO. El verde tiene uno
+     solo y está sin marcar: el buscador solo acorta cuando hay
+     marcados Y son menos que el total, así que aquí ofrece todos. Sin
+     esta salida, escoger un color que nadie marcó dejaría el registro
+     trabado — que es exactamente lo que ya pasó una vez con el color
+     del vidrio. */
+  await pg.keyboard.press("Escape");
+  await pg.click(".rt-rep .seg.vidrio button.green");
+  const verde = await ofrece();
+  ok(verde.length > 0,
+     "con el verde sin ningún marcado el desplegable quedó VACÍO: el registro se traba y se " +
+     "pierde una rotura que ya ocurrió");
+  await pg.click(".rt-rep .seg.vidrio button.ambar");
 }
 
 /* Y en producto terminado el campo sigue donde estaba, y sigue pidiéndose. */

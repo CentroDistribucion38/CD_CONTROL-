@@ -6,11 +6,20 @@ const materiales = [
   { clave: "EER-AMBAR", nombre: "Envase retornable ámbar", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 1 },
   { clave: "EER-FLINT", nombre: "Envase retornable flint", tipo: "eer", color: "flint", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 2 },
   { clave: "EER-GREEN", nombre: "Envase retornable green", tipo: "eer", color: "green", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 3 },
-  /* DOS ÁMBAR A PROPÓSITO. Es el caso que obliga a que EER tenga su
-     desplegable: con uno solo, la base puede traducir color → material
-     sin equivocarse; con dos, escoge uno EN SILENCIO y el informe del
-     mes reparte el vidrio en el formato que no era. */
-  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 4 },
+  /* DOS ÁMBAR A PROPÓSITO, Y LOS DOS MARCADOS. Es el caso que obliga a
+     que EER tenga su desplegable: con uno solo, la base puede traducir
+     color → material sin equivocarse; con dos, escoge uno EN SILENCIO
+     y el informe del mes reparte el vidrio en el formato que no era.
+
+     ESTÁN LOS DOS MARCADOS porque así está el maestro de verdad: de los
+     doce envases que él marcó, SEIS son marrones —330, 750, Club Col
+     330, 1000, 250 y 850—. La marca no escoge entre dos del mismo
+     color; los trae a los dos. */
+  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 4 },
+  /* Y UN TERCER ÁMBAR SIN MARCAR: el que no se rompe en sitio. No debe
+     salir de entrada, y TIENE que salir al buscarlo — si se escondiera
+     de verdad, una rotura que pasó no se podría registrar. */
+  { clave: "EER-AMBAR-VIEJO", nombre: "Envase retornable ámbar viejo", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 5 },
   { clave: "PT-COST-330", nombre: "Cerveza Costeña 330 ml", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: "Ret", en_sitio: true, activo: true, orden: 11 },
   /* UNA LATA, UN PET Y UNO SIN FAMILIA. Sin ellos, «en producto no
      sale ni PET ni lata» pasaría sin probar nada — y el de la familia

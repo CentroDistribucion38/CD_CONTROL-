@@ -251,22 +251,36 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
            Inventario → Maestro con la casilla «sale en sitio»: el
            maestro tiene 494 materiales y en sitio se rompen unos
            cincuenta. Los demás siguen saliendo al escribir. */
-        /* LA LISTA CORTA ES SOLO PARA PRODUCTO, y eso lo decidió un
-           arnés que se puso rojo.
+        /* LA LISTA CORTA VALE PARA LOS DOS, y esto ESTUVO MAL una
+           versión: se aplicaba solo a producto.
 
-           En EER la lista YA ES CORTA: el color del vidrio la deja en
-           uno o dos. Aplicar además la marca escondía el segundo ámbar
-           —el maestro tiene un 330 y un 750— y ese es exactamente el
-           caso por el que EER tiene desplegable: con dos del mismo
-           color, la base traduce color → material escogiendo el
-           primero EN SILENCIO, y el informe del mes reparte el vidrio
-           en el formato que no era.
+           EL RAZONAMIENTO DE ENTONCES ERA que en EER la lista ya queda
+           corta sola, porque el color del vidrio la deja en uno o dos,
+           y que marcar además escondería el segundo ámbar —el maestro
+           tiene un 330 y un 750—, que es justo el caso por el que EER
+           tiene desplegable.
 
-           Resolver un scroll que no existe a cambio de reabrir ese
-           agujero es un mal negocio. */
+           SE CAYÓ CONTRA LOS DATOS DE VERDAD, en dos puntos:
+
+           · El color NO filtra. Ningún envase del maestro tiene
+             `color_vidrio` puesto, así que la pantalla —bien— ofrece
+             los 32 en vez de dejar el registro trabado. Treinta y dos
+             que incluyen estibas de madera y cilindros de CO2: eso no
+             es «una lista que ya es corta», es la lista entera.
+
+           · Y el segundo ámbar no se pierde, porque los marcados son
+             los que él marcó: el 330, el 750, el Club Col 330, el
+             1000, el 250 y el 850 son SEIS marrones, todos marcados.
+             La marca no escoge entre dos del mismo color; los trae a
+             los dos.
+
+           SIGUE SIENDO SEGURO SI NADIE ESTÁ MARCADO: el buscador solo
+           acorta cuando hay marcados Y son menos que el total, así que
+           un color sin ninguno marcado sigue ofreciendo todos los de
+           ese color en vez de quedar vacío. */
         opciones={delTipo.map((m) => ({
           clave: m.clave, nombre: m.nombre, codigo: m.clave,
-          corta: esPT ? m.en_sitio : true,
+          corta: m.en_sitio,
         }))}
         rotulo="Escribe para buscar el material"
         cambiar={(c) => { setMaterial(c); setTocoBotellas(false) }}
