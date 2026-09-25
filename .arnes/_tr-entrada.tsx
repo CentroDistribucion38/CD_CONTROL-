@@ -23,6 +23,12 @@ const viajes = [
      contrastarlas es cambiar el dato que se va a contrastar. */
   { ...base, id: "v3", placa: "KKL900", requiere_ai: true, ai_pendiente: true,
     llegada_en: "2026-09-24T10:00:00Z" },
+  /* UN SEGUNDO ANULABLE EN EL MISMO CD QUE KKL900. Sin él, ese grupo
+     tenía un anulable y un pendiente de muestra, y el «todos» del CD
+     —que solo aparece con dos o más— no se podía medir. Con los tres
+     juntos se comprueba lo que de verdad importa: que «los 2» escoja
+     DOS y deje fuera al que espera la muestra. */
+  { ...base, id: "v4", placa: "LMN321" },
 ];
 const origenes = [
   { planta: "P01", cd_origen: "CD Unión Apartado" },

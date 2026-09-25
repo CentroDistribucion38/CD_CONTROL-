@@ -3079,3 +3079,67 @@
   .sd .tr-admin { justify-content: stretch }
   .sd .tr-adm { flex: 1; min-height: 44px; font-size: 13.5px }
 }
+
+/* ---------------------------------------------------------------------
+   ESCOGER VARIOS Y ANULARLOS DE UNA
+
+   «No me deja seleccionar los viajes para eliminar.»
+
+   Cuando una importación se metió dos veces son ocho o diez vehículos:
+   anularlos de uno en uno es abrir y cerrar el mismo cuadro diez veces
+   escribiendo el mismo motivo.
+   --------------------------------------------------------------------- */
+.sd .tr-marca {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  /* MARGEN A LA DERECHA EN `auto`: empuja los dos botones al otro
+     extremo de la franja sin necesitar un contenedor de por medio. */
+  margin-right: auto;
+  font-size: 12.5px; font-weight: 600; color: var(--sd-gris);
+  /* 34 px COMO LOS BOTONES DE AL LADO: una casilla de 16 px suelta en
+     una fila de 34 deja el rótulo y el cuadrito a distinta altura. */
+  min-height: 34px; padding: 0 4px;
+}
+.sd .tr-marca input { width: 17px; height: 17px; accent-color: var(--sd-acento); cursor: pointer }
+.sd .tr-marca:hover { color: var(--sd-tinta) }
+/* EL «TODOS» DEL CD va en la cabecera del grupo, donde ya hay texto
+   pequeño: sin el margen automático se iría al extremo y quedaría
+   colgado lejos del nombre del CD. */
+.sd .tr-marca.todos { margin-right: 0; margin-left: 14px; font-size: 12px }
+
+/* LA BARRA DE LO ESCOGIDO. Fija al pie: con ocho marcados el dedo está
+   abajo, y un botón tres pantallas más arriba obliga a subir para
+   rematar lo que ya se decidió. */
+.sd .tr-barra {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 40;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: 4px;
+  background: var(--sd-tinta); color: #fff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .28);
+  max-width: calc(100vw - 24px);
+}
+.sd .tr-barra-n { font-size: 13px; white-space: nowrap }
+.sd .tr-barra-n b { font-family: var(--sd-titulo); font-size: 16px; font-weight: 900 }
+/* LOS BOTONES DE LA BARRA VAN SOBRE FONDO OSCURO: el borde y la tinta
+   grises de `.tr-adm` ahí no se ven, así que se redefinen. */
+.sd .tr-barra .tr-adm {
+  border-color: rgba(255, 255, 255, .34); color: #fff; background: transparent;
+}
+.sd .tr-barra .tr-adm:hover { background: rgba(255, 255, 255, .13); color: #fff }
+/* ANULAR ES EL BOTÓN DE VERDAD DE ESTA BARRA: relleno, no delineado.
+   Delineado igual que «Quitar la selección» obliga a leer los dos para
+   saber cuál destruye. */
+.sd .tr-barra .tr-adm.mal.fuerte {
+  background: var(--sd-mal); border-color: var(--sd-mal); color: #fff; font-weight: 700;
+}
+.sd .tr-barra .tr-adm.mal.fuerte:hover { background: color-mix(in srgb, var(--sd-mal) 84%, #000) }
+
+@media (max-width: 720px) {
+  /* EN CELULAR LA BARRA CRUZA LA PANTALLA y sus botones miden 44 px.
+     La cuenta se va a su propio renglón: «3 viajes escogidos» y dos
+     botones en 360 px no caben en una línea sin partir una palabra. */
+  .sd .tr-barra { left: 8px; right: 8px; bottom: 8px; transform: none; max-width: none }
+  .sd .tr-barra-n { width: 100%; }
+  .sd .tr-barra .tr-adm { flex: 1; min-height: 44px }
+  .sd .tr-marca { min-height: 44px }
+  .sd .tr-marca.todos { min-height: 34px }
+}

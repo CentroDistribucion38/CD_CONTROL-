@@ -95,9 +95,26 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
     id: string; placa: string; planta: string; sku: string;
     estibas: string; observacion: string;
   }>(null);
-  const [anular, setAnular] = useState<null | { v: Viaje; motivo: string }>(null);
+  /* ANULAR LLEVA UNA LISTA Y NO UN VIAJE, aunque casi siempre traiga
+     uno. Con dos estados —uno para «este» y otro para «los marcados»—
+     el cuadro, el motivo, el botón y el error existirían por duplicado,
+     y el día que cambie el texto uno se queda viejo. */
+  const [anular, setAnular] = useState<null | { vs: Viaje[]; motivo: string }>(null);
   const [ocupado, setOcupado] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
+
+  /* LOS ESCOGIDOS PARA ANULAR DE UNA. «No me deja seleccionar los
+     viajes para eliminar.»
+
+     Cuando una importación se metió dos veces son ocho o diez
+     vehículos, y anularlos de uno en uno es abrir y cerrar el mismo
+     cuadro diez veces escribiendo el mismo motivo. */
+  const [escogidos, setEscogidos] = useState<Set<string>>(new Set());
+  const marcar = (id: string) => setEscogidos((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
 
   /* PEDIR O QUITAR LA REVISIÓN AI.
      El id del viaje que se está mandando, para apagar SOLO ese botón: un
@@ -154,17 +171,46 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
   async function confirmarAnular() {
     if (!anular) return;
     setMal(null); setOcupado(true);
-    const { error } = await supabase.rpc("sider_viaje_anular", {
-      p_id: anular.v.id, p_motivo: anular.motivo,
-    });
+
+    /* UNO POR UNO, PORQUE LA FUNCIÓN ES DE UNO. `sider_viaje_anular`
+       recibe un viaje, y se reusa tal cual a propósito: una función
+       nueva «de varios» sería una segunda forma de anular que hay que
+       mantener igual a la primera para siempre.
+
+       LO QUE NO SE HACE ES CALLAR LO QUE FALLÓ. Si se caen tres de diez
+       —la red, un rol que no manda—, decir «anulados» a secas deja
+       siete fuera y tres dentro sin que nadie se entere; y decir «falló»
+       a secas hace pensar que no se anuló ninguno, cuando sí se fueron
+       siete. Se cuentan los dos lados y se nombran los que quedaron. */
+    const hechos: string[] = [];
+    const fallados: { placa: string; por: string }[] = [];
+    for (const v of anular.vs) {
+      const { error } = await supabase.rpc("sider_viaje_anular", {
+        p_id: v.id, p_motivo: anular.motivo,
+      });
+      if (error) fallados.push({ placa: v.placa, por: error.message });
+      else hechos.push(v.placa);
+    }
     setOcupado(false);
-    if (error) return setMal(error.message);
-    const placa = anular.v.placa;
+
+    if (fallados.length && !hechos.length) {
+      /* NINGUNO SE FUE: el cuadro se queda abierto con el motivo ya
+         escrito, para no obligar a teclearlo otra vez. */
+      return setMal(fallados[0].por);
+    }
     setAnular(null);
-    /* SE DICE QUE SE FUE Y A DÓNDE. El viaje desaparece de esta lista
-       —solo pinta los que están en tránsito—, y una tarjeta que se
-       esfuma sin una palabra parece un fallo. */
-    avisar.bien(`${placa} quedó anulado y salió de «en camino». Está en Fuente principal, en gris, y se puede devolver.`);
+    setEscogidos(new Set());
+    /* SE DICE QUE SE FUERON Y A DÓNDE. Las tarjetas desaparecen de esta
+       lista —solo pinta los que están en tránsito—, y algo que se esfuma
+       sin una palabra parece un fallo. */
+    if (hechos.length) {
+      avisar.bien(hechos.length === 1
+        ? `${hechos[0]} quedó anulado y salió de «en camino». Está en Fuente principal, en gris, y se puede devolver.`
+        : `${hechos.length} viajes anulados. Salieron de «en camino» y están en Fuente principal, en gris; se pueden devolver.`);
+    }
+    if (fallados.length) {
+      avisar.mal(`No se pudo anular ${fallados.map((f) => f.placa).join(", ")}: ${fallados[0].por}`);
+    }
     router.refresh();
   }
 
@@ -436,15 +482,24 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
         <div className="vj-velo" role="dialog" aria-modal="true"
              onClick={(e) => { if (e.target === e.currentTarget && !ocupado) setAnular(null) }}>
           <div className="vj-caja">
-            <p className="vj-ojo">ANULAR UN VIAJE</p>
-            <h3>{anular.v.placa} · {anular.v.cd_origen}</h3>
+            <p className="vj-ojo">{anular.vs.length === 1 ? "ANULAR UN VIAJE" : `ANULAR ${anular.vs.length} VIAJES`}</p>
+            {/* SE NOMBRAN LAS PLACAS, hasta seis. Anular «5 viajes» sin
+                decir cuáles es pedir una firma en blanco: con las
+                casillas es fácil marcar una de más de un barrido, y la
+                última oportunidad de verlo es aquí. */}
+            <h3>{anular.vs.length === 1
+              ? `${anular.vs[0].placa} · ${anular.vs[0].cd_origen}`
+              : anular.vs.slice(0, 6).map((x) => x.placa).join(", ")
+                + (anular.vs.length > 6 ? ` y ${anular.vs.length - 6} más` : "")}</h3>
             {/* SE DICE QUE NO SE BORRA, y se dice aquí y no en el manual:
                 quien viene buscando «eliminar» tiene que enterarse en el
                 momento de que esto no destruye la evidencia, o lo va a
                 buscar por otro lado. */}
             <p className="vj-dice">
-              El viaje <b>no se borra</b>: sale de «en camino» y se queda en Fuente principal
-              marcado como anulado, con sus fotos y su ubicación, y deja de contar en los
+              {anular.vs.length === 1 ? <>El viaje <b>no se borra</b>:</> : <>Los viajes <b>no se borran</b>:</>}
+              {" "}{anular.vs.length === 1 ? "sale" : "salen"} de «en camino» y se {anular.vs.length === 1 ? "queda" : "quedan"} en
+              Fuente principal marcado{anular.vs.length === 1 ? "" : "s"} como anulado{anular.vs.length === 1 ? "" : "s"},
+              con sus fotos y su ubicación, y deja{anular.vs.length === 1 ? "" : "n"} de contar en los
               hectolitros y en el porcentaje de certificación. Se puede devolver.
             </p>
             <label className="vj-motivo-campo">
@@ -458,7 +513,8 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
             <div className="vj-botones">
               <button type="button" className="btn mal" onClick={confirmarAnular}
                       disabled={ocupado || anular.motivo.trim().length < 4}>
-                {ocupado ? "Anulando…" : "Anular el viaje"}
+                {ocupado ? "Anulando…"
+                  : anular.vs.length === 1 ? "Anular el viaje" : `Anular los ${anular.vs.length}`}
               </button>
               <button type="button" className="btn plano" onClick={() => setAnular(null)} disabled={ocupado}>
                 Cancelar
@@ -475,6 +531,34 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
       {dialogo}
       {avisos}
       {cuadrosAdmin}
+
+      {/* LA BARRA DE LO ESCOGIDO, PEGADA ABAJO.
+
+          Va fija al pie y no arriba del listado a propósito: con ocho
+          vehículos marcados el dedo está abajo, en la última tarjeta
+          que acaba de tocar, y un botón que se quedó tres pantallas
+          más arriba obliga a subir para rematar lo que ya se decidió.
+
+          Y SOLO EXISTE CUANDO HAY ALGO ESCOGIDO: una barra vacía
+          permanente se come 56 px del teléfono todo el día para no
+          decir nada. */}
+      {manda && escogidos.size > 0 && (
+        <div className="tr-barra" role="region" aria-label="Viajes escogidos">
+          <span className="tr-barra-n">
+            <b>{escogidos.size}</b> {escogidos.size === 1 ? "viaje escogido" : "viajes escogidos"}
+          </span>
+          <button type="button" className="tr-adm" onClick={() => setEscogidos(new Set())}>
+            Quitar la selección
+          </button>
+          <button type="button" className="tr-adm mal fuerte"
+                  onClick={() => setAnular({
+                    vs: viajes.filter((v) => escogidos.has(v.id)), motivo: "",
+                  })}>
+            Anular {escogidos.size === 1 ? "el escogido" : `los ${escogidos.size}`}
+          </button>
+        </div>
+      )}
+
       {cabeza}
 
       {/* ---------- LA CINTA DE ASUNTOS ----------
@@ -662,6 +746,32 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
               {g.viajes.length} {g.viajes.length === 1 ? "vehículo" : "vehículos"}
               {g.hl > 0 && <> · {nf.format(g.hl)} HL</>}
             </span>
+            {/* TODO EL CD DE UN TOQUE. El caso que trae a alguien aquí
+                es una importación metida dos veces, y eso llega por CD
+                entero. Los que esperan la muestra no entran: a esos no
+                se les ofrece anular en ninguna parte. */}
+            {manda && (() => {
+              const suyos = g.viajes.filter((x) => !x.ai_pendiente);
+              if (suyos.length < 2) return null;
+              const todos = suyos.every((x) => escogidos.has(x.id));
+              return (
+                <label className="tr-marca todos">
+                  <input type="checkbox" checked={todos}
+                         onChange={() => setEscogidos((sel) => {
+                           const n = new Set(sel);
+                           suyos.forEach((x) => todos ? n.delete(x.id) : n.add(x.id));
+                           return n;
+                         })} />
+                  {/* EL RÓTULO NO CAMBIA CON EL ESTADO. Decía «Ninguno»
+                      cuando estaban todos marcados —para anunciar lo que
+                      haría el clic— y con la casilla ENCENDIDA al lado se
+                      leía al revés: parecía decir que no había ninguno
+                      escogido. La casilla ya dice si están o no; el
+                      rótulo solo tiene que decir a quiénes toca. */}
+                  <span>Los {suyos.length}</span>
+                </label>
+              );
+            })()}
             {g.horas > HORAS_LARGAS && <em className="tr-tarde">el más viejo lleva {Math.floor(g.horas)} h</em>}
           </h2>
           <div className="tr-rejilla">
@@ -787,6 +897,16 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                   corregir y anular, una vez al mes. */}
               {manda && !v.ai_pendiente && (
                 <div className="tr-admin">
+                  {/* LA CASILLA VA A LA IZQUIERDA Y CON SU PALABRA.
+                      Una casilla pelada al lado de dos botones no dice
+                      qué escoge: «Escoger» lo dice, y de paso el rótulo
+                      es parte del área que se toca, que en el teléfono
+                      es la diferencia entre darle y no darle. */}
+                  <label className="tr-marca">
+                    <input type="checkbox" checked={escogidos.has(v.id)}
+                           onChange={() => marcar(v.id)} />
+                    <span>{escogidos.has(v.id) ? "Escogido" : "Escoger"}</span>
+                  </label>
                   <button type="button" className="tr-adm"
                           onClick={() => setEdit({
                             id: v.id, placa: v.placa, planta: v.planta ?? "",
@@ -796,7 +916,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                     Corregir
                   </button>
                   <button type="button" className="tr-adm mal"
-                          onClick={() => setAnular({ v, motivo: "" })}>
+                          onClick={() => setAnular({ vs: [v], motivo: "" })}>
                     Anular
                   </button>
                 </div>

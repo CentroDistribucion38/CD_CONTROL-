@@ -89,6 +89,12 @@ const viajes = [
      contrastarlas es cambiar el dato que se va a contrastar. */
   { ...base, id: "v3", placa: "KKL900", requiere_ai: true, ai_pendiente: true,
     llegada_en: "2026-09-24T10:00:00Z" },
+  /* UN SEGUNDO ANULABLE EN EL MISMO CD QUE KKL900. Sin él, ese grupo
+     tenía un anulable y un pendiente de muestra, y el «todos» del CD
+     —que solo aparece con dos o más— no se podía medir. Con los tres
+     juntos se comprueba lo que de verdad importa: que «los 2» escoja
+     DOS y deje fuera al que espera la muestra. */
+  { ...base, id: "v4", placa: "LMN321" },
 ];
 const origenes = [
   { planta: "P01", cd_origen: "CD Unión Apartado" },
@@ -280,7 +286,111 @@ await monta(true);
 }
 
 /* =====================================================================
-   6 · NADA SE SALE, Y LOS BOTONES SE TOCAN
+   6 · ESCOGER VARIOS Y ANULARLOS DE UNA
+
+   «No me deja seleccionar los viajes para eliminar.»
+
+   Cuando una importación se metió dos veces son ocho o diez vehículos,
+   y anularlos de uno en uno es abrir y cerrar el mismo cuadro diez
+   veces escribiendo el mismo motivo.
+   ===================================================================== */
+await monta(true);
+{
+  /* LA BARRA NO EXISTE HASTA QUE HAY ALGO ESCOGIDO: una barra vacía
+     permanente se come 56 px del teléfono todo el día sin decir nada. */
+  ok(!(await pg.isVisible(".sd .tr-barra")),
+     "la barra de lo escogido sale sin haber escogido nada");
+
+  await pg.click(`${tarjeta("JGY577")} .tr-marca input`);
+  await pg.waitForSelector(".sd .tr-barra");
+  ok(/1 viaje escogido/.test(await pg.textContent(".sd .tr-barra")),
+     `la barra no dice cuántos van: «${await pg.textContent(".sd .tr-barra")}»`);
+
+  await pg.click(`${tarjeta("JYN245")} .tr-marca input`);
+  const b = await pg.textContent(".sd .tr-barra");
+  ok(/2 viajes escogidos/.test(b), `con dos escogidos la barra dice «${b}»`);
+
+  /* SE NOMBRAN LAS PLACAS EN EL CUADRO. Anular «2 viajes» sin decir
+     cuáles es pedir una firma en blanco: con las casillas es fácil
+     marcar una de más de un barrido, y la última oportunidad de verlo
+     es aquí. */
+  await pg.click(".sd .tr-barra .tr-adm.mal");
+  await pg.waitForSelector(".sd .vj-caja");
+  const cuadro = await pg.textContent(".sd .vj-caja");
+  ok(/JGY577/.test(cuadro) && /JYN245/.test(cuadro),
+     `el cuadro no nombra las placas que se van a anular: «${cuadro.slice(0, 120)}»`);
+  ok(/no se borran/.test(cuadro),
+     "en plural se perdió el aviso de que no se borran");
+
+  await pg.fill(".sd .vj-caja .vj-motivo-campo input", "La importación se metió dos veces");
+  await pg.click(".sd .vj-caja button:has-text('Anular los 2')");
+  await pg.waitForTimeout(200);
+
+  /* UNA LLAMADA POR VIAJE, CON EL MISMO MOTIVO. La función de la base
+     es de uno; lo que no puede pasar es que se mande una sola y se
+     quede un viaje sin anular. */
+  const l = await llamadas();
+  ok(l.length === 2, `se mandaron ${l.length} llamadas y hay 2 escogidos: ${JSON.stringify(l.map((x) => x.a?.p_id))}`);
+  ok(l.every((x) => x.f === "sider_viaje_anular"),
+     `alguna llamada no fue a sider_viaje_anular: ${JSON.stringify(l.map((x) => x.f))}`);
+  ok(l.every((x) => x.a?.p_motivo === "La importación se metió dos veces"),
+     "el motivo no llegó igual en las dos: se guarda uno por viaje y tienen que decir lo mismo");
+  const ids = l.map((x) => x.a?.p_id).sort();
+  ok(ids[0] === "v1" && ids[1] === "v2",
+     `se anularon ${JSON.stringify(ids)} y los escogidos eran v1 y v2`);
+
+  /* Y LA SELECCIÓN SE LIMPIA. Dejarla puesta después de anular hace
+     que la barra siga diciendo «2 escogidos» de dos viajes que ya no
+     están en la lista. */
+  ok(!(await pg.isVisible(".sd .tr-barra")),
+     "después de anular, la barra sigue con los viajes escogidos que ya no existen");
+}
+
+/* EL «TODOS» DEL CD. El caso que trae a alguien aquí es una
+   importación metida dos veces, y eso llega por CD entero. */
+await monta(true);
+{
+  const cab = ".sd .tr-grupo:has(:text-is('CD Unión Apartado')) .tr-grupo-cab .tr-marca input";
+  ok(await pg.isVisible(cab), "el grupo con dos vehículos no ofrece escogerlos todos");
+  await pg.click(cab);
+  await pg.waitForSelector(".sd .tr-barra");
+  const b = await pg.textContent(".sd .tr-barra");
+  /* SOLO UNO: en ese CD hay dos tarjetas, pero KKL900 está esperando la
+     muestra y a esa no se le ofrece anular en ninguna parte. Si el
+     «todos» la metiera, la barra diría 2 y el cuadro nombraría una
+     placa que no se puede anular. */
+  ok(/2 viajes escogidos/.test(b),
+     `«los del CD» escogió ${b.trim()}: son 2 anulables y el que espera la revisión AI no entra`);
+
+  /* Y EL CUADRO NO NOMBRA AL DE LA MUESTRA. Si lo nombrara, se estaría
+     ofreciendo anular algo que la pantalla no deja anular por ningún
+     otro camino. */
+  await pg.click(".sd .tr-barra .tr-adm.mal");
+  await pg.waitForSelector(".sd .vj-caja");
+  const q = await pg.textContent(".sd .vj-caja");
+  ok(!/KKL900/.test(q), `el cuadro nombra al que espera la muestra: «${q.slice(0, 120)}»`);
+  await pg.click(".sd .vj-caja button:has-text('Cancelar')");
+
+  /* EL RÓTULO NO SE INVIERTE. Con todos marcados decía «Ninguno», y
+     junto a una casilla encendida eso se lee como que no hay ninguno
+     escogido. */
+  ok(/Los 2/.test(await pg.textContent(".sd .tr-grupo:has(:text-is('CD Unión Apartado')) .tr-grupo-cab .tr-marca")),
+     "el rótulo del «todos» se invierte al marcarlo y contradice a su propia casilla");
+
+  /* Y SE DESESCOGEN CON EL MISMO TOQUE. */
+  await pg.click(cab);
+  ok(!(await pg.isVisible(".sd .tr-barra")),
+     "tocar «Ninguno» no quita la selección del CD");
+}
+
+/* QUIEN NO MANDA NO PUEDE ESCOGER. Sin esto, el candado del botón
+   estaría puesto y el de la casilla no, que es la misma puerta. */
+await monta(false);
+ok((await pg.$$(".sd .tr-marca")).length === 0,
+   "a quien no administra le salen las casillas para escoger viajes");
+
+/* =====================================================================
+   7 · NADA SE SALE, Y LOS BOTONES SE TOCAN
    ===================================================================== */
 console.log("");
 for (const [nombre, ancho] of [["pc", 1440], ["tab", 820], ["cel", 390], ["360", 360]]) {
@@ -315,6 +425,15 @@ await pg.waitForSelector(".sd .vj-caja");
 await pg.screenshot({ path: ".arnes/tr-anular.png" });
 await monta(true);
 await pg.screenshot({ path: ".arnes/tr-admin.png" });
+/* CON DOS ESCOGIDOS, para ver la barra y las casillas encendidas. */
+await pg.click(`${tarjeta("JGY577")} .tr-marca input`);
+await pg.click(`${tarjeta("LMN321")} .tr-marca input`);
+await pg.waitForSelector(".sd .tr-barra");
+await pg.screenshot({ path: ".arnes/tr-escogidos.png" });
+await monta(true, 390, 1400);
+await pg.click(`${tarjeta("JGY577")} .tr-marca input`);
+await pg.waitForSelector(".sd .tr-barra");
+await pg.screenshot({ path: ".arnes/tr-escogidos-cel.png" });
 
 await nav.close();
 console.log("");
