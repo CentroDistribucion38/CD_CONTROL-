@@ -151,6 +151,10 @@ export type Material = {
    *  que deja sacar del desplegable de «en sitio» lo que no se rompe
    *  como vidrio. Nula cuando el material viene del maestro viejo. */
   familia: string | null;
+  /** Sale de entrada en el desplegable de en sitio. Los demás siguen
+   *  apareciendo al escribir: la marca decide qué se ve PRIMERO, no
+   *  qué existe. */
+  en_sitio: boolean;
   activo: boolean; orden: number | null;
 };
 export type Proceso = { clave: string; nombre: string; activo: boolean; orden: number | null };
@@ -319,7 +323,7 @@ export async function materiales(soloActivos = true) {
   if (soloActivos) q = q.eq("activo", true);
   const { data } = await q.order("orden", { ascending: true, nullsFirst: false });
   return ((data ?? []) as Omit<Material, "familia">[])
-    .map((m) => ({ ...m, familia: null })) as Material[];
+    .map((m) => ({ ...m, familia: null, en_sitio: false })) as Material[];
 }
 
 /**
@@ -359,7 +363,7 @@ export async function materialesMaestro():
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("v_roturas_materiales_maestro")
-    .select("clave, nombre, tipo, color, botellas_x_empaque, familia")
+    .select("clave, nombre, tipo, color, botellas_x_empaque, familia, en_sitio")
     .order("nombre");
 
   if (error || !data) return { materiales: await materiales(), de: "sin_vista" };

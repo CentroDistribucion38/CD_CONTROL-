@@ -26,6 +26,8 @@ export type Material = {
   origen: string | null;
   foraneo: string | null;
   tipo_material: "PRODUCTO" | "ENVASE";
+  /** Sale de entrada en el desplegable de Quiebra en sitio. */
+  en_sitio: boolean;
   activo: boolean;
 };
 
@@ -145,7 +147,7 @@ export async function maestroInventario() {
        que quepa en la línea rompe el tipado y el build revienta con un
        error que no dice eso. */
     supabase.from("productos").select(
-      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,activo"
+      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,en_sitio,activo"
     ).order("sku").limit(5000),
     supabase.from("ubicaciones").select(
       "id,bodega_id,clave,calle,modulo,lado,familia,capacidad,activa"

@@ -48,6 +48,8 @@ export type OpcionLista = {
   nombre: string;
   /** Lo que está pegado en la estiba: el código. Se busca por él también. */
   codigo?: string;
+  /** Sale de entrada, sin escribir nada. Los demás aparecen al buscar. */
+  corta?: boolean;
 };
 
 const pelado = (t: string) =>
@@ -74,13 +76,28 @@ export function BuscarEnLista({ id, opciones, valor, cambiar, vacio,
 
   const puesto = opciones.find((m) => m.clave === valor) ?? null;
 
+  /* CUÁNTOS SALEN DE ENTRADA, Y CUÁNTOS HAY EN TOTAL. */
+  const cortas = useMemo(() => opciones.filter((m) => m.corta), [opciones]);
+  const hayCorta = cortas.length > 0 && cortas.length < opciones.length;
+
   const lista = useMemo(() => {
     const t = pelado(q.trim());
-    if (!t) return opciones;
-    /* SE BUSCA EN EL NOMBRE **Y** EN EL CÓDIGO: el código es lo que está
-       pegado en la estiba, y quien lo tiene a la vista lo teclea. */
+    /* SIN ESCRIBIR NADA SALEN SOLO LOS MARCADOS.
+       «Que en el desplegable se vea esto, pero si busco los demás que
+        aparezcan: es para que el scroll no sea extenso.»
+       El maestro tiene 494 materiales porque es el maestro de TODO lo
+       que entra y sale del CD; en sitio se rompen unos cincuenta.
+       Abrirlo con los 494 es bajar treinta pantallazos de pie y con
+       guante para encontrar el mismo de siempre. */
+    if (!t) return hayCorta ? cortas : opciones;
+    /* ESCRIBIENDO SE BUSCA EN TODOS, y eso es la otra mitad de la
+       regla: la marca decide qué se ve PRIMERO, no qué existe.
+       Esconder un material sería impedir registrar una rotura que de
+       verdad pasó, y eso es peor que un scroll largo.
+       SE BUSCA EN EL NOMBRE **Y** EN EL CÓDIGO: el código es lo que
+       está pegado en la estiba, y quien lo tiene a la vista lo teclea. */
     return opciones.filter((m) => pelado(`${m.nombre} ${m.codigo ?? m.clave}`).includes(t));
-  }, [opciones, q]);
+  }, [opciones, q, cortas, hayCorta]);
 
   useEffect(() => { setMarcado(0) }, [q]);
 
@@ -143,9 +160,20 @@ export function BuscarEnLista({ id, opciones, valor, cambiar, vacio,
           <i aria-hidden>▾</i>
         </button>
       ) : (
+        /* `autoFocus` **Y** el `setTimeout` de arriba, y no es cinturón
+           con tirantes: el `setTimeout` corre en el siguiente tick y el
+           foco puede no haber llegado todavía cuando el dedo ya soltó.
+           Mientras no haya llegado, este campo es lo único que atiende
+           Escape —la tecla no burbujea desde `body` hasta aquí—, así que
+           la lista se quedaba abierta tapando el formulario de abajo, de
+           vez en cuando y sin patrón. `autoFocus` lo pone React en el
+           mismo commit en que nace el campo, sin esperar a nadie. */
         <input ref={campo} type="search" className="campo-suelto bl-campo bl-teclea" value={q}
+               autoFocus
                autoComplete="off"
-               placeholder={`Escribe parte del nombre o el código — ${opciones.length} ${cuenta}`}
+               placeholder={hayCorta
+                 ? `Escribe para buscar entre los ${opciones.length} ${cuenta}`
+                 : `Escribe parte del nombre o el código — ${opciones.length} ${cuenta}`}
                aria-label={rotulo}
                onChange={(e) => setQ(e.target.value)}
                onKeyDown={(e) => {
@@ -189,6 +217,16 @@ export function BuscarEnLista({ id, opciones, valor, cambiar, vacio,
               {lista.length > 60 && (
                 <p className="bl-nada">
                   y {lista.length - 60} más. Escribe algo más para acortar la lista.
+                </p>
+              )}
+              {/* SE DICE QUE HAY MÁS Y CÓMO LLEGAR A ELLOS.
+                  Sin esta línea, quien no encuentre el suyo entre los
+                  de la lista corta va a creer que no está en el maestro
+                  y va a dejar de registrar la rotura. */}
+              {!q.trim() && hayCorta && (
+                <p className="bl-nada">
+                  Estos son los que se rompen casi siempre. Los otros{" "}
+                  <b>{opciones.length - cortas.length}</b> del maestro salen al escribir.
                 </p>
               )}
             </>

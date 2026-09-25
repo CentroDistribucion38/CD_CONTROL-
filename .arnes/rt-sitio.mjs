@@ -79,36 +79,38 @@ import { createRoot } from "react-dom/client";
 import { EnSitio } from "../src/app/(app)/roturas/en-sitio/EnSitio";
 
 const materiales = [
-  { clave: "EER-AMBAR", nombre: "Envase retornable ámbar", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", activo: true, orden: 1 },
-  { clave: "EER-FLINT", nombre: "Envase retornable flint", tipo: "eer", color: "flint", botellas_x_empaque: null, familia: "Ret", activo: true, orden: 2 },
-  { clave: "EER-GREEN", nombre: "Envase retornable green", tipo: "eer", color: "green", botellas_x_empaque: null, familia: "Ret", activo: true, orden: 3 },
+  { clave: "EER-AMBAR", nombre: "Envase retornable ámbar", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 1 },
+  { clave: "EER-FLINT", nombre: "Envase retornable flint", tipo: "eer", color: "flint", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 2 },
+  { clave: "EER-GREEN", nombre: "Envase retornable green", tipo: "eer", color: "green", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 3 },
   /* DOS ÁMBAR A PROPÓSITO. Es el caso que obliga a que EER tenga su
      desplegable: con uno solo, la base puede traducir color → material
      sin equivocarse; con dos, escoge uno EN SILENCIO y el informe del
      mes reparte el vidrio en el formato que no era. */
-  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", activo: true, orden: 4 },
-  { clave: "PT-COST-330", nombre: "Cerveza Costeña 330 ml", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: "Ret", activo: true, orden: 11 },
+  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 4 },
+  { clave: "PT-COST-330", nombre: "Cerveza Costeña 330 ml", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: "Ret", en_sitio: true, activo: true, orden: 11 },
   /* UNA LATA, UN PET Y UNO SIN FAMILIA. Sin ellos, «en producto no
      sale ni PET ni lata» pasaría sin probar nada — y el de la familia
      nula comprueba lo contrario: que un dato que falta NO esconde el
      material. */
-  { clave: "PT-LATA-330", nombre: "Costeña Lta 330cc X 24", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, familia: "Lata", activo: true, orden: 13 },
-  { clave: "PT-PET-600", nombre: "Pony Malta Pet 600cc X 12", tipo: "producto_terminado", color: null, botellas_x_empaque: 12, familia: "Pet", activo: true, orden: 14 },
+  { clave: "PT-LATA-330", nombre: "Costeña Lta 330cc X 24", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, familia: "Lata", en_sitio: false, activo: true, orden: 13 },
+  { clave: "PT-PET-600", nombre: "Pony Malta Pet 600cc X 12", tipo: "producto_terminado", color: null, botellas_x_empaque: 12, familia: "Pet", en_sitio: false, activo: true, orden: 14 },
   /* CON MAYÚSCULAS Y ESPACIOS: el maestro lo escribe «Lata», pero el
      día que alguien lo cargue como « LATA » el filtro tiene que seguir
      funcionando. */
-  { clave: "PT-LATA-269", nombre: "Aguila Lta 269cc X 30", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: " LATA ", activo: true, orden: 15 },
-  { clave: "PT-SIN-FAM", nombre: "Producto sin familia puesta", tipo: "producto_terminado", color: null, botellas_x_empaque: 20, familia: null, activo: true, orden: 16 },
+  { clave: "PT-LATA-269", nombre: "Aguila Lta 269cc X 30", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: " LATA ", en_sitio: false, activo: true, orden: 15 },
+  { clave: "PT-SIN-FAM", nombre: "Producto sin familia puesta", tipo: "producto_terminado", color: null, botellas_x_empaque: 20, familia: null, en_sitio: false, activo: true, orden: 16 },
   /* Y DOS DE PRODUCTO TERMINADO, para que «no deja seguir sin escoger
      material» siga midiendo algo: con uno solo vendría puesto y la
      comprobación pasaría sola. */
-  { clave: "PT-COST-175", nombre: "Envase Costeña 175R", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, familia: "Tw", activo: true, orden: 12 },
+  { clave: "PT-COST-175", nombre: "Envase Costeña 175R", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, familia: "Tw", en_sitio: true, activo: true, orden: 12 },
   /* Y CIEN MÁS, porque el maestro de inventario trae 494 y un
      desplegable de siete no prueba lo que pasa con 494. */
   ...Array.from({ length: 100 }, (_, i) => ({
     clave: "PT-" + (2000 + i), nombre: "Aguila Cero Lta 355Cc X " + (i + 1),
     tipo: "producto_terminado", color: null, botellas_x_empaque: 24,
-    familia: "Tw", activo: true, orden: 100 + i,
+    /* LOS CIEN NO ESTÁN MARCADOS: son el «resto del maestro» que
+       tiene que salir al escribir y NO de entrada. */
+    familia: "Tw", en_sitio: false, activo: true, orden: 100 + i,
   })),
 ];
 /* LOS ENVASES SIN COLOR: es como llega el maestro de inventario el
@@ -473,7 +475,15 @@ const ofrece = async () => {
   await pg.click("#rt-mat");
   await pg.waitForSelector(".rt-rep .bl-lista", { timeout: 2000 }).catch(() => {});
   const v = await pg.$$eval(".rt-rep .bl-op span", (e) => e.map((x) => x.textContent.trim()));
+  /* SE CIERRA Y SE ESPERA A QUE VUELVA EL CAMPO.
+     Mientras la lista está abierta, `#rt-mat` NO EXISTE: el botón se
+     cambia por el campo de escribir, que no lleva id. Si esto seguía
+     sin esperar, la comprobación siguiente le preguntaba a un elemento
+     que todavía no había vuelto y el arnés se ponía rojo una de cada
+     tres corridas, siempre en otro sitio. Un arnés que falla a veces se
+     acaba ignorando siempre. */
   await pg.keyboard.press("Escape");
+  await pg.waitForSelector("#rt-mat", { timeout: 4000 });
   return v;
 };
 const puesto = async () => (await pg.textContent("#rt-mat")) ?? "";
@@ -562,8 +572,16 @@ ok(/Escribe para buscar/.test(await puesto()),
      "una lata cargada como « LATA » se volvió a colar: el filtro no aguanta mayúsculas ni espacios");
   ok(claves.includes("PT-COST-330") && claves.includes("PT-COST-175"),
      `el filtro se llevó por delante el vidrio: ${claves.slice(0, 4).join(", ")}`);
-  ok(claves.includes("PT-SIN-FAM"),
+  /* EL DE FAMILIA NULA SE BUSCA, porque de entrada solo salen los
+     marcados. Lo que se comprueba sigue siendo lo mismo: que un dato
+     que falta —la familia— no lo tape. */
+  await pg.fill(".rt-rep .bl-teclea", "PT-SIN-FAM");
+  await pg.waitForTimeout(80);
+  const sinFam = await pg.$$eval(".rt-rep .bl-op span", (e) => e.map((x) => x.textContent.trim()));
+  ok(sinFam.includes("PT-SIN-FAM"),
      "un producto SIN familia puesta se escondió: un dato que falta no puede tapar un material");
+  await pg.fill(".rt-rep .bl-teclea", "");
+  await pg.waitForTimeout(60);
 
   /* Y BUSCANDO «lata» TAMPOCO APARECE. El buscador filtra sobre lo que
      le dieron, así que si esto encontrara algo querría decir que la
@@ -573,6 +591,78 @@ ok(/Escribe para buscar/.test(await puesto()),
   const buscando = await pg.$$eval(".rt-rep .bl-op span", (e) => e.map((x) => x.textContent.trim()));
   ok(!buscando.some((c) => c.startsWith("PT-LATA")),
      `buscando «lta» aparece una lata: ${buscando.slice(0, 3).join(", ")}`);
+}
+
+/* ---------------------------------------------------------------------
+   1c · EL DESPLEGABLE ARRANCA CON LOS POCOS, NO CON LOS CIENTOS
+
+   «Que en el desplegable se vea esto —cada uno corresponde a producto o
+    EER— pero si busco los demás que aparezcan; es para que el scroll no
+    sea extenso.»
+
+   EL MAESTRO TIENE 494 MATERIALES porque es el maestro de TODO lo que
+   entra y sale del CD. En sitio se rompen unos cincuenta, y abrir ese
+   desplegable con los 494 es bajar treinta pantallazos de pie y con
+   guante para encontrar el mismo de siempre.
+
+   LAS DOS MITADES IMPORTAN IGUAL:
+     · de entrada salen SOLO los marcados,
+     · y escribiendo aparecen TODOS.
+   La segunda es la que evita el daño: esconder un material sería
+   impedir registrar una rotura que de verdad pasó, y eso es peor que un
+   scroll largo. Por eso se comprueba que uno NO marcado aparezca al
+   buscarlo por su código.
+   ------------------------------------------------------------------ */
+{
+  await monta();
+  await abrir();
+  await pg.click(".rt-rep .seg button:has-text('Producto')");
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bl-lista", { timeout: 2000 }).catch(() => {});
+
+  const deEntrada = await pg.$$eval(".rt-rep .bl-op span", (e) => e.map((x) => x.textContent.trim()));
+  /* DOS: los dos productos de vidrio marcados. Los cien «Tw» y el de
+     familia nula están sin marcar y no deben salir todavía. */
+  ok(deEntrada.length === 2,
+     `el desplegable arranca con ${deEntrada.length} y deben ser los 2 marcados: ` +
+     "con los cientos, el scroll vuelve a ser el de antes");
+  ok(deEntrada.includes("PT-COST-330") && deEntrada.includes("PT-COST-175"),
+     `no salen los marcados de entrada: ${deEntrada.join(", ")}`);
+  ok(!deEntrada.includes("PT-2000"),
+     "salió de entrada uno que NO está marcado: la marca no está filtrando");
+
+  /* Y SE DICE QUE HAY MÁS. Sin ese renglón, quien no encuentre el suyo
+     va a creer que no está en el maestro y va a dejar de registrar. */
+  const nada = await pg.textContent(".rt-rep .bl-lista");
+  ok(/salen al escribir|más/i.test(nada),
+     "no se dice que hay más materiales ni cómo llegar a ellos");
+  await pg.screenshot({ path: ".arnes/rt-sitio-corta.png" });
+
+  /* LA OTRA MITAD: escribiendo aparecen todos. */
+  await pg.fill(".rt-rep .bl-teclea", "PT-2050");
+  await pg.waitForTimeout(80);
+  const buscado = await pg.$$eval(".rt-rep .bl-op span", (e) => e.map((x) => x.textContent.trim()));
+  ok(buscado.includes("PT-2050"),
+     `un material sin marcar no aparece ni buscándolo por su código: ${buscado.join(", ")}`);
+
+  /* EN EER **NO** SE APLICA LA LISTA CORTA, y esta comprobación es la
+     que lo sostiene.
+
+     Allí la lista ya es corta: el color del vidrio la deja en uno o
+     dos. Aplicando además la marca desaparecía el segundo ámbar —el
+     maestro tiene un 330 y un 750— y ese es justo el caso por el que
+     EER tiene desplegable: con dos del mismo color la base escoge el
+     primero EN SILENCIO y el informe del mes reparte el vidrio en el
+     formato que no era. Resolver un scroll que no existe a cambio de
+     reabrir ese agujero es un mal negocio. */
+  await pg.keyboard.press("Escape");
+  await pg.click(".rt-rep .seg button:has-text('EER')");
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bl-lista", { timeout: 2000 }).catch(() => {});
+  const eerEntrada = await pg.$$eval(".rt-rep .bl-op span", (e) => e.map((x) => x.textContent.trim()));
+  ok(eerEntrada.includes("EER-AMBAR") && eerEntrada.includes("EER-AMBAR-750"),
+     `en EER se escondió uno de los dos ámbar: ${eerEntrada.join(", ")} — con dos del mismo ` +
+     "color, esconder uno hace que la base escoja el otro en silencio");
 }
 
 /* Y en producto terminado el campo sigue donde estaba, y sigue pidiéndose. */
@@ -943,14 +1033,6 @@ await abrir();
   await pg.waitForSelector(".rt-rep .bl-lista");
   ok(await pg.isVisible(".rt-rep .bl-teclea"),
      "al abrir el material no aparece dónde escribir");
-  /* NO SE PINTAN LOS 494: cada letra tecleada repintaría 494 renglones
-     y el teléfono se cuelga medio segundo. */
-  const todos = (await pg.$$(".rt-rep .bl-op")).length;
-  ok(todos > 0 && todos <= 60,
-     `se pintan ${todos} renglones de una: con 494 el teléfono se cuelga en cada letra`);
-  ok(/más/.test(await pg.textContent(".rt-rep .bl-lista")),
-     "no se dice cuántos quedan sin pintar: parece que la lista se acabó ahí");
-
   const teclear2 = async (v) => pg.evaluate((val) => {
     const el = document.querySelector(".rt-rep .bl-teclea");
     const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
@@ -964,6 +1046,16 @@ await abrir();
   const con355 = await pg.$$eval(".rt-rep .bl-op b", (b) => b.map((x) => x.textContent));
   ok(con355.length > 0 && con355.every((t) => /355/.test(t)),
      `buscar «355» —que va en la MITAD del nombre— trajo ${con355.length} y no todos lo tienen`);
+
+  /* EL TOPE SE MIDE AQUÍ, EN LA BÚSQUEDA, y ya no al abrir: de entrada
+     ahora solo salen los marcados —dos— y contar dos no prueba nada.
+     Buscando «355» los que calzan son cien, que es el caso de verdad:
+     cada letra tecleada repintaría cien renglones y el teléfono se
+     cuelga medio segundo. */
+  ok(con355.length <= 60,
+     `se pintan ${con355.length} renglones de una: con 494 el teléfono se cuelga en cada letra`);
+  ok(/más/.test(await pg.textContent(".rt-rep .bl-lista")),
+     "no se dice cuántos quedan sin pintar: parece que la lista se acabó ahí");
 
   /* Y POR EL CÓDIGO, que es lo que está pegado en la estiba. */
   await teclear2("PT-COST-330");

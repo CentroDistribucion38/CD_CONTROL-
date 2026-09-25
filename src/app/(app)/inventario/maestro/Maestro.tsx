@@ -142,6 +142,12 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
       dias_minimo: ent(borrador.dias_minimo ?? "") ?? 0,
       familia: (borrador.familia ?? "").trim() || null,
       tipo_material: (borrador.tipo_material ?? m.tipo_material) as "PRODUCTO" | "ENVASE",
+      /* SIN TOCAR LA CASILLA SE QUEDA COMO ESTABA. Con
+         `borrador.en_sitio === "1"` a secas, abrir un material marcado,
+         cambiarle la familia y guardar lo habría DESMARCADO en
+         silencio: `borrador.en_sitio` está sin poner hasta que alguien
+         toca la casilla. */
+      en_sitio: (borrador.en_sitio ?? (m.en_sitio ? "1" : "0")) === "1",
       activo: borrador.activo === "1",
       actualizado_en: new Date().toISOString(),
     };
@@ -430,6 +436,12 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                   <option value="PRODUCTO">Producto</option>
                   <option value="ENVASE">Envase</option>
                 </select></label>
+
+              {/* UN MATERIAL NUEVO NACE SIN MARCAR. Marcarlo solo se
+                  hace desde su propia ficha, con la lista delante: dar
+                  de alta una referencia y meterla de una en el
+                  desplegable de la bodega son dos decisiones, y la
+                  segunda se toma mirando qué hay. */}
             </div>
           ) : pestania === "bodegas" ? (
             <div className="fe-campos">
@@ -564,6 +576,33 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                         <option value="PRODUCTO">Producto</option>
                         <option value="ENVASE">Envase</option>
                       </select></label>
+
+                    {/* ============ SALE EN SITIO ============
+                        El maestro tiene todos los materiales del CD
+                        porque es el maestro de todo lo que entra y
+                        sale. En Quiebra → En sitio se rompen unos
+                        cincuenta, y abrir ese desplegable con los
+                        cientos es bajar treinta pantallazos de pie y
+                        con guante para encontrar el mismo de siempre.
+
+                        MARCAR AQUÍ NO ESCONDE NADA: los que no estén
+                        marcados siguen apareciendo al escribir en ese
+                        buscador. Decide qué se ve PRIMERO, no qué
+                        existe. */}
+                    <label className="ancho fe-en-sitio">
+                      <span>Quiebra en sitio</span>
+                      <span className="fe-en-sitio-caja">
+                        <input type="checkbox"
+                               checked={(borrador.en_sitio ?? (m.en_sitio ? "1" : "0")) === "1"}
+                               onChange={(e) => poner("en_sitio", e.target.checked ? "1" : "0")} />
+                        <b>Sale de entrada en el desplegable de «en sitio»</b>
+                      </span>
+                      <em>
+                        Lo que no se marca no desaparece: sigue saliendo al escribir en ese
+                        buscador. Esto es solo para que la lista no arranque con los{" "}
+                        {total} del maestro.
+                      </em>
+                    </label>
                     <label className="fe-check"><input type="checkbox"
                              checked={borrador.activo === "1"}
                              onChange={(e) => poner("activo", e.target.checked ? "1" : "0")} />

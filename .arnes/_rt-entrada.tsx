@@ -3,36 +3,38 @@ import { createRoot } from "react-dom/client";
 import { EnSitio } from "../src/app/(app)/roturas/en-sitio/EnSitio";
 
 const materiales = [
-  { clave: "EER-AMBAR", nombre: "Envase retornable ámbar", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", activo: true, orden: 1 },
-  { clave: "EER-FLINT", nombre: "Envase retornable flint", tipo: "eer", color: "flint", botellas_x_empaque: null, familia: "Ret", activo: true, orden: 2 },
-  { clave: "EER-GREEN", nombre: "Envase retornable green", tipo: "eer", color: "green", botellas_x_empaque: null, familia: "Ret", activo: true, orden: 3 },
+  { clave: "EER-AMBAR", nombre: "Envase retornable ámbar", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 1 },
+  { clave: "EER-FLINT", nombre: "Envase retornable flint", tipo: "eer", color: "flint", botellas_x_empaque: null, familia: "Ret", en_sitio: true, activo: true, orden: 2 },
+  { clave: "EER-GREEN", nombre: "Envase retornable green", tipo: "eer", color: "green", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 3 },
   /* DOS ÁMBAR A PROPÓSITO. Es el caso que obliga a que EER tenga su
      desplegable: con uno solo, la base puede traducir color → material
      sin equivocarse; con dos, escoge uno EN SILENCIO y el informe del
      mes reparte el vidrio en el formato que no era. */
-  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", activo: true, orden: 4 },
-  { clave: "PT-COST-330", nombre: "Cerveza Costeña 330 ml", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: "Ret", activo: true, orden: 11 },
+  { clave: "EER-AMBAR-750", nombre: "Envase retornable ámbar 750", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 4 },
+  { clave: "PT-COST-330", nombre: "Cerveza Costeña 330 ml", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: "Ret", en_sitio: true, activo: true, orden: 11 },
   /* UNA LATA, UN PET Y UNO SIN FAMILIA. Sin ellos, «en producto no
      sale ni PET ni lata» pasaría sin probar nada — y el de la familia
      nula comprueba lo contrario: que un dato que falta NO esconde el
      material. */
-  { clave: "PT-LATA-330", nombre: "Costeña Lta 330cc X 24", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, familia: "Lata", activo: true, orden: 13 },
-  { clave: "PT-PET-600", nombre: "Pony Malta Pet 600cc X 12", tipo: "producto_terminado", color: null, botellas_x_empaque: 12, familia: "Pet", activo: true, orden: 14 },
+  { clave: "PT-LATA-330", nombre: "Costeña Lta 330cc X 24", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, familia: "Lata", en_sitio: false, activo: true, orden: 13 },
+  { clave: "PT-PET-600", nombre: "Pony Malta Pet 600cc X 12", tipo: "producto_terminado", color: null, botellas_x_empaque: 12, familia: "Pet", en_sitio: false, activo: true, orden: 14 },
   /* CON MAYÚSCULAS Y ESPACIOS: el maestro lo escribe «Lata», pero el
      día que alguien lo cargue como « LATA » el filtro tiene que seguir
      funcionando. */
-  { clave: "PT-LATA-269", nombre: "Aguila Lta 269cc X 30", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: " LATA ", activo: true, orden: 15 },
-  { clave: "PT-SIN-FAM", nombre: "Producto sin familia puesta", tipo: "producto_terminado", color: null, botellas_x_empaque: 20, familia: null, activo: true, orden: 16 },
+  { clave: "PT-LATA-269", nombre: "Aguila Lta 269cc X 30", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: " LATA ", en_sitio: false, activo: true, orden: 15 },
+  { clave: "PT-SIN-FAM", nombre: "Producto sin familia puesta", tipo: "producto_terminado", color: null, botellas_x_empaque: 20, familia: null, en_sitio: false, activo: true, orden: 16 },
   /* Y DOS DE PRODUCTO TERMINADO, para que «no deja seguir sin escoger
      material» siga midiendo algo: con uno solo vendría puesto y la
      comprobación pasaría sola. */
-  { clave: "PT-COST-175", nombre: "Envase Costeña 175R", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, familia: "Tw", activo: true, orden: 12 },
+  { clave: "PT-COST-175", nombre: "Envase Costeña 175R", tipo: "producto_terminado", color: null, botellas_x_empaque: 24, familia: "Tw", en_sitio: true, activo: true, orden: 12 },
   /* Y CIEN MÁS, porque el maestro de inventario trae 494 y un
      desplegable de siete no prueba lo que pasa con 494. */
   ...Array.from({ length: 100 }, (_, i) => ({
     clave: "PT-" + (2000 + i), nombre: "Aguila Cero Lta 355Cc X " + (i + 1),
     tipo: "producto_terminado", color: null, botellas_x_empaque: 24,
-    familia: "Tw", activo: true, orden: 100 + i,
+    /* LOS CIEN NO ESTÁN MARCADOS: son el «resto del maestro» que
+       tiene que salir al escribir y NO de entrada. */
+    familia: "Tw", en_sitio: false, activo: true, orden: 100 + i,
   })),
 ];
 /* LOS ENVASES SIN COLOR: es como llega el maestro de inventario el

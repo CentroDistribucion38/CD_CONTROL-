@@ -247,7 +247,27 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
            copiarlo habría dado dos cajas de búsqueda que se
            desincronizan. `clave` es lo que se guarda, `codigo` es lo
            que está pegado en la estiba y por lo que también se busca. */
-        opciones={delTipo.map((m) => ({ clave: m.clave, nombre: m.nombre, codigo: m.clave }))}
+        /* `corta` ES LO QUE DECIDE QUÉ SALE DE ENTRADA. Se marca en
+           Inventario → Maestro con la casilla «sale en sitio»: el
+           maestro tiene 494 materiales y en sitio se rompen unos
+           cincuenta. Los demás siguen saliendo al escribir. */
+        /* LA LISTA CORTA ES SOLO PARA PRODUCTO, y eso lo decidió un
+           arnés que se puso rojo.
+
+           En EER la lista YA ES CORTA: el color del vidrio la deja en
+           uno o dos. Aplicar además la marca escondía el segundo ámbar
+           —el maestro tiene un 330 y un 750— y ese es exactamente el
+           caso por el que EER tiene desplegable: con dos del mismo
+           color, la base traduce color → material escogiendo el
+           primero EN SILENCIO, y el informe del mes reparte el vidrio
+           en el formato que no era.
+
+           Resolver un scroll que no existe a cambio de reabrir ese
+           agujero es un mal negocio. */
+        opciones={delTipo.map((m) => ({
+          clave: m.clave, nombre: m.nombre, codigo: m.clave,
+          corta: esPT ? m.en_sitio : true,
+        }))}
         rotulo="Escribe para buscar el material"
         cambiar={(c) => { setMaterial(c); setTocoBotellas(false) }}
         /* EL MENSAJE DICE LA VERDAD: «no hay materiales en el maestro»

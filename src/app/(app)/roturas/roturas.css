@@ -2107,7 +2107,11 @@
   padding-top: 10px; padding-bottom: 10px;
 }
 .rt .sx-fila:last-child { border-bottom: 0 }
-.rt .sx-fila:hover { background: var(--rt-fondo) }
+/* `--rt-fondo` NO EXISTE EN ESTE MÓDULO. Este archivo ya lo avisa dos
+   veces más arriba —«se escribió así primero y el fondo salía
+   transparente, sin error y sin aviso»— y aun así se me volvió a
+   colar aquí: el hover de la tabla de salidas no hacía nada. */
+.rt .sx-fila:hover { background: var(--c-eef1f5) }
 /* LO ANULADO NO SE ESCONDE, SE APAGA: sigue estando y se puede abrir,
    pero no compite por la mirada con lo que sí hay que atender. */
 .rt .sx-fila.sx-anu { opacity: .62 }
@@ -2183,7 +2187,7 @@
 .rt .sx-est.sx-pesando { background: #111111; color: #FFC400 }
 .rt .sx-est.sx-pesando i { background: #FFC400 }
 .rt .sx-est.sx-anulada {
-  background: var(--rt-fondo); color: var(--rt-gris); text-decoration: line-through;
+  background: var(--c-eef1f5); color: var(--rt-gris); text-decoration: line-through;
 }
 .rt .sx-est.sx-anulada i { background: var(--rt-gris) }
 
@@ -2233,7 +2237,7 @@
   border: 0; background: none; text-align: left; padding: 0 14px; cursor: pointer;
   font: 600 13px var(--rt-texto); color: var(--rt-tinta);
 }
-.rt .sx-lista-menu button:hover { background: var(--rt-fondo) }
+.rt .sx-lista-menu button:hover { background: var(--c-eef1f5) }
 .rt .sx-lista-menu button.sx-rojo { color: var(--rt-mal); border-top: 1px solid var(--rt-linea) }
 
 /* ---------------------------------------------------------------------
