@@ -11,3 +11,16 @@ next-env.d.ts
 .DS_Store
 .arnes/.respaldo/
 .arnes/_pdf/
+
+# LO QUE ESTÁ ESPERANDO QUE SE BORRE.
+#
+# Aquí van los archivos de entrega —los .tgz, los manifiestos— y los
+# archivos viejos que se reemplazaron, porque desde la nube no se pueden
+# borrar de tu disco: solo mover.
+#
+# TIENE QUE ESTAR IGNORADO, y esto no es orden sino que si no, TUMBA EL
+# DESPLIEGUE. Next revisa los tipos de TODO archivo .ts/.tsx que esté en
+# el repo, incluidos los apartados: `analisis-viejo.tsx` importaba
+# «../../comunes» desde su sitio de antes, aquí esa ruta ya no existe, y
+# Vercel se cayó con «Cannot find module» en un archivo que ya nadie usa.
+_to_delete/
