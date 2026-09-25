@@ -113,6 +113,12 @@ export default async function TransitoPage() {
               ? "Cuando uno llegue, se certifica la llegada desde su tarjeta."
               : "Certificar la llegada requiere rol de supervisor."}{" "}
             <Link href="/sider">Ver la fuente principal</Link>
+            {/* A DÓNDE VAN LOS ANULADOS. Al anular, la tarjeta se esfuma
+                de esta lista —solo pinta los que están en camino— y sin
+                este enlace hay que salir a Fuente principal y armar el
+                filtro a mano justo después de que la pantalla acaba de
+                decir que el viaje está allá. */}
+            {permisos.manda && <> · <Link href="/sider?estado=anulado">Ver los anulados</Link></>}
           </p>
         </div>
         <div className="kpi">

@@ -509,6 +509,24 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                      onChange={(e) => setAnular({ ...anular, motivo: e.target.value })} />
               <em>En tres meses nadie va a acordarse. Queda guardado con tu nombre.</em>
             </label>
+            {/* EL QUE YA LLEGÓ Y NADIE CONTÓ SU MUESTRA SE DICE APARTE.
+
+                Anularlo es lo que hay que poder hacer —lleva semanas
+                trabado en «en camino» y nadie va a contar nada a estas
+                alturas—, pero tiene una consecuencia que el de en medio
+                de la carretera no tiene: al socio se le abona todo lo
+                que mandó, sin descontar lo que la muestra hubiera
+                encontrado. Eso es plata, y quien anula tiene que saberlo
+                ANTES, no enterarse el mes que viene. */}
+            {anular.vs.some((x) => x.ai_pendiente) && (
+              <p className="vj-dice ojo">
+                {anular.vs.filter((x) => x.ai_pendiente).length === 1
+                  ? <><b>{anular.vs.find((x) => x.ai_pendiente)!.placa} ya llegó y nadie contó su muestra.</b>{" "}</>
+                  : <><b>{anular.vs.filter((x) => x.ai_pendiente).length} de estos ya llegaron y nadie contó su muestra.</b>{" "}</>}
+                Al anularlos se cierra esa revisión sin contar: al socio se le abona todo lo que
+                mandó. Si la muestra todavía se puede sacar, sale más a cuenta hacerla.
+              </p>
+            )}
             {mal && <p className="vj-mal" role="alert">{mal}</p>}
             <div className="vj-botones">
               <button type="button" className="btn mal" onClick={confirmarAnular}
@@ -748,10 +766,10 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
             </span>
             {/* TODO EL CD DE UN TOQUE. El caso que trae a alguien aquí
                 es una importación metida dos veces, y eso llega por CD
-                entero. Los que esperan la muestra no entran: a esos no
-                se les ofrece anular en ninguna parte. */}
+                entero. Entran TODOS, incluidos los que esperan la
+                muestra: son justo los que llevan semanas trabados. */}
             {manda && (() => {
-              const suyos = g.viajes.filter((x) => !x.ai_pendiente);
+              const suyos = g.viajes;
               if (suyos.length < 2) return null;
               const todos = suyos.every((x) => escogidos.has(x.id));
               return (
@@ -895,7 +913,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
 
                   Certificar es lo que se hace doce veces al día;
                   corregir y anular, una vez al mes. */}
-              {manda && !v.ai_pendiente && (
+              {manda && (
                 <div className="tr-admin">
                   {/* LA CASILLA VA A LA IZQUIERDA Y CON SU PALABRA.
                       Una casilla pelada al lado de dos botones no dice
@@ -907,14 +925,20 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                            onChange={() => marcar(v.id)} />
                     <span>{escogidos.has(v.id) ? "Escogido" : "Escoger"}</span>
                   </label>
-                  <button type="button" className="tr-adm"
-                          onClick={() => setEdit({
-                            id: v.id, placa: v.placa, planta: v.planta ?? "",
-                            sku: v.sku ?? "", estibas: String(v.estibas ?? ""),
-                            observacion: v.observacion ?? "",
-                          })}>
-                    Corregir
-                  </button>
+                  {/* CORREGIR SÍ SE ESCONDE EN EL QUE ESPERA LA MUESTRA:
+                      cambiarle las estibas justo antes de contrastarlas
+                      con lo que se cuente en el muelle es tocar el dato
+                      que se va a contrastar. ANULAR NO — ver abajo. */}
+                  {!v.ai_pendiente && (
+                    <button type="button" className="tr-adm"
+                            onClick={() => setEdit({
+                              id: v.id, placa: v.placa, planta: v.planta ?? "",
+                              sku: v.sku ?? "", estibas: String(v.estibas ?? ""),
+                              observacion: v.observacion ?? "",
+                            })}>
+                      Corregir
+                    </button>
+                  )}
                   <button type="button" className="tr-adm mal"
                           onClick={() => setAnular({ vs: [v], motivo: "" })}>
                     Anular

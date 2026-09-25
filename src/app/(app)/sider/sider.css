@@ -3143,3 +3143,10 @@
   .sd .tr-marca { min-height: 44px }
   .sd .tr-marca.todos { min-height: 34px }
 }
+
+/* EL AVISO DE LA MUESTRA SIN CONTAR, dentro del cuadro de anular. Va en
+   el acento y no en rojo: no es un error ni impide nada — es una
+   consecuencia en plata que hay que saber ANTES de confirmar. */
+.sd .vj-dice.ojo {
+  border-left: 3px solid var(--sd-oro); padding-left: 10px; margin-top: 10px;
+}

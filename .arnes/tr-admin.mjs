@@ -177,10 +177,25 @@ await monta(true);
   ok(/Corregir/.test(t), "al administrador no le sale «Corregir»");
   ok(/Anular/.test(t), "al administrador no le sale «Anular»");
 
+  /* EN EL QUE LLEGÓ Y ESPERA LA MUESTRA: SE PUEDE ANULAR, NO CORREGIR.
+
+     ESTO ESTUVO MAL UNA VERSIÓN. Se le escondía la franja entera, y el
+     resultado fue lo contrario de lo que se pidió: los vehículos que
+     llevan semanas trabados en «en camino» —los que de verdad estorban
+     en la cifra de arriba— eran los únicos que no se podían quitar.
+
+     Corregir sí se esconde, y por lo de siempre: cambiarle las estibas
+     justo antes de contrastarlas con la muestra es tocar el dato que se
+     va a contrastar. Anular no tiene nada que ver con eso. */
   const conAi = await pg.textContent(tarjeta("KKL900"));
   ok(!/Corregir/.test(conAi),
      "al vehículo que llegó y espera la revisión AI se le ofrece corregir: eso cambia el dato " +
      "justo antes de contrastarlo con la muestra");
+  ok(/Anular/.test(conAi),
+     "al vehículo que llegó y espera la muestra no se le deja anular, y es justo el que lleva " +
+     "semanas trabado en «en camino»");
+  ok(await pg.isVisible(`${tarjeta("KKL900")} .tr-marca input`),
+     "el que espera la muestra no se puede ni escoger: queda fuera de la limpieza en lote");
 }
 
 /* =====================================================================
@@ -359,28 +374,63 @@ await monta(true);
      muestra y a esa no se le ofrece anular en ninguna parte. Si el
      «todos» la metiera, la barra diría 2 y el cuadro nombraría una
      placa que no se puede anular. */
-  ok(/2 viajes escogidos/.test(b),
-     `«los del CD» escogió ${b.trim()}: son 2 anulables y el que espera la revisión AI no entra`);
+  ok(/3 viajes escogidos/.test(b),
+     `«los del CD» escogió ${b.trim()}: en ese CD hay 3 y entran los 3, incluido el de la muestra`);
 
-  /* Y EL CUADRO NO NOMBRA AL DE LA MUESTRA. Si lo nombrara, se estaría
-     ofreciendo anular algo que la pantalla no deja anular por ningún
-     otro camino. */
+  /* Y EL CUADRO AVISA DE LO QUE CUESTA ANULAR AL DE LA MUESTRA.
+     Anularlo cierra la revisión sin contar, y al socio se le abona todo
+     lo que mandó: eso es plata, y quien anula tiene que saberlo ANTES,
+     no enterarse el mes que viene. */
   await pg.click(".sd .tr-barra .tr-adm.mal");
   await pg.waitForSelector(".sd .vj-caja");
   const q = await pg.textContent(".sd .vj-caja");
-  ok(!/KKL900/.test(q), `el cuadro nombra al que espera la muestra: «${q.slice(0, 120)}»`);
+  ok(/KKL900/.test(q), `el cuadro no nombra al que espera la muestra: «${q.slice(0, 140)}»`);
+  ok(/nadie contó su muestra/.test(q) && /se le abona todo/.test(q),
+     `el cuadro no avisa de lo que cuesta anular al de la muestra: «${q.slice(0, 200)}»`);
   await pg.click(".sd .vj-caja button:has-text('Cancelar')");
+
+  /* Y CON NINGUNO DE LA MUESTRA, ESE AVISO NO SALE. Un aviso que sale
+     siempre deja de querer decir algo a la semana. */
+  await pg.click(`${tarjeta("KKL900")} .tr-marca input`);
+  await pg.click(".sd .tr-barra .tr-adm.mal");
+  await pg.waitForSelector(".sd .vj-caja");
+  ok(!/nadie contó su muestra/.test(await pg.textContent(".sd .vj-caja")),
+     "el aviso de la muestra sale aunque no haya ninguno esperando muestra");
+  await pg.click(".sd .vj-caja button:has-text('Cancelar')");
+  /* SE VUELVE A MARCAR EL QUE SE QUITÓ, para que el grupo esté otra vez
+     completo: si no, el «todos» de abajo ya no está en «todos puestos»
+     y tocarlo marcaría en vez de desmarcar. */
+  await pg.click(`${tarjeta("KKL900")} .tr-marca input`);
 
   /* EL RÓTULO NO SE INVIERTE. Con todos marcados decía «Ninguno», y
      junto a una casilla encendida eso se lee como que no hay ninguno
      escogido. */
-  ok(/Los 2/.test(await pg.textContent(".sd .tr-grupo:has(:text-is('CD Unión Apartado')) .tr-grupo-cab .tr-marca")),
+  ok(/Los 3/.test(await pg.textContent(".sd .tr-grupo:has(:text-is('CD Unión Apartado')) .tr-grupo-cab .tr-marca")),
      "el rótulo del «todos» se invierte al marcarlo y contradice a su propia casilla");
 
   /* Y SE DESESCOGEN CON EL MISMO TOQUE. */
   await pg.click(cab);
   ok(!(await pg.isVisible(".sd .tr-barra")),
      "tocar «Ninguno» no quita la selección del CD");
+}
+
+/* EL ENLACE A LOS ANULADOS. Al anular, la tarjeta se esfuma de esta
+   lista y sin un camino a dónde fue hay que salir a Fuente principal y
+   armar el filtro a mano justo después de que la pantalla acaba de
+   decir que el viaje está allá. La cabecera la dibuja el servidor, así
+   que aquí se comprueba la dirección que se construye, no el enlace. */
+{
+  const dir = "/sider?estado=anulado";
+  const fp = readFileSync(R("src/app/(app)/sider/transito/page.tsx"), "utf8");
+  ok(fp.includes(dir),
+     "En tránsito no ofrece a dónde fueron los anulados: hay que armar el filtro a mano");
+  const pg2 = readFileSync(R("src/app/(app)/sider/page.tsx"), "utf8");
+  ok(/searchParams/.test(pg2),
+     "Fuente principal no lee el estado de la dirección: el enlace llegaría sin filtrar");
+  const vj = readFileSync(R("src/app/(app)/sider/Viajes.tsx"), "utf8");
+  ok(/estadoInicial/.test(vj) && /ESTADOS.includes/.test(vj),
+     "el estado de la dirección no se valida contra los del desplegable: un valor cualquiera " +
+     "dejaría la lista vacía con un filtro que no se puede leer");
 }
 
 /* QUIEN NO MANDA NO PUEDE ESCOGER. Sin esto, el candado del botón
@@ -430,6 +480,11 @@ await pg.click(`${tarjeta("JGY577")} .tr-marca input`);
 await pg.click(`${tarjeta("LMN321")} .tr-marca input`);
 await pg.waitForSelector(".sd .tr-barra");
 await pg.screenshot({ path: ".arnes/tr-escogidos.png" });
+/* Y EL CUADRO CON EL DE LA MUESTRA DENTRO, que es el caso nuevo. */
+await pg.click(`${tarjeta("KKL900")} .tr-marca input`);
+await pg.click(".sd .tr-barra .tr-adm.mal");
+await pg.waitForSelector(".sd .vj-caja");
+await pg.screenshot({ path: ".arnes/tr-anular-muestra.png" });
 await monta(true, 390, 1400);
 await pg.click(`${tarjeta("JGY577")} .tr-marca input`);
 await pg.waitForSelector(".sd .tr-barra");
@@ -442,7 +497,7 @@ if (fallas.length) {
   fallas.forEach((f) => console.log(" · " + f));
   process.exit(1);
 }
-console.log("✓ En tránsito: corregir y anular solo para quien manda, no en la tarjeta que espera " +
-  "la muestra, anular exige motivo de verdad y llama a sider_viaje_anular con su p_motivo, " +
+console.log("✓ En tránsito: corregir y anular solo para quien manda, el que espera la muestra se " +
+  "puede anular (avisando lo que cuesta) pero no corregir, anular exige motivo de verdad y llama a sider_viaje_anular con su p_motivo, " +
   "corregir usa los desplegables del maestro y manda «12,5» como 12.5, el rechazo de la base se " +
   "enseña sin cerrar el cuadro, y nada se sale en los cuatro anchos.");

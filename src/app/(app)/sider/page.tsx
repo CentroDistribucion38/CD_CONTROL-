@@ -12,7 +12,16 @@ export const dynamic = "force-dynamic";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 
-export default async function FuentePrincipalPage() {
+/* EL ESTADO PUEDE LLEGAR EN LA DIRECCIÓN: `/sider?estado=anulado`.
+   Al anular desde En tránsito, la tarjeta desaparece de allí —esa lista
+   solo pinta los que están en camino— y el aviso ofrece un enlace para
+   ver a dónde se fue. Sin esto, ese enlace dejaría la pantalla con los
+   198 viajes y habría que armar el filtro a mano justo después de que
+   la aplicación acaba de decir dónde está. */
+export default async function FuentePrincipalPage(
+  { searchParams }: { searchParams: Promise<{ estado?: string }> },
+) {
+  const { estado: estadoUrl } = await searchParams;
   const supabase = await createClient();
   const user = await usuarioActual();
   /* El maestro se trae para los desplegables de la corrección: quien
@@ -144,6 +153,7 @@ export default async function FuentePrincipalPage() {
           skus={maestro.skus.filter((k) => k.activo).map((k) => ({ sku: k.sku, descripcion: k.descripcion }))}
           manda={permisos.manda}
           esEditor={esEditor}
+          estadoInicial={estadoUrl}
         />
       </section>
 

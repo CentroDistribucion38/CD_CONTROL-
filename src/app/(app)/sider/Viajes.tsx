@@ -70,7 +70,7 @@ function sello(v: Viaje) {
 
 const VACIO = { placa: "", origen: "", material: "", estado: "" };
 
-export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor }: {
+export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estadoInicial }: {
   viajes: Viaje[];
   nombres: Record<string, string>;
   origenes: Origen[];
@@ -78,9 +78,20 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor }: {
   /** Administra la plataforma: puede corregir y anular. */
   manda: boolean;
   esEditor: boolean;
+  /** Viene de la dirección (`?estado=anulado`), para que el aviso de
+   *  «se anuló» pueda enlazar directo a dónde quedaron. */
+  estadoInicial?: string;
 }) {
   const router = useRouter();
-  const [f, setF] = useState(VACIO);
+  /* SE ACEPTA SOLO LO QUE EL DESPLEGABLE OFRECE. Un `?estado=` con
+     cualquier cosa dejaría la lista vacía y con un filtro puesto que no
+     se puede leer en ninguna parte: parecería que se borraron los
+     viajes. */
+  const ESTADOS = ["en_transito", "recibido", "importado", "sin_factores", "anulado"];
+  const [f, setF] = useState({
+    ...VACIO,
+    estado: estadoInicial && ESTADOS.includes(estadoInicial) ? estadoInicial : "",
+  });
   /* Qué fila está abierta para corregir, y con qué valores. */
   const [edit, setEdit] = useState<null | {
     id: string; placa: string; planta: string; sku: string;
