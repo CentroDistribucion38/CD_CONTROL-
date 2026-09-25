@@ -127,6 +127,90 @@ export function Fila({ r, nombres, derecha, children }: {
   );
 }
 
+/**
+ * LA MISMA ROTURA, PERO EN COLUMNAS.
+ *
+ * `Fila` pone todo en un párrafo de etiquetas: sirve para leer UNA, y
+ * es lo que usa Visto bueno, donde ABI mira una por una y decide. Esta
+ * sirve para leer TREINTA de un vistazo, que es lo que se hace en la
+ * pantalla de consulta: con las cifras en columna, el ojo las compara
+ * bajando en línea recta en vez de buscar el número dentro de la frase.
+ *
+ * VIVE AQUÍ Y NO EN LA PANTALLA porque el día que el filo rojo del «no
+ * asumida» haya que dibujarlo distinto tiene que haber UN sitio donde
+ * cambiarlo. Visto bueno sigue con `Fila` a propósito —no se pidió
+ * cambiarla y allí hace falta el detalle largo, no la comparación—,
+ * pero las dos salen de este archivo.
+ *
+ * LAS COLUMNAS VAN EN EL CSS, no aquí: en celular esto mismo se apila
+ * en tarjeta sin cambiar una línea de este componente.
+ */
+export function FilaTabla({ r, nombres, derecha, children }: {
+  r: Rotura;
+  nombres: Record<string, string>;
+  derecha?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  const est = r.estado === "esperando" ? "ESPERANDO VH"
+            : r.estado === "cuenta" ? "CUENTA"
+            : r.estado === "no_cuenta" ? "NO CUENTA" : "ANULADA";
+  return (
+    <div className={"tf" + (r.grupo === "no_asumida" ? " roja" : "")
+                  + (r.estado === "anulada" ? " gris" : "")}>
+      <div className="tf-cod" data-rot="Código">{r.codigo}</div>
+
+      {/* LA FOTO SE DICE, NO SE TRAE. Las fotos viven en un bucket
+          privado: pintarlas de verdad aquí serían treinta enlaces
+          firmados cada vez que alguien abre la pantalla o toca un
+          filtro, y la lista tardaría en aparecer. Lo que ABI necesita
+          de un vistazo es si HAY —una no asumida sin foto se devuelve—,
+          y eso cabe en el contador. La foto se ve al tocar Ver. */}
+      <div className="tf-foto" data-rot="Foto">
+        {r.fotos > 0
+          ? <span className="tf-ev"><i aria-hidden />{r.fotos}</span>
+          : <span className={"tf-sinfoto" + (r.le_falta_foto ? " falta" : "")}>
+              {r.le_falta_foto ? "LE FALTA" : "sin foto"}
+            </span>}
+      </div>
+
+      <div className="tf-pr" data-rot="Producto">
+        <div className="tf-nom">{r.material_nombre}<Vidrio color={r.color} /></div>
+        <div className="tf-sub">
+          {r.causa_nombre ? r.causa_nombre : "Sin causa anotada"}
+          {" · "}
+          <b className={r.grupo}>
+            {r.grupo === "no_asumida" ? "no asumida por el OL" : "asumida por el OL"}
+          </b>
+        </div>
+        {children}
+      </div>
+
+      {/* ROTAS Y CONTAMINADAS, SEPARADAS. Las dos pierden el líquido,
+          pero solo la rota pierde la botella: juntarlas obligaría
+          después a adivinar cuánto vidrio salió de ahí. */}
+      <div className="tf-und" data-rot="Unidades">
+        <div className="tf-n">{r.unidades}<small>{r.unidades === 1 ? "rota" : "rotas"}</small></div>
+        {!!r.contaminadas && (
+          <div className="tf-n2">+{r.contaminadas} contaminada{r.contaminadas === 1 ? "" : "s"}</div>
+        )}
+      </div>
+
+      <div className="tf-proc" data-rot="Proceso">{r.proceso_nombre}</div>
+
+      <div className="tf-quien" data-rot="Registró">
+        <b>{quien(nombres, r.reportada_por)}</b>
+        {hace(r.minutos)}
+      </div>
+
+      <div className="tf-est" data-rot="Estado">
+        <span className={"tf-pi " + r.estado}><i aria-hidden />{est}</span>
+      </div>
+
+      <div className="tf-ac">{derecha}</div>
+    </div>
+  );
+}
+
 /** El mensaje de cuando falta correr el SQL. Dice qué archivo, no "error". */
 export function SinTablas() {
   return (

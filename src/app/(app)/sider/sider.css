@@ -3033,3 +3033,49 @@
 @media (max-width: 900px) {
   .sd.tr-pantalla { height: auto; display: block }
 }
+
+/* =====================================================================
+   LA FRANJA DEL ADMINISTRADOR EN LA TARJETA DE TRÁNSITO
+
+   Corregir y anular un viaje que nunca salió, o que se digitó dos
+   veces, sin tener que irse a Fuente principal a buscar la placa entre
+   casi doscientas filas.
+
+   VA DEBAJO Y APARTE, no en la fila de «Certificar llegada». Dos
+   razones, y las dos se vieron en lo pintado:
+
+     · Con los tres botones en la misma fila, la fila se envolvía y cada
+       tarjeta quedaba de un alto distinto: con dos vehículos al lado,
+       uno terminaba dos renglones más abajo que el otro.
+
+     · Y ponía «Anular» del mismo tamaño y a la misma altura que la
+       acción de todos los días. Certificar se hace doce veces al día,
+       con guante y sin mirar; anular, una vez al mes. Lo raro no puede
+       estar donde cae el dedo por costumbre.
+   ===================================================================== */
+.sd .tr-admin {
+  display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
+  padding: 8px 14px 10px; border-top: 1px solid var(--sd-linea);
+  /* EL MARGEN NEGATIVO PEGA LA FRANJA AL BORDE de la tarjeta: la línea
+     tiene que cruzarla entera para que se lea como «otra sección», y no
+     como un par de botones sueltos flotando dentro del cuerpo. */
+  margin: 10px -14px -12px;
+}
+.sd .tr-adm {
+  min-height: 34px; padding: 0 12px; cursor: pointer; border-radius: 3px;
+  background: transparent; border: 1px solid var(--sd-linea);
+  font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--sd-gris);
+}
+.sd .tr-adm:hover { background: var(--sd-papel); color: var(--sd-tinta) }
+/* ANULAR SE VE DE LO QUE ES. Sin el color, «Anular» y «Corregir» son
+   dos botones grises iguales y el que destruye se toca por descuido. */
+.sd .tr-adm.mal { color: var(--sd-mal); border-color: color-mix(in srgb, var(--sd-mal) 40%, transparent) }
+.sd .tr-adm.mal:hover { background: color-mix(in srgb, var(--sd-mal) 9%, var(--sd-papel)); color: var(--sd-mal) }
+
+/* EN CELULAR, DE 44 px Y REPARTIDOS. Es la regla del proyecto, y aquí
+   además la franja es lo último de la tarjeta: si los botones quedan
+   chicos, el dedo acaba dando en el borde y no pasa nada. */
+@media (max-width: 720px) {
+  .sd .tr-admin { justify-content: stretch }
+  .sd .tr-adm { flex: 1; min-height: 44px; font-size: 13.5px }
+}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { viajesEnTransito, nombresTodos } from "@/modulos/sider/datos";
+import { viajesEnTransito, maestroSider, nombresTodos } from "@/modulos/sider/datos";
 import { maestrosAi } from "@/modulos/sider/ai";
 import "../sider.css";
 import "@/modulos/sider/ai.css";
@@ -28,9 +28,15 @@ export default async function TransitoPage() {
      SUMAN las tres aunque ninguna dependa de la anterior. Los nombres se
      traen todos porque así no hay que esperar los viajes para saber por
      cuáles preguntar. */
-  const [{ data: perfil }, { viajes, falta }, permisos, nombres] = await Promise.all([
+  /* EL MAESTRO BAJA CON LA PANTALLA porque los desplegables de la
+     corrección lo necesitan, y va en la MISMA tanda: son dos listas
+     cortas —dieciséis orígenes y veintiún materiales— y esperar a que
+     alguien toque «Corregir» para pedirlas dejaría el cuadro en blanco
+     medio segundo, justo encima del formulario. */
+  const [{ data: perfil }, { viajes, falta }, maestro, permisos, nombres] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user!.id).single(),
     viajesEnTransito(),
+    maestroSider(),
     /* Ver el tránsito lo puede todo el mundo: de eso se trata, que el que
        recibe sepa qué viene. Certificar la llegada, no. */
     /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
@@ -85,6 +91,14 @@ export default async function TransitoPage() {
           Desde el servidor no hay forma de saber que lo abrió. */}
       <Transito esAdmin={esAdmin} viajes={viajes}
         nombres={nombres}
+        /* CORREGIR Y ANULAR: el MISMO candado que en Fuente principal.
+           `manda` es el rol marcado como tal en Administración → Roles,
+           y es lo que comprueban por su cuenta `sider_viaje_editar` y
+           `sider_viaje_anular`. Pintar el botón con otra condición que
+           la de la base solo produce botones que dan error al tocarlos. */
+        manda={permisos.manda}
+        origenes={maestro.origenes.filter((o) => o.activo).map((o) => ({ planta: o.planta, cd_origen: o.cd_origen }))}
+        skus={maestro.skus.filter((k) => k.activo).map((k) => ({ sku: k.sku, descripcion: k.descripcion }))}
         maestrosAi={maestros}
         esEditor={esEditor}
         trabados={trabados}

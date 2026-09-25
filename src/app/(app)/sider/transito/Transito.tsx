@@ -62,12 +62,20 @@ function horasEnCamino(iv: string | null): number {
    bloquear nada. */
 const HORAS_LARGAS = 24;
 
-export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvidencia,
-                           maestrosAi, cabeza }: {
+export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, skus,
+                           trabados, sinEvidencia, maestrosAi, cabeza }: {
   esAdmin?: boolean;
   viajes: Viaje[];
   nombres: Record<string, string>;
   esEditor: boolean;
+  /** Administra la plataforma: puede corregir y anular, igual que en la
+   *  fuente principal. El candado de verdad está en la base. */
+  manda?: boolean;
+  /** Para los desplegables de la corrección: la base valida la planta y
+   *  el material contra el maestro, así que aquí no puede haber campo
+   *  libre — un texto tecleado a mano solo da un error al guardar. */
+  origenes?: { planta: string; cd_origen: string }[];
+  skus?: { sku: string; descripcion: string }[];
   /** Los maestros de la revisión AI. null = ningún vehículo la lleva. */
   maestrosAi: MaestrosAi | null;
   trabados: number;
@@ -80,6 +88,16 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
 
   /** El viaje abierto para certificar la llegada. */
   const [abierto, setAbierto] = useState<Viaje | null>(null);
+
+  /* CORREGIR Y ANULAR. Los dos cuadros son los mismos que los de Fuente
+     principal, y llaman a las mismas funciones de la base. */
+  const [edit, setEdit] = useState<null | {
+    id: string; placa: string; planta: string; sku: string;
+    estibas: string; observacion: string;
+  }>(null);
+  const [anular, setAnular] = useState<null | { v: Viaje; motivo: string }>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [mal, setMal] = useState<string | null>(null);
 
   /* PEDIR O QUITAR LA REVISIÓN AI.
      El id del viaje que se está mandando, para apagar SOLO ese botón: un
@@ -98,6 +116,57 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
      useAvisos cuenta después. */
   const [pedir, dialogo] = useConfirmar();
   const [avisar, avisos] = useAvisos();
+
+  /* ---------------------------------------------------------------
+     CORREGIR, ANULAR Y DEVOLVER
+
+     Las tres llaman a las funciones que YA existen y que ya usa Fuente
+     principal. No se escribió SQL nuevo a propósito: dos funciones que
+     hacen lo mismo se separan en cuanto alguien toca una, y entonces
+     anular desde una pantalla deja el viaje distinto que anularlo desde
+     la otra.
+
+     EL ERROR SE ENSEÑA TAL COMO LO MANDA LA BASE. Los mensajes están
+     escritos para leerse —«Ese viaje está anulado. Devuélvelo antes de
+     corregirlo.»—, y traducirlos aquí sería reescribir a mano la misma
+     frase en dos sitios.
+     --------------------------------------------------------------- */
+  async function guardarCorreccion() {
+    if (!edit) return;
+    setMal(null); setOcupado(true);
+    const { error } = await supabase.rpc("sider_viaje_editar", {
+      p_id: edit.id,
+      p_placa: edit.placa,
+      p_planta: edit.planta,
+      p_sku: edit.sku,
+      /* LA COMA DECIMAL SE CAMBIA POR PUNTO: aquí se escribe «0,83» y
+         `Number("0,83")` es NaN, que la base rechaza con un mensaje
+         sobre las estibas que no dice nada del teclado. */
+      p_estibas: Number(edit.estibas.replace(",", ".")),
+      p_observacion: edit.observacion,
+    });
+    setOcupado(false);
+    if (error) return setMal(error.message);
+    setEdit(null);
+    router.refresh();
+  }
+
+  async function confirmarAnular() {
+    if (!anular) return;
+    setMal(null); setOcupado(true);
+    const { error } = await supabase.rpc("sider_viaje_anular", {
+      p_id: anular.v.id, p_motivo: anular.motivo,
+    });
+    setOcupado(false);
+    if (error) return setMal(error.message);
+    const placa = anular.v.placa;
+    setAnular(null);
+    /* SE DICE QUE SE FUE Y A DÓNDE. El viaje desaparece de esta lista
+       —solo pinta los que están en tránsito—, y una tarjeta que se
+       esfuma sin una palabra parece un fallo. */
+    avisar.bien(`${placa} quedó anulado y salió de «en camino». Está en Fuente principal, en gris, y se puede devolver.`);
+    router.refresh();
+  }
 
   async function pedirAi(v: Viaje) {
     /* PEDIRLA PREGUNTA EL MOTIVO; QUITARLA PIDE CONFIRMACIÓN. Pedir la
@@ -292,10 +361,120 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
     );
   }
 
+  /* LOS DOS CUADROS DEL ADMINISTRADOR, escritos una vez y colgados
+     fuera del listado: dentro de la tarjeta se abrirían DENTRO de su
+     `overflow` y quedarían recortados por el borde del grupo. */
+  const cuadrosAdmin = (
+    <>
+      {/* ---------- Corregir ---------- */}
+      {edit && (
+        <div className="vj-velo" role="dialog" aria-modal="true"
+             onClick={(e) => { if (e.target === e.currentTarget && !ocupado) setEdit(null) }}>
+          <div className="vj-caja">
+            <p className="vj-ojo">CORREGIR EL VIAJE</p>
+            <h3>{edit.placa || "—"}</h3>
+            <p className="vj-dice">
+              Se corrige lo que alguien tecleó: la placa, el origen, el material y las
+              estibas. <b>Los hectolitros y el sider no se tocan</b> — se vuelven a calcular
+              solos con las fórmulas del maestro.
+            </p>
+            <div className="vj-campos">
+              <label>
+                <span>Placa</span>
+                <input value={edit.placa} autoFocus maxLength={10}
+                       onChange={(e) => setEdit({ ...edit, placa: e.target.value.toUpperCase() })} />
+              </label>
+              {/* DESPLEGABLES Y NO CAMPO LIBRE: la base valida los dos
+                  contra el maestro, así que un texto a mano solo puede
+                  acabar en un error al guardar. */}
+              <label>
+                <span>CD origen</span>
+                <select value={edit.planta} onChange={(e) => setEdit({ ...edit, planta: e.target.value })}>
+                  <option value="">—</option>
+                  {(origenes ?? []).map((o) => (
+                    <option key={o.planta} value={o.planta}>{o.cd_origen}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Material</span>
+                <select value={edit.sku} onChange={(e) => setEdit({ ...edit, sku: e.target.value })}>
+                  <option value="">—</option>
+                  {(skus ?? []).map((k) => (
+                    <option key={k.sku} value={k.sku}>{k.descripcion}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Estibas</span>
+                <input value={edit.estibas} inputMode="decimal"
+                       onChange={(e) => setEdit({ ...edit, estibas: e.target.value })} />
+              </label>
+              <label className="ancho">
+                <span>Observación</span>
+                <input value={edit.observacion} maxLength={200}
+                       placeholder="Opcional"
+                       onChange={(e) => setEdit({ ...edit, observacion: e.target.value })} />
+              </label>
+            </div>
+            {mal && <p className="vj-mal" role="alert">{mal}</p>}
+            <div className="vj-botones">
+              <button type="button" className="btn oro" onClick={guardarCorreccion}
+                      disabled={ocupado || !edit.placa.trim() || !edit.planta || !edit.sku}>
+                {ocupado ? "Guardando…" : "Guardar la corrección"}
+              </button>
+              <button type="button" className="btn plano" onClick={() => setEdit(null)} disabled={ocupado}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Anular ---------- */}
+      {anular && (
+        <div className="vj-velo" role="dialog" aria-modal="true"
+             onClick={(e) => { if (e.target === e.currentTarget && !ocupado) setAnular(null) }}>
+          <div className="vj-caja">
+            <p className="vj-ojo">ANULAR UN VIAJE</p>
+            <h3>{anular.v.placa} · {anular.v.cd_origen}</h3>
+            {/* SE DICE QUE NO SE BORRA, y se dice aquí y no en el manual:
+                quien viene buscando «eliminar» tiene que enterarse en el
+                momento de que esto no destruye la evidencia, o lo va a
+                buscar por otro lado. */}
+            <p className="vj-dice">
+              El viaje <b>no se borra</b>: sale de «en camino» y se queda en Fuente principal
+              marcado como anulado, con sus fotos y su ubicación, y deja de contar en los
+              hectolitros y en el porcentaje de certificación. Se puede devolver.
+            </p>
+            <label className="vj-motivo-campo">
+              <span>¿Por qué se anula?</span>
+              <input value={anular.motivo} autoFocus maxLength={200}
+                     placeholder="Se digitó dos veces, el vehículo no salió…"
+                     onChange={(e) => setAnular({ ...anular, motivo: e.target.value })} />
+              <em>En tres meses nadie va a acordarse. Queda guardado con tu nombre.</em>
+            </label>
+            {mal && <p className="vj-mal" role="alert">{mal}</p>}
+            <div className="vj-botones">
+              <button type="button" className="btn mal" onClick={confirmarAnular}
+                      disabled={ocupado || anular.motivo.trim().length < 4}>
+                {ocupado ? "Anulando…" : "Anular el viaje"}
+              </button>
+              <button type="button" className="btn plano" onClick={() => setAnular(null)} disabled={ocupado}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <>
       {dialogo}
       {avisos}
+      {cuadrosAdmin}
       {cabeza}
 
       {/* ---------- LA CINTA DE ASUNTOS ----------
@@ -575,8 +754,53 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, trabados, sinEvid
                       {v.ai_pendiente ? "Hacer la revisión AI" : "Certificar llegada"}
                     </button>
                   )}
+
+                  {/* CORREGIR Y ANULAR, AQUÍ Y NO SOLO EN LA FUENTE.
+                      Un vehículo que se digitó dos veces, o que nunca
+                      salió, se queda en «en camino» para siempre y
+                      ensucia la cifra de arriba y las horas del más
+                      viejo. Arreglarlo obligaba a salir a Fuente
+                      principal y buscar la placa entre casi doscientas
+                      filas — y quien está mirando esta lista ya tiene
+                      la placa delante.
+
+                      SON LAS MISMAS FUNCIONES de Fuente principal, no
+                      unas nuevas: `sider_viaje_editar` y
+                      `sider_viaje_anular`, que comprueban `manda()` por
+                      su cuenta. Esconder el botón aquí es comodidad, no
+                      seguridad: el candado está en la base y rechaza la
+                      llamada venga de donde venga. */}
                 </div>
               </footer>
+
+              {/* LA FRANJA DEL ADMINISTRADOR VA APARTE, debajo y con su
+                  propia línea, y no junto a «Certificar llegada».
+
+                  Metidos en la misma fila, los tres botones se envolvían
+                  y cada tarjeta quedaba de un alto distinto — con dos
+                  vehículos al lado, uno terminaba dos renglones más
+                  abajo que el otro. Y peor: ponía «Anular» a la misma
+                  altura y del mismo tamaño que la acción de todos los
+                  días, que es la que se toca con guante y sin mirar.
+
+                  Certificar es lo que se hace doce veces al día;
+                  corregir y anular, una vez al mes. */}
+              {manda && !v.ai_pendiente && (
+                <div className="tr-admin">
+                  <button type="button" className="tr-adm"
+                          onClick={() => setEdit({
+                            id: v.id, placa: v.placa, planta: v.planta ?? "",
+                            sku: v.sku ?? "", estibas: String(v.estibas ?? ""),
+                            observacion: v.observacion ?? "",
+                          })}>
+                    Corregir
+                  </button>
+                  <button type="button" className="tr-adm mal"
+                          onClick={() => setAnular({ v, motivo: "" })}>
+                    Anular
+                  </button>
+                </div>
+              )}
 
               {v.requiere_ai && (
                 <p className={"tr-ojo ai" + (v.ai_pendiente ? " falta" : "")}>

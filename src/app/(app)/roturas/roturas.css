@@ -185,12 +185,27 @@
   color: var(--rt-gris2); font-size: 15px;
 }
 
-/* ====================== Cifras (4 cajas) ====================== */
+/* ====================== Cifras (4 cajas) ======================
+
+   SON BOTONES: cada una filtra la lista por lo que dice. Por eso se
+   declaran los reinicios de `button` —tipografía, alineación, cursor—:
+   sin ellos el navegador les pone su propia fuente y las centra, y las
+   cuatro cifras dejan de alinearse con el resto del módulo. */
 .rt .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
 .rt .cifra {
   background: var(--rt-papel); border: 1px solid var(--rt-linea);
   padding: 15px 18px; border-left: 4px solid var(--rt-linea); min-width: 0;
+  display: flex; flex-direction: column; text-align: left;
+  font-family: inherit; color: inherit; cursor: pointer;
+  /* 44 px DE ALTO MÍNIMO aunque sobre: se tocan con guante. */
+  min-height: 44px;
 }
+.rt .cifra:hover { background: color-mix(in srgb, var(--rt-oro) 7%, var(--rt-papel)) }
+/* LA ENCENDIDA SE VE ENCENDIDA POR DOS VÍAS, no solo por el fondo: el
+   trazo de abajo sobrevive al alto contraste y a una impresión en gris,
+   donde un fondo crema del 11 % desaparece y la pantalla pasa a mentir
+   sobre qué filtro está puesto. */
+.rt .cifra.on { background: var(--rt-crema); box-shadow: inset 0 -3px 0 var(--rt-oro) }
 .rt .cifra .rot { font-size: 10.5px; font-weight: 600; letter-spacing: .15em; color: var(--rt-gris) }
 .rt .cifra .n {
   font-family: var(--rt-titulo); font-weight: 900; font-size: clamp(26px, 2.6vw, 34px);
@@ -2266,3 +2281,182 @@
   border-radius: 0;
   margin-bottom: 8px;
 }
+
+/* =====================================================================
+   LA LISTA EN COLUMNAS — «Lo que se rompió»
+
+   La otra lista del módulo, `.fila`, es una tarjeta por rotura: sirve
+   en Visto bueno, donde ABI mira UNA y decide. Esta pantalla es la de
+   consulta y se lee distinto: se baja por treinta buscando una, o
+   comparando cuál tiene más unidades. Para eso las cifras tienen que
+   caer en la misma vertical, y eso es una tabla.
+
+   NO ES UN <table> A PROPÓSITO. Con `grid` las mismas celdas se apilan
+   en tarjeta en el teléfono sin tocar el componente; una tabla de
+   verdad obligaría a pintar dos árboles distintos o a arrastrar de
+   lado, y arrastrar de lado con guante puesto no se hace.
+
+   EL FILO IZQUIERDO ES LA DECISIÓN: rojo si la causa dice que la rotura
+   NO fue del OL —hay plata de por medio y alguien va a discutirla—.
+   ===================================================================== */
+.rt .tabla {
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  display: flex; flex-direction: column; min-width: 0;
+}
+.rt .tb-cab {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 13px 20px; border-bottom: 1px solid var(--rt-linea); flex-wrap: wrap;
+}
+.rt .tb-cab b { font-family: var(--rt-titulo); font-weight: 900; font-size: 16px }
+.rt .tb-cab span {
+  font-size: 12px; color: var(--rt-gris); display: flex; align-items: center; gap: 7px;
+}
+.rt .tb-cab span i { width: 3px; height: 14px; background: var(--rt-mal); display: inline-block }
+
+/* LAS OCHO COLUMNAS SE DECLARAN UNA VEZ y las heredan el encabezado y
+   las filas: si se declararan dos veces, el día que una columna cambie
+   de ancho el encabezado se queda con el ancho viejo y los rótulos
+   dejan de caer encima de su dato — que es el defecto clásico de las
+   tablas hechas con grid. */
+.rt .tb-cols, .rt .tf {
+  display: grid;
+  /* LA COLUMNA DE UNIDADES MIDE 152 px POR «+200 contaminadas»: con
+     130 partía en dos renglones y la fila crecía, así que una rotura
+     con contaminadas ocupaba más alto que las demás y la tabla dejaba
+     de leerse bajando a ritmo parejo. El ancho lo pone el texto más
+     largo que de verdad aparece, no el número. */
+  grid-template-columns: 84px 60px minmax(0, 1.6fr) 152px 90px minmax(0, 1fr) 132px 84px;
+  gap: 16px; align-items: center; padding: 0 20px;
+}
+.rt .tb-cols {
+  height: 34px; border-bottom: 1px solid var(--rt-linea);
+  font-size: 9px; font-weight: 700; letter-spacing: .14em; color: var(--rt-gris);
+}
+.rt .tf {
+  min-height: 76px; border-bottom: 1px solid var(--rt-linea);
+  border-left: 3px solid transparent; padding-left: 17px;
+}
+.rt .tf:last-child { border-bottom: 0 }
+.rt .tf:hover { background: color-mix(in srgb, var(--rt-tinta) 3%, var(--rt-papel)) }
+.rt .tf.roja { border-left-color: var(--rt-mal) }
+.rt .tf.gris { opacity: .72 }
+
+.rt .tf-cod {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px; font-weight: 600; color: var(--rt-gris);
+}
+/* LA FOTO SE CUENTA, NO SE TRAE: las fotos están en un bucket privado
+   y pintarlas aquí serían treinta enlaces firmados por cada filtro que
+   se toque. Lo que hace falta de un vistazo es si HAY. */
+.rt .tf-ev {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 700; color: var(--rt-tinta);
+}
+.rt .tf-ev i {
+  width: 13px; height: 11px; border: 1.5px solid currentColor; border-radius: 2px;
+  display: inline-block;
+}
+.rt .tf-sinfoto { font-size: 11.5px; color: var(--rt-gris) }
+.rt .tf-sinfoto.falta { color: var(--rt-mal); font-weight: 700; letter-spacing: .04em }
+
+.rt .tf-nom {
+  font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; min-width: 0;
+}
+.rt .tf-sub { font-size: 12px; color: var(--rt-gris); margin-top: 3px }
+.rt .tf-sub b { font-weight: 600; color: var(--rt-tinta) }
+.rt .tf-sub b.no_asumida { color: var(--rt-mal) }
+.rt .tf-nota { font-size: 12px; color: var(--rt-gris); margin-top: 5px; font-style: italic }
+
+.rt .tf-n {
+  font-family: var(--rt-titulo); font-weight: 900; font-size: 18px; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.rt .tf-n small {
+  font-family: inherit; font-weight: 500; font-size: 11.5px; color: var(--rt-gris);
+  margin-left: 5px; letter-spacing: 0;
+}
+/* LAS CONTAMINADAS, APARTE Y EN EL ACENTO. Pierden el líquido pero NO
+   la botella: sumarlas a las rotas obligaría después a adivinar cuánto
+   vidrio salió de ahí. */
+.rt .tf-n2 { font-size: 12.5px; font-weight: 700; color: var(--rt-ojo); margin-top: 2px }
+.rt .tf-proc { font-size: 13px; min-width: 0 }
+.rt .tf-quien { font-size: 12px; color: var(--rt-gris); min-width: 0 }
+.rt .tf-quien b { display: block; font-size: 12.5px; font-weight: 600; color: var(--rt-tinta) }
+
+.rt .tf-pi {
+  display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .12em; white-space: nowrap;
+}
+.rt .tf-pi i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: 0 0 auto }
+.rt .tf-pi.esperando { background: var(--rt-crema); color: var(--rt-ojo) }
+.rt .tf-pi.cuenta    { background: var(--rt-verde-suave); color: var(--rt-verde) }
+.rt .tf-pi.no_cuenta { background: var(--rt-mal-suave); color: var(--rt-mal) }
+.rt .tf-pi.anulada   { background: var(--rt-linea); color: var(--rt-gris) }
+.rt .tf-ac { display: flex; justify-content: flex-end }
+
+/* EL RÓTULO DE CADA CELDA vive en `data-rot` y SOLO se pinta en
+   celular; en PC lo dice el encabezado de arriba una vez.
+
+   AQUÍ NO VA NINGUNA REGLA QUE LO APAGUE. Había un
+   `.rt .tf [data-rot]::before { content: none }` «por si acaso», y
+   apagaba los rótulos también en el teléfono: tres clases de
+   especificidad contra las dos de `.rt .tf-und::before`, así que ganaba
+   dentro de la media query y ganaba siempre. Un `::before` sin `content`
+   no pinta nada por sí solo — la regla no hacía falta y solo servía
+   para cancelar la que sí importaba. */
+
+/* ---------------------------------------------------------------------
+   CELULAR Y TABLETA ANGOSTA: LA TABLA SE APILA EN TARJETA.
+
+   Ocho columnas no caben en 390 px, y las dos salidas fáciles son
+   malas: arrastrar de lado deja el estado y el botón Ver fuera de la
+   pantalla —justo lo que se viene a mirar—, y esconder columnas
+   esconde quién registró, que es la mitad de una discusión de si la
+   rotura fue del OL.
+
+   Así que cada celda recupera su rótulo y la fila se vuelve una
+   tarjeta. Es el mismo componente: no hay un segundo árbol que
+   mantener al día.
+   --------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .rt .tb-cols { display: none }
+  .rt .tf {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start; gap: 12px 16px; padding: 14px 16px 14px 13px;
+    border-left-width: 4px;
+  }
+  /* EL PRODUCTO OCUPA EL ANCHO y va primero: es lo que se busca. */
+  .rt .tf-pr { grid-column: 1 / -1; order: 1 }
+  .rt .tf-cod { order: 2 }
+  .rt .tf-foto { order: 3; text-align: right }
+  .rt .tf-und { order: 4 }
+  .rt .tf-proc { order: 5 }
+  .rt .tf-quien { order: 6 }
+  .rt .tf-est { grid-column: 1 / -1; order: 7 }
+  .rt .tf-ac { grid-column: 1 / -1; order: 8; justify-content: stretch }
+  .rt .tf-ac .btn { width: 100%; min-height: 44px }
+  /* CADA DATO DICE QUÉ ES. Sin el encabezado de columnas, «T1» suelto
+     en una esquina no se sabe si es el proceso, el turno o la calle. */
+  .rt .tf-und::before, .rt .tf-proc::before, .rt .tf-quien::before {
+    content: attr(data-rot);
+    display: block; font-size: 9px; font-weight: 700; letter-spacing: .14em;
+    color: var(--rt-gris); margin-bottom: 3px;
+  }
+}
+
+/* LAS CUATRO CIFRAS: DE CUATRO A DOS, Y NUNCA A UNA. En una sola
+   columna hay que desplazar toda la pantalla para ver la cuarta, y
+   entonces dejan de compararse — que es lo único que hacen juntas. */
+@media (max-width: 900px) { .rt .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+
+/* EL BOTÓN DE REGISTRAR VIVE EN DOS SITIOS SEGÚN EL ANCHO, nunca en
+   los dos a la vez. */
+.rt .solo-cel { display: none }
+@media (max-width: 900px) {
+  .rt .solo-pc { display: none }
+  .rt .solo-cel { display: flex }
+}
+.rt .cabeza.lista { align-items: center }
+.rt .cabeza .sub.corta { max-width: 68ch }
+@media (max-width: 900px) { .rt .cabeza.lista { grid-template-columns: minmax(0, 1fr) } }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Area, Causa, Material, Proceso, Rotura } from "@/modulos/roturas/datos";
-import { Fila } from "../comunes";
+import { FilaTabla } from "../comunes";
 import { Evidencia } from "../Evidencia";
 import { Reportar } from "../Reportar";
 
@@ -69,11 +69,34 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, mat
   const [abierta, setAbierta] = useState<string | null>(null);
   const [f, setF] = useState({ estado: "", grupo: "", proceso: "", texto: "" });
 
+  /* LAS CUATRO CIFRAS DE ARRIBA FILTRAN.
+     Antes solo informaban: se leía «2 esperan visto bueno» y para ver
+     CUÁLES había que bajar a los desplegables y armar el mismo filtro a
+     mano. Una cifra que dice cuántas hay y no lleva a ellas obliga a
+     buscarlas dos veces.
+     Se apaga tocándola otra vez, y «Quitar filtros» la apaga también:
+     un filtro que no se ve dónde se quita es un filtro que se queda
+     puesto y hace pensar que se perdieron registros. */
+  const [foco, setFoco] = useState("");
+  const tocarFoco = (v: string) => setFoco((a) => (a === v ? "" : v));
+
   const lista = roturas.filter((r) => {
     if (f.estado && r.estado !== f.estado) return false;
     if (!f.estado && r.estado === "anulada") return false;
     if (f.grupo && r.grupo !== f.grupo) return false;
     if (f.proceso && r.proceso !== f.proceso) return false;
+    /* EL FOCO SE SUMA A LO DEMÁS, no lo reemplaza. Si la combinación no
+       deja ninguna, el cartel de abajo ya dice que es por los filtros.
+       Las anuladas nunca entran al foco: las cuatro cifras se cuentan
+       sobre las vivas, y que el filtro trajera una anulada haría que la
+       lista no cuadrara con el número que se acaba de tocar. */
+    if (foco) {
+      if (r.estado === "anulada") return false;
+      if (foco === "esperando" && !r.esperando) return false;
+      if (foco === "sin_foto" && !r.le_falta_foto) return false;
+      if (foco === "no_asumida" && r.grupo !== "no_asumida") return false;
+      if (foco === "cuentan" && !r.cuenta) return false;
+    }
     const q = f.texto.trim().toLowerCase();
     if (q && !(r.codigo + " " + r.material_nombre + " " + r.causa_nombre + " " + r.proceso_nombre)
       .toLowerCase().includes(q)) return false;
@@ -258,23 +281,29 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, mat
 
   return (
     <>
-      <section className="cabeza">
+      <section className="cabeza lista">
         <div>
           <p className="ojo">ROTURAS · EN SITIO · CD38 AG01</p>
           <h1>Lo que se rompió</h1>
-          <p className="sub">
-            Se cuenta en unidades, por causa y por proceso: es lo que contesta de quién fue la
-            rotura y de dónde salió. Los kilos son otra cosa y viven en Salidas —el vidrio se
-            acumula días antes de salir y parte de lo que se pesa nunca se contó aquí—, así que
-            las dos cifras no se cuadran entre sí a propósito.
+          {/* EL PÁRRAFO SE ACORTÓ A UN RENGLÓN. El largo explicaba por
+              qué estas unidades no cuadran con los kilos de Salidas —el
+              vidrio se acumula días antes de salir—, y eso sigue siendo
+              cierto, pero es una explicación que se lee UNA vez y luego
+              estorba todos los días encima de la lista. Vive en el
+              manual; aquí queda la frase que ubica. */}
+          <p className="sub corta">
+            En unidades, por causa y por proceso. Los kilos van aparte, en Salidas.
           </p>
         </div>
-        <div className="kpi">
-          <span className="corte" aria-hidden />
-          <div className="rot">ESPERANDO VISTO BUENO</div>
-          <div className="num">{enEspera}<span className="u">roturas</span></div>
-          <div className="pie">ABI decide si cuentan o no</div>
-        </div>
+        {/* ARRIBA EN PC, FLOTANTE EN CELULAR. Son el mismo botón en dos
+            sitios según el ancho, nunca los dos a la vez: en pantalla
+            grande el ojo arranca arriba a la derecha, y en el teléfono
+            ahí no llega el pulgar sin reacomodar la mano. */}
+        {puedeEditar && (
+          <button type="button" className="btn oro solo-pc" onClick={() => setReportando(true)}>
+            + Registrar rotura
+          </button>
+        )}
       </section>
 
       {/* ANTES ESTABA AQUÍ EL FORMULARIO Y NO VUELVE:
@@ -283,27 +312,42 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, mat
           Registrar y mirar son dos cosas y ahora son dos pantallas de
           la misma ruta: el «+» de abajo lleva de esta a la otra. */}
 
+      {/* SON BOTONES, NO RÓTULOS: cada cifra lleva a las suyas. Y llevan
+          `aria-pressed` porque eso es lo que son —un interruptor que
+          queda puesto—, no un enlace a otro sitio. */}
       <section className="cifras">
-        <div className={"cifra" + (esperando ? " ojo" : "")}>
-          <div className="rot">ESPERAN VISTO BUENO</div>
-          <div className="n">{esperando}</div>
-          <div className="u">ABI todavía no ha dicho si cuentan</div>
-        </div>
-        <div className={"cifra" + (sinFoto ? " mal" : "")}>
-          <div className="rot">SIN LA FOTO QUE EXIGEN</div>
-          <div className="n">{sinFoto}</div>
-          <div className="u">ABI las va a devolver así</div>
-        </div>
-        <div className={"cifra" + (noAsumidas ? " mal" : "")}>
-          <div className="rot">NO ASUMIDAS</div>
-          <div className="n">{noAsumidas}</div>
-          <div className="u">se está diciendo que no fueron del OL</div>
-        </div>
-        <div className="cifra bien">
-          <div className="rot">UNIDADES DE VIDRIO</div>
-          <div className="n">{vidrio}</div>
-          <div className="u">de lo que ya cuenta. No son kilos: esto no se cuadra con la salida</div>
-        </div>
+        <button type="button" aria-pressed={foco === "esperando"}
+                className={"cifra ojo" + (foco === "esperando" ? " on" : "")}
+                onClick={() => tocarFoco("esperando")}>
+          <span className="rot">ESPERAN VISTO BUENO</span>
+          <span className="n">{esperando}</span>
+          <span className="u">ABI aún no decide</span>
+        </button>
+        <button type="button" aria-pressed={foco === "sin_foto"}
+                className={"cifra" + (sinFoto ? " mal" : "") + (foco === "sin_foto" ? " on" : "")}
+                onClick={() => tocarFoco("sin_foto")}>
+          <span className="rot">SIN LA FOTO QUE EXIGEN</span>
+          <span className="n">{sinFoto}</span>
+          <span className="u">ABI las devuelve así</span>
+        </button>
+        <button type="button" aria-pressed={foco === "no_asumida"}
+                className={"cifra" + (noAsumidas ? " mal" : "") + (foco === "no_asumida" ? " on" : "")}
+                onClick={() => tocarFoco("no_asumida")}>
+          <span className="rot">NO ASUMIDAS</span>
+          <span className="n">{noAsumidas}</span>
+          <span className="u">dicen que no fue del OL</span>
+        </button>
+        {/* ESTA CUENTA UNIDADES Y LAS DEMÁS CUENTAN ROTURAS, y por eso
+            el pie lo dice: tocarla trae las roturas que hay detrás de
+            esas unidades, que son menos renglones que el número. Sin esa
+            línea, ver «100» y que salgan dos filas parece un error. */}
+        <button type="button" aria-pressed={foco === "cuentan"}
+                className={"cifra bien" + (foco === "cuentan" ? " on" : "")}
+                onClick={() => tocarFoco("cuentan")}>
+          <span className="rot">UNIDADES QUE CUENTAN</span>
+          <span className="n">{vidrio}</span>
+          <span className="u">vidrio con visto bueno</span>
+        </button>
       </section>
 
       <div className="filtros">
@@ -325,62 +369,64 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, mat
         </select>
         <input value={f.texto} onChange={(e) => setF({ ...f, texto: e.target.value })}
                placeholder="Buscar código, material o causa" />
-        {(f.estado || f.grupo || f.proceso || f.texto) && (
+        {(f.estado || f.grupo || f.proceso || f.texto || foco) && (
           <button type="button" className="btn plano"
-                  onClick={() => setF({ estado: "", grupo: "", proceso: "", texto: "" })}>
+                  onClick={() => { setF({ estado: "", grupo: "", proceso: "", texto: "" }); setFoco("") }}>
             Quitar filtros
           </button>
         )}
       </div>
 
-      <section className="caja">
-        <div className="cab">
-          <div>
-            <h2>{lista.length} rotura{lista.length === 1 ? "" : "s"}</h2>
-            <p>
-              Lo más reciente primero. El filo rojo marca las no asumidas: las que dicen que la
-              rotura no fue del OL, y que por eso hay que probar con foto.
-            </p>
-          </div>
+      {/* LA LISTA ES UNA TABLA, y el encabezado de columnas va UNA vez
+          arriba y no repetido en cada fila: con treinta roturas, el ojo
+          compara las cifras bajando en línea recta. En celular esas
+          mismas columnas se apilan en tarjeta —ahí no hay treinta de un
+          vistazo, hay una— y cada dato recupera su rótulo. */}
+      <section className="tabla">
+        <div className="tb-cab">
+          <b>{lista.length} rotura{lista.length === 1 ? "" : "s"}</b>
+          <span><i aria-hidden />no asumida · la más reciente arriba</span>
         </div>
 
+        <div className="tb-cols" aria-hidden>
+          <div>CÓDIGO</div><div>FOTO</div><div>PRODUCTO · CAUSA</div><div>UNIDADES</div>
+          <div>PROCESO</div><div>REGISTRÓ</div><div>ESTADO</div><div />
+        </div>
+
+        {lista.length === 0 && (
+          <div className="vacio">
+            <b>Nada por aquí</b>
+            {roturas.length
+              ? "Con estos filtros no queda ninguna. «Quitar filtros» las trae todas de vuelta."
+              : "Todavía no se ha registrado nada. El botón de registrar abre el formulario."}
+          </div>
+        )}
+
+        {lista.map((r) => (
+          <FilaTabla key={r.id} r={r} nombres={nombres}
+                derecha={
+                  <button type="button" className="btn"
+                          onClick={() => setAbierta(abierta === r.id ? null : r.id)}>
+                    {abierta === r.id ? "Cerrar" : "Ver"}
+                  </button>
+                }>
+            {r.nota_decision && <div className="tf-nota">ABI dijo: {r.nota_decision}</div>}
+            {abierta === r.id && <Evidencia id={r.id} />}
+          </FilaTabla>
+        ))}
       </section>
-
-      <div className="filas">
-          {lista.length === 0 && (
-            <div className="caja"><div className="vacio">
-              <b>Nada por aquí</b>
-              {roturas.length
-                ? "Con estos filtros no queda ninguna."
-                : "Todavía no se ha registrado nada. El botón + abre el registro."}
-            </div></div>
-          )}
-
-          {lista.map((r) => (
-            <Fila key={r.id} r={r} nombres={nombres}
-                  derecha={
-                    <button type="button" className="btn"
-                            onClick={() => setAbierta(abierta === r.id ? null : r.id)}>
-                      {abierta === r.id ? "Cerrar" : `Ver${r.fotos ? ` · ${r.fotos} foto${r.fotos === 1 ? "" : "s"}` : ""}`}
-                    </button>
-                  }>
-              {r.nota_decision && (
-                <div className="meta" style={{ marginTop: 4 }}>
-                  <span>ABI dijo: {r.nota_decision}</span>
-                </div>
-              )}
-              {abierta === r.id && <Evidencia id={r.id} />}
-            </Fila>
-          ))}
-      </div>
 
       {/* EL «+» SE ESCONDE MIENTRAS SE REGISTRA. Flota encima de la
           pantalla, y con el formulario abierto se le montaba a una de
           las causas: el dedo apuntaba a «Comportamiento del personal» y
           tocaba el botón de abrir otro registro. Además ya no ofrece
-          nada — lo que abre ya está abierto. */}
+          nada — lo que abre ya está abierto.
+
+          Y SOLO EN CELULAR: en PC el mismo botón está arriba a la
+          derecha, con su nombre escrito. Dos caminos a lo mismo en la
+          misma pantalla hacen dudar de si hacen lo mismo. */}
       {puedeEditar && !reportando && (
-        <button type="button" className="mas" onClick={() => setReportando(true)}
+        <button type="button" className="mas solo-cel" onClick={() => setReportando(true)}
                 aria-label="Registrar una rotura">+</button>
       )}
     </>

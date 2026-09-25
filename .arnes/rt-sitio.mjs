@@ -296,16 +296,24 @@ ok(await pg.isVisible(".rt-rep > .cab h2"),
 await pg.click(".rt-rep .pie button:has-text('Cancelar')");
 await pg.waitForSelector(".cifras");
 ok(!(await pg.isVisible(".rt-rep")), "Cancelar no cierra el formulario");
+/* LA LISTA ES `.tabla` Y EL «+» YA NO SALE EN PC, y las dos cosas son
+   del rediseño de la pantalla de consulta, no un fallo: `.filas` —la
+   pila de tarjetas— pasó a ser una tabla de ocho columnas, y el botón
+   de registrar vive arriba a la derecha en pantalla grande y solo se
+   vuelve «+» flotante en el teléfono. Lo que se comprueba sigue siendo
+   lo mismo: que cancelar devuelva la pantalla de consulta ENTERA y con
+   una forma de volver a registrar. */
 for (const [sel, que] of [
     [".cabeza", "el titular"], [".cifras", "las cifras"],
-    [".filtros", "los filtros"], [".filas", "la lista"], [".mas", "el «+»"]]) {
+    [".filtros", "los filtros"], [".tabla", "la lista"],
+    [".cabeza.lista .btn.oro", "el botón de registrar"]]) {
   ok(await pg.isVisible(sel), `al cerrar el formulario no volvió ${que}`);
 }
 ok(/Lo que se rompió/i.test(await pg.textContent(".cabeza h1")),
    "al cerrar, el titular sigue diciendo Registrar: esa ya es la pantalla de consulta");
 ok((await pg.$$(".rt .consola")).length === 0,
    "la consola del registro se quedó puesta en la pantalla de consulta");
-await pg.click(".mas");
+await pg.click(".cabeza.lista .btn.oro");
 await abrir();
 
 /* EL MISMO VOCABULARIO QUE TRASPASOS, clase por clase. «Lo quiero como
