@@ -17,8 +17,8 @@ import { Reportar } from "../Reportar";
  * se contó aquí. Cuadrar las dos cifras sería inventar un factor de
  * conversión que no existe.
  */
-export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, materialesDe, procesos,
-                          areas, causas, puedeEditar }: {
+export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, materialesDe, materialesSinMarcar,
+                          procesos, areas, causas, puedeEditar }: {
   /** Cuántas esperan el visto bueno de ABI. Para el contador de la
    *  cabecera, que solo se pinta cuando NO se está registrando. */
   esperando: number;
@@ -30,6 +30,11 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, mat
      corra el SQL nunca, y mientras tanto quien registra una rotura de
      un producto que no está en la lista corta la registra con otro. */
   materialesDe?: "inventario" | "sin_vista" | "vacia";
+  /* LA VISTA LLEGÓ PERO NADIE ESTÁ MARCADO como «en sitio». El
+     desplegable vuelve a abrir con los cuatrocientos y pico, igual
+     que antes del cambio, y desde la pantalla no se distingue de que
+     el cambio no se hizo. */
+  materialesSinMarcar?: boolean;
   procesos: Proceso[];
   areas: Area[];
   causas: Causa[];
@@ -159,6 +164,22 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, mat
                      Inventario → Maestro.</>}{" "}
                 Mientras tanto salen los {materiales.length} sembrados a mano, y una rotura de un
                 producto que no esté en esa lista corta se va a registrar con otro.
+              </div>
+            )}
+
+            {/* EL SQL DE LA LISTA CORTA TODAVÍA NO SE HA CORRIDO.
+                No es rojo: aquí no hay nada roto ni nada que se vaya a
+                registrar mal —salen todos los materiales, como siempre—.
+                Lo único que pasa es que el desplegable no se acortó, y
+                sin este renglón eso se ve EXACTAMENTE igual que si el
+                cambio no se hubiera hecho. */}
+            {materialesDe === "inventario" && materialesSinMarcar && (
+              <div className="aviso">
+                <b>El desplegable todavía abre con todos los materiales.</b>{" "}
+                Ninguno está marcado como «se rompe en sitio», así que no hay lista corta que
+                mostrar. Falta correr <b>supabase/migraciones/2026-09-material-en-sitio.sql</b> en
+                el editor de SQL de Supabase —marca los 50 de una— o marcarlos a mano en
+                Inventario → Maestro. Se puede correr varias veces sin romper nada.
               </div>
             )}
 

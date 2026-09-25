@@ -40,6 +40,7 @@ export default async function RoturasPage() {
         nombres={nombres}
         materiales={mats.materiales}
         materialesDe={mats.de}
+        materialesSinMarcar={mats.sinMarcar}
         procesos={pros}
         areas={ars}
         causas={cas}

@@ -359,22 +359,32 @@ export async function materiales(soloActivos = true) {
 export type DeDondeSalen = "inventario" | "sin_vista" | "vacia";
 
 export async function materialesMaestro():
-  Promise<{ materiales: Material[]; de: DeDondeSalen }> {
+  Promise<{ materiales: Material[]; de: DeDondeSalen; sinMarcar: boolean }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("v_roturas_materiales_maestro")
     .select("clave, nombre, tipo, color, botellas_x_empaque, familia, en_sitio")
     .order("nombre");
 
-  if (error || !data) return { materiales: await materiales(), de: "sin_vista" };
+  if (error || !data)
+    return { materiales: await materiales(), de: "sin_vista", sinMarcar: false };
   /* CERO FILAS TAMBIÉN ES CAERSE. Un desplegable vacío no es «el
      maestro está vacío»: es una pantalla que no deja registrar. */
-  if (data.length === 0) return { materiales: await materiales(), de: "vacia" };
+  if (data.length === 0)
+    return { materiales: await materiales(), de: "vacia", sinMarcar: false };
 
-  return {
-    materiales: (data as Material[]).map((m) => ({ ...m, activo: true, orden: null })),
-    de: "inventario",
-  };
+  const lista = (data as Material[]).map((m) => ({ ...m, activo: true, orden: null }));
+
+  /* LA VISTA LLEGÓ PERO NADIE ESTÁ MARCADO, y esto hay que decirlo.
+     Es lo que pasa cuando el código ya está desplegado y el SQL de la
+     lista corta todavía no se ha corrido: el desplegable vuelve a abrir
+     con los cuatrocientos y pico, exactamente igual que antes, SIN UNA
+     PALABRA. Desde la pantalla no se distingue de «el cambio no se
+     hizo», y la conclusión razonable de quien está mirando es que no se
+     hizo. Es la misma lección del color del vidrio y la del maestro
+     viejo, por tercera vez: una pantalla que se queda callada cuando le
+     falta un dato hace que ese dato no se llene nunca. */
+  return { materiales: lista, de: "inventario", sinMarcar: !lista.some((m) => m.en_sitio) };
 }
 
 export async function procesos(soloActivos = true) {
