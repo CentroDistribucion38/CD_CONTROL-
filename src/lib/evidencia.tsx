@@ -26,7 +26,14 @@ export const PRECISION_MALA = 200;
 export const LADO_MAX = 1600;
 
 export type Ubicacion = { lat: number; lng: number; precision: number; en: string };
-export type Foto = { blob: Blob; url: string; ancho: number; alto: number };
+export type Foto = {
+  blob: Blob; url: string; ancho: number; alto: number;
+  /** CUÁNDO SE TOMÓ, en el mismo instante que se quemó en la banda.
+   *  Sale de aquí y no de `File.lastModified`: esa fecha es la del
+   *  archivo, y una foto escogida del carrete trae la del día que se
+   *  tomó originalmente — que puede ser de hace un mes. */
+  tomada: string;
+};
 
 /**
  * Traduce el punto a una dirección. Se usa Nominatim de OpenStreetMap
@@ -134,10 +141,26 @@ export async function sellar(
   archivo: File,
   d: { titulo: string; ubi: Ubicacion | null; direccion: string; etiqueta: string }
 ): Promise<Foto> {
+  /* UN ARCHIVO VACÍO SE DICE CON PALABRAS, y no es un caso raro: en el
+     iPhone, una foto que está en iCloud y no descargada llega con CERO
+     bytes, y también pasa cuando la cámara se interrumpe. Sin esta
+     comprobación, lo que se subía era un archivo vacío y el error que
+     salía era el de Supabase —«No content provided»—, que no le dice
+     nada a quien tiene el teléfono en la mano. */
+  if (!archivo || archivo.size === 0) {
+    throw new Error(
+      "La foto llegó vacía. Si la tomaste con la cámara, vuelve a tomarla; " +
+      "si la escogiste del carrete, ábrela primero en Fotos para que se descargue.");
+  }
+
   const img = await new Promise<HTMLImageElement>((ok, mal) => {
     const i = new Image();
     i.onload = () => ok(i);
-    i.onerror = mal;
+    /* Y SI NO SE PUEDE ABRIR, TAMBIÉN. `onerror` no trae motivo, así
+       que el error de arriba llegaba como un evento sin mensaje y la
+       pantalla mostraba «undefined». */
+    i.onerror = () => mal(new Error(
+      "No se pudo abrir esa imagen. Vuelve a tomar la foto, o escoge otra."));
     i.src = URL.createObjectURL(archivo);
   });
 
@@ -162,6 +185,7 @@ export async function sellar(
   const g1 = Math.round(alto * 0.42);
   const g2 = Math.round(alto * 0.3);
   const ahora = new Date();
+  const tomada = ahora.toISOString();
 
   c.fillStyle = "#fff";
   c.font = `700 ${g1}px system-ui, sans-serif`;
@@ -193,5 +217,5 @@ export async function sellar(
   const blob = await new Promise<Blob>((ok) =>
     lienzo.toBlob((b) => ok(b!), "image/jpeg", 0.86)
   );
-  return { blob, url: URL.createObjectURL(blob), ancho: an, alto: al };
+  return { blob, url: URL.createObjectURL(blob), ancho: an, alto: al, tomada };
 }

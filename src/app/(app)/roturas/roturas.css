@@ -2248,3 +2248,17 @@
   .rt .sx-cab, .rt .sx-fila { gap: 12px; padding: 0 14px }
   .rt .sx-fila { padding-top: 10px; padding-bottom: 10px }
 }
+
+/* LA EVIDENCIA DEL DESCARGO, A LA VISTA.
+   Antes solo salía el nombre del archivo —«image.jpg», que es el que el
+   iPhone le pone a todas— y no había forma de saber si se tomó la que
+   era ni si el sello con la hora quedó puesto. */
+.rt .vb-foto-prev {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border: 1.5px solid var(--rt-linea);
+  border-radius: 0;
+  margin-bottom: 8px;
+}

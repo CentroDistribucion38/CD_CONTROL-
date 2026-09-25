@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
+import { sellar, type Foto } from "@/lib/evidencia";
 import type { TemaHallazgo } from "@/modulos/acciones/hallazgos";
 import type { Zona } from "@/modulos/acciones/datos";
 
@@ -68,19 +69,44 @@ export function Levantar({ temas, zonas, areas, puedeEditar }: {
   /* LAS FOTOS SE ACUMULAN ANTES DE GUARDAR. No se suben una por una al
      escogerlas: si el hallazgo no se llega a guardar, quedarían fotos
      huérfanas en el bucket que nadie puede borrar ni encontrar. */
-  const [fotos, setFotos] = useState<File[]>([]);
+  /* LAS FOTOS YA SELLADAS, no los archivos crudos.
+     Subir el `File` tal cual daba dos problemas: en el iPhone una foto
+     que está en iCloud y no descargada llega con CERO bytes —y el error
+     que salía era «No content provided», que no le dice nada a quien
+     está en la bodega— y una foto de celular pesa seis u ocho megas,
+     que con la señal de un pasillo es un minuto por foto. `sellar` lee
+     el archivo de verdad, lo encoge a 1600 px y le quema la hora. */
+  const [fotos, setFotos] = useState<Foto[]>([]);
+  const [sellando, setSellando] = useState(false);
   const [mandando, setMandando] = useState(false);
 
   const faltaSitio = !f.zona && !f.ubicacion.trim();
   const faltaTexto = f.visto.trim().length < 10;
   const puedeGuardar = !!f.tema && !faltaSitio && !faltaTexto;
 
-  function agregarFotos(fs: FileList | null) {
+  async function agregarFotos(fs: FileList | null) {
     if (!fs?.length) return;
+    setSellando(true);
     /* SEIS Y NO MÁS. Un hallazgo con veinte fotos no lo abre nadie, y
        el informe se vuelve impaginable. Si de verdad hacen falta más,
-       son dos hallazgos. */
-    setFotos((antes) => [...antes, ...Array.from(fs)].slice(0, 6));
+       son dos hallazgos. Se recorta ANTES de sellar: sellar nueve para
+       tirar tres es hacer esperar por nada. */
+    const caben = Math.max(0, 6 - fotos.length);
+    const nuevas: Foto[] = [];
+    let malas = 0;
+    for (const f of Array.from(fs).slice(0, caben)) {
+      try { nuevas.push(await sellar(f, {
+        titulo: "HALLAZGO", ubi: null, direccion: "", etiqueta: "ABI",
+      })) } catch { malas++ }
+    }
+    setSellando(false);
+    if (nuevas.length) setFotos((antes) => [...antes, ...nuevas].slice(0, 6));
+    /* SE DICE CUÁNTAS NO SIRVIERON. «Se agregaron» cuando dos de tres
+       se quedaron fuera es peor que no decir nada. */
+    if (malas > 0) {
+      avisar.mal(`${malas} foto${malas === 1 ? "" : "s"} llegó vacía o no se pudo abrir. ` +
+                 "Si la escogiste del carrete, ábrela primero en Fotos para que se descargue.");
+    }
   }
 
   async function guardar() {
@@ -115,10 +141,10 @@ export function Levantar({ temas, zonas, areas, puedeEditar }: {
       for (const foto of fotos) {
         const ruta = `${id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
         const { error: eSubir } = await supabase.storage
-          .from("acciones").upload(ruta, foto, { contentType: foto.type || "image/jpeg" });
+          .from("acciones").upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
         if (eSubir) { malas++; continue }
         const { error: eFila } = await supabase.from("acciones_hallazgos_fotos").insert({
-          hallazgo_id: id, ruta, tomada_en: new Date(foto.lastModified).toISOString(),
+          hallazgo_id: id, ruta, tomada_en: foto.tomada,
         });
         if (eFila) malas++;
       }
@@ -174,15 +200,22 @@ export function Levantar({ temas, zonas, areas, puedeEditar }: {
             <div className="hz-fotos">
               {fotos.map((x, i) => (
                 <span key={i} className="hz-foto">
-                  <i>{x.name.slice(0, 14)}</i>
-                  <button type="button" aria-label={`Quitar ${x.name}`}
-                          onClick={() => setFotos(fotos.filter((_, j) => j !== i))}>×</button>
+                  {/* SE VE LA FOTO, no su nombre: el iPhone las llama
+                      todas «image.jpg» y así no hay forma de saber cuál
+                      se quita. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={x.url} alt={`Evidencia ${i + 1}`} />
+                  <button type="button" aria-label={`Quitar la evidencia ${i + 1}`}
+                          onClick={() => {
+                            URL.revokeObjectURL(x.url);
+                            setFotos(fotos.filter((_, j) => j !== i));
+                          }}>×</button>
                 </span>
               ))}
               {fotos.length < 6 && (
-                <button type="button" className="hz-tomar" disabled={mandando}
+                <button type="button" className="hz-tomar" disabled={mandando || sellando}
                         onClick={() => camara.current?.click()}>
-                  + Foto
+                  {sellando ? "Preparando…" : "+ Foto"}
                 </button>
               )}
               <input ref={camara} type="file" accept="image/*" capture="environment" multiple

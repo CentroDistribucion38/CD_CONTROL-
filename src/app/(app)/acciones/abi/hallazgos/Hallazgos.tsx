@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
+import { sellar } from "@/lib/evidencia";
 import { usePedirTexto } from "@/components/PedirTexto";
 import { useConfirmar } from "@/components/Confirmar";
 import type { Hallazgo } from "@/modulos/acciones/hallazgos";
@@ -167,14 +168,29 @@ export function Hallazgos({ hallazgos, nombres, motivos, puedeEditar, manda }: {
     const archivos = Array.from(fs).slice(0, 4);
     setSubiendo(h.id);
     let malas = 0;
-    for (const foto of archivos) {
+    for (const archivo of archivos) {
+      /* SE SELLA ANTES DE SUBIR, igual que en todas partes: lee el
+         archivo de verdad —en el iPhone una foto que sigue en iCloud
+         llega con CERO bytes y Supabase contesta «No content
+         provided»—, lo encoge de seis megas a medio, y le quema la
+         hora. La del «después» es la que demuestra que se arregló:
+         sin hora encima no demuestra cuándo. */
+      let foto;
+      try {
+        foto = await sellar(archivo, {
+          titulo: h.codigo, ubi: null, direccion: "", etiqueta: "DESPUÉS",
+        });
+      } catch { malas++; continue }
+
       const ruta = `${h.id}/despues-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
       const { error: eSubir } = await supabase.storage
-        .from("acciones").upload(ruta, foto, { contentType: foto.type || "image/jpeg" });
+        .from("acciones").upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
+      /* LA URL SE SUELTA SIEMPRE, salga bien o mal: son hasta cuatro
+         fotos por vez y cada una deja una viva hasta que se suelta. */
+      URL.revokeObjectURL(foto.url);
       if (eSubir) { malas++; continue }
       const { error: eFila } = await supabase.from("acciones_hallazgos_fotos").insert({
-        hallazgo_id: h.id, ruta, momento: "despues",
-        tomada_en: new Date(foto.lastModified).toISOString(),
+        hallazgo_id: h.id, ruta, momento: "despues", tomada_en: foto.tomada,
       });
       if (eFila) malas++;
     }
@@ -182,7 +198,10 @@ export function Hallazgos({ hallazgos, nombres, motivos, puedeEditar, manda }: {
     /* SE DICE CUÁNTAS FALLARON. «Listo» cuando tres de cuatro no
        subieron es peor que no decir nada: alguien cierra el informe
        creyendo que la evidencia está. */
-    if (malas > 0) avisar.mal(`${malas} de ${archivos.length} no subió. Vuelve a intentarlo.`);
+    if (malas > 0) {
+      avisar.mal(`${malas} de ${archivos.length} no subió. Si la escogiste del carrete, ` +
+                 "ábrela primero en Fotos para que se descargue, y vuelve a intentar.");
+    }
     else avisar.bien(`Evidencia del después guardada en ${h.codigo}.`);
     router.refresh();
   }

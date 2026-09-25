@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
+import { sellar, type Foto } from "@/lib/evidencia";
 import { useConfirmar } from "@/components/Confirmar";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { Evidencia } from "../../Evidencia";
@@ -83,7 +84,18 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
   const [objetando, setObjetando] = useState<string | null>(null);
   const [motivo, setMotivo] = useState<string>("");
   const [detalle, setDetalle] = useState("");
-  const [foto, setFoto] = useState<File | null>(null);
+  /* LA FOTO YA SELLADA, no el archivo crudo.
+     Antes se guardaba el `File` del input y se subía tal cual, y eso
+     daba dos problemas a la vez: en el iPhone una foto que está en
+     iCloud y no descargada llega con CERO bytes —Supabase contestaba
+     «No content provided», que no le dice nada a quien está de pie en
+     la bodega— y una foto de celular moderna pesa seis u ocho megas,
+     que con la señal de un pasillo es un minuto largo de subida.
+     `sellar` arregla los dos: lee el archivo de verdad, lo encoge a
+     1600 px y le quema abajo la hora. Y la hora importa más aquí que
+     en ninguna otra pantalla: esto es la prueba de un desacuerdo. */
+  const [foto, setFoto] = useState<Foto | null>(null);
+  const [sellando, setSellando] = useState(false);
   const [abierta, setAbierta] = useState<string | null>(null);
   const [mandando, setMandando] = useState(false);
   const camara = useRef<HTMLInputElement>(null);
@@ -94,7 +106,13 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
     (a, b) => Date.parse(a.reportada_en) - Date.parse(b.reportada_en));
   const enJuego = lista.reduce((s, r) => s + r.unidades, 0);
 
-  function cerrar() { setObjetando(null); setMotivo(""); setDetalle(""); setFoto(null) }
+  function cerrar() {
+    setObjetando(null); setMotivo(""); setDetalle("");
+    /* SE SUELTA LA URL DEL NAVEGADOR: cada foto sellada deja una viva
+       hasta que se suelta, y en un turno se objetan varias. */
+    if (foto) URL.revokeObjectURL(foto.url);
+    setFoto(null);
+  }
 
   async function aceptar(r: Rotura) {
     setMandando(true);
@@ -159,7 +177,7 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
        críptico teniendo la foto en la mano. */
     const ruta = `${r.id}/descargo-${Date.now()}.jpg`;
     const { error: eSubir } = await supabase.storage
-      .from("roturas").upload(ruta, foto, { contentType: foto.type || "image/jpeg" });
+      .from("roturas").upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
     if (eSubir) {
       setMandando(false);
       avisar.mal("La evidencia no subió, y sin ella la objeción no se sostiene: " + eSubir.message);
@@ -332,10 +350,49 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
                            onChange={(e) => setDetalle(e.target.value)} />
                     <input ref={camara} type="file" accept="image/*" capture="environment"
                            style={{ display: "none" }}
-                           onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
+                           onChange={async (e) => {
+                             const f = e.target.files?.[0];
+                             /* SE VACÍA EL INPUT SIEMPRE: sin esto, volver
+                                a escoger la MISMA foto no dispara nada y
+                                parece que el botón se rompió. */
+                             e.target.value = "";
+                             if (!f) return;
+                             setSellando(true);
+                             try {
+                               if (foto) URL.revokeObjectURL(foto.url);
+                               setFoto(await sellar(f, {
+                                 titulo: r.codigo, ubi: null, direccion: "",
+                                 etiqueta: "DESCARGO DEL OL",
+                               }));
+                             } catch (err) {
+                               /* EL MENSAJE DE `sellar` YA ESTÁ EN
+                                  PALABRAS: decir «Error: [object Event]»
+                                  es no decir nada. */
+                               setFoto(null);
+                               avisar.mal(err instanceof Error ? err.message
+                                 : "No se pudo preparar la foto. Vuelve a tomarla.");
+                             } finally {
+                               setSellando(false);
+                             }
+                           }} />
+                    {/* SE VE LA FOTO, no su nombre.
+                        «✓ image.jpg» no dice nada: es el nombre que le
+                        pone el iPhone a TODAS. Enseñarla es lo único que
+                        deja comprobar de un vistazo que se tomó la que
+                        era y que el sello con la hora quedó puesto —que
+                        es lo que sostiene el descargo cuando ABI lo
+                        mire—. */}
+                    {foto && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="vb-foto-prev" src={foto.url}
+                           alt="La evidencia que va con el descargo" />
+                    )}
                     <button type="button" className={"vb-foto-bt" + (foto ? " puesta" : "")}
+                            disabled={sellando}
                             onClick={() => camara.current?.click()}>
-                      {foto ? `✓ ${foto.name.slice(0, 18)}` : "+ Foto de evidencia"}
+                      {sellando ? "Preparando la foto…"
+                        : foto ? "✓ Evidencia lista · tomar otra"
+                        : "+ Foto de evidencia"}
                     </button>
                     <button type="button" className="btn plano" onClick={cerrar}>Cancelar</button>
                     <button type="button" className="btn vb-enviar"
