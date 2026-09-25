@@ -190,171 +190,73 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------
--- 5. La vista tiene que devolver las tres columnas nuevas.
---    Va con «create or replace» y las columnas nuevas AL FINAL: es lo
---    único que create or replace admite. Botarla y rehacerla obligaría
---    a botar antes sider_seguimiento(date,date), que la usa, y una
---    migración que rehace media base para mover una columna de sitio es
---    una migración que puede salir mal.
---    Esto está copiado TAL CUAL de supabase/modulos/sider.sql: si algún
---    día cambia allá, cambia aquí.
+-- 5. LA VISTA NO SE RECREA AQUÍ — SE COMPRUEBA
+--
+-- ESTE ARCHIVO ESTUVO ROTO Y NO SE PODÍA CORRER. Traía una COPIA de
+-- `v_sider_viajes` «copiada tal cual de supabase/modulos/sider.sql», y
+-- con ella intentaba agregar las tres columnas nuevas al final con
+-- `create or replace view`. El módulo cambió después; la copia se quedó
+-- vieja; y Postgres contestaba:
+--
+--     ERROR: cannot drop columns from view
+--
+-- que no menciona ni el archivo ni la columna. El archivo entero se
+-- caía ahí y nunca llegaba a crear las funciones de corregir y anular,
+-- que es para lo que existe.
+--
+-- LA CAUSA NO ERA LA LÍNEA, ERA LA COPIA. Mantener la misma vista
+-- escrita en dos sitios solo funciona mientras nadie toque ninguno de
+-- los dos, y eso no dura. El módulo `sider.sql` ya la borra y la vuelve
+-- a crear CON las tres columnas —y borrando antes
+-- `v_sider_seguimiento`, que cuelga de ella—, así que aquí no hace
+-- falta ninguna copia: hace falta comprobar que el módulo ya pasó.
+--
+-- SE CAE CON EL NOMBRE DEL ARCHIVO, que es lo que deja arreglarlo en
+-- dos minutos en vez de adivinar.
 -- ---------------------------------------------------------------------
-create or replace view public.v_sider_viajes as
-with p as (select valor as estibas_sider from public.sider_parametros where clave = 'estibas_por_sider')
-select
-  v.id,
-  v.placa,
-  v.planta,
-  o.cd_origen,
-  v.cd_destino,
-  v.sku,
-  s.descripcion,
-  s.clase                                       as tipo_envase,
-  v.estibas,
-  v.estado,
-  v.observacion,
-  v.creado_por,
-  v.creado_en,
-
-  v.importado,
-
-  -- La fecha del viaje: la del archivo si vino importado, si no la de la
-  -- certificación de SALIDA, y en último caso la de creación. Así la
-  -- fila no cambia de mes cuando el vehículo llega tarde, y un mes
-  -- importado no se amontona en el día en que se subió el archivo.
-  coalesce(v.fecha::timestamptz, cs.hecha_en, v.creado_en)        as fecha,
-  -- El NÚMERO del mes, no su nombre: to_char con TMMonth depende del
-  -- idioma del servidor y salía "September". El nombre lo pone la app,
-  -- que sí sabe en qué idioma está hablando.
-  extract(month from coalesce(v.fecha::timestamptz, cs.hecha_en, v.creado_en))::int as num_mes,
-  extract(week  from coalesce(v.fecha::timestamptz, cs.hecha_en, v.creado_en))::int as semana,
-  extract(year  from coalesce(v.fecha::timestamptz, cs.hecha_en, v.creado_en))::int as anio,
-
-  -- Las cuatro cifras derivadas. Si al SKU le faltan factores quedan en
-  -- null: la app dice "a este material le faltan factores" en vez de
-  -- mostrar un cero que parece un dato.
-  round(v.estibas / (select estibas_sider from p), 4)             as sider,
-  s.cajas_x_estiba  * v.estibas                                   as cajas,
-  s.unidades_x_caja * s.cajas_x_estiba * v.estibas                as unidades,
-  s.hl_x_unidad * s.unidades_x_caja * s.cajas_x_estiba * v.estibas as hl,
-  (s.cajas_x_estiba is null or s.unidades_x_caja is null or s.hl_x_unidad is null)
-                                                                  as faltan_factores,
-
-  -- El estado de cada punta, para el tablero de tránsito.
-  cs.id           as cert_salida_id,
-  cs.hecha_en     as salida_en,
-  cs.lat          as salida_lat,
-  cs.lng          as salida_lng,
-  cs.precision_m  as salida_precision,
-  cs.direccion    as salida_direccion,
-  cl.id           as cert_llegada_id,
-  cl.hecha_en     as llegada_en,
-  cl.lat          as llegada_lat,
-  cl.lng          as llegada_lng,
-  cl.precision_m  as llegada_precision,
-  cl.direccion    as llegada_direccion,
-  coalesce(cs.fotos, 0)::int                    as fotos_salida,
-  coalesce(cl.fotos, 0)::int                    as fotos_llegada,
-  -- Cuánto lleva en el camino: la pregunta del tablero de tránsito.
-  case when cs.hecha_en is not null
-       then coalesce(cl.hecha_en, now()) - cs.hecha_en end        as en_camino,
-
-  -- El rastro de la anulación: quién, cuándo y por qué. Sin esto, un
-  -- viaje anulado no le puede responder a nadie en tres meses.
-  -- Van AL FINAL de la lista y no junto a v.observacion, que es donde
-  -- se leerían mejor, porque «create or replace view» solo admite
-  -- agregar columnas al final: metidas en el medio habría que botar la
-  -- vista, y para botarla hay que botar antes la función de
-  -- seguimiento que la usa. Una migración que rehace media base para
-  -- mover una columna de sitio es una migración que puede salir mal.
-  v.motivo_anulacion,
-  v.anulado_en,
-  v.anulado_por
-from public.sider_viajes v
--- LEFT y no INNER aunque la llave ajena garantice que siempre hay
--- pareja: con INNER, Postgres tiene que suponer que el join puede botar
--- filas y deja de poder cortar temprano una consulta ordenada.
-left join public.sider_origenes o on o.planta = v.planta
-left join public.sider_skus     s on s.sku    = v.sku
-left join public.sider_certificaciones cs on cs.viaje_id = v.id and cs.punta = 'salida'
-left join public.sider_certificaciones cl on cl.viaje_id = v.id and cl.punta = 'llegada';
-
--- ---------------------------------------------------------------------
--- 6. La observación de la llegada sube al VIAJE.
---    Estaba solo en sider_certificaciones.nota, donde no la ve nadie:
---    la Fuente principal lee sider_viajes.observacion. Quien escribe
---    "llegó con dos estibas menos" lo escribe para que salga al lado de
---    la fila, no enterrado en el detalle de la evidencia.
---    Copiado TAL CUAL de supabase/modulos/sider.sql.
--- ---------------------------------------------------------------------
-create or replace function public.sider_certificar_llegada(
-  p_viaje_id    uuid,
-  p_lat         numeric,
-  p_lng         numeric,
-  p_precision_m numeric,
-  p_ubicado_en  timestamptz,
-  p_nota        text default null,
-  p_direccion   text default null
-)
-returns uuid
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_cert uuid;
-  v_est  estado_sider;
+do $bloque$
+declare v_falta text := '';
 begin
-  if not public.es_editor() then
-    raise exception 'Solo un supervisor o administrador puede certificar';
-  end if;
-  if p_lat is null or p_lng is null then
-    raise exception 'Falta la ubicación: no se puede certificar sin saber dónde se hizo';
+  if to_regclass('public.v_sider_viajes') is null then
+    raise exception 'Falta la vista v_sider_viajes: corre supabase/modulos/sider.sql primero.';
   end if;
 
-  select estado into v_est from public.sider_viajes where id = p_viaje_id;
-  if v_est is null then raise exception 'Ese viaje no existe'; end if;
-  if v_est = 'recibido' then raise exception 'Ese viaje ya está recibido'; end if;
-  if v_est = 'anulado'  then raise exception 'Ese viaje está anulado'; end if;
+  foreach v_falta in array array['anulado_en', 'anulado_por', 'motivo_anulacion'] loop
+    if not exists (select 1 from information_schema.columns
+                    where table_schema = 'public' and table_name = 'v_sider_viajes'
+                      and column_name = v_falta) then
+      raise exception
+        'A la vista v_sider_viajes le falta la columna %. La define supabase/modulos/sider.sql: corre ese archivo y vuelve a correr este.',
+        v_falta;
+    end if;
+  end loop;
+end $bloque$;
 
-  -- Las tres fotos de la salida son obligatorias antes de recibir: si se
-  -- pudiera cerrar un viaje al que le faltan, la evidencia se volvería
-  -- opcional en la práctica.
-  if (select count(*) from public.sider_fotos f
-        join public.sider_certificaciones c on c.id = f.certificacion_id
-       where c.viaje_id = p_viaje_id and c.punta = 'salida') < 3 then
-    raise exception 'A la salida de ese viaje le faltan fotos: no se puede cerrar todavía';
+-- ---------------------------------------------------------------------
+-- 6. LA OBSERVACIÓN DE LA LLEGADA — TAMPOCO SE COPIA AQUÍ
+--
+-- Este archivo traía también una copia de `sider_certificar_llegada`,
+-- «copiada tal cual» del módulo. Hoy son idénticas, comprobadas letra
+-- por letra — pero eso es justo lo que se decía de la vista de arriba
+-- antes de que dejara de ser cierto. Una copia idéntica hoy es una
+-- copia vieja mañana, y esta, al correrse, PISARÍA la buena con la
+-- versión antigua sin que nada avisara.
+--
+-- La define `supabase/modulos/sider.sql` y se comprueba que exista.
+-- ---------------------------------------------------------------------
+do $bloque$
+begin
+  if to_regprocedure('public.sider_certificar_llegada(uuid, numeric, numeric, numeric, timestamptz, text, text)') is null then
+    raise exception
+      'Falta la función sider_certificar_llegada: la define supabase/modulos/sider.sql. Corre ese archivo primero.';
   end if;
+end $bloque$;
 
-  insert into public.sider_certificaciones
-    (viaje_id, punta, lat, lng, precision_m, ubicado_en, direccion, nota, hecha_por)
-  values
-    (p_viaje_id, 'llegada', p_lat, p_lng, p_precision_m, p_ubicado_en,
-     nullif(btrim(coalesce(p_direccion, '')), ''),
-     nullif(btrim(coalesce(p_nota, '')), ''), auth.uid())
-  returning id into v_cert;
-
-  /* La observación de la llegada sube también al VIAJE, que es lo que
-     lee la Fuente principal. Estaba solo en la certificación, y ahí no
-     la ve nadie: quien escribe "llegó con dos estibas menos" lo escribe
-     para que aparezca al lado de la fila, no enterrado en el detalle de
-     la evidencia.
-     No se agrega un segundo campo "observación" en la pantalla: dos
-     campos con el mismo nombre y distinto destino son una trampa. Es el
-     mismo texto, en los dos sitios.
-     Solo pisa lo que hubiera si viene con algo: certificar sin nota no
-     puede borrar una observación que el administrador ya corrigió. */
-  update public.sider_viajes
-     set estado = 'recibido',
-         observacion = coalesce(nullif(btrim(coalesce(p_nota, '')), ''), observacion)
-   where id = p_viaje_id;
-  return v_cert;
+do $$
+begin
+  raise notice 'Corregir viajes listo: editar lo tecleado, anular con motivo y devolver.';
+  raise notice 'La vista y la certificacion de llegada las define supabase/modulos/sider.sql: aqui solo se comprueban.';
 end $$;
-
-grant execute on function public.sider_viaje_editar(uuid, text, text, text, numeric, text) to authenticated;
-grant execute on function public.sider_viaje_anular(uuid, text)                            to authenticated;
-grant execute on function public.sider_viaje_devolver(uuid)                                to authenticated;
-grant execute on function public.sider_viaje_observar(uuid, text)                          to authenticated;
 
 commit;
 
