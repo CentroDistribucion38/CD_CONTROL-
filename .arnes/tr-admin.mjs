@@ -219,9 +219,34 @@ await monta(true);
      puede terminar en un error. */
   ok(await pg.isDisabled(".sd .vj-caja button:has-text('Anular el viaje')"),
      "deja anular sin escribir el motivo, y la base lo va a rechazar");
+
+  /* Y SE DICE QUÉ FALTA. Un botón apagado que no explica nada se lee
+     como que la aplicación está rota: «¿por qué no me deja eliminar?»
+     delante de un botón pálido y un campo vacío. Esto pasó de verdad. */
+  ok(await pg.isVisible(".sd .vj-falta"),
+     "el botón está apagado y la pantalla no dice qué falta: se lee como que la aplicación falló");
+  const falta0 = await pg.textContent(".sd .vj-falta");
+  ok(/por qué se anula/.test(falta0),
+     `no se nombra el campo que falta: «${falta0}»`);
+  ok(/obligatorio/i.test(await pg.textContent(".sd .vj-motivo-campo span")),
+     "el campo del motivo no se marca como obligatorio");
+
   await pg.fill(".sd .vj-caja .vj-motivo-campo input", "abc");
   ok(await pg.isDisabled(".sd .vj-caja button:has-text('Anular el viaje')"),
      "con tres letras de motivo ya deja anular: «abc» no explica nada en tres meses");
+  /* Y CON ALGO ESCRITO EL MENSAJE CAMBIA: repetir «falta escribir» con
+     «abc» ya puesto hace pensar que lo escrito no se guardó. */
+  const falta3 = await pg.textContent(".sd .vj-falta");
+  ok(/un poco más/.test(falta3),
+     `con tres letras escritas el aviso sigue diciendo «${falta3}»`);
+
+  /* Y CUANDO YA ALCANZA, EL AVISO SE VA. Un aviso que se queda puesto
+     con el botón ya encendido deja dudando de si se puede tocar. */
+  await pg.fill(".sd .vj-caja .vj-motivo-campo input", "Se digitó dos veces");
+  ok(!(await pg.isVisible(".sd .vj-falta")),
+     "con el motivo ya escrito sigue el aviso de que falta algo");
+  ok(!(await pg.isDisabled(".sd .vj-caja button:has-text('Anular el viaje')")),
+     "con el motivo escrito el botón sigue apagado");
 
   await pg.fill(".sd .vj-caja .vj-motivo-campo input", "Se digitó dos veces");
   await pg.click(".sd .vj-caja button:has-text('Anular el viaje')");
@@ -473,6 +498,9 @@ await monta(true);
 await pg.click(`${tarjeta("JGY577")} button:has-text('Anular')`);
 await pg.waitForSelector(".sd .vj-caja");
 await pg.screenshot({ path: ".arnes/tr-anular.png" });
+/* Y CON UNA LETRA ESCRITA, que es el otro mensaje. */
+await pg.fill(".sd .vj-caja .vj-motivo-campo input", "ab");
+await pg.screenshot({ path: ".arnes/tr-anular-corto.png" });
 await monta(true);
 await pg.screenshot({ path: ".arnes/tr-admin.png" });
 /* CON DOS ESCOGIDOS, para ver la barra y las casillas encendidas. */

@@ -3150,3 +3150,21 @@
 .sd .vj-dice.ojo {
   border-left: 3px solid var(--sd-oro); padding-left: 10px; margin-top: 10px;
 }
+
+/* LO QUE LE FALTA AL FORMULARIO PARA PODER MANDARSE.
+
+   Va en el acento y no en rojo: nada se ha roto ni se ha rechazado
+   todavía — es una instrucción, y el rojo de esta pantalla está
+   reservado para lo que sí salió mal. */
+.sd .vj-falta {
+  margin-top: 10px; font-size: 12.5px; line-height: 1.45; color: var(--sd-texto);
+  border-left: 3px solid var(--sd-oro); padding-left: 10px;
+}
+.sd .vj-falta b { font-weight: 700 }
+/* «obligatorio» junto al rótulo del campo: en minúscula y pequeño, que
+   es una aclaración y no un grito. Un asterisco solo no lo entiende
+   quien no ha llenado formularios web toda la vida. */
+.sd .vj-obliga {
+  font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--sd-mal); margin-left: 6px;
+}

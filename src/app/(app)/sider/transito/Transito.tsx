@@ -502,9 +502,23 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
               con sus fotos y su ubicación, y deja{anular.vs.length === 1 ? "" : "n"} de contar en los
               hectolitros y en el porcentaje de certificación. Se puede devolver.
             </p>
+            {/* EL MOTIVO ES OBLIGATORIO, Y AHORA SE DICE.
+
+                Estaba puesto —el botón se quedaba apagado hasta
+                escribirlo— pero en ningún sitio se decía POR QUÉ, y el
+                resultado fue «¿por qué no me deja eliminar?» delante de
+                un botón pálido y un campo vacío. Un botón apagado que no
+                explica qué le falta se lee como que la aplicación está
+                rota, no como que falta un dato.
+
+                La base lo exige de verdad: `sider_viaje_anular` levanta
+                «Escribe por qué se anula. En tres meses nadie va a
+                acordarse.» si llega vacío. Aquí no se está inventando un
+                requisito, se está enseñando el que ya había. */}
             <label className="vj-motivo-campo">
-              <span>¿Por qué se anula?</span>
+              <span>¿Por qué se anula? <i className="vj-obliga">obligatorio</i></span>
               <input value={anular.motivo} autoFocus maxLength={200}
+                     aria-invalid={anular.motivo.trim().length < 4}
                      placeholder="Se digitó dos veces, el vehículo no salió…"
                      onChange={(e) => setAnular({ ...anular, motivo: e.target.value })} />
               <em>En tres meses nadie va a acordarse. Queda guardado con tu nombre.</em>
@@ -528,6 +542,21 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
               </p>
             )}
             {mal && <p className="vj-mal" role="alert">{mal}</p>}
+
+            {/* SE DICE QUÉ FALTA, Y CAMBIA SEGÚN LO QUE FALTE. «Rellena
+                los campos» obliga a adivinar cuál; nombrar el que falta
+                es la diferencia entre corregirlo en un segundo y
+                cerrar el cuadro pensando que no funciona. */}
+            {!ocupado && anular.motivo.trim().length < 4 && (
+              <p className="vj-falta">
+                {anular.motivo.trim().length === 0
+                  ? <>Falta escribir <b>por qué se anula</b>. Sin eso el botón no se enciende.</>
+                  : <>Escribe un poco más: con <b>{anular.motivo.trim().length}</b>{" "}
+                     {anular.motivo.trim().length === 1 ? "letra" : "letras"} nadie va a entender
+                     nada dentro de tres meses.</>}
+              </p>
+            )}
+
             <div className="vj-botones">
               <button type="button" className="btn mal" onClick={confirmarAnular}
                       disabled={ocupado || anular.motivo.trim().length < 4}>
