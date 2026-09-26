@@ -561,6 +561,13 @@ export const MODULOS: Modulo[] = [
          hacía lo propio. Dos editores para una misma tabla es cómo dos
          personas se pisan el dato sin enterarse. */
       { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
+      /* RECIBIR VA ANTES DE CONTAR, y ese es el orden del proceso de
+         verdad: el material ENTRA al CD, se rotula y se ubica, y solo
+         después se cuenta y se ordena por vencimiento. Ponerlo al final
+         —que es donde caería por orden de construcción— haría que el
+         menú contara la historia de cómo se hizo la aplicación en vez
+         de la de cómo se trabaja en la bodega. */
+      { nombre: "Recibir", ruta: "/inventario/recibir", rama: "conteos" },
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
       { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
       /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.

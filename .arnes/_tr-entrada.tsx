@@ -39,10 +39,22 @@ const skus = [
   { sku: "3500887", descripcion: "BOTELLA FLINT 1000R" },
   { sku: "3501226", descripcion: "BOTELLA MARRON 250 CC" },
 ];
+/* LOS MAESTROS DE LA REVISIÓN AI, para poder ABRIRLA y medirla. En
+   nulo, la pantalla no pinta el formulario y el camino de pasos —donde
+   estaba el defecto— no existiría nunca en el arnés.
+   SIN COMILLAS INVERTIDAS EN ESTE COMENTARIO: vive dentro de una
+   plantilla, y una sola la cierra antes de tiempo. */
+const maestrosAi = { falta: false,
+  defectos: [ { clave: "rota", nombre: "Rota o despicado", cobra: true, orden: 1, activo: true },
+              { clave: "faltante", nombre: "Faltante", cobra: true, orden: 2, activo: true } ],
+  envases: [ { clave: "CB320", descripcion: "Costeña Bacana 320 R", litros: 0.32, activo: true } ],
+  socios: [ { clave: "bdc", nombre: "Bebidas De La Costa S.A.S", activo: true } ],
+  canales: [ { clave: "socios", nombre: "Socios", activo: true } ] };
+
 createRoot(document.getElementById("r")!).render(
   <Transito viajes={viajes as any} nombres={{ u1: "arenosa" }}
             esEditor esAdmin={false}
             manda={(window as any).MANDA !== false}
             origenes={origenes} skus={skus}
-            maestrosAi={null} trabados={1} sinEvidencia={0}
+            maestrosAi={maestrosAi as any} trabados={1} sinEvidencia={0}
             cabeza={<div className="cabeza"><h1>En tránsito</h1></div>} />);

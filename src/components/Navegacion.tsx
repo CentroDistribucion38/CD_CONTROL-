@@ -51,6 +51,15 @@ const IconoCaja = () => (
     <path d="M3.5 7.5L12 11.5l8.5-4" />
   </svg>
 );
+/* RECIBIR: una caja con una flecha que ENTRA. La de Contar es la misma
+   caja sin flecha — lo que las distingue en el riel es el movimiento,
+   que es justo lo que las distingue en la bodega. */
+const IconoRecibir = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M3.5 11.5l8.5-4 8.5 4v9l-8.5 4-8.5-4z" />
+    <path d="M12 2v5.5M9.5 5.5L12 8l2.5-2.5" />
+  </svg>
+);
 const IconoBodega = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M3 10l9-6 9 6v10H3z" />
@@ -272,6 +281,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/averias/analisis": IconoAnalisis,
   "/inventario/averias/maestro": IconoLlave,
   "/inventario/maestro": IconoLlave,
+  "/inventario/recibir": IconoRecibir,
   "/inventario/conteo": IconoCaja,
   "/acciones/todas": IconoLista,
   "/acciones/abi": IconoHallazgo,

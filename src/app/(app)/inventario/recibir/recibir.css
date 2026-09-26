@@ -1,0 +1,129 @@
+/* =====================================================================
+   RECIBIR Y ROTULAR — lo que entra al CD.
+
+   Cuelga de `.fe`, que es el marco de Inventario: los tokens del tema
+   (--fe-tinta, --fe-acento…) ya están declarados ahí, y redeclararlos
+   aquí sería el mismo error que ya costó tres vueltas en Roturas — un
+   módulo que deja de seguir el tema y se ve como si fuera de otra
+   aplicación.
+
+   LA PANTALLA SON DOS COLUMNAS: el formulario a la izquierda y lo que
+   VA A SALIR IMPRESO a la derecha. La vista previa no es adorno — es lo
+   que evita gastar doce hojas para descubrir que la fecha estaba mal.
+   ===================================================================== */
+
+.fe .rc-aviso {
+  background: var(--fe-aviso); border-left: 4px solid var(--fe-acento);
+  padding: 12px 16px; font-size: 13px; line-height: 1.5; color: var(--fe-texto);
+}
+.fe .rc-aviso b { color: var(--fe-tinta) }
+
+/* ---------- Qué entra: un interruptor de dos, no un desplegable ----------
+   Con dos opciones, un desplegable esconde la mitad y obliga a abrirlo
+   para saber qué hay. Dos botones lo dicen sin tocarlos. */
+.fe .rc-tipo { display: flex; gap: 0; border: 1px solid var(--fe-linea); width: fit-content }
+.fe .rc-tipo button {
+  min-height: 44px; padding: 0 20px; border: 0; cursor: pointer;
+  background: var(--fe-papel); color: var(--fe-gris);
+  font: 700 13.5px var(--fe-titulo); white-space: nowrap;
+}
+.fe .rc-tipo button + button { border-left: 1px solid var(--fe-linea) }
+.fe .rc-tipo button.on { background: var(--fe-acento); color: var(--fe-sobre) }
+
+.fe .rc-cuerpo {
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start;
+}
+.fe .rc-forma, .fe .rc-lado {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); padding: 18px 20px;
+}
+.fe .rc-forma {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px;
+}
+.fe .rc-forma h2, .fe .rc-lado h2 {
+  grid-column: 1 / -1; margin: 0; font: 900 15px var(--fe-titulo); letter-spacing: -.02em;
+}
+.fe .rc-forma h2 + * { margin-top: 0 }
+
+.fe .rc-c { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.fe .rc-c.ancho { grid-column: 1 / -1 }
+.fe .rc-c > span { font-size: 12px; font-weight: 600; color: var(--fe-tinta) }
+/* «opcional» en minúscula y pequeño: es una aclaración, no un grito. */
+.fe .rc-opt {
+  font-style: normal; font-size: 10.5px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--fe-gris); margin-left: 6px;
+}
+.fe .rc-c input, .fe .rc-c select {
+  min-height: 44px; padding: 0 12px; border: 1px solid var(--fe-linea);
+  background: var(--fe-papel); color: var(--fe-texto);
+  font: 500 14px inherit; min-width: 0;
+}
+.fe .rc-c select:disabled { background: var(--fe-gris-panel); color: var(--fe-gris) }
+.fe .rc-c em {
+  font-style: normal; font-size: 11.5px; line-height: 1.4; color: var(--fe-gris);
+}
+
+/* ---------- La vista de lo que se va a imprimir ----------
+   Es un retrato del rótulo, no el rótulo: los tamaños son los mismos EN
+   PROPORCIÓN —el código manda, la cantidad después— para que lo que se
+   ve aquí y lo que sale en el papel se reconozcan como lo mismo. */
+.fe .rc-lado { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 12px }
+.fe .rc-vista { border: 1px solid var(--fe-linea); padding: 14px; background: var(--fe-papel) }
+.fe .rc-v-cab {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font: 700 9.5px var(--fe-titulo); letter-spacing: .12em; color: var(--fe-gris);
+  padding-bottom: 8px; border-bottom: 1px solid var(--fe-linea);
+}
+.fe .rc-v-cab b { font-size: 15px; color: var(--fe-tinta); letter-spacing: 0 }
+.fe .rc-v-sku {
+  font: 900 34px var(--fe-titulo); letter-spacing: -.03em; color: var(--fe-tinta);
+  margin-top: 10px; overflow-wrap: anywhere;
+}
+.fe .rc-v-nom {
+  font-size: 12.5px; font-weight: 600; color: var(--fe-texto); line-height: 1.3; margin-top: 2px;
+}
+.fe .rc-v-fila {
+  display: flex; justify-content: space-between; gap: 12px; margin-top: 12px;
+  padding-top: 10px; border-top: 1px solid var(--fe-linea);
+}
+.fe .rc-v-fila > div { min-width: 0 }
+.fe .rc-v-fila .der { text-align: right }
+.fe .rc-v-fila span {
+  display: block; font: 700 9px var(--fe-titulo); letter-spacing: .12em; color: var(--fe-gris);
+}
+.fe .rc-v-fila b {
+  font: 900 20px var(--fe-titulo); letter-spacing: -.02em; color: var(--fe-tinta);
+  overflow-wrap: anywhere;
+}
+.fe .rc-v-vence {
+  margin-top: 10px; padding: 8px 10px; background: var(--fe-gris-panel);
+}
+.fe .rc-v-vence span {
+  display: block; font: 700 9px var(--fe-titulo); letter-spacing: .12em; color: var(--fe-gris);
+}
+.fe .rc-v-vence b { font: 900 20px var(--fe-titulo); color: var(--fe-tinta) }
+/* SIN VENCIMIENTO NO ES UN DETALLE: esa estiba no se puede ordenar por
+   FEFO, así que se ve antes de imprimir y no después, en el papel. */
+.fe .rc-v-vence.falta { background: color-mix(in srgb, var(--fe-mal) 10%, var(--fe-papel)) }
+.fe .rc-v-vence.falta span, .fe .rc-v-vence.falta b { color: var(--fe-mal) }
+
+.fe .rc-falta {
+  margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--fe-texto);
+  border-left: 3px solid var(--fe-acento); padding-left: 10px;
+}
+.fe .rc-sacar { width: 100% }
+
+/* ---------------------------------------------------------------------
+   CELULAR Y TABLETA: UNA COLUMNA, Y LA VISTA ARRIBA.
+
+   En el muelle esto se abre en el teléfono. La vista del rótulo va
+   PRIMERO —es lo que se viene a revisar antes de gastar papel— y el
+   formulario debajo; al revés habría que desplazar la pantalla entera
+   para comprobar lo que se acaba de teclear.
+   --------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .fe .rc-cuerpo { grid-template-columns: minmax(0, 1fr) }
+  .fe .rc-lado { position: static; order: -1 }
+  .fe .rc-forma { grid-template-columns: minmax(0, 1fr) }
+  .fe .rc-tipo { width: auto }
+  .fe .rc-tipo button { flex: 1; padding: 0 12px }
+}

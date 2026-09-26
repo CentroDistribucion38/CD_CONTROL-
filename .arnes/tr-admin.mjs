@@ -105,12 +105,24 @@ const skus = [
   { sku: "3500887", descripcion: "BOTELLA FLINT 1000R" },
   { sku: "3501226", descripcion: "BOTELLA MARRON 250 CC" },
 ];
+/* LOS MAESTROS DE LA REVISIÓN AI, para poder ABRIRLA y medirla. En
+   nulo, la pantalla no pinta el formulario y el camino de pasos —donde
+   estaba el defecto— no existiría nunca en el arnés.
+   SIN COMILLAS INVERTIDAS EN ESTE COMENTARIO: vive dentro de una
+   plantilla, y una sola la cierra antes de tiempo. */
+const maestrosAi = { falta: false,
+  defectos: [ { clave: "rota", nombre: "Rota o despicado", cobra: true, orden: 1, activo: true },
+              { clave: "faltante", nombre: "Faltante", cobra: true, orden: 2, activo: true } ],
+  envases: [ { clave: "CB320", descripcion: "Costeña Bacana 320 R", litros: 0.32, activo: true } ],
+  socios: [ { clave: "bdc", nombre: "Bebidas De La Costa S.A.S", activo: true } ],
+  canales: [ { clave: "socios", nombre: "Socios", activo: true } ] };
+
 createRoot(document.getElementById("r")!).render(
   <Transito viajes={viajes as any} nombres={{ u1: "arenosa" }}
             esEditor esAdmin={false}
             manda={(window as any).MANDA !== false}
             origenes={origenes} skus={skus}
-            maestrosAi={null} trabados={1} sinEvidencia={0}
+            maestrosAi={maestrosAi as any} trabados={1} sinEvidencia={0}
             cabeza={<div className="cabeza"><h1>En tránsito</h1></div>} />);
 `);
 
@@ -465,7 +477,64 @@ ok((await pg.$$(".sd .tr-marca")).length === 0,
    "a quien no administra le salen las casillas para escoger viajes");
 
 /* =====================================================================
-   7 · NADA SE SALE, Y LOS BOTONES SE TOCAN
+   7 · EL CAMINO DE PASOS DE LA REVISIÓN SE VE
+
+   «Arregla esto que no se ve nada.»
+
+   `.sd.tr-pantalla` le pone alto fijo a la pantalla para que ruede la
+   LISTA por dentro. El formulario de la revisión vive en ese mismo
+   marco y no tiene nada que rodar: en una columna flex de alto fijo, un
+   hijo que no cabe SE ENCOGE, y el camino de pasos —que tiene
+   `overflow:auto`— se encogía por debajo de su contenido hasta quedar
+   en 14 px, que es lo que mide su propia barra de desplazamiento. Los
+   tres círculos seguían ahí, de 59 px, dentro de una caja de 14.
+
+   ESTO NO SE VE LEYENDO EL CSS. Los colores resuelven, los textos están
+   en el DOM y los botones miden lo que deben; lo único que delata el
+   defecto es comparar el alto de la caja con el de lo que lleva dentro.
+   ===================================================================== */
+await monta(true);
+{
+  await pg.click(`${tarjeta("KKL900")} button:has-text('Hacer la revisión AI')`);
+  await pg.waitForSelector(".sd .ct-pasos", { timeout: 5000 });
+  const m = await pg.evaluate(() => {
+    const ol = document.querySelector(".sd .ct-pasos");
+    const r = ol.getBoundingClientRect();
+    const hijos = [...ol.querySelectorAll("li button")]
+      .map((b) => Math.round(b.getBoundingClientRect().height));
+    const circ = [...ol.querySelectorAll("li button i")]
+      .map((i) => Math.round(i.getBoundingClientRect().height));
+    return { alto: Math.round(r.height), hijos, circ,
+             nombres: [...ol.querySelectorAll("li button span")].map((s) => s.textContent) };
+  });
+  ok(m.hijos.length >= 2,
+     `el camino de pasos trae ${m.hijos.length} pasos: la revisión tiene al menos «Dónde» y «Fotos»`);
+  /* LA CAJA TIENE QUE CABERLE A LO QUE LLEVA DENTRO. Es la
+     comprobación entera: con el alto fijo encogiéndola, esto daba
+     14 contra 59. */
+  const masAlto = Math.max(...m.hijos);
+  ok(m.alto >= masAlto,
+     `el camino de pasos mide ${m.alto} px de alto y sus botones ${masAlto}: está aplastado y ` +
+     "en la pantalla se ve una tira gris vacía");
+  ok(m.circ.every((h) => h >= 20),
+     `los círculos de los pasos miden ${JSON.stringify(m.circ)} px`);
+  ok(m.nombres.some((n) => /Dónde/.test(n ?? "")),
+     `los pasos no dicen su nombre: ${JSON.stringify(m.nombres)}`);
+
+  /* Y LO DE ABAJO TAMPOCO SE APLASTA. El aviso y la tarjeta del
+     formulario están en la misma columna y se encogían igual. */
+  const tarj = await pg.evaluate(() => {
+    const t = document.querySelector(".sd .tarjeta");
+    if (!t) return null;
+    return { alto: Math.round(t.getBoundingClientRect().height),
+             dentro: Math.round(t.scrollHeight) };
+  });
+  ok(tarj && tarj.alto >= tarj.dentro - 2,
+     `la tarjeta del formulario mide ${tarj?.alto} px y su contenido ${tarj?.dentro}: está recortada`);
+}
+
+/* =====================================================================
+   8 · NADA SE SALE, Y LOS BOTONES SE TOCAN
    ===================================================================== */
 console.log("");
 for (const [nombre, ancho] of [["pc", 1440], ["tab", 820], ["cel", 390], ["360", 360]]) {

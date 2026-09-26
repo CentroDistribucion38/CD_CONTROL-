@@ -3021,11 +3021,35 @@
    Sin eso, la lista empuja hacia abajo en vez de rodar, que es
    exactamente el bug que se está arreglando.
    ==================================================================== */
-.sd.tr-pantalla {
+/* EL ALTO FIJO ES PARA LA LISTA, Y SOLO PARA LA LISTA.
+
+   Sirve para que ruede `.tr-cuerpo` por dentro y los filtros se queden
+   quietos arriba. Pero esta misma pantalla, cuando alguien abre la
+   llegada o la revisión AI, pinta OTRO árbol en el mismo marco: el
+   camino de pasos, el aviso y la tarjeta del formulario. Ninguno de
+   esos pide `flex: 1`.
+
+   Y AHÍ SE ROMPÍA, en silencio: en una columna flex de alto fijo, un
+   hijo que no cabe se ENCOGE. El camino de pasos tiene `overflow:auto`,
+   así que se puede encoger por debajo de su contenido — y se quedaba en
+   14 px de alto, que es justo lo que mide su barra de desplazamiento.
+   Los tres círculos y sus nombres seguían ahí, midiendo 59 px cada uno,
+   dentro de una caja de 14. En la pantalla era una tira gris vacía.
+   «No se ve nada.»
+
+   `:has(.tr-cuerpo)` ata el alto fijo a la única cosa que lo necesita.
+   Sin lista no hay alto fijo, y el formulario fluye y rueda con la
+   página como cualquier otra pantalla del módulo. */
+.sd.tr-pantalla:has(.tr-cuerpo) {
   display: flex; flex-direction: column; min-height: 0;
   height: calc(100dvh - 70px - var(--sh-aire, 0px) - 66px);
 }
 .sd.tr-pantalla .tr-cuerpo { flex: 1; min-height: 0 }
+/* Y NADA MÁS SE ENCOGE. `.tr-cuerpo` es lo único que reparte el sobrante;
+   los demás hijos valen lo que miden. Es cinturón además de `:has()`: si
+   un día esa columna vuelve a tener alto fijo con algo que no sea la
+   lista dentro, lo que haya no se aplasta sin avisar. */
+.sd.tr-pantalla > *:not(.tr-cuerpo) { flex: 0 0 auto }
 
 /* En el celular NO: allá ruedan juntos los filtros y la lista dentro de
    .tr-cuerpo —cabeza, cinta y filtros abiertos no dejan nada quieto— y
