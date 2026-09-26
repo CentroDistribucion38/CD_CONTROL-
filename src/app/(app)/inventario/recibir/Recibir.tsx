@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { BuscarEnLista } from "@/components/BuscarEnLista";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
-import { calcularVence, fechaCorta, rotulosPdf,
+import { calcularVence, fechaCorta, limiteDespacho, rotulosPdf,
          type Rotulo, type TipoRecibo } from "@/modulos/inventario/rotulo";
 
 /**
@@ -42,7 +42,16 @@ import { calcularVence, fechaCorta, rotulosPdf,
 const VACIO = {
   material: "", estibas: "1", cantidad: "", unidad: "cajas" as "cajas" | "unidades",
   calle: "", modulo: "", lado: "", ubicacion_id: "",
-  producido: "", lote: "", placa: "", origen: "", color: "",
+  producido: "", placa: "", origen: "", color: "",
+  /* CÓMO ESTÁ ARMADO EL ARRUME: cuántas estibas de ancho, de alto y de
+     largo. No se puede deducir del número de estibas —doce estibas
+     pueden ir 12×1×1, 3×2×2 o 4×1×3— y en el papel sirve para saber si
+     el arrume está completo sin desarmarlo. */
+  ancho: "1", alto: "1", largo: "1",
+  /* DE QUÉ LÍNEA SALIÓ Y A QUÉ HORA. Es lo que permite devolverse a la
+     planta cuando un lote sale malo: sin la línea, el reclamo es «algo
+     de ese día». */
+  linea: "", hora: "",
 };
 
 const COLORES = [["ambar", "Ámbar"], ["flint", "Flint"], ["green", "Green"]] as const;
@@ -56,11 +65,12 @@ const COLORES = [["ambar", "Ámbar"], ["flint", "Flint"], ["green", "Green"]] as
    función se va. Queda escrito para que nadie la deje viva creyendo que
    es la definitiva: un identificador inventado en el navegador no
    sirve para algo que después hay que poder buscar. */
-function folioProvisional(sku: string, i: number) {
-  const d = new Date();
-  const ymd = d.toISOString().slice(0, 10).replace(/-/g, "");
-  const cola = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `${ymd}-${sku}-${cola}-${String(i + 1).padStart(2, "0")}`;
+function folioProvisional(sku: string, producido: string, linea: string, i: number) {
+  /* EL FORMATO ES EL DE LA TARJETA: código, fecha de producción, línea
+     y el número de la estiba. `16210-20260923-L42-003`. */
+  const ymd = (producido || new Date().toISOString().slice(0, 10)).replace(/-/g, "");
+  const L = linea.trim() ? `-L${linea.trim()}` : "";
+  return `${sku}-${ymd}${L}-${String(i + 1).padStart(3, "0")}`;
 }
 
 export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
@@ -82,6 +92,12 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
       && (tipo === "producto" ? m.tipo_material === "PRODUCTO" : m.tipo_material === "ENVASE")),
     [materiales, tipo]);
 
+/* EL MATERIAL SE BUSCA DENTRO DEL TIPO QUE SE ESTÁ RECIBIENDO, y este
+   renglón es el candado de verdad de toda la pantalla: si el SKU
+   guardado es del otro tipo, sencillamente no se encuentra, `mat` queda
+   en nulo y no hay nada que imprimir. Buscarlo en `materiales` —el
+   maestro entero— dejaría imprimir un rótulo de producto con el código
+   de un envase en letra de siete centímetros. */
   const mat = delTipo.find((m) => m.sku === f.material) ?? null;
 
   /* LA UBICACIÓN SON TRES COSAS Y SE ESCOGEN EN CASCADA: calle →
@@ -106,6 +122,13 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
      en la estiba una fecha que nadie va a volver a cuestionar. */
   const vence = tipo === "producto"
     ? calcularVence(f.producido || null, mat?.vida_util ?? null) : null;
+  /* HASTA CUÁNDO SE PUEDE DESPACHAR: el vencimiento menos los días que
+     el maestro exige que le queden al salir. Sale del maestro y no se
+     teclea — es una resta, y una resta tecleada es una resta que algún
+     día va a estar mal. */
+  const limite = tipo === "producto" ? limiteDespacho(vence, mat?.dias_minimo ?? null) : null;
+  /* TODO EL ARRUME: lo de una estiba por cuántas estibas son. */
+  const arrume = cantidad * estibas;
 
   /* LO QUE FALTA PARA PODER IMPRIMIR, dicho por su nombre. Un botón
      apagado sin explicación se lee como que la pantalla está rota. */
@@ -118,33 +141,35 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
     if (!mat || falta.length) return;
     setSacando(true);
     try {
+      const num = (v: string) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null };
       const rotulos: Rotulo[] = Array.from({ length: estibas }, (_, i) => ({
-        folio: folioProvisional(mat.sku, i),
+        folio: folioProvisional(mat.sku, f.producido, f.linea, i),
         tipo,
         sku: mat.sku,
         nombre: mat.nombre,
         cantidad,
         unidad: f.unidad,
+        arrume,
+        ancho: num(f.ancho), alto: num(f.alto), largo: num(f.largo),
         ubicacion: ubi?.clave ?? null,
         numero: i + 1,
         total: estibas,
         producido: tipo === "producto" ? (f.producido || null) : null,
         vence: tipo === "producto" ? vence : null,
-        lote: tipo === "producto" ? (f.lote.trim() || null) : null,
+        limite: tipo === "producto" ? limite : null,
+        linea: tipo === "producto" ? (f.linea.trim() || null) : null,
+        hora: tipo === "producto" ? (f.hora || null) : null,
         color: tipo === "envase" ? (f.color || null) : null,
         origen: tipo === "envase" ? (f.origen.trim() || null) : null,
         placa: f.placa.trim().toUpperCase() || null,
-        recibido_por: quien,
-        recibido_en: new Date().toLocaleString("es-CO",
-          { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        recibido: new Date().toISOString().slice(0, 10),
       }));
 
       const pdf = await rotulosPdf(rotulos, {
         /* DE DÓNDE CUELGA EL QR: el dominio desde el que se abrió la
-           pantalla. Escribirlo a mano aquí haría que los rótulos
-           impresos desde una prueba apunten a producción, o al revés. */
+           pantalla. Escribirlo a mano aquí haría que las tarjetas
+           impresas desde una prueba apunten a producción, o al revés. */
         base: typeof window !== "undefined" ? window.location.origin : null,
-        dentro: document.querySelector(".fe"),
       });
       /* SE ABRE PARA IMPRIMIR, no se descarga: lo que se quiere es
          mandarlo a la impresora, y un archivo en Descargas es un paso
@@ -153,10 +178,10 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
       const url = pdf.output("bloburl");
       window.open(url, "_blank");
       avisar.bien(estibas === 1
-        ? "Rótulo listo. Se abrió para imprimir."
-        : `${estibas} rótulos listos, numerados del 1 al ${estibas}.`);
+        ? "Tarjeta lista. Se abrió para imprimir."
+        : `${estibas} tarjetas listas, numeradas de la 1 a la ${estibas}.`);
     } catch (e) {
-      avisar.mal("No se pudo armar el rótulo: " + ((e as Error).message ?? e));
+      avisar.mal("No se pudo armar la tarjeta: " + ((e as Error).message ?? e));
     } finally {
       setSacando(false);
     }
@@ -172,11 +197,17 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
           .map(([k, t]) => (
             <button key={k} type="button" className={tipo === k ? "on" : ""}
                     aria-pressed={tipo === k}
-                    /* CAMBIAR DE TIPO LIMPIA EL MATERIAL, y no es celo:
-                       un SKU de envase escogido y después el tipo en
-                       «producto» dejaría un rótulo de producto con un
-                       código de envase impreso en letra de siete
-                       centímetros. */
+                    /* CAMBIAR DE TIPO LIMPIA EL CAMPO. Lo que impide de
+                       verdad imprimir un rótulo cruzado NO es esto: es
+                       que `mat` se busca dentro de `delTipo`, así que un
+                       SKU del otro tipo simplemente no se encuentra y no
+                       hay nada que imprimir. Lo comprobé quitando esta
+                       línea y el arnés siguió verde, que es como se ve
+                       que una defensa no era la que sostenía nada.
+                       Se queda porque deja el campo coherente con lo
+                       que se está recibiendo —si no, dice el nombre de
+                       un material que el desplegable ya no ofrece—, pero
+                       el candado está en la búsqueda. */
                     onClick={() => { setTipo(k); setF({ ...f, material: "" }) }}>
               {t}
             </button>
@@ -250,10 +281,22 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
                     : "A este material le falta la vida útil en el maestro: el rótulo va a salir sin vencimiento."}
                 </em>
               </label>
+              {/* LA LÍNEA Y LA HORA, que es lo que la tarjeta pide en
+                  lugar del lote: es lo que permite devolverse a la
+                  planta cuando un lote sale malo. Sin la línea, el
+                  reclamo es «algo de ese día». */}
               <label className="rc-c">
-                <span>Lote <i className="rc-opt">opcional</i></span>
-                <input value={f.lote} maxLength={30}
-                       onChange={(e) => setF({ ...f, lote: e.target.value })} />
+                <span>Línea <i className="rc-opt">opcional</i></span>
+                <input value={f.linea} maxLength={6} inputMode="numeric" placeholder="42"
+                       onChange={(e) => setF({ ...f, linea: e.target.value })} />
+                <em>Entra en el folio: {mat?.sku ?? "código"}-
+                  {(f.producido || "aaaammdd").replace(/-/g, "")}
+                  {f.linea.trim() ? `-L${f.linea.trim()}` : ""}-001</em>
+              </label>
+              <label className="rc-c">
+                <span>Hora <i className="rc-opt">opcional</i></span>
+                <input type="time" value={f.hora}
+                       onChange={(e) => setF({ ...f, hora: e.target.value })} />
               </label>
             </>
           ) : (
@@ -278,6 +321,21 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
             <input value={f.placa} maxLength={10}
                    onChange={(e) => setF({ ...f, placa: e.target.value.toUpperCase() })} />
           </label>
+
+          {/* CÓMO ESTÁ ARMADO EL ARRUME. Doce estibas pueden ir 12×1×1,
+              3×2×2 o 4×1×3: el número de estibas no lo dice. En el papel
+              sirve para saber si el arrume está completo sin
+              desarmarlo. */}
+          <h2>Cómo va armado el arrume</h2>
+          <div className="rc-dim">
+            {([["ancho", "Ancho"], ["alto", "Alto"], ["largo", "Largo"]] as const).map(([k, t]) => (
+              <label className="rc-c" key={k}>
+                <span>{t}</span>
+                <input value={f[k]} inputMode="numeric"
+                       onChange={(e) => setF({ ...f, [k]: e.target.value })} />
+              </label>
+            ))}
+          </div>
 
           <h2>Dónde queda</h2>
           <label className="rc-c">
@@ -326,27 +384,41 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
         {/* ---------- LO QUE VA A SALIR IMPRESO ---------- */}
         <aside className="rc-lado">
           <h2>Lo que se va a imprimir</h2>
+          {/* ES UN RETRATO DE LA TARJETA, no la tarjeta: los mismos
+              bloques en el mismo orden y con los mismos pesos, para que
+              lo que se ve aquí y lo que sale del papel se reconozcan
+              como lo mismo. Sirve para notar la fecha mal tecleada
+              ANTES de gastar doce hojas. */}
           <div className="rc-vista">
             <div className="rc-v-cab">
-              {tipo === "producto" ? "PRODUCTO TERMINADO" : "ENVASE RETORNABLE"}
-              <b>1/{estibas}</b>
+              {tipo === "producto" ? "TARJETA DE ARRUME" : "ARRUME DE ENVASE"}
+              <b>1 / {estibas}</b>
             </div>
-            <div className="rc-v-sku">{mat?.sku ?? "—"}</div>
             <div className="rc-v-nom">{mat?.nombre?.toUpperCase() ?? "Escoge el material"}</div>
+            <div className="rc-v-sku">{mat?.sku ?? "—"}</div>
             <div className="rc-v-fila">
               <div>
-                <span>{f.unidad}</span>
+                <span>{f.unidad} en esta estiba</span>
                 <b>{cantidad > 0 ? cantidad.toLocaleString("es-CO") : "—"}</b>
               </div>
               <div className="der">
-                <span>ubicación</span>
-                <b>{ubi?.clave ?? "sin asignar"}</b>
+                <span>total del arrume</span>
+                <b>{arrume > 0 ? arrume.toLocaleString("es-CO") : "—"}</b>
               </div>
             </div>
             {tipo === "producto" && (
               <div className={"rc-v-vence" + (vence ? "" : " falta")}>
-                <span>VENCE</span>
-                <b>{fechaCorta(vence) ?? "sin fecha"}</b>
+                <span>FECHA DE VENCIMIENTO</span>
+                <b>{fechaCorta(vence) ?? "sin fecha: no se puede ordenar por FEFO"}</b>
+              </div>
+            )}
+            {tipo === "producto" && (
+              <div className="rc-v-fila">
+                <div><span>lím. despacho</span><b>{fechaCorta(limite) ?? "—"}</b></div>
+                <div className="der">
+                  <span>línea · hora</span>
+                  <b>{f.linea.trim() ? `${f.linea.trim()}${f.hora ? ` · ${f.hora}` : ""}` : "—"}</b>
+                </div>
               </div>
             )}
             {tipo === "envase" && (
@@ -355,6 +427,14 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
                 <div className="der"><span>viene de</span><b>{f.origen || "—"}</b></div>
               </div>
             )}
+            <div className="rc-v-fila">
+              <div><span>ubicación</span><b>{ubi?.clave ?? "sin asignar"}</b></div>
+              <div className="der">
+                <span>armado</span>
+                <b>{[f.ancho, f.alto, f.largo].every((x) => Number(x) > 0)
+                  ? `${f.ancho}×${f.alto}×${f.largo}` : "—"}</b>
+              </div>
+            </div>
           </div>
 
           {/* SE DICE QUÉ FALTA, POR SU NOMBRE. Es la misma regla que en

@@ -1,28 +1,26 @@
 
-import { rotulosPdf, calcularVence } from "../src/modulos/inventario/rotulo";
+import { rotulosPdf, calcularVence, limiteDespacho, textoQr } from "../src/modulos/inventario/rotulo";
 
-const comun = {
-  ubicacion: "A03-M12-IZQ", recibido_por: "Genesis Visbal",
-  recibido_en: "26/09/2026, 10:30", placa: "JGY577",
-};
+const comun = { ubicacion: "A03-M12-IZQ", placa: "JGY577", recibido: "2026-09-23",
+  ancho: 1, alto: 1, largo: 1 };
+const vence = calcularVence("2026-09-23", 365);
+const prod = { ...comun, tipo: "producto" as const,
+  sku: "16210", nombre: "Pony Malta Lta 330Cc X6 Nuevo",
+  cantidad: 40, unidad: "cajas" as const, arrume: 480,
+  producido: "2026-09-23", vence, limite: limiteDespacho(vence, 30),
+  linea: "42", hora: "06:40" };
 const rotulos = [
-  { ...comun, folio: "20260926-9845-AB12-01", tipo: "producto" as const,
-    sku: "9845", nombre: "Aguila Tw 330Cc X 30", cantidad: 1080, unidad: "cajas" as const,
-    numero: 1, total: 3, producido: "2026-09-20",
-    vence: calcularVence("2026-09-20", 180), lote: "L-4471" },
-  { ...comun, folio: "20260926-9845-AB12-02", tipo: "producto" as const,
-    sku: "9845", nombre: "Aguila Tw 330Cc X 30", cantidad: 1080, unidad: "cajas" as const,
-    numero: 2, total: 3, producido: "2026-09-20",
-    vence: calcularVence("2026-09-20", 180), lote: "L-4471" },
-  /* SIN VIDA ÚTIL EN EL MAESTRO: el vencimiento sale null y el rótulo
-     tiene que decirlo, no dejar el renglón en blanco. */
-  { ...comun, folio: "20260926-9845-AB12-03", tipo: "producto" as const,
-    sku: "9845", nombre: "Aguila Tw 330Cc X 30", cantidad: 1080, unidad: "cajas" as const,
-    numero: 3, total: 3, producido: "2026-09-20",
-    vence: calcularVence("2026-09-20", null), lote: null },
-  { ...comun, folio: "20260926-3500162-CD34-01", tipo: "envase" as const,
-    sku: "3500162", nombre: "Envase Marron 330R", cantidad: 900, unidad: "unidades" as const,
-    numero: 1, total: 1, color: "Ámbar", origen: "CD Unión Apartado" },
+  { ...prod, folio: "16210-20260923-L42-001", numero: 1, total: 12 },
+  { ...prod, folio: "16210-20260923-L42-002", numero: 2, total: 12 },
+  /* SIN VIDA ÚTIL EN EL MAESTRO: el vencimiento sale null y la tarjeta
+     tiene que gritarlo, no dejar la banda en blanco. */
+  { ...prod, folio: "16210-20260923-L42-003", numero: 3, total: 12,
+    vence: calcularVence("2026-09-23", null), limite: null, linea: null, hora: null,
+    ancho: null, alto: null, largo: null },
+  { ...comun, folio: "3500162-20260923-001", tipo: "envase" as const,
+    sku: "3500162", nombre: "Envase Marron 330R", cantidad: 900,
+    unidad: "unidades" as const, arrume: 900, numero: 1, total: 1,
+    color: "Ámbar", origen: "CD Unión Apartado" },
 ];
 
 (async () => {
@@ -36,12 +34,16 @@ const rotulos = [
   }
 })();
 
-/* Y LO QUE NO SE PUEDE CALCULAR, NO SE CALCULA. Se mide aquí y no en
-   node porque es el mismo código que corre en el navegador. */
+/* LO QUE NO SE PUEDE CALCULAR, NO SE CALCULA. Se mide aquí y no en node
+   porque es el mismo código que corre en el navegador. */
 (window as any).__VENCE__ = {
   bien: calcularVence("2026-09-20", 180),
   sinVida: calcularVence("2026-09-20", null),
   sinFecha: calcularVence(null, 180),
   vidaCero: calcularVence("2026-09-20", 0),
   basura: calcularVence("no-es-fecha", 180),
+  limite: limiteDespacho("2027-09-23", 30),
+  limiteSinVence: limiteDespacho(null, 30),
+  limiteSinDias: limiteDespacho("2027-09-23", null),
 };
+(window as any).__QR__ = textoQr(rotulos[0] as any, "https://cd38.example");

@@ -12,8 +12,22 @@
    que evita gastar doce hojas para descubrir que la fecha estaba mal.
    ===================================================================== */
 
+/* EL TOKEN DE AVISO VA COMO FILO, NUNCA COMO FONDO — y esto estaba mal
+   aquí, medido en los siete temas.
+
+   `--fe-aviso` es `--c-oro`, que suena a dorado y en los temas de
+   Cristian vale #ff0000. De fondo entero con tinta encima daba 2.0 de
+   contraste en el tema tinta y 3.1 en ámbar: ilegible, y sin ningún
+   error que avisara. Todo el resto del módulo lo usa como `box-shadow`
+   o `border-left` por exactamente esta razón; yo lo puse de fondo. Es
+   la cuarta vez que este token muerde en este proyecto, y por eso el
+   arnés ahora lo mide en los siete temas.
+
+   SIN FONDO PROPIO: la tinta queda sobre el papel del módulo, que ya
+   está garantizado en todos los temas, y el filo carga el «ojo con
+   esto». */
 .fe .rc-aviso {
-  background: var(--fe-aviso); border-left: 4px solid var(--fe-acento);
+  border-left: 4px solid var(--fe-aviso);
   padding: 12px 16px; font-size: 13px; line-height: 1.5; color: var(--fe-texto);
 }
 .fe .rc-aviso b { color: var(--fe-tinta) }
@@ -94,11 +108,23 @@
   font: 900 20px var(--fe-titulo); letter-spacing: -.02em; color: var(--fe-tinta);
   overflow-wrap: anywhere;
 }
+/* EL PANEL DEL VENCIMIENTO ES CLARO, y se saca del papel del tema.
+   Estaba en `--fe-gris-panel`, que por el nombre parecía un gris de
+   panel y es una mezcla OSCURA —72 % de gris azulado sobre azul
+   noche—: el rótulo VENCE encima daba 1.4 de contraste en los siete
+   temas, o sea invisible. */
 .fe .rc-v-vence {
-  margin-top: 10px; padding: 8px 10px; background: var(--fe-gris-panel);
+  margin-top: 10px; padding: 8px 10px;
+  background: color-mix(in srgb, var(--fe-tinta) 7%, var(--fe-papel));
 }
+/* EL RÓTULO VA MÁS OSCURO QUE EL GRIS DE SIEMPRE: sobre este panel, el
+   `--fe-gris` a pelo daba 4.2 en el tema ámbar —por debajo del 4.5 que
+   pide un texto de 9 px—. Se tira hacia la tinta en vez de bajarle la
+   exigencia al arnés: el que no se lea en UN tema es exactamente lo que
+   la medición está para atrapar. */
 .fe .rc-v-vence span {
-  display: block; font: 700 9px var(--fe-titulo); letter-spacing: .12em; color: var(--fe-gris);
+  display: block; font: 700 9px var(--fe-titulo); letter-spacing: .12em;
+  color: color-mix(in srgb, var(--fe-gris) 55%, var(--fe-tinta));
 }
 .fe .rc-v-vence b { font: 900 20px var(--fe-titulo); color: var(--fe-tinta) }
 /* SIN VENCIMIENTO NO ES UN DETALLE: esa estiba no se puede ordenar por
@@ -125,5 +151,19 @@
   .fe .rc-lado { position: static; order: -1 }
   .fe .rc-forma { grid-template-columns: minmax(0, 1fr) }
   .fe .rc-tipo { width: auto }
-  .fe .rc-tipo button { flex: 1; padding: 0 12px }
+  /* LOS RÓTULOS PUEDEN PARTIRSE, y esto era un defecto medido: con
+     `white-space: nowrap` heredado, «Producto terminado» y «EER ·
+     envase vacío» no podían encoger, así que los dos botones juntos
+     medían más que la pantalla y el interruptor se salía 12 px a 390.
+     `min-width: 0` es lo que de verdad los deja encoger: sin él, un
+     hijo de flex no baja de su ancho de contenido por mucho que se
+     permita partir el texto. */
+  .fe .rc-tipo button {
+    flex: 1 1 0; min-width: 0; padding: 0 10px;
+    white-space: normal; line-height: 1.2; font-size: 12.5px;
+  }
 }
+
+/* LAS TRES MEDIDAS DEL ARRUME, en una fila. Por separado ocuparían tres
+   renglones para tres números de un dígito. */
+.fe .rc-dim { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px }

@@ -58,30 +58,28 @@ process.on("unhandledRejection", caerse);
    · el envase — sin vencimiento porque no vence, con color y origen.
    --------------------------------------------------------------------- */
 writeFileSync(R(".arnes/_rc-entrada.ts"), `
-import { rotulosPdf, calcularVence } from "../src/modulos/inventario/rotulo";
+import { rotulosPdf, calcularVence, limiteDespacho, textoQr } from "../src/modulos/inventario/rotulo";
 
-const comun = {
-  ubicacion: "A03-M12-IZQ", recibido_por: "Genesis Visbal",
-  recibido_en: "26/09/2026, 10:30", placa: "JGY577",
-};
+const comun = { ubicacion: "A03-M12-IZQ", placa: "JGY577", recibido: "2026-09-23",
+  ancho: 1, alto: 1, largo: 1 };
+const vence = calcularVence("2026-09-23", 365);
+const prod = { ...comun, tipo: "producto" as const,
+  sku: "16210", nombre: "Pony Malta Lta 330Cc X6 Nuevo",
+  cantidad: 40, unidad: "cajas" as const, arrume: 480,
+  producido: "2026-09-23", vence, limite: limiteDespacho(vence, 30),
+  linea: "42", hora: "06:40" };
 const rotulos = [
-  { ...comun, folio: "20260926-9845-AB12-01", tipo: "producto" as const,
-    sku: "9845", nombre: "Aguila Tw 330Cc X 30", cantidad: 1080, unidad: "cajas" as const,
-    numero: 1, total: 3, producido: "2026-09-20",
-    vence: calcularVence("2026-09-20", 180), lote: "L-4471" },
-  { ...comun, folio: "20260926-9845-AB12-02", tipo: "producto" as const,
-    sku: "9845", nombre: "Aguila Tw 330Cc X 30", cantidad: 1080, unidad: "cajas" as const,
-    numero: 2, total: 3, producido: "2026-09-20",
-    vence: calcularVence("2026-09-20", 180), lote: "L-4471" },
-  /* SIN VIDA ÚTIL EN EL MAESTRO: el vencimiento sale null y el rótulo
-     tiene que decirlo, no dejar el renglón en blanco. */
-  { ...comun, folio: "20260926-9845-AB12-03", tipo: "producto" as const,
-    sku: "9845", nombre: "Aguila Tw 330Cc X 30", cantidad: 1080, unidad: "cajas" as const,
-    numero: 3, total: 3, producido: "2026-09-20",
-    vence: calcularVence("2026-09-20", null), lote: null },
-  { ...comun, folio: "20260926-3500162-CD34-01", tipo: "envase" as const,
-    sku: "3500162", nombre: "Envase Marron 330R", cantidad: 900, unidad: "unidades" as const,
-    numero: 1, total: 1, color: "Ámbar", origen: "CD Unión Apartado" },
+  { ...prod, folio: "16210-20260923-L42-001", numero: 1, total: 12 },
+  { ...prod, folio: "16210-20260923-L42-002", numero: 2, total: 12 },
+  /* SIN VIDA ÚTIL EN EL MAESTRO: el vencimiento sale null y la tarjeta
+     tiene que gritarlo, no dejar la banda en blanco. */
+  { ...prod, folio: "16210-20260923-L42-003", numero: 3, total: 12,
+    vence: calcularVence("2026-09-23", null), limite: null, linea: null, hora: null,
+    ancho: null, alto: null, largo: null },
+  { ...comun, folio: "3500162-20260923-001", tipo: "envase" as const,
+    sku: "3500162", nombre: "Envase Marron 330R", cantidad: 900,
+    unidad: "unidades" as const, arrume: 900, numero: 1, total: 1,
+    color: "Ámbar", origen: "CD Unión Apartado" },
 ];
 
 (async () => {
@@ -95,15 +93,19 @@ const rotulos = [
   }
 })();
 
-/* Y LO QUE NO SE PUEDE CALCULAR, NO SE CALCULA. Se mide aquí y no en
-   node porque es el mismo código que corre en el navegador. */
+/* LO QUE NO SE PUEDE CALCULAR, NO SE CALCULA. Se mide aquí y no en node
+   porque es el mismo código que corre en el navegador. */
 (window as any).__VENCE__ = {
   bien: calcularVence("2026-09-20", 180),
   sinVida: calcularVence("2026-09-20", null),
   sinFecha: calcularVence(null, 180),
   vidaCero: calcularVence("2026-09-20", 0),
   basura: calcularVence("no-es-fecha", 180),
+  limite: limiteDespacho("2027-09-23", 30),
+  limiteSinVence: limiteDespacho(null, 30),
+  limiteSinDias: limiteDespacho("2027-09-23", null),
 };
+(window as any).__QR__ = textoQr(rotulos[0] as any, "https://cd38.example");
 `);
 
 const js = buildSync({
@@ -155,6 +157,12 @@ ok(listo === true, `el rótulo no se pudo armar: ${await pg.evaluate(() => windo
   ok(v.sinFecha === null, `sin fecha de producción se calculó ${v.sinFecha}`);
   ok(v.vidaCero === null, `con vida útil 0 se calculó ${v.vidaCero}`);
   ok(v.basura === null, `con una fecha ilegible se calculó ${v.basura}`);
+
+  /* EL LÍMITE DE DESPACHO ES UNA RESTA, y tampoco se inventa. */
+  ok(v.limite === "2027-08-24",
+     `30 días antes del 23/09/2027 dan ${v.limite} y deben dar 2027-08-24`);
+  ok(v.limiteSinVence === null, `sin vencimiento se calculó un límite: ${v.limiteSinVence}`);
+  ok(v.limiteSinDias === null, `sin días mínimos se calculó un límite: ${v.limiteSinDias}`);
 }
 
 const b64 = await pg.evaluate(() => {
@@ -179,7 +187,7 @@ console.log(`páginas: ${paginas}`);
    4 · UN PAPEL POR ESTIBA, NUMERADO
    ===================================================================== */
 ok(paginas === 4, `salieron ${paginas} páginas y se pidieron 4 rótulos: uno por estiba`);
-for (const n of ["1/3", "2/3", "3/3", "1/1"]) {
+for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
   ok(texto.includes(n),
      `falta «${n}»: doce papeles iguales en la mano no se pueden repartir entre doce estibas`);
 }
@@ -189,14 +197,30 @@ for (const n of ["1/3", "2/3", "3/3", "1/1"]) {
    ===================================================================== */
 {
   const h = hojas[0];
-  ok(h.includes("9845"), `la primera hoja no trae el código del material:\n${h.slice(0, 300)}`);
-  ok(/AGUILA TW 330CC X 30/i.test(h), "la primera hoja no trae el nombre del material");
-  ok(h.includes("1.080"), "no sale la cantidad: es el segundo dato que se busca de lejos");
-  ok(/cajas/.test(h), "la cantidad sale sin decir si son cajas o unidades");
+  ok(h.includes("16210"), `la primera hoja no trae el código del material:\n${h.slice(0, 400)}`);
+  ok(/PONY MALTA LTA 330CC X6 NUEVO/i.test(h), "la primera hoja no trae el nombre del producto");
+  ok(/BARRANQUILLA/.test(h) && /TARJETA DE ARRUME/.test(h),
+     "la cabecera no dice qué tarjeta es ni de dónde");
+  ok(/CAJAS EN ESTA ESTIBA/.test(h) && /\b40\b/.test(h),
+     "no salen las cajas de ESTA estiba");
+  ok(/TOTAL DEL ARRUME/.test(h) && /480/.test(h),
+     "no sale el total del arrume: sin él no se sabe si el arrume está completo");
+  ok(/DIMENSIONES/.test(h) && /ANCHO/.test(h) && /LARGO/.test(h),
+     "no salen las dimensiones del arrume");
   ok(h.includes("A03-M12-IZQ"), "no sale la ubicación: es lo que contesta «¿dónde la pongo?»");
-  ok(h.includes("20260926-9845-AB12-01"), "no sale el folio, que es lo que identifica la estiba");
-  ok(/Genesis Visbal/.test(h), "el pie no dice quién recibió");
-  ok(h.includes("CD38"), "no se dice de qué centro es el rótulo");
+  ok(h.includes("16210-20260923-L42-001"), "no sale el folio, que es lo que identifica la estiba");
+  ok(/RESPONSABLE DE LA MARCACI/.test(h) && /VERIFIC/.test(h), "faltan las dos firmas");
+
+  /* Y EL FOLIO NO SE MONTA SOBRE LAS FIRMAS. Pasó: con el código
+     midiéndose por el alto libre a secas, la cinta negra del folio caía
+     ENCIMA de «RESPONSABLE DE LA MARCACIÓN» y las dos cosas quedaban
+     ilegibles. `pdftotext -layout` conserva los renglones, así que si
+     los dos textos salen en la MISMA línea es que están a la misma
+     altura en el papel. */
+  const renglon = h.split("\n").find((l) => l.includes("16210-20260923-L42-001")) ?? "";
+  ok(!/RESPONSABLE|VERIFIC/.test(renglon),
+     `el folio se monta sobre la línea de las firmas: «${renglon.trim()}»`);
+  ok(/Toda la estiba est/.test(h), "falta la explicación del código");
 }
 
 /* =====================================================================
@@ -204,22 +228,34 @@ for (const n of ["1/3", "2/3", "3/3", "1/1"]) {
    ===================================================================== */
 {
   const prod = hojas[0], env = hojas[3];
-  ok(/PRODUCTO TERMINADO/.test(prod), "el rótulo de producto no dice que es producto terminado");
-  ok(/VENCE/.test(prod), "el rótulo de producto no lleva el vencimiento, que es lo que manda en el FEFO");
-  ok(/19\/03\/2027/.test(prod),
-     `el vencimiento no sale calculado en el papel:\n${prod.slice(0, 400)}`);
-  ok(/PRODUCIDO/.test(prod) && /20\/09\/2026/.test(prod), "no sale la fecha de producción");
-  ok(/L-4471/.test(prod), "no sale el lote");
+  ok(/FECHA DE VENCIMIENTO/.test(prod),
+     "la tarjeta de producto no lleva el vencimiento, que es lo que manda en el FEFO");
+  /* LA BANDA VA EN TRES CASILLAS: día, mes y año corto. 23/09/2027. */
+  ok(/\b23\b/.test(prod) && /\b27\b/.test(prod),
+     `el vencimiento no sale en la banda de tres casillas:\n${prod.slice(0, 500)}`);
+  ok(/PRODUCCI/.test(prod) && /23\/09\/2026/.test(prod), "no sale la fecha de producción");
+  /* LÍM. DESPACHO = vence menos los días mínimos del maestro. 30 días
+     antes del 23/09/2027 es el 24/08/2027 — la misma cuenta de la
+     tarjeta que sirvió de modelo. */
+  ok(/DESPACHO/.test(prod) && /24\/08\/2027/.test(prod),
+     `el límite de despacho no sale o está mal calculado:\n${prod.slice(0, 500)}`);
+  ok(/L\u00cdNEA|LINEA/.test(prod) && /42/.test(prod), "no sale la línea de producción");
+  ok(/06:40/.test(prod), "no sale la hora");
 
-  ok(/ENVASE RETORNABLE/.test(env), "el rótulo de envase no dice que es envase retornable");
-  /* EL ENVASE NO VENCE: un renglón «VENCE» vacío enseña que ahí falta
-     un dato que no existe, y manda a alguien a buscarlo. */
-  ok(!/VENCE/.test(env),
-     `el rótulo de envase lleva un renglón de vencimiento:\n${env.slice(0, 400)}`);
-  ok(/COLOR DEL VIDRIO/.test(env) && /Ámbar/.test(env),
-     "el rótulo de envase no lleva el color del vidrio, que es lo suyo");
-  ok(/VIENE DE/.test(env) && /Unión Apartado/.test(env), "el rótulo de envase no dice de dónde vino");
-  ok(/unidades/.test(env), "el envase se cuenta en unidades y el rótulo no lo dice");
+  /* EL ENVASE NO VENCE: una banda «FECHA DE VENCIMIENTO» vacía enseña
+     que ahí falta un dato que no existe, y manda a alguien a buscarlo. */
+  ok(!/FECHA DE VENCIMIENTO/.test(env),
+     `la tarjeta de envase lleva la banda del vencimiento:\n${env.slice(0, 400)}`);
+  ok(!/DESPACHO/.test(env), "la tarjeta de envase lleva el límite de despacho");
+  ok(/COLOR DEL VIDRIO/.test(env) && /mbar/.test(env),
+     "la tarjeta de envase no lleva el color del vidrio, que es lo suyo");
+  ok(/VIENE DE/.test(env) && /Apartado/.test(env), "la tarjeta de envase no dice de dónde vino");
+  ok(/UNIDADES EN ESTA ESTIBA/.test(env),
+     "el envase se cuenta en unidades y la tarjeta no lo dice");
+  /* Y SIGUE SIENDO LA MISMA TARJETA: mismo encabezado, mismas firmas.
+     Se reconocen desde lejos como lo mismo. */
+  ok(/TARJETA DE ARRUME/.test(env) && /VERIFIC/.test(env),
+     "la tarjeta de envase perdió el encabezado o las firmas: ya no es la misma tarjeta");
 }
 
 /* =====================================================================
@@ -227,9 +263,11 @@ for (const n of ["1/3", "2/3", "3/3", "1/1"]) {
    ===================================================================== */
 {
   const sin = hojas[2];
-  ok(/SIN FECHA/i.test(sin) && /FEFO/i.test(sin),
-     `la estiba sin vencimiento no lo grita:\n${sin.slice(0, 400)}`);
-  ok(/falta/i.test(sin), "el lote vacío sale en blanco en vez de decir que falta");
+  ok(/SIN FECHA DE VENCIMIENTO/i.test(sin) && /FEFO/i.test(sin),
+     `la estiba sin vencimiento no lo grita:\n${sin.slice(0, 500)}`);
+  /* Y LAS DIMENSIONES VACÍAS SALEN CON RAYA, no en blanco: un hueco
+     parece papel mal impreso; la raya dice que el dato no estaba. */
+  ok(/—/.test(sin), "los datos que faltan salen en blanco en vez de decirlo con una raya");
 }
 
 /* =====================================================================
@@ -278,10 +316,32 @@ for (const n of ["1/3", "2/3", "3/3", "1/1"]) {
   ok(leidos[0] !== leidos[1],
      `las dos estibas del mismo producto llevan el MISMO QR (${leidos[0]}): escanear cualquiera ` +
      "de las dos abriría lo mismo y el FEFO no serviría para nada");
-  ok(leidos[0].includes("20260926-9845-AB12-01"),
-     `el QR de la primera hoja dice «${leidos[0]}» y tiene que llevar su folio`);
-  ok(leidos[0].startsWith("https://cd38.example/"),
-     `el QR no apunta al dominio desde el que se imprimió: «${leidos[0]}»`);
+  ok(leidos[0].includes("16210-20260923-L42-001"),
+     `el QR de la primera hoja no lleva su folio: «${leidos[0]}»`);
+
+  /* EL QR SE LEE CON EL LOGO ENCIMA, y esto es lo que de verdad hay que
+     sostener: el logo tapa el centro del código. Que los cuatro se
+     decodifiquen —ya comprobado arriba— es la prueba de que el nivel de
+     corrección aguanta ese tapón. Con el nivel medio no aguantaría, y
+     no habría ningún error: simplemente el teléfono no leería nada, y
+     nadie se enteraría hasta intentarlo en el muelle. */
+
+  /* Y LLEVA EL ENLACE **Y** LOS DATOS, que es lo que promete la
+     tarjeta: «con señal abre la estiba en CONTROL; sin señal se lee
+     igual como texto». */
+  ok(leidos[0].startsWith("https://cd38.example/a/"),
+     `el QR no arranca con la dirección que abre la estiba: «${leidos[0].slice(0, 60)}»`);
+  for (const t of ["PROD:", "COD: 16210", "ESTIBA: 1 de 12", "ARRUME: 480",
+                   "VENCE: 23/09/2027", "LIM DESPACHO: 24/08/2027", "LINEA: 42"]) {
+    ok(leidos[0].includes(t),
+     `al QR le falta «${t}»: sin señal el papel tiene que poder leerse entero`);
+  }
+  /* TODO EN ASCII: los acentos obligan al código a crecer, y en la
+     tarjeta que sirvió de modelo el «·» ya había salido convertido en
+     basura dentro del propio QR. */
+  ok(!/[^\x00-\x7F]/.test(leidos[0]),
+     `el QR lleva caracteres fuera de ASCII y se van a leer mal: «${
+       (leidos[0].match(/[^\x00-\x7F]/g) ?? []).join("")}»`);
 }
 
 console.log("");
@@ -290,6 +350,7 @@ if (fallas.length) {
   fallas.forEach((f) => console.log(" · " + f));
   process.exit(1);
 }
-console.log("✓ El rótulo: un papel por estiba y numerado, el código y la cantidad impresos, " +
-  "producto con vencimiento calculado y envase sin él, lo que falta escrito en vez de en " +
-  "blanco, el QR y la marca de verdad en el PDF, y el vencimiento nunca inventado.");
+console.log("✓ La tarjeta de arrume: una por estiba y numerada N/M, cajas de la estiba y total del " +
+  "arrume, el vencimiento en su banda y el límite de despacho calculado, el envase sin fechas " +
+  "pero con la misma tarjeta, el QR se LEE con el logo encima y lleva el enlace y los datos en " +
+  "ASCII, y nada calculado a ojo.");
