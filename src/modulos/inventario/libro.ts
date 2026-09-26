@@ -159,7 +159,12 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   const logoId = d.logo ? wb.addImage({ buffer: d.logo as unknown as BufferDeExcel, extension: "png" }) : null;
 
   const uxc = Object.fromEntries(d.materiales.map((m) => [m.sku, m.unidades_por_caja]));
-  const { foto, franjas, materiales, totalCajas, totalUnidades, ubicaciones: nUbi } = medirRiesgo(d.lineas, d.conteos, uxc);
+  /* DOS JUEGOS DE CIFRAS, A PROPÓSITO. `materiales`, `franjas` y
+     `totalCajas` son SOLO producto terminado: son el riesgo de
+     vencimiento, y el envase no se vence. `inventario` es TODO lo que se
+     caminó. «LO CONTADO» y la hoja «Por material» van con `inventario`;
+     si fueran con el riesgo, un día de solo envase saldría en cero. */
+  const { foto, franjas, materiales, totalCajas, totalUnidades, ubicaciones: nUbi, inventario } = medirRiesgo(d.lineas, d.conteos, uxc);
   const enFoto = new Set(foto.map((l) => l.id));
   const reemplazados = d.lineas.filter((l) => !enFoto.has(l.id));
   const matPorSku = new Map(d.materiales.map((m) => [m.sku, m]));
@@ -259,8 +264,12 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         pon(f + 2, c0, v, letra(22, color ?? TINTA, true), { numFmt: fmt, border: lados, alignment: { horizontal: "left", vertical: "middle", indent: 1 } });
       });
     };
-    const estibas = base.reduce((a, l) => a + Number(l.total_estibas ?? 0), 0);
-    tarjetas(11, "LO CONTADO", [["CAJAS", totalCajas, NUM, BANDA], ["UNIDADES", totalUnidades, NUM, BANDA], ["ESTIBAS", estibas, NUM, BANDA], ["RENGLONES", base.length, NUM, BANDA]]);
+    /* LAS CUATRO DE «LO CONTADO» SALEN DE LA MISMA FUENTE. Antes las
+       estibas se sumaban aquí sobre la base y las cajas venían del
+       riesgo: por eso un día de solo envase decía 150 estibas y 0 cajas.
+       Cuatro cifras de la misma foto o ninguna. */
+    tarjetas(11, "LO CONTADO", [["CAJAS", inventario.cajas, NUM, BANDA], ["UNIDADES", inventario.unidades, NUM, BANDA],
+      ["ESTIBAS", inventario.estibas, NUM, BANDA], ["RENGLONES", inventario.renglones, NUM, BANDA]]);
     const vencidas = franjas.vencido.cajas + franjas.pasado.cajas;
     const margen = totalCajas ? franjas.ok.cajas / totalCajas : 0;
     tarjetas(15, "PARA REVISAR", [
@@ -294,6 +303,16 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
 
     /* EL RIESGO DE VENCIMIENTO, por franja, con su barrita. */
     alto(20, 19.5); pon(20, 2, "Riesgo de vencimiento", letra(11, TINTA, true));
+    /* SI HAY ENVASE, DECIRLO AQUÍ. Si no, el que lee ve «LO CONTADO
+       2.800 cajas» y tres renglones más abajo un total de riesgo en cero
+       y piensa que el archivo está malo. La tabla está bien: el envase no
+       se vence, y por eso no está en ella. */
+    if (inventario.renglonesEnvase) {
+      const cajasEnv = inventario.cajas - totalCajas;
+      unir(20, 5, 9);
+      pon(20, 5, `solo producto terminado — el envase (${inventario.renglonesEnvase} renglón${inventario.renglonesEnvase === 1 ? "" : "es"}, ${cajasEnv.toLocaleString("es-CO")} cajas) no se vence  `,
+        letra(8.5, GRIS, false, true), { alignment: { horizontal: "right", vertical: "middle" } });
+    }
     fila(21, ["Franja", "Cajas", "Unidades", "Materiales", "Ubicaciones", "% de cajas", ""], "cabeza");
     let f = 21;
     for (const x of FRANJAS) {
@@ -307,7 +326,6 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     fila(f, ["Total", { formula: `SUM(D${d1}:D${d2})`, result: totalCajas }, { formula: `SUM(E${d1}:E${d2})`, result: totalUnidades },
       `${materiales.length} distintos`, undefined, { formula: `SUM(H${d1}:H${d2})`, result: totalCajas ? 1 : 0 }, undefined], "total", [, NUM, NUM, , , PCT]);
     h.getCell(f, 6).font = letra(8.5, GRIS);
-    const filaTotal = f;
 
     /* LOS RECORRIDOS QUE ENTRAN, y el cuadre: lo que sumaban contra lo
        que quedó en la base (la diferencia es lo que se volvió a contar). */
@@ -332,9 +350,15 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const filaRec = f;
     f += 1; alto(f, 21.75);
     unir(f, 2, 3); pon(f, 2, "Cuadre de cajas", letra(9, GRIS, true), { alignment: { vertical: "middle", indent: 1 } });
-    unir(f, 4, 7); pon(f, 4, `${cajasRec.toLocaleString("es-CO")} en los recorridos  −  ${totalCajas.toLocaleString("es-CO")} en el consolidado (lo que se volvió a contar)`, letra(9, GRIS), { alignment: { vertical: "middle", wrapText: true } });
-    const dif = cajasRec - totalCajas;
-    pon(f, 8, { formula: `H${filaRec}-D${filaTotal}`, result: dif }, letra(10, dif ? ROJO : VERDE, true), { numFmt: NUM, alignment: { horizontal: "right", vertical: "middle", indent: 1 } });
+    /* EL CUADRE VA CONTRA «LO CONTADO», NO CONTRA EL RIESGO. Los
+       recorridos traen todo lo que se caminó; la tabla de riesgo, solo
+       producto. Restarle el riesgo a los recorridos daba, en un día con
+       envase, una diferencia inventada del tamaño del envase. Por eso la
+       fórmula apunta a la tarjeta CAJAS de «LO CONTADO» (B13), que es la
+       misma foto que los recorridos. */
+    unir(f, 4, 7); pon(f, 4, `${cajasRec.toLocaleString("es-CO")} en los recorridos  −  ${inventario.cajas.toLocaleString("es-CO")} en el consolidado (lo que se volvió a contar)`, letra(9, GRIS), { alignment: { vertical: "middle", wrapText: true } });
+    const dif = cajasRec - inventario.cajas;
+    pon(f, 8, { formula: `H${filaRec}-B13`, result: dif }, letra(10, dif ? ROJO : VERDE, true), { numFmt: NUM, alignment: { horizontal: "right", vertical: "middle", indent: 1 } });
 
     /* EL AVISO: rojo con vínculo a «Validar», o verde si no hay nada. */
     f += 1; alto(f, 12);
@@ -387,7 +411,10 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     encabezado(h, 6, C);
     const est = new Map<string, number>();
     for (const l of base) est.set(l.codigo, (est.get(l.codigo) ?? 0) + Number(l.total_estibas ?? 0));
-    const mats = [...materiales].sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+    /* TODO LO CONTADO, envase incluido: esta hoja es el inventario del
+       día, no el riesgo. El envase sale con su tipo y su franja «Sin
+       fecha», que es exactamente lo que es. */
+    const mats = [...inventario.materiales].sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
     mats.forEach((m, i) => {
       const r = h.getRow(7 + i);
       r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "", m.familia ?? "", m.sitios.length, est.get(m.codigo) ?? 0, m.cajas, m.unidades,

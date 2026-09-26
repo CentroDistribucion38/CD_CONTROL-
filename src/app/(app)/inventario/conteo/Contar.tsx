@@ -331,6 +331,12 @@ export function Contar({
                        siguiente?: RefObject<HTMLInputElement | null>) {
     const limpio = dosDigitos(v);
     pon(k, limpio);
+    /* EL SALTO LO DISPARA LO QUE QUEDÓ DENTRO, NO LO QUE SE TECLEÓ. Con
+       `v.length` el cursor se iba al mes con un solo dígito adentro: el
+       lector de código de barras y el autocompletado del teléfono meten
+       caracteres que `dosDigitos` bota, y lo tecleado medía dos cuando
+       la casilla tenía uno. Se veía «Vence 2/09/27» y nadie entendía
+       qué había pasado. */
     if (limpio.length !== 2) return;
     if (siguiente?.current) {
       siguiente.current.focus();
@@ -462,15 +468,23 @@ export function Contar({
     materiales.find((m) => m.activo && m.sku === bb.codigo.trim()) ?? null;
   /* «SI ESCRIBO EL CÓDIGO, ¿POR QUÉ NO SALTA A VENCE?» Salta solo cuando
      el código ya es uno del maestro y NINGÚN otro empieza igual: con
-     «312» no salta porque puede ser 3128 o 3129; con «3128» sí. Al
-     envase —que no trae fecha— lo manda a la cantidad. */
+     «312» no salta porque puede ser 3128 o 3129; con «3128» sí.
+
+     Y SIEMPRE A VENCE, TAMBIÉN EN ENVASE. Antes el envase se iba derecho
+     a la cantidad «porque no trae fecha», y eso partía el renglón en dos
+     caminos: con Enter el cursor caía en Vence y tecleando el código
+     completo caía en Cajas. Quien cuenta no sabe cuál de los dos le va a
+     tocar, así que teclea la cantidad encima de la fecha o la fecha
+     encima de la cantidad. Un solo camino: código → vence → cantidad.
+     El envase que de verdad no trae fecha se salta las tres casillas con
+     Enter, que es un dedo, no un renglón perdido. */
   function saltarSiCompleto(v: string) {
     const c = v.trim();
     if (!c) return;
     const activos = materiales.filter((m) => m.activo);
     const exacto = activos.find((m) => m.sku === c);
     if (!exacto || activos.some((m) => m.sku !== c && m.sku.startsWith(c))) return;
-    setTimeout(() => (exacto.tipo_material === "ENVASE" ? campoCantidad : campoDia).current?.focus(), 0);
+    setTimeout(() => campoDia.current?.focus(), 0);
   }
   const material = useMemo(() => materialDe(b),
     // eslint-disable-next-line react-hooks/exhaustive-deps

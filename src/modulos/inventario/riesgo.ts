@@ -14,6 +14,22 @@ import type { Renglon, ConteoFefo } from "./fefo";
  * más reciente que la tocó.
  *
  * LOS ENVASES NO SE VENCEN: no entran en el riesgo.
+ *
+ * PERO SÍ ESTÁN EN LA BODEGA. Aquí se responden DOS preguntas distintas
+ * con los mismos renglones:
+ *
+ *   ¿QUÉ SE VA A VENCER?  → `franjas`, `materiales`, `semanas`,
+ *                            `totalCajas`, `totalUnidades`. Solo producto
+ *                            terminado: al envase no se le puede calcular
+ *                            una fecha de salida, y meterlo con cero días
+ *                            ensuciaría todas las franjas.
+ *   ¿QUÉ HAY CONTADO?     → `inventario`. TODO lo que se caminó ese día,
+ *                            envase incluido.
+ *
+ * Confundirlas costó un consolidado entero: un día que solo se contó
+ * envase, el Excel decía «150 estibas» al lado de «0 cajas» y la hoja
+ * «Por material» salía vacía, porque las cajas venían del riesgo —que se
+ * había saltado el envase— y las estibas de la base, que no.
  */
 
 export type Franja = "vencido" | "pasado" | "semana" | "quince" | "mes" | "ok" | "sinfecha";
@@ -57,14 +73,29 @@ export type MaterialRiesgo = {
   franja: Franja; diasSalir: number | null; vence: string | null; sitios: Sitio[];
 };
 
+/** LO QUE HAY CONTADO, TODO: producto terminado Y envase. Es lo que va en
+ *  «LO CONTADO» y en la hoja «Por material» del consolidado. No sirve para
+ *  el riesgo —el envase no se vence— y por eso va aparte. */
+export type Inventario = {
+  cajas: number; unidades: number; estibas: number; renglones: number;
+  materiales: MaterialRiesgo[]; ubicaciones: number;
+  /** Cuántos renglones de la foto son envase. Si es 0, `inventario` y el
+   *  riesgo dicen lo mismo y el Excel no tiene que aclarar nada. */
+  renglonesEnvase: number;
+};
+
 export type Riesgo = {
   foto: Renglon[];
-  /** Cajas / unidades / renglones / materiales por franja. */
+  /** Cajas / unidades / renglones / materiales por franja. SOLO producto. */
   franjas: Record<Franja, { cajas: number; unidades: number; renglones: number; materiales: number; sinUxc: number }>;
+  /** SOLO producto terminado, ordenados por qué tan cerca están de vencerse. */
   materiales: MaterialRiesgo[];
   /** Cajas que TIENEN que salir por semana, las próximas 8 (la 0 ya se pasó). */
   semanas: { rot: string; cajas: number; unidades: number }[];
+  /** SOLO producto terminado: son el denominador de los porcentajes del riesgo. */
   totalCajas: number; totalUnidades: number; ubicaciones: number;
+  /** TODO lo contado, envase incluido. */
+  inventario: Inventario;
   /** Del conteo más viejo al más nuevo que aportan a la foto. */
   desde: string | null; hasta: string | null; recorridos: number;
 };
@@ -87,20 +118,35 @@ export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku:
   /* ---------- POR FRANJA Y POR MATERIAL ---------- */
   const vacia = () => ({ cajas: 0, unidades: 0, renglones: 0, materiales: 0, sinUxc: 0 });
   const franjas = Object.fromEntries(FRANJAS.map((f) => [f.clave, vacia()])) as Riesgo["franjas"];
+  /* UN SOLO MAPA PARA LOS DOS. Un material es envase o no lo es —nunca a
+     ratos— así que se acumulan todos juntos y al final se aparta la lista
+     del riesgo filtrando los códigos de envase. Dos mapas paralelos se
+     habrían desincronizado a la primera línea que alguien agregara. */
   const porMat = new Map<string, MaterialRiesgo>();
+  const envases = new Set<string>();
   const matsPorFranja = new Map<Franja, Set<string>>();
   let totalCajas = 0, totalUnidades = 0;
+  let invCajas = 0, invUnidades = 0, invEstibas = 0, invRenglones = 0, invEnvase = 0;
 
   for (const l of foto) {
-    if (l.tipo_material === "ENVASE") continue;
+    const esEnvase = l.tipo_material === "ENVASE";
     const uxc = uxcPorSku[l.codigo] ?? null;
     const tc = num(l.total_cajas);
     const un = uxc ? tc * uxc : null;
     const f = franja(l);
-    const fr = franjas[f];
-    fr.cajas += tc; fr.renglones += 1; if (un != null) fr.unidades += un; else fr.sinUxc += 1;
-    (matsPorFranja.get(f) ?? matsPorFranja.set(f, new Set()).get(f)!).add(l.codigo);
-    totalCajas += tc; if (un != null) totalUnidades += un;
+
+    /* LO CONTADO CUENTA TODO, tenga fecha o no. */
+    invCajas += tc; if (un != null) invUnidades += un;
+    invEstibas += num(l.total_estibas); invRenglones += 1;
+
+    if (esEnvase) { envases.add(l.codigo); invEnvase += 1 }
+    else {
+      /* EL RIESGO, SOLO PRODUCTO TERMINADO. */
+      const fr = franjas[f];
+      fr.cajas += tc; fr.renglones += 1; if (un != null) fr.unidades += un; else fr.sinUxc += 1;
+      (matsPorFranja.get(f) ?? matsPorFranja.set(f, new Set()).get(f)!).add(l.codigo);
+      totalCajas += tc; if (un != null) totalUnidades += un;
+    }
 
     const m = porMat.get(l.codigo) ?? {
       codigo: l.codigo, nombre: l.material, familia: l.familia, uxc, cajas: 0, unidades: uxc ? 0 : null,
@@ -120,11 +166,12 @@ export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku:
   }
   for (const [f, s] of matsPorFranja) franjas[f].materiales = s.size;
 
-  const materiales = [...porMat.values()].map((m) => ({
+  const todos = [...porMat.values()].map((m) => ({
     ...m,
     sitios: m.sitios.sort((a, b) => ORDEN[a.franja] - ORDEN[b.franja] || (a.dias_para_salir ?? 1e9) - (b.dias_para_salir ?? 1e9)
       || a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true })),
   })).sort((a, b) => ORDEN[a.franja] - ORDEN[b.franja] || b.enRiesgoCajas - a.enRiesgoCajas || b.cajas - a.cajas);
+  const materiales = todos.filter((m) => !envases.has(m.codigo));
 
   /* ---------- LAS PRÓXIMAS 8 SEMANAS ---------- */
   const semanas = Array.from({ length: 9 }, (_, i) => ({ rot: i === 0 ? "Pasó" : i === 1 ? "Esta" : `S+${i - 1}`, cajas: 0, unidades: 0 }));
@@ -136,9 +183,14 @@ export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku:
     semanas[i].cajas += num(l.total_cajas); if (uxc) semanas[i].unidades += num(l.total_cajas) * uxc;
   }
 
+  const ubicaciones = new Set(foto.map((l) => l.ubicacion_id ?? l.ubicacion)).size;
+
   return {
-    foto, franjas, materiales, semanas, totalCajas, totalUnidades,
-    ubicaciones: new Set(foto.map((l) => l.ubicacion_id ?? l.ubicacion)).size,
+    foto, franjas, materiales, semanas, totalCajas, totalUnidades, ubicaciones,
+    inventario: {
+      cajas: invCajas, unidades: invUnidades, estibas: invEstibas, renglones: invRenglones,
+      materiales: todos, ubicaciones, renglonesEnvase: invEnvase,
+    },
     desde: fechas[0] ?? null, hasta: fechas.at(-1) ?? null, recorridos: usados.size,
   };
 }

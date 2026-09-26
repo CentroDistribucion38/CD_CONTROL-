@@ -63,8 +63,8 @@ export default async function RecibirPage() {
     <div className="fe">
       <section className="cabeza">
         <div>
-          <p className="ojo">INVENTARIO · RECIBIR · CD38 AG01</p>
-          <h1>Recibir y rotular</h1>
+          <p className="ojo">INVENTARIO · RECEPCIÓN · CD38 AG01</p>
+          <h1>Recepción y rotulado</h1>
           <p className="sub">
             Lo que entra al CD. Cada estiba sale con su rótulo: código y cantidad en letra
             grande para leerlos desde el pasillo, dónde queda, y un QR que la abre en el

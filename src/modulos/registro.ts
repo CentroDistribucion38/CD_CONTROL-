@@ -567,7 +567,7 @@ export const MODULOS: Modulo[] = [
          —que es donde caería por orden de construcción— haría que el
          menú contara la historia de cómo se hizo la aplicación en vez
          de la de cómo se trabaja en la bodega. */
-      { nombre: "Recibir", ruta: "/inventario/recibir", rama: "conteos" },
+      { nombre: "Recepción", ruta: "/inventario/recibir", rama: "conteos" },
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
       { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
       /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.

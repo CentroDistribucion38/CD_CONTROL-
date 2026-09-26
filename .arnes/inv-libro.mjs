@@ -43,6 +43,7 @@ const py = execSync(`python3 - <<'P'
 import openpyxl, json, warnings
 warnings.filterwarnings("ignore")
 wb = openpyxl.load_workbook("${dest}")
+wb2 = openpyxl.load_workbook("${dest}", data_only=True)
 o = {"hojas": wb.sheetnames}
 b = wb["Base"]; o["base"] = [[b.cell(r, 7).value, b.cell(r, 8).value, b.cell(r, 15).value, b.cell(r, 21).value] for r in range(7, b.max_row + 1)]
 v = wb["Validar"]; o["validar"] = [v.cell(r, 1).value for r in range(7, v.max_row + 1)]
@@ -51,6 +52,16 @@ import zipfile
 o["imgs"] = len([n for n in zipfile.ZipFile("${dest}").namelist() if n.startswith("xl/media/") and not n.endswith("/")])
 o["total"] = b.cell(b.max_row, 1).value
 o["filtro"] = b.auto_filter.ref
+# LO CONTADO: las cuatro tarjetas van en la fila 13 (rótulo en la 12).
+z = wb["Resumen"]
+o["contado"] = {"cajas": z.cell(13, 2).value, "unidades": z.cell(13, 4).value, "estibas": z.cell(13, 6).value, "renglones": z.cell(13, 8).value}
+o["rotulos"] = [z.cell(12, c).value for c in (2, 4, 6, 8)]
+o["aclara"] = z.cell(20, 5).value
+# La tabla de riesgo: 7 franjas desde la 22, el total en la 29.
+o["riesgo"] = {"cajas": wb2["Resumen"].cell(29, 4).value, "rot": z.cell(29, 2).value}
+o["cuadre"] = [str(z.cell(r, 8).value) for r in range(30, 40)]
+m = wb["Por material"]
+o["mats"] = [[m.cell(r, 1).value, m.cell(r, 3).value, m.cell(r, 7).value] for r in range(7, m.max_row + 1)]
 print(json.dumps(o, default=str))
 P`).toString();
 const x = JSON.parse(py);
@@ -64,6 +75,34 @@ for (const t of ["Repetido", "Sin fecha", "Vencido", "Código fuera del maestro"
   ok(x.validar.includes(t), `Validar no avisa «${t}»: ${x.validar}`);
 ok(JSON.stringify(x.sin) === JSON.stringify(["D01IZQ", "D02DER"]), `sin contar: ${x.sin}`);
 ok(x.filtro === "A6:Z14", `filtro de la base: ${x.filtro}`);
+
+/* ---------- EL ENVASE CUENTA EN LO CONTADO Y NO CUENTA EN EL RIESGO ----
+   La foto son 8 renglones: 1.360 cajas y 18 estibas, de las cuales 160
+   cajas y 2 estibas son canastas (ENVASE). La canasta no se vence, así
+   que la tabla de riesgo suma 1.200 — pero «LO CONTADO» tiene que decir
+   1.360, o el Excel enseña 18 estibas al lado de 1.200 cajas y nadie
+   sabe cuál de las dos está mala. Este es el defecto que traía PRUEBA:
+   un día de solo envase salía en ceros con las estibas puestas. */
+ok(JSON.stringify(x.rotulos) === JSON.stringify(["CAJAS", "UNIDADES", "ESTIBAS", "RENGLONES"]), `las tarjetas de LO CONTADO se movieron de fila: ${x.rotulos}`);
+ok(x.contado.cajas === 1360, `LO CONTADO · cajas: ${x.contado.cajas} (1360 con el envase)`);
+ok(x.contado.estibas === 18, `LO CONTADO · estibas: ${x.contado.estibas}`);
+ok(x.contado.renglones === 8, `LO CONTADO · renglones: ${x.contado.renglones}`);
+/* 1.040 cajas traen factor (las 160 de Póker y las 160 del código fuera
+   del maestro no), y 160 de esas 1.040 son canastas: si el envase se
+   volviera a quedar por fuera, esto cae a 26.400. */
+ok(x.contado.unidades === 31200, `LO CONTADO · unidades: ${x.contado.unidades} (31200 = 1040 cajas con factor × 30, envase incluido)`);
+ok(x.riesgo.rot === "Total", `la fila 29 del Resumen ya no es el total del riesgo: ${x.riesgo.rot}`);
+ok(x.riesgo.cajas === 1200, `riesgo · total de cajas: ${x.riesgo.cajas} (1200: sin las 160 del envase)`);
+ok(/envase/i.test(x.aclara ?? ""), `falta la aclaración de que el riesgo es solo producto: ${x.aclara}`);
+/* EL CUADRE APUNTA A LA TARJETA, NO A LA TABLA DE RIESGO. Con «D29» la
+   diferencia salía de 160 cajas que nadie perdió. */
+const cuadre = x.cuadre.find((c) => c.includes("-"));
+ok(!!cuadre && cuadre.includes("B13") && !cuadre.includes("D29"), `el cuadre no compara contra LO CONTADO: ${cuadre}`);
+const mats = x.mats.slice(0, -1);   // la última es la fila de totales
+const m900 = mats.find((m) => m[0] === "900");
+ok(!!m900, `«Por material» se saltó el envase: ${mats.map((m) => m[0])}`);
+ok(m900 && m900[1] === "ENVASE" && m900[2] === 160, `el envase en «Por material» salió mal: ${JSON.stringify(m900)}`);
+ok(mats.length === 5, `«Por material»: ${mats.length} materiales (5 con el envase y el que está fuera del maestro)`);
 /* LibreOffice lo abre sin quejarse y lo pasa a PDF. */
 try { execSync(`cd ${process.env.FOTO ?? "/tmp"} && timeout 90 soffice --headless --convert-to pdf inventario-dia.xlsx >/dev/null 2>&1`); }
 catch { fallas.push("LibreOffice no pudo abrir el archivo") }

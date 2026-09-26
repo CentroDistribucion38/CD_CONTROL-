@@ -454,7 +454,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
               : estibas === 1 ? "Imprimir el rótulo" : `Imprimir los ${estibas} rótulos`}
           </button>
           {!puedeRecibir && (
-            <p className="rc-falta">Recibir y rotular requiere rol de supervisor.</p>
+            <p className="rc-falta">Recepción y rotulado requiere rol de supervisor.</p>
           )}
         </aside>
       </div>
