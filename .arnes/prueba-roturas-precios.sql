@@ -49,6 +49,16 @@ begin
     raise exception 'FALLA: al MICHELOB ULTRA (no retornable) se le invento un envase: %', v.envase_sku;
   end if;
 
+  -- 6b · EL QUE SE DIO DE ALTA QUEDÓ COMPLETO. Un envase sin color no
+  --      llega a Quiebra en sitio —la restricción roturas_mat_color lo
+  --      exige— y se quedaría fuera sin que nadie se entere.
+  select tipo_material as tm, color_vidrio as cv, precio_botella as pb
+    into v from public.productos where sku = '412375';
+  raise notice '  · 412375 -> % vidrio % $%', v.tm, v.cv, v.pb;
+  if v.tm <> 'ENVASE' or v.cv <> 'flint' then
+    raise exception 'FALLA: el 412375 quedo como % vidrio %', v.tm, v.cv;
+  end if;
+
   -- 7 · LA LISTA DE EN SITIO: 45, y ninguno sin precio
   select count(*) into n from public.productos where en_sitio;
   raise notice '  · en sitio: %', n;

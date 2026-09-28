@@ -15,9 +15,17 @@ select s, 'Material ' || s, case when s ~ '^(35|412)' and s <> '3583' then 'ENVA
     '9480','9482','9494','9508','9798','9845','9856','13451','14779','15781','20050','20463',
     '20546','20867','20877','21156','22613','23204','23224',
     '3500005','3500162','3500213','3500373','3500383','3500446','3500887','3500888','3501225',
-    '3501226','3501430','3501539','412375',
+    '3501226','3501430','3501539',
     '7599','21177','22003','22284','22398','23060']) s
 on conflict (sku) do update set en_sitio = true;" >/dev/null
+
+# EL 412375 SE DEJA FUERA A PROPÓSITO: es el que faltaba en la base de
+# Cristian y el que paró el archivo de precios en seco. Así la prueba
+# recorre el mismo camino que recorrió él —falta, se da de alta, y solo
+# entonces entran los precios— en vez de dar por hecho un maestro
+# completo que en la vida real no lo estaba.
+echo "--- el que falta, dado de alta"
+if $PSQL -d $DB -f supabase/migraciones/2026-09-roturas-precios-faltantes.sql 2>&1 | grep -E "^ERROR|ERROR:"; then exit 1; fi
 
 echo "--- la migración"
 if $PSQL -d $DB -f supabase/migraciones/2026-09-roturas-precios.sql 2>&1 | grep -E "^ERROR|ERROR:"; then exit 1; fi
