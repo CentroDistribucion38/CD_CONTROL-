@@ -13,11 +13,12 @@
    3. QUE UN PRECIO QUE FALTA SE IMPRIMA COMO «$ 0». Un cero en la
       columna de plata se lee como «no se le cobra nada», que es lo
       contrario de lo que pasa.
-   4. QUE EL RECORRIDO NO QUEPA EN SU HOJA. Un Sankey cortado por el
-      borde no dice nada, y en el PDF no hay barra para desplazarse.
-   5. QUE EL PIE SE PINTE FUERA DE LA HOJA ACOSTADA. La hoja del
-      recorrido mide 87 mm menos de alto que las demás: un pie calculado
-      con el alto de la vertical se dibuja donde no hay papel.
+   4. QUE LOS PARETOS NO QUEPAN EN SU HOJA. Tres Paretos de ocho barras
+      con nombres largos son mucha más tinta de la que parece, y en un
+      PDF no hay barra para desplazarse: lo que se sale, no está.
+   5. QUE EL PAPEL Y LA PANTALLA CUENTEN DISTINTO EL 80 %. Es LA cifra
+      del Pareto. Aquí se mide contra la misma función pura que usa la
+      pantalla, no contra un número escrito a mano en el arnés.
    6. QUE EL PAPEL Y LA PANTALLA DIGAN CIFRAS DISTINTAS.
 
      node .arnes/rl-informe-sitio.mjs
@@ -47,7 +48,7 @@ process.on("unhandledRejection", caerse);
 
 const HA = await compila("../src/modulos/roturas/hallazgos-sitio.ts", "./_rls-hallazgos.mjs");
 const CO = await compila("../src/modulos/roturas/cobro.ts", "./_rls-cobro.mjs");
-const SK = await compila("../src/modulos/roturas/sankey.ts", "./_rls-sankey.mjs");
+const PA = await compila("../src/modulos/roturas/pareto.ts", "./_rls-pareto.mjs");
 await compila("../src/modulos/rotlinea/hoja.ts", "./_rls-hoja.mjs");
 const IN = await compila("../src/app/(app)/roturas/en-sitio/analisis/informe.ts", "./_rls-informe.mjs",
   [['"@/modulos/rotlinea/hoja"', '"./_rls-hoja.mjs"']]);
@@ -257,50 +258,45 @@ const rot = (o = {}) => {
 /* =====================================================================
    2 · EL PAPEL
    ===================================================================== */
-/* EL CASO PEOR Y EL DE VERDAD: seis causas y seis procesos, que es el
-   tope que deja `masGrandes`, en el lienzo de 980 px de alto que usa el
-   papel. Con menos nodos el dibujo solo queda más holgado; si algo se
-   sale de la hoja, se sale aquí. */
-const CAUSAS = [
-  ["c:apilado", "Mal apilado", "la asume el OL", 400, SK.COLOR_ASUMIDA],
-  ["c:maquina", "Falla de la máquina", "no asumida · exige foto", 170, SK.COLOR_NO_ASUMIDA],
-  ["c:estibas", "Estibas en mal estado", "la asume el OL", 120, SK.COLOR_ASUMIDA],
-  ["c:montacargas", "Montacargas", "la asume el OL", 90, SK.COLOR_ASUMIDA],
-  ["c:piso", "Piso en mal estado", "no asumida · exige foto", 60, SK.COLOR_NO_ASUMIDA],
-  ["c:otros", "Otros", "la asume el OL", 30, SK.COLOR_ASUMIDA],
-];
-const PROCS = [
-  ["p:t1", "T1", 300, SK.COLOR_PROCESO],
-  ["p:cargue", "Cargue", 230, SK.COLOR_PROCESO_2],
-  ["p:traspasos", "Traspasos", 150, SK.COLOR_PROCESO_2],
-  ["p:picking", "Picking", 100, SK.COLOR_PROCESO_2],
-  ["p:plazoleta", "Plazoleta", 60, SK.COLOR_PROCESO_2],
-  ["p:lineas", "Líneas", 30, SK.COLOR_PROCESO_2],
-];
-const SANKEY = SK.armarSankey({
-  columnas: [
-    CAUSAS.map(([id, rotulo, pie, valor, color]) => ({ id, rotulo, pie, valor, color })),
-    PROCS.map(([id, rotulo, valor, color]) => ({ id, rotulo, valor, color })),
-    [{ id: "fin:vidrio", rotulo: "Baja de vidrio", pie: "rota: pierde líquido y botella",
-       valor: 750, color: SK.COLOR_VIDRIO },
-     { id: "fin:liquido", rotulo: "Solo baja de líquido", pie: "contaminada: vuelve el envase",
-       valor: 120, color: SK.COLOR_LIQUIDO }],
-  ],
-  tramos: [
-    ...CAUSAS.map(([id], i) => ({ de: id, a: PROCS[i][0], valor: CAUSAS[i][3] })),
-    ...PROCS.map(([id], i) => ({ de: id, a: "fin:vidrio", valor: PROCS[i][2] - [50, 30, 20, 10, 5, 5][i] })),
-    ...PROCS.map(([id], i) => ({ de: id, a: "fin:liquido", valor: [50, 30, 20, 10, 5, 5][i] })),
-  ],
-}, 1160, 980);
+/* LOS TRES PARETOS DEL PAPEL, SACADOS DE LA MISMA FUNCIÓN QUE LA
+   PANTALLA. Escribir aquí las barras a mano sería medir el papel contra
+   un número inventado: si `pareto()` cambiara de criterio, el arnés
+   seguiría verde y el papel diría otra cosa que la pantalla.
 
-/* LA GEOMETRÍA EN NÚMEROS TIENE QUE SER LA MISMA QUE LA DEL `d`. El SVG
-   pinta una y el PDF la otra: si se separan, la pantalla y el papel
-   enseñan dos dibujos distintos y los dos se ven bien. */
-for (const c of SANKEY.cintas) {
-  const m = c.d.match(/^M([\d.-]+),([\d.-]+) C/);
-  ok(m && Math.abs(+m[1] - c.x0) < 0.001 && Math.abs(+m[2] - c.y0) < 0.001,
-     `la cinta ${c.de}→${c.a} arranca en el «d» en ${m?.[1]},${m?.[2]} y en números en ${c.x0},${c.y0}`);
-}
+   EL CASO PEOR Y EL DE VERDAD: más categorías que el tope, para que haya
+   «otros»; una sin nombre, para que haya «sin dato»; y nombres tan
+   largos como los de verdad —«Estibas en mal estado», «Bahías de cargue
+   T1»—, que es lo que se sale de la columna. */
+const fp = (nombre, valor, plata) => ({ nombre, valor, plata });
+const P_CAUSA = PA.pareto([
+  fp("Mal apilado", 400, 21340), fp("Falla de la máquina", 170, 45020),
+  fp("Estibas en mal estado", 120, 3200), fp("Montacargas", 90, 2100),
+  fp("Piso en mal estado", 60, 1400), fp("Bandas transportadoras", 40, 900),
+  fp("Manipulación en el cargue", 30, 700), fp("Estibas con clavos salidos", 20, 500),
+  fp("Otras menores", 12, 300), fp("Golpe contra columna", 8, 200),
+  fp(null, 25, 600),
+]);
+const P_AREA = PA.pareto([
+  fp("Bahías de cargue T1", 300, 30000), fp("Plazoleta de producto terminado", 230, 18000),
+  fp("Traspasos entre bodegas", 150, 9000), fp("Picking", 100, 5000),
+  fp("Líneas de producción", 30, 1200),
+]);
+/* UN PARETO CON UNA PLATA QUE FALTA: tiene que salir raya y no «$ 0». */
+const P_OPM = PA.pareto([
+  fp("Juan Pérez", 260, 14000), fp("Encontrada sin dueño", 180, null),
+  fp("Carlos Ramírez", 120, 6000), fp("Luis Gómez", 90, 4200),
+]);
+const PARETOS = [
+  { titulo: "Por causa", d: P_CAUSA },
+  { titulo: "Por área", d: P_AREA },
+  { titulo: "Por OPM", d: P_OPM },
+];
+/* QUE EL FIXTURE EJERCITE LO QUE DICE EJERCITAR. Un arnés cuyo caso no
+   tiene «otros» ni «sin dato» ni una plata que falte está comprobando el
+   papel fácil y va a seguir verde el día que se rompa el difícil. */
+ok(P_CAUSA.barras.some((b) => b.clase === "otros"), "el fixture de causa se quedó sin «otros»");
+ok(P_CAUSA.barras.some((b) => b.clase === "sinDato"), "el fixture de causa se quedó sin «sin dato»");
+ok(P_OPM.barras.some((b) => b.plata === null), "el fixture de OPM se quedó sin una plata que falte");
 
 const D = {
   hoy: "2026-09-28",
@@ -323,7 +319,8 @@ const D = {
       porque: "«Mal apilado» mueve más unidades pero cuesta menos.",
       cuenta: "170 unidades y $ 45.020", peso: "alto" },
   ],
-  recorrido: { s: SANKEY, total: 870, juntados: 3 },
+  excepcion: { n: 3, plata: 12500 },
+  paretos: PARETOS,
   roturas: [
     { codigo: "RB-0001", fecha: "2026-09-27", material: "2182",
       material_nombre: "Pony Malta R 330cc X 30", causa: "Mal apilado", grupo: "asumida",
@@ -419,20 +416,68 @@ ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en 
        `la hoja ${i + 1} mide ${JSON.stringify(p)} y todas tienen que ser A4 vertical`);
   }
 
-  const iReco = paginas.findIndex((p) => /El recorrido de las/.test(p));
-  ok(iReco >= 0, "no salió la hoja del recorrido");
-  const hoja = paginas[iReco] ?? "";
-  ok(/DE QUÉ CAUSA SALIÓ/.test(hoja) && /POR DÓNDE PASÓ/.test(hoja) && /EN QUÉ TERMINA/.test(hoja),
-     "el diagrama salió sin los tres rótulos de columna: así es un dibujo bonito del que nadie " +
-     "sabe qué está mirando");
-  for (const n of SANKEY.nodos) {
-    ok(hoja.includes(n.rotulo), `el nodo «${n.rotulo}» no salió en la hoja del recorrido`);
+  const iPar = paginas.findIndex((p) => /Qué poco explica lo mucho/.test(p));
+  ok(iPar >= 0, "no salió la hoja de los Paretos");
+  const hoja = paginas[iPar] ?? "";
+
+  /* LOS TRES EN LA MISMA HOJA: la gracia está en compararlos. Una causa
+     concentrada en un área es un problema de ese sitio; la misma causa
+     repartida por toda la bodega es del proceso. Uno por página obliga a
+     recordar el anterior de memoria. */
+  ok(/Por causa/.test(hoja) && /Por área/.test(hoja) && /Por OPM/.test(hoja),
+     "los tres Paretos no quedaron en la misma hoja, y están ahí para compararse entre ellos");
+
+  /* LA RESPUESTA ESCRITA, Y LA MISMA QUE LA DE LA PANTALLA. Un Pareto
+     sin esta línea es un ranking con una curva encima: la cifra que se
+     viene a buscar es CUÁNTAS hay que atacar. */
+  for (const { titulo: t, d: q } of PARETOS) {
+    const frase = new RegExp(`${q.hasta80} de ${q.barras.length} explican? el 80 % de ` +
+                             q.total.toLocaleString("es-CO").replace(/\./g, "\\.") + " unidades");
+    ok(frase.test(hoja),
+       `el Pareto «${t}» salió sin decir que ${q.hasta80} de ${q.barras.length} explican el 80 % ` +
+       `de ${q.total} unidades: sin esa línea es un ranking con una curva encima, y contarlo a ` +
+       "ojo en la gráfica es justo lo que nadie hace");
   }
-  ok(/Baja de vidrio/.test(hoja) && /Solo baja de líquido/.test(hoja),
-     "las dos salidas tienen que verse por separado: sumarlas da de baja un envase que sigue " +
-     "en la línea");
-  ok(/3 más chicas están sumadas/.test(hoja),
-     "un «otros» mudo hace creer que hay una causa que se llama así");
+
+  /* TODAS LAS BARRAS, CON SU NOMBRE Y SU ACUMULADO. */
+  for (const { titulo: t, d: q } of PARETOS) {
+    for (const b of q.barras) {
+      ok(hoja.includes(b.nombre.slice(0, 20)), `en «${t}» no salió la barra «${b.nombre}»`);
+    }
+    ok(hoja.includes(`${q.barras.at(-1).acumulado} %`),
+       `en «${t}» falta la columna del acumulado: sin ella no hay Pareto, hay un ranking`);
+  }
+  ok(/Sin dato/.test(hoja),
+     "«sin dato» no salió en el papel: son roturas a las que les falta el campo, y calladas se " +
+     "leen como si no existieran");
+  ok(/Otros/.test(hoja), "«otros» no salió: la cola se junta, no se corta");
+  /* Y EL PAPEL EXPLICA LOS DOS, IGUAL QUE LA PANTALLA. Quien discute el
+     cobro tiene delante el papel: si allí «Sin dato» sale como un
+     renglón más y sin decir qué es, se reparte como si fuera una causa,
+     y la pantalla y el papel acaban diciendo cosas distintas. */
+  ok(/no es una categoría/.test(hoja),
+     "el papel enseña «Sin dato» sin explicar que no es una categoría sino un campo que falta en " +
+     "el registro —la pantalla sí lo explica, y los dos tienen que decir lo mismo");
+  ok(/están sumadas en «Otros»/.test(hoja),
+     "el papel no dice cuántas se juntaron en «Otros»: un «otros» mudo hace creer que hay una " +
+     "causa que se llama así");
+  /* UNA VEZ, NO TRES. La frase del acumulado repetida debajo de cada
+     Pareto deja de leerse, y arrastra consigo la nota que sí es de ese
+     Pareto. */
+  ok((hoja.match(/hasta dónde hay que atacar/g) ?? []).length === 1,
+     `la explicación del acumulado sale ${(hoja.match(/hasta dónde hay que atacar/g) ?? []).length} ` +
+     "veces en la misma hoja: repetida deja de leerse");
+  ok(/rotas más contaminadas/.test(hoja),
+     "el papel no dice en qué está medido: unidades movidas, no plata —ordenado por plata, un " +
+     "material sin precio mandaría su causa al último puesto");
+
+  /* LOS TRES EN UNA SOLA HOJA, aun en el caso más lleno. Es la promesa
+     de la sección: se pusieron juntos para compararlos. Repartidos en
+     dos páginas hay que recordar el anterior de memoria, y entonces daba
+     igual ponerlos juntos. */
+  ok(paginas.filter((p) => /explican?\b/.test(p)).length === 1,
+     "los Paretos se repartieron en más de una hoja: están juntos para compararse entre ellos, y " +
+     "pasando página eso deja de poderse hacer");
 }
 
 /* 2e-bis · Y NADA SE ESCRIBE ENCIMA DE OTRA COSA EN EL DIAGRAMA.
@@ -448,6 +493,41 @@ const palabrasDe = (pdf, marca) => {
     /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
     .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] }));
 };
+/* NINGÚN NOMBRE SE METE EN EL RIEL. El nombre vive en una columna de
+   56 mm; uno largo sin recortar se mete por debajo de la barra gris y la
+   barra se pinta encima de las letras. Eso NO lo caza mirar si el texto
+   se sale del papel —se queda dentro de sobra— ni comparar palabras
+   entre ellas —el riel es un rectángulo, no una palabra—: hay que medir
+   contra dónde empieza la columna de al lado.
+   14 mm de margen + 56 de nombre = 70 mm, y 1 mm son 2,8346 puntos. */
+const RIEL_PT = 70 * 2.8346, DER_PT = 196 * 2.8346;
+const nombresEnElRiel = (pdf, dice) => {
+  const bb = execFileSync("pdftotext", ["-bbox", pdf, "-"], { encoding: "utf8" });
+  for (const [i, pg] of bb.split("<page ").slice(1).entries()) {
+    if (!/explican?\b/.test(pg)) continue;
+    const pal = [...pg.matchAll(
+      /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
+      .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], t: m[5] }));
+    /* QUÉ RENGLÓN ES UNA BARRA: el que termina en el acumulado —«37 %»
+       pegado al margen derecho—. El título de la sección y el pie cruzan
+       ese ancho a propósito y no son barras, así que ir por «todo lo que
+       cruce los 70 mm» los señalaría a ellos y no al error. */
+    const reng = new Map();
+    for (const w of pal) {
+      const k = Math.round(w.y0);
+      reng.set(k, [...(reng.get(k) ?? []), w]);
+    }
+    for (const g of reng.values()) {
+      if (!g.some((w) => w.t === "%" && w.x1 > DER_PT - 6)) continue;
+      for (const w of g) {
+        ok(!(w.x0 < RIEL_PT - 1.5 && w.x1 > RIEL_PT + 1.5),
+           `${dice}, hoja ${i + 1}: el nombre «${w.t}» llega a ${Math.round(w.x1)} y el riel de ` +
+           `las barras empieza en ${Math.round(RIEL_PT)}: la barra gris se pinta encima de las letras`);
+      }
+    }
+  }
+};
+
 const sinEncimarse = (pal, dice) => {
   for (let i = 0; i < pal.length; i++) {
     for (let j = i + 1; j < pal.length; j++) {
@@ -461,9 +541,10 @@ const sinEncimarse = (pal, dice) => {
   }
 };
 {
-  const pal = palabrasDe(ruta, /recorrido/);
-  ok(pal.length > 10, `la hoja del recorrido trae ${pal.length} palabras y son muchas más`);
-  sinEncimarse(pal, "en el recorrido");
+  const pal = palabrasDe(ruta, /explica/);
+  ok(pal.length > 40, `la hoja de los Paretos trae ${pal.length} palabras y son muchas más`);
+  sinEncimarse(pal, "en los Paretos");
+  nombresEnElRiel(ruta, "en los Paretos");
 }
 
 /* 2f · NADA SE SALE DE SU HOJA — ni el diagrama ni el pie.
@@ -518,7 +599,11 @@ const sinEncimarse = (pal, dice) => {
   const vacio = { ...D, plata: 0, plataRotas: 0, plataCont: 0, aCobro: 0, sinPrecio: 0,
                   porCausa: [], unidades: 0, liquido: 0, contaminadas: 0, noAsumidas: 0,
                   pctNoAsumida: 0, devueltas: 0, pctDevueltas: 0, roturasEnFiltro: 0,
-                  hallazgos: [], recorrido: null, roturas: [] };
+                  hallazgos: [], excepcion: { n: 0, plata: 0 },
+                  paretos: [{ titulo: "Por causa", d: PA.pareto([]) },
+                            { titulo: "Por área", d: PA.pareto([]) },
+                            { titulo: "Por OPM", d: PA.pareto([]) }],
+                  roturas: [] };
   const g = IN.dibujarInformeSitio(jsPDF, vacio, { generado: new Date(), marca: MARCA });
   const r3 = new URL("./_rls-informe-v.pdf", import.meta.url).pathname;
   writeFileSync(r3, Buffer.from(g.output("arraybuffer")));
@@ -529,110 +614,122 @@ const sinEncimarse = (pal, dice) => {
 }
 
 /* =====================================================================
-   2j · EL DÍA REAL DE CRISTIAN, Y UN LIENZO QUE NO CABE
+   2j · LA LISTA QUE NO CABE, Y EL DÍA REAL DE CRISTIAN
    ---------------------------------------------------------------------
-   Su primer informe de verdad tenía UNA causa con CERO rotas y 200
-   contaminadas: la columna de la causa suma cero y una barra termina más
-   abajo del borde del lienzo. Con eso, y con el lienzo pedido más alto
-   de la cuenta —que fue lo que pasó cuando el servidor y el navegador no
-   coincidieron—, el diagrama salía pasado del pie y cortado por el borde
-   de la hoja.
+   AQUÍ SE MEDÍA EL RECORRIDO en tres lienzos imposibles, porque el Sankey
+   se pintaba a escala y se salía de la hoja. El Pareto no tiene lienzo:
+   son renglones, y lo que se sale ya no es un dibujo pasado de alto sino
+   una LISTA MÁS LARGA QUE EL PAPEL.
 
-   EL DIBUJO TIENE QUE CABER SIEMPRE, LE DEN EL LIENZO QUE LE DEN: en un
-   PDF no hay barra para desplazarse y lo que no cabe, no está. Así que
-   se prueban las dos formas —la suya y la de seis por seis, donde el
-   rótulo del último nodo SÍ pasa del borde del lienzo— en tres lienzos,
-   uno bueno y dos imposibles.
+   Así que el caso peor cambia de forma: tres Paretos llenos —ocho barras
+   cada uno, más «otros», más «sin dato»— con nombres largos de verdad.
+   Eso no cabe en una hoja y tiene que partirse por Paretos ENTEROS: uno
+   cortado por la mitad se lee como dos listas distintas, y la de abajo,
+   sin su línea del 80 %, vuelve a ser un ranking.
+
+   Y EL DÍA REAL DE CRISTIAN: su primer informe tenía una causa con CERO
+   rotas y 200 contaminadas. En un Pareto eso es una sola barra que se lo
+   lleva todo —el 100 % con una—, y ahí es donde se ven un «0 de 1» o una
+   división entre cero.
    ===================================================================== */
-const FORMAS = {
-  "un solo camino": (alto) => SK.armarSankey({
-    columnas: [
-      [{ id: "c:estibas", rotulo: "Estibas en mal estado", pie: "la asume el OL",
-         valor: 0, color: SK.COLOR_ASUMIDA }],
-      [{ id: "p:t1", rotulo: "T1", valor: 200, color: SK.COLOR_PROCESO }],
-      [{ id: "fin:vidrio", rotulo: "Baja de vidrio", pie: "rota: pierde líquido y botella",
-         valor: 0, color: SK.COLOR_VIDRIO },
-       { id: "fin:liquido", rotulo: "Solo baja de líquido", pie: "contaminada: vuelve el envase",
-         valor: 200, color: SK.COLOR_LIQUIDO }],
-    ],
-    tramos: [{ de: "c:estibas", a: "p:t1", valor: 200 },
-             { de: "p:t1", a: "fin:liquido", valor: 200 }],
-  }, 1160, alto),
-  "seis y seis": (alto) => SK.armarSankey({
-    columnas: [
-      CAUSAS.map(([id, rotulo, pie, valor, color]) => ({ id, rotulo, pie, valor, color })),
-      PROCS.map(([id, rotulo, valor, color]) => ({ id, rotulo, valor, color })),
-      [{ id: "fin:vidrio", rotulo: "Baja de vidrio", pie: "rota: pierde líquido y botella",
-         valor: 750, color: SK.COLOR_VIDRIO },
-       { id: "fin:liquido", rotulo: "Solo baja de líquido", pie: "contaminada: vuelve el envase",
-         valor: 120, color: SK.COLOR_LIQUIDO }],
-    ],
-    tramos: [
-      ...CAUSAS.map(([id], i) => ({ de: id, a: PROCS[i][0], valor: CAUSAS[i][3] })),
-      ...PROCS.map(([id], i) => ({ de: id, a: "fin:vidrio", valor: PROCS[i][2] - [50, 30, 20, 10, 5, 5][i] })),
-      ...PROCS.map(([id], i) => ({ de: id, a: "fin:liquido", valor: [50, 30, 20, 10, 5, 5][i] })),
-    ],
-  }, 1160, alto),
+const largo = (n, i) => `${n} en bahía de cargue T${i} sector norte`;
+const CASOS = {
+  "tres llenos de nombres largos": [
+    { titulo: "Por causa", d: PA.pareto([
+      ...Array.from({ length: 14 }, (_, i) => fp(largo("Causa muy larga", i), 200 - i * 12, 500)),
+      fp(null, 40, 100)]) },
+    { titulo: "Por área", d: PA.pareto(Array.from({ length: 14 },
+      (_, i) => fp(largo("Área con nombre larguísimo", i), 200 - i * 12, 500))) },
+    { titulo: "Por OPM", d: PA.pareto(Array.from({ length: 14 },
+      (_, i) => fp(largo("Operario de nombre largo", i), 200 - i * 12, null))) },
+  ],
+  "una sola que se lo lleva todo": [
+    { titulo: "Por causa", d: PA.pareto([fp("Estibas en mal estado", 200, 46700)]) },
+    { titulo: "Por área", d: PA.pareto([fp("T1", 200, 46700)]) },
+    { titulo: "Por OPM", d: PA.pareto([fp(null, 200, 46700)]) },
+  ],
+  "dos con datos y uno sin nada": [
+    { titulo: "Por causa", d: P_CAUSA },
+    { titulo: "Por área", d: PA.pareto([]) },
+    { titulo: "Por OPM", d: P_OPM },
+  ],
 };
 
-for (const [forma, hacer] of Object.entries(FORMAS)) {
-  for (const alto of [980, 1600, 2600]) {
-    const uno = hacer(alto);
-    const cual = `«${forma}» en un lienzo de ${alto}`;
-    const g = IN.dibujarInformeSitio(jsPDF,
-      { ...D, recorrido: { s: uno, total: 200, juntados: 0 } },
-      { generado: new Date("2026-09-28T16:20:00"), marca: MARCA });
-    const r4 = new URL(`./_rls-inf-${forma.replace(/ /g, "-")}-${alto}.pdf`, import.meta.url).pathname;
-    writeFileSync(r4, Buffer.from(g.output("arraybuffer")));
+for (const [cual, paretos] of Object.entries(CASOS)) {
+  const g = IN.dibujarInformeSitio(jsPDF, { ...D, paretos },
+    { generado: new Date("2026-09-28T16:20:00"), marca: MARCA });
+  const r4 = new URL(`./_rls-inf-${cual.replace(/ /g, "-")}.pdf`, import.meta.url).pathname;
+  writeFileSync(r4, Buffer.from(g.output("arraybuffer")));
 
-    /* NI UNA LETRA FUERA DE SU HOJA, EN NINGUNA HOJA. */
-    const bb = execFileSync("pdftotext", ["-bbox", r4, "-"], { encoding: "utf8" });
-    const hj = bb.split("<page ").slice(1);
-    hj.forEach((p, i) => {
-      const m = p.match(/^width="([\d.]+)" height="([\d.]+)"/);
-      const PW = +m[1], PH = +m[2];
-      for (const w of p.matchAll(
-        /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)) {
-        const x0 = +w[1], y0 = +w[2], x1 = +w[3], y1 = +w[4];
-        ok(x0 >= -1 && x1 <= PW + 1 && y0 >= -1 && y1 <= PH + 1,
-           `${cual}: «${w[5]}» queda en ${Math.round(x0)},${Math.round(y0)} y la hoja ${i + 1} ` +
-           `mide ${Math.round(PW)}×${Math.round(PH)}: se sale del papel`);
-      }
-    });
+  const txt4 = execFileSync("pdftotext", ["-layout", r4, "-"], { encoding: "utf8" });
+  ok(!/NaN|undefined|Infinity/.test(txt4), `${cual}: salió basura en el papel`);
+  /* NI UN «$ 0» DONDE FALTA EL PRECIO, tampoco aquí. */
+  ok(!/\$\s*0(?![\d.,])/.test(txt4),
+     `${cual}: salió un «$ 0» donde falta el precio, y eso se lee como «no se le cobra nada»`);
+  /* LA LÍNEA DEL 80 % EN LOS TRES, aun con una sola barra. */
+  for (const { titulo: t, d: q } of paretos) {
+    if (q.barras.length === 0) continue;
+    ok(new RegExp(`${q.hasta80} de ${q.barras.length} explican? el 80 %`).test(txt4),
+       `${cual}: el Pareto «${t}» salió sin su línea del 80 %`);
+    ok(q.hasta80 >= 1, `${cual}: «${t}» dice que hacen falta 0 barras, y con datos siempre es 1`);
+  }
 
-    /* NI UN RÓTULO ENCIMA DE OTRO. Encoger el dibujo sin encoger las
-       letras hace que los tres renglones de cada barra se monten: el
-       diagrama cabe y no se puede leer, que es el mismo problema con
-       otra cara. */
-    sinEncimarse(palabrasDe(r4, /recorrido/), cual);
+  /* NI UNA LETRA FUERA DE SU HOJA, EN NINGUNA HOJA, Y TODAS VERTICALES. */
+  const bb = execFileSync("pdftotext", ["-bbox", r4, "-"], { encoding: "utf8" });
+  const hj = bb.split("<page ").slice(1);
+  hj.forEach((pg, i) => {
+    const m = pg.match(/^width="([\d.]+)" height="([\d.]+)"/);
+    const PW = +m[1], PH = +m[2];
+    ok(PW < PH, `${cual}: la hoja ${i + 1} quedó acostada`);
+    for (const w of pg.matchAll(
+      /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)) {
+      const x0 = +w[1], y0 = +w[2], x1 = +w[3], y1 = +w[4];
+      ok(x0 >= -1 && x1 <= PW + 1 && y0 >= -1 && y1 <= PH + 1,
+         `${cual}: «${w[5]}» queda en ${Math.round(x0)},${Math.round(y0)} y la hoja ${i + 1} ` +
+         `mide ${Math.round(PW)}×${Math.round(PH)}: se sale del papel`);
+    }
+  });
 
-    /* Y SE MIRA EL PAPEL, NO SOLO EL TEXTO. `pdftotext` no ve las barras
-       ni las cintas: con la escala fija, las letras seguían todas dentro
-       de la hoja y lo que se salía por abajo eran los rectángulos —que
-       es exactamente lo que se vio en la pantalla—. Se pinta la hoja y
-       se mira si queda tinta por debajo del pie. */
-    const iR = hj.findIndex((p) => /recorrido/.test(p));
+  /* NI UN RENGLÓN ENCIMA DE OTRO, EN TODAS las hojas de Paretos —no solo
+     en la primera: si la lista se parte, la de abajo es la que se monta
+     con el pie. */
+  const conPareto = hj.map((_, i) => i).filter((i) => /explican?\b/.test(hj[i]));
+  ok(conPareto.length > 0, `${cual}: no salió ninguna hoja de Paretos`);
+  for (const i of conPareto) {
+    const pal = [...hj[i].matchAll(
+      /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
+      .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] }));
+    sinEncimarse(pal, `${cual}, hoja ${i + 1}`);
+  }
+  /* Y AQUÍ ES DONDE IMPORTA: estos son los nombres largos de verdad. */
+  nombresEnElRiel(r4, cual);
+
+  /* Y SE MIRA EL PAPEL, NO SOLO EL TEXTO. `pdftotext` no ve los rieles ni
+     las barras: con la lista larga las letras pueden quedar dentro y lo
+     que se sale por abajo son los rectángulos —que es justo lo que pasó
+     con el recorrido—. Se pinta cada hoja y se mira si hay tinta debajo
+     del pie. */
+  for (const i of conPareto) {
     const ppm = execFileSync("pdftoppm",
-      ["-r", "50", "-f", String(iR + 1), "-l", String(iR + 1), "-singlefile", r4],
+      ["-r", "50", "-f", String(i + 1), "-l", String(i + 1), "-singlefile", r4],
       { maxBuffer: 1 << 28 });
-    /* P6 <ancho> <alto> 255, y detrás los píxeles en crudo. */
     const cab = ppm.subarray(0, 64).toString("latin1").match(/^P6\s+(\d+)\s+(\d+)\s+255\s/);
-    const AN = +cab[1], AL = +cab[2], ini = cab[0].length;
+    const AN = +cab[1], AL = +cab[2], base = cab[0].length;
     /* Desde 290 mm para abajo —debajo del renglón del pie— no puede
        quedar nada pintado. 50 puntos por pulgada son 1,9685 por mm. */
     const desde = Math.round(290 * 50 / 25.4);
     let sucio = 0, dx = -1, dy = -1;
     for (let py = desde; py < AL; py++) {
       for (let px = 0; px < AN; px++) {
-        const o = ini + (py * AN + px) * 3;
+        const o = base + (py * AN + px) * 3;
         if (ppm[o] < 245 || ppm[o + 1] < 245 || ppm[o + 2] < 245) {
           sucio++; if (dx < 0) { dx = px; dy = py }
         }
       }
     }
     ok(sucio === 0,
-       `${cual}: quedan ${sucio} puntos pintados por debajo del pie (el primero en ${dx},${dy} ` +
-       `de ${AN}×${AL}). El dibujo se sale de la hoja.`);
+       `${cual}: en la hoja ${i + 1} quedan ${sucio} puntos pintados por debajo del pie (el ` +
+       `primero en ${dx},${dy} de ${AN}×${AL}). La lista se sale de la hoja.`);
   }
 }
 
@@ -640,8 +737,9 @@ if (fallas.length) { console.log(""); fallas.forEach((f) => console.log("✗ " +
 console.log("✓ El informe de en sitio: las conclusiones salen de una función pura y no del papel " +
             "—la causa más CARA no es la que más rompe, y eso lo dice—, no se concluye nada por " +
             "debajo de 30 unidades, lo que falta en el maestro va primero porque deja la cifra " +
-            "corta, un precio que falta se imprime como raya y nunca como $ 0, el recorrido cabe " +
-            "entero en una hoja A4 VERTICAL —todas lo son: un PDF con una hoja girada en la " +
-            "mitad no se lee— con sus tres rótulos y sus dos salidas, nada se escribe encima de " +
-            "otra cosa ni se sale del papel en ninguna hoja, el dibujo se ajusta al sitio que le " +
-            "queda —le den el lienzo que le den— y el filtro va en el pie de todas.");
+            "corta, un precio que falta se imprime como raya y nunca como $ 0, los tres Paretos " +
+            "van en la misma hoja para poder compararlos y cada uno dice con todas sus letras " +
+            "CUÁNTAS hacen falta para el 80 % —la cifra que se viene a buscar, sacada de la " +
+            "misma función que usa la pantalla—, todo en hojas A4 VERTICALES, sin un renglón " +
+            "encima de otro ni una raya de tinta por debajo del pie por larga que sea la lista, " +
+            "y el filtro va en el pie de todas.");

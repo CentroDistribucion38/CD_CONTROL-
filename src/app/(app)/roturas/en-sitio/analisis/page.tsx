@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { roturas as leerRoturas } from "@/modulos/roturas/datos";
 import { Filtros } from "../../Filtros";
-import {
-  armarSankey, masGrandes, COLOR_ASUMIDA, COLOR_NO_ASUMIDA,
-  COLOR_PROCESO, COLOR_PROCESO_2, COLOR_VIDRIO, COLOR_LIQUIDO,
-} from "@/modulos/roturas/sankey";
 import { medirCobro } from "@/modulos/roturas/cobro";
 import { hallazgosSitio } from "@/modulos/roturas/hallazgos-sitio";
+import { pareto } from "@/modulos/roturas/pareto";
 import { pesos } from "@/modulos/roturas/formato";
-import { Recorrido } from "./Recorrido";
+import { Pareto } from "./Pareto";
 import { DeDondeSale } from "./Cobro";
 import { BotonInformeSitio } from "./BotonInformeSitio";
 import type { DatosSitio } from "./informe";
@@ -118,75 +115,18 @@ export default async function AnalisisEnSitioPage(
   const causasNoAsumidas = new Set(cuentan.filter((r) => r.grupo === "no_asumida")
     .map((r) => r.causa_nombre));
 
-  /* =====================================================================
-     EL RECORRIDO DE LAS UNIDADES
-     ---------------------------------------------------------------------
-     «De qué causa salió · por dónde pasó · en qué termina.»
+  /* AQUÍ VIVÍA EL RECORRIDO —el diagrama de cintas de causa a proceso a
+     baja— y se fue entero, con su armado de columnas y tramos. Estaba
+     bien hecho y contestaba una pregunta de una sola pasada; la que se
+     hace todos los meses la contesta el Pareto de abajo. Dejar el
+     cálculo aquí sin nadie que lo pinte es lo que convierte una pantalla
+     en un desván: se sigue manteniendo y ya no se ve.
 
-     TRES COLUMNAS Y DOS TRAMOS. Las dos barras de antes contestaban las
-     dos primeras por separado, y la pregunta que nadie podía contestar
-     era la que las une: de las tres mil de estibas malas, ¿cuántas
-     pasaron por T1? Eso no se ve en dos rankings puestos uno debajo
-     del otro, por mucho que cada uno esté bien.
-
-     LA TERCERA COLUMNA ES EN QUÉ TERMINA, y hace falta porque las dos
-     bajas NO son la misma: la rota pierde el líquido Y la botella; la
-     contaminada pierde solo el líquido y el envase vuelve a la línea.
-     Puestas juntas se daría de baja un envase que sigue trabajando.
-     ===================================================================== */
-  const causaCol = masGrandes(
-    [...new Map(cuentan.map((r) => [r.causa_nombre, r])).values()].map((r) => ({
-      id: "c:" + r.causa_nombre,
-      rotulo: r.causa_nombre,
-      pie: r.grupo === "no_asumida" ? "no asumida · exige foto" : "la asume el OL",
-      valor: cuentan.filter((x) => x.causa_nombre === r.causa_nombre)
-        .reduce((s, x) => s + x.unidades_vidrio, 0),
-      color: r.grupo === "no_asumida" ? COLOR_NO_ASUMIDA : COLOR_ASUMIDA,
-    })), 6);
-
-  const procesoCol = masGrandes(
-    [...new Set(cuentan.map((r) => r.proceso_nombre))].map((nombre) => ({
-      id: "p:" + nombre,
-      rotulo: nombre,
-      valor: cuentan.filter((x) => x.proceso_nombre === nombre)
-        .reduce((s, x) => s + x.unidades_vidrio + (x.contaminadas ?? 0), 0),
-      color: COLOR_PROCESO,
-    })), 6);
-  /* EL QUE MÁS PESA VA EN OCRE Y LOS DEMÁS EN GRIS. El proceso dice
-     DÓNDE pasó, no de quién fue: si compitiera de color con la causa,
-     el ojo leería dos alarmas donde solo hay una. */
-  procesoCol.filas.forEach((f, i) => { if (i > 0) f.color = COLOR_PROCESO_2 });
-
-  /* EL VIDRIO Y EL LÍQUIDO SE CUENTAN POR SEPARADO y el diagrama mide
-     el VIDRIO, que es lo que dice el KPI de arriba. La baja de líquido
-     va en su cifra aparte: meterla como tercera salida haría que el
-     total del dibujo no cuadrara con el titular. */
-  /* ---------------------------------------------------------------
-     LAS DOS SALIDAS, Y POR QUÉ NO SUMAN LO QUE LA MAQUETA DICE
-
-     La maqueta parte 4.230 en «baja de vidrio 3.589» + «baja de
-     líquido 641». ESO NO SE PUEDE SUMAR: una unidad ROTA pierde el
-     líquido Y la botella, así que estaría en las dos columnas y el
-     dibujo la contaría dos veces.
-
-     Lo que sí son dos montones que no se pisan:
-       BAJA DE VIDRIO       las rotas. Pierden botella (y líquido).
-       SOLO BAJA DE LÍQUIDO las contaminadas. El envase vuelve a la
-                            línea, así que no son baja de vidrio.
-
-     Así el total del dibujo es rotas + contaminadas, cada unidad está
-     en un solo sitio, y las dos cifras del pie —baja de líquido y de
-     esas, contaminadas— siguen siendo las de siempre.
-     --------------------------------------------------------------- */
-  const rotas = cuentan.reduce((s, r) => s + Math.max(0, r.unidades_vidrio), 0);
-  const soloLiquido = contaminadas;
-  const recorrido = rotas + soloLiquido;
+     `modulos/roturas/sankey.ts` se queda con su arnés — no cuesta nada y
+     el día que haga falta un recorrido está probado. */
 
   /* ---------------------------------------------------------------
      LA PLATA — CUÁNTO SE LE ESTÁ COBRANDO AL OL
-
-     «que la persona sepa, de acuerdo a lo que se ha ido a cobro,
-      cuánto es.»
 
      SE SUMA SOLO LO QUE DE VERDAD ESTÁ A COBRO —etapa 'cobro'—, que no
      es lo mismo que «lo que tiene visto bueno»: una rotura objetada y
@@ -196,80 +136,55 @@ export default async function AnalisisEnSitioPage(
 
      Y LAS QUE NO SE PUEDEN CALCULAR SE CUENTAN APARTE. Si a un material
      le falta el precio en el maestro, su cobro viene nulo: sumarlo como
-     cero daría un total corto con cara de exacto. Se dice cuántas son,
-     que es lo que manda a arreglar el maestro.
+     cero daría un total corto con cara de exacto.
      --------------------------------------------------------------- */
+  /* LA EXCEPCIÓN: LO QUE NO SE LE VA A COBRAR AL OL.
+     Son las que ABI resolvió a favor de Easy —etapa `no_cuenta`—. No es
+     lo mismo que «devueltas por ABI» por un error de digitación: esto es
+     una rotura que existió y que se decidió no cobrar, y es la resta que
+     explica por qué el total es menor de lo que la gente recuerda haber
+     reportado. */
+  const noSeCobran = vivas.filter((r) => r.etapa === "no_cuenta");
+  const excepcion = {
+    n: noSeCobran.length,
+    plata: noSeCobran.reduce((s, r) => s + (Number(r.cobro_total) || 0), 0),
+  };
+
   const cobro = medirCobro(vivas);
   const { total: plata, rotas: plataRotas, contaminadas: plataCont,
           sinPrecio, porCausa: plataPorCausa } = cobro;
 
-  const vistos = new Set([...causaCol.filas, ...procesoCol.filas].map((f) => f.id));
-  const idCausa = (n: string) => (vistos.has("c:" + n) ? "c:" + n : causaCol.filas.at(-1)!.id);
-  const idProceso = (n: string) => (vistos.has("p:" + n) ? "p:" + n : procesoCol.filas.at(-1)!.id);
+  /* =====================================================================
+     LOS TRES PARETOS: CAUSA, ÁREA Y OPM
+     ---------------------------------------------------------------------
+     «El gráfico que sea un pareto de causa, área y OPM, que estén las 3.»
 
-  const sumar = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v);
-  const t1 = new Map<string, number>();
-  const t2 = new Map<string, number>();
-  for (const r of cuentan) {
-    const u = Math.max(0, r.unidades_vidrio);
-    if (u <= 0) continue;
-    sumar(t1, `${idCausa(r.causa_nombre)}|${idProceso(r.proceso_nombre)}`, u);
-    sumar(t2, `${idProceso(r.proceso_nombre)}|fin:vidrio`, u);
-  }
-  for (const r of cuentan) {
-    const c = r.contaminadas ?? 0;
-    if (c <= 0) continue;
-    sumar(t1, `${idCausa(r.causa_nombre)}|${idProceso(r.proceso_nombre)}`, c);
-    sumar(t2, `${idProceso(r.proceso_nombre)}|fin:liquido`, c);
-  }
+     LAS TRES CONTESTAN PREGUNTAS DISTINTAS y por eso van las tres: la
+     causa dice QUÉ pasó, el área DÓNDE, y el OPM QUIÉN lo reportó. Una
+     sola de ellas manda a arreglar lo que no es —una causa que se
+     concentra en un área es un problema de ese sitio, y la misma causa
+     repartida en toda la bodega es un problema del proceso—.
 
-  const entradaReco = {
-    columnas: [
-      causaCol.filas,
-      procesoCol.filas,
-      [{ id: "fin:vidrio", rotulo: "Baja de vidrio",
-         pie: "rota: pierde líquido y botella", valor: rotas, color: COLOR_VIDRIO },
-       ...(soloLiquido > 0 ? [{ id: "fin:liquido", rotulo: "Solo baja de líquido",
-         pie: "contaminada: vuelve el envase", valor: soloLiquido, color: COLOR_LIQUIDO }] : [])],
-    ],
-    tramos: [...t1, ...t2].map(([k, valor]) => {
-      const [de, a] = k.split("|");
-      return { de, a, valor };
-    }),
-  };
-  const filasReco = Math.max(causaCol.filas.length, procesoCol.filas.length,
-                             soloLiquido > 0 ? 2 : 1);
-  const reco = armarSankey(entradaReco, 1160, Math.max(300, Math.min(660, 90 + filasReco * 104)));
+     SE MIDEN EN UNIDADES MOVIDAS —rotas más contaminadas— y la plata va
+     al lado. Ordenar por plata sería ordenar por un dato que puede estar
+     incompleto: a un material le puede faltar el precio en el maestro, y
+     entonces su causa valdría cero y saldría la última siendo la
+     primera. Ver la nota larga de `modulos/roturas/pareto`.
+     ===================================================================== */
+  const filasPareto = (nombre: (r: typeof cuentan[number]) => string | null | undefined) =>
+    cuentan.map((r) => ({
+      nombre: nombre(r),
+      valor: Math.max(0, r.unidades_vidrio) + (r.contaminadas ?? 0),
+      plata: r.cobro_total == null ? null : Number(r.cobro_total),
+    }));
 
-  /* EL MISMO DIBUJO, ARMADO OTRA VEZ PARA EL PAPEL — y no es repetirse.
-     `armarSankey` reparte el alto disponible entre los nodos, así que el
-     alto del lienzo NO es un detalle de presentación: cambia la escala y
-     con ella el grosor de cada cinta. El del papel es una hoja A4
-     acostada, y ahí lo que cabe son 616 px de alto una vez llevados a
-     milímetros. Con el lienzo de la pantalla —hasta 660— el dibujo salía
-     por debajo del pie de página, y un diagrama cortado no dice nada.
-
-     Y EL DEL PAPEL ES SIEMPRE EL ALTO ENTERO, no uno que crece con el
-     número de nodos como el de la pantalla: la hoja mide lo que mide
-     salgan dos causas o seis, y con el alto corto el diagrama quedaba
-     arriba con media hoja en blanco debajo. El reparto sigue siendo
-     proporcional —lo único que cambia es que las cintas salen más
-     gordas—, así que no dice nada distinto.
-
-     980 SON LOS QUE CABEN EN UNA HOJA VERTICAL: el informe estira el eje
-     de arriba abajo hasta que el hueco entre nodos vuelva a medir lo que
-     mide un rótulo (ver la nota de las dos escalas en informe.ts), y con
-     esa escala 980 px son 227 mm — lo que queda de hoja debajo del
-     título. Con más, el último rótulo sale por debajo del pie.
-
-     LAS DOS SALEN DE LA MISMA `entradaReco`, que es lo que garantiza que
-     el papel y la pantalla enseñen el mismo recorrido. */
-  const recoPapel = armarSankey(entradaReco, 1160, 980);
-
-  /* LA LECTURA DE ABAJO: una sola, la que más pesa. Un diagrama sin
-     una línea que diga qué mirar es un dibujo bonito, y a los treinta
-     segundos la gente se va habiendo visto cintas. */
-  const causaTop = causaCol.filas[0];
+  const paretoCausa = pareto(filasPareto((r) => r.causa_nombre));
+  const paretoArea = pareto(filasPareto((r) => r.area_nombre));
+  /* EL OPM SOLO CUANDO LA ROTURA LA REPORTÓ UNO. Las que alguien se
+     encontró sin dueño no tienen operario, y meterlas como «sin dato»
+     las contaría como un registro mal hecho cuando es lo normal. */
+  const paretoOpm = pareto(filasPareto((r) =>
+    r.origen === "encontrada" ? "Encontrada sin dueño" : r.opm_nombre));
 
   /* =====================================================================
      LO QUE LLEVA EL PDF
@@ -310,9 +225,15 @@ export default async function AnalisisEnSitioPage(
     noAsumidas, pctNoAsumida, devueltas, pctDevueltas,
     roturasEnFiltro: vivas.length,
     hallazgos: hallazgosSitio(vivas, cuentan, cobro),
-    recorrido: recoPapel.nodos.length
-      ? { s: recoPapel, total: recorrido, juntados: causaCol.juntados + procesoCol.juntados }
-      : null,
+    excepcion,
+    /* LOS MISMOS TRES PARETOS QUE LA PANTALLA, de la misma función. El
+       papel y la pantalla no pueden decir cosas distintas: quien discute
+       el cobro tiene delante el papel. */
+    paretos: [
+      { titulo: "Por causa · qué pasó", d: paretoCausa },
+      { titulo: "Por área · dónde pasó", d: paretoArea },
+      { titulo: "Por OPM · quién la reportó", d: paretoOpm },
+    ],
     /* LO MÁS NUEVO ARRIBA: quien abre el informe el lunes busca lo del
        fin de semana, no lo del primero de mes. */
     roturas: [...vivas]
@@ -385,29 +306,57 @@ export default async function AnalisisEnSitioPage(
           { id: "no_asumida", nombre: "No asumida" }] },
       ]} />
 
-      <section className="cifras">
-        <div className={"cifra" + (pctNoAsumida > 25 ? " mal" : "")}>
-          <div className="rot">NO ASUMIDAS</div>
-          <div className="n">{pctNoAsumida}%</div>
-          <div className="u">{noAsumidas} unidades que se dice que no fueron del OL</div>
-        </div>
-        <div className={"cifra" + (pctDevueltas > 15 ? " mal" : "")}>
-          <div className="rot">DEVUELTAS POR ABI</div>
-          <div className="n">{pctDevueltas}%</div>
-          <div className="u">{devueltas} que ABI marcó como que no cuentan</div>
-        </div>
-        <div className="cifra ojo">
-          <div className="rot">BAJA DE LÍQUIDO</div>
-          <div className="n">{liquido}</div>
+      {/* ============ LAS CINCO CIFRAS DE ARRIBA ============
+          «Total roturas (# de eventos), total contaminadas, total rotas,
+           excepción (cuántas se les dejarán de cobrar) y cuánto le
+           estamos cobrando.»
+
+          EL ORDEN NO ES DECORATIVO: primero cuántas veces pasó, después
+          qué salió de ahí partido en las dos formas que no cuestan lo
+          mismo, después lo que NO se va a cobrar —que es lo que explica
+          por qué el total es menor de lo que la gente recuerda haber
+          reportado— y al final la plata, que es la conclusión. */}
+      <section className="cifras cinco">
+        <div className="cifra">
+          <div className="rot">TOTAL ROTURAS</div>
+          <div className="n">{vivas.length}</div>
           <div className="u">
-            unidades de producto terminado: las rotas más las contaminadas
+            eventos registrados en el filtro{cuentan.length !== vivas.length
+              && <> · {cuentan.length} con visto bueno</>}
           </div>
         </div>
         <div className="cifra">
-          <div className="rot">DE ESAS, CONTAMINADAS</div>
+          <div className="rot">TOTAL CONTAMINADAS</div>
           <div className="n">{contaminadas}</div>
           <div className="u">
-            pierden el líquido pero devuelven la botella: no cuentan como vidrio
+            unidades que salieron contaminadas: pierden el líquido y el envase vuelve a la línea
+          </div>
+        </div>
+        <div className="cifra">
+          <div className="rot">TOTAL ROTAS</div>
+          <div className="n">{total}</div>
+          <div className="u">
+            unidades que salieron rotas: pierden el líquido y la botella
+          </div>
+        </div>
+        {/* LA EXCEPCIÓN ES LO QUE NO SE COBRA, y por eso va antes de la
+            plata: es la resta que explica el total de al lado. */}
+        <div className={"cifra" + (excepcion.n > 0 ? " aparte" : "")}>
+          <div className="rot">EXCEPCIÓN</div>
+          <div className="n">{excepcion.n}</div>
+          <div className="u">
+            {excepcion.n === 0
+              ? "ninguna se deja de cobrar en este filtro"
+              : <>se dejan de cobrar{excepcion.plata > 0
+                  && <> · {pesos(excepcion.plata)} que no se reclaman</>}</>}
+          </div>
+        </div>
+        <div className="cifra ojo">
+          <div className="rot">SE LE COBRA AL OL</div>
+          <div className="n">{pesos(plata) ?? "—"}</div>
+          <div className="u">
+            {cobro.aCobro} rotura{cobro.aCobro === 1 ? "" : "s"} a cobro
+            {sinPrecio > 0 && <> · <b>{sinPrecio} sin precio</b></>}
           </div>
         </div>
       </section>
@@ -425,48 +374,48 @@ export default async function AnalisisEnSitioPage(
       )}
 
       {/* =============================================================
-          EL RECORRIDO. Reemplaza las dos barras —«por causa» y «por
-          proceso»— que estaban una debajo de otra. Cada una estaba
-          bien y ninguna contestaba la pregunta que las une: de las tres
-          mil de estibas malas, ¿cuántas pasaron por T1?
+          LOS TRES PARETOS
+          -------------------------------------------------------------
+          AQUÍ ESTABA EL RECORRIDO —el diagrama de cintas— y se va. Era
+          bonito y contestaba «de qué causa salió y por dónde pasó», que
+          es una pregunta de una sola pasada. Un Pareto contesta la que
+          se hace todos los meses: CUÁNTAS hay que atacar para tapar la
+          mayor parte. Esa respuesta es un número, y con ella se decide.
+
+          VAN LAS TRES DIMENSIONES, no una con selector: la gracia está
+          en compararlas. Una causa concentrada en un área es un problema
+          de ese sitio; la misma causa repartida por toda la bodega es
+          del proceso. Con un selector hay que recordar la anterior de
+          memoria, y nadie lo hace.
           ============================================================= */}
-      <section className="caja rq-flujo">
+      <section className="caja rq-paretos">
         <div className="rq-h">
-          <b>El recorrido de las {recorrido} unidades</b>
-          <span>el grosor de cada cinta son unidades</span>
+          <b>Qué poco explica lo mucho</b>
+          <span>unidades movidas: rotas más contaminadas</span>
         </div>
-        <div className="rq-cols">
-          <div>DE QUÉ CAUSA SALIÓ</div>
-          <div>POR DÓNDE PASÓ</div>
-          <div>EN QUÉ TERMINA</div>
-        </div>
-
-        <Recorrido s={reco} total={recorrido} />
-
-        {causaTop && pctNoAsumida > 0 && (
-          <div className="rq-lectura">
-            <div className="n">{pctNoAsumida}%</div>
-            <div>
-              <b>
-                {pctNoAsumida >= 30 ? "Casi un tercio" : `Un ${pctNoAsumida}%`} de lo roto se
-                dice que no fue del OL
-              </b>
-              <span>
-                {noAsumidas} unidades. Todas esas exigen foto, y todas van a discutirse con
-                alguien: son las que hay que tener bien soportadas.
-              </span>
-            </div>
+        {/* QUÉ ES LA ÚLTIMA COLUMNA, UNA VEZ Y PARA LOS TRES. Es la que
+            convierte esto en un Pareto y no en un ranking, así que tiene
+            que estar escrito — pero repetido debajo de cada uno deja de
+            leerse, y arrastra consigo lo que sí es particular de cada
+            Pareto. */}
+        <p className="rq-paretos-lee">
+          La última columna de cada lista es el <b>acumulado</b>: dónde pasa del 80 % es hasta
+          dónde hay que atacar para tapar la mayor parte.
+        </p>
+        <div className="rq-paretos-tres">
+          <div>
+            <p className="rot">POR CAUSA · QUÉ PASÓ</p>
+            <Pareto d={paretoCausa} medida="unidades" />
           </div>
-        )}
-
-        {(causaCol.juntados > 0 || procesoCol.juntados > 0) && (
-          /* SE DICE QUE SE JUNTARON, y cuántas. Un «otros» mudo hace
-             creer que hay una causa que se llama así. */
-          <p className="rq-mas">
-            Las {causaCol.juntados + procesoCol.juntados} más chicas están sumadas en «otros»:
-            catorce cintas de dos píxeles se ven llenas y no dicen nada. El total no cambia.
-          </p>
-        )}
+          <div>
+            <p className="rot">POR ÁREA · DÓNDE PASÓ</p>
+            <Pareto d={paretoArea} medida="unidades" />
+          </div>
+          <div>
+            <p className="rot">POR OPM · QUIÉN LA REPORTÓ</p>
+            <Pareto d={paretoOpm} medida="unidades" />
+          </div>
+        </div>
       </section>
 
       <div className="aviso">

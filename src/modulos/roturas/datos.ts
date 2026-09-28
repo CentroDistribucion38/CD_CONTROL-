@@ -91,6 +91,14 @@ export type Rotura = {
   /* Lo trae la vista desde siempre; faltaba en el tipo y nadie lo
      había pedido hasta que el tablero quiso enseñarlo. */
   motivo_anulacion?: string | null;
+  /* ---- DE DÓNDE SALIÓ LA ROTURA ----
+     `opm` la reportó un operario con su PIN; `encontrada`, alguien la
+     encontró sin dueño. Opcionales con `?` porque las trae
+     `2026-09-roturas-maestro-unico-y-opm.sql`: sin correr, la vista no
+     las devuelve y las pantallas tienen que seguir pintándose. */
+  origen?: "opm" | "encontrada" | null;
+  /** El nombre del operario OPM, cuando lo hay. */
+  opm_nombre?: string | null;
   le_falta_foto: boolean;
   minutos: number;
 };

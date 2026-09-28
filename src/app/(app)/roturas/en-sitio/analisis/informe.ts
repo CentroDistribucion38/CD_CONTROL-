@@ -50,7 +50,7 @@
  */
 import type { jsPDF as JsPDF } from "jspdf";
 import { PALETA_MARCA, type Marca, type Paleta } from "@/modulos/rotlinea/hoja";
-import type { Sankey } from "@/modulos/roturas/sankey";
+import type { Pareto } from "@/modulos/roturas/pareto";
 import type { Hallazgo } from "@/modulos/roturas/hallazgos-sitio";
 
 export type FilaSitio = {
@@ -96,8 +96,10 @@ export type DatosSitio = {
 
   hallazgos: Hallazgo[];
 
-  /** La geometría del recorrido, ya armada para el tamaño del papel. */
-  recorrido: { s: Sankey; total: number; juntados: number } | null;
+  /** Lo que NO se le va a cobrar al OL, y cuánto. */
+  excepcion: { n: number; plata: number };
+  /** Los tres Paretos, los mismos que pinta la pantalla. */
+  paretos: { titulo: string; d: Pareto }[];
 
   roturas: FilaSitio[];
 };
@@ -454,17 +456,25 @@ export function dibujarInformeSitio(
   /* ---------------- LAS CUATRO CIFRAS DE UNIDADES ----------------
      La plata es la respuesta; estas cuatro son de qué está hecha. */
   cabe(30);
-  titulo("Y en unidades", "lo que ya tiene visto bueno");
+  titulo("Y en unidades", "lo que pasó, y lo que no se cobra");
   {
+    /* LAS MISMAS CUATRO QUE LA PANTALLA, en el mismo orden: cuántas
+       veces pasó, qué salió partido en las dos formas que no cuestan lo
+       mismo, y lo que NO se va a cobrar —que es la resta que explica por
+       qué el total de arriba es menor de lo que la gente recuerda haber
+       reportado—. La quinta, la plata, ya está en la banda de arriba. */
     const cif: [string, string, string, boolean][] = [
-      ["No asumidas", d.pctNoAsumida + " %",
-       `${nf.format(d.noAsumidas)} unidades que se dice que no fueron del OL`, d.pctNoAsumida > 25],
-      ["Devueltas por ABI", d.pctDevueltas + " %",
-       `${nf.format(d.devueltas)} que ABI marcó como que no cuentan`, d.pctDevueltas > 15],
-      ["Baja de líquido", nf.format(d.liquido),
-       "unidades de producto terminado: las rotas más las contaminadas", false],
-      ["De esas, contaminadas", nf.format(d.contaminadas),
-       "pierden el líquido pero devuelven la botella: no cuentan como vidrio", false],
+      ["Total roturas", nf.format(d.roturasEnFiltro),
+       "eventos registrados en el filtro", false],
+      ["Total contaminadas", nf.format(d.contaminadas),
+       "unidades: pierden el líquido y el envase vuelve a la línea", false],
+      ["Total rotas", nf.format(d.unidades),
+       "unidades: pierden el líquido y la botella", false],
+      ["Excepción", nf.format(d.excepcion.n),
+       d.excepcion.n === 0
+         ? "ninguna se deja de cobrar en este filtro"
+         : `se dejan de cobrar${d.excepcion.plata > 0 ? " · " + money(d.excepcion.plata) + " que no se reclaman" : ""}`,
+       d.excepcion.n > 0],
     ];
     const kw = (ANCHO - 9) / 4;
     cif.forEach(([r, n, p, mal], i) => {
@@ -482,146 +492,121 @@ export function dibujarInformeSitio(
   }
 
   /* =====================================================================
-     EL RECORRIDO — SU PROPIA HOJA, VERTICAL COMO TODAS
+     LOS TRES PARETOS — QUÉ POCO EXPLICA LO MUCHO
      ---------------------------------------------------------------------
-     DOS ESCALAS, UNA PARA CADA EJE, Y ES LO QUE HACE QUE QUEPA.
+     AQUÍ IBA EL RECORRIDO, en su hoja acostada primero y vertical
+     después. Se fue con la pantalla: contestaba «de qué causa salió y
+     por dónde pasó», que es una pregunta de una sola pasada. La que se
+     hace todos los meses —CUÁNTAS hay que atacar para tapar la mayor
+     parte— la contesta un Pareto, y la contesta con un número.
 
-     El diagrama nace de un lienzo pensado para una pantalla ancha: 1160
-     de ancho, y entre nodo y nodo un hueco fijo de 64 que NO es aire
-     —es el sitio donde van el nombre, la cifra y el pie de cada barra—.
-     Llevado a la hoja con una sola escala, ese hueco queda en 10 mm y
-     las tres líneas de texto se montan una encima de otra; subir la
-     escala para que quepan el texto saca el dibujo por los lados.
-
-     Así que el ancho se comprime a los 182 mm de la hoja y el alto se
-     estira hasta que el hueco vuelva a medir los 14,8 mm que necesita el
-     rótulo. Lo único que cambia es lo empinada que se ve cada cinta: los
-     altos de los nodos y los grosores de las cintas se multiplican TODOS
-     por la misma `ky`, así que siguen siendo proporcionales a sus
-     unidades, que es lo único que el dibujo promete.
-
-     La otra salida era dejar esta hoja acostada, y se probó: en el visor
-     se va pasando de página y en la mitad aparece una girada. No se lee.
+     LOS TRES EN LA MISMA HOJA y no uno por hoja: la gracia está en
+     compararlos. Una causa concentrada en un área es un problema de ese
+     sitio; la misma causa repartida por toda la bodega es del proceso.
+     Con uno por página hay que recordar el anterior de memoria.
      ===================================================================== */
-  if (d.recorrido && d.recorrido.s.nodos.length > 0) {
-    const s = d.recorrido.s;
+  if (d.paretos.some((p) => p.d.barras.length > 0)) {
     hojaNueva();
-
     fuente("bold", 13); tinta();
-    doc.text(`El recorrido de las ${nf.format(d.recorrido.total)} unidades`, M, y + 4);
+    doc.text("Qué poco explica lo mucho", M, y + 4);
     fuente("normal", 8); gris();
-    doc.text("el grosor de cada cinta son unidades", W - M, y + 4, { align: "right" });
-    y += 9;
+    doc.text("unidades movidas: rotas más contaminadas", W - M, y + 4, { align: "right" });
+    y += 7;
+    /* QUÉ ES LA ÚLTIMA COLUMNA, UNA VEZ Y PARA LOS TRES. Es la que hace
+       que esto sea un Pareto y no un ranking, así que va escrito — pero
+       repetida debajo de cada uno la frase deja de leerse, y arrastra
+       consigo lo que sí es particular de cada Pareto. */
+    fuente("normal", 7.5); doc.setTextColor(140, 150, 162);
+    doc.text("La última columna de cada lista es el acumulado: donde pasa del 80 % es hasta " +
+             "dónde hay que atacar.", M, y + 3);
+    y += 8;
 
-    /* LOS TRES RÓTULOS DE COLUMNA. Sin ellos el dibujo es bonito y no se
-       sabe qué se está mirando. */
-    fuente("bold", 6.5); gris();
-    doc.text("DE QUÉ CAUSA SALIÓ", M, y);
-    doc.text("POR DÓNDE PASÓ", M + ANCHO / 2, y, { align: "center" });
-    doc.text("EN QUÉ TERMINA", W - M, y, { align: "right" });
-    y += 4;
+    for (const { titulo: tit, d: p } of d.paretos) {
+      /* Cada Pareto entero o en la hoja siguiente: partido por la mitad
+         se lee como dos listas distintas, y la de abajo —sin su línea del
+         80 %— vuelve a ser un ranking.
 
-    /* ---------------------------------------------------------------
-       LA ESCALA SALE DEL SITIO QUE QUEDA EN LA HOJA, NO DEL LIENZO
+         HOY ESTO NO LLEGA A DISPARARSE, y hay que decirlo: con el tope de
+         ocho barras, tres Paretos miden como mucho 229 mm y en la hoja
+         caben 290. Se mutó a `cabe(10)` y el arnés siguió verde —no es un
+         hueco del arnés, es que esta guarda no sostiene nada todavía—. Se
+         deja porque el día que suba el tope sí sostiene, y lo que sí está
+         medido es la promesa de verdad: que los tres caben en UNA hoja,
+         que es para lo que se pusieron juntos. */
+      cabe(16 + p.barras.length * 6 + 10);
+      doc.setFillColor(...P.acento);
+      doc.rect(M, y + 1.2, 2.6, 2.6, "F");
+      fuente("bold", 10); tinta();
+      doc.text(tit, M + 4.5, y + 4);
+      y += 7;
 
-       Antes esto multiplicaba por una escala fija y daba por hecho que
-       quien arma el lienzo lo pidiera de un alto compatible. El día que
-       las dos partes no coincidieron —el servidor ya pedía un lienzo más
-       alto y el navegador todavía tenía el dibujo viejo— el diagrama
-       salió pasado de la hoja, por encima del pie y cortado por el
-       borde. Un PDF no tiene barra para desplazarse: lo que no cabe, no
-       está.
+      if (p.barras.length === 0) {
+        fuente("normal", 8); gris();
+        doc.text("Sin datos en este filtro.", M + 2, y + 3.5);
+        y += 9;
+        continue;
+      }
 
-       Así que aquí se mide lo que queda hasta el pie y el dibujo se
-       ajusta a eso. Si el lienzo viene del alto bueno, la escala es la
-       que hace legible el rótulo y no cambia nada; si viene más alto, el
-       dibujo se encoge —y las letras con él, en la misma proporción,
-       para que los tres renglones de cada barra sigan sin montarse—.
-       Encogido se lee peor; fuera de la hoja no se lee.
+      /* LA RESPUESTA ESCRITA, antes de las barras. Un Pareto sin esta
+         línea es un ranking con una curva encima. */
+      fuente("normal", 8.5); tinta();
+      doc.text(`${p.hasta80} de ${p.barras.length} ` +
+               `${p.barras.length === 1 ? "explica" : "explican"} el 80 % de ` +
+               `${nf.format(p.total)} unidades.`, M + 2, y + 3.5);
+      y += 7;
 
-       EL FONDO SE MIDE, NO SE SUPONE: una barra puede terminar por
-       debajo del borde del lienzo (el piso de 1,5 px de los nodos chicos
-       corre unas columnas más que otras), y a cada una hay que sumarle
-       los 64 px del bloque de su rótulo.
-       --------------------------------------------------------------- */
-    const NOTAS = 12;
-    const fondoPx = Math.max(s.alto, ...s.nodos.map((n) => Math.max(n.y + n.alto, n.y + 64)));
-    const kx = ANCHO / s.ancho;
-    const KY_ROTULO = 14.8 / 64;
-    const ky = Math.min(KY_ROTULO, (TOPE - y - NOTAS) / fondoPx);
-    /* Cuánto se tuvo que encoger, para encoger las letras igual. */
-    const r = ky / KY_ROTULO;
-    const pt = (n: number) => Math.max(4.5, n * r);
-    const X = (px: number) => M + px * kx;
-    const Y = (px: number) => y + px * ky;
-
-    /* LAS CINTAS PRIMERO Y LOS NODOS ENCIMA: al revés, una cinta gorda
-       tapa la barra de la que sale. */
-    const colDe = new Map(s.nodos.map((n) => [n.id, n.col]));
-    for (const c of s.cintas) {
-      const x0 = X(c.x0), y0 = Y(c.y0), x1 = X(c.x1), y1 = Y(c.y1);
-      const h = c.grosor * ky;
-      const cx = (x0 + x1) / 2;
-      doc.setFillColor(...hexRGB(c.color));
-      /* LA OPACIDAD BAJA ES LO QUE DEJA VER LOS CRUCES, igual que en la
-         pantalla: con las cintas opacas, la que pasa por encima esconde
-         a la otra y el dibujo enseña menos de lo que tiene. */
-      opacidad(colDe.get(c.de) === 0 ? 0.45 : 0.4);
-      /* CADA TRAMO ES RELATIVO AL PUNTO ANTERIOR — así los quiere
-         `lines` de jsPDF—: seis números es una curva, dos es una recta. */
-      doc.lines([
-        [cx - x0, 0, cx - x0, y1 - y0, x1 - x0, y1 - y0],
-        [0, h],
-        [cx - x1, 0, cx - x1, y0 - y1, x0 - x1, y0 - y1],
-      ], x0, y0, [1, 1], "F", true);
-      opacidad(1);
-    }
-
-    const ultima = s.nodos.reduce((m, x) => Math.max(m, x.col), 0);
-    for (const n of s.nodos) {
-      doc.setFillColor(...hexRGB(n.color));
-      doc.rect(X(n.x), Y(n.y), 20 * kx, Math.max(0.5, n.alto * ky), "F");
-      /* LA ÚLTIMA COLUMNA ROTULA A LA IZQUIERDA de su barra: a la
-         derecha el texto se saldría del papel. */
-      const fin = n.col === ultima;
-      const tx = fin ? X(n.x) - 2.5 : X(n.x) + 20 * kx + 2.5;
-      const al = fin ? { align: "right" as const } : {};
-      const libre = fin ? tx - M : W - M - tx;
-      fuente("bold", pt(9)); tinta();
-      doc.text(doc.splitTextToSize(n.rotulo, libre)[0] ?? "", tx, Y(n.y) + 4.2 * r, al);
-      fuente("bold", pt(13)); tinta();
-      doc.text(nf.format(n.valor), tx, Y(n.y) + 9.3 * r, al);
-      if (n.pie) {
-        fuente("normal", pt(7)); gris();
-        doc.text(doc.splitTextToSize(n.pie, libre)[0] ?? "", tx, Y(n.y) + 13.5 * r, al);
+      const max = Math.max(...p.barras.map((b) => b.valor));
+      const anNom = 56, anRiel = ANCHO - anNom - 74;
+      for (const b of p.barras) {
+        const flojo = b.clase !== "normal";
+        fuente(flojo ? "normal" : "bold", 7.5);
+        if (flojo) gris(); else tinta();
+        doc.text(doc.splitTextToSize(b.nombre, anNom - 2)[0] ?? "", M, y + 3.6);
+        /* EL RIEL Y LA BARRA. El riel gris deja ver lo que falta, que es
+           lo que hace que dos barras cortas se distingan entre ellas. */
+        doc.setFillColor(233, 236, 240);
+        doc.rect(M + anNom, y + 0.9, anRiel, 3.4, "F");
+        doc.setFillColor(...(flojo ? GRIS_PUNTO : TINTA));
+        doc.rect(M + anNom, y + 0.9, Math.max(0.6, anRiel * (b.valor / max)), 3.4, "F");
+        fuente("bold", 7.5); tinta();
+        doc.text(nf.format(b.valor), M + anNom + anRiel + 16, y + 3.6, { align: "right" });
+        fuente("normal", 7.5); gris();
+        doc.text(money(b.plata), M + anNom + anRiel + 52, y + 3.6, { align: "right" });
+        /* EL ACUMULADO EN NEGRITA HASTA EL 80 %: es la parte que hay que
+           atacar, y en una columna de números todos iguales no se ve. */
+        const dentro = b.acumulado <= 80 || p.barras.indexOf(b) < p.hasta80;
+        fuente(dentro ? "bold" : "normal", 7.5);
+        if (dentro) tinta(); else gris();
+        doc.text(`${b.acumulado} %`, M + ANCHO, y + 3.6, { align: "right" });
+        y += 6;
+      }
+      /* Y DEBAJO, SOLO LO QUE ES DE ESTE PARETO. La pantalla lo dice y el
+         papel tiene que decir lo mismo: «otros» es «varias pequeñas» y
+         «sin dato» es «no se sabe», que son dos cosas distintas, y la
+         segunda es un registro que hay que ir a arreglar y no una causa
+         que se pueda atacar. Callado, se reparte como si no existiera. */
+      const notas: string[] = [];
+      if (p.juntados > 0) notas.push(`Las ${p.juntados} más chicas están sumadas en «Otros».`);
+      if (p.barras.some((b) => b.clase === "sinDato")) {
+        notas.push("«Sin dato» no es una categoría: son roturas a las que les falta ese campo en " +
+                   "el registro, y van al final a propósito.");
+      }
+      if (notas.length) {
+        fuente("normal", 6.3); doc.setTextColor(140, 150, 162);
+        for (const l of doc.splitTextToSize(notas.join(" "), ANCHO - anNom)) {
+          doc.text(l, M + anNom, y + 3);
+          y += 3.2;
+        }
+        y += 5.8;
+      } else {
+        /* Sin nota, el aire lo tiene que poner el hueco: si no, el título
+           del Pareto siguiente queda pegado a la última barra de éste y
+           las dos listas se leen como una sola. */
+        y += 7;
       }
     }
-    /* DEBAJO DE LO MÁS BAJO QUE SE HAYA ESCRITO, y no debajo del lienzo.
-       El lienzo reserva sitio abajo para el rótulo del último nodo, pero
-       cada columna termina donde termina —el piso de 1,5 px de los nodos
-       chicos corre unas más que otras—, así que el rótulo más bajo puede
-       quedar por debajo del borde del lienzo. Midiéndolo, la nota nunca
-       se escribe encima de una cifra; calculándolo desde `s.alto`, se
-       escribía encima del «30» de Líneas. */
-    y = Math.max(Y(s.alto),
-                 ...s.nodos.map((n) => Y(n.y) + (n.pie ? 13.5 : 9.3) * r)) + 4;
 
-    if (d.recorrido.juntados > 0) {
-      fuente("normal", 7); gris();
-      doc.text(`Las ${d.recorrido.juntados} más chicas están sumadas en «otros»: una docena de ` +
-               "cintas de dos milímetros se ven llenas y no dicen nada. El total no cambia.", M, y);
-      y += 4;
-    }
-    fuente("normal", 7); doc.setTextColor(140, 150, 162);
-    doc.text(doc.splitTextToSize(
-      "La ROTA pierde el líquido y la botella, así que es baja de vidrio. La CONTAMINADA pierde " +
-      "el líquido y devuelve el envase a la línea: por eso son dos salidas y no se suman.",
-      ANCHO), M, y);
-
-    /* Y LA TABLA ARRANCA EN HOJA LIMPIA: con lo que queda debajo del
-       diagrama solo caben dos renglones, y una tabla que empieza con dos
-       filas y sigue en la otra hoja se lee peor que una que empieza
-       entera. */
+    /* La tabla arranca en hoja limpia: ver la nota de abajo. */
     hojaNueva();
   }
 

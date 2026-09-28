@@ -224,6 +224,18 @@
 .rt .cifra .u { font-size: 12px; color: var(--rt-gris); margin-top: 6px; line-height: 1.4 }
 .rt .cifra.mal { border-left-color: var(--rt-mal) } .rt .cifra.mal .n { color: var(--rt-mal) }
 .rt .cifra.ojo { border-left-color: var(--rt-oro) }
+/* LA EXCEPCIÓN NO ES UN ERROR, ES UNA DECISIÓN — y no puede llevar el
+   mismo rojo que la cifra grande de al lado. `--rt-oro` es ROJO en el
+   tema oficial, así que «se le cobra al OL» (.ojo) y «excepción» (.mal)
+   salían con el mismo riel rojo queriendo decir dos cosas distintas: una
+   «esta es LA cifra» y la otra «esto no se cobra». En una pantalla el
+   rojo tiene que querer decir una sola cosa.
+
+   ÁMBAR FIJO Y NO EL ACENTO DEL TEMA: si fuera `var(--rt-oro)` volvería
+   a ser rojo en oficial y el choque estaría de vuelta. El número se
+   queda en tinta: la excepción se mira, no se alarma. */
+.rt .cifra.aparte { border-left-color: #FFC400 }
+.rt .cifra.aparte .n { color: var(--rt-tinta) }
 .rt .cifra.bien { border-left-color: var(--rt-verde) }
 
 /* ====================== Cajas ====================== */
@@ -2666,4 +2678,89 @@
   .rt .rq-pun-cel.no { color: var(--rt-mal); font-weight: 600 }
   .rt .rq-cobro-pie { flex-direction: column; align-items: stretch }
   .rt .rq-cobro-pie .rq-vervlas { justify-content: center }
+}
+
+
+/* =====================================================================
+   LAS CINCO CIFRAS DE ARRIBA, Y LOS TRES PARETOS
+   ---------------------------------------------------------------------
+   «Total roturas, total contaminadas, total rotas, excepción y cuánto le
+    estamos cobrando. Y el gráfico que sea un pareto de causa, área y
+    OPM, que estén las 3.»
+   ===================================================================== */
+.rt .cifras.cinco { grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)) }
+
+.rt .rq-paretos { padding: 18px 22px 16px }
+/* LOS TRES A LO ANCHO EN PC Y UNO DEBAJO DE OTRO EN CELULAR. La gracia
+   está en compararlos: una causa concentrada en un área es un problema
+   de ese sitio, y la misma causa repartida por toda la bodega es del
+   proceso. Con un selector hay que recordar el anterior de memoria. */
+.rt .rq-paretos-tres {
+  display: grid; gap: 22px; margin-top: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(330px, 100%), 1fr));
+}
+.rt .rq-paretos-tres > div { min-width: 0 }
+.rt .rq-paretos-tres .rot {
+  margin: 0 0 8px; font: 700 10px var(--rt-titulo); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--rt-gris-panel);
+  padding-bottom: 7px; border-bottom: 2px solid var(--rt-tinta);
+}
+
+/* LA RESPUESTA EN PALABRAS, que es lo que se viene a buscar. */
+.rt .rq-pareto-lee { margin: 0 0 10px; font-size: 13px; color: var(--rt-gris) }
+.rt .rq-pareto-lee b { color: var(--rt-tinta); font-weight: 700 }
+
+.rt .rq-pareto-barras { list-style: none; margin: 0; padding: 0 }
+.rt .rq-pareto-barras li {
+  display: grid; align-items: center; gap: 4px 10px;
+  grid-template-columns: minmax(0, 1fr) 62px 62px 46px;
+  grid-template-areas: "nom val plata acum" "riel riel riel riel";
+  padding: 7px 0; border-bottom: 1px solid var(--rt-linea);
+}
+.rt .rq-pb-nom {
+  grid-area: nom; font-size: 13px; font-weight: 600; color: var(--rt-tinta);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rt .rq-pb-val, .rt .rq-pb-plata, .rt .rq-pb-acum {
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+.rt .rq-pb-val { grid-area: val; font: 800 14px var(--rt-titulo); color: var(--rt-tinta) }
+.rt .rq-pb-plata { grid-area: plata; font-size: 12px; color: var(--rt-gris-panel) }
+/* EL ACUMULADO ES LA COLUMNA QUE SE LEE DE ARRIBA ABAJO: donde pasa del
+   80 % es hasta dónde hay que atacar. */
+/* `white-space: nowrap` NO ES COSMÉTICO: sin él, «100 %» —que es
+   SIEMPRE el último renglón de todo Pareto— parte en dos líneas y
+   estira ese renglón más que los demás. La lista deja de leerse como
+   una columna y el cierre en 100, que es la comprobación de que nada
+   se cortó, queda con cara de error. */
+.rt .rq-pb-acum {
+  grid-area: acum; font: 700 12px var(--rt-titulo); color: var(--rt-gris-panel);
+  white-space: nowrap;
+}
+.rt .rq-pareto-barras li .rq-pb-riel {
+  grid-area: riel; display: block; height: 7px; background: var(--rt-linea);
+}
+.rt .rq-pareto-barras li .rq-pb-riel i { display: block; height: 100%; background: var(--rt-tinta) }
+/* «Otros» y «sin dato» en gris: no son una causa que se pueda atacar. */
+.rt .rq-pareto-barras li.otros .rq-pb-riel i,
+.rt .rq-pareto-barras li.sinDato .rq-pb-riel i { background: var(--rt-gris-panel); opacity: .45 }
+.rt .rq-pareto-barras li.otros .rq-pb-nom,
+.rt .rq-pareto-barras li.sinDato .rq-pb-nom { font-weight: 500; color: var(--rt-gris-panel) }
+
+.rt .rq-pareto-pie {
+  margin: 10px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--rt-gris-panel);
+}
+.rt .rq-pareto-pie b { color: var(--rt-tinta) }
+/* La explicación del acumulado, una sola vez y encima de los tres. */
+.rt .rq-paretos-lee {
+  margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--rt-gris-panel);
+}
+.rt .rq-paretos-lee b { color: var(--rt-tinta) }
+
+@media (max-width: 480px) {
+  /* LA PLATA SE VA ANTES QUE EL ACUMULADO: sin el acumulado esto deja
+     de ser un Pareto y vuelve a ser un ranking. */
+  .rt .rq-pareto-barras li { grid-template-columns: minmax(0, 1fr) 58px 40px;
+    grid-template-areas: "nom val acum" "riel riel riel" }
+  .rt .rq-pb-plata { display: none }
 }
