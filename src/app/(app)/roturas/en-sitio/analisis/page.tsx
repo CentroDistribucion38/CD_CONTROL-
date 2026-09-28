@@ -255,9 +255,15 @@ export default async function AnalisisEnSitioPage(
      proporcional —lo único que cambia es que las cintas salen más
      gordas—, así que no dice nada distinto.
 
+     980 SON LOS QUE CABEN EN UNA HOJA VERTICAL: el informe estira el eje
+     de arriba abajo hasta que el hueco entre nodos vuelva a medir lo que
+     mide un rótulo (ver la nota de las dos escalas en informe.ts), y con
+     esa escala 980 px son 227 mm — lo que queda de hoja debajo del
+     título. Con más, el último rótulo sale por debajo del pie.
+
      LAS DOS SALEN DE LA MISMA `entradaReco`, que es lo que garantiza que
      el papel y la pantalla enseñen el mismo recorrido. */
-  const recoPapel = armarSankey(entradaReco, 1160, 616);
+  const recoPapel = armarSankey(entradaReco, 1160, 980);
 
   /* LA LECTURA DE ABAJO: una sola, la que más pesa. Un diagrama sin
      una línea que diga qué mirar es un dibujo bonito, y a los treinta

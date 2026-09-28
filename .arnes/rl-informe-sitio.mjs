@@ -258,7 +258,7 @@ const rot = (o = {}) => {
    2 · EL PAPEL
    ===================================================================== */
 /* EL CASO PEOR Y EL DE VERDAD: seis causas y seis procesos, que es el
-   tope que deja `masGrandes`, en el lienzo de 616 px de alto que usa el
+   tope que deja `masGrandes`, en el lienzo de 980 px de alto que usa el
    papel. Con menos nodos el dibujo solo queda más holgado; si algo se
    sale de la hoja, se sale aquí. */
 const CAUSAS = [
@@ -291,7 +291,7 @@ const SANKEY = SK.armarSankey({
     ...PROCS.map(([id], i) => ({ de: id, a: "fin:vidrio", valor: PROCS[i][2] - [50, 30, 20, 10, 5, 5][i] })),
     ...PROCS.map(([id], i) => ({ de: id, a: "fin:liquido", valor: [50, 30, 20, 10, 5, 5][i] })),
   ],
-}, 1160, 616);
+}, 1160, 980);
 
 /* LA GEOMETRÍA EN NÚMEROS TIENE QUE SER LA MISMA QUE LA DEL `d`. El SVG
    pinta una y el PDF la otra: si se separan, la pantalla y el papel
@@ -376,17 +376,24 @@ ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en 
   ok(h > 0 && t > 0 && h < t, "los hallazgos tienen que ir antes de la tabla, no después");
 }
 
-/* 2e · EL RECORRIDO TIENE SU HOJA, Y ES LA ACOSTADA */
+/* 2e · UNA SOLA ORIENTACIÓN, Y EL RECORRIDO TIENE SU HOJA
+   ---------------------------------------------------------------------
+   El recorrido tuvo media tarde una hoja acostada y no se puede leer: en
+   el visor se va pasando de página y en la mitad aparece una girada.
+   TODAS VERTICALES, sin excepción. */
 {
   const bbox = execFileSync("pdftotext", ["-bbox", ruta, "-"], { encoding: "utf8" });
   const hojas = [...bbox.matchAll(/<page width="([\d.]+)" height="([\d.]+)"/g)]
     .map((m) => ({ w: +m[1], h: +m[2] }));
   const acostadas = hojas.filter((p) => p.w > p.h);
-  ok(acostadas.length === 1,
-     `hay ${acostadas.length} hojas acostadas y tiene que haber exactamente una: la del recorrido`);
-  /* A4 acostada son 297 × 210 mm = 841,9 × 595,3 puntos. */
-  ok(Math.abs(acostadas[0]?.w - 841.9) < 2 && Math.abs(acostadas[0]?.h - 595.3) < 2,
-     `la hoja del recorrido mide ${JSON.stringify(acostadas[0])} y tiene que ser A4 acostada`);
+  ok(acostadas.length === 0,
+     `hay ${acostadas.length} hoja(s) acostada(s): el PDF tiene que ir todo en una sola ` +
+     "orientación o no se puede leer de corrido");
+  /* A4 vertical son 210 × 297 mm = 595,3 × 841,9 puntos. */
+  for (const [i, p] of hojas.entries()) {
+    ok(Math.abs(p.w - 595.3) < 2 && Math.abs(p.h - 841.9) < 2,
+       `la hoja ${i + 1} mide ${JSON.stringify(p)} y todas tienen que ser A4 vertical`);
+  }
 
   const iReco = paginas.findIndex((p) => /El recorrido de las/.test(p));
   ok(iReco >= 0, "no salió la hoja del recorrido");
@@ -402,6 +409,31 @@ ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en 
      "en la línea");
   ok(/3 más chicas están sumadas/.test(hoja),
      "un «otros» mudo hace creer que hay una causa que se llama así");
+}
+
+/* 2e-bis · Y NADA SE ESCRIBE ENCIMA DE OTRA COSA EN EL DIAGRAMA.
+   Es el error que no se ve en el texto extraído —«…de dos milímetros
+   30n llenas» sale ordenado en una línea— y sí en el papel: la nota de
+   abajo escrita encima de la cifra del último nodo. Se mide con las
+   cajas de cada palabra. */
+{
+  const bbox = execFileSync("pdftotext", ["-bbox", ruta, "-"], { encoding: "utf8" });
+  const hojas = bbox.split("<page ").slice(1);
+  const iReco = paginas.findIndex((p) => /El recorrido de las/.test(p));
+  const pal = [...(hojas[iReco] ?? "").matchAll(
+    /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
+    .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] }));
+  ok(pal.length > 10, `la hoja del recorrido trae ${pal.length} palabras y son muchas más`);
+  for (let i = 0; i < pal.length; i++) {
+    for (let j = i + 1; j < pal.length; j++) {
+      const a = pal[i], b = pal[j];
+      /* 1,5 puntos de tolerancia: dos palabras seguidas de la misma
+         línea se tocan por el espacio y eso no es encimarse. */
+      const cruza = a.x0 < b.x1 - 1.5 && b.x0 < a.x1 - 1.5
+                 && a.y0 < b.y1 - 1.5 && b.y0 < a.y1 - 1.5;
+      ok(!cruza, `en el recorrido «${a.t}» y «${b.t}» se escriben una encima de otra`);
+    }
+  }
 }
 
 /* 2f · NADA SE SALE DE SU HOJA — ni el diagrama ni el pie.
@@ -470,6 +502,7 @@ if (fallas.length) { console.log(""); fallas.forEach((f) => console.log("✗ " +
 console.log("✓ El informe de en sitio: las conclusiones salen de una función pura y no del papel " +
             "—la causa más CARA no es la que más rompe, y eso lo dice—, no se concluye nada por " +
             "debajo de 30 unidades, lo que falta en el maestro va primero porque deja la cifra " +
-            "corta, un precio que falta se imprime como raya y nunca como $ 0, el recorrido " +
-            "tiene su propia hoja A4 acostada con sus tres rótulos y sus dos salidas, nada de " +
-            "lo escrito se sale del papel en ninguna hoja, y el filtro va en el pie de todas.");
+            "corta, un precio que falta se imprime como raya y nunca como $ 0, el recorrido cabe " +
+            "entero en una hoja A4 VERTICAL —todas lo son: un PDF con una hoja girada en la " +
+            "mitad no se lee— con sus tres rótulos y sus dos salidas, nada se escribe encima de " +
+            "otra cosa ni se sale del papel en ninguna hoja, y el filtro va en el pie de todas.");
