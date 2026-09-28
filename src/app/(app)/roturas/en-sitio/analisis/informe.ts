@@ -124,19 +124,9 @@ export function dibujarInformeSitio(
 ): JsPDF {
   const doc = new JsPDFCtor({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210, H = 297, M = 14, ANCHO = W - 2 * M;
-  /* LA HOJA ACOSTADA DEL RECORRIDO. */
-  const WL = 297, HL = 210;
   const PIE = H - 10;
   const TOPE = PIE - 6;
   let y = M;
-
-  /* EL TAMAÑO DE CADA PÁGINA, apuntado al crearla. El pie se pinta al
-     final sobre todas, y en una hoja acostada el margen derecho está en
-     otro sitio y el borde de abajo 87 mm más arriba: sin esto, «Página 3
-     de 4» se imprime en la mitad del papel y el pie de la hoja del
-     recorrido se dibuja fuera de la hoja —donde no se ve, pero tampoco
-     está—. */
-  const hojas: { ancho: number; alto: number }[] = [{ ancho: W, alto: H }];
 
   const P = extra.paleta ?? PALETA_MARCA;
   const TINTA = P.tinta;
@@ -169,24 +159,27 @@ export function dibujarInformeSitio(
   const opacidad = (o: number) =>
     doc.setGState(new (doc as unknown as { GState: new (p: { opacity: number }) => unknown })
       .GState({ opacity: o }));
-  const aguaDeFondo = (ancho = W) => {
+  const aguaDeFondo = () => {
     if (!marca.sello) return;
     try {
       opacidad(0.04);
       const lado = 120;
-      doc.addImage(marca.sello, "PNG", (ancho - lado) / 2, 118, lado, lado, "sello", "FAST");
+      doc.addImage(marca.sello, "PNG", (W - lado) / 2, 118, lado, lado, "sello", "FAST");
     } catch { /* una marca de agua que no carga no frena el informe */ }
     finally { opacidad(1) }
   };
 
   /** Hoja nueva con su cabecera chica: un papel suelto de la página 3,
    *  sin eso, no se sabe de dónde salió ni de qué período es. */
-  const hojaNueva = (acostada = false) => {
-    const ancho = acostada ? WL : W;
-    doc.addPage(acostada ? [WL, HL] : [W, H], acostada ? "landscape" : "portrait");
-    hojas.push({ ancho, alto: acostada ? HL : H });
-    aguaDeFondo(ancho);
-    cinta(0, 0, ancho, 2.2);
+  const hojaNueva = () => {
+    /* SIEMPRE VERTICAL. El recorrido tuvo una hoja acostada durante
+       media tarde y no se puede leer: en el visor se va pasando de
+       página y en la mitad aparece una girada, con el texto de lado. El
+       diagrama cabe en vertical —ver la nota de arriba sobre las dos
+       escalas—, así que el papel entero va en una sola orientación. */
+    doc.addPage([W, H], "portrait");
+    aguaDeFondo();
+    cinta(0, 0, W, 2.2);
     if (marca.sello) {
       try { doc.addImage(marca.sello, "PNG", M, 7, 9, 9, "sello", "FAST") } catch { /* sigue */ }
     }
@@ -197,7 +190,7 @@ export function dibujarInformeSitio(
     doc.text(d.periodo, x, 15.8);
     doc.setDrawColor(...TINTA);
     doc.setLineWidth(0.3);
-    doc.line(M, 19.5, ancho - M, 19.5);
+    doc.line(M, 19.5, W - M, 19.5);
     y = 24;
   };
   const cabe = (alto: number) => { if (y + alto > TOPE) hojaNueva() };
@@ -426,42 +419,59 @@ export function dibujarInformeSitio(
   }
 
   /* =====================================================================
-     EL RECORRIDO — SU PROPIA HOJA, ACOSTADA
+     EL RECORRIDO — SU PROPIA HOJA, VERTICAL COMO TODAS
+     ---------------------------------------------------------------------
+     DOS ESCALAS, UNA PARA CADA EJE, Y ES LO QUE HACE QUE QUEPA.
+
+     El diagrama nace de un lienzo pensado para una pantalla ancha: 1160
+     de ancho, y entre nodo y nodo un hueco fijo de 64 que NO es aire
+     —es el sitio donde van el nombre, la cifra y el pie de cada barra—.
+     Llevado a la hoja con una sola escala, ese hueco queda en 10 mm y
+     las tres líneas de texto se montan una encima de otra; subir la
+     escala para que quepan el texto saca el dibujo por los lados.
+
+     Así que el ancho se comprime a los 182 mm de la hoja y el alto se
+     estira hasta que el hueco vuelva a medir los 14,8 mm que necesita el
+     rótulo. Lo único que cambia es lo empinada que se ve cada cinta: los
+     altos de los nodos y los grosores de las cintas se multiplican TODOS
+     por la misma `ky`, así que siguen siendo proporcionales a sus
+     unidades, que es lo único que el dibujo promete.
+
+     La otra salida era dejar esta hoja acostada, y se probó: en el visor
+     se va pasando de página y en la mitad aparece una girada. No se lee.
      ===================================================================== */
   if (d.recorrido && d.recorrido.s.nodos.length > 0) {
     const s = d.recorrido.s;
-    hojaNueva(true);
-    const ANCHO_L = WL - 2 * M;
+    hojaNueva();
 
     fuente("bold", 13); tinta();
     doc.text(`El recorrido de las ${nf.format(d.recorrido.total)} unidades`, M, y + 4);
-    fuente("normal", 8.5); gris();
-    doc.text("el grosor de cada cinta son unidades", WL - M, y + 4, { align: "right" });
+    fuente("normal", 8); gris();
+    doc.text("el grosor de cada cinta son unidades", W - M, y + 4, { align: "right" });
     y += 9;
 
     /* LOS TRES RÓTULOS DE COLUMNA. Sin ellos el dibujo es bonito y no se
        sabe qué se está mirando. */
-    fuente("bold", 7); gris();
+    fuente("bold", 6.5); gris();
     doc.text("DE QUÉ CAUSA SALIÓ", M, y);
-    doc.text("POR DÓNDE PASÓ", M + ANCHO_L / 2, y, { align: "center" });
-    doc.text("EN QUÉ TERMINA", WL - M, y, { align: "right" });
+    doc.text("POR DÓNDE PASÓ", M + ANCHO / 2, y, { align: "center" });
+    doc.text("EN QUÉ TERMINA", W - M, y, { align: "right" });
     y += 4;
 
-    /* LA ESCALA. El lienzo del diagrama mide `s.ancho` de ancho y aquí
-       tiene `ANCHO_L` milímetros; todo lo demás se multiplica por eso.
-       LAS LETRAS NO: un rótulo escalado saldría en 5 puntos y el papel
-       existe para leerse. Van en tamaño fijo, colocadas en el sitio que
-       manda la geometría. */
-    const k = ANCHO_L / s.ancho;
-    const X = (px: number) => M + px * k;
-    const Y = (px: number) => y + px * k;
+    /* LAS LETRAS NO SE ESCALAN: un rótulo escalado saldría en 5 puntos y
+       el papel existe para leerse. Van en tamaño fijo, colocadas en el
+       sitio que manda la geometría. */
+    const kx = ANCHO / s.ancho;
+    const ky = 14.8 / 64;
+    const X = (px: number) => M + px * kx;
+    const Y = (px: number) => y + px * ky;
 
     /* LAS CINTAS PRIMERO Y LOS NODOS ENCIMA: al revés, una cinta gorda
        tapa la barra de la que sale. */
     const colDe = new Map(s.nodos.map((n) => [n.id, n.col]));
     for (const c of s.cintas) {
       const x0 = X(c.x0), y0 = Y(c.y0), x1 = X(c.x1), y1 = Y(c.y1);
-      const h = c.grosor * k;
+      const h = c.grosor * ky;
       const cx = (x0 + x1) / 2;
       doc.setFillColor(...hexRGB(c.color));
       /* LA OPACIDAD BAJA ES LO QUE DEJA VER LOS CRUCES, igual que en la
@@ -481,13 +491,13 @@ export function dibujarInformeSitio(
     const ultima = s.nodos.reduce((m, x) => Math.max(m, x.col), 0);
     for (const n of s.nodos) {
       doc.setFillColor(...hexRGB(n.color));
-      doc.rect(X(n.x), Y(n.y), 20 * k, Math.max(0.5, n.alto * k), "F");
+      doc.rect(X(n.x), Y(n.y), 20 * kx, Math.max(0.5, n.alto * ky), "F");
       /* LA ÚLTIMA COLUMNA ROTULA A LA IZQUIERDA de su barra: a la
          derecha el texto se saldría del papel. */
       const fin = n.col === ultima;
-      const tx = fin ? X(n.x) - 3.2 : X(n.x + 34);
+      const tx = fin ? X(n.x) - 2.5 : X(n.x) + 20 * kx + 2.5;
       const al = fin ? { align: "right" as const } : {};
-      const libre = fin ? tx - M : WL - M - tx;
+      const libre = fin ? tx - M : W - M - tx;
       fuente("bold", 9); tinta();
       doc.text(doc.splitTextToSize(n.rotulo, libre)[0] ?? "", tx, Y(n.y) + 4.2, al);
       fuente("bold", 13); tinta();
@@ -497,7 +507,14 @@ export function dibujarInformeSitio(
         doc.text(doc.splitTextToSize(n.pie, libre)[0] ?? "", tx, Y(n.y) + 13.5, al);
       }
     }
-    y = Y(s.alto) + 4;
+    /* DEBAJO DE LO MÁS BAJO QUE SE HAYA ESCRITO, y no debajo del lienzo.
+       El lienzo reserva sitio abajo para el rótulo del último nodo, pero
+       cada columna termina donde termina —el piso de 1,5 px de los nodos
+       chicos corre unas más que otras—, así que el rótulo más bajo puede
+       quedar por debajo del borde del lienzo. Midiéndolo, la nota nunca
+       se escribe encima de una cifra; calculándolo desde `s.alto`, se
+       escribía encima del «30» de Líneas. */
+    y = Math.max(Y(s.alto), ...s.nodos.map((n) => Y(n.y) + (n.pie ? 13.5 : 9.3))) + 5;
 
     if (d.recorrido.juntados > 0) {
       fuente("normal", 7); gris();
@@ -506,12 +523,15 @@ export function dibujarInformeSitio(
       y += 4;
     }
     fuente("normal", 7); doc.setTextColor(140, 150, 162);
-    doc.text("La ROTA pierde el líquido y la botella, así que es baja de vidrio. La CONTAMINADA " +
-             "pierde el líquido y devuelve el envase a la línea: por eso son dos salidas y no " +
-             "se suman.", M, y);
+    doc.text(doc.splitTextToSize(
+      "La ROTA pierde el líquido y la botella, así que es baja de vidrio. La CONTAMINADA pierde " +
+      "el líquido y devuelve el envase a la línea: por eso son dos salidas y no se suman.",
+      ANCHO), M, y);
 
-    /* Y SE VUELVE A LA VERTICAL. Lo que sigue son tablas, y una tabla
-       acostada desperdicia media hoja. */
+    /* Y LA TABLA ARRANCA EN HOJA LIMPIA: con lo que queda debajo del
+       diagrama solo caben dos renglones, y una tabla que empieza con dos
+       filas y sigue en la otra hoja se lee peor que una que empieza
+       entera. */
     hojaNueva();
   }
 
@@ -583,15 +603,13 @@ export function dibujarInformeSitio(
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) {
     doc.setPage(i);
-    const { ancho, alto } = hojas[i - 1] ?? { ancho: W, alto: H };
-    const pieY = alto - 10;
-    cinta(M, pieY - 4.2, ancho - 2 * M, 0.6);
+    cinta(M, PIE - 4.2, ANCHO, 0.6);
     fuente("normal", 7.5); gris();
     /* HASTA DONDE EMPIEZA «BAVARIA», que va centrado y es de la marca:
        sin esto el renglón de la izquierda se le monta encima. Y SE CORTA
        POR PARTES, no a la mitad de una palabra — un pie cortado en seco
        se lee como un error de la app. */
-    const anchoIzq = ancho / 2 - M - doc.getTextWidth("Bavaria") / 2 - 4;
+    const anchoIzq = W / 2 - M - doc.getTextWidth("Bavaria") / 2 - 4;
     /* EL FILTRO PRIMERO Y EL PERÍODO DESPUÉS, al revés que en los otros
        informes y a propósito: si no cabe todo, lo que NO se puede perder
        es que el papel está filtrado —un informe filtrado que no lo diga
@@ -602,9 +620,9 @@ export function dibujarInformeSitio(
     while (trozos.length > 1 && doc.getTextWidth(izq) > anchoIzq) {
       trozos.pop(); izq = trozos.join(" · ");
     }
-    doc.text(doc.splitTextToSize(izq, anchoIzq)[0] ?? "", M, pieY);
-    doc.text("Bavaria", ancho / 2, pieY, { align: "center" });
-    doc.text(`Página ${i} de ${n}`, ancho - M, pieY, { align: "right" });
+    doc.text(doc.splitTextToSize(izq, anchoIzq)[0] ?? "", M, PIE);
+    doc.text("Bavaria", W / 2, PIE, { align: "center" });
+    doc.text(`Página ${i} de ${n}`, W - M, PIE, { align: "right" });
   }
   return doc;
 }
