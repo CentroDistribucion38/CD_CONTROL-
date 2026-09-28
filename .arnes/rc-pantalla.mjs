@@ -78,7 +78,11 @@ const materiales = [
      dato inventado con cara de dato. */
   { ...base, id: "m6", sku: "3583", nombre: "Aguila R 750cc X 16", familia: "Ret",
     vida_util: 180, tipo_material: "PRODUCTO", en_sitio: true,
-    pat_largo: 3, pat_ancho: null, pat_nivel: null },
+    pat_largo: 3, pat_ancho: null, pat_nivel: null,
+    /* Y SIN FACTOR ESTIBADO: es el material al que el código no le puede
+       traer las cajas por estiba. La pantalla tiene que dejar el campo
+       vacío y decir por qué, no inventarle un número. */
+    cajas_por_estiba: null },
   { ...base, id: "m3", sku: "3500162", nombre: "Envase Marron 330R", familia: "Ret",
     vida_util: null, tipo_material: "ENVASE", en_sitio: true, cajas_por_estiba: null },
   { ...base, id: "m4", sku: "3500213", nombre: "Envase Flint 330R", familia: "Ret",
@@ -132,6 +136,26 @@ const monta = async (ancho = 1440, alto = 1100, tema = "") => {
      poder medirle el contraste como a todo lo demás. */
 };
 
+/* EL CAMPO LO LLENA UN EFECTO, Y UN EFECTO CORRE DESPUÉS DEL PINTADO.
+   Leer el valor justo después del clic devuelve el de antes: el arnés
+   salía rojo por rapidez, no por un error de la pantalla —y un arnés
+   que falla a veces se acaba ignorando siempre—. */
+const esperaValor = async (sel, v) => {
+  await pg.waitForFunction(
+    ([s, q]) => (document.querySelector(s)?.value ?? null) === q, [sel, v], { timeout: 6000 },
+  ).then(() => true, () => false);
+  return pg.inputValue(sel);
+};
+
+/* POR ID Y NO POR `:has(...)`. El selector de Playwright con `:has()` y
+   `:text-is()` lo entiende Playwright, pero NO `document.querySelector`
+   dentro de la página — y `waitForFunction` corre ahí. La espera
+   reventaba en silencio, devolvía «no cupo» y seguía de largo: o sea,
+   no esperaba nada, y el arnés fallaba una de cada dos corridas por
+   rapidez. */
+const porEstiba = "#rc-cant";
+const ayudaEstiba = () => pg.textContent(".fe .rc-c:has(#rc-cant) em");
+
 const escoger = async (codigo) => {
   await pg.click("#rc-mat");
   await pg.waitForSelector(".fe .bl-lista");
@@ -180,9 +204,65 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
      "número de estibas no lo dice");
   ok(!/Color del vidrio/.test(t), "en producto salen los campos del envase");
   ok(!/Viene de/.test(t), "en producto sale «viene de», que es del envase");
+  /* LA PLACA SE FUE. Era opcional, nadie la llenaba, y un campo opcional
+     que nadie llena es un renglón más que leer de pie para llegar a los
+     que sí importan. */
+  ok(!/Placa/.test(t), "sigue el campo de la placa, que se quitó");
 
   await escoger("9845");
-  await pg.fill(".fe .rc-c:has(span:text-is('Por estiba')) input", "1080");
+
+  /* ===================================================================
+     EL CÓDIGO LLENA LAS CAJAS POR ESTIBA
+     -------------------------------------------------------------------
+     «La idea es que yo llene solo código y la fecha y traiga todo.»
+
+     Estaba de PISTA en el renglón gris de abajo y había que copiarla a
+     mano al campo de al lado. Copiar de pie, con guante y con el camión
+     esperando un número que la pantalla ya tiene es donde se cuela el
+     dedazo que sale impreso en letra de siete centímetros.
+     =================================================================== */
+  /* POR ID Y NO POR `:has(...)`. El selector de Playwright con `:has()` y
+   `:text-is()` lo entiende Playwright, pero NO `document.querySelector`
+   dentro de la página — y `waitForFunction` corre ahí. La espera
+   reventaba en silencio, devolvía «no cupo» y seguía de largo: o sea,
+   no esperaba nada, y el arnés fallaba una de cada dos corridas por
+   rapidez. */
+const porEstiba = "#rc-cant";
+  ok(await esperaValor(porEstiba, "36") === "36",
+     `al escoger el 9845 el campo «Por estiba» quedó en «${await pg.inputValue(porEstiba)}» y el ` +
+     "maestro dice 36: el código tiene que traerlo");
+  {
+    const ay = await ayudaEstiba();
+    ok(/maestro/.test(ay), `no dice de dónde salió el número: «${ay}»`);
+  }
+
+  /* Y SI SE CAMBIA, SE DICE. Es lo que impide que rellenarlo se vuelva
+     una mentira el día que la estiba venga incompleta: antes ese aviso
+     vivía de que nadie tocara el campo; ahora vive de comparar. */
+  await pg.fill(porEstiba, "30");
+  {
+    const ay = await ayudaEstiba();
+    ok(/cambiaste/i.test(ay) && /36/.test(ay),
+       `al bajar de 36 a 30 el renglón dice «${ay}»: tiene que decir que se cambió y cuánto ` +
+       "decía el maestro, o el rótulo sale con 30 y nadie se entera");
+    ok(await pg.isVisible(".fe .rc-c em.rc-cambiado"),
+       "el aviso de que se cambió no se distingue del texto de ayuda de al lado");
+  }
+
+  /* AL MATERIAL SIN FACTOR EN EL MAESTRO NO SE LE INVENTA UNO. */
+  await escoger("3583");
+  ok(await esperaValor(porEstiba, "") === "",
+     `el 3583 no tiene factor estibado en el maestro y el campo quedó en ` +
+     `«${await pg.inputValue(porEstiba)}»: se le inventó un número`);
+  {
+    const ay = await ayudaEstiba();
+    ok(/falta el factor/i.test(ay),
+       `sin factor en el maestro el renglón dice «${ay}»: tiene que decir que el dato falta ALLÁ, ` +
+       "o quien recibe va a creer que la pantalla no sirve");
+  }
+  await escoger("9845");
+  await esperaValor(porEstiba, "36");
+  await pg.fill(porEstiba, "1080");
   /* ANTES DE TECLEAR LA FECHA, la vista ya grita que va a salir sin
      vencimiento. Ahora que la fecha se teclea, «vacío» quiere decir «se
      le olvidó», y eso hay que verlo antes de gastar la hoja. */
@@ -397,7 +477,15 @@ console.log("");
 for (const tema of ["oficial", "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
   await monta(1440, 1100, tema);
   await escoger("9845");
-  await pg.fill(".fe .rc-c:has(span:text-is('Por estiba')) input", "1080");
+
+  /* EN EL BUCLE DE TEMAS SOLO HACE FALTA QUE EXISTA EL AVISO, para
+     medirle el contraste: lo que dice y cuándo aparece ya se probó
+     arriba UNA vez. Aquí estuvo el bloque entero repetido —siete
+     corridas de lo mismo— porque mi reemplazo pegó en los dos sitios.
+     Una prueba repetida no prueba más: tarda más y, cuando falla, sale
+     siete veces y esconde a las demás. */
+  await esperaValor(porEstiba, "36");
+  await pg.fill(porEstiba, "30");
   await pg.fill("input[type=date]", "2026-09-20");
   const m = await pg.evaluate(() => {
     const detras = (e) => {
@@ -412,14 +500,24 @@ for (const tema of ["oficial", "tinta", "pizarra", "ambar", "negro", "gris", "ha
       return [g.color, (b && b !== "rgba(0, 0, 0, 0)" && b !== "transparent") ? b : detras(e.parentElement)] };
     return { aviso: t(".fe .rc-aviso"), venceRot: t(".fe .rc-v-vence span"),
              venceVal: t(".fe .rc-v-vence b"), tipoOn: t(".fe .rc-tipo button.on"),
-             falta: t(".fe .rc-c em"), sacar: t(".fe .rc-sacar") };
+             falta: t(".fe .rc-c em"),
+             /* EL AVISO DE QUE SE CAMBIÓ LO QUE DIJO EL MAESTRO: va en
+                otro color para que se vea sin leerlo, así que hay que
+                comprobar que ese color se lea. */
+             cambiado: t(".fe .rc-c em.rc-cambiado"),
+             sacar: t(".fe .rc-sacar") };
   });
   const pares = [["aviso", m.aviso], ["vence-rot", m.venceRot], ["vence", m.venceVal],
-                 ["tipo", m.tipoOn], ["ayuda", m.falta], ["botón", m.sacar]];
+                 ["tipo", m.tipoOn], ["ayuda", m.falta], ["cambiado", m.cambiado],
+                 ["botón", m.sacar]];
   const c = ([, p]) => CONTRA(p[0], p[1]);
   /* 4.5 PARA TEXTO PEQUEÑO; 3 para el rótulo VENCE y el botón, que van
      en negrita grande. Se mide lo que hay, no lo que debería haber. */
   const tope = (k) => (k === "vence" || k === "botón" || k === "tipo") ? 3 : 4.5;
+  /* Y QUE EL AVISO EXISTA. Midiendo solo «lo que hay», un aviso que
+     desaparece pasa por bueno: no hay color que leer, luego no hay
+     falla. Se exige. */
+  ok(m.cambiado, `en el tema ${tema} no salió el aviso de que se cambió lo que dijo el maestro`);
   const malos = pares.filter((x) => x[1] && c(x) < tope(x[0]));
   ok(malos.length === 0,
      `en el tema ${tema} no se lee: ${malos.map((x) => `${x[0]} ${c(x).toFixed(1)}`).join(", ")}`);
@@ -429,7 +527,7 @@ for (const tema of ["oficial", "tinta", "pizarra", "ambar", "negro", "gris", "ha
 
 await monta();
 await escoger("9845");
-await pg.fill(".fe .rc-c:has(span:text-is('Por estiba')) input", "1080");
+await pg.fill(porEstiba, "1080");
 await pg.fill(".fe .rc-c:has(span:text-is('Estibas')) input", "3");
 await pg.fill("input[type=date]", "2026-09-20");
 await pg.selectOption(".fe .rc-c:has(span:text-is('Calle')) select", "A03");

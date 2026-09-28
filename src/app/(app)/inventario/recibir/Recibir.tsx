@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BuscarEnLista } from "@/components/BuscarEnLista";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
@@ -47,7 +47,10 @@ const VACIO = {
      saca restándole la vida útil del maestro. Antes era al revés y
      obligaba a hacer la cuenta de cabeza para teclear una fecha que la
      caja no trae. */
-  vence: "", placa: "", origen: "", color: "",
+  /* LA PLACA SE FUE. Era opcional, nadie la llenaba, y un campo
+     opcional que nadie llena es un renglón más que leer de pie en el
+     muelle para llegar a los que sí importan. */
+  vence: "", origen: "", color: "",
   /* CÓMO ESTÁ ARMADO EL ARRUME: cuántas estibas de ancho, de alto y de
      largo. No se puede deducir del número de estibas —doce estibas
      pueden ir 12×1×1, 3×2×2 o 4×1×3— y en el papel sirve para saber si
@@ -78,6 +81,21 @@ function folioProvisional(sku: string, producido: string, linea: string, i: numb
   return `${sku}-${ymd}${L}-${String(i + 1).padStart(3, "0")}`;
 }
 
+/* ---------------------------------------------------------------------
+   TODO `setF` VA EN SU FORMA DE FUNCIÓN — `setF(x => ({ ...x, ... }))` —
+   Y NO `setF({ ...f, ... })`.
+
+   Con la segunda, cada manejador se lleva dentro la COPIA de `f` del
+   pintado en que se creó. Mientras solo teclea una persona no se nota;
+   en cuanto algo cambia el formulario por su cuenta —el efecto que trae
+   las cajas por estiba al escoger el código— el manejador viejo aterriza
+   después y RESUCITA los valores de antes.
+
+   Se vio así: teclear 30 en «por estiba», escoger otro material, y el
+   campo volvía a 30 con el material nuevo puesto — o sea, el rótulo
+   saldría con el código de uno y la cantidad del otro, en letra de siete
+   centímetros. Lo cazó el arnés, no el ojo.
+   ------------------------------------------------------------------ */
 export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
   materiales: Material[];
   ubicaciones: Ubicacion[];
@@ -104,6 +122,32 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
    maestro entero— dejaría imprimir un rótulo de producto con el código
    de un envase en letra de siete centímetros. */
   const mat = delTipo.find((m) => m.sku === f.material) ?? null;
+
+  /* ===================================================================
+     AL ESCOGER EL CÓDIGO, EL MAESTRO LLENA LO QUE SABE
+     -------------------------------------------------------------------
+     «La idea es que yo llene solo código y la fecha y traiga todo.»
+
+     Las cajas por estiba estaban de PISTA —un renglón gris debajo que
+     decía «el maestro dice 1.080»— y había que copiarlas a mano en el
+     campo de al lado. Tecleando de pie, con guante y con el camión
+     esperando, copiar un número que la pantalla ya tiene es donde se
+     cuela el dedazo que después sale impreso en letra de siete
+     centímetros.
+
+     Y EL AVISO DE LA ESTIBA INCOMPLETA NO SE PIERDE: el renglón de
+     abajo dice de dónde salió el número, y en cuanto alguien lo cambia
+     dice que lo cambió y cuánto decía el maestro. Antes ese aviso vivía
+     de que nadie rellenara el campo; ahora vive de comparar, que es lo
+     que de verdad lo sostiene.
+     =================================================================== */
+  useEffect(() => {
+    /* SOLO CUANDO CAMBIA EL MATERIAL. Metiendo `f.cantidad` en las
+       dependencias, cada tecla la devolvería al valor del maestro y el
+       campo no se podría corregir. */
+    setF((x) => ({ ...x, cantidad: mat?.cajas_por_estiba ? String(mat.cajas_por_estiba) : "" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.material, tipo]);
 
   /* LA UBICACIÓN SON TRES COSAS Y SE ESCOGEN EN CASCADA: calle →
      módulo → lado. Es el mismo orden en que está pintada la bodega en
@@ -186,7 +230,6 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
         hora: tipo === "producto" ? (f.hora || null) : null,
         color: tipo === "envase" ? (f.color || null) : null,
         origen: tipo === "envase" ? (f.origen.trim() || null) : null,
-        placa: f.placa.trim().toUpperCase() || null,
         recibido: new Date().toISOString().slice(0, 10),
       }));
 
@@ -233,7 +276,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
                        que se está recibiendo —si no, dice el nombre de
                        un material que el desplegable ya no ofrece—, pero
                        el candado está en la búsqueda. */
-                    onClick={() => { setTipo(k); setF({ ...f, material: "" }) }}>
+                    onClick={() => { setTipo(k); setF((x) => ({ ...x, material: "" })) }}>
               {t}
             </button>
           ))}
@@ -254,7 +297,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
                    pantallazos de pie. Los demás salen al escribir. */
                 corta: m.en_sitio,
               }))}
-              cambiar={(c) => setF({ ...f, material: c })}
+              cambiar={(c) => setF((x) => ({ ...x, material: c }))}
               rotulo={`Escribe el nombre o el código — ${delTipo.length} en el maestro`}
               cuenta="en el maestro"
               vacio={`No hay ${tipo === "producto" ? "productos" : "envases"} activos en el maestro de inventario.`} />
@@ -263,28 +306,33 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
           <label className="rc-c">
             <span>Estibas</span>
             <input value={f.estibas} inputMode="numeric"
-                   onChange={(e) => setF({ ...f, estibas: e.target.value })} />
+                   onChange={(e) => setF((x) => ({ ...x, estibas: e.target.value }))} />
             <em>Sale un rótulo por estiba, numerado.</em>
           </label>
 
           <label className="rc-c">
             <span>Por estiba</span>
-            <input value={f.cantidad} inputMode="numeric" placeholder="1.080"
-                   onChange={(e) => setF({ ...f, cantidad: e.target.value })} />
-            {/* LO QUE DICE EL MAESTRO, COMO AYUDA Y NO COMO VALOR
-                PUESTO. Ponerlo solo haría que nadie lo mirara, y el día
-                que la estiba venga incompleta el rótulo mentiría. */}
-            <em>
-              {mat?.cajas_por_estiba
-                ? `El maestro dice ${mat.cajas_por_estiba} cajas por estiba.`
-                : "Cuántas trae cada una."}
-            </em>
+            <input id="rc-cant" value={f.cantidad} inputMode="numeric" placeholder="1.080"
+                   onChange={(e) => setF((x) => ({ ...x, cantidad: e.target.value }))} />
+            {/* DE DÓNDE SALIÓ EL NÚMERO, Y SI SE CAMBIÓ.
+                El valor lo pone el maestro al escoger el código; este
+                renglón es el que impide que eso se vuelva una mentira
+                el día que la estiba venga incompleta: mientras sea el
+                del maestro lo dice, y en cuanto alguien lo corrige dice
+                que lo corrigió y cuánto decía el maestro. */}
+            {mat?.cajas_por_estiba
+              ? (cantidad === mat.cajas_por_estiba
+                  ? <em>Lo trae el maestro. Cámbialo si la estiba viene incompleta.</em>
+                  : <em className="rc-cambiado">
+                      Lo cambiaste — el maestro dice {mat.cajas_por_estiba.toLocaleString("es-CO")}.
+                    </em>)
+              : <em>Cuántas trae cada una — al maestro le falta el factor estibado.</em>}
           </label>
 
           <label className="rc-c">
             <span>Se cuenta en</span>
             <select value={f.unidad}
-                    onChange={(e) => setF({ ...f, unidad: e.target.value as "cajas" | "unidades" })}>
+                    onChange={(e) => setF((x) => ({ ...x, unidad: e.target.value as "cajas" | "unidades" }))}>
               <option value="cajas">Cajas</option>
               <option value="unidades">Unidades</option>
             </select>
@@ -301,7 +349,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
               <label className="rc-c">
                 <span>Vence el</span>
                 <input type="date" value={f.vence}
-                       onChange={(e) => setF({ ...f, vence: e.target.value })} />
+                       onChange={(e) => setF((x) => ({ ...x, vence: e.target.value }))} />
                 <em>
                   {!f.vence ? "Es lo único que hay que teclear: lo demás lo trae el código."
                     : producido
@@ -316,7 +364,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
               <label className="rc-c">
                 <span>Línea <i className="rc-opt">opcional</i></span>
                 <input value={f.linea} maxLength={6} inputMode="numeric" placeholder="42"
-                       onChange={(e) => setF({ ...f, linea: e.target.value })} />
+                       onChange={(e) => setF((x) => ({ ...x, linea: e.target.value }))} />
                 <em>Entra en el folio: {mat?.sku ?? "código"}-
                   {(producido ?? "aaaammdd").replace(/-/g, "")}
                   {f.linea.trim() ? `-L${f.linea.trim()}` : ""}-001</em>
@@ -324,14 +372,14 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
               <label className="rc-c">
                 <span>Hora <i className="rc-opt">opcional</i></span>
                 <input type="time" value={f.hora}
-                       onChange={(e) => setF({ ...f, hora: e.target.value })} />
+                       onChange={(e) => setF((x) => ({ ...x, hora: e.target.value }))} />
               </label>
             </>
           ) : (
             <>
               <label className="rc-c">
                 <span>Color del vidrio</span>
-                <select value={f.color} onChange={(e) => setF({ ...f, color: e.target.value })}>
+                <select value={f.color} onChange={(e) => setF((x) => ({ ...x, color: e.target.value }))}>
                   <option value="">Escoge…</option>
                   {COLORES.map(([k, t]) => <option key={k} value={t}>{t}</option>)}
                 </select>
@@ -339,16 +387,10 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
               <label className="rc-c">
                 <span>Viene de <i className="rc-opt">opcional</i></span>
                 <input value={f.origen} maxLength={40} placeholder="CD Unión Apartado"
-                       onChange={(e) => setF({ ...f, origen: e.target.value })} />
+                       onChange={(e) => setF((x) => ({ ...x, origen: e.target.value }))} />
               </label>
             </>
           )}
-
-          <label className="rc-c">
-            <span>Placa <i className="rc-opt">opcional</i></span>
-            <input value={f.placa} maxLength={10}
-                   onChange={(e) => setF({ ...f, placa: e.target.value.toUpperCase() })} />
-          </label>
 
           {/* ============ EL PATRÓN DE ESTIBA, DEL MAESTRO ============
               NO SE TECLEA: llega con el código y se enseña para poder
@@ -409,7 +451,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
               <label className="rc-c" key={k}>
                 <span>{t}</span>
                 <input value={f[k]} inputMode="numeric"
-                       onChange={(e) => setF({ ...f, [k]: e.target.value })} />
+                       onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} />
               </label>
             ))}
           </div>
@@ -418,8 +460,8 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
           <label className="rc-c">
             <span>Calle</span>
             <select value={f.calle}
-                    onChange={(e) => setF({ ...f, calle: e.target.value,
-                                            modulo: "", lado: "", ubicacion_id: "" })}>
+                    onChange={(e) => setF((x) => ({ ...x, calle: e.target.value,
+                                            modulo: "", lado: "", ubicacion_id: "" }))}>
               <option value="">Escoge…</option>
               {calles.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -437,7 +479,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
                          pedir «escoge el lado» donde no hay lados es
                          pedir algo que no existe. */
                       const solo = ls.length === 1 ? ls[0] : null;
-                      setF({ ...f, modulo: mod, lado: solo?.lado ?? "", ubicacion_id: solo?.id ?? "" });
+                      setF((x) => ({ ...x, modulo: mod, lado: solo?.lado ?? "", ubicacion_id: solo?.id ?? "" }));
                     }}>
               <option value="">{f.calle ? "Escoge…" : "Primero la calle"}</option>
               {modulos.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -448,7 +490,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
             <select value={f.ubicacion_id} disabled={!f.modulo}
                     onChange={(e) => {
                       const u = ubicaciones.find((x) => x.id === e.target.value);
-                      setF({ ...f, ubicacion_id: e.target.value, lado: u?.lado ?? "" });
+                      setF((x) => ({ ...x, ubicacion_id: e.target.value, lado: u?.lado ?? "" }));
                     }}>
               <option value="">{f.modulo ? "Escoge…" : "Primero el módulo"}</option>
               {lados.map((u) => (
