@@ -232,3 +232,113 @@
   color: var(--c-5b6b7f);
 }
 .avr .avr-sello b { color: var(--c-04203f) }
+
+/* ---------------------------------------------------------------------
+   LA ESTIBA FANTASMA — el encabezado del tablero
+   ---------------------------------------------------------------------
+   Dos mitades: a la izquierda la estiba armada en 3D, a la derecha lo
+   que hay que hacer con ella. Las tres cifras que antes iban sueltas en
+   una fila de tarjetas se MUDAN aquí adentro: son la letra pequeña de la
+   cifra grande, y repetirlas arriba y abajo sería decir dos veces lo
+   mismo con dos formatos distintos.
+
+   EL PANEL DEL DIBUJO ES CLARO EN LAS SIETE APARIENCIAS, y eso es a
+   propósito. Lo demás sigue al tema porque es interfaz; la estiba es una
+   FOTO de la bodega, y una foto no se invierte cuando se apaga la luz.
+   En los temas oscuros queda como queda una lámina en una pared negra:
+   se ve mejor, no peor. Lo que sí sigue al tema es todo lo que la rodea.
+   ------------------------------------------------------------------ */
+.avr .avr-hero {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  overflow: hidden;
+}
+.avr .avr-fig {
+  position: relative; min-height: 520px;
+  background: linear-gradient(180deg, #F7F6F2 0%, #E7E5DF 100%);
+  border-right: 1px solid var(--fe-linea);
+}
+.avr .avr-lienzo { position: absolute; inset: 0 }
+
+/* El respaldo plano ocupa el mismo hueco y se centra solo. */
+.avr .avr-lienzo-plano { display: flex; align-items: center; justify-content: center; padding: 18px }
+.avr .avr-lienzo-plano svg { width: 100%; height: 100%; max-height: 100% }
+.avr .avr-lienzo-vacio { display: none }
+/* Si el navegador le quita la tarjeta de video al marco, el lienzo queda
+   en negro. Se tapa con el mismo fondo del panel. */
+.avr .avr-lienzo-caido { background: linear-gradient(180deg, #F7F6F2 0%, #E7E5DF 100%) }
+.avr .avr-lienzo-caido canvas { display: none }
+
+.avr .avr-dice {
+  padding: 34px 34px 30px; display: flex; flex-direction: column; justify-content: center;
+  min-width: 0;
+}
+.avr .avr-dice > .avr-rot { margin: 0 0 16px }
+/* LA CIFRA Y SU FRASE, LADO A LADO. La cifra sola dice «36»; al lado
+   dice «36 cajas que el sistema todavía cuenta», que es la frase que
+   alguien repite en una reunión. */
+.avr .avr-mega { display: flex; align-items: flex-end; gap: 14px; min-width: 0 }
+.avr .avr-mega b {
+  font: 900 clamp(64px, 11vw, 108px)/.85 var(--fe-titulo); letter-spacing: -.05em;
+  color: var(--fe-tinta); font-variant-numeric: tabular-nums;
+}
+.avr .avr-mega span {
+  font: 500 14px/1.35 var(--fe-texto); color: var(--fe-gris); max-width: 175px;
+  padding-bottom: 8px;
+}
+.avr .avr-frase {
+  font: 800 clamp(18px, 2.2vw, 23px)/1.25 var(--fe-titulo); letter-spacing: -.02em;
+  margin: 20px 0 22px; max-width: 460px;
+}
+.avr .avr-frase em { font-style: normal; color: var(--fe-mal) }
+
+/* Las tres cifras dentro del encabezado pierden la tarjeta: aquí ya hay
+   un panel, y una tarjeta dentro de otra son dos bordes para nada. */
+.avr .avr-hero .avr-cifras {
+  gap: 0; border-top: 1px solid var(--fe-linea); border-bottom: 1px solid var(--fe-linea);
+}
+.avr .avr-hero .avr-cif {
+  background: none; border: 0; border-radius: 0; padding: 15px 16px 15px 0;
+}
+.avr .avr-hero .avr-cif + .avr-cif { border-left: 1px solid var(--fe-linea); padding-left: 16px }
+/* El filo rojo de alerta no cabe a la izquierda de una columna con raya:
+   se pasa a un punto delante del rótulo, que dice lo mismo sin mover
+   nada de sitio. */
+.avr .avr-hero .avr-cif.avr-alerta { border-left-width: 1px; border-left-color: var(--fe-linea) }
+.avr .avr-hero .avr-cif.avr-alerta .avr-rot::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--fe-mal); margin-right: 7px; vertical-align: .5px;
+}
+.avr .avr-hero .avr-cif b { font-size: 24px }
+.avr .avr-hero .avr-cif .avr-pie { font-size: 11.5px }
+
+/* LA LEYENDA: el color va en el cuadrito y el nombre en la tinta del
+   tema. Pintar el nombre del color de la causal daría 2,1 de contraste
+   en los temas oscuros, que es lo mismo que no escribirlo. */
+.avr .avr-ley {
+  list-style: none; margin: 18px 0 22px; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 12.5px; color: var(--fe-tinta);
+}
+.avr .avr-ley i { display: inline-block; width: 10px; height: 10px; margin-right: 7px; vertical-align: 0 }
+.avr .avr-ley b { font-variant-numeric: tabular-nums }
+
+.avr .avr-hero-btns { display: flex; flex-wrap: wrap; gap: 10px }
+
+/* ---------- TABLET Y TELÉFONO ----------
+   Por debajo de 900 se apila: primero el dibujo —que es el gancho— y
+   debajo la cifra y lo que hay que hacer. El lienzo deja de ser una
+   columna alta y pasa a una lámina ancha, que es la forma que le queda
+   bien a un teléfono en vertical. */
+@media (max-width: 900px) {
+  .avr .avr-hero { grid-template-columns: 1fr }
+  .avr .avr-fig { min-height: 0; aspect-ratio: 4 / 3; max-height: 52vh; border-right: 0; border-bottom: 1px solid var(--fe-linea) }
+  .avr .avr-dice { padding: 24px 20px 22px }
+  .avr .avr-mega span { max-width: 200px }
+}
+@media (max-width: 560px) {
+  .avr .avr-fig { aspect-ratio: 1 / 1 }
+  .avr .avr-hero .avr-cifras { grid-template-columns: 1fr }
+  .avr .avr-hero .avr-cif { padding: 13px 0 }
+  .avr .avr-hero .avr-cif + .avr-cif { border-left: 0; border-top: 1px solid var(--fe-linea); padding-left: 0 }
+  .avr .avr-hero-btns .btn { flex: 1 1 100% }
+}

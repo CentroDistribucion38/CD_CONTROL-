@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
@@ -10,6 +11,20 @@ import { BuscarEnLista } from "@/components/BuscarEnLista";
 import type {
   AveriaFila, CausalFila, ProductoFila, UbicacionFila,
 } from "@/modulos/averias/datos";
+import type { Causal } from "@/modulos/averias/hallazgos";
+import { CUPO, LeyendaCausales, type PorCausal } from "./Estiba";
+
+/* LA ESTIBA SE CARGA APARTE Y SOLO EN EL NAVEGADOR.
+   Son 600 kB de librería de 3D: metidos en el paquete de la pantalla,
+   TODO el tablero —la tabla, los filtros, el formulario— esperaría a que
+   bajen antes de pintar el primer renglón. Así el tablero abre como
+   siempre y la estiba aparece cuando está.
+   Y `ssr:false` no es un adorno: la escena toca `window`, `canvas` y la
+   tarjeta de video, y ninguna de las tres existe en el servidor. */
+const Estiba = dynamic(() => import("./Estiba").then((m) => m.Estiba), {
+  ssr: false,
+  loading: () => <div className="avr-lienzo" aria-hidden />,
+});
 
 /**
  * AVERÍAS — lo que se dañó en la bodega, y su baja.
@@ -52,6 +67,22 @@ const pelado = (t: string) =>
  */
 const calleDe = (a: { calle?: string | null; ubicacion: string }) =>
   a.calle ?? (a.ubicacion.trim().match(/^[A-Za-z]+/)?.[0] ?? a.ubicacion).toUpperCase();
+
+/**
+ * EL BULTO, DICHO EN ESTIBAS.
+ *
+ * «18 cajas» es una cifra que hay que convertir; «media estiba» se ve.
+ * La bodega piensa en estibas —es lo que mueve un montacargas y lo que
+ * ocupa una posición— así que la frase de arriba se dice en estibas y la
+ * cifra exacta queda al lado, en cajas, para quien tenga que anotarla.
+ */
+function bulto(cajas: number) {
+  const e = cajas / CUPO;
+  if (e >= 1.4) return "Estiba y media que ya no existe,";
+  if (e >= 0.9) return "Una estiba entera que ya no existe,";
+  if (e >= 0.45) return "Media estiba que ya no existe,";
+  return "Unas cajas que ya no existen,";
+}
 
 type Vista = "pendientes" | "bajas" | "todas";
 
@@ -156,6 +187,23 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
      mundos: producto que ya no sirve y que además sigue contando. */
   const venciendo = pendientes.filter(
     (a) => a.dias_para_vencer !== null && a.dias_para_vencer <= 30);
+
+  /* LAS CAJAS PENDIENTES REPARTIDAS POR CAUSAL. Es lo que arma la estiba
+     del encabezado: una canasta por caja, agrupadas por color. Va en
+     CAJAS y no en registros porque el dibujo son cajas: una avería de 20
+     cajas y otra de 1 no son dos canastas, son veintiuna. */
+  const porCausal = useMemo<PorCausal>(() => {
+    const m: PorCausal = { deposito: 0, transporte: 0, contaminado: 0 };
+    for (const a of pendientes) if (a.causal in m) m[a.causal as Causal] += a.cajas;
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lista]);
+
+  /* Los botones del encabezado cambian la pestaña de abajo; sin bajar la
+     pantalla, quien los toca cree que no pasó nada. */
+  const barra = useRef<HTMLDivElement>(null);
+  const irALaLista = () =>
+    barra.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   /* LO DE HOY, para la pantalla de registrar: quien acaba de cargar
      una quiere verla aparecer, y quien lleva cinco quiere no repetir
@@ -529,10 +577,34 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
       </section>
 
       {modo === "tablero" && <>
-      {/* LAS TRES CIFRAS QUE CAMBIAN LO QUE SE HACE HOY. No son «cuántas
-          averías hemos tenido» —eso no es una pregunta que alguien
-          tenga a las siete de la mañana— sino qué está represado. */}
-      <div className="avr-cifras">
+      {/* ============ LA ESTIBA FANTASMA ============
+          LO PRIMERO QUE SE VE ES EL BULTO, no la tabla. «36 cajas sin dar
+          de baja» es un número que se lee y se olvida; una estiba armada
+          —cada canasta una caja, cada hoja de color una causal— es un
+          bulto que se reconoce desde el pasillo. El que la ve entiende
+          sin leer que hay producto que la bodega no tiene y el inventario
+          sí, y esa es toda la pantalla.
+
+          LAS TRES CIFRAS VIVEN AQUÍ ADENTRO y no en una fila aparte: son
+          la letra pequeña de la cifra grande. Sueltas arriba eran tres
+          tarjetas más que nadie miraba después de la primera semana. */}
+      <section className="avr-hero">
+        <div className="avr-fig"><Estiba porCausal={porCausal} /></div>
+        <div className="avr-dice">
+          <p className="avr-rot">SIN DAR DE BAJA · BODEGA AG01</p>
+          <div className="avr-mega">
+            <b>{cajasPend}</b>
+            <span>caja{cajasPend === 1 ? "" : "s"} que el sistema todavía cuenta{unidPend > 0 && ` y ${unidPend} unidades`}</span>
+          </div>
+          {/* LA FRASE SE MIDE EN ESTIBAS y no en cajas, porque es la
+              unidad en la que se piensa la bodega: «media estiba» se ve,
+              «18 cajas» hay que convertirlo. */}
+          <h2 className="avr-frase">
+            {cajasPend === 0
+              ? "Estiba vacía. Todo tiene su documento de baja."
+              : <>{bulto(cajasPend)} <em>y el inventario la sigue sumando.</em></>}
+          </h2>
+          <div className="avr-cifras">
         <div className={"avr-cif" + (diasVieja > 15 ? " avr-alerta" : "")}>
           <span className="avr-rot">LA MÁS VIEJA SIN BAJA</span>
           <b>{masVieja ? `${diasVieja} días` : "—"}</b>
@@ -564,9 +636,28 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
             la calle con más cajas averiadas sin dar de baja
           </span>
         </div>
-      </div>
+          </div>
+          <LeyendaCausales porCausal={porCausal} />
+          {cajasPend > CUPO && (
+            <p className="avr-pie" style={{ marginTop: -12, marginBottom: 18 }}>
+              La estiba del dibujo está llena: son {CUPO} canastas de las {cajasPend} pendientes.
+            </p>
+          )}
+          <div className="avr-hero-btns">
+            <button type="button" className="btn primario"
+                    disabled={!puedeEditar || pendientes.length === 0}
+                    onClick={() => { setVista("pendientes"); irALaLista() }}>
+              Ver las {pendientes.length} pendientes
+            </button>
+            <button type="button" className="btn"
+                    onClick={() => { setVista("bajas"); irALaLista() }}>
+              Ya dadas de baja
+            </button>
+          </div>
+        </div>
+      </section>
 
-      <div className="fe-barra">
+      <div className="fe-barra" ref={barra}>
         <div className="fe-pes">
           {([["pendientes", "Sin dar de baja", pendientes.length],
              ["bajas", "Ya dadas de baja", vivas.length - pendientes.length],

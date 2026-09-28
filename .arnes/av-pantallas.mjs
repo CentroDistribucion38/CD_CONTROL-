@@ -59,11 +59,16 @@ writeFileSync(R(".arnes/_supa-av.ts"), `export const createClient = () => ({
    una pendiente que se vence, una ya dada de baja, y una anulada. Sin
    los cuatro, media pantalla no se mide. */
 const FILAS = `
-const hoy = "2026-09-24";
+/* LAS FECHAS SE CUENTAN DESDE HOY Y NO DESDE UN DÍA FIJO. Estaban
+   clavadas en el día en que se escribió el arnés, pero la pantalla
+   cuenta los días contra el reloj de verdad: dos días después, «la más
+   vieja» decía 30 donde el arnés esperaba 28 y el arnés se ponía rojo
+   solo por haber pasado el tiempo. Un arnés que caduca deja de leerse. */
 const d = (n) => {
-  const x = new Date("2026-09-24T12:00:00Z"); x.setUTCDate(x.getUTCDate() - n);
+  const x = new Date(); x.setUTCHours(12, 0, 0, 0); x.setUTCDate(x.getUTCDate() - n);
   return x.toISOString().slice(0, 10);
 };
+const hoy = d(0);
 const base = (i, o) => ({
   id: "a" + i, codigo: "AV-000" + i, fecha: d(3), ubicacion: "A03 · M12",
   producto_sku: "3128", producto: "Aguila RN 330cc X30",
@@ -236,12 +241,30 @@ await monta();
       const e = document.querySelector(s);
       return e ? Math.round(e.getBoundingClientRect().width) : 0;
     };
-    return { padre, cifras: de(".avr-cifras"), barra: de(".fe-barra"), fila: de(".avr-fila") };
+    /* CADA BLOQUE SE MIDE CONTRA SU PROPIO PADRE. Antes se medían todos
+       contra el ancho de la pantalla, y eso dejó de valer el día que las
+       tres cifras se mudaron adentro del encabezado: llenan su columna,
+       que es la mitad de la pantalla, y el arnés las daba por rotas. Lo
+       que caza el choque de nombres no es «mide lo mismo que la
+       pantalla» sino «se encogió al contenido dentro de su caja». */
+    const lleno = (s) => {
+      const e = document.querySelector(s);
+      if (!e) return null;
+      /* El hueco del padre es su caja de CONTENIDO: un padre con 34 px de
+         margen interior a cada lado nunca le va a dar su ancho entero a
+         un hijo, y comparar contra el borde exterior dejaría el arnés
+         rojo por un relleno bien puesto. */
+      const g = getComputedStyle(e.parentElement);
+      const p = Math.round(e.parentElement.clientWidth - parseFloat(g.paddingLeft) - parseFloat(g.paddingRight));
+      return { an: de(s), padre: p };
+    };
+    return { padre, hero: lleno(".avr-hero"), cifras: lleno(".avr-cifras"),
+             barra: lleno(".fe-barra"), fila: lleno(".avr-fila") };
   });
   for (const [k, v] of Object.entries(anchos)) {
-    if (k === "padre") continue;
-    ok(v >= anchos.padre - 2,
-       `«${k}» mide ${v} de ${anchos.padre}: no llena el ancho —casi siempre es que la clase de la pantalla choca con una de globals.css`);
+    if (k === "padre" || !v) continue;
+    ok(v.an >= v.padre - 2,
+       `«${k}» mide ${v.an} dentro de una caja de ${v.padre}: se encogió al contenido —casi siempre es que la clase de la pantalla choca con una de globals.css`);
   }
 }
 
@@ -314,67 +337,23 @@ await monta(1440, "", jsVe);
 }
 
 /* ---------------------------------------------------------------------
-   5 · REGISTRAR: LO QUE SE EXIGE Y LO QUE VIAJA
+   5 · REGISTRAR — SE MIDE EN `avr-registrar.mjs`, NO AQUÍ
+   ---------------------------------------------------------------------
+   Aquí vivía una comprobación del formulario de registrar, escrita
+   cuando la ubicación era una casilla de texto libre y el producto un
+   desplegable. Las dos cosas cambiaron: la ubicación sale del maestro en
+   cascada —calle, módulo, lado— y el producto se busca por nombre y por
+   código. Desde entonces esta sección se quedaba esperando un
+   `<select>` que ya no existe.
+
+   DOS ARNESES MIDIENDO LA MISMA PANTALLA CON DOS IDEAS DISTINTAS es cómo
+   se acaba creyéndole al que está mal. El formulario lo mide
+   `avr-registrar.mjs`, que sí sabe de la cascada y comprueba, además,
+   que no viaja ninguna fecha. Lo de aquí se quitó en vez de ponerlo al
+   día, porque ponerlo al día habría sido escribirlo dos veces.
+
+     node .arnes/avr-registrar.mjs
    ------------------------------------------------------------------ */
-await monta();
-{
-  await pg.click(".fe-barra .btn:has-text('Registrar avería')");
-  await pg.waitForSelector(".avr-form");
-
-  /* EL BOTÓN DICE QUÉ FALTA en vez de quedarse apagado y mudo: un
-     botón apagado sin explicación se toca tres veces y después se
-     llama a preguntar. */
-  ok(/Falta la ubicación/i.test(await pg.textContent(".avr-acciones .btn")),
-     `el botón dice «${await pg.textContent(".avr-acciones .btn")}» y falta la ubicación`);
-
-  const teclear = async (sel, v) => pg.evaluate(([s, val]) => {
-    const el = document.querySelector(s);
-    const proto = el.tagName === "TEXTAREA"
-      ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-    Object.getOwnPropertyDescriptor(proto, "value").set.call(el, val);
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-  }, [sel, v]);
-
-  await teclear(".avr-campos input", "D04 · M07");
-  ok(/Falta el producto/i.test(await pg.textContent(".avr-acciones .btn")),
-     "con ubicación puesta el botón no pasa a pedir el producto");
-
-  await pg.selectOption(".avr-c select", "2512");
-  ok(/Falta decir cuánto/i.test(await pg.textContent(".avr-acciones .btn")),
-     "con producto puesto el botón no pasa a pedir la cantidad");
-
-  /* LAS CAJAS Y LAS UNIDADES VAN SEPARADAS: media caja averiada es
-     «0 cajas, 7 unidades» y una estiba es «48 cajas, 0 unidades». */
-  const nums = await pg.$$(".avr-campos input[type=number]");
-  await nums[1].fill("7");
-  ok(!/Falta/i.test(await pg.textContent(".avr-acciones .btn")),
-     "con 7 unidades sueltas y 0 cajas todavía dice que falta algo: media caja es una avería");
-
-  /* LA CAUSAL EN BOTONES Y NO EN DESPLEGABLE: son tres, cuál es decide
-     a quién se le cobra, y un desplegable esconde dos y hace ganar a
-     la primera por costumbre. */
-  const seg = await pg.$$eval(".avr-seg button", (b) => b.map((x) => x.textContent.trim()));
-  ok(seg.length === 3, `las causales salen en ${seg.length} botones y son 3`);
-  ok(/llega averiado/i.test(seg.find((s) => /transporte/i.test(s)) ?? ""),
-     "la de transporte no dice que llega averiada: es lo que decide a quién se le cobra");
-
-  await pg.click(".avr-seg button:has-text('transporte')");
-  await pg.click(".avr-acciones .btn");
-  await pg.waitForFunction(() => (window.llamadas ?? []).length > 0, null, { timeout: 2000 })
-    .catch(() => {});
-  const l = (await llamadas()).find((x) => x.f === "averia_registrar");
-  ok(!!l, "registrar no llama a la base");
-  ok(l?.a?.p_ubicacion === "D04 · M07", `la ubicación viajó como ${JSON.stringify(l?.a?.p_ubicacion)}`);
-  ok(l?.a?.p_sku === "2512", `el producto viajó como ${JSON.stringify(l?.a?.p_sku)}`);
-  ok(l?.a?.p_unidades === 7 && l?.a?.p_cajas === 0,
-     `cajas y unidades viajaron como ${l?.a?.p_cajas}/${l?.a?.p_unidades}`);
-  ok(l?.a?.p_causal === "transporte", `la causal viajó como ${JSON.stringify(l?.a?.p_causal)}`);
-  /* EL DÍA EN QUE PASÓ, no el de hoy por descarte: se propone hoy pero
-     viaja el que esté en el campo. */
-  ok(l?.a?.p_fecha === "2026-09-24" || l?.a?.p_fecha === null,
-     `la fecha viajó como ${JSON.stringify(l?.a?.p_fecha)}`);
-}
-
 /* ---------------------------------------------------------------------
    6 · LA LISTA VACÍA SE EXPLICA
    ------------------------------------------------------------------ */
@@ -512,4 +491,4 @@ if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\n✓ Averías: la pantalla abre por lo que FALTA —las que siguen contando en el inventario— y no por lo último; cada fila dice si todavía cuenta, cuánto tardó su baja y cuál se vence; a la que ya tiene documento de SAP no se le ofrece borrar; quien solo VE no toca nada; registrar exige ubicación, producto, cuánto y causal, y separa cajas de unidades sueltas.");
+console.log("\n✓ Averías: la pantalla abre por lo que FALTA —las que siguen contando en el inventario— y no por lo último; cada fila dice si todavía cuenta, cuánto tardó su baja y cuál se vence; a la que ya tiene documento de SAP no se le ofrece borrar; quien solo VE no toca nada; la estiba y los bloques llenan su caja, y todo se lee en los siete temas y en los cuatro anchos.");
