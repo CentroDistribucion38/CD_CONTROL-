@@ -316,28 +316,43 @@ export async function rotulosPdf(
     pdf.text(r.sku, M + anProd + 3 + anCod / 2, y + 14.6, { align: "center" });
     y += 21;
 
-    /* ============ LAS CUATRO CIFRAS QUE SE LEEN DE LEJOS ============
-       «Quiero grande cuántas cajas, cuántas unidades, factor de estiba
-       y vida útil.»
+    /* ============ LAS TRES CIFRAS QUE SE LEEN DE LEJOS ============
+       «Quita cajas en esta estiba y deja factor de estiba.»
 
        AQUÍ ESTABA LA BANDA «ARRUME · ESTIBAS» —ancho, alto y largo del
-       arrume— y se va. Ocupaba un tercio del renglón más visible del
+       arrume— y se fue: ocupaba un tercio del renglón más visible del
        papel para decir «1 × 1 × 1» la mayoría de las veces, que es lo
-       que trae un camión normal: un dato que casi siempre vale lo mismo
-       no merece el sitio donde el ojo cae primero. El arrume sigue en el
-       QR y en el «1 / 3» de la cabecera, que es donde se busca.
+       que trae un camión normal. El arrume sigue en el QR y en el
+       «1 / 3» de la cabecera, que es donde se busca.
 
-       LAS CUATRO SON DE COSAS DISTINTAS y por eso van juntas: las dos
-       primeras son ESTA estiba —lo que hay que contar— y las dos
-       últimas son del MATERIAL —lo que hay que saber para armarla y
-       para no dejarla vencer—. */
-    const c4 = (AN - 9) / 4;
+       Y SE FUE TAMBIÉN «CAJAS EN ESTA ESTIBA», que con la estiba
+       completa decía exactamente lo mismo que el factor: 45 y 45. Dos
+       casillas con el mismo número enseñan al que lee que una de las
+       dos sobra, y a partir de ahí deja de mirar las dos.
+
+       PERO NO SIEMPRE DICEN LO MISMO, y ahí está el cuidado: una estiba
+       puede llegar INCOMPLETA —quien recibe corrige «por estiba» a 30—
+       y entonces el factor sigue diciendo 45 mientras encima hay 30. Un
+       papel que solo dijera 45 mandaría a contar 45 cajas que no están.
+       Por eso, cuando no coinciden, sale la franja roja de abajo con lo
+       que hay DE VERDAD. En el caso normal no sale nada y el renglón
+       queda limpio, que es lo que se pidió.
+
+       LAS TRES SON DE COSAS DISTINTAS: las unidades son de ESTA estiba
+       —lo que entra al inventario— y el factor y la vida útil son del
+       MATERIAL —cómo se arma y cuánto dura—. */
+    const c4 = (AN - 6) / 3;
     /* UNIDADES DE ESTA ESTIBA: las cajas por lo que trae cada una. Si se
        recibió contando en unidades, la cifra ya son unidades y no se
        vuelve a multiplicar. Sin el dato en el maestro no se inventa. */
     const unidadesAqui = r.unidad === "unidades"
       ? r.cantidad
       : (r.unidadesCaja ? r.cantidad * r.unidadesCaja : null);
+    /* LA ESTIBA NO VIENE COMPLETA. Solo se puede decir contando en
+       cajas: recibido en unidades, `cantidad` y el factor son de cosas
+       distintas y compararlos no significa nada. */
+    const incompleta = r.unidad === "cajas" && r.factorEstiba != null
+      && r.cantidad !== r.factorEstiba;
 
     const cifra = (
       j: number, rot: string, valor: string, pie: string | null, floja: boolean,
@@ -355,7 +370,7 @@ export async function rotulosPdf(
          siete dígitos en el papel de una estiba es ilegible en silencio.
          Lo que sí mide el arnés es que nada se encime, con la hoja de
          las cifras largas. */
-      pdf.setFontSize(valor.length > 5 ? 15 : valor.length > 4 ? 17 : 20);
+      pdf.setFontSize(valor.length > 6 ? 16 : valor.length > 5 ? 18 : 22);
       /* La tinta se vuelve a poner: `rotulo()` deja el color en ámbar
          —es lo que usa sobre negro— y jsPDF no lo devuelve solo. */
       pdf.setTextColor(...(floja ? GRIS : TINTA));
@@ -366,24 +381,35 @@ export async function rotulosPdf(
       }
     };
 
-    cifra(0, `${r.unidad.toUpperCase()} EN ESTA ESTIBA`, nf.format(r.cantidad),
-          /* EL TOTAL DEL ARRUME BAJA AQUÍ, en letra chica. Era una
-             casilla entera y es una comprobación, no una cifra de
-             trabajo: lo que se cuenta es la estiba que se tiene
-             delante. */
-          r.total > 1 ? `${nf.format(r.arrume)} EN TODO EL ARRUME` : null, false);
-    cifra(1, "UNIDADES EN ESTA ESTIBA",
+    cifra(0, "UNIDADES EN ESTA ESTIBA",
           unidadesAqui != null ? nf.format(unidadesAqui) : "—",
           unidadesAqui != null && r.unidad === "cajas" && r.unidadesCaja
-            ? `${nf.format(r.unidadesCaja)} POR CAJA` : null,
+            ? `${nf.format(r.cantidad)} CAJAS DE ${nf.format(r.unidadesCaja)}`
+            /* EL TOTAL DEL ARRUME BAJA AQUÍ cuando no hay nada mejor que
+               poner: es una comprobación, no una cifra de trabajo. */
+            : (r.total > 1 ? `${nf.format(r.arrume)} EN TODO EL ARRUME` : null),
           unidadesAqui == null);
-    cifra(2, "FACTOR DE ESTIBA",
+    cifra(1, "FACTOR DE ESTIBA",
           r.factorEstiba != null ? nf.format(r.factorEstiba) : "—",
           "CAJAS POR ESTIBA", r.factorEstiba == null);
-    cifra(3, "VIDA ÚTIL",
+    cifra(2, "VIDA ÚTIL",
           r.vidaUtil != null ? `${nf.format(r.vidaUtil)} d` : "—",
           r.vidaUtil != null ? "DESDE QUE SE PRODUJO" : null, r.vidaUtil == null);
     y += 24;
+
+    /* LA FRANJA DE LA ESTIBA INCOMPLETA. En rojo y a lo ancho porque es
+       una excepción, y una excepción que no se ve se cuenta como si no
+       existiera: el que pasa contando leería el factor y daría por
+       buenas 45 cajas que no están encima. */
+    if (incompleta) {
+      pdf.setFillColor(...MAL);
+      pdf.rect(M, y - 2, AN, 8, "F");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(9);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(`ESTIBA INCOMPLETA - AQUI HAY ${nf.format(r.cantidad)} CAJAS, NO ${nf.format(r.factorEstiba!)}`,
+               M + AN / 2, y + 3.6, { align: "center" });
+      y += 10;
+    }
 
     /* ============ EL PATRÓN DE ESTIBA ============
        CÓMO VAN LAS CAJAS SOBRE UNA ESTIBA, del maestro. Va en su propia
@@ -516,20 +542,24 @@ export async function rotulosPdf(
       y += 16;
     }
 
-    /* --- La ubicación, en su propia banda --- */
+    /* --- La ubicación, en su propia banda ---
+       LA BANDA SE QUEDA Y VA VACÍA, con una raya. «Que parezca ubicación
+       y solo ese un -, para que a futuro la desarrollemos pero aún no.»
+
+       El sitio en el papel se reserva ahora porque el papel se imprime,
+       se pega en la estiba y se queda ahí meses: si la banda apareciera
+       el día que se conecte la asignación, las estibas viejas y las
+       nuevas tendrían tarjetas distintas y nadie sabría cuál mirar. El
+       renglón chico dice por qué está vacía — una banda muda se lee como
+       un dato que se olvidó teclear. */
     pdf.setDrawColor(...TINTA); pdf.setLineWidth(0.6);
     pdf.rect(M, y, AN, 13, "S");
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(6); pdf.setTextColor(...GRIS);
     pdf.text("UBICACIÓN", M + 3, y + 5);
-    pdf.setFontSize(r.ubicacion ? 13 : 9);
-    pdf.setTextColor(...(r.ubicacion ? TINTA : GRIS));
-    pdf.text(r.ubicacion ?? "sin asignar", M + 3, y + 10.5);
-    if (r.placa) {
-      pdf.setFontSize(6); pdf.setTextColor(...GRIS);
-      pdf.text("PLACA", W - M - 3, y + 5, { align: "right" });
-      pdf.setFontSize(11); pdf.setTextColor(...TINTA);
-      pdf.text(r.placa, W - M - 3, y + 10.5, { align: "right" });
-    }
+    pdf.setFontSize(13); pdf.setTextColor(...GRIS);
+    pdf.text("-", M + 3, y + 10.5);
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(6); pdf.setTextColor(...GRIS);
+    pdf.text("TODAVIA NO SE ASIGNA DESDE AQUI", W - M - 3, y + 10, { align: "right" });
     y += 16;
 
     /* ====================== LA ZONA DEL CÓDIGO ====================== */

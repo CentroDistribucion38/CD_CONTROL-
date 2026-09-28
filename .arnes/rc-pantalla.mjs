@@ -175,7 +175,12 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
   ok(await apagado(), "de entrada deja imprimir sin haber escogido nada");
   const f = await falta();
   ok(/producto/.test(f), `no se nombra que falta el material: «${f}»`);
-  ok(/ubicación/i.test(f), `no se nombra que falta la ubicación: «${f}»`);
+  /* LA UBICACIÓN YA NO SE EXIGE: no se escoge desde aquí todavía.
+     Pedirla era pedir algo que la pantalla no ofrece, y eso deja el
+     botón apagado sin que se pueda hacer nada al respecto. */
+  ok(!/ubicación/i.test(f),
+     `sigue pidiendo la ubicación y ya no se escoge desde aquí: «${f}» — el botón se queda ` +
+     "apagado y no hay forma de encenderlo");
   ok(/cuántas/i.test(f), `no se nombra que falta la cantidad: «${f}»`);
 }
 
@@ -375,28 +380,43 @@ const porEstiba = "#rc-cant";
 }
 
 /* =====================================================================
-   LA CASCADA DE LA UBICACIÓN, Y EL MÓDULO SIN LADOS
+   LA UBICACIÓN TODAVÍA NO SE ASIGNA DESDE AQUÍ
+   ---------------------------------------------------------------------
+   «Pon que aún no se ponga, o sea que parezca ubicación y solo ese un -,
+    para que a futuro la desarrollemos pero aún no.»
+
+   AQUÍ VIVÍA LA CASCADA calle → módulo → lado, con su prueba de que el
+   módulo sin lados se escogía solo. Los tres desplegables se fueron:
+   apagarlos no habría servido —un desplegable apagado se toca tres o
+   cuatro veces antes de que alguien entienda que no va a abrir, y
+   después se reporta como que la pantalla está trabada—.
+
+   Lo que queda, y es lo que se mide: el RENGLÓN sigue ahí diciendo que
+   este sitio existe y que le falta, y lo que se va a imprimir dice una
+   raya y no una ubicación inventada.
    ===================================================================== */
 await monta();
 {
+  const txt = await pg.textContent(".fe");
+  ok(/Dónde queda/.test(txt),
+     "se fue el renglón de «dónde queda»: el sitio se reserva desde ahora, si no, el día que se " +
+     "conecte nadie sabrá que esa parte existía");
+  ok(/Todavía no se asigna desde aquí/.test(txt),
+     "no dice que la ubicación todavía no se asigna: un hueco mudo se lee como algo roto");
+
   const sel = (rot) => `.fe .rc-c:has(span:text-is('${rot}')) select`;
-  ok(await pg.isDisabled(sel("Módulo")), "el módulo se puede tocar sin haber escogido calle");
-  ok(await pg.isDisabled(sel("Lado")), "el lado se puede tocar sin haber escogido módulo");
+  for (const rot of ["Calle", "Módulo", "Lado"]) {
+    ok((await pg.$$(sel(rot))).length === 0,
+       `quedó el desplegable de «${rot}»: no escoge nada y se toca cuatro veces antes de que ` +
+       "alguien entienda que no va a abrir");
+  }
 
-  await pg.selectOption(sel("Calle"), "A03");
-  ok(!(await pg.isDisabled(sel("Módulo"))), "con la calle escogida el módulo sigue apagado");
-  await pg.selectOption(sel("Módulo"), "M12");
-  const lados = await pg.$$eval(`${sel("Lado")} option`, (o) => o.map((x) => x.textContent));
-  ok(lados.includes("IZQ") && lados.includes("DER"),
-     `el módulo con dos lados ofrece ${JSON.stringify(lados)}`);
-
-  /* EL MÓDULO SIN LADOS SE ESCOGE SOLO: pedir «escoge el lado» donde no
-     hay lados es pedir algo que no existe. */
-  await pg.selectOption(sel("Calle"), "B07");
-  await pg.selectOption(sel("Módulo"), "M04");
+  /* Y LO QUE SE VA A IMPRIMIR DICE UNA RAYA. Si el retrato dijera una
+     ubicación y el papel otra, dejarían de reconocerse. */
   const vista = await pg.textContent(".fe .rc-vista");
-  ok(/B07-M04/.test(vista),
-     `un módulo sin lados no se escogió solo: la vista dice «${vista}»`);
+  ok(/ubicación/i.test(vista), "el retrato de la tarjeta perdió la banda de la ubicación");
+  ok(!/A03|B07/.test(vista),
+     `el retrato enseña una ubicación y esa parte no está desarrollada: «${vista}»`);
 }
 
 /* =====================================================================
@@ -530,9 +550,8 @@ await escoger("9845");
 await pg.fill(porEstiba, "1080");
 await pg.fill(".fe .rc-c:has(span:text-is('Estibas')) input", "3");
 await pg.fill("input[type=date]", "2026-09-20");
-await pg.selectOption(".fe .rc-c:has(span:text-is('Calle')) select", "A03");
-await pg.selectOption(".fe .rc-c:has(span:text-is('Módulo')) select", "M12");
-await pg.selectOption(".fe .rc-c:has(span:text-is('Lado')) select", { index: 1 });
+/* SIN TOCAR LA UBICACIÓN: ya no se escoge desde aquí, y el botón tiene
+   que encender igual. */
 ok(!(await apagado()), "con todo puesto el botón sigue apagado");
 ok(/Imprimir los 3/.test(await pg.textContent(".fe .rc-sacar")),
    "el botón no dice cuántos rótulos va a sacar");
@@ -550,5 +569,5 @@ if (fallas.length) {
 console.log("✓ Recepción: los dos tipos cambian el formulario y cambiar de tipo limpia el " +
   "material, el patrón de estiba llega con el código y se distingue del arrume, se teclea SOLO " +
   "el vencimiento y la producción sale de restar, se avisa cuando el maestro se contradice, la " +
-  "cascada de la ubicación escoge sola el módulo sin lados, se dice qué falta en vez de apagar " +
+  "la ubicación todavía no se asigna desde aquí —el renglón se queda y el rótulo sale con una raya—, se dice qué falta en vez de apagar " +
   "el botón en silencio, y nada se sale ni se aplasta en los cuatro anchos.");

@@ -29,6 +29,11 @@
   --fe-gris-panel: color-mix(in srgb, var(--c-5b6b7f) 72%, var(--c-04203f));
   --fe-linea: var(--c-d5dce5);
   --fe-aviso: var(--c-oro);
+  /* TEXTO QUE HAY QUE MIRAR SIN QUE SEA UN ERROR. El oro de la marca
+     como LETRA no se lee sobre blanco —es un color de relleno—, así que
+     se hunde hasta que contrasta. Mismo recurso que --rt-ojo en
+     roturas. */
+  --fe-ojo: color-mix(in srgb, var(--c-oro) 40%, #000);
   --fe-mal: #C8102E;
   --fe-bien: #0F7A4A;
 
@@ -1623,3 +1628,17 @@
   min-height: 40px; padding: 0 10px; border-radius: 2px; background: var(--fe-papel);
   border: 1px solid var(--fe-linea); font: 600 14px var(--fe-texto, inherit); color: var(--fe-tinta);
 }
+
+
+/* ---------------------------------------------------------------------
+   DÓNDE QUEDA — TODAVÍA NO
+   ---------------------------------------------------------------------
+   El renglón se reserva ahora y se dice por qué está vacío. Un hueco
+   mudo se lee como algo roto; este dice que falta desarrollarlo.
+   ------------------------------------------------------------------ */
+.fe .rc-pendiente {
+  grid-column: 1 / -1; margin: 0;
+  background: var(--fe-fondo); border-left: 3px solid var(--fe-linea);
+  padding: 11px 14px; font-size: 13px; line-height: 1.55; color: var(--fe-gris-panel);
+}
+.fe .rc-pendiente b { color: var(--fe-tinta) }

@@ -202,7 +202,8 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
   const falta: string[] = [];
   if (!mat) falta.push(tipo === "producto" ? "el producto" : "el envase");
   if (cantidad <= 0) falta.push("cuántas " + f.unidad + " trae cada estiba");
-  if (!f.ubicacion_id) falta.push("la ubicación");
+  /* LA UBICACIÓN YA NO SE EXIGE: no se escoge desde aquí todavía.
+     Pedirla era pedir algo que la pantalla no ofrece. */
 
   async function sacar() {
     if (!mat || falta.length) return;
@@ -227,7 +228,9 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
         unidadesCaja: mat.unidades_por_caja ?? null,
         factorEstiba: mat.cajas_por_estiba ?? null,
         vidaUtil: mat.vida_util ?? null,
-        ubicacion: ubi?.clave ?? null,
+        /* LA UBICACIÓN VA VACÍA A PROPÓSITO: no se asigna desde aquí
+           todavía. El rótulo imprime la banda con una raya. */
+        ubicacion: null,
         numero: i + 1,
         total: estibas,
         producido: tipo === "producto" ? producido : null,
@@ -463,48 +466,28 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
             ))}
           </div>
 
+          {/* ============ DÓNDE QUEDA — TODAVÍA NO ============
+              «Pon que aún no se ponga, o sea que parezca ubicación y
+               solo ese un -, para que a futuro la desarrollemos pero
+               aún no.»
+
+              LOS TRES DESPLEGABLES SE VAN, no se apagan. Un desplegable
+              apagado se toca igual —tres o cuatro veces— antes de que
+              alguien entienda que no va a abrir, y después se reporta
+              como que la pantalla está trabada. Queda el renglón, que
+              es lo que dice que este sitio existe y que le falta.
+
+              Y LA BANDA SIGUE EN EL PAPEL, con su raya: la tarjeta se
+              pega en la estiba y se queda ahí meses. Si la banda
+              apareciera el día que se conecte la asignación, las
+              estibas viejas y las nuevas tendrían tarjetas distintas y
+              nadie sabría cuál mirar. */}
           <h2>Dónde queda</h2>
-          <label className="rc-c">
-            <span>Calle</span>
-            <select value={f.calle}
-                    onChange={(e) => setF((x) => ({ ...x, calle: e.target.value,
-                                            modulo: "", lado: "", ubicacion_id: "" }))}>
-              <option value="">Escoge…</option>
-              {calles.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
-          <label className="rc-c">
-            <span>Módulo</span>
-            {/* APAGADO HASTA QUE HAYA CALLE: un desplegable vacío y
-                encendido se toca tres veces antes de que alguien
-                entienda que falta lo de la izquierda. */}
-            <select value={f.modulo} disabled={!f.calle}
-                    onChange={(e) => {
-                      const mod = e.target.value;
-                      const ls = ubicaciones.filter((u) => u.calle === f.calle && u.modulo === mod);
-                      /* SI EL MÓDULO NO TIENE LADOS, se escoge solo:
-                         pedir «escoge el lado» donde no hay lados es
-                         pedir algo que no existe. */
-                      const solo = ls.length === 1 ? ls[0] : null;
-                      setF((x) => ({ ...x, modulo: mod, lado: solo?.lado ?? "", ubicacion_id: solo?.id ?? "" }));
-                    }}>
-              <option value="">{f.calle ? "Escoge…" : "Primero la calle"}</option>
-              {modulos.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </label>
-          <label className="rc-c">
-            <span>Lado</span>
-            <select value={f.ubicacion_id} disabled={!f.modulo}
-                    onChange={(e) => {
-                      const u = ubicaciones.find((x) => x.id === e.target.value);
-                      setF((x) => ({ ...x, ubicacion_id: e.target.value, lado: u?.lado ?? "" }));
-                    }}>
-              <option value="">{f.modulo ? "Escoge…" : "Primero el módulo"}</option>
-              {lados.map((u) => (
-                <option key={u.id} value={u.id}>{u.lado ?? u.clave}</option>
-              ))}
-            </select>
-          </label>
+          <p className="rc-pendiente">
+            <b>Todavía no se asigna desde aquí.</b> El rótulo sale con una raya en la banda de
+            la ubicación. Cuando se conecte con el inventario, este es el sitio donde se
+            escoge la calle, el módulo y el lado.
+          </p>
         </section>
 
         {/* ---------- LO QUE VA A SALIR IMPRESO ---------- */}
@@ -554,7 +537,10 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
               </div>
             )}
             <div className="rc-v-fila">
-              <div><span>ubicación</span><b>{ubi?.clave ?? "sin asignar"}</b></div>
+              {/* EL RETRATO DICE LO MISMO QUE VA A SALIR: una raya. Si
+                  aquí dijera otra cosa, lo que se ve y lo que se
+                  imprime dejarían de reconocerse. */}
+              <div><span>ubicación</span><b>-</b></div>
               <div className="der">
                 <span>armado</span>
                 <b>{[f.ancho, f.alto, f.largo].every((x) => Number(x) > 0)
