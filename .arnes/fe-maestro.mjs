@@ -82,12 +82,23 @@ const fila = (m) => `
     <span class="fe-tipo ${m[2].toLowerCase()}">${m[2]}</span>
     <button type="button" class="fe-mini">Editar</button>
   </div>
+  <!-- LAS DIEZ CIFRAS DE LA TARJETA, las mismas que pinta Maestro.tsx.
+       Eran cuatro hasta que el cruce con el maestro de la cervecería
+       trajo categoría, tipo de envase, HL y referencia. Si esta copia se
+       queda corta, el arnés mide una tarjeta que ya no existe y aprueba
+       un desbordamiento que en la pantalla sí pasa. -->
   <dl class="fe-cifras">
-    <div><dt>Cajas por estiba</dt>
+    <div><dt>Factor estibado</dt>
       <dd class="${m[3] == null ? "falta" : ""}">${m[3] ?? "falta"}</dd></div>
     <div><dt>Vida útil</dt><dd>${m[4] ? m[4] + " d" : "—"}</dd></div>
-    <div><dt>Sale antes de</dt><dd>${m[5] ? m[5] + " d" : "—"}</dd></div>
+    <div><dt>Mínimo T1</dt><dd>${m[5] ? m[5] + " d" : "—"}</dd></div>
+    <div><dt>Unid. por caja</dt><dd>30</dd></div>
     <div><dt>Familia</dt><dd>${m[6] ?? "—"}</dd></div>
+    <div><dt>Tipo de envase</dt><dd>Botella</dd></div>
+    <div><dt>Categoría</dt><dd>Empaque Primario</dd></div>
+    <div><dt>Contenido</dt><dd>50.000 cc</dd></div>
+    <div><dt>HL por unidad</dt><dd>0,00269</dd></div>
+    <div><dt>Referencia</dt><dd>6</dd></div>
   </dl>
 </article>`;
 
@@ -185,7 +196,7 @@ const ARMAZON = `
         <span class="fe-tipo producto">PRODUCTO</span>
         <span class="fe-off">apagado</span>
         <button type="button" class="fe-mini">Editar</button></div>
-      <dl class="fe-cifras"><div><dt>Cajas por estiba</dt><dd>96</dd></div>
+      <dl class="fe-cifras"><div><dt>Factor estibado</dt><dd>96</dd></div>
         <div><dt>Vida útil</dt><dd>365 d</dd></div>
         <div><dt>Sale antes de</dt><dd>90 d</dd></div>
         <div><dt>Familia</dt><dd>CLUB COLOMBIA</dd></div></dl>

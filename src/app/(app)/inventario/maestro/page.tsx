@@ -72,6 +72,27 @@ export default async function InventarioMaestroPage() {
         </div>
       </section>
 
+      {/* EL CRUCE SIN CORRER SE DICE AQUÍ Y NO SE DISIMULA.
+          Sin él, categoría, tipo de envase, HL y referencia salen todas
+          en raya, y desde la pantalla eso se ve exactamente igual que
+          «el maestro no tiene ese dato». Son dos cosas distintas: una se
+          arregla con un SQL y la otra yendo a pedirle el dato a la
+          cervecería. */}
+      {!m.cruce && (
+        <section className="fe-faltan">
+          <p>
+            <b>Falta correr el cruce del maestro.</b> Categoría, tipo de envase, HL y
+            referencia todavía no existen como columnas, así que salen vacías en los{" "}
+            {m.materiales.length} materiales — no es que falte el dato, es que falta el SQL.
+          </p>
+          <p className="cuales">
+            Abre el SQL Editor de Supabase y corre{" "}
+            <code>supabase/migraciones/2026-09-maestro-cruce-2026-09-26.sql</code>. Se puede
+            correr varias veces sin romper nada.
+          </p>
+        </section>
+      )}
+
       {sinFactor.length > 0 && (
         <section className="fe-faltan">
           <p>

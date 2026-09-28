@@ -28,6 +28,10 @@ import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Bodega } from "@/modulos/inventario/fefo";
 
+/** Los cc con separador de miles: «50.000» se lee, «50000» hay que
+ *  contarlo con el dedo. */
+const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+
 /* TRES BASES Y NO DOS. La bodega tenía su propia pantalla en el menú
    —herencia de la plantilla de demostración— y era el tercer sitio donde
    se editaba lo mismo. Un maestro que deja fuera una de sus bases obliga
@@ -534,10 +538,15 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                 )}
               </div>
 
-              {/* LAS TRES CIFRAS QUE DECIDEN LAS CUENTAS, a la vista sin
-                  abrir nada: son las que hacen que un conteo dé bien o
-                  mal, y revisarlas de un vistazo es para lo que se entra
-                  a un maestro. */}
+              {/* LAS CIFRAS QUE DECIDEN LAS CUENTAS, a la vista sin abrir
+                  nada: son las que hacen que un conteo dé bien o mal, y
+                  revisarlas de un vistazo es para lo que se entra a un
+                  maestro.
+
+                  PRIMERO LAS QUE SE USAN PARA CONTAR y después las que
+                  describen el material. El orden no es decorativo: quien
+                  entra a revisar el maestro viene por el factor estibado,
+                  no por la categoría. */}
               <dl className="fe-cifras">
                 <div><dt>Factor estibado</dt>
                   <dd className={m.cajas_por_estiba == null ? "falta" : undefined}>
@@ -546,7 +555,19 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                   <dd>{m.vida_util ? `${m.vida_util} d` : "—"}</dd></div>
                 <div><dt>Mínimo T1</dt>
                   <dd>{m.dias_minimo ? `${m.dias_minimo} d` : "—"}</dd></div>
+                <div><dt>Unid. por caja</dt>
+                  <dd>{m.unidades_por_caja ?? "—"}</dd></div>
                 <div><dt>Familia</dt><dd>{m.familia ?? "—"}</dd></div>
+                <div><dt>Tipo de envase</dt><dd>{m.tipo_envase ?? "—"}</dd></div>
+                <div><dt>Categoría</dt><dd>{m.categoria ?? "—"}</dd></div>
+                <div><dt>Contenido</dt>
+                  <dd>{m.contenido ? `${nf.format(m.contenido)} cc` : "—"}</dd></div>
+                {/* EL HL VA EN SU SITIO Y CON SUS DECIMALES. Es como la
+                    cervecería mide volumen: 0,00269 de una lata de 269.
+                    Redondeado a dos decimales serían ceros. */}
+                <div><dt>HL por unidad</dt>
+                  <dd>{m.hl ? Number(m.hl).toFixed(5).replace(".", ",") : "—"}</dd></div>
+                <div><dt>Referencia</dt><dd>{m.referencia ?? "—"}</dd></div>
               </dl>
 
               {abierto && (

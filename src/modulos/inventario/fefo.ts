@@ -41,6 +41,19 @@ export type Material = {
   pat_largo: number | null;
   pat_ancho: number | null;
   pat_nivel: number | null;
+  /* ---- LO QUE TRAJO EL CRUCE CON EL MAESTRO DE LA CERVECERÍA ----
+     Opcionales con `?` a propósito: si todavía no se corrió
+     `2026-09-maestro-cruce-2026-09-26.sql`, estas columnas no existen y
+     la pantalla tiene que seguir pintándose con lo que sí hay. Exigirlas
+     convertiría un «falta correr un SQL» en un maestro en blanco. */
+  categoria?: string | null;
+  /** Botella / Lata / Pet / Barril / Cilindro. Más grueso que la
+   *  familia: «Botella» son «Ret» y «Tw» a la vez. */
+  tipo_envase?: string | null;
+  /** Hectolitros de UNA unidad, que es como mide volumen la cervecería. */
+  hl?: number | null;
+  /** El «X 6» del empaque de venta. NO son unidades por caja. */
+  referencia?: number | null;
   /* ---- LO QUE CUESTA UNA BOTELLA ----
      Del MM60. ES POR BOTELLA Y NO POR CAJA, y el nombre lo dice a
      propósito: al lado de `unidades` —que en roturas son EMPAQUES— un
@@ -170,7 +183,7 @@ export async function maestroInventario() {
        que quepa en la línea rompe el tipado y el build revienta con un
        error que no dice eso. */
     supabase.from("productos").select(
-      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,en_sitio,activo,pat_largo,pat_ancho,pat_nivel,precio_botella,envase_sku"
+      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,en_sitio,activo,pat_largo,pat_ancho,pat_nivel,precio_botella,envase_sku,categoria,tipo_envase,hl,referencia"
     ).order("sku").limit(5000),
     supabase.from("ubicaciones").select(
       "id,bodega_id,clave,calle,modulo,lado,familia,capacidad,activa"
@@ -182,17 +195,34 @@ export async function maestroInventario() {
     supabase.from("envase_estados").select("clave").eq("activo", true).order("orden"),
   ]);
 
-  if (m.error || u.error) {
-    const msg = m.error?.message ?? u.error?.message ?? "";
+  /* SI EL CRUCE NO SE HA CORRIDO, LA PANTALLA SE PINTA IGUAL.
+     Las cuatro columnas nuevas —categoría, tipo de envase, HL y
+     referencia— las crea `2026-09-maestro-cruce-2026-09-26.sql`. Pedirlas
+     cuando no existen no devuelve un maestro cojo: devuelve un ERROR, y
+     la pantalla se quedaba EN BLANCO por un SQL sin correr. Así que si
+     falla por eso se vuelve a pedir sin ellas y se dice —con `cruce`—
+     que faltan, para que la pantalla mande a correrlo en vez de mentir
+     con los materiales vacíos. */
+  let mat = m;
+  let cruce = true;
+  if (m.error && /column .* does not exist|categoria|tipo_envase/i.test(m.error.message)) {
+    cruce = false;
+    mat = await supabase.from("productos").select(
+      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,en_sitio,activo,pat_largo,pat_ancho,pat_nivel,precio_botella,envase_sku"
+    ).order("sku").limit(5000) as typeof m;
+  }
+
+  if (mat.error || u.error) {
+    const msg = mat.error?.message ?? u.error?.message ?? "";
     return {
-      falta: sinTablas(msg),
+      falta: sinTablas(msg), cruce,
       materiales: [] as Material[], ubicaciones: [] as Ubicacion[],
       bodegas: [] as Bodega[], estados: [] as string[],
     };
   }
   return {
-    falta: false,
-    materiales: (m.data ?? []) as Material[],
+    falta: false, cruce,
+    materiales: (mat.data ?? []) as Material[],
     ubicaciones: (u.data ?? []) as Ubicacion[],
     bodegas: (b.data ?? []) as Bodega[],
     estados: (e.data ?? []).map((x) => x.clave as string),
