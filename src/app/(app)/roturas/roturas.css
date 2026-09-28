@@ -2490,3 +2490,7 @@
    ------------------------------------------------------------------ */
 .tb-tabla td.tb-cont { font-weight: 700 }
 .tb-tabla .tb-na { color: var(--c-5b6b7f); font-weight: 400 }
+
+/* «TODOS» NO LLEVA CUADRITO DE COLOR: no es un color, es no filtrar.
+   Un cuadrito gris al lado se leería como un cuarto tipo de vidrio. */
+.rt-rep .seg.vidrio button.todos { gap: 0 }

@@ -175,7 +175,10 @@ const roturas = [1, 2, 3].map((i) => ({
 
 createRoot(document.getElementById("r")!).render(
   <EnSitio esperando={3} roturas={roturas as any} nombres={{ u1: "Genesis Visbal" }}
-           materiales={((window as any).SINCOLOR ? sinColor : materiales) as any}
+           materiales={((window as any).SINCOLOR ? sinColor
+                        : (window as any).SINGREEN
+                          ? materiales.filter((m) => m.color !== "green")
+                          : materiales) as any}
            materialesDe={(window as any).DE ?? "inventario"}
            procesos={procesos as any}
            areas={areas as any} causas={causas as any} puedeEditar />);
@@ -201,14 +204,14 @@ const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await nav.newPage();
 
-const monta = async (ancho = 1440, tema = "", alto = 900) => {
+const monta = async (ancho = 1440, tema = "", alto = 900, sinGreen = false) => {
   await pg.setViewportSize({ width: ancho, height: alto });
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8">
     <style>${PREFLIGHT}${glob}${shell}${css}</style></head>
     <body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}>
     <div class="sh-marco sin-riel"><main class="sh-main">
     <div class="rt" id="r"></div></main></div></div>
-    <script>window.DE="inventario";window.SINCOLOR=false</script>
+    <script>window.DE="inventario";window.SINCOLOR=false;window.SINGREEN=${sinGreen}</script>
     <script>${js}</script></body></html>`);
   /* La pantalla abre REGISTRANDO, así que lo primero que existe es el
      formulario, no las cifras. */
@@ -504,6 +507,16 @@ const ofrece = async () => {
   return v;
 };
 const puesto = async () => (await pg.textContent("#rt-mat")) ?? "";
+/* Lo mismo que `ofrece`, pero con el renglón ENTERO y no solo el código:
+   es donde tiene que verse el color de cada envase. */
+const ofreceTexto = async () => {
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bl-lista", { timeout: 2000 }).catch(() => {});
+  const v = await pg.$$eval(".rt-rep .bl-op", (e) => e.map((x) => (x.textContent ?? "").trim()));
+  await pg.keyboard.press("Escape");
+  await pg.waitForSelector("#rt-mat", { timeout: 4000 });
+  return v;
+};
 
 /* ÁMBAR: hay dos, así que no puede venir puesto ninguno y hay que
    escoger. Es justo el caso por el que el campo existe. */
@@ -553,6 +566,108 @@ await pg.click(".rt-rep .seg.vidrio button.flint");
 await pg.click(".rt-rep .seg.vidrio button.ambar");
 ok(/Escribe para buscar/.test(await puesto()),
    "al volver a ámbar se quedó puesto el material del flint");
+
+/* ---------------------------------------------------------------------
+   1a · EL COLOR ACORTA, PERO NO ESCONDE
+   ---------------------------------------------------------------------
+   «porq no me deja ver los envases si son estos 13» — y al rato, con
+   otro color: «porq no sale osea deben aparecer los 13 skus».
+
+   El color era una PUERTA: filtraba sin salida, así que escoger el que
+   no era dejaba el desplegable en cero y la pantalla decía «no hay
+   envase retornable green en el maestro». Quien lee eso concluye que el
+   envase no está dado de alta —y se va a darlo de alta otra vez— cuando
+   lo que pasa es que está detrás de otro botón.
+
+   El fixture ya sirve para medirlo: tiene tres ámbar y un flint, y
+   NINGÚN green. O sea, el caso exacto.
+   ------------------------------------------------------------------ */
+{
+  /* SE MONTA SIN NINGÚN GREEN, que es el maestro de Cristian: sus trece
+     envases son seis ámbar, cinco flint y dos sin color. Con el fixture
+     completo —que sí traía un green— este bloque no medía nada: había
+     siempre algo que enseñar, pasara lo que pasara con el filtro. */
+  await monta(1440, "", 900, true);
+  await abrir();
+  await pg.click(".rt-rep .seg button:has-text('EER')");
+
+  /* DE ENTRADA SALEN TODOS. Es lo que pidió: los trece, sin tener que
+     acertar primero el color. */
+  const btnTodos = await pg.textContent(".rt-rep .seg.vidrio button.todos");
+  ok(/Todos/.test(btnTodos ?? ""), `no existe el botón «Todos»: «${btnTodos}»`);
+  ok(await pg.evaluate(() =>
+       document.querySelector(".rt-rep .seg.vidrio button.todos")?.classList.contains("on")),
+     "el filtro de color no nace en «Todos»: la lista vuelve a abrir escondiendo envases");
+  const todos = await ofrece();
+  /* SON 3 Y NO 4: el cuarto —EER-AMBAR-VIEJO— no está marcado «sale en
+     sitio», así que la lista corta lo deja fuera hasta que se escriba.
+     Eso es otra cosa y ya se mide aparte; lo que aquí importa es que
+     salen los de LOS DOS colores a la vez. */
+  ok(todos.length === 3,
+     `de entrada salen ${todos.length} envases y los marcados son 3: ${JSON.stringify(todos)}`);
+  ok(todos.some((c) => c.startsWith("EER-AMBAR")) && todos.includes("EER-FLINT"),
+     `de entrada no salen los de los dos colores juntos: ${JSON.stringify(todos)}`);
+
+  /* Y EL COLOR DE CADA UNO SE LEE EN SU FILA. Desde que salen todos
+     juntos, el color dejó de estar en el botón de arriba: si no está en
+     la fila, no está en ninguna parte. */
+  /* SE BUSCA EL COLOR PEGADO CON « · », y no la palabra suelta: los
+     materiales de prueba se llaman «Envase retornable ámbar», así que
+     buscar «ámbar» en el renglón pasaba igual sin haber puesto nada.
+     La prueba media el AÑADIDO, no el nombre. */
+  const filas = await ofreceTexto();
+  ok(filas.some((t) => / · Ámbar/.test(t)) && filas.some((t) => / · Flint/.test(t)),
+     `las filas del desplegable no dicen de qué color es cada envase: ${JSON.stringify(filas)}`);
+
+  /* UN COLOR SIN NINGUNO NO VACÍA LA LISTA. Es el fallo que reportó, dos
+     veces: acotar está bien, acotar hasta cero traba. */
+  await pg.click(".rt-rep .seg.vidrio button.green");
+  const enGreen = await ofrece();
+  ok(enGreen.length > 0,
+     "escogiendo un color que no tiene ningún envase la lista queda VACÍA: eso se lee como «no " +
+     "está dado de alta» y manda a dar de alta algo que ya está");
+  const texto = await pg.textContent(".rt-rep");
+  ok(!/No hay envase retornable/.test(texto ?? ""),
+     "la pantalla sigue diciendo «no hay envase retornable <color>»: culpa al maestro de lo que " +
+     "hace el filtro");
+}
+
+/* ---------------------------------------------------------------------
+   1a-bis · EL COLOR QUE SE GUARDA ES EL DEL MATERIAL
+   ---------------------------------------------------------------------
+   Desde que la lista sale entera se puede escoger un FLINT teniendo el
+   botón en «ámbar». Mandar el del botón guardaría la rotura con el
+   color equivocado, y en la pantalla las dos cosas se ven igual de bien.
+   ------------------------------------------------------------------ */
+{
+  await monta();
+  await pg.click(".rt-rep .rp-origen button:has-text('Me la encontré')");
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForSelector(".rt-rep .cel-step");
+  await pg.click(".rt-rep .seg button:has-text('EER')");
+  /* Con el filtro en «Todos» —que es como abre— la lista trae ámbar y
+     flint juntos, así que se puede escoger un flint sin que el botón de
+     color diga flint. Es justo el caso en que mandar el color del botón
+     guardaría la rotura con el color equivocado. */
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bl-lista", { timeout: 2000 });
+  await pg.click(".rt-rep .bl-op:has-text('EER-FLINT')");   // y se escoge un flint
+  await pg.waitForSelector("#rt-mat", { timeout: 4000 });
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForSelector("#rt-area");
+  await pg.click(".rt-rep .chips button:has-text('Líneas')");
+  await pg.selectOption("#rt-area", "plazoleta");
+  await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+  await pg.click(".rt-rep .pie button.si");
+  await pg.waitForFunction(
+    () => (window.llamadas ?? []).some((l) => l.f === "rotura_registrar"),
+    null, { timeout: 3000 }).catch(() => {});
+  const r = (await llamadas()).find((x) => x.f === "rotura_registrar");
+  ok(r?.a?.p_material === "EER-FLINT", `se mandó el material «${r?.a?.p_material}»`);
+  ok(r?.a?.p_color !== "ambar",
+     "se guardó el color del BOTÓN y no el del envase escogido: un flint entra al informe del " +
+     "mes como ámbar, y el reparto por color deja de cuadrar");
+}
 
 /* ---------------------------------------------------------------------
    1b · EN PRODUCTO NO SALE NI PET NI LATA
@@ -1235,4 +1350,4 @@ if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\n✓ Rotura en sitio: la PRIMERA pregunta es de dónde salió —y el PIN solo sale si la reportó un OPM, y no deja seguir hasta que sale el NOMBRE—, Registrar es la consola de Traspasos —formulario y contexto al lado—, el EER pide material filtrado por el color (y puesto cuando solo hay uno), «botellas rotas adentro» se fue, en producto no sale ni PET ni lata, el proceso habilita las causas, y el área sale del maestro.");
+console.log("\n✓ Rotura en sitio: la PRIMERA pregunta es de dónde salió —y el PIN solo sale si la reportó un OPM, y no deja seguir hasta que sale el NOMBRE—, Registrar es la consola de Traspasos —formulario y contexto al lado—, el EER abre con TODOS los envases y el color solo acorta —nunca esconde—, y se guarda el color del envase escogido y no el del botón, «botellas rotas adentro» se fue, en producto no sale ni PET ni lata, el proceso habilita las causas, y el área sale del maestro.");

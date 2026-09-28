@@ -97,7 +97,17 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   const [buscandoPin, setBuscandoPin] = useState(false);
 
   const [tipo, setTipo] = useState<"producto_terminado" | "eer">("producto_terminado");
-  const [vidrio, setVidrio] = useState<"ambar" | "flint" | "green">("ambar");
+  /* EL COLOR ES UN FILTRO, NO UNA PUERTA, y nace en «todos».
+     Antes nacía en ámbar y la lista de envases se filtraba por él sin
+     salida: si ningún envase del maestro tenía color puesto —o si el
+     que se rompió era flint y el interruptor decía ámbar— el
+     desplegable salía VACÍO y la pantalla decía «no hay envase
+     retornable ámbar en el maestro». Quien lee eso concluye que el
+     envase no está dado de alta, cuando lo que pasa es que está detrás
+     de otro botón. Pasó dos veces seguidas, con ámbar y con green.
+
+     Ahora los trece salen de entrada y el color solo acorta. */
+  const [vidrio, setVidrio] = useState<"todos" | "ambar" | "flint" | "green">("todos");
   const [material, setMaterial] = useState("");
   const [unidades, setUnidades] = useState(1);
   /* LAS CONTAMINADAS SON OTRA COSA QUE LAS ROTAS, y por eso son otro
@@ -156,9 +166,14 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   const ptTotal = materiales.filter((m) => m.tipo === "producto_terminado").length;
   const eer = materiales.filter((m) => m.tipo === "eer");
   const hayColores = eer.some((m) => !!m.color);
+  /* SI EL COLOR ESCOGIDO NO TIENE NINGUNO, SE OFRECEN TODOS. Un
+     desplegable vacío no dice «escogiste el color que no era»: dice «no
+     existe», y manda a dar de alta algo que ya está. Acotar está bien;
+     acotar hasta cero no acota, traba. */
+  const porColor = vidrio === "todos" ? eer : eer.filter((m) => m.color === vidrio);
   const delTipo = tipo !== "eer"
     ? materiales.filter((m) => m.tipo === tipo && esVidrio(m))
-    : hayColores ? eer.filter((m) => m.color === vidrio) : eer;
+    : (hayColores && porColor.length > 0) ? porColor : eer;
   const mat = materiales.find((m) => m.clave === material) ?? null;
   const cau = causas.find((c) => c.clave === causa) ?? null;
   const exigeFoto = !!cau?.exige_foto;
@@ -172,19 +187,24 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
      un desplegable de un solo renglón que hay que abrir para escoger lo
      único que se podía escoger es un toque cobrado por nada. */
   useEffect(() => {
-    /* EL MISMO FILTRO QUE EL DESPLEGABLE, y no uno parecido. Si aquí
-       se dejara `m.tipo === tipo` a secas, el «si solo hay uno posible
-       viene puesto» podría dejar puesta una lata que el desplegable ni
-       siquiera ofrece — y se guardaría sin que nadie la escogiera. Dos
-       sitios filtrando lo mismo por su cuenta es cómo se cuela
-       exactamente lo que se quería bloquear. */
-    const posibles = materiales.filter((m) =>
-      m.tipo === tipo && esVidrio(m) && (tipo !== "eer" || m.color === vidrio));
+    /* LA MISMA LISTA QUE EL DESPLEGABLE, Y AHORA LITERALMENTE LA MISMA.
+       Aquí había una copia del filtro, con el aviso escrito de que dos
+       sitios filtrando lo mismo por su cuenta es cómo se cuela lo que se
+       quería bloquear. Se coló: al volver el color un filtro que no
+       vacía, la copia se quedó con la regla vieja y podía dejar puesto
+       un material que el desplegable ya no ofrecía. Un comentario que
+       avisa de un riesgo no lo evita; usar la misma variable, sí. */
+    const posibles = delTipo;
     setMaterial((antes) => {
       if (antes && posibles.some((m) => m.clave === antes)) return antes;
       return posibles.length === 1 ? posibles[0].clave : "";
     });
     setTocoBotellas(false);
+    /* `delTipo` se recalcula en cada pintado, así que NO va en las
+       dependencias: metiéndola, el efecto se dispararía solo para
+       siempre. Lo que de verdad la cambia es lo que sí está en la
+       lista. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo, vidrio, materiales]);
 
   /* Y AL CAMBIAR DE PROCESO SE SUELTA LA CAUSA. Hoy las causas son las
@@ -278,8 +298,15 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
            acorta cuando hay marcados Y son menos que el total, así que
            un color sin ninguno marcado sigue ofreciendo todos los de
            ese color en vez de quedar vacío. */
+        /* EL COLOR VA EN EL NOMBRE DE CADA UNO. Desde que la lista sale
+           entera, «Envase Marron 330R» y «Envase Flint 330R» se leen
+           seguidos y el color deja de estar en el botón de arriba: tiene
+           que estar en la fila que se escoge. Al que le falte, lo dice
+           — es lo que hay que ir a llenar al maestro. */
         opciones={delTipo.map((m) => ({
-          clave: m.clave, nombre: m.nombre, codigo: m.clave,
+          clave: m.clave, nombre: m.nombre
+            + (m.tipo === "eer" ? ` · ${m.color ? COLOR_VIDRIO[m.color] : "sin color"}` : ""),
+          codigo: m.clave,
           corta: m.en_sitio,
         }))}
         rotulo="Escribe para buscar el material"
@@ -292,7 +319,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           ? (ptTotal > 0
               ? `Los ${ptTotal} productos del maestro son lata o PET, y aquí no se ofrecen: en sitio se registra lo que se rompe como vidrio.`
               : "No hay materiales de producto terminado en el maestro de inventario.")
-          : `No hay envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()} en el maestro.`} />
+          : "No hay envases retornables en el maestro de inventario."} />
 
       {/* NINGÚN ENVASE TIENE COLOR: se ofrecen todos y se dice. Antes
           esto dejaba el desplegable vacío y el registro trabado. */}
@@ -311,8 +338,8 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                     no se ofrecen: aquí se registra lo que se rompe como vidrio.</>
                 : <>No hay materiales de producto terminado en el maestro. Se agregan en
                     Inventario → Maestro, sin esperar un despliegue.</>)
-            : <>No hay envase retornable <b>{COLOR_VIDRIO[vidrio].toLowerCase()}</b> en el
-                maestro. Se agrega en Inventario → Maestro.</>}
+            : <>No hay <b>envases retornables</b> en el maestro de inventario. Se agregan en
+                Inventario → Maestro.</>}
         </p>
       )}
     </div>
@@ -370,7 +397,18 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
          seguir sin escoger. Mandar solo el color dejaba a la base
          eligiendo entre dos ámbar en silencio. */
       p_material: material || null,
-      p_color: esPT ? null : vidrio,
+      /* EL COLOR QUE VIAJA ES EL DEL MATERIAL, NO EL DEL BOTÓN. El
+         botón ahora solo acorta la lista y puede decir «todos», así que
+         mandarlo sería mandar una palabra que no es un color. Y aunque
+         dijera uno, sería el del filtro y no el del envase que se
+         escogió: escoger «ámbar» y luego un flint de la lista habría
+         guardado la rotura con el color equivocado. El material ya trae
+         el suyo del maestro, que es el único que es verdad.
+
+         Se sigue mandando por si el material viniera sin color: la
+         función lo usa solo cuando no hay material, y ahí un null es lo
+         correcto —hace que diga qué falta en vez de escoger uno. */
+      p_color: esPT ? null : (mat?.color ?? null),
       p_area: area,
       p_unidades: unidades,
       p_contaminadas: esPT ? contaminadas : null,
@@ -614,13 +652,21 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                   cambiar de pestaña. */}
               {tipo === "eer" ? (
                 <div>
-                  <span className="rot-campo">Tipo de vidrio</span>
+                  <span className="rot-campo">Tipo de vidrio <i className="rot-opt">para acortar la lista</i></span>
                   <div className="seg vidrio">
-                    {(["ambar", "flint", "green"] as const).map((c) => (
+                    {/* «TODOS» VA PRIMERO Y ES EL DE ENTRADA. El color
+                        acorta trece a seis, que está bien; lo que no
+                        puede es esconderlos. Con los tres colores a
+                        secas, escoger el que no era dejaba la lista en
+                        cero y la pantalla decía «no hay envase
+                        retornable green en el maestro» — que se lee como
+                        «no está dado de alta». */}
+                    {(["todos", "ambar", "flint", "green"] as const).map((c) => (
                       <button key={c} type="button"
                               className={c + (vidrio === c ? " on" : "")}
                               onClick={() => setVidrio(c)}>
-                        <i aria-hidden />{COLOR_VIDRIO[c]}
+                        {c !== "todos" && <i aria-hidden />}
+                        {c === "todos" ? `Todos (${eer.length})` : COLOR_VIDRIO[c]}
                       </button>
                     ))}
                   </div>
