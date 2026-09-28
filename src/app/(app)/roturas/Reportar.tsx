@@ -170,6 +170,18 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
      desplegable vacío no dice «escogiste el color que no era»: dice «no
      existe», y manda a dar de alta algo que ya está. Acotar está bien;
      acotar hasta cero no acota, traba. */
+  /* LO QUE SE CUENTA EN LOS BOTONES ES LO QUE EL DESPLEGABLE VA A
+     ENSEÑAR, y no todo lo que hay en el maestro. El botón decía
+     «Todos (33)» —los 33 envases de Inventario— cuando al abrirlo salen
+     los 13 marcados «sale en sitio»: un número que no es el de la lista
+     que va a aparecer manda a buscar un problema que no existe.
+
+     Si no hay ninguno marcado se cuentan todos, que es exactamente lo
+     que el desplegable hace en ese caso. */
+  const marcados = eer.filter((m) => m.en_sitio);
+  const ofrecidos = marcados.length > 0 && marcados.length < eer.length ? marcados : eer;
+  const cuantos = (c: "todos" | "ambar" | "flint" | "green") =>
+    c === "todos" ? ofrecidos.length : ofrecidos.filter((m) => m.color === c).length;
   const porColor = vidrio === "todos" ? eer : eer.filter((m) => m.color === vidrio);
   const delTipo = tipo !== "eer"
     ? materiales.filter((m) => m.tipo === tipo && esVidrio(m))
@@ -666,7 +678,8 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                               className={c + (vidrio === c ? " on" : "")}
                               onClick={() => setVidrio(c)}>
                         {c !== "todos" && <i aria-hidden />}
-                        {c === "todos" ? `Todos (${eer.length})` : COLOR_VIDRIO[c]}
+                        {c === "todos" ? `Todos (${cuantos("todos")})`
+                          : `${COLOR_VIDRIO[c]} (${cuantos(c)})`}
                       </button>
                     ))}
                   </div>

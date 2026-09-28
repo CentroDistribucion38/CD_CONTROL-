@@ -2494,3 +2494,46 @@
 /* «TODOS» NO LLEVA CUADRITO DE COLOR: no es un color, es no filtrar.
    Un cuadrito gris al lado se leería como un cuarto tipo de vidrio. */
 .rt-rep .seg.vidrio button.todos { gap: 0 }
+
+/* ---------------------------------------------------------------------
+   LA PLATA EN ANÁLISIS — de dónde sale lo que se le cobra al OL
+   ---------------------------------------------------------------------
+   La cifra grande va arriba, en el KPI. Esto es el desglose, que es lo
+   que hace que la cifra se pueda discutir: las dos formas de cobrar
+   —que no cuestan lo mismo— y el reparto por causa, que dice de quién
+   fue. Los números van tabulares porque se leen en columna y se suman
+   de cabeza.
+   ------------------------------------------------------------------ */
+.rt .rq-plata-dos {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--rt-linea); border-top: 1px solid var(--rt-linea);
+  border-bottom: 1px solid var(--rt-linea);
+}
+.rt .rq-plata-dos > div { background: var(--rt-papel); padding: 14px 16px; min-width: 0 }
+.rt .rq-plata-dos .rot {
+  display: block; font: 700 9.5px var(--rt-texto); letter-spacing: .13em;
+  text-transform: uppercase; color: var(--rt-gris-panel);
+}
+.rt .rq-plata-dos b {
+  display: block; margin: 6px 0 3px; font: 900 26px/1 var(--rt-titulo);
+  letter-spacing: -.02em; color: var(--rt-tinta); font-variant-numeric: tabular-nums;
+}
+.rt .rq-plata-dos em { font-style: normal; font-size: 12px; color: var(--rt-gris-panel) }
+
+.rt .rq-plata-t { width: 100%; border-collapse: collapse; font-size: 13px }
+.rt .rq-plata-t th {
+  text-align: left; font: 700 9.5px var(--rt-texto); letter-spacing: .12em;
+  text-transform: uppercase; color: var(--rt-gris-panel);
+  padding: 12px 16px 8px; border-bottom: 1px solid var(--rt-linea);
+}
+.rt .rq-plata-t td { padding: 9px 16px; border-bottom: 1px solid var(--rt-linea); color: var(--rt-tinta) }
+.rt .rq-plata-t tr:last-child td { border-bottom: 0 }
+.rt .rq-plata-t .der { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700 }
+/* La que dice que NO fue del OL, en rojo: es plata que alguien va a
+   discutir y se tiene que ver sin leer. */
+.rt .rq-plata-t .rq-no { color: var(--rt-mal); font-weight: 600 }
+
+@media (max-width: 640px) {
+  .rt .rq-plata-dos { grid-template-columns: 1fr }
+  .rt .rq-plata-t th:nth-child(2), .rt .rq-plata-t td:nth-child(2) { display: none }
+}

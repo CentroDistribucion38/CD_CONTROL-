@@ -595,6 +595,17 @@ ok(/Escribe para buscar/.test(await puesto()),
      acertar primero el color. */
   const btnTodos = await pg.textContent(".rt-rep .seg.vidrio button.todos");
   ok(/Todos/.test(btnTodos ?? ""), `no existe el botón «Todos»: «${btnTodos}»`);
+  /* EL NÚMERO DEL BOTÓN ES EL DE LA LISTA QUE VA A SALIR, no el del
+     maestro entero. Decía «Todos (33)» —los 33 envases de Inventario—
+     cuando al abrirlo salen los 13 marcados «sale en sitio». Un número
+     que no es el de la lista que aparece manda a buscar un problema
+     que no existe. Aquí: 3 marcados de 4 envases. */
+  ok(/Todos \(3\)/.test(btnTodos ?? ""),
+     `el botón dice «${btnTodos}» y la lista que se abre trae 3: el número tiene que ser el de ` +
+     "lo que se va a ver, no el del maestro entero");
+  const btnAmbar = await pg.textContent(".rt-rep .seg.vidrio button.ambar");
+  ok(/\(2\)/.test(btnAmbar ?? ""),
+     `el botón de ámbar dice «${btnAmbar}» y hay 2 ámbar marcados`);
   ok(await pg.evaluate(() =>
        document.querySelector(".rt-rep .seg.vidrio button.todos")?.classList.contains("on")),
      "el filtro de color no nace en «Todos»: la lista vuelve a abrir escondiendo envases");

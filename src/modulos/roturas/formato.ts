@@ -35,3 +35,20 @@ export function kilos(n: number) {
 export const COLOR_VIDRIO: Record<string, string> = {
   ambar: "Ámbar", flint: "Flint", green: "Green",
 };
+
+/**
+ * PLATA EN PESOS, SIN CENTAVOS Y CON EL SIGNO.
+ *
+ * SIN DECIMALES A PROPÓSITO: los precios del MM60 traen centavos
+ * —$233,50— pero lo que se lee en una pantalla son totales de cientos de
+ * miles, y ahí dos decimales son ruido que además hace que dos cifras
+ * de la misma columna no se alineen.
+ *
+ * Y CUANDO NO SE PUEDE CALCULAR, DEVUELVE NULO Y NO «$ 0». Falta el
+ * precio de algún material en el maestro: un cero se lee como «no se le
+ * cobra nada» y eso es exactamente lo contrario de lo que pasa.
+ */
+export function pesos(n: number | null | undefined) {
+  if (n == null || !Number.isFinite(Number(n))) return null;
+  return "$ " + new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Number(n));
+}

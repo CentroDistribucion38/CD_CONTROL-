@@ -5,6 +5,8 @@ import {
   armarSankey, masGrandes, COLOR_ASUMIDA, COLOR_NO_ASUMIDA,
   COLOR_PROCESO, COLOR_PROCESO_2, COLOR_VIDRIO, COLOR_LIQUIDO,
 } from "@/modulos/roturas/sankey";
+import { medirCobro } from "@/modulos/roturas/cobro";
+import { pesos } from "@/modulos/roturas/formato";
 import { Recorrido } from "./Recorrido";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
@@ -176,6 +178,27 @@ export default async function AnalisisEnSitioPage(
   const soloLiquido = contaminadas;
   const recorrido = rotas + soloLiquido;
 
+  /* ---------------------------------------------------------------
+     LA PLATA — CUÁNTO SE LE ESTÁ COBRANDO AL OL
+
+     «que la persona sepa, de acuerdo a lo que se ha ido a cobro,
+      cuánto es.»
+
+     SE SUMA SOLO LO QUE DE VERDAD ESTÁ A COBRO —etapa 'cobro'—, que no
+     es lo mismo que «lo que tiene visto bueno»: una rotura objetada y
+     luego resuelta a favor del OL tiene visto bueno y NO se cobra.
+     Sumar el filtro entero daría una cifra más grande y más cómoda que
+     nadie podría defender en la reunión del mes.
+
+     Y LAS QUE NO SE PUEDEN CALCULAR SE CUENTAN APARTE. Si a un material
+     le falta el precio en el maestro, su cobro viene nulo: sumarlo como
+     cero daría un total corto con cara de exacto. Se dice cuántas son,
+     que es lo que manda a arreglar el maestro.
+     --------------------------------------------------------------- */
+  const cobro = medirCobro(vivas);
+  const { total: plata, rotas: plataRotas, contaminadas: plataCont,
+          sinPrecio, porCausa: plataPorCausa } = cobro;
+
   const vistos = new Set([...causaCol.filas, ...procesoCol.filas].map((f) => f.id));
   const idCausa = (n: string) => (vistos.has("c:" + n) ? "c:" + n : causaCol.filas.at(-1)!.id);
   const idProceso = (n: string) => (vistos.has("p:" + n) ? "p:" + n : procesoCol.filas.at(-1)!.id);
@@ -226,15 +249,23 @@ export default async function AnalisisEnSitioPage(
             Unidades de vidrio de lo que ya tiene visto bueno, por causa y por proceso. La causa
             dice de quién fue; el proceso, dónde pasó. Si un proceso pesa el doble que el
             siguiente, el problema es del proceso y no del turno que le tocó ese día.
-            Ojo con las dos bajas: la rota pierde el líquido <b>y</b> la botella; la contaminada
-            pierde solo el líquido y el envase vuelve a la línea.
+            Y lo que cuesta cada una no es lo mismo: por la <b>rota</b> se le cobra al OL el
+            envase; por la <b>contaminada</b>, el envase <b>y</b> el producto, porque un envase
+            contaminado no se lava ni vuelve a la línea.
           </p>
         </div>
+        {/* ARRIBA VA LA PLATA Y NO LAS UNIDADES. Las unidades siguen
+            estando —en el recorrido y en las cifras de abajo— pero la
+            pregunta con la que alguien entra a esta pantalla es cuánto
+            se le está cobrando al OL, no cuántas botellas son. */}
         <div className="kpi">
           <span className="corte" aria-hidden />
-          <div className="rot">BAJA DE VIDRIO</div>
-          <div className="num">{total}<span className="u">und</span></div>
-          <div className="pie">{cuentan.length} roturas con visto bueno{vivas.length !== todas.length && <> · mirando {vivas.length} de {todas.length}</>}</div>
+          <div className="rot">SE LE COBRA AL OL</div>
+          <div className="num">{pesos(plata) ?? "—"}</div>
+          <div className="pie">
+            {cobro.aCobro} rotura{cobro.aCobro === 1 ? "" : "s"} a cobro · {total} und de vidrio
+            {sinPrecio > 0 && <> · <b>{sinPrecio} sin precio</b></>}
+          </div>
         </div>
       </section>
 
@@ -278,6 +309,54 @@ export default async function AnalisisEnSitioPage(
           </div>
         </div>
       </section>
+
+      {/* ============ DE QUÉ SE COMPONE LA PLATA ============
+          La cifra de arriba sola no se puede discutir con nadie. Aquí
+          se parte en las dos formas de cobrar —que no son la misma— y
+          en las causas, que es de quién fue. */}
+      {cobro.aCobro > 0 && (
+        <section className="caja rq-plata">
+          <div className="rq-h">
+            <b>De dónde salen {pesos(plata) ?? "—"}</b>
+            <span>precios del maestro, por botella</span>
+          </div>
+          <div className="rq-plata-dos">
+            <div>
+              <span className="rot">ROTAS · SOLO EL ENVASE</span>
+              <b>{pesos(plataRotas) ?? "—"}</b>
+              <em>se le cobra reponer la botella</em>
+            </div>
+            <div>
+              <span className="rot">CONTAMINADAS · ENVASE Y PRODUCTO</span>
+              <b>{pesos(plataCont) ?? "—"}</b>
+              <em>el envase contaminado no vuelve a la línea</em>
+            </div>
+          </div>
+          <table className="rq-plata-t">
+            <thead>
+              <tr><th>Causa</th><th>Quién la asume</th><th className="der">Se cobra</th></tr>
+            </thead>
+            <tbody>
+              {plataPorCausa.map((c) => (
+                <tr key={c.nombre}>
+                  <td>{c.nombre}</td>
+                  <td className={c.grupo === "no_asumida" ? "rq-no" : ""}>
+                    {c.grupo === "no_asumida" ? "No asumida" : "El OL"}
+                  </td>
+                  <td className="der">{pesos(c.valor) ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {sinPrecio > 0 && (
+            <p className="rq-mas">
+              <b>{sinPrecio} rotura{sinPrecio === 1 ? "" : "s"} a cobro sin precio.</b> Al material
+              le falta el suyo en el maestro, así que no entra en esta cuenta — el total de arriba
+              se queda corto hasta que se llene en Inventario → Maestro.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* =============================================================
           EL RECORRIDO. Reemplaza las dos barras —«por causa» y «por

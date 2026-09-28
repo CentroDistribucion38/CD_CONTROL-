@@ -37,6 +37,22 @@ export type Rotura = {
   botellas: number | null;
   /** Rotas + contaminadas. Las dos pierden el líquido. Cero en EER. */
   unidades_liquido: number;
+  /* ---- LO QUE VALE ESTA ROTURA ----
+     Sale de los precios del MM60, que son POR BOTELLA. La regla:
+
+       ROTA         solo el envase.      unidades × precio del envase
+       CONTAMINADA  envase y producto.   contaminadas × (envase + producto)
+
+     En producto terminado el envase es el que el maestro le asocia; en
+     EER el material ES el envase y no hay producto que sumar.
+
+     NULO Y NO CERO CUANDO FALTA UN PRECIO: un cero se suma sin hacer
+     ruido y deja un cobro corto que nadie nota; un nulo se ve. */
+  precio_envase?: number | null;
+  precio_producto?: number | null;
+  cobro_rotas?: number | null;
+  cobro_contaminadas?: number | null;
+  cobro_total?: number | null;
   /** Botellas rotas (PT) o unidades (EER). Las contaminadas NO entran. */
   unidades_vidrio: number;
   proceso: string;
