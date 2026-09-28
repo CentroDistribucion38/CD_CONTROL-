@@ -416,14 +416,15 @@ ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en 
    30n llenas» sale ordenado en una línea— y sí en el papel: la nota de
    abajo escrita encima de la cifra del último nodo. Se mide con las
    cajas de cada palabra. */
-{
-  const bbox = execFileSync("pdftotext", ["-bbox", ruta, "-"], { encoding: "utf8" });
-  const hojas = bbox.split("<page ").slice(1);
-  const iReco = paginas.findIndex((p) => /El recorrido de las/.test(p));
-  const pal = [...(hojas[iReco] ?? "").matchAll(
+const palabrasDe = (pdf, marca) => {
+  const bb = execFileSync("pdftotext", ["-bbox", pdf, "-"], { encoding: "utf8" });
+  const hj = bb.split("<page ").slice(1);
+  const i = hj.findIndex((p) => marca.test(p));
+  return [...(hj[i] ?? "").matchAll(
     /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
     .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] }));
-  ok(pal.length > 10, `la hoja del recorrido trae ${pal.length} palabras y son muchas más`);
+};
+const sinEncimarse = (pal, dice) => {
   for (let i = 0; i < pal.length; i++) {
     for (let j = i + 1; j < pal.length; j++) {
       const a = pal[i], b = pal[j];
@@ -431,9 +432,14 @@ ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en 
          línea se tocan por el espacio y eso no es encimarse. */
       const cruza = a.x0 < b.x1 - 1.5 && b.x0 < a.x1 - 1.5
                  && a.y0 < b.y1 - 1.5 && b.y0 < a.y1 - 1.5;
-      ok(!cruza, `en el recorrido «${a.t}» y «${b.t}» se escriben una encima de otra`);
+      ok(!cruza, `${dice}: «${a.t}» y «${b.t}» se escriben una encima de otra`);
     }
   }
+};
+{
+  const pal = palabrasDe(ruta, /recorrido/);
+  ok(pal.length > 10, `la hoja del recorrido trae ${pal.length} palabras y son muchas más`);
+  sinEncimarse(pal, "en el recorrido");
 }
 
 /* 2f · NADA SE SALE DE SU HOJA — ni el diagrama ni el pie.
@@ -498,6 +504,114 @@ ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en 
   ok(!/acostada|undefined|NaN/.test(t3), `salió basura en el papel vacío: ${t3.slice(0, 200)}`);
 }
 
+/* =====================================================================
+   2j · EL DÍA REAL DE CRISTIAN, Y UN LIENZO QUE NO CABE
+   ---------------------------------------------------------------------
+   Su primer informe de verdad tenía UNA causa con CERO rotas y 200
+   contaminadas: la columna de la causa suma cero y una barra termina más
+   abajo del borde del lienzo. Con eso, y con el lienzo pedido más alto
+   de la cuenta —que fue lo que pasó cuando el servidor y el navegador no
+   coincidieron—, el diagrama salía pasado del pie y cortado por el borde
+   de la hoja.
+
+   EL DIBUJO TIENE QUE CABER SIEMPRE, LE DEN EL LIENZO QUE LE DEN: en un
+   PDF no hay barra para desplazarse y lo que no cabe, no está. Así que
+   se prueban las dos formas —la suya y la de seis por seis, donde el
+   rótulo del último nodo SÍ pasa del borde del lienzo— en tres lienzos,
+   uno bueno y dos imposibles.
+   ===================================================================== */
+const FORMAS = {
+  "un solo camino": (alto) => SK.armarSankey({
+    columnas: [
+      [{ id: "c:estibas", rotulo: "Estibas en mal estado", pie: "la asume el OL",
+         valor: 0, color: SK.COLOR_ASUMIDA }],
+      [{ id: "p:t1", rotulo: "T1", valor: 200, color: SK.COLOR_PROCESO }],
+      [{ id: "fin:vidrio", rotulo: "Baja de vidrio", pie: "rota: pierde líquido y botella",
+         valor: 0, color: SK.COLOR_VIDRIO },
+       { id: "fin:liquido", rotulo: "Solo baja de líquido", pie: "contaminada: vuelve el envase",
+         valor: 200, color: SK.COLOR_LIQUIDO }],
+    ],
+    tramos: [{ de: "c:estibas", a: "p:t1", valor: 200 },
+             { de: "p:t1", a: "fin:liquido", valor: 200 }],
+  }, 1160, alto),
+  "seis y seis": (alto) => SK.armarSankey({
+    columnas: [
+      CAUSAS.map(([id, rotulo, pie, valor, color]) => ({ id, rotulo, pie, valor, color })),
+      PROCS.map(([id, rotulo, valor, color]) => ({ id, rotulo, valor, color })),
+      [{ id: "fin:vidrio", rotulo: "Baja de vidrio", pie: "rota: pierde líquido y botella",
+         valor: 750, color: SK.COLOR_VIDRIO },
+       { id: "fin:liquido", rotulo: "Solo baja de líquido", pie: "contaminada: vuelve el envase",
+         valor: 120, color: SK.COLOR_LIQUIDO }],
+    ],
+    tramos: [
+      ...CAUSAS.map(([id], i) => ({ de: id, a: PROCS[i][0], valor: CAUSAS[i][3] })),
+      ...PROCS.map(([id], i) => ({ de: id, a: "fin:vidrio", valor: PROCS[i][2] - [50, 30, 20, 10, 5, 5][i] })),
+      ...PROCS.map(([id], i) => ({ de: id, a: "fin:liquido", valor: [50, 30, 20, 10, 5, 5][i] })),
+    ],
+  }, 1160, alto),
+};
+
+for (const [forma, hacer] of Object.entries(FORMAS)) {
+  for (const alto of [980, 1600, 2600]) {
+    const uno = hacer(alto);
+    const cual = `«${forma}» en un lienzo de ${alto}`;
+    const g = IN.dibujarInformeSitio(jsPDF,
+      { ...D, recorrido: { s: uno, total: 200, juntados: 0 } },
+      { generado: new Date("2026-09-28T16:20:00"), marca: MARCA });
+    const r4 = new URL(`./_rls-inf-${forma.replace(/ /g, "-")}-${alto}.pdf`, import.meta.url).pathname;
+    writeFileSync(r4, Buffer.from(g.output("arraybuffer")));
+
+    /* NI UNA LETRA FUERA DE SU HOJA, EN NINGUNA HOJA. */
+    const bb = execFileSync("pdftotext", ["-bbox", r4, "-"], { encoding: "utf8" });
+    const hj = bb.split("<page ").slice(1);
+    hj.forEach((p, i) => {
+      const m = p.match(/^width="([\d.]+)" height="([\d.]+)"/);
+      const PW = +m[1], PH = +m[2];
+      for (const w of p.matchAll(
+        /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)) {
+        const x0 = +w[1], y0 = +w[2], x1 = +w[3], y1 = +w[4];
+        ok(x0 >= -1 && x1 <= PW + 1 && y0 >= -1 && y1 <= PH + 1,
+           `${cual}: «${w[5]}» queda en ${Math.round(x0)},${Math.round(y0)} y la hoja ${i + 1} ` +
+           `mide ${Math.round(PW)}×${Math.round(PH)}: se sale del papel`);
+      }
+    });
+
+    /* NI UN RÓTULO ENCIMA DE OTRO. Encoger el dibujo sin encoger las
+       letras hace que los tres renglones de cada barra se monten: el
+       diagrama cabe y no se puede leer, que es el mismo problema con
+       otra cara. */
+    sinEncimarse(palabrasDe(r4, /recorrido/), cual);
+
+    /* Y SE MIRA EL PAPEL, NO SOLO EL TEXTO. `pdftotext` no ve las barras
+       ni las cintas: con la escala fija, las letras seguían todas dentro
+       de la hoja y lo que se salía por abajo eran los rectángulos —que
+       es exactamente lo que se vio en la pantalla—. Se pinta la hoja y
+       se mira si queda tinta por debajo del pie. */
+    const iR = hj.findIndex((p) => /recorrido/.test(p));
+    const ppm = execFileSync("pdftoppm",
+      ["-r", "50", "-f", String(iR + 1), "-l", String(iR + 1), "-singlefile", r4],
+      { maxBuffer: 1 << 28 });
+    /* P6 <ancho> <alto> 255, y detrás los píxeles en crudo. */
+    const cab = ppm.subarray(0, 64).toString("latin1").match(/^P6\s+(\d+)\s+(\d+)\s+255\s/);
+    const AN = +cab[1], AL = +cab[2], ini = cab[0].length;
+    /* Desde 290 mm para abajo —debajo del renglón del pie— no puede
+       quedar nada pintado. 50 puntos por pulgada son 1,9685 por mm. */
+    const desde = Math.round(290 * 50 / 25.4);
+    let sucio = 0, dx = -1, dy = -1;
+    for (let py = desde; py < AL; py++) {
+      for (let px = 0; px < AN; px++) {
+        const o = ini + (py * AN + px) * 3;
+        if (ppm[o] < 245 || ppm[o + 1] < 245 || ppm[o + 2] < 245) {
+          sucio++; if (dx < 0) { dx = px; dy = py }
+        }
+      }
+    }
+    ok(sucio === 0,
+       `${cual}: quedan ${sucio} puntos pintados por debajo del pie (el primero en ${dx},${dy} ` +
+       `de ${AN}×${AL}). El dibujo se sale de la hoja.`);
+  }
+}
+
 if (fallas.length) { console.log(""); fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
 console.log("✓ El informe de en sitio: las conclusiones salen de una función pura y no del papel " +
             "—la causa más CARA no es la que más rompe, y eso lo dice—, no se concluye nada por " +
@@ -505,4 +619,5 @@ console.log("✓ El informe de en sitio: las conclusiones salen de una función 
             "corta, un precio que falta se imprime como raya y nunca como $ 0, el recorrido cabe " +
             "entero en una hoja A4 VERTICAL —todas lo son: un PDF con una hoja girada en la " +
             "mitad no se lee— con sus tres rótulos y sus dos salidas, nada se escribe encima de " +
-            "otra cosa ni se sale del papel en ninguna hoja, y el filtro va en el pie de todas.");
+            "otra cosa ni se sale del papel en ninguna hoja, el dibujo se ajusta al sitio que le " +
+            "queda —le den el lienzo que le den— y el filtro va en el pie de todas.");

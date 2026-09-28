@@ -337,23 +337,29 @@ export function dibujarInformeSitio(
 
   const ALTO_C = 18, hueco = 8;
   const anchoC = (ANCHO - hueco) / 2;
-  const cajita = (x: number, rot: string, val: string, nota: string, fuerte: boolean) => {
-    if (fuerte) { doc.setFillColor(...TINTA); doc.rect(x, y, anchoC, ALTO_C, "F") }
-    else { doc.setFillColor(243, 246, 249); doc.rect(x, y, anchoC, ALTO_C, "F") }
-    fuente("bold", 6.5);
-    if (fuerte) doc.setTextColor(...TENUE); else gris();
+  /* LAS DOS IGUALES, COMO EN LA PANTALLA. La de contaminadas estuvo en
+     oscuro para que pesara más, y es al revés de lo que hace falta: son
+     las DOS MITADES DE LA MISMA CIFRA y hay que poder compararlas de un
+     vistazo. Una en oscuro y otra en claro se leen como «la importante y
+     la otra», y cuál pesa más lo dicen los números, que para eso están.
+     Las separa una raya, que es lo que hacen en la pantalla. */
+  const cajita = (x: number, rot: string, val: string, nota: string) => {
+    doc.setFillColor(243, 246, 249);
+    doc.rect(x, y, anchoC, ALTO_C, "F");
+    fuente("bold", 6.5); gris();
     doc.text(rot, x + 4, y + 5.5);
-    fuente("bold", 15);
-    if (fuerte) doc.setTextColor(255, 255, 255); else tinta();
+    fuente("bold", 15); tinta();
     doc.text(val, x + 4, y + 12.5);
-    fuente("normal", 6.4);
-    if (fuerte) doc.setTextColor(...TENUE); else gris();
+    fuente("normal", 6.4); gris();
     doc.text(doc.splitTextToSize(nota, anchoC - 8)[0] ?? "", x + 4, y + 16.2);
   };
   cajita(M, "ROTAS · SOLO EL ENVASE", money(d.plataRotas),
-         "se le cobra reponer la botella", false);
+         "se le cobra reponer la botella");
   cajita(M + anchoC + hueco, "CONTAMINADAS · ENVASE Y PRODUCTO", money(d.plataCont),
-         "el envase contaminado no vuelve a la línea", true);
+         "el envase contaminado no vuelve a la línea");
+  doc.setDrawColor(213, 220, 229);
+  doc.setLineWidth(0.25);
+  doc.line(M + anchoC + hueco / 2, y + 1.5, M + anchoC + hueco / 2, y + ALTO_C - 1.5);
   y += ALTO_C + 7;
 
   /* LA TABLA POR CAUSA. La columna de quién la asume no es adorno: es
@@ -458,11 +464,37 @@ export function dibujarInformeSitio(
     doc.text("EN QUÉ TERMINA", W - M, y, { align: "right" });
     y += 4;
 
-    /* LAS LETRAS NO SE ESCALAN: un rótulo escalado saldría en 5 puntos y
-       el papel existe para leerse. Van en tamaño fijo, colocadas en el
-       sitio que manda la geometría. */
+    /* ---------------------------------------------------------------
+       LA ESCALA SALE DEL SITIO QUE QUEDA EN LA HOJA, NO DEL LIENZO
+
+       Antes esto multiplicaba por una escala fija y daba por hecho que
+       quien arma el lienzo lo pidiera de un alto compatible. El día que
+       las dos partes no coincidieron —el servidor ya pedía un lienzo más
+       alto y el navegador todavía tenía el dibujo viejo— el diagrama
+       salió pasado de la hoja, por encima del pie y cortado por el
+       borde. Un PDF no tiene barra para desplazarse: lo que no cabe, no
+       está.
+
+       Así que aquí se mide lo que queda hasta el pie y el dibujo se
+       ajusta a eso. Si el lienzo viene del alto bueno, la escala es la
+       que hace legible el rótulo y no cambia nada; si viene más alto, el
+       dibujo se encoge —y las letras con él, en la misma proporción,
+       para que los tres renglones de cada barra sigan sin montarse—.
+       Encogido se lee peor; fuera de la hoja no se lee.
+
+       EL FONDO SE MIDE, NO SE SUPONE: una barra puede terminar por
+       debajo del borde del lienzo (el piso de 1,5 px de los nodos chicos
+       corre unas columnas más que otras), y a cada una hay que sumarle
+       los 64 px del bloque de su rótulo.
+       --------------------------------------------------------------- */
+    const NOTAS = 12;
+    const fondoPx = Math.max(s.alto, ...s.nodos.map((n) => Math.max(n.y + n.alto, n.y + 64)));
     const kx = ANCHO / s.ancho;
-    const ky = 14.8 / 64;
+    const KY_ROTULO = 14.8 / 64;
+    const ky = Math.min(KY_ROTULO, (TOPE - y - NOTAS) / fondoPx);
+    /* Cuánto se tuvo que encoger, para encoger las letras igual. */
+    const r = ky / KY_ROTULO;
+    const pt = (n: number) => Math.max(4.5, n * r);
     const X = (px: number) => M + px * kx;
     const Y = (px: number) => y + px * ky;
 
@@ -498,13 +530,13 @@ export function dibujarInformeSitio(
       const tx = fin ? X(n.x) - 2.5 : X(n.x) + 20 * kx + 2.5;
       const al = fin ? { align: "right" as const } : {};
       const libre = fin ? tx - M : W - M - tx;
-      fuente("bold", 9); tinta();
-      doc.text(doc.splitTextToSize(n.rotulo, libre)[0] ?? "", tx, Y(n.y) + 4.2, al);
-      fuente("bold", 13); tinta();
-      doc.text(nf.format(n.valor), tx, Y(n.y) + 9.3, al);
+      fuente("bold", pt(9)); tinta();
+      doc.text(doc.splitTextToSize(n.rotulo, libre)[0] ?? "", tx, Y(n.y) + 4.2 * r, al);
+      fuente("bold", pt(13)); tinta();
+      doc.text(nf.format(n.valor), tx, Y(n.y) + 9.3 * r, al);
       if (n.pie) {
-        fuente("normal", 7); gris();
-        doc.text(doc.splitTextToSize(n.pie, libre)[0] ?? "", tx, Y(n.y) + 13.5, al);
+        fuente("normal", pt(7)); gris();
+        doc.text(doc.splitTextToSize(n.pie, libre)[0] ?? "", tx, Y(n.y) + 13.5 * r, al);
       }
     }
     /* DEBAJO DE LO MÁS BAJO QUE SE HAYA ESCRITO, y no debajo del lienzo.
@@ -514,7 +546,8 @@ export function dibujarInformeSitio(
        quedar por debajo del borde del lienzo. Midiéndolo, la nota nunca
        se escribe encima de una cifra; calculándolo desde `s.alto`, se
        escribía encima del «30» de Líneas. */
-    y = Math.max(Y(s.alto), ...s.nodos.map((n) => Y(n.y) + (n.pie ? 13.5 : 9.3))) + 5;
+    y = Math.max(Y(s.alto),
+                 ...s.nodos.map((n) => Y(n.y) + (n.pie ? 13.5 : 9.3) * r)) + 4;
 
     if (d.recorrido.juntados > 0) {
       fuente("normal", 7); gris();
