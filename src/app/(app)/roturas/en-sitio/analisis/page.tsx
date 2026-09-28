@@ -9,6 +9,7 @@ import { medirCobro } from "@/modulos/roturas/cobro";
 import { hallazgosSitio } from "@/modulos/roturas/hallazgos-sitio";
 import { pesos } from "@/modulos/roturas/formato";
 import { Recorrido } from "./Recorrido";
+import { DeDondeSale } from "./Cobro";
 import { BotonInformeSitio } from "./BotonInformeSitio";
 import type { DatosSitio } from "./informe";
 import "../../roturas.css";
@@ -412,51 +413,15 @@ export default async function AnalisisEnSitioPage(
       </section>
 
       {/* ============ DE QUÉ SE COMPONE LA PLATA ============
-          La cifra de arriba sola no se puede discutir con nadie. Aquí
-          se parte en las dos formas de cobrar —que no son la misma— y
-          en las causas, que es de quién fue. */}
+          La cifra de arriba sola no se puede discutir con nadie: esto es
+          la cuenta que la sostiene. Vive en su propio componente para
+          poder medirla sin montar la página entera — ver la nota larga
+          de Cobro.tsx. */}
       {cobro.aCobro > 0 && (
-        <section className="caja rq-plata">
-          <div className="rq-h">
-            <b>De dónde salen {pesos(plata) ?? "—"}</b>
-            <span>precios del maestro, por botella</span>
-          </div>
-          <div className="rq-plata-dos">
-            <div>
-              <span className="rot">ROTAS · SOLO EL ENVASE</span>
-              <b>{pesos(plataRotas) ?? "—"}</b>
-              <em>se le cobra reponer la botella</em>
-            </div>
-            <div>
-              <span className="rot">CONTAMINADAS · ENVASE Y PRODUCTO</span>
-              <b>{pesos(plataCont) ?? "—"}</b>
-              <em>el envase contaminado no vuelve a la línea</em>
-            </div>
-          </div>
-          <table className="rq-plata-t">
-            <thead>
-              <tr><th>Causa</th><th>Quién la asume</th><th className="der">Se cobra</th></tr>
-            </thead>
-            <tbody>
-              {plataPorCausa.map((c) => (
-                <tr key={c.nombre}>
-                  <td>{c.nombre}</td>
-                  <td className={c.grupo === "no_asumida" ? "rq-no" : ""}>
-                    {c.grupo === "no_asumida" ? "No asumida" : "El OL"}
-                  </td>
-                  <td className="der">{pesos(c.valor) ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {sinPrecio > 0 && (
-            <p className="rq-mas">
-              <b>{sinPrecio} rotura{sinPrecio === 1 ? "" : "s"} a cobro sin precio.</b> Al material
-              le falta el suyo en el maestro, así que no entra en esta cuenta — el total de arriba
-              se queda corto hasta que se llene en Inventario → Maestro.
-            </p>
-          )}
-        </section>
+        <DeDondeSale c={{
+          total: plata, rotas: plataRotas, contaminadas: plataCont,
+          sinPrecio, porCausa: plataPorCausa,
+        }} />
       )}
 
       {/* =============================================================

@@ -329,44 +329,90 @@ export function dibujarInformeSitio(
   y += 3;
 
   /* ---------------- DE DÓNDE SALE LA PLATA ----------------
-     La cifra de arriba sola no se puede discutir con nadie. Aquí se
-     parte en las DOS FORMAS DE COBRAR, que no cuestan lo mismo, y por
-     causa, que es de quién fue. */
-  cabe(26 + Math.min(d.porCausa.length, 4) * 6);
+     ES LA MISMA PIEZA QUE LA PANTALLA, y no una versión resumida: quien
+     discute el cobro tiene delante el papel, no la pantalla, y si el
+     papel enseña menos hay que ir a buscar la diferencia a otro sitio.
+
+     La barra, las dos formas con SU FÓRMULA ESCRITA y el reparto por
+     causa con su total repetido abajo — que es lo que deja comprobar
+     que las dos cifras de la hoja cuadran entre ellas. */
+  const pct = (v: number) => (d.plata > 0 ? Math.round((v / d.plata) * 100) : 0);
+  const formas = [
+    { nom: "Rotas", valor: d.plataRotas, oro: true,
+      que: "El producto se pierde en sitio: se le cobra reponer la botella.",
+      formula: "unidades x precio del envase", chip: "SOLO ENVASE" },
+    { nom: "Contaminadas", valor: d.plataCont, oro: false,
+      que: "El envase contaminado no vuelve a la línea: se cobra envase y producto.",
+      formula: "unidades x (precio del envase + precio del producto)",
+      chip: "ENVASE + PRODUCTO" },
+  ].sort((x, z) => z.valor - x.valor);
+  /* EL DORADO ES FIJO Y NO EL ACENTO DEL TEMA: en el tema OFICIAL el
+     acento ES EL ROJO, y en esta hoja el rojo ya quiere decir «esto no
+     lo asume el OL». Misma razón que en la pantalla y en el diagrama. */
+  const ORO: RGB = [255, 196, 0];
+  const GRIS_PUNTO: RGB = [150, 160, 172];
+
+  cabe(34 + 30 + Math.min(d.porCausa.length, 4) * 6);
   titulo(`De dónde salen ${money(d.plata)}`, "precios del maestro, por botella");
 
-  const ALTO_C = 18, hueco = 8;
-  const anchoC = (ANCHO - hueco) / 2;
-  /* LAS DOS IGUALES, COMO EN LA PANTALLA. La de contaminadas estuvo en
-     oscuro para que pesara más, y es al revés de lo que hace falta: son
-     las DOS MITADES DE LA MISMA CIFRA y hay que poder compararlas de un
-     vistazo. Una en oscuro y otra en claro se leen como «la importante y
-     la otra», y cuál pesa más lo dicen los números, que para eso están.
-     Las separa una raya, que es lo que hacen en la pantalla. */
-  const cajita = (x: number, rot: string, val: string, nota: string) => {
-    doc.setFillColor(243, 246, 249);
-    doc.rect(x, y, anchoC, ALTO_C, "F");
-    fuente("bold", 6.5); gris();
-    doc.text(rot, x + 4, y + 5.5);
-    fuente("bold", 15); tinta();
-    doc.text(val, x + 4, y + 12.5);
-    fuente("normal", 6.4); gris();
-    doc.text(doc.splitTextToSize(nota, anchoC - 8)[0] ?? "", x + 4, y + 16.2);
-  };
-  cajita(M, "ROTAS · SOLO EL ENVASE", money(d.plataRotas),
-         "se le cobra reponer la botella");
-  cajita(M + anchoC + hueco, "CONTAMINADAS · ENVASE Y PRODUCTO", money(d.plataCont),
-         "el envase contaminado no vuelve a la línea");
-  doc.setDrawColor(213, 220, 229);
-  doc.setLineWidth(0.25);
-  doc.line(M + anchoC + hueco / 2, y + 1.5, M + anchoC + hueco / 2, y + ALTO_C - 1.5);
-  y += ALTO_C + 7;
+  /* LA BARRA: cuál de las dos formas es el problema, sin restar de
+     cabeza. Con cero a cobro no se pinta nada y no se divide. */
+  {
+    const ALTO_B = 3.4;
+    doc.setFillColor(233, 236, 240);
+    doc.rect(M, y, ANCHO, ALTO_B, "F");
+    const wR = ANCHO * pct(d.plataRotas) / 100;
+    if (wR > 0) { doc.setFillColor(...ORO); doc.rect(M, y, wR, ALTO_B, "F") }
+    const wC = ANCHO * pct(d.plataCont) / 100;
+    if (wC > 0) { doc.setFillColor(...TINTA); doc.rect(M + wR, y, wC, ALTO_B, "F") }
+    y += ALTO_B + 4;
+    fuente("normal", 7); gris();
+    doc.text(`Rotas ${pct(d.plataRotas)} %`, M, y);
+    doc.text(`Contaminadas ${pct(d.plataCont)} %`, W - M, y, { align: "right" });
+    y += 5;
+  }
 
-  /* LA TABLA POR CAUSA. La columna de quién la asume no es adorno: es
-     la que dice cuáles de esas cifras van a discutirse. */
+  /* LAS DOS FORMAS, DE MAYOR A MENOR. */
+  for (const f of formas) {
+    const ALTO_F = 15;
+    cabe(ALTO_F + 2);
+    doc.setDrawColor(213, 220, 229);
+    doc.setLineWidth(0.2);
+    doc.line(M, y, W - M, y);
+    doc.setFillColor(...(f.oro ? ORO : TINTA));
+    doc.rect(M, y + 4.2, 3, 3, "F");
+    fuente("bold", 10.5); tinta();
+    doc.text(f.nom, M + 6, y + 6.6);
+    fuente("normal", 7.6); gris();
+    doc.text(doc.splitTextToSize(f.que, ANCHO - 60)[0] ?? "", M + 6, y + 10.4);
+    fuente("normal", 6.6); doc.setTextColor(140, 150, 162);
+    doc.text(f.formula, M + 6, y + 13.6);
+    /* LA ETIQUETA DE QUÉ SE COBRA, en su recuadro. */
+    fuente("bold", 6); gris();
+    const anchoChip = doc.getTextWidth(f.chip) + 5;
+    doc.setDrawColor(213, 220, 229);
+    doc.rect(W - M - 34 - anchoChip, y + 3.6, anchoChip, 5);
+    doc.text(f.chip, W - M - 34 - anchoChip + 2.5, y + 7.1);
+    fuente("bold", 14); tinta();
+    doc.text(money(f.valor), W - M, y + 8, { align: "right" });
+    fuente("normal", 7); gris();
+    doc.text(`${pct(f.valor)} %`, W - M, y + 12.4, { align: "right" });
+    y += ALTO_F;
+  }
+  doc.setDrawColor(213, 220, 229);
+  doc.line(M, y, W - M, y);
+  y += 9;
+
+  /* LA TABLA POR CAUSA. La columna de quién la asume no es adorno: es la
+     que dice cuáles de esas cifras van a discutirse. Y EL TOTAL VA
+     REPETIDO ABAJO: es lo que deja comprobar que el reparto suma lo
+     mismo que la cifra grande de la cabecera. */
   {
     const FILA = 6;
     const COLC = [ANCHO - 76, 40, 36];
+    fuente("bold", 7); gris();
+    doc.text("POR CAUSA", M, y);
+    y += 3;
     doc.setFillColor(...TINTA);
     doc.rect(M, y, ANCHO, FILA, "F");
     doc.setTextColor(255, 255, 255); fuente("bold", 7.5);
@@ -384,13 +430,24 @@ export function dibujarInformeSitio(
       if (i % 2 === 1) { doc.setFillColor(247, 249, 251); doc.rect(M, y, ANCHO, FILA, "F") }
       fuente("normal", 8.5); tinta();
       doc.text(doc.splitTextToSize(c.nombre, COLC[0] - 3)[0] ?? "", M + 2, y + FILA - 1.8);
+      /* EL PUNTO: neutro cuando la asume el OL —que es lo normal— y rojo
+         cuando no. Así el rojo quiere decir una sola cosa en la hoja. */
+      doc.setFillColor(...(c.grupo === "no_asumida" ? MAL : GRIS_PUNTO));
+      doc.circle(M + COLC[0] + 3.4, y + FILA / 2 - 0.6, 1, "F");
       if (c.grupo === "no_asumida") { fuente("bold", 8); doc.setTextColor(...MAL) }
       else { fuente("normal", 8); gris() }
-      doc.text(c.grupo === "no_asumida" ? "No asumida" : "El OL", M + COLC[0] + 2, y + FILA - 1.8);
+      doc.text(c.grupo === "no_asumida" ? "No asumida" : "El OL", M + COLC[0] + 6, y + FILA - 1.8);
       fuente("bold", 8.5); tinta();
       doc.text(money(c.valor), M + ANCHO - 2, y + FILA - 1.8, { align: "right" });
       y += FILA;
     });
+    if (d.porCausa.length > 0) {
+      y += 1.5;
+      fuente("bold", 9); tinta();
+      doc.text("Total a cobrar", M + ANCHO - 36, y + 3.4, { align: "right" });
+      doc.text(money(d.plata), M + ANCHO - 2, y + 3.4, { align: "right" });
+      y += 6;
+    }
     y += 8;
   }
 

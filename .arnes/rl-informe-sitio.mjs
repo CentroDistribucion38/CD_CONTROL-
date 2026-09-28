@@ -347,6 +347,30 @@ ok(/se le cobra al OL/.test(todo), "la cifra grande salió sin decir de qué es"
 ok(/\$ 10\.000/.test(todo) && /\$ 64\.216/.test(todo),
    "las dos formas de cobrar tienen que ir partidas: sin eso la cifra no se puede discutir");
 
+/* 2a-bis · EL PAPEL DICE LO MISMO QUE LA PANTALLA, PIEZA POR PIEZA.
+   Quien discute el cobro tiene delante el papel, no la pantalla: si el
+   papel enseña menos, la diferencia hay que ir a buscarla a otro sitio
+   —y en una reunión eso es no tenerla—. */
+ok(/Rotas 13 %/.test(todo) && /Contaminadas 87 %/.test(todo),
+   "el papel no lleva el reparto en porcentaje: 10.000 de 74.216 es 13 % y 64.216 es 87 %");
+ok(/unidades x precio del envase/.test(todo)
+   && /unidades x \(precio del envase \+ precio del producto\)/.test(todo),
+   "el papel no lleva las dos fórmulas escritas: una cifra de plata que no dice cómo se sacó se " +
+   "cree o no se cree, pero no se discute");
+ok(/SOLO ENVASE/.test(todo) && /ENVASE \+ PRODUCTO/.test(todo),
+   "faltan las etiquetas de qué se cobra en cada forma");
+/* EL TOTAL REPETIDO al pie del reparto: es lo que deja comprobar que las
+   dos cifras de la hoja cuadran entre ellas. */
+ok(/Total a cobrar/.test(todo), "el reparto por causa salió sin su total: no hay con qué cuadrarlo");
+{
+  const filas = [...todo.matchAll(/^\s*(.+?)\s{2,}(?:El OL|No asumida)\s+\$ ([\d.]+)\s*$/gm)]
+    .map((m) => Number(m[2].replace(/\./g, "")));
+  ok(filas.length === 2, `el reparto por causa salió con ${filas.length} renglones y son 2`);
+  ok(filas.reduce((a, b) => a + b, 0) === 74216,
+     `las causas del papel suman ${filas.reduce((a, b) => a + b, 0)} y el total dice 74.216: dos ` +
+     "cifras de la misma hoja que no cuadran entre ellas");
+}
+
 /* 2b · QUE LA CIFRA ESTÁ CORTA, PEGADO A LA CIFRA.
    Si hay roturas sin precio, el total está corto — y eso tiene que
    leerse en el mismo golpe de vista, no en una nota al pie que nadie

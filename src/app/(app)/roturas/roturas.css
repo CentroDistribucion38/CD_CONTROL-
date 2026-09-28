@@ -2498,42 +2498,172 @@
 /* ---------------------------------------------------------------------
    LA PLATA EN ANÁLISIS — de dónde sale lo que se le cobra al OL
    ---------------------------------------------------------------------
-   La cifra grande va arriba, en el KPI. Esto es el desglose, que es lo
-   que hace que la cifra se pueda discutir: las dos formas de cobrar
-   —que no cuestan lo mismo— y el reparto por causa, que dice de quién
-   fue. Los números van tabulares porque se leen en columna y se suman
-   de cabeza.
+   La cifra grande de la cabecera es la respuesta; esto es la cuenta que
+   la sostiene, y sin ella la cifra no se puede defender en una reunión.
+
+   TRES PIEZAS Y CADA UNA CONTESTA ALGO DISTINTO:
+     · la barra — cuál de las dos formas de cobrar es el problema, sin
+       tener que restar de cabeza;
+     · las dos filas — qué es cada una, CON SU FÓRMULA escrita: una cifra
+       de plata que no dice cómo se sacó se cree o no se cree, pero no se
+       discute;
+     · la tabla por causa — de quién fue, y su total repetido abajo para
+       poder comprobar que el reparto suma lo mismo que la cifra grande.
+
+   EL DORADO DE LA BARRA ES FIJO Y NO EL ACENTO DEL TEMA, y es la misma
+   razón que en el diagrama del recorrido: `--rt-oro` en el tema OFICIAL
+   ES EL ROJO, y aquí el rojo ya significa otra cosa —«esto no lo asume
+   el OL», que es la plata que alguien va a discutir—. Con el acento, la
+   barra de «rotas» y el punto de «no asumida» salían exactamente del
+   mismo color y el bloque perdía lo único que venía a avisar. Se vio
+   mirando la captura, no en el arnés.
+
+   Los números van tabulares porque se leen en columna.
    ------------------------------------------------------------------ */
-.rt .rq-plata-dos {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
-  background: var(--rt-linea); border-top: 1px solid var(--rt-linea);
-  border-bottom: 1px solid var(--rt-linea);
+.rt .rq-cobro { padding: 0; overflow: hidden }
+
+.rt .rq-cobro-cab {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+  padding: 22px 24px 20px; border-bottom: 1px solid var(--rt-linea);
 }
-.rt .rq-plata-dos > div { background: var(--rt-papel); padding: 14px 16px; min-width: 0 }
-.rt .rq-plata-dos .rot {
-  display: block; font: 700 9.5px var(--rt-texto); letter-spacing: .13em;
+.rt .rq-cobro .rot {
+  margin: 0; font: 700 10px var(--rt-titulo); letter-spacing: .16em;
   text-transform: uppercase; color: var(--rt-gris-panel);
 }
-.rt .rq-plata-dos b {
-  display: block; margin: 6px 0 3px; font: 900 26px/1 var(--rt-titulo);
-  letter-spacing: -.02em; color: var(--rt-tinta); font-variant-numeric: tabular-nums;
+.rt .rq-cobro-tot {
+  margin-top: 8px; font: 900 clamp(38px, 5.4vw, 60px)/1 var(--rt-titulo);
+  letter-spacing: -.04em; color: var(--rt-tinta); font-variant-numeric: tabular-nums;
 }
-.rt .rq-plata-dos em { font-style: normal; font-size: 12px; color: var(--rt-gris-panel) }
+/* EL PESO MÁS CHICO Y ARRIBA: en una cifra de seis dígitos el signo al
+   mismo tamaño se lleva el ojo, y lo que hay que leer es el número. */
+.rt .rq-cobro-tot small {
+  font: 800 .36em var(--rt-titulo); letter-spacing: 0;
+  vertical-align: top; margin-right: .1em; position: relative; top: .18em;
+}
+.rt .rq-cobro-sub { margin: 8px 0 0; font-size: 13px; color: var(--rt-gris) }
 
-.rt .rq-plata-t { width: 100%; border-collapse: collapse; font-size: 13px }
-.rt .rq-plata-t th {
-  text-align: left; font: 700 9.5px var(--rt-texto); letter-spacing: .12em;
+.rt .rq-cobro-quien {
+  background: var(--rt-tinta); color: #fff; padding: 13px 18px; min-width: 240px;
+}
+.rt .rq-cobro-quien .rot { color: color-mix(in srgb, #fff 62%, var(--rt-tinta)) }
+.rt .rq-cobro-quien b {
+  display: block; margin-top: 4px; font: 900 25px/1.1 var(--rt-titulo);
+  letter-spacing: -.02em; color: #fff;
+}
+/* SI NADIE LA ASUME, EN ROJO. Es plata que alguien va a discutir, y eso
+   se tiene que ver antes de leer. */
+.rt .rq-cobro-quien.no b { color: #FF8FA0 }
+.rt .rq-cobro-quien span {
+  display: block; margin-top: 3px; font-size: 12.5px;
+  color: color-mix(in srgb, #fff 78%, var(--rt-tinta));
+}
+
+.rt .rq-cobro-cuerpo { padding: 20px 24px 22px }
+
+.rt .rq-barra { display: flex; height: 13px; background: var(--rt-linea) }
+.rt .rq-barra i { display: block; height: 100%; min-width: 0 }
+.rt .rq-barra .rotas { background: #FFC400 }
+.rt .rq-barra .cont { background: var(--rt-tinta) }
+.rt .rq-escala {
+  display: flex; justify-content: space-between; gap: 12px; margin-top: 6px;
+  font: 500 11.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--rt-gris-panel);
+}
+
+.rt .rq-formas { margin-top: 20px; border-top: 1px solid var(--rt-linea) }
+.rt .rq-forma {
+  display: grid; grid-template-columns: 13px minmax(0, 1fr) auto 118px;
+  gap: 16px; align-items: center;
+  padding: 15px 0; border-bottom: 1px solid var(--rt-linea);
+}
+.rt .rq-forma .sw { width: 13px; height: 13px; align-self: start; margin-top: 4px }
+.rt .rq-forma .sw.rotas { background: #FFC400 }
+.rt .rq-forma .sw.cont { background: var(--rt-tinta) }
+.rt .rq-forma-q b { display: block; font: 800 16px var(--rt-titulo); color: var(--rt-tinta) }
+.rt .rq-forma-q span { display: block; margin-top: 3px; font-size: 13px; color: var(--rt-gris) }
+.rt .rq-forma-q code {
+  display: block; margin-top: 6px;
+  font: 500 11.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--rt-gris-panel);
+}
+.rt .rq-chip {
+  font: 800 9.5px var(--rt-titulo); letter-spacing: .12em; white-space: nowrap;
+  padding: 5px 8px; background: var(--rt-gris-suave, #F4F5F7);
+  border: 1px solid var(--rt-linea); color: var(--rt-gris-panel);
+}
+.rt .rq-forma-v { text-align: right }
+.rt .rq-forma-v b {
+  display: block; font: 900 23px var(--rt-titulo); letter-spacing: -.02em;
+  color: var(--rt-tinta); font-variant-numeric: tabular-nums;
+}
+.rt .rq-forma-v span {
+  font: 600 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--rt-gris-panel);
+}
+
+.rt .rq-porcausa { margin-top: 24px }
+.rt .rq-porcausa table { width: 100%; border-collapse: collapse; font-size: 14px }
+.rt .rq-porcausa th {
+  text-align: left; font: 700 10px var(--rt-titulo); letter-spacing: .14em;
   text-transform: uppercase; color: var(--rt-gris-panel);
-  padding: 12px 16px 8px; border-bottom: 1px solid var(--rt-linea);
+  padding: 10px 0 8px; border-bottom: 2px solid var(--rt-tinta);
 }
-.rt .rq-plata-t td { padding: 9px 16px; border-bottom: 1px solid var(--rt-linea); color: var(--rt-tinta) }
-.rt .rq-plata-t tr:last-child td { border-bottom: 0 }
-.rt .rq-plata-t .der { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700 }
-/* La que dice que NO fue del OL, en rojo: es plata que alguien va a
-   discutir y se tiene que ver sin leer. */
-.rt .rq-plata-t .rq-no { color: var(--rt-mal); font-weight: 600 }
+.rt .rq-porcausa td { padding: 12px 0; border-bottom: 1px solid var(--rt-linea); color: var(--rt-tinta) }
+.rt .rq-porcausa .der { text-align: right; font-variant-numeric: tabular-nums }
+.rt .rq-porcausa tbody .der { font: 800 15px var(--rt-titulo) }
+.rt .rq-porcausa tfoot td {
+  border: 0; padding-top: 13px; font: 900 15px var(--rt-titulo); color: var(--rt-tinta);
+}
+/* EL PUNTO DE QUIÉN LA ASUME. Rojo cuando se dice que no fue del OL:
+   se ve sin leer, que es para lo que sirve. */
+.rt .rq-pun { display: inline-flex; align-items: center; gap: 7px; font-weight: 600 }
+/* EL PUNTO DE «EL OL» ES NEUTRO A PROPÓSITO: no es una alarma, es lo
+   normal. El rojo se queda para la que nadie asume, y así quiere decir
+   una sola cosa en toda la pantalla. */
+.rt .rq-pun::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--rt-gris-panel); flex: 0 0 auto;
+}
+.rt .rq-pun.no { color: var(--rt-mal) }
+.rt .rq-pun.no::before { background: var(--rt-mal) }
 
+/* LA MISMA MARCA PARA CELULAR, debajo del nombre de la causa. En
+   pantalla ancha sobra —está la columna— y se esconde. */
+.rt .rq-pun-cel { display: none }
+
+.rt .rq-porcausa .rq-tot-et { text-align: right }
+
+.rt .rq-cobro-pie {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; flex-wrap: wrap; margin-top: 20px;
+}
+.rt .rq-cobro-pie p { margin: 0; font-size: 12.5px; color: var(--rt-gris) }
+.rt .rq-cobro-pie .rq-vervlas {
+  display: inline-flex; align-items: center; height: 40px; padding: 0 16px;
+  border: 1.5px solid var(--rt-linea); background: var(--rt-papel);
+  font: 800 13px var(--rt-titulo); color: var(--rt-tinta);
+  /* SIN SUBRAYADO: globals.css subraya todo `a` de la app, y aquí es un
+     botón, no un enlace dentro de un párrafo. */
+  text-decoration: none;
+}
+.rt .rq-cobro-pie .rq-vervlas:hover { border-color: var(--rt-tinta) }
+
+@media (max-width: 720px) {
+  .rt .rq-cobro-quien { min-width: 0; width: 100% }
+}
 @media (max-width: 640px) {
-  .rt .rq-plata-dos { grid-template-columns: 1fr }
-  .rt .rq-plata-t th:nth-child(2), .rt .rq-plata-t td:nth-child(2) { display: none }
+  .rt .rq-cobro-cab, .rt .rq-cobro-cuerpo { padding-left: 16px; padding-right: 16px }
+  /* EL CHIP SE VA Y LA FÓRMULA SE QUEDA: el chip repite en dos palabras
+     lo que la fórmula dice exacto. */
+  .rt .rq-forma { grid-template-columns: 13px minmax(0, 1fr) 96px }
+  .rt .rq-chip { display: none }
+  .rt .rq-forma-v b { font-size: 19px }
+  .rt .rq-porcausa th:nth-child(2), .rt .rq-porcausa tbody td:nth-child(2) { display: none }
+  .rt .rq-pun-cel {
+    display: block; margin-top: 3px; font-size: 11.5px; color: var(--rt-gris-panel);
+  }
+  .rt .rq-pun-cel.no { color: var(--rt-mal); font-weight: 600 }
+  .rt .rq-cobro-pie { flex-direction: column; align-items: stretch }
+  .rt .rq-cobro-pie .rq-vervlas { justify-content: center }
 }
