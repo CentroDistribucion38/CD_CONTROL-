@@ -32,4 +32,4 @@ echo "--- otra vez (y el color puesto a mano no se pisa)"
 if $PSQL -d $DB -f supabase/migraciones/2026-09-roturas-color-envases.sql 2>&1 | grep -E "^ERROR|ERROR:"; then exit 1; fi
 c=$($PSQL -d $DB -tAc "select color_vidrio from productos where sku='3500162'")
 if [ "$c" != "green" ]; then echo "✗ la segunda corrida pisó el color puesto a mano: $c"; exit 1; fi
-echo "✓ El color de los envases: los 11 que lo dicen en el nombre quedan puestos, los 2 que no lo dicen se quedan vacíos y se nombran, el desplegable de EER vuelve a mostrarlos, y un color corregido a mano no se pisa."
+echo "✓ El color de los envases: los 11 que lo dicen en el nombre quedan puestos y los 2 de la familia Costeña entran en green porque lo dijo Cristian —no porque se adivinara—, los trece salen en el desplegable de EER, y un color corregido a mano no se pisa."

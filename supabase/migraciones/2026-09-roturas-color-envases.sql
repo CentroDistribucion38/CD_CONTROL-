@@ -13,16 +13,18 @@
 --     ...MARRON...   ->  ambar    (marron y ambar son el mismo vidrio)
 --     ...FLINT...    ->  flint
 --
--- ONCE DE LOS TRECE LO DICEN EN EL NOMBRE. Los otros dos NO SE TOCAN:
+-- ONCE DE LOS TRECE LO DICEN EN EL NOMBRE. Los otros dos los dijo
+-- Cristian, y por eso ya estan aqui:
 --
---     3500005   Envase Costenita 175R
---     3501430   ENVASE COSTENA BACANA 320CC R
+--     3500005   Envase Costenita 175R           ->  green
+--     3501430   ENVASE COSTENA BACANA 320CC R   ->  green
 --
--- De esos dos el nombre no dice el vidrio, y ponerles uno a ojo los
--- mandaria a la columna equivocada del analisis por color sin que nadie
--- lo note. Este archivo los deja como estan y los nombra al final para
--- que se pongan a mano en Inventario -> Maestro (o con el UPDATE que va
--- comentado abajo).
+-- Esos dos no llevan el vidrio en el nombre, asi que en la primera
+-- version de este archivo se quedaron VACIOS a proposito: ponerles un
+-- color a ojo los habria mandado a la columna equivocada del analisis
+-- por color sin que nadie lo note. Ahora entran porque hay quien lo
+-- sepa, no porque se haya adivinado -- que es la diferencia que
+-- importa.
 --
 -- NO SE PISA UN COLOR YA PUESTO. Si alguien ya lo corrigio a mano, manda
 -- lo suyo; lo que si se hace es AVISAR cuando el color guardado no
@@ -50,7 +52,11 @@ begin
     ('3500383', 'flint'),   -- Envase Flint 750R
     ('3500887', 'flint'),   -- BOTELLA FLINT 1000R
     ('3501225', 'flint'),   -- BOTELLA FLINT 250 CC
-    ('412375',  'flint')    -- Envase Flint 210NR Coronita
+    ('412375',  'flint'),   -- Envase Flint 210NR Coronita
+    /* LOS DOS DE LA FAMILIA COSTENA: el nombre no dice el vidrio y lo
+       dijo Cristian. Van juntos porque son la misma botella. */
+    ('3500005', 'green'),   -- Envase Costenita 175R
+    ('3501430', 'green')    -- ENVASE COSTENA BACANA 320CC R
   ;
 
   -- 1 · SOLO LO QUE ESTA VACIO
@@ -110,8 +116,11 @@ select p.sku, p.nombre, p.tipo_material, p.color_vidrio, p.activo, p.en_sitio
  order by p.color_vidrio nulls first, p.sku;
 
 -- ---------------------------------------------------------------------
--- LOS DOS QUE FALTAN, CUANDO SEPAS DE QUE VIDRIO SON
+-- SI ALGUNO QUEDO CON EL COLOR EQUIVOCADO
 --
---   update public.productos set color_vidrio = 'ambar'   -- o 'flint'
+-- Este archivo solo rellena lo que esta VACIO, asi que para cambiar uno
+-- ya puesto hay que decirlo a mano (o hacerlo en Inventario -> Maestro):
+--
+--   update public.productos set color_vidrio = 'green'   -- o 'ambar' / 'flint'
 --    where sku in ('3500005', '3501430');
 -- ---------------------------------------------------------------------

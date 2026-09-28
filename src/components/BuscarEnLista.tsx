@@ -50,6 +50,17 @@ export type OpcionLista = {
   codigo?: string;
   /** Sale de entrada, sin escribir nada. Los demás aparecen al buscar. */
   corta?: boolean;
+  /**
+   * UN CUADRITO DE COLOR DELANTE DEL NOMBRE. Opcional y genérico: el
+   * componente no sabe qué significa, solo lo pinta.
+   *
+   * Existe por los envases retornables, donde el color del vidrio es
+   * mitad del dato: «Envase Marron 330R» y «Envase Flint 330R» se leen
+   * casi igual a un metro de distancia y con guante, y escribirlo al
+   * final del renglón obliga a leer la línea entera. Un cuadrito se ve
+   * antes que la palabra.
+   */
+  color?: string | null;
 };
 
 const pelado = (t: string) =>
@@ -210,7 +221,10 @@ export function BuscarEnLista({ id, opciones, valor, cambiar, vacio,
                                    + (m.clave === valor ? " puesto" : "")}
                         onMouseEnter={() => setMarcado(i)}
                         onClick={() => escoger(m)}>
-                  <b>{m.nombre}</b>
+                  <b>
+                    {m.color && <i className="bl-color" style={{ background: m.color }} aria-hidden />}
+                    {m.nombre}
+                  </b>
                   {m.codigo && <span>{m.codigo}</span>}
                 </button>
               ))}

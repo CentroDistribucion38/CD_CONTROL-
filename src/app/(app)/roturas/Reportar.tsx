@@ -68,6 +68,15 @@ import type { Area, Causa, Material, Proceso } from "@/modulos/roturas/datos";
  * EL BARRIL SE QUEDA TAMBIÉN, a propósito: no se pidió quitarlo, y
  * quitarlo «de paso» sería decidir por él.
  */
+/* LOS TRES VIDRIOS, PINTADOS. Son los mismos valores que usa el CSS de
+   los botones del tipo de vidrio (.seg.vidrio button.<color> i): están
+   aquí porque el desplegable los necesita como estilo en línea, y
+   repetirlos en dos sitios con dos valores distintos haría que el mismo
+   envase se viera de un color en el botón y de otro en la lista. */
+const VIDRIO_PINTA: Record<string, string> = {
+  ambar: "#C08A16", flint: "#E7EAE6", green: "#2F6B43",
+};
+
 const FUERA_DE_SITIO = new Set(["lata", "pet"]);
 const esVidrio = (m: { familia: string | null }) =>
   !FUERA_DE_SITIO.has((m.familia ?? "").trim().toLowerCase());
@@ -316,10 +325,16 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
            que estar en la fila que se escoge. Al que le falte, lo dice
            — es lo que hay que ir a llenar al maestro. */
         opciones={delTipo.map((m) => ({
-          clave: m.clave, nombre: m.nombre
+          clave: m.clave,
+          nombre: m.nombre
             + (m.tipo === "eer" ? ` · ${m.color ? COLOR_VIDRIO[m.color] : "sin color"}` : ""),
           codigo: m.clave,
           corta: m.en_sitio,
+          /* EL CUADRITO VA CON EL MISMO COLOR QUE EL BOTÓN DE ARRIBA: es
+             el mismo dato y verlo distinto en dos sitios hace dudar del
+             que se está mirando. Al que le falta el color no lleva
+             cuadrito — y el «sin color» del nombre dice por qué. */
+          color: m.tipo === "eer" && m.color ? VIDRIO_PINTA[m.color] : null,
         }))}
         rotulo="Escribe para buscar el material"
         cambiar={(c) => { setMaterial(c); setTocoBotellas(false) }}

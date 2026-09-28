@@ -13,12 +13,20 @@ begin
   if n <> 5 then raise exception 'FALLA: los flint quedaron % de 5', n; end if;
   raise notice '  · 6 marrones en ambar y 5 flint ✓';
 
-  -- 2 · LOS DOS QUE EL NOMBRE NO DICE SIGUEN SIN COLOR. Inventarles uno
-  --     los manda a la columna equivocada del analisis y nadie lo nota.
+  -- 2 · LOS DOS DE LA FAMILIA COSTENA VAN EN GREEN. El nombre no lo dice
+  --     -- por eso al principio se quedaron vacios -- y lo dijo Cristian.
   select count(*) into n from public.productos
-   where sku in ('3500005','3501430') and color_vidrio is not null;
-  if n > 0 then raise exception 'FALLA: a % de los dos ambiguos se le invento un color', n; end if;
-  raise notice '  · 3500005 y 3501430 siguen sin color, como debe ser ✓';
+   where sku in ('3500005','3501430') and color_vidrio = 'green';
+  if n <> 2 then raise exception 'FALLA: los dos Costena quedaron % de 2 en green', n; end if;
+  raise notice '  · 3500005 y 3501430 en green ✓';
+
+  -- 2b · Y NO QUEDA NINGUNO DE LOS TRECE SIN COLOR. Un envase sin color
+  --      no llega al desplegable de EER y no hay forma de registrarlo.
+  select count(*) into n from public.productos
+   where sku in ('3500005','3500162','3500213','3500373','3500383','3500446','3500887',
+                 '3500888','3501225','3501226','3501430','3501539','412375')
+     and color_vidrio is null;
+  if n > 0 then raise exception 'FALLA: quedan % de los trece envases sin color', n; end if;
 
   -- 3 · Y AHORA SI SALEN EN EL DESPLEGABLE DE EER. Es la prueba de
   --     verdad: la pantalla no lee `productos`, lee la vista del
@@ -30,6 +38,10 @@ begin
   select count(*) into n from public.v_roturas_materiales_maestro
    where tipo = 'eer' and color = 'flint';
   if n < 5 then raise exception 'FALLA: la pantalla solo ve % envases flint y son 5', n; end if;
+  select count(*) into n from public.v_roturas_materiales_maestro
+   where tipo = 'eer' and color = 'green';
+  raise notice '  · envases green que ve la pantalla: %', n;
+  if n < 2 then raise exception 'FALLA: la pantalla solo ve % envases green y son 2', n; end if;
 
   -- 4 · NO SE PISA UN COLOR PUESTO A MANO
   update public.productos set color_vidrio = 'green' where sku = '3500162';

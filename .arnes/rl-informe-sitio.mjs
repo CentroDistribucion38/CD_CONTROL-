@@ -1,0 +1,475 @@
+/* =====================================================================
+   EL INFORME EN PDF DE ROTURAS EN SITIO — medido, no mirado.
+
+   Este papel se manda por correo y se lee en una reunión tres semanas
+   después, sin la pantalla al lado. Lo que puede salir mal:
+
+   1. QUE LAS CONCLUSIONES ESTÉN AL REVÉS. «La causa que más cuesta» y
+      «quién la asume» son las dos que más fácil se sacan volteadas, y
+      una conclusión volteada se lee perfectamente normal en un papel
+      bonito. Se miden SIN generar PDF: son una función pura.
+   2. QUE SE CONCLUYA SOBRE NADA. Un 60 % sobre cinco unidades no es una
+      concentración, es el azar.
+   3. QUE UN PRECIO QUE FALTA SE IMPRIMA COMO «$ 0». Un cero en la
+      columna de plata se lee como «no se le cobra nada», que es lo
+      contrario de lo que pasa.
+   4. QUE EL RECORRIDO NO QUEPA EN SU HOJA. Un Sankey cortado por el
+      borde no dice nada, y en el PDF no hay barra para desplazarse.
+   5. QUE EL PIE SE PINTE FUERA DE LA HOJA ACOSTADA. La hoja del
+      recorrido mide 87 mm menos de alto que las demás: un pie calculado
+      con el alto de la vertical se dibuja donde no hay papel.
+   6. QUE EL PAPEL Y LA PANTALLA DIGAN CIFRAS DISTINTAS.
+
+     node .arnes/rl-informe-sitio.mjs
+   ===================================================================== */
+import { readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { transformSync } from "esbuild";
+import { jsPDF } from "jspdf";
+
+const U = (p) => new URL(p, import.meta.url);
+const compila = (ruta, salida, repl = []) => {
+  let js = transformSync(readFileSync(U(ruta), "utf8"), { loader: "ts", format: "esm" }).code;
+  for (const [a, b] of repl) js = js.replaceAll(a, b);
+  writeFileSync(U(salida), js);
+  return import(U(salida).href + "?v=" + Date.now());
+};
+
+const fallas = [];
+const ok = (c, m) => { if (!c) fallas.push(m) };
+const caerse = (e) => {
+  if (fallas.length) { console.log(""); fallas.forEach((x) => console.log("✗ " + x)) }
+  console.log("✗ el arnés no pudo terminar: " + ((e && e.message) || e));
+  process.exit(1);
+};
+process.on("uncaughtException", caerse);
+process.on("unhandledRejection", caerse);
+
+const HA = await compila("../src/modulos/roturas/hallazgos-sitio.ts", "./_rls-hallazgos.mjs");
+const CO = await compila("../src/modulos/roturas/cobro.ts", "./_rls-cobro.mjs");
+const SK = await compila("../src/modulos/roturas/sankey.ts", "./_rls-sankey.mjs");
+await compila("../src/modulos/rotlinea/hoja.ts", "./_rls-hoja.mjs");
+const IN = await compila("../src/app/(app)/roturas/en-sitio/analisis/informe.ts", "./_rls-informe.mjs",
+  [['"@/modulos/rotlinea/hoja"', '"./_rls-hoja.mjs"']]);
+
+const png = (r) => "data:image/png;base64," + readFileSync(U(r)).toString("base64");
+const MARCA = { palabra: png("../public/marca/logo-bavaria.png"), sello: png("../public/marca/logo-b.png") };
+
+/* Los precios del MM60, los de verdad: el ejemplo que dio Cristian. */
+const ENV = 100.00, PROD = 233.50;
+let n = 0;
+const rot = (o = {}) => {
+  const rotas = o.unidades ?? 0, cont = o.contaminadas ?? 0;
+  const sinPrecio = o.sinPrecio === true;
+  const base = {
+    id: "r" + ++n, codigo: "RB-" + String(n).padStart(4, "0"),
+    material: "2182", material_nombre: "Pony Malta R 330cc X 30",
+    tipo: "producto_terminado", color: null,
+    causa: "estibas_malas", causa_nombre: "Estibas en mal estado", grupo: "asumida",
+    proceso: "t1", proceso_nombre: "T1", area: null, area_nombre: null,
+    estado: "cuenta", etapa: "cobro", cuenta: true, esperando: false,
+    le_falta_foto: false, exige_foto: false, fotos: 1,
+    reportada_en: "2026-09-20T13:00:00Z",
+    unidades: rotas, contaminadas: cont, botellas: rotas,
+    unidades_vidrio: rotas, unidades_liquido: rotas + cont,
+    precio_envase: ENV, precio_producto: PROD,
+    cobro_rotas: rotas * ENV,
+    cobro_contaminadas: cont * (ENV + PROD),
+    cobro_total: rotas * ENV + cont * (ENV + PROD),
+    ...o,
+  };
+  if (sinPrecio) {
+    base.cobro_rotas = null; base.cobro_contaminadas = null; base.cobro_total = null;
+    base.precio_envase = null;
+  }
+  return base;
+};
+
+/* =====================================================================
+   1 · LAS CONCLUSIONES, SIN PDF DE POR MEDIO
+   ===================================================================== */
+
+/* 1a · LA CAUSA QUE MÁS CUESTA NO ES LA QUE MÁS ROMPE.
+   «Mal apilado» rompe 400 unidades sin contaminar → 400 × 100 = 40.000.
+   «Montacargas» rompe 50 y contamina 120 → 5.000 + 120 × 333,50 = 45.020.
+   La conclusión correcta es que la CARA es «Montacargas», que rompe
+   ocho veces menos. Es justo la que un ranking de unidades esconde. */
+{
+  const lista = [
+    rot({ unidades: 200, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 200, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 50, contaminadas: 120, causa: "montacargas",
+          causa_nombre: "Montacargas", proceso_nombre: "Cargue" }),
+  ];
+  const cobro = CO.medirCobro(lista);
+  const h = HA.hallazgosSitio(lista, lista, cobro);
+  const cara = h.find((x) => x.clave === "causa-cara");
+  ok(cara, `no salió el hallazgo de la causa cara: ${JSON.stringify(h.map((x) => x.clave))}`);
+  ok(/Montacargas/.test(cara?.dice ?? ""),
+     `la causa más cara sale como «${cara?.dice}» y son las 45.020 de Montacargas: ` +
+     "un ranking de unidades diría «Mal apilado» y mandaría a arreglar lo que no es");
+  ok(/Mal apilado/.test(cara?.porque ?? ""),
+     `el «por qué» tiene que nombrar la que más rompe para que se vea el contraste: «${cara?.porque}»`);
+  ok(cara?.cifra === "$ 45.020", `la cifra dice ${cara?.cifra} y son $ 45.020`);
+  ok(cara?.peso === "alto", "que la cara no sea la que más rompe pesa alto");
+}
+
+/* 1b · CUANDO SÍ SON LA MISMA, lo que vale es cuánto concentra —y NO se
+   puede decir que la cara es otra, porque no lo es. */
+{
+  const lista = [
+    rot({ unidades: 300, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 300, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 40, causa: "montacargas", causa_nombre: "Montacargas" }),
+  ];
+  const h = HA.hallazgosSitio(lista, lista, CO.medirCobro(lista));
+  ok(!h.some((x) => x.clave === "causa-cara"),
+     "con la misma causa arriba en las dos listas no puede decir que la cara es otra");
+  const c = h.find((x) => x.clave === "causa-concentra");
+  ok(c?.cifra === "94 %", `la concentración dice ${c?.cifra} y son 600 de 640 = 94 %`);
+}
+
+/* 1c · NO SE CONCLUYE SOBRE NADA. Dos roturas de diez unidades no son
+   una tendencia; el informe de un día flojo que afirma seis cosas es un
+   informe que nadie va a creer cuando afirme la que importa. */
+{
+  const lista = [
+    rot({ unidades: 10, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 2, contaminadas: 6, causa: "montacargas", causa_nombre: "Montacargas" }),
+  ];
+  const h = HA.hallazgosSitio(lista, lista, CO.medirCobro(lista));
+  ok(!h.some((x) => ["causa-cara", "causa-concentra", "no-asumidas", "proceso"].includes(x.clave)),
+     `con 18 unidades en 2 roturas no se concluye nada de causas: salió ${JSON.stringify(h.map((x) => x.clave))}`);
+}
+
+/* 1d · LO QUE FALTA EN EL MAESTRO VA PRIMERO, aunque no sea lo más
+   grande: es el único hallazgo que dice que el resto del informe está
+   CORTO. Y no tiene piso: una sola ya rompe la cuenta. */
+{
+  const lista = [
+    rot({ unidades: 500, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 12, sinPrecio: true, material: "412375",
+          material_nombre: "Envase Flint 210NR Coronita" }),
+  ];
+  const cobro = CO.medirCobro(lista);
+  const h = HA.hallazgosSitio(lista, lista, cobro);
+  ok(h[0]?.clave === "sin-precio",
+     `lo que falta en el maestro tiene que ir primero y fue ${h[0]?.clave}: sin eso, alguien ` +
+     "lee el total de abajo creyendo que está completo");
+  ok(h[0]?.peso === "alto", "una cifra corta pesa alto");
+  ok(/1 de 2/.test(h[0]?.cuenta ?? ""), `la cuenta dice «${h[0]?.cuenta}» y son 1 de 2 con precio`);
+  /* Y CON DOS ROTURAS NO SE CONCLUYE NADA MÁS: el hallazgo del maestro
+     no tiene piso porque no es una tendencia, es un dato que falta. */
+  ok(h.length === 1, `con 2 roturas solo puede salir el del maestro y salió ${JSON.stringify(h.map((x) => x.clave))}`);
+}
+
+/* 1e · LAS CONTAMINADAS CUESTAN DISTINTO. 100 rotas (10.000) y 40
+   contaminadas (13.340): son el 29 % de las unidades y el 57 % de la
+   plata. Esa desproporción es la que hay que enseñarle al OL. */
+{
+  const lista = [rot({ unidades: 60, contaminadas: 25 }), rot({ unidades: 25, contaminadas: 10 }),
+                 rot({ unidades: 15, contaminadas: 5 })];
+  const cobro = CO.medirCobro(lista);
+  const h = HA.hallazgosSitio(lista, lista, cobro);
+  const c = h.find((x) => x.clave === "contaminadas-caras");
+  ok(c, `no salió el hallazgo de las contaminadas: ${JSON.stringify(h.map((x) => x.clave))}`);
+  ok(c?.cifra === "57 %", `dice ${c?.cifra} y son 13.340 de 23.340 = 57 %`);
+  ok(/3\.3 veces/.test(c?.porque ?? ""),
+     `cada contaminada cuesta 333,50 contra 100 de la rota = 3,3 veces: «${c?.porque}»`);
+}
+
+/* 1f · LAS NO ASUMIDAS SIN FOTO PESAN ALTO, y el hallazgo tiene que
+   DECIR cuántas: una no asumida sin foto es plata que se cae sola en la
+   reunión, y en el papel no hay dónde pinchar para averiguarlo. */
+{
+  const lista = [
+    rot({ unidades: 300, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 200, grupo: "no_asumida", exige_foto: true, le_falta_foto: true,
+          causa: "falla_maquina", causa_nombre: "Falla de la máquina" }),
+    rot({ unidades: 100, grupo: "no_asumida", exige_foto: true,
+          causa: "falla_maquina", causa_nombre: "Falla de la máquina" }),
+  ];
+  const h = HA.hallazgosSitio(lista, lista, CO.medirCobro(lista));
+  const na = h.find((x) => x.clave === "no-asumidas");
+  ok(na?.cifra === "50 %", `las no asumidas dan ${na?.cifra} y son 300 de 600 = 50 %`);
+  ok(/1 no la tiene/.test(na?.porque ?? ""), `tiene que decir cuántas no tienen foto: «${na?.porque}»`);
+  ok(na?.peso === "alto", "una no asumida sin foto pesa alto");
+}
+
+/* 1f-bis · EL PISO ES DE UNIDADES Y TAMBIÉN DE ROTURAS, y hacen falta
+   los dos. Aquí hay CINCO roturas —de sobra— pero solo 25 unidades: no
+   es una tendencia, es una mañana floja. Con un solo piso, el de
+   roturas, esta tanda concluiría «Mal apilado es el 80 %». */
+{
+  const lista = [
+    rot({ unidades: 5, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 5, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 5, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 5, causa: "mal_apilado", causa_nombre: "Mal apilado" }),
+    rot({ unidades: 5, grupo: "no_asumida", causa: "montacargas", causa_nombre: "Montacargas" }),
+  ];
+  const h = HA.hallazgosSitio(lista, lista, CO.medirCobro(lista));
+  ok(!h.some((x) => ["causa-cara", "causa-concentra", "no-asumidas", "proceso"].includes(x.clave)),
+     `con 25 unidades no se concluye nada de causas por muchas roturas que sean: salió ` +
+     JSON.stringify(h.map((x) => x.clave)));
+}
+
+/* 1g · LO QUE TODAVÍA NO SE PUEDE COBRAR. Es lo único que explica por
+   qué el total es menor de lo que la gente recuerda haber reportado. */
+{
+  const vivas = [
+    rot({ unidades: 100 }),
+    rot({ unidades: 50, etapa: "espera_ol", estado: "esperando", cuenta: false }),
+    rot({ unidades: 30, etapa: "desacuerdo", estado: "esperando", cuenta: false }),
+    rot({ unidades: 20, etapa: "espera_ol", estado: "esperando", cuenta: false }),
+  ];
+  const cuentan = vivas.filter((r) => r.cuenta);
+  const h = HA.hallazgosSitio(vivas, cuentan, CO.medirCobro(vivas));
+  const s = h.find((x) => x.clave === "sin-decidir");
+  ok(s, `no salió el hallazgo de lo que espera: ${JSON.stringify(h.map((x) => x.clave))}`);
+  ok(/3 roturas todavía sin decidir/.test(s?.dice ?? ""), `dice «${s?.dice}»`);
+  ok(/ABI/.test(s?.porque ?? ""), `con una objetada tiene que nombrar a ABI: «${s?.porque}»`);
+}
+
+/* 1h · EL ORDEN ES EL PESO Y NO EL ORDEN EN QUE SE ESCRIBIERON.
+   Quien lee tres renglones y cierra el PDF tiene que haberse llevado lo
+   que importa. Aquí «lo que espera» se calcula ANTES que «lo que ABI
+   devolvió» y pesa menos: si el orden fuera el del código, lo bajo
+   saldría primero. */
+{
+  const vivas = [
+    ...Array.from({ length: 7 }, () => rot({ unidades: 20 })),
+    rot({ unidades: 10, etapa: "espera_ol", estado: "esperando", cuenta: false }),
+    ...Array.from({ length: 4 }, () => rot({ unidades: 10, etapa: "no_cuenta",
+                                             estado: "no_cuenta", cuenta: false })),
+  ];
+  const h = HA.hallazgosSitio(vivas, vivas.filter((r) => r.cuenta), CO.medirCobro(vivas));
+  const iDev = h.findIndex((x) => x.clave === "devueltas");
+  const iEsp = h.findIndex((x) => x.clave === "sin-decidir");
+  ok(iDev >= 0 && iEsp >= 0, `faltan hallazgos: ${JSON.stringify(h.map((x) => x.clave))}`);
+  ok(h[iDev]?.peso === "alto" && h[iEsp]?.peso === "bajo",
+     `pesos: devueltas ${h[iDev]?.peso}, sin decidir ${h[iEsp]?.peso}`);
+  ok(iDev < iEsp,
+     "«ABI devolvió el 33 %» pesa alto y salió DESPUÉS de una nota que pesa bajo: el orden del " +
+     "informe tiene que ser el del peso, no el del código");
+}
+
+/* =====================================================================
+   2 · EL PAPEL
+   ===================================================================== */
+/* EL CASO PEOR Y EL DE VERDAD: seis causas y seis procesos, que es el
+   tope que deja `masGrandes`, en el lienzo de 616 px de alto que usa el
+   papel. Con menos nodos el dibujo solo queda más holgado; si algo se
+   sale de la hoja, se sale aquí. */
+const CAUSAS = [
+  ["c:apilado", "Mal apilado", "la asume el OL", 400, SK.COLOR_ASUMIDA],
+  ["c:maquina", "Falla de la máquina", "no asumida · exige foto", 170, SK.COLOR_NO_ASUMIDA],
+  ["c:estibas", "Estibas en mal estado", "la asume el OL", 120, SK.COLOR_ASUMIDA],
+  ["c:montacargas", "Montacargas", "la asume el OL", 90, SK.COLOR_ASUMIDA],
+  ["c:piso", "Piso en mal estado", "no asumida · exige foto", 60, SK.COLOR_NO_ASUMIDA],
+  ["c:otros", "Otros", "la asume el OL", 30, SK.COLOR_ASUMIDA],
+];
+const PROCS = [
+  ["p:t1", "T1", 300, SK.COLOR_PROCESO],
+  ["p:cargue", "Cargue", 230, SK.COLOR_PROCESO_2],
+  ["p:traspasos", "Traspasos", 150, SK.COLOR_PROCESO_2],
+  ["p:picking", "Picking", 100, SK.COLOR_PROCESO_2],
+  ["p:plazoleta", "Plazoleta", 60, SK.COLOR_PROCESO_2],
+  ["p:lineas", "Líneas", 30, SK.COLOR_PROCESO_2],
+];
+const SANKEY = SK.armarSankey({
+  columnas: [
+    CAUSAS.map(([id, rotulo, pie, valor, color]) => ({ id, rotulo, pie, valor, color })),
+    PROCS.map(([id, rotulo, valor, color]) => ({ id, rotulo, valor, color })),
+    [{ id: "fin:vidrio", rotulo: "Baja de vidrio", pie: "rota: pierde líquido y botella",
+       valor: 750, color: SK.COLOR_VIDRIO },
+     { id: "fin:liquido", rotulo: "Solo baja de líquido", pie: "contaminada: vuelve el envase",
+       valor: 120, color: SK.COLOR_LIQUIDO }],
+  ],
+  tramos: [
+    ...CAUSAS.map(([id], i) => ({ de: id, a: PROCS[i][0], valor: CAUSAS[i][3] })),
+    ...PROCS.map(([id], i) => ({ de: id, a: "fin:vidrio", valor: PROCS[i][2] - [50, 30, 20, 10, 5, 5][i] })),
+    ...PROCS.map(([id], i) => ({ de: id, a: "fin:liquido", valor: [50, 30, 20, 10, 5, 5][i] })),
+  ],
+}, 1160, 616);
+
+/* LA GEOMETRÍA EN NÚMEROS TIENE QUE SER LA MISMA QUE LA DEL `d`. El SVG
+   pinta una y el PDF la otra: si se separan, la pantalla y el papel
+   enseñan dos dibujos distintos y los dos se ven bien. */
+for (const c of SANKEY.cintas) {
+  const m = c.d.match(/^M([\d.-]+),([\d.-]+) C/);
+  ok(m && Math.abs(+m[1] - c.x0) < 0.001 && Math.abs(+m[2] - c.y0) < 0.001,
+     `la cinta ${c.de}→${c.a} arranca en el «d» en ${m?.[1]},${m?.[2]} y en números en ${c.x0},${c.y0}`);
+}
+
+const D = {
+  hoy: "2026-09-28",
+  periodo: "del 01/09/2026 al 28/09/2026",
+  filtros: "",
+  plata: 74216, plataRotas: 10000, plataCont: 64216,
+  aCobro: 6, sinPrecio: 2,
+  porCausa: [
+    { nombre: "Falla de la máquina", grupo: "no_asumida", valor: 45020 },
+    { nombre: "Mal apilado", grupo: "asumida", valor: 29196 },
+  ],
+  unidades: 450, liquido: 570, contaminadas: 120,
+  noAsumidas: 170, pctNoAsumida: 30, devueltas: 1, pctDevueltas: 8,
+  roturasEnFiltro: 12,
+  hallazgos: [
+    { clave: "sin-precio", cifra: "2", dice: "2 roturas a cobro no se pueden valorar",
+      porque: "No entran en el total de este informe.", cuenta: "4 de 6 con precio", peso: "alto" },
+    { clave: "causa-cara", cifra: "$ 45.020",
+      dice: "La causa que más plata cuesta es «Falla de la máquina»",
+      porque: "«Mal apilado» mueve más unidades pero cuesta menos.",
+      cuenta: "170 unidades y $ 45.020", peso: "alto" },
+  ],
+  recorrido: { s: SANKEY, total: 870, juntados: 3 },
+  roturas: [
+    { codigo: "RB-0001", fecha: "2026-09-27", material: "2182",
+      material_nombre: "Pony Malta R 330cc X 30", causa: "Mal apilado", grupo: "asumida",
+      proceso: "T1", rotas: 200, contaminadas: 100, etapa: "a cobro", cobro: 53350 },
+    { codigo: "RB-0002", fecha: "2026-09-26", material: "412375",
+      material_nombre: "Envase Flint 210NR Coronita", causa: "Falla de la máquina",
+      grupo: "no_asumida", proceso: "Cargue", rotas: 12, contaminadas: 0,
+      etapa: "espera al OL", cobro: null },
+  ],
+};
+
+const ruta = new URL("./_rls-informe.pdf", import.meta.url).pathname;
+const doc = IN.dibujarInformeSitio(jsPDF, D, { generado: new Date("2026-09-28T16:20:00"), marca: MARCA });
+writeFileSync(ruta, Buffer.from(doc.output("arraybuffer")));
+const paginas = execFileSync("pdftotext", ["-layout", ruta, "-"], { encoding: "utf8" }).split("\f");
+const todo = paginas.join("\n");
+
+/* 2a · LA CIFRA QUE SOSTIENE EL PAPEL */
+ok(/\$ 74\.216/.test(todo), "el total que se le cobra al OL no salió en el papel");
+ok(/se le cobra al OL/.test(todo), "la cifra grande salió sin decir de qué es");
+ok(/\$ 10\.000/.test(todo) && /\$ 64\.216/.test(todo),
+   "las dos formas de cobrar tienen que ir partidas: sin eso la cifra no se puede discutir");
+
+/* 2b · QUE LA CIFRA ESTÁ CORTA, PEGADO A LA CIFRA.
+   Si hay roturas sin precio, el total está corto — y eso tiene que
+   leerse en el mismo golpe de vista, no en una nota al pie que nadie
+   busca. */
+{
+  const i = todo.indexOf("$ 74.216"), j = todo.indexOf("ESTÁ CORTA");
+  ok(j > 0, "el papel no dice que la cifra está corta habiendo 2 roturas sin precio");
+  ok(j > i && j - i < 400,
+     "el aviso de que la cifra está corta quedó lejos del total: el que lee la cifra grande y " +
+     "cierra el PDF se lleva un número equivocado con cara de exacto");
+}
+
+/* 2c · UN PRECIO QUE FALTA SE IMPRIME COMO RAYA, NUNCA COMO CERO */
+/* EL ESPACIO NO SE PUEDE DAR POR SEGURO: en la columna alineada a la
+   derecha, `pdftotext -layout` devuelve «$0» pegado. Buscando «$ 0» con
+   el espacio, esta comprobación pasaba con el cero impreso delante — el
+   error que venía a cazar. */
+ok(!/\$\s*0(?![\d.,])/.test(todo),
+   "salió un «$ 0» en el papel: un cero en la columna de plata se lee como «no se le cobra " +
+   "nada», que es lo contrario de que falte el precio");
+ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en la tabla");
+
+/* 2d · LOS HALLAZGOS, ANTES DE LAS TABLAS */
+{
+  const h = todo.indexOf("no se pueden valorar");
+  const t = todo.indexOf("Las roturas");
+  ok(h > 0 && t > 0 && h < t, "los hallazgos tienen que ir antes de la tabla, no después");
+}
+
+/* 2e · EL RECORRIDO TIENE SU HOJA, Y ES LA ACOSTADA */
+{
+  const bbox = execFileSync("pdftotext", ["-bbox", ruta, "-"], { encoding: "utf8" });
+  const hojas = [...bbox.matchAll(/<page width="([\d.]+)" height="([\d.]+)"/g)]
+    .map((m) => ({ w: +m[1], h: +m[2] }));
+  const acostadas = hojas.filter((p) => p.w > p.h);
+  ok(acostadas.length === 1,
+     `hay ${acostadas.length} hojas acostadas y tiene que haber exactamente una: la del recorrido`);
+  /* A4 acostada son 297 × 210 mm = 841,9 × 595,3 puntos. */
+  ok(Math.abs(acostadas[0]?.w - 841.9) < 2 && Math.abs(acostadas[0]?.h - 595.3) < 2,
+     `la hoja del recorrido mide ${JSON.stringify(acostadas[0])} y tiene que ser A4 acostada`);
+
+  const iReco = paginas.findIndex((p) => /El recorrido de las/.test(p));
+  ok(iReco >= 0, "no salió la hoja del recorrido");
+  const hoja = paginas[iReco] ?? "";
+  ok(/DE QUÉ CAUSA SALIÓ/.test(hoja) && /POR DÓNDE PASÓ/.test(hoja) && /EN QUÉ TERMINA/.test(hoja),
+     "el diagrama salió sin los tres rótulos de columna: así es un dibujo bonito del que nadie " +
+     "sabe qué está mirando");
+  for (const n of SANKEY.nodos) {
+    ok(hoja.includes(n.rotulo), `el nodo «${n.rotulo}» no salió en la hoja del recorrido`);
+  }
+  ok(/Baja de vidrio/.test(hoja) && /Solo baja de líquido/.test(hoja),
+     "las dos salidas tienen que verse por separado: sumarlas da de baja un envase que sigue " +
+     "en la línea");
+  ok(/3 más chicas están sumadas/.test(hoja),
+     "un «otros» mudo hace creer que hay una causa que se llama así");
+}
+
+/* 2f · NADA SE SALE DE SU HOJA — ni el diagrama ni el pie.
+   En un PDF no hay barra para desplazarse: lo que queda fuera del papel
+   no está. */
+{
+  const bbox = execFileSync("pdftotext", ["-bbox", ruta, "-"], { encoding: "utf8" });
+  const hojas = bbox.split("<page ").slice(1);
+  hojas.forEach((p, i) => {
+    const m = p.match(/^width="([\d.]+)" height="([\d.]+)"/);
+    const W = +m[1], H = +m[2];
+    for (const w of p.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)"/g)) {
+      const [, x0, y0, x1, y1] = w.map(Number);
+      ok(x0 >= -1 && x1 <= W + 1 && y0 >= -1 && y1 <= H + 1,
+         `en la hoja ${i + 1} (${Math.round(W)}×${Math.round(H)}) hay texto en ` +
+         `${Math.round(x0)},${Math.round(y0)}–${Math.round(x1)},${Math.round(y1)}: se sale del papel`);
+    }
+  });
+}
+
+/* 2g · EL PIE, EN TODAS Y CON LA CUENTA BIEN */
+{
+  const nPag = paginas.filter((p) => p.trim()).length;
+  for (let i = 1; i <= nPag; i++) {
+    ok(new RegExp(`Página ${i} de ${nPag}`).test(paginas[i - 1] ?? ""),
+       `la hoja ${i} no dice «Página ${i} de ${nPag}»: un papel suelto de la página 3 no se sabe ` +
+       "de dónde salió");
+  }
+}
+
+/* 2h · CON FILTRO, EL PAPEL LO DICE — y en todas las hojas.
+   Un informe filtrado por una causa que no diga que está filtrado es un
+   informe que alguien va a leer como el mes entero. */
+{
+  const g = IN.dibujarInformeSitio(jsPDF, { ...D, filtros: "causa Mal apilado" },
+                                   { generado: new Date("2026-09-28T16:20:00"), marca: MARCA });
+  const r2 = new URL("./_rls-informe-f.pdf", import.meta.url).pathname;
+  writeFileSync(r2, Buffer.from(g.output("arraybuffer")));
+  const pp = execFileSync("pdftotext", ["-layout", r2, "-"], { encoding: "utf8" })
+    .split("\f").filter((p) => p.trim());
+  ok(/FILTRADO/.test(pp[0]) && /Mal apilado/.test(pp[0]), "la franja de filtrado no salió arriba");
+  pp.forEach((p, i) => {
+    ok(/Filtrado/.test(p),
+       `la hoja ${i + 1} no dice en el pie que está filtrada: suelta se lee como el mes entero`);
+  });
+}
+
+/* 2i · SIN NADA QUE CONTAR, EL PAPEL SALE IGUAL Y LO DICE.
+   Un informe que revienta con cero roturas se reporta como «la app no
+   sirve» justo el día que no hubo roturas, que es el día bueno. */
+{
+  const vacio = { ...D, plata: 0, plataRotas: 0, plataCont: 0, aCobro: 0, sinPrecio: 0,
+                  porCausa: [], unidades: 0, liquido: 0, contaminadas: 0, noAsumidas: 0,
+                  pctNoAsumida: 0, devueltas: 0, pctDevueltas: 0, roturasEnFiltro: 0,
+                  hallazgos: [], recorrido: null, roturas: [] };
+  const g = IN.dibujarInformeSitio(jsPDF, vacio, { generado: new Date(), marca: MARCA });
+  const r3 = new URL("./_rls-informe-v.pdf", import.meta.url).pathname;
+  writeFileSync(r3, Buffer.from(g.output("arraybuffer")));
+  const t3 = execFileSync("pdftotext", ["-layout", r3, "-"], { encoding: "utf8" });
+  ok(/No hay roturas en este período/.test(t3), "con cero roturas el papel no dice que no hay");
+  ok(/No hay suficientes roturas/.test(t3), "sin hallazgos el papel tiene que decir por qué");
+  ok(!/acostada|undefined|NaN/.test(t3), `salió basura en el papel vacío: ${t3.slice(0, 200)}`);
+}
+
+if (fallas.length) { console.log(""); fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
+console.log("✓ El informe de en sitio: las conclusiones salen de una función pura y no del papel " +
+            "—la causa más CARA no es la que más rompe, y eso lo dice—, no se concluye nada por " +
+            "debajo de 30 unidades, lo que falta en el maestro va primero porque deja la cifra " +
+            "corta, un precio que falta se imprime como raya y nunca como $ 0, el recorrido " +
+            "tiene su propia hoja A4 acostada con sus tres rótulos y sus dos salidas, nada de " +
+            "lo escrito se sale del papel en ninguna hoja, y el filtro va en el pie de todas.");

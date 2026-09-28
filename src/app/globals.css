@@ -1748,6 +1748,15 @@ body {
   border-bottom: 1px solid var(--bl-linea);
 }
 .bl-op b { font: 600 14px inherit; color: var(--bl-tinta); line-height: 1.3 }
+/* EL CUADRITO DE COLOR, cuando la opción lo trae. Cuadrado y no
+   redondo, igual que el de los botones del tipo de vidrio: es el mismo
+   dato y tiene que verse igual en los dos sitios. El borde fino existe
+   porque el flint es casi blanco y sobre papel blanco no se vería. */
+.bl-op b .bl-color {
+  display: inline-block; width: 11px; height: 11px; flex: none;
+  margin-right: 8px; vertical-align: -1px;
+  border: 1px solid rgba(0, 0, 0, .22);
+}
 .bl-op span {
   font: 500 11.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color: var(--bl-gris);

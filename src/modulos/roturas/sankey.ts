@@ -72,6 +72,15 @@ export type CintaSankey = {
   color: string;
   /** El `d` del `<path>`, ya listo. */
   d: string;
+  /* LA MISMA GEOMETRÍA EN NÚMEROS, y no es repetirse.
+     El `d` sirve para el SVG de la pantalla; el PDF necesita las
+     coordenadas para pintar la curva con jsPDF, que no entiende de
+     paths. La alternativa era que el informe se pusiera a LEER el `d`
+     con una expresión regular: el día que aquí se agregue un punto de
+     control, el PDF pintaría cualquier cosa sin quejarse — y una cinta
+     mal pintada no se ve mal, se ve perfecta y miente. Salen las dos de
+     esta misma cuenta, así que no se pueden separar. */
+  x0: number; y0: number; x1: number; y1: number; grosor: number;
 };
 
 export type Sankey = {
@@ -213,6 +222,7 @@ export function armarSankey(e: Entrada, ancho = 1160, alto = 500): Sankey {
       color: a.color,
       d: `M${x0},${y0} C${cx},${y0} ${cx},${y1} ${x1},${y1} ` +
          `L${x1},${y1 + h} C${cx},${y1 + h} ${cx},${y0 + h} ${x0},${y0 + h} Z`,
+      x0, y0, x1, y1, grosor: h,
     });
   }
 

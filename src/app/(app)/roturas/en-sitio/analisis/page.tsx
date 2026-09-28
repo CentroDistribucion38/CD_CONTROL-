@@ -6,8 +6,11 @@ import {
   COLOR_PROCESO, COLOR_PROCESO_2, COLOR_VIDRIO, COLOR_LIQUIDO,
 } from "@/modulos/roturas/sankey";
 import { medirCobro } from "@/modulos/roturas/cobro";
+import { hallazgosSitio } from "@/modulos/roturas/hallazgos-sitio";
 import { pesos } from "@/modulos/roturas/formato";
 import { Recorrido } from "./Recorrido";
+import { BotonInformeSitio } from "./BotonInformeSitio";
+import type { DatosSitio } from "./informe";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
 
@@ -219,7 +222,7 @@ export default async function AnalisisEnSitioPage(
     sumar(t2, `${idProceso(r.proceso_nombre)}|fin:liquido`, c);
   }
 
-  const reco = armarSankey({
+  const entradaReco = {
     columnas: [
       causaCol.filas,
       procesoCol.filas,
@@ -232,12 +235,98 @@ export default async function AnalisisEnSitioPage(
       const [de, a] = k.split("|");
       return { de, a, valor };
     }),
-  }, 1160, Math.max(300, Math.min(660, 90 + Math.max(causaCol.filas.length, procesoCol.filas.length, soloLiquido > 0 ? 2 : 1) * 104)));
+  };
+  const filasReco = Math.max(causaCol.filas.length, procesoCol.filas.length,
+                             soloLiquido > 0 ? 2 : 1);
+  const reco = armarSankey(entradaReco, 1160, Math.max(300, Math.min(660, 90 + filasReco * 104)));
+
+  /* EL MISMO DIBUJO, ARMADO OTRA VEZ PARA EL PAPEL — y no es repetirse.
+     `armarSankey` reparte el alto disponible entre los nodos, así que el
+     alto del lienzo NO es un detalle de presentación: cambia la escala y
+     con ella el grosor de cada cinta. El del papel es una hoja A4
+     acostada, y ahí lo que cabe son 616 px de alto una vez llevados a
+     milímetros. Con el lienzo de la pantalla —hasta 660— el dibujo salía
+     por debajo del pie de página, y un diagrama cortado no dice nada.
+
+     Y EL DEL PAPEL ES SIEMPRE EL ALTO ENTERO, no uno que crece con el
+     número de nodos como el de la pantalla: la hoja mide lo que mide
+     salgan dos causas o seis, y con el alto corto el diagrama quedaba
+     arriba con media hoja en blanco debajo. El reparto sigue siendo
+     proporcional —lo único que cambia es que las cintas salen más
+     gordas—, así que no dice nada distinto.
+
+     LAS DOS SALEN DE LA MISMA `entradaReco`, que es lo que garantiza que
+     el papel y la pantalla enseñen el mismo recorrido. */
+  const recoPapel = armarSankey(entradaReco, 1160, 616);
 
   /* LA LECTURA DE ABAJO: una sola, la que más pesa. Un diagrama sin
      una línea que diga qué mirar es un dibujo bonito, y a los treinta
      segundos la gente se va habiendo visto cintas. */
   const causaTop = causaCol.filas[0];
+
+  /* =====================================================================
+     LO QUE LLEVA EL PDF
+     ---------------------------------------------------------------------
+     Se arma AQUÍ, del mismo cálculo que pinta la pantalla —ver la nota
+     larga de informe.ts—: si el PDF sacara sus propios totales, el día
+     que cambie una regla el informe diría otra cifra y nadie se daría
+     cuenta, porque las dos son creíbles y la que se manda por correo es
+     la del PDF.
+     ===================================================================== */
+  const fLargo = (x: string) => x.split("-").reverse().join("/");
+  const periodo = desde && hasta ? `del ${fLargo(desde)} al ${fLargo(hasta)}`
+    : desde ? `desde el ${fLargo(desde)}`
+    : hasta ? `hasta el ${fLargo(hasta)}`
+    : "todo el histórico";
+  const nombreDe = (lista: { id: string; nombre: string }[], id: string) =>
+    lista.find((x) => x.id === id)?.nombre ?? id;
+  const filtrosTexto = [
+    fCausa && `causa ${nombreDe(opciones((r) => r.causa, (r) => r.causa_nombre), fCausa)}`,
+    fProceso && `proceso ${nombreDe(opciones((r) => r.proceso, (r) => r.proceso_nombre), fProceso)}`,
+    fArea && `área ${nombreDe(opciones((r) => r.area, (r) => r.area_nombre), fArea)}`,
+    fGrupo && (fGrupo === "no_asumida" ? "no asumidas" : "asumidas por el OL"),
+  ].filter(Boolean).join(" · ");
+
+  /* LA ETAPA EN PALABRAS. En el papel no hay dónde pinchar para saber
+     qué quiere decir «espera_ol». */
+  const ETAPA_DICE: Record<string, string> = {
+    espera_ol: "espera al OL", desacuerdo: "objetada, la mira ABI",
+    cobro: "a cobro", no_cuenta: "no cuenta", anulada: "anulada",
+  };
+
+  const datosInforme: DatosSitio = {
+    hoy: hoyLocal(), periodo, filtros: filtrosTexto,
+    plata, plataRotas, plataCont,
+    aCobro: cobro.aCobro, sinPrecio,
+    porCausa: plataPorCausa,
+    unidades: total, liquido, contaminadas,
+    noAsumidas, pctNoAsumida, devueltas, pctDevueltas,
+    roturasEnFiltro: vivas.length,
+    hallazgos: hallazgosSitio(vivas, cuentan, cobro),
+    recorrido: recoPapel.nodos.length
+      ? { s: recoPapel, total: recorrido, juntados: causaCol.juntados + procesoCol.juntados }
+      : null,
+    /* LO MÁS NUEVO ARRIBA: quien abre el informe el lunes busca lo del
+       fin de semana, no lo del primero de mes. */
+    roturas: [...vivas]
+      .sort((a, b) => (b.reportada_en ?? "").localeCompare(a.reportada_en ?? ""))
+      .map((r) => ({
+        codigo: r.codigo,
+        fecha: (r.reportada_en ?? "").slice(0, 10),
+        material: r.material,
+        material_nombre: r.material_nombre,
+        causa: r.causa_nombre,
+        grupo: r.grupo,
+        proceso: r.proceso_nombre,
+        rotas: r.unidades_vidrio,
+        contaminadas: r.contaminadas ?? 0,
+        etapa: ETAPA_DICE[r.etapa ?? ""] ?? (r.cuenta ? "a cobro" : "sin decidir"),
+        /* NULO Y NO CERO cuando falta el precio: un cero en la columna
+           de plata se lee como «no se le cobra nada», que es lo
+           contrario de lo que pasa. */
+        cobro: r.cobro_total == null ? null : Number(r.cobro_total),
+      })),
+  };
 
   return (
     <div className="rt">
@@ -254,6 +343,11 @@ export default async function AnalisisEnSitioPage(
             contaminado no se lava ni vuelve a la línea.
           </p>
         </div>
+        {/* LA COLUMNA DERECHA VA EN UN SOLO HIJO: `.cabeza` es una
+            rejilla de DOS columnas, y con tres hijos el tercero se va a
+            la columna ancha y el KPI sale mocho. */}
+        <div className="cabeza-der">
+        <BotonInformeSitio datos={datosInforme} />
         {/* ARRIBA VA LA PLATA Y NO LAS UNIDADES. Las unidades siguen
             estando —en el recorrido y en las cifras de abajo— pero la
             pregunta con la que alguien entra a esta pantalla es cuánto
@@ -266,6 +360,7 @@ export default async function AnalisisEnSitioPage(
             {cobro.aCobro} rotura{cobro.aCobro === 1 ? "" : "s"} a cobro · {total} und de vidrio
             {sinPrecio > 0 && <> · <b>{sinPrecio} sin precio</b></>}
           </div>
+        </div>
         </div>
       </section>
 
