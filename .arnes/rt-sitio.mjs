@@ -96,6 +96,11 @@ const materiales = [
      salir de entrada, y TIENE que salir al buscarlo — si se escondiera
      de verdad, una rotura que pasó no se podría registrar. */
   { clave: "EER-AMBAR-VIEJO", nombre: "Envase retornable ámbar viejo", tipo: "eer", color: "ambar", botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 5 },
+  /* UNO SIN COLOR EN EL MAESTRO. No está marcado «sale en sitio», así
+     que no cambia ninguna cuenta de los botones; existe para medir que
+     escoger un envase al que le falta el color NO le invente uno al
+     filtro. */
+  { clave: "EER-SINCOLOR", nombre: "Envase retornable sin color", tipo: "eer", color: null, botellas_x_empaque: null, familia: "Ret", en_sitio: false, activo: true, orden: 6 },
   { clave: "PT-COST-330", nombre: "Cerveza Costeña 330 ml", tipo: "producto_terminado", color: null, botellas_x_empaque: 30, familia: "Ret", en_sitio: true, activo: true, orden: 11 },
   /* UNA LATA, UN PET Y UNO SIN FAMILIA. Sin ellos, «en producto no
      sale ni PET ni lata» pasaría sin probar nada — y el de la familia
@@ -641,6 +646,74 @@ ok(/Escribe para buscar/.test(await puesto()),
   ok(!/No hay envase retornable/.test(texto ?? ""),
      "la pantalla sigue diciendo «no hay envase retornable <color>»: culpa al maestro de lo que " +
      "hace el filtro");
+}
+
+/* ---------------------------------------------------------------------
+   1a-ter · AL ESCOGER EL MATERIAL, EL BOTÓN DEL COLOR SE PONE SOLO
+   ---------------------------------------------------------------------
+   «Si escojo un material, ejemplo 3501539, debe ponerse en modo
+    automático el color ámbar.»
+
+   Escribir el código es la vía rápida —quien está de pie al lado del
+   vidrio lo teclea y no anda escogiendo color primero— y el botón se
+   quedaba en «Todos»: la pantalla enseñaba un envase ámbar con el
+   filtro sin marcar. El mismo dato dicho en dos sitios y solo uno
+   puesto es como se empieza a dudar de los dos.
+
+   Y AL QUE LE FALTE EL COLOR NO SE LE INVENTA: marcarle uno a ojo lo
+   mandaría a la columna equivocada del análisis por color, que es
+   exactamente el error que este proyecto ya cometió una vez.
+   ------------------------------------------------------------------ */
+{
+  await monta();
+  await abrir();
+  await pg.click(".rt-rep .seg button:has-text('EER')");
+  ok(await pg.evaluate(() =>
+       document.querySelector(".rt-rep .seg.vidrio button.todos")?.classList.contains("on")),
+     "el filtro no abre en «Todos»");
+
+  const marcado = () => pg.evaluate(() => {
+    const b = document.querySelector(".rt-rep .seg.vidrio button.on");
+    return b ? [...b.classList].find((c) => ["todos", "ambar", "flint", "green"].includes(c)) : null;
+  });
+
+  /* SE ESCOGE UN FLINT CON EL FILTRO EN «TODOS». */
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bl-lista", { timeout: 2000 });
+  await pg.click(".rt-rep .bl-op:has-text('EER-FLINT')");
+  await pg.waitForSelector("#rt-mat", { timeout: 4000 });
+  ok(await marcado() === "flint",
+     `escogiendo un envase flint el botón quedó en «${await marcado()}»: el color del material y ` +
+     "el del botón dicen el mismo dato, y verlos distintos hace dudar de los dos");
+  /* Y EL MATERIAL NO SE SUELTA. Poner el color es poner al día un
+     filtro, no apretarlo: el envase escogido SIEMPRE está en la lista de
+     su propio color, así que el efecto que reacomoda el material lo
+     tiene que dejar donde está. */
+  ok(/EER-FLINT/.test(await puesto()),
+     `al ponerse el color solo se soltó el material: quedó «${await puesto()}»`);
+
+  /* Y AHORA UN ÁMBAR, para que no sea que se quedó pegado en flint. */
+  await pg.click(".rt-rep .seg.vidrio button.todos");
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bl-lista", { timeout: 2000 });
+  await pg.click(".rt-rep .bl-op:has-text('EER-AMBAR-750')");
+  await pg.waitForSelector("#rt-mat", { timeout: 4000 });
+  ok(await marcado() === "ambar",
+     `escogiendo un envase ámbar el botón quedó en «${await marcado()}»`);
+
+  /* EL QUE NO TIENE COLOR NO SE LO INVENTA. Se busca escribiendo,
+     porque no está marcado «sale en sitio». */
+  await pg.click(".rt-rep .seg.vidrio button.todos");
+  await pg.click("#rt-mat");
+  await pg.waitForSelector(".rt-rep .bl-teclea", { timeout: 2000 });
+  await pg.fill(".rt-rep .bl-teclea", "EER-SINCOLOR");
+  await pg.click(".rt-rep .bl-op:has-text('EER-SINCOLOR')");
+  await pg.waitForSelector("#rt-mat", { timeout: 4000 });
+  ok(await marcado() === "todos",
+     `con un envase SIN color en el maestro el botón se puso en «${await marcado()}»: se le ` +
+     "inventó un color, y eso lo manda a la columna equivocada del análisis");
+  ok(/EER-SINCOLOR/.test(await puesto()),
+     `el envase sin color no se quedó puesto: «${await puesto()}»`);
 }
 
 /* ---------------------------------------------------------------------

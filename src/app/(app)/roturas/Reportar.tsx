@@ -337,7 +337,31 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           color: m.tipo === "eer" && m.color ? VIDRIO_PINTA[m.color] : null,
         }))}
         rotulo="Escribe para buscar el material"
-        cambiar={(c) => { setMaterial(c); setTocoBotellas(false) }}
+        /* AL ESCOGER EL MATERIAL, EL COLOR SE PONE SOLO.
+           «Si escojo un material, ejemplo 3501539, debe ponerse en modo
+           automático el color ámbar.»
+
+           Escribir el código es la vía rápida: quien está de pie al lado
+           del vidrio lo teclea y no anda escogiendo color primero. Pero
+           el botón de arriba se quedaba en «Todos» y la pantalla acababa
+           enseñando un envase ámbar con el filtro sin marcar — el mismo
+           dato dicho en dos sitios y solo uno puesto, que es como se
+           empieza a dudar de los dos.
+
+           NO ES UN FILTRO QUE SE APRIETA, ES UNO QUE SE PONE AL DÍA: el
+           material escogido SIEMPRE está en la lista del color que se
+           acaba de marcar —es su color—, así que el efecto de abajo lo
+           deja donde está y no hay vuelta. Y si al envase le falta el
+           color en el maestro no se toca nada: inventarle uno lo
+           mandaría a la columna equivocada del análisis. */
+        cambiar={(c) => {
+          setMaterial(c);
+          setTocoBotellas(false);
+          if (tipo === "eer") {
+            const esc = materiales.find((m) => m.clave === c);
+            if (esc?.color) setVidrio(esc.color);
+          }
+        }}
         /* EL MENSAJE DICE LA VERDAD: «no hay materiales en el maestro»
            sería mentira cuando sí los hay y lo que pasa es que todos
            son lata o PET. Mandar a alguien a buscar al maestro algo
