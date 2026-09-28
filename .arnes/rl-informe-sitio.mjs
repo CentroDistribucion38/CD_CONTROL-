@@ -418,14 +418,13 @@ ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en 
 
   const iPar = paginas.findIndex((p) => /Qué poco explica lo mucho/.test(p));
   ok(iPar >= 0, "no salió la hoja de los Paretos");
-  const hoja = paginas[iPar] ?? "";
+  /* LOS PARETOS OCUPAN LO QUE OCUPEN: con la gráfica ya no caben los
+     tres en una hoja, así que se lee el texto de todas las hojas que
+     traigan Paretos y se comprueba aparte que ninguno se parta. */
+  const hoja = paginas.filter((p) => /explican?\b|Qué poco explica/.test(p)).join("\n");
 
-  /* LOS TRES EN LA MISMA HOJA: la gracia está en compararlos. Una causa
-     concentrada en un área es un problema de ese sitio; la misma causa
-     repartida por toda la bodega es del proceso. Uno por página obliga a
-     recordar el anterior de memoria. */
   ok(/Por causa/.test(hoja) && /Por área/.test(hoja) && /Por OPM/.test(hoja),
-     "los tres Paretos no quedaron en la misma hoja, y están ahí para compararse entre ellos");
+     "falta alguno de los tres Paretos en el papel");
 
   /* LA RESPUESTA ESCRITA, Y LA MISMA QUE LA DE LA PANTALLA. Un Pareto
      sin esta línea es un ranking con una curva encima: la cifra que se
@@ -471,13 +470,20 @@ ok(/Envase Flint 210NR Coronita/.test(todo), "la rotura sin precio no salió en 
      "el papel no dice en qué está medido: unidades movidas, no plata —ordenado por plata, un " +
      "material sin precio mandaría su causa al último puesto");
 
-  /* LOS TRES EN UNA SOLA HOJA, aun en el caso más lleno. Es la promesa
-     de la sección: se pusieron juntos para compararlos. Repartidos en
-     dos páginas hay que recordar el anterior de memoria, y entonces daba
-     igual ponerlos juntos. */
-  ok(paginas.filter((p) => /explican?\b/.test(p)).length === 1,
-     "los Paretos se repartieron en más de una hoja: están juntos para compararse entre ellos, y " +
-     "pasando página eso deja de poderse hacer");
+  /* NINGÚN PARETO PARTIDO POR LA MITAD. Es la promesa de la sección
+     desde que entró la gráfica: los tres ya no caben en una hoja, pero
+     cada uno tiene que caber entero. Partido, la mitad de abajo queda
+     sin su gráfica y sin su línea del 80 %, y vuelve a ser un ranking.
+     Se comprueba que el título de cada Pareto y su última barra estén en
+     la MISMA hoja. */
+  for (const { titulo: t, d: q } of PARETOS) {
+    const iTit = paginas.findIndex((p) => p.includes(t));
+    const iUlt = paginas.findIndex((p) => p.includes(q.barras.at(-1).nombre.slice(0, 18)));
+    ok(iTit >= 0 && iTit === iUlt,
+       `el Pareto «${t}» empieza en la hoja ${iTit + 1} y su última barra ` +
+       `(«${q.barras.at(-1).nombre}») cae en la ${iUlt + 1}: partido por la mitad, lo de abajo se ` +
+       "queda sin gráfica y sin la línea del 80 %, y vuelve a ser un ranking");
+  }
 }
 
 /* 2e-bis · Y NADA SE ESCRIBE ENCIMA DE OTRA COSA EN EL DIAGRAMA.
@@ -493,14 +499,19 @@ const palabrasDe = (pdf, marca) => {
     /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
     .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] }));
 };
-/* NINGÚN NOMBRE SE METE EN EL RIEL. El nombre vive en una columna de
-   56 mm; uno largo sin recortar se mete por debajo de la barra gris y la
-   barra se pinta encima de las letras. Eso NO lo caza mirar si el texto
-   se sale del papel —se queda dentro de sobra— ni comparar palabras
-   entre ellas —el riel es un rectángulo, no una palabra—: hay que medir
-   contra dónde empieza la columna de al lado.
-   14 mm de margen + 56 de nombre = 70 mm, y 1 mm son 2,8346 puntos. */
-const RIEL_PT = 70 * 2.8346, DER_PT = 196 * 2.8346;
+/* NINGÚN NOMBRE SE METE EN LA COLUMNA DE LAS CIFRAS.
+   El nombre vive en su columna; uno largo sin recortar se mete debajo de
+   las unidades y de la plata, y los tres se pintan encima. Eso NO lo caza
+   mirar si el texto se sale del papel —se queda dentro de sobra— ni
+   comparar palabras entre ellas —van en renglones distintos por poco—:
+   hay que medir contra dónde empieza la columna de al lado.
+
+   LA FRONTERA SE MUEVE CON EL DIBUJO, y por eso va escrita aquí con su
+   cuenta: 14 mm de margen + 7 de número + 101 de nombre = 122 mm. Antes
+   eran 70, cuando la tabla llevaba un riel que la gráfica hacía
+   redundante. Un límite copiado sin su cuenta es el que se queda
+   señalando un borde que ya no existe. 1 mm son 2,8346 puntos. */
+const CIFRAS_PT = (14 + 7 + 101) * 2.8346, DER_PT = 196 * 2.8346;
 const nombresEnElRiel = (pdf, dice) => {
   const bb = execFileSync("pdftotext", ["-bbox", pdf, "-"], { encoding: "utf8" });
   for (const [i, pg] of bb.split("<page ").slice(1).entries()) {
@@ -508,10 +519,11 @@ const nombresEnElRiel = (pdf, dice) => {
     const pal = [...pg.matchAll(
       /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
       .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], t: m[5] }));
-    /* QUÉ RENGLÓN ES UNA BARRA: el que termina en el acumulado —«37 %»
-       pegado al margen derecho—. El título de la sección y el pie cruzan
-       ese ancho a propósito y no son barras, así que ir por «todo lo que
-       cruce los 70 mm» los señalaría a ellos y no al error. */
+    /* QUÉ RENGLÓN ES UNA BARRA DE LA TABLA: el que termina en el
+       acumulado —«37 %» pegado al margen derecho—. El título de la
+       sección, la frase del 80 % y el pie cruzan ese ancho a propósito y
+       no son renglones de tabla, así que ir por «todo lo que cruce los
+       122 mm» los señalaría a ellos y no al error. */
     const reng = new Map();
     for (const w of pal) {
       const k = Math.round(w.y0);
@@ -520,9 +532,9 @@ const nombresEnElRiel = (pdf, dice) => {
     for (const g of reng.values()) {
       if (!g.some((w) => w.t === "%" && w.x1 > DER_PT - 6)) continue;
       for (const w of g) {
-        ok(!(w.x0 < RIEL_PT - 1.5 && w.x1 > RIEL_PT + 1.5),
-           `${dice}, hoja ${i + 1}: el nombre «${w.t}» llega a ${Math.round(w.x1)} y el riel de ` +
-           `las barras empieza en ${Math.round(RIEL_PT)}: la barra gris se pinta encima de las letras`);
+        ok(!(w.x0 < CIFRAS_PT - 1.5 && w.x1 > CIFRAS_PT + 1.5),
+           `${dice}, hoja ${i + 1}: el nombre «${w.t}» llega a ${Math.round(w.x1)} y la columna ` +
+           `de las cifras empieza en ${Math.round(CIFRAS_PT)}: se pintan una encima de otra`);
       }
     }
   }

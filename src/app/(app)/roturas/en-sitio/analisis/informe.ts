@@ -353,6 +353,10 @@ export function dibujarInformeSitio(
      lo asume el OL». Misma razón que en la pantalla y en el diagrama. */
   const ORO: RGB = [255, 196, 0];
   const GRIS_PUNTO: RGB = [150, 160, 172];
+  /* LA BARRA DEL PARETO, EN UN TONO MEDIO: tiene que leerse fuerte —es
+     el dato— pero dejarle a la curva el tono más oscuro, porque la curva
+     es la respuesta. Es el mismo reparto que en la pantalla. */
+  const BARRA_PK: RGB = [107, 126, 149];
 
   cabe(34 + 30 + Math.min(d.porCausa.length, 4) * 6);
   titulo(`De dónde salen ${money(d.plata)}`, "precios del maestro, por botella");
@@ -522,18 +526,19 @@ export function dibujarInformeSitio(
     y += 8;
 
     for (const { titulo: tit, d: p } of d.paretos) {
-      /* Cada Pareto entero o en la hoja siguiente: partido por la mitad
-         se lee como dos listas distintas, y la de abajo —sin su línea del
-         80 %— vuelve a ser un ranking.
+      /* CADA PARETO ENTERO, O EN LA HOJA SIGUIENTE.
+         ANTES CABÍAN LOS TRES EN UNA HOJA y la promesa era ésa —juntos
+         para poder compararlos—. Con la gráfica ya no caben: tres
+         dibujos de 45 mm más sus tablas se pasan de la hoja. Así que la
+         promesa cambia, y hay que decirlo: lo que se garantiza ahora es
+         que NINGUNO SE PARTA. Un Pareto cortado por la mitad se lee como
+         dos listas distintas, y la de abajo —sin su gráfica y sin su
+         línea del 80 %— vuelve a ser un ranking.
 
-         HOY ESTO NO LLEGA A DISPARARSE, y hay que decirlo: con el tope de
-         ocho barras, tres Paretos miden como mucho 229 mm y en la hoja
-         caben 290. Se mutó a `cabe(10)` y el arnés siguió verde —no es un
-         hueco del arnés, es que esta guarda no sostiene nada todavía—. Se
-         deja porque el día que suba el tope sí sostiene, y lo que sí está
-         medido es la promesa de verdad: que los tres caben en UNA hoja,
-         que es para lo que se pusieron juntos. */
-      cabe(16 + p.barras.length * 6 + 10);
+         Y esta guarda ya SÍ sostiene: antes se mutó a `cabe(10)` y el
+         arnés siguió verde porque nunca llegaba a dispararse. Ahora se
+         dispara. */
+      cabe(16 + 45 + p.barras.length * 6 + 10);
       doc.setFillColor(...P.acento);
       doc.rect(M, y + 1.2, 2.6, 2.6, "F");
       fuente("bold", 10); tinta();
@@ -556,22 +561,99 @@ export function dibujarInformeSitio(
       y += 7;
 
       const max = Math.max(...p.barras.map((b) => b.valor));
-      const anNom = 56, anRiel = ANCHO - anNom - 74;
-      for (const b of p.barras) {
+
+      /* =================================================================
+         LA GRÁFICA — BARRAS Y CURVA DEL ACUMULADO
+         -----------------------------------------------------------------
+         SÍ, SON DOS ESCALAS, Y AQUÍ SÍ SE PUEDE. La regla general es no
+         cruzar dos escalas en un dibujo, porque el sitio donde se cruzan
+         lo elige alguien y el dibujo insinúa una relación que no está en
+         los datos. UN PARETO NO ES ESE CASO: la curva no es otra medida,
+         SALE DE LAS MISMAS BARRAS sumadas de izquierda a derecha, y el
+         100 % de la derecha es el total de las barras. Las dos escalas no
+         pueden desmentirse porque son la misma.
+
+         Y VA EN LA MISMA FAMILIA DE COLOR QUE LA PANTALLA: la barra en un
+         tono medio, la curva en tinta —lo más oscuro del dibujo, que es
+         lo que le toca, porque la curva es la respuesta—. Un color nuevo
+         sería un significado nuevo que recordar.
+         ================================================================= */
+      const ALTO_G = 30, PIE_G = 15;
+      const banda = ANCHO / p.barras.length;
+      const grueso = Math.min(banda * 0.62, 14);
+      const baseY = y + ALTO_G;
+      const xCen = (i: number) => M + banda * i + banda / 2;
+      const yPct = (q: number) => baseY - (q / 100) * ALTO_G;
+
+      /* LA RAYA DEL 80 %, DETRÁS: es contra lo que se lee la curva. */
+      doc.setDrawColor(...GRIS_PUNTO);
+      doc.setLineWidth(0.2);
+      doc.setLineDashPattern([0.8, 0.8], 0);
+      doc.line(M, yPct(80), M + ANCHO, yPct(80));
+      doc.setLineDashPattern([], 0);
+      fuente("bold", 5.5); doc.setTextColor(140, 150, 162);
+      doc.text("80 %", M + ANCHO + 1, yPct(80) + 1);
+
+      /* EL TOPE DE LA ESCALA, ESCRITO: sin él las barras son
+         proporciones sin tamaño. */
+      fuente("normal", 5.5); doc.setTextColor(140, 150, 162);
+      doc.text(nf.format(max), M - 1, y + 2, { align: "right" });
+      doc.text("0", M - 1, baseY, { align: "right" });
+      doc.setDrawColor(210, 218, 228);
+      doc.line(M, baseY, M + ANCHO, baseY);
+
+      for (const [i, b] of p.barras.entries()) {
+        const h = Math.max(0.4, (b.valor / max) * ALTO_G);
+        doc.setFillColor(...(b.clase === "normal" ? BARRA_PK : GRIS_PUNTO));
+        doc.rect(xCen(i) - grueso / 2, baseY - h, grueso, h, "F");
+        /* EL NÚMERO ENCIMA: leer la altura contra el eje es trabajo. */
+        fuente(b.clase === "normal" ? "bold" : "normal", 5.5);
+        if (b.clase === "normal") tinta(); else doc.setTextColor(140, 150, 162);
+        doc.text(nf.format(b.valor), xCen(i), baseY - h - 1.2, { align: "center" });
+        /* EL NÚMERO DE LA BARRA, Y NO EL NOMBRE.
+           SE INTENTÓ CON EL NOMBRE INCLINADO, como en la pantalla, y en
+           el papel no funciona: el texto girado sube en diagonal y se
+           mete entre las barras —se vio, no se dedujo—. En la pantalla
+           el nombre completo está a un toque en el `title`; en un papel
+           no hay a dónde tocar, así que se numera la barra y el mismo
+           número abre su renglón en la tabla de abajo, donde el nombre
+           cabe entero. La pantalla y el papel siguen diciendo lo mismo;
+           lo que cambia es por dónde se llega al nombre. */
+        fuente("bold", 6); doc.setTextColor(120, 132, 148);
+        doc.text(String(i + 1), xCen(i), baseY + 4, { align: "center" });
+      }
+
+      /* LA CURVA, ENCIMA DE LAS BARRAS Y LA ÚLTIMA EN DIBUJARSE. */
+      doc.setDrawColor(...TINTA);
+      doc.setLineWidth(0.4);
+      for (let i = 1; i < p.barras.length; i++) {
+        doc.line(xCen(i - 1), yPct(p.barras[i - 1].acumulado),
+                 xCen(i), yPct(p.barras[i].acumulado));
+      }
+      doc.setFillColor(...TINTA);
+      for (const [i, b] of p.barras.entries()) {
+        doc.circle(xCen(i), yPct(b.acumulado), 0.7, "F");
+      }
+      y = baseY + PIE_G;
+
+      /* LA TABLA. YA NO LLEVA RIEL: el riel dibujaba otra vez el largo
+         de la barra, que es justo lo que acaba de decir la gráfica de
+         arriba. Repetido, el renglón se ensancha y el nombre —que es lo
+         único que la gráfica NO puede dar entero— se queda sin sitio.
+         Ahora el nombre tiene toda la columna. */
+      const anNum = 7, anNom = ANCHO - anNum - 74;
+      for (const [i, b] of p.barras.entries()) {
         const flojo = b.clase !== "normal";
+        /* EL MISMO NÚMERO QUE LLEVA SU BARRA ARRIBA. */
+        fuente("normal", 7); doc.setTextColor(140, 150, 162);
+        doc.text(String(i + 1), M + anNum - 2, y + 3.6, { align: "right" });
         fuente(flojo ? "normal" : "bold", 7.5);
         if (flojo) gris(); else tinta();
-        doc.text(doc.splitTextToSize(b.nombre, anNom - 2)[0] ?? "", M, y + 3.6);
-        /* EL RIEL Y LA BARRA. El riel gris deja ver lo que falta, que es
-           lo que hace que dos barras cortas se distingan entre ellas. */
-        doc.setFillColor(233, 236, 240);
-        doc.rect(M + anNom, y + 0.9, anRiel, 3.4, "F");
-        doc.setFillColor(...(flojo ? GRIS_PUNTO : TINTA));
-        doc.rect(M + anNom, y + 0.9, Math.max(0.6, anRiel * (b.valor / max)), 3.4, "F");
+        doc.text(doc.splitTextToSize(b.nombre, anNom - 2)[0] ?? "", M + anNum, y + 3.6);
         fuente("bold", 7.5); tinta();
-        doc.text(nf.format(b.valor), M + anNom + anRiel + 16, y + 3.6, { align: "right" });
+        doc.text(nf.format(b.valor), M + anNum + anNom + 16, y + 3.6, { align: "right" });
         fuente("normal", 7.5); gris();
-        doc.text(money(b.plata), M + anNom + anRiel + 52, y + 3.6, { align: "right" });
+        doc.text(money(b.plata), M + anNum + anNom + 52, y + 3.6, { align: "right" });
         /* EL ACUMULADO EN NEGRITA HASTA EL 80 %: es la parte que hay que
            atacar, y en una columna de números todos iguales no se ve. */
         const dentro = b.acumulado <= 80 || p.barras.indexOf(b) < p.hasta80;
@@ -593,8 +675,8 @@ export function dibujarInformeSitio(
       }
       if (notas.length) {
         fuente("normal", 6.3); doc.setTextColor(140, 150, 162);
-        for (const l of doc.splitTextToSize(notas.join(" "), ANCHO - anNom)) {
-          doc.text(l, M + anNom, y + 3);
+        for (const l of doc.splitTextToSize(notas.join(" "), ANCHO - anNum)) {
+          doc.text(l, M + anNum, y + 3);
           y += 3.2;
         }
         y += 5.8;

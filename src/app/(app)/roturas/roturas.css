@@ -2710,42 +2710,72 @@
 .rt .rq-pareto-lee { margin: 0 0 10px; font-size: 13px; color: var(--rt-gris) }
 .rt .rq-pareto-lee b { color: var(--rt-tinta); font-weight: 700 }
 
-.rt .rq-pareto-barras { list-style: none; margin: 0; padding: 0 }
-.rt .rq-pareto-barras li {
-  display: grid; align-items: center; gap: 4px 10px;
-  grid-template-columns: minmax(0, 1fr) 62px 62px 46px;
-  grid-template-areas: "nom val plata acum" "riel riel riel riel";
-  padding: 7px 0; border-bottom: 1px solid var(--rt-linea);
+/* =====================================================================
+   EL PARETO: LA GRÁFICA Y LA TABLA
+   ---------------------------------------------------------------------
+   UNA SOLA FAMILIA DE COLOR. En esta pantalla el rojo ya dice dos cosas
+   —«esta es LA cifra» y «esto no se cobra»— y el ámbar dice «excepción».
+   Un cuarto color para la curva sería un cuarto significado que
+   recordar. La curva se distingue por la FORMA (una línea con puntos
+   contra rectángulos llenos) y por ser lo más oscuro del dibujo, que es
+   lo que le toca: la curva es la respuesta.
+   ===================================================================== */
+.rt .rq-pareto-svg { display: block; width: 100%; height: auto; overflow: visible }
+
+/* LA BARRA, EN UN NAVY MEDIO: tiene que leerse fuerte —es el dato— pero
+   dejarle a la curva el tono más oscuro. */
+.rt .rq-pk-barra { fill: color-mix(in srgb, var(--rt-tinta) 62%, var(--rt-papel)) }
+.rt .rq-pk-g.otros .rq-pk-barra,
+.rt .rq-pk-g.sinDato .rq-pk-barra { fill: var(--rt-gris2) }
+
+.rt .rq-pk-linea {
+  fill: none; stroke: var(--rt-tinta); stroke-width: 1.6;
+  stroke-linejoin: round; stroke-linecap: round;
 }
-.rt .rq-pb-nom {
-  grid-area: nom; font-size: 13px; font-weight: 600; color: var(--rt-tinta);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.rt .rq-pk-punto { fill: var(--rt-tinta) }
+
+/* LA RAYA DEL 80 %: punteada y detrás, porque es referencia y no dato. */
+.rt .rq-pk-raya { stroke: var(--rt-gris2); stroke-width: 1; stroke-dasharray: 3 3 }
+.rt .rq-pk-raya-rot { font: 700 7px var(--rt-titulo); fill: var(--rt-gris-panel) }
+.rt .rq-pk-base { stroke: var(--rt-linea); stroke-width: 1 }
+.rt .rq-pk-eje { font: 600 7px var(--rt-titulo); fill: var(--rt-gris-panel) }
+.rt .rq-pk-val { font: 800 8px var(--rt-titulo); fill: var(--rt-tinta) }
+.rt .rq-pk-g.otros .rq-pk-val,
+.rt .rq-pk-g.sinDato .rq-pk-val { fill: var(--rt-gris-panel); font-weight: 600 }
+.rt .rq-pk-nom { font: 600 7.5px var(--rt-texto); fill: var(--rt-gris-panel) }
+
+/* LA TABLA DE ABAJO: es la que deja leer un nombre largo entero y
+   llevarse la cifra exacta. En el celular es lo que de verdad se lee. */
+.rt .rq-pareto-tabla { width: 100%; border-collapse: collapse; margin-top: 10px }
+/* EL AIRE ENTRE COLUMNAS NO ES ADORNO. Sin `padding-left`, «$ 600» y
+   «100 %» salen pegados —«$ 600100 %»— y dejan de ser dos cifras: en una
+   tabla de números alineados a la derecha, el espacio ES el separador. */
+.rt .rq-pareto-tabla th, .rt .rq-pareto-tabla td {
+  padding: 5px 0 5px 10px; border-bottom: 1px solid var(--rt-linea); text-align: right;
+  font-variant-numeric: tabular-nums; font-size: 12px;
 }
-.rt .rq-pb-val, .rt .rq-pb-plata, .rt .rq-pb-acum {
-  text-align: right; font-variant-numeric: tabular-nums;
+/* La primera columna es el nombre: va a la izquierda y sin sangría, en
+   el encabezado igual que en el cuerpo. */
+.rt .rq-pareto-tabla tr > *:first-child { text-align: left; padding-left: 0 }
+.rt .rq-pareto-tabla thead th {
+  font: 600 9.5px var(--rt-titulo); letter-spacing: .09em; text-transform: uppercase;
+  color: var(--rt-gris); border-bottom-width: 1px;
 }
-.rt .rq-pb-val { grid-area: val; font: 800 14px var(--rt-titulo); color: var(--rt-tinta) }
-.rt .rq-pb-plata { grid-area: plata; font-size: 12px; color: var(--rt-gris-panel) }
-/* EL ACUMULADO ES LA COLUMNA QUE SE LEE DE ARRIBA ABAJO: donde pasa del
-   80 % es hasta dónde hay que atacar. */
-/* `white-space: nowrap` NO ES COSMÉTICO: sin él, «100 %» —que es
-   SIEMPRE el último renglón de todo Pareto— parte en dos líneas y
-   estira ese renglón más que los demás. La lista deja de leerse como
-   una columna y el cierre en 100, que es la comprobación de que nada
-   se cortó, queda con cara de error. */
-.rt .rq-pb-acum {
-  grid-area: acum; font: 700 12px var(--rt-titulo); color: var(--rt-gris-panel);
-  white-space: nowrap;
+.rt .rq-pareto-tabla tbody th {
+  font-weight: 600; font-size: 12.5px; color: var(--rt-tinta);
+  /* Un nombre largo parte en dos renglones antes que ensanchar la
+     columna y empujar el acumulado fuera de la pantalla. */
+  overflow-wrap: anywhere; padding-right: 8px;
 }
-.rt .rq-pareto-barras li .rq-pb-riel {
-  grid-area: riel; display: block; height: 7px; background: var(--rt-linea);
+.rt .rq-pareto-tabla tbody tr.otros th,
+.rt .rq-pareto-tabla tbody tr.sinDato th { font-weight: 400; color: var(--rt-gris-panel) }
+.rt .rq-pareto-tabla .rq-pb-plata { color: var(--rt-gris-panel) }
+/* `white-space: nowrap` NO ES COSMÉTICO: sin él, «100 %» —que es SIEMPRE
+   el último renglón de todo Pareto— parte en dos líneas y estira ese
+   renglón más que los demás. */
+.rt .rq-pareto-tabla .rq-pb-acum {
+  font: 700 12px var(--rt-titulo); color: var(--rt-gris-panel); white-space: nowrap;
 }
-.rt .rq-pareto-barras li .rq-pb-riel i { display: block; height: 100%; background: var(--rt-tinta) }
-/* «Otros» y «sin dato» en gris: no son una causa que se pueda atacar. */
-.rt .rq-pareto-barras li.otros .rq-pb-riel i,
-.rt .rq-pareto-barras li.sinDato .rq-pb-riel i { background: var(--rt-gris-panel); opacity: .45 }
-.rt .rq-pareto-barras li.otros .rq-pb-nom,
-.rt .rq-pareto-barras li.sinDato .rq-pb-nom { font-weight: 500; color: var(--rt-gris-panel) }
 
 .rt .rq-pareto-pie {
   margin: 10px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--rt-gris-panel);
@@ -2760,7 +2790,8 @@
 @media (max-width: 480px) {
   /* LA PLATA SE VA ANTES QUE EL ACUMULADO: sin el acumulado esto deja
      de ser un Pareto y vuelve a ser un ranking. */
-  .rt .rq-pareto-barras li { grid-template-columns: minmax(0, 1fr) 58px 40px;
-    grid-template-areas: "nom val acum" "riel riel riel" }
-  .rt .rq-pb-plata { display: none }
+  .rt .rq-pareto-tabla .rq-pb-plata { display: none }
+  /* Y EL DIBUJO SE HACE MÁS ALTO, no más estrecho: nueve barras en 360
+     px son nueve rayitas, y el nombre inclinado necesita sitio abajo. */
+  .rt .rq-pareto-svg { min-height: 190px }
 }

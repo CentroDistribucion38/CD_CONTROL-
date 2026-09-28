@@ -107,7 +107,7 @@ const monta = async (caso = "lleno", ancho = 1440, tema = "") => {
       <script>${js}<\/script></body></html>`,
   }));
   await pg.goto(`http://arnes.local/?c=${caso}`);
-  if (caso !== "vacio") await pg.waitForSelector(".rt .rq-pareto-barras li");
+  if (caso !== "vacio") await pg.waitForSelector(".rt .rq-pareto-tabla tbody tr");
   else await pg.waitForSelector(".rt .vacio");
 };
 
@@ -124,7 +124,7 @@ ok(rotos.length === 0, `el Pareto tiró un error: ${rotos[0]}`);
    ===================================================================== */
 {
   const lee = (await pg.$eval(".rt .rq-pareto-lee", (e) => e.textContent)).replace(/\s+/g, " ").trim();
-  const n = await pg.$$eval(".rt .rq-pareto-barras li", (s) => s.length);
+  const n = await pg.$$eval(".rt .rq-pareto-tabla tbody tr", (s) => s.length);
   ok(/^\d+ de \d+ explican? el 80 % de [\d.]+ unidades\.$/.test(lee),
      `la línea de arriba dice «${lee}» y tiene que decir cuántas de cuántas explican el 80 %`);
   /* La cuenta a mano, para que el arnés no repita la del código: el
@@ -137,51 +137,78 @@ ok(rotos.length === 0, `el Pareto tiró un error: ${rotos[0]}`);
 }
 
 /* =====================================================================
-   2 · LA BARRA MIDE LO QUE DICE SU NÚMERO
+   2 · LA BARRA MIDE LO QUE DICE SU NÚMERO, Y LA CURVA SU ACUMULADO
    ---------------------------------------------------------------------
-   Se leen por separado el ancho pintado y la cifra escrita: si salieran
-   de dos cuentas distintas, un día dirían cosas distintas y las dos se
-   verían bien.
+   Se leen por separado la geometría pintada y la cifra escrita: si
+   salieran de dos cuentas distintas, un día dirían cosas distintas y las
+   dos se verían bien. Es el error que una captura no enseña.
    ===================================================================== */
 {
-  const filas = await pg.$$eval(".rt .rq-pareto-barras li", (s) => s.map((li) => ({
-    nom: li.querySelector(".rq-pb-nom").textContent.trim(),
-    ancho: li.querySelector(".rq-pb-riel i").style.width,
-    val: Number(li.querySelector(".rq-pb-val").textContent.replace(/[^\d]/g, "")),
-    acum: Number(li.querySelector(".rq-pb-acum").textContent.replace(/[^\d]/g, "")),
-  })));
-  const max = Math.max(...filas.map((f) => f.val));
-  for (const f of filas) {
-    const debe = Math.max(1, (f.val / max) * 100);
-    ok(Math.abs(parseFloat(f.ancho) - debe) < 0.5,
-       `«${f.nom}» vale ${f.val} de ${max} y su barra mide ${f.ancho} en vez de ${debe.toFixed(1)} %: ` +
-       "una barra que no cuadra con su cifra se ve bien y miente");
+  const g = await pg.evaluate(() => {
+    const svg = document.querySelector(".rt .rq-pareto-svg");
+    const base = +svg.querySelector(".rq-pk-base").getAttribute("y1");
+    const cero = +svg.querySelector(".rq-pk-raya").getAttribute("y1");
+    return {
+      base,
+      raya80: cero,
+      barras: [...svg.querySelectorAll(".rq-pk-barra")].map((r) => ({
+        x: +r.getAttribute("x"), y: +r.getAttribute("y"), h: +r.getAttribute("height"),
+        w: +r.getAttribute("width"),
+      })),
+      vals: [...svg.querySelectorAll(".rq-pk-val")].map((t) => Number(t.textContent.replace(/[^\d]/g, ""))),
+      puntos: [...svg.querySelectorAll(".rq-pk-punto")].map((c) => ({
+        cx: +c.getAttribute("cx"), cy: +c.getAttribute("cy") })),
+      linea: svg.querySelector(".rq-pk-linea").getAttribute("points"),
+      acums: [...document.querySelectorAll(".rt .rq-pareto-tabla .rq-pb-acum")]
+        .map((t) => Number(t.textContent.replace(/[^\d]/g, ""))),
+    };
+  });
+  const max = Math.max(...g.vals);
+  /* CADA BARRA, CONTRA SU PROPIA CIFRA. */
+  for (const [i, b] of g.barras.entries()) {
+    /* el alto del área de dibujo es la base menos el margen de arriba */
+    const alto = g.base - 16;
+    const esperado = Math.max(1, (g.vals[i] / max) * alto);
+    ok(Math.abs(b.h - esperado) < 0.6,
+       `la barra ${i + 1} vale ${g.vals[i]} de ${max} y mide ${b.h.toFixed(1)} en vez de ` +
+       `${esperado.toFixed(1)}: una barra que no cuadra con su cifra se ve bien y miente`);
+    ok(Math.abs((b.y + b.h) - g.base) < 0.6,
+       `la barra ${i + 1} no se apoya en la base (${(b.y + b.h).toFixed(1)} contra ${g.base}): ` +
+       "una barra que flota deja de poderse comparar con la de al lado");
   }
-  /* DE MAYOR A MENOR LAS DE VERDAD. «Otros» y «Sin dato» van al final
-     por lo que SON, no por lo que pesan: «Otros» puede ser más grande
-     que la barra de encima —aquí lo es, 40 contra 30— y aun así va
-     abajo, porque no es una causa que se pueda atacar sino la suma de
-     las que no caben. Ordenarlos por tamaño los metería en medio de la
-     lista y se leerían como una causa más. */
-  const propias = filas.filter((f) => f.nom !== "Otros" && f.nom !== "Sin dato");
+  /* Y DE MAYOR A MENOR EN EL DIBUJO, no solo en la tabla. */
+  const propias = g.barras.filter((_, i) => i < g.barras.length - 2);
   for (let i = 1; i < propias.length; i++) {
-    ok(propias[i].val <= propias[i - 1].val,
-       `«${propias[i].nom}» (${propias[i].val}) quedó debajo de «${propias[i - 1].nom}» ` +
-       `(${propias[i - 1].val}) y es mayor`);
+    ok(propias[i].h <= propias[i - 1].h + 0.01,
+       `en el dibujo la barra ${i + 1} es más alta que la de antes: el Pareto va de mayor a menor`);
   }
-  ok(filas.length - propias.length === 2
-     && filas.at(-2).nom === "Otros" && filas.at(-1).nom === "Sin dato",
-     `«Otros» y «Sin dato» tienen que cerrar la lista, en ese orden, y quedó ` +
-     `[${filas.slice(-3).map((f) => f.nom).join(" | ")}]`);
-  /* EL ACUMULADO SOLO SUBE, ese sí en toda la lista. */
-  for (let i = 1; i < filas.length; i++) {
-    ok(filas[i].acum >= filas[i - 1].acum,
-       `el acumulado bajó de ${filas[i - 1].acum} a ${filas[i].acum}: un acumulado que baja no es ` +
-       "un acumulado");
+  /* LA CURVA SE APOYA EN LOS MISMOS ACUMULADOS QUE DICE LA TABLA. Es el
+     cruce que importa: papel, dibujo y número tienen que ser uno. */
+  const alto = g.base - 16;
+  for (const [i, pt] of g.puntos.entries()) {
+    const esperado = 16 + alto - (g.acums[i] / 100) * alto;
+    ok(Math.abs(pt.cy - esperado) < 0.6,
+       `el punto ${i + 1} de la curva está en ${pt.cy.toFixed(1)} y su acumulado (${g.acums[i]} %) ` +
+       `lo pone en ${esperado.toFixed(1)}: la curva y la tabla saldrían de dos cuentas distintas`);
+    ok(Math.abs(pt.cx - (g.barras[i].x + g.barras[i].w / 2)) < 0.6,
+       `el punto ${i + 1} no está sobre el centro de su barra`);
   }
-  ok(filas.at(-1).acum === 100,
-     `el acumulado de la última dice ${filas.at(-1).acum} y tiene que cerrar en 100: si no cierra, ` +
-     "la cola se está cortando en vez de juntarse y el total que se enseña no es el total");
+  /* LA CURVA PASA POR TODOS LOS PUNTOS: una polilínea con menos vértices
+     que barras se dibuja igual de bonita y se salta una categoría. */
+  ok(g.linea.trim().split(/\s+/).length === g.puntos.length,
+     `la curva tiene ${g.linea.trim().split(/\s+/).length} vértices y hay ${g.puntos.length} ` +
+     "barras: se está saltando alguna");
+  /* LA RAYA DEL 80 % ESTÁ DONDE DICE. Es contra lo que se mira la curva:
+     puesta en otro sitio, el dibujo contesta mal la única pregunta. */
+  ok(Math.abs(g.raya80 - (16 + alto * 0.2)) < 0.6,
+     `la raya del 80 % está en ${g.raya80.toFixed(1)} y le toca ${(16 + alto * 0.2).toFixed(1)}: ` +
+     "es contra lo que se lee la curva, y torcida hace atacar de más o de menos");
+  /* Y LA CURVA CRUZA LA RAYA JUSTO EN hasta80. */
+  const lee = await pg.$eval(".rt .rq-pareto-lee", (e) => e.textContent);
+  const h80 = Number(lee.match(/^\s*(\d+) de/)[1]);
+  ok(g.puntos[h80 - 1].cy <= g.raya80 + 0.01 && (h80 === 1 || g.puntos[h80 - 2].cy > g.raya80),
+     `la frase dice ${h80} pero en el dibujo la curva no cruza la raya del 80 % ahí: el texto y ` +
+     "el dibujo estarían contando cosas distintas");
 }
 
 /* =====================================================================
@@ -192,11 +219,11 @@ ok(rotos.length === 0, `el Pareto tiró un error: ${rotos[0]}`);
    contrario: es un registro que hay que ir a arreglar.
    ===================================================================== */
 {
-  const cls = await pg.$$eval(".rt .rq-pareto-barras li", (s) => s.map((li) => ({
-    nom: li.querySelector(".rq-pb-nom").textContent.trim(),
-    clase: li.className,
-    color: getComputedStyle(li.querySelector(".rq-pb-nom")).color,
-    negrita: getComputedStyle(li.querySelector(".rq-pb-nom")).fontWeight,
+  const cls = await pg.$$eval(".rt .rq-pareto-tabla tbody tr", (s) => s.map((tr) => ({
+    nom: tr.querySelector("th").textContent.trim(),
+    clase: tr.className,
+    color: getComputedStyle(tr.querySelector("th")).color,
+    negrita: getComputedStyle(tr.querySelector("th")).fontWeight,
   })));
   const otros = cls.find((c) => c.nom === "Otros");
   const sin = cls.find((c) => c.nom === "Sin dato");
@@ -209,6 +236,20 @@ ok(rotos.length === 0, `el Pareto tiró un error: ${rotos[0]}`);
     ok(flojo.color !== normal.color || flojo.negrita !== normal.negrita,
        `«${flojo.nom}» se ve igual que una causa de verdad (${flojo.color}, ${flojo.negrita}): ` +
        "no lo es, y con la misma cara se lee como un problema que atacar");
+  }
+  /* Y EN EL DIBUJO TAMBIÉN, no solo en la tabla: quien mira la gráfica
+     no baja a leer la tabla para saber cuál barra no es una causa. */
+  {
+    const barras = await pg.$$eval(".rt .rq-pareto-svg .rq-pk-g", (s) => s.map((g) => ({
+      clase: g.getAttribute("class"),
+      fill: getComputedStyle(g.querySelector(".rq-pk-barra")).fill,
+    })));
+    const nrm = barras.find((b) => b.clase === "rq-pk-g");
+    for (const b of barras.filter((x) => x.clase !== "rq-pk-g")) {
+      ok(b.fill !== nrm.fill,
+         `en el dibujo la barra «${b.clase}» tiene el mismo relleno que una causa de verdad ` +
+         `(${b.fill}): «otros» es «varias pequeñas» y «sin dato» es «no se sabe»`);
+    }
   }
   /* Y EL PIE LO DICE CON PALABRAS, que es lo que de verdad se entiende. */
   const pie = (await pg.$eval(".rt .rq-pareto-pie", (e) => e.textContent)).replace(/\s+/g, " ");
@@ -225,9 +266,9 @@ ok(rotos.length === 0, `el Pareto tiró un error: ${rotos[0]}`);
    ===================================================================== */
 {
   await monta("sinPrecio");
-  const pl = await pg.$$eval(".rt .rq-pareto-barras li", (s) => s.map((li) => [
-    li.querySelector(".rq-pb-nom").textContent.trim(),
-    li.querySelector(".rq-pb-plata").textContent.trim()]));
+  const pl = await pg.$$eval(".rt .rq-pareto-tabla tbody tr", (s) => s.map((tr) => [
+    tr.querySelector("th").textContent.trim(),
+    tr.querySelector(".rq-pb-plata").textContent.trim()]));
   const enc = pl.find(([n]) => n === "Encontrada sin dueño");
   ok(enc && /^[—–-]$/.test(enc[1]),
      `a «Encontrada sin dueño» le falta el precio y la pantalla enseña «${enc?.[1]}»: tiene que ` +
@@ -266,23 +307,30 @@ ok(rotos.length === 0, `el Pareto tiró un error: ${rotos[0]}`);
    ===================================================================== */
 for (const ancho of [360, 390, 820, 1440]) {
   await monta("lleno", ancho);
-  const vista = await pg.$$eval(".rt .rq-pareto-barras li", (s) => s.map((li) => {
+  const vista = await pg.$$eval(".rt .rq-pareto-tabla tbody tr", (s) => s.map((tr) => {
     const ve = (sel) => {
-      const e = li.querySelector(sel);
+      const e = tr.querySelector(sel);
       if (!e) return false;
       const r = e.getBoundingClientRect();
       return getComputedStyle(e).display !== "none" && r.width > 0 && r.height > 0;
     };
-    return { nom: ve(".rq-pb-nom"), riel: ve(".rq-pb-riel"),
-             val: ve(".rq-pb-val"), acum: ve(".rq-pb-acum") };
+    return { nom: ve("th"), acum: ve(".rq-pb-acum") };
   }));
   for (const [i, v] of vista.entries()) {
     ok(v.acum,
-       `en ${ancho} px la barra ${i + 1} se quedó sin el acumulado: sin esa columna esto deja de ` +
+       `en ${ancho} px la fila ${i + 1} se quedó sin el acumulado: sin esa columna esto deja de ` +
        "ser un Pareto y queda un ranking — lo que se quita en el celular es la plata");
-    ok(v.nom && v.riel && v.val,
-       `en ${ancho} px la barra ${i + 1} perdió algo: ${JSON.stringify(v)}`);
+    ok(v.nom, `en ${ancho} px la fila ${i + 1} se quedó sin nombre`);
   }
+
+  /* Y LA GRÁFICA SE VE EN LOS CUATRO. Un SVG con alto 0 no da error:
+     desaparece en silencio, y la pantalla queda con la tabla sola. */
+  const svg = await pg.$eval(".rt .rq-pareto-svg", (e) => {
+    const r = e.getBoundingClientRect(); return { w: r.width, h: r.height };
+  });
+  ok(svg.w > 100 && svg.h > 120,
+     `en ${ancho} px la gráfica mide ${Math.round(svg.w)}×${Math.round(svg.h)}: un SVG aplastado ` +
+     "no da error, desaparece en silencio");
 
   /* NADA SE SALE DE ANCHO. `scrollWidth` del documento contra el ancho
      de la ventana: si sobra, hay que arrastrar la pantalla de lado para
@@ -293,13 +341,39 @@ for (const ancho of [360, 390, 820, 1440]) {
      `en ${ancho} px la pantalla se sale ${sobra} px de ancho: hay que arrastrarla de lado, y un ` +
      "acumulado que hay que ir a buscar arrastrando es un acumulado que nadie mira");
 
-  /* Y LAS FILAS NO SE MONTAN UNAS SOBRE OTRAS. Con un nombre largo la
-     rejilla puede crecer de alto sin avisar, o encimarse. */
-  const cajas = await pg.$$eval(".rt .rq-pareto-barras li",
-    (s) => s.map((li) => { const r = li.getBoundingClientRect(); return [r.top, r.bottom] }));
+  /* CADA CIFRA, DEBAJO DE SU ENCABEZADO. En el celular se oculta la
+     columna de la plata: si su encabezado se queda, el acumulado cae
+     debajo de «Se cobra» y un 41 % se lee como plata. Se mide el centro
+     de cada celda contra el centro de su encabezado. */
+  {
+    const cols = await pg.evaluate(() => {
+      const t = document.querySelector(".rt .rq-pareto-tabla");
+      const ve = (e) => getComputedStyle(e).display !== "none";
+      const cab = [...t.querySelectorAll("thead tr > *")].filter(ve)
+        .map((e) => { const r = e.getBoundingClientRect();
+                      return { t: e.textContent.trim(), c: (r.left + r.right) / 2 } });
+      const fila = [...t.querySelectorAll("tbody tr")][0];
+      const cel = [...fila.querySelectorAll("th, td")].filter(ve)
+        .map((e) => { const r = e.getBoundingClientRect();
+                      return { t: e.textContent.trim(), c: (r.left + r.right) / 2 } });
+      return { cab, cel };
+    });
+    ok(cols.cab.length === cols.cel.length,
+       `en ${ancho} px hay ${cols.cab.length} encabezados visibles y ${cols.cel.length} celdas: ` +
+       "sobra o falta un encabezado, y las cifras quedan debajo del rótulo equivocado");
+    for (let i = 0; i < Math.min(cols.cab.length, cols.cel.length); i++) {
+      ok(Math.abs(cols.cab[i].c - cols.cel[i].c) < 6,
+         `en ${ancho} px «${cols.cel[i].t}» está a ${Math.round(cols.cel[i].c)} y su encabezado ` +
+         `«${cols.cab[i].t}» a ${Math.round(cols.cab[i].c)}: la cifra se lee bajo el rótulo de al lado`);
+    }
+  }
+
+  /* Y LAS FILAS NO SE MONTAN UNAS SOBRE OTRAS. */
+  const cajas = await pg.$$eval(".rt .rq-pareto-tabla tbody tr",
+    (s) => s.map((tr) => { const r = tr.getBoundingClientRect(); return [r.top, r.bottom] }));
   for (let i = 1; i < cajas.length; i++) {
     ok(cajas[i][0] >= cajas[i - 1][1] - 1.5,
-       `en ${ancho} px la barra ${i + 1} arranca en ${Math.round(cajas[i][0])} y la de arriba ` +
+       `en ${ancho} px la fila ${i + 1} arranca en ${Math.round(cajas[i][0])} y la de arriba ` +
        `termina en ${Math.round(cajas[i - 1][1])}: se están montando`);
   }
 }
@@ -320,7 +394,8 @@ for (const ancho of [360, 390, 820, 1440]) {
   };
   for (const t of TEMAS) {
     await monta("lleno", 1440, t);
-    const medidas = await pg.$$eval(".rt .rq-pb-acum, .rt .rq-pb-val, .rt .rq-pb-nom", (s) =>
+    const medidas = await pg.$$eval(
+      ".rt .rq-pareto-tabla .rq-pb-acum, .rt .rq-pareto-tabla tbody th, .rt .rq-pareto-lee", (s) =>
       s.map((e) => {
         let f = e, fondo = "rgba(0, 0, 0, 0)";
         while (f && /rgba\(0, 0, 0, 0\)|transparent/.test(fondo)) {

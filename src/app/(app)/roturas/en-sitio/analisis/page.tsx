@@ -342,13 +342,19 @@ export default async function AnalisisEnSitioPage(
         {/* LA EXCEPCIÓN ES LO QUE NO SE COBRA, y por eso va antes de la
             plata: es la resta que explica el total de al lado. */}
         <div className={"cifra" + (excepcion.n > 0 ? " aparte" : "")}>
-          <div className="rot">EXCEPCIÓN</div>
-          <div className="n">{excepcion.n}</div>
+          <div className="rot">EXCEPCIÓN · NO SE COBRA</div>
+          {/* LA CIFRA GRANDE ES LA PLATA, NO EL CONTEO. «Son las que se
+              dejan de cobrar por acuerdos, pero para que sepan cuánto han
+              dejado de pagar»: lo que se viene a buscar aquí es el monto
+              que el OL no va a pagar, y el número de roturas es el
+              detalle. Puestas al revés, la cifra que importa quedaba en
+              letra chica. */}
+          <div className="n">{excepcion.n === 0 ? "—" : (pesos(excepcion.plata) ?? "—")}</div>
           <div className="u">
             {excepcion.n === 0
               ? "ninguna se deja de cobrar en este filtro"
-              : <>se dejan de cobrar{excepcion.plata > 0
-                  && <> · {pesos(excepcion.plata)} que no se reclaman</>}</>}
+              : <>que el OL no va a pagar · {excepcion.n} rotura
+                  {excepcion.n === 1 ? "" : "s"} resuelta{excepcion.n === 1 ? "" : "s"} a su favor</>}
           </div>
         </div>
         <div className="cifra ojo">
