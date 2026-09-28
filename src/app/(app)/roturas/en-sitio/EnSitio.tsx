@@ -265,8 +265,14 @@ export function EnSitio({ esperando: enEspera, roturas, nombres, materiales, mat
                   <span className="hora">{hora(r.reportada_en)}</span>
                   <span>
                     <b className="pl">{r.codigo}</b>
+                    {/* SI HUBO CONTAMINADAS SE DICEN AQUÍ TAMBIÉN. Este
+                        renglón es la confirmación de lo que se acaba de
+                        registrar: enseñar solo las rotas haría dudar de
+                        si las contaminadas entraron —que es exactamente
+                        lo que pasó en el tablero—. */}
                     <span className="det">
-                      {r.unidades} · {r.material_nombre} · {r.causa_nombre}
+                      {r.unidades}{!!r.contaminadas && ` + ${r.contaminadas} cont.`}
+                      {" · "}{r.material_nombre} · {r.causa_nombre}
                     </span>
                   </span>
                   <span className={"pt" + (r.grupo === "no_asumida" ? " mal" : "")} aria-hidden />

@@ -54,12 +54,31 @@ const base = { unidades_por_caja: 30, cajas_por_estiba: 36, unidades_por_estiba:
   contenido: 330, presentacion: "Tw", f_limite_desp: 7, dias_minimo: 30,
   origen: "NACIONAL", foraneo: "LOCAL", activo: true };
 const materiales = [
+  /* CON PATRÓN DE ESTIBA DEL MAESTRO: 3 × 3 × 4 = 36, que es su factor
+     de estiba. Los tres números llegan con el código y no se teclean. */
   { ...base, id: "m1", sku: "9845", nombre: "Aguila Tw 330Cc X 30", familia: "Tw",
-    vida_util: 180, tipo_material: "PRODUCTO", en_sitio: true },
+    vida_util: 180, tipo_material: "PRODUCTO", en_sitio: true,
+    pat_largo: 3, pat_ancho: 3, pat_nivel: 4 },
   /* SIN VIDA ÚTIL EN EL MAESTRO: es el que no se puede ordenar por FEFO
      y la pantalla tiene que avisarlo ANTES de gastar papel. */
+  /* SIN VIDA ÚTIL Y SIN PATRÓN: el material al que le falta todo en el
+     maestro. La pantalla tiene que decir las dos cosas. */
   { ...base, id: "m2", sku: "2182", nombre: "Pony Malta R 330cc X 30", familia: "Ret",
-    vida_util: null, tipo_material: "PRODUCTO", en_sitio: true },
+    vida_util: null, tipo_material: "PRODUCTO", en_sitio: true,
+    pat_largo: null, pat_ancho: null, pat_nivel: null },
+  /* EL QUE PELEA CONSIGO MISMO: el patrón da 45 y el factor de estiba
+     dice 36. Los dos salen del mismo maestro y uno está mal. */
+  { ...base, id: "m5", sku: "3128", nombre: "Aguila RN 330cc X 30", familia: "Ret",
+    vida_util: 180, tipo_material: "PRODUCTO", en_sitio: true,
+    cajas_por_estiba: 36, pat_largo: 3, pat_ancho: 3, pat_nivel: 5 },
+  /* EL PATRÓN A MEDIO LLENAR: alguien puso el largo en la pantalla del
+     maestro y dejó los otros dos en blanco. Es lo que pasa de verdad
+     cuando se corrige un maestro a mano. Completarlo con unos daría
+     «3 × 1 × 1 = 3 cajas» impreso en el papel de la estiba, que es un
+     dato inventado con cara de dato. */
+  { ...base, id: "m6", sku: "3583", nombre: "Aguila R 750cc X 16", familia: "Ret",
+    vida_util: 180, tipo_material: "PRODUCTO", en_sitio: true,
+    pat_largo: 3, pat_ancho: null, pat_nivel: null },
   { ...base, id: "m3", sku: "3500162", nombre: "Envase Marron 330R", familia: "Ret",
     vida_util: null, tipo_material: "ENVASE", en_sitio: true, cajas_por_estiba: null },
   { ...base, id: "m4", sku: "3500213", nombre: "Envase Flint 330R", familia: "Ret",
@@ -137,17 +156,26 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
 }
 
 /* =====================================================================
-   1 y 4 · PRODUCTO: FECHA, LOTE Y EL VENCIMIENTO ANTES DE IMPRIMIR
+   1 y 4 · PRODUCTO: SE TECLEA EL VENCIMIENTO Y LO DEMÁS LO TRAE EL CÓDIGO
+   ---------------------------------------------------------------------
+   Es el cambio que pidió Cristian: «que pueda colocar el sku y traiga
+   toda la informacion y solo sea agregarle fecha de vencimiento». Así
+   que lo que se mide es justo eso: que la ÚNICA fecha que se teclea sea
+   el vencimiento, y que la producción salga de restar la vida útil del
+   maestro en vez de pedirse.
    ===================================================================== */
 {
   const t = await pg.textContent(".fe .rc-forma");
-  ok(/Producido el/.test(t), "en producto no se pide la fecha de producción");
+  ok(/Vence el/.test(t), "en producto no se pide la fecha de vencimiento");
+  ok(!/Producido el/.test(t),
+     "la pantalla sigue pidiendo la fecha de producción: es la que NO está impresa en la caja, " +
+     "y obligaba a hacer la resta de cabeza en el muelle");
   /* LA TARJETA PIDE LÍNEA Y HORA, NO LOTE. Es lo que permite devolverse
      a la planta cuando un lote sale malo: sin la línea, el reclamo es
      «algo de ese día». */
   ok(/Línea/.test(t), "en producto no se pide la línea de producción");
   ok(/Hora/.test(t), "en producto no se pide la hora");
-  ok(/Cómo va armado el arrume/.test(t),
+  ok(/Cómo llegó armado el arrume/.test(t),
      "no se preguntan las dimensiones del arrume: doce estibas pueden ir 12×1×1 o 3×2×2 y el " +
      "número de estibas no lo dice");
   ok(!/Color del vidrio/.test(t), "en producto salen los campos del envase");
@@ -155,23 +183,70 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
 
   await escoger("9845");
   await pg.fill(".fe .rc-c:has(span:text-is('Por estiba')) input", "1080");
+  /* ANTES DE TECLEAR LA FECHA, la vista ya grita que va a salir sin
+     vencimiento. Ahora que la fecha se teclea, «vacío» quiere decir «se
+     le olvidó», y eso hay que verlo antes de gastar la hoja. */
+  ok(await pg.isVisible(".fe .rc-v-vence.falta"),
+     "sin fecha tecleada la vista del rótulo no marca que va a salir sin vencimiento");
   await pg.fill("input[type=date]", "2026-09-20");
+  ok(!(await pg.isVisible(".fe .rc-v-vence.falta")),
+     "con la fecha puesta la vista sigue marcando que falta el vencimiento");
+  /* 20/09/2026 menos 180 días de vida útil es el 24/03/2026. La cuenta
+     va HACIA ATRÁS y es la que el muelle ya no tiene que hacer. */
   const ayuda = await pg.textContent(".fe .rc-c:has(input[type=date]) em");
-  ok(/19\/03\/2027/.test(ayuda),
-     `el vencimiento no se ve antes de imprimir: «${ayuda}» — es la única oportunidad de notar ` +
-     "que la fecha de producción se tecleó mal");
+  ok(/24\/03\/2026/.test(ayuda),
+     `la producción no se calcula del vencimiento: «${ayuda}» — con 180 días de vida útil, un ` +
+     "vencimiento el 20/09/2026 sale de producir el 24/03/2026");
   const vista = await pg.textContent(".fe .rc-vista");
-  ok(/19\/03\/2027/.test(vista), `la vista del rótulo no muestra el vencimiento: «${vista}»`);
+  ok(/20\/09\/2026/.test(vista), `la vista del rótulo no muestra el vencimiento: «${vista}»`);
   ok(/9845/.test(vista) && /1.080/.test(vista), "la vista no muestra el código y la cantidad");
 
-  /* EL QUE NO TIENE VIDA ÚTIL EN EL MAESTRO SE AVISA, y se avisa AQUÍ:
-     descubrirlo en el papel impreso es haber gastado la hoja. */
+  /* ---------- EL PATRÓN DE ESTIBA LLEGA CON EL CÓDIGO ----------
+     Los tres números NO se teclean: salen del maestro al escoger el
+     material. Es la mitad de lo que se pidió. */
+  const pat = await pg.textContent(".fe .rc-patron");
+  ok(/Largo/.test(pat) && /Ancho/.test(pat) && /Niveles/.test(pat),
+     `el patrón de estiba no nombra sus tres números: «${pat}»`);
+  ok(/3/.test(pat) && /4/.test(pat), `el patrón no trae los números del maestro: «${pat}»`);
+  ok(/36 cajas/.test(pat),
+     `el patrón no da el resultado: 3 × 3 × 4 son 36 cajas por estiba, y es la cifra que se usa. «${pat}»`);
+  ok(/1\.080 unidades/.test(pat), `el patrón no trae las unidades por estiba: «${pat}»`);
+  /* LOS DOS BLOQUES DE TRES NÚMEROS SE LLAMAN DISTINTO. Es el riesgo de
+     toda esta pantalla: uno dice cómo se arma UNA estiba y el otro
+     cuántas ESTIBAS llegaron. Con el mismo nombre, alguien arma mal. */
+  ok(/Cómo va armada cada estiba/.test(t) && /Cómo llegó armado el arrume/.test(t),
+     "los dos bloques de tres números no se distinguen por el título: uno es cajas sobre una " +
+     "estiba y el otro estibas del arrume");
+
+  /* ---------- CUANDO EL MAESTRO SE CONTRADICE ----------
+     El 3128 tiene patrón 3 × 3 × 5 = 45 y factor de estiba 36. Los dos
+     salen del mismo maestro y uno está mal: hay que verlo ANTES de
+     pegar el papel. */
+  await escoger("3128");
+  const avisos = await pg.textContent(".fe .rc-forma");
+  ok(/45.*cajas por estiba.*36|patrón da 45/.test(avisos.replace(/\s+/g, " ")),
+     `con el patrón y el factor de estiba peleados la pantalla no avisa: no sale el aviso en «${avisos.slice(0, 400)}»`);
+
+  /* ---------- EL QUE NO TIENE VIDA ÚTIL NI PATRÓN ----------
+     Se avisa AQUÍ: descubrirlo en el papel impreso es haber gastado la
+     hoja. */
   await escoger("2182");
   const ayuda2 = await pg.textContent(".fe .rc-c:has(input[type=date]) em");
   ok(/falta la vida útil/i.test(ayuda2),
      `con un material sin vida útil la pantalla dice «${ayuda2}» en vez de avisar`);
-  ok(await pg.isVisible(".fe .rc-v-vence.falta"),
-     "la vista del rótulo no marca que va a salir sin vencimiento");
+  /* Y EL PATRÓN A MEDIO LLENAR SE TRATA COMO SI NO ESTUVIERA. Tres
+     números o ninguno: dos de tres no dicen cómo se arma nada, y el
+     tercero puesto en 1 es una estiba de tres cajas que nadie armó. */
+  await escoger("3583");
+  const pat3 = await pg.textContent(".fe .rc-patron");
+  ok(/no trae el patrón/i.test(pat3),
+     `con el patrón a medio llenar la pantalla lo completa e imprime un patrón inventado: «${pat3}»`);
+
+  await escoger("2182");
+  const pat2 = await pg.textContent(".fe .rc-patron");
+  ok(/no trae el patrón/i.test(pat2),
+     `sin patrón en el maestro la pantalla no lo dice: «${pat2}» — un bloque vacío se lee como ` +
+     "que ese material no lleva patrón, y lo que pasa es que falta un dato");
 }
 
 /* =====================================================================
@@ -374,7 +449,8 @@ if (fallas.length) {
   fallas.forEach((f) => console.log(" · " + f));
   process.exit(1);
 }
-console.log("✓ Recibir: los dos tipos cambian el formulario y cambiar de tipo limpia el material, " +
-  "el vencimiento se ve antes de gastar papel y grita cuando no se puede calcular, la cascada de " +
-  "la ubicación escoge sola el módulo sin lados, se dice qué falta en vez de apagar el botón en " +
-  "silencio, y nada se sale ni se aplasta en los cuatro anchos.");
+console.log("✓ Recepción: los dos tipos cambian el formulario y cambiar de tipo limpia el " +
+  "material, el patrón de estiba llega con el código y se distingue del arrume, se teclea SOLO " +
+  "el vencimiento y la producción sale de restar, se avisa cuando el maestro se contradice, la " +
+  "cascada de la ubicación escoge sola el módulo sin lados, se dice qué falta en vez de apagar " +
+  "el botón en silencio, y nada se sale ni se aplasta en los cuatro anchos.");

@@ -387,12 +387,19 @@ const pantallas = readdirSync(new URL("../src/app/(app)/inventario/", import.met
                               { withFileTypes: true })
   .filter((e) => e.isDirectory()).map((e) => e.name).sort();
 /* LAS CARPETAS SE LEEN, NO SE ESCRIBEN A MANO Y YA. Desde que Inventario
-   tiene dos ramas hay cinco: las tres de conteos, el tablero —que se
-   mudó de /inventario a /inventario/tablero para dejar libre la ruta del
-   módulo, que es la bifurcación— y averías, que trae las suyas dentro. */
-if (pantallas.join(",") !== "averias,base,conteo,maestro,tablero")
+   tiene dos ramas hay seis: las cuatro de conteos —maestro, recibir
+   (Recepción), conteo y base—, el tablero —que se mudó de /inventario a
+   /inventario/tablero para dejar libre la ruta del módulo, que es la
+   bifurcación— y averías, que trae las suyas dentro.
+
+   LA CARPETA SIGUE LLAMÁNDOSE `recibir` AUNQUE LA PANTALLA SE LLAME
+   RECEPCIÓN, y es a propósito: los permisos de la tabla de roles están
+   guardados contra `/inventario/recibir`, y cambiar la ruta deja a todo
+   el mundo sin acceso hasta que se vuelvan a abrir los roles. El nombre
+   que se ve es el del menú, no el de la carpeta. */
+if (pantallas.join(",") !== "averias,base,conteo,maestro,recibir,tablero")
   fallas.push(`bajo /inventario las carpetas son [${pantallas.join(", ")}] ` +
-              "y deben ser [averias, base, conteo, maestro, tablero]");
+              "y deben ser [averias, base, conteo, maestro, recibir, tablero]");
 
 const reg = readFileSync(new URL("../src/modulos/registro.ts", import.meta.url), "utf8");
 /* SOLO EL BLOQUE `secciones`. El módulo y cada rama traen su propia
@@ -402,13 +409,16 @@ const reg = readFileSync(new URL("../src/modulos/registro.ts", import.meta.url),
 const bloqueInv = (reg.match(/id: "inventario"[\s\S]*?\n  \},/) ?? [""])[0];
 const secciones = [...(bloqueInv.match(/secciones: \[[\s\S]*$/) ?? [""])[0]
   .matchAll(/ruta: "(\/inventario[^"]*)"/g)].map((m) => m[1]);
-const espera = ["/inventario/maestro", "/inventario/conteo",
+/* EL ORDEN ES EL DEL PROCESO Y NO EL DE CONSTRUCCIÓN: el material ENTRA
+   al CD y se rotula (Recepción), después se cuenta, después se lee lo
+   contado. Recepción va ANTES de Contar aunque se construyera después. */
+const espera = ["/inventario/maestro", "/inventario/recibir", "/inventario/conteo",
                 "/inventario/base", "/inventario/tablero",
                 "/inventario/averias", "/inventario/averias/tablero",
                 "/inventario/averias/analisis", "/inventario/averias/maestro"];
 if (secciones.join(" ") !== espera.join(" "))
   fallas.push(`el menú de Inventario dice [${secciones.join(", ")}] y el proceso es ` +
-              `[${espera.join(", ")}] — maestro, contar, la base, tablero; y después averías`);
+              `[${espera.join(", ")}] — maestro, recepción, contar, la base, tablero; y después averías`);
 
 const pes = [...tsx.matchAll(/\["materiales", "ubicaciones", "bodegas"\]/g)];
 if (pes.length === 0)

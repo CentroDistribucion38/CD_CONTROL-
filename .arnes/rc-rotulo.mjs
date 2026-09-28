@@ -67,6 +67,9 @@ const prod = { ...comun, tipo: "producto" as const,
   sku: "16210", nombre: "Pony Malta Lta 330Cc X6 Nuevo",
   cantidad: 40, unidad: "cajas" as const, arrume: 480,
   producido: "2026-09-23", vence, limite: limiteDespacho(vence, 30),
+  /* EL PATRÓN DE ESTIBA DEL MAESTRO: 3 × 3 × 5 = 45 cajas. Va aparte del
+     ancho/alto/largo del arrume, que son estibas y no cajas. */
+  patron: { largo: 3, ancho: 3, nivel: 5 }, unidadesEstiba: 1350,
   linea: "42", hora: "06:40" };
 const rotulos = [
   { ...prod, folio: "16210-20260923-L42-001", numero: 1, total: 12 },
@@ -75,7 +78,10 @@ const rotulos = [
      tiene que gritarlo, no dejar la banda en blanco. */
   { ...prod, folio: "16210-20260923-L42-003", numero: 3, total: 12,
     vence: calcularVence("2026-09-23", null), limite: null, linea: null, hora: null,
-    ancho: null, alto: null, largo: null },
+    ancho: null, alto: null, largo: null,
+    /* Y TAMPOCO TRAE PATRÓN: la tarjeta tiene que decir que falta, no
+       dejar la banda en blanco ni imprimir «1 × 1 × 1». */
+    patron: null, unidadesEstiba: null },
   { ...comun, folio: "3500162-20260923-001", tipo: "envase" as const,
     sku: "3500162", nombre: "Envase Marron 330R", cantidad: 900,
     unidad: "unidades" as const, arrume: 900, numero: 1, total: 1,
@@ -205,8 +211,19 @@ for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
      "no salen las cajas de ESTA estiba");
   ok(/TOTAL DEL ARRUME/.test(h) && /480/.test(h),
      "no sale el total del arrume: sin él no se sabe si el arrume está completo");
-  ok(/DIMENSIONES/.test(h) && /ANCHO/.test(h) && /LARGO/.test(h),
-     "no salen las dimensiones del arrume");
+  /* LOS DOS BLOQUES DE TRES NÚMEROS, Y CADA UNO CON SU NOMBRE. Es el
+     riesgo entero de esta tarjeta: «ARRUME · ESTIBAS» dice cuántas
+     estibas llegaron y «PATRÓN DE ESTIBA» cómo se arma cada una. Un
+     rótulo que dijera solo «DIMENSIONES» en los dos manda a un
+     montacarguista a armar una estiba con el número del arrume. */
+  ok(/ARRUME · ESTIBAS/.test(h) && /ANCHO/.test(h) && /LARGO/.test(h),
+     "no salen las dimensiones del arrume, o el rótulo no dice que van en estibas");
+  ok(/PATRÓN DE ESTIBA/.test(h) && /CAJAS SOBRE UNA ESTIBA/.test(h),
+     "no sale el patrón de estiba del maestro, que es con lo que se ARMA");
+  ok(/NIVELES/.test(h), "el patrón no nombra los niveles: «3 × 3 × 5» sin rótulos no dice qué es cada número");
+  ok(/= 45 cajas/.test(h) && /POR ESTIBA COMPLETA/.test(h),
+     "el patrón no da el resultado en cajas: los tres números son el cómo, esta es la cifra que se usa");
+  ok(/1\.350 UNIDADES/.test(h), "no salen las unidades por estiba del maestro");
   ok(h.includes("A03-M12-IZQ"), "no sale la ubicación: es lo que contesta «¿dónde la pongo?»");
   ok(h.includes("16210-20260923-L42-001"), "no sale el folio, que es lo que identifica la estiba");
   ok(/RESPONSABLE DE LA MARCACI/.test(h) && /VERIFIC/.test(h), "faltan las dos firmas");
@@ -221,6 +238,24 @@ for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
   ok(!/RESPONSABLE|VERIFIC/.test(renglon),
      `el folio se monta sobre la línea de las firmas: «${renglon.trim()}»`);
   ok(/Toda la estiba est/.test(h), "falta la explicación del código");
+}
+
+/* =====================================================================
+   1b · SIN PATRÓN EN EL MAESTRO, LA TARJETA LO DICE
+   ---------------------------------------------------------------------
+   Es la hoja 3, la del material al que le falta todo. Una banda en
+   blanco se lee como papel mal impreso y no manda a nadie a arreglar el
+   maestro; un renglón que lo dice, sí.
+   ===================================================================== */
+{
+  const sin = hojas[2];
+  ok(/PATRÓN DE ESTIBA/.test(sin),
+     "sin patrón la banda desaparece: quien recibe no se entera de que falta un dato del maestro");
+  ok(/El maestro no trae el patrón de este material: hay que completarlo en Inventario > Maestro\./.test(sin),
+     `sin patrón la tarjeta no dice qué falta, o lo dice con letras que la fuente del PDF no tiene ` +
+     `—la flecha «→» sale impresa como «!’» y nadie se entera hasta ver el papel:\n${sin.slice(0, 600)}`);
+  ok(!/= 1 cajas/.test(sin) && !/1 × 1 × 1/.test(sin),
+     "sin patrón se imprimió un «1 × 1 × 1» inventado, que es un dato falso con cara de dato");
 }
 
 /* =====================================================================
@@ -332,7 +367,12 @@ for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
   ok(leidos[0].startsWith("https://cd38.example/a/"),
      `el QR no arranca con la dirección que abre la estiba: «${leidos[0].slice(0, 60)}»`);
   for (const t of ["PROD:", "COD: 16210", "ESTIBA: 1 de 12", "ARRUME: 480",
-                   "VENCE: 23/09/2027", "LIM DESPACHO: 24/08/2027", "LINEA: 42"]) {
+                   "VENCE: 23/09/2027", "LIM DESPACHO: 24/08/2027", "LINEA: 42",
+                   /* EL PATRÓN TAMBIÉN VA EN EL CÓDIGO. Sin señal el papel
+                      tiene que poder leerse entero, y cómo se arma la
+                      estiba es de lo poco que hace falta ahí mismo. */
+                   "PATRON ESTIBA: 3x3x5 = 45 cajas", "UNID POR ESTIBA: 1.350",
+                   "ARRUME ARMADO: 1x1x1 estibas"]) {
     ok(leidos[0].includes(t),
      `al QR le falta «${t}»: sin señal el papel tiene que poder leerse entero`);
   }

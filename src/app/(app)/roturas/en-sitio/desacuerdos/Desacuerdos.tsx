@@ -72,7 +72,12 @@ export function Desacuerdos({ roturas, nombres, puedeResolver, cifras }: {
      necesita, y una rotura vieja objetada ayer no espera hace un mes. */
   const lista = [...roturas].sort(
     (a, b) => Date.parse(a.ol_en ?? a.reportada_en) - Date.parse(b.ol_en ?? b.reportada_en));
+  /* LO QUE ESTÁ EN JUEGO SON LAS DOS COSAS. Contando solo las rotas, un
+     día de 200 rotas y 100 contaminadas decía «200 und en juego» y las
+     cien contaminadas no aparecían en ninguna parte — aunque estuvieran
+     guardadas en el mismo renglón. */
   const enJuego = lista.reduce((s, r) => s + r.unidades, 0);
+  const enJuegoCont = lista.reduce((s, r) => s + (r.contaminadas ?? 0), 0);
 
   function cerrar() { setResolviendo(null); setNota("") }
 
@@ -114,7 +119,7 @@ export function Desacuerdos({ roturas, nombres, puedeResolver, cifras }: {
           </div>
           <div className="vb-der">
             <span className="vb-nota">
-              la que lleva más esperando, arriba · <b>{enJuego} und</b> en juego
+              la que lleva más esperando, arriba · <b>{enJuego} rotas</b>{enJuegoCont > 0 && <> y <b>{enJuegoCont} contaminadas</b></>} en juego
             </span>
           </div>
         </div>
@@ -145,9 +150,17 @@ export function Desacuerdos({ roturas, nombres, puedeResolver, cifras }: {
                   </div>
                 </div>
 
+                {/* ROTAS ARRIBA Y CONTAMINADAS DEBAJO, no una sola
+                    cifra: no cuestan lo mismo. La rota pierde el
+                    líquido y el envase; la contaminada solo el líquido,
+                    porque la botella queda entera y vuelve. Quien firma
+                    esto tiene que ver sobre qué está firmando. */}
                 <div className="vb-und">
                   <b>{r.unidades}</b>
-                  <span>UNIDADES</span>
+                  <span>{r.unidades === 1 ? "ROTA" : "ROTAS"}</span>
+                  {!!r.contaminadas && (
+                    <span className="vb-cont">+{r.contaminadas} contaminada{r.contaminadas === 1 ? "" : "s"}</span>
+                  )}
                 </div>
 
                 <div className="vb-causa">

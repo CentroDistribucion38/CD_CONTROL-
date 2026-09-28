@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { BuscarEnLista } from "@/components/BuscarEnLista";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
-import { calcularVence, fechaCorta, limiteDespacho, rotulosPdf,
+import { fechaCorta, limiteDespacho, rotulosPdf, sumarDias,
          type Rotulo, type TipoRecibo } from "@/modulos/inventario/rotulo";
 
 /**
@@ -42,7 +42,12 @@ import { calcularVence, fechaCorta, limiteDespacho, rotulosPdf,
 const VACIO = {
   material: "", estibas: "1", cantidad: "", unidad: "cajas" as "cajas" | "unidades",
   calle: "", modulo: "", lado: "", ubicacion_id: "",
-  producido: "", placa: "", origen: "", color: "",
+  /* SE TECLEA EL VENCIMIENTO, NO LA PRODUCCIÓN. Es lo que está impreso
+     en la caja y lo que quien recibe tiene delante; la producción se
+     saca restándole la vida útil del maestro. Antes era al revés y
+     obligaba a hacer la cuenta de cabeza para teclear una fecha que la
+     caja no trae. */
+  vence: "", placa: "", origen: "", color: "",
   /* CÓMO ESTÁ ARMADO EL ARRUME: cuántas estibas de ancho, de alto y de
      largo. No se puede deducir del número de estibas —doce estibas
      pueden ir 12×1×1, 3×2×2 o 4×1×3— y en el papel sirve para saber si
@@ -116,12 +121,17 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
   const estibas = Math.max(1, Math.min(60, Number(f.estibas) || 0));
   const cantidad = Number(String(f.cantidad).replace(/\./g, "").replace(",", ".")) || 0;
 
-  /* CUÁNDO VENCE, del maestro y no a ojo. Si al material le falta la
-     vida útil, o no se puso la fecha de producción, se queda en null y
-     el rótulo lo dice: calcularlo a la brava e imprimirlo sería poner
-     en la estiba una fecha que nadie va a volver a cuestionar. */
-  const vence = tipo === "producto"
-    ? calcularVence(f.producido || null, mat?.vida_util ?? null) : null;
+  /* CUÁNDO VENCE: lo que está tecleado, que es lo que dice la caja.
+     Ya no se calcula —y esa es la diferencia— porque calcularlo obligaba
+     a teclear la producción, que en el muelle no siempre se sabe. */
+  const vence = tipo === "producto" ? (f.vence || null) : null;
+  /* CUÁNDO SE PRODUJO: el vencimiento menos la vida útil del maestro.
+     Se calcula HACIA ATRÁS y no se teclea. Si al material le falta la
+     vida útil se queda en null y el rótulo lo dice con un «—»: poner
+     una fecha de producción a ojo en el papel de la estiba sería
+     inventar trazabilidad, que es peor que no tenerla. */
+  const producido = tipo === "producto" && mat?.vida_util
+    ? sumarDias(vence, -mat.vida_util) : null;
   /* HASTA CUÁNDO SE PUEDE DESPACHAR: el vencimiento menos los días que
      el maestro exige que le queden al salir. Sale del maestro y no se
      teclea — es una resta, y una resta tecleada es una resta que algún
@@ -129,6 +139,19 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
   const limite = tipo === "producto" ? limiteDespacho(vence, mat?.dias_minimo ?? null) : null;
   /* TODO EL ARRUME: lo de una estiba por cuántas estibas son. */
   const arrume = cantidad * estibas;
+
+  /* EL PATRÓN DE ESTIBA, TAL COMO LO TRAE EL MAESTRO. Los tres números
+     van juntos o no van: dos de tres no dicen cómo se arma nada, y
+     completar el que falta sería inventarlo. */
+  const patron = mat?.pat_largo && mat?.pat_ancho && mat?.pat_nivel
+    ? { largo: mat.pat_largo, ancho: mat.pat_ancho, nivel: mat.pat_nivel } : null;
+  const cajasPatron = patron ? patron.largo * patron.ancho * patron.nivel : null;
+  /* CUANDO EL PATRÓN Y EL FACTOR DE ESTIBA NO SE PONEN DE ACUERDO hay
+     que decirlo AQUÍ, no en el papel: son dos datos del mismo maestro
+     que dicen cuántas cajas lleva una estiba, y si pelean, uno de los
+     dos está mal y la tarjeta se imprimiría con los dos encima. */
+  const pelean = cajasPatron != null && mat?.cajas_por_estiba != null
+    && cajasPatron !== mat.cajas_por_estiba;
 
   /* LO QUE FALTA PARA PODER IMPRIMIR, dicho por su nombre. Un botón
      apagado sin explicación se lee como que la pantalla está rota. */
@@ -143,7 +166,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
     try {
       const num = (v: string) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null };
       const rotulos: Rotulo[] = Array.from({ length: estibas }, (_, i) => ({
-        folio: folioProvisional(mat.sku, f.producido, f.linea, i),
+        folio: folioProvisional(mat.sku, producido ?? "", f.linea, i),
         tipo,
         sku: mat.sku,
         nombre: mat.nombre,
@@ -151,10 +174,12 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
         unidad: f.unidad,
         arrume,
         ancho: num(f.ancho), alto: num(f.alto), largo: num(f.largo),
+        patron,
+        unidadesEstiba: mat.unidades_por_estiba ?? null,
         ubicacion: ubi?.clave ?? null,
         numero: i + 1,
         total: estibas,
-        producido: tipo === "producto" ? (f.producido || null) : null,
+        producido: tipo === "producto" ? producido : null,
         vence: tipo === "producto" ? vence : null,
         limite: tipo === "producto" ? limite : null,
         linea: tipo === "producto" ? (f.linea.trim() || null) : null,
@@ -267,18 +292,21 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
 
           {tipo === "producto" ? (
             <>
+              {/* LA ÚNICA FECHA QUE SE TECLEA. Es la que está impresa en
+                  la caja y la que quien recibe tiene delante; todo lo
+                  demás de la tarjeta lo trae el maestro con el código.
+                  La producción y el límite de despacho salen de restar,
+                  y una resta tecleada es una resta que algún día va a
+                  estar mal. */}
               <label className="rc-c">
-                <span>Producido el</span>
-                <input type="date" value={f.producido}
-                       onChange={(e) => setF({ ...f, producido: e.target.value })} />
-                {/* EL VENCIMIENTO SE CALCULA Y SE ENSEÑA ANTES DE
-                    IMPRIMIR: es el dato que manda en el FEFO, y verlo
-                    aquí es la única oportunidad de notar que la fecha de
-                    producción se tecleó mal. */}
+                <span>Vence el</span>
+                <input type="date" value={f.vence}
+                       onChange={(e) => setF({ ...f, vence: e.target.value })} />
                 <em>
-                  {!f.producido ? "Sin esto el rótulo sale sin vencimiento."
-                    : vence ? `Vence el ${fechaCorta(vence)} · ${mat?.vida_util} días de vida útil.`
-                    : "A este material le falta la vida útil en el maestro: el rótulo va a salir sin vencimiento."}
+                  {!f.vence ? "Es lo único que hay que teclear: lo demás lo trae el código."
+                    : producido
+                      ? `Producido el ${fechaCorta(producido)} · ${mat?.vida_util} días de vida útil.`
+                      : "A este material le falta la vida útil en el maestro: la tarjeta va a salir sin fecha de producción."}
                 </em>
               </label>
               {/* LA LÍNEA Y LA HORA, que es lo que la tarjeta pide en
@@ -290,7 +318,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
                 <input value={f.linea} maxLength={6} inputMode="numeric" placeholder="42"
                        onChange={(e) => setF({ ...f, linea: e.target.value })} />
                 <em>Entra en el folio: {mat?.sku ?? "código"}-
-                  {(f.producido || "aaaammdd").replace(/-/g, "")}
+                  {(producido ?? "aaaammdd").replace(/-/g, "")}
                   {f.linea.trim() ? `-L${f.linea.trim()}` : ""}-001</em>
               </label>
               <label className="rc-c">
@@ -322,11 +350,60 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
                    onChange={(e) => setF({ ...f, placa: e.target.value.toUpperCase() })} />
           </label>
 
+          {/* ============ EL PATRÓN DE ESTIBA, DEL MAESTRO ============
+              NO SE TECLEA: llega con el código y se enseña para poder
+              mirarlo contra la estiba que está ahí delante. Va ANTES de
+              «cómo va armado el arrume» a propósito —primero cómo se
+              arma UNA estiba, después cómo llegaron TODAS— que es el
+              orden en que se mira una carga. */}
+          {tipo === "producto" && (
+            <>
+              <h2>Cómo va armada cada estiba <i className="rc-opt">lo trae el maestro</i></h2>
+              <div className="rc-patron">
+                {patron ? (
+                  <>
+                    <div className="rc-pat-nums">
+                      {([["Largo", patron.largo], ["Ancho", patron.ancho], ["Niveles", patron.nivel]] as const)
+                        .map(([k, v], j) => (
+                          <span className="rc-pat-n" key={k}>
+                            <em>{k}</em><b>{v}</b>
+                            {j < 2 && <i aria-hidden>×</i>}
+                          </span>
+                        ))}
+                    </div>
+                    <div className="rc-pat-res">
+                      <b>{cajasPatron!.toLocaleString("es-CO")} cajas</b>
+                      <em>por estiba completa
+                        {mat?.unidades_por_estiba
+                          ? ` · ${mat.unidades_por_estiba.toLocaleString("es-CO")} unidades` : ""}</em>
+                    </div>
+                  </>
+                ) : (
+                  <p className="rc-pat-falta">
+                    {mat
+                      ? "El maestro no trae el patrón de este material. La tarjeta lo va a decir; para arreglarlo, Inventario → Maestro."
+                      : "Escribe el código y aquí sale cómo se arma la estiba."}
+                  </p>
+                )}
+              </div>
+              {/* DOS DATOS DEL MISMO MAESTRO QUE DICEN LO MISMO Y NO
+                  COINCIDEN: uno de los dos está mal, y hay que verlo
+                  antes de pegar el papel, no después. */}
+              {pelean && (
+                <p className="rc-falta">
+                  El patrón da {cajasPatron!.toLocaleString("es-CO")} cajas por estiba y el maestro
+                  dice {mat!.cajas_por_estiba!.toLocaleString("es-CO")}. Uno de los dos está mal:
+                  revísalo en Inventario → Maestro antes de imprimir.
+                </p>
+              )}
+            </>
+          )}
+
           {/* CÓMO ESTÁ ARMADO EL ARRUME. Doce estibas pueden ir 12×1×1,
-              3×2×2 o 4×1×3: el número de estibas no lo dice. En el papel
-              sirve para saber si el arrume está completo sin
-              desarmarlo. */}
-          <h2>Cómo va armado el arrume</h2>
+              3×2×2 o 4×1×3: el número de estibas no lo dice. Esto es
+              CUÁNTAS ESTIBAS, no cuántas cajas: es lo que cambia en cada
+              camión, y por eso es lo único de aquí que se teclea. */}
+          <h2>Cómo llegó armado el arrume <i className="rc-opt">en estibas</i></h2>
           <div className="rc-dim">
             {([["ancho", "Ancho"], ["alto", "Alto"], ["largo", "Largo"]] as const).map(([k, t]) => (
               <label className="rc-c" key={k}>

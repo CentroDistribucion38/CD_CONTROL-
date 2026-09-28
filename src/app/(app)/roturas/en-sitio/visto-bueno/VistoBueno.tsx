@@ -104,7 +104,12 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
      nunca porque cada mañana entra algo encima. */
   const lista = [...roturas].sort(
     (a, b) => Date.parse(a.reportada_en) - Date.parse(b.reportada_en));
+  /* LO QUE ESTÁ EN JUEGO SON LAS DOS COSAS. Contando solo las rotas, un
+     día de 200 rotas y 100 contaminadas decía «200 und en juego» y las
+     cien contaminadas no aparecían en ninguna parte — aunque estuvieran
+     guardadas en el mismo renglón. */
   const enJuego = lista.reduce((s, r) => s + r.unidades, 0);
+  const enJuegoCont = lista.reduce((s, r) => s + (r.contaminadas ?? 0), 0);
 
   function cerrar() {
     setObjetando(null); setMotivo(""); setDetalle("");
@@ -139,9 +144,10 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
       return;
     }
     const unidades = puedo.reduce((s, r) => s + r.unidades, 0);
+    const cont = puedo.reduce((s, r) => s + (r.contaminadas ?? 0), 0);
     if (!(await pedir({
       titulo: `¿Aceptar ${puedo.length === lista.length ? `las ${puedo.length}` : puedo.length}?`,
-      dice: `Son ${unidades} unidades que pasan a cobro de una vez. No le llegan a ABI: ` +
+      dice: `Son ${unidades} rotas${cont ? ` y ${cont} contaminadas` : ""} que pasan a cobro de una vez. No le llegan a ABI: ` +
             "quedan en la data del mes. Desde aquí no se deshace." +
             (fuera ? ` ${fuera} se queda${fuera === 1 ? "" : "n"} fuera: le${fuera === 1 ? "" : "s"} ` +
                      "falta la foto que exige su causa." : ""),
@@ -235,7 +241,7 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
           </div>
           <div className="vb-der">
             <span className="vb-nota">
-              la más vieja arriba · <b>{enJuego} und</b> en juego
+              la más vieja arriba · <b>{enJuego} rotas</b>{enJuegoCont > 0 && <> y <b>{enJuegoCont} contaminadas</b></>} en juego
             </span>
             {/* QUÉ PASA CON CADA BOTÓN, ESCRITO. Es la mitad del pedido
                 —«si está de acuerdo va para cobro de una y NO LLEGA
@@ -281,9 +287,17 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
                   </div>
                 </div>
 
+                {/* ROTAS ARRIBA Y CONTAMINADAS DEBAJO, no una sola
+                    cifra: no cuestan lo mismo. La rota pierde el
+                    líquido y el envase; la contaminada solo el líquido,
+                    porque la botella queda entera y vuelve. Quien firma
+                    esto tiene que ver sobre qué está firmando. */}
                 <div className="vb-und">
                   <b>{r.unidades}</b>
-                  <span>UNIDADES</span>
+                  <span>{r.unidades === 1 ? "ROTA" : "ROTAS"}</span>
+                  {!!r.contaminadas && (
+                    <span className="vb-cont">+{r.contaminadas} contaminada{r.contaminadas === 1 ? "" : "s"}</span>
+                  )}
                 </div>
 
                 <div className="vb-causa">

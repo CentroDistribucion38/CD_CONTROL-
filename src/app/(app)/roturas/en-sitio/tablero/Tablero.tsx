@@ -227,15 +227,28 @@ export function Tablero({ roturas, nombres, manda }: {
           <table className="tb-tabla">
             <thead>
               <tr>
+                {/* ROTAS Y CONTAMINADAS, EN DOS COLUMNAS Y NO EN UNA.
+                    Una sola columna «Und.» enseñaba solo las rotas: se
+                    registraban 200 rotas y 100 contaminadas y el tablero
+                    decía 200. Las contaminadas SÍ estaban guardadas —en
+                    el mismo renglón— pero no se veían en ninguna parte,
+                    así que parecía que no se habían registrado.
+
+                    Y van SEPARADAS, no sumadas: no cuestan lo mismo. La
+                    rota pierde el líquido Y el envase; la contaminada
+                    pierde solo el líquido, porque la botella queda
+                    entera y vuelve. Sumarlas en una cifra sería perder
+                    justo el dato con el que se cobra. */}
                 <th>Código</th><th>Cuándo</th><th>Material</th>
-                <th className="tb-num">Und.</th>
+                <th className="tb-num">Rotas</th>
+                <th className="tb-num">Contam.</th>
                 <th>Causa</th><th>Proceso</th><th>Quién</th>
                 <th>Estado</th><th />
               </tr>
             </thead>
             <tbody>
               {vistas.length === 0 && (
-                <tr><td colSpan={9} className="tb-vacio">
+                <tr><td colSpan={10} className="tb-vacio">
                   {roturas.length === 0
                     ? "Todavía no hay roturas registradas."
                     : "Ninguna con ese filtro."}
@@ -272,6 +285,13 @@ export function Tablero({ roturas, nombres, manda }: {
                     </td>
                     <td>{r.material_nombre}</td>
                     <td className="tb-num">{r.unidades}</td>
+                    {/* EN EER NO HAY CONTAMINADAS: es envase vacío, no
+                        hay líquido que se pueda contaminar. Un cero ahí
+                        diría «se contaminaron cero» —un dato— y lo que
+                        pasa es que la pregunta no aplica. */}
+                    <td className={"tb-num" + (r.contaminadas ? " tb-cont" : "")}>
+                      {r.tipo === "eer" ? <span className="tb-na">—</span> : (r.contaminadas ?? 0)}
+                    </td>
                     <td className={r.grupo === "no_asumida" ? "tb-no" : ""}>{r.causa_nombre}</td>
                     <td>{r.proceso_nombre}</td>
                     <td>{nombres[r.reportada_por ?? ""] ?? "—"}</td>
@@ -294,13 +314,26 @@ export function Tablero({ roturas, nombres, manda }: {
               })}
               {abierta && vistas.some((r) => r.id === abierta) && (
                 <tr className="tb-detalle">
-                  <td colSpan={9}>
+                  <td colSpan={10}>
                     {(() => {
                       const r = vistas.find((x) => x.id === abierta)!;
                       return (
                         <div className="tb-ficha">
                           <div className="tb-datos">
                             <div><b>Área</b> {r.area_nombre ?? "—"}</div>
+                            {/* LO QUE SE VA A COBRAR, DICHO AQUÍ. En
+                                producto terminado se cobran las dos
+                                cosas —el líquido que se perdió y el
+                                envase que se rompió— y en EER solo el
+                                envase, porque no hay líquido. Los dos
+                                números ya los calcula la base; aquí se
+                                enseñan para que quien decide vea sobre
+                                qué se va a cobrar sin sacar la cuenta. */}
+                            <div><b>Se pierde</b>{" "}
+                              {r.tipo === "eer"
+                                ? `${r.unidades_vidrio} de envase`
+                                : `${r.unidades_liquido} de líquido y ${r.unidades_vidrio} de envase`}
+                            </div>
                             <div><b>Fotos</b> {r.fotos}</div>
                             {r.ol_nota && <div><b>Dice el OL</b> «{r.ol_nota}»</div>}
                             {r.nota_decision && <div><b>Decisión</b> {r.nota_decision}</div>}

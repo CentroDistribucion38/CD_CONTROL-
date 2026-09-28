@@ -70,6 +70,15 @@
   --rt-tinta: var(--c-04203f);
   --rt-gris: var(--c-5b6b7f);
   --rt-gris2: color-mix(in srgb, var(--c-5b6b7f) 68%, #fff);
+  /* EL MISMO GRIS, PERO PARA LO QUE VA SOBRE UN PANEL Y NO SOBRE PAPEL
+     BLANCO. --rt-gris está calibrado contra el blanco de las tarjetas;
+     sobre --c-eef1f5 —que es más oscuro— cae a 4,4 en el tema ámbar,
+     por debajo de la norma. Lo cazó el arnés del tablero midiendo la
+     cabecera de la tabla, que es gris sobre ese panel. Se oscurece
+     mezclando hacia la tinta del tema, para que las siete apariencias
+     sigan funcionando sin una regla por tema. Es exactamente lo que ya
+     se hizo en FEFO con --fe-gris-panel. */
+  --rt-gris-panel: color-mix(in srgb, var(--c-5b6b7f) 72%, var(--c-04203f));
   --rt-linea: var(--c-d5dce5);
   --rt-papel: #FFF;
 
@@ -1733,7 +1742,7 @@
 .rt .tb-tabla th {
   position: sticky; top: 0; z-index: 1; background: var(--c-eef1f5); text-align: left;
   font: 700 10.5px/1 var(--rt-texto); letter-spacing: .1em; text-transform: uppercase;
-  color: var(--rt-gris); padding: 11px 12px; border-bottom: 1px solid var(--rt-linea);
+  color: var(--rt-gris-panel); padding: 11px 12px; border-bottom: 1px solid var(--rt-linea);
   white-space: nowrap;
 }
 .rt .tb-tabla td {
@@ -1882,7 +1891,16 @@
   font-variant-numeric: tabular-nums;
 }
 .rt .vb-und span {
+  display: block;
   font: 700 9.5px var(--rt-texto); letter-spacing: .14em; color: var(--rt-gris);
+}
+/* LAS CONTAMINADAS, DEBAJO Y SIN VERSALITAS. El rótulo «ROTAS» es una
+   etiqueta; esto es un dato, y en la misma letra espaciada se leería
+   como otro rótulo. Solo sale cuando las hay: un «+0 contaminadas» en
+   cada tarjeta es ruido en la bandeja que más se mira. */
+.rt .vb-und .vb-cont {
+  margin-top: 3px; letter-spacing: 0; text-transform: none;
+  font: 600 11.5px var(--rt-texto); color: var(--rt-tinta);
 }
 .rt .vb-causa > div:first-child { font-size: 13.5px; color: var(--rt-tinta) }
 /* La que dice que NO fue del OL, en rojo: es plata que alguien va a
@@ -2460,3 +2478,15 @@
 .rt .cabeza.lista { align-items: center }
 .rt .cabeza .sub.corta { max-width: 68ch }
 @media (max-width: 900px) { .rt .cabeza.lista { grid-template-columns: minmax(0, 1fr) } }
+
+/* ---------------------------------------------------------------------
+   LAS CONTAMINADAS EN EL TABLERO
+   ---------------------------------------------------------------------
+   Van en su propia columna y no sumadas a las rotas: no cuestan lo
+   mismo. La rota pierde el líquido Y el envase; la contaminada pierde
+   solo el líquido, porque la botella queda entera y vuelve a la línea.
+   Cuando hay contaminadas se marcan —son la excepción, no la norma— y
+   en EER la columna dice «—», porque no hay líquido que contaminar.
+   ------------------------------------------------------------------ */
+.tb-tabla td.tb-cont { font-weight: 700 }
+.tb-tabla .tb-na { color: var(--c-5b6b7f); font-weight: 400 }

@@ -58,10 +58,25 @@ export type Rotulo = {
   /** Cuál de cuántas: «3 / 12». Sin esto, doce papeles iguales. */
   numero: number;
   total: number;
-  /** Cómo está armado el arrume: ancho × alto × largo, en estibas. */
+  /** Cómo está armado el arrume: ancho × alto × largo, en ESTIBAS. Lo
+   *  teclea quien recibe, porque cambia en cada camión. */
   ancho: number | null;
   alto: number | null;
   largo: number | null;
+  /**
+   * EL PATRÓN DE ESTIBA, DEL MAESTRO: cómo van las CAJAS sobre UNA
+   * estiba. Largo × ancho × nivel, y su producto son las cajas por
+   * estiba: 3 × 3 × 5 = 45.
+   *
+   * VA APARTE DE `ancho/alto/largo` Y CON OTRO NOMBRE porque son dos
+   * cosas distintas que se parecen mucho, y el papel lo lee alguien con
+   * guante frente a una estiba: uno dice cómo se ARMA la estiba (siempre
+   * igual, del material) y el otro cómo llegó el ARRUME (distinto cada
+   * vez). Un montacarguista que arme con el número equivocado arma mal.
+   */
+  patron?: { largo: number; ancho: number; nivel: number } | null;
+  /** Unidades que van en una estiba completa, del maestro. */
+  unidadesEstiba?: number | null;
   ubicacion: string | null;
   /* ---- solo producto ---- */
   producido?: string | null;
@@ -146,7 +161,12 @@ export function textoQr(r: Rotulo, base: string | null): string {
   L.push(`ESTIBA: ${r.numero} de ${r.total}`);
   L.push(`${r.unidad.toUpperCase()} ESTIBA: ${r.cantidad}`);
   L.push(`ARRUME: ${nf.format(r.arrume)}`);
-  if (r.ancho && r.alto && r.largo) L.push(`ARMADO: ${r.ancho}x${r.alto}x${r.largo}`);
+  if (r.ancho && r.alto && r.largo) L.push(`ARRUME ARMADO: ${r.ancho}x${r.alto}x${r.largo} estibas`);
+  if (r.patron) {
+    const c = r.patron.largo * r.patron.ancho * r.patron.nivel;
+    L.push(`PATRON ESTIBA: ${r.patron.largo}x${r.patron.ancho}x${r.patron.nivel} = ${c} cajas`);
+  }
+  if (r.unidadesEstiba) L.push(`UNID POR ESTIBA: ${nf.format(r.unidadesEstiba)}`);
   if (r.ubicacion) L.push(`UBICACION: ${r.ubicacion}`);
   if (r.tipo === "producto") {
     if (r.producido) L.push(`PRODUCCION: ${fechaCorta(r.producido)}`);
@@ -303,7 +323,13 @@ export async function rotulosPdf(
     pdf.text(nf.format(r.arrume), M + c3 + 3 + c3 / 2, y + 14, { align: "center" });
 
     const xd = M + (c3 + 3) * 2;
-    caja(xd, y, c3b, 17); rotulo(xd, y, c3b, "DIMENSIONES", true);
+    /* «ARRUME · ESTIBAS» Y NO «DIMENSIONES». El rótulo viejo no decía de
+       qué eran las dimensiones, y desde que la tarjeta lleva TAMBIÉN el
+       patrón de estiba del maestro —que son otros tres números muy
+       parecidos— un rótulo que no distingue es un rótulo que confunde.
+       Aquí: cuántas estibas tiene el arrume. Abajo: cómo se arma cada
+       estiba. */
+    caja(xd, y, c3b, 17); rotulo(xd, y, c3b, "ARRUME · ESTIBAS", true);
     ([["ANCHO", r.ancho], ["ALTO", r.alto], ["LARGO", r.largo]] as const)
       .forEach(([k, v], j) => {
         const cx = xd + (c3b / 3) * (j + 0.5);
@@ -316,6 +342,67 @@ export async function rotulosPdf(
         pdf.text(v != null ? String(v) : "—", cx, y + 15.4, { align: "center" });
       });
     y += 20;
+
+    /* ============ EL PATRÓN DE ESTIBA ============
+       CÓMO VAN LAS CAJAS SOBRE UNA ESTIBA, del maestro. Va en su propia
+       banda y con su rótulo completo porque es el dato que se lee para
+       ARMAR, y armar mal una estiba de 45 cajas creyendo que son 75 es
+       una estiba que se cae en el pasillo.
+
+       SE IMPRIME AUNQUE FALTE. Sin patrón la banda sale diciendo que el
+       maestro no lo trae: así quien recibe sabe que hay algo que
+       corregir en el maestro, en vez de creer que ese material no lleva
+       patrón. Un renglón ausente no se puede distinguir de un olvido. */
+    {
+      const alP = 19;
+      rotulo(M, y, AN, "PATRÓN DE ESTIBA · CÓMO VAN LAS CAJAS SOBRE UNA ESTIBA (DEL MAESTRO)");
+      pdf.setFillColor(...PANEL); pdf.rect(M, y + 5.6, AN, alP - 5.6, "F");
+      pdf.setDrawColor(...TINTA); pdf.setLineWidth(0.6);
+      pdf.rect(M, y, AN, alP, "S");
+      const p = r.patron ?? null;
+      if (p) {
+        const cajas = p.largo * p.ancho * p.nivel;
+        /* Los tres números con su «×» entre medias: se lee «tres por
+           tres por cinco» de corrido, que es como se dicta por radio. */
+        const trio: Array<[string, number]> = [["LARGO", p.largo], ["ANCHO", p.ancho], ["NIVELES", p.nivel]];
+        const anC = 26, x0 = M + 4;
+        trio.forEach(([k, v], j) => {
+          const x = x0 + j * (anC + 9);
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(6); pdf.setTextColor(...GRIS);
+          pdf.text(k, x + anC / 2, y + 10, { align: "center" });
+          pdf.setFontSize(15); pdf.setTextColor(...TINTA);
+          pdf.text(String(v), x + anC / 2, y + 16.6, { align: "center" });
+          if (j < 2) {
+            pdf.setFontSize(12); pdf.setTextColor(...GRIS);
+            pdf.text("×", x + anC + 4.5, y + 16, { align: "center" });
+          }
+        });
+        /* EL RESULTADO, EN ÁMBAR: es la cifra que se usa. Los tres
+           números son el cómo; éste es el cuánto. */
+        const anR = 54, xr = W - M - anR - 3;
+        pdf.setFillColor(...AMBAR); pdf.rect(xr, y + 7.4, anR, alP - 9.4, "F");
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.setTextColor(...TINTA);
+        pdf.text(`= ${nf.format(cajas)} cajas`, xr + anR / 2, y + 14.4, { align: "center" });
+        /* LAS UNIDADES VAN DENTRO DEL RECUADRO Y NO SUELTAS AL LADO.
+           Sueltas, entre el «5» de los niveles y el recuadro, se leían
+           como si fueran del 5; aquí se leen como lo que son: la misma
+           estiba completa, contada en unidades. */
+        pdf.setFontSize(6.5);
+        pdf.text(r.unidadesEstiba
+          ? `POR ESTIBA COMPLETA · ${nf.format(r.unidadesEstiba)} UNIDADES`
+          : "POR ESTIBA COMPLETA", xr + anR / 2, y + 18, { align: "center" });
+      } else {
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(9); pdf.setTextColor(...MAL);
+        /* SIN LA FLECHA «→». La fuente estándar del PDF no la tiene y
+           jsPDF no avisa: la imprime como «!’» y el papel sale diciendo
+           «Inventario !’ Maestro». Lo mismo pasó con el «·» dentro del
+           QR. En este archivo, todo lo que se escriba tiene que caber en
+           WinAnsi; el arnés comprueba este renglón letra por letra. */
+        pdf.text("El maestro no trae el patrón de este material: hay que completarlo en Inventario > Maestro.",
+                 M + 4, y + 13.5);
+      }
+      y += alP + 3;
+    }
 
     if (esProd) {
       /* --- La banda del vencimiento: día, mes y año en tres casillas --- */
@@ -452,7 +539,7 @@ export async function rotulosPdf(
     yz += 5.5;
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(...GRIS);
     pdf.text(esProd
-      ? "Producto, cajas, arrume, las cuatro fechas, línea y hora."
+      ? "Producto, cajas, arrume, patrón de estiba, las cuatro fechas, línea y hora."
       : "Envase, unidades, arrume, color y de dónde vino.", W / 2, yz, { align: "center" });
     yz += 4.2;
     pdf.text("Con señal abre la estiba en CONTROL; sin señal se lee igual como texto.",

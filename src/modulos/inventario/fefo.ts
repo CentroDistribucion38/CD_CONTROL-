@@ -29,6 +29,18 @@ export type Material = {
   /** Sale de entrada en el desplegable de Quiebra en sitio. */
   en_sitio: boolean;
   activo: boolean;
+  /* ---- EL PATRÓN DE ESTIBA ----
+     CÓMO VAN LAS CAJAS SOBRE UNA ESTIBA: tres de largo, tres de ancho,
+     cinco niveles de alto. Su producto es el factor de estiba —3×3×5 =
+     45— y viene del maestro de Bavaria, columna FACTOR ESTIBA.
+
+     NO CONFUNDIR con el ancho/alto/largo que teclea quien recibe: eso
+     dice cuántas ESTIBAS tiene el arrume que acaba de llegar (doce
+     estibas pueden ir 12×1×1 o 3×2×2) y cambia en cada camión. Esto es
+     del MATERIAL y no cambia nunca. Se llaman distinto a propósito. */
+  pat_largo: number | null;
+  pat_ancho: number | null;
+  pat_nivel: number | null;
 };
 
 export type Ubicacion = {
@@ -147,7 +159,7 @@ export async function maestroInventario() {
        que quepa en la línea rompe el tipado y el build revienta con un
        error que no dice eso. */
     supabase.from("productos").select(
-      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,en_sitio,activo"
+      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,en_sitio,activo,pat_largo,pat_ancho,pat_nivel"
     ).order("sku").limit(5000),
     supabase.from("ubicaciones").select(
       "id,bodega_id,clave,calle,modulo,lado,familia,capacidad,activa"

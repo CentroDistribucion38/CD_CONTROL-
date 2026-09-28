@@ -25,7 +25,13 @@ export default async function TableroEnSitioPage() {
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
   const vivas = datos.roturas.filter((r) => r.estado !== "anulada");
-  const und = vivas.reduce((s, r) => s + r.unidades, 0);
+  /* LAS DOS CIFRAS, NO UNA. El pie decía «341 unidades» contando solo
+     las rotas, así que las contaminadas —que están guardadas en el mismo
+     renglón— no aparecían por ninguna parte y parecía que no se habían
+     registrado. Se dicen separadas porque no cuestan lo mismo: la rota
+     pierde el líquido y el envase, la contaminada solo el líquido. */
+  const rotas = vivas.reduce((s, r) => s + r.unidades, 0);
+  const contam = vivas.reduce((s, r) => s + (r.contaminadas ?? 0), 0);
 
   return (
     <div className="rt">
@@ -45,7 +51,8 @@ export default async function TableroEnSitioPage() {
           <div className="rot">REGISTRADAS</div>
           <div className="num">{vivas.length}</div>
           <div className="pie">
-            <b>{und}</b> unidades
+            <b>{rotas}</b> rotas
+            {contam > 0 && <> · <b>{contam}</b> contaminadas</>}
             {datos.roturas.length !== vivas.length
               && ` · ${datos.roturas.length - vivas.length} anuladas`}
           </div>
