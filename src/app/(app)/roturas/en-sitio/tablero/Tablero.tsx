@@ -321,18 +321,29 @@ export function Tablero({ roturas, nombres, manda }: {
                         <div className="tb-ficha">
                           <div className="tb-datos">
                             <div><b>Área</b> {r.area_nombre ?? "—"}</div>
-                            {/* LO QUE SE VA A COBRAR, DICHO AQUÍ. En
-                                producto terminado se cobran las dos
-                                cosas —el líquido que se perdió y el
-                                envase que se rompió— y en EER solo el
-                                envase, porque no hay líquido. Los dos
-                                números ya los calcula la base; aquí se
-                                enseñan para que quien decide vea sobre
-                                qué se va a cobrar sin sacar la cuenta. */}
-                            <div><b>Se pierde</b>{" "}
+                            {/* LO QUE SE PERDIÓ, EN LAS UNIDADES QUE LA
+                                BASE DE VERDAD TIENE. Aquí decía «se
+                                pierde X de líquido y Y de envase» y eso
+                                se quedó corto el día que se supo la
+                                regla de cobro: en una contaminada el
+                                envase TAMBIÉN se pierde —no se lava ni
+                                vuelve a la línea—, y ese envase no está
+                                contado en `unidades_vidrio`, que solo
+                                mira las rotas.
+
+                                Falta además el dato para cobrarlo: los
+                                precios van por BOTELLA y de las
+                                contaminadas solo se guardan los
+                                empaques, no las botellas de adentro.
+                                Mientras eso no exista, este renglón dice
+                                lo que se contó y no lo que se cobra:
+                                inventar el número sería peor que no
+                                darlo. */}
+                            <div><b>Se perdió</b>{" "}
                               {r.tipo === "eer"
-                                ? `${r.unidades_vidrio} de envase`
-                                : `${r.unidades_liquido} de líquido y ${r.unidades_vidrio} de envase`}
+                                ? `${r.unidades} de envase`
+                                : `${r.unidades} rotas (${r.unidades_vidrio} botellas)`
+                                  + (r.contaminadas ? ` y ${r.contaminadas} contaminadas` : "")}
                             </div>
                             <div><b>Fotos</b> {r.fotos}</div>
                             {r.ol_nota && <div><b>Dice el OL</b> «{r.ol_nota}»</div>}

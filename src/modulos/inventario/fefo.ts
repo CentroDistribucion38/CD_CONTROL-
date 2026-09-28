@@ -41,6 +41,17 @@ export type Material = {
   pat_largo: number | null;
   pat_ancho: number | null;
   pat_nivel: number | null;
+  /* ---- LO QUE CUESTA UNA BOTELLA ----
+     Del MM60. ES POR BOTELLA Y NO POR CAJA, y el nombre lo dice a
+     propósito: al lado de `unidades` —que en roturas son EMPAQUES— un
+     «precio_unidad» se multiplicaría por el número equivocado, y el
+     error sería de treinta veces.
+
+     `envase_sku` es a qué envase corresponde el producto: con eso se
+     arma el cobro de una contaminada, que paga el producto Y el envase.
+     Null en los no retornables y en los envases mismos. */
+  precio_botella: number | null;
+  envase_sku: string | null;
 };
 
 export type Ubicacion = {
@@ -159,7 +170,7 @@ export async function maestroInventario() {
        que quepa en la línea rompe el tipado y el build revienta con un
        error que no dice eso. */
     supabase.from("productos").select(
-      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,en_sitio,activo,pat_largo,pat_ancho,pat_nivel"
+      "id,sku,nombre,unidades_por_caja,cajas_por_estiba,unidades_por_estiba,contenido,familia,presentacion,vida_util,f_limite_desp,dias_minimo,origen,foraneo,tipo_material,en_sitio,activo,pat_largo,pat_ancho,pat_nivel,precio_botella,envase_sku"
     ).order("sku").limit(5000),
     supabase.from("ubicaciones").select(
       "id,bodega_id,clave,calle,modulo,lado,familia,capacidad,activa"

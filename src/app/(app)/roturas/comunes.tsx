@@ -101,7 +101,7 @@ export function Fila({ r, nombres, derecha, children }: {
             {!!r.contaminadas && (
               <span>
                 Las {r.contaminadas} contaminada{r.contaminadas === 1 ? "" : "s"} pierden{" "}
-                <b>solo el líquido</b>: el envase vuelve a la línea
+                <b>el líquido y el envase</b>: un envase contaminado no vuelve a la línea
               </span>
             )}
           </div>

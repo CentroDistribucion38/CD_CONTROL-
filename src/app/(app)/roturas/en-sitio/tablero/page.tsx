@@ -29,7 +29,7 @@ export default async function TableroEnSitioPage() {
      las rotas, así que las contaminadas —que están guardadas en el mismo
      renglón— no aparecían por ninguna parte y parecía que no se habían
      registrado. Se dicen separadas porque no cuestan lo mismo: la rota
-     pierde el líquido y el envase, la contaminada solo el líquido. */
+     se cobra solo el envase y la contaminada, el envase y el producto. */
   const rotas = vivas.reduce((s, r) => s + r.unidades, 0);
   const contam = vivas.reduce((s, r) => s + (r.contaminadas ?? 0), 0);
 

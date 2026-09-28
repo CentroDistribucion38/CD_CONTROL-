@@ -172,17 +172,22 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
   await pg.click(".rt .tb-tabla tbody tr td.tb-cod button:text-is('RB-0012')");
   await pg.waitForSelector(".rt .tb-detalle");
   const d = (await pg.textContent(".rt .tb-detalle")).replace(/\s+/g, " ");
-  ok(/300 de l[ií]quido/.test(d),
-     `al abrir la de producto no dice el líquido perdido: «${d.slice(0, 300)}» — son 300 (las 200 ` +
-     "rotas más las 100 contaminadas: las dos lo pierden)");
-  ok(/6\.?000 de envase/.test(d),
-     `al abrir la de producto no dice el envase perdido: «${d.slice(0, 300)}»`);
+  ok(/200 rotas \(6000 botellas\)/.test(d),
+     `al abrir la de producto no dice las rotas con sus botellas: «${d.slice(0, 300)}»`);
+  ok(/100 contaminadas/.test(d),
+     `al abrir la de producto no dice las contaminadas: «${d.slice(0, 300)}»`);
+  /* NO SE INVENTA EL COBRO. Los precios van por BOTELLA y de las
+     contaminadas solo se guardan los empaques, así que hasta que ese
+     dato exista este renglón dice lo que se CONTÓ y no lo que se cobra.
+     Un número de plata puesto a ojo en pantalla no se vuelve a
+     cuestionar. */
+  ok(!/\$/.test(d), `el detalle ya está poniendo plata y todavía no se puede: «${d.slice(0, 300)}»`);
 
   await pg.click(".rt .tb-tabla tbody tr td.tb-cod button:text-is('RB-0011')");
   await pg.waitForSelector(".rt .tb-detalle");
   const e = (await pg.textContent(".rt .tb-detalle")).replace(/\s+/g, " ");
   ok(/20 de envase/.test(e) && !/l[ií]quido/.test(e),
-     `en EER se está cobrando líquido, y no hay: «${e.slice(0, 300)}»`);
+     `en EER se está hablando de líquido, y no hay: «${e.slice(0, 300)}»`);
   await pg.click(".rt .tb-tabla tbody tr td.tb-cod button:text-is('RB-0011')");
 }
 
@@ -278,5 +283,5 @@ for (const tema of ["oficial", "tinta", "pizarra", "ambar", "negro", "gris", "ha
 await nav.close();
 if (fallas.length) { console.log(""); fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
 console.log("\n✓ El tablero de en sitio: rotas y contaminadas en dos columnas y el EER con «—», " +
-            "al abrir dice qué se pierde —líquido y envase en producto, solo envase en EER—, cada " +
+            "al abrir dice lo que se contó —rotas con sus botellas y contaminadas— sin inventar el cobro, cada " +
             "estado con su nombre, y nada se sale ni se deja de leer en cuatro anchos y siete temas.");
