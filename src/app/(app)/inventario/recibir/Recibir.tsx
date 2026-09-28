@@ -220,6 +220,13 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
         ancho: num(f.ancho), alto: num(f.alto), largo: num(f.largo),
         patron,
         unidadesEstiba: mat.unidades_por_estiba ?? null,
+        /* LAS TRES QUE EL RÓTULO IMPRIME EN GRANDE. Salen del maestro
+           tal cual: el papel no calcula factores ni vidas útiles — si
+           falta el dato, el rótulo lo dice con una raya y eso manda a
+           arreglar el maestro, que es lo que hay que hacer. */
+        unidadesCaja: mat.unidades_por_caja ?? null,
+        factorEstiba: mat.cajas_por_estiba ?? null,
+        vidaUtil: mat.vida_util ?? null,
         ubicacion: ubi?.clave ?? null,
         numero: i + 1,
         total: estibas,

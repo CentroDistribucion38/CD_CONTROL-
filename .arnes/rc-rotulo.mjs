@@ -70,10 +70,18 @@ const prod = { ...comun, tipo: "producto" as const,
   /* EL PATRÓN DE ESTIBA DEL MAESTRO: 3 × 3 × 5 = 45 cajas. Va aparte del
      ancho/alto/largo del arrume, que son estibas y no cajas. */
   patron: { largo: 3, ancho: 3, nivel: 5 }, unidadesEstiba: 1350,
+  /* LAS TRES DEL MAESTRO QUE EL RÓTULO IMPRIME EN GRANDE. 30 unidades
+     por caja × 40 cajas de esta estiba = 1.200 unidades, que es la
+     cifra que el papel tiene que decir. */
+  unidadesCaja: 30, factorEstiba: 45, vidaUtil: 180,
   linea: "42", hora: "06:40" };
 const rotulos = [
   { ...prod, folio: "16210-20260923-L42-001", numero: 1, total: 12 },
-  { ...prod, folio: "16210-20260923-L42-002", numero: 2, total: 12 },
+  /* CIFRAS LARGAS EN LAS CUATRO CASILLAS: 1.080 cajas × 30 = 32.400
+     unidades. Es el caso en que una cifra que no quepa se escribe por
+     encima de la vecina, y jsPDF no avisa. */
+  { ...prod, folio: "16210-20260923-L42-002", numero: 2, total: 12,
+    cantidad: 1080, arrume: 12960, factorEstiba: 1080 },
   /* SIN VIDA ÚTIL EN EL MAESTRO: el vencimiento sale null y la tarjeta
      tiene que gritarlo, no dejar la banda en blanco. */
   { ...prod, folio: "16210-20260923-L42-003", numero: 3, total: 12,
@@ -81,10 +89,27 @@ const rotulos = [
     ancho: null, alto: null, largo: null,
     /* Y TAMPOCO TRAE PATRÓN: la tarjeta tiene que decir que falta, no
        dejar la banda en blanco ni imprimir «1 × 1 × 1». */
-    patron: null, unidadesEstiba: null },
+    /* EL ENVASE SIN NINGUNO DE LOS TRES: el rótulo tiene que salir con
+       rayas y no con ceros ni en blanco. */
+    patron: null, unidadesEstiba: null, unidadesCaja: null, factorEstiba: null, vidaUtil: null },
+  /* CON FACTOR Y SIN PATRÓN — que son 370 de los 493 materiales del
+     maestro de la cervecería. El factor tiene que salir igual: sacarlo
+     del patrón dejaría a casi todo el CD con una raya donde va la cifra
+     con la que se arma la estiba. */
+  { ...prod, folio: "16210-20260923-L42-004", numero: 4, total: 12,
+    /* EL FACTOR ES 96 Y NO 480 A PROPÓSITO: 480 es el total del arrume
+       de este mismo fixture, así que buscarlo en la hoja lo encontraba
+       igual aunque el factor no saliera. Un número que ya está en el
+       papel por otra razón no sirve para comprobar nada. */
+    patron: null, unidadesEstiba: null, factorEstiba: 96, unidadesCaja: 6 },
   { ...comun, folio: "3500162-20260923-001", tipo: "envase" as const,
     sku: "3500162", nombre: "Envase Marron 330R", cantidad: 900,
     unidad: "unidades" as const, arrume: 900, numero: 1, total: 1,
+    /* RECIBIDO EN UNIDADES, Y CON UNIDADES POR CAJA PUESTAS. Es el caso
+       que destapa la multiplicación de más: si el rótulo volviera a
+       multiplicar, 900 unidades saldrían como 27.000 — y el papel de la
+       estiba diría treinta veces lo que hay encima. */
+    unidadesCaja: 30, factorEstiba: 38, vidaUtil: null,
     color: "Ámbar", origen: "CD Unión Apartado" },
 ];
 
@@ -192,7 +217,7 @@ console.log(`páginas: ${paginas}`);
 /* =====================================================================
    4 · UN PAPEL POR ESTIBA, NUMERADO
    ===================================================================== */
-ok(paginas === 4, `salieron ${paginas} páginas y se pidieron 4 rótulos: uno por estiba`);
+ok(paginas === 5, `salieron ${paginas} páginas y se pidieron 5 rótulos: uno por estiba`);
 for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
   ok(texto.includes(n),
      `falta «${n}»: doce papeles iguales en la mano no se pueden repartir entre doce estibas`);
@@ -209,15 +234,35 @@ for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
      "la cabecera no dice qué tarjeta es ni de dónde");
   ok(/CAJAS EN ESTA ESTIBA/.test(h) && /\b40\b/.test(h),
      "no salen las cajas de ESTA estiba");
-  ok(/TOTAL DEL ARRUME/.test(h) && /480/.test(h),
-     "no sale el total del arrume: sin él no se sabe si el arrume está completo");
-  /* LOS DOS BLOQUES DE TRES NÚMEROS, Y CADA UNO CON SU NOMBRE. Es el
-     riesgo entero de esta tarjeta: «ARRUME · ESTIBAS» dice cuántas
-     estibas llegaron y «PATRÓN DE ESTIBA» cómo se arma cada una. Un
-     rótulo que dijera solo «DIMENSIONES» en los dos manda a un
-     montacarguista a armar una estiba con el número del arrume. */
-  ok(/ARRUME · ESTIBAS/.test(h) && /ANCHO/.test(h) && /LARGO/.test(h),
-     "no salen las dimensiones del arrume, o el rótulo no dice que van en estibas");
+  /* ============ LAS CUATRO CIFRAS GRANDES ============
+     «Quiero grande cuántas cajas, cuántas unidades, factor de estiba y
+     vida útil.» Las dos primeras son de ESTA estiba —lo que hay que
+     contar—; las dos últimas son del MATERIAL —cómo se arma y cuánto
+     dura—. */
+  ok(/UNIDADES EN ESTA ESTIBA/.test(h),
+     "no salen las unidades de ESTA estiba: quien recibe cuenta cajas, pero lo que entra al " +
+     "inventario son unidades");
+  /* 40 cajas × 30 por caja = 1.200. Si la cuenta cambia, el papel dice
+     otra cantidad de producto de la que hay sobre la estiba. */
+  ok(/1\.200/.test(h),
+     `40 cajas de 30 unidades son 1.200 y el papel no las trae:\n${h.slice(0, 900)}`);
+  ok(/FACTOR DE ESTIBA/.test(h) && /CAJAS POR ESTIBA/.test(h),
+     "no sale el factor de estiba del maestro");
+  ok(/VIDA ÚTIL/.test(h) && /180 d/.test(h), "no sale la vida útil del material");
+
+  /* EL TOTAL DEL ARRUME SIGUE, EN LETRA CHICA. Tenía una casilla entera
+     y es una comprobación, no una cifra de trabajo: lo que se cuenta es
+     la estiba que se tiene delante. Pero no puede desaparecer — sin él
+     no se sabe si el arrume está completo. */
+  ok(/480 EN TODO EL ARRUME/.test(h),
+     "se perdió el total del arrume: sin él no se sabe si el arrume está completo");
+
+  /* Y LA BANDA «ARRUME · ESTIBAS» SE FUE A PROPÓSITO. Ocupaba un tercio
+     del renglón más visible para decir «1 × 1 × 1» casi siempre, que es
+     lo que trae un camión normal. Si vuelve, vuelve a robarle el sitio
+     a las cuatro cifras que sí se leen de lejos. */
+  ok(!/ARRUME · ESTIBAS/.test(h),
+     "volvió la banda «ARRUME · ESTIBAS»: ese es el sitio de las cuatro cifras grandes");
   ok(/PATRÓN DE ESTIBA/.test(h) && /CAJAS SOBRE UNA ESTIBA/.test(h),
      "no sale el patrón de estiba del maestro, que es con lo que se ARMA");
   ok(/NIVELES/.test(h), "el patrón no nombra los niveles: «3 × 3 × 5» sin rótulos no dice qué es cada número");
@@ -238,6 +283,73 @@ for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
   ok(!/RESPONSABLE|VERIFIC/.test(renglon),
      `el folio se monta sobre la línea de las firmas: «${renglon.trim()}»`);
   ok(/Toda la estiba est/.test(h), "falta la explicación del código");
+}
+
+/* =====================================================================
+   1a · EL FACTOR DE ESTIBA NO SE SACA DEL PATRÓN
+   ---------------------------------------------------------------------
+   370 de los 493 materiales del maestro tienen factor de estiba y NO
+   tienen patrón: el archivo de la cervecería no lo trae. Calcular el
+   factor como largo × ancho × nivel dejaría a casi todo el CD con una
+   raya donde va la cifra con la que se arma la estiba.
+
+   Es la hoja 4: con factor 480, sin patrón, 6 unidades por caja.
+   ===================================================================== */
+{
+  const h = hojas[3];
+  ok(/FACTOR DE ESTIBA/.test(h) && /\b96\b/.test(h),
+     `sin patrón, el factor de estiba salió vacío:\n${h.slice(0, 700)}`);
+  ok(/no trae el patr/.test(h),
+     "sin patrón la banda no lo dice: un renglón ausente no se distingue de un olvido");
+  /* Y LAS UNIDADES SIGUEN SALIENDO: 40 cajas × 6 = 240. */
+  ok(/\b240\b/.test(h), "sin patrón se perdieron las unidades de la estiba");
+}
+
+/* =====================================================================
+   1a-bis · RECIBIDO EN UNIDADES, NO SE MULTIPLICA OTRA VEZ
+   ---------------------------------------------------------------------
+   Si se contó en unidades, la cifra YA son unidades. Volver a
+   multiplicarla por las que trae una caja pone en el papel treinta veces
+   lo que hay sobre la estiba — y el papel es lo que se cree.
+   ===================================================================== */
+{
+  const h = hojas[4];
+  ok(/UNIDADES EN ESTA ESTIBA/.test(h) && /\b900\b/.test(h),
+     `recibido en unidades, la estiba trae 900 y el papel dice otra cosa:\n${h.slice(0, 700)}`);
+  ok(!/27\.000/.test(h),
+     "las 900 unidades se volvieron a multiplicar por las 30 de una caja: el papel dice 27.000 " +
+     "y sobre la estiba hay 900");
+}
+
+/* =====================================================================
+   1a-ter · UNA CIFRA LARGA NO SE MONTA SOBRE LA DE AL LADO
+   ---------------------------------------------------------------------
+   Las cuatro casillas son angostas y jsPDF NO recorta: una cifra que no
+   quepa se escribe por encima de la vecina. «1.080» a 20 puntos cabe;
+   «32.400» no. Y esto NO se ve en el texto extraído —las dos cifras
+   salen en su renglón, ordenaditas—, así que se miden las cajas de cada
+   palabra: es el mismo error que ya se coló una vez en el informe de
+   roturas.
+   ===================================================================== */
+{
+  const bb = execSync(`pdftotext -bbox "${ruta}" -`, { encoding: "utf8" });
+  /* LA HOJA 2, que es la de las cifras largas: 1.080 cajas y 32.400
+     unidades. En la primera todo cabe holgado y no mediría nada. */
+  const hoja = bb.split("<page ").slice(1)[1] ?? "";
+  const pal = [...hoja.matchAll(
+    /<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
+    .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] }));
+  ok(pal.length > 20, `la hoja de las cifras largas trae ${pal.length} palabras y son muchas más`);
+  for (let i = 0; i < pal.length; i++) {
+    for (let j = i + 1; j < pal.length; j++) {
+      const a = pal[i], b = pal[j];
+      /* 1,5 puntos de tolerancia: dos palabras seguidas del mismo
+         renglón se tocan por el espacio y eso no es encimarse. */
+      const cruza = a.x0 < b.x1 - 1.5 && b.x0 < a.x1 - 1.5
+                 && a.y0 < b.y1 - 1.5 && b.y0 < a.y1 - 1.5;
+      ok(!cruza, `en la tarjeta «${a.t}» y «${b.t}» se escriben una encima de otra`);
+    }
+  }
 }
 
 /* =====================================================================
@@ -262,7 +374,7 @@ for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
    2 · PRODUCTO Y ENVASE SON DOS RÓTULOS
    ===================================================================== */
 {
-  const prod = hojas[0], env = hojas[3];
+  const prod = hojas[0], env = hojas[4];
   ok(/FECHA DE VENCIMIENTO/.test(prod),
      "la tarjeta de producto no lleva el vencimiento, que es lo que manda en el FEFO");
   /* LA BANDA VA EN TRES CASILLAS: día, mes y año corto. 23/09/2027. */
@@ -393,4 +505,4 @@ if (fallas.length) {
 console.log("✓ La tarjeta de arrume: una por estiba y numerada N/M, cajas de la estiba y total del " +
   "arrume, el vencimiento en su banda y el límite de despacho calculado, el envase sin fechas " +
   "pero con la misma tarjeta, el QR se LEE con el logo encima y lleva el enlace y los datos en " +
-  "ASCII, y nada calculado a ojo.");
+  "ASCII, y nada calculado a ojo. Y las CUATRO CIFRAS GRANDES —cajas y unidades de ESTA estiba, factor de estiba y vida útil— con el total del arrume debajo en chico: la banda «arrume · estibas» se fue porque decía «1 × 1 × 1» casi siempre y ocupaba el sitio donde el ojo cae primero; el factor sale del maestro y NO del patrón, que 370 de los 493 materiales no tienen.");

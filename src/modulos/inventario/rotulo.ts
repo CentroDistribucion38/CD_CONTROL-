@@ -77,6 +77,20 @@ export type Rotulo = {
   patron?: { largo: number; ancho: number; nivel: number } | null;
   /** Unidades que van en una estiba completa, del maestro. */
   unidadesEstiba?: number | null;
+  /* ---- LO QUE SE LEE DE LEJOS, Y POR QUÉ ESTÁ AQUÍ ----
+     «En el rótulo quiero grande cuántas cajas, cuántas unidades, factor
+     de estiba y vida útil.»
+
+     Las cuatro salen del maestro o de una multiplicación con él, y NO se
+     deducen unas de otras: 370 de los 493 materiales tienen factor de
+     estiba y no tienen patrón, así que el factor tiene que viajar por su
+     cuenta y no como el producto de largo × ancho × nivel. */
+  /** Unidades que trae UNA caja, del maestro. */
+  unidadesCaja?: number | null;
+  /** Cajas que van en una estiba completa, del maestro. */
+  factorEstiba?: number | null;
+  /** Días de vida útil del material, del maestro. */
+  vidaUtil?: number | null;
   ubicacion: string | null;
   /* ---- solo producto ---- */
   producido?: string | null;
@@ -302,46 +316,74 @@ export async function rotulosPdf(
     pdf.text(r.sku, M + anProd + 3 + anCod / 2, y + 14.6, { align: "center" });
     y += 21;
 
-    /* --- Cajas, arrume y dimensiones --- */
-    const c3 = (AN - 6) / 3.2, c3b = c3 * 1.2;
-    caja(M, y, c3, 17);
-    rotulo(M, y, c3, `${r.unidad.toUpperCase()} EN ESTA ESTIBA`, true);
-    pdf.setFont("helvetica", "bold"); pdf.setFontSize(20); pdf.setTextColor(...TINTA);
-    /* (ver la nota de la caja de al lado: el color hay que reponerlo
-       después de cada `rotulo()`) */
-    pdf.text(nf.format(r.cantidad), M + c3 / 2, y + 14, { align: "center" });
+    /* ============ LAS CUATRO CIFRAS QUE SE LEEN DE LEJOS ============
+       «Quiero grande cuántas cajas, cuántas unidades, factor de estiba
+       y vida útil.»
 
-    caja(M + c3 + 3, y, c3, 17);
-    rotulo(M + c3 + 3, y, c3, "TOTAL DEL ARRUME", true);
-    /* LA TINTA SE VUELVE A PONER, y no es redundante: `rotulo()` deja el
-       color en ÁMBAR —es lo que usa para su texto sobre negro— y jsPDF
-       no lo devuelve solo. Sin esta línea, el total del arrume salía
-       ámbar sobre blanco mientras el de al lado salía negro: dos cifras
-       hermanas de distinto color, que en el papel parece que una de las
-       dos significa algo especial. */
-    pdf.setFontSize(20); pdf.setTextColor(...TINTA);
-    pdf.text(nf.format(r.arrume), M + c3 + 3 + c3 / 2, y + 14, { align: "center" });
+       AQUÍ ESTABA LA BANDA «ARRUME · ESTIBAS» —ancho, alto y largo del
+       arrume— y se va. Ocupaba un tercio del renglón más visible del
+       papel para decir «1 × 1 × 1» la mayoría de las veces, que es lo
+       que trae un camión normal: un dato que casi siempre vale lo mismo
+       no merece el sitio donde el ojo cae primero. El arrume sigue en el
+       QR y en el «1 / 3» de la cabecera, que es donde se busca.
 
-    const xd = M + (c3 + 3) * 2;
-    /* «ARRUME · ESTIBAS» Y NO «DIMENSIONES». El rótulo viejo no decía de
-       qué eran las dimensiones, y desde que la tarjeta lleva TAMBIÉN el
-       patrón de estiba del maestro —que son otros tres números muy
-       parecidos— un rótulo que no distingue es un rótulo que confunde.
-       Aquí: cuántas estibas tiene el arrume. Abajo: cómo se arma cada
-       estiba. */
-    caja(xd, y, c3b, 17); rotulo(xd, y, c3b, "ARRUME · ESTIBAS", true);
-    ([["ANCHO", r.ancho], ["ALTO", r.alto], ["LARGO", r.largo]] as const)
-      .forEach(([k, v], j) => {
-        const cx = xd + (c3b / 3) * (j + 0.5);
-        pdf.setFont("helvetica", "bold"); pdf.setFontSize(6); pdf.setTextColor(...GRIS);
-        pdf.text(k, cx, y + 10, { align: "center" });
-        pdf.setFontSize(13);
-        /* LO QUE FALTA SE DICE. Un renglón vacío parece papel mal
-           impreso; «—» dice que el dato no estaba al recibir. */
-        pdf.setTextColor(...(v != null ? TINTA : GRIS));
-        pdf.text(v != null ? String(v) : "—", cx, y + 15.4, { align: "center" });
-      });
-    y += 20;
+       LAS CUATRO SON DE COSAS DISTINTAS y por eso van juntas: las dos
+       primeras son ESTA estiba —lo que hay que contar— y las dos
+       últimas son del MATERIAL —lo que hay que saber para armarla y
+       para no dejarla vencer—. */
+    const c4 = (AN - 9) / 4;
+    /* UNIDADES DE ESTA ESTIBA: las cajas por lo que trae cada una. Si se
+       recibió contando en unidades, la cifra ya son unidades y no se
+       vuelve a multiplicar. Sin el dato en el maestro no se inventa. */
+    const unidadesAqui = r.unidad === "unidades"
+      ? r.cantidad
+      : (r.unidadesCaja ? r.cantidad * r.unidadesCaja : null);
+
+    const cifra = (
+      j: number, rot: string, valor: string, pie: string | null, floja: boolean,
+    ) => {
+      const x = M + j * (c4 + 3);
+      caja(x, y, c4, 21);
+      rotulo(x, y, c4, rot, true);
+      pdf.setFont("helvetica", "bold");
+      /* SE ENCOGE SI ES LARGA. Es un seguro, no una defensa que sostenga
+         nada hoy: lo medí con la estiba más gorda que da el maestro
+         —1.080 cajas × 30 = 32.400 unidades— y a 20 puntos todavía cabe
+         holgado, así que el arnés no puede ponerse rojo por esto con
+         cifras de verdad. Se queda porque jsPDF NO recorta —lo que no
+         cabe lo escribe encima de la casilla de al lado— y una cifra de
+         siete dígitos en el papel de una estiba es ilegible en silencio.
+         Lo que sí mide el arnés es que nada se encime, con la hoja de
+         las cifras largas. */
+      pdf.setFontSize(valor.length > 5 ? 15 : valor.length > 4 ? 17 : 20);
+      /* La tinta se vuelve a poner: `rotulo()` deja el color en ámbar
+         —es lo que usa sobre negro— y jsPDF no lo devuelve solo. */
+      pdf.setTextColor(...(floja ? GRIS : TINTA));
+      pdf.text(valor, x + c4 / 2, y + (pie ? 15 : 16.5), { align: "center" });
+      if (pie) {
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(5.5); pdf.setTextColor(...GRIS);
+        pdf.text(pie, x + c4 / 2, y + 19, { align: "center" });
+      }
+    };
+
+    cifra(0, `${r.unidad.toUpperCase()} EN ESTA ESTIBA`, nf.format(r.cantidad),
+          /* EL TOTAL DEL ARRUME BAJA AQUÍ, en letra chica. Era una
+             casilla entera y es una comprobación, no una cifra de
+             trabajo: lo que se cuenta es la estiba que se tiene
+             delante. */
+          r.total > 1 ? `${nf.format(r.arrume)} EN TODO EL ARRUME` : null, false);
+    cifra(1, "UNIDADES EN ESTA ESTIBA",
+          unidadesAqui != null ? nf.format(unidadesAqui) : "—",
+          unidadesAqui != null && r.unidad === "cajas" && r.unidadesCaja
+            ? `${nf.format(r.unidadesCaja)} POR CAJA` : null,
+          unidadesAqui == null);
+    cifra(2, "FACTOR DE ESTIBA",
+          r.factorEstiba != null ? nf.format(r.factorEstiba) : "—",
+          "CAJAS POR ESTIBA", r.factorEstiba == null);
+    cifra(3, "VIDA ÚTIL",
+          r.vidaUtil != null ? `${nf.format(r.vidaUtil)} d` : "—",
+          r.vidaUtil != null ? "DESDE QUE SE PRODUJO" : null, r.vidaUtil == null);
+    y += 24;
 
     /* ============ EL PATRÓN DE ESTIBA ============
        CÓMO VAN LAS CAJAS SOBRE UNA ESTIBA, del maestro. Va en su propia
