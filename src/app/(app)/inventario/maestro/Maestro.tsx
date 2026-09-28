@@ -38,13 +38,59 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
    a salir del maestro para completarlo. */
 type Pestania = "materiales" | "ubicaciones" | "bodegas";
 
-const ent = (s: string): number | null => {
+/* Se exporta para poder medirla en el arnés junto con `producto` y
+   `pelea`: las tres son la misma cuenta. */
+export const ent = (s: string): number | null => {
   const t = s.trim();
   if (t === "") return null;
   const n = Number(t.replace(/[^\d-]/g, ""));
   return Number.isFinite(n) ? n : null;
 };
 const txt = (v: number | null | undefined) => (v == null ? "" : String(v));
+
+/* ---------------------------------------------------------------------
+   EL PATRÓN Y EL FACTOR, QUE SON EL MISMO DATO DICHO DE DOS FORMAS
+   ---------------------------------------------------------------------
+   Largo × ancho × nivel ES el factor estibado: cuántas cajas caben sobre
+   una estiba. Se guardan los dos porque 370 de los 493 materiales tienen
+   el factor y NO tienen el patrón —el maestro de la cervecería no lo
+   trae— y porque el rótulo de Recepción enseña el desglose.
+
+   Van aparte de la pantalla para poder medirlos sin montarla. */
+export const producto = (b: Record<string, string>) => {
+  const l = ent(b.pat_largo ?? ""), a = ent(b.pat_ancho ?? ""), n = ent(b.pat_nivel ?? "");
+  return l && a && n ? l * a * n : null;
+};
+/** Los dos puestos y no multiplican. NO decide cuál manda: los dos son
+ *  datos que alguien escribió, y el que sabe cuál es el bueno está
+ *  mirando la estiba, no esta pantalla. */
+export const pelea = (b: Record<string, string>) => {
+  const p = producto(b), f = ent(b.cajas_por_estiba ?? "");
+  return p != null && f != null && p !== f;
+};
+
+/**
+ * QUÉ QUEDA EN EL BORRADOR AL TECLEAR UN NÚMERO DEL PATRÓN.
+ *
+ * Con los TRES puestos, el factor se calcula — pero SOLO si estaba
+ * vacío. Ver la nota larga en `ponerPatron`: 370 de los 493 materiales
+ * tienen factor y no tienen patrón, así que pisarlo al teclear sería un
+ * borrado en silencio justo donde más duele.
+ *
+ * Vive aquí, exportada y pura, para que el arnés mida ESTA y no una
+ * copia suya. La primera versión del arnés se escribió la misma cuenta
+ * al lado y aprobó, claro, la mutación que pisaba el factor.
+ */
+export const alTeclear = (
+  b: Record<string, string>, k: string, v: string,
+): Record<string, string> => {
+  const nuevo = { ...b, [k]: v };
+  const p = producto(nuevo);
+  if (p == null) return nuevo;
+  return ent(nuevo.cajas_por_estiba ?? "") == null
+    ? { ...nuevo, cajas_por_estiba: String(p) }
+    : nuevo;
+};
 
 /* Cuántas filas se dibujan de una. Con 494 materiales, pintarlos todos
    son 494 filas con seis campos cada una: el celular tarda un segundo
@@ -133,6 +179,28 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
   }
   const poner = (k: string, v: string) => setBorrador((b) => ({ ...b, [k]: v }));
 
+  /* AL TECLEAR EL PATRÓN, EL FACTOR SE PONE SOLO — PERO SOLO SI ESTABA
+     VACÍO.
+
+     Multiplicar 3 × 3 × 5 de cabeza, de pie y con guante, es de donde
+     salen los factores que no cuadran con la estiba que se está
+     mirando. Así que se calcula.
+
+     PERO NO SE PISA UN FACTOR QUE YA ESTABA. La primera versión de esto
+     lo reemplazaba siempre, y eso es un borrado en silencio justo donde
+     más duele: 370 de los 493 materiales tienen factor y NO tienen
+     patrón, así que llenar el patrón de uno de ellos habría cambiado su
+     factor sin decir nada — y si el patrón se tecleó mal, el conteo de
+     ese material queda mal hasta que alguien cuadre el mes.
+
+     Cuando el factor ya tiene valor y el patrón da otro, no se escoge:
+     se avisa —ver `pelea`— y decide quien está mirando la estiba.
+
+     La cuenta está en `alTeclear`, arriba y aparte, para que el arnés
+     mida la de verdad. */
+  const ponerPatron = (k: string, v: string) =>
+    setBorrador((b) => alTeclear(b, k, v));
+
   /* ---------- MATERIALES ---------- */
   async function guardarMaterial(m: Material) {
     const nombre = (borrador.nombre ?? "").trim();
@@ -142,6 +210,9 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
       nombre,
       unidades_por_caja: ent(borrador.unidades_por_caja ?? ""),
       cajas_por_estiba: ent(borrador.cajas_por_estiba ?? ""),
+      pat_largo: ent(borrador.pat_largo ?? ""),
+      pat_ancho: ent(borrador.pat_ancho ?? ""),
+      pat_nivel: ent(borrador.pat_nivel ?? ""),
       vida_util: ent(borrador.vida_util ?? ""),
       dias_minimo: ent(borrador.dias_minimo ?? "") ?? 0,
       familia: (borrador.familia ?? "").trim() || null,
@@ -183,6 +254,9 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
       sku, nombre, unidad: "CAJA",
       unidades_por_caja: ent(borrador.unidades_por_caja ?? ""),
       cajas_por_estiba: ent(borrador.cajas_por_estiba ?? ""),
+      pat_largo: ent(borrador.pat_largo ?? ""),
+      pat_ancho: ent(borrador.pat_ancho ?? ""),
+      pat_nivel: ent(borrador.pat_nivel ?? ""),
       familia: (borrador.familia ?? "").trim() || null,
       vida_util: ent(borrador.vida_util ?? ""),
       dias_minimo: ent(borrador.dias_minimo ?? "") ?? 0,
@@ -527,6 +601,9 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                             nombre: m.nombre,
                             unidades_por_caja: txt(m.unidades_por_caja),
                             cajas_por_estiba: txt(m.cajas_por_estiba),
+                            pat_largo: txt(m.pat_largo),
+                            pat_ancho: txt(m.pat_ancho),
+                            pat_nivel: txt(m.pat_nivel),
                             vida_util: txt(m.vida_util),
                             dias_minimo: txt(m.dias_minimo),
                             familia: m.familia ?? "",
@@ -548,9 +625,19 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                   entra a revisar el maestro viene por el factor estibado,
                   no por la categoría. */}
               <dl className="fe-cifras">
+                {/* EL FACTOR Y DE DÓNDE SALE. El 45 solo se puede
+                    comprobar viendo el 3 × 3 × 5: sin el desglose hay
+                    que creerle al número, y con él se mira la estiba y
+                    se cuenta. Los materiales sin patrón enseñan el
+                    factor a secas —que es lo que hay— y no un hueco. */}
                 <div><dt>Factor estibado</dt>
                   <dd className={m.cajas_por_estiba == null ? "falta" : undefined}>
-                    {m.cajas_por_estiba ?? "falta"}</dd></div>
+                    {m.cajas_por_estiba ?? "falta"}</dd>
+                  {m.pat_largo != null && m.pat_ancho != null && m.pat_nivel != null && (
+                    <span className="fe-pat">
+                      {m.pat_largo} × {m.pat_ancho} × {m.pat_nivel}
+                    </span>
+                  )}</div>
                 <div><dt>Vida útil</dt>
                   <dd>{m.vida_util ? `${m.vida_util} d` : "—"}</dd></div>
                 <div><dt>Mínimo T1</dt>
@@ -576,9 +663,39 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                     <label className="ancho"><span>Descripción</span>
                       <input value={borrador.nombre ?? ""}
                              onChange={(e) => poner("nombre", e.target.value)} /></label>
+                    {/* EL PATRÓN, Y EL FACTOR SALE DE ÉL.
+                        Tecleando 3, 3 y 5 el factor se pone en 45 solo:
+                        es su definición —cuántas cajas van sobre una
+                        estiba— y tenerlo que multiplicar de cabeza en el
+                        muelle es de donde salen los factores que no
+                        cuadran con la estiba que se está mirando.
+
+                        EL FACTOR SIGUE SIENDO EDITABLE A MANO, porque
+                        370 de los 493 materiales tienen factor y NO
+                        tienen patrón: obligar al patrón para tocar el
+                        factor dejaría sin arreglar justamente esos. Si
+                        los dos están puestos y no multiplican, se dice
+                        —no se pisa ninguno—. */}
+                    <label className="fe-pat-campo"><span>Largo</span>
+                      <input inputMode="numeric" value={borrador.pat_largo ?? ""}
+                             onChange={(e) => ponerPatron("pat_largo", e.target.value)} /></label>
+                    <label className="fe-pat-campo"><span>Ancho</span>
+                      <input inputMode="numeric" value={borrador.pat_ancho ?? ""}
+                             onChange={(e) => ponerPatron("pat_ancho", e.target.value)} /></label>
+                    <label className="fe-pat-campo"><span>Nivel</span>
+                      <input inputMode="numeric" value={borrador.pat_nivel ?? ""}
+                             onChange={(e) => ponerPatron("pat_nivel", e.target.value)} /></label>
                     <label><span>Factor estibado</span>
                       <input inputMode="numeric" value={borrador.cajas_por_estiba ?? ""}
-                             onChange={(e) => poner("cajas_por_estiba", e.target.value)} /></label>
+                             onChange={(e) => poner("cajas_por_estiba", e.target.value)} />
+                      {pelea(borrador) && (
+                        <em className="fe-pelea">
+                          {ent(borrador.pat_largo ?? "")} × {ent(borrador.pat_ancho ?? "")} ×{" "}
+                          {ent(borrador.pat_nivel ?? "")} son {producto(borrador)}, y el factor
+                          dice {ent(borrador.cajas_por_estiba ?? "")}. Se guardan los dos como
+                          están: revisa cuál es el bueno.
+                        </em>
+                      )}</label>
                     <label><span>Unidades por caja</span>
                       <input inputMode="numeric" value={borrador.unidades_por_caja ?? ""}
                              onChange={(e) => poner("unidades_por_caja", e.target.value)} /></label>
