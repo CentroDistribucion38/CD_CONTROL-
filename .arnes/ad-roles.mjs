@@ -48,7 +48,7 @@ const historial = [
 const catalogo = [
   { id: "traspasos", nombre: "Traspasos", acento: "#0A7", secciones: Array.from({ length: 20 }, (_, i) => ({ nombre: "Pantalla " + i, ruta: i ? "/traspasos/p" + i : "/traspasos" })) },
   { id: "inventario", nombre: "Inventario", acento: "#E9A81F",
-    ramas: [{ id: "conteos", nombre: "Conteos" }, { id: "averias", nombre: "Averías" }],
+    ramas: [{ id: "conteos", nombre: "Conteos", permiso: "/inventario/tablero" }, { id: "averias", nombre: "Averías" }],
     secciones: [
       { nombre: "Suelta", ruta: "/inventario/suelta" },
       { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
@@ -154,21 +154,33 @@ await rol("Operador");
   ok(JSON.stringify(filas) === JSON.stringify(["Conteos", "Averías"]), `las ramas de Inventario salen como [${filas}]`);
   ok(await pg.$$eval(".rl-modulo li.rl-rama", (s) => s.length) === 2, "un módulo SIN ramas (Traspasos, Acciones) no debe llevar filas de rama");
   const nivel = (ruta) => pg.$eval(`li:has(em:text-is("${ruta}")) .rl-n[aria-checked=true]`, (b) => b.textContent.trim());
-  const rama = (n, t) => pg.click(`li.rl-rama:has(b:text-is("${n}")) .rl-todo button:has-text("${t}")`);
+  const rama = (n, t) => pg.click(`li.rl-rama:has(b:text-is("${n}")) .rl-niveles button:has-text("${t}")`);
+  /* CONTEOS ES EL INFORME: su fila controla SOLO el Tablero, no la rama entera. */
+  ok(await pg.$$eval('li:has(em:text-is("/inventario/tablero"))', (s) => s.length) === 1,
+     "el Tablero sale dos veces: como fila de Conteos y como pantalla suelta");
+  ok(await pg.$eval('li.rl-rama:has(b:text-is("Conteos")) em', (e) => e.textContent.trim()) === "/inventario/tablero",
+     "la fila Conteos no dice qué pantalla controla");
+  ok(!/pantallas/.test(await pg.textContent('li.rl-rama:has(b:text-is("Conteos"))')), "la fila Conteos todavía habla de «5 pantallas»");
   await rama("Conteos", "Editar");
-  ok(await nivel("/inventario/maestro") === "Editar" && await nivel("/inventario/conteo") === "Editar" && await nivel("/inventario/tablero") === "Editar",
-     "«Conteos → Editar» no marca las tres pantallas de la rama");
-  ok(await nivel("/inventario/averias") === "Sin acceso" && await nivel("/inventario/averias/tablero") === "Sin acceso",
-     "«Conteos → Editar» tocó las pantallas de Averías");
-  ok(await nivel("/inventario/suelta") === "Sin acceso", "«Conteos → Editar» tocó una pantalla que no es de ninguna rama");
-  ok(await pg.$eval('li.rl-rama:has(b:text-is("Conteos")) .rl-todo button.aqui', (b) => b.textContent.trim()) === "Editar",
-     "el botón de la rama no queda marcado cuando todas sus pantallas están en Editar");
+  ok(await nivel("/inventario/tablero") === "Editar", "«Conteos → Editar» no marca el informe");
+  ok(await nivel("/inventario/maestro") === "Sin acceso" && await nivel("/inventario/conteo") === "Sin acceso",
+     "«Conteos → Editar» tocó Maestro o Contar: Conteos es solo el informe");
+  ok(await nivel("/inventario/averias") === "Sin acceso" && await nivel("/inventario/suelta") === "Sin acceso",
+     "«Conteos → Editar» tocó otras pantallas");
   await pg.click('li:has(em:text-is("/inventario/conteo")) .rl-n.rl-ver');
-  ok(await pg.$$eval('li.rl-rama:has(b:text-is("Conteos")) .rl-todo button.aqui', (b) => b.length) === 0,
-     "con una pantalla distinta la rama sigue marcada como si todas fueran iguales");
+  ok(await pg.$eval('li.rl-rama:has(b:text-is("Conteos")) .rl-n.aqui', (b) => b.textContent.trim()) === "Editar",
+     "cambiar Contar movió la fila del informe");
+  /* AVERÍAS sigue siendo un grupo: marca sus pantallas de golpe y sin tocar Conteos. */
   await rama("Averías", "Ver");
-  ok(await nivel("/inventario/averias") === "Ver" && await nivel("/inventario/maestro") === "Editar",
+  ok(await nivel("/inventario/averias") === "Ver" && await nivel("/inventario/averias/tablero") === "Ver" && await nivel("/inventario/tablero") === "Editar",
      "«Averías → Ver» no se queda en su rama");
+  /* DEL MISMO TAMAÑO que el selector de las pantallas de abajo. */
+  const med = await pg.evaluate(() => {
+    const r = (e) => { const b = e.getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)] };
+    return { rama: r(document.querySelector("li.rl-rama .rl-niveles")), pantalla: r(document.querySelector("li:not(.rl-rama) .rl-niveles")),
+             bRama: r(document.querySelector("li.rl-rama .rl-n")), bPant: r(document.querySelector("li:not(.rl-rama) .rl-n")) } });
+  ok(med.rama[0] === med.pantalla[0] && med.rama[1] === med.pantalla[1] && med.bRama[0] === med.bPant[0],
+     `el selector de la rama no mide lo mismo que el de las pantallas: ${JSON.stringify(med)}`);
   await pg.click('.rl-modulo:has(b:text-is("Inventario")) > header .rl-todo button:has-text("Sin acceso")');
   ok(await nivel("/inventario/maestro") === "Sin acceso" && await nivel("/inventario/suelta") === "Sin acceso" && await nivel("/inventario/averias") === "Sin acceso",
      "los botones del módulo entero ya no marcan todo");

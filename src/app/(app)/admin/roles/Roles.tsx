@@ -44,7 +44,7 @@ type Modulo = {
   id: string; nombre: string; acento: string;
   secciones: { nombre: string; ruta: string; rama?: string }[];
   /** Las ramas del módulo (Conteos, Averías…): cada una lleva sus propios botones. */
-  ramas?: { id: string; nombre: string }[];
+  ramas?: { id: string; nombre: string; permiso?: string }[];
 };
 
 const NIVELES: { v: Nivel; t: string; d: string }[] = [
@@ -431,10 +431,14 @@ export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: 
                    pantallas y se marca de un golpe. Lo que no es de ninguna
                    rama va primero, sin encabezado. */
                 const sueltas = m.ramas?.length ? m.secciones.filter((x) => !m.ramas!.some((r) => r.id === x.rama)) : m.secciones;
-                const grupos: { id: string; nombre: string; secs: Modulo["secciones"] }[] = [
+                const grupos: { id: string; nombre: string; permiso?: string; secs: Modulo["secciones"] }[] = [
                   ...(sueltas.length ? [{ id: "", nombre: "", secs: sueltas }] : []),
-                  ...(m.ramas ?? []).map((r) => ({ id: r.id, nombre: r.nombre, secs: m.secciones.filter((x) => x.rama === r.id) }))
-                    .filter((g) => g.secs.length > 0),
+                  /* Una rama con `permiso` ES esa pantalla (Conteos = el informe):
+                     su fila controla solo esa y no se repite en la lista de abajo. */
+                  ...(m.ramas ?? []).map((r) => ({
+                    id: r.id, nombre: r.nombre, permiso: r.permiso,
+                    secs: m.secciones.filter((x) => x.rama === r.id && x.ruta !== r.permiso),
+                  })).filter((g) => g.secs.length > 0 || g.permiso),
                 ];
                 return (
                   <div key={m.id} className="rl-modulo">
@@ -453,16 +457,39 @@ export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: 
                     <ul>
                       {grupos.map((g) => (
                         <Fragment key={g.id || "_"}>
-                          {g.nombre && (() => {
+                          {g.nombre && g.permiso && (() => {
+                            const ruta = g.permiso!;
+                            const actual = marcado[ruta] ?? "ninguno";
+                            return (
+                              <li className="rl-rama">
+                                <div className="rl-sec"><b>{g.nombre}</b><em>{ruta}</em></div>
+                                <div className="rl-niveles" role="radiogroup" aria-label={g.nombre}>
+                                  {NIVELES.map((n) => (
+                                    <button key={n.v} type="button" role="radio"
+                                            aria-checked={actual === n.v} title={n.d}
+                                            className={"rl-n rl-" + n.v + (actual === n.v ? " aqui" : "")}
+                                            onClick={() => poner(ruta, n.v)}>
+                                      {n.t}
+                                    </button>
+                                  ))}
+                                </div>
+                              </li>
+                            );
+                          })()}
+                          {g.nombre && !g.permiso && (() => {
                             const rutas = g.secs.map((x) => x.ruta);
                             const enGrupo = (n: Nivel) => rutas.every((r) => (marcado[r] ?? "ninguno") === n);
                             return (
                               <li className="rl-rama">
-                                <div className="rl-sec"><b>{g.nombre}</b><em>{rutas.length} pantallas</em></div>
-                                <div className="rl-todo" role="group" aria-label={`Toda la rama ${g.nombre}`}>
+                                <div className="rl-sec"><b>{g.nombre}</b></div>
+                                {/* EL MISMO SELECTOR DE LAS PANTALLAS, del mismo tamaño: la rama se
+                                    marca con lo que tienen TODAS sus pantallas, y sin marca si difieren. */}
+                                <div className="rl-niveles" role="group" aria-label={`Toda la rama ${g.nombre}`}>
                                   {NIVELES.map((n) => (
                                     <button key={n.v} type="button"
-                                            className={enGrupo(n.v) ? "aqui" : ""}
+                                            aria-pressed={enGrupo(n.v)}
+                                            title={`${n.d} · en las ${rutas.length} pantallas de ${g.nombre}`}
+                                            className={"rl-n rl-" + n.v + (enGrupo(n.v) ? " aqui" : "")}
                                             onClick={() => ponerGrupo(rutas, n.v)}>
                                       {n.t}
                                     </button>

@@ -54,6 +54,14 @@ export type Rama = {
   eyebrow: string;
   ruta: string;
   descripcion: string;
+  /**
+   * LA PANTALLA CUYO PERMISO ES EL DE LA RAMA ENTERA, en /admin/roles.
+   * Sin esto la rama sale con botones que marcan todas sus pantallas de
+   * golpe. Con esto la rama ES esa pantalla: su fila controla solo esa,
+   * y la pantalla no se lista otra vez debajo. Conteos es el informe
+   * —el Tablero—, y «Contar» es otra cosa que se da aparte.
+   */
+  permiso?: string;
 };
 
 export type Modulo = {
@@ -572,6 +580,7 @@ export const MODULOS: Modulo[] = [
            donde está la tarjeta es un botón que no lleva a ningún
            lado. */
         ruta: "/inventario/tablero",
+        permiso: "/inventario/tablero",
         descripcion:
           "El maestro de materiales y ubicaciones, el conteo por módulo con sus " +
           "vencimientos y la base de lo contado. Contesta qué hay y qué sale primero.",
