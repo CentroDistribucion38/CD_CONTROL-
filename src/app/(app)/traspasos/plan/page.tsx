@@ -75,6 +75,7 @@ export default async function PlanPage({ searchParams }: {
         hoy={hoy}
         esHoy={dia === hoy}
         puedeEditar={permisos.puedeEditar("/traspasos/plan")}
+        manda={permisos.manda}
       />
     </div>
   );

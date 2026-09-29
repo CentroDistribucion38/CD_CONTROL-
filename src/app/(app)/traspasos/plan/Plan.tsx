@@ -32,7 +32,7 @@ const k = (turno: string, tipo: string) => `${turno}|${tipo}`;
  * el turno B sin saber que el A ya lleva cuatro es planear a ciegas.
  */
 export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
-                       promedio, ayer, fecha, hoy, esHoy, puedeEditar }: {
+                       promedio, ayer, fecha, hoy, esHoy, puedeEditar, manda }: {
   tipos: TipoViaje[];
   publicadas: PlanLinea[];
   borrador: PlanLinea[];
@@ -46,7 +46,10 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
   fecha: string;
   hoy: string;
   esHoy: boolean;
+  /** Tiene «Editar» en el plan (por su persona o por su rol). */
   puedeEditar: boolean;
+  /** Es quien manda: el único que cambia un día ya publicado. */
+  manda: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -55,15 +58,26 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
   /* El segundo toque de «Borrar el plan del día». */
   const [confirmaBorrar, setConfirmaBorrar] = useState(false);
 
+  /* CREAR SÍ, CAMBIAR LO PUBLICADO NO. Quien tiene «Editar» en el plan
+     arma un día que todavía no tiene plan publicado; con el día ya
+     publicado, solo quien manda lo toca. La base pide lo mismo
+     (traspaso_plan_exige): esto solo decide qué se DIBUJA, para que la
+     persona no llene una rejilla que la base le va a rechazar. */
+  const bloqueado = puedeEditar && !manda && publicadas.length > 0;
+  const editaDia = puedeEditar && !bloqueado;
+
   /* La rejilla arranca en el borrador si lo hay, y si no en lo
      publicado: quien vuelve a la pantalla tiene que encontrar lo que
-     dejó a medias, no una rejilla en blanco. */
+     dejó a medias, no una rejilla en blanco.
+     EL BLOQUEADO SIEMPRE VE LO PUBLICADO. Si el administrador dejó un
+     borrador encima, mostrárselo en solo lectura le enseñaría números
+     que el turno todavía no ve, como si fueran el plan. */
   const inicial = useMemo(() => {
-    const base = borrador.length ? borrador : publicadas;
+    const base = !bloqueado && borrador.length ? borrador : publicadas;
     const r: Rejilla = {};
     for (const l of base) r[k(l.turno, l.tipo)] = l.planeado;
     return r;
-  }, [borrador, publicadas]);
+  }, [borrador, publicadas, bloqueado]);
 
   const inicialVac = useMemo(() => {
     const v: Vacios = {};
@@ -194,6 +208,15 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
       <div className="plan-marco">
         <div>
           <section className="matriz">
+            {/* SE DICE POR QUÉ NO HAY BOTONES. Una rejilla en solo
+                lectura sin explicación se lee como «la pantalla está
+                rota»; con la razón se sabe a quién pedirle el cambio. */}
+            {bloqueado && (
+              <p className="plan-cerrado" role="note">
+                <b>Este día ya tiene el plan publicado.</b>{" "}
+                Solo el administrador puede cambiarlo o borrarlo.
+              </p>
+            )}
             <div className="tabla-envuelta">
               <table>
                 <thead>
@@ -214,7 +237,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                       <td className="tipo">{x.nombre}</td>
                       {TURNOS.map((t) => (
                         <td key={t} className="cen">
-                          <Celda n={val(t, x.clave)} puedeEditar={puedeEditar}
+                          <Celda n={val(t, x.clave)} puedeEditar={editaDia}
                                  onCambio={(n) => poner(t, x.clave, n)} />
                           {/* Lo hecho, debajo y en verde. Planear el
                               turno B sin saber que el A ya lleva cuatro
@@ -249,7 +272,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                     </td>
                     {TURNOS.map((t) => (
                       <td className="cen" key={t}>
-                        <Celda n={vacios[t] ?? 0} puedeEditar={puedeEditar}
+                        <Celda n={vacios[t] ?? 0} puedeEditar={editaDia}
                                onCambio={(n) => setVacios((v) => ({ ...v, [t]: Math.max(0, n) }))} />
                       </td>
                     ))}
@@ -259,7 +282,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
               </table>
             </div>
 
-            {puedeEditar && (
+            {editaDia && (
               <div className="pie-publicar">
                 <button type="button" className="btn si" disabled={mandando}
                         onClick={() => guardar(true)}>
@@ -343,7 +366,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
             </div>
           </div>
 
-          {puedeEditar && (
+          {editaDia && (
             <div className="atajos-plan">
               <h3>Armar más rápido</h3>
               <p>Casi todos los días se parecen. No empieces de cero.</p>

@@ -111,14 +111,14 @@ begin
   perform public.traspaso_guardar_plan((public.traspaso_hoy() - 4), '[]'::jsonb, '[]'::jsonb);
   raise exception '12 FALLO: el operador pudo guardar';
 exception when others then
-  if sqlerrm like '%requiere rol%' then null; else raise; end if;
+  if sqlerrm like '%permiso de edición en Plan%' then null; else raise; end if;
 end $$;
 do $$
 begin
   perform public.traspaso_borrar_plan((public.traspaso_hoy() - 6));
   raise exception '12 FALLO: el operador pudo borrar';
 exception when others then
-  if sqlerrm like '%requiere rol de supervisor%' then
+  if sqlerrm like '%permiso de edición en Plan%' then
     raise warning 'operador rechazado: 12 de 12';
   else raise; end if;
 end $$;
