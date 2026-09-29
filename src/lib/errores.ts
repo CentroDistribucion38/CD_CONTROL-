@@ -79,7 +79,7 @@ const PREFIJOS: [RegExp, string][] = [
      …, p_tipo) does not exist», que empieza por `sider_ai_` y mandaría a
      correr `sider-ai.sql` — el archivo EQUIVOCADO, porque ese ya se
      corrió. Lo que falta es la migración de Sorting. */
-  /* LA REVISIÓN AI INTERNA (el «+» de Tránsito y las dos clases de
+  /* LA REVISIÓN AI INTERNA (el «+» de Vh Interno en Revisión AI y las dos clases de
      revisión) es la migración más nueva y va antes que la de Sorting:
      `interno` y las dos funciones y vistas nuevas salen de ahí. */
   [/\b(sider_viaje_interno_crear|v_sider_revision_pendientes)\b|\bsider_viajes\.interno\b/,

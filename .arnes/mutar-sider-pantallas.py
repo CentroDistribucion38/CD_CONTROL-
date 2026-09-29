@@ -17,7 +17,7 @@ os.chdir(RAIZ)
 FA = "src/modulos/sider/FormularioAi.tsx"
 SO = "src/app/(app)/sider/sorting/Sorting.tsx"
 TR = "src/app/(app)/sider/transito/Transito.tsx"
-NV = "src/app/(app)/sider/transito/NuevoInterno.tsx"
+NV = "src/app/(app)/sider/sorting/NuevoInterno.tsx"
 VJ = "src/app/(app)/sider/Viajes.tsx"
 IN = "src/app/(app)/sider/seguimiento/ai/Informe.tsx"
 CSS = "src/app/(app)/sider/sider.css"
@@ -37,7 +37,7 @@ M = [
  ("P12", TR, "const faltanFotos = !v.interno && v.fotos_salida < 3;", "const faltanFotos = v.fotos_salida < 3;", "al interno se le reclaman las fotos de salida en rojo"),
  ("P13", TR, "const sinEvidenciaSalida = !viaje.interno && viaje.fotos_salida < 3;", "const sinEvidenciaSalida = viaje.fotos_salida < 3;", "el recibo del interno se traba por fotos de una salida que no hubo"),
  ("P14", TR, "const sinEvidenciaSalida = !viaje.interno && viaje.fotos_salida < 3;", "const sinEvidenciaSalida = false;", "el recibo deja de exigir las fotos de salida a TODOS"),
- ("P15", TR, "      {puedeCrear && (\n        <button type=\"button\"\n                className={\"tr-mas tr-fab\"", "      {true && (\n        <button type=\"button\"\n                className={\"tr-mas tr-fab\"", "el «+» lo ve quien no tiene el permiso «Camión interno»"),
+ ("P15", SO, "      {puedeCrear && (\n        <button type=\"button\" className=\"tr-mas tr-fab\"", "      {true && (\n        <button type=\"button\" className=\"tr-mas tr-fab\"", "el «+» lo ve quien no tiene el permiso «Vh Interno (+)»"),
  ("P16", TR, "{esAdmin && !v.interno && (", "{esAdmin && (", "al interno se le ofrece pedir la revisión certificada"),
  ("P17", TR, "{v.interno ? (\n                  <span className=\"sello interno\"", "{false ? (\n                  <span className=\"sello interno\"", "el interno pierde su sello"),
  ("P18", NV, "const puede = faltan.length === 0 && !mismo;", "const puede = faltan.length === 0;", "deja crear con origen y destino iguales"),
@@ -52,12 +52,21 @@ M = [
  ("P31", NV, "const PLACA_OK = /^[A-Z]{3}[0-9]{3}$/;", "const PLACA_OK = /^[A-Z0-9]{6}$/;", "la placa acepta cualquier mezcla de letras y números"),
  ("P32", NV, ".replace(/[^A-Z0-9]/g, \"\").slice(0, 6);", ".slice(0, 6);", "la placa deja pasar espacios y signos"),
  ("P33", NV, ".replace(/[^A-Z0-9]/g, \"\").slice(0, 6);", ".replace(/[^A-Z0-9]/g, \"\").slice(0, 8);", "(control de equivalencia: el input ya lleva maxLength=6, el slice es doble cinturón — debe seguir VERDE)"),
- ("P35", CSS, "  .sd .tr-mas.sube { bottom: calc(150px + env(safe-area-inset-bottom)) }", "", "el «+» tapa la barra de viajes escogidos en el celular"),
- ("P27", VJ, ': esInterno(v.id) ? "interno · sin salida" : `${v.fotos_salida}/3 fotos`}</div>', ': `${v.fotos_salida}/3 fotos`}</div>', "el interno sale con «0/3 fotos» en Fuente principal"),
+ ("P35", CSS, ".sd.so-pantalla { padding-bottom: 96px }", "", "el «+» tapa el «Corregir» del último renglón"),
+ ("P27", VJ, ': esInterno(v.id) ? "Vh Interno · sin salida" : `${v.fotos_salida}/3 fotos`}</div>', ': `${v.fotos_salida}/3 fotos`}</div>', "el interno sale con «0/3 fotos» en Fuente principal"),
  ("P28", IN, '((r.tipo ?? "ai") as TipoRevision) === "ai" ? "propio" : "normal"', '"propio"', "el informe marca todas como certificadas"),
  ("P29", IN, "{!filtro.tipo && (() => {", "{(() => {", "filtrado a una clase todavía cuenta las dos"),
  ("P36", SO, 'tipo: "sorting", css: "so"', 'tipo: "sorting", css: "ai"', "el bloque de la normal se pinta con el color de la certificada"),
  ("P37", CSS, ".sd .so-bloque.so { --so-c: #AA1874; --so-fondo: #FBEFF6 }", ".sd .so-bloque.so { --so-c: #6A3FA0; --so-fondo: #F3EEFA }", "el bloque de la normal usa el morado de la certificada"),
+ ("P38", NV, 't.replace(/[^0-9]/g, "").slice(0, DOC_MAX)', 't.slice(0, DOC_MAX)', "el documento deja pasar letras y guiones"),
+ ("P39", NV, 't.replace(/[^0-9]/g, "").slice(0, DOC_MAX)', 't.replace(/[^0-9]/g, "")', "(control de equivalencia: el maxLength=10 del campo ya corta, el slice es doble cinturón — debe seguir VERDE)"),
+ ("P40", NV, "const DOC_MAX = 10;", "const DOC_MAX = 12;", "el documento admite hasta 12 dígitos"),
+ ("P41", NV, "      p_factura: factura || null,", "      p_factura: null,", "el documento escrito no viaja a la base"),
+ ("P42", NV, "maxLength={DOC_MAX} inputMode=\"numeric\"", "inputMode=\"numeric\"", "el campo del documento pierde su maxLength de 10"),
+ ("P43", SO, "            router.refresh();\n            avisar.bien(`${placa} creado", "            avisar.bien(`${placa} creado", "al crear no se refresca la lista: el Vh Interno no aparece"),
+ ("P44", SO, "            setCreando(false);\n            router.refresh();", "            router.refresh();", "el formulario no se cierra al crear"),
+ ("P45", SO, '{p.interno ? "Creado" : "Llegó"} {cuando(p.llego_en)}', '{"Llegó"} {cuando(p.llego_en)}', "el Vh Interno dice «Llegó» aunque nunca llegó"),
+ ("P46", VJ, 'esInterno(v.id) ? "Vh Interno · sin certificar"', 'false ? "Vh Interno · sin certificar"', "el Vh Interno sale con «0/3 fotos» de llegada en Fuente principal"),
  ("P30", CSS, ".sd .tr-vh.ai.so-tarde { background: #F8F4FD; border-color: #DCCBF1; border-left-color: #6A3FA0 }", "", "una certificada con más de un día se pinta de la otra clase"),
 ]
 

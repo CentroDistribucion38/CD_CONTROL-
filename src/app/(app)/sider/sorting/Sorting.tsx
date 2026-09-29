@@ -10,6 +10,7 @@ import type {
   MaestrosAi, PendienteRevision, Revision, DetalleAi,
 } from "@/modulos/sider/ai";
 import { FormularioAi, type ViajeAi } from "@/modulos/sider/FormularioAi";
+import { NuevoInterno, type OrigenMaestro, type SkuMaestro } from "./NuevoInterno";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -50,8 +51,8 @@ const CLASES: { tipo: TipoRevision; css: string; plural: string; texto: string; 
   },
   {
     tipo: "sorting", css: "so", plural: "normales",
-    texto: "Camiones internos que creó control con el «+» de En tránsito. No los certificó Sider.",
-    vacio: "Un camión interno aparece aquí cuando control lo crea con el «+» y certifica su llegada en En tránsito.",
+    texto: "Los Vh Interno: camiones que crea control aquí mismo con el «+». No los certificó Sider ni pasan por En tránsito.",
+    vacio: "Un Vh Interno aparece aquí apenas control lo crea con el «+»: no pide certificar la llegada.",
   },
 ];
 
@@ -79,6 +80,7 @@ function SelloTipo({ tipo }: { tipo: TipoRevision }) {
 
 export function Sorting({
   ahora, pendientes, detalle, hechos, nombres, maestros, puedeEditar,
+  puedeCrear = false, origenes = [], skus = [], estibasPorSider = 36,
 }: {
   ahora: string;
   pendientes: PendienteRevision[];
@@ -88,11 +90,19 @@ export function Sorting({
   /** Nulo si quien mira no puede editar, o si los maestros no bajaron. */
   maestros: MaestrosAi | null;
   puedeEditar: boolean;
+  /** Tiene el permiso «Vh Interno (+)» de Roles: ve el botón flotante. */
+  puedeCrear?: boolean;
+  /** Los maestros del formulario del «+»: origen, material y sus factores. */
+  origenes?: OrigenMaestro[];
+  skus?: SkuMaestro[];
+  estibasPorSider?: number;
 }) {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
   const [abierto, setAbierto] = useState<Abierto | null>(null);
   const [cargando, setCargando] = useState<string | null>(null);
+  /** El formulario del «+»: crear un Vh Interno. */
+  const [creando, setCreando] = useState(false);
   const porId = new Map(detalle.map((v) => [v.id, v]));
   const puedeOperar = puedeEditar && !!maestros;
 
@@ -174,12 +184,12 @@ export function Sorting({
           <b className="placa">{p.placa}</b>
           <SelloTipo tipo={p.tipo} />
           {p.interno && (
-            <span className="sello interno" title="Lo creó control con el «+»: no lo certificó Sider">
-              <i />INTERNO
+            <span className="sello interno" title="Lo creó control aquí mismo con el «+»: no pide certificar la llegada">
+              <i />VH INTERNO
             </span>
           )}
           <span className={"sello " + (largo ? "falta" : "transito")}>
-            <i />Llegó {haceCuanto(p.llego_en, ahora)}
+            <i />{p.interno ? "Creado" : "Llegó"} {haceCuanto(p.llego_en, ahora)}
           </span>
         </header>
 
@@ -211,7 +221,7 @@ export function Sorting({
 
         <footer>
           <div className="tr-salio">
-            Llegó {cuando(p.llego_en)}
+            {p.interno ? "Creado" : "Llegó"} {cuando(p.llego_en)}
             <em>
               {p.interno ? "Lo creó " : "Lo pidió "}
               {p.pedido_nombre ?? (p.pedido_por ? nombres[p.pedido_por] : null) ?? "—"}
@@ -266,8 +276,8 @@ export function Sorting({
           <h1>Revisión AI</h1>
           <p className="sub">
             Los camiones que ya llegaron y esperan su revisión: la <b>certificada</b> —viene de
-            Sider y el administrador pidió la muestra— y la <b>normal</b> —la creó control con
-            el «+» de Tránsito—. Se hacen igual, con la misma muestra y los mismos defectos, y
+            Sider y el administrador pidió la muestra— y la <b>normal</b> —el
+            Vh Interno, que se crea aquí mismo con el «+» y no pide certificar la llegada—. Se hacen igual, con la misma muestra y los mismos defectos, y
             las dos entran al Informe AI. {puedeOperar
               ? "Toca «Hacer la revisión» en el camión que vas a contar."
               : "Solo puedes mirar: cerrar una revisión requiere permiso de edición."}
@@ -331,6 +341,22 @@ export function Sorting({
           </section>
         );
       })}
+      {puedeCrear && (
+        <button type="button" className="tr-mas tr-fab" onClick={() => setCreando(true)}
+                aria-label="Crear un Vh Interno" title="Vh Interno">
+          <span className="mas" aria-hidden="true">+</span>
+          <span className="tr-fab-t">Vh Interno</span>
+        </button>
+      )}
+      {creando && (
+        <NuevoInterno origenes={origenes} skus={skus} estibasPorSider={estibasPorSider}
+          alCerrar={() => setCreando(false)}
+          alCrear={(placa) => {
+            setCreando(false);
+            router.refresh();
+            avisar.bien(`${placa} creado: ya está en Revisión AI – normal.`);
+          }} />
+      )}
       {avisos}
     </>
   );

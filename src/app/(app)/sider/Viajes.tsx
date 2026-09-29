@@ -84,7 +84,7 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
   /** Qué camiones pidieron Sorting y cuáles ya lo hicieron. Vacío si nadie
    *  lo pidió, o si falta correr la migración: la tabla sale igual. */
   sorting?: Record<string, "pendiente" | "hecho">;
-  /** Los que creó control con el «+» de Tránsito: no tienen salida ni
+  /** Los que creó control con el «+» de Revisión AI: no tienen salida ni
    *  fotos de salida, y decir «0/3 fotos» sería un reclamo falso. */
   internos?: string[];
 }) {
@@ -316,12 +316,13 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
                   <td>
                     <div>{v.importado || esInterno(v.id) ? "—" : hora(v.salida_en)}</div>
                     <div className="cod">{v.importado ? "sin evidencia"
-                      : esInterno(v.id) ? "interno · sin salida" : `${v.fotos_salida}/3 fotos`}</div>
+                      : esInterno(v.id) ? "Vh Interno · sin salida" : `${v.fotos_salida}/3 fotos`}</div>
                   </td>
                   <td>
-                    <div>{v.importado ? "—" : hora(v.llegada_en)}</div>
+                    <div>{v.importado || (esInterno(v.id) && !v.llegada_en) ? "—" : hora(v.llegada_en)}</div>
                     <div className="cod">
                       {v.importado ? "sin evidencia"
+                        : esInterno(v.id) ? "Vh Interno · sin certificar"
                         : v.estado === "en_transito" ? enCamino(v.en_camino)
                         : `${v.fotos_llegada}/3 fotos`}
                     </div>
@@ -341,8 +342,8 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
                     {(sorting?.[v.id] || esInterno(v.id)) && (
                       <div className="vj-sorting">
                         {esInterno(v.id) && (
-                          <span className="sello interno" title="Lo creó control con el «+»: no lo certificó Sider">
-                            <i />INTERNO
+                          <span className="sello interno" title="Vh Interno: lo creó control en Revisión AI, sin certificar la llegada">
+                            <i />VH INTERNO
                           </span>
                         )}
                         {sorting?.[v.id] && (

@@ -23,7 +23,7 @@ import { useAvisos } from "@/components/Aviso";
 import { traducirError } from "@/lib/errores";
 import type { Viaje } from "@/modulos/sider/comun";
 import { leerPlacas, normPlaca } from "@/modulos/sider/placas";
-import { NuevoInterno, type OrigenMaestro, type SkuMaestro } from "./NuevoInterno";
+import type { OrigenMaestro, SkuMaestro } from "../sorting/NuevoInterno";
 import {
   RANURAS, RANURA_OBS, type Ranura, type RanuraCualquiera, type Foto,
   usePosicion, TarjetaUbicacion, CampoDireccion, Ranurita, CajaObservacion,
@@ -62,26 +62,20 @@ function horasEnCamino(iv: string | null): number {
    bloquear nada. */
 const HORAS_LARGAS = 24;
 
-export function Transito({ viajes, nombres, esEditor, puedeCrear, esAdmin, manda, origenes, skus,
-                           estibasPorSider, trabados, sinEvidencia, cabeza }: {
+export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, skus,
+                           trabados, sinEvidencia, cabeza }: {
   esAdmin?: boolean;
   viajes: Viaje[];
   nombres: Record<string, string>;
   esEditor: boolean;
-  /** Tiene el permiso «Camión interno (+)» de Roles: ve el botón flotante. */
-  puedeCrear?: boolean;
   /** Administra la plataforma: puede corregir y anular, igual que en la
    *  fuente principal. El candado de verdad está en la base. */
   manda?: boolean;
-  /** Para los desplegables de la corrección y del «+»: la base valida la
-   *  planta y el material contra el maestro, así que aquí no puede haber
-   *  campo libre — un texto tecleado a mano solo da un error al guardar.
-   *  Los materiales traen sus factores para calcular las cifras del «+»
-   *  mientras se escribe, igual que en Certificar. */
+  /** Para los desplegables de la corrección: la base valida la planta y el
+   *  material contra el maestro, así que aquí no puede haber campo libre —
+   *  un texto tecleado a mano solo da un error al guardar. */
   origenes?: OrigenMaestro[];
   skus?: SkuMaestro[];
-  /** Cuántas estibas tiene un sider (parámetro del maestro). */
-  estibasPorSider?: number;
   trabados: number;
   sinEvidencia: number;
   /** La cabeza de la página. La dibuja el servidor, la esconde el cliente. */
@@ -92,8 +86,6 @@ export function Transito({ viajes, nombres, esEditor, puedeCrear, esAdmin, manda
 
   /** El viaje abierto para certificar la llegada. */
   const [abierto, setAbierto] = useState<Viaje | null>(null);
-  /** El formulario del «+»: montar un camión interno. */
-  const [creando, setCreando] = useState(false);
 
   /* CORREGIR Y ANULAR. Los dos cuadros son los mismos que los de Fuente
      principal, y llaman a las mismas funciones de la base. */
@@ -589,36 +581,6 @@ export function Transito({ viajes, nombres, esEditor, puedeCrear, esAdmin, manda
       {avisos}
       {cuadrosAdmin}
 
-      {/* EL «+» FLOTANTE. Un botón redondo abajo a la derecha, no una barra
-          en la página: montar un camión interno es la excepción, no lo
-          de todos los días. Solo lo ve quien tiene el permiso «Camión
-          interno (+)» en Roles; la base pide el mismo. */}
-      {puedeCrear && (
-        <button type="button"
-                className={"tr-mas tr-fab" + (manda && escogidos.size > 0 ? " sube" : "")}
-                onClick={() => setCreando(true)}
-                aria-label="Crear un camión interno" title="Camión interno">
-          <span className="mas" aria-hidden="true">+</span>
-          <span className="tr-fab-t">Camión interno</span>
-        </button>
-      )}
-
-      {/* EL «+»: MONTAR UN CAMIÓN QUE NO CERTIFICÓ SIDER. Lo abre el botón
-          flotante, que solo ve quien tiene el permiso «Camión interno (+)». */}
-      {creando && (
-        <NuevoInterno
-          origenes={origenes ?? []}
-          skus={skus ?? []}
-          estibasPorSider={estibasPorSider}
-          alCerrar={() => setCreando(false)}
-          alCrear={(placa) => {
-            setCreando(false);
-            router.refresh();
-            avisar.bien(`${placa} quedó en tránsito. Cuando llegue, certifica su llegada y pasa a Revisión AI – normal.`);
-          }}
-        />
-      )}
-
       {/* LA BARRA DE LO ESCOGIDO, PEGADA ABAJO.
 
           Va fija al pie y no arriba del listado a propósito: con ocho
@@ -896,8 +858,8 @@ export function Transito({ viajes, nombres, esEditor, puedeCrear, esAdmin, manda
                     lleva un segundo sello con lo mismo. */}
                 {v.interno ? (
                   <span className="sello interno"
-                        title="Lo creó control con el «+»: no lo certificó Sider. Al llegar pasa a Revisión AI – normal">
-                    <i />INTERNO · REVISIÓN NORMAL
+                        title="Vh Interno: lo creó control en Revisión AI y no lo certificó Sider. Al llegar pasa a Revisión AI – normal">
+                    <i />VH INTERNO · REVISIÓN NORMAL
                   </span>
                 ) : v.requiere_sorting && (
                   <span className="sello sorting"
@@ -1074,7 +1036,7 @@ export function Transito({ viajes, nombres, esEditor, puedeCrear, esAdmin, manda
                 Quitar el filtro
               </button></>
           ) : (
-            "No hay vehículos en tránsito. Cuando alguien certifique una salida —o cree un camión interno con el «+»—, aparece aquí."
+            "No hay vehículos en tránsito. Cuando alguien certifique una salida, aparece aquí."
           )}
         </div>
       )}

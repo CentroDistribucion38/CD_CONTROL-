@@ -121,7 +121,7 @@ export async function revisionDe(viajeId: string, tipo: TipoRevision = "ai") {
    Las dos clases viven en la misma pantalla y en la misma lista, cada una
    con su marca: la CERTIFICADA (el camión llegó certificado por Sider y
    el administrador pidió la muestra) y la NORMAL (el camión lo creó
-   alguien de control con el «+» de Tránsito). Las dos se hacen con el
+   alguien de control con el «+» de Revisión AI). Las dos se hacen con el
    mismo formulario y las dos entran al Informe AI.
 
    LA LISTA LA ARMA LA BASE (`v_sider_revision_pendientes`) y no esta capa,

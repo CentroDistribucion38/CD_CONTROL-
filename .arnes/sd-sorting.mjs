@@ -135,13 +135,21 @@ const hecho = (n: number, o: any = {}) => ({
   canal: "t1", certificado: false, socio: null, ...(o.sinTipo ? {} : { tipo: o.tipo ?? "ai" }),
 });
 
+const ORIGENES = [
+  { planta: "APA", cd_origen: "Apartadó" }, { planta: "BAQ", cd_origen: "Barranquilla" },
+  { planta: "MDE", cd_origen: "Medellín" }];
+const SKUS_M = [
+  { sku: "3500887", descripcion: "Botella Costeña 175 cc", clase: "Envase", cajas_x_estiba: 72, unidades_x_caja: 24, hl_x_unidad: 0.00175 },
+  { sku: "3500901", descripcion: "Costeñita Ámbar 330 cc", clase: "Envase", cajas_x_estiba: 60, unidades_x_caja: 24, hl_x_unidad: 0.0033 },
+  { sku: "3500999", descripcion: "Caja plástica azul", clase: "Envase", cajas_x_estiba: null, unidades_x_caja: null, hl_x_unidad: null }];
+
 const cuatro = [
   pend(1, 30), pend(2, 3),
   pend(3, 50, { tipo: "sorting", interno: true, pedido: "Control Uno", placa: "INT003" }),
   pend(4, 5, { tipo: "sorting" }),
 ];
 const casos: Record<string, any> = {
-  normal: { puedeEditar: true, maestros, pendientes: cuatro,
+  normal: { puedeEditar: true, puedeCrear: true, maestros, pendientes: cuatro,
     detalle: [det(1), det(2), det(4)],   /* el 3 SIN detalle: no puede esconderse */
     hechos: [hecho(1), hecho(2, { tipo: "sorting", ed: 2 }), hecho(3), hecho(5, { sinTipo: true })] },
   soloNormal: { puedeEditar: true, maestros, pendientes: [pend(4, 5, { tipo: "sorting" })],
@@ -152,6 +160,10 @@ const casos: Record<string, any> = {
     detalle: [det(1, { origen: "Centro de distribución de Apartadó zona franca", desc: "Botella retornable Costeña 175 cc caja por veinticuatro unidades reforzada" })],
     hechos: [hecho(1, { placa: "XYZ-9999-LARGA", env: "Envase retornable de vidrio color ámbar de 175 centímetros cúbicos" }),
              hecho(2, { tipo: "sorting", placa: "XYZ-8888-LARGA" })] },
+  /* EDITA REVISIONES PERO NO TIENE EL PERMISO «Vh Interno (+)»: sin «+». */
+  sincrear: { puedeEditar: true, puedeCrear: false, maestros, pendientes: [pend(1, 30)], detalle: [det(1)], hechos: [hecho(1)] },
+  /* CREA PERO NO CIERRA REVISIONES: el «+» es de su propio permiso. */
+  soloCrea: { puedeEditar: false, puedeCrear: true, maestros: null, pendientes: [pend(1, 30)], detalle: [det(1)], hechos: [hecho(1)] },
   lectura: { puedeEditar: false, maestros: null, pendientes: [pend(1, 30)], detalle: [det(1)], hechos: [hecho(1)] },
   vacio: { puedeEditar: true, maestros, pendientes: [], detalle: [], hechos: [] },
   /* SIN PERMISO PERO CON LOS MAESTROS: el componente tiene que negarse
@@ -168,7 +180,9 @@ if (m === "sorting") {
   const k = casos[c];
   root.render(<Sorting ahora={AHORA} pendientes={k.pendientes} detalle={k.detalle}
     hechos={k.hechos} nombres={{ u1: "Cristian Padilla", u2: "Muchacho Uno" }}
-    maestros={k.maestros} puedeEditar={k.puedeEditar} />);
+    maestros={k.maestros} puedeEditar={k.puedeEditar}
+    puedeCrear={!!k.puedeCrear} origenes={k.puedeCrear ? ORIGENES : []} skus={k.puedeCrear ? SKUS_M : []}
+    estibasPorSider={36} />);
 } else if (m === "form") {
   const viaje = { viaje_id: "vf", placa: "FRM001", planta: "BAQ", fecha: "2026-09-28", sku: "3500887",
                   llego_en: hace(2) };
@@ -238,7 +252,7 @@ if (m === "sorting") {
     { sku: "3500901", descripcion: "Costeñita Ámbar 330 cc", clase: "Envase", cajas_x_estiba: 60, unidades_x_caja: 24, hl_x_unidad: 0.0033 },
     { sku: "3500999", descripcion: "Caja plástica azul", clase: "Envase", cajas_x_estiba: null, unidades_x_caja: null, hl_x_unidad: null }];
   root.render(<Transito viajes={viajes as any} nombres={{ u1: "Cristian Padilla" }}
-    esEditor={c !== "lectura"} puedeCrear={c !== "lectura" && c !== "sincrear"} esAdmin={c !== "noadmin"} manda={c !== "noadmin"}
+    esEditor={c !== "lectura"} esAdmin={c !== "noadmin"} manda={c !== "noadmin"}
     origenes={origenes} skus={skus} estibasPorSider={36}
     trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 }
@@ -278,7 +292,7 @@ const monta = async (query, ancho = 1440, tema = "") => {
       <style>${P}${css}</style></head>
       <body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}>
       <div class="sh-marco sin-riel"><main class="sh-main">
-      <div class="sd" id="r"></div></main></div></div>
+      <div class="sd${query.startsWith("m=sorting") ? " so-pantalla" : ""}" id="r"></div></main></div></div>
       <script>${js}<\/script></body></html>`,
   }));
   await pg.goto(`http://arnes.local/?${query}`);
@@ -358,6 +372,10 @@ await monta("m=sorting&c=normal");
   const internos = await pg.$$eval(".tr-vh .sello.interno", (s) => s.map((e) => e.closest(".tr-vh").querySelector(".placa").textContent));
   ok(internos.length === 1 && internos[0] === "INT003", `sellos «INTERNO» en [${internos}]: solo INT003 lo creó control`);
   ok(/Lo creó Control Uno/.test(t), "el interno no dice «Lo creó»");
+  ok(await pg.$$eval(".tr-vh", (s) => s.filter((a) => a.querySelector(".sello.interno")).every((a) => /Creado/.test(a.textContent) && !/Llegó/.test(a.textContent))),
+     "un Vh Interno dice «Llegó»: nunca llegó, lo crearon aquí");
+  ok(await pg.$$eval(".tr-vh", (s) => s.filter((a) => !a.querySelector(".sello.interno")).every((a) => /Llegó/.test(a.textContent))),
+     "una revisión de Sider ya no dice «Llegó»");
   ok(/Lo pidió Cristian Padilla/.test(t), "la certificada no dice «Lo pidió»");
   ok(await pg.$$eval(".tr-vh", (s) => s.filter((a) => a.querySelector(".sello.interno")).every((a) => !/Lo pidió/.test(a.textContent))),
      "un interno dice «Lo pidió»: nadie lo pidió, lo creó control");
@@ -602,7 +620,7 @@ await monta("m=transito&c=normal");
 
   /* EL INTERNO */
   const i = p("INT004");
-  ok(i.interno === "INTERNO · REVISIÓN NORMAL", `el sello del interno dice «${i.interno}»`);
+  ok(i.interno === "VH INTERNO · REVISIÓN NORMAL", `el sello del interno dice «${i.interno}»`);
   ok(!i.so && !i.ai, "el interno lleva un segundo sello con lo mismo");
   ok(!i.reloj, "el interno lleva reloj de «en camino»: no hubo salida desde donde contarlo");
   ok(i.boton === null, "al interno se le ofrece «Pedir revisión AI»: la certificada no es para él");
@@ -663,21 +681,31 @@ await monta("m=transito&c=noadmin");
 /* =====================================================================
    5a · EL «+»: MONTAR UN CAMIÓN INTERNO
    ===================================================================== */
-await monta("m=transito&c=lectura");
-ok(await pg.$$eval(".tr-mas", (s) => s.length) === 0, "quien no puede editar Tránsito ve el «+»");
-/* EDITAR TRÁNSITO NO ALCANZA: el «+» tiene su propio permiso. */
-await monta("m=transito&c=sincrear");
-ok(await pg.$$eval(".tr-mas", (s) => s.length) === 0, "quien edita Tránsito pero NO tiene el permiso «Camión interno» ve el «+»");
-ok(await pg.$$eval("article.tr-vh .btn", (s) => s.some((b) => /Certificar llegada/.test(b.textContent))),
-   "sin el permiso del «+» también se le quitó certificar la llegada");
-
+/* TRÁNSITO YA NO TIENE «+»: el Vh Interno no pasa por ahí. */
 await monta("m=transito&c=normal");
+ok(await pg.$$eval(".tr-mas", (s) => s.length) === 0, "En tránsito todavía tiene el «+»: el Vh Interno se crea en Revisión AI");
+ok(await pg.$$eval("article.tr-vh .btn", (s) => s.some((b) => /Certificar llegada/.test(b.textContent))),
+   "Tránsito perdió «Certificar llegada» al quitarle el «+»");
+await monta("m=sorting&c=lectura");
+ok(await pg.$$eval(".tr-mas", (s) => s.length) === 0, "quien solo mira Revisión AI ve el «+»");
+/* CERRAR REVISIONES NO ALCANZA: el «+» tiene su propio permiso. */
+await monta("m=sorting&c=sincrear");
+ok(await pg.$$eval(".tr-mas", (s) => s.length) === 0, "quien cierra revisiones pero NO tiene «Vh Interno (+)» ve el «+»");
+ok(await pg.$$eval(".tr-vh .btn", (s) => s.some((b) => /Hacer la revisión/.test(b.textContent))),
+   "sin el permiso del «+» también se le quitó hacer la revisión");
+/* Y AL REVÉS: puede crear sin poder cerrar revisiones. */
+await monta("m=sorting&c=soloCrea");
+ok(await pg.$$eval(".tr-mas", (s) => s.length) === 1, "quien tiene «Vh Interno (+)» y no cierra revisiones no ve el «+»");
+ok(await pg.$$eval(".tr-vh .btn", (s) => s.some((b) => /Hacer la revisión/.test(b.textContent))) === false,
+   "quien solo crea ve «Hacer la revisión»");
+
+await monta("m=sorting&c=normal");
 {
-  ok(await pg.$$eval(".tr-mas", (s) => s.length) === 1, "no aparece el «+» para quien edita Tránsito");
-  ok(/Camión interno/.test(await pg.$eval(".tr-mas", (e) => e.textContent)), "el «+» no dice qué crea");
+  ok(await pg.$$eval(".tr-mas", (s) => s.length) === 1, "no aparece el «+» para quien tiene el permiso");
+  ok(/Vh Interno/.test(await pg.$eval(".tr-mas", (e) => e.textContent)), "el «+» no dice qué crea");
   await pg.click(".tr-mas");
   await pg.waitForSelector("#nv-titulo");
-  const crear = pg.locator('.vj-caja.nuevo .btn:has-text("Crear y dejar en tránsito")');
+  const crear = pg.locator('.vj-caja.nuevo .btn:has-text("Crear Vh Interno")');
 
   /* NADA ESCRITO: el botón apagado y lo que falta dicho por su nombre. */
   ok(await crear.isDisabled(), "el botón de crear está encendido con el formulario vacío");
@@ -761,23 +789,29 @@ await monta("m=transito&c=normal");
   await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
 
   /* CREAR: EXACTAMENTE LOS PARÁMETROS QUE LA FUNCIÓN ESPERA. */
+  /* EL DOCUMENTO: SOLO NÚMEROS, MÁXIMO 10. */
+  await pg.fill(".nv-doc input", "F-77 ab");
+  ok(await pg.inputValue(".nv-doc input") === "77", `el documento deja pasar letras y guiones: «${await pg.inputValue(".nv-doc input")}»`);
+  await pg.fill(".nv-doc input", "12345678901234");
+  ok(await pg.inputValue(".nv-doc input") === "1234567890", `el documento deja escribir más de 10: «${await pg.inputValue(".nv-doc input")}»`);
+  ok(/hasta 10 dígitos/.test(await pg.$eval(".nv-doc", (e) => e.textContent)), "el documento no dice su regla");
+  ok(await pg.$eval(".nv-doc input", (e) => e.maxLength) === 10, "el campo del documento no limita a 10");
   await pg.click(".nv-mas summary");
-  await pg.fill(".nv-mas label:has(span:text('Factura')) input", "F-77");
   await pg.fill(".nv-mas label:has(span:text('Nota')) input", "   ");
   await crear.click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];
   ok(l.n === "sider_viaje_interno_crear", `llamó «${l.n}»`);
   ok(JSON.stringify(l.a) === JSON.stringify({ p_placa: "ABC123", p_planta: "APA", p_destino: "Barranquilla", p_sku: "3500887",
-                                              p_estibas: 10.5, p_factura: "F-77", p_lote: null, p_nota: null }),
+                                              p_estibas: 10.5, p_factura: "1234567890", p_lote: null, p_nota: null }),
      `los parámetros son ${JSON.stringify(l.a)}`);
   await pg.waitForFunction(() => window.__refresh > 0);
   ok(await pg.$$eval("#nv-titulo", (s) => s.length) === 0, "el formulario no se cierra al crear");
-  ok(/ABC123 quedó en tránsito/.test(await txt()), "no avisa que el camión quedó en tránsito");
+  ok(/ABC123 creado: ya está en Revisión AI – normal/.test(await txt()), "no avisa que el Vh Interno quedó en Revisión AI");
 }
 /* SI LA BASE RECHAZA, NO SE CIERRA NI FINGE. */
 {
-  await monta("m=transito&c=normal");
+  await monta("m=sorting&c=normal");
   await pg.click(".tr-mas");
   await pg.fill(".nv-placa input", "ZZZ999");
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
@@ -785,18 +819,18 @@ await monta("m=transito&c=normal");
   await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "5");
   await pg.selectOption(".nv-campos select >> nth=1", "Medellín");
   await pg.evaluate(() => { window.__rpcFalla = "Ese material está apagado en el maestro" });
-  await pg.click('.vj-caja.nuevo .btn:has-text("Crear y dejar en tránsito")');
+  await pg.click('.vj-caja.nuevo .btn:has-text("Crear Vh Interno")');
   await pg.waitForSelector(".vj-mal");
   ok(/material/.test(await pg.$eval(".vj-mal", (e) => e.textContent)), "el rechazo de la base no se le explica a quien crea");
   ok(await pg.$$eval("#nv-titulo", (s) => s.length) === 1, "cerró el formulario aunque la base lo rechazó");
   ok(await pg.evaluate(() => window.__refresh) === 0, "refrescó como si hubiera creado");
   /* REINTENTAR CON EL MISMO FORMULARIO: el destino escogido (no el de por defecto) es el que viaja. */
   await pg.evaluate(() => { window.__rpcFalla = null; window.__rpc.length = 0 });
-  await pg.click('.vj-caja.nuevo .btn:has-text("Crear y dejar en tránsito")');
+  await pg.click('.vj-caja.nuevo .btn:has-text("Crear Vh Interno")');
   await pg.waitForFunction(() => window.__rpc.length > 0);
   ok((await rpcs())[0].a.p_destino === "Medellín", `el destino escogido no viaja: ${(await rpcs())[0].a.p_destino}`);
   /* CANCELAR NO LLAMA A NADA. */
-  await monta("m=transito&c=normal");
+  await monta("m=sorting&c=normal");
   await pg.click(".tr-mas");
   await pg.evaluate(() => { window.__rpc.length = 0 });
   await pg.click('.vj-caja.nuevo .btn:has-text("Cancelar")');
@@ -834,9 +868,9 @@ await monta("m=viajes&c=marcas");
   ok(m.FUE003.marcas.length === 0, `el que no la pidió lleva marca: ${JSON.stringify(m.FUE003.marcas)}`);
   ok(m.FUE001.marcas.every((x) => !/SORTING/i.test(x)), "quedó la palabra Sorting");
   /* EL INTERNO: su marca, su «sin salida», y ningún reclamo de fotos. */
-  ok(m.FUE005.marcas.includes("INTERNO") && m.FUE005.marcas.includes("REVISIÓN NORMAL PENDIENTE"),
+  ok(m.FUE005.marcas.includes("VH INTERNO") && m.FUE005.marcas.includes("REVISIÓN NORMAL PENDIENTE"),
      `FUE005 (interno): ${JSON.stringify(m.FUE005.marcas)}`);
-  ok(/interno · sin salida/.test(m.FUE005.fotos) && !/0\/3 fotos/.test(m.FUE005.fotos),
+  ok(/Vh Interno · sin salida/.test(m.FUE005.fotos) && /Vh Interno · sin certificar/.test(m.FUE005.fotos) && !/0\/3 fotos/.test(m.FUE005.fotos),
      `el interno dice «0/3 fotos» o no dice que no tuvo salida: «${m.FUE005.fotos.slice(0, 200)}»`);
   ok(/3\/3 fotos/.test(m.FUE001.fotos), "un camión normal ya no dice sus fotos de salida");
   /* EL ESTADO NO SE PISA. */
@@ -935,7 +969,7 @@ for (const ancho of [360, 390, 722, 820, 1440]) {
   }
 
   /* EL BOTÓN FLOTANTE: dentro de la pantalla, y sin tapar la barra de «viajes escogidos». */
-  await monta("m=transito&c=normal", ancho);
+  await monta("m=sorting&c=normal", ancho);
   {
     const r0 = await pg.$eval(".tr-mas", (e) => { const b = e.getBoundingClientRect();
       return { x0: b.left, x1: b.right, y0: b.top, y1: b.bottom, W: innerWidth, H: innerHeight, pos: getComputedStyle(e).position } });
@@ -944,23 +978,25 @@ for (const ancho of [360, 390, 722, 820, 1440]) {
     ok(r0.x1 > r0.W * 0.6 && r0.y1 > r0.H * 0.6, `el «+» en ${ancho} px no está abajo a la derecha`);
     ok(Math.round(r0.x1 - r0.x0) >= 56 && Math.abs((r0.x1 - r0.x0) - (r0.y1 - r0.y0)) < 2,
        `el «+» en ${ancho} px no es un círculo de al menos 56 px (${r0.x1 - r0.x0} × ${r0.y1 - r0.y0})`);
-    await pg.click("article.tr-vh .tr-marca input >> nth=0");
-    await pg.waitForSelector(".tr-barra");
-    const r1 = await pg.evaluate(() => { const q = (s) => { const b = document.querySelector(s).getBoundingClientRect();
-      return { x0: b.left, x1: b.right, y0: b.top, y1: b.bottom } };
-      return { fab: q(".tr-mas"), barra: q(".tr-barra") } });
-    const cruza = r1.fab.x0 < r1.barra.x1 && r1.barra.x0 < r1.fab.x1 && r1.fab.y0 < r1.barra.y1 && r1.barra.y0 < r1.fab.y1;
-    ok(!cruza, `el «+» en ${ancho} px tapa la barra de viajes escogidos: ${JSON.stringify(r1)}`);
+    /* NO TAPA EL ÚLTIMO BOTÓN: al final de la página, con todo el scroll, el
+       botón de la última tarjeta y el «+» no pueden quedar uno sobre otro. */
+    await pg.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const r1 = await pg.evaluate(() => { const f = document.querySelector(".tr-mas").getBoundingClientRect();
+      return [...document.querySelectorAll(".tr-vh .btn, .so-hechos button, .so-hechos a")].map((e) => { const b = e.getBoundingClientRect();
+        return b.width > 0 && f.left < b.right && b.left < f.right && f.top < b.bottom && b.top < f.bottom
+          ? e.textContent.trim().slice(0, 20) : null }).filter(Boolean) });
+    ok(r1.length === 0, `el «+» en ${ancho} px tapa «${r1[0]}» al final de la página`);
   }
 
   /* EL «+» ABIERTO: la caja entera dentro de la pantalla, en todos los anchos, y con todo lleno. */
-  await monta("m=transito&c=normal", ancho);
+  await monta("m=sorting&c=normal", ancho);
   await pg.click(".tr-mas");
   await pg.waitForSelector(".vj-caja.nuevo");
   await pg.fill(".nv-placa input", "ABC123");
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
   await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
   await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
+  await pg.fill(".nv-doc input", "1234567890");
   await pg.click(".nv-mas summary");
   const caja = await pg.evaluate(() => {
     const W = document.documentElement.clientWidth;
@@ -1004,9 +1040,9 @@ const MIDE = () => {
     const f = fondo(e); const t = sobre(rgba(getComputedStyle(e).color), f); return razon(t, f) };
 };
 const PARES = {
-  "m=sorting&c=normal": [".tr-vh.ai .sello.ai", ".tr-vh.so .sello.sorting", ".tr-vh .sello.interno",
+  "m=sorting&c=normal": [".tr-mas", ".tr-vh.ai .sello.ai", ".tr-vh.so .sello.sorting", ".tr-vh .sello.interno",
                          ".so-bloque-cab h2", ".so-bloque-n span", ".tr-vh.ai .btn.ai", ".tr-vh.so .btn.so-btn", ".so-hechos li.so .so-h-tipo .sello"],
-  "m=transito&c=normal": [".tr-vh .sello.ai", ".tr-vh .sello.sorting", ".tr-vh .sello.interno", ".tr-mas"],
+  "m=transito&c=normal": [".tr-vh .sello.ai", ".tr-vh .sello.sorting", ".tr-vh .sello.interno"],
   "m=viajes&c=marcas": [".vj-sorting .sello.interno", ".vj-sorting .sello:not(.interno)"],
   "m=informe&c=normal": [".ia-tabla td:nth-child(3) .ia-sello.propio", ".ia-tabla td:nth-child(3) .ia-sello.normal"],
 };

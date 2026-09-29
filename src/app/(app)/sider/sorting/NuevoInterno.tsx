@@ -1,25 +1,26 @@
 "use client";
 
 /**
- * EL «+» DE TRÁNSITO — CREAR UN CAMIÓN INTERNO.
+ * EL «+» DE REVISIÓN AI — CREAR UN «VH INTERNO».
  *
  * «Dentro del tránsito debe haber un «+», un formulario donde la persona
  *  de control pueda escribir el origen, el destino, el material de
- *  acuerdo al maestro y la cantidad de estibas, y que traiga el resto.
- *  De esa manera creamos las certificaciones internas.»
+ *  acuerdo al maestro y la cantidad de estibas, y que traiga el resto.»
+ *  Y después: «que se llame Vh Interno y no aparezca en Tránsito sino en
+ *  Revisión AI, para que un rol lo cree ahí mismo: no va a pedir
+ *  certificación de llegada. Con el número del documento, máximo 10
+ *  dígitos.»
  *
- * Es para el camión que NO certificó Sider: llega igual, hay que
- * recibirlo y hay que revisarlo, y sin este formulario no existía en el
- * sistema. Queda montado en tránsito; se recibe como cualquier otro —GPS
- * y las tres fotos de la LLEGADA— y al certificar la llegada pasa a
- * «Revisión AI – normal». No tiene salida, ni GPS de salida, ni fotos de
- * salida, y NO cuenta como certificado por Sider.
+ * Es para el camión que NO certificó Sider: llega igual y hay que
+ * revisarlo, y sin este formulario no existía en el sistema. NO pasa por
+ * Tránsito: nace recibido y cae directo en «Revisión AI – normal». No
+ * tiene salida, ni GPS, ni fotos, y NO cuenta como certificado por Sider.
  *
  * SE ESCRIBE POCO Y SE ESCOGE DE LISTAS. Origen, destino y material salen
  * del maestro —la base los vuelve a validar, así que un texto libre solo
- * puede acabar en un error—; lo único que se teclea es la placa y las
- * estibas. Las cajas, las unidades, los hectolitros y los siders se
- * calculan solos MIENTRAS se escribe, con las mismas fórmulas de
+ * puede acabar en un error—; lo único que se teclea es la placa, el
+ * documento y las estibas. Las cajas, las unidades, los hectolitros y los
+ * siders se calculan solos MIENTRAS se escribe, con las mismas fórmulas de
  * Certificar, para saber qué se está montando antes de guardar.
  *
  * ES PARA UN CELULAR EN EL PATIO: un solo listado de campos a lo ancho,
@@ -60,12 +61,16 @@ const PLACA_OK = /^[A-Z]{3}[0-9]{3}$/;
 /** Lo que se acepta al teclear: sin espacios ni signos, en mayúscula, máximo 6. */
 const limpiaPlaca = (t: string) => t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 
+/** EL DOCUMENTO (factura): solo dígitos, de 1 a 10. Vacío se permite. */
+const DOC_MAX = 10;
+const limpiaDoc = (t: string) => t.replace(/[^0-9]/g, "").slice(0, DOC_MAX);
+
 export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, alCrear }: {
   origenes: OrigenMaestro[];
   skus: SkuMaestro[];
   estibasPorSider?: number;
   alCerrar: () => void;
-  /** Se llama con la placa ya guardada. */
+  /** Se llama con la placa ya guardada: el Vh Interno ya está en Revisión AI – normal. */
   alCrear: (placa: string) => void;
 }) {
   const [placa, setPlaca] = useState("");
@@ -139,7 +144,7 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
       p_destino: destino,
       p_sku: sku,
       p_estibas: nEst,
-      p_factura: factura.trim() || null,
+      p_factura: factura || null,
       p_lote: lote.trim() || null,
       p_nota: nota.trim() || null,
     });
@@ -152,11 +157,11 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
     <div className="vj-velo" role="dialog" aria-modal="true" aria-labelledby="nv-titulo"
          onClick={(e) => { if (e.target === e.currentTarget && !ocupado) alCerrar() }}>
       <div className="vj-caja nuevo">
-        <p className="vj-ojo">CAMIÓN INTERNO</p>
-        <h3 id="nv-titulo">Montar un camión en tránsito</h3>
+        <p className="vj-ojo">VH INTERNO</p>
+        <h3 id="nv-titulo">Crear un Vh Interno</h3>
         <p className="vj-dice">
-          Para el que <b>no certificó Sider</b>. Queda en tránsito; cuando llegue se certifica
-          su llegada y pasa a <b>Revisión AI – normal</b>.
+          Para el que <b>no certificó Sider</b>. No pasa por Tránsito ni pide certificar la
+          llegada: queda de una vez en <b>Revisión AI – normal</b>.
         </p>
 
         <div className="nv-campos">
@@ -235,6 +240,14 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
             <input value={estibas} inputMode="decimal" autoComplete="off" placeholder="0"
                    onChange={(e) => setEstibas(e.target.value)} />
           </label>
+
+          <label className="nv-doc">
+            <span>Documento <em>opcional</em></span>
+            <input value={factura} maxLength={DOC_MAX} inputMode="numeric" autoComplete="off"
+                   placeholder="Número de factura" aria-describedby="nv-doc-ayuda"
+                   onChange={(e) => setFactura(limpiaDoc(e.target.value))} />
+            <small id="nv-doc-ayuda">Solo números, hasta {DOC_MAX} dígitos</small>
+          </label>
         </div>
 
         {/* LO QUE SE CALCULA SOLO. Se ve mientras se escribe: si el
@@ -249,9 +262,6 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
         <details className="nv-mas">
           <summary>Más datos <em>opcional</em></summary>
           <div className="nv-campos">
-            <label><span>Factura</span>
-              <input value={factura} maxLength={30} autoComplete="off"
-                     onChange={(e) => setFactura(e.target.value)} /></label>
             <label><span>Lote</span>
               <input value={lote} maxLength={30} autoComplete="off"
                      onChange={(e) => setLote(e.target.value)} /></label>
@@ -268,7 +278,7 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
 
         <div className="vj-botones">
           <button type="button" className="btn" onClick={crear} disabled={ocupado || !puede}>
-            {ocupado ? "Creando…" : "Crear y dejar en tránsito"}
+            {ocupado ? "Creando…" : "Crear Vh Interno"}
           </button>
           <button type="button" className="btn plano" onClick={alCerrar} disabled={ocupado}>
             Cancelar

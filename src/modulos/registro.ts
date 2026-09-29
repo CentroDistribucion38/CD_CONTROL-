@@ -363,14 +363,6 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
-      /* EL «+» DE CAMIÓN INTERNO NO ES UNA PANTALLA: es un botón flotante de
-         En tránsito. Está aquí, oculto, SOLO para tener su casilla en
-         Roles —«Camión interno (+)»—: no todos los que reciben camiones
-         pueden montar uno. Su página redirige a En tránsito. */
-      { nombre: "Camión interno (+)", ruta: "/sider/transito/nuevo", oculto: true },
-      /* EL «+» DE CAMIÓN INTERNO vive DENTRO de Tránsito: allí se crea el
-         camión, allí se certifica su llegada, y de ahí pasa solo a la
-         pantalla de Revisión AI. */
       { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
       /* EL INFORME DE LA REVISIÓN AI va detrás del seguimiento de
@@ -380,11 +372,16 @@ export const MODULOS: Modulo[] = [
       { nombre: "Informe AI", ruta: "/sider/seguimiento/ai" },
       /* REVISIÓN AI, DEBAJO DEL INFORME AI, como se pidió. Es la lista de
          lo que falta revisar una vez CERTIFICADA la llegada, en dos
-         clases: «certificada» (camión de Sider) y «normal» (los que se
-         crean con el «+» de Tránsito). LA RUTA SIGUE SIENDO
+         clases: «certificada» (camión de Sider) y «normal» (los «Vh
+         Interno», que se crean ahí mismo con el «+»). LA RUTA SIGUE SIENDO
          /sider/sorting: los permisos de cada rol están guardados con ese
          texto y cambiarlo dejaría a todos sin acceso. */
       { nombre: "Revisión AI", ruta: "/sider/sorting" },
+      /* EL «+» DE «VH INTERNO» NO ES UNA PANTALLA: es un botón flotante de
+         Revisión AI. Está aquí, oculto, SOLO para tener su casilla en Roles
+         —«Vh Interno (+)»—: no todos los que hacen revisiones pueden crear
+         un camión. Su página redirige a Revisión AI. */
+      { nombre: "Vh Interno (+)", ruta: "/sider/sorting/nuevo", oculto: true },
       /* Se entra por el botón Importar de Seguimiento, que es donde se
          necesita. En el menú era el mismo destino dicho dos veces. */
       { nombre: "Importar", ruta: "/sider/importar", oculto: true },

@@ -39,6 +39,10 @@ done
 sudo -u postgres psql -q -c "drop database if exists ${DB}_reg" >/dev/null
 sudo -u postgres psql -q -c "create database ${DB}_reg template ${DB}" >/dev/null
 
+# La sección 8b de la migración (lo ya creado) se corre otra vez desde la prueba 11.
+sed -n '/^-- 8b\. LO QUE YA ESTABA CREADO/,/^-- 9\. COMPROBACIÓN FINAL/p' "$MIGRACION" | sed '$d' > .arnes/_mig-8b.sql
+grep -qF "do \$\$" .arnes/_mig-8b.sql || fallo "no se pudo extraer la sección 8b de la migración"
+
 echo "--- las pruebas nuevas"
 salida=$($PSQL -d $DB -f .arnes/prueba-sider-revision.sql 2>&1) || true
 echo "$salida" | grep -E "NOTICE" | sed 's/^.*NOTICE:  /    /' || true
@@ -46,7 +50,7 @@ if echo "$salida" | grep -qE "ERROR|FALLA"; then
   echo "$salida" | grep -vE "NOTICE|^$" | head -30 | sed 's/^/    /'
   fallo "Revisión AI: una comprobación falló"
 fi
-for n in "1 ·" "2 ·" "3 ·" "3b ·" "4 ·" "5 ·" "6 ·" "7 ·" "8 ·" "9 ·" "10 ·"; do
+for n in "1 ·" "2 ·" "3 ·" "3b ·" "4 ·" "5 ·" "6 ·" "7 ·" "8 ·" "9 ·" "10 ·" "11 ·"; do
   echo "$salida" | grep -q "NOTICE:  $n" || fallo "no corrió la comprobación «$n»: un bloque que no corre no falla, solo calla"
 done
 
@@ -58,4 +62,4 @@ if echo "$salida" | grep -qE "ERROR|FALLARON|FALLÓ"; then
 fi
 echo "    prueba-sider-ai.sql: $(echo "$salida" | grep -c 'WARNING') comprobaciones"
 
-echo "✓ Revisión AI: el cobro de antes no se movió, el interno se recibe sin salida y no cuenta como certificado, y cada permiso se pide por su pantalla."
+echo "✓ Revisión AI: el cobro de antes no se movió, el Vh Interno nace recibido y cae en Revisión AI sin llegada, no cuenta como certificado, y cada permiso se pide por su pantalla."

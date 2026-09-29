@@ -1,5 +1,5 @@
 -- =====================================================================
--- SIDER · REVISIÓN AI: NORMAL Y CERTIFICADA — Y EL «+» DE TRÁNSITO
+-- SIDER · REVISIÓN AI: NORMAL Y CERTIFICADA — Y EL «+» DE «VH INTERNO»
 --
 -- «Lo que se llama Sorting que se llame Revisión AI, y allí dentro lo
 --  segregado: lo que llega como Revisión AI – normal, y lo que es por
@@ -8,26 +8,36 @@
 --  el origen, el destino, el material y la cantidad de estibas, y de esa
 --  manera creamos las certificaciones internas.»
 --
+-- CAMBIO POSTERIOR: «el camión interno que se llame Vh Interno, que no
+--  aparezca en Tránsito sino en Revisión AI, para que un rol lo cree ahí
+--  mismo: no va a pedir certificación de llegada. Y que lleve el número
+--  de documento, máximo 10 dígitos.»
+--
 -- ---------------------------------------------------------------------
 -- QUÉ CAMBIA EN LA BASE
 -- ---------------------------------------------------------------------
 --   1. `sider_viajes.interno`: el camión lo creó alguien de control con
 --      el «+», no llegó certificado por Sider. No tiene salida.
---   2. `sider_viaje_interno_crear(...)`: crea ese camión, ya marcado para
---      la revisión normal, en tránsito. Se recibe como cualquier otro:
---      GPS y las tres fotos de la LLEGADA.
+--   2. `sider_viaje_interno_crear(...)`: crea el «Vh Interno» YA RECIBIDO
+--      y marcado para la revisión normal. NO pasa por Tránsito y NO pide
+--      certificación de llegada (ni GPS ni fotos): cae directo en la lista
+--      de «Revisión AI – normal». Lleva el número de documento: solo
+--      dígitos, hasta 10.
 --   3. `sider_certificar_llegada`: un interno no exige las tres fotos de
---      una salida que nunca existió.
+--      una salida que nunca existió (queda por los viejos que aún estén en
+--      camino; los que ya existían en tránsito pasan a recibidos abajo).
 --   4. `v_sider_ai` y `v_sider_ai_detalle` ahora traen LAS DOS revisiones
 --      —la normal y la certificada— con la columna `tipo` para
 --      separarlas. Esto CAMBIA EL COBRO: hasta ahora un Sorting no
 --      entraba al informe, y por decisión de Cristian ahora sí, marcado.
 --   5. `v_sider_revision_pendientes`: la lista de trabajo de la pantalla
 --      «Revisión AI», con las dos clases. Solo entran camiones cuya
---      llegada YA está certificada.
+--      llegada YA está certificada, o que son Vh Interno (que no tienen).
 --   6. Un solo permiso para guardar cualquiera de las dos: editar la
 --      pantalla «Revisión AI» (/sider/sorting — la ruta no cambia para no
 --      dejar huérfanos los permisos ya dados), o el de siempre en Tránsito.
+--   9. El permiso del «+» pasa a llamarse «Vh Interno (+)» y a vivir en
+--      `/sider/sorting/nuevo`; lo ya dado con la clave vieja se traslada.
 --   7. El seguimiento (% de certificación) NO cuenta los internos: Sider
 --      no los certificó.
 --   8. Un interno no lleva revisión AI certificada, y su marca de
@@ -76,8 +86,8 @@ end $$;
 alter table public.sider_viajes add column if not exists interno boolean not null default false;
 
 comment on column public.sider_viajes.interno is
-  'true = lo creó alguien de control con el «+» de Tránsito; Sider NO lo certificó '
-  '(no tiene salida, ni GPS, ni fotos de salida). No cuenta en el % de certificación.';
+  'true = Vh Interno: lo creó alguien de control con el «+» de Revisión AI; Sider NO lo certificó '
+  '(no tiene salida, ni llegada certificada, ni GPS, ni fotos). No cuenta en el % de certificación.';
 
 create index if not exists sider_viajes_interno_idx
   on public.sider_viajes (interno, estado) where interno;
@@ -92,22 +102,23 @@ exception when duplicate_object then null; end $$;
 
 
 -- ---------------------------------------------------------------------
--- 2. CREAR EL CAMIÓN INTERNO — EL «+» DE TRÁNSITO
+-- 2. CREAR EL VH INTERNO — EL «+» DE REVISIÓN AI
 --
--- Lo llama la persona de control. Quien pueda EDITAR Tránsito: es la
--- misma pantalla donde aparece el «+», y pedir aquí otro permiso haría
--- un botón que da error al tocarlo.
+-- Lo llama la persona de control desde la pantalla «Revisión AI», con el
+-- permiso propio «Vh Interno (+)» (`/sider/sorting/nuevo`).
 --
 -- TODO SE VALIDA CONTRA LOS MAESTROS. El origen y el material salen de
 -- desplegables, pero la base no se fía del desplegable: alguien que llame
 -- la función a mano no puede inventar un CD ni un material. El destino
 -- también es un CD del maestro (o Barranquilla, que es la planta).
 --
--- NACE EN TRÁNSITO Y CON LA REVISIÓN NORMAL PEDIDA. Se recibe como
--- cualquier otro camión —así queda GPS y fotos de la llegada— y al
--- certificar la llegada pasa solo a «Revisión AI – normal».
+-- NACE RECIBIDO, NO EN TRÁNSITO. Un Vh Interno no viaja con Sider: lo
+-- crea control cuando el camión ya está en el muelle. No pide
+-- certificación de llegada —ni GPS ni fotos— y por eso la lista de
+-- pendientes lo acepta sin ella. Cae directo en «Revisión AI – normal».
 --
--- PERMISO PROPIO: «Camión interno (+)» en Roles (`/sider/transito/nuevo`).
+-- EL DOCUMENTO (`factura`): solo dígitos, de 1 a 10. La pantalla ya lo
+-- exige; aquí se vuelve a exigir porque alguien llama la función a mano.
 -- PLACA: tres letras y tres números.
 --
 -- `fecha` es la de HOY EN COLOMBIA. Sin salida certificada no hay de
@@ -135,17 +146,22 @@ declare
   v_origen  text;
   v_destino text := btrim(coalesce(p_destino, ''));
   v_dest_ok text;
+  v_doc     text := btrim(coalesce(p_factura, ''));
 begin
   /* EL «+» TIENE SU PROPIO PERMISO, no el de Tránsito: quien recibe los
      camiones no tiene por qué poder inventar uno. Sale en Roles como
-     «Camión interno (+)»; nadie lo trae de fábrica salvo quien administra
+     «Vh Interno (+)»; nadie lo trae de fábrica salvo quien administra
      la plataforma. */
-  if not public.puede_editar('/sider/transito/nuevo') then
-    raise exception 'Crear un camión interno requiere el permiso «Camión interno» (Roles)';
+  if not public.puede_editar('/sider/sorting/nuevo') then
+    raise exception 'Crear un Vh Interno requiere el permiso «Vh Interno» (Roles)';
   end if;
 
   if v_placa = '' then
     raise exception 'Falta la placa';
+  end if;
+  /* EL DOCUMENTO: solo números, hasta 10. Vacío se permite (no siempre hay). */
+  if v_doc <> '' and v_doc !~ '^[0-9]{1,10}$' then
+    raise exception 'El documento son solo números, hasta 10 dígitos';
   end if;
   /* LA PLACA SON TRES LETRAS Y TRES NÚMEROS, y nada más. La pantalla ya
      lo exige; aquí se vuelve a exigir porque alguien llama la función a mano. */
@@ -189,14 +205,14 @@ begin
 
   insert into public.sider_viajes
     (placa, planta, cd_destino, sku, estibas, factura, lote, observacion,
-     fecha, creado_por, interno, requiere_sorting, sorting_pedido_por, sorting_pedido_en)
+     fecha, creado_por, interno, requiere_sorting, sorting_pedido_por, sorting_pedido_en, estado)
   values
     (v_placa, p_planta, v_dest_ok, btrim(p_sku), p_estibas,
-     nullif(upper(btrim(coalesce(p_factura, ''))), ''),
+     nullif(v_doc, ''),
      nullif(upper(btrim(coalesce(p_lote, ''))), ''),
      nullif(btrim(coalesce(p_nota, '')), ''),
      (now() at time zone 'America/Bogota')::date,
-     auth.uid(), true, true, auth.uid(), now())
+     auth.uid(), true, true, auth.uid(), now(), 'recibido')
   returning id into v_id;
 
   return v_id;
@@ -244,7 +260,8 @@ begin
   -- pudiera cerrar un viaje al que le faltan, la evidencia se volvería
   -- opcional en la práctica.
   /* UN CAMIÓN INTERNO NO TIENE SALIDA QUE PROBAR. Lo creó alguien de
-     control con el «+» de Tránsito para poder recibirlo y pasarlo a la
+     control con el «+» de Revisión AI (hoy ya nace recibido; esto queda
+     por los que se crearon antes) para poder recibirlo y pasarlo a la
      Revisión AI: nunca hubo una certificación de salida ni sus tres
      fotos, y exigirlas lo dejaría trancado para siempre. La LLEGADA sí
      se prueba entera —ubicación y sus tres fotos—, eso no cambia.
@@ -359,7 +376,7 @@ grant select on public.v_sider_ai_detalle to authenticated;
 -- el camión viene en la vía no hay nada que revisar.
 --
 -- «YA LLEGÓ» SE PREGUNTA IGUAL QUE EN `sider_ai_guardar`: por la
--- certificación de llegada, no por el estado del viaje. Así la lista y
+-- certificación de llegada —o por ser Vh Interno, que no la tiene—, no por el estado del viaje. Así la lista y
 -- la función que guarda no pueden discrepar. Los anulados no esperan.
 -- ---------------------------------------------------------------------
 create or replace view public.v_sider_revision_pendientes as
@@ -375,8 +392,8 @@ from public.sider_viajes v
 left join public.perfiles p on p.id = v.ai_pedido_por
 where v.requiere_ai
   and v.estado <> 'anulado'
-  and exists (select 1 from public.sider_certificaciones c
-               where c.viaje_id = v.id and c.punta = 'llegada')
+  and (v.interno or exists (select 1 from public.sider_certificaciones c
+               where c.viaje_id = v.id and c.punta = 'llegada'))
   and not exists (select 1 from public.sider_ai_revisiones r
                    where r.viaje_id = v.id and r.tipo = 'ai')
 union all
@@ -386,14 +403,15 @@ select
   v.sorting_pedido_en, v.sorting_pedido_por, null::text,
   v.interno,
   p.nombre,
-  (select max(c.hecha_en) from public.sider_certificaciones c
-    where c.viaje_id = v.id and c.punta = 'llegada')
+  /* Un Vh Interno no tiene llegada certificada: «llegó» es cuando lo crearon. */
+  coalesce((select max(c.hecha_en) from public.sider_certificaciones c
+    where c.viaje_id = v.id and c.punta = 'llegada'), case when v.interno then v.creado_en end)
 from public.sider_viajes v
 left join public.perfiles p on p.id = v.sorting_pedido_por
 where v.requiere_sorting
   and v.estado <> 'anulado'
-  and exists (select 1 from public.sider_certificaciones c
-               where c.viaje_id = v.id and c.punta = 'llegada')
+  and (v.interno or exists (select 1 from public.sider_certificaciones c
+               where c.viaje_id = v.id and c.punta = 'llegada'))
   and not exists (select 1 from public.sider_ai_revisiones r
                    where r.viaje_id = v.id and r.tipo = 'sorting');
 
@@ -547,14 +565,14 @@ begin
 
   select coalesce(v.fecha, v.creado_en::date), v.placa, v.planta,
          case p_tipo when 'ai' then v.requiere_ai else v.requiere_sorting end,
-         exists (select 1 from public.sider_certificaciones c
-                  where c.viaje_id = v.id and c.punta = 'llegada')
+         (v.interno or exists (select 1 from public.sider_certificaciones c
+                  where c.viaje_id = v.id and c.punta = 'llegada'))
     into v_fecha, v_placa, v_planta, v_pidio, v_llego
     from public.sider_viajes v where v.id = p_viaje;
 
   if v_fecha is null then raise exception 'Ese viaje no existe'; end if;
   if not v_pidio then
-    raise exception 'Ese viaje no está marcado para %. Un administrador tiene que pedirlo primero (o crearse con el «+» de Tránsito)', v_nombre;
+    raise exception 'Ese viaje no está marcado para %. Un administrador tiene que pedirlo primero (o crearse con el «+» de Vh Interno)', v_nombre;
   end if;
   /* LA REVISIÓN ES DE LO QUE LLEGÓ. Sin certificar la llegada no hay
      camión que revisar. */
@@ -689,7 +707,7 @@ certificado as (
   -- "Base de Datos" registraba al despachar.
   where v.estado <> 'anulado'
     /* UN CAMIÓN INTERNO NO CERTIFICÓ NADA CON SIDER. Lo creó alguien de
-       control con el «+» de Tránsito: no tiene salida, ni GPS, ni fotos de
+       control con el «+» de Revisión AI: no tiene salida, ni GPS, ni fotos de
        salida. Contarlo aquí subiría el % de certificación con camiones que
        Sider nunca certificó. */
     and not exists (select 1 from public.sider_viajes x where x.id = v.id and x.interno)
@@ -773,6 +791,47 @@ grant select on public.v_sider_dias to authenticated;
 
 
 -- ---------------------------------------------------------------------
+-- 8b. LO QUE YA ESTABA CREADO
+--
+-- · Los internos que se crearon antes seguían «en tránsito» esperando una
+--   llegada que ya no se pide: pasan a recibidos y caen en Revisión AI.
+--   (Los que ya certificaron su llegada no se tocan: ya estaban recibidos.)
+-- · El permiso del «+» cambió de clave —de `/sider/transito/nuevo` a
+--   `/sider/sorting/nuevo`— porque ya no vive en Tránsito. Lo ya dado a un
+--   rol o a una persona se traslada: sin esto quien lo tenía lo perdería
+--   EN SILENCIO. Se puede correr dos veces: la segunda no encuentra nada.
+-- ---------------------------------------------------------------------
+do $$
+declare n_rec int; n_rol int := 0; n_pers int := 0;
+begin
+  update public.sider_viajes set estado = 'recibido'
+   where interno and estado = 'en_transito';
+  get diagnostics n_rec = row_count;
+
+  if to_regclass('public.rol_permisos') is not null then
+    insert into public.rol_permisos (rol, seccion, nivel)
+      select rol, '/sider/sorting/nuevo', nivel
+        from public.rol_permisos where seccion = '/sider/transito/nuevo'
+      on conflict (rol, seccion) do nothing;
+    delete from public.rol_permisos where seccion = '/sider/transito/nuevo';
+    get diagnostics n_rol = row_count;
+  end if;
+
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'perfiles'
+                and column_name = 'permisos_extra') then
+    update public.perfiles
+       set permisos_extra = (permisos_extra - '/sider/transito/nuevo')
+                            || jsonb_build_object('/sider/sorting/nuevo', permisos_extra -> '/sider/transito/nuevo')
+     where permisos_extra ? '/sider/transito/nuevo';
+    get diagnostics n_pers = row_count;
+  end if;
+
+  raise notice 'Vh Interno: % internos pasaron a recibidos; permiso trasladado en % roles y % personas.', n_rec, n_rol, n_pers;
+end $$;
+
+
+-- ---------------------------------------------------------------------
 -- 9. COMPROBACIÓN FINAL — SE PARA, NO AVISA
 -- ---------------------------------------------------------------------
 do $$
@@ -807,8 +866,11 @@ begin
 
   select pg_get_functiondef(to_regprocedure(
     'public.sider_viaje_interno_crear(text,text,text,text,numeric,text,text,text)')) into v_src;
-  if v_src not like '%/sider/transito/nuevo%' then
-    raise exception 'sider_viaje_interno_crear no pide su permiso propio (Camión interno).';
+  if v_src not like '%/sider/sorting/nuevo%' then
+    raise exception 'sider_viaje_interno_crear no pide su permiso propio (Vh Interno).';
+  end if;
+  if v_src not like '%''recibido''%' or v_src not like '%{1,10}%' then
+    raise exception 'sider_viaje_interno_crear no nace recibido o no limita el documento a 10 dígitos.';
   end if;
 
   select pg_get_functiondef(to_regprocedure(

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
-import { nombresTodos } from "@/modulos/sider/datos";
+import { nombresTodos, maestroSider } from "@/modulos/sider/datos";
 import { maestrosAi, revisionesPendientes, revisionesHechas } from "@/modulos/sider/ai";
 import type { Viaje } from "@/modulos/sider/comun";
 import "../sider.css";
@@ -23,8 +23,9 @@ export const dynamic = "force-dynamic";
  *
  * Un camión llega a esta lista por UNA sola razón: se certificó su
  * llegada y tiene una revisión pedida —la certificada, que pide el
- * administrador a un camión de Sider; la normal, que nace sola cuando
- * control crea un camión con el «+» de Tránsito—. La lista la arma la
+ * administrador a un camión de Sider; la normal, el Vh Interno, que
+ * control crea AQUÍ MISMO con el «+» y nace ya recibido: no pide certificar
+ * la llegada—. La lista la arma la
  * base (`v_sider_revision_pendientes`) y no esta página, para que la
  * pantalla y la función que guarda no puedan discrepar sobre qué es «ya
  * llegó».
@@ -38,12 +39,17 @@ export default async function SortingPage() {
      son cuatro consultas más. */
   const permisos = await misPermisos();
   const puedeEditar = permisos.puedeEditar("/sider/sorting");
+  /* CREAR UN VH INTERNO tiene su propio permiso en Roles (Vh Interno (+)):
+     quien puede cerrar revisiones no necesariamente puede crear camiones.
+     Aquí solo se decide si se pinta el «+»; el candado está en la base. */
+  const puedeCrear = permisos.puedeEditar("/sider/sorting/nuevo");
 
-  const [pend, hechos, nombres, maestros] = await Promise.all([
+  const [pend, hechos, nombres, maestros, maestro] = await Promise.all([
     revisionesPendientes(),
     revisionesHechas(40),
     nombresTodos(),
     puedeEditar ? maestrosAi() : Promise.resolve(null),
+    puedeCrear ? maestroSider() : Promise.resolve(null),
   ]);
 
   /* SIN LA MIGRACIÓN NO HAY DE DÓNDE LEER, y se dice cuál es. Una
@@ -89,6 +95,16 @@ export default async function SortingPage() {
         nombres={nombres}
         maestros={maestros && !maestros.falta ? maestros : null}
         puedeEditar={puedeEditar}
+        puedeCrear={puedeCrear}
+        origenes={maestro?.origenes.filter((o) => o.activo)
+          .map((o) => ({ planta: o.planta, cd_origen: o.cd_origen })) ?? []}
+        skus={maestro?.skus.filter((k) => k.activo).map((k) => ({
+          sku: k.sku, descripcion: k.descripcion, clase: k.clase,
+          cajas_x_estiba: k.cajas_x_estiba, unidades_x_caja: k.unidades_x_caja,
+          hl_x_unidad: k.hl_x_unidad,
+        })) ?? []}
+        estibasPorSider={Number(
+          maestro?.parametros.find((q) => q.clave === "estibas_por_sider")?.valor ?? 36)}
       />
     </div>
   );

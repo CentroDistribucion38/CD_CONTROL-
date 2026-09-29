@@ -3310,9 +3310,8 @@
 }
 .sd .sello.interno i { background: #2F5D8C }
 
-/* EL «+» ES UN BOTÓN REDONDO FLOTANTE, abajo a la derecha. Montar un
-   camión interno es la excepción y no merece una fila de la página. Con
-   la barra de «viajes escogidos» abierta sube, para no taparla. Sobre el
+/* EL «+» ES UN BOTÓN REDONDO FLOTANTE, abajo a la derecha. Crear un Vh
+   Interno es la excepción y no merece una fila de la página. Sobre el
    velo de los cuadros (z-index 60) no puede quedar: va por debajo. */
 .sd .tr-mas {
   position: fixed; right: 22px; bottom: calc(22px + env(safe-area-inset-bottom)); z-index: 45;
@@ -3333,14 +3332,13 @@
   .sd .tr-mas:hover .tr-fab-t, .sd .tr-mas:focus-visible .tr-fab-t { max-width: 160px; opacity: 1 }
 }
 .sd .tr-mas:focus-visible { outline: 3px solid var(--sd-tinta); outline-offset: 3px }
-/* Con la barra de lo escogido abierta (pegada abajo) el botón sube encima de ella SOLO
-   en el celular, donde la barra ocupa todo el ancho; en pantalla ancha la barra queda
-   centrada y el botón en la esquina, y no se tocan. */
 @media (max-width: 720px) {
   .sd .tr-mas { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)) }
-  .sd .tr-mas.sube { bottom: calc(150px + env(safe-area-inset-bottom)) }
 }
-.sd .nv-placa small { font-size: 11.5px; color: var(--sd-gris) }
+/* EL «+» NO TAPA LO ÚLTIMO: la pantalla deja bajo el final el alto del botón
+   redondo, para que el «Corregir» del último renglón se pueda tocar. */
+.sd.so-pantalla { padding-bottom: 96px }
+.sd .nv-placa small, .sd .nv-doc small { font-size: 11.5px; color: var(--sd-gris) }
 .sd .nv-placa small.mal { color: var(--sd-mal); font-weight: 700 }
 
 /* El cuadro del «+»: mismo velo que corregir y anular, pero con el borde

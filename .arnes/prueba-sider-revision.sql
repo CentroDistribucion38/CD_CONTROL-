@@ -1,5 +1,5 @@
 -- =====================================================================
--- SIDER · REVISIÓN AI NORMAL Y CERTIFICADA, Y EL «+» DE TRÁNSITO — LA BASE
+-- SIDER · REVISIÓN AI NORMAL Y CERTIFICADA, Y EL «+» DE «VH INTERNO» — LA BASE
 --
 -- Esto mueve PLATA y mueve LA VERDAD DE LA CERTIFICACIÓN. Lo que puede
 -- salir mal, y ninguna pantalla lo va a mostrar:
@@ -169,7 +169,7 @@ do $$
 declare f text := '';
 begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','Barranquilla','G175',3)$q$,
-    '%permiso «Camión interno»%', 'un operador SIN permiso creó un camión interno');
+    '%permiso «Vh Interno»%', 'un operador SIN permiso creó un camión interno');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
@@ -185,7 +185,7 @@ begin
     raise exception 'FALLA: el arnés está mal armado — Portería debería ser es_editor()';
   end if;
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','Barranquilla','G175',3)$q$,
-    '%permiso «Camión interno»%', 'UN ROL QUE EDITA OTRA PANTALLA creó un camión interno: se pide es_editor() y no el permiso «Camión interno»');
+    '%permiso «Vh Interno»%', 'UN ROL QUE EDITA OTRA PANTALLA creó un camión interno: se pide es_editor() y no el permiso «Vh Interno»');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
@@ -196,18 +196,18 @@ do $$
 declare f text := '';
 begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','Barranquilla','G175',3)$q$,
-    '%permiso «Camión interno»%', 'alguien SIN PERFIL creó un camión interno');
+    '%permiso «Vh Interno»%', 'alguien SIN PERFIL creó un camión interno');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
 
 /* EDITAR TRÁNSITO NO ALCANZA: recibir camiones no es poder inventarlos. Al
    operador se le abre Tránsito y sigue sin poder; con «ver» en el permiso
-   nuevo tampoco; solo con «editar» en «Camión interno» sí. Se guarda lo que
+   nuevo tampoco; solo con «editar» en «Vh Interno» sí. Se guarda lo que
    tenía para devolverlo igual. */
 create table public._op_antes as
   select seccion, nivel from public.rol_permisos
-   where rol = 'operador' and seccion in ('/sider/transito', '/sider/transito/nuevo');
+   where rol = 'operador' and seccion in ('/sider/transito', '/sider/sorting/nuevo');
 insert into public.rol_permisos (rol, seccion, nivel) values ('operador', '/sider/transito', 'editar')
 on conflict (rol, seccion) do update set nivel = 'editar';
 set request.jwt.claim.sub = '44444444-4444-4444-4444-444444444444';
@@ -216,38 +216,38 @@ do $$
 declare f text := '';
 begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('OPE100','GAL','Barranquilla','G175',3)$q$,
-    '%permiso «Camión interno»%', 'QUIEN EDITA TRÁNSITO creó un camión interno sin el permiso propio');
+    '%permiso «Vh Interno»%', 'QUIEN EDITA TRÁNSITO creó un camión interno sin el permiso propio');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
-insert into public.rol_permisos (rol, seccion, nivel) values ('operador', '/sider/transito/nuevo', 'ver')
+insert into public.rol_permisos (rol, seccion, nivel) values ('operador', '/sider/sorting/nuevo', 'ver')
 on conflict (rol, seccion) do update set nivel = 'ver';
 set role probador;
 do $$
 declare f text := '';
 begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('OPE100','GAL','Barranquilla','G175',3)$q$,
-    '%permiso «Camión interno»%', 'con «ver» en Camión interno se pudo crear');
+    '%permiso «Vh Interno»%', 'con «ver» en Vh Interno se pudo crear');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
-update public.rol_permisos set nivel = 'editar' where rol = 'operador' and seccion = '/sider/transito/nuevo';
+update public.rol_permisos set nivel = 'editar' where rol = 'operador' and seccion = '/sider/sorting/nuevo';
 set role probador;
 do $$
 declare f text := '';
 begin
   f := f || public._crear('op', 'OPE111', 'GAL', 'Barranquilla', 'G175', 1);
-  if f <> '' then raise exception E'FALLA: con «editar» en Camión interno el operador no pudo crear:%', f; end if;
+  if f <> '' then raise exception E'FALLA: con «editar» en Vh Interno el operador no pudo crear:%', f; end if;
 end $$;
 reset role;
-delete from public.rol_permisos where rol = 'operador' and seccion in ('/sider/transito', '/sider/transito/nuevo');
+delete from public.rol_permisos where rol = 'operador' and seccion in ('/sider/transito', '/sider/sorting/nuevo');
 insert into public.rol_permisos (rol, seccion, nivel) select 'operador', seccion, nivel from public._op_antes;
 
-do $$ begin raise notice '2 · crear un interno: solo con «editar» en Camión interno (editar Tránsito, «ver», Portería, sin permiso y sin perfil, no)'; end $$;
+do $$ begin raise notice '2 · crear un interno: solo con «editar» en Vh Interno (editar Tránsito, «ver», Portería, sin permiso y sin perfil, no)'; end $$;
 
 /* DE AQUÍ EN ADELANTE quien crea es el supervisor, y se le abre el permiso
    nuevo como lo haría el administrador en Roles. De fábrica nadie lo trae. */
-insert into public.rol_permisos (rol, seccion, nivel) values ('supervisor', '/sider/transito/nuevo', 'editar')
+insert into public.rol_permisos (rol, seccion, nivel) values ('supervisor', '/sider/sorting/nuevo', 'editar')
 on conflict (rol, seccion) do update set nivel = 'editar';
 
 
@@ -288,15 +288,30 @@ begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','Barranquilla','G175',null)$q$, '%Las estibas tienen que ser más de cero%', 'aceptó estibas nulas');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 
+  /* EL DOCUMENTO: solo dígitos, de 1 a 10. */
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC111','GAL','Barranquilla','G175',3,'FE-71')$q$, '%solo números, hasta 10 dígitos%', 'aceptó un documento con letras y guion');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC111','GAL','Barranquilla','G175',3,'12345678901')$q$, '%solo números, hasta 10 dígitos%', 'aceptó un documento de 11 dígitos');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC111','GAL','Barranquilla','G175',3,'12 34')$q$, '%solo números, hasta 10 dígitos%', 'aceptó un documento con espacio en medio');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC111','GAL','Barranquilla','G175',3,'1234A')$q$, '%solo números, hasta 10 dígitos%', 'aceptó un documento con una letra al final');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC111','GAL','Barranquilla','G175',3,'-123')$q$, '%solo números, hasta 10 dígitos%', 'aceptó un documento con signo');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC111','GAL','Barranquilla','G175',3,'１２３')$q$, '%solo números, hasta 10 dígitos%', 'aceptó dígitos de ancho completo como documento');
+  f := f || public._espera_bien($q$select public.sider_viaje_interno_crear('DOC222','GAL','Barranquilla','G175',3,'1234567890')$q$, 'rechazó un documento de exactamente 10 dígitos');
+  f := f || public._espera_bien($q$select public.sider_viaje_interno_crear('DOC333','GAL','Barranquilla','G175',3,'  ')$q$, 'rechazó un documento vacío (es opcional)');
+  f := f || public._espera_bien($q$select public.sider_viaje_interno_crear('DOC444','GAL','Barranquilla','G175',3,'7')$q$, 'rechazó un documento de un solo dígito');
+  if f <> '' then raise exception E'FALLA:%', f; end if;
   raise notice '3 · la base rechaza placa vacía o que no sea 3 letras + 3 números, origen/destino/material inventados o apagados, mismo CD y estibas ≤ 0';
 end $$;
+/* Los de prueba del documento no se quedan: los conteos de más abajo son de los otros. */
+reset role;
+delete from public.sider_viajes where placa like 'DOC%';
+set role probador;
 
 /* Y LO QUE SÍ: destino en minúsculas se guarda como está en el maestro,
    con las cifras opcionales normalizadas. */
 do $$
 declare f text := ''; v uuid;
 begin
-  v := public.sider_viaje_interno_crear(' jyn245 ','GAL','barranquilla','G175',2.5,' fe-71 ',' l-9 ',' llegó lloviendo ');
+  v := public.sider_viaje_interno_crear(' jyn245 ','GAL','barranquilla','G175',2.5,' 0071234 ',' l-9 ',' llegó lloviendo ');
   insert into public._ids values ('a', v);
   perform public._crear('b', 'INT222', 'GAL', 'Barranquilla', 'G350', 4);
   f := f || public._crear('c', 'INT333', 'BAQ', 'CD Galapa', 'G175', 1);
@@ -324,9 +339,9 @@ begin
   if r.sorting_pedido_en is null            then f := f || E'\n   · no guardó CUÁNDO'; end if;
   if r.creado_por is distinct from '33333333-3333-3333-3333-333333333333'
                                             then f := f || E'\n   · no guardó creado_por'; end if;
-  if r.estado <> 'en_transito'              then f := f || E'\n   · no nació en tránsito: ' || r.estado; end if;
+  if r.estado <> 'recibido'                 then f := f || E'\n   · no nació RECIBIDO (un Vh Interno no pasa por Tránsito): ' || r.estado; end if;
   if r.estibas <> 2.5                       then f := f || E'\n   · las estibas cambiaron: ' || r.estibas; end if;
-  if r.factura <> 'FE-71' or r.lote <> 'L-9' then f := f || E'\n   · la factura o el lote no se normalizaron: ' || coalesce(r.factura,'∅') || ' / ' || coalesce(r.lote,'∅'); end if;
+  if r.factura <> '0071234' or r.lote <> 'L-9' then f := f || E'\n   · el documento (con sus ceros) o el lote no se guardaron limpios: ' || coalesce(r.factura,'∅') || ' / ' || coalesce(r.lote,'∅'); end if;
   if r.observacion <> 'llegó lloviendo'     then f := f || E'\n   · la nota no se guardó limpia'; end if;
   if r.fecha is distinct from (now() at time zone 'America/Bogota')::date
                                             then f := f || E'\n   · la fecha no es la de hoy en Colombia: ' || coalesce(r.fecha::text,'∅'); end if;
@@ -334,14 +349,14 @@ begin
   if exists (select 1 from public.sider_certificaciones where viaje_id = r.id) then
     f := f || E'\n   · tiene una certificación que nadie hizo: un interno no tiene salida'; end if;
   if f <> '' then raise exception E'FALLA:%', f; end if;
-  raise notice '3b · el interno nace en tránsito, con la revisión normal pedida, sin salida, con la fecha de hoy y los datos limpios';
+  raise notice '3b · el Vh Interno nace recibido, con la revisión normal pedida, sin salida ni llegada, con la fecha de hoy y los datos limpios';
 end $$;
 
 
 -- =====================================================================
--- 4 · LA LLEGADA: UN INTERNO NO EXIGE FOTOS DE SALIDA, UN NORMAL SÍ
+-- 4 · EL VH INTERNO NO PIDE LLEGADA; EL NORMAL SIGUE PIDIÉNDOLA
 -- ---------------------------------------------------------------------
--- Las dos caras juntas: la regla se relajó para el interno y NO para el
+-- Las dos caras juntas: se relajó para el Vh Interno y NO para el camión
 -- que viene certificado por Sider. Una sola cara dejaría pasar el error
 -- de relajarla para todos.
 -- =====================================================================
@@ -359,23 +374,39 @@ end $$;
 reset role;
 
 do $$
-declare f text := '';
+declare f text := ''; v uuid := (select id from public._ids where k = 'a');
 begin
-  /* ANTES de llegar no hay nada que revisar: no está en la lista. */
-  if exists (select 1 from public.v_sider_revision_pendientes
-              where viaje_id = (select id from public._ids where k = 'a')) then
-    f := f || E'\n   · el interno aparece por revisar ANTES de llegar';
-  end if;
+  /* NACE RECIBIDO: nunca pasa por Tránsito. */
+  if exists (select 1 from public.sider_viajes where interno and estado = 'en_transito') then
+    f := f || E'\n   · hay un Vh Interno en tránsito: no debe pasar por Tránsito'; end if;
+  if exists (select 1 from public.sider_certificaciones where viaje_id = v) then
+    f := f || E'\n   · el Vh Interno tiene una certificación que nadie hizo'; end if;
+  /* Y APARECE DE UNA VEZ en «Revisión AI – normal», sin certificar llegada. */
+  if not exists (select 1 from public.v_sider_revision_pendientes
+                  where viaje_id = v and tipo = 'sorting' and interno) then
+    f := f || E'\n   · el Vh Interno NO aparece por revisar sin certificar la llegada'; end if;
+  if exists (select 1 from public.v_sider_revision_pendientes where viaje_id = v and tipo = 'ai') then
+    f := f || E'\n   · el interno aparece también como AI certificada'; end if;
+  if (select llego_en from public.v_sider_revision_pendientes where viaje_id = v and tipo = 'sorting')
+       is distinct from (select creado_en from public.sider_viajes where id = v) then
+    f := f || E'\n   · el «llegó» de un Vh Interno no es cuándo lo crearon'; end if;
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 
+/* EL CONTROL DE LA OTRA CARA: un camión NORMAL (no interno) que pidió revisión
+   pero NO ha certificado su llegada no aparece ni se puede guardar. */
+insert into public.sider_viajes (id, placa, planta, sku, estibas, fecha, estado, requiere_sorting)
+values ('eeeeeeee-0000-0000-0000-000000000011','NEW011','BAQ','G175',20,'2026-09-20','en_transito',true);
+set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 set role probador;
 do $$
 declare f text := ''; v uuid := (select id from public._ids where k = 'a');
 begin
-  f := f || public._espera_bien(format($q$select public.sider_certificar_llegada(%L, 10.9, -74.8, 5, now(), 'ok', 'Patio')$q$, v),
-    'recibir un camión interno sin fotos de salida');
-  /* Y NO SE RECIBE DOS VECES. */
+  if exists (select 1 from public.v_sider_revision_pendientes where viaje_id = 'eeeeeeee-0000-0000-0000-000000000011') then
+    f := f || E'\n   · un camión NORMAL sin llegada certificada aparece por revisar: la excepción se abrió para todos'; end if;
+  f := f || public._espera_error($q$select public.sider_ai_guardar('eeeeeeee-0000-0000-0000-000000000011','T1','t1',null,'G175',false,82080,4104,'{}'::jsonb,null,null,'sorting')$q$,
+    '%Todavía no está certificada la llegada%', 'guardó la revisión de un camión NORMAL sin llegada certificada');
+  /* El Vh Interno ya recibido no se «recibe» otra vez. */
   f := f || public._espera_error(format($q$select public.sider_certificar_llegada(%L, 10.9, -74.8, 5, now())$q$, v),
     '%ya está recibido%', 'recibió dos veces el mismo interno');
   /* SIN UBICACIÓN NO: eso no se relajó. */
@@ -385,21 +416,21 @@ begin
 end $$;
 reset role;
 
+/* UN VH INTERNO VIEJO (creado antes, todavía en tránsito) sigue pudiéndose
+   recibir sin fotos de salida: la excepción de la llegada se conserva. */
+insert into public.sider_viajes (id, placa, planta, sku, estibas, fecha, estado, interno, requiere_sorting)
+values ('eeeeeeee-0000-0000-0000-000000000010','OLD010','BAQ','G175',20,'2026-09-20','en_transito',true,true);
+set role probador;
 do $$
-declare f text := ''; v uuid := (select id from public._ids where k = 'a');
+declare f text := '';
 begin
-  if (select estado from public.sider_viajes where id = v) <> 'recibido' then
-    f := f || E'\n   · el interno no quedó recibido'; end if;
-  if not exists (select 1 from public.v_sider_revision_pendientes
-                  where viaje_id = v and tipo = 'sorting' and interno) then
-    f := f || E'\n   · al certificar la llegada NO pasó a «revisión normal»'; end if;
-  if exists (select 1 from public.v_sider_revision_pendientes where viaje_id = v and tipo = 'ai') then
-    f := f || E'\n   · el interno aparece también como AI certificada'; end if;
-  if (select llego_en from public.v_sider_revision_pendientes where viaje_id = v and tipo = 'sorting') is null then
-    f := f || E'\n   · la lista no trae cuándo llegó'; end if;
+  f := f || public._espera_bien($q$select public.sider_certificar_llegada('eeeeeeee-0000-0000-0000-000000000010', 10.9, -74.8, 5, now(), 'ok', 'Patio')$q$,
+    'recibir un Vh Interno viejo sin fotos de salida');
   if f <> '' then raise exception E'FALLA:%', f; end if;
-  raise notice '4 · el interno se recibe sin fotos de salida y pasa a revisión normal; el normal sin fotos sigue sin poder';
+  raise notice '4 · el Vh Interno nace recibido y aparece por revisar sin llegada; el normal sin llegada no aparece ni se guarda, y sin fotos de salida sigue sin poder recibirse';
 end $$;
+reset role;
+delete from public.sider_viajes where id in ('eeeeeeee-0000-0000-0000-000000000010','eeeeeeee-0000-0000-0000-000000000011');
 
 
 -- =====================================================================
@@ -543,7 +574,7 @@ begin
   f := f || public._guardar('eeeeeeee-0000-0000-0000-000000000008', 'ai', 4104, 6);
   if f <> '' then raise exception E'FALLA: quien solo edita Tránsito perdió lo que ya podía:%', f; end if;
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('TRA111','GAL','Barranquilla','G175',3)$q$,
-    '%permiso «Camión interno»%', 'quien solo edita Tránsito creó un camión interno');
+    '%permiso «Vh Interno»%', 'quien solo edita Tránsito creó un camión interno');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
@@ -727,4 +758,59 @@ begin
     f := f || E'\n   · la fecha del interno en la vista no es la de hoy'; end if;
   if f <> '' then raise exception E'FALLA:%', f; end if;
   raise notice '10 · una sola función de cada una, y la vista grande lee al interno sin salida';
+end $$;
+
+
+-- =====================================================================
+-- 11 · LO QUE YA ESTABA CREADO SE TRASLADA (la sección 8b de la migración)
+-- ---------------------------------------------------------------------
+-- El runner extrae esa sección a `.arnes/_mig-8b.sql` y aquí se corre otra
+-- vez sobre un estado «de antes»: un Vh Interno todavía en tránsito, el
+-- permiso viejo dado a un rol y a una persona. Se comprueba que pasan a
+-- recibido y a la clave nueva SIN perder el nivel, y que correrla otra vez
+-- no rompe ni cambia nada.
+-- =====================================================================
+reset role;
+/* Como en el editor de Supabase: sin sesión (auth.uid() nulo), que es como corre una migración. */
+reset request.jwt.claim.sub;
+insert into public.sider_viajes (id, placa, planta, sku, estibas, fecha, estado, interno, requiere_sorting)
+values ('eeeeeeee-0000-0000-0000-000000000020','OLD020','BAQ','G175',20,'2026-09-20','en_transito',true,true),
+       ('eeeeeeee-0000-0000-0000-000000000021','NOR021','BAQ','G175',20,'2026-09-20','en_transito',false,false);
+insert into public.rol_permisos (rol, seccion, nivel) values ('operador','/sider/transito/nuevo','ver')
+on conflict (rol, seccion) do update set nivel = 'ver';
+/* Un rol que YA tiene la clave nueva: no se pisa con la vieja. */
+insert into public.rol_permisos (rol, seccion, nivel) values
+  ('porteria','/sider/transito/nuevo','ver'), ('porteria','/sider/sorting/nuevo','editar')
+on conflict (rol, seccion) do update set nivel = excluded.nivel;
+update public.perfiles set permisos_extra = jsonb_build_object('/sider/transito/nuevo', 'editar', '/sider/transito', 'ver')
+ where id = '55555555-5555-5555-5555-555555555555';
+
+\i .arnes/_mig-8b.sql
+\i .arnes/_mig-8b.sql
+
+do $$
+declare f text := ''; p jsonb;
+begin
+  if (select estado from public.sider_viajes where id = 'eeeeeeee-0000-0000-0000-000000000020') <> 'recibido' then
+    f := f || E'\n   · el Vh Interno viejo sigue en tránsito'; end if;
+  if not exists (select 1 from public.v_sider_revision_pendientes where viaje_id = 'eeeeeeee-0000-0000-0000-000000000020' and tipo = 'sorting') then
+    f := f || E'\n   · el Vh Interno viejo no cayó en Revisión AI – normal'; end if;
+  if (select estado from public.sider_viajes where id = 'eeeeeeee-0000-0000-0000-000000000021') <> 'en_transito' then
+    f := f || E'\n   · la migración recibió un camión NORMAL que iba en camino'; end if;
+  if exists (select 1 from public.rol_permisos where seccion = '/sider/transito/nuevo') then
+    f := f || E'\n   · quedó el permiso con la clave vieja'; end if;
+  if (select nivel::text from public.rol_permisos where rol = 'operador' and seccion = '/sider/sorting/nuevo') is distinct from 'ver' then
+    f := f || E'\n   · el permiso del rol no se trasladó con su nivel'; end if;
+  if (select nivel::text from public.rol_permisos where rol = 'porteria' and seccion = '/sider/sorting/nuevo') <> 'editar' then
+    f := f || E'\n   · el traslado pisó un permiso que el rol ya tenía en la clave nueva'; end if;
+  select permisos_extra into p from public.perfiles where id = '55555555-5555-5555-5555-555555555555';
+  if p ? '/sider/transito/nuevo' then f := f || E'\n   · la persona conserva la clave vieja'; end if;
+  if p ->> '/sider/sorting/nuevo' is distinct from 'editar' then f := f || E'\n   · el permiso de la persona no se trasladó con su nivel: ' || p::text; end if;
+  if p ->> '/sider/transito' is distinct from 'ver' then f := f || E'\n   · el traslado se llevó otros permisos de la persona'; end if;
+  if f <> '' then raise exception E'FALLA:%', f; end if;
+
+  delete from public.sider_viajes where id in ('eeeeeeee-0000-0000-0000-000000000020','eeeeeeee-0000-0000-0000-000000000021');
+  delete from public.rol_permisos where seccion = '/sider/sorting/nuevo' and rol in ('operador','porteria');
+  update public.perfiles set permisos_extra = '{}'::jsonb where id = '55555555-5555-5555-5555-555555555555';
+  raise notice '11 · lo ya creado se traslada: internos en tránsito pasan a recibidos, el permiso viejo pasa a la clave nueva con su nivel (roles y personas), sin pisar y dos veces sin cambios';
 end $$;

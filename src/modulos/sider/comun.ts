@@ -94,7 +94,7 @@ export type Viaje = {
    *  que las de AI, y porque hasta que se corra la migración la columna
    *  no existe. */
   requiere_sorting?: boolean;
-  /** Lo creó alguien de control con el «+» de Tránsito: Sider NO lo
+  /** Lo creó alguien de control con el «+» de Revisión AI (Vh Interno): Sider NO lo
    *  certificó. No tiene salida, ni GPS, ni fotos de salida, y no cuenta
    *  como certificado con evidencia. Opcional: no sale de la vista
    *  grande, se pega aparte (ver `idsInternos`). */
