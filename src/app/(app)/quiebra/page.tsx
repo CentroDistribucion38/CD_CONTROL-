@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
-import { MODULOS } from "@/modulos/registro";
+import { MODULOS, entradaDeRama } from "@/modulos/registro";
 import { roturas as leerRoturas, salidas as leerSalidas } from "@/modulos/roturas/datos";
 import { kilos } from "@/modulos/roturas/formato";
 import "./quiebra.css";
@@ -132,7 +132,7 @@ export default async function QuiebraPortada() {
         {ramas.map((r) => {
           const c = CIFRA[r.id];
           return (
-            <Link key={r.id} href={r.ruta} className="rama">
+            <Link key={r.id} href={entradaDeRama(modulo, r, permisos.puedeVer)} className="rama">
               <span className="corte" aria-hidden />
               <span className="rot">{r.eyebrow}</span>
               <span className="nom">{r.nombre}</span>

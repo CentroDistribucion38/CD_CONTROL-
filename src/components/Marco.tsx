@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { moduloPorRuta } from "@/modulos/registro";
+import Link from "next/link";
+import { moduloPorRuta, seccionExacta } from "@/modulos/registro";
 import { Navegacion } from "./Navegacion";
 
 /**
@@ -22,6 +23,17 @@ export function Marco({ permitidas, children }: {
 }) {
   const pathname = usePathname();
   const hayModulo = !!moduloPorRuta(pathname);
+  /* UNA PANTALLA CERRADA NO SE ABRE ESCRIBIENDO LA DIRECCIÓN. El menú
+     esconde lo que no toca, pero la dirección se puede teclear o venir de
+     un enlace guardado, y la mayoría de pantallas no revisan el permiso
+     por su cuenta. Aquí, en el cuerpo que envuelve a todas, se dice que
+     no es para su rol. (Quien protege los DATOS sigue siendo la base.) */
+  const cerrada = (() => {
+    const e = seccionExacta(pathname);
+    if (!e || permitidas.includes(e.seccion.ruta)) return null;
+    const otra = e.modulo.secciones.find((x) => !x.oculto && permitidas.includes(x.ruta));
+    return { nombre: e.seccion.nombre, modulo: e.modulo.nombre, otra };
+  })();
   const [anclado, setAnclado] = useState(false);
 
   useEffect(() => {
@@ -43,7 +55,21 @@ export function Marco({ permitidas, children }: {
   return (
     <div className={"sh-marco" + (hayModulo ? "" : " sin-riel") + (anclado ? " anclado" : "")}>
       {hayModulo && <Navegacion permitidas={permitidas} anclado={anclado} alternar={alternar} />}
-      <main className="sh-main">{children}</main>
+      <main className="sh-main">
+        {cerrada ? (
+          <section className="sh-cerrada" role="alert">
+            <h1>Esta pantalla no es para tu rol</h1>
+            <p>
+              <b>{cerrada.modulo} · {cerrada.nombre}</b> la ve quien la tiene asignada en{" "}
+              <b>Administración → Roles</b>. Si la necesitas, pídela ahí.
+            </p>
+            <div className="sh-cerrada-botones">
+              {cerrada.otra && <Link href={cerrada.otra.ruta} className="btn-primario">Ir a {cerrada.otra.nombre}</Link>}
+              <Link href="/inicio" className="btn-secundario">Volver al inicio</Link>
+            </div>
+          </section>
+        ) : children}
+      </main>
     </div>
   );
 }

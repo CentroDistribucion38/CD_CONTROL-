@@ -135,6 +135,38 @@ export function ramaDeRuta(m: Modulo, pathname: string): Rama | undefined {
   return seccion ? m.ramas.find((r) => r.id === seccion.rama) : undefined;
 }
 
+/**
+ * A DÓNDE LLEVA UNA RAMA A ESTA PERSONA.
+ *
+ * `ruta` de la rama es la pantalla por la que se entra «en general» (en
+ * Conteos, el Tablero). Pero a quien solo tiene abierta «Contar» esa
+ * pantalla no le toca, y llevarlo ahí era enseñarle justo lo que se le
+ * había cerrado. Por eso: si puede ver la de entrada, va a ella; si no,
+ * a la primera pantalla de LA RAMA que sí puede ver, en el orden del menú.
+ */
+export function entradaDeRama(m: Modulo, r: Rama, puedeVer: (ruta: string) => boolean): string {
+  if (puedeVer(r.ruta)) return r.ruta;
+  return m.secciones.find((s) => s.rama === r.id && !s.oculto && puedeVer(s.ruta))?.ruta ?? r.ruta;
+}
+
+/**
+ * LA SECCIÓN QUE ES EXACTAMENTE ESTA DIRECCIÓN, o nada.
+ *
+ * Solo coincidencia EXACTA a propósito: una dirección más honda que no
+ * está registrada (un detalle, un formulario) no se cierra por un
+ * permiso que no era el suyo. Y la portada de un módulo que no es una
+ * sección tampoco: es donde se escoge rama.
+ */
+export function seccionExacta(pathname: string): { modulo: Modulo; seccion: Seccion } | undefined {
+  const p = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  for (const m of MODULOS) {
+    if (!m.activo || m.oculto) continue;
+    const seccion = m.secciones.find((s) => s.ruta === p);
+    if (seccion) return { modulo: m, seccion };
+  }
+  return undefined;
+}
+
 export const MODULOS: Modulo[] = [
   {
     id: "quiebra",

@@ -3,7 +3,7 @@
 import { useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { moduloPorRuta, ramaDeRuta } from "@/modulos/registro";
+import { moduloPorRuta, ramaDeRuta, entradaDeRama } from "@/modulos/registro";
 
 /**
  * Riel lateral de módulos. Colapsado en 64px, se abre al pasar el mouse o
@@ -383,7 +383,7 @@ export function Navegacion({ permitidas, anclado, alternar }: {
             primera pantalla. El enlace de arriba sigue siendo la salida
             hacia la otra rama. */}
         {rama && (
-          <Link href={rama.ruta} className="hijo on">
+          <Link href={entradaDeRama(actual, rama, (x) => deja.has(x))} className="hijo on">
             <IconoRama />
             <span className="texto">{rama.nombre}</span>
             <span className="globo">{actual.nombre} · {rama.nombre}</span>
@@ -392,12 +392,13 @@ export function Navegacion({ permitidas, anclado, alternar }: {
 
         {ramas.map((r) => {
           const Icono = ICONO_RAMA[r.id] ?? ICONO_RUTA[r.ruta] ?? IconoLista;
+          const entra = entradaDeRama(actual, r, (x) => deja.has(x));
           return (
-            <Link key={r.id} href={r.ruta} className="hijo"
+            <Link key={r.id} href={entra} className="hijo"
                   prefetch={false}
-                  onMouseEnter={() => adelantar(r.ruta)}
-                  onPointerDown={() => adelantar(r.ruta)}
-                  onFocus={() => adelantar(r.ruta)}>
+                  onMouseEnter={() => adelantar(entra)}
+                  onPointerDown={() => adelantar(entra)}
+                  onFocus={() => adelantar(entra)}>
               <Icono />
               <span className="texto">{r.nombre}</span>
               <span className="globo">{r.nombre} · {r.eyebrow.toLowerCase()}</span>

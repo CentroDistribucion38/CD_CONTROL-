@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
-import { MODULOS } from "@/modulos/registro";
+import { MODULOS, entradaDeRama } from "@/modulos/registro";
 import "./fefo.css";
 import "./portada.css";
 
@@ -149,7 +149,7 @@ export default async function InventarioPortada() {
         {ramas.map((r) => {
           const c = CIFRA[r.id];
           return (
-            <Link key={r.id} href={r.ruta} className="inv-rama">
+            <Link key={r.id} href={entradaDeRama(modulo, r, permisos.puedeVer)} className="inv-rama">
               <span className="inv-corte" aria-hidden />
               <span className="inv-rot">{r.eyebrow}</span>
               <span className="inv-nom">{r.nombre}</span>

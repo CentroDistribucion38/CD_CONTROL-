@@ -429,6 +429,11 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
    basta con que el riel se vuelva fila de pestañas para que TODA la página
    se ensanche y aparezca el desplazamiento horizontal. */
 .sh-marco > * { min-width: 0 }
+.sh-cerrada { max-width: 560px; margin: 40px auto; padding: 26px 24px; background: #fff; border: 1px solid #DDE2E8; border-left: 5px solid #E9A81F; border-radius: 3px }
+.sh-cerrada h1 { margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -.01em }
+.sh-cerrada p { margin: 0 0 18px; line-height: 1.5; color: #12263A }
+.sh-cerrada-botones { display: flex; flex-wrap: wrap; gap: 10px }
+.sh-cerrada-botones a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; text-decoration: none }
 .sh-main { padding: 26px 30px 40px; min-width: 0; display: flex; flex-direction: column }
 
 /* ---------- Riel de módulos ---------- */
