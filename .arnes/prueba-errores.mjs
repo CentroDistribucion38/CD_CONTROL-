@@ -27,6 +27,24 @@ const CASOS = [
    "supabase/modulos/rotura-linea.sql"],
   ['relation "public.v_rotlinea" does not exist',
    "supabase/modulos/rotura-linea.sql"],
+  /* SORTING. Sin correr el SQL, el formulario llama a sider_ai_guardar CON
+     `p_tipo` y Postgres dice que esa función no existe. Ese texto empieza
+     por `sider_ai_` y mandaba a correr `sider-ai.sql`: el archivo
+     equivocado, porque ése ya se corrió. Lo que falta es la migración. */
+  ['Could not find the function public.sider_ai_guardar(p_certificado, p_canal, p_comentarios, p_conteos, p_envase, p_recibidas, p_revisadas, p_socio, p_tipo, p_turno, p_viaje, p_zcl3) in the schema cache',
+   "2026-09-sider-sorting.sql"],
+  ['Could not find the function public.sider_sorting_marcar(p_marcar, p_viaje) in the schema cache',
+   "2026-09-sider-sorting.sql"],
+  ['relation "public.v_sider_sorting_pendientes" does not exist',
+   "2026-09-sider-sorting.sql"],
+  ['column sider_viajes.requiere_sorting does not exist', "2026-09-sider-sorting.sql"],
+  /* Y LA AI SIGUE MANDANDO A LO SUYO: robarle el archivo a la AI para dárselo
+     a Sorting sería el error de siempre al revés. */
+  ['Could not find the function public.sider_ai_guardar(p_viaje, p_turno) in the schema cache',
+   "supabase/modulos/sider-ai.sql"],
+  ['relation "public.v_sider_ai_pendientes" does not exist', "supabase/modulos/sider-ai.sql"],
+  ['relation "public.sider_viajes" does not exist', "supabase/modulos/sider.sql"],
+
   /* Y que NO se le robe el módulo al vecino: roturas de tolvas sigue
      mandando a su propio archivo, que es el que empezó con ese prefijo. */
   ['Could not find the function public.rotura_registrar(...) in the schema cache',

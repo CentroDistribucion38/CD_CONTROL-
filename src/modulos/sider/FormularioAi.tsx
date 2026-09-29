@@ -65,7 +65,7 @@ const cuando = (s?: string | null) => {
  */
 export function FormularioAi({
   viaje, revision, detalle, defectos, envases, socios, canales,
-  alGuardar, alCancelar, rotuloCancelar,
+  alGuardar, alCancelar, rotuloCancelar, tipo = "ai",
 }: {
   viaje: ViajeAi;
   revision: Revision | null;
@@ -82,7 +82,20 @@ export function FormularioAi({
   alGuardar: () => void;
   alCancelar: () => void;
   rotuloCancelar?: string;
+  /**
+   * `ai` es la revisión de la muestra que se le COBRA al socio; `sorting`
+   * es la misma inspección hecha por dentro, después de descargar.
+   *
+   * SE REUTILIZA EL FORMULARIO ENTERO y no se copia: son los mismos
+   * campos, los mismos catorce defectos y la misma cuenta del índice, y
+   * dos formularios «casi iguales» terminan calculando distinto el mismo
+   * índice. Lo único que cambia es qué se ROTULA —un Sorting no cobra
+   * nada, y decirle a un muchacho «Abono final SAP» le hace creer que lo
+   * que cuenta mueve plata— y a qué tipo se guarda.
+   */
+  tipo?: "ai" | "sorting";
 }) {
+  const esSorting = tipo === "sorting";
   const [mandando, setMandando] = useState(false);
   const [falla, setFalla] = useState<string | null>(null);
 
@@ -167,6 +180,12 @@ export function FormularioAi({
       if (n > 0) limpio[d.clave] = n;
     }
     const { error } = await supabase.rpc("sider_ai_guardar", {
+      /* `p_tipo` SOLO VA CUANDO ES SORTING. La AI se guarda exactamente
+         como antes, sin el parámetro: así el formulario de la AI sigue
+         funcionando el día que se sube este código y ANTES de correr
+         2026-09-sider-sorting.sql, porque Postgres rechaza un parámetro
+         con nombre que la función vieja no conoce. */
+      ...(esSorting ? { p_tipo: "sorting" } : {}),
       p_viaje: viaje.viaje_id,
       p_turno: turno,
       p_canal: canal,
@@ -212,7 +231,7 @@ export function FormularioAi({
   const Panel = () => (
     <>
       <div className="ai-p-cab">
-        <div className="ai-p-rot">ÍNDICE DE COBRO</div>
+        <div className="ai-p-rot">{esSorting ? "ÍNDICE DE DEFECTOS" : "ÍNDICE DE COBRO"}</div>
         <div className="ai-p-ind">{(cuentas.indice * 100).toFixed(2)} %</div>
         <div className="ai-p-sub">
           {nf.format(cuentas.cobran)} con defecto de {nf.format(rev)} revisadas
@@ -226,11 +245,19 @@ export function FormularioAi({
       </div>
       <div className="ai-p-lista">
         <div className="ai-p-l"><span>Recibidas</span><b>{nf.format(rec)}</b></div>
-        <div className="ai-p-l"><span>No se abona</span><b>{nf.format(cuentas.noAbono)}</b></div>
-        <div className="ai-p-l fuerte"><span>Abono final SAP</span><b>{nf.format(cuentas.abono)}</b></div>
+        {/* UN SORTING NO COBRA NADA: «No se abona» y «Abono final SAP» son
+            cifras del socio, y ponérselas a los muchachos les hace creer
+            que lo que cuentan mueve plata. Se calculan igual —la cuenta es
+            la misma— pero no se muestran. */}
+        {!esSorting && (
+          <>
+            <div className="ai-p-l"><span>No se abona</span><b>{nf.format(cuentas.noAbono)}</b></div>
+            <div className="ai-p-l fuerte"><span>Abono final SAP</span><b>{nf.format(cuentas.abono)}</b></div>
+          </>
+        )}
         <div className="ai-p-l"><span>Hectolitros</span><b>{cuentas.hl.toFixed(4)}</b></div>
         {cuentas.otros > 0 && (
-          <div className="ai-p-l"><span>Que no cobran</span><b>{nf.format(cuentas.otros)}</b></div>
+          <div className="ai-p-l"><span>{esSorting ? "Otros hallazgos" : "Que no cobran"}</span><b>{nf.format(cuentas.otros)}</b></div>
         )}
       </div>
 
@@ -249,7 +276,8 @@ export function FormularioAi({
       <div className="ai-p-acciones">
         <button type="button" className="b1" disabled={mandando || !puedeCerrar}
                 onClick={guardar}>
-          {mandando ? "Guardando…" : revision ? "Guardar la corrección" : "Cerrar revisión"}
+          {mandando ? "Guardando…" : revision ? "Guardar la corrección"
+            : esSorting ? "Cerrar Sorting" : "Cerrar revisión"}
         </button>
         <button type="button" className="b2" onClick={alCancelar}>
           {rotuloCancelar ?? "Después"}
@@ -370,23 +398,23 @@ export function FormularioAi({
             <div className="ai-cab">
               <h3>Conteo de la muestra</h3>
               <p>
-                Se toca, no se digita. Lo de arriba entra al índice de cobro;
-                lo de abajo se registra pero no cobra.
+                Se toca, no se digita. Lo de arriba entra al índice{esSorting ? "" : " de cobro"};
+                lo de abajo se registra pero {esSorting ? "no entra al índice" : "no cobra"}.
               </p>
             </div>
             <div className="ai-cuerpo">
-              <div className="ai-rot">ENTRAN AL COBRO</div>
+              <div className="ai-rot">{esSorting ? "ENTRAN AL ÍNDICE" : "ENTRAN AL COBRO"}</div>
               <div className="ai-grid">
                 {cobran.map((d) => <Contador key={d.clave} d={d} />)}
               </div>
 
-              <div className="ai-rot mal">SE REGISTRAN · NO COBRAN</div>
+              <div className="ai-rot mal">{esSorting ? "SE REGISTRAN · NO ENTRAN AL ÍNDICE" : "SE REGISTRAN · NO COBRAN"}</div>
               <div className="ai-grid">
                 {noCobran.map((d) => <Contador key={d.clave} d={d} nc />)}
               </div>
 
               <label className="ai-coment">
-                <span>COMENTARIOS PARA EL FACTURADOR</span>
+                <span>{esSorting ? "COMENTARIOS DEL SORTING" : "COMENTARIOS PARA EL FACTURADOR"}</span>
                 <textarea rows={2} value={comentarios}
                           onChange={(e) => setComentarios(e.target.value)} />
               </label>
@@ -404,7 +432,7 @@ export function FormularioAi({
           perder de vista — el índice y si ya se puede cerrar. */}
       <div className="ai-fija">
         <div>
-          <div className="k">ÍNDICE DE COBRO</div>
+          <div className="k">{esSorting ? "ÍNDICE DE DEFECTOS" : "ÍNDICE DE COBRO"}</div>
           <div className="v">{(cuentas.indice * 100).toFixed(2)} %</div>
         </div>
         <div className="ai-fija-der">

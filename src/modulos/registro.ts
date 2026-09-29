@@ -312,6 +312,7 @@ export const MODULOS: Modulo[] = [
     //
     //   Certificar        sale del CD origen
     //   En tránsito       llega a Barranquilla
+    //   Sorting           si se pidió, se clasifica después de descargar
     //   Fuente principal  ahí queda el viaje, ya completo
     //   Seguimiento       el informe de todos
     //   Novedades         lo que salió mal, que solo se sabe al final
@@ -321,6 +322,14 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
+      /* SORTING SÍ TIENE ENTRADA PROPIA, y es lo contrario de la AI por una
+         razón concreta: la AI se hace EN el muelle, mientras el camión
+         está ahí, así que vive dentro de Tránsito y quien recibe no tiene
+         que ir a buscarla. El Sorting se hace DESPUÉS, por otra gente —los
+         muchachos, no quien recibe— y sobre camiones que ya no están en
+         Tránsito: sin una lista propia no habría dónde reclamarlos.
+         Va justo detrás de Tránsito porque es lo que pasa después. */
+      { nombre: "Sorting", ruta: "/sider/sorting" },
       /* LA REVISIÓN AI NO TIENE ENTRADA PROPIA, y es la decisión
          correcta: vive DENTRO de Tránsito, que es donde se pide y donde
          se hace. Tuvo su pantalla un día y era un módulo que obligaba a

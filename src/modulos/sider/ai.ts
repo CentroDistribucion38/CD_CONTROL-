@@ -103,3 +103,62 @@ export async function revisionDe(viajeId: string) {
     .from("v_sider_ai_detalle").select("*").eq("revision_id", (data as Revision).id).order("orden");
   return { revision: data as Revision, detalle: (det ?? []) as DetalleAi[] };
 }
+
+
+/* =====================================================================
+   SORTING — LA MISMA REVISIÓN, HECHA POR DENTRO
+   ---------------------------------------------------------------------
+   Vive en la misma tabla que la AI y se lee por vistas APARTE
+   (`v_sider_sorting*`), no filtrando `v_sider_ai` aquí: las de AI ya
+   traen solo AI, y por eso el informe del cobro al socio no puede
+   sumar un Sorting ni por descuido de quien escriba la próxima
+   pantalla. Ver 2026-09-sider-sorting.sql.
+
+   Un Sorting es de operarios, no del cobro: nada de lo de abajo toca
+   el índice que viaja a SAP.
+   ===================================================================== */
+
+/** Un camión que ya llegó, pidió Sorting y nadie ha cerrado. */
+export type PendienteSorting = {
+  viaje_id: string; placa: string; planta: string; sku: string; estibas: number;
+  fecha: string; llego_en: string | null;
+  sorting_pedido_en: string | null; sorting_pedido_por: string | null;
+  pedido_nombre: string | null;
+};
+
+/**
+ * LA LISTA DE TRABAJO DE LOS MUCHACHOS: los que llegaron y pidieron
+ * Sorting. Más viejo primero, porque el que lleva más esperando es el
+ * que se atiende antes: un camión descargado que sigue sin clasificar es
+ * envase que está ocupando sitio y que nadie sabe en qué estado está.
+ */
+export async function sortingPendientes() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_sider_sorting_pendientes").select("*")
+    .order("llego_en", { ascending: true, nullsFirst: false }).limit(200);
+  if (error) return { falta: sinTablas(error.message), pendientes: [] as PendienteSorting[] };
+  return { falta: false, pendientes: (data ?? []) as PendienteSorting[] };
+}
+
+/** Los Sorting ya cerrados, de más nuevo a más viejo. */
+export async function sortingHechos(limite = 40) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_sider_sorting").select("*")
+    .order("revisado_en", { ascending: false }).limit(limite);
+  if (error) return { falta: sinTablas(error.message), hechos: [] as Revision[] };
+  return { falta: false, hechos: (data ?? []) as Revision[] };
+}
+
+/** Un Sorting con su detalle, para corregirlo. */
+export async function sortingDe(viajeId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_sider_sorting").select("*").eq("viaje_id", viajeId).maybeSingle();
+  if (error || !data) return { revision: null, detalle: [] as DetalleAi[] };
+  const { data: det } = await supabase
+    .from("v_sider_sorting_detalle").select("*")
+    .eq("revision_id", (data as Revision).id).order("orden");
+  return { revision: data as Revision, detalle: (det ?? []) as DetalleAi[] };
+}

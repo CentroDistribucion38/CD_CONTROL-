@@ -74,6 +74,13 @@ const PREFIJOS: [RegExp, string][] = [
    "supabase/migraciones/2026-09-roturas-sitio-area-causas.sql"],
   [/\b(roturas?_|salida_|v_roturas)/, "supabase/modulos/roturas.sql"],
   [/\b(acciones?_|accion_)/, "supabase/modulos/acciones.sql"],
+  /* SORTING VA ANTES QUE LA AI, y `p_tipo` antes que todo: si suben el
+     código y no corren el SQL, Postgres dice «function sider_ai_guardar(
+     …, p_tipo) does not exist», que empieza por `sider_ai_` y mandaría a
+     correr `sider-ai.sql` — el archivo EQUIVOCADO, porque ese ya se
+     corrió. Lo que falta es la migración de Sorting. */
+  [/\bp_tipo\b|\b(sider_sorting|v_sider_sorting|requiere_sorting)/,
+   "supabase/migraciones/2026-09-sider-sorting.sql"],
   /* La revisión AI va ANTES que Sider a secas: sider_ai_guardar empieza
      por "sider_" y con el orden al revés mandaría al módulo grande. */
   [/\b(sider_ai_|v_sider_ai)/, "supabase/modulos/sider-ai.sql"],

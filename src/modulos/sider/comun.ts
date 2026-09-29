@@ -92,6 +92,11 @@ export type Viaje = {
   ai_motivo?: string | null;
   ai_pedido_por?: string | null;
   ai_pedido_en?: string | null;
+  /** El administrador pidió Sorting para este viaje: después de descargar,
+   *  los muchachos hacen la misma inspección por dentro. Opcional por lo
+   *  mismo que las de AI, y porque hasta que se corra la migración la
+   *  columna no existe. */
+  requiere_sorting?: boolean;
   placa: string;
   planta: string;
   cd_origen: string;
@@ -209,3 +214,31 @@ export const NOMBRE_RANURA: Record<string, string> = {
   placa: "Placa",
   observacion: "Observación",
 };
+
+
+/**
+ * QUÉ MARCA LLEVA CADA CAMIÓN EN FUENTE PRINCIPAL: «Sorting pendiente» o
+ * «Sorting hecho», o ninguna.
+ *
+ * ES PURA Y VIVE AQUÍ, no dentro de la consulta, para poder probarla sin
+ * servidor. Las reglas son tres y las tres son fáciles de errar:
+ *
+ *  · SOLO SE MARCA A QUIEN LO PIDIÓ. Un Sorting «hecho» de un camión que
+ *    nunca lo pidió no existe —la base no deja guardarlo—, y si aparece es
+ *    un dato raro: pintarle «hecho» a un camión que no lo pidió sería
+ *    inventarle una marca.
+ *  · UN SORTING SIN VIAJE se ignora. Es el caso de lo importado del Excel,
+ *    que no tiene camión; con una llave nula no hay a quién marcarle nada.
+ *  · «HECHO» GANA A «PENDIENTE»: si pidió y ya hizo, está hecho.
+ */
+export function unirMarcasSorting(
+  pidieron: string[],
+  hicieron: (string | null | undefined)[],
+): Record<string, "pendiente" | "hecho"> {
+  const out: Record<string, "pendiente" | "hecho"> = {};
+  for (const id of pidieron) out[id] = "pendiente";
+  for (const id of hicieron) {
+    if (id && out[id]) out[id] = "hecho";
+  }
+  return out;
+}

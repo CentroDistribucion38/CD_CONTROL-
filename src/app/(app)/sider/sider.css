@@ -954,7 +954,15 @@
   border-left: 4px solid var(--sd-acento); border-radius: 3px; padding: 14px 16px 13px;
 }
 .sd .tr-vh.largo { border-left-color: var(--sd-oro) }
-.sd .tr-vh header { display: flex; align-items: center; justify-content: space-between; gap: 12px }
+/* LA CABECERA ENVUELVE. Tenía la placa y un sello, luego la placa y dos
+   (AI y el reloj), y con Sorting pueden ser tres: placa, SORTING y
+   «Llegó hace 30 h». Sin `flex-wrap` el ancho MÍNIMO de la fila pasaba a
+   ser la suma de todos, y una fila más ancha que la tarjeta ensancha la
+   COLUMNA de la rejilla entera —no solo se sale ella—: en un celular de
+   360 la pantalla se corría 68 px hacia un lado. Lo vio el arnés, no una
+   captura: en el escritorio del que programa siempre cabe. */
+.sd .tr-vh header { display: flex; align-items: center; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap }
+.sd .tr-rejilla > .tr-vh { min-width: 0 }
 .sd .tr-vh .placa {
   font-family: var(--sd-titulo); font-weight: 900; font-size: 25px; letter-spacing: .03em;
 }
@@ -2875,6 +2883,95 @@
   background: #FDF0D0; color: #5E4100; border: 1px solid #C08A16;
 }
 .sd .tr-ai:disabled { opacity: .55; cursor: default }
+
+/* ====================== EL MAGENTA DE SORTING =========================
+   Sorting es lo mismo que la AI hecho por otra gente y en otro sitio, así
+   que NO puede confundirse con ella —«lo morado es AI»— ni con ninguno de
+   los otros estados de esta pantalla: turquesa normal, ámbar en camino,
+   oro tarde, rojo error, verde recibido.
+
+   SE MIDIÓ, no se eligió a ojo. Contra todos esos y contra el acento de
+   cada uno de los siete temas —en uno `--c-oro` es AZUL, así que un
+   Sorting azul chocaba con «va tarde» justo ahí—, el color sobrio más
+   lejano es este magenta, a 87 del morado de AI. NO LLEGA A 100, que es
+   lo que se exigía, y solo lo superan el fucsia neón y el verde lima: el
+   primero grita en un muelle y el segundo ya quiere decir «recibido».
+
+   Así que el color NO VA SOLO. El sello lleva la palabra SORTING —el de
+   AI dice REVISIÓN AI—, y el camión que lleva las dos se pinta del morado
+   de la AI, que se hace primero y es la que cobra. Lo que 87 no separa a
+   simple vista lo separa la palabra. */
+.sd .sello.sorting {
+  background: #FBE6F2; color: #7A1052; border-color: #EFB6D6;
+  font-weight: 800; letter-spacing: .06em;
+}
+.sd .sello.sorting i { background: #AA1874 }
+.sd .tr-vh.so { border-left-color: #AA1874 }
+/* EN FUENTE PRINCIPAL: pendiente lleno, hecho a contorno. Lo pendiente es
+   lo que alguien tiene que hacer; lo hecho ya no reclama atención. La
+   palabra sigue siendo lo que lo distingue, no el relleno. */
+.sd .vj-sorting { margin-top: 4px }
+.sd .sello.sorting.hecho { background: transparent; border: 1px solid #EFB6D6 }
+
+.sd .tr-so-btn {
+  min-height: 38px; padding: 0 12px; cursor: pointer; border-radius: 3px;
+  background: var(--sd-papel, #fff); border: 1px dashed var(--sd-linea, #DFE5EC);
+  font: 700 12px var(--sd-titulo, system-ui); color: var(--sd-gris, #6B7785);
+  white-space: nowrap;
+}
+.sd .tr-so-btn:hover:not(:disabled) { border-style: solid; border-color: #AA1874; color: #7A1052 }
+.sd .tr-so-btn.on { background: #FBE6F2; color: #7A1052; border: 1px solid #AA1874 }
+.sd .tr-so-btn:disabled { opacity: .55; cursor: default }
+/* La fila de los dos interruptores del administrador: a lo ancho de la
+   tarjeta, con el mismo aire que el resto de la columna. */
+.sd .tr-pedidos { display: flex; flex-wrap: wrap; gap: 8px }
+.sd .tr-pedidos > * { flex: 1 1 auto }
+
+/* ====================== LA PANTALLA DE SORTING ======================= */
+.sd .so-h {
+  margin: 22px 0 10px; font: 800 15px var(--sd-titulo, system-ui);
+  letter-spacing: -.01em; display: flex; align-items: baseline; gap: 10px;
+}
+.sd .so-h span { font: 500 12.5px system-ui; color: var(--sd-gris, #6B7785) }
+
+/* El botón de hacer el Sorting va del color de Sorting y no turquesa: es
+   el único de la lista que cuenta botellas en vez de certificar algo, y
+   por eso mismo el de la AI también va aparte. */
+.sd .tr-vh footer .btn.so-btn { background: #AA1874 }
+.sd .tr-vh footer .btn.so-btn:hover:not(:disabled) { background: #861259 }
+/* El que lleva más de un día esperando ya se descargó y sigue sin
+   clasificar: se tiñe, como el de AI que espera. */
+.sd .tr-vh.so-tarde { background: #FDF5FA; border-color: #EFB6D6 }
+
+.sd .so-vacio {
+  padding: 22px 18px; border: 1px dashed var(--sd-linea, #DFE5EC); border-radius: 3px;
+  background: var(--sd-papel, #fff); color: var(--sd-gris, #6B7785); font-size: 13.5px;
+}
+.sd .so-vacio b { display: block; color: var(--sd-tinta, #12263A); font-size: 14.5px; margin-bottom: 4px }
+.sd .so-vacio p { margin: 0; line-height: 1.5; max-width: 62ch }
+
+/* LOS CERRADOS. En pantalla ancha una fila por Sorting; en el celular
+   cada uno se apila, porque cinco columnas en 360 px son cinco rayitas. */
+.sd .so-hechos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px }
+.sd .so-hechos li {
+  display: grid; align-items: center; gap: 4px 16px;
+  grid-template-columns: 96px minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1.3fr) auto;
+  padding: 10px 14px; background: var(--sd-papel, #fff);
+  border: 1px solid var(--sd-linea, #DFE5EC); border-left: 4px solid #AA1874; border-radius: 3px;
+}
+.sd .so-hechos .placa { font: 800 15px var(--sd-titulo, system-ui) }
+.sd .so-hechos li > span { font-size: 13px; color: var(--sd-tinta, #12263A); min-width: 0 }
+.sd .so-hechos li > span em {
+  display: block; font-style: normal; font-size: 11.5px;
+  color: var(--sd-gris, #6B7785); margin-top: 1px;
+}
+.sd .so-hechos .so-h-ind { font-weight: 800; font-variant-numeric: tabular-nums }
+@media (max-width: 720px) {
+  .sd .so-hechos li { grid-template-columns: 1fr auto; padding: 10px 12px }
+  .sd .so-hechos .placa { grid-column: 1; grid-row: 1 }
+  .sd .so-hechos .tr-so-btn { grid-column: 2; grid-row: 1 / span 2 }
+  .sd .so-hechos li > span { grid-column: 1 / -1 }
+}
 
 .sd .tr-ojo.ai {
   background: #FDF0D0; color: #5E4100;

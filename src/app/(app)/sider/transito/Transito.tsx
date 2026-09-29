@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
+import { traducirError } from "@/lib/errores";
 import type { Viaje } from "@/modulos/sider/comun";
 import { leerPlacas, normPlaca } from "@/modulos/sider/placas";
 import type { MaestrosAi } from "@/modulos/sider/ai";
@@ -254,6 +255,47 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
       : `${v.placa} queda con revisión AI al llegar.`);
     router.refresh();
   }
+
+  /* SORTING: LA MISMA INSPECCIÓN, DESPUÉS DE DESCARGAR.
+     Se pide igual que la AI y por lo mismo —cuesta el tiempo de los
+     muchachos— pero NO es la misma cosa, y por eso tiene su propio botón
+     en vez de un «tipo» dentro del de AI: la AI se hace EN el muelle,
+     antes de descargar, y el Sorting se hace después, en otra pantalla y
+     por otra gente. Un camión puede llevar las dos.
+
+     NO PREGUNTA MOTIVO: la AI tuvo ese campo y se quitó porque nadie lo
+     llenaba. */
+  async function pedirSorting(v: Viaje) {
+    const ok = v.requiere_sorting
+      ? await pedir({
+          titulo: `¿Quitar el Sorting de ${v.placa}?`,
+          dice: <>Al llegar se certifica como cualquier otro vehículo y no pasa a
+                 Sorting. Se puede volver a pedir después.</>,
+          confirmar: "Quitar el Sorting",
+          peligro: true,
+        })
+      : await pedir({
+          titulo: `¿Pedir Sorting para ${v.placa}?`,
+          dice: <>Apenas se certifique la llegada, el vehículo <b>pasa a la pantalla de
+                 Sorting</b> para que el equipo haga la inspección y la cierre. Eso
+                 no reemplaza la revisión AI: un vehículo puede llevar las dos.</>,
+          confirmar: "Pedir Sorting",
+        });
+    if (!ok) return;
+
+    setMarcando(v.id);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("sider_sorting_marcar", {
+      p_viaje: v.id,
+      p_marcar: !v.requiere_sorting,
+    });
+    setMarcando(null);
+    if (error) { avisar.mal(traducirError(error.message)); return }
+    avisar.bien(v.requiere_sorting
+      ? `${v.placa} ya no pasa a Sorting.`
+      : `${v.placa} pasará a Sorting cuando llegue.`);
+    router.refresh();
+  }
   /* `solo` no es un filtro más de la fila de filtros: es el que ponen
      los chips de la cinta de arriba. Vive en el mismo objeto para que
      «Limpiar» lo borre también —si viviera aparte, limpiar dejaría la
@@ -402,7 +444,17 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
         supabase={supabase}
         maestrosAi={maestrosAi}
         cerrar={() => setAbierto(null)}
-        listo={() => { setAbierto(null); router.refresh(); }}
+        listo={() => {
+          /* «PASÓ A SORTING» SE DICE. Apenas se certifica la llegada el
+             camión desaparece de esta lista y aparece en otra pantalla;
+             sin el aviso, quien lo recibió cree que se perdió. */
+          const paso = abierto;
+          setAbierto(null);
+          router.refresh();
+          if (paso?.requiere_sorting) {
+            avisar.bien(`${paso.placa} llegó y pasó a Sorting.`);
+          }
+        }}
       />
     );
   }
@@ -831,7 +883,12 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
              es error—. Y el morado FUERTE, con el fondo teñido, es para
              el que ya llegó y sigue sin revisar: ese no está esperando
              en la carretera, está esperando a alguien. */
-          const cls = "tr-vh" + (v.ai_pendiente ? " ai-falta" : v.requiere_ai ? " ai" : largo ? " largo" : "");
+          /* LA AI PESA MÁS QUE EL SORTING EN EL COLOR DE LA TARJETA: se hace
+             primero —en el muelle, antes de descargar— y es la que cobra.
+             Un camión con las dos se ve morado; el sello azul de la
+             cabecera dice que además lleva Sorting. */
+          const cls = "tr-vh" + (v.ai_pendiente ? " ai-falta" : v.requiere_ai ? " ai"
+                      : v.requiere_sorting ? " so" : largo ? " largo" : "");
           return (
             <article key={v.id} className={cls} id={"tr-vh-" + normPlaca(v.placa)}>
               <header>
@@ -845,6 +902,16 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                   <span className={"sello ai" + (v.ai_pendiente ? " falta" : "")}
                         title={v.ai_motivo ?? "Revisión AI pedida por el administrador"}>
                     <i />{v.ai_pendiente ? "FALTA LA REVISIÓN AI" : "REVISIÓN AI"}
+                  </span>
+                )}
+                {/* EL SELLO DE SORTING, AL LADO DEL DE AI y no dentro de
+                    él: son dos cosas que se piden por separado y se hacen
+                    en sitios distintos —la AI en el muelle, el Sorting en
+                    su pantalla—, y un camión puede llevar las dos. */}
+                {v.requiere_sorting && (
+                  <span className="sello sorting"
+                        title="Al certificar la llegada pasa a Sorting">
+                    <i />SORTING
                   </span>
                 )}
                 {/* El que ya llegó no lleva el reloj de «en camino»: ese
@@ -877,6 +944,42 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                 <div><dt>HL</dt><dd>{v.hl == null ? "—" : nf2.format(v.hl)}</dd></div>
               </dl>
 
+              {/* LOS DOS INTERRUPTORES DEL ADMINISTRADOR VAN EN SU PROPIA FILA,
+                  a lo ancho de la tarjeta, y no en el pie. Con uno solo cabían
+                  junto a «Certificar llegada»; con dos —AI y Sorting— más ese
+                  botón, un pie de 330 px los apila en tres renglones y la
+                  tarjeta crece 90 px solo para alojar una decisión que se toma
+                  una vez. Además son de OTRA persona: quien recibe el camión
+                  certifica; quien decide qué se le pide es el administrador,
+                  y separarlos en filas lo deja ver. */}
+              {esAdmin && !v.ai_pendiente && (
+                <div className="tr-pedidos">
+                  {/* PEDIR LA REVISIÓN ES SOLO DEL ADMINISTRADOR. Aquí solo
+                      se decide si se pinta el botón; el candado de verdad
+                      está en la base, que rechaza la marca venga de donde
+                      venga. Esconder un botón no es un permiso.
+
+                      Y AL QUE YA LLEGÓ NO SE LE OFRECE QUITAR LA MARCA
+                      —de ahí el `!v.ai_pendiente` de arriba—: la muestra ya
+                      se sacó o se perdió, y desmarcarlo solo serviría para
+                      que el pendiente desaparezca de la lista sin que nadie
+                      contara nada. */}
+                  <button type="button"
+                          className={"tr-ai" + (v.requiere_ai ? " on" : "")}
+                          disabled={marcando === v.id}
+                          onClick={() => pedirAi(v)}>
+                    {marcando === v.id ? "…" : v.requiere_ai ? "Quitar AI" : "Pedir revisión AI"}
+                  </button>
+                  {/* SORTING, por lo mismo y con la misma regla. */}
+                  <button type="button"
+                          className={"tr-so-btn" + (v.requiere_sorting ? " on" : "")}
+                          disabled={marcando === v.id}
+                          onClick={() => pedirSorting(v)}>
+                    {marcando === v.id ? "…" : v.requiere_sorting ? "Quitar Sorting" : "Pedir Sorting"}
+                  </button>
+                </div>
+              )}
+
               <footer>
                 <div className="tr-salio">
                   {v.ai_pendiente ? <>Llegó {hora(v.llegada_en)}</> : <>Salió {hora(v.salida_en)}</>}
@@ -888,23 +991,6 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                   </em>
                 </div>
                 <div className="tr-botones">
-                  {/* PEDIR LA REVISIÓN ES SOLO DEL ADMINISTRADOR. Aquí
-                      solo se decide si se pinta el botón; el candado de
-                      verdad está en la base, que rechaza la marca venga
-                      de donde venga. Esconder un botón no es un
-                      permiso. */}
-                  {/* AL QUE YA LLEGÓ NO SE LE OFRECE QUITAR LA MARCA:
-                      la muestra ya se sacó o se perdió, y desmarcarlo
-                      solo serviría para que el pendiente desaparezca de
-                      la lista sin que nadie contara nada. */}
-                  {esAdmin && !v.ai_pendiente && (
-                    <button type="button"
-                            className={"tr-ai" + (v.requiere_ai ? " on" : "")}
-                            disabled={marcando === v.id}
-                            onClick={() => pedirAi(v)}>
-                      {marcando === v.id ? "…" : v.requiere_ai ? "Quitar AI" : "Pedir revisión AI"}
-                    </button>
-                  )}
                   {esEditor && (
                     <button type="button" className={"btn" + (v.ai_pendiente ? " ai" : "")}
                             onClick={() => setAbierto(v)}>

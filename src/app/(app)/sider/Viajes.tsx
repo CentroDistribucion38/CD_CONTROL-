@@ -70,7 +70,7 @@ function sello(v: Viaje) {
 
 const VACIO = { placa: "", origen: "", material: "", estado: "" };
 
-export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estadoInicial }: {
+export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estadoInicial, sorting }: {
   viajes: Viaje[];
   nombres: Record<string, string>;
   origenes: Origen[];
@@ -81,6 +81,9 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
   /** Viene de la dirección (`?estado=anulado`), para que el aviso de
    *  «se anuló» pueda enlazar directo a dónde quedaron. */
   estadoInicial?: string;
+  /** Qué camiones pidieron Sorting y cuáles ya lo hicieron. Vacío si nadie
+   *  lo pidió, o si falta correr la migración: la tabla sale igual. */
+  sorting?: Record<string, "pendiente" | "hecho">;
 }) {
   const router = useRouter();
   /* SE ACEPTA SOLO LO QUE EL DESPLEGABLE OFRECE. Un `?estado=` con
@@ -323,6 +326,19 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
                   </td>
                   <td>
                     <span className={"sello " + s.cl}><i />{s.txt}</span>
+                    {/* SORTING, DEBAJO DEL ESTADO Y NO DENTRO DE ÉL. El estado
+                        dice dónde está el camión —en tránsito, recibido— y
+                        el Sorting es otra cosa que corre EN PARALELO: un
+                        camión recibido puede tener el Sorting pendiente.
+                        Mezclarlos en un solo sello obligaría a inventar una
+                        palabra por cada combinación. */}
+                    {sorting?.[v.id] && (
+                      <div className="vj-sorting">
+                        <span className={"sello sorting" + (sorting[v.id] === "hecho" ? " hecho" : "")}>
+                          <i />{sorting[v.id] === "hecho" ? "SORTING HECHO" : "SORTING PENDIENTE"}
+                        </span>
+                      </div>
+                    )}
                     {anulado && v.motivo_anulacion && (
                       <div className="cod vj-motivo">{v.motivo_anulacion}</div>
                     )}

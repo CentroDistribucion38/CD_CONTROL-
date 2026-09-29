@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { viajesSider, maestroSider, nombresTodos } from "@/modulos/sider/datos";
+import { viajesSider, maestroSider, nombresTodos, marcasSorting } from "@/modulos/sider/datos";
 import "./sider.css";
 import { BotonExportar } from "./Exportar";
 import { Viajes } from "./Viajes";
@@ -30,11 +30,12 @@ export default async function FuentePrincipalPage(
   /* Los nombres entran en la misma tanda. Antes se pedían DESPUÉS, con
      la lista de autores de los viajes ya en la mano, y esa espera era en
      serie: la pantalla no empezaba a pintar hasta que volviera. */
-  const [{ viajes, falta }, maestro, permisos, nombres] = await Promise.all([
+  const [{ viajes, falta }, maestro, permisos, nombres, sorting] = await Promise.all([
     viajesSider(),
     maestroSider(),
     misPermisos(),
     nombresTodos(),
+    marcasSorting(),
   ]);
   /* El permiso es de ESTA pantalla, no un "es admin o supervisor"
      global: un rol puede certificar y no tocar el maestro. */
@@ -154,6 +155,7 @@ export default async function FuentePrincipalPage(
           manda={permisos.manda}
           esEditor={esEditor}
           estadoInicial={estadoUrl}
+          sorting={sorting}
         />
       </section>
 
