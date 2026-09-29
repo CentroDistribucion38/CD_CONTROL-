@@ -314,7 +314,7 @@ export const MODULOS: Modulo[] = [
     //   En tránsito       llega a Barranquilla
     //   Fuente principal  ahí queda el viaje, ya completo
     //   Seguimiento       el informe de todos
-    //   Revisión AI       el informe del cobro al socio
+    //   Informe AI        el informe del cobro al socio
     //   Sorting           lo que los muchachos clasifican por dentro
     //   Novedades         lo que salió mal, que solo se sabe al final
     //
@@ -335,10 +335,12 @@ export const MODULOS: Modulo[] = [
          envase y no antes: las dos son análisis de lo que ya pasó, pero
          el de envase es el del flujo principal —T1/T2— y el de AI es el
          del cobro al socio, que es una conversación aparte. */
-      { nombre: "Revisión AI", ruta: "/sider/seguimiento/ai" },
-      /* SORTING VA DEBAJO DE REVISIÓN AI, y así se pidió: son la misma
+      { nombre: "Informe AI", ruta: "/sider/seguimiento/ai" },
+      /* SORTING VA DEBAJO DEL INFORME AI, y así se pidió: son la misma
          inspección —una en el muelle, la otra por dentro— y en el menú
-         se leen juntas. Tiene entrada propia porque se hace DESPUÉS y por
+         se leen juntas. (El menú dice «Informe AI» y no «Revisión AI»:
+         la revisión es lo que se HACE en el muelle, dentro de Tránsito;
+         esta pantalla es el informe de lo que ya se revisó.) Tiene entrada propia porque se hace DESPUÉS y por
          otra gente —los muchachos, no quien recibe— sobre camiones que ya
          no están en Tránsito: sin una lista propia no habría dónde
          reclamarlos. */
