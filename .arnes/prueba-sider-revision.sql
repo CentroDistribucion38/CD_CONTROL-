@@ -169,7 +169,7 @@ do $$
 declare f text := '';
 begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','Barranquilla','G175',3)$q$,
-    '%permiso de edición en Tránsito%', 'un operador SIN permiso creó un camión interno');
+    '%permiso «Camión interno»%', 'un operador SIN permiso creó un camión interno');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
@@ -185,7 +185,7 @@ begin
     raise exception 'FALLA: el arnés está mal armado — Portería debería ser es_editor()';
   end if;
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','Barranquilla','G175',3)$q$,
-    '%permiso de edición en Tránsito%', 'UN ROL QUE EDITA OTRA PANTALLA creó un camión interno: se pide es_editor() y no el permiso de Tránsito');
+    '%permiso «Camión interno»%', 'UN ROL QUE EDITA OTRA PANTALLA creó un camión interno: se pide es_editor() y no el permiso «Camión interno»');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
@@ -196,16 +196,18 @@ do $$
 declare f text := '';
 begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','Barranquilla','G175',3)$q$,
-    '%permiso de edición en Tránsito%', 'alguien SIN PERFIL creó un camión interno');
+    '%permiso «Camión interno»%', 'alguien SIN PERFIL creó un camión interno');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
 
-/* «EL QUE YO QUIERA»: al operador se le abre Tránsito y entonces sí. Se
-   guarda lo que tenía para devolverlo igual: la semilla puede traerle
-   «ver» y no debe quedar borrado. */
+/* EDITAR TRÁNSITO NO ALCANZA: recibir camiones no es poder inventarlos. Al
+   operador se le abre Tránsito y sigue sin poder; con «ver» en el permiso
+   nuevo tampoco; solo con «editar» en «Camión interno» sí. Se guarda lo que
+   tenía para devolverlo igual. */
 create table public._op_antes as
-  select nivel from public.rol_permisos where rol = 'operador' and seccion = '/sider/transito';
+  select seccion, nivel from public.rol_permisos
+   where rol = 'operador' and seccion in ('/sider/transito', '/sider/transito/nuevo');
 insert into public.rol_permisos (rol, seccion, nivel) values ('operador', '/sider/transito', 'editar')
 on conflict (rol, seccion) do update set nivel = 'editar';
 set request.jwt.claim.sub = '44444444-4444-4444-4444-444444444444';
@@ -213,15 +215,40 @@ set role probador;
 do $$
 declare f text := '';
 begin
-  f := f || public._crear('op', 'OPE111', 'GAL', 'Barranquilla', 'G175', 1);
-  if f <> '' then raise exception E'FALLA: con «editar» en Tránsito el operador no pudo crear:%', f; end if;
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('OPE100','GAL','Barranquilla','G175',3)$q$,
+    '%permiso «Camión interno»%', 'QUIEN EDITA TRÁNSITO creó un camión interno sin el permiso propio');
+  if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
-delete from public.rol_permisos where rol = 'operador' and seccion = '/sider/transito';
-insert into public.rol_permisos (rol, seccion, nivel)
-  select 'operador', '/sider/transito', nivel from public._op_antes;
+insert into public.rol_permisos (rol, seccion, nivel) values ('operador', '/sider/transito/nuevo', 'ver')
+on conflict (rol, seccion) do update set nivel = 'ver';
+set role probador;
+do $$
+declare f text := '';
+begin
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('OPE100','GAL','Barranquilla','G175',3)$q$,
+    '%permiso «Camión interno»%', 'con «ver» en Camión interno se pudo crear');
+  if f <> '' then raise exception E'FALLA:%', f; end if;
+end $$;
+reset role;
+update public.rol_permisos set nivel = 'editar' where rol = 'operador' and seccion = '/sider/transito/nuevo';
+set role probador;
+do $$
+declare f text := '';
+begin
+  f := f || public._crear('op', 'OPE111', 'GAL', 'Barranquilla', 'G175', 1);
+  if f <> '' then raise exception E'FALLA: con «editar» en Camión interno el operador no pudo crear:%', f; end if;
+end $$;
+reset role;
+delete from public.rol_permisos where rol = 'operador' and seccion in ('/sider/transito', '/sider/transito/nuevo');
+insert into public.rol_permisos (rol, seccion, nivel) select 'operador', seccion, nivel from public._op_antes;
 
-do $$ begin raise notice '2 · crear un interno: solo con «editar» en Tránsito (Portería, sin permiso y sin perfil, no)'; end $$;
+do $$ begin raise notice '2 · crear un interno: solo con «editar» en Camión interno (editar Tránsito, «ver», Portería, sin permiso y sin perfil, no)'; end $$;
+
+/* DE AQUÍ EN ADELANTE quien crea es el supervisor, y se le abre el permiso
+   nuevo como lo haría el administrador en Roles. De fábrica nadie lo trae. */
+insert into public.rol_permisos (rol, seccion, nivel) values ('supervisor', '/sider/transito/nuevo', 'editar')
+on conflict (rol, seccion) do update set nivel = 'editar';
 
 
 -- =====================================================================
@@ -236,6 +263,18 @@ declare f text := '';
 begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('   ','GAL','Barranquilla','G175',3)$q$, '%Falta la placa%', 'aceptó una placa vacía');
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear(null,'GAL','Barranquilla','G175',3)$q$, '%Falta la placa%', 'aceptó una placa nula');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('AB1234','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa AB1234 (2 letras y 4 números)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABCD12','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa ABCD12 (4 letras y 2 números)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('AB123','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa AB123 (5 caracteres)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC12','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa ABC12 (ABC12)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC1234','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa ABC1234 (siete caracteres)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABCD123','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa ABCD123 (una letra de más al principio)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('1ABC123','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa 1ABC123 (un número de más al principio)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('123ABC','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa 123ABC (números primero)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC 123','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa ABC 123 (con espacio en medio)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('AB-123','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa AB-123 (con guion)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ÑAB123','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa ÑAB123 (letra fuera de A-Z)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC12A','GAL','Barranquilla','G175',3)$q$, '%3 letras y 3 números%', 'aceptó la placa ABC12A (letra al final)');
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','ZZZ','Barranquilla','G175',3)$q$, '%origen no existe%', 'aceptó un origen inventado');
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','OFF','Barranquilla','G175',3)$q$, '%origen no existe o está apagado%', 'aceptó un origen APAGADO');
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','','G175',3)$q$, '%Falta el destino%', 'aceptó un destino vacío');
@@ -249,7 +288,7 @@ begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('ABC123','GAL','Barranquilla','G175',null)$q$, '%Las estibas tienen que ser más de cero%', 'aceptó estibas nulas');
   if f <> '' then raise exception E'FALLA:%', f; end if;
 
-  raise notice '3 · la base rechaza placa vacía, origen/destino/material inventados o apagados, mismo CD y estibas ≤ 0';
+  raise notice '3 · la base rechaza placa vacía o que no sea 3 letras + 3 números, origen/destino/material inventados o apagados, mismo CD y estibas ≤ 0';
 end $$;
 
 /* Y LO QUE SÍ: destino en minúsculas se guarda como está en el maestro,
@@ -503,6 +542,9 @@ begin
   end if;
   f := f || public._guardar('eeeeeeee-0000-0000-0000-000000000008', 'ai', 4104, 6);
   if f <> '' then raise exception E'FALLA: quien solo edita Tránsito perdió lo que ya podía:%', f; end if;
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('TRA111','GAL','Barranquilla','G175',3)$q$,
+    '%permiso «Camión interno»%', 'quien solo edita Tránsito creó un camión interno');
+  if f <> '' then raise exception E'FALLA:%', f; end if;
 end $$;
 reset role;
 

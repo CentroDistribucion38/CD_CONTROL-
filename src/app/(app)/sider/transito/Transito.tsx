@@ -62,12 +62,14 @@ function horasEnCamino(iv: string | null): number {
    bloquear nada. */
 const HORAS_LARGAS = 24;
 
-export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, skus,
+export function Transito({ viajes, nombres, esEditor, puedeCrear, esAdmin, manda, origenes, skus,
                            estibasPorSider, trabados, sinEvidencia, cabeza }: {
   esAdmin?: boolean;
   viajes: Viaje[];
   nombres: Record<string, string>;
   esEditor: boolean;
+  /** Tiene el permiso «Camión interno (+)» de Roles: ve el botón flotante. */
+  puedeCrear?: boolean;
   /** Administra la plataforma: puede corregir y anular, igual que en la
    *  fuente principal. El candado de verdad está en la base. */
   manda?: boolean;
@@ -587,8 +589,22 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
       {avisos}
       {cuadrosAdmin}
 
-      {/* EL «+»: MONTAR UN CAMIÓN QUE NO CERTIFICÓ SIDER. Solo para quien
-          puede editar Tránsito —la base pide el mismo permiso—. */}
+      {/* EL «+» FLOTANTE. Un botón redondo abajo a la derecha, no una barra
+          en la página: montar un camión interno es la excepción, no lo
+          de todos los días. Solo lo ve quien tiene el permiso «Camión
+          interno (+)» en Roles; la base pide el mismo. */}
+      {puedeCrear && (
+        <button type="button"
+                className={"tr-mas tr-fab" + (manda && escogidos.size > 0 ? " sube" : "")}
+                onClick={() => setCreando(true)}
+                aria-label="Crear un camión interno" title="Camión interno">
+          <span className="mas" aria-hidden="true">+</span>
+          <span className="tr-fab-t">Camión interno</span>
+        </button>
+      )}
+
+      {/* EL «+»: MONTAR UN CAMIÓN QUE NO CERTIFICÓ SIDER. Lo abre el botón
+          flotante, que solo ve quien tiene el permiso «Camión interno (+)». */}
       {creando && (
         <NuevoInterno
           origenes={origenes ?? []}
@@ -632,16 +648,6 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
 
       {cabeza}
 
-      {esEditor && (
-        <div className="tr-nuevo">
-          <button type="button" className="tr-mas" onClick={() => setCreando(true)}
-                  aria-label="Crear un camión interno">
-            <span className="mas" aria-hidden="true">+</span>
-            Camión interno
-          </button>
-          <p>¿Llegó uno que no certificó Sider? Móntalo aquí para recibirlo y revisarlo.</p>
-        </div>
-      )}
 
       {/* ---------- LA CINTA DE ASUNTOS ----------
 

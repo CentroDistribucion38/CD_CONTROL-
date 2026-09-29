@@ -44,6 +44,9 @@ export default async function TransitoPage() {
     nombresTodos(),
   ]);
   const esEditor = permisos.puedeEditar("/sider/transito");
+  /* EL «+» TIENE SU PROPIO PERMISO («Camión interno (+)» en Roles): recibir
+     camiones no es poder inventarlos. La base pide el mismo. */
+  const puedeCrear = permisos.puedeEditar("/sider/transito/nuevo");
   /* PEDIR UNA REVISIÓN AI ES SOLO DEL ADMINISTRADOR: cuesta media hora
      de muelle y termina en un cobro al socio. Aquí solo se decide si se
      pinta el botón; el candado está en la base. */
@@ -98,6 +101,7 @@ export default async function TransitoPage() {
         }))}
         estibasPorSider={estibasPorSider}
         esEditor={esEditor}
+        puedeCrear={puedeCrear}
         trabados={trabados}
         sinEvidencia={sinEvidencia}
         cabeza={

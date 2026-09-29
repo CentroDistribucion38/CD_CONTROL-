@@ -323,6 +323,11 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
+      /* EL «+» DE CAMIÓN INTERNO NO ES UNA PANTALLA: es un botón flotante de
+         En tránsito. Está aquí, oculto, SOLO para tener su casilla en
+         Roles —«Camión interno (+)»—: no todos los que reciben camiones
+         pueden montar uno. Su página redirige a En tránsito. */
+      { nombre: "Camión interno (+)", ruta: "/sider/transito/nuevo", oculto: true },
       /* EL «+» DE CAMIÓN INTERNO vive DENTRO de Tránsito: allí se crea el
          camión, allí se certifica su llegada, y de ahí pasa solo a la
          pantalla de Revisión AI. */

@@ -238,7 +238,7 @@ if (m === "sorting") {
     { sku: "3500901", descripcion: "Costeñita Ámbar 330 cc", clase: "Envase", cajas_x_estiba: 60, unidades_x_caja: 24, hl_x_unidad: 0.0033 },
     { sku: "3500999", descripcion: "Caja plástica azul", clase: "Envase", cajas_x_estiba: null, unidades_x_caja: null, hl_x_unidad: null }];
   root.render(<Transito viajes={viajes as any} nombres={{ u1: "Cristian Padilla" }}
-    esEditor={c !== "lectura"} esAdmin={c !== "noadmin"} manda={c !== "noadmin"}
+    esEditor={c !== "lectura"} puedeCrear={c !== "lectura" && c !== "sincrear"} esAdmin={c !== "noadmin"} manda={c !== "noadmin"}
     origenes={origenes} skus={skus} estibasPorSider={36}
     trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 }
@@ -648,6 +648,11 @@ await monta("m=transito&c=noadmin");
    ===================================================================== */
 await monta("m=transito&c=lectura");
 ok(await pg.$$eval(".tr-mas", (s) => s.length) === 0, "quien no puede editar Tránsito ve el «+»");
+/* EDITAR TRÁNSITO NO ALCANZA: el «+» tiene su propio permiso. */
+await monta("m=transito&c=sincrear");
+ok(await pg.$$eval(".tr-mas", (s) => s.length) === 0, "quien edita Tránsito pero NO tiene el permiso «Camión interno» ve el «+»");
+ok(await pg.$$eval("article.tr-vh .btn", (s) => s.some((b) => /Certificar llegada/.test(b.textContent))),
+   "sin el permiso del «+» también se le quitó certificar la llegada");
 
 await monta("m=transito&c=normal");
 {
@@ -660,7 +665,7 @@ await monta("m=transito&c=normal");
   /* NADA ESCRITO: el botón apagado y lo que falta dicho por su nombre. */
   ok(await crear.isDisabled(), "el botón de crear está encendido con el formulario vacío");
   let t = await pg.$eval(".vj-caja.nuevo", (e) => e.textContent.replace(/\s+/g, " "));
-  ok(/Falta la placa, el CD de origen, el material, las estibas/.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
+  ok(/Falta la placa \(3 letras y 3 números\), el CD de origen, el material, las estibas/.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
   ok(await pg.inputValue(".nv-campos select >> nth=1") === "Barranquilla", "el destino no arranca en Barranquilla");
   const destinos = await pg.$$eval(".nv-campos select >> nth=1 >> option", (o) => o.map((x) => x.textContent));
   ok(JSON.stringify(destinos) === JSON.stringify(["Barranquilla", "Apartadó", "Medellín"]),
@@ -669,6 +674,14 @@ await monta("m=transito&c=normal");
   /* LA PLACA SE ESCRIBE EN MAYÚSCULA. */
   await pg.fill(".nv-placa input", "abc123");
   ok(await pg.inputValue(".nv-placa input") === "ABC123", "la placa no se pasa a mayúsculas");
+  /* LA PLACA: 3 LETRAS Y 3 NÚMEROS, NO MÁS. */
+  await pg.fill(".nv-placa input", "ab-1 2");
+  ok(await pg.inputValue(".nv-placa input") === "AB12", "la placa deja pasar guiones y espacios");
+  await pg.fill(".nv-placa input", "abcd123456");
+  ok(await pg.inputValue(".nv-placa input") === "ABCD12", `la placa deja escribir más de 6: «${await pg.inputValue(".nv-placa input")}»`);
+  ok(await pg.$eval(".nv-placa small", (e) => e.classList.contains("mal")), "una placa mala no se marca");
+  ok(/3 letras y 3 números/.test(await pg.$eval(".vj-caja.nuevo", (e) => e.textContent)), "no dice la regla de la placa");
+  await pg.fill(".nv-placa input", "abc123");
 
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
 
@@ -712,6 +725,16 @@ await monta("m=transito&c=normal");
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
   ok(await pg.$$eval(".vj-caja.nuevo [role=alert]", (s) => s.length) === 0, "el aviso de origen = destino no se quita al corregir");
   ok(await crear.isEnabled(), "al corregir el destino el botón no se vuelve a encender");
+
+  /* UNA PLACA QUE NO ES 3 LETRAS + 3 NÚMEROS APAGA EL BOTÓN, con todo lo demás lleno. */
+  for (const mala of ["AB1234", "ABCD12", "123ABC", "ABC12", "A1B2C3", ""]) {
+    await pg.fill(".nv-placa input", mala);
+    ok(await crear.isDisabled(), `con la placa «${mala}» deja crear`);
+    ok(/la placa \(3 letras y 3 números\)/.test(await pg.$eval(".vj-caja.nuevo", (e) => e.textContent)),
+       `con la placa «${mala}» no dice que falta la placa por su regla`);
+  }
+  await pg.fill(".nv-placa input", "abc123");
+  ok(await crear.isEnabled(), "con la placa buena el botón no se enciende");
 
   /* ESTIBAS MALAS APAGAN EL BOTÓN. */
   for (const malo of ["0", "-3", "abc", ""]) {
@@ -838,7 +861,7 @@ await monta("m=informe&c=sintipo");
 /* =====================================================================
    7 · NADA SE SALE NI SE MONTA, en los cuatro anchos
    ===================================================================== */
-for (const ancho of [360, 390, 820, 1440]) {
+for (const ancho of [360, 390, 722, 820, 1440]) {
   for (const q of ["m=sorting&c=normal", "m=sorting&c=largos", "m=transito&c=largos", "m=transito&c=normal",
                    "m=form&c=sorting", "m=informe&c=normal", "m=viajes&c=marcas"]) {
     await monta(q, ancho);
@@ -894,6 +917,25 @@ for (const ancho of [360, 390, 820, 1440]) {
     }
   }
 
+  /* EL BOTÓN FLOTANTE: dentro de la pantalla, y sin tapar la barra de «viajes escogidos». */
+  await monta("m=transito&c=normal", ancho);
+  {
+    const r0 = await pg.$eval(".tr-mas", (e) => { const b = e.getBoundingClientRect();
+      return { x0: b.left, x1: b.right, y0: b.top, y1: b.bottom, W: innerWidth, H: innerHeight, pos: getComputedStyle(e).position } });
+    ok(r0.pos === "fixed" && r0.x0 >= 0 && r0.x1 <= r0.W && r0.y0 >= 0 && r0.y1 <= r0.H,
+       `el «+» en ${ancho} px no queda dentro de la pantalla: ${JSON.stringify(r0)}`);
+    ok(r0.x1 > r0.W * 0.6 && r0.y1 > r0.H * 0.6, `el «+» en ${ancho} px no está abajo a la derecha`);
+    ok(Math.round(r0.x1 - r0.x0) >= 56 && Math.abs((r0.x1 - r0.x0) - (r0.y1 - r0.y0)) < 2,
+       `el «+» en ${ancho} px no es un círculo de al menos 56 px (${r0.x1 - r0.x0} × ${r0.y1 - r0.y0})`);
+    await pg.click("article.tr-vh .tr-marca input >> nth=0");
+    await pg.waitForSelector(".tr-barra");
+    const r1 = await pg.evaluate(() => { const q = (s) => { const b = document.querySelector(s).getBoundingClientRect();
+      return { x0: b.left, x1: b.right, y0: b.top, y1: b.bottom } };
+      return { fab: q(".tr-mas"), barra: q(".tr-barra") } });
+    const cruza = r1.fab.x0 < r1.barra.x1 && r1.barra.x0 < r1.fab.x1 && r1.fab.y0 < r1.barra.y1 && r1.barra.y0 < r1.fab.y1;
+    ok(!cruza, `el «+» en ${ancho} px tapa la barra de viajes escogidos: ${JSON.stringify(r1)}`);
+  }
+
   /* EL «+» ABIERTO: la caja entera dentro de la pantalla, en todos los anchos, y con todo lleno. */
   await monta("m=transito&c=normal", ancho);
   await pg.click(".tr-mas");
@@ -947,7 +989,7 @@ const MIDE = () => {
 const PARES = {
   "m=sorting&c=normal": [".tr-vh.ai .sello.ai", ".tr-vh.so .sello.sorting", ".tr-vh .sello.interno",
                          ".so-clase button", ".tr-vh.ai .btn.ai", ".tr-vh.so .btn.so-btn", ".so-hechos li.so .so-h-tipo .sello"],
-  "m=transito&c=normal": [".tr-vh .sello.ai", ".tr-vh .sello.sorting", ".tr-vh .sello.interno", ".tr-mas", ".tr-nuevo p"],
+  "m=transito&c=normal": [".tr-vh .sello.ai", ".tr-vh .sello.sorting", ".tr-vh .sello.interno", ".tr-mas"],
   "m=viajes&c=marcas": [".vj-sorting .sello.interno", ".vj-sorting .sello:not(.interno)"],
   "m=informe&c=normal": [".ia-tabla td:nth-child(3) .ia-sello.propio", ".ia-tabla td:nth-child(3) .ia-sello.normal"],
 };

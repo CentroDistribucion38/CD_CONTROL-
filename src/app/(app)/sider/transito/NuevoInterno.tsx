@@ -55,6 +55,11 @@ const plano = (s: string) =>
 
 const DESTINO_POR_DEFECTO = "Barranquilla";
 
+/** LA PLACA SON TRES LETRAS Y TRES NÚMEROS, y nada más. */
+const PLACA_OK = /^[A-Z]{3}[0-9]{3}$/;
+/** Lo que se acepta al teclear: sin espacios ni signos, en mayúscula, máximo 6. */
+const limpiaPlaca = (t: string) => t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+
 export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, alCrear }: {
   origenes: OrigenMaestro[];
   skus: SkuMaestro[];
@@ -118,7 +123,7 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
   /* LO QUE FALTA SE DICE POR SU NOMBRE, junto al botón. «Rellena los
      campos» obliga a adivinar cuál. */
   const faltan: string[] = [];
-  if (!placa.trim()) faltan.push("la placa");
+  if (!PLACA_OK.test(placa)) faltan.push("la placa (3 letras y 3 números)");
   if (!planta) faltan.push("el CD de origen");
   if (!sku) faltan.push("el material");
   if (!nEst || nEst <= 0) faltan.push("las estibas");
@@ -129,7 +134,7 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
     setMal(null); setOcupado(true);
     const supabase = createClient();
     const { error } = await supabase.rpc("sider_viaje_interno_crear", {
-      p_placa: placa.trim().toUpperCase(),
+      p_placa: placa,
       p_planta: planta,
       p_destino: destino,
       p_sku: sku,
@@ -140,7 +145,7 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
     });
     setOcupado(false);
     if (error) { setMal(traducirError(error.message)); return }
-    alCrear(placa.trim().toUpperCase());
+    alCrear(placa);
   }
 
   return (
@@ -157,9 +162,14 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
         <div className="nv-campos">
           <label className="nv-placa">
             <span>Placa</span>
-            <input value={placa} autoFocus maxLength={10} autoCapitalize="characters"
-                   autoComplete="off" placeholder="ABC123"
-                   onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+            <input value={placa} autoFocus maxLength={6} autoCapitalize="characters"
+                   autoComplete="off" placeholder="ABC123" spellCheck={false}
+                   aria-describedby="nv-placa-ayuda"
+                   aria-invalid={placa.length > 0 && !PLACA_OK.test(placa)}
+                   onChange={(e) => setPlaca(limpiaPlaca(e.target.value))} />
+            <small id="nv-placa-ayuda" className={placa.length > 0 && !PLACA_OK.test(placa) ? "mal" : ""}>
+              3 letras y 3 números, sin más
+            </small>
           </label>
 
           <label>

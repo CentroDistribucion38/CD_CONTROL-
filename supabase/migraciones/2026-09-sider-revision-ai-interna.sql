@@ -107,6 +107,9 @@ exception when duplicate_object then null; end $$;
 -- cualquier otro camión —así queda GPS y fotos de la llegada— y al
 -- certificar la llegada pasa solo a «Revisión AI – normal».
 --
+-- PERMISO PROPIO: «Camión interno (+)» en Roles (`/sider/transito/nuevo`).
+-- PLACA: tres letras y tres números.
+--
 -- `fecha` es la de HOY EN COLOMBIA. Sin salida certificada no hay de
 -- dónde sacarla, y `creado_en` en UTC cae en el día de mañana después de
 -- las 7 de la noche.
@@ -133,12 +136,21 @@ declare
   v_destino text := btrim(coalesce(p_destino, ''));
   v_dest_ok text;
 begin
-  if not public.puede_editar('/sider/transito') then
-    raise exception 'Crear un camión interno requiere permiso de edición en Tránsito';
+  /* EL «+» TIENE SU PROPIO PERMISO, no el de Tránsito: quien recibe los
+     camiones no tiene por qué poder inventar uno. Sale en Roles como
+     «Camión interno (+)»; nadie lo trae de fábrica salvo quien administra
+     la plataforma. */
+  if not public.puede_editar('/sider/transito/nuevo') then
+    raise exception 'Crear un camión interno requiere el permiso «Camión interno» (Roles)';
   end if;
 
   if v_placa = '' then
     raise exception 'Falta la placa';
+  end if;
+  /* LA PLACA SON TRES LETRAS Y TRES NÚMEROS, y nada más. La pantalla ya
+     lo exige; aquí se vuelve a exigir porque alguien llama la función a mano. */
+  if v_placa !~ '^[A-Z]{3}[0-9]{3}$' then
+    raise exception 'La placa son 3 letras y 3 números, sin más (por ejemplo ABC123)';
   end if;
 
   select o.cd_origen into v_origen
@@ -791,6 +803,12 @@ begin
    where n.nspname = 'public' and p.proname = 'sider_ai_guardar';
   if v_sobre <> 1 then
     raise exception 'sider_ai_guardar tiene % versiones: con más de una, la llamada del muelle falla con «function is not unique».', v_sobre;
+  end if;
+
+  select pg_get_functiondef(to_regprocedure(
+    'public.sider_viaje_interno_crear(text,text,text,text,numeric,text,text,text)')) into v_src;
+  if v_src not like '%/sider/transito/nuevo%' then
+    raise exception 'sider_viaje_interno_crear no pide su permiso propio (Camión interno).';
   end if;
 
   select pg_get_functiondef(to_regprocedure(

@@ -3310,26 +3310,38 @@
 }
 .sd .sello.interno i { background: #2F5D8C }
 
-/* La franja del «+». No es una alarma ni un estado: es la puerta para
-   montar lo que no vino por Sider, y por eso va quieta, en una línea. */
-.sd .tr-nuevo {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin: 0 0 12px;
-}
-.sd .tr-nuevo p { margin: 0; font-size: 12.5px; color: var(--sd-gris); flex: 1 1 240px; min-width: 0 }
+/* EL «+» ES UN BOTÓN REDONDO FLOTANTE, abajo a la derecha. Montar un
+   camión interno es la excepción y no merece una fila de la página. Con
+   la barra de «viajes escogidos» abierta sube, para no taparla. Sobre el
+   velo de los cuadros (z-index 60) no puede quedar: va por debajo. */
 .sd .tr-mas {
-  display: inline-flex; align-items: center; gap: 9px;
-  min-height: 44px; padding: 0 16px 0 10px; cursor: pointer; border-radius: 3px;
-  background: var(--sd-papel); color: var(--sd-tinta);
-  border: 1.5px solid var(--sd-acento);
-  font: 800 14px var(--sd-titulo, system-ui); white-space: nowrap;
+  position: fixed; right: 22px; bottom: calc(22px + env(safe-area-inset-bottom)); z-index: 45;
+  display: inline-flex; align-items: center; gap: 0;
+  min-height: 56px; min-width: 56px; padding: 0; cursor: pointer; border-radius: 28px;
+  background: var(--sd-acento); color: #fff; border: 0;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .30);
+  font: 800 14px var(--sd-titulo, system-ui); white-space: nowrap; overflow: hidden;
+  transition: padding .15s ease, gap .15s ease;
 }
 .sd .tr-mas .mas {
-  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
-  background: var(--sd-acento); color: #fff; font: 800 20px/1 var(--sd-titulo, system-ui);
+  display: grid; place-items: center; width: 56px; height: 56px; flex: none;
+  font: 800 32px/1 var(--sd-titulo, system-ui);
 }
-.sd .tr-mas:hover { background: color-mix(in srgb, var(--sd-acento) 9%, var(--sd-papel)) }
-.sd .tr-mas:focus-visible { outline: 3px solid var(--sd-tinta); outline-offset: 2px }
+.sd .tr-mas .tr-fab-t { max-width: 0; overflow: hidden; opacity: 0; transition: max-width .15s ease, opacity .15s ease }
+@media (hover: hover) and (min-width: 721px) {
+  .sd .tr-mas:hover, .sd .tr-mas:focus-visible { padding-right: 20px }
+  .sd .tr-mas:hover .tr-fab-t, .sd .tr-mas:focus-visible .tr-fab-t { max-width: 160px; opacity: 1 }
+}
+.sd .tr-mas:focus-visible { outline: 3px solid var(--sd-tinta); outline-offset: 3px }
+/* Con la barra de lo escogido abierta (pegada abajo) el botón sube encima de ella SOLO
+   en el celular, donde la barra ocupa todo el ancho; en pantalla ancha la barra queda
+   centrada y el botón en la esquina, y no se tocan. */
+@media (max-width: 720px) {
+  .sd .tr-mas { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)) }
+  .sd .tr-mas.sube { bottom: calc(150px + env(safe-area-inset-bottom)) }
+}
+.sd .nv-placa small { font-size: 11.5px; color: var(--sd-gris) }
+.sd .nv-placa small.mal { color: var(--sd-mal); font-weight: 700 }
 
 /* El cuadro del «+»: mismo velo que corregir y anular, pero con el borde
    de la casa y no rojo —esto no destruye nada—, y más ancho. */
@@ -3402,7 +3414,6 @@
   .sd .nv-campos { grid-template-columns: minmax(0, 1fr) }
   .sd .nv-cifras dd { font-size: 14.5px }
   .sd .vj-caja.nuevo .vj-botones .btn:not(.plano) { flex: 1 1 100% }
-  .sd .tr-mas { width: 100%; justify-content: center }
 }
 
 /* ---------- LA PANTALLA «REVISIÓN AI» ---------- */
