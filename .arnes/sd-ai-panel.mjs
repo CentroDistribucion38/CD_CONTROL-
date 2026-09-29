@@ -194,13 +194,16 @@ if (inventadas.length)
    cambió y él siguió midiendo la de antes — reprobaba por un rótulo
    que ya no existe. Dos copias del mismo armazón es cómo una se queda
    vieja sin que nadie lo note. */
+/* El formulario ya no vive dentro de Tránsito sino en la pantalla «Revisión AI»
+   (/sider/sorting). Se sigue midiendo dentro de una tarjeta de la misma
+   anchura porque es el peor caso: si cabe ahí, cabe suelto. */
 const EN_TARJETA = `
 <section class="tarjeta">
   <div class="ct-paso tr-llegada">
     <div class="tr-quien">
-      <div><h2>Revisión AI de JGY577</h2>
-        <p class="ct-dice"><b>La llegada ya quedó registrada.</b> Falta la muestra.</p></div>
-      <button class="btn plano">← Volver al tránsito</button>
+      <div><h2>Revisión AI – certificada · JGY577</h2>
+        <p class="ct-dice"><b>La llegada ya quedó certificada.</b> Falta la muestra.</p></div>
+      <button class="btn plano">← Volver a la lista</button>
     </div>
     ${ARMAZON}
   </div>

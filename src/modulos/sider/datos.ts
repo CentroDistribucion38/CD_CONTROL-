@@ -62,16 +62,24 @@ export async function viajesSider(limite = 500) {
  */
 export async function viajesEnTransito() {
   const supabase = await createClient();
-  /* LA MARCA DE REVISIÓN AI VIENE EN UNA SEGUNDA CONSULTA, no dentro de
-     la vista. v_sider_viajes es la vista más grande del módulo y la leen
-     cinco pantallas; meterle cuatro columnas para una casilla que solo
-     mira Tránsito obliga a recrearla entera en una migración y a que
-     todas las demás carguen lo que no usan.
+  /* LAS MARCAS VIENEN EN CONSULTAS APARTE, no dentro de la vista.
+     v_sider_viajes es la vista más grande del módulo y la leen cinco
+     pantallas; meterle columnas para una casilla que solo mira Tránsito
+     obliga a recrearla entera en una migración y a que todas las demás
+     carguen lo que no usan.
 
-     Son las dos en la MISMA tanda —no una detrás de otra— y la segunda
-     trae cuatro columnas de las decenas de filas que hay en tránsito.
-     Se cruzan por id aquí, que es exactamente lo que haría el join. */
-  const [{ data, error }, ai, pend, sort] = await Promise.all([
+     Y CADA UNA FALLA SOLA: si una columna todavía no existe —falta
+     correr una migración— esa consulta devuelve error y las demás siguen.
+     Media pantalla es mejor que una pantalla que perdió lo que ya tenía.
+
+     Las tres van en la MISMA tanda, y traen unas pocas columnas de las
+     decenas de filas que hay en tránsito. Se cruzan por id aquí, que es
+     exactamente lo que haría el join.
+
+     YA NO SE PIDEN LOS «AI PENDIENTES» que llegaron: la revisión AI dejó
+     de hacerse dentro de Tránsito. Un camión que llegó sale de esta lista
+     y espera su revisión en la pantalla «Revisión AI». */
+  const [{ data, error }, ai, sort, inter] = await Promise.all([
     supabase.from("v_sider_viajes").select("*")
       .eq("estado", "en_transito")
       .order("salida_en", { ascending: true, nullsFirst: false })
@@ -79,88 +87,53 @@ export async function viajesEnTransito() {
     supabase.from("sider_viajes")
       .select("id, requiere_ai, ai_motivo, ai_pedido_por, ai_pedido_en")
       .eq("estado", "en_transito").eq("requiere_ai", true).limit(500),
-    /* LOS QUE YA LLEGARON Y SIGUEN SIN REVISAR. No están en tránsito
-       —su llegada ya se certificó— pero tienen que seguir viéndose AQUÍ,
-       porque no hay otra pantalla: la revisión AI dejó de ser un módulo
-       aparte. Un vehículo marcado desaparece de la lista solo cuando
-       alguien contó las botellas, no cuando llegó.
-
-       Es la misma vista que alimentaba la lista de pendientes del módulo
-       que se quitó; lo que cambió es dónde se muestran. */
-    supabase.from("v_sider_ai_pendientes").select("viaje_id").limit(200),
-    /* LOS QUE PIDIERON SORTING, EN UNA CONSULTA APARTE Y NO DENTRO DE LA
-       DE AI. Si la columna `requiere_sorting` todavía no existe —falta
-       correr 2026-09-sider-sorting.sql— esta consulta falla, y falla
-       sola: metida en la de AI, el error se llevaba también las marcas
-       de revisión AI y Tránsito dejaba de avisar qué camiones se revisan.
-       Media pantalla es mejor que una pantalla que perdió lo que ya
-       tenía. */
     supabase.from("sider_viajes").select("id")
       .eq("estado", "en_transito").eq("requiere_sorting", true).limit(500),
+    supabase.from("sider_viajes").select("id")
+      .eq("estado", "en_transito").eq("interno", true).limit(500),
   ]);
 
-  /* Si el módulo AI todavía no está creado, la consulta falla y la
-     pantalla sale igual, solo que sin marcas. Media pantalla es mejor
-     que una pantalla en blanco. */
   type M = { id: string; requiere_ai: boolean; ai_motivo: string | null;
              ai_pedido_por: string | null; ai_pedido_en: string | null };
   const marcas = new Map<string, M>();
   if (!ai.error) for (const m of (ai.data ?? []) as M[]) marcas.set(m.id, m);
 
-  const conSorting = new Set<string>(
-    sort.error ? [] : ((sort.data ?? []) as { id: string }[]).map((x) => x.id));
+  const ids = (r: { error: unknown; data: unknown }) =>
+    new Set<string>(r.error ? [] : ((r.data ?? []) as { id: string }[]).map((x) => x.id));
+  const conSorting = ids(sort);
+  const internos = ids(inter);
 
   const enCamino = ((data ?? []) as unknown as Viaje[]).map((v) => {
     const m = marcas.get(v.id);
     const base = m ? { ...v, requiere_ai: true, ai_motivo: m.ai_motivo,
                        ai_pedido_por: m.ai_pedido_por, ai_pedido_en: m.ai_pedido_en }
                    : { ...v, requiere_ai: false };
-    return { ...base, requiere_sorting: conSorting.has(v.id) };
+    return { ...base, requiere_sorting: conSorting.has(v.id), interno: internos.has(v.id) };
   });
 
-  /* Los pendientes se traen en una segunda vuelta y no en la misma: hay
-     que saber CUÁLES son antes de poder pedirlos, y la vista de arriba
-     solo da los ids. Son poquísimos —los que llegaron hoy y nadie
-     revisó— y la mayoría de los días son cero, así que ni siquiera se
-     pregunta cuando la lista viene vacía. */
-  const ids = pend.error ? [] : ((pend.data ?? []) as { viaje_id: string }[]).map((p) => p.viaje_id);
-  let pendientes: Viaje[] = [];
-  if (ids.length) {
-    /* Y AQUÍ SE VUELVE A DEJAR FUERA A LOS ANULADOS.
-       El arreglo de verdad está en la vista —`v_sider_ai_pendientes` ya
-       no los devuelve, porque un viaje anulado no está esperando que
-       nadie cuente su muestra—, y este renglón es el cinturón: mientras
-       el SQL no se haya corrido, la pantalla YA se comporta bien, y el
-       día que alguien reescriba esa vista y se le olvide el estado,
-       Tránsito no vuelve a llenarse de vehículos anulados sin que nadie
-       se entere. Cuesta una palabra en una consulta que ya se hacía. */
-    const { data: dp } = await supabase.from("v_sider_viajes").select("*")
-      .in("id", ids).neq("estado", "anulado");
-    const extra = await supabase.from("sider_viajes")
-      .select("id, ai_motivo, ai_pedido_por, ai_pedido_en").in("id", ids);
-    const porId = new Map<string, M>();
-    if (!extra.error) for (const m of (extra.data ?? []) as M[]) porId.set(m.id, m);
-    /* Un camión que ya llegó, con la AI sin contar Y con Sorting pedido:
-       tiene que mostrar el sello de Sorting también, para que quien hace
-       la muestra sepa que después de ella el camión pasa a los muchachos.
-       Aparte por lo mismo de arriba: si la columna no existe, falla sola. */
-    const srt = await supabase.from("sider_viajes").select("id")
-      .in("id", ids).eq("requiere_sorting", true);
-    const conSortingPend = new Set<string>(
-      srt.error ? [] : ((srt.data ?? []) as { id: string }[]).map((x) => x.id));
-    pendientes = ((dp ?? []) as unknown as Viaje[]).map((v) => ({
-      ...v, requiere_ai: true, ai_pendiente: true,
-      requiere_sorting: conSortingPend.has(v.id),
-      ai_motivo: porId.get(v.id)?.ai_motivo ?? null,
-      ai_pedido_por: porId.get(v.id)?.ai_pedido_por ?? null,
-      ai_pedido_en: porId.get(v.id)?.ai_pedido_en ?? null,
-    }));
-  }
+  /* LOS INTERNOS NO TIENEN SALIDA, y el orden de arriba pone primero los
+     que salieron antes: los internos no tienen hora de salida y caerían
+     al final aunque lleven horas esperando. Se ordenan por lo que sí
+     tienen —cuándo se crearon— y se mezclan con los demás. */
+  const hora = (v: Viaje) => v.salida_en ?? v.creado_en;
+  enCamino.sort((a, b) => Date.parse(hora(a)) - Date.parse(hora(b)));
 
-  /* LOS PENDIENTES VAN PRIMEROS, y no por capricho: son los únicos de
-     esta lista con algo que HACER ya. Los demás están en la carretera y
-     no dependen de nadie aquí. */
-  return { viajes: [...pendientes, ...enCamino], falta: !!error };
+  return { viajes: enCamino, falta: !!error };
+}
+
+/**
+ * QUÉ CAMIONES CREÓ CONTROL CON EL «+», para marcarlos en Fuente principal.
+ *
+ * APARTE DE `viajesSider()` por lo mismo de arriba: esa función la leen
+ * cinco pantallas y solo esta necesita la marca; y si todavía no se corrió
+ * 2026-09-sider-revision-ai-interna.sql la columna no existe, la consulta
+ * falla sola y la pantalla sale igual, sin marcas.
+ */
+export async function idsInternos(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("sider_viajes").select("id")
+    .eq("interno", true).limit(5000);
+  return error ? [] : ((data ?? []) as { id: string }[]).map((x) => x.id);
 }
 
 /**

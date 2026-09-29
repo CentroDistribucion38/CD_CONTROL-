@@ -24,9 +24,11 @@
    3. ANULAR EXIGE MOTIVO. La base lo exige; si la pantalla deja mandar
       sin él, el único resultado posible es un error.
 
-   4. AL QUE LLEGÓ Y ESPERA REVISIÓN AI NO SE LE OFRECE CORREGIR: esa
-      tarjeta está pidiendo que alguien cuente la muestra, y corregirle
-      las estibas ahí es cambiar el dato justo antes de contrastarlo.
+   4. LA REVISIÓN AI YA NO ESTÁ EN TRÁNSITO. Un camión que llegó sale de
+      esta lista y espera en la pantalla «Revisión AI»; el que sigue aquí
+      —aunque lleve la revisión pedida— no ha llegado, así que se puede
+      corregir y anular como cualquiera, y anularlo ya no cierra ninguna
+      muestra sin contar.
 
      node .arnes/tr-admin.mjs
    ===================================================================== */
@@ -77,18 +79,16 @@ const base = {
   salida_en: "2026-09-10T12:41:00Z", llegada_en: null, en_camino: "357:00:00",
   fotos_salida: 3, fotos_llegada: 0,
   creado_por: "u1", salida_direccion: "Avenida Carrera 38",
-  requiere_ai: false, ai_pendiente: false, ai_motivo: null,
+  requiere_ai: false, ai_motivo: null,
   ai_pedido_por: null, ai_pedido_en: null,
 };
 const viajes = [
   { ...base, id: "v1", placa: "JGY577" },
   { ...base, id: "v2", placa: "JYN245", cd_origen: "CD OL Curumani",
     sku: "3501226", descripcion: "BOTELLA MARRON 250 CC", estibas: 20, sider: 0.56 },
-  /* EL QUE LLEGÓ Y ESPERA QUE ALGUIEN CUENTE LA MUESTRA. A este no se
-     le ofrece corregir: cambiarle las estibas justo antes de
-     contrastarlas es cambiar el dato que se va a contrastar. */
-  { ...base, id: "v3", placa: "KKL900", requiere_ai: true, ai_pendiente: true,
-    llegada_en: "2026-09-24T10:00:00Z" },
+  /* EL QUE LLEVA LA REVISIÓN AI PEDIDA. Sigue en tránsito —no ha llegado—
+     y por eso se corrige y se anula igual que los demás. */
+  { ...base, id: "v3", placa: "KKL900", requiere_ai: true },
   /* UN SEGUNDO ANULABLE EN EL MISMO CD QUE KKL900. Sin él, ese grupo
      tenía un anulable y un pendiente de muestra, y el «todos» del CD
      —que solo aparece con dos o más— no se podía medir. Con los tres
@@ -200,14 +200,12 @@ await monta(true);
      justo antes de contrastarlas con la muestra es tocar el dato que se
      va a contrastar. Anular no tiene nada que ver con eso. */
   const conAi = await pg.textContent(tarjeta("KKL900"));
-  ok(!/Corregir/.test(conAi),
-     "al vehículo que llegó y espera la revisión AI se le ofrece corregir: eso cambia el dato " +
-     "justo antes de contrastarlo con la muestra");
-  ok(/Anular/.test(conAi),
-     "al vehículo que llegó y espera la muestra no se le deja anular, y es justo el que lleva " +
-     "semanas trabado en «en camino»");
+  ok(/Corregir/.test(conAi),
+     "al vehículo con la revisión AI pedida —que sigue en tránsito— no se le ofrece corregir: " +
+     "la muestra se cuenta cuando LLEGA, y hasta entonces no hay dato que proteger");
+  ok(/Anular/.test(conAi), "al vehículo con la revisión AI pedida no se le deja anular");
   ok(await pg.isVisible(`${tarjeta("KKL900")} .tr-marca input`),
-     "el que espera la muestra no se puede ni escoger: queda fuera de la limpieza en lote");
+     "el de la revisión pedida no se puede ni escoger para la limpieza en lote");
 }
 
 /* =====================================================================
@@ -407,37 +405,19 @@ await monta(true);
   await pg.click(cab);
   await pg.waitForSelector(".sd .tr-barra");
   const b = await pg.textContent(".sd .tr-barra");
-  /* SOLO UNO: en ese CD hay dos tarjetas, pero KKL900 está esperando la
-     muestra y a esa no se le ofrece anular en ninguna parte. Si el
-     «todos» la metiera, la barra diría 2 y el cuadro nombraría una
-     placa que no se puede anular. */
   ok(/3 viajes escogidos/.test(b),
-     `«los del CD» escogió ${b.trim()}: en ese CD hay 3 y entran los 3, incluido el de la muestra`);
+     `«los del CD» escogió ${b.trim()}: en ese CD hay 3 y entran los 3, incluido el de la revisión pedida`);
 
-  /* Y EL CUADRO AVISA DE LO QUE CUESTA ANULAR AL DE LA MUESTRA.
-     Anularlo cierra la revisión sin contar, y al socio se le abona todo
-     lo que mandó: eso es plata, y quien anula tiene que saberlo ANTES,
-     no enterarse el mes que viene. */
+  /* EL CUADRO YA NO HABLA DE UNA MUESTRA SIN CONTAR: la muestra se cuenta
+     DESPUÉS de llegar, y lo que llegó ya no está en esta lista. Anular
+     un camión en tránsito no cierra ninguna revisión. */
   await pg.click(".sd .tr-barra .tr-adm.mal");
   await pg.waitForSelector(".sd .vj-caja");
   const q = await pg.textContent(".sd .vj-caja");
-  ok(/KKL900/.test(q), `el cuadro no nombra al que espera la muestra: «${q.slice(0, 140)}»`);
-  ok(/nadie contó su muestra/.test(q) && /se le abona todo/.test(q),
-     `el cuadro no avisa de lo que cuesta anular al de la muestra: «${q.slice(0, 200)}»`);
+  ok(/KKL900/.test(q), `el cuadro no nombra al de la revisión pedida: «${q.slice(0, 140)}»`);
+  ok(!/nadie contó su muestra/.test(q) && !/se le abona todo/.test(q),
+     `el cuadro todavía avisa de una muestra sin contar: «${q.slice(0, 200)}»`);
   await pg.click(".sd .vj-caja button:has-text('Cancelar')");
-
-  /* Y CON NINGUNO DE LA MUESTRA, ESE AVISO NO SALE. Un aviso que sale
-     siempre deja de querer decir algo a la semana. */
-  await pg.click(`${tarjeta("KKL900")} .tr-marca input`);
-  await pg.click(".sd .tr-barra .tr-adm.mal");
-  await pg.waitForSelector(".sd .vj-caja");
-  ok(!/nadie contó su muestra/.test(await pg.textContent(".sd .vj-caja")),
-     "el aviso de la muestra sale aunque no haya ninguno esperando muestra");
-  await pg.click(".sd .vj-caja button:has-text('Cancelar')");
-  /* SE VUELVE A MARCAR EL QUE SE QUITÓ, para que el grupo esté otra vez
-     completo: si no, el «todos» de abajo ya no está en «todos puestos»
-     y tocarlo marcaría en vez de desmarcar. */
-  await pg.click(`${tarjeta("KKL900")} .tr-marca input`);
 
   /* EL RÓTULO NO SE INVIERTE. Con todos marcados decía «Ninguno», y
      junto a una casilla encendida eso se lee como que no hay ninguno
@@ -495,7 +475,7 @@ ok((await pg.$$(".sd .tr-marca")).length === 0,
    ===================================================================== */
 await monta(true);
 {
-  await pg.click(`${tarjeta("KKL900")} button:has-text('Hacer la revisión AI')`);
+  await pg.click(`${tarjeta("KKL900")} button:has-text('Certificar llegada')`);
   await pg.waitForSelector(".sd .ct-pasos", { timeout: 5000 });
   const m = await pg.evaluate(() => {
     const ol = document.querySelector(".sd .ct-pasos");
@@ -507,8 +487,8 @@ await monta(true);
     return { alto: Math.round(r.height), hijos, circ,
              nombres: [...ol.querySelectorAll("li button span")].map((s) => s.textContent) };
   });
-  ok(m.hijos.length >= 2,
-     `el camino de pasos trae ${m.hijos.length} pasos: la revisión tiene al menos «Dónde» y «Fotos»`);
+  ok(m.hijos.length === 2,
+     `el camino de pasos trae ${m.hijos.length} pasos: la llegada tiene «Dónde» y «Fotos» y nada más (la revisión AI ya no es un tercer paso)`);
   /* LA CAJA TIENE QUE CABERLE A LO QUE LLEVA DENTRO. Es la
      comprobación entera: con el alto fijo encogiéndola, esto daba
      14 contra 59. */
@@ -577,7 +557,7 @@ await pg.click(`${tarjeta("JGY577")} .tr-marca input`);
 await pg.click(`${tarjeta("LMN321")} .tr-marca input`);
 await pg.waitForSelector(".sd .tr-barra");
 await pg.screenshot({ path: ".arnes/tr-escogidos.png" });
-/* Y EL CUADRO CON EL DE LA MUESTRA DENTRO, que es el caso nuevo. */
+/* Y EL CUADRO CON EL DE LA REVISIÓN PEDIDA DENTRO. */
 await pg.click(`${tarjeta("KKL900")} .tr-marca input`);
 await pg.click(".sd .tr-barra .tr-adm.mal");
 await pg.waitForSelector(".sd .vj-caja");
@@ -594,7 +574,7 @@ if (fallas.length) {
   fallas.forEach((f) => console.log(" · " + f));
   process.exit(1);
 }
-console.log("✓ En tránsito: corregir y anular solo para quien manda, el que espera la muestra se " +
-  "puede anular (avisando lo que cuesta) pero no corregir, anular exige motivo de verdad y llama a sider_viaje_anular con su p_motivo, " +
+console.log("✓ En tránsito: corregir y anular solo para quien manda, el de la revisión pedida se " +
+  "puede corregir y anular como cualquiera —la revisión AI ya no vive en tránsito—, anular exige motivo de verdad y llama a sider_viaje_anular con su p_motivo, " +
   "corregir usa los desplegables del maestro y manda «12,5» como 12.5, el rechazo de la base se " +
   "enseña sin cerrar el cuadro, y nada se sale en los cuatro anchos.");

@@ -70,7 +70,7 @@ function sello(v: Viaje) {
 
 const VACIO = { placa: "", origen: "", material: "", estado: "" };
 
-export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estadoInicial, sorting }: {
+export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estadoInicial, sorting, internos }: {
   viajes: Viaje[];
   nombres: Record<string, string>;
   origenes: Origen[];
@@ -84,8 +84,13 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
   /** Qué camiones pidieron Sorting y cuáles ya lo hicieron. Vacío si nadie
    *  lo pidió, o si falta correr la migración: la tabla sale igual. */
   sorting?: Record<string, "pendiente" | "hecho">;
+  /** Los que creó control con el «+» de Tránsito: no tienen salida ni
+   *  fotos de salida, y decir «0/3 fotos» sería un reclamo falso. */
+  internos?: string[];
 }) {
   const router = useRouter();
+  const setInternos = useMemo(() => new Set(internos ?? []), [internos]);
+  const esInterno = (id: string) => setInternos.has(id);
   /* SE ACEPTA SOLO LO QUE EL DESPLEGABLE OFRECE. Un `?estado=` con
      cualquier cosa dejaría la lista vacía y con un filtro puesto que no
      se puede leer en ninguna parte: parecería que se borraron los
@@ -309,8 +314,9 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
                   <td className="num">{v.unidades == null ? "—" : nf.format(v.unidades)}</td>
                   <td className="num">{v.hl == null ? "—" : nf2.format(v.hl)}</td>
                   <td>
-                    <div>{v.importado ? "—" : hora(v.salida_en)}</div>
-                    <div className="cod">{v.importado ? "sin evidencia" : `${v.fotos_salida}/3 fotos`}</div>
+                    <div>{v.importado || esInterno(v.id) ? "—" : hora(v.salida_en)}</div>
+                    <div className="cod">{v.importado ? "sin evidencia"
+                      : esInterno(v.id) ? "interno · sin salida" : `${v.fotos_salida}/3 fotos`}</div>
                   </td>
                   <td>
                     <div>{v.importado ? "—" : hora(v.llegada_en)}</div>
@@ -332,11 +338,18 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
                         camión recibido puede tener el Sorting pendiente.
                         Mezclarlos en un solo sello obligaría a inventar una
                         palabra por cada combinación. */}
-                    {sorting?.[v.id] && (
+                    {(sorting?.[v.id] || esInterno(v.id)) && (
                       <div className="vj-sorting">
-                        <span className={"sello sorting" + (sorting[v.id] === "hecho" ? " hecho" : "")}>
-                          <i />{sorting[v.id] === "hecho" ? "SORTING HECHO" : "SORTING PENDIENTE"}
-                        </span>
+                        {esInterno(v.id) && (
+                          <span className="sello interno" title="Lo creó control con el «+»: no lo certificó Sider">
+                            <i />INTERNO
+                          </span>
+                        )}
+                        {sorting?.[v.id] && (
+                          <span className={"sello sorting" + (sorting[v.id] === "hecho" ? " hecho" : "")}>
+                            <i />{sorting[v.id] === "hecho" ? "REVISIÓN NORMAL HECHA" : "REVISIÓN NORMAL PENDIENTE"}
+                          </span>
+                        )}
                       </div>
                     )}
                     {anulado && v.motivo_anulacion && (

@@ -11,18 +11,16 @@ const base = {
   salida_en: "2026-09-10T12:41:00Z", llegada_en: null, en_camino: "357:00:00",
   fotos_salida: 3, fotos_llegada: 0,
   creado_por: "u1", salida_direccion: "Avenida Carrera 38",
-  requiere_ai: false, ai_pendiente: false, ai_motivo: null,
+  requiere_ai: false, ai_motivo: null,
   ai_pedido_por: null, ai_pedido_en: null,
 };
 const viajes = [
   { ...base, id: "v1", placa: "JGY577" },
   { ...base, id: "v2", placa: "JYN245", cd_origen: "CD OL Curumani",
     sku: "3501226", descripcion: "BOTELLA MARRON 250 CC", estibas: 20, sider: 0.56 },
-  /* EL QUE LLEGÓ Y ESPERA QUE ALGUIEN CUENTE LA MUESTRA. A este no se
-     le ofrece corregir: cambiarle las estibas justo antes de
-     contrastarlas es cambiar el dato que se va a contrastar. */
-  { ...base, id: "v3", placa: "KKL900", requiere_ai: true, ai_pendiente: true,
-    llegada_en: "2026-09-24T10:00:00Z" },
+  /* EL QUE LLEVA LA REVISIÓN AI PEDIDA. Sigue en tránsito —no ha llegado—
+     y por eso se corrige y se anula igual que los demás. */
+  { ...base, id: "v3", placa: "KKL900", requiere_ai: true },
   /* UN SEGUNDO ANULABLE EN EL MISMO CD QUE KKL900. Sin él, ese grupo
      tenía un anulable y un pendiente de muestra, y el «todos» del CD
      —que solo aparece con dos o más— no se podía medir. Con los tres

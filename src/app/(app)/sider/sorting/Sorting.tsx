@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import type { Viaje } from "@/modulos/sider/comun";
+import { NOMBRE_TIPO, NOMBRE_TIPO_LARGO, type TipoRevision } from "@/modulos/sider/comun";
 import type {
-  MaestrosAi, PendienteSorting, Revision, DetalleAi,
+  MaestrosAi, PendienteRevision, Revision, DetalleAi,
 } from "@/modulos/sider/ai";
 import { FormularioAi, type ViajeAi } from "@/modulos/sider/FormularioAi";
 
@@ -32,18 +33,38 @@ export function haceCuanto(desde: string | null, ahora: string): string {
   return `hace ${Math.floor(h / 24)} d`;
 }
 
-/** Más de un día esperando: el camión ya se descargó y sigue sin clasificar. */
+/** Más de un día esperando: el camión ya llegó y sigue sin revisar. */
 const HORAS_TARDE = 24;
 export const esTarde = (desde: string | null, ahora: string) =>
   !!desde && (Date.parse(ahora) - Date.parse(desde)) / 3600000 > HORAS_TARDE;
 
-type Abierto = { viaje: ViajeAi; revision: Revision | null; detalle: DetalleAi[] };
+type Abierto = { tipo: TipoRevision; viaje: ViajeAi; revision: Revision | null; detalle: DetalleAi[] };
+
+/* LA CLASE DE UNA REVISIÓN YA HECHA. Mientras no se corra la migración la
+   vista no trae `tipo` y todo lo que hay es certificada. */
+const tipoDe = (r: Revision): TipoRevision => r.tipo ?? "ai";
+
+/**
+ * EL SELLO DE LA CLASE: LA PALABRA VA ESCRITA, el color solo acompaña.
+ * Certificada lleva el morado de la AI de siempre; normal, el magenta que
+ * ya tenía el Sorting. Se midieron a 87 de distancia, que NO alcanza a
+ * separarlos a simple vista bajo el sol del muelle: por eso cada sello
+ * dice su palabra, y por eso el filtro de arriba también.
+ */
+function SelloTipo({ tipo }: { tipo: TipoRevision }) {
+  return (
+    <span className={"sello " + (tipo === "ai" ? "ai" : "sorting")}
+          title={NOMBRE_TIPO_LARGO[tipo]}>
+      <i />{NOMBRE_TIPO[tipo].toUpperCase()}
+    </span>
+  );
+}
 
 export function Sorting({
   ahora, pendientes, detalle, hechos, nombres, maestros, puedeEditar,
 }: {
   ahora: string;
-  pendientes: PendienteSorting[];
+  pendientes: PendienteRevision[];
   detalle: Viaje[];
   hechos: Revision[];
   nombres: Record<string, string>;
@@ -55,33 +76,44 @@ export function Sorting({
   const [avisar, avisos] = useAvisos();
   const [abierto, setAbierto] = useState<Abierto | null>(null);
   const [cargando, setCargando] = useState<string | null>(null);
+  /* EL FILTRO DE CLASE mira las dos listas a la vez: quien está en el
+     muelle con la certificada no quiere ver el historial de la normal. */
+  const [ver, setVer] = useState<"todas" | TipoRevision>("todas");
 
   const porId = new Map(detalle.map((v) => [v.id, v]));
   const puedeOperar = puedeEditar && !!maestros;
 
-  /* ---------- CERRAR UN SORTING ---------- */
-  function hacer(p: PendienteSorting) {
+  const nCert = pendientes.filter((p) => p.tipo === "ai").length;
+  const nNorm = pendientes.filter((p) => p.tipo === "sorting").length;
+  const pendVisibles = pendientes.filter((p) => ver === "todas" || p.tipo === ver);
+  const hechVisibles = hechos.filter((r) => ver === "todas" || tipoDe(r) === ver);
+
+  /* ---------- HACER UNA REVISIÓN ---------- */
+  function hacer(p: PendienteRevision) {
     setAbierto({
+      tipo: p.tipo,
       viaje: {
         viaje_id: p.viaje_id, placa: p.placa, planta: p.planta,
         fecha: p.fecha, sku: p.sku, llego_en: p.llego_en,
+        ai_motivo: p.motivo, pedido_nombre: p.pedido_nombre,
       },
       revision: null, detalle: [],
     });
   }
 
-  /* ---------- CORREGIR UNO CERRADO ----------
+  /* ---------- CORREGIR UNA CERRADA ----------
      Los conteos no vienen en la lista —son hasta catorce por revisión y
      casi nunca se abre una—, así que se piden aquí, al tocar. */
   async function corregir(r: Revision) {
     setCargando(r.id);
     const supabase = createClient();
     const { data, error } = await supabase
-      .from("v_sider_sorting_detalle").select("*")
+      .from("v_sider_ai_detalle").select("*")
       .eq("revision_id", r.id).order("orden");
     setCargando(null);
-    if (error) { avisar.mal("No se pudo abrir el Sorting para corregirlo. Vuelve a intentarlo."); return }
+    if (error) { avisar.mal("No se pudo abrir la revisión para corregirla. Vuelve a intentarlo."); return }
     setAbierto({
+      tipo: tipoDe(r),
       viaje: {
         viaje_id: r.viaje_id ?? "", placa: r.placa, planta: r.planta,
         fecha: r.fecha, sku: r.envase_nombre ?? r.envase,
@@ -96,7 +128,7 @@ export function Sorting({
     return (
       <>
         <FormularioAi
-          tipo="sorting"
+          tipo={abierto.tipo}
           viaje={abierto.viaje}
           revision={abierto.revision}
           detalle={abierto.detalle}
@@ -107,9 +139,10 @@ export function Sorting({
           alGuardar={() => {
             const placa = abierto.viaje.placa;
             const corrigio = !!abierto.revision;
+            const clase = NOMBRE_TIPO_LARGO[abierto.tipo];
             setAbierto(null);
             router.refresh();
-            avisar.bien(corrigio ? `Sorting de ${placa} corregido.` : `Sorting de ${placa} cerrado.`);
+            avisar.bien(corrigio ? `${clase} de ${placa} corregida.` : `${clase} de ${placa} cerrada.`);
           }}
           alCancelar={() => setAbierto(null)}
           rotuloCancelar="Volver a la lista"
@@ -125,13 +158,14 @@ export function Sorting({
     <>
       <section className="cabeza">
         <div>
-          <h1>Sorting</h1>
+          <h1>Revisión AI</h1>
           <p className="sub">
-            Los camiones que ya llegaron y pidieron Sorting. Es la misma inspección de la
-            revisión AI —muestra y defectos por tipo— hecha por dentro, después de
-            descargar. {puedeOperar
-              ? "Toca «Hacer el Sorting» en el camión que vas a clasificar."
-              : "Solo puedes mirar: cerrar un Sorting requiere permiso de edición."}
+            Los camiones que ya llegaron y esperan su revisión: la <b>certificada</b> —viene de
+            Sider y el administrador pidió la muestra— y la <b>normal</b> —la creó control con
+            el «+» de Tránsito—. Se hacen igual, con la misma muestra y los mismos defectos, y
+            las dos entran al Informe AI. {puedeOperar
+              ? "Toca «Hacer la revisión» en el camión que vas a contar."
+              : "Solo puedes mirar: cerrar una revisión requiere permiso de edición."}
           </p>
         </div>
         <div className="kpi">
@@ -140,34 +174,55 @@ export function Sorting({
           <div className="num">{pendientes.length}</div>
           <div className="pie">
             <span>
-              {tarde > 0
-                ? `${tarde} lleva${tarde === 1 ? "" : "n"} más de un día esperando`
-                : pendientes.length === 0 ? "nada pendiente" : "ninguno lleva más de un día"}
+              {pendientes.length === 0 ? "nada pendiente"
+                : `${nCert} certificada${nCert === 1 ? "" : "s"} · ${nNorm} normal${nNorm === 1 ? "" : "es"}`}
+              {tarde > 0 && ` · ${tarde} con más de un día`}
             </span>
           </div>
         </div>
       </section>
 
+      {/* ============ LA CLASE ============ */}
+      <div className="so-clase" role="group" aria-label="Clase de revisión">
+        {([
+          ["todas", `Todas · ${pendientes.length}`],
+          ["ai", `Certificada · ${nCert}`],
+          ["sorting", `Normal · ${nNorm}`],
+        ] as const).map(([k, t]) => (
+          <button key={k} type="button" aria-pressed={ver === k}
+                  className={ver === k ? "on" : ""} onClick={() => setVer(k)}>{t}</button>
+        ))}
+      </div>
+
       {/* ============ LOS QUE ESPERAN ============ */}
       <h2 className="so-h">Por hacer</h2>
-      {pendientes.length === 0 ? (
+      {pendVisibles.length === 0 ? (
         <div className="so-vacio">
-          <b>No hay camiones esperando Sorting.</b>
+          <b>{pendientes.length === 0
+            ? "No hay camiones esperando revisión."
+            : `No hay revisiones ${ver === "ai" ? "certificadas" : "normales"} por hacer.`}</b>
           <p>
-            Un camión aparece aquí cuando el administrador le pide Sorting en{" "}
-            <em>En tránsito</em> y alguien certifica su llegada.
+            Un camión aparece aquí cuando se certifica su llegada en <em>En tránsito</em> y
+            tiene revisión pedida: la <b>certificada</b>, si el administrador la pidió para un
+            camión de Sider; la <b>normal</b>, si lo creó control con el «+».
           </p>
         </div>
       ) : (
         <div className="tr-rejilla">
-          {pendientes.map((p) => {
+          {pendVisibles.map((p) => {
             const v = porId.get(p.viaje_id);
             const largo = esTarde(p.llego_en, ahora);
             return (
-              <article key={p.viaje_id} className={"tr-vh so" + (largo ? " so-tarde" : "")}>
+              <article key={p.viaje_id + p.tipo}
+                       className={"tr-vh " + (p.tipo === "ai" ? "ai" : "so") + (largo ? " so-tarde" : "")}>
                 <header>
                   <b className="placa">{p.placa}</b>
-                  <span className="sello sorting"><i />SORTING</span>
+                  <SelloTipo tipo={p.tipo} />
+                  {p.interno && (
+                    <span className="sello interno" title="Lo creó control con el «+»: no lo certificó Sider">
+                      <i />INTERNO
+                    </span>
+                  )}
                   <span className={"sello " + (largo ? "falta" : "transito")}>
                     <i />Llegó {haceCuanto(p.llego_en, ahora)}
                   </span>
@@ -203,13 +258,16 @@ export function Sorting({
                   <div className="tr-salio">
                     Llegó {cuando(p.llego_en)}
                     <em>
-                      Lo pidió {p.pedido_nombre ?? (p.sorting_pedido_por ? nombres[p.sorting_pedido_por] : null) ?? "—"}
+                      {p.interno ? "Lo creó " : "Lo pidió "}
+                      {p.pedido_nombre ?? (p.pedido_por ? nombres[p.pedido_por] : null) ?? "—"}
                     </em>
                   </div>
                   <div className="tr-botones">
                     {puedeOperar && (
-                      <button type="button" className="btn so-btn" onClick={() => hacer(p)}>
-                        Hacer el Sorting
+                      <button type="button"
+                              className={"btn " + (p.tipo === "ai" ? "ai" : "so-btn")}
+                              onClick={() => hacer(p)}>
+                        Hacer la revisión
                       </button>
                     )}
                   </div>
@@ -220,16 +278,18 @@ export function Sorting({
         </div>
       )}
 
-      {/* ============ LOS CERRADOS ============ */}
-      <h2 className="so-h">Hechos <span>los últimos {hechos.length}</span></h2>
-      {hechos.length === 0 ? (
+      {/* ============ LAS CERRADAS ============ */}
+      <h2 className="so-h">Hechas <span>las últimas {hechVisibles.length}</span></h2>
+      {hechVisibles.length === 0 ? (
         <div className="so-vacio">
-          <b>Todavía no se ha cerrado ningún Sorting.</b>
+          <b>{ver === "todas"
+            ? "Todavía no se ha cerrado ninguna revisión."
+            : `Todavía no hay revisiones ${ver === "ai" ? "certificadas" : "normales"} cerradas.`}</b>
         </div>
       ) : (
         <ul className="so-hechos">
-          {hechos.map((r) => (
-            <li key={r.id}>
+          {hechVisibles.map((r) => (
+            <li key={r.id} className={tipoDe(r) === "ai" ? "ai" : "so"}>
               <b className="placa">{r.placa}</b>
               <span className="so-h-fecha">
                 {r.fecha} · {r.turno}
@@ -241,8 +301,9 @@ export function Sorting({
               </span>
               <span className="so-h-quien">
                 {r.revisado_por ? nombres[r.revisado_por] ?? "—" : "—"}
-                <em>{cuando(r.revisado_en)}{r.ediciones > 0 ? ` · corregido ${r.ediciones} ${r.ediciones === 1 ? "vez" : "veces"}` : ""}</em>
+                <em>{cuando(r.revisado_en)}{r.ediciones > 0 ? ` · corregida ${r.ediciones} ${r.ediciones === 1 ? "vez" : "veces"}` : ""}</em>
               </span>
+              <span className="so-h-tipo"><SelloTipo tipo={tipoDe(r)} /></span>
               {puedeOperar && r.viaje_id && (
                 <button type="button" className="tr-so-btn"
                         disabled={cargando === r.id} onClick={() => corregir(r)}>

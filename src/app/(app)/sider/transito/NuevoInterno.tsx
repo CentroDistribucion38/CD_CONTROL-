@@ -1,0 +1,270 @@
+"use client";
+
+/**
+ * EL «+» DE TRÁNSITO — CREAR UN CAMIÓN INTERNO.
+ *
+ * «Dentro del tránsito debe haber un «+», un formulario donde la persona
+ *  de control pueda escribir el origen, el destino, el material de
+ *  acuerdo al maestro y la cantidad de estibas, y que traiga el resto.
+ *  De esa manera creamos las certificaciones internas.»
+ *
+ * Es para el camión que NO certificó Sider: llega igual, hay que
+ * recibirlo y hay que revisarlo, y sin este formulario no existía en el
+ * sistema. Queda montado en tránsito; se recibe como cualquier otro —GPS
+ * y las tres fotos de la LLEGADA— y al certificar la llegada pasa a
+ * «Revisión AI – normal». No tiene salida, ni GPS de salida, ni fotos de
+ * salida, y NO cuenta como certificado por Sider.
+ *
+ * SE ESCRIBE POCO Y SE ESCOGE DE LISTAS. Origen, destino y material salen
+ * del maestro —la base los vuelve a validar, así que un texto libre solo
+ * puede acabar en un error—; lo único que se teclea es la placa y las
+ * estibas. Las cajas, las unidades, los hectolitros y los siders se
+ * calculan solos MIENTRAS se escribe, con las mismas fórmulas de
+ * Certificar, para saber qué se está montando antes de guardar.
+ *
+ * ES PARA UN CELULAR EN EL PATIO: un solo listado de campos a lo ancho,
+ * de 44 px de alto, con el teclado numérico donde toca. El material no es
+ * un desplegable de veintiún renglones sino una búsqueda: se escribe
+ * «175» o «costeñita» y salen los que coinciden.
+ */
+
+import { useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { traducirError } from "@/lib/errores";
+
+export type OrigenMaestro = { planta: string; cd_origen: string };
+export type SkuMaestro = {
+  sku: string; descripcion: string; clase?: string | null;
+  cajas_x_estiba?: number | null; unidades_x_caja?: number | null; hl_x_unidad?: number | null;
+};
+
+const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
+
+/** «0,83» y «0.83» valen lo mismo; vacío o basura, nada. */
+const num = (s: string) => {
+  const t = s.trim().replace(",", ".");
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+};
+
+/** Sin tildes y en minúscula: «costeñita» y «COSTENITA» son la misma búsqueda. */
+const plano = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+const DESTINO_POR_DEFECTO = "Barranquilla";
+
+export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, alCrear }: {
+  origenes: OrigenMaestro[];
+  skus: SkuMaestro[];
+  estibasPorSider?: number;
+  alCerrar: () => void;
+  /** Se llama con la placa ya guardada. */
+  alCrear: (placa: string) => void;
+}) {
+  const [placa, setPlaca] = useState("");
+  const [planta, setPlanta] = useState("");
+  const [destino, setDestino] = useState(DESTINO_POR_DEFECTO);
+  const [sku, setSku] = useState("");
+  const [busca, setBusca] = useState("");
+  const [estibas, setEstibas] = useState("");
+  const [factura, setFactura] = useState("");
+  const [lote, setLote] = useState("");
+  const [nota, setNota] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [mal, setMal] = useState<string | null>(null);
+
+  const origen = origenes.find((o) => o.planta === planta);
+  const mat = skus.find((k) => k.sku === sku);
+  const nEst = num(estibas);
+
+  /* LOS DESTINOS: Barranquilla primero —es a donde va casi todo— y
+     después los CD del maestro, por nombre. Sin repetir Barranquilla si
+     el maestro también la trae como origen. */
+  const destinos = useMemo(() => {
+    const otros = [...new Set(origenes.map((o) => o.cd_origen))]
+      .filter((c) => plano(c) !== plano(DESTINO_POR_DEFECTO))
+      .sort((a, b) => a.localeCompare(b, "es"));
+    return [DESTINO_POR_DEFECTO, ...otros];
+  }, [origenes]);
+
+  const mismo = !!origen && plano(origen.cd_origen) === plano(destino);
+
+  /* LA BÚSQUEDA DE MATERIAL: por código o por descripción, hasta ocho.
+     Con el material ya escogido la lista se esconde. */
+  const coincidencias = useMemo(() => {
+    const q = plano(busca.trim());
+    if (!q) return skus.slice(0, 8);
+    return skus
+      .filter((k) => plano(k.sku).includes(q) || plano(k.descripcion).includes(q))
+      .slice(0, 8);
+  }, [busca, skus]);
+
+  /* LAS CIFRAS, las mismas fórmulas de Certificar. La vista de la base
+     las vuelve a calcular al leer: esto es solo para verlas antes de
+     guardar. Sin los factores del material queda «—», no un cero que
+     parezca un dato. */
+  const der = useMemo(() => {
+    if (!mat || !nEst || nEst <= 0) return null;
+    const cajas = mat.cajas_x_estiba == null ? null : Number(mat.cajas_x_estiba) * nEst;
+    const unidades = cajas == null || mat.unidades_x_caja == null
+      ? null : Number(mat.unidades_x_caja) * cajas;
+    const hl = unidades == null || mat.hl_x_unidad == null
+      ? null : Number(mat.hl_x_unidad) * unidades;
+    return { sider: nEst / estibasPorSider, cajas, unidades, hl };
+  }, [mat, nEst, estibasPorSider]);
+
+  /* LO QUE FALTA SE DICE POR SU NOMBRE, junto al botón. «Rellena los
+     campos» obliga a adivinar cuál. */
+  const faltan: string[] = [];
+  if (!placa.trim()) faltan.push("la placa");
+  if (!planta) faltan.push("el CD de origen");
+  if (!sku) faltan.push("el material");
+  if (!nEst || nEst <= 0) faltan.push("las estibas");
+  const puede = faltan.length === 0 && !mismo;
+
+  async function crear() {
+    if (!puede || !nEst) return;
+    setMal(null); setOcupado(true);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("sider_viaje_interno_crear", {
+      p_placa: placa.trim().toUpperCase(),
+      p_planta: planta,
+      p_destino: destino,
+      p_sku: sku,
+      p_estibas: nEst,
+      p_factura: factura.trim() || null,
+      p_lote: lote.trim() || null,
+      p_nota: nota.trim() || null,
+    });
+    setOcupado(false);
+    if (error) { setMal(traducirError(error.message)); return }
+    alCrear(placa.trim().toUpperCase());
+  }
+
+  return (
+    <div className="vj-velo" role="dialog" aria-modal="true" aria-labelledby="nv-titulo"
+         onClick={(e) => { if (e.target === e.currentTarget && !ocupado) alCerrar() }}>
+      <div className="vj-caja nuevo">
+        <p className="vj-ojo">CAMIÓN INTERNO</p>
+        <h3 id="nv-titulo">Montar un camión en tránsito</h3>
+        <p className="vj-dice">
+          Para el que <b>no certificó Sider</b>. Queda en tránsito; cuando llegue se certifica
+          su llegada y pasa a <b>Revisión AI – normal</b>.
+        </p>
+
+        <div className="nv-campos">
+          <label className="nv-placa">
+            <span>Placa</span>
+            <input value={placa} autoFocus maxLength={10} autoCapitalize="characters"
+                   autoComplete="off" placeholder="ABC123"
+                   onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+          </label>
+
+          <label>
+            <span>CD origen</span>
+            <select value={planta} onChange={(e) => setPlanta(e.target.value)}>
+              <option value="">— escoge el CD —</option>
+              {origenes.map((o) => (
+                <option key={o.planta} value={o.planta}>{o.cd_origen}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>Destino</span>
+            <select value={destino} onChange={(e) => setDestino(e.target.value)}
+                    aria-invalid={mismo}>
+              {destinos.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </label>
+          {mismo && (
+            <p className="nv-mal ancho" role="alert">
+              El origen y el destino son el mismo CD: escoge otro destino.
+            </p>
+          )}
+
+          <div className="nv-material ancho">
+            <span className="nv-rot" id="nv-mat-rot">Material <em>del maestro</em></span>
+            {mat ? (
+              <div className="nv-escogido">
+                <div>
+                  <b>{mat.descripcion}</b>
+                  <em>{mat.sku}{mat.clase ? ` · ${mat.clase}` : ""}</em>
+                </div>
+                <button type="button" className="tr-adm"
+                        onClick={() => { setSku(""); setBusca("") }}>
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <>
+                <input value={busca} onChange={(e) => setBusca(e.target.value)}
+                       aria-labelledby="nv-mat-rot" autoComplete="off"
+                       placeholder="Escribe el código o parte del nombre" />
+                <ul className="nv-lista" role="listbox" aria-label="Materiales que coinciden">
+                  {coincidencias.map((k) => (
+                    <li key={k.sku} role="option" aria-selected={false}>
+                      <button type="button" onClick={() => setSku(k.sku)}>
+                        <b>{k.descripcion}</b>
+                        <em>{k.sku}{k.clase ? ` · ${k.clase}` : ""}</em>
+                      </button>
+                    </li>
+                  ))}
+                  {coincidencias.length === 0 && (
+                    <li className="nv-nada">Ningún material del maestro coincide con «{busca.trim()}».</li>
+                  )}
+                </ul>
+              </>
+            )}
+          </div>
+
+          <label>
+            <span>Estibas</span>
+            <input value={estibas} inputMode="decimal" autoComplete="off" placeholder="0"
+                   onChange={(e) => setEstibas(e.target.value)} />
+          </label>
+        </div>
+
+        {/* LO QUE SE CALCULA SOLO. Se ve mientras se escribe: si el
+            material no trae factores en el maestro se dice «—», no cero. */}
+        <dl className="nv-cifras" aria-label="Cifras calculadas">
+          <div><dt>Sider</dt><dd>{der ? nf2.format(der.sider) : "—"}</dd></div>
+          <div><dt>Cajas</dt><dd>{der?.cajas == null ? "—" : nf.format(der.cajas)}</dd></div>
+          <div><dt>Unidades</dt><dd>{der?.unidades == null ? "—" : nf.format(der.unidades)}</dd></div>
+          <div><dt>HL</dt><dd>{der?.hl == null ? "—" : nf2.format(der.hl)}</dd></div>
+        </dl>
+
+        <details className="nv-mas">
+          <summary>Más datos <em>opcional</em></summary>
+          <div className="nv-campos">
+            <label><span>Factura</span>
+              <input value={factura} maxLength={30} autoComplete="off"
+                     onChange={(e) => setFactura(e.target.value)} /></label>
+            <label><span>Lote</span>
+              <input value={lote} maxLength={30} autoComplete="off"
+                     onChange={(e) => setLote(e.target.value)} /></label>
+            <label className="ancho"><span>Nota</span>
+              <input value={nota} maxLength={200} placeholder="Opcional"
+                     onChange={(e) => setNota(e.target.value)} /></label>
+          </div>
+        </details>
+
+        {mal && <p className="vj-mal" role="alert">{mal}</p>}
+        {!ocupado && !puede && !mismo && (
+          <p className="vj-falta">Falta {faltan.join(", ")}. Sin eso el botón no se enciende.</p>
+        )}
+
+        <div className="vj-botones">
+          <button type="button" className="btn" onClick={crear} disabled={ocupado || !puede}>
+            {ocupado ? "Creando…" : "Crear y dejar en tránsito"}
+          </button>
+          <button type="button" className="btn plano" onClick={alCerrar} disabled={ocupado}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

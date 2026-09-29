@@ -2942,6 +2942,13 @@
 /* El que lleva más de un día esperando ya se descargó y sigue sin
    clasificar: se tiñe, como el de AI que espera. */
 .sd .tr-vh.so-tarde { background: #FDF5FA; border-color: #EFB6D6 }
+/* LA CLASE NO SE PIERDE AL TEÑIRSE. `.so-tarde` pinta el borde entero de
+   rosa —también la franja de la izquierda—, y una certificada con más de
+   un día se veía magenta, o sea de la OTRA clase. Cada una conserva su
+   franja y su tinte. */
+.sd .tr-vh.so.so-tarde { border-left-color: #AA1874 }
+.sd .tr-vh.ai.so-tarde { background: #F8F4FD; border-color: #DCCBF1; border-left-color: #6A3FA0 }
+
 
 .sd .so-vacio {
   padding: 22px 18px; border: 1px dashed var(--sd-linea, #DFE5EC); border-radius: 3px;
@@ -3288,4 +3295,139 @@
 .sd .vj-obliga {
   font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
   text-transform: uppercase; color: var(--sd-mal); margin-left: 6px;
+}
+
+
+/* ====================== EL «+» DE TRÁNSITO Y LA REVISIÓN AI ============
+
+   INTERNO ES AZUL PIZARRA, y lleva su palabra escrita: turquesa es
+   normal, ámbar en camino, oro tarde, rojo error, verde recibido, morado
+   AI certificada y magenta AI normal. Ninguno es azul pizarra. Y como en
+   el resto de esta pantalla, el color acompaña y la palabra manda. */
+.sd .sello.interno {
+  background: #E6EEF7; color: #1F3B5C; border-color: #C5D5E8;
+  font-weight: 800; letter-spacing: .06em;
+}
+.sd .sello.interno i { background: #2F5D8C }
+
+/* La franja del «+». No es una alarma ni un estado: es la puerta para
+   montar lo que no vino por Sider, y por eso va quieta, en una línea. */
+.sd .tr-nuevo {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 12px;
+}
+.sd .tr-nuevo p { margin: 0; font-size: 12.5px; color: var(--sd-gris); flex: 1 1 240px; min-width: 0 }
+.sd .tr-mas {
+  display: inline-flex; align-items: center; gap: 9px;
+  min-height: 44px; padding: 0 16px 0 10px; cursor: pointer; border-radius: 3px;
+  background: var(--sd-papel); color: var(--sd-tinta);
+  border: 1.5px solid var(--sd-acento);
+  font: 800 14px var(--sd-titulo, system-ui); white-space: nowrap;
+}
+.sd .tr-mas .mas {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--sd-acento); color: #fff; font: 800 20px/1 var(--sd-titulo, system-ui);
+}
+.sd .tr-mas:hover { background: color-mix(in srgb, var(--sd-acento) 9%, var(--sd-papel)) }
+.sd .tr-mas:focus-visible { outline: 3px solid var(--sd-tinta); outline-offset: 2px }
+
+/* El cuadro del «+»: mismo velo que corregir y anular, pero con el borde
+   de la casa y no rojo —esto no destruye nada—, y más ancho. */
+.sd .vj-caja.nuevo { max-width: 560px; border-top-color: var(--sd-acento) }
+.sd .vj-caja.nuevo .btn:not(.plano) { min-width: 200px }
+.sd .nv-campos {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px;
+  margin-bottom: 14px;
+}
+.sd .nv-campos label { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.sd .nv-campos .ancho { grid-column: 1 / -1 }
+.sd .nv-campos label > span, .sd .nv-rot { font-size: 12px; font-weight: 600; color: var(--c-2c4361) }
+.sd .nv-rot em, .sd .nv-mas summary em { font-style: normal; font-weight: 500; color: var(--sd-gris); margin-left: 4px }
+.sd .nv-campos input, .sd .nv-campos select, .sd .nv-material > input {
+  height: 44px; padding: 0 12px; width: 100%; box-sizing: border-box;
+  font: 500 15px var(--sd-texto); color: var(--sd-tinta);
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 2px;
+}
+.sd .nv-campos input:focus, .sd .nv-campos select:focus, .sd .nv-material > input:focus {
+  outline: none; border-color: var(--sd-acento); box-shadow: 0 0 0 3px var(--c-raya);
+}
+.sd .nv-campos select[aria-invalid="true"] { border-color: var(--sd-mal) }
+.sd .nv-placa input { font: 800 17px var(--sd-titulo, system-ui); letter-spacing: .06em; text-transform: uppercase }
+.sd .nv-mal { margin: -4px 0 0; font-size: 12.5px; font-weight: 600; color: var(--sd-mal) }
+
+.sd .nv-material { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; min-width: 0 }
+.sd .nv-lista {
+  list-style: none; margin: 0; padding: 0; max-height: 196px; overflow-y: auto;
+  border: 1px solid var(--sd-linea); border-radius: 3px; background: var(--sd-papel);
+}
+.sd .nv-lista li + li { border-top: 1px solid var(--c-edf1f6) }
+.sd .nv-lista button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%;
+  min-height: 46px; padding: 7px 12px; text-align: left; cursor: pointer;
+  background: none; border: 0; font: inherit; color: var(--sd-tinta);
+}
+.sd .nv-lista button b { font-size: 13.5px; font-weight: 700 }
+.sd .nv-lista button em, .sd .nv-escogido em { font-style: normal; font-size: 11.5px; color: var(--sd-gris) }
+.sd .nv-lista button:hover, .sd .nv-lista button:focus-visible {
+  background: color-mix(in srgb, var(--sd-acento) 9%, var(--sd-papel)); outline: none;
+}
+.sd .nv-nada { padding: 12px; font-size: 12.5px; color: var(--sd-gris) }
+.sd .nv-escogido {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 12px; border: 1.5px solid var(--sd-acento); border-radius: 3px;
+  background: color-mix(in srgb, var(--sd-acento) 7%, var(--sd-papel));
+}
+.sd .nv-escogido > div { display: flex; flex-direction: column; min-width: 0 }
+.sd .nv-escogido b { font-size: 14px; overflow-wrap: anywhere }
+
+.sd .nv-cifras {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0 0 14px;
+  background: var(--c-edf1f6); border: 1px solid var(--c-edf1f6); border-radius: 3px; overflow: hidden;
+}
+.sd .nv-cifras > div { background: var(--c-fafbfd); padding: 8px 10px }
+.sd .nv-cifras dt { font-size: 10px; font-weight: 700; letter-spacing: .09em; color: var(--c-93a3b6); text-transform: uppercase }
+.sd .nv-cifras dd { margin: 2px 0 0; font: 800 16px var(--sd-titulo, system-ui); font-variant-numeric: tabular-nums }
+
+.sd .nv-mas { margin: 0 0 6px }
+.sd .nv-mas summary {
+  cursor: pointer; min-height: 40px; display: flex; align-items: center;
+  font-size: 13px; font-weight: 700; color: var(--c-2c4361);
+}
+.sd .nv-mas .nv-campos { margin: 6px 0 0 }
+.sd .vj-caja.nuevo .vj-falta { margin: 10px 0 0 }
+
+@media (max-width: 560px) {
+  .sd .vj-velo { padding: 10px; align-items: start }
+  .sd .vj-caja.nuevo { padding: 18px 16px 16px }
+  .sd .nv-campos { grid-template-columns: minmax(0, 1fr) }
+  .sd .nv-cifras dd { font-size: 14.5px }
+  .sd .vj-caja.nuevo .vj-botones .btn:not(.plano) { flex: 1 1 100% }
+  .sd .tr-mas { width: 100%; justify-content: center }
+}
+
+/* ---------- LA PANTALLA «REVISIÓN AI» ---------- */
+.sd .so-clase {
+  display: inline-flex; flex-wrap: wrap; gap: 0; margin: 4px 0 0;
+  border: 1.5px solid var(--sd-linea); border-radius: 3px; overflow: hidden; background: var(--sd-papel);
+}
+.sd .so-clase button {
+  min-height: 44px; padding: 0 16px; cursor: pointer; border: 0; border-right: 1px solid var(--sd-linea);
+  background: none; font: 700 13px var(--sd-titulo, system-ui); color: var(--sd-gris);
+}
+.sd .so-clase button:last-child { border-right: 0 }
+.sd .so-clase button.on { background: var(--sd-tinta); color: #fff }
+.sd .so-clase button:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: -3px }
+@media (max-width: 560px) {
+  .sd .so-clase { display: flex; width: 100% }
+  .sd .so-clase button { flex: 1 1 0; padding: 0 6px; font-size: 12.5px }
+}
+/* En «Hechas»: la franja de la izquierda dice la clase, y el sello la escribe. */
+.sd .so-hechos li.ai { border-left-color: #6A3FA0 }
+/* Las dos últimas columnas con ancho FIJO: cada renglón es su propia rejilla, y con `auto`
+   «CERTIFICADA» y «NORMAL» —que miden distinto— corrían las columnas de los demás. */
+.sd .so-hechos li { grid-template-columns: 96px minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1.3fr) 124px 84px }
+.sd .so-hechos .so-h-tipo { display: flex }
+@media (max-width: 720px) {
+  .sd .so-hechos li { grid-template-columns: 1fr auto }
+  .sd .so-hechos .so-h-tipo { grid-column: 1 / -1 }
 }

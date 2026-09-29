@@ -23,8 +23,7 @@ import { useAvisos } from "@/components/Aviso";
 import { traducirError } from "@/lib/errores";
 import type { Viaje } from "@/modulos/sider/comun";
 import { leerPlacas, normPlaca } from "@/modulos/sider/placas";
-import type { MaestrosAi } from "@/modulos/sider/ai";
-import { FormularioAi } from "@/modulos/sider/FormularioAi";
+import { NuevoInterno, type OrigenMaestro, type SkuMaestro } from "./NuevoInterno";
 import {
   RANURAS, RANURA_OBS, type Ranura, type RanuraCualquiera, type Foto,
   usePosicion, TarjetaUbicacion, CampoDireccion, Ranurita, CajaObservacion,
@@ -64,7 +63,7 @@ function horasEnCamino(iv: string | null): number {
 const HORAS_LARGAS = 24;
 
 export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, skus,
-                           trabados, sinEvidencia, maestrosAi, cabeza }: {
+                           estibasPorSider, trabados, sinEvidencia, cabeza }: {
   esAdmin?: boolean;
   viajes: Viaje[];
   nombres: Record<string, string>;
@@ -72,13 +71,15 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
   /** Administra la plataforma: puede corregir y anular, igual que en la
    *  fuente principal. El candado de verdad está en la base. */
   manda?: boolean;
-  /** Para los desplegables de la corrección: la base valida la planta y
-   *  el material contra el maestro, así que aquí no puede haber campo
-   *  libre — un texto tecleado a mano solo da un error al guardar. */
-  origenes?: { planta: string; cd_origen: string }[];
-  skus?: { sku: string; descripcion: string }[];
-  /** Los maestros de la revisión AI. null = ningún vehículo la lleva. */
-  maestrosAi: MaestrosAi | null;
+  /** Para los desplegables de la corrección y del «+»: la base valida la
+   *  planta y el material contra el maestro, así que aquí no puede haber
+   *  campo libre — un texto tecleado a mano solo da un error al guardar.
+   *  Los materiales traen sus factores para calcular las cifras del «+»
+   *  mientras se escribe, igual que en Certificar. */
+  origenes?: OrigenMaestro[];
+  skus?: SkuMaestro[];
+  /** Cuántas estibas tiene un sider (parámetro del maestro). */
+  estibasPorSider?: number;
   trabados: number;
   sinEvidencia: number;
   /** La cabeza de la página. La dibuja el servidor, la esconde el cliente. */
@@ -89,6 +90,8 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
 
   /** El viaje abierto para certificar la llegada. */
   const [abierto, setAbierto] = useState<Viaje | null>(null);
+  /** El formulario del «+»: montar un camión interno. */
+  const [creando, setCreando] = useState(false);
 
   /* CORREGIR Y ANULAR. Los dos cuadros son los mismos que los de Fuente
      principal, y llaman a las mismas funciones de la base. */
@@ -223,15 +226,16 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
     const ok = v.requiere_ai
       ? await pedir({
           titulo: `¿Quitar la revisión AI de ${v.placa}?`,
-          dice: <>Al llegar se certifica como cualquier otro vehículo, sin muestra
-                 ni conteo de defectos. Se puede volver a pedir después.</>,
+          dice: <>Al llegar se certifica como cualquier otro vehículo y no pasa a
+                 Revisión AI. Se puede volver a pedir después.</>,
           confirmar: "Quitar la revisión",
           peligro: true,
         })
       : await pedir({
           titulo: `¿Solicitar revisión AI obligatoria para ${v.placa}?`,
-          dice: <>Al llegar, quien certifique tendrá que sacar la muestra en el
-                 muelle y contar los defectos <b>antes de descargar</b>.</>,
+          dice: <>Apenas se certifique la llegada, el vehículo <b>pasa a la pantalla
+                 Revisión AI</b> como <b>certificada</b>, para que se saque la muestra y se
+                 cuenten los defectos.</>,
           confirmar: "Solicitar revisión",
         });
     if (!ok) return;
@@ -252,50 +256,10 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
     if (error) { avisar.mal(error.message); return }
     avisar.bien(v.requiere_ai
       ? `${v.placa} ya no lleva revisión AI.`
-      : `${v.placa} queda con revisión AI al llegar.`);
+      : `${v.placa} pasará a Revisión AI – certificada cuando llegue.`);
     router.refresh();
   }
 
-  /* SORTING: LA MISMA INSPECCIÓN, DESPUÉS DE DESCARGAR.
-     Se pide igual que la AI y por lo mismo —cuesta el tiempo de los
-     muchachos— pero NO es la misma cosa, y por eso tiene su propio botón
-     en vez de un «tipo» dentro del de AI: la AI se hace EN el muelle,
-     antes de descargar, y el Sorting se hace después, en otra pantalla y
-     por otra gente. Un camión puede llevar las dos.
-
-     NO PREGUNTA MOTIVO: la AI tuvo ese campo y se quitó porque nadie lo
-     llenaba. */
-  async function pedirSorting(v: Viaje) {
-    const ok = v.requiere_sorting
-      ? await pedir({
-          titulo: `¿Quitar el Sorting de ${v.placa}?`,
-          dice: <>Al llegar se certifica como cualquier otro vehículo y no pasa a
-                 Sorting. Se puede volver a pedir después.</>,
-          confirmar: "Quitar el Sorting",
-          peligro: true,
-        })
-      : await pedir({
-          titulo: `¿Pedir Sorting para ${v.placa}?`,
-          dice: <>Apenas se certifique la llegada, el vehículo <b>pasa a la pantalla de
-                 Sorting</b> para que el equipo haga la inspección y la cierre. Eso
-                 no reemplaza la revisión AI: un vehículo puede llevar las dos.</>,
-          confirmar: "Pedir Sorting",
-        });
-    if (!ok) return;
-
-    setMarcando(v.id);
-    const supabase = createClient();
-    const { error } = await supabase.rpc("sider_sorting_marcar", {
-      p_viaje: v.id,
-      p_marcar: !v.requiere_sorting,
-    });
-    setMarcando(null);
-    if (error) { avisar.mal(traducirError(error.message)); return }
-    avisar.bien(v.requiere_sorting
-      ? `${v.placa} ya no pasa a Sorting.`
-      : `${v.placa} pasará a Sorting cuando llegue.`);
-    router.refresh();
-  }
   /* `solo` no es un filtro más de la fila de filtros: es el que ponen
      los chips de la cinta de arriba. Vive en el mismo objeto para que
      «Limpiar» lo borre también —si viviera aparte, limpiar dejaría la
@@ -394,7 +358,9 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
       /* Los dos asuntos de la cinta. La misma cuenta que hace el
          contador de arriba, para que el chip que dice «2» muestre
          exactamente esos dos. */
-      if (f.solo === "fotos" && v.fotos_salida >= 3) return false;
+      /* UN INTERNO NO TIENE SALIDA, así que no puede «salir sin fotos»:
+         se cuenta igual que en el contador de la página. */
+      if (f.solo === "fotos" && (v.interno || v.fotos_salida >= 3)) return false;
       if (f.solo === "trabados" && horasEnCamino(v.en_camino) <= HORAS_LARGAS) return false;
       /* La fecha que se filtra es la de SALIDA, no la de creación: es la
          que le importa a quien pregunta "¿qué salió el martes y todavía
@@ -402,8 +368,10 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
          del vehículo; comparar objetos Date arrastraría la hora y el
          día completo "hasta" se quedaría por fuera. */
       if (f.desde || f.hasta) {
-        if (!v.salida_en) return false;
-        const d = new Date(v.salida_en);
+        /* Sin salida —los internos— vale cuándo se crearon. */
+        const desde = v.salida_en ?? v.creado_en;
+        if (!desde) return false;
+        const d = new Date(desde);
         const dia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
         if (f.desde && dia < f.desde) return false;
         if (f.hasta && dia > f.hasta) return false;
@@ -442,17 +410,23 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
       <Llegada
         viaje={abierto}
         supabase={supabase}
-        maestrosAi={maestrosAi}
         cerrar={() => setAbierto(null)}
         listo={() => {
-          /* «PASÓ A SORTING» SE DICE. Apenas se certifica la llegada el
-             camión desaparece de esta lista y aparece en otra pantalla;
-             sin el aviso, quien lo recibió cree que se perdió. */
+          /* «PASÓ A REVISIÓN AI» SE DICE Y SE DICE CUÁL. Apenas se
+             certifica la llegada el camión desaparece de esta lista y
+             aparece en otra pantalla; sin el aviso, quien lo recibió cree
+             que se perdió. Si trae las dos, se dicen las dos. */
           const paso = abierto;
           setAbierto(null);
           router.refresh();
-          if (paso?.requiere_sorting) {
-            avisar.bien(`${paso.placa} llegó y pasó a Sorting.`);
+          const clases = [
+            paso?.requiere_ai ? "certificada" : null,
+            paso && (paso.requiere_sorting || paso.interno) ? "normal" : null,
+          ].filter(Boolean);
+          if (paso && clases.length) {
+            avisar.bien(`${paso.placa} llegó y pasó a Revisión AI – ${clases.join(" y ")}.`);
+          } else if (paso) {
+            avisar.bien(`${paso.placa} quedó recibido.`);
           }
         }}
       />
@@ -575,25 +549,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                      onChange={(e) => setAnular({ ...anular, motivo: e.target.value })} />
               <em>En tres meses nadie va a acordarse. Queda guardado con tu nombre.</em>
             </label>
-            {/* EL QUE YA LLEGÓ Y NADIE CONTÓ SU MUESTRA SE DICE APARTE.
-
-                Anularlo es lo que hay que poder hacer —lleva semanas
-                trabado en «en camino» y nadie va a contar nada a estas
-                alturas—, pero tiene una consecuencia que el de en medio
-                de la carretera no tiene: al socio se le abona todo lo
-                que mandó, sin descontar lo que la muestra hubiera
-                encontrado. Eso es plata, y quien anula tiene que saberlo
-                ANTES, no enterarse el mes que viene. */}
-            {anular.vs.some((x) => x.ai_pendiente) && (
-              <p className="vj-dice ojo">
-                {anular.vs.filter((x) => x.ai_pendiente).length === 1
-                  ? <><b>{anular.vs.find((x) => x.ai_pendiente)!.placa} ya llegó y nadie contó su muestra.</b>{" "}</>
-                  : <><b>{anular.vs.filter((x) => x.ai_pendiente).length} de estos ya llegaron y nadie contó su muestra.</b>{" "}</>}
-                Al anularlos se cierra esa revisión sin contar: al socio se le abona todo lo que
-                mandó. Si la muestra todavía se puede sacar, sale más a cuenta hacerla.
-              </p>
-            )}
-            {mal && <p className="vj-mal" role="alert">{mal}</p>}
+{mal && <p className="vj-mal" role="alert">{mal}</p>}
 
             {/* SE DICE QUÉ FALTA, Y CAMBIA SEGÚN LO QUE FALTE. «Rellena
                 los campos» obliga a adivinar cuál; nombrar el que falta
@@ -631,6 +587,22 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
       {avisos}
       {cuadrosAdmin}
 
+      {/* EL «+»: MONTAR UN CAMIÓN QUE NO CERTIFICÓ SIDER. Solo para quien
+          puede editar Tránsito —la base pide el mismo permiso—. */}
+      {creando && (
+        <NuevoInterno
+          origenes={origenes ?? []}
+          skus={skus ?? []}
+          estibasPorSider={estibasPorSider}
+          alCerrar={() => setCreando(false)}
+          alCrear={(placa) => {
+            setCreando(false);
+            router.refresh();
+            avisar.bien(`${placa} quedó en tránsito. Cuando llegue, certifica su llegada y pasa a Revisión AI – normal.`);
+          }}
+        />
+      )}
+
       {/* LA BARRA DE LO ESCOGIDO, PEGADA ABAJO.
 
           Va fija al pie y no arriba del listado a propósito: con ocho
@@ -659,6 +631,17 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
       )}
 
       {cabeza}
+
+      {esEditor && (
+        <div className="tr-nuevo">
+          <button type="button" className="tr-mas" onClick={() => setCreando(true)}
+                  aria-label="Crear un camión interno">
+            <span className="mas" aria-hidden="true">+</span>
+            Camión interno
+          </button>
+          <p>¿Llegó uno que no certificó Sider? Móntalo aquí para recibirlo y revisarlo.</p>
+        </div>
+      )}
 
       {/* ---------- LA CINTA DE ASUNTOS ----------
 
@@ -876,19 +859,17 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
           <div className="tr-rejilla">
         {g.viajes.map((v) => {
           const largo = horasEnCamino(v.en_camino) > HORAS_LARGAS;
-          const faltanFotos = v.fotos_salida < 3;
+          /* UN INTERNO NO TIENE SALIDA: no le «faltan» fotos que nunca
+             hubo, y decirlo lo dejaría marcado como un error que no es. */
+          const faltanFotos = !v.interno && v.fotos_salida < 3;
           /* EL COLOR DICE EL ESTADO ANTES DE LEER NADA, y por eso la
              marca de AI tiene el suyo: morado, que no es el de nada más
              en esta pantalla —turquesa es normal, oro es va tarde, rojo
-             es error—. Y el morado FUERTE, con el fondo teñido, es para
-             el que ya llegó y sigue sin revisar: ese no está esperando
-             en la carretera, está esperando a alguien. */
-          /* LA AI PESA MÁS QUE EL SORTING EN EL COLOR DE LA TARJETA: se hace
-             primero —en el muelle, antes de descargar— y es la que cobra.
-             Un camión con las dos se ve morado; el sello azul de la
-             cabecera dice que además lleva Sorting. */
-          const cls = "tr-vh" + (v.ai_pendiente ? " ai-falta" : v.requiere_ai ? " ai"
-                      : v.requiere_sorting ? " so" : largo ? " largo" : "");
+             es error—. Lo que pasa a «Revisión AI – normal» lleva el
+             magenta. Un camión con las dos se ve morado: la certificada
+             se cuenta primero y es la que ya venía pedida. */
+          const cls = "tr-vh" + (v.requiere_ai ? " ai"
+                      : (v.requiere_sorting || v.interno) ? " so" : largo ? " largo" : "");
           return (
             <article key={v.id} className={cls} id={"tr-vh-" + normPlaca(v.placa)}>
               <header>
@@ -899,24 +880,28 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                     revisión, porque la muestra se saca en el muelle y
                     después ya está el envase revuelto. */}
                 {v.requiere_ai && (
-                  <span className={"sello ai" + (v.ai_pendiente ? " falta" : "")}
-                        title={v.ai_motivo ?? "Revisión AI pedida por el administrador"}>
-                    <i />{v.ai_pendiente ? "FALTA LA REVISIÓN AI" : "REVISIÓN AI"}
+                  <span className="sello ai"
+                        title={v.ai_motivo ?? "Al llegar pasa a Revisión AI – certificada"}>
+                    <i />REVISIÓN AI · CERTIFICADA
                   </span>
                 )}
-                {/* EL SELLO DE SORTING, AL LADO DEL DE AI y no dentro de
-                    él: son dos cosas que se piden por separado y se hacen
-                    en sitios distintos —la AI en el muelle, el Sorting en
-                    su pantalla—, y un camión puede llevar las dos. */}
-                {v.requiere_sorting && (
+                {/* EL INTERNO SE DICE: lo creó control con el «+» y Sider no
+                    lo certificó. Y pasa a la revisión NORMAL, así que no
+                    lleva un segundo sello con lo mismo. */}
+                {v.interno ? (
+                  <span className="sello interno"
+                        title="Lo creó control con el «+»: no lo certificó Sider. Al llegar pasa a Revisión AI – normal">
+                    <i />INTERNO · REVISIÓN NORMAL
+                  </span>
+                ) : v.requiere_sorting && (
                   <span className="sello sorting"
-                        title="Al certificar la llegada pasa a Sorting">
-                    <i />SORTING
+                        title="Al certificar la llegada pasa a Revisión AI – normal">
+                    <i />REVISIÓN AI · NORMAL
                   </span>
                 )}
-                {/* El que ya llegó no lleva el reloj de «en camino»: ese
-                    número hablaría de un viaje que ya terminó. */}
-                {!v.ai_pendiente && (
+                {/* El interno no lleva reloj de «en camino»: no hubo una
+                    salida desde donde contarlo. */}
+                {!v.interno && (
                   <span className={"sello " + (largo ? "falta" : "transito")}>
                     <i />{enCamino(v.en_camino)}
                   </span>
@@ -952,49 +937,44 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                   una vez. Además son de OTRA persona: quien recibe el camión
                   certifica; quien decide qué se le pide es el administrador,
                   y separarlos en filas lo deja ver. */}
-              {esAdmin && !v.ai_pendiente && (
+              {esAdmin && !v.interno && (
                 <div className="tr-pedidos">
                   {/* PEDIR LA REVISIÓN ES SOLO DEL ADMINISTRADOR. Aquí solo
                       se decide si se pinta el botón; el candado de verdad
                       está en la base, que rechaza la marca venga de donde
                       venga. Esconder un botón no es un permiso.
 
-                      Y AL QUE YA LLEGÓ NO SE LE OFRECE QUITAR LA MARCA
-                      —de ahí el `!v.ai_pendiente` de arriba—: la muestra ya
-                      se sacó o se perdió, y desmarcarlo solo serviría para
-                      que el pendiente desaparezca de la lista sin que nadie
-                      contara nada. */}
+                      Y NO SE OFRECE A UN INTERNO: la certificada es para
+                      lo que llegó certificado por Sider, y el interno ya
+                      lleva su revisión normal. La base también lo rechaza.
+
+                      LA REVISIÓN NORMAL YA NO SE PIDE AQUÍ: nace sola
+                      cuando control crea un camión con el «+». */}
                   <button type="button"
                           className={"tr-ai" + (v.requiere_ai ? " on" : "")}
                           disabled={marcando === v.id}
                           onClick={() => pedirAi(v)}>
-                    {marcando === v.id ? "…" : v.requiere_ai ? "Quitar AI" : "Pedir revisión AI"}
-                  </button>
-                  {/* SORTING, por lo mismo y con la misma regla. */}
-                  <button type="button"
-                          className={"tr-so-btn" + (v.requiere_sorting ? " on" : "")}
-                          disabled={marcando === v.id}
-                          onClick={() => pedirSorting(v)}>
-                    {marcando === v.id ? "…" : v.requiere_sorting ? "Quitar Sorting" : "Pedir Sorting"}
+                    {marcando === v.id ? "…" : v.requiere_ai ? "Quitar revisión AI" : "Pedir revisión AI"}
                   </button>
                 </div>
               )}
 
               <footer>
                 <div className="tr-salio">
-                  {v.ai_pendiente ? <>Llegó {hora(v.llegada_en)}</> : <>Salió {hora(v.salida_en)}</>}
+                  {v.interno ? <>Creado {hora(v.creado_en)}</> : <>Salió {hora(v.salida_en)}</>}
                   <em>
                     {v.creado_por ? nombres[v.creado_por] ?? "—" : "—"}
                     {" · "}
-                    <b className={faltanFotos ? "mal" : undefined}>{v.fotos_salida}/3 fotos</b>
+                    {v.interno
+                      ? <b>sin salida certificada</b>
+                      : <b className={faltanFotos ? "mal" : undefined}>{v.fotos_salida}/3 fotos</b>}
                     {v.salida_direccion ? ` · ${v.salida_direccion}` : ""}
                   </em>
                 </div>
                 <div className="tr-botones">
                   {esEditor && (
-                    <button type="button" className={"btn" + (v.ai_pendiente ? " ai" : "")}
-                            onClick={() => setAbierto(v)}>
-                      {v.ai_pendiente ? "Hacer la revisión AI" : "Certificar llegada"}
+                    <button type="button" className="btn" onClick={() => setAbierto(v)}>
+                      Certificar llegada
                     </button>
                   )}
 
@@ -1040,20 +1020,14 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                            onChange={() => marcar(v.id)} />
                     <span>{escogidos.has(v.id) ? "Escogido" : "Escoger"}</span>
                   </label>
-                  {/* CORREGIR SÍ SE ESCONDE EN EL QUE ESPERA LA MUESTRA:
-                      cambiarle las estibas justo antes de contrastarlas
-                      con lo que se cuente en el muelle es tocar el dato
-                      que se va a contrastar. ANULAR NO — ver abajo. */}
-                  {!v.ai_pendiente && (
-                    <button type="button" className="tr-adm"
-                            onClick={() => setEdit({
-                              id: v.id, placa: v.placa, planta: v.planta ?? "",
-                              sku: v.sku ?? "", estibas: String(v.estibas ?? ""),
-                              observacion: v.observacion ?? "",
-                            })}>
-                      Corregir
-                    </button>
-                  )}
+                  <button type="button" className="tr-adm"
+                          onClick={() => setEdit({
+                            id: v.id, placa: v.placa, planta: v.planta ?? "",
+                            sku: v.sku ?? "", estibas: String(v.estibas ?? ""),
+                            observacion: v.observacion ?? "",
+                          })}>
+                    Corregir
+                  </button>
                   <button type="button" className="tr-adm mal"
                           onClick={() => setAnular({ vs: [v], motivo: "" })}>
                     Anular
@@ -1062,21 +1036,11 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
               )}
 
               {v.requiere_ai && (
-                <p className={"tr-ojo ai" + (v.ai_pendiente ? " falta" : "")}>
-                  {v.ai_pendiente ? (
-                    <>
-                      <b>Llegó y nadie ha contado la muestra.</b> Se queda en esta lista
-                      hasta que alguien la registre: mientras tanto, al socio se le abona
-                      todo lo que mandó.
-                    </>
-                  ) : (
-                    <>
-                      A este vehículo le toca <b>revisión AI</b> al llegar.
-                      {v.ai_motivo ? ` ${v.ai_motivo}` : ""}
-                      {v.ai_pedido_por ? ` — la pidió ${nombres[v.ai_pedido_por] ?? "un administrador"}.` : ""}
-                      {" "}La muestra se saca en el muelle, antes de descargar.
-                    </>
-                  )}
+                <p className="tr-ojo ai">
+                  A este vehículo le toca <b>Revisión AI – certificada</b> al llegar.
+                  {v.ai_motivo ? ` ${v.ai_motivo}` : ""}
+                  {v.ai_pedido_por ? ` — la pidió ${nombres[v.ai_pedido_por] ?? "un administrador"}.` : ""}
+                  {" "}Apenas se certifique la llegada, pasa a esa pantalla.
                 </p>
               )}
 
@@ -1104,7 +1068,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                 Quitar el filtro
               </button></>
           ) : (
-            "No hay vehículos en tránsito. Cuando alguien certifique una salida, aparece aquí."
+            "No hay vehículos en tránsito. Cuando alguien certifique una salida —o cree un camión interno con el «+»—, aparece aquí."
           )}
         </div>
       )}
@@ -1124,43 +1088,34 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
    dos cosas distintas. El que recibe está de pie al lado del vehículo:
    primero dice dónde está, después toma las fotos.
    =============================================================== */
-function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
+function Llegada({ viaje, supabase, cerrar, listo }: {
   viaje: Viaje;
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   supabase: any;
-  maestrosAi: MaestrosAi | null;
   cerrar: () => void;
   listo: () => void;
 }) {
   const router = useRouter();
   const pos = usePosicion();
-  const [paso, setPaso] = useState(viaje.ai_pendiente ? 2 : 0);
+  const [paso, setPaso] = useState(0);
   const [fotos, setFotos] = useState<Partial<Record<RanuraCualquiera, Foto>>>({});
   const [nota, setNota] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [avance, setAvance] = useState("");
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
 
-  /* ---------- LA REVISIÓN AI, DENTRO DE ESTE MISMO RECORRIDO ----------
-     El administrador marca el vehículo desde la lista; quien lo recibe
-     no tiene que ir a buscar otra pantalla ni acordarse de que existe.
-     Cierra la llegada y el formulario sale solo, como tercer paso.
-
-     Y VA DESPUÉS DE CERTIFICAR, no antes, porque la base no acepta una
-     revisión de un viaje cuya llegada no esté certificada —y con razón:
-     una revisión de algo que nunca se recibió no se puede auditar—. Por
-     eso, si aquí se cae la señal, lo que ya quedó guardado es la
-     llegada, y la revisión se retoma desde la tarjeta del vehículo. */
-  const revisaAi = !!viaje.requiere_ai && !!maestrosAi && !maestrosAi.falta;
-  /* EL QUE YA LLEGÓ ENTRA DIRECTO AL FORMULARIO. Su llegada se certificó
-     hace rato —por eso salió de «en camino» y aparece con el morado
-     fuerte—, así que los dos primeros pasos ya están hechos: pedirle la
-     ubicación y tres fotos otra vez sería hacerle repetir algo que la
-     base ya tiene y que ya no aceptaría. */
-  const [yaCertifico, setYaCertifico] = useState(!!viaje.ai_pendiente);
+  /* LA REVISIÓN AI YA NO VIVE AQUÍ. Antes era un tercer paso de este
+     recorrido; ahora, apenas se certifica la llegada, el camión sale de
+     Tránsito y espera en la pantalla «Revisión AI» —la certificada si el
+     administrador la pidió, la normal si lo creó control con el «+»—.
+     Este recorrido solo prueba que llegó y dónde. */
 
   const faltanFotos = RANURAS.filter((r) => !fotos[r.id]);
-  const sinEvidenciaSalida = viaje.fotos_salida < 3;
+  /* UN INTERNO NO TIENE SALIDA QUE COMPLETAR: lo creó control con el «+»
+     y nunca hubo certificación de salida ni sus tres fotos. La base
+     tampoco se las exige. A los demás sí: sin las tres el viaje no se
+     puede cerrar. */
+  const sinEvidenciaSalida = !viaje.interno && viaje.fotos_salida < 3;
   const puede = !!pos.ubi && faltanFotos.length === 0 && !sinEvidenciaSalida;
 
   /* ---------- LA SALIDA INCOMPLETA, ARREGLABLE DESDE AQUÍ ----------
@@ -1298,10 +1253,6 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
       });
       return;
     }
-    /* Con revisión pendiente NO se sale: la llegada ya quedó, y ahora
-       toca la muestra en el muelle. Salir aquí sería mandar a alguien a
-       buscar en otro sitio lo que puede hacer sin moverse. */
-    if (revisaAi) { setYaCertifico(true); setPaso(2); return }
     listo();
   }
 
@@ -1318,21 +1269,14 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
   }, []);
 
   const pasos = [
-    { t: "Dónde", ok: !!pos.ubi || !!viaje.ai_pendiente },
-    { t: "Fotos", ok: faltanFotos.length === 0 || !!viaje.ai_pendiente },
-    ...(revisaAi ? [{ t: "Revisión AI", ok: false }] : []),
+    { t: "Dónde", ok: !!pos.ubi },
+    { t: "Fotos", ok: faltanFotos.length === 0 },
   ];
 
   /* La misma regla que en la salida: a un paso solo se llega si los
      anteriores están listos, y la ubicación es requisito duro porque es
-     lo que prueba que quien certificó estaba ahí.
-
-     Y UNA VEZ CERTIFICADA LA LLEGADA NO SE VUELVE ATRÁS: los dos
-     primeros pasos ya se guardaron en la base y volver a mandarlos solo
-     sirve para ver un error. Se quedan marcados en verde, que es lo que
-     son: hechos. */
-  const alcanzable = (i: number) =>
-    yaCertifico ? i === 2 : i === 0 || pasos.slice(0, i).every((p) => p.ok);
+     lo que prueba que quien certificó estaba ahí. */
+  const alcanzable = (i: number) => i === 0 || pasos.slice(0, i).every((p) => p.ok);
 
   return (
     <>
@@ -1381,34 +1325,29 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
           <div className="tr-quien">
             <div>
               <h2>
-                {paso === 0 ? `Llegó ${viaje.placa}`
-                  : paso === 1 ? `Tres fotos de ${viaje.placa}`
-                    : `Revisión AI de ${viaje.placa}`}
+                {paso === 0 ? `Llegó ${viaje.placa}` : `Tres fotos de ${viaje.placa}`}
               </h2>
               <p className="ct-dice">
                 {paso === 0 ? (
                   <>
                     Desde <b>{viaje.cd_origen}</b> · {viaje.descripcion} ·{" "}
-                    {nf2.format(viaje.estibas)} estibas · salió {hora(viaje.salida_en)}
+                    {nf2.format(viaje.estibas)} estibas
+                    {viaje.interno ? ` · creado ${hora(viaje.creado_en)} por control` : ` · salió ${hora(viaje.salida_en)}`}
                     {" — "}solo falta dónde llegó y la prueba de que llegó.
+                    {(viaje.requiere_ai || viaje.requiere_sorting || viaje.interno) && (
+                      <>
+                        {" "}Al certificarla pasa a <b>Revisión AI – {[
+                          viaje.requiere_ai ? "certificada" : null,
+                          viaje.requiere_sorting || viaje.interno ? "normal" : null,
+                        ].filter(Boolean).join(" y ")}</b>.
+                      </>
+                    )}
                   </>
-                ) : paso === 1 ? (
+                ) : (
                   <>
                     Cada una queda sellada con la placa, la fecha, la hora y las
                     coordenadas quemadas en la esquina. Si algo llegó mal, déjalo
                     dicho abajo y, si se puede, fotografíalo.
-                  </>
-                ) : viaje.ai_pendiente ? (
-                  <>
-                    <b>La llegada se certificó {hora(viaje.llegada_en)}.</b> Lo que falta
-                    es la muestra, y de lo que se cuente aquí sale lo que se le abona al
-                    socio.
-                  </>
-                ) : (
-                  <>
-                    <b>La llegada ya quedó registrada.</b> Falta la muestra: se saca en
-                    el muelle, antes de descargar, y de lo que se cuente aquí sale lo
-                    que se le abona al socio.
                   </>
                 )}
               </p>
@@ -1536,35 +1475,6 @@ function Llegada({ viaje, supabase, maestrosAi, cerrar, listo }: {
                 </button>
               </div>
             </>
-          )}
-
-          {/* EL TERCER PASO: la revisión AI, aquí mismo.
-              Es el MISMO formulario que vivía en la pantalla suelta —no
-              una copia—, solo que ahora quien decide a dónde se va
-              después es esta pantalla y no él. El vehículo no se vuelve
-              a digitar: sale del viaje que ya está abierto. */}
-          {paso === 2 && revisaAi && maestrosAi && (
-            <FormularioAi
-              viaje={{
-                viaje_id: viaje.id, placa: viaje.placa, planta: viaje.planta,
-                fecha: viaje.fecha, sku: viaje.sku,
-                llego_en: viaje.llegada_en ?? null,
-                ai_motivo: viaje.ai_motivo ?? null,
-              }}
-              revision={null}
-              detalle={[]}
-              defectos={maestrosAi.defectos}
-              envases={maestrosAi.envases}
-              socios={maestrosAi.socios}
-              canales={maestrosAi.canales}
-              alGuardar={listo}
-              /* «Después» y no «Cancelar»: la llegada YA se guardó, así
-                 que salir de aquí no deshace nada — deja la revisión
-                 pendiente, y la tarjeta del vehículo la sigue pidiendo.
-                 Decirle «cancelar» haría creer que se perdió todo. */
-              alCancelar={listo}
-              rotuloCancelar="Después"
-            />
           )}
         </div>
 

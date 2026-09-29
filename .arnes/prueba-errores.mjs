@@ -38,6 +38,14 @@ const CASOS = [
   ['relation "public.v_sider_sorting_pendientes" does not exist',
    "2026-09-sider-sorting.sql"],
   ['column sider_viajes.requiere_sorting does not exist', "2026-09-sider-sorting.sql"],
+  /* LA REVISIÓN AI INTERNA (el «+»): sus nombres son de sider_ y de
+     sider_ai_, que mandarían a los módulos viejos; lo que falta es SU
+     migración, y esa es la más nueva. */
+  ['Could not find the function public.sider_viaje_interno_crear(p_destino, p_estibas, p_factura, p_lote, p_nota, p_placa, p_planta, p_sku) in the schema cache',
+   "2026-09-sider-revision-ai-interna.sql"],
+  ['relation "public.v_sider_revision_pendientes" does not exist',
+   "2026-09-sider-revision-ai-interna.sql"],
+  ['column sider_viajes.interno does not exist', "2026-09-sider-revision-ai-interna.sql"],
   /* Y LA AI SIGUE MANDANDO A LO SUYO: robarle el archivo a la AI para dárselo
      a Sorting sería el error de siempre al revés. */
   ['Could not find the function public.sider_ai_guardar(p_viaje, p_turno) in the schema cache',

@@ -315,7 +315,7 @@ export const MODULOS: Modulo[] = [
     //   Fuente principal  ahí queda el viaje, ya completo
     //   Seguimiento       el informe de todos
     //   Informe AI        el informe del cobro al socio
-    //   Sorting           lo que los muchachos clasifican por dentro
+    //   Revisión AI       lo que se revisa por dentro, ya llegado el camión
     //   Novedades         lo que salió mal, que solo se sabe al final
     //
     // Maestro cierra porque no es un paso: es la configuración —los
@@ -323,12 +323,9 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
-      /* LA REVISIÓN AI NO TIENE ENTRADA PROPIA, y es la decisión
-         correcta: vive DENTRO de Tránsito, que es donde se pide y donde
-         se hace. Tuvo su pantalla un día y era un módulo que obligaba a
-         quien recibe el camión a saber que existe, a entrar y a buscar
-         la placa en una lista. En el muelle eso no pasa: se descarga y
-         la revisión queda sin hacer. */
+      /* EL «+» DE CAMIÓN INTERNO vive DENTRO de Tránsito: allí se crea el
+         camión, allí se certifica su llegada, y de ahí pasa solo a la
+         pantalla de Revisión AI. */
       { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
       /* EL INFORME DE LA REVISIÓN AI va detrás del seguimiento de
@@ -336,15 +333,13 @@ export const MODULOS: Modulo[] = [
          el de envase es el del flujo principal —T1/T2— y el de AI es el
          del cobro al socio, que es una conversación aparte. */
       { nombre: "Informe AI", ruta: "/sider/seguimiento/ai" },
-      /* SORTING VA DEBAJO DEL INFORME AI, y así se pidió: son la misma
-         inspección —una en el muelle, la otra por dentro— y en el menú
-         se leen juntas. (El menú dice «Informe AI» y no «Revisión AI»:
-         la revisión es lo que se HACE en el muelle, dentro de Tránsito;
-         esta pantalla es el informe de lo que ya se revisó.) Tiene entrada propia porque se hace DESPUÉS y por
-         otra gente —los muchachos, no quien recibe— sobre camiones que ya
-         no están en Tránsito: sin una lista propia no habría dónde
-         reclamarlos. */
-      { nombre: "Sorting", ruta: "/sider/sorting" },
+      /* REVISIÓN AI, DEBAJO DEL INFORME AI, como se pidió. Es la lista de
+         lo que falta revisar una vez CERTIFICADA la llegada, en dos
+         clases: «certificada» (camión de Sider) y «normal» (los que se
+         crean con el «+» de Tránsito). LA RUTA SIGUE SIENDO
+         /sider/sorting: los permisos de cada rol están guardados con ese
+         texto y cambiarlo dejaría a todos sin acceso. */
+      { nombre: "Revisión AI", ruta: "/sider/sorting" },
       /* Se entra por el botón Importar de Seguimiento, que es donde se
          necesita. En el menú era el mismo destino dicho dos veces. */
       { nombre: "Importar", ruta: "/sider/importar", oculto: true },

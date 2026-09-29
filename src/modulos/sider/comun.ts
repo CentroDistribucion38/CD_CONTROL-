@@ -87,16 +87,18 @@ export type Viaje = {
      pantallas que leen Viaje —seguimiento, libro, exportar— no las
      piden ni las necesitan. */
   requiere_ai?: boolean;
-  /** Ya llegó, se certificó, y la revisión AI sigue sin hacerse. */
-  ai_pendiente?: boolean;
   ai_motivo?: string | null;
   ai_pedido_por?: string | null;
   ai_pedido_en?: string | null;
-  /** El administrador pidió Sorting para este viaje: después de descargar,
-   *  los muchachos hacen la misma inspección por dentro. Opcional por lo
-   *  mismo que las de AI, y porque hasta que se corra la migración la
-   *  columna no existe. */
+  /** Pasará a «Revisión AI – normal» al llegar. Opcional por lo mismo
+   *  que las de AI, y porque hasta que se corra la migración la columna
+   *  no existe. */
   requiere_sorting?: boolean;
+  /** Lo creó alguien de control con el «+» de Tránsito: Sider NO lo
+   *  certificó. No tiene salida, ni GPS, ni fotos de salida, y no cuenta
+   *  como certificado con evidencia. Opcional: no sale de la vista
+   *  grande, se pega aparte (ver `idsInternos`). */
+  interno?: boolean;
   placa: string;
   planta: string;
   cd_origen: string;
@@ -242,3 +244,21 @@ export function unirMarcasSorting(
   }
   return out;
 }
+
+/* LAS DOS CLASES DE REVISIÓN. Viven aquí y no en ai.ts porque ai.ts lee de
+   la base con el cliente de servidor y una pantalla de navegador no puede
+   importarlo, ni siquiera por una constante. */
+/** Las dos claves siguen siendo las internas de la base ('ai' y 'sorting'):
+ *  cambiarlas obligaría a migrar cada fila. Lo que se LEE en pantalla son
+ *  los nombres de aquí abajo. */
+export type TipoRevision = "ai" | "sorting";
+export const NOMBRE_TIPO: Record<TipoRevision, string> = {
+  ai: "Certificada",
+  sorting: "Normal",
+};
+/** «Revisión AI – certificada», como se dijo. */
+export const NOMBRE_TIPO_LARGO: Record<TipoRevision, string> = {
+  ai: "Revisión AI – certificada",
+  sorting: "Revisión AI – normal",
+};
+

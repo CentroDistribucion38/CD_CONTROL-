@@ -59,7 +59,7 @@ const v = (id, placa, cd, horas) => ({
   salida_lat: null, salida_lng: null, salida_precision: null, salida_direccion: "Avenida Carrera 38",
   cert_llegada_id: null, llegada_en: null, llegada_lat: null, llegada_lng: null, llegada_precision: null,
   llegada_direccion: null, fotos_salida: 3, fotos_llegada: 0, en_camino: horas + " hours",
-  requiere_ai: false, ai_pendiente: false,
+  requiere_ai: false,
 });
 window.VIAJES = [v("1", "JGY577", "CD Unión Apartado", 5), v("2", "ABC123", "CD La Arenosa", 30),
                  v("3", "KLM456", "CD Galapa", 2), v("4", "XYZ98A", "CD Galapa", 8)];

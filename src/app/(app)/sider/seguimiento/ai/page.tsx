@@ -25,7 +25,7 @@ const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 export default async function InformeAiPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string; hasta?: string; socio?: string; envase?: string; canal?: string }>;
+  searchParams: Promise<{ desde?: string; hasta?: string; socio?: string; envase?: string; canal?: string; tipo?: string }>;
 }) {
   const q = await searchParams;
   const [permisos, ops] = await Promise.all([misPermisos(), opcionesAi()]);
@@ -42,6 +42,8 @@ export default async function InformeAiPage({
     socio: q.socio || undefined,
     envase: q.envase || undefined,
     canal: q.canal || undefined,
+    /* Solo dos valores valen; cualquier otra cosa es «las dos». */
+    tipo: (q.tipo === "ai" || q.tipo === "sorting" ? q.tipo : undefined) as "ai" | "sorting" | undefined,
   };
 
   const inf = await informeAi(filtro);
@@ -67,12 +69,14 @@ export default async function InformeAiPage({
     <div className="sd">
       <section className="cabeza">
         <div>
-          <p className="ojo">SIDER · REVISIÓN AI</p>
+          <p className="ojo">SIDER · INFORME AI</p>
           <h1>Qué se le cobra al socio, y por qué</h1>
           <p className="sub">
             El índice de cobro sale de las <b>nueve categorías que cobran</b> —las mismas de
             la columna «% ÍNDICE DE COBRO» del archivo— sobre las botellas revisadas. No es
             el «% total de botellas con defectos», que suma diez y da otra cifra.{" "}
+            Entran las dos clases de revisión —<b>certificada</b> y <b>normal</b>— cada una
+            marcada con su nombre; con el filtro «Revisión» se ve una sola.{" "}
             <Link href="/sider/seguimiento">Volver al seguimiento de envase</Link>
           </p>
         </div>

@@ -209,7 +209,13 @@
 }
 .sd .ia-sello.propio {
   background: color-mix(in srgb, var(--sd-acento) 12%, #fff);
-  color: var(--ia-dato); border-color: color-mix(in srgb, var(--sd-acento) 35%, #fff);
+  /* Más oscuro que el dato: en el tema ámbar el acento claro dejaba este
+     texto a 4,27:1 sobre su propio fondo. */
+  color: color-mix(in srgb, var(--ia-dato) 72%, var(--c-04203f)); border-color: color-mix(in srgb, var(--sd-acento) 35%, #fff);
+}
+
+.sd .ia-sello.normal {
+  color: var(--sd-tinta); border-color: var(--sd-gris); font-weight: 800;
 }
 
 .sd .ia-vacio {

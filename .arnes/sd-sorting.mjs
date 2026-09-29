@@ -1,33 +1,43 @@
 /* =====================================================================
-   SIDER · SORTING — LAS PANTALLAS
+   SIDER · REVISIÓN AI (la pantalla que se llamaba «Sorting») Y EL «+»
+   DE TRÁNSITO — LAS PANTALLAS
 
-   La base (`correr-sider-sorting.sh`) ya prueba que Sorting no se cuela en
-   el cobro. Esto prueba lo que solo se ve MONTANDO la pantalla de verdad:
+   La base (`correr-sider-revision.sh`) ya prueba las reglas y el cobro.
+   Esto prueba lo que solo se ve MONTANDO la pantalla de verdad, con los
+   componentes REALES —solo `supabase`, `next/navigation` y `next/link`
+   son dobles, porque son lo único que necesita un servidor—:
 
-   1. QUE LA AI SIGA GUARDANDO COMO ANTES. `p_tipo` solo puede viajar
-      cuando es Sorting: si viajara siempre, el formulario de la AI dejaría
-      de funcionar en el instante de subir el código y ANTES de correr el
-      SQL, porque Postgres rechaza un parámetro con nombre que la función
-      vieja no conoce. Es el peor tipo de error: no se ve en ninguna
-      captura, y rompe el cobro en el muelle.
+   1. LA LISTA DICE LA VERDAD. Dos clases —certificada y normal—, cada
+      una con su palabra escrita (el color solo no las separa: el magenta
+      quedó a 87 del morado), su contador, su filtro; el interno lleva su
+      marca y dice «Lo creó», no «Lo pidió»; sin permiso de edición no hay
+      botones, ni aunque la página le pase los maestros.
 
-   2. QUE UN SORTING NO LE HABLE DE PLATA A LOS MUCHACHOS. «Abono final
-      SAP» y «No se abona» son cifras del socio: verlas les hace creer que
-      lo que cuentan mueve dinero.
+   2. LA AI SIGUE GUARDANDO COMO ANTES. `p_tipo` solo puede viajar cuando
+      es la normal: si viajara siempre, el formulario dejaría de guardar
+      en el instante de subir el código y ANTES de correr el SQL, porque
+      Postgres rechaza un parámetro con nombre que la función vieja no
+      conoce. Y AHORA LAS DOS MUESTRAN LA PLATA: las dos cobran, y esconder
+      el índice de cobro en una de ellas sería mentirle a quien cuenta.
 
-   3. QUE LA LISTA DE LOS MUCHACHOS DIGA LA VERDAD: cuántos esperan, cuáles
-      llevan más de un día, y que sin permiso de edición no haya botones.
+   3. EL «+» DE TRÁNSITO. Se escoge de listas, se calcula solo, dice qué
+      falta por su nombre, no deja crear origen y destino iguales, manda
+      a la base EXACTAMENTE los parámetros que la función espera, y un
+      rechazo de la base no lo cierra ni finge que guardó.
 
-   4. QUE NADA SE SALGA DE LA PANTALLA en los cuatro anchos.
+   4. TRÁNSITO YA NO TIENE EL PASO DE LA AI NI EL INTERRUPTOR DE SORTING.
+      El interno lleva su sello, no lleva reloj ni «0/3 fotos», y su
+      recibo no reclama fotos de una salida que no hubo.
 
-   5. QUE PEDIR SORTING EN TRÁNSITO LLAME A LO QUE DEBE, y que pedir la AI
-      siga llamando a lo de siempre.
+   5. FUENTE PRINCIPAL MARCA AL INTERNO en vez de decir «0/3 fotos».
 
-   6. QUE SE DISTINGA DE LA AI. El magenta quedó a 87 del morado —no llega a
-      100—, así que el color NO puede ir solo: se comprueba la palabra.
+   6. EL INFORME AI trae su columna de clase y su filtro.
 
-   Los componentes son los REALES. Solo `supabase` y `next/navigation` son
-   dobles, porque son lo único que necesita un servidor.
+   7. NADA SE SALE NI SE MONTA en 360/390/820/1440, y todo se lee en los
+      SIETE TEMAS REALES (oficial, tinta, pizarra, ámbar, negro, gris,
+      halo). La versión anterior de este arnés probaba «noche», «papel»,
+      «alto»… que no existen: caían al tema por defecto y la prueba pasaba
+      sin haber medido ninguno de los otros seis.
 
      node .arnes/sd-sorting.mjs
    ===================================================================== */
@@ -45,7 +55,7 @@ const caerse = (e) => {
 process.on("uncaughtException", caerse);
 process.on("unhandledRejection", caerse);
 
-/* ---------- LOS DOS DOBLES ---------- */
+/* ---------- LOS TRES DOBLES ---------- */
 writeFileSync(R(".arnes/_so-cliente.ts"), `
 /* Registra cada rpc y responde lo que el caso pida. */
 const w = window as any;
@@ -67,15 +77,11 @@ export function createClient() {
   };
 }`);
 writeFileSync(R(".arnes/_so-nav.ts"), `
-export function useRouter() { return { refresh: () => { (window as any).__refresh++ }, push() {}, replace() {}, back() {} } }
+export function useRouter() { return { refresh: () => { (window as any).__refresh++ }, push: (u: string) => { (window as any).__push = u }, replace() {}, back() {} } }
 export function usePathname() { return "/sider/sorting" }
 export function useSearchParams() { return new URLSearchParams() }`);
-
-/* `next/link` en un arnés es un <a> y nada más — PERO CON SUS ATRIBUTOS. La
-   primera versión de este doble en otro arnés solo pasaba `href` y los
-   hijos, y se comía el `className`: el enlace salía sin estilo y la
-   comprobación de contraste lo saltaba en silencio. Un doble que pierde una
-   propiedad hace que el arnés mida otra pantalla. */
+/* `next/link` es un <a> y nada más — PERO CON SUS ATRIBUTOS: un doble que
+   pierde el className hace que el arnés mida otra pantalla. */
 writeFileSync(R(".arnes/_so-link.tsx"), `
 export default function Link({ href, children, ...resto }: any) {
   return <a href={href} {...resto}>{children}</a>;
@@ -88,9 +94,9 @@ import { Sorting, haceCuanto, esTarde } from "../src/app/(app)/sider/sorting/Sor
 import { FormularioAi } from "../src/modulos/sider/FormularioAi";
 import { Transito } from "../src/app/(app)/sider/transito/Transito";
 import { Viajes } from "../src/app/(app)/sider/Viajes";
+import { Informe } from "../src/app/(app)/sider/seguimiento/ai/Informe";
 import { unirMarcasSorting } from "../src/modulos/sider/comun";
 (window as any).__unir = unirMarcasSorting;
-
 (window as any).__haceCuanto = haceCuanto;
 (window as any).__esTarde = esTarde;
 
@@ -109,13 +115,16 @@ const maestros: any = {
   canales: [{ clave: "socios", nombre: "Socios", activo: true }, { clave: "t1", nombre: "T1", activo: true }],
 };
 
+/* n=1 certificada de 30 h · n=2 certificada de 3 h · n=3 NORMAL INTERNO de 50 h ·
+   n=4 normal (marcada por el administrador) de 5 h. */
 const pend = (n: number, h: number, o: any = {}) => ({
-  viaje_id: "v" + n, placa: o.placa ?? "SOR00" + n, planta: "BAQ", sku: "3500887", estibas: 20 + n,
-  fecha: "2026-09-28", llego_en: hace(h), sorting_pedido_en: hace(h + 5),
-  sorting_pedido_por: "u1", pedido_nombre: o.pedido ?? "Cristian Padilla",
+  viaje_id: "v" + n, tipo: o.tipo ?? "ai", placa: o.placa ?? "REV00" + n, planta: "BAQ", sku: "3500887",
+  estibas: 20 + n, fecha: "2026-09-28", llego_en: hace(h), pedido_en: hace(h + 5),
+  pedido_por: "u1", motivo: o.motivo ?? null, interno: !!o.interno,
+  pedido_nombre: o.pedido ?? "Cristian Padilla",
 });
 const det = (n: number, o: any = {}) => ({
-  id: "v" + n, placa: "SOR00" + n, cd_origen: o.origen ?? "Apartadó", cd_destino: "Barranquilla",
+  id: "v" + n, placa: "REV00" + n, cd_origen: o.origen ?? "Apartadó", cd_destino: "Barranquilla",
   descripcion: o.desc ?? "Botella Costeña 175 cc", tipo_envase: "G175", sider: 12.5, cajas: 1440, hl: 25.2,
 });
 const hecho = (n: number, o: any = {}) => ({
@@ -123,28 +132,31 @@ const hecho = (n: number, o: any = {}) => ({
   turno: "T2", envase: "G175", envase_nombre: o.env ?? "Costeñita 175",
   recibidas: 82080, revisadas: 4104, defectos: 48, indice: 0.011696, ediciones: o.ed ?? 0,
   revisado_por: "u2", revisado_en: hace(20 + n), comentarios: null, zcl3: null,
-  canal: "t1", certificado: false, socio: null,
+  canal: "t1", certificado: false, socio: null, ...(o.sinTipo ? {} : { tipo: o.tipo ?? "ai" }),
 });
 
+const cuatro = [
+  pend(1, 30), pend(2, 3),
+  pend(3, 50, { tipo: "sorting", interno: true, pedido: "Control Uno", placa: "INT003" }),
+  pend(4, 5, { tipo: "sorting" }),
+];
 const casos: Record<string, any> = {
-  normal: { puedeEditar: true, maestros,
-    pendientes: [pend(1, 30), pend(2, 3), pend(3, 50, { placa: "SIN-DETALLE" })],
-    detalle: [det(1), det(2)], hechos: [hecho(1), hecho(2, { ed: 2 }), hecho(3)] },
+  normal: { puedeEditar: true, maestros, pendientes: cuatro,
+    detalle: [det(1), det(2), det(4)],   /* el 3 SIN detalle: no puede esconderse */
+    hechos: [hecho(1), hecho(2, { tipo: "sorting", ed: 2 }), hecho(3), hecho(5, { sinTipo: true })] },
+  soloNormal: { puedeEditar: true, maestros, pendientes: [pend(4, 5, { tipo: "sorting" })],
+    detalle: [det(4)], hechos: [hecho(2, { tipo: "sorting" })] },
   largos: { puedeEditar: true, maestros,
-    pendientes: [pend(1, 30, { placa: "ABC-1234-LARGA", pedido: "Nombre Muy Largo De Una Persona Con Apellidos Compuestos" })],
+    pendientes: [pend(1, 30, { pedido: "Nombre Muy Largo De Una Persona Con Apellidos Compuestos" }),
+                 pend(3, 50, { tipo: "sorting", interno: true, placa: "ABC-1234-LARGA", pedido: "Otro Nombre Muy Largo De Persona De Control" })],
     detalle: [det(1, { origen: "Centro de distribución de Apartadó zona franca", desc: "Botella retornable Costeña 175 cc caja por veinticuatro unidades reforzada" })],
-    hechos: [hecho(1, { placa: "XYZ-9999-LARGA", env: "Envase retornable de vidrio color ámbar de 175 centímetros cúbicos" })] },
-  lectura: { puedeEditar: false, maestros: null,
-    pendientes: [pend(1, 30)], detalle: [det(1)], hechos: [hecho(1)] },
+    hechos: [hecho(1, { placa: "XYZ-9999-LARGA", env: "Envase retornable de vidrio color ámbar de 175 centímetros cúbicos" }),
+             hecho(2, { tipo: "sorting", placa: "XYZ-8888-LARGA" })] },
+  lectura: { puedeEditar: false, maestros: null, pendientes: [pend(1, 30)], detalle: [det(1)], hechos: [hecho(1)] },
   vacio: { puedeEditar: true, maestros, pendientes: [], detalle: [], hechos: [] },
-  /* SIN PERMISO PERO CON LOS MAESTROS. En producción la página no los
-     trae si no puedes editar, así que esta combinación no debería darse —
-     y por eso mismo hay que probarla: el componente tiene que negarse
-     POR SU CUENTA, no confiar en que la página nunca le pase nada. Con
-     el fixture de «lectura» (sin permiso Y sin maestros) esa defensa
-     quedaba sin probar: quitarla no cambiaba nada. */
-  lecturaConMaestros: { puedeEditar: false, maestros,
-    pendientes: [pend(1, 30)], detalle: [det(1)], hechos: [hecho(1)] },
+  /* SIN PERMISO PERO CON LOS MAESTROS: el componente tiene que negarse
+     POR SU CUENTA, no confiar en que la página nunca se los pase. */
+  lecturaConMaestros: { puedeEditar: false, maestros, pendientes: [pend(1, 30)], detalle: [det(1)], hechos: [hecho(1)] },
 };
 
 const q = new URL(location.href).searchParams;
@@ -165,7 +177,7 @@ if (m === "sorting") {
     alGuardar={() => { (window as any).__guardado = true }} alCancelar={() => {}}
     {...(c === "sorting" ? { tipo: "sorting" as const } : {})} />);
 } else if (m === "viajes") {
-  /* FUENTE PRINCIPAL: la marca de Sorting junto al estado. */
+  /* FUENTE PRINCIPAL: la marca de la revisión normal junto al estado, y el interno. */
   const f = (n: number, o: any) => ({
     id: "f" + n, placa: "FUE00" + n, planta: "APA", cd_origen: "Apartadó", cd_destino: "Barranquilla",
     sku: "3500887", descripcion: "Botella Costeña 175 cc", tipo_envase: "G175", estibas: 20, sider: 12.5,
@@ -173,26 +185,62 @@ if (m === "sorting") {
     fotos_llegada: 3, salida_en: hace(30), llegada_en: hace(24), creado_por: "u1", creado_en: hace(30),
     fecha: "2026-09-28", num_mes: 9, semana: 39, anio: 2026, importado: false, faltan_factores: false,
     observacion: null, motivo_anulacion: null, ...o });
-  const viajes = [f(1, {}), f(2, {}), f(3, {}), f(4, { estado: "en_transito" })];
+  const viajes = [f(1, {}), f(2, {}), f(3, {}), f(4, { estado: "en_transito" }),
+                  f(5, { fotos_salida: 0, salida_en: null, en_camino: null })];
   root.render(<Viajes viajes={viajes as any} nombres={{ u1: "Cristian Padilla" }} origenes={[]} skus={[]}
     manda={false} esEditor={false}
-    sorting={c === "sinmarcas" ? {} : { f1: "pendiente", f2: "hecho", f4: "pendiente" }} />);
+    sorting={c === "sinmarcas" ? {} : { f1: "pendiente", f2: "hecho", f4: "pendiente", f5: "pendiente" }}
+    internos={c === "sinmarcas" ? [] : ["f5"]} />);
+} else if (m === "informe") {
+  const rv = (n: number, o: any) => ({
+    id: "i" + n, viaje_id: "v" + n, fecha: "2026-09-2" + n, planta: "BAQ", placa: "INF00" + n, turno: "T1",
+    envase: "G175", envase_nombre: "Costeñita 175", recibidas: 1000, revisadas: 100, defectos: 3, otros: 0,
+    no_abono: 30, hl_defectos: 0.1, indice: 0.03, socio: "logi", socio_nombre: "Logisinú",
+    canal: "t1", canal_nombre: "T1", origen: "propio", ediciones: 0, comentarios: null, zcl3: null,
+    defectos_hoja: 3, hl_hoja: 0.1, pct_hoja: 0.03, ...o });
+  const revs = c === "sintipo"
+    ? [rv(1, {}), rv(2, {})]
+    : [rv(1, { tipo: "ai" }), rv(2, { tipo: "sorting" }), rv(3, { tipo: "sorting" })];
+  const datos: any = { revisiones: revs,
+    defectos: [{ clave: "rota", nombre: "Rota o despicado", cobra: true, orden: 1, unidades: 9, hl: 0.3, pct: 0.03 }],
+    socios: [{ clave: "logi", nombre: "Logisinú", revisiones: revs.length, recibidas: 3000, revisadas: 300, defectos: 9, no_abono: 90, hl: 0.3, indice: 0.03 }],
+    semanas: [{ semana: "2026-09-21", revisiones: revs.length, revisadas: 300, defectos: 9, indice: 0.03 }],
+    total: { revisiones: revs.length, recibidas: 3000, revisadas: 300, defectos: 9, otros: 0, no_abono: 90, hl: 0.3,
+             socios: 1, importadas: 0, indice: 0.03, defectos_hoja: 9, hl_hoja: 0.3, pct_hoja: 0.03 },
+    porRevision: new Map() };
+  root.render(<Informe datos={datos}
+    opciones={{ socios: [["logi", "Logisinú"]], envases: [["G175", "Costeñita 175"]], canales: [["t1", "T1"]],
+                primera: "2026-09-21", ultima: "2026-09-29" }}
+    filtro={{ desde: "2026-09-21", hasta: "2026-09-29", ...(c === "filtrado" ? { tipo: "sorting" } : {}) }}
+    esEditor={false} />);
 } else {
-  /* TRÁNSITO: la tarjeta, con los cuatro casos que importan. */
+  /* TRÁNSITO: la tarjeta, con los casos que importan. */
   const v = (n: number, o: any) => ({
     id: "t" + n, placa: o.placa ?? "TRN00" + n, planta: "APA", cd_origen: "Apartadó", cd_destino: "Barranquilla",
     sku: "3500887", descripcion: "Botella Costeña 175 cc", tipo_envase: "G175", estibas: 20, sider: 12.5,
     cajas: 1440, hl: 25.2, estado: "en_transito", en_camino: "05:30:00", fotos_salida: 3,
     salida_en: hace(6), salida_direccion: o.dir ?? "Calle 30 # 12-45, zona industrial", creado_por: "u1",
     creado_en: hace(6), fecha: "2026-09-29", importado: false, requiere_ai: false, ...o });
+  const interno = (n: number, o: any = {}) => v(n, { placa: "INT00" + n, interno: true, requiere_sorting: true,
+    fotos_salida: 0, salida_en: null, en_camino: null, salida_direccion: null, creado_en: hace(2), ...o });
   const viajes = c === "largos"
-    ? [v(1, { requiere_ai: true, requiere_sorting: true,
-              dir: "Kilómetro 14 vía Barranquilla – Ciénaga, sector zona franca industrial, bodega 12 y 13" })]
+    ? [v(1, { requiere_ai: true, dir: "Kilómetro 14 vía Barranquilla – Ciénaga, sector zona franca industrial, bodega 12 y 13" }),
+       interno(2, { descripcion: "Botella retornable Costeña 175 cc caja por veinticuatro unidades reforzada" })]
+    : c === "sinfotos"
+    ? [v(1, { fotos_salida: 1 }), interno(2)]
     : [v(1, {}), v(2, { requiere_sorting: true }), v(3, { requiere_ai: true }),
-       v(4, { requiere_ai: true, requiere_sorting: true })];
+       interno(4), v(5, { requiere_ai: true, requiere_sorting: true })];
+  const origenes = [
+    { planta: "APA", cd_origen: "Apartadó" }, { planta: "BAQ", cd_origen: "Barranquilla" },
+    { planta: "MDE", cd_origen: "Medellín" }];
+  const skus = [
+    { sku: "3500887", descripcion: "Botella Costeña 175 cc", clase: "Envase", cajas_x_estiba: 72, unidades_x_caja: 24, hl_x_unidad: 0.00175 },
+    { sku: "3500901", descripcion: "Costeñita Ámbar 330 cc", clase: "Envase", cajas_x_estiba: 60, unidades_x_caja: 24, hl_x_unidad: 0.0033 },
+    { sku: "3500999", descripcion: "Caja plástica azul", clase: "Envase", cajas_x_estiba: null, unidades_x_caja: null, hl_x_unidad: null }];
   root.render(<Transito viajes={viajes as any} nombres={{ u1: "Cristian Padilla" }}
-    esEditor={true} esAdmin={c !== "noadmin"} manda={c !== "noadmin"} origenes={[]} skus={[]}
-    maestrosAi={maestros} trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
+    esEditor={c !== "lectura"} esAdmin={c !== "noadmin"} manda={c !== "noadmin"}
+    origenes={origenes} skus={skus} estibasPorSider={36}
+    trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 }
 `);
 
@@ -209,7 +257,8 @@ const js = buildSync({
 }).outputFiles[0].text;
 
 const css = ["src/app/globals.css", "src/app/(app)/shell.css",
-             "src/app/(app)/sider/sider.css", "src/modulos/sider/ai.css"]
+             "src/app/(app)/sider/sider.css", "src/modulos/sider/ai.css",
+             "src/app/(app)/sider/seguimiento/ai/informe.css"]
   .map((p) => readFileSync(R(p), "utf8")).join("\n");
 const P = "*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}";
 
@@ -233,8 +282,6 @@ const monta = async (query, ancho = 1440, tema = "") => {
       <script>${js}<\/script></body></html>`,
   }));
   await pg.goto(`http://arnes.local/?${query}`);
-  /* SI NO PINTA, SE DICE POR QUÉ. Un «Timeout 30000ms» sin más obliga a
-     adivinar; lo que sirve es el error que el componente tiró al montar. */
   try { await pg.waitForSelector("#r > *", { timeout: 8000 }) }
   catch { throw new Error(`«${query}» no pintó nada. Errores de la página: ${roto.slice(-3).join(" | ") || "ninguno"}`) }
 };
@@ -242,12 +289,11 @@ const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
 const rpcs = () => pg.evaluate(() => window.__rpc);
 
 /* DIAGNÓSTICO: `DEBUG="m=sorting&c=normal@360" node .arnes/sd-sorting.mjs`
-   dice QUÉ elemento se sale de la pantalla, en vez de solo decir que algo
-   se sale. Un «se sale 68 px» sin nombre obliga a adivinar. */
-/* CAPTURA: `SHOT="m=sorting&c=normal@1440@/ruta/salida.png" node ...` */
+   dice QUÉ elemento se sale; `SHOT="q@ancho@/ruta.png"` saca una captura. */
 if (process.env.SHOT) {
-  const [q, w, ruta] = process.env.SHOT.split("@");
-  await monta(q, Number(w));
+  const [q, w, ruta, tema] = process.env.SHOT.split("@");
+  await monta(q, Number(w), tema ?? "");
+  if (process.env.CLIC) await pg.click(process.env.CLIC);
   await pg.screenshot({ path: ruta, fullPage: true });
   await nav.close(); process.exit(0);
 }
@@ -266,9 +312,6 @@ if (process.env.DEBUG) {
 
 /* =====================================================================
    1 · «HACE 3 H»: LAS DOS FUNCIONES PURAS
-   ---------------------------------------------------------------------
-   Contra la hora que manda el SERVIDOR. Con Date.now() en el navegador el
-   texto sale distinto en los dos lados y React avisa.
    ===================================================================== */
 await monta("m=sorting&c=normal");
 {
@@ -283,7 +326,6 @@ await monta("m=sorting&c=normal");
     ok(r === dice, `a ${m} min dice «${r}» y son «${dice}»`);
   }
   ok(await pg.evaluate((ah) => window.__haceCuanto(null, ah), AH) === "—", "sin fecha no dice «—»");
-  /* EL LÍMITE DE «TARDE»: exactamente 24 h NO es tarde; 24 h y un minuto, sí. */
   ok(await pg.evaluate(([d, ah]) => window.__esTarde(d, ah), [haceMin(24 * 60), AH]) === false,
      "exactamente 24 h ya cuenta como «tarde»: el límite es MÁS de un día");
   ok(await pg.evaluate(([d, ah]) => window.__esTarde(d, ah), [haceMin(24 * 60 + 1), AH]) === true,
@@ -293,43 +335,97 @@ await monta("m=sorting&c=normal");
 }
 
 /* =====================================================================
-   2 · LA LISTA DE LOS MUCHACHOS DICE LA VERDAD
+   2 · LA LISTA DICE LA VERDAD — LAS DOS CLASES
    ===================================================================== */
 {
-  const cuantos = await pg.$$eval(".tr-vh.so", (s) => s.length);
-  ok(cuantos === 3, `hay ${cuantos} tarjetas y son 3 los camiones esperando`);
-  ok(await pg.$eval(".kpi .num", (e) => e.textContent.trim()) === "3",
-     "el contador de «por hacer» no dice 3");
-  /* SOLO EL DE 30 H Y EL DE 50 H SON «TARDE»; el de 3 h no. */
+  const t = await txt();
+  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 4, "no hay 4 tarjetas: son 4 los camiones esperando");
+  ok(await pg.$$eval(".tr-vh.ai", (s) => s.length) === 2 && await pg.$$eval(".tr-vh.so", (s) => s.length) === 2,
+     "las tarjetas no se reparten 2 certificadas (morado) y 2 normales (magenta)");
+  ok(await pg.$eval(".kpi .num", (e) => e.textContent.trim()) === "4", "el contador de «por hacer» no dice 4");
+  ok(/2 certificadas · 2 normales/.test(t), `el contador no reparte por clase: «${t.slice(0, 260)}»`);
+  ok(/2 con más de un día/.test(t), "el contador no dice cuántos llevan más de un día");
   ok(await pg.$$eval(".tr-vh.so-tarde", (s) => s.length) === 2,
-     "«tarde» debería marcar 2 camiones (30 h y 50 h) y no el de 3 h");
-  ok(/2 llevan más de un día esperando/.test(await txt()),
-     `el contador no dice cuántos llevan más de un día: «${(await txt()).slice(0, 220)}»`);
-  /* EL SELLO LLEVA LA PALABRA: el color solo no separa a Sorting de la AI. */
-  const sellos = await pg.$$eval(".tr-vh.so .sello.sorting", (s) => s.map((e) => e.textContent.trim()));
-  ok(sellos.length === 3 && sellos.every((t) => t === "SORTING"),
-     `los sellos dicen [${sellos}] y tienen que decir la palabra SORTING`);
-  ok(await pg.$$eval(".tr-vh.so .so-btn", (s) => s.length) === 3, "faltan botones «Hacer el Sorting»");
-  /* Un camión sin detalle en la vista grande (llegó a la lista pero el
-     viaje no se pudo leer) sigue apareciendo, con lo que sí se sabe. */
-  ok(/SIN-DETALLE/.test(await txt()) && /3500887/.test(await txt()),
-     "el camión sin detalle desapareció o perdió su material: no puede esconderse un pendiente");
-  ok(/Lo pidió Cristian Padilla/.test(await txt()), "no dice quién pidió el Sorting");
+     "«tarde» debería marcar 2 camiones (30 h y 50 h) y no los de 3 h y 5 h");
+
+  /* LA CLASE VA CON LA PALABRA ESCRITA. */
+  const cert = await pg.$$eval(".tr-vh .sello.ai", (s) => s.map((e) => e.textContent.trim()));
+  const norm = await pg.$$eval(".tr-vh .sello.sorting", (s) => s.map((e) => e.textContent.trim()));
+  ok(cert.length === 2 && cert.every((x) => x === "CERTIFICADA"), `sellos de certificada: [${cert}]`);
+  ok(norm.length === 2 && norm.every((x) => x === "NORMAL"), `sellos de normal: [${norm}]`);
+
+  /* EL INTERNO SE MARCA, Y SOLO EL INTERNO. */
+  const internos = await pg.$$eval(".tr-vh .sello.interno", (s) => s.map((e) => e.closest(".tr-vh").querySelector(".placa").textContent));
+  ok(internos.length === 1 && internos[0] === "INT003", `sellos «INTERNO» en [${internos}]: solo INT003 lo creó control`);
+  ok(/Lo creó Control Uno/.test(t), "el interno no dice «Lo creó»");
+  ok(/Lo pidió Cristian Padilla/.test(t), "la certificada no dice «Lo pidió»");
+  ok(await pg.$$eval(".tr-vh", (s) => s.filter((a) => a.querySelector(".sello.interno")).every((a) => !/Lo pidió/.test(a.textContent))),
+     "un interno dice «Lo pidió»: nadie lo pidió, lo creó control");
+
+  /* SIN DETALLE el camión no desaparece ni repite el material. */
+  const sd = await pg.$eval('.tr-vh:has(.placa:text("INT003"))', (a) => a.textContent.replace(/\s+/g, " "));
+  ok(/3500887/.test(sd) && /Material sin descripción/.test(sd), "el camión sin detalle perdió su material");
+  ok((sd.match(/3500887/g) || []).length === 1, "el material sin descripción se dice dos veces");
+
+  ok(await pg.$$eval(".tr-vh footer .btn", (s) => s.filter((b) => b.textContent.trim() === "Hacer la revisión").length) === 4,
+     "faltan botones «Hacer la revisión»");
+  ok(await pg.$$eval(".tr-vh.ai footer .btn.ai", (s) => s.length) === 2 &&
+     await pg.$$eval(".tr-vh.so footer .btn.so-btn", (s) => s.length) === 2,
+     "cada clase debe llevar el botón de su color");
+  ok(!/Sorting/i.test(t), `la pantalla todavía dice «Sorting»: «${(t.match(/.{20}Sorting.{20}/i) || [""])[0]}»`);
+  ok(await pg.$eval("h1", (e) => e.textContent.trim()) === "Revisión AI", "el título no es «Revisión AI»");
+
+  /* LAS HECHAS: cada una con su clase; sin `tipo` (migración sin correr) = certificada. */
+  const hs = await pg.$$eval(".so-hechos li", (s) => s.map((li) => ({
+    placa: li.querySelector(".placa").textContent, sello: li.querySelector(".so-h-tipo .sello").textContent.trim() })));
+  ok(hs.length === 4, `hay ${hs.length} hechas y son 4`);
+  ok(hs.find((h) => h.placa === "HEC002")?.sello === "NORMAL", "HEC002 es normal y no lo dice");
+  ok(hs.find((h) => h.placa === "HEC001")?.sello === "CERTIFICADA", "HEC001 es certificada y no lo dice");
+  ok(hs.find((h) => h.placa === "HEC005")?.sello === "CERTIFICADA",
+     "una revisión SIN `tipo` (la migración no se ha corrido) tiene que salir como certificada");
+  ok(/corregida 2 veces/.test(t), "no dice cuántas veces se corrigió");
   ok(roto.length === 0, `la pantalla tiró un error: ${roto[0]}`);
+
+  /* EL FILTRO DE CLASE. */
+  const botones = await pg.$$eval(".so-clase button", (s) => s.map((b) => [b.textContent.trim(), b.getAttribute("aria-pressed")]));
+  ok(JSON.stringify(botones) === JSON.stringify([["Todas · 4", "true"], ["Certificada · 2", "false"], ["Normal · 2", "false"]]),
+     `los botones del filtro dicen ${JSON.stringify(botones)}`);
+  await pg.click('.so-clase button:has-text("Certificada")');
+  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 2 && await pg.$$eval(".tr-vh.so", (s) => s.length) === 0,
+     "el filtro «Certificada» deja camiones normales");
+  ok(await pg.$$eval(".so-hechos li", (s) => s.length) === 3 && await pg.$$eval(".so-hechos li.so", (s) => s.length) === 0,
+     "el filtro «Certificada» no filtra también las hechas");
+  ok(await pg.$eval('.so-clase button:has-text("Certificada")', (b) => b.getAttribute("aria-pressed")) === "true",
+     "el botón escogido no queda marcado (aria-pressed)");
+  await pg.click('.so-clase button:has-text("Normal")');
+  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 2 && await pg.$$eval(".tr-vh.ai", (s) => s.length) === 0,
+     "el filtro «Normal» deja camiones certificados");
+  ok(await pg.$$eval(".so-hechos li", (s) => s.length) === 1, "el filtro «Normal» no filtra las hechas");
+  ok(/Hechas las últimas 1/.test(await txt()), "el rótulo de «Hechas» no cuenta las visibles");
+  await pg.click('.so-clase button:has-text("Todas")');
+  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 4, "«Todas» no devuelve los 4");
+}
+{
+  /* FILTRO SIN NADA DE ESA CLASE. */
+  await monta("m=sorting&c=soloNormal");
+  await pg.click('.so-clase button:has-text("Certificada")');
+  const t = await txt();
+  ok(/No hay revisiones certificadas por hacer/.test(t), `filtro sin resultados: «${t.slice(0, 200)}»`);
+  ok(/Todavía no hay revisiones certificadas cerradas/.test(t), "el filtro sin hechas no lo dice");
+  ok(!/No hay camiones esperando revisión/.test(t), "dice que no hay NINGÚN camión cuando solo no hay de esa clase");
 }
 
 /* SIN PERMISO DE EDICIÓN: se ve, no se toca. */
 await monta("m=sorting&c=lectura");
 {
-  ok(await pg.$$eval(".so-btn, .tr-so-btn", (s) => s.length) === 0,
-     "quien no puede editar VE botones de hacer o corregir: la base los rechazaría, pero un botón que da error es peor que ninguno");
+  ok(await pg.$$eval(".tr-vh footer .btn, .tr-so-btn", (s) => s.length) === 0,
+     "quien no puede editar VE botones de hacer o corregir: un botón que da error es peor que ninguno");
   ok(/Solo puedes mirar/.test(await txt()), "no explica por qué no hay botones");
-  ok(/HEC001/.test(await txt()), "el de solo lectura no ve los Sorting hechos");
+  ok(/HEC001/.test(await txt()), "el de solo lectura no ve las revisiones hechas");
 }
-
 /* Y AUNQUE LE LLEGUEN LOS MAESTROS: el permiso lo decide el componente. */
 await monta("m=sorting&c=lecturaConMaestros");
-ok(await pg.$$eval(".so-btn, .tr-so-btn", (s) => s.length) === 0,
+ok(await pg.$$eval(".tr-vh footer .btn, .tr-so-btn", (s) => s.length) === 0,
    "con los maestros a la mano pero SIN permiso de edición salen botones: el componente confía en que la página " +
    "nunca le pase los maestros a quien no puede editar, y el día que alguien cambie la página lo hace");
 
@@ -337,18 +433,15 @@ ok(await pg.$$eval(".so-btn, .tr-so-btn", (s) => s.length) === 0,
 await monta("m=sorting&c=vacio");
 {
   const t = await txt();
-  ok(/No hay camiones esperando Sorting/.test(t), "sin pendientes no lo dice");
-  ok(/Todavía no se ha cerrado ningún Sorting/.test(t), "sin hechos no lo dice");
+  ok(/No hay camiones esperando revisión/.test(t), "sin pendientes no lo dice");
+  ok(/Todavía no se ha cerrado ninguna revisión/.test(t), "sin hechas no lo dice");
   ok(await pg.$eval(".kpi .num", (e) => e.textContent.trim()) === "0", "el contador no dice 0");
   ok(/nada pendiente/.test(t), "el contador vacío no dice «nada pendiente»");
   ok(!/NaN|undefined|Infinity/.test(t), "salió basura con la lista vacía");
 }
 
 /* =====================================================================
-   3 · LA AI SIGUE GUARDANDO COMO ANTES — Y EL SORTING CON SU TIPO
-   ---------------------------------------------------------------------
-   Es la comprobación más importante de este archivo. Se llena el
-   formulario de verdad y se lee lo que llegaría a la base.
+   3 · LA AI SIGUE GUARDANDO COMO ANTES — Y LA NORMAL CON SU TIPO
    ===================================================================== */
 async function llenaYGuarda(query) {
   await monta(query);
@@ -364,173 +457,153 @@ async function llenaYGuarda(query) {
   await pg.waitForFunction(() => window.__rpc.length > 0);
   return { rotulo, llamada: (await rpcs())[0] };
 }
-
 {
   const s = await llenaYGuarda("m=form&c=sorting");
   ok(s.llamada.n === "sider_ai_guardar", `guardó con «${s.llamada.n}»`);
   ok(s.llamada.a.p_tipo === "sorting",
-     `un Sorting se guardó con p_tipo=${JSON.stringify(s.llamada.a.p_tipo)}: sin eso quedaría como AI y sumaría al cobro del socio`);
-  ok(s.rotulo === "Cerrar Sorting", `el botón dice «${s.rotulo}» y en un Sorting tiene que decir «Cerrar Sorting»`);
+     `una revisión normal se guardó con p_tipo=${JSON.stringify(s.llamada.a.p_tipo)}: sin eso quedaría como certificada`);
+  ok(s.rotulo === "Cerrar revisión", `el botón dice «${s.rotulo}»`);
   ok(s.llamada.a.p_conteos?.rota === 3 && s.llamada.a.p_revisadas === 100 && s.llamada.a.p_recibidas === 1000,
      `los datos no llegaron bien: ${JSON.stringify(s.llamada.a)}`);
   ok(s.llamada.a.p_viaje === "vf", "no mandó el viaje");
 }
 {
   const a = await llenaYGuarda("m=form&c=ai");
-  ok(a.llamada.n === "sider_ai_guardar", "la AI no llamó a sider_ai_guardar");
-  /* LA DEFENSA QUE IMPORTA. `"p_tipo" in args` y no `=== undefined`: una
-     clave con valor undefined también viaja en el JSON… y se rechaza. */
+  ok(a.llamada.n === "sider_ai_guardar", "la certificada no llamó a sider_ai_guardar");
+  /* `"p_tipo" in args` y no `=== undefined`: una clave con valor undefined también viaja… y se rechaza. */
   ok(!("p_tipo" in a.llamada.a),
-     "LA AI MANDÓ p_tipo: en cuanto se suba este código —y antes de correr el SQL— Postgres " +
+     "LA CERTIFICADA MANDÓ p_tipo: en cuanto se suba este código —y antes de correr el SQL— Postgres " +
      "rechazaría el parámetro con nombre que la función vieja no conoce, y la revisión AI dejaría de guardar en el muelle");
-  ok(a.rotulo === "Cerrar revisión", `la AI cambió su botón a «${a.rotulo}»`);
+  ok(a.rotulo === "Cerrar revisión", `la certificada cambió su botón a «${a.rotulo}»`);
   ok(JSON.stringify(Object.keys(a.llamada.a).sort()) === JSON.stringify(
        ["p_canal","p_certificado","p_comentarios","p_conteos","p_envase","p_recibidas","p_revisadas","p_socio","p_turno","p_viaje","p_zcl3"].sort()),
-     `la AI mandó otro juego de parámetros que antes: ${Object.keys(a.llamada.a).sort()}`);
+     `la certificada mandó otro juego de parámetros que antes: ${Object.keys(a.llamada.a).sort()}`);
 }
-
-/* LOS ROTULOS: UN SORTING NO HABLA DE PLATA; LA AI SÍ. */
-{
-  await monta("m=form&c=sorting");
+/* LAS DOS MUESTRAN LA PLATA Y LA CLASE. Las dos cobran. */
+for (const [c, clase] of [["sorting", "Revisión AI – normal"], ["ai", "Revisión AI – certificada"]]) {
+  await monta(`m=form&c=${c}`);
   const t = await txt();
   for (const [re, que] of [[/Abono final SAP/, "«Abono final SAP»"], [/No se abona/, "«No se abona»"],
                            [/ÍNDICE DE COBRO/, "«ÍNDICE DE COBRO»"], [/ENTRAN AL COBRO/, "«ENTRAN AL COBRO»"],
                            [/NO COBRAN/, "«NO COBRAN»"], [/PARA EL FACTURADOR/, "«PARA EL FACTURADOR»"]]) {
-    ok(!re.test(t), `el Sorting muestra ${que}: son palabras del cobro al socio y a los muchachos les hacen creer que lo que cuentan mueve plata`);
+    ok(re.test(t), `[${c}] la revisión ${clase} no muestra ${que}: las dos cobran`);
   }
-  ok(/ÍNDICE DE DEFECTOS/.test(t) && /ENTRAN AL ÍNDICE/.test(t) && /COMENTARIOS DEL SORTING/.test(t),
-     "el Sorting no tiene sus rótulos propios");
-  await monta("m=form&c=ai");
-  const u = await txt();
-  for (const [re, que] of [[/Abono final SAP/, "«Abono final SAP»"], [/No se abona/, "«No se abona»"],
-                           [/ÍNDICE DE COBRO/, "«ÍNDICE DE COBRO»"], [/ENTRAN AL COBRO/, "«ENTRAN AL COBRO»"],
-                           [/PARA EL FACTURADOR/, "«PARA EL FACTURADOR»"]]) {
-    ok(re.test(u), `la AI perdió ${que}: cambiar el formulario para Sorting no puede quitarle a la AI lo suyo`);
-  }
-  ok(!/ÍNDICE DE DEFECTOS|COMENTARIOS DEL SORTING/.test(u), "la AI muestra rótulos de Sorting");
+  ok(!/ÍNDICE DE DEFECTOS|COMENTARIOS DEL SORTING|ENTRAN AL ÍNDICE/.test(t), `[${c}] quedaron rótulos del Sorting viejo`);
+  ok(new RegExp("REVISIÓN\\s*" + clase).test(t), `[${c}] la cinta no dice «${clase}»`);
 }
 
 /* =====================================================================
-   4 · CERRAR Y CORREGIR DESDE LA LISTA
+   4 · HACER Y CORREGIR DESDE LA LISTA
    ===================================================================== */
 {
   await monta("m=sorting&c=normal");
-  await pg.evaluate(() => { window.__filas = {
-    v_sider_sorting_detalle: [
-      { revision_id: "r1", defecto: "rota", defecto_nombre: "Rota o despicado", cobra: true, orden: 1, unidades: 37, pct: 0.009, hl: 0.06 },
-    ] } });
   await pg.click(".tr-vh.so .so-btn >> nth=0");
-  const t = await txt();
-  ok(/Cerrar Sorting/.test(t) && /ÍNDICE DE DEFECTOS/.test(t), "el botón de la lista no abrió el formulario de Sorting");
-  ok(await pg.$$eval(".tr-vh.so", (s) => s.length) === 0,
-     "con el formulario abierto sigue la lista de camiones: la pantalla es de UN camión");
-  ok(/SOR001/.test(t), "el formulario no muestra la placa del camión escogido");
-
-  await pg.selectOption("#ai-canal", "t1");
-  await pg.selectOption("#ai-envase", "G175");
+  let t = await txt();
+  ok(/INT003/.test(t) && /Revisión AI – normal/.test(t), "el botón de la normal no abrió el formulario de la normal");
+  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 0, "con el formulario abierto sigue la lista: la pantalla es de UN camión");
+  await pg.selectOption("#ai-canal", "t1"); await pg.selectOption("#ai-envase", "G175");
   await pg.fill("#ai-rec", "500"); await pg.fill("#ai-rev", "50");
   await pg.locator("button.b1:not([disabled])").first().click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];
-  ok(l.a.p_viaje === "v1" && l.a.p_tipo === "sorting",
-     `desde la lista guardó ${JSON.stringify(l.a).slice(0, 120)}`);
+  ok(l.a.p_viaje === "v3" && l.a.p_tipo === "sorting", `la normal guardó ${JSON.stringify(l.a).slice(0, 140)}`);
   await pg.waitForFunction(() => window.__refresh > 0);
-  ok(/Sorting de SOR001 cerrado/.test(await txt()), "no avisó que el Sorting quedó cerrado");
-  ok(await pg.$$eval(".tr-vh.so", (s) => s.length) === 3,
-     "al guardar no volvió a la lista (el refresh trae la lista nueva desde el servidor)");
+  ok(/Revisión AI – normal de INT003 cerrada/.test(await txt()), "no avisó que la revisión normal quedó cerrada");
+  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 4, "al guardar no volvió a la lista");
 }
-
-/* CORREGIR UNO CERRADO: trae sus conteos y guarda como corrección. */
 {
   await monta("m=sorting&c=normal");
-  await pg.evaluate(() => { window.__filas = {
-    v_sider_sorting_detalle: [
-      { revision_id: "r1", defecto: "rota", defecto_nombre: "Rota o despicado", cobra: true, orden: 1, unidades: 37, pct: 0.009, hl: 0.06 },
-    ] } });
-  await pg.click(".so-hechos .tr-so-btn >> nth=0");
-  await pg.waitForSelector("#ai-rec");
-  ok(/Guardar la corrección/.test(await txt()),
-     "corregir un Sorting cerrado no abrió el formulario en modo corrección");
-  ok(await pg.inputValue("#ai-rec") === "82080" && await pg.inputValue("#ai-rev") === "4104",
-     "el formulario de corrección no trae lo que ya se había guardado");
-  ok(/37/.test(await pg.$eval(".ai-def.hay", (e) => e.textContent)),
-     "no trajo los conteos del Sorting (el 37 de «rota»)");
+  await pg.click(".tr-vh.ai .btn.ai >> nth=0");
+  await pg.selectOption("#ai-canal", "t1"); await pg.selectOption("#ai-envase", "G175");
+  await pg.fill("#ai-rec", "500"); await pg.fill("#ai-rev", "50");
   await pg.locator("button.b1:not([disabled])").first().click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];
-  ok(l.a.p_tipo === "sorting" && l.a.p_viaje === "v1",
-     `la corrección de un Sorting se guardó como ${JSON.stringify(l.a.p_tipo)}: corregiría la AI`);
+  ok(l.a.p_viaje === "v1" && !("p_tipo" in l.a), `la certificada guardó ${JSON.stringify(l.a).slice(0, 140)}`);
   await pg.waitForFunction(() => window.__refresh > 0);
-  ok(/Sorting de HEC001 corregido/.test(await txt()), "no dijo «corregido»");
+  ok(/Revisión AI – certificada de REV001 cerrada/.test(await txt()), "no avisó que la certificada quedó cerrada");
 }
-
+/* CORREGIR UNA CERRADA: trae sus conteos y guarda como corrección, con SU clase. */
+for (const [sel, viaje, tipo, aviso] of [
+  [".so-hechos li.so .tr-so-btn", "v2", "sorting", /Revisión AI – normal de HEC002 corregida/],
+  [".so-hechos li.ai .tr-so-btn", "v1", null, /Revisión AI – certificada de HEC001 corregida/],
+]) {
+  await monta("m=sorting&c=normal");
+  await pg.evaluate(() => { window.__filas = { v_sider_ai_detalle: [
+    { revision_id: "r1", defecto: "rota", defecto_nombre: "Rota o despicado", cobra: true, orden: 1, unidades: 37, pct: 0.009, hl: 0.06 },
+    { revision_id: "r2", defecto: "rota", defecto_nombre: "Rota o despicado", cobra: true, orden: 1, unidades: 37, pct: 0.009, hl: 0.06 },
+  ] } });
+  await pg.click(sel + " >> nth=0");
+  await pg.waitForSelector("#ai-rec");
+  ok(/Guardar la corrección/.test(await txt()), "corregir no abrió el formulario en modo corrección");
+  ok(await pg.inputValue("#ai-rec") === "82080" && await pg.inputValue("#ai-rev") === "4104",
+     "el formulario de corrección no trae lo ya guardado");
+  ok(/37/.test(await pg.$eval(".ai-def.hay", (e) => e.textContent)), "no trajo los conteos (el 37 de «rota»)");
+  await pg.locator("button.b1:not([disabled])").first().click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  const l = (await rpcs())[0];
+  ok(l.a.p_viaje === viaje && (tipo ? l.a.p_tipo === tipo : !("p_tipo" in l.a)),
+     `la corrección de ${viaje} se guardó como ${JSON.stringify(l.a.p_tipo)}: cambiaría de clase`);
+  await pg.waitForFunction(() => window.__refresh > 0);
+  ok(aviso.test(await txt()), `no dijo «corregida»: ${aviso}`);
+}
 /* SI LA BASE RECHAZA, EL FORMULARIO NO SE CIERRA NI FINGE QUE GUARDÓ. */
 {
   await monta("m=form&c=sorting");
-  await pg.evaluate(() => { window.__rpcFalla = "Registrar un Sorting requiere permiso de edición en Sorting" });
+  await pg.evaluate(() => { window.__rpcFalla = "Registrar una revisión requiere permiso de edición en Revisión AI" });
   await pg.selectOption("#ai-canal", "t1"); await pg.selectOption("#ai-envase", "G175");
   await pg.fill("#ai-rec", "1000"); await pg.fill("#ai-rev", "100");
   await pg.locator("button.b1:not([disabled])").first().click();
   await pg.waitForSelector(".ai-p-falla");
-  ok(/permiso/.test(await pg.$eval(".ai-p-falla", (e) => e.textContent)),
-     "el rechazo de la base no se le explica a quien está guardando");
+  ok(/permiso/.test(await pg.$eval(".ai-p-falla", (e) => e.textContent)), "el rechazo de la base no se explica");
   ok(await pg.evaluate(() => !window.__guardado), "cerró el formulario como si hubiera guardado, y la base lo rechazó");
 }
 
 /* =====================================================================
-   5 · TRÁNSITO: PEDIR SORTING, Y PEDIR AI COMO SIEMPRE
+   5 · TRÁNSITO: SIN EL PASO DE LA AI, SIN SORTING, CON EL INTERNO
    ===================================================================== */
 await monta("m=transito&c=normal");
 {
   const t = await txt();
-  const tarjeta = (placa) => pg.locator(`article.tr-vh:has(.placa:text("${placa}"))`);
-  /* CUATRO CAMIONES: nada, solo Sorting, solo AI, las dos. */
   const info = await pg.$$eval("article.tr-vh", (s) => s.map((a) => ({
-    placa: a.querySelector(".placa").textContent,
-    sorting: !!a.querySelector(".sello.sorting"), ai: !!a.querySelector(".sello.ai"),
-    cls: a.className, boton: [...a.querySelectorAll(".tr-so-btn")].map((b) => b.textContent.trim()),
+    placa: a.querySelector(".placa").textContent, cls: a.className,
+    ai: a.querySelector(".sello.ai")?.textContent.trim() ?? null,
+    so: a.querySelector(".sello.sorting")?.textContent.trim() ?? null,
+    interno: a.querySelector(".sello.interno")?.textContent.trim() ?? null,
+    reloj: !!a.querySelector(".sello.transito, .sello.falta"),
+    boton: a.querySelector(".tr-ai")?.textContent.trim() ?? null,
+    pie: a.querySelector("footer .tr-salio")?.textContent.replace(/\s+/g, " ") ?? "",
   })));
   const p = (x) => info.find((i) => i.placa === x);
-  ok(!p("TRN001").sorting && !p("TRN001").ai && p("TRN001").boton[0] === "Pedir Sorting",
-     `el camión sin nada debería ofrecer «Pedir Sorting»: ${JSON.stringify(p("TRN001"))}`);
-  ok(p("TRN002").sorting && !p("TRN002").ai && p("TRN002").boton[0] === "Quitar Sorting",
-     `el que ya pidió Sorting debería ofrecer «Quitar Sorting»: ${JSON.stringify(p("TRN002"))}`);
-  ok(!p("TRN003").sorting && p("TRN003").ai, "el de solo AI no debe llevar sello de Sorting");
-  ok(p("TRN004").sorting && p("TRN004").ai, "el que lleva las dos tiene que mostrar los dos sellos");
-  /* EL COLOR DE LA TARJETA: la AI manda. */
-  ok(/\bai\b/.test(p("TRN004").cls) && !/\bso\b/.test(p("TRN004").cls),
-     `el camión con AI y Sorting se pinta ${p("TRN004").cls}: tiene que ser el morado de la AI, que se hace primero y cobra`);
-  ok(/\bso\b/.test(p("TRN002").cls), "el de solo Sorting no lleva su franja");
+  ok(!p("TRN001").ai && !p("TRN001").so && !p("TRN001").interno && p("TRN001").boton === "Pedir revisión AI",
+     `el camión sin nada: ${JSON.stringify(p("TRN001"))}`);
+  ok(p("TRN002").so === "REVISIÓN AI · NORMAL" && !p("TRN002").ai, `el marcado como normal: ${JSON.stringify(p("TRN002"))}`);
+  ok(p("TRN003").ai === "REVISIÓN AI · CERTIFICADA" && p("TRN003").boton === "Quitar revisión AI",
+     `el de la certificada: ${JSON.stringify(p("TRN003"))}`);
+  ok(p("TRN005").ai && p("TRN005").so && /\bai\b/.test(p("TRN005").cls) && !/\bso\b/.test(p("TRN005").cls),
+     `con las dos se pinta ${p("TRN005").cls}: tiene que mandar la certificada (morado)`);
 
-  /* LOS DOS SELLOS SE LEEN POR LA PALABRA. */
-  const dos = await pg.$$eval("article.tr-vh:has(.sello.sorting):has(.sello.ai) .sello", (s) => s.map((e) => e.textContent.trim()));
-  ok(dos.includes("SORTING") && dos.includes("REVISIÓN AI"),
-     `los dos sellos no se distinguen por la palabra: [${dos}]`);
+  /* EL INTERNO */
+  const i = p("INT004");
+  ok(i.interno === "INTERNO · REVISIÓN NORMAL", `el sello del interno dice «${i.interno}»`);
+  ok(!i.so && !i.ai, "el interno lleva un segundo sello con lo mismo");
+  ok(!i.reloj, "el interno lleva reloj de «en camino»: no hubo salida desde donde contarlo");
+  ok(i.boton === null, "al interno se le ofrece «Pedir revisión AI»: la certificada no es para él");
+  ok(/sin salida certificada/.test(i.pie) && !/0\/3/.test(i.pie), `el pie del interno dice «${i.pie}»`);
+  ok(/\bso\b/.test(i.cls) && !/\bai\b/.test(i.cls), `el interno se pinta «${i.cls}»`);
+  ok(await pg.$eval('article.tr-vh:has(.placa:text("INT004")) footer .mal', () => true).catch(() => false) === false,
+     "el interno sale con un «0/3 fotos» en rojo: reclama fotos de una salida que no hubo");
+  ok(await pg.$eval('article.tr-vh:has(.placa:text("INT004"))', (a) => !/le faltan fotos/.test(a.textContent)),
+     "el interno lleva el aviso «A la salida le faltan fotos»: reclama fotos de una salida que no hubo");
+  ok(await pg.$eval('article.tr-vh:has(.placa:text("TRN001"))', (a) => !/le faltan fotos/.test(a.textContent)),
+     "un camión con sus 3 fotos de salida lleva el aviso de fotos faltantes");
 
-  /* PEDIR SORTING LLAMA A LO SUYO Y NO A LO DE LA AI. */
-  await tarjeta("TRN001").locator(".tr-so-btn").click();
-  await pg.locator('[role="dialog"] button', { hasText: "Pedir Sorting" }).click();
-  await pg.waitForFunction(() => window.__rpc.length > 0);
-  let l = (await rpcs())[0];
-  ok(l.n === "sider_sorting_marcar" && l.a.p_viaje === "t1" && l.a.p_marcar === true,
-     `pedir Sorting llamó ${JSON.stringify(l)}`);
-  ok(!("p_motivo" in l.a), "pedir Sorting manda p_motivo: la función no lo recibe");
-  await pg.waitForFunction(() => window.__refresh > 0);
-  ok(/TRN001 pasará a Sorting cuando llegue/.test(await txt()), "no confirmó que el camión pasará a Sorting");
-}
-{
-  /* Y QUITARLO. */
-  await monta("m=transito&c=normal");
-  await pg.locator('article.tr-vh:has(.placa:text("TRN002")) .tr-so-btn').click();
-  await pg.locator('[role="dialog"] button', { hasText: "Quitar el Sorting" }).click();
-  await pg.waitForFunction(() => window.__rpc.length > 0);
-  const l = (await rpcs())[0];
-  ok(l.n === "sider_sorting_marcar" && l.a.p_marcar === false && l.a.p_viaje === "t2",
-     `quitar el Sorting llamó ${JSON.stringify(l)}`);
-}
-{
-  /* LA AI SIGUE PIDIÉNDOSE COMO SIEMPRE: la misma función, los mismos parámetros. */
-  await monta("m=transito&c=normal");
+  /* LO QUE YA NO EXISTE */
+  ok(!/Pedir Sorting|Quitar Sorting|Solicitar Sorting/.test(t), "todavía se ofrece pedir Sorting en Tránsito");
+  ok(await pg.$$eval(".tr-so-btn", (s) => s.length) === 0, "quedó un botón de Sorting en Tránsito");
+  ok(!/ya llegó y nadie contó su muestra/.test(t), "el anular todavía habla de la muestra que ya no se cuenta aquí");
+
+  /* PEDIR LA AI SIGUE SIENDO LO DE SIEMPRE. */
   await pg.locator('article.tr-vh:has(.placa:text("TRN001")) .tr-ai').click();
   await pg.locator('[role="dialog"] button', { hasText: "Solicitar revisión" }).click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
@@ -539,20 +612,160 @@ await monta("m=transito&c=normal");
      `pedir la AI cambió: ${JSON.stringify(l)}`);
   ok(!("p_tipo" in l.a), "pedir la AI manda p_tipo");
 }
+await monta("m=transito&c=noadmin");
 {
-  /* QUIEN NO ES ADMINISTRADOR NO VE EL BOTÓN: el candado es la base, pero un
-     botón que da error es peor que ninguno. */
-  await monta("m=transito&c=noadmin");
-  ok(await pg.$$eval(".tr-so-btn", (s) => s.length) === 0, "un no-administrador ve «Pedir Sorting»");
-  ok(await pg.$$eval(".sello.sorting", (s) => s.length) === 2, "sin ser admin sí debe VER qué camiones llevan Sorting");
+  ok(await pg.$$eval(".tr-ai", (s) => s.length) === 0, "un no-administrador ve «Pedir revisión AI»");
+  ok(await pg.$$eval(".sello.ai, .sello.sorting, .sello.interno", (s) => s.length) === 5,
+     "sin ser admin sí debe VER las marcas (3 de revisión + interno + una con las dos)");
+}
+
+/* ---------- EL RECIBO: EL INTERNO NO RECLAMA FOTOS DE UNA SALIDA QUE NO HUBO ---------- */
+{
+  await monta("m=transito&c=sinfotos");
+  const pedidos = [];
+  pg.on("request", (r) => { if (/\/api\/sider\/evidencia\//.test(r.url())) pedidos.push(r.url()) });
+  await pg.locator('article.tr-vh:has(.placa:text("INT002")) .btn:has-text("Certificar llegada")').click();
+  await pg.waitForSelector(".tr-llegada");
+  let t = await txt();
+  ok(/Llegó INT002/.test(t), "no abrió el recibo del interno");
+  ok(!/Faltan las fotos de la SALIDA/.test(t), "el recibo del interno reclama las fotos de una salida que nunca hubo: quedaría trancado");
+  ok(/por control/.test(t), "el recibo del interno no dice que lo creó control");
+  ok(/Al certificarla pasa a Revisión AI – normal/.test(t), "el recibo no dice a dónde pasa el interno");
+  await pg.waitForTimeout(300);
+  ok(pedidos.length === 0, "el recibo del interno fue a buscar las fotos de una salida que no existe");
+
+  /* Y AL NORMAL CON SALIDA INCOMPLETA SÍ SE LO DICE: la regla no se relajó para todos. */
+  await monta("m=transito&c=sinfotos");
+  await pg.locator('article.tr-vh:has(.placa:text("TRN001")) .btn:has-text("Certificar llegada")').click();
+  await pg.waitForSelector(".tr-llegada");
+  t = await txt();
+  ok(/Faltan las fotos de la SALIDA/.test(t), "un camión normal con 1 de 3 fotos de salida ya no las reclama: la regla se relajó para todos");
+  ok(!/Al certificarla pasa a Revisión AI/.test(t), "un camión sin revisión pedida dice que pasa a Revisión AI");
 }
 
 /* =====================================================================
-   5b · FUENTE PRINCIPAL: «SORTING PENDIENTE» / «SORTING HECHO»
-   ---------------------------------------------------------------------
-   Lo eligió Cristian: el camión entra a la fuente principal al certificar
-   la llegada, con una marca que dice si su Sorting sigue pendiente o ya
-   se hizo. Las reglas de quién lleva qué marca están en una función pura.
+   5a · EL «+»: MONTAR UN CAMIÓN INTERNO
+   ===================================================================== */
+await monta("m=transito&c=lectura");
+ok(await pg.$$eval(".tr-mas", (s) => s.length) === 0, "quien no puede editar Tránsito ve el «+»");
+
+await monta("m=transito&c=normal");
+{
+  ok(await pg.$$eval(".tr-mas", (s) => s.length) === 1, "no aparece el «+» para quien edita Tránsito");
+  ok(/Camión interno/.test(await pg.$eval(".tr-mas", (e) => e.textContent)), "el «+» no dice qué crea");
+  await pg.click(".tr-mas");
+  await pg.waitForSelector("#nv-titulo");
+  const crear = pg.locator('.vj-caja.nuevo .btn:has-text("Crear y dejar en tránsito")');
+
+  /* NADA ESCRITO: el botón apagado y lo que falta dicho por su nombre. */
+  ok(await crear.isDisabled(), "el botón de crear está encendido con el formulario vacío");
+  let t = await pg.$eval(".vj-caja.nuevo", (e) => e.textContent.replace(/\s+/g, " "));
+  ok(/Falta la placa, el CD de origen, el material, las estibas/.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
+  ok(await pg.inputValue(".nv-campos select >> nth=1") === "Barranquilla", "el destino no arranca en Barranquilla");
+  const destinos = await pg.$$eval(".nv-campos select >> nth=1 >> option", (o) => o.map((x) => x.textContent));
+  ok(JSON.stringify(destinos) === JSON.stringify(["Barranquilla", "Apartadó", "Medellín"]),
+     `los destinos son [${destinos}]: Barranquilla primero y sin repetirse aunque el maestro también la traiga como origen`);
+
+  /* LA PLACA SE ESCRIBE EN MAYÚSCULA. */
+  await pg.fill(".nv-placa input", "abc123");
+  ok(await pg.inputValue(".nv-placa input") === "ABC123", "la placa no se pasa a mayúsculas");
+
+  await pg.selectOption(".nv-campos select >> nth=0", "APA");
+
+  /* LA BÚSQUEDA DE MATERIAL, sin tildes y sin mayúsculas. */
+  const lista = async (q) => { await pg.fill(".nv-material input", q);
+    return pg.$$eval(".nv-lista li", (s) => s.map((e) => e.textContent.trim())); };
+  ok((await lista("COSTEÑA")).length === 1 && /Costeña 175/.test((await lista("COSTEÑA"))[0]), "«COSTEÑA» no encuentra la Costeña 175");
+  ok((await lista("costenita")).length === 1 && /Ámbar/.test((await lista("costenita"))[0]), "«costenita» (sin ñ) no encuentra la Costeñita Ámbar");
+  ok((await lista("3500")).length === 3, "buscar por código no trae los 3 materiales");
+  ok(/Ningún material del maestro coincide con «zzz»/.test((await lista("zzz"))[0] ?? ""), "una búsqueda sin resultados no lo dice");
+
+  /* UN MATERIAL SIN FACTORES: las cifras dicen «—», no un cero que parezca un dato. */
+  await pg.fill(".nv-material input", "azul");
+  await pg.click(".nv-lista button");
+  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "9");
+  const cif = async () => pg.$$eval(".nv-cifras div", (s) => Object.fromEntries(s.map((d) => [d.querySelector("dt").textContent, d.querySelector("dd").textContent])));
+  let c = await cif();
+  ok(c.Cajas === "—" && c.Unidades === "—" && c.HL === "—", `material sin factores: ${JSON.stringify(c)}`);
+  ok(c.Sider === "0,25", `9 estibas / 36 = 0,25 y dice «${c.Sider}»`);
+  await pg.click('.nv-escogido button:has-text("Cambiar")');
+
+  /* EL MATERIAL DE VERDAD: las cifras se calculan solas con las fórmulas de Certificar. */
+  await pg.fill(".nv-material input", "175");
+  await pg.click(".nv-lista button");
+  ok(/Botella Costeña 175 cc/.test(await pg.$eval(".nv-escogido", (e) => e.textContent)), "no muestra el material escogido");
+  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
+  c = await cif();
+  const f0 = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(72 * 10.5));
+  const fu = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(24 * 72 * 10.5));
+  const fh = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(0.00175 * 24 * 72 * 10.5));
+  const fs = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(10.5 / 36));
+  ok(c.Cajas === f0 && c.Unidades === fu && c.HL === fh && c.Sider === fs,
+     `10,5 estibas de la 175: salió ${JSON.stringify(c)} y debía ser Sider ${fs}, cajas ${f0}, unidades ${fu}, HL ${fh}`);
+  ok(await crear.isEnabled(), "con todo lleno el botón no se enciende");
+
+  /* ORIGEN = DESTINO, con TODO lo demás lleno: lo único que puede apagar el botón es eso. */
+  await pg.selectOption(".nv-campos select >> nth=0", "BAQ");
+  ok(await pg.$$eval(".vj-caja.nuevo [role=alert]", (s) => s.some((e) => /mismo CD/.test(e.textContent))),
+     "origen y destino iguales no se avisan");
+  ok(await crear.isDisabled(), "deja crear con origen y destino iguales (con todo lo demás lleno)");
+  await pg.selectOption(".nv-campos select >> nth=0", "APA");
+  ok(await pg.$$eval(".vj-caja.nuevo [role=alert]", (s) => s.length) === 0, "el aviso de origen = destino no se quita al corregir");
+  ok(await crear.isEnabled(), "al corregir el destino el botón no se vuelve a encender");
+
+  /* ESTIBAS MALAS APAGAN EL BOTÓN. */
+  for (const malo of ["0", "-3", "abc", ""]) {
+    await pg.fill(".nv-campos label:has(span:text('Estibas')) input", malo);
+    ok(await crear.isDisabled(), `con «${malo}» estibas deja crear`);
+  }
+  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
+
+  /* CREAR: EXACTAMENTE LOS PARÁMETROS QUE LA FUNCIÓN ESPERA. */
+  await pg.click(".nv-mas summary");
+  await pg.fill(".nv-mas label:has(span:text('Factura')) input", "F-77");
+  await pg.fill(".nv-mas label:has(span:text('Nota')) input", "   ");
+  await crear.click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  const l = (await rpcs())[0];
+  ok(l.n === "sider_viaje_interno_crear", `llamó «${l.n}»`);
+  ok(JSON.stringify(l.a) === JSON.stringify({ p_placa: "ABC123", p_planta: "APA", p_destino: "Barranquilla", p_sku: "3500887",
+                                              p_estibas: 10.5, p_factura: "F-77", p_lote: null, p_nota: null }),
+     `los parámetros son ${JSON.stringify(l.a)}`);
+  await pg.waitForFunction(() => window.__refresh > 0);
+  ok(await pg.$$eval("#nv-titulo", (s) => s.length) === 0, "el formulario no se cierra al crear");
+  ok(/ABC123 quedó en tránsito/.test(await txt()), "no avisa que el camión quedó en tránsito");
+}
+/* SI LA BASE RECHAZA, NO SE CIERRA NI FINGE. */
+{
+  await monta("m=transito&c=normal");
+  await pg.click(".tr-mas");
+  await pg.fill(".nv-placa input", "ZZZ999");
+  await pg.selectOption(".nv-campos select >> nth=0", "APA");
+  await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
+  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "5");
+  await pg.selectOption(".nv-campos select >> nth=1", "Medellín");
+  await pg.evaluate(() => { window.__rpcFalla = "Ese material está apagado en el maestro" });
+  await pg.click('.vj-caja.nuevo .btn:has-text("Crear y dejar en tránsito")');
+  await pg.waitForSelector(".vj-mal");
+  ok(/material/.test(await pg.$eval(".vj-mal", (e) => e.textContent)), "el rechazo de la base no se le explica a quien crea");
+  ok(await pg.$$eval("#nv-titulo", (s) => s.length) === 1, "cerró el formulario aunque la base lo rechazó");
+  ok(await pg.evaluate(() => window.__refresh) === 0, "refrescó como si hubiera creado");
+  /* REINTENTAR CON EL MISMO FORMULARIO: el destino escogido (no el de por defecto) es el que viaja. */
+  await pg.evaluate(() => { window.__rpcFalla = null; window.__rpc.length = 0 });
+  await pg.click('.vj-caja.nuevo .btn:has-text("Crear y dejar en tránsito")');
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  ok((await rpcs())[0].a.p_destino === "Medellín", `el destino escogido no viaja: ${(await rpcs())[0].a.p_destino}`);
+  /* CANCELAR NO LLAMA A NADA. */
+  await monta("m=transito&c=normal");
+  await pg.click(".tr-mas");
+  await pg.evaluate(() => { window.__rpc.length = 0 });
+  await pg.click('.vj-caja.nuevo .btn:has-text("Cancelar")');
+  ok(await pg.$$eval("#nv-titulo", (s) => s.length) === 0, "cancelar no cierra");
+  ok((await rpcs()).length === 0, "cancelar llamó a la base");
+}
+
+/* =====================================================================
+   5b · FUENTE PRINCIPAL: LA MARCA DE LA REVISIÓN NORMAL Y EL INTERNO
    ===================================================================== */
 {
   const u = (a, b) => pg.evaluate(([x, y]) => window.__unir(x, y), [a, b]);
@@ -560,53 +773,83 @@ await monta("m=transito&c=normal");
   let r = await u(["a", "b"], ["b"]);
   ok(eq(r, { a: "pendiente", b: "hecho" }), `pidió a y b, hizo b: salió ${JSON.stringify(r)}`);
   r = await u(["a"], ["zzz"]);
-  ok(eq(r, { a: "pendiente" }),
-     `un Sorting «hecho» de un camión que NUNCA LO PIDIÓ salió ${JSON.stringify(r)}: se le inventaría una marca`);
+  ok(eq(r, { a: "pendiente" }), `una revisión «hecha» de un camión que NUNCA la pidió salió ${JSON.stringify(r)}`);
   r = await u(["a"], [null, undefined]);
-  ok(eq(r, { a: "pendiente" }), `un Sorting sin viaje (importado) salió ${JSON.stringify(r)}`);
+  ok(eq(r, { a: "pendiente" }), `una revisión sin viaje (importada) salió ${JSON.stringify(r)}`);
   ok(eq(await u([], []), {}), "sin nadie salió algo");
   r = await u(["a"], ["a", "a"]);
-  ok(eq(r, { a: "hecho" }), `hecho dos veces salió ${JSON.stringify(r)}`);
+  ok(eq(r, { a: "hecho" }), `hecha dos veces salió ${JSON.stringify(r)}`);
 }
 await monta("m=viajes&c=marcas");
 {
-  const marcas = await pg.$$eval("tbody tr", (s) => s.map((tr) => ({
+  const filas = await pg.$$eval("tbody tr", (s) => s.map((tr) => ({
     placa: tr.querySelector(".placa")?.textContent,
-    txt: tr.querySelector(".vj-sorting .sello")?.textContent.trim() ?? null,
+    marcas: [...tr.querySelectorAll(".vj-sorting .sello")].map((e) => e.textContent.trim()),
     hecho: !!tr.querySelector(".vj-sorting .sello.hecho"),
+    fotos: tr.textContent.replace(/\s+/g, " "),
   })));
-  const m = Object.fromEntries(marcas.map((x) => [x.placa, x]));
-  ok(m.FUE001.txt === "SORTING PENDIENTE" && !m.FUE001.hecho, `FUE001: ${JSON.stringify(m.FUE001)}`);
-  ok(m.FUE002.txt === "SORTING HECHO" && m.FUE002.hecho, `FUE002: ${JSON.stringify(m.FUE002)}`);
-  ok(m.FUE003.txt === null, `el que no pidió Sorting lleva marca: ${JSON.stringify(m.FUE003)}`);
-  /* EL ESTADO NO SE PISA: un camión recibido con el Sorting pendiente dice
-     las dos cosas, cada una en su sitio. */
-  const est = await pg.$$eval("tbody tr", (s) => s.map((tr) =>
-    [...tr.querySelectorAll(".sello")].map((e) => e.textContent.trim())));
-  ok(est[0].includes("recibido") && est[0].includes("SORTING PENDIENTE"),
-     `el estado y el Sorting no conviven en la misma fila: ${est[0]}`);
-  ok(est[3].includes("en tránsito") && est[3].includes("SORTING PENDIENTE"),
-     `un camión en tránsito que pidió Sorting: ${est[3]}`);
+  const m = Object.fromEntries(filas.map((x) => [x.placa, x]));
+  ok(JSON.stringify(m.FUE001.marcas) === '["REVISIÓN NORMAL PENDIENTE"]' && !m.FUE001.hecho, `FUE001: ${JSON.stringify(m.FUE001.marcas)}`);
+  ok(JSON.stringify(m.FUE002.marcas) === '["REVISIÓN NORMAL HECHA"]' && m.FUE002.hecho, `FUE002: ${JSON.stringify(m.FUE002.marcas)}`);
+  ok(m.FUE003.marcas.length === 0, `el que no la pidió lleva marca: ${JSON.stringify(m.FUE003.marcas)}`);
+  ok(m.FUE001.marcas.every((x) => !/SORTING/i.test(x)), "quedó la palabra Sorting");
+  /* EL INTERNO: su marca, su «sin salida», y ningún reclamo de fotos. */
+  ok(m.FUE005.marcas.includes("INTERNO") && m.FUE005.marcas.includes("REVISIÓN NORMAL PENDIENTE"),
+     `FUE005 (interno): ${JSON.stringify(m.FUE005.marcas)}`);
+  ok(/interno · sin salida/.test(m.FUE005.fotos) && !/0\/3 fotos/.test(m.FUE005.fotos),
+     `el interno dice «0/3 fotos» o no dice que no tuvo salida: «${m.FUE005.fotos.slice(0, 200)}»`);
+  ok(/3\/3 fotos/.test(m.FUE001.fotos), "un camión normal ya no dice sus fotos de salida");
+  /* EL ESTADO NO SE PISA. */
+  const est = await pg.$$eval("tbody tr", (s) => s.map((tr) => [...tr.querySelectorAll(".sello")].map((e) => e.textContent.trim())));
+  ok(est[0].includes("recibido") && est[0].includes("REVISIÓN NORMAL PENDIENTE"), `el estado y la revisión no conviven: ${est[0]}`);
+  ok(est[3].includes("en tránsito") && est[3].includes("REVISIÓN NORMAL PENDIENTE"), `en tránsito con revisión pedida: ${est[3]}`);
 }
 await monta("m=viajes&c=sinmarcas");
-ok(await pg.$$eval(".vj-sorting", (s) => s.length) === 0,
-   "sin marcas (o sin correr la migración) aparece un rótulo de Sorting igual");
+ok(await pg.$$eval(".vj-sorting", (s) => s.length) === 0, "sin marcas (o sin correr la migración) aparece un rótulo igual");
 
 /* =====================================================================
-   6 · NADA SE SALE DE LA PANTALLA, en los cuatro anchos
+   6 · EL INFORME AI: LA CLASE VA ESCRITA Y SE PUEDE FILTRAR
+   ===================================================================== */
+await monta("m=informe&c=normal");
+{
+  const t = await txt();
+  const ths = await pg.$$eval(".ia-tabla th", (s) => s.map((e) => e.textContent.trim()));
+  ok(ths.includes("Revisión"), `la tabla no tiene la columna «Revisión»: [${ths.slice(0, 6)}]`);
+  const selos = await pg.$$eval(".ia-tabla tbody tr", (s) => Object.fromEntries(s.map((tr) =>
+    [tr.querySelector("b").textContent, tr.querySelector("td:nth-child(3) .ia-sello")?.textContent.trim()])));
+  ok(selos.INF001 === "Certificada" && selos.INF002 === "Normal" && selos.INF003 === "Normal" && Object.keys(selos).length === 3,
+     `las clases de las filas son ${JSON.stringify(selos)}`);
+  const opts = await pg.$$eval('.ia-filtros label:has(span:text("Revisión")) option', (o) => o.map((x) => x.textContent));
+  ok(JSON.stringify(opts) === JSON.stringify(["Todas", "Certificada", "Normal"]), `el filtro «Revisión» ofrece [${opts}]`);
+  ok(/1 certificada y 2 normales/.test(t), `la nota no reparte las clases: «${t.slice(-160)}»`);
+  await pg.selectOption('.ia-filtros label:has(span:text("Revisión")) select', "sorting");
+  ok(/tipo=sorting/.test(await pg.evaluate(() => window.__push ?? "")), `el filtro no viaja en la dirección: ${await pg.evaluate(() => window.__push)}`);
+}
+await monta("m=informe&c=filtrado");
+ok(await pg.inputValue('.ia-filtros label:has(span:text("Revisión")) select') === "sorting", "el filtro escogido no se ve escogido");
+ok(!/certificada y/.test(await txt()), "filtrado a una clase todavía cuenta las dos");
+await monta("m=informe&c=sintipo");
+{
+  const selos = await pg.$$eval(".ia-tabla tbody tr td:nth-child(3) .ia-sello", (s) => s.map((e) => e.textContent.trim()));
+  ok(selos.length === 2 && selos.every((x) => x === "Certificada"), `sin columna tipo (migración sin correr) las filas salen [${selos}]`);
+  ok(!/normal/i.test(await pg.$eval(".ia-mas", (e) => e.textContent)), "sin tipo dice que hay revisiones normales");
+}
+
+/* =====================================================================
+   7 · NADA SE SALE NI SE MONTA, en los cuatro anchos
    ===================================================================== */
 for (const ancho of [360, 390, 820, 1440]) {
-  for (const q of ["m=sorting&c=normal", "m=sorting&c=largos", "m=transito&c=largos"]) {
+  for (const q of ["m=sorting&c=normal", "m=sorting&c=largos", "m=transito&c=largos", "m=transito&c=normal",
+                   "m=form&c=sorting", "m=informe&c=normal", "m=viajes&c=marcas"]) {
     await monta(q, ancho);
     const sobra = await pg.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    /* El informe y Fuente principal llevan tablas que se deslizan dentro de su tarjeta: la PÁGINA no. */
     ok(sobra <= 1, `${q} en ${ancho} px se sale ${sobra} px de ancho`);
 
-    /* NADA POR FUERA DE SU TARJETA: la dirección larga empuja el botón fuera
-       del borde (pasó con «Certificar llegada»), y ahora hay un botón más. */
     const fuera = await pg.$$eval("article.tr-vh", (s) => s.flatMap((a) => {
       const r = a.getBoundingClientRect();
-      return [...a.querySelectorAll("button, .sello, dl, .tr-ruta")].map((e) => {
+      return [...a.querySelectorAll("button, .sello, dl, .tr-ruta, .tr-mat")].map((e) => {
         const b = e.getBoundingClientRect();
         return b.right > r.right + 1 || b.left < r.left - 1
           ? `${e.className || e.tagName} llega a ${Math.round(b.right)} y su tarjeta termina en ${Math.round(r.right)}` : null;
@@ -614,16 +857,27 @@ for (const ancho of [360, 390, 820, 1440]) {
     }));
     ok(fuera.length === 0, `${q} en ${ancho} px: ${fuera[0]}`);
 
-    /* LOS DEDOS: ningún botón NUESTRO por debajo de 38 px. Solo los de
-       Sorting: «Corregir» y «Anular» de Tránsito ya existían y miden 34 —es
-       un asunto de esa pantalla, no de esta, y mezclarlo haría que este
-       arnés fallara por algo que no tocamos. */
-    const chicos = await pg.$$eval(".so-btn, .tr-so-btn, .tr-ai, footer .btn", (s) =>
+    /* LOS DEDOS: ningún botón NUESTRO por debajo de 38 px. */
+    const chicos = await pg.$$eval(".so-btn, .btn.ai, .so-clase button, .tr-mas, .tr-vh footer .btn, .tr-so-btn", (s) =>
       s.map((b) => [b.textContent.trim(), b.getBoundingClientRect().height])
        .filter(([, h]) => h > 0 && h < 38));
     ok(chicos.length === 0, `${q} en ${ancho} px: el botón «${chicos[0]?.[0]}» mide ${chicos[0]?.[1]} px`);
 
-    /* Y LOS RENGLONES DE «HECHOS» NO SE MONTAN: cinco columnas en 360 px. */
+    /* LA CINTA DEL FORMULARIO: cada celda dentro de la cinta, ninguna montada. */
+    const celdas = await pg.$$eval(".ai-cinta > *", (s) => {
+      const c = s[0]?.parentElement.getBoundingClientRect();
+      return s.map((e) => { const b = e.getBoundingClientRect();
+        return { t: e.textContent.trim().slice(0, 16), x0: b.left, x1: b.right, y0: b.top, y1: b.bottom,
+                 dentro: !c || (b.right <= c.right + 1 && b.left >= c.left - 1) } });
+    });
+    for (const h of celdas) ok(h.dentro, `${q} en ${ancho} px: la celda «${h.t}» de la cinta se sale`);
+    for (let a = 0; a < celdas.length; a++) for (let b = a + 1; b < celdas.length; b++) {
+      const A = celdas[a], B = celdas[b];
+      ok(!(A.x0 < B.x1 - 1.5 && B.x0 < A.x1 - 1.5 && A.y0 < B.y1 - 1.5 && B.y0 < A.y1 - 1.5),
+         `${q} en ${ancho} px: «${A.t}» y «${B.t}» se montan en la cinta`);
+    }
+
+    /* LOS RENGLONES DE «HECHAS» NO SE MONTAN (seis columnas en 360 px). */
     const filas = await pg.$$eval(".so-hechos li", (s) => s.map((li) => {
       const r = li.getBoundingClientRect();
       return [...li.children].map((c) => { const b = c.getBoundingClientRect();
@@ -631,65 +885,108 @@ for (const ancho of [360, 390, 820, 1440]) {
                  dentro: b.right <= r.right + 1 && b.left >= r.left - 1 } });
     }));
     for (const [i, hijos] of filas.entries()) {
-      for (const h of hijos) ok(h.dentro, `${q} en ${ancho} px: «${h.t}» se sale del renglón ${i + 1} de Hechos`);
+      for (const h of hijos) ok(h.dentro, `${q} en ${ancho} px: «${h.t}» se sale del renglón ${i + 1} de Hechas`);
       for (let a = 0; a < hijos.length; a++) for (let b = a + 1; b < hijos.length; b++) {
         const A = hijos[a], B = hijos[b];
-        const cruza = A.x0 < B.x1 - 1.5 && B.x0 < A.x1 - 1.5 && A.y0 < B.y1 - 1.5 && B.y0 < A.y1 - 1.5;
-        ok(!cruza, `${q} en ${ancho} px: «${A.t}» y «${B.t}» se montan en Hechos`);
+        ok(!(A.x0 < B.x1 - 1.5 && B.x0 < A.x1 - 1.5 && A.y0 < B.y1 - 1.5 && B.y0 < A.y1 - 1.5),
+           `${q} en ${ancho} px: «${A.t}» y «${B.t}» se montan en Hechas`);
       }
     }
   }
+
+  /* EL «+» ABIERTO: la caja entera dentro de la pantalla, en todos los anchos, y con todo lleno. */
+  await monta("m=transito&c=normal", ancho);
+  await pg.click(".tr-mas");
+  await pg.waitForSelector(".vj-caja.nuevo");
+  await pg.fill(".nv-placa input", "ABC123");
+  await pg.selectOption(".nv-campos select >> nth=0", "APA");
+  await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
+  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
+  await pg.click(".nv-mas summary");
+  const caja = await pg.evaluate(() => {
+    const W = document.documentElement.clientWidth;
+    const c = document.querySelector(".vj-caja.nuevo").getBoundingClientRect();
+    const fuera = [...document.querySelectorAll(".vj-caja.nuevo *")].filter((e) => {
+      const b = e.getBoundingClientRect(); return b.width > 0 && (b.right > c.right + 1 || b.left < c.left - 1) })
+      .map((e) => `${e.tagName.toLowerCase()}.${String(e.className).slice(0, 30)}`);
+    const chicos = [...document.querySelectorAll(".vj-caja.nuevo input, .vj-caja.nuevo select, .vj-caja.nuevo .btn, .nv-lista button")]
+      .map((e) => [e.tagName.toLowerCase() + "." + String(e.className).slice(0, 20), e.getBoundingClientRect().height])
+      .filter(([, h]) => h > 0 && h < 40);
+    return { der: c.right, W, izq: c.left, sobra: document.documentElement.scrollWidth - W, fuera, chicos };
+  });
+  ok(caja.sobra <= 1, `el «+» en ${ancho} px se sale ${caja.sobra} px`);
+  ok(caja.izq >= -1 && caja.der <= caja.W + 1, `la caja del «+» en ${ancho} px queda entre ${Math.round(caja.izq)} y ${Math.round(caja.der)} de ${caja.W}`);
+  ok(caja.fuera.length === 0, `el «+» en ${ancho} px: ${caja.fuera[0]} se sale de la caja`);
+  ok(caja.chicos.length === 0, `el «+» en ${ancho} px: ${caja.chicos[0]?.[0]} mide ${caja.chicos[0]?.[1]} px (mínimo 40 para el dedo)`);
 }
 
 /* =====================================================================
-   7 · SE LEE Y SE DISTINGUE — EN LOS SIETE TEMAS
+   8 · SE LEE Y SE DISTINGUE — EN LOS SIETE TEMAS REALES
    ---------------------------------------------------------------------
-   El magenta de Sorting quedó a 87 del morado de AI, por debajo del 100
-   que se exigía: el color NO puede ir solo. Aquí se mide lo que sí se
-   puede afirmar: que el texto se lee, y que las dos palabras son
-   distintas —que es lo que separa una de la otra cuando el color no
-   alcanza.
+   Los nombres salen de globals.css: oficial (sin atributo), tinta,
+   pizarra, ámbar, negro, gris, halo. Los colores se resuelven en el
+   navegador (un canvas de 1×1 lee cualquier sintaxis, incluido
+   color-mix, que devuelve `color(srgb …)` y no `rgb()`), y un fondo
+   transparente se compone sobre el de sus padres.
    ===================================================================== */
-{
-  const lum = (c) => {
-    const [r, g, b] = c.match(/\d+/g).slice(0, 3).map(Number).map((v) => {
-      const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
+const MIDE = () => {
+  const cv = document.createElement("canvas"); cv.width = cv.height = 1;
+  const cx = cv.getContext("2d", { willReadFrequently: true });
+  const rgba = (c) => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = "#000"; cx.fillStyle = c; cx.fillRect(0, 0, 1, 1);
+    const d = cx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255] };
+  const sobre = (f, b) => f[3] >= 1 ? f : [0, 1, 2].map((i) => f[i] * f[3] + b[i] * (1 - f[3])).concat([1]);
+  const fondo = (e) => { let acum = [255, 255, 255, 1]; const pila = [];
+    for (let n = e; n; n = n.parentElement) pila.push(rgba(getComputedStyle(n).backgroundColor));
+    for (const c of pila.reverse()) acum = sobre(c, acum); return acum };
+  const lum = ([r, g, b]) => { const f = [r, g, b].map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4 });
+    return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2] };
   const razon = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
-  for (const t of ["", "oficial", "noche", "papel", "alto", "sobrio", "bosque"]) {
-    await monta("m=transito&c=normal", 1440, t);
-    const m = await pg.evaluate(() => {
-      const g = (sel) => { const e = document.querySelector(sel); if (!e) return null;
-        const s = getComputedStyle(e); return { c: s.color, f: s.backgroundColor, b: s.borderLeftColor } };
-      return { so: g(".sello.sorting"), ai: g(".sello.ai"), btn: g(".tr-so-btn.on"),
-               cardSo: g("article.tr-vh.so"), cardAi: g("article.tr-vh.ai"),
-               largo: g("article.tr-vh.largo") };
-    });
-    ok(m.so && m.ai && m.btn, `[${t || "claro"}] faltan los sellos o el botón`);
-    if (!(m.so && m.ai && m.btn)) continue;
-    ok(razon(m.so.c, m.so.f) >= 4.5,
-       `[${t || "claro"}] el sello SORTING se lee a ${razon(m.so.c, m.so.f).toFixed(1)}:1 y tiene que llegar a 4,5`);
-    ok(razon(m.btn.c, m.btn.f) >= 4.5,
-       `[${t || "claro"}] el botón «Quitar Sorting» se lee a ${razon(m.btn.c, m.btn.f).toFixed(1)}:1`);
-    /* LA FRANJA DE SORTING NO PUEDE SER LA DE «VA TARDE» EN NINGÚN TEMA: en uno
-       el oro es AZUL y un Sorting azul habría chocado justo ahí. */
-    if (m.largo) {
-      const d = Math.hypot(...[0, 1, 2].map((i) => m.cardSo.b.match(/\d+/g)[i] - m.largo.b.match(/\d+/g)[i]));
-      ok(d >= 85, `[${t || "claro"}] la franja de Sorting está a ${Math.round(d)} de la de «va tarde»`);
+  return (sel) => { const e = document.querySelector(sel); if (!e) return null;
+    const f = fondo(e); const t = sobre(rgba(getComputedStyle(e).color), f); return razon(t, f) };
+};
+const PARES = {
+  "m=sorting&c=normal": [".tr-vh.ai .sello.ai", ".tr-vh.so .sello.sorting", ".tr-vh .sello.interno",
+                         ".so-clase button", ".tr-vh.ai .btn.ai", ".tr-vh.so .btn.so-btn", ".so-hechos li.so .so-h-tipo .sello"],
+  "m=transito&c=normal": [".tr-vh .sello.ai", ".tr-vh .sello.sorting", ".tr-vh .sello.interno", ".tr-mas", ".tr-nuevo p"],
+  "m=viajes&c=marcas": [".vj-sorting .sello.interno", ".vj-sorting .sello:not(.interno)"],
+  "m=informe&c=normal": [".ia-tabla td:nth-child(3) .ia-sello.propio", ".ia-tabla td:nth-child(3) .ia-sello.normal"],
+};
+const TEMAS = ["", "tinta", "pizarra", "ambar", "negro", "gris", "halo"];
+const tabla = [];
+for (const t of TEMAS) {
+  for (const [q, sels] of Object.entries(PARES)) {
+    await monta(q, 1440, t);
+    if (q === "m=sorting&c=normal") await pg.click('.so-clase button:has-text("Normal")');
+    if (q === "m=sorting&c=normal") await pg.click('.so-clase button:has-text("Todas")');
+    /* .so-clase button: el seleccionado es el de «Todas» (fondo oscuro) — se mide ese. */
+    const r = await pg.evaluate(([src, sl]) => { const mide = eval("(" + src + ")")(); return sl.map((s) =>
+      s === ".so-clase button" ? [s, mide('.so-clase button.on')] : [s, mide(s)]) }, [MIDE.toString(), sels]);
+    for (const [s, v] of r) {
+      ok(v !== null, `[${t || "oficial"}] ${q}: no existe ${s}`);
+      if (v !== null) { tabla.push([t || "oficial", s, v]); ok(v >= 4.5, `[${t || "oficial"}] ${s} se lee a ${v.toFixed(2)}:1 y tiene que llegar a 4,5`) }
     }
-    /* Y las dos PALABRAS son distintas. */
-    const w = await pg.$$eval(".sello.sorting, .sello.ai", (s) => s.map((e) => e.textContent.trim()));
-    ok(new Set(w).size === 2, `[${t || "claro"}] los sellos de AI y Sorting dicen lo mismo: [${w}]`);
   }
+  /* LAS DOS PALABRAS SON DISTINTAS: cuando el color no alcanza, las separa la palabra. */
+  await monta("m=sorting&c=normal", 1440, t);
+  const w = await pg.$$eval(".tr-vh .sello.ai, .tr-vh .sello.sorting", (s) => [...new Set(s.map((e) => e.textContent.trim()))]);
+  ok(w.length === 2, `[${t || "oficial"}] los sellos de certificada y normal dicen lo mismo: [${w}]`);
+  /* LA FRANJA DICE LA CLASE: todas las de una clase comparten color —también la que lleva más de un
+     día esperando, que se tiñe— y las dos clases no comparten ninguno. */
+  const franjas = await pg.evaluate(() => {
+    const g = (sel) => [...new Set([...document.querySelectorAll(sel)].map((e) => getComputedStyle(e).borderLeftColor))];
+    return { so: g(".tr-vh.so"), ai: g(".tr-vh.ai") } });
+  ok(franjas.so.length === 1 && franjas.ai.length === 1 && franjas.so[0] !== franjas.ai[0],
+     `[${t || "oficial"}] las franjas de clase son certificada ${JSON.stringify(franjas.ai)} y normal ${JSON.stringify(franjas.so)}: ` +
+     `cada clase debe tener UN color, también cuando lleva más de un día esperando`);
 }
 
 ok(roto.length === 0, `hubo errores en la consola: ${roto[0]}`);
 await nav.close();
 if (fallas.length) { console.log(""); fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
-console.log("✓ Sorting en pantalla: la AI se guarda EXACTAMENTE como antes —sin p_tipo, con el mismo juego de " +
-            "parámetros— y solo el Sorting lo lleva; un Sorting no habla de plata ni de cobro y la AI conserva " +
-            "todo lo suyo; la lista dice cuántos esperan y cuáles llevan más de un día, y sin permiso no hay " +
-            "botones; pedir y quitar Sorting en Tránsito llama a su función y la AI sigue con la suya; cerrar " +
-            "y corregir desde la lista guardan como Sorting; nada se sale ni se monta en los cuatro anchos, y " +
-            "el sello se lee y se distingue de la AI por la palabra en los siete temas.");
+console.log("✓ Revisión AI en pantalla: la lista reparte certificadas y normales con la palabra escrita, filtra, " +
+            "marca al interno y sin permiso no hay botones; la certificada se guarda EXACTAMENTE como antes " +
+            "—sin p_tipo— y la normal lleva el suyo, las dos con su índice de cobro; el «+» calcula solo, dice " +
+            "qué falta, no deja origen igual a destino y manda a la base los parámetros exactos; Tránsito ya no " +
+            "pide Sorting ni tiene el paso de la AI y el interno no reclama fotos de una salida que no hubo; " +
+            "Fuente principal y el Informe AI marcan la clase; y nada se sale en 4 anchos ni deja de leerse en " +
+            "los 7 temas reales.");

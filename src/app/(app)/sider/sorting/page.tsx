@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
-import { maestrosAi, sortingPendientes, sortingHechos } from "@/modulos/sider/ai";
+import { maestrosAi, revisionesPendientes, revisionesHechas } from "@/modulos/sider/ai";
 import type { Viaje } from "@/modulos/sider/comun";
 import "../sider.css";
 import "@/modulos/sider/ai.css";
@@ -10,20 +10,27 @@ import { Sorting } from "./Sorting";
 export const dynamic = "force-dynamic";
 
 /**
- * SORTING — LO QUE LOS MUCHACHOS TIENEN POR HACER.
+ * REVISIÓN AI — LO QUE ESPERA SU REVISIÓN, LAS DOS CLASES.
  *
- * «Apenas certifiquen la llegada en tránsito, si esa tiene asignación de
- *  Sorting pues pase a Sorting para que allí los muchachos no se
- *  enreden y culminen de terminarlo.»
+ * «Lo que se llama Sorting que se llame Revisión AI, y allí dentro lo
+ *  segregado: Revisión AI – normal y Revisión AI – certificada.»
  *
- * Un camión llega a esta lista por UNA sola razón: el administrador pidió
- * Sorting y alguien certificó su llegada. La lista la arma la base
- * (`v_sider_sorting_pendientes`) y no esta página, para que la pantalla y
- * la función que guarda no puedan discrepar sobre qué es «ya llegó».
+ * LA RUTA SIGUE SIENDO /sider/sorting. Los permisos de los roles están
+ * guardados con esa ruta (`rol_permisos.seccion`); cambiarla dejaría
+ * huérfanos los que ya se dieron y esta pantalla nacería cerrada para
+ * todos. Lo que cambia es lo que se LEE: el nombre en el menú, el título
+ * y los rótulos.
  *
- * Y DE AQUÍ SE VA cuando alguien cierra el Sorting: pasa a «Hechos» y se
- * guarda con su categoría, aparte de la AI. Nada de lo que se cuenta
- * aquí toca el cobro al socio.
+ * Un camión llega a esta lista por UNA sola razón: se certificó su
+ * llegada y tiene una revisión pedida —la certificada, que pide el
+ * administrador a un camión de Sider; la normal, que nace sola cuando
+ * control crea un camión con el «+» de Tránsito—. La lista la arma la
+ * base (`v_sider_revision_pendientes`) y no esta página, para que la
+ * pantalla y la función que guarda no puedan discrepar sobre qué es «ya
+ * llegó».
+ *
+ * Y DE AQUÍ SE VA cuando alguien la cierra: pasa a «Hechas» y entra al
+ * Informe AI con su marca. Las dos cobran.
  */
 export default async function SortingPage() {
   /* Los permisos primero y solos: de ellos depende si hay que traer los
@@ -33,8 +40,8 @@ export default async function SortingPage() {
   const puedeEditar = permisos.puedeEditar("/sider/sorting");
 
   const [pend, hechos, nombres, maestros] = await Promise.all([
-    sortingPendientes(),
-    sortingHechos(40),
+    revisionesPendientes(),
+    revisionesHechas(40),
     nombresTodos(),
     puedeEditar ? maestrosAi() : Promise.resolve(null),
   ]);
@@ -45,10 +52,11 @@ export default async function SortingPage() {
     return (
       <div className="sd">
         <section className="sin-tablas">
-          <h2>Falta crear Sorting en Supabase</h2>
+          <h2>Falta preparar la Revisión AI en Supabase</h2>
           <p>
-            Ejecuta <code>supabase/migraciones/2026-09-sider-sorting.sql</code> en el SQL
-            Editor. Sin eso no hay de dónde leer los camiones que pasan a Sorting.
+            Ejecuta, en este orden, <code>supabase/migraciones/2026-09-sider-sorting.sql</code> y{" "}
+            <code>supabase/migraciones/2026-09-sider-revision-ai-interna.sql</code> en el SQL
+            Editor. Sin eso no hay de dónde leer los camiones que esperan revisión.
           </p>
         </section>
       </div>
@@ -77,7 +85,7 @@ export default async function SortingPage() {
         ahora={new Date().toISOString()}
         pendientes={pend.pendientes}
         detalle={detalle}
-        hechos={hechos.hechos}
+        hechos={hechos.hechas}
         nombres={nombres}
         maestros={maestros && !maestros.falta ? maestros : null}
         puedeEditar={puedeEditar}

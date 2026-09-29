@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PorDefecto, PorSocio, PorSemana } from "@/modulos/sider/informe-ai";
 import type { Revision } from "@/modulos/sider/ai";
+import { NOMBRE_TIPO, type TipoRevision } from "@/modulos/sider/comun";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -70,7 +71,7 @@ export function Informe({
     socios: [string, string][]; envases: [string, string][]; canales: [string, string][];
     primera: string | null; ultima: string | null;
   };
-  filtro: { desde?: string; hasta?: string; socio?: string; envase?: string; canal?: string };
+  filtro: { desde?: string; hasta?: string; socio?: string; envase?: string; canal?: string; tipo?: string };
   esEditor: boolean;
 }) {
   const router = useRouter();
@@ -121,6 +122,12 @@ export function Informe({
           <input type="date" value={filtro.hasta ?? ""} min={opciones.primera ?? undefined}
                  max={opciones.ultima ?? undefined}
                  onChange={(e) => filtrar("hasta", e.target.value)} /></label>
+        <label><span>Revisión</span>
+          <select value={filtro.tipo ?? ""} onChange={(e) => filtrar("tipo", e.target.value)}>
+            <option value="">Todas</option>
+            <option value="ai">Certificada</option>
+            <option value="sorting">Normal</option>
+          </select></label>
         <label><span>Socio</span>
           <select value={filtro.socio ?? ""} onChange={(e) => filtrar("socio", e.target.value)}>
             <option value="">Todos</option>
@@ -348,7 +355,7 @@ export function Informe({
               <table>
                 <thead>
                   <tr>
-                    <th>Fecha</th><th>Placa</th><th>Socio</th><th>Envase</th>
+                    <th>Fecha</th><th>Placa</th><th>Revisión</th><th>Socio</th><th>Envase</th>
                     <th className="n">Recibidas</th><th className="n">Revisadas</th>
                     {/* Los nombres son los DE LA HOJA, no los míos: quien
                         cuadra tiene el Excel abierto al lado y traducir
@@ -368,6 +375,12 @@ export function Informe({
                     <tr key={r.id}>
                       <td>{dia(r.fecha)}</td>
                       <td><b>{r.placa}</b></td>
+                      {/* LA CLASE VA CON LA PALABRA ESCRITA, no solo con color. */}
+                      <td>
+                        <span className={"ia-sello " + (((r.tipo ?? "ai") as TipoRevision) === "ai" ? "propio" : "normal")}>
+                          {NOMBRE_TIPO[(r.tipo ?? "ai") as TipoRevision]}
+                        </span>
+                      </td>
                       <td>{r.socio_nombre ?? "—"}</td>
                       <td>{r.envase}</td>
                       <td className="n">{nf.format(r.recibidas)}</td>
@@ -394,7 +407,7 @@ export function Informe({
                     </tr>
                   ))}
                   {tabla.length === 0 && (
-                    <tr><td colSpan={ancha ? 33 : 11} className="nada">Nada coincide con «{busca.trim()}».</td></tr>
+                    <tr><td colSpan={ancha ? 34 : 12} className="nada">Nada coincide con «{busca.trim()}».</td></tr>
                   )}
                 </tbody>
               </table>
@@ -404,6 +417,12 @@ export function Informe({
                 ? <>Se muestran las 200 primeras de {tabla.length} — afina la búsqueda o el rango.</>
                 : <>{tabla.length} revisión{tabla.length === 1 ? "" : "es"}.</>}
               {total.importadas > 0 && <> {total.importadas} vienen del Excel histórico.</>}
+              {!filtro.tipo && (() => {
+                const n = revisiones.filter((r) => (r.tipo ?? "ai") === "sorting").length;
+                return n > 0
+                  ? <> {revisiones.length - n} certificada{revisiones.length - n === 1 ? "" : "s"} y {n} normal{n === 1 ? "" : "es"}.</>
+                  : null;
+              })()}
             </p>
           </section>
         </>

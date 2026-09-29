@@ -20,6 +20,11 @@ import type { Revision } from "./ai";
 export type FiltroAi = {
   desde?: string; hasta?: string;
   socio?: string; envase?: string; canal?: string;
+  /* «ai» = Revisión AI certificada, «sorting» = Revisión AI normal. VACÍO
+     = las dos, y entonces NO se manda filtro: así el informe sigue
+     funcionando aunque la migración de las dos clases no se haya corrido
+     (la columna `tipo` puede no existir todavía). */
+  tipo?: "ai" | "sorting";
 };
 
 export type PorDefecto = {
@@ -76,6 +81,7 @@ export async function informeAi(f: FiltroAi = {}) {
   if (f.socio)  q = q.eq("socio", f.socio);
   if (f.envase) q = q.eq("envase", f.envase);
   if (f.canal)  q = q.eq("canal", f.canal);
+  if (f.tipo)   q = q.eq("tipo", f.tipo);
 
   const { data: rev, error } = await q;
   if (error) {
