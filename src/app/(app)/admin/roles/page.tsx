@@ -68,7 +68,8 @@ export default async function RolesPage() {
     id: m.id,
     nombre: m.nombre,
     acento: m.acento,
-    secciones: m.secciones,
+    secciones: m.secciones.map((s) => ({ nombre: s.nombre, ruta: s.ruta, rama: s.rama })),
+    ramas: m.ramas?.map((r) => ({ id: r.id, nombre: r.nombre })),
   }));
 
   return (

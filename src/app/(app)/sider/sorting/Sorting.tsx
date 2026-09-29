@@ -38,6 +38,23 @@ const HORAS_TARDE = 24;
 export const esTarde = (desde: string | null, ahora: string) =>
   !!desde && (Date.parse(ahora) - Date.parse(desde)) / 3600000 > HORAS_TARDE;
 
+/**
+ * LAS DOS CLASES, CADA UNA EN SU BLOQUE. Sus textos viven aquí para que
+ * los dos bloques digan lo mismo de la misma manera.
+ */
+const CLASES: { tipo: TipoRevision; css: string; plural: string; texto: string; vacio: string }[] = [
+  {
+    tipo: "ai", css: "ai", plural: "certificadas",
+    texto: "Camiones de Sider que el administrador pidió revisar. Aparecen cuando se certifica su llegada en En tránsito.",
+    vacio: "Un camión de Sider aparece aquí cuando se certifica su llegada en En tránsito y el administrador pidió la muestra.",
+  },
+  {
+    tipo: "sorting", css: "so", plural: "normales",
+    texto: "Camiones internos que creó control con el «+» de En tránsito. No los certificó Sider.",
+    vacio: "Un camión interno aparece aquí cuando control lo crea con el «+» y certifica su llegada en En tránsito.",
+  },
+];
+
 type Abierto = { tipo: TipoRevision; viaje: ViajeAi; revision: Revision | null; detalle: DetalleAi[] };
 
 /* LA CLASE DE UNA REVISIÓN YA HECHA. Mientras no se corra la migración la
@@ -76,17 +93,11 @@ export function Sorting({
   const [avisar, avisos] = useAvisos();
   const [abierto, setAbierto] = useState<Abierto | null>(null);
   const [cargando, setCargando] = useState<string | null>(null);
-  /* EL FILTRO DE CLASE mira las dos listas a la vez: quien está en el
-     muelle con la certificada no quiere ver el historial de la normal. */
-  const [ver, setVer] = useState<"todas" | TipoRevision>("todas");
-
   const porId = new Map(detalle.map((v) => [v.id, v]));
   const puedeOperar = puedeEditar && !!maestros;
 
   const nCert = pendientes.filter((p) => p.tipo === "ai").length;
   const nNorm = pendientes.filter((p) => p.tipo === "sorting").length;
-  const pendVisibles = pendientes.filter((p) => ver === "todas" || p.tipo === ver);
-  const hechVisibles = hechos.filter((r) => ver === "todas" || tipoDe(r) === ver);
 
   /* ---------- HACER UNA REVISIÓN ---------- */
   function hacer(p: PendienteRevision) {
@@ -152,6 +163,100 @@ export function Sorting({
     );
   }
 
+  /* ---------- UNA TARJETA POR HACER ---------- */
+  const tarjeta = (p: PendienteRevision) => {
+    const v = porId.get(p.viaje_id);
+    const largo = esTarde(p.llego_en, ahora);
+    return (
+      <article key={p.viaje_id + p.tipo}
+               className={"tr-vh " + (p.tipo === "ai" ? "ai" : "so") + (largo ? " so-tarde" : "")}>
+        <header>
+          <b className="placa">{p.placa}</b>
+          <SelloTipo tipo={p.tipo} />
+          {p.interno && (
+            <span className="sello interno" title="Lo creó control con el «+»: no lo certificó Sider">
+              <i />INTERNO
+            </span>
+          )}
+          <span className={"sello " + (largo ? "falta" : "transito")}>
+            <i />Llegó {haceCuanto(p.llego_en, ahora)}
+          </span>
+        </header>
+
+        {v && (
+          <div className="tr-ruta">
+            <b>{v.cd_origen}</b>
+            <svg viewBox="0 0 24 8" aria-hidden="true">
+              <path d="M0 4h20M16 1l4 3-4 3" fill="none" stroke="currentColor"
+                    strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <b>{v.cd_destino}</b>
+          </div>
+        )}
+
+        {/* SIN DETALLE, EL MATERIAL NO SE DICE DOS VECES: sin la
+            descripción del viaje el texto de arriba caía en el SKU
+            y la línea de abajo lo repetía —«3500887 / 3500887»—. */}
+        <p className="tr-mat">
+          {v?.descripcion ?? "Material sin descripción"}
+          <em>{p.sku}{v?.tipo_envase ? ` · ${v.tipo_envase}` : ""}</em>
+        </p>
+
+        <dl className="tr-cifras">
+          <div><dt>Estibas</dt><dd>{nf2.format(p.estibas)}</dd></div>
+          <div><dt>Sider</dt><dd>{v ? nf2.format(v.sider) : "—"}</dd></div>
+          <div><dt>Cajas</dt><dd>{v?.cajas == null ? "—" : nf.format(v.cajas)}</dd></div>
+          <div><dt>HL</dt><dd>{v?.hl == null ? "—" : nf2.format(v.hl)}</dd></div>
+        </dl>
+
+        <footer>
+          <div className="tr-salio">
+            Llegó {cuando(p.llego_en)}
+            <em>
+              {p.interno ? "Lo creó " : "Lo pidió "}
+              {p.pedido_nombre ?? (p.pedido_por ? nombres[p.pedido_por] : null) ?? "—"}
+            </em>
+          </div>
+          <div className="tr-botones">
+            {puedeOperar && (
+              <button type="button"
+                      className={"btn " + (p.tipo === "ai" ? "ai" : "so-btn")}
+                      onClick={() => hacer(p)}>
+                Hacer la revisión
+              </button>
+            )}
+          </div>
+        </footer>
+      </article>
+    );
+  };
+
+  /* ---------- UNA REVISIÓN YA CERRADA ---------- */
+  const hecha = (r: Revision) => (
+    <li key={r.id} className={tipoDe(r) === "ai" ? "ai" : "so"}>
+      <b className="placa">{r.placa}</b>
+      <span className="so-h-fecha">
+        {r.fecha} · {r.turno}
+        <em>{r.envase_nombre ?? r.envase}</em>
+      </span>
+      <span className="so-h-ind">
+        {(r.indice * 100).toFixed(2)} %
+        <em>{nf.format(r.defectos)} de {nf.format(r.revisadas)} revisadas</em>
+      </span>
+      <span className="so-h-quien">
+        {r.revisado_por ? nombres[r.revisado_por] ?? "—" : "—"}
+        <em>{cuando(r.revisado_en)}{r.ediciones > 0 ? ` · corregida ${r.ediciones} ${r.ediciones === 1 ? "vez" : "veces"}` : ""}</em>
+      </span>
+      <span className="so-h-tipo"><SelloTipo tipo={tipoDe(r)} /></span>
+      {puedeOperar && r.viaje_id && (
+        <button type="button" className="tr-so-btn"
+                disabled={cargando === r.id} onClick={() => corregir(r)}>
+          {cargando === r.id ? "…" : "Corregir"}
+        </button>
+      )}
+    </li>
+  );
+
   const tarde = pendientes.filter((p) => esTarde(p.llego_en, ahora)).length;
 
   return (
@@ -182,138 +287,50 @@ export function Sorting({
         </div>
       </section>
 
-      {/* ============ LA CLASE ============ */}
-      <div className="so-clase" role="group" aria-label="Clase de revisión">
-        {([
-          ["todas", `Todas · ${pendientes.length}`],
-          ["ai", `Certificada · ${nCert}`],
-          ["sorting", `Normal · ${nNorm}`],
-        ] as const).map(([k, t]) => (
-          <button key={k} type="button" aria-pressed={ver === k}
-                  className={ver === k ? "on" : ""} onClick={() => setVer(k)}>{t}</button>
-        ))}
-      </div>
+      {/* ============ LAS DOS CLASES, CADA UNA EN SU BLOQUE ============
+          No hay filtro: la certificada y la normal no se mezclan nunca en
+          la misma lista. Cada bloque trae sus camiones por hacer y sus
+          revisiones hechas, con su color, su sello y su cuenta. */}
+      {CLASES.map((c) => {
+        const pend = pendientes.filter((p) => p.tipo === c.tipo);
+        const hech = hechos.filter((r) => tipoDe(r) === c.tipo);
+        return (
+          <section key={c.tipo} className={"so-bloque " + c.css} aria-labelledby={"so-b-" + c.tipo}>
+            <header className="so-bloque-cab">
+              <div>
+                <h2 id={"so-b-" + c.tipo}>{NOMBRE_TIPO_LARGO[c.tipo]}</h2>
+                <p>{c.texto}</p>
+              </div>
+              <div className="so-bloque-n" aria-label={`${pend.length} por hacer, ${hech.length} hechas`}>
+                <b>{pend.length}</b><span>por hacer</span>
+              </div>
+            </header>
 
-      {/* ============ LOS QUE ESPERAN ============ */}
-      <h2 className="so-h">Por hacer</h2>
-      {pendVisibles.length === 0 ? (
-        <div className="so-vacio">
-          <b>{pendientes.length === 0
-            ? "No hay camiones esperando revisión."
-            : `No hay revisiones ${ver === "ai" ? "certificadas" : "normales"} por hacer.`}</b>
-          <p>
-            Un camión aparece aquí cuando se certifica su llegada en <em>En tránsito</em> y
-            tiene revisión pedida: la <b>certificada</b>, si el administrador la pidió para un
-            camión de Sider; la <b>normal</b>, si lo creó control con el «+».
-          </p>
-        </div>
-      ) : (
-        <div className="tr-rejilla">
-          {pendVisibles.map((p) => {
-            const v = porId.get(p.viaje_id);
-            const largo = esTarde(p.llego_en, ahora);
-            return (
-              <article key={p.viaje_id + p.tipo}
-                       className={"tr-vh " + (p.tipo === "ai" ? "ai" : "so") + (largo ? " so-tarde" : "")}>
-                <header>
-                  <b className="placa">{p.placa}</b>
-                  <SelloTipo tipo={p.tipo} />
-                  {p.interno && (
-                    <span className="sello interno" title="Lo creó control con el «+»: no lo certificó Sider">
-                      <i />INTERNO
-                    </span>
-                  )}
-                  <span className={"sello " + (largo ? "falta" : "transito")}>
-                    <i />Llegó {haceCuanto(p.llego_en, ahora)}
-                  </span>
-                </header>
+            <h3 className="so-h">Por hacer</h3>
+            {pend.length === 0 ? (
+              <div className="so-vacio">
+                <b>No hay revisiones {c.plural} por hacer.</b>
+                <p>{c.vacio}</p>
+              </div>
+            ) : (
+              <div className="tr-rejilla">
+                {pend.map(tarjeta)}
+              </div>
+            )}
 
-                {v && (
-                  <div className="tr-ruta">
-                    <b>{v.cd_origen}</b>
-                    <svg viewBox="0 0 24 8" aria-hidden="true">
-                      <path d="M0 4h20M16 1l4 3-4 3" fill="none" stroke="currentColor"
-                            strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <b>{v.cd_destino}</b>
-                  </div>
-                )}
-
-                {/* SIN DETALLE, EL MATERIAL NO SE DICE DOS VECES: sin la
-                    descripción del viaje el texto de arriba caía en el SKU
-                    y la línea de abajo lo repetía —«3500887 / 3500887»—. */}
-                <p className="tr-mat">
-                  {v?.descripcion ?? "Material sin descripción"}
-                  <em>{p.sku}{v?.tipo_envase ? ` · ${v.tipo_envase}` : ""}</em>
-                </p>
-
-                <dl className="tr-cifras">
-                  <div><dt>Estibas</dt><dd>{nf2.format(p.estibas)}</dd></div>
-                  <div><dt>Sider</dt><dd>{v ? nf2.format(v.sider) : "—"}</dd></div>
-                  <div><dt>Cajas</dt><dd>{v?.cajas == null ? "—" : nf.format(v.cajas)}</dd></div>
-                  <div><dt>HL</dt><dd>{v?.hl == null ? "—" : nf2.format(v.hl)}</dd></div>
-                </dl>
-
-                <footer>
-                  <div className="tr-salio">
-                    Llegó {cuando(p.llego_en)}
-                    <em>
-                      {p.interno ? "Lo creó " : "Lo pidió "}
-                      {p.pedido_nombre ?? (p.pedido_por ? nombres[p.pedido_por] : null) ?? "—"}
-                    </em>
-                  </div>
-                  <div className="tr-botones">
-                    {puedeOperar && (
-                      <button type="button"
-                              className={"btn " + (p.tipo === "ai" ? "ai" : "so-btn")}
-                              onClick={() => hacer(p)}>
-                        Hacer la revisión
-                      </button>
-                    )}
-                  </div>
-                </footer>
-              </article>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ============ LAS CERRADAS ============ */}
-      <h2 className="so-h">Hechas <span>las últimas {hechVisibles.length}</span></h2>
-      {hechVisibles.length === 0 ? (
-        <div className="so-vacio">
-          <b>{ver === "todas"
-            ? "Todavía no se ha cerrado ninguna revisión."
-            : `Todavía no hay revisiones ${ver === "ai" ? "certificadas" : "normales"} cerradas.`}</b>
-        </div>
-      ) : (
-        <ul className="so-hechos">
-          {hechVisibles.map((r) => (
-            <li key={r.id} className={tipoDe(r) === "ai" ? "ai" : "so"}>
-              <b className="placa">{r.placa}</b>
-              <span className="so-h-fecha">
-                {r.fecha} · {r.turno}
-                <em>{r.envase_nombre ?? r.envase}</em>
-              </span>
-              <span className="so-h-ind">
-                {(r.indice * 100).toFixed(2)} %
-                <em>{nf.format(r.defectos)} de {nf.format(r.revisadas)} revisadas</em>
-              </span>
-              <span className="so-h-quien">
-                {r.revisado_por ? nombres[r.revisado_por] ?? "—" : "—"}
-                <em>{cuando(r.revisado_en)}{r.ediciones > 0 ? ` · corregida ${r.ediciones} ${r.ediciones === 1 ? "vez" : "veces"}` : ""}</em>
-              </span>
-              <span className="so-h-tipo"><SelloTipo tipo={tipoDe(r)} /></span>
-              {puedeOperar && r.viaje_id && (
-                <button type="button" className="tr-so-btn"
-                        disabled={cargando === r.id} onClick={() => corregir(r)}>
-                  {cargando === r.id ? "…" : "Corregir"}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+            <h3 className="so-h">Hechas <span>las últimas {hech.length}</span></h3>
+            {hech.length === 0 ? (
+              <div className="so-vacio">
+                <b>Todavía no hay revisiones {c.plural} cerradas.</b>
+              </div>
+            ) : (
+              <ul className="so-hechos">
+                {hech.map(hecha)}
+              </ul>
+            )}
+          </section>
+        );
+      })}
       {avisos}
     </>
   );

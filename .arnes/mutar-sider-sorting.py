@@ -77,7 +77,7 @@ FRONT = [
  ("F7", TR, "<i />SORTING\n                  </span>", "<i />REVISIÓN AI\n                  </span>", "el sello de Sorting dice «REVISIÓN AI»"),
  ("F8", TR, ': v.requiere_sorting ? " so" : largo ? " largo" : "");', ': largo ? " largo" : "");', "el camión solo-Sorting pierde su franja"),
  ("F9", SO, "const puedeOperar = puedeEditar && !!maestros;", "const puedeOperar = !!maestros || puedeEditar;", "sin permiso igual salen los botones"),
- ("F10", SO, "{hechos.length === 0 ? (", "{false ? (", "la lista de hechos no tiene estado vacío"),
+ ("F10", SO, "{hech.length === 0 ? (", "{false ? (", "la lista de hechos no tiene estado vacío"),
  ("G1", CO, '    if (id && out[id]) out[id] = "hecho";', '    if (id) out[id] = "hecho";', "un «hecho» de quien nunca lo pidió recibe marca"),
  ("G2", CO, '    if (id && out[id]) out[id] = "hecho";', '    if (id && out[id]) out[id] = "pendiente";', "«hecho» ya no gana a «pendiente»"),
  ("G3", CO, '  for (const id of pidieron) out[id] = "pendiente";', '  for (const id of pidieron.slice(1)) out[id] = "pendiente";', "se pierde el primero que lo pidió"),

@@ -47,6 +47,16 @@ const historial = [
 ];
 const catalogo = [
   { id: "traspasos", nombre: "Traspasos", acento: "#0A7", secciones: Array.from({ length: 20 }, (_, i) => ({ nombre: "Pantalla " + i, ruta: i ? "/traspasos/p" + i : "/traspasos" })) },
+  { id: "inventario", nombre: "Inventario", acento: "#E9A81F",
+    ramas: [{ id: "conteos", nombre: "Conteos" }, { id: "averias", nombre: "Averías" }],
+    secciones: [
+      { nombre: "Suelta", ruta: "/inventario/suelta" },
+      { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
+      { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
+      { nombre: "Tablero", ruta: "/inventario/tablero", rama: "conteos" },
+      { nombre: "Registrar", ruta: "/inventario/averias", rama: "averias" },
+      { nombre: "Tablero", ruta: "/inventario/averias/tablero", rama: "averias" },
+    ] },
   { id: "acciones", nombre: "Acciones", acento: "#C21", secciones: Array.from({ length: 23 }, (_, i) => ({ nombre: "Otra " + i, ruta: i ? "/acciones/p" + i : "/acciones" })) },
 ];
 createRoot(document.getElementById("r")!).render(<Roles roles={roles} catalogo={catalogo} gente={gente} historial={historial as any}
@@ -135,6 +145,34 @@ const h = await pg.textContent(".rl-hist");
 ok(/Traspasos · Pantalla 0\s*editar\s*→\s*ver/.test(h) && /Acciones · Otra 0\s*sin acceso\s*→\s*editar/.test(h), `el historial no dice qué cambió de qué a qué: ${h.slice(0, 160)}`);
 ok(/Cristian Padilla/.test(h) && /copia de Supervisor/.test(h), "el historial no dice quién ni la copia");
 ok(/Roles borrados/.test(await pg.textContent("#r")) && /Rol viejo/.test(await pg.textContent("#r")), "no se ven los roles borrados");
+
+/* 7 · LAS RAMAS TIENEN SUS PROPIOS BOTONES: «Conteos» no es «Contar». */
+await monta(1200);
+await rol("Operador");
+{
+  const filas = await pg.$$eval(".rl-modulo li.rl-rama", (s) => s.map((l) => l.querySelector("b").textContent.trim()));
+  ok(JSON.stringify(filas) === JSON.stringify(["Conteos", "Averías"]), `las ramas de Inventario salen como [${filas}]`);
+  ok(await pg.$$eval(".rl-modulo li.rl-rama", (s) => s.length) === 2, "un módulo SIN ramas (Traspasos, Acciones) no debe llevar filas de rama");
+  const nivel = (ruta) => pg.$eval(`li:has(em:text-is("${ruta}")) .rl-n[aria-checked=true]`, (b) => b.textContent.trim());
+  const rama = (n, t) => pg.click(`li.rl-rama:has(b:text-is("${n}")) .rl-todo button:has-text("${t}")`);
+  await rama("Conteos", "Editar");
+  ok(await nivel("/inventario/maestro") === "Editar" && await nivel("/inventario/conteo") === "Editar" && await nivel("/inventario/tablero") === "Editar",
+     "«Conteos → Editar» no marca las tres pantallas de la rama");
+  ok(await nivel("/inventario/averias") === "Sin acceso" && await nivel("/inventario/averias/tablero") === "Sin acceso",
+     "«Conteos → Editar» tocó las pantallas de Averías");
+  ok(await nivel("/inventario/suelta") === "Sin acceso", "«Conteos → Editar» tocó una pantalla que no es de ninguna rama");
+  ok(await pg.$eval('li.rl-rama:has(b:text-is("Conteos")) .rl-todo button.aqui', (b) => b.textContent.trim()) === "Editar",
+     "el botón de la rama no queda marcado cuando todas sus pantallas están en Editar");
+  await pg.click('li:has(em:text-is("/inventario/conteo")) .rl-n.rl-ver');
+  ok(await pg.$$eval('li.rl-rama:has(b:text-is("Conteos")) .rl-todo button.aqui', (b) => b.length) === 0,
+     "con una pantalla distinta la rama sigue marcada como si todas fueran iguales");
+  await rama("Averías", "Ver");
+  ok(await nivel("/inventario/averias") === "Ver" && await nivel("/inventario/maestro") === "Editar",
+     "«Averías → Ver» no se queda en su rama");
+  await pg.click('.rl-modulo:has(b:text-is("Inventario")) > header .rl-todo button:has-text("Sin acceso")');
+  ok(await nivel("/inventario/maestro") === "Sin acceso" && await nivel("/inventario/suelta") === "Sin acceso" && await nivel("/inventario/averias") === "Sin acceso",
+     "los botones del módulo entero ya no marcan todo");
+}
 
 /* 6 · ANCHOS Y TEMAS */
 for (const ancho of [1200, 390, 360]) {

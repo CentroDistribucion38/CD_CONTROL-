@@ -3417,20 +3417,22 @@
 }
 
 /* ---------- LA PANTALLA «REVISIÓN AI» ---------- */
-.sd .so-clase {
-  display: inline-flex; flex-wrap: wrap; gap: 0; margin: 4px 0 0;
-  border: 1.5px solid var(--sd-linea); border-radius: 3px; overflow: hidden; background: var(--sd-papel);
+.sd .so-bloque { margin: 30px 0 0; padding: 0 0 6px }
+.sd .so-bloque-cab {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 18px; border-radius: 3px; border-left: 6px solid var(--so-c);
+  background: var(--so-fondo); color: var(--sd-tinta);
 }
-.sd .so-clase button {
-  min-height: 44px; padding: 0 16px; cursor: pointer; border: 0; border-right: 1px solid var(--sd-linea);
-  background: none; font: 700 13px var(--sd-titulo, system-ui); color: var(--sd-gris);
-}
-.sd .so-clase button:last-child { border-right: 0 }
-.sd .so-clase button.on { background: var(--sd-tinta); color: #fff }
-.sd .so-clase button:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: -3px }
+.sd .so-bloque.ai { --so-c: #6A3FA0; --so-fondo: #F3EEFA }
+.sd .so-bloque.so { --so-c: #AA1874; --so-fondo: #FBEFF6 }
+.sd .so-bloque-cab h2 { margin: 0; font: 800 19px var(--sd-titulo, system-ui); letter-spacing: -.01em }
+.sd .so-bloque-cab p { margin: 4px 0 0; font-size: 13px; line-height: 1.45; max-width: 66ch; color: var(--sd-tinta) }
+.sd .so-bloque-n { text-align: center; flex: none; min-width: 64px }
+.sd .so-bloque-n b { display: block; font: 800 28px var(--sd-titulo, system-ui); line-height: 1; font-variant-numeric: tabular-nums }
+.sd .so-bloque-n span { font: 700 11px system-ui; letter-spacing: .06em; text-transform: uppercase }
 @media (max-width: 560px) {
-  .sd .so-clase { display: flex; width: 100% }
-  .sd .so-clase button { flex: 1 1 0; padding: 0 6px; font-size: 12.5px }
+  .sd .so-bloque-cab { padding: 12px 12px; gap: 10px }
+  .sd .so-bloque-cab h2 { font-size: 17px }
 }
 /* En «Hechas»: la franja de la izquierda dice la clase, y el sello la escribe. */
 .sd .so-hechos li.ai { border-left-color: #6A3FA0 }

@@ -15,7 +15,7 @@
  * siguiente.
  */
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useConfirmar } from "@/components/Confirmar";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -42,7 +42,9 @@ const cuando = (s: string) => new Date(s).toLocaleString("es-CO",
 const ROT_NIVEL: Record<Nivel, string> = { ninguno: "sin acceso", ver: "ver", editar: "editar" };
 type Modulo = {
   id: string; nombre: string; acento: string;
-  secciones: { nombre: string; ruta: string }[];
+  secciones: { nombre: string; ruta: string; rama?: string }[];
+  /** Las ramas del módulo (Conteos, Averías…): cada una lleva sus propios botones. */
+  ramas?: { id: string; nombre: string }[];
 };
 
 const NIVELES: { v: Nivel; t: string; d: string }[] = [
@@ -125,6 +127,16 @@ export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: 
     setMarcado((prev) => {
       const out = { ...prev };
       for (const s of m.secciones) out[s.ruta] = nivel;
+      return out;
+    });
+    setSucio(true);
+  }
+
+  /** Marcar toda una rama de un golpe (Conteos, Averías…), sin tocar el resto del módulo. */
+  function ponerGrupo(rutas: string[], nivel: Nivel) {
+    setMarcado((prev) => {
+      const out = { ...prev };
+      for (const r of rutas) out[r] = nivel;
       return out;
     });
     setSucio(true);
@@ -414,6 +426,16 @@ export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: 
               {catalogo.map((m) => {
                 const niveles = m.secciones.map((s) => marcado[s.ruta] ?? "ninguno");
                 const todas = (n: Nivel) => niveles.every((x) => x === n);
+                /* CADA RAMA CON SUS BOTONES. «Conteos» (existencias) y «Contar»
+                   (una pantalla) son cosas distintas: la rama agrupa varias
+                   pantallas y se marca de un golpe. Lo que no es de ninguna
+                   rama va primero, sin encabezado. */
+                const sueltas = m.ramas?.length ? m.secciones.filter((x) => !m.ramas!.some((r) => r.id === x.rama)) : m.secciones;
+                const grupos: { id: string; nombre: string; secs: Modulo["secciones"] }[] = [
+                  ...(sueltas.length ? [{ id: "", nombre: "", secs: sueltas }] : []),
+                  ...(m.ramas ?? []).map((r) => ({ id: r.id, nombre: r.nombre, secs: m.secciones.filter((x) => x.rama === r.id) }))
+                    .filter((g) => g.secs.length > 0),
+                ];
                 return (
                   <div key={m.id} className="rl-modulo">
                     <header style={{ borderLeftColor: m.acento }}>
@@ -429,30 +451,52 @@ export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: 
                       </div>
                     </header>
                     <ul>
-                      {m.secciones.map((s) => {
-                        const actual = marcado[s.ruta] ?? "ninguno";
-                        return (
-                          <li key={s.ruta}>
-                            <div className="rl-sec">
-                              <b>{s.nombre}</b>
-                              <em>{s.ruta}</em>
-                            </div>
-                            <div className="rl-niveles" role="radiogroup" aria-label={s.nombre}>
-                              {NIVELES.map((n) => (
-                                <button
-                                  key={n.v} type="button" role="radio"
-                                  aria-checked={actual === n.v}
-                                  title={n.d}
-                                  className={"rl-n rl-" + n.v + (actual === n.v ? " aqui" : "")}
-                                  onClick={() => poner(s.ruta, n.v)}
-                                >
-                                  {n.t}
-                                </button>
-                              ))}
-                            </div>
-                          </li>
-                        );
-                      })}
+                      {grupos.map((g) => (
+                        <Fragment key={g.id || "_"}>
+                          {g.nombre && (() => {
+                            const rutas = g.secs.map((x) => x.ruta);
+                            const enGrupo = (n: Nivel) => rutas.every((r) => (marcado[r] ?? "ninguno") === n);
+                            return (
+                              <li className="rl-rama">
+                                <div className="rl-sec"><b>{g.nombre}</b><em>{rutas.length} pantallas</em></div>
+                                <div className="rl-todo" role="group" aria-label={`Toda la rama ${g.nombre}`}>
+                                  {NIVELES.map((n) => (
+                                    <button key={n.v} type="button"
+                                            className={enGrupo(n.v) ? "aqui" : ""}
+                                            onClick={() => ponerGrupo(rutas, n.v)}>
+                                      {n.t}
+                                    </button>
+                                  ))}
+                                </div>
+                              </li>
+                            );
+                          })()}
+                          {g.secs.map((s) => {
+                            const actual = marcado[s.ruta] ?? "ninguno";
+                            return (
+                              <li key={s.ruta}>
+                                <div className="rl-sec">
+                                  <b>{s.nombre}</b>
+                                  <em>{s.ruta}</em>
+                                </div>
+                                <div className="rl-niveles" role="radiogroup" aria-label={s.nombre}>
+                                  {NIVELES.map((n) => (
+                                    <button
+                                      key={n.v} type="button" role="radio"
+                                      aria-checked={actual === n.v}
+                                      title={n.d}
+                                      className={"rl-n rl-" + n.v + (actual === n.v ? " aqui" : "")}
+                                      onClick={() => poner(s.ruta, n.v)}
+                                    >
+                                      {n.t}
+                                    </button>
+                                  ))}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </Fragment>
+                      ))}
                     </ul>
                   </div>
                 );

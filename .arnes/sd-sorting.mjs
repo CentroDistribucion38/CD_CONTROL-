@@ -386,33 +386,47 @@ await monta("m=sorting&c=normal");
   ok(/corregida 2 veces/.test(t), "no dice cuántas veces se corrigió");
   ok(roto.length === 0, `la pantalla tiró un error: ${roto[0]}`);
 
-  /* EL FILTRO DE CLASE. */
-  const botones = await pg.$$eval(".so-clase button", (s) => s.map((b) => [b.textContent.trim(), b.getAttribute("aria-pressed")]));
-  ok(JSON.stringify(botones) === JSON.stringify([["Todas · 4", "true"], ["Certificada · 2", "false"], ["Normal · 2", "false"]]),
-     `los botones del filtro dicen ${JSON.stringify(botones)}`);
-  await pg.click('.so-clase button:has-text("Certificada")');
-  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 2 && await pg.$$eval(".tr-vh.so", (s) => s.length) === 0,
-     "el filtro «Certificada» deja camiones normales");
-  ok(await pg.$$eval(".so-hechos li", (s) => s.length) === 3 && await pg.$$eval(".so-hechos li.so", (s) => s.length) === 0,
-     "el filtro «Certificada» no filtra también las hechas");
-  ok(await pg.$eval('.so-clase button:has-text("Certificada")', (b) => b.getAttribute("aria-pressed")) === "true",
-     "el botón escogido no queda marcado (aria-pressed)");
-  await pg.click('.so-clase button:has-text("Normal")');
-  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 2 && await pg.$$eval(".tr-vh.ai", (s) => s.length) === 0,
-     "el filtro «Normal» deja camiones certificados");
-  ok(await pg.$$eval(".so-hechos li", (s) => s.length) === 1, "el filtro «Normal» no filtra las hechas");
-  ok(/Hechas las últimas 1/.test(await txt()), "el rótulo de «Hechas» no cuenta las visibles");
-  await pg.click('.so-clase button:has-text("Todas")');
-  ok(await pg.$$eval(".tr-vh", (s) => s.length) === 4, "«Todas» no devuelve los 4");
+  /* LAS DOS CLASES, CADA UNA EN SU BLOQUE: nunca en la misma lista. */
+  ok(await pg.$$eval(".so-clase", (s) => s.length) === 0, "quedó el filtro de clase: ahora son dos bloques separados");
+  const bl = await pg.$$eval(".so-bloque", (s) => s.map((b) => ({
+    css: b.className.replace("so-bloque", "").trim(), titulo: b.querySelector("h2").textContent.trim(),
+    tarjetas: b.querySelectorAll(".tr-vh").length, propias: b.querySelectorAll(".tr-vh.ai, .tr-vh.so").length,
+    hechas: b.querySelectorAll(".so-hechos li").length,
+    porHacer: b.querySelector(".so-bloque-n b").textContent.trim(),
+    rotuloHechas: [...b.querySelectorAll("h3")].map((h) => h.textContent.replace(/\s+/g, " ").trim()) })));
+  ok(bl.length === 2, `hay ${bl.length} bloques y son 2`);
+  ok(bl[0]?.css === "ai" && bl[0]?.titulo === "Revisión AI – certificada", `el primer bloque es «${bl[0]?.titulo}»`);
+  ok(bl[1]?.css === "so" && bl[1]?.titulo === "Revisión AI – normal", `el segundo bloque es «${bl[1]?.titulo}»`);
+  ok(bl[0]?.tarjetas === 2 && bl[1]?.tarjetas === 2, `las tarjetas se reparten ${bl.map((x) => x.tarjetas)} y son 2 y 2`);
+  ok(await pg.$$eval(".so-bloque.ai .tr-vh", (s) => s.every((a) => a.classList.contains("ai"))) &&
+     await pg.$$eval(".so-bloque.so .tr-vh", (s) => s.every((a) => a.classList.contains("so"))),
+     "una tarjeta quedó en el bloque de la OTRA clase");
+  ok(bl[0]?.hechas === 3 && bl[1]?.hechas === 1, `las hechas se reparten ${bl.map((x) => x.hechas)} y son 3 y 1`);
+  ok(await pg.$$eval(".so-bloque.ai .so-hechos li", (s) => s.every((l) => l.classList.contains("ai"))) &&
+     await pg.$$eval(".so-bloque.so .so-hechos li", (s) => s.every((l) => l.classList.contains("so"))),
+     "una revisión hecha quedó en el bloque de la OTRA clase");
+  ok(bl[0]?.porHacer === "2" && bl[1]?.porHacer === "2", "el contador de cada bloque no dice 2 y 2");
+  ok(/Hechas las últimas 1/.test(bl[1]?.rotuloHechas.join(" ")), "el rótulo de «Hechas» de la normal no cuenta sus propias hechas");
+  ok(/Hechas las últimas 3/.test(bl[0]?.rotuloHechas.join(" ")), "el rótulo de «Hechas» de la certificada no cuenta las suyas");
+  /* EL COLOR DEL BLOQUE ES EL DE SU CLASE: la franja del encabezado coincide con la de sus tarjetas. */
+  const col = await pg.evaluate(() => {
+    const c = (sel) => getComputedStyle(document.querySelector(sel)).borderLeftColor;
+    return { cabAi: c(".so-bloque.ai .so-bloque-cab"), cabSo: c(".so-bloque.so .so-bloque-cab"),
+             tAi: c(".so-bloque.ai .tr-vh"), tSo: c(".so-bloque.so .tr-vh") } });
+  ok(col.cabAi === col.tAi && col.cabSo === col.tSo && col.cabAi !== col.cabSo,
+     `el encabezado de cada bloque no lleva el color de su clase: ${JSON.stringify(col)}`);
+  ok(await pg.$$eval(".so-bloque.ai .sello.sorting, .so-bloque.so .sello.ai", (s) => s.length) === 0,
+     "un sello de una clase apareció dentro del bloque de la otra");
 }
 {
-  /* FILTRO SIN NADA DE ESA CLASE. */
+  /* UN BLOQUE SIN NADA DE SU CLASE dice que está vacío, y el otro sigue con lo suyo. */
   await monta("m=sorting&c=soloNormal");
-  await pg.click('.so-clase button:has-text("Certificada")');
   const t = await txt();
-  ok(/No hay revisiones certificadas por hacer/.test(t), `filtro sin resultados: «${t.slice(0, 200)}»`);
-  ok(/Todavía no hay revisiones certificadas cerradas/.test(t), "el filtro sin hechas no lo dice");
-  ok(!/No hay camiones esperando revisión/.test(t), "dice que no hay NINGÚN camión cuando solo no hay de esa clase");
+  ok(/No hay revisiones certificadas por hacer/.test(t), `bloque certificada vacío: «${t.slice(0, 200)}»`);
+  ok(/Todavía no hay revisiones certificadas cerradas/.test(t), "el bloque sin hechas no lo dice");
+  ok(!/No hay revisiones normales por hacer/.test(t), "dice que no hay normales cuando sí hay una");
+  ok(await pg.$$eval(".so-bloque.so .tr-vh", (s) => s.length) === 1 && await pg.$$eval(".so-bloque.ai .tr-vh", (s) => s.length) === 0,
+     "el camión normal no quedó solo en su bloque");
 }
 
 /* SIN PERMISO DE EDICIÓN: se ve, no se toca. */
@@ -433,8 +447,11 @@ ok(await pg.$$eval(".tr-vh footer .btn, .tr-so-btn", (s) => s.length) === 0,
 await monta("m=sorting&c=vacio");
 {
   const t = await txt();
-  ok(/No hay camiones esperando revisión/.test(t), "sin pendientes no lo dice");
-  ok(/Todavía no se ha cerrado ninguna revisión/.test(t), "sin hechas no lo dice");
+  ok(/No hay revisiones certificadas por hacer/.test(t) && /No hay revisiones normales por hacer/.test(t),
+     "sin pendientes cada bloque debe decirlo");
+  ok(/Todavía no hay revisiones certificadas cerradas/.test(t) && /Todavía no hay revisiones normales cerradas/.test(t),
+     "sin hechas cada bloque debe decirlo");
+  ok(await pg.$$eval(".so-bloque", (s) => s.length) === 2, "sin nada, los dos bloques tienen que seguir a la vista");
   ok(await pg.$eval(".kpi .num", (e) => e.textContent.trim()) === "0", "el contador no dice 0");
   ok(/nada pendiente/.test(t), "el contador vacío no dice «nada pendiente»");
   ok(!/NaN|undefined|Infinity/.test(t), "salió basura con la lista vacía");
@@ -881,7 +898,7 @@ for (const ancho of [360, 390, 722, 820, 1440]) {
     ok(fuera.length === 0, `${q} en ${ancho} px: ${fuera[0]}`);
 
     /* LOS DEDOS: ningún botón NUESTRO por debajo de 38 px. */
-    const chicos = await pg.$$eval(".so-btn, .btn.ai, .so-clase button, .tr-mas, .tr-vh footer .btn, .tr-so-btn", (s) =>
+    const chicos = await pg.$$eval(".so-btn, .btn.ai, .tr-mas, .tr-vh footer .btn, .tr-so-btn", (s) =>
       s.map((b) => [b.textContent.trim(), b.getBoundingClientRect().height])
        .filter(([, h]) => h > 0 && h < 38));
     ok(chicos.length === 0, `${q} en ${ancho} px: el botón «${chicos[0]?.[0]}» mide ${chicos[0]?.[1]} px`);
@@ -988,7 +1005,7 @@ const MIDE = () => {
 };
 const PARES = {
   "m=sorting&c=normal": [".tr-vh.ai .sello.ai", ".tr-vh.so .sello.sorting", ".tr-vh .sello.interno",
-                         ".so-clase button", ".tr-vh.ai .btn.ai", ".tr-vh.so .btn.so-btn", ".so-hechos li.so .so-h-tipo .sello"],
+                         ".so-bloque-cab h2", ".so-bloque-n span", ".tr-vh.ai .btn.ai", ".tr-vh.so .btn.so-btn", ".so-hechos li.so .so-h-tipo .sello"],
   "m=transito&c=normal": [".tr-vh .sello.ai", ".tr-vh .sello.sorting", ".tr-vh .sello.interno", ".tr-mas"],
   "m=viajes&c=marcas": [".vj-sorting .sello.interno", ".vj-sorting .sello:not(.interno)"],
   "m=informe&c=normal": [".ia-tabla td:nth-child(3) .ia-sello.propio", ".ia-tabla td:nth-child(3) .ia-sello.normal"],
@@ -998,11 +1015,8 @@ const tabla = [];
 for (const t of TEMAS) {
   for (const [q, sels] of Object.entries(PARES)) {
     await monta(q, 1440, t);
-    if (q === "m=sorting&c=normal") await pg.click('.so-clase button:has-text("Normal")');
-    if (q === "m=sorting&c=normal") await pg.click('.so-clase button:has-text("Todas")');
-    /* .so-clase button: el seleccionado es el de «Todas» (fondo oscuro) — se mide ese. */
-    const r = await pg.evaluate(([src, sl]) => { const mide = eval("(" + src + ")")(); return sl.map((s) =>
-      s === ".so-clase button" ? [s, mide('.so-clase button.on')] : [s, mide(s)]) }, [MIDE.toString(), sels]);
+    const r = await pg.evaluate(([src, sl]) => { const mide = eval("(" + src + ")")(); return sl.map((s) => [s, mide(s)]) },
+      [MIDE.toString(), sels]);
     for (const [s, v] of r) {
       ok(v !== null, `[${t || "oficial"}] ${q}: no existe ${s}`);
       if (v !== null) { tabla.push([t || "oficial", s, v]); ok(v >= 4.5, `[${t || "oficial"}] ${s} se lee a ${v.toFixed(2)}:1 y tiene que llegar a 4,5`) }

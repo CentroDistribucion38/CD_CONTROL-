@@ -27,8 +27,8 @@ M = [
  ("P2", FA, '...(esSorting ? { p_tipo: "sorting" } : {}),', "", "la normal no manda su tipo (se guardaría como certificada)"),
  ("P3", SO, "{p.interno && (", "{true && (", "todas las tarjetas llevan el sello INTERNO"),
  ("P4", SO, '{p.interno ? "Lo creó " : "Lo pidió "}', '{"Lo pidió "}', "el interno dice «Lo pidió»"),
- ("P5", SO, 'const pendVisibles = pendientes.filter((p) => ver === "todas" || p.tipo === ver);', "const pendVisibles = pendientes;", "el filtro de clase no filtra los pendientes"),
- ("P6", SO, 'const hechVisibles = hechos.filter((r) => ver === "todas" || tipoDe(r) === ver);', "const hechVisibles = hechos;", "el filtro de clase no filtra las hechas"),
+ ("P5", SO, "const pend = pendientes.filter((p) => p.tipo === c.tipo);", "const pend = pendientes;", "cada bloque mezcla los pendientes de las dos clases"),
+ ("P6", SO, "const hech = hechos.filter((r) => tipoDe(r) === c.tipo);", "const hech = hechos;", "cada bloque mezcla las hechas de las dos clases"),
  ("P7", SO, 'r.tipo ?? "ai"', 'r.tipo ?? "sorting"', "una revisión sin tipo sale como normal"),
  ("P8", SO, "const puedeOperar = puedeEditar && !!maestros;", "const puedeOperar = !!maestros;", "sin permiso de edición igual salen botones si llegan los maestros"),
  ("P9", SO, "<i />{NOMBRE_TIPO[tipo].toUpperCase()}", "<i />CERTIFICADA", "el sello siempre dice CERTIFICADA"),
@@ -56,6 +56,8 @@ M = [
  ("P27", VJ, ': esInterno(v.id) ? "interno · sin salida" : `${v.fotos_salida}/3 fotos`}</div>', ': `${v.fotos_salida}/3 fotos`}</div>', "el interno sale con «0/3 fotos» en Fuente principal"),
  ("P28", IN, '((r.tipo ?? "ai") as TipoRevision) === "ai" ? "propio" : "normal"', '"propio"', "el informe marca todas como certificadas"),
  ("P29", IN, "{!filtro.tipo && (() => {", "{(() => {", "filtrado a una clase todavía cuenta las dos"),
+ ("P36", SO, 'tipo: "sorting", css: "so"', 'tipo: "sorting", css: "ai"', "el bloque de la normal se pinta con el color de la certificada"),
+ ("P37", CSS, ".sd .so-bloque.so { --so-c: #AA1874; --so-fondo: #FBEFF6 }", ".sd .so-bloque.so { --so-c: #6A3FA0; --so-fondo: #F3EEFA }", "el bloque de la normal usa el morado de la certificada"),
  ("P30", CSS, ".sd .tr-vh.ai.so-tarde { background: #F8F4FD; border-color: #DCCBF1; border-left-color: #6A3FA0 }", "", "una certificada con más de un día se pinta de la otra clase"),
 ]
 
