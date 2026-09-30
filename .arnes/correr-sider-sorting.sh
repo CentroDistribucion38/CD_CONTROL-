@@ -19,7 +19,7 @@
 # =====================================================================
 set -e
 export DB=${1:-sorting}
-export EXCLUIR="${EXCLUIR_EXTRA:+$EXCLUIR_EXTRA|}sider-sorting|sider-revision-ai-interna"
+export EXCLUIR="${EXCLUIR_EXTRA:+$EXCLUIR_EXTRA|}sider-sorting|sider-revision-ai-interna|sider-vh-interno-canal-socio"
 MIGRACION="${MIGRACION:-supabase/migraciones/2026-09-sider-sorting.sql}"
 source .arnes/_base-completa.sh
 sudo -u postgres psql -q -d $DB -c "grant probador to postgres; grant authenticated to probador;" >/dev/null 2>&1

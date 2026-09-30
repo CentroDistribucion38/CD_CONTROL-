@@ -242,8 +242,14 @@ begin
   if v_fact = '' then
     raise exception 'Falta el número de factura';
   end if;
-  if length(v_fact) > 30 then
-    raise exception 'El número de factura es muy largo (máximo 30 caracteres)';
+  /* La factura son SOLO NÚMEROS y máximo 10 dígitos: es el número de
+     facturación de SAP. Una letra o un guion se cuela como dedazo y
+     después no cruza con nada. */
+  if v_fact !~ '^[0-9]+$' then
+    raise exception 'La factura son solo números (sin letras, espacios ni guiones)';
+  end if;
+  if length(v_fact) > 10 then
+    raise exception 'El número de factura es muy largo (máximo 10 dígitos)';
   end if;
 
   select count(*) into v_fotos from public.sider_ficha_fotos where ficha_id = p_ficha;

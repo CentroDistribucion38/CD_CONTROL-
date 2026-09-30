@@ -42,7 +42,7 @@ await pg.locator(".ct-fichas").screenshot({ path: O + "c09-mis-fichas.png" });
 /* ---------- DAR SALIDA ---------- */
 await monta("m=salida&c=facturador", 390, 3000);
 await pg.locator(".ds-ficha").nth(0).screenshot({ path: O + "d01-ficha.png" });
-await pg.locator(".ds-ficha").nth(0).locator("input").fill("fe-4471");
+await pg.locator(".ds-ficha").nth(0).locator("input").fill("7687019429");
 await pg.locator(".ds-ficha").nth(0).screenshot({ path: O + "d02-factura.png" });
 await pg.locator(".ds-ficha").nth(2).screenshot({ path: O + "d03-faltan-fotos.png" });
 await monta("m=salida&c=facturador", 1100, 1100); await foto("d04-pc");

@@ -140,6 +140,13 @@
   border: 1px dashed #9AA0A6; border-radius: 6px; background: #F2F3F4;
   font: 900 20px var(--sd-titulo, system-ui); text-align: right; color: #1B1B1B;
 }
+.ai-campo output.ai-dato.txt { font: 700 15px system-ui; text-align: left; overflow-wrap: anywhere }
+.ai-campo.ai-cambiar { align-self: end }
+.ai-campo.ai-cambiar button {
+  min-height: 44px; padding: 0 14px; border-radius: 6px; cursor: pointer;
+  border: 1.5px solid var(--ai-linea); background: transparent;
+  font: 700 13px system-ui; color: var(--ai-tinta);
+}
 .ai-campo .ai-nota { margin-top: 6px; font-size: 11.5px; font-weight: 600; color: #5F6368 }
 .ai-campo .aviso { margin-top: 6px; font-size: 11.5px; font-weight: 700; color: #C6202A }
 

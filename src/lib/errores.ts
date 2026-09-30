@@ -82,6 +82,11 @@ const PREFIJOS: [RegExp, string][] = [
   /* LA REVISIÓN AI INTERNA (el «+» de Vh Interno en Revisión AI y las dos clases de
      revisión) es la migración más nueva y va antes que la de Sorting:
      `interno` y las dos funciones y vistas nuevas salen de ahí. */
+  /* EL CANAL Y EL SOCIO DEL VH INTERNO son de la migración más nueva: sin ella
+     la base dice «could not find the function sider_viaje_interno_crear(… p_canal…)» o «column … ai_canal
+     does not exist», y ninguna de las dos sabe de qué archivo habla. */
+  [/\b(ai_canal|ai_socio|envase_ai)\b|v_sider_revision_pendientes\.(canal|socio|envase)\b|sider_viaje_interno_crear[\s\S]*\bp_(canal|socio)\b/,
+   "supabase/migraciones/2026-09-sider-vh-interno-canal-socio.sql"],
   [/\b(sider_viaje_interno_crear|v_sider_revision_pendientes)\b|\bsider_viajes\.interno\b/,
    "supabase/migraciones/2026-09-sider-revision-ai-interna.sql"],
   [/\bp_tipo\b|\b(sider_sorting|v_sider_sorting|requiere_sorting)/,

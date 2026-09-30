@@ -10,7 +10,7 @@ import type {
   MaestrosAi, PendienteRevision, Revision, DetalleAi,
 } from "@/modulos/sider/ai";
 import { FormularioAi, type ViajeAi } from "@/modulos/sider/FormularioAi";
-import { NuevoInterno, type OrigenMaestro, type SkuMaestro } from "./NuevoInterno";
+import { NuevoInterno, type OrigenMaestro, type SkuMaestro, type SocioMaestro } from "./NuevoInterno";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -80,7 +80,7 @@ function SelloTipo({ tipo }: { tipo: TipoRevision }) {
 
 export function Sorting({
   ahora, pendientes, detalle, hechos, nombres, maestros, puedeEditar,
-  puedeCrear = false, origenes = [], skus = [], estibasPorSider = 36,
+  puedeCrear = false, origenes = [], skus = [], socios = [], estibasPorSider = 36,
 }: {
   ahora: string;
   pendientes: PendienteRevision[];
@@ -95,6 +95,8 @@ export function Sorting({
   /** Los maestros del formulario del «+»: origen, material y sus factores. */
   origenes?: OrigenMaestro[];
   skus?: SkuMaestro[];
+  /** Los socios activos, para el «+» cuando el camión es de un socio. */
+  socios?: SocioMaestro[];
   estibasPorSider?: number;
 }) {
   const router = useRouter();
@@ -118,6 +120,7 @@ export function Sorting({
         fecha: p.fecha, sku: p.sku, llego_en: p.llego_en,
         unidades: porId.get(p.viaje_id)?.unidades ?? null,
         ai_motivo: p.motivo, pedido_nombre: p.pedido_nombre,
+        canal: p.canal ?? null, socio: p.socio ?? null, envase: p.envase ?? null,
       },
       revision: null, detalle: [],
     });
@@ -351,7 +354,7 @@ export function Sorting({
         </button>
       )}
       {creando && (
-        <NuevoInterno origenes={origenes} skus={skus} estibasPorSider={estibasPorSider}
+        <NuevoInterno origenes={origenes} skus={skus} socios={socios} estibasPorSider={estibasPorSider}
           alCerrar={() => setCreando(false)}
           alCrear={(placa) => {
             setCreando(false);

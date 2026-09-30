@@ -103,7 +103,7 @@ const ARMAZON = `
     <div class="ai-izq">
       <section class="ai-caja">
         <div class="ai-cab"><h3>De quién y de qué</h3>
-          <p>Sale del viaje certificado. Solo se escoge lo que el viaje no trae.</p></div>
+          <p>Sale del viaje. Solo se completa lo que el viaje no trae.</p></div>
         <div class="ai-cuerpo">
           <div class="ai-campos">
             <div class="ai-campo"><label id="rot-turno">TURNO</label>

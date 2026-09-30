@@ -6,7 +6,7 @@ import { traducirError } from "@/lib/errores";
 import type {
   Defecto, EnvaseAi, SocioAi, CanalAi, Revision, DetalleAi,
 } from "@/modulos/sider/ai";
-import { NOMBRE_TIPO_LARGO } from "@/modulos/sider/comun";
+import { NOMBRE_TIPO_LARGO, turnoAi } from "@/modulos/sider/comun";
 
 /* LO MÍNIMO QUE EL FORMULARIO NECESITA SABER DEL VIAJE. No pide un
    `Pendiente` entero a propósito: así lo puede llamar la certificación
@@ -19,6 +19,10 @@ export type ViajeAi = {
    *  Si viene, «recibidas» sale de aquí y no se digita. */
   unidades?: number | null;
   ai_motivo?: string | null; pedido_nombre?: string | null;
+  /** LO QUE EL VIAJE YA SABE de quién y de qué. Si viene, el formulario lo
+   *  trae puesto y quien revisa solo cuenta botellas: el canal y el socio
+   *  los dijo el Vh Interno al crearse, y el envase sale del material. */
+  canal?: string | null; socio?: string | null; envase?: string | null;
 };
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -104,10 +108,28 @@ export function FormularioAi({
   const [mandando, setMandando] = useState(false);
   const [falla, setFalla] = useState<string | null>(null);
 
-  const [turno, setTurno] = useState(revision?.turno ?? "T1");
-  const [canal, setCanal] = useState(revision?.canal ?? canales[0]?.clave ?? "socios");
-  const [socio, setSocio] = useState(revision?.socio ?? "");
-  const [envase, setEnvase] = useState(revision?.envase ?? "");
+  /* LO QUE EL VIAJE YA TRAE, y solo si sigue siendo válido: un canal, un
+     socio o un envase que el maestro ya apagó no se precargan. Al CORREGIR
+     una revisión ya hecha manda lo que quedó guardado, no el viaje. */
+  const canalViaje = !revision && viaje.canal && canales.some((c) => c.clave === viaje.canal)
+    ? viaje.canal : "";
+  const socioViaje = canalViaje === "socios" && viaje.socio && socios.some((x) => x.clave === viaje.socio)
+    ? viaje.socio : "";
+  const envaseViaje = !revision && viaje.envase && envases.some((e) => e.clave === viaje.envase)
+    ? viaje.envase : "";
+
+  /* EL TURNO ABRE EN EL DE AHORA (T1 06–14, T2 14–22, T3 22–06, hora de
+     Colombia): nadie lo escribe. Se puede cambiar, por si quien revisa
+     está cerrando el turno anterior. Al corregir, el que se guardó. */
+  const [turno, setTurno] = useState(revision?.turno ?? turnoAi());
+  const [canal, setCanal] = useState(revision?.canal ?? (canalViaje || canales[0]?.clave || "socios"));
+  const [socio, setSocio] = useState(revision?.socio ?? socioViaje);
+  const [envase, setEnvase] = useState(revision?.envase ?? envaseViaje);
+  /* «Cambiar» abre los campos que vinieron del viaje. Cerrados, se leen y
+     no se tocan: es lo que evita que se «corrija» a mano lo que ya se dijo. */
+  const [cambiando, setCambiando] = useState(false);
+  const canalFijo = !cambiando && !!canalViaje && (canalViaje !== "socios" || !!socioViaje);
+  const envaseFijo = !cambiando && !!envaseViaje;
   const [certificado, setCertificado] = useState(revision?.certificado ?? false);
   const [recibidas, setRecibidas] = useState(revision ? String(revision.recibidas) : "");
   const [revisadas, setRevisadas] = useState(revision ? String(revision.revisadas) : "");
@@ -324,7 +346,7 @@ export function FormularioAi({
           <section className="ai-caja">
             <div className="ai-cab">
               <h3>De quién y de qué</h3>
-              <p>Sale del viaje certificado. Solo se escoge lo que el viaje no trae.</p>
+              <p>Sale del viaje. Solo se completa lo que el viaje no trae.</p>
             </div>
             <div className="ai-cuerpo">
               <div className="ai-campos">
@@ -339,39 +361,73 @@ export function FormularioAi({
                   </div>
                 </div>
 
-                <div className="ai-campo">
-                  <label htmlFor="ai-canal">CANAL DE ENVASE</label>
-                  <select id="ai-canal" value={canal} onChange={(e) => setCanal(e.target.value)}>
-                    {canales.map((c) => <option key={c.clave} value={c.clave}>{c.nombre}</option>)}
-                  </select>
-                </div>
+                {canalFijo ? (
+                  <>
+                    <div className="ai-campo">
+                      <label id="rot-canal">CANAL DE ENVASE</label>
+                      <output id="ai-canal" className="ai-dato txt" aria-labelledby="rot-canal">
+                        {canales.find((c) => c.clave === canal)?.nombre ?? canal}
+                      </output>
+                      <div className="ai-nota">Lo dijo el Vh Interno</div>
+                    </div>
+                    {canal === "socios" && (
+                      <div className="ai-campo">
+                        <label id="rot-socio">SOCIO</label>
+                        <output id="ai-socio" className="ai-dato txt" aria-labelledby="rot-socio">
+                          {socios.find((x) => x.clave === socio)?.nombre ?? socio}
+                        </output>
+                        <div className="ai-nota">Lo dijo el Vh Interno</div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="ai-campo">
+                      <label htmlFor="ai-canal">CANAL DE ENVASE</label>
+                      <select id="ai-canal" value={canal} onChange={(e) => setCanal(e.target.value)}>
+                        {canales.map((c) => <option key={c.clave} value={c.clave}>{c.nombre}</option>)}
+                      </select>
+                    </div>
 
-                {/* EL SOCIO SOLO CUANDO EL CANAL ES SOCIOS. En un traslado
-                    propio no hay a quién cobrarle, y dejar el campo puesto
-                    invita a llenarlo con cualquiera. */}
-                {canal === "socios" && (
-                  <div className={"ai-campo" + (socio ? "" : " falta")}>
-                    <label htmlFor="ai-socio">SOCIO</label>
-                    <select id="ai-socio" value={socio} onChange={(e) => setSocio(e.target.value)}>
-                      <option value="">— escoge el socio —</option>
-                      {socios.map((s) => <option key={s.clave} value={s.clave}>{s.nombre}</option>)}
-                    </select>
-                    {!socio && <div className="aviso">Falta</div>}
-                  </div>
+                    {/* EL SOCIO SOLO CUANDO EL CANAL ES SOCIOS. En un traslado
+                        propio no hay a quién cobrarle, y dejar el campo puesto
+                        invita a llenarlo con cualquiera. */}
+                    {canal === "socios" && (
+                      <div className={"ai-campo" + (socio ? "" : " falta")}>
+                        <label htmlFor="ai-socio">SOCIO</label>
+                        <select id="ai-socio" value={socio} onChange={(e) => setSocio(e.target.value)}>
+                          <option value="">— escoge el socio —</option>
+                          {socios.map((x) => <option key={x.clave} value={x.clave}>{x.nombre}</option>)}
+                        </select>
+                        {!socio && <div className="aviso">Falta</div>}
+                      </div>
+                    )}
+                  </>
                 )}
 
-                <div className={"ai-campo" + (envase ? "" : " falta")}>
-                  <label htmlFor="ai-envase">TIPO DE ENVASE</label>
-                  <select id="ai-envase" value={envase} onChange={(e) => setEnvase(e.target.value)}>
-                    <option value="">— escoge —</option>
-                    {envases.map((e) => (
-                      <option key={e.clave} value={e.clave}>
-                        {e.clave}{e.descripcion ? ` · ${e.descripcion}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  {!envase && <div className="aviso">Falta</div>}
-                </div>
+                {envaseFijo ? (
+                  <div className="ai-campo">
+                    <label id="rot-envase">TIPO DE ENVASE</label>
+                    <output id="ai-envase" className="ai-dato txt" aria-labelledby="rot-envase">
+                      {envase}{envases.find((e) => e.clave === envase)?.descripcion
+                        ? ` · ${envases.find((e) => e.clave === envase)?.descripcion}` : ""}
+                    </output>
+                    <div className="ai-nota">Sale del material del viaje</div>
+                  </div>
+                ) : (
+                  <div className={"ai-campo" + (envase ? "" : " falta")}>
+                    <label htmlFor="ai-envase">TIPO DE ENVASE</label>
+                    <select id="ai-envase" value={envase} onChange={(e) => setEnvase(e.target.value)}>
+                      <option value="">— escoge —</option>
+                      {envases.map((e) => (
+                        <option key={e.clave} value={e.clave}>
+                          {e.clave}{e.descripcion ? ` · ${e.descripcion}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {!envase && <div className="aviso">Falta</div>}
+                  </div>
+                )}
 
                 {deTarjeta != null ? (
                   <div className="ai-campo">
@@ -393,6 +449,14 @@ export function FormularioAi({
                   <input id="ai-rev" className="num" inputMode="numeric" value={revisadas}
                          placeholder="0" onChange={(e) => setRevisadas(e.target.value)} />
                 </div>
+
+                {(canalFijo || envaseFijo) && (
+                  <div className="ai-campo ai-cambiar">
+                    <button type="button" onClick={() => setCambiando(true)}>
+                      Cambiar canal, socio o envase
+                    </button>
+                  </div>
+                )}
 
                 <div className="ai-campo ai-check">
                   <label htmlFor="ai-cert" className="plano">

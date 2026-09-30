@@ -96,7 +96,9 @@ set request.jwt.claim.sub = 'f1f1f1f1-0000-0000-0000-000000000001';
 do $$ declare f text := ''; begin
   f := f || public._espera_error($q$select public.sider_ficha_dar_salida((select id from public._f where k='a'), '   ')$q$, '%factura%', 'dio salida sin número de factura');
   f := f || public._espera_error($q$select public.sider_ficha_dar_salida((select id from public._f where k='b'), '77')$q$, '%faltan fotos%', 'dio salida a una ficha con menos de 3 fotos');
-  f := f || public._espera_error($q$select public.sider_ficha_dar_salida((select id from public._f where k='a'), repeat('9', 31))$q$, '%muy largo%', 'aceptó una factura de 31 caracteres');
+  f := f || public._espera_error($q$select public.sider_ficha_dar_salida((select id from public._f where k='a'), repeat('9', 11))$q$, '%muy largo%', 'aceptó una factura de 11 dígitos');
+  f := f || public._espera_error($q$select public.sider_ficha_dar_salida((select id from public._f where k='a'), 'FE-4471')$q$, '%solo números%', 'aceptó una factura con letras');
+  f := f || public._espera_error($q$select public.sider_ficha_dar_salida((select id from public._f where k='a'), '123 456')$q$, '%solo números%', 'aceptó una factura con espacio adentro');
   f := f || public._espera_error($q$select public.sider_ficha_dar_salida(gen_random_uuid(), '77')$q$, '%no existe%', 'dio salida a una ficha que no existe');
   if f <> '' then raise exception E'FALLA:%', f; end if; end $$;
 reset role;
@@ -105,17 +107,17 @@ do $$ declare f text := ''; begin
   if f <> '' then raise exception E'FALLA:%', f; end if; end $$;
 set request.jwt.claim.sub = 'f1f1f1f1-0000-0000-0000-000000000001'; set role probador;
 do $$ declare ids uuid[]; begin
-  ids := public.sider_ficha_dar_salida((select id from public._f where k='a'), ' fe-77 ');
+  ids := public.sider_ficha_dar_salida((select id from public._f where k='a'), ' 7700123456 ');
   if array_length(ids,1) <> 2 then raise exception 'FALLA: no devolvió dos viajes'; end if;
 end $$;
 reset role;
 do $$ declare f text := ''; begin
-  if (select count(*) from public.sider_viajes where placa='FIC001' and factura='FE-77' and estado='en_transito' and lote='L1' and observacion='nota') <> 2 then f := f || E'\n   · no nacieron dos viajes en tránsito con la misma placa, factura, lote y nota'; end if;
+  if (select count(*) from public.sider_viajes where placa='FIC001' and factura='7700123456' and estado='en_transito' and lote='L1' and observacion='nota') <> 2 then f := f || E'\n   · no nacieron dos viajes en tránsito con la misma placa, factura, lote y nota'; end if;
   if (select count(distinct sku) from public.sider_viajes where placa='FIC001') <> 2 then f := f || E'\n   · los materiales no quedaron distintos'; end if;
   if (select sum(estibas) from public.sider_viajes where placa='FIC001') <> 52 then f := f || E'\n   · las estibas no son las de cada línea'; end if;
   if (select count(*) from public.v_sider_viajes where placa='FIC001' and fotos_salida = 3 and cert_salida_id is not null and cert_llegada_id is null) <> 2 then f := f || E'\n   · cada viaje debe traer su salida certificada con las 3 fotos'; end if;
   if (select count(*) from public.sider_certificaciones c join public.sider_viajes v on v.id=c.viaje_id where v.placa='FIC001' and c.punta='salida' and c.lat = 10.96 and c.direccion='Calle 1' and c.hecha_en > now() - interval '1 minute') <> 2 then f := f || E'\n   · la salida no lleva el lugar de la ficha o la hora de ahora'; end if;
-  if (select estado || factura || salida_por::text from public.sider_fichas where id=(select id from public._f where k='a')) is distinct from 'con_salidaFE-77f1f1f1f1-0000-0000-0000-000000000001' then f := f || E'\n   · la ficha no guarda quién dio la salida y con qué factura'; end if;
+  if (select estado || factura || salida_por::text from public.sider_fichas where id=(select id from public._f where k='a')) is distinct from 'con_salida7700123456f1f1f1f1-0000-0000-0000-000000000001' then f := f || E'\n   · la ficha no guarda quién dio la salida y con qué factura'; end if;
   if f <> '' then raise exception E'FALLA:%', f; end if; raise notice 'F3 · dar salida crea un viaje por material en tránsito, con la factura, las fotos y el rastro'; end $$;
 set request.jwt.claim.sub = 'f1f1f1f1-0000-0000-0000-000000000001'; set role probador;
 do $$ declare f text := ''; begin

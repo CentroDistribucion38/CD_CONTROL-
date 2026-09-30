@@ -79,6 +79,26 @@ await buscar("7689555555");
 t = await tapas();
 ok(t.map((x) => x.split("|")[0]).join() === "0,0,0,1" && t[3].endsWith("true"), "documento que solo tiene SAP: " + t.join());
 ok(/Estibas plásticas/.test((await filas()).join()), "no muestra la fila de SAP");
+/* VARIOS A LA VEZ (lo que se copia de Excel) */
+await buscar("7689234028 7689234022 7689239853");
+t = await tapas(); ok(t[0].startsWith("3|") && (await filas()).length === 3, "pegar tres documentos: " + t.join());
+ok(/3<\/b> búsquedas|3 búsquedas/.test(await pg.textContent(".tp-rz-hallado")) || /búsquedas/.test(await pg.textContent(".tp-rz-hallado")), "no dice cuántas búsquedas");
+ok(!(await pg.$(".tp-rz-faltan")), "dice que falta uno cuando están todos");
+await buscar("7689234028, 7689555555;7689111111 7689222222");
+t = await tapas();
+ok(t.map((x) => x.split("|")[0]).join() === "1,0,0,1", "mezcla ok+SAP con comas y punto y coma: " + t.join());
+ok(/7689111111, 7689222222/.test(await pg.textContent(".tp-rz-faltan")) && !/7689234028/.test(await pg.textContent(".tp-rz-faltan")), "no nombra exactamente los que no aparecen: " + await pg.textContent(".tp-rz-hallado"));
+/* PEGAR con saltos de línea (una columna de Excel): no se pegan los números */
+await buscar("");
+await pg.focus(".tp-rz-buscar input");
+await pg.evaluate(() => {
+  const i = document.querySelector(".tp-rz-buscar input");
+  const dt = new DataTransfer(); dt.setData("text", "7689234028\r\n7689234022\r\n");
+  i.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+});
+await pg.waitForTimeout(100);
+ok(await pg.inputValue(".tp-rz-buscar input") === "7689234028 7689234022", "el pegado con saltos de línea no queda separado por espacios: «" + await pg.inputValue(".tp-rz-buscar input") + "»");
+t = await tapas(); ok(t[0].startsWith("2|"), "la columna pegada no encuentra los dos: " + t.join());
 /* nada */
 await buscar("999999");
 ok(/Nada coincide/.test(await pg.textContent(".tp-rz-hallado")), "no dice que nada coincide");

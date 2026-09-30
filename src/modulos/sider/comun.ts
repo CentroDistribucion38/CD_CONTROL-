@@ -276,3 +276,24 @@ export type Ficha = {
   /** Cuántas de las 3 fotos se subieron. Con menos de 3 no se le puede dar salida. */
   fotos: number;
 };
+
+
+/**
+ * EL TURNO DE LA REVISIÓN AI SEGÚN LA HORA DE COLOMBIA.
+ *
+ *   T1 (A)  06:00 – 14:00
+ *   T2 (B)  14:00 – 22:00
+ *   T3 (C)  22:00 – 06:00
+ *
+ * Es el mismo reparto de Traspasos —A, B y C— con el nombre que usa la
+ * Revisión AI: nadie escribe el turno, el formulario abre con el de
+ * ahora y solo se toca si quien revisa está cerrando el anterior.
+ * La hora se lee en Colombia y no en la del navegador ni la del
+ * servidor: a las 8 de la noche de acá, en UTC ya es de madrugada.
+ */
+export function turnoAi(ahora: Date = new Date()): "T1" | "T2" | "T3" {
+  const h = new Date(ahora.getTime() - 5 * 3600_000).getUTCHours();
+  if (h >= 6 && h < 14) return "T1";
+  if (h >= 14 && h < 22) return "T2";
+  return "T3";
+}

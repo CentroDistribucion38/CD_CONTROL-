@@ -48,7 +48,9 @@ export default async function SortingPage() {
     revisionesPendientes(),
     revisionesHechas(40),
     nombresTodos(),
-    puedeEditar ? maestrosAi() : Promise.resolve(null),
+    /* Los maestros de la AI también los necesita quien SOLO crea: el
+       desplegable de socios del «+» sale de ahí. */
+    puedeEditar || puedeCrear ? maestrosAi() : Promise.resolve(null),
     puedeCrear ? maestroSider() : Promise.resolve(null),
   ]);
 
@@ -93,7 +95,9 @@ export default async function SortingPage() {
         detalle={detalle}
         hechos={hechos.hechas}
         nombres={nombres}
-        maestros={maestros && !maestros.falta ? maestros : null}
+        maestros={puedeEditar && maestros && !maestros.falta ? maestros : null}
+        socios={puedeCrear && maestros && !maestros.falta
+          ? maestros.socios.map((x) => ({ clave: x.clave, nombre: x.nombre })) : []}
         puedeEditar={puedeEditar}
         puedeCrear={puedeCrear}
         origenes={maestro?.origenes.filter((o) => o.activo)

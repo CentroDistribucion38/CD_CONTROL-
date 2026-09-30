@@ -35,7 +35,7 @@ ok(await camion.count() === 1, "ABC569 sale en " + await camion.count() + " tarj
 ok(await camion.locator(".tr-mats li").count() === 2, "la tarjeta no lista sus dos materiales");
 const t = await camion.innerText();
 ok(/BOTELLA FLINT 250 CC/.test(t) && /Envase Costeñita 175R/.test(t), "faltan los nombres de los materiales");
-ok(/FE-4471/.test(t) && /2 materiales/.test(t), "no dice la factura ni «2 materiales»");
+ok(/7687019429/.test(t) && /2 materiales/.test(t), "no dice la factura ni «2 materiales»");
 const tot = await camion.locator(".tr-cifras dd").allInnerTexts();
 ok(tot[0] === "45" && tot[2] === "2.250", "el total no suma los dos materiales: " + tot.join("|"));
 ok(/2 vehículos/.test(await txt()), "el CD no cuenta camiones (2): " + (await txt()).match(/\d+ vehículos?/)?.[0]);

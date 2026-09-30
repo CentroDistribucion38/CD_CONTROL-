@@ -137,6 +137,10 @@ export type PendienteRevision = {
   /** Lo creó control con el «+»: no lo certificó Sider. */
   interno: boolean;
   pedido_nombre: string | null; llego_en: string | null;
+  /** Lo que el Vh Interno ya dijo al crearse, y el envase que le toca al
+   *  material: el formulario los trae puestos. Faltan (undefined) mientras
+   *  no se corra 2026-09-sider-vh-interno-canal-socio.sql. */
+  canal?: string | null; socio?: string | null; envase?: string | null;
 };
 
 /**

@@ -122,13 +122,13 @@ ok(/1\.440/.test(await f1.innerText()), "la ficha 1 no calcula las cajas de 20 e
 const b1 = f1.locator("button:has-text('Dar salida')");
 ok(await b1.isDisabled(), "«Dar salida» activo sin factura");
 ok(/Sin el número de factura/.test(await f1.innerText()), "no explica por qué está apagado");
-await f1.locator("input").fill("fe-4471 ##");
-ok(await f1.locator("input").inputValue() === "FE-4471", "la factura no se limpia: " + await f1.locator("input").inputValue());
+await f1.locator("input").fill("fe-76 87.01942999");
+ok(await f1.locator("input").inputValue() === "7687019429", "la factura no queda en solo números y máximo 10: " + await f1.locator("input").inputValue());
 ok(!(await b1.isDisabled()), "con factura el botón sigue apagado");
 await limpia();
 await b1.click(); await pg.waitForTimeout(300);
 const s = (await rpcs()).find((x) => x.n === "sider_ficha_dar_salida");
-ok(s && s.a.p_ficha === "f1" && s.a.p_factura === "FE-4471", "dar salida manda mal: " + JSON.stringify(s));
+ok(s && s.a.p_ficha === "f1" && s.a.p_factura === "7687019429", "dar salida manda mal: " + JSON.stringify(s));
 ok(/2 viajes en tránsito/.test(await txt()), "el aviso no cuenta los 2 viajes");
 /* la de las 2 fotos */
 const f3 = pg.locator(".ds-ficha").nth(2);

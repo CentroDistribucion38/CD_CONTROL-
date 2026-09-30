@@ -33,6 +33,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 
+export type SocioMaestro = { clave: string; nombre: string };
 export type OrigenMaestro = { planta: string; cd_origen: string };
 export type SkuMaestro = {
   sku: string; descripcion: string; clase?: string | null;
@@ -70,14 +71,22 @@ const limpiaPlaca = (t: string) => t.toUpperCase().replace(/[^A-Z0-9]/g, "").sli
 const DOC_MAX = 10;
 const limpiaDoc = (t: string) => t.replace(/[^0-9]/g, "").slice(0, DOC_MAX);
 
-export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, alCrear }: {
+export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36, alCerrar, alCrear }: {
   origenes: OrigenMaestro[];
   skus: SkuMaestro[];
+  /** Los socios activos, para el desplegable cuando el camión es de un socio. */
+  socios?: SocioMaestro[];
   estibasPorSider?: number;
   alCerrar: () => void;
   /** Se llama con la placa ya guardada: el Vh Interno ya está en Revisión AI – normal. */
   alCrear: (placa: string) => void;
 }) {
+  /* DE QUIÉN ES EL CAMIÓN. Sin valor de arranque a propósito: es lo que
+     decide qué más se pide, y un valor puesto de antemano se deja tal cual.
+       · socio → NO hay documento: se escoge cuál socio;
+       · T1    → el número de factura. */
+  const [canal, setCanal] = useState<"" | "socios" | "t1">("");
+  const [socio, setSocio] = useState("");
   const [placa, setPlaca] = useState("");
   const [planta, setPlanta] = useState("");
   const [destino, setDestino] = useState(DESTINO_POR_DEFECTO);
@@ -163,6 +172,8 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
   /* LO QUE FALTA SE DICE POR SU NOMBRE, junto al botón. «Rellena los
      campos» obliga a adivinar cuál. */
   const faltan: string[] = [];
+  if (!canal) faltan.push("si es de un socio o de T1");
+  if (canal === "socios" && !socio) faltan.push("el socio");
   if (!PLACA_OK.test(placa)) faltan.push("la placa (3 letras y 3 números)");
   if (!planta) faltan.push("el CD de origen");
   lineas.forEach((l, i) => {
@@ -171,7 +182,7 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
     const n = num(l.estibas);
     if (!n || n <= 0) faltan.push(`las estibas${ref}`);
   });
-  if (!factura) faltan.push("el documento (número de factura)");
+  if (canal === "t1" && !factura) faltan.push("el documento (número de factura)");
   const puede = faltan.length === 0 && !mismo;
 
   async function crear() {
@@ -189,7 +200,10 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
           p_destino: destino,
           p_sku: lineas[0].sku,
           p_estibas: num(lineas[0].estibas),
-          p_factura: factura,
+          /* UN SOCIO NO TIENE DOCUMENTO: la factura solo viaja en T1. */
+          p_factura: canal === "t1" ? factura : null,
+          p_canal: canal,
+          p_socio: canal === "socios" ? socio : null,
           /* Sin lote ni nota: el Vh Interno se crea con lo justo. La función de la
              base conserva los dos parámetros y aquí viajan vacíos. */
           p_lote: null,
@@ -199,8 +213,10 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
           p_placa: placa,
           p_planta: planta,
           p_destino: destino,
-          p_factura: factura,
+          p_factura: canal === "t1" ? factura : null,
           p_lineas: lineas.map((l) => ({ sku: l.sku, estibas: num(l.estibas) })),
+          p_canal: canal,
+          p_socio: canal === "socios" ? socio : null,
         });
     setOcupado(false);
     if (error) { setMal(traducirError(error.message)); return }
@@ -219,17 +235,45 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
         </p>
 
         <div className="nv-campos">
-          <label className="nv-doc">
-            <span>Documento (factura)</span>
-            <input value={factura} maxLength={DOC_MAX} inputMode="numeric" autoComplete="off" required aria-required="true"
-                   placeholder="Número de factura" aria-describedby="nv-doc-ayuda"
-                   onChange={(e) => setFactura(limpiaDoc(e.target.value))} />
-            <small id="nv-doc-ayuda">Solo números, hasta {DOC_MAX} dígitos</small>
-          </label>
+          {/* PRIMERO, DE QUIÉN ES: de eso depende si se pide el socio o
+              el documento. Son dos botones grandes y no un desplegable:
+              se toca con el guante puesto. */}
+          <div className="nv-canal ancho" role="group" aria-labelledby="nv-canal-rot">
+            <span className="nv-rot" id="nv-canal-rot">¿De quién es?</span>
+            <div className="nv-canal-bot">
+              {([["socios", "Socio"], ["t1", "T1"]] as const).map(([k, nombre]) => (
+                <button key={k} type="button" aria-pressed={canal === k}
+                        className={canal === k ? "on" : ""}
+                        onClick={() => setCanal(k)}>{nombre}</button>
+              ))}
+            </div>
+          </div>
+
+          {canal === "socios" && (
+            <label className="nv-socio ancho">
+              <span>Socio</span>
+              <select value={socio} required aria-required="true"
+                      aria-invalid={!socio} onChange={(e) => setSocio(e.target.value)}>
+                <option value="">— escoge el socio —</option>
+                {socios.map((x) => <option key={x.clave} value={x.clave}>{x.nombre}</option>)}
+              </select>
+              <small>Un socio no lleva número de documento.</small>
+            </label>
+          )}
+
+          {canal === "t1" && (
+            <label className="nv-doc">
+              <span>Documento (factura)</span>
+              <input value={factura} maxLength={DOC_MAX} inputMode="numeric" autoComplete="off" required aria-required="true"
+                     placeholder="Número de factura" aria-describedby="nv-doc-ayuda"
+                     onChange={(e) => setFactura(limpiaDoc(e.target.value))} />
+              <small id="nv-doc-ayuda">Solo números, hasta {DOC_MAX} dígitos</small>
+            </label>
+          )}
 
           <label className="nv-placa">
             <span>Placa</span>
-            <input value={placa} autoFocus maxLength={6} autoCapitalize="characters"
+            <input value={placa} maxLength={6} autoCapitalize="characters"
                    autoComplete="off" placeholder="ABC123" spellCheck={false}
                    aria-describedby="nv-placa-ayuda"
                    aria-invalid={placa.length > 0 && !PLACA_OK.test(placa)}
@@ -335,7 +379,7 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
 
           {lineas.length < MAX_LINEAS && (
             <button type="button" className="nv-mas-mat ancho" onClick={agrega}>
-              <span aria-hidden="true">+</span> Agregar otro material de esta factura
+              <span aria-hidden="true">+</span> {canal === "socios" ? "Agregar otro material" : "Agregar otro material de esta factura"}
             </button>
           )}
         </div>

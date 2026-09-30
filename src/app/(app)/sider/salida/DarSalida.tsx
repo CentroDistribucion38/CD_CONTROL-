@@ -25,8 +25,8 @@ import { haceCuanto } from "../sorting/Sorting";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 
-/** La factura: en mayúscula y sin signos raros; hasta 30 caracteres. */
-const limpiaFactura = (t: string) => t.toUpperCase().replace(/[^A-Z0-9\-\/\.]/g, "").slice(0, 30);
+/** La factura: SOLO NÚMEROS y máximo 10 dígitos (es el número de facturación de SAP). */
+const limpiaFactura = (t: string) => t.replace(/\D/g, "").slice(0, 10);
 
 export function DarSalida({ fichas, origenes, skus, estibasPorSider, nombres, yo, ahora, puedeDarSalida }: {
   fichas: Ficha[];
@@ -164,8 +164,8 @@ export function DarSalida({ fichas, origenes, skus, estibasPorSider, nombres, yo
                 {puedeDarSalida && f.fotos >= 3 && (
                   <div className="ds-accion">
                     <label>
-                      <span>Número de factura</span>
-                      <input value={factura} placeholder="FE-4471" autoCapitalize="characters" autoComplete="off"
+                      <span>Número de factura (máx. 10 dígitos)</span>
+                      <input value={factura} placeholder="7687019429" inputMode="numeric" autoComplete="off"
                              aria-label={`Número de factura de ${f.placa}`}
                              onChange={(e) => setFacturas((x) => ({ ...x, [f.id]: limpiaFactura(e.target.value) }))} />
                     </label>

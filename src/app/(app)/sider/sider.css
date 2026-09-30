@@ -3456,6 +3456,17 @@
 .sd .nv-placa small, .sd .nv-doc small {
   margin-top: 6px; font: 500 11px "IBM Plex Mono", ui-monospace, monospace; color: var(--gr);
 }
+/* DE QUIÉN ES EL CAMIÓN: dos botones grandes, uno u otro. */
+.sd .nv-canal-bot { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.sd .nv-canal-bot button {
+  min-height: 48px; border-radius: 0; cursor: pointer; background: #fff; color: var(--tn);
+  border: 1.5px solid #D4D4CE; font: 800 16px "Archivo", system-ui, sans-serif; letter-spacing: .02em;
+}
+.sd .nv-canal-bot button.on { background: var(--ac); border-color: var(--tn); box-shadow: inset 0 0 0 1px var(--tn) }
+.sd .nv-canal-bot button:focus-visible { outline: 3px solid #FFE9A3; outline-offset: 1px; border-color: var(--tn) }
+.sd .nv-socio small {
+  margin-top: 6px; font: 500 11px "IBM Plex Mono", ui-monospace, monospace; color: var(--gr);
+}
 .sd .nv-placa small.mal { color: var(--sd-mal); font-weight: 700 }
 .sd .nv-mal { margin: -4px 0 0; font-size: 12.5px; font-weight: 600; color: var(--sd-mal) }
 

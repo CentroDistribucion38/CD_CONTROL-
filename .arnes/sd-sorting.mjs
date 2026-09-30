@@ -122,6 +122,7 @@ const pend = (n: number, h: number, o: any = {}) => ({
   estibas: 20 + n, fecha: "2026-09-28", llego_en: hace(h), pedido_en: hace(h + 5),
   pedido_por: "u1", motivo: o.motivo ?? null, interno: !!o.interno,
   pedido_nombre: o.pedido ?? "Cristian Padilla",
+  ...(o.canal ? { canal: o.canal, socio: o.socio ?? null, envase: o.envase ?? null } : {}),
 });
 const det = (n: number, o: any = {}) => ({
   id: "v" + n, placa: "REV00" + n, cd_origen: o.origen ?? "Apartadó", cd_destino: "Barranquilla",
@@ -146,7 +147,7 @@ const SKUS_M = [
 
 const cuatro = [
   pend(1, 30), pend(2, 3),
-  pend(3, 50, { tipo: "sorting", interno: true, pedido: "Control Uno", placa: "INT003" }),
+  pend(3, 50, { tipo: "sorting", interno: true, pedido: "Control Uno", placa: "INT003", canal: "socios", socio: "logi", envase: "G175" }),
   pend(4, 5, { tipo: "sorting" }),
 ];
 const casos: Record<string, any> = {
@@ -183,12 +184,23 @@ if (m === "sorting") {
     hechos={k.hechos} nombres={{ u1: "Cristian Padilla", u2: "Muchacho Uno" }}
     maestros={k.maestros} puedeEditar={k.puedeEditar}
     puedeCrear={!!k.puedeCrear} origenes={k.puedeCrear ? ORIGENES : []} skus={k.puedeCrear ? SKUS_M : []}
+    socios={k.puedeCrear ? [{ clave: "logi", nombre: "Logisinú" }, { clave: "sur", nombre: "Distribuciones del Sur" }] : []}
     estibasPorSider={36} />);
 } else if (m === "form") {
   const viaje = { viaje_id: "vf", placa: "FRM001", planta: "BAQ", fecha: "2026-09-28", sku: "3500887",
                   llego_en: hace(2),
-                  ...(q.get("u") ? { unidades: Number(q.get("u")) } : {}) };
-  root.render(<FormularioAi viaje={viaje} revision={null} detalle={[]} defectos={maestros.defectos}
+                  ...(q.get("u") ? { unidades: Number(q.get("u")) } : {}),
+                  ...(q.get("canal") ? { canal: q.get("canal") } : {}),
+                  ...(q.get("socio") ? { socio: q.get("socio") } : {}),
+                  ...(q.get("envase") ? { envase: q.get("envase") } : {}) };
+  /* «corregir»: una revisión ya guardada, de T3, de T1 (canal), con envase G175. */
+  const previa: any = q.get("previa") ? {
+    id: "r9", viaje_id: "vf", fecha: "2026-09-27", planta: "BAQ", placa: "FRM001", turno: "T3",
+    canal: "t1", canal_nombre: "T1", socio: null, socio_nombre: null, envase: "G175", envase_nombre: "Costeñita 175",
+    litros: 0.175, certificado: false, recibidas: 1000, revisadas: 100, zcl3: null, comentarios: null,
+    revisado_por: "u2", revisado_en: hace(20), editado_por: null, editado_en: null, ediciones: 0,
+    defectos: 0, otros: 0, marcadas: 0, indice: 0, no_abono: 0, abono_sap: 1000, hl_defectos: 0 } : null;
+  root.render(<FormularioAi viaje={viaje} revision={previa} detalle={[]} defectos={maestros.defectos}
     envases={maestros.envases} socios={maestros.socios} canales={maestros.canales}
     alGuardar={() => { (window as any).__guardado = true }} alCancelar={() => {}}
     {...(c === "sorting" ? { tipo: "sorting" as const } : {})} />);
@@ -285,6 +297,17 @@ const roto = [];
 pg.on("pageerror", (e) => roto.push(e.message));
 pg.on("console", (m) => { if (m.type() === "error") roto.push(m.text()) });
 
+/* EL RELOJ: con «&t=2026-09-30T01:30:00Z» la página vive en esa hora. */
+await pg.addInitScript(() => {
+  const t = new URL(location.href).searchParams.get("t");
+  if (!t) return;
+  const off = Date.parse(t) - Date.now(), Real = Date;
+  class Falso extends Real {
+    constructor(...a) { if (a.length) super(...a); else super(Real.now() + off) }
+    static now() { return Real.now() + off }
+  }
+  window.Date = Falso;
+});
 const monta = async (query, ancho = 1440, tema = "") => {
   await pg.unrouteAll();
   await pg.setViewportSize({ width: ancho, height: 1000 });
@@ -302,6 +325,9 @@ const monta = async (query, ancho = 1440, tema = "") => {
   catch { throw new Error(`«${query}» no pintó nada. Errores de la página: ${roto.slice(-3).join(" | ") || "ninguno"}`) }
 };
 const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
+/* «¿De quién es?» del «+»: sin escoger, el formulario no sabe si pide socio o documento. */
+const t1 = () => pg.click('.nv-canal-bot button:has-text("T1")');
+const socioBtn = () => pg.click('.nv-canal-bot button:has-text("Socio")');
 const rpcs = () => pg.evaluate(() => window.__rpc);
 
 /* DIAGNÓSTICO: `DEBUG="m=sorting&c=normal@360" node .arnes/sd-sorting.mjs`
@@ -516,6 +542,107 @@ async function llenaYGuarda(query) {
        ["p_canal","p_certificado","p_comentarios","p_conteos","p_envase","p_recibidas","p_revisadas","p_socio","p_turno","p_viaje","p_zcl3"].sort()),
      `la certificada mandó otro juego de parámetros que antes: ${Object.keys(a.llamada.a).sort()}`);
 }
+/* =====================================================================
+   3b · EL FORMULARIO ABRE CON LO QUE YA SE SABE
+   ===================================================================== */
+/* EL TURNO SALE DE LA HORA DE COLOMBIA (UTC-5): T1 06–14, T2 14–22, T3 22–06. En los bordes. */
+for (const [utc, esperado, hora] of [
+  ["2026-09-29T11:00:00Z", "T1", "06:00"], ["2026-09-29T10:59:00Z", "T3", "05:59"],
+  ["2026-09-29T18:59:00Z", "T1", "13:59"], ["2026-09-29T19:00:00Z", "T2", "14:00"],
+  ["2026-09-30T02:59:00Z", "T2", "21:59"], ["2026-09-30T03:00:00Z", "T3", "22:00"],
+  ["2026-09-29T05:00:00Z", "T3", "00:00"], ["2026-09-29T15:30:00Z", "T1", "10:30"],
+]) {
+  await monta("m=form&c=ai&t=" + utc);
+  const on = await pg.$$eval(".ai-seg button.on", (b) => b.map((x) => x.textContent));
+  ok(on.length === 1 && on[0] === esperado, `a las ${hora} en Colombia el turno abrió en ${JSON.stringify(on)} y debía ser ${esperado}`);
+}
+/* Y SE PUEDE CAMBIAR, y lo cambiado es lo que viaja. */
+{
+  await monta("m=form&c=ai&t=2026-09-29T15:30:00Z&canal=t1&envase=G175");
+  await pg.click('.ai-seg button:has-text("T3")');
+  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "T3", "no dejó cambiar el turno");
+  await pg.fill("#ai-rec", "1000"); await pg.fill("#ai-rev", "100");
+  await pg.locator("button.b1:not([disabled])").first().click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  ok((await rpcs())[0].a.p_turno === "T3", "el turno cambiado a mano no es el que viaja");
+}
+/* UN VH INTERNO DE UN SOCIO: canal, socio y envase puestos; nada que escoger. */
+{
+  await monta("m=form&c=sorting&u=34560&canal=socios&socio=logi&envase=G175&t=2026-09-29T20:00:00Z");
+  ok(await pg.$$eval("select#ai-canal, select#ai-socio, select#ai-envase", (s) => s.length) === 0, "con el viaje completo sigue habiendo desplegables");
+  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "T2", "a las 15:00 el turno no abrió en T2");
+  const f = await pg.$eval(".ai-p-faltan", (e) => e.textContent);
+  ok(/Cuántas se revisaron/.test(f) && !/socio|envase|llegaron/i.test(f), "pide más que las revisadas: " + f);
+  ok(/Lo dijo el Vh Interno/.test(await txt()) && /Sale del material del viaje/.test(await txt()), "no dice de dónde salen los datos");
+  await pg.fill("#ai-rev", "3456");
+  await pg.locator("button.b1:not([disabled])").first().click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  const a = (await rpcs())[0].a;
+  ok(a.p_canal === "socios" && a.p_socio === "logi" && a.p_envase === "G175" && a.p_turno === "T2" && a.p_revisadas === 3456 && a.p_recibidas === 34560,
+     "lo que viaja no es lo del viaje: " + JSON.stringify(a));
+}
+/* «CAMBIAR» abre los campos, con lo del viaje escogido, y lo que se cambia es lo que viaja. */
+{
+  await monta("m=form&c=sorting&u=34560&canal=socios&socio=logi&envase=G175");
+  ok(/Cambiar canal, socio o envase/.test(await txt()), "no ofrece cambiar");
+  await pg.click('button:has-text("Cambiar canal, socio o envase")');
+  ok(await pg.inputValue("select#ai-canal") === "socios" && await pg.inputValue("select#ai-socio") === "logi" && await pg.inputValue("select#ai-envase") === "G175",
+     "al abrir el cambio no quedan escogidos los del viaje");
+  ok(await pg.$$eval(".ai-cambiar", (s) => s.length) === 0, "sigue el botón de cambiar con los campos abiertos");
+  await pg.selectOption("select#ai-canal", "t1");
+  await pg.fill("#ai-rev", "100");
+  await pg.locator("button.b1:not([disabled])").first().click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  const a = (await rpcs())[0].a;
+  ok(a.p_canal === "t1" && a.p_socio === null, "el canal cambiado a T1 no viajó sin socio: " + JSON.stringify(a));
+}
+/* UN VH INTERNO DE T1: sin socio. */
+{
+  await monta("m=form&c=sorting&u=34560&canal=t1&envase=G175");
+  ok(await pg.$$eval("#ai-socio", (s) => s.length) === 0, "un camión de T1 muestra socio");
+  await pg.fill("#ai-rev", "100");
+  await pg.locator("button.b1:not([disabled])").first().click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  const a = (await rpcs())[0].a;
+  ok(a.p_canal === "t1" && a.p_socio === null && a.p_envase === "G175", "T1 no viajó bien: " + JSON.stringify(a));
+}
+/* UN CAMIÓN CERTIFICADO POR SIDER solo trae el envase: el canal (y socio) se siguen escogiendo. */
+{
+  await monta("m=form&c=ai&u=34560&envase=G175");
+  ok(await pg.$$eval("select#ai-canal", (s) => s.length) === 1 && await pg.$$eval("#ai-envase", (s) => s.length) === 1
+     && await pg.$$eval("select#ai-envase", (s) => s.length) === 0, "con solo el envase debía traer el envase fijo y el canal por escoger");
+  ok(await pg.inputValue("select#ai-canal") === "socios" && /El socio/.test(await pg.$eval(".ai-p-faltan", (e) => e.textContent)),
+     "el socio no queda por escoger");
+  await pg.selectOption("select#ai-socio", "logi");
+  await pg.fill("#ai-rev", "100");
+  await pg.locator("button.b1:not([disabled])").first().click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  const a = (await rpcs())[0].a;
+  ok(a.p_envase === "G175" && a.p_socio === "logi", "no viajó bien: " + JSON.stringify(a));
+}
+/* UN CAMIÓN DE SOCIO SIN SOCIO GUARDADO (o con un socio ya apagado) no se cierra con el campo vacío:
+   el socio se escoge. */
+for (const q of ["canal=socios&envase=G175", "canal=socios&socio=apagado&envase=G175"]) {
+  await monta("m=form&c=ai&u=34560&" + q);
+  ok(await pg.$$eval("select#ai-socio", (x) => x.length) === 1 && await pg.inputValue("select#ai-socio") === ""
+     && /El socio/.test(await pg.$eval(".ai-p-faltan", (e) => e.textContent)),
+     "[" + q + "] un camión de socio sin socio válido no deja escoger el socio");
+}
+/* UN ENVASE QUE EL MAESTRO YA NO TRAE no se precarga: se escoge a mano. */
+{
+  await monta("m=form&c=ai&u=34560&envase=ZZZ999&canal=t1");
+  ok(await pg.$$eval("select#ai-envase", (s) => s.length) === 1 && await pg.inputValue("select#ai-envase") === "",
+     "un envase que no está en el maestro se precargó");
+}
+/* AL CORREGIR MANDA LO GUARDADO —turno, canal, envase—, no el viaje ni la hora de ahora. */
+{
+  await monta("m=form&c=ai&previa=1&canal=socios&socio=logi&envase=G175&t=2026-09-29T15:30:00Z");
+  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "T3", "al corregir el turno no es el que se guardó (T3)");
+  ok(await pg.$$eval("select#ai-canal", (s) => s.length) === 1 && await pg.inputValue("select#ai-canal") === "t1",
+     "al corregir no muestra el canal guardado editable");
+  ok(await pg.$$eval(".ai-cambiar", (s) => s.length) === 0, "al corregir ofrece «Cambiar» sobre datos que ya son editables");
+}
+
 /* RECIBIDAS SALEN DE LA TARJETA; NO HAY N.° ZCL3 (ni socios ni T1). */
 {
   await monta("m=form&c=sorting&u=34560");
@@ -559,17 +686,26 @@ for (const [c, clase] of [["sorting", "Revisión AI – normal"], ["ai", "Revisi
    4 · HACER Y CORREGIR DESDE LA LISTA
    ===================================================================== */
 {
-  await monta("m=sorting&c=normal");
+  await monta("m=sorting&c=normal&t=2026-09-29T15:00:00Z");   /* 10:00 en Colombia → T1 */
   await pg.click(".tr-vh.so .so-btn >> nth=0");
   let t = await txt();
   ok(/INT003/.test(t) && /Revisión AI – normal/.test(t), "el botón de la normal no abrió el formulario de la normal");
   ok(await pg.$$eval(".tr-vh", (s) => s.length) === 0, "con el formulario abierto sigue la lista: la pantalla es de UN camión");
-  await pg.selectOption("#ai-canal", "t1"); await pg.selectOption("#ai-envase", "G175");
+  /* EL VH INTERNO YA DIJO DE QUIÉN Y DE QUÉ: no hay nada que escoger, solo se cuentan botellas. */
+  ok(await pg.$$eval("select#ai-canal, select#ai-socio, select#ai-envase", (s) => s.length) === 0,
+     "el interno con canal, socio y envase sigue pidiendo escogerlos");
+  ok(/Socios/.test(await pg.$eval("#ai-canal", (e) => e.textContent)) && /Logisinú/.test(await pg.$eval("#ai-socio", (e) => e.textContent))
+     && /G175/.test(await pg.$eval("#ai-envase", (e) => e.textContent)), "no muestra el canal, el socio y el envase del interno");
+  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "T1", "el turno no abre en el de la hora (10:00 → T1)");
+  ok(/Cuántas se revisaron/.test(await pg.$eval(".ai-p-faltan", (e) => e.textContent)) && !/socio|envase|turno/i.test(await pg.$eval(".ai-p-faltan", (e) => e.textContent)),
+     "el panel pide algo más que las botellas revisadas: " + await pg.$eval(".ai-p-faltan", (e) => e.textContent));
   await pg.fill("#ai-rec", "500"); await pg.fill("#ai-rev", "50");
   await pg.locator("button.b1:not([disabled])").first().click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];
   ok(l.a.p_viaje === "v3" && l.a.p_tipo === "sorting", `la normal guardó ${JSON.stringify(l.a).slice(0, 140)}`);
+  ok(l.a.p_canal === "socios" && l.a.p_socio === "logi" && l.a.p_envase === "G175" && l.a.p_turno === "T1",
+     `no mandó lo que trajo el viaje: ${JSON.stringify(l.a)}`);
   await pg.waitForFunction(() => window.__refresh > 0);
   ok(/Revisión AI – normal de INT003 cerrada/.test(await txt()), "no avisó que la revisión normal quedó cerrada");
   ok(await pg.$$eval(".tr-vh", (s) => s.length) === 4, "al guardar no volvió a la lista");
@@ -745,12 +881,13 @@ await monta("m=sorting&c=normal");
   /* NADA ESCRITO: el botón apagado y lo que falta dicho por su nombre. */
   ok(await crear.isDisabled(), "el botón de crear está encendido con el formulario vacío");
   let t = await pg.$eval(".vj-caja.nuevo", (e) => e.textContent.replace(/\s+/g, " "));
-  ok(/Falta la placa \(3 letras y 3 números\), el CD de origen, el material, las estibas, el documento \(número de factura\)/.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
+  ok(/Falta si es de un socio o de T1, la placa \(3 letras y 3 números\), el CD de origen, el material, las estibas\./.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
   ok(await pg.inputValue(".nv-campos select >> nth=1") === "Barranquilla", "el destino no arranca en Barranquilla");
   const destinos = await pg.$$eval(".nv-campos select >> nth=1 >> option", (o) => o.map((x) => x.textContent));
   ok(JSON.stringify(destinos) === JSON.stringify(["Barranquilla", "Apartadó", "Medellín"]),
      `los destinos son [${destinos}]: Barranquilla primero y sin repetirse aunque el maestro también la traiga como origen`);
 
+  await t1();
   /* LA PLACA SE ESCRIBE EN MAYÚSCULA. */
   await pg.fill(".nv-placa input", "abc123");
   ok(await pg.inputValue(".nv-placa input") === "ABC123", "la placa no se pasa a mayúsculas");
@@ -844,11 +981,83 @@ await monta("m=sorting&c=normal");
   const l = (await rpcs())[0];
   ok(l.n === "sider_viaje_interno_crear", `llamó «${l.n}»`);
   ok(JSON.stringify(l.a) === JSON.stringify({ p_placa: "ABC123", p_planta: "APA", p_destino: "Barranquilla", p_sku: "3500887",
-                                              p_estibas: 10.5, p_factura: "1234567890", p_lote: null, p_nota: null }),
+                                              p_estibas: 10.5, p_factura: "1234567890", p_canal: "t1", p_socio: null, p_lote: null, p_nota: null }),
      `los parámetros son ${JSON.stringify(l.a)}`);
   await pg.waitForFunction(() => window.__refresh > 0);
   ok(await pg.$$eval("#nv-titulo", (s) => s.length) === 0, "el formulario no se cierra al crear");
   ok(/ABC123 creado: ya está en Revisión AI – normal/.test(await txt()), "no avisa que el Vh Interno quedó en Revisión AI");
+}
+/* =====================================================================
+   5b · «¿DE QUIÉN ES?»: SOCIO (SIN DOCUMENTO, CON SOCIO) O T1 (CON FACTURA)
+   ===================================================================== */
+{
+  const origen = '.nv-campos label:has(> span:text("CD origen")) select';
+  const llena = async () => {
+    await pg.fill(".nv-placa input", "abc123");
+    await pg.selectOption(origen, "APA");
+    await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
+    await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10");
+  };
+  await monta("m=sorting&c=normal");
+  await pg.click(".tr-mas"); await pg.waitForSelector("#nv-titulo");
+  const crear = pg.locator('.vj-caja.nuevo .btn:has-text("Crear Vh Interno")');
+  /* SIN ESCOGER NO SE PIDE NI SOCIO NI DOCUMENTO: primero se dice de quién es. */
+  ok(await pg.$$eval(".nv-canal-bot button", (b) => b.length) === 2 && await pg.$$eval(".nv-canal-bot button.on", (b) => b.length) === 0,
+     "no hay dos botones sin escoger para «¿De quién es?»");
+  ok(await pg.$$eval(".nv-doc, .nv-socio", (x) => x.length) === 0, "sin escoger ya pide documento o socio");
+  await llena();
+  ok(await crear.isDisabled() && /si es de un socio o de T1/.test(await pg.$eval(".vj-falta", (e) => e.textContent)),
+     "con todo lleno pero sin decir de quién es, el botón se enciende o no lo dice");
+
+  /* SOCIO: NO HAY DOCUMENTO; SE ESCOGE EL SOCIO, Y ES OBLIGATORIO. */
+  await socioBtn();
+  ok(await pg.$eval('.nv-canal-bot button:has-text("Socio")', (e) => e.getAttribute("aria-pressed")) === "true", "el botón Socio no queda marcado");
+  ok(await pg.$$eval(".nv-doc", (x) => x.length) === 0, "un camión de socio pide documento");
+  const socios = await pg.$$eval(".nv-socio option", (o) => o.map((x) => x.textContent));
+  ok(JSON.stringify(socios) === JSON.stringify(["— escoge el socio —", "Logisinú", "Distribuciones del Sur"]), `los socios son ${JSON.stringify(socios)}`);
+  ok(await crear.isDisabled() && /el socio/.test(await pg.$eval(".vj-falta", (e) => e.textContent))
+     && !/documento/.test(await pg.$eval(".vj-falta", (e) => e.textContent)),
+     "sin socio el botón está encendido, o no dice que falta el socio, o pide documento");
+  await pg.selectOption(".nv-socio select", "sur");
+  ok(await crear.isEnabled(), "con el socio escogido y sin documento el botón no se enciende");
+  await crear.click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  let l = (await rpcs())[0];
+  ok(l.n === "sider_viaje_interno_crear" && l.a.p_canal === "socios" && l.a.p_socio === "sur" && l.a.p_factura === null,
+     `el camión de un socio mandó ${JSON.stringify(l.a)}`);
+
+  /* T1: DOCUMENTO OBLIGATORIO, SIN SOCIO, Y LA FACTURA QUE QUEDÓ ESCRITA NO SE ARRASTRA A UN SOCIO. */
+  await monta("m=sorting&c=normal");
+  await pg.click(".tr-mas"); await pg.waitForSelector("#nv-titulo");
+  await llena();
+  await t1();
+  ok(await pg.$$eval(".nv-socio", (x) => x.length) === 0 && await pg.$$eval(".nv-doc", (x) => x.length) === 1, "T1 no pide el documento en lugar del socio");
+  ok(await crear.isDisabled() && /el documento/.test(await pg.$eval(".vj-falta", (e) => e.textContent)), "T1 sin documento no dice que falta");
+  await pg.fill(".nv-doc input", "9988");
+  ok(await crear.isEnabled(), "T1 con documento no enciende el botón");
+  await socioBtn();                                   /* se arrepiente: era de un socio */
+  await pg.selectOption(".nv-socio select", "logi");
+  await t1();                                         /* y otra vez T1: el socio escogido no debe viajar */
+  await crear.click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  l = (await rpcs())[0];
+  ok(l.a.p_canal === "t1" && l.a.p_socio === null && l.a.p_factura === "9988", `T1 mandó ${JSON.stringify(l.a)}`);
+
+  /* SOCIO CON DOS MATERIALES: la misma regla en la función de varios. */
+  await monta("m=sorting&c=normal");
+  await pg.click(".tr-mas"); await pg.waitForSelector("#nv-titulo");
+  await llena();
+  await t1(); await pg.fill(".nv-doc input", "777");   /* escribió una factura… */
+  await socioBtn();                                     /* …y resultó ser de un socio */
+  await pg.selectOption(".nv-socio select", "logi");
+  await pg.click(".nv-mas-mat");
+  await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "ámbar"); await pg.click(".nv-linea >> nth=1 >> .nv-lista button");
+  await pg.fill(".nv-linea >> nth=1 >> label:has(span:text('Estibas')) input", "4");
+  await crear.click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  l = (await rpcs())[0];
+  ok(l.n === "sider_viaje_interno_crear_varios" && l.a.p_canal === "socios" && l.a.p_socio === "logi" && l.a.p_factura === null,
+     `varios de un socio mandó ${JSON.stringify(l.a)}`);
 }
 /* UN CAMIÓN CON VARIOS MATERIALES DE LA MISMA FACTURA: el «+» agrega otra línea. */
 {
@@ -859,7 +1068,7 @@ await monta("m=sorting&c=normal");
      "con un solo material aparece el encabezado «Material 1 de 1» o falta la línea");
   ok(await pg.$$eval(".nv-mas-mat", (x) => x.length) === 1, "no aparece el «+ Agregar otro material»");
   await pg.fill(".nv-placa input", "abc123"); await pg.selectOption(".nv-campos select >> nth=0", "APA");
-  await pg.fill(".nv-doc input", "555");
+  await t1(); await pg.fill(".nv-doc input", "555");
   await pg.fill(".nv-linea >> nth=0 >> .nv-material input", "175"); await pg.click(".nv-linea >> nth=0 >> .nv-lista button");
   await pg.fill(".nv-linea >> nth=0 >> label:has(span:text('Estibas')) input", "10");
   await pg.click(".nv-mas-mat");
@@ -897,13 +1106,13 @@ await monta("m=sorting&c=normal");
   const l = (await rpcs())[0];
   ok(l.n === "sider_viaje_interno_crear_varios", `con dos materiales llamó «${l.n}»`);
   ok(JSON.stringify(l.a) === JSON.stringify({ p_placa: "ABC123", p_planta: "APA", p_destino: "Barranquilla", p_factura: "555",
-       p_lineas: [{ sku: "3500887", estibas: 10 }, { sku: "3500901", estibas: 4 }] }), `los parámetros son ${JSON.stringify(l.a)}`);
+       p_lineas: [{ sku: "3500887", estibas: 10 }, { sku: "3500901", estibas: 4 }], p_canal: "t1", p_socio: null }), `los parámetros son ${JSON.stringify(l.a)}`);
 }
 {
   /* QUITAR una línea deja la de siempre — y con una sola línea se llama a la función de siempre. */
   await monta("m=sorting&c=normal");
   await pg.click(".tr-mas"); await pg.waitForSelector("#nv-titulo");
-  await pg.fill(".nv-placa input", "abc123"); await pg.selectOption(".nv-campos select >> nth=0", "APA"); await pg.fill(".nv-doc input", "555");
+  await pg.fill(".nv-placa input", "abc123"); await pg.selectOption(".nv-campos select >> nth=0", "APA"); await t1(); await pg.fill(".nv-doc input", "555");
   await pg.fill(".nv-linea >> nth=0 >> .nv-material input", "175"); await pg.click(".nv-linea >> nth=0 >> .nv-lista button");
   await pg.fill(".nv-linea >> nth=0 >> label:has(span:text('Estibas')) input", "10");
   await pg.click(".nv-mas-mat"); await pg.click(".nv-mas-mat");
@@ -923,7 +1132,7 @@ await monta("m=sorting&c=normal");
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
   await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
   await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "5");
-  await pg.fill(".nv-doc input", "123");
+  await t1(); await pg.fill(".nv-doc input", "123");
   await pg.selectOption(".nv-campos select >> nth=1", "Medellín");
   await pg.evaluate(() => { window.__rpcFalla = "Ese material está apagado en el maestro" });
   await pg.click('.vj-caja.nuevo .btn:has-text("Crear Vh Interno")');
@@ -1103,7 +1312,7 @@ for (const ancho of [360, 390, 722, 820, 1440]) {
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
   await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
   await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
-  await pg.fill(".nv-doc input", "1234567890");
+  await t1(); await pg.fill(".nv-doc input", "1234567890");
   const caja = await pg.evaluate(() => {
     const W = document.documentElement.clientWidth;
     const c = document.querySelector(".vj-caja.nuevo").getBoundingClientRect();

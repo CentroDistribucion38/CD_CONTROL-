@@ -46,7 +46,8 @@ const maestros: any = {
 const pend = (n: number, h: number, o: any = {}) => ({
   viaje_id: "v" + n, tipo: o.tipo ?? "ai", placa: o.placa ?? "REV00" + n, planta: "APA", sku: "3500887",
   estibas: 20 + n, fecha: "2026-09-28", llego_en: hace(h), pedido_en: hace(h + 5),
-  pedido_por: "u1", motivo: null, interno: !!o.interno, pedido_nombre: o.pedido ?? "Cristian Padilla" });
+  pedido_por: "u1", motivo: null, interno: !!o.interno, pedido_nombre: o.pedido ?? "Cristian Padilla",
+  ...(o.canal ? { canal: o.canal, socio: o.socio ?? null, envase: o.envase ?? null } : {}) });
 const det = (n: number, o: any = {}) => ({
   id: "v" + n, placa: o.placa ?? "REV00" + n, cd_origen: o.origen ?? "Apartadó",
   descripcion: "Botella Costeña 175 cc", tipo_envase: "G175", sider: 12.5, cajas: 3420, unidades: 82080, hl: 143.64 });
@@ -86,9 +87,9 @@ if (m === "certificar") {
      placa, misma factura, misma hora de salida. Y otro camión suelto. */
   const salida = hace(2);
   const viajes = [
-    v(1, { placa: "ABC569", sku: "3501225", descripcion: "BOTELLA FLINT 250 CC", tipo_envase: "EER", estibas: 20, sider: 0.56, cajas: 900, hl: 85.5, factura: "FE-4471", salida_en: salida, en_camino: "02:00:00", requiere_ai: c === "multi-ai" }),
-    v(2, { placa: "ABC569", sku: "3500005", descripcion: "Envase Costeñita 175R", tipo_envase: "EER", estibas: 25, sider: 0.69, cajas: 1350, hl: 89.78, factura: "FE-4471", salida_en: salida, en_camino: "02:00:00" }),
-    v(3, { placa: "JYN141", factura: "FE-5000", salida_en: hace(5), en_camino: "05:00:00" }),
+    v(1, { placa: "ABC569", sku: "3501225", descripcion: "BOTELLA FLINT 250 CC", tipo_envase: "EER", estibas: 20, sider: 0.56, cajas: 900, hl: 85.5, factura: "7687019429", salida_en: salida, en_camino: "02:00:00", requiere_ai: c === "multi-ai" }),
+    v(2, { placa: "ABC569", sku: "3500005", descripcion: "Envase Costeñita 175R", tipo_envase: "EER", estibas: 25, sider: 0.69, cajas: 1350, hl: 89.78, factura: "7687019429", salida_en: salida, en_camino: "02:00:00" }),
+    v(3, { placa: "JYN141", factura: "7687019430", salida_en: hace(5), en_camino: "05:00:00" }),
   ];
   const adm = c !== "multi-lectura";
   root.render(<Transito viajes={viajes as any} nombres={nombres} esEditor esAdmin={adm} manda={adm} origenes={ORIGENES as any}
@@ -104,12 +105,13 @@ if (m === "certificar") {
     skus={SKUS} estibasPorSider={36} trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 } else if (m === "sorting") {
   const cuatro = [pend(1, 30, { placa: "JYN141" }), pend(2, 3, { placa: "KLM872" }),
-    pend(3, 26, { tipo: "sorting", interno: true, pedido: "Control Uno", placa: "ABC123" }),
+    pend(3, 26, { tipo: "sorting", interno: true, pedido: "Control Uno", placa: "ABC123", canal: "socios", socio: "logi", envase: "G175" }),
     pend(4, 5, { tipo: "sorting", placa: "PQR305" })];
-  root.render(<Sorting ahora={AHORA} pendientes={cuatro as any} detalle={[det(1, { placa: "JYN141" }), det(2, { placa: "KLM872" }), det(4, { placa: "PQR305" })] as any}
+  root.render(<Sorting ahora={AHORA} pendientes={cuatro as any} detalle={[det(1, { placa: "JYN141" }), det(2, { placa: "KLM872" }), det(3, { placa: "ABC123" }), det(4, { placa: "PQR305" })] as any}
     hechos={[hecho(1, { placa: "TVX219" }), hecho(2, { placa: "GHJ450", tipo: "sorting" })] as any}
     nombres={nombres} maestros={maestros} puedeEditar puedeCrear={c !== "sincrear"}
-    origenes={ORIGENES.map((o) => ({ planta: o.planta, cd_origen: o.cd_origen })) as any} skus={SKUS} estibasPorSider={36} />);
+    origenes={ORIGENES.map((o) => ({ planta: o.planta, cd_origen: o.cd_origen })) as any} skus={SKUS} estibasPorSider={36}
+    socios={maestros.socios.map((x: any) => ({ clave: x.clave, nombre: x.nombre }))} />);
 } else if (m === "viajes") {
   const f = (n: number, o: any) => ({
     id: "f" + n, placa: "FUE00" + n, planta: "APA", cd_origen: "Apartadó", cd_destino: "Barranquilla",
@@ -158,7 +160,7 @@ if (m === "certificar") {
 } else if (m === "novedades") {
   const nov = (n: number, o: any) => ({
     id: "n" + n, tramo: "t1", tipo: "viaje", motivo: "sello", motivo_nombre: "Sello roto", viaje_id: "v" + n,
-    placa: "JYN141", fecha: "2026-09-27", hora: "14:30:00", factura: "FE-4471", lote: "L2609A", sku: "3500887",
+    placa: "JYN141", fecha: "2026-09-27", hora: "14:30:00", factura: "7687019429", lote: "L2609A", sku: "3500887",
     cantidad: 4, unidad: "estibas", descripcion: "Llegó con el sello roto y 4 estibas golpeadas.", foto_ruta: null,
     cd_responsable: "Apartadó", compromiso: null, fecha_compromiso: null, estado: "abierta", que_se_hizo: null,
     creada_por: "u1", creada_en: hace(30), cerrada_por: null, cerrada_en: null, cd_origen: "Apartadó", material: "Botella Costeña 175 cc", estado_viaje: "recibido", pegada_a_viaje: true, dias: 2, vencida: false, respuestas: 0, ...o });
@@ -169,7 +171,7 @@ if (m === "certificar") {
               { clave: "falt", nombre: "Faltante", tramo: null, tipo: "viaje", orden: 2 },
               { clave: "golpe", nombre: "Estibas golpeadas", tramo: "t1", tipo: "viaje", orden: 3 },
               { clave: "cerr", nombre: "Cliente cerrado", tramo: "t2", tipo: "entrega", orden: 4 }] as any}
-    viajes={[{ id: "v1", placa: "JYN141", cd_origen: "Apartadó", descripcion: "Botella Costeña 175 cc", sku: "3500887", factura: "FE-4471", lote: "L2609A" }] as any}
+    viajes={[{ id: "v1", placa: "JYN141", cd_origen: "Apartadó", descripcion: "Botella Costeña 175 cc", sku: "3500887", factura: "7687019429", lote: "L2609A" }] as any}
     hilo={[]} nombres={nombres} puedeEditar miBodega="Barranquilla" />);
 } else if (m === "maestro") {
   root.render(<Maestro origenes={ORIGENES as any} skus={SKUS} estibasPorSider={36} esEditor />);

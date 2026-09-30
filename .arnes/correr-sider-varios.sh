@@ -4,7 +4,7 @@
 #   bash .arnes/correr-sider-varios.sh
 set -e
 export DB=${1:-varios}
-export EXCLUIR_EXTRA="sider-interno-varios-materiales"
+export EXCLUIR_EXTRA="sider-interno-varios-materiales${EXCLUIR_EXTRA:+|$EXCLUIR_EXTRA}"
 bash .arnes/correr-sider-revision.sh $DB >/tmp/claude-0/varios-base.txt 2>&1 || { tail -15 /tmp/claude-0/varios-base.txt; echo "✗ la base de Revisión AI no salió"; exit 1; }
 PSQL="sudo -u postgres psql -q -v ON_ERROR_STOP=1"
 for vez in 1 2; do
