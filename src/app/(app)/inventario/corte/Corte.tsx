@@ -20,7 +20,7 @@
  * «/inventario/corte»); esconder botones aquí es comodidad, no seguridad.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
@@ -508,8 +508,28 @@ function CruceConteo({ a, ini, conteos, lineas, nombreUbi, nombreMat }: {
   const id = escogido ?? conteoPorDefecto(ini, conteos);
   const cruce = useMemo(() => (id ? cruzar(a, id, lineas) : []), [a, id, lineas]);
   const dia = (f: string) => f.slice(0, 10).split("-").reverse().join("/");
-  const lectura = { entre: "Entre los dos cortes", fuera: "Fuera del rango", sin_contar: "Sin contar", sin_rango: "Falta un corte" } as const;
   const dif = (n: number | null) => (n === null ? "—" : Math.abs(n) < 0.5 ? "0" : conSigno(n));
+  const cuanto = (n: number) => `${n > 0 ? "sobran" : "faltan"} ${fmt(Math.abs(n))} cajas`;
+  const parejo = (n: number) => Math.abs(n) < 0.5;
+  const Fila = ({ clase, nombre, ini, fin, movimiento, lectura, pie, k = ["Inicial", "Final"] }: {
+    clase: string; nombre: string; ini: string; fin: string; movimiento: string; lectura?: string; pie?: (string | null)[]; k?: [string, string];
+  }) => (
+    <li className={clase}>
+      <b>{nombre}</b>
+      <span data-k={k[0]}>{ini}</span>
+      <span data-k={k[1]}>{fin}</span>
+      <span data-k="Diferencia" className="cl-cn">{movimiento}</span>
+      <em data-k="Lectura">
+        {lectura}
+        {(pie ?? []).filter(Boolean).map((t, n) => <small key={n}>{t}</small>)}
+      </em>
+    </li>
+  );
+  const Cab = () => (
+    <li className="cab" aria-hidden>
+      <span>Qué se mide</span><span>Inicial</span><span>Final</span><span>Diferencia</span><span>Lectura</span>
+    </li>
+  );
   return (
     <section className="cl-cruce" aria-label="Contra el conteo del inventario">
       <header>
@@ -528,36 +548,47 @@ function CruceConteo({ a, ini, conteos, lineas, nombreUbi, nombreMat }: {
       ) : (
         <>
           <p className="cl-nada">
-            Cajas. «Conteo − corte» es cuánto se aparta lo contado de cada corte. Un módulo que se consume no tiene
-            por qué dar 0 contra cada uno: lo que debe pasar es que el conteo caiga <b>entre los dos cortes</b>.
+            Cajas. Tienen que coincidir <b>tres cosas</b>: lo que pasó por la depa, lo que cambió entre los dos cortes y
+            lo que cambió según el inventario. En las filas del inventario, «Inicial» es lo del corte inicial y «Final»
+            es lo que contó el inventario.
           </p>
           {cruce.map((c) => (
             <div key={c.linea} className="cl-cruce-linea" aria-label={`${c.linea} contra el conteo`}>
               <b className="cl-cruce-l">{c.linea}</b>
+              <ul className="cl-cruce-mods">
+                <Cab />
+                <Fila clase="r-depa" nombre="Corte por depa" ini={fmt(c.depaIni)} fin={fmt(c.depaFin)} movimiento={dif(c.pasadas)} lectura="Lo que pasó por la depa" />
+              </ul>
               {([["Tomando de", c.origen], ["Ubicados en", c.destino]] as const).map(([titulo, l]) => (
                 <div key={titulo} className="cl-cruce-lado">
                   <span className="cl-t">{titulo}{nombreMat(l.material_id) && <small>{nombreMat(l.material_id)}</small>}</span>
                   {l.motivo ? <p className="cl-nada">{l.motivo}</p> : (
                     <ul className="cl-cruce-mods">
-                      <li className="cab" aria-hidden>
-                        <span>Módulo</span><span>Corte inicial</span><span>Conteo</span><span>Corte final</span>
-                        <span>Conteo − inicial</span><span>Conteo − final</span><span>Lectura</span>
-                      </li>
+                      <Cab />
                       {l.modulos.map((m) => (
-                        <li key={m.ubicacion_id} className={"l-" + m.lectura}>
-                          <b>{nombreUbi(m.ubicacion_id)}</b>
-                          <span data-k="Corte inicial">{m.ini === null ? "—" : fmt(m.ini)}</span>
-                          <span data-k="Conteo" className="cl-cn">{m.conteo === null ? "—" : fmt(m.conteo)}</span>
-                          <span data-k="Corte final">{m.fin === null ? "—" : fmt(m.fin)}</span>
-                          <span data-k="Conteo − inicial">{dif(m.difIni)}</span>
-                          <span data-k="Conteo − final">{dif(m.difFin)}</span>
-                          <em data-k="Lectura">
-                            {lectura[m.lectura]}
-                            {m.aparte > 0 && <small> + {fmt(m.aparte)} en avería/PNC</small>}
-                            {m.nota && <small>{m.nota}</small>}
-                          </em>
-                        </li>
+                        <Fragment key={m.ubicacion_id}>
+                          <Fila clase="r-corte" nombre={`${nombreUbi(m.ubicacion_id)} en el corte`}
+                            ini={m.ini === null ? "—" : fmt(m.ini)} fin={m.fin === null ? "—" : fmt(m.fin)} movimiento={dif(m.movCorte)} />
+                          <Fila clase={"r-inv l-" + m.lectura} nombre={`${nombreUbi(m.ubicacion_id)} en el inventario`} k={["Corte inicial", "Conteo"]}
+                            ini={m.ini === null ? "—" : fmt(m.ini)} fin={m.conteo === null ? "—" : fmt(m.conteo)} movimiento={dif(m.movConteo)}
+                            lectura={m.lectura === "cuadra" ? "Cuadra" : m.lectura === "no_cuadra" ? `No cuadra: ${cuanto(m.dif as number)}`
+                              : m.lectura === "sin_contar" ? "Sin contar" : "Falta un corte"}
+                            pie={[m.aparte > 0 ? `+ ${fmt(m.aparte)} en avería/PNC (no se suma)` : null, m.nota]} />
+                        </Fragment>
                       ))}
+                      {l.total && (
+                        <>
+                          <Fila clase={"r-total " + (parejo(l.total.difCorte) ? "l-cuadra" : "l-no_cuadra")} nombre="Total en el corte"
+                            ini={fmt(l.total.ini)} fin={fmt(l.total.fin)} movimiento={dif(l.total.corte)}
+                            lectura={parejo(l.total.difCorte) ? "Cuadra con la depa" : `No cuadra con la depa: ${cuanto(l.total.difCorte)}`} />
+                          <Fila clase={"r-total " + (l.total.difConteo === null ? "l-sin_contar" : parejo(l.total.difConteo) ? "l-cuadra" : "l-no_cuadra")}
+                            nombre="Total en el inventario" k={["Corte inicial", "Conteo"]}
+                            ini={fmt(l.total.ini)} fin={l.total.conteo === null ? "—" : fmt(l.total.conteo)} movimiento={dif(l.total.movConteo)}
+                            lectura={l.total.difConteo === null
+                              ? `Falta contar ${l.total.sinContar} ${l.total.sinContar === 1 ? "módulo" : "módulos"}: no se puede comparar con la depa`
+                              : parejo(l.total.difConteo) ? "Cuadra con la depa" : `No cuadra con la depa: ${cuanto(l.total.difConteo)}`} />
+                        </>
+                      )}
                     </ul>
                   )}
                 </div>

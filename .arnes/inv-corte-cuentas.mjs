@@ -189,35 +189,59 @@ const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
     L("c1", "m5", "B12", 999),                  // otro material en el mismo módulo: no cuenta
     L("c2", "m1", "A01", 50),                   // otro conteo: no debe mezclarse
   ];
+  const mod = (l, ubi) => l.modulos.find((m) => m.ubicacion_id === ubi);
   const [c] = cruzar(a, "c1", lineas);
-  const a01 = c.origen.modulos.find((m) => m.ubicacion_id === "A01"), a02 = c.origen.modulos.find((m) => m.ubicacion_id === "A02");
+  ok(c.depaIni === 1000 && c.depaFin === 2800 && c.pasadas === 1800, "la depa de la línea: " + JSON.stringify([c.depaIni, c.depaFin, c.pasadas]));
+  const a01 = mod(c.origen, "A01"), a02 = mod(c.origen, "A02");
   ok(a01.ini === 2400 && a01.fin === 1800 && a01.conteo === 1900, "A01: los tres números " + JSON.stringify(a01));
-  ok(a01.difIni === -500 && a01.difFin === 100, `conteo − inicial y conteo − final: ${a01.difIni} / ${a01.difFin}`);
-  ok(a01.lectura === "entre", "1.900 está entre 1.800 y 2.400: " + a01.lectura);
+  ok(a01.movCorte === -600 && a01.movConteo === -500, `lo que cambió entre cortes y según el conteo: ${a01.movCorte} / ${a01.movConteo}`);
+  ok(a01.dif === 100 && a01.lectura === "no_cuadra", "1.900 contra 1.800 del final: sobran 100 → no cuadra: " + JSON.stringify(a01));
   ok(a01.aparte === 120, "la avería debía ir aparte y no sumarse: " + a01.aparte);
-  ok(a02.conteo === 300 && a02.lectura === "entre", "A02: " + JSON.stringify(a02));
+  ok(a02.movCorte === -1200 && a02.movConteo === -900 && a02.dif === 300 && a02.lectura === "no_cuadra", "A02: " + JSON.stringify(a02));
   const b12 = c.destino.modulos[0];
-  ok(b12.conteo === 2100 && b12.lectura === "fuera" && b12.difIni === 2100 && b12.difFin === 300, "B12 fuera del rango 0–1.800: " + JSON.stringify(b12));
-  /* Los bordes cuentan: si el conteo da EXACTAMENTE lo de un corte, sigue siendo «entre». */
-  for (const [n, v] of [["el inicial", 2400], ["el final", 1800]]) {
-    const borde = cruzar(a, "c1", [L("c1", "m1", "A01", v)])[0].origen.modulos.find((m) => m.ubicacion_id === "A01");
-    ok(borde.lectura === "entre", `un conteo igual a ${n} (${v}) debía seguir entre los dos cortes: ` + borde.lectura);
-  }
-  const arriba = cruzar(a, "c1", [L("c1", "m1", "A01", 2401)])[0].origen.modulos.find((m) => m.ubicacion_id === "A01");
-  const abajo = cruzar(a, "c1", [L("c1", "m1", "A01", 1799)])[0].origen.modulos.find((m) => m.ubicacion_id === "A01");
-  ok(arriba.lectura === "fuera" && abajo.lectura === "fuera", "una caja por fuera de cada extremo es fuera");
+  ok(b12.movCorte === 1800 && b12.movConteo === 2100 && b12.dif === 300 && b12.lectura === "no_cuadra", "B12: " + JSON.stringify(b12));
+  /* Los totales contra la depa: el origen BAJA 1.800 y el destino SUBE 1.800. */
+  const to = c.origen.total, td = c.destino.total;
+  ok(to.esperado === -1800 && to.corte === -1800 && to.difCorte === 0, "origen según los cortes cuadra con la depa: " + JSON.stringify(to));
+  ok(to.ini === 3600 && to.fin === 1800 && to.conteo === 2200 && to.movConteo === -1400 && to.difConteo === 400 && to.sinContar === 0, "origen según el conteo: 400 de más: " + JSON.stringify(to));
+  ok(td.esperado === 1800 && td.corte === 1800 && td.difCorte === 0 && td.movConteo === 2100 && td.difConteo === 300, "destino: " + JSON.stringify(td));
+  /* Cuando todo coincide, todo cuadra: el conteo es justo lo del corte final. */
+  const justo = cruzar(a, "c1", [L("c1", "m1", "A01", 1800), L("c1", "m1", "A02", 0), L("c1", "m9", "B12", 1800)])[0];
+  ok(justo.origen.modulos.every((m) => m.lectura === "cuadra" && m.dif === 0) && justo.destino.modulos[0].lectura === "cuadra", "con el conteo igual al corte final todo cuadra: " + JSON.stringify(justo));
+  ok(justo.origen.total.difConteo === 0 && justo.destino.total.difConteo === 0 && justo.origen.total.movConteo === -1800, "y los totales coinciden con la depa");
+  /* Un módulo que el conteo no ve, en cero, sigue siendo módulo contado (el conteo pasó y no había nada). */
+  ok(mod(justo.origen, "A02").conteo === 0, "A02 con línea de conteo en 0 es un 0, no «sin contar»");
+  /* Faltan 300 cajas: el conteo da 300 menos que la depa. */
+  const menos = cruzar(a, "c1", [L("c1", "m1", "A01", 1800), L("c1", "m1", "A02", 0), L("c1", "m9", "B12", 1500)])[0];
+  ok(menos.destino.modulos[0].lectura === "no_cuadra" && menos.destino.modulos[0].dif === -300 && menos.destino.total.difConteo === -300, "destino con 300 menos: " + JSON.stringify(menos.destino));
+  /* Los bordes: una caja de diferencia ya no cuadra; el redondeo (menos de media caja) sí. */
+  const uno = (v) => mod(cruzar(a, "c1", [L("c1", "m1", "A01", v)])[0].origen, "A01");
+  ok(uno(1799).lectura === "no_cuadra" && uno(1799).dif === -1 && uno(1801).lectura === "no_cuadra" && uno(1801).dif === 1, "una caja de diferencia no cuadra");
+  ok(uno(1800.3).lectura === "cuadra", "menos de media caja es redondeo");
   /* El conteo 2 no se mezcla con el 1. */
   const [c2] = cruzar(a, "c2", lineas);
-  ok(c2.origen.modulos.find((m) => m.ubicacion_id === "A01").conteo === 50 && c2.origen.modulos.find((m) => m.ubicacion_id === "A01").lectura === "fuera", "otro conteo: " + JSON.stringify(c2.origen.modulos[0]));
-  ok(c2.origen.modulos.find((m) => m.ubicacion_id === "A02").lectura === "sin_contar" && c2.origen.modulos.find((m) => m.ubicacion_id === "A02").conteo === null, "un módulo que el conteo no visitó debe quedar sin contar, no en cero");
+  ok(mod(c2.origen, "A01").conteo === 50 && mod(c2.origen, "A01").dif === -1750, "otro conteo: " + JSON.stringify(mod(c2.origen, "A01")));
+  ok(mod(c2.origen, "A02").lectura === "sin_contar" && mod(c2.origen, "A02").conteo === null && mod(c2.origen, "A02").movConteo === null, "un módulo que el conteo no visitó debe quedar sin contar, no en cero");
+  ok(c2.origen.total.conteo === null && c2.origen.total.difConteo === null && c2.origen.total.sinContar === 1 && c2.origen.total.difCorte === 0, "falta contar un módulo: el total del conteo no se compara con la depa: " + JSON.stringify(c2.origen.total));
   /* El módulo se visitó pero el material no aparece: son cero cajas, y lo dice. */
-  const c3 = cruzar(a, "c1", [L("c1", "m5", "A01", 70)])[0].origen.modulos.find((m) => m.ubicacion_id === "A01");
-  ok(c3.conteo === 0 && /no apareció/.test(c3.nota) && c3.lectura === "fuera", "módulo visitado sin el material: " + JSON.stringify(c3));
-  /* Falta un corte en ese módulo: no hay rango, pero sí la diferencia que existe. */
+  const c3 = mod(cruzar(a, "c1", [L("c1", "m5", "A01", 70)])[0].origen, "A01");
+  ok(c3.conteo === 0 && /no apareció/.test(c3.nota) && c3.lectura === "no_cuadra" && c3.dif === -1800, "módulo visitado sin el material: " + JSON.stringify(c3));
+  /* Falta un corte en ese módulo: no hay comparación entre cortes, pero sí lo que cambió según el conteo. */
   const finSolo = corte("final", H2, [rm("L1", 2800, [sitio("A01", 30, "estibas")], [sitio("B12", 1800, "cajas")], "m1", "m9")]);
   const aSolo = analizar(ini, finSolo, porEstiba);
-  const s02 = cruzar(aSolo, "c1", lineas)[0].origen.modulos.find((m) => m.ubicacion_id === "A02");
-  ok(s02.lectura === "sin_rango" && s02.ini === 1200 && s02.fin === null && s02.difIni === -900 && s02.difFin === null, "un módulo solo en el inicial: " + JSON.stringify(s02));
+  const cs02 = cruzar(aSolo, "c1", lineas)[0];
+  const s02 = mod(cs02.origen, "A02");
+  ok(s02.lectura === "sin_rango" && s02.ini === 1200 && s02.fin === null && s02.movCorte === null && s02.movConteo === -900 && s02.dif === null, "un módulo solo en el inicial: " + JSON.stringify(s02));
+  ok(cs02.origen.total.corte === -600 && cs02.origen.total.sinContar === 0 && cs02.origen.total.difConteo === 1300 && cs02.origen.total.difCorte === 1200, "el total solo cuenta los módulos que están en los dos cortes: " + JSON.stringify(cs02.origen.total));
+  /* TU EJEMPLO: A01 tenía 50 estibas y en el inventario hay 80; salieron 30 estibas (1.800 cajas) de la línea. */
+  const iniE = corte("inicial", H1, [rm("L1", 1000, [], [sitio("A01", 50, "estibas")], null, "m1")]);
+  const finE = corte("final", H2, [rm("L1", 2800, [], [sitio("A01", 80, "estibas")], null, "m1")]);
+  const aE = analizar(iniE, finE, porEstiba);
+  const bien = cruzar(aE, "c1", [L("c1", "m1", "A01", 4800)])[0].destino;
+  ok(bien.modulos[0].ini === 3000 && bien.modulos[0].fin === 4800 && bien.modulos[0].movCorte === 1800 && bien.modulos[0].movConteo === 1800 && bien.modulos[0].lectura === "cuadra", "50 → 80 estibas y el inventario 80: cuadra: " + JSON.stringify(bien.modulos[0]));
+  ok(bien.total.esperado === 1800 && bien.total.difCorte === 0 && bien.total.difConteo === 0, "y cuadra con la depa: " + JSON.stringify(bien.total));
+  const mal = cruzar(aE, "c1", [L("c1", "m1", "A01", 4500)])[0].destino;
+  ok(mal.modulos[0].movConteo === 1500 && mal.modulos[0].dif === -300 && mal.modulos[0].lectura === "no_cuadra" && mal.total.difConteo === -300, "el inventario con 75 estibas: faltan 300 cajas: " + JSON.stringify(mal));
   /* Sin material en la línea no se sabe qué buscar. */
   const sinMat = analizar(corte("inicial", H1, [rm("L2", 10, [sitio("A01", 40, "cajas")], [sitio("B12", 0, "cajas")], null, null)]), corte("final", H2, [rm("L2", 20, [sitio("A01", 30, "cajas")], [sitio("B12", 5, "cajas")], null, null)]), porEstiba);
   const r = cruzar(sinMat, "c1", lineas)[0];

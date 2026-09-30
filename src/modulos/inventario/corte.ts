@@ -292,50 +292,89 @@ export type LineaConteo = { conteo_id: string; producto_id: string; ubicacion_id
 
 export type ModuloCruce = {
   ubicacion_id: string;
+  /** Lo que había en el corte inicial y en el final, en cajas. */
   ini: number | null;
   fin: number | null;
   /** Cajas buenas de ese material contadas en el módulo (null = el conteo no visitó el módulo). */
   conteo: number | null;
   /** Cajas del mismo material marcadas como avería o PNC. */
   aparte: number;
-  difIni: number | null;
-  difFin: number | null;
-  lectura: "entre" | "fuera" | "sin_contar" | "sin_rango";
+  /** Lo que cambió entre los dos cortes (final − inicial, con signo: el origen baja, el destino sube). */
+  movCorte: number | null;
+  /** Lo que cambió según el inventario (conteo − inicial). */
+  movConteo: number | null;
+  /** movConteo − movCorte, que es conteo − final: > 0 sobran cajas, < 0 faltan. */
+  dif: number | null;
+  lectura: "cuadra" | "no_cuadra" | "sin_contar" | "sin_rango";
   nota: string | null;
 };
-export type CruceLado = { material_id: string | null; modulos: ModuloCruce[]; motivo: string | null };
-export type CruceLinea = { linea: string; origen: CruceLado; destino: CruceLado };
+/** El lado entero contra la depa. «esperado» es lo que la depa dice que cambió (origen −, destino +). */
+export type TotalCruce = {
+  esperado: number;
+  ini: number; fin: number;
+  /** Suma de lo que cambió entre los cortes, y cuánto se aparta de la depa. */
+  corte: number; difCorte: number;
+  /** Lo contado: null si falta contar algún módulo (no se puede comparar contra la depa completa). */
+  conteo: number | null; movConteo: number | null; difConteo: number | null;
+  sinContar: number;
+};
+export type CruceLado = { material_id: string | null; modulos: ModuloCruce[]; motivo: string | null; total: TotalCruce | null };
+export type CruceLinea = { linea: string; depaIni: number; depaFin: number; pasadas: number; origen: CruceLado; destino: CruceLado };
 
-function cruceLado(lado: Lado, material: string | null, que: string, conteoId: string, lineas: LineaConteo[]): CruceLado {
-  if (!material) return { material_id: null, modulos: [], motivo: `La línea no dice ${que}: no se sabe qué buscar en el conteo` };
+/** Por debajo de media caja es redondeo, no diferencia. */
+const parejo = (n: number) => Math.abs(n) < 0.5;
+
+function cruceLado(lado: Lado, material: string | null, que: string, conteoId: string, lineas: LineaConteo[],
+                   pasadas: number, signo: 1 | -1): CruceLado {
+  if (!material) return { material_id: null, modulos: [], total: null, motivo: `La línea no dice ${que}: no se sabe qué buscar en el conteo` };
   const delConteo = lineas.filter((l) => l.conteo_id === conteoId);
   const modulos = lado.modulos.map((m): ModuloCruce => {
+    const movCorte = m.ini == null || m.fin == null ? null : m.fin - m.ini;
     const enModulo = delConteo.filter((l) => l.ubicacion_id === m.ubicacion_id);
     if (enModulo.length === 0) {
-      return { ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: null, aparte: 0, difIni: null, difFin: null,
+      return { ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: null, aparte: 0, movCorte, movConteo: null, dif: null,
                lectura: "sin_contar", nota: "El conteo no pasó por este módulo" };
     }
     const delMaterial = enModulo.filter((l) => l.producto_id === material);
     const buenas = delMaterial.filter((l) => !l.averia && !l.pnc).reduce((t, l) => t + Number(l.total_cajas), 0);
     const aparte = delMaterial.filter((l) => l.averia || l.pnc).reduce((t, l) => t + Number(l.total_cajas), 0);
-    const difIni = m.ini == null ? null : buenas - m.ini;
-    const difFin = m.fin == null ? null : buenas - m.fin;
-    const hayRango = m.ini != null && m.fin != null;
-    const entre = hayRango && buenas >= Math.min(m.ini as number, m.fin as number) && buenas <= Math.max(m.ini as number, m.fin as number);
+    const movConteo = m.ini == null ? null : buenas - m.ini;
+    const dif = m.fin == null ? null : buenas - m.fin;
+    const hayCortes = movCorte !== null && dif !== null;
     return {
-      ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: buenas, aparte, difIni, difFin,
-      lectura: !hayRango ? "sin_rango" : entre ? "entre" : "fuera",
+      ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: buenas, aparte, movCorte, movConteo, dif,
+      lectura: !hayCortes ? "sin_rango" : parejo(dif as number) ? "cuadra" : "no_cuadra",
       nota: delMaterial.length === 0 ? "El conteo pasó por el módulo y este material no apareció" : null,
     };
   });
-  return { material_id: material, modulos, motivo: null };
+  /* Contra la depa: solo los módulos que se pudieron comparar entre los dos cortes (los mismos de la suma del análisis). */
+  const comparables = modulos.filter((m) => m.movCorte !== null);
+  let total: TotalCruce | null = null;
+  if (lado.mov !== null && comparables.length > 0) {
+    const esperado = signo * pasadas;
+    const corte = comparables.reduce((t, m) => t + (m.movCorte as number), 0);
+    const contados = comparables.filter((m) => m.conteo !== null && m.movConteo !== null);
+    const completo = contados.length === comparables.length;
+    const movConteo = completo ? contados.reduce((t, m) => t + (m.movConteo as number), 0) : null;
+    total = {
+      esperado,
+      ini: comparables.reduce((t, m) => t + (m.ini as number), 0),
+      fin: comparables.reduce((t, m) => t + (m.fin as number), 0),
+      corte, difCorte: corte - esperado,
+      conteo: completo ? contados.reduce((t, m) => t + (m.conteo as number), 0) : null,
+      movConteo, difConteo: movConteo === null ? null : movConteo - esperado,
+      sinContar: comparables.length - contados.length,
+    };
+  }
+  return { material_id: material, modulos, motivo: null, total };
 }
 
 export function cruzar(a: Analisis, conteoId: string, lineas: LineaConteo[]): CruceLinea[] {
   return a.filas.map((f) => ({
-    linea: f.linea,
-    origen: cruceLado(f.origen, f.envase_id, "el envase", conteoId, lineas),
-    destino: cruceLado(f.destino, f.material_id, "el material", conteoId, lineas),
+    linea: f.linea, depaIni: f.ini, depaFin: f.fin, pasadas: f.pasadas,
+    /* El origen BAJA lo que pasó por la depa; el destino SUBE. */
+    origen: cruceLado(f.origen, f.envase_id, "el envase", conteoId, lineas, f.pasadas, -1),
+    destino: cruceLado(f.destino, f.material_id, "el material", conteoId, lineas, f.pasadas, 1),
   }));
 }
 
