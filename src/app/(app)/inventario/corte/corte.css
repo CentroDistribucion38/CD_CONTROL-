@@ -102,11 +102,14 @@
 .fe .cl-ficha-cab h2 small { display: block; margin-top: 2px; font: 500 12.5px var(--fe-texto); color: var(--fe-gris) }
 .fe .cl-no { margin-left: auto; min-height: 44px; padding: 0 6px; background: none; border: 0; font: 600 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer }
 .fe .cl-cuerpo { display: flex; flex-direction: column; gap: 16px; padding: 16px 18px }
-.fe .cl-r1 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; align-items: start }
+.fe .cl-r1 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start }
 .fe .cl-r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
+.fe .cl-depa { max-width: 420px }
 .fe .cl-depa input { min-height: 58px; font: 600 24px var(--fe-texto); font-variant-numeric: tabular-nums }
 
 /* El material: tarjeta con lo del maestro, o el buscador */
+.fe .cl-sitio .cl-mat { grid-column: 1 / -1 }
+.fe .cl-t small { display: block; margin-top: 2px; font: 500 11.5px var(--fe-texto); letter-spacing: 0; text-transform: none; color: var(--fe-gris) }
 .fe .cl-mat { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
 .fe .cl-mae { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 8px 10px 8px 12px; border: 1.5px solid var(--fe-tinta) }
 .fe .cl-mae-ic { width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--fe-acento); color: var(--fe-sobre) }
@@ -139,6 +142,7 @@
 .fe .cl-unidad button + button { border-left: 0 }
 .fe .cl-unidad button.on { background: var(--fe-acento); color: var(--fe-sobre); border-color: var(--fe-acento) }
 .fe .cl-eco { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--fe-gris-panel); font-variant-numeric: tabular-nums }
+.fe .cl-nada { margin: 0; font-size: 12px; color: var(--fe-gris-panel) }
 .fe .cl-eco.aviso { color: #7A4B00 }
 
 .fe .cl-ir { background: none; border: 0; padding: 0; min-height: 44px; font: inherit; color: inherit; text-align: left; text-decoration: underline; cursor: pointer }

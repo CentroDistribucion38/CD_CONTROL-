@@ -21,6 +21,11 @@
 --                        dónde estaban ubicados, cada uno con su calle ·
 --                        módulo · lado (una fila de `ubicaciones`) y su
 --                        cantidad en estibas o en cajas.
+--                        LO QUE SE TOMA ES ENVASE: lo que entra a la línea
+--                        son envases (botella, caja, lata…), así que «de
+--                        dónde tomaban» lleva el ENVASE (envase_id, solo
+--                        materiales tipo ENVASE). Lo que queda ubicado es el
+--                        PRODUCTO que sale (material_id).
 --
 -- EL ANÁLISIS NO SE GUARDA: es una resta entre el final y el inicial y se
 -- hace al mirar (src/modulos/inventario/corte.ts), como el resto de cifras
@@ -67,8 +72,12 @@ create table if not exists public.inv_corte_renglones (
   linea                text not null references public.inv_lineas(clave),
   /* EL CONTADOR DE LA DEPA: cajas que han pasado hasta ese momento. */
   cajas_depa           numeric(14,0) not null check (cajas_depa >= 0),
-  /* Con qué material corría la línea: sirve para pasar estibas a cajas. */
+  /* El PRODUCTO que sale de la línea: sirve para pasar a cajas lo que está
+     ubicado («Ubicados en»). */
   material_id          uuid references public.productos(id) on delete restrict,
+  /* El ENVASE que entra a la línea (solo tipo ENVASE): sirve para pasar a
+     cajas lo que se toma («Tomando de»). */
+  envase_id            uuid references public.productos(id) on delete restrict,
   /* DE DÓNDE ESTABAN TOMANDO */
   origen_ubicacion_id  uuid references public.ubicaciones(id) on delete restrict,
   origen_cant          numeric(14,3) check (origen_cant >= 0),
@@ -87,6 +96,9 @@ create table if not exists public.inv_corte_renglones (
     (destino_ubicacion_id is null and destino_cant is null and destino_unidad is null)
     or (destino_ubicacion_id is not null and destino_cant is not null and destino_unidad is not null))
 );
+/* Si la migración ya se había corrido sin el envase. */
+alter table public.inv_corte_renglones
+  add column if not exists envase_id uuid references public.productos(id) on delete restrict;
 create index if not exists inv_corte_renglones_corte_idx on public.inv_corte_renglones (corte_id);
 
 -- ---------------------------------------------------------------------
@@ -110,7 +122,8 @@ grant select on public.inv_lineas, public.inv_cortes, public.inv_corte_renglones
 
 -- ---------------------------------------------------------------------
 -- GUARDAR UN CORTE COMPLETO
---   p_renglones: [{"linea":"L1","cajas_depa":18801,"material_id":"…",
+--   p_renglones: [{"linea":"L1","cajas_depa":18801,"material_id":"…" (producto),
+--                  "envase_id":"…" (solo tipo ENVASE),
 --                  "origen":{"ubicacion_id":"…","cant":12,"unidad":"estibas"},
 --                  "destino":{"ubicacion_id":"…","cant":300,"unidad":"cajas"},
 --                  "nota":"…"}, …]
@@ -137,6 +150,7 @@ declare
   v_vistas text[] := '{}';
   v_cajas  numeric;
   v_mat    uuid;
+  v_env    uuid;
   v_o      jsonb;
   v_d      jsonb;
   v_ou     uuid; v_oc numeric; v_oun text;
@@ -212,6 +226,12 @@ begin
       raise exception 'El material de % no existe', v_linea;
     end if;
 
+    v_env := nullif(v_r ->> 'envase_id', '')::uuid;
+    if v_env is not null and not exists (
+         select 1 from public.productos where id = v_env and tipo_material = 'ENVASE') then
+      raise exception 'El envase de % no existe o no es un envase', v_linea;
+    end if;
+
     v_o := v_r -> 'origen';  v_d := v_r -> 'destino';
     v_ou := null; v_oc := null; v_oun := null; v_du := null; v_dc := null; v_dun := null;
 
@@ -239,11 +259,11 @@ begin
     end if;
 
     insert into public.inv_corte_renglones
-      (corte_id, linea, cajas_depa, material_id,
+      (corte_id, linea, cajas_depa, material_id, envase_id,
        origen_ubicacion_id, origen_cant, origen_unidad,
        destino_ubicacion_id, destino_cant, destino_unidad, nota)
     values
-      (v_id, v_linea, v_cajas, v_mat, v_ou, v_oc, v_oun, v_du, v_dc, v_dun,
+      (v_id, v_linea, v_cajas, v_mat, v_env, v_ou, v_oc, v_oun, v_du, v_dc, v_dun,
        nullif(btrim(coalesce(v_r ->> 'nota', '')), ''));
   end loop;
 

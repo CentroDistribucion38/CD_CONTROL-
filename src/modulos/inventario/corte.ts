@@ -32,7 +32,10 @@ export type Sitio = { ubicacion_id: string; cant: number; unidad: Unidad };
 export type RenglonCorte = {
   linea: string;
   cajas_depa: number;
+  /** El PRODUCTO que sale de la línea (pasa a cajas lo de «Ubicados en»). */
   material_id: string | null;
+  /** El ENVASE que entra a la línea (pasa a cajas lo de «Tomando de»). */
+  envase_id: string | null;
   origen: Sitio | null;
   destino: Sitio | null;
   nota: string | null;
@@ -80,8 +83,9 @@ export type FilaCorte = {
   contadorAtras: boolean;
   origen: Lado;
   destino: Lado;
-  /** Con el mismo material puesto en las dos fotos (o el del final). */
+  /** El producto y el envase puestos en las dos fotos (manda el del final). */
   material_id: string | null;
+  envase_id: string | null;
 };
 
 export type Analisis = {
@@ -99,7 +103,7 @@ const vacio = (motivo: string): Lado => ({ ini: null, fin: null, mov: null, dif:
 
 function lado(
   a: Sitio | null, b: Sitio | null, porEstiba: number | null,
-  pasadas: number, signo: 1 | -1, falta: string,
+  pasadas: number, signo: 1 | -1, falta: string, queFalta: "envase" | "material",
 ): Lado {
   if (!a || !b) return vacio(falta);
   const ini = aCajas(a, porEstiba), fin = aCajas(b, porEstiba);
@@ -107,7 +111,7 @@ function lado(
     return { ini, fin, mov: null, dif: null, motivo: "Cambió de módulo entre el inicial y el final" };
   }
   if (ini == null || fin == null) {
-    return { ini, fin, mov: null, dif: null, motivo: "Hay estibas y falta el material para pasarlas a cajas" };
+    return { ini, fin, mov: null, dif: null, motivo: `Hay estibas y falta el ${queFalta} para pasarlas a cajas` };
   }
   /* signo = 1 para el origen (bajó = ini − fin) y −1 para el destino
      (subió = fin − ini): el mismo cálculo con el signo cambiado. */
@@ -122,16 +126,21 @@ export function analizar(ini: Corte, fin: Corte, porEstiba: CajasPorEstiba): Ana
   for (const [linea, a] of mapaIni) {
     const b = mapaFin.get(linea);
     if (!b) continue;
-    /* El material del final manda: es el que corría al cerrar. */
+    /* El material del final manda: es el que corría al cerrar. Lo que se
+       TOMA es envase y lo que queda UBICADO es producto: cada lado se pasa
+       a cajas con el factor de SU material, no con el del otro. */
     const mat = b.material_id ?? a.material_id;
-    const est = porEstiba(mat);
+    const env = b.envase_id ?? a.envase_id;
+    const estProducto = porEstiba(mat);
+    const estEnvase = porEstiba(env);
     const pasadas = b.cajas_depa - a.cajas_depa;
     filas.push({
       linea, ini: a.cajas_depa, fin: b.cajas_depa, pasadas,
       contadorAtras: pasadas < 0,
-      origen: lado(a.origen, b.origen, est, pasadas, 1, "Falta de dónde tomaba en uno de los dos cortes"),
-      destino: lado(a.destino, b.destino, est, pasadas, -1, "Falta dónde estaba ubicado en uno de los dos cortes"),
+      origen: lado(a.origen, b.origen, estEnvase, pasadas, 1, "Falta de dónde tomaba en uno de los dos cortes", "envase"),
+      destino: lado(a.destino, b.destino, estProducto, pasadas, -1, "Falta dónde estaba ubicado en uno de los dos cortes", "material"),
       material_id: mat,
+      envase_id: env,
     });
   }
   filas.sort((x, y) => x.linea.localeCompare(y.linea, "es", { numeric: true }));

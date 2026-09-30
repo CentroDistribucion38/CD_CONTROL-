@@ -15,5 +15,5 @@ done
 salida=$($PSQL -d $DB -f .arnes/prueba-inv-corte.sql 2>&1) || true
 echo "$salida" | grep NOTICE | sed 's/^.*NOTICE:  /    /'
 if echo "$salida" | grep -qE "ERROR|FALLA"; then echo "$salida" | grep -vE "NOTICE|^$" | head -25 | sed 's/^/    /'; echo "✗ corte de líneas: una comprobación falló"; exit 1; fi
-for n in I1 I2 I3 I4 I5; do echo "$salida" | grep -q "NOTICE:  $n ·" || { echo "✗ no corrió $n"; exit 1; }; done
+for n in I1 I2 I3 I4 I5 I6; do echo "$salida" | grep -q "NOTICE:  $n ·" || { echo "✗ no corrió $n"; exit 1; }; done
 echo "✓ Corte de líneas: se guarda completo o nada, el final cierra su inicial, permisos de ver/editar/eliminar."

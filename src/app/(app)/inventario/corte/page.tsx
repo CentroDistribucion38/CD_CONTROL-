@@ -57,7 +57,7 @@ export default async function CortePage() {
     supabase.from("inv_cortes").select("id,tipo,inicial_id,cortado_en,nota,creado_por")
       .eq("bodega_id", bodega.id).order("cortado_en", { ascending: false }).limit(400),
     supabase.from("inv_corte_renglones").select(
-      "corte_id,linea,cajas_depa,material_id,origen_ubicacion_id,origen_cant,origen_unidad,destino_ubicacion_id,destino_cant,destino_unidad,nota"
+      "corte_id,linea,cajas_depa,material_id,envase_id,origen_ubicacion_id,origen_cant,origen_unidad,destino_ubicacion_id,destino_cant,destino_unidad,nota"
     ).limit(5000),
     supabase.from("perfiles").select("id,nombre").limit(2000),
   ]);
@@ -69,7 +69,7 @@ export default async function CortePage() {
   for (const r of ren.data ?? []) {
     const l = renglonesDe.get(r.corte_id) ?? [];
     l.push({
-      linea: r.linea, cajas_depa: Number(r.cajas_depa), material_id: r.material_id,
+      linea: r.linea, cajas_depa: Number(r.cajas_depa), material_id: r.material_id, envase_id: r.envase_id,
       origen: sitio(r.origen_ubicacion_id, r.origen_cant, r.origen_unidad),
       destino: sitio(r.destino_ubicacion_id, r.destino_cant, r.destino_unidad),
       nota: r.nota,
@@ -99,7 +99,7 @@ export default async function CortePage() {
         bodegaId={bodega.id}
         lineas={(lin.data ?? []) as { clave: string; nombre: string }[]}
         ubicaciones={ubis.map((u) => ({ id: u.id, calle: u.calle, modulo: u.modulo, lado: u.lado }))}
-        materiales={mats.map((x) => ({ id: x.id, sku: x.sku, nombre: x.nombre, cajas_por_estiba: x.cajas_por_estiba, unidades_por_caja: x.unidades_por_caja }))}
+        materiales={mats.map((x) => ({ id: x.id, sku: x.sku, nombre: x.nombre, cajas_por_estiba: x.cajas_por_estiba, unidades_por_caja: x.unidades_por_caja, tipo: x.tipo_material === "ENVASE" ? "ENVASE" : "PRODUCTO" }))}
         cortes={cortes}
         nombres={nombres}
         puedeEditar={puedeEditar}

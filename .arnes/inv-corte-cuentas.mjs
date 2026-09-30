@@ -7,7 +7,7 @@ const { analizar, aCajas, duracion } = await import(pathToFileURL(R(".arnes/tmp/
 const fallas = [];
 const ok = (c, m) => { if (!c) fallas.push(m) };
 const sitio = (u, cant, unidad) => ({ ubicacion_id: u, cant, unidad });
-const reng = (linea, cajas, o = {}, d = {}) => ({ linea, cajas_depa: cajas, material_id: o.mat ?? null, origen: o.s ?? null, destino: d.s ?? null, nota: null });
+const reng = (linea, cajas, o = {}, d = {}) => ({ linea, cajas_depa: cajas, envase_id: o.mat ?? null, material_id: d.mat ?? null, origen: o.s ?? null, destino: d.s ?? null, nota: null });
 const corte = (tipo, hora, renglones) => ({ id: tipo, tipo, inicial_id: null, cortado_en: hora, nota: null, creado_por: null, renglones });
 const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
 
@@ -49,7 +49,7 @@ const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
     reng("L6", 200, { s: sitio("A01", 4, "cajas") })]);
   const a = analizar(ini, fin, porEstiba);
   const [l1, l2, l6] = a.filas;
-  ok(l1.linea === "L1" && l1.origen.dif === null && /falta el material/.test(l1.origen.motivo), "estibas sin material no debe dar diferencia: " + JSON.stringify(l1.origen));
+  ok(l1.linea === "L1" && l1.origen.dif === null && /falta el envase/.test(l1.origen.motivo), "estibas sin material no debe dar diferencia: " + JSON.stringify(l1.origen));
   ok(l2.origen.dif === null && /Cambió de módulo/.test(l2.origen.motivo) && l2.destino.dif === 60, "cambió de módulo: " + JSON.stringify(l2));
   ok(l6.destino.dif === null && /Falta dónde estaba ubicado/.test(l6.destino.motivo) && l6.origen.dif === 94, "sin destino: " + JSON.stringify(l6));
 }
@@ -68,10 +68,24 @@ const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
   const ini = corte("inicial", "2026-09-30T11:00:00Z", [reng("L1", 0, { s: sitio("A01", 10, "estibas"), mat: "m1" })]);
   const fin = corte("final", "2026-09-30T13:00:00Z", [reng("L1", 100, { s: sitio("A01", 4, "estibas"), mat: "m3" })]);
   const f = analizar(ini, fin, porEstiba).filas[0];
-  ok(f.origen.mov === 180 && f.material_id === "m3", `con el material del final (30 cajas por estiba) bajó ${f.origen.mov}, material ${f.material_id}`);
+  ok(f.origen.mov === 180 && f.envase_id === "m3", `con el envase del final (30 cajas por estiba) bajó ${f.origen.mov}, envase ${f.envase_id}`);
   /* y si el final no trae material, vale el del inicial */
   const fin2 = corte("final", "2026-09-30T13:00:00Z", [reng("L1", 100, { s: sitio("A01", 4, "estibas") })]);
   ok(analizar(ini, fin2, porEstiba).filas[0].origen.mov === 360, "sin material en el final debía usar el del inicial (60 por estiba)");
+}
+/* 5c · CADA LADO USA EL FACTOR DE SU MATERIAL: lo que se toma es ENVASE (m1: 60 por estiba) y lo
+       que queda ubicado es PRODUCTO (m3: 30 por estiba). Mezclarlos daría otra diferencia. */
+{
+  const ini = corte("inicial", "2026-09-30T11:00:00Z", [reng("L1", 0, { s: sitio("A01", 10, "estibas"), mat: "m1" }, { s: sitio("B12", 0, "estibas"), mat: "m3" })]);
+  const fin = corte("final", "2026-09-30T13:00:00Z", [reng("L1", 100, { s: sitio("A01", 8, "estibas"), mat: "m1" }, { s: sitio("B12", 4, "estibas"), mat: "m3" })]);
+  const f = analizar(ini, fin, porEstiba).filas[0];
+  ok(f.origen.mov === 120, `el origen debía usar el envase (2 estibas × 60): ${f.origen.mov}`);
+  ok(f.destino.mov === 120 && f.destino.dif === -20, `el destino debía usar el producto (4 estibas × 30): ${f.destino.mov} / ${f.destino.dif}`);
+  /* Sin envase en el origen, las estibas no se pasan a cajas aunque haya producto. */
+  const sinEnv = corte("inicial", "2026-09-30T11:00:00Z", [reng("L1", 0, { s: sitio("A01", 10, "estibas") }, { s: sitio("B12", 0, "estibas"), mat: "m3" })]);
+  const sinEnvF = corte("final", "2026-09-30T13:00:00Z", [reng("L1", 100, { s: sitio("A01", 8, "estibas") }, { s: sitio("B12", 4, "estibas"), mat: "m3" })]);
+  const g = analizar(sinEnv, sinEnvF, porEstiba).filas[0];
+  ok(g.origen.dif === null && /falta el envase/.test(g.origen.motivo) && g.destino.mov === 120, "sin envase no debía usar el factor del producto: " + JSON.stringify(g.origen));
 }
 /* 6 · aCajas */
 ok(aCajas({ ubicacion_id: "x", cant: 3, unidad: "estibas" }, 45) === 135, "3 estibas × 45");

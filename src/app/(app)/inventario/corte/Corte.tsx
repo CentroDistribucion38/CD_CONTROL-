@@ -27,7 +27,7 @@ import { traducirError } from "@/lib/errores";
 import { analizar, duracion, type Corte as CorteT, type Lado, type Sitio, type Unidad } from "@/modulos/inventario/corte";
 
 export type UbiC = { id: string; calle: string; modulo: string; lado: "IZQ" | "DER" | null };
-export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null };
+export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null; tipo: "PRODUCTO" | "ENVASE" };
 export type LineaC = { clave: string; nombre: string };
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
@@ -60,9 +60,11 @@ const deInput = (s: string): string | null => {
 const ordenCalle = (a: string, b: string) => a.length - b.length || a.localeCompare(b, "es", { numeric: true });
 
 type SitioF = { calle: string; modulo: string; lado: string; cant: string; unidad: Unidad };
-type LineaF = { cajas: string; material: string; origen: SitioF; destino: SitioF };
+/* `envase` es lo que ENTRA a la línea (se toma del origen); `material` es el
+   PRODUCTO que sale (queda ubicado en el destino). */
+type LineaF = { cajas: string; material: string; envase: string; origen: SitioF; destino: SitioF };
 const sitioVacio = (unidad: Unidad = "estibas"): SitioF => ({ calle: "", modulo: "", lado: "", cant: "", unidad });
-const lineaVacia = (): LineaF => ({ cajas: "", material: "", origen: sitioVacio(), destino: sitioVacio() });
+const lineaVacia = (): LineaF => ({ cajas: "", material: "", envase: "", origen: sitioVacio(), destino: sitioVacio() });
 /* UNA LÍNEA ESTÁ «TOCADA» si alguien escribió algo en ella: cajas o
    cantidades, o si cambió el módulo o el material respecto de cómo
    arrancó. En el final los módulos vienen puestos del inicial: una línea
@@ -70,7 +72,7 @@ const lineaVacia = (): LineaF => ({ cajas: "", material: "", origen: sitioVacio(
 const lugar = (s: SitioF) => `${s.calle}|${s.modulo}|${s.lado}`;
 const tocada = (l: LineaF, base: LineaF) =>
   !!(l.cajas.trim() || l.origen.cant.trim() || l.destino.cant.trim() ||
-     l.material.trim() !== base.material.trim() ||
+     l.material.trim() !== base.material.trim() || l.envase.trim() !== base.envase.trim() ||
      lugar(l.origen) !== lugar(base.origen) || lugar(l.destino) !== lugar(base.destino));
 
 const num = (s: string): number | null => {
@@ -172,11 +174,10 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                 {[...c.renglones].sort((a, b) => a.linea.localeCompare(b.linea, "es", { numeric: true })).map((r) => (
                   <li key={r.linea}>
                     <b>{r.linea}</b> {fmt(r.cajas_depa)} cajas por la depa
-                    {r.material_id && mat.get(r.material_id) ? <> · {mat.get(r.material_id)!.nombre}</> : null}
                     <span>
-                      {r.origen ? <>Tomando de {nombreUbi(r.origen.ubicacion_id)}: {fmt(r.origen.cant)} {r.origen.unidad}</> : null}
+                      {r.origen ? <>Tomando de {nombreUbi(r.origen.ubicacion_id)}: {fmt(r.origen.cant)} {r.origen.unidad}{r.envase_id && mat.get(r.envase_id) ? <> de {mat.get(r.envase_id)!.nombre}</> : null}</> : null}
                       {r.origen && r.destino ? " · " : null}
-                      {r.destino ? <>Ubicados en {nombreUbi(r.destino.ubicacion_id)}: {fmt(r.destino.cant)} {r.destino.unidad}</> : null}
+                      {r.destino ? <>Ubicados en {nombreUbi(r.destino.ubicacion_id)}: {fmt(r.destino.cant)} {r.destino.unidad}{r.material_id && mat.get(r.material_id) ? <> de {mat.get(r.material_id)!.nombre}</> : null}</> : null}
                     </span>
                   </li>
                 ))}
@@ -227,9 +228,9 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                       </span>
                     </header>
                     <LadoFila titulo="Tomando de" ini={ini} fin={fin} linea={f.linea} cual="origen" lado={f.origen}
-                              accion="bajó" nombreUbi={nombreUbi} />
+                              accion="bajó" nombreUbi={nombreUbi} material={mat.get(f.envase_id ?? "")?.nombre ?? null} />
                     <LadoFila titulo="Ubicados en" ini={ini} fin={fin} linea={f.linea} cual="destino" lado={f.destino}
-                              accion="subió" nombreUbi={nombreUbi} />
+                              accion="subió" nombreUbi={nombreUbi} material={mat.get(f.material_id ?? "")?.nombre ?? null} />
                   </section>
                 ))}
                 {(a.soloInicial.length > 0 || a.soloFinal.length > 0) && (
@@ -296,9 +297,9 @@ function Cabeza({ paso, abiertos, cerrados, anotando }: {
 
 /* Una fila «Tomando de / Ubicados en» del análisis: el módulo, de cuánto a
    cuánto, cuánto se movió y la diferencia con lo que contó la depa. */
-function LadoFila({ titulo, ini, fin, linea, cual, lado, accion, nombreUbi }: {
+function LadoFila({ titulo, ini, fin, linea, cual, lado, accion, nombreUbi, material }: {
   titulo: string; ini: CorteT; fin: CorteT; linea: string; cual: "origen" | "destino"; lado: Lado;
-  accion: "bajó" | "subió"; nombreUbi: (id: string) => string;
+  accion: "bajó" | "subió"; nombreUbi: (id: string) => string; material: string | null;
 }) {
   const a = ini.renglones.find((r) => r.linea === linea)?.[cual] ?? null;
   const b = fin.renglones.find((r) => r.linea === linea)?.[cual] ?? null;
@@ -306,7 +307,7 @@ function LadoFila({ titulo, ini, fin, linea, cual, lado, accion, nombreUbi }: {
   const mismo = a && b && a.ubicacion_id === b.ubicacion_id;
   return (
     <div className="cl-lado">
-      <span className="cl-t">{titulo}</span>
+      <span className="cl-t">{titulo}{material && <small>{material}</small>}</span>
       <span className="cl-ubi">
         {mismo ? nombreUbi(a!.ubicacion_id)
           : <>{a ? nombreUbi(a.ubicacion_id) : "—"} <i>→</i> {b ? nombreUbi(b.ubicacion_id) : "—"}</>}
@@ -361,6 +362,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       const r = inicial?.renglones.find((x) => x.linea === l.clave);
       o[l.clave] = r
         ? { cajas: "", material: (() => { const m = materiales.find((x) => x.id === r.material_id); return m ? etiqueta(m) : "" })(),
+            envase: (() => { const m = materiales.find((x) => x.id === r.envase_id); return m ? etiqueta(m) : "" })(),
             origen: desdeSitio(r.origen), destino: desdeSitio(r.destino) }
         : lineaVacia();
     }
@@ -376,11 +378,17 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
   const cambia = (clave: string, f: (l: LineaF) => LineaF) =>
     setFilas((p) => ({ ...p, [clave]: f(p[clave]) }));
 
-  const matDe = (txt: string): MatC | null => {
+  /* Lo que se TOMA es envase y lo que queda UBICADO es producto: cada
+     casilla de material solo reconoce los de su tipo. */
+  const productos = useMemo(() => materiales.filter((m) => m.tipo === "PRODUCTO"), [materiales]);
+  const envases = useMemo(() => materiales.filter((m) => m.tipo === "ENVASE"), [materiales]);
+  const buscaEn = (lista: MatC[], txt: string): MatC | null => {
     const t = txt.trim();
     if (!t) return null;
-    return materiales.find((m) => etiqueta(m) === t) ?? materiales.find((m) => m.sku === t.split(" ")[0]) ?? null;
+    return lista.find((m) => etiqueta(m) === t) ?? lista.find((m) => m.sku === t.split(" ")[0]) ?? null;
   };
+  const matDe = (txt: string) => buscaEn(productos, txt);
+  const envDe = (txt: string) => buscaEn(envases, txt);
 
   /* LO QUE FALTA EN UNA LÍNEA, por su nombre, y su renglón si ya está completa. */
   function revisarLinea(clave: string) {
@@ -395,10 +403,14 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       else if (c === null) aqui.push(`cuántas ${s.unidad} hay ${k === "origen" ? "donde tomaba" : "donde estaba ubicado"}`);
       else sitios[k] = { ubicacion_id: u.id, cant: c, unidad: s.unidad };
     }
+    if (f.envase.trim() && !envDe(f.envase)) aqui.push("el envase (escoge uno de la lista o déjalo vacío)");
     if (f.material.trim() && !matDe(f.material)) aqui.push("el material (escoge uno de la lista o déjalo vacío)");
     return {
       aqui,
-      renglon: aqui.length ? null : { linea: clave, cajas_depa: cajas, material_id: matDe(f.material)?.id ?? null, ...sitios },
+      renglon: aqui.length ? null : {
+        linea: clave, cajas_depa: cajas, material_id: matDe(f.material)?.id ?? null,
+        envase_id: envDe(f.envase)?.id ?? null, ...sitios,
+      },
     };
   }
   const estadoDe = (clave: string): "sin" | "medias" | "ok" =>
@@ -450,11 +462,11 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
 
   /* CUÁNTAS CAJAS (Y UNIDADES) SON LO QUE SE ESCRIBIÓ: lo que hace falta
      para no sumar estibas con cajas en la cabeza. */
-  const equivale = (s: SitioF, m: MatC | null): string => {
+  const equivale = (s: SitioF, m: MatC | null, que: "envase" | "material"): string => {
     const c = num(s.cant);
     if (c === null) return "";
     const cajas = s.unidad === "cajas" ? c : m?.cajas_por_estiba && m.cajas_por_estiba > 0 ? c * m.cajas_por_estiba : null;
-    if (cajas === null) return m ? "Este material no tiene cajas por estiba en el maestro" : "Escoge el material para pasar las estibas a cajas";
+    if (cajas === null) return m ? `Este ${que} no tiene cajas por estiba en el maestro` : `Escoge el ${que} para pasar las estibas a cajas`;
     return `${fmt(cajas)} cajas` + (m?.unidades_por_caja ? ` · ${fmt(cajas * m.unidades_por_caja)} unidades` : "");
   };
 
@@ -463,13 +475,23 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     const mods = s.calle ? modulosDe(s.calle) : [];
     const lados = s.calle && s.modulo ? ladosDe(s.calle, s.modulo) : [];
     const cambiaSitio = (p: Partial<SitioF>) => cambia(clave, (l) => ({ ...l, [k]: { ...l[k], ...p } }));
-    const eq = equivale(s, matDe(filas[clave].material));
+    const esEnv = k === "origen";
+    const eq = esEnv ? equivale(s, envDe(filas[clave].envase), "envase") : equivale(s, matDe(filas[clave].material), "material");
     return (
       <fieldset className={"cl-sitio " + k} aria-label={titulo}>
         <div className="cl-leg">
           <span className="cl-ic" aria-hidden>{k === "origen" ? "→" : "↓"}</span>
           <b>{titulo}</b><i>{ayuda}</i>
         </div>
+        {esEnv ? (
+          <MaterialCampo lista={envases} valor={filas[clave].envase} etiqueta={etiqueta} resolver={envDe}
+                         titulo="Envase" nota="lo que entra a la línea" sin="Sin envase"
+                         onCambia={(v) => cambia(clave, (x) => ({ ...x, envase: v }))} />
+        ) : (
+          <MaterialCampo lista={productos} valor={filas[clave].material} etiqueta={etiqueta} resolver={matDe}
+                         titulo="Material" nota="el producto que sale" sin="Sin material"
+                         onCambia={(v) => cambia(clave, (x) => ({ ...x, material: v }))} />
+        )}
         <label>
           <span>Calle</span>
           <select value={s.calle} onChange={(e) => cambiaSitio({ calle: e.target.value, modulo: "", lado: "" })}>
@@ -530,7 +552,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
           <div className="cl-lineas" role="tablist" aria-label="Líneas">
             {lineas.map((l) => {
               const e = estadoDe(l.clave);
-              const m = matDe(filas[l.clave].material);
+              const m = matDe(filas[l.clave].material) ?? envDe(filas[l.clave].envase);
               const actual = l.clave === linea?.clave;
               return (
                 <button key={l.clave} type="button" role="tab" aria-selected={actual}
@@ -564,8 +586,6 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
             </header>
             <div className="cl-cuerpo">
               <div className="cl-r1">
-                <MaterialCampo materiales={materiales} valor={f.material} etiqueta={etiqueta} matDe={matDe}
-                               onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, material: v }))} />
                 <label className="cl-depa">
                   <span>Cajas que han pasado por la depa</span>
                   <input inputMode="numeric" value={f.cajas} placeholder="Ej. 18801"
@@ -615,25 +635,28 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
   );
 }
 
-/* EL MATERIAL DE LA LÍNEA: una tarjeta con lo que dice el maestro y «Cambiar».
-   Sin material escogido, o al cambiarlo, se busca por código o por nombre. */
-function MaterialCampo({ materiales, valor, etiqueta, matDe, onCambia }: {
-  materiales: MatC[]; valor: string; etiqueta: (m: MatC) => string;
-  matDe: (t: string) => MatC | null; onCambia: (v: string) => void;
+/* UN MATERIAL (envase o producto): una tarjeta con lo que dice el maestro y
+   «Cambiar». Sin material escogido, o al cambiarlo, se busca por código o por
+   nombre SOLO entre los de su tipo (`lista`): el envase no ofrece productos ni
+   al revés. */
+function MaterialCampo({ lista, valor, etiqueta, resolver, titulo, nota, sin, onCambia }: {
+  lista: MatC[]; valor: string; etiqueta: (m: MatC) => string;
+  resolver: (t: string) => MatC | null; titulo: string; nota: string; sin: string;
+  onCambia: (v: string) => void;
 }) {
-  const m = matDe(valor);
+  const m = resolver(valor);
   const [buscando, setBuscando] = useState(!m);
   const [q, setQ] = useState("");
   const t = q.trim().toLowerCase();
   const hallados = t
-    ? materiales.filter((x) => x.sku.toLowerCase().includes(t) || x.nombre.toLowerCase().includes(t)).slice(0, 6)
+    ? lista.filter((x) => x.sku.toLowerCase().includes(t) || x.nombre.toLowerCase().includes(t)).slice(0, 6)
     : [];
   const datos = (x: MatC) =>
     [x.sku, x.unidades_por_caja ? `${fmt(x.unidades_por_caja)} por caja` : null,
      x.cajas_por_estiba ? `${fmt(x.cajas_por_estiba)} cajas por estiba` : null].filter(Boolean).join(" · ");
   return (
     <div className="cl-mat">
-      <span className="cl-mat-t">Material <em>(opcional: pasa las estibas a cajas)</em></span>
+      <span className="cl-mat-t">{titulo} <em>({nota})</em></span>
       {m && !buscando ? (
         <div className="cl-mae">
           <span className="cl-mae-ic" aria-hidden>▮</span>
@@ -642,7 +665,7 @@ function MaterialCampo({ materiales, valor, etiqueta, matDe, onCambia }: {
         </div>
       ) : (
         <div className="cl-busca">
-          <input value={q} placeholder="Busca por código o nombre" aria-label="Buscar el material"
+          <input value={q} placeholder="Busca por código o nombre" aria-label={`Buscar ${titulo.toLowerCase()}`}
                  onChange={(e) => setQ(e.target.value)} />
           {hallados.length > 0 && (
             <ul>
@@ -655,12 +678,12 @@ function MaterialCampo({ materiales, valor, etiqueta, matDe, onCambia }: {
               ))}
             </ul>
           )}
-          {t && hallados.length === 0 && <p className="cl-eco">Ningún material coincide.</p>}
+          {t && hallados.length === 0 && <p className="cl-nada">Ningún {titulo.toLowerCase()} coincide.</p>}
           {m ? (
             <button type="button" className="btn plano" onClick={() => { setBuscando(false); setQ("") }}>Dejar el que estaba</button>
           ) : null}
-          {valor.trim() !== "" || m ? (
-            <button type="button" className="btn plano" onClick={() => { onCambia(""); setQ("") }}>Sin material</button>
+          {m ? (
+            <button type="button" className="btn plano" onClick={() => { onCambia(""); setQ("") }}>{sin}</button>
           ) : null}
         </div>
       )}

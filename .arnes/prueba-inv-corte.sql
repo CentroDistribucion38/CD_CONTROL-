@@ -175,3 +175,38 @@ begin
   if exists (select 1 from public.inv_corte_renglones) or exists (select 1 from public.inv_cortes) then raise exception 'FALLA: borrar el inicial no se llevó lo suyo'; end if;
   raise notice 'I5 · eliminar es solo de quien administra; el final se borra solo y el inicial se lleva sus renglones';
 end $$;
+
+-- ---------------------------------------------------------------------
+-- I6 · LO QUE SE TOMA ES ENVASE: el envase del origen solo admite materiales
+--      tipo ENVASE, y el producto que sale se guarda aparte
+-- ---------------------------------------------------------------------
+insert into public.productos (id, sku, nombre, activo, tipo_material) values
+  ('bbbbbbbb-2000-0000-0000-000000000001', 'ENV1', 'Botella de prueba', true, 'ENVASE'),
+  ('bbbbbbbb-2000-0000-0000-000000000002', 'PRO1', 'Producto de prueba', true, 'PRODUCTO');
+set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333'; set role probador;
+do $$
+declare f text := ''; v_id uuid;
+  b constant text := 'bbbbbbbb-0000-0000-0000-000000000001';
+begin
+  v_id := public.inv_corte_guardar(b::uuid, 'inicial', null, now() - interval '2 hours', null,
+    '[{"linea":"L1","cajas_depa":100,"material_id":"bbbbbbbb-2000-0000-0000-000000000002","envase_id":"bbbbbbbb-2000-0000-0000-000000000001",
+       "origen":{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000001","cant":4,"unidad":"estibas"}}]'::jsonb);
+  insert into public._ids values ('env', v_id);
+  /* Un PRODUCTO no puede ir donde va el envase. */
+  f := f || public._espera_error('select public.inv_corte_guardar(''' || b || ''',''inicial'',null, now() - interval ''1 hour'', null, ''[{"linea":"L2","cajas_depa":1,"envase_id":"bbbbbbbb-2000-0000-0000-000000000002"}]''::jsonb)',
+        '%no es un envase%', 'aceptó un producto como envase');
+  f := f || public._espera_error('select public.inv_corte_guardar(''' || b || ''',''inicial'',null, now() - interval ''1 hour'', null, ''[{"linea":"L2","cajas_depa":1,"envase_id":"bbbbbbbb-2000-0000-0000-00000000ffff"}]''::jsonb)',
+        '%no es un envase%', 'aceptó un envase que no existe');
+  if f <> '' then raise exception E'FALLA:%', f; end if;
+end $$;
+reset role;
+do $$
+declare f text := '';
+begin
+  if not exists (select 1 from public.inv_corte_renglones where corte_id = (select v from public._ids where k='env') and linea = 'L1'
+       and envase_id = 'bbbbbbbb-2000-0000-0000-000000000001' and material_id = 'bbbbbbbb-2000-0000-0000-000000000002') then
+    f := f || E'\n   · no guardó el envase y el producto por separado'; end if;
+  if (select count(*) from public.inv_cortes) <> 1 then f := f || E'\n   · un rechazo dejó una cabecera huérfana'; end if;
+  if f <> '' then raise exception E'FALLA:%', f; end if;
+  raise notice 'I6 · el envase del origen solo acepta materiales tipo ENVASE y se guarda aparte del producto';
+end $$;
