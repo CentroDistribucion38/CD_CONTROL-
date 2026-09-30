@@ -47,6 +47,7 @@ import { Buscador } from "@/components/Buscador";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
+import { soloElUltimo } from "@/modulos/inventario/ultimo-conteo";
 import {
   esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado,
 } from "@/modulos/inventario/cola";
@@ -58,6 +59,8 @@ type Conteo = { id: string; codigo: string; estado: string; iniciado_en: string 
    conteo que tocó ese módulo, venga de ayer o de hace tres días. */
 type Previo = {
   linea_id: string;
+  conteo_id: string;
+  conteo_codigo: string | null;
   codigo: string;
   material: string;
   contado_en: string;
@@ -600,7 +603,7 @@ export function Contar({
       if (!ubicacion) { setPrevio([]); return }
       const { data } = await supabase.from("v_conteo_ultimo_por_ubicacion")
         .select("*").eq("ubicacion_id", ubicacion.id);
-      if (vivo) { setPrevio((data ?? []) as Previo[]); setVerPrevio(true) }
+      if (vivo) { setPrevio(soloElUltimo((data ?? []) as Previo[])); setVerPrevio(true) }
     })();
     return () => { vivo = false };
   }, [supabase, ubicacion]);
@@ -1409,7 +1412,7 @@ export function Contar({
               <p className="fe-previo-rot">
                 La última vez en {claveEscogida}
                 {diasDesde(previo[0].contado_en) != null && (
-                  <em>{textoHace(diasDesde(previo[0].contado_en)!)}</em>
+                  <em>{previo[0].conteo_codigo ? `${previo[0].conteo_codigo} · ` : ""}{textoHace(diasDesde(previo[0].contado_en)!)}</em>
                 )}
               </p>
             </div>
