@@ -3,7 +3,7 @@ import { buildSync } from "esbuild";
 import { pathToFileURL } from "node:url";
 const R = (p) => new URL("../" + p, import.meta.url).pathname;
 buildSync({ entryPoints: [R("src/modulos/inventario/corte.ts")], bundle: true, format: "esm", outfile: R(".arnes/tmp/corte.mjs"), logLevel: "silent" });
-const { analizar, aCajas, duracion, renglonesPorCorte, cruzar, conteoPorDefecto, diaColombia } = await import(pathToFileURL(R(".arnes/tmp/corte.mjs")).href);
+const { analizar, aCajas, duracion, renglonesPorCorte, cruzar, conteoPorDefecto, diaColombia, armarTabla } = await import(pathToFileURL(R(".arnes/tmp/corte.mjs")).href);
 const fallas = [];
 const ok = (c, m) => { if (!c) fallas.push(m) };
 const sitio = (u, cant, unidad) => ({ ubicacion_id: u, cant, unidad });
@@ -257,6 +257,75 @@ const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
   ok(conteoPorDefecto(ini, [cs[0], cs[3]]) === "x1", "sin del mismo día, el de la fecha más cercana (29 a 1 día, 02 a 2 días)");
   ok(conteoPorDefecto(ini, []) === null, "sin conteos no hay con qué comparar");
   ok(diaColombia("2026-10-01T03:00:00Z") === "2026-09-30" && diaColombia("2026-10-01T05:00:00Z") === "2026-10-01", "el día es el de Colombia (UTC−5): " + diaColombia("2026-10-01T03:00:00Z"));
+}
+/* 10 · LA TABLA DE LA DIFERENCIA (la del diseño: cada cosa con inicial, final, se movió y diferencia con la depa) */
+{
+  const H1 = "2026-09-30T16:04:00Z", H2 = "2026-09-30T16:07:00Z";
+  const f54 = () => 54;
+  const rm = (linea, cajas, os, ds) => ({ linea, cajas_depa: cajas, envase_id: "e1", material_id: "p1", origenes: os, destinos: ds, nota: null });
+  const L = (conteo_id, producto_id, ubicacion_id, total_cajas) => ({ conteo_id, producto_id, ubicacion_id, total_cajas, averia: false, pnc: false });
+  const nom = (id) => ({ A01: "A · 01 · DER", A02: "A · 02 · DER" }[id] ?? id);
+  /* El caso de la pantalla de Cristian: la depa pasó 12.312 y los módulos se movieron al revés. */
+  const a = analizar(corte("inicial", H1, [rm("L1", 15000, [sitio("A01", 4, "estibas")], [sitio("A02", 15, "estibas")])]),
+                     corte("final", H2, [rm("L1", 27312, [sitio("A01", 6, "estibas")], [sitio("A02", 9, "estibas")])]), f54);
+  const t = armarTabla(cruzar(a, "k", [L("k", "zz", "A01", 100)])[0], true, nom);
+  ok(t.depa.ini === 15000 && t.depa.fin === 27312 && t.depa.mov === 12312, "la fila de la depa: " + JSON.stringify(t.depa));
+  const [o, d] = t.grupos;
+  ok(o.titulo === "Tomando de" && o.donde === "A · 01 · DER" && o.debe === "BAJAR" && d.titulo === "Ubicados en" && d.donde === "A · 02 · DER" && d.debe === "SUBIR", "los grupos: " + [o.titulo, o.donde, o.debe, d.titulo, d.donde, d.debe]);
+  ok(o.filas.length === 2 && o.filas[0].etiqueta === "Según el corte" && o.filas[1].etiqueta === "Según el inventario", "origen: dos filas");
+  const [oc, oi] = o.filas;
+  ok(oc.ini === 216 && oc.fin === 324 && oc.mov === 108 && oc.dif === 12420 && oc.lectura === "Sobran · subió cuando debía bajar" && oc.tono === "mal", "origen según el corte: " + JSON.stringify(oc));
+  ok(oi.ini === 216 && oi.fin === 0 && oi.mov === -216 && oi.dif === 12096 && oi.lectura === "Sobran · el material no apareció en el conteo", "origen según el inventario: " + JSON.stringify(oi));
+  const [dc, di] = d.filas;
+  ok(dc.ini === 810 && dc.fin === 486 && dc.mov === -324 && dc.dif === -12636 && dc.lectura === "Faltan · bajó cuando debía subir", "destino según el corte: " + JSON.stringify(dc));
+  ok(di.fin === null && di.mov === null && di.dif === null && /^Sin contar/.test(di.lectura) && di.tono === "gris", "destino sin contar: " + JSON.stringify(di));
+  ok(t.estado === "no_cuadra", "el estado de la línea: " + t.estado);
+  /* Sin conteo escogido: solo las filas del corte. */
+  const sin = armarTabla(cruzar(a, "", [])[0], false, nom);
+  ok(sin.grupos.every((g) => g.filas.length === 1 && g.filas[0].clase === "corte") && sin.estado === "no_cuadra", "sin conteo solo hay filas del corte");
+  /* Todo coincide: 1.000 por la depa, el origen baja 1.000 y el destino sube 1.000, y el conteo lo confirma. */
+  const b = analizar(corte("inicial", H1, [rm("L1", 0, [sitio("A01", 2000, "cajas")], [sitio("A02", 0, "cajas")])]),
+                     corte("final", H2, [rm("L1", 1000, [sitio("A01", 1000, "cajas")], [sitio("A02", 1000, "cajas")])]), f54);
+  const tb = armarTabla(cruzar(b, "k", [L("k", "e1", "A01", 1000), L("k", "p1", "A02", 1000)])[0], true, nom);
+  ok(tb.estado === "cuadra" && tb.grupos.every((g) => g.filas.every((f) => f.tono === "ok" && f.dif === 0 && f.lectura === "Cuadra con la depa")), "todo cuadra: " + JSON.stringify(tb.grupos.map((g) => g.filas.map((f) => [f.dif, f.lectura]))));
+  ok(tb.grupos[0].filas[0].mov === -1000 && tb.grupos[1].filas[0].mov === 1000, "el origen baja y el destino sube");
+  /* El inventario con 75 estibas en vez de 80: faltan 5 estibas = 300 cajas (el caso de Cristian, 60 por estiba). */
+  const e60 = () => 60;
+  const c = analizar(corte("inicial", H1, [{ ...rm("L1", 1000, [], [sitio("A01", 50, "estibas")]), envase_id: null }]), corte("final", H2, [{ ...rm("L1", 2800, [], [sitio("A01", 80, "estibas")]), envase_id: null }]), e60);
+  const tc = armarTabla(cruzar(c, "k", [L("k", "p1", "A01", 4500)])[0], true, nom);
+  const ci = tc.grupos[1].filas[1];
+  ok(tc.grupos[1].filas[0].lectura === "Cuadra con la depa" && ci.mov === 1500 && ci.dif === -300 && ci.lectura === "Faltan · se movió menos de lo que pasó por la depa", "el inventario con 75 estibas: " + JSON.stringify(ci));
+  ok(tc.grupos[0].nota !== null && tc.grupos[0].filas.length === 0, "sin origen: nota y sin filas");
+  ok(tc.estado === "no_cuadra", "y aun así la línea no cuadra");
+  /* El contador hacia atrás se marca. */
+  const r = analizar(corte("inicial", H1, [rm("L1", 500, [sitio("A01", 4, "estibas")], [sitio("A02", 4, "estibas")])]), corte("final", H2, [rm("L1", 100, [sitio("A01", 4, "estibas")], [sitio("A02", 4, "estibas")])]), f54);
+  ok(armarTabla(cruzar(r, "k", [])[0], false, nom).contadorAtras === true, "contador hacia atrás");
+  /* VARIOS módulos: cada uno con sus dos filas sin diferencia con la depa, y los totales con ella. */
+  const m = analizar(corte("inicial", H1, [rm("L1", 1000, [sitio("A01", 40, "estibas"), sitio("A02", 20, "estibas")], [sitio("A02", 0, "cajas")])]),
+                     corte("final", H2, [rm("L1", 2800, [sitio("A01", 30, "estibas"), sitio("A02", 0, "estibas")], [sitio("A02", 1800, "cajas")])]), () => 60);
+  const tm = armarTabla(cruzar(m, "k", [L("k", "e1", "A01", 1900), L("k", "e1", "A02", 300), L("k", "p1", "A02", 2100)])[0], true, nom);
+  const go = tm.grupos[0];
+  ok(go.donde === "2 módulos" && go.filas.length === 6, "origen con dos módulos: seis filas (2×2 + 2 totales): " + go.filas.map((f) => f.etiqueta));
+  ok(go.filas.slice(0, 4).every((f) => f.dif === null) && go.filas.slice(4).every((f) => f.clase === "total" && f.dif !== null), "los módulos no llevan diferencia con la depa; los totales sí");
+  ok(go.filas[4].etiqueta === "Total según el corte" && go.filas[4].mov === -1800 && go.filas[4].dif === 0 && go.filas[4].lectura === "Cuadra con la depa", "total según el corte: " + JSON.stringify(go.filas[4]));
+  ok(go.filas[5].mov === -1400 && go.filas[5].dif === 400 && /^Sobran/.test(go.filas[5].lectura), "total según el inventario: " + JSON.stringify(go.filas[5]));
+  ok(/^Sobran 100 cajas contra el corte final/.test(go.filas[1].lectura) && go.filas[1].tono === "mal", "A01: sobran 100 contra el corte final: " + go.filas[1].lectura);
+  /* Falta contar un módulo: el total del inventario no se compara y la línea queda incompleta (si nada más falla). */
+  const tm2 = armarTabla(cruzar(m, "k", [L("k", "e1", "A01", 1800)])[0], true, nom);
+  ok(/^Falta contar 1 módulo/.test(tm2.grupos[0].filas[5].lectura) && tm2.grupos[0].filas[5].dif === null, "falta contar un módulo: " + tm2.grupos[0].filas[5].lectura);
+  ok(tm2.estado === "no_cuadra" || tm2.estado === "incompleto", "estado");
+  /* Falta contar un módulo y lo contado cuadra: la línea queda INCOMPLETA, no CUADRA ni NO CUADRA. */
+  const m2 = analizar(corte("inicial", H1, [rm("L1", 1000, [sitio("A01", 40, "estibas"), sitio("A02", 20, "estibas")], [sitio("A03", 0, "cajas")])]),
+                      corte("final", H2, [rm("L1", 2800, [sitio("A01", 30, "estibas"), sitio("A02", 0, "estibas")], [sitio("A03", 1800, "cajas")])]), () => 60);
+  const tm3 = armarTabla(cruzar(m2, "k", [L("k", "e1", "A01", 1800), L("k", "e1", "A02", 0)])[0], true, nom);
+  ok(tm3.estado === "incompleto", "falta el destino por contar y lo demás cuadra: " + tm3.estado + " " + JSON.stringify(tm3.grupos.map((g) => g.filas.map((f) => f.lectura))));
+  /* Solo un lado comparable y cuadra: el otro no se pudo comparar, así que tampoco es CUADRA. */
+  const tOk = armarTabla(cruzar(c, "k", [L("k", "p1", "A01", 4800)])[0], true, nom);
+  ok(tOk.grupos[1].filas.every((f) => f.tono === "ok") && tOk.estado === "incompleto", "un lado cuadra y al otro le falta el origen: " + tOk.estado);
+  /* Un módulo por otro entre cortes: sale «A → B» y avisa. */
+  const cam = analizar(corte("inicial", H1, [rm("L1", 0, [sitio("A01", 4, "estibas")], [sitio("A02", 0, "cajas")])]), corte("final", H2, [rm("L1", 100, [sitio("A02", 4, "estibas")], [sitio("A02", 100, "cajas")])]), f54);
+  const tcam = armarTabla(cruzar(cam, "k", [])[0], false, nom);
+  ok(tcam.grupos[0].donde === "A · 01 · DER → A · 02 · DER" && tcam.grupos[0].nota !== null, "cambió de módulo: " + tcam.grupos[0].donde);
 }
 /* 6 · aCajas */
 ok(aCajas({ ubicacion_id: "x", cant: 3, unidad: "estibas" }, 45) === 135, "3 estibas × 45");

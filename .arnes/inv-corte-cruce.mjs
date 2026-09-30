@@ -69,7 +69,8 @@ const abM = { id: "am", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-
 const LC = (conteo_id: string, producto_id: string, ubicacion_id: string, total_cajas: number, averia = false) => ({ conteo_id, producto_id, ubicacion_id, total_cajas, averia, pnc: false });
 const conteos = [{ id: "k2", codigo: "CF-0929", fecha: "2026-09-29", enviado_en: "2026-09-29T22:00:00Z" },
                  { id: "k1", codigo: "CF-0930", fecha: "2026-09-30", enviado_en: "2026-09-30T20:00:00Z" },
-                 { id: "k3", codigo: "CF-0928", fecha: "2026-09-28", enviado_en: "2026-09-28T20:00:00Z" }];
+                 { id: "k3", codigo: "CF-0928", fecha: "2026-09-28", enviado_en: "2026-09-28T20:00:00Z" },
+                 { id: "k4", codigo: "CF-1001", fecha: "2026-10-01", enviado_en: "2026-10-01T20:00:00Z" }];
 const lineasConteo = [LC("k1", "m1", "uA01D", 1900), LC("k1", "m1", "uA01D", 120, true), LC("k1", "m1", "uA02D", 300), LC("k1", "m3", "uB12I", 2100), LC("k1", "m5", "uB12I", 999),
                       LC("k2", "m1", "uA01D", 2000),
                       LC("k3", "m1", "uA01D", 1800), LC("k3", "m1", "uA02D", 0), LC("k3", "m3", "uB12I", 1800)];
@@ -129,108 +130,125 @@ if (process.env.SHOT) {
   await nav.close(); process.exit(0);
 }
 
-const cruce = () => pg.$eval(".cl-cruce", (e) => e.textContent.replace(/\s+/g, " "));
-const fila = (texto) => pg.locator(`.cl-cruce-mods li:has(b:text-is("${texto}"))`);
-const celdas = async (texto, n = 0) => (await fila(texto).nth(n).locator("span, em").allTextContents()).map((x) => x.replace(/\s+/g, " ").trim());
+const tarjeta = () => pg.$eval('.dq-card[aria-label="Línea 1"]', (e) => e.textContent.replace(/\s+/g, " "));
+const celdas = async (texto, n = 0) => (await pg.locator(`.dq-card tr:has(td.q:text-is("${texto}"))`).nth(n).locator("td").allTextContents()).map((x) => x.replace(/\s+/g, " ").trim());
+const chip = () => pg.$eval(".dq-card .dq-chip", (e) => e.textContent);
+/* Celdas de una fila: 0 nombre · 1-3 inicial (estibas, cajas, unidades) · 4-6 final · 7-9 se movió · 10-12 diferencia · 13 lectura. */
 
-/* ---------- 1 · CON QUÉ CONTEO SE COMPARA ---------- */
+/* ---------- 1 · LA TARJETA Y SUS BLOQUES ---------- */
 await monta("c=cruce");
 {
-  ok(await pg.locator(".cl-cruce").count() === 1, "el par cerrado debía traer «Contra el conteo del inventario»");
-  ok(/Contra el conteo del inventario/.test(await cruce()), "falta el título");
-  const op = await pg.locator(".cl-cruce select option").allTextContents();
-  ok(op.length === 3 && op[0] === "CF-0929 · 29/09/2026" && op[1] === "CF-0930 · 30/09/2026", "las opciones del selector: " + op.join(" | "));
-  ok(await pg.locator(".cl-cruce select").inputValue() === "k1", "el conteo por defecto debía ser el del mismo día del corte (CF-0930): " + await pg.locator(".cl-cruce select").inputValue());
-  ok(/tres cosas/.test(await cruce()) && /lo que pasó por la depa/.test(await cruce()), "no explica qué tiene que coincidir");
-  /* Nada de «corte» repetido en cada columna: las columnas son Inicial / Final / Diferencia. */
-  const cab = (await pg.locator(".cl-cruce-mods li.cab").first().locator("span").allTextContents()).map((x) => x.trim());
-  ok(cab.join("|") === "Qué se mide|Inicial|Final|Diferencia|Lectura", "las columnas: " + cab.join("|"));
+  ok(await pg.locator(".dq-card").count() === 1, "el par cerrado debía traer una tarjeta por línea");
+  const op = await pg.locator(".dq select option").allTextContents();
+  ok(op.length === 4 && op[0] === "CF-0929 · 29/09/2026" && op[1] === "CF-0930 · 30/09/2026", "las opciones del selector: " + op.join(" | "));
+  ok(await pg.locator(".dq select").inputValue() === "k1", "el conteo por defecto debía ser el del mismo día del corte (CF-0930): " + await pg.locator(".dq select").inputValue());
+  ok(await pg.locator(".dq-aviso").count() === 0, "el conteo es del mismo día de los cortes: no debía avisar");
+  const g = (await pg.locator(".dq thead tr.g th").allTextContents()).map((x) => x.trim()).filter(Boolean);
+  ok(g.join("|") === "Corte inicial|Corte final|Se movió|Diferencia con la depa", "los cuatro bloques: " + g.join("|"));
+  const s = (await pg.locator(".dq thead tr.s th").allTextContents()).map((x) => x.trim());
+  ok(s.length === 14 && s[1] === "Estibas" && s[2] === "Cajas" && s[3] === "Unidades" && s[13] === "Lectura", "las subcolumnas: " + s.join("|"));
+  const h = await pg.$eval(".dq-card .dq-cab", (e) => e.textContent.replace(/\s+/g, " "));
+  ok(/L1/.test(h) && /Línea 1/.test(h) && /1\.800 cajas por la depa \(1\.000 → 2\.800\)/.test(h), "la cabeza de la tarjeta: " + h);
+  ok(await chip() === "NO CUADRA", "el chip: " + await chip());
+  ok(/debe BAJAR lo mismo que pasó por la depa/.test(await tarjeta()) && /debe SUBIR lo mismo que pasó por la depa/.test(await tarjeta()), "los grupos no dicen qué debe pasar");
+  ok(/Factores:/.test(await tarjeta()) && /Diferencia con la depa = lo que se movió − lo que debía moverse/.test(await tarjeta()), "falta el pie con la fórmula y los factores");
 }
 
 /* ---------- 2 · LA DEPA, EL CORTE Y EL CONTEO, EN UNA TABLA ---------- */
 {
-  /* La depa: 1.000 → 2.800, pasaron 1.800. */
-  const d = await celdas("Corte por depa");
-  ok(d[0] === "1.000" && d[1] === "2.800" && d[2] === "+1.800", "la fila de la depa: " + d.join(" | "));
-  /* A01 (envase, 60 por estiba): 40 → 30 estibas = 2.400 → 1.800; el inventario contó 1.900 (+120 de avería aparte). */
-  const c1 = await celdas("A · 01 · DER en el corte");
-  ok(c1[0] === "2.400" && c1[1] === "1.800" && c1[2] === "−600", "A01 en el corte: " + c1.join(" | "));
-  const i1 = await celdas("A · 01 · DER en el inventario");
-  ok(i1[0] === "2.400" && i1[1] === "1.900" && i1[2] === "−500", "A01 en el inventario: Inicial del corte, lo contado y la diferencia: " + i1.join(" | "));
-  ok(/No cuadra: sobran 100 cajas/.test(i1[3]) && /\+ 120 en avería\/PNC/.test(i1[3]), "A01: la lectura y la avería aparte: " + i1[3]);
-  const i2 = await celdas("A · 02 · DER en el inventario");
-  ok(i2[0] === "1.200" && i2[1] === "300" && i2[2] === "−900" && /No cuadra: sobran 300 cajas/.test(i2[3]), "A02: " + i2.join(" | "));
-  /* B12: el destino (producto) subió de 0 a 1.800 según los cortes; el inventario contó 2.100. El otro material (999) no cuenta. */
-  const c3 = await celdas("B · 12 · IZQ en el corte");
-  ok(c3[0] === "0" && c3[1] === "1.800" && c3[2] === "+1.800", "B12 en el corte: " + c3.join(" | "));
-  const i3 = await celdas("B · 12 · IZQ en el inventario");
-  ok(i3[0] === "0" && i3[1] === "2.100" && i3[2] === "+2.100" && /No cuadra: sobran 300 cajas/.test(i3[3]), "B12 en el inventario: " + i3.join(" | "));
-  /* Los totales contra la depa. */
-  const tc = await celdas("Total en el corte", 0), ti = await celdas("Total en el inventario", 0);
-  ok(tc[0] === "3.600" && tc[1] === "1.800" && tc[2] === "−1.800" && /^Cuadra con la depa/.test(tc[3]), "total del origen en el corte: " + tc.join(" | "));
-  ok(ti[0] === "3.600" && ti[1] === "2.200" && ti[2] === "−1.400" && /No cuadra con la depa: sobran 400 cajas/.test(ti[3]), "total del origen en el inventario: " + ti.join(" | "));
-  const tdc = await celdas("Total en el corte", 1), tdi = await celdas("Total en el inventario", 1);
-  ok(tdc[2] === "+1.800" && /^Cuadra con la depa/.test(tdc[3]) && tdi[1] === "2.100" && tdi[2] === "+2.100" && /sobran 300 cajas/.test(tdi[3]), "totales del destino: " + [...tdc, ...tdi].join(" | "));
-  /* El color sale de la clase, y el «cuadra» y el «no cuadra» se ven distintos. */
-  ok(await fila("Total en el corte").nth(0).evaluate((e) => e.classList.contains("l-cuadra")) && await fila("A · 01 · DER en el inventario").evaluate((e) => e.classList.contains("l-no_cuadra")), "la lectura no cambia de clase");
-  /* Los títulos de cada lado dicen el material buscado. */
-  ok(/Tomando de/.test(await pg.locator(".cl-cruce-lado .cl-t").nth(0).textContent()) && /Botella Flint 1000R/.test(await pg.locator(".cl-cruce-lado .cl-t").nth(0).textContent()), "Tomando de debía decir el ENVASE buscado");
-  ok(/Ubicados en/.test(await pg.locator(".cl-cruce-lado .cl-t").nth(1).textContent()) && /Águila RN 330cc X30/.test(await pg.locator(".cl-cruce-lado .cl-t").nth(1).textContent()), "Ubicados en debía decir el PRODUCTO buscado");
+  /* La depa cuenta cajas del PRODUCTO (36 por estiba, 30 unidades por caja): 1.000 → 2.800, pasaron 1.800 cajas = 50 estibas. */
+  const d = await celdas("Depaletizadora");
+  ok(d[1] === "—" && d[2] === "1.000" && d[3] === "30.000" && d[5] === "2.800" && d[7] === "+50" && d[8] === "+1.800" && d[9] === "+54.000", "la fila de la depa: " + d.join(" | "));
+  ok(d[10] === "—" && d[11] === "—" && /Pasaron 1\.800 cajas/.test(d[13]), "la depa es la referencia: no lleva diferencia: " + d.join(" | "));
+  /* Origen (envase, 60 por estiba): A01 40 → 30 estibas; el inventario contó 1.900 (+120 de avería aparte). */
+  const c1 = await celdas("A · 01 · DER · según el corte");
+  ok(c1[1] === "40" && c1[2] === "2.400" && c1[4] === "30" && c1[5] === "1.800" && c1[7] === "−10" && c1[8] === "−600" && c1[11] === "—", "A01 según el corte: " + c1.join(" | "));
+  const i1 = await celdas("A · 01 · DER · según el inventario");
+  ok(i1[2] === "2.400" && i1[5] === "1.900" && i1[8] === "−500" && i1[4] === "31,7", "A01 según el inventario (inicial del corte, lo contado, lo que se movió, estibas con decimal): " + i1.join(" | "));
+  ok(/Sobran 100 cajas contra el corte final/.test(i1[13]) && /\+ 120 en avería\/PNC/.test(i1[13]), "A01: la lectura y la avería aparte: " + i1[13]);
+  const i2 = await celdas("A · 02 · DER · según el inventario");
+  ok(i2[2] === "1.200" && i2[5] === "300" && i2[8] === "−900" && /Sobran 300 cajas/.test(i2[13]), "A02: " + i2.join(" | "));
+  /* Los totales del origen contra la depa: debía bajar 1.800. */
+  const tc = await celdas("Total según el corte"), ti = await celdas("Total según el inventario");
+  ok(tc[2] === "3.600" && tc[5] === "1.800" && tc[8] === "−1.800" && tc[11] === "0" && /^Cuadra con la depa/.test(tc[13]), "total según el corte: " + tc.join(" | "));
+  ok(ti[2] === "3.600" && ti[5] === "2.200" && ti[8] === "−1.400" && ti[11] === "+400" && /^Sobran/.test(ti[13]), "total según el inventario: " + ti.join(" | "));
+  /* Destino (producto, 36 cajas por estiba): B12 subió de 0 a 1.800 y el inventario contó 2.100. */
+  const dc = await celdas("Según el corte"), di = await celdas("Según el inventario");
+  ok(dc[2] === "0" && dc[5] === "1.800" && dc[8] === "+1.800" && dc[11] === "0" && /^Cuadra/.test(dc[13]), "destino según el corte: " + dc.join(" | "));
+  ok(di[5] === "2.100" && di[8] === "+2.100" && di[11] === "+300" && /^Sobran/.test(di[13]), "destino según el inventario: " + di.join(" | "));
+  /* El color sale del tono: «cuadra» y «no cuadra» se ven distintos. */
+  const col = await pg.evaluate(() => [...document.querySelectorAll(".dq td.lec")].map((e) => [e.className, getComputedStyle(e).color]));
+  const okc = col.find((x) => /\bok\b/.test(x[0])), malc = col.find((x) => /\bmal\b/.test(x[0]));
+  ok(okc && malc && okc[1] !== malc[1], "«cuadra» y «no cuadra» se ven del mismo color: " + JSON.stringify([okc, malc]));
+  ok(await pg.$$eval(".dq td.dz.rojo", (x) => x.length) > 0 && await pg.$$eval(".dq td.dz.ok", (x) => x.length) > 0, "las diferencias se pintan en rojo o verde según se aparten o no");
+  /* Los títulos de cada grupo dicen el material buscado. */
+  const grp = await pg.locator(".dq tr.grp td").allTextContents();
+  ok(/Tomando de · 2 módulos/.test(grp[0]) && /Botella Flint 1000R/.test(grp[0]) && /Ubicados en · B · 12 · IZQ/.test(grp[1]) && /Águila RN 330cc X30/.test(grp[1]), "los grupos: " + grp.join(" || "));
 }
 
-/* ---------- 3 · OTROS CONTEOS: uno incompleto y uno que cuadra ---------- */
+/* ---------- 3 · OTROS CONTEOS: uno incompleto, fuera de fecha, y uno que cuadra ---------- */
 {
-  await pg.selectOption(".cl-cruce select", "k2");
-  const i1 = await celdas("A · 01 · DER en el inventario");
-  ok(i1[1] === "2.000" && i1[2] === "−400" && /No cuadra: sobran 200 cajas/.test(i1[3]), "A01 con el otro conteo: " + i1.join(" | "));
-  for (const m of ["A · 02 · DER en el inventario", "B · 12 · IZQ en el inventario"]) {
-    const x = await celdas(m);
-    ok(x[1] === "—" && x[2] === "—" && /Sin contar/.test(x[3]), m + " no está en ese conteo: debía decir «Sin contar», no 0: " + x.join(" | "));
-  }
-  ok(await fila("A · 02 · DER en el inventario").evaluate((e) => e.classList.contains("l-sin_contar")), "la clase de «sin contar»");
-  const t = await celdas("Total en el inventario", 0);
-  ok(t[1] === "—" && /Falta contar 1 módulo: no se puede comparar con la depa/.test(t[3]), "con un módulo sin contar el total no se compara con la depa: " + t.join(" | "));
+  await pg.selectOption(".dq select", "k2");
+  ok(/El conteo es del 29\/09\/2026 y los cortes del 30\/09: escoge un conteo hecho entre los dos cortes/.test(await pg.$eval(".dq-aviso", (e) => e.textContent)), "un conteo de otro día debía avisar");
+  const i1 = await celdas("A · 01 · DER · según el inventario");
+  ok(i1[5] === "2.000" && i1[8] === "−400" && /Sobran 200 cajas/.test(i1[13]), "A01 con el otro conteo: " + i1.join(" | "));
+  ok(await chip() === "NO CUADRA", "un módulo que no cuadra con el corte final basta para NO CUADRA aunque falte contar otro: " + await chip());
+  const x = await celdas("A · 02 · DER · según el inventario");
+  ok(x[5] === "—" && x[8] === "—" && /Sin contar/.test(x[13]), "A02 no está en ese conteo: debía decir «Sin contar», no 0: " + x.join(" | "));
+  const t = await celdas("Total según el inventario");
+  ok(t[5] === "—" && /Falta contar 1 módulo: no se puede comparar con la depa/.test(t[13]), "con un módulo sin contar el total no se compara con la depa: " + t.join(" | "));
+  const di = await celdas("Según el inventario");
+  ok(/^Sin contar/.test(di[13]), "el destino sin contar: " + di.join(" | "));
   /* Un conteo que coincide con el corte final: todo cuadra. */
-  await pg.selectOption(".cl-cruce select", "k3");
-  for (const m of ["A · 01 · DER en el inventario", "A · 02 · DER en el inventario", "B · 12 · IZQ en el inventario"]) {
-    const x = await celdas(m);
-    ok(/^Cuadra/.test(x[3]), m + " con el conteo justo debía cuadrar: " + x.join(" | "));
+  /* Un conteo DESPUÉS de los cortes también avisa. */
+  await pg.selectOption(".dq select", "k4");
+  ok(/El conteo es del 01\/10\/2026 y los cortes del 30\/09/.test(await pg.$eval(".dq-aviso", (e) => e.textContent)), "un conteo posterior a los cortes debía avisar");
+  await pg.selectOption(".dq select", "k3");
+  ok(await pg.locator(".dq-aviso").count() === 1, "el 28/09 también está fuera de los cortes");
+  for (const m of ["A · 01 · DER · según el inventario", "A · 02 · DER · según el inventario"]) {
+    const y = await celdas(m);
+    ok(/^Cuadra con el corte final/.test(y[13]), m + " con el conteo justo debía cuadrar: " + y.join(" | "));
   }
-  const tt = await celdas("Total en el inventario", 0);
-  ok(tt[1] === "1.800" && tt[2] === "−1.800" && /^Cuadra con la depa/.test(tt[3]), "total con el conteo justo: " + tt.join(" | "));
-  const col = await pg.evaluate(() => [document.querySelector(".cl-cruce-mods li.r-inv.l-cuadra em"), document.querySelector(".cl-cruce-mods li.r-total.l-cuadra em")].map((e) => e && getComputedStyle(e).color));
-  ok(col[0] !== null && col[0] === col[1], "«cuadra» debía verse de un mismo color: " + col.join(" / "));
-  await pg.selectOption(".cl-cruce select", "k1");
-  const col2 = await pg.evaluate(() => [document.querySelector(".cl-cruce-mods li.l-no_cuadra em"), document.querySelector(".cl-cruce-mods li.r-depa em")].map((e) => getComputedStyle(e).color));
-  ok(col2[0] !== col[0], "«no cuadra» y «cuadra» se ven del mismo color: " + col2[0] + " / " + col[0]);
-  const b = await celdas("B · 12 · IZQ en el inventario");
-  ok(b[1] === "2.100" && /No cuadra/.test(b[3]), "al volver a CF-0930 se recalcula: " + b.join(" | "));
+  const tt = await celdas("Total según el inventario");
+  ok(tt[5] === "1.800" && tt[8] === "−1.800" && tt[11] === "0" && /^Cuadra con la depa/.test(tt[13]), "total con el conteo justo: " + tt.join(" | "));
+  ok(await chip() === "CUADRA", "con todo cuadrando el chip dice CUADRA: " + await chip());
+  await pg.selectOption(".dq select", "k1");
+  ok(await chip() === "NO CUADRA" && await pg.locator(".dq-aviso").count() === 0, "al volver a CF-0930 se recalcula y se quita el aviso");
 }
 
 /* ---------- 4 · SIN CONTEOS ENVIADOS ---------- */
 await monta("c=crucesin");
 {
-  ok(/No hay conteos enviados de esta bodega para comparar/.test(await cruce()), "sin conteos debía decirlo: " + await cruce());
-  ok(await pg.locator(".cl-cruce select").count() === 0 && await pg.locator(".cl-cruce-mods").count() === 0, "sin conteos no debía haber selector ni tabla");
+  ok(/No hay conteos enviados de esta bodega/.test(await pg.$eval(".dq-aviso", (e) => e.textContent)), "sin conteos debía decirlo");
+  ok(await pg.locator(".dq select").count() === 0, "sin conteos no debía haber selector");
+  ok(await pg.locator(".dq tr.r-inv, .dq tr.r-total").count() === 0 || await pg.locator(".dq tr.r-inv").count() === 0, "sin conteo no debía haber filas del inventario");
+  const c = await celdas("A · 01 · DER · según el corte");
+  ok(c[2] === "2.400" && c[8] === "−600", "el corte se ve igual sin conteo: " + c.join(" | "));
 }
 
 /* ---------- 5 · NADA SE SALE, en cuatro anchos ---------- */
 for (const w of [360, 390, 820, 1440]) {
   await monta("c=cruce", w);
   const d = await pg.evaluate(() => ({ ancho: document.documentElement.scrollWidth, vista: window.innerWidth,
-    fuera: [...document.querySelectorAll("#r *")].filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className || e.tagName).slice(0, 4) }));
+    fuera: [...document.querySelectorAll("#r *")].filter((e) => { const t = e.closest(".tw"); return !(t && getComputedStyle(t).overflowX !== "visible") && e.getBoundingClientRect().right > window.innerWidth + 1 }).map((e) => e.className || e.tagName).slice(0, 4) }));
   ok(d.ancho <= d.vista && d.fuera.length === 0, `a ${w} px se sale: ${d.ancho}>${d.vista} ${d.fuera.join(",")}`);
   const chico = await pg.evaluate(() => [...document.querySelectorAll("#r button, #r select, #r input")].filter((e) => e.getBoundingClientRect().height && e.getBoundingClientRect().height < 43).length);
   ok(chico === 0, `a ${w} px hay ${chico} controles de menos de 44 px`);
+  const cab = await pg.evaluate(() => getComputedStyle(document.querySelector(".dq thead")).display);
   if (w <= 720) {
-    const cab = await pg.evaluate(() => getComputedStyle(document.querySelector(".cl-cruce-mods .cab")).display);
-    ok(cab === "none", `a ${w} px la cabecera de columnas debía esconderse (cada celda trae su nombre): ${cab}`);
-    const k = await pg.evaluate(() => getComputedStyle(document.querySelector('.cl-cruce-mods li:not(.cab) span[data-k]'), "::before").content);
-    ok(/Inicial/.test(k), `a ${w} px cada celda debía traer su nombre: ${k}`);
+    ok(cab === "none", `a ${w} px la cabecera de la tabla debía esconderse (cada cifra trae su nombre): ${cab}`);
+    const k = await pg.evaluate(() => getComputedStyle(document.querySelector('.dq tr.r-corte td[data-k="Cajas"]'), "::before").content);
+    ok(/Cajas/.test(k), `a ${w} px cada cifra debía traer su unidad: ${k}`);
+    const b = await pg.evaluate(() => getComputedStyle(document.querySelector('.dq tr.r-corte td[data-b="Corte inicial"]'), "::after").content);
+    ok(/Corte inicial/.test(b), `a ${w} px cada bloque debía traer su nombre: ${b}`);
+    const sc = await pg.evaluate(() => { const t = document.querySelector(".dq .tw"); return t.scrollWidth <= t.clientWidth + 1 });
+    ok(sc, `a ${w} px la tabla no debía necesitar rodar de lado`);
+  } else {
+    ok(cab !== "none", `a ${w} px la tabla con sus bloques debía verse`);
   }
 }
 
 ok(roto.length === 0, "errores de la página: " + roto.slice(0, 3).join(" | "));
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Corte contra conteo: depa, corte y conteo en una tabla, «cuadra»/«no cuadra»/«sin contar», totales contra la depa, el selector recalcula, sin conteos lo dice y nada se sale en 4 anchos.");
+console.log("✓ La diferencia como en el diseño: una tarjeta por línea, bloques Corte inicial / Corte final / Se movió / Diferencia con la depa en estibas, cajas y unidades, cuadra y no cuadra con su color, aviso si el conteo es de otro día, y nada se sale en 4 anchos.");

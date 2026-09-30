@@ -318,7 +318,11 @@ export type TotalCruce = {
   conteo: number | null; movConteo: number | null; difConteo: number | null;
   sinContar: number;
 };
-export type CruceLado = { material_id: string | null; modulos: ModuloCruce[]; motivo: string | null; total: TotalCruce | null };
+export type CruceLado = {
+  material_id: string | null; modulos: ModuloCruce[]; motivo: string | null; total: TotalCruce | null;
+  /** Lo que dice el análisis del lado cuando no pudo sumar todo (módulo que cambió, estibas sin factor…). */
+  nota: string | null;
+};
 export type CruceLinea = { linea: string; depaIni: number; depaFin: number; pasadas: number; origen: CruceLado; destino: CruceLado };
 
 /** Por debajo de media caja es redondeo, no diferencia. */
@@ -326,7 +330,7 @@ const parejo = (n: number) => Math.abs(n) < 0.5;
 
 function cruceLado(lado: Lado, material: string | null, que: string, conteoId: string, lineas: LineaConteo[],
                    pasadas: number, signo: 1 | -1): CruceLado {
-  if (!material) return { material_id: null, modulos: [], total: null, motivo: `La línea no dice ${que}: no se sabe qué buscar en el conteo` };
+  if (!material) return { material_id: null, modulos: [], total: null, nota: null, motivo: `La línea no dice ${que}: no se sabe qué buscar en el conteo` };
   const delConteo = lineas.filter((l) => l.conteo_id === conteoId);
   const modulos = lado.modulos.map((m): ModuloCruce => {
     const movCorte = m.ini == null || m.fin == null ? null : m.fin - m.ini;
@@ -344,7 +348,7 @@ function cruceLado(lado: Lado, material: string | null, que: string, conteoId: s
     return {
       ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: buenas, aparte, movCorte, movConteo, dif,
       lectura: !hayCortes ? "sin_rango" : parejo(dif as number) ? "cuadra" : "no_cuadra",
-      nota: delMaterial.length === 0 ? "El conteo pasó por el módulo y este material no apareció" : null,
+      nota: delMaterial.length === 0 ? "El material no apareció en el conteo" : null,
     };
   });
   /* Contra la depa: solo los módulos que se pudieron comparar entre los dos cortes (los mismos de la suma del análisis). */
@@ -366,7 +370,7 @@ function cruceLado(lado: Lado, material: string | null, que: string, conteoId: s
       sinContar: comparables.length - contados.length,
     };
   }
-  return { material_id: material, modulos, motivo: null, total };
+  return { material_id: material, modulos, motivo: null, total, nota: lado.motivo ?? lado.aviso };
 }
 
 export function cruzar(a: Analisis, conteoId: string, lineas: LineaConteo[]): CruceLinea[] {
@@ -394,4 +398,133 @@ export function conteoPorDefecto(ini: Corte, conteos: ConteoRef[]): string | nul
   const orden = [...conteos].sort((x, y) =>
     dist(x) - dist(y) || (y.enviado_en ?? "").localeCompare(x.enviado_en ?? "") || x.codigo.localeCompare(y.codigo));
   return orden[0].id;
+}
+
+
+/* =====================================================================
+   LA TABLA DE LA DIFERENCIA (una por línea)
+
+   Una fila por cosa que se mide, y cada una con lo que había AL EMPEZAR, lo que
+   había AL TERMINAR, cuánto SE MOVIÓ (final − inicial, con signo) y la
+   DIFERENCIA CON LA DEPA: lo que se movió − lo que debía moverse. El origen
+   debe BAJAR lo que pasó por la depa y el destino debe SUBIR lo mismo:
+
+       origen:  debía moverse −pasadas      destino:  debía moverse +pasadas
+
+   «Según el corte» es inicial → final. «Según el inventario» es el corte
+   inicial → lo que contó el inventario. Con UN módulo por lado, esas dos filas
+   son las que se comparan con la depa. Con varios, cada módulo trae sus dos
+   filas (sin diferencia con la depa: un módulo solo no tiene por qué mover lo
+   de toda la línea) y la comparación va en las filas de TOTAL.
+   Todo en cajas: la pantalla lo pasa a estibas y unidades con los factores.
+   ===================================================================== */
+export type Tono = "ok" | "mal" | "gris";
+export type FilaTabla = {
+  clase: "depa" | "corte" | "inv" | "total";
+  etiqueta: string;
+  ini: number | null; fin: number | null;
+  /** Se movió (final − inicial) y la diferencia con la depa (se movió − debía moverse). */
+  mov: number | null; dif: number | null;
+  lectura: string; tono: Tono | null;
+  /** Cajas del mismo material marcadas como avería o PNC en el conteo: van aparte, no se suman. */
+  aparte?: number;
+};
+export type GrupoTabla = {
+  titulo: "Tomando de" | "Ubicados en";
+  /** «A · 01 · DER», o «A · 01 · DER → A · 02 · DER» si cambió de módulo, o «2 módulos». */
+  donde: string;
+  material_id: string | null;
+  debe: "BAJAR" | "SUBIR";
+  /** Por qué no hay filas o por qué la suma no es de todo. */
+  nota: string | null;
+  filas: FilaTabla[];
+};
+export type TablaLinea = {
+  linea: string;
+  depa: FilaTabla;
+  contadorAtras: boolean;
+  grupos: GrupoTabla[];
+  /** NO CUADRA si alguna comparación con la depa se aparta; CUADRA si todas coinciden; INCOMPLETO si falta algo por comparar. */
+  estado: "cuadra" | "no_cuadra" | "incompleto";
+};
+
+const cajasTxt = (n: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 }).format(Math.abs(n));
+
+/** La lectura de una comparación con la depa: «Cuadra», o «Sobran · por qué». */
+function lecturaDepa(mov: number, esperado: number, dif: number, nota: string | null): { lectura: string; tono: Tono } {
+  if (parejo(dif)) return { lectura: "Cuadra con la depa", tono: "ok" };
+  const porque = nota
+    ? nota.charAt(0).toLowerCase() + nota.slice(1)
+    : mov * esperado < 0 ? (esperado < 0 ? "subió cuando debía bajar" : "bajó cuando debía subir")
+    : Math.abs(mov) < Math.abs(esperado) ? "se movió menos de lo que pasó por la depa"
+    : "se movió más de lo que pasó por la depa";
+  return { lectura: `${dif > 0 ? "Sobran" : "Faltan"} · ${porque}`, tono: "mal" };
+}
+
+export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: string) => string = (id) => id): TablaLinea {
+  let incompleto = false, noCuadra = false;
+  const depa: FilaTabla = {
+    clase: "depa", etiqueta: "Depaletizadora", ini: c.depaIni, fin: c.depaFin, mov: c.pasadas, dif: null,
+    lectura: c.pasadas < 0 ? "El contador retrocedió" : `Pasaron ${cajasTxt(c.pasadas)} cajas`, tono: null,
+  };
+  const grupos = ([["Tomando de", c.origen, "BAJAR"], ["Ubicados en", c.destino, "SUBIR"]] as const).map(([titulo, l, debe]): GrupoTabla => {
+    const mods = l.modulos;
+    const donde = mods.length === 0 ? "" : mods.length === 1 ? nombreUbi(mods[0].ubicacion_id)
+      : mods.length === 2 && mods.every((m) => m.ini === null || m.fin === null) && mods.some((m) => m.ini === null) && mods.some((m) => m.fin === null)
+        ? mods.map((m) => nombreUbi(m.ubicacion_id)).join(" → ")
+        : `${mods.length} módulos`;
+    const g: GrupoTabla = { titulo, donde, material_id: l.material_id, debe, nota: l.motivo ?? l.nota, filas: [] };
+    if (l.motivo || mods.length === 0) { incompleto = true; return g; }
+    const t = l.total;
+    const corteFila = (etiqueta: string, m: { ini: number | null; fin: number | null; movCorte: number | null }, conDepa: boolean): FilaTabla => {
+      if (!conDepa || !t) return { clase: "corte", etiqueta, ini: m.ini, fin: m.fin, mov: m.movCorte, dif: null, lectura: "", tono: null };
+      const d = t.difCorte, r = lecturaDepa(t.corte, t.esperado, d, null);
+      if (!parejo(d)) noCuadra = true;
+      return { clase: "corte", etiqueta, ini: m.ini, fin: m.fin, mov: m.movCorte, dif: d, lectura: r.lectura, tono: r.tono };
+    };
+    if (mods.length === 1 && t) {
+      const m = mods[0];
+      g.filas.push(corteFila("Según el corte", m, true));
+      if (hayConteo) {
+        if (m.lectura === "sin_contar") {
+          incompleto = true;
+          g.filas.push({ clase: "inv", etiqueta: "Según el inventario", ini: m.ini, fin: null, mov: null, dif: null, lectura: "Sin contar · el conteo no pasó por este módulo", tono: "gris" });
+        } else if (t.difConteo !== null && t.movConteo !== null) {
+          const r = lecturaDepa(t.movConteo, t.esperado, t.difConteo, m.nota);
+          if (!parejo(t.difConteo)) noCuadra = true;
+          g.filas.push({ clase: "inv", etiqueta: "Según el inventario", ini: m.ini, fin: m.conteo, mov: t.movConteo, dif: t.difConteo, lectura: r.lectura, tono: r.tono, aparte: m.aparte });
+        }
+      }
+      return g;
+    }
+    /* VARIOS MÓDULOS (o uno que cambió por otro): el detalle de cada uno y los totales. */
+    for (const m of mods) {
+      const nombre = nombreUbi(m.ubicacion_id);
+      g.filas.push(corteFila(`${nombre} · según el corte`, m, false));
+      if (!hayConteo) continue;
+      const lect = m.lectura === "sin_contar" ? { lectura: "Sin contar · el conteo no pasó por este módulo", tono: "gris" as Tono }
+        : m.lectura === "sin_rango" ? { lectura: "Falta un corte en este módulo", tono: "gris" as Tono }
+        : m.lectura === "cuadra" ? { lectura: "Cuadra con el corte final", tono: "ok" as Tono }
+        : { lectura: `${(m.dif as number) > 0 ? "Sobran" : "Faltan"} ${cajasTxt(m.dif as number)} cajas contra el corte final${m.nota ? " · " + m.nota.charAt(0).toLowerCase() + m.nota.slice(1) : ""}`, tono: "mal" as Tono };
+      if (m.lectura === "sin_contar") incompleto = true;
+      if (m.lectura === "no_cuadra") noCuadra = true;
+      g.filas.push({ clase: "inv", etiqueta: `${nombre} · según el inventario`, ini: m.ini, fin: m.conteo, mov: m.movConteo, dif: null, lectura: lect.lectura, tono: lect.tono, aparte: m.aparte });
+    }
+    if (t) {
+      g.filas.push({ ...corteFila("Total según el corte", { ini: t.ini, fin: t.fin, movCorte: t.corte }, true), clase: "total" });
+      if (hayConteo) {
+        if (t.difConteo === null || t.movConteo === null) {
+          incompleto = true;
+          g.filas.push({ clase: "total", etiqueta: "Total según el inventario", ini: t.ini, fin: null, mov: null, dif: null,
+            lectura: `Falta contar ${t.sinContar} ${t.sinContar === 1 ? "módulo" : "módulos"}: no se puede comparar con la depa`, tono: "gris" });
+        } else {
+          const r = lecturaDepa(t.movConteo, t.esperado, t.difConteo, null);
+          if (!parejo(t.difConteo)) noCuadra = true;
+          g.filas.push({ clase: "total", etiqueta: "Total según el inventario", ini: t.ini, fin: t.conteo, mov: t.movConteo, dif: t.difConteo, lectura: r.lectura, tono: r.tono });
+        }
+      }
+    } else incompleto = true;
+    return g;
+  });
+  return { linea: c.linea, depa, contadorAtras: c.pasadas < 0, grupos, estado: noCuadra ? "no_cuadra" : incompleto ? "incompleto" : "cuadra" };
 }

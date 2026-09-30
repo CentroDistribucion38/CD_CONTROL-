@@ -20,12 +20,13 @@
  * «/inventario/corte»); esconder botones aquí es comodidad, no seguridad.
  */
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import { esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado } from "@/modulos/inventario/cola";
-import { analizar, conteoPorDefecto, cruzar, duracion, type Analisis, type ConteoRef, type Corte as CorteT, type Lado, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
+import { analizar, type ConteoRef, type Corte as CorteT, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
+import { ParDiferencia } from "./Diferencia";
 
 export type UbiC = { id: string; calle: string; modulo: string; lado: "IZQ" | "DER" | null };
 export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null; tipo: "PRODUCTO" | "ENVASE" };
@@ -349,50 +350,9 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
             const fin = finalDe.get(ini.id)!;
             const a = analizar(ini, fin, porEstiba, nombreUbi);
             return (
-              <article key={ini.id} className="fe-fila cl-par">
-                <div className="cl-cab">
-                  <b className="cl-hora">{hora(ini.cortado_en)} → {hora(fin.cortado_en)}</b>
-                  <span className="cl-quien">{duracion(a.horas)} · {fmt(a.totalPasadas)} cajas por la depa</span>
-                </div>
-                {a.filas.map((f) => (
-                  <section key={f.linea} className="cl-linea" aria-label={nombreLinea(f.linea)}>
-                    <header>
-                      <b>{f.linea}</b>
-                      <span className="cl-pasadas">
-                        {f.contadorAtras
-                          ? <>El contador <b>retrocedió</b> ({fmt(f.ini)} → {fmt(f.fin)}): revisa si se reinició o se digitó mal</>
-                          : <><b>{fmt(f.pasadas)}</b> cajas por la depa <i>({fmt(f.ini)} → {fmt(f.fin)})</i></>}
-                      </span>
-                    </header>
-                    <LadoFila titulo="Tomando de" lado={f.origen}
-                              accion="bajó" nombreUbi={nombreUbi} material={mat.get(f.envase_id ?? "")?.nombre ?? null} />
-                    <LadoFila titulo="Ubicados en" lado={f.destino}
-                              accion="subió" nombreUbi={nombreUbi} material={mat.get(f.material_id ?? "")?.nombre ?? null} />
-                  </section>
-                ))}
-                <CruceConteo a={a} ini={ini} conteos={conteos} lineas={lineasConteo} nombreUbi={nombreUbi}
-                             nombreMat={(id) => mat.get(id ?? "")?.nombre ?? null} />
-                {(a.soloInicial.length > 0 || a.soloFinal.length > 0) && (
-                  <p className="cl-nota">
-                    {a.soloInicial.length > 0 && <>Solo se cortó en el inicial: <b>{a.soloInicial.join(", ")}</b>. </>}
-                    {a.soloFinal.length > 0 && <>Solo se cortó en el final: <b>{a.soloFinal.join(", ")}</b>. </>}
-                    Esas líneas no se pueden restar.
-                  </p>
-                )}
-                {(ini.nota || fin.nota) && <p className="cl-nota">{[ini.nota, fin.nota].filter(Boolean).join(" · ")}</p>}
-                {manda && (
-                  <div className="cl-botones">
-                    {borrar === ini.id ? (
-                      <span className="cl-conf">¿Eliminar el inicial y el final?
-                        <button type="button" className="btn plano mal" disabled={ocupado} onClick={() => eliminar(ini.id)}>Sí, eliminar</button>
-                        <button type="button" className="btn plano" onClick={() => setBorrar(null)}>No</button>
-                      </span>
-                    ) : (
-                      <button type="button" className="btn plano" onClick={() => setBorrar(ini.id)}>Eliminar el par</button>
-                    )}
-                  </div>
-                )}
-              </article>
+              <ParDiferencia key={ini.id} a={a} ini={ini} fin={fin} conteos={conteos} lineasConteo={lineasConteo}
+                lineas={lineas} mat={mat} nombreUbi={nombreUbi} manda={manda} borrar={borrar} ocupado={ocupado}
+                onBorrar={setBorrar} onConfirmar={eliminar} />
             );
           })}
         </div>
@@ -430,173 +390,6 @@ function Cabeza({ paso, abiertos, cerrados, anotando }: {
           <span>PASO 3</span><b>Diferencia</b><small>{cerrados > 0 ? `${cerrados} ${cerrados === 1 ? "lista" : "listas"}` : "sale sola"}</small>
         </li>
       </ol>
-    </section>
-  );
-}
-
-/* Una fila «Tomando de / Ubicados en» del análisis: el módulo, de cuánto a
-   cuánto, cuánto se movió y la diferencia con lo que contó la depa.
-   Con VARIOS módulos la fila trae el TOTAL (la suma, que es lo que se compara
-   con la depa) y debajo el detalle de cada módulo. */
-function LadoFila({ titulo, lado, accion, nombreUbi, material }: {
-  titulo: string; lado: Lado; accion: "bajó" | "subió"; nombreUbi: (id: string) => string; material: string | null;
-}) {
-  const cant = (s: Sitio | null) => (s ? `${fmt(s.cant)} ${s.unidad}` : "—");
-  const mods = lado.modulos;
-  /* UN SOLO MÓDULO (o uno que cambió por otro): se dice como siempre. */
-  const sencillo = mods.length === 1 || (mods.length === 2 && mods.every((m) => !m.a || !m.b));
-  const a = mods.find((m) => m.a)?.a ?? null;
-  const b = mods.find((m) => m.b)?.b ?? null;
-  const mismo = a && b && a.ubicacion_id === b.ubicacion_id;
-  const dif = lado.dif !== null && lado.mov !== null ? (
-    <span className={"cl-dif " + (Math.abs(lado.dif) < 0.5 ? "bien" : "mal")}>
-      {accion} {fmt(lado.mov)} cajas · <b>diferencia {Math.abs(lado.dif) < 0.5 ? "0" : conSigno(lado.dif)}</b>
-    </span>
-  ) : (
-    <span className="cl-dif sin">{lado.motivo}</span>
-  );
-  if (sencillo) {
-    return (
-      <div className="cl-lado">
-        <span className="cl-t">{titulo}{material && <small>{material}</small>}</span>
-        <span className="cl-ubi">
-          {mismo ? nombreUbi(a!.ubicacion_id)
-            : <>{a ? nombreUbi(a.ubicacion_id) : "—"} <i>→</i> {b ? nombreUbi(b.ubicacion_id) : "—"}</>}
-        </span>
-        <span className="cl-cant">{cant(a)} <i>→</i> {cant(b)}</span>
-        {dif}
-      </div>
-    );
-  }
-  /* Lo contrario de lo esperado en un módulo (en el origen subió: alguien repuso). */
-  const contrario = accion === "bajó" ? "subió" : "bajó";
-  return (
-    <div className="cl-lado cl-multi">
-      <span className="cl-t">{titulo}{material && <small>{material}</small>}</span>
-      <span className="cl-ubi">{mods.length} módulos</span>
-      <span className="cl-cant">
-        {lado.ini !== null && lado.fin !== null ? <>{fmt(lado.ini)} <i>→</i> {fmt(lado.fin)} cajas</> : "—"}
-      </span>
-      {dif}
-      <ul className="cl-mods">
-        {mods.map((m) => (
-          <li key={m.ubicacion_id} className={m.mov === null ? "fuera" : m.mov < 0 ? "contra" : ""}>
-            <b>{nombreUbi(m.ubicacion_id)}</b>
-            <span>{cant(m.a)} <i>→</i> {cant(m.b)}</span>
-            <em>
-              {m.mov === null ? m.nota
-                : m.mov < 0 ? `${contrario} ${fmt(-m.mov)} cajas (repusieron; resta del total)`
-                : `${accion} ${fmt(m.mov)} cajas`}
-            </em>
-          </li>
-        ))}
-      </ul>
-      {lado.aviso && <p className="cl-aviso">{lado.aviso}</p>}
-    </div>
-  );
-}
-
-/* EL CORTE CONTRA EL CONTEO DEL INVENTARIO: por cada módulo, tres números en
-   cajas —corte inicial, conteo, corte final— y cuánto se aparta el conteo de
-   cada corte. La lectura que importa es si el conteo cae ENTRE los dos cortes:
-   un módulo que se consume no tiene por qué dar cero contra cada uno. */
-function CruceConteo({ a, ini, conteos, lineas, nombreUbi, nombreMat }: {
-  a: Analisis; ini: CorteT; conteos: ConteoRef[]; lineas: LineaConteo[];
-  nombreUbi: (id: string) => string; nombreMat: (id: string | null) => string | null;
-}) {
-  const [escogido, setEscogido] = useState<string | null>(null);
-  const id = escogido ?? conteoPorDefecto(ini, conteos);
-  const cruce = useMemo(() => (id ? cruzar(a, id, lineas) : []), [a, id, lineas]);
-  const dia = (f: string) => f.slice(0, 10).split("-").reverse().join("/");
-  const dif = (n: number | null) => (n === null ? "—" : Math.abs(n) < 0.5 ? "0" : conSigno(n));
-  const cuanto = (n: number) => `${n > 0 ? "sobran" : "faltan"} ${fmt(Math.abs(n))} cajas`;
-  const parejo = (n: number) => Math.abs(n) < 0.5;
-  const Fila = ({ clase, nombre, ini, fin, movimiento, lectura, pie, k = ["Inicial", "Final"] }: {
-    clase: string; nombre: string; ini: string; fin: string; movimiento: string; lectura?: string; pie?: (string | null)[]; k?: [string, string];
-  }) => (
-    <li className={clase}>
-      <b>{nombre}</b>
-      <span data-k={k[0]}>{ini}</span>
-      <span data-k={k[1]}>{fin}</span>
-      <span data-k="Diferencia" className="cl-cn">{movimiento}</span>
-      <em data-k="Lectura">
-        {lectura}
-        {(pie ?? []).filter(Boolean).map((t, n) => <small key={n}>{t}</small>)}
-      </em>
-    </li>
-  );
-  const Cab = () => (
-    <li className="cab" aria-hidden>
-      <span>Qué se mide</span><span>Inicial</span><span>Final</span><span>Diferencia</span><span>Lectura</span>
-    </li>
-  );
-  return (
-    <section className="cl-cruce" aria-label="Contra el conteo del inventario">
-      <header>
-        <b>Contra el conteo del inventario</b>
-        {conteos.length > 0 && (
-          <label>
-            <span>Conteo</span>
-            <select value={id ?? ""} onChange={(e) => setEscogido(e.target.value)}>
-              {conteos.map((c) => <option key={c.id} value={c.id}>{c.codigo} · {dia(c.fecha)}</option>)}
-            </select>
-          </label>
-        )}
-      </header>
-      {conteos.length === 0 ? (
-        <p className="cl-nada">No hay conteos enviados de esta bodega para comparar.</p>
-      ) : (
-        <>
-          <p className="cl-nada">
-            Cajas. Tienen que coincidir <b>tres cosas</b>: lo que pasó por la depa, lo que cambió entre los dos cortes y
-            lo que cambió según el inventario. En las filas del inventario, «Inicial» es lo del corte inicial y «Final»
-            es lo que contó el inventario.
-          </p>
-          {cruce.map((c) => (
-            <div key={c.linea} className="cl-cruce-linea" aria-label={`${c.linea} contra el conteo`}>
-              <b className="cl-cruce-l">{c.linea}</b>
-              <ul className="cl-cruce-mods">
-                <Cab />
-                <Fila clase="r-depa" nombre="Corte por depa" ini={fmt(c.depaIni)} fin={fmt(c.depaFin)} movimiento={dif(c.pasadas)} lectura="Lo que pasó por la depa" />
-              </ul>
-              {([["Tomando de", c.origen], ["Ubicados en", c.destino]] as const).map(([titulo, l]) => (
-                <div key={titulo} className="cl-cruce-lado">
-                  <span className="cl-t">{titulo}{nombreMat(l.material_id) && <small>{nombreMat(l.material_id)}</small>}</span>
-                  {l.motivo ? <p className="cl-nada">{l.motivo}</p> : (
-                    <ul className="cl-cruce-mods">
-                      <Cab />
-                      {l.modulos.map((m) => (
-                        <Fragment key={m.ubicacion_id}>
-                          <Fila clase="r-corte" nombre={`${nombreUbi(m.ubicacion_id)} en el corte`}
-                            ini={m.ini === null ? "—" : fmt(m.ini)} fin={m.fin === null ? "—" : fmt(m.fin)} movimiento={dif(m.movCorte)} />
-                          <Fila clase={"r-inv l-" + m.lectura} nombre={`${nombreUbi(m.ubicacion_id)} en el inventario`} k={["Corte inicial", "Conteo"]}
-                            ini={m.ini === null ? "—" : fmt(m.ini)} fin={m.conteo === null ? "—" : fmt(m.conteo)} movimiento={dif(m.movConteo)}
-                            lectura={m.lectura === "cuadra" ? "Cuadra" : m.lectura === "no_cuadra" ? `No cuadra: ${cuanto(m.dif as number)}`
-                              : m.lectura === "sin_contar" ? "Sin contar" : "Falta un corte"}
-                            pie={[m.aparte > 0 ? `+ ${fmt(m.aparte)} en avería/PNC (no se suma)` : null, m.nota]} />
-                        </Fragment>
-                      ))}
-                      {l.total && (
-                        <>
-                          <Fila clase={"r-total " + (parejo(l.total.difCorte) ? "l-cuadra" : "l-no_cuadra")} nombre="Total en el corte"
-                            ini={fmt(l.total.ini)} fin={fmt(l.total.fin)} movimiento={dif(l.total.corte)}
-                            lectura={parejo(l.total.difCorte) ? "Cuadra con la depa" : `No cuadra con la depa: ${cuanto(l.total.difCorte)}`} />
-                          <Fila clase={"r-total " + (l.total.difConteo === null ? "l-sin_contar" : parejo(l.total.difConteo) ? "l-cuadra" : "l-no_cuadra")}
-                            nombre="Total en el inventario" k={["Corte inicial", "Conteo"]}
-                            ini={fmt(l.total.ini)} fin={l.total.conteo === null ? "—" : fmt(l.total.conteo)} movimiento={dif(l.total.movConteo)}
-                            lectura={l.total.difConteo === null
-                              ? `Falta contar ${l.total.sinContar} ${l.total.sinContar === 1 ? "módulo" : "módulos"}: no se puede comparar con la depa`
-                              : parejo(l.total.difConteo) ? "Cuadra con la depa" : `No cuadra con la depa: ${cuanto(l.total.difConteo)}`} />
-                        </>
-                      )}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </>
-      )}
     </section>
   );
 }

@@ -122,15 +122,27 @@ await monta("c=todo");
   ok(/Inicial · 30\/09\/2026 11:00/.test(t) && /Línea 4 parada/.test(t) && /L1 30\.801 cajas por la depa/.test(t) && /Tomando de A · 01 · DER: 30 estibas de Botella Flint 1000R/.test(t) && /Ubicados en B · 12 · IZQ: 1\.800 cajas de Águila RN 330cc X30/.test(t) && /L4 777 cajas por la depa/.test(t) && /Tomando de C · 05 · —: 5 estibas/.test(t) && /Ubicados en B · 12 · DER: 10 cajas/.test(t), "el corte abierto no dice su hora, su nota o sus líneas: " + t.slice(0, 400));
   ok(/Paso 1|PASO 1/.test(t) && /1 abierto esperando/.test(t) && /Corte final/.test(t) && /sale sola|1 lista/.test(t), "la cabeza no muestra los tres pasos: " + t.slice(0, 200));
   ok(/30\/09\/2026 06:00 → 30\/09\/2026 12:00/.test(t) && /6 h/.test(t) && /6 h · 12\.000 cajas por la depa/.test(t), "el par no dice su intervalo o el total: " + t);
-  const l1 = await pg.$eval('.cl-linea[aria-label="Línea 1"]', (e) => e.textContent.replace(/\s+/g, " "));
+  const l1 = await pg.$eval('.dq-card[aria-label="Línea 1"]', (e) => e.textContent.replace(/\s+/g, " "));
   ok(/12\.000 cajas por la depa \(18\.801 → 30\.801\)/.test(l1), "L1 no dice lo que pasó por la depa: " + l1);
   ok(/Botella Flint 1000R/.test(l1) && /Águila RN 330cc X30/.test(l1), "el análisis no dice el envase que se tomó y el producto que quedó: " + l1);
-  ok(/A · 01 · DER/.test(l1) && /40 estibas → 30 estibas/.test(l1) && /bajó 600 cajas/.test(l1) && /diferencia \+11\.400/.test(l1), "L1 origen: " + l1);
-  ok(/B · 12 · IZQ/.test(l1) && /subió 900 cajas/.test(l1) && /diferencia \+11\.100/.test(l1), "L1 destino: " + l1);
-  const l2 = await pg.$eval('.cl-linea[aria-label="Línea 2"]', (e) => e.textContent.replace(/\s+/g, " "));
+  ok(/Tomando de · A · 01 · DER/.test(l1) && /debe BAJAR lo mismo que pasó por la depa/.test(l1), "L1 origen: " + l1);
+  ok(/Ubicados en · B · 12 · IZQ/.test(l1) && /debe SUBIR lo mismo que pasó por la depa/.test(l1), "L1 destino: " + l1);
+  /* La tabla: el origen bajó 600 (de 2.400 a 1.800 cajas) y debía bajar 12.000: la diferencia es +11.400. */
+  const filaT = (card, texto, n = 0) => pg.locator(`.dq-card[aria-label="${card}"] tr:has(td.q:text-is("${texto}"))`).nth(n).locator("td").allTextContents().then((x) => x.map((y) => y.replace(/\s+/g, " ").trim()));
+  const oc = await filaT("Línea 1", "Según el corte", 0);
+  ok(oc[2] === "2.400" && oc[5] === "1.800" && oc[8] === "−600" && oc[11] === "+11.400" && /^Sobran/.test(oc[13]), "L1 origen según el corte: " + oc.join(" | "));
+  ok(oc[1] === "40" && oc[4] === "30" && oc[7] === "−10" && oc[3] === "28.800", "L1 origen: estibas y unidades salen del factor (60 por estiba, 12 por caja): " + oc.join(" | "));
+  const dc = await filaT("Línea 1", "Según el corte", 1);
+  ok(dc[8] === "+900" && dc[11] === "−11.100" && /^Faltan/.test(dc[13]), "L1 destino según el corte: " + dc.join(" | "));
+  const dp = await filaT("Línea 1", "Depaletizadora");
+  ok(dp[2] === "18.801" && dp[5] === "30.801" && dp[8] === "+12.000" && dp[1] === "—" && dp[4] === "—" && dp[11] === "—", "la fila de la depa: " + dp.join(" | "));
+  ok(await pg.$eval('.dq-card[aria-label="Línea 1"] .dq-chip', (e) => e.textContent) === "NO CUADRA", "el chip de L1");
+  ok(/Factores:/.test(l1) && /60 cajas por estiba/.test(l1), "el pie de L1 debía decir los factores: " + l1);
+  ok(/No hay conteos enviados de esta bodega/.test(await txt()), "sin conteos debía decirlo");
+  ok(await pg.locator(".dq-cab + .tw table").count() >= 1 && await pg.locator(".dq thead tr.g th").allTextContents().then((x) => ["Corte inicial", "Corte final", "Se movió", "Diferencia con la depa"].every((k) => x.includes(k))), "los cuatro bloques de la tabla");
+  const l2 = await pg.$eval('.dq-card[aria-label="Línea 2"]', (e) => e.textContent.replace(/\s+/g, " "));
   ok(/El contador retrocedió/.test(l2), "L2 con el contador atrás no lo dice: " + l2);
-  ok(await pg.$$eval(".cl-dif.mal", (x) => x.length) >= 2, "las diferencias con número no se marcan");
-  ok(await pg.$$eval(".cl-pasadas b", (x) => x.length) >= 1, "sin cifra en negrita");
+  ok(await pg.$$eval(".dq td.rojo", (x) => x.length) >= 2, "las diferencias con número no se marcan en rojo");
   ok(await pg.$$eval("button", (b) => b.some((x) => /Nuevo corte inicial/.test(x.textContent)) && b.some((x) => /Hacer el corte final/.test(x.textContent))), "faltan los botones de quien puede cortar");
   ok(!/Eliminar/.test(t), "quien no administra ve «Eliminar»");
 }
@@ -354,7 +366,7 @@ for (const w of [360, 390, 820, 1440]) {
     if (tocar) await pg.click(`button:has-text("${tocar}")`);
   if (process.env.UP) console.log(await pg.evaluate(() => { let e = document.querySelector(".cl-nota"); const o = []; while (e && e.id !== "r") { o.push(e.tagName + "." + e.className + ":" + getComputedStyle(e).textTransform); e = e.parentElement } return o.join(" < ") }));
     const d = await pg.evaluate(() => ({ ancho: document.documentElement.scrollWidth, vista: window.innerWidth,
-      fuera: [...document.querySelectorAll("#r *")].filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className || e.tagName).slice(0, 4) }));
+      fuera: [...document.querySelectorAll("#r *")].filter((e) => { const t = e.closest(".tw"); return !(t && getComputedStyle(t).overflowX !== "visible") && e.getBoundingClientRect().right > window.innerWidth + 1 }).map((e) => e.className || e.tagName).slice(0, 4) }));
     ok(d.ancho <= d.vista && d.fuera.length === 0, `a ${w} px${tocar ? " (formulario)" : ""} se sale: ${d.ancho}>${d.vista} ${d.fuera.join(",")}`);
     const chico = await pg.evaluate(() => [...document.querySelectorAll("#r button, #r select, #r input")].filter((e) => e.getBoundingClientRect().height && e.getBoundingClientRect().height < 43).length);
     ok(chico === 0, `a ${w} px hay ${chico} controles de menos de 44 px`);

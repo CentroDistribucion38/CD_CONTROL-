@@ -134,12 +134,16 @@ const llenaDestino = async () => { await eligeMod(1, 0, "B", "12", "DER"); await
 /* ---------- 1 · EL ANÁLISIS con varios módulos: total arriba, detalle debajo ---------- */
 await monta("c=multi");
 {
-  const l1 = await pg.$eval('.cl-linea[aria-label="Línea 1"]', (e) => e.textContent.replace(/\s+/g, " "));
-  ok(/2 módulos/.test(l1) && /3\.600 → 1\.800 cajas/.test(l1), "el total de los dos módulos: " + l1);
-  ok(/bajó 1\.800 cajas · diferencia 0/.test(l1), "el total no cuadra con la depa (1.800): " + l1);
-  ok(/A · 01 · DER/.test(l1) && /40 estibas → 30 estibas/.test(l1) && /bajó 600 cajas/.test(l1), "el detalle del primer módulo: " + l1);
-  ok(/A · 02 · DER/.test(l1) && /20 estibas → 0 estibas/.test(l1) && /bajó 1\.200 cajas/.test(l1), "el detalle del segundo módulo: " + l1);
-  ok(await pg.$$eval(".cl-mods li", (x) => x.length) === 2, "debía haber una línea de detalle por módulo");
+  const l1 = await pg.$eval('.dq-card[aria-label="Línea 1"]', (e) => e.textContent.replace(/\s+/g, " "));
+  ok(/Tomando de · 2 módulos/.test(l1), "el grupo de origen dice «2 módulos»: " + l1);
+  const fila = (texto) => pg.locator(`.dq-card[aria-label="Línea 1"] tr:has(td.q:text-is("${texto}"))`).first().locator("td").allTextContents().then((x) => x.map((y) => y.replace(/\s+/g, " ").trim()));
+  const a1 = await fila("A · 01 · DER · según el corte"), a2 = await fila("A · 02 · DER · según el corte");
+  ok(a1[2] === "2.400" && a1[5] === "1.800" && a1[8] === "−600" && a1[11] === "—", "el detalle del primer módulo (sin diferencia con la depa): " + a1.join(" | "));
+  ok(a2[2] === "1.200" && a2[5] === "0" && a2[8] === "−1.200" && a2[11] === "—", "el detalle del segundo módulo: " + a2.join(" | "));
+  const tot = await fila("Total según el corte");
+  ok(tot[2] === "3.600" && tot[5] === "1.800" && tot[8] === "−1.800" && tot[11] === "0" && /^Cuadra con la depa/.test(tot[13]), "el total de los dos módulos cuadra con la depa (1.800): " + tot.join(" | "));
+  ok(await pg.$$eval('.dq-card[aria-label="Línea 1"] tr.r-corte', (x) => x.length) === 3, "debía haber una fila «según el corte» por módulo de origen (2) y la del destino (1); el total va aparte");
+  ok(await pg.$$eval('.dq-card[aria-label="Línea 1"] tr.r-total', (x) => x.length) === 1, "con varios módulos el total va en su propia fila");
   ok(!/Quedaron por fuera/.test(l1), "todos emparejados y avisa que quedó algo por fuera");
   /* El corte abierto lista TODOS los módulos de cada lado. */
   const ab = await pg.$eval(".cl-abierto", (e) => e.textContent.replace(/\s+/g, " "));
@@ -249,7 +253,7 @@ for (const w of [360, 390, 820, 1440]) {
       await eligeMod(0, 0, "A", "02"); await mod(0, 0).locator(".cl-cant-c input").fill("10");
     }
     const d = await pg.evaluate(() => ({ ancho: document.documentElement.scrollWidth, vista: window.innerWidth,
-      fuera: [...document.querySelectorAll("#r *")].filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className || e.tagName).slice(0, 4) }));
+      fuera: [...document.querySelectorAll("#r *")].filter((e) => { const t = e.closest(".tw"); return !(t && getComputedStyle(t).overflowX !== "visible") && e.getBoundingClientRect().right > window.innerWidth + 1 }).map((e) => e.className || e.tagName).slice(0, 4) }));
     ok(d.ancho <= d.vista && d.fuera.length === 0, `a ${w} px (${c}${tocar ? " · " + tocar : ""}) se sale: ${d.ancho}>${d.vista} ${d.fuera.join(",")}`);
     const chico = await pg.evaluate(() => [...document.querySelectorAll("#r button, #r select, #r input")].filter((e) => e.getBoundingClientRect().height && e.getBoundingClientRect().height < 43).length);
     ok(chico === 0, `a ${w} px (${c}${tocar ? " · " + tocar : ""}) hay ${chico} controles de menos de 44 px`);
