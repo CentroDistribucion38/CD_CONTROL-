@@ -232,6 +232,82 @@ const IconoPapelera = () => (
   </svg>
 );
 
+/* LAS CUATRO DE SIDER QUE CAÍAN AL ICONO POR DEFECTO. Revisión AI,
+   Informe AI, Seguimiento y Novedades salían con el mismo dibujo
+   —las barritas— y en el riel había que leer el rótulo para saber cuál
+   era cuál. Cada una lleva ahora el suyo: la tablilla con el visto bueno
+   (la revisión que se hace), la hoja con sus barras (el informe que
+   sale), la línea que sube (el seguimiento) y el triángulo con la
+   admiración (la novedad). */
+const IconoRevision = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <rect x="5" y="4.5" width="14" height="16.5" rx="2" />
+    <path d="M9 4.5V3.2h6v1.3" />
+    <path d="M8.6 13l2.4 2.4 4.4-4.9" />
+  </svg>
+);
+const IconoInforme = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M6 3h8.5L19 7.5V21H6z" />
+    <path d="M14 3v5h5" />
+    <path d="M9.5 17v-2.6M12.5 17v-4.6M15.5 17v-3.2" />
+  </svg>
+);
+const IconoNovedad = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M12 3.6l9.2 16H2.8z" />
+    <path d="M12 10v4.4M12 17.2v.1" />
+  </svg>
+);
+
+/* TRASPASOS Y ADMINISTRACIÓN TAMBIÉN CAÍAN AL ICONO POR DEFECTO: sus
+   pantallas salían todas con el mismo tablerito. Un dibujo por pantalla,
+   que se distinga sin leer el rótulo. */
+const IconoPlan = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <rect x="4" y="5.5" width="16" height="15" rx="2" />
+    <path d="M4 10h16M8.5 3.5v3.5M15.5 3.5v3.5M8 14h2.5M13.5 14H16M8 17.2h2.5" />
+  </svg>
+);
+const IconoRegistrar = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4 20l1-4.2L16.6 4.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.2 19z" />
+    <path d="M14.5 6.3l3.2 3.2" />
+  </svg>
+);
+const IconoControl = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M2.8 12S6.2 5.8 12 5.8 21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12z" />
+    <circle cx="12" cy="12" r="2.8" />
+  </svg>
+);
+const IconoInicio = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M3.5 11L12 3.8 20.5 11" />
+    <path d="M5.8 9.6V20h12.4V9.6M10 20v-5.6h4V20" />
+  </svg>
+);
+const IconoRoles = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <circle cx="9" cy="11" r="2.1" />
+    <path d="M5.8 16c.5-1.7 1.8-2.4 3.2-2.4s2.7.7 3.2 2.4M14.5 10h3.8M14.5 13.5h3.8" />
+  </svg>
+);
+const IconoUsuarios = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <circle cx="9" cy="8.5" r="3" />
+    <path d="M3 19.5c.5-3.3 3-5 6-5s5.5 1.7 6 5" />
+    <path d="M15.5 5.7a3 3 0 0 1 0 5.6M17.6 14.9c1.7.6 2.9 2 3.4 4.6" />
+  </svg>
+);
+const IconoBase = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <ellipse cx="12" cy="6" rx="7.5" ry="2.8" />
+    <path d="M4.5 6v12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V6M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   /* Roturas ya no es un módulo: se mudó dentro de Quiebra. Su dibujo
      sigue vivo como icono de las ramas «En sitio» y «Salida» y de sus
@@ -258,6 +334,19 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/sider/certificar": IconoUbicacion,
   "/sider/transito": IconoRuta,
   "/sider/maestro": IconoLlave,
+  "/sider/sorting": IconoRevision,
+  "/sider/seguimiento/ai": IconoInforme,
+  "/sider/seguimiento": IconoAnalisis,
+  "/sider/novedades": IconoNovedad,
+  "/traspasos/plan": IconoPlan,
+  "/traspasos": IconoRegistrar,
+  "/traspasos/control": IconoControl,
+  "/traspasos/cruce": IconoImportar,
+  "/traspasos/maestro": IconoLlave,
+  "/admin/inicio": IconoInicio,
+  "/admin/roles": IconoRoles,
+  "/admin/usuarios": IconoUsuarios,
+  "/inventario/base": IconoBase,
   "/traspasos/facturacion": IconoFactura,
   "/admin/datos": IconoPapelera,
   /* LAS TRES RAMAS DE QUIEBRA, con dibujo propio. Sin estas líneas las
