@@ -20,15 +20,25 @@
  * «/inventario/corte»); esconder botones aquí es comodidad, no seguridad.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
+import { esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado } from "@/modulos/inventario/cola";
 import { analizar, duracion, type Corte as CorteT, type Lado, type Sitio, type Unidad } from "@/modulos/inventario/corte";
 
 export type UbiC = { id: string; calle: string; modulo: string; lado: "IZQ" | "DER" | null };
 export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null; tipo: "PRODUCTO" | "ENVASE" };
 export type LineaC = { clave: string; nombre: string };
+
+/* UN CORTE QUE NO SE PUDO MANDAR: lo mismo que recibe inv_corte_guardar, tal
+   cual. Se guarda en el teléfono y se manda entero cuando vuelve la señal:
+   un corte es una sola llamada, así que o llega completo o no llega. */
+export type PendCorte = {
+  bodega: string; tipo: "inicial" | "final"; inicial: string | null;
+  cortado: string; nota: string | null; renglones: unknown[];
+};
+type ItemCorte = ItemCola<PendCorte>;
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const fmt = (n: number) => nf.format(n);
@@ -101,6 +111,124 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
   const [aviso, setAviso] = useState<string | null>(null);
   const [borrar, setBorrar] = useState<string | null>(null);
 
+  /* ---------- LOS CORTES SIN SEÑAL ----------
+     Mismo trato que Contar: el corte que no se pudo mandar queda en ESTE
+     teléfono y se manda solo al volver la señal, o con «Enviar ahora». La
+     lógica (orden, qué es red, qué es duplicado) es la de
+     modulos/inventario/cola.ts, ya probada. */
+  const llaveCola = `corte.cola.${bodegaId}`;
+  const [cola, setCola] = useState<ItemCorte[]>([]);
+  const colaRef = useRef<ItemCorte[]>([]);
+  const [enLinea, setEnLinea] = useState(true);
+  const [enviandoCola, setEnviandoCola] = useState(false);
+  const colaOcupada = useRef(false);
+
+  function ponerCola(nueva: ItemCorte[]) {
+    colaRef.current = nueva;
+    setCola(nueva);
+    guardarCola(llaveCola, nueva);
+  }
+
+  function encolar(p: PendCorte) {
+    const claves = [...new Set(p.renglones.map((r) => (r as { linea: string }).linea))];
+    const it: ItemCorte = {
+      id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      t: Date.now(), bb: p, sku: `Corte ${p.tipo}`, lugar: claves.join(", "), ubicacionId: null,
+    };
+    ponerCola([...colaRef.current, it]);
+    setForm(null); setMal(null);
+    setAviso("Sin señal: el corte quedó guardado en este teléfono y se envía solo cuando vuelva.");
+  }
+
+  async function enviarCola(manual = false) {
+    if (colaOcupada.current) return;
+    const pend = colaRef.current;
+    if (pend.length === 0) return;
+    if (!navigator.onLine) {
+      if (manual) setMal("Todavía no hay señal. Los cortes siguen guardados en este teléfono.");
+      return;
+    }
+    colaOcupada.current = true; setEnviandoCola(true);
+    try {
+      const supabase = createClient();
+      const r = await vaciarCola(pend, async (it): Promise<Resultado> => {
+        const p = it.bb;
+        /* LA SEÑAL PUDO CAERSE DESPUÉS DE QUE EL INICIAL LLEGÓ, antes de la
+           respuesta: mandarlo otra vez lo duplicaría (la base solo impide
+           un segundo FINAL). Un inicial de esa bodega a esa misma hora ES
+           ese mismo corte. */
+        if (p.tipo === "inicial") {
+          const { data, error } = await supabase.from("inv_cortes").select("id")
+            .eq("bodega_id", p.bodega).eq("tipo", "inicial").eq("cortado_en", p.cortado).limit(1);
+          if (error) return esFalloDeRed(error.message) ? { red: true } : { error: error.message };
+          if (data && data.length > 0) return { ok: true };
+        }
+        const { error } = await supabase.rpc("inv_corte_guardar", {
+          p_bodega: p.bodega, p_tipo: p.tipo, p_inicial: p.inicial,
+          p_cortado: p.cortado, p_nota: p.nota, p_renglones: p.renglones,
+        });
+        if (!error) return { ok: true };
+        return esFalloDeRed(error.message) ? { red: true } : { error: error.message };
+      });
+      ponerCola(r.quedan);
+      const n = r.enviados.length;
+      if (n > 0) {
+        setAviso(`${n} ${n === 1 ? "corte pendiente enviado" : "cortes pendientes enviados"}.`);
+        router.refresh();
+      }
+      if (r.quedan.some((x) => x.error)) setMal("Hay cortes que la base no aceptó. Míralos arriba.");
+      else if (r.quedan.length > 0 && manual) setMal("Se cortó la señal. Quedan pendientes en este teléfono.");
+    } finally {
+      colaOcupada.current = false; setEnviandoCola(false);
+    }
+  }
+  /* El evento «online» se registra UNA vez: apunta siempre a la última versión. */
+  const enviarColaRef = useRef(enviarCola);
+  enviarColaRef.current = enviarCola;
+
+  useEffect(() => {
+    const guardada = leerCola<PendCorte>(llaveCola);
+    colaRef.current = guardada;
+    setCola(guardada);
+    setEnLinea(navigator.onLine);
+    const sube = () => { setEnLinea(true); void enviarColaRef.current() };
+    const baja = () => setEnLinea(false);
+    window.addEventListener("online", sube);
+    window.addEventListener("offline", baja);
+    if (navigator.onLine && colaRef.current.length > 0) void enviarColaRef.current();
+    return () => { window.removeEventListener("online", sube); window.removeEventListener("offline", baja) };
+  }, [llaveCola]);
+
+  const bannerCola = (!enLinea || cola.length > 0) && (
+    <section className={"fe-cola" + (!enLinea ? " sin" : "")} role="status" aria-live="polite">
+      <p>
+        {!enLinea && <><b>Sin señal.</b> Lo que guardes queda en este teléfono y se envía solo cuando vuelva. </>}
+        {cola.length > 0 && <><b>{cola.length}</b> {cola.length === 1 ? "corte" : "cortes"} sin enviar.</>}
+      </p>
+      {cola.length > 0 && enLinea && (
+        <button type="button" className="fe-mini" disabled={enviandoCola} onClick={() => enviarCola(true)}>
+          {enviandoCola ? "Enviando…" : "Enviar ahora"}
+        </button>
+      )}
+      {cola.length > 0 && (
+        <details open={cola.some((x) => x.error)}>
+          <summary>Ver los pendientes</summary>
+          <ul>
+            {cola.map((it) => (
+              <li key={it.id}>
+                <span><b>{it.sku}</b> · {hora(it.bb.cortado)} · {it.lugar}{it.error && <em> — {traducirError(it.error)}</em>}</span>
+                <button type="button" className="fe-mini" disabled={enviandoCola}
+                        onClick={() => ponerCola(colaRef.current.filter((x) => x.id !== it.id))}>
+                  Quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+
   const finalDe = useMemo(() => new Map(cortes.filter((c) => c.tipo === "final").map((c) => [c.inicial_id!, c])), [cortes]);
   const abiertos = cortes.filter((c) => c.tipo === "inicial" && !finalDe.has(c.id));
   const cerrados = cortes.filter((c) => c.tipo === "inicial" && finalDe.has(c.id));
@@ -128,10 +256,12 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
     return (
       <>
         <Cabeza paso={form.tipo === "inicial" ? 1 : 2} abiertos={abiertos.length} cerrados={cerrados.length} anotando={form.tipo} />
+        {bannerCola}
         <FormCorte
           tipo={form.tipo} inicial={form.inicial} bodegaId={bodegaId} lineas={lineas}
           ubicaciones={ubicaciones} materiales={materiales} ahora={ahora}
           onCerrar={() => setForm(null)}
+          onPendiente={encolar}
           onGuardado={(t) => {
             setForm(null);
             setAviso(t === "inicial"
@@ -147,6 +277,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
   return (
     <>
     <Cabeza paso={abiertos.length > 0 ? 2 : 1} abiertos={abiertos.length} cerrados={cerrados.length} anotando={null} />
+    {bannerCola}
     <div className="cl">
       {aviso && <p className="cl-ok" role="status">{aviso}</p>}
       {mal && <p className="cl-mal" role="alert">{mal}</p>}
@@ -332,10 +463,12 @@ function LadoFila({ titulo, ini, fin, linea, cual, lado, accion, nombreUbi, mate
    se está anotando. «Siguiente» pasa a la otra; «Guardar» manda todas
    las que se tocaron. En el celular la lista de líneas queda arriba.
    =================================================================== */
-function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, ahora, onCerrar, onGuardado }: {
+function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, ahora, onCerrar, onGuardado, onPendiente }: {
   tipo: "inicial" | "final"; inicial: CorteT | null; bodegaId: string; lineas: LineaC[];
   ubicaciones: UbiC[]; materiales: MatC[]; ahora: string;
   onCerrar: () => void; onGuardado: (t: "inicial" | "final") => void;
+  /* Sin señal: el corte no se perdió, quedó pendiente en el teléfono. */
+  onPendiente: (p: PendCorte) => void;
 }) {
   const ubi = useMemo(() => new Map(ubicaciones.map((u) => [u.id, u])), [ubicaciones]);
   const etiqueta = (m: MatC) => `${m.sku} · ${m.nombre}`;
@@ -443,12 +576,28 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       if (primera?.linea) setSel(primera.linea);
       return;
     }
+    if (!iso) return;
+    const pend: PendCorte = {
+      bodega: bodegaId, tipo, inicial: inicial?.id ?? null,
+      cortado: iso, nota: nota.trim() || null, renglones,
+    };
+    /* SIN SEÑAL NO SE ESPERA NI SE PIERDE NADA: lo tecleado pasa a la cola
+       del teléfono y la pantalla vuelve a la lista. Solo cuenta como
+       «sin señal» lo que de verdad lo es: si la base contesta con un error
+       (permiso, dato malo), eso se dice aquí y NO se encola. */
+    if (typeof navigator !== "undefined" && !navigator.onLine) return onPendiente(pend);
     setOcupado(true);
-    const { error } = await createClient().rpc("inv_corte_guardar", {
-      p_bodega: bodegaId, p_tipo: tipo, p_inicial: inicial?.id ?? null,
-      p_cortado: iso, p_nota: nota.trim() || null, p_renglones: renglones,
-    });
+    let error: { message: string } | null = null;
+    try {
+      ({ error } = await createClient().rpc("inv_corte_guardar", {
+        p_bodega: pend.bodega, p_tipo: pend.tipo, p_inicial: pend.inicial,
+        p_cortado: pend.cortado, p_nota: pend.nota, p_renglones: pend.renglones,
+      }));
+    } catch (e) {
+      error = { message: (e as Error)?.message ?? String(e) };
+    }
     setOcupado(false);
+    if (error && esFalloDeRed(error.message)) return onPendiente(pend);
     if (error) return setMal(traducirError(error.message));
     onGuardado(tipo);
   }

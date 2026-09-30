@@ -42,9 +42,9 @@ export type ItemCola<B> = {
 export const esFalloDeRed = (msg: string): boolean =>
   /failed to fetch|fetch failed|networkerror|network request failed|load failed|err_internet|err_network|sin señal|timed? ?out|tiempo de espera/i.test(msg);
 
-/** ¿La base dijo que ya hay un renglón igual (llave única)? */
+/** ¿La base dijo que ya hay uno igual (llave única; o, en el Corte, que el inicial ya tiene su final)? */
 export const esDuplicado = (msg: string): boolean =>
-  /duplicate key|conteo_lineas_unico|violates unique/i.test(msg);
+  /duplicate key|conteo_lineas_unico|violates unique|ya tiene su corte final/i.test(msg);
 
 type Almacen = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
