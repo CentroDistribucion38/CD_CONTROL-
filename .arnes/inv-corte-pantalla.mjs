@@ -46,8 +46,8 @@ const ubis = [
   { id: "uB12I", calle: "B", modulo: "12", lado: "IZQ" }, { id: "uB12D", calle: "B", modulo: "12", lado: "DER" },
   { id: "uC05", calle: "C", modulo: "05", lado: null },
 ];
-const mats = [{ id: "m1", sku: "3500887", nombre: "Botella Flint 1000R", cajas_por_estiba: 60 },
-              { id: "m2", sku: "3500005", nombre: "Envase Costeñita 175R", cajas_por_estiba: null }];
+const mats = [{ id: "m1", sku: "3500887", nombre: "Botella Flint 1000R", cajas_por_estiba: 60, unidades_por_caja: 12 },
+              { id: "m2", sku: "3500005", nombre: "Envase Costeñita 175R", cajas_por_estiba: null, unidades_por_caja: null }];
 const S = (u: string, cant: number, unidad: string) => ({ ubicacion_id: u, cant, unidad });
 const R = (linea: string, cajas: number, o: any, d: any, mat: string | null = null) => ({ linea, cajas_depa: cajas, material_id: mat, origen: o, destino: d, nota: null });
 const ini = { id: "i1", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-30T11:00:00.000Z", nota: null, creado_por: "u1",
@@ -118,7 +118,8 @@ await monta("c=todo");
 {
   const t = await txt();
   ok(/Esperando el corte final 1/.test(t) && /La diferencia 1/.test(t), "los contadores de las dos listas: " + t.slice(0, 120));
-  ok(/Inicial · 30\/09\/2026 11:00/.test(t) && /Línea 4 parada/.test(t) && /L1 30\.801 · L4 777/.test(t), "el corte abierto no dice su hora, su nota o sus líneas");
+  ok(/Inicial · 30\/09\/2026 11:00/.test(t) && /Línea 4 parada/.test(t) && /L1 30\.801 cajas por la depa · Botella Flint 1000R/.test(t) && /L4 777 cajas por la depa/.test(t) && /Tomando de C · 05 · — : ?5 estibas|Tomando de C · 05 · —: 5 estibas/.test(t) && /Ubicados en B · 12 · DER: 10 cajas/.test(t), "el corte abierto no dice su hora, su nota o sus líneas: " + t.slice(0, 400));
+  ok(/Paso 1|PASO 1/.test(t) && /1 abierto esperando/.test(t) && /Corte final/.test(t) && /sale sola|1 lista/.test(t), "la cabeza no muestra los tres pasos: " + t.slice(0, 200));
   ok(/30\/09\/2026 06:00 → 30\/09\/2026 12:00/.test(t) && /6 h/.test(t) && /6 h · 12\.000 cajas por la depa/.test(t), "el par no dice su intervalo o el total: " + t);
   const l1 = await pg.$eval('.cl-linea[aria-label="Línea 1"]', (e) => e.textContent.replace(/\s+/g, " "));
   ok(/12\.000 cajas por la depa \(18\.801 → 30\.801\)/.test(l1), "L1 no dice lo que pasó por la depa: " + l1);
@@ -153,58 +154,97 @@ await monta("c=manda");
   ok(/inicial y el final/.test(await txt()), "el par no dice que se lleva los dos");
 }
 
-/* ---------- 3 · EL CORTE INICIAL ---------- */
+/* ---------- 3 · EL CORTE INICIAL (una línea a la vez) ---------- */
+const est = (clave) => pg.locator(`.cl-lin:has(.cl-cod:text-is("${clave}")) .cl-st`).textContent();
+const campo = (n, k) => pg.locator("fieldset.cl-sitio").nth(n).locator(k);
 await monta("c=todo");
 {
   await pg.click('button:has-text("Nuevo corte inicial")');
-  ok(await pg.$$eval(".cl-tarjeta", (x) => x.length) === 4, "no salen las 4 líneas");
-  ok(await pg.inputValue(".cl-cuando input") === "2026-09-30T12:30", "la hora por defecto no es la de Colombia de ahora: " + await pg.inputValue(".cl-cuando input"));
+  ok(await pg.$$eval(".cl-lin", (x) => x.length) === 4, "no salen las 4 líneas en la lista");
+  ok(await pg.$$eval(".cl-ficha", (x) => x.length) === 1, "debía verse UNA línea a la vez");
+  ok(/Corte inicial/.test(await pg.textContent(".cl-flujo li.on")) && /anotando ahora/.test(await pg.textContent(".cl-flujo li.on")), "la cabeza no marca el paso 1");
+  ok(await est("L1") === "ANOTANDO" && await est("L2") === "SIN TOCAR", "los estados al empezar: " + await est("L1") + " / " + await est("L2"));
+  ok(await pg.inputValue(".cl-cuando input[type=datetime-local]") === "2026-09-30T12:30", "la hora por defecto no es la de Colombia de ahora");
+  ok(/0 de 4 líneas anotadas/.test(await pg.textContent(".cl-prog")), "el progreso al empezar");
   /* Sin llenar nada: dice qué falta y no llama. */
-  await pg.click('.cl-guardar button');
+  await pg.click(".cl-guardar .cl-go");
   ok(/Llena al menos una línea/.test(await pg.$eval(".cl-mal", (e) => e.textContent)) && (await rpcs()).length === 0, "guardó vacío o no avisó");
   /* La calle abre los módulos, el módulo abre los lados; un módulo con un solo lado lo pone solo. */
   const o1 = pg.locator("fieldset.cl-sitio").nth(0);
   ok(await o1.locator("select").nth(1).isDisabled() && await o1.locator("select").nth(2).isDisabled(), "módulo y lado no esperan a la calle");
+  ok((await o1.locator("select").nth(2).locator("option").allTextContents()).join() === "—", "el lado sin módulo debía mostrar «—»");
   await o1.locator("select").nth(0).selectOption("A");
-  ok(await o1.locator("select").nth(1).locator("option").allTextContents().then((x) => x.join()) === "—,01,02", "los módulos de la calle A: " + await o1.locator("select").nth(1).locator("option").allTextContents());
+  ok(await o1.locator("select").nth(1).locator("option").allTextContents().then((x) => x.join()) === "—,01,02", "los módulos de la calle A");
   await o1.locator("select").nth(1).selectOption("02");
   ok(await o1.locator("select").nth(2).inputValue() === "DER" && await o1.locator("select").nth(2).isDisabled(), "A02 tiene un solo lado y no se puso solo");
   await o1.locator("select").nth(1).selectOption("01");
   ok(await o1.locator("select").nth(2).isEnabled() && await o1.locator("select").nth(2).inputValue() === "", "A01 tiene dos lados: hay que escoger");
-  /* L1 a medias: dice QUÉ falta, por su nombre. */
-  await pg.fill(".cl-tarjeta >> nth=0 >> .cl-depa input", "18801");
-  await pg.click('.cl-guardar button');
+  ok((await o1.locator("select").nth(2).locator("option").allTextContents()).join() === "—,Derecho,Izquierdo", "los lados no dicen Izquierdo/Derecho: " + await o1.locator("select").nth(2).locator("option").allTextContents());
+  /* L1 a medias: dice QUÉ falta, por su nombre, y la lista lo marca. */
+  await pg.fill(".cl-depa input", "18801");
+  ok(await est("L1") === "A MEDIAS", "L1 con algo escrito y sin terminar no dice «A MEDIAS»: " + await est("L1"));
+  ok(/0 de 4 líneas anotadas/.test(await pg.textContent(".cl-prog")), "una línea a medias cuenta como anotada");
+  await pg.click(".cl-guardar .cl-go");
   const m1 = await pg.$eval(".cl-mal", (e) => e.textContent.replace(/\s+/g, " "));
   ok(/L1:/.test(m1) && /de dónde tomaba/.test(m1) && /dónde estaba ubicado/.test(m1) && !/las cajas de la depa/.test(m1) && !/L2/.test(m1), "el aviso de lo que falta en L1: " + m1);
   ok((await rpcs()).length === 0, "guardó con la línea a medias");
   await o1.locator("select").nth(2).selectOption("DER");
-  await pg.fill(".cl-tarjeta >> nth=0 >> .cl-sitio >> nth=0 >> .cl-cant-c input", "40");
+  await campo(0, ".cl-cant-c input").fill("40");
+  /* Sin material, las estibas no se pueden pasar a cajas y lo dice. */
+  ok(/Escoge el material/.test(await campo(0, ".cl-eco").textContent()), "estibas sin material no avisa que falta el material: " + await campo(0, ".cl-eco").textContent());
   await eligeUbi(1, "B", "12", "IZQ");
-  await pg.fill(".cl-tarjeta >> nth=0 >> .cl-sitio >> nth=1 >> .cl-cant-c input", "900");
-  await pg.click(".cl-tarjeta >> nth=0 >> .cl-sitio >> nth=1 >> .cl-unidad button:has-text('Cajas')");
-  ok(/A · 01 · DER/.test(await pg.$eval(".cl-tarjeta >> nth=0 >> .cl-eco", (e) => e.textContent)), "no repite la ubicación escogida");
-  /* material que no existe: se rechaza; con uno de la lista, pasa. */
-  await pg.fill(".cl-tarjeta >> nth=0 >> .cl-mat input", "XYZ inventado");
-  await pg.click('.cl-guardar button');
-  ok(/el material/.test(await pg.$eval(".cl-mal", (e) => e.textContent)) && (await rpcs()).length === 0, "aceptó un material inventado");
-  await pg.fill(".cl-tarjeta >> nth=0 >> .cl-mat input", "3500887 · Botella Flint 1000R");
-  /* L2 con un módulo de UN SOLO lado (A02): el lado se pone solo y viaja en el envío. */
-  await pg.fill(".cl-tarjeta >> nth=1 >> .cl-depa input", "5000");
-  const o2 = pg.locator(".cl-tarjeta").nth(1).locator("fieldset.cl-sitio").nth(0);
+  await campo(1, ".cl-cant-c input").fill("900");
+  await campo(1, ".cl-unidad button:has-text('Cajas')").click();
+  ok(/900 cajas/.test(await campo(1, ".cl-eco").textContent()), "900 cajas no dice 900 cajas");
+  /* El material: se busca, se escoge, y la tarjeta trae lo del maestro. */
+  await pg.fill(".cl-busca input", "XYZ inventado");
+  ok(/Ningún material coincide/.test(await txt()), "un material inventado no dice que no coincide");
+  await pg.fill(".cl-busca input", "flint");
+  await pg.click(".cl-busca li button");
+  ok(/Botella Flint 1000R/.test(await pg.textContent(".cl-mae")) && /3500887 · 12 por caja · 60 cajas por estiba/.test(await pg.textContent(".cl-mae")), "la tarjeta del material: " + await pg.textContent(".cl-mae"));
+  ok(/2\.400 cajas · 28\.800 unidades/.test(await campo(0, ".cl-eco").textContent()), "40 estibas de 60 cajas por 12: " + await campo(0, ".cl-eco").textContent());
+  ok(/900 cajas · 10\.800 unidades/.test(await campo(1, ".cl-eco").textContent()), "900 cajas en unidades: " + await campo(1, ".cl-eco").textContent());
+  /* «Cambiar» abre la búsqueda; «Dejar el que estaba» la cierra sin tocar nada. */
+  await pg.click('.cl-mae button:has-text("Cambiar")');
+  ok(!!(await pg.$(".cl-busca")), "«Cambiar» no abre la búsqueda");
+  await pg.click('.cl-busca button:has-text("Dejar el que estaba")');
+  ok(!!(await pg.$(".cl-mae")) && /Botella Flint/.test(await pg.textContent(".cl-mae")), "«Dejar el que estaba» no lo dejó");
+  ok(await est("L1") === "ANOTADA" && /1 de 4 líneas anotadas/.test(await pg.textContent(".cl-prog")), "L1 completa no dice ANOTADA / 1 de 4: " + await est("L1"));
+  /* «Siguiente» pasa a L2 y conserva lo de L1. */
+  await pg.click('.cl-guardar button:has-text("Siguiente: L2")');
+  ok(/L2/.test(await pg.textContent(".cl-grande")) && await est("L2") === "ANOTANDO" && await est("L1") === "ANOTADA", "«Siguiente» no pasó a L2 dejando L1 anotada");
+  /* L2 sin material, con un módulo de UN SOLO lado (A02): el lado se pone solo y viaja en el envío. */
+  await pg.fill(".cl-depa input", "5000");
+  const o2 = pg.locator("fieldset.cl-sitio").nth(0);
   await o2.locator("select").nth(0).selectOption("A");
   await o2.locator("select").nth(1).selectOption("02");
-  await pg.fill(".cl-tarjeta >> nth=1 >> .cl-sitio >> nth=0 >> .cl-cant-c input", "100");
-  await pg.click(".cl-tarjeta >> nth=1 >> .cl-sitio >> nth=0 >> .cl-unidad button:has-text('Cajas')");
-  await eligeUbi(3, "B", "12", "DER");
-  await pg.fill(".cl-tarjeta >> nth=1 >> .cl-sitio >> nth=1 >> .cl-cant-c input", "0");
-  await pg.click(".cl-tarjeta >> nth=1 >> .cl-sitio >> nth=1 >> .cl-unidad button:has-text('Cajas')");
+  await campo(0, ".cl-cant-c input").fill("100");
+  await campo(0, ".cl-unidad button:has-text('Cajas')").click();
+  await eligeUbi(1, "B", "12", "DER");
+  await campo(1, ".cl-cant-c input").fill("0");
+  await campo(1, ".cl-unidad button:has-text('Cajas')").click();
+  /* L4: se toca y se arrepiente: «No cortar esta línea» la deja sin tocar. */
+  await pg.click('.cl-lin:has(.cl-cod:text-is("L4"))');
+  ok(/Siguiente: L6/.test(await pg.textContent(".cl-guardar")), "desde L4 el siguiente no es L6");
+  await pg.fill(".cl-depa input", "12");
+  ok(await est("L4") === "A MEDIAS", "L4 tocada no dice A MEDIAS");
+  ok(/2 de 4 líneas anotadas/.test(await pg.textContent(".cl-prog")), "una línea a medias entra en la cuenta de las anotadas");
+  /* Al guardar con L4 a medias estando en otra línea, salta a L4, que es donde hay que mirar. */
+  await pg.click('.cl-lin:has(.cl-cod:text-is("L6"))');
+  ok(!/Siguiente/.test(await pg.textContent(".cl-guardar")), "en la última línea no debía haber «Siguiente»");
+  await pg.click('.cl-lin:has(.cl-cod:text-is("L2"))');
+  await pg.click(".cl-guardar .cl-go");
+  ok(/L4/.test(await pg.textContent(".cl-grande")) && /L4:/.test(await pg.$eval(".cl-mal", (e) => e.textContent)) && (await rpcs()).length === 0, "al guardar con L4 a medias no saltó a L4");
+  await pg.click('button:has-text("No cortar esta línea")');
+  ok(await est("L4") === "ANOTANDO" && await pg.inputValue(".cl-depa input") === "" && !(await pg.$('button:has-text("No cortar esta línea")')), "«No cortar esta línea» no la dejó como nueva");
+  ok(/2 de 4 líneas anotadas/.test(await pg.textContent(".cl-prog")), "el progreso no dice 2 de 4");
   /* Un rechazo de la base no cierra el formulario ni refresca. */
   await pg.evaluate(() => { window.__rpcFalla = "Hacer un corte de líneas requiere el permiso «Corte de líneas» (Roles)" });
-  await pg.click('.cl-guardar button');
+  await pg.click(".cl-guardar .cl-go");
   await pg.waitForFunction(() => window.__rpc.length > 0);
-  ok(/requiere el permiso/.test(await pg.$eval(".cl-mal", (e) => e.textContent)) && await pg.evaluate(() => window.__refresh) === 0 && await pg.$$eval(".cl-tarjeta", (x) => x.length) === 4, "el rechazo cerró el formulario, refrescó o no dijo por qué");
+  ok(/requiere el permiso/.test(await pg.$eval(".cl-mal", (e) => e.textContent)) && await pg.evaluate(() => window.__refresh) === 0 && await pg.$$eval(".cl-ficha", (x) => x.length) === 1, "el rechazo cerró el formulario, refrescó o no dijo por qué");
   await pg.evaluate(() => { window.__rpcFalla = null; window.__rpc = [] });
-  await pg.click('.cl-guardar button');
+  await pg.click(".cl-guardar .cl-go");
   await pg.waitForFunction(() => window.__refresh > 0);
   const r = await rpcs();
   ok(r.length === 1 && r[0].n === "inv_corte_guardar", "no llamó a inv_corte_guardar: " + JSON.stringify(r));
@@ -215,36 +255,52 @@ await monta("c=todo");
       { linea: "L2", cajas_depa: 5000, material_id: null,
         origen: { ubicacion_id: "uA02D", cant: 100, unidad: "cajas" }, destino: { ubicacion_id: "uB12D", cant: 0, unidad: "cajas" } }] }),
      "los parámetros son " + JSON.stringify(r[0].a));
-  ok(/Corte inicial guardado/.test(await txt()) && await pg.$$eval(".cl-tarjeta", (x) => x.length) === 0, "no volvió a la lista con su aviso");
+  ok(/Corte inicial guardado/.test(await txt()) && /cuando vuelvas/.test(await txt()) && await pg.$$eval(".cl-ficha", (x) => x.length) === 0, "no volvió a la lista con su aviso");
+}
+/* «Sin material» quita el material puesto, y la línea vuelve a pedirlo para las estibas. */
+await monta("c=todo");
+{
+  await pg.click('.cl-abierto button:has-text("Hacer el corte final")');
+  await pg.click('.cl-mae button:has-text("Cambiar")');
+  await pg.click('.cl-busca button:has-text("Sin material")');
+  ok(!!(await pg.$(".cl-busca")) && !(await pg.$(".cl-mae")), "«Sin material» no dejó el buscador");
+  await campo(0, ".cl-cant-c input").fill("30");
+  ok(/Escoge el material/.test(await campo(0, ".cl-eco").textContent()), "sin material las estibas no avisan");
 }
 
 /* ---------- 4 · EL CORTE FINAL ARRANCA CON LO DEL INICIAL ---------- */
 await monta("c=todo");
 {
   await pg.click('.cl-abierto button:has-text("Hacer el corte final")');
-  const hh = await pg.$eval(".cl-forma-cab h2", (e) => e.textContent);
-  ok(/Corte final/.test(hh) && /11:00/.test(hh), "el título no dice de cuál inicial es: " + hh);
+  const hh = await pg.$eval(".cl-sub", (e) => e.textContent);
+  ok(/Corte final/.test(hh) && /11:00/.test(hh), "no dice de cuál inicial es: " + hh);
+  ok(/Corte final/.test(await pg.textContent(".cl-flujo li.on")) && /anotando ahora/.test(await pg.textContent(".cl-flujo li.on")), "la cabeza no marca el paso 2");
   const o1 = pg.locator("fieldset.cl-sitio").nth(0);
   ok(await o1.locator("select").nth(0).inputValue() === "A" && await o1.locator("select").nth(1).inputValue() === "01" && await o1.locator("select").nth(2).inputValue() === "DER", "el origen de L1 no viene del inicial");
-  ok(await pg.inputValue(".cl-tarjeta >> nth=0 >> .cl-mat input") === "3500887 · Botella Flint 1000R", "el material no viene del inicial");
-  ok(await pg.inputValue(".cl-tarjeta >> nth=0 >> .cl-depa input") === "" && await pg.inputValue(".cl-tarjeta >> nth=0 >> .cl-sitio >> nth=0 >> .cl-cant-c input") === "", "las cantidades no arrancan vacías");
-  ok(await pg.$eval(".cl-tarjeta >> nth=0 >> .cl-sitio >> nth=0 >> .cl-unidad .on", (e) => e.textContent) === "Estibas", "la unidad no viene del inicial");
+  ok(/Botella Flint 1000R/.test(await pg.textContent(".cl-mae")), "el material no viene del inicial");
+  ok(await pg.inputValue(".cl-depa input") === "" && await campo(0, ".cl-cant-c input").inputValue() === "", "las cantidades no arrancan vacías");
+  ok(await campo(0, ".cl-unidad .on").textContent() === "Estibas", "la unidad no viene del inicial");
+  ok(await est("L1") === "ANOTANDO" && await est("L4") === "SIN TOCAR", "lo que viene del inicial sin tocar debe decir SIN TOCAR");
   /* L4 (con módulo sin lado): el lado va vacío y bloqueado, y aun así se resuelve. */
-  const l4 = pg.locator(".cl-tarjeta").nth(2).locator("fieldset.cl-sitio").nth(0);
+  await pg.click('.cl-lin:has(.cl-cod:text-is("L4"))');
+  const l4 = pg.locator("fieldset.cl-sitio").nth(0);
   ok(await l4.locator("select").nth(0).inputValue() === "C" && await l4.locator("select").nth(2).isDisabled(), "L4 no viene con su módulo sin lado");
+  ok(await est("L4") === "ANOTANDO", "L4 no quedó como la actual");
+  ok(await est("L2") === "SIN TOCAR", "L2 (no estaba en el inicial) debía estar sin tocar");
+  await pg.click('.cl-lin:has(.cl-cod:text-is("L1"))');
   /* El final no puede ser antes del inicial. */
-  await pg.fill(".cl-cuando input", "2026-09-30T05:00");
-  await pg.fill(".cl-tarjeta >> nth=0 >> .cl-depa input", "30801");
-  await pg.fill(".cl-tarjeta >> nth=0 >> .cl-sitio >> nth=0 >> .cl-cant-c input", "30");
-  await pg.fill(".cl-tarjeta >> nth=0 >> .cl-sitio >> nth=1 >> .cl-cant-c input", "1800");
-  await pg.click('.cl-guardar button');
+  await pg.fill(".cl-cuando input[type=datetime-local]", "2026-09-30T05:00");
+  await pg.fill(".cl-depa input", "30801");
+  await campo(0, ".cl-cant-c input").fill("30");
+  await campo(1, ".cl-cant-c input").fill("1800");
+  await pg.click(".cl-guardar .cl-go");
   ok(/tiene que ser después del inicial/.test(await pg.$eval(".cl-mal", (e) => e.textContent)) && (await rpcs()).length === 0, "aceptó un final antes del inicial");
-  await pg.fill(".cl-cuando input", "2026-09-30T13:30");
-  await pg.click('.cl-guardar button');
+  await pg.fill(".cl-cuando input[type=datetime-local]", "2026-09-30T13:30");
+  await pg.click(".cl-guardar .cl-go");
   ok(/después de|futuro/.test(await pg.$eval(".cl-mal", (e) => e.textContent)) && (await rpcs()).length === 0, "aceptó una hora del futuro");
-  await pg.fill(".cl-cuando input", "2026-09-30T12:00");
-  await pg.fill(".cl-cuando + label input, label.cl-cuando:last-of-type input", "L4 vuelve a las 3");
-  await pg.click('.cl-guardar button');
+  await pg.fill(".cl-cuando input[type=datetime-local]", "2026-09-30T12:00");
+  await pg.fill('.cl-barra label:has-text("Nota") input', "L4 vuelve a las 3");
+  await pg.click(".cl-guardar .cl-go");
   await pg.waitForFunction(() => window.__refresh > 0);
   const r = await rpcs();
   ok(r.length === 1 && r[0].a.p_tipo === "final" && r[0].a.p_inicial === "i2" && r[0].a.p_cortado === "2026-09-30T17:00:00.000Z" && r[0].a.p_nota === "L4 vuelve a las 3", "el final no viaja atado a su inicial: " + JSON.stringify(r[0].a).slice(0, 200));
@@ -254,7 +310,7 @@ await monta("c=todo");
 
 /* ---------- 5 · NADA SE SALE, EN CUATRO ANCHOS ---------- */
 for (const w of [360, 390, 820, 1440]) {
-  for (const [c, tocar] of [["todo", null], ["todo", "Nuevo corte inicial"]]) {
+  for (const [c, tocar] of [["todo", null], ["todo", "Nuevo corte inicial"], ["todo", "Hacer el corte final"]]) {
     await monta("c=" + c, w);
     if (tocar) await pg.click(`button:has-text("${tocar}")`);
   if (process.env.UP) console.log(await pg.evaluate(() => { let e = document.querySelector(".cl-nota"); const o = []; while (e && e.id !== "r") { o.push(e.tagName + "." + e.className + ":" + getComputedStyle(e).textTransform); e = e.parentElement } return o.join(" < ") }));

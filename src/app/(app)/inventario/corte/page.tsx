@@ -83,30 +83,11 @@ export default async function CortePage() {
   }));
   const nombres = Object.fromEntries((per.data ?? []).map((p) => [p.id, p.nombre as string]));
 
-  const abiertos = cortes.filter((c) => c.tipo === "inicial" && !cortes.some((f) => f.inicial_id === c.id)).length;
-  const ubis = m.ubicaciones.filter((u) => u.bodega_id === bodega.id && u.activa);
+    const ubis = m.ubicaciones.filter((u) => u.bodega_id === bodega.id && u.activa);
   const mats = m.materiales.filter((x) => x.activo);
 
   return (
     <div className="fe">
-      <section className="cabeza">
-        <div>
-          <p className="ojo">INVENTARIO · ANTES DE CONTAR</p>
-          <h1>Corte de líneas</h1>
-          <p className="sub">
-            Antes del conteo se corta cada línea (L1, L2, L4, L6): las cajas que han pasado por la
-            depaletizadora, de dónde estaban tomando y dónde estaban ubicados, con su calle, módulo y
-            lado. Ese es el <b>inicial</b>. Luego se hace el <b>final</b> y aquí sale la diferencia.
-          </p>
-        </div>
-        <div className="kpi">
-          <div className="corte" />
-          <div className="rot">ESPERANDO EL FINAL</div>
-          <div className="num">{abiertos}</div>
-          <div className="pie">{abiertos === 1 ? "corte inicial abierto" : "cortes iniciales abiertos"}</div>
-        </div>
-      </section>
-
       {!puedeEditar && (
         <section className="fe-faltan">
           <p><b>Solo de lectura.</b> Para hacer un corte hace falta permiso de edición en esta
@@ -118,7 +99,7 @@ export default async function CortePage() {
         bodegaId={bodega.id}
         lineas={(lin.data ?? []) as { clave: string; nombre: string }[]}
         ubicaciones={ubis.map((u) => ({ id: u.id, calle: u.calle, modulo: u.modulo, lado: u.lado }))}
-        materiales={mats.map((x) => ({ id: x.id, sku: x.sku, nombre: x.nombre, cajas_por_estiba: x.cajas_por_estiba }))}
+        materiales={mats.map((x) => ({ id: x.id, sku: x.sku, nombre: x.nombre, cajas_por_estiba: x.cajas_por_estiba, unidades_por_caja: x.unidades_por_caja }))}
         cortes={cortes}
         nombres={nombres}
         puedeEditar={puedeEditar}

@@ -27,7 +27,7 @@ import { traducirError } from "@/lib/errores";
 import { analizar, duracion, type Corte as CorteT, type Lado, type Sitio, type Unidad } from "@/modulos/inventario/corte";
 
 export type UbiC = { id: string; calle: string; modulo: string; lado: "IZQ" | "DER" | null };
-export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null };
+export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null };
 export type LineaC = { clave: string; nombre: string };
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
@@ -124,23 +124,27 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
 
   if (form) {
     return (
-      <FormCorte
-        tipo={form.tipo} inicial={form.inicial} bodegaId={bodegaId} lineas={lineas}
-        ubicaciones={ubicaciones} materiales={materiales} ahora={ahora}
-        nombreUbi={nombreUbi}
-        onCerrar={() => setForm(null)}
-        onGuardado={(t) => {
-          setForm(null);
-          setAviso(t === "inicial"
-            ? "Corte inicial guardado. Cuando llegue la hora, haz el corte final."
-            : "Corte final guardado. Abajo está la diferencia.");
-          router.refresh();
-        }}
-      />
+      <>
+        <Cabeza paso={form.tipo === "inicial" ? 1 : 2} abiertos={abiertos.length} cerrados={cerrados.length} anotando={form.tipo} />
+        <FormCorte
+          tipo={form.tipo} inicial={form.inicial} bodegaId={bodegaId} lineas={lineas}
+          ubicaciones={ubicaciones} materiales={materiales} ahora={ahora}
+          onCerrar={() => setForm(null)}
+          onGuardado={(t) => {
+            setForm(null);
+            setAviso(t === "inicial"
+              ? "Corte inicial guardado. Haz lo que tengas que hacer; cuando vuelvas, aquí abajo lo encuentras para hacer el corte final."
+              : "Corte final guardado. Abajo está la diferencia.");
+            router.refresh();
+          }}
+        />
+      </>
     );
   }
 
   return (
+    <>
+    <Cabeza paso={abiertos.length > 0 ? 2 : 1} abiertos={abiertos.length} cerrados={cerrados.length} anotando={null} />
     <div className="cl">
       {aviso && <p className="cl-ok" role="status">{aviso}</p>}
       {mal && <p className="cl-mal" role="alert">{mal}</p>}
@@ -164,9 +168,19 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                 <b className="cl-hora">Inicial · {hora(c.cortado_en)}</b>
                 <span className="cl-quien">{c.creado_por ? nombres[c.creado_por] ?? "—" : "—"}</span>
               </div>
-              <p className="cl-res">
-                {c.renglones.map((r) => `${r.linea} ${fmt(r.cajas_depa)}`).join(" · ")}
-              </p>
+              <ul className="cl-res">
+                {[...c.renglones].sort((a, b) => a.linea.localeCompare(b.linea, "es", { numeric: true })).map((r) => (
+                  <li key={r.linea}>
+                    <b>{r.linea}</b> {fmt(r.cajas_depa)} cajas por la depa
+                    {r.material_id && mat.get(r.material_id) ? <> · {mat.get(r.material_id)!.nombre}</> : null}
+                    <span>
+                      {r.origen ? <>Tomando de {nombreUbi(r.origen.ubicacion_id)}: {fmt(r.origen.cant)} {r.origen.unidad}</> : null}
+                      {r.origen && r.destino ? " · " : null}
+                      {r.destino ? <>Ubicados en {nombreUbi(r.destino.ubicacion_id)}: {fmt(r.destino.cant)} {r.destino.unidad}</> : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
               {c.nota && <p className="cl-nota">{c.nota}</p>}
               <div className="cl-botones">
                 {puedeEditar && (
@@ -244,6 +258,39 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
         </div>
       )}
     </div>
+    </>
+  );
+}
+
+/* LA CABEZA, con los tres pasos: el corte inicial se guarda, el final se hace
+   cuando se vuelve (queda «esperando»), y la diferencia sale sola. */
+function Cabeza({ paso, abiertos, cerrados, anotando }: {
+  paso: 1 | 2; abiertos: number; cerrados: number; anotando: "inicial" | "final" | null;
+}) {
+  return (
+    <section className="cabeza cl-cabeza">
+      <div>
+        <p className="ojo">INVENTARIO · ANTES DE CONTAR</p>
+        <h1>Corte de líneas</h1>
+        <p className="sub">
+          Antes del conteo se corta cada línea: cuántas cajas pasaron por la depaletizadora, qué material
+          corre, de dónde estaba tomando y dónde queda ubicado. Ese es el <b>inicial</b> y se guarda; luego,
+          cuando vuelvas, se hace el <b>final</b> y aquí sale la diferencia.
+        </p>
+      </div>
+      <ol className="cl-flujo" aria-label="Los tres pasos">
+        <li className={paso === 1 ? "on" : ""}>
+          <span>PASO 1</span><b>Corte inicial</b><small>{anotando === "inicial" ? "anotando ahora" : "se guarda y espera"}</small>
+        </li>
+        <li className={paso === 2 ? "on" : ""}>
+          <span>PASO 2</span><b>Corte final</b>
+          <small>{anotando === "final" ? "anotando ahora" : `${abiertos} ${abiertos === 1 ? "abierto esperando" : "abiertos esperando"}`}</small>
+        </li>
+        <li>
+          <span>PASO 3</span><b>Diferencia</b><small>{cerrados > 0 ? `${cerrados} ${cerrados === 1 ? "lista" : "listas"}` : "sale sola"}</small>
+        </li>
+      </ol>
+    </section>
   );
 }
 
@@ -278,10 +325,15 @@ function LadoFila({ titulo, ini, fin, linea, cual, lado, accion, nombreUbi }: {
 
 /* ===================================================================
    EL FORMULARIO DE UN CORTE (inicial o final)
+
+   UNA LÍNEA A LA VEZ: a la izquierda la fecha y las líneas con su estado
+   (SIN TOCAR / ANOTANDO / A MEDIAS / ANOTADA); a la derecha la línea que
+   se está anotando. «Siguiente» pasa a la otra; «Guardar» manda todas
+   las que se tocaron. En el celular la lista de líneas queda arriba.
    =================================================================== */
-function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, ahora, nombreUbi, onCerrar, onGuardado }: {
+function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, ahora, onCerrar, onGuardado }: {
   tipo: "inicial" | "final"; inicial: CorteT | null; bodegaId: string; lineas: LineaC[];
-  ubicaciones: UbiC[]; materiales: MatC[]; ahora: string; nombreUbi: (id: string) => string;
+  ubicaciones: UbiC[]; materiales: MatC[]; ahora: string;
   onCerrar: () => void; onGuardado: (t: "inicial" | "final") => void;
 }) {
   const ubi = useMemo(() => new Map(ubicaciones.map((u) => [u.id, u])), [ubicaciones]);
@@ -316,9 +368,10 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
   }
   const [cuando, setCuando] = useState(() => aInput(ahora));
   const [nota, setNota] = useState("");
+  const [sel, setSel] = useState(lineas[0]?.clave ?? "");
   const [ocupado, setOcupado] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
-  const [faltan, setFaltan] = useState<string[]>([]);
+  const [faltan, setFaltan] = useState<{ linea: string | null; texto: string }[]>([]);
 
   const cambia = (clave: string, f: (l: LineaF) => LineaF) =>
     setFilas((p) => ({ ...p, [clave]: f(p[clave]) }));
@@ -329,31 +382,42 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     return materiales.find((m) => etiqueta(m) === t) ?? materiales.find((m) => m.sku === t.split(" ")[0]) ?? null;
   };
 
+  /* LO QUE FALTA EN UNA LÍNEA, por su nombre, y su renglón si ya está completa. */
+  function revisarLinea(clave: string) {
+    const f = filas[clave];
+    const aqui: string[] = [];
+    const cajas = num(f.cajas);
+    if (cajas === null || !Number.isInteger(cajas)) aqui.push("las cajas de la depa (un número entero)");
+    const sitios: Record<string, unknown> = {};
+    for (const [k, s, nom] of [["origen", f.origen, "de dónde tomaba"], ["destino", f.destino, "dónde estaba ubicado"]] as const) {
+      const u = resolver(s), c = num(s.cant);
+      if (!u) aqui.push(`${nom} (calle, módulo y lado)`);
+      else if (c === null) aqui.push(`cuántas ${s.unidad} hay ${k === "origen" ? "donde tomaba" : "donde estaba ubicado"}`);
+      else sitios[k] = { ubicacion_id: u.id, cant: c, unidad: s.unidad };
+    }
+    if (f.material.trim() && !matDe(f.material)) aqui.push("el material (escoge uno de la lista o déjalo vacío)");
+    return {
+      aqui,
+      renglon: aqui.length ? null : { linea: clave, cajas_depa: cajas, material_id: matDe(f.material)?.id ?? null, ...sitios },
+    };
+  }
+  const estadoDe = (clave: string): "sin" | "medias" | "ok" =>
+    !tocada(filas[clave], base[clave]) ? "sin" : revisarLinea(clave).aqui.length ? "medias" : "ok";
+
   function armar() {
-    const falta: string[] = [];
+    const falta: { linea: string | null; texto: string }[] = [];
     const renglones: Record<string, unknown>[] = [];
     for (const l of lineas) {
-      const f = filas[l.clave];
-      if (!tocada(f, base[l.clave])) continue;
-      const aqui: string[] = [];
-      const cajas = num(f.cajas);
-      if (cajas === null || !Number.isInteger(cajas)) aqui.push("las cajas de la depa (un número entero)");
-      const sitios: Record<string, unknown> = {};
-      for (const [k, s, nom] of [["origen", f.origen, "de dónde tomaba"], ["destino", f.destino, "dónde estaba ubicado"]] as const) {
-        const u = resolver(s), c = num(s.cant);
-        if (!u) aqui.push(`${nom} (calle, módulo y lado)`);
-        else if (c === null) aqui.push(`cuántas ${s.unidad} hay ${k === "origen" ? "donde tomaba" : "donde estaba ubicado"}`);
-        else sitios[k] = { ubicacion_id: u.id, cant: c, unidad: s.unidad };
-      }
-      if (f.material.trim() && !matDe(f.material)) aqui.push("el material (escoge uno de la lista o déjalo vacío)");
-      if (aqui.length) falta.push(`${l.clave}: ${aqui.join(", ")}`);
-      else renglones.push({ linea: l.clave, cajas_depa: cajas, material_id: matDe(f.material)?.id ?? null, ...sitios });
+      if (!tocada(filas[l.clave], base[l.clave])) continue;
+      const r = revisarLinea(l.clave);
+      if (r.aqui.length) falta.push({ linea: l.clave, texto: `${l.clave}: ${r.aqui.join(", ")}` });
+      else renglones.push(r.renglon!);
     }
-    if (!falta.length && renglones.length === 0) falta.push("Llena al menos una línea");
+    if (!falta.length && renglones.length === 0) falta.push({ linea: null, texto: "Llena al menos una línea" });
     const iso = deInput(cuando);
-    if (!iso) falta.push("La fecha y la hora del corte");
-    else if (Date.parse(iso) > Date.parse(ahora) + 10 * 60000) falta.push("La hora del corte no puede ser del futuro");
-    else if (inicial && Date.parse(iso) <= Date.parse(inicial.cortado_en)) falta.push(`El final tiene que ser después del inicial (${hora(inicial.cortado_en)})`);
+    if (!iso) falta.push({ linea: null, texto: "La fecha y la hora del corte" });
+    else if (Date.parse(iso) > Date.parse(ahora) + 10 * 60000) falta.push({ linea: null, texto: "La hora del corte no puede ser del futuro" });
+    else if (inicial && Date.parse(iso) <= Date.parse(inicial.cortado_en)) falta.push({ linea: null, texto: `El final tiene que ser después del inicial (${hora(inicial.cortado_en)})` });
     return { falta, renglones, iso };
   }
 
@@ -361,7 +425,12 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     setMal(null);
     const { falta, renglones, iso } = armar();
     setFaltan(falta);
-    if (falta.length) return;
+    if (falta.length) {
+      /* Salta a la primera línea que quedó a medias: es donde hay que mirar. */
+      const primera = falta.find((x) => x.linea);
+      if (primera?.linea) setSel(primera.linea);
+      return;
+    }
     setOcupado(true);
     const { error } = await createClient().rpc("inv_corte_guardar", {
       p_bodega: bodegaId, p_tipo: tipo, p_inicial: inicial?.id ?? null,
@@ -372,14 +441,35 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     onGuardado(tipo);
   }
 
+  const linea = lineas.find((l) => l.clave === sel) ?? lineas[0];
+  const f = linea ? filas[linea.clave] : null;
+  const idx = lineas.findIndex((l) => l.clave === linea?.clave);
+  const siguiente = idx >= 0 && idx < lineas.length - 1 ? lineas[idx + 1] : null;
+  const anotadas = lineas.filter((l) => estadoDe(l.clave) === "ok").length;
+  const isoCuando = deInput(cuando);
+
+  /* CUÁNTAS CAJAS (Y UNIDADES) SON LO QUE SE ESCRIBIÓ: lo que hace falta
+     para no sumar estibas con cajas en la cabeza. */
+  const equivale = (s: SitioF, m: MatC | null): string => {
+    const c = num(s.cant);
+    if (c === null) return "";
+    const cajas = s.unidad === "cajas" ? c : m?.cajas_por_estiba && m.cajas_por_estiba > 0 ? c * m.cajas_por_estiba : null;
+    if (cajas === null) return m ? "Este material no tiene cajas por estiba en el maestro" : "Escoge el material para pasar las estibas a cajas";
+    return `${fmt(cajas)} cajas` + (m?.unidades_por_caja ? ` · ${fmt(cajas * m.unidades_por_caja)} unidades` : "");
+  };
+
   const bloque = (clave: string, k: "origen" | "destino", titulo: string, ayuda: string) => {
     const s = filas[clave][k];
     const mods = s.calle ? modulosDe(s.calle) : [];
     const lados = s.calle && s.modulo ? ladosDe(s.calle, s.modulo) : [];
     const cambiaSitio = (p: Partial<SitioF>) => cambia(clave, (l) => ({ ...l, [k]: { ...l[k], ...p } }));
+    const eq = equivale(s, matDe(filas[clave].material));
     return (
-      <fieldset className="cl-sitio">
-        <legend>{titulo}<i>{ayuda}</i></legend>
+      <fieldset className={"cl-sitio " + k} aria-label={titulo}>
+        <div className="cl-leg">
+          <span className="cl-ic" aria-hidden>{k === "origen" ? "→" : "↓"}</span>
+          <b>{titulo}</b><i>{ayuda}</i>
+        </div>
         <label>
           <span>Calle</span>
           <select value={s.calle} onChange={(e) => cambiaSitio({ calle: e.target.value, modulo: "", lado: "" })}>
@@ -404,8 +494,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
           <span>Lado</span>
           <select value={s.lado} disabled={!s.modulo || lados.length <= 1}
                   onChange={(e) => cambiaSitio({ lado: e.target.value })}>
-            {lados.length > 1 && <option value="">—</option>}
-            {lados.map((x) => <option key={x || "solo"} value={x}>{x || "único"}</option>)}
+            {(lados.length > 1 || !s.modulo) && <option value="">—</option>}
+            {lados.map((x) => <option key={x || "solo"} value={x}>{x === "IZQ" ? "Izquierdo" : x === "DER" ? "Derecho" : "único"}</option>)}
           </select>
         </label>
         <label className="cl-cant-c">
@@ -418,71 +508,162 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                     onClick={() => cambiaSitio({ unidad: u })}>{u === "estibas" ? "Estibas" : "Cajas"}</button>
           ))}
         </div>
-        {resolver(s) && <p className="cl-eco">{nombreUbi(resolver(s)!.id)}</p>}
+        <p className={"cl-eco" + (eq && !/cajas$|unidades$/.test(eq) ? " aviso" : "")}>{eq || "Se convierte con el factor del material"}</p>
       </fieldset>
     );
   };
 
   return (
     <div className="cl">
-      <div className="cl-forma-cab">
-        <h2 className="cl-h">{tipo === "inicial" ? "Corte inicial" : `Corte final del de las ${hora(inicial!.cortado_en)}`}</h2>
-        <button type="button" className="btn plano" onClick={onCerrar} disabled={ocupado}>Cancelar</button>
-      </div>
       <p className="cl-sub">
         {tipo === "inicial"
           ? "Anota cada línea como está AHORA. Las líneas que no toques no se cortan."
-          : "Los módulos vienen del corte inicial: cambia los que hayan cambiado y anota las cantidades de ahora."}
+          : `Corte final del inicial de las ${hora(inicial!.cortado_en)}: los módulos vienen puestos; cambia los que hayan cambiado y anota las cantidades de ahora.`}
       </p>
 
-      <label className="cl-cuando">
-        <span>Fecha y hora del corte</span>
-        <input type="datetime-local" value={cuando} onChange={(e) => setCuando(e.target.value)} />
-      </label>
+      <div className="cl-grid">
+        <aside className="cl-barra">
+          <label className="cl-cuando">
+            <span>Fecha y hora del corte</span>
+            <input type="datetime-local" value={cuando} onChange={(e) => setCuando(e.target.value)} />
+          </label>
+          <div className="cl-lineas" role="tablist" aria-label="Líneas">
+            {lineas.map((l) => {
+              const e = estadoDe(l.clave);
+              const m = matDe(filas[l.clave].material);
+              const actual = l.clave === linea?.clave;
+              return (
+                <button key={l.clave} type="button" role="tab" aria-selected={actual}
+                        className={"cl-lin " + e + (actual ? " on" : "")} onClick={() => setSel(l.clave)}>
+                  <span className="cl-cod">{l.clave}</span>
+                  <span className="cl-lin-t"><b>{l.nombre}</b><small>{m ? m.nombre : "sin material"}</small></span>
+                  <span className={"cl-st " + (e === "ok" ? "ok" : e === "medias" ? "med" : actual ? "cur" : "no")}>
+                    {e === "ok" ? "ANOTADA" : e === "medias" ? "A MEDIAS" : actual ? "ANOTANDO" : "SIN TOCAR"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <label className="cl-cuando">
+            <span>Nota <em>(opcional)</em></span>
+            <input value={nota} maxLength={200} placeholder="Ej. L4 parada por mantenimiento"
+                   onChange={(e) => setNota(e.target.value)} />
+          </label>
+        </aside>
 
-      {lineas.map((l) => {
-        const f = filas[l.clave];
-        return (
-          <section key={l.clave} className={"cl-tarjeta" + (tocada(f, base[l.clave]) ? " on" : "")} aria-label={l.nombre}>
-            <header><b>{l.clave}</b><span>{l.nombre}</span></header>
-            <label className="cl-depa">
-              <span>Cajas que han pasado por la depa</span>
-              <input inputMode="numeric" value={f.cajas} placeholder="Ej. 18801"
-                     onChange={(e) => cambia(l.clave, (x) => ({ ...x, cajas: e.target.value }))} />
-            </label>
-            {bloque(l.clave, "origen", "Tomando de", "el módulo de donde saca la línea")}
-            {bloque(l.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale")}
-            <label className="cl-mat">
-              <span>Material <em>(opcional: pasa las estibas a cajas)</em></span>
-              <input list={"mat-" + l.clave} value={f.material} placeholder="Código o nombre"
-                     onChange={(e) => cambia(l.clave, (x) => ({ ...x, material: e.target.value }))} />
-              <datalist id={"mat-" + l.clave}>
-                {materiales.map((m) => <option key={m.id} value={etiqueta(m)} />)}
-              </datalist>
-            </label>
+        {linea && f && (
+          <section className={"cl-ficha" + (estadoDe(linea.clave) !== "sin" ? " on" : "")} aria-label={linea.nombre}>
+            <header className="cl-ficha-cab">
+              <span className="cl-grande">{linea.clave}</span>
+              <h2>{linea.nombre}<small>Corte {tipo} · {isoCuando ? hora(isoCuando).replace(/\/\d{4}/, "") : "—"}</small></h2>
+              {tocada(f, base[linea.clave]) && (
+                <button type="button" className="cl-no" onClick={() => { cambia(linea.clave, () => base[linea.clave]); setFaltan([]) }}>
+                  No cortar esta línea
+                </button>
+              )}
+            </header>
+            <div className="cl-cuerpo">
+              <div className="cl-r1">
+                <MaterialCampo materiales={materiales} valor={f.material} etiqueta={etiqueta} matDe={matDe}
+                               onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, material: v }))} />
+                <label className="cl-depa">
+                  <span>Cajas que han pasado por la depa</span>
+                  <input inputMode="numeric" value={f.cajas} placeholder="Ej. 18801"
+                         onChange={(e) => cambia(linea.clave, (x) => ({ ...x, cajas: e.target.value }))} />
+                  <em>Lo que marca el contador de la depaletizadora</em>
+                </label>
+              </div>
+              <div className="cl-r2">
+                {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea")}
+                {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale")}
+              </div>
+            </div>
           </section>
-        );
-      })}
-
-      <label className="cl-cuando">
-        <span>Nota <em>(opcional)</em></span>
-        <input value={nota} maxLength={200} placeholder="Ej. L4 parada por mantenimiento"
-               onChange={(e) => setNota(e.target.value)} />
-      </label>
+        )}
+      </div>
 
       {faltan.length > 0 && (
         <div className="cl-mal" role="alert">
           <b>Falta:</b>
-          <ul>{faltan.map((x) => <li key={x}>{x}</li>)}</ul>
+          <ul>
+            {faltan.map((x) => (
+              <li key={x.texto}>
+                {x.linea
+                  ? <button type="button" className="cl-ir" onClick={() => setSel(x.linea!)}>{x.texto}</button>
+                  : x.texto}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {mal && <p className="cl-mal" role="alert">{mal}</p>}
 
       <div className="cl-guardar">
-        <button type="button" className="btn grande" onClick={guardar} disabled={ocupado}>
-          {ocupado ? "Guardando…" : tipo === "inicial" ? "Guardar el corte inicial" : "Guardar el corte final"}
+        <div className="cl-prog">
+          <span className="cl-progbar" aria-hidden><i style={{ width: `${lineas.length ? (anotadas / lineas.length) * 100 : 0}%` }} /></span>
+          <span><b>{anotadas} de {lineas.length}</b> líneas anotadas</span>
+        </div>
+        <button type="button" className="btn plano" onClick={onCerrar} disabled={ocupado}>Cancelar</button>
+        {siguiente && (
+          <button type="button" className="btn plano" onClick={() => setSel(siguiente.clave)}>Siguiente: {siguiente.clave} →</button>
+        )}
+        <button type="button" className="btn grande cl-go" onClick={guardar} disabled={ocupado}>
+          {ocupado ? "Guardando…" : `Guardar corte ${tipo}`}
         </button>
       </div>
+    </div>
+  );
+}
+
+/* EL MATERIAL DE LA LÍNEA: una tarjeta con lo que dice el maestro y «Cambiar».
+   Sin material escogido, o al cambiarlo, se busca por código o por nombre. */
+function MaterialCampo({ materiales, valor, etiqueta, matDe, onCambia }: {
+  materiales: MatC[]; valor: string; etiqueta: (m: MatC) => string;
+  matDe: (t: string) => MatC | null; onCambia: (v: string) => void;
+}) {
+  const m = matDe(valor);
+  const [buscando, setBuscando] = useState(!m);
+  const [q, setQ] = useState("");
+  const t = q.trim().toLowerCase();
+  const hallados = t
+    ? materiales.filter((x) => x.sku.toLowerCase().includes(t) || x.nombre.toLowerCase().includes(t)).slice(0, 6)
+    : [];
+  const datos = (x: MatC) =>
+    [x.sku, x.unidades_por_caja ? `${fmt(x.unidades_por_caja)} por caja` : null,
+     x.cajas_por_estiba ? `${fmt(x.cajas_por_estiba)} cajas por estiba` : null].filter(Boolean).join(" · ");
+  return (
+    <div className="cl-mat">
+      <span className="cl-mat-t">Material <em>(opcional: pasa las estibas a cajas)</em></span>
+      {m && !buscando ? (
+        <div className="cl-mae">
+          <span className="cl-mae-ic" aria-hidden>▮</span>
+          <div><b>{m.nombre}</b><small>{datos(m)}</small></div>
+          <button type="button" className="btn plano" onClick={() => { setQ(""); setBuscando(true) }}>Cambiar</button>
+        </div>
+      ) : (
+        <div className="cl-busca">
+          <input value={q} placeholder="Busca por código o nombre" aria-label="Buscar el material"
+                 onChange={(e) => setQ(e.target.value)} />
+          {hallados.length > 0 && (
+            <ul>
+              {hallados.map((x) => (
+                <li key={x.id}>
+                  <button type="button" onClick={() => { onCambia(etiqueta(x)); setBuscando(false); setQ("") }}>
+                    <b>{x.nombre}</b><small>{datos(x)}</small>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {t && hallados.length === 0 && <p className="cl-eco">Ningún material coincide.</p>}
+          {m ? (
+            <button type="button" className="btn plano" onClick={() => { setBuscando(false); setQ("") }}>Dejar el que estaba</button>
+          ) : null}
+          {valor.trim() !== "" || m ? (
+            <button type="button" className="btn plano" onClick={() => { onCambia(""); setQ("") }}>Sin material</button>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

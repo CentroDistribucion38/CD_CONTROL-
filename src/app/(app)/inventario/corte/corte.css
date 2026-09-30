@@ -25,7 +25,9 @@
 .fe .cl-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap }
 .fe .cl-hora { font: 900 14px var(--fe-titulo); font-variant-numeric: tabular-nums }
 .fe .cl-quien { font-size: 12px; color: var(--fe-gris) }
-.fe .cl-res { margin: 6px 0 0; font-size: 13px; font-variant-numeric: tabular-nums }
+.fe .cl-res { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-variant-numeric: tabular-nums }
+.fe .cl-res li { display: flex; flex-direction: column; gap: 1px }
+.fe .cl-res li > span { font-size: 12px; color: var(--fe-gris) }
 .fe .cl-botones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px }
 .fe .cl-conf { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px }
 .fe .btn.plano.mal { color: var(--fe-mal); border-color: var(--fe-mal) }
@@ -47,11 +49,24 @@
 .fe .cl-dif.sin { color: var(--fe-gris); font-size: 12.5px }
 .fe .cl-dif b { font-weight: 800 }
 
-/* ---------- El formulario ---------- */
-.fe .cl-forma-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap }
-.fe .cl-cuando, .fe .cl-depa, .fe .cl-mat { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
-.fe .cl-cuando > span, .fe .cl-depa > span, .fe .cl-mat > span { font-size: 12px; font-weight: 600 }
+/* ---------- La cabeza con los tres pasos ---------- */
+.fe .cl-flujo { display: flex; margin: 0; padding: 0; list-style: none; background: var(--fe-papel); border: 1px solid var(--fe-linea); align-self: stretch }
+.fe .cl-flujo li { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 10px 16px; min-width: 140px; border-right: 1px solid var(--fe-linea) }
+.fe .cl-flujo li:last-child { border-right: 0 }
+.fe .cl-flujo span { font: 700 10px var(--fe-texto); letter-spacing: .14em; color: var(--fe-gris) }
+.fe .cl-flujo b { font: 800 14px var(--fe-titulo) }
+.fe .cl-flujo small { font-size: 11.5px; color: var(--fe-gris) }
+.fe .cl-flujo li.on { background: var(--fe-banda); color: #fff }
+.fe .cl-flujo li.on span { color: var(--fe-aviso) }
+.fe .cl-flujo li.on small { color: #C9D1DC }
+
+/* ---------- El formulario: lista de líneas a la izquierda, la línea a la derecha ---------- */
+.fe .cl-grid { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: start }
+.fe .cl-barra { display: flex; flex-direction: column; gap: 14px; padding: 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.fe .cl-cuando, .fe .cl-depa { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.fe .cl-cuando > span, .fe .cl-depa > span, .fe .cl-mat-t { font-size: 12px; font-weight: 600 }
 .fe .cl-cuando em, .fe .cl-mat em { font-style: normal; font-weight: 500; color: var(--fe-gris) }
+.fe .cl-depa em { font-style: normal; font-size: 11.5px; color: var(--fe-gris) }
 .fe .cl input, .fe .cl select {
   width: 100%; min-height: 44px; padding: 0 12px; font: 500 14px var(--fe-texto); color: var(--fe-tinta);
   background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 2px;
@@ -59,24 +74,63 @@
 .fe .cl input:focus, .fe .cl select:focus { outline: 2px solid var(--fe-acento); outline-offset: 1px }
 .fe .cl select:disabled { background: var(--fe-fondo); color: var(--fe-gris) }
 
-.fe .cl-tarjeta {
-  display: flex; flex-direction: column; gap: 12px; padding: 14px 16px;
-  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 3px solid var(--fe-linea);
+.fe .cl-lineas { display: flex; flex-direction: column; gap: 4px }
+.fe .cl-lin {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left;
+  min-height: 60px; padding: 8px; background: transparent; border: 1px solid transparent; cursor: pointer; font: inherit; color: inherit;
 }
-.fe .cl-tarjeta.on { border-left-color: var(--fe-acento) }
-.fe .cl-tarjeta > header { display: flex; align-items: baseline; gap: 10px }
-.fe .cl-tarjeta > header b { font: 900 18px var(--fe-titulo) }
-.fe .cl-tarjeta > header span { font-size: 12.5px; color: var(--fe-gris) }
+.fe .cl-lin.on { background: color-mix(in srgb, var(--fe-acento) 14%, #fff); border-color: color-mix(in srgb, var(--fe-acento) 45%, #fff) }
+.fe .cl-cod {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  background: var(--fe-fondo); border: 1px solid var(--fe-linea); font: 900 16px var(--fe-titulo);
+}
+.fe .cl-lin.on .cl-cod { background: var(--fe-banda); color: #fff; border-color: var(--fe-banda) }
+.fe .cl-lin-t { display: flex; flex-direction: column; min-width: 0 }
+.fe .cl-lin-t b { font: 700 13px var(--fe-texto) }
+.fe .cl-lin-t small { font-size: 11.5px; color: var(--fe-gris); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.fe .cl-st { font: 800 9px var(--fe-titulo); letter-spacing: .1em; padding: 4px 6px; white-space: nowrap }
+.fe .cl-st.ok { background: #E3F5EA; color: #0F7A40 }
+.fe .cl-st.med { background: #FDECC8; color: #7A4B00 }
+.fe .cl-st.cur { background: var(--fe-banda); color: #fff }
+.fe .cl-st.no { background: var(--fe-fondo); color: var(--fe-gris); border: 1px solid var(--fe-linea) }
+
+.fe .cl-ficha { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 3px solid var(--fe-linea); min-width: 0 }
+.fe .cl-ficha.on { border-left-color: var(--fe-acento) }
+.fe .cl-ficha-cab { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--fe-linea); flex-wrap: wrap }
+.fe .cl-grande { font: 900 26px var(--fe-titulo); background: var(--fe-banda); color: #fff; padding: 2px 12px }
+.fe .cl-ficha-cab h2 { margin: 0; font: 800 17px var(--fe-titulo) }
+.fe .cl-ficha-cab h2 small { display: block; margin-top: 2px; font: 500 12.5px var(--fe-texto); color: var(--fe-gris) }
+.fe .cl-no { margin-left: auto; min-height: 44px; padding: 0 6px; background: none; border: 0; font: 600 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer }
+.fe .cl-cuerpo { display: flex; flex-direction: column; gap: 16px; padding: 16px 18px }
+.fe .cl-r1 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; align-items: start }
+.fe .cl-r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
+.fe .cl-depa input { min-height: 58px; font: 600 24px var(--fe-texto); font-variant-numeric: tabular-nums }
+
+/* El material: tarjeta con lo del maestro, o el buscador */
+.fe .cl-mat { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.fe .cl-mae { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 8px 10px 8px 12px; border: 1.5px solid var(--fe-tinta) }
+.fe .cl-mae-ic { width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--fe-acento); color: var(--fe-sobre) }
+.fe .cl-mae > div { min-width: 0; flex: 1 }
+.fe .cl-mae b { display: block; font: 700 14px var(--fe-texto) }
+.fe .cl-mae small, .fe .cl-busca small { display: block; font-size: 11.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
+.fe .cl-busca { display: flex; flex-direction: column; gap: 6px }
+.fe .cl-busca ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--fe-linea) }
+.fe .cl-busca li + li { border-top: 1px solid var(--fe-linea) }
+.fe .cl-busca li button { width: 100%; min-height: 48px; padding: 6px 12px; text-align: left; background: var(--fe-papel); border: 0; cursor: pointer; font: inherit; color: inherit }
+.fe .cl-busca li button b { font: 700 13.5px var(--fe-texto) }
+.fe .cl-busca .btn { align-self: flex-start; width: auto }
 
 .fe .cl-sitio {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 12px;
-  background: var(--fe-fondo); border: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 14px;
+  background: var(--fe-fondo); border: 0; min-width: 0;
 }
-.fe .cl-sitio legend { padding: 0; margin-bottom: 8px; font: 800 13px var(--fe-titulo); float: left; width: 100%; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
-.fe .cl-sitio legend i { font: 500 12px var(--fe-texto); color: var(--fe-gris-panel); font-style: normal }
-.fe .cl-sitio > label { display: flex; flex-direction: column; gap: 4px; min-width: 0; clear: left }
+.fe .cl-leg { grid-column: 1 / -1; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.fe .cl-leg b { font: 800 14px var(--fe-titulo) }
+.fe .cl-leg i { font: 500 12px var(--fe-texto); color: var(--fe-gris-panel); font-style: normal }
+.fe .cl-sitio > label { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
 .fe .cl-sitio > label > span { font-size: 11.5px; font-weight: 600; color: var(--fe-gris-panel) }
 .fe .cl-cant-c { grid-column: 1 / 3 }
+.fe .cl-cant-c input { font: 800 20px var(--fe-titulo); font-variant-numeric: tabular-nums }
 .fe .cl-unidad { display: flex; align-self: end }
 .fe .cl-unidad button {
   flex: 1; min-height: 44px; padding: 0 12px; border: 1px solid var(--fe-linea); cursor: pointer;
@@ -85,14 +139,45 @@
 .fe .cl-unidad button + button { border-left: 0 }
 .fe .cl-unidad button.on { background: var(--fe-acento); color: var(--fe-sobre); border-color: var(--fe-acento) }
 .fe .cl-eco { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--fe-gris-panel); font-variant-numeric: tabular-nums }
+.fe .cl-eco.aviso { color: #7A4B00 }
 
-.fe .cl-guardar { position: sticky; bottom: 0; padding: 10px 0; background: var(--fe-fondo) }
-.fe .cl-guardar .btn { width: 100% }
+.fe .cl-ir { background: none; border: 0; padding: 0; min-height: 44px; font: inherit; color: inherit; text-align: left; text-decoration: underline; cursor: pointer }
 
+.fe .cl-guardar {
+  position: sticky; bottom: 0; z-index: 3; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 0; background: var(--fe-fondo); border-top: 1px solid var(--fe-linea);
+}
+.fe .cl-prog { display: flex; align-items: center; gap: 12px; margin-right: auto; font-size: 13px; color: var(--fe-gris) }
+.fe .cl-prog b { color: var(--fe-tinta) }
+.fe .cl-progbar { width: 160px; height: 6px; background: var(--fe-linea) }
+.fe .cl-progbar i { display: block; height: 100%; background: var(--fe-bien) }
+.fe .cl-guardar .btn { width: auto; padding: 0 22px }
+
+@media (max-width: 900px) {
+  .fe .cl-grid { grid-template-columns: 1fr }
+  .fe .cl-r1, .fe .cl-r2 { grid-template-columns: 1fr }
+  .fe .cl-flujo { display: grid; grid-template-columns: repeat(3, 1fr) }
+  .fe .cl-flujo li { min-width: 0; padding: 10px }
+  /* En pantalla angosta las líneas van arriba, la línea abajo, y la fecha y la
+     nota al final: lo que se toca a cada rato queda a la mano. */
+  .fe .cl-barra { display: contents }
+  .fe .cl-lineas { order: 1 }
+  .fe .cl-ficha { order: 2 }
+  .fe .cl-barra > .cl-cuando { order: 3; padding: 0 2px }
+  .fe .cl-lineas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px }
+  .fe .cl-lin { grid-template-columns: 1fr; justify-items: center; gap: 6px; min-height: 0; padding: 8px 4px; background: var(--fe-papel); border-color: var(--fe-linea) }
+  .fe .cl-lin.on { background: color-mix(in srgb, var(--fe-acento) 14%, #fff); border-color: color-mix(in srgb, var(--fe-acento) 45%, #fff) }
+  .fe .cl-lin-t { display: none }
+  .fe .cl-lin .cl-st { font-size: 8px; padding: 3px 4px }
+}
 @media (max-width: 720px) {
   .fe .cl-lado { grid-template-columns: 1fr; gap: 2px }
   .fe .cl-acciones .btn { width: 100% }
   .fe .cl-sitio { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .fe .cl-cant-c { grid-column: 1 / -1 }
-  .fe .cl-unidad { grid-column: 1 / -1 }
+  .fe .cl-cant-c, .fe .cl-unidad { grid-column: 1 / -1 }
+  .fe .cl-progbar { display: none }
+  .fe .cl-prog { flex-basis: 100%; font-size: 12px }
+  .fe .cl-guardar { gap: 8px; padding: 8px 0 }
+  .fe .cl-guardar .btn { flex: 1 1 0; min-width: 0; height: auto; min-height: 44px; padding: 4px 6px; font-size: 12.5px; line-height: 1.15; white-space: normal }
+  .fe .cl-guardar .cl-go { flex: 1.4 1 0 }
 }
