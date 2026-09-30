@@ -75,7 +75,7 @@ await pg.fill('input[placeholder="Teclea el código"]', "");
 await pg.focus('input[placeholder="Teclea el código"]');
 await pg.keyboard.type("900");
 await pg.waitForTimeout(50);
-ok(await pg.evaluate(() => document.activeElement === document.querySelector(".fe-cuanto-campo input")), "un envase completo no salta a la cantidad");
+ok(await pg.evaluate(() => document.activeElement?.getAttribute("placeholder") === "DD"), "un envase completo no salta a Vence: un solo camino, código → vence → cantidad");
 await pg.fill('input[placeholder="Teclea el código"]', "");
 /* LA TARJETA DE LA ÚLTIMA VEZ: «Sigue igual» llena y NO guarda; «Cambió
    cantidad» deja todo igual —fecha incluida— y el cursor en la cantidad;

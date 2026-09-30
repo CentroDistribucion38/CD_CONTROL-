@@ -47,6 +47,9 @@ import { Buscador } from "@/components/Buscador";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
+import {
+  esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado,
+} from "@/modulos/inventario/cola";
 
 type Conteo = { id: string; codigo: string; estado: string; iniciado_en: string | null };
 
@@ -226,6 +229,25 @@ export function Contar({
   const [fCalle, setFCalle] = useState("");
   const [fModulo, setFModulo] = useState("");
   const [b, setB] = useState<Borrador>(VACIO);
+
+  /* ---------- LA COLA SIN SEÑAL ----------
+     Si la señal se cae con la pantalla abierta, cada renglón NUEVO que no
+     se pueda mandar se guarda en el teléfono como «pendiente» y se sube
+     solo cuando la señal vuelve (o con «Enviar ahora»). Lo ya anotado con
+     señal no está aquí: ya está en la base, a salvo. Corregir un renglón
+     que ya existe SÍ necesita señal. La lógica vive en
+     modulos/inventario/cola.ts, para poder probarla sola. */
+  const llaveCola = conteo ? `fefo.cola.${conteo.id}` : null;
+  /* ARRANCA VACÍA Y SE LEE EN EL NAVEGADOR: el servidor no tiene el
+     teléfono, y leerlo al renderizar haría que lo pintado en el servidor
+     y lo del navegador no coincidieran. */
+  const [cola, setCola] = useState<ItemCola<Borrador>[]>([]);
+  const colaRef = useRef<ItemCola<Borrador>[]>([]);
+  const [enLinea, setEnLinea] = useState(true);
+  const [enviandoCola, setEnviandoCola] = useState(false);
+  const colaOcupada = useRef(false);
+  /* Lo pone `idDeLaPosicion` cuando lo que falló fue la RED y no la base. */
+  const huboRed = useRef(false);
   const campoCalle = useRef<HTMLInputElement>(null);
   const campoCodigo = useRef<HTMLInputElement>(null);
   const grupoLado = useRef<HTMLDivElement>(null);
@@ -674,10 +696,14 @@ export function Contar({
     router.refresh();
   }
 
-  async function releer(id: string) {
-    const { data } = await supabase.from("v_conteo_fefo").select("*")
+  async function releer(id: string): Promise<Renglon[] | null> {
+    const { data, error } = await supabase.from("v_conteo_fefo").select("*")
       .eq("conteo_id", id).order("contado_en", { ascending: false }).limit(2000);
-    setRenglones((data ?? []) as Renglon[]);
+    /* SIN SEÑAL NO SE PISA LO QUE HAY: una lectura que falla no puede
+       dejar la lista en blanco. */
+    if (error || !data) return null;
+    setRenglones(data as Renglon[]);
+    return data as Renglon[];
   }
 
   function revisar(bb: Borrador): string | null {
@@ -741,6 +767,7 @@ export function Contar({
       p_bodega: bodegaId, p_calle: calle, p_modulo: modulo, p_lado: bb.lado || null,
     });
     if (error) {
+      if (esFalloDeRed(error.message)) { huboRed.current = true; return null }
       avisar.mal(/does not exist|schema cache/i.test(error.message)
         ? "Falta correr supabase/migraciones/2026-09-conteo-preanotacion.sql en Supabase."
         : error.message);
@@ -788,20 +815,153 @@ export function Contar({
    * que se toque en uno queda distinta en el otro, y el renglón
    * confirmado saldría del mismo módulo con otras cuentas.
    */
+  const SIN_SENAL_CORREGIR =
+    "Sin señal: corregir un renglón que ya está en la base necesita conexión. Espera a tener señal.";
+
+  /* La ubicación de un borrador, como la resuelve el formulario. */
+  const ubicacionDe = (bb: Borrador): Ubicacion | null => {
+    if (!bb.base) return null;
+    const delModulo = ubicaciones.filter((u) => u.activa && claveBase(u) === bb.base);
+    if (delModulo.length === 1 && (delModulo[0].lado ?? "") === "") return delModulo[0];
+    return delModulo.find((u) => (u.lado ?? "") === bb.lado) ?? null;
+  };
+
+  function ponerCola(nueva: ItemCola<Borrador>[]) {
+    colaRef.current = nueva;
+    setCola(nueva);
+    guardarCola(llaveCola, nueva);
+  }
+
+  /* El renglón queda pendiente en el teléfono y el formulario queda listo
+     para el siguiente: contar no se detiene porque no haya señal. */
+  function encolar(bb: Borrador, mat: Material, idU: string | null = null) {
+    const u = ubicacionDe(bb);
+    const [calle, modulo] = bb.base.split("|");
+    const it: ItemCola<Borrador> = {
+      id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      t: Date.now(), bb, sku: mat.sku,
+      lugar: u?.clave ?? `${calle}${modulo}${bb.lado ? "_" + bb.lado : ""}`,
+      ubicacionId: idU ?? u?.id ?? null,
+    };
+    const nueva = [...colaRef.current, it];
+    ponerCola(nueva);
+    setGuardando(false);
+    avisar.info(`${mat.sku} quedó pendiente en este teléfono (${nueva.length}).`);
+    limpiar(true);
+  }
+
+  /* MANDA LOS PENDIENTES, de a uno y en orden. Se corta con la primera
+     señal caída sin perder lo que falta. */
+  async function enviarCola(manual = false) {
+    if (!conteo || colaOcupada.current) return;
+    const pend = colaRef.current;
+    if (pend.length === 0) return;
+    if (!navigator.onLine) {
+      if (manual) avisar.mal("Todavía no hay señal. Los renglones siguen guardados en este teléfono.");
+      return;
+    }
+    colaOcupada.current = true; setEnviandoCola(true);
+    try {
+      const r = await vaciarCola(pend, async (it): Promise<Resultado> => {
+        const mat = materiales.find((m) => m.sku === it.sku);
+        if (!mat) return { error: "Ese material ya no está en el maestro." };
+        let idU = it.ubicacionId ?? ubicacionDe(it.bb)?.id ?? null;
+        if (!idU) {
+          const [calle, modulo] = it.bb.base.split("|");
+          const { data, error } = await supabase.rpc("conteo_ubicacion_asegurar", {
+            p_bodega: bodegaId, p_calle: calle, p_modulo: modulo, p_lado: it.bb.lado || null,
+          });
+          if (error) return esFalloDeRed(error.message) ? { red: true } : { error: error.message };
+          idU = data as string;
+        }
+        const { error } = await supabase.rpc("conteo_fefo_agregar", { p_conteo: conteo.id, ...argumentos(it.bb, mat, idU) });
+        if (!error) return { ok: true };
+        return esFalloDeRed(error.message) ? { red: true } : { error: error.message };
+      });
+
+      let quedan = r.quedan;
+      const fresca = await releer(conteo.id);
+      let yaEstaban = 0;
+      /* UN «YA EXISTE UNO IGUAL» PUEDE SER EL MISMO RENGLÓN: la señal se
+         cayó DESPUÉS de que llegó, antes de la respuesta. Si lo que hay en
+         la base es lo mismo —material, módulo y cantidades—, el pendiente
+         se quita solo. Si la cantidad es otra, se queda y se avisa. */
+      if (fresca) {
+        quedan = quedan.filter((it) => {
+          if (!it.duplicado) return true;
+          const igual = fresca.some((x) =>
+            x.codigo === it.sku && x.ubicacion === it.lugar &&
+            (it.bb.modo === "estibas"
+              ? (x.estibas ?? null) === ent(it.bb.estibas) && (x.saldo ?? null) === ent(it.bb.saldo)
+              : (x.cajas ?? null) === ent(it.bb.cajas)));
+          if (igual) yaEstaban++;
+          return !igual;
+        }).map((it) => it.duplicado
+          ? { ...it, error: "Ya hay un renglón igual en ese módulo con OTRA cantidad. Quita este, o corrige el otro en «El borrador»." }
+          : it);
+      }
+      ponerCola(quedan);
+      const subidos = r.enviados.length + yaEstaban;
+      if (subidos > 0) avisar.bien(`${subidos} ${subidos === 1 ? "renglón pendiente enviado" : "renglones pendientes enviados"}.`);
+      if (quedan.some((x) => x.error)) avisar.mal("Hay pendientes que la base no aceptó. Míralos arriba.");
+      else if (quedan.length > 0 && manual) avisar.mal("Se cortó la señal. Quedan pendientes en este teléfono.");
+    } finally {
+      colaOcupada.current = false; setEnviandoCola(false);
+    }
+  }
+  /* El evento «online» se registra UNA vez: apunta siempre a la última versión. */
+  const enviarColaRef = useRef(enviarCola);
+  enviarColaRef.current = enviarCola;
+
+  useEffect(() => {
+    const guardada = leerCola<Borrador>(llaveCola);
+    colaRef.current = guardada;
+    setCola(guardada);
+    setEnLinea(navigator.onLine);
+    const sube = () => { setEnLinea(true); void enviarColaRef.current() };
+    const baja = () => setEnLinea(false);
+    window.addEventListener("online", sube);
+    window.addEventListener("offline", baja);
+    /* Si se abrió con pendientes y hay señal, se suben de una vez. */
+    if (navigator.onLine && colaRef.current.length > 0) void enviarColaRef.current();
+    return () => { window.removeEventListener("online", sube); window.removeEventListener("offline", baja) };
+  }, []);
+
   async function guardar(bb: Borrador) {
     if (!conteo) return;
     const mal = revisar(bb);
     if (mal) { avisar.mal(mal); return }
     const mat = materialDe(bb)!;
 
+    /* SIN SEÑAL, UN RENGLÓN NUEVO SE GUARDA EN EL TELÉFONO. Corregir uno
+       que ya está en la base necesita la base: ahí sí se avisa. */
+    if (!navigator.onLine) {
+      if (corrigiendo) { avisar.mal(SIN_SENAL_CORREGIR); return }
+      encolar(bb, mat); return;
+    }
+
     setGuardando(true);
+    huboRed.current = false;
     const idU = await idDeLaPosicion(bb);
-    if (!idU) { setGuardando(false); return }
+    if (!idU) {
+      setGuardando(false);
+      if (huboRed.current) {
+        huboRed.current = false;
+        if (corrigiendo) avisar.mal(SIN_SENAL_CORREGIR); else encolar(bb, mat);
+      }
+      return;
+    }
     const { error } = corrigiendo
       ? await supabase.rpc("conteo_fefo_editar", { p_linea: corrigiendo, ...argumentos(bb, mat, idU) })
       : await supabase.rpc("conteo_fefo_agregar", { p_conteo: conteo.id, ...argumentos(bb, mat, idU) });
     setGuardando(false);
-    if (error) { avisar.mal(error.message); return }
+    if (error) {
+      if (esFalloDeRed(error.message)) {
+        if (corrigiendo) avisar.mal(SIN_SENAL_CORREGIR); else encolar(bb, mat, idU);
+        return;
+      }
+      avisar.mal(error.message); return;
+    }
 
     /* Se vuelve a leer la vista en vez de armar el renglón aquí: las seis
        cuentas las hace la base, y calcularlas otra vez en la pantalla es
@@ -940,6 +1100,10 @@ export function Contar({
 
   async function enviar() {
     if (!conteo) return;
+    if (cola.length > 0) {
+      avisar.mal(`Hay ${cola.length} ${cola.length === 1 ? "renglón" : "renglones"} sin enviar en este teléfono. Primero deben subirse: con señal, toca «Enviar ahora».`);
+      return;
+    }
     const ok = await pedir({
       titulo: "¿Enviar el conteo?",
       dice: <>Van <b>{renglones.length}</b> renglones en{" "}
@@ -1019,6 +1183,36 @@ export function Contar({
       {/* LAS DOS PESTAÑAS. El borrador lleva su cuenta al lado: es lo que
           dice si vale la pena ir a mirarlo, y contando de pie no se
           puede estar cambiando de pantalla para averiguarlo. */}
+      {(!enLinea || cola.length > 0) && (
+        <section className={"fe-cola" + (!enLinea ? " sin" : "")} role="status" aria-live="polite">
+          <p>
+            {!enLinea && <><b>Sin señal.</b> Lo que anotes queda guardado en este teléfono y se envía solo cuando vuelva. </>}
+            {cola.length > 0 && <><b>{cola.length}</b> {cola.length === 1 ? "renglón" : "renglones"} sin enviar.</>}
+          </p>
+          {cola.length > 0 && enLinea && (
+            <button type="button" className="fe-mini" disabled={enviandoCola} onClick={() => enviarCola(true)}>
+              {enviandoCola ? "Enviando…" : "Enviar ahora"}
+            </button>
+          )}
+          {cola.length > 0 && (
+            <details open={cola.some((x) => x.error)}>
+              <summary>Ver los pendientes</summary>
+              <ul>
+                {cola.map((it) => (
+                  <li key={it.id}>
+                    <span><b>{it.sku}</b> · {it.lugar}{it.error && <em> — {it.error}</em>}</span>
+                    <button type="button" className="fe-mini" disabled={enviandoCola}
+                            onClick={() => ponerCola(colaRef.current.filter((x) => x.id !== it.id))}>
+                      Quitar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
+
       <div className="fe-pes fe-pes-conteo" role="tablist">
         <button type="button" role="tab" aria-selected={pestania === "anotar"}
                 className={pestania === "anotar" ? "on" : ""}
@@ -1028,7 +1222,7 @@ export function Contar({
         <button type="button" role="tab" aria-selected={pestania === "borrador"}
                 className={pestania === "borrador" ? "on" : ""}
                 onClick={() => setPestania("borrador")}>
-          El borrador<em>{renglones.length}</em>
+          El borrador<em>{renglones.length}{cola.length > 0 ? ` +${cola.length}` : ""}</em>
         </button>
       </div>
 
@@ -1513,7 +1707,7 @@ export function Contar({
             </p>
           </div>
           <span>
-            {renglones.length} renglón{renglones.length === 1 ? "" : "es"} ·{" "}
+            {renglones.length} {renglones.length === 1 ? "renglón" : "renglones"} ·{" "}
             {modulosHechos} módulo{modulosHechos === 1 ? "" : "s"} ·{" "}
             {nf.format(cajasTotal)} cajas
           </span>
@@ -1544,7 +1738,7 @@ export function Contar({
           <div className={"fe-alerta" + (cortos.length > 0 ? " mal" : "")}>
             {cortos.length > 0 && (
               <p>
-                <b>{cortos.length} renglón{cortos.length > 1 ? "es" : ""} ya se pasó de su
+                <b>{cortos.length} {cortos.length > 1 ? "renglones" : "renglón"} ya se pasó de su
                 fecha de salida</b> — {cortos.slice(0, 6).map((r) => r.codigo).join(" · ")}
                 {cortos.length > 6 && ` y ${cortos.length - 6} más`}. No es que esté vencido:
                 es que ya no alcanza a llegar al cliente con vida útil suficiente.
@@ -1602,7 +1796,7 @@ export function Contar({
 
         {claveEscogida && deAqui.length > 0 && !filtrando && (
           <p className="fe-aqui">
-            En <b>{claveEscogida}</b> llevas {deAqui.length} renglón{deAqui.length > 1 ? "es" : ""}{" "}
+            En <b>{claveEscogida}</b> llevas {deAqui.length} {deAqui.length > 1 ? "renglones" : "renglón"}{" "}
             ({nf.format(cajasAqui)} cajas)
           </p>
         )}

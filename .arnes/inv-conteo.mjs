@@ -1038,9 +1038,14 @@ if (!/v_conteo_ultimo_por_ubicacion/.test(limpio))
   if (!/Otro SKU/.test(limpio) || !/Cambió cantidad/.test(limpio))
     fallas.push("la tarjeta no ofrece las tres respuestas: sigue igual, cambió cantidad, otro SKU");
 }
-if ((limpio.match(/conteo_fefo_agregar/g) ?? []).length !== 1)
-  fallas.push("hay más de un sitio que agrega renglones: las dos formas de anotar pueden " +
-              "discrepar");
+/* DOS SITIOS Y NO MÁS: `guardar` (lo que se anota con señal) y `enviarCola` (lo que quedó
+   pendiente sin señal). Los dos arman los parámetros con LA MISMA función `argumentos`:
+   con parámetros distintos, el renglón que esperó en el teléfono saldría del mismo módulo
+   con otras cuentas. */
+if ((limpio.match(/conteo_fefo_agregar/g) ?? []).length !== 2 ||
+    (limpio.match(/conteo_fefo_agregar",\s*\{\s*p_conteo: conteo\.id,\s*\.\.\.argumentos\(/g) ?? []).length !== 2)
+  fallas.push("los sitios que agregan renglones son más de dos o no arman sus parámetros con " +
+              "`argumentos`: lo anotado y lo pendiente pueden discrepar");
 /* Y LO QUE SE GUARDA ES LA TARJETA, no el renglón que se estaba
    tecleando. `guardar` recibe el borrador; si leyera el del estado,
    confirmar una tarjeta guardaría el material a medio escribir. */
