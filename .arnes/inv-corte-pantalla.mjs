@@ -106,7 +106,7 @@ const eligeUbi = async (n, calle, modulo, lado) => {
 
 if (process.env.SHOT) {
   const [qq, w, ruta, tocar] = process.env.SHOT.split("@");
-  await monta(qq, Number(w));
+  await monta(qq, Number(w), process.env.TEMA ?? "");
   if (tocar) await pg.click(`button:has-text("${tocar}")`);
   if (process.env.UP) console.log(await pg.evaluate(() => { let e = document.querySelector(".cl-nota"); const o = []; while (e && e.id !== "r") { o.push(e.tagName + "." + e.className + ":" + getComputedStyle(e).textTransform); e = e.parentElement } return o.join(" < ") }));
   await pg.screenshot({ path: ruta, fullPage: true });
@@ -306,6 +306,19 @@ await monta("c=todo");
   ok(r.length === 1 && r[0].a.p_tipo === "final" && r[0].a.p_inicial === "i2" && r[0].a.p_cortado === "2026-09-30T17:00:00.000Z" && r[0].a.p_nota === "L4 vuelve a las 3", "el final no viaja atado a su inicial: " + JSON.stringify(r[0].a).slice(0, 200));
   ok(r[0].a.p_renglones.length === 1 && r[0].a.p_renglones[0].linea === "L1", "solo debía viajar L1 (la única tocada): " + JSON.stringify(r[0].a.p_renglones).slice(0, 200));
   ok(/Corte final guardado/.test(await txt()), "no avisó del final");
+}
+
+/* ---------- 4b · EL COLOR ES EL DEL TEMA ELEGIDO (en negro/gris/halo: ámbar; el rojo es solo «ojo con esto») ---------- */
+for (const tema of ["negro", "gris", "halo"]) {
+  await monta("c=todo", 1440, tema);
+  await pg.click('button:has-text("Nuevo corte inicial")');
+  const c = await pg.evaluate(() => {
+    const col = (q, p = "color") => getComputedStyle(document.querySelector(q))[p];
+    return { paso: col(".cl-flujo li.on span"), guardar: col(".cl-go", "backgroundColor"), unidad: col(".cl-unidad .on", "backgroundColor"),
+             marca: getComputedStyle(document.querySelector(".fe")).getPropertyValue("--c-marca").trim() || getComputedStyle(document.querySelector(".sh")).getPropertyValue("--c-marca").trim() };
+  });
+  ok(c.paso === "rgb(255, 192, 0)", `tema ${tema}: «PASO 1» no es ámbar sino ${c.paso}`);
+  ok(c.guardar === "rgb(255, 192, 0)" && c.unidad === "rgb(255, 192, 0)", `tema ${tema}: los botones no son ámbar: ${c.guardar} / ${c.unidad}`);
 }
 
 /* ---------- 5 · NADA SE SALE, EN CUATRO ANCHOS ---------- */

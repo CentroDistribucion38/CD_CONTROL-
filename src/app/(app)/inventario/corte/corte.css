@@ -57,7 +57,7 @@
 .fe .cl-flujo b { font: 800 14px var(--fe-titulo) }
 .fe .cl-flujo small { font-size: 11.5px; color: var(--fe-gris) }
 .fe .cl-flujo li.on { background: var(--fe-banda); color: #fff }
-.fe .cl-flujo li.on span { color: var(--fe-aviso) }
+.fe .cl-flujo li.on span { color: var(--fe-acento) }
 .fe .cl-flujo li.on small { color: #C9D1DC }
 
 /* ---------- El formulario: lista de líneas a la izquierda, la línea a la derecha ---------- */
