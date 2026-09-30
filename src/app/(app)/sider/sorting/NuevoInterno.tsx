@@ -136,17 +136,27 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
       ? null : Number(mat.unidades_x_caja) * cajas;
     const hl = unidades == null || mat.hl_x_unidad == null
       ? null : Number(mat.hl_x_unidad) * unidades;
-    return { sider: nEst / estibasPorSider, cajas, unidades, hl };
+    /* QUÉ FACTOR FALTA, dicho por su nombre, para que quien ve el aviso
+       sepa qué completar en el Maestro. */
+    const sin = mat.cajas_x_estiba == null ? "factor de estiba"
+      : mat.unidades_x_caja == null ? "unidades por caja"
+      : mat.hl_x_unidad == null ? "factor de HL" : null;
+    return { sider: nEst / estibasPorSider, cajas, unidades, hl, sin };
   };
-  const der = useMemo(() => {
-    const cs = lineas.map(cifrasDe);
-    if (cs.some((c) => c === null)) return null;
-    const suma = (f: "cajas" | "unidades" | "hl") =>
-      cs.some((c) => c![f] == null) ? null : cs.reduce((a, c) => a + (c![f] as number), 0);
-    return {
-      sider: cs.reduce((a, c) => a + c!.sider, 0),
-      cajas: suma("cajas"), unidades: suma("unidades"), hl: suma("hl"),
+
+  /* EL TOTAL DEL CAMIÓN. Suma lo que se sabe y DICE QUÉ MATERIAL FALTA:
+     mostrar solo la suma parcial sería un número que engaña, y mostrar
+     «—» por un solo material sin factores esconde lo que sí se sabe.
+     Sin ningún dato queda «—», nunca un cero que parezca un dato. */
+  const total = useMemo(() => {
+    const cs = lineas.map((l) => ({ c: cifrasDe(l) }));
+    const campo = (f: "sider" | "cajas" | "unidades" | "hl") => {
+      const con = cs.filter((x) => x.c && x.c[f] != null);
+      if (con.length === 0) return { v: null as number | null, falta: [] as number[] };
+      const falta = cs.map((x, i) => (x.c && x.c[f] != null ? 0 : i + 1)).filter(Boolean);
+      return { v: con.reduce((a, x) => a + (x.c![f] as number), 0), falta };
     };
+    return { sider: campo("sider"), cajas: campo("cajas"), unidades: campo("unidades"), hl: campo("hl") };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineas, skus, estibasPorSider]);
 
@@ -209,6 +219,14 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
         </p>
 
         <div className="nv-campos">
+          <label className="nv-doc">
+            <span>Documento (factura)</span>
+            <input value={factura} maxLength={DOC_MAX} inputMode="numeric" autoComplete="off" required aria-required="true"
+                   placeholder="Número de factura" aria-describedby="nv-doc-ayuda"
+                   onChange={(e) => setFactura(limpiaDoc(e.target.value))} />
+            <small id="nv-doc-ayuda">Solo números, hasta {DOC_MAX} dígitos</small>
+          </label>
+
           <label className="nv-placa">
             <span>Placa</span>
             <input value={placa} autoFocus maxLength={6} autoCapitalize="characters"
@@ -244,24 +262,19 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
             </p>
           )}
 
-          <label className="nv-doc">
-            <span>Documento (factura)</span>
-            <input value={factura} maxLength={DOC_MAX} inputMode="numeric" autoComplete="off" required aria-required="true"
-                   placeholder="Número de factura" aria-describedby="nv-doc-ayuda"
-                   onChange={(e) => setFactura(limpiaDoc(e.target.value))} />
-            <small id="nv-doc-ayuda">Solo números, hasta {DOC_MAX} dígitos</small>
-          </label>
-
           {/* LOS MATERIALES DE ESA FACTURA. Cada uno con SU cantidad de
               estibas; el «+» de abajo agrega otro. */}
           {lineas.map((l, i) => {
             const mat = skus.find((k) => k.sku === l.sku);
             const c = cifrasDe(l);
+            /* «pend»: a esta línea le falta algo —material, estibas o
+               factores del maestro— y el borde lo dice sin leer. */
+            const pend = !c || !!c.sin;
             return (
-              <div key={l.k} className="nv-linea ancho">
+              <div key={l.k} className={"nv-linea ancho" + (pend ? " pend" : "")}>
                 {lineas.length > 1 && (
                   <div className="nv-linea-cab">
-                    <span>Material {i + 1} de {lineas.length}</span>
+                    <span><i aria-hidden="true">{i + 1}</i>Material {i + 1} de {lineas.length}</span>
                     <button type="button" className="tr-adm" onClick={() => quita(l.k)}
                             aria-label={`Quitar el material ${i + 1}`}>Quitar</button>
                   </div>
@@ -305,11 +318,17 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
                   <input value={l.estibas} inputMode="decimal" autoComplete="off" placeholder="0"
                          onChange={(e) => cambia(l.k, { estibas: e.target.value })} />
                 </label>
-                {lineas.length > 1 && (
-                  <p className="nv-lin-cif">
-                    {c ? `${c.cajas == null ? "—" : nf.format(c.cajas)} cajas · ${c.unidades == null ? "—" : nf.format(c.unidades)} unidades` : "Escoge el material y las estibas"}
+                {c && (c.sin ? (
+                  <p className="nv-lin-cif no">
+                    <span>Sin {c.sin} en el maestro</span>
+                    {" · "}
+                    <a href="/sider/maestro" target="_blank" rel="noopener">completar</a>
                   </p>
-                )}
+                ) : (
+                  <p className="nv-lin-cif ok">
+                    <span><b>{c.cajas == null ? "—" : nf.format(c.cajas)}</b> cajas · <b>{c.unidades == null ? "—" : nf.format(c.unidades)}</b> unidades</span>
+                  </p>
+                ))}
               </div>
             );
           })}
@@ -325,10 +344,16 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
             material no trae factores en el maestro se dice «—», no cero. */}
         {lineas.length > 1 && <p className="nv-total">Total de los {lineas.length} materiales</p>}
         <dl className="nv-cifras" aria-label="Cifras calculadas">
-          <div><dt>Sider</dt><dd>{der ? nf2.format(der.sider) : "—"}</dd></div>
-          <div><dt>Cajas</dt><dd>{der?.cajas == null ? "—" : nf.format(der.cajas)}</dd></div>
-          <div><dt>Unidades</dt><dd>{der?.unidades == null ? "—" : nf.format(der.unidades)}</dd></div>
-          <div><dt>HL</dt><dd>{der?.hl == null ? "—" : nf2.format(der.hl)}</dd></div>
+          {([["Sider", total.sider, nf2], ["Cajas", total.cajas, nf], ["Unidades", total.unidades, nf], ["HL", total.hl, nf2]] as const)
+            .map(([rot, c, f]) => (
+              <div key={rot}>
+                <dt>{rot}</dt>
+                <dd>{c.v == null ? "—" : f.format(c.v)}</dd>
+                {c.v != null && c.falta.length > 0 && (
+                  <i>falta mat. {c.falta.join(", ")}</i>
+                )}
+              </div>
+            ))}
         </dl>
 
         {mal && <p className="vj-mal" role="alert">{mal}</p>}

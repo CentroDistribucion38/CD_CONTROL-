@@ -880,6 +880,18 @@ await monta("m=sorting&c=normal");
   const fs = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(14 / 36));
   ok(tot.Sider === fs, `el total de siders no suma las dos líneas: ${JSON.stringify(tot)} (debía ${fs})`);
   ok(/Total de los 2 materiales/.test(await txt()), "no dice que las cifras son el total");
+  /* UN MATERIAL SIN FACTORES: se dice cuál y qué falta, y el total suma lo que sí se sabe. */
+  await pg.click(".nv-linea >> nth=1 >> button:has-text('Cambiar')");
+  await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "azul"); await pg.click(".nv-linea >> nth=1 >> .nv-lista button");
+  ok(/Sin factor de estiba en el maestro/.test(await pg.$eval(".nv-linea >> nth=1", (e) => e.textContent)), "no dice qué factor falta");
+  ok(await pg.$eval(".nv-linea >> nth=1 >> .nv-lin-cif a", (e) => e.getAttribute("href")) === "/sider/maestro", "«completar» no lleva al Maestro");
+  ok(await pg.$eval(".nv-linea >> nth=1", (e) => e.classList.contains("pend")), "la línea sin factores no queda marcada");
+  const par = await pg.$$eval(".nv-cifras div", (x) => Object.fromEntries(x.map((d) => [d.querySelector("dt").textContent, d.textContent])));
+  ok(/falta mat\. 2/.test(par.Cajas) && /falta mat\. 2/.test(par.Unidades), `el total parcial no avisa qué material falta: ${JSON.stringify(par)}`);
+  ok(!/falta mat/.test(par.Sider), "los siders sí se suman de los dos y no debían avisar");
+  ok(!(await crear.isDisabled()), "un material sin factores no debe impedir crear el camión");
+  await pg.click(".nv-linea >> nth=1 >> button:has-text('Cambiar')");
+  await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "ámbar"); await pg.click(".nv-linea >> nth=1 >> .nv-lista button");
   await crear.click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];

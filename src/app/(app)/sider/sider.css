@@ -3343,104 +3343,165 @@
 /* EL «+» NO TAPA LO ÚLTIMO: la pantalla deja bajo el final el alto del botón
    redondo, para que el «Corregir» del último renglón se pueda tocar. */
 .sd.so-pantalla { padding-bottom: 96px }
-.sd .nv-placa small, .sd .nv-doc small { font-size: 11.5px; color: var(--sd-gris) }
-.sd .nv-placa small.mal { color: var(--sd-mal); font-weight: 700 }
+/* =====================================================================
+   EL CUADRO DEL «+» — CREAR UN VH INTERNO
+   Diseño de la casa: amarillo y negro, sobre blanco. Lleva su paleta
+   propia y NO la del tema: es un cuadro sobre un velo y tiene que leerse
+   igual en los siete. Las variables viven solo aquí.
+   ===================================================================== */
+.sd .vj-caja.nuevo {
+  --ac: #FFC400; --ac2: #FFF6D1; --tn: #0D0D0D; --ln: #E4E4DF; --gr: #6B6F6B; --ok: #16A75A; --amb: #8A5A00;
+  max-width: 585px; padding: 26px 28px 24px; margin-block: auto;
+  background: #fff; color: var(--tn); border-top: 4px solid var(--ac); border-radius: 0;
+}
+.sd .vj-velo:has(.vj-caja.nuevo) { align-items: start }
+.sd .vj-caja.nuevo .vj-ojo {
+  margin: 0; font: 600 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--gr);
+}
+.sd .vj-caja.nuevo h3 { font: 800 21px "Archivo", system-ui, sans-serif; margin: 6px 0 10px; color: var(--tn) }
+.sd .vj-caja.nuevo .vj-dice { font-size: 13.5px; line-height: 1.55; margin: 0 0 22px; color: #2E302E }
 
-/* El cuadro del «+»: mismo velo que corregir y anular, pero con el borde
-   de la casa y no rojo —esto no destruye nada—, y más ancho. */
-.sd .vj-caja.nuevo { max-width: 560px; border-top-color: var(--sd-acento) }
-.sd .vj-caja.nuevo .btn:not(.plano) { min-width: 200px }
 .sd .nv-campos {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px;
-  margin-bottom: 14px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 14px; margin-bottom: 14px;
 }
-.sd .nv-campos label { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.sd .nv-campos label { display: flex; flex-direction: column; gap: 0; min-width: 0 }
 .sd .nv-campos .ancho { grid-column: 1 / -1 }
-.sd .nv-campos label > span, .sd .nv-rot { font-size: 12px; font-weight: 600; color: var(--c-2c4361) }
-.sd .nv-rot em, .sd .nv-mas summary em { font-style: normal; font-weight: 500; color: var(--sd-gris); margin-left: 4px }
-.sd .nv-campos input, .sd .nv-campos select, .sd .nv-material > input {
-  height: 44px; padding: 0 12px; width: 100%; box-sizing: border-box;
-  font: 500 15px var(--sd-texto); color: var(--sd-tinta);
-  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 2px;
+.sd .nv-campos label > span, .sd .nv-campos .nv-rot {
+  display: block; font: 600 12.5px "IBM Plex Sans", system-ui, sans-serif; margin-bottom: 8px; color: var(--tn);
 }
-.sd .nv-campos input:focus, .sd .nv-campos select:focus, .sd .nv-material > input:focus {
-  outline: none; border-color: var(--sd-acento); box-shadow: 0 0 0 3px var(--c-raya);
+.sd .nv-campos .nv-rot em { font-style: normal; font-weight: 400; color: var(--gr); margin-left: 4px }
+.sd .nv-campos input, .sd .nv-campos select, .sd .nv-material > input {
+  width: 100%; height: 44px; box-sizing: border-box; padding: 0 12px; border-radius: 0;
+  border: 1px solid #D4D4CE; background: #fff; color: var(--tn); outline: none;
+  font: 600 15px "IBM Plex Sans", system-ui, sans-serif;
+}
+.sd .nv-campos input:focus, .sd .nv-campos select:focus, .sd .nv-campos .nv-material > input:focus {
+  border-color: var(--tn); box-shadow: 0 0 0 3px #FFE9A3; outline: none;
 }
 .sd .nv-campos select[aria-invalid="true"] { border-color: var(--sd-mal) }
-.sd .nv-placa input { font: 800 17px var(--sd-titulo, system-ui); letter-spacing: .06em; text-transform: uppercase }
+.sd .nv-placa input { letter-spacing: .06em; text-transform: uppercase }
+.sd .nv-doc input { border-color: var(--tn); font-family: "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .04em }
+.sd .nv-doc > span::after {
+  content: ""; display: inline-block; width: 6px; height: 6px; background: var(--ac);
+  margin-left: 6px; vertical-align: middle;
+}
+.sd .nv-placa small, .sd .nv-doc small {
+  margin-top: 6px; font: 500 11px "IBM Plex Mono", ui-monospace, monospace; color: var(--gr);
+}
+.sd .nv-placa small.mal { color: var(--sd-mal); font-weight: 700 }
 .sd .nv-mal { margin: -4px 0 0; font-size: 12.5px; font-weight: 600; color: var(--sd-mal) }
 
-.sd .nv-material { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; min-width: 0 }
-.sd .nv-lista {
-  list-style: none; margin: 0; padding: 0; max-height: 196px; overflow-y: auto;
-  border: 1px solid var(--sd-linea); border-radius: 3px; background: var(--sd-papel);
+/* CADA MATERIAL ES UN BLOQUE: su material, sus estibas, su estado. */
+.sd .nv-linea {
+  display: flex; flex-direction: column; gap: 0; min-width: 0;
+  padding: 14px 14px 14px 12px; background: #F4F4F1;
+  border: 1px solid var(--ln); border-left: 4px solid var(--ac); border-radius: 0;
 }
-.sd .nv-lista li + li { border-top: 1px solid var(--c-edf1f6) }
+.sd .nv-linea.pend { border-left-color: #E0A800 }
+.sd .nv-linea-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px }
+.sd .nv-linea-cab > span {
+  display: flex; align-items: center; gap: 8px;
+  font: 700 10.5px "Archivo", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--gr);
+}
+.sd .nv-linea-cab > span i {
+  font-style: normal; background: var(--tn); color: var(--ac); width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center; font-size: 10.5px; letter-spacing: 0;
+}
+.sd .nv-linea-cab button, .sd .nv-escogido button {
+  height: 34px; min-height: 34px; width: auto; min-width: 0; flex: none; padding: 0 14px; cursor: pointer; border-radius: 0;
+  border: 1px solid #D4D4CE; background: #fff; color: var(--tn);
+  font: 600 12.5px "IBM Plex Sans", system-ui, sans-serif;
+}
+.sd .nv-material { display: flex; flex-direction: column; gap: 0; margin-bottom: 14px; min-width: 0 }
+.sd .nv-escogido {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; background: #fff; border: 1px solid #BDBDB6; border-radius: 0;
+}
+.sd .nv-escogido > div { display: flex; flex-direction: column; min-width: 0 }
+.sd .nv-escogido b { font: 700 13.5px "IBM Plex Sans", system-ui, sans-serif; overflow-wrap: anywhere }
+.sd .nv-escogido em, .sd .nv-lista button em {
+  font: 500 11px "IBM Plex Mono", ui-monospace, monospace; font-style: normal; color: var(--gr);
+}
+.sd .nv-lista {
+  list-style: none; margin: 8px 0 0; padding: 0; max-height: 196px; overflow-y: auto;
+  border: 1px solid #BDBDB6; border-radius: 0; background: #fff; display: block;
+}
+.sd .nv-lista li + li { border-top: 1px solid var(--ln) }
 .sd .nv-lista button {
   display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%;
   min-height: 46px; padding: 7px 12px; text-align: left; cursor: pointer;
-  background: none; border: 0; font: inherit; color: var(--sd-tinta);
+  background: none; border: 0; font: inherit; color: var(--tn);
 }
-.sd .nv-lista button b { font-size: 13.5px; font-weight: 700 }
-.sd .nv-lista button em, .sd .nv-escogido em { font-style: normal; font-size: 11.5px; color: var(--sd-gris) }
-.sd .nv-lista button:hover, .sd .nv-lista button:focus-visible {
-  background: color-mix(in srgb, var(--sd-acento) 9%, var(--sd-papel)); outline: none;
+.sd .nv-lista button b { font: 700 13.5px "IBM Plex Sans", system-ui, sans-serif }
+.sd .nv-lista button:hover, .sd .nv-lista button:focus-visible { background: var(--ac2); outline: none }
+.sd .nv-nada { padding: 12px; font-size: 12.5px; color: var(--gr) }
+.sd .nv-linea .nv-est { width: 200px; max-width: 100% }
+.sd .nv-lin-cif {
+  margin: 8px 0 0; font-size: 12px; color: var(--gr); display: flex; align-items: center; gap: 6px;
+  font-variant-numeric: tabular-nums;
 }
-.sd .nv-nada { padding: 12px; font-size: 12.5px; color: var(--sd-gris) }
-.sd .nv-escogido {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 9px 12px; border: 1.5px solid var(--sd-acento); border-radius: 3px;
-  background: color-mix(in srgb, var(--sd-acento) 7%, var(--sd-papel));
+.sd .nv-campos .nv-lin-cif span { font: inherit; color: inherit; margin: 0 }
+.sd .nv-lin-cif b { color: var(--tn) }
+.sd .nv-lin-cif.ok::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none }
+.sd .nv-lin-cif.no { color: var(--amb); flex-wrap: wrap }
+.sd .nv-lin-cif.no::before {
+  content: "!"; width: 15px; height: 15px; background: var(--ac); color: var(--tn); flex: none;
+  font: 900 10px "Archivo", system-ui, sans-serif; display: flex; align-items: center; justify-content: center;
 }
-.sd .nv-escogido > div { display: flex; flex-direction: column; min-width: 0 }
-.sd .nv-escogido b { font-size: 14px; overflow-wrap: anywhere }
+.sd .nv-lin-cif.no a { color: var(--amb); font-weight: 600 }
 
-.sd .nv-cifras {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0 0 14px;
-  background: var(--c-edf1f6); border: 1px solid var(--c-edf1f6); border-radius: 3px; overflow: hidden;
-}
-.sd .nv-cifras > div { background: var(--c-fafbfd); padding: 8px 10px }
-.sd .nv-cifras dt { font-size: 10px; font-weight: 700; letter-spacing: .09em; color: var(--c-93a3b6); text-transform: uppercase }
-.sd .nv-cifras dd { margin: 2px 0 0; font: 800 16px var(--sd-titulo, system-ui); font-variant-numeric: tabular-nums }
-
-/* VARIOS MATERIALES DE UNA MISMA FACTURA: cada línea es un bloque con su
-   material y sus estibas; el «+» agrega otro. */
-.sd .vj-velo:has(.vj-caja.nuevo) { align-items: start }
-.sd .vj-caja.nuevo { margin-block: auto }
-.sd .nv-linea {
-  display: flex; flex-direction: column; gap: 10px; min-width: 0;
-  padding: 12px; border: 1px solid var(--c-edf1f6); border-radius: 3px; background: var(--c-fafbfd);
-}
-.sd .nv-linea .nv-material { margin-bottom: 0 }
-.sd .nv-linea .nv-est { max-width: 200px }
-.sd .nv-linea-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px }
-.sd .nv-linea-cab button { min-height: 36px; width: auto; padding: 0 14px }
-.sd .nv-linea-cab span { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sd-gris) }
-.sd .nv-lin-cif { margin: 0; font-size: 12px; color: var(--sd-gris); font-variant-numeric: tabular-nums }
 .sd .nv-campos button.nv-mas-mat {
-  min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 0 14px; cursor: pointer; font: 700 14px var(--sd-texto); color: var(--c-2c4361);
-  background: transparent; border: 1.5px dashed var(--sd-acento); border-radius: 3px;
+  width: 100%; height: 44px; min-height: 44px; margin: 2px 0 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #fff; border: 1.5px dashed #BDBDB6; border-radius: 0; color: var(--tn);
+  font: 600 13.5px "IBM Plex Sans", system-ui, sans-serif;
 }
-.sd .nv-campos button.nv-mas-mat span { font: 800 20px/1 var(--sd-titulo, system-ui); color: var(--sd-acento) }
-.sd .nv-campos button.nv-mas-mat:hover, .sd .nv-campos button.nv-mas-mat:focus-visible {
-  background: color-mix(in srgb, var(--sd-acento) 8%, var(--sd-papel)); outline: none;
+.sd .nv-campos button.nv-mas-mat span {
+  display: inline-flex; width: 18px; height: 18px; background: var(--ac); color: var(--tn);
+  align-items: center; justify-content: center; font-weight: 800;
 }
-.sd .nv-total { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sd-gris) }
+.sd .nv-campos button.nv-mas-mat:hover, .sd .nv-campos button.nv-mas-mat:focus-visible { border-color: var(--tn); outline: none }
 
-.sd .nv-mas { margin: 0 0 6px }
-.sd .nv-mas summary {
-  cursor: pointer; min-height: 40px; display: flex; align-items: center;
-  font-size: 13px; font-weight: 700; color: var(--c-2c4361);
+.sd .nv-total {
+  margin: 6px 0 8px; font: 600 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--gr);
 }
-.sd .nv-mas .nv-campos { margin: 6px 0 0 }
-.sd .vj-caja.nuevo .vj-falta { margin: 10px 0 0 }
+.sd .nv-cifras {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0;
+  background: var(--ac2); border: 1px solid #F0DE95; border-radius: 0; overflow: hidden;
+}
+.sd .nv-cifras > div { padding: 9px 12px; border-right: 1px solid #F0DE95; background: none; min-width: 0 }
+.sd .nv-cifras > div:last-child { border-right: 0 }
+.sd .nv-cifras dt {
+  font: 600 10px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--gr);
+}
+.sd .nv-cifras dd { margin: 2px 0 0; font: 800 17px "Archivo", system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--tn) }
+.sd .nv-cifras i { display: block; font: 500 10px "IBM Plex Mono", ui-monospace, monospace; font-style: normal; color: var(--amb) }
+
+.sd .vj-caja.nuevo .vj-mal { margin: 12px 0 0 }
+.sd .vj-caja.nuevo .vj-falta { margin: 12px 0 0 }
+.sd .vj-caja.nuevo .vj-botones { gap: 22px; margin-top: 18px }
+.sd .vj-caja.nuevo .btn:not(.plano) {
+  height: 44px; min-height: 44px; padding: 0 40px; min-width: 0; border: 0; border-radius: 0; cursor: pointer;
+  background: var(--ac); color: var(--tn); font: 800 14px "Archivo", system-ui, sans-serif;
+}
+.sd .vj-caja.nuevo .btn:not(.plano):hover:not(:disabled) { background: #FFD233 }
+.sd .vj-caja.nuevo .btn:not(.plano):disabled { background: #6F716E; color: #fff; cursor: not-allowed }
+.sd .vj-caja.nuevo .btn.plano {
+  background: none; border: 0; box-shadow: none; color: #4A4D4A; padding: 0;
+  font: 600 13.5px "IBM Plex Sans", system-ui, sans-serif; cursor: pointer;
+}
 
 @media (max-width: 560px) {
-  .sd .vj-velo { padding: 10px; align-items: start }
-  .sd .vj-caja.nuevo { padding: 18px 16px 16px }
+  .sd .vj-velo { padding: 10px }
+  .sd .vj-caja.nuevo { padding: 22px 16px 18px }
   .sd .nv-campos { grid-template-columns: minmax(0, 1fr) }
-  .sd .nv-cifras dd { font-size: 14.5px }
+  .sd .nv-linea .nv-est { width: 100% }
+  .sd .nv-cifras { grid-template-columns: 1fr 1fr }
+  .sd .nv-cifras > div:nth-child(2) { border-right: 0 }
+  .sd .nv-cifras > div:nth-child(-n+2) { border-bottom: 1px solid #F0DE95 }
   .sd .vj-caja.nuevo .vj-botones .btn:not(.plano) { flex: 1 1 100% }
 }
 
