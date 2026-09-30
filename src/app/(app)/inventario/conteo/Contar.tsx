@@ -47,7 +47,7 @@ import { Buscador } from "@/components/Buscador";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
-import { soloElUltimo } from "@/modulos/inventario/ultimo-conteo";
+import { cifraDeTarjeta, soloElUltimo, type Cifra } from "@/modulos/inventario/ultimo-conteo";
 import {
   esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado,
 } from "@/modulos/inventario/cola";
@@ -61,6 +61,7 @@ type Previo = {
   linea_id: string;
   conteo_id: string;
   conteo_codigo: string | null;
+  factor_estibado: number | null;
   codigo: string;
   material: string;
   contado_en: string;
@@ -179,6 +180,13 @@ function diasDesde(cuando: string | null): number | null {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   return Math.round((hoy.getTime() - a.getTime()) / DIA);
 }
+
+/* «30 estibas + 30 cajas», «50 estibas» o «120 cajas»: lo que hay, con las estibas completas primero. */
+const textoCifra = (c: Cifra) => {
+  const e = c.estibas ?? 0, x = c.cajas ?? 0;
+  const est = `${nf.format(e)} estiba${e === 1 ? "" : "s"}`, caj = `${nf.format(x)} caja${x === 1 ? "" : "s"}`;
+  return e > 0 && x > 0 ? `${est} + ${caj}` : e > 0 ? est : x > 0 || c.estibas == null ? caj : est;
+};
 
 const textoHace = (d: number) =>
   d <= 0 ? "hoy mismo" : d === 1 ? "ayer" : `hace ${d} días`;
@@ -1425,9 +1433,10 @@ export function Contar({
                     <b>{pv.codigo}</b> <span>{pv.material}</span>
                   </p>
                   <p className="fe-tarjeta-cifra">
-                    {pv.cajas != null
-                      ? `${nf.format(pv.cajas)} cajas`
-                      : `${nf.format(pv.estibas ?? 0)} estiba${pv.estibas === 1 ? "" : "s"}`}
+                    {textoCifra(cifraDeTarjeta(pv))}
+                    {cifraDeTarjeta(pv).total != null && (cifraDeTarjeta(pv).estibas ?? 0) > 0 && (
+                      <em>= {nf.format(cifraDeTarjeta(pv).total!)} cajas</em>
+                    )}
                     {pv.venc_dia != null && (
                       <em>vence {dd(pv.venc_dia)}/{dd(pv.venc_mes)}/{dd(pv.venc_anio)}</em>
                     )}
