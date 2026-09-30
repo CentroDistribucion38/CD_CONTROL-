@@ -61,12 +61,14 @@ M = [
  ("P38", NV, 't.replace(/[^0-9]/g, "").slice(0, DOC_MAX)', 't.slice(0, DOC_MAX)', "el documento deja pasar letras y guiones"),
  ("P39", NV, 't.replace(/[^0-9]/g, "").slice(0, DOC_MAX)', 't.replace(/[^0-9]/g, "")', "(control de equivalencia: el maxLength=10 del campo ya corta, el slice es doble cinturón — debe seguir VERDE)"),
  ("P40", NV, "const DOC_MAX = 10;", "const DOC_MAX = 12;", "el documento admite hasta 12 dígitos"),
- ("P41", NV, "      p_factura: factura || null,", "      p_factura: null,", "el documento escrito no viaja a la base"),
+ ("P41", NV, "      p_factura: factura,", "      p_factura: null,", "el documento escrito no viaja a la base"),
  ("P42", NV, "maxLength={DOC_MAX} inputMode=\"numeric\"", "inputMode=\"numeric\"", "el campo del documento pierde su maxLength de 10"),
  ("P43", SO, "            router.refresh();\n            avisar.bien(`${placa} creado", "            avisar.bien(`${placa} creado", "al crear no se refresca la lista: el Vh Interno no aparece"),
  ("P44", SO, "            setCreando(false);\n            router.refresh();", "            router.refresh();", "el formulario no se cierra al crear"),
  ("P45", SO, '{p.interno ? "Creado" : "Llegó"} {cuando(p.llego_en)}', '{"Llegó"} {cuando(p.llego_en)}', "el Vh Interno dice «Llegó» aunque nunca llegó"),
  ("P46", VJ, 'esInterno(v.id) ? "Vh Interno · sin certificar"', 'false ? "Vh Interno · sin certificar"', "el Vh Interno sale con «0/3 fotos» de llegada en Fuente principal"),
+ ("P47", NV, '  if (!factura) faltan.push("el documento (número de factura)");', "", "deja crear sin documento"),
+ ("P48", NV, "      p_lote: null,", '      p_lote: "X",', "el Vh Interno viaja con un lote que nadie escribió"),
  ("P30", CSS, ".sd .tr-vh.ai.so-tarde { background: #F8F4FD; border-color: #DCCBF1; border-left-color: #6A3FA0 }", "", "una certificada con más de un día se pinta de la otra clase"),
 ]
 

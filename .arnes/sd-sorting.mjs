@@ -710,7 +710,7 @@ await monta("m=sorting&c=normal");
   /* NADA ESCRITO: el botón apagado y lo que falta dicho por su nombre. */
   ok(await crear.isDisabled(), "el botón de crear está encendido con el formulario vacío");
   let t = await pg.$eval(".vj-caja.nuevo", (e) => e.textContent.replace(/\s+/g, " "));
-  ok(/Falta la placa \(3 letras y 3 números\), el CD de origen, el material, las estibas/.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
+  ok(/Falta la placa \(3 letras y 3 números\), el CD de origen, el material, las estibas, el documento \(número de factura\)/.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
   ok(await pg.inputValue(".nv-campos select >> nth=1") === "Barranquilla", "el destino no arranca en Barranquilla");
   const destinos = await pg.$$eval(".nv-campos select >> nth=1 >> option", (o) => o.map((x) => x.textContent));
   ok(JSON.stringify(destinos) === JSON.stringify(["Barranquilla", "Apartadó", "Medellín"]),
@@ -760,6 +760,11 @@ await monta("m=sorting&c=normal");
   const fs = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(10.5 / 36));
   ok(c.Cajas === f0 && c.Unidades === fu && c.HL === fh && c.Sider === fs,
      `10,5 estibas de la 175: salió ${JSON.stringify(c)} y debía ser Sider ${fs}, cajas ${f0}, unidades ${fu}, HL ${fh}`);
+  /* EL DOCUMENTO ES OBLIGATORIO: con todo lo demás lleno, sin él el botón sigue apagado y lo dice. */
+  ok(await crear.isDisabled(), "con todo lleno pero SIN documento el botón se enciende (el documento es obligatorio)");
+  ok(/Falta el documento \(número de factura\)/.test(await pg.$eval(".vj-caja.nuevo", (e) => e.textContent)),
+     "sin documento no dice que falta el documento");
+  await pg.fill(".nv-doc input", "0071234");
   ok(await crear.isEnabled(), "con todo lleno el botón no se enciende");
 
   /* ORIGEN = DESTINO, con TODO lo demás lleno: lo único que puede apagar el botón es eso. */
@@ -796,8 +801,9 @@ await monta("m=sorting&c=normal");
   ok(await pg.inputValue(".nv-doc input") === "1234567890", `el documento deja escribir más de 10: «${await pg.inputValue(".nv-doc input")}»`);
   ok(/hasta 10 dígitos/.test(await pg.$eval(".nv-doc", (e) => e.textContent)), "el documento no dice su regla");
   ok(await pg.$eval(".nv-doc input", (e) => e.maxLength) === 10, "el campo del documento no limita a 10");
-  await pg.click(".nv-mas summary");
-  await pg.fill(".nv-mas label:has(span:text('Nota')) input", "   ");
+  /* SIN LOTE NI NOTA: el formulario se queda con lo justo. */
+  ok(await pg.$$eval(".nv-mas", (s) => s.length) === 0, "el formulario todavía tiene «Más datos»");
+  ok(!/\b(Lote|Nota)\b/.test(await pg.$eval(".vj-caja.nuevo", (e) => e.textContent)), "el formulario todavía pide lote o nota");
   await crear.click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];
@@ -817,6 +823,7 @@ await monta("m=sorting&c=normal");
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
   await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
   await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "5");
+  await pg.fill(".nv-doc input", "123");
   await pg.selectOption(".nv-campos select >> nth=1", "Medellín");
   await pg.evaluate(() => { window.__rpcFalla = "Ese material está apagado en el maestro" });
   await pg.click('.vj-caja.nuevo .btn:has-text("Crear Vh Interno")');
@@ -997,7 +1004,6 @@ for (const ancho of [360, 390, 722, 820, 1440]) {
   await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
   await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
   await pg.fill(".nv-doc input", "1234567890");
-  await pg.click(".nv-mas summary");
   const caja = await pg.evaluate(() => {
     const W = document.documentElement.clientWidth;
     const c = document.querySelector(".vj-caja.nuevo").getBoundingClientRect();

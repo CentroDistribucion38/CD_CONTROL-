@@ -109,6 +109,8 @@ M = [
   "trasladar el permiso pisa el que el rol ya tenía en la clave nueva"),
  ("M46", "set permisos_extra = (permisos_extra - '/sider/transito/nuevo')\n", "set permisos_extra = (permisos_extra)\n",
   "el permiso viejo se queda en las personas"),
+ ("M47", "  if v_doc = '' then\n    raise exception 'Falta el documento", "  if false then\n    raise exception 'Falta el documento",
+  "la base acepta un Vh Interno sin documento"),
  ("M28", "  r.tipo\nfrom public.sider_ai_revisiones r", "  r.tipo || '' as tipo\nfrom public.sider_ai_revisiones r",
   "CONTROL de equivalencia: tipo igual pero con otra expresión (debe seguir VERDE)"),
 ]

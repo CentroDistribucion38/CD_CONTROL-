@@ -69,7 +69,7 @@ language plpgsql as $$
 declare v uuid;
 begin
   begin
-    v := public.sider_viaje_interno_crear(p_placa, p_planta, p_destino, p_sku, p_estibas);
+    v := public.sider_viaje_interno_crear(p_placa, p_planta, p_destino, p_sku, p_estibas, '9001');
   exception when others then
     return E'\n   · crear ' || p_clave || ' falló: ' || sqlerrm;
   end;
@@ -296,7 +296,9 @@ begin
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC111','GAL','Barranquilla','G175',3,'-123')$q$, '%solo números, hasta 10 dígitos%', 'aceptó un documento con signo');
   f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC111','GAL','Barranquilla','G175',3,'１２３')$q$, '%solo números, hasta 10 dígitos%', 'aceptó dígitos de ancho completo como documento');
   f := f || public._espera_bien($q$select public.sider_viaje_interno_crear('DOC222','GAL','Barranquilla','G175',3,'1234567890')$q$, 'rechazó un documento de exactamente 10 dígitos');
-  f := f || public._espera_bien($q$select public.sider_viaje_interno_crear('DOC333','GAL','Barranquilla','G175',3,'  ')$q$, 'rechazó un documento vacío (es opcional)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC333','GAL','Barranquilla','G175',3,'  ')$q$, '%Falta el documento%', 'aceptó un documento en blanco (es obligatorio)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC333','GAL','Barranquilla','G175',3,null)$q$, '%Falta el documento%', 'aceptó un documento nulo (es obligatorio)');
+  f := f || public._espera_error($q$select public.sider_viaje_interno_crear('DOC333','GAL','Barranquilla','G175',3)$q$, '%Falta el documento%', 'aceptó crear sin pasar el documento');
   f := f || public._espera_bien($q$select public.sider_viaje_interno_crear('DOC444','GAL','Barranquilla','G175',3,'7')$q$, 'rechazó un documento de un solo dígito');
   if f <> '' then raise exception E'FALLA:%', f; end if;
   raise notice '3 · la base rechaza placa vacía o que no sea 3 letras + 3 números, origen/destino/material inventados o apagados, mismo CD y estibas ≤ 0';

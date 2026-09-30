@@ -61,7 +61,7 @@ const PLACA_OK = /^[A-Z]{3}[0-9]{3}$/;
 /** Lo que se acepta al teclear: sin espacios ni signos, en mayúscula, máximo 6. */
 const limpiaPlaca = (t: string) => t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 
-/** EL DOCUMENTO (factura): solo dígitos, de 1 a 10. Vacío se permite. */
+/** EL DOCUMENTO (factura): OBLIGATORIO, solo dígitos, de 1 a 10. */
 const DOC_MAX = 10;
 const limpiaDoc = (t: string) => t.replace(/[^0-9]/g, "").slice(0, DOC_MAX);
 
@@ -80,8 +80,6 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
   const [busca, setBusca] = useState("");
   const [estibas, setEstibas] = useState("");
   const [factura, setFactura] = useState("");
-  const [lote, setLote] = useState("");
-  const [nota, setNota] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
 
@@ -132,6 +130,7 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
   if (!planta) faltan.push("el CD de origen");
   if (!sku) faltan.push("el material");
   if (!nEst || nEst <= 0) faltan.push("las estibas");
+  if (!factura) faltan.push("el documento (número de factura)");
   const puede = faltan.length === 0 && !mismo;
 
   async function crear() {
@@ -144,9 +143,11 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
       p_destino: destino,
       p_sku: sku,
       p_estibas: nEst,
-      p_factura: factura || null,
-      p_lote: lote.trim() || null,
-      p_nota: nota.trim() || null,
+      p_factura: factura,
+      /* Sin lote ni nota: el Vh Interno se crea con lo justo. La función de la
+         base conserva los dos parámetros y aquí viajan vacíos. */
+      p_lote: null,
+      p_nota: null,
     });
     setOcupado(false);
     if (error) { setMal(traducirError(error.message)); return }
@@ -242,8 +243,8 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
           </label>
 
           <label className="nv-doc">
-            <span>Documento <em>opcional</em></span>
-            <input value={factura} maxLength={DOC_MAX} inputMode="numeric" autoComplete="off"
+            <span>Documento (factura)</span>
+            <input value={factura} maxLength={DOC_MAX} inputMode="numeric" autoComplete="off" required aria-required="true"
                    placeholder="Número de factura" aria-describedby="nv-doc-ayuda"
                    onChange={(e) => setFactura(limpiaDoc(e.target.value))} />
             <small id="nv-doc-ayuda">Solo números, hasta {DOC_MAX} dígitos</small>
@@ -258,18 +259,6 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
           <div><dt>Unidades</dt><dd>{der?.unidades == null ? "—" : nf.format(der.unidades)}</dd></div>
           <div><dt>HL</dt><dd>{der?.hl == null ? "—" : nf2.format(der.hl)}</dd></div>
         </dl>
-
-        <details className="nv-mas">
-          <summary>Más datos <em>opcional</em></summary>
-          <div className="nv-campos">
-            <label><span>Lote</span>
-              <input value={lote} maxLength={30} autoComplete="off"
-                     onChange={(e) => setLote(e.target.value)} /></label>
-            <label className="ancho"><span>Nota</span>
-              <input value={nota} maxLength={200} placeholder="Opcional"
-                     onChange={(e) => setNota(e.target.value)} /></label>
-          </div>
-        </details>
 
         {mal && <p className="vj-mal" role="alert">{mal}</p>}
         {!ocupado && !puede && !mismo && (

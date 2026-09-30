@@ -159,7 +159,9 @@ begin
   if v_placa = '' then
     raise exception 'Falta la placa';
   end if;
-  /* EL DOCUMENTO: solo números, hasta 10. Vacío se permite (no siempre hay). */
+  /* EL DOCUMENTO (factura) ES OBLIGATORIO: solo números, de 1 a 10. Lo que
+     está escrito se valida aquí; que falte se dice al final, después de
+     los demás datos, para que cada error salga por su nombre. */
   if v_doc <> '' and v_doc !~ '^[0-9]{1,10}$' then
     raise exception 'El documento son solo números, hasta 10 dígitos';
   end if;
@@ -201,6 +203,10 @@ begin
 
   if p_estibas is null or p_estibas <= 0 then
     raise exception 'Las estibas tienen que ser más de cero';
+  end if;
+
+  if v_doc = '' then
+    raise exception 'Falta el documento (número de factura, solo números, hasta 10 dígitos)';
   end if;
 
   insert into public.sider_viajes
