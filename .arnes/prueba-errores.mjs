@@ -47,6 +47,11 @@ const CASOS = [
    "2026-09-sider-revision-ai-interna.sql"],
   /* EL CANAL Y EL SOCIO del Vh Interno: la llamada NUEVA (con p_canal) manda a la migración
      nueva; la de sider_ai_guardar, que también tiene p_canal, NO se la lleva. */
+  ['Could not find the function public.inv_corte_guardar(p_bodega, p_cortado, p_inicial, p_nota, p_renglones, p_tipo) in the schema cache',
+   "2026-09-inventario-corte-lineas.sql"],
+  ['relation "public.inv_cortes" does not exist', "2026-09-inventario-corte-lineas.sql"],
+  ['Could not find the function public.sider_viaje_eliminar(p_confirmacion, p_ids) in the schema cache',
+   "2026-09-sider-viaje-eliminar.sql"],
   ['Could not find the function public.sider_viaje_interno_crear(p_canal, p_destino, p_estibas, p_factura, p_lote, p_nota, p_placa, p_planta, p_sku, p_socio) in the schema cache',
    "2026-09-sider-vh-interno-canal-socio.sql"],
   ['column sider_viajes.ai_canal does not exist', "2026-09-sider-vh-interno-canal-socio.sql"],

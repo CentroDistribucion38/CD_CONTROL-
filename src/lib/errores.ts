@@ -85,6 +85,12 @@ const PREFIJOS: [RegExp, string][] = [
   /* EL CANAL Y EL SOCIO DEL VH INTERNO son de la migración más nueva: sin ella
      la base dice «could not find the function sider_viaje_interno_crear(… p_canal…)» o «column … ai_canal
      does not exist», y ninguna de las dos sabe de qué archivo habla. */
+  /* El CORTE DE LÍNEAS de Inventario: sus funciones y sus tres tablas. */
+  [/\binv_corte_(guardar|eliminar|renglones)\b|\binv_(cortes|lineas)\b/,
+   "supabase/migraciones/2026-09-inventario-corte-lineas.sql"],
+  /* ELIMINAR un camión anulado: la función `sider_viaje_eliminar` o la tabla de su registro. */
+  [/\bsider_viaje_eliminar\b|\bsider_viajes_eliminados\b/,
+   "supabase/migraciones/2026-09-sider-viaje-eliminar.sql"],
   [/\b(ai_canal|ai_socio|envase_ai)\b|v_sider_revision_pendientes\.(canal|socio|envase)\b|sider_viaje_interno_crear[\s\S]*\bp_(canal|socio)\b/,
    "supabase/migraciones/2026-09-sider-vh-interno-canal-socio.sql"],
   [/\b(sider_viaje_interno_crear|v_sider_revision_pendientes)\b|\bsider_viajes\.interno\b/,

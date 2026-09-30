@@ -220,9 +220,11 @@ if (m === "sorting") {
     fecha: "2026-09-28", num_mes: 9, semana: 39, anio: 2026, importado: false, faltan_factores: false,
     observacion: null, motivo_anulacion: null, ...o });
   const viajes = [f(1, {}), f(2, {}), f(3, {}), f(4, { estado: "en_transito" }),
-                  f(5, { fotos_salida: 0, salida_en: null, en_camino: null })];
+                  f(5, { fotos_salida: 0, salida_en: null, en_camino: null }),
+                  ...(c === "eliminar" || c === "sinmanda" ? [f(6, { estado: "anulado", motivo_anulacion: "Se digitó dos veces" }),
+                                          f(7, { estado: "anulado", motivo_anulacion: "No salió" })] : [])];
   root.render(<Viajes viajes={viajes as any} nombres={{ u1: "Cristian Padilla" }} origenes={[]} skus={[]}
-    manda={false} esEditor={false}
+    manda={c === "eliminar"} esEditor={false}
     sorting={c === "sinmarcas" ? {} : { f1: "pendiente", f2: "hecho", f4: "pendiente", f5: "pendiente" }}
     internos={c === "sinmarcas" ? [] : ["f5"]} />);
 } else if (m === "informe") {
@@ -1048,6 +1050,65 @@ await monta("m=sorting&c=normal");
   await pg.click(".vj-caja .btn.mal");
   await pg.waitForSelector(".vj-mal");
   ok(await pg.inputValue(".vj-motivo-campo input") === "Se creó por error" && await pg.evaluate(() => window.__refresh) === 0, "el rechazo cerró el cuadro, borró el motivo o refrescó");
+}
+/* =====================================================================
+   4c · ELIMINAR DE VERDAD UN CAMIÓN ANULADO (FUENTE PRINCIPAL)
+   ===================================================================== */
+{
+  const falso = () => pg.evaluate(() => {
+    window.__fetch = []; window.__fetchFalla = null;
+    window.fetch = async (u, o) => {
+      const body = JSON.parse(o.body); window.__fetch.push({ u, body });
+      return window.__fetchFalla
+        ? { ok: false, json: async () => ({ error: window.__fetchFalla }) }
+        : { ok: true, json: async () => ({ filas: body.ids.length, archivos: 0, quedaron: 0 }) };
+    };
+  });
+  /* SIN «manda» no hay botón, ni arriba ni en la fila. */
+  await monta("m=viajes&c=sinmanda");
+  ok(await pg.$$eval("tr.vj-nulo", (x) => x.length) === 2 && !/Eliminar/.test(await txt()) && await pg.$$eval(".vj-elim-todos", (x) => x.length) === 0,
+     "quien no administra ve «Eliminar» aunque haya anulados");
+
+  await monta("m=viajes&c=eliminar"); await falso();
+  ok(await pg.$$eval("tr.vj-nulo .vj-mini.mal", (x) => x.map((e) => e.textContent.trim()).join()) === "Eliminar,Eliminar",
+     "«Eliminar» no sale en las 2 filas anuladas");
+  ok(await pg.$$eval("tr:not(.vj-nulo) .vj-mini.mal", (x) => x.filter((e) => e.textContent.trim() === "Eliminar").length) === 0,
+     "«Eliminar» sale en un viaje que NO está anulado");
+  ok(/Eliminar los 2 anulados/.test(await pg.$eval(".vj-elim-todos", (e) => e.textContent)), "falta el botón de arriba con los 2 anulados");
+  /* UNO: el cuadro nombra la placa, no deja sin escribir ELIMINAR, y cancelar no llama a nada. */
+  await pg.click("tr.vj-nulo >> nth=0 >> .vj-mini.mal");
+  ok(/ELIMINAR DEL TODO/.test(await pg.$eval(".vj-caja", (e) => e.textContent)) && /FUE006/.test(await pg.$eval("#el-titulo", (e) => e.textContent)), "el cuadro no nombra el camión");
+  ok(await pg.locator(".vj-caja .btn.mal").isDisabled(), "deja eliminar sin escribir nada");
+  await pg.fill(".vj-motivo-campo input", "eliminar");
+  ok(await pg.locator(".vj-caja .btn.mal").isDisabled(), "acepta «eliminar» en minúsculas");
+  await pg.click(".vj-caja .btn.plano");
+  ok((await pg.evaluate(() => window.__fetch)).length === 0 && await pg.$$eval("#el-titulo", (x) => x.length) === 0, "cancelar llamó al servidor o no cerró");
+  /* LA BASE RECHAZA: el cuadro se queda, dice por qué y no refresca. */
+  await pg.click("tr.vj-nulo >> nth=0 >> .vj-mini.mal");
+  await pg.fill(".vj-motivo-campo input", "ELIMINAR");
+  await pg.evaluate(() => { window.__fetchFalla = "Solo quien administra la plataforma puede eliminar un viaje." });
+  await pg.click(".vj-caja .btn.mal");
+  await pg.waitForSelector(".vj-caja .vj-mal");
+  ok(await pg.$$eval("#el-titulo", (x) => x.length) === 1 && await pg.evaluate(() => window.__refresh) === 0, "el rechazo cerró el cuadro o refrescó");
+  /* ÉXITO: manda el id y la palabra, refresca y avisa. */
+  await pg.evaluate(() => { window.__fetchFalla = null; window.__fetch = [] });
+  await pg.click(".vj-caja .btn.mal");
+  await pg.waitForFunction(() => window.__refresh > 0);
+  const f1 = await pg.evaluate(() => window.__fetch);
+  ok(f1.length === 1 && f1[0].u === "/api/sider/eliminar" && f1[0].body.confirmacion === "ELIMINAR"
+     && JSON.stringify(f1[0].body.ids) === JSON.stringify(["f6"]), "no mandó el id y la palabra: " + JSON.stringify(f1));
+  ok(await pg.$$eval("#el-titulo", (x) => x.length) === 0 && /1 camión eliminado del todo/.test(await txt()), "no cerró o no avisó");
+  /* LOS DOS DE ARRIBA. */
+  await monta("m=viajes&c=eliminar"); await falso();
+  await pg.click(".vj-elim-todos button");
+  ok(/2 camiones anulados/.test(await pg.$eval("#el-titulo", (e) => e.textContent)) && /FUE006/.test(await pg.$eval(".vj-cod-lista", (e) => e.textContent)), "el cuadro de todos no nombra los 2");
+  await pg.fill(".vj-motivo-campo input", "ELIMINAR");
+  await pg.click(".vj-caja .btn.mal");
+  await pg.waitForFunction(() => window.__refresh > 0);
+  const f2 = await pg.evaluate(() => window.__fetch);
+  ok(f2.length === 1 && JSON.stringify(f2[0].body.ids.sort()) === JSON.stringify(["f6", "f7"]), "no mandó exactamente los 2 anulados: " + JSON.stringify(f2));
+  /* NO se pierde nada más: ningún camión vivo viajó. */
+  ok(!f2[0].body.ids.some((i) => ["f1", "f2", "f3", "f4", "f5"].includes(i)), "mandó a eliminar un camión vivo");
 }
 /* =====================================================================
    5b · «¿DE QUIÉN ES?»: SOCIO (SIN DOCUMENTO, CON SOCIO) O T1 (CON FACTURA)

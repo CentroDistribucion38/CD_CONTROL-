@@ -621,6 +621,12 @@ export const MODULOS: Modulo[] = [
          menú contara la historia de cómo se hizo la aplicación en vez
          de la de cómo se trabaja en la bodega. */
       { nombre: "Recepción", ruta: "/inventario/recibir", rama: "conteos" },
+      /* EL CORTE DE LÍNEAS VA ENTRE RECIBIR Y CONTAR: antes de caminar la
+         bodega contando, se corta lo que las líneas han movido (el contador
+         de la depaletizadora y de dónde tomaban / dónde estaban ubicados).
+         Se hace uno inicial y otro final, y de la resta sale la diferencia
+         que se analiza contra el conteo. */
+      { nombre: "Corte de líneas", ruta: "/inventario/corte", rama: "conteos" },
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
       { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
       /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.

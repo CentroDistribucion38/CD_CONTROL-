@@ -17,11 +17,14 @@
  * estibas. Las horas y las fotos NO se tocan: son la evidencia, y una
  * evidencia editable deja de ser evidencia.
  *
- * ELIMINAR ES ANULAR
- * El viaje se queda, en gris, con su motivo y con quién lo anuló, y
- * deja de contar en los KPI. Borrarlo de verdad se llevaría por delante
- * sus certificaciones y sus seis fotos, y nadie podría responder
- * después por qué falta ese volumen.
+ * ANULAR Y, SI SE QUIERE, ELIMINAR
+ * Anular deja el viaje en gris, con su motivo y con quién lo anuló, y
+ * deja de contar en los KPI. Se puede devolver.
+ * Eliminar lo borra de verdad —con sus certificaciones, sus fotos y su
+ * revisión AI— y NO se puede devolver. Solo se elimina lo que YA está
+ * anulado (por eso el botón sale en las filas en gris) y hay que
+ * escribir ELIMINAR. Lo único que queda es una línea en
+ * sider_viajes_eliminados: placa, material, motivo, quién y cuándo.
  *
  * El candado de verdad está en la base: sider_viaje_editar y
  * sider_viaje_anular comprueban manda() por su cuenta. Esconder el
@@ -32,6 +35,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { traducirError } from "@/lib/errores";
 /* MESES_LARGO se toma de comun.ts y NO de datos.ts, que lo reexporta:
    datos.ts importa el cliente de Supabase de SERVIDOR, y arrastrarlo
    desde un componente "use client" revienta el build entero. */
@@ -106,6 +110,11 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
     estibas: string; observacion: string;
   }>(null);
   const [anular, setAnular] = useState<null | { v: Viaje; motivo: string }>(null);
+  /* Eliminar de verdad: uno (el botón de la fila) o todos los anulados
+     que muestra el filtro (el botón de arriba). `texto` es lo que se
+     escribe para confirmar. */
+  const [eliminar, setEliminar] = useState<null | { vs: Viaje[]; texto: string }>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   /* En el celular los filtros arrancan PLEGADOS. Desplegados, con la
      cabeza y las cifras encima, dejaban 39px para la tabla en una
      pantalla de 640: no cabía ni media fila. En escritorio no se
@@ -192,6 +201,29 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
     router.refresh();
   }
 
+  async function confirmarEliminar() {
+    if (!eliminar) return;
+    setMal(null); setAviso(null); setOcupado(true);
+    let r: Response | null = null;
+    try {
+      r = await fetch("/api/sider/eliminar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: eliminar.vs.map((v) => v.id), confirmacion: eliminar.texto }),
+      });
+    } catch { r = null; }
+    const j = r ? await r.json().catch(() => ({})) as { error?: string; filas?: number; archivos?: number; quedaron?: number } : {};
+    setOcupado(false);
+    if (!r) return setMal("No se pudo conectar. Revisa la señal e intenta otra vez.");
+    if (!r.ok) return setMal(traducirError(j.error ?? "No se pudo eliminar."));
+    setEliminar(null);
+    setAviso(
+      `${j.filas ?? eliminar.vs.length} camión${(j.filas ?? eliminar.vs.length) === 1 ? "" : "es"} eliminado${(j.filas ?? eliminar.vs.length) === 1 ? "" : "s"} del todo.` +
+      (j.quedaron ? ` ${j.quedaron} foto${j.quedaron === 1 ? "" : "s"} no se pudo${j.quedaron === 1 ? "" : "ieron"} quitar del almacenamiento: avísale a soporte.` : "")
+    );
+    router.refresh();
+  }
+
   async function devolver(v: Viaje) {
     setMal(null); setOcupado(true);
     const supabase = createClient();
@@ -269,7 +301,19 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
         {cuenta.anulados > 0 && <> · <span className="vj-anul">{cuenta.anulados} anulado{cuenta.anulados === 1 ? "" : "s"}, no cuentan</span></>}
       </p>
 
-      {mal && <p className="vj-mal" role="alert">{mal}</p>}
+      {manda && cuenta.anulados > 0 && (
+        <p className="vj-elim-todos">
+          <button type="button" className="vj-mini mal" disabled={ocupado}
+                  onClick={() => { setMal(null); setAviso(null);
+                    setEliminar({ vs: filtrados.filter((v) => v.estado === "anulado"), texto: "" }) }}>
+            {cuenta.anulados === 1 ? "Eliminar el anulado" : `Eliminar los ${cuenta.anulados} anulados`}
+          </button>
+          <span>Los borra del todo. No se puede devolver.</span>
+        </p>
+      )}
+
+      {aviso && <p className="vj-ok" role="status">{aviso}</p>}
+      {mal && !eliminar && <p className="vj-mal" role="alert">{mal}</p>}
 
       <div className="marco">
         <table>
@@ -362,10 +406,16 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
                   {manda && (
                     <td className="vj-acc-col">
                       {anulado ? (
-                        <button type="button" className="vj-mini" disabled={ocupado}
-                                onClick={() => devolver(v)}>
-                          Devolver
-                        </button>
+                        <div className="vj-acciones">
+                          <button type="button" className="vj-mini" disabled={ocupado}
+                                  onClick={() => devolver(v)}>
+                            Devolver
+                          </button>
+                          <button type="button" className="vj-mini mal" disabled={ocupado}
+                                  onClick={() => { setMal(null); setAviso(null); setEliminar({ vs: [v], texto: "" }) }}>
+                            Eliminar
+                          </button>
+                        </div>
                       ) : (
                         <div className="vj-acciones">
                           <button type="button" className="vj-mini" disabled={ocupado || editando}
@@ -468,6 +518,44 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
       </div>
       </div>
 
+      {/* ---------- Eliminar de verdad ---------- */}
+      {eliminar && (
+        <div className="vj-velo" role="dialog" aria-modal="true" aria-labelledby="el-titulo"
+             onClick={(e) => { if (e.target === e.currentTarget && !ocupado) setEliminar(null) }}>
+          <div className="vj-caja">
+            <p className="vj-ojo">ELIMINAR DEL TODO</p>
+            <h3 id="el-titulo">
+              {eliminar.vs.length === 1
+                ? `${eliminar.vs[0].placa} · ${eliminar.vs[0].cd_origen}`
+                : `${eliminar.vs.length} camiones anulados`}
+            </h3>
+            {eliminar.vs.length > 1 && (
+              <p className="vj-cod-lista">{eliminar.vs.map((v) => v.placa).join(" · ")}</p>
+            )}
+            <p className="vj-dice">
+              Se borra <b>el registro completo</b>: el viaje, sus certificaciones con sus fotos y su
+              revisión AI. <b>No se puede devolver.</b> Solo queda escrito quién lo eliminó y cuándo.
+            </p>
+            <label className="vj-motivo-campo">
+              <span>Para confirmar, escribe ELIMINAR</span>
+              <input value={eliminar.texto} autoFocus maxLength={12} autoComplete="off"
+                     autoCapitalize="characters" placeholder="ELIMINAR"
+                     onChange={(e) => setEliminar({ ...eliminar, texto: e.target.value })} />
+            </label>
+            {mal && <p className="vj-mal" role="alert">{mal}</p>}
+            <div className="vj-botones">
+              <button type="button" className="btn mal" onClick={confirmarEliminar}
+                      disabled={ocupado || eliminar.texto !== "ELIMINAR"}>
+                {ocupado ? "Eliminando…" : eliminar.vs.length === 1 ? "Eliminar el camión" : `Eliminar los ${eliminar.vs.length}`}
+              </button>
+              <button type="button" className="btn plano" onClick={() => setEliminar(null)} disabled={ocupado}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ---------- Anular ---------- */}
       {anular && (
         <div className="vj-velo" role="dialog" aria-modal="true"
@@ -478,7 +566,8 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
             <p className="vj-dice">
               El viaje <b>no se borra</b>: se queda en la lista marcado como anulado,
               con sus fotos y su ubicación, y deja de contar en los hectolitros y en
-              el porcentaje de certificación. Se puede devolver.
+              el porcentaje de certificación. Se puede devolver. Si después lo quieres
+              borrar del todo, usa <b>Eliminar</b> en la fila gris.
             </p>
             <label className="vj-motivo-campo">
               <span>¿Por qué se anula?</span>
