@@ -353,8 +353,8 @@ export const MODULOS: Modulo[] = [
     //   Certificar        sale del CD origen
     //   En tránsito       viene en camino y llega a Barranquilla
     //   Revisión AI       ya llegado, se revisa por dentro (y ahí se crea el Vh Interno)
-    //   Fuente principal  ahí queda el viaje, ya completo
     //   Informe AI        el cobro al socio, con lo que salió de la revisión
+    //   Fuente principal  ahí queda el viaje, ya completo
     //   Seguimiento       el informe de todos
     //   Novedades         lo que salió mal, que solo se sabe al final
     //
@@ -375,10 +375,11 @@ export const MODULOS: Modulo[] = [
          —«Vh Interno (+)»—: no todos los que hacen revisiones pueden crear
          un camión. Su página redirige a Revisión AI. */
       { nombre: "Vh Interno (+)", ruta: "/sider/sorting/nuevo", oculto: true },
-      { nombre: "Fuente principal", ruta: "/sider" },
-      /* EL INFORME DE LA REVISIÓN AI va con lo ya pasado: es el cobro al
-         socio, una conversación aparte del seguimiento de envase. */
+      /* EL INFORME AI VA DETRÁS DE LA REVISIÓN: es lo que sale de ella, el
+         cobro al socio. Después, Fuente principal, donde queda el viaje
+         completo. */
       { nombre: "Informe AI", ruta: "/sider/seguimiento/ai" },
+      { nombre: "Fuente principal", ruta: "/sider" },
       { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
       /* Se entra por el botón Importar de Seguimiento, que es donde se
          necesita. En el menú era el mismo destino dicho dos veces. */
