@@ -264,3 +264,95 @@ export function renglonesPorCorte(ren: FilaRenglonBD[], sit: FilaSitioBD[]): Map
   }
   return porCorte;
 }
+
+/* ---------------------------------------------------------------------
+   EL CORTE CONTRA EL CONTEO DEL INVENTARIO.
+
+   Cada módulo que aparece en el corte se compara con lo que el conteo
+   encontró en ESE módulo, del MISMO material: el envase de «Tomando de» y el
+   producto de «Ubicados en». Son tres números, todos en cajas:
+     corte inicial · conteo · corte final
+   y dos diferencias: conteo − inicial y conteo − final.
+
+   UN MÓDULO QUE SE ESTÁ CONSUMIENDO NO TIENE POR QUÉ DAR CERO contra cada
+   corte: entre el inicial y el final baja. Lo que sí tiene que pasar, si el
+   conteo se hizo entre los dos cortes, es que CAIGA ENTRE LOS DOS. Esa es la
+   lectura: «entre los dos cortes» o «fuera del rango».
+
+   NO SE INVENTA:
+     · Un módulo que el conteo no visitó queda «sin contar», no en cero.
+     · Si se visitó y ese material no aparece, son cero cajas, y se dice.
+     · Lo averiado y el PNC del mismo material se suman APARTE: no son
+       inventario bueno y mezclarlos taparía diferencias.
+     · Si falta uno de los dos cortes en ese módulo (no estaba, o son estibas
+       sin factor) no hay rango: se muestra la diferencia que sí existe.
+   --------------------------------------------------------------------- */
+export type ConteoRef = { id: string; codigo: string; /** «2026-09-30», el día del análisis. */ fecha: string; enviado_en: string | null };
+export type LineaConteo = { conteo_id: string; producto_id: string; ubicacion_id: string | null; total_cajas: number; averia: boolean; pnc: boolean };
+
+export type ModuloCruce = {
+  ubicacion_id: string;
+  ini: number | null;
+  fin: number | null;
+  /** Cajas buenas de ese material contadas en el módulo (null = el conteo no visitó el módulo). */
+  conteo: number | null;
+  /** Cajas del mismo material marcadas como avería o PNC. */
+  aparte: number;
+  difIni: number | null;
+  difFin: number | null;
+  lectura: "entre" | "fuera" | "sin_contar" | "sin_rango";
+  nota: string | null;
+};
+export type CruceLado = { material_id: string | null; modulos: ModuloCruce[]; motivo: string | null };
+export type CruceLinea = { linea: string; origen: CruceLado; destino: CruceLado };
+
+function cruceLado(lado: Lado, material: string | null, que: string, conteoId: string, lineas: LineaConteo[]): CruceLado {
+  if (!material) return { material_id: null, modulos: [], motivo: `La línea no dice ${que}: no se sabe qué buscar en el conteo` };
+  const delConteo = lineas.filter((l) => l.conteo_id === conteoId);
+  const modulos = lado.modulos.map((m): ModuloCruce => {
+    const enModulo = delConteo.filter((l) => l.ubicacion_id === m.ubicacion_id);
+    if (enModulo.length === 0) {
+      return { ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: null, aparte: 0, difIni: null, difFin: null,
+               lectura: "sin_contar", nota: "El conteo no pasó por este módulo" };
+    }
+    const delMaterial = enModulo.filter((l) => l.producto_id === material);
+    const buenas = delMaterial.filter((l) => !l.averia && !l.pnc).reduce((t, l) => t + Number(l.total_cajas), 0);
+    const aparte = delMaterial.filter((l) => l.averia || l.pnc).reduce((t, l) => t + Number(l.total_cajas), 0);
+    const difIni = m.ini == null ? null : buenas - m.ini;
+    const difFin = m.fin == null ? null : buenas - m.fin;
+    const hayRango = m.ini != null && m.fin != null;
+    const entre = hayRango && buenas >= Math.min(m.ini as number, m.fin as number) && buenas <= Math.max(m.ini as number, m.fin as number);
+    return {
+      ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: buenas, aparte, difIni, difFin,
+      lectura: !hayRango ? "sin_rango" : entre ? "entre" : "fuera",
+      nota: delMaterial.length === 0 ? "El conteo pasó por el módulo y este material no apareció" : null,
+    };
+  });
+  return { material_id: material, modulos, motivo: null };
+}
+
+export function cruzar(a: Analisis, conteoId: string, lineas: LineaConteo[]): CruceLinea[] {
+  return a.filas.map((f) => ({
+    linea: f.linea,
+    origen: cruceLado(f.origen, f.envase_id, "el envase", conteoId, lineas),
+    destino: cruceLado(f.destino, f.material_id, "el material", conteoId, lineas),
+  }));
+}
+
+/** El día de Colombia de un instante, «2026-09-30» (Colombia es siempre UTC−5). */
+export const diaColombia = (iso: string): string =>
+  new Date(Date.parse(iso) - 5 * 3600000).toISOString().slice(0, 10);
+
+/**
+ * CON QUÉ CONTEO SE COMPARA SI NADIE ESCOGE: el del mismo día del corte
+ * inicial (si hay varios, el enviado más tarde); si no hay, el de la fecha
+ * más cercana. Sin conteos, ninguno.
+ */
+export function conteoPorDefecto(ini: Corte, conteos: ConteoRef[]): string | null {
+  if (conteos.length === 0) return null;
+  const dia = diaColombia(ini.cortado_en);
+  const dist = (c: ConteoRef) => Math.abs(Date.parse(c.fecha + "T00:00:00Z") - Date.parse(dia + "T00:00:00Z"));
+  const orden = [...conteos].sort((x, y) =>
+    dist(x) - dist(y) || (y.enviado_en ?? "").localeCompare(x.enviado_en ?? "") || x.codigo.localeCompare(y.codigo));
+  return orden[0].id;
+}

@@ -25,7 +25,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import { esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado } from "@/modulos/inventario/cola";
-import { analizar, duracion, type Corte as CorteT, type Lado, type Sitio, type Unidad } from "@/modulos/inventario/corte";
+import { analizar, conteoPorDefecto, cruzar, duracion, type Analisis, type ConteoRef, type Corte as CorteT, type Lado, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
 
 export type UbiC = { id: string; calle: string; modulo: string; lado: "IZQ" | "DER" | null };
 export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null; tipo: "PRODUCTO" | "ENVASE" };
@@ -92,7 +92,7 @@ const num = (s: string): number | null => {
   return Number(t);
 };
 
-export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombres, puedeEditar, manda, ahora }: {
+export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombres, puedeEditar, manda, ahora, conteos = [], lineasConteo = [] }: {
   bodegaId: string;
   lineas: LineaC[];
   ubicaciones: UbiC[];
@@ -104,6 +104,9 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
   manda: boolean;
   /** «Ahora», del servidor: que la hora por defecto no dependa del reloj del teléfono. */
   ahora: string;
+  /** Los conteos ENVIADOS de la bodega y sus renglones, para comparar el corte contra el inventario. */
+  conteos?: ConteoRef[];
+  lineasConteo?: LineaConteo[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState<null | { tipo: "inicial" | "final"; inicial: CorteT | null }>(null);
@@ -367,6 +370,8 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                               accion="subió" nombreUbi={nombreUbi} material={mat.get(f.material_id ?? "")?.nombre ?? null} />
                   </section>
                 ))}
+                <CruceConteo a={a} ini={ini} conteos={conteos} lineas={lineasConteo} nombreUbi={nombreUbi}
+                             nombreMat={(id) => mat.get(id ?? "")?.nombre ?? null} />
                 {(a.soloInicial.length > 0 || a.soloFinal.length > 0) && (
                   <p className="cl-nota">
                     {a.soloInicial.length > 0 && <>Solo se cortó en el inicial: <b>{a.soloInicial.join(", ")}</b>. </>}
@@ -488,6 +493,80 @@ function LadoFila({ titulo, lado, accion, nombreUbi, material }: {
       </ul>
       {lado.aviso && <p className="cl-aviso">{lado.aviso}</p>}
     </div>
+  );
+}
+
+/* EL CORTE CONTRA EL CONTEO DEL INVENTARIO: por cada módulo, tres números en
+   cajas —corte inicial, conteo, corte final— y cuánto se aparta el conteo de
+   cada corte. La lectura que importa es si el conteo cae ENTRE los dos cortes:
+   un módulo que se consume no tiene por qué dar cero contra cada uno. */
+function CruceConteo({ a, ini, conteos, lineas, nombreUbi, nombreMat }: {
+  a: Analisis; ini: CorteT; conteos: ConteoRef[]; lineas: LineaConteo[];
+  nombreUbi: (id: string) => string; nombreMat: (id: string | null) => string | null;
+}) {
+  const [escogido, setEscogido] = useState<string | null>(null);
+  const id = escogido ?? conteoPorDefecto(ini, conteos);
+  const cruce = useMemo(() => (id ? cruzar(a, id, lineas) : []), [a, id, lineas]);
+  const dia = (f: string) => f.slice(0, 10).split("-").reverse().join("/");
+  const lectura = { entre: "Entre los dos cortes", fuera: "Fuera del rango", sin_contar: "Sin contar", sin_rango: "Falta un corte" } as const;
+  const dif = (n: number | null) => (n === null ? "—" : Math.abs(n) < 0.5 ? "0" : conSigno(n));
+  return (
+    <section className="cl-cruce" aria-label="Contra el conteo del inventario">
+      <header>
+        <b>Contra el conteo del inventario</b>
+        {conteos.length > 0 && (
+          <label>
+            <span>Conteo</span>
+            <select value={id ?? ""} onChange={(e) => setEscogido(e.target.value)}>
+              {conteos.map((c) => <option key={c.id} value={c.id}>{c.codigo} · {dia(c.fecha)}</option>)}
+            </select>
+          </label>
+        )}
+      </header>
+      {conteos.length === 0 ? (
+        <p className="cl-nada">No hay conteos enviados de esta bodega para comparar.</p>
+      ) : (
+        <>
+          <p className="cl-nada">
+            Cajas. «Conteo − corte» es cuánto se aparta lo contado de cada corte. Un módulo que se consume no tiene
+            por qué dar 0 contra cada uno: lo que debe pasar es que el conteo caiga <b>entre los dos cortes</b>.
+          </p>
+          {cruce.map((c) => (
+            <div key={c.linea} className="cl-cruce-linea" aria-label={`${c.linea} contra el conteo`}>
+              <b className="cl-cruce-l">{c.linea}</b>
+              {([["Tomando de", c.origen], ["Ubicados en", c.destino]] as const).map(([titulo, l]) => (
+                <div key={titulo} className="cl-cruce-lado">
+                  <span className="cl-t">{titulo}{nombreMat(l.material_id) && <small>{nombreMat(l.material_id)}</small>}</span>
+                  {l.motivo ? <p className="cl-nada">{l.motivo}</p> : (
+                    <ul className="cl-cruce-mods">
+                      <li className="cab" aria-hidden>
+                        <span>Módulo</span><span>Corte inicial</span><span>Conteo</span><span>Corte final</span>
+                        <span>Conteo − inicial</span><span>Conteo − final</span><span>Lectura</span>
+                      </li>
+                      {l.modulos.map((m) => (
+                        <li key={m.ubicacion_id} className={"l-" + m.lectura}>
+                          <b>{nombreUbi(m.ubicacion_id)}</b>
+                          <span data-k="Corte inicial">{m.ini === null ? "—" : fmt(m.ini)}</span>
+                          <span data-k="Conteo" className="cl-cn">{m.conteo === null ? "—" : fmt(m.conteo)}</span>
+                          <span data-k="Corte final">{m.fin === null ? "—" : fmt(m.fin)}</span>
+                          <span data-k="Conteo − inicial">{dif(m.difIni)}</span>
+                          <span data-k="Conteo − final">{dif(m.difFin)}</span>
+                          <em data-k="Lectura">
+                            {lectura[m.lectura]}
+                            {m.aparte > 0 && <small> + {fmt(m.aparte)} en avería/PNC</small>}
+                            {m.nota && <small>{m.nota}</small>}
+                          </em>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </>
+      )}
+    </section>
   );
 }
 

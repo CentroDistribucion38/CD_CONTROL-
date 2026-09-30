@@ -172,6 +172,25 @@
 .fe .cl-progbar i { display: block; height: 100%; background: var(--fe-bien) }
 .fe .cl-guardar .btn { width: auto; padding: 0 22px }
 
+.fe .cl-cruce { margin-top: 14px; padding: 12px 14px; background: var(--fe-fondo); border-top: 1px solid var(--fe-linea) }
+.fe .cl-cruce > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+.fe .cl-cruce > header b { font: 800 14px var(--fe-titulo) }
+.fe .cl-cruce > header label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600 }
+.fe .cl-cruce > header select { min-height: 44px; min-width: 0; max-width: 100% }
+.fe .cl-cruce > .cl-nada { margin: 6px 0 0 }
+.fe .cl-cruce-linea { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--fe-linea); display: flex; flex-direction: column; gap: 6px }
+.fe .cl-cruce-l { font: 900 14px var(--fe-titulo) }
+.fe .cl-cruce-lado { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.fe .cl-cruce-mods { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; font-variant-numeric: tabular-nums }
+.fe .cl-cruce-mods li { display: grid; grid-template-columns: minmax(90px, 1.2fr) repeat(5, minmax(0, 1fr)) minmax(0, 1.6fr); gap: 2px 10px; align-items: baseline; padding: 4px 0; border-top: 1px dashed var(--fe-linea) }
+.fe .cl-cruce-mods li.cab { border-top: 0; font: 700 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .cl-cruce-mods em { font-style: normal; font-weight: 700 }
+.fe .cl-cruce-mods em small { display: block; font-weight: 500; color: var(--fe-gris); font-size: 11.5px }
+.fe .cl-cruce-mods .cl-cn { font-weight: 800 }
+.fe .cl-cruce-mods li.l-entre em { color: var(--fe-bien) }
+.fe .cl-cruce-mods li.l-fuera em { color: var(--fe-mal) }
+.fe .cl-cruce-mods li.l-sin_contar em, .fe .cl-cruce-mods li.l-sin_rango em { color: var(--fe-gris) }
+
 @media (max-width: 900px) {
   .fe .cl-grid { grid-template-columns: 1fr }
   .fe .cl-r1, .fe .cl-r2 { grid-template-columns: 1fr }
@@ -192,6 +211,10 @@
 @media (max-width: 720px) {
   .fe .cl-lado { grid-template-columns: 1fr; gap: 2px }
   .fe .cl-mods { grid-column: 1 / -1 }
+  .fe .cl-cruce-mods li.cab { display: none }
+  .fe .cl-cruce-mods li { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px 0 }
+  .fe .cl-cruce-mods li > b, .fe .cl-cruce-mods li > em { grid-column: 1 / -1 }
+  .fe .cl-cruce-mods li > span::before, .fe .cl-cruce-mods li > em::before { content: attr(data-k); display: block; font: 600 10.5px var(--fe-texto); color: var(--fe-gris); letter-spacing: .04em }
   .fe .cl-mods li { grid-template-columns: 1fr; gap: 0 }
   .fe .cl-acciones .btn { width: 100% }
   .fe .cl-sitio, .fe .cl-mod { grid-template-columns: repeat(2, minmax(0, 1fr)) }

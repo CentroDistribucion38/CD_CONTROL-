@@ -1,7 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
 import { createClient } from "@/lib/supabase/server";
 import { maestroInventario } from "@/modulos/inventario/fefo";
-import { renglonesPorCorte, type Corte as CorteT, type FilaRenglonBD, type FilaSitioBD } from "@/modulos/inventario/corte";
+import { renglonesPorCorte, type ConteoRef, type Corte as CorteT, type FilaRenglonBD, type FilaSitioBD, type LineaConteo } from "@/modulos/inventario/corte";
 import "../fefo.css";
 import "./corte.css";
 import { Corte } from "./Corte";
@@ -71,6 +71,22 @@ export default async function CortePage() {
     cortado_en: c.cortado_en, nota: c.nota, creado_por: c.creado_por,
     renglones: renglonesDe.get(c.id) ?? [],
   }));
+  /* LOS CONTEOS CON LOS QUE SE COMPARA EL CORTE: solo los ENVIADOS (un borrador
+     a medio caminar diría que un módulo está vacío porque todavía no se llegó).
+     Si quien mira no puede ver el conteo, esto viene vacío y el corte se ve
+     igual, sin la comparación: nunca puede tumbar la pantalla. */
+  const [cv, lv] = await (async () => {
+    const r = await supabase.from("v_conteos_fefo").select("*")
+      .eq("bodega_id", bodega.id).eq("estado", "cerrado")
+      .order("fecha_analisis", { ascending: false }).limit(30);
+    if (r.error || !r.data?.length) return [[], []] as [ConteoRef[], LineaConteo[]];
+    const refs: ConteoRef[] = r.data.map((c: { id: string; codigo: string; fecha_analisis: string; enviado_en: string | null }) => ({
+      id: c.id, codigo: c.codigo, fecha: String(c.fecha_analisis).slice(0, 10), enviado_en: c.enviado_en ?? null }));
+    const l = await supabase.from("v_conteo_fefo")
+      .select("conteo_id,producto_id,ubicacion_id,total_cajas,averia,pnc")
+      .in("conteo_id", refs.map((x) => x.id)).limit(20000);
+    return [refs, (l.error ? [] : (l.data ?? [])) as LineaConteo[]] as [ConteoRef[], LineaConteo[]];
+  })();
   const nombres = Object.fromEntries((per.data ?? []).map((p) => [p.id, p.nombre as string]));
 
     const ubis = m.ubicaciones.filter((u) => u.bodega_id === bodega.id && u.activa);
@@ -91,6 +107,8 @@ export default async function CortePage() {
         ubicaciones={ubis.map((u) => ({ id: u.id, calle: u.calle, modulo: u.modulo, lado: u.lado }))}
         materiales={mats.map((x) => ({ id: x.id, sku: x.sku, nombre: x.nombre, cajas_por_estiba: x.cajas_por_estiba, unidades_por_caja: x.unidades_por_caja, tipo: x.tipo_material === "ENVASE" ? "ENVASE" : "PRODUCTO" }))}
         cortes={cortes}
+        conteos={cv}
+        lineasConteo={lv}
         nombres={nombres}
         puedeEditar={puedeEditar}
         manda={permisos.manda}

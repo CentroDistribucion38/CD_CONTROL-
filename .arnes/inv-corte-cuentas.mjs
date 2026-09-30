@@ -3,7 +3,7 @@ import { buildSync } from "esbuild";
 import { pathToFileURL } from "node:url";
 const R = (p) => new URL("../" + p, import.meta.url).pathname;
 buildSync({ entryPoints: [R("src/modulos/inventario/corte.ts")], bundle: true, format: "esm", outfile: R(".arnes/tmp/corte.mjs"), logLevel: "silent" });
-const { analizar, aCajas, duracion, renglonesPorCorte } = await import(pathToFileURL(R(".arnes/tmp/corte.mjs")).href);
+const { analizar, aCajas, duracion, renglonesPorCorte, cruzar, conteoPorDefecto, diaColombia } = await import(pathToFileURL(R(".arnes/tmp/corte.mjs")).href);
 const fallas = [];
 const ok = (c, m) => { if (!c) fallas.push(m) };
 const sitio = (u, cant, unidad) => ({ ubicacion_id: u, cant, unidad });
@@ -170,6 +170,69 @@ const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
   ok(r2.origenes.length === 1 && r2.origenes[0].ubicacion_id === "A01" && r2.origenes[0].cant === 40 && r2.destinos[0].cant === 900, "un corte viejo debía leerse de las columnas del renglón: " + JSON.stringify(r2));
   ok(m.get("c2")[1].origenes.length === 0 && m.get("c2")[1].destinos.length === 0, "un renglón sin módulos no debía inventar ninguno");
   ok(typeof r1.cajas_depa === "number" && r1.cajas_depa === 100, "las cajas de la depa deben ser número");
+}
+/* 9 · EL CORTE CONTRA EL CONTEO DEL INVENTARIO */
+{
+  const H1 = "2026-09-30T11:00:00Z", H2 = "2026-09-30T17:00:00Z";
+  const rm = (linea, cajas, os, ds, env, mat) => ({ linea, cajas_depa: cajas, envase_id: env, material_id: mat, origenes: os, destinos: ds, nota: null });
+  /* Tomaba de A01 (40 → 30 estibas de m1, 60 cajas por estiba: 2.400 → 1.800) y de A02 (20 → 0: 1.200 → 0);
+     dejaba en B12 (0 → 1.800 cajas de m9). */
+  const ini = corte("inicial", H1, [rm("L1", 1000, [sitio("A01", 40, "estibas"), sitio("A02", 20, "estibas")], [sitio("B12", 0, "cajas")], "m1", "m9")]);
+  const fin = corte("final", H2, [rm("L1", 2800, [sitio("A01", 30, "estibas"), sitio("A02", 0, "estibas")], [sitio("B12", 1800, "cajas")], "m1", "m9")]);
+  const a = analizar(ini, fin, porEstiba);
+  const L = (conteo_id, producto_id, ubicacion_id, total_cajas, averia = false, pnc = false) => ({ conteo_id, producto_id, ubicacion_id, total_cajas, averia, pnc });
+  const lineas = [
+    L("c1", "m1", "A01", 1900),                 // entre 1.800 y 2.400
+    L("c1", "m1", "A01", 120, true),            // avería del mismo envase: aparte
+    L("c1", "m1", "A02", 300),                  // A02 bajó de 1.200 a 0: 300 cae entre
+    L("c1", "m9", "B12", 2100),                 // el destino subió de 0 a 1.800: 2.100 está FUERA
+    L("c1", "m5", "B12", 999),                  // otro material en el mismo módulo: no cuenta
+    L("c2", "m1", "A01", 50),                   // otro conteo: no debe mezclarse
+  ];
+  const [c] = cruzar(a, "c1", lineas);
+  const a01 = c.origen.modulos.find((m) => m.ubicacion_id === "A01"), a02 = c.origen.modulos.find((m) => m.ubicacion_id === "A02");
+  ok(a01.ini === 2400 && a01.fin === 1800 && a01.conteo === 1900, "A01: los tres números " + JSON.stringify(a01));
+  ok(a01.difIni === -500 && a01.difFin === 100, `conteo − inicial y conteo − final: ${a01.difIni} / ${a01.difFin}`);
+  ok(a01.lectura === "entre", "1.900 está entre 1.800 y 2.400: " + a01.lectura);
+  ok(a01.aparte === 120, "la avería debía ir aparte y no sumarse: " + a01.aparte);
+  ok(a02.conteo === 300 && a02.lectura === "entre", "A02: " + JSON.stringify(a02));
+  const b12 = c.destino.modulos[0];
+  ok(b12.conteo === 2100 && b12.lectura === "fuera" && b12.difIni === 2100 && b12.difFin === 300, "B12 fuera del rango 0–1.800: " + JSON.stringify(b12));
+  /* Los bordes cuentan: si el conteo da EXACTAMENTE lo de un corte, sigue siendo «entre». */
+  for (const [n, v] of [["el inicial", 2400], ["el final", 1800]]) {
+    const borde = cruzar(a, "c1", [L("c1", "m1", "A01", v)])[0].origen.modulos.find((m) => m.ubicacion_id === "A01");
+    ok(borde.lectura === "entre", `un conteo igual a ${n} (${v}) debía seguir entre los dos cortes: ` + borde.lectura);
+  }
+  const arriba = cruzar(a, "c1", [L("c1", "m1", "A01", 2401)])[0].origen.modulos.find((m) => m.ubicacion_id === "A01");
+  const abajo = cruzar(a, "c1", [L("c1", "m1", "A01", 1799)])[0].origen.modulos.find((m) => m.ubicacion_id === "A01");
+  ok(arriba.lectura === "fuera" && abajo.lectura === "fuera", "una caja por fuera de cada extremo es fuera");
+  /* El conteo 2 no se mezcla con el 1. */
+  const [c2] = cruzar(a, "c2", lineas);
+  ok(c2.origen.modulos.find((m) => m.ubicacion_id === "A01").conteo === 50 && c2.origen.modulos.find((m) => m.ubicacion_id === "A01").lectura === "fuera", "otro conteo: " + JSON.stringify(c2.origen.modulos[0]));
+  ok(c2.origen.modulos.find((m) => m.ubicacion_id === "A02").lectura === "sin_contar" && c2.origen.modulos.find((m) => m.ubicacion_id === "A02").conteo === null, "un módulo que el conteo no visitó debe quedar sin contar, no en cero");
+  /* El módulo se visitó pero el material no aparece: son cero cajas, y lo dice. */
+  const c3 = cruzar(a, "c1", [L("c1", "m5", "A01", 70)])[0].origen.modulos.find((m) => m.ubicacion_id === "A01");
+  ok(c3.conteo === 0 && /no apareció/.test(c3.nota) && c3.lectura === "fuera", "módulo visitado sin el material: " + JSON.stringify(c3));
+  /* Falta un corte en ese módulo: no hay rango, pero sí la diferencia que existe. */
+  const finSolo = corte("final", H2, [rm("L1", 2800, [sitio("A01", 30, "estibas")], [sitio("B12", 1800, "cajas")], "m1", "m9")]);
+  const aSolo = analizar(ini, finSolo, porEstiba);
+  const s02 = cruzar(aSolo, "c1", lineas)[0].origen.modulos.find((m) => m.ubicacion_id === "A02");
+  ok(s02.lectura === "sin_rango" && s02.ini === 1200 && s02.fin === null && s02.difIni === -900 && s02.difFin === null, "un módulo solo en el inicial: " + JSON.stringify(s02));
+  /* Sin material en la línea no se sabe qué buscar. */
+  const sinMat = analizar(corte("inicial", H1, [rm("L2", 10, [sitio("A01", 40, "cajas")], [sitio("B12", 0, "cajas")], null, null)]), corte("final", H2, [rm("L2", 20, [sitio("A01", 30, "cajas")], [sitio("B12", 5, "cajas")], null, null)]), porEstiba);
+  const r = cruzar(sinMat, "c1", lineas)[0];
+  ok(r.origen.modulos.length === 0 && /no dice el envase/.test(r.origen.motivo) && /no dice el material/.test(r.destino.motivo), "sin material: " + JSON.stringify(r));
+  /* Con qué conteo se compara si nadie escoge. */
+  const cs = [
+    { id: "x1", codigo: "C-1", fecha: "2026-09-29", enviado_en: "2026-09-29T20:00:00Z" },
+    { id: "x2", codigo: "C-2", fecha: "2026-09-30", enviado_en: "2026-09-30T14:00:00Z" },
+    { id: "x3", codigo: "C-3", fecha: "2026-09-30", enviado_en: "2026-09-30T22:00:00Z" },
+    { id: "x4", codigo: "C-4", fecha: "2026-10-02", enviado_en: "2026-10-02T14:00:00Z" },
+  ];
+  ok(conteoPorDefecto(ini, cs) === "x3", "el del mismo día, el enviado más tarde: " + conteoPorDefecto(ini, cs));
+  ok(conteoPorDefecto(ini, [cs[0], cs[3]]) === "x1", "sin del mismo día, el de la fecha más cercana (29 a 1 día, 02 a 2 días)");
+  ok(conteoPorDefecto(ini, []) === null, "sin conteos no hay con qué comparar");
+  ok(diaColombia("2026-10-01T03:00:00Z") === "2026-09-30" && diaColombia("2026-10-01T05:00:00Z") === "2026-10-01", "el día es el de Colombia (UTC−5): " + diaColombia("2026-10-01T03:00:00Z"));
 }
 /* 6 · aCajas */
 ok(aCajas({ ubicacion_id: "x", cant: 3, unidad: "estibas" }, 45) === 135, "3 estibas × 45");
