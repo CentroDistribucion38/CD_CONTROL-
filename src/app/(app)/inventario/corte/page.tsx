@@ -40,13 +40,20 @@ export default async function CortePage() {
   if (m.falta) return sinSql;
 
   const conUbicaciones = new Set(m.ubicaciones.map((u) => u.bodega_id));
-  const bodega = m.bodegas.find((b) => b.activo && conUbicaciones.has(b.id)) ?? m.bodegas[0] ?? null;
+  /* Si la lista de bodegas no se pudo leer (permisos, o un fallo de la consulta) pero las
+     ubicaciones sí llegaron, la bodega se toma de ellas: la pantalla no se cae por eso. */
+  const bodega = m.bodegas.find((b) => b.activo && conUbicaciones.has(b.id)) ?? m.bodegas[0] ??
+    (m.ubicaciones[0] ? { id: m.ubicaciones[0].bodega_id, activo: true } : null);
   if (!bodega) {
     return (
       <div className="fe">
         <section className="sin-tablas">
           <h2>No hay bodega con ubicaciones</h2>
           <p>El corte se anota por calle, módulo y lado: primero hacen falta las ubicaciones de la bodega (Maestro).</p>
+          <p>
+            Bodegas leídas: {m.bodegas.length} · ubicaciones leídas: {m.ubicaciones.length}
+            {m.errorBodegas ? <> · error de Supabase: <code>{m.errorBodegas}</code></> : null}
+          </p>
         </section>
       </div>
     );

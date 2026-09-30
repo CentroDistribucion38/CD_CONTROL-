@@ -217,7 +217,7 @@ export async function maestroInventario() {
     return {
       falta: sinTablas(msg), cruce,
       materiales: [] as Material[], ubicaciones: [] as Ubicacion[],
-      bodegas: [] as Bodega[], estados: [] as string[],
+      bodegas: [] as Bodega[], errorBodegas: null as string | null, estados: [] as string[],
     };
   }
   return {
@@ -225,6 +225,8 @@ export async function maestroInventario() {
     materiales: (mat.data ?? []) as Material[],
     ubicaciones: (u.data ?? []) as Ubicacion[],
     bodegas: (b.data ?? []) as Bodega[],
+    /* Por qué vinieron vacías, si fue un error y no una tabla sin filas. */
+    errorBodegas: (b.error?.message ?? null) as string | null,
     estados: (e.data ?? []).map((x) => x.clave as string),
   };
 }
