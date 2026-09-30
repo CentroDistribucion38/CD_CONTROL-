@@ -72,18 +72,19 @@ const ordenCalle = (a: string, b: string) => a.length - b.length || a.localeComp
 type SitioF = { calle: string; modulo: string; lado: string; cant: string; unidad: Unidad };
 /* `envase` es lo que ENTRA a la línea (se toma del origen); `material` es el
    PRODUCTO que sale (queda ubicado en el destino). */
-type LineaF = { cajas: string; material: string; envase: string; origen: SitioF; destino: SitioF };
+type LineaF = { cajas: string; material: string; envase: string; origen: SitioF[]; destino: SitioF[] };
 const sitioVacio = (unidad: Unidad = "estibas"): SitioF => ({ calle: "", modulo: "", lado: "", cant: "", unidad });
-const lineaVacia = (): LineaF => ({ cajas: "", material: "", envase: "", origen: sitioVacio(), destino: sitioVacio() });
+const lineaVacia = (): LineaF => ({ cajas: "", material: "", envase: "", origen: [sitioVacio()], destino: [sitioVacio()] });
 /* UNA LÍNEA ESTÁ «TOCADA» si alguien escribió algo en ella: cajas o
    cantidades, o si cambió el módulo o el material respecto de cómo
    arrancó. En el final los módulos vienen puestos del inicial: una línea
    que solo trae eso NO se tocó, y no se exige ni se guarda. */
 const lugar = (s: SitioF) => `${s.calle}|${s.modulo}|${s.lado}`;
+const lugares = (l: SitioF[]) => l.map(lugar).join(";");
 const tocada = (l: LineaF, base: LineaF) =>
-  !!(l.cajas.trim() || l.origen.cant.trim() || l.destino.cant.trim() ||
+  !!(l.cajas.trim() || l.origen.some((s) => s.cant.trim()) || l.destino.some((s) => s.cant.trim()) ||
      l.material.trim() !== base.material.trim() || l.envase.trim() !== base.envase.trim() ||
-     lugar(l.origen) !== lugar(base.origen) || lugar(l.destino) !== lugar(base.destino));
+     lugares(l.origen) !== lugares(base.origen) || lugares(l.destino) !== lugares(base.destino));
 
 const num = (s: string): number | null => {
   const t = s.trim().replace(",", ".");
@@ -240,6 +241,8 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
     const u = ubi.get(id);
     return u ? `${u.calle} · ${u.modulo} · ${u.lado ?? "—"}` : "—";
   };
+  /* «A · 01 · DER: 30 estibas + A · 02 · DER: 20 estibas»: todos los módulos de un lado. */
+  const sitiosTxt = (l: Sitio[]) => l.map((x) => `${nombreUbi(x.ubicacion_id)}: ${fmt(x.cant)} ${x.unidad}`).join(" + ");
   const nombreLinea = (c: string) => lineas.find((l) => l.clave === c)?.nombre ?? c;
 
   async function eliminar(id: string) {
@@ -306,9 +309,9 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                   <li key={r.linea}>
                     <b>{r.linea}</b> {fmt(r.cajas_depa)} cajas por la depa
                     <span>
-                      {r.origen ? <>Tomando de {nombreUbi(r.origen.ubicacion_id)}: {fmt(r.origen.cant)} {r.origen.unidad}{r.envase_id && mat.get(r.envase_id) ? <> de {mat.get(r.envase_id)!.nombre}</> : null}</> : null}
-                      {r.origen && r.destino ? " · " : null}
-                      {r.destino ? <>Ubicados en {nombreUbi(r.destino.ubicacion_id)}: {fmt(r.destino.cant)} {r.destino.unidad}{r.material_id && mat.get(r.material_id) ? <> de {mat.get(r.material_id)!.nombre}</> : null}</> : null}
+                      {r.origenes.length > 0 ? <>Tomando de {sitiosTxt(r.origenes)}{r.envase_id && mat.get(r.envase_id) ? <> de {mat.get(r.envase_id)!.nombre}</> : null}</> : null}
+                      {r.origenes.length > 0 && r.destinos.length > 0 ? " · " : null}
+                      {r.destinos.length > 0 ? <>Ubicados en {sitiosTxt(r.destinos)}{r.material_id && mat.get(r.material_id) ? <> de {mat.get(r.material_id)!.nombre}</> : null}</> : null}
                     </span>
                   </li>
                 ))}
@@ -341,7 +344,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
         <div className="fe-lista">
           {cerrados.map((ini) => {
             const fin = finalDe.get(ini.id)!;
-            const a = analizar(ini, fin, porEstiba);
+            const a = analizar(ini, fin, porEstiba, nombreUbi);
             return (
               <article key={ini.id} className="fe-fila cl-par">
                 <div className="cl-cab">
@@ -358,9 +361,9 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                           : <><b>{fmt(f.pasadas)}</b> cajas por la depa <i>({fmt(f.ini)} → {fmt(f.fin)})</i></>}
                       </span>
                     </header>
-                    <LadoFila titulo="Tomando de" ini={ini} fin={fin} linea={f.linea} cual="origen" lado={f.origen}
+                    <LadoFila titulo="Tomando de" lado={f.origen}
                               accion="bajó" nombreUbi={nombreUbi} material={mat.get(f.envase_id ?? "")?.nombre ?? null} />
-                    <LadoFila titulo="Ubicados en" ini={ini} fin={fin} linea={f.linea} cual="destino" lado={f.destino}
+                    <LadoFila titulo="Ubicados en" lado={f.destino}
                               accion="subió" nombreUbi={nombreUbi} material={mat.get(f.material_id ?? "")?.nombre ?? null} />
                   </section>
                 ))}
@@ -427,30 +430,63 @@ function Cabeza({ paso, abiertos, cerrados, anotando }: {
 }
 
 /* Una fila «Tomando de / Ubicados en» del análisis: el módulo, de cuánto a
-   cuánto, cuánto se movió y la diferencia con lo que contó la depa. */
-function LadoFila({ titulo, ini, fin, linea, cual, lado, accion, nombreUbi, material }: {
-  titulo: string; ini: CorteT; fin: CorteT; linea: string; cual: "origen" | "destino"; lado: Lado;
-  accion: "bajó" | "subió"; nombreUbi: (id: string) => string; material: string | null;
+   cuánto, cuánto se movió y la diferencia con lo que contó la depa.
+   Con VARIOS módulos la fila trae el TOTAL (la suma, que es lo que se compara
+   con la depa) y debajo el detalle de cada módulo. */
+function LadoFila({ titulo, lado, accion, nombreUbi, material }: {
+  titulo: string; lado: Lado; accion: "bajó" | "subió"; nombreUbi: (id: string) => string; material: string | null;
 }) {
-  const a = ini.renglones.find((r) => r.linea === linea)?.[cual] ?? null;
-  const b = fin.renglones.find((r) => r.linea === linea)?.[cual] ?? null;
   const cant = (s: Sitio | null) => (s ? `${fmt(s.cant)} ${s.unidad}` : "—");
+  const mods = lado.modulos;
+  /* UN SOLO MÓDULO (o uno que cambió por otro): se dice como siempre. */
+  const sencillo = mods.length === 1 || (mods.length === 2 && mods.every((m) => !m.a || !m.b));
+  const a = mods.find((m) => m.a)?.a ?? null;
+  const b = mods.find((m) => m.b)?.b ?? null;
   const mismo = a && b && a.ubicacion_id === b.ubicacion_id;
-  return (
-    <div className="cl-lado">
-      <span className="cl-t">{titulo}{material && <small>{material}</small>}</span>
-      <span className="cl-ubi">
-        {mismo ? nombreUbi(a!.ubicacion_id)
-          : <>{a ? nombreUbi(a.ubicacion_id) : "—"} <i>→</i> {b ? nombreUbi(b.ubicacion_id) : "—"}</>}
-      </span>
-      <span className="cl-cant">{cant(a)} <i>→</i> {cant(b)}</span>
-      {lado.dif !== null && lado.mov !== null ? (
-        <span className={"cl-dif " + (Math.abs(lado.dif) < 0.5 ? "bien" : "mal")}>
-          {accion} {fmt(lado.mov)} cajas · <b>diferencia {Math.abs(lado.dif) < 0.5 ? "0" : conSigno(lado.dif)}</b>
+  const dif = lado.dif !== null && lado.mov !== null ? (
+    <span className={"cl-dif " + (Math.abs(lado.dif) < 0.5 ? "bien" : "mal")}>
+      {accion} {fmt(lado.mov)} cajas · <b>diferencia {Math.abs(lado.dif) < 0.5 ? "0" : conSigno(lado.dif)}</b>
+    </span>
+  ) : (
+    <span className="cl-dif sin">{lado.motivo}</span>
+  );
+  if (sencillo) {
+    return (
+      <div className="cl-lado">
+        <span className="cl-t">{titulo}{material && <small>{material}</small>}</span>
+        <span className="cl-ubi">
+          {mismo ? nombreUbi(a!.ubicacion_id)
+            : <>{a ? nombreUbi(a.ubicacion_id) : "—"} <i>→</i> {b ? nombreUbi(b.ubicacion_id) : "—"}</>}
         </span>
-      ) : (
-        <span className="cl-dif sin">{lado.motivo}</span>
-      )}
+        <span className="cl-cant">{cant(a)} <i>→</i> {cant(b)}</span>
+        {dif}
+      </div>
+    );
+  }
+  /* Lo contrario de lo esperado en un módulo (en el origen subió: alguien repuso). */
+  const contrario = accion === "bajó" ? "subió" : "bajó";
+  return (
+    <div className="cl-lado cl-multi">
+      <span className="cl-t">{titulo}{material && <small>{material}</small>}</span>
+      <span className="cl-ubi">{mods.length} módulos</span>
+      <span className="cl-cant">
+        {lado.ini !== null && lado.fin !== null ? <>{fmt(lado.ini)} <i>→</i> {fmt(lado.fin)} cajas</> : "—"}
+      </span>
+      {dif}
+      <ul className="cl-mods">
+        {mods.map((m) => (
+          <li key={m.ubicacion_id} className={m.mov === null ? "fuera" : m.mov < 0 ? "contra" : ""}>
+            <b>{nombreUbi(m.ubicacion_id)}</b>
+            <span>{cant(m.a)} <i>→</i> {cant(m.b)}</span>
+            <em>
+              {m.mov === null ? m.nota
+                : m.mov < 0 ? `${contrario} ${fmt(-m.mov)} cajas (repusieron; resta del total)`
+                : `${accion} ${fmt(m.mov)} cajas`}
+            </em>
+          </li>
+        ))}
+      </ul>
+      {lado.aviso && <p className="cl-aviso">{lado.aviso}</p>}
     </div>
   );
 }
@@ -483,9 +519,9 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
 
   /* EL FINAL ARRANCA CON LO DEL INICIAL: los mismos módulos, la misma
      unidad y el mismo material. Solo faltan las cantidades. */
-  const desdeSitio = (s: Sitio | null): SitioF => {
-    const u = s ? ubi.get(s.ubicacion_id) : null;
-    return u ? { calle: u.calle, modulo: u.modulo, lado: u.lado ?? "", cant: "", unidad: s!.unidad } : sitioVacio();
+  const desdeSitio = (s: Sitio): SitioF => {
+    const u = ubi.get(s.ubicacion_id);
+    return u ? { calle: u.calle, modulo: u.modulo, lado: u.lado ?? "", cant: "", unidad: s.unidad } : sitioVacio();
   };
   const [base] = useState<Record<string, LineaF>>(() => armarBase());
   const [filas, setFilas] = useState<Record<string, LineaF>>(base);
@@ -496,7 +532,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       o[l.clave] = r
         ? { cajas: "", material: (() => { const m = materiales.find((x) => x.id === r.material_id); return m ? etiqueta(m) : "" })(),
             envase: (() => { const m = materiales.find((x) => x.id === r.envase_id); return m ? etiqueta(m) : "" })(),
-            origen: desdeSitio(r.origen), destino: desdeSitio(r.destino) }
+            origen: r.origenes.length ? r.origenes.map(desdeSitio) : [sitioVacio()],
+            destino: r.destinos.length ? r.destinos.map(desdeSitio) : [sitioVacio()] }
         : lineaVacia();
     }
     return o;
@@ -529,12 +566,26 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     const aqui: string[] = [];
     const cajas = num(f.cajas);
     if (cajas === null || !Number.isInteger(cajas)) aqui.push("las cajas de la depa (un número entero)");
+    /* CADA LADO ES UNA LISTA DE MÓDULOS. El primero es obligatorio; un módulo
+       extra que se dejó en blanco no dice nada y se ignora. El mismo módulo
+       dos veces en un lado es un error: sumaría dos veces lo mismo. */
     const sitios: Record<string, unknown> = {};
-    for (const [k, s, nom] of [["origen", f.origen, "de dónde tomaba"], ["destino", f.destino, "dónde estaba ubicado"]] as const) {
-      const u = resolver(s), c = num(s.cant);
-      if (!u) aqui.push(`${nom} (calle, módulo y lado)`);
-      else if (c === null) aqui.push(`cuántas ${s.unidad} hay ${k === "origen" ? "donde tomaba" : "donde estaba ubicado"}`);
-      else sitios[k] = { ubicacion_id: u.id, cant: c, unidad: s.unidad };
+    for (const [k, lista, nom, donde] of [
+      ["origenes", f.origen, "de dónde tomaba", "donde tomaba"],
+      ["destinos", f.destino, "dónde estaba ubicado", "donde estaba ubicado"],
+    ] as const) {
+      const vistos = new Set<string>();
+      const salen: { ubicacion_id: string; cant: number; unidad: Unidad }[] = [];
+      lista.forEach((s, i) => {
+        if (i > 0 && !s.calle && !s.modulo && !s.cant.trim()) return;
+        const suf = lista.length > 1 ? ` (módulo ${i + 1})` : "";
+        const u = resolver(s), c = num(s.cant);
+        if (!u) aqui.push(`${nom}${suf} (calle, módulo y lado)`);
+        else if (c === null) aqui.push(`cuántas ${s.unidad} hay ${donde}${suf}`);
+        else if (vistos.has(u.id)) aqui.push(`${nom}: el módulo ${i + 1} está repetido`);
+        else { vistos.add(u.id); salen.push({ ubicacion_id: u.id, cant: c, unidad: s.unidad }) }
+      });
+      sitios[k] = salen;
     }
     if (f.envase.trim() && !envDe(f.envase)) aqui.push("el envase (escoge uno de la lista o déjalo vacío)");
     if (f.material.trim() && !matDe(f.material)) aqui.push("el material (escoge uno de la lista o déjalo vacío)");
@@ -611,21 +662,33 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
 
   /* CUÁNTAS CAJAS (Y UNIDADES) SON LO QUE SE ESCRIBIÓ: lo que hace falta
      para no sumar estibas con cajas en la cabeza. */
-  const equivale = (s: SitioF, m: MatC | null, que: "envase" | "material"): string => {
+  const cajasDe = (s: SitioF, m: MatC | null): number | null => {
     const c = num(s.cant);
-    if (c === null) return "";
-    const cajas = s.unidad === "cajas" ? c : m?.cajas_por_estiba && m.cajas_por_estiba > 0 ? c * m.cajas_por_estiba : null;
+    if (c === null) return null;
+    return s.unidad === "cajas" ? c : m?.cajas_por_estiba && m.cajas_por_estiba > 0 ? c * m.cajas_por_estiba : null;
+  };
+  const equivale = (s: SitioF, m: MatC | null, que: "envase" | "material"): string => {
+    if (num(s.cant) === null) return "";
+    const cajas = cajasDe(s, m);
     if (cajas === null) return m ? `Este ${que} no tiene cajas por estiba en el maestro` : `Escoge el ${que} para pasar las estibas a cajas`;
     return `${fmt(cajas)} cajas` + (m?.unidades_por_caja ? ` · ${fmt(cajas * m.unidades_por_caja)} unidades` : "");
   };
 
   const bloque = (clave: string, k: "origen" | "destino", titulo: string, ayuda: string) => {
-    const s = filas[clave][k];
-    const mods = s.calle ? modulosDe(s.calle) : [];
-    const lados = s.calle && s.modulo ? ladosDe(s.calle, s.modulo) : [];
-    const cambiaSitio = (p: Partial<SitioF>) => cambia(clave, (l) => ({ ...l, [k]: { ...l[k], ...p } }));
+    const lista = filas[clave][k];
     const esEnv = k === "origen";
-    const eq = esEnv ? equivale(s, envDe(filas[clave].envase), "envase") : equivale(s, matDe(filas[clave].material), "material");
+    const m = esEnv ? envDe(filas[clave].envase) : matDe(filas[clave].material);
+    const que = esEnv ? "envase" : "material";
+    const cambiaSitio = (i: number, p: Partial<SitioF>) =>
+      cambia(clave, (l) => ({ ...l, [k]: l[k].map((x, j) => (j === i ? { ...x, ...p } : x)) }));
+    const agregar = () =>
+      cambia(clave, (l) => ({ ...l, [k]: [...l[k], sitioVacio(l[k][l[k].length - 1]?.unidad)] }));
+    const quitar = (i: number) => cambia(clave, (l) => ({ ...l, [k]: l[k].filter((_, j) => j !== i) }));
+    /* El total de todos los módulos, solo si TODOS se pueden pasar a cajas. */
+    const llenos = lista.filter((x) => num(x.cant) !== null);
+    const cajasTot = llenos.map((x) => cajasDe(x, m));
+    const total = lista.length > 1 && llenos.length > 0 && cajasTot.every((x) => x !== null)
+      ? (cajasTot as number[]).reduce((t, x) => t + x, 0) : null;
     return (
       <fieldset className={"cl-sitio " + k} aria-label={titulo}>
         <div className="cl-leg">
@@ -641,45 +704,66 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                          titulo="Material" nota="el producto que sale" sin="Sin material"
                          onCambia={(v) => cambia(clave, (x) => ({ ...x, material: v }))} />
         )}
-        <label>
-          <span>Calle</span>
-          <select value={s.calle} onChange={(e) => cambiaSitio({ calle: e.target.value, modulo: "", lado: "" })}>
-            <option value="">—</option>
-            {calles.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Módulo</span>
-          <select value={s.modulo} disabled={!s.calle}
-                  onChange={(e) => {
-                    const m = e.target.value;
-                    const ls = m ? ladosDe(s.calle, m) : [];
-                    /* UN SOLO LADO POSIBLE: se pone solo. */
-                    cambiaSitio({ modulo: m, lado: ls.length === 1 ? ls[0] : "" });
-                  }}>
-            <option value="">—</option>
-            {mods.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Lado</span>
-          <select value={s.lado} disabled={!s.modulo || lados.length <= 1}
-                  onChange={(e) => cambiaSitio({ lado: e.target.value })}>
-            {(lados.length > 1 || !s.modulo) && <option value="">—</option>}
-            {lados.map((x) => <option key={x || "solo"} value={x}>{x === "IZQ" ? "Izquierdo" : x === "DER" ? "Derecho" : "único"}</option>)}
-          </select>
-        </label>
-        <label className="cl-cant-c">
-          <span>¿Cuántas hay?</span>
-          <input inputMode="decimal" value={s.cant} placeholder="0" onChange={(e) => cambiaSitio({ cant: e.target.value })} />
-        </label>
-        <div className="cl-unidad" role="group" aria-label="Unidad">
-          {(["estibas", "cajas"] as const).map((u) => (
-            <button key={u} type="button" className={s.unidad === u ? "on" : ""} aria-pressed={s.unidad === u}
-                    onClick={() => cambiaSitio({ unidad: u })}>{u === "estibas" ? "Estibas" : "Cajas"}</button>
-          ))}
-        </div>
-        <p className={"cl-eco" + (eq && !/cajas$|unidades$/.test(eq) ? " aviso" : "")}>{eq || "Se convierte con el factor del material"}</p>
+        {lista.map((s, i) => {
+          const mods = s.calle ? modulosDe(s.calle) : [];
+          const lados = s.calle && s.modulo ? ladosDe(s.calle, s.modulo) : [];
+          const eq = equivale(s, m, que);
+          return (
+            <div key={i} className="cl-mod">
+              {lista.length > 1 && (
+                <div className="cl-mod-cab">
+                  <b>Módulo {i + 1}</b>
+                  <button type="button" className="cl-quitar" onClick={() => quitar(i)}>Quitar este módulo</button>
+                </div>
+              )}
+              <label>
+                <span>Calle</span>
+                <select value={s.calle} onChange={(e) => cambiaSitio(i, { calle: e.target.value, modulo: "", lado: "" })}>
+                  <option value="">—</option>
+                  {calles.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Módulo</span>
+                <select value={s.modulo} disabled={!s.calle}
+                        onChange={(e) => {
+                          const mo = e.target.value;
+                          const ls = mo ? ladosDe(s.calle, mo) : [];
+                          /* UN SOLO LADO POSIBLE: se pone solo. */
+                          cambiaSitio(i, { modulo: mo, lado: ls.length === 1 ? ls[0] : "" });
+                        }}>
+                  <option value="">—</option>
+                  {mods.map((mo) => <option key={mo} value={mo}>{mo}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Lado</span>
+                <select value={s.lado} disabled={!s.modulo || lados.length <= 1}
+                        onChange={(e) => cambiaSitio(i, { lado: e.target.value })}>
+                  {(lados.length > 1 || !s.modulo) && <option value="">—</option>}
+                  {lados.map((x) => <option key={x || "solo"} value={x}>{x === "IZQ" ? "Izquierdo" : x === "DER" ? "Derecho" : "único"}</option>)}
+                </select>
+              </label>
+              <label className="cl-cant-c">
+                <span>¿Cuántas hay?</span>
+                <input inputMode="decimal" value={s.cant} placeholder="0" onChange={(e) => cambiaSitio(i, { cant: e.target.value })} />
+              </label>
+              <div className="cl-unidad" role="group" aria-label="Unidad">
+                {(["estibas", "cajas"] as const).map((u) => (
+                  <button key={u} type="button" className={s.unidad === u ? "on" : ""} aria-pressed={s.unidad === u}
+                          onClick={() => cambiaSitio(i, { unidad: u })}>{u === "estibas" ? "Estibas" : "Cajas"}</button>
+                ))}
+              </div>
+              <p className={"cl-eco" + (eq && !/cajas$|unidades$/.test(eq) ? " aviso" : "")}>{eq || "Se convierte con el factor del material"}</p>
+            </div>
+          );
+        })}
+        {total !== null && (
+          <p className="cl-total">Total de los {lista.length} módulos: <b>{fmt(total)} cajas</b>{m?.unidades_por_caja ? ` · ${fmt(total * m.unidades_por_caja)} unidades` : ""}</p>
+        )}
+        <button type="button" className="cl-mas" onClick={agregar}>
+          + Agregar otro módulo {esEnv ? "de donde se toma" : "donde quedó ubicado"}
+        </button>
       </fieldset>
     );
   };

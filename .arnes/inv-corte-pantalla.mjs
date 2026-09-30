@@ -50,7 +50,7 @@ const mats = [{ id: "m1", sku: "3500887", nombre: "Botella Flint 1000R", cajas_p
               { id: "m2", sku: "3500005", nombre: "Envase Costeñita 175R", cajas_por_estiba: null, unidades_por_caja: null, tipo: "ENVASE" },
               { id: "m3", sku: "3128", nombre: "Águila RN 330cc X30", cajas_por_estiba: 36, unidades_por_caja: 30, tipo: "PRODUCTO" }];
 const S = (u: string, cant: number, unidad: string) => ({ ubicacion_id: u, cant, unidad });
-const R = (linea: string, cajas: number, o: any, d: any, mat: string | null = null, env: string | null = null) => ({ linea, cajas_depa: cajas, material_id: mat, envase_id: env, origen: o, destino: d, nota: null });
+const R = (linea: string, cajas: number, o: any, d: any, mat: string | null = null, env: string | null = null) => ({ linea, cajas_depa: cajas, material_id: mat, envase_id: env, origenes: o ? [o] : [], destinos: d ? [d] : [], nota: null });
 const ini = { id: "i1", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-30T11:00:00.000Z", nota: null, creado_por: "u1",
   renglones: [R("L1", 18801, S("uA01D", 40, "estibas"), S("uB12I", 900, "cajas"), "m3", "m1"), R("L2", 5000, S("uA02D", 100, "cajas"), S("uB12D", 0, "cajas"))] };
 const fin = { id: "f1", tipo: "final", inicial_id: "i1", cortado_en: "2026-09-30T17:00:00.000Z", nota: "Todo normal", creado_por: "u1",
@@ -270,9 +270,9 @@ await monta("c=todo");
   ok(JSON.stringify(r[0].a) === JSON.stringify({
     p_bodega: "bod1", p_tipo: "inicial", p_inicial: null, p_cortado: "2026-09-30T17:30:00.000Z", p_nota: null,
     p_renglones: [{ linea: "L1", cajas_depa: 18801, material_id: "m3", envase_id: "m1",
-      origen: { ubicacion_id: "uA01D", cant: 40, unidad: "estibas" }, destino: { ubicacion_id: "uB12I", cant: 900, unidad: "cajas" } },
+      origenes: [{ ubicacion_id: "uA01D", cant: 40, unidad: "estibas" }], destinos: [{ ubicacion_id: "uB12I", cant: 900, unidad: "cajas" }] },
       { linea: "L2", cajas_depa: 5000, material_id: null, envase_id: null,
-        origen: { ubicacion_id: "uA02D", cant: 100, unidad: "cajas" }, destino: { ubicacion_id: "uB12D", cant: 0, unidad: "cajas" } }] }),
+        origenes: [{ ubicacion_id: "uA02D", cant: 100, unidad: "cajas" }], destinos: [{ ubicacion_id: "uB12D", cant: 0, unidad: "cajas" }] }] }),
      "los parámetros son " + JSON.stringify(r[0].a));
   ok(/Corte inicial guardado/.test(await txt()) && /cuando vuelvas/.test(await txt()) && await pg.$$eval(".cl-ficha", (x) => x.length) === 0, "no volvió a la lista con su aviso");
 }

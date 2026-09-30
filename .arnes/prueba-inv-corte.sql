@@ -32,7 +32,9 @@ insert into public.bodegas (id, codigo, nombre) values ('bbbbbbbb-0000-0000-0000
 insert into public.ubicaciones (id, bodega_id, clave, calle, modulo, lado) values
   ('bbbbbbbb-1000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001','A01_DER','A','01','DER'),
   ('bbbbbbbb-1000-0000-0000-000000000002','bbbbbbbb-0000-0000-0000-000000000001','B12_IZQ','B','12','IZQ'),
-  ('bbbbbbbb-1000-0000-0000-000000000003','bbbbbbbb-0000-0000-0000-000000000002','Z99_DER','Z','99','DER');
+  ('bbbbbbbb-1000-0000-0000-000000000003','bbbbbbbb-0000-0000-0000-000000000002','Z99_DER','Z','99','DER'),
+  ('bbbbbbbb-1000-0000-0000-000000000004','bbbbbbbb-0000-0000-0000-000000000001','A02_DER','A','02','DER'),
+  ('bbbbbbbb-1000-0000-0000-000000000005','bbbbbbbb-0000-0000-0000-000000000001','A03_DER','A','03','DER');
 
 -- ---------------------------------------------------------------------
 -- I1 · CORTE INICIAL COMPLETO: cabecera y renglones, y la línea sale del catálogo
@@ -55,8 +57,15 @@ do $$
 declare v_id uuid := (select v from public._ids where k='ini'); f text := '';
 begin
   if (select count(*) from public.inv_corte_renglones where corte_id = v_id) <> 2 then f := f || E'\n   · no guardó los 2 renglones'; end if;
-  if not exists (select 1 from public.inv_corte_renglones where corte_id = v_id and linea='L1' and cajas_depa = 18801
-      and origen_cant = 40 and origen_unidad = 'estibas' and destino_cant = 900 and destino_unidad = 'cajas') then f := f || E'\n   · el renglón L1 no quedó como se mandó'; end if;
+  if not exists (select 1 from public.inv_corte_renglones where corte_id = v_id and linea='L1' and cajas_depa = 18801) then f := f || E'\n   · el renglón L1 no quedó como se mandó'; end if;
+  /* La forma vieja (un solo «origen» y un solo «destino») se vuelve una lista de uno. */
+  if not exists (select 1 from public.inv_corte_sitios s join public.inv_corte_renglones r on r.id = s.renglon_id
+      where r.corte_id = v_id and r.linea='L1' and s.rol = 'origen' and s.cant = 40 and s.unidad = 'estibas' and s.ubicacion_id = 'bbbbbbbb-1000-0000-0000-000000000001')
+     or not exists (select 1 from public.inv_corte_sitios s join public.inv_corte_renglones r on r.id = s.renglon_id
+      where r.corte_id = v_id and r.linea='L1' and s.rol = 'destino' and s.cant = 900 and s.unidad = 'cajas' and s.ubicacion_id = 'bbbbbbbb-1000-0000-0000-000000000002') then
+    f := f || E'\n   · el origen y el destino de L1 no quedaron guardados'; end if;
+  if (select count(*) from public.inv_corte_sitios s join public.inv_corte_renglones r on r.id = s.renglon_id where r.corte_id = v_id and r.linea = 'L2') <> 0 then
+    f := f || E'\n   · L2 no traía módulos y se inventó alguno'; end if;
   if (select creado_por from public.inv_cortes where id = v_id) is distinct from '33333333-3333-3333-3333-333333333333'::uuid then f := f || E'\n   · no guardó quién hizo el corte'; end if;
   if f <> '' then raise exception E'FALLA:%', f; end if;
   raise notice 'I1 · el corte inicial guarda cabecera, líneas, ubicaciones y quién lo hizo';
@@ -209,4 +218,69 @@ begin
   if (select count(*) from public.inv_cortes) <> 1 then f := f || E'\n   · un rechazo dejó una cabecera huérfana'; end if;
   if f <> '' then raise exception E'FALLA:%', f; end if;
   raise notice 'I6 · el envase del origen solo acepta materiales tipo ENVASE y se guarda aparte del producto';
+end $$;
+
+-- ---------------------------------------------------------------------
+-- I7 · VARIOS MÓDULOS POR LADO: se guardan todos y en orden, el mismo módulo no
+--      se repite dentro de un lado, y un rechazo no deja módulos a medias
+-- ---------------------------------------------------------------------
+set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333'; set role probador;
+do $$
+declare f text := ''; v_id uuid;
+  b constant text := 'bbbbbbbb-0000-0000-0000-000000000001';
+begin
+  v_id := public.inv_corte_guardar(b::uuid, 'inicial', null, now() - interval '3 hours', null,
+    '[{"linea":"L1","cajas_depa":500,
+       "origenes":[{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000001","cant":40,"unidad":"estibas"},
+                   {"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000004","cant":20,"unidad":"estibas"},
+                   {"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000005","cant":5,"unidad":"cajas"}],
+       "destinos":[{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000002","cant":900,"unidad":"cajas"},
+                   {"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000005","cant":2,"unidad":"estibas"}]}]'::jsonb);
+  insert into public._ids values ('multi', v_id);
+  /* El mismo módulo dos veces en el MISMO lado. */
+  f := f || public._espera_error('select public.inv_corte_guardar(''' || b || ''',''inicial'',null, now() - interval ''1 hour'', null, ''[{"linea":"L2","cajas_depa":1,"origenes":[{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000001","cant":1,"unidad":"cajas"},{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000001","cant":2,"unidad":"cajas"}]}]''::jsonb)',
+        '%repetido%', 'aceptó el mismo módulo dos veces en un lado');
+  /* Uno incompleto entre varios buenos. */
+  f := f || public._espera_error('select public.inv_corte_guardar(''' || b || ''',''inicial'',null, now() - interval ''1 hour'', null, ''[{"linea":"L2","cajas_depa":1,"destinos":[{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000001","cant":1,"unidad":"cajas"},{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000004","cant":2}]}]''::jsonb)',
+        '%incompleto%', 'aceptó un módulo sin unidad entre varios');
+  /* Uno de otra bodega entre varios buenos. */
+  f := f || public._espera_error('select public.inv_corte_guardar(''' || b || ''',''inicial'',null, now() - interval ''1 hour'', null, ''[{"linea":"L2","cajas_depa":1,"origenes":[{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000001","cant":1,"unidad":"cajas"},{"ubicacion_id":"bbbbbbbb-1000-0000-0000-000000000003","cant":2,"unidad":"cajas"}]}]''::jsonb)',
+        '%no es de esta bodega%', 'aceptó un módulo de otra bodega entre varios');
+  if f <> '' then raise exception E'FALLA:%', f; end if;
+end $$;
+reset role;
+do $$
+declare f text := ''; v_id uuid := (select v from public._ids where k='multi');
+  v_r uuid := (select id from public.inv_corte_renglones where corte_id = v_id and linea = 'L1');
+begin
+  if (select count(*) from public.inv_corte_sitios where renglon_id = v_r and rol = 'origen') <> 3 then f := f || E'\n   · no guardó los 3 módulos de origen'; end if;
+  if (select count(*) from public.inv_corte_sitios where renglon_id = v_r and rol = 'destino') <> 2 then f := f || E'\n   · no guardó los 2 módulos de destino'; end if;
+  if (select string_agg(ubicacion_id::text, ',' order by orden) from public.inv_corte_sitios where renglon_id = v_r and rol = 'origen')
+     is distinct from 'bbbbbbbb-1000-0000-0000-000000000001,bbbbbbbb-1000-0000-0000-000000000004,bbbbbbbb-1000-0000-0000-000000000005' then
+    f := f || E'\n   · los módulos de origen no quedaron en el orden en que se anotaron'; end if;
+  if not exists (select 1 from public.inv_corte_sitios where renglon_id = v_r and rol = 'origen' and ubicacion_id = 'bbbbbbbb-1000-0000-0000-000000000004' and cant = 20 and unidad = 'estibas')
+     or not exists (select 1 from public.inv_corte_sitios where renglon_id = v_r and rol = 'destino' and ubicacion_id = 'bbbbbbbb-1000-0000-0000-000000000005' and cant = 2 and unidad = 'estibas') then
+    f := f || E'\n   · la cantidad o la unidad de un módulo no quedó como se mandó'; end if;
+  /* El mismo módulo SÍ puede estar de los dos lados (toma de él y deja ahí). */
+  if (select count(*) from public.inv_corte_sitios where renglon_id = v_r and ubicacion_id = 'bbbbbbbb-1000-0000-0000-000000000005') <> 2 then
+    f := f || E'\n   · el mismo módulo no pudo estar en origen y en destino'; end if;
+  /* Los renglones nuevos no usan las columnas viejas. */
+  if exists (select 1 from public.inv_corte_renglones where id = v_r and (origen_ubicacion_id is not null or destino_ubicacion_id is not null)) then
+    f := f || E'\n   · escribió también en las columnas de un solo módulo'; end if;
+  /* Los rechazos no dejaron cabeceras ni módulos sueltos. */
+  if (select count(*) from public.inv_cortes) <> 2 then f := f || E'\n   · un rechazo dejó una cabecera huérfana'; end if;
+  if (select count(*) from public.inv_corte_sitios where renglon_id not in (select id from public.inv_corte_renglones)) <> 0 then f := f || E'\n   · quedaron módulos sin renglón'; end if;
+  if f <> '' then raise exception E'FALLA:%', f; end if;
+end $$;
+/* Al eliminar el corte se van también sus módulos. */
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111'; set role probador;
+select public.inv_corte_eliminar((select v from public._ids where k='multi'));
+reset role;
+do $$
+begin
+  if (select count(*) from public.inv_corte_sitios s join public.inv_corte_renglones r on r.id = s.renglon_id
+       where r.corte_id = (select v from public._ids where k='multi')) <> 0 then
+    raise exception 'FALLA: eliminar el corte dejó sus módulos';
+  end if;
+  raise notice 'I7 · varios módulos por lado: se guardan todos y en orden, no se repiten dentro de un lado y no quedan sueltos al eliminar';
 end $$;

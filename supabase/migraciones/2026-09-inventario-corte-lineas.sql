@@ -27,6 +27,14 @@
 --                        materiales tipo ENVASE). Lo que queda ubicado es el
 --                        PRODUCTO que sale (material_id).
 --
+--   inv_corte_sitios     VARIOS MÓDULOS POR LADO: de dónde tomaban y dónde
+--                        estaban ubicados pueden ser varios módulos (calle ·
+--                        módulo · lado), cada uno con su cantidad y su
+--                        unidad. Una fila por módulo y por lado («origen» o
+--                        «destino»). Los cortes hechos cuando solo cabía UN
+--                        módulo siguen en las columnas viejas del renglón y
+--                        la pantalla los lee de ahí: no hubo que migrarlos.
+--
 -- EL ANÁLISIS NO SE GUARDA: es una resta entre el final y el inicial y se
 -- hace al mirar (src/modulos/inventario/corte.ts), como el resto de cifras
 -- calculadas del módulo. Guardarlo dejaría dos versiones de la misma cuenta.
@@ -101,12 +109,27 @@ alter table public.inv_corte_renglones
   add column if not exists envase_id uuid references public.productos(id) on delete restrict;
 create index if not exists inv_corte_renglones_corte_idx on public.inv_corte_renglones (corte_id);
 
+/* LOS MÓDULOS DE CADA LADO. `orden` es el orden en que se anotaron; el mismo
+   módulo no se repite dentro del mismo lado de la misma línea. */
+create table if not exists public.inv_corte_sitios (
+  id           uuid primary key default gen_random_uuid(),
+  renglon_id   uuid not null references public.inv_corte_renglones(id) on delete cascade,
+  rol          text not null check (rol in ('origen', 'destino')),
+  orden        integer not null default 0,
+  ubicacion_id uuid not null references public.ubicaciones(id) on delete restrict,
+  cant         numeric(14,3) not null check (cant >= 0),
+  unidad       text not null check (unidad in ('estibas', 'cajas')),
+  unique (renglon_id, rol, ubicacion_id)
+);
+create index if not exists inv_corte_sitios_renglon_idx on public.inv_corte_sitios (renglon_id);
+
 -- ---------------------------------------------------------------------
 -- QUIÉN LEE. Escribir solo se puede por inv_corte_guardar (security definer).
 -- ---------------------------------------------------------------------
 alter table public.inv_lineas          enable row level security;
 alter table public.inv_cortes          enable row level security;
 alter table public.inv_corte_renglones enable row level security;
+alter table public.inv_corte_sitios    enable row level security;
 
 drop policy if exists inv_lineas_ver on public.inv_lineas;
 create policy inv_lineas_ver on public.inv_lineas
@@ -118,15 +141,21 @@ drop policy if exists inv_corte_renglones_ver on public.inv_corte_renglones;
 create policy inv_corte_renglones_ver on public.inv_corte_renglones
   for select to authenticated using (public.puede_ver('/inventario/corte'));
 
-grant select on public.inv_lineas, public.inv_cortes, public.inv_corte_renglones to authenticated;
+drop policy if exists inv_corte_sitios_ver on public.inv_corte_sitios;
+create policy inv_corte_sitios_ver on public.inv_corte_sitios
+  for select to authenticated using (public.puede_ver('/inventario/corte'));
+
+grant select on public.inv_lineas, public.inv_cortes, public.inv_corte_renglones, public.inv_corte_sitios to authenticated;
 
 -- ---------------------------------------------------------------------
 -- GUARDAR UN CORTE COMPLETO
 --   p_renglones: [{"linea":"L1","cajas_depa":18801,"material_id":"…" (producto),
 --                  "envase_id":"…" (solo tipo ENVASE),
---                  "origen":{"ubicacion_id":"…","cant":12,"unidad":"estibas"},
---                  "destino":{"ubicacion_id":"…","cant":300,"unidad":"cajas"},
+--                  "origenes":[{"ubicacion_id":"…","cant":12,"unidad":"estibas"}, …],
+--                  "destinos":[{"ubicacion_id":"…","cant":300,"unidad":"cajas"}, …],
 --                  "nota":"…"}, …]
+--   (Se sigue aceptando la forma de UN solo módulo —"origen":{…}, "destino":{…}—
+--    porque un corte pendiente en un teléfono puede haberse anotado con ella.)
 --   Devuelve el id del corte.
 -- ---------------------------------------------------------------------
 drop function if exists public.inv_corte_guardar(uuid, text, uuid, timestamptz, text, jsonb);
@@ -151,10 +180,16 @@ declare
   v_cajas  numeric;
   v_mat    uuid;
   v_env    uuid;
-  v_o      jsonb;
-  v_d      jsonb;
-  v_ou     uuid; v_oc numeric; v_oun text;
-  v_du     uuid; v_dc numeric; v_dun text;
+  v_rid    uuid;
+  v_rol    text;
+  v_que    text;
+  v_arr    jsonb;
+  v_s      jsonb;
+  v_ub     uuid;
+  v_c      numeric;
+  v_un     text;
+  v_orden  integer;
+  v_vistos uuid[];
 begin
   if not public.puede_editar('/inventario/corte') then
     raise exception 'Hacer un corte de líneas requiere el permiso «Corte de líneas» (Roles)';
@@ -232,39 +267,44 @@ begin
       raise exception 'El envase de % no existe o no es un envase', v_linea;
     end if;
 
-    v_o := v_r -> 'origen';  v_d := v_r -> 'destino';
-    v_ou := null; v_oc := null; v_oun := null; v_du := null; v_dc := null; v_dun := null;
+    insert into public.inv_corte_renglones (corte_id, linea, cajas_depa, material_id, envase_id, nota)
+    values (v_id, v_linea, v_cajas, v_mat, v_env, nullif(btrim(coalesce(v_r ->> 'nota', '')), ''))
+    returning id into v_rid;
 
-    if v_o is not null and jsonb_typeof(v_o) = 'object' then
-      v_ou := nullif(v_o ->> 'ubicacion_id', '')::uuid;
-      v_oun := v_o ->> 'unidad';
-      begin v_oc := (v_o ->> 'cant')::numeric; exception when others then v_oc := null; end;
-      if v_ou is null or v_oc is null or v_oc < 0 or coalesce(v_oun, '') not in ('estibas', 'cajas') then
-        raise exception 'De dónde tomaba % está incompleto: falta la ubicación, la cantidad o si son estibas o cajas', v_linea;
+    /* LOS MÓDULOS de cada lado. Llegan como lista; si llega la forma vieja
+       (un solo módulo) se vuelve una lista de uno. */
+    foreach v_rol in array array['origen', 'destino'] loop
+      v_que := case v_rol when 'origen' then 'De dónde tomaba' else 'Dónde estaba ubicado' end;
+      v_arr := v_r -> (case v_rol when 'origen' then 'origenes' else 'destinos' end);
+      if v_arr is null or jsonb_typeof(v_arr) <> 'array' then
+        v_s := v_r -> v_rol;
+        v_arr := case when v_s is not null and jsonb_typeof(v_s) = 'object'
+                      then jsonb_build_array(v_s) else '[]'::jsonb end;
       end if;
-      if not exists (select 1 from public.ubicaciones where id = v_ou and bodega_id = p_bodega) then
-        raise exception 'La ubicación de origen de % no es de esta bodega', v_linea;
-      end if;
-    end if;
-    if v_d is not null and jsonb_typeof(v_d) = 'object' then
-      v_du := nullif(v_d ->> 'ubicacion_id', '')::uuid;
-      v_dun := v_d ->> 'unidad';
-      begin v_dc := (v_d ->> 'cant')::numeric; exception when others then v_dc := null; end;
-      if v_du is null or v_dc is null or v_dc < 0 or coalesce(v_dun, '') not in ('estibas', 'cajas') then
-        raise exception 'Dónde estaba ubicado % está incompleto: falta la ubicación, la cantidad o si son estibas o cajas', v_linea;
-      end if;
-      if not exists (select 1 from public.ubicaciones where id = v_du and bodega_id = p_bodega) then
-        raise exception 'La ubicación de destino de % no es de esta bodega', v_linea;
-      end if;
-    end if;
-
-    insert into public.inv_corte_renglones
-      (corte_id, linea, cajas_depa, material_id, envase_id,
-       origen_ubicacion_id, origen_cant, origen_unidad,
-       destino_ubicacion_id, destino_cant, destino_unidad, nota)
-    values
-      (v_id, v_linea, v_cajas, v_mat, v_env, v_ou, v_oc, v_oun, v_du, v_dc, v_dun,
-       nullif(btrim(coalesce(v_r ->> 'nota', '')), ''));
+      v_vistos := '{}';
+      v_orden := 0;
+      for v_s in select * from jsonb_array_elements(v_arr) loop
+        if jsonb_typeof(v_s) <> 'object' then
+          raise exception '% % está incompleto: falta la ubicación, la cantidad o si son estibas o cajas', v_que, v_linea;
+        end if;
+        v_ub := nullif(v_s ->> 'ubicacion_id', '')::uuid;
+        v_un := v_s ->> 'unidad';
+        begin v_c := (v_s ->> 'cant')::numeric; exception when others then v_c := null; end;
+        if v_ub is null or v_c is null or v_c < 0 or coalesce(v_un, '') not in ('estibas', 'cajas') then
+          raise exception '% % está incompleto: falta la ubicación, la cantidad o si son estibas o cajas', v_que, v_linea;
+        end if;
+        if not exists (select 1 from public.ubicaciones where id = v_ub and bodega_id = p_bodega) then
+          raise exception 'La ubicación de % de % no es de esta bodega', v_rol, v_linea;
+        end if;
+        if v_ub = any (v_vistos) then
+          raise exception '%: el mismo módulo está repetido en %', v_que, v_linea;
+        end if;
+        v_vistos := v_vistos || v_ub;
+        insert into public.inv_corte_sitios (renglon_id, rol, orden, ubicacion_id, cant, unidad)
+        values (v_rid, v_rol, v_orden, v_ub, v_c, v_un);
+        v_orden := v_orden + 1;
+      end loop;
+    end loop;
   end loop;
 
   return v_id;

@@ -1,7 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
 import { createClient } from "@/lib/supabase/server";
 import { maestroInventario } from "@/modulos/inventario/fefo";
-import type { Corte as CorteT, RenglonCorte, Sitio, Unidad } from "@/modulos/inventario/corte";
+import { renglonesPorCorte, type Corte as CorteT, type FilaRenglonBD, type FilaSitioBD } from "@/modulos/inventario/corte";
 import "../fefo.css";
 import "./corte.css";
 import { Corte } from "./Corte";
@@ -52,30 +52,20 @@ export default async function CortePage() {
     );
   }
 
-  const [lin, cor, ren, per] = await Promise.all([
+  const [lin, cor, ren, sit, per] = await Promise.all([
     supabase.from("inv_lineas").select("clave,nombre").eq("activa", true).order("orden"),
     supabase.from("inv_cortes").select("id,tipo,inicial_id,cortado_en,nota,creado_por")
       .eq("bodega_id", bodega.id).order("cortado_en", { ascending: false }).limit(400),
     supabase.from("inv_corte_renglones").select(
-      "corte_id,linea,cajas_depa,material_id,envase_id,origen_ubicacion_id,origen_cant,origen_unidad,destino_ubicacion_id,destino_cant,destino_unidad,nota"
+      "id,corte_id,linea,cajas_depa,material_id,envase_id,origen_ubicacion_id,origen_cant,origen_unidad,destino_ubicacion_id,destino_cant,destino_unidad,nota"
     ).limit(5000),
+    supabase.from("inv_corte_sitios").select("renglon_id,rol,orden,ubicacion_id,cant,unidad")
+      .order("orden").limit(20000),
     supabase.from("perfiles").select("id,nombre").limit(2000),
   ]);
-  if (lin.error || cor.error || ren.error) return sinSql;
+  if (lin.error || cor.error || ren.error || sit.error) return sinSql;
 
-  const sitio = (u: string | null, c: number | null, un: string | null): Sitio | null =>
-    u && c !== null && un ? { ubicacion_id: u, cant: Number(c), unidad: un as Unidad } : null;
-  const renglonesDe = new Map<string, RenglonCorte[]>();
-  for (const r of ren.data ?? []) {
-    const l = renglonesDe.get(r.corte_id) ?? [];
-    l.push({
-      linea: r.linea, cajas_depa: Number(r.cajas_depa), material_id: r.material_id, envase_id: r.envase_id,
-      origen: sitio(r.origen_ubicacion_id, r.origen_cant, r.origen_unidad),
-      destino: sitio(r.destino_ubicacion_id, r.destino_cant, r.destino_unidad),
-      nota: r.nota,
-    });
-    renglonesDe.set(r.corte_id, l);
-  }
+  const renglonesDe = renglonesPorCorte((ren.data ?? []) as FilaRenglonBD[], (sit.data ?? []) as FilaSitioBD[]);
   const cortes: CorteT[] = (cor.data ?? []).map((c) => ({
     id: c.id, tipo: c.tipo as "inicial" | "final", inicial_id: c.inicial_id,
     cortado_en: c.cortado_en, nota: c.nota, creado_por: c.creado_por,

@@ -48,6 +48,13 @@
 .fe .cl-dif.mal { color: var(--fe-mal) }
 .fe .cl-dif.sin { color: var(--fe-gris); font-size: 12.5px }
 .fe .cl-dif b { font-weight: 800 }
+/* VARIOS MÓDULOS en el análisis: el total arriba y el detalle debajo */
+.fe .cl-mods { grid-column: 2 / -1; list-style: none; margin: 2px 0 0; padding: 4px 0 0; border-top: 1px dashed var(--fe-linea); display: flex; flex-direction: column; gap: 4px }
+.fe .cl-mods li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr); gap: 2px 12px; align-items: baseline; font-size: 12.5px }
+.fe .cl-mods li em { font-style: normal }
+.fe .cl-mods li.contra em { color: var(--fe-aviso) }
+.fe .cl-mods li.fuera em { color: var(--fe-gris) }
+.fe .cl-aviso { grid-column: 1 / -1; margin: 2px 0 0; padding: 6px 10px; background: var(--fe-papel); border-left: 3px solid var(--fe-acento); font-size: 12px; color: var(--fe-gris-panel) }
 
 /* ---------- La cabeza con los tres pasos ---------- */
 .fe .cl-flujo { display: flex; margin: 0; padding: 0; list-style: none; background: var(--fe-papel); border: 1px solid var(--fe-linea); align-self: stretch }
@@ -130,8 +137,16 @@
 .fe .cl-leg { grid-column: 1 / -1; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
 .fe .cl-leg b { font: 800 14px var(--fe-titulo) }
 .fe .cl-leg i { font: 500 12px var(--fe-texto); color: var(--fe-gris-panel); font-style: normal }
-.fe .cl-sitio > label { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
-.fe .cl-sitio > label > span { font-size: 11.5px; font-weight: 600; color: var(--fe-gris-panel) }
+.fe .cl-mod > label { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.fe .cl-mod > label > span { font-size: 11.5px; font-weight: 600; color: var(--fe-gris-panel) }
+/* UN MÓDULO DE LOS QUE SE ANOTAN EN UN LADO: la misma rejilla de tres columnas */
+.fe .cl-mod { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; min-width: 0 }
+.fe .cl-mod + .cl-mod { padding-top: 12px; border-top: 1px dashed var(--fe-linea) }
+.fe .cl-mod-cab { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px }
+.fe .cl-mod-cab b { font: 800 12.5px var(--fe-titulo) }
+.fe .cl-quitar { min-height: 44px; padding: 0 6px; background: none; border: 0; font: 600 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer }
+.fe .cl-mas { grid-column: 1 / -1; min-height: 44px; padding: 0 14px; background: var(--fe-papel); border: 1.5px dashed var(--fe-tinta); color: var(--fe-tinta); font: 700 13px var(--fe-titulo); cursor: pointer; text-align: left }
+.fe .cl-total { grid-column: 1 / -1; margin: 0; padding: 8px 10px; background: var(--fe-papel); border-left: 3px solid var(--fe-acento); font-size: 12.5px; font-variant-numeric: tabular-nums }
 .fe .cl-cant-c { grid-column: 1 / 3 }
 .fe .cl-cant-c input { font: 800 20px var(--fe-titulo); font-variant-numeric: tabular-nums }
 .fe .cl-unidad { display: flex; align-self: end }
@@ -176,8 +191,10 @@
 }
 @media (max-width: 720px) {
   .fe .cl-lado { grid-template-columns: 1fr; gap: 2px }
+  .fe .cl-mods { grid-column: 1 / -1 }
+  .fe .cl-mods li { grid-template-columns: 1fr; gap: 0 }
   .fe .cl-acciones .btn { width: 100% }
-  .fe .cl-sitio { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .fe .cl-sitio, .fe .cl-mod { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .fe .cl-cant-c, .fe .cl-unidad { grid-column: 1 / -1 }
   .fe .cl-progbar { display: none }
   .fe .cl-prog { flex-basis: 100%; font-size: 12px }

@@ -58,7 +58,7 @@ const mats = [{ id: "m1", sku: "3500887", nombre: "Botella Flint 1000R", cajas_p
               { id: "m2", sku: "3500005", nombre: "Envase Costeñita 175R", cajas_por_estiba: null, unidades_por_caja: null, tipo: "ENVASE" },
               { id: "m3", sku: "3128", nombre: "Águila RN 330cc X30", cajas_por_estiba: 36, unidades_por_caja: 30, tipo: "PRODUCTO" }];
 const S = (u: string, cant: number, unidad: string) => ({ ubicacion_id: u, cant, unidad });
-const R = (linea: string, cajas: number, o: any, d: any, mat: string | null = null, env: string | null = null) => ({ linea, cajas_depa: cajas, material_id: mat, envase_id: env, origen: o, destino: d, nota: null });
+const R = (linea: string, cajas: number, o: any, d: any, mat: string | null = null, env: string | null = null) => ({ linea, cajas_depa: cajas, material_id: mat, envase_id: env, origenes: o ? [o] : [], destinos: d ? [d] : [], nota: null });
 const ini = { id: "i1", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-30T11:00:00.000Z", nota: null, creado_por: "u1",
   renglones: [R("L1", 18801, S("uA01D", 40, "estibas"), S("uB12I", 900, "cajas"), "m3", "m1"), R("L2", 5000, S("uA02D", 100, "cajas"), S("uB12D", 0, "cajas"))] };
 const fin = { id: "f1", tipo: "final", inicial_id: "i1", cortado_en: "2026-09-30T17:00:00.000Z", nota: "Todo normal", creado_por: "u1",
@@ -136,6 +136,8 @@ async function llenaInicial() {
   await campo(1, ".cl-unidad button:has-text('Cajas')").click();
 }
 const enLaLista = async () => /Nuevo corte inicial/.test(await txt());
+/* Estos pendientes traen la forma VIEJA (un solo «origen» y «destino»): así quedaron los que se anotaron
+   antes de poder poner varios módulos, y la base los sigue aceptando. */
 const item = (id, tipo, extra = {}) => ({
   id, t: 1, sku: "Corte " + tipo, lugar: "L1", ubicacionId: null,
   bb: { bodega: "bod1", tipo, inicial: tipo === "final" ? "i2" : null, cortado: "2026-09-30T16:30:00.000Z", nota: null,
@@ -160,7 +162,7 @@ await monta("c=todo");
   const c = await cola();
   ok(c && c.length === 1 && c[0].bb.tipo === "inicial" && c[0].bb.bodega === "bod1" && c[0].bb.inicial === null, "el corte no quedó en la cola del teléfono: " + JSON.stringify(c));
   ok(c && c[0].bb.renglones.length === 1 && c[0].bb.renglones[0].linea === "L1" && c[0].bb.renglones[0].cajas_depa === 100
-     && c[0].bb.renglones[0].origen.ubicacion_id === "uA02D" && c[0].bb.renglones[0].destino.ubicacion_id === "uB12D", "lo guardado en el teléfono no es lo tecleado: " + JSON.stringify(c && c[0].bb.renglones));
+     && c[0].bb.renglones[0].origenes[0].ubicacion_id === "uA02D" && c[0].bb.renglones[0].destinos[0].ubicacion_id === "uB12D", "lo guardado en el teléfono no es lo tecleado: " + JSON.stringify(c && c[0].bb.renglones));
   ok(/2026-09-30T17:30:00\.000Z/.test(c?.[0]?.bb.cortado ?? ""), "la hora del corte guardada: " + c?.[0]?.bb.cortado);
   const b = await banner();
   ok(/Sin señal/.test(b ?? "") && /1 corte sin enviar/.test(b ?? ""), "el aviso de pendientes: " + b);
