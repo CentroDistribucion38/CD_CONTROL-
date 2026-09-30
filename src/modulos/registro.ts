@@ -351,11 +351,11 @@ export const MODULOS: Modulo[] = [
     // verdad con un vehículo:
     //
     //   Certificar        sale del CD origen
-    //   En tránsito       llega a Barranquilla
+    //   En tránsito       viene en camino y llega a Barranquilla
+    //   Revisión AI       ya llegado, se revisa por dentro (y ahí se crea el Vh Interno)
     //   Fuente principal  ahí queda el viaje, ya completo
+    //   Informe AI        el cobro al socio, con lo que salió de la revisión
     //   Seguimiento       el informe de todos
-    //   Informe AI        el informe del cobro al socio
-    //   Revisión AI       lo que se revisa por dentro, ya llegado el camión
     //   Novedades         lo que salió mal, que solo se sabe al final
     //
     // Maestro cierra porque no es un paso: es la configuración —los
@@ -363,25 +363,23 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Certificar", ruta: "/sider/certificar" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
-      { nombre: "Fuente principal", ruta: "/sider" },
-      { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
-      /* EL INFORME DE LA REVISIÓN AI va detrás del seguimiento de
-         envase y no antes: las dos son análisis de lo que ya pasó, pero
-         el de envase es el del flujo principal —T1/T2— y el de AI es el
-         del cobro al socio, que es una conversación aparte. */
-      { nombre: "Informe AI", ruta: "/sider/seguimiento/ai" },
-      /* REVISIÓN AI, DEBAJO DEL INFORME AI, como se pidió. Es la lista de
-         lo que falta revisar una vez CERTIFICADA la llegada, en dos
-         clases: «certificada» (camión de Sider) y «normal» (los «Vh
-         Interno», que se crean ahí mismo con el «+»). LA RUTA SIGUE SIENDO
-         /sider/sorting: los permisos de cada rol están guardados con ese
-         texto y cambiarlo dejaría a todos sin acceso. */
+      /* REVISIÓN AI VA JUSTO DESPUÉS DE TRÁNSITO: es lo que se hace apenas
+         el camión llega. Lista lo que falta revisar una vez CERTIFICADA la
+         llegada, en dos clases: «certificada» (camión de Sider) y «normal»
+         (los «Vh Interno», que se crean ahí mismo con el «+»). LA RUTA
+         SIGUE SIENDO /sider/sorting: los permisos de cada rol están
+         guardados con ese texto y cambiarlo dejaría a todos sin acceso. */
       { nombre: "Revisión AI", ruta: "/sider/sorting" },
       /* EL «+» DE «VH INTERNO» NO ES UNA PANTALLA: es un botón flotante de
          Revisión AI. Está aquí, oculto, SOLO para tener su casilla en Roles
          —«Vh Interno (+)»—: no todos los que hacen revisiones pueden crear
          un camión. Su página redirige a Revisión AI. */
       { nombre: "Vh Interno (+)", ruta: "/sider/sorting/nuevo", oculto: true },
+      { nombre: "Fuente principal", ruta: "/sider" },
+      /* EL INFORME DE LA REVISIÓN AI va con lo ya pasado: es el cobro al
+         socio, una conversación aparte del seguimiento de envase. */
+      { nombre: "Informe AI", ruta: "/sider/seguimiento/ai" },
+      { nombre: "Seguimiento", ruta: "/sider/seguimiento" },
       /* Se entra por el botón Importar de Seguimiento, que es donde se
          necesita. En el menú era el mismo destino dicho dos veces. */
       { nombre: "Importar", ruta: "/sider/importar", oculto: true },
