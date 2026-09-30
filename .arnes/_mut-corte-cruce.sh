@@ -34,9 +34,7 @@ m "$D" 'conteo.fecha < d1 || conteo.fecha > d2' 'conteo.fecha < d1' $TX
 m "$D" 'cajas / f.porEstiba;' 'cajas * f.porEstiba;' $TX
 m "$D" 'cajas * f.porCaja;' 'cajas / f.porCaja;' $TX
 m "$D" '{(fila.aparte ?? 0) > 0 && <small>' '{false && <small>' $TX
-m "$D" 'sinEstibas={fila.clase === "depa"} />
-      <Tres bloque="Corte final"' 'sinEstibas={false} />
-      <Tres bloque="Corte final"' $TX
+m "$D" 'const est = cajas === null || !(f.porEstiba && f.porEstiba > 0) ? null : cajas / f.porEstiba;' 'const est = cajas === null || !(f.porEstiba && f.porEstiba > 0) || conSigno === undefined ? null : cajas / f.porEstiba;' $TX
 m "$D" 'const factores = (mid: string | null): Factores' 'const factores = (mid: string | null): Factores' $TX
 m "$D" 'const fDepa = factores(f.material_id ?? f.envase_id);' 'const fDepa = factores(f.envase_id);' $TX
 m "$D" 'g.titulo === "Tomando de" ? fOrigen : fDestino' 'fDestino' $TX

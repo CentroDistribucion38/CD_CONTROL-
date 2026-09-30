@@ -135,7 +135,7 @@ await monta("c=todo");
   const dc = await filaT("Línea 1", "Según el corte", 1);
   ok(dc[8] === "+900" && dc[11] === "−11.100" && /^Faltan/.test(dc[13]), "L1 destino según el corte: " + dc.join(" | "));
   const dp = await filaT("Línea 1", "Depaletizadora");
-  ok(dp[2] === "18.801" && dp[5] === "30.801" && dp[8] === "+12.000" && dp[1] === "—" && dp[4] === "—" && dp[11] === "—", "la fila de la depa: " + dp.join(" | "));
+  ok(dp[2] === "18.801" && dp[5] === "30.801" && dp[8] === "+12.000" && dp[1] === "522,3" && dp[4] === "855,6" && dp[11] === "—", "la fila de la depa: " + dp.join(" | "));
   ok(await pg.$eval('.dq-card[aria-label="Línea 1"] .dq-chip', (e) => e.textContent) === "NO CUADRA", "el chip de L1");
   ok(/Factores:/.test(l1) && /60 cajas por estiba/.test(l1), "el pie de L1 debía decir los factores: " + l1);
   ok(/No hay conteos enviados de esta bodega/.test(await txt()), "sin conteos debía decirlo");

@@ -158,7 +158,7 @@ await monta("c=cruce");
 {
   /* La depa cuenta cajas del PRODUCTO (36 por estiba, 30 unidades por caja): 1.000 → 2.800, pasaron 1.800 cajas = 50 estibas. */
   const d = await celdas("Depaletizadora");
-  ok(d[1] === "—" && d[2] === "1.000" && d[3] === "30.000" && d[5] === "2.800" && d[7] === "+50" && d[8] === "+1.800" && d[9] === "+54.000", "la fila de la depa: " + d.join(" | "));
+  ok(d[1] === "27,8" && d[2] === "1.000" && d[3] === "30.000" && d[4] === "77,8" && d[5] === "2.800" && d[7] === "+50" && d[8] === "+1.800" && d[9] === "+54.000", "la fila de la depa: " + d.join(" | "));
   ok(d[10] === "—" && d[11] === "—" && /Pasaron 1\.800 cajas/.test(d[13]), "la depa es la referencia: no lleva diferencia: " + d.join(" | "));
   /* Origen (envase, 60 por estiba): A01 40 → 30 estibas; el inventario contó 1.900 (+120 de avería aparte). */
   const c1 = await celdas("A · 01 · DER · según el corte");

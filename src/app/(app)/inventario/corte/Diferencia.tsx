@@ -35,11 +35,11 @@ const soloHora = (iso: string) => hora(iso).slice(11);
 type Factores = { porEstiba: number | null; porCaja: number | null };
 
 /** Las tres celdas de un bloque: estibas, cajas y unidades de una misma cantidad de cajas. */
-function Tres({ bloque, cajas, f, conSigno, sinEstibas }: {
-  bloque: string; cajas: number | null; f: Factores; conSigno?: boolean; sinEstibas?: boolean;
+function Tres({ bloque, cajas, f, conSigno }: {
+  bloque: string; cajas: number | null; f: Factores; conSigno?: boolean;
 }) {
   const fmtN = (n: number, fm: Intl.NumberFormat) => (conSigno ? signo(n, fm) : fm.format(n));
-  const est = cajas === null || sinEstibas || !(f.porEstiba && f.porEstiba > 0) ? null : cajas / f.porEstiba;
+  const est = cajas === null || !(f.porEstiba && f.porEstiba > 0) ? null : cajas / f.porEstiba;
   const uni = cajas === null || !(f.porCaja && f.porCaja > 0) ? null : cajas * f.porCaja;
   const celda = (n: number | null, fm: Intl.NumberFormat, k: string, clase: string) =>
     <td data-k={k} data-b={k === "Estibas" ? bloque : undefined} className={clase + (n === null ? " nd" : "")}>{n === null ? "—" : fmtN(n, fm)}</td>;
@@ -51,8 +51,8 @@ function FilaT({ fila, f, dz }: { fila: FilaTabla; f: Factores; dz?: boolean }) 
   return (
     <tr className={"r-" + fila.clase}>
       <td className="q" data-k="Qué se mide">{fila.etiqueta}{fila.clase === "depa" && <small>contador · la referencia</small>}</td>
-      <Tres bloque="Corte inicial" cajas={fila.ini} f={f} sinEstibas={fila.clase === "depa"} />
-      <Tres bloque="Corte final" cajas={fila.fin} f={f} sinEstibas={fila.clase === "depa"} />
+      <Tres bloque="Corte inicial" cajas={fila.ini} f={f} />
+      <Tres bloque="Corte final" cajas={fila.fin} f={f} />
       <Tres bloque="Se movió" cajas={fila.mov} f={f} conSigno />
       {fila.clase === "depa"
         ? <><td className="x nd dz" data-k="Estibas" data-b="Diferencia con la depa">—</td><td className="nd dz" data-k="Cajas">—</td><td className="nd dz" data-k="Unidades">—</td></>
