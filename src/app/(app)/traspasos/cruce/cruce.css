@@ -202,3 +202,23 @@
   .tp .tp-rz-tapa .pct { display: none }
   .tp .tp-rz-tapa .n { font-size: 26px; min-width: 40px }
 }
+
+/* EL BUSCADOR DEL RESUMEN DEL DÍA */
+.tp .tp-rz-buscar { margin-top: 18px; display: flex; flex-direction: column; gap: 8px }
+.tp .tp-rz-buscar label { display: flex; flex-direction: column; gap: 5px; max-width: 460px }
+.tp .tp-rz-buscar label span {
+  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--tp-gris);
+}
+.tp .tp-rz-buscar input {
+  height: 46px; padding: 0 14px; font-size: 16px; font-family: inherit;
+  color: var(--tp-tinta); background: var(--tp-papel);
+  border: 1.5px solid var(--tp-linea); border-radius: 3px;
+}
+.tp .tp-rz-buscar input:focus-visible { outline: 3px solid var(--tp-acento); outline-offset: 1px; border-color: var(--tp-tinta) }
+.tp .tp-rz-hallado { margin: 0; font-size: 13px; color: var(--tp-gris); display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.tp .tp-rz-hallado b { color: var(--tp-tinta) }
+.tp .tp-rz-limpiar {
+  background: none; border: 0; padding: 6px 4px; cursor: pointer; font: 700 12.5px inherit;
+  font-family: inherit; color: var(--tp-tinta); text-decoration: underline;
+}
+@media (max-width: 560px) { .tp .tp-rz-buscar label { max-width: none } }

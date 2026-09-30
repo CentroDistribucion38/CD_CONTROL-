@@ -66,7 +66,7 @@ const v = (n: number, o: any) => ({
   creado_en: hace(6), fecha: "2026-09-29", importado: false, requiere_ai: false, ...o });
 
 const FICHAS = [
-  { id: "f1", placa: "JYN141", planta: "APA", lote: "L2609A", nota: null, direccion: "Calle 30 # 12-45, Zona Industrial, Barranquilla",
+  { id: "f1", placa: "JYN141", planta: "APA", lote: null, nota: null, direccion: "Calle 30 # 12-45, Zona Industrial, Barranquilla",
     creado_por: "u1", creado_en: hace(1.5), fotos: 3,
     lineas: [{ sku: "3500887", estibas: 20 }, { sku: "3501226", estibas: 10 }] },
   { id: "f2", placa: "KLM872", planta: "CUR", lote: null, nota: "Precinto roto en la puerta izquierda", direccion: null,
@@ -81,6 +81,18 @@ if (m === "certificar") {
 } else if (m === "salida") {
   root.render(<DarSalida fichas={c === "vacio" ? [] : c === "creador" ? FICHAS.filter((f) => f.creado_por === "u1") : FICHAS} origenes={ORIGENES as any} skus={SKUS} estibasPorSider={36}
     nombres={nombres} yo={c === "creador" ? "u1" : "u3"} ahora={AHORA} puedeDarSalida={c !== "creador" && c !== "sinpermiso"} />);
+} else if (m === "transito" && c.startsWith("multi")) {
+  /* UN CAMIÓN, DOS MATERIALES, UNA FACTURA (nacen juntos al dar salida): misma
+     placa, misma factura, misma hora de salida. Y otro camión suelto. */
+  const salida = hace(2);
+  const viajes = [
+    v(1, { placa: "ABC569", sku: "3501225", descripcion: "BOTELLA FLINT 250 CC", tipo_envase: "EER", estibas: 20, sider: 0.56, cajas: 900, hl: 85.5, factura: "FE-4471", salida_en: salida, en_camino: "02:00:00", requiere_ai: c === "multi-ai" }),
+    v(2, { placa: "ABC569", sku: "3500005", descripcion: "Envase Costeñita 175R", tipo_envase: "EER", estibas: 25, sider: 0.69, cajas: 1350, hl: 89.78, factura: "FE-4471", salida_en: salida, en_camino: "02:00:00" }),
+    v(3, { placa: "JYN141", factura: "FE-5000", salida_en: hace(5), en_camino: "05:00:00" }),
+  ];
+  const adm = c !== "multi-lectura";
+  root.render(<Transito viajes={viajes as any} nombres={nombres} esEditor esAdmin={adm} manda={adm} origenes={ORIGENES as any}
+    skus={SKUS} estibasPorSider={36} trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 } else if (m === "transito") {
   const viajes = [
     v(1, { placa: "JYN141", en_camino: "05:30:00" }),

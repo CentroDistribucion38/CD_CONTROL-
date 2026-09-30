@@ -47,5 +47,8 @@ await pg.locator(".ds-ficha").nth(0).screenshot({ path: O + "d02-factura.png" })
 await pg.locator(".ds-ficha").nth(2).screenshot({ path: O + "d03-faltan-fotos.png" });
 await monta("m=salida&c=facturador", 1100, 1100); await foto("d04-pc");
 await monta("m=salida&c=creador", 390, 1800); await foto("d05-sin-permiso");
+/* ---------- EN TRÁNSITO: UN CAMIÓN CON VARIOS MATERIALES ---------- */
+await monta("m=transito&c=multi-ai", 390, 1800);
+await pg.locator("article.tr-vh").first().screenshot({ path: O + "t10-multi.png" });
 console.log(err);
 await nav.close();

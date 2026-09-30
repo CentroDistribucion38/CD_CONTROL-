@@ -94,6 +94,11 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
   puedeDepurar?: boolean;
 }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
+  /* EL BUSCADOR. Sin él, hallar UN documento entre cuarenta filas es
+     leer la tabla con el dedo. Busca por el número de facturación, el
+     código del viaje o la placa, sin mirar mayúsculas ni guiones, y filtra
+     los cuatro montones a la vez: el documento aparece en el que le toca. */
+  const [q, setQ] = useState("");
   const [avisar, avisos] = useAvisos();
   const marcar = (id: string) => setSel((x) => { const y = new Set(x); if (y.has(id)) y.delete(id); else y.add(id); return y });
   const todosLos = (vs: Viaje[], si: boolean) => setSel((x) => { const y = new Set(x); vs.forEach((v) => si ? y.add(v.id) : y.delete(v.id)); return y });
@@ -127,6 +132,18 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
     () => (hayCorte ? conDocumento.filter((v) => !enSap.has(clave(v))) : []),
     [conDocumento, enSap, hayCorte]);
 
+  const limpio = (t: string | null | undefined) => (t ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const busca = limpio(q);
+  const dePlaca = (v: Viaje) =>
+    !busca || [v.factura_documento, v.codigo, v.placa].some((x) => limpio(x).includes(busca));
+  const cuadranF = useMemo(() => cuadran.filter(dePlaca), [cuadran, busca]);      // eslint-disable-line react-hooks/exhaustive-deps
+  const dedazosF = useMemo(() => dedazos.filter(dePlaca), [dedazos, busca]);      // eslint-disable-line react-hooks/exhaustive-deps
+  const sinDocF = useMemo(() => sinDocumento.filter(dePlaca), [sinDocumento, busca]); // eslint-disable-line react-hooks/exhaustive-deps
+  const faltanF = useMemo(
+    () => faltan.filter((l) => !busca || limpio(l.documento).includes(busca) || limpio(l.sap_descripcion).includes(busca)),
+    [faltan, busca]);                                                              // eslint-disable-line react-hooks/exhaustive-deps
+  const encontrados = cuadranF.length + dedazosF.length + sinDocF.length + faltanF.length;
+
   /* CUÁNTOS SE REGISTRARON ESE DÍA. Es el denominador de la frase de
      arriba: «9 sin documento» no dice nada sin decir sobre cuántos. */
   const registrados = conDocumento.length + sinDocumento.length;
@@ -142,6 +159,14 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
         : dedazos.length > 0 ? "dedazo" : null);
   const alterna = (cual: Exclude<Abierto, null>) =>
     setAbierto((x) => (x === cual ? null : cual));
+  /* BUSCANDO, SE ABRE EL MONTÓN QUE TIENE EL RESULTADO. Si el que estaba
+     abierto no tiene nada, el buscador parecería no encontrar: se abre el
+     primero que sí (en el orden de urgencia de siempre). */
+  const cuentas: Record<Exclude<Abierto, null>, number> = {
+    ok: cuadranF.length, dedazo: dedazosF.length, sindoc: sinDocF.length, falta: faltanF.length };
+  const abiertoEf: Abierto = busca && (abierto == null || cuentas[abierto] === 0)
+    ? (["falta", "sindoc", "dedazo", "ok"] as const).find((k) => cuentas[k] > 0) ?? abierto
+    : abierto;
 
   /* ------------------------------------------------------------------
      UN MONTÓN. La tapa con su cifra, y el cuerpo solo si está abierto.
@@ -155,7 +180,7 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
     nota: React.ReactNode;
     hijos: React.ReactNode;
   }) {
-    const on = abierto === cual;
+    const on = abiertoEf === cual;
     return (
       <div className={`tp-rz-monton ${tono}` + (on ? " on" : "")}>
         <button type="button" className="tp-rz-tapa" aria-expanded={on}
@@ -172,7 +197,7 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
           <div className="tp-rz-cuerpo">
             <p className="tp-rz-nota">{nota}</p>
             {n === 0
-              ? <div className="vacio"><b>Nada por aquí</b>Este montón está vacío.</div>
+              ? <div className="vacio"><b>Nada por aquí</b>{busca ? "Ninguno coincide con lo que buscas." : "Este montón está vacío."}</div>
               : hijos}
           </div>
         )}
@@ -325,11 +350,29 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
         </p>
       )}
 
+      {/* EL BUSCADOR. Filtra este día; no abre otros. */}
+      <div className="tp-rz-buscar" role="search">
+        <label>
+          <span>Buscar en este día</span>
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder="Documento, viaje o placa" autoComplete="off" spellCheck={false}
+                 aria-label="Buscar por documento, viaje o placa" />
+        </label>
+        {busca && (
+          <p className="tp-rz-hallado" role="status">
+            {encontrados === 0
+              ? <>Nada coincide con «<b>{q.trim()}</b>» en este día. Revisa el número o cambia de día arriba.</>
+              : <><b>{nf.format(encontrados)}</b> {encontrados === 1 ? "resultado" : "resultados"} para «<b>{q.trim()}</b>»</>}
+            <button type="button" className="tp-rz-limpiar" onClick={() => setQ("")}>Quitar</button>
+          </p>
+        )}
+      </div>
+
       <div className="tp-rz-lista">
         {/* 1 · LO QUE QUEDÓ BIEN. Va primero aunque no haya nada que
             hacer con él: es el denominador de todo lo demás. */}
         <Monton
-          cual="ok" tono="bien" n={cuadran.length}
+          cual="ok" tono="bien" n={cuadranF.length}
           titulo={hayCorte ? "Facturados y en SAP" : "Facturados"}
           pie={hayCorte
             ? "Facturación puso el número y el corte lo confirma"
@@ -342,20 +385,20 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
                 : <>Cuadran contra el corte de SAP. Nada que hacer con estos.</>)
             : <>Sin corte importado no se puede decir si SAP los tiene. Llevan su número de
                 facturación, que es lo que esta pantalla vigila.</>}
-          hijos={tablaViajes(cuadran, true)} />
+          hijos={tablaViajes(cuadranF, true)} />
 
         {/* 2 · EL DEDAZO. Solo existe habiendo corte: sin él, «SAP no lo
             tiene» no se puede afirmar. */}
         {hayCorte && (
           <Monton
-            cual="dedazo" tono="ojo" n={dedazos.length}
+            cual="dedazo" tono="ojo" n={dedazosF.length}
             titulo="Facturados con un número que SAP no tiene"
             pie="Facturación puso el número, pero no aparece en el corte"
             nota={<>Casi siempre es un dígito mal tecleado: el documento que aparece
                    abajo como <b>sin facturar</b> suele ser este mismo con una cifra
                    cambiada. Lo corrige el administrador: reabre la salida en{" "}
                    <Link href="/traspasos/facturacion">Facturación</Link> y se confirma con el número bueno.</>}
-            hijos={tablaViajes(dedazos, true)} />
+            hijos={tablaViajes(dedazosF, true)} />
         )}
 
         {/* 3 · SIN DOCUMENTO. NO DEPENDE DEL CORTE, y ese es el punto:
@@ -363,19 +406,19 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
             —no tiene con qué emparejarse— así que sin este bloque
             desaparece del tablero entero. */}
         <Monton
-          cual="sindoc" tono="ojo" n={sinDocumento.length}
+          cual="sindoc" tono="ojo" n={sinDocF.length}
           titulo="Por facturar"
           pie="Salieron con carga y facturación no ha puesto el número"
           nota={<>No aparecen en el corte de SAP: sin el número de facturación no hay con qué
                  emparejarlos, así que este es el único sitio donde se ven. Los vacíos no
                  llevan documento y no se cuentan aquí. Se completan en{" "}
                  <Link href="/traspasos/facturacion">Facturación</Link>.</>}
-          hijos={tablaViajes(sinDocumento, false)} />
+          hijos={tablaViajes(sinDocF, false)} />
 
         {/* 4 · LO QUE SAP TIENE Y NADIE REGISTRÓ. */}
         {hayCorte && (
           <Monton
-            cual="falta" tono="mal" n={faltan.length}
+            cual="falta" tono="mal" n={faltanF.length}
             titulo="En SAP y sin facturar"
             pie="SAP los tiene y ningún viaje salió con ese número en CONTROL"
             nota={<>Un documento que se anuló y se rehízo cuenta <b>una vez</b>; uno que se
@@ -393,7 +436,7 @@ export function Diferencias({ lineas, hayCorte, rotulo, desde, hasta, tope,
                     </tr>
                   </thead>
                   <tbody>
-                    {faltan.map((l) => (
+                    {faltanF.map((l) => (
                       <tr key={l.documento}>
                         <td className="cr-doc">{l.documento}</td>
                         <td>

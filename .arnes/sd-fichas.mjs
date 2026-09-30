@@ -62,6 +62,7 @@ ok(cargas.some((c) => /40/.test(c) && /1\.800|1800/.test(c)), "Carga no muestra 
 const etiquetas = await pg.$$eval(".ct-campos label span", (l) => l.map((x) => x.innerText));
 ok(etiquetas[0] === "Placa", "el primer campo de Carga no es la placa: " + etiquetas.join(","));
 ok(!etiquetas.some((e) => /factura/i.test(e)), "Carga pide la factura: " + etiquetas.join(","));
+ok(!etiquetas.some((e) => /lote/i.test(e)), "Carga pide el lote: " + etiquetas.join(","));
 ok(/no se pide aquí/i.test(await txt()), "Carga no explica que la factura la pone el facturador");
 const sigFotos = pg.locator("button:has-text('Seguir a las fotos')");
 ok(await sigFotos.isDisabled(), "se puede seguir a las fotos sin placa");
@@ -92,6 +93,7 @@ ok(g && g.a.p_placa === "JYN141" && g.a.p_planta === "APA", "placa/planta mal en
 ok(g && JSON.stringify(g.a.p_lineas) === JSON.stringify([{ sku: "3501226", estibas: 40 }, { sku: "3500901", estibas: 10 }]),
    "p_lineas mal: " + JSON.stringify(g?.a.p_lineas));
 ok(g && !("p_factura" in g.a), "Certificar manda factura");
+ok(g && g.a.p_lote == null, "Certificar manda lote: " + g?.a.p_lote);
 ok(!r.some((x) => /viaje|certific/i.test(x.n) && x.n !== "sider_ficha_guardar"), "Certificar crea viajes/certificaciones: " + r.map((x) => x.n).join(","));
 ok(await pg.$$eval("a[href='/sider/salida']", (a) => a.length) === 1, "el final no manda a Dar salida");
 ok(/pendiente/i.test(await txt()), "el final no dice que queda pendiente");

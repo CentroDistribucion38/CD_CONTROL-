@@ -3653,3 +3653,25 @@
 .sd .ct-f-pie .btn.mal { background: var(--sd-mal); color: #fff }
 .sd .ct-f-pie .btn.mal:hover:not(:disabled) { background: #B8001F }
 .sd .ds-accion input::placeholder { color: var(--c-b4c0ce); font-weight: 700 }
+
+/* ---------- EN TRÁNSITO: UN CAMIÓN CON VARIOS MATERIALES, UNA SOLA TARJETA ---------- */
+.sd .tr-factura { margin: 0; font-size: 12.5px; color: var(--sd-gris) }
+.sd .tr-factura b { color: var(--sd-tinta); font-family: var(--sd-titulo); font-weight: 800; letter-spacing: .03em }
+.sd .tr-mats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--sd-linea); border-radius: 3px; overflow: hidden }
+.sd .tr-mats > li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; padding: 9px 11px;
+  background: var(--sd-papel); border-left: 4px solid transparent;
+}
+.sd .tr-mats > li + li { border-top: 1px solid var(--sd-linea) }
+.sd .tr-mats > li.ai { border-left-color: #6A3FA0; background: #F8F4FD }
+.sd .tr-m-nom b { display: block; font-size: 13.5px; font-weight: 700; overflow-wrap: anywhere }
+.sd .tr-m-nom em { display: block; font-style: normal; font-size: 11.5px; color: var(--sd-gris) }
+.sd .tr-m-est { text-align: right; white-space: nowrap }
+.sd .tr-m-est b { font: 800 17px var(--sd-titulo); font-variant-numeric: tabular-nums }
+.sd .tr-m-est span { margin-left: 4px; font-size: 11px; color: var(--sd-gris) }
+.sd .tr-m-cif { grid-column: 1 / -1; font-size: 12px; color: var(--sd-gris); font-variant-numeric: tabular-nums }
+.sd .tr-m-acc { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px }
+.sd .tr-m-acc > * { flex: 1 1 auto; min-height: 36px }
+@media (max-width: 560px) {
+  .sd .tr-m-acc > * { min-height: 44px }
+}

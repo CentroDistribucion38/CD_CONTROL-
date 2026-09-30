@@ -152,7 +152,6 @@ export function DarSalida({ fichas, origenes, skus, estibasPorSider, nombres, yo
                 <p className="ds-quien">
                   Certificó {suya ? "tú" : (f.creado_por ? nombres[f.creado_por] ?? "—" : "—")} · {haceCuanto(f.creado_en, ahora)}
                   {f.direccion ? <em>{f.direccion}</em> : null}
-                  {f.lote ? <em>Lote {f.lote}</em> : null}
                   {f.nota ? <em>{f.nota}</em> : null}
                 </p>
 

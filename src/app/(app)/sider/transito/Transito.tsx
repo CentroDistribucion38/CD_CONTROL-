@@ -84,8 +84,10 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  /** El viaje abierto para certificar la llegada. */
-  const [abierto, setAbierto] = useState<Viaje | null>(null);
+  /** Los viajes abiertos para certificar la llegada: casi siempre uno, pero
+   *  un camión que trae varios materiales con la misma factura es UNA sola
+   *  tarjeta y su llegada se certifica UNA sola vez, para todos. */
+  const [abierto, setAbierto] = useState<Viaje[] | null>(null);
 
   /* CORREGIR Y ANULAR. Los dos cuadros son los mismos que los de Fuente
      principal, y llaman a las mismas funciones de la base. */
@@ -387,10 +389,26 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
       const g = m.get(v.cd_origen);
       if (g) g.push(v); else m.set(v.cd_origen, [v]);
     }
+    /* UNA TARJETA POR CAMIÓN, NO POR MATERIAL. Cuando el facturador da salida a
+       una ficha con dos materiales nacen dos viajes con la misma placa, la
+       misma factura y la misma hora de salida: para quien mira esto es UN
+       camión, y verlo dos veces —con dos botones de llegada— confunde. Sin
+       factura o sin salida (importados, internos) cada viaje va solo. */
+    const juntar = (vs: Viaje[]) => {
+      const porCamion = new Map<string, Viaje[]>();
+      for (const v of vs) {
+        const k = !v.interno && v.factura && v.salida_en
+          ? `${normPlaca(v.placa)}|${v.factura}|${v.salida_en}` : v.id;
+        const g = porCamion.get(k);
+        if (g) g.push(v); else porCamion.set(k, [v]);
+      }
+      return [...porCamion.values()].map((x) => x.sort((a, b) => a.descripcion.localeCompare(b.descripcion, "es")));
+    };
     return [...m.entries()]
       .map(([cd, vs]) => ({
         cd,
         viajes: vs,
+        tarjetas: juntar(vs),
         horas: Math.max(...vs.map((v) => horasEnCamino(v.en_camino))),
         hl: vs.reduce((s, v) => s + Number(v.hl ?? 0), 0),
       }))
@@ -402,7 +420,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
   if (abierto) {
     return (
       <Llegada
-        viaje={abierto}
+        viajes={abierto}
         supabase={supabase}
         cerrar={() => setAbierto(null)}
         listo={() => {
@@ -410,17 +428,19 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
              certifica la llegada el camión desaparece de esta lista y
              aparece en otra pantalla; sin el aviso, quien lo recibió cree
              que se perdió. Si trae las dos, se dicen las dos. */
-          const paso = abierto;
+          const paso = abierto[0];
+          const todos = abierto;
           setAbierto(null);
           router.refresh();
           const clases = [
-            paso?.requiere_ai ? "certificada" : null,
-            paso && (paso.requiere_sorting || paso.interno) ? "normal" : null,
+            todos.some((x) => x.requiere_ai) ? "certificada" : null,
+            todos.some((x) => x.requiere_sorting || x.interno) ? "normal" : null,
           ].filter(Boolean);
-          if (paso && clases.length) {
-            avisar.bien(`${paso.placa} llegó y pasó a Revisión AI – ${clases.join(" y ")}.`);
-          } else if (paso) {
-            avisar.bien(`${paso.placa} quedó recibido.`);
+          const cuantos = todos.length > 1 ? ` (${todos.length} materiales)` : "";
+          if (clases.length) {
+            avisar.bien(`${paso.placa}${cuantos} llegó y pasó a Revisión AI – ${clases.join(" y ")}.`);
+          } else {
+            avisar.bien(`${paso.placa}${cuantos} quedó recibido.`);
           }
         }}
       />
@@ -509,8 +529,8 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                 última oportunidad de verlo es aquí. */}
             <h3>{anular.vs.length === 1
               ? `${anular.vs[0].placa} · ${anular.vs[0].cd_origen}`
-              : anular.vs.slice(0, 6).map((x) => x.placa).join(", ")
-                + (anular.vs.length > 6 ? ` y ${anular.vs.length - 6} más` : "")}</h3>
+              : [...new Set(anular.vs.map((x) => x.placa))].slice(0, 6).join(", ")
+                + (new Set(anular.vs.map((x) => x.placa)).size > 6 ? ` y ${new Set(anular.vs.map((x) => x.placa)).size - 6} más` : "")}</h3>
             {/* SE DICE QUE NO SE BORRA, y se dice aquí y no en el manual:
                 quien viene buscando «eliminar» tiene que enterarse en el
                 momento de que esto no destruye la evidencia, o lo va a
@@ -793,7 +813,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
           <h2 className="tr-grupo-cab">
             <b>{g.cd}</b>
             <span>
-              {g.viajes.length} {g.viajes.length === 1 ? "vehículo" : "vehículos"}
+              {g.tarjetas.length} {g.tarjetas.length === 1 ? "vehículo" : "vehículos"}
               {g.hl > 0 && <> · {nf.format(g.hl)} HL</>}
             </span>
             {/* TODO EL CD DE UN TOQUE. El caso que trae a alguien aquí
@@ -825,7 +845,15 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
             {g.horas > HORAS_LARGAS && <em className="tr-tarde">el más viejo lleva {Math.floor(g.horas)} h</em>}
           </h2>
           <div className="tr-rejilla">
-        {g.viajes.map((v) => {
+        {g.tarjetas.map((vs) => {
+          /* `v` es el camión: placa, ruta, factura y salida son las mismas para
+             todos sus materiales. Lo que cambia por material —cifras, revisión
+             AI, corregir— sale de `vs`. */
+          const v = vs[0];
+          const multi = vs.length > 1;
+          const nAi = vs.filter((x) => x.requiere_ai).length;
+          const suma = (f: (x: Viaje) => number | null | undefined) =>
+            vs.some((x) => f(x) == null) ? null : vs.reduce((a, x) => a + Number(f(x)), 0);
           const largo = horasEnCamino(v.en_camino) > HORAS_LARGAS;
           /* UN INTERNO NO TIENE SALIDA: no le «faltan» fotos que nunca
              hubo, y decirlo lo dejaría marcado como un error que no es. */
@@ -836,10 +864,10 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
              es error—. Lo que pasa a «Revisión AI – normal» lleva el
              magenta. Un camión con las dos se ve morado: la certificada
              se cuenta primero y es la que ya venía pedida. */
-          const cls = "tr-vh" + (v.requiere_ai ? " ai"
+          const cls = "tr-vh" + (multi ? " multi" : "") + (nAi ? " ai"
                       : (v.requiere_sorting || v.interno) ? " so" : largo ? " largo" : "");
           return (
-            <article key={v.id} className={cls} id={"tr-vh-" + normPlaca(v.placa)}>
+            <article key={vs.map((x) => x.id).join("+")} className={cls} id={"tr-vh-" + normPlaca(v.placa)}>
               <header>
                 <b className="placa">{v.placa}</b>
                 {/* EL SELLO DE AI VA EN LA CABECERA, junto a la placa y
@@ -847,10 +875,12 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                     saber ANTES de descargarlo que a este le toca
                     revisión, porque la muestra se saca en el muelle y
                     después ya está el envase revuelto. */}
-                {v.requiere_ai && (
+                {nAi > 0 && (
                   <span className="sello ai"
                         title={v.ai_motivo ?? "Al llegar pasa a Revisión AI – certificada"}>
-                    <i />REVISIÓN AI · CERTIFICADA
+                    <i />{multi && nAi < vs.length
+                      ? `REVISIÓN AI · ${nAi} DE ${vs.length} MATERIALES`
+                      : "REVISIÓN AI · CERTIFICADA"}
                   </span>
                 )}
                 {/* EL INTERNO SE DICE: lo creó control con el «+» y Sider no
@@ -885,16 +915,68 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                 <b>{v.cd_destino}</b>
               </div>
 
-              <p className="tr-mat">
-                {v.descripcion}
-                <em>{v.sku}{v.tipo_envase ? ` · ${v.tipo_envase}` : ""}</em>
-              </p>
+              {!multi && (
+                <p className="tr-mat">
+                  {v.descripcion}
+                  <em>{v.sku}{v.tipo_envase ? ` · ${v.tipo_envase}` : ""}</em>
+                </p>
+              )}
+
+              {/* VARIOS MATERIALES, UNA FACTURA: cada material con lo suyo y,
+                  al lado, lo único que se decide POR material: si lleva
+                  revisión AI y, para el administrador, corregirlo. Abajo, el
+                  total del camión. */}
+              {multi && (
+                <>
+                  <p className="tr-factura">
+                    Factura <b>{v.factura}</b> · {vs.length} materiales
+                  </p>
+                  <ul className="tr-mats">
+                    {vs.map((x) => (
+                      <li key={x.id} className={x.requiere_ai ? "ai" : undefined}>
+                        <div className="tr-m-nom">
+                          <b>{x.descripcion}</b>
+                          <em>{x.sku}{x.tipo_envase ? ` · ${x.tipo_envase}` : ""}</em>
+                        </div>
+                        <div className="tr-m-est"><b>{nf2.format(x.estibas)}</b><span>estibas</span></div>
+                        <div className="tr-m-cif">
+                          {x.cajas == null ? "—" : nf.format(x.cajas)} cajas · {x.hl == null ? "—" : nf2.format(x.hl)} HL
+                        </div>
+                        {(esAdmin || manda) && (
+                          <div className="tr-m-acc">
+                            {esAdmin && (
+                              <button type="button"
+                                      className={"tr-ai" + (x.requiere_ai ? " on" : "")}
+                                      disabled={marcando === x.id}
+                                      aria-label={`${x.requiere_ai ? "Quitar" : "Pedir"} revisión AI de ${x.descripcion}`}
+                                      onClick={() => pedirAi(x)}>
+                                {marcando === x.id ? "…" : x.requiere_ai ? "Quitar revisión AI" : "Pedir revisión AI"}
+                              </button>
+                            )}
+                            {manda && (
+                              <button type="button" className="tr-adm"
+                                      aria-label={`Corregir ${x.descripcion}`}
+                                      onClick={() => setEdit({
+                                        id: x.id, placa: x.placa, planta: x.planta ?? "",
+                                        sku: x.sku ?? "", estibas: String(x.estibas ?? ""),
+                                        observacion: x.observacion ?? "",
+                                      })}>
+                                Corregir
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
 
               <dl className="tr-cifras">
-                <div><dt>Estibas</dt><dd>{nf2.format(v.estibas)}</dd></div>
-                <div><dt>Sider</dt><dd>{nf2.format(v.sider)}</dd></div>
-                <div><dt>Cajas</dt><dd>{v.cajas == null ? "—" : nf.format(v.cajas)}</dd></div>
-                <div><dt>HL</dt><dd>{v.hl == null ? "—" : nf2.format(v.hl)}</dd></div>
+                <div><dt>Estibas</dt><dd>{nf2.format(suma((x) => x.estibas) ?? 0)}</dd></div>
+                <div><dt>Sider</dt><dd>{nf2.format(suma((x) => x.sider) ?? 0)}</dd></div>
+                <div><dt>Cajas</dt><dd>{suma((x) => x.cajas) == null ? "—" : nf.format(suma((x) => x.cajas)!)}</dd></div>
+                <div><dt>HL</dt><dd>{suma((x) => x.hl) == null ? "—" : nf2.format(suma((x) => x.hl)!)}</dd></div>
               </dl>
 
               {/* LOS DOS INTERRUPTORES DEL ADMINISTRADOR VAN EN SU PROPIA FILA,
@@ -905,7 +987,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                   una vez. Además son de OTRA persona: quien recibe el camión
                   certifica; quien decide qué se le pide es el administrador,
                   y separarlos en filas lo deja ver. */}
-              {esAdmin && !v.interno && (
+              {esAdmin && !v.interno && !multi && (
                 <div className="tr-pedidos">
                   {/* PEDIR LA REVISIÓN ES SOLO DEL ADMINISTRADOR. Aquí solo
                       se decide si se pinta el botón; el candado de verdad
@@ -941,7 +1023,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                 </div>
                 <div className="tr-botones">
                   {esEditor && (
-                    <button type="button" className="btn" onClick={() => setAbierto(v)}>
+                    <button type="button" className="btn" onClick={() => setAbierto(vs)}>
                       Certificar llegada
                     </button>
                   )}
@@ -984,31 +1066,45 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                       es parte del área que se toca, que en el teléfono
                       es la diferencia entre darle y no darle. */}
                   <label className="tr-marca">
-                    <input type="checkbox" checked={escogidos.has(v.id)}
-                           onChange={() => marcar(v.id)} />
-                    <span>{escogidos.has(v.id) ? "Escogido" : "Escoger"}</span>
+                    <input type="checkbox" checked={vs.every((x) => escogidos.has(x.id))}
+                           onChange={() => setEscogidos((sel) => {
+                             const n = new Set(sel);
+                             const todos = vs.every((x) => n.has(x.id));
+                             vs.forEach((x) => todos ? n.delete(x.id) : n.add(x.id));
+                             return n;
+                           })} />
+                    <span>{vs.every((x) => escogidos.has(x.id)) ? "Escogido" : "Escoger"}</span>
                   </label>
-                  <button type="button" className="tr-adm"
-                          onClick={() => setEdit({
-                            id: v.id, placa: v.placa, planta: v.planta ?? "",
-                            sku: v.sku ?? "", estibas: String(v.estibas ?? ""),
-                            observacion: v.observacion ?? "",
-                          })}>
-                    Corregir
-                  </button>
+                  {!multi && (
+                    <button type="button" className="tr-adm"
+                            onClick={() => setEdit({
+                              id: v.id, placa: v.placa, planta: v.planta ?? "",
+                              sku: v.sku ?? "", estibas: String(v.estibas ?? ""),
+                              observacion: v.observacion ?? "",
+                            })}>
+                      Corregir
+                    </button>
+                  )}
                   <button type="button" className="tr-adm mal"
-                          onClick={() => setAnular({ vs: [v], motivo: "" })}>
-                    Anular
+                          onClick={() => setAnular({ vs, motivo: "" })}>
+                    {multi ? "Anular todo" : "Anular"}
                   </button>
                 </div>
               )}
 
-              {v.requiere_ai && (
+              {nAi > 0 && !multi && (
                 <p className="tr-ojo ai">
                   A este vehículo le toca <b>Revisión AI – certificada</b> al llegar.
                   {v.ai_motivo ? ` ${v.ai_motivo}` : ""}
                   {v.ai_pedido_por ? ` — la pidió ${nombres[v.ai_pedido_por] ?? "un administrador"}.` : ""}
                   {" "}Apenas se certifique la llegada, pasa a esa pantalla.
+                </p>
+              )}
+              {nAi > 0 && multi && (
+                <p className="tr-ojo ai">
+                  Al llegar, <b>{vs.filter((x) => x.requiere_ai).map((x) => x.descripcion).join(", ")}</b>{" "}
+                  pasa{nAi > 1 ? "n" : ""} a <b>Revisión AI – certificada</b>
+                  {nAi < vs.length ? <>; {nAi === 1 ? "el otro material queda" : "los demás quedan"} recibido{nAi === vs.length - 1 ? "" : "s"} sin revisión</> : null}.
                 </p>
               )}
 
@@ -1056,14 +1152,18 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
    dos cosas distintas. El que recibe está de pie al lado del vehículo:
    primero dice dónde está, después toma las fotos.
    =============================================================== */
-function Llegada({ viaje, supabase, cerrar, listo }: {
-  viaje: Viaje;
+function Llegada({ viajes, supabase, cerrar, listo }: {
+  /** Los viajes del camión que llega. Casi siempre uno; con varios
+   *  materiales de una factura son varios, y la llegada —ubicación y
+   *  fotos— se certifica UNA vez y se aplica a cada uno. */
+  viajes: Viaje[];
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   supabase: any;
   cerrar: () => void;
   listo: () => void;
 }) {
   const router = useRouter();
+  const viaje = viajes[0];
   const pos = usePosicion();
   const [paso, setPaso] = useState(0);
   const [fotos, setFotos] = useState<Partial<Record<RanuraCualquiera, Foto>>>({});
@@ -1185,42 +1285,61 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
     setAviso(null);
     setAvance("Registrando la llegada…");
 
-    const { data, error } = await supabase.rpc("sider_certificar_llegada", {
-      p_viaje_id: viaje.id,
-      p_lat: pos.ubi!.lat,
-      p_lng: pos.ubi!.lng,
-      p_precision_m: Math.round(pos.ubi!.precision),
-      p_ubicado_en: pos.ubi!.en,
-      p_nota: nota.trim() || null,
-      p_direccion: pos.direccion.trim() || null,
-    });
+    /* UNA LLEGADA, VARIOS VIAJES. Es un solo camión que llegó una sola vez:
+       la ubicación, la nota y las fotos son las mismas, y se aplican a cada
+       material. Uno por uno, con la misma función de siempre. Si uno falla
+       a medias se dice cuáles ya quedaron, porque esos ya no están en
+       tránsito y volver a intentar todo daría error en ellos. */
+    const hechos: string[] = [];
+    for (const vj of viajes) {
+      const { data, error } = await supabase.rpc("sider_certificar_llegada", {
+        p_viaje_id: vj.id,
+        p_lat: pos.ubi!.lat,
+        p_lng: pos.ubi!.lng,
+        p_precision_m: Math.round(pos.ubi!.precision),
+        p_ubicado_en: pos.ubi!.en,
+        p_nota: nota.trim() || null,
+        p_direccion: pos.direccion.trim() || null,
+      });
 
-    if (error) {
-      setAviso({ mal: true, texto: traducir(error.message) });
-      setEnviando(false);
-      setAvance("");
-      return;
+      if (error) {
+        setAviso({
+          mal: true,
+          texto: (hechos.length
+            ? `Ya quedó recibido ${hechos.join(", ")}, pero con ${vj.descripcion}: ${traducir(error.message)} Cierra esta pantalla: en la lista solo queda lo que falta.`
+            : traducir(error.message)),
+        });
+        setEnviando(false);
+        setAvance("");
+        if (hechos.length) router.refresh();
+        return;
+      }
+
+      const mal = await subirFotos(supabase, {
+        viajeId: vj.id,
+        certId: data as string,
+        punta: "llegada",
+        fotos,
+        avance: setAvance,
+      });
+      hechos.push(vj.descripcion);
+
+      if (mal) {
+        setAvance("");
+        setEnviando(false);
+        setAviso({
+          mal: true,
+          texto:
+            `${viaje.placa} quedó recibido, pero ${mal}. Búscalo en la Fuente principal ` +
+            `y vuelve a intentar la foto.`,
+        });
+        if (viajes.length > 1) router.refresh();
+        return;
+      }
     }
-
-    const mal = await subirFotos(supabase, {
-      viajeId: viaje.id,
-      certId: data as string,
-      punta: "llegada",
-      fotos,
-      avance: setAvance,
-    });
 
     setAvance("");
     setEnviando(false);
-    if (mal) {
-      setAviso({
-        mal: true,
-        texto:
-          `${viaje.placa} quedó recibido, pero ${mal}. Búscalo en la Fuente principal ` +
-          `y vuelve a intentar la foto.`,
-      });
-      return;
-    }
     listo();
   }
 
@@ -1298,16 +1417,16 @@ function Llegada({ viaje, supabase, cerrar, listo }: {
               <p className="ct-dice">
                 {paso === 0 ? (
                   <>
-                    Desde <b>{viaje.cd_origen}</b> · {viaje.descripcion} ·{" "}
-                    {nf2.format(viaje.estibas)} estibas
+                    Desde <b>{viaje.cd_origen}</b> ·{" "}
+                    {viajes.map((x) => `${x.descripcion} (${nf2.format(x.estibas)} estibas)`).join(" + ")}
                     {viaje.interno ? ` · creado ${hora(viaje.creado_en)} por control` : ` · salió ${hora(viaje.salida_en)}`}
                     {" — "}solo falta dónde llegó y la prueba de que llegó.
-                    {(viaje.requiere_ai || viaje.requiere_sorting || viaje.interno) && (
+                    {(viajes.some((x) => x.requiere_ai) || viaje.requiere_sorting || viaje.interno) && (
                       <>
                         {" "}Al certificarla pasa a <b>Revisión AI – {[
-                          viaje.requiere_ai ? "certificada" : null,
+                          viajes.some((x) => x.requiere_ai) ? "certificada" : null,
                           viaje.requiere_sorting || viaje.interno ? "normal" : null,
-                        ].filter(Boolean).join(" y ")}</b>.
+                        ].filter(Boolean).join(" y ")}</b>{viajes.length > 1 && viajes.some((x) => !x.requiere_ai) ? " (solo los materiales que la llevan)" : ""}.
                       </>
                     )}
                   </>

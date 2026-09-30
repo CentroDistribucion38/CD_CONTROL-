@@ -72,10 +72,8 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor, fichas =
      de escogerlos. */
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [placa, setPlaca] = useState("");
-  /* Lote y observación son del camión y opcionales: a veces el papel llega
-     después. La FACTURA ya no se pide aquí: la escribe el facturador al
+  /* La observación es del camión y opcional. El lote ya no se pide. La FACTURA ya no se pide aquí: la escribe el facturador al
      darle salida, y es lo que confirma el viaje. */
-  const [lote, setLote] = useState("");
   const [nota, setNota] = useState("");
   const [fotos, setFotos] = useState<Partial<Record<Ranura, Foto>>>({});
 
@@ -166,7 +164,7 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor, fichas =
       p_ubicado_en: ubi.en,
       p_direccion: direccion.trim() || null,
       p_nota: nota.trim() || null,
-      p_lote: lote.trim().toUpperCase() || null,
+      p_lote: null,
       p_lineas: lineas.map((l) => ({ sku: l.sku, estibas: num(l.estibas) })),
     });
 
@@ -215,7 +213,6 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor, fichas =
     setFotos({});
     setLineas([]);
     setPlaca("");
-    setLote("");
     setNota("");
     setAviso(null);
     setPaso(1);
@@ -462,11 +459,6 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor, fichas =
                        onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
               </label>
               <label>
-                <span>Lote (opcional)</span>
-                <input value={lote} placeholder="L2609A" autoCapitalize="characters"
-                       onChange={(e) => setLote(e.target.value.toUpperCase())} />
-              </label>
-              <label className="ancho">
                 <span>Observación (opcional)</span>
                 <input value={nota} placeholder="Algo que haya que dejar dicho de este camión"
                        onChange={(e) => setNota(e.target.value)} />
