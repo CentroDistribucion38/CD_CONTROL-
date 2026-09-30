@@ -56,6 +56,11 @@ const plano = (s: string) =>
 
 const DESTINO_POR_DEFECTO = "Barranquilla";
 
+/** Un camión lleva 2 o 3 referencias; la base acepta hasta 10. */
+const MAX_LINEAS = 10;
+type Linea = { k: number; sku: string; busca: string; estibas: string };
+const nuevaLinea = (k: number): Linea => ({ k, sku: "", busca: "", estibas: "" });
+
 /** LA PLACA SON TRES LETRAS Y TRES NÚMEROS, y nada más. */
 const PLACA_OK = /^[A-Z]{3}[0-9]{3}$/;
 /** Lo que se acepta al teclear: sin espacios ni signos, en mayúscula, máximo 6. */
@@ -76,16 +81,19 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
   const [placa, setPlaca] = useState("");
   const [planta, setPlanta] = useState("");
   const [destino, setDestino] = useState(DESTINO_POR_DEFECTO);
-  const [sku, setSku] = useState("");
-  const [busca, setBusca] = useState("");
-  const [estibas, setEstibas] = useState("");
+  /* UN CAMIÓN PUEDE TRAER VARIOS MATERIALES con la misma factura: cada uno
+     es una línea con su material y sus estibas. Arranca con una sola; el
+     «+» agrega otra. */
+  const [lineas, setLineas] = useState<Linea[]>([nuevaLinea(1)]);
   const [factura, setFactura] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
 
   const origen = origenes.find((o) => o.planta === planta);
-  const mat = skus.find((k) => k.sku === sku);
-  const nEst = num(estibas);
+  const cambia = (k: number, p: Partial<Linea>) =>
+    setLineas((ls) => ls.map((l) => (l.k === k ? { ...l, ...p } : l)));
+  const agrega = () => setLineas((ls) => [...ls, nuevaLinea(Math.max(...ls.map((l) => l.k)) + 1)]);
+  const quita = (k: number) => setLineas((ls) => ls.filter((l) => l.k !== k));
 
   /* LOS DESTINOS: Barranquilla primero —es a donde va casi todo— y
      después los CD del maestro, por nombre. Sin repetir Barranquilla si
@@ -100,20 +108,28 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
   const mismo = !!origen && plano(origen.cd_origen) === plano(destino);
 
   /* LA BÚSQUEDA DE MATERIAL: por código o por descripción, hasta ocho.
-     Con el material ya escogido la lista se esconde. */
-  const coincidencias = useMemo(() => {
-    const q = plano(busca.trim());
-    if (!q) return skus.slice(0, 8);
-    return skus
+     Con el material ya escogido la lista se esconde. Un material que ya
+     está en otra línea no se vuelve a ofrecer: serían las mismas botellas
+     contadas dos veces; para más estibas se suman en su misma línea. */
+  const coincidencias = (l: Linea) => {
+    const q = plano(l.busca.trim());
+    const usados = new Set(lineas.filter((x) => x.k !== l.k).map((x) => x.sku));
+    const libres = skus.filter((k) => !usados.has(k.sku));
+    if (!q) return libres.slice(0, 8);
+    return libres
       .filter((k) => plano(k.sku).includes(q) || plano(k.descripcion).includes(q))
       .slice(0, 8);
-  }, [busca, skus]);
+  };
 
   /* LAS CIFRAS, las mismas fórmulas de Certificar. La vista de la base
      las vuelve a calcular al leer: esto es solo para verlas antes de
      guardar. Sin los factores del material queda «—», no un cero que
-     parezca un dato. */
-  const der = useMemo(() => {
+     parezca un dato. Cada línea tiene las suyas y abajo va el total del
+     camión; si a un material le faltan factores, el total de esa cifra
+     también es «—» (sumar el resto daría un número que engaña). */
+  const cifrasDe = (l: Linea) => {
+    const mat = skus.find((k) => k.sku === l.sku);
+    const nEst = num(l.estibas);
     if (!mat || !nEst || nEst <= 0) return null;
     const cajas = mat.cajas_x_estiba == null ? null : Number(mat.cajas_x_estiba) * nEst;
     const unidades = cajas == null || mat.unidades_x_caja == null
@@ -121,34 +137,61 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
     const hl = unidades == null || mat.hl_x_unidad == null
       ? null : Number(mat.hl_x_unidad) * unidades;
     return { sider: nEst / estibasPorSider, cajas, unidades, hl };
-  }, [mat, nEst, estibasPorSider]);
+  };
+  const der = useMemo(() => {
+    const cs = lineas.map(cifrasDe);
+    if (cs.some((c) => c === null)) return null;
+    const suma = (f: "cajas" | "unidades" | "hl") =>
+      cs.some((c) => c![f] == null) ? null : cs.reduce((a, c) => a + (c![f] as number), 0);
+    return {
+      sider: cs.reduce((a, c) => a + c!.sider, 0),
+      cajas: suma("cajas"), unidades: suma("unidades"), hl: suma("hl"),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineas, skus, estibasPorSider]);
 
   /* LO QUE FALTA SE DICE POR SU NOMBRE, junto al botón. «Rellena los
      campos» obliga a adivinar cuál. */
   const faltan: string[] = [];
   if (!PLACA_OK.test(placa)) faltan.push("la placa (3 letras y 3 números)");
   if (!planta) faltan.push("el CD de origen");
-  if (!sku) faltan.push("el material");
-  if (!nEst || nEst <= 0) faltan.push("las estibas");
+  lineas.forEach((l, i) => {
+    const ref = lineas.length > 1 ? ` del material ${i + 1}` : "";
+    if (!l.sku) faltan.push(lineas.length > 1 ? `el material ${i + 1}` : "el material");
+    const n = num(l.estibas);
+    if (!n || n <= 0) faltan.push(`las estibas${ref}`);
+  });
   if (!factura) faltan.push("el documento (número de factura)");
   const puede = faltan.length === 0 && !mismo;
 
   async function crear() {
-    if (!puede || !nEst) return;
+    if (!puede) return;
     setMal(null); setOcupado(true);
     const supabase = createClient();
-    const { error } = await supabase.rpc("sider_viaje_interno_crear", {
-      p_placa: placa,
-      p_planta: planta,
-      p_destino: destino,
-      p_sku: sku,
-      p_estibas: nEst,
-      p_factura: factura,
-      /* Sin lote ni nota: el Vh Interno se crea con lo justo. La función de la
-         base conserva los dos parámetros y aquí viajan vacíos. */
-      p_lote: null,
-      p_nota: null,
-    });
+    /* CON UN SOLO MATERIAL SE LLAMA A LA FUNCIÓN DE SIEMPRE: así el «+»
+       no se rompe si se sube el código antes de correr el SQL de varios
+       materiales. Con más de uno, una función que los crea todos o
+       ninguno. */
+    const { error } = lineas.length === 1
+      ? await supabase.rpc("sider_viaje_interno_crear", {
+          p_placa: placa,
+          p_planta: planta,
+          p_destino: destino,
+          p_sku: lineas[0].sku,
+          p_estibas: num(lineas[0].estibas),
+          p_factura: factura,
+          /* Sin lote ni nota: el Vh Interno se crea con lo justo. La función de la
+             base conserva los dos parámetros y aquí viajan vacíos. */
+          p_lote: null,
+          p_nota: null,
+        })
+      : await supabase.rpc("sider_viaje_interno_crear_varios", {
+          p_placa: placa,
+          p_planta: planta,
+          p_destino: destino,
+          p_factura: factura,
+          p_lineas: lineas.map((l) => ({ sku: l.sku, estibas: num(l.estibas) })),
+        });
     setOcupado(false);
     if (error) { setMal(traducirError(error.message)); return }
     alCrear(placa);
@@ -201,47 +244,6 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
             </p>
           )}
 
-          <div className="nv-material ancho">
-            <span className="nv-rot" id="nv-mat-rot">Material <em>del maestro</em></span>
-            {mat ? (
-              <div className="nv-escogido">
-                <div>
-                  <b>{mat.descripcion}</b>
-                  <em>{mat.sku}{mat.clase ? ` · ${mat.clase}` : ""}</em>
-                </div>
-                <button type="button" className="tr-adm"
-                        onClick={() => { setSku(""); setBusca("") }}>
-                  Cambiar
-                </button>
-              </div>
-            ) : (
-              <>
-                <input value={busca} onChange={(e) => setBusca(e.target.value)}
-                       aria-labelledby="nv-mat-rot" autoComplete="off"
-                       placeholder="Escribe el código o parte del nombre" />
-                <ul className="nv-lista" role="listbox" aria-label="Materiales que coinciden">
-                  {coincidencias.map((k) => (
-                    <li key={k.sku} role="option" aria-selected={false}>
-                      <button type="button" onClick={() => setSku(k.sku)}>
-                        <b>{k.descripcion}</b>
-                        <em>{k.sku}{k.clase ? ` · ${k.clase}` : ""}</em>
-                      </button>
-                    </li>
-                  ))}
-                  {coincidencias.length === 0 && (
-                    <li className="nv-nada">Ningún material del maestro coincide con «{busca.trim()}».</li>
-                  )}
-                </ul>
-              </>
-            )}
-          </div>
-
-          <label>
-            <span>Estibas</span>
-            <input value={estibas} inputMode="decimal" autoComplete="off" placeholder="0"
-                   onChange={(e) => setEstibas(e.target.value)} />
-          </label>
-
           <label className="nv-doc">
             <span>Documento (factura)</span>
             <input value={factura} maxLength={DOC_MAX} inputMode="numeric" autoComplete="off" required aria-required="true"
@@ -249,10 +251,79 @@ export function NuevoInterno({ origenes, skus, estibasPorSider = 36, alCerrar, a
                    onChange={(e) => setFactura(limpiaDoc(e.target.value))} />
             <small id="nv-doc-ayuda">Solo números, hasta {DOC_MAX} dígitos</small>
           </label>
+
+          {/* LOS MATERIALES DE ESA FACTURA. Cada uno con SU cantidad de
+              estibas; el «+» de abajo agrega otro. */}
+          {lineas.map((l, i) => {
+            const mat = skus.find((k) => k.sku === l.sku);
+            const c = cifrasDe(l);
+            return (
+              <div key={l.k} className="nv-linea ancho">
+                {lineas.length > 1 && (
+                  <div className="nv-linea-cab">
+                    <span>Material {i + 1} de {lineas.length}</span>
+                    <button type="button" className="tr-adm" onClick={() => quita(l.k)}
+                            aria-label={`Quitar el material ${i + 1}`}>Quitar</button>
+                  </div>
+                )}
+                <div className="nv-material">
+                  <span className="nv-rot" id={`nv-mat-rot-${l.k}`}>Material <em>del maestro</em></span>
+                  {mat ? (
+                    <div className="nv-escogido">
+                      <div>
+                        <b>{mat.descripcion}</b>
+                        <em>{mat.sku}{mat.clase ? ` · ${mat.clase}` : ""}</em>
+                      </div>
+                      <button type="button" className="tr-adm"
+                              onClick={() => cambia(l.k, { sku: "", busca: "" })}>
+                        Cambiar
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input value={l.busca} onChange={(e) => cambia(l.k, { busca: e.target.value })}
+                             aria-labelledby={`nv-mat-rot-${l.k}`} autoComplete="off"
+                             placeholder="Escribe el código o parte del nombre" />
+                      <ul className="nv-lista" role="listbox" aria-label="Materiales que coinciden">
+                        {coincidencias(l).map((k) => (
+                          <li key={k.sku} role="option" aria-selected={false}>
+                            <button type="button" onClick={() => cambia(l.k, { sku: k.sku })}>
+                              <b>{k.descripcion}</b>
+                              <em>{k.sku}{k.clase ? ` · ${k.clase}` : ""}</em>
+                            </button>
+                          </li>
+                        ))}
+                        {coincidencias(l).length === 0 && (
+                          <li className="nv-nada">Ningún material del maestro coincide con «{l.busca.trim()}».</li>
+                        )}
+                      </ul>
+                    </>
+                  )}
+                </div>
+                <label className="nv-est">
+                  <span>Estibas</span>
+                  <input value={l.estibas} inputMode="decimal" autoComplete="off" placeholder="0"
+                         onChange={(e) => cambia(l.k, { estibas: e.target.value })} />
+                </label>
+                {lineas.length > 1 && (
+                  <p className="nv-lin-cif">
+                    {c ? `${c.cajas == null ? "—" : nf.format(c.cajas)} cajas · ${c.unidades == null ? "—" : nf.format(c.unidades)} unidades` : "Escoge el material y las estibas"}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+
+          {lineas.length < MAX_LINEAS && (
+            <button type="button" className="nv-mas-mat ancho" onClick={agrega}>
+              <span aria-hidden="true">+</span> Agregar otro material de esta factura
+            </button>
+          )}
         </div>
 
         {/* LO QUE SE CALCULA SOLO. Se ve mientras se escribe: si el
             material no trae factores en el maestro se dice «—», no cero. */}
+        {lineas.length > 1 && <p className="nv-total">Total de los {lineas.length} materiales</p>}
         <dl className="nv-cifras" aria-label="Cifras calculadas">
           <div><dt>Sider</dt><dd>{der ? nf2.format(der.sider) : "—"}</dd></div>
           <div><dt>Cajas</dt><dd>{der?.cajas == null ? "—" : nf.format(der.cajas)}</dd></div>

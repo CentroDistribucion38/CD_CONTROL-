@@ -850,6 +850,59 @@ await monta("m=sorting&c=normal");
   ok(await pg.$$eval("#nv-titulo", (s) => s.length) === 0, "el formulario no se cierra al crear");
   ok(/ABC123 creado: ya está en Revisión AI – normal/.test(await txt()), "no avisa que el Vh Interno quedó en Revisión AI");
 }
+/* UN CAMIÓN CON VARIOS MATERIALES DE LA MISMA FACTURA: el «+» agrega otra línea. */
+{
+  await monta("m=sorting&c=normal");
+  await pg.click(".tr-mas"); await pg.waitForSelector("#nv-titulo");
+  const crear = pg.locator('.vj-caja.nuevo .btn:has-text("Crear Vh Interno")');
+  ok(await pg.$$eval(".nv-linea", (x) => x.length) === 1 && await pg.$$eval(".nv-linea-cab", (x) => x.length) === 0,
+     "con un solo material aparece el encabezado «Material 1 de 1» o falta la línea");
+  ok(await pg.$$eval(".nv-mas-mat", (x) => x.length) === 1, "no aparece el «+ Agregar otro material»");
+  await pg.fill(".nv-placa input", "abc123"); await pg.selectOption(".nv-campos select >> nth=0", "APA");
+  await pg.fill(".nv-doc input", "555");
+  await pg.fill(".nv-linea >> nth=0 >> .nv-material input", "175"); await pg.click(".nv-linea >> nth=0 >> .nv-lista button");
+  await pg.fill(".nv-linea >> nth=0 >> label:has(span:text('Estibas')) input", "10");
+  await pg.click(".nv-mas-mat");
+  ok(await pg.$$eval(".nv-linea", (x) => x.length) === 2, "el «+» no agregó otra línea");
+  ok(/Material 1 de 2/.test(await txt()) && /Material 2 de 2/.test(await txt()), "no numera las líneas");
+  ok(await crear.isDisabled(), "con la segunda línea vacía el botón está encendido");
+  ok(/material 2/.test(await pg.$eval(".vj-falta", (e) => e.textContent)) && /estibas del material 2/.test(await pg.$eval(".vj-falta", (e) => e.textContent)),
+     "no dice que falta el material 2 y sus estibas");
+  /* el material ya escogido no se ofrece otra vez en la segunda línea */
+  await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "3500");
+  const of = await pg.$$eval(".nv-linea >> nth=1 >> .nv-lista li", (x) => x.map((e) => e.textContent));
+  ok(of.length === 2 && !of.some((t) => /Costeña 175/.test(t)), `la segunda línea vuelve a ofrecer el material de la primera: ${JSON.stringify(of)}`);
+  await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "ámbar");
+  await pg.click(".nv-linea >> nth=1 >> .nv-lista button");
+  await pg.fill(".nv-linea >> nth=1 >> label:has(span:text('Estibas')) input", "4");
+  ok(!(await crear.isDisabled()), "con las dos líneas llenas el botón sigue apagado");
+  const tot = await pg.$$eval(".nv-cifras div", (x) => Object.fromEntries(x.map((d) => [d.querySelector("dt").textContent, d.querySelector("dd").textContent])));
+  const fs = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(14 / 36));
+  ok(tot.Sider === fs, `el total de siders no suma las dos líneas: ${JSON.stringify(tot)} (debía ${fs})`);
+  ok(/Total de los 2 materiales/.test(await txt()), "no dice que las cifras son el total");
+  await crear.click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  const l = (await rpcs())[0];
+  ok(l.n === "sider_viaje_interno_crear_varios", `con dos materiales llamó «${l.n}»`);
+  ok(JSON.stringify(l.a) === JSON.stringify({ p_placa: "ABC123", p_planta: "APA", p_destino: "Barranquilla", p_factura: "555",
+       p_lineas: [{ sku: "3500887", estibas: 10 }, { sku: "3500901", estibas: 4 }] }), `los parámetros son ${JSON.stringify(l.a)}`);
+}
+{
+  /* QUITAR una línea deja la de siempre — y con una sola línea se llama a la función de siempre. */
+  await monta("m=sorting&c=normal");
+  await pg.click(".tr-mas"); await pg.waitForSelector("#nv-titulo");
+  await pg.fill(".nv-placa input", "abc123"); await pg.selectOption(".nv-campos select >> nth=0", "APA"); await pg.fill(".nv-doc input", "555");
+  await pg.fill(".nv-linea >> nth=0 >> .nv-material input", "175"); await pg.click(".nv-linea >> nth=0 >> .nv-lista button");
+  await pg.fill(".nv-linea >> nth=0 >> label:has(span:text('Estibas')) input", "10");
+  await pg.click(".nv-mas-mat"); await pg.click(".nv-mas-mat");
+  ok(await pg.$$eval(".nv-linea", (x) => x.length) === 3, "no agregó la tercera línea");
+  await pg.click('.nv-linea >> nth=2 >> button:has-text("Quitar")');
+  await pg.click('.nv-linea >> nth=1 >> button:has-text("Quitar")');
+  ok(await pg.$$eval(".nv-linea", (x) => x.length) === 1 && await pg.$$eval(".nv-linea-cab", (x) => x.length) === 0, "al quedar una línea no vuelve a la vista simple");
+  await pg.locator('.vj-caja.nuevo .btn:has-text("Crear Vh Interno")').click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  ok((await rpcs())[0].n === "sider_viaje_interno_crear", "con una sola línea debía llamar a la función de siempre");
+}
 /* SI LA BASE RECHAZA, NO SE CIERRA NI FINGE. */
 {
   await monta("m=sorting&c=normal");

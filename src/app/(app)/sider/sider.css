@@ -3403,6 +3403,31 @@
 .sd .nv-cifras dt { font-size: 10px; font-weight: 700; letter-spacing: .09em; color: var(--c-93a3b6); text-transform: uppercase }
 .sd .nv-cifras dd { margin: 2px 0 0; font: 800 16px var(--sd-titulo, system-ui); font-variant-numeric: tabular-nums }
 
+/* VARIOS MATERIALES DE UNA MISMA FACTURA: cada línea es un bloque con su
+   material y sus estibas; el «+» agrega otro. */
+.sd .vj-velo:has(.vj-caja.nuevo) { align-items: start }
+.sd .vj-caja.nuevo { margin-block: auto }
+.sd .nv-linea {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  padding: 12px; border: 1px solid var(--c-edf1f6); border-radius: 3px; background: var(--c-fafbfd);
+}
+.sd .nv-linea .nv-material { margin-bottom: 0 }
+.sd .nv-linea .nv-est { max-width: 200px }
+.sd .nv-linea-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px }
+.sd .nv-linea-cab button { min-height: 36px; width: auto; padding: 0 14px }
+.sd .nv-linea-cab span { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sd-gris) }
+.sd .nv-lin-cif { margin: 0; font-size: 12px; color: var(--sd-gris); font-variant-numeric: tabular-nums }
+.sd .nv-campos button.nv-mas-mat {
+  min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0 14px; cursor: pointer; font: 700 14px var(--sd-texto); color: var(--c-2c4361);
+  background: transparent; border: 1.5px dashed var(--sd-acento); border-radius: 3px;
+}
+.sd .nv-campos button.nv-mas-mat span { font: 800 20px/1 var(--sd-titulo, system-ui); color: var(--sd-acento) }
+.sd .nv-campos button.nv-mas-mat:hover, .sd .nv-campos button.nv-mas-mat:focus-visible {
+  background: color-mix(in srgb, var(--sd-acento) 8%, var(--sd-papel)); outline: none;
+}
+.sd .nv-total { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sd-gris) }
+
 .sd .nv-mas { margin: 0 0 6px }
 .sd .nv-mas summary {
   cursor: pointer; min-height: 40px; display: flex; align-items: center;
