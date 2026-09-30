@@ -17,6 +17,12 @@
  * en metros: una ubicación con dos kilómetros de error no es evidencia de
  * nada, y sin el número nadie puede saber que no lo era.
  *
+ * LA SALIDA SE HACE EN DOS TIEMPOS. Aquí se certifica en el patio —uno o
+ * VARIOS materiales, con las estibas de cada uno—, y al terminar las fotos
+ * se toca «Guardar»: se crea una FICHA PENDIENTE. El camión todavía no va
+ * en tránsito: el facturador escribe el número de factura y le da salida
+ * en «Dar salida», y ahí nacen los viajes, uno por material.
+ *
  * LAS FOTOS SE SELLAN en el navegador antes de subirlas: placa, fecha,
  * hora y coordenadas quemadas en la esquina. Así la foto sigue probando
  * algo aunque salga del sistema por WhatsApp.
@@ -26,13 +32,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Origen, Sku } from "@/modulos/sider/datos";
+import type { Origen, Sku, Ficha } from "@/modulos/sider/datos";
 /* La ubicación, el sellado de las fotos y sus mensajes viven en un solo
    sitio: la llegada pide exactamente lo mismo que la salida. */
 import {
   RANURAS, type Ranura, type Foto,
   usePosicion, TarjetaUbicacion, CampoDireccion, Ranurita,
-  sellar, subirFotos, traducir,
+  sellar, subirFotosFicha, traducirFicha,
 } from "@/modulos/sider/evidencia";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -44,11 +50,15 @@ const num = (s: string) => {
   return Number.isFinite(n) ? n : null;
 };
 
-export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
+type Linea = { sku: string; estibas: string };
+
+export function Certificar({ origenes, skus, estibasPorSider, esEditor, fichas = [] }: {
   origenes: Origen[];
   skus: Sku[];
   estibasPorSider: number;
   esEditor: boolean;
+  /** Mis fichas que esperan su factura. */
+  fichas?: Ficha[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -58,40 +68,63 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
   const { ubi, direccion } = pos;
 
   const [planta, setPlanta] = useState("");
-  const [sku, setSku] = useState("");
-  const [estibas, setEstibas] = useState("");
+  /* UNO O VARIOS MATERIALES: cada uno con SUS estibas. El orden es el
+     de escogerlos. */
+  const [lineas, setLineas] = useState<Linea[]>([]);
   const [placa, setPlaca] = useState("");
-  /* EL PAPEL DEL VIAJE. Se piden aquí y no solo cuando hay una novedad:
-     así TODO viaje queda documentado, no únicamente los que salen con
-     problema, y el día que alguien pregunte "¿qué lote vino en ese
-     camión?" hay respuesta aunque nunca se haya reportado nada.
-     Opcionales: a veces el papel llega después del camión, y trabar la
-     certificación por eso dejaría el viaje sin fotos ni ubicación, que
-     es mucho peor que dejarlo sin factura. */
-  const [factura, setFactura] = useState("");
+  /* Lote y observación son del camión y opcionales: a veces el papel llega
+     después. La FACTURA ya no se pide aquí: la escribe el facturador al
+     darle salida, y es lo que confirma el viaje. */
   const [lote, setLote] = useState("");
   const [nota, setNota] = useState("");
   const [fotos, setFotos] = useState<Partial<Record<Ranura, Foto>>>({});
 
   const [enviando, setEnviando] = useState(false);
   const [avance, setAvance] = useState("");
+  const [descartando, setDescartando] = useState<string | null>(null);
+  const [seguro, setSeguro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ mal: boolean; texto: string } | null>(null);
 
-  const mat = skus.find((s) => s.sku === sku);
-  const nEst = num(estibas);
+  const skuDe = (sku: string) => skus.find((k) => k.sku === sku);
+  const estOk = (l: Linea) => { const n = num(l.estibas); return !!n && n > 0 };
+
+  const alternar = (sku: string) =>
+    setLineas((ls) => ls.some((l) => l.sku === sku)
+      ? ls.filter((l) => l.sku !== sku)
+      : [...ls, { sku, estibas: "" }]);
+  const ponerEstibas = (sku: string, v: string) =>
+    setLineas((ls) => ls.map((l) => (l.sku === sku ? { ...l, estibas: v } : l)));
 
   /* Las once derivadas, calculadas mientras se avanza. Son las mismas
      fórmulas de la hoja; la vista de la base las vuelve a calcular al
-     leer, así que esto es solo para poder verlas antes de guardar. */
-  const der = useMemo(() => {
+     leer, así que esto es solo para poder verlas antes de guardar.
+     Una por material y el total del camión: si a un material le faltan
+     factores, esa cifra del total dice cuál falta en vez de callar. */
+  const derDe = (l: Linea) => {
+    const mat = skuDe(l.sku);
+    const nEst = num(l.estibas);
     if (!mat || !nEst || nEst <= 0) return null;
     const cajas = mat.cajas_x_estiba == null ? null : Number(mat.cajas_x_estiba) * nEst;
     const unidades = cajas == null || mat.unidades_x_caja == null
       ? null : Number(mat.unidades_x_caja) * cajas;
     const hl = unidades == null || mat.hl_x_unidad == null
       ? null : Number(mat.hl_x_unidad) * unidades;
-    return { sider: nEst / estibasPorSider, cajas, unidades, hl };
-  }, [mat, nEst, estibasPorSider]);
+    return { estibas: nEst, sider: nEst / estibasPorSider, cajas, unidades, hl };
+  };
+  const total = useMemo(() => {
+    const ds = lineas.map((l) => derDe(l));
+    const campo = (f: "estibas" | "sider" | "cajas" | "unidades" | "hl") => {
+      const con = ds.filter((d) => d && d[f] != null);
+      if (con.length === 0) return { v: null as number | null, falta: [] as number[] };
+      const falta = ds.map((d, i) => (d && d[f] != null ? 0 : i + 1)).filter(Boolean);
+      return { v: con.reduce((a, d) => a + (d![f] as number), 0), falta };
+    };
+    return { estibas: campo("estibas"), sider: campo("sider"), cajas: campo("cajas"),
+             unidades: campo("unidades"), hl: campo("hl") };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineas, skus, estibasPorSider]);
+  const sinFactores = lineas.map((l) => skuDe(l.sku))
+    .filter((m): m is Sku => !!m && (m.cajas_x_estiba == null || m.unidades_x_caja == null || m.hl_x_unidad == null));
 
   /* ---------------- Fotos ---------------- */
   async function tomar(ranura: Ranura, archivo: File) {
@@ -113,50 +146,45 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
 
   const faltanFotos = RANURAS.filter((r) => !fotos[r.id]);
 
-  /* ---------------- Guardar ---------------- */
-  async function certificar() {
-    if (!ubi || !planta || !sku || !nEst || !placa.trim() || faltanFotos.length) return;
+  /* ---------------- Guardar la ficha ---------------- */
+  const listoMateriales = lineas.length > 0 && lineas.every(estOk);
+
+  async function guardar() {
+    if (!ubi || !planta || !listoMateriales || !placa.trim() || faltanFotos.length) return;
     setEnviando(true);
     setAviso(null);
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const cli = supabase as any;
 
-    setAvance("Registrando el viaje…");
-    const { data, error } = await cli.rpc("sider_certificar_salida", {
+    setAvance("Guardando la ficha…");
+    const { data, error } = await cli.rpc("sider_ficha_guardar", {
       p_placa: placa.trim().toUpperCase(),
       p_planta: planta,
-      p_sku: sku,
-      p_estibas: nEst,
       p_lat: ubi.lat,
       p_lng: ubi.lng,
       p_precision_m: Math.round(ubi.precision),
       p_ubicado_en: ubi.en,
-      p_nota: nota.trim() || null,
       p_direccion: direccion.trim() || null,
-      p_factura: factura.trim().toUpperCase() || null,
+      p_nota: nota.trim() || null,
       p_lote: lote.trim().toUpperCase() || null,
+      p_lineas: lineas.map((l) => ({ sku: l.sku, estibas: num(l.estibas) })),
     });
 
     if (error) {
-      setAviso({ mal: true, texto: traducir(error.message) });
+      setAviso({ mal: true, texto: traducirFicha(error.message) });
       setEnviando(false);
       setAvance("");
       return;
     }
 
-    const fila = Array.isArray(data) ? data[0] : data;
-    const viajeId: string = fila?.viaje_id;
-    const certId: string = fila?.certificacion_id;
-
-    const mal = await subirFotos(cli, {
-      viajeId, certId, punta: "salida", fotos, avance: setAvance,
-    });
+    const fichaId: string = Array.isArray(data) ? data[0] : data;
+    const mal = await subirFotosFicha(cli, { fichaId, fotos, avance: setAvance });
     if (mal) {
       setAviso({
         mal: true,
         texto:
-          `El viaje quedó registrado, pero ${mal}. Búscalo en la Fuente principal ` +
-          `por la placa ${placa.toUpperCase()} y vuelve a intentar.`,
+          `La ficha de ${placa.toUpperCase()} quedó guardada, pero ${mal}. ` +
+          `Descártala en «Mis fichas pendientes» y vuelve a hacerla: sin las tres fotos no se le puede dar salida.`,
       });
       setEnviando(false);
       setAvance("");
@@ -166,19 +194,28 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
 
     setAvance("");
     setEnviando(false);
-    setAviso({
-      mal: false,
-      texto: `Listo. ${placa.toUpperCase()} quedó certificado y va en tránsito hacia Barranquilla.`,
-    });
+    setAviso(null);
     setPaso(6);
+    router.refresh();
+  }
+
+  async function descartar(f: Ficha) {
+    setDescartando(f.id);
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const { error } = await (supabase as any).rpc("sider_ficha_descartar", { p_ficha: f.id });
+    setDescartando(null);
+    setSeguro(null);
+    if (error) { setAviso({ mal: true, texto: traducirFicha(error.message) }); return }
+    setAviso({ mal: false, texto: `La ficha de ${f.placa} se descartó.` });
     router.refresh();
   }
 
   function otro() {
     for (const f of Object.values(fotos)) if (f) URL.revokeObjectURL(f.url);
     setFotos({});
-    setEstibas("");
+    setLineas([]);
     setPlaca("");
+    setLote("");
     setNota("");
     setAviso(null);
     setPaso(1);
@@ -201,10 +238,10 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
   const pasos = [
     { t: "Ubicación", ok: !!ubi },
     { t: "Origen", ok: !!planta },
-    { t: "Material", ok: !!sku },
-    { t: "Carga", ok: !!nEst && !!placa.trim() },
+    { t: "Material", ok: listoMateriales },
+    { t: "Carga", ok: listoMateriales && !!placa.trim() },
     { t: "Fotos", ok: faltanFotos.length === 0 },
-    { t: "Confirmar", ok: false },
+    { t: "Guardar", ok: false },
   ];
   const listo = pasos.slice(0, 5).every((p) => p.ok);
 
@@ -343,24 +380,47 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
           <div className="ct-paso">
             <h2>¿Qué trae?</h2>
             <p className="ct-dice">
-              Los que tienen el aviso naranja no tienen factores cargados: de ellos no se
-              pueden calcular cajas, unidades ni HL.
+              Toca <b>uno o varios</b> materiales: al tocar cada uno se abre su casilla de
+              estibas. Los que tienen el aviso naranja no tienen factores cargados: de
+              ellos no se pueden calcular cajas, unidades ni HL.
             </p>
             <div className="ct-opciones">
               {skus.filter((s) => s.activo).map((s) => {
                 const falta = s.cajas_x_estiba == null || s.unidades_x_caja == null || s.hl_x_unidad == null;
+                const l = lineas.find((x) => x.sku === s.sku);
                 return (
-                  <button key={s.sku} type="button"
-                          className={"ct-op" + (sku === s.sku ? " on" : "") + (falta ? " falta" : "")}
-                          onClick={() => { setSku(s.sku); setPaso(3); }}>
-                    <b>{s.descripcion}</b>
-                    <span>
-                      {s.sku}
-                      {falta ? " · sin factores" : ` · ${nf2.format(Number(s.cajas_x_estiba))} cajas/estiba`}
-                    </span>
-                  </button>
+                  <div key={s.sku} className={"ct-item" + (l ? " on" : "")}>
+                    <button type="button" aria-pressed={!!l}
+                            className={"ct-op" + (l ? " on" : "") + (falta ? " falta" : "")}
+                            onClick={() => alternar(s.sku)}>
+                      <b>{s.descripcion}</b>
+                      <span>
+                        {s.sku}
+                        {falta ? " · sin factores" : ` · ${nf2.format(Number(s.cajas_x_estiba))} cajas/estiba`}
+                      </span>
+                      {l && <i className="ct-marca" aria-hidden="true">✓</i>}
+                    </button>
+                    {l && (
+                      <label className={"ct-est" + (estOk(l) ? "" : " falta")}>
+                        <span>Estibas</span>
+                        <input inputMode="decimal" value={l.estibas} placeholder="0" autoFocus
+                               aria-label={`Estibas de ${s.descripcion}`}
+                               onChange={(e) => ponerEstibas(s.sku, e.target.value)} />
+                      </label>
+                    )}
+                  </div>
                 );
               })}
+            </div>
+            <div className="ct-botones">
+              <button type="button" className="btn" disabled={!listoMateriales}
+                      onClick={() => setPaso(3)}>
+                {lineas.length === 0
+                  ? "Escoge al menos un material"
+                  : !listoMateriales
+                    ? "Faltan las estibas de " + (lineas.filter((l) => !estOk(l)).length === 1 ? "un material" : `${lineas.filter((l) => !estOk(l)).length} materiales`)
+                    : `Seguir con ${lineas.length} material${lineas.length > 1 ? "es" : ""}`}
+              </button>
             </div>
           </div>
         )}
@@ -368,23 +428,38 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
         {/* ================= 3 · Carga ================= */}
         {paso === 3 && (
           <div className="ct-paso">
-            <h2>Estibas y placa</h2>
-            <p className="ct-dice">Lo único que hay que teclear. Todo lo demás ya se calculó.</p>
+            <h2>Placa y carga</h2>
+            <p className="ct-dice">
+              Aquí ya está lo que escogiste, con sus cifras calculadas. Solo falta la placa.
+            </p>
+            <ul className="ct-cargas">
+              {lineas.map((l) => {
+                const m = skuDe(l.sku);
+                const d = derDe(l);
+                return (
+                  <li key={l.sku}>
+                    <div className="ct-c-nom">
+                      <b>{m?.descripcion ?? l.sku}</b>
+                      <em>{l.sku}</em>
+                    </div>
+                    <div className="ct-c-est"><b>{d ? nf2.format(d.estibas) : "—"}</b><span>estibas</span></div>
+                    <div className="ct-c-cif">
+                      {d?.cajas == null
+                        ? <span className="sin">Sin factores en el maestro</span>
+                        : <span><b>{nf.format(d.cajas)}</b> cajas · <b>{d.unidades != null ? nf.format(d.unidades) : "—"}</b> unidades · <b>{d.hl != null ? nf2.format(d.hl) : "—"}</b> HL</span>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <button type="button" className="btn plano ct-cambiar" onClick={() => setPaso(2)}>
+              Cambiar materiales o estibas
+            </button>
             <div className="ct-campos">
               <label>
-                <span>No. de estibas</span>
-                <input inputMode="decimal" value={estibas} placeholder="40" autoFocus
-                       onChange={(e) => setEstibas(e.target.value)} />
-              </label>
-              <label>
                 <span>Placa</span>
-                <input value={placa} placeholder="JYN141" autoCapitalize="characters"
+                <input value={placa} placeholder="JYN141" autoCapitalize="characters" autoFocus
                        onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
-              </label>
-              <label>
-                <span>Factura (opcional)</span>
-                <input value={factura} placeholder="FE-4471" autoCapitalize="characters"
-                       onChange={(e) => setFactura(e.target.value.toUpperCase())} />
               </label>
               <label>
                 <span>Lote (opcional)</span>
@@ -393,12 +468,15 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
               </label>
               <label className="ancho">
                 <span>Observación (opcional)</span>
-                <input value={nota} placeholder="Algo que haya que dejar dicho de este viaje"
+                <input value={nota} placeholder="Algo que haya que dejar dicho de este camión"
                        onChange={(e) => setNota(e.target.value)} />
               </label>
             </div>
+            <p className="ct-dice ct-nofactura">
+              La factura no se pide aquí: la escribe el facturador cuando le dé salida.
+            </p>
             <div className="ct-botones">
-              <button type="button" className="btn" disabled={!nEst || !placa.trim()}
+              <button type="button" className="btn" disabled={!listoMateriales || !placa.trim()}
                       onClick={() => setPaso(4)}>Seguir a las fotos</button>
             </div>
           </div>
@@ -422,39 +500,45 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
                       onClick={() => setPaso(5)}>
                 {faltanFotos.length
                   ? `Faltan ${faltanFotos.length} foto${faltanFotos.length > 1 ? "s" : ""}`
-                  : "Seguir a confirmar"}
+                  : "Seguir a guardar"}
               </button>
             </div>
           </div>
         )}
 
-        {/* ================= 5 · Confirmar ================= */}
+        {/* ================= 5 · Guardar ================= */}
         {paso === 5 && (
           <div className="ct-paso">
-            <h2>Revisa y certifica</h2>
+            <h2>Revisa y guarda</h2>
             <p className="ct-dice">
-              Esto es exactamente la fila que va a quedar. Después de certificar, el
-              vehículo sale en tránsito hacia Barranquilla.
+              Esto es lo que va a quedar en la ficha. <b>El camión todavía no sale:</b> el
+              facturador le pone el número de factura y le da salida.
             </p>
             <dl className="ct-revision">
               <div><dt>Placa</dt><dd className="fuerte">{placa.toUpperCase()}</dd></div>
               <div><dt>CD origen</dt><dd>{origenes.find((o) => o.planta === planta)?.cd_origen ?? "—"}</dd></div>
-              <div><dt>Material</dt><dd>{mat?.descripcion ?? "—"}<em>{sku}</em></dd></div>
-              <div><dt>Estibas</dt><dd>{nEst ? nf2.format(nEst) : "—"}</dd></div>
+              <div className="ancho"><dt>Materiales</dt><dd>
+                {lineas.map((l) => (
+                  <span key={l.sku} className="ct-r-mat">
+                    {skuDe(l.sku)?.descripcion ?? l.sku}
+                    <em>{l.sku} · {num(l.estibas) ? nf2.format(num(l.estibas)!) : "—"} estibas</em>
+                  </span>
+                ))}
+              </dd></div>
               <div className="ancho"><dt>Dónde</dt><dd>
                 {direccion || (ubi ? `${ubi.lat.toFixed(5)}, ${ubi.lng.toFixed(5)}` : "—")}
                 <em>
                   {ubi ? `${ubi.lat.toFixed(5)}, ${ubi.lng.toFixed(5)} · ±${Math.round(ubi.precision)} m` : "—"}
                 </em>
               </dd></div>
-              <div className="ancho"><dt>Fotos</dt><dd>
+              <div className="fotos"><dt>Fotos</dt><dd>
                 {RANURAS.length - faltanFotos.length} de {RANURAS.length}
                 {!!faltanFotos.length && <em>Faltan: {faltanFotos.map((r) => r.t.toLowerCase()).join(", ")}</em>}
               </dd></div>
             </dl>
             <div className="ct-botones">
-              <button type="button" className="btn" onClick={certificar} disabled={!listo || enviando}>
-                {enviando ? avance || "Certificando…" : "Certificar la salida"}
+              <button type="button" className="btn" onClick={guardar} disabled={!listo || enviando}>
+                {enviando ? avance || "Guardando…" : "Guardar la ficha"}
               </button>
               <button type="button" className="btn plano" onClick={() => setPaso(4)} disabled={enviando}>
                 Volver
@@ -466,10 +550,11 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
         {/* ================= Listo ================= */}
         {paso === 6 && (
           <div className="ct-paso ct-listo">
-            <h2>Certificado</h2>
+            <h2>Ficha guardada</h2>
             <p className="ct-dice">
-              {placa.toUpperCase()} va en tránsito. Cuando llegue a Barranquilla se
-              certifica la otra punta desde <b>En tránsito</b>.
+              {placa.toUpperCase()} quedó como <b>pendiente</b>: falta que el facturador
+              escriba el número de factura y le dé salida en <b>Dar salida</b>. Solo
+              entonces pasa a En tránsito.
             </p>
             {/* El "+" grande y no un botón más de la fila: en el patio los
                 vehículos llegan seguidos, así que lo normal después de
@@ -484,7 +569,7 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
               <em>La ubicación ya está tomada, empiezas por el origen</em>
             </button>
             <div className="ct-botones">
-              <Link href="/sider" className="btn plano">Ver la fuente principal</Link>
+              <Link href="/sider/salida" className="btn plano">Ir a Dar salida</Link>
               <Link href="/sider/transito" className="btn plano">Ver lo que va en camino</Link>
             </div>
           </div>
@@ -496,21 +581,74 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
       {/* ---------- El tiquete que se va armando ---------- */}
       {paso > 0 && paso < 6 && (
         <section className="ct-tiquete">
-          <div className="rot">LO QUE VA A QUEDAR</div>
-          <div className="cifras-t">
-            <div><b>{nEst ? nf2.format(nEst) : "—"}</b><span>estibas</span></div>
-            <div><b>{der ? nf2.format(der.sider) : "—"}</b><span>sider</span></div>
-            <div><b>{der?.cajas != null ? nf.format(der.cajas) : "—"}</b><span>cajas</span></div>
-            <div><b>{der?.unidades != null ? nf.format(der.unidades) : "—"}</b><span>unidades</span></div>
-            <div><b>{der?.hl != null ? nf2.format(der.hl) : "—"}</b><span>HL</span></div>
+          <div className="rot">
+            {lineas.length > 1 ? `LO QUE VA A QUEDAR · ${lineas.length} MATERIALES` : "LO QUE VA A QUEDAR"}
           </div>
-          {mat && der && der.cajas == null && (
+          <div className="cifras-t">
+            {([["estibas", total.estibas, nf2], ["sider", total.sider, nf2], ["cajas", total.cajas, nf],
+               ["unidades", total.unidades, nf], ["HL", total.hl, nf2]] as const).map(([rot, c, f]) => (
+              <div key={rot}>
+                <b>{c.v == null ? "—" : f.format(c.v)}</b>
+                <span>{rot}</span>
+                {c.v != null && c.falta.length > 0 && <i>falta mat. {c.falta.join(", ")}</i>}
+              </div>
+            ))}
+          </div>
+          {sinFactores.length > 0 && (
             <p className="ojo">
-              A <b>{mat.descripcion}</b> le faltan factores en el maestro, así que de este
-              viaje no se pueden calcular cajas, unidades ni HL. Se puede certificar igual
-              — la evidencia es lo importante — y las cifras salen cuando se completen.
+              A <b>{sinFactores.map((m) => m.descripcion).join(", ")}</b> le{sinFactores.length > 1 ? "s" : ""} faltan
+              factores en el maestro, así que de {sinFactores.length > 1 ? "esos materiales" : "ese material"} no
+              se pueden calcular cajas, unidades ni HL. Se puede guardar igual — la evidencia es
+              lo importante — y las cifras salen cuando se completen.
             </p>
           )}
+        </section>
+      )}
+
+      {/* ---------- Mis fichas pendientes ---------- */}
+      {fichas.length > 0 && (
+        <section className="tarjeta ct-fichas" aria-label="Mis fichas pendientes">
+          <h2>Mis fichas pendientes <em>{fichas.length}</em></h2>
+          <p className="ct-dice">
+            Esperan al facturador: cuando escriba el número de factura y les dé salida,
+            pasan a En tránsito.
+          </p>
+          <ul>
+            {fichas.map((f) => (
+              <li key={f.id}>
+                <div className="ct-f-cab">
+                  <b className="ct-f-placa">{f.placa}</b>
+                  <span>{origenes.find((o) => o.planta === f.planta)?.cd_origen ?? f.planta}</span>
+                  <span className={"ct-f-fotos" + (f.fotos < 3 ? " mal" : "")}>{f.fotos}/3 fotos</span>
+                </div>
+                <ul className="ct-f-mats">
+                  {f.lineas.map((l) => (
+                    <li key={l.sku}>
+                      {skuDe(l.sku)?.descripcion ?? l.sku}
+                      <em>{nf2.format(l.estibas)} estibas</em>
+                    </li>
+                  ))}
+                </ul>
+                {f.fotos < 3 && (
+                  <p className="ct-f-mal">Le faltan fotos: descártala y vuelve a hacerla, porque sin las tres no se le puede dar salida.</p>
+                )}
+                <div className="ct-f-pie">
+                  <span>Espera factura</span>
+                  {seguro === f.id ? (
+                    <>
+                      <button type="button" className="btn mal" disabled={descartando === f.id}
+                              onClick={() => descartar(f)}>
+                        {descartando === f.id ? "Descartando…" : "Sí, descartar"}
+                      </button>
+                      <button type="button" className="btn plano" onClick={() => setSeguro(null)}>No</button>
+                    </>
+                  ) : (
+                    <button type="button" className="btn plano" onClick={() => setSeguro(f.id)}>Descartar</button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </>

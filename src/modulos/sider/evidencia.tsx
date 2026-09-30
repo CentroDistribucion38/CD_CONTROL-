@@ -388,3 +388,51 @@ export async function subirFotos(
   }
   return null;
 }
+
+
+/**
+ * LAS FOTOS DE UNA FICHA. Iguales a las de una salida —mismo sellado, mismas
+ * tres ranuras— pero todavía no hay viaje al que colgarlas: se suben al
+ * bucket bajo `fichas/<id>/` y su fila cuelga de la ficha. Al darle salida,
+ * la base las copia a cada viaje que nace.
+ *
+ * Devuelve el texto del problema, o null si subieron las tres.
+ */
+export async function subirFotosFicha(
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  cli: any,
+  d: { fichaId: string; fotos: Partial<Record<Ranura, Foto>>; avance?: (t: string) => void },
+): Promise<string | null> {
+  const cuantas = RANURAS.filter((r) => d.fotos[r.id]).length;
+  let n = 0;
+  for (const r of RANURAS) {
+    const f = d.fotos[r.id];
+    if (!f) continue;
+    d.avance?.(`Subiendo ${r.t.toLowerCase()}… (${n + 1} de ${cuantas})`);
+    const ruta = `fichas/${d.fichaId}/${r.id}.jpg`;
+    const { error } = await cli.storage
+      .from("sider")
+      .upload(ruta, f.blob, { contentType: "image/jpeg", upsert: true });
+    if (error) return `la foto "${r.t}" no subió: ${error.message}`;
+    const { error: eFila } = await cli.from("sider_ficha_fotos").insert({
+      ficha_id: d.fichaId, ranura: r.id, ruta, ancho: f.ancho, alto: f.alto, bytes: f.blob.size,
+    });
+    if (eFila) return `la foto "${r.t}" subió pero no quedó registrada: ${eFila.message}`;
+    n++;
+  }
+  return null;
+}
+
+
+/** Los errores de las fichas. Las funciones de la base ya hablan en cristiano
+ *  —«Falta el número de factura»—; solo se traduce lo que viene crudo. */
+export function traducirFicha(m: string): string {
+  const t = m.toLowerCase();
+  if (/sider_ficha/.test(t) && /(does not exist|schema cache|could not find)/.test(t)) {
+    return "Falta correr en Supabase el archivo supabase/migraciones/2026-09-sider-fichas-de-salida.sql.";
+  }
+  if (t.includes("row-level security")) {
+    return "Tu usuario no tiene permiso para esto. Pídeselo al administrador en Roles.";
+  }
+  return m;
+}

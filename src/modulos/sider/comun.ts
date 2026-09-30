@@ -262,3 +262,17 @@ export const NOMBRE_TIPO_LARGO: Record<TipoRevision, string> = {
   sorting: "Revisión AI – normal",
 };
 
+
+
+/* LA FICHA: un camión certificado en el patio que todavía NO tiene número
+   de factura. Es lo que el facturador ve para darle salida. No es un
+   viaje: los viajes nacen cuando se le da salida. */
+export type FichaLinea = { sku: string; estibas: number };
+export type Ficha = {
+  id: string; placa: string; planta: string;
+  lote: string | null; nota: string | null; direccion: string | null;
+  creado_por: string | null; creado_en: string;
+  lineas: FichaLinea[];
+  /** Cuántas de las 3 fotos se subieron. Con menos de 3 no se le puede dar salida. */
+  fotos: number;
+};

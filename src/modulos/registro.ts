@@ -362,6 +362,11 @@ export const MODULOS: Modulo[] = [
     // orígenes y los materiales— y se toca una vez cada mucho.
     secciones: [
       { nombre: "Certificar", ruta: "/sider/certificar" },
+      /* DAR SALIDA VA DESPUÉS DE CERTIFICAR: en el patio se certifica el
+         camión y queda una ficha; el facturador escribe la factura y le da
+         salida aquí, y solo entonces pasa a En tránsito. Es de OTRA persona
+         que Certificar, por eso tiene su propio permiso. */
+      { nombre: "Dar salida", ruta: "/sider/salida" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
       /* REVISIÓN AI VA JUSTO DESPUÉS DE TRÁNSITO: es lo que se hace apenas
          el camión llega. Lista lo que falta revisar una vez CERTIFICADA la

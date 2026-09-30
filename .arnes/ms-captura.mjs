@@ -39,8 +39,6 @@ if (va("so")) {
 await paso("s01", async () => { await monta("m=sorting", 390, 3200); await todo("s01-todo");
   await el("s01-cert", ".tr-vh.ai"); await el("s01-interno", ".tr-vh.so:has(.sello.interno)"); await el("s01-normal", ".tr-vh.so:not(:has(.sello.interno))");
   await el("s01-hechas", ".so-hechos") });
-await paso("c9", async () => { await monta("m=certificar", 390, 1200); await pg.click("text=Activar mi ubicación"); await esp(800); await pg.click("button:has-text('Seguir')"); await pg.click("button:has-text('Apartadó')");
-  await pg.click("button:has-text('Caja plástica azul')"); const ins = await pg.$$(".ct-campos input"); await ins[0].fill("30"); await todo("c05-sinfactores") });
 await paso("s02", async () => { await monta("m=sorting", 390, 3000); await pg.click("button:has-text('Hacer la revisión') >> nth=0"); await esp(); await todo("s02-form-vacia");
   await el("s02-cinta", ".ai-cinta"); await pg.locator(".ai-caja").nth(0).screenshot({ path: O + "s02-caja0.png" });
   await pg.locator(".ai-p-cab >> xpath=..").first().screenshot({ path: O + "s02-panel.png" }) });

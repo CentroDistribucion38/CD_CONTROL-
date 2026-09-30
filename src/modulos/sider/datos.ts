@@ -9,7 +9,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import type { Origen, Sku, Viaje, FilaSeguimiento, FotoGuardada, Certificacion } from "./comun";
+import type { Origen, Sku, Viaje, FilaSeguimiento, FotoGuardada, Certificacion, Ficha } from "./comun";
 import { ORDEN_RANURA, unirMarcasSorting } from "./comun";
 
 /* Se re-exporta para no obligar a nadie a cambiar de import; lo nuevo
@@ -469,4 +469,32 @@ export async function hiloNovedades(ids: string[]) {
     .order("escrita_en");
   if (error) return [] as RespuestaNovedad[];
   return (data ?? []) as RespuestaNovedad[];
+}
+
+
+/**
+ * Las fichas que esperan su factura. La base ya filtra por quién puede
+ * verlas: quien tiene «Dar salida» ve todas, los demás solo las suyas.
+ * `soloDe` estrecha todavía más —«Mis fichas» en Certificar—, porque el
+ * facturador que también certifica no quiere ver las de todos ahí.
+ * `falta` = la tabla no existe: no se ha corrido
+ * 2026-09-sider-fichas-de-salida.sql.
+ */
+export async function fichasPendientes(soloDe?: string) {
+  const supabase = await createClient();
+  let q = supabase
+    .from("sider_fichas")
+    .select("id, placa, planta, lote, nota, direccion, creado_por, creado_en, sider_ficha_lineas(sku, estibas), sider_ficha_fotos(id)")
+    .eq("estado", "pendiente")
+    .order("creado_en", { ascending: true });
+  if (soloDe) q = q.eq("creado_por", soloDe);
+  const { data, error } = await q;
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const fichas: Ficha[] = ((data ?? []) as any[]).map((f) => ({
+    id: f.id, placa: f.placa, planta: f.planta, lote: f.lote, nota: f.nota, direccion: f.direccion,
+    creado_por: f.creado_por, creado_en: f.creado_en,
+    lineas: (f.sider_ficha_lineas ?? []).map((l: { sku: string; estibas: number | string }) => ({ sku: l.sku, estibas: Number(l.estibas) })),
+    fotos: (f.sider_ficha_fotos ?? []).length,
+  }));
+  return { fichas, falta: !!error };
 }

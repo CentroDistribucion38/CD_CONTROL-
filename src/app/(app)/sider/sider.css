@@ -546,7 +546,11 @@
   gap: 1px; margin: 0; background: var(--sd-linea);
   border: 1px solid var(--sd-linea); border-radius: 4px; overflow: hidden;
 }
-.sd .ct-revision > div { background: #fff; padding: 14px 16px }
+.sd .ct-revision > div { background: #fff; padding: 14px 16px; grid-column: span 2 }
+.sd .ct-revision > div.ancho { grid-column: 1 / -1 }
+.sd .ct-r-mat { display: block; font-size: 15px; line-height: 1.25 }
+.sd .ct-r-mat + .ct-r-mat { margin-top: 8px }
+.sd .ct-r-mat em { display: block; font-family: var(--sd-texto); font-style: normal; font-weight: 500; font-size: 12px; color: var(--sd-gris); margin-top: 1px }
 .sd .ct-revision dt { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--sd-gris); text-transform: uppercase }
 .sd .ct-revision dd {
   margin: 6px 0 0; font-family: var(--sd-titulo); font-weight: 800; font-size: 16px;
@@ -556,6 +560,66 @@
   display: block; font-family: var(--sd-texto); font-style: normal; font-weight: 500;
   font-size: 12px; color: var(--sd-gris); margin-top: 2px;
 }
+
+/* ---------- Varios materiales: cada uno con su casilla de estibas ---------- */
+.sd .ct-item { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.sd .ct-item .ct-op { position: relative; width: 100%; flex: 1 1 auto }
+.sd .ct-item.on .ct-op { padding-right: 40px }
+/* El escogido ocupa TODA la fila: el material a la izquierda y su casilla de
+   estibas al lado. Dentro de media columna la casilla quedaba angosta y
+   estiraba la tarjeta vecina. */
+.sd .ct-item.on { grid-column: 1 / -1; flex-direction: row; align-items: stretch }
+.sd .ct-item.on .ct-op { flex: 1 1 0; min-width: 0 }
+.sd .ct-item.on .ct-est { flex: 0 0 132px; justify-content: center }
+.sd .ct-marca {
+  position: absolute; top: 10px; right: 12px; width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font: 800 13px var(--sd-titulo);
+  font-style: normal; background: #fff; color: var(--sd-acento);
+}
+.sd .ct-est { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px; background: var(--c-f7fcfd); border: 1.5px solid var(--sd-acento); border-radius: 4px }
+.sd .ct-est.falta { border-color: var(--sd-oro) }
+.sd .ct-est > span { font-size: 11.5px; font-weight: 600; color: var(--c-2c4361); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.sd .ct-est input {
+  height: 46px; padding: 0 12px; font: 700 19px var(--sd-texto); color: var(--sd-tinta); width: 100%; box-sizing: border-box;
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 3px;
+}
+.sd .ct-est input:focus { outline: none; border-color: var(--sd-acento); box-shadow: 0 0 0 3px rgba(11,114,133,.16) }
+
+.sd .ct-cargas { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 700px }
+.sd .ct-cargas li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center;
+  padding: 12px 14px; background: var(--c-f7f9fc); border: 1px solid var(--sd-linea); border-left: 4px solid var(--sd-acento); border-radius: 3px;
+}
+.sd .ct-c-nom { display: flex; flex-direction: column; min-width: 0 }
+.sd .ct-c-nom b { font: 800 15px var(--sd-titulo); overflow-wrap: anywhere }
+.sd .ct-c-nom em { font-style: normal; font-size: 12px; color: var(--sd-gris) }
+.sd .ct-c-est { text-align: right }
+.sd .ct-c-est b { display: block; font: 900 20px var(--sd-titulo); font-variant-numeric: tabular-nums }
+.sd .ct-c-est span { font-size: 11px; color: var(--sd-gris) }
+.sd .ct-c-cif { grid-column: 1 / -1; font-size: 12.5px; color: var(--sd-gris); font-variant-numeric: tabular-nums }
+.sd .ct-c-cif b { color: var(--sd-tinta) }
+.sd .ct-c-cif .sin { color: #8A5A00; font-weight: 600 }
+.sd .ct-cambiar { margin: 0 0 16px; min-height: 40px }
+.sd .ct-nofactura { margin: 14px 0 0 }
+.sd .ct-tiquete .cifras-t i { display: block; font-style: normal; font-size: 10.5px; color: #FFD79B }
+
+/* ---------- Mis fichas pendientes ---------- */
+.sd .ct-fichas { margin-top: 16px }
+.sd .ct-fichas h2 em { font-style: normal; font-size: 13px; margin-left: 8px; padding: 2px 9px; border-radius: 10px; background: var(--sd-oro); color: var(--sd-tinta) }
+.sd .ct-fichas > ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px }
+.sd .ct-fichas > ul > li { background: #fff; border: 1px solid var(--sd-linea); border-left: 4px solid var(--sd-oro); border-radius: 3px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px }
+.sd .ct-f-cab { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.sd .ct-f-placa { font: 900 20px var(--sd-titulo); letter-spacing: .05em }
+.sd .ct-f-cab span { font-size: 12.5px; color: var(--sd-gris) }
+.sd .ct-f-cab .ct-f-fotos { margin-left: auto; font-weight: 700 }
+.sd .ct-f-cab .ct-f-fotos.mal { color: var(--sd-mal) }
+.sd .ct-f-mats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px }
+.sd .ct-f-mats li { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; font-weight: 600 }
+.sd .ct-f-mats li em { font-style: normal; font-weight: 500; color: var(--sd-gris); white-space: nowrap }
+.sd .ct-f-mal { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--sd-mal) }
+.sd .ct-f-pie { display: flex; align-items: center; gap: 10px; margin-top: 2px }
+.sd .ct-f-pie > span { margin-right: auto; font-size: 12px; font-weight: 700; color: #8A5A00 }
+.sd .ct-f-pie .btn { min-height: 40px }
 
 /* ---------- El tiquete ---------- */
 .sd .ct-tiquete {
@@ -603,6 +667,8 @@
    tirita; tres filas de dos, y la cuenta sigue exacta. */
 @media (max-width: 1240px) {
   .sd .ct-revision { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .sd .ct-revision > div { grid-column: span 1 }
+  .sd .ct-revision > div.ancho { grid-column: 1 / -1 }
 }
 
 /* ====================== Celular: que TODO quepa ======================
@@ -741,6 +807,7 @@
 
   /* ---- Confirmar ---- */
   .sd .ct-revision { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .sd .ct-revision > div.fotos { grid-column: 1 / -1 }
   .sd .ct-revision > div { padding: 8px 11px }
   .sd .ct-revision dt { font-size: 9.5px; letter-spacing: .08em }
   .sd .ct-revision dd { font-size: 13.5px; margin-top: 3px; line-height: 1.25 }
@@ -3533,3 +3600,56 @@
   .sd .so-hechos li { grid-template-columns: 1fr auto }
   .sd .so-hechos .so-h-tipo { grid-column: 1 / -1 }
 }
+
+/* ---------- «DAR SALIDA»: LO QUE HACE EL FACTURADOR ---------- */
+.sd .ds-barra { display: flex; align-items: center; gap: 18px; flex-wrap: wrap }
+.sd .ds-cuenta { display: flex; align-items: baseline; gap: 10px }
+.sd .ds-cuenta b { font: 900 34px var(--sd-titulo); line-height: 1; font-variant-numeric: tabular-nums }
+.sd .ds-cuenta span { font-size: 13px; font-weight: 700; color: var(--sd-gris) }
+.sd .ds-solover { margin: 0; font-size: 12.5px; font-weight: 600; color: #8A5A00; background: #FFF6DC; border-left: 4px solid var(--sd-oro); padding: 8px 12px; border-radius: 2px; max-width: 70ch }
+.sd .ds-vacia { padding: 22px 26px }
+.sd .ds-vacia h2 { margin: 0 }
+.sd .ds-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start }
+.sd .ds-ficha { background: var(--sd-papel); border: 1px solid var(--sd-linea); border-left: 5px solid var(--sd-oro); border-radius: 3px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.sd .ds-ficha.tarde { border-left-color: var(--sd-mal) }
+.sd .ds-ficha header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.sd .ds-placa { font: 900 26px var(--sd-titulo); letter-spacing: .05em }
+.sd .ds-ruta { font-size: 13px; color: var(--sd-gris); font-weight: 600 }
+.sd .ds-fotos { margin-left: auto; font-size: 12.5px; font-weight: 700; color: var(--sd-verde) }
+.sd .ds-fotos.mal { color: var(--sd-mal) }
+.sd .ds-mats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--sd-linea) }
+.sd .ds-mats > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 9px 0; border-bottom: 1px solid var(--sd-linea) }
+.sd .ds-mats > li > div:first-child b { display: block; font-size: 14px; overflow-wrap: anywhere }
+.sd .ds-mats > li > div:first-child em { font-style: normal; font-size: 12px; color: var(--sd-gris) }
+.sd .ds-num { text-align: right; white-space: nowrap }
+.sd .ds-num b { font: 900 20px var(--sd-titulo); font-variant-numeric: tabular-nums }
+.sd .ds-num span { margin-left: 4px; font-size: 12px; color: var(--sd-gris) }
+.sd .ds-cif { grid-column: 1 / -1; font-size: 12.5px; color: var(--sd-gris); font-variant-numeric: tabular-nums }
+.sd .ds-cif .sin { color: #8A5A00; font-weight: 600 }
+.sd .ds-total { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px }
+.sd .ds-total div { background: var(--c-fafbfd); border: 1px solid var(--sd-linea); border-radius: 2px; padding: 6px 8px; min-width: 0 }
+.sd .ds-total dt { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sd-gris) }
+.sd .ds-total dd { margin: 2px 0 0; font: 800 16px var(--sd-titulo); font-variant-numeric: tabular-nums }
+.sd .ds-quien { margin: 0; font-size: 12.5px; color: var(--sd-gris); line-height: 1.45 }
+.sd .ds-quien em { display: block; font-style: normal; overflow-wrap: anywhere }
+.sd .ds-accion { display: flex; align-items: flex-end; gap: 10px }
+.sd .ds-accion label { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px }
+.sd .ds-accion label span { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--sd-gris) }
+.sd .ds-accion input { width: 100%; height: 48px; padding: 0 12px; border: 2px solid var(--sd-tinta); border-radius: 2px; background: var(--sd-papel); color: var(--sd-tinta); font: 800 18px var(--sd-titulo); letter-spacing: .04em }
+.sd .ds-accion input:focus-visible { outline: 3px solid var(--sd-oro); outline-offset: 1px }
+.sd .ds-accion .btn { height: 48px; flex: none }
+.sd .ds-ayuda { margin: -4px 0 0; font-size: 12px; color: var(--sd-gris) }
+.sd .ds-mal { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--sd-mal) }
+.sd .ds-pie { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--sd-linea); padding-top: 8px }
+.sd .ds-pie > span { margin-right: auto; font-size: 12.5px; font-weight: 700; color: #8A5A00 }
+.sd .ds-pie .btn { height: 40px }
+.sd .ds-pie .btn.mal { background: var(--sd-mal); color: #fff }
+@media (max-width: 560px) {
+  .sd .ds-lista { grid-template-columns: minmax(0, 1fr) }
+  .sd .ds-accion { flex-direction: column; align-items: stretch }
+  .sd .ds-accion .btn { width: 100%; height: 50px }
+  .sd .ds-pie .btn { flex: 1 1 auto }
+}
+.sd .ct-f-pie .btn.mal { background: var(--sd-mal); color: #fff }
+.sd .ct-f-pie .btn.mal:hover:not(:disabled) { background: #B8001F }
+.sd .ds-accion input::placeholder { color: var(--c-b4c0ce); font-weight: 700 }

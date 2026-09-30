@@ -109,6 +109,12 @@ const IconoUbicacion = () => (
     <circle cx="12" cy="10" r="2.6" />
   </svg>
 );
+const IconoSalida = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M10 4H5v16h5" />
+    <path d="M9 12h11M16 8l4 4-4 4" />
+  </svg>
+);
 const IconoRuta = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M6 20V9a3 3 0 0 1 3-3h6a3 3 0 0 0 3-3" />
@@ -332,6 +338,7 @@ const ICONO_RAMA: Record<string, () => React.ReactElement> = {
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/sider": IconoLista,
   "/sider/certificar": IconoUbicacion,
+  "/sider/salida": IconoSalida,
   "/sider/transito": IconoRuta,
   "/sider/maestro": IconoLlave,
   "/sider/sorting": IconoRevision,
