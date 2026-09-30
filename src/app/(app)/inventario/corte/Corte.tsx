@@ -26,7 +26,7 @@ import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import { esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado } from "@/modulos/inventario/cola";
 import { analizar, type ConteoRef, type Corte as CorteT, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
-import { ParDiferencia } from "./Diferencia";
+import { Historial } from "./Historial";
 
 export type UbiC = { id: string; calle: string; modulo: string; lado: "IZQ" | "DER" | null };
 export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null; tipo: "PRODUCTO" | "ENVASE" };
@@ -345,17 +345,9 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
       {cerrados.length === 0 ? (
         <p className="fe-vacio">Todavía no hay cortes cerrados. Cuando hagas el final de uno, aquí sale cuánto pasó y cuánto se movió.</p>
       ) : (
-        <div className="fe-lista">
-          {cerrados.map((ini) => {
-            const fin = finalDe.get(ini.id)!;
-            const a = analizar(ini, fin, porEstiba, nombreUbi);
-            return (
-              <ParDiferencia key={ini.id} a={a} ini={ini} fin={fin} conteos={conteos} lineasConteo={lineasConteo}
-                lineas={lineas} mat={mat} nombreUbi={nombreUbi} manda={manda} borrar={borrar} ocupado={ocupado}
-                onBorrar={setBorrar} onConfirmar={eliminar} />
-            );
-          })}
-        </div>
+        <Historial cortes={cortes} lineas={lineas} ubicaciones={ubicaciones} materiales={materiales}
+          conteos={conteos} lineasConteo={lineasConteo} manda={manda} borrar={borrar} ocupado={ocupado}
+          onBorrar={setBorrar} onConfirmar={eliminar} />
       )}
     </div>
     </>

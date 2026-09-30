@@ -147,7 +147,7 @@ await monta("c=todo");
   ok(!/Eliminar/.test(t), "quien no administra ve «Eliminar»");
 }
 await monta("c=lectura");
-ok(await pg.$$eval("button", (b) => b.length) === 0, "solo lectura: hay botones");
+ok(await pg.$$eval("button:not(.dq-fila)", (b) => b.length) === 0, "solo lectura: hay botones (aparte de los que despliegan un par)");
 await monta("c=vacio");
 ok(/No hay cortes iniciales abiertos/.test(await txt()) && /Todavía no hay cortes cerrados/.test(await txt()), "los vacíos no dicen qué hacer");
 

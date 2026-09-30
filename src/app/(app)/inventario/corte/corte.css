@@ -173,6 +173,30 @@
 .fe .cl-guardar .btn { width: auto; padding: 0 22px }
 
 
+/* ---------- EL HISTORIAL: filtros, resumen y una fila por par ---------- */
+.fe .dq-filtros { display: flex; align-items: flex-end; gap: 10px 14px; flex-wrap: wrap; margin: 0 0 12px }
+.fe .dq-filtros label { display: flex; flex-direction: column; gap: 4px }
+.fe .dq-filtros input, .fe .dq-filtros select { min-height: 44px; padding: 0 8px; font: 600 13px var(--fe-texto); border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); min-width: 0 }
+.fe .dq-estados { display: flex; flex-wrap: wrap; gap: 0 }
+.fe .dq-est { min-height: 44px; padding: 0 14px; font: 700 12.5px var(--fe-texto); border: 1px solid var(--fe-linea); margin-left: -1px; background: var(--fe-papel); color: var(--fe-tinta); cursor: pointer }
+.fe .dq-est[aria-pressed="true"] { background: #0D0D0D; color: var(--fe-acento); border-color: #0D0D0D; position: relative }
+.fe .dq-resumen { margin: 0 0 10px; font-size: 12.5px; color: var(--fe-gris) }
+.fe .dq-resumen b { color: var(--fe-tinta) }
+.fe .dq-hist .fe-vacio .btn { margin-left: 8px }
+.fe .dq-fila { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; width: 100%; min-height: 56px; padding: 6px 2px 10px; background: none; border: 0; border-bottom: 1px solid transparent; text-align: left; cursor: pointer; color: inherit; font: inherit }
+.fe .dq-fila[aria-expanded="true"] { border-bottom-color: var(--fe-linea); margin-bottom: 10px }
+.fe .dq-fila-t { display: flex; flex-direction: column; min-width: 0; flex: 1 1 220px }
+.fe .dq-fila-t b { font: 800 15px var(--fe-titulo) }
+.fe .dq-fila-t small { font: 500 12.5px var(--fe-texto); color: var(--fe-gris) }
+.fe .dq-minis { display: flex; flex-wrap: wrap; gap: 4px }
+.fe .dq-mini { font: 800 11px var(--fe-titulo); font-style: normal; padding: 3px 7px; color: #fff; background: var(--fe-gris) }
+.fe .dq-mini.no_cuadra { background: var(--fe-mal) }
+.fe .dq-mini.cuadra { background: var(--fe-bien) }
+.fe .dq-fila .dq-chip { margin-left: 0 }
+.fe .dq-caret { font-size: 14px; color: var(--fe-gris); width: 18px; text-align: center }
+.fe .dq-mas { align-self: center; min-height: 44px; margin-top: 4px }
+.fe .dq-cuerpo { min-width: 0 }
+
 /* ---------- LA DIFERENCIA: una tarjeta por línea, una tabla por tarjeta ---------- */
 .fe .dq .dq-barra { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; padding-bottom: 12px }
 .fe .dq .dq-barra h3 { margin: 0; font: 800 15px var(--fe-titulo) }

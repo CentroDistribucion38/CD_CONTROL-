@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo } from "react";
 import {
-  armarTabla, conteoPorDefecto, cruzar, diaColombia, duracion,
+  armarTabla, cruzar, diaColombia, duracion,
   type Analisis, type ConteoRef, type Corte as CorteT, type FilaTabla, type GrupoTabla, type LineaConteo, type TablaLinea,
 } from "@/modulos/inventario/corte";
 import type { MatC, LineaC } from "./Corte";
@@ -71,21 +71,31 @@ function DifT({ fila, f }: { fila: FilaTabla; f: Factores; dz?: boolean }) {
   return <>{c(est, nf1, "Estibas", "x")}{c(fila.dif, nf, "Cajas", "c")}{c(uni, nf, "Unidades", "")}</>;
 }
 
-export function ParDiferencia({ a, ini, fin, conteos, lineasConteo, lineas, mat, nombreUbi, manda, borrar, ocupado, onBorrar, onConfirmar }: {
+/** Las tablas de un par contra un conteo (o sin conteo si id es null). */
+export function tablasDelPar(a: Analisis, id: string | null, lineasPorConteo: Map<string, LineaConteo[]>, nombreUbi: (id: string) => string): TablaLinea[] {
+  return cruzar(a, id ?? "", id ? lineasPorConteo.get(id) ?? [] : []).map((c) => armarTabla(c, id !== null, nombreUbi));
+}
+
+export function ParDiferencia({ a, ini, fin, conteos, lineasPorConteo, conteoId, onConteo, soloLinea, lineas, mat, nombreUbi, manda, borrar, ocupado, onBorrar, onConfirmar, sinTitulo }: {
   a: Analisis; ini: CorteT; fin: CorteT;
-  conteos: ConteoRef[]; lineasConteo: LineaConteo[];
+  conteos: ConteoRef[]; lineasPorConteo: Map<string, LineaConteo[]>;
+  /** El conteo con el que se compara (null = ninguno) y cómo cambiarlo. */
+  conteoId: string | null; onConteo: (id: string) => void;
+  /** Si viene, solo se pinta la tarjeta de esa línea. */
+  soloLinea?: string;
   lineas: LineaC[]; mat: Map<string, MatC>; nombreUbi: (id: string) => string;
   manda: boolean; borrar: string | null; ocupado: boolean;
   onBorrar: (id: string | null) => void; onConfirmar: (id: string) => void;
+  /** El título del par ya lo pone quien lo contiene (la fila del historial). */
+  sinTitulo?: boolean;
 }) {
-  const [escogido, setEscogido] = useState<string | null>(null);
-  const id = escogido ?? conteoPorDefecto(ini, conteos);
+  const id = conteoId;
   const conteo = conteos.find((c) => c.id === id) ?? null;
   const tablas = useMemo(
-    () => cruzar(a, id ?? "", lineasConteo).map((c) => armarTabla(c, id !== null, nombreUbi)),
+    () => tablasDelPar(a, id, lineasPorConteo, nombreUbi),
     // nombreUbi cambia de identidad en cada pintada pero no de resultado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [a, id, lineasConteo],
+    [a, id, lineasPorConteo],
   );
   const nombreLinea = (c: string) => lineas.find((l) => l.clave === c)?.nombre ?? c;
   const factores = (mid: string | null): Factores => {
@@ -99,14 +109,14 @@ export function ParDiferencia({ a, ini, fin, conteos, lineasConteo, lineas, mat,
   const cortesDe = d1 === d2 ? `del ${diaCorto(d1)}` : `del ${diaCorto(d1)} al ${diaCorto(d2)}`;
 
   return (
-    <article className="fe-fila cl-par dq">
+    <div className="dq-cuerpo">
       <div className="dq-barra">
-        <h3>{hora(ini.cortado_en)} → {hora(fin.cortado_en)}<small>{duracion(a.horas)} · {nf.format(a.totalPasadas)} cajas por la depa</small></h3>
+        {!sinTitulo && <h3>{hora(ini.cortado_en)} → {hora(fin.cortado_en)}<small>{duracion(a.horas)} · {nf.format(a.totalPasadas)} cajas por la depa</small></h3>}
         <div className="dq-der">
           {conteos.length > 0 && (
             <label>
               <span className="dq-eti">Conteo</span>
-              <select value={id ?? ""} onChange={(e) => setEscogido(e.target.value)} aria-label="Conteo del inventario con el que se compara">
+              <select value={id ?? ""} onChange={(e) => onConteo(e.target.value)} aria-label="Conteo del inventario con el que se compara">
                 {conteos.map((c) => <option key={c.id} value={c.id}>{c.codigo} · {dia(c.fecha)}</option>)}
               </select>
             </label>
@@ -129,7 +139,7 @@ export function ParDiferencia({ a, ini, fin, conteos, lineasConteo, lineas, mat,
         </p>
       )}
 
-      {tablas.map((t) => <TarjetaLinea key={t.linea} t={t} nombre={nombreLinea(t.linea)} mat={mat} a={a} factores={factores} />)}
+      {tablas.filter((t) => !soloLinea || t.linea === soloLinea).map((t) => <TarjetaLinea key={t.linea} t={t} nombre={nombreLinea(t.linea)} mat={mat} a={a} factores={factores} />)}
 
       {(a.soloInicial.length > 0 || a.soloFinal.length > 0) && (
         <p className="cl-nota">
@@ -139,7 +149,7 @@ export function ParDiferencia({ a, ini, fin, conteos, lineasConteo, lineas, mat,
         </p>
       )}
       {(ini.nota || fin.nota) && <p className="cl-nota">{[ini.nota, fin.nota].filter(Boolean).join(" · ")}</p>}
-    </article>
+    </div>
   );
 }
 
