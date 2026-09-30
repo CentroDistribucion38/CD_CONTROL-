@@ -156,6 +156,9 @@ const casos: Record<string, any> = {
   normal: { puedeEditar: true, puedeCrear: true, maestros, pendientes: cuatro,
     detalle: [det(1, { unidades: 34560 }), det(2), det(4)],   /* el 3 SIN detalle: no puede esconderse */
     hechos: [hecho(1), hecho(2, { tipo: "sorting", ed: 2 }), hecho(3), hecho(5, { sinTipo: true })] },
+  /* EL QUE ADMINISTRA LA PLATAFORMA: escoge y anula, como en Tránsito. */
+  manda: { puedeEditar: true, puedeCrear: true, manda: true, maestros, pendientes: cuatro,
+    detalle: [det(1, { unidades: 34560 }), det(2), det(4)], hechos: [hecho(1), hecho(2, { tipo: "sorting" })] },
   soloNormal: { puedeEditar: true, maestros, pendientes: [pend(4, 5, { tipo: "sorting" })],
     detalle: [det(4)], hechos: [hecho(2, { tipo: "sorting" })] },
   largos: { puedeEditar: true, maestros,
@@ -185,7 +188,7 @@ if (m === "sorting") {
   root.render(<Sorting ahora={AHORA} pendientes={k.pendientes} detalle={k.detalle}
     hechos={k.hechos} nombres={{ u1: "Cristian Padilla", u2: "Muchacho Uno" }}
     maestros={k.maestros} puedeEditar={k.puedeEditar}
-    puedeCrear={!!k.puedeCrear} origenes={k.puedeCrear ? ORIGENES : []} skus={k.puedeCrear ? SKUS_M : []}
+    puedeCrear={!!k.puedeCrear} manda={!!k.manda} origenes={k.puedeCrear ? ORIGENES : []} skus={k.puedeCrear ? SKUS_M : []}
     socios={k.puedeCrear ? [{ clave: "logi", nombre: "Logisinú" }, { clave: "sur", nombre: "Distribuciones del Sur" }] : []}
     estibasPorSider={36} />);
 } else if (m === "form") {
@@ -991,6 +994,60 @@ await monta("m=sorting&c=normal");
   await pg.waitForFunction(() => window.__refresh > 0);
   ok(await pg.$$eval("#nv-titulo", (s) => s.length) === 0, "el formulario no se cierra al crear");
   ok(/ABC123 creado: ya está en Revisión AI – normal/.test(await txt()), "no avisa que el Vh Interno quedó en Revisión AI");
+}
+/* =====================================================================
+   4b · ESCOGER Y ANULAR EN REVISIÓN AI, COMO EN TRÁNSITO
+   ===================================================================== */
+{
+  /* SIN «manda»: ni casillas ni «Anular», aunque pueda editar y crear. */
+  await monta("m=sorting&c=normal");
+  ok(await pg.$$eval(".tr-marca, .tr-admin, .tr-barra", (x) => x.length) === 0 && !/Anular/.test(await txt()),
+     "quien no administra ve casillas o «Anular»");
+
+  await monta("m=sorting&c=manda");
+  ok(await pg.$$eval(".tr-vh .tr-marca", (x) => x.length) === 4, "no hay casilla «Escoger» en las 4 tarjetas");
+  ok(await pg.$$eval(".tr-vh .tr-admin .tr-adm.mal", (x) => x.map((e) => e.textContent.trim()).join()) === "Anular,Anular,Anular,Anular", "falta «Anular» en las tarjetas");
+  ok(await pg.$$eval(".tr-barra", (x) => x.length) === 0, "la barra de lo escogido existe sin escoger nada");
+  /* ESCOGER DOS, DE LOS DOS BLOQUES: la barra cuenta y anula los dos. */
+  await pg.click(".tr-vh >> nth=0 >> .tr-marca input");
+  await pg.click(".tr-vh >> nth=2 >> .tr-marca input");
+  ok(/2 camiones escogidos/.test(await pg.$eval(".tr-barra", (e) => e.textContent)), "la barra no cuenta los 2 escogidos");
+  ok(await pg.$$eval(".tr-vh.escogido", (x) => x.length) === 2, "las tarjetas escogidas no se marcan");
+  await pg.click('.tr-barra button:has-text("Anular los 2")');
+  const dlg = ".vj-caja";
+  ok(/ANULAR 2 CAMIONES/.test(await pg.$eval(dlg, (e) => e.textContent)) && /REV001/.test(await pg.$eval("#an-titulo", (e) => e.textContent)), "el cuadro no nombra los 2 camiones");
+  ok(await pg.locator(dlg + ' .btn.mal').isDisabled() && /por qué se anula/.test(await pg.$eval(".vj-falta", (e) => e.textContent)), "deja anular sin motivo");
+  await pg.fill(".vj-motivo-campo input", "abc");
+  ok(await pg.locator(dlg + ' .btn.mal').isDisabled(), "deja anular con 3 letras de motivo");
+  await pg.fill(".vj-motivo-campo input", "Se creó por error");
+  await pg.click(dlg + " .btn.mal");
+  await pg.waitForFunction(() => window.__rpc.length >= 2);
+  const r = await rpcs();
+  ok(r.length === 2 && r.every((x) => x.n === "sider_viaje_anular" && x.a.p_motivo === "Se creó por error")
+     && JSON.stringify(r.map((x) => x.a.p_id).sort()) === JSON.stringify(["v1", "v3"]), "no anuló exactamente los 2 escogidos con su motivo: " + JSON.stringify(r));
+  await pg.waitForFunction(() => window.__refresh > 0);
+  ok(await pg.$$eval(".tr-barra, #an-titulo", (x) => x.length) === 0, "tras anular sigue la barra o el cuadro");
+  ok(/2 camiones anulados/.test(await txt()), "no avisó que quedaron anulados");
+}
+{
+  /* UNO SOLO, desde su tarjeta; cancelar no llama a nada. */
+  await monta("m=sorting&c=manda");
+  await pg.click(".tr-vh >> nth=1 >> .tr-adm.mal");
+  ok(/ANULAR UN CAMIÓN/.test(await pg.$eval(".vj-caja", (e) => e.textContent)) && /REV002/.test(await pg.$eval("#an-titulo", (e) => e.textContent)), "el cuadro de uno no nombra su placa");
+  await pg.click('.vj-caja .btn.plano');
+  ok((await rpcs()).length === 0 && await pg.$$eval("#an-titulo", (x) => x.length) === 0, "cancelar llamó a la base o no cerró");
+  /* «ESCOGER LOS N DE ESTE BLOQUE». */
+  await pg.click('.so-todos:near(:text("Por hacer")) >> nth=0 >> input');
+  ok(/2 camiones escogidos/.test(await pg.$eval(".tr-barra", (e) => e.textContent)), "«escoger todos» del bloque certificado no escogió sus 2");
+  await pg.click('.so-todos >> nth=0 >> input');
+  ok(await pg.$$eval(".tr-barra", (x) => x.length) === 0, "«quitar todos» no dejó sin selección");
+  /* SI LA BASE RECHAZA (no manda): el cuadro se queda con el motivo, no finge. */
+  await pg.click(".tr-vh >> nth=0 >> .tr-adm.mal");
+  await pg.fill(".vj-motivo-campo input", "Se creó por error");
+  await pg.evaluate(() => { window.__rpcFalla = "Solo quien administra la plataforma puede anular un viaje." });
+  await pg.click(".vj-caja .btn.mal");
+  await pg.waitForSelector(".vj-mal");
+  ok(await pg.inputValue(".vj-motivo-campo input") === "Se creó por error" && await pg.evaluate(() => window.__refresh) === 0, "el rechazo cerró el cuadro, borró el motivo o refrescó");
 }
 /* =====================================================================
    5b · «¿DE QUIÉN ES?»: SOCIO (SIN DOCUMENTO, CON SOCIO) O T1 (CON FACTURA)

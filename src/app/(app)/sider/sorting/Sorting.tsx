@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { traducirError } from "@/lib/errores";
 import { useAvisos } from "@/components/Aviso";
 import type { Viaje } from "@/modulos/sider/comun";
 import { NOMBRE_TIPO, NOMBRE_TIPO_LARGO, letraTurno, type TipoRevision } from "@/modulos/sider/comun";
@@ -80,7 +81,7 @@ function SelloTipo({ tipo }: { tipo: TipoRevision }) {
 
 export function Sorting({
   ahora, pendientes, detalle, hechos, nombres, maestros, puedeEditar,
-  puedeCrear = false, origenes = [], skus = [], socios = [], estibasPorSider = 36,
+  puedeCrear = false, manda = false, origenes = [], skus = [], socios = [], estibasPorSider = 36,
 }: {
   ahora: string;
   pendientes: PendienteRevision[];
@@ -92,6 +93,9 @@ export function Sorting({
   puedeEditar: boolean;
   /** Tiene el permiso «Vh Interno (+)» de Roles: ve el botón flotante. */
   puedeCrear?: boolean;
+  /** Administra la plataforma: puede escoger camiones y anularlos, igual
+   *  que en Tránsito. El candado de verdad está en la base (`manda()`). */
+  manda?: boolean;
   /** Los maestros del formulario del «+»: origen, material y sus factores. */
   origenes?: OrigenMaestro[];
   skus?: SkuMaestro[];
@@ -106,6 +110,60 @@ export function Sorting({
   /** El formulario del «+»: crear un Vh Interno. */
   const [creando, setCreando] = useState(false);
   const porId = new Map(detalle.map((v) => [v.id, v]));
+
+  /* ---------- ESCOGER Y ANULAR, COMO EN TRÁNSITO ----------
+     «Necesito poder seleccionar, al igual que en Tránsito, y anular en
+     todo el módulo.» Se escoge por VIAJE: si un camión sale en los dos
+     bloques, es el mismo camión y se anula una sola vez. Anular no
+     borra: el viaje queda en Fuente principal, en gris, y se puede
+     devolver. */
+  const [escogidos, setEscogidos] = useState<Set<string>>(new Set());
+  const [anular, setAnular] = useState<null | { vs: { id: string; placa: string }[]; motivo: string }>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [mal, setMal] = useState<string | null>(null);
+  const marcar = (id: string) => setEscogidos((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const marcarTodos = (ps: PendienteRevision[]) => setEscogidos((s) => {
+    const n = new Set(s);
+    const todos = ps.every((p) => n.has(p.viaje_id));
+    ps.forEach((p) => todos ? n.delete(p.viaje_id) : n.add(p.viaje_id));
+    return n;
+  });
+  const unicos = (ps: PendienteRevision[]) => {
+    const vistos = new Map<string, { id: string; placa: string }>();
+    ps.forEach((p) => { if (!vistos.has(p.viaje_id)) vistos.set(p.viaje_id, { id: p.viaje_id, placa: p.placa }) });
+    return [...vistos.values()];
+  };
+
+  async function confirmarAnular() {
+    if (!anular) return;
+    setMal(null); setOcupado(true);
+    const supabase = createClient();
+    /* UNO POR UNO, con la función de siempre (`sider_viaje_anular`), y se
+       cuentan los dos lados: si se caen dos de cinco no se dice «anulados»
+       a secas ni «falló» a secas. */
+    const hechos: string[] = [];
+    const fallados: { placa: string; por: string }[] = [];
+    for (const v of anular.vs) {
+      const { error } = await supabase.rpc("sider_viaje_anular", { p_id: v.id, p_motivo: anular.motivo });
+      if (error) fallados.push({ placa: v.placa, por: traducirError(error.message) });
+      else hechos.push(v.placa);
+    }
+    setOcupado(false);
+    if (fallados.length && !hechos.length) return setMal(fallados[0].por);
+    setAnular(null);
+    setEscogidos(new Set());
+    if (hechos.length) {
+      avisar.bien(hechos.length === 1
+        ? `${hechos[0]} quedó anulado y salió de Revisión AI. Está en Fuente principal, en gris, y se puede devolver.`
+        : `${hechos.length} camiones anulados. Salieron de Revisión AI y están en Fuente principal, en gris; se pueden devolver.`);
+    }
+    if (fallados.length) avisar.mal(`No se pudo anular ${fallados.map((f) => f.placa).join(", ")}: ${fallados[0].por}`);
+    router.refresh();
+  }
   const puedeOperar = puedeEditar && !!maestros;
 
   const nCert = pendientes.filter((p) => p.tipo === "ai").length;
@@ -188,7 +246,8 @@ export function Sorting({
     const largo = esTarde(p.llego_en, ahora);
     return (
       <article key={p.viaje_id + p.tipo}
-               className={"tr-vh " + (p.tipo === "ai" ? "ai" : "so") + (largo ? " so-tarde" : "")}>
+               className={"tr-vh " + (p.tipo === "ai" ? "ai" : "so") + (largo ? " so-tarde" : "")
+                 + (manda && escogidos.has(p.viaje_id) ? " escogido" : "")}>
         <header>
           <b className="placa">{p.placa}</b>
           <SelloTipo tipo={p.tipo} />
@@ -246,6 +305,18 @@ export function Sorting({
             )}
           </div>
         </footer>
+        {manda && (
+          <div className="tr-admin">
+            <label className="tr-marca">
+              <input type="checkbox" checked={escogidos.has(p.viaje_id)} onChange={() => marcar(p.viaje_id)} />
+              <span>{escogidos.has(p.viaje_id) ? "Escogido" : "Escoger"}</span>
+            </label>
+            <button type="button" className="tr-adm mal"
+                    onClick={() => { setMal(null); setAnular({ vs: unicos([p]), motivo: "" }) }}>
+              Anular
+            </button>
+          </div>
+        )}
       </article>
     );
   };
@@ -332,9 +403,20 @@ export function Sorting({
                 <p>{c.vacio}</p>
               </div>
             ) : (
-              <div className="tr-rejilla">
-                {pend.map(tarjeta)}
-              </div>
+              <>
+                {manda && (
+                  <div className="tr-admin so-todos">
+                    <label className="tr-marca">
+                      <input type="checkbox" checked={pend.every((p) => escogidos.has(p.viaje_id))}
+                             onChange={() => marcarTodos(pend)} />
+                      <span>{pend.every((p) => escogidos.has(p.viaje_id)) ? "Quitar todos" : `Escoger los ${pend.length} de este bloque`}</span>
+                    </label>
+                  </div>
+                )}
+                <div className="tr-rejilla">
+                  {pend.map(tarjeta)}
+                </div>
+              </>
             )}
 
             <h3 className="so-h">Hechas <span>las últimas {hech.length}</span></h3>
@@ -365,6 +447,64 @@ export function Sorting({
             router.refresh();
             avisar.bien(`${placa} creado: ya está en Revisión AI – normal.`);
           }} />
+      )}
+      {manda && escogidos.size > 0 && (
+        <div className="tr-barra" role="region" aria-label="Camiones escogidos">
+          <span className="tr-barra-n">
+            <b>{escogidos.size}</b> {escogidos.size === 1 ? "camión escogido" : "camiones escogidos"}
+          </span>
+          <button type="button" className="tr-adm" onClick={() => setEscogidos(new Set())}>
+            Quitar la selección
+          </button>
+          <button type="button" className="tr-adm mal fuerte"
+                  onClick={() => { setMal(null); setAnular({
+                    vs: unicos(pendientes.filter((p) => escogidos.has(p.viaje_id))), motivo: "",
+                  }) }}>
+            Anular {escogidos.size === 1 ? "el escogido" : `los ${escogidos.size}`}
+          </button>
+        </div>
+      )}
+      {anular && (
+        <div className="vj-velo" role="dialog" aria-modal="true" aria-labelledby="an-titulo"
+             onClick={(e) => { if (e.target === e.currentTarget && !ocupado) setAnular(null) }}>
+          <div className="vj-caja">
+            <p className="vj-ojo">{anular.vs.length === 1 ? "ANULAR UN CAMIÓN" : `ANULAR ${anular.vs.length} CAMIONES`}</p>
+            <h3 id="an-titulo">
+              {anular.vs.slice(0, 6).map((x) => x.placa).join(", ")}
+              {anular.vs.length > 6 ? ` y ${anular.vs.length - 6} más` : ""}
+            </h3>
+            <p className="vj-dice">
+              {anular.vs.length === 1 ? "El camión " : "Los camiones "}<b>no se {anular.vs.length === 1 ? "borra" : "borran"}</b>:
+              salen de Revisión AI y quedan en Fuente principal marcados como anulados, con sus
+              datos, y dejan de contar. Se pueden devolver.
+            </p>
+            <label className="vj-motivo-campo">
+              <span>¿Por qué se anula? <i className="vj-obliga">obligatorio</i></span>
+              <input value={anular.motivo} autoFocus maxLength={200}
+                     aria-invalid={anular.motivo.trim().length < 4}
+                     placeholder="Se creó por error, se digitó dos veces…"
+                     onChange={(e) => setAnular({ ...anular, motivo: e.target.value })} />
+              <em>En tres meses nadie va a acordarse. Queda guardado con tu nombre.</em>
+            </label>
+            {mal && <p className="vj-mal" role="alert">{mal}</p>}
+            {!ocupado && anular.motivo.trim().length < 4 && (
+              <p className="vj-falta">
+                {anular.motivo.trim().length === 0
+                  ? <>Falta escribir <b>por qué se anula</b>. Sin eso el botón no se enciende.</>
+                  : <>Escribe un poco más: con <b>{anular.motivo.trim().length}</b> letras nadie va a entender nada dentro de tres meses.</>}
+              </p>
+            )}
+            <div className="vj-botones">
+              <button type="button" className="btn mal" onClick={confirmarAnular}
+                      disabled={ocupado || anular.motivo.trim().length < 4}>
+                {ocupado ? "Anulando…" : anular.vs.length === 1 ? "Anular el camión" : `Anular los ${anular.vs.length}`}
+              </button>
+              <button type="button" className="btn plano" onClick={() => setAnular(null)} disabled={ocupado}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {avisos}
     </>

@@ -100,6 +100,7 @@ export default async function SortingPage() {
           ? maestros.socios.map((x) => ({ clave: x.clave, nombre: x.nombre })) : []}
         puedeEditar={puedeEditar}
         puedeCrear={puedeCrear}
+        manda={permisos.manda}
         origenes={maestro?.origenes.filter((o) => o.activo)
           .map((o) => ({ planta: o.planta, cd_origen: o.cd_origen })) ?? []}
         skus={maestro?.skus.filter((k) => k.activo).map((k) => ({

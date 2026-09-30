@@ -59,6 +59,10 @@ await paso("s04", async () => { await monta("m=sorting", 390, 3000); await pg.cl
   await pg.fill("#ai-rev", "4104");
   for (let i = 0; i < 48; i++) await pg.click("button[aria-label='Sumar una de Rota o despicado']");
   await pg.click("button:has-text('Cerrar revisión')"); await esp(700); await vista("s04-cerrada") });
+await paso("s06", async () => { await monta("m=sorting&c=manda", 390, 3200);
+  await pg.click(".tr-vh >> nth=0 >> .tr-marca input"); await pg.click(".tr-vh >> nth=1 >> .tr-marca input"); await esp();
+  await el("s06-escoger", ".tr-vh >> nth=0"); await pg.screenshot({ path: O + "s06-barra.png", clip: { x: 0, y: 0, width: 390, height: 3200 }, fullPage: false }).catch(() => {});
+  await pg.click('.tr-barra button:has-text("Anular los 2")'); await esp(); await el("s06-anular", ".vj-caja") });
 await paso("v01", async () => { await monta("m=sorting", 390, 900); await pg.evaluate(() => window.scrollTo(0, 400)); await esp(); await vista("v01-fab") });
 await paso("v02", async () => { await monta("m=sorting", 390, 1500); await pg.click(".tr-fab"); await esp(); await el("v02-modal", ".vj-caja") });
 await paso("v03", async () => { await monta("m=sorting", 390, 1500); await pg.click(".tr-fab"); await esp();

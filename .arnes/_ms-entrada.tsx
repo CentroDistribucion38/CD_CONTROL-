@@ -110,7 +110,7 @@ if (m === "certificar") {
     pend(4, 5, { tipo: "sorting", placa: "PQR305" })];
   root.render(<Sorting ahora={AHORA} pendientes={cuatro as any} detalle={[det(1, { placa: "JYN141" }), det(2, { placa: "KLM872" }), det(3, { placa: "ABC123" }), det(4, { placa: "PQR305" })] as any}
     hechos={[hecho(1, { placa: "TVX219" }), hecho(2, { placa: "GHJ450", tipo: "sorting" })] as any}
-    nombres={nombres} maestros={maestros} puedeEditar puedeCrear={c !== "sincrear"}
+    nombres={nombres} maestros={maestros} puedeEditar puedeCrear={c !== "sincrear"} manda={c === "manda"}
     origenes={ORIGENES.map((o) => ({ planta: o.planta, cd_origen: o.cd_origen })) as any} skus={SKUS} estibasPorSider={36}
     socios={maestros.socios.map((x: any) => ({ clave: x.clave, nombre: x.nombre }))} />);
 } else if (m === "viajes") {

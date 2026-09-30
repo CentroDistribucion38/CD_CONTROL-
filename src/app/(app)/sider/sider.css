@@ -3686,3 +3686,11 @@
 @media (max-width: 560px) {
   .sd .tr-m-acc > * { min-height: 44px }
 }
+
+/* REVISIÓN AI: escoger y anular, como en Tránsito. La tarjeta escogida
+   se marca con el filo del acento; «escoger todos» va suelto encima de la
+   rejilla, sin la franja pegada al borde de una tarjeta. */
+.sd .tr-vh.escogido { outline: 2px solid var(--sd-acento); outline-offset: -2px }
+.sd .tr-admin.so-todos {
+  margin: 0 0 10px; padding: 0; border-top: 0; justify-content: flex-start;
+}
