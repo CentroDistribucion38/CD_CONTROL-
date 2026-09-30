@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import type { Viaje } from "@/modulos/sider/comun";
-import { NOMBRE_TIPO, NOMBRE_TIPO_LARGO, type TipoRevision } from "@/modulos/sider/comun";
+import { NOMBRE_TIPO, NOMBRE_TIPO_LARGO, letraTurno, type TipoRevision } from "@/modulos/sider/comun";
 import type {
   MaestrosAi, PendienteRevision, Revision, DetalleAi,
 } from "@/modulos/sider/ai";
@@ -120,7 +120,11 @@ export function Sorting({
         fecha: p.fecha, sku: p.sku, llego_en: p.llego_en,
         unidades: porId.get(p.viaje_id)?.unidades ?? null,
         ai_motivo: p.motivo, pedido_nombre: p.pedido_nombre,
-        canal: p.canal ?? null, socio: p.socio ?? null, envase: p.envase ?? null,
+        /* UN CAMIÓN CERTIFICADO POR SIDER ES DE T1: no hay socio que
+           escoger ni preguntar. El Vh Interno sí trae el suyo, que lo dijo
+           quien lo creó. */
+        canal: p.canal ?? (p.interno ? null : "t1"), socio: p.socio ?? null, envase: p.envase ?? null,
+        interno: p.interno,
       },
       revision: null, detalle: [],
     });
@@ -251,7 +255,7 @@ export function Sorting({
     <li key={r.id} className={tipoDe(r) === "ai" ? "ai" : "so"}>
       <b className="placa">{r.placa}</b>
       <span className="so-h-fecha">
-        {r.fecha} · {r.turno}
+        {r.fecha} · turno {letraTurno(r.turno)}
         <em>{r.envase_nombre ?? r.envase}</em>
       </span>
       <span className="so-h-ind">

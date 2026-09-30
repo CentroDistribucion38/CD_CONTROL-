@@ -43,9 +43,7 @@ await paso("s02", async () => { await monta("m=sorting", 390, 3000); await pg.cl
   await el("s02-cinta", ".ai-cinta"); await pg.locator(".ai-caja").nth(0).screenshot({ path: O + "s02-caja0.png" });
   await pg.locator(".ai-p-cab >> xpath=..").first().screenshot({ path: O + "s02-panel.png" }) });
 await paso("s03", async () => { await monta("m=sorting", 390, 3000); await pg.click("button:has-text('Hacer la revisión') >> nth=0"); await esp();
-  await pg.click("button:has-text('T2')");
-  const sel = await pg.$$("select");
-  await sel[1].selectOption({ index: 1 }); await sel[2].selectOption({ index: 1 });
+  await pg.click(".ai-seg button:has-text('B')");
   await pg.fill("#ai-rev", "4104");
   for (let i = 0; i < 30; i++) await pg.click("button[aria-label='Sumar una de Rota o despicado']");
   for (let i = 0; i < 12; i++) await pg.click("button[aria-label='Sumar una de Faltante']");
@@ -58,7 +56,6 @@ await paso("s03", async () => { await monta("m=sorting", 390, 3000); await pg.cl
   await pg.locator("text=Rota o despicado").first().scrollIntoViewIfNeeded(); await pg.evaluate(() => window.scrollBy(0, -80)); await esp(); await vista("s03-defectos");
   await pg.evaluate(() => window.scrollTo(0, 99999)); await esp(); await vista("s03-cierre") });
 await paso("s04", async () => { await monta("m=sorting", 390, 3000); await pg.click("button:has-text('Hacer la revisión') >> nth=0"); await esp();
-  const sel = await pg.$$("select"); await sel[1].selectOption({ index: 1 }); await sel[2].selectOption({ index: 1 });
   await pg.fill("#ai-rev", "4104");
   for (let i = 0; i < 48; i++) await pg.click("button[aria-label='Sumar una de Rota o despicado']");
   await pg.click("button:has-text('Cerrar revisión')"); await esp(700); await vista("s04-cerrada") });

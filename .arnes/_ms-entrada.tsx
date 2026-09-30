@@ -47,7 +47,8 @@ const pend = (n: number, h: number, o: any = {}) => ({
   viaje_id: "v" + n, tipo: o.tipo ?? "ai", placa: o.placa ?? "REV00" + n, planta: "APA", sku: "3500887",
   estibas: 20 + n, fecha: "2026-09-28", llego_en: hace(h), pedido_en: hace(h + 5),
   pedido_por: "u1", motivo: null, interno: !!o.interno, pedido_nombre: o.pedido ?? "Cristian Padilla",
-  ...(o.canal ? { canal: o.canal, socio: o.socio ?? null, envase: o.envase ?? null } : {}) });
+  envase: o.envase ?? "G175",
+  ...(o.canal ? { canal: o.canal, socio: o.socio ?? null } : {}) });
 const det = (n: number, o: any = {}) => ({
   id: "v" + n, placa: o.placa ?? "REV00" + n, cd_origen: o.origen ?? "Apartadó",
   descripcion: "Botella Costeña 175 cc", tipo_envase: "G175", sider: 12.5, cajas: 3420, unidades: 82080, hl: 143.64 });

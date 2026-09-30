@@ -107,7 +107,7 @@ const ARMAZON = `
         <div class="ai-cuerpo">
           <div class="ai-campos">
             <div class="ai-campo"><label id="rot-turno">TURNO</label>
-              <div class="ai-seg"><button class="on">T1</button><button>T2</button><button>T3</button></div></div>
+              <div class="ai-seg"><button class="on">A</button><button>B</button><button>C</button></div></div>
             <div class="ai-campo"><label>CANAL DE ENVASE</label>
               <select><option>Socios</option></select></div>
             <div class="ai-campo falta"><label>SOCIO</label>

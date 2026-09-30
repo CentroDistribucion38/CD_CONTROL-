@@ -122,7 +122,9 @@ const pend = (n: number, h: number, o: any = {}) => ({
   estibas: 20 + n, fecha: "2026-09-28", llego_en: hace(h), pedido_en: hace(h + 5),
   pedido_por: "u1", motivo: o.motivo ?? null, interno: !!o.interno,
   pedido_nombre: o.pedido ?? "Cristian Padilla",
-  ...(o.canal ? { canal: o.canal, socio: o.socio ?? null, envase: o.envase ?? null } : {}),
+  /* la vista de pendientes siempre trae el envase del material; el canal solo el Vh Interno */
+  envase: o.envase ?? "G175",
+  ...(o.canal ? { canal: o.canal, socio: o.socio ?? null } : {}),
 });
 const det = (n: number, o: any = {}) => ({
   id: "v" + n, placa: "REV00" + n, cd_origen: o.origen ?? "Apartadó", cd_destino: "Barranquilla",
@@ -192,7 +194,8 @@ if (m === "sorting") {
                   ...(q.get("u") ? { unidades: Number(q.get("u")) } : {}),
                   ...(q.get("canal") ? { canal: q.get("canal") } : {}),
                   ...(q.get("socio") ? { socio: q.get("socio") } : {}),
-                  ...(q.get("envase") ? { envase: q.get("envase") } : {}) };
+                  ...(q.get("envase") ? { envase: q.get("envase") } : {}),
+                  ...(q.get("interno") ? { interno: true } : {}) };
   /* «corregir»: una revisión ya guardada, de T3, de T1 (canal), con envase G175. */
   const previa: any = q.get("previa") ? {
     id: "r9", viaje_id: "vf", fecha: "2026-09-27", planta: "BAQ", placa: "FRM001", turno: "T3",
@@ -547,20 +550,26 @@ async function llenaYGuarda(query) {
    ===================================================================== */
 /* EL TURNO SALE DE LA HORA DE COLOMBIA (UTC-5): T1 06–14, T2 14–22, T3 22–06. En los bordes. */
 for (const [utc, esperado, hora] of [
-  ["2026-09-29T11:00:00Z", "T1", "06:00"], ["2026-09-29T10:59:00Z", "T3", "05:59"],
-  ["2026-09-29T18:59:00Z", "T1", "13:59"], ["2026-09-29T19:00:00Z", "T2", "14:00"],
-  ["2026-09-30T02:59:00Z", "T2", "21:59"], ["2026-09-30T03:00:00Z", "T3", "22:00"],
-  ["2026-09-29T05:00:00Z", "T3", "00:00"], ["2026-09-29T15:30:00Z", "T1", "10:30"],
+  ["2026-09-29T11:00:00Z", "A", "06:00"], ["2026-09-29T10:59:00Z", "C", "05:59"],
+  ["2026-09-29T18:59:00Z", "A", "13:59"], ["2026-09-29T19:00:00Z", "B", "14:00"],
+  ["2026-09-30T02:59:00Z", "B", "21:59"], ["2026-09-30T03:00:00Z", "C", "22:00"],
+  ["2026-09-29T05:00:00Z", "C", "00:00"], ["2026-09-29T15:30:00Z", "A", "10:30"],
 ]) {
   await monta("m=form&c=ai&t=" + utc);
   const on = await pg.$$eval(".ai-seg button.on", (b) => b.map((x) => x.textContent));
   ok(on.length === 1 && on[0] === esperado, `a las ${hora} en Colombia el turno abrió en ${JSON.stringify(on)} y debía ser ${esperado}`);
 }
+{
+  await monta("m=form&c=ai");
+  const bs = await pg.$$eval(".ai-seg button", (b) => b.map((x) => x.textContent));
+  ok(JSON.stringify(bs) === JSON.stringify(["A", "B", "C"]), `los turnos se leen ${JSON.stringify(bs)} y deben ser A, B, C`);
+  ok(/A 6 a\. m\.–2 p\. m\. · B 2–10 p\. m\. · C 10 p\. m\.–6 a\. m\./.test(await txt()), "no escribe el horario de cada turno");
+}
 /* Y SE PUEDE CAMBIAR, y lo cambiado es lo que viaja. */
 {
   await monta("m=form&c=ai&t=2026-09-29T15:30:00Z&canal=t1&envase=G175");
-  await pg.click('.ai-seg button:has-text("T3")');
-  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "T3", "no dejó cambiar el turno");
+  await pg.click('.ai-seg button:has-text("C")');
+  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "C", "no dejó cambiar el turno");
   await pg.fill("#ai-rec", "1000"); await pg.fill("#ai-rev", "100");
   await pg.locator("button.b1:not([disabled])").first().click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
@@ -568,9 +577,9 @@ for (const [utc, esperado, hora] of [
 }
 /* UN VH INTERNO DE UN SOCIO: canal, socio y envase puestos; nada que escoger. */
 {
-  await monta("m=form&c=sorting&u=34560&canal=socios&socio=logi&envase=G175&t=2026-09-29T20:00:00Z");
+  await monta("m=form&c=sorting&u=34560&canal=socios&socio=logi&envase=G175&interno=1&t=2026-09-29T20:00:00Z");
   ok(await pg.$$eval("select#ai-canal, select#ai-socio, select#ai-envase", (s) => s.length) === 0, "con el viaje completo sigue habiendo desplegables");
-  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "T2", "a las 15:00 el turno no abrió en T2");
+  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "B", "a las 15:00 el turno no abrió en B");
   const f = await pg.$eval(".ai-p-faltan", (e) => e.textContent);
   ok(/Cuántas se revisaron/.test(f) && !/socio|envase|llegaron/i.test(f), "pide más que las revisadas: " + f);
   ok(/Lo dijo el Vh Interno/.test(await txt()) && /Sale del material del viaje/.test(await txt()), "no dice de dónde salen los datos");
@@ -581,20 +590,12 @@ for (const [utc, esperado, hora] of [
   ok(a.p_canal === "socios" && a.p_socio === "logi" && a.p_envase === "G175" && a.p_turno === "T2" && a.p_revisadas === 3456 && a.p_recibidas === 34560,
      "lo que viaja no es lo del viaje: " + JSON.stringify(a));
 }
-/* «CAMBIAR» abre los campos, con lo del viaje escogido, y lo que se cambia es lo que viaja. */
+/* LO QUE VINO DEL VIAJE NO SE PUEDE CAMBIAR: no hay botón «Cambiar» ni desplegables. */
 {
   await monta("m=form&c=sorting&u=34560&canal=socios&socio=logi&envase=G175");
-  ok(/Cambiar canal, socio o envase/.test(await txt()), "no ofrece cambiar");
-  await pg.click('button:has-text("Cambiar canal, socio o envase")');
-  ok(await pg.inputValue("select#ai-canal") === "socios" && await pg.inputValue("select#ai-socio") === "logi" && await pg.inputValue("select#ai-envase") === "G175",
-     "al abrir el cambio no quedan escogidos los del viaje");
-  ok(await pg.$$eval(".ai-cambiar", (s) => s.length) === 0, "sigue el botón de cambiar con los campos abiertos");
-  await pg.selectOption("select#ai-canal", "t1");
-  await pg.fill("#ai-rev", "100");
-  await pg.locator("button.b1:not([disabled])").first().click();
-  await pg.waitForFunction(() => window.__rpc.length > 0);
-  const a = (await rpcs())[0].a;
-  ok(a.p_canal === "t1" && a.p_socio === null, "el canal cambiado a T1 no viajó sin socio: " + JSON.stringify(a));
+  ok(!/Cambiar/.test(await txt()) && await pg.$$eval(".ai-cambiar, .ai-cambiar button", (x) => x.length) === 0,
+     "aparece un botón para cambiar canal, socio o envase");
+  ok(await pg.$$eval("select#ai-canal, select#ai-socio, select#ai-envase", (s) => s.length) === 0, "hay desplegables sobre datos que vinieron del viaje");
 }
 /* UN VH INTERNO DE T1: sin socio. */
 {
@@ -637,7 +638,7 @@ for (const q of ["canal=socios&envase=G175", "canal=socios&socio=apagado&envase=
 /* AL CORREGIR MANDA LO GUARDADO —turno, canal, envase—, no el viaje ni la hora de ahora. */
 {
   await monta("m=form&c=ai&previa=1&canal=socios&socio=logi&envase=G175&t=2026-09-29T15:30:00Z");
-  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "T3", "al corregir el turno no es el que se guardó (T3)");
+  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "C", "al corregir el turno no es el que se guardó (C = T3)");
   ok(await pg.$$eval("select#ai-canal", (s) => s.length) === 1 && await pg.inputValue("select#ai-canal") === "t1",
      "al corregir no muestra el canal guardado editable");
   ok(await pg.$$eval(".ai-cambiar", (s) => s.length) === 0, "al corregir ofrece «Cambiar» sobre datos que ya son editables");
@@ -696,7 +697,7 @@ for (const [c, clase] of [["sorting", "Revisión AI – normal"], ["ai", "Revisi
      "el interno con canal, socio y envase sigue pidiendo escogerlos");
   ok(/Socios/.test(await pg.$eval("#ai-canal", (e) => e.textContent)) && /Logisinú/.test(await pg.$eval("#ai-socio", (e) => e.textContent))
      && /G175/.test(await pg.$eval("#ai-envase", (e) => e.textContent)), "no muestra el canal, el socio y el envase del interno");
-  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "T1", "el turno no abre en el de la hora (10:00 → T1)");
+  ok(await pg.$eval(".ai-seg button.on", (e) => e.textContent) === "A", "el turno no abre en el de la hora (10:00 → A)");
   ok(/Cuántas se revisaron/.test(await pg.$eval(".ai-p-faltan", (e) => e.textContent)) && !/socio|envase|turno/i.test(await pg.$eval(".ai-p-faltan", (e) => e.textContent)),
      "el panel pide algo más que las botellas revisadas: " + await pg.$eval(".ai-p-faltan", (e) => e.textContent));
   await pg.fill("#ai-rec", "500"); await pg.fill("#ai-rev", "50");
@@ -715,11 +716,15 @@ for (const [c, clase] of [["sorting", "Revisión AI – normal"], ["ai", "Revisi
   await pg.click(".tr-vh.ai .btn.ai >> nth=0");
   ok((await pg.$eval("#ai-rec", (e) => e.textContent)).replace(/\D/g, "") === "34560",
      "desde la lista, la tarjeta del camión no le pasó sus botellas al formulario");
-  await pg.selectOption("#ai-canal", "t1"); await pg.selectOption("#ai-envase", "G175");
+  /* UN CAMIÓN CERTIFICADO POR SIDER ES DE T1: ni canal, ni socio, ni envase que escoger. */
+  ok(await pg.$$eval("select#ai-canal, select#ai-socio, select#ai-envase", (x) => x.length) === 0, "la certificada de Sider pide escoger canal, socio o envase");
+  ok(/T1/.test(await pg.$eval("#ai-canal", (e) => e.textContent)) && /Camión certificado por Sider/.test(await txt()), "no dice que es de T1 por venir certificado");
+  ok(!/socio/i.test(await pg.$eval(".ai-p-faltan", (e) => e.textContent)), "a la certificada de Sider le pide el socio: " + await pg.$eval(".ai-p-faltan", (e) => e.textContent));
   await pg.fill("#ai-rev", "50");
   await pg.locator("button.b1:not([disabled])").first().click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];
+  ok(l.a.p_canal === "t1" && l.a.p_socio === null, "la certificada no guardó canal T1 sin socio: " + JSON.stringify(l.a));
   ok(l.a.p_recibidas === 34560, `mandó recibidas=${l.a.p_recibidas}`);
   ok(l.a.p_viaje === "v1" && !("p_tipo" in l.a), `la certificada guardó ${JSON.stringify(l.a).slice(0, 140)}`);
   await pg.waitForFunction(() => window.__refresh > 0);

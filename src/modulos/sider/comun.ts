@@ -297,3 +297,8 @@ export function turnoAi(ahora: Date = new Date()): "T1" | "T2" | "T3" {
   if (h >= 14 && h < 22) return "T2";
   return "T3";
 }
+
+/** LA LETRA QUE SE LEE. La base guarda T1, T2 y T3 (así está su regla); en
+ *  pantalla los turnos se llaman A, B y C, como los llama la bodega. */
+export const LETRA_TURNO: Record<string, string> = { T1: "A", T2: "B", T3: "C" };
+export const letraTurno = (t?: string | null) => (t ? LETRA_TURNO[t] ?? t : "");

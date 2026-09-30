@@ -6,7 +6,7 @@ import { traducirError } from "@/lib/errores";
 import type {
   Defecto, EnvaseAi, SocioAi, CanalAi, Revision, DetalleAi,
 } from "@/modulos/sider/ai";
-import { NOMBRE_TIPO_LARGO, turnoAi } from "@/modulos/sider/comun";
+import { NOMBRE_TIPO_LARGO, turnoAi, letraTurno } from "@/modulos/sider/comun";
 
 /* LO MÍNIMO QUE EL FORMULARIO NECESITA SABER DEL VIAJE. No pide un
    `Pendiente` entero a propósito: así lo puede llamar la certificación
@@ -23,6 +23,9 @@ export type ViajeAi = {
    *  trae puesto y quien revisa solo cuenta botellas: el canal y el socio
    *  los dijo el Vh Interno al crearse, y el envase sale del material. */
   canal?: string | null; socio?: string | null; envase?: string | null;
+  /** Lo creó control con el «+» (y no lo certificó Sider): cambia de dónde
+   *  dice el formulario que salió el canal. */
+  interno?: boolean;
 };
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -118,18 +121,17 @@ export function FormularioAi({
   const envaseViaje = !revision && viaje.envase && envases.some((e) => e.clave === viaje.envase)
     ? viaje.envase : "";
 
-  /* EL TURNO ABRE EN EL DE AHORA (T1 06–14, T2 14–22, T3 22–06, hora de
-     Colombia): nadie lo escribe. Se puede cambiar, por si quien revisa
+  /* EL TURNO ABRE EN EL DE AHORA (A 06–14, B 14–22, C 22–06, hora de
+     Colombia; la base los guarda como T1, T2 y T3): nadie lo escribe. Se puede cambiar, por si quien revisa
      está cerrando el turno anterior. Al corregir, el que se guardó. */
   const [turno, setTurno] = useState(revision?.turno ?? turnoAi());
   const [canal, setCanal] = useState(revision?.canal ?? (canalViaje || canales[0]?.clave || "socios"));
   const [socio, setSocio] = useState(revision?.socio ?? socioViaje);
   const [envase, setEnvase] = useState(revision?.envase ?? envaseViaje);
-  /* «Cambiar» abre los campos que vinieron del viaje. Cerrados, se leen y
-     no se tocan: es lo que evita que se «corrija» a mano lo que ya se dijo. */
-  const [cambiando, setCambiando] = useState(false);
-  const canalFijo = !cambiando && !!canalViaje && (canalViaje !== "socios" || !!socioViaje);
-  const envaseFijo = !cambiando && !!envaseViaje;
+  /* LO QUE VINO DEL VIAJE NO SE TOCA: se lee y ya. Si el viaje no lo
+     trae, o ya no vale, el campo se escoge como siempre. */
+  const canalFijo = !!canalViaje && (canalViaje !== "socios" || !!socioViaje);
+  const envaseFijo = !!envaseViaje;
   const [certificado, setCertificado] = useState(revision?.certificado ?? false);
   const [recibidas, setRecibidas] = useState(revision ? String(revision.recibidas) : "");
   const [revisadas, setRevisadas] = useState(revision ? String(revision.revisadas) : "");
@@ -355,10 +357,12 @@ export function FormularioAi({
                   <div className="ai-seg" role="group" aria-labelledby="rot-turno">
                     {["T1", "T2", "T3"].map((t) => (
                       <button key={t} type="button" aria-pressed={turno === t}
+                              aria-label={`Turno ${letraTurno(t)}`}
                               className={turno === t ? "on" : ""}
-                              onClick={() => setTurno(t)}>{t}</button>
+                              onClick={() => setTurno(t)}>{letraTurno(t)}</button>
                     ))}
                   </div>
+                  <div className="ai-nota">A 6 a. m.–2 p. m. · B 2–10 p. m. · C 10 p. m.–6 a. m.</div>
                 </div>
 
                 {canalFijo ? (
@@ -368,7 +372,7 @@ export function FormularioAi({
                       <output id="ai-canal" className="ai-dato txt" aria-labelledby="rot-canal">
                         {canales.find((c) => c.clave === canal)?.nombre ?? canal}
                       </output>
-                      <div className="ai-nota">Lo dijo el Vh Interno</div>
+                      <div className="ai-nota">{viaje.interno ? "Lo dijo el Vh Interno" : "Camión certificado por Sider"}</div>
                     </div>
                     {canal === "socios" && (
                       <div className="ai-campo">
@@ -376,7 +380,7 @@ export function FormularioAi({
                         <output id="ai-socio" className="ai-dato txt" aria-labelledby="rot-socio">
                           {socios.find((x) => x.clave === socio)?.nombre ?? socio}
                         </output>
-                        <div className="ai-nota">Lo dijo el Vh Interno</div>
+                        <div className="ai-nota">{viaje.interno ? "Lo dijo el Vh Interno" : "Camión certificado por Sider"}</div>
                       </div>
                     )}
                   </>
@@ -449,14 +453,6 @@ export function FormularioAi({
                   <input id="ai-rev" className="num" inputMode="numeric" value={revisadas}
                          placeholder="0" onChange={(e) => setRevisadas(e.target.value)} />
                 </div>
-
-                {(canalFijo || envaseFijo) && (
-                  <div className="ai-campo ai-cambiar">
-                    <button type="button" onClick={() => setCambiando(true)}>
-                      Cambiar canal, socio o envase
-                    </button>
-                  </div>
-                )}
 
                 <div className="ai-campo ai-check">
                   <label htmlFor="ai-cert" className="plano">
