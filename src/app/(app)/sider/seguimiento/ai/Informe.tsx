@@ -331,7 +331,7 @@ export function Informe({
                 <label className="ia-busca">
                   <span className="sr">Buscar</span>
                   <input value={busca} onChange={(e) => setBusca(e.target.value)}
-                         placeholder="Placa, socio, ZCL3…" />
+                         placeholder="Placa, socio…" />
                 </label>
                 <label className="ia-ordenar">
                   <span className="sr">Ordenar por</span>

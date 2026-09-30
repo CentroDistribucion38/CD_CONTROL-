@@ -126,6 +126,7 @@ const pend = (n: number, h: number, o: any = {}) => ({
 const det = (n: number, o: any = {}) => ({
   id: "v" + n, placa: "REV00" + n, cd_origen: o.origen ?? "Apartadó", cd_destino: "Barranquilla",
   descripcion: o.desc ?? "Botella Costeña 175 cc", tipo_envase: "G175", sider: 12.5, cajas: 1440, hl: 25.2,
+  ...(o.unidades ? { unidades: o.unidades } : {}),
 });
 const hecho = (n: number, o: any = {}) => ({
   id: "r" + n, viaje_id: "v" + n, fecha: "2026-09-27", planta: "BAQ", placa: o.placa ?? "HEC00" + n,
@@ -150,7 +151,7 @@ const cuatro = [
 ];
 const casos: Record<string, any> = {
   normal: { puedeEditar: true, puedeCrear: true, maestros, pendientes: cuatro,
-    detalle: [det(1), det(2), det(4)],   /* el 3 SIN detalle: no puede esconderse */
+    detalle: [det(1, { unidades: 34560 }), det(2), det(4)],   /* el 3 SIN detalle: no puede esconderse */
     hechos: [hecho(1), hecho(2, { tipo: "sorting", ed: 2 }), hecho(3), hecho(5, { sinTipo: true })] },
   soloNormal: { puedeEditar: true, maestros, pendientes: [pend(4, 5, { tipo: "sorting" })],
     detalle: [det(4)], hechos: [hecho(2, { tipo: "sorting" })] },
@@ -185,7 +186,8 @@ if (m === "sorting") {
     estibasPorSider={36} />);
 } else if (m === "form") {
   const viaje = { viaje_id: "vf", placa: "FRM001", planta: "BAQ", fecha: "2026-09-28", sku: "3500887",
-                  llego_en: hace(2) };
+                  llego_en: hace(2),
+                  ...(q.get("u") ? { unidades: Number(q.get("u")) } : {}) };
   root.render(<FormularioAi viaje={viaje} revision={null} detalle={[]} defectos={maestros.defectos}
     envases={maestros.envases} socios={maestros.socios} canales={maestros.canales}
     alGuardar={() => { (window as any).__guardado = true }} alCancelar={() => {}}
@@ -514,6 +516,32 @@ async function llenaYGuarda(query) {
        ["p_canal","p_certificado","p_comentarios","p_conteos","p_envase","p_recibidas","p_revisadas","p_socio","p_turno","p_viaje","p_zcl3"].sort()),
      `la certificada mandó otro juego de parámetros que antes: ${Object.keys(a.llamada.a).sort()}`);
 }
+/* RECIBIDAS SALEN DE LA TARJETA; NO HAY N.° ZCL3 (ni socios ni T1). */
+{
+  await monta("m=form&c=sorting&u=34560");
+  ok(await pg.$$eval("input#ai-rec", (s) => s.length) === 0, "con la tarjeta a la vista «recibidas» sigue siendo casilla para teclear");
+  ok((await pg.$eval("#ai-rec", (e) => e.textContent)).replace(/\D/g, "") === "34560", "no muestra las botellas de la tarjeta");
+  ok(/Salen de la tarjeta del camión/.test(await txt()), "no dice de dónde salen las recibidas");
+  ok(await pg.$$eval("#ai-zcl3", (s) => s.length) === 0 && !/ZCL3/.test(await txt()), "sigue pidiendo el N.° ZCL3");
+  await pg.selectOption("#ai-canal", "socios");
+  ok(await pg.$$eval("#ai-zcl3", (s) => s.length) === 0, "el ZCL3 vuelve con el canal de socios");
+  await pg.selectOption("#ai-canal", "t1");
+  await pg.selectOption("#ai-envase", "G175");
+  await pg.fill("#ai-rev", "3456");
+  for (let i = 0; i < 3; i++) await pg.click('button[aria-label="Sumar una de Rota o despicado"]');
+  const t = await txt();
+  ok(/34\.560|34,560|34 560/.test(t.replace(/\u00a0/g, " ")), "el panel no usa las recibidas de la tarjeta");
+  await pg.locator("button.b1:not([disabled])").first().click();
+  await pg.waitForFunction(() => window.__rpc.length > 0);
+  const l = (await rpcs())[0];
+  ok(l.a.p_recibidas === 34560, `mandó recibidas=${l.a.p_recibidas}, no las de la tarjeta`);
+  ok(l.a.p_zcl3 === null, `mandó ZCL3=${JSON.stringify(l.a.p_zcl3)}`);
+}
+{
+  await monta("m=form&c=sorting");
+  ok(await pg.$$eval("input#ai-rec", (s) => s.length) === 1 && /no pudo calcularlas/.test(await txt()),
+     "sin dato de la tarjeta no deja escribir las recibidas y la revisión quedaría bloqueada");
+}
 /* LAS DOS MUESTRAN LA PLATA Y LA CLASE. Las dos cobran. */
 for (const [c, clase] of [["sorting", "Revisión AI – normal"], ["ai", "Revisión AI – certificada"]]) {
   await monta(`m=form&c=${c}`);
@@ -549,11 +577,14 @@ for (const [c, clase] of [["sorting", "Revisión AI – normal"], ["ai", "Revisi
 {
   await monta("m=sorting&c=normal");
   await pg.click(".tr-vh.ai .btn.ai >> nth=0");
+  ok((await pg.$eval("#ai-rec", (e) => e.textContent)).replace(/\D/g, "") === "34560",
+     "desde la lista, la tarjeta del camión no le pasó sus botellas al formulario");
   await pg.selectOption("#ai-canal", "t1"); await pg.selectOption("#ai-envase", "G175");
-  await pg.fill("#ai-rec", "500"); await pg.fill("#ai-rev", "50");
+  await pg.fill("#ai-rev", "50");
   await pg.locator("button.b1:not([disabled])").first().click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];
+  ok(l.a.p_recibidas === 34560, `mandó recibidas=${l.a.p_recibidas}`);
   ok(l.a.p_viaje === "v1" && !("p_tipo" in l.a), `la certificada guardó ${JSON.stringify(l.a).slice(0, 140)}`);
   await pg.waitForFunction(() => window.__refresh > 0);
   ok(/Revisión AI – certificada de REV001 cerrada/.test(await txt()), "no avisó que la certificada quedó cerrada");
@@ -571,7 +602,11 @@ for (const [sel, viaje, tipo, aviso] of [
   await pg.click(sel + " >> nth=0");
   await pg.waitForSelector("#ai-rec");
   ok(/Guardar la corrección/.test(await txt()), "corregir no abrió el formulario en modo corrección");
-  ok(await pg.inputValue("#ai-rec") === "82080" && await pg.inputValue("#ai-rev") === "4104",
+  /* v1 tiene tarjeta (34 560 botellas) → sale de ella; v2 no → trae lo ya guardado. */
+  const recVis = viaje === "v1"
+    ? (await pg.$eval("#ai-rec", (e) => e.textContent)).replace(/\D/g, "") === "34560"
+    : await pg.inputValue("#ai-rec") === "82080";
+  ok(recVis && await pg.inputValue("#ai-rev") === "4104",
      "el formulario de corrección no trae lo ya guardado");
   ok(/37/.test(await pg.$eval(".ai-def.hay", (e) => e.textContent)), "no trajo los conteos (el 37 de «rota»)");
   await pg.locator("button.b1:not([disabled])").first().click();

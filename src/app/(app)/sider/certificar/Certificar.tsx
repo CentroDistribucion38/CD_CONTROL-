@@ -170,7 +170,7 @@ export function Certificar({ origenes, skus, estibasPorSider, esEditor }: {
       mal: false,
       texto: `Listo. ${placa.toUpperCase()} quedó certificado y va en tránsito hacia Barranquilla.`,
     });
-    setPaso(RANURAS.length + 4);
+    setPaso(6);
     router.refresh();
   }
 

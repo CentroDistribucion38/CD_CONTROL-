@@ -116,6 +116,7 @@ export function Sorting({
       viaje: {
         viaje_id: p.viaje_id, placa: p.placa, planta: p.planta,
         fecha: p.fecha, sku: p.sku, llego_en: p.llego_en,
+        unidades: porId.get(p.viaje_id)?.unidades ?? null,
         ai_motivo: p.motivo, pedido_nombre: p.pedido_nombre,
       },
       revision: null, detalle: [],
@@ -138,6 +139,7 @@ export function Sorting({
       viaje: {
         viaje_id: r.viaje_id ?? "", placa: r.placa, planta: r.planta,
         fecha: r.fecha, sku: r.envase_nombre ?? r.envase,
+        unidades: r.viaje_id ? porId.get(r.viaje_id)?.unidades ?? null : null,
       },
       revision: r, detalle: (data ?? []) as DetalleAi[],
     });

@@ -15,6 +15,9 @@ import { NOMBRE_TIPO_LARGO } from "@/modulos/sider/comun";
 export type ViajeAi = {
   viaje_id: string; placa: string; planta: string; fecha: string; sku: string;
   llego_en?: string | null;
+  /** Botellas del viaje, tal como las muestra la tarjeta del camión.
+   *  Si viene, «recibidas» sale de aquí y no se digita. */
+  unidades?: number | null;
   ai_motivo?: string | null; pedido_nombre?: string | null;
 };
 
@@ -108,7 +111,6 @@ export function FormularioAi({
   const [certificado, setCertificado] = useState(revision?.certificado ?? false);
   const [recibidas, setRecibidas] = useState(revision ? String(revision.recibidas) : "");
   const [revisadas, setRevisadas] = useState(revision ? String(revision.revisadas) : "");
-  const [zcl3, setZcl3] = useState(revision?.zcl3 ?? "");
   const [comentarios, setComentarios] = useState(revision?.comentarios ?? "");
 
   /* Los conteos son NÚMEROS y no texto, porque ya no se teclean. Con
@@ -124,7 +126,12 @@ export function FormularioAi({
     const n = Number(v.replace(/\D/g, ""));
     return Number.isFinite(n) ? n : 0;
   };
-  const rec = num(recibidas), rev = num(revisadas);
+  /* LAS RECIBIDAS SON LAS DE LA TARJETA. Quien cuenta no las teclea: el
+     viaje ya sabe cuántas botellas traía (estibas × cajas × unidades).
+     Solo si la tarjeta no las puede calcular —material sin factores— se
+     deja escribirlas, para no bloquear la revisión. */
+  const deTarjeta = viaje.unidades != null && viaje.unidades > 0 ? viaje.unidades : null;
+  const rec = deTarjeta ?? num(recibidas), rev = num(revisadas);
 
   const mover = (clave: string, paso: number) =>
     setConteos((c) => {
@@ -197,7 +204,9 @@ export function FormularioAi({
       p_recibidas: rec,
       p_revisadas: rev,
       p_conteos: limpio,
-      p_zcl3: zcl3.trim() || null,
+      /* El N.° ZCL3 ya no se pide (ni a socios ni a T1). Al corregir una
+         revisión vieja se conserva el que ya tenía. */
+      p_zcl3: revision?.zcl3 ?? null,
       p_comentarios: comentarios.trim() || null,
     });
     setMandando(false);
@@ -364,21 +373,25 @@ export function FormularioAi({
                   {!envase && <div className="aviso">Falta</div>}
                 </div>
 
-                <div className={"ai-campo" + (rec > 0 ? "" : " falta")}>
-                  <label htmlFor="ai-rec">BOTELLAS RECIBIDAS</label>
-                  <input id="ai-rec" className="num" inputMode="numeric" value={recibidas}
-                         placeholder="0" onChange={(e) => setRecibidas(e.target.value)} />
-                </div>
+                {deTarjeta != null ? (
+                  <div className="ai-campo">
+                    <label id="rot-rec">BOTELLAS RECIBIDAS</label>
+                    <output id="ai-rec" className="num ai-dato" aria-labelledby="rot-rec">{nf.format(deTarjeta)}</output>
+                    <div className="ai-nota">Salen de la tarjeta del camión</div>
+                  </div>
+                ) : (
+                  <div className={"ai-campo" + (rec > 0 ? "" : " falta")}>
+                    <label htmlFor="ai-rec">BOTELLAS RECIBIDAS</label>
+                    <input id="ai-rec" className="num" inputMode="numeric" value={recibidas}
+                           placeholder="0" onChange={(e) => setRecibidas(e.target.value)} />
+                    <div className="ai-nota">La tarjeta no pudo calcularlas; escríbelas</div>
+                  </div>
+                )}
 
                 <div className={"ai-campo" + (rev > 0 ? "" : " falta")}>
                   <label htmlFor="ai-rev">BOTELLAS REVISADAS</label>
                   <input id="ai-rev" className="num" inputMode="numeric" value={revisadas}
                          placeholder="0" onChange={(e) => setRevisadas(e.target.value)} />
-                </div>
-
-                <div className="ai-campo">
-                  <label htmlFor="ai-zcl3">N.° ZCL3</label>
-                  <input id="ai-zcl3" value={zcl3} onChange={(e) => setZcl3(e.target.value)} />
                 </div>
 
                 <div className="ai-campo ai-check">

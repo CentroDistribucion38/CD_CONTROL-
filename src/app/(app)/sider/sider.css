@@ -2366,9 +2366,14 @@
   background: var(--c-velo);
   display: grid; place-items: center; padding: 20px;
   overflow-y: auto;
+  /* UNA columna que puede ENCOGERSE. Sin minmax(0, …) la pista del grid
+     mide lo mínimo de lo que lleva —dos campos y sus etiquetas— y en un
+     celular de 390 px la caja salía de 460: «Cancelar» y el borde derecho
+     quedaban fuera de la pantalla. */
+  grid-template-columns: minmax(0, 1fr);
 }
 .sd .vj-caja {
-  width: 100%; max-width: 460px;
+  width: 100%; max-width: 460px; min-width: 0;
   background: var(--sd-papel); border-radius: 3px;
   border-top: 4px solid var(--sd-mal);
   padding: 24px 26px 22px;
