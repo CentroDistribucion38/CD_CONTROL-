@@ -115,6 +115,9 @@ await monta([{ ...H1, puedeContar: false }]);
 ok(/FEFO diario/.test(await pg.locator(".fc-modo button.on").textContent()), "antes del día debe abrir en el FEFO");
 await pg.click('.fc-modo button:has-text("Fiscal")');
 ok(/Todavía no es el día/.test(await pg.locator(".fe-faltan").textContent()) && /viernes 02\/10\/2026/.test(await pg.locator(".fe-faltan").textContent()) && await pg.locator(".fc-anotar").count() === 0, "antes del día debe decir cuándo y no dejar anotar");
+await monta([{ ...H1, puedeContar: false }]);
+await pg.click('.fc-modo button:has-text("Fiscal")');
+ok(await pg.locator(".fc-pes").count() === 0 && await pg.locator(".fc-mios").isVisible(), "antes del día no debe haber pestañas y sí verse lo anotado");
 /* Sin hojas: ni selector. */
 await monta([]);
 ok(await pg.locator(".fc-modo").count() === 0 && await pg.locator("#fefo-vivo").isVisible(), "sin hojas no debe haber selector");
@@ -131,7 +134,7 @@ await llena({ saldo: "10" });
 ok(/AGUILA 330 ML/.test(await pg.locator(".fe-desc-campo").textContent()) && /172/.test(await pg.locator(".fe-total-caja").textContent()), "no reconoce el material o no cuenta 3 × 54 + 10 = 172: " + await pg.locator(".fe-total-caja").textContent());
 ok(/3 × 54 \+ 10 = 172 cajas/.test(await pg.locator(".fe-cuenta-linea").textContent()), "no enseña la cuenta");
 await pg.click(".fc-anotar .btn.grande");
-await pg.waitForSelector(".fc-lista li");
+await pg.waitForSelector(".fc-lista li", { state: "attached" });
 let envio = (await llamadas("inv_fiscal_contar_agregar"))[0]?.args;
 ok(envio && envio.p_hoja === "h1" && envio.p_ubicacion === "u1" && envio.p_producto === "p1" && envio.p_estibas === 3 && envio.p_saldo === 10 && envio.p_cajas === null
    && envio.p_dia === 11 && envio.p_mes === 3 && envio.p_anio === 27 && envio.p_nota === null, "lo que se manda a la base: " + JSON.stringify(envio));
@@ -143,6 +146,17 @@ let fila = (await pg.locator(".fc-lista li").first().textContent()).replace(/\s+
 ok(/A01_IZQ · 3128 · AGUILA 330 ML/.test(fila) && /3 estibas \+ 10 cajas = 172 cajas/.test(fila) && /vence 11\/03\/27/.test(fila), "la fila anotada: " + fila);
 ok(/1 renglón · 172 cajas/.test(await pg.locator(".fc-mios .fe-rec-cab > span").textContent()), "el resumen de lo anotado: " + await pg.locator(".fc-mios .fe-rec-cab > span").textContent());
 ok(/1/.test(await pg.locator(".fe-fija-cuenta b").textContent()), "la barra no lleva la cuenta");
+/* LAS DOS PESTAÑAS (igual que en FEFO diario): Anotar | El borrador con su cuenta. */
+{
+  const t = (await pg.locator(".fc-pes button").allTextContents()).map((x) => x.trim());
+  ok(t.length === 2 && t[0] === "Anotar" && /^El borrador\s*1$/.test(t[1]), "las pestañas del fiscal: " + t.join(" | "));
+  ok(await pg.locator(".fc-anotar").isVisible() && await pg.locator(".fc-mios").isHidden(), "al abrir debe verse Anotar y no el borrador");
+  await pg.click('.fc-pes button:has-text("El borrador")');
+  ok(await pg.locator(".fc-mios").isVisible() && await pg.locator(".fc-anotar").isHidden() && /A01_IZQ · 3128/.test(await pg.locator(".fc-mios").textContent()), "en El borrador debe verse lo anotado y esconderse el formulario");
+  ok(await pg.locator('.fc-pes button[aria-selected=true]').textContent().then((x) => /borrador/.test(x)), "la pestaña activa no está marcada");
+  await pg.click('.fc-pes button:has-text("Anotar")');
+  ok(await pg.locator(".fc-anotar").isVisible() && await pg.locator(".fc-mios").isHidden(), "al volver a Anotar debe verse el formulario");
+}
 /* Por cajas, y el CERO cuenta. */
 await pg.click('.fc-anotar .fe-segmento button:has-text("Cajas")');
 await escoger(0, "B"); await escoger(1, "01");
@@ -161,7 +175,7 @@ await monta([H1]);
 await llena({ estibas: "5", saldo: "2" });
 await pg.click('.fc-anotar .fe-segmento button:has-text("Cajas")');
 await pg.locator(".fc-anotar .fe-cuanto-campo input").first().fill("7");
-await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li");
+await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li", { state: "attached" });
 envio = (await llamadas("inv_fiscal_contar_agregar"))[0]?.args;
 ok(envio && envio.p_cajas === 7 && envio.p_estibas === null && envio.p_saldo === null, "estibas tecleadas y luego cajas: viajó lo del otro modo: " + JSON.stringify(envio));
 await pg.click('.fc-anotar .fe-segmento button:has-text("Cajas")');
@@ -195,7 +209,7 @@ await rechaza(/no dice cuántas cajas lleva una estiba/, () => llena({ codigo: "
 /* Un envase no necesita fecha; y el material sin factor sí se puede contar por cajas o con puro saldo. */
 await monta([H1]);
 await llena({ codigo: "3500231", fecha: null, estibas: "2" });
-await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li");
+await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li", { state: "attached" });
 envio = (await llamadas("inv_fiscal_contar_agregar"))[0]?.args;
 ok(envio && envio.p_dia === null && envio.p_mes === null && envio.p_anio === null && envio.p_estibas === 2, "el envase sin fecha: " + JSON.stringify(envio));
 /* Una fecha a medias en un envase tampoco pasa. */
@@ -212,7 +226,7 @@ await pg.click(".fc-anotar .btn.grande"); await pg.waitForTimeout(100);
 ok(/Ya anotaste ese material/.test(await aviso()), "el error de la base no se le dice a la persona: " + await aviso());
 ok(await pg.inputValue('.fc-anotar input[placeholder="Teclea el código"]') === "3128" && await pg.locator(".fc-lista li").count() === 0, "si la base rechaza, el renglón no debe borrarse del formulario");
 await pg.evaluate(() => { window.__falla = null });
-await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li");
+await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li", { state: "attached" });
 ok(await pg.locator(".fc-lista li").count() === 1, "reintentar después del error no anotó");
 /* El renglón a medias se guarda en el teléfono y vuelve al abrir otra vez. */
 await monta([H1]);
@@ -224,14 +238,15 @@ await monta([H1], 390, [], "", { "fiscal.renglon.h1": guardado });
 ok(await pg.inputValue('.fc-anotar input[placeholder="Teclea el código"]') === "3128", "al volver a abrir, el renglón a medias no regresa");
 /* Y al anotarlo se borra del teléfono. */
 await llena();
-await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li");
+await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li", { state: "attached" });
 await pg.waitForTimeout(50);
 ok(!("fiscal.renglon.h1" in await pg.evaluate(() => window.__ls())), "anotado el renglón, sigue guardado como a medias en el teléfono");
 
 /* ---- 5 · quitar ---- */
 await monta([H1], 390, [{ id: "r1", ubicacion_id: "u1", ubicacion: "A01_IZQ", producto_id: "p1", sku: "3128", material: "AGUILA 330 ML", estibas: 3, saldo: null, cajas: null, total_cajas: 162, venc_dia: 1, venc_mes: 2, venc_anio: 28, nota: null, contado_en: "2026-10-02T15:00:00Z" },
   { id: "r2", ubicacion_id: "u2", ubicacion: "A01_DER", producto_id: "p1", sku: "3128", material: "AGUILA 330 ML", estibas: null, saldo: null, cajas: 20, total_cajas: 20, venc_dia: null, venc_mes: null, venc_anio: null, nota: "mojada", contado_en: "2026-10-02T14:00:00Z" }]);
-await pg.waitForSelector(".fc-lista li");
+await pg.waitForSelector(".fc-lista li", { state: "attached" });
+await pg.click('.fc-pes button:has-text("El borrador")');
 ok(await pg.locator(".fc-lista li").count() === 2 && /2 renglones · 182 cajas/.test(await pg.locator(".fc-mios .fe-rec-cab > span").textContent()), "la lista inicial: " + await pg.locator(".fc-mios .fe-rec-cab > span").textContent());
 ok(/mojada/.test(await pg.locator(".fc-lista li").nth(1).textContent()) && !/vence/.test(await pg.locator(".fc-lista li").nth(1).textContent()), "la nota o el «sin vencimiento»");
 await pg.locator(".fc-lista li").first().locator("button").click();
@@ -248,7 +263,8 @@ ok(/1 renglón · 20 cajas/.test(await pg.locator(".fc-mios .fe-rec-cab > span")
 /* Quitar el SEGUNDO manda el id del segundo. */
 await monta([H1], 390, [{ id: "r1", ubicacion_id: "u1", ubicacion: "A01_IZQ", producto_id: "p1", sku: "3128", material: "AGUILA 330 ML", estibas: 3, saldo: null, cajas: null, total_cajas: 162, venc_dia: 1, venc_mes: 2, venc_anio: 28, nota: null, contado_en: "2026-10-02T15:00:00Z" },
   { id: "r2", ubicacion_id: "u2", ubicacion: "A01_DER", producto_id: "p1", sku: "3128", material: "AGUILA 330 ML", estibas: null, saldo: null, cajas: 20, total_cajas: 20, venc_dia: null, venc_mes: null, venc_anio: null, nota: null, contado_en: "2026-10-02T14:00:00Z" }]);
-await pg.waitForSelector(".fc-lista li");
+await pg.waitForSelector(".fc-lista li", { state: "attached" });
+await pg.click('.fc-pes button:has-text("El borrador")');
 await pg.locator(".fc-lista li").nth(1).locator("button").click();
 await pg.locator("[role=dialog] button, [role=alertdialog] button").filter({ hasText: "Quitarlo" }).click();
 await pg.waitForFunction(() => document.querySelectorAll(".fc-lista li").length === 1);
@@ -275,17 +291,19 @@ await pg.locator(".fc-hoja-sel select").selectOption("h2");
 await pg.waitForFunction(() => /Hoja 2 · anotar/.test(document.querySelector(".fc-anotar").textContent));
 ok((await llamadas("inv_fiscal_contar_mios")).at(-1)?.args.p_hoja === "h2", "al cambiar de hoja siguió leyendo la anterior: " + JSON.stringify((await llamadas("inv_fiscal_contar_mios")).map((c) => c.args.p_hoja)));
 await llena();
-await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li");
+await pg.click(".fc-anotar .btn.grande"); await pg.waitForSelector(".fc-lista li", { state: "attached" });
 ok((await llamadas("inv_fiscal_contar_agregar"))[0]?.args.p_hoja === "h2", "anotó en la hoja anterior en vez de la escogida");
 
 /* ---- 7 · 4 anchos ---- */
 for (const w of [360, 390, 820, 1440]) {
   await monta([H1], w, [{ id: "r1", ubicacion_id: "u1", ubicacion: "A01_IZQ", producto_id: "p1", sku: "3128", material: "AGUILA 330 ML CON UN NOMBRE LARGUÍSIMO PARA PROBAR QUE ENVUELVE", estibas: 3, saldo: 10, cajas: null, total_cajas: 172, venc_dia: 1, venc_mes: 2, venc_anio: 28, nota: "una observación bastante larga para ver si se sale", contado_en: "2026-10-02T15:00:00Z" }]);
-  await pg.waitForSelector(".fc-lista li");
+  await pg.waitForSelector(".fc-lista li", { state: "attached" });
   await llena({ saldo: "10" });
   const d = await pg.evaluate(() => ({ ancho: document.documentElement.scrollWidth, vista: window.innerWidth,
     chicos: [...document.querySelectorAll(".fc-modo button, .fc-anotar button, .fc-lista button, .fc-anotar input")].filter((e) => e.offsetParent && (e.getBoundingClientRect().height < 40 && !e.closest(".fe-dma"))).map((e) => (e.textContent || e.placeholder || e.className).slice(0, 20) + ":" + Math.round(e.getBoundingClientRect().height)) }));
+  await pg.click('.fc-pes button:has-text("El borrador")');
   const fl = await pg.evaluate(() => { const li = document.querySelector('.fc-lista li'); const t = li.querySelector('.fc-ren'); return { h: li.getBoundingClientRect().height, tw: t.getBoundingClientRect().width, lw: li.getBoundingClientRect().width } });
+  await pg.click('.fc-pes button:has-text("Anotar")');
   ok(fl.tw > fl.lw * 0.5 && fl.h < 260, `a ${w} px el texto de lo anotado se aplasta: ancho ${Math.round(fl.tw)} de ${Math.round(fl.lw)}, alto ${Math.round(fl.h)}`);
   ok(d.ancho <= d.vista, `a ${w} px se sale: ${d.ancho}>${d.vista}`);
   ok(d.chicos.length === 0, `a ${w} px hay controles de menos de 40 px: ${d.chicos.join(", ")}`);

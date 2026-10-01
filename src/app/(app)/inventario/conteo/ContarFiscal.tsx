@@ -72,6 +72,8 @@ export function ContarFiscal({
 
   const [b, setB] = useState<BorradorFiscal>(VACIO_FISCAL);
   const [mios, setMios] = useState<RenglonFiscal[] | null>(null);
+  /* LAS DOS PESTAÑAS, IGUAL QUE EN «FEFO diario»: Anotar y El borrador (lo que llevo). */
+  const [pestania, setPestania] = useState<"anotar" | "borrador">("anotar");
   const [guardando, setGuardando] = useState(false);
   const pon = <K extends keyof BorradorFiscal>(k: K, v: BorradorFiscal[K]) => setB((x) => ({ ...x, [k]: v }));
 
@@ -240,13 +242,26 @@ export function ContarFiscal({
           </select></label>
       )}
 
+      {hoja.puedeContar && (
+        <div className="fe-pes fe-pes-conteo fc-pes" role="tablist">
+          <button type="button" role="tab" aria-selected={pestania === "anotar"}
+                  className={pestania === "anotar" ? "on" : ""} onClick={() => setPestania("anotar")}>
+            Anotar
+          </button>
+          <button type="button" role="tab" aria-selected={pestania === "borrador"}
+                  className={pestania === "borrador" ? "on" : ""} onClick={() => setPestania("borrador")}>
+            El borrador<em>{mios?.length ?? 0}</em>
+          </button>
+        </div>
+      )}
+
       {!hoja.puedeContar ? (
         <section className="fe-faltan" role="status">
           <p><b>Todavía no es el día.</b> La hoja {hoja.numero} de «{hoja.nombre}» se cuenta el{" "}
           <b>{fechaConDia(hoja.fecha)}</b>. Ese día aquí aparece el formulario para anotar.</p>
         </section>
       ) : (
-        <section className="fe-anotar fc-anotar">
+        <section className="fe-anotar fc-anotar" hidden={pestania !== "anotar"}>
           <div className="fe-anotar-cab">
             <p className="fe-paso">Hoja {hoja.numero} · anotar lo que hay</p>
           </div>
@@ -375,7 +390,7 @@ export function ContarFiscal({
       )}
 
       {/* ===== LO QUE LLEVO ===== */}
-      <section className="fe-recorrido fc-mios" aria-label="Lo que llevas anotado">
+      <section className="fe-recorrido fc-mios" aria-label="Lo que llevas anotado" hidden={hoja.puedeContar && pestania !== "borrador"}>
         <div className="fe-rec-cab">
           <div>
             <h2>Lo que llevas anotado</h2>
