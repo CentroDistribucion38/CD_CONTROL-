@@ -94,6 +94,8 @@ const PREFIJOS: [RegExp, string][] = [
   /* El INVENTARIO FISCAL de Inventario: la función de guardar, la de eliminar y sus tres tablas. */
   [/\binv_fiscal_(guardar|eliminar|hojas|miembros)\b|\binv_fiscales\b/,
    "supabase/migraciones/2026-10-inventario-fiscal.sql"],
+  /* ELIMINAR RENGLONES SUELTOS de un FEFO. Va antes que `conteo_` a secas. */
+  [/\bconteo_fefo_lineas_eliminar\b/, "supabase/migraciones/2026-10-fefo-renglones-eliminar.sql"],
   /* ELIMINAR UN FEFO de Inventario: su función. Va antes que `conteo_` a secas. */
   [/\bconteo_fefo_eliminar\b/, "supabase/migraciones/2026-10-fefo-eliminar.sql"],
   [/\bconteo_fefo_cambiar_fecha\b/, "supabase/migraciones/2026-10-fefo-cambiar-fecha.sql"],

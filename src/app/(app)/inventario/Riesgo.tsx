@@ -146,7 +146,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas }: {
       )}
       {U && sinUxc > 0 && (
         <p className="ir-ojo">
-          <b>{sinUxc} renglón{sinUxc === 1 ? "" : "es"}</b> de materiales sin «unidades por caja» en el maestro: no suman en unidades.
+          <b>{sinUxc} {sinUxc === 1 ? "renglón" : "renglones"}</b> de materiales sin «unidades por caja» en el maestro: no suman en unidades.
           Se corrige en <b>Maestro › Materiales</b>.
         </p>
       )}

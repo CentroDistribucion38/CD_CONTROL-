@@ -314,7 +314,7 @@ export default async function InventarioTableroPage() {
           {sinFecha.length > 0 && (
             <section className="fe-faltan">
               <p>
-                <b>{sinFecha.length} renglón{sinFecha.length > 1 ? "es" : ""} de producto sin
+                <b>{sinFecha.length} {sinFecha.length > 1 ? "renglones" : "renglón"} de producto sin
                 fecha de vencimiento</b> — no entran en ningún grupo porque no se les puede
                 calcular cuándo salen. Son de conteos viejos: hoy la fecha es obligatoria.
               </p>

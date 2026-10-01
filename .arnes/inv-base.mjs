@@ -549,6 +549,17 @@ for (const rpc of ["conteo_fefo_editar", "conteo_fefo_borrar", "conteo_fefo_envi
 if (/supabase|createClient/.test(limpio))
   fallas.push("la pantalla habla con la base desde el navegador: lo que lee se lo da el " +
               "servidor, ya filtrado por permisos");
+/* LA ÚNICA ESCRITURA de esta pantalla: el administrador elimina renglones de lo ENVIADO. Vive aparte
+   (QuitarRenglones.tsx), se monta solo para quien administra y solo en la pestaña de lo enviado, y solo llama
+   a esa función: de los borradores sigue sin tocarse nada. */
+{
+  const quitar = readFileSync(new URL("../src/app/(app)/inventario/base/QuitarRenglones.tsx", import.meta.url).pathname, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const llamadas = [...quitar.matchAll(/\.rpc\("([^"]+)"/g)].map((m) => m[1]);
+  if (llamadas.length !== 1 || llamadas[0] !== "conteo_fefo_lineas_eliminar")
+    fallas.push("la barra de eliminar renglones llama a otra cosa: " + llamadas.join(", "));
+  if (!/const puedeQuitar = manda && pestania === "base";/.test(limpio) || !/\{puedeQuitar && <QuitarRenglones/.test(limpio))
+    fallas.push("eliminar renglones no está limitado al administrador y a la pestaña de lo enviado: los borradores no se tocan");
+}
 
 /* 3. EL ANULADO NO ES NI LO UNO NI LO OTRO. Un recorrido anulado se
    anuló por algo, y arrastrarlo «para tener la visual» es exactamente

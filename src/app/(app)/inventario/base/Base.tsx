@@ -22,6 +22,11 @@
  * quien los está caminando, y una fila que alguien arregla «de paso»
  * desde otra pantalla es un renglón que el que cuenta ya no reconoce.
  * Para corregir se entra a Contar, que es donde está el recorrido.
+ *
+ * LA ÚNICA EXCEPCIÓN: quien administra la plataforma puede ELIMINAR
+ * renglones de lo ENVIADO (casillas a la izquierda de la tabla): el que
+ * sobra, el de otro día que quedó metido en el recorrido. Es solo de
+ * administrador, pide confirmar y la base lo vuelve a comprobar.
  */
 
 import { useMemo, useState } from "react";
@@ -29,6 +34,7 @@ import type { ReactNode } from "react";
 import type { Renglon, ConteoFefo } from "@/modulos/inventario/fefo";
 import { Buscador } from "@/components/Buscador";
 import { EliminarFefos } from "./EliminarFefos";
+import { QuitarRenglones } from "./QuitarRenglones";
 import { Calendario, type Atajo } from "@/components/CalendarioRango";
 import { sumarDias } from "@/modulos/inventario/fiscal";
 import { leerPaleta } from "../informe";
@@ -200,6 +206,8 @@ export function Base({
      base, no la quinta. */
   const [fTipo, setFTipo] = useState<"" | "PRODUCTO" | "ENVASE">("");
   const [soloPasados, setSoloPasados] = useState(false);
+  /* ELIMINAR RENGLONES (solo quien administra, solo lo enviado): cuáles están marcados y en qué paso va. */
+  const [marcadosR, setMarcadosR] = useState<ReadonlySet<string>>(new Set());
   /* «Cambiar fecha de este recorrido»: abre el panel de administrador ya con ese FEFO. */
   const [abrirFecha, setAbrirFecha] = useState<{ id: string; n: number } | null>(null);
   /* El orden arranca por ubicación, que es el orden en que se camina la
@@ -319,6 +327,13 @@ export function Base({
   const cajas = filas.reduce((a, r) => a + Number(r.total_cajas), 0);
   const sitios = new Set(filas.map((r) => r.ubicacion_combinada ?? r.ubicacion)).size;
   const abiertos = conteos.filter((c) => c.estado === "en_proceso" || c.estado === "borrador");
+
+  const puedeQuitar = manda && pestania === "base";
+  /* Solo cuentan los marcados que SE VEN: si un filtro esconde uno, no se manda a borrar a ciegas. */
+  const elegidosR = puedeQuitar ? filas.filter((r) => marcadosR.has(r.id)) : [];
+  const marcarR = (id: string) =>
+    setMarcadosR((m) => { const n = new Set(m); if (n.has(id)) n.delete(id); else n.add(id); return n });
+  const todosMarcados = filas.length > 0 && elegidosR.length === filas.length;
 
   const ordenarPor = (k: string) =>
     setOrden((o) => (o.k === k ? { k, asc: !o.asc } : { k, asc: true }));
@@ -498,7 +513,7 @@ export function Base({
 
       <div className="ba-cuenta">
         <p>
-          <b>{nf.format(filas.length)}</b> renglón{filas.length === 1 ? "" : "es"}
+          <b>{nf.format(filas.length)}</b> {filas.length === 1 ? "renglón" : "renglones"}
           {filtrando && <> de {nf.format(crudas.length)}</>} ·{" "}
           <b>{nf.format(cajas)}</b> cajas · {nf.format(sitios)} ubicacion{sitios === 1 ? "" : "es"}
         </p>
@@ -515,6 +530,8 @@ export function Base({
           Bajar a Excel
         </button>
       </div>
+
+      {puedeQuitar && <QuitarRenglones elegidos={elegidosR} alQuitar={() => setMarcadosR(new Set())} />}
 
       {filas.length === 0 ? (
         <p className="fe-vacio">
@@ -533,6 +550,13 @@ export function Base({
           <table className="ba-tabla">
             <thead>
               <tr>
+                {puedeQuitar && (
+                  <th className="ba-chk">
+                    <input type="checkbox" checked={todosMarcados}
+                           aria-label="Marcar todos los renglones que se ven"
+                           onChange={() => setMarcadosR(todosMarcados ? new Set() : new Set(filas.map((r) => r.id)))} />
+                  </th>
+                )}
                 {COLUMNAS.map((c) => (
                   <th key={c.k} className={c.num ? "num" : undefined}
                       aria-sort={orden.k === c.k ? (orden.asc ? "ascending" : "descending") : "none"}>
@@ -546,7 +570,13 @@ export function Base({
             </thead>
             <tbody>
               {filas.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} className={puedeQuitar && marcadosR.has(r.id) ? "marcado" : undefined}>
+                  {puedeQuitar && (
+                    <td className="ba-chk">
+                      <input type="checkbox" checked={marcadosR.has(r.id)} onChange={() => marcarR(r.id)}
+                             aria-label={`Marcar el renglón ${r.ubicacion_combinada ?? r.ubicacion} · ${r.codigo} (${r.conteo})`} />
+                    </td>
+                  )}
                   {COLUMNAS.map((c) => (
                     <td key={c.k} className={c.num ? "num" : undefined}>
                       {c.pinta ? c.pinta(r) : c.texto(r)}

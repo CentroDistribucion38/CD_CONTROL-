@@ -437,7 +437,7 @@ export function Importar({ maestro, zldeCargado, importados }: {
           {!!bd.descartadas.length && (
             <details className="im-detalle">
               <summary>
-                {bd.descartadas.length} renglón{bd.descartadas.length > 1 ? "es" : ""} sin
+                {bd.descartadas.length} {bd.descartadas.length > 1 ? "renglones" : "renglón"} sin
                 importar — ver cuáles y por qué
               </summary>
               <ul className="im-lista">

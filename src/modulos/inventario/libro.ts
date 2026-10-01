@@ -324,7 +324,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     if (inventario.renglonesEnvase) {
       const cajasEnv = inventario.cajas - totalCajas;
       unir(20, 5, 9);
-      pon(20, 5, `solo producto terminado — el envase (${inventario.renglonesEnvase} renglón${inventario.renglonesEnvase === 1 ? "" : "es"}, ${cajasEnv.toLocaleString("es-CO")} cajas) no se vence  `,
+      pon(20, 5, `solo producto terminado — el envase (${inventario.renglonesEnvase} ${inventario.renglonesEnvase === 1 ? "renglón" : "renglones"}, ${cajasEnv.toLocaleString("es-CO")} cajas) no se vence  `,
         letra(8.5, GRIS, false, true), { alignment: { horizontal: "right", vertical: "middle" } });
     }
     fila(21, ["Franja", "Cajas", "Unidades", "Materiales", "Ubicaciones", "% de cajas", ""], "cabeza");
@@ -377,7 +377,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     /* EL AVISO: rojo con vínculo a «Validar», o verde si no hay nada. */
     f += 1; alto(f, 12);
     f += 1; alto(f, 27.75); unir(f, 2, 9); pintar(f, 2, 9, graves ? ROSA : MENTA);
-    pon(f, 2, graves ? vinculo("Validar", `  ⚠  ${graves} renglón${graves === 1 ? "" : "es"} por validar  →  abrir la hoja Validar`) : "  ✓  Nada grave por validar",
+    pon(f, 2, graves ? vinculo("Validar", `  ⚠  ${graves} ${graves === 1 ? "renglón" : "renglones"} por validar  →  abrir la hoja Validar`) : "  ✓  Nada grave por validar",
       letra(10, graves ? ROJO : VERDE, true, false), { alignment: { vertical: "middle" }, border: { left: { style: "thick", color: { argb: graves ? ROJO : VERDE } } } });
     if (graves) h.getCell(f, 2).font = { ...letra(10, ROJO, true), underline: true };
     f += 1; alto(f, 31.5); unir(f, 2, 9);
