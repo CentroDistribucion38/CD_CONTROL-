@@ -602,55 +602,35 @@ export const MODULOS: Modulo[] = [
       },
     ],
     secciones: [
-      /* CUATRO PANTALLAS Y EL ORDEN ES EL DEL PROCESO: se mantiene el
-         maestro, se camina la bodega, queda el registro de lo contado, y
-         sobre ese registro se decide qué sale primero.
+      /* EL ORDEN LO PUSO QUIEN LA USA («organicemos esto»): se corta lo que
+         movieron las líneas, se camina la bodega contando (el FEFO diario y,
+         el día que toca, la hoja del inventario fiscal), se arma/consulta el
+         inventario fiscal, y queda el registro con su tablero. El maestro y la
+         recepción —lo que se prepara de vez en cuando— van al final.
 
          LA BASE VA ANTES QUE EL TABLERO porque el tablero SALE de ella:
          es la misma lectura, una entera y la otra recortada a una sola
-         pregunta. Puesta después, la pantalla que decide iría antes que
-         los datos con los que decide.
+         pregunta.
 
-         Aquí había siete. Las otras cuatro —Resumen, Productos, Bodegas,
-         Movimientos, Conteos físicos— eran la plantilla de demostración
-         con la que nació el repositorio, y al montar FEFO encima
-         quedaron DUPLICANDO lo mismo: «Productos» editaba `productos`
-         con un formulario más pobre que el del maestro, y «Bodegas»
-         hacía lo propio. Dos editores para una misma tabla es cómo dos
-         personas se pisan el dato sin enterarse. */
-      { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
-      /* EL INVENTARIO FISCAL VA SEGUNDO: es el PLAN. Antes de que nadie baje a la
-         bodega se decide qué día se cuenta, cuántas hojas hay y quién cuenta cuál
-         (una persona del operador logístico y una de Bavaria por hoja), y de ahí
-         sale lo que cada quien encuentra en «Contar». El orden del menú es el del
-         flujo: se prepara el maestro, se arma el plan, entra el material, se
-         cortan las líneas y se camina la bodega. */
-      { nombre: "Inventario fiscal", ruta: "/inventario/fiscal", rama: "conteos" },
-      /* RECIBIR VA ANTES DE CONTAR, y ese es el orden del proceso de
-         verdad: el material ENTRA al CD, se rotula y se ubica, y solo
-         después se cuenta y se ordena por vencimiento. Ponerlo al final
-         —que es donde caería por orden de construcción— haría que el
-         menú contara la historia de cómo se hizo la aplicación en vez
-         de la de cómo se trabaja en la bodega. */
-      { nombre: "Recepción", ruta: "/inventario/recibir", rama: "conteos" },
-      /* EL CORTE DE LÍNEAS VA ENTRE RECIBIR Y CONTAR: antes de caminar la
-         bodega contando, se corta lo que las líneas han movido (el contador
-         de la depaletizadora y de dónde tomaban / dónde estaban ubicados).
-         Se hace uno inicial y otro final, y de la resta sale la diferencia
-         que se analiza contra el conteo. */
+         Aquí había siete pantallas de demostración (Resumen, Productos,
+         Bodegas, Movimientos, Conteos físicos…) que duplicaban el maestro:
+         dos editores para una misma tabla es cómo dos personas se pisan el
+         dato sin enterarse. Ya no están. */
       { nombre: "Corte de líneas", ruta: "/inventario/corte", rama: "conteos" },
       /* CONTAR LLEVA DOS CONTEOS: el FEFO diario y la hoja del inventario fiscal
          (esta última solo a quien el plan le asignó una). */
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
+      /* EL INVENTARIO FISCAL: el plan (día, hojas, parejas del operador logístico y
+         de Bavaria) y de ahí sale lo que cada quien encuentra en «Contar». */
+      { nombre: "Inventario fiscal", ruta: "/inventario/fiscal", rama: "conteos" },
       { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
       /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.
          Ocupando la ruta del módulo, entrar a Inventario era entrar ya
-         a Conteos y la bifurcación no existía: «le doy a conteos y no
-         me sale nada». `ramaDeRuta` lo dice arriba con todas las
-         letras — la ruta del módulo nunca puede caer dentro de una
-         rama, porque estando parado ahí el riel tiene que mostrar las
-         ramas y no las pantallas de una de ellas. */
+         a Conteos y la bifurcación no existía. `ramaDeRuta` lo dice arriba:
+         la ruta del módulo nunca puede caer dentro de una rama. */
       { nombre: "Tablero", ruta: "/inventario/tablero", rama: "conteos" },
+      { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
+      { nombre: "Recepción", ruta: "/inventario/recibir", rama: "conteos" },
       /* AVERÍAS VA DESPUÉS DEL TABLERO, y el análisis detrás de ella.
          Es el mismo orden del proceso: se mantiene el maestro, se
          cuenta, queda el registro, se decide qué sale primero — y lo

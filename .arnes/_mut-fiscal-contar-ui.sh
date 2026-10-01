@@ -38,3 +38,14 @@ m "$CSS" '.fe .fc-lista .fe-mini { flex: none; width: auto; margin: 0;' '.fe .fc
 m "$CSS" '.fe .fc-ren { flex: 1 1 0;' '.fe .fc-ren { ' $TC
 m "$R" '      { nombre: "Inventario fiscal", ruta: "/inventario/fiscal", rama: "conteos" },
 ' '' $TP
+# el aviso «tienes un fiscal asignado»
+m "$W" 'if (!hayHoy) return;
+    let visto' 'let visto' $TC
+m "$W" 'if (!visto) setAviso(true);' 'setAviso(true);' $TC
+m "$W" 'if (!visto) setAviso(true);' 'if (visto) setAviso(true);' $TC
+m "$W" 'onClick={() => { setModo("fefo"); cierraAviso() }}' 'onClick={() => { setModo("fiscal"); cierraAviso() }}' $TC
+m "$W" 'onClick={() => { setModo("fiscal"); cierraAviso() }}' 'onClick={() => { setModo("fefo"); cierraAviso() }}' $TC
+m "$W" 'try { sessionStorage.setItem(llaveAviso, "1") }' 'try { }' $TC
+m "$W" 'const deHoy = hojas.filter((h) => h.puedeContar);' 'const deHoy = hojas;' $TC
+m "$W" 'continuar.current?.focus();' '' $TC
+m "$W" 'if (e.key === "Escape") cierraAviso()' 'if (false) cierraAviso()' $TC

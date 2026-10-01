@@ -43,11 +43,13 @@ const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await nav.newPage();
 const roto = []; pg.on("pageerror", (e) => roto.push(e.message));
-const monta = async (hojas, ancho = 390, mios = [], extra = "", ls = {}) => {
+const monta = async (hojas, ancho = 390, mios = [], extra = "", ls = {}, aviso = "cierra", ss = {}) => {
   await pg.setViewportSize({ width: ancho, height: 1000 });
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box;margin:0}${css}</style></head><body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe contando"><div id="r"></div></div></main></div></div>
-    <script>(function(){var d=${JSON.stringify(ls)};Object.defineProperty(window,"localStorage",{value:{getItem:function(k){return k in d?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}}}});window.__ls=function(){return d};window.__miosFalla=null;window.__falla=null})();${extra}window.__mios=${JSON.stringify(mios)};window.HOJAS=${JSON.stringify(hojas)};window.MATERIALES=${JSON.stringify(MATERIALES)};window.UBIS=${JSON.stringify(UBIS)};</script><script>${js}<\/script></body></html>`);
+    <script>(function(){var d=${JSON.stringify(ls)};Object.defineProperty(window,"localStorage",{value:{getItem:function(k){return k in d?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}}}});window.__ls=function(){return d};var e=${JSON.stringify(ss)};Object.defineProperty(window,"sessionStorage",{value:{getItem:function(k){return k in e?e[k]:null},setItem:function(k,v){e[k]=String(v)},removeItem:function(k){delete e[k]}}});window.__ss=function(){return e};window.__miosFalla=null;window.__falla=null})();${extra}window.__mios=${JSON.stringify(mios)};window.HOJAS=${JSON.stringify(hojas)};window.MATERIALES=${JSON.stringify(MATERIALES)};window.UBIS=${JSON.stringify(UBIS)};</script><script>${js}<\/script></body></html>`);
   await pg.waitForSelector("#r > *");
+  /* Casi todas las pruebas no son del aviso: lo cierran con «Continuar con el fiscal». */
+  if (aviso === "cierra" && hojas.some((h) => h.puedeContar)) { await pg.waitForSelector(".fc-aviso"); await pg.click('.fc-aviso button:has-text("Continuar con el fiscal")'); await pg.waitForSelector(".fc-aviso", { state: "detached" }) }
 };
 const llamadas = (fn) => pg.evaluate((f) => window.__llamadas.filter((c) => c.fn === f), fn);
 const escoger = async (n, texto) => { const campo = pg.locator(".fc-anotar .bs-campo").nth(n); await campo.click(); await campo.fill(texto); await pg.locator(".bs-lista [role=option]").first().dispatchEvent("mousedown") };
@@ -55,11 +57,45 @@ const llena = async ({ calle = "A", modulo = "01", lado = "Izquierdo", codigo = 
   await escoger(0, calle); await escoger(1, modulo);
   if (lado) await pg.click(`.fc-anotar [aria-labelledby=fc-rot-lado] button:has-text("${lado}")`);
   await pg.fill('.fc-anotar input[placeholder="Teclea el código"]', codigo);
+  await pg.waitForTimeout(40); /* el salto automático a «Vence» corre en el siguiente ciclo: una persona no teclea tan rápido */
   if (fecha) { await pg.fill('.fc-anotar input[placeholder="DD"]', fecha[0]); await pg.fill('.fc-anotar input[placeholder="MM"]', fecha[1]); await pg.fill('.fc-anotar input[placeholder="AA"]', fecha[2]) }
   if (estibas !== null) await pg.locator(".fc-anotar .fe-cuanto-campo input").first().fill(estibas);
   if (saldo) await pg.locator(".fc-anotar .fe-cuanto-campo input").nth(1).fill(saldo);
 };
 const aviso = async () => (await pg.locator(".av-pila").textContent().catch(() => "")).replace(/\s+/g, " ");
+
+/* ---- 0 · el aviso «tienes un fiscal asignado» ---- */
+const H1P = { ...H1, pareja: "Cañizares", parejaEquipo: "Operador logístico", equipo: "Bavaria" };
+await monta([H1P], 390, [], "", {}, "deja");
+ok(await pg.locator(".fc-aviso").count() === 1, "el día de la hoja no sale el aviso de «tienes un fiscal asignado»");
+const av = (await pg.locator(".fc-aviso").textContent()).replace(/\s+/g, " ");
+ok(/Tienes un inventario fiscal asignado/.test(av) && /FISCAL OCTUBRE 2026/.test(av) && /Hoja 3 · cuentas por Bavaria/.test(av) && /Tu pareja: Cañizares \(Operador logístico\)/.test(av) && /viernes 02\/10\/2026 · HOY/.test(av), "el aviso no dice lo esencial: " + av);
+ok(await pg.locator('.fc-aviso button:has-text("Continuar con el fiscal")').evaluate((e) => e === document.activeElement), "el foco debe estar en «Continuar con el fiscal»");
+await pg.click('.fc-aviso button:has-text("Continuar con el fiscal")');
+ok(await pg.locator(".fc-aviso").count() === 0 && await pg.locator(".fc-anotar").isVisible() && await pg.locator("#fefo-vivo").isHidden() && /Fiscal/.test(await pg.locator(".fc-modo button.on").textContent()), "«Continuar» debe dejar el formulario del fiscal");
+ok("fiscal.aviso.h1" in await pg.evaluate(() => window.__ss()), "no recuerda en la pestaña que ya avisó");
+/* El conteo diario. */
+await monta([H1P], 390, [], "", {}, "deja");
+await pg.click('.fc-aviso button:has-text("Conteo diario")');
+ok(await pg.locator(".fc-aviso").count() === 0 && await pg.locator("#fefo-vivo").isVisible() && await pg.locator(".fc-anotar").isHidden() && /FEFO diario/.test(await pg.locator(".fc-modo button.on").textContent()), "«Conteo diario» debe dejar el FEFO");
+/* Escape cierra sin cambiar lo escogido por defecto. */
+await monta([H1P], 390, [], "", {}, "deja");
+await pg.keyboard.press("Escape");
+ok(await pg.locator(".fc-aviso").count() === 0 && /Fiscal/.test(await pg.locator(".fc-modo button.on").textContent()), "Escape debe cerrar el aviso");
+/* Ya avisó en esta pestaña: no vuelve a salir. */
+await monta([H1P], 390, [], "", {}, "deja", { "fiscal.aviso.h1": "1" });
+await pg.waitForTimeout(150);
+ok(await pg.locator(".fc-aviso").count() === 0, "volvió a avisar en la misma pestaña");
+/* Solo en la fecha asignada: antes del día no sale. */
+await monta([{ ...H1P, puedeContar: false }], 390, [], "", {}, "deja");
+await pg.waitForTimeout(150);
+ok(await pg.locator(".fc-aviso").count() === 0, "avisó antes de la fecha asignada");
+/* Sin hojas: nada. */
+await monta([], 390, [], "", {}, "deja");
+ok(await pg.locator(".fc-aviso").count() === 0, "avisó a quien no tiene hoja");
+/* Dos hojas de hoy salen las dos en el aviso; la de otro día no. */
+await monta([H1P, { ...H1P, hojaId: "h2", nombre: "OTRO FISCAL", numero: 2 }, { ...H1P, hojaId: "h3", nombre: "FISCAL FUTURO", numero: 1, puedeContar: false }], 390, [], "", {}, "deja");
+ok(await pg.locator(".fc-aviso-lista li").count() === 2 && !/FISCAL FUTURO/.test(await pg.locator(".fc-aviso").textContent()), "el aviso debe listar solo las hojas de hoy");
 
 /* ---- 1 · el selector ---- */
 await monta([H1]);
@@ -255,6 +291,7 @@ for (const w of [360, 390, 820, 1440]) {
   ok(d.chicos.length === 0, `a ${w} px hay controles de menos de 40 px: ${d.chicos.join(", ")}`);
   const modo = await pg.locator(".fc-modo button").evaluateAll((b) => b.map((x) => Math.round(x.getBoundingClientRect().height)));
   ok(modo.every((h) => h >= 44), `a ${w} px los botones del selector miden ${modo} (mínimo 44)`);
+  if (process.env.FOTO && w === 390) { await monta([H1P], 390, [], "", {}, "deja"); await pg.waitForTimeout(600); await pg.screenshot({ path: process.env.FOTO + "/contar-fiscal-aviso-m.png" }); await monta([H1P], 1440, [], "", {}, "deja"); await pg.waitForTimeout(600); await pg.screenshot({ path: process.env.FOTO + "/contar-fiscal-aviso-pc.png" }) }
   if (process.env.FOTO && w === 390) await pg.screenshot({ path: process.env.FOTO + "/contar-fiscal-form-m.png", fullPage: true });
 }
 ok(roto.length === 0, "errores de la página: " + roto.slice(0, 2).join(" | "));

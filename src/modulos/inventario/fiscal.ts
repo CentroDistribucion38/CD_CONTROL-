@@ -218,6 +218,7 @@ export function agruparMisHojas(filas: MiHojaBD[]): MisHojasDeUnFiscal[] {
 export type HojaParaContar = {
   hojaId: string; fiscalId: string; nombre: string; fecha: string; numero: number; equipo: string;
   puedeContar: boolean; misRenglones: number;
+  pareja: string | null; parejaEquipo: string;
 };
 /** Las hojas con id (las que ya traen lo de contar), en el mismo orden que la tarjeta: por día y por número. */
 export function hojasParaContar(filas: MiHojaBD[]): HojaParaContar[] {
@@ -229,6 +230,7 @@ export function hojasParaContar(filas: MiHojaBD[]): HojaParaContar[] {
     salida.push({
       hojaId: f.hoja_id, fiscalId: f.fiscal_id, nombre: f.nombre, fecha: String(f.fecha).slice(0, 10), numero: f.hoja,
       equipo: nombreEquipo(f.equipo), puedeContar: f.puede_contar === true, misRenglones: Number(f.mis_renglones ?? 0),
+      pareja: f.pareja, parejaEquipo: nombreEquipo(f.pareja_equipo),
     });
   }
   return salida.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.numero - b.numero);
