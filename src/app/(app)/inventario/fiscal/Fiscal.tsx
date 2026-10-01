@@ -8,7 +8,7 @@ import { Buscador } from "@/components/Buscador";
 import { diaColombia } from "@/modulos/inventario/corte";
 import {
   agregarHojas, agrupar, aPayload, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
-  ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
+  nombreAuto, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
   type Equipo, type HojaForm, type PersonaF, type RolF,
 } from "@/modulos/inventario/fiscal";
 
@@ -33,12 +33,19 @@ import {
    =================================================================== */
 const NADIE = "__nadie";
 export type Persona = PersonaF;
-export type FiscalBD = { id: string; nombre: string; fecha: string; estado: "abierto" | "cerrado"; hojas: HojaForm[] };
-type FormF = { id: string | null; nombre: string; fecha: string; hojas: HojaForm[] };
+export type FiscalBD = {
+  id: string; nombre: string; fecha: string; estado: "abierto" | "cerrado"; hojas: HojaForm[];
+  /** Cuándo se mostró en Contar (null = todavía es solo del plan). */
+  publicado?: string | null;
+};
+/** `manual`: el nombre lo escribió alguien. Mientras no, sigue a la fecha («FISCAL OCTUBRE 2026 · viernes 02/10»). */
+type FormF = { id: string | null; nombre: string; fecha: string; hojas: HojaForm[]; manual: boolean };
 
-export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, manda, ahora }: {
+export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, manda, ahora }: {
   bodegaId: string; personas: Persona[]; roles: RolF[]; fiscales: FiscalBD[];
   puedeEditar: boolean; manda: boolean; ahora: string;
+  /** false = a la base le falta 2026-10-fiscal-publicar.sql: no se ofrece el botón de Contar. */
+  puedePublicar?: boolean;
 }) {
   const router = useRouter();
   const hoy = diaColombia(ahora);
@@ -52,11 +59,11 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, manda
 
   const nuevo = () => {
     setMal(null); setAviso(null);
-    setForm({ id: null, nombre: "", fecha: hoy, hojas: hojasVacias(2) });
+    setForm({ id: null, nombre: nombreAuto(hoy), fecha: hoy, hojas: hojasVacias(2), manual: false });
   };
   const editar = (f: FiscalBD) => {
     setMal(null); setAviso(null);
-    setForm({ id: f.id, nombre: f.nombre, fecha: f.fecha, hojas: f.hojas.length ? f.hojas : hojasVacias(1) });
+    setForm({ id: f.id, nombre: f.nombre, fecha: f.fecha, hojas: f.hojas.length ? f.hojas : hojasVacias(1), manual: f.nombre !== nombreAuto(f.fecha) });
   };
 
   async function guardar() {
@@ -81,6 +88,18 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, manda
     router.refresh();
   }
 
+  /* MOSTRAR EN CONTAR / QUITAR DE CONTAR: el botón que lleva el plan a la pantalla de quien cuenta. */
+  async function publicar(f: FiscalBD, mostrar: boolean) {
+    setMal(null); setAviso(null); setOcupado(true);
+    const { error } = await createClient().rpc("inv_fiscal_publicar", { p_id: f.id, p_publicar: mostrar });
+    setOcupado(false);
+    if (error) return setMal(traducirError(error.message));
+    setAviso(mostrar
+      ? `«${f.nombre}» ya se ve en Contar: cada persona encuentra su hoja y su pareja.`
+      : `«${f.nombre}» ya no se ve en Contar.`);
+    router.refresh();
+  }
+
   const tarjeta = (f: FiscalBD) => {
     const r = revisar(f.hojas);
     return (
@@ -90,6 +109,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, manda
           <span className="cl-quien">
             <span className="fi-cuando">{fechaConDia(f.fecha)} · {textoCuando(hoy, f.fecha)}</span>{" "}
             <i className={"fi-estado " + f.estado}>{f.estado === "abierto" ? "ABIERTO" : "CERRADO"}</i>
+            {f.publicado && <>{" "}<i className="fi-estado visible">VISIBLE EN CONTAR</i></>}
           </span>
         </div>
         <p className="cl-sub">{textoResumen(r)}</p>
@@ -106,7 +126,14 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, manda
           </tbody>
         </table>
         <div className="cl-botones">
-          {puedeEditar && f.estado === "abierto" && (
+          {puedeEditar && puedePublicar && f.estado === "abierto" && (f.publicado ? (
+            <button type="button" className="btn plano fi-quitar" disabled={ocupado} onClick={() => publicar(f, false)}>Quitar de Contar</button>
+          ) : (
+            <button type="button" className="btn fi-mostrar" disabled={ocupado || revisar(f.hojas).total === 0 || f.hojas.every((h) => !h.ol && !h.bavaria)}
+                    title={f.hojas.every((h) => !h.ol && !h.bavaria) ? "Asigna al menos una persona para poder mostrarlo" : undefined}
+                    onClick={() => publicar(f, true)}>Mostrar en Contar</button>
+          ))}
+          {puedeEditar && (f.estado === "abierto" || manda) && (
             <button type="button" className="btn plano" onClick={() => editar(f)}>Editar</button>
           )}
           {manda && (borrar === f.id ? (
@@ -138,6 +165,11 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, manda
       </section>
 
       {aviso && <p className="cl-ok" role="status">{aviso}</p>}
+      {!puedePublicar && puedeEditar && (
+        <p className="cl-nota" role="note">
+          Para poder <b>mostrar un plan en Contar</b> falta correr <code>supabase/migraciones/2026-10-fiscal-publicar.sql</code> en Supabase.
+        </p>
+      )}
       {mal && !form && <p className="cl-mal" role="alert">{mal}</p>}
 
       {form ? (
@@ -205,6 +237,8 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
   const cambia = (hojas: HojaForm[]) => setForm({ ...form, hojas });
   const rolDe = (eq: Equipo) => (eq === "ol" ? rolOl : rolBa);
   const viernes = proximoDia(hoy, 5);
+  /* Cambiar la fecha arrastra el nombre, salvo que alguien lo haya escrito a mano. */
+  const ponFecha = (f: string) => setForm({ ...form, fecha: f, nombre: form.manual || f === "" ? form.nombre : nombreAuto(f) });
 
   const filtroRol = (eq: Equipo, et: string) => {
     const rol = rolDe(eq);
@@ -249,19 +283,24 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
         <label className="ancho">
           <span>Nombre</span>
           <input value={form.nombre} maxLength={80} placeholder="Ej. Fiscal octubre"
-                 onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
+                 onChange={(e) => setForm({ ...form, nombre: e.target.value, manual: true })} />
+          {form.manual && form.fecha !== "" && form.nombre !== nombreAuto(form.fecha) && (
+            <button type="button" className="btn plano fi-auto" onClick={() => setForm({ ...form, nombre: nombreAuto(form.fecha), manual: false })}>
+              Usar el nombre automático: {nombreAuto(form.fecha)}
+            </button>
+          )}
         </label>
         <label>
           <span>Fecha del inventario</span>
-          <input type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} />
+          <input type="date" value={form.fecha} onChange={(e) => ponFecha(e.target.value)} />
         </label>
       </div>
       <div className="fi-fecha">
         {form.fecha && <b>{fechaConDia(form.fecha)} · {textoCuando(hoy, form.fecha)}</b>}
         <span className="fi-atajos" role="group" aria-label="Atajos de fecha">
-          <button type="button" className="btn plano" aria-pressed={form.fecha === hoy} onClick={() => setForm({ ...form, fecha: hoy })}>Hoy</button>
-          <button type="button" className="btn plano" aria-pressed={form.fecha === sumarDias(hoy, 1)} onClick={() => setForm({ ...form, fecha: sumarDias(hoy, 1) })}>Mañana</button>
-          <button type="button" className="btn plano" aria-pressed={form.fecha === viernes} onClick={() => setForm({ ...form, fecha: viernes })}>Viernes</button>
+          <button type="button" className="btn plano" aria-pressed={form.fecha === hoy} onClick={() => ponFecha(hoy)}>Hoy</button>
+          <button type="button" className="btn plano" aria-pressed={form.fecha === sumarDias(hoy, 1)} onClick={() => ponFecha(sumarDias(hoy, 1))}>Mañana</button>
+          <button type="button" className="btn plano" aria-pressed={form.fecha === viernes} onClick={() => ponFecha(viernes)}>Viernes</button>
         </span>
       </div>
 

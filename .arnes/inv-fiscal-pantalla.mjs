@@ -225,6 +225,23 @@ almacen = {};
 await monta();
 await nuevoForm();
 {
+  /* EL NOMBRE SE PONE SOLO: mes, año y la fecha programada, y sigue a la fecha mientras nadie lo escriba. */
+  ok((await nombreIn().inputValue()) === "FISCAL OCTUBRE 2026 · jueves 01/10", "el nombre automático de hoy: " + await nombreIn().inputValue());
+  ok(!(await guardar().isDisabled()), "con el nombre automático y la fecha ya se puede guardar");
+  await pg.click('.fi-atajos button:has-text("Viernes")');
+  ok((await nombreIn().inputValue()) === "FISCAL OCTUBRE 2026 · viernes 02/10", "el nombre no sigue a la fecha (viernes): " + await nombreIn().inputValue());
+  await fechaIn().fill("2026-11-06");
+  ok((await nombreIn().inputValue()) === "FISCAL NOVIEMBRE 2026 · viernes 06/11", "el nombre no sigue a la fecha (otro mes): " + await nombreIn().inputValue());
+  ok(await pg.locator(".fi-auto").count() === 0, "ofrece «usar el nombre automático» cuando nadie lo ha tocado");
+  await nombreIn().fill("Mi fiscal");
+  await pg.click('.fi-atajos button:has-text("Hoy")');
+  ok((await nombreIn().inputValue()) === "Mi fiscal", "cambiar la fecha pisó un nombre escrito a mano");
+  ok(await pg.locator(".fi-auto").count() === 1 && /FISCAL OCTUBRE 2026 · jueves 01\/10/.test(await pg.locator(".fi-auto").textContent()), "no ofrece volver al nombre automático");
+  await pg.locator(".fi-auto").click();
+  ok((await nombreIn().inputValue()) === "FISCAL OCTUBRE 2026 · jueves 01/10" && await pg.locator(".fi-auto").count() === 0, "volver al automático no lo repone");
+  await pg.click('.fi-atajos button:has-text("Mañana")');
+  ok((await nombreIn().inputValue()) === "FISCAL OCTUBRE 2026 · viernes 02/10", "tras volver al automático, el nombre dejó de seguir la fecha");
+  await nombreIn().fill("");
   ok(await guardar().isDisabled(), "se puede guardar sin nombre");
   await nombreIn().fill("  Fiscal octubre  ");
   ok(!(await guardar().isDisabled()), "con nombre y hojas vacías no se puede guardar (las hojas pueden armarse de a poco)");
@@ -281,6 +298,15 @@ await pg.locator(".fi-fila").first().locator('button:has-text("Editar")').click(
   ok(a.p_id === "fs" && a.p_nombre === "Fiscal viernes" && a.p_fecha === "2026-10-02" && a.p_hojas[1].bavaria === "p9" && a.p_hojas[0].ol === "p1" && a.p_hojas[0].bavaria === "p7", "editar manda el id y lo cambiado: " + JSON.stringify(a));
   ok(/Inventario fiscal actualizado/.test(await txt()), "no dice que actualizó");
 }
+/* Un plan que conserva su nombre automático lo sigue al cambiar la fecha; uno con nombre propio no. */
+await monta({ fiscales: [{ ...sep, id: "fa", nombre: "FISCAL OCTUBRE 2026 · viernes 02/10" }] });
+await pg.locator('button:has-text("Editar")').click();
+await pg.click('.fi-atajos button:has-text("Hoy")');
+ok((await nombreIn().inputValue()) === "FISCAL OCTUBRE 2026 · jueves 01/10", "al editar, un nombre automático no sigue a la fecha: " + await nombreIn().inputValue());
+await monta({ fiscales: [sep] });
+await pg.locator('button:has-text("Editar")').click();
+await pg.click('.fi-atajos button:has-text("Hoy")');
+ok((await nombreIn().inputValue()) === "Fiscal viernes", "al editar, la fecha pisó un nombre propio");
 /* Quien ya estaba puesto sigue viéndose aunque esté desactivado o sea de otro rol que el filtro. */
 await monta({ fiscales: [des] });
 await pg.locator('button:has-text("Editar")').click();
@@ -326,6 +352,50 @@ await monta({ manda: true });
   ok(l.n === "inv_fiscal_eliminar" && l.a.p_id === "fs", "eliminar no manda el id: " + JSON.stringify(l));
   ok(/Inventario fiscal eliminado/.test(await txt()), "no dice que lo eliminó");
 }
+
+/* ---------- 7b · MOSTRAR EN CONTAR, y el administrador edita aun lo cerrado ---------- */
+const pub = { ...sep, id: "fp", nombre: "Ya visible", publicado: "2026-10-01T14:00:00Z" };
+const vacio = { id: "fv", nombre: "Plan vacío", fecha: "2026-10-23", estado: "abierto", hojas: [H(1), H(2)] };
+await monta({ fiscales: [sep, pub, vacio, cer] });
+{
+  const f = (n) => pg.locator(".fi-fila", { hasText: n });
+  ok(await f("Fiscal viernes").locator('button:has-text("Mostrar en Contar")').count() === 1, "el plan armado no tiene «Mostrar en Contar»");
+  ok(await f("Fiscal viernes").locator("text=VISIBLE EN CONTAR").count() === 0, "dice visible un plan que no se ha mostrado");
+  ok(await f("Plan vacío").locator('button:has-text("Mostrar en Contar")').isDisabled(), "deja mostrar un plan sin nadie asignado");
+  ok(await f("Fiscal agosto").locator('button:has-text("Mostrar en Contar"), button:has-text("Quitar de Contar")').count() === 0, "un plan cerrado se ofrece para Contar");
+  ok(await f("Ya visible").locator("text=VISIBLE EN CONTAR").count() === 1 && await f("Ya visible").locator('button:has-text("Quitar de Contar")').count() === 1 && await f("Ya visible").locator('button:has-text("Mostrar en Contar")').count() === 0,
+     "el plan visible no dice VISIBLE EN CONTAR con su «Quitar de Contar»");
+  await f("Fiscal viernes").locator('button:has-text("Mostrar en Contar")').click();
+  await pg.waitForFunction(() => window.__rpc.length === 1);
+  const l = (await rpcs())[0];
+  ok(l.n === "inv_fiscal_publicar" && l.a.p_id === "fs" && l.a.p_publicar === true, "mostrar manda: " + JSON.stringify(l));
+  ok(/«Fiscal viernes» ya se ve en Contar/.test(await txt()) && await pg.evaluate(() => window.__refresh) === 1, "no avisa ni refresca al mostrar");
+  await f("Ya visible").locator('button:has-text("Quitar de Contar")').click();
+  await pg.waitForFunction(() => window.__rpc.length === 2);
+  const q = (await rpcs())[1];
+  ok(q.n === "inv_fiscal_publicar" && q.a.p_id === "fp" && q.a.p_publicar === false, "quitar manda: " + JSON.stringify(q));
+  ok(/«Ya visible» ya no se ve en Contar/.test(await txt()), "no avisa al quitar");
+}
+/* La base rechaza (le falta el SQL): dice cuál correr. */
+await monta({ fiscales: [sep] });
+await pg.evaluate(() => { window.__rpcFalla = "function public.inv_fiscal_publicar(uuid, boolean) does not exist" });
+await pg.click('button:has-text("Mostrar en Contar")');
+await pg.waitForSelector(".cl-mal");
+ok(/2026-10-fiscal-publicar\.sql/.test(await txt()), "si falta el SQL de publicar no dice cuál correr: " + (await txt()).slice(-200));
+/* Sin la columna en la base, no se ofrece el botón y se avisa. */
+await monta({ fiscales: [sep], puedePublicar: false });
+ok(await pg.locator('button:has-text("Mostrar en Contar")').count() === 0 && /2026-10-fiscal-publicar\.sql/.test(await txt()), "sin el SQL se ofrece el botón o no se avisa");
+/* Quien solo lee no lo ve. */
+await monta({ fiscales: [sep, pub], puedeEditar: false });
+ok(await pg.locator('button:has-text("Mostrar en Contar"), button:has-text("Quitar de Contar")').count() === 0, "solo lectura: ve el botón de Contar");
+ok(await pg.locator("text=VISIBLE EN CONTAR").count() === 1, "solo lectura: no ve cuál plan está visible");
+/* El administrador edita también lo cerrado; quien no administra, no. */
+await monta({ fiscales: [sep, cer], manda: true });
+ok(await pg.locator('button:has-text("Editar")').count() === 2, "el administrador no puede editar un plan cerrado");
+await pg.locator(".fi-fila", { hasText: "Fiscal agosto" }).locator('button:has-text("Editar")').click();
+ok(/Editar inventario fiscal/.test(await txt()) && await hojas().count() === 2, "editar un cerrado no abre sus 2 hojas");
+await monta({ fiscales: [sep, cer], manda: false });
+ok(await pg.locator(".fi-fila", { hasText: "Fiscal agosto" }).locator('button:has-text("Editar")').count() === 0, "quien no administra edita un plan cerrado");
 
 /* ---------- 8 · NADA SE SALE, y el dedo alcanza, en cuatro anchos ---------- */
 for (const w of [360, 390, 820, 1440]) {

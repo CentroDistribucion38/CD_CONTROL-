@@ -1,7 +1,12 @@
 import { misPermisos } from "@/lib/permisos";
 import { maestroInventario, miConteoFefo } from "@/modulos/inventario/fefo";
+import { createClient } from "@/lib/supabase/server";
+import { diaColombia } from "@/modulos/inventario/corte";
+import type { MiHojaBD } from "@/modulos/inventario/fiscal";
 import "../fefo.css";
+import "./asignado.css";
 import { Contar } from "./Contar";
+import { FiscalAsignado } from "./FiscalAsignado";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +67,13 @@ export default async function ConteoFefoPage() {
   const { conteo, renglones } = await miConteoFefo(bodega.id);
   const ubis = m.ubicaciones.filter((u) => u.bodega_id === bodega.id);
 
+  /* LA HOJA DEL INVENTARIO FISCAL que le tocó a esta persona, si el plan ya se mostró en Contar.
+     Si a la base le falta 2026-10-fiscal-publicar.sql la consulta falla y simplemente no sale nada:
+     contar no depende de esto. */
+  const hoy = diaColombia(new Date().toISOString());
+  const fiscal = await (await createClient()).rpc("inv_fiscal_mis_hojas");
+  const misHojas = fiscal.error ? [] : ((fiscal.data ?? []) as MiHojaBD[]);
+
   return (
     /* «contando» pliega la cabecera en el celular: ver arriba en
        fefo.css por qué. */
@@ -88,6 +100,8 @@ export default async function ConteoFefoPage() {
           </div>
         </div>
       </section>
+
+      <FiscalAsignado filas={misHojas} hoy={hoy} />
 
       {!puedeContar ? (
         <section className="fe-faltan">

@@ -1877,16 +1877,20 @@
 .rt .vb-grupo:last-child { border-bottom: 0 }
 .rt .vb-fila {
   display: grid; align-items: center; gap: 16px; padding: 12px 20px;
-  grid-template-columns: 70px minmax(0, 1.6fr) 90px minmax(0, 1.5fr) minmax(0, 1.2fr) auto;
+  grid-template-columns: 96px minmax(0, 1.6fr) 90px minmax(0, 1.5fr) minmax(0, 1.2fr) auto;
 }
 .rt .vb-foto {
-  width: 70px; height: 52px; border: 0; border-radius: 0; cursor: pointer;
+  width: 96px; height: 72px; border: 0; border-radius: 0; cursor: pointer;
   background: var(--c-d5dce5); position: relative; padding: 0;
 }
 /* SIN FOTO SE VE VACÍA y no se puede abrir nada: es la diferencia que
    hay que ver ANTES de tocar Aceptar, porque una causa que exige foto
    y no la tiene no se puede aceptar. */
 .rt .vb-foto.sin { background: var(--c-eef1f5); cursor: default }
+/* LA FOTO LLENA EL CUADRO, recortada al centro: es una miniatura, la foto
+   entera se ve al abrirla. */
+.rt .vb-miniatura { position: absolute; inset: 0; overflow: hidden }
+.rt .vb-miniatura img { width: 100%; height: 100%; object-fit: cover; display: block }
 .rt .vb-foto i {
   position: absolute; left: 0; bottom: 0; font-style: normal;
   font: 700 9.5px var(--rt-texto); letter-spacing: .1em; padding: 2px 6px;
@@ -2033,7 +2037,7 @@
   .rt .rt-cifras { grid-template-columns: 1fr 1fr }
   .rt .rt-c { border-left: 1px solid var(--rt-linea) }
   .rt .vb-fila {
-    grid-template-columns: 70px minmax(0, 1fr) 90px;
+    grid-template-columns: 96px minmax(0, 1fr) 90px;
     row-gap: 10px;
   }
   .rt .vb-causa, .rt .vb-quien { grid-column: 2 / -1 }
@@ -2045,7 +2049,7 @@
 }
 @media (max-width: 560px) {
   .rt .rt-cifras { grid-template-columns: 1fr }
-  .rt .vb-fila { grid-template-columns: 70px minmax(0, 1fr) }
+  .rt .vb-fila { grid-template-columns: 96px minmax(0, 1fr) }
   .rt .vb-und { grid-column: 2 }
   .rt .vb-linea > * { flex: 1 1 100% }
 }

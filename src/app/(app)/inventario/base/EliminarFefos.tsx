@@ -21,6 +21,9 @@ const ESTADO: Record<string, string> = {
 };
 const dia = (s: string | null) => (s ? new Date(s + "T12:00:00").toLocaleDateString("es-CO") : "—");
 
+/** «Hoy» en Colombia, AAAA-MM-DD (el servidor y el navegador pueden estar en otro huso). */
+const hoyBogota = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+
 export function EliminarFefos({ conteos }: { conteos: ConteoFefo[] }) {
   const router = useRouter();
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
@@ -28,6 +31,9 @@ export function EliminarFefos({ conteos }: { conteos: ConteoFefo[] }) {
   const [ocupado, setOcupado] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  /* Cambiar la fecha de UN FEFO: cuál está abierto y qué día se eligió. */
+  const [fechando, setFechando] = useState<string | null>(null);
+  const [nuevaFecha, setNuevaFecha] = useState("");
   const lista = useMemo(() => [...conteos].sort((a, b) =>
     (b.fecha_analisis ?? "").localeCompare(a.fecha_analisis ?? "") || b.codigo.localeCompare(a.codigo, "es", { numeric: true })), [conteos]);
   /* Solo cuentan los marcados que siguen en la lista (si uno ya se fue, no se manda). */
@@ -57,14 +63,27 @@ export function EliminarFefos({ conteos }: { conteos: ConteoFefo[] }) {
     if (falla) setMal(`No se pudo eliminar ${falla.codigo}: ${falla.texto}`);
   }
 
+  async function cambiarFecha(c: ConteoFefo) {
+    setMal(null); setAviso(null); setOcupado(true);
+    const { data, error } = await createClient().rpc("conteo_fefo_cambiar_fecha", { p_conteo: c.id, p_codigo: c.codigo, p_fecha: nuevaFecha });
+    setOcupado(false);
+    if (error) { setMal(`No se pudo cambiar la fecha de ${c.codigo}: ${traducirError(error.message)}`); return }
+    const r = (Array.isArray(data) ? data[0] : data) as { codigo_nuevo?: string } | null;
+    const [a, m, d] = nuevaFecha.split("-");
+    setFechando(null);
+    setAviso(`El FEFO ${c.codigo} quedó con fecha ${d}/${m}/${a}${r?.codigo_nuevo && r.codigo_nuevo !== c.codigo ? ` y ahora se llama ${r.codigo_nuevo}` : ""}.`);
+    router.refresh();
+  }
+
   if (lista.length === 0) return null;
   return (
     <details className="ba-elim">
-      <summary>Eliminar FEFOs <em>solo administrador</em></summary>
+      <summary>Eliminar FEFOs o cambiarles la fecha <em>solo administrador</em></summary>
       <p className="ba-elim-ayuda">
         Marca los FEFO que sobran —uno o varios— y elimínalos juntos. Se van <b>completos, con todos sus renglones</b>, y no se
         puede deshacer. Queda escrito en el registro de Administración. Si solo quieres sacarlos del Excel de un día,
-        desmárcalos arriba en el consolidado.
+        desmárcalos arriba en el consolidado. Si lo que quieres es que un FEFO quede con <b>otro día</b> (por ejemplo, se
+        empezó a contar el sábado y se envió hoy), usa <b>Cambiar fecha</b> en su renglón: no se borra nada.
       </p>
       {aviso && <p className="ba-elim-ok" role="status">{aviso}</p>}
       {mal && <p className="ba-conso-mal" role="alert">{mal}</p>}
@@ -98,6 +117,22 @@ export function EliminarFefos({ conteos }: { conteos: ConteoFefo[] }) {
               <i className={"ba-elim-estado " + c.estado}>{ESTADO[c.estado] ?? c.estado.toUpperCase()}</i>
               <span>{dia(c.fecha_analisis)} · {c.envio_nombre ?? c.responsable ?? "—"} · {Number(c.renglones ?? 0)} rengl.</span>
             </label>
+            {fechando === c.id ? (
+              <span className="ba-elim-fecha">
+                <input type="date" value={nuevaFecha} max={hoyBogota()} disabled={ocupado} aria-label={`Nueva fecha del FEFO ${c.codigo}`}
+                       onChange={(e) => setNuevaFecha(e.target.value)} />
+                <button type="button" className="btn plano" disabled={ocupado || !nuevaFecha} onClick={() => cambiarFecha(c)}>
+                  {ocupado ? "Guardando…" : "Guardar fecha"}
+                </button>
+                <button type="button" className="btn plano" disabled={ocupado} onClick={() => setFechando(null)}>Cancelar</button>
+              </span>
+            ) : (
+              <button type="button" className="btn plano ba-elim-fechar" disabled={ocupado}
+                      aria-label={`Cambiar la fecha del FEFO ${c.codigo}`}
+                      onClick={() => { setFechando(c.id); setNuevaFecha(hoyBogota()); setMal(null); setAviso(null) }}>
+                Cambiar fecha
+              </button>
+            )}
           </li>
         ))}
       </ul>

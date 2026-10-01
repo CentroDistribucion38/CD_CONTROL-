@@ -156,6 +156,14 @@ export function textoCuando(hoy: string, f: string): string {
 /** «viernes 03/10/2026». */
 export const fechaConDia = (f: string): string => { const [a, m, d] = f.split("-"); return `${diaSemana(f)} ${d}/${m}/${a}` };
 
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+/** El nombre que se pone solo: «FISCAL OCTUBRE 2026 · viernes 02/10». Sigue a la fecha mientras nadie lo cambie a mano. */
+export function nombreAuto(f: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return "FISCAL";
+  const [a, m, d] = f.split("-");
+  return `FISCAL ${MESES[Number(m) - 1].toUpperCase()} ${a} · ${diaSemana(f)} ${d}/${m}`;
+}
+
 /** Los que vienen (de hoy en adelante, el más cercano primero) y los que ya pasaron (el más reciente primero). */
 export function agrupar<T extends { fecha: string }>(lista: T[], hoy: string): { proximos: T[]; anteriores: T[] } {
   return {
@@ -170,4 +178,36 @@ export function completarRoles(personas: PersonaF[], roles: RolF[]): RolF[] {
   const extra: RolF[] = [];
   for (const p of personas) if (p.rol && !vistos.has(p.rol)) { vistos.add(p.rol); extra.push({ clave: p.rol, nombre: p.rol }) }
   return [...roles, ...extra];
+}
+
+/* ===================================================================
+   EN «CONTAR»: LA HOJA QUE LE TOCÓ A CADA PERSONA
+   La base devuelve una fila por hoja de la persona (`inv_fiscal_mis_hojas`);
+   aquí se juntan por inventario y se dice, con palabras, de qué equipo es ella
+   y quién es su pareja.
+   =================================================================== */
+export type MiHojaBD = {
+  fiscal_id: string; nombre: string; fecha: string; hoja: number; equipo: string;
+  pareja: string | null; pareja_equipo: string | null;
+};
+export const nombreEquipo = (e: string | null | undefined): string =>
+  e === "OL" ? "Operador logístico" : e === "BAVARIA" ? "Bavaria" : "";
+
+export type MisHojasDeUnFiscal = {
+  fiscalId: string; nombre: string; fecha: string;
+  hojas: { numero: number; equipo: string; pareja: string | null; parejaEquipo: string }[];
+};
+/** Por inventario (el más cercano primero) y, dentro, por número de hoja. */
+export function agruparMisHojas(filas: MiHojaBD[]): MisHojasDeUnFiscal[] {
+  const por = new Map<string, MisHojasDeUnFiscal>();
+  for (const f of filas) {
+    const g = por.get(f.fiscal_id) ?? { fiscalId: f.fiscal_id, nombre: f.nombre, fecha: String(f.fecha).slice(0, 10), hojas: [] };
+    if (!g.hojas.some((h) => h.numero === f.hoja)) {
+      g.hojas.push({ numero: f.hoja, equipo: nombreEquipo(f.equipo), pareja: f.pareja, parejaEquipo: nombreEquipo(f.pareja_equipo) });
+    }
+    por.set(f.fiscal_id, g);
+  }
+  return [...por.values()]
+    .map((g) => ({ ...g, hojas: g.hojas.sort((a, b) => a.numero - b.numero) }))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.nombre.localeCompare(b.nombre, "es"));
 }

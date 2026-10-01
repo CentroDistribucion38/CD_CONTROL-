@@ -57,9 +57,14 @@ export default async function FiscalPage() {
     );
   }
 
+  const leerFiscales = (cols: string) => supabase.from("inv_fiscales").select(cols)
+    .eq("bodega_id", bodega.id).order("fecha", { ascending: false }).order("creado_en", { ascending: false }).limit(100);
+  /* `publicado_en` llega con 2026-10-fiscal-publicar.sql: sin él la pantalla sigue sirviendo (sin el botón de Contar). */
+  let fisP = await leerFiscales("id,nombre,fecha,estado,creado_en,publicado_en");
+  const conPublicar = !fisP.error;
+  if (fisP.error) fisP = await leerFiscales("id,nombre,fecha,estado,creado_en");
   const [fis, hoj, mie, per, rol] = await Promise.all([
-    supabase.from("inv_fiscales").select("id,nombre,fecha,estado,creado_en")
-      .eq("bodega_id", bodega.id).order("fecha", { ascending: false }).order("creado_en", { ascending: false }).limit(100),
+    Promise.resolve(fisP as unknown as { data: Record<string, unknown>[] | null; error: unknown }),
     supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero").limit(5000),
     supabase.from("inv_fiscal_miembros").select("hoja_id,equipo,user_id").limit(10000),
     supabase.from("perfiles").select("id,nombre,activo,rol").order("nombre").limit(2000),
@@ -79,8 +84,9 @@ export default async function FiscalPage() {
     hojasDe.set(h.fiscal_id, [...(hojasDe.get(h.fiscal_id) ?? []), { numero: h.numero, ol: mm.OL ?? "", bavaria: mm.BAVARIA ?? "" }]);
   }
   const fiscales: FiscalBD[] = (fis.data ?? []).map((f) => ({
-    id: f.id, nombre: f.nombre, fecha: String(f.fecha).slice(0, 10), estado: f.estado as "abierto" | "cerrado",
-    hojas: (hojasDe.get(f.id) ?? []).sort((a, b) => a.numero - b.numero),
+    id: f.id as string, nombre: f.nombre as string, fecha: String(f.fecha).slice(0, 10), estado: f.estado as "abierto" | "cerrado",
+    publicado: (f.publicado_en as string | null | undefined) ?? null,
+    hojas: (hojasDe.get(f.id as string) ?? []).sort((a, b) => a.numero - b.numero),
   }));
   /* Las personas que se pueden poner en una hoja: las activas. Las que ya están
      en un inventario siguen saliendo con su nombre aunque se hayan desactivado. */
@@ -103,6 +109,7 @@ export default async function FiscalPage() {
         roles={roles}
         fiscales={fiscales}
         puedeEditar={puedeEditar}
+        puedePublicar={conPublicar}
         manda={permisos.manda}
         ahora={new Date().toISOString()}
       />

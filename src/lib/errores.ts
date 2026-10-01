@@ -88,11 +88,15 @@ const PREFIJOS: [RegExp, string][] = [
   /* El CORTE DE LÍNEAS de Inventario: sus funciones y sus tres tablas. */
   [/\binv_corte_(guardar|eliminar|renglones)\b|\binv_(cortes|lineas)\b/,
    "supabase/migraciones/2026-09-inventario-corte-lineas.sql"],
+  /* MOSTRAR EL FISCAL EN CONTAR: su botón, su consulta y la columna `publicado_en`. Va antes del fiscal a secas. */
+  [/\binv_fiscal_(publicar|mis_hojas)\b|\binv_fiscales\.publicado/,
+   "supabase/migraciones/2026-10-fiscal-publicar.sql"],
   /* El INVENTARIO FISCAL de Inventario: la función de guardar, la de eliminar y sus tres tablas. */
   [/\binv_fiscal_(guardar|eliminar|hojas|miembros)\b|\binv_fiscales\b/,
    "supabase/migraciones/2026-10-inventario-fiscal.sql"],
   /* ELIMINAR UN FEFO de Inventario: su función. Va antes que `conteo_` a secas. */
   [/\bconteo_fefo_eliminar\b/, "supabase/migraciones/2026-10-fefo-eliminar.sql"],
+  [/\bconteo_fefo_cambiar_fecha\b/, "supabase/migraciones/2026-10-fefo-cambiar-fecha.sql"],
   /* ELIMINAR un camión anulado: la función `sider_viaje_eliminar` o la tabla de su registro. */
   [/\bsider_viaje_eliminar\b|\bsider_viajes_eliminados\b/,
    "supabase/migraciones/2026-09-sider-viaje-eliminar.sql"],

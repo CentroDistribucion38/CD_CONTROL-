@@ -7,6 +7,7 @@ import { useAvisos } from "@/components/Aviso";
 import { sellar, type Foto } from "@/lib/evidencia";
 import { useConfirmar } from "@/components/Confirmar";
 import type { Rotura } from "@/modulos/roturas/datos";
+import { Miniatura } from "../../Miniatura";
 import { Evidencia } from "../../Evidencia";
 import { Cifras } from "../../comunes";
 
@@ -277,6 +278,7 @@ export function VistoBueno({ roturas, nombres, puedeDecidir, cifras }: {
                 <button type="button" className={"vb-foto" + (r.fotos ? "" : " sin")}
                         onClick={() => setAbierta(abierta === r.id ? null : r.id)}
                         aria-label={r.fotos ? "Ver la foto" : "No tiene foto"}>
+                  {r.fotos > 0 && <Miniatura id={r.id} cuantas={r.fotos} etiqueta={`Foto de ${r.codigo}`} />}
                   {r.fotos > 0 && <i>foto</i>}
                 </button>
 

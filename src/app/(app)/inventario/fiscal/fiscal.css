@@ -3,6 +3,8 @@
 .fe .fi-cabeza { margin-bottom: 4px }
 
 .fe .fi-estado { font-style: normal; font: 800 10.5px var(--fe-texto); letter-spacing: .08em; padding: 2px 7px; border-radius: 2px; background: var(--fe-fondo); color: var(--fe-tinta) }
+.fe .fi-estado.visible { background: transparent; color: var(--fe-acento); border: 1px solid var(--fe-acento) }
+.fe .fi-auto { margin-top: 6px; text-align: left; white-space: normal; height: auto; min-height: 44px }
 .fe .fi-estado.abierto { background: var(--fe-acento); color: var(--fe-sobre, #fff) }
 
 /* La tabla de hojas de un inventario ya guardado. En el celular cada fila es una tarjetita. */

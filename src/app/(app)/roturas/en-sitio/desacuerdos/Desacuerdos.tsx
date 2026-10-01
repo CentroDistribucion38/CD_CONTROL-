@@ -7,6 +7,7 @@ import { useAvisos } from "@/components/Aviso";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { Cifras } from "../../comunes";
 import { Evidencia } from "../../Evidencia";
+import { Miniatura } from "../../Miniatura";
 
 /**
  * LOS DESACUERDOS — la última palabra de ABI.
@@ -140,6 +141,7 @@ export function Desacuerdos({ roturas, nombres, puedeResolver, cifras }: {
                 <button type="button" className={"vb-foto" + (r.fotos ? "" : " sin")}
                         onClick={() => setAbierta(abierta === r.id ? null : r.id)}
                         aria-label={r.fotos ? "Ver las fotos" : "No hay fotos"}>
+                  {r.fotos > 0 && <Miniatura id={r.id} cuantas={r.fotos} etiqueta={`Foto de ${r.codigo}`} />}
                   {r.fotos > 0 && <i>{r.fotos} foto{r.fotos === 1 ? "" : "s"}</i>}
                 </button>
 

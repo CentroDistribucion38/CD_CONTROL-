@@ -350,6 +350,11 @@
 .fe .ba-elim-lista li { border: 1px solid var(--fe-linea) }
 .fe .ba-elim-lista li label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 52px; padding: 6px 12px; cursor: pointer }
 .fe .ba-elim-lista li label input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: #A30D25 }
+.fe .ba-elim-lista li { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px }
+.fe .ba-elim-lista li label { flex: 1 1 260px; min-width: 0 }
+.fe .ba-elim-fechar, .fe .ba-elim-fecha button { min-height: 44px; margin: 0 8px }
+.fe .ba-elim-fecha { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0 8px 6px; flex: 1 1 100% }
+.fe .ba-elim-fecha input { min-height: 44px; padding: 0 10px; font: 600 14px var(--fe-texto); border: 1.5px solid var(--fe-linea); background: #fff; color: var(--fe-tinta) }
 .fe .ba-elim-lista li.marcado { border-color: #A30D25; background: color-mix(in srgb, #A30D25 5%, #fff) }
 .fe .ba-elim-barra { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 10px }
 .fe .ba-elim-cuenta { font-size: 13px; font-weight: 700; color: var(--fe-gris); flex: 1 1 auto }

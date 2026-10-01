@@ -10,7 +10,8 @@ writeFileSync(R(".arnes/_fe-cliente.ts"), `
 const w = window as any;
 w.__llamadas = []; w.__falla = null; w.__refresh = 0; w.__fallaEn = 0;
 export function createClient() { return { rpc: async (fn: string, args: any) => { w.__llamadas.push({ fn, args });
-  const falla = w.__falla || (w.__fallaEn && w.__llamadas.length === w.__fallaEn ? "function public.conteo_fefo_eliminar(uuid, text) does not exist" : null);
+  const falla = w.__falla || (w.__fallaEn && w.__llamadas.length === w.__fallaEn ? "function public." + fn + "(uuid, text) does not exist" : null);
+  if (fn === "conteo_fefo_cambiar_fecha") return falla ? { data: null, error: { message: falla } } : { data: [{ codigo_anterior: args.p_codigo, codigo_nuevo: w.__codigoNuevo || args.p_codigo, fecha: args.p_fecha }], error: null };
   return falla ? { data: null, error: { message: falla } } : { data: [{ codigo: args.p_codigo, renglones: 1 }], error: null } } } }`);
 writeFileSync(R(".arnes/_fe-nav.ts"), `export const useRouter = () => ({ refresh() { (window as any).__refresh++ }, push() {}, replace() {} });`);
 writeFileSync(R(".arnes/_fe-entrada.tsx"), `
@@ -93,6 +94,36 @@ const t = await textoPanel();
 ok(/Se eliminó el FEFO FEFO-20260929-01/.test(t) && /No se pudo eliminar FEFO-20260923-01/.test(t) && /2026-10-fefo-eliminar\.sql/.test(t), "falla a la mitad: " + t);
 ok(await marca("FEFO-20260923-01").isChecked() && !(await marca("FEFO-20260929-01").isChecked()), "tras fallar, el que falló debe seguir marcado y el que se fue no");
 ok(await pg.evaluate(() => window.__refresh) === 1, "tras eliminar uno y fallar otro no refresca");
+/* CAMBIAR LA FECHA de un FEFO (el del sábado que se envió hoy): sin borrar nada. */
+await monta(true);
+await pg.locator(".ba-elim > summary").click();
+await pg.evaluate(() => { window.__llamadas.length = 0; window.__refresh = 0; window.__fallaEn = 0; window.__falla = null; window.__codigoNuevo = "FEFO-20261001-01" });
+const hoy = await pg.evaluate(() => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
+const fila = (cod) => pg.locator(".ba-elim-lista li", { hasText: cod });
+ok(await pg.locator('button[aria-label^="Cambiar la fecha del FEFO"]').count() === 3, "no hay «Cambiar fecha» en cada FEFO");
+await fila("FEFO-20260926-01").locator("button", { hasText: "Cambiar fecha" }).click();
+const campo = pg.locator('input[aria-label="Nueva fecha del FEFO FEFO-20260926-01"]');
+ok(await campo.inputValue() === hoy, "la fecha que se propone no es hoy: " + await campo.inputValue());
+ok(await campo.getAttribute("max") === hoy, "se puede elegir una fecha del futuro");
+await fila("FEFO-20260926-01").locator("button", { hasText: "Cancelar" }).click();
+ok(await pg.evaluate(() => window.__llamadas.length) === 0 && await pg.locator('input[type=date]').count() === 0, "cancelar mandó algo o dejó el campo abierto");
+await fila("FEFO-20260926-01").locator("button", { hasText: "Cambiar fecha" }).click();
+await campo.fill("2026-09-30");
+await fila("FEFO-20260926-01").locator("button", { hasText: "Guardar fecha" }).click();
+await pg.waitForFunction(() => window.__llamadas.length === 1);
+const lf = await pg.evaluate(() => window.__llamadas[0]);
+ok(lf.fn === "conteo_fefo_cambiar_fecha" && lf.args.p_conteo === "a" && lf.args.p_codigo === "FEFO-20260926-01" && lf.args.p_fecha === "2026-09-30", "lo que se manda: " + JSON.stringify(lf));
+ok(await pg.evaluate(() => window.__refresh) === 1, "cambiar la fecha no refresca");
+const tf = await textoPanel();
+ok(/FEFO-20260926-01 quedó con fecha 30\/09\/2026 y ahora se llama FEFO-20261001-01/.test(tf), "no avisa del cambio: " + tf);
+ok(await pg.locator('input[type=date]').count() === 0, "tras guardar queda el campo abierto");
+/* Si la base no tiene la función, dice qué archivo correr. */
+await pg.evaluate(() => { window.__llamadas.length = 0; window.__falla = "function public.conteo_fefo_cambiar_fecha(uuid, text, date) does not exist" });
+await fila("FEFO-20260929-01").locator("button", { hasText: "Cambiar fecha" }).click();
+await fila("FEFO-20260929-01").locator("button", { hasText: "Guardar fecha" }).click();
+await pg.waitForSelector(".ba-conso-mal");
+ok(/No se pudo cambiar la fecha de FEFO-20260929-01/.test(await textoPanel()) && /2026-10-fefo-cambiar-fecha\.sql/.test(await textoPanel()), "no dice qué SQL falta: " + await textoPanel());
+await pg.evaluate(() => { window.__falla = null });
 /* Nada se sale y el dedo alcanza. */
 for (const w of [360, 390, 820, 1440]) {
   await monta(true, w);
@@ -107,4 +138,4 @@ if (process.env.FOTO) { await monta(true, 390); await pg.locator(".ba-elim > sum
 ok(roto.length === 0, "errores de la página: " + roto.slice(0, 2).join(" | "));
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Eliminar FEFOs: solo lo ve quien administra, lista todos con su estado, deja marcar varios, pide confirmar una vez, manda el id y el código de cada uno, dice cuál falló si se corta, refresca, dice si la base rechaza y nada se sale en 4 anchos.");
+console.log("✓ Eliminar FEFOs: solo lo ve quien administra, lista todos con su estado, deja marcar varios, pide confirmar una vez, manda el id y el código de cada uno, cambia la fecha de uno sin borrarlo (con «hoy» de Colombia como propuesta), dice cuál falló si se corta, refresca, dice si la base rechaza y nada se sale en 4 anchos.");
