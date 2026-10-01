@@ -102,3 +102,42 @@ export async function vaciarCola<B>(
   }
   return { enviados, quedan };
 }
+
+/* ---------------------------------------------------------------------
+   ¿LO QUE LA BASE YA TIENE ES ESTE MISMO RENGLÓN?
+   Un «ya existe uno igual» puede ser el mismo renglón que llegó y cuya
+   respuesta se perdió con la señal. Es el mismo si coinciden material,
+   módulo, ESTADO DEL ENVASE y cantidades. El estado cuenta porque el mismo
+   material en el mismo módulo puede estar NUEVO, LAVADO y EXTRASUCIO a la
+   vez: son renglones distintos, y uno de ellos no puede darse por enviado
+   porque otro, con la misma cantidad, ya esté.
+   --------------------------------------------------------------------- */
+export const entero = (s: string): number | null => {
+  const t = s.trim();
+  if (t === "") return null;
+  const n = Number(t.replace(/\D/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+export type RenglonEnBase = {
+  codigo: string; ubicacion: string | null; estado_envase: string | null;
+  estibas: number | null; saldo: number | null; cajas: number | null;
+};
+export type BorradorCola = {
+  modo: "estibas" | "cajas"; estibas: string; saldo: string; cajas: string; estado: string;
+};
+
+export function yaEstaEnLaBase(x: RenglonEnBase, it: ItemCola<BorradorCola>): boolean {
+  const bb = it.bb;
+  return x.codigo === it.sku && x.ubicacion === it.lugar &&
+    (x.estado_envase ?? "") === (bb.estado || "") &&
+    (bb.modo === "estibas"
+      ? (x.estibas ?? null) === entero(bb.estibas) && (x.saldo ?? null) === entero(bb.saldo)
+      : (x.cajas ?? null) === entero(bb.cajas));
+}
+
+/** Lo que se le dice a quien cuenta cuando la base rechaza el renglón por repetido (con señal, en el momento). */
+export const AVISO_REPETIDO =
+  "Ya anotaste este material en ese módulo con esa fecha y ese MISMO estado del envase. " +
+  "Si es de otro estado (NUEVO, LAVADO, EXTRASUCIO…), escógelo en «Datos adicionales»; " +
+  "si es el mismo, corrige el renglón que ya está en «El borrador».";

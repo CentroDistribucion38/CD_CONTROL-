@@ -136,6 +136,16 @@ await pg.waitForFunction(() => !document.querySelector(".fe-cola"), null, { time
 ok((await agregadas()).length === 1 && (await agregadas())[0].args.p_estibas === 6, "al volver la señal no se envió solo");
 ok((await nCola()) === 0, "al volver la señal el pendiente no salió de la cola");
 
+/* 7b · CON SEÑAL, LA BASE DICE «YA EXISTE UNO IGUAL»: se explica en claro (mismo estado del envase)
+        y no se vuelve un pendiente. */
+await pg.evaluate(() => { window.__dup = true });
+await escoger(0, "A"); await escoger(1, "01");
+await renglon("Derecho", 5);
+ok(/MISMO estado del envase/.test(await texto()), "un repetido con señal no explicó lo del estado del envase");
+ok(!/duplicate key|conteo_lineas_unico/.test(await texto()), "un repetido con señal enseñó el error técnico de la base");
+ok((await nCola()) === 0, "un repetido con señal quedó como pendiente");
+await pg.evaluate(() => { window.__dup = false; window.__llamadas = [] });
+
 /* 8 · SE CAYÓ LA SEÑAL DESPUÉS DE QUE EL RENGLÓN LLEGÓ: el reenvío rebota
        por «ya existe». Si es el MISMO renglón, se quita solo; si la
        cantidad es otra, se queda con su aviso y NO se duplica. */
@@ -155,7 +165,7 @@ await pg.evaluate(() => { window.__dup = true });
 await ctx.setOffline(false);
 await pg.waitForTimeout(800);
 const quedan = await colaGuardada();
-ok(Array.isArray(quedan) && quedan.length === 1 && /OTRA cantidad/.test(quedan[0].error ?? ""), `el duplicado con otra cantidad no quedó con su aviso: ${JSON.stringify(quedan)}`);
+ok(Array.isArray(quedan) && quedan.length === 1 && /OTRA cantidad/.test(quedan[0].error ?? "") && /mismo estado del envase/.test(quedan[0].error ?? ""), `el duplicado con otra cantidad no quedó con su aviso: ${JSON.stringify(quedan)}`);
 ok(Array.isArray(quedan) && quedan[0]?.bb.estibas === "9", "quedó el renglón equivocado (debía quedar el de 9, no el igual al de la base)");
 ok(/OTRA cantidad/.test(await texto()) && !!(await pg.$(".fe-cola details[open]")), "el aviso del duplicado no se muestra abierto");
 /* «Quitar» lo descarta, y solo a ese. */

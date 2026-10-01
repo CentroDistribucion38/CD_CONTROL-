@@ -49,7 +49,7 @@ import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
 import { cifraDeTarjeta, soloElUltimo, type Cifra } from "@/modulos/inventario/ultimo-conteo";
 import {
-  esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado,
+  AVISO_REPETIDO, esDuplicado, esFalloDeRed, guardarCola, leerCola, vaciarCola, yaEstaEnLaBase, type BorradorCola, type ItemCola, type Resultado,
 } from "@/modulos/inventario/cola";
 import { Ficha } from "./Ficha";
 import { totalesDelConteo } from "@/modulos/inventario/totales-conteo";
@@ -906,20 +906,16 @@ export function Contar({
       let yaEstaban = 0;
       /* UN «YA EXISTE UNO IGUAL» PUEDE SER EL MISMO RENGLÓN: la señal se
          cayó DESPUÉS de que llegó, antes de la respuesta. Si lo que hay en
-         la base es lo mismo —material, módulo y cantidades—, el pendiente
+         la base es lo mismo —material, módulo, estado del envase y cantidades—, el pendiente
          se quita solo. Si la cantidad es otra, se queda y se avisa. */
       if (fresca) {
         quedan = quedan.filter((it) => {
           if (!it.duplicado) return true;
-          const igual = fresca.some((x) =>
-            x.codigo === it.sku && x.ubicacion === it.lugar &&
-            (it.bb.modo === "estibas"
-              ? (x.estibas ?? null) === ent(it.bb.estibas) && (x.saldo ?? null) === ent(it.bb.saldo)
-              : (x.cajas ?? null) === ent(it.bb.cajas)));
+          const igual = fresca.some((x) => yaEstaEnLaBase(x, it as ItemCola<BorradorCola>));
           if (igual) yaEstaban++;
           return !igual;
         }).map((it) => it.duplicado
-          ? { ...it, error: "Ya hay un renglón igual en ese módulo con OTRA cantidad. Quita este, o corrige el otro en «El borrador»." }
+          ? { ...it, error: "Ya hay un renglón igual en ese módulo (mismo estado del envase) con OTRA cantidad. Quita este, o corrige el otro en «El borrador»." }
           : it);
       }
       ponerCola(quedan);
@@ -982,7 +978,7 @@ export function Contar({
         if (corrigiendo) avisar.mal(SIN_SENAL_CORREGIR); else encolar(bb, mat, idU);
         return;
       }
-      avisar.mal(error.message); return;
+      avisar.mal(esDuplicado(error.message) ? AVISO_REPETIDO : error.message); return;
     }
 
     /* Se vuelve a leer la vista en vez de armar el renglón aquí: las seis

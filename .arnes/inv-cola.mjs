@@ -3,7 +3,7 @@ import { buildSync } from "esbuild";
 import { pathToFileURL } from "node:url";
 const R = (p) => new URL("../" + p, import.meta.url).pathname;
 buildSync({ entryPoints: [R("src/modulos/inventario/cola.ts")], bundle: true, format: "esm", outfile: R(".arnes/tmp/cola.mjs"), logLevel: "silent" });
-const { esFalloDeRed, esDuplicado, leerCola, guardarCola, vaciarCola } = await import(pathToFileURL(R(".arnes/tmp/cola.mjs")).href);
+const { esFalloDeRed, esDuplicado, leerCola, guardarCola, vaciarCola, yaEstaEnLaBase, entero } = await import(pathToFileURL(R(".arnes/tmp/cola.mjs")).href);
 const fallas = [];
 const ok = (c, m) => { if (!c) fallas.push(m) };
 const it = (n) => ({ id: "i" + n, t: n, bb: { n }, sku: "S" + n, lugar: "A0" + n, ubicacionId: null });
@@ -57,6 +57,24 @@ ok(esDuplicado('duplicate key value violates unique constraint "conteo_lineas_un
   a.setItem("k", JSON.stringify([{ id: 5 }, null, it(9)])); ok(leerCola("k", a).map((x) => x.id).join() === "i9", "no filtró lo que no es un renglón");
   ok(leerCola(null, a).length === 0, "sin llave");
   ok(leerCola("k", { getItem() { throw new Error("privado") } }).length === 0, "sin almacenamiento debía dar vacío");
+}
+/* 7 · ¿LO QUE LA BASE YA TIENE ES ESTE RENGLÓN? El estado del envase cuenta:
+       NUEVO, LAVADO y EXTRASUCIO del mismo material en el mismo módulo son tres renglones. */
+{
+  const pend = (estado, cajas) => ({ id: "p", t: 1, sku: "900", lugar: "A01_DER", ubicacionId: null, bb: { modo: "cajas", estibas: "", saldo: "", cajas, estado } });
+  const base = (estado, cajas) => ({ codigo: "900", ubicacion: "A01_DER", estado_envase: estado, estibas: null, saldo: null, cajas });
+  ok(yaEstaEnLaBase(base("NUEVO", 50), pend("NUEVO", "50")), "el mismo renglón (con estado) no se reconoció");
+  ok(!yaEstaEnLaBase(base("LAVADO", 50), pend("NUEVO", "50")), "un renglón LAVADO con la misma cantidad dio por enviado a uno NUEVO");
+  ok(!yaEstaEnLaBase(base("NUEVO", 50), pend("", "50")), "un renglón con estado dio por enviado a uno sin estado");
+  ok(!yaEstaEnLaBase(base(null, 50), pend("NUEVO", "50")), "un renglón sin estado dio por enviado a uno con estado");
+  ok(yaEstaEnLaBase(base(null, 50), pend("", "50")), "sin estado en ambos debía ser el mismo");
+  ok(!yaEstaEnLaBase(base("NUEVO", 51), pend("NUEVO", "50")), "otra cantidad no debía ser el mismo");
+  ok(!yaEstaEnLaBase({ ...base("NUEVO", 50), ubicacion: "A02_DER" }, pend("NUEVO", "50")), "otro módulo no debía ser el mismo");
+  ok(!yaEstaEnLaBase({ ...base("NUEVO", 50), codigo: "901" }, pend("NUEVO", "50")), "otro material no debía ser el mismo");
+  const e = { ...pend("NUEVO", ""), bb: { modo: "estibas", estibas: "2", saldo: "5", cajas: "", estado: "NUEVO" } };
+  ok(yaEstaEnLaBase({ codigo: "900", ubicacion: "A01_DER", estado_envase: "NUEVO", estibas: 2, saldo: 5, cajas: null }, e), "estibas+saldo iguales no se reconocieron");
+  ok(!yaEstaEnLaBase({ codigo: "900", ubicacion: "A01_DER", estado_envase: "NUEVO", estibas: 2, saldo: null, cajas: null }, e), "otro saldo debía ser otro renglón");
+  ok(entero(" 1.200 ") === 1200 && entero("") === null && entero("0") === null, "entero");
 }
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
 console.log("✓ Cola sin señal: manda de a uno y en orden, se corta si se cae la señal sin perder lo que falta, un renglón malo no encierra a los buenos, y nada se descarta en silencio.");
