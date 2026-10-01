@@ -420,9 +420,9 @@ const pantallas = readdirSync(new URL("../src/app/(app)/inventario/", import.met
    guardados contra `/inventario/recibir`, y cambiar la ruta deja a todo
    el mundo sin acceso hasta que se vuelvan a abrir los roles. El nombre
    que se ve es el del menú, no el de la carpeta. */
-if (pantallas.join(",") !== "averias,base,conteo,maestro,recibir,tablero")
+if (pantallas.join(",") !== "averias,base,conteo,corte,fiscal,maestro,recibir,tablero")
   fallas.push(`bajo /inventario las carpetas son [${pantallas.join(", ")}] ` +
-              "y deben ser [averias, base, conteo, maestro, recibir, tablero]");
+              "y deben ser [averias, base, conteo, corte, fiscal, maestro, recibir, tablero]");
 
 const reg = readFileSync(new URL("../src/modulos/registro.ts", import.meta.url), "utf8");
 /* SOLO EL BLOQUE `secciones`. El módulo y cada rama traen su propia
@@ -435,7 +435,7 @@ const secciones = [...(bloqueInv.match(/secciones: \[[\s\S]*$/) ?? [""])[0]
 /* EL ORDEN ES EL DEL PROCESO Y NO EL DE CONSTRUCCIÓN: el material ENTRA
    al CD y se rotula (Recepción), después se cuenta, después se lee lo
    contado. Recepción va ANTES de Contar aunque se construyera después. */
-const espera = ["/inventario/maestro", "/inventario/recibir", "/inventario/conteo",
+const espera = ["/inventario/maestro", "/inventario/recibir", "/inventario/corte", "/inventario/fiscal", "/inventario/conteo",
                 "/inventario/base", "/inventario/tablero",
                 "/inventario/averias", "/inventario/averias/tablero",
                 "/inventario/averias/analisis", "/inventario/averias/maestro"];

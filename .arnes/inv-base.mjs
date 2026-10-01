@@ -620,7 +620,7 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
      decide qué sale primero — y lo que se dañó y no va a salir nunca se
      aparta al final. Mientras no tenga documento de baja sigue contando
      en «La base», que es la diferencia que descuadra un conteo. */
-  const debe = ["/inventario/maestro", "/inventario/conteo",
+  const debe = ["/inventario/maestro", "/inventario/recibir", "/inventario/corte", "/inventario/fiscal", "/inventario/conteo",
                 "/inventario/base", "/inventario/tablero",
                 "/inventario/averias", "/inventario/averias/tablero",
                 "/inventario/averias/analisis", "/inventario/averias/maestro"];

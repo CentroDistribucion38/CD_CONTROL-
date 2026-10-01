@@ -88,6 +88,9 @@ const PREFIJOS: [RegExp, string][] = [
   /* El CORTE DE LÍNEAS de Inventario: sus funciones y sus tres tablas. */
   [/\binv_corte_(guardar|eliminar|renglones)\b|\binv_(cortes|lineas)\b/,
    "supabase/migraciones/2026-09-inventario-corte-lineas.sql"],
+  /* El INVENTARIO FISCAL de Inventario: la función de guardar, la de eliminar y sus tres tablas. */
+  [/\binv_fiscal_(guardar|eliminar|hojas|miembros)\b|\binv_fiscales\b/,
+   "supabase/migraciones/2026-10-inventario-fiscal.sql"],
   /* ELIMINAR un camión anulado: la función `sider_viaje_eliminar` o la tabla de su registro. */
   [/\bsider_viaje_eliminar\b|\bsider_viajes_eliminados\b/,
    "supabase/migraciones/2026-09-sider-viaje-eliminar.sql"],

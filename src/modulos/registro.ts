@@ -627,6 +627,10 @@ export const MODULOS: Modulo[] = [
          Se hace uno inicial y otro final, y de la resta sale la diferencia
          que se analiza contra el conteo. */
       { nombre: "Corte de líneas", ruta: "/inventario/corte", rama: "conteos" },
+      /* EL INVENTARIO FISCAL VA ANTES DE CONTAR: es donde se arman las parejas
+         (una persona del operador logístico y una de Bavaria) y se numeran las
+         hojas, y eso se hace antes de que nadie baje a contar. */
+      { nombre: "Inventario fiscal", ruta: "/inventario/fiscal", rama: "conteos" },
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
       { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
       /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.
