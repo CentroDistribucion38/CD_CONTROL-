@@ -262,10 +262,12 @@
   .rl.us .btn, .us .cab .btn, .us .us-acciones .btn { height: 46px; font-size: 14.5px }
 }
 
-/* La lista rueda dentro de su caja. No la tenía: con veinte personas la
-   página entera rodaba, y en 360x640 se salía de la pantalla. El
-   descuento está medido en el arnés. */
-.us .us-marco { max-height: max(200px, calc(100dvh - 330px)) ; overflow-y: auto }
+/* LA LISTA NO RUEDA DENTRO DE SU CAJA: rueda la página. Antes la caja tenía
+   un tope de altura y, con ella, el encabezado quedaba quieto arriba y la
+   ficha de «A qué entra…» —que es larga— se veía por una ventanita. Ahora
+   la ficha abierta ocupa lo que necesita y se baja con la página. Solo se
+   desplaza de lado (tablas anchas), nunca hacia abajo por dentro. */
+.us .us-marco { max-height: none; overflow-y: visible }
 
 /* ---------- El celular respira ----------
    Generado desde la auditoría de densidad y comprobado midiendo: la

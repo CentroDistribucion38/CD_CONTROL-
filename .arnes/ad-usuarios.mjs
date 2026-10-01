@@ -276,6 +276,22 @@ ok(copiado.split("\n").length === 4 && /gvilla\t100000/.test(copiado) && !/apere
 const [d] = await Promise.all([pg.waitForEvent("download"), pg.click(".us-pnl-pie .btn:has-text('Pases en Excel')")]);
 ok(/pases-control-.*\.xlsx$/.test(d.suggestedFilename()), "los pases no se bajan en Excel");
 
+/* 5b · LA LISTA NO RUEDA POR DENTRO: rueda la página (antes tenía un tope de altura y el encabezado
+   quedaba quieto mientras la ficha «A qué entra…» se veía por una ventanita). */
+for (const ancho of [1200, 390]) {
+  await monta(ancho);
+  const m = await pg.evaluate(() => {
+    const marco = document.querySelector(".us-cuerpo .us-marco");
+    const filas = marco.querySelector("tbody");
+    for (let i = 0; i < 40; i++) filas.appendChild(filas.querySelector("tr").cloneNode(true));
+    const cs = getComputedStyle(marco);
+    return { tope: cs.maxHeight, interno: marco.scrollHeight - marco.clientHeight, alto: marco.getBoundingClientRect().height, vista: innerHeight };
+  });
+  ok(m.tope === "none", `${ancho} px: la lista tiene un tope de altura (${m.tope}) y rueda por dentro`);
+  ok(m.interno <= 1, `${ancho} px: la lista rueda por dentro (${m.interno} px de más)`);
+  ok(m.alto > m.vista, `${ancho} px: con 44 filas la lista no crece con la página (${m.alto} <= ${m.vista})`);
+}
+
 /* 6 · ANCHOS */
 for (const ancho of [1200, 390, 360]) {
   await monta(ancho);
@@ -307,13 +323,13 @@ for (const ancho of [1200, 390, 360]) {
          cortado, y en el PC que la tabla siga a la vista a su lado. */
       const tabla = document.querySelector(".us-cuerpo .us-marco").getBoundingClientRect();
       return { fuera, chicos, pie: pie.bottom <= p.bottom + 0.5 && pie.height > 40, ancho: Math.round(p.width),
-               visto: p.top < innerHeight && p.bottom > 0, alLado: tabla.right <= p.left + 1 && tabla.width > 300 };
+               visto: p.top < innerHeight && p.bottom > 0, enModal: !!document.querySelector(".us-pnl").closest(".us-modal"), alLado: tabla.right <= p.left + 1 && tabla.width > 300 };
     });
     ok(!q.fuera.length, `${ancho} px, panel «${boton}»: se sale ${q.fuera.join(", ")}`);
     ok(!q.chicos.filter(([, n]) => !/us-pnl-link/.test(n)).length, `${ancho} px, panel «${boton}»: se toca y mide menos de 44: ${JSON.stringify(q.chicos)}`);
     ok(q.pie, `${ancho} px, panel «${boton}»: los botones de abajo quedan cortados`);
     ok(q.visto, `${ancho} px, panel «${boton}»: al abrirse no queda en pantalla`);
-    if (ancho >= 1200) ok(q.alLado, `${ancho} px, panel «${boton}»: no va al lado de la tabla`);
+    if (ancho >= 1200) { if (!q.enModal) ok(q.alLado, `${ancho} px, panel «${boton}»: no va al lado de la tabla`) }
     else ok(q.ancho >= ancho - 40, `${ancho} px: el panel no ocupa el ancho (${q.ancho})`);
     if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/us-${boton.replace(" ", "")}-${ancho}.png` });
     if (boton === "Tarjetas y pases") await pg.click(".us-pnl-pie .btn.sec:has-text('Listo')");
