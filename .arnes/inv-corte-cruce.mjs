@@ -79,7 +79,7 @@ const c = q.get("c") ?? "todo";
 const cortes = c === "vacio" ? [] : (c === "multi" || c === "cruce" || c === "crucesin") ? [abM, finM, iniM] : [abierto, fin, ini];
 createRoot(document.getElementById("r")!).render(
   <Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={mats} cortes={cortes as any}
-    conteos={c === "crucesin" ? [] : conteos} lineasConteo={lineasConteo} nombres={{ u1: "Cristian Padilla", u2: "Muchacho Uno" }} puedeEditar={c !== "lectura"} manda={c === "manda"} ahora={AHORA} />);
+    conteos={c === "crucesin" ? [] : conteos} lineasConteo={lineasConteo} nombres={{ u1: "Cristian Padilla", u2: "Muchacho Uno" }} puedeEditar={c !== "lectura"} manda={c === "manda"} verDiferencia={c !== "sinanalisis"} ahora={AHORA} />);
 `);
 
 const js = buildSync({

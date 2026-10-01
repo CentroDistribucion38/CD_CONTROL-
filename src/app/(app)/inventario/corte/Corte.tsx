@@ -93,7 +93,7 @@ const num = (s: string): number | null => {
   return Number(t);
 };
 
-export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombres, puedeEditar, manda, ahora, conteos = [], lineasConteo = [] }: {
+export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombres, puedeEditar, manda, verDiferencia, ahora, conteos = [], lineasConteo = [] }: {
   bodegaId: string;
   lineas: LineaC[];
   ubicaciones: UbiC[];
@@ -103,6 +103,8 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
   nombres: Record<string, string>;
   puedeEditar: boolean;
   manda: boolean;
+  /** La diferencia (el análisis) es de quien administra: quien hace los cortes llega hasta el corte final. */
+  verDiferencia: boolean;
   /** «Ahora», del servidor: que la hora por defecto no dependa del reloj del teléfono. */
   ahora: string;
   /** Los conteos ENVIADOS de la bodega y sus renglones, para comparar el corte contra el inventario. */
@@ -262,7 +264,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
   if (form) {
     return (
       <>
-        <Cabeza paso={form.tipo === "inicial" ? 1 : 2} abiertos={abiertos.length} cerrados={cerrados.length} anotando={form.tipo} />
+        <Cabeza paso={form.tipo === "inicial" ? 1 : 2} abiertos={abiertos.length} cerrados={cerrados.length} anotando={form.tipo} verDiferencia={verDiferencia} />
         {bannerCola}
         <FormCorte
           tipo={form.tipo} inicial={form.inicial} bodegaId={bodegaId} lineas={lineas}
@@ -273,7 +275,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
             setForm(null);
             setAviso(t === "inicial"
               ? "Corte inicial guardado. Haz lo que tengas que hacer; cuando vuelvas, aquí abajo lo encuentras para hacer el corte final."
-              : "Corte final guardado. Abajo está la diferencia.");
+              : verDiferencia ? "Corte final guardado. Abajo está la diferencia." : "Corte final guardado.");
             router.refresh();
           }}
         />
@@ -283,7 +285,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
 
   return (
     <>
-    <Cabeza paso={abiertos.length > 0 ? 2 : 1} abiertos={abiertos.length} cerrados={cerrados.length} anotando={null} />
+    <Cabeza paso={abiertos.length > 0 ? 2 : 1} abiertos={abiertos.length} cerrados={cerrados.length} anotando={null} verDiferencia={verDiferencia} />
     {bannerCola}
     <div className="cl">
       {aviso && <p className="cl-ok" role="status">{aviso}</p>}
@@ -341,13 +343,17 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
         </div>
       )}
 
-      <h2 className="cl-h">La diferencia <span>{cerrados.length}</span></h2>
-      {cerrados.length === 0 ? (
-        <p className="fe-vacio">Todavía no hay cortes cerrados. Cuando hagas el final de uno, aquí sale cuánto pasó y cuánto se movió.</p>
-      ) : (
-        <Historial cortes={cortes} lineas={lineas} ubicaciones={ubicaciones} materiales={materiales}
-          conteos={conteos} lineasConteo={lineasConteo} manda={manda} borrar={borrar} ocupado={ocupado}
-          onBorrar={setBorrar} onConfirmar={eliminar} />
+      {verDiferencia && (
+        <>
+        <h2 className="cl-h">La diferencia <span>{cerrados.length}</span></h2>
+        {cerrados.length === 0 ? (
+          <p className="fe-vacio">Todavía no hay cortes cerrados. Cuando hagas el final de uno, aquí sale cuánto pasó y cuánto se movió.</p>
+        ) : (
+          <Historial cortes={cortes} lineas={lineas} ubicaciones={ubicaciones} materiales={materiales}
+            conteos={conteos} lineasConteo={lineasConteo} manda={manda} borrar={borrar} ocupado={ocupado}
+            onBorrar={setBorrar} onConfirmar={eliminar} />
+        )}
+        </>
       )}
     </div>
     </>
@@ -356,8 +362,8 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
 
 /* LA CABEZA, con los tres pasos: el corte inicial se guarda, el final se hace
    cuando se vuelve (queda «esperando»), y la diferencia sale sola. */
-function Cabeza({ paso, abiertos, cerrados, anotando }: {
-  paso: 1 | 2; abiertos: number; cerrados: number; anotando: "inicial" | "final" | null;
+function Cabeza({ paso, abiertos, cerrados, anotando, verDiferencia }: {
+  paso: 1 | 2; abiertos: number; cerrados: number; anotando: "inicial" | "final" | null; verDiferencia: boolean;
 }) {
   return (
     <section className="cabeza cl-cabeza">
@@ -367,10 +373,10 @@ function Cabeza({ paso, abiertos, cerrados, anotando }: {
         <p className="sub">
           Antes del conteo se corta cada línea: cuántas cajas pasaron por la depaletizadora, qué material
           corre, de dónde estaba tomando y dónde queda ubicado. Ese es el <b>inicial</b> y se guarda; luego,
-          cuando vuelvas, se hace el <b>final</b> y aquí sale la diferencia.
+          cuando vuelvas, se hace el <b>final</b>{verDiferencia ? " y aquí sale la diferencia." : "."}
         </p>
       </div>
-      <ol className="cl-flujo" aria-label="Los tres pasos">
+      <ol className="cl-flujo" aria-label={verDiferencia ? "Los tres pasos" : "Los dos pasos"}>
         <li className={paso === 1 ? "on" : ""}>
           <span>PASO 1</span><b>Corte inicial</b><small>{anotando === "inicial" ? "anotando ahora" : "se guarda y espera"}</small>
         </li>
@@ -378,9 +384,11 @@ function Cabeza({ paso, abiertos, cerrados, anotando }: {
           <span>PASO 2</span><b>Corte final</b>
           <small>{anotando === "final" ? "anotando ahora" : `${abiertos} ${abiertos === 1 ? "abierto esperando" : "abiertos esperando"}`}</small>
         </li>
-        <li>
-          <span>PASO 3</span><b>Diferencia</b><small>{cerrados > 0 ? `${cerrados} ${cerrados === 1 ? "lista" : "listas"}` : "sale sola"}</small>
-        </li>
+        {verDiferencia && (
+          <li>
+            <span>PASO 3</span><b>Diferencia</b><small>{cerrados > 0 ? `${cerrados} ${cerrados === 1 ? "lista" : "listas"}` : "sale sola"}</small>
+          </li>
+        )}
       </ol>
     </section>
   );

@@ -73,16 +73,22 @@ export default async function CortePage() {
   if (lin.error || cor.error || ren.error || sit.error) return sinSql;
 
   const renglonesDe = renglonesPorCorte((ren.data ?? []) as FilaRenglonBD[], (sit.data ?? []) as FilaSitioBD[]);
-  const cortes: CorteT[] = (cor.data ?? []).map((c) => ({
+  const verDiferencia = permisos.manda;
+  const todos: CorteT[] = (cor.data ?? []).map((c) => ({
     id: c.id, tipo: c.tipo as "inicial" | "final", inicial_id: c.inicial_id,
     cortado_en: c.cortado_en, nota: c.nota, creado_por: c.creado_por,
     renglones: renglonesDe.get(c.id) ?? [],
   }));
+  /* QUIEN HACE LOS CORTES LLEGA HASTA EL CORTE FINAL: la diferencia (el análisis) es
+     de quien administra. Para los demás solo viajan a la pantalla los iniciales que
+     esperan su final —lo que hace falta para hacerlo—, no los pares cerrados. */
+  const conFinal = new Set(todos.filter((c) => c.tipo === "final").map((c) => c.inicial_id));
+  const cortes: CorteT[] = verDiferencia ? todos : todos.filter((c) => c.tipo === "inicial" && !conFinal.has(c.id));
   /* LOS CONTEOS CON LOS QUE SE COMPARA EL CORTE: solo los ENVIADOS (un borrador
      a medio caminar diría que un módulo está vacío porque todavía no se llegó).
      Si quien mira no puede ver el conteo, esto viene vacío y el corte se ve
      igual, sin la comparación: nunca puede tumbar la pantalla. */
-  const [cv, lv] = await (async () => {
+  const [cv, lv] = !verDiferencia ? [[], []] as [ConteoRef[], LineaConteo[]] : await (async () => {
     const r = await supabase.from("v_conteos_fefo").select("*")
       .eq("bodega_id", bodega.id).eq("estado", "cerrado")
       .order("fecha_analisis", { ascending: false }).limit(30);
@@ -119,6 +125,7 @@ export default async function CortePage() {
         nombres={nombres}
         puedeEditar={puedeEditar}
         manda={permisos.manda}
+        verDiferencia={verDiferencia}
         ahora={new Date().toISOString()}
       />
     </div>

@@ -63,7 +63,7 @@ const c = q.get("c") ?? "todo";
 const cortes = c === "vacio" ? [] : [abierto, fin, ini];
 createRoot(document.getElementById("r")!).render(
   <Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={mats} cortes={cortes as any}
-    nombres={{ u1: "Cristian Padilla", u2: "Muchacho Uno" }} puedeEditar={c !== "lectura"} manda={c === "manda"} ahora={AHORA} />);
+    nombres={{ u1: "Cristian Padilla", u2: "Muchacho Uno" }} puedeEditar={c !== "lectura"} manda={c === "manda"} verDiferencia={c !== "sinanalisis"} ahora={AHORA} />);
 `);
 
 const js = buildSync({
@@ -150,6 +150,24 @@ await monta("c=lectura");
 ok(await pg.$$eval("button:not(.dq-fila)", (b) => b.length) === 0, "solo lectura: hay botones (aparte de los que despliegan un par)");
 await monta("c=vacio");
 ok(/No hay cortes iniciales abiertos/.test(await txt()) && /Todavía no hay cortes cerrados/.test(await txt()), "los vacíos no dicen qué hacer");
+
+/* ---------- 1b · QUIEN HACE LOS CORTES LLEGA HASTA EL CORTE FINAL: la diferencia es de quien administra ---------- */
+await monta("c=sinanalisis");
+{
+  const t = await txt();
+  ok(await pg.$$eval(".cl-flujo li", (x) => x.length) === 2 && !/PASO 3|Diferencia/.test(await pg.textContent(".cl-flujo")), "quien hace cortes ve el paso 3 «Diferencia»");
+  ok(await pg.getAttribute(".cl-flujo", "aria-label") === "Los dos pasos", "el lector de pantalla oye tres pasos donde hay dos");
+  ok(!/La diferencia/.test(t) && await pg.$$eval(".dq-card, .cl-par", (x) => x.length) === 0, "quien hace cortes ve la sección «La diferencia» o sus tarjetas");
+  ok(!/aquí sale la diferencia/.test(t), "el encabezado le promete la diferencia a quien no la ve");
+  ok(/Esperando el corte final/.test(t) && !!(await pg.$('.cl-abierto button:has-text("Hacer el corte final")')) && !!(await pg.$('button:has-text("Nuevo corte inicial")')), "a quien hace cortes le faltan el inicial o el final");
+  ok(await pg.$$eval("button:has-text('Eliminar')", (b) => b.length) === 0, "quien hace cortes ve «Eliminar»");
+}
+await monta("c=manda");
+ok(/La diferencia/.test(await txt()) && await pg.getAttribute(".cl-flujo", "aria-label") === "Los tres pasos" && await pg.$$eval(".cl-flujo li", (x) => x.length) === 3, "quien administra ya no ve la diferencia o el paso 3");
+const pagina = readFileSync(R("src/app/(app)/inventario/corte/page.tsx"), "utf8");
+ok(/verDiferencia = permisos\.manda/.test(pagina) && /verDiferencia=\{verDiferencia\}/.test(pagina), "la página no decide la diferencia por quien administra");
+ok(/verDiferencia \? todos : todos\.filter\(\(c\) => c\.tipo === "inicial" && !conFinal\.has\(c\.id\)\)/.test(pagina), "a los demás les siguen viajando los cortes cerrados");
+ok(/!verDiferencia \? \[\[\], \[\]\]/.test(pagina), "a los demás les siguen viajando los conteos para comparar");
 
 /* ---------- 2 · ELIMINAR (solo quien administra) ---------- */
 await monta("c=manda");
@@ -343,7 +361,20 @@ await monta("c=todo");
   const r = await rpcs();
   ok(r.length === 1 && r[0].a.p_tipo === "final" && r[0].a.p_inicial === "i2" && r[0].a.p_cortado === "2026-09-30T17:00:00.000Z" && r[0].a.p_nota === "L4 vuelve a las 3", "el final no viaja atado a su inicial: " + JSON.stringify(r[0].a).slice(0, 200));
   ok(r[0].a.p_renglones.length === 1 && r[0].a.p_renglones[0].linea === "L1", "solo debía viajar L1 (la única tocada): " + JSON.stringify(r[0].a.p_renglones).slice(0, 200));
-  ok(/Corte final guardado/.test(await txt()), "no avisó del final");
+  ok(/Corte final guardado/.test(await txt()) && /Abajo está la diferencia/.test(await txt()), "no avisó del final (con la diferencia para quien la ve)");
+}
+/* Quien no ve la diferencia: el mismo final, y el aviso no manda a mirar algo que no hay. */
+await monta("c=sinanalisis");
+{
+  await pg.click('.cl-abierto button:has-text("Hacer el corte final")');
+  await pg.fill(".cl-cuando input[type=datetime-local]", "2026-09-30T12:00");
+  await pg.fill(".cl-depa input", "30801");
+  await campo(0, ".cl-cant-c input").fill("30");
+  await campo(1, ".cl-cant-c input").fill("1800");
+  await pg.click(".cl-guardar .cl-go");
+  await pg.waitForFunction(() => window.__refresh > 0);
+  ok((await rpcs()).length === 1 && (await rpcs())[0].a.p_tipo === "final", "quien hace cortes no pudo hacer el final");
+  ok(/Corte final guardado\./.test(await txt()) && !/diferencia/i.test(await txt()), "el aviso del final le habla de la diferencia a quien no la ve: " + (await txt()).slice(0, 200));
 }
 
 /* ---------- 4b · EL COLOR ES EL DEL TEMA ELEGIDO (en negro/gris/halo: ámbar; el rojo es solo «ojo con esto») ---------- */

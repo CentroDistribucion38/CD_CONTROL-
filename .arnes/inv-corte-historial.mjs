@@ -81,7 +81,7 @@ const lmix = [LC("km", "m1", "uA01", 1500), LC("km", "m3", "uB12I", 1000), LC("k
 const uno = cortes.filter((x) => x.id === "i20" || x.id === "f20");
 createRoot(document.getElementById("r")!).render(
   <Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={mats} cortes={(c === "mixto" ? mixto : c === "uno" ? uno : cortes) as any}
-    conteos={(c === "mixto" ? kmix : conteos) as any} lineasConteo={(c === "mixto" ? lmix : lineasConteo) as any} nombres={{ u1: "Cristian Padilla" }} puedeEditar={true} manda={c === "manda"} ahora={AHORA} />);
+    conteos={(c === "mixto" ? kmix : conteos) as any} lineasConteo={(c === "mixto" ? lmix : lineasConteo) as any} nombres={{ u1: "Cristian Padilla" }} puedeEditar={true} manda={c === "manda"} verDiferencia={c !== "sinanalisis"} ahora={AHORA} />);
 `);
 
 const js = buildSync({
