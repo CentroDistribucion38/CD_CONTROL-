@@ -32,7 +32,8 @@ import { medirRiesgo, franja, FRANJAS, type Franja } from "./riesgo";
 type BufferDeExcel = Parameters<ExcelJS.Workbook["addImage"]>[0]["buffer"];
 
 export type InsumosDia = {
-  fecha: string;               // YYYY-MM-DD
+  fecha: string;               // YYYY-MM-DD (el primer día)
+  hasta?: string;              // YYYY-MM-DD: si viene y es otro día, el libro es de un período
   bodega: string;
   quien: string;
   conteos: ConteoFefo[];       // los ENVIADOS de ese día
@@ -107,22 +108,23 @@ function cabecera(h: ExcelJS.Worksheet, titulo: string, sub: string, ancho: numb
 }
 
 /** Encabezado de tabla: la tinta del tema con letra blanca. */
-function encabezado(h: ExcelJS.Worksheet, fila: number, titulos: string[]) {
+function encabezado(h: ExcelJS.Worksheet, fila: number, titulos: string[], nums: number[] = []) {
   const r = h.getRow(fila); r.height = 26;
   titulos.forEach((t, i) => {
     const c = r.getCell(i + 1); c.value = t;
     c.font = letra(9, BLANCO, true); c.fill = relleno(TINTA);
-    c.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    /* Texto a la izquierda y cifras a la derecha, arriba y abajo por igual. */
+    c.alignment = { vertical: "middle", horizontal: nums.includes(i + 1) ? "right" : "left", wrapText: true, indent: 1 };
   });
 }
 
 /** Rayado suave, raya fina abajo y formatos de una fila de datos. */
-function filaDatos(r: ExcelJS.Row, n: number, par: boolean, fmts: Record<number, string>) {
+function filaDatos(r: ExcelJS.Row, n: number, par: boolean, fmts: Record<number, string>, nums: number[] = []) {
   r.height = 18;
   for (let c = 1; c <= n; c++) {
     const cel = r.getCell(c);
     cel.border = { bottom: raya() }; cel.font = letra(9.5, TINTA);
-    cel.alignment = { vertical: "middle" };
+    cel.alignment = { vertical: "middle", horizontal: nums.includes(c) ? "right" : "left", indent: 1 };
     if (par) cel.fill = relleno(FONDO);
     if (fmts[c]) cel.numFmt = fmts[c];
   }
@@ -149,6 +151,15 @@ function pintarFranja(cel: ExcelJS.Cell, f: Franja) {
   cel.font = letra(9.5, FR[f].tinta, true);
 }
 
+/** El orden del almacén: calle, módulo (01, 02… 10 antes que PASILLO), lado y
+ *  nombre. Se cuente en el orden que se cuente, el libro sale así. */
+const natural = (a: string | null | undefined, b: string | null | undefined) => (a ?? "").localeCompare(b ?? "", "es", { numeric: true });
+export function porSitio<T extends { calle?: string | null; modulo?: string | null; lado?: string | null }>(
+  a: T, b: T, nombre: (x: T) => string,
+): number {
+  return natural(a.calle, b.calle) || natural(a.modulo, b.modulo) || natural(a.lado, b.lado) || natural(nombre(a), nombre(b));
+}
+
 const siNo = (b: boolean | null | undefined) => (b ? "Sí" : "");
 
 export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
@@ -168,12 +179,15 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   const enFoto = new Set(foto.map((l) => l.id));
   const reemplazados = d.lineas.filter((l) => !enFoto.has(l.id));
   const matPorSku = new Map(d.materiales.map((m) => [m.sku, m]));
-  const orden = (a: Renglon, b: Renglon) => (a.ubicacion_combinada ?? a.ubicacion ?? "").localeCompare(b.ubicacion_combinada ?? b.ubicacion ?? "", "es", { numeric: true }) || a.codigo.localeCompare(b.codigo);
+  const orden = (a: Renglon, b: Renglon) =>
+    porSitio(a, b, (x) => x.ubicacion_combinada ?? x.ubicacion ?? "") || natural(a.codigo, b.codigo) || natural(a.vencimiento, b.vencimiento);
   const base = [...foto].sort(orden);
   const titulo = `Inventario consolidado · ${d.bodega}`;
   const parcial = d.totalDelDia != null && d.totalDelDia > d.conteos.length;
-  const sub = `${fechaLarga(d.fecha).replace(/^./, (c) => c.toUpperCase())}  ·  ` +
-    (parcial ? `${d.conteos.length} de ${d.totalDelDia} FEFO del día (escogidos: ${d.conteos.map((c) => c.codigo).join(", ")})`
+  const periodo = !!d.hasta && d.hasta !== d.fecha;
+  const cuando = periodo ? `Del ${fechaLarga(d.fecha)} al ${fechaLarga(d.hasta!)}` : fechaLarga(d.fecha);
+  const sub = `${cuando.replace(/^./, (c) => c.toUpperCase())}  ·  ` +
+    (parcial ? `${d.conteos.length} de ${d.totalDelDia} FEFO ${periodo ? "del período" : "del día"} (escogidos: ${d.conteos.map((c) => c.codigo).join(", ")})`
              : `${d.conteos.length} FEFO enviado${d.conteos.length === 1 ? "" : "s"}`) + ` · exportó ${d.quien}`;
 
   /* ================= VALIDAR (se arma primero: el resumen la cuenta) ================= */
@@ -210,7 +224,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   /* Lo que nadie caminó ese día. */
   const contadas = new Set(foto.map((l) => l.ubicacion_id).filter(Boolean));
   const sinContar = d.ubicaciones.filter((u) => u.activa && !contadas.has(u.id))
-    .sort((a, b) => a.clave.localeCompare(b.clave, "es", { numeric: true }));
+    .sort((a, b) => porSitio(a, b, (x) => x.clave));
   const activas = d.ubicaciones.filter((u) => u.activa).length;
 
   /* ================= 1 · RESUMEN =================
@@ -381,7 +395,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       "Franja", "Rota", "Avería", "PNC", "Estado envase", "Nota"];
     h.columns = [12, 18, 16, 7, 8, 7, 13, 10, 34, 11, 14, 9, 10, 8, 11, 12, 12, 12, 10, 10, 18, 6, 7, 6, 14, 30].map((w) => ({ width: w }));
     cabecera(h, "Base consolidada del día", sub, C.length);
-    encabezado(h, 6, C);
+    encabezado(h, 6, C, [12, 13, 14, 15, 16, 19, 20]);
     base.forEach((l, i) => {
       const u = uxc[l.codigo];
       const r = h.getRow(7 + i);
@@ -389,7 +403,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         l.tipo_material, l.familia ?? "", Number(l.estibas ?? 0), Number(l.cajas ?? 0), Number(l.saldo ?? 0), Number(l.total_cajas),
         u ? Number(l.total_cajas) * u : null, aFecha(l.fabricacion), aFecha(l.vencimiento), l.dias_para_vencer, l.dias_para_salir,
         rotFr(franja(l)), siNo(l.rotacion), siNo(l.averia), siNo(l.pnc), l.estado_envase ?? "", l.nota ?? ""];
-      filaDatos(r, C.length, i % 2 === 1, { 3: "dd/mm/yy hh:mm", 12: "#,##0", 13: "#,##0", 14: "#,##0", 15: "#,##0", 16: "#,##0", 17: "dd/mm/yyyy", 18: "dd/mm/yyyy", 19: "0", 20: "0" });
+      filaDatos(r, C.length, i % 2 === 1, { 3: "dd/mm/yy hh:mm", 12: "#,##0", 13: "#,##0", 14: "#,##0", 15: "#,##0", 16: "#,##0", 17: "dd/mm/yyyy", 18: "dd/mm/yyyy", 19: "0", 20: "0" }, [12, 13, 14, 15, 16, 19, 20]);
       r.getCell(8).font = letra(9.5, TINTA, true);
       r.getCell(15).font = letra(9.5, TINTA, true);
       if (l.tipo_material !== "ENVASE") pintarFranja(r.getCell(21), franja(l));
@@ -408,7 +422,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const C = ["Código", "Material", "Tipo", "Familia", "Ubicaciones", "Estibas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)"];
     h.columns = [10, 36, 11, 14, 12, 10, 11, 12, 13, 11, 20, 14].map((w) => ({ width: w }));
     cabecera(h, "Por material", sub, C.length);
-    encabezado(h, 6, C);
+    encabezado(h, 6, C, [5, 6, 7, 8, 10, 12]);
     const est = new Map<string, number>();
     for (const l of base) est.set(l.codigo, (est.get(l.codigo) ?? 0) + Number(l.total_estibas ?? 0));
     /* TODO LO CONTADO, envase incluido: esta hoja es el inventario del
@@ -419,7 +433,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       const r = h.getRow(7 + i);
       r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "", m.familia ?? "", m.sitios.length, est.get(m.codigo) ?? 0, m.cajas, m.unidades,
         aFecha(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas];
-      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "dd/mm/yyyy", 10: "0", 12: "#,##0" });
+      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "dd/mm/yyyy", 10: "0", 12: "#,##0" }, [5, 6, 7, 8, 10, 12]);
       r.getCell(1).font = letra(9.5, TINTA, true);
       pintarFranja(r.getCell(11), m.franja);
     });
@@ -436,13 +450,13 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const C = ["Ubicación", "Calle", "Módulo", "Lado", "Capacidad (estibas)", "Estibas", "Ocupación", "Cajas", "Materiales", "Renglones"];
     h.columns = [14, 8, 9, 8, 12, 10, 11, 11, 11, 11].map((w) => ({ width: w }));
     cabecera(h, "Por ubicación", sub, C.length);
-    encabezado(h, 6, C);
-    const us = [...porUbi.values()].sort((a, b) => a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
+    encabezado(h, 6, C, [5, 6, 7, 8, 9, 10]);
+    const us = [...porUbi.values()].sort((a, b) => porSitio(a, b, (x) => x.ubicacion));
     us.forEach((x, i) => {
       const r = h.getRow(7 + i);
       const occ = x.capacidad ? x.estibas / x.capacidad : null;
       r.values = [x.ubicacion, x.calle ?? "", x.modulo ?? "", x.lado ?? "", x.capacidad, x.estibas, occ, x.cajas, x.materiales.size, x.renglones];
-      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "0%", 8: "#,##0", 9: "0", 10: "0" });
+      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "0%", 8: "#,##0", 9: "0", 10: "0" }, [5, 6, 7, 8, 9, 10]);
       r.getCell(1).font = letra(9.5, TINTA, true);
       if (occ != null && occ > 1) { r.getCell(7).fill = relleno(FR.pasado.fondo); r.getCell(7).font = letra(9.5, FR.pasado.tinta, true) }
     });
@@ -481,11 +495,11 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const C = ["Ubicación", "Calle", "Módulo", "Lado", "Familia", "Capacidad"];
     h.columns = [14, 8, 9, 8, 18, 12].map((w) => ({ width: w }));
     cabecera(h, "Sin contar ese día", `${sinContar.length} de ${activas} posiciones activas · ${sub}`, C.length);
-    encabezado(h, 6, C);
+    encabezado(h, 6, C, [6]);
     sinContar.forEach((u, i) => {
       const r = h.getRow(7 + i);
       r.values = [u.clave, u.calle, u.modulo, u.lado ?? "", u.familia ?? "", u.capacidad];
-      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0" });
+      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0" }, [6]);
     });
     const fin = 6 + Math.max(sinContar.length, 1);
     h.autoFilter = `A6:${col(C.length)}${fin}`;

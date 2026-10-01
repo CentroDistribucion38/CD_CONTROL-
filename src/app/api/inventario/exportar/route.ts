@@ -1,7 +1,8 @@
 /**
- * EL CONSOLIDADO DEL DÍA EN EXCEL — GET /api/inventario/exportar?fecha=YYYY-MM-DD
+ * EL CONSOLIDADO DEL DÍA (O DEL PERÍODO) EN EXCEL —
+ *   GET /api/inventario/exportar?desde=YYYY-MM-DD&hasta=YYYY-MM-DD   (o ?fecha= para un solo día)
  *
- * Busca los recorridos ENVIADOS de ese día en la bodega, sus renglones y
+ * Busca los recorridos ENVIADOS de esos días en la bodega, sus renglones y
  * el maestro, y se los da a src/modulos/inventario/libro.ts, que arma el
  * libro. Con la sesión del usuario (RLS): nadie exporta lo que no podría
  * ver en pantalla.
@@ -24,8 +25,14 @@ export async function GET(req: Request) {
   const permisos = await misPermisos();
   if (!permisos.puedeVer("/inventario/base")) return NextResponse.json({ error: "Tu rol no ve la base del inventario." }, { status: 403 });
 
-  const fecha = new URL(req.url).searchParams.get("fecha") ?? "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return NextResponse.json({ error: "Falta el día (fecha=AAAA-MM-DD)." }, { status: 400 });
+  const qs = new URL(req.url).searchParams;
+  const esDia = (x: string) => /^\d{4}-\d{2}-\d{2}$/.test(x);
+  let fecha = qs.get("desde") ?? qs.get("fecha") ?? "";
+  let hasta = qs.get("hasta") ?? fecha;
+  if (!esDia(fecha) || !esDia(hasta)) return NextResponse.json({ error: "Falta el día (desde=AAAA-MM-DD&hasta=AAAA-MM-DD)." }, { status: 400 });
+  if (hasta < fecha) [fecha, hasta] = [hasta, fecha];
+  /* Un período largo trae renglones de más y el Excel se pone pesado: tres meses es de sobra. */
+  if ((Date.parse(hasta) - Date.parse(fecha)) / 86400000 > 93) return NextResponse.json({ error: "El período es muy largo: máximo tres meses por Excel." }, { status: 400 });
 
   const m = await maestroInventario();
   if (m.falta) return NextResponse.json({ error: "Falta preparar el módulo de inventario en Supabase." }, { status: 503 });
@@ -34,15 +41,15 @@ export async function GET(req: Request) {
   if (!bodega) return NextResponse.json({ error: "No hay bodega." }, { status: 404 });
 
   const { data: c, error } = await supabase.from("v_conteos_fefo").select("*")
-    .eq("bodega_id", bodega.id).eq("fecha_analisis", fecha).eq("estado", "cerrado")
-    .order("enviado_en", { ascending: true }).limit(200);
+    .eq("bodega_id", bodega.id).gte("fecha_analisis", fecha).lte("fecha_analisis", hasta).eq("estado", "cerrado")
+    .order("fecha_analisis", { ascending: true }).order("enviado_en", { ascending: true }).limit(200);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   /* ?ids=a,b: solo los FEFO que se marcaron. Se cruzan con los del día:
      un id de otro día o sin enviar no entra aunque llegue en la URL. */
   const ids = (new URL(req.url).searchParams.get("ids") ?? "").split(",").filter((x) => /^[0-9a-f-]{36}$/i.test(x));
   const delDia = (c ?? []) as ConteoFefo[];
   const conteos = ids.length ? delDia.filter((x) => ids.includes(x.id)) : delDia;
-  if (!conteos.length) return NextResponse.json({ error: ids.length ? "Ninguno de los FEFO escogidos es de ese día." : `El ${fecha} no tiene recorridos enviados.` }, { status: 404 });
+  if (!conteos.length) return NextResponse.json({ error: ids.length ? "Ninguno de los FEFO escogidos es de ese día." : (fecha === hasta ? `El ${fecha} no tiene recorridos enviados.` : `Del ${fecha} al ${hasta} no hay recorridos enviados.`) }, { status: 404 });
 
   const { data: l } = await supabase.from("v_conteo_fefo").select("*")
     .in("conteo_id", conteos.map((x) => x.id)).limit(20000);
@@ -54,11 +61,11 @@ export async function GET(req: Request) {
   const colores = esHex(q.get("tinta")) && esHex(q.get("banda")) ? { tinta: q.get("tinta")!, banda: q.get("banda")! } : undefined;
 
   const archivo = await armarLibroDia({
-    fecha, bodega: bodega.codigo, quien: yo?.nombre || yo?.usuario || "—",
+    fecha, hasta, bodega: bodega.codigo, quien: yo?.nombre || yo?.usuario || "—",
     conteos, lineas: (l ?? []) as Renglon[], materiales: m.materiales,
     ubicaciones: m.ubicaciones.filter((u) => u.bodega_id === bodega.id), logo, colores, totalDelDia: delDia.length,
   });
-  const nombre = `inventario-consolidado-${bodega.codigo}-${fecha}${conteos.length < delDia.length ? `-${conteos.length}de${delDia.length}` : ""}.xlsx`;
+  const nombre = `inventario-consolidado-${bodega.codigo}-${fecha}${hasta !== fecha ? `_${hasta}` : ""}${conteos.length < delDia.length ? `-${conteos.length}de${delDia.length}` : ""}.xlsx`;
   return new NextResponse(new Uint8Array(archivo), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

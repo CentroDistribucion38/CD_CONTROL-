@@ -33,9 +33,19 @@ export const diasDelMes = (a: number, m: number) => new Date(Date.UTC(a, m + 1, 
 export const primerDia = (a: number, m: number) => (new Date(Date.UTC(a, m, 1)).getUTCDay() + 6) % 7;
 
 /* ==================== Calendario de rango ==================== */
-export function Calendario({ desde, hasta, minF, maxF, aplicar }: {
+export type Atajo = { t: string; d: () => [string, string] };
+export function Calendario({ desde, hasta, minF, maxF, aplicar, atajos: atajosPropios, marcados, unDia = false, flechaAntesEnMovil = false }: {
   desde: string; hasta: string; minF: string; maxF: string;
   aplicar: (d: string, h: string) => void;
+  /** Los atajos de la izquierda, si el calendario no es el del histórico. */
+  atajos?: Atajo[];
+  /** Días que tienen algo (un punto debajo del número). */
+  marcados?: ReadonlySet<string>;
+  /** Con un solo toque ya vale: un día suelto es un período de un día. */
+  unDia?: boolean;
+  /** En pantalla angosta solo cabe un mes: el de la derecha (donde cae lo elegido);
+   *  con esto ese mes también trae su flecha de «anterior». Solo lo pide quien lo estiliza. */
+  flechaAntesEnMovil?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [ini, setIni] = useState(desde);
@@ -47,7 +57,7 @@ export function Calendario({ desde, hasta, minF, maxF, aplicar }: {
   useEffect(() => { setIni(desde); setFin(hasta); }, [desde, hasta, abierto]);
 
   const hoy = maxF; // "hoy" del negocio es el último día con datos
-  const atajos: { t: string; d: () => [string, string] }[] = [
+  const atajos: Atajo[] = atajosPropios ?? [
     { t: "Todo el histórico", d: () => [minF, maxF] },
     { t: "Este año", d: () => [`${partes(maxF).a}-01-01`, maxF] },
     { t: "Este mes", d: () => {
@@ -72,7 +82,8 @@ export function Calendario({ desde, hasta, minF, maxF, aplicar }: {
     if (f < ini) { setFin(ini); setIni(f); } else setFin(f);
   }
 
-  const listo = ini && fin;
+  const listo = ini && (fin || unDia);
+  const finEf = fin || ini;
 
   return (
     <div className="calendario" ref={caja}>
@@ -87,7 +98,7 @@ export function Calendario({ desde, hasta, minF, maxF, aplicar }: {
           <rect x="3.5" y="5" width="17" height="15.5" rx="1.5" />
           <path d="M3.5 10h17M8 3.5v3M16 3.5v3" />
         </svg>
-        <span className="txt">{bonita(desde)} — {bonita(hasta)}</span>
+        <span className="txt">{desde === hasta ? bonita(desde) : `${bonita(desde)} — ${bonita(hasta)}`}</span>
         <svg className="flecha" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
       </button>
 
@@ -118,8 +129,8 @@ export function Calendario({ desde, hasta, minF, maxF, aplicar }: {
                   <Mes
                     key={k}
                     anio={a} mes={m}
-                    ini={ini} fin={fin} hoy={hoy} minF={minF} maxF={maxF}
-                    primero={k === 0} segundo={k === 1}
+                    ini={ini} fin={fin} hoy={hoy} minF={minF} maxF={maxF} marcados={marcados}
+                    primero={k === 0} segundo={k === 1} flechaAntes={flechaAntesEnMovil && k === 1}
                     mover={(paso) => {
                       const nm = ancla.m + paso;
                       setAncla({ a: ancla.a + Math.floor(nm / 12), m: ((nm % 12) + 12) % 12, d: 1 });
@@ -134,7 +145,9 @@ export function Calendario({ desde, hasta, minF, maxF, aplicar }: {
           <div className="cal-pie">
             <div className="resumen">
               {listo ? (
-                <>Del <b>{bonita(ini)}</b> al <b>{bonita(fin)}</b></>
+                finEf === ini
+                  ? <>El <b>{bonita(ini)}</b>{!fin && <> · toca otro día si quieres un período</>}</>
+                  : <>Del <b>{bonita(ini)}</b> al <b>{bonita(finEf)}</b></>
               ) : (
                 <>Elige el día en que termina</>
               )}
@@ -144,7 +157,7 @@ export function Calendario({ desde, hasta, minF, maxF, aplicar }: {
               <button
                 className="aplicar"
                 disabled={!listo}
-                onClick={() => { if (listo) { aplicar(ini, fin); setAbierto(false); } }}
+                onClick={() => { if (listo) { aplicar(ini, finEf); setAbierto(false); } }}
               >
                 Aplicar
               </button>
@@ -156,9 +169,9 @@ export function Calendario({ desde, hasta, minF, maxF, aplicar }: {
   );
 }
 
-export function Mes({ anio, mes, ini, fin, hoy, minF, maxF, primero, segundo, mover, tocar }: {
+export function Mes({ anio, mes, ini, fin, hoy, minF, maxF, primero, segundo, mover, tocar, marcados, flechaAntes }: {
   anio: number; mes: number; ini: string; fin: string; hoy: string;
-  minF: string; maxF: string; primero: boolean; segundo: boolean;
+  minF: string; maxF: string; primero: boolean; segundo: boolean; marcados?: ReadonlySet<string>; flechaAntes?: boolean;
   mover: (paso: number) => void; tocar: (f: string) => void;
 }) {
   const hueco = primerDia(anio, mes);
@@ -169,6 +182,10 @@ export function Mes({ anio, mes, ini, fin, hoy, minF, maxF, primero, segundo, mo
       <div className="mes-cab">
         {primero ? (
           <button type="button" aria-label="Mes anterior" onClick={() => mover(-1)}>
+            <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
+          </button>
+        ) : flechaAntes ? (
+          <button type="button" className="ant-movil" aria-label="Mes anterior" onClick={() => mover(-1)}>
             <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6" /></svg>
           </button>
         ) : <span className="hueco" />}
@@ -198,6 +215,7 @@ export function Mes({ anio, mes, ini, fin, hoy, minF, maxF, primero, segundo, mo
             f === ini ? "inicio" : "",
             fin && f === fin ? "fin" : "",
             f === hoy ? "hoy" : "",
+            marcados?.has(f) ? "marcado" : "",
           ].filter(Boolean).join(" ");
           return (
             <button

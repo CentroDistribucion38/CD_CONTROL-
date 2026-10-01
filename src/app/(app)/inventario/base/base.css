@@ -347,10 +347,92 @@
 .fe .ba-elim-ayuda { margin: 0 0 10px; font-size: 13px; color: var(--fe-gris) }
 .fe .ba-elim-ok { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--fe-tinta) }
 .fe .ba-elim-lista { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 6px }
-.fe .ba-elim-lista li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 52px; padding: 6px 12px; border: 1px solid var(--fe-linea) }
-.fe .ba-elim-lista li.pide { border-color: #A30D25; background: color-mix(in srgb, #A30D25 5%, #fff) }
+.fe .ba-elim-lista li { border: 1px solid var(--fe-linea) }
+.fe .ba-elim-lista li label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 52px; padding: 6px 12px; cursor: pointer }
+.fe .ba-elim-lista li label input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: #A30D25 }
+.fe .ba-elim-lista li.marcado { border-color: #A30D25; background: color-mix(in srgb, #A30D25 5%, #fff) }
+.fe .ba-elim-barra { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 10px }
+.fe .ba-elim-cuenta { font-size: 13px; font-weight: 700; color: var(--fe-gris); flex: 1 1 auto }
+.fe .ba-elim-conf { margin: 0 0 10px; padding: 10px 12px; border: 1px solid #A30D25; background: color-mix(in srgb, #A30D25 5%, #fff) }
+.fe .ba-elim-conf > span { flex: 1 1 100% }
 .fe .ba-elim-lista b { font: 800 14px var(--fe-titulo); color: var(--fe-tinta) }
-.fe .ba-elim-lista li > span:not(.ba-elim-conf) { font-size: 13px; flex: 1 1 200px; min-width: 0 }
+.fe .ba-elim-lista li label > span { font-size: 13px; flex: 1 1 200px; min-width: 0 }
 .fe .ba-elim-estado { font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: .08em; padding: 2px 7px; border: 1px solid var(--fe-linea); color: var(--fe-gris) }
 .fe .ba-elim-estado.cerrado { color: var(--fe-tinta); border-color: var(--fe-tinta) }
 .fe .ba-elim-conf { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; font-weight: 700 }
+
+/* EL CALENDARIO DEL CONSOLIDADO: un día o un período, todo dentro del mismo panel. */
+.fe .ba-conso-dia { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.fe .ba-conso-dia > span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .ba-conso .calendario { position: relative }
+.fe .ba-conso .disparo {
+  display: flex; align-items: center; gap: 10px; min-height: 46px; min-width: 250px; padding: 0 12px; width: 100%;
+  font: 600 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 3px; cursor: pointer; text-align: left;
+}
+.fe .ba-conso .disparo[aria-expanded="true"], .fe .ba-conso .disparo:focus-visible { outline: none; border-color: var(--fe-acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fe-acento) 22%, transparent) }
+.fe .ba-conso .disparo .ico { width: 16px; height: 16px; stroke: var(--fe-gris); stroke-width: 1.8; fill: none; flex: none }
+.fe .ba-conso .disparo .flecha { margin-left: auto; width: 14px; height: 14px; stroke: var(--fe-gris); stroke-width: 2.2; fill: none; flex: none; transition: transform .14s }
+.fe .ba-conso .disparo[aria-expanded="true"] .flecha { transform: rotate(180deg) }
+.fe .ba-conso .disparo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.fe .ba-conso .calendario .panel {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; max-width: calc(100vw - 24px);
+  background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px; overflow: hidden; box-shadow: 0 28px 56px -24px rgba(4,32,63,.5);
+}
+.fe .ba-conso .calendario .panel::before { content: ""; display: block; height: 3px; background: var(--fe-acento) }
+.fe .ba-conso .cal-cuerpo { display: flex }
+.fe .ba-conso .atajos { width: 170px; border-right: 1px solid var(--fe-linea); padding: 12px 0; flex: none }
+.fe .ba-conso .atajos button {
+  display: block; width: 100%; min-height: 44px; text-align: left; padding: 9px 18px; border: 0; background: none; border-radius: 0;
+  font: 600 13.5px var(--fe-texto); color: var(--fe-tinta); cursor: pointer; border-left: 3px solid transparent;
+}
+.fe .ba-conso .atajos button:hover { background: color-mix(in srgb, var(--fe-acento) 8%, #fff) }
+.fe .ba-conso .atajos button.on { border-left-color: var(--fe-acento); font-weight: 800 }
+.fe .ba-conso .meses { display: flex; gap: 26px; padding: 16px 20px }
+.fe .ba-conso .mes { width: 224px }
+.fe .ba-conso .mes-cab { display: flex; align-items: center; justify-content: space-between; height: 30px; margin-bottom: 8px }
+.fe .ba-conso .mes-cab .titulo-mes { font: 800 14.5px var(--fe-titulo); text-transform: capitalize; color: var(--fe-tinta) }
+.fe .ba-conso .mes-cab button { width: 44px; height: 44px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 3px; cursor: pointer; display: grid; place-items: center; padding: 0 }
+.fe .ba-conso .mes-cab button svg { width: 13px; height: 13px; stroke: var(--fe-tinta); stroke-width: 2.3; fill: none }
+.fe .ba-conso .mes-cab .hueco { width: 44px }
+.fe .ba-conso .mes-cab .ant-movil { display: none }
+.fe .ba-conso .mes-cab .titulo-mes { white-space: nowrap }
+.fe .ba-conso .semana, .fe .ba-conso .dias { display: grid; grid-template-columns: repeat(7, 1fr) }
+.fe .ba-conso .semana span { text-align: center; font-size: 11px; font-weight: 700; color: var(--fe-gris); padding-bottom: 6px }
+.fe .ba-conso .dias button {
+  height: 40px; min-height: 0; border: 0; background: none; cursor: pointer; padding: 0; border-radius: 0;
+  font: 600 13.5px var(--fe-texto); color: var(--fe-tinta); position: relative;
+}
+.fe .ba-conso .dias button.fuera { color: color-mix(in srgb, var(--fe-gris) 40%, #fff); cursor: default }
+.fe .ba-conso .dias button:hover:not(.fuera):not(.punta) { background: color-mix(in srgb, var(--fe-acento) 10%, #fff) }
+.fe .ba-conso .dias button.dentro { background: color-mix(in srgb, var(--fe-acento) 18%, #fff) }
+.fe .ba-conso .dias button.punta { background: var(--fe-acento); color: var(--fe-sobre); font-weight: 800 }
+.fe .ba-conso .dias button.inicio { border-radius: 3px 0 0 3px }
+.fe .ba-conso .dias button.fin { border-radius: 0 3px 3px 0 }
+.fe .ba-conso .dias button.inicio.fin { border-radius: 3px }
+.fe .ba-conso .dias button.hoy { text-decoration: underline; text-underline-offset: 3px }
+/* El puntito: ese día hay FEFO enviados. */
+.fe .ba-conso .dias button.marcado::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--fe-acento) }
+.fe .ba-conso .dias button.punta.marcado::after { background: var(--fe-sobre) }
+.fe .ba-conso .cal-pie { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--fe-linea); flex-wrap: wrap }
+.fe .ba-conso .cal-pie .resumen { font-size: 13.5px; color: var(--fe-gris); min-width: 0 }
+.fe .ba-conso .cal-pie .resumen b { color: var(--fe-tinta) }
+.fe .ba-conso .cal-pie .btns { margin-left: auto; display: flex; gap: 10px }
+.fe .ba-conso .cal-pie button { min-height: 44px; padding: 0 18px; border-radius: 3px; cursor: pointer; font: 800 13.5px var(--fe-titulo) }
+.fe .ba-conso .cal-pie .aplicar { border: 0; background: var(--fe-acento); color: var(--fe-sobre) }
+.fe .ba-conso .cal-pie .aplicar:disabled { opacity: .45; cursor: default }
+.fe .ba-conso .cal-pie .cancelar { border: 0; background: none; color: var(--fe-gris) }
+@media (max-width: 1000px) {
+  .fe .ba-conso-dia { flex: 1 1 100% }
+  .fe .ba-conso .disparo { min-width: 0 }
+}
+@media (max-width: 720px) {
+  .fe .ba-conso .calendario .panel { left: 0; right: 0; width: auto }
+  .fe .ba-conso .cal-cuerpo { flex-direction: column }
+  .fe .ba-conso .atajos { width: 100%; border-right: 0; border-bottom: 1px solid var(--fe-linea); display: flex; overflow-x: auto; padding: 8px }
+  .fe .ba-conso .atajos button { width: auto; white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; padding: 7px 12px; min-height: 44px }
+  .fe .ba-conso .atajos button.on { border-bottom-color: var(--fe-acento) }
+  .fe .ba-conso .meses { padding: 14px }
+  .fe .ba-conso .mes { width: 100% }
+  .fe .ba-conso .mes:not(.segundo) { display: none }
+  .fe .ba-conso .mes-cab .ant-movil { display: grid }
+}

@@ -6,6 +6,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildSync } from "esbuild";
 const R = (p) => new URL("../" + p, import.meta.url).pathname;
+const diaDelCalendario = async (d) => {
+  await pg.click(".ba-conso .disparo");
+  await pg.locator(".ba-conso .calendario .mes").nth(1).locator(".dias button:not(.fuera)", { hasText: new RegExp("^" + d + "$") }).click();
+  await pg.click(".ba-conso .cal-pie .aplicar");
+};
 const fallas = []; const ok = (c, m) => { if (!c) fallas.push(m) };
 writeFileSync(R(".arnes/_co-entrada.tsx"), `
 import { createRoot } from "react-dom/client";
@@ -42,11 +47,11 @@ for (const [ancho, tema] of [[1200, null], [390, null], [360, "ambar"]]) {
     ok(/Exportar 2 de 3 FEFO/.test(await pg.textContent(".ba-conso-acc .btn")), "el botón no dice cuántos FEFO van");
     await pg.click(".ba-conso-acc .btn");
     await pg.waitForTimeout(300);
-    ok(pedido && /fecha=2026-09-22/.test(pedido) && /ids=00000001-[^,]+,00000003-/.test(pedido) && !/00000002-/.test(pedido), `la exportación no pide solo los marcados: ${pedido}`);
+    ok(pedido && /desde=2026-09-22&hasta=2026-09-22/.test(pedido) && /ids=00000001-[^,]+,00000003-/.test(pedido) && !/00000002-/.test(pedido), `la exportación no pide solo los marcados: ${pedido}`);
     ok(/tinta=[0-9a-f]{6}&banda=[0-9a-f]{6}/.test(pedido ?? ""), `la exportación no lleva los colores del tema: ${pedido}`);
-    await pg.selectOption(".ba-conso-acc select", "2026-09-21");
+    await diaDelCalendario(21);
     ok((await pg.$$(".ba-conso-fefo input:checked")).length === 1 && /Exportar consolidado/.test(await pg.textContent(".ba-conso-acc .btn")), "al cambiar de día no arranca con todos los FEFO de ese día");
-    await pg.selectOption(".ba-conso-acc select", "2026-09-22");
+    await diaDelCalendario(22);
     await pg.click(".ba-conso-todos");
     ok(await pg.isDisabled(".ba-conso-acc .btn"), "sin ningún FEFO marcado se puede exportar");
     await pg.screenshot({ path: (process.env.FOTO ?? "/tmp") + "/conso.png" });

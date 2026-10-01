@@ -29,6 +29,8 @@ import type { ReactNode } from "react";
 import type { Renglon, ConteoFefo } from "@/modulos/inventario/fefo";
 import { Buscador } from "@/components/Buscador";
 import { EliminarFefos } from "./EliminarFefos";
+import { Calendario, type Atajo } from "@/components/CalendarioRango";
+import { sumarDias } from "@/modulos/inventario/fiscal";
 import { leerPaleta } from "../informe";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -563,33 +565,43 @@ export function Base({
    por ubicación, validar y sin contar.
    ===================================================================== */
 function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
+  /* LOS DÍAS CON ALGO ENVIADO: de ahí salen los límites del calendario y los puntitos. */
   const dias = useMemo(() => {
-    const m = new Map<string, { recorridos: number; cajas: number; renglones: number }>();
-    for (const c of conteos) {
-      if (c.estado !== "cerrado" || !c.fecha_analisis) continue;
-      const x = m.get(c.fecha_analisis) ?? { recorridos: 0, cajas: 0, renglones: 0 };
-      x.recorridos += 1; x.cajas += Number(c.total_cajas ?? 0); x.renglones += Number(c.renglones ?? 0);
-      m.set(c.fecha_analisis, x);
-    }
-    return [...m.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+    const m = new Set<string>();
+    for (const c of conteos) if (c.estado === "cerrado" && c.fecha_analisis) m.add(c.fecha_analisis);
+    return m;
   }, [conteos]);
-  const [dia, setDia] = useState<string>("");
-  /* LOS FEFO QUE ENTRAN. Por defecto todos los del día; se pueden
+  const ordenados = useMemo(() => [...dias].sort(), [dias]);
+  const minF = ordenados[0] ?? "";
+  const maxF = ordenados[ordenados.length - 1] ?? "";
+  /* UN CALENDARIO, UN DÍA O UN PERÍODO. Arranca en el último día con algo enviado; con dos toques se
+     arma un período y el consolidado junta los FEFO enviados de todos esos días (de cada ubicación vale
+     el último que pasó). */
+  const [rango, setRango] = useState<[string, string] | null>(null);
+  const [desde, hasta] = rango && rango[0] >= minF && rango[1] <= maxF ? rango : [maxF, maxF];
+  const atajos = useMemo<Atajo[]>(() => [
+    { t: "Último día enviado", d: () => [maxF, maxF] },
+    { t: "Últimos 7 días", d: () => [sumarDias(maxF, -6) < minF ? minF : sumarDias(maxF, -6), maxF] },
+    { t: "Este mes", d: () => [maxF.slice(0, 8) + "01" < minF ? minF : maxF.slice(0, 8) + "01", maxF] },
+    { t: "Todo lo enviado", d: () => [minF, maxF] },
+  ], [minF, maxF]);
+  /* LOS FEFO QUE ENTRAN. Por defecto todos los del período; se pueden
      desmarcar los que no se quieren en el consolidado (uno de prueba,
      uno repetido, uno de otra zona). Se guardan los QUITADOS: así, al
-     cambiar de día, arranca otra vez con todos. */
+     cambiar de período, arranca otra vez con todos. */
   const [quitados, setQuitados] = useState<Set<string>>(new Set());
   const [bajando, setBajando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
-  const escogido = dia || dias[0]?.[0] || "";
-  const delDia = useMemo(() => conteos.filter((c) => c.estado === "cerrado" && c.fecha_analisis === escogido)
-    .sort((a, b) => (a.enviado_en ?? "").localeCompare(b.enviado_en ?? "")), [conteos, escogido]);
+  const delDia = useMemo(() => conteos
+    .filter((c) => c.estado === "cerrado" && !!c.fecha_analisis && c.fecha_analisis >= desde && c.fecha_analisis <= hasta)
+    .sort((a, b) => (a.fecha_analisis ?? "").localeCompare(b.fecha_analisis ?? "") || (a.enviado_en ?? "").localeCompare(b.enviado_en ?? "")), [conteos, desde, hasta]);
   const incluidos = delDia.filter((c) => !quitados.has(c.id));
   const alterna = (id: string) => setQuitados((x) => { const y = new Set(x); if (y.has(id)) y.delete(id); else y.add(id); return y });
-  const largo = (s: string) => new Date(s + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" });
+  const corta = (s: string | null) => s ? new Date(s + "T12:00:00").toLocaleDateString("es-CO", { day: "numeric", month: "numeric" }) : "";
+  const periodo = desde === hasta ? desde : `${desde}_${hasta}`;
 
   async function bajar() {
-    if (!escogido || !incluidos.length) return;
+    if (!desde || !incluidos.length) return;
     setBajando(true); setMal(null);
     try {
       const todos = incluidos.length === delDia.length;
@@ -597,35 +609,35 @@ function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
          informe de riesgo: la tinta y el color de la banda. */
       const P = leerPaleta(document.querySelector(".ba-conso"));
       const hx = (c: number[]) => c.map((v) => v.toString(16).padStart(2, "0")).join("");
-      const r = await fetch(`/api/inventario/exportar?fecha=${escogido}` + (todos ? "" : `&ids=${incluidos.map((c) => c.id).join(",")}`)
+      const r = await fetch(`/api/inventario/exportar?desde=${desde}&hasta=${hasta}` + (todos ? "" : `&ids=${incluidos.map((c) => c.id).join(",")}`)
         + `&tinta=${hx(P.tinta)}&banda=${hx(P.cinta[1]?.[1] ?? P.acento)}`);
       if (!r.ok) { const j = await r.json().catch(() => null); setMal(j?.error ?? `No se pudo (${r.status}).`); return }
       const blob = await r.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `inventario-consolidado-${escogido}.xlsx`;
+      a.download = `inventario-consolidado-${periodo}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
     } catch { setMal("Se cortó la conexión con el servidor.") }
     finally { setBajando(false) }
   }
 
-  if (!dias.length) return null;
+  if (!dias.size) return null;
   return (
     <section className="ba-conso" aria-label="Consolidado del día">
       <div className="ba-conso-tx">
         <p className="ba-conso-o">CONSOLIDADO DEL DÍA · EXCEL</p>
         <h2>Toda la bodega de un día, en una base</h2>
-        <p>Los recorridos enviados de ese día juntos —de cada ubicación vale el último que pasó—, con resumen, por material, por ubicación, lo que hay que validar y lo que quedó sin contar.</p>
+        <p>Los recorridos enviados del día —o del período que marques en el calendario— juntos —de cada ubicación vale el último que pasó—, con resumen, por material, por ubicación, lo que hay que validar y lo que quedó sin contar.</p>
       </div>
       <div className="ba-conso-acc">
-        <label><span>Día</span>
-          <select value={escogido} onChange={(e) => { setDia(e.target.value); setQuitados(new Set()) }}>
-            {dias.map(([d, x]) => <option key={d} value={d}>{largo(d)} · {x.recorridos} recorrido{x.recorridos === 1 ? "" : "s"}</option>)}
-          </select>
-        </label>
+        <div className="ba-conso-dia">
+          <span>Día o período</span>
+          <Calendario desde={desde} hasta={hasta} minF={minF} maxF={maxF} atajos={atajos} marcados={dias} unDia flechaAntesEnMovil
+                      aplicar={(d, h) => { setRango([d, h]); setQuitados(new Set()) }} />
+        </div>
         <button type="button" className="btn grande" onClick={bajar} disabled={bajando || !incluidos.length}>
-          {bajando ? "Armando el Excel…" : !incluidos.length ? "Marca al menos un FEFO" : incluidos.length === delDia.length ? "Exportar consolidado" : `Exportar ${incluidos.length} de ${delDia.length} FEFO`}
+          {bajando ? "Armando el Excel…" : !delDia.length ? "Sin FEFO enviados en esas fechas" : !incluidos.length ? "Marca al menos un FEFO" : incluidos.length === delDia.length ? "Exportar consolidado" : `Exportar ${incluidos.length} de ${delDia.length} FEFO`}
         </button>
         <small>{nf.format(incluidos.reduce((a, c) => a + Number(c.renglones ?? 0), 0))} renglones · {nf.format(incluidos.reduce((a, c) => a + Number(c.total_cajas ?? 0), 0))} cajas en {incluidos.length} FEFO</small>
         {mal && <p className="ba-conso-mal" role="alert">{mal}</p>}
@@ -633,7 +645,7 @@ function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
       {/* QUÉ FEFO ENTRAN: uno por renglón, marcados todos al empezar. */}
       <div className="ba-conso-fefos" role="group" aria-label="FEFO que entran en el consolidado">
         <p className="ba-conso-fefos-cab">
-          <span>FEFO de ese día · marca los que entran</span>
+          <span>{desde === hasta ? "FEFO de ese día" : "FEFO del período"} · marca los que entran</span>
           {delDia.length > 1 && (
             <button type="button" className="ba-conso-todos"
                     onClick={() => setQuitados(incluidos.length === delDia.length ? new Set(delDia.map((c) => c.id)) : new Set())}>
@@ -647,7 +659,7 @@ function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
             <label key={c.id} className={"ba-conso-fefo" + (on ? " on" : "")}>
               <input type="checkbox" checked={on} onChange={() => alterna(c.id)} />
               <b>{c.codigo}</b>
-              <span>{c.responsable ?? "—"} · enviado {cuando(c.enviado_en)}</span>
+              <span>{desde !== hasta && <>{corta(c.fecha_analisis)} · </>}{c.responsable ?? "—"} · enviado {cuando(c.enviado_en)}</span>
               <em>{nf.format(Number(c.renglones ?? 0))} rengl. · {nf.format(Number(c.ubicaciones ?? 0))} ubic. · {nf.format(Number(c.total_cajas ?? 0))} cajas</em>
             </label>
           );
