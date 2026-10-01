@@ -432,16 +432,16 @@ const reg = readFileSync(new URL("../src/modulos/registro.ts", import.meta.url),
 const bloqueInv = (reg.match(/id: "inventario"[\s\S]*?\n  \},/) ?? [""])[0];
 const secciones = [...(bloqueInv.match(/secciones: \[[\s\S]*$/) ?? [""])[0]
   .matchAll(/ruta: "(\/inventario[^"]*)"/g)].map((m) => m[1]);
-/* EL ORDEN ES EL DEL PROCESO Y NO EL DE CONSTRUCCIÓN: el material ENTRA
-   al CD y se rotula (Recepción), después se cuenta, después se lee lo
-   contado. Recepción va ANTES de Contar aunque se construyera después. */
-const espera = ["/inventario/maestro", "/inventario/recibir", "/inventario/corte", "/inventario/fiscal", "/inventario/conteo",
-                "/inventario/base", "/inventario/tablero",
+/* EL ORDEN ES EL QUE PIDIÓ QUIEN LA USA: se corta, se arma el inventario
+   fiscal, se cuenta, se lee la base y el tablero; el maestro y la recepción
+   (lo que se prepara de vez en cuando) van al final. */
+const espera = ["/inventario/corte", "/inventario/fiscal", "/inventario/conteo",
+                "/inventario/base", "/inventario/tablero", "/inventario/maestro", "/inventario/recibir",
                 "/inventario/averias", "/inventario/averias/tablero",
                 "/inventario/averias/analisis", "/inventario/averias/maestro"];
 if (secciones.join(" ") !== espera.join(" "))
   fallas.push(`el menú de Inventario dice [${secciones.join(", ")}] y el proceso es ` +
-              `[${espera.join(", ")}] — maestro, recepción, contar, la base, tablero; y después averías`);
+              `[${espera.join(", ")}] — corte, fiscal, contar, la base, tablero, maestro, recepción; y después averías`);
 
 const pes = [...tsx.matchAll(/\["materiales", "ubicaciones", "bodegas"\]/g)];
 if (pes.length === 0)
