@@ -12,3 +12,25 @@
 .fe .fa-det { font-size: 14px; line-height: 1.4; min-width: 0; overflow-wrap: anywhere }
 .fe .fa-det em { color: var(--fe-gris) }
 .fe .fa-pie { margin: 2px 0 0; font-size: 12px; color: var(--fe-gris) }
+
+/* «QUÉ VAS A CONTAR»: FEFO DIARIO O FISCAL */
+.fe .fc-modo { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0 0 12px; border: 2px solid var(--fe-tinta); background: #fff }
+.fe .fc-modo button { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; min-height: 56px; padding: 8px 14px; border: 0; background: transparent; color: var(--fe-tinta); font-family: var(--fe-texto); text-align: left; cursor: pointer; min-width: 0 }
+.fe .fc-modo button + button { border-left: 2px solid var(--fe-tinta) }
+.fe .fc-modo button b { font: 800 15px/1.2 var(--fe-titulo); overflow-wrap: anywhere }
+.fe .fc-modo button span { font-size: 11.5px; color: var(--fe-gris) }
+.fe .fc-modo button.on { background: var(--fe-tinta); color: var(--fe-sobre, #fff) }
+.fe .fc-modo button.on span { color: inherit; opacity: .8 }
+.fe .fc-modo button:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
+
+/* CONTAR EL FISCAL */
+.fe .fc-hoja-sel { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; font-size: 12px; color: var(--fe-gris) }
+.fe .fc-hoja-sel select { min-height: 48px; font-size: 15px }
+.fe .fc-ciego { margin: 0 0 10px; font-size: 12.5px; color: var(--fe-gris) }
+.fe .fc-mios { margin-top: 14px }
+.fe .fc-vacio { margin: 8px 0 0; font-size: 13.5px; color: var(--fe-gris) }
+.fe .fc-lista { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column }
+.fe .fc-lista li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--fe-linea); min-width: 0 }
+.fe .fc-ren { flex: 1 1 0; font-size: 13.5px; line-height: 1.4; min-width: 0; overflow-wrap: anywhere }
+.fe .fc-ren span { color: var(--fe-gris) }
+.fe .fc-lista .fe-mini { flex: none; width: auto; margin: 0; min-height: 44px; min-width: 72px }

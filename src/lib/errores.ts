@@ -88,6 +88,9 @@ const PREFIJOS: [RegExp, string][] = [
   /* El CORTE DE LÍNEAS de Inventario: sus funciones y sus tres tablas. */
   [/\binv_corte_(guardar|eliminar|renglones)\b|\binv_(cortes|lineas)\b/,
    "supabase/migraciones/2026-09-inventario-corte-lineas.sql"],
+  /* CONTAR LA HOJA DEL FISCAL. Va antes de «mostrar en Contar» y del fiscal a secas. */
+  [/\binv_fiscal_(contar_\w+|conteos|hoja_con_conteos)\b/,
+   "supabase/migraciones/2026-10-fiscal-contar.sql"],
   /* MOSTRAR EL FISCAL EN CONTAR: su botón, su consulta y la columna `publicado_en`. Va antes del fiscal a secas. */
   [/\binv_fiscal_(publicar|mis_hojas)\b|\binv_fiscales\.publicado/,
    "supabase/migraciones/2026-10-fiscal-publicar.sql"],

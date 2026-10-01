@@ -2,10 +2,11 @@ import { misPermisos } from "@/lib/permisos";
 import { maestroInventario, miConteoFefo } from "@/modulos/inventario/fefo";
 import { createClient } from "@/lib/supabase/server";
 import { diaColombia } from "@/modulos/inventario/corte";
-import type { MiHojaBD } from "@/modulos/inventario/fiscal";
+import { hojasParaContar, type MiHojaBD } from "@/modulos/inventario/fiscal";
 import "../fefo.css";
 import "./asignado.css";
 import { Contar } from "./Contar";
+import { ContarConFiscal } from "./ContarConFiscal";
 import { FiscalAsignado } from "./FiscalAsignado";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +74,7 @@ export default async function ConteoFefoPage() {
   const hoy = diaColombia(new Date().toISOString());
   const fiscal = await (await createClient()).rpc("inv_fiscal_mis_hojas");
   const misHojas = fiscal.error ? [] : ((fiscal.data ?? []) as MiHojaBD[]);
+  const hojasContar = hojasParaContar(misHojas);
 
   return (
     /* «contando» pliega la cabecera en el celular: ver arriba en
@@ -103,21 +105,26 @@ export default async function ConteoFefoPage() {
 
       <FiscalAsignado filas={misHojas} hoy={hoy} />
 
-      {!puedeContar ? (
-        <section className="fe-faltan">
-          <p><b>Solo de lectura.</b> Para contar hace falta permiso de edición en esta
-          pantalla — pídelo en Admin → Usuarios.</p>
-        </section>
-      ) : (
-        <Contar
-          bodegaId={bodega.id}
-          conteoInicial={conteo}
-          renglonesIniciales={renglones}
-          materiales={m.materiales}
-          ubicaciones={ubis}
-          estados={m.estados}
-        />
-      )}
+      {/* QUIEN TIENE UNA HOJA DEL FISCAL LA CUENTA AUNQUE NO PUEDA EDITAR EL CONTEO DIARIO: la hoja se la
+          asignó quien armó el plan, y la base solo deja anotar a quien está en ella. Quien no tiene hoja
+          ve Contar de siempre, sin selector. */}
+      <ContarConFiscal hojas={hojasContar} bodegaId={bodega.id} materiales={m.materiales} ubicaciones={ubis}>
+        {!puedeContar ? (
+          <section className="fe-faltan">
+            <p><b>Solo de lectura.</b> Para contar hace falta permiso de edición en esta
+            pantalla — pídelo en Admin → Usuarios.</p>
+          </section>
+        ) : (
+          <Contar
+            bodegaId={bodega.id}
+            conteoInicial={conteo}
+            renglonesIniciales={renglones}
+            materiales={m.materiales}
+            ubicaciones={ubis}
+            estados={m.estados}
+          />
+        )}
+      </ContarConFiscal>
     </div>
   );
 }

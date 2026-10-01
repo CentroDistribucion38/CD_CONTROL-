@@ -619,6 +619,13 @@ export const MODULOS: Modulo[] = [
          hacía lo propio. Dos editores para una misma tabla es cómo dos
          personas se pisan el dato sin enterarse. */
       { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
+      /* EL INVENTARIO FISCAL VA SEGUNDO: es el PLAN. Antes de que nadie baje a la
+         bodega se decide qué día se cuenta, cuántas hojas hay y quién cuenta cuál
+         (una persona del operador logístico y una de Bavaria por hoja), y de ahí
+         sale lo que cada quien encuentra en «Contar». El orden del menú es el del
+         flujo: se prepara el maestro, se arma el plan, entra el material, se
+         cortan las líneas y se camina la bodega. */
+      { nombre: "Inventario fiscal", ruta: "/inventario/fiscal", rama: "conteos" },
       /* RECIBIR VA ANTES DE CONTAR, y ese es el orden del proceso de
          verdad: el material ENTRA al CD, se rotula y se ubica, y solo
          después se cuenta y se ordena por vencimiento. Ponerlo al final
@@ -632,10 +639,8 @@ export const MODULOS: Modulo[] = [
          Se hace uno inicial y otro final, y de la resta sale la diferencia
          que se analiza contra el conteo. */
       { nombre: "Corte de líneas", ruta: "/inventario/corte", rama: "conteos" },
-      /* EL INVENTARIO FISCAL VA ANTES DE CONTAR: es donde se arman las parejas
-         (una persona del operador logístico y una de Bavaria) y se numeran las
-         hojas, y eso se hace antes de que nadie baje a contar. */
-      { nombre: "Inventario fiscal", ruta: "/inventario/fiscal", rama: "conteos" },
+      /* CONTAR LLEVA DOS CONTEOS: el FEFO diario y la hoja del inventario fiscal
+         (esta última solo a quien el plan le asignó una). */
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
       { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
       /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.

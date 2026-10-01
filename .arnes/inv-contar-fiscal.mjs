@@ -19,10 +19,11 @@ export async function maestroInventario() { return { falta: false, bodegas: [{ i
 export async function miConteoFefo() { return { conteo: null, renglones: [] } }`);
 writeFileSync(R(".arnes/_cf-server.ts"), `
 export async function createClient() { const g = globalThis as any; return { rpc: async (fn: string) => { g.__RPC.push(fn); return g.__RESP } } }`);
+writeFileSync(R(".arnes/_cf-cliente.ts"), `export function createClient() { return { rpc: async () => ({ data: [], error: null }) } }`);
 writeFileSync(R(".arnes/_cf-contar.tsx"), `export function Contar() { return <div id="contar-de-verdad">CONTAR</div> }`);
 writeFileSync(R(".arnes/_cf-page.tsx"), `export { default } from "../src/app/(app)/inventario/conteo/page";`);
 const pagina = (await build({ entryPoints: [R(".arnes/_cf-page.tsx")], bundle: true, write: false, format: "esm", platform: "node", jsx: "automatic",
-  alias: { "@/lib/permisos": R(".arnes/_cf-permisos.ts"), "@/modulos/inventario/fefo": R(".arnes/_cf-fefo.ts"), "@/lib/supabase/server": R(".arnes/_cf-server.ts"), "@": R("src") },
+  alias: { "@/lib/permisos": R(".arnes/_cf-permisos.ts"), "@/modulos/inventario/fefo": R(".arnes/_cf-fefo.ts"), "@/lib/supabase/server": R(".arnes/_cf-server.ts"), "@/lib/supabase/client": R(".arnes/_cf-cliente.ts"), "@": R("src") },
   plugins: [{ name: "contar", setup(b) {
     b.onResolve({ filter: /^\.\/Contar$/ }, () => ({ path: R(".arnes/_cf-contar.tsx") }));
     b.onResolve({ filter: /\.css$/ }, () => ({ path: "x", namespace: "css" }));
@@ -45,7 +46,7 @@ let h = await dibuja({ data: FILAS, error: null });
 ok(globalThis.__RPC.length === 1 && globalThis.__RPC[0] === "inv_fiscal_mis_hojas", "la página no le pide a la base «mis hojas»: " + globalThis.__RPC);
 ok(/FISCAL OCTUBRE 2026 · viernes 02\/10/.test(h) && /TUS HOJAS/.test(h), "no muestra el inventario con «tus hojas»");
 ok(h.indexOf("Hoja 1") > -1 && h.indexOf("Hoja 1") < h.indexOf("Hoja 3"), "las hojas no salen en orden de número");
-ok(/cuentas por el <b>Operador logístico<\/b>/.test(h), "no dice de qué equipo es");
+ok(/cuentas por el <b>Operador logístico<\/b>/.test(h) && !/cuentas por el <b>Bavaria/.test(h), "no dice de qué equipo es");
 ok(/Tu pareja: <b>Ana Bavaria<\/b> \(Bavaria\)/.test(h) && /Todavía sin pareja/.test(h), "no dice quién es la pareja (o que falta)");
 ok(h.indexOf("fa-caja") > -1 && h.indexOf("fa-caja") < h.indexOf("contar-de-verdad"), "la hoja debe ir arriba de contar");
 /* Quien no tiene permiso de contar igual ve su hoja. */
@@ -53,7 +54,37 @@ h = await dibuja({ data: FILAS, error: null }, false);
 ok(/fa-caja/.test(h) && /Solo de lectura/.test(h), "sin permiso de contar no ve su hoja (o desapareció el aviso de lectura)");
 /* Un equipo Bavaria. */
 h = await dibuja({ data: [{ fiscal_id: "f2", nombre: "Otro", fecha: "2026-10-09", hoja: 2, equipo: "BAVARIA", pareja: "Luis OL", pareja_equipo: "OL" }], error: null });
-ok(/cuentas por el <b>Bavaria<\/b>/.test(h) && /Tu pareja: <b>Luis OL<\/b> \(Operador logístico\)/.test(h) && /TU HOJA/.test(h) && !/TUS HOJAS/.test(h), "el caso de Bavaria: " + h.slice(h.indexOf("fa-caja"), h.indexOf("fa-caja") + 500));
+ok(/cuentas por <b>Bavaria<\/b>/.test(h) && /Tu pareja: <b>Luis OL<\/b> \(Operador logístico\)/.test(h) && /TU HOJA/.test(h) && !/TUS HOJAS/.test(h), "el caso de Bavaria: " + h.slice(h.indexOf("fa-caja"), h.indexOf("fa-caja") + 500));
+/* ---- «Qué vas a contar»: el selector FEFO | Fiscal ---- */
+const CON_ID = (o = {}) => [{ ...FILAS[1], hoja_id: "h1", puede_contar: true, mis_renglones: 0, ...o }];
+const sel = (h) => h.slice(h.indexOf('class="fc-modo"'), h.indexOf('class="fc-modo"') + 900);
+h = await dibuja({ data: CON_ID(), error: null });
+ok(/class="fc-modo"/.test(h) && /FEFO diario/.test(h) && /Fiscal · Hoja 1/.test(h), "con hoja asignada no sale el selector «FEFO diario | Fiscal · Hoja N»: " + h.slice(0, 200));
+ok(/aria-selected="true"[^>]*><b>Fiscal/.test(sel(h)) && /aria-selected="false"[^>]*><b>FEFO diario/.test(sel(h)), "el día de la hoja debe abrir en Fiscal");
+ok(h.indexOf("fa-caja") < h.indexOf("fc-modo") && h.indexOf("fc-modo") < h.indexOf("contar-de-verdad"), "el orden debe ser tarjeta, selector, conteo");
+ok(/<div hidden="">(?:(?!<\/div>).)*contar-de-verdad/.test(h), "el conteo FEFO debe seguir montado pero escondido (si no, pierde su borrador al cambiar)");
+ok(/fe-anotar fc-anotar/.test(h) && /Hoja 1 · anotar lo que hay/.test(h) && /Anotar renglón/.test(h), "en Fiscal no sale el formulario para contar");
+ok(/Cuentas a ciegas/.test(h), "no dice que se cuenta a ciegas");
+/* Todavía no es el día: abre en FEFO y la hoja explica cuándo se cuenta. */
+h = await dibuja({ data: CON_ID({ puede_contar: false, fecha: "2026-10-09" }), error: null });
+ok(/aria-selected="true"[^>]*><b>FEFO diario/.test(sel(h)), "antes del día debe abrir en el FEFO");
+ok(/Todavía no es el día/.test(h) && !/fe-anotar fc-anotar/.test(h), "antes del día no debe dejar anotar y debe decir cuándo");
+/* Sin permiso de contar el FEFO, igual cuenta su hoja. */
+h = await dibuja({ data: CON_ID(), error: null }, false);
+ok(/class="fc-modo"/.test(h) && /fe-anotar fc-anotar/.test(h) && /Solo de lectura/.test(h), "sin permiso del FEFO igual debe poder contar su hoja");
+/* La base todavía sin lo de contar (viejas 7 columnas): se ve la tarjeta, no hay selector, Contar sigue. */
+h = await dibuja({ data: FILAS, error: null });
+ok(!/fc-modo/.test(h) && /fa-caja/.test(h) && /contar-de-verdad/.test(h), "con la función vieja no debe salir el selector");
+/* Quien no tiene hoja no ve ningún selector. */
+h = await dibuja({ data: [], error: null });
+ok(!/fc-modo/.test(h), "sin hoja no debe haber selector");
+/* El menú sigue el flujo. */
+const reg = (await build({ entryPoints: [R("src/modulos/registro.ts")], bundle: true, write: false, format: "esm", platform: "node", alias: { "@": R("src") }, logLevel: "silent" })).outputFiles[0].text;
+writeFileSync(R(".arnes/_cf-registro.bundle.mjs"), reg);
+const { MODULOS } = await import(R(".arnes/_cf-registro.bundle.mjs") + "?" + Date.now());
+const orden = MODULOS.find((m) => m.id === "inventario").secciones.filter((x) => x.rama === "conteos").map((x) => x.nombre);
+ok(JSON.stringify(orden) === JSON.stringify(["Maestro", "Inventario fiscal", "Recepción", "Corte de líneas", "Contar", "La base", "Tablero"]), "el menú de Conteos no sigue el flujo: " + orden.join(" → "));
+
 /* Sin nada que mostrar, no sale la tarjeta; si la base no tiene la función, Contar sigue. */
 h = await dibuja({ data: [], error: null });
 ok(!/class="fa/.test(h) && /contar-de-verdad/.test(h), "sin hojas debe salir solo Contar");

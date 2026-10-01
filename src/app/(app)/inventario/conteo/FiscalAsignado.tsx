@@ -28,7 +28,7 @@ export function FiscalAsignado({ filas, hoy }: { filas: MiHojaBD[]; hoy: string 
                   <span className="fa-num" aria-label={`Hoja ${h.numero}`}>{h.numero}</span>
                   <span className="fa-det">
                     <b>Hoja {h.numero}</b>
-                    {h.equipo && <> · cuentas por el <b>{h.equipo}</b></>}
+                    {h.equipo && <>{h.equipo === "Bavaria" ? " · cuentas por " : " · cuentas por el "}<b>{h.equipo}</b></>}
                     <br />
                     {h.pareja
                       ? <>Tu pareja: <b>{h.pareja}</b>{h.parejaEquipo && <> ({h.parejaEquipo})</>}</>

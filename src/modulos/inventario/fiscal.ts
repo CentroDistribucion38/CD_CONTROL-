@@ -189,6 +189,8 @@ export function completarRoles(personas: PersonaF[], roles: RolF[]): RolF[] {
 export type MiHojaBD = {
   fiscal_id: string; nombre: string; fecha: string; hoja: number; equipo: string;
   pareja: string | null; pareja_equipo: string | null;
+  /* Desde 2026-10-fiscal-contar.sql. Si a la base le falta, no vienen y la hoja se muestra pero no se cuenta. */
+  hoja_id?: string | null; puede_contar?: boolean | null; mis_renglones?: number | string | null;
 };
 export const nombreEquipo = (e: string | null | undefined): string =>
   e === "OL" ? "Operador logístico" : e === "BAVARIA" ? "Bavaria" : "";
@@ -210,4 +212,24 @@ export function agruparMisHojas(filas: MiHojaBD[]): MisHojasDeUnFiscal[] {
   return [...por.values()]
     .map((g) => ({ ...g, hojas: g.hojas.sort((a, b) => a.numero - b.numero) }))
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.nombre.localeCompare(b.nombre, "es"));
+}
+
+/** Una hoja que esta persona puede contar (o que contará el día del inventario). */
+export type HojaParaContar = {
+  hojaId: string; fiscalId: string; nombre: string; fecha: string; numero: number; equipo: string;
+  puedeContar: boolean; misRenglones: number;
+};
+/** Las hojas con id (las que ya traen lo de contar), en el mismo orden que la tarjeta: por día y por número. */
+export function hojasParaContar(filas: MiHojaBD[]): HojaParaContar[] {
+  const vistas = new Set<string>();
+  const salida: HojaParaContar[] = [];
+  for (const f of filas) {
+    if (!f.hoja_id || vistas.has(f.hoja_id)) continue;
+    vistas.add(f.hoja_id);
+    salida.push({
+      hojaId: f.hoja_id, fiscalId: f.fiscal_id, nombre: f.nombre, fecha: String(f.fecha).slice(0, 10), numero: f.hoja,
+      equipo: nombreEquipo(f.equipo), puedeContar: f.puede_contar === true, misRenglones: Number(f.mis_renglones ?? 0),
+    });
+  }
+  return salida.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.numero - b.numero);
 }
