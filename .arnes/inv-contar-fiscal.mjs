@@ -83,7 +83,7 @@ const reg = (await build({ entryPoints: [R("src/modulos/registro.ts")], bundle: 
 writeFileSync(R(".arnes/_cf-registro.bundle.mjs"), reg);
 const { MODULOS } = await import(R(".arnes/_cf-registro.bundle.mjs") + "?" + Date.now());
 const orden = MODULOS.find((m) => m.id === "inventario").secciones.filter((x) => x.rama === "conteos").map((x) => x.nombre);
-ok(JSON.stringify(orden) === JSON.stringify(["Corte de líneas", "Inventario fiscal", "Contar", "La base", "Tablero", "Maestro", "Recepción"]), "el menú de Conteos no sigue el flujo: " + orden.join(" → "));
+ok(JSON.stringify(orden) === JSON.stringify(["Inventario fiscal", "Corte de líneas", "Contar", "La base", "Tablero", "Maestro", "Recepción"]), "el menú de Conteos no sigue el flujo: " + orden.join(" → "));
 
 /* Sin nada que mostrar, no sale la tarjeta; si la base no tiene la función, Contar sigue. */
 h = await dibuja({ data: [], error: null });
