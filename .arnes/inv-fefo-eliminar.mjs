@@ -43,6 +43,8 @@ const monta = async (manda, ancho = 1440, enviadas = [], abiertas = []) => {
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box;margin:0}${css}</style></head><body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div>
     <script>window.CONTEOS=${JSON.stringify(CONTEOS)};window.MANDA=${JSON.stringify(manda)};window.ENVIADAS=${JSON.stringify(enviadas)};window.ABIERTAS=${JSON.stringify(abiertas)};</script><script>${js}<\/script></body></html>`);
   await pg.waitForSelector("#r > *");
+  /* «Eliminar» vive DENTRO de ⋯ Administrador, que solo ve quien administra: se abre como lo haría esa persona. */
+  if (manda === true) await pg.click(".ba-adm");
 };
 /* Quien no administra no ve nada de esto. */
 await monta("omitido");
@@ -132,40 +134,19 @@ await fila("FEFO-20260929-01").locator("button", { hasText: "Guardar fecha" }).c
 await pg.waitForSelector(".ba-conso-mal");
 ok(/No se pudo cambiar la fecha de FEFO-20260929-01/.test(await textoPanel()) && /2026-10-fefo-cambiar-fecha\.sql/.test(await textoPanel()), "no dice qué SQL falta: " + await textoPanel());
 await pg.evaluate(() => { window.__falla = null });
-/* EL ATAJO junto al buscador del inventario que se mira: «Cambiar la fecha de este recorrido». */
+/* «Cambiar la fecha de este recorrido» ya no está junto al buscador: la maqueta nueva no lo trae y el cambio de fecha
+   vive en la lista de ⋯ Administrador, una fila por FEFO. */
 await monta(true, 1440, [REN]);
-{
-  const atajo = pg.locator('button:has-text("Cambiar la fecha de este recorrido")');
-  ok(await atajo.count() === 1, "el administrador no ve «Cambiar la fecha de este recorrido» junto al inventario que mira");
-  ok(await pg.locator(".ba-elim").evaluate((e) => e.open) === false, "el panel de administrador arranca abierto");
-  await atajo.click();
-  ok(await pg.locator(".ba-elim").evaluate((e) => e.open) === true, "el atajo no abre el panel");
-  const campoA = pg.locator('input[aria-label="Nueva fecha del FEFO FEFO-20260926-01"]');
-  await campoA.fill("2026-09-30"); await pg.locator(".ba-elim-fecha button", { hasText: "Guardar fecha" }).click();
-  await pg.waitForFunction(() => window.__llamadas.length >= 1);
-  ok((await pg.evaluate(() => window.__llamadas[window.__llamadas.length - 1])).args.p_conteo === "a", "el atajo cambia la fecha de otro FEFO y no del que se mira");
-  await pg.waitForSelector(".ba-elim-ok");
-  await atajo.click();
-  await campoA.waitFor({ timeout: 3000 }).catch(() => {});
-  await pg.waitForFunction((h) => document.querySelector('.ba-elim-fecha input')?.value === h, hoy, { timeout: 3000 }).catch(() => {});
-  ok(await campoA.count() === 1 && await campoA.inputValue() === hoy, "el atajo no deja listo el cambio de fecha del recorrido que se mira (con hoy): " + await campoA.count());
-  ok(await pg.locator('input[type=date]').count() === 1, "el atajo abre el cambio de fecha de otro FEFO");
-}
-await monta(false, 1440, [REN]);
-ok(await pg.locator('button:has-text("Cambiar la fecha de este recorrido")').count() === 0, "quien no administra ve el atajo de cambiar la fecha");
-await monta(true, 1440, [REN]);
-await pg.locator(".ba-inv.todos").click();
-ok(await pg.locator('button:has-text("Cambiar la fecha de este recorrido")').count() === 0, "con «Todos los recorridos» el atajo no sabe cuál cambiar");
+ok(await pg.locator('button:has-text("Cambiar la fecha de este recorrido")').count() === 0, "sobrevive el atajo viejo de cambiar la fecha");
 /* ELIMINAR RENGLONES SUELTOS (el «BAJA A1000» del sábado metido en el recorrido de hoy). */
-const marcaR = (txt) => pg.locator(`.ba-tabla tbody input[aria-label*="${txt}"]`);
+const marcaR = (txt) => pg.locator(`.ba-t tbody input[aria-label*="${txt}"]`);
 const barra = async () => (await pg.locator(".ba-quitar").textContent()).replace(/\s+/g, " ");
 await monta(true, 1440, [REN, REN2, REN3], [REN_AB]);
 {
-  await pg.locator(".ba-inv.todos").click();
-  ok(await pg.locator(".ba-tabla tbody tr").count() === 3 && await pg.locator(".ba-tabla tbody input[type=checkbox]").count() === 3, "el administrador no tiene una casilla por renglón");
+  ok(await pg.locator(".ba-t tbody tr").count() === 3 && await pg.locator(".ba-t tbody input[type=checkbox]").count() === 3, "el administrador no tiene una casilla por renglón");
   ok(/marca con la casilla/.test(await barra()) && await pg.locator(".ba-quitar-ir").isDisabled(), "sin marcar, el botón de eliminar renglones está activo");
   await marcaR("A01_IZQ · 3500232").check();
-  ok(/1 renglón marcado/.test(await barra()) && await pg.locator(".ba-tabla tbody tr.marcado").count() === 1, "no cuenta el renglón marcado: " + await barra());
+  ok(/1 renglón marcado/.test(await barra()) && await pg.locator(".ba-t tbody tr.marcado").count() === 1, "no cuenta el renglón marcado: " + await barra());
   await pg.click(".ba-quitar-ir");
   ok(/¿Eliminar este renglón\?/.test(await barra()) && await pg.evaluate(() => window.__llamadas.length) === 0, "no pide confirmar, o eliminó sin confirmar");
   await pg.click('.ba-quitar-conf button:has-text("No")');
@@ -182,15 +163,15 @@ await monta(true, 1440, [REN, REN2, REN3], [REN_AB]);
   ok(l.fn === "conteo_fefo_lineas_eliminar" && JSON.stringify(l.args.p_lineas) === JSON.stringify(["r2"]), "lo que se manda: " + JSON.stringify(l));
   await pg.waitForSelector(".ba-quitar .ba-elim-ok");
   ok(/Se eliminó 1 renglón de FEFO-20260926-01 \(1\)/.test(await barra()) && await pg.evaluate(() => window.__refresh) === 1, "no avisa ni refresca: " + await barra());
-  ok(await pg.locator(".ba-tabla tbody tr.marcado").count() === 0, "tras eliminar sigue marcado");
+  ok(await pg.locator(".ba-t tbody tr.marcado").count() === 0, "tras eliminar sigue marcado");
   /* Marcar todos los que se ven; con un filtro puesto, solo esos. */
   await pg.evaluate(() => { window.__llamadas.length = 0 });
   await pg.fill('input[placeholder^="Código, material"]', "AGUILA");
-  ok(await pg.locator(".ba-tabla tbody tr").count() === 1, "el filtro de texto no dejó 1 fila");
-  await pg.locator('.ba-tabla thead input[aria-label^="Marcar todos"]').check();
+  ok(await pg.locator(".ba-t tbody tr").count() === 1, "el filtro de texto no dejó 1 fila");
+  await pg.locator('.ba-t thead input[aria-label^="Marcar todos"]').check();
   ok(/1 renglón marcado/.test(await barra()), "marcar todos con un filtro cuenta lo escondido: " + await barra());
   await pg.fill('input[placeholder^="Código, material"]', "");
-  ok(/1 renglón marcado/.test(await barra()) && await pg.locator(".ba-tabla tbody tr.marcado").count() === 1, "al quitar el filtro la marca se perdió");
+  ok(/1 renglón marcado/.test(await barra()) && await pg.locator(".ba-t tbody tr.marcado").count() === 1, "al quitar el filtro la marca se perdió");
   await marcaR("A01_IZQ · 3500232").check();
   ok(/2 renglones marcados/.test(await barra()), "dos marcados: " + await barra());
   await pg.fill('input[placeholder^="Código, material"]', "BAJA");
@@ -210,7 +191,7 @@ await monta(true, 1440, [REN, REN2, REN3], [REN_AB]);
   /* Si la base rechaza: dice cuál SQL falta y deja la marca. */
   await pg.fill('input[placeholder^="Código, material"]', "");
   await pg.evaluate(() => { window.__falla = "function public.conteo_fefo_lineas_eliminar(uuid[]) does not exist"; window.__llamadas.length = 0 });
-  await pg.locator('.ba-tabla thead input[aria-label^="Marcar todos"]').uncheck();
+  await pg.locator('.ba-t thead input[aria-label^="Marcar todos"]').uncheck();
   await marcaR("A02_DER").check();
   await pg.click(".ba-quitar-ir"); await pg.click('.ba-quitar-conf button:has-text("Sí, eliminar")');
   await pg.waitForSelector(".ba-quitar .ba-conso-mal");
@@ -219,11 +200,10 @@ await monta(true, 1440, [REN, REN2, REN3], [REN_AB]);
   await pg.evaluate(() => { window.__falla = null });
   /* En borradores no se toca nada. */
   await pg.click('[role=tab]:has-text("Borradores")');
-  ok(await pg.locator(".ba-tabla tbody tr").count() === 1 && await pg.locator(".ba-tabla input[type=checkbox], .ba-quitar").count() === 0, "en borradores se pueden eliminar renglones");
+  ok(await pg.locator(".ba-t tbody tr").count() === 1 && await pg.locator(".ba-t input[type=checkbox], .ba-quitar").count() === 0, "en borradores se pueden eliminar renglones");
 }
 await monta(false, 1440, [REN, REN2, REN3]);
-await pg.locator(".ba-inv.todos").click();
-ok(await pg.locator(".ba-tabla tbody tr").count() === 3 && await pg.locator(".ba-tabla input[type=checkbox], .ba-quitar").count() === 0, "quien no administra ve casillas para eliminar renglones");
+ok(await pg.locator(".ba-t tbody tr").count() === 3 && await pg.locator(".ba-t input[type=checkbox], .ba-quitar").count() === 0, "quien no administra ve casillas para eliminar renglones");
 /* Nada se sale y el dedo alcanza. */
 for (const w of [360, 390, 820, 1440]) {
   await monta(true, w);

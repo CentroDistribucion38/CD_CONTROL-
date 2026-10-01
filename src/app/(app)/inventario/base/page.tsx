@@ -1,5 +1,5 @@
 import { misPermisos } from "@/lib/permisos";
-import { maestroInventario, baseFefo } from "@/modulos/inventario/fefo";
+import { maestroInventario, baseFefo, pasadosBase } from "@/modulos/inventario/fefo";
 import { Base } from "./Base";
 import "../fefo.css";
 import "./base.css";
@@ -63,27 +63,26 @@ export default async function InventarioBasePage() {
      decirlo. */
   const conUbi = new Set(m.ubicaciones.map((u) => u.bodega_id));
   const bodega = m.bodegas.find((b) => b.activo && conUbi.has(b.id)) ?? m.bodegas[0] ?? null;
-  const d = await baseFefo(bodega?.id ?? null);
+  const [d, pas] = await Promise.all([baseFefo(bodega?.id ?? null), pasadosBase()]);
+
+  /* UNIDADES POR CAJA, por código: la tabla corta enseña «Unidades» y el
+     renglón no las trae —viven en el maestro—. */
+  const uxc: Record<string, number | null> = {};
+  for (const x of m.materiales) uxc[x.sku] = x.unidades_por_caja;
 
   return (
     <div className="fe">
-      <section className="cabeza">
-        <div>
-          <p className="ojo">INVENTARIO · LA BASE</p>
-          <h1>La base</h1>
-          <p className="sub">
-            Todo lo contado, renglón por renglón y con todas sus columnas.
-            {bodega && <> Bodega <b>{bodega.codigo}</b>.</>}
-          </p>
-        </div>
-      </section>
-
       <Base
         enviadas={d.enviadas}
         abiertas={d.abiertas}
         conteos={d.conteos}
         tope={d.tope}
         manda={permisos.manda}
+        bodega={bodega?.codigo ?? null}
+        uxc={uxc}
+        pasados={pas.ids}
+        pasadosOk={pas.ok}
+        puedeMarcar={permisos.manda || permisos.puedeEditar("/inventario/base")}
       />
     </div>
   );

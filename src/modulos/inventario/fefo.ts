@@ -432,3 +432,27 @@ export async function baseFefo(bodegaId: string | null) {
     tope: lineas.length === TOPE_BASE,
   };
 }
+
+/* =====================================================================
+   LO QUE YA SE PASÓ AL SISTEMA OFICIAL
+
+   La base es la verdad de lo contado; el sistema oficial (SAP) es donde
+   hay que dejarlo registrado. Alguien lo digita a mano, y aquí se marca
+   renglón por renglón cuáles YA se pasaron: la columna «Estado» de La
+   base dice PASADO o POR PASAR.
+
+   La marca es del RENGLÓN (su id) y no de la ubicación: si la ubicación
+   se vuelve a contar, el renglón nuevo es otro id y vuelve a salir POR
+   PASAR, que es lo correcto — lo que se pasó fue lo de antes.
+
+   `ok:false` = todavía no se corrió el SQL (la tabla no existe). La
+   pantalla lo dice y no deja marcar, en vez de enseñar todo POR PASAR
+   como si nadie hubiera pasado nada.
+   ===================================================================== */
+export async function pasadosBase(): Promise<{ ids: string[]; ok: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("conteo_lineas_pasadas")
+    .select("linea_id").limit(TOPE_BASE);
+  if (error) return { ids: [], ok: false };
+  return { ids: ((data ?? []) as { linea_id: string }[]).map((x) => x.linea_id), ok: true };
+}

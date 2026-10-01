@@ -1,343 +1,176 @@
 /* ---------------------------------------------------------------------
-   LA BASE — todo lo contado, en una tabla de verdad.
+   LA BASE — cuerpo nuevo (maqueta «la-base.html»)
 
-   ESTO NO SE USA DE PIE. La pantalla de contar se camina con una mano y
-   por eso todo mide 48 px; esta se mira sentado, con la hoja al lado y
-   veintiséis columnas que hay que poder recorrer con el ojo. Son dos
-   trabajos distintos y por eso son dos densidades distintas.
+   ESTO NO SE USA DE PIE. La pantalla de contar se camina con una mano y por
+   eso todo mide 48 px; esta se mira sentado, con la hoja al lado. Son dos
+   trabajos distintos y por eso son dos densidades distintas — salvo en el
+   celular, donde todo lo que se toca vuelve a medir 44.
 
-   Todo cuelga de .fe y de .ba- para no pisar nada: `.fe-tabla` habría
-   sido el nombre corto, y este proyecto ya perdió una barra de
-   herramientas por reusar un nombre que existía cuatrocientas líneas más
-   arriba.
+   Todo cuelga de `.fe .ba` para no pisar nada: este proyecto ya perdió una
+   barra de herramientas por reusar un nombre que existía cuatrocientas
+   líneas más arriba, y dos veces una regla de la misma especificidad pisó a
+   otra. Por eso cada regla lleva `.fe .ba` delante y los botones dicen su
+   alto y su fuente en vez de heredarlos.
    --------------------------------------------------------------------- */
+.fe .ba { display: flex; flex-direction: column; gap: 16px; min-width: 0; --ba-azul: #1F4E8C; --ba-mono: var(--fe-mono, ui-monospace, "IBM Plex Mono", monospace) }
+.fe .ba .ba-eti { display: block; margin: 0; font: 700 10px var(--fe-titulo); letter-spacing: .14em; text-transform: uppercase; color: var(--fe-gris) }
 
-.fe .ba-pes { margin-bottom: 4px }
-
-/* QUÉ ES CADA PESTAÑA, ESCRITO Y ARRIBA. Las dos son una tabla igual con
-   números distintos, y ahí es donde alguien suma la equivocada. */
-.fe .ba-dice {
-  margin: 0 0 12px; padding: 10px 13px; border-radius: 2px;
-  background: var(--fe-fondo); font-size: 12.5px; line-height: 1.5;
-  color: var(--fe-gris-panel); max-width: 92ch;
+/* ---------- Cabecera ---------- */
+.fe .ba-cab { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap }
+.fe .ba-cab h1 { margin: 6px 0; font: 900 30px/1 var(--fe-titulo); letter-spacing: -.03em; color: var(--fe-tinta) }
+.fe .ba-sub { margin: 0; font-size: 13px; color: var(--fe-gris) }
+.fe .ba-sub b { color: var(--fe-tinta) }
+.fe .ba-acc { display: flex; gap: 8px; flex-wrap: wrap }
+.fe .ba .ba-sec, .fe .ba .ba-prim {
+  min-height: 42px; padding: 0 16px; border-radius: 0; cursor: pointer; white-space: nowrap;
+  font: 700 13px var(--fe-titulo); width: auto;
 }
+.fe .ba .ba-sec { background: #fff; color: var(--fe-tinta); border: 1px solid var(--fe-linea) }
+.fe .ba .ba-sec.ba-adm { color: var(--fe-gris) }
+.fe .ba .ba-sec[aria-expanded="true"] { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+.fe .ba .ba-prim { background: var(--fe-acento); color: var(--fe-sobre); border: 0; font-weight: 800; font-size: 13.5px }
+.fe .ba .ba-sec:disabled, .fe .ba .ba-prim:disabled { opacity: .5; cursor: default }
+.fe .ba .ba-sec:focus-visible, .fe .ba .ba-prim:focus-visible, .fe .ba .ba-ch:focus-visible, .fe .ba .ba-link:focus-visible {
+  outline: 2px solid var(--fe-acento); outline-offset: 2px;
+}
+.fe .ba .ba-error, .fe .ba-conso-mal { margin: 0; font-size: 13px; font-weight: 700; color: #A30D25 }
+
+/* ---------- Administrador ---------- */
+.fe .ba-admin { background: #fff; border: 1px solid var(--fe-linea); padding: 4px 14px 14px }
+.fe .ba-admin .ba-elim { margin-top: 10px }
+.fe .ba-admin .ba-quitar { margin: 12px 0 0 }
+
+/* ---------- El tope y los avisos ---------- */
+.fe .ba-tope { margin: 0; padding: 10px 13px; border-radius: 2px; background: #FDECEE; color: #8A1020; font-size: 12.5px; line-height: 1.5; box-shadow: inset 4px 0 0 var(--fe-mal) }
+.fe .ba-dice { margin: 0; padding: 10px 13px; border-radius: 2px; background: var(--fe-fondo); font-size: 12.5px; line-height: 1.5; color: var(--fe-gris-panel); max-width: 92ch }
 .fe .ba-dice b { color: var(--fe-tinta) }
-/* El borrador se pinta distinto del resto de la pantalla: es lo que
-   impide leerlo como un dato firmado. El ámbar va a mano y no por token
-   —--c-oro es ROJO PURO en tres de los siete temas— y este par está
-   medido contra el crema, no mirado. */
+/* El borrador se pinta distinto del resto de la pantalla: es lo que impide leerlo como un dato firmado.
+   El ámbar va a mano y no por token —--c-oro es ROJO PURO en tres de los siete temas—. */
 .fe .ba-dice.ojo { background: #FFF8E6; color: #5E4100; box-shadow: inset 4px 0 0 #C08A16 }
 .fe .ba-dice.ojo b { color: #3D2A00 }
 
-/* EL TOPE, DICHO. PostgREST contesta hasta cierto número de filas y no
-   avisa: una lista corta se ve perfectamente normal y alguien cuadra
-   contra ella sin saber que le faltan los recorridos viejos. */
-.fe .ba-tope {
-  margin: 0 0 12px; padding: 10px 13px; border-radius: 2px;
-  background: #FDECEE; color: #8A1020; font-size: 12.5px; line-height: 1.5;
-  box-shadow: inset 4px 0 0 var(--fe-mal);
+/* ---------- Qué recorridos: calendario + fichas + cuenta ---------- */
+.fe .ba-ctrl { background: #fff; border: 1px solid var(--fe-linea); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center }
+.fe .ba-ctrl > div { padding: 12px 16px; min-width: 0 }
+.fe .ba-ctrl > div + div { border-left: 1px solid var(--fe-linea) }
+.fe .ba-ctrl .ba-cal .disparo { min-height: 40px; min-width: 210px; border-radius: 0; border-color: var(--fe-tinta) }
+.fe .ba-fichas { display: flex; align-items: center; gap: 6px; flex-wrap: wrap }
+.fe .ba-ficha-gr { display: contents }
+.fe .ba-dl { margin: 0 2px 0 6px; font: 700 10px var(--fe-titulo); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .ba-fichas > .ba-ficha-gr:first-child .ba-dl { margin-left: 0 }
+.fe .ba-nada { font-size: 12.5px; color: var(--fe-gris) }
+.fe .ba .ba-ch {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; width: auto; padding: 0 9px 0 6px; border-radius: 0; cursor: pointer;
+  border: 1px solid var(--fe-linea); background: #fff; color: var(--fe-gris-panel); font: 600 12px var(--ba-mono);
 }
+.fe .ba .ba-ch i { width: 14px; height: 14px; border: 1.5px solid #BDBDB6; font: 900 9px var(--fe-titulo); font-style: normal; display: flex; align-items: center; justify-content: center }
+.fe .ba .ba-ch.on { background: color-mix(in srgb, var(--fe-acento) 16%, #fff); border-color: color-mix(in srgb, var(--fe-acento) 55%, #fff); color: var(--fe-tinta) }
+.fe .ba .ba-ch.on i { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-acento) }
+.fe .ba .ba-ch small { font: 500 11px var(--ba-mono); color: var(--fe-gris) }
+.fe .ba .ba-ch.re { box-shadow: inset 0 -2px 0 var(--ba-azul) }
+.fe .ba-cnt { display: flex; align-items: center; gap: 10px; font: 700 12px var(--fe-titulo); white-space: nowrap }
+.fe .ba .ba-link { min-height: 32px; padding: 0 4px; width: auto; background: none; border: 0; border-radius: 0; cursor: pointer; font: 600 12px var(--fe-texto); color: var(--fe-tinta); text-decoration: underline; text-underline-offset: 3px }
+.fe .ba .ba-link:disabled { opacity: .45; cursor: default; text-decoration: none }
 
-.fe .ba-filtros {
-  display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-bottom: 10px;
-}
-.fe .ba-filtros label { display: block; min-width: 0 }
-.fe .ba-filtros label.ancho { flex: 1 1 260px }
-/* `:not([type="checkbox"])` Y NO `input` A SECAS.
-   Escrito a secas, esta regla y la de `.fe .fe-check input` —que pone la
-   casilla en 18×18— tienen la MISMA especificidad (0,2,1), y esta va
-   después porque base.css se carga después de fefo.css: la casilla de
-   «Solo lo que ya se pasó» se llevaba el ancho completo y los 40 px de
-   alto, y empujaba su propia etiqueta fuera de la pantalla arrastrando
-   la página 27 px de lado. No dio ningún error; lo cazó el arnés.
-   Es la segunda vez en este proyecto que un nombre de regla con la misma
-   especificidad pisa a otra cuatrocientas líneas más arriba. */
-.fe .ba-filtros input:not([type="checkbox"]), .fe .ba-filtros select {
-  min-height: 40px; padding: 0 10px; width: 100%; min-width: 0;
-  font: 500 13.5px var(--fe-texto); color: var(--fe-tinta);
-  background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px;
-}
-.fe .ba-filtros input:not([type="checkbox"]):focus, .fe .ba-filtros select:focus {
-  outline: none; border-color: var(--fe-acento);
-}
-/* EL CHECK NO ES UN CAMPO APILADO. `.ba-filtros label { display: block }`
-   —que es lo que pone el rótulo encima del campo en los demás— le pisó
-   el `inline-flex` de `.fe-check` y dejó la casilla en una caja alta con
-   el texto debajo. Va explícito aquí, con la especificidad del caso. */
-.fe .ba-filtros label.fe-check {
-  display: inline-flex; align-items: center; gap: 8px;
-  /* NI `flex: none` NI `nowrap`. Los puse y a 390 px la etiqueta —«Solo
-     lo que ya se pasó»— no cabía, no podía encogerse ni partirse, y
-     arrastraba la página entera 127 px de lado: justo lo que esta
-     pantalla evita metiendo la tabla en su propia caja. Que se encoja y
-     parta, que la casilla no. */
-  flex: 0 1 auto; min-width: 0; min-height: 40px;
-}
-.fe .ba-filtros label.fe-check input { flex: none }
+/* ---------- Las cuatro cifras ---------- */
+.fe .ba-kp { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #fff; border: 1px solid var(--fe-linea) }
+.fe .ba-kp > div { padding: 10px 16px; min-width: 0 }
+.fe .ba-kp > div + div { border-left: 1px solid var(--fe-linea) }
+.fe .ba-kp b { display: block; margin-top: 6px; font: 900 24px/1.1 var(--fe-titulo); letter-spacing: -.02em; color: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.fe .ba-kp small { font-size: 11.5px; color: var(--fe-gris) }
+.fe .ba-kp .az b { color: var(--ba-azul) }
 
-.fe .ba-cuenta {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  flex-wrap: wrap; margin-bottom: 8px;
-}
-.fe .ba-cuenta p {
-  margin: 0; font-size: 12.5px; color: var(--fe-gris);
-  font-variant-numeric: tabular-nums;
-}
-.fe .ba-cuenta p b { color: var(--fe-tinta); font-family: var(--fe-titulo) }
-.fe .ba-cuenta .btn { min-height: 40px; flex: none }
+/* ---------- Pestañas, búsqueda y filtros ---------- */
+.fe .ba-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.fe .ba-tabs { display: flex; background: #fff; border: 1px solid var(--fe-linea) }
+.fe .ba .ba-tabs button { min-height: 40px; padding: 0 14px; width: auto; border: 0; border-radius: 0; background: none; cursor: pointer; font: 700 13px var(--fe-titulo); color: var(--fe-gris-panel) }
+.fe .ba .ba-tabs button.on { background: var(--fe-tinta); color: #fff }
+.fe .ba .ba-tabs i, .fe .ba .ba-seg i { font: 600 11px var(--ba-mono); font-style: normal; margin-left: 6px }
+.fe .ba .ba-tabs .on i { color: var(--fe-acento) }
+.fe .ba .ba-busca { flex: 1 1 200px; min-width: 120px; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; background: #fff; border: 1px solid var(--fe-linea); color: var(--fe-gris) }
+.fe .ba .ba-busca:focus-within { border-color: var(--fe-acento) }
+.fe .ba .ba-busca input { flex: 1; min-width: 0; min-height: 38px; height: 38px; padding: 0; border: 0; outline: none; background: none; font: 500 13px var(--fe-texto); color: var(--fe-tinta) }
+.fe .ba .ba-seg { display: flex; border: 1px solid var(--fe-linea); background: #fff }
+.fe .ba .ba-seg button { min-height: 38px; padding: 0 11px; width: auto; border: 0; border-radius: 0; background: none; cursor: pointer; font: 700 12.5px var(--fe-titulo); color: var(--fe-gris-panel) }
+.fe .ba .ba-seg button.on { background: var(--fe-acento); color: var(--fe-sobre) }
+.fe .ba .ba-seg i { margin-left: 4px; font-weight: 500 }
+.fe .ba .ba-sel { display: block; min-width: 0 }
+.fe .ba .ba-sel select { min-height: 40px; height: 40px; width: auto; max-width: 100%; padding: 0 8px; border: 1px solid var(--fe-linea); border-radius: 0; background: #fff; font: 600 12.5px var(--fe-texto); color: var(--fe-tinta) }
+.fe .ba .ba-sel select:focus { outline: none; border-color: var(--fe-acento) }
 
-/* ---------------------------------------------------------------------
-   LA TABLA SE DESPLAZA DENTRO DE SU CAJA
+/* ---------- Marcar como pasado ---------- */
+.fe .ba-pasar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 12px; border: 1px dashed var(--fe-linea); font-size: 13px }
+.fe .ba-pasar-cuenta { flex: 1 1 260px; font-weight: 700; color: var(--fe-gris-panel) }
+.fe .ba-pasar .btn { min-height: 44px }
+.fe .ba-pasar > .ba-elim-ok, .fe .ba-pasar > .ba-conso-mal { flex: 1 1 100%; margin: 0 }
 
-   Veintiséis columnas no caben en ninguna pantalla. Si la que se va de
-   lado es la PÁGINA, el menú y los filtros quedan inalcanzables mientras
-   se mira la columna veinte — y para volver a filtrar hay que arrastrar
-   de vuelta. Aquí se desplaza la caja y el resto se queda quieto.
+/* ---------- La tabla ---------- */
+.fe .ba-tabla { background: #fff; border: 1px solid var(--fe-linea); min-width: 0 }
+.fe .ba-th { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 6px 14px; min-height: 44px; border-bottom: 1px solid var(--fe-linea); font-size: 12.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
+.fe .ba-th b { color: var(--fe-tinta) }
+.fe .ba-vacio { margin: 0; padding: 28px 16px; text-align: center; color: var(--fe-gris) }
+/* LA TABLA SE DESPLAZA DENTRO DE SU CAJA, no arrastrando la página; y la cabecera se queda pegada arriba. */
+.fe .ba-marco { overflow: auto; max-height: 70vh; overscroll-behavior: contain }
+.fe .ba-t { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 900px; font-size: 13px; font-variant-numeric: tabular-nums }
+.fe .ba-t th, .fe .ba-t td { border-bottom: 1px solid var(--fe-linea); text-align: left; white-space: nowrap }
+.fe .ba-t thead th { position: sticky; top: 0; z-index: 2; padding: 0; background: var(--fe-fondo); border-bottom: 2px solid var(--fe-tinta) }
+.fe .ba-t thead button { display: flex; align-items: center; gap: 5px; width: 100%; min-height: 40px; padding: 9px 10px; border: 0; border-radius: 0; background: none; cursor: pointer; text-align: left; font: 700 9.5px var(--fe-titulo); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris-panel) }
+.fe .ba-t thead th.num button { justify-content: flex-end }
+.fe .ba-t thead button:hover { color: var(--fe-tinta) }
+.fe .ba-t thead button i { font-style: normal; font-size: 9px; color: var(--fe-acento) }
+.fe .ba-t thead button:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: -2px }
+.fe .ba-t td { padding: 9px 10px; vertical-align: top; color: var(--fe-tinta) }
+.fe .ba-t td.num, .fe .ba-t th.num { text-align: right }
+.fe .ba-t tbody tr:hover { background: var(--fe-fondo) }
+.fe .ba-t tbody tr:last-child td { border-bottom: 0 }
+.fe .ba-t .ba-ub { font: 700 12.5px var(--ba-mono) }
+.fe .ba-t .ba-mat b { display: block; font-weight: 600 }
+.fe .ba-t small { display: block; margin-top: 2px; font: 500 11px var(--ba-mono); color: var(--fe-gris) }
+.fe .ba-t .ba-cajas { display: block; font: 800 14px var(--fe-titulo) }
+.fe .ba-t .ba-cajas s { display: block; font: 500 11px var(--ba-mono); color: var(--fe-gris) }
+.fe .ba-t .ba-sin { color: var(--fe-gris) }
+.fe .ba-t .ba-tag { display: inline-block; padding: 2px 6px; font: 700 11px var(--ba-mono); background: var(--fe-fondo); border: 1px solid var(--fe-linea) }
+.fe .ba-t .ba-tag.nuevo { background: color-mix(in srgb, var(--fe-acento) 16%, #fff); border-color: color-mix(in srgb, var(--fe-acento) 55%, #fff) }
+.fe .ba-t .ba-reemplazo { display: block; margin-top: 3px; font: 600 10.5px var(--fe-texto); color: var(--ba-azul) }
+.fe .ba-t .ba-pas, .fe .ba-t .ba-pen { display: inline-block; padding: 4px 6px; font: 800 9px var(--fe-titulo); letter-spacing: .1em }
+.fe .ba-t .ba-pas { background: color-mix(in srgb, var(--fe-bien) 12%, #fff); color: var(--fe-bien) }
+.fe .ba-t .ba-pen { background: var(--fe-fondo); color: var(--fe-gris-panel); border: 1px solid var(--fe-linea) }
+.fe .ba-t .ba-mal { font-weight: 800; color: var(--fe-mal) }
+.fe .ba-t th.ba-chk, .fe .ba-t td.ba-chk { width: 44px; min-width: 44px; padding: 0; text-align: center; vertical-align: middle }
+.fe .ba-t .ba-chk input { width: 20px; height: 20px; margin: 0; vertical-align: middle; cursor: pointer; accent-color: var(--fe-tinta) }
+.fe .ba-t tbody tr.marcado { background: color-mix(in srgb, var(--fe-acento) 16%, #fff) }
+.fe .ba-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 8px 14px; font-size: 12px; color: var(--fe-gris); border-top: 1px solid var(--fe-linea) }
+.fe .ba-pags { display: flex; gap: 8px }
+.fe .ba-pie .ba-sec { min-height: 36px }
 
-   Y LA CABECERA SE QUEDA PEGADA ARRIBA. Con doscientas filas, la fila
-   ciento veinte es una hilera de números sin ningún título a la vista, y
-   ahí es donde se lee «saldo» en la columna de «cajas sueltas».
-   --------------------------------------------------------------------- */
-.fe .ba-marco {
-  overflow: auto; max-height: 70vh;
-  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
-  /* Con `overscroll-behavior` el tirón que llega al final de la tabla no
-     sigue hacia la página: al revisar de arriba abajo se salta sola. */
-  overscroll-behavior: contain;
+/* ---------- Pantalla angosta ---------- */
+@media (max-width: 1100px) {
+  .fe .ba-ctrl { grid-template-columns: minmax(0, 1fr) }
+  .fe .ba-ctrl > div + div { border-left: 0; border-top: 1px solid var(--fe-linea) }
+  .fe .ba-kp { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .fe .ba-kp > div:nth-child(3) { border-left: 0 }
+  .fe .ba-kp > div:nth-child(n+3) { border-top: 1px solid var(--fe-linea) }
+  .fe .ba-cab { align-items: flex-start }
 }
-.fe .ba-tabla {
-  border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%;
-  font-size: 12.5px; font-variant-numeric: tabular-nums;
-}
-.fe .ba-tabla th, .fe .ba-tabla td {
-  padding: 0; border-bottom: 1px solid var(--fe-linea); text-align: left;
-  white-space: nowrap;
-}
-.fe .ba-tabla thead th {
-  position: sticky; top: 0; z-index: 2;
-  background: var(--fe-fondo); border-bottom: 2px solid var(--fe-linea);
-}
-/* EL TÍTULO ES UN BOTÓN porque ordena. Va como botón de verdad —no un
-   `<th>` con onClick— para que se alcance con el teclado y lo anuncie el
-   lector de pantalla; `aria-sort` en el `<th>` dice por cuál se está
-   ordenando. */
-.fe .ba-tabla thead button {
-  display: flex; align-items: center; gap: 5px; width: 100%;
-  /* 38 px Y NO LO QUE SALGA. El título no es solo un rótulo: es el
-     control que ordena, y se toca. Con el alto que daba el texto se
-     quedaba en 32 px, que en una tableta es apuntar. */
-  min-height: 38px; padding: 10px 11px; cursor: pointer;
-  background: none; border: none; text-align: left;
-  font: 700 10.5px var(--fe-texto); letter-spacing: .07em; text-transform: uppercase;
-  color: var(--fe-gris-panel);
-}
-.fe .ba-tabla thead th.num button { justify-content: flex-end }
-.fe .ba-tabla thead button:hover { color: var(--fe-acento) }
-.fe .ba-tabla thead button i { font-style: normal; font-size: 9px; color: var(--fe-acento) }
-.fe .ba-tabla thead button:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: -2px }
-
-.fe .ba-tabla td { padding: 9px 11px; color: var(--fe-tinta) }
-.fe .ba-tabla td.num, .fe .ba-tabla th.num { text-align: right }
-/* ZEBRA MUY SUAVE. Con veintiséis columnas el ojo pierde el renglón a
-   medio camino; con un rayado fuerte la tabla se vuelve ilegible. Se
-   busca lo justo para seguir la fila, no para decorarla. */
-.fe .ba-tabla tbody tr:nth-child(even) { background: color-mix(in srgb, var(--fe-fondo) 55%, #FFF) }
-.fe .ba-tabla tbody tr:hover { background: var(--fe-fondo) }
-.fe .ba-tabla tbody tr:last-child td { border-bottom: none }
-
-/* LO QUE YA SE PASÓ DE SU FECHA DE SALIDA. No es cuándo vence: es que ya
-   no alcanza a llegarle al cliente con vida útil suficiente. */
-.fe .ba-tabla .ba-mal { font-weight: 800; color: var(--fe-mal) }
-
 @media (max-width: 760px) {
-  /* EN EL CELULAR CADA FILTRO SE LLEVA SU RENGLÓN. Apretados en una
-     fila, los desplegables no se dejan encoger por debajo del texto de
-     su opción más larga —«Todos los recorridos»— y el que queda de
-     último sale empujado fuera de la pantalla, arrastrando la página de
-     lado. Que es justo lo que esta pantalla evita metiendo la tabla en
-     su propia caja: no tendría sentido arreglarlo abajo y romperlo
-     arriba. */
-  .fe .ba-filtros { gap: 8px }
-  .fe .ba-filtros label, .fe .ba-filtros label.ancho { flex: 1 1 100%; min-width: 0 }
-  .fe .ba-filtros label.fe-check { flex: 1 1 100% }
-  .fe .ba-filtros .btn.plano { width: 100% }
+  .fe .ba-cab h1 { font-size: 26px }
+  .fe .ba-acc { width: 100% }
+  .fe .ba .ba-sec, .fe .ba .ba-prim { flex: 1 1 140px; min-height: 44px }
+  .fe .ba .ba-ch { min-height: 44px; padding: 0 12px 0 8px }
+  .fe .ba .ba-link { min-height: 44px; padding: 0 8px }
+  .fe .ba .ba-tabs { width: 100% }
+  .fe .ba .ba-tabs button { flex: 1; min-height: 44px }
+  .fe .ba .ba-busca { flex: 1 1 100%; min-height: 44px }
+  .fe .ba .ba-busca input { min-height: 42px; height: 42px }
+  .fe .ba .ba-seg { width: 100% }
+  .fe .ba .ba-seg button { flex: 1; min-height: 44px; padding: 0 6px }
+  .fe .ba .ba-sel { flex: 1 1 30% }
+  .fe .ba .ba-sel select { width: 100%; min-height: 44px; height: 44px }
+  .fe .ba-t thead button { min-height: 44px }
+  .fe .ba-t th.ba-chk, .fe .ba-t td.ba-chk { width: 48px; min-width: 48px }
   .fe .ba-marco { max-height: 60vh }
-  .fe .ba-cuenta .btn { width: 100% }
-  .fe .ba-filtros label.ancho { flex: 1 1 100% }
-}
-
-/* =====================================================================
-   QUÉ INVENTARIO SE ESTÁ MIRANDO
-
-   «Cuando entre a la base deberían aparecer por fecha los registros que
-   hicieron, consolidados en una sola base, con el fin de seleccionar
-   qué inventario ver.»
-
-   Es de otra clase que los filtros de abajo: los filtros recortan una
-   tabla, esto decide CUÁL. Por eso va aparte, arriba, y con la fecha en
-   grande — el código «FEFO-0007» no le dice nada a nadie; lo que se
-   recuerda es «el conteo del martes».
-   ===================================================================== */
-.fe .ba-invs { margin-bottom: 14px }
-.fe .ba-invs-rot {
-  display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px;
-  font: 800 11px var(--fe-titulo); letter-spacing: .16em; text-transform: uppercase;
-  color: var(--fe-gris-panel);
-}
-.fe .ba-invs-rot em {
-  font-style: normal; letter-spacing: 0; text-transform: none; font-weight: 600;
-  color: var(--fe-gris);
-}
-
-/* UNA LÍNEA, MIDA LO QUE MIDA LA HISTORIA.
-
-   Era una fila de tarjetas que rodaba de lado, una por recorrido. Con
-   tres se veía bien; a un conteo diario son ciento ochenta en seis
-   meses, y rodar de lado deja de ser «a la vista». Ahora: un buscador
-   que se teclea —mide lo mismo con 3 que con 300— y TRES atajos fijos
-   para el caso normal, que es «el de ayer».
-
-   `flex-wrap` y no `overflow-x`: como son cuatro cosas y no crecen, en
-   el celular bajan a un segundo renglón en vez de esconderse. */
-.fe .ba-invs-fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch }
-/* El buscador manda y se lleva el espacio; los atajos son del tamaño de
-   su contenido. Al revés, con seis recorridos el buscador quedaba de
-   90 px y no se podía ni leer lo que se escribía. */
-.fe .ba-inv-buscar { flex: 1 1 280px; min-width: 0; display: block }
-.fe .ba-inv {
-  flex: 0 0 auto; min-width: 118px;
-  display: flex; flex-direction: column; justify-content: center; gap: 2px;
-  align-items: flex-start; min-height: 52px; padding: 8px 12px;
-  cursor: pointer; text-align: left;
-  background: var(--fe-papel); border: 1.5px solid var(--fe-linea); border-radius: 2px;
-}
-.fe .ba-inv b {
-  font: 800 14px var(--fe-titulo); color: var(--fe-tinta);
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-.fe .ba-inv span {
-  font-size: 11.5px; color: var(--fe-gris); line-height: 1.3;
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-.fe .ba-inv:hover { border-color: var(--fe-acento) }
-.fe .ba-inv:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 2px }
-
-/* EL ESCOGIDO SE PINTA CON EL ACENTO DE FONDO Y SU LETRA ENCIMA. De
-   color de letra, el acento dio 1,6 de contraste en tres de los siete
-   temas de esta misma app: está hecho para llevar texto encima. */
-.fe .ba-inv.on {
-  background: var(--fe-acento); border-color: var(--fe-acento);
-}
-.fe .ba-inv.on b, .fe .ba-inv.on span { color: var(--fe-sobre) }
-/* «Todos» va con una raya y no con otro color: es la misma clase de
-   cosa que los demás —un recorrido más, el de la suma— y un color
-   propio lo haría parecer un botón de acción. */
-.fe .ba-inv.todos { box-shadow: inset 3px 0 0 var(--fe-linea) }
-.fe .ba-inv.todos.on { box-shadow: none }
-
-/* ---------- PRODUCTO O ENVASE ----------
-   Dos mundos que casi nunca se miran juntos: el que cuadra producto
-   terminado no quiere las canastas en medio. Va en botones y no en un
-   desplegable más porque un desplegable cerrado no dice cuál está
-   puesto, y este filtro cambia el total de la pantalla. */
-.fe .ba-tipos { display: flex; gap: 0; flex: 0 0 auto }
-.fe .ba-tipos button {
-  min-height: 40px; padding: 0 13px; cursor: pointer;
-  font: 600 13px var(--fe-texto); color: var(--fe-gris-panel);
-  background: #fff; border: 1.5px solid var(--fe-linea); margin-left: -1.5px;
-}
-.fe .ba-tipos button:first-child { margin-left: 0; border-radius: 2px 0 0 2px }
-.fe .ba-tipos button:last-child { border-radius: 0 2px 2px 0 }
-.fe .ba-tipos button.on {
-  background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre);
-  position: relative; z-index: 1;
-}
-/* CUÁNTOS HAY DE CADA UNO. Un botón «Envase» que lleva a una tabla
-   vacía hace dudar de si se perdió algo; con la cifra al lado se ve que
-   ese recorrido no tocó envases y no hay nada que buscar. */
-.fe .ba-tipos em {
-  font-style: normal; font-weight: 700; margin-left: 7px; opacity: .72;
-  font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 760px) {
-  /* LOS ATAJOS SE REPARTEN EL RENGLÓN. En el celular el buscador se
-     lleva el primero entero y los tres atajos caben en el segundo. */
-  .fe .ba-inv-buscar { flex: 1 1 100% }
-  .fe .ba-inv { flex: 1 1 0; min-width: 0; min-height: 52px; padding: 8px 9px }
-  .fe .ba-inv b { font-size: 13px }
-  .fe .ba-inv span { font-size: 10.5px }
-  .fe .ba-tipos { width: 100% }
-  .fe .ba-tipos button { flex: 1; padding: 0 8px }
-}
-
-/* ---------- El consolidado del día ---------- */
-/* EL TEXTO A LA IZQUIERDA Y LAS ACCIONES A LA DERECHA — pero la
-   derecha TIENE QUE PODER ENCOGERSE.
-
-   «¿Por qué la base del inventario se ve así desde la tablet?»: el
-   titular salía una palabra por renglón, en una columna del ancho de
-   «bodega».
-
-   La culpa era de `auto` a secas en la segunda columna. `auto` toma el
-   MAX-CONTENT de lo que lleva dentro, y ahí dentro hay un flex con el
-   desplegable del día, el botón «Exportar consolidado» y su renglón de
-   cifras: sumados en una sola línea son cientos de píxeles. La columna
-   se los quedaba enteros y a `minmax(0, 1fr)` le tocaba lo que sobrara
-   —nada—, así que el texto se partía palabra por palabra.
-
-   `fit-content(340px)` es lo que arregla las dos mitades del problema:
-   la botonera pide lo que necesita, pero NUNCA más de 340 px, y cede
-   por debajo cuando hace falta. Sin ese tope se llevaba 762 de 1440 en
-   el computador —más que el texto, que es lo principal de la tarjeta—
-   porque su max-content es el desplegable, el botón y el renglón de
-   cifras sumados en una línea, aunque luego se envuelvan.
-
-   Y la izquierda pide 260 px de mínimo: por debajo de eso ya no es una
-   columna de texto, es una tira. Cuando no caben los dos, el grid se va
-   a una sola columna. */
-.fe .ba-conso {
-  display: grid; grid-template-columns: minmax(260px, 1fr) fit-content(340px);
-  gap: 14px 24px; align-items: end;
-  padding: 18px 20px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-top: 4px solid var(--fe-acento); border-radius: 4px;
-}
-.fe .ba-conso-o { margin: 0; font: 700 10.5px var(--fe-titulo); letter-spacing: .16em; color: var(--fe-gris) }
-.fe .ba-conso h2 { margin: 4px 0 6px; font: 900 20px var(--fe-titulo); color: var(--fe-tinta) }
-.fe .ba-conso-tx p:last-child { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--fe-gris); max-width: 70ch }
-.fe .ba-conso-acc { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px }
-.fe .ba-conso-acc label { display: flex; flex-direction: column; gap: 4px }
-.fe .ba-conso-acc label span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
-.fe .ba-conso-acc select { min-height: 46px; padding: 0 10px; border: 1.5px solid var(--fe-linea); border-radius: 3px; background: #fff; color: var(--fe-tinta); font: 600 14px var(--fe-texto) }
-.fe .ba-conso-acc .btn { min-height: 46px }
-.fe .ba-conso-acc small { flex-basis: 100%; font-size: 12.5px; color: var(--fe-gris) }
-.fe .ba-conso-mal { flex-basis: 100%; margin: 0; font-size: 13px; font-weight: 700; color: #A30D25 }
-/* 1000 Y NO 760. La tablet en vertical mide 820 px: caía fuera del
-   corte y se quedaba con las dos columnas, que es justo donde se veía
-   mal. El corte no es «celular o no»: es «¿caben un párrafo y una
-   botonera al lado?», y a 820 px no caben. */
-@media (max-width: 1000px) {
-  .fe .ba-conso { grid-template-columns: minmax(0, 1fr) }
-  .fe .ba-conso-acc label, .fe .ba-conso-acc select, .fe .ba-conso-acc .btn { flex: 1 1 100%; width: 100% }
-}
-
-/* Los FEFO del día, para escoger cuáles entran. */
-.fe .ba-conso-fefos { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--fe-linea) }
-.fe .ba-conso-fefos-cab { margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px }
-.fe .ba-conso-fefos-cab span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
-.fe .ba-conso-todos { min-height: 36px; padding: 0 10px; border: 1px solid var(--fe-linea); border-radius: 3px; background: #fff; color: var(--fe-tinta); font: 700 12.5px var(--fe-texto); cursor: pointer }
-.fe .ba-conso-fefo {
-  display: grid; grid-template-columns: 24px auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; min-height: 46px;
-  padding: 6px 12px; border: 1.5px solid var(--fe-linea); border-radius: 4px; background: #fff; cursor: pointer; color: var(--fe-gris);
-}
-.fe .ba-conso-fefo input { width: 20px; height: 20px; accent-color: var(--fe-tinta); cursor: pointer }
-.fe .ba-conso-fefo b { font: 800 14px var(--fe-titulo); color: var(--fe-tinta) }
-.fe .ba-conso-fefo span { font-size: 13px; min-width: 0 }
-.fe .ba-conso-fefo em { font-style: normal; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap }
-.fe .ba-conso-fefo.on { border-color: var(--fe-tinta); background: color-mix(in srgb, var(--fe-acento) 7%, #fff) }
-.fe .ba-conso-fefo:not(.on) b { color: var(--fe-gris); text-decoration: line-through }
-@media (max-width: 760px) {
-  .fe .ba-conso-fefo { grid-template-columns: 24px minmax(0, 1fr) }
-  .fe .ba-conso-fefo span, .fe .ba-conso-fefo em { grid-column: 2 }
+  .fe .ba-ctrl .ba-cal .disparo { min-width: 0; min-height: 44px }
+  .fe .ba-ctrl .ba-cal { width: 100% }
 }
 
 /* ELIMINAR FEFOs (solo administrador) */
@@ -367,82 +200,78 @@
 .fe .ba-elim-conf { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; font-weight: 700 }
 
 /* EL CALENDARIO DEL CONSOLIDADO: un día o un período, todo dentro del mismo panel. */
-.fe .ba-conso-dia { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
-.fe .ba-conso-dia > span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
-.fe .ba-conso .calendario { position: relative }
-.fe .ba-conso .disparo {
+.fe .ba-cal .calendario { position: relative }
+.fe .ba-cal .disparo {
   display: flex; align-items: center; gap: 10px; min-height: 46px; min-width: 250px; padding: 0 12px; width: 100%;
   font: 600 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 3px; cursor: pointer; text-align: left;
 }
-.fe .ba-conso .disparo[aria-expanded="true"], .fe .ba-conso .disparo:focus-visible { outline: none; border-color: var(--fe-acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fe-acento) 22%, transparent) }
-.fe .ba-conso .disparo .ico { width: 16px; height: 16px; stroke: var(--fe-gris); stroke-width: 1.8; fill: none; flex: none }
-.fe .ba-conso .disparo .flecha { margin-left: auto; width: 14px; height: 14px; stroke: var(--fe-gris); stroke-width: 2.2; fill: none; flex: none; transition: transform .14s }
-.fe .ba-conso .disparo[aria-expanded="true"] .flecha { transform: rotate(180deg) }
-.fe .ba-conso .disparo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.fe .ba-conso .calendario .panel {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; max-width: calc(100vw - 24px);
+.fe .ba-cal .disparo[aria-expanded="true"], .fe .ba-cal .disparo:focus-visible { outline: none; border-color: var(--fe-acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fe-acento) 22%, transparent) }
+.fe .ba-cal .disparo .ico { width: 16px; height: 16px; stroke: var(--fe-gris); stroke-width: 1.8; fill: none; flex: none }
+.fe .ba-cal .disparo .flecha { margin-left: auto; width: 14px; height: 14px; stroke: var(--fe-gris); stroke-width: 2.2; fill: none; flex: none; transition: transform .14s }
+.fe .ba-cal .disparo[aria-expanded="true"] .flecha { transform: rotate(180deg) }
+.fe .ba-cal .disparo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.fe .ba-cal .calendario .panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; max-width: calc(100vw - 24px);
   background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px; overflow: hidden; box-shadow: 0 28px 56px -24px rgba(4,32,63,.5);
 }
-.fe .ba-conso .calendario .panel::before { content: ""; display: block; height: 3px; background: var(--fe-acento) }
-.fe .ba-conso .cal-cuerpo { display: flex }
-.fe .ba-conso .atajos { width: 170px; border-right: 1px solid var(--fe-linea); padding: 12px 0; flex: none }
-.fe .ba-conso .atajos button {
+.fe .ba-cal .calendario .panel::before { content: ""; display: block; height: 3px; background: var(--fe-acento) }
+.fe .ba-cal .cal-cuerpo { display: flex }
+.fe .ba-cal .atajos { width: 170px; border-right: 1px solid var(--fe-linea); padding: 12px 0; flex: none }
+.fe .ba-cal .atajos button {
   display: block; width: 100%; min-height: 44px; text-align: left; padding: 9px 18px; border: 0; background: none; border-radius: 0;
   font: 600 13.5px var(--fe-texto); color: var(--fe-tinta); cursor: pointer; border-left: 3px solid transparent;
 }
-.fe .ba-conso .atajos button:hover { background: color-mix(in srgb, var(--fe-acento) 8%, #fff) }
-.fe .ba-conso .atajos button.on { border-left-color: var(--fe-acento); font-weight: 800 }
-.fe .ba-conso .meses { display: flex; gap: 26px; padding: 16px 20px }
-.fe .ba-conso .mes { width: 224px }
-.fe .ba-conso .mes-cab { display: flex; align-items: center; justify-content: space-between; height: 30px; margin-bottom: 8px }
-.fe .ba-conso .mes-cab .titulo-mes { font: 800 14.5px var(--fe-titulo); text-transform: capitalize; color: var(--fe-tinta) }
-.fe .ba-conso .mes-cab button { width: 44px; height: 44px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 3px; cursor: pointer; display: grid; place-items: center; padding: 0 }
-.fe .ba-conso .mes-cab button svg { width: 13px; height: 13px; stroke: var(--fe-tinta); stroke-width: 2.3; fill: none }
-.fe .ba-conso .mes-cab .hueco { width: 44px }
-.fe .ba-conso .mes-cab .ant-movil { display: none }
-.fe .ba-conso .mes-cab .titulo-mes { white-space: nowrap }
-.fe .ba-conso .semana, .fe .ba-conso .dias { display: grid; grid-template-columns: repeat(7, 1fr) }
-.fe .ba-conso .semana span { text-align: center; font-size: 11px; font-weight: 700; color: var(--fe-gris); padding-bottom: 6px }
-.fe .ba-conso .dias button {
+.fe .ba-cal .atajos button:hover { background: color-mix(in srgb, var(--fe-acento) 8%, #fff) }
+.fe .ba-cal .atajos button.on { border-left-color: var(--fe-acento); font-weight: 800 }
+.fe .ba-cal .meses { display: flex; gap: 26px; padding: 16px 20px }
+.fe .ba-cal .mes { width: 224px }
+.fe .ba-cal .mes-cab { display: flex; align-items: center; justify-content: space-between; height: 30px; margin-bottom: 8px }
+.fe .ba-cal .mes-cab .titulo-mes { font: 800 14.5px var(--fe-titulo); text-transform: capitalize; color: var(--fe-tinta) }
+.fe .ba-cal .mes-cab button { width: 44px; height: 44px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 3px; cursor: pointer; display: grid; place-items: center; padding: 0 }
+.fe .ba-cal .mes-cab button svg { width: 13px; height: 13px; stroke: var(--fe-tinta); stroke-width: 2.3; fill: none }
+.fe .ba-cal .mes-cab .hueco { width: 44px }
+.fe .ba-cal .mes-cab .ant-movil { display: none }
+.fe .ba-cal .mes-cab .titulo-mes { white-space: nowrap }
+.fe .ba-cal .semana, .fe .ba-cal .dias { display: grid; grid-template-columns: repeat(7, 1fr) }
+.fe .ba-cal .semana span { text-align: center; font-size: 11px; font-weight: 700; color: var(--fe-gris); padding-bottom: 6px }
+.fe .ba-cal .dias button {
   height: 40px; min-height: 0; border: 0; background: none; cursor: pointer; padding: 0; border-radius: 0;
   font: 600 13.5px var(--fe-texto); color: var(--fe-tinta); position: relative;
 }
-.fe .ba-conso .dias button.fuera { color: color-mix(in srgb, var(--fe-gris) 40%, #fff); cursor: default }
-.fe .ba-conso .dias button:hover:not(.fuera):not(.punta) { background: color-mix(in srgb, var(--fe-acento) 10%, #fff) }
-.fe .ba-conso .dias button.dentro { background: color-mix(in srgb, var(--fe-acento) 18%, #fff) }
-.fe .ba-conso .dias button.punta { background: var(--fe-acento); color: var(--fe-sobre); font-weight: 800 }
-.fe .ba-conso .dias button.inicio { border-radius: 3px 0 0 3px }
-.fe .ba-conso .dias button.fin { border-radius: 0 3px 3px 0 }
-.fe .ba-conso .dias button.inicio.fin { border-radius: 3px }
-.fe .ba-conso .dias button.hoy { text-decoration: underline; text-underline-offset: 3px }
+.fe .ba-cal .dias button.fuera { color: color-mix(in srgb, var(--fe-gris) 40%, #fff); cursor: default }
+.fe .ba-cal .dias button:hover:not(.fuera):not(.punta) { background: color-mix(in srgb, var(--fe-acento) 10%, #fff) }
+.fe .ba-cal .dias button.dentro { background: color-mix(in srgb, var(--fe-acento) 18%, #fff) }
+.fe .ba-cal .dias button.punta { background: var(--fe-acento); color: var(--fe-sobre); font-weight: 800 }
+.fe .ba-cal .dias button.inicio { border-radius: 3px 0 0 3px }
+.fe .ba-cal .dias button.fin { border-radius: 0 3px 3px 0 }
+.fe .ba-cal .dias button.inicio.fin { border-radius: 3px }
+.fe .ba-cal .dias button.hoy { text-decoration: underline; text-underline-offset: 3px }
 /* El puntito: ese día hay FEFO enviados. */
-.fe .ba-conso .dias button.marcado::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--fe-acento) }
-.fe .ba-conso .dias button.punta.marcado::after { background: var(--fe-sobre) }
-.fe .ba-conso .cal-pie { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--fe-linea); flex-wrap: wrap }
-.fe .ba-conso .cal-pie .resumen { font-size: 13.5px; color: var(--fe-gris); min-width: 0 }
-.fe .ba-conso .cal-pie .resumen b { color: var(--fe-tinta) }
-.fe .ba-conso .cal-pie .btns { margin-left: auto; display: flex; gap: 10px }
-.fe .ba-conso .cal-pie button { min-height: 44px; padding: 0 18px; border-radius: 3px; cursor: pointer; font: 800 13.5px var(--fe-titulo) }
-.fe .ba-conso .cal-pie .aplicar { border: 0; background: var(--fe-acento); color: var(--fe-sobre) }
-.fe .ba-conso .cal-pie .aplicar:disabled { opacity: .45; cursor: default }
-.fe .ba-conso .cal-pie .cancelar { border: 0; background: none; color: var(--fe-gris) }
+.fe .ba-cal .dias button.marcado::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--fe-acento) }
+.fe .ba-cal .dias button.punta.marcado::after { background: var(--fe-sobre) }
+.fe .ba-cal .cal-pie { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--fe-linea); flex-wrap: wrap }
+.fe .ba-cal .cal-pie .resumen { font-size: 13.5px; color: var(--fe-gris); min-width: 0 }
+.fe .ba-cal .cal-pie .resumen b { color: var(--fe-tinta) }
+.fe .ba-cal .cal-pie .btns { margin-left: auto; display: flex; gap: 10px }
+.fe .ba-cal .cal-pie button { min-height: 44px; padding: 0 18px; border-radius: 3px; cursor: pointer; font: 800 13.5px var(--fe-titulo) }
+.fe .ba-cal .cal-pie .aplicar { border: 0; background: var(--fe-acento); color: var(--fe-sobre) }
+.fe .ba-cal .cal-pie .aplicar:disabled { opacity: .45; cursor: default }
+.fe .ba-cal .cal-pie .cancelar { border: 0; background: none; color: var(--fe-gris) }
 @media (max-width: 1000px) {
-  .fe .ba-conso-dia { flex: 1 1 100% }
-  .fe .ba-conso .disparo { min-width: 0 }
+  .fe .ba-cal .disparo { min-width: 0 }
 }
 @media (max-width: 720px) {
-  .fe .ba-conso .calendario .panel { left: 0; right: 0; width: auto }
-  .fe .ba-conso .cal-cuerpo { flex-direction: column }
-  .fe .ba-conso .atajos { width: 100%; border-right: 0; border-bottom: 1px solid var(--fe-linea); display: flex; overflow-x: auto; padding: 8px }
-  .fe .ba-conso .atajos button { width: auto; white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; padding: 7px 12px; min-height: 44px }
-  .fe .ba-conso .atajos button.on { border-bottom-color: var(--fe-acento) }
-  .fe .ba-conso .meses { padding: 14px }
-  .fe .ba-conso .mes { width: 100% }
-  .fe .ba-conso .mes:not(.segundo) { display: none }
-  .fe .ba-conso .mes-cab .ant-movil { display: grid }
+  .fe .ba-cal .calendario .panel { left: 0; right: 0; width: auto }
+  .fe .ba-cal .cal-cuerpo { flex-direction: column }
+  .fe .ba-cal .atajos { width: 100%; border-right: 0; border-bottom: 1px solid var(--fe-linea); display: flex; overflow-x: auto; padding: 8px }
+  .fe .ba-cal .atajos button { width: auto; white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; padding: 7px 12px; min-height: 44px }
+  .fe .ba-cal .atajos button.on { border-bottom-color: var(--fe-acento) }
+  .fe .ba-cal .meses { padding: 14px }
+  .fe .ba-cal .mes { width: 100% }
+  .fe .ba-cal .mes:not(.segundo) { display: none }
+  .fe .ba-cal .mes-cab .ant-movil { display: grid }
 }
 
-.fe .ba-inv-fecha { min-height: 44px; flex: none; white-space: normal }
 
 /* ELIMINAR RENGLONES (solo administrador): la barra de arriba y la casilla de cada fila. */
 .fe .ba-quitar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 10px; padding: 8px 12px; border: 1px dashed var(--fe-linea); font-size: 13px }

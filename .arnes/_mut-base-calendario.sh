@@ -9,4 +9,4 @@ m $C 'flechaAntes={flechaAntesEnMovil && k === 1}' 'flechaAntes={false}' $T
 m "$B" 'c.fecha_analisis >= desde && c.fecha_analisis <= hasta' 'c.fecha_analisis === desde' $T
 m "$B" 'exportar?desde=${desde}&hasta=${hasta}' 'exportar?desde=${desde}&hasta=${desde}' $T
 m "$B" 'marcados={dias} unDia' 'marcados={dias}' $T
-m "$B" '"Sin FEFO enviados en esas fechas"' '"Exportar consolidado"' $T
+m "$B" 'Sin recorridos enviados en esas fechas.' '' $T
