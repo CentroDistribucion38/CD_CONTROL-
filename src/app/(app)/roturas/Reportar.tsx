@@ -543,13 +543,17 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
       <section className="rt-rep">
         <div className="cab">
           <h2>Quedó registrada</h2>
-          <p>Ya está en la bandeja de ABI. Se puede registrar otra sin salir de aquí.</p>
+          <p>{origen === "encontrada"
+            ? "Pasó directo a cobro. Se puede registrar otra sin salir de aquí."
+            : "Ya está en la bandeja de ABI. Se puede registrar otra sin salir de aquí."}</p>
         </div>
         <div className="cuerpo">
           <p className="guia">
             <b>{listo}</b> — {mat?.nombre
                               ?? `Envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()}`}.
-            Pasa a la bandeja de ABI para el visto bueno.
+            {origen === "encontrada"
+              ? "Va directo a cobro, en el Tablero: las encontradas no pasan por visto bueno y no se objetan."
+              : "Pasa a la bandeja de ABI para el visto bueno."}
           </p>
           {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
           <button type="button" className="otra" onClick={() => {
@@ -920,7 +924,8 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
             : !proceso ? "Falta el proceso"
             : !area ? "Falta el área"
             : !causa ? "Falta la causa"
-            : exigeFoto && !foto ? "Falta la foto" : "Enviar a ABI"}
+            : exigeFoto && !foto ? "Falta la foto"
+            : origen === "encontrada" ? "Registrar y mandar a cobro" : "Enviar a ABI"}
         </button>
       </div>
     </section>

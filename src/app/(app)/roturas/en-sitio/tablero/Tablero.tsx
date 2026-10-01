@@ -53,7 +53,11 @@ function etiquetaDe(r: Rotura): Etiqueta {
   switch (r.etapa) {
     case "espera_ol":  return { txt: "ESPERA AL OL", clase: "tb-esp" };
     case "desacuerdo": return { txt: "EN DESACUERDO", clase: "tb-mal" };
-    case "cobro":      return { txt: "A COBRO", clase: "tb-ok" };
+    /* LA ENCONTRADA SE DICE: se fue a cobro de una, sin visto bueno, y
+       quien lea el tablero no debe buscar la respuesta de Easy que no hay. */
+    case "cobro":      return r.origen === "encontrada" && !r.ol_respuesta
+                         ? { txt: "A COBRO · ENCONTRADA", clase: "tb-ok" }
+                         : { txt: "A COBRO", clase: "tb-ok" };
     case "no_cuenta":  return { txt: "NO SE COBRA", clase: "tb-gris" };
     default:
       /* SIN `etapa` —falta correr el SQL de la cadena nueva— se cae al

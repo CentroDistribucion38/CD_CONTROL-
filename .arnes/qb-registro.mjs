@@ -51,6 +51,16 @@ for (const r of ["/roturas/en-sitio", "/roturas/salida", "/roturas/salida/tolvas
     fallas.push(`${r} no quedó dentro de Quiebra`);
 }
 
+/* ---------- 2b. EN SITIO, EN EL ORDEN DE LA CADENA ----------
+   Registrar → Visto bueno → Desacuerdos → Tablero → Análisis →
+   Operarios → Maestro. El menú se lee como pasan las cosas: Easy
+   contesta antes que ABI, y el Tablero es donde termina todo. */
+{
+  const orden = qb.secciones.filter((s) => s.rama === "en-sitio").map((s) => s.nombre).join(" > ");
+  const quiero = "Registrar > Visto bueno > Desacuerdos > Tablero > Análisis > Operarios > Maestro";
+  if (orden !== quiero) fallas.push(`el menú de En sitio sale «${orden}» y tenía que ser «${quiero}»`);
+}
+
 /* ---------- 3. NINGUNA SECCIÓN SIN RAMA (salvo las ocultas) ----------
    Una sección visible sin rama, en un módulo con ramas, no sale en
    ningún sitio: el riel solo lista las de la rama en la que uno está.

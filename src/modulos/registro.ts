@@ -257,24 +257,29 @@ export const MODULOS: Modulo[] = [
       { nombre: "Tablero de rotura", ruta: "/quiebra/rotura/tablero", rama: "envase" },
       { nombre: "Maestro de rotura", ruta: "/quiebra/rotura/maestro", rama: "envase" },
 
-      /* EN SITIO. El orden del recorrido: se registra → ABI decide → por
-         qué se rompe → la configuración. */
+      /* EN SITIO. El orden es el de la cadena, de principio a fin:
+         se registra → Easy da el visto bueno → ABI resuelve lo que se
+         objetó → el tablero con lo que va a cobro → el análisis → quién
+         reporta → la configuración.
+
+         Visto bueno va ANTES que Desacuerdos porque Easy contesta
+         primero y solo lo que objeta llega a ABI. Y los dos van ANTES
+         del Tablero porque el tablero es donde termina todo: lo que se
+         cobra —también las «encontradas», que se van derechas a cobro
+         sin pasar por Visto bueno ni Desacuerdos—. */
       { nombre: "Registrar", ruta: "/roturas/en-sitio", rama: "en-sitio" },
-      /* EL ORDEN ES EL DE LA CADENA, y la cadena cambió: ahora EASY
-         contesta primero en Visto bueno, y solo lo que objeta llega a
-         Desacuerdos, donde ABI tiene la última palabra. Poner
-         Desacuerdos antes del Visto bueno haría leer el menú al revés
-         de como pasan las cosas. */
       { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
-      { nombre: "Tablero", ruta: "/roturas/en-sitio/tablero", rama: "en-sitio" },
       { nombre: "Desacuerdos", ruta: "/roturas/en-sitio/desacuerdos", rama: "en-sitio" },
+      { nombre: "Tablero", ruta: "/roturas/en-sitio/tablero", rama: "en-sitio" },
       { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
-      { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
-      /* OPERARIOS VA DE ÚLTIMA, detrás del Maestro, y es la única de la
-         rama que no la ve todo el mundo: aquí se ven los PIN. No es una
-         hoja del Maestro por eso mismo —una hoja más habría amarrado el
-         permiso de los PIN al de materiales y causas—. */
+      /* OPERARIOS VA ANTES DEL MAESTRO: quién reporta es parte del
+         recorrido, y el Maestro cierra porque no es un paso sino la
+         configuración. Sigue siendo la única de la rama que no la ve
+         todo el mundo: aquí se ven los PIN. No es una hoja del Maestro
+         por eso mismo —una hoja más habría amarrado el permiso de los
+         PIN al de materiales y causas—. */
       { nombre: "Operarios", ruta: "/roturas/en-sitio/operarios", rama: "en-sitio" },
+      { nombre: "Maestro", ruta: "/roturas/en-sitio/maestro", rama: "en-sitio" },
 
       /* SALIDA: una pantalla por etapa de la cadena, y en el orden en que
          pasa. Las dos firmas son de dos personas distintas y cada una

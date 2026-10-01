@@ -430,10 +430,14 @@ await monta();
   await pg.click(".rt-rep .chips button:has-text('Líneas')");
   await pg.selectOption("#rt-area", "plazoleta");
   await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+  /* LA DE OPM SÍ VA A ABI: pasa por el visto bueno. */
+  ok(/Enviar a ABI/.test(await pg.textContent(".rt-rep .pie button.si")), "reportada por OPM, el botón ya no dice «Enviar a ABI»");
   await pg.click(".rt-rep .pie button.si");
   await pg.waitForFunction(
     () => (window.llamadas ?? []).some((l) => l.f === "rotura_marcar_origen"),
     null, { timeout: 3000 }).catch(() => {});
+  const dichoOpm = ((await pg.textContent(".rt-rep")) ?? "").replace(/\s+/g, " ");
+  ok(/bandeja de ABI/.test(dichoOpm) && !/directo a cobro/.test(dichoOpm), `al terminar una de OPM dice: ${dichoOpm.slice(0, 160)}`);
   const o = (await llamadas()).find((x) => x.f === "rotura_marcar_origen");
   ok(!!o, "la rotura se guardó SIN decir de dónde salió: la pregunta no llega a la base");
   ok(o?.a?.p_origen === "opm", `se mandó el origen «${o?.a?.p_origen}» y era «opm»`);
@@ -459,12 +463,17 @@ await monta();
   await pg.click(".rt-rep .chips button:has-text('Líneas')");
   await pg.selectOption("#rt-area", "plazoleta");
   await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+  /* LA ENCONTRADA SE VA A COBRO: el botón lo dice, y no habla de ABI. */
+  const botonEnc = await pg.textContent(".rt-rep .pie button.si");
+  ok(/mandar a cobro/i.test(botonEnc) && !/ABI/.test(botonEnc), `en «me la encontré» el botón dice «${botonEnc}»`);
   await pg.click(".rt-rep .pie button.si");
   await pg.waitForFunction(
     () => (window.llamadas ?? []).some((l) => l.f === "rotura_marcar_origen"),
     null, { timeout: 3000 }).catch(() => {});
   const o = (await llamadas()).find((x) => x.f === "rotura_marcar_origen");
   ok(o?.a?.p_origen === "encontrada", `en «me la encontré» se mandó «${o?.a?.p_origen}»`);
+  const dicho = ((await pg.textContent(".rt-rep")) ?? "").replace(/\s+/g, " ");
+  ok(/directo a cobro/.test(dicho) && !/bandeja de ABI/.test(dicho), `al terminar una encontrada dice: ${dicho.slice(0, 160)}`);
   ok(o?.a?.p_pin === null,
      `en una encontrada se mandó un PIN: ${JSON.stringify(o?.a?.p_pin)} — eso pone a alguien en un reporte que no hizo`);
 }
@@ -1003,7 +1012,7 @@ ok(/Falta el área/.test(await pg.textContent(".rt-rep .pie button.si")),
    "sin área el botón no dice que falta el área");
 await pg.selectOption("#rt-area", "plazoleta");
 await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
-ok(/Enviar a ABI/.test(await pg.textContent(".rt-rep .pie button.si")),
+ok(/mandar a cobro/i.test(await pg.textContent(".rt-rep .pie button.si")),
    "con proceso, área y causa el botón todavía dice que falta algo");
 
 /* Y SE MANDAN LOS DOS: EL MATERIAL ESCOGIDO Y EL COLOR.

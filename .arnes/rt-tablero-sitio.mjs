@@ -98,6 +98,14 @@ const roturas = [
     causa: "comportamiento", causa_nombre: "Comportamiento del personal", grupo: "asumida" as const,
     estado: "cuenta" as const, etapa: "cobro", esperando: false, cuenta: true,
     ol_respuesta: "acepta", cobro_por: "acuerdo" },
+  /* ENCONTRADA: se fue a cobro de una, sin respuesta de Easy. */
+  { ...base, id: "r5", codigo: "RB-0008", material: "3128",
+    material_nombre: "Aguila RN 330cc X 30", tipo: "producto_terminado" as const,
+    unidades: 1, contaminadas: 0, botellas: 30,
+    unidades_liquido: 1, unidades_vidrio: 30,
+    causa: "comportamiento", causa_nombre: "Comportamiento del personal", grupo: "asumida" as const,
+    estado: "cuenta" as const, etapa: "cobro", esperando: false, cuenta: true,
+    origen: "encontrada", ol_respuesta: null, cobro_por: "antes" },
 ];
 createRoot(document.getElementById("r")!).render(
   <Tablero roturas={roturas as any} nombres={{ "u-sup": "sleal" }} manda />);
@@ -205,6 +213,8 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
      `RB-0010 es de causa que NO es del OL y dice «${est["RB-0010"]}»: esas nacen decididas y no ` +
      "pasan por la bandeja de nadie");
   ok(est["RB-0009"] === "A COBRO", `RB-0009 dice «${est["RB-0009"]}»`);
+  /* LA ENCONTRADA SE DICE: fue a cobro sin visto bueno, y no hay respuesta de Easy que buscar. */
+  ok(est["RB-0008"] === "A COBRO · ENCONTRADA", `RB-0008 (encontrada) dice «${est["RB-0008"]}»`);
 }
 
 /* =====================================================================
