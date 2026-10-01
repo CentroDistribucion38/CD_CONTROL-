@@ -51,6 +51,8 @@ import { cifraDeTarjeta, soloElUltimo, type Cifra } from "@/modulos/inventario/u
 import {
   esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado,
 } from "@/modulos/inventario/cola";
+import { Ficha } from "./Ficha";
+import { totalesDelConteo } from "@/modulos/inventario/totales-conteo";
 
 type Conteo = { id: string; codigo: string; estado: string; iniciado_en: string | null };
 
@@ -1166,6 +1168,9 @@ export function Contar({
   const cajasAqui = deAqui.reduce((a, r) => a + Number(r.total_cajas), 0);
   const cajasTotal = renglones.reduce((a, r) => a + Number(r.total_cajas), 0);
   const modulosHechos = new Set(renglones.map((r) => r.ubicacion)).size;
+  /* LA FICHA DE TOTALES: todo el borrador (lo que va a enviar) y, si hay filtro, lo que se ve. */
+  const fichaTodo = totalesDelConteo(renglones, materiales);
+  const fichaVista = totalesDelConteo(vistos, materiales);
 
   if (!conteo) {
     return (
@@ -1745,6 +1750,13 @@ export function Contar({
             </button>
           )}
         </div>
+
+        {renglones.length > 0 && (
+          <div className="fe-fichas">
+            <Ficha titulo="Total del borrador" ficha={fichaTodo} />
+            {filtrando && <Ficha titulo="Lo que ves con el filtro" ficha={fichaVista} suave />}
+          </div>
+        )}
 
         {(cortos.length > 0 || semana.length > 0) && (
           <div className={"fe-alerta" + (cortos.length > 0 ? " mal" : "")}>

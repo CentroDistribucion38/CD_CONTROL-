@@ -1657,3 +1657,36 @@
 .fe .fe-cola ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
 .fe .fe-cola li { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums }
 .fe .fe-cola li em { font-style: normal; color: var(--fe-mal) }
+
+/* LA FICHA DE TOTALES DEL BORRADOR.
+   Tres cifras en grande —estibas, cajas, unidades— para comparar este conteo con
+   otro de un vistazo. Con filtro puesto aparece una segunda, más suave, con lo
+   que se ve; la primera sigue siendo lo que se va a enviar. */
+.fe .fe-fichas { display: grid; gap: 10px; margin: 0 0 12px }
+@media (min-width: 900px) { .fe .fe-fichas:has(.fe-ficha.suave) { grid-template-columns: 1fr 1fr } }
+.fe .fe-ficha {
+  border: 1px solid var(--fe-linea); border-top: 3px solid var(--fe-acento);
+  border-radius: 2px; background: var(--fe-papel); padding: 10px 12px; min-width: 0;
+}
+.fe .fe-ficha.suave { border-top-color: var(--fe-linea); background: var(--fe-fondo) }
+.fe .fe-ficha h3 {
+  margin: 0 0 8px; font: 800 12px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--fe-tinta);
+}
+.fe .fe-ficha h3 small { font: 400 12px var(--fe-texto); letter-spacing: 0; text-transform: none; color: var(--fe-gris) }
+.fe .fe-ficha-cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 }
+.fe .fe-ficha-cifras div { min-width: 0 }
+.fe .fe-ficha-cifras dt { font-size: 11px; color: var(--fe-gris); text-transform: uppercase; letter-spacing: .05em }
+.fe .fe-ficha-cifras dd {
+  margin: 2px 0 0; font: 800 clamp(17px, 5.2vw, 26px)/1.1 var(--fe-titulo); color: var(--fe-tinta);
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.fe .fe-ficha-tipos { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--fe-linea); display: grid; gap: 6px }
+.fe .fe-ficha-tipos li { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: baseline; font-size: 12px; min-width: 0 }
+.fe .fe-ficha-tipos span { font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere }
+.fe .fe-ficha-tipos small { color: var(--fe-gris) }
+@media (max-width: 560px) {
+  .fe .fe-ficha-tipos li { grid-template-columns: 1fr auto }
+  .fe .fe-ficha-tipos li span { grid-column: 1 / -1; grid-row: 2 }
+}
+.fe .fe-ficha-aviso { margin: 8px 0 0; font-size: 12px; color: var(--fe-gris-panel) }
