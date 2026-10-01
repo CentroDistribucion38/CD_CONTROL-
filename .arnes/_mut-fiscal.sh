@@ -19,13 +19,16 @@ m "$K" '.sort((a, b) => a.numero - b.numero)
     .map(' '.map(' $TC
 m "$K" 'if (r.aMedias > 0)' 'if (false)' $TC
 m "$K" 'if (r.vacias > 0) partes' 'if (false) partes' $TC
-m "$F" 'disabled={otra}' 'disabled={false}' $TP
-m "$F" 'const otra = en != null && p.id !== h[eq];' 'const otra = en != null;' $TP
-m "$F" 'const puede = !ocupado && !sinNombre && r.errores.length === 0 && form.fecha !== "";' 'const puede = !ocupado && r.errores.length === 0 && form.fecha !== "";' $TP
-m "$F" 'const puede = !ocupado && !sinNombre && r.errores.length === 0 && form.fecha !== "";' 'const puede = !ocupado && !sinNombre && form.fecha !== "";' $TP
+m "$F" '.filter((o) => o.valor !== "" || actual !== "")' '' $TP
+m "$F" 'v === NADIE ? "" : v' 'v' $TP
+m "$F" "const puede = !ocupado && !sinNombre && r.errores.length === 0 && form.fecha !== \"\";" "const puede = !ocupado && r.errores.length === 0 && form.fecha !== \"\";" $TP
+m "$F" "const puede = !ocupado && !sinNombre && r.errores.length === 0 && form.fecha !== \"\";" "const puede = !ocupado && !sinNombre && form.fecha !== \"\";" $TP
+m "$F" "const puede = !ocupado && !sinNombre && r.errores.length === 0 && form.fecha !== \"\";" "const puede = !ocupado && !sinNombre && r.errores.length === 0;" $TP
 m "$F" 'p_nombre: form.nombre.trim()' 'p_nombre: form.nombre' $TP
 m "$F" 'p_id: form.id,' 'p_id: null,' $TP
-m "$F" 'fecha: diaColombia(ahora)' 'fecha: ahora.slice(0, 10)' $TP
+m "$F" 'p_fecha: form.fecha,' 'p_fecha: hoy,' $TP
+m "$F" 'form.fecha === viernes' 'form.fecha === hoy' $TP
+m "$F" 'const viernes = proximoDia(hoy, 5);' 'const viernes = sumarDias(hoy, 7);' $TP
 m "$F" 'hojas: hojasVacias(2)' 'hojas: hojasVacias(3)' $TP
 m "$F" '{puedeEditar && f.estado === "abierto" && (' '{puedeEditar && (' $TP
 m "$F" '{manda && (borrar === f.id' '{true && (borrar === f.id' $TP
@@ -36,3 +39,12 @@ m "$F" '{puedeEditar && (
             <div className="cl-acciones">' '{true && (
             <div className="cl-acciones">' $TP
 m "$F" 'Math.min(100, Math.max(1, Math.floor(Number(cuantas) || 1)))' '1' $TP
+m "$F" '(rol === "" || p.rol === rol)' 'true' $TP
+m "$F" 'p.activo && (rol === "" || p.rol === rol)' '(rol === "" || p.rol === rol)' $TP
+m "$F" 'const libres = del.filter((p) => !ocupadas.has(p.id)).length;' 'const libres = del.length;' $TP
+m "$F" 'localStorage.setItem("fiscal-rol-" + eq, v)' 'void v' $TP
+m "$F" 'g === "" || roles.some((r) => r.clave === g)' 'true' $TP
+m "$F" 'return rolPorDefecto(roles, equipo);' 'return "";' $TP
+m "$F" 'agrupar(fiscales, hoy)' 'agrupar(fiscales, "2000-01-01")' $TP
+m "$F" 'fechaConDia(form.fecha)}.`' 'form.fecha}.`' $TP
+m "$F" 'ocupadas.add(id)' 'void id' $TP

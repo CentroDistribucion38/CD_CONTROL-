@@ -32,3 +32,18 @@
 .fe .fi-agregar label > span { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
 .fe .fi-agregar input { width: 84px; min-height: 44px; padding: 0 12px; font: 500 15px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px }
 .fe .fi-form .cl-mal { margin: 10px 0 }
+
+/* PLANIFICAR: el día de la semana y los atajos de fecha. */
+.fe .fi-fecha { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin-top: 8px }
+.fe .fi-fecha > b { font: 800 14px var(--fe-titulo); text-transform: capitalize }
+.fe .fi-atajos { display: inline-flex; gap: 6px; flex-wrap: wrap }
+.fe .fi-atajos .btn[aria-pressed="true"] { background: var(--fe-acento); color: var(--fe-sobre, #fff); border-color: var(--fe-acento) }
+
+/* ESCOGER A LA PERSONA: el filtro por rol y el buscador. */
+.fe .fi-roles { margin-top: 4px }
+.fe .fi-rol { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.fe .fi-rol > span, .fe .fi-et { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .fi-rol small { font-size: 12px; color: var(--fe-gris) }
+.fe .fi-pareja { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)) }
+.fe .fi-casilla { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+.fe .fi-casilla .bs-campo { min-height: 44px }

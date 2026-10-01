@@ -46,13 +46,17 @@ const css = ["src/app/globals.css", "src/app/(app)/shell.css", "src/app/(app)/in
   .map((p) => readFileSync(R(p), "utf8")).join("\n");
 const P = "*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}";
 
-/* Doce personas; la 11 está desactivada pero sigue en un inventario. */
-const personas = Array.from({ length: 12 }, (_, i) => ({ id: "p" + (i + 1), nombre: "Persona " + (i + 1) + (i === 10 ? " Desactivada" : ""), activo: i !== 10 }));
+/* Doce personas con rol. La 11 está desactivada pero sigue en un inventario. */
+const roles = [{ clave: "operador", nombre: "Operador logístico" }, { clave: "abi", nombre: "ABI" }, { clave: "supervisor", nombre: "Supervisor" }];
+const rolDe = (i) => (i <= 6 ? "operador" : i <= 10 ? "abi" : "supervisor");
+const personas = Array.from({ length: 12 }, (_, i) => ({ id: "p" + (i + 1), nombre: "Persona " + (i + 1) + (i === 10 ? " Desactivada" : ""), activo: i !== 10, rol: rolDe(i + 1) }));
 const H = (numero, ol = "", bavaria = "") => ({ numero, ol, bavaria });
-const sep = { id: "fs", nombre: "Fiscal septiembre", fecha: "2026-09-18", estado: "abierto", hojas: [H(1, "p1", "p2"), H(2, "p3"), H(3)] };
+/* «Hoy» es jueves 1 de octubre de 2026: el viernes es mañana. */
+const sep = { id: "fs", nombre: "Fiscal viernes", fecha: "2026-10-02", estado: "abierto", hojas: [H(1, "p1", "p7"), H(2, "p2"), H(3)] };
 const cer = { id: "fc", nombre: "Fiscal agosto", fecha: "2026-08-20", estado: "cerrado", hojas: [H(1, "p4", "p11"), H(2, "p5", "p6")] };
-const dup = { id: "fd", nombre: "Con repetido", fecha: "2026-09-25", estado: "abierto", hojas: [H(1, "p7", "p8"), H(2, "p7", "p9")] };
-const base = { bodegaId: "bod1", personas, fiscales: [sep, cer], puedeEditar: true, manda: false, ahora: "2026-10-02T15:00:00.000Z" };
+const dup = { id: "fd", nombre: "Con repetido", fecha: "2026-10-16", estado: "abierto", hojas: [H(1, "p4", "p8"), H(2, "p4", "p9")] };
+const des = { id: "fx", nombre: "Con desactivada", fecha: "2026-10-09", estado: "abierto", hojas: [H(1, "p11", "p8")] };
+const base = { bodegaId: "bod1", personas, roles, fiscales: [sep, cer], puedeEditar: true, manda: false, ahora: "2026-10-01T15:00:00.000Z" };
 
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
@@ -60,57 +64,174 @@ const pg = await nav.newPage();
 const roto = [];
 pg.on("pageerror", (e) => roto.push(e.message));
 pg.on("console", (m) => { if (m.type() === "error") roto.push(m.text()) });
+/* El almacenamiento del navegador, simulado y que sobrevive de un montaje al siguiente. */
+let almacen = {};
 const monta = async (props = {}, ancho = 1440) => {
   await pg.setViewportSize({ width: ancho, height: 1000 });
   await pg.setContent(`<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${P}${css}</style></head>
     <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div>
+    <script>(()=>{const d=${JSON.stringify(almacen)};window.__ls=d;Object.defineProperty(window,"localStorage",{configurable:true,value:{getItem:k=>k in d?d[k]:null,setItem:(k,v)=>{d[k]=String(v)}}})})();</script>
     <script>window.__PROPS=${JSON.stringify({ ...base, ...props })};</script><script>${js}<\/script></body></html>`);
   await pg.waitForSelector("#r > *");
 };
+const recuerda = async () => { almacen = await pg.evaluate(() => window.__ls) };
 const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
 const rpcs = () => pg.evaluate(() => window.__rpc);
 const hojas = () => pg.locator(".fi-hoja");
-const eleg = (n, equipo, valor) => pg.locator(".fi-hoja").nth(n).locator("select").nth(equipo === "ol" ? 0 : 1).selectOption(valor);
+const casilla = (n, eq) => pg.locator(".fi-hoja").nth(n).locator(".fi-casilla").nth(eq === "ol" ? 0 : 1);
+const valorDe = (n, eq) => casilla(n, eq).locator(".bs-campo").inputValue();
+/* Las personas que ofrece una casilla al abrirla. */
+const ofrece = async (n, eq) => {
+  const c = casilla(n, eq).locator(".bs-campo");
+  await c.click();
+  const t = await casilla(n, eq).locator("li[role=option] b").allTextContents();
+  await pg.keyboard.press("Escape"); await c.evaluate((e) => e.blur());
+  return t;
+};
+const eleg = async (n, eq, nombre) => {
+  await casilla(n, eq).locator(".bs-campo").click();
+  await casilla(n, eq).locator("li[role=option]").filter({ has: pg.locator("b", { hasText: new RegExp("^" + nombre + "$") }) }).click();
+};
+const nuevoForm = async () => { await pg.click('button:has-text("Nuevo inventario fiscal")'); await pg.evaluate(() => new Promise((r) => requestAnimationFrame(() => r()))) };
+const rol = (eq) => pg.locator(".fi-rol select").nth(eq === "ol" ? 0 : 1);
 const guardar = () => pg.locator('button:has-text("Guardar")');
+const nombreIn = () => pg.locator('.fi-form input[placeholder^="Ej"]');
+const fechaIn = () => pg.locator('.fi-form input[type="date"]');
+const P6 = ["Persona 1", "Persona 2", "Persona 3", "Persona 4", "Persona 5", "Persona 6"];
+const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-/* ---------- 1 · LA LISTA ---------- */
-await monta();
+/* ---------- 1 · LA LISTA: lo que viene primero, con cuánto falta ---------- */
+await monta({ fiscales: [cer, dup, sep] });
 {
   const t = await txt();
-  ok(/Fiscal septiembre/.test(t) && /Fiscal agosto/.test(t) && /18\/09\/2026/.test(t), "la lista no trae los dos inventarios con su fecha");
-  ok(/3 hojas · 1 pareja completa · 1 a medias · 1 sin nadie/.test(t), "el resumen del inventario de septiembre: " + t.slice(0, 300));
+  const hs = await pg.locator("h2.cl-h").allTextContents();
+  ok(hs.length === 2 && /^Próximos/.test(hs[0]) && /^Anteriores/.test(hs[1]), "la lista no se parte en Próximos y Anteriores: " + hs.join(" | "));
+  const nombres = await pg.locator(".fi-fila .cl-hora").allTextContents();
+  ok(igual(nombres, ["Fiscal viernes", "Con repetido", "Fiscal agosto"]), "el orden: lo más cercano primero y lo ya hecho al final: " + nombres.join(" | "));
+  ok(/viernes 02\/10\/2026 · mañana/.test(t), "no dice «viernes 02/10/2026 · mañana»: " + t.slice(0, 400));
+  ok(/viernes 16\/10\/2026 · en 15 días/.test(t) || /16\/10\/2026 · en 15 días/.test(t), "no dice cuánto falta para el segundo");
+  ok(/jueves 20\/08\/2026 · hace 42 días/.test(t), "no dice hace cuánto fue el cerrado");
+  ok(/3 hojas · 1 pareja completa · 1 a medias · 1 sin nadie/.test(t), "el resumen del inventario del viernes: " + t.slice(0, 300));
   ok(/2 hojas · 2 parejas completas/.test(t), "el resumen del inventario de agosto");
   const filas = await pg.locator(".fi-fila").first().locator("tbody tr").allTextContents();
-  ok(filas.length === 3 && /1.*Persona 1.*Persona 2/.test(filas[0]) && /2.*Persona 3.*falta/.test(filas[1]) && /3.*falta.*falta/.test(filas[2]), "las hojas con sus parejas: " + filas.join(" | "));
+  ok(filas.length === 3 && /1.*Persona 1.*Persona 7/.test(filas[0]) && /2.*Persona 2.*falta/.test(filas[1]) && /3.*falta.*falta/.test(filas[2]), "las hojas con sus parejas: " + filas.join(" | "));
   ok(/Persona 11 Desactivada/.test(t), "una persona desactivada que sigue en un inventario pierde su nombre");
   ok(/ABIERTO/.test(t) && /CERRADO/.test(t), "no dice abierto y cerrado");
   ok(await pg.locator('button:has-text("Nuevo inventario fiscal")').count() === 1, "falta el botón de nuevo inventario");
-  ok(await pg.locator('button:has-text("Editar")').count() === 1, "el cerrado no debe poder editarse y el abierto sí (un solo «Editar»)");
+  ok(await pg.locator('button:has-text("Editar")').count() === 2, "los abiertos se editan (2) y el cerrado no");
   ok(await pg.locator('button:has-text("Eliminar")').count() === 0, "quien no administra ve «Eliminar»");
 }
+await monta({ fiscales: [cer] });
+ok(!/Próximos/.test(await txt()) && /Anteriores/.test(await txt()), "sin próximos no debe haber título de Próximos");
 await monta({ puedeEditar: false });
 ok(await pg.locator('button:has-text("Nuevo inventario fiscal"), button:has-text("Editar")').count() === 0, "solo lectura: hay botones para armar");
 await monta({ fiscales: [] });
 ok(/Todavía no hay ninguno/.test(await txt()), "sin inventarios no lo dice");
+/* Una fecha que es hoy cuenta como próxima. */
+await monta({ fiscales: [{ ...sep, fecha: "2026-10-01" }] });
+ok(/Próximos/.test(await txt()) && /jueves 01\/10\/2026 · hoy/.test(await txt()), "un inventario de hoy no sale como próximo con «hoy»");
 
-/* ---------- 2 · ARMAR UNO NUEVO ---------- */
+/* ---------- 2 · PLANIFICAR: la fecha del inventario ---------- */
 await monta();
-await pg.click('button:has-text("Nuevo inventario fiscal")');
+await nuevoForm();
 {
   ok(await hojas().count() === 2, "el formulario nuevo no arranca con dos hojas");
-  ok((await pg.inputValue('.fi-form input[type="date"]')) === "2026-10-02", "la fecha no arranca en el día de hoy en Colombia");
+  ok((await fechaIn().inputValue()) === "2026-10-01", "la fecha no arranca en el día de hoy en Colombia");
+  ok(/jueves 01\/10\/2026 · hoy/.test(await pg.locator(".fi-fecha").textContent()), "no dice el día de la semana de la fecha");
+  const pres = async () => (await pg.locator(".fi-atajos button").evaluateAll((bs) => bs.map((b) => b.getAttribute("aria-pressed")))).join(",");
+  ok(await pres() === "true,false,false", "el atajo «Hoy» no queda marcado: " + await pres());
+  await pg.click('.fi-atajos button:has-text("Viernes")');
+  ok((await fechaIn().inputValue()) === "2026-10-02", "«Viernes» no pone el próximo viernes");
+  ok(/viernes 02\/10\/2026 · mañana/.test(await pg.locator(".fi-fecha").textContent()), "no dice «viernes · mañana»");
+  ok(await pres() === "false,true,true", "marca «Mañana» y «Viernes» cuando coinciden: " + await pres());
+  await pg.click('.fi-atajos button:has-text("Hoy")');
+  ok((await fechaIn().inputValue()) === "2026-10-01", "«Hoy» no devuelve a hoy");
+  await pg.click('.fi-atajos button:has-text("Mañana")');
+  ok((await fechaIn().inputValue()) === "2026-10-02", "«Mañana» no pone mañana");
+  await fechaIn().fill("2026-10-09");
+  ok(/viernes 09\/10\/2026 · en 8 días/.test(await pg.locator(".fi-fecha").textContent()), "una fecha escogida a mano no dice su día y cuánto falta: " + await pg.locator(".fi-fecha").textContent());
+  await fechaIn().fill("2026-10-02");
+}
+/* Si hoy es viernes, «Viernes» es hoy (no el de la otra semana). */
+await monta({ ahora: "2026-10-02T15:00:00.000Z" });
+await nuevoForm();
+await pg.click('.fi-atajos button:has-text("Mañana")'); await pg.click('.fi-atajos button:has-text("Viernes")');
+ok((await fechaIn().inputValue()) === "2026-10-02", "siendo viernes, «Viernes» no es hoy");
+
+/* ---------- 3 · ESCOGER A LA PERSONA: por rol y tecleando ---------- */
+await monta();
+await nuevoForm();
+{
+  ok(await rol("ol").inputValue() === "operador", "el filtro del OL no arranca en el rol «Operador logístico»: " + await rol("ol").inputValue());
+  ok(await rol("bavaria").inputValue() === "abi", "el filtro de Bavaria no arranca en el rol «ABI»: " + await rol("bavaria").inputValue());
+  const ro = await rol("ol").locator("option").allTextContents();
+  ok(igual(ro, ["Todos los usuarios", "ABI (4)", "Operador logístico (6)", "Supervisor (1)"]), "los roles del filtro, con cuánta gente tiene cada uno (la desactivada no cuenta): " + ro.join(" | "));
+  ok(/6 disponibles · 0 ya en una hoja/.test(await pg.locator(".fi-rol").nth(0).textContent()), "no cuenta los disponibles del OL: " + await pg.locator(".fi-rol").nth(0).textContent());
+  ok(/4 disponibles · 0 ya en una hoja/.test(await pg.locator(".fi-rol").nth(1).textContent()), "no cuenta los disponibles de Bavaria");
+
+  ok(igual(await ofrece(0, "ol"), P6), "el OL no ofrece solo a los de su rol (y sin «sin asignar» si la casilla está vacía): " + (await ofrece(0, "ol")).join(","));
+  ok(igual(await ofrece(0, "bavaria"), ["Persona 10", "Persona 7", "Persona 8", "Persona 9"]), "Bavaria no ofrece solo a los de ABI: " + (await ofrece(0, "bavaria")).join(","));
+  const pistas = await casilla(0, "ol").locator(".bs-campo").click().then(() => casilla(0, "ol").locator("li em").allTextContents());
+  await pg.keyboard.press("Escape"); await casilla(0, "ol").locator(".bs-campo").evaluate((e) => e.blur());
+  ok(pistas.length === 6 && pistas.every((x) => x === "Operador logístico"), "cada persona dice su rol: " + pistas.join(","));
+  /* Teclear filtra; Enter escoge. */
+  await casilla(0, "ol").locator(".bs-campo").fill("persona 3");
+  ok(igual(await casilla(0, "ol").locator("li[role=option] b").allTextContents(), ["Persona 3"]), "teclear no filtra");
+  await pg.keyboard.press("Enter");
+  ok((await valorDe(0, "ol")) === "Persona 3", "Enter no escoge a quien se tecleó: " + await valorDe(0, "ol"));
+  ok((await ofrece(0, "ol"))[0] === "— sin asignar —", "con alguien puesto no se ofrece «sin asignar» para quitarla");
+  await casilla(1, "ol").locator(".bs-campo").fill("zzz");
+  ok(/Nada coincide con «zzz»/.test(await casilla(1, "ol").textContent()), "sin coincidencias no lo dice");
+  await pg.keyboard.press("Escape"); await casilla(1, "ol").locator(".bs-campo").evaluate((e) => e.blur());
+
+  /* Quien ya está en una hoja no sale en las otras. */
+  ok(!(await ofrece(1, "ol")).includes("Persona 3") && (await ofrece(0, "ol")).includes("Persona 3"), "Persona 3 sigue saliendo en otra hoja, o desaparece de la suya");
+  ok(/5 disponibles · 1 ya en una hoja/.test(await pg.locator(".fi-rol").nth(0).textContent()), "los disponibles no bajan al ponerla: " + await pg.locator(".fi-rol").nth(0).textContent());
+  /* Y se puede dejar sin asignar para liberarla. */
+  await eleg(0, "ol", "— sin asignar —");
+  ok((await valorDe(0, "ol")) === "" && (await ofrece(1, "ol")).includes("Persona 3"), "dejarla «sin asignar» no la libera");
+
+  /* Cambiar el rol cambia la lista; «Todos» trae a todos los activos. */
+  await rol("bavaria").selectOption("");
+  const todos = await ofrece(0, "bavaria");
+  ok(todos.length === 11 && !todos.includes("Persona 11 Desactivada"), "«Todos los usuarios» no trae a los 11 activos: " + todos.length);
+  await recuerda();
+  ok(almacen["fiscal-rol-bavaria"] === "" && almacen["fiscal-rol-ol"] === undefined, "no recuerda lo que se escogió: " + JSON.stringify(almacen));
+  await rol("ol").selectOption("supervisor");
+  ok(igual(await ofrece(0, "ol"), ["Persona 12"]), "el filtro «Supervisor» no deja solo al supervisor");
+  await recuerda();
+  ok(almacen["fiscal-rol-ol"] === "supervisor", "no recuerda el rol del OL");
+}
+/* Se recuerda de un día para otro, y un rol que ya no existe se olvida. */
+await monta();
+await nuevoForm();
+ok(await rol("ol").inputValue() === "supervisor" && await rol("bavaria").inputValue() === "", "no usa lo recordado: " + await rol("ol").inputValue() + "/" + await rol("bavaria").inputValue());
+almacen = { "fiscal-rol-ol": "borrado", "fiscal-rol-bavaria": "borrado" };
+await monta();
+await nuevoForm();
+ok(await rol("ol").inputValue() === "operador" && await rol("bavaria").inputValue() === "abi", "un rol recordado que ya no existe no vuelve al de por defecto: " + await rol("ol").inputValue() + "/" + await rol("bavaria").inputValue());
+/* Sin un rol que se parezca, arranca en «Todos» y la pantalla funciona igual. */
+almacen = {};
+await monta({ roles: [{ clave: "supervisor", nombre: "Supervisor" }, { clave: "operador", nombre: "Operario de patio" }] });
+await nuevoForm();
+ok(await rol("ol").inputValue() === "" && await rol("bavaria").inputValue() === "abi", "sin un rol parecido el OL arranca en «Todos» (y Bavaria toma el «abi» que traen las personas): " + await rol("ol").inputValue() + "/" + await rol("bavaria").inputValue());
+/* Si no llegaron los roles, se arman con lo que traen las personas. */
+await monta({ roles: [] });
+await nuevoForm();
+ok((await rol("ol").locator("option").allTextContents()).includes("operador (6)"), "sin lista de roles no se arman con los de las personas");
+
+/* ---------- 4 · ARMAR UNO NUEVO ---------- */
+almacen = {};
+await monta();
+await nuevoForm();
+{
   ok(await guardar().isDisabled(), "se puede guardar sin nombre");
-  await pg.fill('.fi-form input:not([type="date"])', "  Fiscal octubre  ");
+  await nombreIn().fill("  Fiscal octubre  ");
   ok(!(await guardar().isDisabled()), "con nombre y hojas vacías no se puede guardar (las hojas pueden armarse de a poco)");
-  ok(/2 hojas sin nadie|2 hojas no tienen a nadie/.test(await txt()) || /no tienen a nadie/.test(await txt()), "no avisa de las hojas sin nadie: " + (await txt()).slice(-300));
-  /* Las parejas. */
-  await eleg(0, "ol", "p1"); await eleg(0, "bavaria", "p2"); await eleg(1, "ol", "p3");
-  /* quien ya está en otra hoja sale deshabilitado, con su número */
-  const opt = await pg.locator(".fi-hoja").nth(1).locator("select").nth(1).locator("option").allTextContents();
-  ok(opt.some((x) => /Persona 1 · ya en la hoja 1/.test(x)) && opt.some((x) => /Persona 3 · ya en la hoja 2/.test(x)), "no marca a quien ya está en otra hoja: " + opt.slice(0, 5).join(" | "));
-  const dis = await pg.locator(".fi-hoja").nth(1).locator("select").nth(1).locator("option[disabled]").count();
-  ok(dis === 3, "quien ya está en otra hoja no sale deshabilitado (3 personas ya puestas): " + dis);
-  ok(await pg.locator(".fi-hoja").nth(1).locator("select").nth(0).locator("option:not([disabled])", { hasText: "Persona 3" }).count() === 1, "la persona de una hoja no puede volver a escogerse en su propia casilla");
+  ok(/no tienen a nadie/.test(await txt()), "no avisa de las hojas sin nadie: " + (await txt()).slice(-300));
+  await pg.click('.fi-atajos button:has-text("Viernes")');
+  await eleg(0, "ol", "Persona 1"); await eleg(0, "bavaria", "Persona 7"); await eleg(1, "ol", "Persona 3");
+  ok(!(await ofrece(1, "bavaria")).includes("Persona 7") && !(await ofrece(1, "ol")).includes("Persona 1"), "quien ya está en una hoja sigue saliendo en otra");
   /* Sin número fijo: se agregan varias, se quita una, y la que se agrega toma el hueco. */
   await pg.fill('.fi-agregar input', "3");
   await pg.click('.fi-agregar button');
@@ -120,9 +241,9 @@ await pg.click('button:has-text("Nuevo inventario fiscal")');
   ok(await nums() === "Hoja 1,Hoja 3,Hoja 4,Hoja 5", "quitar la 2 renumera las demás: " + await nums());
   await pg.fill('.fi-agregar input', "1"); await pg.click('.fi-agregar button');
   ok(await nums() === "Hoja 1,Hoja 2,Hoja 3,Hoja 4,Hoja 5", "la hoja agregada no toma el hueco de la 2: " + await nums());
-  /* La hoja quitada se lleva a su gente: p3 vuelve a estar libre. */
-  ok(await pg.locator(".fi-hoja").nth(0).locator("select").nth(0).locator("option[disabled]").count() === 1, "quitar la hoja 2 no libera a la gente que tenía");
-  await eleg(3, "ol", "p7");
+  /* La hoja quitada se lleva a su gente: Persona 3 vuelve a estar libre. */
+  ok((await ofrece(0, "ol")).includes("Persona 3"), "quitar la hoja 2 no libera a la gente que tenía");
+  await eleg(3, "ol", "Persona 6");
   await guardar().click();
   await pg.waitForFunction(() => window.__rpc.length === 1);
   const llamada = (await rpcs())[0];
@@ -130,31 +251,46 @@ await pg.click('button:has-text("Nuevo inventario fiscal")');
   const a = llamada.a;
   ok(a.p_id === null && a.p_bodega === "bod1" && a.p_nombre === "Fiscal octubre" && a.p_fecha === "2026-10-02", "cabecera de lo que se manda: " + JSON.stringify({ ...a, p_hojas: undefined }));
   ok(JSON.stringify(a.p_hojas) === JSON.stringify([
-    { numero: 1, ol: "p1", bavaria: "p2" }, { numero: 2, ol: null, bavaria: null }, { numero: 3, ol: null, bavaria: null },
-    { numero: 4, ol: "p7", bavaria: null }, { numero: 5, ol: null, bavaria: null }]), "las hojas que se mandan: " + JSON.stringify(a.p_hojas));
-  ok(/Inventario fiscal guardado/.test(await txt()) && await pg.evaluate(() => window.__refresh) === 1, "después de guardar no avisa ni refresca");
+    { numero: 1, ol: "p1", bavaria: "p7" }, { numero: 2, ol: null, bavaria: null }, { numero: 3, ol: null, bavaria: null },
+    { numero: 4, ol: "p6", bavaria: null }, { numero: 5, ol: null, bavaria: null }]), "las hojas que se mandan: " + JSON.stringify(a.p_hojas));
+  ok(/Inventario fiscal guardado para el viernes 02\/10\/2026/.test(await txt()) && await pg.evaluate(() => window.__refresh) === 1, "después de guardar no avisa (con el día) ni refresca: " + (await txt()).slice(0, 200));
   ok(await pg.locator(".fi-form").count() === 0, "después de guardar el formulario sigue abierto");
 }
-
 /* A las 9 de la noche en Colombia ya es «mañana» en UTC: la fecha es la de Colombia. */
-await monta({ ahora: "2026-10-03T02:00:00.000Z" });
-await pg.click('button:has-text("Nuevo inventario fiscal")');
-ok((await pg.inputValue('.fi-form input[type="date"]')) === "2026-10-02", "de noche la fecha sale en UTC y no en hora de Colombia");
+await monta({ ahora: "2026-10-02T02:00:00.000Z" });
+await nuevoForm();
+ok((await fechaIn().inputValue()) === "2026-10-01", "de noche la fecha sale en UTC y no en hora de Colombia");
+await pg.locator(".fi-form").waitFor();
+await nombreIn().fill("x"); await fechaIn().fill("");
+ok(await guardar().isDisabled(), "se puede guardar sin fecha");
 
-/* ---------- 3 · EDITAR ---------- */
-await monta({ fiscales: [sep, cer, dup] });
+/* ---------- 5 · EDITAR ---------- */
+almacen = {};
+await monta({ fiscales: [sep, cer, dup, des] });
 await pg.locator(".fi-fila").first().locator('button:has-text("Editar")').click();
 {
   ok(/Editar inventario fiscal/.test(await txt()) && await hojas().count() === 3, "editar no abre el inventario con sus 3 hojas");
-  ok((await pg.inputValue('.fi-form input:not([type="date"])')) === "Fiscal septiembre" && (await pg.inputValue('.fi-form input[type="date"]')) === "2026-09-18", "editar no trae el nombre y la fecha");
-  ok((await pg.locator(".fi-hoja").nth(1).locator("select").nth(0).inputValue()) === "p3", "editar no trae a la persona de la hoja 2");
+  ok((await nombreIn().inputValue()) === "Fiscal viernes" && (await fechaIn().inputValue()) === "2026-10-02", "editar no trae el nombre y la fecha");
+  ok(/viernes 02\/10\/2026 · mañana/.test(await pg.locator(".fi-fecha").textContent()), "editar no muestra el día");
+  ok((await valorDe(1, "ol")) === "Persona 2" && (await valorDe(0, "bavaria")) === "Persona 7" && (await valorDe(1, "bavaria")) === "", "editar no trae a las personas de las hojas");
   ok(/1 hoja tiene una sola persona/.test(await txt()) && /1 hoja no tiene a nadie/.test(await txt()), "no avisa de la hoja a medias y de la vacía: " + (await txt()).slice(-260));
-  await eleg(1, "bavaria", "p9");
+  await eleg(1, "bavaria", "Persona 9");
   await guardar().click();
   await pg.waitForFunction(() => window.__rpc.length === 1);
   const a = (await rpcs())[0].a;
-  ok(a.p_id === "fs" && a.p_nombre === "Fiscal septiembre" && a.p_hojas[1].bavaria === "p9" && a.p_hojas[0].ol === "p1", "editar manda el id y lo cambiado: " + JSON.stringify(a));
+  ok(a.p_id === "fs" && a.p_nombre === "Fiscal viernes" && a.p_fecha === "2026-10-02" && a.p_hojas[1].bavaria === "p9" && a.p_hojas[0].ol === "p1" && a.p_hojas[0].bavaria === "p7", "editar manda el id y lo cambiado: " + JSON.stringify(a));
+  ok(/Inventario fiscal actualizado/.test(await txt()), "no dice que actualizó");
 }
+/* Quien ya estaba puesto sigue viéndose aunque esté desactivado o sea de otro rol que el filtro. */
+await monta({ fiscales: [des] });
+await pg.locator('button:has-text("Editar")').click();
+ok((await valorDe(0, "ol")) === "Persona 11 Desactivada" && (await valorDe(0, "bavaria")) === "Persona 8", "una persona desactivada o de otro rol se ve vacía al editar: " + await valorDe(0, "ol"));
+ok((await ofrece(0, "ol")).includes("Persona 11 Desactivada"), "la persona puesta desaparece de su propia lista");
+await casilla(0, "ol").locator(".bs-campo").click();
+ok(/desactivado/.test(await casilla(0, "ol").locator("li[role=option] em").filter({ hasText: "desactivado" }).first().textContent()), "no dice que está desactivada");
+await pg.keyboard.press("Escape");
+await rol("bavaria").selectOption("");
+ok(/10 disponibles · 1 ya en una hoja/.test(await pg.locator(".fi-rol").nth(1).textContent()), "los desactivados cuentan entre los usuarios: " + await pg.locator(".fi-rol").nth(1).textContent());
 /* Un inventario que ya trae a una persona repetida: lo dice y no deja guardar. */
 await monta({ fiscales: [dup] });
 await pg.locator('button:has-text("Editar")').click();
@@ -162,11 +298,11 @@ await pg.locator('button:has-text("Editar")').click();
   ok(/está en las hojas 1, 2: solo puede estar en una/.test(await txt()), "no avisa de la persona repetida: " + (await txt()).slice(-300));
   ok(await guardar().isDisabled(), "deja guardar con una persona en dos hojas");
   ok(await pg.locator(".fi-hoja.mal").count() === 2, "no marca las dos hojas con el repetido");
-  await eleg(1, "ol", "p10");
+  await eleg(1, "ol", "Persona 5");
   ok(!(await guardar().isDisabled()) && await pg.locator(".fi-hoja.mal").count() === 0, "al arreglarlo no se puede guardar");
 }
 
-/* ---------- 4 · SI LA BASE RECHAZA, EL FORMULARIO SE QUEDA ---------- */
+/* ---------- 6 · SI LA BASE RECHAZA, EL FORMULARIO SE QUEDA ---------- */
 await monta({ fiscales: [sep] });
 await pg.locator('button:has-text("Editar")').click();
 await pg.evaluate(() => { window.__rpcFalla = "function public.inv_fiscal_guardar(uuid, uuid, text, date, jsonb) does not exist" });
@@ -175,7 +311,7 @@ await pg.waitForSelector(".cl-mal");
 ok(/2026-10-inventario-fiscal\.sql/.test(await txt()), "si falta el SQL no dice cuál correr: " + (await txt()).slice(-200));
 ok(await pg.locator(".fi-form").count() === 1, "un rechazo cierra el formulario y pierde lo armado");
 
-/* ---------- 5 · ELIMINAR: solo quien administra, con confirmación ---------- */
+/* ---------- 7 · ELIMINAR: solo quien administra, con confirmación ---------- */
 await monta({ manda: true });
 {
   ok(await pg.locator('button:has-text("Eliminar")').count() === 2, "quien administra no ve «Eliminar» en cada inventario");
@@ -191,15 +327,16 @@ await monta({ manda: true });
   ok(/Inventario fiscal eliminado/.test(await txt()), "no dice que lo eliminó");
 }
 
-/* ---------- 6 · NADA SE SALE, y el dedo alcanza, en cuatro anchos ---------- */
+/* ---------- 8 · NADA SE SALE, y el dedo alcanza, en cuatro anchos ---------- */
 for (const w of [360, 390, 820, 1440]) {
-  for (const modo of ["lista", "form"]) {
+  for (const modo of ["lista", "form", "lista-abierta"]) {
     await monta({ manda: true, fiscales: [sep, cer, dup] }, w);
-    if (modo === "form") { await pg.locator(".fi-fila").first().locator('button:has-text("Editar")').click(); await pg.fill('.fi-agregar input', "4"); await pg.click(".fi-agregar button") }
+    if (modo !== "lista") { await pg.locator(".fi-fila").first().locator('button:has-text("Editar")').click(); await pg.fill('.fi-agregar input', "4"); await pg.click(".fi-agregar button") }
+    if (modo === "lista-abierta") { await casilla(1, "bavaria").locator(".bs-campo").click(); await pg.locator(".bs-lista").waitFor() }
     const d = await pg.evaluate(() => ({ ancho: document.documentElement.scrollWidth, vista: window.innerWidth,
       fuera: [...document.querySelectorAll("#r *")].filter((e) => e.getBoundingClientRect().width && e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className || e.tagName).slice(0, 4) }));
     ok(d.ancho <= d.vista && d.fuera.length === 0, `a ${w} px (${modo}) se sale: ${d.ancho}>${d.vista} ${d.fuera.join(",")}`);
-    const chico = await pg.evaluate(() => [...document.querySelectorAll("#r select, #r input, #r .btn, #r .cl-quitar")].filter((e) => e.getBoundingClientRect().height && e.getBoundingClientRect().height < 43).map((e) => e.className || e.tagName));
+    const chico = await pg.evaluate(() => [...document.querySelectorAll("#r select, #r input, #r .btn, #r .cl-quitar, #r .bs-campo")].filter((e) => e.getBoundingClientRect().height && e.getBoundingClientRect().height < 43).map((e) => e.className || e.tagName));
     ok(chico.length === 0, `a ${w} px (${modo}) hay ${chico.length} controles de menos de 44 px: ${chico.slice(0, 4).join(",")}`);
   }
 }
@@ -209,9 +346,11 @@ if (process.env.FOTO) {
     await pg.screenshot({ path: process.env.FOTO + `/fiscal-lista-${n}.png`, fullPage: true });
     await pg.locator(".fi-fila").first().locator('button:has-text("Editar")').click();
     await pg.screenshot({ path: process.env.FOTO + `/fiscal-form-${n}.png`, fullPage: true });
+    await casilla(1, "bavaria").locator(".bs-campo").click();
+    await pg.screenshot({ path: process.env.FOTO + `/fiscal-lista-abierta-${n}.png`, fullPage: false });
   }
 }
 ok(roto.length === 0, "errores de la página: " + roto.slice(0, 3).join(" | "));
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Inventario fiscal en pantalla: la lista con sus parejas, las hojas sin número fijo (se agregan, se quitan y la nueva toma el hueco), nadie en dos hojas, lo que se manda a la base, editar, eliminar solo quien administra, y nada se sale en 4 anchos.");
+console.log("✓ Inventario fiscal en pantalla: planificar por fecha (día, atajos, próximos/anteriores), escoger por rol y tecleando (recordado, sin repetir a nadie), hojas sin número fijo, lo que se manda a la base, editar, eliminar solo quien administra, y nada se sale en 4 anchos.");

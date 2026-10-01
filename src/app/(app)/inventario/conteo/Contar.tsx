@@ -53,6 +53,7 @@ import {
 } from "@/modulos/inventario/cola";
 import { Ficha } from "./Ficha";
 import { totalesDelConteo } from "@/modulos/inventario/totales-conteo";
+import { MODULOS_DE_LA_HOJA, moduloConLados, modulosQueFaltan } from "@/modulos/inventario/modulos-hoja";
 
 type Conteo = { id: string; codigo: string; estado: string; iniciado_en: string | null };
 
@@ -426,7 +427,7 @@ export function Contar({
      trae TODAS las ubicaciones; con calle, las de esa calle. Escoger el
      módulo pone su calle solo. */
   const calles = useMemo(
-    () => [...new Set(ubicaciones.filter((u) => u.activa).map((u) => u.calle))].sort(ordenCalle),
+    () => [...new Set([...ubicaciones.filter((u) => u.activa).map((u) => u.calle), ...Object.keys(MODULOS_DE_LA_HOJA)])].sort(ordenCalle),
     [ubicaciones]);
 
   /* LOS MÓDULOS SIN EL LADO PEGADO. A01_DER y A01_IZQ son un solo
@@ -440,6 +441,12 @@ export function Contar({
       if (b.calle !== "" && u.calle !== b.calle) continue;
       const k = claveBase(u);
       if (!m.has(k)) m.set(k, { base: k, calle: u.calle, modulo: u.modulo, familia: u.familia });
+    }
+    /* Y LOS QUE TRAE LA HOJA Y EL MAESTRO TODAVÍA NO (PASILLO, TANDEM, DEPA, PALE, H…): se
+       ofrecen igual y la base los da de alta al anotar. Lo que ya estaba no cambia. */
+    for (const f of modulosQueFaltan(ubicaciones.filter((u) => u.activa), b.calle)) {
+      const k = claveBase(f);
+      if (!m.has(k)) m.set(k, { base: k, calle: f.calle, modulo: f.modulo, familia: null });
     }
     return [...m.values()].sort((x, y) =>
       ordenCalle(x.calle, y.calle) ||
@@ -466,6 +473,8 @@ export function Contar({
   const lados = useMemo(() => {
     const delModulo = ubicaciones.filter((u) => u.activa && claveBase(u) === b.base);
     if (delModulo.length > 0 && delModulo.every((u) => (u.lado ?? "") === "")) return [""];
+    /* Un módulo de la hoja que el maestro no tiene: un pasillo o un tándem no tienen lados. */
+    if (delModulo.length === 0 && b.base && !moduloConLados(b.base.split("|")[1] ?? "")) return [""];
     return ["IZQ", "DER"];
   }, [ubicaciones, b.base]);
 
@@ -1348,7 +1357,7 @@ export function Contar({
                      ya quedó guardado; mientras se ESCRIBE no se pierde
                      nada, porque nada está guardado todavía. */
                   setB((x) => ({ ...x, base,
-                                 calle: u?.calle ?? x.calle,
+                                 calle: u?.calle ?? base.split("|")[0] ?? x.calle,
                                  lado: posibles.length === 1 ? (posibles[0].lado ?? "") : "" }));
                 }} /></label>
 

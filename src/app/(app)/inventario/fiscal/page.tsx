@@ -57,12 +57,13 @@ export default async function FiscalPage() {
     );
   }
 
-  const [fis, hoj, mie, per] = await Promise.all([
+  const [fis, hoj, mie, per, rol] = await Promise.all([
     supabase.from("inv_fiscales").select("id,nombre,fecha,estado,creado_en")
       .eq("bodega_id", bodega.id).order("fecha", { ascending: false }).order("creado_en", { ascending: false }).limit(100),
     supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero").limit(5000),
     supabase.from("inv_fiscal_miembros").select("hoja_id,equipo,user_id").limit(10000),
-    supabase.from("perfiles").select("id,nombre,activo").order("nombre").limit(2000),
+    supabase.from("perfiles").select("id,nombre,activo,rol").order("nombre").limit(2000),
+    supabase.from("roles").select("clave,nombre").order("orden", { nullsFirst: false }).limit(200),
   ]);
   if (fis.error || hoj.error || mie.error) return sinSql;
 
@@ -84,7 +85,9 @@ export default async function FiscalPage() {
   /* Las personas que se pueden poner en una hoja: las activas. Las que ya están
      en un inventario siguen saliendo con su nombre aunque se hayan desactivado. */
   const enUso = new Set((mie.data ?? []).map((x) => x.user_id));
-  const personas = (per.data ?? []).filter((p) => p.activo || enUso.has(p.id)).map((p) => ({ id: p.id, nombre: p.nombre as string, activo: Boolean(p.activo) }));
+  const personas = (per.data ?? []).filter((p) => p.activo || enUso.has(p.id))
+    .map((p) => ({ id: p.id, nombre: p.nombre as string, activo: Boolean(p.activo), rol: (p.rol ?? "") as string }));
+  const roles = (rol.data ?? []).map((r) => ({ clave: r.clave as string, nombre: r.nombre as string }));
 
   return (
     <div className="fe">
@@ -97,6 +100,7 @@ export default async function FiscalPage() {
       <Fiscal
         bodegaId={bodega.id}
         personas={personas}
+        roles={roles}
         fiscales={fiscales}
         puedeEditar={puedeEditar}
         manda={permisos.manda}

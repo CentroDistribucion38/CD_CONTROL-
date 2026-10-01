@@ -63,5 +63,49 @@ ok(F.textoResumen({ total: 5, completas: 4, aMedias: 1, vacias: 0 }) === "5 hoja
 ok(F.textoResumen({ total: 7, completas: 3, aMedias: 2, vacias: 2 }) === "7 hojas · 3 parejas completas · 2 a medias · 2 sin nadie", "resumen con vacías");
 ok(F.textoResumen({ total: 2, completas: 0, aMedias: 0, vacias: 2 }) === "2 hojas · 0 parejas completas · 2 sin nadie", "resumen sin parejas");
 
+/* 7 · escoger a la persona: por rol. */
+const roles = [{ clave: "admin", nombre: "Administrador" }, { clave: "operador", nombre: "Operador" }, { clave: "ol", nombre: "Operador logístico" },
+               { clave: "bav", nombre: "Bavaria" }, { clave: "abi", nombre: "ABI" }, { clave: "facturacion", nombre: "Facturación" }];
+ok(F.rolPorDefecto(roles, "ol") === "ol", "rol por defecto del OL: " + F.rolPorDefecto(roles, "ol"));
+ok(F.rolPorDefecto(roles, "bavaria") === "bav", "rol por defecto de Bavaria: " + F.rolPorDefecto(roles, "bavaria"));
+ok(F.rolPorDefecto([{ clave: "abi", nombre: "ABI" }, { clave: "operador", nombre: "Operador" }], "bavaria") === "abi", "ABI sirve para Bavaria");
+ok(F.rolPorDefecto([{ clave: "abi", nombre: "ABI" }, { clave: "operador", nombre: "Operador" }], "ol") === "", "«Operador» a secas no es el rol del operador logístico");
+ok(F.rolPorDefecto([{ clave: "x", nombre: "Operación Logística" }], "ol") === "x", "«Logística» sin tilde ni mayúscula");
+ok(F.rolPorDefecto([{ clave: "admin", nombre: "Administrador" }], "ol") === "" && F.rolPorDefecto([], "bavaria") === "", "sin rol que se parezca: vacío (todos)");
+ok(F.rolPorDefecto([{ clave: "abierto", nombre: "Abierto" }, { clave: "protocolo", nombre: "Protocolo" }], "bavaria") === "" && F.rolPorDefecto([{ clave: "cobol", nombre: "Cobol" }], "ol") === "", "«abi» y «ol» solo como palabra entera");
+const gente = [
+  { id: "u1", nombre: "Zoila", activo: true, rol: "ol" }, { id: "u2", nombre: "Álvaro", activo: true, rol: "ol" }, { id: "u3", nombre: "Beto", activo: true, rol: "bav" },
+  { id: "u4", nombre: "Carlos", activo: false, rol: "ol" }, { id: "u5", nombre: "Dora", activo: true, rol: "admin" }, { id: "u6", nombre: "Eva", activo: true, rol: "ol" }];
+const cr = F.conteoPorRol(gente, roles);
+ok(cr.map((r) => `${r.clave}:${r.n}`).join() === "admin:1,bav:1,ol:3", "conteo por rol (sin desactivados ni roles vacíos): " + cr.map((r) => `${r.clave}:${r.n}`).join());
+let op = F.opcionesPersonas({ personas: gente, roles, rol: "ol", ocupadas: new Set(), actual: "" });
+ok(op[0].valor === "" && op.slice(1).map((x) => x.texto).join() === "Álvaro,Eva,Zoila", "solo el rol, sin desactivados, por nombre y con tildes: " + op.map((x) => x.texto).join());
+ok(op[1].pista === "Operador logístico", "la pista es el nombre del rol");
+op = F.opcionesPersonas({ personas: gente, roles, rol: "ol", ocupadas: new Set(["u2"]), actual: "" });
+ok(!op.some((x) => x.valor === "u2"), "quien ya está en otra hoja no sale");
+op = F.opcionesPersonas({ personas: gente, roles, rol: "ol", ocupadas: new Set(["u2"]), actual: "u2" });
+ok(op.some((x) => x.valor === "u2"), "la persona de esta casilla se queda aunque esté en «ocupadas»");
+op = F.opcionesPersonas({ personas: gente, roles, rol: "bav", ocupadas: new Set(), actual: "u4" });
+ok(op.map((x) => x.valor).join() === ",u3,u4" && op[2].pista === "Operador logístico · desactivado", "la actual se queda aunque sea de otro rol y esté desactivada: " + JSON.stringify(op));
+op = F.opcionesPersonas({ personas: gente, roles, rol: "", ocupadas: new Set(), actual: "" });
+ok(op.length === 1 + 5, "sin filtro de rol salen todos los activos: " + op.length);
+
+ok(F.completarRoles(gente, []).map((r) => r.clave).join() === "ol,bav,admin" && F.completarRoles(gente, roles).length === roles.length, "completarRoles: sin lista de roles salen los de las personas; con lista no agrega nada");
+ok(F.completarRoles([{ id: "x", nombre: "X", activo: true, rol: "" }], []).length === 0, "una persona sin rol no inventa un rol vacío");
+
+/* 8 · planificar: fechas. */
+ok(F.diaSemana("2026-10-02") === "viernes" && F.diaSemana("2026-10-04") === "domingo" && F.diaSemana("2026-10-05") === "lunes", "día de la semana");
+ok(F.sumarDias("2026-10-31", 1) === "2026-11-01" && F.sumarDias("2026-12-31", 1) === "2027-01-01" && F.sumarDias("2026-03-01", -1) === "2026-02-28", "sumar días cruza meses y años");
+ok(F.diasHasta("2026-10-01", "2026-10-03") === 2 && F.diasHasta("2026-10-03", "2026-10-01") === -2 && F.diasHasta("2026-10-01", "2026-10-01") === 0, "días hasta");
+ok(F.proximoDia("2026-10-01", 5) === "2026-10-02", "el viernes que viene desde un jueves");
+ok(F.proximoDia("2026-10-02", 5) === "2026-10-02", "si hoy es viernes, el viernes es hoy");
+ok(F.proximoDia("2026-10-03", 5) === "2026-10-09", "desde el sábado, el viernes de la otra semana");
+ok(F.textoCuando("2026-10-01", "2026-10-01") === "hoy" && F.textoCuando("2026-10-01", "2026-10-02") === "mañana" && F.textoCuando("2026-10-01", "2026-09-30") === "ayer"
+   && F.textoCuando("2026-10-01", "2026-10-05") === "en 4 días" && F.textoCuando("2026-10-05", "2026-10-01") === "hace 4 días", "texto de cuándo");
+ok(F.fechaConDia("2026-10-02") === "viernes 02/10/2026", "fecha con día: " + F.fechaConDia("2026-10-02"));
+const gr = F.agrupar([{ fecha: "2026-10-09" }, { fecha: "2026-09-20" }, { fecha: "2026-10-01" }, { fecha: "2026-10-03" }, { fecha: "2026-09-30" }], "2026-10-01");
+ok(gr.proximos.map((x) => x.fecha).join() === "2026-10-01,2026-10-03,2026-10-09", "próximos: el más cercano primero, hoy incluido");
+ok(gr.anteriores.map((x) => x.fecha).join() === "2026-09-30,2026-09-20", "anteriores: el más reciente primero");
+
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
 console.log("✓ Inventario fiscal, las cuentas: hojas sin número fijo (el menor número libre, sin renumerar), parejas OL/Bavaria, personas repetidas y el resumen.");
