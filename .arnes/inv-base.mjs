@@ -449,7 +449,8 @@ for (const [ancho, etiqueta] of ANCHOS) {
   });
   const cnt = (codigo, fecha, estado) => ({
     id: "c-" + codigo, codigo, estado, bodega: "BQ", responsable: "Génesis", fecha_analisis: fecha,
-    enviado_en: fecha + "T17:00:00Z", envio_nombre: "Jefe de bodega",
+    /* El «-A» se empezó el 18/9 pero se envió el 1/10 a las 9:34 de la mañana. */
+    enviado_en: codigo.endsWith("-A") ? "2026-10-01T14:34:00Z" : fecha + "T17:00:00Z", envio_nombre: "Jefe de bodega",
     renglones: 2, ubicaciones: 1, total_cajas: 8640,
   });
   writeFileSync(U("./_base-entrada.tsx"), `
@@ -491,6 +492,9 @@ createRoot(document.getElementById("r")).render(
       cuantosOn: document.querySelectorAll(".ba-inv.on").length,
       atajos: [...document.querySelectorAll(".ba-inv")].map((b) => b.textContent.replace(/\s+/g, " ").trim()),
     }));
+    const enviadoTxt = await pag.evaluate(() => [...document.querySelectorAll(".ba-conso-fefo span")].map((e) => e.textContent.replace(/\s+/g, " ")).join(" | "));
+    if (!/enviado 1\/10 9:34 a\. m\./.test(enviadoTxt))
+      fallas.push(`el consolidado enseña la hora del envío sin el día: un recorrido del 18/9 enviado el 1/10 parece enviado el 18 («${enviadoTxt}»)`);
     if (rotos.length)
       fallas.push(`la pantalla de la base tiró un error al montarse: ${rotos[0]}`);
     /* AL ENTRAR, EL ÚLTIMO RECORRIDO. Uno solo, y NO «Todos». */

@@ -32,6 +32,13 @@ import { leerPaleta } from "../informe";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
+/** CUÁNDO SE ENVIÓ, con el día: «1/10 9:34 a. m.». La fecha del recorrido es la del día en que se EMPEZÓ a
+ *  contar; un recorrido del 26/9 enviado el 1/10 se veía solo con la hora y parecía enviado el 26. */
+const cuando = (s: string | null) => s
+  ? new Date(s).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "numeric", hour: "numeric", minute: "2-digit", hour12: true })
+      .replace(",", "").replace(/\s?([ap])\.?\s?m\.?/i, (_, x) => ` ${x.toLowerCase()}. m.`)
+  : "—";
+
 const fecha = (s: string | null) =>
   s ? new Date(s + (s.length === 10 ? "T00:00:00" : "")).toLocaleDateString("es-CO") : "";
 const fechaHora = (s: string | null) =>
@@ -231,6 +238,7 @@ export function Base({
           codigo, ...n,
           fecha: c?.fecha_analisis ?? null,
           quien: c?.envio_nombre ?? c?.responsable ?? null,
+          enviado: c?.enviado_en ?? null,
           ubicaciones: c?.ubicaciones ?? null,
         };
       })
@@ -396,7 +404,7 @@ export function Base({
                   ...recorridos.map((rc) => ({
                     valor: rc.codigo,
                     texto: `${rc.fecha ? fecha(rc.fecha) : "sin fecha"} · ${rc.codigo}`,
-                    pista: [rc.quien, `${nf.format(rc.renglones)} renglones`,
+                    pista: [rc.quien, rc.enviado ? `enviado ${cuando(rc.enviado)}` : null, `${nf.format(rc.renglones)} renglones`,
                             `${nf.format(rc.cajas)} cajas`].filter(Boolean).join(" · "),
                   })),
                 ]}
@@ -574,7 +582,6 @@ function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
     .sort((a, b) => (a.enviado_en ?? "").localeCompare(b.enviado_en ?? "")), [conteos, escogido]);
   const incluidos = delDia.filter((c) => !quitados.has(c.id));
   const alterna = (id: string) => setQuitados((x) => { const y = new Set(x); if (y.has(id)) y.delete(id); else y.add(id); return y });
-  const hora = (s: string | null) => s ? new Date(s).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—";
   const largo = (s: string) => new Date(s + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" });
 
   async function bajar() {
@@ -636,7 +643,7 @@ function Consolidado({ conteos }: { conteos: ConteoFefo[] }) {
             <label key={c.id} className={"ba-conso-fefo" + (on ? " on" : "")}>
               <input type="checkbox" checked={on} onChange={() => alterna(c.id)} />
               <b>{c.codigo}</b>
-              <span>{c.responsable ?? "—"} · enviado {hora(c.enviado_en)}</span>
+              <span>{c.responsable ?? "—"} · enviado {cuando(c.enviado_en)}</span>
               <em>{nf.format(Number(c.renglones ?? 0))} rengl. · {nf.format(Number(c.ubicaciones ?? 0))} ubic. · {nf.format(Number(c.total_cajas ?? 0))} cajas</em>
             </label>
           );
