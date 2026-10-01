@@ -49,3 +49,34 @@
 .fe .fi-pareja { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)) }
 .fe .fi-casilla { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
 .fe .fi-casilla .bs-campo { min-height: 44px }
+
+/* AVANCE Y CRUCE: lo que lleva cada pareja y la comparación de sus dos hojas. */
+.fe .fi-sub { display: block; font-size: 12px; color: var(--fe-gris); font-weight: 400 }
+.fe .fi-av-celda { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.fe .fi-av { font-style: normal; font: 800 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 2px; background: var(--fe-fondo); color: var(--fe-tinta); white-space: nowrap }
+.fe .fi-av.lista { background: var(--fe-acento); color: var(--fe-sobre, #fff) }
+.fe .fi-av.una-termino { border: 1px solid var(--fe-acento); background: transparent; color: var(--fe-acento) }
+.fe .fi-cruzar { min-height: 44px }
+.fe .fi-cruce { margin-top: 12px; padding: 12px; border: 1px solid var(--fe-linea); background: var(--fe-papel); min-width: 0 }
+.fe .fi-cruce-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px }
+.fe .fi-cruce-cab b { font: 900 15px var(--fe-titulo) }
+.fe .fi-cruce-titular { margin: 8px 0 0; font: 800 14px var(--fe-titulo) }
+.fe .fi-cruce-titular.mal { color: var(--fe-mal) }
+.fe .fi-cruce-cifras { display: flex; flex-wrap: wrap; gap: 4px 16px; list-style: none; margin: 8px 0; font-size: 13px; color: var(--fe-gris) }
+.fe .fi-cruce-cifras b { color: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.fe .fi-cruce-filtro { margin-bottom: 8px; min-height: 44px; white-space: normal }
+.fe .fi-cruce-tabla { width: 100%; border-collapse: collapse; font-size: 13px }
+.fe .fi-cruce-tabla th, .fe .fi-cruce-tabla td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--fe-linea); font-weight: 500; vertical-align: top }
+.fe .fi-cruce-tabla thead th { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris); border-top: 0 }
+.fe .fi-cruce-tabla .num { text-align: right; font-variant-numeric: tabular-nums }
+.fe .fi-cruce-tabla thead th:nth-last-child(-n+3) { text-align: right }
+.fe .fi-ef { font-style: normal; font: 800 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 2px; background: var(--fe-fondo); color: var(--fe-tinta); white-space: nowrap }
+.fe .fi-ef.difiere, .fe .fi-ef.solo_ol, .fe .fi-ef.solo_bavaria { border: 1px solid var(--fe-mal); background: transparent; color: var(--fe-mal) }
+.fe .fi-cruce-pie { margin: 10px 0 0; font-size: 12px; color: var(--fe-gris) }
+@media (max-width: 700px) {
+  .fe .fi-cruce-tabla thead { display: none }
+  .fe .fi-cruce-tabla, .fe .fi-cruce-tabla tbody, .fe .fi-cruce-tabla tr, .fe .fi-cruce-tabla td { display: block; width: auto }
+  .fe .fi-cruce-tabla tr { border-top: 1px solid var(--fe-linea); padding: 6px 0 }
+  .fe .fi-cruce-tabla td { border: 0; padding: 1px 0; text-align: left !important }
+  .fe .fi-cruce-tabla td::before { content: attr(data-et) ": "; color: var(--fe-gris); font-size: 12px }
+}

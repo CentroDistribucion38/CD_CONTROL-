@@ -12,7 +12,13 @@ writeFileSync(R(".arnes/_fp-fefo.ts"), `export async function maestroInventario(
 writeFileSync(R(".arnes/_fp-server.ts"), `
 export async function createClient() {
   const g = globalThis as any;
-  return { from: (t: string) => {
+  return {
+    rpc: async (n: string) => {
+      g.__LECTURAS.push({ t: "rpc:" + n, cols: "" });
+      if (n === "inv_fiscal_avance" && g.__SIN_AVANCE) return { data: null, error: { message: "Could not find the function public.inv_fiscal_avance" } };
+      return { data: n === "inv_fiscal_avance" ? (g.__AVANCE ?? []) : null, error: null };
+    },
+    from: (t: string) => {
     const q: any = { cols: "" };
     const resp = () => {
       g.__LECTURAS.push({ t, cols: q.cols });
@@ -48,8 +54,12 @@ const DATOS = {
   inv_fiscal_miembros: [{ hoja_id: "h1", equipo: "OL", user_id: "u1" }],
   perfiles: [{ id: "u1", nombre: "Ana", activo: true, rol: "operador" }], roles: [],
 };
+const AVANCE = [
+  { fiscal_id: "f1", hoja_id: "h1", numero: 1, ol_renglones: "3", ol_termino: "2026-10-02T10:00:00Z", bavaria_renglones: 0, bavaria_termino: null },
+  { fiscal_id: "fOtro", hoja_id: "hx", numero: 1, ol_renglones: 9, ol_termino: null, bavaria_renglones: 9, bavaria_termino: null },
+];
 const dibuja = async (o = {}) => {
-  Object.assign(globalThis, { __LECTURAS: [], __DATOS: DATOS, __SIN_COLUMNA: false, __SIN_TABLA: false, __MANDA: false }, o);
+  Object.assign(globalThis, { __LECTURAS: [], __DATOS: DATOS, __SIN_COLUMNA: false, __SIN_TABLA: false, __SIN_AVANCE: false, __AVANCE: AVANCE, __MANDA: false }, o);
   const html = renderToStaticMarkup(await Pagina());
   const m = html.match(/<pre id="props">(.*)<\/pre>/s);
   return { html, props: m ? JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")) : null };
@@ -66,6 +76,16 @@ ok(lect.length === 2 && !/publicado_en/.test(lect[1].cols), "sin la columna no v
 ok(!/Falta preparar el inventario fiscal/.test(r.html), "sin la columna cae a «falta preparar» y el plan deja de verse");
 r = await dibuja({ __SIN_TABLA: true });
 ok(/Falta preparar el inventario fiscal/.test(r.html) && /2026-10-inventario-fiscal\.sql/.test(r.html), "sin las tablas del fiscal no manda al SQL de siempre");
+/* El avance de cada hoja y el cruce. */
+r = await dibuja();
+ok(r.props?.conCruce === true, "con el SQL del cruce no lo marca disponible");
+ok(r.props?.fiscales?.[0]?.hojaIds?.["1"] === "h1", "la pantalla no recibe el id de la hoja: " + JSON.stringify(r.props?.fiscales?.[0]));
+ok(r.props?.fiscales?.[0]?.avance?.["1"]?.olRenglones === 3 && r.props.fiscales[0].avance["1"].olTermino === "2026-10-02T10:00:00Z" && r.props.fiscales[0].avance["1"].bavariaTermino === null, "el avance no llega bien: " + JSON.stringify(r.props?.fiscales?.[0]?.avance));
+ok(JSON.stringify(r.props?.fiscales?.[1]?.avance) === "{}" && JSON.stringify(r.props?.fiscales?.[1]?.hojaIds) === "{}", "un plan sin avance debe llegar con avance vacío, no con el de otro plan");
+ok(globalThis.__LECTURAS.some((x) => x.t === "rpc:inv_fiscal_avance"), "no pide el avance");
+r = await dibuja({ __SIN_AVANCE: true });
+ok(r.props?.conCruce === false && r.props?.fiscales?.length === 2 && r.props.fiscales.every((f) => f.avance === undefined && f.hojaIds === undefined), "sin el SQL del cruce la pantalla debe seguir sirviendo, sin avance: " + JSON.stringify(r.props?.conCruce));
+ok(!/Falta preparar el inventario fiscal/.test(r.html), "sin el SQL del cruce cae a «falta preparar» y el plan deja de verse");
 r = await dibuja({ __MANDA: true });
 ok(r.props?.manda === true, "no le pasa a la pantalla si es administrador");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }

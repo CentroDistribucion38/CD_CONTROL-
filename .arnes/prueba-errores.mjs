@@ -15,6 +15,15 @@ execSync("npx tsc src/lib/errores.ts --outDir .arnes/tmp --module es2022 " +
 const mod = await import("../.arnes/tmp/errores.js");
 
 const CASOS = [
+  /* FISCAL: terminar la hoja, el avance y el cruce (antes que el resto del fiscal). */
+  ['Could not find the function public.inv_fiscal_terminar(p_hoja, p_terminado) in the schema cache',
+   "2026-10-fiscal-cruce.sql"],
+  ['Could not find the function public.inv_fiscal_avance without parameters in the schema cache',
+   "2026-10-fiscal-cruce.sql"],
+  ['Could not find the function public.inv_fiscal_cruce(p_hoja) in the schema cache',
+   "2026-10-fiscal-cruce.sql"],
+  ['relation "public.inv_fiscal_terminos" does not exist',
+   "2026-10-fiscal-cruce.sql"],
   ['Could not find the function public.rotlinea_firmar(p_fecha, p_linea, p_turno, p_nota) in the schema cache',
    "2026-09-rotura-linea-firma.sql"],
   ['relation "public.rotlinea_firmas" does not exist',

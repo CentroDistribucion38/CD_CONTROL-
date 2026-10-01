@@ -11,6 +11,10 @@ import {
   nombreAuto, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
   type Equipo, type HojaForm, type PersonaF, type RolF,
 } from "@/modulos/inventario/fiscal";
+import {
+  estadoHoja, filaDesdeBD, ordenarCruce, puedeCruzar, resumenCruce, textoEquipo, textoVenc, titularCruce,
+  TEXTO_ESTADO, TEXTO_FILA, type AvanceHoja, type FilaCruce, type FilaCruceBD,
+} from "@/modulos/inventario/fiscal-cruce";
 
 /* ===================================================================
    EL INVENTARIO FISCAL, PANTALLA DE QUIEN LO ORGANIZA
@@ -37,15 +41,22 @@ export type FiscalBD = {
   id: string; nombre: string; fecha: string; estado: "abierto" | "cerrado"; hojas: HojaForm[];
   /** Cuándo se mostró en Contar (null = todavía es solo del plan). */
   publicado?: string | null;
+  /** Por número de hoja: su id y cuánto lleva cada equipo (solo con 2026-10-fiscal-cruce.sql). */
+  hojaIds?: Record<number, string>;
+  avance?: Record<number, AvanceHoja>;
 };
+/** El cruce que se está mirando: de una hoja de un inventario. `filas` null = todavía cargando. */
+type CruceAbierto = { fiscalId: string; hojaId: string; numero: number; filas: FilaCruce[] | null; error: string | null; soloDif: boolean };
 /** `manual`: el nombre lo escribió alguien. Mientras no, sigue a la fecha («FISCAL OCTUBRE 2026 · viernes 02/10»). */
 type FormF = { id: string | null; nombre: string; fecha: string; hojas: HojaForm[]; manual: boolean };
 
-export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, manda, ahora }: {
+export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, manda, ahora }: {
   bodegaId: string; personas: Persona[]; roles: RolF[]; fiscales: FiscalBD[];
   puedeEditar: boolean; manda: boolean; ahora: string;
   /** false = a la base le falta 2026-10-fiscal-publicar.sql: no se ofrece el botón de Contar. */
   puedePublicar?: boolean;
+  /** false = a la base le falta 2026-10-fiscal-cruce.sql: no hay avance ni cruce. */
+  conCruce?: boolean;
 }) {
   const router = useRouter();
   const hoy = diaColombia(ahora);
@@ -54,6 +65,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
   const [mal, setMal] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [borrar, setBorrar] = useState<string | null>(null);
+  const [cruce, setCruce] = useState<CruceAbierto | null>(null);
   const nombre = useMemo(() => new Map(personas.map((p) => [p.id, p.nombre])), [personas]);
   const { proximos, anteriores } = useMemo(() => agrupar(fiscales, hoy), [fiscales, hoy]);
 
@@ -100,8 +112,21 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     router.refresh();
   }
 
+  /* VER EL CRUCE: lo de las dos personas de una hoja, lado a lado. Lo pide quien arma el plan. */
+  async function verCruce(f: FiscalBD, numero: number) {
+    const hojaId = f.hojaIds?.[numero];
+    if (!hojaId) return;
+    setMal(null); setAviso(null);
+    setCruce({ fiscalId: f.id, hojaId, numero, filas: null, error: null, soloDif: false });
+    const { data, error } = await createClient().rpc("inv_fiscal_cruce", { p_hoja: hojaId });
+    if (error) return setCruce((c) => (c && c.hojaId === hojaId ? { ...c, error: traducirError(error.message) } : c));
+    const filas = ordenarCruce(((data ?? []) as FilaCruceBD[]).map(filaDesdeBD));
+    setCruce((c) => (c && c.hojaId === hojaId ? { ...c, filas } : c));
+  }
+
   const tarjeta = (f: FiscalBD) => {
     const r = revisar(f.hojas);
+    const conAvance = conCruce && !!f.avance && !!f.publicado;
     return (
       <article key={f.id} className="fe-fila fi-fila">
         <div className="cl-cab">
@@ -114,17 +139,36 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
         </div>
         <p className="cl-sub">{textoResumen(r)}</p>
         <table className="fi-hojas">
-          <thead><tr><th>Hoja</th><th>Operador logístico</th><th>Bavaria</th></tr></thead>
+          <thead><tr><th>Hoja</th><th>Operador logístico</th><th>Bavaria</th>{conAvance && <th>Avance</th>}</tr></thead>
           <tbody>
-            {f.hojas.map((h) => (
-              <tr key={h.numero}>
-                <th scope="row">{h.numero}</th>
-                <td data-et="Operador logístico">{h.ol ? nombre.get(h.ol) ?? "—" : <em>falta</em>}</td>
-                <td data-et="Bavaria">{h.bavaria ? nombre.get(h.bavaria) ?? "—" : <em>falta</em>}</td>
-              </tr>
-            ))}
+            {f.hojas.map((h) => {
+              const av = conAvance ? f.avance?.[h.numero] : undefined;
+              return (
+                <tr key={h.numero}>
+                  <th scope="row">{h.numero}</th>
+                  <td data-et="Operador logístico">{h.ol ? nombre.get(h.ol) ?? "—" : <em>falta</em>}
+                    {av && h.ol && <small className="fi-sub">{textoEquipo(av.olRenglones, av.olTermino)}</small>}</td>
+                  <td data-et="Bavaria">{h.bavaria ? nombre.get(h.bavaria) ?? "—" : <em>falta</em>}
+                    {av && h.bavaria && <small className="fi-sub">{textoEquipo(av.bavariaRenglones, av.bavariaTermino)}</small>}</td>
+                  {conAvance && (
+                    <td data-et="Avance">
+                      {av ? (
+                        <span className="fi-av-celda">
+                          <i className={"fi-av " + estadoHoja(av)}>{TEXTO_ESTADO[estadoHoja(av)]}</i>
+                          {puedeEditar && puedeCruzar(av) && f.hojaIds?.[h.numero] && (
+                            <button type="button" className="btn plano fi-cruzar" aria-label={`Ver el cruce de la hoja ${h.numero}`}
+                                    onClick={() => verCruce(f, h.numero)}>Ver cruce</button>
+                          )}
+                        </span>
+                      ) : <em>—</em>}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+        {cruce && cruce.fiscalId === f.id && <PanelCruce c={cruce} setC={setCruce} />}
         <div className="cl-botones">
           {puedeEditar && puedePublicar && f.estado === "abierto" && (f.publicado ? (
             <button type="button" className="btn plano fi-quitar" disabled={ocupado} onClick={() => publicar(f, false)}>Quitar de Contar</button>
@@ -165,6 +209,11 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       </section>
 
       {aviso && <p className="cl-ok" role="status">{aviso}</p>}
+      {!conCruce && puedeEditar && (
+        <p className="cl-nota" role="note">
+          Para ver el avance de cada hoja y <b>cruzar a las dos personas</b> falta correr <code>supabase/migraciones/2026-10-fiscal-cruce.sql</code> en Supabase.
+        </p>
+      )}
       {!puedePublicar && puedeEditar && (
         <p className="cl-nota" role="note">
           Para poder <b>mostrar un plan en Contar</b> falta correr <code>supabase/migraciones/2026-10-fiscal-publicar.sql</code> en Supabase.
@@ -359,6 +408,58 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
         </button>
         <button type="button" className="btn plano" disabled={ocupado} onClick={onCancelar}>Cancelar</button>
       </div>
+    </section>
+  );
+}
+
+/** El cruce de una hoja: arriba el titular y las cifras, debajo cada renglón (las diferencias primero). */
+function PanelCruce({ c, setC }: { c: CruceAbierto; setC: (x: CruceAbierto | null) => void }) {
+  const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
+  const r = c.filas ? resumenCruce(c.filas) : null;
+  const vistas = c.filas ? (c.soloDif ? c.filas.filter((f) => f.estado !== "COINCIDE") : c.filas) : [];
+  return (
+    <section className="fi-cruce" aria-label={`Cruce de la hoja ${c.numero}`}>
+      <div className="fi-cruce-cab">
+        <b>Cruce · Hoja {c.numero}</b>
+        <button type="button" className="btn plano fi-cruce-cerrar" onClick={() => setC(null)}>Cerrar</button>
+      </div>
+      {c.error && <p className="cl-mal" role="alert">{c.error}</p>}
+      {!c.error && !c.filas && <p className="cl-nota" role="status">Cruzando…</p>}
+      {r && (
+        <>
+          <p className={"fi-cruce-titular" + (r.conDiferencia === 0 ? " bien" : " mal")} role="status">{titularCruce(r)}</p>
+          <ul className="fi-cruce-cifras" aria-label="Resumen del cruce">
+            <li><b>{r.coinciden}</b> coinciden</li>
+            <li><b>{r.difieren}</b> {r.difieren === 1 ? "difiere" : "difieren"}</li>
+            <li><b>{r.soloOl}</b> solo el operador</li>
+            <li><b>{r.soloBavaria}</b> solo Bavaria</li>
+          </ul>
+          {r.conDiferencia > 0 && r.coinciden > 0 && (
+            <button type="button" className="btn plano fi-cruce-filtro" aria-pressed={c.soloDif} onClick={() => setC({ ...c, soloDif: !c.soloDif })}>
+              {c.soloDif ? "Mostrar también los que coinciden" : "Ocultar los que coinciden"}
+            </button>
+          )}
+          {vistas.length > 0 && (
+            <table className="fi-cruce-tabla">
+              <thead><tr><th>Estado</th><th>Sitio</th><th>Material</th><th>Vence</th><th>Operador</th><th>Bavaria</th><th>Diferencia</th></tr></thead>
+              <tbody>
+                {vistas.map((f, i) => (
+                  <tr key={i} className={"fi-f " + f.estado.toLowerCase()}>
+                    <td data-et="Estado"><i className={"fi-ef " + f.estado.toLowerCase()}>{TEXTO_FILA[f.estado]}</i></td>
+                    <td data-et="Sitio">{f.ubicacion}</td>
+                    <td data-et="Material"><b>{f.sku}</b> {f.material}</td>
+                    <td data-et="Vence">{textoVenc(f.vencDia, f.vencMes, f.vencAnio)}</td>
+                    <td data-et="Operador" className="num">{f.cajasOl === null ? "—" : nf.format(f.cajasOl)}</td>
+                    <td data-et="Bavaria" className="num">{f.cajasBavaria === null ? "—" : nf.format(f.cajasBavaria)}</td>
+                    <td data-et="Diferencia" className="num">{f.diferencia === 0 ? "0" : (f.diferencia > 0 ? "+" : "") + nf.format(f.diferencia)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="fi-cruce-pie">Cajas contadas (estibas × cajas por estiba + saldo + cajas sueltas). Lo que contó solo uno de los dos cuenta como diferencia.</p>
+        </>
+      )}
     </section>
   );
 }

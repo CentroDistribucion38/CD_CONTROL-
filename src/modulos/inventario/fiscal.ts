@@ -191,6 +191,8 @@ export type MiHojaBD = {
   pareja: string | null; pareja_equipo: string | null;
   /* Desde 2026-10-fiscal-contar.sql. Si a la base le falta, no vienen y la hoja se muestra pero no se cuenta. */
   hoja_id?: string | null; puede_contar?: boolean | null; mis_renglones?: number | string | null;
+  /* Desde 2026-10-fiscal-cruce.sql: si ya terminé mi hoja y si mi pareja ya terminó la suya. */
+  termine?: boolean | null; pareja_termino?: boolean | null;
 };
 export const nombreEquipo = (e: string | null | undefined): string =>
   e === "OL" ? "Operador logístico" : e === "BAVARIA" ? "Bavaria" : "";
@@ -219,6 +221,12 @@ export type HojaParaContar = {
   hojaId: string; fiscalId: string; nombre: string; fecha: string; numero: number; equipo: string;
   puedeContar: boolean; misRenglones: number;
   pareja: string | null; parejaEquipo: string;
+  /** La base ya sabe terminar hojas (2026-10-fiscal-cruce.sql corrido). Sin eso no se ofrece «Terminé mi hoja». */
+  puedeTerminar: boolean;
+  /** Ya terminé mi hoja. */
+  termine: boolean;
+  /** Mi pareja ya terminó la suya (solo eso: nunca lo que contó). */
+  parejaTermino: boolean;
 };
 /** Las hojas con id (las que ya traen lo de contar), en el mismo orden que la tarjeta: por día y por número. */
 export function hojasParaContar(filas: MiHojaBD[]): HojaParaContar[] {
@@ -231,6 +239,7 @@ export function hojasParaContar(filas: MiHojaBD[]): HojaParaContar[] {
       hojaId: f.hoja_id, fiscalId: f.fiscal_id, nombre: f.nombre, fecha: String(f.fecha).slice(0, 10), numero: f.hoja,
       equipo: nombreEquipo(f.equipo), puedeContar: f.puede_contar === true, misRenglones: Number(f.mis_renglones ?? 0),
       pareja: f.pareja, parejaEquipo: nombreEquipo(f.pareja_equipo),
+      puedeTerminar: f.termine != null, termine: f.termine === true, parejaTermino: f.pareja_termino === true,
     });
   }
   return salida.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.numero - b.numero);

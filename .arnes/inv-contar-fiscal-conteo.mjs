@@ -31,7 +31,7 @@ const w = window as any;
 createRoot(document.getElementById("r")!).render(
   <ContarConFiscal hojas={w.HOJAS} bodegaId="b1" materiales={w.MATERIALES} ubicaciones={w.UBIS}><div id="fefo-vivo"><input id="fefo-campo" placeholder="campo del FEFO" /></div></ContarConFiscal>);`);
 const js = buildSync({ entryPoints: [R(".arnes/_ccf-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
-  alias: { "@/lib/supabase/client": R(".arnes/_ccf-cliente.ts"), "@": R("src") },
+  alias: { "@/lib/supabase/client": R(".arnes/_ccf-cliente.ts"), "next/navigation": R(".arnes/stub-nav.js"), "@": R("src") },
   define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
 const css = ["src/app/globals.css", "src/app/(app)/shell.css", "src/app/(app)/inventario/fefo.css", "src/app/(app)/inventario/conteo/asignado.css"].map((p) => readFileSync(R(p), "utf8")).join("\n");
 const M = (id, sku, nombre, cajas_por_estiba, tipo = "PRODUCTO") => ({ id, sku, nombre, cajas_por_estiba, tipo_material: tipo, activo: true, dias_minimo: 30, unidades_por_caja: 24, unidades_por_estiba: null, contenido: null, familia: null, presentacion: null, vida_util: null, f_limite_desp: null, origen: null, foraneo: null, en_sitio: false });
@@ -269,6 +269,76 @@ await pg.locator(".fc-lista li").nth(1).locator("button").click();
 await pg.locator("[role=dialog] button, [role=alertdialog] button").filter({ hasText: "Quitarlo" }).click();
 await pg.waitForFunction(() => document.querySelectorAll(".fc-lista li").length === 1);
 ok((await llamadas("inv_fiscal_contar_quitar"))[0]?.args.p_id === "r2" && /A01_IZQ/.test(await pg.locator(".fc-lista li").textContent()), "quitar el segundo renglón quitó otro");
+/* ---- 5b · TERMINÉ MI HOJA ---- */
+const R1 = { id: "r1", ubicacion_id: "u1", ubicacion: "A01_IZQ", producto_id: "p1", sku: "3128", material: "AGUILA 330 ML", estibas: 3, saldo: null, cajas: null, total_cajas: 162, venc_dia: 1, venc_mes: 2, venc_anio: 28, nota: null, contado_en: "2026-10-02T15:00:00Z" };
+const R2 = { ...R1, id: "r2", ubicacion_id: "u2", ubicacion: "A01_DER", estibas: null, cajas: 20, total_cajas: 20 };
+const HT = { ...H1, pareja: "Cañizares", parejaEquipo: "Operador logístico", puedeTerminar: true, termine: false, parejaTermino: false };
+const confirma = (t) => pg.locator("[role=dialog] button, [role=alertdialog] button").filter({ hasText: t }).first().click();
+{
+  /* La base todavía no sabe terminar hojas: el botón no se ofrece. */
+  await monta([H1], 390, [R1, R2]);
+  await pg.waitForSelector(".fc-lista li", { state: "attached" });
+  ok(await pg.locator(".fc-terminar-ir, .fc-terminar-fin").count() === 0, "sin 2026-10-fiscal-cruce.sql se ofrece «Terminé mi hoja»");
+  /* Sin renglones no se puede terminar. */
+  await monta([HT], 390, []);
+  ok(await pg.locator(".fc-terminar-ir").isDisabled(), "con la hoja vacía «Terminé mi hoja» no está deshabilitado");
+  ok(await pg.locator(".fc-terminar-fin").count() === 0, "con la hoja vacía sale el aviso de terminar al final de lo anotado");
+  /* Con renglones: pide confirmar; cancelar no llama; confirmar llama una vez. */
+  await monta([HT], 390, [R1, R2]);
+  await pg.waitForSelector(".fc-lista li", { state: "attached" });
+  ok(await pg.locator(".fc-terminar-ir").isEnabled(), "con renglones «Terminé mi hoja» debía poder pulsarse");
+  await pg.click(".fc-terminar-ir");
+  ok(/¿Terminaste tu hoja\?/.test(await pg.locator("[role=dialog], [role=alertdialog]").first().textContent()) && /2 renglones/.test(await pg.locator("[role=dialog], [role=alertdialog]").first().textContent()), "no pide confirmar con cuántos renglones lleva");
+  ok((await llamadas("inv_fiscal_terminar")).length === 0, "pedir confirmación ya terminó la hoja");
+  await confirma(/^Cancelar$|^No/);
+  ok((await llamadas("inv_fiscal_terminar")).length === 0 && await pg.locator(".fc-anotar").isVisible(), "cancelar terminó la hoja");
+  await pg.click(".fc-terminar-ir"); await confirma("Sí, terminé mi hoja");
+  await pg.waitForSelector(".fc-terminada");
+  const tl = await llamadas("inv_fiscal_terminar");
+  ok(tl.length === 1 && tl[0].args.p_hoja === "h1" && tl[0].args.p_terminado === true, "lo que se manda al terminar: " + JSON.stringify(tl));
+  ok(/Terminaste tu hoja/.test(await pg.locator(".fc-terminada").textContent()) && /Falta que Cañizares termine la suya/.test(await pg.locator(".fc-terminada").textContent()), "la tarjeta de terminada no dice que falta la pareja: " + await pg.locator(".fc-terminada").textContent());
+  ok(await pg.locator(".fc-anotar").isHidden() && await pg.locator(".fc-terminada").isVisible(), "terminada, el formulario sigue a la vista");
+  ok(/Llevas 2 renglones · 182 cajas/.test(await pg.locator(".fc-term-cuenta").textContent()), "la tarjeta de terminada no suma las cajas (162 + 20): " + await pg.locator(".fc-term-cuenta").textContent());
+  ok(/Hoja terminada/.test(await aviso()), "no avisó que terminó: " + await aviso());
+  /* En «El borrador»: nada se quita y se puede reabrir. */
+  await pg.click('.fc-pes button:has-text("El borrador")');
+  ok(await pg.locator(".fc-lista li button:not([disabled])").count() === 0, "terminada, todavía se puede pulsar «Quitar»");
+  ok(/reábrela/.test(await pg.locator(".fc-nota-term").textContent()) && await pg.locator(".fc-terminar-fin").count() === 0, "en el borrador no avisa que está terminada");
+  await pg.click('.fc-pes button:has-text("Anotar")');
+  await pg.click(".fc-terminada .fc-reabrir");
+  await pg.waitForSelector(".fc-anotar", { state: "visible" });
+  const tl2 = await llamadas("inv_fiscal_terminar");
+  ok(tl2.length === 2 && tl2[1].args.p_terminado === false, "reabrir no manda p_terminado=false: " + JSON.stringify(tl2));
+  ok(await pg.locator(".fc-terminada").count() === 0 && /reabierta/.test(await aviso()), "reabierta, sigue la tarjeta de terminada o no avisó: " + await aviso());
+  /* Quitar vuelve a poder usarse. */
+  await pg.click('.fc-pes button:has-text("El borrador")');
+  ok(await pg.locator(".fc-lista li button:not([disabled])").count() === 2, "reabierta, «Quitar» sigue bloqueado");
+  /* Desde el aviso del final de lo anotado también se termina. */
+  await pg.click(".fc-terminar-fin"); await confirma("Sí, terminé mi hoja");
+  await pg.waitForSelector(".fc-terminada", { state: "attached" });
+  ok((await llamadas("inv_fiscal_terminar")).length === 3 && (await llamadas("inv_fiscal_terminar"))[2].args.p_terminado === true, "el botón del borrador no termina la hoja");
+  /* Mi pareja ya terminó (y yo ya terminé): se dice. */
+  await monta([{ ...HT, termine: true, parejaTermino: true }], 390, [R1, R2]);
+  ok(/Tu pareja también terminó/.test(await pg.locator(".fc-terminada").textContent()), "no dice que la pareja ya terminó");
+  /* Terminé y la pareja no: pero la base lo sabe desde el principio (la página lo trae). */
+  await monta([{ ...HT, termine: true }], 390, [R1]);
+  ok(await pg.locator(".fc-terminada").isVisible() && await pg.locator(".fc-anotar").isHidden(), "una hoja ya terminada debía abrir como terminada");
+  /* Si la base se niega, la hoja sigue abierta y se dice por qué. */
+  await monta([HT], 390, [R1]);
+  await pg.evaluate(() => { window.__falla = "Anota al menos un renglón antes de terminar tu hoja."; window.__fallaFn = "inv_fiscal_terminar" });
+  await pg.click(".fc-terminar-ir"); await confirma("Sí, terminé mi hoja");
+  await pg.waitForTimeout(150);
+  ok(/Anota al menos un renglón/.test(await aviso()) && await pg.locator(".fc-terminada").count() === 0 && await pg.locator(".fc-anotar").isVisible(), "si la base rechaza terminar, la hoja debía seguir abierta con su aviso: " + await aviso());
+  await pg.evaluate(() => { window.__falla = null });
+  /* «terminé» sin que la base sepa terminar (o antes del día) no cierra la hoja. */
+  await monta([{ ...HT, termine: true, puedeTerminar: false }], 390, [R1]);
+  ok(await pg.locator(".fc-terminada").count() === 0 && await pg.locator(".fc-anotar").isVisible(), "sin 2026-10-fiscal-cruce.sql una hoja «terminada» debía seguir abierta");
+  await monta([{ ...HT, termine: true, puedeContar: false }], 390, [R1]);
+  ok(await pg.locator(".fc-terminada").count() === 0, "antes del día una hoja «terminada» muestra la tarjeta de terminada");
+  /* Una hoja de otro día no se termina. */
+  await monta([{ ...HT, puedeContar: false }], 390, [R1]);
+  ok(await pg.locator(".fc-terminar-ir, .fc-terminar-fin, .fc-terminada").count() === 0, "antes del día se ofrece terminar la hoja");
+}
 /* Si la base no tiene el SQL, lo dice con el nombre del archivo. */
 await monta([H1], 390, [], "window.__miosFalla='function public.inv_fiscal_contar_mios(uuid) does not exist';");
 await pg.waitForTimeout(150);
@@ -296,7 +366,7 @@ ok((await llamadas("inv_fiscal_contar_agregar"))[0]?.args.p_hoja === "h2", "anot
 
 /* ---- 7 · 4 anchos ---- */
 for (const w of [360, 390, 820, 1440]) {
-  await monta([H1], w, [{ id: "r1", ubicacion_id: "u1", ubicacion: "A01_IZQ", producto_id: "p1", sku: "3128", material: "AGUILA 330 ML CON UN NOMBRE LARGUÍSIMO PARA PROBAR QUE ENVUELVE", estibas: 3, saldo: 10, cajas: null, total_cajas: 172, venc_dia: 1, venc_mes: 2, venc_anio: 28, nota: "una observación bastante larga para ver si se sale", contado_en: "2026-10-02T15:00:00Z" }]);
+  await monta([{ ...H1, puedeTerminar: true }], w, [{ id: "r1", ubicacion_id: "u1", ubicacion: "A01_IZQ", producto_id: "p1", sku: "3128", material: "AGUILA 330 ML CON UN NOMBRE LARGUÍSIMO PARA PROBAR QUE ENVUELVE", estibas: 3, saldo: 10, cajas: null, total_cajas: 172, venc_dia: 1, venc_mes: 2, venc_anio: 28, nota: "una observación bastante larga para ver si se sale", contado_en: "2026-10-02T15:00:00Z" }]);
   await pg.waitForSelector(".fc-lista li", { state: "attached" });
   await llena({ saldo: "10" });
   const d = await pg.evaluate(() => ({ ancho: document.documentElement.scrollWidth, vista: window.innerWidth,

@@ -91,6 +91,9 @@ const PREFIJOS: [RegExp, string][] = [
   /* MARCAR RENGLONES COMO PASADOS al sistema oficial (columna «Estado» de La base). */
   [/\bconteo_fefo_marcar_pasado\b|\bconteo_lineas_pasadas\b/,
    "supabase/migraciones/2026-10-base-pasados.sql"],
+  /* TERMINAR LA HOJA DEL FISCAL, SU AVANCE Y EL CRUCE DE LA PAREJA. Va antes de contar la hoja. */
+  [/\binv_fiscal_(terminar|avance|cruce|terminos|conteo_terminado)\b/,
+   "supabase/migraciones/2026-10-fiscal-cruce.sql"],
   /* CONTAR LA HOJA DEL FISCAL. Va antes de «mostrar en Contar» y del fiscal a secas. */
   [/\binv_fiscal_(contar_\w+|conteos|hoja_con_conteos)\b/,
    "supabase/migraciones/2026-10-fiscal-contar.sql"],

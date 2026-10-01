@@ -17,9 +17,14 @@
        hay red, avisa y el renglón sigue en pantalla para volver a darle «Anotar».
      · El cero cuenta: contar que ahí no hay nada es un dato.
      · Quitar un renglón es de quien lo anotó, mientras el inventario siga abierto.
+     · «TERMINÉ MI HOJA»: cuando la persona termina de contar avisa, y desde ahí no
+       anota ni quita nada hasta que REABRA su hoja. Cuando las dos personas de
+       la pareja terminan, quien arma el plan puede cruzar (pantalla «Inventario
+       fiscal»). Aquí solo se sabe SI la pareja terminó, nunca lo que contó.
    =================================================================== */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, RefObject } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
 import { useConfirmar } from "@/components/Confirmar";
@@ -75,6 +80,9 @@ export function ContarFiscal({
   /* LAS DOS PESTAÑAS, IGUAL QUE EN «FEFO diario»: Anotar y El borrador (lo que llevo). */
   const [pestania, setPestania] = useState<"anotar" | "borrador">("anotar");
   const [guardando, setGuardando] = useState(false);
+  const router = useRouter();
+  /* Lo que se terminó o reabrió desde que se abrió la pantalla; sin eso valen los datos que trajo la página. */
+  const [terminos, setTerminos] = useState<Record<string, { termine: boolean; parejaTermino: boolean }>>({});
   const pon = <K extends keyof BorradorFiscal>(k: K, v: BorradorFiscal[K]) => setB((x) => ({ ...x, [k]: v }));
 
   const campoCalle = useRef<HTMLInputElement>(null);
@@ -223,7 +231,32 @@ export function ContarFiscal({
     await leer(hoja.hojaId);
   }
 
+  /* ---------- TERMINÉ MI HOJA / REABRIR ---------- */
+  async function terminar(activo: boolean) {
+    if (!hoja) return;
+    if (activo) {
+      if (!mios || mios.length === 0) { avisar.mal("Anota al menos un renglón antes de terminar tu hoja."); return }
+      const ok = await pedir({
+        titulo: "¿Terminaste tu hoja?",
+        dice: <>Llevas {mios.length} {mios.length === 1 ? "renglón" : "renglones"}. Al terminar ya no podrás anotar ni quitar nada;
+          si te equivocas, puedes reabrir tu hoja.</>,
+        confirmar: "Sí, terminé mi hoja",
+      });
+      if (!ok) return;
+    }
+    setGuardando(true);
+    const { error } = await supabase.rpc("inv_fiscal_terminar", { p_hoja: hoja.hojaId, p_terminado: activo });
+    setGuardando(false);
+    if (error) { avisar.mal(error.message); return }
+    setTerminos((t) => ({ ...t, [hoja.hojaId]: { termine: activo, parejaTermino: (t[hoja.hojaId] ?? hoja).parejaTermino } }));
+    avisar.bien(activo ? "Hoja terminada." : "Hoja reabierta: ya puedes anotar y quitar renglones.");
+    router.refresh();
+  }
+
   if (!hoja) return null;
+  const estadoT = terminos[hoja.hojaId] ?? { termine: hoja.termine, parejaTermino: hoja.parejaTermino };
+  /* Terminada: solo si la base ya sabe terminar hojas y la persona la terminó. */
+  const cerrada = hoja.puedeContar && hoja.puedeTerminar && estadoT.termine;
   const totalMio = (mios ?? []).reduce((s, r) => s + Number(r.total_cajas || 0), 0);
 
   return (
@@ -261,7 +294,7 @@ export function ContarFiscal({
           <b>{fechaConDia(hoja.fecha)}</b>. Ese día aquí aparece el formulario para anotar.</p>
         </section>
       ) : (
-        <section className="fe-anotar fc-anotar" hidden={pestania !== "anotar"}>
+        <section className="fe-anotar fc-anotar" hidden={pestania !== "anotar" || cerrada}>
           <div className="fe-anotar-cab">
             <p className="fe-paso">Hoja {hoja.numero} · anotar lo que hay</p>
           </div>
@@ -382,9 +415,30 @@ export function ContarFiscal({
 
           <div className="fe-barra-fija">
             <p className="fe-fija-cuenta"><b>{mios?.length ?? 0}</b> anotados</p>
+            {hoja.puedeTerminar && (
+              <button type="button" className="btn plano fc-terminar-ir" disabled={guardando || (mios?.length ?? 0) === 0}
+                      title={(mios?.length ?? 0) === 0 ? "Anota al menos un renglón" : undefined} onClick={() => terminar(true)}>
+                Terminé mi hoja
+              </button>
+            )}
             <button type="button" className="btn grande" disabled={guardando} onClick={anotar}>
               {guardando ? "Guardando…" : "Anotar renglón"}
             </button>
+          </div>
+        </section>
+      )}
+
+      {/* ===== HOJA TERMINADA ===== */}
+      {cerrada && (
+        <section className="fe-anotar fc-terminada" hidden={pestania !== "anotar"} role="status" aria-label="Hoja terminada">
+          <div className="fe-anotar-cab"><p className="fe-paso">Hoja {hoja.numero} · terminada</p></div>
+          <p className="fc-term-dice"><b>Terminaste tu hoja.</b>{" "}
+            {estadoT.parejaTermino
+              ? "Tu pareja también terminó: quien arma el plan ya puede cruzar las dos hojas."
+              : `Falta que ${hoja.pareja ?? "tu pareja"} termine la suya.`}</p>
+          <p className="fc-term-cuenta">Llevas {mios?.length ?? 0} {(mios?.length ?? 0) === 1 ? "renglón" : "renglones"} · {nf.format(totalMio)} cajas.</p>
+          <div className="cl-botones">
+            <button type="button" className="btn plano fc-reabrir" disabled={guardando} onClick={() => terminar(false)}>Reabrir mi hoja</button>
           </div>
         </section>
       )}
@@ -412,10 +466,20 @@ export function ContarFiscal({
                     {r.venc_dia != null && <> · vence {dd(r.venc_dia)}/{dd(r.venc_mes)}/{dd(r.venc_anio)}</>}
                     {r.nota && <> · {r.nota}</>}</span>
                 </div>
-                <button type="button" className="fe-mini" disabled={guardando} onClick={() => quitar(r)}>Quitar</button>
+                <button type="button" className="fe-mini" disabled={guardando || cerrada} onClick={() => quitar(r)}>Quitar</button>
               </li>
             ))}
           </ul>
+        )}
+        {cerrada && (
+          <p className="fc-nota-term" role="status">Tu hoja está terminada: para cambiar algo, reábrela.{" "}
+            <button type="button" className="fe-mini fc-reabrir" disabled={guardando} onClick={() => terminar(false)}>Reabrir mi hoja</button></p>
+        )}
+        {!cerrada && hoja.puedeTerminar && hoja.puedeContar && (mios?.length ?? 0) > 0 && (
+          <div className="fc-terminar">
+            <p>¿Ya contaste toda tu hoja? Avísalo para que se pueda cruzar con tu pareja.</p>
+            <button type="button" className="btn fc-terminar-fin" disabled={guardando} onClick={() => terminar(true)}>Terminé mi hoja</button>
+          </div>
         )}
       </section>
     </>

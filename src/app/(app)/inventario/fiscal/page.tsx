@@ -2,6 +2,7 @@ import { misPermisos } from "@/lib/permisos";
 import { createClient } from "@/lib/supabase/server";
 import { maestroInventario } from "@/modulos/inventario/fefo";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
+import { avanceDesdeBD, type AvanceBD, type AvanceHoja } from "@/modulos/inventario/fiscal-cruce";
 import "../fefo.css";
 import "../corte/corte.css";
 import "./fiscal.css";
@@ -63,13 +64,22 @@ export default async function FiscalPage() {
   let fisP = await leerFiscales("id,nombre,fecha,estado,creado_en,publicado_en");
   const conPublicar = !fisP.error;
   if (fisP.error) fisP = await leerFiscales("id,nombre,fecha,estado,creado_en");
-  const [fis, hoj, mie, per, rol] = await Promise.all([
+  const [fis, hoj, mie, per, rol, ava] = await Promise.all([
     Promise.resolve(fisP as unknown as { data: Record<string, unknown>[] | null; error: unknown }),
     supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero").limit(5000),
     supabase.from("inv_fiscal_miembros").select("hoja_id,equipo,user_id").limit(10000),
     supabase.from("perfiles").select("id,nombre,activo,rol").order("nombre").limit(2000),
     supabase.from("roles").select("clave,nombre").order("orden", { nullsFirst: false }).limit(200),
+    /* El avance de cada hoja llega con 2026-10-fiscal-cruce.sql: sin él la pantalla sigue sirviendo, sin avance ni cruce. */
+    supabase.rpc("inv_fiscal_avance"),
   ]);
+  const conCruce = !ava.error;
+  const hojaIdsDe = new Map<string, Record<number, string>>();
+  const avanceDe = new Map<string, Record<number, AvanceHoja>>();
+  for (const a of ((ava.data ?? []) as AvanceBD[])) {
+    hojaIdsDe.set(a.fiscal_id, { ...(hojaIdsDe.get(a.fiscal_id) ?? {}), [a.numero]: a.hoja_id });
+    avanceDe.set(a.fiscal_id, { ...(avanceDe.get(a.fiscal_id) ?? {}), [a.numero]: avanceDesdeBD(a) });
+  }
   if (fis.error || hoj.error || mie.error) return sinSql;
 
   const miembros = new Map<string, { OL?: string; BAVARIA?: string }>();
@@ -87,6 +97,7 @@ export default async function FiscalPage() {
     id: f.id as string, nombre: f.nombre as string, fecha: String(f.fecha).slice(0, 10), estado: f.estado as "abierto" | "cerrado",
     publicado: (f.publicado_en as string | null | undefined) ?? null,
     hojas: (hojasDe.get(f.id as string) ?? []).sort((a, b) => a.numero - b.numero),
+    ...(conCruce ? { hojaIds: hojaIdsDe.get(f.id as string) ?? {}, avance: avanceDe.get(f.id as string) ?? {} } : {}),
   }));
   /* Las personas que se pueden poner en una hoja: las activas. Las que ya están
      en un inventario siguen saliendo con su nombre aunque se hayan desactivado. */
@@ -110,6 +121,7 @@ export default async function FiscalPage() {
         fiscales={fiscales}
         puedeEditar={puedeEditar}
         puedePublicar={conPublicar}
+        conCruce={conCruce}
         manda={permisos.manda}
         ahora={new Date().toISOString()}
       />

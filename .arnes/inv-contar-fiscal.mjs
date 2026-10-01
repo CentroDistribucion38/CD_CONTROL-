@@ -23,7 +23,7 @@ writeFileSync(R(".arnes/_cf-cliente.ts"), `export function createClient() { retu
 writeFileSync(R(".arnes/_cf-contar.tsx"), `export function Contar() { return <div id="contar-de-verdad">CONTAR</div> }`);
 writeFileSync(R(".arnes/_cf-page.tsx"), `export { default } from "../src/app/(app)/inventario/conteo/page";`);
 const pagina = (await build({ entryPoints: [R(".arnes/_cf-page.tsx")], bundle: true, write: false, format: "esm", platform: "node", jsx: "automatic",
-  alias: { "@/lib/permisos": R(".arnes/_cf-permisos.ts"), "@/modulos/inventario/fefo": R(".arnes/_cf-fefo.ts"), "@/lib/supabase/server": R(".arnes/_cf-server.ts"), "@/lib/supabase/client": R(".arnes/_cf-cliente.ts"), "@": R("src") },
+  alias: { "next/navigation": R(".arnes/stub-nav.js"), "@/lib/permisos": R(".arnes/_cf-permisos.ts"), "@/modulos/inventario/fefo": R(".arnes/_cf-fefo.ts"), "@/lib/supabase/server": R(".arnes/_cf-server.ts"), "@/lib/supabase/client": R(".arnes/_cf-cliente.ts"), "@": R("src") },
   plugins: [{ name: "contar", setup(b) {
     b.onResolve({ filter: /^\.\/Contar$/ }, () => ({ path: R(".arnes/_cf-contar.tsx") }));
     b.onResolve({ filter: /\.css$/ }, () => ({ path: "x", namespace: "css" }));
