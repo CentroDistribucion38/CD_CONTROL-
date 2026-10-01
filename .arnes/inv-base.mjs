@@ -471,7 +471,7 @@ createRoot(document.getElementById("r")).render(
     js = buildSync({
       entryPoints: [R(".arnes/_base-entrada.tsx")], bundle: true, format: "iife", platform: "browser",
       jsx: "automatic", write: false, define: { "process.env.NODE_ENV": '"production"' },
-      alias: { "@": R("src") }, logLevel: "silent",
+      alias: { "@/lib/supabase/client": R(".arnes/_sb-conteo.js"), "next/navigation": R(".arnes/stub-nav.js"), "@": R("src") }, logLevel: "silent",
     }).outputFiles[0].text;
   } catch (e) {
     fallas.push(`la pantalla de la base ni siquiera se puede empaquetar: ${String(e).slice(0, 160)}`);

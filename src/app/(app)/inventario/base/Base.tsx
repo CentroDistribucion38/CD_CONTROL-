@@ -28,6 +28,7 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Renglon, ConteoFefo } from "@/modulos/inventario/fefo";
 import { Buscador } from "@/components/Buscador";
+import { EliminarFefos } from "./EliminarFefos";
 import { leerPaleta } from "../informe";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -170,9 +171,11 @@ function bajar(filas: Renglon[], nombre: string) {
 }
 
 export function Base({
-  enviadas, abiertas, conteos, tope,
+  enviadas, abiertas, conteos, tope, manda = false,
 }: {
   enviadas: Renglon[]; abiertas: Renglon[]; conteos: ConteoFefo[]; tope: boolean;
+  /** Quien administra la plataforma: es el único que puede eliminar FEFOs. */
+  manda?: boolean;
 }) {
   const [pestania, setPestania] = useState<"base" | "borradores">("base");
   const [fTexto, setFTexto] = useState("");
@@ -319,6 +322,7 @@ export function Base({
   return (
     <>
       <Consolidado conteos={conteos} />
+      {manda && <EliminarFefos conteos={conteos} />}
       <div className="fe-pes ba-pes" role="tablist">
         <button type="button" role="tab" aria-selected={pestania === "base"}
                 className={pestania === "base" ? "on" : ""}

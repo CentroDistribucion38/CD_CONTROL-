@@ -83,6 +83,7 @@ export default async function InventarioBasePage() {
         abiertas={d.abiertas}
         conteos={d.conteos}
         tope={d.tope}
+        manda={permisos.manda}
       />
     </div>
   );

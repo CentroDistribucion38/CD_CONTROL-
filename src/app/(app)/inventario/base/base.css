@@ -339,3 +339,18 @@
   .fe .ba-conso-fefo { grid-template-columns: 24px minmax(0, 1fr) }
   .fe .ba-conso-fefo span, .fe .ba-conso-fefo em { grid-column: 2 }
 }
+
+/* ELIMINAR FEFOs (solo administrador) */
+.fe .ba-elim { margin: 14px 0 0; border: 1px solid var(--fe-linea); background: #fff; padding: 0 14px }
+.fe .ba-elim > summary { min-height: 44px; display: flex; align-items: center; gap: 10px; cursor: pointer; font: 800 13.5px var(--fe-titulo); color: var(--fe-tinta) }
+.fe .ba-elim > summary em { font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .ba-elim-ayuda { margin: 0 0 10px; font-size: 13px; color: var(--fe-gris) }
+.fe .ba-elim-ok { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--fe-tinta) }
+.fe .ba-elim-lista { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.fe .ba-elim-lista li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 52px; padding: 6px 12px; border: 1px solid var(--fe-linea) }
+.fe .ba-elim-lista li.pide { border-color: #A30D25; background: color-mix(in srgb, #A30D25 5%, #fff) }
+.fe .ba-elim-lista b { font: 800 14px var(--fe-titulo); color: var(--fe-tinta) }
+.fe .ba-elim-lista li > span:not(.ba-elim-conf) { font-size: 13px; flex: 1 1 200px; min-width: 0 }
+.fe .ba-elim-estado { font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: .08em; padding: 2px 7px; border: 1px solid var(--fe-linea); color: var(--fe-gris) }
+.fe .ba-elim-estado.cerrado { color: var(--fe-tinta); border-color: var(--fe-tinta) }
+.fe .ba-elim-conf { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; font-weight: 700 }
