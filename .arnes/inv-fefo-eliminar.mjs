@@ -18,22 +18,26 @@ writeFileSync(R(".arnes/_fe-entrada.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Base } from "../src/app/(app)/inventario/base/Base";
 const w = window as any;
-createRoot(document.getElementById("r")!).render(<Base enviadas={[]} abiertas={[]} conteos={w.CONTEOS} tope={false} manda={w.MANDA === "omitido" ? undefined : w.MANDA} />);`);
+createRoot(document.getElementById("r")!).render(<Base enviadas={w.ENVIADAS ?? []} abiertas={[]} conteos={w.CONTEOS} tope={false} manda={w.MANDA === "omitido" ? undefined : w.MANDA} />);`);
 const js = buildSync({ entryPoints: [R(".arnes/_fe-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
   alias: { "@/lib/supabase/client": R(".arnes/_fe-cliente.ts"), "next/navigation": R(".arnes/_fe-nav.ts"), "@": R("src") },
   define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
 const css = ["src/app/globals.css", "src/app/(app)/shell.css", "src/app/(app)/inventario/fefo.css", "src/app/(app)/inventario/base/base.css"].map((p) => readFileSync(R(p), "utf8")).join("\n");
 const C = (id, codigo, estado, fecha, renglones) => ({ id, codigo, estado, fecha_analisis: fecha, responsable: "Ana", envio_nombre: estado === "cerrado" ? "Jefe" : null,
   enviado_en: estado === "cerrado" ? fecha + "T17:00:00Z" : null, renglones, ubicaciones: 1, total_cajas: 100, bodega: "CD38" });
-const CONTEOS = [C("a", "FEFO-20260926-01", "cerrado", "2026-09-26", 2), C("b", "FEFO-20260929-01", "en_proceso", "2026-09-29", 5), C("c", "FEFO-20260923-01", "anulado", "2026-09-23", 0)];
+const CONTEOS = [C("b", "FEFO-20260929-01", "en_proceso", "2026-09-29", 5), C("a", "FEFO-20260926-01", "cerrado", "2026-09-26", 2), C("c", "FEFO-20260923-01", "anulado", "2026-09-23", 0)];
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await nav.newPage();
 const roto = []; pg.on("pageerror", (e) => roto.push(e.message));
-const monta = async (manda, ancho = 1440) => {
+const REN = { id: "r1", conteo_id: "a", conteo: "FEFO-20260926-01", estado: "cerrado", codigo: "3500231", material: "ENVASE COSTEÑITA 175 ML", tipo_material: "ENVASE", familia: "RETORNABLE",
+  factor_estibado: 54, ubicacion: "BAHIA_6", ubicacion_combinada: "ALAR_BAHIA_6", calle: "ALAR", modulo: "BAHIA_6", lado: "DER", estibas: 80, cajas: 12, saldo: null, total_cajas: 4320,
+  total_estibas: 80, capacidad: 90, venc_dia: null, venc_mes: null, venc_anio: null, fabricacion: null, vencimiento: "2026-09-13", dias_para_salir: -3, dias_para_vencer: 12,
+  rotacion: true, averia: false, pnc: false, estado_envase: "VACIOS", nota: null, conto: "jefe", contado_en: "2026-09-26T15:56:00Z" };
+const monta = async (manda, ancho = 1440, enviadas = []) => {
   await pg.setViewportSize({ width: ancho, height: 1000 });
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box;margin:0}${css}</style></head><body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div>
-    <script>window.CONTEOS=${JSON.stringify(CONTEOS)};window.MANDA=${JSON.stringify(manda)};</script><script>${js}<\/script></body></html>`);
+    <script>window.CONTEOS=${JSON.stringify(CONTEOS)};window.MANDA=${JSON.stringify(manda)};window.ENVIADAS=${JSON.stringify(enviadas)};</script><script>${js}<\/script></body></html>`);
   await pg.waitForSelector("#r > *");
 };
 /* Quien no administra no ve nada de esto. */
@@ -124,6 +128,30 @@ await fila("FEFO-20260929-01").locator("button", { hasText: "Guardar fecha" }).c
 await pg.waitForSelector(".ba-conso-mal");
 ok(/No se pudo cambiar la fecha de FEFO-20260929-01/.test(await textoPanel()) && /2026-10-fefo-cambiar-fecha\.sql/.test(await textoPanel()), "no dice qué SQL falta: " + await textoPanel());
 await pg.evaluate(() => { window.__falla = null });
+/* EL ATAJO junto al buscador del inventario que se mira: «Cambiar la fecha de este recorrido». */
+await monta(true, 1440, [REN]);
+{
+  const atajo = pg.locator('button:has-text("Cambiar la fecha de este recorrido")');
+  ok(await atajo.count() === 1, "el administrador no ve «Cambiar la fecha de este recorrido» junto al inventario que mira");
+  ok(await pg.locator(".ba-elim").evaluate((e) => e.open) === false, "el panel de administrador arranca abierto");
+  await atajo.click();
+  ok(await pg.locator(".ba-elim").evaluate((e) => e.open) === true, "el atajo no abre el panel");
+  const campoA = pg.locator('input[aria-label="Nueva fecha del FEFO FEFO-20260926-01"]');
+  await campoA.fill("2026-09-30"); await pg.locator(".ba-elim-fecha button", { hasText: "Guardar fecha" }).click();
+  await pg.waitForFunction(() => window.__llamadas.length >= 1);
+  ok((await pg.evaluate(() => window.__llamadas[window.__llamadas.length - 1])).args.p_conteo === "a", "el atajo cambia la fecha de otro FEFO y no del que se mira");
+  await pg.waitForSelector(".ba-elim-ok");
+  await atajo.click();
+  await campoA.waitFor({ timeout: 3000 }).catch(() => {});
+  await pg.waitForFunction((h) => document.querySelector('.ba-elim-fecha input')?.value === h, hoy, { timeout: 3000 }).catch(() => {});
+  ok(await campoA.count() === 1 && await campoA.inputValue() === hoy, "el atajo no deja listo el cambio de fecha del recorrido que se mira (con hoy): " + await campoA.count());
+  ok(await pg.locator('input[type=date]').count() === 1, "el atajo abre el cambio de fecha de otro FEFO");
+}
+await monta(false, 1440, [REN]);
+ok(await pg.locator('button:has-text("Cambiar la fecha de este recorrido")').count() === 0, "quien no administra ve el atajo de cambiar la fecha");
+await monta(true, 1440, [REN]);
+await pg.locator(".ba-inv.todos").click();
+ok(await pg.locator('button:has-text("Cambiar la fecha de este recorrido")').count() === 0, "con «Todos los recorridos» el atajo no sabe cuál cambiar");
 /* Nada se sale y el dedo alcanza. */
 for (const w of [360, 390, 820, 1440]) {
   await monta(true, w);

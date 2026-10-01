@@ -441,3 +441,5 @@
   .fe .ba-conso .mes:not(.segundo) { display: none }
   .fe .ba-conso .mes-cab .ant-movil { display: grid }
 }
+
+.fe .ba-inv-fecha { min-height: 44px; flex: none; white-space: normal }

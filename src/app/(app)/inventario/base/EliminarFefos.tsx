@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
@@ -24,7 +24,7 @@ const dia = (s: string | null) => (s ? new Date(s + "T12:00:00").toLocaleDateStr
 /** «Hoy» en Colombia, AAAA-MM-DD (el servidor y el navegador pueden estar en otro huso). */
 const hoyBogota = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
-export function EliminarFefos({ conteos }: { conteos: ConteoFefo[] }) {
+export function EliminarFefos({ conteos, abrir }: { conteos: ConteoFefo[]; abrir?: { id: string; n: number } | null }) {
   const router = useRouter();
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
   const [pide, setPide] = useState(false);
@@ -34,6 +34,13 @@ export function EliminarFefos({ conteos }: { conteos: ConteoFefo[] }) {
   /* Cambiar la fecha de UN FEFO: cuál está abierto y qué día se eligió. */
   const [fechando, setFechando] = useState<string | null>(null);
   const [nuevaFecha, setNuevaFecha] = useState("");
+  const caja = useRef<HTMLDetailsElement>(null);
+  /* Desde el botón «Cambiar la fecha de este recorrido» (arriba, junto al buscador): se abre el panel con ese FEFO listo. */
+  useEffect(() => {
+    if (!abrir) return;
+    if (caja.current) { caja.current.open = true; caja.current.scrollIntoView?.({ block: "start", behavior: "smooth" }) }
+    setFechando(abrir.id); setNuevaFecha(hoyBogota()); setMal(null); setAviso(null);
+  }, [abrir]);
   const lista = useMemo(() => [...conteos].sort((a, b) =>
     (b.fecha_analisis ?? "").localeCompare(a.fecha_analisis ?? "") || b.codigo.localeCompare(a.codigo, "es", { numeric: true })), [conteos]);
   /* Solo cuentan los marcados que siguen en la lista (si uno ya se fue, no se manda). */
@@ -77,7 +84,7 @@ export function EliminarFefos({ conteos }: { conteos: ConteoFefo[] }) {
 
   if (lista.length === 0) return null;
   return (
-    <details className="ba-elim">
+    <details className="ba-elim" ref={caja}>
       <summary>Eliminar FEFOs o cambiarles la fecha <em>solo administrador</em></summary>
       <p className="ba-elim-ayuda">
         Marca los FEFO que sobran —uno o varios— y elimínalos juntos. Se van <b>completos, con todos sus renglones</b>, y no se

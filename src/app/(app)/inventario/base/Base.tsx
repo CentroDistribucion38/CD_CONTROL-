@@ -200,6 +200,8 @@ export function Base({
      base, no la quinta. */
   const [fTipo, setFTipo] = useState<"" | "PRODUCTO" | "ENVASE">("");
   const [soloPasados, setSoloPasados] = useState(false);
+  /* «Cambiar fecha de este recorrido»: abre el panel de administrador ya con ese FEFO. */
+  const [abrirFecha, setAbrirFecha] = useState<{ id: string; n: number } | null>(null);
   /* El orden arranca por ubicación, que es el orden en que se camina la
      bodega y el de la hoja. Cualquier otro obliga a reordenar antes de
      poder comparar contra lo que se tiene en la mano. */
@@ -324,7 +326,7 @@ export function Base({
   return (
     <>
       <Consolidado conteos={conteos} />
-      {manda && <EliminarFefos conteos={conteos} />}
+      {manda && <EliminarFefos conteos={conteos} abrir={abrirFecha} />}
       <div className="fe-pes ba-pes" role="tablist">
         <button type="button" role="tab" aria-selected={pestania === "base"}
                 className={pestania === "base" ? "on" : ""}
@@ -416,6 +418,14 @@ export function Base({
                 ]}
                 onEscoge={(v) => { setFRecorrido(v); setFCalle(""); setFModulo("") }} />
             </label>
+
+            {/* SOLO QUIEN ADMINISTRA: el recorrido que se mira se puede pasar a otro día (p. ej. a hoy) sin borrarlo. */}
+            {manda && recorridoActivo !== "" && conteos.some((c) => c.codigo === recorridoActivo) && (
+              <button type="button" className="btn plano ba-inv-fecha"
+                      onClick={() => setAbrirFecha({ id: conteos.find((c) => c.codigo === recorridoActivo)!.id, n: Date.now() })}>
+                Cambiar la fecha de este recorrido
+              </button>
+            )}
 
             {/* LOS ATAJOS. Dos recorridos y «Todos»: fijos, no crecen. */}
             <button type="button" className={"ba-inv todos" + (recorridoActivo === "" ? " on" : "")}
