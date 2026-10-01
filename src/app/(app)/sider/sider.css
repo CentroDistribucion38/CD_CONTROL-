@@ -894,10 +894,11 @@
 }
 
 /* ---------- El encabezado de cada CD origen ----------
-   Se queda pegado arriba al rodar: con veinte tarjetas, saber de qué
-   centro es la que se está mirando importa más que el pixel que ocupa. */
+   YA NO SE QUEDA PEGADO ARRIBA: rueda con la página como todo lo demás.
+   Pegado, tapaba el borde de la tarjeta que pasaba por debajo y en el
+   celular le quitaba espacio a la lista. */
 .sd .tr-grupo-cab {
-  position: sticky; top: 0; z-index: 3;
+  position: static;
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px;
   margin: 0 0 9px; padding: 6px 2px 7px;
   /* Opaco y el MISMO de la página: es lo que pasa por debajo al rodar.

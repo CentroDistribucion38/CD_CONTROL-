@@ -42,6 +42,19 @@ ok(/2 vehículos/.test(await txt()), "el CD no cuenta camiones (2): " + (await t
 ok(await camion.locator("button:has-text('Certificar llegada')").count() === 1, "más de un «Certificar llegada» en el mismo camión");
 ok(await camion.locator("button:has-text('Anular todo')").count() === 1, "no hay «Anular todo»");
 
+/* 1b · NADA SE QUEDA PEGADO ARRIBA: el encabezado del CD rueda con la página (pegado, tapaba el borde de la tarjeta). */
+for (const ancho of [1100, 390]) {
+  await monta("m=transito&c=multi", ancho, 700);
+  const pos = await pg.evaluate(() => getComputedStyle(document.querySelector(".tr-grupo-cab")).position);
+  ok(pos === "static", `${ancho} px: el encabezado del CD está ${pos} y no rueda con la página`);
+  const quedo = await pg.evaluate(async () => {
+    const cab = document.querySelector(".tr-grupo-cab"); const y0 = cab.getBoundingClientRect().top;
+    window.scrollBy(0, 200); await new Promise((r) => setTimeout(r, 50));
+    return { y0, y1: cab.getBoundingClientRect().top, rodo: window.scrollY };
+  });
+  ok(quedo.rodo === 0 || quedo.y1 < quedo.y0, `${ancho} px: al bajar, el encabezado se queda en su sitio (${quedo.y0} → ${quedo.y1})`);
+}
+
 /* 2 · REVISIÓN AI POR MATERIAL */
 await monta("m=transito&c=multi", 390, 1400);
 await pg.evaluate(() => { window.__rpc = [] });
