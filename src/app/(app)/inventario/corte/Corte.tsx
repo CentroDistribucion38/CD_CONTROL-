@@ -95,7 +95,7 @@ const num = (s: string): number | null => {
 };
 
 export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombres, puedeEditar, manda, verDiferencia, ahora, conteos = [], lineasConteo = [], manualInicial = false }: {
-  /** Abrir de entrada «anotar los módulos a mano» (por defecto cerrado: los módulos salen del FEFO). */
+  /** Abrir de entrada «anotar también dónde quedó ubicado» (por defecto cerrado: solo se anota de dónde se toma). */
   manualInicial?: boolean;
   bodegaId: string;
   lineas: LineaC[];
@@ -459,7 +459,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     }
     return o;
   }
-  /* POR DEFECTO SOLO SE PIDEN LAS CAJAS DE LA DEPA (y el envase): de dónde se toma sale del FEFO. */
+  /* POR DEFECTO SE PIDE LA DEPA, EL PRODUCTO Y DE DÓNDE SE TOMA EL ENVASE. Dónde queda ubicado no se pide: no entra al análisis. */
   const [manual, setManual] = useState(manualInicial);
   const [cuando, setCuando] = useState(() => aInput(ahora));
   const [nota, setNota] = useState("");
@@ -496,7 +496,9 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     for (const [k, lista, nom, donde] of (manual ? [
       ["origenes", f.origen, "de dónde tomaba", "donde tomaba"],
       ["destinos", f.destino, "dónde estaba ubicado", "donde estaba ubicado"],
-    ] : []) as readonly (readonly ["origenes" | "destinos", SitioF[], string, string])[]) {
+    ] : [
+      ["origenes", f.origen, "de dónde tomaba", "donde tomaba"],
+    ]) as readonly (readonly ["origenes" | "destinos", SitioF[], string, string])[]) {
       const vistos = new Set<string>();
       const salen: { ubicacion_id: string; cant: number; unidad: Unidad }[] = [];
       lista.forEach((s, i) => {
@@ -510,13 +512,14 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       });
       sitios[k] = salen;
     }
-    if (!manual) { sitios.origenes = []; sitios.destinos = [] }
+    if (!manual) sitios.destinos = [];
+    if (!manual && !f.material.trim()) aqui.push("el producto (la referencia que sale de la línea)");
     if (f.envase.trim() && !envDe(f.envase)) aqui.push("el envase (escoge uno de la lista o déjalo vacío)");
-    if (manual && f.material.trim() && !matDe(f.material)) aqui.push("el material (escoge uno de la lista o déjalo vacío)");
+    if (f.material.trim() && !matDe(f.material)) aqui.push("el producto (escoge uno de la lista)");
     return {
       aqui,
       renglon: aqui.length ? null : {
-        linea: clave, cajas_depa: cajas, material_id: manual ? matDe(f.material)?.id ?? null : null,
+        linea: clave, cajas_depa: cajas, material_id: matDe(f.material)?.id ?? null,
         envase_id: envDe(f.envase)?.id ?? null, ...sitios,
       },
     };
@@ -696,8 +699,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     <div className="cl">
       <p className="cl-sub">
         {tipo === "inicial"
-          ? "Anota las cajas que marca el contador de la depa en cada línea, como está AHORA. Las líneas que no toques no se cortan."
-          : `Corte final del inicial de las ${hora(inicial!.cortado_en)}: anota lo que marca ahora el contador de la depa en cada línea.`}
+          ? "Anota cada línea como está AHORA: lo que marca el contador de la depa, el producto y de dónde toma el envase. Las líneas que no toques no se cortan."
+          : `Corte final del inicial de las ${hora(inicial!.cortado_en)}: el producto y los módulos vienen puestos; cambia los que hayan cambiado y anota las cantidades de ahora.`}
       </p>
 
       <div className="cl-grid">
@@ -715,7 +718,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                 <button key={l.clave} type="button" role="tab" aria-selected={actual}
                         className={"cl-lin " + e + (actual ? " on" : "")} onClick={() => setSel(l.clave)}>
                   <span className="cl-cod">{l.clave}</span>
-                  <span className="cl-lin-t"><b>{l.nombre}</b><small>{m ? m.nombre : "sin material"}</small></span>
+                  <span className="cl-lin-t"><b>{l.nombre}</b><small>{m ? `${m.sku} · ${m.nombre}` : "sin producto"}</small></span>
                   <span className={"cl-st " + (e === "ok" ? "ok" : e === "medias" ? "med" : actual ? "cur" : "no")}>
                     {e === "ok" ? "ANOTADA" : e === "medias" ? "A MEDIAS" : actual ? "ANOTANDO" : "SIN TOCAR"}
                   </span>
@@ -757,20 +760,20 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                     {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale")}
                   </div>
                   <button type="button" className="btn plano cl-manual" onClick={() => setManual(false)}>
-                    Quitar los módulos: que salgan del FEFO
+                    Quitar «dónde quedó ubicado»
                   </button>
                 </>
               ) : (
                 <>
-                  <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
-                                 titulo="Envase" nota="lo que entra a la línea" sin="Sin envase"
-                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
-                  <p className="cl-fefo">
-                    <b>De dónde toma el envase sale del FEFO.</b> No hay que anotar módulos: se lee lo que
-                    bajó del envase entre el último FEFO enviado antes del corte y el primero enviado después.
-                  </p>
+                  {/* EL PRODUCTO (CON SU SKU): a qué referencia le está entrando el envase. */}
+                  <MaterialCampo lista={productos} valor={f.material} etiqueta={etiqueta} resolver={matDe}
+                                 titulo="Producto" nota="la referencia que sale de la línea" sin="Sin producto"
+                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, material: v }))} />
+                  <div className="cl-r2 una">
+                    {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea")}
+                  </div>
                   <button type="button" className="btn plano cl-manual" onClick={() => setManual(true)}>
-                    Anotar los módulos a mano (opcional)
+                    Anotar también dónde quedó ubicado (opcional)
                   </button>
                 </>
               )}

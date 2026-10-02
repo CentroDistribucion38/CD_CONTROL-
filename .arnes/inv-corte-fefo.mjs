@@ -40,10 +40,10 @@ const ini = corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0)]);
 const fin = (c) => corte("f", "final", "2026-10-01T11:00:00Z", [RN("L1", c)], "i");
 
 ok(fefoAntes(ini, conteos, null)?.id === "a", "ANTES: el último enviado antes del corte inicial: " + fefoAntes(ini, conteos, null)?.id);
-ok(fefoDespues(fin(1000), conteos)?.id === "b", "DESPUÉS: el primero enviado después del final (no el último de todos): " + fefoDespues(fin(1000), conteos)?.id);
-ok(conteoDelPar(ini, fin(1000), conteos) === "b", "el conteo del par sin módulos es el de DESPUÉS");
-const cE = CT("e", "2026-10-01T23:00:00Z");
-ok(conteoDelPar(ini, fin(1000), [cE, cB, cA]) === "b", "el de DESPUÉS es el PRIMERO enviado tras el final, aunque haya otro más tarde el mismo día: " + conteoDelPar(ini, fin(1000), [cE, cB, cA]));
+ok(fefoDespues(conteos)?.id === "c", "DESPUÉS por defecto: el ÚLTIMO recorrido enviado: " + fefoDespues(conteos)?.id);
+ok(conteoDelPar(ini, fin(1000), conteos) === "c", "el conteo del par sin módulos es el último enviado");
+const cE = CT("e", "2026-10-01T10:30:00Z"); // enviado ENTRE el inicial y el final
+ok(conteoDelPar(ini, fin(1000), [cE, cA]) === "e", "se toma el último enviado aunque se haya enviado antes del corte final (como pasa con un recorrido que se manda mientras se cortan las líneas): " + conteoDelPar(ini, fin(1000), [cE, cA]));
 ok(usaFefo(fin(1000)) && !usaFefo(corte("f2", "final", "2026-10-01T11:00:00Z", [RN("L1", 5, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 1, unidad: "cajas" }] })], "i")), "usaFefo solo si el renglón no trae módulos");
 
 let p = armarPar(ini, fin(1000), est, nombre, ctx, "b");
@@ -71,7 +71,7 @@ ok(p.a.filas.map((f) => f.origen.mov).join() === "600,400" && p.a.filas.every((f
 p = armarPar(ini, fin(1000), est, nombre, { ...ctx, conteos: [cB] }, "b"); t = tabla(p, "b");
 ok(t.estado === "incompleto" && /antes del corte inicial/.test(p.a.fefo.falta) && /antes del corte inicial/.test(p.a.filas[0].origen.motivo), "sin FEFO anterior al corte lo dice: " + p.a.fefo.falta);
 p = armarPar(ini, fin(1000), est, nombre, ctx, null); t = tabla(p, null);
-ok(t.estado === "incompleto" && /después del corte final/.test(p.a.fefo.falta), "sin FEFO posterior lo dice: " + p.a.fefo.falta);
+ok(t.estado === "incompleto" && /No hay recorridos enviados/.test(p.a.fefo.falta), "sin FEFO enviado lo dice: " + p.a.fefo.falta);
 p = armarPar(corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, null)]), corte("f", "final", "2026-10-01T11:00:00Z", [RN("L1", 1000, null)], "i"), est, nombre, ctx, "b"); t = tabla(p, "b");
 ok(t.estado === "incompleto" && /escoger el envase/.test(p.a.filas[0].origen.motivo), "sin envase dice que falta escogerlo: " + p.a.filas[0].origen.motivo);
 p = armarPar(ini, fin(1000), est, nombre, ctx, "c"); t = tabla(p, "c");
@@ -80,6 +80,12 @@ ok(p.a.fefo.antes.id === "a" && p.a.filas[0].origen.mov === 1100, "al escoger ot
 const conAveria = new Map(lineasPorConteo); conAveria.set("b", [LC("b", "E1", "uA", 1000), LC("b", "E1", "uA", 300, { averia: true })]);
 p = armarPar(ini, fin(1000), est, nombre, { ...ctx, lineasPorConteo: conAveria }, "b");
 ok(p.a.filas[0].origen.mov === 1000 && p.a.filas[0].origen.modulos[0].fin === 1000, "la avería no suma como envase bueno");
+/* LA INFORMACIÓN QUE YA SE TENÍA: el inicial trae de dónde tomaba y el final no trae módulos. Se usan los del inicial y la cantidad final sale del FEFO. */
+const iniD = corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 2000, unidad: "cajas" }] })]);
+p = armarPar(iniD, fin(1000), est, nombre, { ...ctx, conteos: [cB] }, "b"); t = tabla(p, "b");
+ok(p.a.fefo?.falta === null && p.a.filas[0].origen.mov === 1000 && p.a.filas[0].origen.modulos[0].ubicacion_id === "uA" && t.estado === "cuadra", "con los módulos del inicial NO hace falta un FEFO de antes: " + p.a.filas[0].origen.mov + " " + t.estado + " " + p.a.fefo?.falta);
+p = armarPar(iniD, fin(1000), est, nombre, { ...ctx, lineasPorConteo: new Map([["b", [LC("b", "E1", "uZ", 5)]]]) }, "b");
+ok(/no pasó por los módulos de donde se tomó/.test(p.a.filas[0].origen.motivo), "si el FEFO no visitó esos módulos lo dice: " + p.a.filas[0].origen.motivo);
 /* Un par con módulos anotados se analiza tal cual. */
 const finM = corte("f", "final", "2026-10-01T11:00:00Z", [RN("L1", 1000, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 5, unidad: "cajas" }] })], "i");
 const iniM = corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 1005, unidad: "cajas" }] })]);
@@ -99,8 +105,8 @@ const lineas = [{ clave: "L1", nombre: "Línea 1" }, { clave: "L2", nombre: "Lí
 const ubis = [{ id: "uA", calle: "A", modulo: "01", lado: "DER" }, { id: "uB", calle: "B", modulo: "12", lado: "IZQ" }];
 const mats = [{ id: "E1", sku: "3500887", nombre: "Botella Flint 1000R", cajas_por_estiba: 60, unidades_por_caja: 12, tipo: "ENVASE" },
               { id: "P1", sku: "3128", nombre: "Águila RN 330cc X30", cajas_por_estiba: 36, unidades_por_caja: 30, tipo: "PRODUCTO" }];
-const RN = (linea: string, cajas: number, envase: string | null = "E1") => ({ linea, cajas_depa: cajas, material_id: null, envase_id: envase, origenes: [], destinos: [], nota: null });
-const ini = { id: "i", tipo: "inicial", inicial_id: null, cortado_en: "2026-10-01T10:00:00.000Z", nota: null, creado_por: "u1", renglones: [RN("L1", 0), RN("L2", 0, null)] };
+const RN = (linea: string, cajas: number, envase: string | null = "E1") => ({ linea, cajas_depa: cajas, material_id: envase ? "P1" : null, envase_id: envase, origenes: [], destinos: [], nota: null });
+const ini = { id: "i", tipo: "inicial", inicial_id: null, cortado_en: "2026-10-01T10:00:00.000Z", nota: null, creado_por: "u1", renglones: [{ ...RN("L1", 0), origenes: [{ ubicacion_id: "uA", cant: 2000, unidad: "cajas" }] }, RN("L2", 0, null)] };
 const fin = { id: "f", tipo: "final", inicial_id: "i", cortado_en: "2026-10-01T11:00:00.000Z", nota: null, creado_por: "u1", renglones: [RN("L1", 1000), RN("L2", 50, null)] };
 const sin = { id: "s", tipo: "inicial", inicial_id: null, cortado_en: "2026-10-02T15:00:00.000Z", nota: null, creado_por: "u1", renglones: [RN("L1", 0)] };
 const conteos = [{ id: "b", codigo: "FEFO-B", fecha: "2026-10-01", enviado_en: "2026-10-01T12:00:00Z" }, { id: "a", codigo: "FEFO-A", fecha: "2026-09-30", enviado_en: "2026-09-30T12:00:00Z" }];
@@ -124,35 +130,43 @@ const monta = async (query, ancho = 1440) => {
 };
 const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
 
-/* El formulario: solo cajas de la depa y envase. */
+/* El formulario: la depa, el producto y de dónde se toma el envase. NO dónde queda ubicado. */
 await monta("c=vacio");
 await pg.click('button:has-text("Nuevo corte inicial")');
-ok(await pg.locator("fieldset.cl-sitio").count() === 0 && await pg.locator(".cl-mod").count() === 0, "el formulario NO pide de dónde toma ni dónde ubica");
-ok(await pg.locator(".cl-depa input").count() === 1 && await pg.locator(".cl-mat").count() === 1 && /Envase/.test(await pg.locator(".cl-mat-t").textContent()), "pide las cajas de la depa y el envase (solo el envase)");
-ok(/sale del FEFO/.test(await pg.locator(".cl-fefo").textContent()), "dice que de dónde toma sale del FEFO");
+ok(await pg.locator("fieldset.cl-sitio").count() === 1 && /Tomando de/.test(await pg.locator("fieldset.cl-sitio").textContent()), "pide de dónde toma y NO dónde ubica (un solo bloque: «Tomando de»)");
+ok(!/Ubicados en/.test(await txt()), "no aparece «Ubicados en»");
+ok(await pg.locator(".cl-depa input").count() === 1 && await pg.locator(".cl-mat").count() === 2 && /Producto/.test(await pg.locator(".cl-mat-t").first().textContent()) && /Envase/.test(await pg.locator(".cl-mat-t").nth(1).textContent()), "pide las cajas de la depa, el PRODUCTO (con su SKU) y el envase");
 await pg.fill(".cl-depa input", "1234");
-await pg.fill(".cl-busca input", "flint"); await pg.click(".cl-busca li button");
+await pg.locator("fieldset.cl-sitio select").nth(0).selectOption("A");
+await pg.locator("fieldset.cl-sitio select").nth(1).selectOption("01");
+await pg.locator("fieldset.cl-sitio .cl-cant-c input").fill("40");
+await pg.locator("fieldset.cl-sitio .cl-busca input").fill("flint"); await pg.locator("fieldset.cl-sitio .cl-busca li button").click();
+await pg.click(".cl-guardar .cl-go");
+ok(/el producto/.test(await pg.locator(".cl-mal").textContent()) && await pg.evaluate(() => window.__rpc.length) === 0, "sin producto no guarda y dice que falta el producto");
+await pg.locator(".cl-mat").first().locator(".cl-busca input").fill("3128"); await pg.locator(".cl-mat").first().locator(".cl-busca li button").click();
+ok(/3128/.test(await pg.locator(".cl-mat").first().locator(".cl-mae").textContent()), "la tarjeta del producto trae su SKU: " + await pg.locator(".cl-mat").first().locator(".cl-mae").textContent());
 await pg.click(".cl-guardar .cl-go");
 await pg.waitForFunction(() => window.__rpc.length === 1);
 const rpc = await pg.evaluate(() => window.__rpc[0]);
 const r0 = rpc.a.p_renglones[0];
-ok(rpc.n === "inv_corte_guardar" && r0.cajas_depa === 1234 && r0.envase_id === "E1" && r0.material_id === null && r0.origenes.length === 0 && r0.destinos.length === 0, "se manda solo la depa y el envase, sin módulos ni producto: " + JSON.stringify(r0));
+ok(rpc.n === "inv_corte_guardar" && r0.cajas_depa === 1234 && r0.envase_id === "E1" && r0.material_id === "P1" && r0.origenes.length === 1 && r0.origenes[0].ubicacion_id === "uA" && r0.destinos.length === 0, "se manda la depa, el producto, el envase y de dónde toma; sin dónde ubica: " + JSON.stringify(r0));
 await pg.reload(); await pg.waitForSelector("#r > *");
 await pg.click('button:has-text("Nuevo corte inicial")');
-await pg.click('button:has-text("Anotar los módulos a mano")');
-ok(await pg.locator("fieldset.cl-sitio").count() === 2, "«Anotar los módulos a mano» sigue disponible, cerrado de entrada");
+await pg.click('button:has-text("Anotar también dónde quedó ubicado")');
+ok(await pg.locator("fieldset.cl-sitio").count() === 2, "«Anotar también dónde quedó ubicado» sigue disponible, cerrado de entrada");
 
 /* La diferencia y el flujo. */
 await monta("c=todo");
 const t0 = await txt();
-ok(/De dónde tomaba el envase sale del FEFO: lo que bajó entre FEFO-A \(30\/09\/2026\) y FEFO-B \(01\/10\/2026\)/.test(t0) && /Solo cuenta el envase/.test(t0), "la diferencia dice de qué FEFO salió: " + t0.slice(t0.indexOf("De dónde tomaba"), t0.indexOf("De dónde tomaba") + 200));
+ok(/De dónde tomaba el envase sale del FEFO/.test(t0) && /Solo cuenta el envase/.test(t0), "la diferencia dice de qué FEFO salió: " + t0.slice(t0.indexOf("De dónde tomaba"), t0.indexOf("De dónde tomaba") + 250));
 ok(/FEFO de después/.test(t0), "el selector se llama «FEFO de después»");
-ok(!/Ubicados en/.test(await pg.locator(".dq-cuerpo").first().textContent()), "la diferencia no tiene «Ubicados en»");
+{ const dc = await pg.locator(".dq-cuerpo").first().textContent(); ok(!/Ubicados en/.test(dc), "la diferencia no tiene «Ubicados en»: " + dc.replace(/\s+/g, " ").slice(dc.indexOf("Ubicados") - 150, dc.indexOf("Ubicados") + 100)) }
 ok(await pg.locator(".dq-cuerpo .dq-card").count() === 2, "una tarjeta por línea");
 const tarj = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");
 ok(/Según el FEFO/.test(tarj) && /Cuadra/i.test(tarj), "L1: según el FEFO, cuadra: " + tarj.slice(0, 200));
 const tarj2 = (await pg.locator(".dq-card").nth(1).textContent()).replace(/\s+/g, " ");
 ok(/La línea no dice el envase/.test(tarj2), "L2 sin envase lo dice: " + tarj2.slice(-200));
+ok(/para 3128 · Águila RN 330cc X30/.test(tarj), "la diferencia dice a qué producto (con su SKU) le entra el envase: " + tarj.slice(0, 300));
 /* Cambiar el FEFO de después recalcula. */
 await pg.selectOption(".dq-barra select", "a");
 ok(/FEFO-A|no hay un FEFO enviado antes|Falta/.test(await txt()), "al cambiar el FEFO se recalcula");
@@ -160,6 +174,7 @@ ok(/FEFO-A|no hay un FEFO enviado antes|Falta/.test(await txt()), "al cambiar el
 /* El proceso: el corte 1 abre y no tiene «Ubicados en». */
 await pg.locator(".pr-corte").first().locator("summary").click();
 const pr = (await pg.locator(".pr-corte").first().textContent()).replace(/\s+/g, " ");
+ok(/→ para 3128/.test(pr), "el flujo dice el SKU del producto al que le entra el envase: " + pr.slice(0, 300));
 ok(!/Ubicados en/.test(pr) && !/Recibe \(debía subir\)/.test(pr) && /Tomando de/.test(pr) && /Surte \(debía bajar\)/.test(pr), "el flujo solo muestra el envase: " + pr.slice(0, 300));
 await monta("c=sin");
 ok(/Envase: 3500887 · Botella Flint 1000R · de dónde toma sale del FEFO/.test(await txt()), "el corte que espera su final dice el envase y que lo demás sale del FEFO: " + (await txt()).slice(0, 300));

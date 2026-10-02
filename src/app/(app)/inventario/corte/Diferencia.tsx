@@ -118,6 +118,7 @@ export function ParDiferencia({ a, ini, fin, conteos, lineasPorConteo, conteoId,
             <label>
               <span className="dq-eti">{a.fefo ? "FEFO de después" : "Conteo"}</span>
               <select value={id ?? ""} onChange={(e) => onConteo(e.target.value)} aria-label="Conteo del inventario con el que se compara">
+                {id === null && <option value="" disabled>— escoge uno —</option>}
                 {conteos.map((c) => <option key={c.id} value={c.id}>{c.codigo} · {dia(c.fecha)}</option>)}
               </select>
             </label>
@@ -172,9 +173,9 @@ function TarjetaLinea({ t, nombre, mat, a, factores }: {
   const fOrigen = factores(f.envase_id), fDestino = factores(f.material_id);
   const chip = { cuadra: "CUADRA", no_cuadra: "NO CUADRA", incompleto: "INCOMPLETO" }[t.estado];
   const nombreMat = (id: string | null) => { const m = id ? mat.get(id) : undefined; return m ? `${m.sku} · ${m.nombre}` : null; };
-  const nombreEnvase = () => { const e = envaseDelRenglon(f.envase_id, f.material_id, [...mat.values()]); return e.m ? `${e.m.sku} · ${e.m.nombre}${e.delMaestro ? " (del maestro)" : ""}` : null; };
+  const nombreEnvase = () => { const e = envaseDelRenglon(f.envase_id, f.material_id, [...mat.values()]); return e.m ? `${e.m.sku} · ${e.m.nombre}${e.delMaestro ? " (del maestro)" : ""}${f.material_id && mat.get(f.material_id) ? ` · para ${mat.get(f.material_id)!.sku} · ${mat.get(f.material_id)!.nombre}` : ""}` : null; };
   const txtFactor = (x: Factores) => [x.porEstiba ? `${nf.format(x.porEstiba)} cajas por estiba` : null, x.porCaja ? `${nf.format(x.porCaja)} unidades por caja` : null].filter(Boolean).join(" · ");
-  const fo = txtFactor(fOrigen), fd = txtFactor(fDestino);
+  const fo = txtFactor(fOrigen), fd = f.soloEnvase ? "" : txtFactor(fDestino);
 
   return (
     <section className={"dq-card " + t.estado} aria-label={nombre}>

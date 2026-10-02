@@ -95,10 +95,20 @@ export default async function CortePage() {
     if (r.error || !r.data?.length) return [[], []] as [ConteoRef[], LineaConteo[]];
     const refs: ConteoRef[] = r.data.map((c: { id: string; codigo: string; fecha_analisis: string; enviado_en: string | null }) => ({
       id: c.id, codigo: c.codigo, fecha: String(c.fecha_analisis).slice(0, 10), enviado_en: c.enviado_en ?? null }));
-    const l = await supabase.from("v_conteo_fefo")
-      .select("conteo_id,producto_id,ubicacion_id,total_cajas,averia,pnc")
-      .in("conteo_id", refs.map((x) => x.id)).limit(20000);
-    return [refs, (l.error ? [] : (l.data ?? [])) as LineaConteo[]] as [ConteoRef[], LineaConteo[]];
+    /* DE MIL EN MIL: la base entrega como máximo mil filas por pedida y un recorrido
+       trae cientos; sin paginar, los módulos del FEFO quedarían incompletos sin avisar. */
+    const lineas: LineaConteo[] = [];
+    for (let pag = 0; pag < 40; pag++) {
+      const l = await supabase.from("v_conteo_fefo")
+        .select("conteo_id,producto_id,ubicacion_id,total_cajas,averia,pnc")
+        .in("conteo_id", refs.map((x) => x.id))
+        .order("conteo_id").order("ubicacion_id").order("producto_id")
+        .range(pag * 1000, pag * 1000 + 999);
+      if (l.error) break;
+      lineas.push(...((l.data ?? []) as LineaConteo[]));
+      if ((l.data ?? []).length < 1000) break;
+    }
+    return [refs, lineas] as [ConteoRef[], LineaConteo[]];
   })();
   const nombres = Object.fromEntries((per.data ?? []).map((p) => [p.id, p.nombre as string]));
 

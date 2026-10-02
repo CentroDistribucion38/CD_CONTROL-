@@ -144,15 +144,15 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
     </div>
   );
 
-  const lados = (r: RenglonCorte | undefined, previo?: RenglonCorte, fefo = false) => {
+  const lados = (r: RenglonCorte | undefined, previo?: RenglonCorte, solo = false, fefo = false) => {
     if (!r) return null;
     const pe = porEstiba(r.envase_id), pp = porEstiba(r.material_id);
-    const bo = r.origenes.map((s) => bloque(s, pe)), bd = fefo ? [] : r.destinos.map((s) => bloque(s, pp));
+    const bo = r.origenes.map((s) => bloque(s, pe)), bd = solo ? [] : r.destinos.map((s) => bloque(s, pp));
     const po = previo ? new Map(previo.origenes.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.envase_id))])) : null;
-    const pd = previo && !fefo ? new Map(previo.destinos.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.material_id))])) : null;
+    const pd = previo && !solo ? new Map(previo.destinos.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.material_id))])) : null;
     const et = (id: string | null) => { const m = id ? mat.get(id) : undefined; return m ? `${m.sku} · ${m.nombre}` : undefined; };
     const env = envaseDelRenglon(r.envase_id, r.material_id, materiales);
-    const nEnv = env.m ? `${env.m.sku} · ${env.m.nombre}${env.delMaestro ? " (del maestro)" : ""}` : undefined, nPro = et(r.material_id);
+    const nEnv = env.m ? `${env.m.sku} · ${env.m.nombre}${env.delMaestro ? " (del maestro)" : ""}${r.material_id && mat.get(r.material_id) ? ` → para ${mat.get(r.material_id)!.sku}` : ""}` : undefined, nPro = et(r.material_id);
     return (
       <div className="pr-mods">
         {bo.map((b) => modulo("Tomando de", b, nEnv, po ? po.get(b.id) ?? null : undefined))}
@@ -172,6 +172,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
     const cpe = porEstiba(f?.material_id ?? r.material_id);
     const nom = nombreLinea(r.linea);
     const deFefo = !!x.a?.fefo?.lineas.includes(r.linea);
+    const solo = !!fila?.soloEnvase;
     return (
       <div className="pr-carril" key={r.linea}>
         <div className="pr-lnm">{r.linea}<small>{nom !== r.linea ? nom.toUpperCase() : "LÍNEA"}</small></div>
@@ -179,7 +180,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
         <div className="pr-foto">
           <div className="pr-fh"><span className="eti">① Así estaba</span><span className="pr-h">{soloHora(x.ini.cortado_en)}</span></div>
           <div className="pr-dep"><b>{nf.format(r.cajas_depa)}</b><span>cajas en el contador de la depa</span></div>
-          {lados(r, undefined, deFefo)}
+          {lados(r, undefined, solo, deFefo)}
           {r.nota && <p className="pr-nota-l">{r.nota}</p>}
         </div>
 
@@ -205,7 +206,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
           {f ? (
             <>
               <div className="pr-dep"><b>{nf.format(f.cajas_depa)}</b><span>cajas en el contador de la depa</span></div>
-              {lados(f, r, deFefo)}
+              {lados(f, r, solo, deFefo)}
               {f.nota && <p className="pr-nota-l">{f.nota}</p>}
             </>
           ) : (
@@ -219,8 +220,8 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
               <span className="pr-big"><span className="pr-x">{est === "cuadra" ? "✓" : est === "no_cuadra" ? "✕" : "!"}</span>{est === "cuadra" ? "Cuadra" : est === "no_cuadra" ? "No cuadra" : "Incompleto"}</span>
               <div className="pr-ln"><span>Pasó por la depa</span><b>{nf.format(pasadas ?? 0)}</b></div>
               <div className="pr-ln"><span>Surte (debía bajar)</span><b>{fila?.origen.dif != null ? conSigno(fila.origen.dif) : "—"}</b></div>
-              {!deFefo && <div className="pr-ln"><span>Recibe (debía subir)</span><b>{fila?.destino.dif != null ? conSigno(fila.destino.dif) : "—"}</b></div>}
-              {(fila?.origen.motivo || (!deFefo && fila?.destino.motivo)) && est === "incompleto" && <p className="pr-mot">{fila?.origen.motivo ?? fila?.destino.motivo}</p>}
+              {!solo && <div className="pr-ln"><span>Recibe (debía subir)</span><b>{fila?.destino.dif != null ? conSigno(fila.destino.dif) : "—"}</b></div>}
+              {(fila?.origen.motivo || (!solo && fila?.destino.motivo)) && est === "incompleto" && <p className="pr-mot">{fila?.origen.motivo ?? fila?.destino.motivo}</p>}
               <a href="#cl-diferencia">VER LA DIFERENCIA →</a>
             </>
           ) : (
