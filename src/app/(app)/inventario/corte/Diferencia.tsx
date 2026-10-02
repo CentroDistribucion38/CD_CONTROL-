@@ -160,7 +160,7 @@ function TarjetaLinea({ t, nombre, mat, a, factores }: {
   const fDepa = factores(f.material_id ?? f.envase_id);
   const fOrigen = factores(f.envase_id), fDestino = factores(f.material_id);
   const chip = { cuadra: "CUADRA", no_cuadra: "NO CUADRA", incompleto: "INCOMPLETO" }[t.estado];
-  const nombreMat = (id: string | null) => (id ? mat.get(id)?.nombre ?? null : null);
+  const nombreMat = (id: string | null) => { const m = id ? mat.get(id) : undefined; return m ? `${m.sku} · ${m.nombre}` : null; };
   const txtFactor = (x: Factores) => [x.porEstiba ? `${nf.format(x.porEstiba)} cajas por estiba` : null, x.porCaja ? `${nf.format(x.porCaja)} unidades por caja` : null].filter(Boolean).join(" · ");
   const fo = txtFactor(fOrigen), fd = txtFactor(fDestino);
 

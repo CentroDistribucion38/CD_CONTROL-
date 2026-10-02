@@ -259,9 +259,9 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                   <li key={r.linea}>
                     <b>{r.linea}</b> {fmt(r.cajas_depa)} cajas por la depa
                     <span>
-                      {r.origenes.length > 0 ? <>Tomando de {sitiosTxt(r.origenes)}{r.envase_id && mat.get(r.envase_id) ? <> de {mat.get(r.envase_id)!.nombre}</> : null}</> : null}
+                      {r.origenes.length > 0 ? <>Tomando de {sitiosTxt(r.origenes)}<> {r.envase_id && mat.get(r.envase_id) ? `de ${mat.get(r.envase_id)!.sku} · ${mat.get(r.envase_id)!.nombre}` : "(sin envase anotado)"}</></> : null}
                       {r.origenes.length > 0 && r.destinos.length > 0 ? " · " : null}
-                      {r.destinos.length > 0 ? <>Ubicados en {sitiosTxt(r.destinos)}{r.material_id && mat.get(r.material_id) ? <> de {mat.get(r.material_id)!.nombre}</> : null}</> : null}
+                      {r.destinos.length > 0 ? <>Ubicados en {sitiosTxt(r.destinos)}<> {r.material_id && mat.get(r.material_id) ? `de ${mat.get(r.material_id)!.sku} · ${mat.get(r.material_id)!.nombre}` : "(sin producto anotado)"}</></> : null}
                     </span>
                   </li>
                 ))}

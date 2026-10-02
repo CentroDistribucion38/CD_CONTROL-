@@ -362,11 +362,6 @@
 .fe .pr-mod { background: var(--pr-suave); border: 1px solid var(--pr-ln); padding: 6px 8px; min-width: 0 }
 .fe .pr-mod b { display: block; font: 800 12px ui-monospace, "IBM Plex Mono", monospace; margin-top: 3px }
 .fe .pr-m { font-size: 10px; color: var(--fe-gris); overflow-wrap: anywhere }
-.fe .pr-pila { display: flex; flex-wrap: wrap-reverse; width: 72px; max-width: 100%; gap: 2px; margin: 4px 0 4px; min-height: 24px; align-content: flex-start }
-.fe .pr-pila i { width: 6px; height: 5px; background: #B38A55; border-bottom: 2px solid #7A5A33 }
-.fe .pr-pila i.n { background: var(--pr-ok); border-bottom-color: #0E6A39 }
-.fe .pr-pila i.f { background: transparent; border: 1.5px dashed var(--pr-mal) }
-.fe .pr-pila em { font: 700 10px ui-monospace, monospace; font-style: normal; color: var(--fe-gris); align-self: center }
 .fe .pr-v { font: 900 14px var(--fe-titulo); display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums }
 .fe .pr-v small { font: 600 11px var(--fe-texto); color: var(--fe-gris) }
 .fe .pr-mv { font: 800 10px var(--fe-titulo); letter-spacing: .1em; padding: 3px 6px; display: inline-block; margin: 2px 0 4px }
@@ -419,3 +414,4 @@
   .fe .pr-depa { min-height: 150px }
   .fe .pr-res.espera { border-left: 2px dashed #C9C9C3 }
 }
+.fe .pr-m.sin { color: var(--pr-mal); font-weight: 700 }

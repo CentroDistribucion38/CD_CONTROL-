@@ -225,6 +225,8 @@ await monta("c=mixto");
 await monta("c=uno");
 {
   ok(await pg.locator(".dq-filtros, .dq-resumen").count() === 0, "con un solo par no hacen falta filtros ni resumen");
+  const tdif = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");
+  ok(/3500887 · Botella Flint 1000R/.test(tdif) && /3128 · Águila RN 330cc X30/.test(tdif), "la diferencia también trae el código del envase y del producto: " + tdif.slice(0, 300));
   ok(await pg.locator(".dq-fila").count() === 1 && await pg.locator(".dq-card").count() === 2, "y el par llega abierto");
 }
 await monta("c=manda");
@@ -259,11 +261,11 @@ await monta("c=manda");
   ok(JSON.stringify(await c1.locator(".pr-dep b").allTextContents()) === JSON.stringify(["0", "1.000"]) && (await c1.locator(".pr-depa b").textContent()) === "+1.000", "contador de la depa antes y después, y lo que pasó: " + (await c1.locator(".pr-depa b").textContent()));
   const mv = (await c1.locator(".pr-mv").allTextContents()).join(" | ");
   ok(mv === "−16,7 ESTIBAS · BAJÓ | +27,8 ESTIBAS · SUBIÓ", "las dos fotos se comparan (bajó / subió): " + mv);
-  ok(await c1.locator(".pr-pila i.n").count() > 0 && await c1.locator(".pr-pila i.f").count() > 0, "estibas que aparecieron (verde) y que salieron (punteado)");
+  ok(await pg.locator(".pr-pila, .pr-mod i").count() === 0, "sin cuadritos: solo la información en texto");
   const mats1 = (await c1.locator(".pr-m").allTextContents()).join(" | ");
   ok(/3500887 · Botella Flint 1000R/.test(mats1) && /3128 · Águila RN 330cc X30/.test(mats1), "cada módulo trae el código del material junto al nombre: " + mats1);
   const foto2 = c1.locator(".pr-foto").nth(1);
-  ok(await foto2.locator(".pr-mod").nth(0).locator("i.f").count() === 16 && await foto2.locator(".pr-mod").nth(0).locator("i.n").count() === 0 && await foto2.locator(".pr-mod").nth(1).locator("i.n").count() === 28 && await foto2.locator(".pr-mod").nth(1).locator("i.f").count() === 0, "de dónde tomaban bajaron 16 estibas y dónde estaban ubicados subieron 28");
+  ok(/BAJÓ/.test(await foto2.locator(".pr-mod").nth(0).locator(".pr-mv").textContent()) && /−16,7/.test(await foto2.locator(".pr-mod").nth(0).locator(".pr-mv").textContent()) && /SUBIÓ/.test(await foto2.locator(".pr-mod").nth(1).locator(".pr-mv").textContent()) && /\+27,8/.test(await foto2.locator(".pr-mod").nth(1).locator(".pr-mv").textContent()), "de dónde tomaban bajaron 16,7 estibas y dónde estaban ubicados subieron 27,8");
   ok(JSON.stringify(await c1.locator(".pr-res .pr-ln b").allTextContents()) === JSON.stringify(["1.000", "0", "0"]), "las tres cifras del resultado: " + (await c1.locator(".pr-res .pr-ln b").allTextContents()).join(","));
   ok(/Tomando de\s*A·01·DER/.test((await c1.locator(".pr-mod").first().textContent()).replace(/\s+/g, " ")), "el módulo de dónde tomaban");
   ok(/Cuadra/.test(await c1.locator(".pr-res .pr-big").textContent()) && /1\.000/.test(await c1.locator(".pr-res .pr-ln b").first().textContent()), "la tarjeta de resultado");

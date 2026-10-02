@@ -147,8 +147,8 @@ await monta("c=multi");
   ok(!/Quedaron por fuera/.test(l1), "todos emparejados y avisa que quedó algo por fuera");
   /* El corte abierto lista TODOS los módulos de cada lado. */
   const ab = await pg.$eval(".cl-abierto", (e) => e.textContent.replace(/\s+/g, " "));
-  ok(/Tomando de A · 01 · DER: 40 estibas \+ A · 02 · DER: 20 estibas de Botella Flint 1000R/.test(ab), "el corte abierto no lista los dos módulos de origen: " + ab);
-  ok(/Ubicados en B · 12 · IZQ: 100 cajas de Águila RN 330cc X30/.test(ab), "el destino del abierto: " + ab);
+  ok(/Tomando de A · 01 · DER: 40 estibas \+ A · 02 · DER: 20 estibas de 3500887 · Botella Flint 1000R/.test(ab), "el corte abierto no lista los dos módulos de origen: " + ab);
+  ok(/Ubicados en B · 12 · IZQ: 100 cajas de 3128 · Águila RN 330cc X30/.test(ab), "el destino del abierto: " + ab);
 }
 
 /* ---------- 2 · EL FORMULARIO: agregar, quitar, repetir ---------- */

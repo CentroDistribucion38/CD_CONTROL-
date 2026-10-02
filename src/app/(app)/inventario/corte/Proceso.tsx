@@ -161,7 +161,8 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
     const bo = r.origenes.map((s) => bloque(s, pe)), bd = r.destinos.map((s) => bloque(s, pp));
     const po = previo ? new Map(previo.origenes.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.envase_id))])) : null;
     const pd = previo ? new Map(previo.destinos.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.material_id))])) : null;
-    const nEnv = r.envase_id ? mat.get(r.envase_id)?.nombre : undefined, nPro = r.material_id ? mat.get(r.material_id)?.nombre : undefined;
+    const et = (id: string | null) => { const m = id ? mat.get(id) : undefined; return m ? `${m.sku} · ${m.nombre}` : undefined; };
+    const nEnv = et(r.envase_id), nPro = et(r.material_id);
     return (
       <div className="pr-mods">
         {bo.map((b) => modulo("Tomando de", b, nEnv, po ? po.get(b.id) ?? null : undefined))}

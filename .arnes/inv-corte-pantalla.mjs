@@ -119,7 +119,7 @@ await monta("c=todo");
 {
   const t = await txt();
   ok(/Esperando el corte final 1/.test(t) && /La diferencia 1/.test(t), "los contadores de las dos listas: " + t.slice(0, 120));
-  ok(/Inicial · 30\/09\/2026 11:00/.test(t) && /Línea 4 parada/.test(t) && /L1 30\.801 cajas por la depa/.test(t) && /Tomando de A · 01 · DER: 30 estibas de Botella Flint 1000R/.test(t) && /Ubicados en B · 12 · IZQ: 1\.800 cajas de Águila RN 330cc X30/.test(t) && /L4 777 cajas por la depa/.test(t) && /Tomando de C · 05 · —: 5 estibas/.test(t) && /Ubicados en B · 12 · DER: 10 cajas/.test(t), "el corte abierto no dice su hora, su nota o sus líneas: " + t.slice(0, 400));
+  ok(/Inicial · 30\/09\/2026 11:00/.test(t) && /Línea 4 parada/.test(t) && /L1 30\.801 cajas por la depa/.test(t) && /Tomando de A · 01 · DER: 30 estibas de 3500887 · Botella Flint 1000R/.test(t) && /Ubicados en B · 12 · IZQ: 1\.800 cajas de 3128 · Águila RN 330cc X30/.test(t) && /L4 777 cajas por la depa/.test(t) && /Tomando de C · 05 · —: 5 estibas/.test(t) && /Ubicados en B · 12 · DER: 10 cajas/.test(t), "el corte abierto no dice su hora, su nota o sus líneas: " + t.slice(0, 400));
   ok(/Paso 1|PASO 1/.test(t) && /1 abierto esperando/.test(t) && /Corte final/.test(t) && /sale sola|1 lista/.test(t), "la cabeza no muestra los tres pasos: " + t.slice(0, 200));
   ok(/30\/09\/2026 06:00 → 30\/09\/2026 12:00/.test(t) && /6 h/.test(t) && /6 h · 12\.000 cajas por la depa/.test(t), "el par no dice su intervalo o el total: " + t);
   const l1 = await pg.$eval('.dq-card[aria-label="Línea 1"]', (e) => e.textContent.replace(/\s+/g, " "));
