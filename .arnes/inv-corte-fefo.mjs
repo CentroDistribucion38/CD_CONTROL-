@@ -163,7 +163,7 @@ if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-form.png"
     return { e: b(".cl-prodepa .cl-mat-t"), d: b(".cl-prodepa .cl-depa > span"), ei: b(".cl-prodepa .cl-busca input"), di: b(".cl-prodepa .cl-depa input"),
       cal: b(".cl-r2.una .cl-mod select"), can: b(".cl-r2.una .cl-cant-c input"), fl: b(".cl-prodepa .cl-flecha"), env: b(".cl-prodepa") } });
   ok(Math.abs(r.e.top - r.d.top) < 2 && Math.abs(r.ei.top - r.di.top) < 2 && Math.abs(r.ei.height - r.di.height) < 2, "envase y depa alineados: " + JSON.stringify([r.e.top, r.d.top, r.ei.top, r.di.top, r.ei.height, r.di.height]));
-  ok(r.di.height <= 46 && r.env.height <= 110, "el formulario es compacto: campo " + r.di.height + " y fila " + r.env.height);
+  ok(r.di.height <= 54 && r.env.height <= 130, "el formulario es compacto: campo " + r.di.height + " y fila " + r.env.height);
   ok(Math.abs(r.cal.top - r.can.top) < 2, "calle y cantidad van en la misma fila: " + r.cal.top + " / " + r.can.top);
   ok(Math.abs((r.fl.top + r.fl.height / 2) - (r.ei.top + r.ei.height / 2)) < 3, "la flecha queda a la altura de los campos");
 }
@@ -172,14 +172,14 @@ await pg.locator("fieldset.cl-sitio select").nth(0).selectOption("A");
 await pg.locator("fieldset.cl-sitio select").nth(1).selectOption("01");
 await pg.locator("fieldset.cl-sitio .cl-cant-c input").fill("40");
 /* El ENVASE (abajo) se escoge primero; sin el producto no guarda. */
-await pg.locator(".cl-cuerpo > .cl-mat .cl-busca input").fill("flint"); await pg.locator(".cl-cuerpo > .cl-mat .cl-busca li button").click();
+await pg.locator(".cl-s2 .cl-mat .cl-busca input").fill("flint"); await pg.locator(".cl-s2 .cl-mat .cl-busca li button").click();
 await pg.click(".cl-guardar .cl-go");
 ok(/el producto/.test(await pg.locator(".cl-mal").textContent()) && await pg.evaluate(() => window.__rpc.length) === 0, "sin producto no guarda y dice que falta el producto");
 /* El PRODUCTO (arriba, con la depa): su lista flota y no empuja el formulario. */
+const h0 = await pg.evaluate(() => [document.querySelector(".cl-s1").getBoundingClientRect().height, document.querySelector(".cl-s2").getBoundingClientRect().top]);
 await pg.locator(".cl-prodepa .cl-busca input").fill("3128");
-{ const r = await pg.evaluate(() => { const ul = document.querySelector(".cl-prodepa .cl-busca ul"); const f = document.querySelector(".cl-prodepa"); const p = document.querySelector(".cl-cuerpo > .cl-mat"); return { pos: getComputedStyle(ul).position, fH: f.getBoundingClientRect().height, pTop: p.getBoundingClientRect().top, fBottom: f.getBoundingClientRect().bottom, ulBottom: ul.getBoundingClientRect().bottom, pT: p.getBoundingClientRect().top } });
-  ok(r.pos === "absolute" && r.fH < 110 && r.pTop - r.fBottom < 20, "la lista del buscador flota y no empuja el formulario: " + JSON.stringify(r));
-  ok(r.ulBottom > r.pT, "la lista queda por encima de lo de abajo (flota)"); } 
+{ const r = await pg.evaluate(() => [getComputedStyle(document.querySelector(".cl-prodepa .cl-busca ul")).position, document.querySelector(".cl-s1").getBoundingClientRect().height, document.querySelector(".cl-s2").getBoundingClientRect().top]);
+  ok(r[0] === "absolute" && Math.abs(r[1] - h0[0]) < 1 && Math.abs(r[2] - h0[1]) < 1, "la lista del buscador flota y no empuja el formulario: " + JSON.stringify([h0, r])); }
 await pg.locator(".cl-prodepa .cl-busca li button").click();
 ok(/3128/.test(await pg.locator(".cl-prodepa .cl-mae").textContent()), "la tarjeta del producto trae su SKU: " + await pg.locator(".cl-prodepa .cl-mae").textContent());
 await pg.click(".cl-guardar .cl-go");

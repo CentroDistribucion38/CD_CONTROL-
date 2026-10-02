@@ -110,9 +110,6 @@
 .fe .cl-no { margin-left: auto; min-height: 44px; padding: 0 6px; background: none; border: 0; font: 600 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer }
 .fe .cl-cuerpo { display: flex; flex-direction: column; gap: 16px; padding: 16px 18px }
 .fe .cl-r1 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start }
-.fe .cl-prodepa { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 260px); align-items: end; background: var(--fe-acento-suave, #FFF6D1); border: 1px solid #F0DE95; padding: 12px }
-.fe .cl-flecha { height: 58px; display: flex; align-items: center; justify-content: center; font: 900 16px var(--fe-titulo); color: #7A5A00 }
-.fe .cl-prodepa .cl-depa { max-width: none }
 .fe .cl-r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
 .fe .cl-r2.una { grid-template-columns: 1fr }
 .fe .cl-depa { max-width: 420px }
@@ -264,22 +261,44 @@
 .fe .dq .dq-pie { display: flex; gap: 6px 28px; flex-wrap: wrap; padding: 10px 18px 14px; font-size: 12.5px; color: var(--fe-gris); border-top: 1px solid var(--fe-linea); margin-top: 6px }
 .fe .dq .dq-pie b { color: var(--fe-tinta) }
 
-/* EL FORMULARIO COMPACTO (corte sin «dónde quedó ubicado»): campos de 44 px (el mínimo para tocar), todo alineado y en pocas filas. */
-.fe .cl-cuerpo { gap: 10px; padding: 12px 16px }
-.fe .cl-prodepa { align-items: start; padding: 10px 12px; gap: 0 }
-.fe .cl-prodepa .cl-flecha { height: 44px; margin-top: 21px }
+/* LA TARJETA DE LA LÍNEA, COMO EL DISEÑO: franja negra con la línea en amarillo; «Lo que está corriendo» (producto → depa) y «De dónde toma el envase». */
+.fe .cl-ficha-cab { gap: 14px; padding: 0 18px 0 0; background: #0D0D0D; color: #fff; border-bottom: 4px solid var(--fe-acento) }
+.fe .cl-grande { font: 900 28px/1 var(--fe-titulo); background: var(--fe-acento); color: var(--fe-sobre, #0D0D0D); padding: 14px 18px }
+.fe .cl-ficha-cab h2 { font: 900 18px var(--fe-titulo) }
+.fe .cl-ficha-cab h2 small { color: #A5A5A0 }
+.fe .cl-ficha-cab .cl-no { color: #D5D7DA }
+.fe .cl-cuerpo { gap: 14px; padding: 16px 18px 18px }
+.fe .cl-sec { border: 1px solid var(--fe-linea); min-width: 0 }
+.fe .cl-sh { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--fe-linea) }
+.fe .cl-sh b { font: 900 15px var(--fe-titulo) }
+.fe .cl-sh small { display: block; font-size: 12px; color: var(--fe-gris) }
+.fe .cl-sic { width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #0D0D0D; color: var(--fe-acento) }
+.fe .cl-sb { padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.fe .cl-s1 { background: color-mix(in srgb, var(--fe-acento) 16%, var(--fe-papel)); border-color: color-mix(in srgb, var(--fe-acento) 50%, var(--fe-linea)) }
+.fe .cl-s1 .cl-sh { border-color: color-mix(in srgb, var(--fe-acento) 40%, var(--fe-linea)) }
+.fe .cl-s1 .cl-sic { background: var(--fe-acento); color: #0D0D0D }
+.fe .cl-prodepa { display: grid; grid-template-columns: minmax(0, 1fr) 34px 300px; align-items: start; gap: 0 }
+.fe .cl-flecha { height: 52px; margin-top: 21px; display: flex; align-items: center; justify-content: center; font: 900 18px var(--fe-titulo); color: #8A6C0A }
+.fe .cl-prodepa .cl-depa { max-width: none }
 .fe .cl-prodepa .cl-depa em { display: none }
-.fe .cl-prodepa .cl-depa input { min-height: 44px; font: 700 17px var(--fe-texto) }
-.fe .cl-prodepa input, .fe .cl-cuerpo > .cl-mat input, .fe .cl-r2.una select, .fe .cl-r2.una input { min-height: 44px }
-.fe .cl-prodepa .cl-mae, .fe .cl-cuerpo > .cl-mat .cl-mae { min-height: 44px; padding: 4px 8px }
-.fe .cl-prodepa .cl-mae-ic, .fe .cl-cuerpo > .cl-mat .cl-mae-ic { width: 28px; height: 28px }
-.fe .cl-r2.una .cl-sitio { padding: 10px 12px; gap: 8px }
-.fe .cl-r2.una .cl-mod { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px }
-.fe .cl-r2.una .cl-cant-c { grid-column: auto }
-.fe .cl-r2.una .cl-cant-c input { font: 700 16px var(--fe-texto) }
-.fe .cl-r2.una .cl-eco { font-size: 11.5px; margin-top: -2px }
-.fe .cl-r2.una .cl-mas { min-height: 44px; font-size: 12.5px }
-.fe .cl-cuerpo > .cl-manual { min-height: 44px; font-size: 12.5px }
+.fe .cl-nt { margin: 0; font-size: 12px; color: #5C4A10 }
+.fe .cl-nt b { color: var(--fe-tinta) }
+.fe .cl-cont { position: relative }
+.fe .cl-cont i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font: 800 9px var(--fe-titulo); font-style: normal; letter-spacing: .14em; color: #8A8A85; pointer-events: none }
+.fe .cl-depa input { min-height: 52px; font: 700 24px ui-monospace, "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums }
+.fe .cl-cont input { background: #141414; border: 2px solid #0D0D0D; color: var(--fe-acento); letter-spacing: .1em; text-align: right; padding-right: 16px; padding-left: 86px }
+.fe .cl-cont input::placeholder { color: #6A6224 }
+.fe .cl-prodepa input, .fe .cl-s2 input, .fe .cl-s2 select { min-height: 44px }
+.fe .cl-prodepa .cl-busca input, .fe .cl-prodepa .cl-cont input { min-height: 52px; font-size: 15px }
+.fe .cl-prodepa .cl-cont input { font-size: 24px }
+.fe .cl-prodepa .cl-busca ul, .fe .cl-prodepa .cl-nada { top: 54px }
+.fe .cl-s2 .cl-sitio { padding: 12px; gap: 8px; margin-top: 0; background: var(--fe-fondo); border-left: 4px solid #0D0D0D }
+.fe .cl-s2 .cl-mod { grid-template-columns: repeat(3, minmax(0, 1fr)) 170px; gap: 10px; align-items: end }
+.fe .cl-s2 .cl-cant-c { grid-column: auto }
+.fe .cl-s2 .cl-cant-c input { text-align: right; font: 800 18px var(--fe-titulo) }
+.fe .cl-s2 .cl-mod-cab b { font: 800 10px var(--fe-titulo); letter-spacing: .14em; text-transform: uppercase }
+.fe .cl-s2 .cl-mas { min-height: 44px; border-color: #BDBDB6; background: var(--fe-papel); font: 800 12.5px var(--fe-titulo) }
+.fe .cl-opc { align-self: flex-start; min-height: 44px; padding: 0; background: none; border: 0; font: 700 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer }
 
 @media (max-width: 900px) {
   .fe .cl-grid { grid-template-columns: 1fr }

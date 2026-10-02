@@ -601,7 +601,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     return `${fmt(cajas)} cajas` + (m?.unidades_por_caja ? ` · ${fmt(cajas * m.unidades_por_caja)} unidades` : "");
   };
 
-  const bloque = (clave: string, k: "origen" | "destino", titulo: string, ayuda: string, conEnvase = true) => {
+  const bloque = (clave: string, k: "origen" | "destino", titulo: string, ayuda: string, plano = false) => {
     const lista = filas[clave][k];
     const esEnv = k === "origen";
     const m = esEnv ? envDe(filas[clave].envase) : matDe(filas[clave].material);
@@ -618,11 +618,13 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       ? (cajasTot as number[]).reduce((t, x) => t + x, 0) : null;
     return (
       <fieldset className={"cl-sitio " + k} aria-label={titulo}>
-        <div className="cl-leg">
-          <span className="cl-ic" aria-hidden>{k === "origen" ? "→" : "↓"}</span>
-          <b>{titulo}</b><i>{ayuda}</i>
-        </div>
-        {esEnv ? (conEnvase &&
+        {!plano && (
+          <div className="cl-leg">
+            <span className="cl-ic" aria-hidden>{k === "origen" ? "→" : "↓"}</span>
+            <b>{titulo}</b><i>{ayuda}</i>
+          </div>
+        )}
+        {esEnv ? (!plano &&
           <MaterialCampo lista={envases} valor={filas[clave].envase} etiqueta={etiqueta} resolver={envDe}
                          titulo="Envase" nota="lo que entra a la línea" sin="Sin envase"
                          onCambia={(v) => cambia(clave, (x) => ({ ...x, envase: v }))} />
@@ -637,10 +639,10 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
           const eq = equivale(s, m, que);
           return (
             <div key={i} className="cl-mod">
-              {lista.length > 1 && (
+              {(lista.length > 1 || plano) && (
                 <div className="cl-mod-cab">
-                  <b>Módulo {i + 1}</b>
-                  <button type="button" className="cl-quitar" onClick={() => quitar(i)}>Quitar este módulo</button>
+                  <b>{plano ? `${titulo} · módulo ${i + 1}` : `Módulo ${i + 1}`}</b>
+                  {lista.length > 1 && <button type="button" className="cl-quitar" onClick={() => quitar(i)}>Quitar este módulo</button>}
                 </div>
               )}
               <label>
@@ -692,8 +694,11 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
   const depaCampo = linea && f ? (
     <label className="cl-depa">
       <span>Cajas que han pasado por la depa</span>
-      <input inputMode="numeric" value={f.cajas} placeholder="Ej. 18801"
-             onChange={(e) => cambia(linea.clave, (x) => ({ ...x, cajas: e.target.value }))} />
+      <div className="cl-cont">
+        <i aria-hidden>CONTADOR</i>
+        <input inputMode="numeric" value={f.cajas} placeholder="18801"
+               onChange={(e) => cambia(linea.clave, (x) => ({ ...x, cajas: e.target.value }))} />
+      </div>
       <em>Lo que marca el contador de la depaletizadora</em>
     </label>
   ) : null;
@@ -749,19 +754,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
             </header>
             <div className="cl-cuerpo">
               {manual ? (
-                <div className="cl-r1">{depaCampo}</div>
-              ) : (
-                /* EL PRODUCTO (con su SKU) → las cajas que pasaron por la depa: la depa cuenta producto. */
-                <div className="cl-prodepa">
-                  <MaterialCampo lista={productos} valor={f.material} etiqueta={etiqueta} resolver={matDe}
-                                 titulo="Producto" nota="la referencia que sale de la línea" sin="Sin producto"
-                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, material: v }))} />
-                  <span className="cl-flecha" aria-hidden>→</span>
-                  {depaCampo}
-                </div>
-              )}
-              {manual ? (
                 <>
+                  <div className="cl-r1">{depaCampo}</div>
                   <div className="cl-r2">
                     {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea")}
                     {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale")}
@@ -772,15 +766,40 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                 </>
               ) : (
                 <>
-                  {/* EL ENVASE (del maestro): lo que se toma de los módulos de abajo. */}
-                  <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
-                                 titulo="Envase" nota="lo que se toma, del maestro" sin="Sin envase"
-                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
-                  <div className="cl-r2 una">
-                    {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea", false)}
-                  </div>
-                  <button type="button" className="btn plano cl-manual" onClick={() => setManual(true)}>
-                    Anotar también dónde quedó ubicado (opcional)
+                  {/* 1 · LO QUE ESTÁ CORRIENDO: el producto (con su SKU) → las cajas que pasaron por la depa. */}
+                  <section className="cl-sec cl-s1" aria-label="Lo que está corriendo">
+                    <div className="cl-sh">
+                      <span className="cl-sic" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M9 2h6v4l2 3v13H7V9l2-3z" /></svg></span>
+                      <div><b>Lo que está corriendo</b><small>el producto y lo que marca la depa</small></div>
+                    </div>
+                    <div className="cl-sb">
+                      <div className="cl-prodepa">
+                        <MaterialCampo lista={productos} valor={f.material} etiqueta={etiqueta} resolver={matDe}
+                                       titulo="Producto" nota="del maestro · la referencia que sale de la línea" sin="Sin producto"
+                                       onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, material: v }))} />
+                        <span className="cl-flecha" aria-hidden>→</span>
+                        {depaCampo}
+                      </div>
+                      <p className="cl-nt">El contador de la depa cuenta las cajas de <b>este producto</b>.</p>
+                    </div>
+                  </section>
+                  {/* 2 · DE DÓNDE TOMA EL ENVASE. */}
+                  <section className="cl-sec cl-s2" aria-label="De dónde toma el envase">
+                    <div className="cl-sh">
+                      <span className="cl-sic" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+                      <div><b>De dónde toma el envase</b><small>el módulo de donde saca la línea</small></div>
+                    </div>
+                    <div className="cl-sb">
+                      <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
+                                     titulo="Envase" nota="del maestro · lo que entra a la línea" sin="Sin envase"
+                                     onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
+                      <div className="cl-r2 una">
+                        {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea", true)}
+                      </div>
+                    </div>
+                  </section>
+                  <button type="button" className="cl-opc" onClick={() => setManual(true)}>
+                    + Anotar también dónde quedó ubicado (opcional)
                   </button>
                 </>
               )}
