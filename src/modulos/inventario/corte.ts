@@ -151,7 +151,17 @@ function lado(
   pasadas: number, signo: 1 | -1, falta: string, queFalta: "envase" | "material",
   nombre: (id: string) => string,
 ): Lado {
-  if (a.length === 0 || b.length === 0) return vacio(falta);
+  if (a.length === 0 || b.length === 0) {
+    /* Falta un lado, pero lo que sí se anotó SE VE: los módulos de donde se tomó no desaparecen. */
+    const solo = a.length > 0 ? a : b;
+    const modulos: ModuloLado[] = solo.map((x) => {
+      const c = aCajas(x, porEstiba);
+      return a.length > 0
+        ? { ubicacion_id: x.ubicacion_id, a: x, b: null, ini: c, fin: null, mov: null, nota: "Solo estaba en el inicial" }
+        : { ubicacion_id: x.ubicacion_id, a: null, b: x, ini: null, fin: c, mov: null, nota: "Solo está en el final" };
+    });
+    return { ...vacio(falta), modulos };
+  }
   const enB = new Map(b.map((x) => [x.ubicacion_id, x]));
   const enA = new Map(a.map((x) => [x.ubicacion_id, x]));
   const ids = [...a.map((x) => x.ubicacion_id), ...b.filter((x) => !enA.has(x.ubicacion_id)).map((x) => x.ubicacion_id)];
@@ -527,7 +537,7 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
     /* VARIOS MÓDULOS (o uno que cambió por otro): el detalle de cada uno y los totales. */
     for (const m of mods) {
       const nombre = nombreUbi(m.ubicacion_id);
-      g.filas.push(corteFila(`${nombre} · según el ${de}`, m, false));
+      g.filas.push(corteFila(m.fin === null && m.ini !== null ? `${nombre} · al iniciar el corte` : `${nombre} · según el ${de}`, m, false));
       if (!conteo) continue;
       const lect = m.lectura === "sin_contar" ? { lectura: "Sin contar · el conteo no pasó por este módulo", tono: "gris" as Tono }
         : m.lectura === "sin_rango" ? { lectura: "Falta un corte en este módulo", tono: "gris" as Tono }

@@ -86,9 +86,16 @@ p = armarPar(iniD, fin(1000), est, nombre, { ...ctx, conteos: [cB] }, "b"); t = 
 ok(p.a.fefo?.falta === null && p.a.filas[0].origen.mov === 1000 && p.a.filas[0].origen.modulos[0].ubicacion_id === "uA" && t.estado === "cuadra", "con los módulos del inicial NO hace falta un FEFO de antes: " + p.a.filas[0].origen.mov + " " + t.estado + " " + p.a.fefo?.falta);
 p = armarPar(iniD, fin(1000), est, nombre, { ...ctx, lineasPorConteo: new Map([["b", [LC("b", "E1", "uZ", 5)]]]) }, "b");
 ok(/no pasó por los módulos de donde se tomó/.test(p.a.filas[0].origen.motivo), "si el FEFO no visitó esos módulos lo dice: " + p.a.filas[0].origen.motivo);
+/* …pero la ubicación de donde se tomó SIEMPRE se ve: el módulo y lo que había al iniciar. */
+t = tabla(p, "b");
+ok(p.a.filas[0].origen.modulos.length === 1 && p.a.filas[0].origen.modulos[0].ubicacion_id === "uA" && p.a.filas[0].origen.modulos[0].ini === 2000, "el módulo de donde se tomó se ve aunque el FEFO no pasó por él: " + JSON.stringify(p.a.filas[0].origen.modulos));
+ok(t.grupos[0].donde === "uA" && t.grupos[0].filas.length === 1 && t.grupos[0].filas[0].ini === 2000 && /al iniciar/.test(t.grupos[0].filas[0].etiqueta) && /no pasó por los módulos/.test(t.grupos[0].nota) && t.estado === "incompleto", "la tabla trae el módulo, su cantidad inicial y el aviso: " + JSON.stringify(t.grupos[0]));
 /* Un par con módulos anotados se analiza tal cual. */
 const finM = corte("f", "final", "2026-10-01T11:00:00Z", [RN("L1", 1000, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 5, unidad: "cajas" }] })], "i");
 const iniM = corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 1005, unidad: "cajas" }] })]);
+/* Solo el final trae módulos: también se ven (no desaparecen). */
+p = armarPar(corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P1")]), finM, est, nombre, ctx, "b");
+ok(p.a.filas[0].origen.modulos.length === 1 && p.a.filas[0].origen.modulos[0].fin === 5 && p.a.filas[0].origen.modulos[0].ini === null && /Solo está en el final/.test(p.a.filas[0].origen.modulos[0].nota), "si solo el final trae el módulo, también se ve: " + JSON.stringify(p.a.filas[0].origen.modulos));
 p = armarPar(iniM, finM, est, nombre, ctx, "b");
 ok(p.a.fefo === undefined && p.a.filas[0].origen.mov === 1000, "un corte con sus módulos no se toca");
 
@@ -109,9 +116,9 @@ const RN = (linea: string, cajas: number, envase: string | null = "E1") => ({ li
 const ini = { id: "i", tipo: "inicial", inicial_id: null, cortado_en: "2026-10-01T10:00:00.000Z", nota: null, creado_por: "u1", renglones: [{ ...RN("L1", 0), origenes: [{ ubicacion_id: "uA", cant: 2000, unidad: "cajas" }] }, RN("L2", 0, null)] };
 const fin = { id: "f", tipo: "final", inicial_id: "i", cortado_en: "2026-10-01T11:00:00.000Z", nota: null, creado_por: "u1", renglones: [RN("L1", 1000), RN("L2", 50, null)] };
 const sin = { id: "s", tipo: "inicial", inicial_id: null, cortado_en: "2026-10-02T15:00:00.000Z", nota: null, creado_por: "u1", renglones: [RN("L1", 0)] };
-const conteos = [{ id: "b", codigo: "FEFO-B", fecha: "2026-10-01", enviado_en: "2026-10-01T12:00:00Z" }, { id: "a", codigo: "FEFO-A", fecha: "2026-09-30", enviado_en: "2026-09-30T12:00:00Z" }];
+const conteos = [{ id: "b", codigo: "FEFO-B", fecha: "2026-10-01", enviado_en: "2026-10-01T12:00:00Z" }, { id: "a", codigo: "FEFO-A", fecha: "2026-09-30", enviado_en: "2026-09-30T12:00:00Z" }, { id: "z", codigo: "FEFO-Z", fecha: "2026-09-29", enviado_en: "2026-09-29T12:00:00Z" }];
 const lc = (c: string, p: string, u: string, t: number) => ({ conteo_id: c, producto_id: p, ubicacion_id: u, total_cajas: t, averia: false, pnc: false });
-const lineasConteo = [lc("a", "E1", "uA", 2000), lc("b", "E1", "uA", 1000)];
+const lineasConteo = [lc("a", "E1", "uA", 2000), lc("b", "E1", "uA", 1000), lc("z", "E1", "uB", 5)];
 const c = new URL(location.href).searchParams.get("c") ?? "todo";
 createRoot(document.getElementById("r")!).render(<Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={mats} cortes={(c === "vacio" ? [] : c === "sin" ? [sin] : [sin, fin, ini]) as any}
   conteos={conteos} lineasConteo={lineasConteo} nombres={{ u1: "Cristian" }} puedeEditar={true} manda={true} verDiferencia={true} ahora={AHORA} />);
@@ -170,6 +177,12 @@ ok(/para 3128 · Águila RN 330cc X30/.test(tarj), "la diferencia dice a qué pr
 /* Cambiar el FEFO de después recalcula. */
 await pg.selectOption(".dq-barra select", "a");
 ok(/FEFO-A|no hay un FEFO enviado antes|Falta/.test(await txt()), "al cambiar el FEFO se recalcula");
+
+/* Un FEFO que NO pasó por el módulo de donde se tomó: la ubicación se ve igual, con lo que había al iniciar. */
+await pg.selectOption(".dq-barra select", "z");
+{ const tz = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");
+  ok(/A · 01 · DER/.test(tz) && /no pasó por los módulos de donde se tomó/.test(tz) && /al iniciar el corte/.test(tz), "aunque el FEFO no pasó por el módulo, se ve de dónde se tomó: " + tz.slice(0, 400)) }
+await pg.selectOption(".dq-barra select", "b");
 
 /* El proceso: el corte 1 abre y no tiene «Ubicados en». */
 await pg.locator(".pr-corte").first().locator("summary").click();
