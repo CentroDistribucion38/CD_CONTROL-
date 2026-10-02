@@ -81,7 +81,7 @@ const lmix = [LC("km", "m1", "uA01", 1500), LC("km", "m3", "uB12I", 1000), LC("k
 const uno = cortes.filter((x) => x.id === "i20" || x.id === "f20");
 /* Un corte con DOS líneas al empezar y UNA sola al final: 50 %. */
 const parcial: any[] = [
-  { id: "pf", tipo: "final", inicial_id: "pi", cortado_en: "2026-09-22T19:00:00.000Z", nota: null, creado_por: "u1", renglones: [R("L1", 1000, S("uA01", 1000), S("uB12I", 1000))] },
+  { id: "pf", tipo: "final", inicial_id: "pi", cortado_en: "2026-09-22T13:07:00.000Z", nota: null, creado_por: "u1", renglones: [R("L1", 1000, S("uA01", 1000), S("uB12I", 1000))] },
   { id: "pi", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-22T13:00:00.000Z", nota: "Cargue con envase", creado_por: "u1", renglones: [R("L1", 0, S("uA01", 2000), S("uB12I", 0)), R("L2", 0, S("uA02", 500), S("uB12D", 0))] },
 ];
 createRoot(document.getElementById("r")!).render(
@@ -237,38 +237,54 @@ await monta("c=manda");
   ok(await pg.locator('.dq-cuerpo button:has-text("Eliminar el par")').count() === 0, "cerrado el par no hay botón de eliminar");
 }
 
-/* ---------- 4b · EL PROCESO, CORTE POR CORTE (solo quien administra) ---------- */
+/* ---------- 4b · EL PROCESO, CORTE POR CORTE (solo quien administra): la maqueta corte-flujo.html ---------- */
 await monta("c=todo");
 ok(await pg.locator(".pr").count() === 0, "quien no administra no ve «El proceso, corte por corte»");
 await monta("c=manda");
 {
-  const resumenP = (await pg.locator(".pr-resumen").textContent()).trim();
-  ok(/Todos|proceso, corte por corte\s*21/i.test(await txt()) && resumenP === "20 de 21 cortes completos", "21 cortes y 20 completos: " + resumenP);
+  ok(/El proceso, corte por corte\s*21/.test(await txt()) && (await pg.locator(".pr-resumen").textContent()).trim() === "20 de 21 cortes completos", "21 cortes y 20 completos");
   ok(await pg.locator(".pr-corte").count() === 21 && await pg.locator(".pr-corte[open]").count() === 1, "21 cortes y solo el primero abierto");
-  const nums = await pg.$$eval(".pr-num", (x) => x.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
-  ok(/^Corte 1 ?EL PRIMERO$/.test(nums[0]) && nums[1] === "Corte 2" && nums[20] === "Corte 21", "numerados del primero al último, y solo el 1 es EL PRIMERO: " + nums[0] + " | " + nums[20]);
-  const pasos = async (k) => (await pg.locator(".pr-corte").nth(k).locator(".pr-paso").allTextContents()).map((t) => t.trim());
-  ok(JSON.stringify(await pasos(0)) === JSON.stringify(["① Inicial", "② Final", "③ CUADRA"]), "Corte 1: inicial, final y cuadra: " + (await pasos(0)).join(" > "));
-  ok((await pasos(2))[2] === "③ NO CUADRA" && (await pasos(1))[2] === "③ INCOMPLETO", "los estados de la etapa 3: " + (await pasos(1))[2] + " / " + (await pasos(2))[2]);
-  ok((await pg.locator(".pr-corte").nth(0).locator(".pr-pct b").textContent()) === "100%", "Corte 1 va al 100%");
+  const nums = await pg.$$eval(".pr-h2", (x) => x.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
+  ok(nums[0] === "CORTE 1" && nums[1] === "CORTE 2" && nums[20] === "CORTE 21" && await pg.locator(".pr-pri").count() === 1 && /EL PRIMERO/.test(await pg.locator(".pr-corte").first().locator(".pr-pri").textContent()), "numerados del primero al último, y solo el 1 es EL PRIMERO: " + nums[0]);
+  const est = async (k) => (await pg.locator(".pr-corte").nth(k).locator(".pr-est b").textContent()).trim();
+  ok(await est(0) === "CUADRA" && await est(1) === "INCOMPLETO" && await est(2) === "NO CUADRA" && await est(20) === "ESPERANDO EL FINAL", "el estado de cada corte en su cabecera: " + [await est(0), await est(1), await est(2), await est(20)].join(" / "));
+  const q = async (k) => (await pg.locator(".pr-corte").nth(k).locator(".pr-q").textContent()).replace(/\s+/g, " ");
+  ok(/01\/09\/2026 08:00 · Cristian Padilla · 1 de 1 línea · 100%/.test(await q(0)) && /0 de 1 línea · 0%/.test(await q(20)), "fecha, quién, líneas y porcentaje: " + await q(0) + " | " + await q(20));
+  /* La tarjeta abierta del Corte 1: las etapas, el antes, lo que pasó por la depa, el después y el resultado */
+  const c1 = pg.locator(".pr-corte").first();
+  ok(JSON.stringify(await c1.locator(".pr-nodo b").allTextContents()) === JSON.stringify(["Corte inicial", "Corte final", "Cuadra"]), "las tres etapas del flujo");
+  ok(/6 H 00 MIN · LÍNEA TRABAJANDO/.test(await c1.locator(".pr-tramo").first().textContent()), "dice cuánto duró entre el inicial y el final: " + await c1.locator(".pr-tramo").first().textContent());
+  ok(JSON.stringify(await c1.locator(".pr-dep b").allTextContents()) === JSON.stringify(["0", "1.000"]) && (await c1.locator(".pr-depa b").textContent()) === "+1.000", "contador de la depa antes y después, y lo que pasó: " + (await c1.locator(".pr-depa b").textContent()));
+  const mv = (await c1.locator(".pr-mv").allTextContents()).join(" | ");
+  ok(mv === "−16,7 ESTIBAS · BAJÓ | +27,8 ESTIBAS · SUBIÓ", "las dos fotos se comparan (bajó / subió): " + mv);
+  ok(await c1.locator(".pr-pila i.n").count() > 0 && await c1.locator(".pr-pila i.f").count() > 0, "estibas que aparecieron (verde) y que salieron (punteado)");
+  const foto2 = c1.locator(".pr-foto").nth(1);
+  ok(await foto2.locator(".pr-mod").nth(0).locator("i.f").count() === 16 && await foto2.locator(".pr-mod").nth(0).locator("i.n").count() === 0 && await foto2.locator(".pr-mod").nth(1).locator("i.n").count() === 28 && await foto2.locator(".pr-mod").nth(1).locator("i.f").count() === 0, "de dónde tomaban bajaron 16 estibas y dónde estaban ubicados subieron 28");
+  ok(JSON.stringify(await c1.locator(".pr-res .pr-ln b").allTextContents()) === JSON.stringify(["1.000", "0", "0"]), "las tres cifras del resultado: " + (await c1.locator(".pr-res .pr-ln b").allTextContents()).join(","));
+  ok(/Tomando de\s*A·01·DER/.test((await c1.locator(".pr-mod").first().textContent()).replace(/\s+/g, " ")), "el módulo de dónde tomaban");
+  ok(/Cuadra/.test(await c1.locator(".pr-res .pr-big").textContent()) && /1\.000/.test(await c1.locator(".pr-res .pr-ln b").first().textContent()), "la tarjeta de resultado");
+  ok(await c1.locator('.pr-res a[href="#cl-diferencia"]').count() === 1 && await pg.locator("#cl-diferencia").count() === 1, "«Ver la diferencia» lleva a la sección La diferencia");
+  /* El análisis sale solo: el Corte 3 no cuadra y el 2 queda incompleto, sin que nadie lo pida */
+  await pg.locator(".pr-corte").nth(2).locator("summary").click();
+  ok(await pg.locator(".pr-corte").nth(2).locator(".pr-res.no_cuadra").count() === 1 && /NO CUADRA|No cuadra/.test(await pg.locator(".pr-corte").nth(2).locator(".pr-res .pr-big").first().textContent()), "el Corte 3 sale NO CUADRA solo");
   /* El que espera su final */
-  ok((await pg.locator(".pr-corte").nth(20).locator(".pr-pct b").textContent()) === "0%" && JSON.stringify(await pasos(20)) === JSON.stringify(["① Inicial", "② Final", "③ Diferencia"]), "Corte 21 espera su final: 0%");
-  ok(await pg.locator(".pr-corte").nth(20).locator(".pr-paso.falta").count() === 2, "y marca como pendientes la etapa 2 y la 3");
   await pg.locator(".pr-corte").nth(20).locator("summary").click();
-  ok(/Todavía falta el corte final/.test(await pg.locator(".pr-corte").nth(20).textContent()) && /Falta el corte final/.test(await pg.locator(".pr-corte").nth(20).locator("td").nth(2).textContent()), "dice que falta el final");
-  /* El que ya lo tiene: muestra el final y lo que pasó por la depa */
-  const t0 = (await pg.locator(".pr-corte").nth(0).textContent()).replace(/\s+/g, " ");
-  ok(/Corte final hecho el 01\/09\/2026/.test(t0) && /1 de 1 línea con su corte final \(100%\)/.test(t0) && /\+1\.000/.test(t0) && /Tomando de A · 01 · DER: 2\.000 cajas/.test(t0), "el Corte 1 muestra su final y lo que se movió: " + t0.slice(0, 300));
-  ok(await pg.locator(".pr button, .pr summary button").count() === 1, "solo mirar: el único botón es el de cambiar el orden");
+  const c21 = pg.locator(".pr-corte").nth(20);
+  ok(/ESPERANDO EL CORTE FINAL/.test(await c21.locator(".pr-tramo").first().textContent()) && await c21.locator(".pr-res.espera").count() === 1 && await c21.locator(".pr-pend").count() === 1, "Corte 21: espera su final y lo dice en las tres etapas");
+  ok(/Cuando se haga el corte final, el análisis sale solo/.test(await c21.locator(".pr-res").textContent()), "avisa que el análisis sale solo");
+  ok(await pg.locator(".pr button").count() === 1, "solo mirar: el único botón es el de cambiar el orden");
   await pg.click('.pr-barra button');
-  const n2 = await pg.$$eval(".pr-num", (x) => x.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
-  ok(n2[0] === "Corte 21" && /EL PRIMERO/.test(n2[20]), "al cambiar el orden, el último va primero y conserva su número: " + n2[0]);
+  const n2 = await pg.$$eval(".pr-h2", (x) => x.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
+  ok(n2[0] === "CORTE 21" && n2[20] === "CORTE 1", "al cambiar el orden, el último va primero y conserva su número: " + n2[0]);
 }
 await monta("c=parcial");
 {
-  const p = (await pg.locator(".pr-pct b").textContent()).trim();
   const t = (await pg.locator(".pr-corte").textContent()).replace(/\s+/g, " ");
-  ok(p === "50%" && /1 de 2 líneas con su corte final \(50%\)/.test(t) && /Esta línea no se cortó al final/.test(t) && /Nota del inicial: Cargue con envase/.test(t) && (await pg.locator(".pr-resumen").textContent()).trim() === "0 de 1 corte completo", "dos líneas al empezar y una al final = 50 %: " + p + " | " + t.slice(0, 260));
+  ok(/1 de 2 líneas · 50%/.test(t) && (await pg.locator(".pr-resumen").textContent()).trim() === "0 de 1 corte completo", "dos líneas al empezar y una al final = 50 %");
+  ok(/^7 MIN · LÍNEA TRABAJANDO$/.test((await pg.locator(".pr-tramo").first().textContent()).trim()), "con menos de una hora dice los minutos: " + await pg.locator(".pr-tramo").first().textContent());
+  ok(await pg.locator(".pr-carril").count() === 2 && await pg.locator(".pr-res.espera").count() === 1 && /no tiene corte final/.test(t) && /se cortó al empezar y no se cortó al final/.test(t), "la línea sin final se marca pendiente");
+  ok(/Nota del inicial: Cargue con envase/.test(t), "se ve la nota del inicial");
+  ok(/línea sin poder cruzar|sin poder cruzar/.test((await pg.locator(".pr-est small").textContent())) || /con diferencia/.test(await pg.locator(".pr-est small").textContent()), "la cabecera cuenta las líneas con problema: " + await pg.locator(".pr-est small").textContent());
 }
 
 /* ---------- 5 · NADA SE SALE, en cuatro anchos ---------- */
@@ -276,7 +292,7 @@ for (const w of [360, 390, 820, 1440]) {
   await monta("c=manda", w);
   await pg.click(".dq-mas");
   const d = await pg.evaluate(() => ({ ancho: document.documentElement.scrollWidth, vista: window.innerWidth,
-    fuera: [...document.querySelectorAll("#r *")].filter((e) => { const t = e.closest(".tw"); return !(t && getComputedStyle(t).overflowX !== "visible") && e.getBoundingClientRect().right > window.innerWidth + 1 }).map((e) => e.className || e.tagName).slice(0, 4) }));
+    fuera: [...document.querySelectorAll("#r *")].filter((e) => { const t = e.closest(".tw, .pr-banda"); return !(t && getComputedStyle(t).overflowX !== "visible") && e.getBoundingClientRect().right > window.innerWidth + 1 }).map((e) => e.className || e.tagName).slice(0, 4) }));
   ok(d.ancho <= d.vista && d.fuera.length === 0, `a ${w} px se sale: ${d.ancho}>${d.vista} ${d.fuera.join(",")}`);
   const chico = await pg.evaluate(() => [...document.querySelectorAll("#r button, #r select, #r input")].filter((e) => e.getBoundingClientRect().height && e.getBoundingClientRect().height < 43).length);
   ok(chico === 0, `a ${w} px hay ${chico} controles de menos de 44 px`);

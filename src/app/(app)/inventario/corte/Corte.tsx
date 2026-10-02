@@ -359,7 +359,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
 
       {verDiferencia && (
         <>
-        <h2 className="cl-h">La diferencia <span>{cerrados.length}</span></h2>
+        <h2 className="cl-h" id="cl-diferencia">La diferencia <span>{cerrados.length}</span></h2>
         {cerrados.length === 0 ? (
           <p className="fe-vacio">Todavía no hay cortes cerrados. Cuando hagas el final de uno, aquí sale cuánto pasó y cuánto se movió.</p>
         ) : (
