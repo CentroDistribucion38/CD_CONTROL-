@@ -8,6 +8,7 @@ import { Informe } from "../src/app/(app)/sider/seguimiento/ai/Informe";
 import { Seguimiento } from "../src/app/(app)/sider/seguimiento/Seguimiento";
 import { Novedades } from "../src/app/(app)/sider/novedades/Novedades";
 import { Maestro } from "../src/app/(app)/sider/maestro/Maestro";
+import { NuevoInterno } from "../src/app/(app)/sider/sorting/NuevoInterno";
 import { Importar } from "../src/app/(app)/sider/importar/Importar";
 
 const AHORA = "2026-09-29T15:00:00.000Z";
@@ -178,4 +179,9 @@ if (m === "certificar") {
   root.render(<Maestro origenes={ORIGENES as any} skus={SKUS} estibasPorSider={36} esEditor />);
 } else if (m === "importar") {
   root.render(<Importar maestro={{ origenes: ORIGENES, skus: SKUS } as any} zldeCargado={[{ mes: "2026-08-01", cd: 11, hl: 246268 }]} importados={[{ mes: "2026-07-01", viajes: 320 }]} />);
+} else if (m === "interno") {
+  /* El «Crear un Vh Interno»: se monta suelto, con el maestro de arriba. */
+  (window as any).__cerrado = 0; (window as any).__creado = null;
+  root.render(<NuevoInterno origenes={ORIGENES.filter((o) => o.planta !== "BAQ") as any} skus={SKUS} socios={maestros.socios} estibasPorSider={36}
+    alCerrar={() => { (window as any).__cerrado++ }} alCrear={(p) => { (window as any).__creado = p }} />);
 }

@@ -32,6 +32,9 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
+import {
+  cajasCompletas, cambiarModo, estibasDe, factorFaltante, numero, unidadesDe, type ModoCantidad,
+} from "@/modulos/sider/interno-cantidad";
 
 export type SocioMaestro = { clave: string; nombre: string };
 export type OrigenMaestro = { planta: string; cd_origen: string };
@@ -42,14 +45,10 @@ export type SkuMaestro = {
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
+const nf3 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 
 /** «0,83» y «0.83» valen lo mismo; vacío o basura, nada. */
-const num = (s: string) => {
-  const t = s.trim().replace(",", ".");
-  if (t === "") return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-};
+const num = numero;
 
 /** Sin tildes y en minúscula: «costeñita» y «COSTENITA» son la misma búsqueda. */
 const plano = (s: string) =>
@@ -59,8 +58,10 @@ const DESTINO_POR_DEFECTO = "Barranquilla";
 
 /** Un camión lleva 2 o 3 referencias; la base acepta hasta 10. */
 const MAX_LINEAS = 10;
-type Linea = { k: number; sku: string; busca: string; estibas: string };
-const nuevaLinea = (k: number): Linea => ({ k, sku: "", busca: "", estibas: "" });
+/* LA CANTIDAD SE ESCRIBE EN ESTIBAS O EN UNIDADES, como la persona la contó: `cant` es lo escrito y `modo`
+   en qué. La base guarda estibas, así que las unidades se convierten con los factores del maestro. */
+type Linea = { k: number; sku: string; busca: string; cant: string; modo: ModoCantidad };
+const nuevaLinea = (k: number): Linea => ({ k, sku: "", busca: "", cant: "", modo: "estibas" });
 
 /** LA PLACA SON TRES LETRAS Y TRES NÚMEROS, y nada más. */
 const PLACA_OK = /^[A-Z]{3}[0-9]{3}$/;
@@ -91,7 +92,7 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
   const [planta, setPlanta] = useState("");
   const [destino, setDestino] = useState(DESTINO_POR_DEFECTO);
   /* UN CAMIÓN PUEDE TRAER VARIOS MATERIALES con la misma factura: cada uno
-     es una línea con su material y sus estibas. Arranca con una sola; el
+     es una línea con su material y su cantidad. Arranca con una sola; el
      «+» agrega otra. */
   const [lineas, setLineas] = useState<Linea[]>([nuevaLinea(1)]);
   const [factura, setFactura] = useState("");
@@ -138,7 +139,7 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
      también es «—» (sumar el resto daría un número que engaña). */
   const cifrasDe = (l: Linea) => {
     const mat = skus.find((k) => k.sku === l.sku);
-    const nEst = num(l.estibas);
+    const nEst = estibasDe(l.modo, l.cant, mat);
     if (!mat || !nEst || nEst <= 0) return null;
     const cajas = mat.cajas_x_estiba == null ? null : Number(mat.cajas_x_estiba) * nEst;
     const unidades = cajas == null || mat.unidades_x_caja == null
@@ -150,7 +151,7 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
     const sin = mat.cajas_x_estiba == null ? "factor de estiba"
       : mat.unidades_x_caja == null ? "unidades por caja"
       : mat.hl_x_unidad == null ? "factor de HL" : null;
-    return { sider: nEst / estibasPorSider, cajas, unidades, hl, sin };
+    return { sider: nEst / estibasPorSider, cajas, unidades, hl, sin, estibas: nEst };
   };
 
   /* EL TOTAL DEL CAMIÓN. Suma lo que se sabe y DICE QUÉ MATERIAL FALTA:
@@ -179,8 +180,12 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
   lineas.forEach((l, i) => {
     const ref = lineas.length > 1 ? ` del material ${i + 1}` : "";
     if (!l.sku) faltan.push(lineas.length > 1 ? `el material ${i + 1}` : "el material");
-    const n = num(l.estibas);
-    if (!n || n <= 0) faltan.push(`las estibas${ref}`);
+    const mat = skus.find((k) => k.sku === l.sku);
+    const n = num(l.cant);
+    if (!n || n <= 0) faltan.push(l.modo === "unidades" ? `las unidades${ref}` : `las estibas${ref}`);
+    /* En unidades hace falta poder convertir: sin los factores del maestro no hay estibas que mandar. */
+    else if (l.modo === "unidades" && mat && estibasDe("unidades", l.cant, mat) == null)
+      faltan.push(`el ${factorFaltante(mat)} del material${lineas.length > 1 ? ` ${i + 1}` : ""} (para pasar unidades a estibas; o escribe estibas)`);
   });
   if (canal === "t1" && !factura) faltan.push("el documento (número de factura)");
   const puede = faltan.length === 0 && !mismo;
@@ -199,7 +204,7 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
           p_planta: planta,
           p_destino: destino,
           p_sku: lineas[0].sku,
-          p_estibas: num(lineas[0].estibas),
+          p_estibas: estibasDe(lineas[0].modo, lineas[0].cant, skus.find((k) => k.sku === lineas[0].sku)),
           /* UN SOCIO NO TIENE DOCUMENTO: la factura solo viaja en T1. */
           p_factura: canal === "t1" ? factura : null,
           p_canal: canal,
@@ -214,7 +219,7 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
           p_planta: planta,
           p_destino: destino,
           p_factura: canal === "t1" ? factura : null,
-          p_lineas: lineas.map((l) => ({ sku: l.sku, estibas: num(l.estibas) })),
+          p_lineas: lineas.map((l) => ({ sku: l.sku, estibas: estibasDe(l.modo, l.cant, skus.find((k) => k.sku === l.sku)) })),
           p_canal: canal,
           p_socio: canal === "socios" ? socio : null,
         });
@@ -357,11 +362,36 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
                     </>
                   )}
                 </div>
-                <label className="nv-est">
-                  <span>Estibas</span>
-                  <input value={l.estibas} inputMode="decimal" autoComplete="off" placeholder="0"
-                         onChange={(e) => cambia(l.k, { estibas: e.target.value })} />
-                </label>
+                {/* ESTIBAS O UNIDADES: la persona escoge cómo contó. Lo que escriba en unidades se pasa a
+                    estibas con los factores del maestro, y al cambiar de uno a otro el valor se convierte. */}
+                <div className="nv-cant">
+                  <div className="nv-modo" role="radiogroup" aria-label={`Cantidad del material ${i + 1} en`}>
+                    {(["estibas", "unidades"] as const).map((m) => {
+                      const sinFactor = m === "unidades" && !!mat && factorFaltante(mat) !== null;
+                      return (
+                        <button key={m} type="button" role="radio" aria-checked={l.modo === m}
+                                className={l.modo === m ? "on" : ""} disabled={sinFactor}
+                                title={sinFactor ? `Al material le falta el ${factorFaltante(mat)} en el Maestro` : undefined}
+                                onClick={() => cambia(l.k, { modo: m, cant: cambiarModo(l.modo, m, l.cant, mat) })}>
+                          {m === "estibas" ? "Estibas" : "Unidades"}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <label className="nv-est">
+                    <span>{l.modo === "unidades" ? "Unidades" : "Estibas"}</span>
+                    <input value={l.cant} inputMode="decimal" autoComplete="off" placeholder="0"
+                           onChange={(e) => cambia(l.k, { cant: e.target.value })} />
+                  </label>
+                </div>
+                {l.modo === "unidades" && mat && factorFaltante(mat) === null && estibasDe("unidades", l.cant, mat) != null && (
+                  <p className="nv-conv" role="status">
+                    = <b>{nf3.format(estibasDe("unidades", l.cant, mat) as number)}</b> estibas
+                    {!cajasCompletas(unidadesDe("unidades", l.cant, mat), mat) && (
+                      <span className="nv-aviso"> · no completa cajas enteras: revisa el número</span>
+                    )}
+                  </p>
+                )}
                 {c && (c.sin ? (
                   <p className="nv-lin-cif no">
                     <span>Sin {c.sin} en el maestro</span>
