@@ -118,7 +118,7 @@ export default async function CortePage() {
         bodegaId={bodega.id}
         lineas={(lin.data ?? []) as { clave: string; nombre: string }[]}
         ubicaciones={ubis.map((u) => ({ id: u.id, calle: u.calle, modulo: u.modulo, lado: u.lado }))}
-        materiales={mats.map((x) => ({ id: x.id, sku: x.sku, nombre: x.nombre, cajas_por_estiba: x.cajas_por_estiba, unidades_por_caja: x.unidades_por_caja, tipo: x.tipo_material === "ENVASE" ? "ENVASE" : "PRODUCTO" }))}
+        materiales={mats.map((x) => ({ id: x.id, sku: x.sku, nombre: x.nombre, cajas_por_estiba: x.cajas_por_estiba, unidades_por_caja: x.unidades_por_caja, envase_sku: x.envase_sku ?? null, tipo: x.tipo_material === "ENVASE" ? "ENVASE" : "PRODUCTO" }))}
         cortes={cortes}
         conteos={cv}
         lineasConteo={lv}

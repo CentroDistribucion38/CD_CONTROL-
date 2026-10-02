@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  analizar, conteoPorDefecto, type Analisis, type ConteoRef, type Corte as CorteT, type FilaCorte,
+  analizar, conteoPorDefecto, envaseDelRenglon, type Analisis, type ConteoRef, type Corte as CorteT, type FilaCorte,
   type LineaConteo, type RenglonCorte, type Sitio,
 } from "@/modulos/inventario/corte";
 import { tablasDelPar } from "./Diferencia";
@@ -29,7 +29,6 @@ import type { LineaC, MatC, UbiC } from "./Corte";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
-const MAX_PILA = 48;
 const hora = (iso: string) =>
   new Date(iso).toLocaleString("es-CO", {
     timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric",
@@ -106,21 +105,6 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
   const completos = items.filter((x) => x.pct === 100).length;
 
   /* ---------- las piezas de la tarjeta ---------- */
-  const pila = (antes: number | null, ahora: number | null) => {
-    /* ① (ahora = null): todo normal. ② : lo que estaba queda normal, lo que apareció va verde y lo que salió, punteado rojo. */
-    if (antes == null && ahora == null) return null;
-    const a = Math.max(0, Math.round(antes ?? 0)), b = ahora == null ? a : Math.max(0, Math.round(ahora));
-    const comunes = ahora == null ? a : Math.min(a, b), nuevas = ahora == null ? 0 : Math.max(0, b - a), idas = ahora == null ? 0 : Math.max(0, a - b);
-    const ver = (n: number) => Math.min(n, MAX_PILA);
-    return (
-      <div className="pr-pila" aria-hidden="true">
-        {Array.from({ length: ver(comunes) }, (_, i) => <i key={"c" + i} />)}
-        {Array.from({ length: ver(nuevas) }, (_, i) => <i key={"n" + i} className="n" />)}
-        {Array.from({ length: ver(idas) }, (_, i) => <i key={"f" + i} className="f" />)}
-        {comunes + nuevas + idas > MAX_PILA && <em>+{comunes + nuevas + idas - MAX_PILA}</em>}
-      </div>
-    );
-  };
   const valor = (b: Bloque) => b.est != null
     ? <div className="pr-v">{nf1.format(b.est)}<small>est{b.cajas != null ? ` · ${nf.format(b.cajas)} cj` : ""}</small></div>
     : <div className="pr-v">{nf.format(b.cant)}<small>{b.unidad}</small></div>;
@@ -139,9 +123,8 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
     return (
       <div className="pr-mod" key={rol + b.id}>
         <span className="eti">{rol}</span><b>{corto(nombreUbi(b.id))}</b>
-        {pila(prev === undefined ? b.est : prev ? prev.est : 0, prev === undefined ? null : b.est)}
         {valor(b)}{mv}
-        {nombreMat && <div className="pr-m">{nombreMat}</div>}
+        {nombreMat ? <div className="pr-m">{nombreMat}</div> : <div className="pr-m sin">{rol === "Tomando de" ? "Sin envase anotado" : "Sin producto anotado"}</div>}
       </div>
     );
   };
@@ -149,9 +132,8 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
   const moduloIdo = (rol: "Tomando de" | "Ubicados en", b: Bloque, nombreMat: string | undefined) => (
     <div className="pr-mod" key={"ido" + rol + b.id}>
       <span className="eti">{rol}</span><b>{corto(nombreUbi(b.id))}</b>
-      {pila(b.est, 0)}
       <span className="pr-mv dn">NO ESTÁ EN EL FINAL</span>
-      {nombreMat && <div className="pr-m">{nombreMat}</div>}
+      {nombreMat ? <div className="pr-m">{nombreMat}</div> : <div className="pr-m sin">{rol === "Tomando de" ? "Sin envase anotado" : "Sin producto anotado"}</div>}
     </div>
   );
 
@@ -162,7 +144,8 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
     const po = previo ? new Map(previo.origenes.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.envase_id))])) : null;
     const pd = previo ? new Map(previo.destinos.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.material_id))])) : null;
     const et = (id: string | null) => { const m = id ? mat.get(id) : undefined; return m ? `${m.sku} · ${m.nombre}` : undefined; };
-    const nEnv = et(r.envase_id), nPro = et(r.material_id);
+    const env = envaseDelRenglon(r.envase_id, r.material_id, materiales);
+    const nEnv = env.m ? `${env.m.sku} · ${env.m.nombre}${env.delMaestro ? " (del maestro)" : ""}` : undefined, nPro = et(r.material_id);
     return (
       <div className="pr-mods">
         {bo.map((b) => modulo("Tomando de", b, nEnv, po ? po.get(b.id) ?? null : undefined))}
@@ -291,7 +274,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
                 {x.ini.nota ? `Nota del inicial: ${x.ini.nota}` : ""}{x.ini.nota && x.fin?.nota ? " · " : ""}{x.fin?.nota ? `Nota del final: ${x.fin.nota}` : ""}
               </p>
             )}
-            <p className="pr-nota">Cada bloque = 1 estiba · verde = estiba que apareció · punteado rojo = estiba que salió{(() => { const f = porEstiba(x.ini.renglones[0]?.material_id ?? null); return f ? ` · ${f} cajas por estiba` : ""; })()}</p>
+            <p className="pr-nota">{(() => { const f = porEstiba(x.ini.renglones[0]?.material_id ?? null); return f ? `${f} cajas por estiba` : ""; })()}</p>
           </details>
         );
       })}

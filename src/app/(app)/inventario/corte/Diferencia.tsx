@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo } from "react";
 import {
+  envaseDelRenglon,
   armarTabla, cruzar, diaColombia, duracion,
   type Analisis, type ConteoRef, type Corte as CorteT, type FilaTabla, type GrupoTabla, type LineaConteo, type TablaLinea,
 } from "@/modulos/inventario/corte";
@@ -161,6 +162,7 @@ function TarjetaLinea({ t, nombre, mat, a, factores }: {
   const fOrigen = factores(f.envase_id), fDestino = factores(f.material_id);
   const chip = { cuadra: "CUADRA", no_cuadra: "NO CUADRA", incompleto: "INCOMPLETO" }[t.estado];
   const nombreMat = (id: string | null) => { const m = id ? mat.get(id) : undefined; return m ? `${m.sku} · ${m.nombre}` : null; };
+  const nombreEnvase = () => { const e = envaseDelRenglon(f.envase_id, f.material_id, [...mat.values()]); return e.m ? `${e.m.sku} · ${e.m.nombre}${e.delMaestro ? " (del maestro)" : ""}` : null; };
   const txtFactor = (x: Factores) => [x.porEstiba ? `${nf.format(x.porEstiba)} cajas por estiba` : null, x.porCaja ? `${nf.format(x.porCaja)} unidades por caja` : null].filter(Boolean).join(" · ");
   const fo = txtFactor(fOrigen), fd = txtFactor(fDestino);
 
@@ -194,7 +196,7 @@ function TarjetaLinea({ t, nombre, mat, a, factores }: {
           </thead>
           <tbody>
             <FilaT fila={t.depa} f={fDepa} />
-            {t.grupos.map((g) => <Grupo key={g.titulo} g={g} f={g.titulo === "Tomando de" ? fOrigen : fDestino} material={nombreMat(g.material_id)} />)}
+            {t.grupos.map((g) => <Grupo key={g.titulo} g={g} f={g.titulo === "Tomando de" ? fOrigen : fDestino} material={g.titulo === "Tomando de" ? nombreEnvase() : nombreMat(g.material_id)} />)}
           </tbody>
         </table>
       </div>

@@ -528,3 +528,17 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
   });
   return { linea: c.linea, depa, contadorAtras: c.pasadas < 0, grupos, estado: noCuadra ? "no_cuadra" : incompleto ? "incompleto" : "cuadra" };
 }
+
+/* EL ENVASE DE UN RENGLÓN: el que se anotó en el corte; si no se anotó, el que
+   el maestro dice que le corresponde al producto (`envase_sku`). `delMaestro`
+   avisa que no lo escribió nadie en el corte sino que se dedujo del producto. */
+export type MatEnv = { id: string; sku: string; nombre: string; envase_sku?: string | null };
+export function envaseDelRenglon(envase_id: string | null, material_id: string | null, mats: MatEnv[]): { m: MatEnv | null; delMaestro: boolean } {
+  const por = new Map(mats.map((x) => [x.id, x]));
+  const anotado = envase_id ? por.get(envase_id) : undefined;
+  if (anotado) return { m: anotado, delMaestro: false };
+  const prod = material_id ? por.get(material_id) : undefined;
+  const sku = prod?.envase_sku ?? null;
+  const deducido = sku ? mats.find((x) => x.sku === sku) : undefined;
+  return deducido ? { m: deducido, delMaestro: true } : { m: null, delMaestro: false };
+}

@@ -84,9 +84,17 @@ const parcial: any[] = [
   { id: "pf", tipo: "final", inicial_id: "pi", cortado_en: "2026-09-22T13:07:00.000Z", nota: null, creado_por: "u1", renglones: [R("L1", 1000, S("uA01", 1000), S("uB12I", 1000))] },
   { id: "pi", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-22T13:00:00.000Z", nota: "Cargue con envase", creado_por: "u1", renglones: [R("L1", 0, S("uA01", 2000), S("uB12I", 0)), R("L2", 0, S("uA02", 500), S("uB12D", 0))] },
 ];
+/* Cortes SIN envase anotado: L1 corre un producto cuyo maestro dice qué envase le toca (m3 → 3500887); L2 corre uno sin envase en el maestro (m4). */
+const mats2 = [{ ...mats[0] }, { ...mats[1], envase_sku: "3500887" }, { id: "m4", sku: "9999", nombre: "Producto sin envase", cajas_por_estiba: 36, unidades_por_caja: 30, tipo: "PRODUCTO" }];
+const RS = (linea: string, depa: number, mid: string, o: any, d: any) => ({ linea, cajas_depa: depa, material_id: mid, envase_id: null, origenes: [o], destinos: [d], nota: null });
+const sinenv = [
+  { id: "sf", tipo: "final", inicial_id: "si", cortado_en: "2026-09-22T19:00:00.000Z", nota: null, creado_por: "u1", renglones: [RS("L1", 1000, "m3", S("uA01", 1000), S("uB12I", 1000)), RS("L2", 500, "m4", S("uA02", 0), S("uB12D", 500))] },
+  { id: "si", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-22T13:00:00.000Z", nota: null, creado_por: "u1", renglones: [RS("L1", 0, "m3", S("uA01", 2000), S("uB12I", 0)), RS("L2", 0, "m4", S("uA02", 500), S("uB12D", 0))] },
+  { id: "sp", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-25T13:00:00.000Z", nota: null, creado_por: "u1", renglones: [RS("L1", 0, "m3", S("uA01", 2000), S("uB12I", 0))] },
+];
 createRoot(document.getElementById("r")!).render(
-  <Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={mats} cortes={(c === "mixto" ? mixto : c === "uno" ? uno : c === "parcial" ? parcial : cortes) as any}
-    conteos={(c === "mixto" ? kmix : conteos) as any} lineasConteo={(c === "mixto" ? lmix : lineasConteo) as any} nombres={{ u1: "Cristian Padilla" }} puedeEditar={true} manda={c === "manda" || c === "parcial"} verDiferencia={c !== "sinanalisis"} ahora={AHORA} />);
+  <Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={(c === "sinenv" ? mats2 : mats) as any} cortes={(c === "sinenv" ? sinenv : c === "mixto" ? mixto : c === "uno" ? uno : c === "parcial" ? parcial : cortes) as any}
+    conteos={(c === "mixto" ? kmix : conteos) as any} lineasConteo={(c === "mixto" ? lmix : lineasConteo) as any} nombres={{ u1: "Cristian Padilla" }} puedeEditar={true} manda={c === "manda" || c === "parcial" || c === "sinenv"} verDiferencia={c !== "sinanalisis"} ahora={AHORA} />);
 `);
 
 const js = buildSync({
@@ -219,6 +227,18 @@ await monta("c=todo");
 await monta("c=mixto");
 {
   ok((await chips()).join() === "NO CUADRA", "línea 1 no cuadra + línea 2 incompleta = el par NO CUADRA: " + (await chips()).join());
+}
+
+/* ---------- 3b · SIN ENVASE ANOTADO: sale el del maestro; si no hay, lo dice ---------- */
+await monta("c=sinenv");
+{
+  const t3 = (await txt()).replace(/\s+/g, " ");
+  ok(/de 3500887 · Botella Flint 1000R \(envase del maestro\)/.test(t3), "el corte que espera su final trae el envase del maestro: " + t3.slice(0, 300));
+  await pg.locator(".pr-corte").first().locator("summary").click();
+  const mods = (await pg.locator(".pr-corte").first().locator(".pr-m").allTextContents()).join(" | ");
+  ok(/3500887 · Botella Flint 1000R \(del maestro\)/.test(mods) && /3128 · Águila RN 330cc X30/.test(mods) && /Sin envase anotado/.test(mods), "el proceso muestra el envase del maestro (L1) y avisa «Sin envase anotado» (L2): " + mods);
+  const dif = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");
+  ok(/3500887 · Botella Flint 1000R \(del maestro\)/.test(dif), "la diferencia también: " + dif.slice(0, 200));
 }
 
 /* ---------- 4 · UN SOLO PAR: SIN FILTROS NI RESUMEN; ELIMINAR VIVE DENTRO DEL PAR ABIERTO ---------- */

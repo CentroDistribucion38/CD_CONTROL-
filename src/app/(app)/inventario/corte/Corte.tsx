@@ -25,12 +25,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import { esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado } from "@/modulos/inventario/cola";
-import { analizar, type ConteoRef, type Corte as CorteT, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
+import { analizar, envaseDelRenglon, type ConteoRef, type Corte as CorteT, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
 import { Historial } from "./Historial";
 import { Proceso } from "./Proceso";
 
 export type UbiC = { id: string; calle: string; modulo: string; lado: "IZQ" | "DER" | null };
-export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null; tipo: "PRODUCTO" | "ENVASE" };
+export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null; tipo: "PRODUCTO" | "ENVASE"; envase_sku?: string | null };
 export type LineaC = { clave: string; nombre: string };
 
 /* UN CORTE QUE NO SE PUDO MANDAR: lo mismo que recibe inv_corte_guardar, tal
@@ -259,7 +259,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                   <li key={r.linea}>
                     <b>{r.linea}</b> {fmt(r.cajas_depa)} cajas por la depa
                     <span>
-                      {r.origenes.length > 0 ? <>Tomando de {sitiosTxt(r.origenes)}<> {r.envase_id && mat.get(r.envase_id) ? `de ${mat.get(r.envase_id)!.sku} · ${mat.get(r.envase_id)!.nombre}` : "(sin envase anotado)"}</></> : null}
+                      {r.origenes.length > 0 ? <>Tomando de {sitiosTxt(r.origenes)}<> {(() => { const e = envaseDelRenglon(r.envase_id, r.material_id, materiales); return e.m ? `de ${e.m.sku} · ${e.m.nombre}${e.delMaestro ? " (envase del maestro)" : ""}` : "(sin envase anotado)"; })()}</></> : null}
                       {r.origenes.length > 0 && r.destinos.length > 0 ? " · " : null}
                       {r.destinos.length > 0 ? <>Ubicados en {sitiosTxt(r.destinos)}<> {r.material_id && mat.get(r.material_id) ? `de ${mat.get(r.material_id)!.sku} · ${mat.get(r.material_id)!.nombre}` : "(sin producto anotado)"}</></> : null}
                     </span>
