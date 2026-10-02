@@ -482,9 +482,15 @@ export type TablaLinea = {
 
 const cajasTxt = (n: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 }).format(Math.abs(n));
 
+/** Contra un FEFO (no un segundo corte) se perdona hasta este porcentaje de lo que pasó por la depa. */
+export const TOLERANCIA_FEFO = 0.05;
+
 /** La lectura de una comparación con la depa: «Cuadra», o «Sobran · por qué». */
-function lecturaDepa(mov: number, esperado: number, dif: number, nota: string | null): { lectura: string; tono: Tono } {
+function lecturaDepa(mov: number, esperado: number, dif: number, nota: string | null, tolerancia = 0): { lectura: string; tono: Tono } {
   if (parejo(dif)) return { lectura: "Cuadra con la depa", tono: "ok" };
+  if (tolerancia > 0 && esperado !== 0 && Math.abs(dif) <= tolerancia * Math.abs(esperado)) {
+    return { lectura: `Dentro de tolerancia · ${dif > 0 ? "sobran" : "faltan"} ${cajasTxt(dif)} cajas (${new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }).format(Math.abs(dif) / Math.abs(esperado) * 100)} % de lo que pasó)`, tono: "ok" };
+  }
   const porque = nota
     ? nota.charAt(0).toLowerCase() + nota.slice(1)
     : mov * esperado < 0 ? (esperado < 0 ? "subió cuando debía bajar" : "bajó cuando debía subir")
@@ -515,8 +521,8 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
     const t = l.total;
     const corteFila = (etiqueta: string, m: { ini: number | null; fin: number | null; movCorte: number | null }, conDepa: boolean): FilaTabla => {
       if (!conDepa || !t) return { clase: "corte", etiqueta, ini: m.ini, fin: m.fin, mov: m.movCorte, dif: null, lectura: "", tono: null };
-      const d = t.difCorte, r = lecturaDepa(t.corte, t.esperado, d, null);
-      if (!parejo(d)) noCuadra = true;
+      const d = t.difCorte, r = lecturaDepa(t.corte, t.esperado, d, null, fefo ? TOLERANCIA_FEFO : 0);
+      if (r.tono === "mal") noCuadra = true;
       return { clase: "corte", etiqueta, ini: m.ini, fin: m.fin, mov: m.movCorte, dif: d, lectura: r.lectura, tono: r.tono };
     };
     if (mods.length === 1 && t) {
@@ -668,6 +674,7 @@ export function armarPar(
   const lineasFefo: string[] = [];
   const sinEnvase: string[] = [];
   const delInicial: string[] = [];
+  const noVisto: { linea: string; id: string }[] = [];
   /* Si el corte inicial ya trae sus módulos, solo falta el FEFO de después; si no, hace falta también el de antes. */
   const necesitaAntes = fin.renglones.some((r) => sinModulos(r) && (mapaIni.get(r.linea)?.origenes.length ?? 0) === 0);
   const falta = !despues ? "No hay recorridos enviados para comparar: escoge uno en «FEFO de después» o envía el recorrido."
@@ -703,7 +710,9 @@ export function armarPar(
       const b = env ? cajasPorModulo(B, env) : new Map<string, number>();
       for (const sitio of base.origenes) {
         ri.origenes.push(sitio);
-        if (env && vistos.has(sitio.ubicacion_id)) rf.origenes.push({ ubicacion_id: sitio.ubicacion_id, cant: b.get(sitio.ubicacion_id) ?? 0, unidad: "cajas" });
+        /* Si el FEFO no tiene ese envase en ese módulo, hay 0: lo que había se fue (se avisa si ni siquiera pasó por ahí). */
+        if (env) rf.origenes.push({ ubicacion_id: sitio.ubicacion_id, cant: b.get(sitio.ubicacion_id) ?? 0, unidad: "cajas" });
+        if (env && !vistos.has(sitio.ubicacion_id)) noVisto.push({ linea: r.linea, id: sitio.ubicacion_id });
       }
     } else if (antes && despues) {
       const A = ctx.lineasPorConteo.get(antes.id), B = ctx.lineasPorConteo.get(despues.id);
@@ -720,6 +729,13 @@ export function armarPar(
   const nIni: Corte = { ...ini, renglones: ini.renglones.map((r) => hIni.get(r.linea) ?? r) };
   const nFin: Corte = { ...fin, renglones: fin.renglones.map((r) => hFin.get(r.linea) ?? r) };
   const a = analizar(nIni, nFin, porEstiba, nombre);
+  /* El FEFO ni pasó por ese módulo: se toma como 0 y se dice, para que se pueda escoger otro. */
+  for (const f of a.filas) {
+    const ids = noVisto.filter((x) => x.linea === f.linea).map((x) => nombre(x.id));
+    if (ids.length === 0 || !despues) continue;
+    const aviso = `${despues.codigo} no pasó por ${ids.join(", ")}: se toma como 0 cajas de ese envase. Si no es así, escoge otro FEFO en «FEFO de después».`;
+    f.origen.aviso = f.origen.aviso ? `${f.origen.aviso} ${aviso}` : aviso;
+  }
   /* Solo cuenta el ENVASE: de dónde tomaba. Si el FEFO no vio bajar nada, se dice eso y no «falta anotar». */
   for (const f of a.filas) {
     if (!lineasFefo.includes(f.linea)) continue;

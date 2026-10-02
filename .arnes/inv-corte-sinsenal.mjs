@@ -128,12 +128,10 @@ async function llenaInicial() {
   await campo(0, "select").nth(0).selectOption("A");
   await campo(0, "select").nth(1).selectOption("02");
   await campo(0, ".cl-cant-c input").fill("10");
-  await campo(0, ".cl-unidad button:has-text('Cajas')").click();
   await pg.locator("fieldset.cl-sitio").nth(1).locator("select").nth(0).selectOption("B");
   await pg.locator("fieldset.cl-sitio").nth(1).locator("select").nth(1).selectOption("12");
   await pg.locator("fieldset.cl-sitio").nth(1).locator("select").nth(2).selectOption("DER");
   await campo(1, ".cl-cant-c input").fill("5");
-  await campo(1, ".cl-unidad button:has-text('Cajas')").click();
 }
 const enLaLista = async () => /Nuevo corte inicial/.test(await txt());
 /* Estos pendientes traen la forma VIEJA (un solo «origen» y «destino»): así quedaron los que se anotaron

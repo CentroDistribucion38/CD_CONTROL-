@@ -75,7 +75,7 @@ type SitioF = { calle: string; modulo: string; lado: string; cant: string; unida
 /* `envase` es lo que ENTRA a la línea (se toma del origen); `material` es el
    PRODUCTO que sale (queda ubicado en el destino). */
 type LineaF = { cajas: string; material: string; envase: string; origen: SitioF[]; destino: SitioF[] };
-const sitioVacio = (unidad: Unidad = "estibas"): SitioF => ({ calle: "", modulo: "", lado: "", cant: "", unidad });
+const sitioVacio = (unidad: Unidad = "cajas"): SitioF => ({ calle: "", modulo: "", lado: "", cant: "", unidad });
 const lineaVacia = (): LineaF => ({ cajas: "", material: "", envase: "", origen: [sitioVacio()], destino: [sitioVacio()] });
 /* UNA LÍNEA ESTÁ «TOCADA» si alguien escribió algo en ella: cajas o
    cantidades, o si cambió el módulo o el material respecto de cómo
@@ -442,7 +442,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
      unidad y el mismo material. Solo faltan las cantidades. */
   const desdeSitio = (s: Sitio): SitioF => {
     const u = ubi.get(s.ubicacion_id);
-    return u ? { calle: u.calle, modulo: u.modulo, lado: u.lado ?? "", cant: "", unidad: s.unidad } : sitioVacio();
+    return u ? { calle: u.calle, modulo: u.modulo, lado: u.lado ?? "", cant: "", unidad: "cajas" } : sitioVacio();
   };
   const [base] = useState<Record<string, LineaF>>(() => armarBase());
   const [filas, setFilas] = useState<Record<string, LineaF>>(base);
@@ -601,7 +601,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     return `${fmt(cajas)} cajas` + (m?.unidades_por_caja ? ` · ${fmt(cajas * m.unidades_por_caja)} unidades` : "");
   };
 
-  const bloque = (clave: string, k: "origen" | "destino", titulo: string, ayuda: string) => {
+  const bloque = (clave: string, k: "origen" | "destino", titulo: string, ayuda: string, conEnvase = true) => {
     const lista = filas[clave][k];
     const esEnv = k === "origen";
     const m = esEnv ? envDe(filas[clave].envase) : matDe(filas[clave].material);
@@ -622,7 +622,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
           <span className="cl-ic" aria-hidden>{k === "origen" ? "→" : "↓"}</span>
           <b>{titulo}</b><i>{ayuda}</i>
         </div>
-        {esEnv ? (
+        {esEnv ? (conEnvase &&
           <MaterialCampo lista={envases} valor={filas[clave].envase} etiqueta={etiqueta} resolver={envDe}
                          titulo="Envase" nota="lo que entra a la línea" sin="Sin envase"
                          onCambia={(v) => cambia(clave, (x) => ({ ...x, envase: v }))} />
@@ -672,15 +672,9 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                 </select>
               </label>
               <label className="cl-cant-c">
-                <span>¿Cuántas hay?</span>
+                <span>{s.unidad === "cajas" ? "¿Cuántas cajas?" : `¿Cuántas ${s.unidad}?`}</span>
                 <input inputMode="decimal" value={s.cant} placeholder="0" onChange={(e) => cambiaSitio(i, { cant: e.target.value })} />
               </label>
-              <div className="cl-unidad" role="group" aria-label="Unidad">
-                {(["estibas", "cajas"] as const).map((u) => (
-                  <button key={u} type="button" className={s.unidad === u ? "on" : ""} aria-pressed={s.unidad === u}
-                          onClick={() => cambiaSitio(i, { unidad: u })}>{u === "estibas" ? "Estibas" : "Cajas"}</button>
-                ))}
-              </div>
               <p className={"cl-eco" + (eq && !/cajas$|unidades$/.test(eq) ? " aviso" : "")}>{eq || "Se convierte con el factor del material"}</p>
             </div>
           );
@@ -694,6 +688,15 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       </fieldset>
     );
   };
+
+  const depaCampo = linea && f ? (
+    <label className="cl-depa">
+      <span>Cajas que han pasado por la depa</span>
+      <input inputMode="numeric" value={f.cajas} placeholder="Ej. 18801"
+             onChange={(e) => cambia(linea.clave, (x) => ({ ...x, cajas: e.target.value }))} />
+      <em>Lo que marca el contador de la depaletizadora</em>
+    </label>
+  ) : null;
 
   return (
     <div className="cl">
@@ -745,14 +748,18 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
               )}
             </header>
             <div className="cl-cuerpo">
-              <div className="cl-r1">
-                <label className="cl-depa">
-                  <span>Cajas que han pasado por la depa</span>
-                  <input inputMode="numeric" value={f.cajas} placeholder="Ej. 18801"
-                         onChange={(e) => cambia(linea.clave, (x) => ({ ...x, cajas: e.target.value }))} />
-                  <em>Lo que marca el contador de la depaletizadora</em>
-                </label>
-              </div>
+              {manual ? (
+                <div className="cl-r1">{depaCampo}</div>
+              ) : (
+                /* COMO EN EL DISEÑO: el envase que entra → las cajas que pasaron por la depa. */
+                <div className="cl-par">
+                  <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
+                                 titulo="Envase" nota="del maestro" sin="Sin envase"
+                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
+                  <span className="cl-flecha" aria-hidden>→</span>
+                  {depaCampo}
+                </div>
+              )}
               {manual ? (
                 <>
                   <div className="cl-r2">
@@ -770,7 +777,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                                  titulo="Producto" nota="la referencia que sale de la línea" sin="Sin producto"
                                  onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, material: v }))} />
                   <div className="cl-r2 una">
-                    {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea")}
+                    {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea", false)}
                   </div>
                   <button type="button" className="btn plano cl-manual" onClick={() => setManual(true)}>
                     Anotar también dónde quedó ubicado (opcional)

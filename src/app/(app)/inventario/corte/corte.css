@@ -110,6 +110,9 @@
 .fe .cl-no { margin-left: auto; min-height: 44px; padding: 0 6px; background: none; border: 0; font: 600 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer }
 .fe .cl-cuerpo { display: flex; flex-direction: column; gap: 16px; padding: 16px 18px }
 .fe .cl-r1 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start }
+.fe .cl-par { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 260px); align-items: end; background: var(--fe-acento-suave, #FFF6D1); border: 1px solid #F0DE95; padding: 12px }
+.fe .cl-flecha { height: 58px; display: flex; align-items: center; justify-content: center; font: 900 16px var(--fe-titulo); color: #7A5A00 }
+.fe .cl-par .cl-depa { max-width: none }
 .fe .cl-r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
 .fe .cl-r2.una { grid-template-columns: 1fr }
 .fe .cl-depa { max-width: 420px }
@@ -150,13 +153,6 @@
 .fe .cl-total { grid-column: 1 / -1; margin: 0; padding: 8px 10px; background: var(--fe-papel); border-left: 3px solid var(--fe-acento); font-size: 12.5px; font-variant-numeric: tabular-nums }
 .fe .cl-cant-c { grid-column: 1 / 3 }
 .fe .cl-cant-c input { font: 800 20px var(--fe-titulo); font-variant-numeric: tabular-nums }
-.fe .cl-unidad { display: flex; align-self: end }
-.fe .cl-unidad button {
-  flex: 1; min-height: 44px; padding: 0 12px; border: 1px solid var(--fe-linea); cursor: pointer;
-  background: var(--fe-papel); color: var(--fe-gris-panel); font: 700 13px var(--fe-titulo);
-}
-.fe .cl-unidad button + button { border-left: 0 }
-.fe .cl-unidad button.on { background: var(--fe-acento); color: var(--fe-sobre); border-color: var(--fe-acento) }
 .fe .cl-eco { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--fe-gris-panel); font-variant-numeric: tabular-nums }
 .fe .cl-nada { margin: 0; font-size: 12px; color: var(--fe-gris-panel) }
 .fe .cl-eco.aviso { color: #7A4B00 }
@@ -257,6 +253,8 @@
 @media (max-width: 900px) {
   .fe .cl-grid { grid-template-columns: 1fr }
   .fe .cl-r1, .fe .cl-r2 { grid-template-columns: 1fr }
+  .fe .cl-par { grid-template-columns: 1fr }
+  .fe .cl-flecha { display: none }
   .fe .cl-flujo { display: grid; grid-template-columns: repeat(3, 1fr) }
   .fe .cl-flujo li { min-width: 0; padding: 10px }
   /* En pantalla angosta las líneas van arriba, la línea abajo, y la fecha y la
@@ -301,7 +299,7 @@
   .fe .cl-mods li { grid-template-columns: 1fr; gap: 0 }
   .fe .cl-acciones .btn { width: 100% }
   .fe .cl-sitio, .fe .cl-mod { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .fe .cl-cant-c, .fe .cl-unidad { grid-column: 1 / -1 }
+  .fe .cl-cant-c { grid-column: 1 / -1 }
   .fe .cl-progbar { display: none }
   .fe .cl-prog { flex-basis: 100%; font-size: 12px }
   .fe .cl-guardar { gap: 8px; padding: 8px 0 }

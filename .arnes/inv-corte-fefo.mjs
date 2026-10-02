@@ -85,14 +85,27 @@ const iniD = corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P
 p = armarPar(iniD, fin(1000), est, nombre, { ...ctx, conteos: [cB] }, "b"); t = tabla(p, "b");
 ok(p.a.fefo?.falta === null && p.a.filas[0].origen.mov === 1000 && p.a.filas[0].origen.modulos[0].ubicacion_id === "uA" && t.estado === "cuadra", "con los módulos del inicial NO hace falta un FEFO de antes: " + p.a.filas[0].origen.mov + " " + t.estado + " " + p.a.fefo?.falta);
 p = armarPar(iniD, fin(1000), est, nombre, { ...ctx, lineasPorConteo: new Map([["b", [LC("b", "E1", "uZ", 5)]]]) }, "b");
-ok(/no pasó por los módulos de donde se tomó/.test(p.a.filas[0].origen.motivo), "si el FEFO no visitó esos módulos lo dice: " + p.a.filas[0].origen.motivo);
-/* …pero la ubicación de donde se tomó SIEMPRE se ve: el módulo y lo que había al iniciar. */
+ok(p.a.filas[0].origen.motivo === null && /no pasó por uA: se toma como 0/.test(p.a.filas[0].origen.aviso), "si el FEFO no pasó por el módulo lo dice, y lo toma como 0: " + p.a.filas[0].origen.aviso);
+/* LA UBICACIÓN DE DONDE SE TOMÓ SIEMPRE SE VE, y lo que el FEFO no tiene ahí es 0 (se fue todo): se compara con la depa. */
 t = tabla(p, "b");
-ok(p.a.filas[0].origen.modulos.length === 1 && p.a.filas[0].origen.modulos[0].ubicacion_id === "uA" && p.a.filas[0].origen.modulos[0].ini === 2000, "el módulo de donde se tomó se ve aunque el FEFO no pasó por él: " + JSON.stringify(p.a.filas[0].origen.modulos));
-ok(t.grupos[0].donde === "uA" && t.grupos[0].filas.length === 1 && t.grupos[0].filas[0].ini === 2000 && /al iniciar/.test(t.grupos[0].filas[0].etiqueta) && /no pasó por los módulos/.test(t.grupos[0].nota) && t.estado === "incompleto", "la tabla trae el módulo, su cantidad inicial y el aviso: " + JSON.stringify(t.grupos[0]));
+ok(p.a.filas[0].origen.modulos.length === 1 && p.a.filas[0].origen.modulos[0].ubicacion_id === "uA" && p.a.filas[0].origen.modulos[0].ini === 2000 && p.a.filas[0].origen.modulos[0].fin === 0 && p.a.filas[0].origen.mov === 2000, "el módulo se ve con lo que había y 0 en el FEFO: " + JSON.stringify(p.a.filas[0].origen.modulos));
+ok(t.grupos[0].donde === "uA" && t.grupos[0].filas.length === 1 && t.grupos[0].filas[0].ini === 2000 && t.grupos[0].filas[0].fin === 0 && /FEFO/.test(t.grupos[0].filas[0].etiqueta) && /se toma como 0/.test(t.grupos[0].nota) && t.estado === "no_cuadra", "la tabla trae el módulo, lo que había, 0 y el aviso: " + JSON.stringify(t.grupos[0]));
+/* TOLERANCIA: 72 estibas (3.888 cajas) tomadas y 3.744 por la depa = 144 cajas (3,8 %): dentro de tolerancia. */
+const ini72 = corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 3888, unidad: "cajas" }] })]);
+const sinA = { ...ctx, lineasPorConteo: new Map([["b", [LC("b", "E1", "uZ", 5)]]]) };
+p = armarPar(ini72, fin(3744), est, nombre, sinA, "b"); t = tabla(p, "b");
+ok(t.estado === "cuadra" && /Dentro de tolerancia/.test(t.grupos[0].filas[0].lectura) && /faltan 144 cajas/.test(t.grupos[0].filas[0].lectura), "144 cajas de 3.744 (3,8 %) entran en la tolerancia: " + t.estado + " " + t.grupos[0].filas[0].lectura);
+p = armarPar(ini72, fin(3000), est, nombre, sinA, "b"); t = tabla(p, "b");
+ok(t.estado === "no_cuadra" && !/tolerancia/.test(t.grupos[0].filas[0].lectura), "888 cajas de 3.000 (30 %) no entran: " + t.estado + " " + t.grupos[0].filas[0].lectura);
+p = armarPar(ini72, fin(3744), est, nombre, { ...ctx, lineasPorConteo: new Map([["b", [LC("b", "E1", "uA", 3888)]]]) }, "b"); t = tabla(p, "b");
+ok(t.estado === "no_cuadra" && /Sobran|Faltan/.test(t.grupos[0].filas[0].lectura) , "si el FEFO sigue viendo todo en el módulo, el envase no bajó: " + t.estado + " " + t.grupos[0].filas[0].lectura);
 /* Un par con módulos anotados se analiza tal cual. */
 const finM = corte("f", "final", "2026-10-01T11:00:00Z", [RN("L1", 1000, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 5, unidad: "cajas" }] })], "i");
 const iniM = corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 1005, unidad: "cajas" }] })]);
+/* La tolerancia es SOLO para lo que se lee del FEFO: un corte con sus dos lados anotados sigue siendo exacto. */
+p = armarPar(corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 3888, unidad: "cajas" }] })]),
+  corte("f", "final", "2026-10-01T11:00:00Z", [RN("L1", 3744, "E1", "P1", { origenes: [{ ubicacion_id: "uA", cant: 0, unidad: "cajas" }] })], "i"), est, nombre, ctx, "b");
+ok(tabla(p, "zz").estado === "no_cuadra", "con dos cortes anotados 144 cajas de diferencia sí son diferencia: " + tabla(p, "zz").estado);
 /* Solo el final trae módulos: también se ven (no desaparecen). */
 p = armarPar(corte("i", "inicial", "2026-10-01T10:00:00Z", [RN("L1", 0, "E1", "P1")]), finM, est, nombre, ctx, "b");
 ok(p.a.filas[0].origen.modulos.length === 1 && p.a.filas[0].origen.modulos[0].fin === 5 && p.a.filas[0].origen.modulos[0].ini === null && /Solo está en el final/.test(p.a.filas[0].origen.modulos[0].nota), "si solo el final trae el módulo, también se ve: " + JSON.stringify(p.a.filas[0].origen.modulos));
@@ -142,16 +155,18 @@ await monta("c=vacio");
 await pg.click('button:has-text("Nuevo corte inicial")');
 ok(await pg.locator("fieldset.cl-sitio").count() === 1 && /Tomando de/.test(await pg.locator("fieldset.cl-sitio").textContent()), "pide de dónde toma y NO dónde ubica (un solo bloque: «Tomando de»)");
 ok(!/Ubicados en/.test(await txt()), "no aparece «Ubicados en»");
-ok(await pg.locator(".cl-depa input").count() === 1 && await pg.locator(".cl-mat").count() === 2 && /Producto/.test(await pg.locator(".cl-mat-t").first().textContent()) && /Envase/.test(await pg.locator(".cl-mat-t").nth(1).textContent()), "pide las cajas de la depa, el PRODUCTO (con su SKU) y el envase");
+ok(await pg.locator(".cl-par .cl-depa input").count() === 1 && await pg.locator(".cl-par .cl-mat").count() === 1 && await pg.locator(".cl-mat").count() === 2 && /Envase/.test(await pg.locator(".cl-mat-t").first().textContent()) && /Producto/.test(await pg.locator(".cl-mat-t").nth(1).textContent()), "como el diseño: Envase → cajas de la depa en una fila, y el PRODUCTO (con su SKU)");
+ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas cajas\?/.test(await pg.locator("fieldset.cl-sitio .cl-cant-c").textContent()) && await pg.locator("fieldset.cl-sitio .cl-mat").count() === 0, "solo cajas, y el envase no se pide dos veces");
+if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-form.png", fullPage: true });
 await pg.fill(".cl-depa input", "1234");
 await pg.locator("fieldset.cl-sitio select").nth(0).selectOption("A");
 await pg.locator("fieldset.cl-sitio select").nth(1).selectOption("01");
 await pg.locator("fieldset.cl-sitio .cl-cant-c input").fill("40");
-await pg.locator("fieldset.cl-sitio .cl-busca input").fill("flint"); await pg.locator("fieldset.cl-sitio .cl-busca li button").click();
+await pg.locator(".cl-par .cl-busca input").fill("flint"); await pg.locator(".cl-par .cl-busca li button").click();
 await pg.click(".cl-guardar .cl-go");
 ok(/el producto/.test(await pg.locator(".cl-mal").textContent()) && await pg.evaluate(() => window.__rpc.length) === 0, "sin producto no guarda y dice que falta el producto");
-await pg.locator(".cl-mat").first().locator(".cl-busca input").fill("3128"); await pg.locator(".cl-mat").first().locator(".cl-busca li button").click();
-ok(/3128/.test(await pg.locator(".cl-mat").first().locator(".cl-mae").textContent()), "la tarjeta del producto trae su SKU: " + await pg.locator(".cl-mat").first().locator(".cl-mae").textContent());
+await pg.locator(".cl-mat").nth(1).locator(".cl-busca input").fill("3128"); await pg.locator(".cl-mat").nth(1).locator(".cl-busca li button").click();
+ok(/3128/.test(await pg.locator(".cl-mat").nth(1).locator(".cl-mae").textContent()), "la tarjeta del producto trae su SKU: " + await pg.locator(".cl-mat").nth(1).locator(".cl-mae").textContent());
 await pg.click(".cl-guardar .cl-go");
 await pg.waitForFunction(() => window.__rpc.length === 1);
 const rpc = await pg.evaluate(() => window.__rpc[0]);
@@ -178,10 +193,11 @@ ok(/para 3128 · Águila RN 330cc X30/.test(tarj), "la diferencia dice a qué pr
 await pg.selectOption(".dq-barra select", "a");
 ok(/FEFO-A|no hay un FEFO enviado antes|Falta/.test(await txt()), "al cambiar el FEFO se recalcula");
 
+if (process.env.SHOT) await pg.locator(".dq-card").first().screenshot({ path: process.env.SHOT + "-dif.png" });
 /* Un FEFO que NO pasó por el módulo de donde se tomó: la ubicación se ve igual, con lo que había al iniciar. */
 await pg.selectOption(".dq-barra select", "z");
 { const tz = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");
-  ok(/A · 01 · DER/.test(tz) && /no pasó por los módulos de donde se tomó/.test(tz) && /al iniciar el corte/.test(tz), "aunque el FEFO no pasó por el módulo, se ve de dónde se tomó: " + tz.slice(0, 400)) }
+  ok(/A · 01 · DER/.test(tz) && /no pasó por A · 01 · DER: se toma como 0/.test(tz), "aunque el FEFO no pasó por el módulo, se ve de dónde se tomó: " + tz.slice(0, 400)) }
 await pg.selectOption(".dq-barra select", "b");
 
 /* El proceso: el corte 1 abre y no tiene «Ubicados en». */

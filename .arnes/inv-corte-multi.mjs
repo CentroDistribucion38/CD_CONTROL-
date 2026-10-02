@@ -129,7 +129,7 @@ const eligeMod = async (f, i, calle, modulo, lado) => {
   await m.locator("select").nth(1).selectOption(modulo);
   if (lado !== undefined) await m.locator("select").nth(2).selectOption(lado);
 };
-const llenaDestino = async () => { await eligeMod(1, 0, "B", "12", "DER"); await mod(1, 0).locator(".cl-cant-c input").fill("5"); await mod(1, 0).locator(".cl-unidad button:has-text('Cajas')").click() };
+const llenaDestino = async () => { await eligeMod(1, 0, "B", "12", "DER"); await mod(1, 0).locator(".cl-cant-c input").fill("5"); };
 
 /* ---------- 1 · EL ANÁLISIS con varios módulos: total arriba, detalle debajo ---------- */
 await monta("c=multi");
@@ -162,14 +162,13 @@ await monta("c=todo");
   await pg.fill(".cl-depa input", "100");
   await eligeMod(0, 0, "A", "02");
   await mod(0, 0).locator(".cl-cant-c input").fill("10");
-  await mod(0, 0).locator(".cl-unidad button:has-text('Cajas')").click();
   await llenaDestino();
   /* Agregar un segundo módulo: hereda la unidad del anterior y trae su propio «Quitar». */
   await orig.locator('button:has-text("+ Agregar otro módulo")').click();
   ok(await orig.locator(".cl-mod").count() === 2, "«Agregar» no agregó un módulo");
   ok(await orig.locator('button:has-text("Quitar este módulo")').count() === 2, "con dos módulos cada uno debe poder quitarse");
   ok(/Módulo 1/.test(await orig.locator(".cl-mod-cab").nth(0).textContent()) && /Módulo 2/.test(await orig.locator(".cl-mod-cab").nth(1).textContent()), "los módulos no se numeran");
-  ok(await mod(0, 1).locator(".cl-unidad button.on").textContent() === "Cajas", "el módulo nuevo debía heredar la unidad del anterior");
+  ok(await mod(0, 1).locator(".cl-unidad").count() === 0 && /¿Cuántas cajas\?/.test(await mod(0, 1).locator(".cl-cant-c").textContent()), "el módulo nuevo pide cajas y no ofrece estibas");
   ok(await mod(0, 1).locator("select").nth(0).inputValue() === "", "el módulo nuevo debía venir vacío");
   /* El mismo módulo dos veces: lo dice y no llama a la base. */
   await eligeMod(0, 1, "A", "02");
