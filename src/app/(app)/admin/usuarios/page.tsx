@@ -121,6 +121,7 @@ export default async function UsuariosPage({ searchParams }: {
           ingresos={ingresos}
           registros={registros}
           buscar={q}
+          historial={histR.error ? [] : ((histR.data ?? []) as never[])}
         />
       )}
       {!faltaSql && (

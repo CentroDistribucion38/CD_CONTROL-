@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { normalizarUsuario } from "@/lib/auth";
 import { useConfirmar } from "@/components/Confirmar";
 import { PanelLado, Ini, Aviso } from "./PanelLado";
+import type { Mov } from "./Historial";
 import { leerPaleta } from "../../inventario/informe";
 import { colorRol, type ColoresLibro } from "@/modulos/admin/colores-rol";
 
@@ -244,7 +245,7 @@ function TarjetaVista({ datos, listo }: { datos: import("./tarjeta").DatosTarjet
   );
 }
 
-export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingresos, registros, buscar }: {
+export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingresos, registros, buscar, historial }: {
   gente: Persona[];
   roles: Rol[];
   /** Lo que ya da cada rol, para no dar suelto lo que ya venía puesto. */
@@ -257,6 +258,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
   ingresos: Record<string, string | null> | null;
   /** Cuántos registros ha dejado cada uno. null = falta el SQL. */
   registros: Record<string, number> | null;
+  /** Los últimos movimientos de personas, para el Excel completo. */
+  historial?: Mov[];
   /** Lo que llega en ?q= (desde Roles › Quiénes lo tienen). */
   buscar: string;
 }) {
@@ -738,17 +741,66 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     try {
       const [{ armarUsuarios }, { bajarBlob }, logo] = await Promise.all([import("@/modulos/admin/libro-accesos"), import("./tarjeta"), sello()]);
       const filtro = [q.trim() && `búsqueda «${q.trim()}»`, fRol && `rol ${nRol(fRol)}`, fEstado !== "todos" && `estado: ${fEstado}`].filter(Boolean).join(" · ");
+      /* EL EXCEL COMPLETO. La clave NO viaja: se guarda cifrada. Lo que sí:
+         todo el perfil, lo que queda de acceso pantalla por pantalla (misma
+         regla que la tabla de acceso: lo de la persona manda sobre su rol),
+         lo puesto a mano y el historial. */
+      const ids = new Set(visibles.map((p) => p.id));
+      const hayFiltro = visibles.length !== lista.length;
+      const movs = (historial ?? []).filter((m) => !hayFiltro || (m.a_quien && ids.has(m.a_quien)));
+      const creacion = new Map<string, Mov>(), claveNueva = new Map<string, Mov>(), nCambios = new Map<string, number>();
+      for (const m of [...movs].reverse()) {           // del más viejo al más nuevo
+        if (!m.a_quien) continue;
+        if (m.accion === "creado" && !creacion.has(m.a_quien)) creacion.set(m.a_quien, m);
+        if (m.accion === "clave") claveNueva.set(m.a_quien, m);
+        nCambios.set(m.a_quien, (nCambios.get(m.a_quien) ?? 0) + 1);
+      }
+      const manda = (rol: string) => !!roles.find((r) => r.clave === rol)?.manda;
+      const nivelDe = (p: Persona, ruta: string): "ver" | "editar" | "ninguno" =>
+        manda(p.rol) ? "editar" : ((p.permisos_extra ?? {})[ruta] ?? porRol[p.rol]?.[ruta] ?? "ninguno");
+      const pantallas = catalogo.flatMap((m) => m.secciones.map((sec) => ({ modulo: m.nombre, pantalla: sec.nombre, ruta: sec.ruta })));
+      const acceso = pantallas.map((a) => ({
+        ...a,
+        niveles: visibles.map((p) => ({ nivel: nivelDe(p, a.ruta), aMano: !manda(p.rol) && (p.permisos_extra ?? {})[a.ruta] !== undefined })),
+      }));
+      const aMano = visibles.flatMap((p) => manda(p.rol) ? [] : Object.entries(p.permisos_extra ?? {}).map(([ruta, nivel]) => ({
+        nombre: p.nombre || p.usuario || "—", usuario: p.usuario ?? "", rolNombre: nRol(p.rol), pantalla: nRuta(ruta),
+        rolDa: (porRol[p.rol]?.[ruta] ?? "ninguno") as "ver" | "editar" | "ninguno", aMano: nivel as "ver" | "editar" | "ninguno",
+      })));
+      const QUE: Record<string, string> = { creado: "Creado", editado: "Editado", rol: "Cambio de rol", activado: "Activado",
+        desactivado: "Desactivado", clave: "Clave nueva", eliminado: "Eliminado" };
+      const dice = (m: Mov): string => {
+        const d = (m.detalle ?? {}) as Record<string, unknown>;
+        if (m.accion === "rol") return `${nRol(String(d.de ?? ""))} → ${nRol(String(d.a ?? ""))}`;
+        if (m.accion === "creado") return `con rol ${nRol(String(d.rol ?? ""))}${d.lote ? " · creado de a varios" : ""}`;
+        if (m.accion === "editado") return Object.entries(d).map(([k, v]) => {
+          const x = v as { de?: unknown; a?: unknown };
+          return k === "pantallas" ? `pantallas sueltas ${x.de} → ${x.a}` : `${k}: ${x.de ?? "—"} → ${x.a ?? "—"}`;
+        }).join(" · ");
+        return "";
+      };
       const buf = await armarUsuarios({
         gente: visibles.map((p) => ({
           nombre: p.nombre || p.usuario || "—", usuario: p.usuario ?? "", rol: p.rol, rolNombre: nRol(p.rol),
           activo: p.activo, provisional: p.clave_provisional, ingreso: ingresos?.[p.id] ?? null,
           registros: registros ? (registros[p.id] ?? 0) : null, aMano: Object.keys(p.permisos_extra ?? {}).length,
+          creado: creacion.get(p.id)?.hecho_en ?? null, creadoPor: creacion.get(p.id)?.hecho_nombre ?? null,
+          claveNueva: claveNueva.get(p.id)?.hecho_en ?? null,
+          entra: manda(p.rol) ? pantallas.length : pantallas.filter((a) => nivelDe(p, a.ruta) !== "ninguno").length,
+          cambios: nCambios.get(p.id) ?? 0,
         })),
         roles: roles.map((r) => ({ ...r, pantallas: cuantasPantallas(r.clave) })),
         quien: lista.find((p) => p.id === yo)?.nombre || "—", filtro: filtro || undefined, sello: logo, colores: coloresTema(),
+        completo: {
+          acceso, aMano,
+          historial: movs.map((m) => ({
+            fecha: m.hecho_en, aQuien: m.a_quien_nombre || m.a_quien_usuario || "—", usuario: m.a_quien_usuario ?? "",
+            que: QUE[m.accion] ?? m.accion, detalle: dice(m), hizo: m.hecho_nombre ?? "—",
+          })),
+        },
       });
       bajarBlob(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
-        `usuarios-control-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        `usuarios-control-completo-${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch { setMal("No se pudo armar el Excel de usuarios.") }
     finally { setArmando(null) }
   }
@@ -1120,7 +1172,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
               {varios ? "Cerrar" : "Crear varios"}
             </button>
             <button type="button" className="btn sec" onClick={exportarUsuarios} disabled={!visibles.length || !!armando}
-                    title="La lista de abajo, con su filtro, en un Excel con el logo y los roles">
+                    title="Excel completo de la lista de abajo (con su filtro): perfil, accesos pantalla por pantalla, permisos a mano e historial. La clave no sale: se guarda cifrada">
               {armando === "usuarios" ? "Armando…" : "Exportar Excel"}
             </button>
           </div>

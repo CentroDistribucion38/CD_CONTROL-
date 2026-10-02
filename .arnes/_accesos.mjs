@@ -1918,13 +1918,20 @@ async function armarUsuarios(o) {
   wb.creator = "CONTROL \xB7 Usuarios";
   wb.created = /* @__PURE__ */ new Date();
   const sello = o.sello ? wb.addImage({ buffer: o.sello, extension: "png" }) : null;
+  const comp = o.completo;
   const g = o.gente, activos = g.filter((p) => p.activo).length;
   const prov = g.filter((p) => p.activo && p.provisional).length, nunca = g.filter((p) => p.activo && !p.ingreso).length;
   const sub = `${hoy(/* @__PURE__ */ new Date())}  \xB7  ${g.length} ${g.length === 1 ? "persona" : "personas"}${o.filtro ? `  \xB7  ${o.filtro}` : ""}  \xB7  export\xF3 ${o.quien}`;
   const h = wb.addWorksheet("Usuarios", { properties: { tabColor: { argb: P.BANDA } } });
-  const COL = ["Nombre", "Usuario", "Rol", "Estado", "Clave", "\xDAltimo ingreso", "Registros", "Pantallas a mano"];
-  h.columns = [2, 26, 18, 18, 12, 13, 18, 11, 14, 2].map((w) => ({ width: w }));
-  cabecera(h, P, sello, "Usuarios de CONTROL", sub, 10);
+  const COL = ["Nombre", "Usuario", "Rol", "Estado", comp ? "Clave (estado)" : "Clave", "\xDAltimo ingreso", "Registros", "Pantallas a mano"];
+  const ANCHO = [2, 26, 18, 18, 12, comp ? 24 : 13, 18, 11, 14];
+  if (comp) {
+    COL.push("Creado", "Creado por", "\xDAltima clave nueva", "Pantallas a las que entra", "Cambios en su cuenta");
+    ANCHO.push(18, 18, 18, 14, 12);
+  }
+  ANCHO.push(2);
+  h.columns = ANCHO.map((w) => ({ width: w }));
+  cabecera(h, P, sello, comp ? "Usuarios de CONTROL \xB7 completo" : "Usuarios de CONTROL", sub, ANCHO.length);
   const cifras = [
     ["PERSONAS", g.length, P.BANDA],
     ["ACTIVAS", activos, VERDE],
@@ -1971,16 +1978,18 @@ async function armarUsuarios(o) {
     r.height = 21;
     const rc = colorRol(p.rol, o.roles, C);
     const ing = p.ingreso ? new Date(p.ingreso) : null;
+    const cuando = (x) => x ? new Date(x) : "\u2014";
     const vals = [
       p.nombre,
       p.usuario,
       p.rolNombre.toUpperCase(),
       p.activo ? "ACTIVO" : "INACTIVO",
-      p.provisional ? "Provisional" : "Propia",
+      comp ? p.provisional ? "Provisional \xB7 a\xFAn sin cambiar" : "Propia \xB7 la cambi\xF3 la persona" : p.provisional ? "Provisional" : "Propia",
       ing,
       p.registros,
       p.aMano || null
     ];
+    if (comp) vals.push(cuando(p.creado), p.creadoPor || "\u2014", cuando(p.claveNueva), p.entra ?? null, p.cambios ?? null);
     vals.forEach((v, k) => {
       const c = r.getCell(2 + k);
       c.value = v;
@@ -2001,11 +2010,153 @@ async function armarUsuarios(o) {
       r.getCell(7).value = "Nunca";
       r.getCell(7).font = letra(10, P.GRIS, false, { italic: true });
     }
+    if (comp) {
+      r.getCell(10).numFmt = r.getCell(12).numFmt = "dd/mm/yyyy hh:mm";
+      for (const k of [10, 11, 12]) r.getCell(k).alignment = { vertical: "middle", indent: 1, horizontal: "left" };
+      for (const k of [13, 14]) {
+        r.getCell(k).alignment = { vertical: "middle", indent: 1, horizontal: "right" };
+        r.getCell(k).numFmt = "#,##0;-#,##0;\u2013";
+      }
+    }
   });
   const ult = F0 + Math.max(g.length, 1);
-  h.autoFilter = { from: { row: F0, column: 2 }, to: { row: ult, column: 9 } };
-  h.views = [{ state: "frozen", ySplit: F0, showGridLines: false }];
+  h.autoFilter = { from: { row: F0, column: 2 }, to: { row: ult, column: ANCHO.length - 1 } };
+  if (comp) {
+    const n = h.getCell(ult + 2, 2);
+    n.value = "La clave de cada persona NO se puede exportar: se guarda cifrada y nadie la puede leer, ni siquiera el administrador. \xABProvisional\xBB es la que se le dio y a\xFAn no ha cambiado; \xABPropia\xBB la cambi\xF3 ella. Si alguien necesita una, usa \xABNueva clave\xBB en la pantalla Usuarios.";
+    n.font = letra(9, P.GRIS, false, { italic: true });
+  }
+  h.views = [{ state: "frozen", ySplit: F0, xSplit: comp ? 2 : 0, showGridLines: false }];
   h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${F0}:${F0}`, horizontalCentered: true };
+  if (comp) {
+    const cab = (hoja, fila, textos, desde = 2) => {
+      hoja.getRow(fila).height = 30;
+      textos.forEach((t, i) => {
+        const c = hoja.getCell(fila, desde + i);
+        c.value = t;
+        c.font = letra(9, BLANCO, true);
+        c.fill = relleno(P.TINTA);
+        c.alignment = { vertical: "middle", indent: 1, wrapText: true };
+      });
+    };
+    const raya = { bottom: { style: "thin", color: { argb: P.LINEA } } };
+    const NIVEL = {
+      editar: { t: "EDITAR", fondo: "FFD9F2E3", letra: "FF0B5D2E" },
+      ver: { t: "VER", fondo: "FFDCEBFA", letra: "FF0B4F8A" },
+      ninguno: { t: "\u2014", fondo: BLANCO, letra: "FFA0A4A0" }
+    };
+    const M = wb.addWorksheet("Permisos", { properties: { tabColor: { argb: VERDE } } });
+    const nP = g.length;
+    M.columns = [{ width: 2 }, { width: 20 }, { width: 26 }, ...g.map(() => ({ width: 13 })), { width: 2 }];
+    cabecera(
+      M,
+      P,
+      sello,
+      "Qu\xE9 puede hacer cada persona, pantalla por pantalla",
+      "EDITAR \xB7 VER \xB7 \u2014   \xB7   un asterisco (*) es un permiso puesto a mano a esa persona, que manda sobre su rol",
+      3 + nP + 1
+    );
+    cab(M, 6, ["M\xF3dulo", "Pantalla", ...g.map((x) => x.nombre)]);
+    M.getRow(7).height = 16;
+    g.forEach((x, i) => {
+      const rc = colorRol(x.rol, o.roles, C), c = M.getCell(7, 4 + i);
+      c.value = x.rolNombre.toUpperCase();
+      c.fill = relleno("FF" + rc.fondo);
+      c.font = letra(7.5, "FF" + rc.letra, true);
+      c.alignment = { horizontal: "center", vertical: "middle" };
+    });
+    comp.acceso.forEach((a, i) => {
+      const f = 8 + i, r = M.getRow(f);
+      r.height = 19;
+      const m = r.getCell(2);
+      m.value = a.modulo;
+      m.font = letra(9, P.GRIS, true);
+      m.alignment = { vertical: "middle", indent: 1 };
+      const pn = r.getCell(3);
+      pn.value = a.pantalla;
+      pn.font = letra(10, P.TINTA, true);
+      pn.alignment = { vertical: "middle", indent: 1 };
+      m.border = pn.border = raya;
+      a.niveles.forEach((n, k) => {
+        const c = r.getCell(4 + k), v = NIVEL[n.nivel];
+        c.value = v.t + (n.aMano ? " *" : "");
+        c.fill = relleno(v.fondo);
+        c.font = letra(9, v.letra, n.nivel !== "ninguno" || n.aMano);
+        c.alignment = { horizontal: "center", vertical: "middle" };
+        c.border = raya;
+      });
+    });
+    M.views = [{ state: "frozen", ySplit: 7, xSplit: 3, showGridLines: false }];
+    M.autoFilter = { from: { row: 6, column: 2 }, to: { row: 6 + Math.max(comp.acceso.length, 1) + 1, column: 3 + nP } };
+    M.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:7" };
+    const A = wb.addWorksheet("A mano", { properties: { tabColor: { argb: "FFFF6A00" } } });
+    A.columns = [2, 24, 18, 18, 38, 14, 14, 16, 2].map((w) => ({ width: w }));
+    cabecera(
+      A,
+      P,
+      sello,
+      "Permisos puestos a mano",
+      `${comp.aMano.length} ${comp.aMano.length === 1 ? "permiso suelto" : "permisos sueltos"} \xB7 lo que se le dio o quit\xF3 a una persona aparte de su rol`,
+      9
+    );
+    cab(A, 6, ["Persona", "Usuario", "Rol", "Pantalla", "Su rol da", "A mano", "Resultado"]);
+    comp.aMano.forEach((x, i) => {
+      const f = 7 + i, r = A.getRow(f);
+      r.height = 20;
+      const orden = { ninguno: 0, ver: 1, editar: 2 };
+      const res = orden[x.aMano] > orden[x.rolDa] ? "Le abre" : orden[x.aMano] < orden[x.rolDa] ? "Le cierra" : "Sin efecto";
+      [x.nombre, x.usuario, x.rolNombre.toUpperCase(), x.pantalla, NIVEL[x.rolDa].t, NIVEL[x.aMano].t, res].forEach((v, k) => {
+        const c = r.getCell(2 + k);
+        c.value = v;
+        c.border = raya;
+        c.font = letra(10, P.TINTA, k === 0, k === 1 ? { name: MONO } : {});
+        c.alignment = { vertical: "middle", indent: 1, horizontal: k >= 4 ? "center" : "left" };
+      });
+      const rr = r.getCell(8);
+      rr.font = letra(9.5, res === "Le abre" ? "FF0B5D2E" : res === "Le cierra" ? "FFA30D25" : P.GRIS, true);
+    });
+    if (!comp.aMano.length) {
+      const c = A.getCell(7, 2);
+      c.value = "Nadie tiene permisos puestos a mano: todos entran solo por su rol.";
+      c.font = letra(10, P.GRIS, false, { italic: true });
+    }
+    A.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
+    A.autoFilter = { from: { row: 6, column: 2 }, to: { row: 6 + Math.max(comp.aMano.length, 1), column: 8 } };
+    A.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    const H = wb.addWorksheet("Historial", { properties: { tabColor: { argb: P.TINTA } } });
+    H.columns = [2, 18, 24, 18, 18, 52, 22, 2].map((w) => ({ width: w }));
+    cabecera(
+      H,
+      P,
+      sello,
+      "Historial de personas",
+      `${comp.historial.length} ${comp.historial.length === 1 ? "movimiento" : "movimientos"} \xB7 los m\xE1s recientes primero \xB7 qui\xE9n cre\xF3, cambi\xF3 o desactiv\xF3 cada cuenta`,
+      8
+    );
+    cab(H, 6, ["Fecha", "A qui\xE9n", "Usuario", "Qu\xE9 pas\xF3", "Detalle", "Lo hizo"]);
+    comp.historial.forEach((x, i) => {
+      const f = 7 + i, r = H.getRow(f);
+      r.height = 19;
+      const d = new Date(x.fecha);
+      [isNaN(+d) ? x.fecha : d, x.aQuien, x.usuario, x.que, x.detalle, x.hizo].forEach((v, k) => {
+        const c = r.getCell(2 + k);
+        c.value = v;
+        c.border = raya;
+        c.font = letra(10, P.TINTA, k === 1, k === 2 ? { name: MONO } : {});
+        c.alignment = { vertical: "middle", indent: 1, wrapText: k === 4 };
+        if (i % 2 === 1) c.fill = relleno(P.FONDO);
+      });
+      r.getCell(2).numFmt = "dd/mm/yyyy hh:mm";
+    });
+    if (!comp.historial.length) {
+      const c = H.getCell(7, 2);
+      c.value = "Todav\xEDa no hay movimientos (o falta correr el SQL del historial).";
+      c.font = letra(10, P.GRIS, false, { italic: true });
+    }
+    H.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
+    H.autoFilter = { from: { row: 6, column: 2 }, to: { row: 6 + Math.max(comp.historial.length, 1), column: 7 } };
+    H.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
+  }
   const R = wb.addWorksheet("Por rol", { properties: { tabColor: { argb: P.TINTA } } });
   R.columns = [2, 22, 48, 12, 12, 14, 2].map((w) => ({ width: w }));
   cabecera(R, P, sello, "Por rol", sub, 7);
