@@ -59,8 +59,12 @@ type Fila = Vigente & {
   pasado: boolean;
   unidades: number | null;
   quien: string;
-  /** Cuándo se envió el recorrido (o su fecha, si no tiene envío): para ordenar y para la hora. */
+  /** Cuándo se ENVIÓ el recorrido (fecha y hora reales). Vacío si todavía no se envía: no se inventa una hora. */
   cuando: string;
+  /** Lo que se escribe cuando no hay hora de envío: «sin enviar · abierto 1 oct» (borrador) o solo «1 oct» (viejo, sin hora). */
+  sinEnvio: string;
+  /** Día AAAA-MM-DD del recorrido, para ordenar cuando no hay hora de envío. */
+  dia: string;
   /** «-03», o «30/09 -01» si no es del día más reciente de los escogidos. */
   etiqueta: string;
   /** Lo que dice debajo del recorrido: «Reemplazó a -01 (9:12)». */
@@ -243,12 +247,12 @@ const CORTAS: Col<Fila>[] = [
   { k: "unidades", t: "Unidades", num: true, texto: (r) => (r.unidades == null ? "" : String(r.unidades)),
     valor: (r) => r.unidades ?? -1,
     pinta: (r) => (r.unidades == null ? <span className="ba-sin" title="El maestro no trae unidades por caja de este material">—</span> : nf.format(r.unidades)) },
-  { k: "recorrido", t: "Recorrido que vale", texto: (r) => r.conteo, valor: (r) => r.cuando,
+  { k: "recorrido", t: "Recorrido que vale", texto: (r) => r.conteo, valor: (r) => r.cuando || r.dia,
     pinta: (r) => (
       <span className="ba-rec">
         <span className="ba-tag-fila">
           <span className={"ba-tag" + (r.reemplaza ? " nuevo" : "")}>{r.etiqueta}</span>
-          {r.cuando ? <> {diaCorto(r.cuando)} {hora(r.cuando)}</> : null}
+          {r.cuando ? <> {diaCorto(r.cuando)} {hora(r.cuando)}</> : r.sinEnvio ? <> <span className="ba-sinenvio">{r.sinEnvio}</span></> : null}
         </span>
         <small>{r.quien}</small>
         {r.reemplazo && <span className="ba-reemplazo">{r.reemplazo}</span>}
@@ -352,7 +356,9 @@ export function Base({
       pasado: yaPasados.has(r.id),
       unidades: u ? Number(r.total_cajas) * u : null,
       quien: c?.envio_nombre ?? c?.responsable ?? "—",
-      cuando: c?.enviado_en ?? (f ? f + "T12:00:00Z" : ""),
+      cuando: c?.enviado_en ?? "",
+      dia: f,
+      sinEnvio: c?.enviado_en || !f ? "" : c?.estado === "cerrado" ? diaDe(f) : `sin enviar · abierto ${diaDe(f)}`,
       etiqueta: !f || f === diaTope ? suf : `${ddmm(f)} ${suf}`,
       reemplazo: rp
         ? `Reemplazó a ${cp?.fecha_analisis && cp.fecha_analisis !== f ? ddmm(cp.fecha_analisis) + " " : ""}${sufijoRecorrido(rp.conteo)}${rp.cuando ? ` (${hora(rp.cuando)})` : ""}`

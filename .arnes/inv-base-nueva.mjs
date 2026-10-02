@@ -203,6 +203,11 @@ ok(lin.length === 2 + 4, "el CSV baja lo que se ve (4 envases): " + (lin.length 
 ok(/;PASADO$/.test(lin.find((l) => /A02_DER/.test(l)) ?? "") && /;POR PASAR$/.test(lin.find((l) => /A03_IZQ/.test(l)) ?? ""), "el CSV debe decir el Estado de cada renglón: " + lin.slice(2).join(" || "));
 await pg.click('.ba-seg button:has-text("Todo")');
 
+/* ===== 6b · «Recorrido que vale»: el día y la hora en que se ENVIÓ (hora de Colombia) ===== */
+{
+  const recs = await pg.locator(".ba-t tbody .ba-rec").allTextContents();
+  ok(recs.length > 0 && recs.every((t) => /\d+ (sep|oct) \d+:\d\d/.test(t) && !/sin enviar/.test(t)), "cada recorrido enviado muestra día y hora de envío: " + recs.join(" | "));
+}
 /* ===== 7 · exportar consolidado ===== */
 await pg.evaluate(() => { window.__pedidos = [] });
 await pg.click(".ba-prim");
@@ -224,6 +229,12 @@ ok(await pg.locator(".ba-kp").count() === 0 && await pg.locator(".ba-ctrl").coun
 ok(/solo para mirar/.test(await txt(".ba-dice.ojo")) && /FEFO-20261001-04 \(Génesis\)/.test(await txt(".ba-dice.ojo")), "el aviso del borrador: " + await txt(".ba-dice.ojo"));
 ok(await filas().count() === 1 && !/Estado/.test(await txt(".ba-t thead")) && await pg.locator(".ba-t tbody .ba-pas, .ba-t tbody .ba-pen").count() === 0, "el borrador no lleva Estado");
 ok(await pg.locator(".ba-pasar").count() === 0 && await pg.locator(".ba-t .ba-chk").count() === 0, "del borrador no se marca nada");
+/* La fecha del recorrido es la del ENVÍO; el borrador no tiene hora inventada: dice que no se ha enviado y cuándo se abrió. */
+{
+  const rec = await pg.locator(".ba-t tbody .ba-rec").first().textContent();
+  ok(/sin enviar · abierto 1 oct/.test(rec), "el borrador dice «sin enviar · abierto 1 oct»: " + rec);
+  ok(!/\d+:\d\d/.test(rec), "el borrador no lleva una hora inventada: " + rec);
+}
 await monta({ manda: true, puede: true });
 await pg.click('.ba-tabs button:has-text("Borradores")');
 ok(await pg.locator(".ba-t .ba-chk").count() === 0 && await pg.locator(".ba-quitar").count() === 0 && await pg.locator(".ba-pasar").count() === 0, "ni siquiera el administrador toca los borradores");

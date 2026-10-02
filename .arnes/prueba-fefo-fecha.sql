@@ -89,10 +89,50 @@ end $$;
 -- F4 · si ya decía ese día, no se renumera
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111'; set role probador;
 do $$
-declare r record; c text := 'FEFO-20261001-01';
+declare r record; c text;
 begin
+  select codigo into c from public.v_conteos_fefo where id='eeeeeeee-0000-0000-0000-000000000001';
   select * into r from public.conteo_fefo_cambiar_fecha('eeeeeeee-0000-0000-0000-000000000001', c, (now() at time zone 'America/Bogota')::date);
   if r.codigo_nuevo <> c then raise exception 'FALLA F4: renumeró de más (% → %)', c, r.codigo_nuevo; end if;
   raise notice 'F4 · repetir la misma fecha no cambia el código';
 end $$;
 reset role;
+
+-- G · la fecha de un recorrido ENVIADO es el día del envío (Colombia); el que no se ha enviado, el día en que se abrió
+reset role;
+insert into public.conteos (id, codigo, bodega_id, estado, tipo, creado_en, enviado_en) values
+  /* abierto el 1/10 a las 10 a. m., enviado el 2/10 a las 11:30 p. m. de Bogotá (ya es 3/10 en UTC) */
+  ('eeeeeeee-0000-0000-0000-000000000011','FEFO-20261001-05','bbbbbbbb-0000-0000-0000-000000000001','cerrado','fefo','2026-10-01 10:00:00-05','2026-10-02 23:30:00-05'),
+  /* abierto el 1/10 a las 9 p. m. de Bogotá (2/10 en UTC) y todavía sin enviar */
+  ('eeeeeeee-0000-0000-0000-000000000012','FEFO-20261001-06','bbbbbbbb-0000-0000-0000-000000000001','borrador','fefo','2026-10-01 21:00:00-05',null);
+do $$
+begin
+  if (select fecha_analisis from public.v_conteos_fefo where id='eeeeeeee-0000-0000-0000-000000000011') <> '2026-10-02' then
+    raise exception 'FALLA G1: el recorrido enviado el 2/10 (11:30 p. m.) no vale el 2/10: %', (select fecha_analisis from public.v_conteos_fefo where id='eeeeeeee-0000-0000-0000-000000000011'); end if;
+  if (select fecha_analisis from public.v_conteos_fefo where id='eeeeeeee-0000-0000-0000-000000000012') <> '2026-10-01' then
+    raise exception 'FALLA G1: el borrador abierto el 1/10 (9 p. m.) no vale el 1/10: %', (select fecha_analisis from public.v_conteos_fefo where id='eeeeeeee-0000-0000-0000-000000000012'); end if;
+  raise notice 'G1 · enviado vale el día del envío en hora de Colombia; sin enviar, el día en que se abrió';
+end $$;
+-- G2 · cambiar la fecha de uno enviado mueve también el día del envío; el borrador conserva «sin enviar»
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111'; set role probador;
+select * from public.conteo_fefo_cambiar_fecha('eeeeeeee-0000-0000-0000-000000000011','FEFO-20261001-05','2026-09-29');
+select * from public.conteo_fefo_cambiar_fecha('eeeeeeee-0000-0000-0000-000000000012','FEFO-20261001-06','2026-09-28');
+reset role;
+do $$
+begin
+  if (select fecha_analisis from public.v_conteos_fefo where id='eeeeeeee-0000-0000-0000-000000000011') <> '2026-09-29' then raise exception 'FALLA G2: el enviado no cambió de día'; end if;
+  if (select (enviado_en at time zone 'America/Bogota')::date from public.conteos where id='eeeeeeee-0000-0000-0000-000000000011') <> '2026-09-29' then raise exception 'FALLA G2: no se movió el día de envío'; end if;
+  if (select fecha_analisis from public.v_conteos_fefo where id='eeeeeeee-0000-0000-0000-000000000012') <> '2026-09-28' then raise exception 'FALLA G2: el borrador no cambió de día'; end if;
+  if (select enviado_en from public.conteos where id='eeeeeeee-0000-0000-0000-000000000012') is not null then raise exception 'FALLA G2: el borrador quedó como enviado'; end if;
+  raise notice 'G2 · cambiar la fecha mueve el día del envío; un borrador sigue sin enviar';
+end $$;
+-- G3 · pasar un enviado a «hoy» no lo deja enviado en el futuro (aunque aún no sea mediodía)
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111'; set role probador;
+select * from public.conteo_fefo_cambiar_fecha('eeeeeeee-0000-0000-0000-000000000011','FEFO-20260929-01', (now() at time zone 'America/Bogota')::date);
+reset role;
+do $$
+begin
+  if (select enviado_en from public.conteos where id='eeeeeeee-0000-0000-0000-000000000011') > now() then raise exception 'FALLA G3: quedó enviado en el futuro'; end if;
+  if (select fecha_analisis from public.v_conteos_fefo where id='eeeeeeee-0000-0000-0000-000000000011') <> (now() at time zone 'America/Bogota')::date then raise exception 'FALLA G3: no vale hoy'; end if;
+  raise notice 'G3 · un envío movido a hoy no queda en el futuro';
+end $$;
