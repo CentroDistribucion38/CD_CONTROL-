@@ -298,7 +298,8 @@ for (const ancho of [1200, 390, 360]) {
   await pg.check('input[aria-label="Seleccionar a Génesis Visbal"]');
   const g = await pg.evaluate(() => {
     const alto = (s) => Math.min(...[...document.querySelectorAll(s)].map((x) => x.getBoundingClientRect().height).filter((h) => h > 0));
-    const fuera = [...document.querySelectorAll(".us-filtros *, .us-lote *")].filter((x) => x.getBoundingClientRect().right > innerWidth + 0.5);
+    /* La barra de marcados es una franja que se desliza de lado en el celular: ella cabe, sus botones pueden pasarse. */
+    const fuera = [...document.querySelectorAll(".us-filtros *, .us-lote")].filter((x) => x.getBoundingClientRect().right > innerWidth + 0.5);
     return { lado: document.documentElement.scrollWidth - innerWidth, fuera: fuera.length, tocar: alto(".us-filtros select, .us-filtros input, .us-lote .btn, .us-lote select") };
   });
   ok(g.lado <= 0 && g.fuera === 0, `${ancho} px: la página se sale (${g.lado} px, ${g.fuera} elementos)`);

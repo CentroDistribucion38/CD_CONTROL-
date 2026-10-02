@@ -75,3 +75,34 @@
 @media (max-width: 420px) {
   .rl.bd .bd-fechas { grid-template-columns: minmax(0, 1fr) }
 }
+
+/* =====================================================================
+   BORRAR DATOS EN EL CELULAR (solo por debajo de 700 px)
+
+   · De cada opción solo se explica la ESCOGIDA: las otras son una línea
+     (nombre) y se tocan; cuatro párrafos de «Detalle de…» empujaban el
+     paso 2 y el 3 fuera de la pantalla.
+   · Lo que se ha borrado son tarjetas —qué, cuándo, fechas, filas,
+     archivos y quién—, no una tabla de seis columnas que rueda de lado.
+   ===================================================================== */
+@media (max-width: 700px) {
+  .rl.bd .bd-punto { min-height: 56px; align-items: center; padding: 10px }
+  .rl.bd .bd-punto input { width: 22px; height: 22px; flex-basis: 22px; margin: 0 }
+  .rl.bd .bd-punto:not(.aqui) i { display: none }
+
+  .rl.bd .bd-tabla-env { overflow-x: visible }
+  .rl.bd .bd-tabla, .rl.bd .bd-tabla thead, .rl.bd .bd-tabla tbody { display: block; min-width: 0; width: 100% }
+  .rl.bd .bd-tabla thead { display: none }
+  .rl.bd .bd-tabla tbody tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px; padding: 12px 16px; border-top: 1px solid var(--c-edf1f6) }
+  .rl.bd .bd-tabla tbody td { display: block; padding: 0; border: 0; font-size: 13px; color: var(--rl-gris) }
+  .rl.bd .bd-tabla td:nth-child(2) { order: 0; flex: 1 1 100%; font: 700 14.5px var(--rl-titulo); color: var(--rl-tinta) }
+  .rl.bd .bd-tabla td:nth-child(1) { order: 1; flex: 1 1 100% }
+  .rl.bd .bd-tabla td:nth-child(3) { order: 2; flex: 1 1 100% }
+  .rl.bd .bd-tabla td:nth-child(4), .rl.bd .bd-tabla td:nth-child(5), .rl.bd .bd-tabla td:nth-child(6) { order: 3; flex: 0 0 auto; text-align: left }
+  .rl.bd .bd-tabla td:nth-child(1)::before { content: "Cuándo: " }
+  .rl.bd .bd-tabla td:nth-child(3)::before { content: "Fechas: " }
+  .rl.bd .bd-tabla td:nth-child(4)::before { content: "Filas: " }
+  .rl.bd .bd-tabla td:nth-child(5)::before { content: "Archivos: " }
+  .rl.bd .bd-tabla td:nth-child(6)::before { content: "Quién: " }
+  .rl.bd .bd-tabla td:nth-child(4) { color: var(--rl-tinta); font-weight: 700 }
+}

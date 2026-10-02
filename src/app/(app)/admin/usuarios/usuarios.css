@@ -814,3 +814,114 @@
 .us-tj-vista img { display: block; width: 100%; max-width: 420px; max-height: 62dvh; object-fit: contain; border-radius: 16px }
 .us-tj-cargando { display: grid; place-items: center; width: 100%; max-width: 420px; aspect-ratio: 579 / 725; border-radius: 16px;
   background: var(--c-eef1f5, #eef1f5); color: var(--c-5b6b7f, #5b6b7f); font: 600 14px var(--rl-texto, inherit) }
+
+/* =====================================================================
+   USUARIOS EN EL CELULAR — una lista de personas, no una tabla
+
+   «El módulo de administración en el celular es complejo.» Una tabla de
+   ocho columnas rodando de lado, seis botones por fila y una barra negra
+   de cinco botones apilados no se leen con una mano. Aquí, SOLO por debajo
+   de 700 px (el escritorio queda igual):
+
+   · cada persona es una tarjeta: nombre y estado arriba, usuario, rol,
+     último ingreso y registros debajo, y tres botones del ancho del dedo
+     —Editar, Nueva clave y «Más», que guarda Desactivar y Eliminar—;
+   · el filtro se esconde tras «Filtrar y ordenar» (con cuántos hay puestos);
+   · lo que se hace con los marcados vive en una barra fija ABAJO, donde
+     está el pulgar, en una sola fila que se desliza;
+   · las ventanas (claves, tarjeta, cambiar rol, eliminar) ocupan la
+     pantalla entera, con los botones pegados abajo.
+   ===================================================================== */
+.us .us-filtros-bot, .us .us-mas-bot { display: none }
+@media (max-width: 700px) {
+  /* ---- arriba: crear, ancho; las otras dos a medias ---- */
+  .us .us-cab-bot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100% }
+  .us .us-cab-bot .btn:first-child { grid-column: 1 / -1 }
+  .us .us-cab-bot .btn { padding: 0 8px; white-space: nowrap }
+
+  /* ---- filtros tras un botón ---- */
+  .us .us-filtros { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: center }
+  .us .us-filtros .us-buscar { grid-column: 1 / -1; order: 0 }
+  .us .us-filtros .us-buscar input { height: 48px; font-size: 16px }
+  .us .us-filtros-bot {
+    order: 1; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; cursor: pointer;
+    background: #fff; color: var(--rl-tinta); border: 1.5px solid var(--rl-linea); border-radius: 2px;
+    font: 700 13.5px var(--rl-texto);
+  }
+  .us .us-filtros-bot i {
+    font-style: normal; min-width: 22px; height: 22px; padding: 0 6px; display: inline-grid; place-items: center;
+    border-radius: 999px; background: var(--c-marca, #FFC000); color: var(--c-marca-txt, #12263A); font: 800 12px var(--rl-texto);
+  }
+  .us .us-filtros .us-cuenta { order: 1; justify-self: end; margin: 0 }
+  .us .us-filtros label:not(.us-buscar) { display: none; order: 2; grid-column: 1 / -1 }
+  .us .us-filtros.abiertos label:not(.us-buscar) { display: flex }
+
+  /* ---- la lista: tarjetas ---- */
+  .us .us-marco { overflow-x: visible }
+  .us .us-tabla:not(.us-tabla-lote):not(.us-tabla-claves) { display: block; width: 100%; min-width: 0 }
+  .us .us-tabla:not(.us-tabla-lote):not(.us-tabla-claves) thead,
+  .us .us-tabla:not(.us-tabla-lote):not(.us-tabla-claves) tbody { display: block }
+  .us .us-tabla:not(.us-tabla-lote):not(.us-tabla-claves) thead tr {
+    display: flex; align-items: center; padding: 4px 12px 4px 0; background: var(--c-fafbfd); border-bottom: 1px solid var(--rl-linea);
+  }
+  .us .us-tabla:not(.us-tabla-lote):not(.us-tabla-claves) thead th { display: none }
+  .us .us-tabla:not(.us-tabla-lote):not(.us-tabla-claves) thead th.us-marca {
+    display: flex; align-items: center; width: auto; padding: 0; border: 0; background: none;
+  }
+  .us .us-tabla thead th.us-marca::after { content: "Seleccionar todos"; font: 600 13.5px var(--rl-texto); letter-spacing: 0; text-transform: none; color: var(--rl-gris) }
+  .us .us-tabla thead th.us-marca input { margin: 0 8px 0 11px }
+
+  .us .us-tabla:not(.us-tabla-lote):not(.us-tabla-claves) tbody tr:not(.us-panel) {
+    display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; column-gap: 0; row-gap: 5px; align-items: center;
+    padding: 12px 14px 12px 0; border-bottom: 1px solid var(--c-edf1f6);
+  }
+  .us .us-tabla tbody tr:not(.us-panel) > td { display: block; padding: 0; border: 0; background: transparent; min-width: 0 }
+  .us .us-tabla tbody tr.us-sel { background: color-mix(in srgb, var(--c-marca, #FFC000) 12%, #fff) }
+  .us .us-tabla tbody tr.us-sel > td, .us .us-tabla tbody tr.us-editando > td { background: transparent }
+  .us .us-tabla tbody tr.us-editando { background: var(--c-f7f9fc); box-shadow: inset 4px 0 0 var(--rl-acento) }
+  .us .us-tabla .us-editando > td:first-child { box-shadow: none }
+  .us .us-tabla tbody td[colspan] { grid-column: 1 / -1; padding: 18px 14px }
+  .us .us-tabla tbody tr.us-panel, .us .us-tabla tbody tr.us-panel > td { display: block; width: 100% }
+  .us .us-tabla tbody tr.us-panel > td { padding: 14px }
+
+  .us .us-tabla td.us-marca { grid-column: 1; grid-row: 1 / span 5; align-self: start; display: grid; place-items: start center; width: auto }
+  .us .us-tabla td.us-marca input { width: 24px; height: 24px; margin-top: 2px }
+  .us .us-tabla td.us-c-nombre { grid-column: 2; grid-row: 1; font: 700 16px/1.25 var(--rl-titulo); overflow-wrap: anywhere }
+  .us .us-tabla td.us-c-estado { grid-column: 3; grid-row: 1; justify-self: end }
+  .us .us-tabla td.us-c-usuario { grid-column: 2 / -1; grid-row: 2; font: 500 13px ui-monospace, Menlo, monospace; color: var(--rl-gris) }
+  .us .us-tabla td.us-c-rol { grid-column: 2 / -1; grid-row: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px }
+  .us .us-tabla td.us-c-rol .us-cuantas { margin: 0 }
+  .us .us-tabla td.us-c-rol .us-chapa { margin: 0 }
+  .us .us-tabla td.us-ingreso { grid-column: 2; grid-row: 4; white-space: normal; font-size: 12.5px; color: var(--rl-gris) }
+  .us .us-tabla td.us-c-reg { grid-column: 3; grid-row: 4; text-align: right; padding-left: 12px; font-size: 12.5px; color: var(--rl-gris) }
+  .us .us-tabla td.us-ingreso::before { content: "Último ingreso: " }
+  .us .us-tabla td.us-c-reg::before { content: "Registros: " }
+  .us .us-tabla td.us-acc { grid-column: 2 / -1; grid-row: 5; text-align: left; margin-top: 6px; white-space: normal }
+  .us .us-tabla .us-estado.bien { display: none }          /* «al día» es lo normal: solo se dicen las excepciones */
+
+  .us .us-tabla .us-acc-in { flex-wrap: wrap; justify-content: flex-start; gap: 8px }
+  .us .us-tabla .us-acc-in .us-mini { flex: 1 1 auto; min-width: 64px; padding: 0 8px; font-size: 12.5px; white-space: nowrap }
+  .us .us-tabla .us-acc-in .apagado { flex: 1 1 100%; font-size: 12.5px }
+  .us .us-tabla .us-acc-in .us-mas-bot { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto }
+  .us .us-tabla .us-acc-in .us-mas-sec { display: none }
+  .us .us-tabla tr.mas-on .us-acc-in .us-mas-sec { display: inline-flex; align-items: center; justify-content: center; flex: 1 1 calc(50% - 4px) }
+
+  /* ---- lo de los marcados: una barra fija ABAJO, de una sola fila ---- */
+  .us .us-lote {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 40;
+    flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); gap: 8px;
+    box-shadow: 0 -8px 22px rgba(4, 20, 40, .28);
+  }
+  .us .us-lote > * { flex: none; white-space: nowrap }
+  .us .us-lote .btn { height: 44px; padding: 0 16px; font-size: 14px }
+  .us:has(.us-lote) { padding-bottom: 92px }
+
+  /* ---- las ventanas, a pantalla entera ---- */
+  .us-modal-velo { padding: 0; place-items: stretch }
+  .us-modal { width: 100%; max-height: 100dvh; height: 100dvh }
+  .us-modal .us-pnl { max-height: 100dvh; height: 100%; border-radius: 0; box-shadow: none }
+  .us .us-cuerpo > .us-pnl { position: fixed; inset: 0; z-index: 60; max-height: none; height: 100dvh; border: 0 }
+  .us-pnl-cab { padding: 10px 12px }
+  .us-pnl-pie { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) }
+}

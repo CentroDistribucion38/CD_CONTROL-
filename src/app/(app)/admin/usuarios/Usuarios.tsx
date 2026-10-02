@@ -280,6 +280,11 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
   const [fRol, setFRol] = useState("");
   const [fEstado, setFEstado] = useState<Estado>("todos");
   const [orden, setOrden] = useState<Orden>("nombre");
+  /* SOLO EN EL CELULAR: los filtros se esconden tras un botón y las acciones raras de cada persona (desactivar,
+     eliminar) tras «Más», para que la lista se lea como una lista y no como un tablero. En escritorio no cambia nada. */
+  const [verFiltros, setVerFiltros] = useState(false);
+  const [masId, setMasId] = useState<string | null>(null);
+  const nFiltros = (fRol ? 1 : 0) + (fEstado !== "todos" ? 1 : 0) + (orden !== "nombre" ? 1 : 0);
   const plano = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const visibles = useMemo(() => {
     const t = plano(q.trim());
@@ -1241,7 +1246,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
         )}
 
         {/* BUSCAR Y FILTRAR: arriba de la tabla, en una fila. */}
-        <div className="us-filtros">
+        <div className={"us-filtros" + (verFiltros ? " abiertos" : "")}>
           <label className="us-buscar">
             <span>Buscar</span>
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)}
@@ -1273,6 +1278,11 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
               {registros && <option value="registros">Más registros</option>}
             </select>
           </label>
+          <button type="button" className="us-filtros-bot" aria-expanded={verFiltros}
+                  onClick={() => setVerFiltros((v) => !v)}>
+            {verFiltros ? "Ocultar filtros" : "Filtrar y ordenar"}
+            {nFiltros > 0 && <i aria-label={`${nFiltros} activos`}>{nFiltros}</i>}
+          </button>
           <p className="us-cuenta">{visibles.length === lista.length ? `${lista.length} en total` : `${visibles.length} de ${lista.length}`}</p>
         </div>
 
@@ -1317,26 +1327,26 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                 const ex = Object.entries(p.permisos_extra ?? {});
                 const enEdicion = editando === p.id;
                 const fila = (
-                  <tr key={p.id} className={(enEdicion ? "us-editando" : "") + (sel.has(p.id) ? " us-sel" : "")}>
+                  <tr key={p.id} className={(enEdicion ? "us-editando" : "") + (sel.has(p.id) ? " us-sel" : "") + (masId === p.id ? " mas-on" : "")}>
                     <td className="us-marca">
                       <input type="checkbox" checked={sel.has(p.id)} onChange={() => marcar(p.id)}
                              aria-label={`Seleccionar a ${p.nombre || p.usuario}`} />
                     </td>
-                    <td>
+                    <td className="us-c-nombre">
                       {enEdicion ? (
                         <input className="us-campo" value={edNombre} autoFocus
                                aria-label="Nombre"
                                onChange={(e) => setEdNombre(e.target.value)} />
                       ) : (p.nombre || "—")}
                     </td>
-                    <td className="cod">
+                    <td className="cod us-c-usuario">
                       {enEdicion ? (
                         <input className="us-campo cod" value={edUsuario}
                                aria-label="Usuario"
                                onChange={(e) => setEdUsuario(normalizarUsuario(e.target.value))} />
                       ) : (p.usuario || "—")}
                     </td>
-                    <td>
+                    <td className="us-c-rol">
                       {enEdicion ? (
                         <select className="us-campo" value={edRol} aria-label="Rol"
                                 onChange={(e) => setEdRol(e.target.value)}>
@@ -1365,7 +1375,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                             </button>}
                     </div>
                     </td>
-                    <td>
+                    <td className="us-c-estado">
                       {!p.activo
                         ? <span className="us-estado mal">inactivo</span>
                         : p.clave_provisional
@@ -1373,7 +1383,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                           : <span className="us-estado bien">al día</span>}
                     </td>
                     <td className="us-ingreso">{ingresos ? haceCuanto(ingresos[p.id]) : "—"}</td>
-                    <td className="num">{registros ? (registros[p.id] ?? 0).toLocaleString("es-CO") : "—"}</td>
+                    <td className="num us-c-reg">{registros ? (registros[p.id] ?? 0).toLocaleString("es-CO") : "—"}</td>
                     <td className="us-acc"><div className="us-acc-in">
                       {enEdicion ? (
                         <>
@@ -1409,14 +1419,20 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                             </button>
                           )}
                           {p.id !== yo && (
-                            <button type="button" className="us-mini"
+                            <button type="button" className="us-mini us-mas-bot" aria-expanded={masId === p.id}
+                                    onClick={() => setMasId((x) => (x === p.id ? null : p.id))}>
+                              {masId === p.id ? "Menos" : "Más"}
+                            </button>
+                          )}
+                          {p.id !== yo && (
+                            <button type="button" className="us-mini us-mas-sec"
                                     disabled={!hayLlave || enLote || !!editando}
                                     onClick={() => lote(p.activo ? "desactivar" : "activar", [p.id])}>
                               {p.activo ? "Desactivar" : "Activar"}
                             </button>
                           )}
                           {p.id !== yo && (
-                            <button type="button" className="us-mini peligro"
+                            <button type="button" className="us-mini us-mas-sec peligro"
                                     disabled={!hayLlave || enLote || !!editando}
                                     title={(registros?.[p.id] ?? 0) > 0 ? "Tiene registros: se desactiva en vez de borrarse" : "No ha registrado nada: se borra del todo"}
                                     onClick={() => abrir({ tipo: "eliminar", ids: [p.id] })}>

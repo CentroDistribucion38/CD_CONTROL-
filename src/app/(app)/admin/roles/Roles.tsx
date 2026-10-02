@@ -89,6 +89,9 @@ export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: 
     return m;
   });
   const [sucio, setSucio] = useState(false);
+  /* SOLO EN EL CELULAR: qué módulos están abiertos. Todos nacen cerrados (49 pantallas seguidas no se leen);
+     en escritorio no cuenta: ahí siempre se ven todos. */
+  const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
   const [pestana, setPestana] = useState<Pestana>("pantallas");
   /* BORRAR y DUPLICAR se abren AQUÍ, debajo del título del rol, y no en
      una ventana: lo que se decide —a qué rol pasar a la gente, cómo se
@@ -342,7 +345,7 @@ export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: 
               </p>
             </div>
             {!rol?.manda && (
-              <div className="rl-acciones">
+              <div className={"rl-acciones" + (sucio ? " sucio" : "")}>
                 <span className="rl-cuenta">{marcadas} de {total}</span>
                 <button type="button" className="btn" disabled={!sucio || guardando} onClick={guardar}>
                   {guardando ? "Guardando…" : sucio ? "Guardar cambios" : "Sin cambios"}
@@ -440,10 +443,18 @@ export function Roles({ roles, permisos, catalogo, cuantos, gente, historial }: 
                     secs: m.secciones.filter((x) => x.rama === r.id && x.ruta !== r.permiso),
                   })).filter((g) => g.secs.length > 0 || g.permiso),
                 ];
+                const conAcceso = niveles.filter((x) => x !== "ninguno").length;
+                const abierto = abiertos.has(m.id);
                 return (
-                  <div key={m.id} className="rl-modulo">
+                  <div key={m.id} className={"rl-modulo" + (abierto ? " abierto" : "")}>
                     <header style={{ borderLeftColor: m.acento }}>
-                      <b>{m.nombre}</b>
+                      <b className="rl-nom">{m.nombre}</b>
+                      {/* SOLO EN EL CELULAR: el módulo es un renglón que se abre; dice cuántas pantallas tiene abiertas. */}
+                      <button type="button" className="rl-abre" aria-expanded={abierto}
+                              onClick={() => setAbiertos((a) => { const n = new Set(a); if (n.has(m.id)) n.delete(m.id); else n.add(m.id); return n })}>
+                        <strong>{m.nombre}</strong>
+                        <span className="rl-resumen">{conAcceso} de {m.secciones.length} con acceso</span>
+                      </button>
                       <div className="rl-todo">
                         {NIVELES.map((n) => (
                           <button key={n.v} type="button"
