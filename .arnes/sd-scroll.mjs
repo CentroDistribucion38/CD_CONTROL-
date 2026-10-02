@@ -1,5 +1,5 @@
 /* =====================================================================
-   CUÁNTO ALTO LE QUEDA A LA LISTA DE TRÁNSITO
+   LA LISTA DE TRÁNSITO RUEDA CON LA PÁGINA (SIN INMOVILIZAR NADA)
 
    EL PROBLEMA, dicho por Cristian: «el scroll muy cortico». La lista de
    vehículos vive debajo de la cabeza, la cinta de asuntos y la fila de
@@ -127,7 +127,7 @@ if (inventadas.length)
 const navegador = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pag = await navegador.newPage();
 
-console.log("pantalla          arranca en   alto lista   %  de la pantalla   filas");
+console.log("pantalla          página      lista por dentro   cabeza al bajar");
 for (const p of PANTALLAS) {
   await pag.setViewportSize({ width: p.w, height: p.h });
   await pag.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>
@@ -138,40 +138,32 @@ for (const p of PANTALLAS) {
     main{padding:26px 30px 40px;display:flex;flex-direction:column;gap:16px;min-width:0}
   </style></head><body><div class="app-barra"></div><main>${ARMAZON}</main></body></html>`);
 
-  const r = await pag.evaluate(() => {
-    const alto = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().height : 0 };
-    const caja = document.getElementById("lista").getBoundingClientRect();
+  /* «QUITA LA INMOVILIZACIÓN»: antes la cabeza y los filtros se quedaban
+     quietos y las tarjetas rodaban en una caja con su propia barra. Ahora
+     rueda LA PÁGINA ENTERA y la lista no tiene scroll por dentro. */
+  const r = await pag.evaluate(async () => {
+    const lista = document.getElementById("lista"), cs = getComputedStyle(lista);
+    const pant = document.querySelector(".tr-pantalla"), ps = getComputedStyle(pant);
+    const cab = document.querySelector(".cabeza");
+    window.scrollTo(0, 0); await new Promise((r) => setTimeout(r, 30));
+    const y0 = cab.getBoundingClientRect().top;
+    window.scrollTo(0, 400); await new Promise((r) => setTimeout(r, 60));
     return {
-      arranca: Math.round(caja.top),
-      alto: Math.round(caja.height),
-      /* LO QUE SE APILA HACIA ABAJO NO ES LA TARJETA, ES LA FILA: las
-         tarjetas van en rejilla y a 1280 px caben tres al lado. Lo que
-         obliga a rodar es el grupo —su encabezado más una fila— así que
-         eso es lo que hay que contar. */
-      fila: Math.round(alto(".tr-grupo-cab") + alto(".tr-vh") + 10),
+      ov: cs.overflowY, mh: cs.maxHeight, mask: cs.maskImage || cs.webkitMaskImage || "none",
+      interno: lista.scrollHeight - lista.clientHeight,
+      pantAlto: ps.height, pantDisp: ps.display,
+      doc: document.documentElement.scrollHeight, vista: innerHeight,
+      y0, y1: cab.getBoundingClientRect().top, rodo: window.scrollY,
     };
   });
-
-  const filas = r.fila > 0 ? (r.alto / (r.fila + 14)).toFixed(1) : "?";
-  const pct = ((r.alto / p.h) * 100).toFixed(0);
-  console.log(
-    `${p.nombre.padEnd(16)} ${String(r.arranca).padStart(6)} px ${String(r.alto).padStart(9)} px ` +
-    `${pct.padStart(12)} %   ${filas} filas`);
-
-  /* LA LISTA TIENE QUE SER LO MÁS ALTO DE LA PANTALLA. Si el armazón se
-     come más de la mitad, la pantalla está hablando de sí misma en vez
-     de mostrar camiones. */
-  if (r.alto < p.h * 0.45)
-    fallas.push(`${p.nombre}: la lista ocupa el ${pct} % de la pantalla (mínimo 45 %)`);
-  /* Y no puede pasarse: si la lista termina por debajo del borde, la
-     página entera rueda además de la lista, y entonces hay dos scrolls
-     peleando, que es lo peor que le puede pasar a una tabla. */
-  if (r.arranca + r.alto > p.h + 2)
-    fallas.push(`${p.nombre}: la lista termina ${r.arranca + r.alto - p.h} px por debajo del borde: dos scrolls peleando`);
-  /* Y tiene que verse una fila entera más el asomo de la siguiente: con
-     una sola fila justa, rodar es adivinar si hay algo más. */
-  if (Number(filas) < 1.5)
-    fallas.push(`${p.nombre}: solo caben ${filas} filas de vehículos`);
+  console.log(`${p.nombre.padEnd(16)} ${String(r.doc).padStart(6)} px   ${String(r.interno).padStart(8)} px         ${r.y0} → ${r.y1}`);
+  if (r.ov !== "visible") fallas.push(`${p.nombre}: la lista rueda por dentro (overflow-y ${r.ov})`);
+  if (r.mh !== "none") fallas.push(`${p.nombre}: la lista tiene alto máximo (${r.mh})`);
+  if (r.mask !== "none") fallas.push(`${p.nombre}: la lista sigue con el velo de «hay más abajo»`);
+  if (r.interno > 1) fallas.push(`${p.nombre}: hay ${r.interno} px de scroll dentro de la lista`);
+  if (r.doc <= r.vista) fallas.push(`${p.nombre}: la página no rueda (${r.doc} ≤ ${r.vista}) con doce grupos`);
+  if (!(r.y1 < r.y0)) fallas.push(`${p.nombre}: al bajar, la cabeza se queda quieta (${r.y0} → ${r.y1}): sigue inmovilizada`);
+  if (r.pantDisp === "flex") fallas.push(`${p.nombre}: la pantalla sigue siendo una columna flex de alto fijo`);
 }
 
 await navegador.close();
@@ -179,4 +171,4 @@ if (fallas.length) {
   console.error("\nFALLAS:\n" + fallas.map((f) => " · " + f).join("\n"));
   process.exit(1);
 }
-console.log("\nListo: la lista es lo más alto de la pantalla en las cuatro, sin dos scrolls peleando.");
+console.log("\nListo: en las cuatro pantallas rueda la página entera; la cabeza y los filtros no quedan inmovilizados y la lista no tiene scroll propio.");

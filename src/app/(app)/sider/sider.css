@@ -879,14 +879,15 @@
 
      Ahora la lista CRECE hasta llenar lo que sobre, y lo que sobra lo
      calcula el navegador: ver `.sd.tr-pantalla` más abajo. */
-  flex: 1; min-height: 200px;
-  overflow-y: auto;
+  /* AHORA TAMPOCO RUEDA POR DENTRO EN ESCRITORIO: «quita la inmovilización».
+     Antes la cabeza, los filtros y la lista vivían en una caja de alto
+     fijo: arriba todo quieto y las tarjetas en una ventana con su propia
+     barra. Ahora rueda la página entera, como en el celular, y no hay
+     velo ni dos barras peleando. */
+  flex: none; min-height: 0;
+  overflow: visible;
   padding-bottom: 4px;
   display: flex; flex-direction: column; gap: 14px;
-  /* El velo avisa que la lista sigue. Sin él, la tarjeta cortada abajo
-     parece un error de dibujo. */
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
 }
 .sd .tr-rejilla {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px;
@@ -3219,11 +3220,11 @@
    `:has(.tr-cuerpo)` ata el alto fijo a la única cosa que lo necesita.
    Sin lista no hay alto fijo, y el formulario fluye y rueda con la
    página como cualquier otra pantalla del módulo. */
+/* SIN ALTO FIJO: la pantalla crece con lo que tenga y rueda con la página. */
 .sd.tr-pantalla:has(.tr-cuerpo) {
-  display: flex; flex-direction: column; min-height: 0;
-  height: calc(100dvh - 70px - var(--sh-aire, 0px) - 66px);
+  display: block; height: auto; min-height: 0;
 }
-.sd.tr-pantalla .tr-cuerpo { flex: 1; min-height: 0 }
+.sd.tr-pantalla .tr-cuerpo { flex: none; min-height: 0 }
 /* Y NADA MÁS SE ENCOGE. `.tr-cuerpo` es lo único que reparte el sobrante;
    los demás hijos valen lo que miden. Es cinturón además de `:has()`: si
    un día esa columna vuelve a tener alto fijo con algo que no sea la

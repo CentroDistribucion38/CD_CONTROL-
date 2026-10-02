@@ -678,12 +678,9 @@ export function Transito({ viajes, nombres, esEditor, puedePedirAi, manda, orige
         </section>
       )}
 
-      {/* EN EL CELULAR ruedan JUNTOS los filtros y la lista, dentro de
-          .tr-cuerpo. En escritorio no: allá los filtros se quedan
-          quietos y rueda solo la lista, que es lo cómodo con cien
-          vehículos. En un celular no cabe nada quieto —cabeza, alertas
-          y filtros abiertos suman 488px de los 640— y fijar los filtros
-          dejaba la lista en sesenta pixeles. */}
+      {/* RUEDA LA PÁGINA ENTERA, en el celular y en el escritorio: los filtros
+          y la lista van juntos dentro de .tr-cuerpo y nada se queda
+          inmovilizado arriba ni rueda en una caja con barra propia. */}
       <div className="tr-cuerpo">
       {viajes.length > 1 && (
         <button type="button" className="tr-abrir" aria-expanded={verFiltros}
