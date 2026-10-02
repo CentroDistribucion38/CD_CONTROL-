@@ -185,6 +185,7 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, c: Cierre, x: ExtraCierre
   y += 8;
 
   /* ---------------- POR TURNO ---------------- */
+  if (c.turnos.length !== 1) {
   titulo("Por turno", `${c.turnos.length} turno${c.turnos.length === 1 ? "" : "s"} · el C abre el día`);
   {
     const COL = [24, 22, 22, 22, 22, 20, 20, ANCHO - 152];
@@ -218,6 +219,7 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, c: Cierre, x: ExtraCierre
       y += 7;
     }
     y += 5;
+  }
   }
 
   /* ---------------- A QUÉ CORRESPONDE ---------------- */

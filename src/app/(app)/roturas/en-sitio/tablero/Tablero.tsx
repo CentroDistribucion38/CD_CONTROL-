@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
@@ -223,25 +223,23 @@ export function Tablero({ roturas, nombres, manda }: {
           contestan otra pregunta: los chips dicen «en qué quedó»; esto
           dice «cuándo se registró». El botón abre la ficha con EXACTAMENTE
           lo que está filtrado aquí. */}
-      <div className="filtros tb-cuando-fila" role="group" aria-label="Día y turno">
-        <label className="tb-fecha"><span>Desde</span>
-          <input type="date" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} />
-        </label>
-        <label className="tb-fecha"><span>Hasta</span>
-          <input type="date" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} />
-        </label>
-        <div className="tb-turnos" role="group" aria-label="Turno">
-          {TURNOS.map((t) => (
-            <button key={t} type="button" aria-pressed={turnos.includes(t)}
-                    className={"btn tb-turno" + (turnos.includes(t) ? " si" : "")}
-                    title={`Turno ${t} · ${HORARIO_TURNO[t]}`} onClick={() => alTurno(t)}>
-              <b>{t}</b> <small>{HORARIO_TURNO[t]}</small>
-            </button>
-          ))}
+      <div className="filtros tb-cuando-fila" role="group" aria-label="Fecha y turno">
+        <FiltroFecha desde={desde} hasta={hasta} aplicar={(d, h) => { setDesde(d); setHasta(h) }} />
+        <div className="tb-campo" role="group" aria-label="Turno">
+          <span className="tb-rot">Turno</span>
+          <div className="tb-turnos">
+            {TURNOS.map((t) => (
+              <button key={t} type="button" aria-pressed={turnos.includes(t)}
+                      className={"tb-turno" + (turnos.includes(t) ? " on" : "")}
+                      title={`Turno ${t} · ${HORARIO_TURNO[t]}`} onClick={() => alTurno(t)}>
+                <b>{t}</b> <small>{HORARIO_TURNO[t]}</small>
+              </button>
+            ))}
+          </div>
         </div>
         {hayDiaTurno && (
-          <button type="button" className="btn plano" onClick={() => { setDesde(""); setHasta(""); setTurnos([]) }}>
-            Quitar día y turno
+          <button type="button" className="tb-quitar" onClick={() => { setDesde(""); setHasta(""); setTurnos([]) }}>
+            Quitar fecha y turno
           </button>
         )}
         <button type="button" className="btn si tb-cierre" onClick={() => setCierre(true)}>
@@ -419,5 +417,57 @@ export function Tablero({ roturas, nombres, manda }: {
         </div>
       </section>
     </>
+  );
+}
+
+
+/** UN SOLO FILTRO DE FECHA. Un campo que dice el rango («02/10/2026 – 04/10/2026»)
+ *  y, al tocarlo, abre Desde y Hasta con un «Aplicar»: nada se filtra a
+ *  medio escribir una fecha. Se cierra al tocar fuera o con Escape. */
+function FiltroFecha({ desde, hasta, aplicar }: { desde: string; hasta: string; aplicar: (d: string, h: string) => void }) {
+  const [abierto, setAbierto] = useState(false);
+  const [d, setD] = useState(desde);
+  const [h, setH] = useState(hasta);
+  const caja = useRef<HTMLDivElement>(null);
+  const dmy = (v: string) => (v ? v.split("-").reverse().join("/") : "");
+  const texto = !desde && !hasta ? "Todas las fechas"
+    : desde && hasta ? (desde === hasta ? dmy(desde) : `${dmy(desde)} – ${dmy(hasta)}`)
+    : desde ? `Desde ${dmy(desde)}` : `Hasta ${dmy(hasta)}`;
+
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => { if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false) };
+    document.addEventListener("mousedown", fuera);
+    return () => document.removeEventListener("mousedown", fuera);
+  }, [abierto]);
+
+  const abrir = () => { setD(desde); setH(hasta); setAbierto((v) => !v) };
+  return (
+    <div className="tb-campo tb-fecha" ref={caja}
+         onKeyDown={(e) => { if (e.key === "Escape" && abierto) { e.stopPropagation(); setAbierto(false) } }}>
+      <span className="tb-rot">Fecha</span>
+      <button type="button" id="tb-fecha" className={"tb-fbtn" + (desde || hasta ? " on" : "")}
+              aria-haspopup="dialog" aria-expanded={abierto} onClick={abrir}>
+        <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="5" width="18" height="16" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+        <span>{texto}</span>
+        <svg className="car" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {abierto && (
+        <div className="tb-pop" role="dialog" aria-label="Rango de fechas">
+          <div className="tb-par">
+            <label className="tb-lbl"><span className="tb-rot">Desde</span>
+              <input type="date" value={d} max={h || undefined} onChange={(e) => setD(e.target.value)} />
+            </label>
+            <label className="tb-lbl"><span className="tb-rot">Hasta</span>
+              <input type="date" value={h} min={d || undefined} onChange={(e) => setH(e.target.value)} />
+            </label>
+          </div>
+          <div className="tb-acc">
+            <button type="button" className="btn" onClick={() => { setD(""); setH("") }}>Limpiar</button>
+            <button type="button" className="btn si" onClick={() => { aplicar(d, h); setAbierto(false) }}>Aplicar</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

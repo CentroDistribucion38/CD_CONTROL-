@@ -1148,27 +1148,6 @@
   font-weight: 700;
 }
 
-/* LA CAUSA, CON SU PUNTO. El punto dice, antes de leer, de qué lado
-   cae: verde el OL lo asume, rojo estamos diciendo que no fue nuestro.
-   Y lo que separa a las causas se dice UNA vez, en el rótulo del
-   grupo, no repetido debajo de cada una: repetido cinco veces, lo
-   único que cambiaba —el nombre— era lo que menos se veía. */
-.rt-rep .chips.causas button { display: inline-flex; align-items: center; gap: 10px }
-.rt-rep .chips.causas button > span { min-width: 0 }
-.rt-rep .chips.causas button .punto {
-  width: 11px; height: 11px; border-radius: 50%; background: var(--rt-verde); flex: none;
-}
-.rt-rep .chips.causas button.roja .punto { background: var(--rt-mal) }
-.rt-rep .chips.causas button.roja.on {
-  border-color: var(--rt-mal); background: var(--rt-mal-suave);
-}
-.rt-rep .grupo-causa .rot-campo { display: flex; align-items: center; gap: 8px }
-.rt-rep .grupo-causa .rot-campo .punto {
-  width: 9px; height: 9px; border-radius: 50%; background: var(--rt-verde); flex: none;
-}
-.rt-rep .grupo-causa.no_asumida .rot-campo { color: var(--rt-mal) }
-.rt-rep .grupo-causa.no_asumida .rot-campo .punto { background: var(--rt-mal) }
-
 /* EL CONTADOR: dos botones grandes para los guantes y un campo para el
    teclado. Quien registra desde el escritorio escribe 15 y sigue; quien
    está al lado del vidrio toca el más. */
@@ -1325,37 +1304,6 @@
   margin-top: 0; padding: 16px; background: var(--c-eef1f5);
   border: 1px dashed var(--rt-linea); text-align: center;
 }
-
-/* EL AVISO DE LA FOTO. No es decoración: es la diferencia entre que ABI
-   la cuente o la devuelva. */
-.rt-rep .exige {
-  border-left: 3px solid var(--rt-mal); background: var(--rt-mal-suave);
-  padding: 13px 15px; font-size: 13.5px; line-height: 1.55; color: var(--rt-tinta);
-}
-
-.rt-rep .foto { border: 1.5px solid var(--rt-linea); border-radius: 0; overflow: hidden }
-/* ALTO FIJO Y CORTO. Con `aspect-ratio: 4/3` sobre media pantalla de
-   computador, el lienzo vacío medía más de quinientos píxeles: un
-   agujero oscuro más alto que todo el resto del paso junto. La foto es
-   una prueba, no el asunto de la pantalla; cuando hay una, se ve
-   entera al tocarla desde la lista. */
-.rt-rep .foto .lienzo {
-  height: 210px; background: var(--rt-negro); display: grid; place-items: center;
-}
-.rt-rep .foto .lienzo img { width: 100%; height: 100%; object-fit: cover }
-.rt-rep .foto .lienzo span {
-  font: 700 12px var(--rt-titulo); letter-spacing: .18em; color: rgba(255,255,255,.55);
-}
-.rt-rep .foto .sello {
-  background: #000; color: rgba(255,255,255,.8); padding: 8px 10px;
-  font-size: 11px; line-height: 1.4; text-align: center;
-}
-.rt-rep .otra {
-  width: 100%; margin-top: 10px; min-height: 48px; cursor: pointer;
-  border: 1.5px dashed var(--rt-linea); background: var(--rt-papel); color: var(--rt-tinta);
-  font: 700 14px var(--rt-titulo);
-}
-.rt-rep .otra:disabled { opacity: .5; cursor: not-allowed }
 
 .rt-rep .negro {
   display: flex; align-items: flex-start; gap: 10px; background: var(--rt-negro); color: #fff;
@@ -2798,4 +2746,177 @@
   /* Y EL DIBUJO SE HACE MÁS ALTO, no más estrecho: nueve barras en 360
      px son nueve rayitas, y el nombre inclinado necesita sitio abajo. */
   .rt .rq-pareto-svg { min-height: 190px }
+}
+
+
+/* =====================================================================
+   EL PASO 3 DEL REGISTRO — «¿DE DÓNDE SALIÓ?»  ·  prefijo `rp3-`
+   ---------------------------------------------------------------------
+   Sigue la maqueta: cuatro bloques con su raya (proceso, área, causa y
+   evidencia), el área como desplegable con buscador, las causas en dos
+   columnas con su punto, y el resumen en el pie. Lleva los tokens de
+   Roturas, esquinas rectas como el resto del módulo, y 44 px mínimo en
+   todo lo que se toca.
+   `rp3-` comprobado libre antes de escribir; en este archivo ya hubo
+   choques de nombre y un prefijo propio es lo barato.
+   ===================================================================== */
+.rt-rep .rp3-f { padding: 4px 0 20px; border-bottom: 1px solid var(--rt-linea) }
+.rt-rep .rp3-f:last-of-type { border-bottom: 0; padding-bottom: 0 }
+.rt-rep .rp3-lb { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px }
+.rt-rep .rp3-lb b { font: 800 14px var(--rt-titulo); letter-spacing: -.005em }
+.rt-rep .rp3-lb span { font-size: 12.5px; color: var(--rt-gris); text-align: right }
+.rt-rep .rp3-lb .req, .rt-rep .req { color: var(--rt-mal) }
+
+/* ===== EL ÁREA ===== */
+.rt-rep .rp3-sel { position: relative }
+.rt-rep .rp3-selbtn {
+  width: 100%; min-height: 50px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  border: 1.5px solid var(--rt-linea); background: var(--rt-papel); color: var(--rt-tinta);
+  font: 600 15px var(--rt-texto); cursor: pointer; text-align: left; border-radius: 0;
+}
+.rt-rep .rp3-selbtn:hover { border-color: var(--rt-gris2) }
+.rt-rep .rp3-selbtn.open, .rt-rep .rp3-selbtn:focus-visible {
+  outline: none; border-color: var(--rt-tinta);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rt-oro) 40%, transparent);
+}
+.rt-rep .rp3-selbtn .ico {
+  flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--rt-oro) 22%, #fff);
+}
+.rt-rep .rp3-selbtn .ico svg, .rt-rep .rp3-op .oi svg, .rt-rep .rp3-srch svg {
+  width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.rt-rep .rp3-selbtn .v { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.rt-rep .rp3-selbtn .v.ph { color: var(--rt-gris); font-weight: 500 }
+.rt-rep .rp3-selbtn .car { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--rt-gris); stroke-width: 2; transition: transform .15s }
+.rt-rep .rp3-selbtn.open .car { transform: rotate(180deg) }
+@media (prefers-reduced-motion: reduce) { .rt-rep .rp3-selbtn .car { transition: none } }
+
+/* FLOTANTE: no empuja la causa hacia abajo, se pone encima y se cierra
+   al tocar fuera. Alto con tope y desplazamiento propio. */
+.rt-rep .rp3-pop {
+  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 6px);
+  background: var(--rt-papel); border: 1.5px solid var(--rt-tinta);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .16); display: flex; flex-direction: column;
+  max-height: min(380px, 60dvh);
+}
+.rt-rep .rp3-srch {
+  display: flex; align-items: center; gap: 8px; padding: 0 14px; min-height: 48px;
+  border-bottom: 1px solid var(--rt-linea); color: var(--rt-gris); flex: none;
+}
+.rt-rep .rp3-srch input {
+  flex: 1; min-width: 0; min-height: 44px; border: 0; outline: 0; background: none;
+  font: 500 15px var(--rt-texto); color: var(--rt-tinta);
+}
+.rt-rep .rp3-lista { overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px }
+.rt-rep .rp3-gl {
+  padding: 12px 14px 4px; font: 700 10.5px var(--rt-titulo); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--rt-gris-panel);
+}
+.rt-rep .rp3-op {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 6px 14px;
+  border: 0; background: var(--rt-papel); color: var(--rt-tinta); cursor: pointer; text-align: left;
+  font: 500 14.5px var(--rt-texto); border-radius: 0;
+}
+.rt-rep .rp3-op:hover, .rt-rep .rp3-op:focus-visible { background: var(--c-eef1f5); outline: none }
+.rt-rep .rp3-op .oi { flex: none; width: 28px; height: 28px; display: grid; place-items: center; background: var(--c-eef1f5); color: var(--rt-gris-panel) }
+.rt-rep .rp3-op .nom { min-width: 0 }
+.rt-rep .rp3-op.on { background: color-mix(in srgb, var(--rt-oro) 14%, #fff); font-weight: 700 }
+.rt-rep .rp3-op.on .oi { background: var(--rt-oro); color: var(--rt-sobre-oro) }
+.rt-rep .rp3-op .ck { margin-left: auto; font-weight: 800 }
+.rt-rep .rp3-op .tag {
+  font: 700 10.5px var(--rt-texto); padding: 3px 7px; white-space: nowrap;
+  background: color-mix(in srgb, var(--rt-oro) 28%, #fff); color: var(--rt-tinta);
+}
+.rt-rep .rp3-op .tag + .ck { margin-left: 8px }
+.rt-rep .rp3-op .nom + .tag { margin-left: 2px }
+.rt-rep .rp3-calles { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; padding: 4px 14px 6px }
+.rt-rep .rp3-calles button {
+  min-height: 44px; border: 1.5px solid var(--rt-linea); background: var(--rt-papel); color: var(--rt-tinta);
+  font: 800 15px var(--rt-titulo); cursor: pointer; border-radius: 0;
+}
+.rt-rep .rp3-calles button:hover { border-color: var(--rt-gris2) }
+.rt-rep .rp3-calles button.on { border-color: var(--rt-oro); background: color-mix(in srgb, var(--rt-oro) 18%, #fff) }
+.rt-rep .rp3-nada { margin: 0; padding: 14px; font-size: 13.5px; color: var(--rt-gris) }
+
+/* ===== LA CAUSA: dos columnas, un punto de color y un radio ===== */
+.rt-rep .rp3-grupo + .rp3-grupo { margin-top: 16px }
+.rt-rep .rp3-cgl {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font: 700 12.5px var(--rt-texto);
+}
+.rt-rep .rp3-cgl .d { width: 9px; height: 9px; border-radius: 50%; background: var(--rt-verde); flex: none }
+.rt-rep .rp3-grupo.no_asumida .rp3-cgl .d { background: var(--rt-mal) }
+.rt-rep .rp3-cgl small { font: 400 12px var(--rt-texto); color: var(--rt-gris) }
+.rt-rep .rp3-rl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px }
+.rt-rep .rp3-ro {
+  display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 12px;
+  border: 1.5px solid var(--rt-linea); background: var(--rt-papel); color: var(--rt-tinta);
+  font: 600 14px var(--rt-texto); text-align: left; cursor: pointer; border-radius: 0; min-width: 0;
+}
+.rt-rep .rp3-ro:hover { border-color: var(--rt-gris2) }
+.rt-rep .rp3-ro:focus-visible { outline: 2px solid var(--rt-ojo); outline-offset: 2px }
+.rt-rep .rp3-ro .rd {
+  flex: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--rt-gris2);
+  display: grid; place-items: center;
+}
+.rt-rep .rp3-ro .nom { min-width: 0; overflow-wrap: anywhere }
+.rt-rep .rp3-ro .cam {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 4px;
+  font: 600 11.5px var(--rt-texto); color: var(--rt-mal);
+}
+.rt-rep .rp3-ro .cam svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.rt-rep .rp3-ro.on { border-color: var(--rt-verde); box-shadow: inset 0 0 0 1px var(--rt-verde); background: var(--rt-verde-suave) }
+.rt-rep .rp3-ro.on .rd { border-color: var(--rt-verde); background: var(--rt-verde) }
+.rt-rep .rp3-ro.on .rd::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff }
+.rt-rep .rp3-ro.na.on { border-color: var(--rt-mal); box-shadow: inset 0 0 0 1px var(--rt-mal); background: var(--rt-mal-suave) }
+.rt-rep .rp3-ro.na.on .rd { border-color: var(--rt-mal); background: var(--rt-mal) }
+
+/* ===== LA EVIDENCIA: la foto y lo que pasó, lado a lado ===== */
+.rt-rep .rp3-ev { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; align-items: stretch }
+.rt-rep .rp3-up {
+  position: relative; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 0; cursor: pointer; overflow: hidden; border-radius: 0;
+  border: 1.5px dashed var(--rt-gris2); background: var(--c-fafbfd); color: var(--rt-gris-panel);
+  font: 600 13.5px var(--rt-texto);
+}
+.rt-rep .rp3-up:hover { border-color: var(--rt-tinta) }
+.rt-rep .rp3-up:disabled { opacity: .6; cursor: wait }
+.rt-rep .rp3-up .ci {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--rt-papel); border: 1px solid var(--rt-linea); color: var(--rt-tinta);
+}
+.rt-rep .rp3-up .ci svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round }
+.rt-rep .rp3-up .tx { text-align: center; line-height: 1.35 }
+.rt-rep .rp3-up .tx small { display: block; font: 400 11.5px var(--rt-texto); color: var(--rt-gris) }
+/* Con foto: la foto llena la casilla y el texto va en una tira abajo. */
+.rt-rep .rp3-up.con { border-style: solid; border-color: var(--rt-linea); justify-content: flex-end; gap: 0 }
+.rt-rep .rp3-up.con img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover }
+.rt-rep .rp3-up.con .tx {
+  position: relative; width: 100%; padding: 8px 10px; color: #fff; background: rgba(0, 0, 0, .72);
+}
+.rt-rep .rp3-up.con .tx small { color: rgba(255, 255, 255, .8) }
+.rt-rep .rp3-texto {
+  width: 100%; min-height: 140px; padding: 12px 14px; border: 1.5px solid var(--rt-linea); border-radius: 0;
+  background: var(--rt-papel); color: var(--rt-tinta); font: 400 14.5px/1.55 var(--rt-texto); resize: vertical;
+}
+.rt-rep .rp3-texto:focus { outline: none; border-color: var(--rt-tinta); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rt-oro) 40%, transparent) }
+.rt-rep .rp3-meta { margin-top: 8px; font: 500 11.5px/1.4 ui-monospace, "IBM Plex Mono", monospace; color: var(--rt-gris) }
+
+/* ===== EL PIE DEL PASO 3: resumen + Atrás + Enviar ===== */
+.rt-rep .pie.con-res { grid-template-columns: minmax(0, 1fr) auto minmax(190px, auto); align-items: center }
+.rt-rep .pie .res { font: 500 13px/1.4 var(--rt-texto); color: var(--rt-gris); min-width: 0 }
+.rt-rep .pie .res b.si { color: var(--rt-verde); font-weight: 700 }
+.rt-rep .pie .res b.no { color: var(--rt-mal); font-weight: 700 }
+.rt-rep .pie.con-res button { padding: 0 22px }
+
+@media (max-width: 760px) {
+  .rt-rep .rp3-rl { grid-template-columns: minmax(0, 1fr) }
+  .rt-rep .rp3-ev { grid-template-columns: minmax(0, 1fr) }
+  .rt-rep .rp3-up { min-height: 120px; flex-direction: row; gap: 12px }
+  .rt-rep .rp3-up.con { min-height: 190px; flex-direction: column }
+  .rt-rep .rp3-lb { flex-direction: column; gap: 2px }
+  .rt-rep .rp3-lb span { text-align: left }
+  .rt-rep .pie.con-res { grid-template-columns: auto minmax(0, 1fr) }
+  .rt-rep .pie.con-res .res { grid-column: 1 / -1 }
 }

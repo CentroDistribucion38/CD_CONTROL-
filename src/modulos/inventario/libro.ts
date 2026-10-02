@@ -45,6 +45,21 @@ export type InsumosDia = {
   colores?: ColoresLibro;
   /** Cuántos FEFO se enviaron ese día, si se escogieron solo algunos. */
   totalDelDia?: number;
+  /** Las fotos de los renglones (la camarita de Contar). Si no hay ninguna,
+   *  el libro sale IGUAL que siempre: la hoja «Evidencias» solo existe
+   *  cuando hay con qué llenarla. */
+  evidencias?: EvidenciaRenglon[];
+  /** Fotos que no se pudieron meter (techo de peso o no bajaron): la hoja lo dice. */
+  fotosRecortadas?: number;
+};
+
+export type EvidenciaRenglon = {
+  linea_id: string;
+  /** Los bytes del JPEG, ya bajados del bucket por quien arma el libro. */
+  foto: Buffer;
+  ancho: number | null;
+  alto: number | null;
+  tomada_en: string | null;
 };
 
 /* ---------- La paleta: la del tema de quien exporta ----------
@@ -503,6 +518,40 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     });
     const fin = 6 + Math.max(sinContar.length, 1);
     h.autoFilter = `A6:${col(C.length)}${fin}`;
+    h.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
+  }
+
+  /* ================= 7 · EVIDENCIAS (solo si hay fotos) =================
+     LA FOTO VA EN SU PROPIA HOJA, no en «Base»: así el libro de siempre no
+     se mueve ni se ensancha, y quien no usa la cámara no ve nada nuevo.
+     Cada foto trae al lado el renglón al que respalda. */
+  const evid = (d.evidencias ?? []).filter((e) => e.foto?.byteLength);
+  if (evid.length) {
+    const porLinea = new Map(d.lineas.map((l) => [l.id, l]));
+    const h = wb.addWorksheet("Evidencias", { properties: { tabColor: { argb: ROJO } } });
+    const C = ["Recorrido", "Ubicación", "Código", "Material", "Total cajas", "Estado envase", "Marca", "Nota", "Foto tomada", "Foto"];
+    h.columns = [12, 14, 10, 30, 11, 14, 10, 30, 16, 40].map((w) => ({ width: w }));
+    cabecera(h, "Evidencias del conteo", `${evid.length} foto${evid.length === 1 ? "" : "s"}${d.fotosRecortadas ? ` (otras ${d.fotosRecortadas} no entraron: exporta por días para verlas)` : ""} · ${sub}`, C.length);
+    encabezado(h, 6, C, [5]);
+    const ordenadas = evid
+      .map((e) => ({ e, l: porLinea.get(e.linea_id) }))
+      .sort((a, b) => (a.l && b.l ? orden(a.l, b.l) : a.l ? -1 : b.l ? 1 : 0));
+    ordenadas.forEach(({ e, l }, i) => {
+      const r = h.getRow(7 + i);
+      r.values = [l?.conteo ?? "", l ? ub(l) : "(renglón que ya no está)", l?.codigo ?? "", l?.material ?? "", l ? Number(l.total_cajas) : null,
+        l?.estado_envase ?? "", l ? (l.averia ? "Avería" : l.pnc ? "PNC" : "") : "", l?.nota ?? "", aFecha(e.tomada_en), ""];
+      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 9: "dd/mm/yy hh:mm" }, [5]);
+      r.height = 170;                       // alto de la foto
+      for (let c = 1; c <= C.length; c++) r.getCell(c).alignment = { vertical: "top", horizontal: c === 5 ? "right" : "left", indent: 1, wrapText: true };
+      r.getCell(3).font = letra(9.5, TINTA, true);
+      /* La foto, a su tamaño y sin deformarla, dentro de la celda (cabe en
+         250 × 215 px; la columna mide ~285 px y la fila ~227 px). */
+      const aw = e.ancho && e.alto ? e.ancho : 4, ah = e.ancho && e.alto ? e.alto : 3;
+      const k = Math.min(250 / aw, 215 / ah);
+      const id = wb.addImage({ buffer: e.foto as unknown as BufferDeExcel, extension: "jpeg" });
+      h.addImage(id, { tl: { col: C.length - 1 + 0.04, row: 6 + i + 0.03 } as ExcelJS.Anchor, ext: { width: Math.round(aw * k), height: Math.round(ah * k) }, editAs: "oneCell" });
+    });
+    h.autoFilter = `A6:${col(C.length)}${6 + ordenadas.length}`;
     h.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
   }
 

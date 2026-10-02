@@ -428,8 +428,9 @@ await monta();
   await pg.click(".rt-rep .pie button.si");
   await pg.waitForSelector("#rt-area");
   await pg.click(".rt-rep .chips button:has-text('Líneas')");
-  await pg.selectOption("#rt-area", "plazoleta");
-  await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+  await pg.click("#rt-area");
+  await pg.click(".rp3-op:has-text('Plazoleta')");
+  await pg.click(".rt-rep .rp3-ro:has-text('Estibas en mal estado')");
   /* LA DE OPM SÍ VA AL OL: pasa por el visto bueno. */
   ok(/Enviar al OL/.test(await pg.textContent(".rt-rep .pie button.si")), "reportada por OPM, el botón dice «Enviar al OL»");
   await pg.click(".rt-rep .pie button.si");
@@ -461,8 +462,9 @@ await monta();
   await pg.click(".rt-rep .pie button.si");
   await pg.waitForSelector("#rt-area");
   await pg.click(".rt-rep .chips button:has-text('Líneas')");
-  await pg.selectOption("#rt-area", "plazoleta");
-  await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+  await pg.click("#rt-area");
+  await pg.click(".rp3-op:has-text('Plazoleta')");
+  await pg.click(".rt-rep .rp3-ro:has-text('Estibas en mal estado')");
   /* LA ENCONTRADA SE VA A COBRO: el botón lo dice, y no habla de ABI. */
   const botonEnc = await pg.textContent(".rt-rep .pie button.si");
   ok(/mandar a cobro/i.test(botonEnc) && !/ABI/.test(botonEnc), `en «me la encontré» el botón dice «${botonEnc}»`);
@@ -749,8 +751,9 @@ ok(/Escribe para buscar/.test(await puesto()),
   await pg.click(".rt-rep .pie button.si");
   await pg.waitForSelector("#rt-area");
   await pg.click(".rt-rep .chips button:has-text('Líneas')");
-  await pg.selectOption("#rt-area", "plazoleta");
-  await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+  await pg.click("#rt-area");
+  await pg.click(".rp3-op:has-text('Plazoleta')");
+  await pg.click(".rt-rep .rp3-ro:has-text('Estibas en mal estado')");
   await pg.click(".rt-rep .pie button.si");
   await pg.waitForFunction(
     () => (window.llamadas ?? []).some((l) => l.f === "rotura_registrar"),
@@ -984,34 +987,76 @@ ok(!(await pg.isDisabled(".rt-rep .pie button.si")),
 await pg.click(".rt-rep .pie button.si");
 await pg.waitForSelector("#rt-area");
 
-ok((await pg.$$(".rt-rep .chips.causas button")).length === 0,
+ok((await pg.$$(".rt-rep .rp3-ro")).length === 0,
    "las causas salen sin haber escogido proceso");
 ok(await pg.isVisible(".rt-rep .nota.espera"),
    "sin proceso no dice que hay que escogerlo primero: el paso se ve vacío y ya");
 
-const areas = await pg.$$eval("#rt-area option", (o) => o.map((x) => x.textContent.trim()));
-ok(areas.length === 14, `el desplegable de Área trae ${areas.length - 1} áreas y tienen que ser 13`);
-ok(areas[1] === "Bahías T1" && areas[13] === "Estantería",
-   `las áreas no vienen en el orden del maestro: ${areas.slice(1, 4)} … ${areas[13]}`);
+await pg.click("#rt-area");
+const zonas = await pg.$$eval(".rp3-op .nom", (o) => o.map((x) => x.textContent.trim()));
+const calles = await pg.$$eval(".rp3-calles button", (o) => o.map((x) => x.textContent.trim()));
+ok(zonas.length + calles.length === 13, `el desplegable de Área trae ${zonas.length + calles.length} áreas y tienen que ser 13`);
+ok(calles.join("") === "ABCDE", `las calles no salen como botones A–E: ${calles}`);
+ok(zonas[0] === "Bahías T1" && zonas[zonas.length - 1] === "Estantería",
+   `las zonas no vienen en el orden del maestro: ${zonas}`);
+ok((await pg.$$(".rp3-op .tag")).length === 0, "sin proceso no debe haber sugerida");
+await pg.keyboard.press("Escape");
+ok(!(await pg.isVisible(".rp3-pop")), "Escape no cierra la lista de áreas");
 
-/* Y las del paso 2. */
-for (const c of ["chips", "campo-suelto", "rot-campo"]) {
+/* Y las del paso 3, que ya no usa campo-suelto ni rot-campo. */
+for (const c of ["chips", "rp3-f", "rp3-lb", "rp3-selbtn"]) {
   ok((await pg.$$(`.rt-rep .${c}`)).length > 0, `falta la clase «${c}» en el paso 2`);
 }
 
 await pg.click(".rt-rep .chips button:has-text('Líneas')");
-const causas = await pg.$$eval(".rt-rep .chips.causas button", (b) => b.map((x) => x.textContent.trim()));
+const causas = await pg.$$eval(".rt-rep .rp3-ro", (b) => b.map((x) => x.textContent.replace(/Foto$/, "").trim()));
 ok(causas.length === 7, `con proceso salen ${causas.length} causas y tienen que ser 7`);
 ok(causas[0] === "Estibas en mal estado" && causas.includes("Falla del pallet DEPA"),
    `las causas no son las que se pidieron: ${causas.join(" | ")}`);
-ok((await pg.$$(".rt-rep .chips.causas button.roja")).length === 2,
+ok((await pg.$$(".rt-rep .rp3-ro.roja")).length === 2,
    "las no asumidas no son exactamente dos (máquinas y pallet DEPA)");
 
 /* EL BOTÓN DICE QUÉ FALTA, en vez de quedarse apagado y mudo. */
 ok(/Falta el área/.test(await pg.textContent(".rt-rep .pie button.si")),
    "sin área el botón no dice que falta el área");
-await pg.selectOption("#rt-area", "plazoleta");
-await pg.click(".rt-rep .chips.causas button:has-text('Estibas en mal estado')");
+/* EL ÁREA COMO EN LA MAQUETA: desplegable con buscador, sugerida, calles. */
+ok(/¿En qué parte/.test(await pg.textContent("#rt-area")), "el área no arranca sin escoger");
+await pg.click("#rt-area");
+ok((await pg.textContent(".rp3-op .tag")).includes("Sugerida para Líneas"),
+   "con proceso Líneas no sale «Sugerida para Líneas»");
+ok((await pg.$$eval(".rp3-op .nom", (o) => o[0].textContent)) === "Tándem Líneas",
+   "la sugerida no sube al principio");
+ok((await pg.$$(".rp3-op.on")).length === 0, "la sugerida no puede venir escogida sola");
+await pg.fill(".rp3-srch input", "calle");
+ok((await pg.$$(".rp3-op")).length === 0 && (await pg.$$(".rp3-calles button")).length === 5,
+   "buscar «calle» no deja solo las cinco calles");
+await pg.fill(".rp3-srch input", "xyz");
+ok(/Ninguna área coincide/.test(await pg.textContent(".rp3-pop")), "sin coincidencias no lo dice");
+await pg.fill(".rp3-srch input", "plaz");
+ok((await pg.$$(".rp3-op")).length === 1, "buscar «plaz» no deja una sola zona");
+await pg.mouse.click(5, 5);
+ok(!(await pg.isVisible(".rp3-pop")), "tocar fuera no cierra la lista de áreas");
+await pg.click("#rt-area");
+await pg.click(".rp3-calles button:has-text('C')");
+ok(/Calle C/.test(await pg.textContent("#rt-area")), "la letra C no escoge «Calle C»");
+ok(!(await pg.isVisible(".rp3-pop")), "escoger no cierra la lista");
+ok((await pg.getAttribute(".rt-rep .rp3-ro >> nth=0", "role")) === "radio" &&
+   (await pg.getAttribute(".rt-rep .rp3-ro >> nth=0", "aria-checked")) === "false",
+   "las causas no son radios sin marcar");
+ok(await pg.isVisible(".rt-rep .rp3-ro.roja"), "no se ven las no asumidas");
+await pg.click(".rt-rep .rp3-ro.roja >> nth=0");
+ok((await pg.$$(".rt-rep .rp3-ro[aria-checked=true]")).length === 1, "escoger una causa no la marca (y solo una)");
+ok(/Calle C/.test(await pg.textContent(".rt-rep .pie .res")) && /no la paga el OL/.test(await pg.textContent(".rt-rep .pie .res")),
+   `el resumen del pie no dice área y «no la paga el OL»: ${await pg.textContent(".rt-rep .pie .res")}`);
+await pg.click(".rt-rep .rp3-ro >> nth=0");
+ok(/la paga el OL/.test(await pg.textContent(".rt-rep .pie .res")) && !/no la paga/.test(await pg.textContent(".rt-rep .pie .res")),
+   "una causa asumida debe decir «la paga el OL»");
+ok(/Tomar foto/.test(await pg.textContent(".rp3-up")) , "la caja de evidencia no dice «Tomar foto»");
+await pg.screenshot({ path: ".arnes/rt-registro3.png", fullPage: true });
+
+await pg.click("#rt-area");
+await pg.click(".rp3-op:has-text('Plazoleta')");
+await pg.click(".rt-rep .rp3-ro:has-text('Estibas en mal estado')");
 ok(/mandar a cobro/i.test(await pg.textContent(".rt-rep .pie button.si")),
    "con proceso, área y causa el botón todavía dice que falta algo");
 

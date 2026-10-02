@@ -108,7 +108,12 @@ const monta = async (ancho = 1440, alto = 1000, tema = "") => {
 };
 const codigos = () => pg.$$eval(".rt .tb-tabla tbody tr:not(.tb-detalle) td.tb-cod", (x) => x.map((e) => e.textContent.trim()));
 const turno = (t) => pg.click(`.tb-turno:has(b:text-is("${t}"))`);
-const fecha = async (d, h) => { await pg.fill('.tb-fecha:has(span:text-is("Desde")) input', d); await pg.fill('.tb-fecha:has(span:text-is("Hasta")) input', h) };
+const fecha = async (d, h) => {
+  await pg.click("#tb-fecha");
+  await pg.fill('.tb-pop label:has(span:text-is("Desde")) input', d);
+  await pg.fill('.tb-pop label:has(span:text-is("Hasta")) input', h);
+  await pg.click('.tb-pop button:text-is("Aplicar")');
+};
 const abre = async () => { await pg.click(".tb-cierre"); await pg.waitForSelector(".rtc") };
 const ficha = () => pg.$eval(".rtc", (e) => e.textContent.replace(/\s+/g, " "));
 const tarjetas = () => pg.$$eval(".rtc-turno", (x) => x.map((e) => ({
@@ -144,8 +149,32 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
   ok((await codigos()).join() === "RB-0007", "el día 28 solo trae lo del B: " + (await codigos()).join());
   const tt = await pg.$eval(".tb-tabla tbody tr td.tb-cuando .tb-t", (e) => e.textContent);
   ok(tt === "B", "cada fila lleva la letra de su turno: " + tt);
-  await pg.click('button:has-text("Quitar día y turno")');
-  ok((await codigos()).length === 7 && await pg.locator('button:has-text("Quitar día y turno")').count() === 0, "«Quitar día y turno» limpia y desaparece");
+  await pg.click('button:has-text("Quitar fecha y turno")');
+  ok((await codigos()).length === 7 && await pg.locator('button:has-text("Quitar fecha y turno")').count() === 0, "«Quitar fecha y turno» limpia y desaparece");
+}
+
+/* UN SOLO FILTRO DE FECHA: campo que abre Desde/Hasta con «Aplicar». */
+{
+  ok(await pg.locator(".tb-fecha").count() === 1 && /Todas las fechas/.test(await pg.textContent("#tb-fecha")), "un solo campo de Fecha");
+  ok(await pg.locator(".tb-cuando-fila input[type=date]").count() === 0, "los dos date no deben estar sueltos en la barra");
+  await pg.click("#tb-fecha");
+  await pg.fill('.tb-pop label:has(span:text-is("Desde")) input', "2026-09-28");
+  await pg.fill('.tb-pop label:has(span:text-is("Hasta")) input', "2026-09-28");
+  ok((await codigos()).length === 7, "nada se filtra hasta tocar «Aplicar»");
+  await pg.screenshot({ path: ".arnes/rt-filtros.png", clip: { x: 0, y: 0, width: 900, height: 520 } });
+  await pg.keyboard.press("Escape");
+  ok(!(await pg.isVisible(".tb-pop")) && (await codigos()).length === 7, "Escape cierra sin aplicar");
+  await pg.click("#tb-fecha");
+  ok(await pg.inputValue('.tb-pop label:has(span:text-is("Desde")) input') === "", "al reabrir sin aplicar, el borrador se descartó");
+  await pg.click('.tb-pop button:text-is("Aplicar")');
+  /* Los rectángulos: mismo alto, esquinas rectas. */
+  const f = await pg.evaluate(() => [...document.querySelectorAll("#tb-fecha, .tb-turno")].map((e) => {
+    const c = getComputedStyle(e); return [Math.round(e.getBoundingClientRect().height), c.borderTopLeftRadius, c.borderTopWidth];
+  }));
+  ok(f.every((x) => x[0] === 44 && x[1] === "0px" && (x[2] === "1px" || x[2] === "1.5px")), "fecha y turnos no son el mismo rectángulo: " + JSON.stringify(f));
+  await fecha("2026-09-29", "2026-09-30");
+  ok(/29\/09\/2026 – 30\/09\/2026/.test(await pg.textContent("#tb-fecha")), "el campo no dice el rango: " + await pg.textContent("#tb-fecha"));
+  await pg.click('button:has-text("Quitar fecha y turno")');
 }
 
 /* ===== 2 · LA FICHA: LOS TRES NÚMEROS Y LOS TURNOS ===== */
@@ -187,8 +216,15 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
 {
   await turno("A");
   await abre();
+  ok(await pg.$eval(".rtc-cab", (e) => getComputedStyle(e).backgroundColor === getComputedStyle(document.querySelector(".rt")).getPropertyValue("--rt-tinta").trim() || true), "");
+  ok(await pg.$eval(".rtc-cab", (e) => { const m = getComputedStyle(e).backgroundColor.match(/\d+/g).map(Number); return Math.max(...m) < 70 }), "el encabezado del cierre no es negro");
   ok(/Cierre del turno A/.test(await pg.textContent(".rtc-cab h2")) && /TURNO A · 06:00 · 14:00/.test(await pg.textContent(".rtc-ojo")), "título del turno A: " + await pg.textContent(".rtc-cab h2"));
-  ok((await tarjetas()).length === 1 && (await tarjetas())[0].reg === 2, "solo la tarjeta del A, con 2 registros");
+  /* UN TURNO, UN DÍA: la tarjeta repetía la banda de arriba, se quitó. */
+  ok((await tarjetas()).length === 0 && await pg.locator(".rtc-sec b:text-is('Por turno')").count() === 0,
+     "con un solo turno no sale «Por turno» (era lo mismo que la banda)");
+  ok(await pg.locator(".rtc-sec b:text-is('A qué corresponde')").count() === 1,
+     "sin la tarjeta, «A qué corresponde» tiene que seguir saliendo");
+  ok(await pg.locator(".rtc-tabla tbody tr").count() === 2, "la tabla trae los 2 registros del A");
   ok(await pg.$eval(".rtc-total .rtc-v", (e) => e.textContent) === "2", "el total del cierre del A es 2");
   ok(/Turno A/.test(await pg.textContent(".rtc-filtros").catch(() => "")), "la franja FILTRADO lo dice");
   await cerrar();
@@ -220,7 +256,7 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
   ok(await pg.locator(".rtc-tabla thead th:text-is('Día')").count() === 1, "con varios días sí sale la columna Día");
   ok(await pg.locator(".rtc-cuatro.grande").count() === 1, "con varios turnos hay un «A qué corresponde» de todo junto");
   await cerrar();
-  await pg.click('button:has-text("Quitar día y turno")');
+  await pg.click('button:has-text("Quitar fecha y turno")');
 }
 
 /* ===== 4 · LOS EXPORTABLES ===== */
@@ -275,7 +311,7 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
   ok(vis.ficha && !vis.cab && !vis.tabla && !vis.botones && vis.pos === "static", "al imprimir queda solo la ficha, sin botones: " + JSON.stringify(vis));
   await pg.emulateMedia({ media: "screen" });
   await cerrar();
-  await pg.click('button:has-text("Quitar día y turno")');
+  await pg.click('button:has-text("Quitar fecha y turno")');
 }
 
 /* ===== 6 · NADA SE SALE, TODO MIDE 44 PX, EN CUATRO ANCHOS ===== */

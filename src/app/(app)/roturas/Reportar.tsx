@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
 import { BuscarEnLista } from "@/components/BuscarEnLista";
+import { AreaSelect, areaSugerida } from "./AreaSelect";
 import { COLOR_VIDRIO } from "@/modulos/roturas/formato";
 import type { Area, Causa, Material, Proceso } from "@/modulos/roturas/datos";
 
@@ -198,6 +199,8 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   const mat = materiales.find((m) => m.clave === material) ?? null;
   const cau = causas.find((c) => c.clave === causa) ?? null;
   const exigeFoto = !!cau?.exige_foto;
+  const procNombre = procesos.find((p) => p.clave === proceso)?.nombre;
+  const areaNombre = areas.find((a) => a.clave === area)?.nombre;
 
   /* AL CAMBIAR DE TIPO O DE COLOR, EL MATERIAL SE REACOMODA SOLO.
      Si quedara el de antes se mandaría un envase retornable con la
@@ -797,8 +800,12 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           </>
         ) : (
           <>
-            <div>
-              <span className="rot-campo">Proceso</span>
+            {/* EL PASO 3 SIGUE LA MAQUETA: cuatro bloques separados por una
+                raya —proceso, área, causa y evidencia— y el resumen en el
+                pie. Cada bloque dice arriba qué es y, a la derecha, la
+                pregunta que contesta. */}
+            <div className="rp3-f">
+              <div className="rp3-lb"><b>Proceso</b></div>
               <div className="chips">
                 {procesos.map((p) => (
                   <button key={p.clave} type="button"
@@ -810,96 +817,93 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
               </div>
             </div>
 
-            {/* EL ÁREA, DEL MAESTRO. Desplegable y no chips: son trece y
-                crecen; trece botones ocupan media pantalla del celular y
-                empujan la causa fuera de la vista. */}
-            <div className="linea-campos">
-              <div>
-                <span className="rot-campo">Área *</span>
-                <select id="rt-area" className="campo-suelto" value={area}
-                        onChange={(e) => setArea(e.target.value)}>
-                  <option value="">¿En qué parte de la bodega?</option>
-                  {areas.map((a) => (
-                    <option key={a.clave} value={a.clave}>{a.nombre}</option>
-                  ))}
-                </select>
-                {areas.length === 0 && (
-                  <p className="nota">
-                    No hay áreas en el maestro. Se agregan en Maestro, sin esperar un despliegue.
-                  </p>
-                )}
-              </div>
+            {/* EL ÁREA, DEL MAESTRO, con buscador y la sugerida por el
+                proceso. Ver AreaSelect.tsx. */}
+            <div className="rp3-f">
+              <div className="rp3-lb"><b>Área <span className="req">*</span></b><span>¿En qué parte de la bodega?</span></div>
+              <AreaSelect id="rt-area" areas={areas} valor={area} cambiar={setArea}
+                          sugerida={areaSugerida(areas, procNombre)} proceso={procNombre} />
+              {areas.length === 0 && (
+                <p className="nota">
+                  No hay áreas en el maestro. Se agregan en Maestro, sin esperar un despliegue.
+                </p>
+              )}
             </div>
 
             {/* LA CAUSA SE HABILITA CON EL PROCESO, y va en dos grupos.
-
                 Lo que separa a las causas —de qué lado caen— se dice UNA
-                vez, en el rotulito de su grupo, y no repetido debajo de
-                cada una. Así las opciones se quedan con el nombre y el
-                punto de color: se leen de un golpe, que es para lo que
-                existe una lista de causas. */}
-            {!proceso ? (
-              <div>
-                <span className="rot-campo">Causa</span>
+                vez, en el rótulo de su grupo; las opciones se quedan con
+                el nombre y, si exigen foto, con su cámara. Es una sola
+                elección entre todas: un grupo de radios por lado, pero
+                una sola `causa`. */}
+            <div className="rp3-f">
+              <div className="rp3-lb"><b>Causa</b><span>¿Por qué se rompió?</span></div>
+              {!proceso ? (
                 <p className="nota espera">Escoge primero el proceso y aquí salen las causas.</p>
-              </div>
-            ) : (
-              ([
-                ["asumida", "Causa · asumidas por el OL"],
-                ["no_asumida", "No asumidas · exigen foto"],
-              ] as const).map(([grupo, titulo]) => {
-                const suyas = causas.filter((c) => c.grupo === grupo);
-                if (!suyas.length) return null;
-                return (
-                  <div key={grupo} className={"grupo-causa " + grupo}>
-                    <span className="rot-campo"><i className="punto" aria-hidden />{titulo}</span>
-                    <div className="chips causas">
-                      {suyas.map((c) => (
-                        <button key={c.clave} type="button"
-                                className={(causa === c.clave ? "on" : "")
-                                           + (grupo === "no_asumida" ? " roja" : "")}
-                                onClick={() => setCausa(c.clave)}>
-                          <i className="punto" aria-hidden /><span>{c.nombre}</span>
-                        </button>
-                      ))}
+              ) : (
+                ([
+                  ["asumida", "Asumidas por el OL", "las paga el operador"],
+                  ["no_asumida", "No asumidas", "exigen foto"],
+                ] as const).map(([grupo, titulo, sub]) => {
+                  const suyas = causas.filter((c) => c.grupo === grupo);
+                  if (!suyas.length) return null;
+                  return (
+                    <div key={grupo} className={"rp3-grupo " + grupo}>
+                      <div className="rp3-cgl"><i className="d" aria-hidden />{titulo}<small>· {sub}</small></div>
+                      <div className="rp3-rl" role="radiogroup" aria-label={titulo}>
+                        {suyas.map((c) => (
+                          <button key={c.clave} type="button" role="radio" aria-checked={causa === c.clave}
+                                  className={"rp3-ro" + (causa === c.clave ? " on" : "")
+                                             + (grupo === "no_asumida" ? " na roja" : "")}
+                                  onClick={() => setCausa(c.clave)}>
+                            <span className="rd" aria-hidden />
+                            <span className="nom">{c.nombre}</span>
+                            {c.exige_foto && (
+                              <span className="cam">
+                                <svg viewBox="0 0 24 24" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+                                Foto
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
 
-            {exigeFoto && (
-              <div className="exige">
-                <b>Esta causa exige foto.</b> Es lo que sostiene que la rotura no es del OL. Sin
-                evidencia, el OL la va a devolver.
+            <div className="rp3-f">
+              <div className="rp3-lb">
+                <b>Evidencia</b>
+                <span className={exigeFoto ? "req" : ""}>
+                  {exigeFoto ? "Obligatoria: esta causa exige foto. Sin ella, el OL la devuelve"
+                             : "Foto opcional para esta causa"}
+                </span>
               </div>
-            )}
-
-            <div className="linea-campos">
-              <div>
-                <span className="rot-campo">Foto de la novedad</span>
-                <div className="foto">
-                  <div className="lienzo">
-                    {foto
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      ? <img src={foto.url} alt="La rotura" />
-                      : <span>{sellando ? "SELLANDO…" : "SIN FOTO"}</span>}
-                  </div>
-                  <div className="sello">{sello}</div>
-                </div>
+              <div className="rp3-ev">
+                <button type="button" className={"rp3-up" + (foto ? " con" : "")}
+                        onClick={abrirCamara} disabled={sellando}
+                        aria-label={foto ? "Tomar otra foto" : "Tomar la foto"}>
+                  {foto
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    ? <img src={foto.url} alt="La rotura" />
+                    : <span className="ci" aria-hidden>
+                        <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+                      </span>}
+                  <span className="tx">
+                    {sellando ? "Sellando…" : foto ? "Tomar otra foto" : "Tomar foto"}
+                    <small>{foto ? "con sello de fecha y lugar" : "con la cámara"}</small>
+                  </span>
+                </button>
                 <input ref={camara} type="file" accept="image/*" capture="environment"
                        onChange={tomarFoto} hidden />
-                <button type="button" className="otra" onClick={abrirCamara} disabled={sellando}>
-                  {foto ? "Tomar otra foto" : "Tomar la foto"}
-                </button>
-              </div>
-
-              <div>
-                <span className="rot-campo">Qué pasó</span>
-                <textarea id="rt-des" className="campo-suelto texto" rows={7} value={descripcion}
+                <textarea id="rt-des" className="rp3-texto" rows={5} value={descripcion}
                           onChange={(e) => setDescripcion(e.target.value)}
-                          placeholder="La transportadora de la T1 se atascó y tumbó la fila de envase." />
+                          aria-label="Qué pasó"
+                          placeholder="Qué pasó. Ej.: la transportadora de la T1 se atascó y tumbó la fila de envase." />
               </div>
+              <div className="rp3-meta">{sello}</div>
             </div>
 
             {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
@@ -907,7 +911,17 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
         )}
       </div>
 
-      <div className="pie">
+      <div className={"pie" + (paso === 2 ? " con-res" : "")}>
+        {paso === 2 && (
+          /* EL RESUMEN DE LO ESCOGIDO, a la izquierda de los botones: antes
+             de mandar se lee de un golpe «T1 · Bahías T1 · la paga el OL»
+             sin volver a subir por el formulario. */
+          <span className="res" role="status">
+            {[procNombre, areaNombre].filter(Boolean).join(" · ") || "Falta escoger"}
+            {cau && <> · <b className={cau.grupo === "asumida" ? "si" : "no"}>
+              {cau.grupo === "asumida" ? "la paga el OL" : "no la paga el OL"}</b></>}
+          </span>
+        )}
         <button type="button" onClick={() => (paso === 0 ? cerrar() : setPaso(paso - 1))}>
           {paso === 0 ? "Cancelar" : "Atrás"}
         </button>

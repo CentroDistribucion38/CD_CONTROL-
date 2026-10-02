@@ -44,6 +44,7 @@ import type { KeyboardEvent, RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
+import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
@@ -243,6 +244,24 @@ export function Contar({
   const [fCalle, setFCalle] = useState("");
   const [fModulo, setFModulo] = useState("");
   const [b, setB] = useState<Borrador>(VACIO);
+
+  /* ---------- LA FOTO DE UN RENGLÓN (evidencia) ----------
+     Opcional y aparte del borrador: un Blob no cabe en el teléfono como
+     texto, así que no se guarda con él. `fotoNueva` es la que se tomó para
+     el renglón que se está anotando; `fotosDe` dice qué renglones YA
+     tienen foto en la base (linea_id → ruta). Una por renglón: otra la
+     reemplaza. */
+  const { ubi: ubiFoto, direccion: dirFoto, pedir: pedirUbi } = usePosicion();
+  const [fotoNueva, setFotoNueva] = useState<Foto | null>(null);
+  const [sellando, setSellando] = useState(false);
+  const [fotosDe, setFotosDe] = useState<Record<string, string>>({});
+  const camaraNueva = useRef<HTMLInputElement>(null);
+  const camaraFila = useRef<HTMLInputElement>(null);
+  const filaDeFoto = useRef<string | null>(null);
+  /* Las fotos de los renglones que quedaron PENDIENTES sin señal: viven en
+     la memoria de la pantalla (no caben en el teléfono como texto), así
+     que si se cierra la página antes de que vuelva la señal se pierden. */
+  const fotosCola = useRef(new Map<string, Foto>());
 
   /* ---------- LA COLA SIN SEÑAL ----------
      Si la señal se cae con la pantalla abierta, cada renglón NUEVO que no
@@ -684,6 +703,7 @@ export function Contar({
     setCorrigiendo(null);
     setDesdeTarjeta(null);
     setMas(false);
+    setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
     /* «TANTO LA CALLE COMO EL MÓDULO IGUAL AL ANTERIOR, Y YA EMPIEZO CON
        EL LADO; APENAS ESCOJA LADO, SE SALE AL CÓDIGO.» Calle y módulo se
        quedan; el lado se vuelve a escoger en cada renglón —salvo que el
@@ -848,6 +868,93 @@ export function Contar({
     return delModulo.find((u) => (u.lado ?? "") === bb.lado) ?? null;
   };
 
+  /* LAS FOTOS QUE YA TIENE EL RECORRIDO. Si la tabla todavía no existe
+     (falta correr el SQL) la lectura falla y simplemente no hay fotos
+     que mostrar: el conteo no depende de esto. */
+  useEffect(() => {
+    if (!conteo) return;
+    let vivo = true;
+    void (async () => {
+      const { data, error } = await supabase.from("conteo_fotos").select("linea_id, ruta").eq("conteo_id", conteo.id);
+      if (!vivo || error || !data) return;
+      setFotosDe(Object.fromEntries((data as { linea_id: string; ruta: string }[]).map((f) => [f.linea_id, f.ruta])));
+    })();
+    return () => { vivo = false };
+  }, [conteo?.id, supabase]);
+
+  useEffect(() => () => { if (fotoNueva) URL.revokeObjectURL(fotoNueva.url) }, [fotoNueva]);
+
+  /** Sella la foto en el teléfono, al tomarla: la hora que queda es la de
+   *  tomarla, no la de subirla. */
+  async function sellarFoto(archivo: File, titulo: string): Promise<Foto | null> {
+    setSellando(true);
+    try {
+      return await sellar(archivo, { titulo: titulo.toUpperCase(), ubi: ubiFoto, direccion: dirFoto, etiqueta: "CONTEO" });
+    } catch (e) {
+      avisar.mal(e instanceof Error ? e.message : "No se pudo procesar esa foto. Vuelve a tomarla.");
+      return null;
+    } finally { setSellando(false) }
+  }
+
+  async function tomarNueva(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+    const f = await sellarFoto(archivo, b.codigo ? `${b.codigo} · ${claveEscogida ?? ""}` : "CONTEO");
+    if (f) { setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return f }); setMas(true) }
+  }
+
+  /** Sube la foto de un renglón que YA está en la base. Devuelve el texto del
+   *  problema, o null si quedó. */
+  async function subirFoto(lineaId: string, f: Foto): Promise<string | null> {
+    if (!conteo) return "No hay recorrido abierto.";
+    const ruta = `${conteo.id}/${lineaId}.jpg`;
+    const { error: eSubir } = await supabase.storage.from("inventario")
+      .upload(ruta, f.blob, { contentType: "image/jpeg", upsert: true });
+    if (eSubir) return "La foto no subió: " + eSubir.message;
+    const { error: eFila } = await supabase.from("conteo_fotos").upsert({
+      linea_id: lineaId, conteo_id: conteo.id, ruta, ancho: f.ancho, alto: f.alto, bytes: f.blob.size,
+      tomada_en: f.tomada, lat: ubiFoto?.lat ?? null, lng: ubiFoto?.lng ?? null,
+      precision_m: ubiFoto ? Math.round(ubiFoto.precision) : null,
+    }, { onConflict: "linea_id" });
+    if (eFila) return "La foto subió pero no quedó registrada: " + eFila.message;
+    setFotosDe((x) => ({ ...x, [lineaId]: ruta }));
+    return null;
+  }
+
+  /** El renglón recién anotado: el último de ese material en este recorrido. */
+  async function ultimoRenglon(sku: string): Promise<string | null> {
+    if (!conteo) return null;
+    const { data } = await supabase.from("v_conteo_fefo").select("id")
+      .eq("conteo_id", conteo.id).eq("codigo", sku)
+      .order("contado_en", { ascending: false }).limit(1).maybeSingle();
+    return (data?.id as string | undefined) ?? null;
+  }
+
+  /** La foto de un renglón de «El borrador» (poner o cambiar). */
+  async function fotoDeFila(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    const id = filaDeFoto.current;
+    e.target.value = "";
+    if (!archivo || !id) return;
+    const r = renglones.find((x) => x.id === id);
+    const f = await sellarFoto(archivo, r ? `${r.codigo} · ${r.ubicacion_combinada ?? r.ubicacion ?? ""}` : "CONTEO");
+    if (!f) return;
+    setGuardando(true);
+    const mal = await subirFoto(id, f);
+    setGuardando(false);
+    URL.revokeObjectURL(f.url);
+    if (mal) avisar.mal(mal); else avisar.bien("Foto guardada en el renglón.");
+  }
+
+  async function verFoto(lineaId: string) {
+    const ruta = fotosDe[lineaId];
+    if (!ruta) return;
+    const { data, error } = await supabase.storage.from("inventario").createSignedUrl(ruta, 600);
+    if (error || !data?.signedUrl) { avisar.mal("No se pudo abrir la foto."); return }
+    window.open(data.signedUrl, "_blank", "noopener");
+  }
+
   function ponerCola(nueva: ItemCola<Borrador>[]) {
     colaRef.current = nueva;
     setCola(nueva);
@@ -856,7 +963,7 @@ export function Contar({
 
   /* El renglón queda pendiente en el teléfono y el formulario queda listo
      para el siguiente: contar no se detiene porque no haya señal. */
-  function encolar(bb: Borrador, mat: Material, idU: string | null = null) {
+  function encolar(bb: Borrador, mat: Material, idU: string | null = null, foto: Foto | null = null) {
     const u = ubicacionDe(bb);
     const [calle, modulo] = bb.base.split("|");
     const it: ItemCola<Borrador> = {
@@ -866,9 +973,11 @@ export function Contar({
       ubicacionId: idU ?? u?.id ?? null,
     };
     const nueva = [...colaRef.current, it];
+    if (foto) fotosCola.current.set(it.id, { ...foto, url: URL.createObjectURL(foto.blob) });
     ponerCola(nueva);
     setGuardando(false);
-    avisar.info(`${mat.sku} quedó pendiente en este teléfono (${nueva.length}).`);
+    avisar.info(`${mat.sku} quedó pendiente en este teléfono (${nueva.length}).`
+      + (foto ? " Su foto sube con él, pero no cierres la página hasta que se envíe: la foto no se guarda en el teléfono." : ""));
     limpiar(true);
   }
 
@@ -897,7 +1006,17 @@ export function Contar({
           idU = data as string;
         }
         const { error } = await supabase.rpc("conteo_fefo_agregar", { p_conteo: conteo.id, ...argumentos(it.bb, mat, idU) });
-        if (!error) return { ok: true };
+        if (!error) {
+          const f = fotosCola.current.get(it.id);
+          if (f) {
+            fotosCola.current.delete(it.id);
+            const idL = await ultimoRenglon(mat.sku);
+            const mal = idL ? await subirFoto(idL, f) : "No se encontró el renglón para ponerle la foto.";
+            URL.revokeObjectURL(f.url);
+            if (mal) avisar.mal(`${mat.sku}: ${mal} Agrégala desde «El borrador».`);
+          }
+          return { ok: true };
+        }
         return esFalloDeRed(error.message) ? { red: true } : { error: error.message };
       });
 
@@ -950,12 +1069,13 @@ export function Contar({
     const mal = revisar(bb);
     if (mal) { avisar.mal(mal); return }
     const mat = materialDe(bb)!;
+    const foto = fotoNueva;
 
     /* SIN SEÑAL, UN RENGLÓN NUEVO SE GUARDA EN EL TELÉFONO. Corregir uno
        que ya está en la base necesita la base: ahí sí se avisa. */
     if (!navigator.onLine) {
       if (corrigiendo) { avisar.mal(SIN_SENAL_CORREGIR); return }
-      encolar(bb, mat); return;
+      encolar(bb, mat, null, foto); return;
     }
 
     setGuardando(true);
@@ -965,7 +1085,7 @@ export function Contar({
       setGuardando(false);
       if (huboRed.current) {
         huboRed.current = false;
-        if (corrigiendo) avisar.mal(SIN_SENAL_CORREGIR); else encolar(bb, mat);
+        if (corrigiendo) avisar.mal(SIN_SENAL_CORREGIR); else encolar(bb, mat, null, foto);
       }
       return;
     }
@@ -975,10 +1095,19 @@ export function Contar({
     setGuardando(false);
     if (error) {
       if (esFalloDeRed(error.message)) {
-        if (corrigiendo) avisar.mal(SIN_SENAL_CORREGIR); else encolar(bb, mat, idU);
+        if (corrigiendo) avisar.mal(SIN_SENAL_CORREGIR); else encolar(bb, mat, idU, foto);
         return;
       }
       avisar.mal(esDuplicado(error.message) ? AVISO_REPETIDO : error.message); return;
+    }
+
+    /* LA FOTO, DESPUÉS DEL RENGLÓN: su ruta lleva el id de la línea. Si
+       falla, el renglón YA está en la base —que es lo importante— y se
+       dice, para agregarla desde «El borrador». */
+    if (foto) {
+      const idL = corrigiendo ?? await ultimoRenglon(mat.sku);
+      const malF = idL ? await subirFoto(idL, foto) : "No se encontró el renglón para ponerle la foto.";
+      if (malF) avisar.mal(`${mat.sku} quedó anotado, pero ${malF.charAt(0).toLowerCase()}${malF.slice(1)} Agrégala desde «El borrador».`);
     }
 
     /* Se vuelve a leer la vista en vez de armar el renglón aquí: las seis
@@ -1112,6 +1241,13 @@ export function Contar({
     setGuardando(false);
     if (error) { avisar.mal(error.message); return }
     setRenglones((xs) => xs.filter((x) => x.id !== r.id));
+    /* La fila de la foto se fue sola con el renglón; el archivo se limpia
+       aquí, sin que importe si falla. */
+    const rutaF = fotosDe[r.id];
+    if (rutaF) {
+      void supabase.storage.from("inventario").remove([rutaF]);
+      setFotosDe((x) => { const y = { ...x }; delete y[r.id]; return y });
+    }
     if (corrigiendo === r.id) limpiar();
     avisar.bien("Renglón borrado.");
   }
@@ -1633,9 +1769,9 @@ export function Contar({
               <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="17" r="2" /></svg>
             </span>
             <span className="fe-mas-tx"><b>Datos adicionales</b>
-              <span>Estado del envase · rota · avería · PNC · observación</span></span>
+              <span>Estado del envase · rota · avería · PNC · observación · foto</span></span>
             <span className="fe-mas-marcas">
-              {([b.rot && "ROTA", b.averia && "AVERÍA", b.pnc && "PNC", b.estado].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
+              {([b.rot && "ROTA", b.averia && "AVERÍA", b.pnc && "PNC", b.estado, fotoNueva && "FOTO"].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
             </span>
             <span className="fe-mas-fl" aria-hidden>▾</span>
           </summary>
@@ -1677,6 +1813,31 @@ export function Contar({
             <label className="fe-nota"><span>Observación</span>
               <input value={b.nota} placeholder="Opcional — lo que haya que decir de esta estiba"
                      onChange={(e) => pon("nota", e.target.value)} /></label>
+            {/* LA CAMARITA: evidencia de un mixeo, de una avería, de lo que
+                sea. Opcional; una por renglón; no cambia ninguna cuenta. */}
+            <div className="fe-foto">
+              <span id="fe-rot-foto">Evidencia</span>
+              <input ref={camaraNueva} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarNueva} />
+              <div className="fe-foto-fila" role="group" aria-labelledby="fe-rot-foto">
+                <button type="button" className={"fe-foto-btn" + (fotoNueva ? " con" : "")} disabled={sellando}
+                        aria-label={fotoNueva ? "Tomar otra foto" : "Tomar foto"}
+                        onClick={() => { pedirUbi(); camaraNueva.current?.click() }}>
+                  {fotoNueva
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    ? <img src={fotoNueva.url} alt="La foto de este renglón" />
+                    : <svg viewBox="0 0 24 24" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>}
+                  <b>{sellando ? "Procesando…" : fotoNueva ? "Tomar otra" : "Tomar foto"}</b>
+                </button>
+                <p>
+                  {fotoNueva
+                    ? <>La foto va con este renglón. <button type="button" className="fe-foto-quitar"
+                        onClick={() => setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null })}>Quitarla</button></>
+                    : corrigiendo && fotosDe[corrigiendo]
+                      ? "Este renglón ya tiene foto. Tomar otra la reemplaza."
+                      : "Opcional: un mixeo, una avería, lo que haga falta para tener soporte."}
+                </p>
+              </div>
+            </div>
             {(b.averia || b.pnc || b.estado) && (
               /* Las marcas separan la estiba dentro del mismo módulo: en el
                  Excel es la columna «UBICACIÓN COMBINADA». */
@@ -1834,6 +1995,7 @@ export function Contar({
           <p className="fe-vacio">Todavía no has anotado nada. Escoge el módulo y arranca.</p>
         ) : (
           <>
+            <input ref={camaraFila} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={fotoDeFila} />
             <div className="fe-lista">
               {vistos.length === 0 && (
                 <p className="fe-vacio">Ningún renglón coincide con el filtro.</p>
@@ -1847,6 +2009,14 @@ export function Contar({
                     <b className="fe-cod">{r.codigo}</b>
                     <span className="fe-desc">{r.material}</span>
                     <span className="fe-ubi">{r.ubicacion_combinada ?? r.ubicacion}</span>
+                    {fotosDe[r.id] && (
+                      <button type="button" className="fe-mini fe-foto-ver" onClick={() => void verFoto(r.id)}>Ver foto</button>
+                    )}
+                    <button type="button" className="fe-mini" disabled={guardando || sellando}
+                            aria-label={fotosDe[r.id] ? "Cambiar la foto" : "Poner foto"}
+                            onClick={() => { filaDeFoto.current = r.id; pedirUbi(); camaraFila.current?.click() }}>
+                      {fotosDe[r.id] ? "Otra foto" : "Foto"}
+                    </button>
                     <button type="button" className="fe-mini" disabled={guardando}
                             onClick={() => corregir(r)}>Corregir</button>
                     <button type="button" className="fe-quitar chico" disabled={guardando}

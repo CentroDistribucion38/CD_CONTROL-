@@ -316,14 +316,20 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
 
         <div className="rtc-cuerpo">
           {/* ─ UN TURNO POR TARJETA ─ */}
-          <div className="rtc-sec"><b>Por turno</b>
-            <span>{c.turnos.length} {c.turnos.length === 1 ? "turno" : "turnos"} · el C abre el día</span></div>
-          {c.turnos.length === 0
-            ? <p className="rtc-nada">No hay roturas con estos filtros.</p>
-            : <div className="rtc-turnos">{c.turnos.map(tarjeta)}</div>}
+          {/* CON UNA SOLA TARJETA («un turno, un día») la tarjeta repite la banda
+              de arriba: se quita y «A qué corresponde» sube a su lugar. */}
+          {c.turnos.length !== 1 && (
+            <>
+              <div className="rtc-sec"><b>Por turno</b>
+                <span>{c.turnos.length} {c.turnos.length === 1 ? "turno" : "turnos"} · el C abre el día</span></div>
+              {c.turnos.length === 0
+                ? <p className="rtc-nada">No hay roturas con estos filtros.</p>
+                : <div className="rtc-turnos">{c.turnos.map(tarjeta)}</div>}
+            </>
+          )}
 
           {/* ─ A QUÉ CORRESPONDE, EN TODO LO FILTRADO ─ */}
-          {t.registros > 0 && c.turnos.length > 1 && (
+          {t.registros > 0 && (
             <>
               <div className="rtc-sec"><b>A qué corresponde</b><span>todo lo del cierre, junto</span></div>
               <div className="rtc-cuatro grande">

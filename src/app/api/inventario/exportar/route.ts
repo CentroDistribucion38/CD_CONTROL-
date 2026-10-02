@@ -13,10 +13,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
 import { maestroInventario, type Renglon, type ConteoFefo } from "@/modulos/inventario/fefo";
-import { armarLibroDia } from "@/modulos/inventario/libro";
+import { armarLibroDia, type EvidenciaRenglon } from "@/modulos/inventario/libro";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/* Techos para que el .xlsx siga abriéndose. */
+const MAX_FOTOS_LIBRO = 150;
+const MAX_BYTES_FOTO = 3 * 1024 * 1024;
 
 export async function GET(req: Request) {
   const supabase = await createClient();
@@ -53,6 +57,32 @@ export async function GET(req: Request) {
 
   const { data: l } = await supabase.from("v_conteo_fefo").select("*")
     .in("conteo_id", conteos.map((x) => x.id)).limit(20000);
+  /* LAS FOTOS DE LOS RENGLONES (la camarita de Contar). Van a su propia hoja
+     «Evidencias». Si la tabla todavía no existe —falta correr el SQL— o no
+     hay fotos, el libro sale exactamente como siempre. Se baja a lo más
+     MAX_FOTOS_LIBRO: cada foto pesa ~0,5 MB y un .xlsx de cientos de MB
+     no abre; si se recortan, la hoja lo dice. */
+  const lineas = (l ?? []) as Renglon[];
+  const evidencias: EvidenciaRenglon[] = [];
+  let recortadas = 0;
+  try {
+    const ids = lineas.map((x) => x.id);
+    const filas: { linea_id: string; ruta: string; ancho: number | null; alto: number | null; tomada_en: string | null }[] = [];
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data: f, error: eF } = await supabase.from("conteo_fotos")
+        .select("linea_id, ruta, ancho, alto, tomada_en").in("linea_id", ids.slice(i, i + 200));
+      if (eF) { filas.length = 0; break }
+      filas.push(...((f ?? []) as typeof filas));
+    }
+    for (const f of filas) {
+      if (evidencias.length >= MAX_FOTOS_LIBRO) { recortadas++; continue }
+      const { data: blob, error: eB } = await supabase.storage.from("inventario").download(f.ruta);
+      if (eB || !blob) { recortadas++; continue }
+      const buf = Buffer.from(await (blob as Blob).arrayBuffer());
+      if (buf.byteLength > MAX_BYTES_FOTO) { recortadas++; continue }
+      evidencias.push({ linea_id: f.linea_id, foto: buf, ancho: f.ancho, alto: f.alto, tomada_en: f.tomada_en });
+    }
+  } catch { /* sin fotos: el libro de siempre */ }
   const { data: yo } = await supabase.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle();
   /* El sello de la B, como el resumen que se escogió; los colores del
      tema de quien exporta (si no llegan o no son un color, los de la marca). */
@@ -62,7 +92,7 @@ export async function GET(req: Request) {
 
   const archivo = await armarLibroDia({
     fecha, hasta, bodega: bodega.codigo, quien: yo?.nombre || yo?.usuario || "—",
-    conteos, lineas: (l ?? []) as Renglon[], materiales: m.materiales,
+    conteos, lineas, evidencias, fotosRecortadas: recortadas, materiales: m.materiales,
     ubicaciones: m.ubicaciones.filter((u) => u.bodega_id === bodega.id), logo, colores, totalDelDia: delDia.length,
   });
   const nombre = `inventario-consolidado-${bodega.codigo}-${fecha}${hasta !== fecha ? `_${hasta}` : ""}${conteos.length < delDia.length ? `-${conteos.length}de${delDia.length}` : ""}.xlsx`;
@@ -72,6 +102,8 @@ export async function GET(req: Request) {
       "Content-Disposition": `attachment; filename="${nombre}"; filename*=UTF-8''${encodeURIComponent(nombre)}`,
       "Content-Length": String(archivo.byteLength),
       "Cache-Control": "no-store",
+      /* Si se quedaron fotos por fuera, que se pueda saber sin abrir el archivo. */
+      ...(recortadas > 0 ? { "X-Fotos-Recortadas": String(recortadas) } : {}),
     },
   });
 }

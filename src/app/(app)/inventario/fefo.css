@@ -1585,6 +1585,22 @@
 .fe .fe-mas .fe-combinada { margin: 0 }
 .fe .fe-anotar > .fe-mas + .fe-barra-fija { margin-top: 0 }
 
+/* LA CAMARITA DE «DATOS ADICIONALES». Rectangular, 48 px como el resto. */
+.fe .fe-foto { display: flex; flex-direction: column; gap: 5px }
+.fe .fe-foto > span { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .fe-foto-fila { display: flex; align-items: center; gap: 12px }
+.fe .fe-foto-btn {
+  flex: none; display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; cursor: pointer;
+  background: #fff; color: var(--fe-tinta); border: 1.5px dashed var(--fe-gris); border-radius: 0;
+  font: 700 13.5px var(--fe-texto);
+}
+.fe .fe-foto-btn.con { border-style: solid; border-color: var(--fe-tinta); padding-left: 4px }
+.fe .fe-foto-btn:disabled { opacity: .6; cursor: wait }
+.fe .fe-foto-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.fe .fe-foto-btn img { width: 40px; height: 40px; object-fit: cover; display: block }
+.fe .fe-foto-fila p { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--fe-gris-panel); min-width: 0 }
+.fe .fe-foto-quitar { background: none; border: 0; padding: 0; cursor: pointer; color: var(--fe-tinta); font: 700 12.5px var(--fe-texto); text-decoration: underline; min-height: 24px }
+
 @media (max-width: 760px) {
   .fe .fe-anotar .fe-tres.fe-donde3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) }
   .fe .fe-donde3 .fe-lado-campo { grid-column: 1 / -1 }
