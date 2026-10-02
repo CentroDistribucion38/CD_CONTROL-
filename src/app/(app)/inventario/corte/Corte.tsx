@@ -675,7 +675,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                 <span>{s.unidad === "cajas" ? "¿Cuántas cajas?" : `¿Cuántas ${s.unidad}?`}</span>
                 <input inputMode="decimal" value={s.cant} placeholder="0" onChange={(e) => cambiaSitio(i, { cant: e.target.value })} />
               </label>
-              <p className={"cl-eco" + (eq && !/cajas$|unidades$/.test(eq) ? " aviso" : "")}>{eq || "Se convierte con el factor del material"}</p>
+              {eq && <p className={"cl-eco" + (!/cajas$|unidades$/.test(eq) ? " aviso" : "")}>{eq}</p>}
             </div>
           );
         })}

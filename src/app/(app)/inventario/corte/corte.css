@@ -247,8 +247,37 @@
 .fe .dq tr.r-depa td { background: color-mix(in srgb, var(--fe-fondo) 55%, var(--fe-papel)) }
 .fe .dq tr.r-depa td.dz { background: color-mix(in srgb, var(--fe-acento) 10%, var(--fe-papel)) }
 .fe .dq tr.r-total td { border-top: 1px solid var(--fe-tinta); font-weight: 700 }
+.fe .dq td.dfc { text-align: center; vertical-align: middle; white-space: normal }
+.fe .dq td.dfc b { display: block; margin-bottom: 4px; font: 800 20px var(--fe-titulo) }
+.fe .dq td.dfc small { display: block; font: 500 12px ui-monospace, "IBM Plex Mono", monospace; color: var(--fe-gris) }
+.fe .dq td.lec.fefo { vertical-align: middle; max-width: 320px; background: color-mix(in srgb, var(--fe-fondo) 55%, var(--fe-papel)) }
+.fe .dq td.lec.fefo > span { display: block; font: 500 12px var(--fe-texto); color: var(--fe-gris); line-height: 1.35 }
+.fe .dq td.lec.fefo .lf-d b { color: var(--fe-tinta) }
+.fe .dq td.lec.fefo .lf-p { margin: 8px 0 6px; padding-top: 8px; border-top: 1px dashed var(--fe-linea); font: 600 14px var(--fe-texto); color: var(--fe-tinta) }
+.fe .dq td.lec.fefo .lf-p b { font: 800 15px var(--fe-titulo) }
+.fe .dq td.lec.fefo .lf-l { font: 700 13px var(--fe-texto) }
+.fe .dq .lf-l.ok { color: var(--fe-bien) }
+.fe .dq .lf-l.mal { color: var(--fe-mal) }
+.fe .dq .lf-l.gris { color: var(--fe-gris) }
 .fe .dq .dq-pie { display: flex; gap: 6px 28px; flex-wrap: wrap; padding: 10px 18px 14px; font-size: 12.5px; color: var(--fe-gris); border-top: 1px solid var(--fe-linea); margin-top: 6px }
 .fe .dq .dq-pie b { color: var(--fe-tinta) }
+
+/* EL FORMULARIO COMPACTO (corte sin «dónde quedó ubicado»): campos de 44 px (el mínimo para tocar), todo alineado y en pocas filas. */
+.fe .cl-cuerpo { gap: 10px; padding: 12px 16px }
+.fe .cl-envdepa { align-items: start; padding: 10px 12px; gap: 0 }
+.fe .cl-envdepa .cl-flecha { height: 44px; margin-top: 21px }
+.fe .cl-envdepa .cl-depa em { display: none }
+.fe .cl-envdepa .cl-depa input { min-height: 44px; font: 700 17px var(--fe-texto) }
+.fe .cl-envdepa input, .fe .cl-cuerpo > .cl-mat input, .fe .cl-r2.una select, .fe .cl-r2.una input { min-height: 44px }
+.fe .cl-envdepa .cl-mae, .fe .cl-cuerpo > .cl-mat .cl-mae { min-height: 44px; padding: 4px 8px }
+.fe .cl-envdepa .cl-mae-ic, .fe .cl-cuerpo > .cl-mat .cl-mae-ic { width: 28px; height: 28px }
+.fe .cl-r2.una .cl-sitio { padding: 10px 12px; gap: 8px }
+.fe .cl-r2.una .cl-mod { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px }
+.fe .cl-r2.una .cl-cant-c { grid-column: auto }
+.fe .cl-r2.una .cl-cant-c input { font: 700 16px var(--fe-texto) }
+.fe .cl-r2.una .cl-eco { font-size: 11.5px; margin-top: -2px }
+.fe .cl-r2.una .cl-mas { min-height: 44px; font-size: 12.5px }
+.fe .cl-cuerpo > .cl-manual { min-height: 44px; font-size: 12.5px }
 
 @media (max-width: 900px) {
   .fe .cl-grid { grid-template-columns: 1fr }
@@ -299,7 +328,9 @@
   .fe .cl-mods li { grid-template-columns: 1fr; gap: 0 }
   .fe .cl-acciones .btn { width: 100% }
   .fe .cl-sitio, .fe .cl-mod { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .fe .cl-cant-c { grid-column: 1 / -1 }
+  .fe .cl-cant-c, .fe .cl-r2.una .cl-cant-c { grid-column: 1 / -1 }
+  .fe .cl-r2.una .cl-mod { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .fe .cl-envdepa .cl-flecha { display: none }
   .fe .cl-progbar { display: none }
   .fe .cl-prog { flex-basis: 100%; font-size: 12px }
   .fe .cl-guardar { gap: 8px; padding: 8px 0 }

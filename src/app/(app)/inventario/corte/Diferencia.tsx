@@ -72,6 +72,63 @@ function DifT({ fila, f }: { fila: FilaTabla; f: Factores; dz?: boolean }) {
   return <>{c(est, nf1, "Estibas", "x")}{c(fila.dif, nf, "Cajas", "c")}{c(uni, nf, "Unidades", "")}</>;
 }
 
+/** Una cantidad de cajas en estibas / cajas / unidades, para las dos líneas de abajo de la diferencia («69,3 depa»). */
+const enTres = (cajas: number, f: Factores) => ({
+  est: f.porEstiba && f.porEstiba > 0 ? cajas / f.porEstiba : null,
+  cajas,
+  uni: f.porCaja && f.porCaja > 0 ? cajas * f.porCaja : null,
+});
+
+/**
+ * LA TABLA CUANDO SALE DEL FEFO (solo envase): dos filas —la depa y «según el FEFO»— y UNA
+ * diferencia, «depa vs inventario», que ocupa las dos filas con lo que pasó por la depa y lo que
+ * bajó en el inventario debajo; a la derecha, la lectura completa.
+ */
+function TablaFefo({ t, g, f, depaCajas, material }: { t: TablaLinea; g: GrupoTabla; f: Factores; depaCajas: number; material: string | null }) {
+  const filas = g.filas;
+  const p = filas[filas.length - 1];
+  const dif = p.dif as number;
+  const tono = Math.abs(dif) < 0.5 ? "ok" : "rojo";
+  const d = enTres(dif, f), dp = enTres(Math.abs(depaCajas), f), iv = enTres(Math.abs(p.mov as number), f);
+  const span = 1 + filas.length;
+  const sub = (a: number | null, fm: Intl.NumberFormat, que: string) => a === null ? null : <small>{fm.format(a)} {que}</small>;
+  const celda = (k: "est" | "cajas" | "uni", fm: Intl.NumberFormat, nombre: string, clase: string) => {
+    const n = d[k];
+    return (
+      <td rowSpan={span} data-k={nombre} data-b={k === "est" ? "Depa vs inventario" : undefined} className={`${clase} dz dfc ${n === null ? "nd" : tono}`}>
+        <b>{n === null ? "—" : signo(Math.abs(n) < 0.5 ? 0 : n, fm)}</b>
+        {sub(dp[k], fm, "depa")}{sub(iv[k], fm, "inventario")}
+      </td>
+    );
+  };
+  const bajo = (p.mov as number) <= 0 ? "bajó" : "subió";
+  return (
+    <>
+      <tr className="r-depa">
+        <td className="q" data-k="Qué se mide">{t.depa.etiqueta}<small>contador · la referencia</small></td>
+        <Tres bloque="Corte inicial" cajas={t.depa.ini} f={f} />
+        <Tres bloque="Corte final" cajas={t.depa.fin} f={f} />
+        <Tres bloque="Se movió" cajas={t.depa.mov} f={f} conSigno />
+        {celda("est", nf1, "Estibas", "x")}{celda("cajas", nf, "Cajas", "c")}{celda("uni", nf, "Unidades", "")}
+        <td rowSpan={span} className="lec fefo" data-k="Lectura">
+          <span className="lf-d">{g.titulo} <b>{g.donde}</b>{material ? ` · ${material}` : ""} · debe <b>bajar</b> lo mismo que pasó por la depa</span>
+          <span className="lf-p">Por la depa pasaron <b>{nf.format(depaCajas)}</b> cajas y el inventario {bajo} <b>{nf.format(Math.abs(p.mov as number))}</b></span>
+          <span className={"lf-l " + (p.tono ?? "")}>{p.lectura}</span>
+        </td>
+      </tr>
+      {filas.map((fila, i) => (
+        <tr key={i} className={"r-" + fila.clase}>
+          <td className="q" data-k="Qué se mide">{fila.etiqueta}{i === filas.length - 1 && <small>depa contra inventario</small>}</td>
+          <Tres bloque="Corte inicial" cajas={fila.ini} f={f} />
+          <Tres bloque="Corte final" cajas={fila.fin} f={f} />
+          <Tres bloque="Se movió" cajas={fila.mov} f={f} conSigno />
+        </tr>
+      ))}
+      {g.nota && <tr className="nota"><td colSpan={14}>{g.nota}</td></tr>}
+    </>
+  );
+}
+
 /** Las tablas de un par contra un conteo (o sin conteo si id es null). */
 export function tablasDelPar(a: Analisis, id: string | null, lineasPorConteo: Map<string, LineaConteo[]>, nombreUbi: (id: string) => string): TablaLinea[] {
   return cruzar(a, id ?? "", id ? lineasPorConteo.get(id) ?? [] : []).map((c) => armarTabla(c, id !== null, nombreUbi));
@@ -176,6 +233,10 @@ function TarjetaLinea({ t, nombre, mat, a, factores }: {
   const nombreEnvase = () => { const e = envaseDelRenglon(f.envase_id, f.material_id, [...mat.values()]); return e.m ? `${e.m.sku} · ${e.m.nombre}${e.delMaestro ? " (del maestro)" : ""}${f.material_id && mat.get(f.material_id) ? ` · para ${mat.get(f.material_id)!.sku} · ${mat.get(f.material_id)!.nombre}` : ""}` : null; };
   const txtFactor = (x: Factores) => [x.porEstiba ? `${nf.format(x.porEstiba)} cajas por estiba` : null, x.porCaja ? `${nf.format(x.porCaja)} unidades por caja` : null].filter(Boolean).join(" · ");
   const fo = txtFactor(fOrigen), fd = f.soloEnvase ? "" : txtFactor(fDestino);
+  /* DEL FEFO: la tabla corta de «depa vs inventario», si hay con qué compararla. */
+  const g0 = t.grupos[0];
+  const delFefo = !!a.fefo?.lineas.includes(t.linea) && !!f.soloEnvase && !t.contadorAtras && !!g0 && g0.filas.length > 0
+    && g0.filas[g0.filas.length - 1].dif !== null && g0.filas[g0.filas.length - 1].mov !== null;
 
   return (
     <section className={"dq-card " + t.estado} aria-label={nombre}>
@@ -197,7 +258,7 @@ function TarjetaLinea({ t, nombre, mat, a, factores }: {
             <tr className="g">
               <th />
               <th colSpan={3}>Corte inicial</th><th colSpan={3}>Corte final</th><th colSpan={3}>Se movió</th>
-              <th colSpan={3} className="dif">Diferencia con la depa</th><th />
+              <th colSpan={3} className="dif">{delFefo ? "Depa vs inventario · diferencia" : "Diferencia con la depa"}</th><th />
             </tr>
             <tr className="s">
               <th>Qué se mide</th>
@@ -206,14 +267,18 @@ function TarjetaLinea({ t, nombre, mat, a, factores }: {
             </tr>
           </thead>
           <tbody>
+            {delFefo ? <TablaFefo t={t} g={g0} f={fOrigen} depaCajas={f.pasadas} material={nombreEnvase()} /> : <>
             <FilaT fila={t.depa} f={fDepa} />
             {t.grupos.map((g) => <Grupo key={g.titulo} g={g} f={g.titulo === "Tomando de" ? fOrigen : fDestino} material={g.titulo === "Tomando de" ? nombreEnvase() : nombreMat(g.material_id)} />)}
+            </>}
           </tbody>
         </table>
       </div>
 
       <footer className="dq-pie">
-        <span><b>Diferencia con la depa</b> = lo que se movió − lo que debía moverse</span>
+        {delFefo
+          ? <span><b>Diferencia</b> = lo que bajó en el inventario contra lo que pasó por la depa</span>
+          : <span><b>Diferencia con la depa</b> = lo que se movió − lo que debía moverse</span>}
         {fo || fd ? (
           <span>
             Factores:{" "}

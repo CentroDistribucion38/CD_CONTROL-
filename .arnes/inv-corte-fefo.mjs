@@ -158,6 +158,15 @@ ok(!/Ubicados en/.test(await txt()), "no aparece «Ubicados en»");
 ok(await pg.locator(".cl-envdepa .cl-depa input").count() === 1 && await pg.locator(".cl-envdepa .cl-mat").count() === 1 && await pg.locator(".cl-mat").count() === 2 && /Envase/.test(await pg.locator(".cl-mat-t").first().textContent()) && /Producto/.test(await pg.locator(".cl-mat-t").nth(1).textContent()), "como el diseño: Envase → cajas de la depa en una fila, y el PRODUCTO (con su SKU)");
 ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas cajas\?/.test(await pg.locator("fieldset.cl-sitio .cl-cant-c").textContent()) && await pg.locator("fieldset.cl-sitio .cl-mat").count() === 0, "solo cajas, y el envase no se pide dos veces");
 if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-form.png", fullPage: true });
+{ /* COMPACTO Y ALINEADO: envase y depa arrancan a la misma altura, sus campos miden lo mismo, y calle/módulo/lado/cajas van en una sola fila. */
+  const r = await pg.evaluate(() => { const b = (q) => document.querySelector(q).getBoundingClientRect();
+    return { e: b(".cl-envdepa .cl-mat-t"), d: b(".cl-envdepa .cl-depa > span"), ei: b(".cl-envdepa .cl-busca input"), di: b(".cl-envdepa .cl-depa input"),
+      cal: b(".cl-r2.una .cl-mod select"), can: b(".cl-r2.una .cl-cant-c input"), fl: b(".cl-envdepa .cl-flecha"), env: b(".cl-envdepa") } });
+  ok(Math.abs(r.e.top - r.d.top) < 2 && Math.abs(r.ei.top - r.di.top) < 2 && Math.abs(r.ei.height - r.di.height) < 2, "envase y depa alineados: " + JSON.stringify([r.e.top, r.d.top, r.ei.top, r.di.top, r.ei.height, r.di.height]));
+  ok(r.di.height <= 46 && r.env.height <= 110, "el formulario es compacto: campo " + r.di.height + " y fila " + r.env.height);
+  ok(Math.abs(r.cal.top - r.can.top) < 2, "calle y cantidad van en la misma fila: " + r.cal.top + " / " + r.can.top);
+  ok(Math.abs((r.fl.top + r.fl.height / 2) - (r.ei.top + r.ei.height / 2)) < 3, "la flecha queda a la altura de los campos");
+}
 await pg.fill(".cl-depa input", "1234");
 await pg.locator("fieldset.cl-sitio select").nth(0).selectOption("A");
 await pg.locator("fieldset.cl-sitio select").nth(1).selectOption("01");
@@ -197,8 +206,19 @@ await pg.selectOption(".dq-barra select", "a");
 ok(/FEFO-A|no hay un FEFO enviado antes|Falta/.test(await txt()), "al cambiar el FEFO se recalcula");
 
 if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-dif.png", fullPage: true });
+/* LA TABLA COMO EL DISEÑO: dos filas (depa y «según el FEFO») con UNA diferencia «depa vs inventario» y la lectura a la derecha. */
+{ await pg.selectOption(".dq-barra select", "b"); const c1 = pg.locator(".dq-card").first();
+  ok(/Depa vs inventario · diferencia/i.test(await c1.locator("thead").textContent()), "el encabezado dice «Depa vs inventario · diferencia»");
+  ok(await c1.locator("tbody tr.r-depa td[rowspan]").count() === 4 && await c1.locator("tbody tr").count() === 2, "la diferencia y la lectura ocupan las dos filas: " + await c1.locator("tbody tr").count());
+  ok(await c1.locator("tr.grp").count() === 0, "ya no hay una fila aparte de «Tomando de»");
+  const lec = (await c1.locator("td.lec.fefo").textContent()).replace(/\s+/g, " ");
+  ok(/Tomando de A · 01 · DER/.test(lec) && /3500887 · Botella Flint 1000R/.test(lec) && /debe bajar lo mismo que pasó por la depa/.test(lec) && /Por la depa pasaron 1\.000 cajas y el inventario bajó 1\.000/.test(lec) && /Cuadra con la depa/.test(lec), "la lectura trae dónde, el envase, lo que pasó y lo que bajó: " + lec);
+  const dz = (await c1.locator("td.dfc").allTextContents()).map((x) => x.replace(/\s+/g, " ").trim());
+  ok(dz.length === 3 && /^0/.test(dz[1]) && /1\.000 depa/.test(dz[1]) && /1\.000 inventario/.test(dz[1]), "la diferencia lleva «depa» e «inventario» debajo: " + dz.join(" | "));
+}
 /* Un FEFO que NO pasó por el módulo de donde se tomó: la ubicación se ve igual, con lo que había al iniciar. */
 await pg.selectOption(".dq-barra select", "z");
+if (process.env.SHOT) { const bb = await pg.locator(".dq-card").first().boundingBox(); await pg.screenshot({ path: process.env.SHOT + "-z.png", fullPage: true, clip: { x: bb.x, y: bb.y, width: bb.width, height: bb.height } }) }
 { const tz = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");
   ok(/A · 01 · DER/.test(tz) && /no pasó por A · 01 · DER: se toma como 0/.test(tz), "aunque el FEFO no pasó por el módulo, se ve de dónde se tomó: " + tz.slice(0, 400)) }
 await pg.selectOption(".dq-barra select", "b");
