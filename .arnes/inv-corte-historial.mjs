@@ -132,7 +132,7 @@ const eligeUbi = async (n, calle, modulo, lado) => {
 if (process.env.SHOT) {
   const [qq, w, ruta, tocar] = process.env.SHOT.split("@");
   await monta(qq, Number(w), process.env.TEMA ?? "");
-  if (tocar) await pg.click(`button:has-text("${tocar}")`);
+  if (tocar === "abrir") { for (const s of await pg.locator(".pr-corte summary").all()) { await s.click(); } } else if (tocar) await pg.click(`button:has-text("${tocar}")`);
   await pg.screenshot({ path: ruta, fullPage: true });
   await nav.close(); process.exit(0);
 }
@@ -243,7 +243,7 @@ ok(await pg.locator(".pr").count() === 0, "quien no administra no ve «El proces
 await monta("c=manda");
 {
   ok(/El proceso, corte por corte\s*21/.test(await txt()) && (await pg.locator(".pr-resumen").textContent()).trim() === "20 de 21 cortes completos", "21 cortes y 20 completos");
-  ok(await pg.locator(".pr-corte").count() === 21 && await pg.locator(".pr-corte[open]").count() === 1, "21 cortes y solo el primero abierto");
+  ok(await pg.locator(".pr-corte").count() === 21 && await pg.locator(".pr-corte[open]").count() === 0, "21 cortes y todos arrancan cerrados");
   const nums = await pg.$$eval(".pr-h2", (x) => x.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
   ok(nums[0] === "CORTE 1" && nums[1] === "CORTE 2" && nums[20] === "CORTE 21" && await pg.locator(".pr-pri").count() === 1 && /EL PRIMERO/.test(await pg.locator(".pr-corte").first().locator(".pr-pri").textContent()), "numerados del primero al último, y solo el 1 es EL PRIMERO: " + nums[0]);
   const est = async (k) => (await pg.locator(".pr-corte").nth(k).locator(".pr-est b").textContent()).trim();
@@ -252,12 +252,16 @@ await monta("c=manda");
   ok(/01\/09\/2026 08:00 · Cristian Padilla · 1 de 1 línea · 100%/.test(await q(0)) && /0 de 1 línea · 0%/.test(await q(20)), "fecha, quién, líneas y porcentaje: " + await q(0) + " | " + await q(20));
   /* La tarjeta abierta del Corte 1: las etapas, el antes, lo que pasó por la depa, el después y el resultado */
   const c1 = pg.locator(".pr-corte").first();
+  await c1.locator("summary").click();
+  ok(await pg.locator(".pr-corte[open]").count() === 1, "al tocar el Corte 1 se abre solo ese");
   ok(JSON.stringify(await c1.locator(".pr-nodo b").allTextContents()) === JSON.stringify(["Corte inicial", "Corte final", "Cuadra"]), "las tres etapas del flujo");
   ok(/6 H 00 MIN · LÍNEA TRABAJANDO/.test(await c1.locator(".pr-tramo").first().textContent()), "dice cuánto duró entre el inicial y el final: " + await c1.locator(".pr-tramo").first().textContent());
   ok(JSON.stringify(await c1.locator(".pr-dep b").allTextContents()) === JSON.stringify(["0", "1.000"]) && (await c1.locator(".pr-depa b").textContent()) === "+1.000", "contador de la depa antes y después, y lo que pasó: " + (await c1.locator(".pr-depa b").textContent()));
   const mv = (await c1.locator(".pr-mv").allTextContents()).join(" | ");
   ok(mv === "−16,7 ESTIBAS · BAJÓ | +27,8 ESTIBAS · SUBIÓ", "las dos fotos se comparan (bajó / subió): " + mv);
   ok(await c1.locator(".pr-pila i.n").count() > 0 && await c1.locator(".pr-pila i.f").count() > 0, "estibas que aparecieron (verde) y que salieron (punteado)");
+  const mats1 = (await c1.locator(".pr-m").allTextContents()).join(" | ");
+  ok(/3500887 · Botella Flint 1000R/.test(mats1) && /3128 · Águila RN 330cc X30/.test(mats1), "cada módulo trae el código del material junto al nombre: " + mats1);
   const foto2 = c1.locator(".pr-foto").nth(1);
   ok(await foto2.locator(".pr-mod").nth(0).locator("i.f").count() === 16 && await foto2.locator(".pr-mod").nth(0).locator("i.n").count() === 0 && await foto2.locator(".pr-mod").nth(1).locator("i.n").count() === 28 && await foto2.locator(".pr-mod").nth(1).locator("i.f").count() === 0, "de dónde tomaban bajaron 16 estibas y dónde estaban ubicados subieron 28");
   ok(JSON.stringify(await c1.locator(".pr-res .pr-ln b").allTextContents()) === JSON.stringify(["1.000", "0", "0"]), "las tres cifras del resultado: " + (await c1.locator(".pr-res .pr-ln b").allTextContents()).join(","));

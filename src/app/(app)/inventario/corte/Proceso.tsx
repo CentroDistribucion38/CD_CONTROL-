@@ -259,7 +259,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
           : nMal + nInc === 0 ? "todas las líneas cuadran"
           : [nMal ? `${linea(nMal)} con diferencia` : "", nInc ? `${linea(nInc)} sin poder cruzar` : ""].filter(Boolean).join(" · ");
         return (
-          <details key={x.ini.id} className="pr-corte" open={k === 0}>
+          <details key={x.ini.id} className="pr-corte">
             <summary className="pr-cab">
               <span className="pr-t">
                 <span className="pr-h2">CORTE <b>{x.n}</b></span>
