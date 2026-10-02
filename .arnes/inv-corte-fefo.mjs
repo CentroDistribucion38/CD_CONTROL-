@@ -155,14 +155,14 @@ await monta("c=vacio");
 await pg.click('button:has-text("Nuevo corte inicial")');
 ok(await pg.locator("fieldset.cl-sitio").count() === 1 && /Tomando de/.test(await pg.locator("fieldset.cl-sitio").textContent()), "pide de dónde toma y NO dónde ubica (un solo bloque: «Tomando de»)");
 ok(!/Ubicados en/.test(await txt()), "no aparece «Ubicados en»");
-ok(await pg.locator(".cl-par .cl-depa input").count() === 1 && await pg.locator(".cl-par .cl-mat").count() === 1 && await pg.locator(".cl-mat").count() === 2 && /Envase/.test(await pg.locator(".cl-mat-t").first().textContent()) && /Producto/.test(await pg.locator(".cl-mat-t").nth(1).textContent()), "como el diseño: Envase → cajas de la depa en una fila, y el PRODUCTO (con su SKU)");
+ok(await pg.locator(".cl-envdepa .cl-depa input").count() === 1 && await pg.locator(".cl-envdepa .cl-mat").count() === 1 && await pg.locator(".cl-mat").count() === 2 && /Envase/.test(await pg.locator(".cl-mat-t").first().textContent()) && /Producto/.test(await pg.locator(".cl-mat-t").nth(1).textContent()), "como el diseño: Envase → cajas de la depa en una fila, y el PRODUCTO (con su SKU)");
 ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas cajas\?/.test(await pg.locator("fieldset.cl-sitio .cl-cant-c").textContent()) && await pg.locator("fieldset.cl-sitio .cl-mat").count() === 0, "solo cajas, y el envase no se pide dos veces");
 if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-form.png", fullPage: true });
 await pg.fill(".cl-depa input", "1234");
 await pg.locator("fieldset.cl-sitio select").nth(0).selectOption("A");
 await pg.locator("fieldset.cl-sitio select").nth(1).selectOption("01");
 await pg.locator("fieldset.cl-sitio .cl-cant-c input").fill("40");
-await pg.locator(".cl-par .cl-busca input").fill("flint"); await pg.locator(".cl-par .cl-busca li button").click();
+await pg.locator(".cl-envdepa .cl-busca input").fill("flint"); await pg.locator(".cl-envdepa .cl-busca li button").click();
 await pg.click(".cl-guardar .cl-go");
 ok(/el producto/.test(await pg.locator(".cl-mal").textContent()) && await pg.evaluate(() => window.__rpc.length) === 0, "sin producto no guarda y dice que falta el producto");
 await pg.locator(".cl-mat").nth(1).locator(".cl-busca input").fill("3128"); await pg.locator(".cl-mat").nth(1).locator(".cl-busca li button").click();
@@ -180,6 +180,9 @@ ok(await pg.locator("fieldset.cl-sitio").count() === 2, "«Anotar también dónd
 /* La diferencia y el flujo. */
 await monta("c=todo");
 const t0 = await txt();
+/* Regresión: el historial usa «cl-par» para cada fila; la tarjeta no puede quedar angosta ni amarilla. */
+{ const w = await pg.evaluate(() => { const c = document.querySelector(".dq-cuerpo"); const f = c?.closest(".dq"); return { c: c?.getBoundingClientRect().width ?? 0, bg: f ? getComputedStyle(f).backgroundColor : "", grid: f ? getComputedStyle(f).display : "" } });
+  ok(w.c > 900 && w.grid !== "grid", "la diferencia ocupa todo el ancho y no se pinta de amarillo: " + JSON.stringify(w)) }
 ok(/De dónde tomaba el envase sale del FEFO/.test(t0) && /Solo cuenta el envase/.test(t0), "la diferencia dice de qué FEFO salió: " + t0.slice(t0.indexOf("De dónde tomaba"), t0.indexOf("De dónde tomaba") + 250));
 ok(/FEFO de después/.test(t0), "el selector se llama «FEFO de después»");
 { const dc = await pg.locator(".dq-cuerpo").first().textContent(); ok(!/Ubicados en/.test(dc), "la diferencia no tiene «Ubicados en»: " + dc.replace(/\s+/g, " ").slice(dc.indexOf("Ubicados") - 150, dc.indexOf("Ubicados") + 100)) }
@@ -193,7 +196,7 @@ ok(/para 3128 · Águila RN 330cc X30/.test(tarj), "la diferencia dice a qué pr
 await pg.selectOption(".dq-barra select", "a");
 ok(/FEFO-A|no hay un FEFO enviado antes|Falta/.test(await txt()), "al cambiar el FEFO se recalcula");
 
-if (process.env.SHOT) await pg.locator(".dq-card").first().screenshot({ path: process.env.SHOT + "-dif.png" });
+if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-dif.png", fullPage: true });
 /* Un FEFO que NO pasó por el módulo de donde se tomó: la ubicación se ve igual, con lo que había al iniciar. */
 await pg.selectOption(".dq-barra select", "z");
 { const tz = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");

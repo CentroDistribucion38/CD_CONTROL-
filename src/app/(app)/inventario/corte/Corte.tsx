@@ -752,7 +752,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                 <div className="cl-r1">{depaCampo}</div>
               ) : (
                 /* COMO EN EL DISEÑO: el envase que entra → las cajas que pasaron por la depa. */
-                <div className="cl-par">
+                <div className="cl-envdepa">
                   <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
                                  titulo="Envase" nota="del maestro" sin="Sin envase"
                                  onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
