@@ -115,7 +115,7 @@ ok(await pg.locator(".ba-quien").count() === 1, "la fila de personas sale");
 await pg.click('.ba-tabs button:has-text("Borradores")');
 ok(/Está contando/.test(await txt(".ba-quien")), "en Borradores dice «Está contando»: " + await txt(".ba-quien"));
 let b = await botones();
-ok(JSON.stringify(b) === JSON.stringify(["Todas7", "Cañizares1", "Cristian_A2", "JeremyGriego4", "YuranisCastro0"]), "un botón por persona (Jeremy junta sus dos recorridos; Yuranis sale con 0): " + JSON.stringify(b));
+ok(JSON.stringify(b) === JSON.stringify(["Todas7", "Cañizares1", "Cristian_A2", "JeremyGriego4"]), "un botón por persona (Jeremy junta sus dos recorridos; Yuranis, con el recorrido abierto pero sin renglones, NO sale): " + JSON.stringify(b));
 ok(JSON.stringify(await on()) === JSON.stringify(["Todas"]), "arranca en «Todas»: " + JSON.stringify(await on()));
 ok(await filas().count() === 7, "sin filtro hay 7 renglones: " + await filas().count());
 
@@ -126,7 +126,7 @@ ok(JSON.stringify(await on()) === JSON.stringify(["Cristian_A"]) && /Mostrando 2
 ok(/Quitar filtros/.test(await txt(".ba-barra")), "con una persona escogida aparece «Quitar filtros»");
 /* Los números de cada persona NO cambian al escoger a otra (no se esconden los demás). */
 b = await botones();
-ok(JSON.stringify(b) === JSON.stringify(["Todas7", "Cañizares1", "Cristian_A2", "JeremyGriego4", "YuranisCastro0"]), "los botones siguen mostrando a todos: " + JSON.stringify(b));
+ok(JSON.stringify(b) === JSON.stringify(["Todas7", "Cañizares1", "Cristian_A2", "JeremyGriego4"]), "los botones siguen mostrando a todos: " + JSON.stringify(b));
 
 /* ===== 3 · varias, una a una ===== */
 await pg.click('.ba-qn:has-text("Cañizares")');
@@ -136,16 +136,21 @@ ok(await filas().count() === 1 && JSON.stringify(await on()) === JSON.stringify(
 await pg.click('.ba-qn:has-text("Cañizares")');
 ok(await filas().count() === 7 && JSON.stringify(await on()) === JSON.stringify(["Todas"]), "sin ninguna escogida vuelven todas");
 
-/* ===== 4 · quien tiene el recorrido abierto pero sin renglones ===== */
-await pg.click('.ba-qn:has-text("YuranisCastro")');
-ok(await filas().count() === 0 && /Ningún renglón coincide/.test(await txt(".ba-vacio")), "Yuranis no tiene renglones y la tabla lo dice: " + await txt(".ba-vacio"));
+/* ===== 4 · un recorrido abierto SIN renglones no es un borrador: no sale en ningún lado ===== */
+const aviso = await txt(".ba-dice.ojo");
+ok(!/YuranisCastro|FEFO-20261002-06/.test(aviso) && /Cañizares/.test(aviso) && /JeremyGriego/.test(aviso), "el aviso no nombra a quien no tiene renglones: " + aviso);
+const opciones = await pg.locator(".ba-sel select").first().locator("option").allTextContents();
+ok(!opciones.some((t) => /-06/.test(t)) && opciones.some((t) => /-05/.test(t)), "el desplegable de recorridos no lista el vacío: " + JSON.stringify(opciones));
+ok(!/Yuranis/.test(await txt(".ba-quien")), "tampoco hay botón de Yuranis");
+await pg.click('.ba-qn:has-text("Cañizares")');
+ok(/Quitar filtros/.test(await txt(".ba-barra")), "con una persona escogida aparece «Quitar filtros»");
 await pg.click(".ba-sec:has-text('Quitar filtros')");
 ok(await filas().count() === 7 && JSON.stringify(await on()) === JSON.stringify(["Todas"]), "«Quitar filtros» limpia también a las personas");
 
 /* ===== 5 · los números siguen a los demás filtros ===== */
 await pg.click('.ba-seg button:has-text("Envase")');
 b = await botones();
-ok(JSON.stringify(b) === JSON.stringify(["Todas4", "Cañizares0", "Cristian_A1", "JeremyGriego3", "YuranisCastro0"]), "con «Envase» cada persona cuenta solo sus envases: " + JSON.stringify(b));
+ok(JSON.stringify(b) === JSON.stringify(["Todas4", "Cañizares0", "Cristian_A1", "JeremyGriego3"]), "con «Envase» cada persona cuenta solo sus envases: " + JSON.stringify(b));
 await pg.click('.ba-seg button:has-text("Todo")');
 
 /* ===== 6 · lo que se baja a Excel es lo que se ve ===== */
@@ -176,4 +181,4 @@ for (const ancho of [1440, 1024, 390, 360]) {
 ok(roto.length === 0, "errores de la página: " + roto.join(" | "));
 await nav.close();
 if (fallas.length) { console.log("✗ " + fallas.length + " falla(s):\n - " + fallas.join("\n - ")); process.exit(1) }
-console.log("✓ La base por persona: un botón por quien cuenta (también el que va en 0), una o varias, sigue a los demás filtros, el Excel baja lo que se ve, y cabe en 4 anchos.");
+console.log("✓ La base por persona: un botón por quien cuenta una o varias, sigue a los demás filtros, el Excel baja lo que se ve, y cabe en 4 anchos.");

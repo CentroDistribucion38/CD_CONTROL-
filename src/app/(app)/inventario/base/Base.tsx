@@ -377,8 +377,11 @@ export function Base({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [pestania, cruce, abiertas, porId, yaPasados, uxc, diaTope]);
 
+  /* UN RECORRIDO ABIERTO SIN NI UN RENGLÓN NO ES UN BORRADOR: alguien tocó «Empezar a contar» y no ha anotado
+     nada. No sale en el aviso, ni en los botones de personas, ni en el desplegable: no hay nada que mirar. */
+  const conRenglones = useMemo(() => new Set(abiertas.map((r) => r.conteo_id)), [abiertas]);
   const recorridosDe = pestania === "base" ? incluidos
-    : conteos.filter((c) => c.estado === "en_proceso" || c.estado === "borrador");
+    : conteos.filter((c) => (c.estado === "en_proceso" || c.estado === "borrador") && conRenglones.has(c.id));
 
   const calles = useMemo(
     () => [...new Set(crudas.map((r) => r.calle).filter(Boolean))].sort() as string[], [crudas]);
@@ -397,8 +400,8 @@ export function Base({
       return true;
     });
   }, [crudas, fTexto, fRec, fCalle, fModulo]);
-  /* LAS PERSONAS: todas las que tienen un recorrido en esta pestaña, aunque todavía no tengan ni un
-     renglón guardado (sale «0»: así se ve que está abierto pero vacío, y no que «faltó»). */
+  /* LAS PERSONAS: las que tienen un recorrido con renglones en esta pestaña. Si un filtro (por ejemplo
+     «Envase») les deja cero, siguen saliendo con «0» para que no parezca que se perdieron. */
   const personas = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of recorridosDe) m.set(c.envio_nombre ?? c.responsable ?? "—", 0);
