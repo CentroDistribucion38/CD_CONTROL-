@@ -50,7 +50,7 @@ const dd = (n: number) => String(n).padStart(2, "0");
 
 /* 20 pares, uno por día (1 al 20 de septiembre). La línea 1 va en todos; la 2, solo en los días pares.
    Los cortes siempre cuadran con la depa (baja 1.000 y sube 1.000); lo que cambia es el conteo del día:
-   día % 3 == 1 cuadra, == 0 da 1.500 en el origen (no cuadra), == 2 no pasa por el destino (incompleto). */
+   día % 3 == 1 cuadra, == 0 da 1.500 en el origen (no cuadra), == 2 no pasa por el destino (se toma como 0: no cuadra). */
 const cortes: any[] = [];
 const conteos: any[] = [];
 const lineasConteo: any[] = [];
@@ -154,7 +154,7 @@ const pulsa = (t) => pg.click(`.dq-est:text-is("${t}")`);
 /* ---------- 1 · EL HISTORIAL: resumen, la primera abierta y el resto cerrado ---------- */
 await monta("c=todo");
 {
-  ok(/^20 pares · 7 cuadran · 6 no cuadran · 7 incompletos$/.test(await resumen()), "el resumen: " + await resumen());
+  ok(/^20 pares · 7 cuadran · 13 no cuadran · 0 incompletos$/.test(await resumen()), "el resumen: " + await resumen());
   ok(await filas().count() === 15, "debían verse 15 pares de entrada: " + await filas().count());
   ok(await pg.locator(".dq-mas").count() === 1 && /Ver más \(5\)/.test(await pg.locator(".dq-mas").textContent()), "el botón «Ver más»");
   const ab = await filas().evaluateAll((x) => x.map((e) => e.getAttribute("aria-expanded")));
@@ -164,8 +164,8 @@ await monta("c=todo");
   ok((await titulos())[0] === "20/09/2026 08:00 → 20/09/2026 14:00" && (await titulos())[1] === "19/09/2026 08:00 → 19/09/2026 14:00", "el más reciente va primero: " + (await titulos()).slice(0, 2).join(" | "));
   const minis = await pg.$$eval(".dq-fila >> nth=0 >> .dq-mini", (x) => x.map((e) => e.textContent + ":" + e.className)).catch(() => null);
   const m0 = await pg.locator(".dq-fila").first().locator(".dq-mini").evaluateAll((x) => x.map((e) => e.textContent + ":" + e.className.replace("dq-mini ", "")));
-  ok(m0.join() === "L1:incompleto,L2:cuadra", "las pastillas por línea del día 20: " + m0.join());
-  ok((await chips())[0] === "INCOMPLETO" && (await chips())[1] === "CUADRA" && (await chips())[2] === "NO CUADRA", "el estado de los días 20, 19 y 18: " + (await chips()).slice(0, 3).join());
+  ok(m0.join() === "L1:no_cuadra,L2:cuadra", "las pastillas por línea del día 20: " + m0.join());
+  ok((await chips())[0] === "NO CUADRA" && (await chips())[1] === "CUADRA" && (await chips())[2] === "NO CUADRA", "el estado de los días 20, 19 y 18: " + (await chips()).slice(0, 3).join());
   /* Abrir y cerrar. */
   await filas().nth(1).click();
   ok(await filas().nth(1).getAttribute("aria-expanded") === "true" && await pg.locator(".dq-card").count() === 3, "al tocar el par 19 se abre su tarjeta (una sola línea)");
@@ -182,8 +182,8 @@ await monta("c=todo");
 /* ---------- 2 · FILTROS ---------- */
 {
   await pulsa("No cuadra");
-  ok(/^6 pares de 20 · 0 cuadran · 6 no cuadran · 0 incompletos$/.test(await resumen()), "filtrar por estado: " + await resumen());
-  ok((await chips()).every((x) => x === "NO CUADRA") && (await titulos()).length === 6, "todos NO CUADRA");
+  ok(/^13 pares de 20 · 0 cuadran · 13 no cuadran · 0 incompletos$/.test(await resumen()), "filtrar por estado: " + await resumen());
+  ok((await chips()).every((x) => x === "NO CUADRA") && (await titulos()).length === 13, "todos NO CUADRA");
   ok(await pg.locator('.dq-est[aria-pressed="true"]').textContent() === "No cuadra", "el botón activo queda marcado");
   await pg.click('button:has-text("Quitar filtros")');
   ok(/^20 pares · /.test(await resumen()) && await pg.locator('.dq-est[aria-pressed="true"]').textContent() === "Todos", "«Quitar filtros» vuelve a todo");
@@ -210,10 +210,10 @@ await monta("c=todo");
 /* ---------- 3 · CAMBIAR EL CONTEO DE UN PAR ACTUALIZA SU ESTADO Y EL RESUMEN ---------- */
 await monta("c=todo");
 {
-  ok((await chips())[0] === "INCOMPLETO", "el día 20 arranca incompleto (su conteo no pasó por el destino)");
+  ok((await chips())[0] === "NO CUADRA", "el día 20 arranca NO CUADRA (su conteo no pasó por el destino: se toma como 0)");
   await filas().nth(0).click();
   await pg.selectOption(".dq select", "k16");
-  ok((await chips())[0] === "CUADRA" && /^20 pares · 8 cuadran · 6 no cuadran · 6 incompletos$/.test(await resumen()), "con el conteo del 16 el par 20 cuadra y el resumen se actualiza: " + (await chips())[0] + " · " + await resumen());
+  ok((await chips())[0] === "CUADRA" && /^20 pares · 8 cuadran · 12 no cuadran · 0 incompletos$/.test(await resumen()), "con el conteo del 16 el par 20 cuadra y el resumen se actualiza: " + (await chips())[0] + " · " + await resumen());
   ok(await pg.locator(".dq-aviso").count() === 1, "y avisa que ese conteo es de otro día");
   const d = await pg.$$eval(".dq-fila", (x) => x.length);
   ok(d === 15, "cambiar de conteo no altera la lista");
@@ -275,7 +275,7 @@ await monta("c=manda");
   const nums = await pg.$$eval(".pr-h2", (x) => x.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
   ok(nums[0] === "CORTE 1" && nums[1] === "CORTE 2" && nums[20] === "CORTE 21" && await pg.locator(".pr-pri").count() === 1 && /EL PRIMERO/.test(await pg.locator(".pr-corte").first().locator(".pr-pri").textContent()), "numerados del primero al último, y solo el 1 es EL PRIMERO: " + nums[0]);
   const est = async (k) => (await pg.locator(".pr-corte").nth(k).locator(".pr-est b").textContent()).trim();
-  ok(await est(0) === "CUADRA" && await est(1) === "INCOMPLETO" && await est(2) === "NO CUADRA" && await est(20) === "ESPERANDO EL FINAL", "el estado de cada corte en su cabecera: " + [await est(0), await est(1), await est(2), await est(20)].join(" / "));
+  ok(await est(0) === "CUADRA" && await est(1) === "NO CUADRA" && await est(2) === "NO CUADRA" && await est(20) === "ESPERANDO EL FINAL", "el estado de cada corte en su cabecera: " + [await est(0), await est(1), await est(2), await est(20)].join(" / "));
   const q = async (k) => (await pg.locator(".pr-corte").nth(k).locator(".pr-q").textContent()).replace(/\s+/g, " ");
   ok(/01\/09\/2026 08:00 · Cristian Padilla · 1 de 1 línea · 100%/.test(await q(0)) && /0 de 1 línea · 0%/.test(await q(20)), "fecha, quién, líneas y porcentaje: " + await q(0) + " | " + await q(20));
   /* La tarjeta abierta del Corte 1: las etapas, el antes, lo que pasó por la depa, el después y el resultado */
@@ -296,7 +296,7 @@ await monta("c=manda");
   ok(/Tomando de\s*A·01·DER/.test((await c1.locator(".pr-mod").first().textContent()).replace(/\s+/g, " ")), "el módulo de dónde tomaban");
   ok(/Cuadra/.test(await c1.locator(".pr-res .pr-big").textContent()) && /1\.000/.test(await c1.locator(".pr-res .pr-ln b").first().textContent()), "la tarjeta de resultado");
   ok(await c1.locator('.pr-res a[href="#cl-diferencia"]').count() === 1 && await pg.locator("#cl-diferencia").count() === 1, "«Ver la diferencia» lleva a la sección La diferencia");
-  /* El análisis sale solo: el Corte 3 no cuadra y el 2 queda incompleto, sin que nadie lo pida */
+  /* El análisis sale solo: el Corte 3 no cuadra y el 2 también (módulo sin contar = 0), sin que nadie lo pida */
   await pg.locator(".pr-corte").nth(2).locator("summary").click();
   ok(await pg.locator(".pr-corte").nth(2).locator(".pr-res.no_cuadra").count() === 1 && /NO CUADRA|No cuadra/.test(await pg.locator(".pr-corte").nth(2).locator(".pr-res .pr-big").first().textContent()), "el Corte 3 sale NO CUADRA solo");
   /* El que espera su final */

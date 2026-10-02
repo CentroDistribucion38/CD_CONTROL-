@@ -194,7 +194,9 @@ ok(await pg.locator("fieldset.cl-sitio").count() === 2, "«Anotar también dónd
 
 /* La diferencia y el flujo. */
 await monta("c=todo");
-const t0 = await txt();
+let t0 = await txt();
+/* El historial llega con todos los pares cerrados: se abre el primero para mirar su diferencia. */
+await pg.locator(".dq-fila").first().click(); await pg.waitForSelector(".dq-cuerpo"); t0 = await txt();
 /* Regresión: el historial usa «cl-par» para cada fila; la tarjeta no puede quedar angosta ni amarilla. */
 { const w = await pg.evaluate(() => { const c = document.querySelector(".dq-cuerpo"); const f = c?.closest(".dq"); return { c: c?.getBoundingClientRect().width ?? 0, bg: f ? getComputedStyle(f).backgroundColor : "", grid: f ? getComputedStyle(f).display : "" } });
   ok(w.c > 900 && w.grid !== "grid", "la diferencia ocupa todo el ancho y no se pinta de amarillo: " + JSON.stringify(w)) }

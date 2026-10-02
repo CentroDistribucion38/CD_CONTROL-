@@ -155,6 +155,10 @@
 .fe .cl-eco { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--fe-gris-panel); font-variant-numeric: tabular-nums }
 .fe .cl-nada { margin: 0; font-size: 12px; color: var(--fe-gris-panel) }
 .fe .cl-eco.aviso { color: #7A4B00 }
+/* En el corte final, de dónde toma NO lleva cantidad: la lee el inventario del día. */
+.fe .cl-delinv { grid-column: 1 / -1; margin: 0; font-size: 13px; line-height: 1.35; color: var(--fe-gris-panel) }
+.fe .cl-delinv b { color: var(--fe-tinta) }
+.fe .cl-s2 .cl-delinv { grid-column: auto; padding: 0 0 11px }
 
 .fe .cl-ir { background: none; border: 0; padding: 0; min-height: 44px; font: inherit; color: inherit; text-align: left; text-decoration: underline; cursor: pointer }
 

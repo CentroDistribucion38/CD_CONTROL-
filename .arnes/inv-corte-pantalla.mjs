@@ -308,7 +308,7 @@ await monta("c=todo");
   await campo(0, '.cl-busca button:has-text("Sin envase")').click();
   ok(!!(await campo(0, ".cl-busca").count()) && !(await campo(0, ".cl-mae").count()), "«Sin envase» no dejó el buscador");
   await campo(0, ".cl-cant-c input").fill("30");
-  ok(/Escoge el envase para pasar las estibas a cajas/.test(await campo(0, ".cl-eco").textContent()), "sin envase no se pueden pasar las estibas a cajas: " + await campo(0, ".cl-eco").textContent());
+  ok(/Escoge el envase para pasar las estibas a cajas/.test(await campo(0, ".cl-eco").textContent()) && await campo(0, ".cl-delinv").count() === 0, "en el final, si se escribe la cantidad sin envase, pide el envase: " + await campo(0, ".cl-eco").textContent());
 }
 
 /* ---------- 4 · EL CORTE FINAL ARRANCA CON LO DEL INICIAL ---------- */
@@ -321,7 +321,9 @@ await monta("c=todo");
   const o1 = pg.locator("fieldset.cl-sitio").nth(0);
   ok(await o1.locator("select").nth(0).inputValue() === "A" && await o1.locator("select").nth(1).inputValue() === "01" && await o1.locator("select").nth(2).inputValue() === "DER", "el origen de L1 no viene del inicial");
   ok(/Botella Flint 1000R/.test(await campo(0, ".cl-mae").textContent()) && /Águila RN 330cc X30/.test(await campo(1, ".cl-mae").textContent()), "el envase y el producto no vienen del inicial");
-  ok(await pg.inputValue(".cl-depa input") === "" && await campo(0, ".cl-cant-c input").inputValue() === "", "las cantidades no arrancan vacías");
+  ok(await pg.inputValue(".cl-depa input") === "" && await campo(1, ".cl-cant-c input").inputValue() === "", "las cantidades no arrancan vacías");
+  ok(await campo(0, ".cl-cant-c input").count() === 1 && /opcional/.test(await campo(0, ".cl-cant-c").textContent()) && /último inventario/.test(await campo(0, ".cl-delinv").textContent()), "el origen del final conserva el campo de cantidad, opcional: vacío = último inventario");
+  ok(await campo(1, ".cl-cant-c input").count() === 1 && await campo(1, ".cl-delinv").count() === 0, "el destino del final pide cantidad como siempre");
   ok(await pg.locator(".cl-unidad").count() === 0, "el final tampoco ofrece selector de unidad");
   ok(await est("L1") === "ANOTANDO" && await est("L4") === "SIN TOCAR", "lo que viene del inicial sin tocar debe decir SIN TOCAR");
   /* L4 (con módulo sin lado): el lado va vacío y bloqueado, y aun así se resuelve. */
@@ -341,7 +343,6 @@ await monta("c=todo");
   /* El final no puede ser antes del inicial. */
   await pg.fill(".cl-cuando input[type=datetime-local]", "2026-09-30T05:00");
   await pg.fill(".cl-depa input", "30801");
-  await campo(0, ".cl-cant-c input").fill("30");
   await campo(1, ".cl-cant-c input").fill("1800");
   await pg.click(".cl-guardar .cl-go");
   ok(/tiene que ser después del inicial/.test(await pg.$eval(".cl-mal", (e) => e.textContent)) && (await rpcs()).length === 0, "aceptó un final antes del inicial");
@@ -354,6 +355,7 @@ await monta("c=todo");
   await pg.waitForFunction(() => window.__refresh > 0);
   const r = await rpcs();
   ok(r.length === 1 && r[0].a.p_tipo === "final" && r[0].a.p_inicial === "i2" && r[0].a.p_cortado === "2026-09-30T17:00:00.000Z" && r[0].a.p_nota === "L4 vuelve a las 3", "el final no viaja atado a su inicial: " + JSON.stringify(r[0].a).slice(0, 200));
+  ok(JSON.stringify(r[0].a.p_renglones[0].origenes) === JSON.stringify([{ ubicacion_id: "uA01D", cant: null, unidad: null }]), "con el origen del final vacío viaja SIN cantidad (cant y unidad null): " + JSON.stringify(r[0].a.p_renglones[0].origenes));
   ok(r[0].a.p_renglones.length === 1 && r[0].a.p_renglones[0].linea === "L1", "solo debía viajar L1 (la única tocada): " + JSON.stringify(r[0].a.p_renglones).slice(0, 200));
   ok(/Corte final guardado/.test(await txt()) && /Abajo está la diferencia/.test(await txt()), "no avisó del final (con la diferencia para quien la ve)");
 }
@@ -363,7 +365,6 @@ await monta("c=sinanalisis");
   await pg.click('.cl-abierto button:has-text("Hacer el corte final")');
   await pg.fill(".cl-cuando input[type=datetime-local]", "2026-09-30T12:00");
   await pg.fill(".cl-depa input", "30801");
-  await campo(0, ".cl-cant-c input").fill("30");
   await campo(1, ".cl-cant-c input").fill("1800");
   await pg.click(".cl-guardar .cl-go");
   await pg.waitForFunction(() => window.__refresh > 0);

@@ -195,11 +195,11 @@ await monta("c=cruce");
   ok(i1[5] === "2.000" && i1[8] === "−400" && /Sobran 200 cajas/.test(i1[13]), "A01 con el otro conteo: " + i1.join(" | "));
   ok(await chip() === "NO CUADRA", "un módulo que no cuadra con el corte final basta para NO CUADRA aunque falte contar otro: " + await chip());
   const x = await celdas("A · 02 · DER · según el inventario");
-  ok(x[5] === "—" && x[8] === "—" && /Sin contar/.test(x[13]), "A02 no está en ese conteo: debía decir «Sin contar», no 0: " + x.join(" | "));
+  ok(x[5] === "0" && x[8] === "−1.200" && /no se contó este módulo: se toma como 0 cajas/.test(x[13]), "A02 no está en ese conteo: no se contó = 0 cajas, y lo dice: " + x.join(" | "));
   const t = await celdas("Total según el inventario");
-  ok(t[5] === "—" && /Falta contar 1 módulo: no se puede comparar con la depa/.test(t[13]), "con un módulo sin contar el total no se compara con la depa: " + t.join(" | "));
+  ok(t[4] === "33,3" && t[7] === "−26,7" && /^Sobran · se movió menos/.test(t[13]), "con un módulo no contado (0) el total sí se compara con la depa: " + t.join(" | "));
   const di = await celdas("Según el inventario");
-  ok(/^Sin contar/.test(di[13]), "el destino sin contar: " + di.join(" | "));
+  ok(/^Faltan · no se contó este módulo: se toma como 0 cajas/.test(di[13]), "el destino no contado = 0 y sale la diferencia: " + di.join(" | "));
   /* Un conteo que coincide con el corte final: todo cuadra. */
   /* Un conteo DESPUÉS de los cortes también avisa. */
   await pg.selectOption(".dq select", "k4");

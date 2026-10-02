@@ -221,8 +221,8 @@ const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
   /* El conteo 2 no se mezcla con el 1. */
   const [c2] = cruzar(a, "c2", lineas);
   ok(mod(c2.origen, "A01").conteo === 50 && mod(c2.origen, "A01").dif === -1750, "otro conteo: " + JSON.stringify(mod(c2.origen, "A01")));
-  ok(mod(c2.origen, "A02").lectura === "sin_contar" && mod(c2.origen, "A02").conteo === null && mod(c2.origen, "A02").movConteo === null, "un módulo que el conteo no visitó debe quedar sin contar, no en cero");
-  ok(c2.origen.total.conteo === null && c2.origen.total.difConteo === null && c2.origen.total.sinContar === 1 && c2.origen.total.difCorte === 0, "falta contar un módulo: el total del conteo no se compara con la depa: " + JSON.stringify(c2.origen.total));
+  ok(mod(c2.origen, "A02").lectura !== "sin_contar" && mod(c2.origen, "A02").conteo === 0 && mod(c2.origen, "A02").movConteo !== null && /No se contó este módulo: se toma como 0 cajas/.test(mod(c2.origen, "A02").nota), "un módulo que el conteo no visitó está en CERO (no se contó = no hay), y lo dice: " + JSON.stringify(mod(c2.origen, "A02")));
+  ok(c2.origen.total.conteo === 50 && c2.origen.total.difConteo === -1750 && c2.origen.total.sinContar === 0 && c2.origen.total.difCorte === 0, "el módulo no contado entra como 0 y el total sí se compara con la depa: " + JSON.stringify(c2.origen.total));
   /* El módulo se visitó pero el material no aparece: son cero cajas, y lo dice. */
   const c3 = mod(cruzar(a, "c1", [L("c1", "m5", "A01", 70)])[0].origen, "A01");
   ok(c3.conteo === 0 && /no apareció/.test(c3.nota) && c3.lectura === "no_cuadra" && c3.dif === -1800, "módulo visitado sin el material: " + JSON.stringify(c3));
@@ -278,7 +278,7 @@ const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
   ok(oi.ini === 216 && oi.fin === 0 && oi.mov === -216 && oi.dif === 12096 && oi.lectura === "Sobran · el material no apareció en el conteo", "origen según el inventario: " + JSON.stringify(oi));
   const [dc, di] = d.filas;
   ok(dc.ini === 810 && dc.fin === 486 && dc.mov === -324 && dc.dif === -12636 && dc.lectura === "Faltan · bajó cuando debía subir", "destino según el corte: " + JSON.stringify(dc));
-  ok(di.fin === null && di.mov === null && di.dif === null && /^Sin contar/.test(di.lectura) && di.tono === "gris", "destino sin contar: " + JSON.stringify(di));
+  ok(di.fin === 0 && di.mov === -810 && di.dif === -13122 && /^Faltan · no se contó este módulo: se toma como 0 cajas/.test(di.lectura) && di.tono === "mal", "destino no contado = 0 cajas y sale la diferencia: " + JSON.stringify(di));
   ok(t.estado === "no_cuadra", "el estado de la línea: " + t.estado);
   /* Sin conteo escogido: solo las filas del corte. */
   const sin = armarTabla(cruzar(a, "", [])[0], false, nom);
@@ -310,15 +310,16 @@ const porEstiba = (m) => (m === "m1" ? 60 : m === "m3" ? 30 : null);
   ok(go.filas[4].etiqueta === "Total según el corte" && go.filas[4].mov === -1800 && go.filas[4].dif === 0 && go.filas[4].lectura === "Cuadra con la depa", "total según el corte: " + JSON.stringify(go.filas[4]));
   ok(go.filas[5].mov === -1400 && go.filas[5].dif === 400 && /^Sobran/.test(go.filas[5].lectura), "total según el inventario: " + JSON.stringify(go.filas[5]));
   ok(/^Sobran 100 cajas contra el corte final/.test(go.filas[1].lectura) && go.filas[1].tono === "mal", "A01: sobran 100 contra el corte final: " + go.filas[1].lectura);
-  /* Falta contar un módulo: el total del inventario no se compara y la línea queda incompleta (si nada más falla). */
+  /* Un módulo sin contar vale 0 cajas (así lo dice la nota) y el total del inventario SÍ se compara con la depa. */
   const tm2 = armarTabla(cruzar(m, "k", [L("k", "e1", "A01", 1800)])[0], true, nom);
-  ok(/^Falta contar 1 módulo/.test(tm2.grupos[0].filas[5].lectura) && tm2.grupos[0].filas[5].dif === null, "falta contar un módulo: " + tm2.grupos[0].filas[5].lectura);
-  ok(tm2.estado === "no_cuadra" || tm2.estado === "incompleto", "estado");
-  /* Falta contar un módulo y lo contado cuadra: la línea queda INCOMPLETA, no CUADRA ni NO CUADRA. */
+  ok(tm2.grupos[0].filas[5].dif === 0 && tm2.grupos[0].filas[5].lectura === "Cuadra con la depa", "módulo sin contar = 0 y el total se compara: " + JSON.stringify(tm2.grupos[0].filas[5]));
+  ok(/no se contó este módulo: se toma como 0 cajas/.test(tm2.grupos[0].filas[3].lectura), "A02 sin contar lo dice: " + tm2.grupos[0].filas[3].lectura);
+  ok(tm2.estado === "no_cuadra", "estado con un módulo sin contar: " + tm2.estado);
+  /* El destino sin contar vale 0: se compara y la diferencia sale (NO CUADRA), ya no queda «incompleta». */
   const m2 = analizar(corte("inicial", H1, [rm("L1", 1000, [sitio("A01", 40, "estibas"), sitio("A02", 20, "estibas")], [sitio("A03", 0, "cajas")])]),
                       corte("final", H2, [rm("L1", 2800, [sitio("A01", 30, "estibas"), sitio("A02", 0, "estibas")], [sitio("A03", 1800, "cajas")])]), () => 60);
   const tm3 = armarTabla(cruzar(m2, "k", [L("k", "e1", "A01", 1800), L("k", "e1", "A02", 0)])[0], true, nom);
-  ok(tm3.estado === "incompleto", "falta el destino por contar y lo demás cuadra: " + tm3.estado + " " + JSON.stringify(tm3.grupos.map((g) => g.filas.map((f) => f.lectura))));
+  ok(tm3.estado === "no_cuadra", "destino sin contar = 0 y lo demás cuadra: " + tm3.estado + " " + JSON.stringify(tm3.grupos.map((g) => g.filas.map((f) => f.lectura))));
   /* Solo un lado comparable y cuadra: el otro no se pudo comparar, así que tampoco es CUADRA. */
   const tOk = armarTabla(cruzar(c, "k", [L("k", "p1", "A01", 4800)])[0], true, nom);
   ok(tOk.grupos[1].filas.every((f) => f.tono === "ok") && tOk.estado === "incompleto", "un lado cuadra y al otro le falta el origen: " + tOk.estado);

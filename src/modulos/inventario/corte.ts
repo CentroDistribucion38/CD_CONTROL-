@@ -36,7 +36,14 @@
  */
 
 export type Unidad = "estibas" | "cajas";
-export type Sitio = { ubicacion_id: string; cant: number; unidad: Unidad };
+export type Sitio = {
+  ubicacion_id: string; cant: number; unidad: Unidad;
+  /** EL CORTE FINAL NO PIDE CUÁNTO QUEDÓ en el módulo de donde se tomaba: solo
+   *  dice DE DÓNDE (calle · módulo · lado). La cantidad se lee del inventario
+   *  del día —el recorrido enviado de esa fecha—. En la base la cantidad va
+   *  vacía; aquí `cant` vale 0 y esta marca avisa que NO es un cero contado. */
+  delInventario?: boolean;
+};
 
 export type RenglonCorte = {
   linea: string;
@@ -131,6 +138,8 @@ export type Analisis = {
   totalPasadas: number;
   /** Si los módulos salieron del FEFO y no del corte: de cuál y para qué líneas. */
   fefo?: FefoPar;
+  /** Líneas cuyo final NO trae la cantidad de cada módulo: salió del último inventario (o del escogido). */
+  delInventario?: { lineas: string[]; conteo: ConteoRef | null; falta: string | null };
 };
 
 /** De dónde salieron los módulos de un par cuando no se anotaron en el corte. */
@@ -265,13 +274,16 @@ export type FilaRenglonBD = {
   origen_ubicacion_id: string | null; origen_cant: number | string | null; origen_unidad: string | null;
   destino_ubicacion_id: string | null; destino_cant: number | string | null; destino_unidad: string | null;
 };
-export type FilaSitioBD = { renglon_id: string; rol: string; orden: number; ubicacion_id: string; cant: number | string; unidad: string };
+export type FilaSitioBD = { renglon_id: string; rol: string; orden: number; ubicacion_id: string; cant: number | string | null; unidad: string | null };
 
 export function renglonesPorCorte(ren: FilaRenglonBD[], sit: FilaSitioBD[]): Map<string, RenglonCorte[]> {
   const sitiosDe = new Map<string, { origen: Sitio[]; destino: Sitio[] }>();
   [...sit].sort((a, b) => a.orden - b.orden).forEach((x) => {
     const e = sitiosDe.get(x.renglon_id) ?? { origen: [], destino: [] };
-    e[x.rol === "destino" ? "destino" : "origen"].push({ ubicacion_id: x.ubicacion_id, cant: Number(x.cant), unidad: x.unidad as Unidad });
+    /* Sin cantidad = «del inventario del día»: no es un cero, es un dato que se lee después. */
+    e[x.rol === "destino" ? "destino" : "origen"].push(x.cant === null
+      ? { ubicacion_id: x.ubicacion_id, cant: 0, unidad: "cajas", delInventario: true }
+      : { ubicacion_id: x.ubicacion_id, cant: Number(x.cant), unidad: (x.unidad ?? "cajas") as Unidad });
     sitiosDe.set(x.renglon_id, e);
   });
   const viejo = (u: string | null, c: number | string | null, un: string | null): Sitio[] =>
@@ -353,7 +365,9 @@ export type CruceLinea = { linea: string; depaIni: number; depaFin: number; pasa
   /** Solo cuenta el envase (de dónde tomaba): no hay «Ubicados en». */
   soloEnvase?: boolean;
   /** Los módulos salieron del FEFO y no del corte. */
-  deFefo?: boolean };
+  deFefo?: boolean;
+  /** Lo que quedó en el final salió del inventario: comparar el inventario contra sí mismo no dice nada. */
+  finDelInventario?: boolean };
 
 /** Por debajo de media caja es redondeo, no diferencia. */
 const parejo = (n: number) => Math.abs(n) < 0.5;
@@ -365,10 +379,9 @@ function cruceLado(lado: Lado, material: string | null, que: string, conteoId: s
   const modulos = lado.modulos.map((m): ModuloCruce => {
     const movCorte = m.ini == null || m.fin == null ? null : m.fin - m.ini;
     const enModulo = delConteo.filter((l) => l.ubicacion_id === m.ubicacion_id);
-    if (enModulo.length === 0) {
-      return { ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: null, aparte: 0, movCorte, movConteo: null, dif: null,
-               lectura: "sin_contar", nota: "El conteo no pasó por este módulo" };
-    }
+    /* UN MÓDULO QUE EL CONTEO NO VISITÓ ESTÁ EN CERO: en esta bodega lo que no se
+       cuenta es porque no hay nada. Se toma como 0 cajas y se dice en la nota. */
+    const noVisitado = enModulo.length === 0;
     const delMaterial = enModulo.filter((l) => l.producto_id === material);
     const buenas = delMaterial.filter((l) => !l.averia && !l.pnc).reduce((t, l) => t + Number(l.total_cajas), 0);
     const aparte = delMaterial.filter((l) => l.averia || l.pnc).reduce((t, l) => t + Number(l.total_cajas), 0);
@@ -378,7 +391,8 @@ function cruceLado(lado: Lado, material: string | null, que: string, conteoId: s
     return {
       ubicacion_id: m.ubicacion_id, ini: m.ini, fin: m.fin, conteo: buenas, aparte, movCorte, movConteo, dif,
       lectura: !hayCortes ? "sin_rango" : parejo(dif as number) ? "cuadra" : "no_cuadra",
-      nota: delMaterial.length === 0 ? "El material no apareció en el conteo" : null,
+      nota: noVisitado ? "No se contó este módulo: se toma como 0 cajas"
+        : delMaterial.length === 0 ? "El material no apareció en el conteo" : null,
     };
   });
   /* Contra la depa: solo los módulos que se pudieron comparar entre los dos cortes (los mismos de la suma del análisis). */
@@ -411,6 +425,7 @@ export function cruzar(a: Analisis, conteoId: string, lineas: LineaConteo[]): Cr
     destino: cruceLado(f.destino, f.material_id, "el material", conteoId, lineas, f.pasadas, 1),
     soloEnvase: !!f.soloEnvase || !!a.fefo?.lineas.includes(f.linea),
     deFefo: !!a.fefo?.lineas.includes(f.linea),
+    finDelInventario: !!a.delInventario?.lineas.includes(f.linea),
   }));
 }
 
@@ -507,8 +522,10 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
   };
   /* DEL FEFO: solo el envase (de dónde tomaba), y se compara con la depa sin segundo conteo: el FEFO ya es la fuente. */
   const fefo = !!c.deFefo;
-  const de = fefo ? "FEFO" : "corte";
-  const conteo = hayConteo && !fefo;
+  const delInv = !!c.finDelInventario;
+  const de = fefo ? "FEFO" : delInv ? "inventario" : "corte";
+  /* Si el final salió del inventario, «según el inventario» ya ES esa fila: no se repite. */
+  const conteo = hayConteo && !fefo && !delInv;
   const lados = c.soloEnvase ? ([["Tomando de", c.origen, "BAJAR"]] as const) : ([["Tomando de", c.origen, "BAJAR"], ["Ubicados en", c.destino, "SUBIR"]] as const);
   const grupos = lados.map(([titulo, l, debe]): GrupoTabla => {
     const mods = l.modulos;
@@ -547,7 +564,7 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
       if (!conteo) continue;
       const lect = m.lectura === "sin_contar" ? { lectura: "Sin contar · el conteo no pasó por este módulo", tono: "gris" as Tono }
         : m.lectura === "sin_rango" ? { lectura: "Falta un corte en este módulo", tono: "gris" as Tono }
-        : m.lectura === "cuadra" ? { lectura: "Cuadra con el corte final", tono: "ok" as Tono }
+        : m.lectura === "cuadra" ? { lectura: "Cuadra con el corte final" + (m.nota ? " · " + m.nota.charAt(0).toLowerCase() + m.nota.slice(1) : ""), tono: "ok" as Tono }
         : { lectura: `${(m.dif as number) > 0 ? "Sobran" : "Faltan"} ${cajasTxt(m.dif as number)} cajas contra el corte final${m.nota ? " · " + m.nota.charAt(0).toLowerCase() + m.nota.slice(1) : ""}`, tono: "mal" as Tono };
       if (m.lectura === "sin_contar") incompleto = true;
       if (m.lectura === "no_cuadra") noCuadra = true;
@@ -637,8 +654,14 @@ export function fefoDespues(conteos: ConteoRef[]): ConteoRef | null {
 
 /** Con qué conteo se compara un par si nadie escoge: el FEFO de después si sus módulos salen de ahí; si no, el del día del inicial. */
 export function conteoDelPar(ini: Corte, fin: Corte, conteos: ConteoRef[]): string | null {
-  return usaFefo(fin) ? fefoDespues(conteos)?.id ?? null : conteoPorDefecto(ini, conteos);
+  /* Si el final no dice cuánto quedó en el módulo, la cantidad sale del ÚLTIMO inventario que hay en la base. */
+  if (usaFefo(fin) || usaInventarioDelDia(fin)) return fefoDespues(conteos)?.id ?? null;
+  return conteoPorDefecto(ini, conteos);
 }
+
+/** ¿Algún módulo del final espera su cantidad del último inventario? */
+export const usaInventarioDelDia = (fin: Corte) =>
+  fin.renglones.some((r) => r.origenes.some((s) => s.delInventario));
 
 /** Cajas buenas de un material por módulo en un conteo. */
 function cajasPorModulo(lineas: LineaConteo[] | undefined, material: string): Map<string, number> {
@@ -666,7 +689,14 @@ export function armarPar(
   },
   despuesId: string | null,
 ): ParArmado {
-  if (!usaFefo(fin)) return { ini, fin, a: analizar(ini, fin, porEstiba, nombre) };
+  /* PRIMERO, los módulos del final que no traen cantidad: se leen del inventario del día. */
+  const r0 = resolverInventarioDelDia(ini, fin, ctx, despuesId, nombre);
+  fin = r0.fin;
+  if (!usaFefo(fin)) {
+    const a = analizar(ini, fin, porEstiba, nombre);
+    r0.avisar(a);
+    return { ini, fin, a };
+  }
 
   const despues = ctx.conteos.find((c) => c.id === despuesId) ?? null;
   const antes = fefoAntes(ini, ctx.conteos, despues?.id ?? null);
@@ -748,5 +778,70 @@ export function armarPar(
     }
   }
   a.fefo = { lineas: lineasFefo, antes, despues, falta };
+  r0.avisar(a);
   return { ini: nIni, fin: nFin, a };
+}
+
+/* ---------------------------------------------------------------------
+   «EN EL CORTE FINAL NO PONGO CUÁNTO QUEDÓ EN ESE MÓDULO»
+
+   El final solo dice DE DÓNDE tomaba (calle · módulo · lado). Cuánto hay ahí
+   lo dice el ÚLTIMO INVENTARIO que está en la base (o el que se escoja en
+   «Conteo»): las cajas BUENAS del envase de la línea en ese módulo. Las
+   averías y el PNC no cuentan.
+
+   LO QUE NO SE CONTÓ ESTÁ EN CERO: si el inventario no pasó por el módulo,
+   o pasó y no encontró el envase, son 0 cajas —el envase se acabó— y se dice
+   en un aviso. Con esa cantidad el final queda completo y sale la diferencia
+   con la depa. Solo si NO HAY ningún inventario en la base no hay con qué
+   completarlo, y entonces se dice.
+   --------------------------------------------------------------------- */
+function resolverInventarioDelDia(
+  ini: Corte, fin: Corte,
+  ctx: { conteos: ConteoRef[]; lineasPorConteo: Map<string, LineaConteo[]>; envaseDe: (r: RenglonCorte) => string | null },
+  despuesId: string | null, nombre: (id: string) => string,
+): { fin: Corte; avisar: (a: Analisis) => void } {
+  if (!usaInventarioDelDia(fin)) return { fin, avisar: () => {} };
+  const conteo = ctx.conteos.find((c) => c.id === despuesId) ?? fefoDespues(ctx.conteos);
+  const L = conteo ? ctx.lineasPorConteo.get(conteo.id) : undefined;
+  const visitados = new Set((L ?? []).map((l) => l.ubicacion_id).filter(Boolean) as string[]);
+  const mapaIni = new Map(ini.renglones.map((r) => [r.linea, r]));
+  const enCero = new Map<string, string[]>();      // línea → módulos que el inventario no visitó (van como 0)
+  const sinEnvase: string[] = [];
+  const sinSitio: string[] = [];                    // sin inventario en la base: no se pudo completar
+  const delDia: string[] = [];
+  const renglones = fin.renglones.map((r) => {
+    if (!r.origenes.some((s) => s.delInventario)) return r;
+    delDia.push(r.linea);
+    const base = mapaIni.get(r.linea);
+    const env = ctx.envaseDe(r) ?? (base ? ctx.envaseDe(base) : null);
+    if (!env) sinEnvase.push(r.linea);
+    if (!conteo) sinSitio.push(r.linea);
+    const cajas = conteo && env ? cajasPorModulo(L, env) : null;
+    const origenes: Sitio[] = [];
+    for (const s of r.origenes) {
+      if (!s.delInventario) { origenes.push(s); continue; }
+      if (!cajas) continue;                          // sin inventario o sin envase: no se puede completar
+      if (!visitados.has(s.ubicacion_id)) enCero.set(r.linea, [...(enCero.get(r.linea) ?? []), s.ubicacion_id]);
+      origenes.push({ ubicacion_id: s.ubicacion_id, cant: cajas.get(s.ubicacion_id) ?? 0, unidad: "cajas" });
+    }
+    return { ...r, origenes, envase_id: r.envase_id ?? env };
+  });
+  return {
+    fin: { ...fin, renglones },
+    avisar: (a) => {
+      a.delInventario = { lineas: delDia, conteo, falta: !conteo ? "No hay ningún inventario enviado en la base: sin él no se puede completar el corte final." : null };
+      for (const f of a.filas) {
+        if (!delDia.includes(f.linea)) continue;
+        const ceros = (enCero.get(f.linea) ?? []).map(nombre);
+        const por = sinEnvase.includes(f.linea)
+          ? "Falta escoger el envase de esta línea en el corte: sin él no se sabe qué buscar en el inventario."
+          : sinSitio.includes(f.linea) ? "No hay ningún inventario enviado en la base: sin él no se puede completar el corte final."
+          : ceros.length ? `${conteo!.codigo} no contó ${ceros.join(", ")}: se toma como 0 cajas.`
+          : null;
+        if (f.origen.motivo && /^Falta de dónde/.test(f.origen.motivo) && por && !ceros.length) f.origen.motivo = por;
+        else if (por) f.origen.aviso = f.origen.aviso ? `${f.origen.aviso} ${por}` : por;
+      }
+    },
+  };
 }

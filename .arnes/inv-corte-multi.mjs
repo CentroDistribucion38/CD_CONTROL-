@@ -223,7 +223,7 @@ await monta("c=multi");
   ok(await orig.locator(".cl-mod").count() === 2, "el final debía traer los 2 módulos del inicial: " + await orig.locator(".cl-mod").count());
   ok(await mod(0, 0).locator("select").nth(0).inputValue() === "A" && await mod(0, 0).locator("select").nth(1).inputValue() === "01" && await mod(0, 0).locator("select").nth(2).inputValue() === "DER", "el módulo 1 no viene del inicial");
   ok(await mod(0, 1).locator("select").nth(1).inputValue() === "02", "el módulo 2 no viene del inicial");
-  ok(await mod(0, 0).locator(".cl-cant-c input").inputValue() === "" && await mod(0, 1).locator(".cl-cant-c input").inputValue() === "", "las cantidades del final no deben venir copiadas");
+  ok(await mod(0, 0).locator(".cl-cant-c input").inputValue() === "" && await mod(0, 1).locator(".cl-cant-c input").inputValue() === "" && /opcional/.test(await mod(0, 0).locator(".cl-cant-c").textContent()) && await mod(1, 0).locator(".cl-cant-c input").inputValue() === "", "en el final las cantidades no vienen copiadas y las del origen son opcionales");
   ok(await est("L1") === "ANOTANDO", "los módulos puestos no cuentan como línea tocada: " + await est("L1"));
   /* Quitar un módulo del inicial SÍ es tocar la línea (hay que guardar que ya no se toma de ahí). */
   await pg.locator("fieldset.cl-sitio").nth(0).locator('button:has-text("Quitar este módulo")').nth(1).click();
@@ -232,8 +232,6 @@ await monta("c=multi");
   ok(await pg.locator("fieldset.cl-sitio").nth(0).locator(".cl-mod").count() === 2 && await est("L1") === "ANOTANDO", "«No cortar esta línea» no devolvió los 2 módulos del inicial");
   await pg.fill(".cl-depa input", "5600");
   /* Falta la cantidad del destino: la pide por su nombre y no llama. */
-  await mod(0, 0).locator(".cl-cant-c input").fill("30");
-  await mod(0, 1).locator(".cl-cant-c input").fill("0");
   await pg.click(".cl-guardar .cl-go");
   const falta = await pg.$eval(".cl-mal", (e) => e.textContent.replace(/\s+/g, " ")).catch(() => "");
   ok((await rpcs()).length === 0 && /cuántas cajas hay donde estaba ubicado/.test(falta), "con el destino sin cantidad debía pedirla: " + falta);
@@ -242,7 +240,7 @@ await monta("c=multi");
   await pg.waitForFunction(() => window.__refresh > 0);
   const p = (await rpcs())[0].a;
   ok(p.p_tipo === "final" && p.p_inicial === "am", "el final no viaja atado a su inicial");
-  ok(p.p_renglones[0].origenes.length === 2 && p.p_renglones[0].origenes[0].cant === 30 && p.p_renglones[0].origenes[1].cant === 0 && p.p_renglones[0].origenes[1].ubicacion_id === "uA02D", "los dos módulos de origen del final: " + JSON.stringify(p.p_renglones[0].origenes));
+  ok(p.p_renglones[0].origenes.length === 2 && p.p_renglones[0].origenes.every((o) => o.cant === null && o.unidad === null) && p.p_renglones[0].origenes[1].ubicacion_id === "uA02D", "los dos módulos de origen del final, vacíos, viajan sin cantidad (del inventario): " + JSON.stringify(p.p_renglones[0].origenes));
 }
 
 /* ---------- 4 · NADA SE SALE con varios módulos, en cuatro anchos ---------- */

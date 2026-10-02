@@ -252,7 +252,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
     return u ? `${u.calle} · ${u.modulo} · ${u.lado ?? "—"}` : "—";
   };
   /* «A · 01 · DER: 30 estibas + A · 02 · DER: 20 estibas»: todos los módulos de un lado. */
-  const sitiosTxt = (l: Sitio[]) => l.map((x) => `${nombreUbi(x.ubicacion_id)}: ${fmt(x.cant)} ${x.unidad}`).join(" + ");
+  const sitiosTxt = (l: Sitio[]) => l.map((x) => `${nombreUbi(x.ubicacion_id)}: ${x.delInventario ? "cantidad del inventario del día" : `${fmt(x.cant)} ${x.unidad}`}`).join(" + ");
   const nombreLinea = (c: string) => lineas.find((l) => l.clave === c)?.nombre ?? c;
 
   /* LO QUE SE ANOTÓ EN UN CORTE, línea por línea: el contador de la depa, de dónde tomaban y dónde estaban ubicados. */
@@ -501,15 +501,19 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       ["origenes", f.origen, "de dónde tomaba", "donde tomaba"],
     ]) as readonly (readonly ["origenes" | "destinos", SitioF[], string, string])[]) {
       const vistos = new Set<string>();
-      const salen: { ubicacion_id: string; cant: number; unidad: Unidad }[] = [];
+      const salen: { ubicacion_id: string; cant: number | null; unidad: Unidad | null }[] = [];
+      /* EN EL FINAL, LA CANTIDAD DE DE DÓNDE TOMABA ES OPCIONAL: vacía, se toma del último
+         inventario de la base (0 si el módulo no se contó); si se escribe, vale lo escrito. */
+      const opcional = tipo === "final" && k === "origenes";
       lista.forEach((s, i) => {
         if (i > 0 && !s.calle && !s.modulo && !s.cant.trim()) return;
         const suf = lista.length > 1 ? ` (módulo ${i + 1})` : "";
         const u = resolver(s), c = num(s.cant);
+        const sinCant = opcional && c === null && !s.cant.trim();
         if (!u) aqui.push(`${nom}${suf} (calle, módulo y lado)`);
-        else if (c === null) aqui.push(`cuántas ${s.unidad} hay ${donde}${suf}`);
+        else if (c === null && !sinCant) aqui.push(`cuántas ${s.unidad} hay ${donde}${suf}`);
         else if (vistos.has(u.id)) aqui.push(`${nom}: el módulo ${i + 1} está repetido`);
-        else { vistos.add(u.id); salen.push({ ubicacion_id: u.id, cant: c, unidad: s.unidad }) }
+        else { vistos.add(u.id); salen.push(sinCant ? { ubicacion_id: u.id, cant: null, unidad: null } : { ubicacion_id: u.id, cant: c as number, unidad: s.unidad }) }
       });
       sitios[k] = salen;
     }
@@ -605,6 +609,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
   const bloque = (clave: string, k: "origen" | "destino", titulo: string, ayuda: string, plano = false) => {
     const lista = filas[clave][k];
     const esEnv = k === "origen";
+    /* EN EL CORTE FINAL la cantidad de donde se toma es OPCIONAL: vacía = la del último inventario. */
+    const delInventario = tipo === "final" && esEnv;
     const m = esEnv ? envDe(filas[clave].envase) : matDe(filas[clave].material);
     const que = esEnv ? "envase" : "material";
     const cambiaSitio = (i: number, p: Partial<SitioF>) =>
@@ -675,9 +681,10 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                 </select>
               </label>
               <label className="cl-cant-c">
-                <span>{s.unidad === "cajas" ? "¿Cuántas cajas?" : `¿Cuántas ${s.unidad}?`}</span>
-                <input inputMode="decimal" value={s.cant} placeholder="0" onChange={(e) => cambiaSitio(i, { cant: e.target.value })} />
+                <span>{s.unidad === "cajas" ? "¿Cuántas cajas?" : `¿Cuántas ${s.unidad}?`}{delInventario ? " (opcional)" : ""}</span>
+                <input inputMode="decimal" value={s.cant} placeholder={delInventario ? "del inventario" : "0"} onChange={(e) => cambiaSitio(i, { cant: e.target.value })} />
               </label>
+              {delInventario && !s.cant.trim() && <p className="cl-delinv">Vacío: se toma del <b>último inventario</b> de la base (0 si el módulo no se contó).</p>}
               {eq && <p className={"cl-eco" + (!/cajas$|unidades$/.test(eq) ? " aviso" : "")}>{eq}</p>}
             </div>
           );
@@ -709,7 +716,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       <p className="cl-sub">
         {tipo === "inicial"
           ? "Anota cada línea como está AHORA: lo que marca el contador de la depa, el producto y de dónde toma el envase. Las líneas que no toques no se cortan."
-          : `Corte final del inicial de las ${hora(inicial!.cortado_en)}: el producto y los módulos vienen puestos; cambia los que hayan cambiado y anota las cantidades de ahora.`}
+          : `Corte final del inicial de las ${hora(inicial!.cortado_en)}: el producto y los módulos vienen puestos; cambia los que hayan cambiado y anota lo que marca la depa. Cuántas estibas quedan en cada módulo es opcional: si lo dejas vacío se toma del último inventario de la base.`}
       </p>
 
       <div className="cl-grid">
