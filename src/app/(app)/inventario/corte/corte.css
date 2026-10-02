@@ -307,3 +307,7 @@
   .fe .cl-guardar .btn { flex: 1 1 0; min-width: 0; height: auto; min-height: 44px; padding: 4px 6px; font-size: 12.5px; line-height: 1.15; white-space: normal }
   .fe .cl-guardar .cl-go { flex: 1.4 1 0 }
 }
+
+/* TODOS LOS CORTES INICIALES, del primero al último (solo para quien administra). */
+.fe .cl-primero { display: inline-block; margin-right: 8px; padding: 2px 7px; background: var(--fe-acento); color: var(--fe-sobre); font: 900 10.5px var(--fe-titulo); letter-spacing: .08em }
+.fe .cl-estado { margin: 4px 0 0; font-size: 12px; font-weight: 700; color: var(--fe-gris) }

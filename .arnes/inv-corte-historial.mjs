@@ -232,6 +232,26 @@ await monta("c=manda");
   ok(await pg.locator('.dq-cuerpo button:has-text("Eliminar el par")').count() === 0, "cerrado el par no hay botón de eliminar");
 }
 
+/* ---------- 4b · TODOS LOS CORTES INICIALES, DEL PRIMERO AL ÚLTIMO (solo quien administra) ---------- */
+await monta("c=todo");
+ok(await pg.locator('button:has-text("Ver del primero al último")').count() === 0, "quien no administra no ve «Ver del primero al último»");
+await monta("c=manda");
+{
+  ok(/Todos los cortes iniciales\s*21/.test(await txt()), "el título cuenta los 21 iniciales (20 con final y 1 esperando): " + (await txt()).match(/Todos los cortes iniciales\s*\d+/)?.[0]);
+  ok(await pg.locator(".cl-todos article").count() === 0, "arranca cerrado");
+  await pg.click('button:has-text("Ver del primero al último")');
+  const t = await pg.$$eval(".cl-todos article", (x) => x.map((e) => e.querySelector(".cl-hora").textContent.replace(/\s+/g, " ").trim()));
+  ok(t.length === 21, "salen los 21: " + t.length);
+  ok(/EL PRIMERO/.test(t[0]) && /01\/09\/2026/.test(t[0]) && t.slice(1).every((x) => !/EL PRIMERO/.test(x)), "el primero es el del 1 de septiembre y solo ese lo dice: " + t[0]);
+  const f = t.map((x) => x.match(/(\d\d)\/09\/2026/)?.[1]);
+  ok(f.every((d, i) => i === 0 || d >= f[i - 1]), "van del más viejo al más nuevo: " + f.join(","));
+  ok(/Ya tiene su corte final/.test(await pg.locator(".cl-todos article").first().textContent()) && /Esperando el corte final/.test(await pg.locator(".cl-todos article").last().textContent()), "dice cuáles ya tienen final y cuál espera");
+  ok(await pg.locator(".cl-todos button").count() === 0, "es solo para mirar: sin botones");
+  ok(/L1/.test(await pg.locator(".cl-todos article").first().textContent()) && /Tomando de A · 01 · DER: 2.?000 cajas/.test(await pg.locator(".cl-todos article").first().textContent()), "se ve lo que se anotó: " + (await pg.locator(".cl-todos article").first().textContent()).slice(0, 200));
+  await pg.click('button:has-text("Esconder")');
+  ok(await pg.locator(".cl-todos article").count() === 0, "se esconde");
+}
+
 /* ---------- 5 · NADA SE SALE, en cuatro anchos ---------- */
 for (const w of [360, 390, 820, 1440]) {
   await monta("c=manda", w);
