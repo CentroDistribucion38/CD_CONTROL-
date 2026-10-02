@@ -27,6 +27,7 @@ import { traducirError } from "@/lib/errores";
 import { esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado } from "@/modulos/inventario/cola";
 import { analizar, type ConteoRef, type Corte as CorteT, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
 import { Historial } from "./Historial";
+import { Proceso } from "./Proceso";
 
 export type UbiC = { id: string; calle: string; modulo: string; lado: "IZQ" | "DER" | null };
 export type MatC = { id: string; sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null; tipo: "PRODUCTO" | "ENVASE" };
@@ -117,8 +118,6 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
   const [mal, setMal] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [borrar, setBorrar] = useState<string | null>(null);
-  /* QUIEN ADMINISTRA PUEDE VER TODOS LOS CORTES INICIALES, del primero al último, también los que ya tienen su final. */
-  const [verPrimeros, setVerPrimeros] = useState(false);
 
   /* ---------- LOS CORTES SIN SEÑAL ----------
      Mismo trato que Contar: el corte que no se pudo mandar queda en ESTE
@@ -350,42 +349,13 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
         </div>
       )}
 
-      {manda && verDiferencia && (() => {
-        /* DEL PRIMERO AL ÚLTIMO: así se ve cuál fue el primer corte que se hizo. Solo para mirar: aquí no se toca nada. */
-        const iniciales = cortes.filter((c) => c.tipo === "inicial").sort((a, b) => a.cortado_en.localeCompare(b.cortado_en));
-        return (
-          <>
-            <h2 className="cl-h">Todos los cortes iniciales <span>{iniciales.length}</span></h2>
-            <div className="cl-acciones">
-              <button type="button" className="btn plano" aria-expanded={verPrimeros} onClick={() => setVerPrimeros((x) => !x)}>
-                {verPrimeros ? "Esconder" : "Ver del primero al último"}
-              </button>
-            </div>
-            {verPrimeros && (iniciales.length === 0 ? (
-              <p className="fe-vacio">Todavía no se ha hecho ningún corte inicial.</p>
-            ) : (
-              <div className="fe-lista cl-todos">
-                {iniciales.map((c, i) => {
-                  const fin = finalDe.get(c.id);
-                  return (
-                    <article key={c.id} className="fe-fila">
-                      <div className="cl-cab">
-                        <b className="cl-hora">
-                          {i === 0 && <span className="cl-primero">EL PRIMERO</span>} Inicial · {hora(c.cortado_en)}
-                        </b>
-                        <span className="cl-quien">{c.creado_por ? nombres[c.creado_por] ?? "—" : "—"}</span>
-                      </div>
-                      <p className="cl-estado">{fin ? `Ya tiene su corte final · ${hora(fin.cortado_en)}` : "Esperando el corte final"}</p>
-                      {renglonesDe(c)}
-                      {c.nota && <p className="cl-nota">{c.nota}</p>}
-                    </article>
-                  );
-                })}
-              </div>
-            ))}
-          </>
-        );
-      })()}
+      {manda && verDiferencia && (
+        <>
+          <h2 className="cl-h">El proceso, corte por corte <span>{cortes.filter((c) => c.tipo === "inicial").length}</span></h2>
+          <Proceso cortes={cortes} lineas={lineas} ubicaciones={ubicaciones} materiales={materiales}
+                   conteos={conteos} lineasConteo={lineasConteo} nombres={nombres} />
+        </>
+      )}
 
       {verDiferencia && (
         <>

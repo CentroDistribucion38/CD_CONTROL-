@@ -308,6 +308,41 @@
   .fe .cl-guardar .cl-go { flex: 1.4 1 0 }
 }
 
-/* TODOS LOS CORTES INICIALES, del primero al último (solo para quien administra). */
-.fe .cl-primero { display: inline-block; margin-right: 8px; padding: 2px 7px; background: var(--fe-acento); color: var(--fe-sobre); font: 900 10.5px var(--fe-titulo); letter-spacing: .08em }
-.fe .cl-estado { margin: 4px 0 0; font-size: 12px; font-weight: 700; color: var(--fe-gris) }
+.fe .cl-primero { display: inline-block; margin-left: 8px; padding: 2px 7px; background: var(--fe-acento); color: var(--fe-sobre); font: 900 10.5px var(--fe-titulo); font-style: normal; letter-spacing: .08em }
+
+/* EL PROCESO, CORTE POR CORTE (solo para quien administra): cada corte es una fila con sus tres etapas y su porcentaje. */
+.fe .pr { display: flex; flex-direction: column; gap: 8px }
+.fe .pr-barra { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap }
+.fe .pr-resumen { font-size: 13px; font-weight: 700; color: var(--fe-gris) }
+.fe .pr-corte { background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.fe .pr-corte > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(120px, auto) minmax(150px, 1fr) auto minmax(150px, 220px); gap: 8px 16px; align-items: center; padding: 12px 14px; min-height: 48px }
+.fe .pr-corte > summary::-webkit-details-marker { display: none }
+.fe .pr-corte[open] > summary { border-bottom: 1px solid var(--fe-linea) }
+.fe .pr-num { font: 900 15px var(--fe-titulo); letter-spacing: -.01em }
+.fe .pr-cuando { font-size: 12.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
+.fe .pr-pasos { display: flex; gap: 4px; flex-wrap: wrap }
+.fe .pr-paso { font: 800 10px var(--fe-titulo); letter-spacing: .08em; padding: 5px 8px; color: #fff; background: var(--fe-gris) }
+.fe .pr-paso.hecho, .fe .pr-paso.cuadra { background: var(--fe-bien) }
+.fe .pr-paso.no_cuadra { background: var(--fe-mal) }
+.fe .pr-paso.falta, .fe .pr-paso.incompleto { background: #fff; color: var(--fe-gris); box-shadow: inset 0 0 0 1px var(--fe-linea) }
+.fe .pr-pct { display: flex; align-items: center; gap: 8px }
+.fe .pr-pct b { font: 900 13px var(--fe-titulo); font-variant-numeric: tabular-nums; min-width: 40px; text-align: right }
+.fe .pr-riel { flex: 1; height: 8px; background: color-mix(in srgb, var(--fe-tinta) 10%, #fff); display: block }
+.fe .pr-riel i { display: block; height: 100%; background: var(--fe-bien) }
+.fe .pr-cuerpo { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px }
+.fe .pr-dice { font-size: 13px }
+.fe .pr-tabla { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums }
+.fe .pr-tabla th { text-align: left; font: 800 10.5px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris); padding: 6px 10px; border-bottom: 1px solid var(--fe-linea) }
+.fe .pr-tabla td { padding: 8px 10px; vertical-align: top; border-bottom: 1px solid color-mix(in srgb, var(--fe-tinta) 8%, #fff) }
+.fe .pr-tabla small, .fe .pr-det { display: block; font-size: 12px; color: var(--fe-gris) }
+.fe .pr-der { text-align: right !important; white-space: nowrap }
+.fe .pr-falta { color: var(--fe-gris); font-style: italic }
+@media (max-width: 760px) {
+  .fe .pr-corte > summary { grid-template-columns: 1fr; padding: 12px }
+  .fe .pr-tabla thead { display: none }
+  .fe .pr-tabla, .fe .pr-tabla tbody, .fe .pr-tabla tr, .fe .pr-tabla td { display: block; width: 100% }
+  .fe .pr-tabla tr { border: 1px solid var(--fe-linea); margin-bottom: 8px }
+  .fe .pr-tabla td { border-bottom: 0; padding: 6px 10px }
+  .fe .pr-tabla td::before { content: attr(data-t); display: block; font: 800 10px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+  .fe .pr-der { text-align: left !important }
+}

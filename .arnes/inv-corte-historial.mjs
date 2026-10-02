@@ -79,9 +79,14 @@ const mixto: any[] = [
 const kmix = [{ id: "km", codigo: "CF-21", fecha: "2026-09-21", enviado_en: "2026-09-21T22:00:00Z" }];
 const lmix = [LC("km", "m1", "uA01", 1500), LC("km", "m3", "uB12I", 1000), LC("km", "m1", "uA02", 0)];
 const uno = cortes.filter((x) => x.id === "i20" || x.id === "f20");
+/* Un corte con DOS líneas al empezar y UNA sola al final: 50 %. */
+const parcial: any[] = [
+  { id: "pf", tipo: "final", inicial_id: "pi", cortado_en: "2026-09-22T19:00:00.000Z", nota: null, creado_por: "u1", renglones: [R("L1", 1000, S("uA01", 1000), S("uB12I", 1000))] },
+  { id: "pi", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-22T13:00:00.000Z", nota: "Cargue con envase", creado_por: "u1", renglones: [R("L1", 0, S("uA01", 2000), S("uB12I", 0)), R("L2", 0, S("uA02", 500), S("uB12D", 0))] },
+];
 createRoot(document.getElementById("r")!).render(
-  <Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={mats} cortes={(c === "mixto" ? mixto : c === "uno" ? uno : cortes) as any}
-    conteos={(c === "mixto" ? kmix : conteos) as any} lineasConteo={(c === "mixto" ? lmix : lineasConteo) as any} nombres={{ u1: "Cristian Padilla" }} puedeEditar={true} manda={c === "manda"} verDiferencia={c !== "sinanalisis"} ahora={AHORA} />);
+  <Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={mats} cortes={(c === "mixto" ? mixto : c === "uno" ? uno : c === "parcial" ? parcial : cortes) as any}
+    conteos={(c === "mixto" ? kmix : conteos) as any} lineasConteo={(c === "mixto" ? lmix : lineasConteo) as any} nombres={{ u1: "Cristian Padilla" }} puedeEditar={true} manda={c === "manda" || c === "parcial"} verDiferencia={c !== "sinanalisis"} ahora={AHORA} />);
 `);
 
 const js = buildSync({
@@ -232,24 +237,38 @@ await monta("c=manda");
   ok(await pg.locator('.dq-cuerpo button:has-text("Eliminar el par")').count() === 0, "cerrado el par no hay botón de eliminar");
 }
 
-/* ---------- 4b · TODOS LOS CORTES INICIALES, DEL PRIMERO AL ÚLTIMO (solo quien administra) ---------- */
+/* ---------- 4b · EL PROCESO, CORTE POR CORTE (solo quien administra) ---------- */
 await monta("c=todo");
-ok(await pg.locator('button:has-text("Ver del primero al último")').count() === 0, "quien no administra no ve «Ver del primero al último»");
+ok(await pg.locator(".pr").count() === 0, "quien no administra no ve «El proceso, corte por corte»");
 await monta("c=manda");
 {
-  ok(/Todos los cortes iniciales\s*21/.test(await txt()), "el título cuenta los 21 iniciales (20 con final y 1 esperando): " + (await txt()).match(/Todos los cortes iniciales\s*\d+/)?.[0]);
-  ok(await pg.locator(".cl-todos article").count() === 0, "arranca cerrado");
-  await pg.click('button:has-text("Ver del primero al último")');
-  const t = await pg.$$eval(".cl-todos article", (x) => x.map((e) => e.querySelector(".cl-hora").textContent.replace(/\s+/g, " ").trim()));
-  ok(t.length === 21, "salen los 21: " + t.length);
-  ok(/EL PRIMERO/.test(t[0]) && /01\/09\/2026/.test(t[0]) && t.slice(1).every((x) => !/EL PRIMERO/.test(x)), "el primero es el del 1 de septiembre y solo ese lo dice: " + t[0]);
-  const f = t.map((x) => x.match(/(\d\d)\/09\/2026/)?.[1]);
-  ok(f.every((d, i) => i === 0 || d >= f[i - 1]), "van del más viejo al más nuevo: " + f.join(","));
-  ok(/Ya tiene su corte final/.test(await pg.locator(".cl-todos article").first().textContent()) && /Esperando el corte final/.test(await pg.locator(".cl-todos article").last().textContent()), "dice cuáles ya tienen final y cuál espera");
-  ok(await pg.locator(".cl-todos button").count() === 0, "es solo para mirar: sin botones");
-  ok(/L1/.test(await pg.locator(".cl-todos article").first().textContent()) && /Tomando de A · 01 · DER: 2.?000 cajas/.test(await pg.locator(".cl-todos article").first().textContent()), "se ve lo que se anotó: " + (await pg.locator(".cl-todos article").first().textContent()).slice(0, 200));
-  await pg.click('button:has-text("Esconder")');
-  ok(await pg.locator(".cl-todos article").count() === 0, "se esconde");
+  const resumenP = (await pg.locator(".pr-resumen").textContent()).trim();
+  ok(/Todos|proceso, corte por corte\s*21/i.test(await txt()) && resumenP === "20 de 21 cortes completos", "21 cortes y 20 completos: " + resumenP);
+  ok(await pg.locator(".pr-corte").count() === 21 && await pg.locator(".pr-corte[open]").count() === 1, "21 cortes y solo el primero abierto");
+  const nums = await pg.$$eval(".pr-num", (x) => x.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
+  ok(/^Corte 1 ?EL PRIMERO$/.test(nums[0]) && nums[1] === "Corte 2" && nums[20] === "Corte 21", "numerados del primero al último, y solo el 1 es EL PRIMERO: " + nums[0] + " | " + nums[20]);
+  const pasos = async (k) => (await pg.locator(".pr-corte").nth(k).locator(".pr-paso").allTextContents()).map((t) => t.trim());
+  ok(JSON.stringify(await pasos(0)) === JSON.stringify(["① Inicial", "② Final", "③ CUADRA"]), "Corte 1: inicial, final y cuadra: " + (await pasos(0)).join(" > "));
+  ok((await pasos(2))[2] === "③ NO CUADRA" && (await pasos(1))[2] === "③ INCOMPLETO", "los estados de la etapa 3: " + (await pasos(1))[2] + " / " + (await pasos(2))[2]);
+  ok((await pg.locator(".pr-corte").nth(0).locator(".pr-pct b").textContent()) === "100%", "Corte 1 va al 100%");
+  /* El que espera su final */
+  ok((await pg.locator(".pr-corte").nth(20).locator(".pr-pct b").textContent()) === "0%" && JSON.stringify(await pasos(20)) === JSON.stringify(["① Inicial", "② Final", "③ Diferencia"]), "Corte 21 espera su final: 0%");
+  ok(await pg.locator(".pr-corte").nth(20).locator(".pr-paso.falta").count() === 2, "y marca como pendientes la etapa 2 y la 3");
+  await pg.locator(".pr-corte").nth(20).locator("summary").click();
+  ok(/Todavía falta el corte final/.test(await pg.locator(".pr-corte").nth(20).textContent()) && /Falta el corte final/.test(await pg.locator(".pr-corte").nth(20).locator("td").nth(2).textContent()), "dice que falta el final");
+  /* El que ya lo tiene: muestra el final y lo que pasó por la depa */
+  const t0 = (await pg.locator(".pr-corte").nth(0).textContent()).replace(/\s+/g, " ");
+  ok(/Corte final hecho el 01\/09\/2026/.test(t0) && /1 de 1 línea con su corte final \(100%\)/.test(t0) && /\+1\.000/.test(t0) && /Tomando de A · 01 · DER: 2\.000 cajas/.test(t0), "el Corte 1 muestra su final y lo que se movió: " + t0.slice(0, 300));
+  ok(await pg.locator(".pr button, .pr summary button").count() === 1, "solo mirar: el único botón es el de cambiar el orden");
+  await pg.click('.pr-barra button');
+  const n2 = await pg.$$eval(".pr-num", (x) => x.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
+  ok(n2[0] === "Corte 21" && /EL PRIMERO/.test(n2[20]), "al cambiar el orden, el último va primero y conserva su número: " + n2[0]);
+}
+await monta("c=parcial");
+{
+  const p = (await pg.locator(".pr-pct b").textContent()).trim();
+  const t = (await pg.locator(".pr-corte").textContent()).replace(/\s+/g, " ");
+  ok(p === "50%" && /1 de 2 líneas con su corte final \(50%\)/.test(t) && /Esta línea no se cortó al final/.test(t) && /Nota del inicial: Cargue con envase/.test(t) && (await pg.locator(".pr-resumen").textContent()).trim() === "0 de 1 corte completo", "dos líneas al empezar y una al final = 50 %: " + p + " | " + t.slice(0, 260));
 }
 
 /* ---------- 5 · NADA SE SALE, en cuatro anchos ---------- */
