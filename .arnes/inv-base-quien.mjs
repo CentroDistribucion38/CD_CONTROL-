@@ -67,7 +67,7 @@ const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" 
 const pg = await nav.newPage();
 const roto = []; pg.on("pageerror", (e) => roto.push(e.message));
 await pg.goto("about:blank");
-await pg.evaluate(() => {
+await pg.addInitScript(() => {
   window.__bajados = []; window.__pedidos = [];
   const crea = URL.createObjectURL.bind(URL);
   URL.createObjectURL = (b) => { b.text().then((t) => window.__bajados.push({ tipo: b.type, texto: t })); return crea(b) };
@@ -76,9 +76,19 @@ await pg.evaluate(() => {
 });
 const monta = async ({ conteos = CONTEOS, manda = false, puede = false, ancho = 1440, enviadas = ENVIADAS, abiertas = [AB], pasados = PASADOS, pasadosOk = true, tema = null, tope = false } = {}) => {
   await pg.setViewportSize({ width: ancho, height: 900 });
+  await pg.goto("about:blank");
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box;margin:0}${css}</style></head><body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div>
     <script>window.CONTEOS=${JSON.stringify(conteos)};window.ENVIADAS=${JSON.stringify(enviadas)};window.ABIERTAS=${JSON.stringify(abiertas)};window.MANDA=${manda};window.PUEDE=${puede};window.UXC=${JSON.stringify(UXC)};window.PASADOS=${JSON.stringify(pasados)};window.PASADOS_OK=${pasadosOk};window.TOPE=${tope};window.__llamadas=[];window.__refresh=0;</script><script>${js}<\/script></body></html>`);
   await pg.waitForSelector(".ba");
+};
+/* El Excel que se baja: se atrapa la descarga de verdad y se abre con exceljs. */
+const ExcelJS = (await import("exceljs")).default;
+const bajaXlsx = async (sel) => {
+  const [d] = await Promise.all([pg.waitForEvent("download", { timeout: 20000 }), pg.click(sel)]);
+  const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(await d.path());
+  const h = wb.worksheets[0];
+  const filas = []; h.eachRow({ includeEmpty: false }, (r, n) => { if (n >= 6) filas.push(r.values.slice(1).map((v) => (v && typeof v === "object" && "result" in v ? v.result : v))) });
+  return { nombre: d.suggestedFilename(), hoja: h, titulo: h.getCell(3, 1).value, sub: h.getCell(4, 1).value, filas };
 };
 const txt = async (sel) => ((await pg.locator(sel).first().textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
 const filas = () => pg.locator(".ba-t tbody tr");
@@ -155,11 +165,10 @@ await pg.click('.ba-seg button:has-text("Todo")');
 
 /* ===== 6 · lo que se baja a Excel es lo que se ve ===== */
 await pg.click('.ba-qn:has-text("JeremyGriego")');
-await pg.evaluate(() => { window.__bajados = [] });
-await pg.click('.ba-acc button:has-text("Bajar esta vista")');
-await pg.waitForFunction(() => window.__bajados.length > 0);
-const csv = (await pg.evaluate(() => window.__bajados[0].texto));
-ok(/A01_DER/.test(csv) && /D01_DER/.test(csv) && !/B01_DER/.test(csv) && !/C01_IZQ/.test(csv), "el Excel baja solo lo de Jeremy");
+const xl = await bajaXlsx('.ba-acc button:has-text("Bajar esta vista")');
+const ubs = xl.filas.slice(1, -1).map((f) => f[xl.filas[0].indexOf("Ubicación")]).join(",");
+ok(/A01_DER/.test(ubs) && /D01_DER/.test(ubs) && !/B01_DER/.test(ubs) && !/C01_IZQ/.test(ubs) && xl.filas.length === 1 + 4 + 1, "el Excel baja solo lo de Jeremy: " + ubs);
+ok(/^conteo-borradores-.*\.xlsx$/.test(xl.nombre) && /Borradores/.test(String(xl.titulo)) && /sin enviar · hoy/.test(String(xl.sub)), "el Excel de borradores dice que son borradores: " + xl.nombre + " | " + xl.sub);
 
 /* ===== 7 · al cambiar de pestaña se limpia, y en La base lee «Envió» ===== */
 await pg.click('.ba-tabs button:has-text("La base")');

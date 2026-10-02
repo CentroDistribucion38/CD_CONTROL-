@@ -49,6 +49,7 @@ import { MarcarPasados } from "./MarcarPasados";
 import { Calendario, type Atajo } from "@/components/CalendarioRango";
 import { sumarDias } from "@/modulos/inventario/fiscal";
 import { leerPaleta } from "../informe";
+import { armarVistaXlsx } from "@/modulos/inventario/vista-xlsx";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const POR_PAGINA = 100;
@@ -203,29 +204,6 @@ const COLUMNAS: Col<Renglon>[] = [
    de donde se venía. Y la cuenta de arriba dice cuántos son, para que
    nadie crea que bajó todo cuando bajó tres.
    --------------------------------------------------------------------- */
-function bajar(filas: Fila[], columnas: Col<Fila>[], nombre: string) {
-  const escapa = (v: string) =>
-    /[;"\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-  const lineas = [
-    "sep=;",
-    columnas.map((c) => escapa(c.t)).join(";"),
-    ...filas.map((r) => columnas.map((c) => escapa(c.texto(r))).join(";")),
-  ];
-    /* EL BOM VA ESCRITO —"\\uFEFF"— y no pegado como carácter. Quedó
-     pegado en la primera versión y es invisible: en el editor se ve
-     `new Blob([" " + ...])` con lo que parece un espacio raro, y el
-     primero que «limpie» esa línea rompe el Excel de todo el mundo
-     sin enterarse. Escrito, se lee lo que es. */
-  const blob = new Blob(["\uFEFF" + lineas.join("\r\n")],
-    { type: "text/csv;charset=utf-8;" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-
 /* Las columnas de la tabla CORTA. Las veintiséis están en COLUMNAS. */
 const ubi = (r: Renglon) => r.ubicacion_combinada ?? r.ubicacion ?? "";
 const CORTAS: Col<Fila>[] = [
@@ -492,6 +470,38 @@ export function Base({
     finally { setBajando(false) }
   }
 
+  /* BAJAR ESTA VISTA: un Excel de verdad (.xlsx) con lo que se ve, con el aspecto del consolidado. Antes era un
+     CSV y Excel en español le rompía las tildes. */
+  async function bajarVista() {
+    if (!filas.length) return;
+    setBajando(true); setMal(null);
+    try {
+      const P = leerPaleta(raiz.current);
+      const hx = (c: number[]) => c.map((v) => v.toString(16).padStart(2, "0")).join("");
+      const cols = [...COLUMNAS as Col<Fila>[], ...(pestania === "base" ? [ESTADO] : [])];
+      const dia = pestania === "base" ? (desde === hasta ? desde : `${desde}_${hasta}`) : null;
+      const sub = [
+        pestania === "base" ? `La base · ${rangoTexto(desde, hasta)}` : `Borradores · sin enviar · hoy ${diaDe(hoyColombia())}`,
+        `${nf.format(filas.length)} ${filas.length === 1 ? "renglón" : "renglones"}`,
+        `${nf.format(cajas)} cajas`,
+        filtrando ? "con filtros" : null,
+      ].filter(Boolean).join("  ·  ");
+      const blob = await armarVistaXlsx({
+        titulo: pestania === "base" ? "La base del conteo" : "Borradores del conteo", sub, hoja: pestania === "base" ? "Base" : "Borradores",
+        /* Se suman las cantidades (estibas, cajas, saldo, unidades); un factor o una capacidad no. */
+        columnas: cols.map((c) => ({ t: c.t, num: !!c.num, suma: ["estibas", "saldo", "cajas", "total_cajas", "unidades"].includes(c.k) })), filas: filas.map((r) => cols.map((c) => c.texto(r))),
+        tinta: hx(P.tinta), banda: hx(P.cinta[1]?.[1] ?? P.acento),
+      });
+      /* EL NOMBRE DICE QUÉ TRAE: bajando tres vistas seguidas salían tres archivos con el mismo nombre. */
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = ["conteo", pestania, dia, fTipo ? fTipo.toLowerCase() : null, hoyColombia()].filter(Boolean).join("-") + ".xlsx";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    } catch { setMal("No se pudo armar el Excel.") }
+    finally { setBajando(false) }
+  }
+
   const quitarFiltros = () => { setFTexto(""); setFRec(""); setFCalle(""); setFModulo(""); setFTipo(""); setFQuien(new Set()) };
   const hayEnviados = dias.size > 0;
   const abiertosN = recorridosDe.length;
@@ -511,14 +521,8 @@ export function Base({
               ⋯ Administrador
             </button>
           )}
-          <button type="button" className="ba-sec" disabled={filas.length === 0}
-                  /* EL NOMBRE DEL ARCHIVO DICE QUÉ TRAE: bajando tres vistas seguidas salían tres archivos
-                     con el mismo nombre y un (1) y un (2) detrás. */
-                  onClick={() => bajar(filas, [...COLUMNAS as Col<Fila>[], ...(pestania === "base" ? [ESTADO] : [])], [
-                    "conteo", pestania, pestania === "base" ? (desde === hasta ? desde : `${desde}_${hasta}`) : null,
-                    fTipo ? fTipo.toLowerCase() : null, new Date().toISOString().slice(0, 10),
-                  ].filter(Boolean).join("-") + ".csv")}>
-            ↓ Bajar esta vista
+          <button type="button" className="ba-sec" disabled={filas.length === 0 || bajando} onClick={bajarVista}>
+            {bajando ? "Armando el Excel…" : "↓ Bajar esta vista"}
           </button>
           <button type="button" className="ba-prim" onClick={exportar} disabled={bajando || !incluidos.length}
                   title={!hayEnviados ? "Todavía no hay recorridos enviados" : !incluidos.length ? "Marca al menos un recorrido" : undefined}>

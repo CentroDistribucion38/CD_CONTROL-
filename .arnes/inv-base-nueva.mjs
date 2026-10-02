@@ -72,9 +72,9 @@ const PASADOS = [L1.id, L1b.id, L2.id, L4.id];
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await nav.newPage();
-const roto = []; pg.on("pageerror", (e) => roto.push(e.message));
+pg.on("console", (m) => { if (process.env.VER && m.type() === "error") console.log("CONSOLA", m.text().slice(0,200)) }); const roto = []; pg.on("pageerror", (e) => { roto.push(e.message); if (process.env.VER) console.log("PAGEERROR", e.message.slice(0,300)) });
 await pg.goto("about:blank");
-await pg.evaluate(() => {
+await pg.addInitScript(() => {
   window.__bajados = []; window.__pedidos = [];
   const crea = URL.createObjectURL.bind(URL);
   URL.createObjectURL = (b) => { b.text().then((t) => window.__bajados.push({ tipo: b.type, texto: t })); return crea(b) };
@@ -83,9 +83,22 @@ await pg.evaluate(() => {
 });
 const monta = async ({ conteos = CONTEOS, manda = false, puede = false, ancho = 1440, enviadas = ENVIADAS, abiertas = [AB], pasados = PASADOS, pasadosOk = true, tema = null, tope = false } = {}) => {
   await pg.setViewportSize({ width: ancho, height: 900 });
+  await pg.goto("about:blank");
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box;margin:0}${css}</style></head><body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div>
     <script>window.CONTEOS=${JSON.stringify(conteos)};window.ENVIADAS=${JSON.stringify(enviadas)};window.ABIERTAS=${JSON.stringify(abiertas)};window.MANDA=${manda};window.PUEDE=${puede};window.UXC=${JSON.stringify(UXC)};window.PASADOS=${JSON.stringify(pasados)};window.PASADOS_OK=${pasadosOk};window.TOPE=${tope};window.__llamadas=[];window.__refresh=0;</script><script>${js}<\/script></body></html>`);
-  await pg.waitForSelector(".ba");
+  try { await pg.waitForSelector(".ba", { timeout: 8000 }); } catch (e) { if (process.env.VER) console.log("SIN .ba:", (await pg.evaluate(() => document.body.innerHTML.slice(0, 300))), "| url:", pg.url()); throw e }
+};
+/* El Excel que se baja: se atrapa la descarga de verdad y se abre con exceljs. */
+const ExcelJS = (await import("exceljs")).default;
+const bajaXlsx = async (sel) => {
+  const [d] = await Promise.all([pg.waitForEvent("download", { timeout: 20000 }), pg.click(sel)]);
+  if (process.env.GUARDA) await d.saveAs(process.env.GUARDA);
+  const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(await d.path());
+
+  const h = wb.worksheets[0];
+  const filas = []; h.eachRow({ includeEmpty: false }, (r, n) => { if (n >= 6) filas.push(r.values.slice(1).map((v) => (v && typeof v === "object" && "result" in v ? v.result : v))) });
+  const res = { nombre: d.suggestedFilename(), hoja: h, titulo: h.getCell(3, 1).value, sub: h.getCell(4, 1).value, filas };
+  return res;
 };
 const txt = async (sel) => ((await pg.locator(sel).first().textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
 const filas = () => pg.locator(".ba-t tbody tr");
@@ -194,13 +207,17 @@ ok(/Quién contó/.test(await txt(".ba-t thead")) && /Estado/.test(await txt(".b
 await pg.click('.ba-th .ba-link');
 ok(await pg.locator(".ba-t th").count() === 7, "volver a la corta");
 await pg.click('.ba-seg button:has-text("Envase")');
-await pg.click('.ba-acc button:has-text("Bajar esta vista")');
-await pg.waitForFunction(() => window.__bajados.length > 0);
-const csv = (await pg.evaluate(() => window.__bajados[0].texto)).replace(/^\uFEFF/, "");
-const lin = csv.split("\r\n");
-ok(lin[0] === "sep=;" && lin[1].split(";").length === 27 && lin[1].endsWith(";Estado"), "el CSV debe traer las 26 columnas más Estado: " + lin[1].split(";").length);
-ok(lin.length === 2 + 4, "el CSV baja lo que se ve (4 envases): " + (lin.length - 2));
-ok(/;PASADO$/.test(lin.find((l) => /A02_DER/.test(l)) ?? "") && /;POR PASAR$/.test(lin.find((l) => /A03_IZQ/.test(l)) ?? ""), "el CSV debe decir el Estado de cada renglón: " + lin.slice(2).join(" || "));
+const xl = await bajaXlsx('.ba-acc button:has-text("Bajar esta vista")');
+const cab = xl.filas[0], datos = xl.filas.slice(1, -1), tot = xl.filas[xl.filas.length - 1];
+ok(/^conteo-base-.*-envase-\d{4}-\d{2}-\d{2}\.xlsx$/.test(xl.nombre), "el archivo es un .xlsx y dice qué trae: " + xl.nombre);
+ok(cab.length === 27 && cab[0] === "Calle" && cab.includes("Módulo") && cab.includes("Ubicación") && cab[26] === "Estado", "el Excel trae las 26 columnas más Estado, con sus tildes: " + cab.join("|"));
+ok(datos.length === 4, "el Excel baja lo que se ve (4 envases): " + datos.length);
+const iEst = cab.indexOf("Estado"), iUb = cab.indexOf("Ubicación"), iCajas = cab.indexOf("Total cajas");
+ok(datos.find((f) => /A02_DER/.test(f[iUb]))?.[iEst] === "PASADO" && datos.find((f) => /A03_IZQ/.test(f[iUb]))?.[iEst] === "POR PASAR", "el Excel dice el Estado de cada renglón");
+ok(tot[cab.indexOf("Factor")] == null && tot[cab.indexOf("Capacidad")] == null, "un factor o una capacidad NO se suman en el total");
+ok(typeof datos[0][iCajas] === "number", "las cajas van como NÚMERO (se pueden sumar): " + typeof datos[0][iCajas]);
+ok(/TOTAL/.test(String(tot[0])) && tot[iCajas] === datos.reduce((a, f) => a + f[iCajas], 0), "la última fila suma las cajas: " + tot[iCajas]);
+ok(/La base/.test(String(xl.sub)) && /4 renglones/.test(String(xl.sub)) && xl.hoja.autoFilter && xl.hoja.views[0].ySplit === 6, "tiene título, filtro y fila de títulos congelada: " + xl.sub);
 await pg.click('.ba-seg button:has-text("Todo")');
 
 /* ===== 6b · «Recorrido que vale»: el día y la hora en que se ENVIÓ (hora de Colombia) ===== */

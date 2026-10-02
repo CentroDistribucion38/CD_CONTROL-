@@ -7,7 +7,7 @@
    1. LOS DOS MONTONES NO SE MEZCLAN. Lo enviado está firmado; los borradores son de quien los
       está caminando. Un renglón a medio contar sumando en un total del que alguien despacha no
       da error, no avisa, y la diferencia aparece semanas después.
-   2. EL EXCEL: separador y BOM escritos, y se baja lo que se ve, ordenado igual.
+   2. EL EXCEL: un .xlsx de verdad (no un CSV con las tildes rotas), y se baja lo que se ve, ordenado igual.
    3. EL ORDEN NO MUTA la lista que vino del servidor.
    4. LA PANTALLA ESTÁ REGISTRADA Y EN EL ORDEN DEL PROCESO, y el permiso se mudó con ella.
    5. LA PUERTA SE COMPRUEBA EN EL SERVIDOR, y «marcar PASADO» y «Eliminar» cada uno con su permiso.
@@ -42,13 +42,12 @@ if (!/const cajas = filas\.reduce/.test(limpio))
   fallas.push("el total de cajas no sale de las filas que se están viendo");
 
 /* 2. EL EXCEL. */
-if (!/"sep=;"/.test(limpio))
-  fallas.push("el CSV no dice el separador: Excel en español apilaría las columnas en la A");
-/* SE BUSCA EN EL CÓDIGO, NO EN LOS COMENTARIOS: una versión de esta comprobación se daba por
-   satisfecha con un comentario que mencionaba el BOM. */
-if (!/new Blob\(\["\\uFEFF"/.test(limpio))
-  fallas.push("el CSV va sin BOM: «Águila» se abriría como «Ãguila»");
-if (!/bajar\(filas,/.test(limpio))
+/* «Bajar esta vista» es un .xlsx de verdad: el CSV con «sep=;» hacía que Excel leyera las tildes rotas. */
+if (/"sep=;"|text\/csv/.test(limpio))
+  fallas.push("«Bajar esta vista» volvió a bajar un CSV: Excel en español le rompe las tildes («MÃ³dulo»)");
+if (!/armarVistaXlsx\(/.test(limpio) || !/\+ "\.xlsx"/.test(limpio))
+  fallas.push("«Bajar esta vista» no arma un .xlsx");
+if (!/filas\.map\(\(r\) => cols\.map/.test(limpio))
   fallas.push("el Excel no baja lo filtrado");
 
 /* 3. EL ORDEN NO MUTA LA LISTA QUE VINO DEL SERVIDOR (`sort` muta). */
@@ -193,5 +192,5 @@ if (!/conteo_fefo_marcar_pasado\\b\|\\bconteo_lineas_pasadas/.test(err) || !/202
 
 console.log("");
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
-console.log("✓ La base (lectura de código): los dos montones no se mezclan, el Excel lleva separador y BOM, " +
+console.log("✓ La base (lectura de código): los dos montones no se mezclan, el Excel se baja como .xlsx, " +
             "el menú va en el orden del proceso, el permiso se mudó y «Eliminar» solo es de quien administra.");
