@@ -110,9 +110,9 @@
 .fe .cl-no { margin-left: auto; min-height: 44px; padding: 0 6px; background: none; border: 0; font: 600 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer }
 .fe .cl-cuerpo { display: flex; flex-direction: column; gap: 16px; padding: 16px 18px }
 .fe .cl-r1 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start }
-.fe .cl-envdepa { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 260px); align-items: end; background: var(--fe-acento-suave, #FFF6D1); border: 1px solid #F0DE95; padding: 12px }
+.fe .cl-prodepa { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 260px); align-items: end; background: var(--fe-acento-suave, #FFF6D1); border: 1px solid #F0DE95; padding: 12px }
 .fe .cl-flecha { height: 58px; display: flex; align-items: center; justify-content: center; font: 900 16px var(--fe-titulo); color: #7A5A00 }
-.fe .cl-envdepa .cl-depa { max-width: none }
+.fe .cl-prodepa .cl-depa { max-width: none }
 .fe .cl-r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
 .fe .cl-r2.una { grid-template-columns: 1fr }
 .fe .cl-depa { max-width: 420px }
@@ -127,8 +127,10 @@
 .fe .cl-mae > div { min-width: 0; flex: 1 }
 .fe .cl-mae b { display: block; font: 700 14px var(--fe-texto) }
 .fe .cl-mae small, .fe .cl-busca small { display: block; font-size: 11.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
-.fe .cl-busca { display: flex; flex-direction: column; gap: 6px }
-.fe .cl-busca ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--fe-linea) }
+.fe .cl-busca { display: flex; flex-direction: column; gap: 6px; position: relative }
+/* LA LISTA FLOTA sobre lo de abajo: no empuja el formulario. */
+.fe .cl-busca ul { position: absolute; z-index: 30; left: 0; right: 0; top: 46px; max-height: 300px; overflow-y: auto; margin: 0; padding: 0; list-style: none; border: 1px solid var(--fe-tinta); background: var(--fe-papel); box-shadow: 0 10px 24px rgba(0, 0, 0, .18) }
+.fe .cl-busca .cl-nada { position: absolute; z-index: 30; left: 0; right: 0; top: 46px; padding: 10px 12px; background: var(--fe-papel); border: 1px solid var(--fe-linea); box-shadow: 0 6px 16px rgba(0, 0, 0, .12) }
 .fe .cl-busca li + li { border-top: 1px solid var(--fe-linea) }
 .fe .cl-busca li button { width: 100%; min-height: 48px; padding: 6px 12px; text-align: left; background: var(--fe-papel); border: 0; cursor: pointer; font: inherit; color: inherit }
 .fe .cl-busca li button b { font: 700 13.5px var(--fe-texto) }
@@ -264,13 +266,13 @@
 
 /* EL FORMULARIO COMPACTO (corte sin «dónde quedó ubicado»): campos de 44 px (el mínimo para tocar), todo alineado y en pocas filas. */
 .fe .cl-cuerpo { gap: 10px; padding: 12px 16px }
-.fe .cl-envdepa { align-items: start; padding: 10px 12px; gap: 0 }
-.fe .cl-envdepa .cl-flecha { height: 44px; margin-top: 21px }
-.fe .cl-envdepa .cl-depa em { display: none }
-.fe .cl-envdepa .cl-depa input { min-height: 44px; font: 700 17px var(--fe-texto) }
-.fe .cl-envdepa input, .fe .cl-cuerpo > .cl-mat input, .fe .cl-r2.una select, .fe .cl-r2.una input { min-height: 44px }
-.fe .cl-envdepa .cl-mae, .fe .cl-cuerpo > .cl-mat .cl-mae { min-height: 44px; padding: 4px 8px }
-.fe .cl-envdepa .cl-mae-ic, .fe .cl-cuerpo > .cl-mat .cl-mae-ic { width: 28px; height: 28px }
+.fe .cl-prodepa { align-items: start; padding: 10px 12px; gap: 0 }
+.fe .cl-prodepa .cl-flecha { height: 44px; margin-top: 21px }
+.fe .cl-prodepa .cl-depa em { display: none }
+.fe .cl-prodepa .cl-depa input { min-height: 44px; font: 700 17px var(--fe-texto) }
+.fe .cl-prodepa input, .fe .cl-cuerpo > .cl-mat input, .fe .cl-r2.una select, .fe .cl-r2.una input { min-height: 44px }
+.fe .cl-prodepa .cl-mae, .fe .cl-cuerpo > .cl-mat .cl-mae { min-height: 44px; padding: 4px 8px }
+.fe .cl-prodepa .cl-mae-ic, .fe .cl-cuerpo > .cl-mat .cl-mae-ic { width: 28px; height: 28px }
 .fe .cl-r2.una .cl-sitio { padding: 10px 12px; gap: 8px }
 .fe .cl-r2.una .cl-mod { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px }
 .fe .cl-r2.una .cl-cant-c { grid-column: auto }
@@ -282,7 +284,7 @@
 @media (max-width: 900px) {
   .fe .cl-grid { grid-template-columns: 1fr }
   .fe .cl-r1, .fe .cl-r2 { grid-template-columns: 1fr }
-  .fe .cl-envdepa { grid-template-columns: 1fr }
+  .fe .cl-prodepa { grid-template-columns: 1fr }
   .fe .cl-flecha { display: none }
   .fe .cl-flujo { display: grid; grid-template-columns: repeat(3, 1fr) }
   .fe .cl-flujo li { min-width: 0; padding: 10px }
@@ -330,7 +332,7 @@
   .fe .cl-sitio, .fe .cl-mod { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .fe .cl-cant-c, .fe .cl-r2.una .cl-cant-c { grid-column: 1 / -1 }
   .fe .cl-r2.una .cl-mod { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .fe .cl-envdepa .cl-flecha { display: none }
+  .fe .cl-prodepa .cl-flecha { display: none }
   .fe .cl-progbar { display: none }
   .fe .cl-prog { flex-basis: 100%; font-size: 12px }
   .fe .cl-guardar { gap: 8px; padding: 8px 0 }

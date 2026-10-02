@@ -751,11 +751,11 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
               {manual ? (
                 <div className="cl-r1">{depaCampo}</div>
               ) : (
-                /* COMO EN EL DISEÑO: el envase que entra → las cajas que pasaron por la depa. */
-                <div className="cl-envdepa">
-                  <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
-                                 titulo="Envase" nota="del maestro" sin="Sin envase"
-                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
+                /* EL PRODUCTO (con su SKU) → las cajas que pasaron por la depa: la depa cuenta producto. */
+                <div className="cl-prodepa">
+                  <MaterialCampo lista={productos} valor={f.material} etiqueta={etiqueta} resolver={matDe}
+                                 titulo="Producto" nota="la referencia que sale de la línea" sin="Sin producto"
+                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, material: v }))} />
                   <span className="cl-flecha" aria-hidden>→</span>
                   {depaCampo}
                 </div>
@@ -772,10 +772,10 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                 </>
               ) : (
                 <>
-                  {/* EL PRODUCTO (CON SU SKU): a qué referencia le está entrando el envase. */}
-                  <MaterialCampo lista={productos} valor={f.material} etiqueta={etiqueta} resolver={matDe}
-                                 titulo="Producto" nota="la referencia que sale de la línea" sin="Sin producto"
-                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, material: v }))} />
+                  {/* EL ENVASE (del maestro): lo que se toma de los módulos de abajo. */}
+                  <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
+                                 titulo="Envase" nota="lo que se toma, del maestro" sin="Sin envase"
+                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
                   <div className="cl-r2 una">
                     {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea", false)}
                   </div>
