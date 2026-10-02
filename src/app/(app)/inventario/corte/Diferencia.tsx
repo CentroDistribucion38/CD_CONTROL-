@@ -106,7 +106,7 @@ export function ParDiferencia({ a, ini, fin, conteos, lineasPorConteo, conteoId,
 
   /* El conteo tiene que haberse hecho ENTRE los dos cortes para que la comparación sirva. */
   const d1 = diaColombia(ini.cortado_en), d2 = diaColombia(fin.cortado_en);
-  const fueraDeRango = conteo !== null && (conteo.fecha < d1 || conteo.fecha > d2);
+  const fueraDeRango = !a.fefo && conteo !== null && (conteo.fecha < d1 || conteo.fecha > d2);
   const cortesDe = d1 === d2 ? `del ${diaCorto(d1)}` : `del ${diaCorto(d1)} al ${diaCorto(d2)}`;
 
   return (
@@ -116,7 +116,7 @@ export function ParDiferencia({ a, ini, fin, conteos, lineasPorConteo, conteoId,
         <div className="dq-der">
           {conteos.length > 0 && (
             <label>
-              <span className="dq-eti">Conteo</span>
+              <span className="dq-eti">{a.fefo ? "FEFO de después" : "Conteo"}</span>
               <select value={id ?? ""} onChange={(e) => onConteo(e.target.value)} aria-label="Conteo del inventario con el que se compara">
                 {conteos.map((c) => <option key={c.id} value={c.id}>{c.codigo} · {dia(c.fecha)}</option>)}
               </select>
@@ -133,6 +133,16 @@ export function ParDiferencia({ a, ini, fin, conteos, lineasPorConteo, conteoId,
         </div>
       </div>
 
+      {a.fefo && (
+        <p className={"dq-aviso" + (a.fefo.falta ? "" : " gris")} role="status">
+          <span>
+            <b>De dónde tomaba el envase sale del FEFO</b>
+            {a.fefo.antes && a.fefo.despues
+              ? <>: lo que bajó entre <b>{a.fefo.antes.codigo}</b> ({dia(a.fefo.antes.fecha)}) y <b>{a.fefo.despues.codigo}</b> ({dia(a.fefo.despues.fecha)}). Solo cuenta el envase; el producto y dónde se ubica no entran.</>
+              : <>. {a.fefo.falta}</>}
+          </span>
+        </p>
+      )}
       {conteos.length === 0 && <p className="dq-aviso gris">No hay conteos enviados de esta bodega: solo se compara el corte con la depa.</p>}
       {fueraDeRango && conteo && (
         <p className="dq-aviso" role="status">

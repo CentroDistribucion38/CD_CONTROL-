@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  analizar, conteoPorDefecto, envaseDelRenglon, type Analisis, type ConteoRef, type Corte as CorteT, type FilaCorte,
+  armarPar, conteoDelPar, sinModulos, envaseDelRenglon, type Analisis, type ConteoRef, type Corte as CorteT, type FilaCorte,
   type LineaConteo, type RenglonCorte, type Sitio,
 } from "@/modulos/inventario/corte";
 import { tablasDelPar } from "./Diferencia";
@@ -79,6 +79,10 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
   const nombreLinea = (c: string) => lineas.find((l) => l.clave === c)?.nombre ?? c;
   const porEstiba = (id: string | null) => (id ? mat.get(id)?.cajas_por_estiba ?? null : null);
 
+  const ctx = useMemo(() => ({
+    conteos, lineasPorConteo: porConteo,
+    envaseDe: (r: RenglonCorte) => envaseDelRenglon(r.envase_id, r.material_id, materiales).m?.id ?? null,
+  }), [conteos, porConteo, materiales]);
   const items = useMemo(() => {
     const finalDe = new Map(cortes.filter((c) => c.tipo === "final").map((c) => [c.inicial_id!, c]));
     const iniciales = cortes.filter((c) => c.tipo === "inicial").sort((a, b) => a.cortado_en.localeCompare(b.cortado_en));
@@ -90,16 +94,19 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
       let a: Analisis | null = null;
       const estados = new Map<string, Estado>();
       let estado: Estado | null = null;
+      let iniV = ini, finV = fin;
       if (fin) {
-        a = analizar(ini, fin, porEstiba, nombreUbi);
-        const t = tablasDelPar(a, conteoPorDefecto(ini, conteos), porConteo, nombreUbi);
+        const cid = conteoDelPar(ini, fin, conteos);
+        const par = armarPar(ini, fin, porEstiba, nombreUbi, ctx, cid);
+        a = par.a; iniV = par.ini; finV = par.fin;
+        const t = tablasDelPar(a, cid, porConteo, nombreUbi);
         for (const x of t) estados.set(x.linea, x.estado as Estado);
         estado = t.length === 0 ? "incompleto" : peor(t.map((x) => x.estado as Estado));
       }
-      return { n: i + 1, ini, fin, conFinal, total, pct, a, estados, estado };
+      return { n: i + 1, ini: iniV, fin: finV, conFinal, total, pct, a, estados, estado };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cortes, mat, nombreUbi, conteos, porConteo]);
+  }, [cortes, mat, nombreUbi, conteos, porConteo, ctx]);
 
   const lista = nuevoPrimero ? [...items].reverse() : items;
   const completos = items.filter((x) => x.pct === 100).length;
@@ -137,12 +144,12 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
     </div>
   );
 
-  const lados = (r: RenglonCorte | undefined, previo?: RenglonCorte) => {
+  const lados = (r: RenglonCorte | undefined, previo?: RenglonCorte, fefo = false) => {
     if (!r) return null;
     const pe = porEstiba(r.envase_id), pp = porEstiba(r.material_id);
-    const bo = r.origenes.map((s) => bloque(s, pe)), bd = r.destinos.map((s) => bloque(s, pp));
+    const bo = r.origenes.map((s) => bloque(s, pe)), bd = fefo ? [] : r.destinos.map((s) => bloque(s, pp));
     const po = previo ? new Map(previo.origenes.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.envase_id))])) : null;
-    const pd = previo ? new Map(previo.destinos.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.material_id))])) : null;
+    const pd = previo && !fefo ? new Map(previo.destinos.map((s) => [s.ubicacion_id, bloque(s, porEstiba(previo.material_id))])) : null;
     const et = (id: string | null) => { const m = id ? mat.get(id) : undefined; return m ? `${m.sku} · ${m.nombre}` : undefined; };
     const env = envaseDelRenglon(r.envase_id, r.material_id, materiales);
     const nEnv = env.m ? `${env.m.sku} · ${env.m.nombre}${env.delMaestro ? " (del maestro)" : ""}` : undefined, nPro = et(r.material_id);
@@ -152,7 +159,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
         {po && [...po.values()].filter((b) => !bo.some((x) => x.id === b.id)).map((b) => moduloIdo("Tomando de", b, nEnv))}
         {bd.map((b) => modulo("Ubicados en", b, nPro, pd ? pd.get(b.id) ?? null : undefined))}
         {pd && [...pd.values()].filter((b) => !bd.some((x) => x.id === b.id)).map((b) => moduloIdo("Ubicados en", b, nPro))}
-        {bo.length === 0 && bd.length === 0 && <p className="pr-vacio">No anotaron módulos.</p>}
+        {bo.length === 0 && bd.length === 0 && <p className="pr-vacio">{fefo || sinModulos(r) ? "De dónde toma el envase se lee del FEFO." : "No anotaron módulos."}</p>}
       </div>
     );
   };
@@ -164,6 +171,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
     const pasadas = f ? f.cajas_depa - r.cajas_depa : null;
     const cpe = porEstiba(f?.material_id ?? r.material_id);
     const nom = nombreLinea(r.linea);
+    const deFefo = !!x.a?.fefo?.lineas.includes(r.linea);
     return (
       <div className="pr-carril" key={r.linea}>
         <div className="pr-lnm">{r.linea}<small>{nom !== r.linea ? nom.toUpperCase() : "LÍNEA"}</small></div>
@@ -171,7 +179,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
         <div className="pr-foto">
           <div className="pr-fh"><span className="eti">① Así estaba</span><span className="pr-h">{soloHora(x.ini.cortado_en)}</span></div>
           <div className="pr-dep"><b>{nf.format(r.cajas_depa)}</b><span>cajas en el contador de la depa</span></div>
-          {lados(r)}
+          {lados(r, undefined, deFefo)}
           {r.nota && <p className="pr-nota-l">{r.nota}</p>}
         </div>
 
@@ -197,7 +205,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
           {f ? (
             <>
               <div className="pr-dep"><b>{nf.format(f.cajas_depa)}</b><span>cajas en el contador de la depa</span></div>
-              {lados(f, r)}
+              {lados(f, r, deFefo)}
               {f.nota && <p className="pr-nota-l">{f.nota}</p>}
             </>
           ) : (
@@ -211,8 +219,8 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
               <span className="pr-big"><span className="pr-x">{est === "cuadra" ? "✓" : est === "no_cuadra" ? "✕" : "!"}</span>{est === "cuadra" ? "Cuadra" : est === "no_cuadra" ? "No cuadra" : "Incompleto"}</span>
               <div className="pr-ln"><span>Pasó por la depa</span><b>{nf.format(pasadas ?? 0)}</b></div>
               <div className="pr-ln"><span>Surte (debía bajar)</span><b>{fila?.origen.dif != null ? conSigno(fila.origen.dif) : "—"}</b></div>
-              <div className="pr-ln"><span>Recibe (debía subir)</span><b>{fila?.destino.dif != null ? conSigno(fila.destino.dif) : "—"}</b></div>
-              {(fila?.origen.motivo || fila?.destino.motivo) && est === "incompleto" && <p className="pr-mot">{fila?.origen.motivo ?? fila?.destino.motivo}</p>}
+              {!deFefo && <div className="pr-ln"><span>Recibe (debía subir)</span><b>{fila?.destino.dif != null ? conSigno(fila.destino.dif) : "—"}</b></div>}
+              {(fila?.origen.motivo || (!deFefo && fila?.destino.motivo)) && est === "incompleto" && <p className="pr-mot">{fila?.origen.motivo ?? fila?.destino.motivo}</p>}
               <a href="#cl-diferencia">VER LA DIFERENCIA →</a>
             </>
           ) : (

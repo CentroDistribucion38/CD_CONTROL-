@@ -25,7 +25,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import { esFalloDeRed, guardarCola, leerCola, vaciarCola, type ItemCola, type Resultado } from "@/modulos/inventario/cola";
-import { analizar, envaseDelRenglon, type ConteoRef, type Corte as CorteT, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
+import { sinModulos, envaseDelRenglon, type ConteoRef, type Corte as CorteT, type LineaConteo, type Sitio, type Unidad } from "@/modulos/inventario/corte";
 import { Historial } from "./Historial";
 import { Proceso } from "./Proceso";
 
@@ -94,7 +94,9 @@ const num = (s: string): number | null => {
   return Number(t);
 };
 
-export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombres, puedeEditar, manda, verDiferencia, ahora, conteos = [], lineasConteo = [] }: {
+export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombres, puedeEditar, manda, verDiferencia, ahora, conteos = [], lineasConteo = [], manualInicial = false }: {
+  /** Abrir de entrada «anotar los módulos a mano» (por defecto cerrado: los módulos salen del FEFO). */
+  manualInicial?: boolean;
   bodegaId: string;
   lineas: LineaC[];
   ubicaciones: UbiC[];
@@ -259,6 +261,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
                   <li key={r.linea}>
                     <b>{r.linea}</b> {fmt(r.cajas_depa)} cajas por la depa
                     <span>
+                      {sinModulos(r) ? <>Envase: {(() => { const e = envaseDelRenglon(r.envase_id, r.material_id, materiales); return e.m ? `${e.m.sku} · ${e.m.nombre}${e.delMaestro ? " (del maestro)" : ""}` : "sin escoger"; })()} · de dónde toma sale del FEFO</> : null}
                       {r.origenes.length > 0 ? <>Tomando de {sitiosTxt(r.origenes)}<> {(() => { const e = envaseDelRenglon(r.envase_id, r.material_id, materiales); return e.m ? `de ${e.m.sku} · ${e.m.nombre}${e.delMaestro ? " (envase del maestro)" : ""}` : "(sin envase anotado)"; })()}</></> : null}
                       {r.origenes.length > 0 && r.destinos.length > 0 ? " · " : null}
                       {r.destinos.length > 0 ? <>Ubicados en {sitiosTxt(r.destinos)}<> {r.material_id && mat.get(r.material_id) ? `de ${mat.get(r.material_id)!.sku} · ${mat.get(r.material_id)!.nombre}` : "(sin producto anotado)"}</></> : null}
@@ -285,7 +288,7 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
         {bannerCola}
         <FormCorte
           tipo={form.tipo} inicial={form.inicial} bodegaId={bodegaId} lineas={lineas}
-          ubicaciones={ubicaciones} materiales={materiales} ahora={ahora}
+          ubicaciones={ubicaciones} materiales={materiales} ahora={ahora} manualInicial={manualInicial}
           onCerrar={() => setForm(null)}
           onPendiente={encolar}
           onGuardado={(t) => {
@@ -416,7 +419,8 @@ function Cabeza({ paso, abiertos, cerrados, anotando, verDiferencia }: {
    se está anotando. «Siguiente» pasa a la otra; «Guardar» manda todas
    las que se tocaron. En el celular la lista de líneas queda arriba.
    =================================================================== */
-function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, ahora, onCerrar, onGuardado, onPendiente }: {
+function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, ahora, manualInicial, onCerrar, onGuardado, onPendiente }: {
+  manualInicial: boolean;
   tipo: "inicial" | "final"; inicial: CorteT | null; bodegaId: string; lineas: LineaC[];
   ubicaciones: UbiC[]; materiales: MatC[]; ahora: string;
   onCerrar: () => void; onGuardado: (t: "inicial" | "final") => void;
@@ -455,6 +459,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     }
     return o;
   }
+  /* POR DEFECTO SOLO SE PIDEN LAS CAJAS DE LA DEPA (y el envase): de dónde se toma sale del FEFO. */
+  const [manual, setManual] = useState(manualInicial);
   const [cuando, setCuando] = useState(() => aInput(ahora));
   const [nota, setNota] = useState("");
   const [sel, setSel] = useState(lineas[0]?.clave ?? "");
@@ -487,10 +493,10 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
        extra que se dejó en blanco no dice nada y se ignora. El mismo módulo
        dos veces en un lado es un error: sumaría dos veces lo mismo. */
     const sitios: Record<string, unknown> = {};
-    for (const [k, lista, nom, donde] of [
+    for (const [k, lista, nom, donde] of (manual ? [
       ["origenes", f.origen, "de dónde tomaba", "donde tomaba"],
       ["destinos", f.destino, "dónde estaba ubicado", "donde estaba ubicado"],
-    ] as const) {
+    ] : []) as readonly (readonly ["origenes" | "destinos", SitioF[], string, string])[]) {
       const vistos = new Set<string>();
       const salen: { ubicacion_id: string; cant: number; unidad: Unidad }[] = [];
       lista.forEach((s, i) => {
@@ -504,12 +510,13 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       });
       sitios[k] = salen;
     }
+    if (!manual) { sitios.origenes = []; sitios.destinos = [] }
     if (f.envase.trim() && !envDe(f.envase)) aqui.push("el envase (escoge uno de la lista o déjalo vacío)");
-    if (f.material.trim() && !matDe(f.material)) aqui.push("el material (escoge uno de la lista o déjalo vacío)");
+    if (manual && f.material.trim() && !matDe(f.material)) aqui.push("el material (escoge uno de la lista o déjalo vacío)");
     return {
       aqui,
       renglon: aqui.length ? null : {
-        linea: clave, cajas_depa: cajas, material_id: matDe(f.material)?.id ?? null,
+        linea: clave, cajas_depa: cajas, material_id: manual ? matDe(f.material)?.id ?? null : null,
         envase_id: envDe(f.envase)?.id ?? null, ...sitios,
       },
     };
@@ -689,8 +696,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     <div className="cl">
       <p className="cl-sub">
         {tipo === "inicial"
-          ? "Anota cada línea como está AHORA. Las líneas que no toques no se cortan."
-          : `Corte final del inicial de las ${hora(inicial!.cortado_en)}: los módulos vienen puestos; cambia los que hayan cambiado y anota las cantidades de ahora.`}
+          ? "Anota las cajas que marca el contador de la depa en cada línea, como está AHORA. Las líneas que no toques no se cortan."
+          : `Corte final del inicial de las ${hora(inicial!.cortado_en)}: anota lo que marca ahora el contador de la depa en cada línea.`}
       </p>
 
       <div className="cl-grid">
@@ -743,10 +750,30 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                   <em>Lo que marca el contador de la depaletizadora</em>
                 </label>
               </div>
-              <div className="cl-r2">
-                {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea")}
-                {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale")}
-              </div>
+              {manual ? (
+                <>
+                  <div className="cl-r2">
+                    {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea")}
+                    {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale")}
+                  </div>
+                  <button type="button" className="btn plano cl-manual" onClick={() => setManual(false)}>
+                    Quitar los módulos: que salgan del FEFO
+                  </button>
+                </>
+              ) : (
+                <>
+                  <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
+                                 titulo="Envase" nota="lo que entra a la línea" sin="Sin envase"
+                                 onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
+                  <p className="cl-fefo">
+                    <b>De dónde toma el envase sale del FEFO.</b> No hay que anotar módulos: se lee lo que
+                    bajó del envase entre el último FEFO enviado antes del corte y el primero enviado después.
+                  </p>
+                  <button type="button" className="btn plano cl-manual" onClick={() => setManual(true)}>
+                    Anotar los módulos a mano (opcional)
+                  </button>
+                </>
+              )}
             </div>
           </section>
         )}

@@ -26,8 +26,10 @@ const dias = (d: number | null) => d == null ? "—" : d < 0 ? `hace ${nf.format
 /** La letra de la variable de color de cada franja, para pintar el aro. */
 const VAR: Record<Franja, string> = { vencido: "v", pasado: "p", semana: "s", quince: "q", mes: "m", ok: "o", sinfecha: "n" };
 
-export function Riesgo({ r, bodega, sinContar, ultimo, activas }: {
+export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
   r: DatosRiesgo; bodega: string; sinContar: number; ultimo: string | null;
+  /** La barra para escoger el día de la foto (viene del servidor). */
+  barra?: React.ReactNode;
   /** Cuántas posiciones activas tiene la bodega, para la barra de avance. */
   activas?: number;
 }) {
@@ -110,6 +112,8 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas }: {
                 {" "}en {peor.sitios.length === 1 ? "una ubicación" : `${peor.sitios.length} ubicaciones`}.
                 {enRiesgoL.length === 1 && <> Nada más entra a riesgo en los próximos 30 días.</>}
               </>
+            ) : r.totalCajas === 0 ? (
+              <>No hay producto terminado en esta foto, así que no hay vencimientos que medir.</>
             ) : (
               <>Nada vencido ni por salir en los próximos 30 días. La bodega está con margen.</>
             )}
@@ -126,6 +130,24 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas }: {
           </button>
         </div>
       </header>
+
+      {barra}
+
+      {r.totalCajas === 0 && (
+        <div className="ir-aviso">
+          <span className="ic" aria-hidden>
+            <svg viewBox="0 0 24 24"><path d="M12 4l9 16H3z" /><path d="M12 10v4M12 17v.5" /></svg>
+          </span>
+          <div>
+            <b>{r.inventario.renglones === 0 ? "No hay renglones en esta foto" : "Esta foto no trae producto terminado"}</b>
+            <span>
+              {r.inventario.renglones === 0
+                ? "Escoge otro día arriba."
+                : `Solo hay ${nf.format(r.inventario.renglonesEnvase)} ${r.inventario.renglonesEnvase === 1 ? "renglón" : "renglones"} de envase en ${nf.format(r.ubicaciones)} ubicaciones. Escoge otro día o incluye lo que se está contando.`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {sinContar > 0 && (
         <div className="ir-aviso">

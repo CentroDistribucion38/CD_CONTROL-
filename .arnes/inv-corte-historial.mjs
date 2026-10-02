@@ -93,7 +93,7 @@ const sinenv = [
   { id: "sp", tipo: "inicial", inicial_id: null, cortado_en: "2026-09-25T13:00:00.000Z", nota: null, creado_por: "u1", renglones: [RS("L1", 0, "m3", S("uA01", 2000), S("uB12I", 0))] },
 ];
 createRoot(document.getElementById("r")!).render(
-  <Corte bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={(c === "sinenv" ? mats2 : mats) as any} cortes={(c === "sinenv" ? sinenv : c === "mixto" ? mixto : c === "uno" ? uno : c === "parcial" ? parcial : cortes) as any}
+  <Corte manualInicial={true} bodegaId="bod1" lineas={lineas} ubicaciones={ubis} materiales={(c === "sinenv" ? mats2 : mats) as any} cortes={(c === "sinenv" ? sinenv : c === "mixto" ? mixto : c === "uno" ? uno : c === "parcial" ? parcial : cortes) as any}
     conteos={(c === "mixto" ? kmix : conteos) as any} lineasConteo={(c === "mixto" ? lmix : lineasConteo) as any} nombres={{ u1: "Cristian Padilla" }} puedeEditar={true} manda={c === "manda" || c === "parcial" || c === "sinenv"} verDiferencia={c !== "sinanalisis"} ahora={AHORA} />);
 `);
 

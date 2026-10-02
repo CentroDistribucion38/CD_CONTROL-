@@ -36,7 +36,10 @@ const dia = (s: string | null) =>
  * está vacía porque todavía no se ha llegado, y sobre eso alguien podría
  * decidir un despacho. Lo firmado es lo único que se puede afirmar.
  */
-export default async function InventarioTableroPage() {
+export default async function InventarioTableroPage({ searchParams }: { searchParams?: Promise<{ fecha?: string; borradores?: string }> }) {
+  const sp = (await searchParams) ?? {};
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha ?? "") ? sp.fecha! : "";
+  const conBorradores = sp.borradores === "1";
   const [permisos, m] = await Promise.all([misPermisos(), maestroInventario()]);
   const puedeContar = permisos.puedeEditar("/inventario/conteo");
 
@@ -59,7 +62,7 @@ export default async function InventarioTableroPage() {
 
   const conUbi = new Set(m.ubicaciones.map((u) => u.bodega_id));
   const bodega = m.bodegas.find((b) => b.activo && conUbi.has(b.id)) ?? m.bodegas[0] ?? null;
-  const t = await tableroFefo(bodega?.id ?? null);
+  const t = await tableroFefo(bodega?.id ?? null, undefined, fecha || undefined, { borradores: conBorradores });
 
   /* EL RIESGO: la foto de la bodega (el último recorrido de cada
      ubicación, no la suma de todos) por franja de salida y por material. */
@@ -160,6 +163,38 @@ export default async function InventarioTableroPage() {
     .map((m) => ({ ...m, sobra: m.estibas - m.capacidad, pct: m.estibas / m.capacidad }))
     .sort((a, b) => b.pct - a.pct);
 
+  /* ELEGIR LA FECHA. Por defecto el tablero toma el último inventario; aquí se
+     escoge un día anterior (la bodega como quedó al cierre de ese día) y, si
+     se quiere, se incluye lo que todavía se está contando. Es un formulario
+     GET común: la pantalla se dibuja en el servidor y no necesita JS. */
+  const barraFecha = (
+    <form className="fe-fecha" method="get" action="/inventario/tablero">
+      <label>
+        <span>Ver el FEFO al día</span>
+        <select name="fecha" defaultValue={fecha}>
+          <option value="">Último inventario{t.dias[0] ? ` (${fechaCorta(t.dias[0].dia)})` : ""}</option>
+          {t.dias.map((d) => (
+            <option key={d.dia} value={d.dia}>
+              {fechaCorta(d.dia)}{d.n > 1 ? ` · ${d.n} recorridos` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="fe-fecha-chk">
+        <input type="checkbox" name="borradores" value="1" defaultChecked={conBorradores} />
+        <span>Incluir lo que se está contando (borradores)</span>
+      </label>
+      <button type="submit">Ver</button>
+      {(fecha || conBorradores) && <Link href="/inventario/tablero" className="fe-fecha-x">Volver al último</Link>}
+      {conBorradores && (
+        <p className="fe-fecha-aviso">
+          Incluye recorridos <b>sin enviar</b>: pueden estar a medias y un módulo que todavía no se
+          camina se vería vacío. Para decidir un despacho, usa solo lo enviado.
+        </p>
+      )}
+    </form>
+  );
+
   return (
     <div className="fe">
       {t.conteos.length === 0 && (
@@ -172,7 +207,8 @@ export default async function InventarioTableroPage() {
       )}
       {t.conteos.length === 0 ? (
         <section className="fe-vacio-grande">
-          <h2>Todavía no hay conteos enviados</h2>
+          {barraFecha}
+          <h2>{fecha ? "No hay conteos enviados hasta ese día" : "Todavía no hay conteos enviados"}</h2>
           <p>
             El tablero se llena con lo que se camina. Un borrador a medio recorrer no cuenta:
             diría que un módulo está vacío porque todavía no se ha llegado, y sobre eso
@@ -183,7 +219,7 @@ export default async function InventarioTableroPage() {
       ) : (
         <>
           <Riesgo r={riesgo} bodega={bodega?.codigo ?? ""} sinContar={t.faltaSinContar ? 0 : sinContar.length}
-                  ultimo={t.ultimo?.codigo ?? null} activas={activas} />
+                  ultimo={t.ultimo?.codigo ?? null} activas={activas} barra={barraFecha} />
 
           {/* ============ QUÉ QUEDÓ SIN CONTAR ============
 

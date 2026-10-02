@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  analizar, conteoPorDefecto, diaColombia, duracion,
+  analizar, armarPar, conteoDelPar, envaseDelRenglon, diaColombia, duracion,
   type Analisis, type ConteoRef, type Corte as CorteT, type LineaConteo,
 } from "@/modulos/inventario/corte";
 import { ParDiferencia, tablasDelPar } from "./Diferencia";
@@ -68,16 +68,23 @@ export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, li
     const porEstiba = (id: string | null) => (id ? mat.get(id)?.cajas_por_estiba ?? null : null);
     return cortes.filter((c) => c.tipo === "inicial" && finalDe.has(c.id)).map((ini) => {
       const fin = finalDe.get(ini.id)!;
-      return { ini, fin, a: analizar(ini, fin, porEstiba, nombreUbi), dia: diaColombia(ini.cortado_en), porDefecto: conteoPorDefecto(ini, conteos) };
+      return { ini, fin, a: analizar(ini, fin, porEstiba, nombreUbi), dia: diaColombia(ini.cortado_en), porDefecto: conteoDelPar(ini, fin, conteos) };
     });
   }, [cortes, mat, nombreUbi, conteos]);
 
   /* El estado de cada par contra SU conteo (el escogido, o el que toca por defecto). */
+  const ctx = useMemo(() => ({
+    conteos, lineasPorConteo: porConteo,
+    envaseDe: (r: { envase_id: string | null; material_id: string | null }) => envaseDelRenglon(r.envase_id, r.material_id, materiales).m?.id ?? null,
+  }), [conteos, porConteo, materiales]);
   const filas = useMemo(() => pares.map((p) => {
     const conteoId = escogidos[p.ini.id] ?? p.porDefecto;
-    const tablas = tablasDelPar(p.a, conteoId, porConteo, nombreUbi);
-    return { p, conteoId, tablas };
-  }), [pares, escogidos, porConteo, nombreUbi]);
+    const porEstiba = (id: string | null) => (id ? mat.get(id)?.cajas_por_estiba ?? null : null);
+    /* Si los módulos salen del FEFO, el análisis depende del recorrido escogido. */
+    const par = armarPar(p.ini, p.fin, porEstiba, nombreUbi, ctx, conteoId);
+    const tablas = tablasDelPar(par.a, conteoId, porConteo, nombreUbi);
+    return { p, par, conteoId, tablas };
+  }), [pares, escogidos, porConteo, nombreUbi, ctx, mat]);
 
   const estadoDe = (f: (typeof filas)[number]): Estado => {
     const t = linea ? f.tablas.filter((x) => x.linea === linea) : f.tablas;
@@ -149,7 +156,7 @@ export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, li
                   <span className="dq-caret" aria-hidden>{abierto ? "▴" : "▾"}</span>
                 </button>
                 {abierto && (
-                  <ParDiferencia a={p.a} ini={p.ini} fin={p.fin} conteos={conteos} lineasPorConteo={porConteo}
+                  <ParDiferencia a={f.par.a} ini={f.par.ini} fin={f.par.fin} conteos={conteos} lineasPorConteo={porConteo}
                     conteoId={f.conteoId} onConteo={(id) => setEscogidos((x) => ({ ...x, [p.ini.id]: id }))}
                     soloLinea={linea || undefined} sinTitulo lineas={lineas} mat={mat} nombreUbi={nombreUbi}
                     manda={manda} borrar={borrar} ocupado={ocupado} onBorrar={onBorrar} onConfirmar={onConfirmar} />

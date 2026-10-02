@@ -415,3 +415,5 @@
   .fe .pr-res.espera { border-left: 2px dashed #C9C9C3 }
 }
 .fe .pr-m.sin { color: var(--pr-mal); font-weight: 700 }
+.fe .cl-fefo { margin: 0; padding: 10px 12px; background: var(--fe-suave, #F6F6F3); border-left: 4px solid var(--fe-acento); font-size: 13px; color: var(--fe-gris-panel, #4A5560) }
+.fe .cl-manual { align-self: flex-start; white-space: normal; max-width: 100%; text-align: left; height: auto; min-height: 44px }

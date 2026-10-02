@@ -127,6 +127,19 @@ export type Analisis = {
   soloFinal: string[];
   /** Total de cajas por la depa entre las líneas que sí se compararon. */
   totalPasadas: number;
+  /** Si los módulos salieron del FEFO y no del corte: de cuál y para qué líneas. */
+  fefo?: FefoPar;
+};
+
+/** De dónde salieron los módulos de un par cuando no se anotaron en el corte. */
+export type FefoPar = {
+  /** Las líneas cuyos módulos se leyeron del FEFO. */
+  lineas: string[];
+  /** El FEFO de ANTES del corte inicial y el de DESPUÉS del corte final. */
+  antes: ConteoRef | null;
+  despues: ConteoRef | null;
+  /** Por qué no se pudo leer, si no se pudo. */
+  falta: string | null;
 };
 
 const vacio = (motivo: string): Lado => ({ ini: null, fin: null, mov: null, dif: null, motivo, modulos: [], aviso: null });
@@ -323,7 +336,9 @@ export type CruceLado = {
   /** Lo que dice el análisis del lado cuando no pudo sumar todo (módulo que cambió, estibas sin factor…). */
   nota: string | null;
 };
-export type CruceLinea = { linea: string; depaIni: number; depaFin: number; pasadas: number; origen: CruceLado; destino: CruceLado };
+export type CruceLinea = { linea: string; depaIni: number; depaFin: number; pasadas: number; origen: CruceLado; destino: CruceLado;
+  /** Los módulos salieron del FEFO y solo cuenta el envase: no hay «Ubicados en». */
+  soloEnvase?: boolean };
 
 /** Por debajo de media caja es redondeo, no diferencia. */
 const parejo = (n: number) => Math.abs(n) < 0.5;
@@ -379,6 +394,7 @@ export function cruzar(a: Analisis, conteoId: string, lineas: LineaConteo[]): Cr
     /* El origen BAJA lo que pasó por la depa; el destino SUBE. */
     origen: cruceLado(f.origen, f.envase_id, "el envase", conteoId, lineas, f.pasadas, -1),
     destino: cruceLado(f.destino, f.material_id, "el material", conteoId, lineas, f.pasadas, 1),
+    soloEnvase: !!a.fefo?.lineas.includes(f.linea),
   }));
 }
 
@@ -467,7 +483,12 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
     clase: "depa", etiqueta: "Depaletizadora", ini: c.depaIni, fin: c.depaFin, mov: c.pasadas, dif: null,
     lectura: c.pasadas < 0 ? "El contador retrocedió" : `Pasaron ${cajasTxt(c.pasadas)} cajas`, tono: null,
   };
-  const grupos = ([["Tomando de", c.origen, "BAJAR"], ["Ubicados en", c.destino, "SUBIR"]] as const).map(([titulo, l, debe]): GrupoTabla => {
+  /* DEL FEFO: solo el envase (de dónde tomaba), y se compara con la depa sin segundo conteo: el FEFO ya es la fuente. */
+  const fefo = !!c.soloEnvase;
+  const de = fefo ? "FEFO" : "corte";
+  const conteo = hayConteo && !fefo;
+  const lados = fefo ? ([["Tomando de", c.origen, "BAJAR"]] as const) : ([["Tomando de", c.origen, "BAJAR"], ["Ubicados en", c.destino, "SUBIR"]] as const);
+  const grupos = lados.map(([titulo, l, debe]): GrupoTabla => {
     const mods = l.modulos;
     const donde = mods.length === 0 ? "" : mods.length === 1 ? nombreUbi(mods[0].ubicacion_id)
       : mods.length === 2 && mods.every((m) => m.ini === null || m.fin === null) && mods.some((m) => m.ini === null) && mods.some((m) => m.fin === null)
@@ -484,8 +505,8 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
     };
     if (mods.length === 1 && t) {
       const m = mods[0];
-      g.filas.push(corteFila("Según el corte", m, true));
-      if (hayConteo) {
+      g.filas.push(corteFila(`Según el ${de}`, m, true));
+      if (conteo) {
         if (m.lectura === "sin_contar") {
           incompleto = true;
           g.filas.push({ clase: "inv", etiqueta: "Según el inventario", ini: m.ini, fin: null, mov: null, dif: null, lectura: "Sin contar · el conteo no pasó por este módulo", tono: "gris" });
@@ -500,8 +521,8 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
     /* VARIOS MÓDULOS (o uno que cambió por otro): el detalle de cada uno y los totales. */
     for (const m of mods) {
       const nombre = nombreUbi(m.ubicacion_id);
-      g.filas.push(corteFila(`${nombre} · según el corte`, m, false));
-      if (!hayConteo) continue;
+      g.filas.push(corteFila(`${nombre} · según el ${de}`, m, false));
+      if (!conteo) continue;
       const lect = m.lectura === "sin_contar" ? { lectura: "Sin contar · el conteo no pasó por este módulo", tono: "gris" as Tono }
         : m.lectura === "sin_rango" ? { lectura: "Falta un corte en este módulo", tono: "gris" as Tono }
         : m.lectura === "cuadra" ? { lectura: "Cuadra con el corte final", tono: "ok" as Tono }
@@ -511,8 +532,8 @@ export function armarTabla(c: CruceLinea, hayConteo: boolean, nombreUbi: (id: st
       g.filas.push({ clase: "inv", etiqueta: `${nombre} · según el inventario`, ini: m.ini, fin: m.conteo, mov: m.movConteo, dif: null, lectura: lect.lectura, tono: lect.tono, aparte: m.aparte });
     }
     if (t) {
-      g.filas.push({ ...corteFila("Total según el corte", { ini: t.ini, fin: t.fin, movCorte: t.corte }, true), clase: "total" });
-      if (hayConteo) {
+      g.filas.push({ ...corteFila(`Total según el ${de}`, { ini: t.ini, fin: t.fin, movCorte: t.corte }, true), clase: "total" });
+      if (conteo) {
         if (t.difConteo === null || t.movConteo === null) {
           incompleto = true;
           g.filas.push({ clase: "total", etiqueta: "Total según el inventario", ini: t.ini, fin: null, mov: null, dif: null,
@@ -541,4 +562,142 @@ export function envaseDelRenglon(envase_id: string | null, material_id: string |
   const sku = prod?.envase_sku ?? null;
   const deducido = sku ? mats.find((x) => x.sku === sku) : undefined;
   return deducido ? { m: deducido, delMaestro: true } : { m: null, delMaestro: false };
+}
+
+
+/* =====================================================================
+   LOS MÓDULOS SALEN DEL FEFO
+
+   Al hacer el corte solo se pide el contador de la depa de cada línea. De
+   DÓNDE TOMABA el envase y se lee del FEFO por
+   DIFERENCIA, con dos recorridos enviados:
+
+     ANTES   = el último recorrido enviado antes del corte inicial.
+     DESPUÉS = el primer recorrido enviado después del corte final
+               (o el que se escoja en «Conteo»).
+
+   El envase de la línea es «Tomando de» en los módulos donde BAJÓ entre uno
+   y otro. SOLO EL ENVASE: el producto y dónde queda ubicado no entran en
+   este análisis. Con eso se arman los módulos que antes se tecleaban y el
+   análisis de siempre (`analizar`, `cruzar`) corre igual.
+
+   Si dos líneas corren el mismo material, lo que bajó o subió se REPARTE
+   entre ellas según lo que cada una pasó por la depa: sin repartir, cada
+   línea cargaría con lo de la otra.
+
+   SOLO SE LEEN LAS LÍNEAS SIN MÓDULOS. Un corte que sí trae sus módulos
+   (los hechos antes, o los anotados a mano) se analiza tal cual.
+   ===================================================================== */
+
+/** ¿Este renglón no trae módulos? Entonces salen del FEFO. */
+export const sinModulos = (r: RenglonCorte) => r.origenes.length === 0 && r.destinos.length === 0;
+
+/** ¿Alguna línea del final necesita los módulos del FEFO? */
+export const usaFefo = (fin: Corte) => fin.renglones.some(sinModulos);
+
+/** El recorrido enviado más reciente ANTES del corte inicial (sin contar `excepto`). */
+export function fefoAntes(ini: Corte, conteos: ConteoRef[], excepto: string | null): ConteoRef | null {
+  const dia = diaColombia(ini.cortado_en);
+  const antes = conteos.filter((c) => c.id !== excepto &&
+    (c.enviado_en ? Date.parse(c.enviado_en) <= Date.parse(ini.cortado_en) : c.fecha < dia));
+  antes.sort((x, y) => (y.enviado_en ?? y.fecha).localeCompare(x.enviado_en ?? x.fecha) || y.codigo.localeCompare(x.codigo));
+  return antes[0] ?? null;
+}
+
+/** El primer recorrido enviado DESPUÉS del corte final: el que ya refleja lo que pasó. */
+export function fefoDespues(fin: Corte, conteos: ConteoRef[]): ConteoRef | null {
+  const dia = diaColombia(fin.cortado_en);
+  const despues = conteos.filter((c) => (c.enviado_en ? Date.parse(c.enviado_en) >= Date.parse(fin.cortado_en) : c.fecha > dia));
+  despues.sort((x, y) => (x.enviado_en ?? x.fecha).localeCompare(y.enviado_en ?? y.fecha) || x.codigo.localeCompare(y.codigo));
+  return despues[0] ?? null;
+}
+
+/** Con qué conteo se compara un par si nadie escoge: el FEFO de después si sus módulos salen de ahí; si no, el del día del inicial. */
+export function conteoDelPar(ini: Corte, fin: Corte, conteos: ConteoRef[]): string | null {
+  return usaFefo(fin) ? fefoDespues(fin, conteos)?.id ?? null : conteoPorDefecto(ini, conteos);
+}
+
+/** Cajas buenas de un material por módulo en un conteo. */
+function cajasPorModulo(lineas: LineaConteo[] | undefined, material: string): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const l of lineas ?? []) {
+    if (l.producto_id !== material || !l.ubicacion_id || l.averia || l.pnc) continue;
+    m.set(l.ubicacion_id, (m.get(l.ubicacion_id) ?? 0) + Number(l.total_cajas));
+  }
+  return m;
+}
+
+export type ParArmado = { ini: Corte; fin: Corte; a: Analisis };
+
+/**
+ * El par listo para mirar: con los módulos del FEFO en las líneas que no los
+ * traen. `despuesId` es el recorrido de DESPUÉS (el que se escogió, o el de
+ * `conteoDelPar`); el de ANTES se busca solo.
+ */
+export function armarPar(
+  ini: Corte, fin: Corte, porEstiba: CajasPorEstiba, nombre: (id: string) => string,
+  ctx: {
+    conteos: ConteoRef[]; lineasPorConteo: Map<string, LineaConteo[]>;
+    /** El envase de un renglón: el anotado o el del maestro. */
+    envaseDe: (r: RenglonCorte) => string | null;
+  },
+  despuesId: string | null,
+): ParArmado {
+  if (!usaFefo(fin)) return { ini, fin, a: analizar(ini, fin, porEstiba, nombre) };
+
+  const despues = ctx.conteos.find((c) => c.id === despuesId) ?? null;
+  const antes = fefoAntes(ini, ctx.conteos, despues?.id ?? null);
+  const mapaIni = new Map(ini.renglones.map((r) => [r.linea, r]));
+  const lineasFefo: string[] = [];
+  const sinEnvase: string[] = [];
+  const falta = !antes ? "No hay un FEFO enviado antes del corte inicial para ver de dónde tomaba y dónde quedó."
+    : !despues ? "Falta un FEFO enviado después del corte final: escoge uno en «Conteo» o espera a que se envíe."
+    : null;
+
+  /* Lo que pasó cada línea por la depa, para repartir cuando comparten material. */
+  const pasadas = (r: RenglonCorte) => Math.max(0, r.cajas_depa - (mapaIni.get(r.linea)?.cajas_depa ?? 0));
+  const envDe = (r: RenglonCorte) => ctx.envaseDe(r);
+  const grupo = (clave: (r: RenglonCorte) => string | null, r: RenglonCorte) => {
+    const k = clave(r);
+    const mismos = k ? fin.renglones.filter((x) => sinModulos(x) && clave(x) === k) : [r];
+    const tot = mismos.reduce((t, x) => t + pasadas(x), 0);
+    return mismos.length <= 1 ? 1 : tot > 0 ? pasadas(r) / tot : 1 / mismos.length;
+  };
+
+  const hIni = new Map<string, RenglonCorte>(), hFin = new Map<string, RenglonCorte>();
+  for (const r of fin.renglones) {
+    if (!sinModulos(r)) continue;
+    const base = mapaIni.get(r.linea);
+    if (!base) continue;
+    lineasFefo.push(r.linea);
+    const env = envDe(r) ?? envDe(base), prod = r.material_id ?? base.material_id;
+    const ri: RenglonCorte = { ...base, envase_id: env, material_id: prod, origenes: [], destinos: [] };
+    const rf: RenglonCorte = { ...r, envase_id: env, material_id: prod, origenes: [], destinos: [] };
+    if (!env) sinEnvase.push(r.linea);
+    if (antes && despues) {
+      const A = ctx.lineasPorConteo.get(antes.id), B = ctx.lineasPorConteo.get(despues.id);
+      const compartido = () => grupo((x) => envDe(x), r);
+      if (env) {
+        const a = cajasPorModulo(A, env), b = cajasPorModulo(B, env), s = compartido();
+        /* SOLO LOS MÓDULOS QUE EL FEFO DE DESPUÉS VISITÓ: uno que no pasó por ahí no está vacío, está sin contar. */
+        const vistos = new Set((B ?? []).map((l) => l.ubicacion_id).filter(Boolean));
+        for (const [u, ca] of a) { if (!vistos.has(u)) continue; const baja = ca - (b.get(u) ?? 0); if (baja > 0) { ri.origenes.push({ ubicacion_id: u, cant: ca, unidad: "cajas" }); rf.origenes.push({ ubicacion_id: u, cant: ca - baja * s, unidad: "cajas" }) } }
+      }
+    }
+    hIni.set(r.linea, ri); hFin.set(r.linea, rf);
+  }
+  const nIni: Corte = { ...ini, renglones: ini.renglones.map((r) => hIni.get(r.linea) ?? r) };
+  const nFin: Corte = { ...fin, renglones: fin.renglones.map((r) => hFin.get(r.linea) ?? r) };
+  const a = analizar(nIni, nFin, porEstiba, nombre);
+  /* Solo cuenta el ENVASE: de dónde tomaba. Si el FEFO no vio bajar nada, se dice eso y no «falta anotar». */
+  for (const f of a.filas) {
+    if (!lineasFefo.includes(f.linea)) continue;
+    const l = f.origen;
+    if (l.motivo && /^Falta de dónde/.test(l.motivo)) {
+      l.motivo = sinEnvase.includes(f.linea) ? "Falta escoger el envase de esta línea en el corte: sin él no se sabe qué buscar en el FEFO."
+        : falta ?? `El FEFO no ve que haya bajado ese envase entre ${antes!.codigo} y ${despues!.codigo}.`;
+    }
+  }
+  a.fefo = { lineas: lineasFefo, antes, despues, falta };
+  return { ini: nIni, fin: nFin, a };
 }

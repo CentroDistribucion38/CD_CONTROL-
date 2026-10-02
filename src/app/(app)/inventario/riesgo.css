@@ -246,3 +246,16 @@
 .ir-al.cero .n { color: #9AA5B1 }
 .ir-reparto { height: 26px }
 .ir-al:not(.cero) .rot, .ir-al:not(.cero) .u, .ir-al:not(.cero) .s { color: var(--fe-gris-panel) }
+
+/* ---------- ELEGIR EL DÍA DE LA FOTO ---------- */
+.ir .fe-fecha { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 16px; margin: 0 0 14px; padding: 12px 14px; background: #fff; border: 1px solid #E4E4DF }
+.ir .fe-fecha label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fe-gris) }
+.ir .fe-fecha label > span { font: 700 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase }
+.ir .fe-fecha select { min-height: 40px; min-width: 220px; padding: 0 10px; font: 600 14px var(--fe-texto); border: 1px solid #C9C9C3; background: #fff; color: inherit }
+.ir .fe-fecha-chk { flex-direction: row !important; align-items: center; gap: 8px !important; min-height: 40px }
+.ir .fe-fecha-chk input { width: 18px; height: 18px }
+.ir .fe-fecha-chk span { font: 600 13px var(--fe-texto) !important; letter-spacing: 0 !important; text-transform: none !important; color: inherit }
+.ir .fe-fecha button { min-height: 40px; padding: 0 20px; background: var(--fe-acento); color: #0D0D0D; border: 0; font: 900 14px var(--fe-titulo); cursor: pointer }
+.ir .fe-fecha-x { align-self: center; font: 700 13px var(--fe-texto); color: var(--fe-gris); text-decoration: underline }
+.ir .fe-fecha-aviso { flex-basis: 100%; margin: 0; padding: 8px 10px; background: #FFF6D6; font-size: 13px }
+@media (max-width: 700px) { .ir .fe-fecha select { width: 100%; min-width: 0 } .ir .fe-fecha label:first-child { flex-basis: 100% } }

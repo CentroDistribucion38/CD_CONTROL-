@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { elegirConteos } from "./fecha-tablero";
 
 /**
  * INVENTARIO · lo que leen el maestro y la plantilla de conteo.
@@ -275,23 +276,26 @@ export async function miConteoFefo(bodegaId: string | null) {
  * vacía porque todavía no se ha llegado, y sobre eso alguien podría
  * decidir un despacho. Lo firmado es lo único que se puede afirmar.
  */
-export async function tableroFefo(bodegaId: string | null, desde?: string, hasta?: string) {
+export async function tableroFefo(bodegaId: string | null, desde?: string, hasta?: string, op: { borradores?: boolean } = {}) {
   const supabase = await createClient();
   const vacio = {
     falta: false, lineas: [] as Renglon[], conteos: [] as ConteoFefo[],
     ultimo: null as ConteoFefo | null, sinContar: [] as SinContar[], faltaSinContar: false,
+    dias: [] as { dia: string; n: number }[],
   };
   if (!bodegaId) return vacio;
 
+  /* SE PIDEN TODOS (hasta 200) Y SE ELIGE AQUÍ: así la lista de días para
+     escoger sale completa aunque se esté viendo un día viejo. */
   let q = supabase.from("v_conteos_fefo").select("*")
-    .eq("bodega_id", bodegaId).order("enviado_en", { ascending: false }).limit(200);
+    .eq("bodega_id", bodegaId).order("enviado_en", { ascending: false, nullsFirst: false }).limit(200);
   if (desde) q = q.gte("fecha_analisis", desde);
-  if (hasta) q = q.lte("fecha_analisis", hasta);
   const { data: c, error } = await q;
   if (error) return { ...vacio, falta: sinTablas(error.message) };
 
-  const enviados = (c ?? []).filter((x) => x.estado === "cerrado");
-  if (enviados.length === 0) return { ...vacio, conteos: enviados as ConteoFefo[] };
+  const el = elegirConteos((c ?? []) as ConteoFefo[], { hasta, borradores: op.borradores });
+  const enviados = el.elegidos;
+  if (enviados.length === 0) return { ...vacio, conteos: enviados as ConteoFefo[], dias: el.dias };
 
   /* Los renglones de esos conteos, de una. El `in` va con los ids que ya
      se filtraron arriba: pedir todo y filtrar aquí sería traer la
@@ -319,7 +323,7 @@ export async function tableroFefo(bodegaId: string | null, desde?: string, hasta
      la pantalla entera: el tablero contesta otra pregunta y la tiene
      que poder seguir contestando. Se devuelve la lista vacía y un
      `faltaSinContar` para poder decirlo donde corresponde. */
-  const ultimo = enviados[0] ?? null;
+  const ultimo = el.ultimo;
   const sc = ultimo
     ? await supabase.rpc("conteo_sin_contar", { p_conteo: ultimo.id })
     : { data: [], error: null };
@@ -331,6 +335,7 @@ export async function tableroFefo(bodegaId: string | null, desde?: string, hasta
     ultimo: ultimo as ConteoFefo | null,
     sinContar: (sc.data ?? []) as SinContar[],
     faltaSinContar: !!sc.error && sinTablas(sc.error.message),
+    dias: el.dias,
   };
 }
 
