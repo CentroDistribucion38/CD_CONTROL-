@@ -55,6 +55,22 @@ for (const ancho of [1100, 390]) {
   ok(quedo.rodo === 0 || quedo.y1 < quedo.y0, `${ancho} px: al bajar, el encabezado se queda en su sitio (${quedo.y0} → ${quedo.y1})`);
 }
 
+/* 1c · EN EL CELULAR RUEDA LA PÁGINA ENTERA: lo de arriba (en camino, atención, filtrar) no se queda fijo
+   y las tarjetas no van en una ventanita con su propio scroll. */
+await monta("m=transito&c=multi", 390, 600);
+{
+  const r = await pg.evaluate(async () => {
+    const cuerpo = document.querySelector(".tr-cuerpo"), cs = getComputedStyle(cuerpo);
+    const kpi = document.querySelector(".cabeza, h1"); const y0 = kpi.getBoundingClientRect().top;
+    window.scrollTo(0, 300); await new Promise((r) => setTimeout(r, 80));
+    return { maxH: cs.maxHeight, ov: cs.overflowY, interno: cuerpo.scrollHeight - cuerpo.clientHeight,
+             y0, y1: kpi.getBoundingClientRect().top, rodo: window.scrollY, docAlto: document.documentElement.scrollHeight, vista: innerHeight };
+  });
+  ok(r.maxH === "none" && r.ov === "visible", `390 px: el cuerpo de tránsito rueda por dentro (max-height ${r.maxH}, overflow ${r.ov})`);
+  ok(r.interno <= 1, `390 px: las tarjetas van en una caja con scroll propio (${r.interno} px de más)`);
+  ok(r.rodo === 0 || r.y1 < r.y0, `390 px: lo de arriba se queda fijo al bajar (${r.y0} → ${r.y1})`);
+}
+
 /* 2 · REVISIÓN AI POR MATERIAL */
 await monta("m=transito&c=multi", 390, 1400);
 await pg.evaluate(() => { window.__rpc = [] });

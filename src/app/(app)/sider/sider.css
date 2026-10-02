@@ -1019,7 +1019,7 @@
   display: flex; flex-direction: column; gap: 9px;
   background: var(--sd-papel); border: 1px solid var(--sd-linea);
   /* La franja de color al borde dice el estado antes de leer nada. */
-  border-left: 4px solid var(--sd-acento); border-radius: 3px; padding: 14px 16px 13px;
+  border-left: 4px solid var(--sd-acento); border-radius: 3px; padding: 14px 16px 13px; --tr-px: 16px;
 }
 .sd .tr-vh.largo { border-left-color: var(--sd-oro) }
 /* LA CABECERA ENVUELVE. Tenía la placa y un sello, luego la placa y dos
@@ -1167,17 +1167,19 @@
      desplazando con el dedo en vez de robarle sitio a las tarjetas.
      El 300 sale de medir: cabeza 112 + alertas 127 + los rellenos de
      la app. Con el suelo de 150 entra siempre al menos una tarjeta. */
+  /* AHORA NO: en el celular NADA SE QUEDA FIJO. Antes el cuerpo rodaba dentro
+     de una caja de alto limitado y lo de arriba (los vehículos en camino, lo
+     que requiere atención) se quedaba quieto, dejando una ventanita para las
+     tarjetas. Ahora rueda la página entera, con todo adentro. */
   .sd .tr-cuerpo {
-    max-height: max(150px, calc(100dvh - 300px));
-    overflow-y: auto; padding-bottom: 4px;
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+    max-height: none; overflow: visible; padding-bottom: 4px;
+    -webkit-mask-image: none; mask-image: none;
   }
   .sd .tr-grupos { max-height: none; overflow: visible; mask-image: none; -webkit-mask-image: none }
   .sd .tr-rejilla { grid-template-columns: 1fr; gap: 9px }
   .sd .tr-grupo-cab { margin-bottom: 7px }
   .sd .tr-grupo-cab b { font-size: 14px }
-  .sd .tr-vh { padding: 10px 12px 11px; gap: 6px }
+  .sd .tr-vh { padding: 10px 12px 11px; gap: 6px; --tr-px: 12px }
   .sd .tr-vh .placa { font-size: 20px }
   .sd .tr-cifras > div { padding: 5px 7px }
   .sd .tr-mat { font-size: 12.5px }
@@ -2599,7 +2601,7 @@
   /* ---- Aire entre las piezas ---- */
   .sd { gap: 16px }
   .sd .tarjeta .cab   { padding: 18px 16px 14px; gap: 14px }
-  .sd .tr-vh          { padding: 14px 14px 13px; gap: 9px }
+  .sd .tr-vh          { padding: 14px 14px 13px; gap: 9px; --tr-px: 14px }
   .sd .tr-rejilla     { gap: 12px }
   .sd .tr-grupos      { gap: 18px }
   .sd .vj-editor      { padding: 16px }
@@ -3169,7 +3171,7 @@
      quita información —siguen la placa, la ruta, el material, las
      cuatro cifras y el botón—, se quita aire: 32 px por tarjeta, que a
      tres filas son casi cien. */
-  .sd .tr-vh { padding: 10px 13px 11px; gap: 7px }
+  .sd .tr-vh { padding: 10px 13px 11px; gap: 7px; --tr-px: 13px }
   .sd .tr-vh .placa { font-size: 21px }
   .sd .tr-vh footer .btn { height: 34px }
   .sd .tr-grupos { gap: 10px }
@@ -3260,7 +3262,9 @@
   /* EL MARGEN NEGATIVO PEGA LA FRANJA AL BORDE de la tarjeta: la línea
      tiene que cruzarla entera para que se lea como «otra sección», y no
      como un par de botones sueltos flotando dentro del cuerpo. */
-  margin: 10px -14px -12px;
+  /* El margen sale del relleno de la tarjeta (--tr-px), que cambia con el ancho: con -14 fijo la franja se
+     pasaba del borde en las tarjetas de 12 y 13. */
+  margin: 10px calc(-1 * var(--tr-px, 14px)) -12px;
 }
 .sd .tr-adm {
   min-height: 34px; padding: 0 12px; cursor: pointer; border-radius: 3px;
