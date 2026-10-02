@@ -62,9 +62,10 @@ function horasEnCamino(iv: string | null): number {
    bloquear nada. */
 const HORAS_LARGAS = 24;
 
-export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, skus,
+export function Transito({ viajes, nombres, esEditor, puedePedirAi, manda, origenes, skus,
                            trabados, sinEvidencia, cabeza }: {
-  esAdmin?: boolean;
+  /** El permiso «Pedir / quitar revisión AI» (el administrador lo tiene siempre). */
+  puedePedirAi?: boolean;
   viajes: Viaje[];
   nombres: Record<string, string>;
   esEditor: boolean;
@@ -942,9 +943,9 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                         <div className="tr-m-cif">
                           {x.cajas == null ? "—" : nf.format(x.cajas)} cajas · {x.hl == null ? "—" : nf2.format(x.hl)} HL
                         </div>
-                        {(esAdmin || manda) && (
+                        {(puedePedirAi || manda) && (
                           <div className="tr-m-acc">
-                            {esAdmin && (
+                            {puedePedirAi && (
                               <button type="button"
                                       className={"tr-ai" + (x.requiere_ai ? " on" : "")}
                                       disabled={marcando === x.id}
@@ -987,7 +988,7 @@ export function Transito({ viajes, nombres, esEditor, esAdmin, manda, origenes, 
                   una vez. Además son de OTRA persona: quien recibe el camión
                   certifica; quien decide qué se le pide es el administrador,
                   y separarlos en filas lo deja ver. */}
-              {esAdmin && !v.interno && !multi && (
+              {puedePedirAi && !v.interno && !multi && (
                 <div className="tr-pedidos">
                   {/* PEDIR LA REVISIÓN ES SOLO DEL ADMINISTRADOR. Aquí solo
                       se decide si se pinta el botón; el candado de verdad

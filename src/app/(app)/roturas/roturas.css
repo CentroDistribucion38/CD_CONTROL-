@@ -350,6 +350,8 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 .rt .btn:hover { border-color: var(--rt-gris2) }
+/* ESQUINAS RECTAS: el `.btn` global trae `rounded-lg` y aquí todo es rectángulo. */
+.rt .btn { border-radius: 0 }
 .rt .btn.si {
   background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro);
   font-weight: 800;

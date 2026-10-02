@@ -539,7 +539,7 @@ begin
     '%no está marcado para revisión AI certificada%', 'guardó una AI certificada de un camión que no la pidió');
   /* NI PEDIR NI QUITAR: eso sigue siendo del administrador. */
   f := f || public._espera_error($q$select public.sider_ai_marcar('eeeeeeee-0000-0000-0000-000000000001', true, null)$q$,
-    '%solo del administrador%', 'el operador con permiso de revisión pudo pedir una AI');
+    '%Pedir%revisión AI%', 'el operador con permiso de revisión pudo pedir una AI');
   f := f || public._espera_error($q$select public.sider_sorting_marcar('eeeeeeee-0000-0000-0000-000000000001', true)$q$,
     '%solo del administrador%', 'el operador con permiso de revisión pudo pedir una revisión normal');
   if f <> '' then raise exception E'FALLA:%', f; end if;

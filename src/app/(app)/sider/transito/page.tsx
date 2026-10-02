@@ -44,10 +44,12 @@ export default async function TransitoPage() {
     nombresTodos(),
   ]);
   const esEditor = permisos.puedeEditar("/sider/transito");
-  /* PEDIR UNA REVISIÓN AI ES SOLO DEL ADMINISTRADOR: cuesta media hora
-     de muelle y termina en un cobro al socio. Aquí solo se decide si se
-     pinta el botón; el candado está en la base. */
-  const esAdmin = perfil?.rol === "admin";
+  /* PEDIR O QUITAR UNA REVISIÓN AI TIENE SU CASILLA EN ROLES («Pedir /
+     quitar revisión AI»): cuesta media hora de muelle y termina en un cobro
+     al socio, así que no es de todo el que edita En tránsito. El
+     administrador la tiene siempre. Aquí solo se decide si se pinta el
+     botón; el candado está en la base (sider_ai_marcar). */
+  const puedePedirAi = permisos.puedeEditar("/sider/transito/revision-ai");
 
   if (falta) {
     return (
@@ -78,7 +80,7 @@ export default async function TransitoPage() {
           vehículos en camino" son ruido cuando se está cerrando UNO, y en
           el celular ese ruido se lleva 195 px de los 844 que hay —medido—.
           Desde el servidor no hay forma de saber que lo abrió. */}
-      <Transito esAdmin={esAdmin} viajes={viajes}
+      <Transito puedePedirAi={puedePedirAi} viajes={viajes}
         nombres={nombres}
         /* CORREGIR Y ANULAR: el MISMO candado que en Fuente principal.
            `manda` es el rol marcado como tal en Administración → Roles,

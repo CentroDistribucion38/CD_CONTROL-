@@ -108,11 +108,23 @@ const monta = async (ancho = 1440, alto = 1000, tema = "") => {
 };
 const codigos = () => pg.$$eval(".rt .tb-tabla tbody tr:not(.tb-detalle) td.tb-cod", (x) => x.map((e) => e.textContent.trim()));
 const turno = (t) => pg.click(`.tb-turno:has(b:text-is("${t}"))`);
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+/* El calendario de verdad: abre, va al mes (flechas), toca los dos días y «Aplicar». */
+const irAlMes = async (aaaamm) => {
+  const [a, m] = aaaamm.split("-").map(Number);
+  for (let i = 0; i < 24; i++) {
+    const t = (await pg.textContent(".mes-anio b")).trim().toLowerCase();
+    if (t === `${MESES[m - 1]} ${a}`) return;
+    const [ta, tm] = [Number(t.split(" ")[1]), MESES.indexOf(t.split(" ")[0]) + 1];
+    await pg.click(`.mes-anio button[aria-label="${ta * 12 + tm > a * 12 + m ? "Mes anterior" : "Mes siguiente"}"]`);
+  }
+  throw new Error("no llegó al mes " + aaaamm);
+};
+const tocaDia = async (iso) => { await irAlMes(iso.slice(0, 7)); await pg.locator(".mes-dias button:not([disabled])").filter({ hasText: new RegExp("^" + Number(iso.slice(8)) + "$") }).click() };
 const fecha = async (d, h) => {
-  await pg.click("#tb-fecha");
-  await pg.fill('.tb-pop label:has(span:text-is("Desde")) input', d);
-  await pg.fill('.tb-pop label:has(span:text-is("Hasta")) input', h);
-  await pg.click('.tb-pop button:text-is("Aplicar")');
+  await pg.click(".tb-campo.sg-mes .mes-campo");
+  await tocaDia(d); await tocaDia(h);
+  await pg.click(".mes-pie-cal .aplicar");
 };
 const abre = async () => { await pg.click(".tb-cierre"); await pg.waitForSelector(".rtc") };
 const ficha = () => pg.$eval(".rtc", (e) => e.textContent.replace(/\s+/g, " "));
@@ -153,28 +165,48 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
   ok((await codigos()).length === 7 && await pg.locator('button:has-text("Quitar fecha y turno")').count() === 0, "«Quitar fecha y turno» limpia y desaparece");
 }
 
-/* UN SOLO FILTRO DE FECHA: campo que abre Desde/Hasta con «Aplicar». */
+/* NADA OVALADO: ningún botón ni campo del Tablero tiene esquinas redondeadas. */
 {
-  ok(await pg.locator(".tb-fecha").count() === 1 && /Todas las fechas/.test(await pg.textContent("#tb-fecha")), "un solo campo de Fecha");
-  ok(await pg.locator(".tb-cuando-fila input[type=date]").count() === 0, "los dos date no deben estar sueltos en la barra");
-  await pg.click("#tb-fecha");
-  await pg.fill('.tb-pop label:has(span:text-is("Desde")) input', "2026-09-28");
-  await pg.fill('.tb-pop label:has(span:text-is("Hasta")) input', "2026-09-28");
+  const curvos = await pg.evaluate(() => [...document.querySelectorAll(".rt button, .rt input, .rt select")]
+    .filter((e) => e.getBoundingClientRect().width > 0 && getComputedStyle(e).borderTopLeftRadius !== "0px")
+    .map((e) => e.className + "|" + (e.textContent || "").trim().slice(0, 20) + "|" + getComputedStyle(e).borderTopLeftRadius));
+  ok(curvos.length === 0, "hay botones o campos redondeados en el Tablero: " + curvos.join(" ; "));
+  /* El `.btn` global trae `rounded-lg` por @apply, que este arnés no compila:
+     la defensa se comprueba en la fuente. */
+  ok(/\.rt \.btn\s*\{\s*border-radius:\s*0\s*\}/.test(readFileSync(R("src/app/(app)/roturas/roturas.css"), "utf8")),
+     "roturas.css no pone border-radius:0 al .btn: el global lo deja ovalado (rounded-lg)");
+}
+/* UN SOLO FILTRO DE FECHA: el mismo calendario de «Periodo» de T1/T2. */
+{
+  ok(await pg.locator(".tb-campo.sg-mes").count() === 1 && /Todas las fechas/.test(await pg.textContent(".mes-campo")), "un solo campo de Fecha que dice «Todas las fechas»");
+  ok(await pg.locator(".tb-cuando-fila input[type=date]").count() === 0, "los date sueltos siguen en la barra");
+  await pg.click(".tb-campo.sg-mes .mes-campo");
+  ok(await pg.locator(".mes-modos button").allTextContents().then((x) => x.join() === "Días,Meses,Años"), "faltan los modos Días / Meses / Años");
+  ok((await pg.locator(".mes-atajos button").allTextContents()).join("|") === "Todas las fechas|Hoy|Este mes|Mes pasado|Este año|Todo lo cargado", "atajos: " + (await pg.locator(".mes-atajos button").allTextContents()).join("|"));
+  ok(/septiembre 2026/i.test(await pg.textContent(".mes-anio b")), "sin rango abre en el mes del último día con datos: " + await pg.textContent(".mes-anio b"));
+  /* Los días sin registros van apagados, no escondidos. */
+  ok(await pg.locator(".mes-dias button.mes-nada[disabled]").count() > 20, "los días sin roturas no salen apagados");
+  ok(await pg.locator(".mes-dias button:not([disabled])").count() >= 2, "los días con roturas no se pueden tocar");
+  ok(await pg.isDisabled(".mes-pie-cal .aplicar"), "«Aplicar» está prendido sin haber escogido nada");
+  await tocaDia("2026-09-28");
   ok((await codigos()).length === 7, "nada se filtra hasta tocar «Aplicar»");
-  await pg.screenshot({ path: ".arnes/rt-filtros.png", clip: { x: 0, y: 0, width: 900, height: 520 } });
+  ok(/otro extremo/.test(await pg.textContent(".mes-pie-cal .dice")), "no dice que falta el otro extremo");
   await pg.keyboard.press("Escape");
-  ok(!(await pg.isVisible(".tb-pop")) && (await codigos()).length === 7, "Escape cierra sin aplicar");
-  await pg.click("#tb-fecha");
-  ok(await pg.inputValue('.tb-pop label:has(span:text-is("Desde")) input') === "", "al reabrir sin aplicar, el borrador se descartó");
-  await pg.click('.tb-pop button:text-is("Aplicar")');
-  /* Los rectángulos: mismo alto, esquinas rectas. */
-  const f = await pg.evaluate(() => [...document.querySelectorAll("#tb-fecha, .tb-turno")].map((e) => {
-    const c = getComputedStyle(e); return [Math.round(e.getBoundingClientRect().height), c.borderTopLeftRadius, c.borderTopWidth];
-  }));
-  ok(f.every((x) => x[0] === 44 && x[1] === "0px" && (x[2] === "1px" || x[2] === "1.5px")), "fecha y turnos no son el mismo rectángulo: " + JSON.stringify(f));
-  await fecha("2026-09-29", "2026-09-30");
-  ok(/29\/09\/2026 – 30\/09\/2026/.test(await pg.textContent("#tb-fecha")), "el campo no dice el rango: " + await pg.textContent("#tb-fecha"));
-  await pg.click('button:has-text("Quitar fecha y turno")');
+  ok(!(await pg.isVisible(".mes-panel")) && (await codigos()).length === 7, "Escape cierra sin aplicar");
+  await pg.click(".tb-campo.sg-mes .mes-campo");
+  await pg.screenshot({ path: ".arnes/rt-filtros.png", clip: { x: 0, y: 0, width: 900, height: 620 } });
+  await pg.click(".mes-pie-cal .cancelar");
+  await fecha("2026-09-28", "2026-09-29");
+  ok(/28 al 29 de septiembre de 2026/.test(await pg.textContent(".mes-campo")), "el campo no dice el rango: " + await pg.textContent(".mes-campo"));
+  ok((await codigos()).join() === "RB-0001,RB-0002,RB-0003,RB-0004,RB-0005,RB-0006,RB-0007", "el rango 28–29 trae: " + (await codigos()).join());
+  /* «Todas las fechas» desde el atajo. */
+  await pg.click(".tb-campo.sg-mes .mes-campo");
+  await pg.click('.mes-atajos button:text-is("Todas las fechas")');
+  ok(/Todas las fechas/.test(await pg.textContent(".mes-campo")) && (await codigos()).length === 7, "«Todas las fechas» no quita el rango");
+  /* Los rectángulos: campo y turnos, mismo alto, esquinas rectas. */
+  const f = await pg.evaluate(() => [...document.querySelectorAll(".tb-campo.sg-mes .mes-campo, .tb-turno")].map((e) => {
+    const c = getComputedStyle(e); return [Math.round(e.getBoundingClientRect().height), c.borderTopLeftRadius] }));
+  ok(f.every((x) => x[0] === 44 && x[1] === "0px"), "fecha y turnos no son el mismo rectángulo: " + JSON.stringify(f));
 }
 
 /* ===== 2 · LA FICHA: LOS TRES NÚMEROS Y LOS TURNOS ===== */
@@ -218,6 +250,16 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
   await abre();
   ok(await pg.$eval(".rtc-cab", (e) => getComputedStyle(e).backgroundColor === getComputedStyle(document.querySelector(".rt")).getPropertyValue("--rt-tinta").trim() || true), "");
   ok(await pg.$eval(".rtc-cab", (e) => { const m = getComputedStyle(e).backgroundColor.match(/\d+/g).map(Number); return Math.max(...m) < 70 }), "el encabezado del cierre no es negro");
+  /* TODO LO OSCURO DEL CIERRE ES NEGRO, no el gris del grupo. */
+  const oscuros = await pg.evaluate(() => {
+    const t = document.createElement("i"); t.style.background = "var(--rt-tinta)"; document.querySelector(".rt").appendChild(t);
+    const tinta = getComputedStyle(t).backgroundColor; t.remove();
+    return [".rtc-cab", ".rtc-tabla thead th", ".rtc-cinta b.r", ".rtc-ley i.r", ".rtc-or.opm"].map((q) => {
+      const e = document.querySelector(q); if (!e) return q + ":no está";
+      return getComputedStyle(e).backgroundColor === tinta ? "" : q + ":" + getComputedStyle(e).backgroundColor + " ≠ " + tinta }).filter(Boolean) });
+  ok(oscuros.length === 0, "hay partes oscuras del cierre que no son negras: " + oscuros.join(" ; "));
+  const hero = await pg.$eval(".rtc-hero", (e) => e.getBoundingClientRect().height);
+  ok(hero <= 175, "la franja amarilla del cierre sigue grande: " + hero + " px");
   ok(/Cierre del turno A/.test(await pg.textContent(".rtc-cab h2")) && /TURNO A · 06:00 · 14:00/.test(await pg.textContent(".rtc-ojo")), "título del turno A: " + await pg.textContent(".rtc-cab h2"));
   /* UN TURNO, UN DÍA: la tarjeta repetía la banda de arriba, se quitó. */
   ok((await tarjetas()).length === 0 && await pg.locator(".rtc-sec b:text-is('Por turno')").count() === 0,
@@ -248,10 +290,10 @@ ok(rotos.length === 0, `la pantalla tiró un error: ${rotos[0]}`);
   await cerrar();
   await pg.fill(".tb-busca", "");
   /* Rango corto: salen también los turnos en cero. */
-  await fecha("2026-09-27", "2026-09-30");
+  await fecha("2026-09-28", "2026-09-29");
   await abre();
   const nT = (await tarjetas()).length;
-  ok(nT === 12, "4 días × 3 turnos, también los de cero: " + nT);
+  ok(nT === 6, "2 días × 3 turnos, también los de cero: " + nT);
   ok((await tarjetas()).some((x) => x.vacio && /No se registró ninguna rotura/.test(x.txt)), "el turno sin registros lo dice");
   ok(await pg.locator(".rtc-tabla thead th:text-is('Día')").count() === 1, "con varios días sí sale la columna Día");
   ok(await pg.locator(".rtc-cuatro.grande").count() === 1, "con varios turnos hay un «A qué corresponde» de todo junto");

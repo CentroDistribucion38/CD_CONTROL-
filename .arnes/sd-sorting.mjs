@@ -274,7 +274,7 @@ if (m === "sorting") {
     { sku: "3500901", descripcion: "Costeñita Ámbar 330 cc", clase: "Envase", cajas_x_estiba: 60, unidades_x_caja: 24, hl_x_unidad: 0.0033 },
     { sku: "3500999", descripcion: "Caja plástica azul", clase: "Envase", cajas_x_estiba: null, unidades_x_caja: null, hl_x_unidad: null }];
   root.render(<Transito viajes={viajes as any} nombres={{ u1: "Cristian Padilla" }}
-    esEditor={c !== "lectura"} esAdmin={c !== "noadmin"} manda={c !== "noadmin"}
+    esEditor={c !== "lectura"} puedePedirAi={c !== "noadmin"} manda={c !== "noadmin"}
     origenes={origenes} skus={skus} estibasPorSider={36}
     trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 }

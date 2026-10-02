@@ -50,9 +50,16 @@ const finDeSemana = (a: number, m: number, d: number) => {
 };
 const columnaDe = (a: number, m: number, d: number) => (new Date(a, m - 1, d).getDay() + 6) % 7;
 
-export function Rango({ desde, hasta, dias, alElegir }: {
+export function Rango({ desde, hasta, dias, alElegir, rotulo = "Periodo", clase = "sel sg-mes", alLimpiar }: {
+  /** Vacío = «sin rango» (solo si se pasa `alLimpiar`): dice «Todas las fechas». */
   desde: string;
   hasta: string;
+  /** El rótulo de arriba del campo. */
+  rotulo?: string;
+  /** Las clases de la caja. `sg-mes` es la que pinta el calendario. */
+  clase?: string;
+  /** Si viene, sale el atajo «Todas las fechas» que quita el rango. */
+  alLimpiar?: () => void;
   /** Los días que tienen algo, para apagar los vacíos. */
   dias: Dia[];
   alElegir: (desde: string, hasta: string) => void;
@@ -64,8 +71,6 @@ export function Rango({ desde, hasta, dias, alElegir }: {
   const [bHasta, setBHasta] = useState(hasta);
   /* Si el siguiente clic cierra el rango o empieza uno nuevo. */
   const [cerrando, setCerrando] = useState(false);
-  const [anioVista, setAnioVista] = useState(Number(desde.slice(0, 4)));
-  const [mesVista, setMesVista] = useState(Number(desde.slice(5, 7)));
   const caja = useRef<HTMLDivElement>(null);
 
   const conDatos = useMemo(() => new Set(dias.map((d) => d.fecha)), [dias]);
@@ -83,12 +88,19 @@ export function Rango({ desde, hasta, dias, alElegir }: {
     return f.length ? { min: f[0], max: f[f.length - 1] } : null;
   }, [dias]);
 
+  /* SIN RANGO PUESTO el calendario abre en el mes del último día con
+     datos —lo más reciente—, y si no hay nada, en el de hoy. */
+  const hoyIso = (() => { const t = new Date(); return iso(t.getFullYear(), t.getMonth() + 1, t.getDate()) })();
+  const ancla = desde || limites?.max || hoyIso;
+  const [anioVista, setAnioVista] = useState(Number(ancla.slice(0, 4)));
+  const [mesVista, setMesVista] = useState(Number(ancla.slice(5, 7)));
+
   /* Al abrir, el borrador vuelve a lo aplicado: si alguien dejó a medias
      un rango y cerró, no debe encontrárselo al volver. */
   function abrir() {
     setBDesde(desde); setBHasta(hasta); setCerrando(false);
-    setAnioVista(Number(desde.slice(0, 4)));
-    setMesVista(Number(desde.slice(5, 7)));
+    setAnioVista(Number(ancla.slice(0, 4)));
+    setMesVista(Number(ancla.slice(5, 7)));
     setAbierto(true);
   }
 
@@ -143,6 +155,7 @@ export function Rango({ desde, hasta, dias, alElegir }: {
     atajos.push({ t: "Este año", d: `${a}-01-01`, h: `${a}-12-31` });
     if (limites) atajos.push({ t: "Todo lo cargado", d: limites.min, h: limites.max });
   }
+  const alTodas = () => { setAbierto(false); alLimpiar?.() };
 
   /* ---------- La rejilla de días del mes que se está viendo ---------- */
   const rejilla = useMemo(() => {
@@ -169,8 +182,8 @@ export function Rango({ desde, hasta, dias, alElegir }: {
   const cambio = bDesde !== desde || bHasta !== hasta;
 
   return (
-    <div className="sel sg-mes" ref={caja}>
-      <span>Periodo</span>
+    <div className={clase} ref={caja}>
+      <span>{rotulo}</span>
       <button
         type="button"
         className={"mes-campo" + (abierto ? " abierta" : "")}
@@ -178,7 +191,7 @@ export function Rango({ desde, hasta, dias, alElegir }: {
         aria-haspopup="dialog"
         aria-expanded={abierto}
       >
-        <span>{nombreRango(desde, hasta)}</span>
+        <span>{desde && hasta ? nombreRango(desde, hasta) : "Todas las fechas"}</span>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <rect x="3.5" y="5" width="17" height="15" rx="2" />
           <path d="M3.5 10h17M8 3.5v3M16 3.5v3" />
@@ -200,6 +213,11 @@ export function Rango({ desde, hasta, dias, alElegir }: {
 
           <div className="mes-cuerpo">
             <div className="mes-atajos">
+              {alLimpiar && (
+                <button type="button" className={!desde && !hasta ? "on" : ""} onClick={alTodas}>
+                  Todas las fechas
+                </button>
+              )}
               {atajos.map((a) => (
                 <button key={a.t} type="button"
                         className={bDesde === a.d && bHasta === a.h ? "on" : ""}
@@ -306,13 +324,13 @@ export function Rango({ desde, hasta, dias, alElegir }: {
             <span className="dice">
               {cerrando
                 ? <>Toca el <b>otro extremo</b>, o aplica para ver solo {modo === "meses" ? "ese mes" : "ese día"}.</>
-                : <>Vas a ver <b>{nombreRango(bDesde, bHasta)}</b></>}
+                : <>Vas a ver <b>{bDesde && bHasta ? nombreRango(bDesde, bHasta) : "todas las fechas"}</b></>}
             </span>
             <span className="btns">
               <button type="button" className="cancelar" onClick={() => setAbierto(false)}>
                 Cancelar
               </button>
-              <button type="button" className="aplicar" onClick={aplicar} disabled={!cambio}>
+              <button type="button" className="aplicar" onClick={aplicar} disabled={!cambio || !bDesde || !bHasta}>
                 Aplicar
               </button>
             </span>

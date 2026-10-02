@@ -42,7 +42,7 @@
 .rtc-tit { min-width: 0 }
 .rtc-ojo { font: 700 10px var(--rt-titulo); letter-spacing: .16em; color: var(--rtc-claro) }
 .rtc-cab h2 { font: 900 27px var(--rt-titulo); letter-spacing: -.03em; margin: 5px 0 0; color: #fff }
-.rtc-f { font-size: 12.5px; color: color-mix(in srgb, #fff 92%, var(--rt-negro)); margin-top: 4px }
+.rtc-f { font-size: 12.5px; color: color-mix(in srgb, #fff 92%, var(--rt-tinta)); margin-top: 4px }
 .rtc-der { margin-left: auto; display: flex; gap: 10px; flex: none }
 .rtc-bt {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -66,22 +66,22 @@
 
 /* ===== LA FRANJA DEL ACENTO: registros, reportadas, encontradas ===== */
 .rtc-hero {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center;
-  padding: 20px 24px; background: var(--rt-oro); color: var(--rt-sobre-oro);
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 22px; align-items: center;
+  padding: 13px 24px; background: var(--rt-oro); color: var(--rt-sobre-oro);
 }
 .rtc-k { font: 700 10px var(--rt-titulo); letter-spacing: .16em; opacity: .8 }
-.rtc-v { font: 900 38px/1 var(--rt-titulo); letter-spacing: -.04em; margin-top: 4px; font-variant-numeric: tabular-nums }
-.rtc-total .rtc-v { font-size: 64px }
-.rtc-s { font-size: 12.5px; margin-top: 6px; opacity: .85 }
+.rtc-v { font: 900 30px/1 var(--rt-titulo); letter-spacing: -.04em; margin-top: 3px; font-variant-numeric: tabular-nums }
+.rtc-total .rtc-v { font-size: 48px }
+.rtc-s { font-size: 12px; margin-top: 4px; opacity: .85 }
 .rtc-s2 { font-size: 11.5px; margin-top: 3px; opacity: .8 }
-.rtc-lado { min-width: 0; display: flex; flex-direction: column; gap: 12px }
+.rtc-lado { min-width: 0; display: flex; flex-direction: column; gap: 8px }
 .rtc-mini { display: flex; flex-wrap: wrap; gap: 14px 38px }
 .rtc-mini .rtc-sin .rtc-v { color: var(--rt-mal); background: #fff; padding: 0 8px; display: inline-block }
 .rtc-ley { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; align-items: center }
 .rtc-ley span { display: inline-flex; align-items: center; gap: 7px }
 .rtc-ley span.fases { margin-left: auto }
 .rtc-ley i { width: 12px; height: 12px; display: inline-block; border: 1px solid rgba(0,0,0,.35) }
-.rtc-ley i.r { background: var(--rt-negro) }
+.rtc-ley i.r { background: var(--rt-tinta) }
 .rtc-ley i.e { background: #fff }
 .rtc-ley i.s { background: repeating-linear-gradient(135deg, var(--rt-mal) 0 3px, #fff 3px 6px) }
 
@@ -90,9 +90,9 @@
   display: flex; height: 10px; width: 100%; background: rgba(255,255,255,.35);
   border: 1px solid rgba(0,0,0,.25); overflow: hidden;
 }
-.rtc-cinta.grande { height: 16px }
+.rtc-cinta.grande { height: 12px }
 .rtc-cinta b { display: block; height: 100%; flex: none }
-.rtc-cinta b.r { background: var(--rt-negro) }
+.rtc-cinta b.r { background: var(--rt-tinta) }
 .rtc-cinta b.e { background: #fff }
 .rtc-cinta b.s { background: repeating-linear-gradient(135deg, var(--rt-mal) 0 4px, #fff 4px 8px) }
 /* Sobre papel blanco las encontradas llevan el acento. */
@@ -125,7 +125,7 @@
 .rtc-turno header small { display: block; font-size: 12px; color: var(--rt-gris); margin-top: 2px }
 .rtc-letra {
   flex: none; width: 40px; height: 40px; display: grid; place-items: center;
-  background: var(--rt-negro); color: #fff; font: 900 22px var(--rt-titulo);
+  background: var(--rt-tinta); color: #fff; font: 900 22px var(--rt-titulo);
 }
 .rtc-turno.vacio .rtc-letra { background: var(--rt-gris2); color: #fff }
 .rtc-cifras { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 14px 0 10px }
@@ -165,7 +165,7 @@
 .rtc-lista .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
 .rtc-lista td:first-child { min-width: 0 }
 .rtc-barra { display: block; height: 4px; margin-top: 4px; background: var(--c-eef1f5) }
-.rtc-barra b { display: block; height: 100%; background: var(--rt-negro) }
+.rtc-barra b { display: block; height: 100%; background: var(--rt-tinta) }
 .rtc-lista .rtc-mas { font-size: 11.5px; color: var(--rt-gris); border-bottom: 0 }
 .rtc-sd { color: var(--rt-mal); font-style: italic }
 
@@ -173,7 +173,7 @@
 .rtc-rueda { overflow-x: auto; border: 1px solid var(--rt-linea) }
 .rtc-tabla { width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 13px }
 .rtc-tabla th {
-  text-align: left; white-space: nowrap; padding: 9px 10px; background: var(--rt-negro); color: #fff;
+  text-align: left; white-space: nowrap; padding: 9px 10px; background: var(--rt-tinta); color: #fff;
   font: 700 10px var(--rt-titulo); letter-spacing: .12em;
 }
 .rtc-tabla td { padding: 9px 10px; border-bottom: 1px solid var(--c-eef1f5); vertical-align: top }
@@ -186,13 +186,13 @@
 .rtc-tabla small { display: block; font-size: 11px; color: var(--rt-gris); margin-top: 2px }
 .rtc-tl {
   display: inline-grid; place-items: center; width: 24px; height: 24px;
-  background: var(--rt-negro); color: #fff; font: 900 12px var(--rt-titulo);
+  background: var(--rt-tinta); color: #fff; font: 900 12px var(--rt-titulo);
 }
 .rtc-or {
   display: inline-block; padding: 3px 8px; font: 700 10.5px var(--rt-titulo); letter-spacing: .06em;
   text-transform: uppercase; white-space: nowrap;
 }
-.rtc-or.opm { background: var(--rt-negro); color: #fff }
+.rtc-or.opm { background: var(--rt-tinta); color: #fff }
 .rtc-or.encontrada { background: var(--rt-oro); color: var(--rt-sobre-oro) }
 .rtc-or.sin { border: 1px dashed var(--rt-mal); color: var(--rt-mal); background: var(--rt-mal-suave) }
 .rtc-fin { margin: 18px 0 0; font-size: 12px; line-height: 1.5; color: var(--rt-gris) }
@@ -207,7 +207,7 @@
   .rtc-bt { flex: 1 1 calc(50% - 10px) }
   .rtc-bt.ico { flex: 0 0 44px; margin-left: auto; order: -1; position: absolute; top: 12px; right: 12px }
   .rtc-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px }
-  .rtc-total .rtc-v { font-size: 52px }
+  .rtc-total .rtc-v { font-size: 40px }
   .rtc-mini { gap: 12px 26px }
   .rtc-ley span.fases { margin-left: 0; flex-basis: 100% }
   .rtc-cuerpo { padding: 4px 16px 20px }
@@ -243,25 +243,11 @@
    1,5 px, esquinas rectas, rótulo chico arriba — como Desde/Hasta. */
 .rt .tb-campo { display: flex; flex-direction: column; gap: 3px; position: relative }
 .rt .tb-rot { font: 700 10px var(--rt-titulo); letter-spacing: .14em; color: var(--rt-gris-panel); text-transform: uppercase }
-.rt .tb-fbtn, .rt .tb-turno, .rt .tb-pop input {
+.rt .tb-turno {
   height: 44px; border: 1.5px solid var(--rt-linea); border-radius: 0;
   background: var(--rt-papel); color: var(--rt-tinta); font: 500 14px var(--rt-texto); cursor: pointer;
 }
-.rt .tb-fbtn { display: inline-flex; align-items: center; gap: 10px; padding: 0 12px; min-width: 230px; text-align: left }
-.rt .tb-fbtn > span { flex: 1; font-variant-numeric: tabular-nums }
-.rt .tb-fbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
-.rt .tb-fbtn .car { width: 15px; height: 15px }
-.rt .tb-fbtn.on, .rt .tb-turno.on { border-color: var(--rt-tinta); box-shadow: inset 0 0 0 1px var(--rt-tinta) }
-.rt .tb-fbtn:focus-visible, .rt .tb-turno:focus-visible, .rt .tb-pop input:focus-visible { outline: 2px solid var(--rt-tinta); outline-offset: 2px }
-.rt .tb-pop {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: min(360px, 92vw);
-  background: var(--rt-papel); border: 1.5px solid var(--rt-tinta); padding: 14px;
-  box-shadow: 0 10px 28px rgba(8, 14, 24, .22); display: flex; flex-direction: column; gap: 12px;
-}
-.rt .tb-par { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
-.rt .tb-lbl { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
-.rt .filtros .tb-pop input { flex: 0 0 auto; width: 100%; height: 44px; min-height: 0; padding: 0 8px; cursor: text }
-.rt .tb-acc { display: flex; gap: 8px; justify-content: flex-end }
+.rt .tb-turno.on { border-color: var(--rt-tinta); box-shadow: inset 0 0 0 1px var(--rt-tinta) }
 .rt .tb-turnos { display: flex; gap: 8px }
 .rt .tb-turno { min-width: 44px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px }
 .rt .tb-turno b { font: 900 15px var(--rt-titulo) }
@@ -275,11 +261,195 @@
 .rt .tb-cierre svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
 .rt .tb-t {
   display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 6px;
-  background: var(--rt-negro); color: #fff; font: 900 10px var(--rt-titulo); font-style: normal; vertical-align: 1px;
+  background: var(--rt-tinta); color: #fff; font: 900 10px var(--rt-titulo); font-style: normal; vertical-align: 1px;
 }
 @media (max-width: 720px) {
   .rt .tb-cierre { margin-left: 0; width: 100%; justify-content: center }
   .rt .tb-campo, .rt .tb-turnos { width: 100% }
   .rt .tb-turno { flex: 1 }
-  .rt .tb-fbtn { width: 100% }
+  .rt .sg-mes .mes-campo { width: 100%; max-width: none }
 }
+
+/* ---------------------------------------------------------------------
+   EL CALENDARIO DE FECHA DEL TABLERO — el mismo «Periodo» de T1/T2
+   (sider/seguimiento/Rango.tsx), con los colores de Roturas y las
+   esquinas rectas. Días · Meses · Años, atajos, rango en el calendario y
+   «Aplicar»: nada se filtra hasta tocarlo.
+   --------------------------------------------------------------------- */
+.rt .tb-campo.sg-mes > span:first-child { font: 700 10px var(--rt-titulo); letter-spacing: .14em; color: var(--rt-gris-panel); text-transform: uppercase }
+.rt .sg-mes { position: relative }
+.rt .sg-mes .mes-campo {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  height: 42px; min-width: 200px; max-width: 260px; padding: 0 10px 0 12px;
+  font: 500 14.5px var(--rt-texto); color: var(--rt-tinta); background: var(--c-f7f9fc);
+  border: 1.5px solid var(--rt-linea); border-radius: 0; cursor: pointer;
+  text-align: left;
+}
+.rt .sg-mes .mes-campo > span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rt .sg-mes .mes-campo:hover { border-color: var(--c-b9c4d2) }
+.rt .sg-mes .mes-campo.abierta { border-color: var(--rt-tinta); background: #fff }
+.rt .sg-mes .mes-campo:focus-visible {
+  outline: none; border-color: var(--rt-tinta); box-shadow: 0 0 0 3px rgba(0,0,0,.15);
+}
+.rt .sg-mes .mes-campo svg {
+  width: 16px; height: 16px; flex: none;
+  stroke: var(--rt-gris); stroke-width: 1.7; fill: none;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.rt .sg-mes .mes-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+  width: 428px; max-width: calc(100vw - 24px); overflow: hidden;
+  background: #fff; border: 1px solid var(--rt-linea); border-radius: 0;
+  box-shadow: 0 24px 48px -24px rgba(4,32,63,.5);
+}
+/* El filo de color arriba: el mismo gesto del calendario de Quiebra. */
+.rt .sg-mes .mes-panel::before {
+  content: ""; display: block; height: 3px; background: var(--rt-oro);
+}
+
+/* Días · Meses · Años */
+.rt .sg-mes .mes-modos {
+  display: flex; gap: 2px; padding: 8px 10px 0;
+  border-bottom: 1px solid var(--rt-linea);
+}
+.rt .sg-mes .mes-modos button {
+  border: 0; background: none; cursor: pointer; padding: 7px 12px 8px;
+  font: 600 12.5px var(--rt-texto); color: var(--rt-gris);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.rt .sg-mes .mes-modos button:hover { color: var(--rt-tinta) }
+.rt .sg-mes .mes-modos button.act {
+  color: var(--rt-tinta); border-bottom-color: var(--rt-oro); font-weight: 700;
+}
+.rt .sg-mes .mes-modos button:focus-visible { outline: 3px solid var(--rt-oro); outline-offset: -3px }
+
+.rt .sg-mes .mes-cuerpo { display: flex; align-items: stretch }
+
+/* Los atajos, a la izquierda, como en Quiebra. */
+.rt .sg-mes .mes-atajos {
+  width: 132px; flex: none; padding: 8px 0;
+  border-right: 1px solid var(--rt-linea); background: var(--c-fafbfd);
+}
+.rt .sg-mes .mes-atajos button {
+  display: block; width: 100%; text-align: left;
+  border: 0; border-left: 3px solid transparent; background: none; cursor: pointer;
+  padding: 8px 10px 8px 12px; font: 500 12.5px var(--rt-texto); color: var(--rt-tinta);
+}
+.rt .sg-mes .mes-atajos button:hover { background: var(--c-f1f5fa) }
+.rt .sg-mes .mes-atajos button.on {
+  border-left-color: var(--rt-oro); background: #fff; font-weight: 700;
+}
+.rt .sg-mes .mes-atajos button:focus-visible { outline: 3px solid var(--rt-oro); outline-offset: -3px }
+
+.rt .sg-mes .mes-lado { flex: 1 1 auto; min-width: 0; padding: 8px 10px 10px }
+
+.rt .sg-mes .mes-anio {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 2px 2px 8px;
+}
+.rt .sg-mes .mes-anio b {
+  font-family: var(--rt-titulo); font-weight: 800; font-size: 14.5px; letter-spacing: -.01em;
+  text-transform: capitalize; font-variant-numeric: tabular-nums;
+}
+.rt .sg-mes .mes-anio button {
+  width: 28px; height: 28px; display: grid; place-items: center; flex: none;
+  border: 1px solid var(--rt-linea); border-radius: 0; background: #fff; cursor: pointer;
+}
+.rt .sg-mes .mes-anio button:hover:not(:disabled) { border-color: var(--rt-oro) }
+.rt .sg-mes .mes-anio button:disabled { opacity: .35; cursor: not-allowed }
+.rt .sg-mes .mes-anio button svg {
+  width: 13px; height: 13px; stroke: var(--rt-tinta); stroke-width: 2.3; fill: none;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.rt .sg-mes .mes-semana, .rt .sg-mes .mes-dias {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+}
+.rt .sg-mes .mes-semana span {
+  text-align: center; font: 700 10px var(--rt-texto); letter-spacing: .06em;
+  color: var(--c-93a3b6); padding-bottom: 4px;
+}
+.rt .sg-mes .mes-dias button {
+  height: 32px; border: 0; background: none; cursor: pointer;
+  font: 500 12.5px var(--rt-texto); color: var(--rt-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.rt .sg-mes .mes-dias button.finde { color: var(--rt-gris) }
+.rt .sg-mes .mes-dias button:hover:not(:disabled):not(.punta) { background: var(--c-edf1f6) }
+/* El relleno del rango y sus dos puntas: se lee de un golpe dónde
+   empieza y dónde acaba lo elegido. */
+.rt .sg-mes .mes-dias button.dentro { background: var(--c-marca-velo) }
+.rt .sg-mes .mes-dias button.punta {
+  background: var(--rt-oro); color: var(--rt-sobre-oro); font-weight: 800; border-radius: 0;
+}
+/* Un día sin datos no se esconde: se muestra APAGADO. Esconderlo dejaría
+   huecos en la rejilla y nadie sabría si falta el día o la app. */
+.rt .sg-mes .mes-dias button.mes-nada {
+  color: var(--c-c6d0dc); cursor: not-allowed;
+  text-decoration: line-through; text-decoration-thickness: 1px;
+}
+.rt .sg-mes .mes-dias button:focus-visible { outline: 3px solid var(--rt-oro); outline-offset: -3px }
+
+/* Doce casillas: el año entero de un golpe. */
+.rt .sg-mes .mes-doce { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px }
+.rt .sg-mes .mes-doce button {
+  height: 40px; border: 1px solid transparent; border-radius: 0;
+  background: var(--c-f7f9fc); cursor: pointer;
+  font: 600 13px var(--rt-texto); color: var(--rt-tinta); text-transform: capitalize;
+}
+.rt .sg-mes .mes-doce button:hover:not(:disabled):not(.punta) {
+  border-color: var(--rt-oro); background: #fff;
+}
+.rt .sg-mes .mes-doce button.dentro { background: var(--c-marca-velo) }
+.rt .sg-mes .mes-doce button.punta {
+  background: var(--rt-oro); color: var(--rt-sobre-oro);
+  border-color: var(--rt-oro); font-weight: 800;
+}
+.rt .sg-mes .mes-doce button.mes-nada {
+  background: transparent; color: var(--c-c6d0dc); cursor: not-allowed;
+  text-decoration: line-through; text-decoration-thickness: 1px;
+}
+.rt .sg-mes .mes-doce button:focus-visible { outline: 3px solid var(--rt-oro); outline-offset: -2px }
+
+/* Los años: solo los que tienen algo, así que no hacen falta flechas. */
+.rt .sg-mes .mes-anios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px }
+.rt .sg-mes .mes-anios button {
+  height: 44px; border: 1px solid transparent; border-radius: 0;
+  background: var(--c-f7f9fc); cursor: pointer;
+  font: 800 15px var(--rt-titulo); color: var(--rt-tinta); font-variant-numeric: tabular-nums;
+}
+.rt .sg-mes .mes-anios button:hover:not(.punta) { border-color: var(--rt-oro); background: #fff }
+.rt .sg-mes .mes-anios button.punta {
+  background: var(--rt-oro); color: var(--rt-sobre-oro); border-color: var(--rt-oro);
+}
+.rt .sg-mes .mes-anios button:focus-visible { outline: 3px solid var(--rt-oro); outline-offset: -2px }
+
+.rt .sg-mes .mes-pie { margin: 0; padding: 8px 2px 0; font-size: 12px; color: var(--rt-gris) }
+
+/* El pie: lo elegido dicho con palabras, y los dos botones. Nada se
+   aplica hasta que se toca Aplicar. */
+.rt .sg-mes .mes-pie-cal {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px; border-top: 1px solid var(--rt-linea); background: var(--c-fafbfd);
+}
+.rt .sg-mes .mes-pie-cal .dice { flex: 1 1 auto; min-width: 0; font-size: 12.5px; color: var(--rt-gris) }
+.rt .sg-mes .mes-pie-cal .dice b { color: var(--rt-tinta); font-weight: 700 }
+.rt .sg-mes .mes-pie-cal .btns { display: flex; gap: 8px; flex: none }
+.rt .sg-mes .mes-pie-cal .aplicar {
+  height: 34px; padding: 0 16px; border: 0; border-radius: 0;
+  background: var(--rt-oro); color: var(--rt-sobre-oro);
+  font: 800 13px var(--rt-titulo); cursor: pointer;
+}
+.rt .sg-mes .mes-pie-cal .aplicar:disabled { opacity: .45; cursor: not-allowed }
+.rt .sg-mes .mes-pie-cal .cancelar {
+  height: 34px; padding: 0 10px; border: 0; background: none;
+  font: 600 13px var(--rt-texto); color: var(--rt-gris); cursor: pointer;
+}
+.rt .sg-mes .mes-pie-cal .cancelar:hover { color: var(--rt-tinta) }
+
+/* Mismo alto que los turnos, y el campo no se encoge con el texto. */
+.rt .tb-campo.sg-mes .mes-campo { height: 44px; min-width: 230px; border-radius: 0 }
+.rt .sg-mes .mes-campo.abierta { border-color: var(--rt-tinta) }

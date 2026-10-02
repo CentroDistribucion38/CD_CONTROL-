@@ -119,7 +119,7 @@ const maestrosAi = { falta: false,
 
 createRoot(document.getElementById("r")!).render(
   <Transito viajes={viajes as any} nombres={{ u1: "arenosa" }}
-            esEditor esAdmin={false}
+            esEditor puedePedirAi={false}
             manda={(window as any).MANDA !== false}
             origenes={origenes} skus={skus}
             maestrosAi={maestrosAi as any} trabados={1} sinEvidencia={0}

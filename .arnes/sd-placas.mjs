@@ -64,7 +64,7 @@ const v = (id, placa, cd, horas) => ({
 window.VIAJES = [v("1", "JGY577", "CD Unión Apartado", 5), v("2", "ABC123", "CD La Arenosa", 30),
                  v("3", "KLM456", "CD Galapa", 2), v("4", "XYZ98A", "CD Galapa", 8)];
 createRoot(document.getElementById("r")).render(
-  <Transito viajes={window.VIAJES} nombres={{}} esEditor={true} esAdmin={false} maestrosAi={null}
+  <Transito viajes={window.VIAJES} nombres={{}} esEditor={true} puedePedirAi={false} maestrosAi={null}
             trabados={1} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 `);
 const b = buildSync({

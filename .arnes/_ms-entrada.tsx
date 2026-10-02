@@ -94,7 +94,7 @@ if (m === "certificar") {
     v(3, { placa: "JYN141", factura: "7687019430", salida_en: hace(5), en_camino: "05:00:00" }),
   ];
   const adm = c !== "multi-lectura";
-  root.render(<Transito viajes={viajes as any} nombres={nombres} esEditor esAdmin={adm} manda={adm} origenes={ORIGENES as any}
+  root.render(<Transito viajes={viajes as any} nombres={nombres} esEditor puedePedirAi={adm} manda={adm} origenes={ORIGENES as any}
     skus={SKUS} estibasPorSider={36} trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 } else if (m === "transito") {
   const viajes = [
@@ -103,7 +103,7 @@ if (m === "certificar") {
     v(3, { placa: "PQR305", fotos_salida: 1, origen: "Turbaco" }),
     v(4, { placa: "TVX219", requiere_ai: true, origen: "Medellín" }),
   ];
-  root.render(<Transito viajes={viajes as any} nombres={nombres} esEditor esAdmin manda origenes={ORIGENES as any}
+  root.render(<Transito viajes={viajes as any} nombres={nombres} esEditor puedePedirAi manda origenes={ORIGENES as any}
     skus={SKUS} estibasPorSider={36} trabados={0} sinEvidencia={0} cabeza={<h1>En tránsito</h1>} />);
 } else if (m === "sorting") {
   const cuatro = [pend(1, 30, { placa: "JYN141" }), pend(2, 3, { placa: "KLM872" }),

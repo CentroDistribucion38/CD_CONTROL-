@@ -45,7 +45,7 @@ begin
     perform public.sider_ai_marcar('aaaaaaaa-0000-0000-0000-000000000001', true, 'prueba');
     v_falla := v_falla || ' 1(el supervisor pudo marcar)';
   exception when others then
-    if sqlerrm not like '%solo del administrador%' then
+    if sqlerrm not like '%Pedir%revisión AI%' then
       v_falla := v_falla || ' 1(error raro: ' || sqlerrm || ')'; end if;
   end;
   if v_falla <> '' then raise exception 'FALLARON:%', v_falla; end if;
@@ -66,7 +66,7 @@ begin
     raise exception 'FALLÓ: un usuario sin perfil pudo pedir una revisión AI';
   exception when others then
     if sqlerrm like '%sin perfil%' then raise; end if;
-    if sqlerrm not like '%solo del administrador%' then
+    if sqlerrm not like '%Pedir%revisión AI%' then
       raise exception 'FALLÓ: error raro para el usuario sin perfil: %', sqlerrm; end if;
   end;
   raise warning 'sin perfil rechazado: 1 de 1';

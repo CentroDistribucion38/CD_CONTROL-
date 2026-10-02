@@ -373,6 +373,12 @@ export const MODULOS: Modulo[] = [
          que Certificar, por eso tiene su propio permiso. */
       { nombre: "Dar salida", ruta: "/sider/salida" },
       { nombre: "En tránsito", ruta: "/sider/transito" },
+      /* PEDIR O QUITAR LA REVISIÓN AI NO ES UNA PANTALLA: es el botón de
+         cada vehículo en En tránsito. Está aquí, oculto, SOLO para tener su
+         casilla en Roles —«Pedir / quitar revisión AI»—: antes era «solo el
+         administrador», y para que otra persona la pidiera había que
+         volverla administradora. El administrador la tiene siempre. */
+      { nombre: "Pedir / quitar revisión AI", ruta: "/sider/transito/revision-ai", oculto: true },
       /* REVISIÓN AI VA JUSTO DESPUÉS DE TRÁNSITO: es lo que se hace apenas
          el camión llega. Lista lo que falta revisar una vez CERTIFICADA la
          llegada, en dos clases: «certificada» (camión de Sider) y «normal»
