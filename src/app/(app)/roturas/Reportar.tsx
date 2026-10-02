@@ -508,7 +508,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
         .upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
       if (eSubir) {
         aviso = exigeFoto
-          ? "La foto no subió, y esta causa la exige: ábrela desde la lista y agrégala, o ABI la va a devolver."
+          ? "La foto no subió, y esta causa la exige: ábrela desde la lista y agrégala, o el OL la va a devolver."
           : "La foto no subió; se puede agregar después.";
       } else {
         const { error: eFila } = await supabase.from("roturas_fotos").insert({
@@ -545,7 +545,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           <h2>Quedó registrada</h2>
           <p>{origen === "encontrada"
             ? "Pasó directo a cobro. Se puede registrar otra sin salir de aquí."
-            : "Ya está en la bandeja de ABI. Se puede registrar otra sin salir de aquí."}</p>
+            : "Ya está en la bandeja del OL. Se puede registrar otra sin salir de aquí."}</p>
         </div>
         <div className="cuerpo">
           <p className="guia">
@@ -553,7 +553,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                               ?? `Envase retornable ${COLOR_VIDRIO[vidrio].toLowerCase()}`}.
             {origen === "encontrada"
               ? "Va directo a cobro, en el Tablero: las encontradas no pasan por visto bueno y no se objetan."
-              : "Pasa a la bandeja de ABI para el visto bueno."}
+              : "Pasa a la bandeja del OL para el visto bueno."}
           </p>
           {mal && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
           <button type="button" className="otra" onClick={() => {
@@ -871,7 +871,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
             {exigeFoto && (
               <div className="exige">
                 <b>Esta causa exige foto.</b> Es lo que sostiene que la rotura no es del OL. Sin
-                evidencia, ABI la va a devolver.
+                evidencia, el OL la va a devolver.
               </div>
             )}
 
@@ -925,7 +925,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
             : !area ? "Falta el área"
             : !causa ? "Falta la causa"
             : exigeFoto && !foto ? "Falta la foto"
-            : origen === "encontrada" ? "Registrar y mandar a cobro" : "Enviar a ABI"}
+            : origen === "encontrada" ? "Registrar y mandar a cobro" : "Enviar al OL"}
         </button>
       </div>
     </section>

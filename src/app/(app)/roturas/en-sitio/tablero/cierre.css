@@ -1,0 +1,262 @@
+/* ---------------------------------------------------------------------
+   EL CIERRE DE TURNO DE ROTURAS EN SITIO  ·  prefijo `rtc-`
+
+   EL PREFIJO NO ES CAPRICHO. Con `rc-` —que era el primer nombre— ya
+   había `.rc-aviso` en Inventario y `.rc-tipo` en Recibir: en CSS global
+   dos clases con el mismo nombre se pisan sin avisar (le pasó a `cl-par`
+   en el corte de líneas, que dejó una tarjeta amarilla y angosta). Aquí
+   todo lleva `rtc-` y está bajo `.rt-modal`.
+
+   LOS COLORES SON LOS DE ROTURAS (`--rt-*`), que a su vez salen del tema:
+   la banda oscura de --c-grupo, el acento de --c-marca con la tinta que
+   va encima (--rt-sobre-oro). Verde y rojo no salen del tema: significan
+   algo. El sello de la marca va tal cual, sin recolorear.
+   --------------------------------------------------------------------- */
+
+/* EL ACENTO SOBRE LA BANDA OSCURA, MÁS CLARO QUE --rt-oro-claro: en el tema
+   oficial (acento rojo) y en pizarra el 60 % se quedaba en 2,7 de contraste
+   contra la banda; con 30 % de acento se lee en los siete temas. */
+.rt-modal.rtc-velo { --rtc-claro: color-mix(in srgb, var(--c-marca) 28%, #fff) }
+.rt-modal.rtc-velo {
+  position: fixed; inset: 0; z-index: 90; background: rgba(8, 14, 24, .55);
+  display: grid; grid-template-columns: minmax(0, 1fr); place-items: start center;
+  padding: 16px; overflow: auto;
+}
+.rtc {
+  justify-self: center; width: min(1120px, 100%); min-width: 0;
+  background: var(--rt-papel); border: 1px solid var(--rt-linea);
+  font-family: var(--rt-texto); color: var(--rt-tinta);
+}
+
+/* ===== LA BANDA NEGRA CON EL SELLO ===== */
+.rtc-cab {
+  display: flex; align-items: center; gap: 18px; padding: 20px 24px;
+  background: var(--rt-negro); color: #fff; position: relative; overflow: hidden;
+}
+.rtc-cab::before {
+  content: ""; position: absolute; inset: 0; opacity: .4; pointer-events: none;
+  background-image: repeating-linear-gradient(116deg, rgba(255,255,255,.07) 0 2px, transparent 2px 20px);
+}
+.rtc-cab > * { position: relative }
+.rtc-cab img { width: 34px; height: 34px; flex: none }
+.rtc-tit { min-width: 0 }
+.rtc-ojo { font: 700 10px var(--rt-titulo); letter-spacing: .16em; color: var(--rtc-claro) }
+.rtc-cab h2 { font: 900 27px var(--rt-titulo); letter-spacing: -.03em; margin: 5px 0 0; color: #fff }
+.rtc-f { font-size: 12.5px; color: color-mix(in srgb, #fff 92%, var(--rt-negro)); margin-top: 4px }
+.rtc-der { margin-left: auto; display: flex; gap: 10px; flex: none }
+.rtc-bt {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 15px; cursor: pointer;
+  border: 1px solid #3A3F46; background: #1B1F24; color: #fff;
+  font: 700 13px var(--rt-texto);
+}
+.rtc-bt:hover { border-color: #6B7280 }
+.rtc-bt:disabled { opacity: .55; cursor: wait }
+.rtc-bt:focus-visible { outline: 2px solid var(--rt-oro-claro); outline-offset: 2px }
+.rtc-bt svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+.rtc-bt.pdf { background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro) }
+.rtc-bt.pdf:hover { background: var(--rt-oro-hondo); border-color: var(--rt-oro-hondo) }
+.rtc-bt.ico { width: 44px; padding: 0 }
+
+.rtc-aviso {
+  margin: 0; padding: 11px 24px; font: 600 13px var(--rt-texto);
+  background: var(--rt-verde-suave); color: var(--rt-verde); border-bottom: 1px solid var(--rt-linea);
+}
+.rtc-aviso.mal { background: var(--rt-mal-suave); color: var(--rt-mal) }
+
+/* ===== LA FRANJA DEL ACENTO: registros, reportadas, encontradas ===== */
+.rtc-hero {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center;
+  padding: 20px 24px; background: var(--rt-oro); color: var(--rt-sobre-oro);
+}
+.rtc-k { font: 700 10px var(--rt-titulo); letter-spacing: .16em; opacity: .8 }
+.rtc-v { font: 900 38px/1 var(--rt-titulo); letter-spacing: -.04em; margin-top: 4px; font-variant-numeric: tabular-nums }
+.rtc-total .rtc-v { font-size: 64px }
+.rtc-s { font-size: 12.5px; margin-top: 6px; opacity: .85 }
+.rtc-s2 { font-size: 11.5px; margin-top: 3px; opacity: .8 }
+.rtc-lado { min-width: 0; display: flex; flex-direction: column; gap: 12px }
+.rtc-mini { display: flex; flex-wrap: wrap; gap: 14px 38px }
+.rtc-mini .rtc-sin .rtc-v { color: var(--rt-mal); background: #fff; padding: 0 8px; display: inline-block }
+.rtc-ley { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; align-items: center }
+.rtc-ley span { display: inline-flex; align-items: center; gap: 7px }
+.rtc-ley span.fases { margin-left: auto }
+.rtc-ley i { width: 12px; height: 12px; display: inline-block; border: 1px solid rgba(0,0,0,.35) }
+.rtc-ley i.r { background: var(--rt-negro) }
+.rtc-ley i.e { background: #fff }
+.rtc-ley i.s { background: repeating-linear-gradient(135deg, var(--rt-mal) 0 3px, #fff 3px 6px) }
+
+/* La cinta reparte reportadas / encontradas / sin origen sobre los registros. */
+.rtc-cinta {
+  display: flex; height: 10px; width: 100%; background: rgba(255,255,255,.35);
+  border: 1px solid rgba(0,0,0,.25); overflow: hidden;
+}
+.rtc-cinta.grande { height: 16px }
+.rtc-cinta b { display: block; height: 100%; flex: none }
+.rtc-cinta b.r { background: var(--rt-negro) }
+.rtc-cinta b.e { background: #fff }
+.rtc-cinta b.s { background: repeating-linear-gradient(135deg, var(--rt-mal) 0 4px, #fff 4px 8px) }
+/* Sobre papel blanco las encontradas llevan el acento. */
+.rtc-turno .rtc-cinta { background: var(--c-eef1f5); border-color: var(--rt-linea) }
+.rtc-turno .rtc-cinta b.e { background: var(--rt-oro) }
+
+.rtc-filtros {
+  margin: 0; padding: 11px 24px; font-size: 13px; color: var(--rt-tinta);
+  background: var(--rt-crema); border-bottom: 1px solid var(--rt-linea);
+  display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap;
+}
+.rtc-filtros b { font: 700 10px var(--rt-titulo); letter-spacing: .16em; color: var(--rt-ojo) }
+
+/* ===== EL CUERPO ===== */
+.rtc-cuerpo { padding: 8px 24px 24px }
+.rtc-sec {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin: 22px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--rt-tinta);
+}
+.rtc-sec b { font: 900 16px var(--rt-titulo); letter-spacing: -.02em }
+.rtc-sec span { font-size: 12.5px; color: var(--rt-gris) }
+.rtc-nada { margin: 8px 0; font-size: 13.5px; color: var(--rt-gris) }
+
+/* ===== UNA TARJETA POR TURNO ===== */
+.rtc-turnos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px }
+.rtc-turno { border: 1px solid var(--rt-linea); border-top: 3px solid var(--rt-tinta); padding: 14px 16px 12px; min-width: 0; background: var(--rt-papel) }
+.rtc-turno.vacio { border-top-color: var(--rt-linea); background: var(--c-eef1f5) }
+.rtc-turno header { display: flex; align-items: center; gap: 12px }
+.rtc-turno header b { display: block; font: 900 15px var(--rt-titulo); letter-spacing: -.02em }
+.rtc-turno header small { display: block; font-size: 12px; color: var(--rt-gris); margin-top: 2px }
+.rtc-letra {
+  flex: none; width: 40px; height: 40px; display: grid; place-items: center;
+  background: var(--rt-negro); color: #fff; font: 900 22px var(--rt-titulo);
+}
+.rtc-turno.vacio .rtc-letra { background: var(--rt-gris2); color: #fff }
+.rtc-cifras { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 14px 0 10px }
+.rtc-cifras span { display: block; font: 700 9.5px var(--rt-titulo); letter-spacing: .14em; color: var(--rt-gris) }
+.rtc-cifras b { display: block; font: 900 24px/1.1 var(--rt-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.rtc-cifras .rtc-reg b { font-size: 34px }
+.rtc-cifras .rtc-sin b { color: var(--rt-mal) }
+.rtc-linea { margin: 8px 0 0; font-size: 13px; color: var(--rt-tinta) }
+.rtc-fase { font-size: 12.5px; color: var(--rt-gris) }
+.rtc-linea b { font-variant-numeric: tabular-nums }
+
+.rtc-corresponde { margin-top: 10px; border-top: 1px solid var(--rt-linea) }
+.rtc-corresponde > summary {
+  min-height: 44px; display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; font: 700 13px var(--rt-texto); list-style: none; color: var(--rt-ojo);
+}
+.rtc-corresponde > summary::-webkit-details-marker { display: none }
+.rtc-corresponde > summary::after { content: "▾"; font-size: 12px }
+.rtc-corresponde[open] > summary::after { content: "▴" }
+.rtc-corresponde > summary:focus-visible { outline: 2px solid var(--rt-ojo); outline-offset: 2px }
+
+/* ===== LAS LISTAS «A QUÉ CORRESPONDE» ===== */
+.rtc-cuatro { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px }
+.rtc-cuatro.grande { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px }
+.rtc-lista { min-width: 0 }
+.rtc-lista h4 {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin: 0 0 4px; font: 900 13px var(--rt-titulo); letter-spacing: -.01em;
+}
+.rtc-lista h4 span { font: 500 11.5px var(--rt-texto); color: var(--rt-gris) }
+.rtc-lista table { width: 100%; border-collapse: collapse; font-size: 12.5px }
+.rtc-lista th {
+  text-align: left; font: 700 9.5px var(--rt-titulo); letter-spacing: .12em; color: var(--rt-gris-panel);
+  padding: 4px 6px 4px 0; border-bottom: 1px solid var(--rt-linea);
+}
+.rtc-lista td { padding: 6px 6px 6px 0; border-bottom: 1px solid var(--c-eef1f5); vertical-align: top }
+.rtc-lista .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.rtc-lista td:first-child { min-width: 0 }
+.rtc-barra { display: block; height: 4px; margin-top: 4px; background: var(--c-eef1f5) }
+.rtc-barra b { display: block; height: 100%; background: var(--rt-negro) }
+.rtc-lista .rtc-mas { font-size: 11.5px; color: var(--rt-gris); border-bottom: 0 }
+.rtc-sd { color: var(--rt-mal); font-style: italic }
+
+/* ===== LA TABLA DE ROTURAS ===== */
+.rtc-rueda { overflow-x: auto; border: 1px solid var(--rt-linea) }
+.rtc-tabla { width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 13px }
+.rtc-tabla th {
+  text-align: left; white-space: nowrap; padding: 9px 10px; background: var(--rt-negro); color: #fff;
+  font: 700 10px var(--rt-titulo); letter-spacing: .12em;
+}
+.rtc-tabla td { padding: 9px 10px; border-bottom: 1px solid var(--c-eef1f5); vertical-align: top }
+.rtc-tabla tbody tr:nth-child(even) td { background: #FAFBFC }
+.rtc-tabla .n { text-align: right; font-variant-numeric: tabular-nums }
+.rtc-tabla .cod { font-weight: 700; white-space: nowrap }
+.rtc-tabla .na { color: var(--rt-gris2) }
+.rtc-tabla tr.anulada td { color: var(--rt-gris); text-decoration: line-through; text-decoration-color: var(--rt-gris2) }
+.rtc-tabla tr.anulada .tb-eti { text-decoration: none }
+.rtc-tabla small { display: block; font-size: 11px; color: var(--rt-gris); margin-top: 2px }
+.rtc-tl {
+  display: inline-grid; place-items: center; width: 24px; height: 24px;
+  background: var(--rt-negro); color: #fff; font: 900 12px var(--rt-titulo);
+}
+.rtc-or {
+  display: inline-block; padding: 3px 8px; font: 700 10.5px var(--rt-titulo); letter-spacing: .06em;
+  text-transform: uppercase; white-space: nowrap;
+}
+.rtc-or.opm { background: var(--rt-negro); color: #fff }
+.rtc-or.encontrada { background: var(--rt-oro); color: var(--rt-sobre-oro) }
+.rtc-or.sin { border: 1px dashed var(--rt-mal); color: var(--rt-mal); background: var(--rt-mal-suave) }
+.rtc-fin { margin: 18px 0 0; font-size: 12px; line-height: 1.5; color: var(--rt-gris) }
+
+/* ===== CELULAR: la ficha ocupa toda la pantalla, y los botones bajan ===== */
+@media (max-width: 760px) {
+  .rt-modal.rtc-velo { padding: 0 }
+  .rtc { border: 0; width: 100%; min-height: 100dvh }
+  .rtc-cab { flex-wrap: wrap; padding: 16px; gap: 12px 14px }
+  .rtc-cab h2 { font-size: 22px }
+  .rtc-der { margin-left: 0; width: 100%; flex-wrap: wrap }
+  .rtc-bt { flex: 1 1 calc(50% - 10px) }
+  .rtc-bt.ico { flex: 0 0 44px; margin-left: auto; order: -1; position: absolute; top: 12px; right: 12px }
+  .rtc-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px }
+  .rtc-total .rtc-v { font-size: 52px }
+  .rtc-mini { gap: 12px 26px }
+  .rtc-ley span.fases { margin-left: 0; flex-basis: 100% }
+  .rtc-cuerpo { padding: 4px 16px 20px }
+  .rtc-filtros, .rtc-aviso { padding-left: 16px; padding-right: 16px }
+  .rtc-turnos { grid-template-columns: minmax(0, 1fr) }
+}
+
+/* ===== IMPRIMIR: solo la ficha, con sus fondos ===== */
+@media print {
+  .rt:has(.rtc-velo) > *:not(.rtc-velo) { display: none !important }
+  body:has(.rtc-velo) .sh-barra,
+  body:has(.rtc-velo) .sh-lado,
+  body:has(.rtc-velo) .sh-riel { display: none !important }
+  body:has(.rtc-velo) .sh-main { padding: 0 !important }
+  body:has(.rtc-velo) .sh-marco { display: block !important }
+  .rt-modal.rtc-velo { position: static; display: block; background: none; padding: 0; overflow: visible }
+  .rtc { width: 100%; border: 0; min-height: 0 }
+  .rtc, .rtc * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
+  .rtc-der, .rtc-aviso { display: none !important }
+  .rtc-corresponde > summary { display: none }
+  .rtc-rueda { overflow: visible }
+  .rtc-tabla { min-width: 0; font-size: 10.5px }
+  .rtc-turno, .rtc-tabla tr { break-inside: avoid }
+}
+
+/* ---------------------------------------------------------------------
+   LO DEL TABLERO QUE ABRE EL CIERRE  ·  prefijo `tb-` (ya reservado)
+   --------------------------------------------------------------------- */
+.rt .tb-cuando-fila {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px;
+}
+.rt .tb-fecha { display: flex; flex-direction: column; gap: 3px; font: 700 10px var(--rt-titulo); letter-spacing: .14em; color: var(--rt-gris-panel); text-transform: uppercase }
+.rt .tb-fecha input {
+  flex: 0 0 auto;
+  height: 44px; padding: 0 10px; border: 1.5px solid var(--rt-linea); border-radius: 0;
+  background: var(--rt-papel); color: var(--rt-tinta); font: 500 14px var(--rt-texto);
+}
+.rt .tb-turnos { display: flex; gap: 6px }
+.rt .tb-turno { min-width: 44px; display: inline-flex; align-items: baseline; gap: 6px }
+.rt .tb-turno b { font: 900 15px var(--rt-titulo) }
+.rt .tb-turno small { font-size: 10.5px; opacity: .75; font-variant-numeric: tabular-nums }
+.rt .tb-cierre { margin-left: auto; display: inline-flex; align-items: center; gap: 8px }
+.rt .tb-cierre svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.rt .tb-t {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 6px;
+  background: var(--rt-negro); color: #fff; font: 900 10px var(--rt-titulo); font-style: normal; vertical-align: 1px;
+}
+@media (max-width: 720px) {
+  .rt .tb-cierre { margin-left: 0; width: 100%; justify-content: center }
+  .rt .tb-turnos { width: 100% }
+  .rt .tb-turno { flex: 1 }
+}

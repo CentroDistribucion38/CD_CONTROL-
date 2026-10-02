@@ -158,8 +158,9 @@ await monta("c=todo");
   ok(await filas().count() === 15, "debían verse 15 pares de entrada: " + await filas().count());
   ok(await pg.locator(".dq-mas").count() === 1 && /Ver más \(5\)/.test(await pg.locator(".dq-mas").textContent()), "el botón «Ver más»");
   const ab = await filas().evaluateAll((x) => x.map((e) => e.getAttribute("aria-expanded")));
-  ok(ab[0] === "true" && ab.slice(1).every((v) => v === "false"), "solo el más reciente llega abierto: " + ab.join());
-  ok(await pg.locator(".dq-card").count() === 2, "el más reciente (día 20, líneas 1 y 2) trae dos tarjetas: " + await pg.locator(".dq-card").count());
+  ok(ab.every((v) => v === "false") && await pg.locator(".dq-card").count() === 0, "TODOS llegan cerrados y solo se abre el que se toca: " + ab.join());
+  await filas().nth(0).click();
+  ok(await pg.locator(".dq-card").count() === 2, "al tocar el más reciente (día 20, líneas 1 y 2) trae dos tarjetas: " + await pg.locator(".dq-card").count());
   ok((await titulos())[0] === "20/09/2026 08:00 → 20/09/2026 14:00" && (await titulos())[1] === "19/09/2026 08:00 → 19/09/2026 14:00", "el más reciente va primero: " + (await titulos()).slice(0, 2).join(" | "));
   const minis = await pg.$$eval(".dq-fila >> nth=0 >> .dq-mini", (x) => x.map((e) => e.textContent + ":" + e.className)).catch(() => null);
   const m0 = await pg.locator(".dq-fila").first().locator(".dq-mini").evaluateAll((x) => x.map((e) => e.textContent + ":" + e.className.replace("dq-mini ", "")));
@@ -210,6 +211,7 @@ await monta("c=todo");
 await monta("c=todo");
 {
   ok((await chips())[0] === "INCOMPLETO", "el día 20 arranca incompleto (su conteo no pasó por el destino)");
+  await filas().nth(0).click();
   await pg.selectOption(".dq select", "k16");
   ok((await chips())[0] === "CUADRA" && /^20 pares · 8 cuadran · 6 no cuadran · 6 incompletos$/.test(await resumen()), "con el conteo del 16 el par 20 cuadra y el resumen se actualiza: " + (await chips())[0] + " · " + await resumen());
   ok(await pg.locator(".dq-aviso").count() === 1, "y avisa que ese conteo es de otro día");
@@ -237,6 +239,7 @@ await monta("c=sinenv");
   await pg.locator(".pr-corte").first().locator("summary").click();
   const mods = (await pg.locator(".pr-corte").first().locator(".pr-m").allTextContents()).join(" | ");
   ok(/3500887 · Botella Flint 1000R \(del maestro\)/.test(mods) && /3128 · Águila RN 330cc X30/.test(mods) && /Sin envase anotado/.test(mods), "el proceso muestra el envase del maestro (L1) y avisa «Sin envase anotado» (L2): " + mods);
+  await filas().nth(0).click();
   const dif = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");
   ok(/3500887 · Botella Flint 1000R \(del maestro\)/.test(dif), "la diferencia también: " + dif.slice(0, 200));
 }
@@ -245,12 +248,15 @@ await monta("c=sinenv");
 await monta("c=uno");
 {
   ok(await pg.locator(".dq-filtros, .dq-resumen").count() === 0, "con un solo par no hacen falta filtros ni resumen");
+  ok(await pg.locator(".dq-fila").count() === 1 && await pg.locator(".dq-card").count() === 0, "y el par llega cerrado, también cuando es uno solo");
+  await filas().nth(0).click();
   const tdif = (await pg.locator(".dq-card").first().textContent()).replace(/\s+/g, " ");
   ok(/3500887 · Botella Flint 1000R/.test(tdif) && /3128 · Águila RN 330cc X30/.test(tdif), "la diferencia también trae el código del envase y del producto: " + tdif.slice(0, 300));
-  ok(await pg.locator(".dq-fila").count() === 1 && await pg.locator(".dq-card").count() === 2, "y el par llega abierto");
 }
 await monta("c=manda");
 {
+  ok(await pg.locator('.dq-cuerpo button:has-text("Eliminar el par")').count() === 0, "cerrado, «Eliminar el par» no estorba");
+  await filas().nth(0).click();
   ok(await pg.locator('.dq-cuerpo button:has-text("Eliminar el par")').count() === 1, "«Eliminar el par» está dentro del par abierto y solo de ese");
   await pg.click('.dq-cuerpo button:has-text("Eliminar el par")');
   ok(/¿Eliminar el inicial y el final\?/.test(await txt()), "pide confirmar");
@@ -327,4 +333,4 @@ for (const w of [360, 390, 820, 1440]) {
 ok(roto.length === 0, "errores de la página: " + roto.slice(0, 3).join(" | "));
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ Historial de la diferencia: una fila por par con su estado, el más reciente abierto, filtros por fecha, línea y estado, resumen, «Ver más», el conteo de cada par se cambia solo y nada se sale en 4 anchos.");
+console.log("✓ Historial de la diferencia: una fila por par con su estado, todos cerrados al entrar, filtros por fecha, línea y estado, resumen, «Ver más», el conteo de cada par se cambia solo y nada se sale en 4 anchos.");

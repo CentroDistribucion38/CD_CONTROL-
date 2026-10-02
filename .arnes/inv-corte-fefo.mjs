@@ -156,7 +156,7 @@ await pg.click('button:has-text("Nuevo corte inicial")');
 ok(await pg.locator("fieldset.cl-sitio").count() === 1 && /Tomando de/.test(await pg.locator("fieldset.cl-sitio").textContent()), "pide de dónde toma y NO dónde ubica (un solo bloque: «Tomando de»)");
 ok(!/Ubicados en/.test(await txt()), "no aparece «Ubicados en»");
 ok(await pg.locator(".cl-prodepa .cl-depa input").count() === 1 && await pg.locator(".cl-prodepa .cl-mat").count() === 1 && await pg.locator(".cl-mat").count() === 2 && /Producto/.test(await pg.locator(".cl-mat-t").first().textContent()) && /Envase/.test(await pg.locator(".cl-mat-t").nth(1).textContent()), "arriba PRODUCTO → cajas de la depa en una fila; debajo el ENVASE que se toma");
-ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas cajas\?/.test(await pg.locator("fieldset.cl-sitio .cl-cant-c").textContent()) && await pg.locator("fieldset.cl-sitio .cl-mat").count() === 0, "solo cajas, y el envase no se pide dos veces");
+ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas estibas\?/.test(await pg.locator("fieldset.cl-sitio .cl-cant-c").textContent()) && await pg.locator("fieldset.cl-sitio .cl-mat").count() === 0, "el envase va en estibas, y no se pide dos veces");
 if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-form.png", fullPage: true });
 { /* COMPACTO Y ALINEADO: envase y depa arrancan a la misma altura, sus campos miden lo mismo, y calle/módulo/lado/cajas van en una sola fila. */
   const r = await pg.evaluate(() => { const b = (q) => document.querySelector(q).getBoundingClientRect();

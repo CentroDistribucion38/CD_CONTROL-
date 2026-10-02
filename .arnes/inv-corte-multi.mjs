@@ -102,6 +102,7 @@ const monta = async (query, ancho = 1440, tema = "") => {
   await pg.goto(`http://arnes.local/?${query}`);
   try { await pg.waitForSelector("#r > *", { timeout: 8000 }) }
   catch { throw new Error(`«${query}» no pintó nada. Errores: ${roto.slice(-3).join(" | ") || "ninguno"}`) }
+  for (const b of await pg.locator('.dq-fila[aria-expanded="false"]').all()) await b.click();   // la diferencia llega cerrada
 };
 const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
 const rpcs = () => pg.evaluate(() => window.__rpc);
@@ -168,7 +169,7 @@ await monta("c=todo");
   ok(await orig.locator(".cl-mod").count() === 2, "«Agregar» no agregó un módulo");
   ok(await orig.locator('button:has-text("Quitar este módulo")').count() === 2, "con dos módulos cada uno debe poder quitarse");
   ok(/Módulo 1/.test(await orig.locator(".cl-mod-cab").nth(0).textContent()) && /Módulo 2/.test(await orig.locator(".cl-mod-cab").nth(1).textContent()), "los módulos no se numeran");
-  ok(await mod(0, 1).locator(".cl-unidad").count() === 0 && /¿Cuántas cajas\?/.test(await mod(0, 1).locator(".cl-cant-c").textContent()), "el módulo nuevo pide cajas y no ofrece estibas");
+  ok(await mod(0, 1).locator(".cl-unidad").count() === 0 && /¿Cuántas estibas\?/.test(await mod(0, 1).locator(".cl-cant-c").textContent()), "el módulo nuevo pide estibas sin selector de unidad");
   ok(await mod(0, 1).locator("select").nth(0).inputValue() === "", "el módulo nuevo debía venir vacío");
   /* El mismo módulo dos veces: lo dice y no llama a la base. */
   await eligeMod(0, 1, "A", "02");
@@ -179,7 +180,9 @@ await monta("c=todo");
   /* Se cambia por otro, y el total suma los dos. */
   await eligeMod(0, 1, "A", "01", "DER");
   await mod(0, 1).locator(".cl-cant-c input").fill("5");
-  ok(/Total de los 2 módulos: 15 cajas/.test(await orig.locator(".cl-total").textContent()), "el total de los dos módulos: " + await orig.locator(".cl-total").textContent().catch(() => "sin total"));
+  await orig.locator(".cl-busca input").fill("flint");
+  await orig.locator(".cl-busca li button").click();
+  ok(/Total de los 2 módulos: 900 cajas/.test(await orig.locator(".cl-total").textContent()), "el total de los dos módulos (15 estibas × 60): " + await orig.locator(".cl-total").textContent().catch(() => "sin total"));
   /* Un tercero en blanco se ignora al guardar. */
   await orig.locator('button:has-text("+ Agregar otro módulo")').click();
   ok(await orig.locator(".cl-mod").count() === 3, "el tercer módulo");
@@ -188,7 +191,7 @@ await monta("c=todo");
   await pg.waitForFunction(() => window.__refresh > 0);
   const r = (await rpcs())[0].a.p_renglones[0];
   ok(Array.isArray(r.origenes) && r.origenes.length === 2, "viajaron " + (r.origenes || []).length + " módulos de origen (el tercero, en blanco, no debía viajar)");
-  ok(r.origenes[0].ubicacion_id === "uA02D" && r.origenes[0].cant === 10 && r.origenes[1].ubicacion_id === "uA01D" && r.origenes[1].cant === 5 && r.origenes[1].unidad === "cajas", "los módulos no viajaron como se anotaron y en orden: " + JSON.stringify(r.origenes));
+  ok(r.origenes[0].ubicacion_id === "uA02D" && r.origenes[0].cant === 10 && r.origenes[1].ubicacion_id === "uA01D" && r.origenes[1].cant === 5 && r.origenes[1].unidad === "estibas", "los módulos no viajaron como se anotaron y en orden: " + JSON.stringify(r.origenes));
   ok(r.destinos.length === 1 && r.destinos[0].ubicacion_id === "uB12D" && r.destinos[0].cant === 5, "el destino: " + JSON.stringify(r.destinos));
   ok(!("origen" in r) && !("destino" in r), "no debía mandar la forma vieja de un solo módulo");
 }

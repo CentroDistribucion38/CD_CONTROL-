@@ -110,6 +110,7 @@ const monta = async (query, ancho = 1440, tema = "") => {
   await pg.goto(`http://arnes.local/?${query}`);
   try { await pg.waitForSelector("#r > *", { timeout: 8000 }) }
   catch { throw new Error(`«${query}» no pintó nada. Errores: ${roto.slice(-3).join(" | ") || "ninguno"}`) }
+  for (const b of await pg.locator('.dq-fila[aria-expanded="false"]').all()) await b.click();   // la diferencia llega cerrada
 };
 const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
 const rpcs = () => pg.evaluate(() => window.__rpc);

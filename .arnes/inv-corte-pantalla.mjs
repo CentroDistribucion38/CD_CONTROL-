@@ -94,6 +94,8 @@ const monta = async (query, ancho = 1440, tema = "") => {
   await pg.goto(`http://arnes.local/?${query}`);
   try { await pg.waitForSelector("#r > *", { timeout: 8000 }) }
   catch { throw new Error(`«${query}» no pintó nada. Errores: ${roto.slice(-3).join(" | ") || "ninguno"}`) }
+  /* «La diferencia» llega CERRADA (lo cubre inv-corte-historial); aquí se abre para leer lo de adentro. */
+  for (const b of await pg.locator('.dq-fila[aria-expanded="false"]').all()) await b.click();
 };
 const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
 const rpcs = () => pg.evaluate(() => window.__rpc);
@@ -222,9 +224,9 @@ await monta("c=todo");
   ok((await rpcs()).length === 0, "guardó con la línea a medias");
   await o1.locator("select").nth(2).selectOption("DER");
   await campo(0, ".cl-cant-c input").fill("40");
-  /* SOLO CAJAS: no hay botón de estibas, y lo escrito se lee como cajas aunque no haya envase. */
-  ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas cajas\?/.test(await campo(0, ".cl-cant-c").textContent()), "no debe haber selector de estibas: solo cajas");
-  ok(/^40 cajas/.test(await campo(0, ".cl-eco").textContent()), "40 cajas sin envase: " + await campo(0, ".cl-eco").textContent());
+  /* ENVASE EN ESTIBAS: sin selector de unidad; sin envase no se puede pasar a cajas. */
+  ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas estibas\?/.test(await campo(0, ".cl-cant-c").textContent()), "no debe haber selector de estibas: el envase va en estibas");
+  ok(/Escoge el envase para pasar las estibas a cajas/.test(await campo(0, ".cl-eco").textContent()), "40 estibas sin envase piden escoger el envase: " + await campo(0, ".cl-eco").textContent());
   ok(/Envase/.test(await campo(0, ".cl-mat-t").textContent()) && /Material/.test(await campo(1, ".cl-mat-t").textContent()), "«Tomando de» debe pedir ENVASE y «Ubicados en» el material (producto)");
   await eligeUbi(1, "B", "12", "IZQ");
   await campo(1, ".cl-cant-c input").fill("900");
@@ -240,7 +242,7 @@ await monta("c=todo");
   ok((await campo(0, ".cl-busca li").count()) === 1, "no encontró el envase «flint»");
   await campo(0, ".cl-busca li button").click();
   ok(/Botella Flint 1000R/.test(await campo(0, ".cl-mae").textContent()) && /3500887 · 12 por caja · 60 cajas por estiba/.test(await campo(0, ".cl-mae").textContent()), "la tarjeta del envase: " + await campo(0, ".cl-mae").textContent());
-  ok(/40 cajas · 480 unidades/.test(await campo(0, ".cl-eco").textContent()), "40 cajas de envase (12 por caja): " + await campo(0, ".cl-eco").textContent());
+  ok(/2\.400 cajas · 28\.800 unidades/.test(await campo(0, ".cl-eco").textContent()), "40 estibas de envase (60 por estiba, 12 por caja): " + await campo(0, ".cl-eco").textContent());
   /* El producto, con el factor del PRODUCTO (900 cajas × 30 unidades). */
   ok(/Escoge el material/.test(await campo(1, ".cl-eco").textContent()) === false, "900 cajas no necesitan material");
   await campo(1, ".cl-busca input").fill("330");
@@ -292,9 +294,9 @@ await monta("c=todo");
   ok(JSON.stringify(r[0].a) === JSON.stringify({
     p_bodega: "bod1", p_tipo: "inicial", p_inicial: null, p_cortado: "2026-09-30T17:30:00.000Z", p_nota: null,
     p_renglones: [{ linea: "L1", cajas_depa: 18801, material_id: "m3", envase_id: "m1",
-      origenes: [{ ubicacion_id: "uA01D", cant: 40, unidad: "cajas" }], destinos: [{ ubicacion_id: "uB12I", cant: 900, unidad: "cajas" }] },
+      origenes: [{ ubicacion_id: "uA01D", cant: 40, unidad: "estibas" }], destinos: [{ ubicacion_id: "uB12I", cant: 900, unidad: "cajas" }] },
       { linea: "L2", cajas_depa: 5000, material_id: null, envase_id: null,
-        origenes: [{ ubicacion_id: "uA02D", cant: 100, unidad: "cajas" }], destinos: [{ ubicacion_id: "uB12D", cant: 0, unidad: "cajas" }] }] }),
+        origenes: [{ ubicacion_id: "uA02D", cant: 100, unidad: "estibas" }], destinos: [{ ubicacion_id: "uB12D", cant: 0, unidad: "cajas" }] }] }),
      "los parámetros son " + JSON.stringify(r[0].a));
   ok(/Corte inicial guardado/.test(await txt()) && /cuando vuelvas/.test(await txt()) && await pg.$$eval(".cl-ficha", (x) => x.length) === 0, "no volvió a la lista con su aviso");
 }
@@ -306,7 +308,7 @@ await monta("c=todo");
   await campo(0, '.cl-busca button:has-text("Sin envase")').click();
   ok(!!(await campo(0, ".cl-busca").count()) && !(await campo(0, ".cl-mae").count()), "«Sin envase» no dejó el buscador");
   await campo(0, ".cl-cant-c input").fill("30");
-  ok(/^30 cajas/.test(await campo(0, ".cl-eco").textContent()), "sin envase se lee como cajas: " + await campo(0, ".cl-eco").textContent());
+  ok(/Escoge el envase para pasar las estibas a cajas/.test(await campo(0, ".cl-eco").textContent()), "sin envase no se pueden pasar las estibas a cajas: " + await campo(0, ".cl-eco").textContent());
 }
 
 /* ---------- 4 · EL CORTE FINAL ARRANCA CON LO DEL INICIAL ---------- */
@@ -320,7 +322,7 @@ await monta("c=todo");
   ok(await o1.locator("select").nth(0).inputValue() === "A" && await o1.locator("select").nth(1).inputValue() === "01" && await o1.locator("select").nth(2).inputValue() === "DER", "el origen de L1 no viene del inicial");
   ok(/Botella Flint 1000R/.test(await campo(0, ".cl-mae").textContent()) && /Águila RN 330cc X30/.test(await campo(1, ".cl-mae").textContent()), "el envase y el producto no vienen del inicial");
   ok(await pg.inputValue(".cl-depa input") === "" && await campo(0, ".cl-cant-c input").inputValue() === "", "las cantidades no arrancan vacías");
-  ok(await pg.locator(".cl-unidad").count() === 0, "el final tampoco ofrece estibas");
+  ok(await pg.locator(".cl-unidad").count() === 0, "el final tampoco ofrece selector de unidad");
   ok(await est("L1") === "ANOTANDO" && await est("L4") === "SIN TOCAR", "lo que viene del inicial sin tocar debe decir SIN TOCAR");
   /* L4 (con módulo sin lado): el lado va vacío y bloqueado, y aun así se resuelve. */
   await pg.click('.cl-lin:has(.cl-cod:text-is("L4"))');

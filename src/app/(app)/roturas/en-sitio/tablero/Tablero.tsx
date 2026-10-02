@@ -8,6 +8,8 @@ import { useConfirmar } from "@/components/Confirmar";
 import { usePedirTexto } from "@/components/PedirTexto";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { Evidencia } from "../../Evidencia";
+import { etiquetaRotura, HORARIO_TURNO, TURNOS, turnoYDia, type Etiqueta } from "@/modulos/roturas/cierre";
+import { Cierre } from "./Cierre";
 
 /**
  * EL TABLERO — todos los registros, con su estado.
@@ -43,30 +45,11 @@ const hm = (iso: string) =>
 const pelado = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-type Etiqueta = { txt: string; clase: string };
-
-/** EL ESTADO SE TRADUCE EN UN SOLO SITIO. Tres pantallas poniéndole
- *  nombre por su cuenta son tres sitios donde se puede llamar distinto
- *  a lo mismo. */
-function etiquetaDe(r: Rotura): Etiqueta {
-  if (r.estado === "anulada") return { txt: "ANULADA", clase: "tb-gris" };
-  switch (r.etapa) {
-    case "espera_ol":  return { txt: "ESPERA AL OL", clase: "tb-esp" };
-    case "desacuerdo": return { txt: "EN DESACUERDO", clase: "tb-mal" };
-    /* LA ENCONTRADA SE DICE: se fue a cobro de una, sin visto bueno, y
-       quien lea el tablero no debe buscar la respuesta de Easy que no hay. */
-    case "cobro":      return r.origen === "encontrada" && !r.ol_respuesta
-                         ? { txt: "A COBRO · ENCONTRADA", clase: "tb-ok" }
-                         : { txt: "A COBRO", clase: "tb-ok" };
-    case "no_cuenta":  return { txt: "NO SE COBRA", clase: "tb-gris" };
-    default:
-      /* SIN `etapa` —falta correr el SQL de la cadena nueva— se cae al
-         estado de siempre en vez de enseñar un hueco. */
-      return r.estado === "cuenta" ? { txt: "CUENTA", clase: "tb-ok" }
-        : r.estado === "no_cuenta" ? { txt: "NO CUENTA", clase: "tb-gris" }
-        : { txt: "ESPERANDO", clase: "tb-esp" };
-  }
-}
+/** EL ESTADO SE TRADUCE EN UN SOLO SITIO —`etiquetaRotura`, en el módulo
+ *  del cierre—: el tablero, la ficha del cierre y el PDF lo llaman igual.
+ *  Tres pantallas poniéndole nombre por su cuenta son tres sitios donde
+ *  se puede llamar distinto a lo mismo. */
+const etiquetaDe = (r: Rotura): Etiqueta => etiquetaRotura(r);
 
 export function Tablero({ roturas, nombres, manda }: {
   roturas: Rotura[];
@@ -83,9 +66,19 @@ export function Tablero({ roturas, nombres, manda }: {
   const [filtro, setFiltro] = useState<"todas" | "espera_ol" | "desacuerdo" | "cobro" | "anulada">("todas");
   const [abierta, setAbierta] = useState<string | null>(null);
   const [mandando, setMandando] = useState(false);
+  /* EL DÍA Y EL TURNO. El turno no se guarda en la rotura: sale de la hora
+     en que se registró (ver `modulos/roturas/cierre.ts`), con el mismo
+     horario de Traspasos. Vacíos = sin filtrar. */
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  const [turnos, setTurnos] = useState<string[]>([]);
+  const [cierre, setCierre] = useState(false);
 
   const q = pelado(busca.trim());
-  const vistas = useMemo(() => {
+  /* LO QUE PASÓ POR EL ESTADO Y LA BÚSQUEDA, sin día ni turno. Es lo que
+     recibe el cierre: él aplica el día y el turno por su cuenta porque,
+     con el rango puesto, tiene que enseñar también los turnos en cero. */
+  const porEstado = useMemo(() => {
     const base = filtro === "todas" ? roturas
       : filtro === "anulada" ? roturas.filter((r) => r.estado === "anulada")
       : roturas.filter((r) => r.estado !== "anulada" && r.etapa === filtro);
@@ -94,6 +87,26 @@ export function Tablero({ roturas, nombres, manda }: {
       `${r.codigo} ${r.material_nombre} ${r.causa_nombre} ${r.proceso_nombre} ${r.area_nombre ?? ""} ${nombres[r.reportada_por ?? ""] ?? ""}`
     ).includes(q));
   }, [roturas, filtro, q, nombres]);
+
+  const vistas = useMemo(() => {
+    if (!desde && !hasta && turnos.length === 0) return porEstado;
+    return porEstado.filter((r) => {
+      const { turno, dia } = turnoYDia(r.reportada_en);
+      return (!turnos.length || turnos.includes(turno))
+        && (!desde || dia >= desde) && (!hasta || dia <= hasta);
+    });
+  }, [porEstado, desde, hasta, turnos]);
+
+  const hayDiaTurno = Boolean(desde || hasta || turnos.length);
+  const alTurno = (t: string) =>
+    setTurnos((p) => (p.includes(t) ? p.filter((x) => x !== t) : TURNOS.filter((x) => x === t || p.includes(x))));
+  /* LOS FILTROS EN PALABRAS: van en la ficha y en el pie de cada hoja del
+     PDF. Un cierre filtrado que no lo diga se lee como el día entero. */
+  const filtrosTxt = [
+    filtro !== "todas" && `Estado: ${({ espera_ol: "esperan al OL", desacuerdo: "en desacuerdo", cobro: "a cobro", anulada: "anuladas" } as Record<string, string>)[filtro]}`,
+    busca.trim() && `Búsqueda «${busca.trim()}»`,
+    turnos.length > 0 && turnos.length < 3 && `Turno${turnos.length > 1 ? "s" : ""} ${turnos.join(" y ")}`,
+  ].filter(Boolean).join(" · ");
 
   const cuenta = (f: typeof filtro) =>
     f === "todas" ? roturas.length
@@ -206,6 +219,42 @@ export function Tablero({ roturas, nombres, manda }: {
                aria-label="Buscar una rotura" />
       </div>
 
+      {/* EL DÍA, EL TURNO Y EL CIERRE. Van aparte de los estados porque
+          contestan otra pregunta: los chips dicen «en qué quedó»; esto
+          dice «cuándo se registró». El botón abre la ficha con EXACTAMENTE
+          lo que está filtrado aquí. */}
+      <div className="filtros tb-cuando-fila" role="group" aria-label="Día y turno">
+        <label className="tb-fecha"><span>Desde</span>
+          <input type="date" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} />
+        </label>
+        <label className="tb-fecha"><span>Hasta</span>
+          <input type="date" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} />
+        </label>
+        <div className="tb-turnos" role="group" aria-label="Turno">
+          {TURNOS.map((t) => (
+            <button key={t} type="button" aria-pressed={turnos.includes(t)}
+                    className={"btn tb-turno" + (turnos.includes(t) ? " si" : "")}
+                    title={`Turno ${t} · ${HORARIO_TURNO[t]}`} onClick={() => alTurno(t)}>
+              <b>{t}</b> <small>{HORARIO_TURNO[t]}</small>
+            </button>
+          ))}
+        </div>
+        {hayDiaTurno && (
+          <button type="button" className="btn plano" onClick={() => { setDesde(""); setHasta(""); setTurnos([]) }}>
+            Quitar día y turno
+          </button>
+        )}
+        <button type="button" className="btn si tb-cierre" onClick={() => setCierre(true)}>
+          <svg viewBox="0 0 24 24" aria-hidden><path d="M7 3h8l4 4v14H7z" /><path d="M14 3v5h5M10 13h6M10 17h6" /></svg>
+          Cierre de turno
+        </button>
+      </div>
+
+      {cierre && (
+        <Cierre roturas={porEstado} nombres={nombres} desde={desde} hasta={hasta} turnos={turnos}
+                filtros={filtrosTxt} cerrar={() => setCierre(false)} />
+      )}
+
       {sinOrigen > 0 && (
         <div className="aviso">
           <b>{sinOrigen} sin origen.</b> No dicen si las reportó un OPM o si alguien se las
@@ -286,6 +335,7 @@ export function Tablero({ roturas, nombres, manda }: {
                     </td>
                     <td className="tb-cuando">
                       {dma(r.reportada_en)} <span>{hm(r.reportada_en)}</span>
+                      <i className="tb-t" title={`Turno ${turnoYDia(r.reportada_en).turno}`}>{turnoYDia(r.reportada_en).turno}</i>
                     </td>
                     <td>{r.material_nombre}</td>
                     <td className="tb-num">{r.unidades}</td>

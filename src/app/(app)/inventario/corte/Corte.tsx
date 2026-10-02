@@ -76,7 +76,8 @@ type SitioF = { calle: string; modulo: string; lado: string; cant: string; unida
    PRODUCTO que sale (queda ubicado en el destino). */
 type LineaF = { cajas: string; material: string; envase: string; origen: SitioF[]; destino: SitioF[] };
 const sitioVacio = (unidad: Unidad = "cajas"): SitioF => ({ calle: "", modulo: "", lado: "", cant: "", unidad });
-const lineaVacia = (): LineaF => ({ cajas: "", material: "", envase: "", origen: [sitioVacio()], destino: [sitioVacio()] });
+/* El envase se toma por ESTIBAS (así se cuenta un módulo); lo ubicado va en cajas. */
+const lineaVacia = (): LineaF => ({ cajas: "", material: "", envase: "", origen: [sitioVacio("estibas")], destino: [sitioVacio()] });
 /* UNA LÍNEA ESTÁ «TOCADA» si alguien escribió algo en ella: cajas o
    cantidades, o si cambió el módulo o el material respecto de cómo
    arrancó. En el final los módulos vienen puestos del inicial: una línea
@@ -440,9 +441,9 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
 
   /* EL FINAL ARRANCA CON LO DEL INICIAL: los mismos módulos, la misma
      unidad y el mismo material. Solo faltan las cantidades. */
-  const desdeSitio = (s: Sitio): SitioF => {
+  const desdeSitio = (s: Sitio, unidad: Unidad = "cajas"): SitioF => {
     const u = ubi.get(s.ubicacion_id);
-    return u ? { calle: u.calle, modulo: u.modulo, lado: u.lado ?? "", cant: "", unidad: "cajas" } : sitioVacio();
+    return u ? { calle: u.calle, modulo: u.modulo, lado: u.lado ?? "", cant: "", unidad } : sitioVacio(unidad);
   };
   const [base] = useState<Record<string, LineaF>>(() => armarBase());
   const [filas, setFilas] = useState<Record<string, LineaF>>(base);
@@ -453,8 +454,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       o[l.clave] = r
         ? { cajas: "", material: (() => { const m = materiales.find((x) => x.id === r.material_id); return m ? etiqueta(m) : "" })(),
             envase: (() => { const m = materiales.find((x) => x.id === r.envase_id); return m ? etiqueta(m) : "" })(),
-            origen: r.origenes.length ? r.origenes.map(desdeSitio) : [sitioVacio()],
-            destino: r.destinos.length ? r.destinos.map(desdeSitio) : [sitioVacio()] }
+            origen: r.origenes.length ? r.origenes.map((x) => desdeSitio(x, "estibas")) : [sitioVacio("estibas")],
+            destino: r.destinos.length ? r.destinos.map((x) => desdeSitio(x)) : [sitioVacio()] }
         : lineaVacia();
     }
     return o;
@@ -609,7 +610,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     const cambiaSitio = (i: number, p: Partial<SitioF>) =>
       cambia(clave, (l) => ({ ...l, [k]: l[k].map((x, j) => (j === i ? { ...x, ...p } : x)) }));
     const agregar = () =>
-      cambia(clave, (l) => ({ ...l, [k]: [...l[k], sitioVacio(l[k][l[k].length - 1]?.unidad)] }));
+      cambia(clave, (l) => ({ ...l, [k]: [...l[k], sitioVacio(k === "origen" ? "estibas" : l[k][l[k].length - 1]?.unidad)] }));
     const quitar = (i: number) => cambia(clave, (l) => ({ ...l, [k]: l[k].filter((_, j) => j !== i) }));
     /* El total de todos los módulos, solo si TODOS se pueden pasar a cajas. */
     const llenos = lista.filter((x) => num(x.cant) !== null);

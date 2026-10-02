@@ -98,7 +98,6 @@ export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, li
   const cuenta = (e: Estado) => visibles.filter((f) => estadoDe(f) === e).length;
   const hayFiltros = Boolean(desde || hasta || linea || estado);
   const quitar = () => { setDesde(""); setHasta(""); setLinea(""); setEstado(""); setMostrar(POR_PAGINA) };
-  const primero = pares[0]?.ini.id;
   const lineasDelHistorial = lineas.filter((l) => pares.some((p) => p.a.filas.some((f) => f.linea === l.clave)));
   const f1 = (fn: () => void) => () => { fn(); setMostrar(POR_PAGINA) };
 
@@ -138,7 +137,7 @@ export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, li
         <div className="fe-lista">
           {visibles.slice(0, mostrar).map((f) => {
             const { p } = f;
-            const abierto = tocados[p.ini.id] ?? p.ini.id === primero;
+            const abierto = tocados[p.ini.id] ?? false; /* CERRADO al entrar: se abre solo el que se toca */
             const est = estadoDe(f);
             const pastillas = f.tablas.filter((t) => !linea || t.linea === linea);
             return (

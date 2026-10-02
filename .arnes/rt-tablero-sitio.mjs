@@ -116,6 +116,7 @@ const js = buildSync({
   format: "iife", jsx: "automatic",
   alias: { "next/navigation": R(".arnes/_nav-rt.ts"),
            "@/lib/supabase/client": R(".arnes/_supa-rt.ts"), "@": R("src") },
+  loader: { ".css": "empty" },
   define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
 }).outputFiles[0].text;
 
