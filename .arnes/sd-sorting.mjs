@@ -891,7 +891,7 @@ await monta("m=sorting&c=normal");
   /* NADA ESCRITO: el botón apagado y lo que falta dicho por su nombre. */
   ok(await crear.isDisabled(), "el botón de crear está encendido con el formulario vacío");
   let t = await pg.$eval(".vj-caja.nuevo", (e) => e.textContent.replace(/\s+/g, " "));
-  ok(/Falta si es de un socio o de T1, la placa \(3 letras y 3 números\), el CD de origen, el material, las estibas\./.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
+  ok(/Falta si es de un socio o de T1, la placa \(3 letras y 3 números\), el CD de origen, el material, las unidades\./.test(t), `lo que falta no se dice por su nombre: «${t.slice(-160)}»`);
   ok(await pg.inputValue(".nv-campos select >> nth=1") === "Barranquilla", "el destino no arranca en Barranquilla");
   const destinos = await pg.$$eval(".nv-campos select >> nth=1 >> option", (o) => o.map((x) => x.textContent));
   ok(JSON.stringify(destinos) === JSON.stringify(["Barranquilla", "Apartadó", "Medellín"]),
@@ -923,25 +923,25 @@ await monta("m=sorting&c=normal");
   /* UN MATERIAL SIN FACTORES: las cifras dicen «—», no un cero que parezca un dato. */
   await pg.fill(".nv-material input", "azul");
   await pg.click(".nv-lista button");
-  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "9");
+  await pg.fill(".nv-campos label:has(span:text('Unidades')) input", "9");
   const cif = async () => pg.$$eval(".nv-cifras div", (s) => Object.fromEntries(s.map((d) => [d.querySelector("dt").textContent, d.querySelector("dd").textContent])));
   let c = await cif();
   ok(c.Cajas === "—" && c.Unidades === "—" && c.HL === "—", `material sin factores: ${JSON.stringify(c)}`);
-  ok(c.Sider === "0,25", `9 estibas / 36 = 0,25 y dice «${c.Sider}»`);
+  ok(c.Sider === "—", `sin factores no se sabe a cuántas estibas equivalen: Sider debe ser «—» y dice «${c.Sider}»`);
   await pg.click('.nv-escogido button:has-text("Cambiar")');
 
   /* EL MATERIAL DE VERDAD: las cifras se calculan solas con las fórmulas de Certificar. */
   await pg.fill(".nv-material input", "175");
   await pg.click(".nv-lista button");
   ok(/Botella Costeña 175 cc/.test(await pg.$eval(".nv-escogido", (e) => e.textContent)), "no muestra el material escogido");
-  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
+  await pg.fill(".nv-campos label:has(span:text('Unidades')) input", "18144");
   c = await cif();
   const f0 = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(72 * 10.5));
   const fu = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(24 * 72 * 10.5));
   const fh = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(0.00175 * 24 * 72 * 10.5));
   const fs = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(10.5 / 36));
   ok(c.Cajas === f0 && c.Unidades === fu && c.HL === fh && c.Sider === fs,
-     `10,5 estibas de la 175: salió ${JSON.stringify(c)} y debía ser Sider ${fs}, cajas ${f0}, unidades ${fu}, HL ${fh}`);
+     `18.144 unidades (10,5 estibas) de la 175: salió ${JSON.stringify(c)} y debía ser Sider ${fs}, cajas ${f0}, unidades ${fu}, HL ${fh}`);
   /* EL DOCUMENTO ES OBLIGATORIO: con todo lo demás lleno, sin él el botón sigue apagado y lo dice. */
   ok(await crear.isDisabled(), "con todo lleno pero SIN documento el botón se enciende (el documento es obligatorio)");
   ok(/Falta el documento \(número de factura\)/.test(await pg.$eval(".vj-caja.nuevo", (e) => e.textContent)),
@@ -970,10 +970,10 @@ await monta("m=sorting&c=normal");
 
   /* ESTIBAS MALAS APAGAN EL BOTÓN. */
   for (const malo of ["0", "-3", "abc", ""]) {
-    await pg.fill(".nv-campos label:has(span:text('Estibas')) input", malo);
+    await pg.fill(".nv-campos label:has(span:text('Unidades')) input", malo);
     ok(await crear.isDisabled(), `con «${malo}» estibas deja crear`);
   }
-  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
+  await pg.fill(".nv-campos label:has(span:text('Unidades')) input", "18144");
 
   /* CREAR: EXACTAMENTE LOS PARÁMETROS QUE LA FUNCIÓN ESPERA. */
   /* EL DOCUMENTO: SOLO NÚMEROS, MÁXIMO 10. */
@@ -1119,7 +1119,7 @@ await monta("m=sorting&c=normal");
     await pg.fill(".nv-placa input", "abc123");
     await pg.selectOption(origen, "APA");
     await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
-    await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10");
+    await pg.fill(".nv-campos label:has(span:text('Unidades')) input", "17280");
   };
   await monta("m=sorting&c=normal");
   await pg.click(".tr-mas"); await pg.waitForSelector("#nv-titulo");
@@ -1175,7 +1175,7 @@ await monta("m=sorting&c=normal");
   await pg.selectOption(".nv-socio select", "logi");
   await pg.click(".nv-mas-mat");
   await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "ámbar"); await pg.click(".nv-linea >> nth=1 >> .nv-lista button");
-  await pg.fill(".nv-linea >> nth=1 >> label:has(span:text('Estibas')) input", "4");
+  await pg.fill(".nv-linea >> nth=1 >> label:has(span:text('Unidades')) input", "5760");
   await crear.click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   l = (await rpcs())[0];
@@ -1193,12 +1193,12 @@ await monta("m=sorting&c=normal");
   await pg.fill(".nv-placa input", "abc123"); await pg.selectOption(".nv-campos select >> nth=0", "APA");
   await t1(); await pg.fill(".nv-doc input", "555");
   await pg.fill(".nv-linea >> nth=0 >> .nv-material input", "175"); await pg.click(".nv-linea >> nth=0 >> .nv-lista button");
-  await pg.fill(".nv-linea >> nth=0 >> label:has(span:text('Estibas')) input", "10");
+  await pg.fill(".nv-linea >> nth=0 >> label:has(span:text('Unidades')) input", "17280");
   await pg.click(".nv-mas-mat");
   ok(await pg.$$eval(".nv-linea", (x) => x.length) === 2, "el «+» no agregó otra línea");
   ok(/Material 1 de 2/.test(await txt()) && /Material 2 de 2/.test(await txt()), "no numera las líneas");
   ok(await crear.isDisabled(), "con la segunda línea vacía el botón está encendido");
-  ok(/material 2/.test(await pg.$eval(".vj-falta", (e) => e.textContent)) && /estibas del material 2/.test(await pg.$eval(".vj-falta", (e) => e.textContent)),
+  ok(/material 2/.test(await pg.$eval(".vj-falta", (e) => e.textContent)) && /unidades del material 2/.test(await pg.$eval(".vj-falta", (e) => e.textContent)),
      "no dice que falta el material 2 y sus estibas");
   /* el material ya escogido no se ofrece otra vez en la segunda línea */
   await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "3500");
@@ -1206,7 +1206,7 @@ await monta("m=sorting&c=normal");
   ok(of.length === 2 && !of.some((t) => /Costeña 175/.test(t)), `la segunda línea vuelve a ofrecer el material de la primera: ${JSON.stringify(of)}`);
   await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "ámbar");
   await pg.click(".nv-linea >> nth=1 >> .nv-lista button");
-  await pg.fill(".nv-linea >> nth=1 >> label:has(span:text('Estibas')) input", "4");
+  await pg.fill(".nv-linea >> nth=1 >> label:has(span:text('Unidades')) input", "5760");
   ok(!(await crear.isDisabled()), "con las dos líneas llenas el botón sigue apagado");
   const tot = await pg.$$eval(".nv-cifras div", (x) => Object.fromEntries(x.map((d) => [d.querySelector("dt").textContent, d.querySelector("dd").textContent])));
   const fs = await pg.evaluate(() => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(14 / 36));
@@ -1220,8 +1220,11 @@ await monta("m=sorting&c=normal");
   ok(await pg.$eval(".nv-linea >> nth=1", (e) => e.classList.contains("pend")), "la línea sin factores no queda marcada");
   const par = await pg.$$eval(".nv-cifras div", (x) => Object.fromEntries(x.map((d) => [d.querySelector("dt").textContent, d.textContent])));
   ok(/falta mat\. 2/.test(par.Cajas) && /falta mat\. 2/.test(par.Unidades), `el total parcial no avisa qué material falta: ${JSON.stringify(par)}`);
-  ok(!/falta mat/.test(par.Sider), "los siders sí se suman de los dos y no debían avisar");
-  ok(!(await crear.isDisabled()), "un material sin factores no debe impedir crear el camión");
+  /* La cantidad se escribe en unidades: sin factores no hay cómo pasar a estibas, así que ese material
+     tampoco aporta siders, y no se puede crear hasta completarlo en el Maestro (y la falta se dice por su nombre). */
+  ok(/falta mat\. 2/.test(par.Sider), "sin factores no hay estibas: el total de siders debe avisar que falta el material 2");
+  ok(await crear.isDisabled(), "un material sin factores no se puede pasar a estibas: no debe dejar crear el camión");
+  ok(/factor de estiba del material 2 en el Maestro/.test(await pg.$eval(".vj-falta", (e) => e.textContent)), "no dice qué factor falta del material 2");
   await pg.click(".nv-linea >> nth=1 >> button:has-text('Cambiar')");
   await pg.fill(".nv-linea >> nth=1 >> .nv-material input", "ámbar"); await pg.click(".nv-linea >> nth=1 >> .nv-lista button");
   await crear.click();
@@ -1237,7 +1240,7 @@ await monta("m=sorting&c=normal");
   await pg.click(".tr-mas"); await pg.waitForSelector("#nv-titulo");
   await pg.fill(".nv-placa input", "abc123"); await pg.selectOption(".nv-campos select >> nth=0", "APA"); await t1(); await pg.fill(".nv-doc input", "555");
   await pg.fill(".nv-linea >> nth=0 >> .nv-material input", "175"); await pg.click(".nv-linea >> nth=0 >> .nv-lista button");
-  await pg.fill(".nv-linea >> nth=0 >> label:has(span:text('Estibas')) input", "10");
+  await pg.fill(".nv-linea >> nth=0 >> label:has(span:text('Unidades')) input", "17280");
   await pg.click(".nv-mas-mat"); await pg.click(".nv-mas-mat");
   ok(await pg.$$eval(".nv-linea", (x) => x.length) === 3, "no agregó la tercera línea");
   await pg.click('.nv-linea >> nth=2 >> button:has-text("Quitar")');
@@ -1254,7 +1257,7 @@ await monta("m=sorting&c=normal");
   await pg.fill(".nv-placa input", "ZZZ999");
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
   await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
-  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "5");
+  await pg.fill(".nv-campos label:has(span:text('Unidades')) input", "7200");
   await t1(); await pg.fill(".nv-doc input", "123");
   await pg.selectOption(".nv-campos select >> nth=1", "Medellín");
   await pg.evaluate(() => { window.__rpcFalla = "Ese material está apagado en el maestro" });
@@ -1434,7 +1437,7 @@ for (const ancho of [360, 390, 722, 820, 1440]) {
   await pg.fill(".nv-placa input", "ABC123");
   await pg.selectOption(".nv-campos select >> nth=0", "APA");
   await pg.fill(".nv-material input", "175"); await pg.click(".nv-lista button");
-  await pg.fill(".nv-campos label:has(span:text('Estibas')) input", "10,5");
+  await pg.fill(".nv-campos label:has(span:text('Unidades')) input", "18144");
   await t1(); await pg.fill(".nv-doc input", "1234567890");
   const caja = await pg.evaluate(() => {
     const W = document.documentElement.clientWidth;

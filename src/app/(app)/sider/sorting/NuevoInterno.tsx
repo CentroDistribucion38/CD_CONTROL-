@@ -33,7 +33,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import {
-  cajasCompletas, cambiarModo, estibasDe, factorFaltante, numero, unidadesDe, type ModoCantidad,
+  cajasCompletas, estibasDe, factorFaltante, numero, unidadesDe,
 } from "@/modulos/sider/interno-cantidad";
 
 export type SocioMaestro = { clave: string; nombre: string };
@@ -58,10 +58,10 @@ const DESTINO_POR_DEFECTO = "Barranquilla";
 
 /** Un camión lleva 2 o 3 referencias; la base acepta hasta 10. */
 const MAX_LINEAS = 10;
-/* LA CANTIDAD SE ESCRIBE EN ESTIBAS O EN UNIDADES, como la persona la contó: `cant` es lo escrito y `modo`
-   en qué. La base guarda estibas, así que las unidades se convierten con los factores del maestro. */
-type Linea = { k: number; sku: string; busca: string; cant: string; modo: ModoCantidad };
-const nuevaLinea = (k: number): Linea => ({ k, sku: "", busca: "", cant: "", modo: "estibas" });
+/* LA CANTIDAD SE ESCRIBE EN UNIDADES (así se cuenta). La base guarda ESTIBAS, así que adentro se convierte con
+   los factores del maestro y se tienen las dos: unidades escritas y estibas calculadas. */
+type Linea = { k: number; sku: string; busca: string; cant: string };
+const nuevaLinea = (k: number): Linea => ({ k, sku: "", busca: "", cant: "" });
 
 /** LA PLACA SON TRES LETRAS Y TRES NÚMEROS, y nada más. */
 const PLACA_OK = /^[A-Z]{3}[0-9]{3}$/;
@@ -139,7 +139,7 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
      también es «—» (sumar el resto daría un número que engaña). */
   const cifrasDe = (l: Linea) => {
     const mat = skus.find((k) => k.sku === l.sku);
-    const nEst = estibasDe(l.modo, l.cant, mat);
+    const nEst = estibasDe(l.cant, mat);
     if (!mat || !nEst || nEst <= 0) return null;
     const cajas = mat.cajas_x_estiba == null ? null : Number(mat.cajas_x_estiba) * nEst;
     const unidades = cajas == null || mat.unidades_x_caja == null
@@ -182,10 +182,10 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
     if (!l.sku) faltan.push(lineas.length > 1 ? `el material ${i + 1}` : "el material");
     const mat = skus.find((k) => k.sku === l.sku);
     const n = num(l.cant);
-    if (!n || n <= 0) faltan.push(l.modo === "unidades" ? `las unidades${ref}` : `las estibas${ref}`);
-    /* En unidades hace falta poder convertir: sin los factores del maestro no hay estibas que mandar. */
-    else if (l.modo === "unidades" && mat && estibasDe("unidades", l.cant, mat) == null)
-      faltan.push(`el ${factorFaltante(mat)} del material${lineas.length > 1 ? ` ${i + 1}` : ""} (para pasar unidades a estibas; o escribe estibas)`);
+    if (!n || n <= 0) faltan.push(`las unidades${ref}`);
+    /* Hace falta poder convertir: sin los factores del maestro no hay estibas que mandar. */
+    else if (mat && estibasDe(l.cant, mat) == null)
+      faltan.push(`el ${factorFaltante(mat)} del material${lineas.length > 1 ? ` ${i + 1}` : ""} en el Maestro (para pasar las unidades a estibas)`);
   });
   if (canal === "t1" && !factura) faltan.push("el documento (número de factura)");
   const puede = faltan.length === 0 && !mismo;
@@ -204,7 +204,7 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
           p_planta: planta,
           p_destino: destino,
           p_sku: lineas[0].sku,
-          p_estibas: estibasDe(lineas[0].modo, lineas[0].cant, skus.find((k) => k.sku === lineas[0].sku)),
+          p_estibas: estibasDe(lineas[0].cant, skus.find((k) => k.sku === lineas[0].sku)),
           /* UN SOCIO NO TIENE DOCUMENTO: la factura solo viaja en T1. */
           p_factura: canal === "t1" ? factura : null,
           p_canal: canal,
@@ -219,7 +219,7 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
           p_planta: planta,
           p_destino: destino,
           p_factura: canal === "t1" ? factura : null,
-          p_lineas: lineas.map((l) => ({ sku: l.sku, estibas: estibasDe(l.modo, l.cant, skus.find((k) => k.sku === l.sku)) })),
+          p_lineas: lineas.map((l) => ({ sku: l.sku, estibas: estibasDe(l.cant, skus.find((k) => k.sku === l.sku)) })),
           p_canal: canal,
           p_socio: canal === "socios" ? socio : null,
         });
@@ -362,34 +362,28 @@ export function NuevoInterno({ origenes, skus, socios = [], estibasPorSider = 36
                     </>
                   )}
                 </div>
-                {/* ESTIBAS O UNIDADES: la persona escoge cómo contó. Lo que escriba en unidades se pasa a
-                    estibas con los factores del maestro, y al cambiar de uno a otro el valor se convierte. */}
+                {/* LA CANTIDAD, EN UNIDADES. Abajo se ve a cuántas estibas equivale (es lo que guarda la base). */}
                 <div className="nv-cant">
-                  <div className="nv-modo" role="radiogroup" aria-label={`Cantidad del material ${i + 1} en`}>
-                    {(["estibas", "unidades"] as const).map((m) => {
-                      const sinFactor = m === "unidades" && !!mat && factorFaltante(mat) !== null;
-                      return (
-                        <button key={m} type="button" role="radio" aria-checked={l.modo === m}
-                                className={l.modo === m ? "on" : ""} disabled={sinFactor}
-                                title={sinFactor ? `Al material le falta el ${factorFaltante(mat)} en el Maestro` : undefined}
-                                onClick={() => cambia(l.k, { modo: m, cant: cambiarModo(l.modo, m, l.cant, mat) })}>
-                          {m === "estibas" ? "Estibas" : "Unidades"}
-                        </button>
-                      );
-                    })}
-                  </div>
                   <label className="nv-est">
-                    <span>{l.modo === "unidades" ? "Unidades" : "Estibas"}</span>
+                    <span>Unidades</span>
                     <input value={l.cant} inputMode="decimal" autoComplete="off" placeholder="0"
                            onChange={(e) => cambia(l.k, { cant: e.target.value })} />
                   </label>
                 </div>
-                {l.modo === "unidades" && mat && factorFaltante(mat) === null && estibasDe("unidades", l.cant, mat) != null && (
+                {mat && factorFaltante(mat) === null && estibasDe(l.cant, mat) != null && (
                   <p className="nv-conv" role="status">
-                    = <b>{nf3.format(estibasDe("unidades", l.cant, mat) as number)}</b> estibas
-                    {!cajasCompletas(unidadesDe("unidades", l.cant, mat), mat) && (
+                    = <b>{nf3.format(estibasDe(l.cant, mat) as number)}</b> estibas
+                    {!cajasCompletas(unidadesDe(l.cant), mat) && (
                       <span className="nv-aviso"> · no completa cajas enteras: revisa el número</span>
                     )}
+                  </p>
+                )}
+                {/* Sin los factores no hay cómo pasar las unidades a estibas: se dice cuál falta y dónde completarlo. */}
+                {mat && factorFaltante(mat) !== null && (
+                  <p className="nv-lin-cif no">
+                    <span>Sin {factorFaltante(mat)} en el maestro: no se pueden pasar las unidades a estibas</span>
+                    {" · "}
+                    <a href="/sider/maestro" target="_blank" rel="noopener">completar</a>
                   </p>
                 )}
                 {c && (c.sin ? (
