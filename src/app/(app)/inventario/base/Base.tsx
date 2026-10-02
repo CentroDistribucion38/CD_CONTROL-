@@ -287,6 +287,9 @@ export function Base({
   const [fRec, setFRec] = useState("");
   const [fCalle, setFCalle] = useState("");
   const [fModulo, setFModulo] = useState("");
+  /* QUIÉN CONTÓ: las personas que se escogieron, una a una (vacío = todas). Se guarda el nombre porque
+     una misma persona puede tener varios recorridos y se quiere ver todo lo suyo junto. */
+  const [fQuien, setFQuien] = useState<ReadonlySet<string>>(new Set());
   /* PRODUCTO O ENVASE: son los dos mundos de esta bodega y casi nunca se miran juntos. Va en botones
      y no en un desplegable porque es la primera pregunta sobre la base, y porque un desplegable cerrado
      no dice cuál está puesto. */
@@ -383,7 +386,8 @@ export function Base({
     () => [...new Set(crudas.filter((r) => fCalle === "" || r.calle === fCalle)
       .map((r) => r.ubicacion).filter(Boolean))].sort() as string[], [crudas, fCalle]);
 
-  const sinTipo = useMemo(() => {
+  /* Lo que pasa los demás filtros, SIN mirar quién: de ahí salen los números de cada persona. */
+  const sinQuien = useMemo(() => {
     const q = fTexto.trim().toLowerCase();
     return crudas.filter((r) => {
       if (q && !`${r.codigo} ${r.material} ${r.familia ?? ""} ${r.nota ?? ""}`.toLowerCase().includes(q)) return false;
@@ -393,6 +397,18 @@ export function Base({
       return true;
     });
   }, [crudas, fTexto, fRec, fCalle, fModulo]);
+  /* LAS PERSONAS: todas las que tienen un recorrido en esta pestaña, aunque todavía no tengan ni un
+     renglón guardado (sale «0»: así se ve que está abierto pero vacío, y no que «faltó»). */
+  const personas = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of recorridosDe) m.set(c.envio_nombre ?? c.responsable ?? "—", 0);
+    for (const r of sinQuien) if (!fTipo || r.tipo_material === fTipo) m.set(r.quien, (m.get(r.quien) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], "es"));
+  }, [recorridosDe, sinQuien, fTipo]);
+  const todasN = fTipo ? sinQuien.filter((r) => r.tipo_material === fTipo).length : sinQuien.length;
+  const sinTipo = useMemo(
+    () => (fQuien.size ? sinQuien.filter((r) => fQuien.has(r.quien)) : sinQuien), [sinQuien, fQuien]);
+  const alternaQuien = (n: string) => setFQuien((a) => { const x = new Set(a); if (x.has(n)) x.delete(n); else x.add(n); return x });
   /* CUÁNTOS HAY DE CADA UNO, en lo que queda después de los demás filtros: un botón «Envase» que lleva a
      una tabla vacía hace dudar de si se perdió algo; con la cifra al lado se ve que no hay nada que buscar. */
   const porTipo = {
@@ -420,13 +436,13 @@ export function Base({
     });
   }, [sinTipo, fTipo, orden, columnas]);
 
-  const firma = `${pestania}|${fTexto}|${fRec}|${fCalle}|${fModulo}|${fTipo}|${orden.k}${orden.asc}|${desde}|${hasta}|${[...quitados].join(",")}`;
+  const firma = `${pestania}|${fTexto}|${fRec}|${fCalle}|${fModulo}|${fTipo}|${[...fQuien].join(",")}|${orden.k}${orden.asc}|${desde}|${hasta}|${[...quitados].join(",")}`;
   useEffect(() => { setPag(0) }, [firma]);
   const ultima = Math.max(0, Math.ceil(filas.length / POR_PAGINA) - 1);
   const pagina = Math.min(pag, ultima);
   const visibles = filas.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
 
-  const filtrando = fTexto.trim() !== "" || fCalle !== "" || fModulo !== "" || fRec !== "" || fTipo !== "";
+  const filtrando = fTexto.trim() !== "" || fCalle !== "" || fModulo !== "" || fRec !== "" || fTipo !== "" || fQuien.size > 0;
   const cajas = filas.reduce((a, r) => a + Number(r.total_cajas), 0);
 
   /* LAS CIFRAS DE ARRIBA son las de la base ya cruzada, sin los filtros de la tabla: «Renglones» dice
@@ -469,7 +485,7 @@ export function Base({
     finally { setBajando(false) }
   }
 
-  const quitarFiltros = () => { setFTexto(""); setFRec(""); setFCalle(""); setFModulo(""); setFTipo("") };
+  const quitarFiltros = () => { setFTexto(""); setFRec(""); setFCalle(""); setFModulo(""); setFTipo(""); setFQuien(new Set()) };
   const hayEnviados = dias.size > 0;
   const abiertosN = recorridosDe.length;
 
@@ -587,7 +603,7 @@ export function Base({
         <div className="ba-tabs" role="tablist">
           {([["base", "La base", kp.renglones], ["borradores", "Borradores", abiertas.length]] as const).map(([k, t, n]) => (
             <button key={k} type="button" role="tab" aria-selected={pestania === k} className={pestania === k ? "on" : ""}
-                    onClick={() => { setPestania(k); setFRec(""); setFCalle(""); setFModulo(""); setMarcados(new Set()) }}>
+                    onClick={() => { setPestania(k); setFRec(""); setFCalle(""); setFModulo(""); setFQuien(new Set()); setMarcados(new Set()) }}>
               {t}<i>{nf.format(n)}</i>
             </button>
           ))}
@@ -629,6 +645,23 @@ export function Base({
         </label>
         {filtrando && <button type="button" className="ba-sec" onClick={quitarFiltros}>Quitar filtros</button>}
       </div>
+
+      {/* ================= QUIÉN CONTÓ: una persona, varias, o todas ================= */}
+      {personas.length > 0 && (
+        <div className="ba-quien" role="group" aria-label="Filtrar por quién contó">
+          <span className="ba-quien-t">{pestania === "base" ? "Envió" : "Está contando"}</span>
+          <button type="button" aria-pressed={fQuien.size === 0} className={"ba-qn" + (fQuien.size === 0 ? " on" : "")}
+                  onClick={() => setFQuien(new Set())}>
+            Todas<i>{nf.format(todasN)}</i>
+          </button>
+          {personas.map(([n, k]) => (
+            <button key={n} type="button" aria-pressed={fQuien.has(n)} className={"ba-qn" + (fQuien.has(n) ? " on" : "")}
+                    onClick={() => alternaQuien(n)}>
+              {n}<i>{nf.format(k)}</i>
+            </button>
+          ))}
+        </div>
+      )}
 
       {pestania === "base" && puedeMarcar && (pasadosOk
         ? <MarcarPasados elegidos={elegidos} pasados={yaPasados} alCambiar={() => setMarcados(new Set())} />

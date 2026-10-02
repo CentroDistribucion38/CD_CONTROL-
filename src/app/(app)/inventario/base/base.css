@@ -144,6 +144,14 @@
 .fe .ba-pie .ba-sec { min-height: 36px }
 
 /* ---------- Pantalla angosta ---------- */
+/* QUIÉN CONTÓ: una fila de botones, uno por persona, con cuántos renglones lleva cada una. */
+.fe .ba-quien { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 0 }
+.fe .ba-quien-t { font: 800 10.5px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris); margin-right: 4px }
+.fe .ba .ba-qn { min-height: 34px; padding: 0 12px; width: auto; border: 1px solid var(--fe-linea); border-radius: 0; background: #fff; cursor: pointer; font: 700 12.5px var(--fe-titulo); color: var(--fe-gris-panel) }
+.fe .ba .ba-qn i { font: 500 11px var(--ba-mono); font-style: normal; margin-left: 6px }
+.fe .ba .ba-qn.on { background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre) }
+.fe .ba .ba-qn:focus-visible { outline: 2px solid var(--fe-tinta); outline-offset: 2px }
+
 @media (max-width: 1100px) {
   .fe .ba-ctrl { grid-template-columns: minmax(0, 1fr) }
   .fe .ba-ctrl > div + div { border-left: 0; border-top: 1px solid var(--fe-linea) }
@@ -164,6 +172,7 @@
   .fe .ba .ba-busca input { min-height: 42px; height: 42px }
   .fe .ba .ba-seg { width: 100% }
   .fe .ba .ba-seg button { flex: 1; min-height: 44px; padding: 0 6px }
+  .fe .ba .ba-qn { min-height: 44px; padding: 0 14px }
   .fe .ba .ba-sel { flex: 1 1 30% }
   .fe .ba .ba-sel select { width: 100%; min-height: 44px; height: 44px }
   .fe .ba-t thead button { min-height: 44px }
