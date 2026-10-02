@@ -61,7 +61,7 @@ type Fila = Vigente & {
   quien: string;
   /** Cuándo se ENVIÓ el recorrido (fecha y hora reales). Vacío si todavía no se envía: no se inventa una hora. */
   cuando: string;
-  /** Lo que se escribe cuando no hay hora de envío: «sin enviar · abierto 1 oct» (borrador) o solo «1 oct» (viejo, sin hora). */
+  /** Lo que se escribe cuando no hay hora de envío: «sin enviar · hoy 2 oct» (borrador) o solo «1 oct» (viejo, sin hora). */
   sinEnvio: string;
   /** Día AAAA-MM-DD del recorrido, para ordenar cuando no hay hora de envío. */
   dia: string;
@@ -87,6 +87,8 @@ const hora = (iso: string | null) => {
 };
 /** «30 sep» de un día AAAA-MM-DD (sin hora: no pasa por el huso). */
 const diaDe = (f: string) => `${Number(f.slice(8, 10))} ${MESES[Number(f.slice(5, 7)) - 1]}`;
+/** El día de HOY en Colombia, AAAA-MM-DD. */
+const hoyColombia = () => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
 const rangoTexto = (d: string, h: string) => {
   const y = (f: string) => f.slice(0, 4);
@@ -361,8 +363,10 @@ export function Base({
       quien: c?.envio_nombre ?? c?.responsable ?? "—",
       cuando: c?.enviado_en ?? "",
       dia: f,
-      sinEnvio: c?.enviado_en || !f ? "" : c?.estado === "cerrado" ? diaDe(f) : `sin enviar · abierto ${diaDe(f)}`,
-      etiqueta: !f || f === diaTope ? suf : `${ddmm(f)} ${suf}`,
+      /* Un borrador lleva la fecha de HOY: es el día en que se está contando y en que se enviaría. El día en
+         que se abrió no importa (se puede abrir en cualquier momento y seguir después). */
+      sinEnvio: c?.enviado_en || !f ? "" : c?.estado === "cerrado" ? diaDe(f) : `sin enviar · hoy ${diaDe(hoyColombia())}`,
+      etiqueta: !f || f === diaTope || c?.estado !== "cerrado" ? suf : `${ddmm(f)} ${suf}`,
       reemplazo: rp
         ? `Reemplazó a ${cp?.fecha_analisis && cp.fecha_analisis !== f ? ddmm(cp.fecha_analisis) + " " : ""}${sufijoRecorrido(rp.conteo)}${rp.cuando ? ` (${hora(rp.cuando)})` : ""}`
         : null,
@@ -629,7 +633,7 @@ export function Base({
           <span className="sr">Recorrido</span>
           <select value={fRec} onChange={(e) => setFRec(e.target.value)}>
             <option value="">Recorrido</option>
-            {recorridosDe.map((c) => <option key={c.id} value={c.id}>{c.fecha_analisis ? ddmm(c.fecha_analisis) + " " : ""}{sufijoRecorrido(c.codigo)}</option>)}
+            {recorridosDe.map((c) => <option key={c.id} value={c.id}>{c.fecha_analisis && c.estado === "cerrado" ? ddmm(c.fecha_analisis) + " " : ""}{sufijoRecorrido(c.codigo)}</option>)}
           </select>
         </label>
         <label className="ba-sel">

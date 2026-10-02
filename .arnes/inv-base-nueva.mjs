@@ -232,7 +232,9 @@ ok(await pg.locator(".ba-pasar").count() === 0 && await pg.locator(".ba-t .ba-ch
 /* La fecha del recorrido es la del ENVÍO; el borrador no tiene hora inventada: dice que no se ha enviado y cuándo se abrió. */
 {
   const rec = await pg.locator(".ba-t tbody .ba-rec").first().textContent();
-  ok(/sin enviar · abierto 1 oct/.test(rec), "el borrador dice «sin enviar · abierto 1 oct»: " + rec);
+  const hoyCO = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const hoyTxt = `${Number(hoyCO.slice(8, 10))} ${["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"][Number(hoyCO.slice(5, 7)) - 1]}`;
+  ok(rec.includes(`sin enviar · hoy ${hoyTxt}`) && !/abierto/.test(rec), `el borrador lleva la fecha de HOY (${hoyTxt}), no la de cuando se abrió: ` + rec);
   ok(!/\d+:\d\d/.test(rec), "el borrador no lleva una hora inventada: " + rec);
 }
 await monta({ manda: true, puede: true });
