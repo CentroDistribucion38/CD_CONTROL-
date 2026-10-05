@@ -81,11 +81,17 @@ ok((await titulo()) === "INICIO v1", "«/» abre la copia del inicio: " + await 
 await pg.goto(B + "/p2");
 ok(/no está guardada/.test(await pg.locator("h1").textContent()), "una pantalla nunca abierta muestra el aviso, no el error del navegador");
 ok(await pg.getByRole("link", { name: "Ir al inicio" }).count() === 1, "el aviso trae el camino al inicio");
+ok((await pg.locator("#pedida").textContent()) === "/p2", "el aviso dice qué dirección se pidió");
+const enlaces = await pg.locator("#guardadas a").allTextContents();
+ok(enlaces.includes("/inicio") && enlaces.includes("/inventario/tablero"), "el aviso lista las pantallas que sí están guardadas: " + enlaces);
+await pg.locator("#guardadas a", { hasText: "/inventario/tablero" }).click();
+ok((await titulo()) === "TABLERO v1", "y desde ahí se abre una guardada: " + await titulo());
 
 /* 3b · si ni la página de aviso guardada está, sale el aviso incluido, nunca el error del navegador */
 await pg.evaluate(async () => { await (await caches.open("control-estatico")).delete("/sin-conexion.html") });
 await pg.goto(B + "/p3-nunca");
 ok(/no está guardada/.test(await pg.locator("h1").textContent()), "sin la página de aviso guardada igual sale el aviso (no ERR_FAILED)");
+ok((await pg.locator("#guardadas a").count()) >= 2, "y el aviso incluido también lista lo guardado");
 
 /* 4 · vuelve internet con datos nuevos: se ve lo nuevo y ya no es copia */
 version = "v2"; await escuchar();

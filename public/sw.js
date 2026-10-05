@@ -85,13 +85,30 @@ self.addEventListener("activate", (evento) => {
 
 /* Si ni la página de aviso guardada está (instalación sin internet, caché borrada), este es el último recurso:
    JAMÁS se entrega «Response.error()», que es lo que el navegador pinta como «No se puede acceder a este sitio» (ERR_FAILED). */
+/* Lo que la página de aviso corre en el navegador: dice qué dirección se pidió y qué pantallas SÍ hay guardadas, con enlaces. */
+const LISTAR_GUARDADAS = function () {
+  var pedida = document.getElementById("pedida"), lista = document.getElementById("guardadas");
+  if (pedida) pedida.textContent = location.pathname + location.search;
+  if (!lista || !window.caches) return;
+  caches.open("control-paginas").then(function (c) { return c.keys() }).then(function (ks) {
+    var rutas = ks.map(function (k) { var u = new URL(k.url); return u.pathname + u.search }).sort();
+    if (!rutas.length) { lista.textContent = "Este equipo todavía no tiene ninguna pantalla guardada: abre CONTROL una vez con internet."; return }
+    lista.textContent = "";
+    var t = document.createElement("p"); t.textContent = "Sí están guardadas en este equipo (" + rutas.length + "):"; lista.appendChild(t);
+    var ul = document.createElement("ul");
+    rutas.slice(0, 40).forEach(function (r) { var li = document.createElement("li"), a = document.createElement("a"); a.href = r; a.textContent = r; li.appendChild(a); ul.appendChild(li) });
+    lista.appendChild(ul);
+  }).catch(function () {});
+};
+
 const AVISO_INLINE = '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CD38 · Sin conexión</title>'
   + '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#eef1f5;color:#04203f;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}'
   + 'main{max-width:520px;background:#fff;border:1px solid #d5dce5;border-top:4px solid #e0123b;padding:28px}h1{font-size:22px;margin:0 0 10px}p{font-size:15px;line-height:1.5;margin:0 0 12px;color:#3d4c5f}'
+  + '.peq{font-size:12px;color:#6b7a8c}.lista p{margin:14px 0 6px;font-weight:600;color:#04203f}.lista ul{list-style:none;padding:0;max-height:180px;overflow:auto;border:1px solid #d5dce5}.lista li a{display:block;padding:9px 12px;font-size:14px;color:#0b4ea2;border-bottom:1px solid #eef1f5;min-height:0;margin:0;font-weight:500}'
   + 'a,button{font:inherit;font-weight:600;font-size:14px;min-height:44px;padding:0 18px;display:inline-flex;align-items:center;border-radius:0;cursor:pointer;text-decoration:none;margin:6px 10px 0 0}'
   + '.p{background:#04203f;color:#fff;border:0}.s{background:#fff;color:#04203f;border:1px solid #04203f}</style></head><body><main>'
   + '<h1>Sin conexión, y esta pantalla no está guardada</h1><p>Si pierdes la conexión puedes seguir viendo <b>lo guardado hasta tu última conexión</b>. Lo que no se puede hacer sin internet es realizar cambios.</p><p>Esta pantalla todavía no está guardada en este equipo: se guarda sola la próxima vez que la abras con internet.</p>'
-  + '<a class="p" href="/inicio">Ir al inicio</a><button class="s" type="button" onclick="location.reload()">Reintentar</button></main></body></html>';
+  + '<p class="peq">Dirección pedida: <span id="pedida"></span></p><div id="guardadas" class="lista"></div><a class="p" href="/inicio">Ir al inicio</a><button class="s" type="button" onclick="location.reload()">Reintentar</button></main><script>(' + LISTAR_GUARDADAS.toString() + ')()</script></body></html>';
 
 async function avisoSinConexion() {
   try {
@@ -140,7 +157,7 @@ async function marcar(llave, origen) {
 
 async function copiaDe(llave, url) {
   const c = await caches.open(PAGINAS);
-  const r = await c.match(llave);
+  const r = (await c.match(llave)) || (await c.match(llave, { ignoreSearch: true }));
   if (r) return r;
   /* «/» solo redirige a /inicio: si no hay copia de «/», sirve la de /inicio. */
   if (url.pathname === "/" && !url.search) return c.match(llaveDe(new URL("/inicio", self.location.origin)));
