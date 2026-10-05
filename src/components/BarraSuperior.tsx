@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AccionesApp } from "./AccionesApp";
 import { Ruta } from "./Ruta";
+import { Comandos } from "./Comandos";
+import type { Comando } from "@/modulos/comandos";
 
 /**
  * Barra superior. Azul profundo con la trama de rombos y el filo rojo: el
@@ -13,9 +15,12 @@ import { Ruta } from "./Ruta";
 export function BarraSuperior({
   usuario,
   turno,
+  comandos = [],
 }: {
   usuario: string;
   turno?: string;
+  /** Las pantallas que esta persona puede abrir escribiendo su código. */
+  comandos?: Comando[];
 }) {
   const iniciales = usuario
     .split(/\s+/)
@@ -36,6 +41,7 @@ export function BarraSuperior({
       <Ruta />
 
       <div className="der">
+        {comandos.length > 0 && <Comandos comandos={comandos} />}
         {turno && <span className="turno">{turno}</span>}
         <AccionesApp />
         <Link

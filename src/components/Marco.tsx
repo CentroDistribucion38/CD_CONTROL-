@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { moduloPorRuta, seccionExacta } from "@/modulos/registro";
 import { Navegacion } from "./Navegacion";
+import { Actualizar } from "./Actualizar";
 
 /**
  * Cuerpo de la app: el riel de módulos a la izquierda y el contenido a la
@@ -70,6 +71,7 @@ export function Marco({ permitidas, children }: {
           </section>
         ) : children}
       </main>
+      {!cerrada && <Actualizar />}
     </div>
   );
 }
