@@ -337,6 +337,8 @@ await monta("c=dos");
 }
 await monta("c=todo");
 ok(await pg.locator(".dq-ojo").count() === 0, "quien no administra no tiene ojito");
+await filas().nth(0).click();
+ok(await pg.locator(".dq-card").count() > 0 && !/Eliminar/.test(await txt()), "quien NO es super admin abre el par y no ve ningún «Eliminar» (ni el par ni el corte)");
 await monta("c=parcial");
 {
   ok(await pg.locator(".pr").count() === 0, "un corte que ya tiene final no está en «El proceso» (ni aparece el título)");
