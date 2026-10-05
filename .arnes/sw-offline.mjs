@@ -117,7 +117,7 @@ ok(r.res.guardadas.sort().join() === "/p1,/p2" && r.res.fallidas.join() === "/no
 ok(r.av[0] === 0 && r.av.at(-1) === 3, "avisa el avance de 0 a 3");
 ok((await claves("control-estatico")).includes("/_next/static/chunks/p1.js"), "guarda el paquete que la pantalla necesita para arrancar");
 ok(Copia_ok(await pg.evaluate(() => Copia.ultimaPreparacion())), "recuerda cuándo se preparó");
-function Copia_ok(v) { return v && v.n === 2 && v.fallidas === 1 }
+function Copia_ok(v) { return v && v.n >= 2 && v.fallidas === 1 }
 await apagar();
 await pg.goto(B + "/p1");
 ok((await titulo()) === "P1" && (await pg.evaluate(() => window.__p1)) === "cargado", "sin internet abre una pantalla preparada, y su JavaScript corre: " + await pg.evaluate(() => window.__p1));

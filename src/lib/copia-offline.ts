@@ -21,6 +21,15 @@ export async function borrarCopia(): Promise<void> {
   } catch { /* nada que borrar o sin permiso: da igual */ }
 }
 
+/** Las pantallas que SÍ están guardadas ahora mismo en este equipo (lo que dice la caché, no lo que se recuerda haber hecho). */
+export async function rutasGuardadas(): Promise<string[]> {
+  try {
+    if (!("caches" in window)) return [];
+    const c = await caches.open(PAGINAS);
+    return (await c.keys()).map((k) => { const u = new URL(k.url); return u.pathname + u.search });
+  } catch { return [] }
+}
+
 /** Los paquetes de JavaScript, CSS y tipografías que nombra una pantalla (en el HTML y en su flujo de datos). */
 export function recursosDe(html: string): string[] {
   const hallados = new Set<string>();
@@ -75,7 +84,11 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
   }));
 
   const fecha = new Date().toISOString();
-  try { localStorage.setItem(LLAVE_PREPARADA, JSON.stringify({ fecha, n: guardadas.length, fallidas: fallidas.length })) } catch { /* sin almacenamiento: no se recuerda la fecha */ }
+  /* Solo se anota como «preparada» si algo quedó guardado: una pasada en la que todo falló no debe frenar el siguiente intento. */
+  if (guardadas.length > 0) {
+    const n = (await rutasGuardadas()).length;
+    try { localStorage.setItem(LLAVE_PREPARADA, JSON.stringify({ fecha, n, fallidas: fallidas.length })) } catch { /* sin almacenamiento: no se recuerda la fecha */ }
+  }
   return { guardadas, fallidas, fecha };
 }
 

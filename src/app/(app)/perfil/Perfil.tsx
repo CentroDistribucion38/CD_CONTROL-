@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario } from "@/lib/auth";
 import { Eye, EyeOff } from "lucide-react";
-import { borrarCopia, fechaCorta, haySoporte, prepararCopia, ultimaPreparacion } from "@/lib/copia-offline";
+import { borrarCopia, fechaCorta, haySoporte, prepararCopia, rutasGuardadas, ultimaPreparacion } from "@/lib/copia-offline";
 
 type Modulo = { id: string; nombre: string; ruta: string };
 
@@ -813,9 +813,11 @@ function SinInternet({ rutas }: { rutas: string[] }) {
   const [ultima, setUltima] = useState<{ fecha: string; n: number; fallidas: number } | null>(null);
   const [avance, setAvance] = useState<{ hechas: number; total: number } | null>(null);
   const [fallidas, setFallidas] = useState<string[]>([]);
+  const [guardadas, setGuardadas] = useState<string[] | null>(null);
+  const todas = ["/inicio", "/perfil", ...rutas];
 
-  /* El soporte y la última preparación solo se conocen en el navegador. */
-  useEffect(() => { setSoporte(haySoporte()); setUltima(ultimaPreparacion()) }, []);
+  /* El soporte y lo guardado solo se conocen en el navegador. Lo guardado se lee de la caché: es lo que de verdad abrirá sin internet. */
+  useEffect(() => { setSoporte(haySoporte()); setUltima(ultimaPreparacion()); void rutasGuardadas().then(setGuardadas) }, []);
 
   async function preparar() {
     setFallidas([]);
@@ -823,8 +825,10 @@ function SinInternet({ rutas }: { rutas: string[] }) {
     const r = await prepararCopia(["/inicio", "/perfil", ...rutas], setAvance);
     setFallidas(r.fallidas);
     setUltima(ultimaPreparacion());
+    setGuardadas(await rutasGuardadas());
     setAvance(null);
   }
+  const faltan = guardadas ? todas.filter((r) => !guardadas.includes(r)) : [];
 
   const ocupado = avance !== null;
   return (
@@ -845,6 +849,12 @@ function SinInternet({ rutas }: { rutas: string[] }) {
           la copia, y la franja de arriba dice de qué día es. Puedes ver lo guardado hasta tu última conexión; realizar cambios necesita señal.
         </p>
 
+        {guardadas && (
+          <p className={"pf-mensaje " + (faltan.length === 0 ? "bien" : "mal")} role="status" style={{ marginBottom: 10 }}>
+            Guardadas ahora en este equipo: <b>{todas.length - faltan.length} de {todas.length}</b> pantallas.
+            {faltan.length > 0 ? ` Faltan: ${faltan.join(", ")}.` : " Todas abren sin internet."}
+          </p>
+        )}
         {ultima ? (
           <p className="pf-mensaje bien" role="status">
             Última preparación: <b>{fechaCorta(ultima.fecha)}</b> · {ultima.n} pantallas guardadas

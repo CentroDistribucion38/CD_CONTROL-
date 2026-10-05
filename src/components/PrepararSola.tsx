@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { haySoporte, hayQueRenovar, prepararCopia, ultimaPreparacion } from "@/lib/copia-offline";
+import { haySoporte, hayQueRenovar, prepararCopia, rutasGuardadas, ultimaPreparacion } from "@/lib/copia-offline";
 
 /**
  * LA COPIA SE PREPARA SOLA.
@@ -23,7 +23,7 @@ const REINTENTOS = 5;
 export function PrepararSola({ rutas }: { rutas: string[] }) {
   const llave = rutas.join("|");
   useEffect(() => {
-    if (!haySoporte() || !hayQueRenovar(ultimaPreparacion())) return;
+    if (!haySoporte()) return;
     let vivo = true, intentos = 0, t: ReturnType<typeof setTimeout>;
     const intentar = async () => {
       if (!vivo) return;
@@ -34,7 +34,14 @@ export function PrepararSola({ rutas }: { rutas: string[] }) {
         if (++intentos < REINTENTOS) t = setTimeout(intentar, 60_000);
         return;
       }
-      try { await prepararCopia(["/inicio", "/perfil", ...rutas], () => {}) } catch { /* en silencio: se reintenta la próxima vez que abra */ }
+      /* Se mira lo que de verdad hay guardado, no lo que se recuerda haber hecho: si falta alguna se pide ya,
+         y si están todas solo se renueva pasadas las horas. Así una pasada que falló se arregla sola. */
+      const todas = ["/inicio", "/perfil", ...rutas];
+      const hay = new Set(await rutasGuardadas());
+      const faltan = todas.filter((r) => !hay.has(r));
+      const vencida = hayQueRenovar(ultimaPreparacion());
+      if (faltan.length === 0 && !vencida) return;
+      try { await prepararCopia(vencida ? todas : faltan, () => {}) } catch { /* en silencio: se reintenta la próxima vez que abra */ }
     };
     t = setTimeout(intentar, ultimaPreparacion() ? ESPERA_MS : ESPERA_PRIMERA_MS);
     return () => { vivo = false; clearTimeout(t) };
