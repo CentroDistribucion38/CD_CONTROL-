@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { CICLO_MIN, edadesGuardadas, elegirPantallas, haySoporte, prepararCopia, todasLasRutas } from "@/lib/copia-offline";
+import { useEffect, useState } from "react";
+import { CICLO_MIN, EVENTO_COPIA, type EstadoCopia, edadesGuardadas, elegirPantallas, haySoporte, prepararCopia, todasLasRutas } from "@/lib/copia-offline";
 
 /**
  * LA COPIA SE VA HACIENDO SOLA.
@@ -18,6 +18,21 @@ const AL_VOLVER_MS = 3_000;
 
 export function PrepararSola({ rutas }: { rutas: string[] }) {
   const llave = rutas.join("|");
+  const [estado, setEstado] = useState<EstadoCopia | null>(null);
+
+  /* La franjita de abajo: dice cuándo ya se puede apagar el internet. Solo cuando la tanda es grande (la primera vez), no en los repasos de 3 pantallas. */
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const oir = (e: Event) => {
+      const d = (e as CustomEvent<EstadoCopia>).detail;
+      if (t) clearTimeout(t);
+      if (d.total < 4) return;
+      setEstado(d);
+      if (d.fin) t = setTimeout(() => setEstado(null), 6000);
+    };
+    window.addEventListener(EVENTO_COPIA, oir);
+    return () => { window.removeEventListener(EVENTO_COPIA, oir); if (t) clearTimeout(t) };
+  }, []);
   useEffect(() => {
     if (!haySoporte()) return;
     let vivo = true, corriendo = false;
@@ -51,5 +66,12 @@ export function PrepararSola({ rutas }: { rutas: string[] }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [llave]);
-  return null;
+  if (!estado) return null;
+  return (
+    <div className="sh-chipcopia" role="status" aria-live="polite">
+      {estado.fin
+        ? <><b>Copia lista</b> · {estado.guardadas} pantallas guardadas. Ya puedes quedarte sin internet.</>
+        : <>Guardando copia para trabajar sin internet · <b>{estado.hechas} de {estado.total}</b>. Espera a que termine.</>}
+    </div>
+  );
 }

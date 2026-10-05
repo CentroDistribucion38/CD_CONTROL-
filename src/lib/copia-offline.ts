@@ -85,6 +85,11 @@ export function todasLasRutas(base: string[]): string[] {
 }
 
 export type Avance = { hechas: number; total: number };
+
+/** El aviso de cómo va la copia: lo escuchan la franjita de abajo y quien quiera saber cuándo ya se puede apagar el internet. */
+export const EVENTO_COPIA = "cd38:copia";
+export type EstadoCopia = { hechas: number; total: number; fin: boolean; guardadas: number };
+function avisar(d: EstadoCopia) { try { window.dispatchEvent(new CustomEvent(EVENTO_COPIA, { detail: d })) } catch { /* sin ventana: no hay a quién avisar */ } }
 export type Resultado = { guardadas: string[]; fallidas: string[]; fecha: string };
 
 /** ¿La respuesta es una pantalla de la app y no el login al que mandan cuando se venció la sesión? */
@@ -107,6 +112,7 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
   let hechas = 0;
   const total = unicas.length;
   alAvanzar({ hechas, total });
+  avisar({ hechas, total, fin: false, guardadas: 0 });
 
   let siguiente = 0;
   async function trabajador() {
@@ -123,9 +129,11 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
         }
       } catch { fallidas.push(ruta) }
       alAvanzar({ hechas: ++hechas, total });
+      avisar({ hechas, total, fin: false, guardadas: 0 });
     }
   }
-  await Promise.all([trabajador(), trabajador()]);
+  /* La primera pasada son decenas de pantallas, y cada una la arma el servidor: de a cuatro para que no tarde minutos. */
+  await Promise.all(Array.from({ length: unicas.length > 6 ? 4 : 2 }, () => trabajador()));
 
   /* Lo que las pantallas cargan al abrirse: sin esto el HTML estaría pero la pantalla no arrancaría. */
   const lista = [...recursos];
@@ -135,6 +143,7 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
   }));
 
   recordarRutas([...enlaces]);
+  avisar({ hechas, total, fin: true, guardadas: (await rutasGuardadas()).length });
   const fecha = new Date().toISOString();
   /* Solo se anota como «preparada» si algo quedó guardado: una pasada en la que todo falló no debe frenar el siguiente intento. */
   if (guardadas.length > 0) {
