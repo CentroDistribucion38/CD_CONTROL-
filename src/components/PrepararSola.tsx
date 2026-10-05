@@ -47,6 +47,8 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
           /* Se lee en cada ciclo: las pantallas descubiertas en el anterior entran ya a este. */
           const todas = todasLasRutas(rutas);
           const lote = elegirPantallas(todas, edades, Date.now(), location.pathname + location.search);
+          /* Lo que falta lo recorre también el service worker por su cuenta (sigue aunque se cambie de pantalla). */
+          if (todas.some((r) => !edades.has(r))) { try { navigator.serviceWorker?.controller?.postMessage({ tipo: "rastrear", forzar: true }) } catch { /* sin service worker: queda la copia de aquí */ } }
           if (lote.length > 0) {
             await prepararCopia(lote, () => {});
             /* Si después de la pasada todavía falta alguna, no se espera 5 minutos: se reintenta enseguida. */

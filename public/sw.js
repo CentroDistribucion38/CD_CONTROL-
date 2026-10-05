@@ -81,6 +81,7 @@ self.addEventListener("activate", (evento) => {
         const u = new URL(cl.url);
         if (u.origin === self.location.origin && !u.pathname.startsWith("/login") && !u.pathname.startsWith("/auth")) await guardarSiHaySesion(u.pathname + u.search);
       }
+      rastrear(false);
     })()
   );
 });
@@ -94,12 +95,11 @@ const DETALLE_AVISO = function () {
   if (!window.caches) { el.textContent = "Pantalla pedida: " + ruta; return }
   caches.open("control-paginas").then(function (c) { return c.keys() }).then(function (ks) {
     var t = "Pantalla pedida: " + ruta + "  ·  Guardadas en este equipo: " + ks.length;
-    try {
-      var f = JSON.parse(localStorage.getItem("cd38.copia.fallos") || "{}");
-      if (f[location.pathname]) t += "  ·  No se pudo guardar: " + f[location.pathname];
-      else if (ks.length < 15) t += "  ·  La copia todavía se está armando: ábrela con internet y espera un par de minutos.";
-    } catch (e) { }
     el.textContent = t;
+    caches.open("control-meta").then(function (m) { return m.match("/__meta/fallos") }).then(function (r) { return r ? r.json() : {} }).then(function (f) {
+      if (f[location.pathname]) el.textContent = t + "  ·  No se pudo guardar: " + f[location.pathname];
+      else if (ks.length < 15) el.textContent = t + "  ·  La copia todavía se está armando: ábrela con internet y espera un par de minutos.";
+    }).catch(function () { });
   }).catch(function () { el.textContent = "Pantalla pedida: " + ruta });
 };
 
@@ -187,7 +187,7 @@ async function pagina(evento) {
   const hay = await copiaDe(llave, url);
   const red = fetch(req).then((r) => {
     /* Guardar la copia no retrasa la pantalla: se hace por detrás. */
-    if (guardable(r)) evento.waitUntil(guardarPagina(llave, r).then(() => marcar(llave, "red")));
+    if (guardable(r)) evento.waitUntil(guardarPagina(llave, r).then(() => marcar(llave, "red")).then(() => rastrear(false)));
     else if (r.type !== "opaqueredirect") evento.waitUntil(marcar(llave, "red"));
     return r;
   });
@@ -257,6 +257,125 @@ async function estado(url) {
   } catch { /* se responde con lo que se tenga */ }
   return new Response(JSON.stringify({ copia: origen === "copia", hayCopia, fecha }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
 }
+
+
+/* ───────── LA COPIA DE TODO, HECHA POR EL SERVICE WORKER ─────────
+   Antes la copia dependía de que la pantalla estuviera abierta, quieta y con el código al día: si la persona
+   cambiaba de pantalla, o la pantalla era la versión vieja, la copia se quedaba a medias y nadie lo notaba.
+   Ahora la hace el service worker por su cuenta: apenas una pantalla llega bien de internet, recorre la app
+   desde el inicio siguiendo los enlaces (el menú, las tarjetas, las pestañas: lo que esta persona puede ver),
+   guarda cada pantalla junto con los archivos que necesita para abrir, y vuelve a pasar cada 10 minutos
+   renovando lo que tenga más de 20. Funciona aunque se cambie de pantalla o se cierre la ventana. */
+const RASTREO_MAX = 220;
+const RASTREO_CADA_MS = 10 * 60 * 1000;
+const FRESCA_MS = 20 * 60 * 1000;
+const RASTREO_PAR = 4;
+const PEDIDO_MS = 25000;
+let rastreando = false;
+
+function esGuardable(ruta) {
+  if (!ruta.startsWith("/") || ruta.startsWith("//") || ruta === "/" || ruta.length > 90) return false;
+  if (/^\/(api|auth|login|_next|__sw)(\/|$)/.test(ruta) || ruta === "/sw.js" || ruta === "/manifest.webmanifest") return false;
+  if (/\.[A-Za-z0-9]{2,5}$/.test(ruta) || /[[\]%?#]/.test(ruta)) return false;
+  return !ruta.split("/").some((seg) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(seg) || /^\d{3,}$/.test(seg));
+}
+function enlacesEn(html) {
+  const out = new Set();
+  const re = /href="(\/[^"]*)"/g;
+  let m;
+  while ((m = re.exec(html))) {
+    const r = m[1].split(/[?#]/)[0].replace(/\/$/, "") || "/";
+    if (esGuardable(r)) out.add(r);
+  }
+  return [...out];
+}
+function recursosEn(html) {
+  const out = new Set();
+  const re = /(?:\/_next\/)?(static\/(?:chunks|css|media)\/[A-Za-z0-9_\-./~%[\]()@$]+?\.(?:js|css|woff2?))/g;
+  let m;
+  while ((m = re.exec(html))) out.add("/_next/" + m[1]);
+  return [...out];
+}
+async function pedir(url) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), PEDIDO_MS);
+  try { return await fetch(url, { credentials: "same-origin", headers: { Accept: "text/html" }, signal: c.signal }) }
+  finally { clearTimeout(t) }
+}
+async function leerMeta(nombre) {
+  try { const r = await (await caches.open(META)).match(new Request(new URL("/__meta/" + nombre, self.location.origin).href)); return r ? await r.text() : null } catch { return null }
+}
+async function ponerMeta(nombre, texto) {
+  try { await (await caches.open(META)).put(new Request(new URL("/__meta/" + nombre, self.location.origin).href), new Response(texto)) } catch { /* de cortesía */ }
+}
+
+async function rastrear(forzar) {
+  if (rastreando) return;
+  rastreando = true;
+  try {
+    const ultimo = Number((await leerMeta("rastreo")) || 0);
+    if (!forzar && Date.now() - ultimo < RASTREO_CADA_MS) return;
+    if (!(await sonda())) return;                       // sin salida real a internet: no se intenta
+    await ponerMeta("rastreo", String(Date.now()));
+
+    const paginas = await caches.open(PAGINAS);
+    const estatico = await caches.open(ESTATICO);
+    const fallos = {};
+    const cola = ["/inicio"], vistos = new Set(cola);
+    for (const k of await paginas.keys()) {
+      const u = new URL(k.url);
+      if (esGuardable(u.pathname) && !vistos.has(u.pathname)) { vistos.add(u.pathname); cola.push(u.pathname) }
+    }
+    const recursos = new Set();
+    let hechas = 0, sesionPerdida = false;
+
+    async function una(ruta) {
+      const url = new URL(ruta, self.location.origin);
+      const llave = llaveDe(url);
+      let html = null;
+      const g = await paginas.match(llave);
+      if (g && Date.now() - Date.parse(g.headers.get("x-copia-fecha") || 0) < FRESCA_MS) html = await g.clone().text();   // ya está al día: solo se leen sus enlaces
+      else {
+        let r;
+        try { r = await pedir(url.href) } catch { fallos[ruta] = "sin respuesta del servidor"; return }
+        if (!guardable(r)) { fallos[ruta] = r.status !== 200 ? "error " + r.status : "mandó al login (sesión vencida o sin permiso)"; if (ruta === "/inicio") sesionPerdida = true; return }
+        await guardarPagina(llave, r.clone());
+        await marcar(llave, "red");
+        html = await r.text();
+      }
+      hechas++;
+      for (const e of enlacesEn(html)) if (!vistos.has(e) && vistos.size < RASTREO_MAX) { vistos.add(e); cola.push(e) }
+      for (const u of recursosEn(html)) recursos.add(u);
+    }
+    /* La primera sola (el inicio): si no está la sesión, no tiene sentido seguir. */
+    await una(cola.shift());
+    if (sesionPerdida) return;
+    await Promise.all(Array.from({ length: RASTREO_PAR }, async () => {
+      while (cola.length) { const r = cola.shift(); try { await una(r) } catch { fallos[r] = "falló al guardarse" } }
+    }));
+
+    /* Lo que las pantallas cargan al abrirse: sin esto el HTML estaría pero la pantalla no arrancaría. */
+    const lista = [...recursos];
+    let k = 0;
+    await Promise.all(Array.from({ length: 4 }, async () => {
+      while (k < lista.length) {
+        const u = new URL(lista[k++], self.location.origin);
+        try {
+          if (await estatico.match(u.href, { ignoreSearch: true })) continue;
+          const r = await fetch(u.href);
+          if (r.ok) await estatico.put(u.href, r);
+        } catch { /* un archivo que falle no tumba al resto */ }
+      }
+    }));
+    await ponerMeta("fallos", JSON.stringify(fallos));
+    await ponerMeta("rastreo-fin", JSON.stringify({ fecha: new Date().toISOString(), hechas, fallos: Object.keys(fallos).length }));
+  } catch { /* se reintenta en la siguiente pantalla que llegue bien */ }
+  finally { rastreando = false }
+}
+
+self.addEventListener("message", (evento) => {
+  if (evento.data && evento.data.tipo === "rastrear") evento.waitUntil(rastrear(evento.data.forzar === true));
+});
 
 self.addEventListener("fetch", (evento) => {
   const req = evento.request;

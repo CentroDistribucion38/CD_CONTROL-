@@ -38,12 +38,11 @@
   if (!window.caches) { el.textContent = "Pantalla pedida: " + ruta; return }
   caches.open("control-paginas").then(function (c) { return c.keys() }).then(function (ks) {
     var t = "Pantalla pedida: " + ruta + "  ·  Guardadas en este equipo: " + ks.length;
-    try {
-      var f = JSON.parse(localStorage.getItem("cd38.copia.fallos") || "{}");
-      if (f[location.pathname]) t += "  ·  No se pudo guardar: " + f[location.pathname];
-      else if (ks.length < 15) t += "  ·  La copia todavía se está armando: ábrela con internet y espera un par de minutos.";
-    } catch (e) { }
     el.textContent = t;
+    caches.open("control-meta").then(function (m) { return m.match("/__meta/fallos") }).then(function (r) { return r ? r.json() : {} }).then(function (f) {
+      if (f[location.pathname]) el.textContent = t + "  ·  No se pudo guardar: " + f[location.pathname];
+      else if (ks.length < 15) el.textContent = t + "  ·  La copia todavía se está armando: ábrela con internet y espera un par de minutos.";
+    }).catch(function () { });
   }).catch(function () { el.textContent = "Pantalla pedida: " + ruta });
 })()</script>
 </body>
