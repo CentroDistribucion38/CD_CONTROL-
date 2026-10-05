@@ -15,7 +15,7 @@ const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" 
 const ctx = await nav.newContext();
 const pg = await ctx.newPage();
 await pg.clock.install();
-let pedidas = [], falla = false, sinSalida = false, sondas = 0;
+let pedidas = [], falla = false, fallaRuta = null, sinSalida = false, sondas = 0;
 await pg.route("http://localhost:4398/**", (r) => {
   const u = new URL(r.request().url());
   if (u.pathname === "/") return r.fulfill({ contentType: "text/html", body: `<!doctype html><body><div id="r"></div><script>${js}<\/script></body>` });
@@ -24,6 +24,7 @@ await pg.route("http://localhost:4398/**", (r) => {
   if (r.request().headers()["x-preparar"]) pedidas.push(u.pathname);
   /* El inicio trae el menú: enlaces a otras pantallas (una nueva, un archivo, un id suelto, la API). */
   const enlaces = u.pathname === "/inicio" ? '<a href="/quiebra">Quiebra</a><a href="/quiebra/tablero/">T</a><a href="/api/x">api</a><a href="/logo.png">l</a><a href="/roturas/salida/6f1c2d3e-aaaa-bbbb-cccc-111122223333">id</a><a href="/inventario/tablero">ya</a>' : "";
+  if (fallaRuta && u.pathname === fallaRuta) return r.fulfill({ status: 500, body: "no" });
   return falla ? r.fulfill({ status: 500, body: "no" }) : r.fulfill({ contentType: "text/html", body: "<html>pantalla" + enlaces + "</html>" });
 });
 const TODAS = ["/inicio", "/perfil", "/inventario/tablero", "/inventario/fiscal"];
@@ -101,6 +102,14 @@ await marca(); await pg.goto("http://localhost:4398/?dueno=A"); await avanza(500
 ok(await hay(), "la misma persona que vuelve a entrar conserva su copia");
 await pg.goto("http://localhost:4398/?dueno=B"); await avanza(500);
 ok(!(await hay()), "si entra otra persona, la copia de la anterior se borra");
+
+/* Una pantalla falla: no se espera 5 minutos, se reintenta a los segundos, y queda anotado por qué. */
+await arranca(); await vaciar(); await pg.evaluate(() => localStorage.clear()); fallaRuta = "/perfil";
+await avanza(4_000); await esperaFin();
+ok(JSON.parse(await pg.evaluate(() => localStorage.getItem("cd38.copia.fallos") || "{}"))["/perfil"] === "error 500", "se anota por qué no se pudo guardar");
+pedidas = []; fallaRuta = null; await avanza(20_000); await esperaFin();
+ok(pedidas.includes("/perfil"), "reintenta pronto la que falló (sin esperar 5 min): " + pedidas);
+ok(!JSON.parse(await pg.evaluate(() => localStorage.getItem("cd38.copia.fallos") || "{}"))["/perfil"], "al guardarse ya no figura como fallo");
 
 /* Si todo falla no queda anotada una preparación. */
 falla = true; await pg.evaluate(() => { localStorage.clear(); return caches.delete("control-paginas") });

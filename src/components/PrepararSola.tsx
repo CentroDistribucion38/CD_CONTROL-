@@ -17,6 +17,9 @@ const PRIMERA_MS = 1_500;
 const AL_VOLVER_MS = 3_000;
 /* Con un internet que parpadea no se arranca a copiar a cada «online»: hay que llevar este rato seguido con señal. */
 const FIRME_MS = 8_000;
+/* Si una pasada no alcanzó (falló una pantalla, la sonda no respondió…) se reintenta pronto, no a los 5 minutos. */
+const REINTENTO_MS = 15_000;
+const REINTENTOS = 12;
 
 export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string }) {
   const llave = rutas.join("|");
@@ -27,21 +30,34 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
 
     /* Antes de guardar nada: ¿la copia que hay es de esta persona? Si es de otra, se borra. */
     const duenoListo = dueno ? copiaDeEstaPersona(dueno) : Promise.resolve(false);
+    let seguidos = 0, corte = 0;      // reintentos rápidos seguidos (con tope, para no insistir sin fin)
     const ciclo = async () => {
       if (!vivo || corriendo) return;
       await duenoListo;
       const con = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
       if (con && (con.saveData === true || con.effectiveType === "slow-2g" || con.effectiveType === "2g")) return;
-      if (!navigator.onLine || document.visibilityState !== "visible") return;
+      if (!navigator.onLine || document.visibilityState !== "visible") return;   // al volver / al mirar la pestaña se retoma solo
+      if (Date.now() - corte < FIRME_MS) return;     // hubo un corte hace nada: lo retoma el aviso de «volvió» cuando lleve un rato firme
       corriendo = true;
+      let reintentar = false;
       try {
-        if (!(await sondear())) { corriendo = false; return }     // «conectado» sin salida a internet: no se intenta copiar
-        const edades = await edadesGuardadas();
-        /* Se lee en cada ciclo: las pantallas descubiertas en el anterior entran ya a este. */
-        const lote = elegirPantallas(todasLasRutas(rutas), edades, Date.now(), location.pathname + location.search);
-        if (lote.length > 0) await prepararCopia(lote, () => {});
-      } catch { /* en silencio: se reintenta en el siguiente ciclo */ }
+        if (!(await sondear())) { corriendo = false; reintentar = true }     // «conectado» sin salida a internet: no se copia, y se vuelve a probar pronto
+        else {
+          const edades = await edadesGuardadas();
+          /* Se lee en cada ciclo: las pantallas descubiertas en el anterior entran ya a este. */
+          const todas = todasLasRutas(rutas);
+          const lote = elegirPantallas(todas, edades, Date.now(), location.pathname + location.search);
+          if (lote.length > 0) {
+            await prepararCopia(lote, () => {});
+            /* Si después de la pasada todavía falta alguna, no se espera 5 minutos: se reintenta enseguida. */
+            const ya = await edadesGuardadas();
+            reintentar = todas.some((r) => !ya.has(r));
+          }
+        }
+      } catch { reintentar = true }
       corriendo = false;
+      if (reintentar && vivo && seguidos < REINTENTOS) { seguidos++; luego(REINTENTO_MS) }
+      else if (!reintentar) seguidos = 0;
     };
     const luego = (ms: number) => { const t = setTimeout(() => { timers.delete(t); void ciclo() }, ms); timers.add(t) };
 
@@ -52,7 +68,7 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
       if (firme) clearTimeout(firme);
       firme = setTimeout(() => { firme = undefined; if (navigator.onLine) luego(AL_VOLVER_MS) }, FIRME_MS);
     };
-    const alIrse = () => { if (firme) { clearTimeout(firme); firme = undefined } };
+    const alIrse = () => { corte = Date.now(); if (firme) { clearTimeout(firme); firme = undefined } };
     const alVer = () => { if (document.visibilityState === "visible") luego(AL_VOLVER_MS) };
     window.addEventListener("online", alVolver);
     window.addEventListener("offline", alIrse);

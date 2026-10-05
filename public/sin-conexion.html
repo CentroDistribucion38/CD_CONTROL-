@@ -37,7 +37,13 @@
   var ruta = location.pathname + location.search;
   if (!window.caches) { el.textContent = "Pantalla pedida: " + ruta; return }
   caches.open("control-paginas").then(function (c) { return c.keys() }).then(function (ks) {
-    el.textContent = "Pantalla pedida: " + ruta + "  ·  Guardadas en este equipo: " + ks.length;
+    var t = "Pantalla pedida: " + ruta + "  ·  Guardadas en este equipo: " + ks.length;
+    try {
+      var f = JSON.parse(localStorage.getItem("cd38.copia.fallos") || "{}");
+      if (f[location.pathname]) t += "  ·  No se pudo guardar: " + f[location.pathname];
+      else if (ks.length < 15) t += "  ·  La copia todavía se está armando: ábrela con internet y espera un par de minutos.";
+    } catch (e) { }
+    el.textContent = t;
   }).catch(function () { el.textContent = "Pantalla pedida: " + ruta });
 })()</script>
 </body>

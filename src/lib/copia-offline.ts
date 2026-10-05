@@ -8,6 +8,16 @@
 export const LLAVE_PREPARADA = "cd38.copia.preparada";
 /** De quién es la copia guardada en este equipo (id de la persona). */
 const LLAVE_DUENO = "cd38.copia.dueno";
+/** Las pantallas que no se pudieron guardar y por qué ({ruta: motivo}). La página «Sin conexión» lo lee para decir qué pasó. */
+export const LLAVE_FALLOS = "cd38.copia.fallos";
+function anotarFallos(hechas: string[], fallos: Record<string, string>) {
+  try {
+    const v = JSON.parse(localStorage.getItem(LLAVE_FALLOS) ?? "{}") as Record<string, string>;
+    for (const r of hechas) delete v[r];
+    Object.assign(v, fallos);
+    localStorage.setItem(LLAVE_FALLOS, JSON.stringify(v));
+  } catch { /* sin almacenamiento: solo se pierde el detalle */ }
+}
 /** Las pantallas que se descubrieron siguiendo los enlaces de las ya guardadas (menús, tarjetas, pestañas…). */
 export const LLAVE_RUTAS = "cd38.copia.rutas";
 const MAX_DESCUBIERTAS = 80;
@@ -21,7 +31,7 @@ export function haySoporte(): boolean {
 /** Borra las copias de las pantallas: al cerrar sesión y al llegar al login, para que el siguiente en el equipo no vea lo de otro. */
 export async function borrarCopia(): Promise<void> {
   try {
-    localStorage.removeItem(LLAVE_DUENO);
+    localStorage.removeItem(LLAVE_DUENO); localStorage.removeItem(LLAVE_FALLOS);
     if ("caches" in window) { await caches.delete(PAGINAS); await caches.delete(META) }
     localStorage.removeItem(LLAVE_PREPARADA);
     localStorage.removeItem(LLAVE_RUTAS);
@@ -126,6 +136,7 @@ function esPantalla(r: Response): boolean {
 export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => void): Promise<Resultado> {
   const unicas = [...new Set(rutas)];
   const guardadas: string[] = [], fallidas: string[] = [];
+  const motivos: Record<string, string> = {};
   const recursos = new Set<string>();
   const enlaces = new Set<string>();
   let hechas = 0;
@@ -139,14 +150,16 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
       const ruta = unicas[siguiente++];
       try {
         const r = await fetch(ruta, { credentials: "same-origin", headers: { Accept: "text/html", "x-preparar": "1" } });
-        if (!esPantalla(r)) fallidas.push(ruta);
-        else {
+        if (!esPantalla(r)) {
+          fallidas.push(ruta);
+          motivos[ruta] = !r.ok ? "error " + r.status : "mandó al login (sesión vencida o sin permiso)";
+        } else {
           guardadas.push(ruta);
           const html = await r.text();
           for (const u of recursosDe(html)) recursos.add(u);
           for (const e of enlacesDe(html)) enlaces.add(e);
         }
-      } catch { fallidas.push(ruta) }
+      } catch { fallidas.push(ruta); motivos[ruta] = "sin respuesta del servidor" }
       alAvanzar({ hechas: ++hechas, total });
       avisar({ hechas, total, fin: false, guardadas: 0 });
     }
@@ -161,6 +174,7 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
     while (k < lista.length) { try { await fetch(lista[k++]) } catch { /* uno que falle no tumba al resto */ } }
   }));
 
+  anotarFallos(guardadas, motivos);
   recordarRutas([...enlaces]);
   avisar({ hechas, total, fin: true, guardadas: (await rutasGuardadas()).length });
   const fecha = new Date().toISOString();

@@ -93,7 +93,13 @@ const DETALLE_AVISO = function () {
   var ruta = location.pathname + location.search;
   if (!window.caches) { el.textContent = "Pantalla pedida: " + ruta; return }
   caches.open("control-paginas").then(function (c) { return c.keys() }).then(function (ks) {
-    el.textContent = "Pantalla pedida: " + ruta + "  ·  Guardadas en este equipo: " + ks.length;
+    var t = "Pantalla pedida: " + ruta + "  ·  Guardadas en este equipo: " + ks.length;
+    try {
+      var f = JSON.parse(localStorage.getItem("cd38.copia.fallos") || "{}");
+      if (f[location.pathname]) t += "  ·  No se pudo guardar: " + f[location.pathname];
+      else if (ks.length < 15) t += "  ·  La copia todavía se está armando: ábrela con internet y espera un par de minutos.";
+    } catch (e) { }
+    el.textContent = t;
   }).catch(function () { el.textContent = "Pantalla pedida: " + ruta });
 };
 
@@ -167,9 +173,15 @@ async function pagina(evento) {
 
   /* «Preparar para auditoría»: va a la red sí o sí, guarda, y no recibe copias ni avisos. */
   if (req.headers.get("x-preparar")) {
-    const r = await fetch(req);
-    if (guardable(r)) await guardarPagina(llave, r);
-    return r;
+    /* El pedido va por su cuenta (sin la señal de cancelar de la pantalla): si la persona cambia de pantalla
+       a mitad de la copia, lo que ya estaba pidiéndose igual termina y queda guardado. */
+    const hecho = (async () => {
+      const r = await fetch(url.href, { credentials: "same-origin", headers: { Accept: "text/html" } });
+      if (guardable(r)) await guardarPagina(llave, r);
+      return r;
+    })();
+    evento.waitUntil(hecho.catch(() => {}));
+    return hecho;
   }
 
   const hay = await copiaDe(llave, url);
