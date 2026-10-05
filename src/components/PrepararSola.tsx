@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { sondear, CICLO_MIN, edadesGuardadas, elegirPantallas, haySoporte, prepararCopia, todasLasRutas } from "@/lib/copia-offline";
+import { copiaDeEstaPersona, sondear, CICLO_MIN, edadesGuardadas, elegirPantallas, haySoporte, prepararCopia, todasLasRutas } from "@/lib/copia-offline";
 
 /**
  * LA COPIA SE VA HACIENDO SOLA.
@@ -13,20 +13,23 @@ import { sondear, CICLO_MIN, edadesGuardadas, elegirPantallas, haySoporte, prepa
  * Sin internet no hace nada y se retoma sola cuando vuelve; con «ahorro de
  * datos» o red 2G tampoco corre: esos equipos la preparan desde Mi perfil.
  */
-const PRIMERA_MS = 4_000;
+const PRIMERA_MS = 1_500;
 const AL_VOLVER_MS = 3_000;
 /* Con un internet que parpadea no se arranca a copiar a cada «online»: hay que llevar este rato seguido con señal. */
 const FIRME_MS = 8_000;
 
-export function PrepararSola({ rutas }: { rutas: string[] }) {
+export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string }) {
   const llave = rutas.join("|");
   useEffect(() => {
     if (!haySoporte()) return;
     let vivo = true, corriendo = false;
     const timers = new Set<ReturnType<typeof setTimeout>>();
 
+    /* Antes de guardar nada: ¿la copia que hay es de esta persona? Si es de otra, se borra. */
+    const duenoListo = dueno ? copiaDeEstaPersona(dueno) : Promise.resolve(false);
     const ciclo = async () => {
       if (!vivo || corriendo) return;
+      await duenoListo;
       const con = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
       if (con && (con.saveData === true || con.effectiveType === "slow-2g" || con.effectiveType === "2g")) return;
       if (!navigator.onLine || document.visibilityState !== "visible") return;
@@ -59,7 +62,7 @@ export function PrepararSola({ rutas }: { rutas: string[] }) {
       window.removeEventListener("online", alVolver); window.removeEventListener("offline", alIrse); document.removeEventListener("visibilitychange", alVer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [llave]);
+  }, [llave, dueno]);
   /* La copia es invisible: no hay mensaje ni franja. Quien quiera ver cuántas hay guardadas lo ve en Mi perfil. */
   return null;
 }

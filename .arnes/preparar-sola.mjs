@@ -6,7 +6,7 @@ const fallas = []; const ok = (c, m) => { if (!c) fallas.push(m) };
 writeFileSync(R(".arnes/_ps-entrada.tsx"), `
 import { createRoot } from "react-dom/client";
 import { PrepararSola } from "../src/components/PrepararSola";
-createRoot(document.getElementById("r")!).render(<PrepararSola rutas={["/inventario/tablero", "/inventario/fiscal"]} />);
+createRoot(document.getElementById("r")!).render(<PrepararSola rutas={["/inventario/tablero", "/inventario/fiscal"]} dueno={new URLSearchParams(location.search).get("dueno") ?? undefined} />);
 `);
 const js = buildSync({ entryPoints: [R(".arnes/_ps-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
   alias: { "@": R("src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
@@ -36,7 +36,7 @@ const avanza = async (ms) => { for (let t = 0; t < ms; t += 1000) { await pg.clo
 const esperaFin = async () => { for (let i = 0; i < 30; i++) await pg.waitForTimeout(50) };
 
 /* Equipo nuevo: no espera mucho y guarda todo. */
-await arranca(); await vaciar(); await avanza(2_000);
+await arranca(); await vaciar(); await avanza(1_000);
 ok(pedidas.length === 0, "no arranca de golpe");
 await avanza(4_000); await esperaFin();
 ok([...pedidas].sort().join() === [...TODAS].sort().join(), "a los pocos segundos pide todas las del menú: " + pedidas);
@@ -92,6 +92,15 @@ await esperaFin();
 ok(pedidas.length === 0, "parpadeando 6 veces no pide nada: " + pedidas);
 await avanza(12_000); await esperaFin();
 ok(pedidas.length > 0, "ya firme, pide lo que falta: " + pedidas);
+
+/* La copia se queda con su dueño: la misma persona que vuelve a entrar la conserva; otra, no. */
+const marca = () => pg.evaluate(async () => { const c = await caches.open("control-paginas"); await c.put(location.origin + "/viejo", new Response("x")) });
+const hay = () => pg.evaluate(async () => !!(await (await caches.open("control-paginas")).match(location.origin + "/viejo")));
+await pg.goto("http://localhost:4398/?dueno=A"); await avanza(500);
+await marca(); await pg.goto("http://localhost:4398/?dueno=A"); await avanza(500);
+ok(await hay(), "la misma persona que vuelve a entrar conserva su copia");
+await pg.goto("http://localhost:4398/?dueno=B"); await avanza(500);
+ok(!(await hay()), "si entra otra persona, la copia de la anterior se borra");
 
 /* Si todo falla no queda anotada una preparación. */
 falla = true; await pg.evaluate(() => { localStorage.clear(); return caches.delete("control-paginas") });

@@ -90,7 +90,7 @@ export default async function AppLayout({
       <RecordarTema tema={String(perfil?.tema ?? "gris")} />
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
       <AvisoCopia />
-      <PrepararSola rutas={rutasParaCopia(permisos)} />
+      <PrepararSola rutas={rutasParaCopia(permisos)} dueno={user.id} />
       <MedirUso />
       <Marco permitidas={permitidas}>{children}</Marco>
     </div>

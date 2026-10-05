@@ -6,6 +6,8 @@
  */
 
 export const LLAVE_PREPARADA = "cd38.copia.preparada";
+/** De quién es la copia guardada en este equipo (id de la persona). */
+const LLAVE_DUENO = "cd38.copia.dueno";
 /** Las pantallas que se descubrieron siguiendo los enlaces de las ya guardadas (menús, tarjetas, pestañas…). */
 export const LLAVE_RUTAS = "cd38.copia.rutas";
 const MAX_DESCUBIERTAS = 80;
@@ -19,10 +21,27 @@ export function haySoporte(): boolean {
 /** Borra las copias de las pantallas: al cerrar sesión y al llegar al login, para que el siguiente en el equipo no vea lo de otro. */
 export async function borrarCopia(): Promise<void> {
   try {
+    localStorage.removeItem(LLAVE_DUENO);
     if ("caches" in window) { await caches.delete(PAGINAS); await caches.delete(META) }
     localStorage.removeItem(LLAVE_PREPARADA);
     localStorage.removeItem(LLAVE_RUTAS);
   } catch { /* nada que borrar o sin permiso: da igual */ }
+}
+
+/**
+ * LA COPIA SE QUEDA CON SU DUEÑO. Si la sesión se vence y la misma persona vuelve a entrar, su copia sigue
+ * ahí (antes se borraba al llegar al login y el equipo quedaba sin nada justo cuando más se necesita).
+ * Solo se borra al cerrar sesión a propósito, o si quien entra es OTRA persona (o la copia no tiene dueño
+ * conocido). true = se borró.
+ */
+export async function copiaDeEstaPersona(id: string): Promise<boolean> {
+  try {
+    const dueno = localStorage.getItem(LLAVE_DUENO);
+    if (dueno === id) return false;
+    await borrarCopia();
+    localStorage.setItem(LLAVE_DUENO, id);
+    return true;
+  } catch { return false }
 }
 
 /** Las pantallas que SÍ están guardadas ahora mismo en este equipo (lo que dice la caché, no lo que se recuerda haber hecho). */
@@ -133,7 +152,7 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
     }
   }
   /* La primera pasada son decenas de pantallas, y cada una la arma el servidor: de a cuatro para que no tarde minutos. */
-  await Promise.all(Array.from({ length: unicas.length > 6 ? 4 : 2 }, () => trabajador()));
+  await Promise.all(Array.from({ length: unicas.length > 6 ? 5 : 2 }, () => trabajador()));
 
   /* Lo que las pantallas cargan al abrirse: sin esto el HTML estaría pero la pantalla no arrancaría. */
   const lista = [...recursos];
