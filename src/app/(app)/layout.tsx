@@ -4,8 +4,6 @@ import { usuarioActual } from "@/lib/sesion";
 import { BarraSuperior } from "@/components/BarraSuperior";
 import { Marco } from "@/components/Marco";
 import { misPermisos } from "@/lib/permisos";
-import { MODULOS } from "@/modulos/registro";
-import { armarComandos } from "@/modulos/comandos";
 import { ClaveProvisional } from "@/components/ClaveProvisional";
 import { RecordarTema } from "@/components/RecordarTema";
 import "./shell.css";
@@ -87,7 +85,7 @@ export default async function AppLayout({
       {/* Deja anotado el tema en este equipo para que la pantalla de
           entrada se pinte igual la próxima vez. */}
       <RecordarTema tema={String(perfil?.tema ?? "gris")} />
-      <BarraSuperior usuario={nombre} turno={turnoActual()} comandos={armarComandos(MODULOS, permitidas)} />
+      <BarraSuperior usuario={nombre} turno={turnoActual()} />
       <Marco permitidas={permitidas}>{children}</Marco>
     </div>
   );

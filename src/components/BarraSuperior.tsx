@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { AccionesApp } from "./AccionesApp";
 import { Ruta } from "./Ruta";
-import { Comandos } from "./Comandos";
-import type { Comando } from "@/modulos/comandos";
+import { NuevaPestana } from "./NuevaPestana";
 
 /**
  * Barra superior. Azul profundo con la trama de rombos y el filo rojo: el
@@ -15,12 +14,9 @@ import type { Comando } from "@/modulos/comandos";
 export function BarraSuperior({
   usuario,
   turno,
-  comandos = [],
 }: {
   usuario: string;
   turno?: string;
-  /** Las pantallas que esta persona puede abrir escribiendo su código. */
-  comandos?: Comando[];
 }) {
   const iniciales = usuario
     .split(/\s+/)
@@ -33,6 +29,7 @@ export function BarraSuperior({
 
   return (
     <header className="sh-barra">
+      <NuevaPestana />
       <Link href="/inicio" className="esquina" aria-label="Ir a los módulos">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/marca/logo-b.png" alt="Bavaria" />
@@ -41,7 +38,6 @@ export function BarraSuperior({
       <Ruta />
 
       <div className="der">
-        {comandos.length > 0 && <Comandos comandos={comandos} />}
         {turno && <span className="turno">{turno}</span>}
         <AccionesApp />
         <Link
