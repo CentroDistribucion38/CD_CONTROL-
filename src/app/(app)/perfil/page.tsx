@@ -34,6 +34,11 @@ export default async function PerfilPage() {
      la persona pueda ver esa pantalla, para que nadie elija como página
      de inicio una a la que su rol no llega. */
   const permisos = await misPermisos();
+  /* Las pantallas que verá sin internet: las mismas que el menú le deja abrir. */
+  const rutasOffline = [
+    ...permisos.modulos.map((m) => m.ruta),
+    ...permisos.modulos.flatMap((m) => m.secciones.map((x) => x.ruta)),
+  ].filter((r) => permisos.puedeVer(r));
 
   return (
     <Perfil
@@ -47,6 +52,7 @@ export default async function PerfilPage() {
       textoGrande={p.texto_grande === true}
       tema={p.tema === "ambar" ? "ambar" : "oficial"}
       ultimoIngreso={user.last_sign_in_at ?? null}
+      rutasOffline={[...new Set(rutasOffline)]}
       modulos={modulosVisibles(String(p.rol ?? "operador")).map((m) => ({
         id: m.id,
         nombre: m.nombre,

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CD38 · Sin conexión</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #eef1f5; color: #04203f;
+         font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 520px; background: #fff; border: 1px solid #d5dce5; border-top: 4px solid #e0123b; padding: 28px 28px 24px; }
+  h1 { font-size: 22px; line-height: 1.2; margin-bottom: 10px; }
+  p { font-size: 15px; line-height: 1.5; color: #3d4c5f; margin-bottom: 12px; }
+  .botones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  a, button { font: inherit; font-weight: 600; font-size: 14px; min-height: 44px; padding: 0 18px; display: inline-flex; align-items: center;
+              border-radius: 0; cursor: pointer; text-decoration: none; }
+  .p { background: #04203f; color: #fff; border: 0; }
+  .s { background: #fff; color: #04203f; border: 1px solid #04203f; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sin conexión, y esta pantalla no está guardada</h1>
+  <p>No hay internet y este equipo no tiene copia de esta pantalla. Las pantallas se guardan cuando se abren con internet, o todas a la vez con <b>Mi perfil → Preparar para auditoría</b>.</p>
+  <p>Vuelve al inicio para ver las que sí están guardadas, o reintenta cuando haya señal.</p>
+  <div class="botones">
+    <a class="p" href="/inicio">Ir al inicio</a>
+    <button class="s" type="button" onclick="location.reload()">Reintentar</button>
+  </div>
+</main>
+</body>
+</html>

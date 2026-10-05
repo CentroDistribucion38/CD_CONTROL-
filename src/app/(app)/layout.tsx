@@ -6,6 +6,8 @@ import { Marco } from "@/components/Marco";
 import { misPermisos } from "@/lib/permisos";
 import { ClaveProvisional } from "@/components/ClaveProvisional";
 import { RecordarTema } from "@/components/RecordarTema";
+import { AvisoCopia } from "@/components/AvisoCopia";
+import { PrepararSola } from "@/components/PrepararSola";
 import "./shell.css";
 
 function turnoActual(): string {
@@ -86,6 +88,8 @@ export default async function AppLayout({
           entrada se pinte igual la próxima vez. */}
       <RecordarTema tema={String(perfil?.tema ?? "gris")} />
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
+      <AvisoCopia />
+      <PrepararSola rutas={[...new Set(permitidas)]} />
       <Marco permitidas={permitidas}>{children}</Marco>
     </div>
   );

@@ -15,6 +15,7 @@ const RUTAS_PUBLICAS = [
   "/auth",
   "/manifest.webmanifest",
   "/sw.js",
+  "/sin-conexion.html",
   "/api/version",
 ];
 

@@ -29,6 +29,8 @@ export function Actualizar() {
   const rr = useRef(router);
   rr.current = router;
   const actualizar = useCallback(() => {
+    /* Sin internet no hay nada que pedir: refrescar recargaría la página desde la copia en bucle. */
+    if (!navigator.onLine) return;
     empezar(() => { rr.current.refresh(); });
     ultima.current = Date.now();
     pulso((n) => n + 1);

@@ -856,3 +856,14 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 @media (prefers-reduced-motion: reduce) { .sh-refrescar.gira svg { animation: none; opacity: .5 } }
 /* Donde hay un «+» flotante a la vista (Roturas, Acciones, Vh Interno) se pone justo encima, sin taparlo; si no, va pegado abajo. */
 .sh-refrescar[data-sube="si"] { bottom: calc(92px + env(safe-area-inset-bottom)); right: 28px }
+
+/* LA FRANJA «ESTO ES UNA COPIA»: rectangular, bajo la barra superior, a todo el ancho. */
+.sh .sh-copia {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 14px;
+  padding: 8px 16px; background: #fff3cd; color: #4a3500; border-bottom: 2px solid #e0a800;
+  font-size: 13px; line-height: 1.35; text-align: center;
+}
+.sh .sh-copia button {
+  min-height: 32px; padding: 0 14px; border-radius: 0; border: 1px solid #4a3500; background: #4a3500; color: #fff;
+  font: inherit; font-weight: 600; cursor: pointer;
+}

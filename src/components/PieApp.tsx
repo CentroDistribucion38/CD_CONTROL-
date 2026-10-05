@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { borrarCopia } from "@/lib/copia-offline";
 
 /** Pie de la portada: la marca a la izquierda, cerrar sesión a la derecha. */
 export function PieApp() {
@@ -12,6 +13,7 @@ export function PieApp() {
   async function salir() {
     setSaliendo(true);
     const supabase = createClient();
+    await borrarCopia();   // la copia para trabajar sin internet es de quien entró
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();

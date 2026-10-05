@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario, normalizarUsuario } from "@/lib/auth";
 import { modulosActivos } from "@/modulos/registro";
 import { AccionesApp } from "@/components/AccionesApp";
+import { borrarCopia } from "@/lib/copia-offline";
 
 /**
  * Nunca se muestra el error crudo de Supabase ni se dice cuál de los dos
@@ -27,6 +28,8 @@ function traducirError(mensaje: string): string {
 
 export function Formulario() {
   const router = useRouter();
+  /* Llegar al login es no tener sesión: las copias guardadas para trabajar sin internet eran de quien estuvo antes. */
+  useEffect(() => { void borrarCopia() }, []);
   const params = useSearchParams();
   const siguiente = params.get("next") ?? "/inicio";
 

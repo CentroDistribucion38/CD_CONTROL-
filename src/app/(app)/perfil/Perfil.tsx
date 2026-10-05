@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario } from "@/lib/auth";
 import { Eye, EyeOff } from "lucide-react";
+import { borrarCopia, fechaCorta, haySoporte, prepararCopia, ultimaPreparacion } from "@/lib/copia-offline";
 
 type Modulo = { id: string; nombre: string; ruta: string };
 
@@ -147,6 +148,8 @@ type Props = {
   tema: Tema;
   ultimoIngreso: string | null;
   modulos: Modulo[];
+  /** Las pantallas que esta persona puede ver: lo que «Preparar para auditoría» deja guardado. */
+  rutasOffline: string[];
 };
 
 const NOMBRE_ROL: Record<string, string> = {
@@ -200,7 +203,7 @@ function iniciales(nombre: string, usuario: string): string {
 
 export function Perfil(p: Props) {
   const router = useRouter();
-  const [seccion, setSeccion] = useState<"cuenta" | "seguridad" | "preferencias">(
+  const [seccion, setSeccion] = useState<"cuenta" | "seguridad" | "preferencias" | "internet">(
     "cuenta"
   );
 
@@ -261,6 +264,17 @@ export function Perfil(p: Props) {
             </svg>
             Preferencias
           </button>
+          <button
+            type="button"
+            className={seccion === "internet" ? "on" : ""}
+            onClick={() => setSeccion("internet")}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2.5 9.2a14 14 0 0 1 19 0M5.6 12.6a9.5 9.5 0 0 1 12.8 0M8.8 16a5 5 0 0 1 6.4 0" />
+              <circle cx="12" cy="19.2" r="1.1" />
+            </svg>
+            Sin internet
+          </button>
         </nav>
 
         {seccion === "cuenta" && <Cuenta {...p} alGuardar={() => router.refresh()} />}
@@ -268,6 +282,7 @@ export function Perfil(p: Props) {
         {seccion === "preferencias" && (
           <Preferencias {...p} alGuardar={() => router.refresh()} />
         )}
+        {seccion === "internet" && <SinInternet rutas={p.rutasOffline} />}
       </div>
 
       <footer className="pf-pie">
@@ -506,6 +521,7 @@ function Seguridad(p: Props) {
   async function salirDeTodo() {
     setTrabajando(true);
     const supabase = createClient();
+    await borrarCopia();
     await supabase.auth.signOut({ scope: "global" });
     router.push("/login");
     router.refresh();
@@ -785,6 +801,79 @@ function Preferencias(p: Props & { alGuardar: () => void }) {
           disabled={guardando || !cambio}
         >
           {guardando ? "Guardando…" : "Guardar preferencias"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/* ==================== Sin internet ==================== */
+function SinInternet({ rutas }: { rutas: string[] }) {
+  const [soporte, setSoporte] = useState(true);
+  const [ultima, setUltima] = useState<{ fecha: string; n: number; fallidas: number } | null>(null);
+  const [avance, setAvance] = useState<{ hechas: number; total: number } | null>(null);
+  const [fallidas, setFallidas] = useState<string[]>([]);
+
+  /* El soporte y la última preparación solo se conocen en el navegador. */
+  useEffect(() => { setSoporte(haySoporte()); setUltima(ultimaPreparacion()) }, []);
+
+  async function preparar() {
+    setFallidas([]);
+    setAvance({ hechas: 0, total: rutas.length + 2 });
+    const r = await prepararCopia(["/inicio", "/perfil", ...rutas], setAvance);
+    setFallidas(r.fallidas);
+    setUltima(ultimaPreparacion());
+    setAvance(null);
+  }
+
+  const ocupado = avance !== null;
+  return (
+    <section className="pf-panel">
+      <div className="pf-cab">
+        <h2>Sin internet</h2>
+        <p>
+          Deja guardadas en este equipo las pantallas que puedes ver, para abrirlas aunque no haya
+          señal: una auditoría, un pasillo sin cobertura, un corte del servicio.
+        </p>
+      </div>
+
+      <div className="pf-bloque">
+        <h3>Preparar para auditoría</h3>
+        <p className="pf-nota" style={{ maxWidth: "62ch", marginBottom: 14 }}>
+          <b>Se hace sola</b> cuando abres CONTROL con internet y la copia tiene más de 6 horas: no tienes que
+          acordarte. Este botón la hace ya mismo, por ejemplo justo antes de una auditoría. Sin internet se abre
+          la copia, y la franja de arriba dice de qué día es. Mirar funciona; guardar cambios necesita señal.
+        </p>
+
+        {ultima ? (
+          <p className="pf-mensaje bien" role="status">
+            Última preparación: <b>{fechaCorta(ultima.fecha)}</b> · {ultima.n} pantallas guardadas
+            {ultima.fallidas > 0 ? ` · ${ultima.fallidas} no se pudieron guardar` : ""}.
+          </p>
+        ) : (
+          <p className="pf-mensaje" role="status">Todavía no has preparado este equipo.</p>
+        )}
+
+        {ocupado && (
+          <p className="pf-nota" role="status" style={{ marginTop: 12 }}>
+            Guardando… {avance.hechas} de {avance.total}. No cierres esta pantalla.
+          </p>
+        )}
+        {fallidas.length > 0 && (
+          <p className="pf-mensaje mal" role="alert" style={{ marginTop: 12 }}>
+            No se pudo guardar: {fallidas.join(", ")}. Ábrelas una vez con internet y quedan guardadas.
+          </p>
+        )}
+        {!soporte && (
+          <p className="pf-mensaje mal" role="alert" style={{ marginTop: 12 }}>
+            Este navegador no permite guardar pantallas. Usa Chrome o Edge, o instala CONTROL como app.
+          </p>
+        )}
+      </div>
+
+      <div className="pf-acciones">
+        <button type="button" className="pf-btn" onClick={preparar} disabled={ocupado || !soporte}>
+          {ocupado ? "Guardando…" : ultima ? "Volver a preparar" : "Preparar ahora"}
         </button>
       </div>
     </section>
