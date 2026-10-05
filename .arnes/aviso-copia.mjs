@@ -31,27 +31,45 @@ const franja = () => pg.locator(".sh-copia");
 await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
 ok(await franja().count() === 0, "con internet y pantalla de la red no hay franja");
 
-/* CON INTERNET y la pantalla salió de la copia (el servidor tardó): NO se asusta a nadie. */
+/* CON INTERNET y la pantalla salió de la copia: NO se asusta a nadie y NO hay que tocar nada. */
 estado = { copia: true, hayCopia: true, fecha: "2026-09-29T19:05:00.000Z" };
+await pg.evaluate(() => sessionStorage.clear());
 await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
 await pg.clock.runFor(1500); await pg.waitForTimeout(100);
 ok(await franja().count() === 0, "con internet y copia no sale la franja de entrada");
-await pg.clock.runFor(20_000); await pg.waitForTimeout(100);
-ok(await franja().count() === 0, "ni a los 20 s: sigue esperando lo nuevo en silencio");
-/* llega lo nuevo: la pantalla se pone sola al día, una vez */
-const antes = cargas;
+/* llega lo nuevo: se recarga sola, una vez, y queda al día */
+let antes = cargas;
 estado = { copia: false, hayCopia: true, fecha: "2026-10-05T18:00:00.000Z" };
 await pg.clock.runFor(1600); await pg.waitForTimeout(400);
-ok(cargas === antes + 1, "al llegar lo nuevo se recarga sola, una vez (cargas " + antes + " → " + cargas + ")");
-await pg.waitForSelector("main");
-ok(await franja().count() === 0, "y queda sin franja");
+ok(cargas === antes + 1, "al llegar lo nuevo se recarga sola, sin tocar nada (cargas " + antes + " → " + cargas + ")");
+await pg.waitForSelector("main"); await pg.clock.runFor(1600); await pg.waitForTimeout(200);
+ok(await franja().count() === 0 && cargas === antes + 1, "y queda sin franja ni más recargas");
+ok(await pg.evaluate(() => sessionStorage.getItem("cd38.autoactualizo")) === null, "los intentos se olvidan al estar al día");
 
-/* si en 30 s no llegó nada, ahí sí avisa, con la fecha y el botón */
+/* la red no firme: sigue saliendo la copia → reintenta sola cada pocos segundos, y solo al final avisa */
 estado = { copia: true, hayCopia: true, fecha: "2026-09-29T19:05:00.000Z" };
+await pg.evaluate(() => sessionStorage.clear());
 await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
-await pg.clock.runFor(31_000); await pg.waitForSelector(".sh-copia");
-ok(/Esta pantalla es una copia/.test(await franja().innerText()) && /29 de sept/.test(await franja().innerText()) && /14:05/.test(await franja().innerText()), "servidor colgado 30 s: dice que es copia y de cuándo (hora de Colombia): " + await franja().innerText());
-ok(await pg.locator(".sh-copia button").count() === 1, "con internet y copia ofrece «Ver lo de ahora»");
+antes = cargas;
+for (let i = 0; i < 5; i++) {
+  await pg.waitForTimeout(300);                       // que la pantalla termine de preguntar «¿soy copia?»
+  await pg.clock.runFor(7600); await pg.waitForTimeout(300);
+  await pg.waitForSelector("main");
+}
+ok(cargas === antes + 5, "reintenta sola 5 veces sin que nadie toque nada (" + (cargas - antes) + ")");
+ok(await franja().count() === 0, "mientras reintenta no asusta con la franja");
+await pg.waitForTimeout(300); await pg.clock.runFor(7600); await pg.waitForSelector(".sh-copia");
+ok(cargas === antes + 5, "y no recarga más de 5 veces");
+ok(/Esta pantalla es una copia/.test(await franja().innerText()) && /29 de sept/.test(await franja().innerText()) && /14:05/.test(await franja().innerText()), "agotados los intentos: dice que es copia y de cuándo (hora de Colombia): " + await franja().innerText());
+ok(await pg.locator(".sh-copia button").count() === 1, "y solo ahí ofrece «Ver lo de ahora»");
+
+/* no se recarga encima de lo que la persona está escribiendo */
+await pg.evaluate(() => sessionStorage.clear());
+await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
+await pg.evaluate(() => { const i = document.createElement("input"); i.id = "nota"; document.querySelector("main").appendChild(i); i.focus(); i.value = "pallet mojado" });
+antes = cargas;
+await pg.clock.runFor(9000); await pg.waitForTimeout(300);
+ok(cargas === antes, "con algo escrito a medias no se recarga (" + (cargas - antes) + ")");
 
 await ctx.setOffline(true);
 await pg.waitForFunction(() => /Sin internet/.test(document.querySelector(".sh-copia")?.textContent ?? ""));
@@ -63,13 +81,20 @@ await pg.screenshot({ path: R(".arnes/_ac-sin-internet.png") });
 await pg.click(".sh-refrescar");
 ok(await pg.evaluate(() => window.__refresh) === 0, "sin internet el botón de actualizar no refresca");
 
+/* VUELVE EL INTERNET: sin tocar nada, la pantalla carga lo de ahora. */
+await pg.evaluate(() => sessionStorage.clear());
+await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
+estado = { copia: false, hayCopia: true, fecha: "2026-10-05T18:00:00.000Z" };
+await ctx.setOffline(true);
+await pg.waitForFunction(() => /Sin internet/.test(document.querySelector(".sh-copia")?.textContent ?? ""));
+antes = cargas;
 await ctx.setOffline(false);
-await pg.waitForSelector(".sh-copia button");
-ok(true, "ok");
+await pg.clock.runFor(1200); await pg.waitForTimeout(400);
+ok(cargas === antes + 1, "al volver el internet la pantalla se recarga SOLA, sin botón (" + antes + " → " + cargas + ")");
+await pg.waitForSelector("main");
+ok(await franja().count() === 0, "y ya no hay franja");
 await pg.click(".sh-refrescar");
 ok(await pg.evaluate(() => window.__refresh) === 1, "con internet otra vez sí refresca");
-const alto = await franja().evaluate((e) => e.getBoundingClientRect().height);
-ok(alto < 70, "la franja ocupa poco alto: " + alto);
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
 console.log("✓ Franja de copia: aparece sin internet o con pantalla de copia, dice de cuándo es, ofrece ver lo de ahora al volver la señal, y el botón de actualizar no recarga sin internet.");
