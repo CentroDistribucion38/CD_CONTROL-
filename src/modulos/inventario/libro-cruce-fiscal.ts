@@ -11,8 +11,9 @@
  *   Resumen        una fila por pareja (hoja): quiénes son, cómo van, cuántos
  *                  renglones coinciden, cuántas cajas contó cada quien y cuánto
  *                  se aleja una cuenta de la otra. Con el total del inventario.
- *   Diferencias    solo lo que no coincide, lo más grande primero: lo que hay
- *                  que ir a mirar.
+ *   Diferencias    solo lo que no coincide, lo más grande primero, con la CAUSA
+ *                  técnica de cada una (quién anotó qué, y por qué no se cruza) y
+ *                  qué revisar: ver causas-cruce.ts.
  *   Por material   la suma por código en todas las hojas: qué materiales son
  *                  los que más difieren.
  *   Por persona    una fila por persona: cuántos renglones anotó, estibas, saldo,
@@ -31,7 +32,8 @@
  * Puro de datos: recibe lo que ya se cruzó, no lee la base.
  */
 import ExcelJS from "exceljs";
-import { textoVenc, TEXTO_FILA, TEXTO_ESTADO, type ConteoPersona, type EstadoHoja, type FilaCruce } from "./fiscal-cruce";
+import { causasDeHoja, SIGNIFICA_CAUSA, ETIQUETA_CAUSA, type Causa, type CausaCodigo } from "./causas-cruce";
+import { textoVenc, TEXTO_FILA, TEXTO_ESTADO, type ConteoPersona, type EstadoFila, type EstadoHoja, type FilaCruce } from "./fiscal-cruce";
 
 export type ColoresLibro = { tinta: string; banda: string };   // RRGGBB
 const MARCA: ColoresLibro = { tinta: "12263A", banda: "FFC000" };
@@ -81,6 +83,7 @@ function paleta(c?: ColoresLibro): Paleta {
 
 /* Los nombres de las pestañas (las fórmulas del resumen los leen). */
 const S_DET = "Conteos cruzados", S_CON = "Conteos por persona";
+const FF_ROW0 = 7;   // la fila del encabezado de «Diferencias»
 
 const NF = "#,##0;[Red]-#,##0;0";
 const DIF = '+#,##0;[Red]-#,##0;0';
@@ -139,6 +142,17 @@ const celda = (c: ExcelJS.Cell, P: Paleta, par: boolean, o: { num?: boolean; cen
 };
 const pareja = (h: HojaCruzada) => `${h.ol ?? "—"}  ·  ${h.bavaria ?? "—"}`;
 const COLOR_ESTADO: Record<string, string> = { COINCIDE: VERDE, DIFIERE: NARANJA, SOLO_OL: ROJO, SOLO_BAVARIA: ROJO };
+/** Qué quiere decir cada estado del cruce: va en el Resumen, con un ejemplo, para que nadie tenga que adivinarlo. */
+const GLOSARIO_ESTADOS: { est: EstadoFila; dice: string; ejemplo: string }[] = [
+  { est: "COINCIDE", dice: "Las dos personas anotaron ese renglón (mismo sitio, material y vencimiento) y las cajas son iguales. No hay nada que revisar.",
+    ejemplo: "Operador 40 cajas · Bavaria 40 cajas → diferencia 0." },
+  { est: "DIFIERE", dice: "Las dos personas SÍ anotaron ese renglón, pero no les dio la misma cantidad de cajas. La columna «Causa técnica» dice en qué se separan (estibas, saldo, cajas sueltas…).",
+    ejemplo: "Operador 40 cajas · Bavaria 36 cajas → diferencia +4 (contó más el operador)." },
+  { est: "SOLO_OL", dice: "Solo el operador anotó ese renglón; Bavaria no lo tiene. Todas sus cajas cuentan como diferencia: o Bavaria no contó ese sitio, o lo anotó con otro vencimiento u otro sitio (la causa lo indica).",
+    ejemplo: "Operador 24 cajas · Bavaria sin anotar → diferencia +24." },
+  { est: "SOLO_BAVARIA", dice: "Solo Bavaria anotó ese renglón; el operador no lo tiene. Todas sus cajas cuentan como diferencia: o el operador no contó ese sitio, o lo anotó con otro vencimiento u otro sitio (la causa lo indica).",
+    ejemplo: "Operador sin anotar · Bavaria 24 cajas → diferencia −24." },
+];
 const colorPct = (p: number) => (p >= 0.95 ? VERDE : p >= 0.8 ? NARANJA : ROJO);
 
 export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
@@ -148,6 +162,14 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   const sello = o.sello ? wb.addImage({ buffer: o.sello as unknown as ExcelJS.Buffer, extension: "png" }) : null;
   const cruzadas = o.hojas.filter((h) => h.filas);
   const todas = cruzadas.flatMap((h) => h.filas!.map((f) => ({ h, f })));
+  /* LA CAUSA de cada renglón que no coincide, con los nombres y las cifras de las dos personas. */
+  const causa = new Map<object, Causa>();
+  for (const h of cruzadas) {
+    const cs = causasDeHoja({ ol: h.ol, bavaria: h.bavaria, filas: h.filas!, conteos: h.conteos ?? null });
+    h.filas!.forEach((f, i) => { const c = cs[i]; if (c) causa.set(f, c) });
+  }
+  const mal = todas.filter((x) => x.f.estado !== "COINCIDE")
+    .sort((a, b) => Math.abs(b.f.diferencia) - Math.abs(a.f.diferencia) || a.h.numero - b.h.numero);
   const hoy = new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
   const fechaInv = o.fecha.split("-").reverse().join("/");
   const sub = `${o.nombre}  ·  inventario del ${fechaInv}  ·  exportado${o.quien ? ` por ${o.quien}` : ""} el ${hoy}`;
@@ -165,11 +187,19 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
 
   /* =================== DETALLE (se arma primero: el resumen lo lee con fórmulas) =================== */
   const DC = ["Hoja", "Pareja (operador · Bavaria)", "Estado", "Sitio", "Código", "Material", "Vence",
-    "Cajas operador", "Cajas Bavaria", "Diferencia (operador − Bavaria)", "Diferencia sin signo", "Diferencia sobre la mayor"];
-  const DA = [2, 7, 34, 17, 18, 11, 38, 13, 13, 13, 17, 14, 15, 2];
+    "Cajas operador", "Cajas Bavaria", "Diferencia (operador − Bavaria)", "Diferencia sin signo", "Diferencia sobre la mayor", "Causa técnica"];
+  const DA = [2, 7, 34, 17, 18, 11, 38, 13, 13, 13, 17, 14, 15, 30, 2];
   d.columns = DA.map((w) => ({ width: w }));
   cabecera(d, P, sello, "Conteos cruzados · todas las hojas, lado a lado", sub, DA.length);
+
+  /* Leyenda de una línea sobre el encabezado: qué quiere decir cada estado. */
+  const leyenda = (w: ExcelJS.Worksheet, hasta: number) => {
+    w.mergeCells(6, 3, 6, hasta);
+    const c = w.getCell(6, 3); c.value = "Estado: Coincide = mismas cajas  ·  Difiere = los dos lo anotaron, pero con distinta cantidad de cajas  ·  Solo el operador / Solo Bavaria = lo anotó una sola persona.  (Detalle y ejemplos en «Resumen».)";
+    c.font = letra(8.5, P.GRIS); c.alignment = { vertical: "middle", indent: 0 }; w.getRow(6).height = 18;
+  };
   const DF0 = 7;
+  leyenda(d, 14);
   encabezado(d, DF0, P, DC);
   todas.forEach(({ h, f }, i) => {
     const r = DF0 + 1 + i, row = d.getRow(r); row.height = 20;
@@ -178,10 +208,11 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
       textoVenc(f.vencDia, f.vencMes, f.vencAnio), ol, ba,
       { formula: `N(I${r})-N(J${r})`, result: f.diferencia },
       { formula: `ABS(K${r})`, result: Math.abs(f.diferencia) },
-      { formula: `IF(MAX(N(I${r}),N(J${r}))=0,0,L${r}/MAX(N(I${r}),N(J${r})))`, result: mayor === 0 ? 0 : Math.abs(f.diferencia) / mayor }];
+      { formula: `IF(MAX(N(I${r}),N(J${r}))=0,0,L${r}/MAX(N(I${r}),N(J${r})))`, result: mayor === 0 ? 0 : Math.abs(f.diferencia) / mayor },
+      causa.get(f)?.etiqueta ?? ""];
     vals.forEach((v, k) => {
       const c = row.getCell(2 + k); c.value = v;
-      celda(c, P, i % 2 === 1, { num: k >= 7 && k <= 10, centro: k === 0 || k === 2 || k === 6, fmt: k === 9 ? DIF : k === 10 ? NF : k === 11 ? PCT : k === 7 || k === 8 ? NF : undefined, negrita: k === 4 });
+      celda(c, P, i % 2 === 1, { num: k >= 7 && k <= 10, centro: k === 0 || k === 2 || k === 6 || k === 12, fmt: k === 9 ? DIF : k === 10 ? NF : k === 11 ? PCT : k === 7 || k === 8 ? NF : undefined, negrita: k === 4 });
     });
     const e = row.getCell(4); e.fill = relleno(COLOR_ESTADO[f.estado]); e.font = letra(9, BLANCO, true);
   });
@@ -266,12 +297,64 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
     if (k >= 4 && k <= 12) c.numFmt = k === 11 ? DIF : NF;
     if (k === 13 || k === 14) c.numFmt = PCT;
   });
+  /* LO QUE SIGNIFICA CADA ESTADO (Coincide / Difiere / Solo…): definido aquí mismo, con ejemplo. */
+  const G0 = T + 2;
+  rs.getRow(G0).height = 22;
+  const encG: [number, number, string][] = [[2, 5, "Estado del cruce"], [6, 12, "Qué quiere decir"], [13, 17, "Ejemplo"]];
+  for (const [a, b, t] of encG) {
+    rs.mergeCells(G0, a, G0, b);
+    for (let c = a; c <= b; c++) rs.getCell(G0, c).fill = relleno(P.TINTA);
+    const x = rs.getCell(G0, a); x.value = t; x.font = letra(9, BLANCO, true); x.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+  }
+  GLOSARIO_ESTADOS.forEach((g, i) => {
+    const r = G0 + 1 + i; rs.getRow(r).height = 46;
+    const celdas: [number, number, string][] = [[2, 5, TEXTO_FILA[g.est]], [6, 12, g.dice], [13, 17, g.ejemplo]];
+    for (const [a, b, t] of celdas) {
+      rs.mergeCells(r, a, r, b);
+      for (let c = a; c <= b; c++) { const x = rs.getCell(r, c); x.border = { bottom: { style: "thin", color: { argb: P.LINEA } } }; if (a !== 2 && i % 2 === 1) x.fill = relleno(P.FONDO) }
+      const x = rs.getCell(r, a); x.value = t; x.alignment = { vertical: "middle", horizontal: "left", indent: 1, wrapText: true };
+      if (a === 2) { x.fill = relleno(COLOR_ESTADO[g.est]); x.font = letra(10, BLANCO, true) } else x.font = letra(9.5, P.TINTA);
+    }
+  });
+  /* LAS CAUSAS: cuántos renglones y cuántas cajas explica cada una (fórmulas sobre «Diferencias»: se actualizan si filtras o corriges). */
+  const porCausa = new Map<CausaCodigo, { n: number; cajas: number }>();
+  for (const { f } of mal) { const c = causa.get(f); if (!c) continue; const x = porCausa.get(c.codigo) ?? { n: 0, cajas: 0 }; x.n++; x.cajas += Math.abs(f.diferencia); porCausa.set(c.codigo, x) }
+  const lista = [...porCausa.entries()].sort((a, b) => b[1].cajas - a[1].cajas);
+  let C0 = G0 + GLOSARIO_ESTADOS.length + 2;
+  if (lista.length) {
+    const dUlt2 = FF_ROW0 + mal.length;
+    const rc = (col: string) => `'Diferencias'!$${col}$${FF_ROW0 + 1}:$${col}$${dUlt2}`;
+    rs.getRow(C0).height = 22;
+    const encC: [number, number, string][] = [[2, 5, "Causa técnica"], [6, 6, "Renglones"], [7, 8, "Cajas distintas"], [9, 17, "Qué significa"]];
+    for (const [a, b, t] of encC) {
+      if (b > a) rs.mergeCells(C0, a, C0, b);
+      for (let c = a; c <= b; c++) { const x = rs.getCell(C0, c); x.fill = relleno(P.TINTA) }
+      const x = rs.getCell(C0, a); x.value = t; x.font = letra(9, BLANCO, true); x.alignment = { vertical: "middle", horizontal: a === 6 || a === 7 ? "center" : "left", indent: 1 };
+    }
+    lista.forEach(([cod, v], i) => {
+      const r = C0 + 1 + i; rs.getRow(r).height = 22;
+      const filaC: [number, number, ExcelJS.CellValue, string | undefined][] = [
+        [2, 5, ETIQUETA_CAUSA[cod], undefined],
+        [6, 6, { formula: `COUNTIF(${rc("M")},B${r})`, result: v.n }, NF],
+        [7, 8, { formula: `SUMPRODUCT((${rc("M")}=B${r})*ABS(${rc("K")}))`, result: v.cajas }, NF],
+        [9, 17, SIGNIFICA_CAUSA[cod], undefined],
+      ];
+      for (const [a, b, val, fmt] of filaC) {
+        if (b > a) rs.mergeCells(r, a, r, b);
+        for (let c = a; c <= b; c++) { const x = rs.getCell(r, c); x.border = { bottom: { style: "thin", color: { argb: P.LINEA } } }; if (i % 2 === 1) x.fill = relleno(P.FONDO) }
+        const x = rs.getCell(r, a); x.value = val;
+        x.font = letra(10, P.TINTA, a === 2); x.alignment = { vertical: "middle", horizontal: a === 6 || a === 7 ? "center" : "left", indent: a === 6 || a === 7 ? 0 : 1 };
+        if (fmt) x.numFmt = fmt;
+      }
+    });
+    C0 = C0 + lista.length + 2;
+  }
   /* cómo leerlo */
-  const N0 = T + 2;
+  const N0 = C0;
   const notas = [
     "CÓMO LEERLO",
     "Cada hoja la cuentan dos personas, a ciegas: una del operador logístico y una de Bavaria. Se cruzan cuando las dos terminan.",
-    "Un renglón es «lo mismo» si coincide el sitio, el material y el vencimiento. Coincide si además las cajas son las mismas.",
+    "Un renglón es «lo mismo» si coincide el sitio, el material y el vencimiento. Coincide si además las cajas son las mismas; Difiere si los dos lo anotaron pero con distinta cantidad; Solo… si lo anotó una sola persona (ver la tabla «Estado del cruce»).",
     "Cajas = estibas × cajas por estiba + saldo + cajas sueltas. Lo que contó solo uno de los dos cuenta como diferencia.",
     "Diferencia neta = cajas del operador − cajas de Bavaria (positivo: el operador contó más). Cajas distintas suma las diferencias sin signo.",
     "Exactitud en cajas = 1 − cajas distintas ÷ el mayor de los dos totales. 100 % es que las dos cuentas son idénticas.",
@@ -288,23 +371,29 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   rs.views = [{ showGridLines: false, state: "frozen", ySplit: RF0 }];
 
   /* =================== DIFERENCIAS =================== */
-  const mal = todas.filter((x) => x.f.estado !== "COINCIDE")
-    .sort((a, b) => Math.abs(b.f.diferencia) - Math.abs(a.f.diferencia) || a.h.numero - b.h.numero);
-  const FC = ["Hoja", "Pareja (operador · Bavaria)", "Qué pasó", "Sitio", "Código", "Material", "Vence", "Cajas operador", "Cajas Bavaria", "Diferencia (operador − Bavaria)", "Quién contó más"];
-  const FA = [2, 7, 34, 17, 18, 11, 38, 13, 13, 13, 17, 22, 2];
+  const FC = ["Hoja", "Pareja (operador · Bavaria)", "Estado del cruce", "Sitio", "Código", "Material", "Vence", "Cajas operador", "Cajas Bavaria", "Diferencia (operador − Bavaria)", "Quién contó más",
+    "Causa técnica", "Qué pasó exactamente", "Qué revisar"];
+  const FA = [2, 7, 34, 17, 18, 11, 38, 13, 13, 13, 17, 22, 28, 70, 52, 2];
   df.columns = FA.map((w) => ({ width: w }));
   cabecera(df, P, sello, "Lo que no coincide · lo más grande primero", `${sub}  ·  ${mal.length} ${mal.length === 1 ? "renglón" : "renglones"}`, FA.length);
-  const FF0 = 7;
+  const FF0 = FF_ROW0;
+  leyenda(df, 15);
   encabezado(df, FF0, P, FC);
+  const lineas = (t: string, ancho: number) => Math.max(1, Math.ceil(t.length / ancho));
   mal.forEach(({ h, f }, i) => {
-    const r = FF0 + 1 + i, row = df.getRow(r); row.height = 20;
+    const r = FF0 + 1 + i, row = df.getRow(r);
     const quien = f.diferencia > 0 ? "El operador" : f.diferencia < 0 ? "Bavaria" : "—";
-    [h.numero, pareja(h), TEXTO_FILA[f.estado], f.ubicacion, f.sku, f.material, textoVenc(f.vencDia, f.vencMes, f.vencAnio), f.cajasOl, f.cajasBavaria, f.diferencia, quien]
+    const c = causa.get(f);
+    row.height = Math.max(22, 14 * Math.max(lineas(c?.detalle ?? "", 74), lineas(c?.revisar ?? "", 54)) + 8);
+    [h.numero, pareja(h), TEXTO_FILA[f.estado], f.ubicacion, f.sku, f.material, textoVenc(f.vencDia, f.vencMes, f.vencAnio), f.cajasOl, f.cajasBavaria, f.diferencia, quien,
+      c?.etiqueta ?? "", c?.detalle ?? "", c?.revisar ?? ""]
       .forEach((v, k) => {
-        const c = row.getCell(2 + k); c.value = v;
-        celda(c, P, i % 2 === 1, { num: k >= 7 && k <= 9, centro: k === 0 || k === 2 || k === 6 || k === 10, fmt: k === 9 ? DIF : k === 7 || k === 8 ? NF : undefined, negrita: k === 4 });
+        const x = row.getCell(2 + k); x.value = v;
+        celda(x, P, i % 2 === 1, { num: k >= 7 && k <= 9, centro: k === 0 || k === 2 || k === 6 || k === 10, fmt: k === 9 ? DIF : k === 7 || k === 8 ? NF : undefined, negrita: k === 4 || k === 11 });
+        if (k >= 11) x.alignment = { vertical: "middle", horizontal: "left", indent: 1, wrapText: true };
       });
     const e = row.getCell(4); e.fill = relleno(COLOR_ESTADO[f.estado]); e.font = letra(9, BLANCO, true);
+    const ce = row.getCell(13); ce.font = letra(10, P.TINTA, true);
   });
   if (mal.length === 0) {
     df.mergeCells(FF0 + 1, 2, FF0 + 1, 12);

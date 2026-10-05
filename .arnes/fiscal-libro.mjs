@@ -22,7 +22,9 @@ const hojas = [
   { numero: 2, ol: "Ana Pérez", bavaria: "Santiago Leal", estado: "lista", olRenglones: 3, bavariaRenglones: 3, filas: [
     F("C · 03 · DER", "3500005", "Envase Costeñita 175R", [null, 3, 2027], 2000, 2000),
     F("C · 03 · IZQ", "3128", "Águila RN 330cc X30", [15, 11, 2026], 360, 360),
-    F("C · 04 · DER", "3617", "Costeña R 175cc X 38", [null, 9, 2026], null, 144) ] },
+    F("C · 04 · DER", "3617", "Costeña R 175cc X 38", [null, 9, 2026], null, 144),
+    F("C · 05 · DER", "3128", "Águila RN 330cc X30", [null, 10, 2026], 360, null),
+    F("C · 05 · DER", "3128", "Águila RN 330cc X30", [null, 11, 2026], null, 360) ] },
   { numero: 3, ol: "Luis Rojas", bavaria: null, estado: "una-termino", olRenglones: 4, bavariaRenglones: 0, filas: null },
   { numero: 4, ol: null, bavaria: null, estado: "sin-empezar", olRenglones: 0, bavariaRenglones: 0, filas: null },
 ];
@@ -49,7 +51,7 @@ const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
 ok(wb.worksheets.map((w) => w.name).join() === "Resumen,Diferencias,Por material,Por persona,Conteos por persona,Conteos cruzados", "pestañas: " + wb.worksheets.map((w) => w.name));
 const det = wb.getWorksheet("Conteos cruzados");
 const filasDet = []; det.eachRow((r, n) => { if (n > 7) filasDet.push(r.values.slice(2)) });
-ok(filasDet.length === 9, "el detalle trae las 9 filas de las 2 hojas cruzadas: " + filasDet.length);
+ok(filasDet.length === 11, "el detalle trae las 11 filas de las 2 hojas cruzadas: " + filasDet.length);
 ok(filasDet.every((f) => f[0] === 1 || f[0] === 2), "solo hojas cruzadas en el detalle");
 const rs = wb.getWorksheet("Resumen");
 const fila = (n) => rs.getRow(n).values.slice(2).map((v) => (v && typeof v === "object" && "result" in v ? v.result : v));
@@ -59,15 +61,36 @@ ok(h1[4] === 6 && h1[5] === 3 && h1[6] === 2 && h1[7] === 1 && !(h1[8] && h1[8].
 ok(h1[9] === 6768 && h1[10] === 6540 && h1[11] === 228 && h1[12] === 348, "hoja 1 cajas OL, Bavaria, neta y distintas: " + h1.slice(9, 13));
 ok(Math.abs(h1[13] - 0.5) < 1e-9, "hoja 1: 3 de 6 coinciden = 50 %: " + h1[13]);
 ok(h1[15] === "3 de 6 renglones no coinciden.", "lectura hoja 1: " + h1[15]);
-ok(h2[4] === 3 && h2[5] === 2 && h2[8] === 1 && h2[11] === -144, "hoja 2: " + h2.slice(4, 12));
+ok(h2[4] === 5 && h2[5] === 2 && h2[7] === 1 && h2[8] === 2 && h2[11] === -144, "hoja 2: " + h2.slice(4, 12));
 ok(h3[3] === "Falta una" && h3[4] == null && h3[15] === "Falta que la otra persona termine." && h3[2] === "falta", "hoja 3 sin cruzar: " + h3);
 ok(h4[3] === "Sin empezar" && h4[1] === "falta", "hoja 4: " + h4);
-ok(tt[1] === "TOTAL DEL INVENTARIO" && tt[4] === 9 && tt[5] === 5 && tt[9] === 9128 && tt[10] === 9044 && tt[11] === 84 && tt[12] === 348 + 144, "total del inventario: " + tt);
+ok(tt[1] === "TOTAL DEL INVENTARIO" && tt[4] === 11 && tt[5] === 5 && tt[9] === 9488 && tt[10] === 9404 && tt[11] === 84 && tt[12] === 348 + 144 + 720, "total del inventario: " + tt);
 const dif = wb.getWorksheet("Diferencias"); const dr = []; dif.eachRow((r, n) => { if (n > 7) dr.push(r.values.slice(2)) });
-ok(dr.length === 4 && dr.map((x) => Math.abs(x[9])).join() === "180,144,108,60", "diferencias ordenadas de mayor a menor: " + dr.map((x) => x[9]).join());
+ok(dr.length === 6 && dr.map((x) => Math.abs(x[9])).join() === "360,360,180,144,108,60", "diferencias ordenadas de mayor a menor: " + dr.map((x) => x[9]).join());
 const pm = wb.getWorksheet("Por material"); const mm = []; pm.eachRow((r, n) => { if (n > 7) mm.push(r.values.slice(2)) });
-ok(mm[0][0] === "3128" && mm[0][7] === 180, "por material: el que más difiere primero: " + mm.map((x) => x[0] + ":" + (x[7] ?? "")).join());
+ok(mm[0][0] === "3128" && mm[0][7] === 900, "por material: el que más difiere primero: " + mm.map((x) => x[0] + ":" + (x[7] ?? "")).join());
 ok(wb.getWorksheet("Resumen").getImages().length === 1, "el logo va en el resumen");
+/* ----- LAS CAUSAS TÉCNICAS: quién anotó qué y por qué no se cruza ----- */
+{
+  const lim = (v) => (v && typeof v === "object" && "result" in v ? v.result : v);
+  const [c0, c1, c2, c3, c4, c5] = dr;
+  ok(c0[11] === "Vencimiento distinto" && c1[11] === "Vencimiento distinto", "las dos filas de 360 son vencimiento distinto: " + c0[11] + " / " + c1[11]);
+  ok(/Ana Pérez \(operador\) anotó 3128 Águila RN 330cc X30 con vencimiento 10\/2026 \(360 cj\) y Santiago Leal \(Bavaria\) anotó el mismo material con vencimiento 11\/2026/.test(c0[12]) && /Las cajas son iguales/.test(c0[12]), "detalle del vencimiento distinto con nombres y cifras: " + c0[12]);
+  ok(/fecha de vencimiento impresa en el pallet/.test(c0[13]), "dice qué revisar: " + c0[13]);
+  ok(c2[11] === "No lo anotó Bavaria" && /Carlos Mejía \(operador\) anotó 180 cj/.test(c2[12]) && /Génesis Visbal \(Bavaria\) no anotó/.test(c2[12]) && /sí anotó 3128 en: A · 02 · IZQ/.test(c2[12]), "omisión de Bavaria con la pista de dónde sí anotó: " + c2[12]);
+  ok(c3[11] === "No lo anotó el operador" && /Santiago Leal \(Bavaria\) anotó 144 cj/.test(c3[12]) && /Ana Pérez \(operador\) no anotó/.test(c3[12]), "omisión del operador: " + c3[12]);
+  ok(c4[11] === "Cajas totales distintas" && /3\.888 cj y Génesis Visbal \(Bavaria\) 3\.780 cj/.test(c4[12]), "cajas totales distintas: " + c4[12]);
+  ok(c5[11] === "Estibas y saldo distintos" && /17 est × 54 \+ 42 saldo = 960 cj/.test(c5[12]) && /18 est × 54 \+ 48 saldo = 1\.020 cj/.test(c5[12]), "estibas y saldo con lo que anotó cada uno: " + c5[12]);
+  /* la causa también va en la pestaña del cruce, y vacía en lo que coincide */
+  const det2 = wb.getWorksheet("Conteos cruzados"); const causasDet = []; det2.eachRow((r, n) => { if (n > 7) causasDet.push([lim(r.getCell(4).value), lim(r.getCell(14).value)]) });
+  ok(causasDet.filter((x) => x[0] === "Coincide").every((x) => !x[1]) && causasDet.filter((x) => x[0] !== "Coincide").every((x) => !!x[1]), "«Conteos cruzados»: causa en lo que no coincide y vacía en lo que coincide");
+  /* el resumen cuenta las causas */
+  const rows = []; rs.eachRow((r, n) => rows.push([n, r.getCell(2).value, lim(r.getCell(6).value), lim(r.getCell(7).value)]));
+  const h0 = rows.find((x) => x[1] === "Causa técnica");
+  ok(!!h0, "el resumen trae el cuadro de causas");
+  const bloque = rows.filter((x) => x[0] > h0[0] && x[0] <= h0[0] + 5).map((x) => x.slice(1).join("|"));
+  ok(bloque.join(" ; ") === "Vencimiento distinto|2|720 ; No lo anotó Bavaria|1|180 ; No lo anotó el operador|1|144 ; Cajas totales distintas|1|108 ; Estibas y saldo distintos|1|60", "causas por cajas distintas, de mayor a menor: " + bloque.join(" ; "));
+}
 /* ----- volver al resumen en cada pestaña menos el resumen ----- */
 for (const n of ["Diferencias", "Por material", "Por persona", "Conteos por persona", "Conteos cruzados"]) {
   const v = wb.getWorksheet(n).getCell(5, 3).value;
@@ -76,7 +99,7 @@ for (const n of ["Diferencias", "Por material", "Por persona", "Conteos por pers
 ok(!rs.getCell(5, 3).value, "el resumen no se vuelve a sí mismo");
 /* ----- conteos por persona, renglón por renglón ----- */
 const cps = wb.getWorksheet("Conteos por persona"); const cr = []; cps.eachRow((r, n) => { if (n > 7) cr.push(r.values.slice(2).map((v) => (v && typeof v === "object" && "result" in v ? v.result : v))) });
-ok(cr.length === 16, "renglones de las personas (hoja 1: 6 del operador + 5 de Bavaria; hoja 2: 2 + 3): " + cr.length);
+ok(cr.length === 18, "renglones de las personas (hoja 1: 6 del operador + 5 de Bavaria; hoja 2: 3 + 4): " + cr.length);
 ok(cr.every((x) => x[0] === 1 || x[0] === 2), "solo las hojas cruzadas");
 ok(cr[0][0] === 1 && cr[0][2] === "Operador logístico" && cr[0][3] === "Carlos Mejía", "primero la hoja 1 y el operador, con su persona: " + cr[0].slice(0, 4));
 const ult = cr.filter((x) => x[2] === "Bavaria" && x[0] === 1).at(-1);
@@ -92,7 +115,7 @@ ok(pr.length === 8, "una fila por persona (2 por hoja × 4 hojas): " + pr.length
 ok(pr[0][1] === "Operador logístico" && pr[0][2] === "Carlos Mejía" && pr[0][3] === "Génesis Visbal" && pr[1][2] === "Génesis Visbal" && pr[1][3] === "Carlos Mejía", "persona y su pareja: " + pr[0].slice(0, 4) + " | " + pr[1].slice(0, 4));
 ok(pr[0][4] === 6 && pr[0][8] === 6768 && pr[0][9] === 6768 && pr[0][10] === "✓ cuadra", "hoja 1, operador: renglones, total y cuadra con el cruce: " + pr[0].slice(4, 11));
 ok(pr[1][4] === 5 && pr[1][8] === 6540 && pr[1][10] === "✓ cuadra", "hoja 1, Bavaria (5 renglones, uno no lo contó): " + pr[1].slice(4, 11));
-ok(pr[3][8] === 2505 && pr[3][9] === 2504 && pr[3][10] === "revisar", "hoja 2, Bavaria con 1 caja de más NO cuadra: " + pr[3].slice(4, 11));
+ok(pr[3][8] === 2865 && pr[3][9] === 2864 && pr[3][10] === "revisar", "hoja 2, Bavaria con 1 caja de más NO cuadra: " + pr[3].slice(4, 11));
 ok(pr[0][5] > 0 && pr[0][6] >= 0, "estibas y saldo por persona suman");
 ok(pr[0][11] instanceof Date && pr[0][12] instanceof Date && pr[0][13] instanceof Date, "empezó, última anotación y terminó llevan fecha: " + pr[0].slice(11, 14));
 ok(pr[4][1] === "Operador logístico" && pr[4][4] === 4 && pr[4][10] == null && pr[4][13] instanceof Date, "hoja 3 sin cruzar: renglones del avance, sin cuadre, terminó el operador: " + pr[4].slice(4, 14));
@@ -100,13 +123,16 @@ ok(pr[5][2] === "falta" && pr[5][13] === "sin empezar", "hoja 3, Bavaria falta: 
 ok(pr[7][13] === "sin empezar", "hoja 4: sin empezar");
 /* puras */
 ok(cajasDistintas([F("a", "1", "m", [null, null, null], 10, 4)]) === 6 && exactitud([F("a", "1", "m", [null, null, null], 10, 10)]) === 1 && exactitud([]) === 1, "puras");
-ok(lecturaHoja(hojas[0]) === "3 de 6 renglones no coinciden." && lecturaHoja(hojas[1]) === "1 de 3 renglones no coinciden.", "lecturaHoja");
+ok(lecturaHoja(hojas[0]) === "3 de 6 renglones no coinciden." && lecturaHoja(hojas[1]) === "3 de 5 renglones no coinciden.", "lecturaHoja");
 /* sin el SQL de los conteos: lo dice en vez de dejar la pestaña en blanco, y el cruce sale completo */
 const sinC = await armarCruceFiscal({ nombre: "X", fecha: "2026-10-02", quien: "Y", sinConteos: true, hojas: hojas.map((h) => ({ ...h, conteos: null })), sello: null });
 const w3 = new ExcelJS.Workbook(); await w3.xlsx.load(sinC);
 ok(/2026-10-fiscal-conteos-por-persona\.sql/.test(JSON.stringify(w3.getWorksheet("Conteos por persona").getRow(8).values)), "sin el SQL dice qué correr");
 ok(w3.getWorksheet("Conteos cruzados").rowCount >= 7 + 9, "el cruce sale completo aunque falten los conteos de las personas");
 /* sin hojas cruzadas: no se cae */
+{ const txt = JSON.stringify(wb.getWorksheet("Resumen").getSheetValues());
+  ok(["Estado del cruce", "Qué quiere decir", "Coincide", "Difiere", "Solo el operador", "Solo Bavaria", "Las dos personas SÍ anotaron ese renglón", "diferencia +4"].every((t) => txt.includes(t)), "el resumen define cada estado con ejemplo");
+  for (const n of ["Diferencias", "Conteos cruzados"]) ok(/Difiere = los dos lo anotaron, pero con distinta cantidad/.test(String(wb.getWorksheet(n).getCell(6, 3).value)), "leyenda de estados en " + n) }
 const vacio = await armarCruceFiscal({ nombre: "X", fecha: "2026-10-02", quien: "Y", hojas: hojas.slice(2), sello: null });
 const w2 = new ExcelJS.Workbook(); await w2.xlsx.load(vacio);
 ok(/Todavía no hay hojas cruzadas/.test(JSON.stringify(w2.getWorksheet("Diferencias").getRow(8).values)), "sin cruces dice que todavía no hay");
