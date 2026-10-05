@@ -100,13 +100,19 @@ await pg.waitForTimeout(300);
 await pg.goto(B + "/inventario/tablero");
 ok(true, "ok");
 
-/* 5 · red muy lenta con copia: sale la copia a los 5 s y la red sigue por detrás */
+/* 5 · red lenta CON internet: se espera al servidor (antes salía la copia a los 5 s y se veía un dato viejo habiendo internet) */
 lentoMs = 7000; await pg.goto(B + "/lento").catch(() => {}); // sin copia: espera a la red
 ok((await titulo()) === "LENTO nuevo", "sin copia se espera a la red lenta");
-lentoMs = 8000; const t0 = Date.now();
+lentoMs = 8000; let t0 = Date.now();
 await pg.goto(B + "/lento");
-const dt = Date.now() - t0;
-ok(dt >= 4500 && dt < 7500 && (await titulo()) === "LENTO nuevo", "con copia y red lenta sale la copia en unos 5 s (" + dt + " ms): " + await titulo());
+let dt = Date.now() - t0;
+ok(dt >= 7500 && (await titulo()) === "LENTO nuevo", "con copia y un servidor de 8 s, con internet, se espera y sale lo de ahora (" + dt + " ms): " + await titulo());
+e = await estado("/lento"); ok(e.copia === false, "y no se marca como copia");
+/* y si el servidor de verdad no responde en 20 s, ahí sí sale la copia */
+lentoMs = 30000; t0 = Date.now();
+await pg.goto(B + "/lento");
+dt = Date.now() - t0;
+ok(dt >= 19500 && dt < 24000 && (await titulo()) === "LENTO nuevo", "con un servidor colgado sale la copia a los ~20 s (" + dt + " ms): " + await titulo());
 e = await estado("/lento"); ok(e.copia === true, "la pantalla de la copia lenta se marca como copia");
 
 /* 6 · preparar para auditoría: guarda las pantallas y lo que necesitan */

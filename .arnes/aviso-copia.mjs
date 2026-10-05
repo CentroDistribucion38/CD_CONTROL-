@@ -22,16 +22,35 @@ const ctx = await nav.newContext({ viewport: { width: 1000, height: 400 } });
 const pg = await ctx.newPage();
 let estado = { copia: false, hayCopia: true, fecha: "2026-09-29T19:05:00.000Z" };
 await pg.route("http://arnes.local/__sw/estado**", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify(estado) }));
-await pg.route("http://arnes.local/", (r) => r.fulfill({ contentType: "text/html; charset=utf-8",
-  body: `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${P}${css}</style></head><body><div class="sh"><div id="r"></div></div><script>${js}<\/script></body></html>` }));
+let cargas = 0;
+await pg.clock.install({ time: new Date("2026-10-05T18:00:00Z") });
+await pg.route("http://arnes.local/", (r) => { cargas++; return r.fulfill({ contentType: "text/html; charset=utf-8",
+  body: `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${P}${css}</style></head><body><div class="sh"><div id="r"></div></div><script>${js}<\/script></body></html>` }) });
 const franja = () => pg.locator(".sh-copia");
 
 await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
 ok(await franja().count() === 0, "con internet y pantalla de la red no hay franja");
 
+/* CON INTERNET y la pantalla salió de la copia (el servidor tardó): NO se asusta a nadie. */
 estado = { copia: true, hayCopia: true, fecha: "2026-09-29T19:05:00.000Z" };
-await pg.goto("http://arnes.local/"); await pg.waitForSelector(".sh-copia");
-ok(/Esta pantalla es una copia/.test(await franja().innerText()) && /29 de sept/.test(await franja().innerText()) && /14:05/.test(await franja().innerText()), "red lenta: dice que es copia y de cuándo (hora de Colombia): " + await franja().innerText());
+await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
+await pg.clock.runFor(1500); await pg.waitForTimeout(100);
+ok(await franja().count() === 0, "con internet y copia no sale la franja de entrada");
+await pg.clock.runFor(20_000); await pg.waitForTimeout(100);
+ok(await franja().count() === 0, "ni a los 20 s: sigue esperando lo nuevo en silencio");
+/* llega lo nuevo: la pantalla se pone sola al día, una vez */
+const antes = cargas;
+estado = { copia: false, hayCopia: true, fecha: "2026-10-05T18:00:00.000Z" };
+await pg.clock.runFor(1600); await pg.waitForTimeout(400);
+ok(cargas === antes + 1, "al llegar lo nuevo se recarga sola, una vez (cargas " + antes + " → " + cargas + ")");
+await pg.waitForSelector("main");
+ok(await franja().count() === 0, "y queda sin franja");
+
+/* si en 30 s no llegó nada, ahí sí avisa, con la fecha y el botón */
+estado = { copia: true, hayCopia: true, fecha: "2026-09-29T19:05:00.000Z" };
+await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
+await pg.clock.runFor(31_000); await pg.waitForSelector(".sh-copia");
+ok(/Esta pantalla es una copia/.test(await franja().innerText()) && /29 de sept/.test(await franja().innerText()) && /14:05/.test(await franja().innerText()), "servidor colgado 30 s: dice que es copia y de cuándo (hora de Colombia): " + await franja().innerText());
 ok(await pg.locator(".sh-copia button").count() === 1, "con internet y copia ofrece «Ver lo de ahora»");
 
 await ctx.setOffline(true);

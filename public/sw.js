@@ -4,7 +4,7 @@
  * QUÉ HACE
  *  · Las pantallas (el HTML) se piden siempre a la red primero. Si la red
  *    responde, se muestra lo de la red y se deja una COPIA fechada. Si no
- *    responde (sin señal, o más de 5 s en responder habiendo copia), se
+ *    responde (sin señal, o más de 20 s en responder habiendo copia), se
  *    muestra la copia. Con internet, el que ve datos viejos es solo quien
  *    tiene una red tan mala que no contesta: y se le avisa.
  *  · Lo que no cambia (los paquetes de JavaScript y CSS con huella en el
@@ -28,7 +28,8 @@ const PAGINAS = "control-paginas";
 const ESTATICO = "control-estatico";
 const META = "control-meta";
 const SIN_CONEXION = "/sin-conexion.html";
-const ESPERA_MS = 5000;
+/* Con internet se espera de verdad al servidor (hay pantallas pesadas): la copia solo sale antes si el equipo ya sabe que no hay conexión. */
+const ESPERA_MS = 20000;
 const MAX_ESTATICO = 900;
 
 self.addEventListener("install", (evento) => {
@@ -185,7 +186,7 @@ async function pagina(evento) {
 
   /* Hay copia: se espera a la red un rato; si no llega, se muestra la copia y la red sigue por detrás. */
   evento.waitUntil(red.catch(() => {}));
-  const r = await Promise.race([red.catch(() => null), esperar(ESPERA_MS).then(() => null)]);
+  const r = await Promise.race([red.catch(() => null), esperar(self.navigator.onLine === false ? 0 : ESPERA_MS).then(() => null)]);
   if (r) return r;
   await marcar(llave, "copia");
   return hay;
