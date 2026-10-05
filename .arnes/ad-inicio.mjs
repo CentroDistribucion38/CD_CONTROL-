@@ -24,6 +24,9 @@ for (const w of [1300, 390, 360]) {
   await p.setContent(`<style>*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}${css}</style><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main">${cuerpo}</main></div></div>`);
   const lado = await p.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   if (lado > 0) f.push(`${w}: se arrastra ${lado}`);
+  /* TODO RECTO, como Roles: nada de óvalos, círculos ni esquinas redondas de más. */
+  const redondos = await p.evaluate(() => [...document.querySelectorAll(".sh-main *")].filter((x) => parseFloat(getComputedStyle(x).borderTopLeftRadius) > 3).map((x) => x.className || x.tagName));
+  if (redondos.length) f.push(`${w}: hay ${redondos.length} elementos redondeados: ${[...new Set(redondos)].slice(0, 5)}`);
   if (process.argv[2]) await p.screenshot({ path: process.argv[2] + `/ain-${w}.png`, fullPage: true });
 }
 const t = await p.textContent("body");
