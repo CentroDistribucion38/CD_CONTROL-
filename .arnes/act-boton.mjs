@@ -4,6 +4,7 @@ import { buildSync } from "esbuild";
 const R = (p) => new URL("../" + p, import.meta.url).pathname;
 const fallas = []; const ok = (c, m) => { if (!c) fallas.push(m) };
 writeFileSync(R(".arnes/_act-nav.ts"), `
+
 export function useRouter() { return { refresh: () => { (window as any).__refresh++ }, push() {}, replace() {}, back() {} } }
 export function usePathname() { return new URLSearchParams(location.search).get("p") || "/inventario/tablero" }`);
 writeFileSync(R(".arnes/_act-entrada.tsx"), `
@@ -12,7 +13,7 @@ import { Actualizar } from "../src/components/Actualizar";
 (window as any).__refresh = 0;
 const q = new URLSearchParams(location.search);
 createRoot(document.getElementById("r")!).render(<>
-  <main style={{ padding: 20 }}><input id="f" placeholder="digitando" />{q.get("dlg") ? <div role="dialog">cuadro</div> : null}{q.get("mas") ? <button className="mas" style={{ position: "fixed", right: 20, bottom: 20, width: 58, height: 58 }}>+</button> : null}</main>
+  <main style={{ padding: 20 }}><input id="f" placeholder="digitando" />{q.get("dlg") ? <div role="dialog">cuadro</div> : null}{q.get("falso") ? <button className="mas">Ver más</button> : null}{q.get("mas") ? <button className="mas" style={{ position: "fixed", right: 20, bottom: 20, width: 58, height: 58 }}>+</button> : null}</main>
   <Actualizar /></>);
 `);
 const js = buildSync({ entryPoints: [R(".arnes/_act-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
@@ -70,9 +71,19 @@ for (const w of [360, 1440]) {
   const a = await pg.evaluate(() => { const b = document.querySelector(".sh-refrescar").getBoundingClientRect(); return { r: window.innerWidth - b.right, b: window.innerHeight - b.bottom, w: b.width, h: b.height, rad: getComputedStyle(document.querySelector(".sh-refrescar")).borderRadius } });
   ok(a.r <= 20 && a.b <= 20 && a.w <= 44 && a.rad === "0px", `a ${w}px abajo a la derecha, pequeño y rectangular: ${JSON.stringify(a)}`);
   await monta("p=/inventario/tablero&mas=1", w);
+  await pg.clock.runFor(300);
   const t = await pg.evaluate(() => { const a = document.querySelector(".sh-refrescar").getBoundingClientRect(), m = document.querySelector(".mas").getBoundingClientRect(); return a.bottom <= m.top || a.right <= m.left || a.left >= m.right });
   ok(t, `a ${w}px el botón de actualizar tapa el «+»`);
 }
+/* Un «mas» que NO es flotante (ej. «Ver más») no sube el botón: queda pegado abajo. */
+await monta("p=/inventario/tablero&falso=1", 1440);
+await pg.clock.runFor(300);
+const pegado = await pg.evaluate(() => window.innerHeight - document.querySelector(".sh-refrescar").getBoundingClientRect().bottom);
+ok(pegado <= 20, "con un «mas» que no es flotante el botón debe ir pegado abajo, está a " + pegado + " px");
+await monta("p=/inventario/tablero&mas=1", 1440);
+await pg.clock.runFor(300);
+const alto = await pg.evaluate(() => window.innerHeight - document.querySelector(".sh-refrescar").getBoundingClientRect().bottom);
+ok(alto > 60, "con un «+» flotante a la vista sí sube: " + alto);
 await pg.screenshot({ path: R(".arnes/act-pc.png"), clip: { x: 1140, y: 480, width: 300, height: 220 } });
 ok(roto.length === 0, "errores de la página: " + roto.join(" | "));
 await nav.close();

@@ -25,11 +25,14 @@ export function Actualizar() {
   const vivo = useRef({ pathname, pendiente });
   vivo.current = { pathname, pendiente };
 
+  /* El router va por una referencia: el reloj de abajo no se reinicia aunque el router cambie. */
+  const rr = useRef(router);
+  rr.current = router;
   const actualizar = useCallback(() => {
-    empezar(() => { router.refresh(); });
+    empezar(() => { rr.current.refresh(); });
     ultima.current = Date.now();
     pulso((n) => n + 1);
-  }, [router]);
+  }, []);
 
   /* El «listo» corto cuando termina. */
   const eraPendiente = useRef(false);
@@ -62,6 +65,22 @@ export function Actualizar() {
     return () => { clearInterval(hora); document.removeEventListener("visibilitychange", alVolver); };
   }, [actualizar]);
 
+  /* SOLO SE SUBE SI DE VERDAD HAY UN «+» FLOTANTE A LA VISTA (Roturas, Acciones, Vh Interno): un
+     elemento con esa clase que no es flotante, o que está oculto, no cuenta. Si no, va pegado abajo. */
+  const [sube, setSube] = useState(false);
+  useEffect(() => {
+    const hay = () => [...document.querySelectorAll<HTMLElement>(".mas, .tr-mas")].some((e) => {
+      const c = getComputedStyle(e), r = e.getBoundingClientRect();
+      return c.position === "fixed" && c.visibility !== "hidden" && c.display !== "none" && r.width > 0 && r.height > 0;
+    });
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const mirar = () => { if (t) clearTimeout(t); t = setTimeout(() => setSube(hay()), 80); };
+    mirar();
+    const o = new MutationObserver(mirar);
+    o.observe(document.body, { childList: true, subtree: true });
+    return () => { o.disconnect(); if (t) clearTimeout(t); };
+  }, [pathname]);
+
   /* Al cambiar de pantalla, el reloj de «hace cuánto» arranca de nuevo. */
   useEffect(() => { ultima.current = Date.now(); }, [pathname]);
 
@@ -70,7 +89,7 @@ export function Actualizar() {
 
   return (
     <button type="button" className={"sh-refrescar" + (pendiente ? " gira" : "") + (hecho ? " hecho" : "")}
-            onClick={actualizar} disabled={pendiente} title={titulo}
+            onClick={actualizar} disabled={pendiente} title={titulo} data-sube={sube ? "si" : undefined}
             aria-label="Actualizar los datos de esta pantalla" onMouseEnter={() => pulso((n) => n + 1)}>
       <svg viewBox="0 0 24 24" aria-hidden>
         <path d="M20 11a8 8 0 0 0-14.3-4.6M4 4v4h4" />

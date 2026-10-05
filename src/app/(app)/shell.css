@@ -854,5 +854,5 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 .sh-refrescar-ok:empty { display: none }
 @keyframes sh-gira { to { transform: rotate(360deg) } }
 @media (prefers-reduced-motion: reduce) { .sh-refrescar.gira svg { animation: none; opacity: .5 } }
-/* Donde ya hay un «+» flotante (Roturas, Acciones, Vh Interno) se pone justo encima, sin taparlo. */
-body:has(.mas, .tr-mas) .sh-refrescar { bottom: calc(92px + env(safe-area-inset-bottom)); right: 28px }
+/* Donde hay un «+» flotante a la vista (Roturas, Acciones, Vh Interno) se pone justo encima, sin taparlo; si no, va pegado abajo. */
+.sh-refrescar[data-sube="si"] { bottom: calc(92px + env(safe-area-inset-bottom)); right: 28px }
