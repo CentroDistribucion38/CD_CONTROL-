@@ -842,7 +842,7 @@ function SinInternet({ rutas }: { rutas: string[] }) {
         <p className="pf-nota" style={{ maxWidth: "62ch", marginBottom: 14 }}>
           <b>Se hace sola</b> cuando abres CONTROL con internet y la copia tiene más de 6 horas: no tienes que
           acordarte. Este botón la hace ya mismo, por ejemplo justo antes de una auditoría. Sin internet se abre
-          la copia, y la franja de arriba dice de qué día es. Mirar funciona; guardar cambios necesita señal.
+          la copia, y la franja de arriba dice de qué día es. Puedes ver lo guardado hasta tu última conexión; realizar cambios necesita señal.
         </p>
 
         {ultima ? (

@@ -36,7 +36,7 @@ ok(await pg.locator(".sh-copia button").count() === 1, "con internet y copia ofr
 
 await ctx.setOffline(true);
 await pg.waitForFunction(() => /Sin internet/.test(document.querySelector(".sh-copia")?.textContent ?? ""));
-ok(/Se puede mirar lo guardado/.test(await franja().innerText()), "sin internet lo dice con palabras de bodega: " + await franja().innerText());
+ok(/ver lo guardado hasta tu última conexión; no puedes realizar cambios/.test(await franja().innerText()), "sin internet lo dice con palabras de bodega: " + await franja().innerText());
 ok(await pg.locator(".sh-copia button").count() === 0, "sin internet no ofrece recargar (no serviría)");
 await pg.screenshot({ path: R(".arnes/_ac-sin-internet.png") });
 

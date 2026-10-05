@@ -40,9 +40,9 @@ export function AvisoCopia() {
   return (
     <div className="sh-copia" role="status">
       {sinRed ? (
-        <span><b>Sin internet</b>{de}. Se puede mirar lo guardado; guardar cambios necesita señal.</span>
+        <span><b>Sin internet</b>{de}. Puedes ver lo guardado hasta tu última conexión; no puedes realizar cambios.</span>
       ) : (
-        <span><b>Esta pantalla es una copia</b>{de}. La red no respondió.</span>
+        <span><b>Esta pantalla es una copia</b>{de}. La red no respondió: puedes ver lo guardado, pero no realizar cambios.</span>
       )}
       {(volvio || (!sinRed && esCopia)) && (
         <button type="button" onClick={() => location.reload()}>Ver lo de ahora</button>
