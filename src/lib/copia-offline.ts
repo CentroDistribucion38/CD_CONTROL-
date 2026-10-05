@@ -190,6 +190,33 @@ export async function sondear(esperaMs = 3000): Promise<boolean> {
   finally { clearTimeout(t) }
 }
 
+/* Cuándo fue el último corte que avisó el navegador (en esta carga de la página). */
+let corteAvisado = 0;
+if (typeof window !== "undefined") window.addEventListener("offline", () => { corteAvisado = Date.now() });
+const LLAVE_PEDIDOS = "cd38.pidiendo";
+
+/**
+ * ¿VALE LA PENA PEDIR DATOS NUEVOS AHORA? Para todo lo que hace router.refresh() por su cuenta
+ * (al abrir, al volver a la pestaña, cada tanto). Si el pedido falla a medias, Next recarga la
+ * página entera desde la copia, la pantalla vuelve a arrancar, vuelve a pedir… y parpadea sin
+ * parar hasta que vuelve el internet. Por eso solo se pide cuando: el navegador dice que hay
+ * señal, no hubo un corte hace nada, la sonda responde de verdad, y no se está ya en una racha
+ * de pedidos seguidos (tope: 6 por minuto en esta pestaña).
+ */
+export async function internetFirme(): Promise<boolean> {
+  if (typeof navigator === "undefined" || navigator.onLine === false) return false;
+  if (Date.now() - corteAvisado < 8000) return false;
+  if (!(await sondear(2500))) return false;
+  try {
+    const v = JSON.parse(sessionStorage.getItem(LLAVE_PEDIDOS) ?? "[]") as number[];
+    const ahora = Date.now();
+    const recientes = v.filter((t) => ahora - t < 60_000);
+    if (recientes.length >= 6) return false;
+    sessionStorage.setItem(LLAVE_PEDIDOS, JSON.stringify([...recientes, ahora]));
+  } catch { /* sin memoria de sesión: se pide igual */ }
+  return true;
+}
+
 /** Cada cuántos minutos, con internet y la app abierta, se revisa qué pantallas renovar. */
 export const CICLO_MIN = 5;
 /** La pantalla que se está mirando se vuelve a guardar si su copia tiene más de esto. */

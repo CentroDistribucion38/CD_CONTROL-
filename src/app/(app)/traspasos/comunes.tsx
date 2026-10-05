@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { internetFirme } from "@/lib/copia-offline";
 import type { Viaje } from "@/modulos/traspasos/datos";
 import { hora, quien, TURNOS } from "@/modulos/traspasos/formato";
 
@@ -47,15 +48,24 @@ export function AlDia({ cada = 0 }: { cada?: number }) {
     /* No remonta con cada refresco: router.refresh() vuelve a pedir los
        componentes del servidor sin tumbar el estado del cliente, así que
        este efecto no se vuelve a disparar y no hay bucle. */
-    router.refresh();
+    /* Se mide el internet ANTES de pedir: sin salida real, un refresh fallido hace que Next recargue
+       toda la página desde la copia y la pantalla parpadea en bucle hasta que vuelve la señal. */
+    let vivo = true, midiendo = false;
+    const refrescar = () => {
+      if (midiendo) return;
+      midiendo = true;
+      void internetFirme().then((hay) => { midiendo = false; if (vivo && hay) router.refresh() });
+    };
+    refrescar();
 
-    const siSeVe = () => { if (document.visibilityState === "visible") router.refresh() };
+    const siSeVe = () => { if (document.visibilityState === "visible") refrescar() };
     document.addEventListener("visibilitychange", siSeVe);
     window.addEventListener("focus", siSeVe);
 
     const reloj = cada > 0 ? setInterval(siSeVe, cada * 1000) : undefined;
 
     return () => {
+      vivo = false;
       document.removeEventListener("visibilitychange", siSeVe);
       window.removeEventListener("focus", siSeVe);
       if (reloj) clearInterval(reloj);
