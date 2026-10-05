@@ -1,50 +1,54 @@
 "use client";
 
 import { useEffect } from "react";
-import { haySoporte, hayQueRenovar, prepararCopia, rutasGuardadas, ultimaPreparacion } from "@/lib/copia-offline";
+import { CICLO_MIN, edadesGuardadas, elegirPantallas, haySoporte, prepararCopia } from "@/lib/copia-offline";
 
 /**
- * LA COPIA SE PREPARA SOLA.
+ * LA COPIA SE VA HACIENDO SOLA.
  *
- * Quien abre la app con internet no tiene que acordarse de «Preparar para
- * auditoría»: pasados unos segundos, y si la última copia tiene más de
- * unas horas (o no hay), se guardan en silencio las pantallas que su rol
- * puede ver. Sin internet no hace nada, y con «ahorro de datos» o una red
- * 2G tampoco: esos equipos la preparan a mano desde Mi perfil.
- *
- * Va de a dos pantallas y empieza tarde a propósito: no compite con lo
- * que la persona acaba de abrir.
+ * Mientras CONTROL está abierto con internet, cada pocos minutos se revisa
+ * qué pantallas faltan o tienen la copia vieja y se vuelven a guardar, de a
+ * pocas y empezando por la que se está mirando: si el internet se va, todo
+ * abre con lo último que se guardó (ver elegirPantallas en copia-offline.ts).
+ * Sin internet no hace nada y se retoma sola cuando vuelve; con «ahorro de
+ * datos» o red 2G tampoco corre: esos equipos la preparan desde Mi perfil.
  */
-const ESPERA_MS = 20_000;
-/* La primera vez en un equipo no hay nada guardado: se apura. */
-const ESPERA_PRIMERA_MS = 4_000;
-const REINTENTOS = 5;
+const PRIMERA_MS = 4_000;
+const AL_VOLVER_MS = 3_000;
 
 export function PrepararSola({ rutas }: { rutas: string[] }) {
   const llave = rutas.join("|");
   useEffect(() => {
     if (!haySoporte()) return;
-    let vivo = true, intentos = 0, t: ReturnType<typeof setTimeout>;
-    const intentar = async () => {
-      if (!vivo) return;
+    let vivo = true, corriendo = false;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const todas = ["/inicio", "/perfil", ...rutas];
+
+    const ciclo = async () => {
+      if (!vivo || corriendo) return;
       const con = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-      const lenta = !!con && (con.saveData === true || con.effectiveType === "slow-2g" || con.effectiveType === "2g");
-      if (lenta) return;
-      if (!navigator.onLine || document.visibilityState !== "visible") {
-        if (++intentos < REINTENTOS) t = setTimeout(intentar, 60_000);
-        return;
-      }
-      /* Se mira lo que de verdad hay guardado, no lo que se recuerda haber hecho: si falta alguna se pide ya,
-         y si están todas solo se renueva pasadas las horas. Así una pasada que falló se arregla sola. */
-      const todas = ["/inicio", "/perfil", ...rutas];
-      const hay = new Set(await rutasGuardadas());
-      const faltan = todas.filter((r) => !hay.has(r));
-      const vencida = hayQueRenovar(ultimaPreparacion());
-      if (faltan.length === 0 && !vencida) return;
-      try { await prepararCopia(vencida ? todas : faltan, () => {}) } catch { /* en silencio: se reintenta la próxima vez que abra */ }
+      if (con && (con.saveData === true || con.effectiveType === "slow-2g" || con.effectiveType === "2g")) return;
+      if (!navigator.onLine || document.visibilityState !== "visible") return;
+      corriendo = true;
+      try {
+        const edades = await edadesGuardadas();
+        const lote = elegirPantallas(todas, edades, Date.now(), location.pathname + location.search);
+        if (lote.length > 0) await prepararCopia(lote, () => {});
+      } catch { /* en silencio: se reintenta en el siguiente ciclo */ }
+      corriendo = false;
     };
-    t = setTimeout(intentar, ultimaPreparacion() ? ESPERA_MS : ESPERA_PRIMERA_MS);
-    return () => { vivo = false; clearTimeout(t) };
+    const luego = (ms: number) => { const t = setTimeout(() => { timers.delete(t); void ciclo() }, ms); timers.add(t) };
+
+    luego(PRIMERA_MS);
+    const reloj = setInterval(() => void ciclo(), CICLO_MIN * 60_000);
+    const alVolver = () => luego(AL_VOLVER_MS);
+    const alVer = () => { if (document.visibilityState === "visible") luego(AL_VOLVER_MS) };
+    window.addEventListener("online", alVolver);
+    document.addEventListener("visibilitychange", alVer);
+    return () => {
+      vivo = false; clearInterval(reloj); timers.forEach(clearTimeout);
+      window.removeEventListener("online", alVolver); document.removeEventListener("visibilitychange", alVer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [llave]);
   return null;

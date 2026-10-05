@@ -113,12 +113,44 @@ export async function estadoDeCopia(ruta: string): Promise<{ copia: boolean; hay
   } catch { return null }
 }
 
-/** Cada cuántas horas, con internet, el equipo renueva solo su copia. */
-export const RENOVAR_HORAS = 6;
+/** Cada cuántos minutos, con internet y la app abierta, se revisa qué pantallas renovar. */
+export const CICLO_MIN = 5;
+/** La pantalla que se está mirando se vuelve a guardar si su copia tiene más de esto. */
+export const ACTUAL_MIN = 5;
+/** Las demás, si su copia tiene más de esto (de a pocas por ciclo, las más viejas primero). */
+export const VIEJA_MIN = 30;
 
-/** ¿Toca preparar la copia sin que nadie lo pida? Nunca preparada, o ya pasaron las horas. */
-export function hayQueRenovar(ultima: { fecha: string } | null, ahora: number = Date.now()): boolean {
-  if (!ultima) return true;
-  const t = new Date(ultima.fecha).getTime();
-  return !Number.isFinite(t) || ahora - t >= RENOVAR_HORAS * 3600_000;
+/** Cuándo se guardó cada pantalla (ms), leído de la copia misma. */
+export async function edadesGuardadas(): Promise<Map<string, number>> {
+  const m = new Map<string, number>();
+  try {
+    if (!("caches" in window)) return m;
+    const c = await caches.open(PAGINAS);
+    for (const k of await c.keys()) {
+      const u = new URL(k.url);
+      const r = await c.match(k);
+      const t = Date.parse(r?.headers.get("x-copia-fecha") ?? "");
+      m.set(u.pathname + u.search, Number.isFinite(t) ? t : 0);
+    }
+  } catch { /* se devuelve lo que se alcanzó a leer */ }
+  return m;
+}
+
+/**
+ * QUÉ PANTALLAS PEDIR EN ESTE CICLO. La copia se va haciendo sola, de a poco:
+ *  1. las que faltan, todas de una vez (equipo nuevo, o una pasada que falló);
+ *  2. la pantalla que se está mirando, si su copia ya tiene unos minutos;
+ *  3. las demás más viejas, de a `lote`, para no cargar el servidor.
+ * Así, usando la app, todo se mantiene con menos de una hora de antigüedad.
+ */
+export function elegirPantallas(todas: string[], edades: Map<string, number>, ahora: number, actual: string | null, lote = 3): string[] {
+  const faltan = todas.filter((r) => !edades.has(r));
+  if (faltan.length) return faltan;
+  const salida: string[] = [];
+  if (actual && edades.has(actual) && ahora - (edades.get(actual) as number) >= ACTUAL_MIN * 60_000) salida.push(actual);
+  const viejas = todas
+    .filter((r) => r !== actual && ahora - (edades.get(r) as number) >= VIEJA_MIN * 60_000)
+    .sort((a, b) => (edades.get(a) as number) - (edades.get(b) as number))
+    .slice(0, lote);
+  return [...salida, ...viejas];
 }

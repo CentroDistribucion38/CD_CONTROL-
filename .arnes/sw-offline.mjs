@@ -81,17 +81,14 @@ ok((await titulo()) === "INICIO v1", "«/» abre la copia del inicio: " + await 
 await pg.goto(B + "/p2");
 ok(/no está guardada/.test(await pg.locator("h1").textContent()), "una pantalla nunca abierta muestra el aviso, no el error del navegador");
 ok(await pg.getByRole("link", { name: "Ir al inicio" }).count() === 1, "el aviso trae el camino al inicio");
-ok((await pg.locator("#pedida").textContent()) === "/p2", "el aviso dice qué dirección se pidió");
-const enlaces = await pg.locator("#guardadas a").allTextContents();
-ok(enlaces.includes("/inicio") && enlaces.includes("/inventario/tablero"), "el aviso lista las pantallas que sí están guardadas: " + enlaces);
-await pg.locator("#guardadas a", { hasText: "/inventario/tablero" }).click();
-ok((await titulo()) === "TABLERO v1", "y desde ahí se abre una guardada: " + await titulo());
+await pg.getByRole("link", { name: "Ir al inicio" }).click();
+ok((await titulo()) === "INICIO v1", "«Ir al inicio» abre la copia del inicio: " + await titulo());
+ok(!(await pg.content()).includes("Dirección pedida"), "no se muestran datos técnicos");
 
 /* 3b · si ni la página de aviso guardada está, sale el aviso incluido, nunca el error del navegador */
 await pg.evaluate(async () => { await (await caches.open("control-estatico")).delete("/sin-conexion.html") });
 await pg.goto(B + "/p3-nunca");
 ok(/no está guardada/.test(await pg.locator("h1").textContent()), "sin la página de aviso guardada igual sale el aviso (no ERR_FAILED)");
-ok((await pg.locator("#guardadas a").count()) >= 2, "y el aviso incluido también lista lo guardado");
 
 /* 4 · vuelve internet con datos nuevos: se ve lo nuevo y ya no es copia */
 version = "v2"; await escuchar();
@@ -130,12 +127,15 @@ await pg.goto(B + "/inventario/tablero");
 ok(/no está guardada/.test(await pg.locator("h1").textContent()), "sin copia, sin internet: solo el aviso, nada de lo del usuario anterior");
 ok(await hayCache("control-estatico"), "lo estático (sin datos de nadie) se conserva");
 
-/* 7b · cuándo se renueva sola */
-{ const C = new Function(lib + "; return Copia")(); const ahora = Date.parse("2026-10-05T12:00:00Z");
-  ok(C.hayQueRenovar(null, ahora) === true, "nunca preparada: se prepara sola");
-  ok(C.hayQueRenovar({ fecha: "2026-10-05T10:00:00Z" }, ahora) === false, "preparada hace 2 h: no");
-  ok(C.hayQueRenovar({ fecha: "2026-10-05T05:59:00Z" }, ahora) === true, "preparada hace más de 6 h: sí");
-  ok(C.hayQueRenovar({ fecha: "basura" }, ahora) === true, "fecha dañada: se prepara de nuevo") }
+/* 7b · qué pantallas se renuevan en cada ciclo */
+{ const C = new Function(lib + "; return Copia")(); const MIN = 60_000, ahora = Date.parse("2026-10-05T12:00:00Z");
+  const T = ["/inicio", "/perfil", "/a", "/b", "/c", "/d"];
+  const hace = (...mins) => new Map(T.map((r, i) => [r, ahora - mins[i] * MIN]));
+  ok(C.elegirPantallas(T, new Map(), ahora, null).join() === T.join(), "equipo nuevo: pide todas");
+  ok(C.elegirPantallas(T, new Map([["/inicio", ahora]]), ahora, null).join() === "/perfil,/a,/b,/c,/d", "pide las que faltan, aunque lo demás sea reciente");
+  ok(C.elegirPantallas(T, hace(1, 2, 3, 4, 1, 2), ahora, "/a").length === 0, "todo reciente: no pide nada");
+  ok(C.elegirPantallas(T, hace(1, 2, 8, 4, 1, 2), ahora, "/a").join() === "/a", "la pantalla que se mira se renueva a los 5 min");
+  ok(C.elegirPantallas(T, hace(90, 40, 31, 20, 10, 60), ahora, null).join() === "/inicio,/d,/perfil", "las demás: de a 3, las más viejas primero (y solo pasados 30 min): " + C.elegirPantallas(T, hace(90, 40, 31, 20, 10, 60), ahora, null)) }
 /* 8 · recursosDe */
 const rec = new Function(lib + "; return Copia")().recursosDe(('<script src="/_next/static/chunks/a-1.js"></script>{"x":"static/chunks/app/(app)/inventario/page-9f.js","y":"static/css/b.css"} static/media/f.woff2'));
 ok(rec.join() === "/_next/static/chunks/a-1.js,/_next/static/chunks/app/(app)/inventario/page-9f.js,/_next/static/css/b.css,/_next/static/media/f.woff2", "recursosDe encuentra paquetes en el HTML y en el flujo de datos: " + rec);

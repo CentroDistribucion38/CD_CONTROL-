@@ -1,4 +1,4 @@
-/* La copia se prepara sola con internet y no se repite si es reciente. node .arnes/preparar-sola.mjs */
+/* La copia se va haciendo sola: qué pide, cuándo, y que no corre sin internet. node .arnes/preparar-sola.mjs */
 import { writeFileSync } from "node:fs";
 import { buildSync } from "esbuild";
 const R = (p) => new URL("../" + p, import.meta.url).pathname;
@@ -13,49 +13,54 @@ const js = buildSync({ entryPoints: [R(".arnes/_ps-entrada.tsx")], bundle: true,
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const ctx = await nav.newContext();
-const pg = await ctx.newPage(); 
+const pg = await ctx.newPage();
 await pg.clock.install();
-let pedidas = [];
+let pedidas = [], falla = false;
 await pg.route("http://localhost:4398/**", (r) => {
   const u = new URL(r.request().url());
   if (u.pathname === "/") return r.fulfill({ contentType: "text/html", body: `<!doctype html><body><div id="r"></div><script>${js}<\/script></body>` });
   if (r.request().headers()["x-preparar"]) pedidas.push(u.pathname);
-  return r.fulfill({ contentType: "text/html", body: "<html>pantalla</html>" });
+  return falla ? r.fulfill({ status: 500, body: "no" }) : r.fulfill({ contentType: "text/html", body: "<html>pantalla</html>" });
 });
-const arranca = async (antes) => { pedidas = []; await pg.goto("http://localhost:4398/"); if (antes) await antes(); await pg.waitForSelector("#r", { state: "attached" }) };
-
-await arranca(); await pg.clock.runFor(10_000);
-ok(pedidas.length === 0, "no arranca de golpe: espera unos segundos");
-await pg.clock.runFor(15_000); await pg.waitForTimeout(300);
-ok(pedidas.sort().join() === "/inicio,/inventario/fiscal,/inventario/tablero,/perfil", "a los 20 s prepara las pantallas del menú: " + pedidas);
-for (let i = 0; i < 50 && !(await pg.evaluate(() => localStorage.getItem("cd38.copia.preparada"))); i++) await pg.waitForTimeout(100);
-const anotada = await pg.evaluate(() => JSON.parse(localStorage.getItem("cd38.copia.preparada")));
-ok(anotada && anotada.fallidas === 0 && !!anotada.fecha, "queda anotada la preparación: " + JSON.stringify(anotada));
-
-const guardarEnCache = (rutas) => pg.evaluate(async (rs) => { const c = await caches.open("control-paginas"); for (const r of rs) await c.put(location.origin + r, new Response("x")) }, rutas);
 const TODAS = ["/inicio", "/perfil", "/inventario/tablero", "/inventario/fiscal"];
-await arranca(); await guardarEnCache(TODAS); await pg.clock.runFor(30_000); await pg.waitForTimeout(200);
-ok(pedidas.length === 0, "con todas guardadas y la copia reciente no vuelve a pedir nada: " + pedidas);
+const arranca = async () => { pedidas = []; await pg.goto("http://localhost:4398/"); await pg.waitForSelector("#r", { state: "attached" }) };
+const guardar = (rutas, haceMin) => pg.evaluate(async ([rs, m]) => { const c = await caches.open("control-paginas");
+  for (const r of rs) await c.put(location.origin + r, new Response("x", { headers: { "x-copia-fecha": new Date(Date.now() - m * 60000).toISOString() } })) }, [rutas, haceMin]);
+const vaciar = () => pg.evaluate(() => caches.delete("control-paginas"));
+const esperaFin = async () => { for (let i = 0; i < 30; i++) await pg.waitForTimeout(50) };
 
-/* Falta una (la preparación de antes falló en esa): reciente o no, se pide solo la que falta. */
-await pg.evaluate(async () => { await (await caches.open("control-paginas")).delete(location.origin + "/perfil") });
-await arranca(); await pg.clock.runFor(30_000); await pg.waitForTimeout(300);
-ok(pedidas.join() === "/perfil", "si falta una se pide solo esa, aunque la copia sea reciente: " + pedidas);
+/* Equipo nuevo: no espera mucho y guarda todo. */
+await arranca(); await vaciar(); await pg.clock.runFor(2_000);
+ok(pedidas.length === 0, "no arranca de golpe");
+await pg.clock.runFor(4_000); await esperaFin();
+ok([...pedidas].sort().join() === [...TODAS].sort().join(), "a los pocos segundos pide todas las del menú: " + pedidas);
 
-await pg.evaluate(() => localStorage.setItem("cd38.copia.preparada", JSON.stringify({ fecha: new Date(Date.now() - 7 * 3600_000).toISOString(), n: 4, fallidas: 0 })));
-await ctx.setOffline(true);
-await arranca(); await pg.clock.runFor(30_000); await pg.waitForTimeout(200);
+/* Todo guardado y reciente: no vuelve a pedir nada, ni pasados los minutos. */
+await arranca(); await vaciar(); await guardar(TODAS, 1); await pg.clock.runFor(60_000); await esperaFin();
+ok(pedidas.length === 0, "con todo reciente no pide nada: " + pedidas);
+
+/* Falta una: se pide solo esa. */
+await arranca(); await vaciar(); await guardar(TODAS.filter((r) => r !== "/perfil"), 1); await pg.clock.runFor(10_000); await esperaFin();
+ok(pedidas.join() === "/perfil", "si falta una pide solo esa: " + pedidas);
+
+/* Copias viejas: en cada ciclo (5 min) se renuevan de a tres, las más viejas. */
+await arranca(); await vaciar();
+await pg.evaluate(async () => { const c = await caches.open("control-paginas"); const mk = (r, m) => c.put(location.origin + r, new Response("x", { headers: { "x-copia-fecha": new Date(Date.now() - m * 60000).toISOString() } }));
+  await mk("/inicio", 100); await mk("/perfil", 90); await mk("/inventario/tablero", 80); await mk("/inventario/fiscal", 70) });
+await pg.clock.runFor(6_000); await esperaFin();
+ok(pedidas.join() === "/inicio,/perfil,/inventario/tablero", "con copias de más de 30 min renueva las 3 más viejas por ciclo: " + pedidas);
+
+/* Sin internet no intenta; al volver, retoma. */
+pedidas = []; await ctx.setOffline(true); await pg.clock.runFor(5 * 60_000 + 1000); await esperaFin();
 ok(pedidas.length === 0, "sin internet no intenta");
-await ctx.setOffline(false);
-await arranca(); await pg.clock.runFor(30_000); await pg.waitForTimeout(300);
-ok(pedidas.length === 4, "copia de más de 6 h y con internet: se renueva sola: " + pedidas.length);
+await ctx.setOffline(false); await pg.evaluate(() => window.dispatchEvent(new Event("online"))); await pg.clock.runFor(4_000); await esperaFin();
+ok(pedidas.length > 0, "al volver el internet retoma sola: " + pedidas);
 
-/* Una pasada en la que todo falló no se anota como «preparada» (si no, frenaría el siguiente intento 6 horas). */
-await pg.evaluate(() => { localStorage.clear(); return caches.delete("control-paginas") });
-await pg.unroute("http://localhost:4398/**");
-await pg.route("http://localhost:4398/**", (r) => { const u = new URL(r.request().url()); if (u.pathname === "/") return r.fulfill({ contentType: "text/html", body: `<!doctype html><body><div id="r"></div><script>${js}<\/script></body>` }); return r.fulfill({ status: 500, body: "no" }) });
-await arranca(); await pg.clock.runFor(30_000); await pg.waitForTimeout(500);
+/* Si todo falla no queda anotada una preparación. */
+falla = true; await pg.evaluate(() => { localStorage.clear(); return caches.delete("control-paginas") });
+await arranca(); await pg.clock.runFor(6_000); await esperaFin();
 ok(await pg.evaluate(() => localStorage.getItem("cd38.copia.preparada")) === null, "si todo falla no queda anotada una preparación");
+
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
-console.log("✓ La copia se prepara sola al abrir con internet (tras unos segundos), no se repite si es reciente y no corre sin internet.");
+console.log("✓ La copia se va haciendo sola: guarda lo que falta, renueva de a poco lo viejo (primero la pantalla que se mira), no corre sin internet y retoma al volver.");

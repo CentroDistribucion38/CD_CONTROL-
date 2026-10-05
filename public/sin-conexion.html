@@ -12,11 +12,6 @@
   main { max-width: 520px; background: #fff; border: 1px solid #d5dce5; border-top: 4px solid #e0123b; padding: 28px 28px 24px; }
   h1 { font-size: 22px; line-height: 1.2; margin-bottom: 10px; }
   p { font-size: 15px; line-height: 1.5; color: #3d4c5f; margin-bottom: 12px; }
-  .peq { font-size: 12px; color: #6b7a8c; }
-  .lista p { margin: 14px 0 6px; font-weight: 600; color: #04203f; }
-  .lista ul { list-style: none; max-height: 180px; overflow: auto; border: 1px solid #d5dce5; }
-  .lista li a { display: block; padding: 9px 12px; font-size: 14px; color: #0b4ea2; text-decoration: none; border-bottom: 1px solid #eef1f5; min-height: 0; font-weight: 500; margin: 0; }
-  .lista li a:hover { background: #eef1f5; }
   .botones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
   a, button { font: inherit; font-weight: 600; font-size: 14px; min-height: 44px; padding: 0 18px; display: inline-flex; align-items: center;
               border-radius: 0; cursor: pointer; text-decoration: none; }
@@ -29,26 +24,10 @@
   <h1>Sin conexión, y esta pantalla no está guardada</h1>
   <p>Si pierdes la conexión puedes seguir viendo <b>lo guardado hasta tu última conexión</b>. Lo que no se puede hacer sin internet es realizar cambios.</p>
   <p>Esta pantalla todavía no está guardada en este equipo: se guarda sola la próxima vez que la abras con internet.</p>
-  <p class="peq">Dirección pedida: <span id="pedida"></span></p>
-  <div id="guardadas" class="lista"></div>
   <div class="botones">
     <a class="p" href="/inicio">Ir al inicio</a>
     <button class="s" type="button" onclick="location.reload()">Reintentar</button>
   </div>
 </main>
-<script>(function () {
-  var pedida = document.getElementById("pedida"), lista = document.getElementById("guardadas");
-  if (pedida) pedida.textContent = location.pathname + location.search;
-  if (!lista || !window.caches) return;
-  caches.open("control-paginas").then(function (c) { return c.keys() }).then(function (ks) {
-    var rutas = ks.map(function (k) { var u = new URL(k.url); return u.pathname + u.search }).sort();
-    if (!rutas.length) { lista.textContent = "Este equipo todavía no tiene ninguna pantalla guardada: abre CONTROL una vez con internet."; return }
-    lista.textContent = "";
-    var t = document.createElement("p"); t.textContent = "Sí están guardadas en este equipo (" + rutas.length + "):"; lista.appendChild(t);
-    var ul = document.createElement("ul");
-    rutas.slice(0, 40).forEach(function (r) { var li = document.createElement("li"), a = document.createElement("a"); a.href = r; a.textContent = r; li.appendChild(a); ul.appendChild(li) });
-    lista.appendChild(ul);
-  }).catch(function () {});
-})()</script>
 </body>
 </html>
