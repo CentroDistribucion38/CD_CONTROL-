@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   analizar, armarPar, conteoDelPar, envaseDelRenglon, diaColombia, duracion,
   type Analisis, type ConteoRef, type Corte as CorteT, type LineaConteo,
@@ -36,12 +36,15 @@ const peor = (l: Estado[]): Estado => (l.includes("no_cuadra") ? "no_cuadra" : l
 
 type Par = { ini: CorteT; fin: CorteT; a: Analisis; dia: string; porDefecto: string | null };
 
-export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, lineasConteo, manda, borrar, ocupado, onBorrar, onConfirmar }: {
+export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, lineasConteo, manda, borrar, ocupado, onBorrar, onConfirmar, verProceso }: {
   cortes: CorteT[]; lineas: LineaC[]; ubicaciones: UbiC[]; materiales: MatC[];
   conteos: ConteoRef[]; lineasConteo: LineaConteo[];
   manda: boolean; borrar: string | null; ocupado: boolean;
   onBorrar: (id: string | null) => void; onConfirmar: (id: string) => void;
+  /** Quien administra: el ojito de cada corte, que abre su proceso (inicial → final → cruce). */
+  verProceso?: (inicialId: string) => ReactNode;
 }) {
+  const [ojos, setOjos] = useState<Record<string, boolean>>({});
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [linea, setLinea] = useState("");
@@ -142,6 +145,7 @@ export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, li
             const pastillas = f.tablas.filter((t) => !linea || t.linea === linea);
             return (
               <article key={p.ini.id} className="fe-fila cl-par dq">
+                <div className="dq-filaw">
                 <button type="button" className="dq-fila" aria-expanded={abierto}
                         onClick={() => setTocados((x) => ({ ...x, [p.ini.id]: !abierto }))}>
                   <span className="dq-fila-t">
@@ -154,6 +158,19 @@ export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, li
                   <span className={"dq-chip " + est}>{TXT[est]}</span>
                   <span className="dq-caret" aria-hidden>{abierto ? "▴" : "▾"}</span>
                 </button>
+                {verProceso && (
+                  <button type="button" className="dq-ojo" aria-pressed={ojos[p.ini.id] ?? false}
+                          aria-label={ojos[p.ini.id] ? "Ocultar el proceso de este corte" : "Ver el proceso de este corte"}
+                          title={ojos[p.ini.id] ? "Ocultar el proceso de este corte" : "Ver el proceso de este corte"}
+                          onClick={() => setOjos((x) => ({ ...x, [p.ini.id]: !x[p.ini.id] }))}>
+                    <svg viewBox="0 0 24 24" aria-hidden>
+                      <path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
+                )}
+                </div>
+                {verProceso && ojos[p.ini.id] && <div className="dq-proceso">{verProceso(p.ini.id)}</div>}
                 {abierto && (
                   <ParDiferencia a={f.par.a} ini={f.par.ini} fin={f.par.fin} conteos={conteos} lineasPorConteo={porConteo}
                     conteoId={f.conteoId} onConteo={(id) => setEscogidos((x) => ({ ...x, [p.ini.id]: id }))}

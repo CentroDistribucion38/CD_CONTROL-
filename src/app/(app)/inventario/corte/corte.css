@@ -184,6 +184,14 @@
 .fe .dq-resumen b { color: var(--fe-tinta) }
 .fe .dq-hist .fe-vacio .btn { margin-left: 8px }
 .fe .dq-fila { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; width: 100%; min-height: 56px; padding: 6px 2px 10px; background: none; border: 0; border-bottom: 1px solid transparent; text-align: left; cursor: pointer; color: inherit; font: inherit }
+.fe .dq-filaw { display: flex; align-items: center; gap: 8px }
+.fe .dq-filaw .dq-fila { flex: 1 1 auto; width: auto; min-width: 0 }
+/* EL OJITO: cuadrado (nada ovalado); encendido, en la tinta del tablero. */
+.fe .dq-ojo { flex: none; width: 44px; height: 44px; display: grid; place-items: center; background: var(--fe-papel); color: var(--fe-tinta); border: 1px solid var(--fe-linea); cursor: pointer }
+.fe .dq-ojo svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: square; stroke-linejoin: miter }
+.fe .dq-ojo[aria-pressed="true"] { background: #0D0D0D; color: var(--fe-acento); border-color: #0D0D0D }
+.fe .dq-ojo:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 2px }
+.fe .dq-proceso { margin: 0 0 12px; min-width: 0 }
 .fe .dq-fila[aria-expanded="true"] { border-bottom-color: var(--fe-linea); margin-bottom: 10px }
 .fe .dq-fila-t { display: flex; flex-direction: column; min-width: 0; flex: 1 1 220px }
 .fe .dq-fila-t b { font: 800 15px var(--fe-titulo) }

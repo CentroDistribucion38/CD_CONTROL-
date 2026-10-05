@@ -353,10 +353,12 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
         </div>
       )}
 
-      {manda && verDiferencia && (
+      {/* «El proceso» es de los que todavía esperan su final. Cuando el final se hace, el corte pasa a «La diferencia»
+          y su proceso se ve con el ojito de allá. */}
+      {manda && verDiferencia && abiertos.length > 0 && (
         <>
-          <h2 className="cl-h">El proceso, corte por corte <span>{cortes.filter((c) => c.tipo === "inicial").length}</span></h2>
-          <Proceso cortes={cortes} lineas={lineas} ubicaciones={ubicaciones} materiales={materiales}
+          <h2 className="cl-h">El proceso, corte por corte <span>{abiertos.length}</span></h2>
+          <Proceso solo="abiertos" cortes={cortes} lineas={lineas} ubicaciones={ubicaciones} materiales={materiales}
                    conteos={conteos} lineasConteo={lineasConteo} nombres={nombres} />
         </>
       )}
@@ -369,7 +371,11 @@ export function Corte({ bodegaId, lineas, ubicaciones, materiales, cortes, nombr
         ) : (
           <Historial cortes={cortes} lineas={lineas} ubicaciones={ubicaciones} materiales={materiales}
             conteos={conteos} lineasConteo={lineasConteo} manda={manda} borrar={borrar} ocupado={ocupado}
-            onBorrar={setBorrar} onConfirmar={eliminar} />
+            onBorrar={setBorrar} onConfirmar={eliminar}
+            verProceso={manda ? (id) => (
+              <Proceso solo={id} cortes={cortes} lineas={lineas} ubicaciones={ubicaciones} materiales={materiales}
+                       conteos={conteos} lineasConteo={lineasConteo} nombres={nombres} />
+            ) : undefined} />
         )}
         </>
       )}

@@ -58,10 +58,18 @@ function bloque(s: Sitio, porEstiba: number | null): Bloque {
   };
 }
 
-export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, lineasConteo, nombres }: {
+/**
+ * `solo`:
+ *   · «abiertos»  → los cortes que todavía NO tienen final (los que tienen final ya viven en «La diferencia»);
+ *   · un id       → ese corte solo, ya abierto y sin barra: es lo que abre el ojito de «La diferencia».
+ * Sin `solo` salen todos. El número del corte («Corte 3») es el mismo en cualquier caso.
+ */
+export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, lineasConteo, nombres, solo: soloCorte }: {
   cortes: CorteT[]; lineas: LineaC[]; ubicaciones: UbiC[]; materiales: MatC[];
   conteos: ConteoRef[]; lineasConteo: LineaConteo[]; nombres: Record<string, string>;
+  solo?: "abiertos" | string;
 }) {
+  const unCorte = soloCorte !== undefined && soloCorte !== "abiertos";
   /* Primero el más viejo (el Corte 1) o primero el más nuevo: el número del corte no cambia. */
   const [nuevoPrimero, setNuevoPrimero] = useState(false);
 
@@ -108,7 +116,8 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cortes, mat, nombreUbi, conteos, porConteo, ctx]);
 
-  const lista = nuevoPrimero ? [...items].reverse() : items;
+  const visibles = soloCorte === "abiertos" ? items.filter((x) => !x.fin) : unCorte ? items.filter((x) => x.ini.id === soloCorte) : items;
+  const lista = nuevoPrimero ? [...visibles].reverse() : visibles;
   const completos = items.filter((x) => x.pct === 100).length;
 
   /* ---------- las piezas de la tarjeta ---------- */
@@ -222,7 +231,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
               <div className="pr-ln"><span>Surte (debía bajar)</span><b>{fila?.origen.dif != null ? conSigno(fila.origen.dif) : "—"}</b></div>
               {!solo && <div className="pr-ln"><span>Recibe (debía subir)</span><b>{fila?.destino.dif != null ? conSigno(fila.destino.dif) : "—"}</b></div>}
               {(fila?.origen.motivo || (!solo && fila?.destino.motivo)) && est === "incompleto" && <p className="pr-mot">{fila?.origen.motivo ?? fila?.destino.motivo}</p>}
-              <a href="#cl-diferencia">VER LA DIFERENCIA →</a>
+              {!unCorte && <a href="#cl-diferencia">VER LA DIFERENCIA →</a>}
             </>
           ) : (
             <>
@@ -237,12 +246,16 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
 
   return (
     <div className="pr">
-      <div className="pr-barra">
-        <span className="pr-resumen">{completos} de {items.length} {items.length === 1 ? "corte completo" : "cortes completos"}</span>
-        <button type="button" className="btn plano" aria-pressed={nuevoPrimero} onClick={() => setNuevoPrimero((x) => !x)}>
-          {nuevoPrimero ? "Ver del primero al último" : "Ver del último al primero"}
-        </button>
-      </div>
+      {!unCorte && (soloCorte !== "abiertos" || visibles.length > 1) && (
+        <div className="pr-barra">
+          <span className="pr-resumen">{soloCorte === "abiertos"
+            ? `${visibles.length} esperando el corte final`
+            : `${completos} de ${items.length} ${items.length === 1 ? "corte completo" : "cortes completos"}`}</span>
+          <button type="button" className="btn plano" aria-pressed={nuevoPrimero} onClick={() => setNuevoPrimero((x) => !x)}>
+            {nuevoPrimero ? "Ver del primero al último" : "Ver del último al primero"}
+          </button>
+        </div>
+      )}
       {lista.length === 0 && <p className="fe-vacio">Todavía no se ha hecho ningún corte.</p>}
       {lista.map((x, k) => {
         const nMal = x.fin ? [...x.estados.values()].filter((e) => e === "no_cuadra").length : 0;
@@ -252,7 +265,7 @@ export function Proceso({ cortes, lineas, ubicaciones, materiales, conteos, line
           : nMal + nInc === 0 ? "todas las líneas cuadran"
           : [nMal ? `${linea(nMal)} con diferencia` : "", nInc ? `${linea(nInc)} sin poder cruzar` : ""].filter(Boolean).join(" · ");
         return (
-          <details key={x.ini.id} className="pr-corte">
+          <details key={x.ini.id} className="pr-corte" open={unCorte || undefined}>
             <summary className="pr-cab">
               <span className="pr-t">
                 <span className="pr-h2">CORTE <b>{x.n}</b></span>

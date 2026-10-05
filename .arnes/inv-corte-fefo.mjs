@@ -232,8 +232,8 @@ if (process.env.SHOT) { const bb = await pg.locator(".dq-card").first().bounding
 await pg.selectOption(".dq-barra select", "b");
 
 /* El proceso: el corte 1 abre y no tiene «Ubicados en». */
-await pg.locator(".pr-corte").first().locator("summary").click();
-const pr = (await pg.locator(".pr-corte").first().textContent()).replace(/\s+/g, " ");
+await pg.locator(".dq-ojo").first().click();
+const pr = (await pg.locator(".dq-proceso .pr-corte").first().textContent()).replace(/\s+/g, " ");
 ok(/→ para 3128/.test(pr), "el flujo dice el SKU del producto al que le entra el envase: " + pr.slice(0, 300));
 ok(!/Ubicados en/.test(pr) && !/Recibe \(debía subir\)/.test(pr) && /Tomando de/.test(pr) && /Surte \(debía bajar\)/.test(pr), "el flujo solo muestra el envase: " + pr.slice(0, 300));
 await monta("c=sin");
