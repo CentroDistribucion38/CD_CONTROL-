@@ -31,7 +31,7 @@ const SIN_CONEXION = "/sin-conexion.html";
 /* Con internet se espera de verdad al servidor (hay pantallas pesadas): la copia solo sale antes si el equipo ya sabe que no hay conexión. */
 const ESPERA_MS = 20000;
 const SONDA_MS = 3000;
-const MAX_ESTATICO = 900;
+const MAX_ESTATICO = 2500;
 
 self.addEventListener("install", (evento) => {
   evento.waitUntil(
@@ -221,7 +221,10 @@ async function sonda() {
 /** Lo que no cambia: primero lo guardado; si no está, se pide y se guarda. */
 async function primeroCopia(req) {
   const c = await caches.open(ESTATICO);
-  const g = await c.match(req);
+  /* Los archivos de /_next/static llevan el contenido en el nombre: lo que cambie en la dirección después del «?»
+     (la marca de despliegue ?dpl=…) no cambia el archivo, y no debe hacerlo «faltar» sin internet. */
+  let g = await c.match(req);
+  if (!g && new URL(req.url).pathname.startsWith("/_next/static/")) g = await c.match(req, { ignoreSearch: true });
   if (g) return g;
   const r = await fetch(req);
   if (r.ok && r.type !== "opaqueredirect") await c.put(req, r.clone());
