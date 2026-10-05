@@ -85,6 +85,16 @@ await pg.clock.runFor(300);
 const alto = await pg.evaluate(() => window.innerHeight - document.querySelector(".sh-refrescar").getBoundingClientRect().bottom);
 ok(alto > 60, "con un «+» flotante a la vista sí sube: " + alto);
 await pg.screenshot({ path: R(".arnes/act-pc.png"), clip: { x: 1140, y: 480, width: 300, height: 220 } });
+/* La portada y el perfil tienen «Cerrar sesión» abajo a la derecha: ahí NO hay botón (solo dentro de los módulos). */
+for (const r of ["/inicio", "/perfil", "/perfil/seguridad", "/"]) {
+  await pg.unrouteAll();
+  await pg.route("http://arnes.local/**", (q) => q.fulfill({ contentType: "text/html; charset=utf-8",
+    body: `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${P}${css}</style></head><body><div class="sh"><div id="r"></div></div><script>${js}<\/script></body></html>` }));
+  await pg.goto("http://arnes.local/?p=" + r); await pg.clock.runFor(300);
+  ok(await pg.locator(".sh-refrescar").count() === 0, "en " + r + " no debe verse el botón de actualizar (tapa «Cerrar sesión»)");
+}
+await monta("p=/traspasos/plan");
+ok(await pg.locator(".sh-refrescar").count() === 1, "dentro de un módulo sí debe verse el botón");
 ok(roto.length === 0, "errores de la página: " + roto.join(" | "));
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }

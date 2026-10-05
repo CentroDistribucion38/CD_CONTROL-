@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { CADA_MS, esDeConsulta, haceCuanto, puedeActualizarSola } from "@/modulos/actualizar";
+import { CADA_MS, esDeConsulta, haceCuanto, puedeActualizarSola, sinBoton } from "@/modulos/actualizar";
 
 /**
  * EL BOTÓN FLOTANTE DE ACTUALIZAR (abajo a la derecha, pequeño).
@@ -86,6 +86,9 @@ export function Actualizar() {
 
   const auto = esDeConsulta(pathname);
   const titulo = `Actualizar · última vez ${haceCuanto(Date.now() - ultima.current)}${auto ? " · se actualiza sola cada minuto" : ""}`;
+
+  /* En la portada y el perfil no hay botón: ahí abajo a la derecha va «Cerrar sesión». */
+  if (sinBoton(pathname)) return null;
 
   return (
     <button type="button" className={"sh-refrescar" + (pendiente ? " gira" : "") + (hecho ? " hecho" : "")}

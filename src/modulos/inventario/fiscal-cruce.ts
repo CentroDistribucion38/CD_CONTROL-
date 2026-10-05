@@ -91,6 +91,27 @@ export function filaDesdeBD(f: FilaCruceBD): FilaCruce {
   };
 }
 
+/* ------------------------------------- lo que contó cada persona (para el Excel) */
+export type ConteoPersona = {
+  equipo: "OL" | "BAVARIA"; persona: string; ubicacion: string; sku: string; material: string;
+  cajasPorEstiba: number | null; estibas: number | null; saldo: number | null; cajas: number | null; totalCajas: number;
+  vencDia: number | null; vencMes: number | null; vencAnio: number | null; nota: string | null; contadoEn: string | null;
+};
+/** Lo que devuelve `inv_fiscal_conteos`. */
+export type ConteoPersonaBD = {
+  equipo: string; persona: string | null; ubicacion: string; sku: string; material: string;
+  cajas_por_estiba: number | string | null; estibas: number | string | null; saldo: number | string | null; cajas: number | string | null;
+  total_cajas: number | string | null; venc_dia: number | null; venc_mes: number | null; venc_anio: number | null;
+  nota: string | null; contado_en: string | null;
+};
+export function conteoDesdeBD(c: ConteoPersonaBD): ConteoPersona {
+  return {
+    equipo: c.equipo === "BAVARIA" ? "BAVARIA" : "OL", persona: c.persona || "—", ubicacion: c.ubicacion, sku: c.sku, material: c.material,
+    cajasPorEstiba: nul(c.cajas_por_estiba), estibas: nul(c.estibas), saldo: nul(c.saldo), cajas: nul(c.cajas), totalCajas: num(c.total_cajas),
+    vencDia: nul(c.venc_dia), vencMes: nul(c.venc_mes), vencAnio: nul(c.venc_anio), nota: c.nota?.trim() ? c.nota.trim() : null, contadoEn: c.contado_en,
+  };
+}
+
 /** «25/12/2026», «12/2026» (sin día) o «sin vencimiento». */
 export function textoVenc(dia: number | null, mes: number | null, anio: number | null): string {
   if (anio == null && mes == null && dia == null) return "sin vencimiento";

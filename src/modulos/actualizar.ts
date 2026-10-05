@@ -26,6 +26,16 @@ export function esDeConsulta(pathname: string): boolean {
   return CONSULTA.has(partes[partes.length - 1]);
 }
 
+/**
+ * DÓNDE NO SE VE EL BOTÓN: en la portada (y en el perfil), que tienen su propio
+ * pie con «Cerrar sesión» abajo a la derecha: el botón se montaba encima. El
+ * botón es de los módulos; la portada se actualiza sola igual.
+ */
+export function sinBoton(pathname: string): boolean {
+  const partes = pathname.split("/").filter(Boolean);
+  return partes.length === 0 || (partes.length === 1 && partes[0] === "inicio") || partes[0] === "perfil";
+}
+
 export type Estado = {
   pathname: string;
   /** La pestaña se está viendo. */

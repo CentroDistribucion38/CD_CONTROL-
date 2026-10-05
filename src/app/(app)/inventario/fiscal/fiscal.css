@@ -57,6 +57,7 @@
 .fe .fi-av.lista { background: var(--fe-acento); color: var(--fe-sobre, #fff) }
 .fe .fi-av.una-termino { border: 1px solid var(--fe-acento); background: transparent; color: var(--fe-acento) }
 .fe .fi-cruzar { min-height: 44px }
+.fe .fi-excel { min-height: 44px }
 .fe .fi-cruce { margin-top: 12px; padding: 12px; border: 1px solid var(--fe-linea); background: var(--fe-papel); min-width: 0 }
 .fe .fi-cruce-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px }
 .fe .fi-cruce-cab b { font: 900 15px var(--fe-titulo) }

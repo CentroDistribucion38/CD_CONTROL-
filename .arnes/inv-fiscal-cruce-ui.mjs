@@ -58,7 +58,7 @@ writeFileSync(R(".arnes/_fx-cliente.ts"), `
 const w = window as any;
 w.__rpc = [];
 export function createClient() {
-  return { rpc: async (n: string, a: any) => {
+  return { auth: { getUser: async () => ({ data: { user: { id: "p1" } } }) }, rpc: async (n: string, a: any) => {
     w.__rpc.push({ n, a });
     const r = (w.__RESP || {})[n];
     if (r && r.error) return { data: null, error: { message: r.error } };
@@ -101,18 +101,23 @@ const CRUCE = [
   { ubicacion: "A-03", sku: "400", material: "Malta", venc_dia: 1, venc_mes: 1, venc_anio: 2027, cajas_ol: 1200, cajas_bavaria: 1200, diferencia: 0, estado: "COINCIDE" },
 ];
 
+const CT = (equipo, persona, ubicacion, sku, material, est, sal, caj, total) => ({ equipo, persona, ubicacion, sku, material, cajas_por_estiba: est === null ? null : 54, estibas: est, saldo: sal, cajas: caj, total_cajas: total,
+  venc_dia: null, venc_mes: 3, venc_anio: 2027, nota: null, contado_en: "2026-10-02T15:10:00Z" });
+const CONTEOS = [CT("OL", "Persona 4", "A-01", "100", "Cerveza 330", 0, 0, null, 10), CT("BAVARIA", "Persona 8", "A-01", "100", "Cerveza 330", null, null, 7, 7)];
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await nav.newPage();
 const roto = [];
 pg.on("pageerror", (e) => roto.push(e.message));
-pg.on("console", (m) => { if (m.type() === "error") roto.push(m.text()) });
+/* El logo (/marca/logo-b.png) no existe al abrir el archivo suelto: es lo único que se ignora. */
+pg.on("console", (m) => { if (m.type() === "error" && !/logo-b\.png|ERR_FAILED/.test(m.text())) roto.push(m.text()) });
 const monta = async (props = {}, resp = {}, ancho = 1440) => {
   await pg.setViewportSize({ width: ancho, height: 1000 });
-  await pg.setContent(`<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${P}${css}</style></head>
+  writeFileSync(R(".arnes/tmp/_ui-fiscal.html"), `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${P}${css}</style></head>
     <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div>
-    <script>window.__RESP=${JSON.stringify({ inv_fiscal_cruce: { data: CRUCE }, ...resp })};window.__PROPS=${JSON.stringify({ ...base, ...props })};</script><script>${js}<\/script></body></html>`);
-  await pg.waitForSelector("#r > *");
+    <script>window.__RESP=${JSON.stringify({ inv_fiscal_cruce: { data: CRUCE }, inv_fiscal_conteos: { data: CONTEOS }, ...resp })};window.__PROPS=${JSON.stringify({ ...base, ...props })};</script><script>${js.replace(/<\/script/gi, "<\\/script")}<\/script></body></html>`);
+  await pg.goto("file://" + R(".arnes/tmp/_ui-fiscal.html"));
+  await pg.waitForSelector("#r > *", { timeout: 8000 }).catch((e) => { throw new Error(e.message.split("\n")[0] + " · errores: " + roto.slice(0, 3).join(" | ")) });
 };
 const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
 const rpcs = () => pg.evaluate(() => window.__rpc);
@@ -232,6 +237,51 @@ ok(/Hoja 3/.test(await pg.locator(".fi-cruce").textContent()) && (await rpcs()).
 await pg.locator(".fi-hojas tbody tr").nth(3).locator("button.fi-cruzar").click();
 await pg.waitForFunction(() => /Hoja 4/.test(document.querySelector(".fi-cruce")?.textContent || ""));
 ok(await pg.locator(".fi-cruce").count() === 1, "solo un cruce abierto a la vez");
+
+/* ---------- 2b · EL EXCEL DEL CRUCE, EN UNO SOLO ---------- */
+{
+  const { default: ExcelJS } = await import("exceljs");
+  /* Con dos hojas listas (1 y 4) y una sin terminar. Se piden SOLO las listas. */
+  const plan3 = { ...plan, avance: { ...plan.avance, 1: A(3, T, 2, T) } };
+  await monta({ fiscales: [plan3] });
+  ok(await pg.locator("button.fi-excel").count() === 1, "falta el botón del Excel del cruce en el inventario");
+  ok(/Excel del cruce \(todas las hojas\)/.test(await pg.locator("button.fi-excel").textContent()), "el botón no dice qué baja");
+  const antes = (await rpcs()).length;
+  const [d] = await Promise.all([pg.waitForEvent("download"), pg.click("button.fi-excel")]);
+  ok(d.suggestedFilename() === "cruce-fiscal-2026-10-02.xlsx", "nombre del archivo: " + d.suggestedFilename());
+  await d.saveAs(R(".arnes/tmp/_ui-cruce.xlsx"));
+  const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(R(".arnes/tmp/_ui-cruce.xlsx"));
+  ok(wb.worksheets.map((w) => w.name).join("|") === "Resumen|Diferencias|Por material|Por persona|Conteos por persona|Conteos cruzados", "hojas del libro: " + wb.worksheets.map((w) => w.name).join("|"));
+  const pedidas = (await rpcs()).slice(antes).filter((x) => x.n === "inv_fiscal_cruce").map((x) => x.a.p_hoja).sort().join();
+  ok(pedidas === "hoja-1,hoja-4", "solo se piden las hojas listas para cruzar: " + pedidas);
+  const pedidasC = (await rpcs()).slice(antes).filter((x) => x.n === "inv_fiscal_conteos").map((x) => x.a.p_hoja).sort().join();
+  ok(pedidasC === "hoja-1,hoja-4", "lo que contó cada persona se pide de las mismas hojas: " + pedidasC);
+  ok((await rpcs()).slice(antes).every((x) => x.n === "inv_fiscal_cruce" || x.n === "inv_fiscal_conteos"), "exportar no debe escribir nada");
+  ok(wb.getWorksheet("Conteos cruzados").rowCount >= 8 + 1, "el cruce junta los renglones de las dos hojas: " + wb.getWorksheet("Conteos cruzados").rowCount);
+  ok(wb.getWorksheet("Conteos por persona").rowCount >= 8 + 3, "los conteos por persona traen lo anotado: " + wb.getWorksheet("Conteos por persona").rowCount);
+  ok(/con lo que contó cada persona/.test(await pg.locator(".cl-ok").textContent()), "el aviso dice que trae lo de cada persona: " + await pg.locator(".cl-ok").textContent());
+  const resumen = []; wb.getWorksheet("Resumen").eachRow((r) => resumen.push(r.values.join(" ")));
+  ok(/Persona 1/.test(resumen.join("\n")) && /Persona 4/.test(resumen.join("\n")), "el resumen no nombra las parejas");
+  ok(/exportado por Persona 1/.test(resumen.join("\n")), "el resumen no dice quién exportó");
+  ok(/2 de 4 hojas cruzadas/.test(await pg.locator(".cl-ok").textContent()), "aviso: " + await pg.locator(".cl-ok").textContent());
+  /* Sin permiso de edición o sin avance: no hay botón. */
+  await monta({ fiscales: [plan3], puedeEditar: false });
+  ok(await pg.locator("button.fi-excel").count() === 0, "sin permiso de edición no debe haber botón de Excel");
+  await monta({ fiscales: [{ ...plan3, publicado: null }] });
+  ok(await pg.locator("button.fi-excel").count() === 0, "sin mostrar en Contar no hay avance ni Excel");
+  /* A la base le falta el SQL de los conteos por persona: el cruce sale igual y se avisa qué correr. */
+  await monta({ fiscales: [plan3] }, { inv_fiscal_conteos: { error: "Could not find the function public.inv_fiscal_conteos(p_hoja) in the schema cache" } });
+  const [d2] = await Promise.all([pg.waitForEvent("download"), pg.click("button.fi-excel")]);
+  await d2.saveAs(R(".arnes/tmp/_ui-cruce2.xlsx"));
+  const wb2 = new ExcelJS.Workbook(); await wb2.xlsx.readFile(R(".arnes/tmp/_ui-cruce2.xlsx"));
+  ok(/inv_fiscal_conteos|fiscal-conteos-por-persona/.test(JSON.stringify(wb2.getWorksheet("Conteos por persona").getRow(8).values)), "sin el SQL el libro lo dice en la pestaña");
+  await pg.waitForFunction(() => /fiscal-conteos-por-persona\.sql/.test(document.querySelector(".cl-ok")?.textContent || ""));
+  /* La base rechaza: se dice y no se baja nada. */
+  await monta({ fiscales: [plan3] }, { inv_fiscal_cruce: { error: "El cruce se hace cuando las dos personas de la hoja terminan de contar." } });
+  await pg.click("button.fi-excel");
+  await pg.waitForSelector(".cl-mal");
+  ok(/dos personas de la hoja terminan/.test(await pg.locator(".cl-mal").first().textContent()), "el error de la base no se muestra al exportar");
+}
 
 /* ---------- 3 · NADA SE SALE, y el dedo alcanza ---------- */
 for (const w of [360, 390, 820, 1440]) {
