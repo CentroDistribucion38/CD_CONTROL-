@@ -16,6 +16,8 @@ import { haySoporte, hayQueRenovar, prepararCopia, ultimaPreparacion } from "@/l
  * que la persona acaba de abrir.
  */
 const ESPERA_MS = 20_000;
+/* La primera vez en un equipo no hay nada guardado: se apura. */
+const ESPERA_PRIMERA_MS = 4_000;
 const REINTENTOS = 5;
 
 export function PrepararSola({ rutas }: { rutas: string[] }) {
@@ -34,7 +36,7 @@ export function PrepararSola({ rutas }: { rutas: string[] }) {
       }
       try { await prepararCopia(["/inicio", "/perfil", ...rutas], () => {}) } catch { /* en silencio: se reintenta la próxima vez que abra */ }
     };
-    t = setTimeout(intentar, ESPERA_MS);
+    t = setTimeout(intentar, ultimaPreparacion() ? ESPERA_MS : ESPERA_PRIMERA_MS);
     return () => { vivo = false; clearTimeout(t) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [llave]);

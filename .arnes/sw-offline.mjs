@@ -45,6 +45,13 @@ const estado = (ruta) => pg.evaluate(async (r) => (await fetch("/__sw/estado?rut
 const titulo = () => pg.locator("#t").textContent();
 const hayCache = (n) => pg.evaluate((n) => caches.has(n), n);
 
+/* 0 · la primera vez: sin recorrer nada, la puerta de la app y la pantalla abierta ya quedan guardadas */
+{ const c2 = await nav.newContext({ serviceWorkers: "allow" }); const p2 = await c2.newPage();
+  await p2.goto(B + "/inventario/tablero"); await p2.evaluate(() => navigator.serviceWorker.ready); await p2.waitForTimeout(800);
+  const k = await p2.evaluate(async () => (await (await caches.open("control-paginas")).keys()).map((x) => new URL(x.url).pathname));
+  ok(k.includes("/inicio") && k.includes("/inventario/tablero"), "recién instalado: ya guardó /inicio y la pantalla abierta: " + k);
+  await c2.close() }
+
 /* 1 · con internet: el service worker toma el control y las pantallas se guardan */
 await pg.goto(B + "/inicio"); await pg.evaluate(() => navigator.serviceWorker.ready);
 await pg.reload(); await pg.waitForFunction(() => !!navigator.serviceWorker.controller);
@@ -74,6 +81,11 @@ ok((await titulo()) === "INICIO v1", "«/» abre la copia del inicio: " + await 
 await pg.goto(B + "/p2");
 ok(/no está guardada/.test(await pg.locator("h1").textContent()), "una pantalla nunca abierta muestra el aviso, no el error del navegador");
 ok(await pg.getByRole("link", { name: "Ir al inicio" }).count() === 1, "el aviso trae el camino al inicio");
+
+/* 3b · si ni la página de aviso guardada está, sale el aviso incluido, nunca el error del navegador */
+await pg.evaluate(async () => { await (await caches.open("control-estatico")).delete("/sin-conexion.html") });
+await pg.goto(B + "/p3-nunca");
+ok(/no está guardada/.test(await pg.locator("h1").textContent()), "sin la página de aviso guardada igual sale el aviso (no ERR_FAILED)");
 
 /* 4 · vuelve internet con datos nuevos: se ve lo nuevo y ya no es copia */
 version = "v2"; await escuchar();

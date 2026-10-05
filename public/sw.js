@@ -41,10 +41,21 @@ self.addEventListener("install", (evento) => {
       } catch {
         /* sin internet al instalar: la página de aviso se guarda en la próxima */
       }
+      /* La puerta de la app (start_url): si ya hay sesión, queda guardada desde la instalación. */
+      await guardarSiHaySesion("/inicio");
       await self.skipWaiting();
     })()
   );
 });
+
+/** Pide una pantalla con la sesión de quien la tiene abierta y la deja guardada. Sin internet o sin sesión, no hace nada. */
+async function guardarSiHaySesion(ruta) {
+  try {
+    const url = new URL(ruta, self.location.origin);
+    const r = await fetch(url.href, { credentials: "same-origin", headers: { Accept: "text/html" } });
+    if (guardable(r)) await guardarPagina(llaveDe(url), r);
+  } catch { /* sin internet o sin sesión: nada que guardar */ }
+}
 
 self.addEventListener("activate", (evento) => {
   evento.waitUntil(
@@ -63,9 +74,32 @@ self.addEventListener("activate", (evento) => {
         }
       }
       await self.clients.claim();
+      /* La pantalla que ya estaba abierta cuando el service worker tomó el control no pasó por él: se guarda ahora. */
+      for (const cl of await self.clients.matchAll({ type: "window" })) {
+        const u = new URL(cl.url);
+        if (u.origin === self.location.origin && !u.pathname.startsWith("/login") && !u.pathname.startsWith("/auth")) await guardarSiHaySesion(u.pathname + u.search);
+      }
     })()
   );
 });
+
+/* Si ni la página de aviso guardada está (instalación sin internet, caché borrada), este es el último recurso:
+   JAMÁS se entrega «Response.error()», que es lo que el navegador pinta como «No se puede acceder a este sitio» (ERR_FAILED). */
+const AVISO_INLINE = '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CD38 · Sin conexión</title>'
+  + '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#eef1f5;color:#04203f;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}'
+  + 'main{max-width:520px;background:#fff;border:1px solid #d5dce5;border-top:4px solid #e0123b;padding:28px}h1{font-size:22px;margin:0 0 10px}p{font-size:15px;line-height:1.5;margin:0 0 12px;color:#3d4c5f}'
+  + 'a,button{font:inherit;font-weight:600;font-size:14px;min-height:44px;padding:0 18px;display:inline-flex;align-items:center;border-radius:0;cursor:pointer;text-decoration:none;margin:6px 10px 0 0}'
+  + '.p{background:#04203f;color:#fff;border:0}.s{background:#fff;color:#04203f;border:1px solid #04203f}</style></head><body><main>'
+  + '<h1>Sin conexión, y esta pantalla no está guardada</h1><p>No hay internet y este equipo no tiene copia de esta pantalla. Abre CONTROL una vez con internet y las pantallas se guardan solas.</p>'
+  + '<a class="p" href="/inicio">Ir al inicio</a><button class="s" type="button" onclick="location.reload()">Reintentar</button></main></body></html>';
+
+async function avisoSinConexion() {
+  try {
+    const r = await (await caches.open(ESTATICO)).match(SIN_CONEXION);
+    if (r) return r;
+  } catch { /* se cae al aviso incluido */ }
+  return new Response(AVISO_INLINE, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+}
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -135,10 +169,7 @@ async function pagina(evento) {
 
   if (!hay) {
     try { return await red; }
-    catch {
-      const c = await caches.open(ESTATICO);
-      return (await c.match(SIN_CONEXION)) || Response.error();
-    }
+    catch { return avisoSinConexion(); }
   }
 
   /* Hay copia: se espera a la red un rato; si no llega, se muestra la copia y la red sigue por detrás. */
