@@ -45,6 +45,8 @@ export function Actualizar() {
     void sondear(2500).then((hay) => {
       if (!hay) return;
       empezar(() => { rr.current.refresh(); });
+      /* La copia de esta pantalla queda igual que lo que se acaba de traer: si se va el internet, esto es lo que se ve al volver a abrirla. */
+      try { navigator.serviceWorker?.controller?.postMessage({ tipo: "guardar", ruta: location.pathname + location.search }) } catch { /* sin service worker */ }
       pulso((n) => n + 1);
     });
   }, []);

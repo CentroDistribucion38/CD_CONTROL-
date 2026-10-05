@@ -65,6 +65,11 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
 
     luego(PRIMERA_MS);
     const reloj = setInterval(() => void ciclo(), CICLO_MIN * 60_000);
+    /* Cada 2 minutos se le pide al service worker que repase toda la app (él decide si ya toca: cada 3 min) y la copia sea casi de «ahora». */
+    const repaso = setInterval(() => {
+      if (!navigator.onLine || document.visibilityState !== "visible") return;
+      try { navigator.serviceWorker?.controller?.postMessage({ tipo: "rastrear", forzar: false }) } catch { /* sin service worker */ }
+    }, 120_000);
     let firme: ReturnType<typeof setTimeout> | undefined;
     const alVolver = () => {
       if (firme) clearTimeout(firme);
@@ -76,7 +81,7 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
     window.addEventListener("offline", alIrse);
     document.addEventListener("visibilitychange", alVer);
     return () => {
-      vivo = false; clearInterval(reloj); timers.forEach(clearTimeout); if (firme) clearTimeout(firme);
+      vivo = false; clearInterval(reloj); clearInterval(repaso); timers.forEach(clearTimeout); if (firme) clearTimeout(firme);
       window.removeEventListener("online", alVolver); window.removeEventListener("offline", alIrse); document.removeEventListener("visibilitychange", alVer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

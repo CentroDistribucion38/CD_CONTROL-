@@ -264,12 +264,12 @@ async function estado(url) {
    cambiaba de pantalla, o la pantalla era la versión vieja, la copia se quedaba a medias y nadie lo notaba.
    Ahora la hace el service worker por su cuenta: apenas una pantalla llega bien de internet, recorre la app
    desde el inicio siguiendo los enlaces (el menú, las tarjetas, las pestañas: lo que esta persona puede ver),
-   guarda cada pantalla junto con los archivos que necesita para abrir, y vuelve a pasar cada 10 minutos
-   renovando lo que tenga más de 20. Funciona aunque se cambie de pantalla o se cierre la ventana. */
+   guarda cada pantalla junto con los archivos que necesita para abrir, y vuelve a pasar cada 3 minutos
+   renovando lo que tenga más de 2 y medio. Funciona aunque se cambie de pantalla o se cierre la ventana. */
 const RASTREO_MAX = 220;
-const RASTREO_CADA_MS = 10 * 60 * 1000;
-const FRESCA_MS = 20 * 60 * 1000;
-const RASTREO_PAR = 4;
+const RASTREO_CADA_MS = 3 * 60 * 1000;     // toda la app se vuelve a guardar cada 3 minutos: la copia es casi de «ahora»
+const FRESCA_MS = 150 * 1000;
+const RASTREO_PAR = 8;
 const PEDIDO_MS = 25000;
 let rastreando = false;
 
@@ -373,8 +373,20 @@ async function rastrear(forzar) {
   finally { rastreando = false }
 }
 
+/** Guarda YA la pantalla que se está mirando (la pantalla se acaba de actualizar con datos nuevos: la copia debe quedar igual). */
+async function guardarAhora(ruta) {
+  try {
+    const url = new URL(ruta, self.location.origin);
+    if (!esGuardable(url.pathname)) return;
+    const r = await pedir(url.href);
+    if (guardable(r)) { await guardarPagina(llaveDe(url), r); await marcar(llaveDe(url), "red") }
+  } catch { /* sin internet: queda la copia anterior */ }
+}
+
 self.addEventListener("message", (evento) => {
-  if (evento.data && evento.data.tipo === "rastrear") evento.waitUntil(rastrear(evento.data.forzar === true));
+  const d = evento.data || {};
+  if (d.tipo === "rastrear") evento.waitUntil(rastrear(d.forzar === true));
+  else if (d.tipo === "guardar" && typeof d.ruta === "string") evento.waitUntil(guardarAhora(d.ruta));
 });
 
 self.addEventListener("fetch", (evento) => {

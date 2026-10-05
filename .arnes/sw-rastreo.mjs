@@ -42,7 +42,13 @@ const claves = (p, n) => p.evaluate(async (n) => (await (await caches.open(n)).k
   await ctx.setOffline(false);
   /* No insiste: dentro de los 10 minutos no vuelve a recorrer todo. */
   const antes = golpes["/b"]; await p.reload(); await p.waitForTimeout(1200);
-  ok(golpes["/b"] === antes, "no vuelve a recorrer a cada pantalla (solo cada 10 min): " + antes + " → " + golpes["/b"]);
+  ok(golpes["/b"] === antes, "no vuelve a recorrer a cada pantalla (solo cada 3 min): " + antes + " → " + golpes["/b"]);
+  /* La pantalla que se acaba de actualizar guarda su copia YA, con lo nuevo. */
+  paginas["/b"] = pg("B-NUEVO");
+  await p.evaluate(() => navigator.serviceWorker.ready.then((r) => (navigator.serviceWorker.controller || r.active).postMessage({ tipo: "guardar", ruta: "/b" })));
+  await p.waitForTimeout(800);
+  const cuerpo = await p.evaluate(async () => (await (await caches.open("control-paginas")).match("/b")).text());
+  ok(cuerpo.includes("B-NUEVO"), "pedirle guardar la pantalla actual deja la copia con lo último");
   await ctx.close() }
 
 /* Sin sesión: no guarda nada de nadie. */
