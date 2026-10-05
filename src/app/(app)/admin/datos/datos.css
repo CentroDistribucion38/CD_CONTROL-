@@ -3,7 +3,7 @@
 .rl.bd .bd-lado { display: flex; flex-direction: column; gap: 14px; min-width: 0 }
 .rl.bd .bd-n {
   display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px;
-  border-radius: 50%; background: var(--rl-tinta); color: #fff; font-size: 12px; vertical-align: 2px;
+  border-radius: 2px; background: var(--rl-tinta); color: #fff; font-size: 12px; vertical-align: 2px;
 }
 
 /* 1 · la lista */

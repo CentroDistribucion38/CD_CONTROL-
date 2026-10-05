@@ -126,7 +126,7 @@
   min-height: 44px;   /* con guante */
 }
 .inv-p .inv-rama .inv-entrar svg {
-  width: 28px; height: 28px; padding: 5px; border-radius: 50%;
+  width: 28px; height: 28px; padding: 5px; border-radius: 2px;
   background: var(--fe-tinta); color: #fff; stroke: currentColor; stroke-width: 2;
   fill: none; flex: none;
 }

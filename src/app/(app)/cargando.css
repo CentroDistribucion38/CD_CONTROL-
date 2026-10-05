@@ -37,7 +37,7 @@
    temas —claro, pizarra, tinta— siga siendo el gris de esa casa. */
 .cg-b {
   background: color-mix(in srgb, var(--bv-linea) 70%, transparent);
-  border-radius: 6px;
+  border-radius: 3px;
   height: 12px;
   position: relative;
   overflow: hidden;
@@ -69,16 +69,16 @@
 
 .cg-cabeza { display: flex; flex-direction: column; gap: 10px; }
 .cg-ojo    { width: 120px; height: 9px; }
-.cg-titulo { width: min(340px, 70%); height: 26px; border-radius: 8px; }
+.cg-titulo { width: min(340px, 70%); height: 26px; border-radius: 3px; }
 .cg-sub    { width: min(520px, 90%); height: 11px; }
 
 .cg-filtros { display: flex; gap: 8px; flex-wrap: wrap; }
-.cg-chip    { width: 96px; height: 30px; border-radius: 8px; }
+.cg-chip    { width: 96px; height: 30px; border-radius: 3px; }
 .cg-chip.ancho { flex: 1 1 160px; min-width: 0; }
 
 .cg-tabla {
   border: 1px solid var(--bv-linea);
-  border-radius: var(--bv-radio, 12px);
+  border-radius: var(--bv-radio, 3px);
   background: var(--bv-panel);
   padding: 6px 10px;
   /* Las filas que no caben se cortan aquí adentro, no en la página. */

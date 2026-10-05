@@ -57,7 +57,7 @@ export function Evidencia({ id }: { id: string }) {
         <figure key={f.ruta} style={{ margin: 0 }}>
           {f.url
             /* eslint-disable-next-line @next/next/no-img-element */
-            ? <img src={f.url} alt="La rotura" style={{ width: "100%", borderRadius: 8, display: "block" }} />
+            ? <img src={f.url} alt="La rotura" style={{ width: "100%", borderRadius: 3, display: "block" }} />
             : <div className="aviso rojo">Esta foto no se pudo abrir.</div>}
           <figcaption style={{ fontSize: 11.5, color: "var(--rt-gris)", marginTop: 6, lineHeight: 1.45 }}>
             Tomada {fecha(f.tomada_en) || "sin hora"}

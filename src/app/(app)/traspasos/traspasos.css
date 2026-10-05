@@ -95,7 +95,7 @@
 /* El recuadro de la cifra del turno. */
 .tp .kpi {
   position: relative; background: var(--c-grupo); color: #fff;
-  border-radius: 12px; padding: 16px 20px; min-width: 190px;
+  border-radius: 3px; padding: 16px 20px; min-width: 190px;
   display: flex; flex-direction: column; justify-content: center;
 }
 .tp .kpi .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; opacity: .75 }
@@ -110,7 +110,7 @@
 .tp .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
 .tp .cifra {
   background: var(--tp-papel); border: 1px solid var(--tp-linea);
-  border-left: 3px solid var(--tp-acento); border-radius: 10px; padding: 13px 15px;
+  border-left: 3px solid var(--tp-acento); border-radius: 3px; padding: 13px 15px;
 }
 .tp .cifra .rot { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--tp-gris) }
 .tp .cifra .n {
@@ -125,7 +125,7 @@
 /* ====================== Caja ====================== */
 .tp .caja {
   background: var(--tp-papel); border: 1px solid var(--tp-linea);
-  border-radius: 12px; overflow: hidden; min-width: 0;
+  border-radius: 3px; overflow: hidden; min-width: 0;
 }
 .tp .caja > .cab {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
@@ -157,7 +157,7 @@
 /* La barra de cumplimiento dentro de la celda. Se lee antes que el
    número: de un vistazo se ve cuál turno va corto. */
 .tp .barra {
-  display: block; height: 7px; border-radius: 4px; background: var(--tp-fondo);
+  display: block; height: 7px; border-radius: 3px; background: var(--tp-fondo);
   overflow: hidden; min-width: 70px; margin-top: 5px;
 }
 .tp .barra i { display: block; height: 100%; background: var(--tp-bien) }
@@ -168,7 +168,7 @@
 .tp tr.sin-plan td:first-child { box-shadow: inset 3px 0 0 var(--tp-aviso) }
 .tp .eti {
   display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
-  padding: 3px 7px; border-radius: 5px; background: var(--tp-fondo); color: var(--tp-gris);
+  padding: 3px 7px; border-radius: 3px; background: var(--tp-fondo); color: var(--tp-gris);
   white-space: nowrap;
 }
 .tp .eti.ojo { background: var(--tp-aviso); color: #fff }
@@ -184,7 +184,7 @@
 .tp .fila.anulada { opacity: .5 }
 .tp .fila .placa {
   font-family: var(--tp-titulo); font-weight: 900; font-size: 15px;
-  background: var(--tp-fondo); border-radius: 7px; padding: 7px 10px;
+  background: var(--tp-fondo); border-radius: 3px; padding: 7px 10px;
   letter-spacing: .04em; white-space: nowrap;
 }
 .tp .fila .ruta { font-family: var(--tp-titulo); font-weight: 800; font-size: 15px }
@@ -202,7 +202,7 @@
 /* ====================== Botones ====================== */
 .tp .btn {
   font: inherit; font-family: var(--tp-titulo); font-weight: 800; font-size: 13px;
-  min-height: 42px; padding: 0 16px; border-radius: 9px; cursor: pointer;
+  min-height: 42px; padding: 0 16px; border-radius: 3px; cursor: pointer;
   border: 1px solid var(--tp-linea); background: var(--tp-fondo); color: var(--tp-tinta);
 }
 .tp .btn.si { background: var(--tp-acento); border-color: var(--tp-acento); color: var(--tp-sobre-acento) }
@@ -219,7 +219,7 @@
 .tp .campo input, .tp .campo select, .tp .campo textarea,
 .tp-reg .campo input, .tp-reg .campo select, .tp-reg .campo textarea {
   font: inherit; font-size: 16px; width: 100%; min-height: 48px;
-  padding: 11px 13px; border-radius: 9px; border: 1px solid var(--tp-linea);
+  padding: 11px 13px; border-radius: 3px; border: 1px solid var(--tp-linea);
   background: var(--tp-papel); color: var(--tp-tinta);
 }
 .tp .campo textarea, .tp-reg .campo textarea { min-height: 76px; resize: vertical }
@@ -228,7 +228,7 @@
 .tp .opciones, .tp-reg .opciones { display: flex; flex-wrap: wrap; gap: 8px }
 .tp .op, .tp-reg .op {
   font: inherit; font-family: var(--tp-titulo); font-weight: 800; font-size: 14px;
-  min-height: 46px; padding: 0 16px; border-radius: 9px; cursor: pointer;
+  min-height: 46px; padding: 0 16px; border-radius: 3px; cursor: pointer;
   border: 1px solid var(--tp-linea); background: var(--tp-papel); color: var(--tp-tinta);
 }
 .tp .op.on, .tp-reg .op.on {
@@ -239,18 +239,18 @@
 /* ====================== Avisos ====================== */
 .tp .aviso, .tp-reg .aviso {
   background: #FFFBEB; border-left: 3px solid var(--tp-ojo);
-  padding: 11px 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.5;
+  padding: 11px 14px; border-radius: 3px; font-size: 12.5px; line-height: 1.5;
 }
 .tp .aviso.malo, .tp-reg .aviso.malo { background: #FEF2F2; border-left-color: var(--tp-mal) }
 .tp .guia, .tp-reg .guia { font-size: 12px; color: var(--tp-gris); line-height: 1.5; margin: 0 }
 
 .tp .sin-tablas { background: var(--tp-papel); border: 1px solid var(--tp-linea);
-  border-left: 3px solid var(--tp-mal); border-radius: 12px; padding: 20px }
+  border-left: 3px solid var(--tp-mal); border-radius: 3px; padding: 20px }
 .tp .sin-tablas h2 { font-family: var(--tp-titulo); font-weight: 800; font-size: 17px; margin: 0 0 7px }
 .tp .sin-tablas p { margin: 0; font-size: 13px; color: var(--tp-gris); line-height: 1.55 }
 .tp .sin-tablas code {
   font-family: ui-monospace, monospace; font-size: 12.5px;
-  background: var(--tp-fondo); padding: 2px 6px; border-radius: 5px;
+  background: var(--tp-fondo); padding: 2px 6px; border-radius: 3px;
 }
 
 /* ====================== Celular ====================== */
@@ -575,7 +575,7 @@
    ese. Ámbar y no rojo a propósito: no es una falta del patio —el
    trabajo está hecho—, es un documento que no ha salido. */
 .tp-ci-espera {
-  margin: 10px 0 0; padding: 10px 14px; border-radius: 9px;
+  margin: 10px 0 0; padding: 10px 14px; border-radius: 3px;
   border: 1.5px solid #C08A16; background: #FFF9EC; color: #5E4100;
   font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere;
 }
@@ -1029,7 +1029,7 @@
   padding: 7px 13px; font-size: 12.5px; font-weight: 600; color: var(--tp-tinta);
 }
 .tp .estado-plan i {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--tp-ojo); display: block;
+  width: 8px; height: 8px; border-radius: 2px; background: var(--tp-ojo); display: block;
 }
 
 /* min-width:0 EN LOS HIJOS, y no es adorno. Un hijo de grid nace con
@@ -1559,7 +1559,7 @@
    llevan, y una columna vacía en veinte filas para marcar dos es ruido
    en todas para informar en dos. */
 .tp .item .nom .bandera-m {
-  display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px;
+  display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 2px;
   background: var(--tp-acento); color: var(--tp-sobre-acento);
   font: 700 10px var(--tp-texto); font-style: normal; letter-spacing: .06em;
   text-transform: uppercase; vertical-align: 2px;
@@ -1579,11 +1579,11 @@
 }
 .tp .sw i {
   position: absolute; inset: 0; background: color-mix(in srgb, var(--tp-gris) 45%, #fff);
-  border-radius: 20px; transition: background .15s; pointer-events: none;
+  border-radius: 3px; transition: background .15s; pointer-events: none;
 }
 .tp .sw i::after {
   content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
-  border-radius: 50%; background: #fff; transition: transform .15s;
+  border-radius: 2px; background: #fff; transition: transform .15s;
 }
 .tp .sw input:checked + i { background: var(--tp-ojo) }
 .tp .sw input:checked + i::after { transform: translateX(16px) }
@@ -1934,7 +1934,7 @@
 .tp .tp-vidrio {
   grid-column: 1 / -1;
   display: flex; flex-direction: column; gap: 10px;
-  padding: 12px 14px; border-radius: 10px;
+  padding: 12px 14px; border-radius: 3px;
   border: 1.5px solid #C08A16; background: #FFF9EC;
 }
 .tp .tp-vidrio-ojo {
@@ -1960,7 +1960,7 @@
 .tp .tp-vidrio-lista button {
   width: 100%; min-height: 62px; display: flex; flex-direction: column; gap: 2px;
   align-items: flex-start; text-align: left;
-  padding: 9px 12px; border-radius: 9px; cursor: pointer;
+  padding: 9px 12px; border-radius: 3px; cursor: pointer;
   background: #fff; border: 1.5px solid var(--tp-linea); color: var(--tp-tinta);
 }
 .tp .tp-vidrio-lista button:hover { border-color: #C08A16 }
@@ -1983,7 +1983,7 @@
 
 .tp .tp-nomide {
   border: 1px solid var(--tp-linea); border-left: 3px dashed var(--tp-gris);
-  border-radius: 10px; padding: 13px 15px;
+  border-radius: 3px; padding: 13px 15px;
   background: color-mix(in srgb, var(--tp-fondo) 55%, #fff);
 }
 .tp .tp-nomide-cab {
@@ -2010,7 +2010,7 @@
 }
 .tp .tp-nomide-tipos li {
   display: flex; align-items: baseline; gap: 7px; min-width: 0;
-  padding: 7px 11px; border-radius: 8px;
+  padding: 7px 11px; border-radius: 3px;
   background: var(--tp-papel); border: 1px solid var(--tp-linea);
 }
 .tp .tp-nomide-tipos b {
@@ -2106,7 +2106,7 @@
 .tp .cal-dias button.ocupado { position: relative }
 .tp .cal-dias button.ocupado::after {
   content: ""; position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%);
-  width: 4px; height: 4px; border-radius: 50%; background: var(--tp-mal);
+  width: 4px; height: 4px; border-radius: 2px; background: var(--tp-mal);
 }
 .tp .cal-dias button.punta.ocupado::after { background: var(--tp-sobre-ojo) }
 
@@ -2348,7 +2348,7 @@
 .tp .grupo-r i {
   font-style: normal; font-size: 9px; letter-spacing: 0;
   background: var(--tp-ojo); color: #fff;
-  min-width: 15px; height: 15px; border-radius: 8px;
+  min-width: 15px; height: 15px; border-radius: 3px;
   display: inline-grid; place-items: center; padding: 0 4px;
 }
 .tp .grupo-b { display: flex; gap: 5px; flex-wrap: wrap }
@@ -2614,17 +2614,17 @@
 @media (prefers-reduced-motion: reduce) { .fc-dep { animation: none } }
 .fc-dep-in {
   display: grid; grid-template-columns: auto auto minmax(180px, 1fr) auto; gap: 10px 14px; align-items: center;
-  padding: 14px 16px; border-radius: 14px; background: var(--tp-papel); color: var(--tp-tinta);
+  padding: 14px 16px; border-radius: 3px; background: var(--tp-papel); color: var(--tp-tinta);
   border: 1px solid var(--tp-linea); border-top: 4px solid var(--tp-acento);
   box-shadow: 0 18px 40px -18px rgba(10, 30, 60, .35);
 }
 .fc-dep-n { margin: 0; font-size: 14px; white-space: nowrap; color: var(--tp-gris) }
 .fc-dep-n b { font: 900 20px var(--tp-titulo); color: var(--tp-tinta) }
-.fc-dep-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--tp-fondo); flex-wrap: wrap }
-.fc-dep-seg button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: none; color: var(--tp-tinta); font: 700 13px var(--tp-texto); cursor: pointer }
+.fc-dep-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 3px; background: var(--tp-fondo); flex-wrap: wrap }
+.fc-dep-seg button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 3px; background: none; color: var(--tp-tinta); font: 700 13px var(--tp-texto); cursor: pointer }
 .fc-dep-seg button.on { background: var(--tp-acento); color: var(--tp-sobre-acento) }
 .fc-dep-seg button.peligro.on { background: #C8102E; color: #fff }
-.fc-dep-motivo { min-height: 44px; min-width: 0; padding: 0 12px; border-radius: 9px; border: 1.5px solid var(--tp-linea); background: #fff; color: #12263A; font: 500 14px var(--tp-texto) }
+.fc-dep-motivo { min-height: 44px; min-width: 0; padding: 0 12px; border-radius: 3px; border: 1.5px solid var(--tp-linea); background: #fff; color: #12263A; font: 500 14px var(--tp-texto) }
 .fc-dep-motivo:focus { outline: 2px solid var(--tp-acento); outline-offset: 1px; border-color: var(--tp-acento) }
 .fc-dep-bot { display: flex; gap: 8px }
 .fc-dep-bot .btn { min-height: 44px; white-space: nowrap }

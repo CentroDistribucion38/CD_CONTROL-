@@ -121,7 +121,7 @@
 }
 .sh-avatar {
   width: 36px; height: 36px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--sh-rojo);
   color: var(--c-marca-txt);
   display: grid;
@@ -144,7 +144,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   display: grid;
   place-items: center;
   width: 30px; height: 30px;
-  border-radius: 50%;
+  border-radius: 2px;
   border: 1px solid rgba(255,255,255,.28);
   background: transparent;
   color: var(--c-c9dcf0);
@@ -318,7 +318,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 }
 .sh-abrir i {
   width: 42px; height: 42px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--acento);
   display: grid;
   place-items: center;
@@ -658,7 +658,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   max-width: 460px;
   background: var(--bv-panel, #fff);
   border: 1px solid var(--bv-linea);
-  border-radius: 16px;
+  border-radius: 3px;
   padding: 32px 30px 30px;
   box-shadow: 0 18px 44px rgba(4, 32, 63, .10), 0 2px 6px rgba(4, 32, 63, .05);
   overflow: hidden;
@@ -711,7 +711,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   color: var(--bv-texto);
   background: var(--bv-tinta);
   border: 1px solid var(--bv-linea);
-  border-radius: 10px;
+  border-radius: 3px;
   outline: none;
   transition: border-color .12s, box-shadow .12s, background .12s;
 }
@@ -732,7 +732,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   display: grid; place-items: center;
   background: none; border: 0; cursor: pointer;
   color: var(--bv-texto-2);
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 3px 3px 0;
 }
 .cp-caja-clave button:hover { color: var(--bv-texto) }
 .cp-caja-clave button:focus-visible {
@@ -750,11 +750,11 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   color: var(--c-5b6b7f);
   background: var(--bv-tinta);
   border: 1px solid var(--bv-linea);
-  border-radius: 99px;
+  border-radius: 3px;
   padding: 5px 11px 5px 9px;
 }
 .cp-reglas li::before {
-  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  content: ""; width: 6px; height: 6px; border-radius: 2px;
   background: #cbd5e1;
 }
 /* El verde del "ya cumple" es fijo en los cuatro temas: quiere decir
@@ -773,7 +773,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   background: var(--bv-tinta);
   border: 1px solid var(--c-alarma);
   border-left-width: 3px;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 9px 12px;
 }
 
@@ -783,7 +783,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   font-size: 14.5px; font-weight: 600; font-family: inherit;
   color: var(--c-marca-txt);
   background: var(--c-marca);
-  border: 0; border-radius: 10px;
+  border: 0; border-radius: 3px;
   cursor: pointer;
   transition: background .12s, transform .06s;
 }
@@ -794,7 +794,7 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 
 @media (max-width: 480px) {
   .cp { padding: 14px; place-items: start center }
-  .cp-caja { padding: 26px 20px 24px; border-radius: 14px }
+  .cp-caja { padding: 26px 20px 24px; border-radius: 3px }
   .cp-caja h1 { font-size: 22px }
 }
 

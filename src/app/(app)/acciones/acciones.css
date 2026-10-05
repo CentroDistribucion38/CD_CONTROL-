@@ -265,7 +265,7 @@
 .ac .quien:hover { background: var(--c-fafbfd) }
 .ac .quien.on { background: #FFFBEF }
 .ac .quien .ini {
-  width: 38px; height: 38px; border-radius: 50%; background: #15171A; color: var(--c-marca);
+  width: 38px; height: 38px; border-radius: 0; background: #15171A; color: var(--c-marca);
   display: grid; place-items: center; font-weight: 800; font-size: 12px; letter-spacing: .02em;
 }
 .ac .quien .n { font-weight: 700; font-size: 13.5px }
@@ -436,7 +436,7 @@
   font-size: 12.5px; line-height: 1.45; display: flex; gap: 10px; align-items: flex-start;
 }
 .ac-rep .negro .punto {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--c-marca);
+  width: 7px; height: 7px; border-radius: 0; background: var(--c-marca);
   flex: 0 0 auto; margin-top: 6px;
 }
 .ac-rep .negro b { color: var(--c-marca) }
@@ -548,7 +548,7 @@
    ===================================================================== */
 .ac .mas {
   position: fixed; right: 20px; bottom: 20px; z-index: 40;
-  width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;
+  width: 58px; height: 58px; border-radius: 0; border: 0; cursor: pointer;
   background: var(--c-marca); color: var(--c-marca-txt); font-size: 30px; line-height: 1;
   box-shadow: 0 6px 20px -4px rgba(0,0,0,.35);
   display: grid; place-items: center;
@@ -652,7 +652,7 @@
   .ac-abajo .hueco { position: relative }
   .ac-abajo .hueco .mas {
     position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
-    width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer;
+    width: 54px; height: 54px; border-radius: 0; border: 0; cursor: pointer;
     background: var(--c-marca); color: var(--c-marca-txt); font-size: 29px; line-height: 1;
     display: grid; place-items: center;
     /* El resplandor lo separa de la barra negra: sin él, el círculo
@@ -769,7 +769,7 @@
   font-size: 12.5px; line-height: 1.45;
 }
 .ac-cola .punto {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--c-marca); flex: 0 0 auto;
+  width: 8px; height: 8px; border-radius: 0; background: var(--c-marca); flex: 0 0 auto;
 }
 .ac-cola .txt { flex: 1 1 220px; min-width: 0 }
 .ac-cola b { color: var(--c-marca) }
@@ -1266,7 +1266,7 @@
   min-height: 44px;   /* con guante */
 }
 .ac .ac-p-rama .ac-p-entrar svg {
-  width: 28px; height: 28px; padding: 5px; border-radius: 50%;
+  width: 28px; height: 28px; padding: 5px; border-radius: 0;
   background: var(--ac-tinta); color: #fff; stroke: currentColor; stroke-width: 2;
   fill: none; flex: none;
 }

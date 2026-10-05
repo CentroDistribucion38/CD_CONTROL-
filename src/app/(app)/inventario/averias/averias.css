@@ -306,7 +306,7 @@
    nada de sitio. */
 .avr .avr-hero .avr-cif.avr-alerta { border-left-width: 1px; border-left-color: var(--fe-linea) }
 .avr .avr-hero .avr-cif.avr-alerta .avr-rot::before {
-  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 2px;
   background: var(--fe-mal); margin-right: 7px; vertical-align: .5px;
 }
 .avr .avr-hero .avr-cif b { font-size: 24px }

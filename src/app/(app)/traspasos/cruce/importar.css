@@ -43,7 +43,7 @@
 }
 .tp .cz-caja {
   background: var(--tp-papel); border: 1px solid var(--tp-linea);
-  border-radius: 10px; overflow: hidden; min-width: 0;
+  border-radius: 3px; overflow: hidden; min-width: 0;
 }
 .tp .cz-h { padding: 15px 18px 13px; border-bottom: 1px solid var(--tp-linea) }
 .tp .cz-h h2 {
@@ -57,7 +57,7 @@
 .tp .cz-zona {
   width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 32px 20px; text-align: center; cursor: pointer;
-  border: 2px dashed var(--tp-linea); border-radius: 8px; background: var(--tp-fondo);
+  border: 2px dashed var(--tp-linea); border-radius: 3px; background: var(--tp-fondo);
 }
 .tp .cz-zona:hover:not(:disabled) { border-color: var(--tp-acento) }
 .tp .cz-zona:disabled { cursor: not-allowed; opacity: .7 }
@@ -72,10 +72,10 @@
 /* ── EL ARCHIVO QUE YA ESTÁ PUESTO ───────────────────────────────── */
 .tp .cz-arch {
   display: flex; align-items: center; gap: 13px; min-width: 0;
-  border: 1px solid var(--tp-linea); border-radius: 8px; padding: 13px 15px;
+  border: 1px solid var(--tp-linea); border-radius: 3px; padding: 13px 15px;
 }
 .tp .cz-arch .ic {
-  width: 38px; height: 38px; flex: none; border-radius: 6px;
+  width: 38px; height: 38px; flex: none; border-radius: 3px;
   display: grid; place-items: center;
   background: color-mix(in srgb, var(--tp-bien) 12%, #fff);
 }
@@ -87,7 +87,7 @@
 }
 .tp .cz-arch span { display: block; font-size: 12px; color: var(--cz-gris); margin-top: 2px }
 .tp .cz-arch button {
-  margin-left: auto; flex: none; cursor: pointer; border-radius: 6px;
+  margin-left: auto; flex: none; cursor: pointer; border-radius: 3px;
   border: 1.5px solid var(--tp-linea); background: var(--tp-papel);
   padding: 9px 14px; font: 600 12.5px var(--tp-texto); color: var(--tp-tinta);
 }
@@ -97,7 +97,7 @@
 .tp .cz-lectura {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
   margin-top: 14px; background: var(--tp-linea);
-  border: 1px solid var(--tp-linea); border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--tp-linea); border-radius: 3px; overflow: hidden;
 }
 .tp .cz-lectura > div { background: var(--tp-papel); padding: 13px 15px; min-width: 0 }
 .tp .cz-lectura .n {
@@ -118,7 +118,7 @@
 }
 
 .tp .cz-porque {
-  margin-top: 10px; border: 1px solid var(--tp-linea); border-radius: 8px;
+  margin-top: 10px; border: 1px solid var(--tp-linea); border-radius: 3px;
   background: var(--tp-fondo); padding: 12px 14px;
 }
 .tp .cz-porque .t {
@@ -136,7 +136,7 @@
 .tp .cz-cols { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px }
 .tp .cz-col {
   display: inline-flex; align-items: baseline; gap: 6px; min-width: 0;
-  border: 1px solid var(--tp-linea); border-radius: 6px; padding: 7px 11px;
+  border: 1px solid var(--tp-linea); border-radius: 3px; padding: 7px 11px;
   font-size: 12.5px; background: var(--tp-papel); color: var(--tp-tinta);
 }
 .tp .cz-col em { font-style: normal; font-size: 11.5px; color: var(--cz-gris); overflow-wrap: anywhere }
@@ -160,7 +160,7 @@
 
 /* ── LA REGLA, CON EL EJEMPLO DELANTE ────────────────────────────── */
 .tp .cz-regla {
-  margin-top: 18px; border: 1px solid var(--tp-linea); border-radius: 8px;
+  margin-top: 18px; border: 1px solid var(--tp-linea); border-radius: 3px;
   background: var(--tp-fondo); overflow: hidden;
 }
 .tp .cz-regla > .t {
@@ -173,7 +173,7 @@
 .tp .cz-caso { display: flex; align-items: center; gap: 9px; flex-wrap: wrap }
 .tp .cz-mov {
   font: 800 13.5px var(--tp-titulo); font-variant-numeric: tabular-nums;
-  padding: 6px 10px; border-radius: 5px;
+  padding: 6px 10px; border-radius: 3px;
   background: var(--tp-papel); border: 1px solid var(--tp-linea);
 }
 .tp .cz-mov.neg { color: var(--tp-mal) }
@@ -183,7 +183,7 @@
    tema porque el tema no garantiza esa pareja, y la palabra que lleva
    («1 documento») está repetida en la nota de abajo. */
 .tp .cz-res {
-  font: 800 12.5px var(--tp-titulo); padding: 6px 11px; border-radius: 5px;
+  font: 800 12.5px var(--tp-titulo); padding: 6px 11px; border-radius: 3px;
   background: #0D0D0D; color: #FFC000;
 }
 .tp .cz-res.cero { background: var(--tp-linea); color: var(--tp-tinta) }
@@ -198,7 +198,7 @@
   padding: 16px 18px; background: var(--tp-fondo); border-top: 1px solid var(--tp-linea);
 }
 .tp .cz-pie > button {
-  height: 48px; padding: 0 24px; border: 0; border-radius: 8px; flex: none;
+  height: 48px; padding: 0 24px; border: 0; border-radius: 3px; flex: none;
   background: var(--tp-acento); color: var(--tp-sobre-acento);
   font: 800 14.5px var(--tp-titulo); cursor: pointer;
 }
@@ -228,7 +228,7 @@
   font-size: 13px; line-height: 1.5; color: var(--cz-gris);
 }
 .tp .cz-paso i {
-  width: 22px; height: 22px; border-radius: 50%; font-style: normal;
+  width: 22px; height: 22px; border-radius: 2px; font-style: normal;
   display: grid; place-items: center; font: 800 10.5px var(--tp-titulo);
   background: var(--tp-linea); color: var(--cz-gris);
 }

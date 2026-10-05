@@ -41,7 +41,7 @@ export async function dibujarTarjeta(d: DatosTarjeta): Promise<Blob> {
 
   /* el fondo y la tarjeta con su sombra */
   g.fillStyle = mezcla(d.colores.tinta, 0.08); g.fillRect(0, 0, W, H);
-  const x = 42, y = 42, w = W - 84, h = H - 84, R = 24;
+  const x = 42, y = 42, w = W - 84, h = H - 84, R = 3;   // recta, como toda la app
   g.save(); g.shadowColor = "rgba(0,0,0,.14)"; g.shadowBlur = 30; g.shadowOffsetY = 10;
   g.beginPath(); g.roundRect(x, y, w, h, R); g.fillStyle = "#fff"; g.fill(); g.restore();
   g.save(); g.beginPath(); g.roundRect(x, y, w, h, R); g.clip();
@@ -61,8 +61,8 @@ export async function dibujarTarjeta(d: DatosTarjeta): Promise<Blob> {
 
   /* las iniciales */
   const cx = x + w / 2, cy = y + FR;
-  g.beginPath(); g.arc(cx, cy, 54, 0, Math.PI * 2); g.fillStyle = "#fff"; g.fill();
-  g.beginPath(); g.arc(cx, cy, 47, 0, Math.PI * 2); g.fillStyle = tinta; g.fill();
+  g.fillStyle = "#fff"; g.fillRect(cx - 54, cy - 54, 108, 108);
+  g.fillStyle = tinta; g.fillRect(cx - 47, cy - 47, 94, 94);
   g.textBaseline = "middle"; texto(iniciales(d.nombre), cx, cy + 2, `900 33px ${sans}`, banda, "center"); g.textBaseline = "alphabetic";
 
   /* nombre y rol */
@@ -72,7 +72,7 @@ export async function dibujarTarjeta(d: DatosTarjeta): Promise<Blob> {
   const rot = d.rolNombre.toUpperCase();
   g.font = `800 13px ${sans}`; esp(2.6); const aw = g.measureText(rot).width; esp(0);
   const pw = aw + 46, px = cx - pw / 2, py = y + 266;
-  g.beginPath(); g.roundRect(px, py, pw, 32, 16); g.fillStyle = "#" + rc.fondo; g.fill();
+  g.beginPath(); g.roundRect(px, py, pw, 32, 3); g.fillStyle = "#" + rc.fondo; g.fill();
   g.textBaseline = "middle"; texto(rot, cx + 1.3, py + 17, `800 13px ${sans}`, "#" + rc.letra, "center", 2.6); g.textBaseline = "alphabetic";
 
   /* usuario */
@@ -82,7 +82,7 @@ export async function dibujarTarjeta(d: DatosTarjeta): Promise<Blob> {
 
   /* la clave, en la caja punteada */
   const bx = x + 33, by = y + 390, bw = w - 66, bh = 134;
-  g.beginPath(); g.roundRect(bx, by, bw, bh, 14); g.fillStyle = mezcla(d.colores.tinta, 0.05); g.fill();
+  g.beginPath(); g.roundRect(bx, by, bw, bh, 3); g.fillStyle = mezcla(d.colores.tinta, 0.05); g.fill();
   g.setLineDash([7, 5]); g.lineWidth = 2; g.strokeStyle = mezcla(d.colores.tinta, 0.2); g.stroke(); g.setLineDash([]);
   if (d.clave) {
     texto("CLAVE PROVISIONAL", cx, by + 36, `800 12px ${sans}`, hondo(d.colores.banda, 0.55), "center", 2.4);

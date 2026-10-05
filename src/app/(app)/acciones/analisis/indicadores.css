@@ -173,7 +173,7 @@
 .ai-tabla td small { display: block; margin-left: 20px; font-size: 11.5px; color: var(--ac-gris) }
 .ai-tabla .n { text-align: right; font-variant-numeric: tabular-nums }
 .ai-tabla td.mal { color: var(--ai-mal); font-weight: 800 }
-.ai-sem { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: -1px }
+.ai-sem { display: inline-block; width: 12px; height: 12px; border-radius: 0; margin-right: 8px; vertical-align: -1px }
 .ai-sem.bien { background: var(--ai-bien) }
 .ai-sem.ojo { background: #E0A100 }
 .ai-sem.mal { background: var(--ai-mal) }

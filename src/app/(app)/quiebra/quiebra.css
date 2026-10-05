@@ -185,7 +185,7 @@
   border: 1.5px solid var(--qb-linea); background: #fff; border-radius: 2px;
   font-size: 13px; font-weight: 500; color: var(--qb-tinta); cursor: pointer;
 }
-.qb .chip i { width: 9px; height: 9px; border-radius: 50%; flex: none }
+.qb .chip i { width: 9px; height: 9px; border-radius: 2px; flex: none }
 .qb .chip.off { color: var(--c-9aa9bb); background: var(--c-f4f6f9) }
 .qb .chip.off i { opacity: .35 }
 
@@ -487,7 +487,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
   font-size: 14px; border-radius: 2px; flex-wrap: wrap;
 }
 .qb .revision .marca {
-  width: 19px; height: 19px; flex: none; border-radius: 50%;
+  width: 19px; height: 19px; flex: none; border-radius: 2px;
   display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; margin-top: 1px;
 }
 .qb .revision .ok { background: #F4F8F5 }
@@ -512,7 +512,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 
 /* ---------- Barra de avance ---------- */
 .qb .avance { margin-top: 16px }
-.qb .avance .pista { height: 6px; border-radius: 99px; background: var(--c-edf1f6); overflow: hidden }
+.qb .avance .pista { height: 6px; border-radius: 3px; background: var(--c-edf1f6); overflow: hidden }
 .qb .avance .relleno { height: 100%; background: var(--qb-rojo); transition: width .2s }
 .qb .avance p { margin: 7px 0 0; font-size: 13px; color: var(--qb-gris) }
 
@@ -532,7 +532,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 .qb .guia li { font-size: 13.5px; color: var(--c-2c4361); padding-left: 16px; position: relative; line-height: 1.45 }
 .qb .guia li::before {
   content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px;
-  border-radius: 50%; background: var(--qb-linea);
+  border-radius: 2px; background: var(--qb-linea);
 }
 .qb .guia li b { font-weight: 600; color: var(--qb-tinta) }
 .qb .guia .pista-guia { font-size: 12.5px; color: var(--qb-gris); line-height: 1.5; padding-top: 4px; margin: 0 }
@@ -628,7 +628,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 .qb .an thead th.total { z-index: 4 }
 /* Un puntico rojo: ese mes tiene días escritos a mano. */
 .qb .an .mano {
-  display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  display: inline-block; width: 5px; height: 5px; border-radius: 2px;
   background: var(--qb-rojo); margin-left: 6px; vertical-align: 2px;
 }
 
@@ -725,7 +725,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 .qb .sim-fila.calc > b { color: var(--c-2c4361) }
 
 .qb .sim-total {
-  border: 2px solid var(--qb-tinta); border-radius: 4px; padding: 20px 22px;
+  border: 2px solid var(--qb-tinta); border-radius: 3px; padding: 20px 22px;
   display: flex; flex-direction: column; gap: 4px; background: #F1FBF5;
 }
 .qb .sim-total > span {
@@ -878,7 +878,7 @@ body.capturando .qb .acciones-informe { visibility: hidden }
   font-family: var(--qb-titulo); font-size: 14px; font-weight: 800;
 }
 .qb .rama .entrar svg {
-  width: 28px; height: 28px; padding: 5px; border-radius: 50%;
+  width: 28px; height: 28px; padding: 5px; border-radius: 2px;
   background: var(--qb-tinta); color: #fff; stroke: currentColor; stroke-width: 2;
   fill: none; flex: none;
 }

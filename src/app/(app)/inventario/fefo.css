@@ -329,7 +329,7 @@
 .fe .fe-pasos li:last-child { padding-bottom: 0 }
 .fe .fe-pasos li::before {
   content: counter(p); position: absolute; left: 0; top: 0;
-  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
+  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 2px;
   background: var(--fe-fondo); color: var(--fe-gris);
   font: 800 11px var(--fe-titulo); border: 1px solid var(--fe-linea);
 }

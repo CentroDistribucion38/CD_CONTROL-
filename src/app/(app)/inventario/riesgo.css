@@ -114,13 +114,13 @@
 .ir-sem .col { display: flex; flex-direction: column; height: 100%; min-width: 0 }
 .ir-sem .bar-e { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 5px; border-bottom: 2px solid #141414 }
 .ir-sem .bar-e b { font: 800 12px var(--fe-titulo); font-variant-numeric: tabular-nums; white-space: nowrap }
-.ir-sem .bar-e i { display: block; width: 100%; max-width: 52px; border-radius: 6px 6px 0 0 }
+.ir-sem .bar-e i { display: block; width: 100%; max-width: 52px; border-radius: 3px 3px 0 0 }
 .ir-sem i.r { background: var(--ir-p) } .ir-sem i.n { background: var(--ir-s) } .ir-sem i.a { background: var(--ir-q) } .ir-sem i.g { background: #A7B1BD }
 .ir-sem i.cero { background: var(--ir-fondo); border-radius: 2px }
 .ir-sem .x { margin-top: 7px; text-align: center; font-size: 12px; color: var(--fe-gris); white-space: nowrap }
 .ir-dice { margin: 0; padding: 14px 22px 20px; font-size: 13px; color: var(--fe-gris) }
 
-.ir-reparto { display: flex; gap: 2px; height: 22px; margin: 10px 22px 0; border-radius: 8px; overflow: hidden; background: var(--ir-fondo) }
+.ir-reparto { display: flex; gap: 2px; height: 22px; margin: 10px 22px 0; border-radius: 3px; overflow: hidden; background: var(--ir-fondo) }
 .ir-reparto i { display: block; min-width: 3px }
 .ir .vencido { --c: var(--ir-v) } .ir .pasado { --c: var(--ir-p) } .ir .semana { --c: var(--ir-s) } .ir .quince { --c: var(--ir-q) }
 .ir .mes { --c: var(--ir-m) } .ir .ok { --c: var(--ir-o) } .ir .sinfecha { --c: var(--ir-n) }
@@ -138,7 +138,7 @@
 .ir-th input:focus { outline: none; border-color: var(--fe-tinta) }
 .ir-th .ir-chips { margin-left: auto }
 .ir-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 22px 14px; border-bottom: 1px solid var(--ir-ln) }
-.ir-bar input { flex: 1 1 260px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 500 14.5px var(--fe-texto) }
+.ir-bar input { flex: 1 1 260px; min-height: 44px; padding: 0 14px; border-radius: 3px; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 500 14.5px var(--fe-texto) }
 .ir-bar input:focus { outline: none; border-color: var(--fe-tinta) }
 .ir-chips { display: flex; gap: 8px; flex-wrap: wrap }
 .ir-chips button { min-height: 40px; padding: 0 14px; border-radius: 2px; cursor: pointer; border: 1.5px solid var(--ir-ln); background: var(--fe-papel); color: var(--fe-tinta); font: 600 12.5px var(--fe-texto) }
@@ -176,15 +176,15 @@
 .ir-pc { display: flex; justify-content: space-between; gap: 12px; padding: 20px 22px 14px; background: #fff; border-bottom: 1px solid var(--ir-ln) }
 .ir-pc h3 { margin: 10px 0 0; font: 900 22px/1.15 var(--fe-titulo); letter-spacing: -.02em }
 .ir-pc p { margin: 5px 0 0; font-size: 13px; color: var(--fe-gris) }
-.ir-x { flex: none; width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid var(--ir-ln); background: #fff; cursor: pointer; display: grid; place-items: center; color: var(--fe-tinta) }
+.ir-x { flex: none; width: 44px; height: 44px; border-radius: 3px; border: 1.5px solid var(--ir-ln); background: #fff; cursor: pointer; display: grid; place-items: center; color: var(--fe-tinta) }
 .ir-pk { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 14px 22px }
-.ir-pk > div { background: #fff; border-radius: 12px; padding: 12px 14px; min-width: 0 }
+.ir-pk > div { background: #fff; border-radius: 3px; padding: 12px 14px; min-width: 0 }
 .ir-pk small { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--fe-gris) }
 .ir-pk b { display: block; margin-top: 4px; font: 900 24px var(--fe-titulo); font-variant-numeric: tabular-nums }
 .ir-pk span { display: block; font-size: 12px; color: var(--fe-gris) }
 .ir-pk .mal b { color: var(--ir-pt) }
 .ir-sitios { flex: 1; overflow: auto; padding: 0 22px 14px; display: flex; flex-direction: column; gap: 10px }
-.ir-s { background: #fff; border-radius: 12px; padding: 14px 16px; border-left: 5px solid var(--c) }
+.ir-s { background: #fff; border-radius: 3px; padding: 14px 16px; border-left: 5px solid var(--c) }
 .ir-s .cab { display: flex; justify-content: space-between; align-items: center; gap: 10px }
 .ir-s .ub { font: 900 19px var(--fe-titulo); letter-spacing: -.01em; overflow-wrap: anywhere }
 .ir-s .donde { margin: 3px 0 0; font-size: 13px; color: var(--fe-gris) }
@@ -194,7 +194,7 @@
 .ir-s dd { margin: 2px 0 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums }
 .ir-s dd.mal { color: var(--ir-pt); font-weight: 800 }
 .ir-s .tags { margin: 10px 0 0; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 13px }
-.ir-s .t { padding: 3px 8px; border-radius: 6px; background: #FDEBEB; color: var(--ir-pt); font-weight: 700; font-size: 12px }
+.ir-s .t { padding: 3px 8px; border-radius: 3px; background: #FDEBEB; color: var(--ir-pt); font-weight: 700; font-size: 12px }
 .ir-s .tags em { color: var(--fe-gris) }
 .ir-s .quien { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--ir-ln); font-size: 12.5px; color: var(--fe-gris) }
 .ir-pp { padding: 14px 22px 18px; background: #fff; border-top: 1px solid var(--ir-ln) }

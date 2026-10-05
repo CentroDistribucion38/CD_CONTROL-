@@ -83,7 +83,7 @@
 .rl .rl-manda {
   font-style: normal; font-family: var(--rl-texto); font-size: 9.5px; font-weight: 700;
   letter-spacing: .1em; text-transform: uppercase; color: #fff;
-  background: var(--rl-acento); border-radius: 999px; padding: 2px 7px;
+  background: var(--rl-acento); border-radius: 2px; padding: 2px 7px;
 }
 .rl .rl-nuevo {
   display: grid; gap: 10px; padding: 0 20px 16px; border-bottom: 1px solid var(--rl-linea);
@@ -253,13 +253,13 @@
 .rl .rl-gente { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rl-linea) }
 .rl .rl-gente li { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--c-f2f5f9) }
 .rl .rl-ini {
-  flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  flex: none; width: 34px; height: 34px; border-radius: 2px; display: grid; place-items: center;
   background: var(--rl-tinta); color: #fff; font: 800 14px var(--rl-titulo);
 }
 .rl .rl-quien { flex: 1; min-width: 0; display: flex; flex-direction: column }
 .rl .rl-quien b { font-size: 14px; overflow-wrap: anywhere }
 .rl .rl-quien em { font-style: normal; font-size: 12px; color: var(--rl-gris); font-family: ui-monospace, SFMono-Regular, Menlo, monospace }
-.rl .rl-inactivo { font: 700 11px var(--rl-texto); color: #8A5A00; background: #FFF4D6; border-radius: 999px; padding: 3px 9px }
+.rl .rl-inactivo { font: 700 11px var(--rl-texto); color: #8A5A00; background: #FFF4D6; border-radius: 2px; padding: 3px 9px }
 .rl .rl-ir {
   min-height: 40px; display: inline-flex; align-items: center; padding: 0 12px;
   border: 1.5px solid var(--rl-linea); border-radius: 2px; text-decoration: none;

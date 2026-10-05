@@ -8,7 +8,7 @@
 .fe .cl-h { margin: 6px 0 0; font: 900 16px var(--fe-titulo); letter-spacing: -.02em; display: flex; align-items: center; gap: 8px }
 .fe .cl-h span {
   font: 700 12px var(--fe-texto); color: var(--fe-gris); border: 1px solid var(--fe-linea);
-  border-radius: 10px; padding: 1px 8px;
+  border-radius: 3px; padding: 1px 8px;
 }
 .fe .cl-sub { margin: 0; font-size: 13px; line-height: 1.5; color: var(--fe-gris) }
 .fe .cl-nota { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--fe-gris) }
@@ -391,13 +391,13 @@
 .fe .pr-est.incompleto { background: #6B7280 }
 .fe .pr-est b { display: block; font: 900 12px var(--fe-titulo); letter-spacing: .02em }
 .fe .pr-est small { display: block; font: 600 10.5px var(--fe-texto); opacity: .85 }
-.fe .pr-x { width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--pr-tn); display: inline-flex; align-items: center; justify-content: center; font: 900 11px var(--fe-titulo); flex: none }
+.fe .pr-x { width: 22px; height: 22px; border-radius: 2px; background: #fff; color: var(--pr-tn); display: inline-flex; align-items: center; justify-content: center; font: 900 11px var(--fe-titulo); flex: none }
 .fe .no_cuadra > .pr-x, .fe .pr-est.no_cuadra .pr-x { color: var(--pr-mal) }
 .fe .pr-est.cuadra .pr-x { color: var(--pr-ok) }
 
 .fe .pr-proc { display: grid; grid-template-columns: auto 1fr auto 1fr auto; align-items: center; padding: 8px 20px }
 .fe .pr-nodo { display: flex; align-items: center; gap: 8px }
-.fe .pr-bol { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 900 14px var(--fe-titulo); background: var(--pr-tn); color: var(--fe-acento); border: 3px solid var(--pr-ok); flex: none }
+.fe .pr-bol { width: 26px; height: 26px; border-radius: 2px; display: flex; align-items: center; justify-content: center; font: 900 14px var(--fe-titulo); background: var(--pr-tn); color: var(--fe-acento); border: 3px solid var(--pr-ok); flex: none }
 .fe .pr-bol.pend { border-color: #C9C9C3; background: #fff; color: #9A9A95 }
 .fe .pr-bol.cuadra { background: var(--pr-ok); color: #fff }
 .fe .pr-bol.incompleto { background: #6B7280; color: #fff; border-color: #6B7280 }

@@ -70,7 +70,7 @@ export function TarjetaModulo({
           </span>
           {m.activo && (
             <span
-              className="flex h-[26px] w-[26px] items-center justify-center rounded-full"
+              className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px]"
               style={{ background: m.acento }}
               aria-hidden
             >
@@ -83,7 +83,7 @@ export function TarjetaModulo({
   );
 
   const clases =
-    "group block overflow-hidden rounded-[12px] border transition-colors";
+    "group block overflow-hidden rounded-[3px] border transition-colors";
   const estilo = {
     background: "var(--bv-panel)",
     borderColor: "var(--bv-linea)",

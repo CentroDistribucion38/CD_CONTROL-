@@ -256,7 +256,7 @@
 .fe .ba-cal .dias button.inicio.fin { border-radius: 3px }
 .fe .ba-cal .dias button.hoy { text-decoration: underline; text-underline-offset: 3px }
 /* El puntito: ese día hay FEFO enviados. */
-.fe .ba-cal .dias button.marcado::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--fe-acento) }
+.fe .ba-cal .dias button.marcado::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 2px; background: var(--fe-acento) }
 .fe .ba-cal .dias button.punta.marcado::after { background: var(--fe-sobre) }
 .fe .ba-cal .cal-pie { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--fe-linea); flex-wrap: wrap }
 .fe .ba-cal .cal-pie .resumen { font-size: 13.5px; color: var(--fe-gris); min-width: 0 }

@@ -293,7 +293,7 @@
   align-items: center; padding: 9px 16px;
 }
 .rl-etq { font: 700 11.5px var(--rl-texto); color: var(--rl-gris) }
-.rl-pista { height: 9px; background: var(--rl-fondo); border-radius: 5px; overflow: hidden }
+.rl-pista { height: 9px; background: var(--rl-fondo); border-radius: 3px; overflow: hidden }
 .rl-pista i { display: block; height: 100%; background: var(--rl-ojo) }
 .rl-v { font: 800 13.5px var(--rl-titulo); font-variant-numeric: tabular-nums }
 
@@ -394,12 +394,12 @@
   opacity: 0; margin: 0; cursor: pointer;
 }
 .rl-sw i {
-  position: absolute; inset: 0; border-radius: 20px; pointer-events: none;
+  position: absolute; inset: 0; border-radius: 3px; pointer-events: none;
   background: color-mix(in srgb, var(--rl-gris) 45%, #fff); transition: background .15s;
 }
 .rl-sw i::after {
   content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
-  border-radius: 50%; background: #fff; transition: transform .15s;
+  border-radius: 2px; background: #fff; transition: transform .15s;
 }
 .rl-sw input:checked + i { background: var(--rl-ojo) }
 .rl-sw input:checked + i::after { transform: translateX(16px) }
@@ -612,7 +612,7 @@
    cero, no flotar. */
 .rl-barra-pista i {
   display: block; height: 100%; background: var(--rl-dato);
-  border-radius: 0 4px 4px 0; min-width: 3px;
+  border-radius: 0 3px 3px 0; min-width: 3px;
 }
 .rl-barra-val {
   text-align: right; font: 800 13.5px var(--rl-titulo); font-variant-numeric: tabular-nums;
@@ -753,7 +753,7 @@
 .rl-pestanas a:hover { border-bottom-color: var(--rl-linea) }
 .rl-pestanas a[aria-current="page"] { font-weight: 800; border-bottom-color: var(--rl-ojo) }
 .rl-pestanas a b {
-  font-size: 11.5px; min-width: 22px; padding: 1px 7px; border-radius: 99px; text-align: center;
+  font-size: 11.5px; min-width: 22px; padding: 1px 7px; border-radius: 3px; text-align: center;
   background: var(--rl-fondo); color: var(--rl-tinta); font-variant-numeric: tabular-nums;
 }
 
@@ -943,7 +943,7 @@
 }
 .rl-l-lista li::before {
   content: ""; position: absolute; left: 0; top: .62em;
-  width: 6px; height: 6px; border-radius: 50%; background: var(--rl-dato);
+  width: 6px; height: 6px; border-radius: 2px; background: var(--rl-dato);
 }
 .rl-l-lista b { font-weight: 700 }
 
@@ -1022,7 +1022,7 @@
 }
 .rl-8020-lista li::before {
   content: counter(v); font: 800 10px var(--rl-titulo); color: var(--rl-sobre);
-  background: var(--rl-dato); border-radius: 50%;
+  background: var(--rl-dato); border-radius: 2px;
   width: 16px; height: 16px; display: grid; place-items: center; flex: none;
   align-self: center;
 }
@@ -1402,7 +1402,7 @@
 .rl-ventana {
   position: fixed; inset: 0; margin: auto; height: fit-content;
   width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
-  padding: 0; border: none; border-radius: 6px; overflow: auto;
+  padding: 0; border: none; border-radius: 3px; overflow: auto;
   background: var(--rl-papel); color: var(--rl-tinta);
   box-shadow: 0 24px 60px -20px rgba(4, 20, 40, .55);
 }
@@ -1563,7 +1563,7 @@
   .rl-rot { display: flex; align-items: center; gap: 7px }
   .rl-n {
     display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none;
-    border-radius: 50%; background: var(--rl-grupo); color: #fff;
+    border-radius: 2px; background: var(--rl-grupo); color: #fff;
     font: 800 10px/1 var(--rl-titulo); font-style: normal; letter-spacing: 0;
   }
   .rl-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100% }

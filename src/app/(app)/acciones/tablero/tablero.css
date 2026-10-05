@@ -41,7 +41,7 @@
 .at-k.mal { border-left-color: var(--at-mal) } .at-k.ojo { border-left-color: var(--at-ama) }
 .at-k.bien { border-left-color: var(--at-ok) } .at-k.nd { border-left-color: #C9C9C3 }
 .at-k.nd .ic { background: var(--at-fondo); color: #6B6F6B }
-.at-k .chapa { display: inline-block; padding: 6px 10px; border-radius: 6px; background: var(--at-fondo); color: var(--at-gr);
+.at-k .chapa { display: inline-block; padding: 6px 10px; border-radius: 3px; background: var(--at-fondo); color: var(--at-gr);
   font: 800 10.5px var(--ac-titulo); letter-spacing: .12em }
 .at-k .chapa + .l { margin-top: 8px }
 .at-k .ic { flex: none; width: 44px; height: 44px; border-radius: 2px; display: grid; place-items: center; background: var(--at-fondo) }
@@ -91,7 +91,7 @@
 .at-v .que small { display: block; margin-top: 2px; font-size: 12px; color: var(--at-gr) }
 .at-v .at-quien { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.25 }
 .at-v .at-quien i {
-  flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 9.5px var(--ac-titulo); font-style: normal;
+  flex: none; width: 26px; height: 26px; border-radius: 2px; display: grid; place-items: center; font: 800 9.5px var(--ac-titulo); font-style: normal;
   background: #141414; color: #FFC000;
 }
 .at-v .at-quien.sin { color: var(--at-mal) }

@@ -15,11 +15,11 @@
 
 /* El KPI del día: esquinas más suaves, la cuña oscura más ancha y el
    signo de porcentaje más chico que las cifras. */
-.qd .kpi { border-radius: 12px; padding: 24px 30px 22px }
+.qd .kpi { border-radius: 3px; padding: 24px 30px 22px }
 .qd .kpi .corte { right: -30px; width: 44%; }
 .qd .kpi .num .pc { font-size: .42em; margin-left: 2px; letter-spacing: 0 }
 .qd .kpi .pie { justify-content: space-between; gap: 12px }
-.qd .kpi .delta { border-radius: 999px; padding: 7px 15px }
+.qd .kpi .delta { border-radius: 2px; padding: 7px 15px }
 
 /* ====================== Los días del mes ====================== */
 .qd .qd-dias {
@@ -33,14 +33,14 @@
    así que centrarlos los descuadraría. */
 .qd .qd-mando { display: flex; align-items: flex-end; gap: 10px; flex: none }
 .qd .qd-hoy {
-  height: 46px; padding: 0 18px; border-radius: 10px; cursor: pointer;
+  height: 46px; padding: 0 18px; border-radius: 3px; cursor: pointer;
   border: 1.8px solid var(--qb-tinta); background: #fff;
   font: 600 15px var(--qb-texto); color: var(--qb-tinta); white-space: nowrap;
 }
 .qd .qd-hoy:hover { background: var(--qb-tinta); color: #fff }
 
 /* El calendario de rango: el mismo del tablero del periodo. */
-.qd .qd-mando .calendario .disparo { height: 46px; border-radius: 10px; min-width: 268px }
+.qd .qd-mando .calendario .disparo { height: 46px; border-radius: 3px; min-width: 268px }
 
 /* ---------- Atajos de marcado ---------- */
 .qd .qd-atajos {
@@ -53,7 +53,7 @@
 }
 .qd .qd-atajos button {
   height: 36px; padding: 0 14px; cursor: pointer; white-space: nowrap;
-  border: 1.5px solid var(--c-edf1f6); background: var(--c-fafbfd); border-radius: 8px;
+  border: 1.5px solid var(--c-edf1f6); background: var(--c-fafbfd); border-radius: 3px;
   font: 600 13.5px var(--qb-texto); color: var(--qb-gris);
 }
 .qd .qd-atajos button:hover { color: var(--qb-tinta); border-color: var(--c-c6d3e2) }
@@ -64,14 +64,14 @@
 .qd .qd-p {
   width: 42px; height: 50px; flex: none; padding: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  background: #fff; border: 1.5px solid var(--c-dce8f6); border-radius: 10px; cursor: pointer;
+  background: #fff; border: 1.5px solid var(--c-dce8f6); border-radius: 3px; cursor: pointer;
 }
 .qd .qd-p .n {
   font-family: var(--qb-titulo); font-weight: 800; font-size: 17px;
   line-height: 1; color: var(--qb-tinta);
 }
 /* El punto dice de dónde salió la cifra del día. */
-.qd .qd-p .pt { width: 7px; height: 7px; border-radius: 50%; background: var(--c-3e7bc4) }
+.qd .qd-p .pt { width: 7px; height: 7px; border-radius: 2px; background: var(--c-3e7bc4) }
 .qd .qd-p.escrito { border-color: #F6C6D1 }
 .qd .qd-p.escrito .pt { background: var(--qb-rojo) }
 .qd .qd-p.vacio { border-color: var(--c-f1f3f6) }
@@ -96,7 +96,7 @@
   font-size: 13.5px; color: var(--qb-gris);
 }
 .qd .qd-ley span { display: inline-flex; align-items: center; gap: 7px }
-.qd .qd-ley i { width: 9px; height: 9px; border-radius: 50%; flex: none }
+.qd .qd-ley i { width: 9px; height: 9px; border-radius: 2px; flex: none }
 .qd .qd-ley i.esc { background: var(--qb-rojo) }
 .qd .qd-ley i.sap { background: var(--c-2e6fbe) }
 .qd .qd-ley i.no { background: var(--c-dce2e9) }
@@ -108,7 +108,7 @@
 /* Un día escrito a mano se marca también dentro del calendario. */
 .qd .dias button.escrito::after {
   content: ""; position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%);
-  width: 4px; height: 4px; border-radius: 50%; background: var(--qb-rojo);
+  width: 4px; height: 4px; border-radius: 2px; background: var(--qb-rojo);
 }
 .qd .dias button.punta.escrito::after { background: #fff }
 
@@ -392,7 +392,7 @@
 }
 .qd .qd-checks li:last-child { border-bottom: 0 }
 .qd .qd-checks li i {
-  width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 5px; background: var(--c-c6d0dc);
+  width: 9px; height: 9px; border-radius: 2px; flex: none; margin-top: 5px; background: var(--c-c6d0dc);
 }
 /* Los estados llevan prefijo propio a propósito: una clase suelta como
    .ojo ya existe en quiebra.css (el rótulo chiquito en mayúsculas) y le

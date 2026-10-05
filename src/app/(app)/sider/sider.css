@@ -52,7 +52,7 @@
 .sd .cabeza .sub a:hover { border-bottom-color: var(--sd-acento) }
 
 .sd .kpi {
-  position: relative; overflow: hidden; border-radius: 12px;
+  position: relative; overflow: hidden; border-radius: 3px;
   background: var(--sd-acento); color: #fff;
   padding: 15px 22px 14px; min-width: 300px;
   display: flex; flex-direction: column; justify-content: center;
@@ -79,7 +79,7 @@
 }
 .sd .kpi .chip {
   background: #fff; color: var(--sd-acento-hondo); font-family: var(--sd-titulo);
-  font-weight: 800; font-size: 11.5px; padding: 5px 12px; border-radius: 999px;
+  font-weight: 800; font-size: 11.5px; padding: 5px 12px; border-radius: 2px;
 }
 
 /* ====================== Cifras ====================== */
@@ -137,10 +137,10 @@
 
 /* ====================== Marcas de estado ====================== */
 .sd .sello {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 2px;
   font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
 }
-.sd .sello i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none }
+.sd .sello i { width: 6px; height: 6px; border-radius: 2px; background: currentColor; flex: none }
 .sd .sello.transito { background: #FFF6E6; color: #8A6100 }
 .sd .sello.recibido { background: #E9F6EF; color: #14653F }
 .sd .sello.anulado  { background: var(--c-f4f6f9); color: var(--c-93a3b6) }
@@ -277,7 +277,7 @@
   font: 600 12px var(--sd-texto); color: var(--sd-gris);
 }
 .sd .ct-pasos button i {
-  width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center;
+  width: 25px; height: 25px; border-radius: 2px; display: grid; place-items: center;
   border: 1.8px solid var(--sd-linea); background: #fff;
   font-style: normal; font-size: 13px; font-weight: 800; color: var(--sd-gris);
 }
@@ -325,7 +325,7 @@
 .sd .ct-suelto { margin-top: 16px; border-top: 0; border-radius: 2px }
 
 .sd .ct-grande {
-  width: 100%; max-width: 520px; min-height: 66px; border: 0; border-radius: 4px; cursor: pointer;
+  width: 100%; max-width: 520px; min-height: 66px; border: 0; border-radius: 3px; cursor: pointer;
   background: var(--sd-acento); color: #fff;
   font-family: var(--sd-titulo); font-weight: 800; font-size: 17px;
 }
@@ -334,7 +334,7 @@
 
 /* ---------- Ubicación ---------- */
 .sd .ct-ubi {
-  border: 1.5px solid var(--c-9fd3d9); background: #F1FAFB; border-radius: 4px; padding: 20px 22px;
+  border: 1.5px solid var(--c-9fd3d9); background: #F1FAFB; border-radius: 3px; padding: 20px 22px;
 }
 .sd .ct-ubi.regular { border-color: #F0D89B; background: #FFF8E6 }
 .sd .ct-ubi.mala { border-color: #F3C9D2; background: #FFF6F7 }
@@ -372,7 +372,7 @@
 .sd .ct-op {
   display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: left;
   min-height: 68px; padding: 14px 16px; cursor: pointer;
-  border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 4px;
+  border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 3px;
 }
 .sd .ct-op b { font-family: var(--sd-titulo); font-weight: 800; font-size: 15px; line-height: 1.15 }
 .sd .ct-op span { font-size: 12.5px; color: var(--sd-gris) }
@@ -406,7 +406,7 @@
   width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
   justify-content: flex-start;
   padding: 18px 14px; cursor: pointer; overflow: hidden;
-  border: 2px dashed var(--sd-linea); background: var(--c-fafbfd); border-radius: 4px;
+  border: 2px dashed var(--sd-linea); background: var(--c-fafbfd); border-radius: 3px;
 }
 .sd .ct-foto button:hover { border-color: var(--sd-acento); background: var(--c-f7fcfd) }
 .sd .ct-foto.lista button { border-style: solid; border-color: var(--sd-acento); background: #fff; padding: 8px }
@@ -422,7 +422,7 @@
 }
 .sd .ct-foto span { font-size: 12px; color: var(--sd-gris); text-align: center; max-width: 100% }
 .sd .ct-camara {
-  width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
+  width: 62px; height: 62px; border-radius: 2px; display: grid; place-items: center;
   background: var(--c-eaf4f6);
 }
 .sd .ct-camara svg { width: 28px; height: 28px; stroke: var(--sd-acento); stroke-width: 1.7 }
@@ -448,7 +448,7 @@
 .sd .ct-obs textarea {
   flex: 1; min-height: 92px; resize: vertical; padding: 11px 13px;
   font: 500 15px var(--sd-texto); color: var(--sd-tinta);
-  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 4px;
+  background: #fff; border: 1.5px solid var(--sd-linea); border-radius: 3px;
 }
 .sd .ct-obs textarea::placeholder { color: var(--c-b4c0ce); font-weight: 400 }
 .sd .ct-obs textarea:focus { outline: 3px solid var(--sd-acento); outline-offset: 1px }
@@ -458,7 +458,7 @@
    hay que tomarla si no hay nada que mostrar. */
 .sd .ct-obs-foto { flex-direction: column; gap: 6px }
 .sd .ct-mas {
-  width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+  width: 54px; height: 54px; border-radius: 2px; display: grid; place-items: center;
   background: var(--c-eaf4f6); color: var(--sd-acento);
   font-family: var(--sd-titulo); font-weight: 800; font-size: 30px; line-height: 1;
 }
@@ -507,13 +507,13 @@
   display: grid; grid-template-columns: auto minmax(0, 1fr);
   column-gap: 16px; row-gap: 2px; align-items: center;
   width: 100%; margin-top: 18px; padding: 16px 20px; cursor: pointer; text-align: left;
-  border: 2px solid var(--sd-acento); border-radius: 4px;
+  border: 2px solid var(--sd-acento); border-radius: 3px;
   background: var(--c-f7fcfd); color: var(--sd-tinta);
 }
 .sd .ct-otro:hover { background: #E9F6F8 }
 .sd .ct-otro:focus-visible { outline: 3px solid var(--sd-acento); outline-offset: 2px }
 .sd .ct-otro > span {
-  grid-row: 1 / 3; width: 52px; height: 52px; border-radius: 50%;
+  grid-row: 1 / 3; width: 52px; height: 52px; border-radius: 2px;
   display: grid; place-items: center; background: var(--sd-acento); color: #fff;
   font-family: var(--sd-titulo); font-weight: 800; font-size: 30px; line-height: 1;
 }
@@ -544,7 +544,7 @@
      media fila gris.) */
   display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1px; margin: 0; background: var(--sd-linea);
-  border: 1px solid var(--sd-linea); border-radius: 4px; overflow: hidden;
+  border: 1px solid var(--sd-linea); border-radius: 3px; overflow: hidden;
 }
 .sd .ct-revision > div { background: #fff; padding: 14px 16px; grid-column: span 2 }
 .sd .ct-revision > div.ancho { grid-column: 1 / -1 }
@@ -572,11 +572,11 @@
 .sd .ct-item.on .ct-op { flex: 1 1 0; min-width: 0 }
 .sd .ct-item.on .ct-est { flex: 0 0 132px; justify-content: center }
 .sd .ct-marca {
-  position: absolute; top: 10px; right: 12px; width: 22px; height: 22px; border-radius: 50%;
+  position: absolute; top: 10px; right: 12px; width: 22px; height: 22px; border-radius: 2px;
   display: flex; align-items: center; justify-content: center; font: 800 13px var(--sd-titulo);
   font-style: normal; background: #fff; color: var(--sd-acento);
 }
-.sd .ct-est { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px; background: var(--c-f7fcfd); border: 1.5px solid var(--sd-acento); border-radius: 4px }
+.sd .ct-est { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px; background: var(--c-f7fcfd); border: 1.5px solid var(--sd-acento); border-radius: 3px }
 .sd .ct-est.falta { border-color: var(--sd-oro) }
 .sd .ct-est > span { font-size: 11.5px; font-weight: 600; color: var(--c-2c4361); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .sd .ct-est input {
@@ -605,7 +605,7 @@
 
 /* ---------- Mis fichas pendientes ---------- */
 .sd .ct-fichas { margin-top: 16px }
-.sd .ct-fichas h2 em { font-style: normal; font-size: 13px; margin-left: 8px; padding: 2px 9px; border-radius: 10px; background: var(--sd-oro); color: var(--sd-tinta) }
+.sd .ct-fichas h2 em { font-style: normal; font-size: 13px; margin-left: 8px; padding: 2px 9px; border-radius: 3px; background: var(--sd-oro); color: var(--sd-tinta) }
 .sd .ct-fichas > ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px }
 .sd .ct-fichas > ul > li { background: #fff; border: 1px solid var(--sd-linea); border-left: 4px solid var(--sd-oro); border-radius: 3px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px }
 .sd .ct-f-cab { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
@@ -623,7 +623,7 @@
 
 /* ---------- El tiquete ---------- */
 .sd .ct-tiquete {
-  background: var(--sd-tinta); color: #fff; border-radius: 4px; padding: 12px 20px 14px;
+  background: var(--sd-tinta); color: #fff; border-radius: 3px; padding: 12px 20px 14px;
 }
 .sd .ct-tiquete .rot { font-size: 11px; font-weight: 700; letter-spacing: .14em; opacity: .6 }
 .sd .ct-tiquete .cifras-t {
@@ -916,7 +916,7 @@
 .sd .tr-grupo-cab span { font-size: 12.5px; color: var(--sd-gris) }
 .sd .tr-grupo-cab .tr-tarde {
   font-style: normal; font-size: 11.5px; font-weight: 700; color: #8A5A00;
-  background: #FFF3D6; border-radius: 99px; padding: 2px 9px; margin-left: auto;
+  background: #FFF3D6; border-radius: 3px; padding: 2px 9px; margin-left: auto;
 }
 
 /* ---------- La fila de filtros ---------- */
@@ -982,8 +982,8 @@
    pegado; la que viene en verde con sus datos, la que no en rojo. En el
    celular la tabla se desliza de lado dentro de su marco, no la página. */
 .sd .tr-pl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px }
-.sd .tr-pl-seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 6px; background: var(--c-eef1f5); flex-wrap: wrap }
-.sd .tr-pl-seg button { min-height: 38px; padding: 0 12px; border: 0; border-radius: 4px; background: none; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 13px; color: var(--sd-tinta) }
+.sd .tr-pl-seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 3px; background: var(--c-eef1f5); flex-wrap: wrap }
+.sd .tr-pl-seg button { min-height: 38px; padding: 0 12px; border: 0; border-radius: 3px; background: none; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 13px; color: var(--sd-tinta) }
 .sd .tr-pl-seg button.on { background: var(--sd-papel); box-shadow: 0 1px 2px rgba(0,0,0,.12) }
 .sd .tr-pl-seg button.on.si { color: #0B5D2E } .sd .tr-pl-seg button.on.no { color: #A30D25 }
 .sd .tr-pl-bar .btn.plano { height: 40px }
@@ -1000,8 +1000,8 @@
 .sd .tr-pl td.mat { white-space: normal; min-width: 180px } .sd .tr-pl td.mat small { display: block; color: var(--c-5b6b7f); font-size: 11.5px }
 .sd .tr-pl td.nada { white-space: normal; color: #7A1020; font-size: 12.5px }
 .sd .tr-pl td.tarde { color: #8A5A00; font-weight: 700 }
-.sd .tr-pl-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 12px; font-weight: 700; font-size: 12px }
-.sd .tr-pl-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50% }
+.sd .tr-pl-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 3px; font-weight: 700; font-size: 12px }
+.sd .tr-pl-pill::before { content: ""; width: 7px; height: 7px; border-radius: 2px }
 .sd .tr-pl-pill.si { background: #E6F4EC; color: #0B5D2E } .sd .tr-pl-pill.si::before { background: #1F7A45 }
 .sd .tr-pl-pill.no { background: #FDE8EB; color: #A30D25 } .sd .tr-pl-pill.no::before { background: #C8102E }
 .sd .tr-pl-ir { min-height: 34px; padding: 0 10px; border: 1px solid var(--sd-linea); border-radius: 3px; background: var(--sd-papel); color: var(--sd-tinta); font-family: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer }
@@ -1264,7 +1264,7 @@
 .sd th.ojo-col, .sd td.ojo-col { width: 74px; text-align: center }
 .sd .ev-ojo {
   display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
-  border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 999px;
+  border: 1.5px solid var(--sd-linea); background: #fff; border-radius: 2px;
   padding: 4px 9px 4px 7px; color: var(--sd-acento);
 }
 .sd .ev-ojo:hover { border-color: var(--sd-acento); background: #F1FAFB }
@@ -1282,7 +1282,7 @@
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .sd .ev-hoja {
-  background: var(--sd-papel); border-radius: 5px; width: min(1080px, 100%);
+  background: var(--sd-papel); border-radius: 3px; width: min(1080px, 100%);
   max-height: calc(100dvh - 48px); display: flex; flex-direction: column; overflow: hidden;
 }
 .sd .ev-hoja header {
@@ -1323,7 +1323,7 @@
 
 .sd .ev-forms dl {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0;
-  background: var(--sd-linea); border: 1px solid var(--sd-linea); border-radius: 4px; overflow: hidden;
+  background: var(--sd-linea); border: 1px solid var(--sd-linea); border-radius: 3px; overflow: hidden;
 }
 .sd .ev-forms dl > div { background: #fff; padding: 10px 13px; min-width: 0 }
 .sd .ev-forms dl > div.ancho { grid-column: span 2 }
@@ -1339,7 +1339,7 @@
   font-size: 11.5px; color: var(--sd-gris); margin-top: 2px;
 }
 
-.sd .ev-punta { border: 1px solid var(--sd-linea); border-radius: 4px; padding: 13px 15px; background: #fff }
+.sd .ev-punta { border: 1px solid var(--sd-linea); border-radius: 3px; padding: 13px 15px; background: #fff }
 .sd .ev-donde {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   background: #F1FAFB; border: 1px solid var(--c-c9e4e8); border-radius: 3px; padding: 9px 12px;
@@ -1349,7 +1349,7 @@
 .sd .ev-cuando { margin-left: auto; text-align: right }
 .sd .ev-mapa {
   flex: none; font-size: 12px; font-weight: 600; color: var(--sd-acento); text-decoration: none;
-  border: 1.5px solid var(--c-9fd3d9); border-radius: 999px; padding: 5px 12px; background: #fff;
+  border: 1.5px solid var(--c-9fd3d9); border-radius: 2px; padding: 5px 12px; background: #fff;
 }
 .sd .ev-mapa:hover { background: var(--sd-acento); color: #fff; border-color: var(--sd-acento) }
 .sd .ev-nota { margin: 9px 0 0; font-size: 12.5px; color: var(--c-2c4361) }
@@ -1520,7 +1520,7 @@
    "ZLDE" y "Base de datos" no le dicen nada a quien entra por primera
    vez, y el subtítulo es la diferencia entre escoger y adivinar.
    =================================================================== */
-.sd .im-pes { display: flex; gap: 4px; background: var(--c-e7ecf3); border-radius: 4px; padding: 4px }
+.sd .im-pes { display: flex; gap: 4px; background: var(--c-e7ecf3); border-radius: 3px; padding: 4px }
 .sd .im-pes button {
   flex: 1 1 0; min-width: 0; border: 0; background: none; cursor: pointer; border-radius: 3px;
   padding: 9px 14px; text-align: left; font: 800 14px var(--sd-titulo); color: var(--sd-gris);
@@ -1589,7 +1589,7 @@
 /* La barra que reemplaza a la tarjeta del archivo una vez está puesto. */
 .sd .im-barra {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  background: #fff; border: 1px solid var(--sd-linea); border-radius: 4px;
+  background: #fff; border: 1px solid var(--sd-linea); border-radius: 3px;
   padding: 8px 10px 8px 14px;
 }
 .sd .im-arch {
@@ -2035,7 +2035,7 @@
 }
 .sd .sg-paso:hover { border-color: var(--c-b9c4d2) }
 .sd .sg-paso .bolita {
-  width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 2px; flex: none; display: grid; place-items: center;
   background: var(--c-edf1f6); color: var(--sd-gris); font: 800 13.5px var(--sd-titulo);
 }
 .sd .sg-paso .txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0 }
@@ -2136,7 +2136,7 @@
   }
   .sd .sg-mes .mes-atajos button {
     width: auto; flex: none; white-space: nowrap; border-left: 0;
-    border: 1px solid var(--sd-linea); border-radius: 999px; padding: 6px 12px;
+    border: 1px solid var(--sd-linea); border-radius: 2px; padding: 6px 12px;
     background: #fff;
   }
   .sd .sg-mes .mes-atajos button.on { border-color: var(--sd-marca) }
@@ -2771,7 +2771,7 @@
 .sd .nv-dias.largo { color: var(--c-alarma); font-weight: 700 }
 .sd .nv-estado {
   margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+  text-transform: uppercase; padding: 3px 9px; border-radius: 2px;
 }
 .sd .nv-estado.abierta { background: #FDE7EB; color: #A4102A }
 .sd .nv-estado.cerrada { background: var(--c-eaf0f7); color: var(--c-2c4361) }
@@ -3318,7 +3318,7 @@
 .sd .tr-barra {
   position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 40;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 10px 14px; border-radius: 4px;
+  padding: 10px 14px; border-radius: 3px;
   background: var(--sd-tinta); color: #fff;
   box-shadow: 0 6px 24px rgba(0, 0, 0, .28);
   max-width: calc(100vw - 24px);
@@ -3394,7 +3394,7 @@
 .sd .tr-mas {
   position: fixed; right: 22px; bottom: calc(22px + env(safe-area-inset-bottom)); z-index: 45;
   display: inline-flex; align-items: center; gap: 0;
-  min-height: 56px; min-width: 56px; padding: 0; cursor: pointer; border-radius: 28px;
+  min-height: 56px; min-width: 56px; padding: 0; cursor: pointer; border-radius: 3px;
   background: var(--sd-acento); color: #fff; border: 0;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .30);
   font: 800 14px var(--sd-titulo, system-ui); white-space: nowrap; overflow: hidden;
@@ -3532,7 +3532,7 @@
 }
 .sd .nv-campos .nv-lin-cif span { font: inherit; color: inherit; margin: 0 }
 .sd .nv-lin-cif b { color: var(--tn) }
-.sd .nv-lin-cif.ok::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none }
+.sd .nv-lin-cif.ok::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--ok); flex: none }
 .sd .nv-lin-cif.no { color: var(--amb); flex-wrap: wrap }
 .sd .nv-lin-cif.no::before {
   content: "!"; width: 15px; height: 15px; background: var(--ac); color: var(--tn); flex: none;

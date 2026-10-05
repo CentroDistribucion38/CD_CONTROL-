@@ -29,7 +29,7 @@
 }
 .fc-busca input, .fc-confirmar input, .fc-reabrir input {
   min-height: 46px; width: 100%; min-width: 0; padding: 10px 12px;
-  border: 1.5px solid var(--tp-linea); border-radius: 9px; background: #fff; color: #12263A;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; background: #fff; color: #12263A;
   font: 500 15px var(--tp-texto);
 }
 .fc-busca input:focus, .fc-confirmar input:focus, .fc-reabrir input:focus {
@@ -37,7 +37,7 @@
 }
 
 .fc-solo-ver {
-  margin: 0; padding: 10px 14px; border: 1px dashed #C08A16; border-radius: 9px;
+  margin: 0; padding: 10px 14px; border: 1px dashed #C08A16; border-radius: 3px;
   background: #fff; color: #5E4100; font-size: 13px;
 }
 
@@ -47,7 +47,7 @@
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 380px); gap: 14px 22px;
   align-items: center; padding: 16px 18px;
   background: var(--tp-papel); border: 1px solid var(--tp-linea); border-left: 4px dashed #C08A16;
-  border-radius: 9px;
+  border-radius: 3px;
 }
 .fc-viaje > * { min-width: 0 }
 .fc-datos p { margin: 0 }
@@ -103,7 +103,7 @@
 .fc-vidrio {
   grid-column: 1 / -1;
   display: flex; flex-direction: column; gap: 10px;
-  padding: 12px 14px; border-radius: 9px;
+  padding: 12px 14px; border-radius: 3px;
   border: 1.5px solid #C08A16; background: #FFF9EC;
 }
 .fc-vidrio-ojo {
@@ -112,7 +112,7 @@
 .fc-vidrio-ojo span { font-weight: 700; letter-spacing: .06em }
 .fc-vidrio select {
   min-height: 46px; width: 100%; min-width: 0; max-width: 100%; padding: 10px 12px;
-  border: 1.5px solid #C08A16; border-radius: 9px; background: #fff; color: #12263A;
+  border: 1.5px solid #C08A16; border-radius: 3px; background: #fff; color: #12263A;
   font: 700 14px var(--tp-texto);
 }
 .fc-vidrio select:focus { outline: 2px solid var(--tp-acento); outline-offset: 1px }
@@ -151,7 +151,7 @@
   text-transform: uppercase; color: var(--tp-gris) }
 .fc-cuenta input {
   min-height: 46px; width: 100%; min-width: 0; padding: 10px 12px;
-  border: 1.5px solid var(--tp-linea); border-radius: 9px; background: #fff; color: #12263A;
+  border: 1.5px solid var(--tp-linea); border-radius: 3px; background: #fff; color: #12263A;
   font: 900 20px var(--tp-texto); font-variant-numeric: tabular-nums;
 }
 .fc-cuenta input::placeholder { font: 500 14px var(--tp-texto) }
@@ -179,7 +179,7 @@
 .fc-bascula {
   grid-column: 1 / -1;
   display: flex; flex-direction: column; gap: 8px;
-  padding: 12px 14px; border-radius: 9px;
+  padding: 12px 14px; border-radius: 3px;
   border: 1.5px solid #A30D25; border-left-width: 4px; background: #FDECEE;
 }
 .fc-bascula-ojo {
@@ -200,7 +200,7 @@
 .fc-bascula-que b { color: #12263A }
 
 .fc-falta-vidrio {
-  margin: 0; padding: 10px 14px; border: 1px dashed #C08A16; border-radius: 9px;
+  margin: 0; padding: 10px 14px; border: 1px dashed #C08A16; border-radius: 3px;
   background: #FFF9EC; color: #5E4100; font-size: 13px; line-height: 1.5;
 }
 .fc-falta-vidrio code {
@@ -215,7 +215,7 @@
 .fc-salieron { display: flex; flex-direction: column; gap: 8px }
 .fc-salido {
   background: var(--tp-papel); border: 1px solid var(--tp-linea); border-left: 4px solid #2E8B57;
-  border-radius: 9px; padding: 12px 16px;
+  border-radius: 3px; padding: 12px 16px;
 }
 .fc-salido-fila { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 18px; align-items: center }
 .fc-salido-fila > * { min-width: 0; margin: 0 }
@@ -232,19 +232,19 @@
 
 .fc-vacio {
   padding: 18px; text-align: center; font-size: 13px; color: var(--tp-gris);
-  background: var(--tp-papel); border: 1px dashed var(--tp-linea); border-radius: 9px;
+  background: var(--tp-papel); border: 1px dashed var(--tp-linea); border-radius: 3px;
 }
 
 /* ---------- Código del viaje ---------- */
 .fc-cod {
-  display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--tp-fondo, #EEF1F5);
+  display: inline-block; padding: 2px 8px; border-radius: 3px; background: var(--tp-fondo, #EEF1F5);
   font: 700 12.5px ui-monospace, "SFMono-Regular", Menlo, monospace; color: var(--tp-tinta); letter-spacing: .02em;
 }
 .fc-oc .fc-cod { align-self: center }
 
 /* ---------- Depurar (solo quien administra) ---------- */
 .fc-dep-todos { display: flex; align-items: center; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap;
-  padding: 4px 14px; background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 9px }
+  padding: 4px 14px; background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px }
 .fc-dep-nota { font-size: 12.5px; color: var(--tp-gris) }
 .fc-viaje.con-check { grid-template-columns: auto minmax(0, 1fr) minmax(260px, 380px) }
 .fc-check.solo { align-self: stretch; justify-content: center; padding: 0 4px }

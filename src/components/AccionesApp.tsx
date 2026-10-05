@@ -317,7 +317,7 @@ function PasosInstalar({ sitio, cerrar }: { sitio: Donde; cerrar: () => void }) 
       onClick={cerrar}
     >
       <div
-        className="w-full max-w-sm rounded-[12px] bg-white p-5"
+        className="w-full max-w-sm rounded-[3px] bg-white p-5"
         style={{ color: "#0b1f35" }}
         onClick={(e) => e.stopPropagation()}
       >
