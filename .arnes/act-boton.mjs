@@ -31,25 +31,27 @@ const monta = async (qs, ancho = 1440) => {
     body: `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>${P}${css}</style></head><body><div class="sh"><div id="r"></div></div><script>${js}<\/script></body></html>` }));
   await pg.goto("http://arnes.local/?" + qs); await pg.waitForSelector(".sh-refrescar");
 };
-const n = () => pg.evaluate(() => window.__refresh);
+/* El reloj de mentira avanza de a poco: así la medición de internet (un pedido real) alcanza a responder antes de que «pasen» sus 2,5 s. */
+const adelanta = async (ms) => { for (let t = 0; t < ms; t += 1000) { await pg.clock.runFor(1000); if (t % 5000 === 0) await pg.waitForTimeout(30) } await pg.waitForTimeout(60) };
+const n = async () => { await pg.waitForTimeout(120); return pg.evaluate(() => window.__refresh) };   // la medición de internet va antes de pedir datos
 
 /* Tablero: el botón actualiza al tocarlo y sola cada minuto. */
 await monta("p=/inventario/tablero");
 ok(await n() === 0, "no actualiza al abrir");
 await pg.click(".sh-refrescar");
 ok(await n() === 1, "al tocar actualiza una vez: " + await n());
-await pg.clock.runFor(61000);
+await adelanta(61000);
 ok(await n() === 2, "sola, a los 60 s: " + await n());
-await pg.clock.runFor(61000);
+await adelanta(61000);
 ok(await n() === 3, "y otra vez al siguiente minuto: " + await n());
 /* Escribiendo: se salta. */
-await pg.focus("#f"); await pg.clock.runFor(61000);
+await pg.focus("#f"); await adelanta(61000);
 ok(await n() === 3, "no actualiza mientras se escribe: " + await n());
-await pg.evaluate(() => document.getElementById("f").blur()); await pg.clock.runFor(61000);
+await pg.evaluate(() => document.getElementById("f").blur()); await adelanta(61000);
 ok(await n() === 4, "al salir del campo vuelve a actualizar: " + await n());
 /* Pestaña oculta. */
 await pg.evaluate(() => { Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true }) });
-await pg.clock.runFor(61000);
+await adelanta(61000);
 ok(await n() === 4, "con la pestaña oculta no actualiza: " + await n());
 await pg.evaluate(() => { Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true }); document.dispatchEvent(new Event("visibilitychange")) });
 ok(await n() === 5, "al volver a la pestaña (pasó más de un minuto) actualiza: " + await n());

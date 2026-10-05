@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { sondear } from "@/lib/copia-offline";
 import { CADA_MS, esDeConsulta, haceCuanto, puedeActualizarSola, sinBoton } from "@/modulos/actualizar";
 
 /**
@@ -39,9 +40,13 @@ export function Actualizar() {
     if (!navigator.onLine) return;
     /* Con un internet que parpadea, pedir datos a medias hace que Next recargue toda la página desde la copia: se espera a que lleve un rato firme. */
     if (Date.now() - corteEn.current < 8000) return;
-    empezar(() => { rr.current.refresh(); });
-    ultima.current = Date.now();
-    pulso((n) => n + 1);
+    /* Y con el wifi prendido pero sin salida a internet («conectado» y mudo) tampoco: se mide antes de pedir. */
+    ultima.current = Date.now();     // ya cuenta como intento: no se piden dos mediciones a la vez
+    void sondear(2500).then((hay) => {
+      if (!hay) return;
+      empezar(() => { rr.current.refresh(); });
+      pulso((n) => n + 1);
+    });
   }, []);
 
   /* El «listo» corto cuando termina. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { CICLO_MIN, edadesGuardadas, elegirPantallas, haySoporte, prepararCopia, todasLasRutas } from "@/lib/copia-offline";
+import { sondear, CICLO_MIN, edadesGuardadas, elegirPantallas, haySoporte, prepararCopia, todasLasRutas } from "@/lib/copia-offline";
 
 /**
  * LA COPIA SE VA HACIENDO SOLA.
@@ -32,6 +32,7 @@ export function PrepararSola({ rutas }: { rutas: string[] }) {
       if (!navigator.onLine || document.visibilityState !== "visible") return;
       corriendo = true;
       try {
+        if (!(await sondear())) { corriendo = false; return }     // «conectado» sin salida a internet: no se intenta copiar
         const edades = await edadesGuardadas();
         /* Se lee en cada ciclo: las pantallas descubiertas en el anterior entran ya a este. */
         const lote = elegirPantallas(todasLasRutas(rutas), edades, Date.now(), location.pathname + location.search);

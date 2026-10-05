@@ -10,7 +10,7 @@ const fallas = []; const ok = (c, m) => { if (!c) fallas.push(m) };
 const lib = buildSync({ entryPoints: [R("src/lib/copia-offline.ts")], bundle: true, write: false, format: "iife", globalName: "Copia", logLevel: "silent" }).outputFiles[0].text;
 writeFileSync(R(".arnes/tmp/_copia-lib.js"), lib);
 
-let version = "v1", lentoMs = 0; const golpes = {};
+let version = "v1", lentoMs = 0, sonda = "ok"; const golpes = {};
 const pagina = (titulo, extra = "") => `<!doctype html><html><head><meta charset="utf-8"><title>${titulo}</title></head><body><h1 id="t">${titulo}</h1>${extra}
 <script src="/_next/static/chunks/lib.js"></script><script>navigator.serviceWorker.register("/sw.js")</script></body></html>`;
 const servidor = http.createServer((q, s) => {
@@ -28,6 +28,7 @@ const servidor = http.createServer((q, s) => {
   if (u.pathname === "/p2") return html(pagina("P2"));
   if (u.pathname === "/vencida") { s.writeHead(307, { location: "/login" }); return s.end() }
   if (u.pathname === "/login") return html(pagina("LOGIN"));
+  if (u.pathname === "/api/version") { if (sonda === "colgada") return; s.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }); return s.end('{"version":"t"}') }
   if (u.pathname === "/api/datos") { s.writeHead(200, { "content-type": "application/json" }); return s.end('{"inventario":123}') }
   html("no existe", 404);
 });
@@ -114,6 +115,13 @@ await pg.goto(B + "/lento");
 dt = Date.now() - t0;
 ok(dt >= 19500 && dt < 24000 && (await titulo()) === "LENTO nuevo", "con un servidor colgado sale la copia a los ~20 s (" + dt + " ms): " + await titulo());
 e = await estado("/lento"); ok(e.copia === true, "la pantalla de la copia lenta se marca como copia");
+/* EL WIFI PRENDIDO SIN SALIDA: el equipo cree que hay internet, pero nada responde. La copia sale en ~3 s, no tras 20 s de pantalla en blanco. */
+lentoMs = 60000; sonda = "colgada"; t0 = Date.now();
+await pg.goto(B + "/lento");
+dt = Date.now() - t0;
+ok(dt >= 2500 && dt < 7000 && (await titulo()) === "LENTO nuevo", "sin salida real la copia sale a los ~3 s, no a los 20 (" + dt + " ms): " + await titulo());
+e = await estado("/lento"); ok(e.copia === true, "y se marca como copia");
+sonda = "ok"; lentoMs = 0;
 
 /* 6 · preparar para auditoría: guarda las pantallas y lo que necesitan */
 const r = await pg.evaluate(async () => { const av = []; const res = await Copia.prepararCopia(["/p1", "/p2", "/no-existe"], (a) => av.push(a.hechas)); return { res, av } });

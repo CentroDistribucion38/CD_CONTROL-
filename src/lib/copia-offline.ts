@@ -174,6 +174,22 @@ export async function estadoDeCopia(ruta: string): Promise<{ copia: boolean; hay
   } catch { return null }
 }
 
+/**
+ * ¿HAY INTERNET DE VERDAD? «navigator.onLine» solo dice que el equipo está conectado a una red
+ * (el wifi puede estar prendido sin salida a internet, y entonces miente). Esto pregunta al
+ * servidor algo diminuto (/api/version, público y sin copia) y espera poco.
+ */
+export async function sondear(esperaMs = 3000): Promise<boolean> {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), esperaMs);
+  try {
+    const r = await fetch("/api/version?s=" + Date.now(), { cache: "no-store", signal: c.signal });
+    return r.ok;
+  } catch { return false }
+  finally { clearTimeout(t) }
+}
+
 /** Cada cuántos minutos, con internet y la app abierta, se revisa qué pantallas renovar. */
 export const CICLO_MIN = 5;
 /** La pantalla que se está mirando se vuelve a guardar si su copia tiene más de esto. */

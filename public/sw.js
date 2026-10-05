@@ -30,6 +30,7 @@ const META = "control-meta";
 const SIN_CONEXION = "/sin-conexion.html";
 /* Con internet se espera de verdad al servidor (hay pantallas pesadas): la copia solo sale antes si el equipo ya sabe que no hay conexión. */
 const ESPERA_MS = 20000;
+const SONDA_MS = 3000;
 const MAX_ESTATICO = 900;
 
 self.addEventListener("install", (evento) => {
@@ -184,12 +185,25 @@ async function pagina(evento) {
     catch { return avisoSinConexion(); }
   }
 
-  /* Hay copia: se espera a la red un rato; si no llega, se muestra la copia y la red sigue por detrás. */
+  /* Hay copia: se espera a la red; si no llega, se muestra la copia y la red sigue por detrás.
+     Una sonda diminuta corre al mismo tiempo: con el wifi prendido pero SIN salida a internet
+     («conectado» y mudo) la sonda falla en pocos segundos y la copia sale YA, sin dejar la pantalla
+     en blanco esperando los 20 s. Si la sonda responde, hay internet: se espera al servidor completo. */
   evento.waitUntil(red.catch(() => {}));
-  const r = await Promise.race([red.catch(() => null), esperar(self.navigator.onLine === false ? 0 : ESPERA_MS).then(() => null)]);
+  const muerta = sonda().then((viva) => (viva ? new Promise(() => {}) : null));
+  const r = await Promise.race([red.catch(() => null), muerta, esperar(self.navigator.onLine === false ? 0 : ESPERA_MS).then(() => null)]);
   if (r) return r;
   await marcar(llave, "copia");
   return hay;
+}
+
+/** ¿Sale algo a internet? Pide /api/version (diminuto, público, siempre fresco) y espera poco. */
+async function sonda() {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), SONDA_MS);
+  try { const r = await fetch("/api/version?sw=" + Date.now(), { cache: "no-store", signal: c.signal }); return r.ok }
+  catch { return false }
+  finally { clearTimeout(t) }
 }
 
 /** Lo que no cambia: primero lo guardado; si no está, se pide y se guarda. */

@@ -2,32 +2,36 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { estadoDeCopia, fechaCorta } from "@/lib/copia-offline";
+import { estadoDeCopia, fechaCorta, sondear } from "@/lib/copia-offline";
 
 /**
  * LA FRANJA QUE DICE «ESTO ES UNA COPIA» —y la que la quita sola—.
  *
- * Con internet no se ve. Sin internet aparece arriba, con la fecha de lo
- * que se está viendo, porque en una auditoría lo peor es que alguien crea
- * que está viendo el inventario de este momento cuando es el de ayer.
+ * Sin internet aparece arriba, con la fecha de lo que se está viendo, porque
+ * en una auditoría lo peor es que alguien crea que está viendo el inventario
+ * de este momento cuando es el de ayer. Con internet no se ve.
  *
- * NADIE TIENE QUE TOCAR NADA PARA VOLVER A LO DE AHORA: en cuanto el equipo
- * detecta internet, la pantalla se recarga sola con lo nuevo. Si la red
- * todavía no está firme y la recarga vuelve a salir de la copia, reintenta
- * cada pocos segundos (hasta REINTENTOS veces); solo si no hay manera
- * aparece la franja con el botón «Ver lo de ahora». Lo único que frena la
- * recarga es que la persona esté escribiendo algo, para no tirárselo.
+ * «SIN INTERNET» SE MIDE, NO SE SUPONE. El navegador dice «conectado» con el
+ * wifi prendido aunque no salga nada a internet, y entonces la pantalla
+ * parpadeaba recargándose una y otra vez hasta que volvía la señal. Aquí
+ * se pregunta de verdad (sondear: un pedido diminuto al servidor) cada pocos
+ * segundos y SOLO mientras hace falta (hay corte o la pantalla es una copia):
+ *
+ *   · si la sonda falla, es un corte: la franja sale y se queda quieta, y NO
+ *     se recarga nada;
+ *   · cuando la sonda responde BUENAS veces seguidas, recién ahí se recarga
+ *     sola con lo de ahora (sin botón), una vez;
+ *   · si ya hay internet firme y la recarga sigue saliendo de la copia, reintenta
+ *     hasta REINTENTOS veces y solo entonces ofrece «Ver lo de ahora».
+ * Lo único que frena la recarga es que la persona esté escribiendo algo.
  */
-const SEGUIR_MS = 1500;
-const ENTRE_MS = 6000;          // con una copia en pantalla y internet, cada cuánto se reintenta
+const TIC_MS = 3000;            // cada cuánto se mide, cuando hace falta
+const MALAS = 2;                // mediciones malas seguidas para dar el corte por real (≈ 3-6 s: un parpadeo no cuenta)
+const BUENAS = 2;               // mediciones buenas seguidas para dar el internet por firme (≈ 3-6 s)
+const FIRME_MS = 8000;          // sin NINGÚN corte en este rato, para dar el internet por firme (con un parpadeo no se levanta la franja)
 const REINTENTOS = 5;
 const VENTANA_MS = 120_000;     // pasado esto, los reintentos vuelven a empezar
 const LLAVE_AUTO = "cd38.autoactualizo";
-/* UN INTERNET QUE SE VA Y VUELVE A CADA RATO («parpadea»): no se reacciona a cada golpe.
-   El corte solo se avisa si dura SIN_MS seguidos, y solo se da por terminado cuando el
-   internet lleva ESTABLE_MS seguidos: ni franja que titila ni recargas en cadena. */
-const SIN_MS = 2500;
-const ESTABLE_MS = 5000;
 
 /** Recarga si todavía quedan intentos. true = la recarga salió. */
 function recargar(): boolean {
@@ -50,7 +54,7 @@ export function AvisoCopia() {
   const pathname = usePathname();
   const [sinRed, setSinRed] = useState(false);
   const [copia, setCopia] = useState<{ copia: boolean; fecha: string | null } | null>(null);
-  const [harta, setHarta] = useState(false);   // se acabaron los intentos y la red no trajo lo nuevo
+  const [harta, setHarta] = useState(false);   // hay internet firme, se acabaron los intentos y la red no trajo lo nuevo
 
   const mirar = useCallback(async () => {
     const e = await estadoDeCopia(location.pathname + location.search);
@@ -58,57 +62,53 @@ export function AvisoCopia() {
   }, []);
 
   const sinRedRef = useRef(false);
+  const esCopia = copia?.copia === true;
+  const corteEn = useRef(0);                 // cuándo fue el último corte que avisó el navegador
+  const esCopiaRef = useRef(false);
+  esCopiaRef.current = esCopia;
+
+  /* Al abrir cada pantalla: ¿qué estoy viendo y hay internet? */
   useEffect(() => {
     sinRedRef.current = !navigator.onLine;
     setSinRed(!navigator.onLine);
+    setHarta(false);
     void mirar();
-    let caida: ReturnType<typeof setTimeout> | undefined;     // espera para dar el corte por real
-    let firme: ReturnType<typeof setTimeout> | undefined;     // espera para dar el internet por firme
-    const sin = () => {
-      if (firme) { clearTimeout(firme); firme = undefined }   // volvió y se fue otra vez: a esperar de nuevo
-      if (caida || sinRedRef.current) { void mirar(); return }
-      caida = setTimeout(() => { caida = undefined; if (!navigator.onLine) { sinRedRef.current = true; setSinRed(true); void mirar() } }, SIN_MS);
-    };
-    const con = () => {
-      if (caida) { clearTimeout(caida); caida = undefined }   // fue un parpadeo: ni se avisó, ni se hace nada
-      if (!sinRedRef.current || firme) return;
-      firme = setTimeout(() => {
-        firme = undefined;
-        if (!navigator.onLine) return;                        // se volvió a ir: el próximo «online» reinicia la espera
-        sinRedRef.current = false; setSinRed(false);
-        if (!escribiendo()) recargar();                       // lo de ahora, sin tocar nada
-      }, ESTABLE_MS);
-    };
-    window.addEventListener("offline", sin);
-    window.addEventListener("online", con);
-    return () => { if (caida) clearTimeout(caida); if (firme) clearTimeout(firme); window.removeEventListener("offline", sin); window.removeEventListener("online", con) };
   }, [mirar, pathname]);
 
-  const esCopia = copia?.copia === true;
+  /* El reloj que mide, solo cuando hace falta. */
+  useEffect(() => {
+    let vivo = true, ocupado = false, buenas = 0, malas = 0;
+    const paso = async () => {
+      if (ocupado || !vivo) return;
+      const hayCorte = sinRedRef.current || !navigator.onLine;
+      if (!hayCorte && !esCopiaRef.current) { buenas = 0; malas = 0; return }   // todo normal: no se gasta ni un pedido
+      ocupado = true;
+      const ok = await sondear();
+      ocupado = false;
+      if (!vivo) return;
+      if (!ok) {
+        buenas = 0; malas++;
+        if (malas >= MALAS && !sinRedRef.current) { sinRedRef.current = true; setSinRed(true); void mirar() }
+        return;
+      }
+      malas = 0; buenas++;
+      if (buenas < BUENAS) return;
+      if (Date.now() - corteEn.current < FIRME_MS) return;   // hubo un corte hace nada: todavía no es firme
+      /* Internet firme. */
+      if (sinRedRef.current) { sinRedRef.current = false; setSinRed(false) }
+      if (esCopiaRef.current && !escribiendo()) { if (!recargar()) setHarta(true) }
+      else if (sinRedRef.current === false && !esCopiaRef.current && hayCorte && !escribiendo()) recargar();   // volvió y lo que se ve pudo quedar viejo
+    };
+    const reloj = setInterval(() => void paso(), TIC_MS);
+    const alCambiar = () => { void mirar() };
+    const alCortar = () => { corteEn.current = Date.now(); void mirar() };
+    window.addEventListener("offline", alCortar);
+    window.addEventListener("online", alCambiar);
+    return () => { vivo = false; clearInterval(reloj); window.removeEventListener("offline", alCortar); window.removeEventListener("online", alCambiar) };
+  }, [mirar]);
 
   /* Con internet y la pantalla ya al día: los intentos se olvidan. */
   useEffect(() => { if (!sinRed && copia?.copia === false) limpiarIntentos() }, [sinRed, copia]);
-
-  /* Con internet y una copia en pantalla: en cuanto lo nuevo está listo, o cada ENTRE_MS, se recarga sola. */
-  useEffect(() => {
-    setHarta(false);
-    if (sinRed || !esCopia) return;
-    const t0 = Date.now();
-    let preguntando = false, hecho = false;
-    const reloj = setInterval(async () => {
-      if (preguntando || hecho || escribiendo()) return;   // una pregunta a la vez: nunca dos recargas
-      preguntando = true;
-      const e = await estadoDeCopia(location.pathname + location.search);
-      preguntando = false;
-      if (hecho) return;
-      const listo = e?.copia === false, cansada = Date.now() - t0 >= ENTRE_MS;
-      if (listo || cansada) {
-        hecho = true; clearInterval(reloj);
-        if (!recargar()) setHarta(true);
-      }
-    }, SEGUIR_MS);
-    return () => { hecho = true; clearInterval(reloj) };
-  }, [sinRed, esCopia, pathname]);
 
   if (!sinRed && !(esCopia && harta)) return null;
 
