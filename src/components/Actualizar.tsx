@@ -28,9 +28,17 @@ export function Actualizar() {
   /* El router va por una referencia: el reloj de abajo no se reinicia aunque el router cambie. */
   const rr = useRef(router);
   rr.current = router;
+  const corteEn = useRef(0);
+  useEffect(() => {
+    const cortado = () => { corteEn.current = Date.now() };
+    window.addEventListener("offline", cortado);
+    return () => window.removeEventListener("offline", cortado);
+  }, []);
   const actualizar = useCallback(() => {
     /* Sin internet no hay nada que pedir: refrescar recargaría la página desde la copia en bucle. */
     if (!navigator.onLine) return;
+    /* Con un internet que parpadea, pedir datos a medias hace que Next recargue toda la página desde la copia: se espera a que lleve un rato firme. */
+    if (Date.now() - corteEn.current < 8000) return;
     empezar(() => { rr.current.refresh(); });
     ultima.current = Date.now();
     pulso((n) => n + 1);

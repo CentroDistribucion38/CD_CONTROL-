@@ -81,6 +81,8 @@ await pg.screenshot({ path: R(".arnes/_ac-sin-internet.png") });
 await pg.click(".sh-refrescar");
 ok(await pg.evaluate(() => window.__refresh) === 0, "sin internet el botón de actualizar no refresca");
 
+/* Cada cambio de red: se deja llegar el evento (tiempo real) y luego corre el reloj de mentira. */
+const red = async (sin, ms) => { await ctx.setOffline(sin); await pg.waitForTimeout(150); await pg.clock.runFor(ms) };
 /* VUELVE EL INTERNET: sin tocar nada, la pantalla carga lo de ahora. */
 await pg.evaluate(() => sessionStorage.clear());
 await pg.goto("http://arnes.local/"); await pg.waitForSelector("main");
@@ -89,12 +91,39 @@ await ctx.setOffline(true);
 await pg.waitForFunction(() => /Sin internet/.test(document.querySelector(".sh-copia")?.textContent ?? ""));
 antes = cargas;
 await ctx.setOffline(false);
-await pg.clock.runFor(1200); await pg.waitForTimeout(400);
+await pg.clock.runFor(5200); await pg.waitForTimeout(400);
 ok(cargas === antes + 1, "al volver el internet la pantalla se recarga SOLA, sin botón (" + antes + " → " + cargas + ")");
 await pg.waitForSelector("main");
 ok(await franja().count() === 0, "y ya no hay franja");
 await pg.click(".sh-refrescar");
 ok(await pg.evaluate(() => window.__refresh) === 1, "con internet otra vez sí refresca");
+/* UN INTERNET QUE PARPADEA: ni franja que titila, ni recargas en cadena. */
+estado = { copia: false, hayCopia: true, fecha: "2026-10-05T18:00:00.000Z" };
+await pg.evaluate(() => sessionStorage.clear());
+await pg.goto("http://arnes.local/"); await pg.waitForSelector("main"); await pg.waitForTimeout(300);
+antes = cargas;
+for (let i = 0; i < 6; i++) {
+  await red(true, 1_000);
+  await red(false, 1_000);
+}
+await pg.clock.runFor(8_000); await pg.waitForTimeout(300);
+ok(await franja().count() === 0, "cortes de 1 s seguidos no muestran la franja (no titila)");
+ok(cargas === antes, "y no recarga nada (" + (cargas - antes) + ")");
+/* un corte de verdad con parpadeos adentro: la franja sale y se queda quieta; al volver FIRME recarga UNA vez */
+await red(true, 3_000); await pg.waitForSelector(".sh-copia");
+let vistas = 0;
+for (let i = 0; i < 5; i++) {
+  await red(false, 1_500);
+  await red(true, 1_500);
+  if (await franja().count() === 1) vistas++;
+}
+ok(vistas === 5 && cargas === antes, "con parpadeos adentro la franja no desaparece ni se recarga (" + vistas + " / " + (cargas - antes) + ")");
+await red(false, 4_000); await pg.waitForTimeout(200);
+ok(cargas === antes, "con 4 s de internet todavía no recarga (espera a que sea firme)");
+await pg.clock.runFor(1_600); await pg.waitForTimeout(500);
+ok(cargas === antes + 1, "con 5 s firmes recarga UNA sola vez (" + (cargas - antes) + ")");
+await pg.waitForSelector("main");
+
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
 console.log("✓ Franja de copia: aparece sin internet o con pantalla de copia, dice de cuándo es, ofrece ver lo de ahora al volver la señal, y el botón de actualizar no recarga sin internet.");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { estadoDeCopia, fechaCorta } from "@/lib/copia-offline";
 
@@ -23,6 +23,11 @@ const ENTRE_MS = 6000;          // con una copia en pantalla y internet, cada cu
 const REINTENTOS = 5;
 const VENTANA_MS = 120_000;     // pasado esto, los reintentos vuelven a empezar
 const LLAVE_AUTO = "cd38.autoactualizo";
+/* UN INTERNET QUE SE VA Y VUELVE A CADA RATO («parpadea»): no se reacciona a cada golpe.
+   El corte solo se avisa si dura SIN_MS seguidos, y solo se da por terminado cuando el
+   internet lleva ESTABLE_MS seguidos: ni franja que titila ni recargas en cadena. */
+const SIN_MS = 2500;
+const ESTABLE_MS = 5000;
 
 /** Recarga si todavía quedan intentos. true = la recarga salió. */
 function recargar(): boolean {
@@ -52,19 +57,31 @@ export function AvisoCopia() {
     setCopia(e ? { copia: e.copia, fecha: e.fecha } : null);
   }, []);
 
+  const sinRedRef = useRef(false);
   useEffect(() => {
+    sinRedRef.current = !navigator.onLine;
     setSinRed(!navigator.onLine);
     void mirar();
-    let espera: ReturnType<typeof setTimeout> | undefined;
-    const sin = () => { setSinRed(true); void mirar() };
-    /* Volvió el internet: un segundo para que la conexión se asiente y se recarga SOLA. */
+    let caida: ReturnType<typeof setTimeout> | undefined;     // espera para dar el corte por real
+    let firme: ReturnType<typeof setTimeout> | undefined;     // espera para dar el internet por firme
+    const sin = () => {
+      if (firme) { clearTimeout(firme); firme = undefined }   // volvió y se fue otra vez: a esperar de nuevo
+      if (caida || sinRedRef.current) { void mirar(); return }
+      caida = setTimeout(() => { caida = undefined; if (!navigator.onLine) { sinRedRef.current = true; setSinRed(true); void mirar() } }, SIN_MS);
+    };
     const con = () => {
-      setSinRed(false);
-      espera = setTimeout(() => { if (navigator.onLine && !escribiendo()) recargar() }, 1000);
+      if (caida) { clearTimeout(caida); caida = undefined }   // fue un parpadeo: ni se avisó, ni se hace nada
+      if (!sinRedRef.current || firme) return;
+      firme = setTimeout(() => {
+        firme = undefined;
+        if (!navigator.onLine) return;                        // se volvió a ir: el próximo «online» reinicia la espera
+        sinRedRef.current = false; setSinRed(false);
+        if (!escribiendo()) recargar();                       // lo de ahora, sin tocar nada
+      }, ESTABLE_MS);
     };
     window.addEventListener("offline", sin);
     window.addEventListener("online", con);
-    return () => { if (espera) clearTimeout(espera); window.removeEventListener("offline", sin); window.removeEventListener("online", con) };
+    return () => { if (caida) clearTimeout(caida); if (firme) clearTimeout(firme); window.removeEventListener("offline", sin); window.removeEventListener("online", con) };
   }, [mirar, pathname]);
 
   const esCopia = copia?.copia === true;

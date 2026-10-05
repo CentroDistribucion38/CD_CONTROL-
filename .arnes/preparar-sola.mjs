@@ -68,7 +68,21 @@ ok(pedidas.join() === "/inicio,/perfil,/inventario/tablero", "con copias de más
 pedidas = []; await ctx.setOffline(true); await pg.clock.runFor(5 * 60_000 + 1000); await esperaFin();
 ok(pedidas.length === 0, "sin internet no intenta");
 await ctx.setOffline(false); await pg.evaluate(() => window.dispatchEvent(new Event("online"))); await pg.clock.runFor(4_000); await esperaFin();
-ok(pedidas.length > 0, "al volver el internet retoma sola: " + pedidas);
+ok(pedidas.length === 0, "recién vuelve el internet espera a que sea firme (no arranca a los 4 s): " + pedidas);
+await pg.clock.runFor(8_000); await esperaFin();
+ok(pedidas.length > 0, "al llevar un rato firme el internet retoma sola: " + pedidas);
+
+/* Un internet que PARPADEA: no arranca a cada «online», solo cuando lleva un rato seguido. */
+await pg.evaluate(async () => { const c = await caches.open("control-paginas"); for (const k of await c.keys()) await c.delete(k) });
+pedidas = []; await pg.clock.runFor(60_000); await esperaFin(); pedidas = [];
+for (let i = 0; i < 6; i++) {
+  await ctx.setOffline(true); await pg.evaluate(() => window.dispatchEvent(new Event("offline"))); await pg.clock.runFor(1_500);
+  await ctx.setOffline(false); await pg.evaluate(() => window.dispatchEvent(new Event("online"))); await pg.clock.runFor(2_000);
+}
+await esperaFin();
+ok(pedidas.length === 0, "parpadeando 6 veces no pide nada: " + pedidas);
+await pg.clock.runFor(12_000); await esperaFin();
+ok(pedidas.length > 0, "ya firme, pide lo que falta: " + pedidas);
 
 /* Si todo falla no queda anotada una preparación. */
 falla = true; await pg.evaluate(() => { localStorage.clear(); return caches.delete("control-paginas") });

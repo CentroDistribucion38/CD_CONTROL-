@@ -15,6 +15,8 @@ import { CICLO_MIN, edadesGuardadas, elegirPantallas, haySoporte, prepararCopia,
  */
 const PRIMERA_MS = 4_000;
 const AL_VOLVER_MS = 3_000;
+/* Con un internet que parpadea no se arranca a copiar a cada «online»: hay que llevar este rato seguido con señal. */
+const FIRME_MS = 8_000;
 
 export function PrepararSola({ rutas }: { rutas: string[] }) {
   const llave = rutas.join("|");
@@ -41,13 +43,19 @@ export function PrepararSola({ rutas }: { rutas: string[] }) {
 
     luego(PRIMERA_MS);
     const reloj = setInterval(() => void ciclo(), CICLO_MIN * 60_000);
-    const alVolver = () => luego(AL_VOLVER_MS);
+    let firme: ReturnType<typeof setTimeout> | undefined;
+    const alVolver = () => {
+      if (firme) clearTimeout(firme);
+      firme = setTimeout(() => { firme = undefined; if (navigator.onLine) luego(AL_VOLVER_MS) }, FIRME_MS);
+    };
+    const alIrse = () => { if (firme) { clearTimeout(firme); firme = undefined } };
     const alVer = () => { if (document.visibilityState === "visible") luego(AL_VOLVER_MS) };
     window.addEventListener("online", alVolver);
+    window.addEventListener("offline", alIrse);
     document.addEventListener("visibilitychange", alVer);
     return () => {
-      vivo = false; clearInterval(reloj); timers.forEach(clearTimeout);
-      window.removeEventListener("online", alVolver); document.removeEventListener("visibilitychange", alVer);
+      vivo = false; clearInterval(reloj); timers.forEach(clearTimeout); if (firme) clearTimeout(firme);
+      window.removeEventListener("online", alVolver); window.removeEventListener("offline", alIrse); document.removeEventListener("visibilitychange", alVer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [llave]);
