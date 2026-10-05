@@ -868,10 +868,3 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   font: inherit; font-weight: 600; cursor: pointer;
 }
 
-/* LA FRANJITA «GUARDANDO COPIA»: abajo al centro, rectangular, discreta; no tapa el botón de actualizar (derecha) ni el menú (izquierda). */
-.sh .sh-chipcopia {
-  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 40;
-  max-width: calc(100vw - 32px); padding: 8px 14px; border-radius: 0;
-  background: var(--sh-tinta); color: #fff; font-size: 12.5px; line-height: 1.35; text-align: center;
-  border-top: 2px solid var(--sh-rojo); box-shadow: 0 2px 10px rgba(0,0,0,.25);
-}

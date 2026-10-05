@@ -559,6 +559,8 @@ export const MODULOS: Modulo[] = [
       { nombre: "Inicio", ruta: "/admin/inicio" },
       { nombre: "Roles", ruta: "/admin/roles" },
       { nombre: "Usuarios", ruta: "/admin/usuarios" },
+      /* QUIÉN USA LA APP: después de la gente, antes de lo destructivo. */
+      { nombre: "Uso", ruta: "/admin/uso" },
       /* AL FINAL: borrar es lo último que se hace, y lo más raro. */
       { nombre: "Borrar datos", ruta: "/admin/datos" },
     ],

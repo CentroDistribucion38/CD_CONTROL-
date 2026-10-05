@@ -37,9 +37,9 @@ ok(pedidas.length === 0, "no arranca de golpe");
 await pg.clock.runFor(4_000); await esperaFin();
 ok([...pedidas].sort().join() === [...TODAS].sort().join(), "a los pocos segundos pide todas las del menú: " + pedidas);
 
-ok(/Copia lista/.test(await pg.locator(".sh-chipcopia").innerText()), "al terminar la primera pasada avisa «Copia lista»: " + await pg.locator(".sh-chipcopia").count());
+ok(await pg.locator(".sh-chipcopia").count() === 0, "la copia no muestra ningún mensaje");
 await pg.clock.runFor(7_000);
-ok(await pg.locator(".sh-chipcopia").count() === 0, "y el aviso se quita solo");
+ok(await pg.locator(".sh-chipcopia").count() === 0, "ni después");
 
 /* Descubre pantallas siguiendo los enlaces de las guardadas, y las pide en el siguiente ciclo. */
 await pg.clock.runFor(5 * 60_000 + 1000); await esperaFin();

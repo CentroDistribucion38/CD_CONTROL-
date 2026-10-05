@@ -27,10 +27,10 @@ const hex = (h: string) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16))
 const aHex = (c: number[]) => "FF" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("").toUpperCase();
 const aclarar = (h: string, t: number) => aHex(hex(h).map((c) => 255 - (255 - c) * t));
 const oscurecer = (h: string, k: number) => aHex(hex(h).map((c) => c * k));
-const BLANCO = "FFFFFFFF", VERDE = "FF00B050", GRIS_FIJO = "FF8A8E8A";
+export const BLANCO = "FFFFFFFF", VERDE = "FF00B050", GRIS_FIJO = "FF8A8E8A";
 
-type Paleta = { TINTA: string; BANDA: string; GRIS: string; LINEA: string; FONDO: string; PAGINA: string; SUAVE: string; HONDO: string };
-function paleta(c?: ColoresLibro): Paleta {
+export type Paleta = { TINTA: string; BANDA: string; GRIS: string; LINEA: string; FONDO: string; PAGINA: string; SUAVE: string; HONDO: string };
+export function paleta(c?: ColoresLibro): Paleta {
   const ok = (x?: string) => !!x && /^[0-9a-f]{6}$/i.test(x);
   const t = ok(c?.tinta) ? c!.tinta : MARCA.tinta, b = ok(c?.banda) ? c!.banda : MARCA.banda;
   return {
@@ -39,10 +39,10 @@ function paleta(c?: ColoresLibro): Paleta {
     SUAVE: aclarar(b, 0.22), HONDO: oscurecer(b, 0.45),
   };
 }
-const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
-const letra = (size: number, color: string, bold = false, extra: Partial<ExcelJS.Font> = {}): Partial<ExcelJS.Font> =>
+export const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+export const letra = (size: number, color: string, bold = false, extra: Partial<ExcelJS.Font> = {}): Partial<ExcelJS.Font> =>
   ({ name: "Calibri", size, bold, color: { argb: color }, ...extra });
-const MONO = "Consolas";
+export const MONO = "Consolas";
 /** Dónde va una imagen, EN PÍXELES desde la esquina de una celda. Con
  *  columnas fraccionarias exceljs mide el corrimiento en una unidad que
  *  no es la de Excel y la imagen queda pegada a la izquierda («el cuadro
@@ -53,7 +53,7 @@ const en = (col: number, dx: number, fila: number, dy: number) =>
 /** Ancho en píxeles de una columna de Excel (Calibri 11). */
 const pxCol = (ancho: number) => Math.trunc(ancho * 7 + 5);
 const pxFila = (pt: number) => pt * 4 / 3;
-const hoy = (d: Date) => d.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
+export const hoy = (d: Date) => d.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 /** El QR de la entrada como GIF: exceljs lo pega sin canvas, en el
  *  navegador y en el arnés. */
@@ -63,7 +63,7 @@ function qr(texto: string): string {
 }
 
 /** Banda, sello, título y subtítulo de una hoja. B..(ancho) */
-function cabecera(h: ExcelJS.Worksheet, P: Paleta, sello: number | null, titulo: string, sub: string, ancho: number) {
+export function cabecera(h: ExcelJS.Worksheet, P: Paleta, sello: number | null, titulo: string, sub: string, ancho: number) {
   h.views = [{ showGridLines: false }];
   h.getRow(1).height = 6;
   for (let c = 1; c <= ancho; c++) h.getCell(1, c).fill = relleno(P.BANDA);
