@@ -168,6 +168,23 @@ export function entradaDe(m: Modulo, p: Permisos): string {
 }
 
 /** Las secciones de un módulo que esta persona puede ver. */
+/**
+ * LAS PANTALLAS QUE EL EQUIPO GUARDA PARA ABRIR SIN INTERNET: la portada de cada
+ * módulo que esta persona ve, su entrada, sus ramas y las secciones que puede ver.
+ * (Las pantallas a las que se llega desde otras se descubren solas siguiendo
+ * los enlaces: ver src/lib/copia-offline.ts.)
+ */
+export function rutasParaCopia(p: Permisos): string[] {
+  const r: string[] = [];
+  for (const m of p.modulos) {
+    r.push(m.ruta);
+    if (m.entrada) r.push(m.entrada);
+    for (const x of m.ramas ?? []) r.push(x.ruta);
+    for (const s of m.secciones) if (p.puedeVer(s.ruta)) r.push(s.ruta);
+  }
+  return [...new Set(r)];
+}
+
 export function seccionesVisibles(m: Modulo, p: Permisos) {
   return m.secciones.filter((s) => p.puedeVer(s.ruta));
 }

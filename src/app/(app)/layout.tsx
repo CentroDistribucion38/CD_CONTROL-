@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { BarraSuperior } from "@/components/BarraSuperior";
 import { Marco } from "@/components/Marco";
-import { misPermisos } from "@/lib/permisos";
+import { misPermisos, rutasParaCopia } from "@/lib/permisos";
 import { ClaveProvisional } from "@/components/ClaveProvisional";
 import { RecordarTema } from "@/components/RecordarTema";
 import { AvisoCopia } from "@/components/AvisoCopia";
@@ -89,7 +89,7 @@ export default async function AppLayout({
       <RecordarTema tema={String(perfil?.tema ?? "gris")} />
       <BarraSuperior usuario={nombre} turno={turnoActual()} />
       <AvisoCopia />
-      <PrepararSola rutas={[...new Set(permitidas)]} />
+      <PrepararSola rutas={rutasParaCopia(permisos)} />
       <Marco permitidas={permitidas}>{children}</Marco>
     </div>
   );

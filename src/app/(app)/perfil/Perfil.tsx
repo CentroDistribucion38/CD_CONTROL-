@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario } from "@/lib/auth";
 import { Eye, EyeOff } from "lucide-react";
-import { borrarCopia, fechaCorta, haySoporte, prepararCopia, rutasGuardadas, ultimaPreparacion } from "@/lib/copia-offline";
+import { borrarCopia, fechaCorta, haySoporte, prepararCopia, rutasGuardadas, todasLasRutas, ultimaPreparacion } from "@/lib/copia-offline";
 
 type Modulo = { id: string; nombre: string; ruta: string };
 
@@ -814,15 +814,15 @@ function SinInternet({ rutas }: { rutas: string[] }) {
   const [avance, setAvance] = useState<{ hechas: number; total: number } | null>(null);
   const [fallidas, setFallidas] = useState<string[]>([]);
   const [guardadas, setGuardadas] = useState<string[] | null>(null);
-  const todas = ["/inicio", "/perfil", ...rutas];
+  const todas = todasLasRutas(rutas);
 
   /* El soporte y lo guardado solo se conocen en el navegador. Lo guardado se lee de la caché: es lo que de verdad abrirá sin internet. */
   useEffect(() => { setSoporte(haySoporte()); setUltima(ultimaPreparacion()); void rutasGuardadas().then(setGuardadas) }, []);
 
   async function preparar() {
     setFallidas([]);
-    setAvance({ hechas: 0, total: rutas.length + 2 });
-    const r = await prepararCopia(["/inicio", "/perfil", ...rutas], setAvance);
+    setAvance({ hechas: 0, total: todasLasRutas(rutas).length });
+    const r = await prepararCopia(todasLasRutas(rutas), setAvance);
     setFallidas(r.fallidas);
     setUltima(ultimaPreparacion());
     setGuardadas(await rutasGuardadas());

@@ -20,7 +20,9 @@ await pg.route("http://localhost:4398/**", (r) => {
   const u = new URL(r.request().url());
   if (u.pathname === "/") return r.fulfill({ contentType: "text/html", body: `<!doctype html><body><div id="r"></div><script>${js}<\/script></body>` });
   if (r.request().headers()["x-preparar"]) pedidas.push(u.pathname);
-  return falla ? r.fulfill({ status: 500, body: "no" }) : r.fulfill({ contentType: "text/html", body: "<html>pantalla</html>" });
+  /* El inicio trae el menú: enlaces a otras pantallas (una nueva, un archivo, un id suelto, la API). */
+  const enlaces = u.pathname === "/inicio" ? '<a href="/quiebra">Quiebra</a><a href="/quiebra/tablero/">T</a><a href="/api/x">api</a><a href="/logo.png">l</a><a href="/roturas/salida/6f1c2d3e-aaaa-bbbb-cccc-111122223333">id</a><a href="/inventario/tablero">ya</a>' : "";
+  return falla ? r.fulfill({ status: 500, body: "no" }) : r.fulfill({ contentType: "text/html", body: "<html>pantalla" + enlaces + "</html>" });
 });
 const TODAS = ["/inicio", "/perfil", "/inventario/tablero", "/inventario/fiscal"];
 const arranca = async () => { pedidas = []; await pg.goto("http://localhost:4398/"); await pg.waitForSelector("#r", { state: "attached" }) };
@@ -34,6 +36,14 @@ await arranca(); await vaciar(); await pg.clock.runFor(2_000);
 ok(pedidas.length === 0, "no arranca de golpe");
 await pg.clock.runFor(4_000); await esperaFin();
 ok([...pedidas].sort().join() === [...TODAS].sort().join(), "a los pocos segundos pide todas las del menú: " + pedidas);
+
+/* Descubre pantallas siguiendo los enlaces de las guardadas, y las pide en el siguiente ciclo. */
+await pg.clock.runFor(5 * 60_000 + 1000); await esperaFin();
+await pg.evaluate(async (rs) => { const c = await caches.open("control-paginas"); for (const r of rs) await c.put(location.origin + r, new Response("x", { headers: { "x-copia-fecha": new Date().toISOString() } })) }, TODAS);
+pedidas = []; await pg.clock.runFor(5 * 60_000 + 1000); await esperaFin();
+ok([...pedidas].sort().join() === "/quiebra,/quiebra/tablero", "siguiendo los enlaces del inicio descubre /quiebra y /quiebra/tablero, y no la API, ni archivos, ni ids: " + pedidas);
+ok(JSON.parse(await pg.evaluate(() => localStorage.getItem("cd38.copia.rutas"))).includes("/quiebra"), "las descubiertas quedan anotadas");
+await pg.evaluate(() => localStorage.removeItem("cd38.copia.rutas"));   // para los demás casos
 
 /* Todo guardado y reciente: no vuelve a pedir nada, ni pasados los minutos. */
 await arranca(); await vaciar(); await guardar(TODAS, 1); await pg.clock.runFor(60_000); await esperaFin();

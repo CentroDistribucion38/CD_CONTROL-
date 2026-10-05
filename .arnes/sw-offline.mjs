@@ -136,6 +136,11 @@ ok(await hayCache("control-estatico"), "lo estático (sin datos de nadie) se con
   ok(C.elegirPantallas(T, hace(1, 2, 3, 4, 1, 2), ahora, "/a").length === 0, "todo reciente: no pide nada");
   ok(C.elegirPantallas(T, hace(1, 2, 8, 4, 1, 2), ahora, "/a").join() === "/a", "la pantalla que se mira se renueva a los 5 min");
   ok(C.elegirPantallas(T, hace(90, 40, 31, 20, 10, 60), ahora, null).join() === "/inicio,/d,/perfil", "las demás: de a 3, las más viejas primero (y solo pasados 30 min): " + C.elegirPantallas(T, hace(90, 40, 31, 20, 10, 60), ahora, null)) }
+/* 7c · qué enlaces valen la pena guardar */
+{ const C = new Function(lib + "; return Copia")();
+  const h = '<a href="/quiebra">a</a><a href="/quiebra/tablero/">b</a><a href="/api/x">c</a><a href="/logo.png">d</a><a href="/x/6f1c2d3e-aaaa-bbbb-cccc-111122223333">e</a><a href="https://otro.com/z">f</a><a href="/sider/viaje/123456">g</a><a href="/login">h</a><a href="/roturas/salida/analisis#x">i</a><a href="/inventario/corte?c=1">j</a>';
+  ok(C.enlacesDe(h).join() === "/quiebra,/quiebra/tablero,/roturas/salida/analisis,/inventario/corte", "enlacesDe: pantallas sí; API, archivos, ids, otros sitios y login no: " + C.enlacesDe(h)) }
+
 /* 8 · recursosDe */
 const rec = new Function(lib + "; return Copia")().recursosDe(('<script src="/_next/static/chunks/a-1.js"></script>{"x":"static/chunks/app/(app)/inventario/page-9f.js","y":"static/css/b.css"} static/media/f.woff2'));
 ok(rec.join() === "/_next/static/chunks/a-1.js,/_next/static/chunks/app/(app)/inventario/page-9f.js,/_next/static/css/b.css,/_next/static/media/f.woff2", "recursosDe encuentra paquetes en el HTML y en el flujo de datos: " + rec);

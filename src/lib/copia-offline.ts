@@ -6,6 +6,9 @@
  */
 
 export const LLAVE_PREPARADA = "cd38.copia.preparada";
+/** Las pantallas que se descubrieron siguiendo los enlaces de las ya guardadas (menús, tarjetas, pestañas…). */
+export const LLAVE_RUTAS = "cd38.copia.rutas";
+const MAX_DESCUBIERTAS = 80;
 const PAGINAS = "control-paginas";
 const META = "control-meta";
 
@@ -18,6 +21,7 @@ export async function borrarCopia(): Promise<void> {
   try {
     if ("caches" in window) { await caches.delete(PAGINAS); await caches.delete(META) }
     localStorage.removeItem(LLAVE_PREPARADA);
+    localStorage.removeItem(LLAVE_RUTAS);
   } catch { /* nada que borrar o sin permiso: da igual */ }
 }
 
@@ -39,6 +43,47 @@ export function recursosDe(html: string): string[] {
   return [...hallados];
 }
 
+/** ¿Esta dirección es una pantalla de la app que vale la pena guardar? Sin archivos, sin API, sin ids sueltos (un viaje, un registro). */
+export function esPantallaGuardable(ruta: string): boolean {
+  if (!ruta.startsWith("/") || ruta.startsWith("//") || ruta === "/" || ruta.length > 90) return false;
+  if (/^\/(api|auth|login|_next|__sw)(\/|$)/.test(ruta) || ruta === "/sw.js" || ruta === "/manifest.webmanifest") return false;
+  if (/\.[A-Za-z0-9]{2,5}$/.test(ruta) || /[[\]%?#]/.test(ruta)) return false;
+  return !ruta.split("/").some((seg) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(seg) || /^\d{3,}$/.test(seg));
+}
+
+/** Los enlaces internos que trae una pantalla (los del menú, las tarjetas, las pestañas): son las otras pantallas a las que se puede llegar tocando. */
+export function enlacesDe(html: string): string[] {
+  const hallados = new Set<string>();
+  const re = /href="(\/[^"]*)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    /* Se quita lo que va después de ? o # y la barra final: «/inventario/corte?c=1#x» es la pantalla «/inventario/corte». */
+    const r = m[1].split(/[?#]/)[0].replace(/\/$/, "") || "/";
+    if (esPantallaGuardable(r)) hallados.add(r);
+  }
+  return [...hallados];
+}
+
+export function rutasDescubiertas(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(LLAVE_RUTAS) ?? "[]");
+    return Array.isArray(v) ? v.filter((r): r is string => typeof r === "string" && esPantallaGuardable(r)) : [];
+  } catch { return [] }
+}
+
+/** Anota las pantallas nuevas que se descubrieron; hay un tope para que una lista enorme no se vuelva la app entera. */
+export function recordarRutas(nuevas: string[]): void {
+  try {
+    const todas = [...new Set([...rutasDescubiertas(), ...nuevas.filter(esPantallaGuardable)])].slice(0, MAX_DESCUBIERTAS);
+    localStorage.setItem(LLAVE_RUTAS, JSON.stringify(todas));
+  } catch { /* sin almacenamiento: se descubren de nuevo la próxima vez */ }
+}
+
+/** Todo lo que hay que tener guardado: lo del menú de esta persona más lo que se descubrió. */
+export function todasLasRutas(base: string[]): string[] {
+  return [...new Set(["/inicio", "/perfil", ...base, ...rutasDescubiertas()])];
+}
+
 export type Avance = { hechas: number; total: number };
 export type Resultado = { guardadas: string[]; fallidas: string[]; fecha: string };
 
@@ -58,6 +103,7 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
   const unicas = [...new Set(rutas)];
   const guardadas: string[] = [], fallidas: string[] = [];
   const recursos = new Set<string>();
+  const enlaces = new Set<string>();
   let hechas = 0;
   const total = unicas.length;
   alAvanzar({ hechas, total });
@@ -69,7 +115,12 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
       try {
         const r = await fetch(ruta, { credentials: "same-origin", headers: { Accept: "text/html", "x-preparar": "1" } });
         if (!esPantalla(r)) fallidas.push(ruta);
-        else { guardadas.push(ruta); for (const u of recursosDe(await r.text())) recursos.add(u) }
+        else {
+          guardadas.push(ruta);
+          const html = await r.text();
+          for (const u of recursosDe(html)) recursos.add(u);
+          for (const e of enlacesDe(html)) enlaces.add(e);
+        }
       } catch { fallidas.push(ruta) }
       alAvanzar({ hechas: ++hechas, total });
     }
@@ -83,6 +134,7 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
     while (k < lista.length) { try { await fetch(lista[k++]) } catch { /* uno que falle no tumba al resto */ } }
   }));
 
+  recordarRutas([...enlaces]);
   const fecha = new Date().toISOString();
   /* Solo se anota como «preparada» si algo quedó guardado: una pasada en la que todo falló no debe frenar el siguiente intento. */
   if (guardadas.length > 0) {
