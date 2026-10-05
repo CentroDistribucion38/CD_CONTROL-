@@ -36,6 +36,9 @@ ok(C.every((c) => !/oculto/.test(c.nombre)) && !C.some((c) => c.ruta === "/sider
   ok(a.nueva === true && a.ruta === "/inventario/corte", "/o → ventana nueva: " + JSON.stringify(a));
   ok(b.nueva === false && c.nueva === false, "/n y sin prefijo → esta ventana");
   ok(d.nueva === true, "Shift+Enter equivale a /o");
+  /* Con «otra pestaña» por defecto (como queda la barra): Enter abre otra, Shift+Enter esta, /n esta, /o otra. */
+  const D = (t, inv = false) => interpretar(t, C, null, inv, true);
+  ok(D("INV-CORTE").nueva === true && D("INV-CORTE", true).nueva === false && D("/n INV-CORTE").nueva === false && D("/o INV-CORTE").nueva === true, "por defecto otra pestaña: " + [D("INV-CORTE").nueva, D("INV-CORTE", true).nueva, D("/n INV-CORTE").nueva, D("/o INV-CORTE").nueva]);
   ok(interpretar("/o", C).nueva === true && interpretar("/o", C).ruta === "/inicio", "/o solo → otra ventana en la portada");
   ok(parsear("/O  inv-corte").consulta === "inv-corte" && parsear("/otro").prefijo === false, "el prefijo es /o o /n seguido de espacio");
 }
