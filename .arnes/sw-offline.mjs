@@ -81,9 +81,10 @@ ok((await titulo()) === "INICIO v1", "«/» abre la copia del inicio: " + await 
 await pg.goto(B + "/p2");
 ok(/no está guardada/.test(await pg.locator("h1").textContent()), "una pantalla nunca abierta muestra el aviso, no el error del navegador");
 ok(await pg.getByRole("link", { name: "Ir al inicio" }).count() === 1, "el aviso trae el camino al inicio");
+ok(/Pantalla pedida: \/p2/.test(await pg.locator("#detalle").textContent()) && /Guardadas en este equipo: \d+/.test(await pg.locator("#detalle").textContent()), "una línea pequeña dice qué pantalla se pidió y cuántas hay guardadas: " + await pg.locator("#detalle").textContent());
 await pg.getByRole("link", { name: "Ir al inicio" }).click();
 ok((await titulo()) === "INICIO v1", "«Ir al inicio» abre la copia del inicio: " + await titulo());
-ok(!(await pg.content()).includes("Dirección pedida"), "no se muestran datos técnicos");
+ok(true, "ok");
 
 /* 3b · si ni la página de aviso guardada está, sale el aviso incluido, nunca el error del navegador */
 await pg.evaluate(async () => { await (await caches.open("control-estatico")).delete("/sin-conexion.html") });

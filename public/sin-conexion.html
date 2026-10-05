@@ -12,6 +12,7 @@
   main { max-width: 520px; background: #fff; border: 1px solid #d5dce5; border-top: 4px solid #e0123b; padding: 28px 28px 24px; }
   h1 { font-size: 22px; line-height: 1.2; margin-bottom: 10px; }
   p { font-size: 15px; line-height: 1.5; color: #3d4c5f; margin-bottom: 12px; }
+  .peq { font-size: 11.5px; color: #8a96a6; margin-top: 4px; }
   .botones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
   a, button { font: inherit; font-weight: 600; font-size: 14px; min-height: 44px; padding: 0 18px; display: inline-flex; align-items: center;
               border-radius: 0; cursor: pointer; text-decoration: none; }
@@ -24,10 +25,20 @@
   <h1>Sin conexión, y esta pantalla no está guardada</h1>
   <p>Si pierdes la conexión puedes seguir viendo <b>lo guardado hasta tu última conexión</b>. Lo que no se puede hacer sin internet es realizar cambios.</p>
   <p>Esta pantalla todavía no está guardada en este equipo: se guarda sola la próxima vez que la abras con internet.</p>
+  <p class="peq" id="detalle"></p>
   <div class="botones">
     <a class="p" href="/inicio">Ir al inicio</a>
     <button class="s" type="button" onclick="location.reload()">Reintentar</button>
   </div>
 </main>
+<script>(function () {
+  var el = document.getElementById("detalle");
+  if (!el) return;
+  var ruta = location.pathname + location.search;
+  if (!window.caches) { el.textContent = "Pantalla pedida: " + ruta; return }
+  caches.open("control-paginas").then(function (c) { return c.keys() }).then(function (ks) {
+    el.textContent = "Pantalla pedida: " + ruta + "  ·  Guardadas en este equipo: " + ks.length;
+  }).catch(function () { el.textContent = "Pantalla pedida: " + ruta });
+})()</script>
 </body>
 </html>
