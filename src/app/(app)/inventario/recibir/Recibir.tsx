@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BuscarEnLista } from "@/components/BuscarEnLista";
 import { useAvisos } from "@/components/Aviso";
+import { VisorPdf } from "@/components/VisorPdf";
 import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
 import { fechaCorta, limiteDespacho, rotulosPdf, sumarDias,
          type Rotulo, type TipoRecibo } from "@/modulos/inventario/rotulo";
@@ -105,6 +106,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
   const [tipo, setTipo] = useState<TipoRecibo>("producto");
   const [f, setF] = useState(VACIO);
   const [sacando, setSacando] = useState(false);
+  const [pdfListo, setPdfListo] = useState<{ url: string; n: number; nombre: string } | null>(null);
   const [avisar, avisos] = useAvisos();
 
   /* LOS MATERIALES DEL TIPO QUE SE ESTÁ RECIBIENDO. El maestro tiene
@@ -249,14 +251,13 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
            impresas desde una prueba apunten a producción, o al revés. */
         base: typeof window !== "undefined" ? window.location.origin : null,
       });
-      /* SE ABRE PARA IMPRIMIR, no se descarga: lo que se quiere es
-         mandarlo a la impresora, y un archivo en Descargas es un paso
-         más y una carpeta que se llena de rótulos viejos. */
+      /* SE VE DENTRO DE LA PANTALLA (VisorPdf) y se imprime desde ahí: una pestaña nueva la bloquea la app
+         instalada y el celular, y el rótulo no se veía. */
       pdf.autoPrint();
-      const url = pdf.output("bloburl");
-      window.open(url, "_blank");
+      const url = String(pdf.output("bloburl"));
+      setPdfListo((antes) => { if (antes) URL.revokeObjectURL(antes.url); return { url, n: estibas, nombre: `${mat.sku} · ${mat.nombre}` } });
       avisar.bien(estibas === 1
-        ? "Tarjeta lista. Se abrió para imprimir."
+        ? "Tarjeta lista."
         : `${estibas} tarjetas listas, numeradas de la 1 a la ${estibas}.`);
     } catch (e) {
       avisar.mal("No se pudo armar la tarjeta: " + ((e as Error).message ?? e));
@@ -268,6 +269,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
   return (
     <>
       {avisos}
+      {pdfListo && <VisorPdf url={pdfListo.url} titulo={pdfListo.nombre} cantidad={pdfListo.n} onCerrar={() => { URL.revokeObjectURL(pdfListo.url); setPdfListo(null) }} />}
 
       {/* ---------- QUÉ ENTRA ---------- */}
       <div className="rc-tipo" role="group" aria-label="Qué se recibe">

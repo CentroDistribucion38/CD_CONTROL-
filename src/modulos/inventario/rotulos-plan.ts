@@ -66,6 +66,10 @@ export function bloquesDelPlan(
 /** La llave de un bloque, igual para el plan y para lo impreso. */
 export const llaveBloque = (b: { fecha: string; turno: number; tren: string; sap: string }) => `${b.fecha}|${b.turno}|${b.tren.toUpperCase()}|${b.sap}`;
 
+/** El folio de la estiba `n` de un bloque. Es el MISMO armado de la función de la base (rotulos_plan_imprimir). */
+export const folioDe = (b: { sap: string; fecha: string; tren: string; turno: number }, n: number) =>
+  `${b.sap}-${b.fecha.replace(/-/g, "")}-L${b.tren.toUpperCase().replace(/^TREN-?/, "")}-T${b.turno}-${String(n).padStart(3, "0")}`;
+
 /** Una tarjeta de producción lista para pintar. `numero` y `folio` los da la base. */
 export function armarRotulo(o: {
   folio: string; numero: number; planeadas: number; cajas: number; fecha: string; turno: number; tren: string; horaIni?: number;

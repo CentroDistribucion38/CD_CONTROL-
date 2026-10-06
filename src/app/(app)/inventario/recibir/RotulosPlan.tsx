@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { rotulosPdf, type Rotulo } from "@/modulos/inventario/rotulo";
 import type { Factores } from "@/modulos/inventario/plan-envase";
-import { armarRotulo, bloquesDelPlan, llaveBloque, type BloquePlan, type LoteImpreso, type MaterialRotulo, type ResumenBloque } from "@/modulos/inventario/rotulos-plan";
+import { armarRotulo, bloquesDelPlan, folioDe, llaveBloque, type BloquePlan, type LoteImpreso, type MaterialRotulo, type ResumenBloque } from "@/modulos/inventario/rotulos-plan";
+import { VisorPdf } from "@/components/VisorPdf";
 import type { SemanaGuardada } from "./PlanEnvase";
 
 /**
@@ -48,6 +49,7 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
   const [faltaSql, setFaltaSql] = useState(false);
   const [trabajando, setTrabajando] = useState(false);
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
+  const [pdfListo, setPdfListo] = useState<{ url: string; n: number; nombre: string } | null>(null);
   const [reimp, setReimp] = useState<{ l: LoteImpreso; desde: string; hasta: string; motivo: string } | null>(null);
 
   const bloques = useMemo(() => (actual ? bloquesDelPlan(actual, factores, materiales) : []), [actual, factores, materiales]);
@@ -83,10 +85,13 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
   const tot = filas.reduce((a, b) => { const e = est(b); return { plan: a.plan + b.planeadas, imp: a.imp + e.imp, faltan: a.faltan + e.faltan, adic: a.adic + e.adic, rei: a.rei + e.rei } }, { plan: 0, imp: 0, faltan: 0, adic: 0, rei: 0 });
   const lotesVis = lotes.filter((l) => l.fecha === diaOn && (!turno || l.turno === turno) && (!tren || l.tren === tren));
 
-  const abrirPdf = async (rotulos: Rotulo[]) => {
+  /* EL PDF SE VE DENTRO DE LA PANTALLA (VisorPdf), no en una pestaña nueva: la app instalada y el celular
+     bloquean las pestañas que se abren después de esperar y los folios quedaban gastados sin papel. */
+  const abrirPdf = async (rotulos: Rotulo[], nombre: string) => {
     const pdf = await rotulosPdf(rotulos, { base: typeof window !== "undefined" ? window.location.origin : null });
     pdf.autoPrint();
-    window.open(pdf.output("bloburl"), "_blank");
+    const url = String(pdf.output("bloburl"));
+    setPdfListo((antes) => { if (antes) URL.revokeObjectURL(antes.url); return { url, n: rotulos.length, nombre } });
   };
 
   /* Imprime uno o varios bloques en un solo PDF. Cada tanda queda anotada en la base ANTES de pintarse:
@@ -114,8 +119,8 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
     }
     try {
       if (rotulos.length) {
-        await abrirPdf(rotulos);
-        avisar.bien(rotulos.length === 1 ? "Rótulo listo. Se abrió para imprimir." : `${rotulos.length} rótulos listos, numerados y anotados.`);
+        await abrirPdf(rotulos, `Rótulos ${corto(items[0].b.fecha)}${items.length === 1 ? " · " + items[0].b.tren + " T" + items[0].b.turno + " · " + items[0].b.sku : ""}`);
+        avisar.bien(rotulos.length === 1 ? "Rótulo listo." : `${rotulos.length} rótulos listos, numerados y anotados.`);
       }
       if (error) avisar.mal(error + (rotulos.length ? " — lo ya anotado salió en el PDF." : ""));
     } catch (e) {
@@ -125,6 +130,21 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
       setCantidades({});
       void cargar();
     }
+  }
+
+  /* VOLVER A ABRIR: arma otra vez el PDF de una impresión que ya está anotada, SIN gastar folios nuevos ni anotar nada.
+     Sirve cuando el PDF no se llegó a ver o la impresora se tragó la tanda. */
+  async function reabrir(l: LoteImpreso) {
+    const b = bloques.find((x) => llaveBloque(x) === llaveBloque(l));
+    const m = materiales.get(l.sap);
+    if (!b || !m || !b.cajas) { avisar.mal("Ese SKU ya no está en el plan o en el Maestro."); return }
+    setTrabajando(true);
+    try {
+      const rs: Rotulo[] = [];
+      for (let n = l.desde; n <= l.hasta; n++) rs.push(armarRotulo({ folio: folioDe(l, n), numero: n, planeadas: b.planeadas, cajas: b.cajas, fecha: l.fecha, turno: l.turno, tren: l.tren, horaIni: b.horaIni, m }));
+      await abrirPdf(rs, `Rótulos ${corto(l.fecha)} · ${l.tren} T${l.turno} · ${b.sku}`);
+    } catch (e) { avisar.mal("No se pudo armar el PDF: " + ((e as Error).message ?? e)) }
+    finally { setTrabajando(false) }
   }
 
   async function reimprimir() {
@@ -142,7 +162,7 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
     if (error) { avisar.mal(error.message); setTrabajando(false); return }
     try {
       const rows = (data ?? []) as { folio: string; numero: number; cajas: number | null; planeadas: number }[];
-      await abrirPdf(rows.map((x) => armarRotulo({ folio: x.folio, numero: x.numero, planeadas: x.planeadas || b.planeadas, cajas: x.cajas ?? b.cajas ?? 0, fecha: l.fecha, turno: l.turno, tren: l.tren, horaIni: b.horaIni, m })));
+      await abrirPdf(rows.map((x) => armarRotulo({ folio: x.folio, numero: x.numero, planeadas: x.planeadas || b.planeadas, cajas: x.cajas ?? b.cajas ?? 0, fecha: l.fecha, turno: l.turno, tren: l.tren, horaIni: b.horaIni, m })), `Reimpresión ${l.tren} T${l.turno} · ${b.sku}`);
       avisar.bien(`${rows.length} ${rows.length === 1 ? "rótulo reimpreso" : "rótulos reimpresos"} (${motivo.toLowerCase()}).`);
       setReimp(null);
     } catch (e) { avisar.mal("Quedaron anotados pero no se pudo armar el PDF: " + ((e as Error).message ?? e)) }
@@ -186,6 +206,8 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
           {trenes.map((t) => <button key={t} type="button" role="radio" aria-checked={tren === t} className={`pe-medida${tren === t ? " on" : ""}`} onClick={() => setTren(t)}>{t.replace("TREN-", "Tren ")}</button>)}
         </div>
       </div>
+
+      {pdfListo && <VisorPdf url={pdfListo.url} titulo={pdfListo.nombre} cantidad={pdfListo.n} onCerrar={() => { URL.revokeObjectURL(pdfListo.url); setPdfListo(null) }} />}
 
       <div className="pe-kpis rp-kpis">
         <div className="pe-kpi grande"><span>Estibas planeadas</span><b>{nf.format(tot.plan)}</b></div>
@@ -261,7 +283,7 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
                 const abierto = reimp?.l.lote === l.lote && reimp.l.sap === l.sap && reimp.l.turno === l.turno && reimp.l.tren === l.tren;
                 return (
                   <FilaLote key={l.lote + l.tren + l.turno + l.sap} l={l} sku={b?.sku ?? l.sap} abierto={abierto} reimp={reimp} puede={puedeImprimir && !trabajando}
-                    onAbrir={() => setReimp({ l, desde: String(l.desde), hasta: String(l.hasta), motivo: "Dañado" })} onCambio={setReimp} onCerrar={() => setReimp(null)} onReimprimir={() => void reimprimir()} />
+                    onReabrir={() => void reabrir(l)} onAbrir={() => setReimp({ l, desde: String(l.desde), hasta: String(l.hasta), motivo: "Dañado" })} onCambio={setReimp} onCerrar={() => setReimp(null)} onReimprimir={() => void reimprimir()} />
                 );
               })}
             </tbody>
@@ -272,10 +294,10 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
   );
 }
 
-function FilaLote({ l, sku, abierto, reimp, puede, onAbrir, onCambio, onCerrar, onReimprimir }: {
+function FilaLote({ l, sku, abierto, reimp, puede, onReabrir, onAbrir, onCambio, onCerrar, onReimprimir }: {
   l: LoteImpreso; sku: string; abierto: boolean; puede: boolean;
   reimp: { l: LoteImpreso; desde: string; hasta: string; motivo: string } | null;
-  onAbrir: () => void; onCambio: (r: { l: LoteImpreso; desde: string; hasta: string; motivo: string }) => void; onCerrar: () => void; onReimprimir: () => void;
+  onReabrir: () => void; onAbrir: () => void; onCambio: (r: { l: LoteImpreso; desde: string; hasta: string; motivo: string }) => void; onCerrar: () => void; onReimprimir: () => void;
 }) {
   return (
     <>
@@ -287,7 +309,10 @@ function FilaLote({ l, sku, abierto, reimp, puede, onAbrir, onCambio, onCerrar, 
         <td className="pe-der">{nf.format(l.cantidad)}</td>
         <td className="pe-izq rp-folios">{l.primero}{l.cantidad > 1 ? <> → {l.ultimo}</> : null}</td>
         <td className="pe-izq">{l.reimpresion ? <>Reimpresión · {l.motivo}</> : "Impresión"}{l.vigentes < l.cantidad ? <small> · {l.cantidad - l.vigentes} ya reemplazados</small> : null}</td>
-        <td className="pe-der">{l.vigentes > 0 && <button type="button" className="btn plano" disabled={!puede} onClick={onAbrir}>Reimprimir</button>}</td>
+        <td className="pe-der rp-botones">
+          {!l.reimpresion && l.vigentes === l.cantidad && <button type="button" className="btn plano" disabled={!puede} onClick={onReabrir}>Volver a abrir</button>}
+          {l.vigentes > 0 && <button type="button" className="btn plano" disabled={!puede} onClick={onAbrir}>Reimprimir</button>}
+        </td>
       </tr>
       {abierto && reimp && (
         <tr className="rp-reimp">

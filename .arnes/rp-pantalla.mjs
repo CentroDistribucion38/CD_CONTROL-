@@ -32,7 +32,7 @@ const q = new URLSearchParams(location.hash.slice(1));
 createRoot(document.getElementById("r")!).render(<RotulosPlan guardadas={(q.get("vacio") ? [] : ${JSON.stringify(guardadas)}) as any} factores={${JSON.stringify(fac)} as any} materiales={${JSON.stringify(mats)} as any} puedeImprimir={!q.get("solover")} />);
 `);
 const js = buildSync({ entryPoints: [R(".arnes/_rp-pant.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
-  alias: { "@/lib/supabase/client": R(".arnes/_supa-rp.ts"), "@": R("src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
+  alias: { "@/lib/supabase/client": R(".arnes/_supa-rp.ts"), "@": R("src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text.replace(/<!--/g, "<\\!--").replace(/<\/script/gi, "<\\/script");
 const css = ["src/app/globals.css", "src/app/(app)/shell.css", "src/app/(app)/inventario/fefo.css", "src/app/(app)/inventario/recibir/plan-envase.css"].map((p) => readFileSync(R(p), "utf8")).join("\n");
 const P = "*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}";
 
@@ -42,11 +42,12 @@ const pg = await nav.newPage();
 const rotos = []; pg.on("pageerror", (e) => rotos.push(e.message));
 const monta = async (ancho = 1440, tema = "", hash = "", espera = ".fe .pe") => {
   await pg.goto("about:blank"); await pg.setViewportSize({ width: ancho, height: 1100 });
-  await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${P}${css}</style></head><body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div><script>history.replaceState(null,"","#${hash}");window.open=(u)=>{(window.__pdfs||(window.__pdfs=[])).push(u)}</script><script>${js}</script></body></html>`);
+  await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${P}${css}</style></head><body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div><script>history.replaceState(null,"","#${hash}");window.__abiertas=0;window.open=()=>{window.__abiertas++;return null};new MutationObserver(()=>{const f=document.querySelector('.vp-marco');if(f&&f.src&&f.src!==window.__ultimo){window.__ultimo=f.src;fetch(f.src).then(r=>r.arrayBuffer()).then(b=>{const t=new TextDecoder('latin1').decode(b);(window.__pag||(window.__pag=[])).push((t.match(/\\/Type\\s*\\/Page[^s]/g)||[]).length);(window.__pdfs||(window.__pdfs=[])).push(f.src)})}}).observe(document.documentElement,{childList:true,subtree:true,attributes:true})</script><script>${js}</script></body></html>`);
   await pg.waitForSelector(espera, { timeout: 8000 }).catch(async () => { throw new Error("no montó: " + rotos.join(" | ")) });
 };
 const num = (t) => Number(String(t).replace(/\./g, "").replace(",", "."));
-const paginas = async () => pg.evaluate(async () => { const u = window.__pdfs.at(-1); const t = new TextDecoder("latin1").decode(await (await fetch(u)).arrayBuffer()); return (t.match(/\/Type\s*\/Page[^s]/g) || []).length });
+const paginas = async () => pg.evaluate(() => window.__pag.at(-1));
+const cerrarVisor = async () => { await pg.click(".vp button:has-text('Cerrar')"); await pg.waitForSelector(".vp", { state: "detached" }) };
 const fila = (txt) => pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: txt });
 const celdas = async (loc) => (await loc.first().locator("td, th").allTextContents()).map((t) => t.trim());
 const kpi = async (t) => num(await pg.locator(".pe-kpi", { hasText: t }).locator("b").textContent());
@@ -71,6 +72,8 @@ console.log("paso 2");
 /* 2 · IMPRIMIR UN BLOQUE ANOTA Y CUENTA */
 await pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "Costeñita" }).nth(0).locator("button:has-text('Imprimir')").click();
 await pg.waitForFunction(() => (window.__pdfs || []).length >= 1, null, { timeout: 60000 });
+await pg.waitForSelector(".vp"); await pg.waitForFunction(() => (window.__pag || []).length >= (window.__pdfs || []).length);
+await cerrarVisor();
 let r1 = await pg.evaluate(() => window.__rpc.find((x) => x.n === "rotulos_plan_imprimir").a);
 ok(r1.p_cantidad === 181 && r1.p_planeadas === 181 && r1.p_cajas === 54 && r1.p_sap === "3617" && r1.p_turno === 1 && r1.p_fecha === vie && r1.p_tren === "TREN-1", "lo que se mandó a la base: " + JSON.stringify(r1));
 ok(await paginas() === 181, "el PDF trae " + await paginas() + " páginas y eran 181");
@@ -81,19 +84,34 @@ ok(await kpi("Faltan por imprimir") === planVie - 181, "faltan: " + await kpi("F
 ok(/Impresión/.test(await pg.textContent(".pe-t ~ .pe-tabla")), "no sale en «Lo que se imprimió»");
 
 console.log("paso 3");
+/* VOLVER A ABRIR: la misma impresión otra vez, sin anotar nada nuevo */
+{
+  const antes = await pg.evaluate(() => window.__rpc.filter((x) => x.n === "rotulos_plan_imprimir").length);
+  await pg.locator(".pe-t ~ .pe-tabla tbody tr", { hasText: "Costeñita" }).first().locator("button:has-text('Volver a abrir')").click();
+  await pg.waitForFunction(() => (window.__pdfs || []).length >= 2 && (window.__pag || []).length >= 2);
+  ok(await paginas() === 181, "«Volver a abrir» trae " + await paginas() + " páginas y eran 181");
+  await cerrarVisor();
+  ok(await pg.evaluate(() => window.__rpc.filter((x) => x.n === "rotulos_plan_imprimir").length) === antes, "«Volver a abrir» anotó impresiones nuevas");
+  ok(await kpi("Rótulos impresos") === 181, "«Volver a abrir» cambió los impresos");
+}
+
 /* 3 · UNA TANDA A MEDIAS: la siguiente sigue la numeración */
 const aguila = pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "BACANA BR" }).nth(0);
 const planA = num((await celdas(aguila))[3]);
 await aguila.locator("input").fill("5");
 await aguila.locator("button:has-text('Imprimir')").click();
-await pg.waitForFunction(() => (window.__pdfs || []).length >= 2);
+await pg.waitForFunction(() => (window.__pdfs || []).length >= 3);
+await pg.waitForSelector(".vp"); await pg.waitForFunction(() => (window.__pag || []).length >= (window.__pdfs || []).length);
 ok(await paginas() === 5, "PDF de 5: " + await paginas());
+await cerrarVisor();
 await pg.waitForFunction((n) => [...document.querySelectorAll(".pe-tabla tbody tr")].some((t) => /BACANA BR/.test(t.textContent) && t.textContent.includes(String(n))), planA - 5);
 const ca = await celdas(pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "BACANA BR" }).nth(0));
 ok(num(ca[4]) === 5 && num(ca[5]) === planA - 5, `BACANA BR impresos/faltan: ${ca.join("|")}`);
 const resto = planA - 5;
 await pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "BACANA BR" }).nth(0).locator("button:has-text('Imprimir')").click();
-await pg.waitForFunction(() => (window.__pdfs || []).length >= 3, null, { timeout: 60000 });
+await pg.waitForFunction(() => (window.__pdfs || []).length >= 4, null, { timeout: 60000 });
+await pg.waitForSelector(".vp"); await pg.waitForFunction(() => (window.__pag || []).length >= (window.__pdfs || []).length);
+await cerrarVisor();
 const r3 = await pg.evaluate(() => window.__rpc.filter((x) => x.n === "rotulos_plan_imprimir").at(-1).a);
 ok(r3.p_cantidad === resto, "la tanda siguiente imprime el resto: " + r3.p_cantidad + " vs " + resto);
 const fol = await pg.evaluate(() => window.__filas.filter((r) => r.sap === "13451" && r.fecha === "2026-08-21").map((r) => r.numero));
@@ -104,7 +122,9 @@ console.log("paso 4");
 const costT2 = pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "Costeñita" }).nth(1);
 await costT2.locator("button:has-text('Imprimir')").click();
 console.log("  4.3 ok");
-await pg.waitForFunction(() => (window.__pdfs || []).length >= 4, null, { timeout: 60000 });
+await pg.waitForFunction(() => (window.__pdfs || []).length >= 5, null, { timeout: 60000 });
+await pg.waitForSelector(".vp"); await pg.waitForFunction(() => (window.__pag || []).length >= (window.__pdfs || []).length);
+await cerrarVisor();
 console.log("  4.4 ok");
 await pg.waitForFunction(() => [...document.querySelectorAll(".pe-tabla tbody tr")].filter((t) => /Costeñita/.test(t.textContent) && t.textContent.includes("Listo")).length >= 2);
 console.log("  4.5 ok");
@@ -113,7 +133,9 @@ await t1.locator("input").fill("3");
 console.log("  4.7 ok");
 await t1.locator("button:has-text('Imprimir')").click();
 console.log("  4.8 ok");
-await pg.waitForFunction(() => (window.__pdfs || []).length >= 5);
+await pg.waitForFunction(() => (window.__pdfs || []).length >= 6);
+await pg.waitForSelector(".vp"); await pg.waitForFunction(() => (window.__pag || []).length >= (window.__pdfs || []).length);
+await cerrarVisor();
 console.log("  4.9 ok");
 const ad = await pg.evaluate(() => window.__filas.filter((r) => r.sap === "3617" && r.turno === 1 && r.tipo === "adicional").map((r) => r.numero));
 ok(ad.join() === "182,183,184", "adicionales: " + ad);
@@ -129,8 +151,10 @@ ok(await pg.isVisible(".rp-reimp select"), "no abre el formulario de reimpresió
 await pg.locator(".rp-reimp input").nth(0).fill("1"); await pg.locator(".rp-reimp input").nth(1).fill("2");
 await pg.selectOption(".rp-reimp select", "Perdido");
 await pg.click(".rp-reimp button:has-text('Reimprimir')");
-await pg.waitForFunction(() => (window.__pdfs || []).length >= 6);
+await pg.waitForFunction(() => (window.__pdfs || []).length >= 7);
+await pg.waitForSelector(".vp"); await pg.waitForFunction(() => (window.__pag || []).length >= (window.__pdfs || []).length);
 ok(await paginas() === 2, "reimpresión de 2: " + await paginas());
+await cerrarVisor();
 const rr = await pg.evaluate(() => window.__rpc.find((x) => x.n === "rotulos_plan_reimprimir_rango").a);
 ok(rr.p_motivo === "Perdido" && rr.p_desde === 1 && rr.p_hasta === 2 && rr.p_sap === "13451", "reimpresión mandada: " + JSON.stringify(rr));
 await pg.waitForFunction(() => /Reimpresión · Perdido/.test(document.body.textContent));
@@ -166,9 +190,24 @@ const pend2 = v34.skus.filter((f) => f.tren === "TREN-2").reduce((a, f) => a + (
 ok(new RegExp(`\\(${pend2}\\)`).test(btn2.replace(/\./g, "")), `el botón dice «${btn2}» y faltan ${pend2}`);
 await pg.click(".pe-fila .btn");
 await pg.waitForFunction(() => (window.__pdfs || []).length >= 1, null, { timeout: 90000 });
+await pg.waitForSelector(".vp"); await pg.waitForFunction(() => (window.__pag || []).length >= (window.__pdfs || []).length);
 ok(await paginas() === pend2, `PDF de todo lo que falta: ${await paginas()} y eran ${pend2}`);
+await cerrarVisor();
 
 console.log("paso 8");
+/* EL PDF SE VE DENTRO DE LA PANTALLA: sin pestañas nuevas (la app instalada y el celular las bloquean), con vista previa, imprimir y descargar. */
+ok(await pg.evaluate(() => window.__abiertas) === 0, "abrió una pestaña nueva en vez de mostrar el PDF dentro de la pantalla");
+await monta(1440, "", "");
+await pg.click(".pe-sem:has-text('Semana 34')");
+await pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "Poker" }).first().locator("button:has-text('Imprimir')").click();
+await pg.waitForSelector(".vp iframe[src^='blob:']", { timeout: 90000 });
+ok(await pg.isVisible(".vp button:has-text('Imprimir')") && await pg.isVisible(".vp a:has-text('Descargar PDF')") && await pg.isVisible(".vp button:has-text('Cerrar')"), "el visor no trae Imprimir, Descargar y Cerrar");
+const [desc] = await Promise.all([pg.waitForEvent("download", { timeout: 15000 }).catch(() => null), pg.click(".vp a:has-text('Descargar PDF')")]);
+/* El nombre del archivo lo ignora una página en about:blank; en la app real lo pone el atributo download. */
+ok(!!desc, "Descargar PDF no baja nada");
+await pg.keyboard.press("Escape");
+await pg.waitForSelector(".vp", { state: "detached" });
+
 /* 8 · SIN PERMISO, SIN SQL, SIN PLAN */
 await monta(1440, "", "solover=1");
 ok((await pg.locator(".pe-tabla button:has-text('Imprimir')").count()) > 0 && await pg.locator(".pe-tabla button:has-text('Imprimir')").evaluateAll((b) => b.every((x) => x.disabled)), "sin permiso se puede imprimir");

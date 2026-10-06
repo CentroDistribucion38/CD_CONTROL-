@@ -129,3 +129,13 @@
 @media (max-width: 640px) {
   .fe .rp-bloques th:nth-child(5), .fe .rp-bloques td:nth-child(5), .fe .rp-bloques th:nth-child(7), .fe .rp-bloques td:nth-child(7) { display: none }
 }
+
+/* ---------- Visor del PDF dentro de la pantalla ---------- */
+.fe .vp { position: fixed; inset: 0; z-index: 120; display: flex; flex-direction: column; background: var(--fe-papel) }
+.fe .vp-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background: var(--fe-papel); border-bottom: 2px solid var(--fe-tinta); color: var(--fe-texto); font-size: 14px }
+.fe .vp-titulo b { color: var(--fe-tinta) }
+.fe .vp-acciones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.fe .vp-acciones a.btn { display: inline-flex; align-items: center; text-decoration: none }
+.fe .vp-marco { flex: 1; width: 100%; border: 0; background: #fff }
+
+.fe .rp-botones { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap }
