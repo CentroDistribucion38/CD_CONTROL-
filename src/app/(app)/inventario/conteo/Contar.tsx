@@ -82,6 +82,11 @@ type Previo = {
   total_cajas: number;
 };
 
+/* LOS CINCO ESTADOS DEL ENVASE, en el orden del proceso. Salen de la pregunta
+   que va justo debajo de «Dónde» y ya no de «Datos adicionales». */
+const ESTADOS_ENVASE = ["RETORNO", "LAVADO", "NUEVO", "BAJA", "EXTRASUCIO"] as const;
+type MarcaModulo = { mezclado: boolean; sin_acceso: boolean; ruta: string | null };
+
 const ent = (s: string): number | null => {
   const t = s.trim();
   if (t === "") return null;
@@ -256,6 +261,16 @@ export function Contar({
   const [sellando, setSellando] = useState(false);
   const [fotosDe, setFotosDe] = useState<Record<string, string>>({});
   const camaraNueva = useRef<HTMLInputElement>(null);
+  /* ---------- ESTADO DEL MÓDULO: MEZCLADO · ACCESO ----------
+     Son del MÓDULO dentro del recorrido y no de un renglón. `modulos` es lo
+     que ya está en la base (ubicación → marca); `mod` es lo que se está
+     contestando ahora; `fotoMod` es la evidencia que pide cualquiera de las
+     dos respuestas. */
+  const [marcasMod, setMarcasMod] = useState<Record<string, MarcaModulo>>({});
+  const [modulosListos, setModulosListos] = useState(false);
+  const [mod, setMod] = useState({ mezclado: false, sinAcceso: false });
+  const [fotoMod, setFotoMod] = useState<Foto | null>(null);
+  const camaraMod = useRef<HTMLInputElement>(null);
   const camaraFila = useRef<HTMLInputElement>(null);
   const filaDeFoto = useRef<string | null>(null);
   /* Las fotos de los renglones que quedaron PENDIENTES sin señal: viven en
@@ -757,6 +772,8 @@ export function Contar({
        a medias no tiene fila todavía — y eso no es que falte contestar,
        es que hay que crearla. */
     if (!claveEscogida) return "Falta decir de qué lado del módulo.";
+    if (mod.sinAcceso) return "Este módulo está marcado «sin acceso»: usa «Anotar módulo sin acceso».";
+    if (mod.mezclado && !fotoMod && !marcaGuardada?.ruta) return "Módulo mezclado: falta la foto de evidencia.";
     if (!mat) return `El código «${bb.codigo}» no está en el maestro.`;
     if (bb.modo === "cajas") {
       if (ent(bb.cajas) == null) return "¿Cuántas cajas?";
@@ -883,6 +900,76 @@ export function Contar({
   }, [conteo?.id, supabase]);
 
   useEffect(() => () => { if (fotoNueva) URL.revokeObjectURL(fotoNueva.url) }, [fotoNueva]);
+
+  /* LAS MARCAS DE MÓDULO DEL RECORRIDO. Si la tabla todavía no existe (falta
+     correr el SQL) no hay marcas y el conteo sigue igual. */
+  useEffect(() => {
+    if (!conteo) return;
+    let vivo = true;
+    void (async () => {
+      const { data, error } = await supabase.from("conteo_modulos").select("ubicacion_id, mezclado, sin_acceso, ruta").eq("conteo_id", conteo.id);
+      if (!vivo) return;
+      if (!error && data) setMarcasMod(Object.fromEntries((data as (MarcaModulo & { ubicacion_id: string })[]).map((m) => [m.ubicacion_id, { mezclado: m.mezclado, sin_acceso: m.sin_acceso, ruta: m.ruta }])));
+      setModulosListos(true);
+    })();
+    return () => { vivo = false };
+  }, [conteo?.id, supabase]);
+
+  const marcaGuardada = ubicacion ? marcasMod[ubicacion.id] ?? null : null;
+  /* Al cambiar de módulo, las dos preguntas arrancan con lo que ya se dijo de ESE módulo. */
+  useEffect(() => {
+    setMod({ mezclado: marcaGuardada?.mezclado ?? false, sinAcceso: marcaGuardada?.sin_acceso ?? false });
+    setFotoMod((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveEscogida, ubicacion?.id, modulosListos]);
+  useEffect(() => () => { if (fotoMod) URL.revokeObjectURL(fotoMod.url) }, [fotoMod]);
+
+  async function tomarMod(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+    const f = await sellarFoto(archivo, `${mod.sinAcceso ? "SIN ACCESO" : "MEZCLADO"} · ${claveEscogida ?? ""}`);
+    if (f) setFotoMod((x) => { if (x) URL.revokeObjectURL(x.url); return f });
+  }
+
+  /** Guarda la marca del módulo (y su foto, si hay una nueva). Devuelve el problema, o null si quedó. */
+  async function guardarModulo(bb: Borrador, flags: { mezclado: boolean; sinAcceso: boolean }, foto: Foto | null): Promise<string | null> {
+    if (!conteo) return "No hay recorrido abierto.";
+    if (!navigator.onLine) return "Sin señal: marcar un módulo mezclado o sin acceso necesita conexión para subir la foto.";
+    huboRed.current = false;
+    const idU = await idDeLaPosicion(bb);
+    if (!idU) return huboRed.current ? "Sin señal: no se pudo ubicar el módulo. Vuelve a intentar." : "No se pudo ubicar el módulo.";
+    let ruta = marcasMod[idU]?.ruta ?? null;
+    let extra: Record<string, unknown> = {};
+    if (foto) {
+      ruta = `${conteo.id}/modulo-${idU}.jpg`;
+      const { error: eS } = await supabase.storage.from("inventario").upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
+      if (eS) return "La foto no subió: " + eS.message;
+      extra = { ancho: foto.ancho, alto: foto.alto, bytes: foto.blob.size, tomada_en: foto.tomada,
+        lat: ubiFoto?.lat ?? null, lng: ubiFoto?.lng ?? null, precision_m: ubiFoto ? Math.round(ubiFoto.precision) : null };
+    }
+    const { error } = await supabase.from("conteo_modulos").upsert(
+      { conteo_id: conteo.id, ubicacion_id: idU, mezclado: flags.mezclado, sin_acceso: flags.sinAcceso, ruta, ...extra },
+      { onConflict: "conteo_id,ubicacion_id" });
+    if (error) return /does not exist|schema cache/i.test(error.message)
+      ? "Falta correr supabase/migraciones/2026-10-conteo-modulo-estado.sql en Supabase." : error.message;
+    setMarcasMod((m) => ({ ...m, [idU]: { mezclado: flags.mezclado, sin_acceso: flags.sinAcceso, ruta } }));
+    return null;
+  }
+
+  /** «Sin acceso»: el módulo se anota SIN renglones, con su foto. */
+  async function anotarSinAcceso() {
+    if (!conteo) return;
+    if (!b.base) { avisar.mal("Escoge el módulo."); return }
+    if (!claveEscogida) { avisar.mal("Falta decir de qué lado del módulo."); return }
+    if (!fotoMod && !marcaGuardada?.ruta) { avisar.mal("Sin acceso: falta la foto de evidencia."); return }
+    setGuardando(true);
+    const mal = await guardarModulo(b, { mezclado: mod.mezclado, sinAcceso: true }, fotoMod);
+    setGuardando(false);
+    if (mal) { avisar.mal(mal); return }
+    avisar.bien(`${claveEscogida} anotado SIN ACCESO.`);
+    limpiar();
+  }
 
   /** Sella la foto en el teléfono, al tomarla: la hora que queda es la de
    *  tomarla, no la de subirla. */
@@ -1071,6 +1158,18 @@ export function Contar({
     const mat = materialDe(bb)!;
     const foto = fotoNueva;
 
+    /* LA MARCA DEL MÓDULO VA PRIMERO: «mezclado» con su foto queda en la base antes que el renglón. */
+    if (!corrigiendo) {
+      const cambia = mod.mezclado !== (marcaGuardada?.mezclado ?? false) || !!marcaGuardada?.sin_acceso;
+      if (cambia || (mod.mezclado && fotoMod)) {
+        setGuardando(true);
+        const malM = await guardarModulo(bb, { mezclado: mod.mezclado, sinAcceso: false }, fotoMod);
+        setGuardando(false);
+        if (malM) { avisar.mal(malM); return }
+        setFotoMod(null);
+      }
+    }
+
     /* SIN SEÑAL, UN RENGLÓN NUEVO SE GUARDA EN EL TELÉFONO. Corregir uno
        que ya está en la base necesita la base: ahí sí se avisa. */
     if (!navigator.onLine) {
@@ -1225,7 +1324,7 @@ export function Contar({
       rot: r.rotacion, averia: r.averia, pnc: r.pnc,
       estado: r.estado_envase ?? "", nota: r.nota ?? "",
     });
-    setMas(!!(r.rotacion || r.averia || r.pnc || r.estado_envase || r.nota));
+    setMas(!!(r.rotacion || r.averia || r.pnc || r.nota));
     campoCodigo.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -1532,6 +1631,64 @@ export function Contar({
           </div>
         </div>
 
+        {/* ============ ESTADO DEL MÓDULO · 3 PREGUNTAS ============
+            Justo después de escoger el sitio y ANTES del código: ¿mezclado?,
+            ¿hay acceso? y el estado del envase. Mezclado y «sin acceso» piden
+            foto de evidencia. Con «sin acceso» no hay nada que contar: el
+            módulo se anota solo, con su foto. */}
+        {claveEscogida && !corrigiendo && (
+          <div className="fe-bloque fe-estmod">
+            <p className="fe-bloque-cab">Estado del módulo</p>
+            <div className="fe-estmod-fila">
+              <label className={"fe-mezclado" + (mod.mezclado ? " on" : "")}>
+                <input type="checkbox" checked={mod.mezclado}
+                       onChange={(e) => setMod((x) => ({ ...x, mezclado: e.target.checked }))} />
+                <span><b>Módulo mezclado</b></span>
+              </label>
+              <div className="fe-acceso">
+                <span id="fe-rot-acceso">¿Tienes acceso al módulo?</span>
+                <div className="fe-si-no" role="group" aria-labelledby="fe-rot-acceso">
+                  <button type="button" className={!mod.sinAcceso ? "on" : ""} aria-pressed={!mod.sinAcceso}
+                          onClick={() => setMod((x) => ({ ...x, sinAcceso: false }))}>Sí</button>
+                  <button type="button" className={mod.sinAcceso ? "on" : ""} aria-pressed={mod.sinAcceso}
+                          onClick={() => setMod((x) => ({ ...x, sinAcceso: true }))}>No</button>
+                </div>
+              </div>
+            </div>
+            {(mod.mezclado || mod.sinAcceso) && (
+              <div className="fe-foto fe-foto-mod">
+                <span id="fe-rot-fotomod">Foto de evidencia · obligatoria</span>
+                <input ref={camaraMod} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarMod} />
+                <div className="fe-foto-fila" role="group" aria-labelledby="fe-rot-fotomod">
+                  <button type="button" className={"fe-foto-btn" + (fotoMod ? " con" : "")} disabled={sellando}
+                          onClick={() => { pedirUbi(); camaraMod.current?.click() }}>
+                    {fotoMod
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      ? <img src={fotoMod.url} alt="La foto del módulo" />
+                      : <svg viewBox="0 0 24 24" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>}
+                    <b>{sellando ? "Procesando…" : fotoMod ? "Tomar otra" : "Tomar foto"}</b>
+                  </button>
+                  <p>{fotoMod ? "La foto sube al anotar."
+                    : marcaGuardada?.ruta ? "Este módulo ya tiene foto. Tomar otra la reemplaza."
+                    : mod.sinAcceso ? "Sin acceso: foto de por qué no se pudo contar." : "Mezclado: foto de cómo está el módulo."}</p>
+                </div>
+              </div>
+            )}
+            {!mod.sinAcceso && (
+              <div className="fe-estados-envase">
+                <span id="fe-rot-estenv">Estado del envase <em>(si lo que hay es envase)</em></span>
+                <div className="fe-estados" role="group" aria-labelledby="fe-rot-estenv">
+                  {[...ESTADOS_ENVASE, ...(b.estado && !(ESTADOS_ENVASE as readonly string[]).includes(b.estado) ? [b.estado] : [])].map((e) => (
+                    <button key={e} type="button" className={b.estado === e ? "on" : ""} aria-pressed={b.estado === e}
+                            onClick={() => pon("estado", b.estado === e ? "" : e)}>{e}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!mod.sinAcceso && (<>
         {/* ================= LA PRE-ANOTACIÓN D-1 =================
 
             «Yo cuento hoy el A01 con 96 estibas de A1000. Que mañana, al
@@ -1769,19 +1926,14 @@ export function Contar({
               <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="17" r="2" /></svg>
             </span>
             <span className="fe-mas-tx"><b>Datos adicionales</b>
-              <span>Estado del envase · rota · avería · PNC · observación · foto</span></span>
+              <span>Rota · avería · PNC · observación · foto</span></span>
             <span className="fe-mas-marcas">
-              {([b.rot && "ROTA", b.averia && "AVERÍA", b.pnc && "PNC", b.estado, fotoNueva && "FOTO"].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
+              {([b.rot && "ROTA", b.averia && "AVERÍA", b.pnc && "PNC", fotoNueva && "FOTO"].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
             </span>
             <span className="fe-mas-fl" aria-hidden>▾</span>
           </summary>
           <div className="fe-mas-dentro">
             <div className="fe-mas-dos">
-              <label className="fe-estado"><span>Estado del envase</span>
-                <select value={b.estado} onChange={(e) => pon("estado", e.target.value)}>
-                  <option value="">—</option>
-                  {estados.map((e) => <option key={e} value={e}>{e}</option>)}
-                </select></label>
               {/* «¿ROTA?» ES ROTACIÓN —si la estiba se mueve o está quieta—,
                   no si está rota. */}
               <div className="fe-rota">
@@ -1849,6 +2001,7 @@ export function Contar({
             )}
           </div>
         </details>
+        </>)}
 
         {/* ---------- LA BARRA QUE NO SE VA ----------
             «Anotar renglón» iba al final del formulario, y con cuatro
@@ -1873,8 +2026,8 @@ export function Contar({
           <p className="fe-fija-cuenta">
             <b>{renglones.length}</b> en el borrador
           </p>
-          <button type="button" className="btn grande" disabled={guardando} onClick={anotar} ref={botonAnotar}>
-            {guardando ? "Guardando…" : corrigiendo ? "Guardar la corrección" : "Anotar renglón"}
+          <button type="button" className="btn grande" disabled={guardando} onClick={mod.sinAcceso && !corrigiendo ? anotarSinAcceso : anotar} ref={botonAnotar}>
+            {guardando ? "Guardando…" : corrigiendo ? "Guardar la corrección" : mod.sinAcceso ? "Anotar módulo sin acceso" : "Anotar renglón"}
           </button>
         </div>
       </section>
@@ -1916,6 +2069,24 @@ export function Contar({
             </button>
           )}
         </div>
+
+        {Object.entries(marcasMod).some(([, m]) => m.mezclado || m.sin_acceso) && (
+          <div className="fe-marcados">
+            <p><b>Módulos marcados</b></p>
+            <ul>
+              {Object.entries(marcasMod).filter(([, m]) => m.mezclado || m.sin_acceso).map(([id, m]) => (
+                <li key={id}>
+                  <span><b>{ubicaciones.find((u) => u.id === id)?.clave ?? "Módulo"}</b>{" "}
+                    {m.sin_acceso ? <em className="mal">SIN ACCESO</em> : <em>MEZCLADO</em>}</span>
+                  {m.ruta && <button type="button" className="fe-mini" onClick={async () => {
+                    const { data, error } = await supabase.storage.from("inventario").createSignedUrl(m.ruta!, 600);
+                    if (error || !data?.signedUrl) avisar.mal("No se pudo abrir la foto."); else window.open(data.signedUrl, "_blank", "noopener");
+                  }}>Ver foto</button>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {renglones.length > 0 && (
           <div className="fe-fichas">

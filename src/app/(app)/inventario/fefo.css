@@ -1706,3 +1706,31 @@
   .fe .fe-ficha-tipos li span { grid-column: 1 / -1; grid-row: 2 }
 }
 .fe .fe-ficha-aviso { margin: 8px 0 0; font-size: 12px; color: var(--fe-gris-panel) }
+
+
+/* ESTADO DEL MÓDULO · mezclado, acceso, estado del envase. Todo rectangular y de más de 44 px para tocarlo con guante. */
+.fe .fe-estmod { display: flex; flex-direction: column; gap: 10px }
+.fe .fe-estmod-fila { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 10px; align-items: end }
+.fe .fe-mezclado { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 10px; cursor: pointer; border: 1.5px solid var(--fe-linea); border-radius: 2px; background: var(--fe-fondo) }
+.fe .fe-mezclado input { width: 24px; height: 24px; flex: none; accent-color: var(--fe-acento) }
+.fe .fe-mezclado span { display: flex; flex-direction: column; line-height: 1.25 }
+.fe .fe-mezclado b { font: 700 15px var(--fe-texto); color: var(--fe-tinta) }
+.fe .fe-mezclado em { font-style: normal; font-size: 12px; color: var(--fe-gris-panel) }
+.fe .fe-mezclado.on { border-color: var(--fe-tinta); box-shadow: inset 0 -4px 0 var(--fe-acento) }
+.fe .fe-acceso { display: flex; flex-direction: column; gap: 4px }
+.fe .fe-acceso > span, .fe .fe-estados-envase > span { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .fe-acceso .fe-si-no { flex: none }
+.fe .fe-acceso .fe-si-no button { min-height: 48px }
+.fe .fe-estados-envase { display: flex; flex-direction: column; gap: 6px }
+.fe .fe-estados-envase em { font-style: normal; letter-spacing: 0; text-transform: none; opacity: .8 }
+.fe .fe-estados { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px }
+.fe .fe-estados button { min-height: 48px; padding: 0 4px; cursor: pointer; border: 1.5px solid var(--fe-linea); border-radius: 2px; background: var(--fe-fondo); color: var(--fe-tinta); font: 700 12.5px var(--fe-texto); letter-spacing: .02em; overflow-wrap: anywhere }
+.fe .fe-estados button.on { background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre) }
+@media (max-width: 520px) { .fe .fe-estados button { font-size: 10px; letter-spacing: 0; padding: 0 1px } .fe .fe-mezclado b { font-size: 13.5px } }
+@media (max-width: 400px) { .fe .fe-estados { grid-template-columns: repeat(3, minmax(0, 1fr)) } }
+.fe .fe-marcados { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--fe-linea); border-radius: 2px; background: var(--fe-fondo) }
+.fe .fe-marcados p { margin: 0 0 6px }
+.fe .fe-marcados ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.fe .fe-marcados li { display: flex; align-items: center; justify-content: space-between; gap: 10px }
+.fe .fe-marcados em { font-style: normal; font-weight: 800; font-size: 12px; letter-spacing: .04em }
+.fe .fe-marcados em.mal { color: var(--fe-mal) }

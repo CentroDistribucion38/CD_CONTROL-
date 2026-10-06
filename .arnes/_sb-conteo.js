@@ -1,5 +1,6 @@
 const consulta = (tabla) => { const p = new Proxy(function () {}, {
   get: (_, k) => k === "then" ? (ok) => ok({ data: (window.__DATOS ?? {})[tabla] ?? [], error: null })
+    : k === "upsert" ? (row) => { (window.__upserts ??= []).push({ tabla, row }); return p }
     : k === "maybeSingle" ? () => Promise.resolve({ data: null, error: null }) : () => p,
   apply: () => p }); return p };
 /* SE GUARDA TAMBIÉN LO QUE SE MANDA, no solo a quién. `__rpc` son los
@@ -10,4 +11,5 @@ const consulta = (tabla) => { const p = new Proxy(function () {}, {
    argumentos, y leerlos del código fuente es leer lo que uno escribió,
    no lo que la pantalla manda. `__rpc` se deja igual para no tocar lo
    que ya lo usa. */
-export const createClient = () => ({ from: (t) => consulta(t), rpc: async (fn, args) => { (window.__rpc ??= []).push(fn); (window.__llamadas ??= []).push({ fn, args }); return { data: "id-" + fn, error: null } } });
+export const createClient = () => ({ from: (t) => consulta(t),
+  storage: { from: () => ({ upload: async (ruta) => { (window.__subidas ??= []).push(ruta); return { error: null } }, createSignedUrl: async () => ({ data: { signedUrl: "x" }, error: null }), remove: async () => ({ error: null }) }) }, rpc: async (fn, args) => { (window.__rpc ??= []).push(fn); (window.__llamadas ??= []).push({ fn, args }); return { data: "id-" + fn, error: null } } });
