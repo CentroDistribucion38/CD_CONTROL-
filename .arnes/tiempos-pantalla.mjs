@@ -42,7 +42,7 @@ const pg = await nav.newPage();
 const rotos = []; pg.on("pageerror", (e) => rotos.push(e.message));
 const monta = async (ancho = 1440, hash = "", espera = ".tp-kpis") => {
   await pg.goto("about:blank"); await pg.setViewportSize({ width: ancho, height: 1000 });
-  await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${P}${css}</style></head><body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><div id="r"></div></div></main></div></div><script>history.replaceState(null,"","#${hash}")</script><script>${js}</script></body></html>`);
+  await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${P}${css}</style></head><body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><nav class="tp-tabs" aria-label="Hojas del tablero"><a class="" href="#">Qué se vence</a><a class="on" aria-current="page" href="#">Tiempos de conteo</a></nav><div id="r"></div></div></main></div></div><script>history.replaceState(null,"","#${hash}")</script><script>${js}</script></body></html>`);
   await pg.waitForSelector(espera, { timeout: 8000 }).catch(() => { throw new Error("no montó: " + rotos.join(" | ")) });
   await pg.waitForTimeout(250);
 };
@@ -92,9 +92,9 @@ for (const w of [360, 390, 820, 1440]) {
   await monta(w);
   const d = await pg.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
   ok(d.sw <= d.cw, `a ${w}px la página se desborda (${d.sw} > ${d.cw})`);
-  const chicos = await pg.evaluate(() => [...document.querySelectorAll(".tp button, .tp select, .tp input")].filter((e) => e.getBoundingClientRect().height < 43.5).map((e) => e.tagName + ":" + e.textContent.slice(0, 10)));
+  const chicos = await pg.evaluate(() => [...document.querySelectorAll(".tp button, .tp select, .tp input, .tp-tabs a")].filter((e) => e.getBoundingClientRect().height < 43.5).map((e) => e.tagName + ":" + e.textContent.slice(0, 10)));
   ok(chicos.length === 0, `a ${w}px hay controles de menos de 44 px: ` + chicos.join(","));
-  const redondos = await pg.evaluate(() => [...document.querySelectorAll(".tp *")].filter((e) => parseFloat(getComputedStyle(e).borderTopLeftRadius) > 3).length);
+  const redondos = await pg.evaluate(() => [...document.querySelectorAll(".tp *, .tp-tabs, .tp-tabs a")].filter((e) => parseFloat(getComputedStyle(e).borderTopLeftRadius) > 3).length);
   ok(redondos === 0, `a ${w}px hay ${redondos} elementos con esquinas redondeadas`);
   if (w === 390 || w === 1440) await pg.screenshot({ path: R(`.arnes/_tp-${w}.png`), fullPage: true });
 }

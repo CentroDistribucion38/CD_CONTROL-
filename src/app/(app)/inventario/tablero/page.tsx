@@ -38,8 +38,34 @@ const dia = (s: string | null) =>
  * está vacía porque todavía no se ha llegado, y sobre eso alguien podría
  * decidir un despacho. Lo firmado es lo único que se puede afirmar.
  */
-export default async function InventarioTableroPage({ searchParams }: { searchParams?: Promise<{ fecha?: string; borradores?: string }> }) {
+/* LAS DOS HOJAS DEL TABLERO: lo que se vence (FEFO) y los tiempos de conteo. */
+function Hojas({ vista }: { vista: "fefo" | "tiempos" }) {
+  return (
+    <nav className="tp-tabs" aria-label="Hojas del tablero">
+      <Link href="/inventario/tablero" aria-current={vista === "fefo" ? "page" : undefined} className={vista === "fefo" ? "on" : ""}>Qué se vence</Link>
+      <Link href="/inventario/tablero?vista=tiempos" aria-current={vista === "tiempos" ? "page" : undefined} className={vista === "tiempos" ? "on" : ""}>Tiempos de conteo</Link>
+    </nav>
+  );
+}
+
+export default async function InventarioTableroPage({ searchParams }: { searchParams?: Promise<{ fecha?: string; borradores?: string; vista?: string }> }) {
   const sp = (await searchParams) ?? {};
+  if (sp.vista === "tiempos") {
+    /* La hoja de tiempos no necesita el maestro ni el riesgo: solo el permiso, que la base vuelve a exigir. */
+    return (
+      <div className="fe">
+        <Hojas vista="tiempos" />
+        <section className="cabeza">
+          <div>
+            <p className="ojo">INVENTARIO · TABLERO</p>
+            <h1>Tiempos de conteo</h1>
+            <p className="sub">Cuándo empezó y cuándo envió cada persona su conteo, cuánto trabajó de verdad y quién va más rápido.</p>
+          </div>
+        </section>
+        <Tiempos />
+      </div>
+    );
+  }
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha ?? "") ? sp.fecha! : "";
   const conBorradores = sp.borradores === "1";
   const [permisos, m] = await Promise.all([misPermisos(), maestroInventario()]);
@@ -199,6 +225,7 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
 
   return (
     <div className="fe">
+      <Hojas vista="fefo" />
       {t.conteos.length === 0 && (
         <section className="cabeza">
           <div>
@@ -360,15 +387,22 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
           )}
 
           {pasados.length > 0 && (
-            <section className="fe-caja">
-              <div className="fe-caja-cab">
-                <h2>Módulos por encima de su capacidad</h2>
-                <p>
-                  Lo que se contó pesa más de lo que el maestro dice que cabe. No es un error
-                  del conteo: se anota lo que hay, no lo que cabe. Aquí están las dos cifras
-                  para que se pueda decidir qué se reacomoda.
-                </p>
-              </div>
+            /* PLEGADA: son decenas de filas y casi nunca se necesitan; se abre al tocarla. */
+            <details className="fe-caja fe-plegable">
+              <summary className="fe-caja-cab">
+                <span className="fe-pleg-t">
+                  <span className="fe-pleg-h" role="heading" aria-level={2}>Módulos por encima de su capacidad</span>
+                </span>
+                <span className="fe-pleg-n">
+                  <b>{pasados.length}</b> {pasados.length === 1 ? "módulo" : "módulos"}
+                  <i className="fe-pleg-ver" aria-hidden="true" />
+                </span>
+              </summary>
+              <p className="fe-pleg-p">
+                Lo que se contó pesa más de lo que el maestro dice que cabe. No es un error
+                del conteo: se anota lo que hay, no lo que cabe. Aquí están las dos cifras
+                para que se pueda decidir qué se reacomoda.
+              </p>
               <div className="fe-tabla">
                 <table>
                   <thead>
@@ -396,7 +430,7 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
                 En estibas, que es como está la capacidad en el maestro. Si una capacidad está
                 mal puesta, se corrige en <b>Maestro → Ubicaciones</b>.
               </p>
-            </section>
+            </details>
           )}
 
           <section className="fe-caja">
@@ -435,17 +469,6 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
           </section>
         </>
       )}
-
-      {/* LOS TIEMPOS DEL CONTEO: quién empezó y terminó cuándo, y el ranking. Van al final del tablero
-          porque cuentan lo mismo que «Conteos enviados», pero medido en horas. Aparecen aunque todavía
-          no haya conteos enviados: un conteo abierto también tiene hora de inicio. */}
-      <section className="fe-caja" id="tiempos">
-        <div className="fe-caja-cab">
-          <h2>Tiempos de conteo</h2>
-          <p>Cuándo empezó y cuándo envió cada persona, cuánto trabajó de verdad y quién va más rápido.</p>
-        </div>
-      </section>
-      <Tiempos />
     </div>
   );
 }

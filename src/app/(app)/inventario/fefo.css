@@ -1753,3 +1753,18 @@
 }
 .fe .fe-mas-dos { grid-template-columns: minmax(0, 1fr) }
 .fe .fe-mas .fe-foto-fila { flex-wrap: wrap }
+
+/* CAJA PLEGABLE (details/summary): cerrada solo se ve el título y cuántos son; al tocarla se despliega la tabla. */
+.fe .fe-plegable > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px }
+.fe .fe-plegable > summary::-webkit-details-marker { display: none }
+.fe .fe-plegable > summary:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
+.fe .fe-plegable:not([open]) > summary { border-bottom: 0 }
+.fe .fe-plegable > summary .fe-pleg-h { display: block }
+.fe .fe-plegable .fe-pleg-t { min-width: 0 }
+.fe .fe-pleg-n { flex: none; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font: 600 13px var(--fe-texto); color: var(--fe-gris-panel) }
+.fe .fe-pleg-n b { font: 800 15px var(--fe-titulo); color: var(--fe-tinta) }
+.fe .fe-pleg-ver { flex: none; width: 9px; height: 9px; border: solid var(--fe-tinta); border-width: 0 2px 2px 0; transform: rotate(45deg); margin: -4px 4px 0 6px; transition: transform .15s }
+.fe .fe-plegable[open] .fe-pleg-ver { transform: rotate(-135deg); margin-top: 4px }
+@media (prefers-reduced-motion: reduce) { .fe .fe-pleg-ver { transition: none } }
+.fe .fe-pleg-h { display: block; font: 800 17px var(--fe-titulo); letter-spacing: -.01em }
+.fe .fe-plegable > .fe-pleg-p { margin: 0; padding: 12px 20px; border-bottom: 1px solid var(--fe-linea); font-size: 12.5px; color: var(--fe-gris); line-height: 1.45; max-width: 74ch }
