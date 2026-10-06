@@ -244,6 +244,8 @@ export function estibasDe(unidades: number, referencia: number | null, cajasPorE
 export type FilaSku = {
   tren: string; sap: string; sku: string; formato: number | null; referencia: number | null; cpe: number | null;
   unidades: number; cajas: number | null; estibas: number | null;
+  /** Estibas ENTERAS de la fila (lo que se pinta): los días y turnos suman exactamente esto. */
+  enteras: number;
   porDia: Record<string, { total: number; t: [number, number, number] }>;
 };
 export type Vista = {
@@ -255,8 +257,32 @@ export type Vista = {
   sinFactor: { sap: string; sku: string; tren: string }[];
 };
 
+/** Reparte `objetivo` (entero) entre los valores con el método del mayor resto: cada uno queda en su parte entera y las que sobran van a los de mayor decimal. */
+export function repartir(valores: number[], objetivo: number): number[] {
+  const base = valores.map((v) => Math.floor(v + 1e-9));
+  let faltan = objetivo - base.reduce((a, b) => a + b, 0);
+  const orden = valores.map((v, i) => ({ i, r: v - base[i] })).sort((a, b) => b.r - a.r || a.i - b.i);
+  for (let k = 0; faltan > 0 && orden.length; k = (k + 1) % orden.length, faltan--) base[orden[k].i]++;
+  for (let k = orden.length - 1; faltan < 0 && orden.length; k = (k - 1 + orden.length) % orden.length, faltan++) if (base[orden[k].i] > 0) base[orden[k].i]--; else faltan--;
+  return base;
+}
+
 /** La semana lista para pintar: estibas por SKU y día (y turno), por tren, y los totales. */
-export function vistaSemana(s: { fecha_ini: string; pendientes: Pendiente[]; bloques: Bloque[] }, factores: Factores): Vista {
+export type Medida = "estibas" | "cajas" | "unidades" | "hl";
+export const MEDIDAS: { id: Medida; txt: string; unidad: string }[] = [
+  { id: "estibas", txt: "Estibas", unidad: "estibas" }, { id: "cajas", txt: "Cajas", unidad: "cajas" },
+  { id: "unidades", txt: "Unidades", unidad: "unidades" }, { id: "hl", txt: "Hectolitros", unidad: "HL" },
+];
+
+/** Lo que vale un bloque en la medida pedida. Cajas, unidades y HL no necesitan el factor de estibado. */
+function valorBloque(b: Bloque, f: { referencia: number | null; cpe: number | null }, medida: Medida): number {
+  if (medida === "hl") return b.hl;
+  if (medida === "unidades") return b.unidades;
+  if (medida === "cajas") return f.referencia ? b.unidades / f.referencia : 0;
+  return estibasDe(b.unidades, f.referencia, f.cpe) ?? 0;
+}
+
+export function vistaSemana(s: { fecha_ini: string; pendientes: Pendiente[]; bloques: Bloque[] }, factores: Factores, medida: Medida = "estibas"): Vista {
   const dias = Array.from({ length: 7 }, (_, i) => sumarDias(s.fecha_ini, i));
   const cpeDe = (sap: string) => factores.get(sap)?.cajas_por_estiba ?? null;
   const claves = new Map<string, FilaSku>();
@@ -265,28 +291,46 @@ export function vistaSemana(s: { fecha_ini: string; pendientes: Pendiente[]; blo
     const cpe = cpeDe(p.sap);
     claves.set(llave(p.tren, p.sap), {
       tren: p.tren.toUpperCase(), sap: p.sap, sku: p.sku || factores.get(p.sap)?.nombre || p.sap, formato: p.formato, referencia: p.referencia, cpe,
-      unidades: p.unidades, cajas: cajasDe(p.unidades, p.referencia), estibas: estibasDe(p.unidades, p.referencia, cpe), porDia: {},
+      unidades: p.unidades, cajas: cajasDe(p.unidades, p.referencia), estibas: estibasDe(p.unidades, p.referencia, cpe), enteras: 0, porDia: {},
     });
   }
-  const porDia: Record<string, number> = {};
-  const trenes = new Map<string, { tren: string; porDia: Record<string, number>; total: number }>();
-  let total = 0;
+  /* Se acumula EXACTO (con decimales) y al final se reparte en estibas ENTERAS:
+     redondear cada casilla por su lado hace que los días no sumen el total de
+     la fila (541 + 541 + 540 ≠ 1.621). Se redondea con el método del mayor
+     resto: cada fila suma justo su total, el total de la semana es el exacto
+     redondeado, y todo lo que se ve en pantalla suma lo que dice. */
+  const exacto = new Map<FilaSku, Record<string, [number, number, number]>>();
   for (const b of s.bloques) {
     let f = claves.get(llave(b.tren, b.sap)) ?? [...claves.values()].find((x) => x.sap === b.sap);
     if (!f) {
       const cpe = cpeDe(b.sap);
-      f = { tren: b.tren.toUpperCase(), sap: b.sap, sku: factores.get(b.sap)?.nombre || b.sap, formato: null, referencia: null, cpe, unidades: 0, cajas: null, estibas: null, porDia: {} };
+      f = { tren: b.tren.toUpperCase(), sap: b.sap, sku: factores.get(b.sap)?.nombre || b.sap, formato: null, referencia: null, cpe, unidades: 0, cajas: null, estibas: null, enteras: 0, porDia: {} };
       claves.set(llave(b.tren, b.sap), f);
     }
-    const ref = f.referencia;
-    const e = estibasDe(b.unidades, ref, f.cpe) ?? 0;
-    const d = (f.porDia[b.fecha] ??= { total: 0, t: [0, 0, 0] });
-    d.total += e; d.t[b.turno - 1] += e;
-    porDia[b.fecha] = (porDia[b.fecha] ?? 0) + e;
-    const t = trenes.get(f.tren) ?? { tren: f.tren, porDia: {}, total: 0 };
-    t.porDia[b.fecha] = (t.porDia[b.fecha] ?? 0) + e; t.total += e; trenes.set(f.tren, t);
-    total += e;
+    const e = valorBloque(b, f, medida);
+    const d = exacto.get(f) ?? {}; (d[b.fecha] ??= [0, 0, 0])[b.turno - 1] += e; exacto.set(f, d);
   }
+  const filas = [...exacto.keys()];
+  const sumaFila = (f: FilaSku) => Object.values(exacto.get(f)!).reduce((a, t) => a + t[0] + t[1] + t[2], 0);
+  const metaFilas = repartir(filas.map(sumaFila), Math.round(filas.reduce((a, f) => a + sumaFila(f), 0)));
+  const porDia: Record<string, number> = {};
+  const trenes = new Map<string, { tren: string; porDia: Record<string, number>; total: number }>();
+  let total = 0;
+  filas.forEach((f, i) => {
+    f.enteras = metaFilas[i];
+    const celdas: { dia: string; k: number; v: number }[] = [];
+    for (const [dia, t] of Object.entries(exacto.get(f)!)) t.forEach((v, k) => celdas.push({ dia, k, v }));
+    const ent = repartir(celdas.map((c) => c.v), metaFilas[i]);
+    const tr = trenes.get(f.tren) ?? { tren: f.tren, porDia: {}, total: 0 };
+    celdas.forEach((c, j) => {
+      if (!ent[j]) return;
+      const d = (f.porDia[c.dia] ??= { total: 0, t: [0, 0, 0] });
+      d.total += ent[j]; d.t[c.k] += ent[j];
+      porDia[c.dia] = (porDia[c.dia] ?? 0) + ent[j];
+      tr.porDia[c.dia] = (tr.porDia[c.dia] ?? 0) + ent[j];
+    });
+    tr.total += metaFilas[i]; trenes.set(f.tren, tr); total += metaFilas[i];
+  });
   const skus = [...claves.values()].sort((a, b) => a.tren.localeCompare(b.tren, "es", { numeric: true }) || a.sku.localeCompare(b.sku, "es"));
   return {
     dias, skus, total, porDia,

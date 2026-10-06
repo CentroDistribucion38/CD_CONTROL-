@@ -48,13 +48,28 @@ ok(s34.bloques.some((b) => b.tren === "TREN-2" && b.sap === "13451" && b.fecha =
 const v = P.vistaSemana(s34, factores);
 ok(Math.abs(v.total - 9005) < 3, "la semana 34 da unas 9.005 estibas: " + v.total.toFixed(1));
 const aguila = v.skus.find((f) => f.sap === "3128");
-ok(Math.abs(aguila.estibas - 1788.6) < 0.2 && Math.abs(aguila.cajas - 80485.8) < 0.5, "Aguila RN 330 ×30: 80.486 cajas → 1.789 estibas: " + aguila.cajas + " / " + aguila.estibas);
+ok(Math.abs(aguila.estibas - 1788.6) < 0.2 && aguila.enteras === 1789 && Math.abs(aguila.cajas - 80485.8) < 0.5, "Aguila RN 330 ×30: 80.486 cajas → 1.789 estibas: " + aguila.cajas + " / " + aguila.estibas);
 ok(Math.abs(aguila.porDia["2026-08-22"].total + aguila.porDia["2026-08-23"].total + aguila.porDia["2026-08-21"]?.total - aguila.estibas) < 1 || true, "");
 const sumaDias = Object.values(v.porDia).reduce((a, b) => a + b, 0);
 ok(Math.abs(sumaDias - v.total) < 0.01, "la suma de los días es el total");
 ok(v.dias.length === 7 && v.dias[0] === "2026-08-17" && v.dias[6] === "2026-08-23", "siete días: " + v.dias);
 ok(v.sinFactor.length === 0, "todos los SAP tienen factor de estibado en el Maestro: " + JSON.stringify(v.sinFactor));
 ok(v.trenes.length === 6 && Math.abs(v.trenes.reduce((a, t) => a + t.total, 0) - v.total) < 0.01, "6 trenes y suman el total: " + v.trenes.length);
+/* LO QUE SE VE SUMA: cada fila = suma de sus días, cada columna = suma de sus filas, y el total = suma de todo (todo entero). */
+for (const sem of semanas) {
+  const w = P.vistaSemana(sem, new Map(factores));
+  for (const f of w.skus) {
+    const d = w.dias.reduce((a, x) => a + (f.porDia[x]?.total ?? 0), 0);
+    const t = w.dias.reduce((a, x) => a + (f.porDia[x]?.t[0] ?? 0) + (f.porDia[x]?.t[1] ?? 0) + (f.porDia[x]?.t[2] ?? 0), 0);
+    ok(d === f.enteras && t === f.enteras && Number.isInteger(f.enteras), `sem ${sem.semana} ${f.sap}: los días suman ${d}, los turnos ${t} y la fila dice ${f.enteras}`);
+    ok(Math.abs(f.enteras - (f.estibas ?? 0)) < 1, `sem ${sem.semana} ${f.sap}: el entero ${f.enteras} se aleja de ${f.estibas}`);
+  }
+  for (const x of w.dias) ok(w.skus.reduce((a, f) => a + (f.porDia[x]?.total ?? 0), 0) === (w.porDia[x] ?? 0), `sem ${sem.semana}: la columna ${x} no suma`);
+  ok(w.skus.reduce((a, f) => a + f.enteras, 0) === w.total && Object.values(w.porDia).reduce((a, b) => a + b, 0) === w.total, `sem ${sem.semana}: el total no es la suma de las filas`);
+  const exacto = w.skus.reduce((a, f) => a + (f.estibas ?? 0), 0);
+  ok(Math.abs(w.total - exacto) <= 0.51, `sem ${sem.semana}: total ${w.total} vs exacto ${exacto.toFixed(2)}`);
+  ok(w.trenes.every((tr) => tr.total === Object.values(tr.porDia).reduce((a, b) => a + b, 0)), `sem ${sem.semana}: un tren no suma sus días`);
+}
 /* Si falta el factor, se dice y no se inventa. */
 const v2 = P.vistaSemana(s34, new Map());
 ok(v2.sinFactor.length === 12 && v2.total === 0, "sin factor en el Maestro no inventa estibas y avisa de los 12 SKU");

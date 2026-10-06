@@ -20,6 +20,8 @@ const col = (n: number) => { let s = ""; while (n > 0) { const m = (n - 1) % 26;
 export async function armarPlanEnvase(o: {
   semana: Pick<SemanaPlan, "anio" | "semana" | "fecha_ini" | "fecha_fin" | "escenario" | "generado" | "pendientes" | "bloques">;
   vista: Vista; borrador: boolean; archivo: string | null;
+  /** La misma tabla «por día» en las otras medidas (cajas, unidades, HL): una hoja cada una. */
+  otras?: { nombre: string; unidad: string; vista: Vista }[];
 }): Promise<ArrayBuffer> {
   const P = paleta();
   const { semana: s, vista: v } = o;
@@ -35,9 +37,9 @@ export async function armarPlanEnvase(o: {
   const num = (c: ExcelJS.Cell, fmt = "#,##0", bold = false) => { c.numFmt = fmt; c.font = letra(10, P.TINTA, bold); c.alignment = { horizontal: "right", indent: 1 }; c.border = { bottom: { style: "thin", color: { argb: P.LINEA } } } };
   const tx = (c: ExcelJS.Cell, bold = false) => { c.font = letra(10, P.TINTA, bold); c.alignment = { vertical: "middle", indent: 1 }; c.border = { bottom: { style: "thin", color: { argb: P.LINEA } } } };
 
-  /* ───── Estibas por día ───── */
-  const H = wb.addWorksheet("Estibas por día", { properties: { tabColor: { argb: P.BANDA } } });
-  cabecera(H, P, null, "Plan de envase · estibas por día", sub, 12);
+  const hojaDia = (nombreHoja: string, unidad: string, v: Vista) => {
+  const H = wb.addWorksheet(nombreHoja, { properties: { tabColor: { argb: P.BANDA } } });
+  cabecera(H, P, null, `Plan de envase · ${unidad} por día`, sub, 12);
   H.getColumn(1).width = 2; H.getColumn(2).width = 9; H.getColumn(3).width = 38; H.getColumn(4).width = 9; H.getColumn(5).width = 11;
   for (let i = 0; i < 7; i++) H.getColumn(6 + i).width = 10;
   H.getColumn(13).width = 12;
@@ -55,13 +57,17 @@ export async function armarPlanEnvase(o: {
     r++;
   });
   const fin = r - 1;
-  tx(H.getCell(r, 2), true); H.getCell(r, 2).value = "Total de estibas";
+  tx(H.getCell(r, 2), true); H.getCell(r, 2).value = `Total de ${unidad}`;
   for (let k = 0; k < 7; k++) { const c = H.getCell(r, 6 + k); num(c, "#,##0", true); c.value = { formula: `SUM(${col(6 + k)}${ini}:${col(6 + k)}${fin})`, result: v.porDia[v.dias[k]] ?? 0 }; c.border = { top: { style: "medium", color: { argb: P.TINTA } } } }
   const tt = H.getCell(r, 13); num(tt, "#,##0", true); tt.value = { formula: `SUM(M${ini}:M${fin})`, result: v.total }; tt.border = { top: { style: "medium", color: { argb: P.TINTA } } };
   H.getRow(r + 2).getCell(2).value = "Estibas = unidades ÷ referencia ÷ cajas por estiba del Maestro. El día cuenta cuando se envasa (T1 0–8 h · T2 8–16 h · T3 16–24 h).";
   H.getRow(r + 2).getCell(2).font = letra(9, P.GRIS);
   H.views = [{ showGridLines: false, state: "frozen", xSplit: 4, ySplit: 7 }];
+  };
+  hojaDia("Estibas por día", "estibas", v);
+  for (const x of o.otras ?? []) hojaDia(x.nombre, x.unidad, x.vista);
 
+  let r = 8;
   /* ───── Por línea ───── */
   const L = wb.addWorksheet("Por línea", { properties: { tabColor: { argb: P.BANDA } } });
   cabecera(L, P, null, "Plan de envase · estibas por línea", sub, 10);

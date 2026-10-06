@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
-import { leerPlanEnvase, vistaSemana, type Bloque, type Factores, type Pendiente, type SemanaPlan } from "@/modulos/inventario/plan-envase";
+import { leerPlanEnvase, MEDIDAS, vistaSemana, type Bloque, type Medida, type Factores, type Pendiente, type SemanaPlan } from "@/modulos/inventario/plan-envase";
 
 /**
  * INVENTARIO · RECEPCIÓN · PLAN DE ENVASE.
@@ -51,6 +51,7 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
   const [subidas, setSubidas] = useState<{ archivo: string; semanas: SemanaPlan[] } | null>(null);
   const [llave, setLlave] = useState<string | null>(null);
   const [turnos, setTurnos] = useState(false);
+  const [medida, setMedida] = useState<Medida>("estibas");
   const [leyendo, setLeyendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const entrada = useRef<HTMLInputElement>(null);
@@ -64,6 +65,9 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
   }, [guardadas, subidas]);
   const actual = lista.find((x) => x.llave === llave) ?? lista[0] ?? null;
   const v = useMemo(() => (actual ? vistaSemana(actual.s, factores) : null), [actual, factores]);
+  /* La tabla se pinta en la medida escogida (estibas, cajas, unidades o HL); las cifras de arriba siempre son estibas. */
+  const vm = useMemo(() => (actual ? (medida === "estibas" ? v : vistaSemana(actual.s, factores, medida)) : null), [actual, factores, medida, v]);
+  const med = MEDIDAS.find((m) => m.id === medida)!;
 
   async function leer(f: File | undefined) {
     if (!f) return;
@@ -113,13 +117,15 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
   async function bajar() {
     if (!actual || !v) return;
     const { armarPlanEnvase } = await import("@/modulos/inventario/libro-plan-envase");
-    const buf = await armarPlanEnvase({ semana: actual.s, vista: v, borrador: actual.borrador, archivo: actual.archivo });
+    const otras = (["cajas", "unidades", "hl"] as const).map((m) => ({ nombre: `${MEDIDAS.find((x) => x.id === m)!.txt} por día`, unidad: MEDIDAS.find((x) => x.id === m)!.unidad, vista: vistaSemana(actual.s, factores, m) }));
+    const buf = await armarPlanEnvase({ semana: actual.s, vista: v, borrador: actual.borrador, archivo: actual.archivo, otras });
     const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
     const a = document.createElement("a"); a.href = url; a.download = `Plan de envase · semana ${actual.s.semana} ${actual.s.anio}.xlsx`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
   const totalUni = v?.skus.reduce((a, f) => a + f.unidades, 0) ?? 0;
+  const totalHl = actual?.s.pendientes.reduce((a, p) => a + p.hl, 0) ?? 0;
   const totalCajas = v?.skus.reduce((a, f) => a + (f.cajas ?? 0), 0) ?? 0;
   const diasConEnvase = v ? v.dias.filter((d) => (v.porDia[d] ?? 0) > 0).length : 0;
   const mayor = v ? v.dias.reduce((a, d) => ((v.porDia[d] ?? 0) > (v.porDia[a] ?? 0) ? d : a), v.dias[0]) : null;
@@ -163,12 +169,13 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
             ))}
           </div>
 
-          {actual && v && (
+          {actual && v && vm && (
             <>
               <div className="pe-kpis">
                 <div className="pe-kpi grande"><span>Estibas de la semana</span><b>{nf0.format(v.total)}</b></div>
                 <div className="pe-kpi"><span>Cajas</span><b>{nf0.format(totalCajas)}</b></div>
                 <div className="pe-kpi"><span>Unidades</span><b>{nf0.format(totalUni)}</b></div>
+                <div className="pe-kpi"><span>Hectolitros</span><b>{nf0.format(totalHl)}</b></div>
                 <div className="pe-kpi"><span>SKU en el plan</span><b>{v.skus.length}</b></div>
                 <div className="pe-kpi"><span>Día más cargado</span><b>{mayor ? `${DIAS[v.dias.indexOf(mayor)]} ${corto(mayor)}` : "—"}</b><small>{mayor ? `${nf0.format(v.porDia[mayor] ?? 0)} estibas` : ""}</small></div>
               </div>
@@ -180,6 +187,7 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
                   {actual.archivo ? <> · {actual.archivo}</> : null}
                 </p>
                 <div className="pe-acciones">
+                  <div className="pe-medidas" role="radiogroup" aria-label="Medida de la tabla">{MEDIDAS.map((m) => <button key={m.id} type="button" role="radio" aria-checked={m.id === medida} className={`pe-medida${m.id === medida ? " on" : ""}`} onClick={() => setMedida(m.id)}>{m.txt}</button>)}</div>
                   <label className="pe-interruptor"><input type="checkbox" checked={turnos} onChange={(e) => setTurnos(e.target.checked)} /> Ver por turno</label>
                   <button type="button" className="btn plano" onClick={() => void bajar()}>Bajar Excel</button>
                   {!actual.borrador && puedeSubir && <button type="button" className="btn plano" onClick={() => void borrar(actual)}>Borrar semana</button>}
@@ -195,58 +203,58 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
                 </div>
               )}
 
-              <h2 className="pe-t">Estibas por día</h2>
-              <div className="pe-tabla" tabIndex={0} aria-label="Estibas por SKU y día">
+              <h2 className="pe-t">{med.txt} por día</h2>
+              <div className="pe-tabla" tabIndex={0} aria-label={`${med.txt} por SKU y día`}>
                 <table>
                   <thead>
                     <tr>
                       <th rowSpan={turnos ? 2 : 1} className="pe-izq pe-c1">Línea</th>
                       <th rowSpan={turnos ? 2 : 1} className="pe-izq pe-c2">SKU</th>
                       <th rowSpan={turnos ? 2 : 1} className="pe-der" title="Cajas por estiba (factor de estibado del Maestro)">Caj/est</th>
-                      {v.dias.map((d, i) => <th key={d} colSpan={turnos ? 3 : 1} className={`pe-der pe-dia${(v.porDia[d] ?? 0) > 0 ? "" : " vacio"}`}>{DIAS[i]} {corto(d)}</th>)}
+                      {vm.dias.map((d, i) => <th key={d} colSpan={turnos ? 3 : 1} className={`pe-der pe-dia${(vm.porDia[d] ?? 0) > 0 ? "" : " vacio"}`}>{DIAS[i]} {corto(d)}</th>)}
                       <th rowSpan={turnos ? 2 : 1} className="pe-der pe-tot">Total</th>
                     </tr>
-                    {turnos && <tr>{v.dias.map((d) => ["T1", "T2", "T3"].map((t) => <th key={d + t} className="pe-der pe-turno">{t}</th>))}</tr>}
+                    {turnos && <tr>{vm.dias.map((d) => ["T1", "T2", "T3"].map((t) => <th key={d + t} className="pe-der pe-turno">{t}</th>))}</tr>}
                   </thead>
                   <tbody>
-                    {v.skus.map((f, i) => {
-                      const nuevo = i === 0 || v.skus[i - 1].tren !== f.tren;
+                    {vm.skus.map((f, i) => {
+                      const nuevo = i === 0 || vm.skus[i - 1].tren !== f.tren;
                       return (
                         <tr key={f.tren + f.sap} className={nuevo ? "pe-nuevo" : undefined}>
                           <th scope="row" className="pe-izq pe-c1">{nuevo ? f.tren : ""}</th>
                           <td className="pe-izq pe-c2"><span className="pe-sku">{f.sku}</span><small>SAP {f.sap}{f.formato && f.referencia ? ` · ${f.formato} cc × ${f.referencia}` : ""}</small></td>
                           <td className="pe-der pe-mut">{f.cpe ? nf0.format(f.cpe) : "—"}</td>
-                          {v.dias.map((d) => turnos
+                          {vm.dias.map((d) => turnos
                             ? [0, 1, 2].map((k) => <td key={d + k} className="pe-der">{e0(f.porDia[d]?.t[k] ?? 0)}</td>)
                             : <td key={d} className="pe-der">{e0(f.porDia[d]?.total ?? 0)}</td>)}
-                          <td className="pe-der pe-tot">{f.estibas == null ? "—" : nf0.format(f.estibas)}</td>
+                          <td className="pe-der pe-tot">{medida !== "estibas" || f.cpe ? nf0.format(f.enteras) : "—"}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                   <tfoot>
                     <tr>
-                      <th colSpan={3} className="pe-izq">Total de estibas</th>
-                      {v.dias.map((d) => <Fragment key={d}>{turnos
-                        ? [0, 1, 2].map((k) => <td key={d + k} className="pe-der">{e0(v.skus.reduce((a, f) => a + (f.porDia[d]?.t[k] ?? 0), 0))}</td>)
-                        : <td className="pe-der">{e0(v.porDia[d] ?? 0)}</td>}</Fragment>)}
-                      <td className="pe-der pe-tot">{nf0.format(v.total)}</td>
+                      <th colSpan={3} className="pe-izq">Total de {med.unidad}</th>
+                      {vm.dias.map((d) => <Fragment key={d}>{turnos
+                        ? [0, 1, 2].map((k) => <td key={d + k} className="pe-der">{e0(vm.skus.reduce((a, f) => a + (f.porDia[d]?.t[k] ?? 0), 0))}</td>)
+                        : <td className="pe-der">{e0(vm.porDia[d] ?? 0)}</td>}</Fragment>)}
+                      <td className="pe-der pe-tot">{nf0.format(vm.total)}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
-              <p className="pe-pie">Cifras redondeadas a la estiba. Estibas = unidades ÷ referencia ÷ cajas por estiba del Maestro. El día y el turno salen de la grilla del plan (T1 0–8 h · T2 8–16 h · T3 16–24 h) y cuentan el día en que se envasa.</p>
+              <p className="pe-pie">Cifras en estibas enteras: cada fila, columna y total suma exactamente lo que se ve (el redondeo se reparte, no se pierde). Estibas = unidades ÷ referencia ÷ cajas por estiba del Maestro. El día y el turno salen de la grilla del plan (T1 0–8 h · T2 8–16 h · T3 16–24 h) y cuentan el día en que se envasa.</p>
 
               <h2 className="pe-t">Por línea</h2>
-              <div className="pe-tabla" tabIndex={0} aria-label="Estibas por línea y día">
+              <div className="pe-tabla" tabIndex={0} aria-label={`${med.txt} por línea y día`}>
                 <table className="pe-chica">
-                  <thead><tr><th className="pe-izq">Línea</th>{v.dias.map((d, i) => <th key={d} className="pe-der">{DIAS[i]} {corto(d)}</th>)}<th className="pe-der pe-tot">Total</th></tr></thead>
+                  <thead><tr><th className="pe-izq">Línea</th>{vm.dias.map((d, i) => <th key={d} className="pe-der">{DIAS[i]} {corto(d)}</th>)}<th className="pe-der pe-tot">Total</th></tr></thead>
                   <tbody>
-                    {v.trenes.map((t) => (
-                      <tr key={t.tren}><th scope="row" className="pe-izq">{t.tren}</th>{v.dias.map((d) => <td key={d} className="pe-der">{e0(t.porDia[d] ?? 0)}</td>)}<td className="pe-der pe-tot">{nf0.format(t.total)}</td></tr>
+                    {vm.trenes.map((t) => (
+                      <tr key={t.tren}><th scope="row" className="pe-izq">{t.tren}</th>{vm.dias.map((d) => <td key={d} className="pe-der">{e0(t.porDia[d] ?? 0)}</td>)}<td className="pe-der pe-tot">{nf0.format(t.total)}</td></tr>
                     ))}
                   </tbody>
-                  <tfoot><tr><th className="pe-izq">Total</th>{v.dias.map((d) => <td key={d} className="pe-der">{e0(v.porDia[d] ?? 0)}</td>)}<td className="pe-der pe-tot">{nf0.format(v.total)}</td></tr></tfoot>
+                  <tfoot><tr><th className="pe-izq">Total</th>{vm.dias.map((d) => <td key={d} className="pe-der">{e0(vm.porDia[d] ?? 0)}</td>)}<td className="pe-der pe-tot">{nf0.format(vm.total)}</td></tr></tfoot>
                 </table>
               </div>
 

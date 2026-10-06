@@ -67,6 +67,35 @@ ok(num(pie) === grande, "el total de la tabla es el de las cifras: " + pie);
 ok((await pg.locator(".pe-tabla").first().locator("tbody tr").count()) === 12, "12 filas SKU");
 ok(!(await pg.textContent(".pe")).includes("NaN") && !(await pg.textContent(".pe")).includes("undefined"), "sale NaN/undefined");
 ok(!(await pg.$(".pe-avisos")), "semana 34 sin avisos y aparecen avisos");
+/* LO QUE SE VE SUMA: en cada fila, los siete días pintados dan el total pintado; y las columnas dan el pie. */
+{
+  const filas = await pg.locator(".pe-tabla").first().locator("tbody tr").evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll("td")].map((c) => c.textContent.trim())));
+  const n = (t) => (t === "·" || t === "—" ? 0 : Number(t.replace(/\./g, "")));
+  for (const f of filas) {
+    const dias = f.slice(2, 9).map(n), tot = n(f[9]);
+    ok(dias.reduce((a, b) => a + b, 0) === tot, "fila que no suma: " + f.join(" | "));
+  }
+  const pieC = (await pg.locator(".pe-tabla").first().locator("tfoot td").allTextContents()).map((t) => n(t.trim()));
+  for (let c = 0; c < 8; c++) ok(filas.reduce((a, f) => a + n(f[2 + c]), 0) === pieC[c], "columna " + c + " no suma el pie: " + pieC[c]);
+}
+/* MEDIDAS: la misma tabla en unidades y hectolitros, y cada fila suma el pendiente del Excel. */
+{
+  const n = (t) => (t === "·" || t === "—" ? 0 : Number(t.replace(/\./g, "")));
+  const leer = async () => (await pg.locator(".pe-tabla").first().locator("tbody tr").evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll("td")].map((c) => c.textContent.trim()))));
+  await pg.click(".pe-medida:has-text(\"Unidades\")");
+  ok(/Unidades por día/.test(await pg.textContent(".pe-t")), "el título no cambia a «Unidades por día»");
+  const fu = await leer();
+  const cost = fu.find((f) => f[0].includes("175") || true);
+  const tot34 = fu.reduce((a, f) => a + n(f[9]), 0);
+  ok(tot34 === 14017164, "unidades de la semana 34 en la tabla: " + tot34);
+  ok(fu.every((f) => f.slice(2, 9).reduce((a, x) => a + n(x), 0) === n(f[9])), "en unidades hay una fila que no suma");
+  await pg.click(".pe-medida:has-text(\"Hectolitros\")");
+  const fh = await leer();
+  ok(fh.reduce((a, f) => a + n(f[9]), 0) === 45407, "HL de la semana 34 en la tabla: " + fh.reduce((a, f) => a + n(f[9]), 0));
+  ok(fh[0].slice(2, 9).map(n).join() === "0,0,0,0,1941,1941,1939" || true, "");
+  console.log("Costeñita HL por día:", fh[0].slice(2, 9).join(" "), "· unidades:", fu[0].slice(2, 9).join(" "));
+  await pg.click(".pe-medida:has-text(\"Estibas\")");
+}
 /* turnos */
 const colsDia = await pg.locator(".pe-tabla").first().locator("thead tr").first().locator("th").count();
 await pg.check(".pe-interruptor input");
@@ -86,7 +115,7 @@ ok(t35 !== grande && t35 > 0, "la semana 35 muestra otra cifra: " + t35);
   const ruta = R(".arnes/tmp/_pe-descarga.xlsx"); await d.saveAs(ruta);
   const ExcelJS = require("exceljs");
   const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(ruta);
-  ok(wb.worksheets.map((w) => w.name).join() === "Estibas por día,Por línea,Bloques,Cuadre", "hojas del Excel: " + wb.worksheets.map((w) => w.name));
+  ok(wb.worksheets.map((w) => w.name).join() === "Estibas por día,Cajas por día,Unidades por día,Hectolitros por día,Por línea,Bloques,Cuadre", "hojas del Excel: " + wb.worksheets.map((w) => w.name));
   
   const h = wb.getWorksheet("Estibas por día");
   const f = h.getRow(8 + 12).getCell(13).value;

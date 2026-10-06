@@ -42,7 +42,7 @@
 .fe .pe-sem.on { border-color: var(--fe-tinta); box-shadow: inset 0 -4px 0 var(--fe-acento) }
 
 /* ---------- Cifras ---------- */
-.fe .pe-kpis { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 8px }
+.fe .pe-kpis { display: grid; grid-template-columns: 1.4fr repeat(5, 1fr); gap: 8px }
 .fe .pe-kpi { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px; min-width: 0 }
 .fe .pe-kpi span { font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--fe-gris) }
 .fe .pe-kpi b { font: 800 22px var(--fe-titulo); color: var(--fe-tinta); font-variant-numeric: tabular-nums }
@@ -91,5 +91,20 @@
 @media (max-width: 900px) {
   .fe .pe-kpis { grid-template-columns: 1fr 1fr }
   .fe .pe-kpi.grande { grid-column: 1 / -1 }
+  .fe .pe-kpi:last-child { grid-column: 1 / -1 }
   .fe .pe-tabla .pe-c2 { min-width: 170px }
+}
+
+/* ---------- Medida de la tabla ---------- */
+.fe .pe-medidas { display: inline-flex; border: 1px solid var(--fe-linea); border-radius: 2px; background: var(--fe-papel) }
+.fe .pe-medida {
+  min-height: 44px; padding: 0 14px; background: transparent; border: 0; border-right: 1px solid var(--fe-linea); cursor: pointer;
+  font: 700 13px var(--fe-titulo); color: var(--fe-gris);
+}
+.fe .pe-medida:last-child { border-right: 0 }
+.fe .pe-medida:hover { color: var(--fe-tinta) }
+.fe .pe-medida.on { color: var(--fe-tinta); box-shadow: inset 0 -4px 0 var(--fe-acento) }
+@media (max-width: 520px) {
+  .fe .pe-medidas { width: 100% }
+  .fe .pe-medida { flex: 1 1 0; min-width: 0; padding: 0 4px; font-size: 12px }
 }
