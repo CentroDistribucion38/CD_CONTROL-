@@ -108,3 +108,24 @@
   .fe .pe-medidas { width: 100% }
   .fe .pe-medida { flex: 1 1 0; min-width: 0; padding: 0 4px; font-size: 12px }
 }
+
+/* ---------- Rótulos del plan ---------- */
+.fe .rp-filtros { display: flex; flex-direction: column; gap: 8px; align-items: flex-start }
+.fe .rp-filtros .pe-medidas { max-width: 100%; overflow-x: auto }
+.fe .rp-kpis { grid-template-columns: 1.4fr repeat(4, 1fr) }
+.fe .rp-cant { width: 68px; min-height: 40px; padding: 0 8px; text-align: right; font: 700 14px var(--fe-texto); font-variant-numeric: tabular-nums; background: var(--fe-papel); color: var(--fe-tinta); border: 1px solid var(--fe-linea); border-radius: 2px }
+.fe .rp-cant:disabled { opacity: .5 }
+.fe .rp-ok { color: var(--fe-ok, var(--fe-tinta)); font-weight: 800 }
+.fe .rp-mal { color: var(--fe-mal, var(--fe-tinta)); font-weight: 700 }
+.fe .rp-folios { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--fe-gris); word-break: break-all }
+.fe .rp-reimp td { background: var(--fe-papel) }
+.fe .rp-reimp-caja { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 6px 0 }
+.fe .rp-reimp-caja label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 700; color: var(--fe-gris) }
+.fe .rp-reimp-caja input, .fe .rp-reimp-caja select { min-height: 40px; padding: 0 8px; font: 600 14px var(--fe-texto); background: var(--fe-papel); color: var(--fe-tinta); border: 1px solid var(--fe-linea); border-radius: 2px }
+.fe .rp-reimp-caja input { width: 72px }
+@media (max-width: 900px) { .fe .rp-kpis { grid-template-columns: 1fr 1fr } }
+
+/* En el celular lo que manda es cuántos faltan y el botón: «Impresos» y «Adic.» se ven en los KPI y en la lista de abajo. */
+@media (max-width: 640px) {
+  .fe .rp-bloques th:nth-child(5), .fe .rp-bloques td:nth-child(5), .fe .rp-bloques th:nth-child(7), .fe .rp-bloques td:nth-child(7) { display: none }
+}

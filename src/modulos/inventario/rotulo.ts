@@ -201,17 +201,39 @@ const sinTildes = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\x20-\x7E]/g, " ");
 
 /**
- * EL QR COMO PNG, EN NIVEL «H» — el que aguanta hasta un 30 % del
- * código destruido. No hace falta para el logo (al 19 % también se lee
- * en nivel medio, medido); hace falta para el papel mojado y rayado de
- * una bodega, que es lo que el arnés no puede probar. Ver la cabecera
- * del archivo para los números.
+ * EL QR, EN NIVEL «H» — el que aguanta hasta un 30 % del código destruido.
+ * No hace falta para el logo (al 19 % también se lee en nivel medio,
+ * medido); hace falta para el papel mojado y rayado de una bodega, que es
+ * lo que el arnés no puede probar. Ver la cabecera del archivo.
+ *
+ * SE DIBUJA COMO RECTÁNGULOS, NO COMO IMAGEN. Como imagen cada tarjeta
+ * pesaba ~370 KB (un mapa de bits de 930 × 930 por hoja): un turno entero
+ * —181 estibas— daba un PDF de 66 MB que no cabe en un celular. Como
+ * vector cada módulo es un rectángulo, queda nítido a cualquier tamaño de
+ * impresión y con el PDF comprimido pesa unos pocos KB por hoja. Los
+ * módulos contiguos de una fila se juntan en un solo rectángulo.
  */
-function qrPng(texto: string): string {
+function qrModulos(texto: string): boolean[][] {
   const q = qrcode(0, "H");
   q.addData(texto);
   q.make();
-  return q.createDataURL(10, 0);
+  const n = q.getModuleCount();
+  return Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => q.isDark(r, c)));
+}
+
+function dibujarQr(pdf: { rect: (x: number, y: number, w: number, h: number, estilo: string) => unknown; setFillColor: (...c: number[]) => unknown },
+  texto: string, x: number, y: number, lado: number) {
+  const m = qrModulos(texto), n = m.length, c = lado / n;
+  pdf.setFillColor(0, 0, 0);
+  for (let r = 0; r < n; r++) {
+    for (let k = 0; k < n; k++) {
+      if (!m[r][k]) continue;
+      let j = k; while (j + 1 < n && m[r][j + 1]) j++;
+      /* 0,04 mm de más en alto y ancho: sin eso algunos lectores de PDF dejan una raya blanca entre filas. */
+      pdf.rect(x + k * c, y + r * c, (j - k + 1) * c + 0.04, c + 0.04, "F");
+      k = j;
+    }
+  }
 }
 
 async function comoDataUrl(url: string) {
@@ -246,7 +268,7 @@ export async function rotulosPdf(
 ) {
   if (rotulos.length === 0) throw new Error("No hay ninguna tarjeta que imprimir.");
   const { jsPDF } = await import("jspdf");
-  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  const pdf = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const W = 210, H = 297, M = 12, AN = W - M * 2;
 
   const sello = await comoDataUrl("/marca/logo-b.png").catch(() => null);
@@ -581,7 +603,7 @@ export async function rotulosPdf(
       pdf.rect(qx - 3, qy - 3, lado + 6, lado + 6, "F");
       pdf.setDrawColor(...TINTA); pdf.setLineWidth(1);
       pdf.rect(qx - 3, qy - 3, lado + 6, lado + 6, "S");
-      pdf.addImage(qrPng(textoQr(r, o.base ?? null)), "PNG", qx, qy, lado, lado);
+      dibujarQr(pdf, textoQr(r, o.base ?? null), qx, qy, lado);
 
       /* EL LOGO AL CENTRO, sobre su parche blanco. El parche NO es
          adorno: pegar el logo directo sobre los módulos deja pedazos de

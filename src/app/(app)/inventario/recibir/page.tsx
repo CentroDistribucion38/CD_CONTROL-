@@ -8,6 +8,7 @@ import "./plan-envase.css";
 import Link from "next/link";
 import { Recibir } from "./Recibir";
 import { PlanEnvase, type SemanaGuardada } from "./PlanEnvase";
+import { RotulosPlan } from "./RotulosPlan";
 import type { Bloque, Pendiente } from "@/modulos/inventario/plan-envase";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function RecibirPage({ searchParams }: { searchParams: Promise<{ vista?: string }> }) {
   const q = await searchParams;
-  const plan = q.vista === "plan";
+  const rotulos = q.vista === "rotulos";
+  const plan = q.vista === "plan" || rotulos;
   const supabase = await createClient();
   const user = await usuarioActual();
   const [permisos, m, { data: perfil }] = await Promise.all([
@@ -94,9 +96,11 @@ export default async function RecibirPage({ searchParams }: { searchParams: Prom
       <section className="cabeza">
         <div>
           <p className="ojo">INVENTARIO · RECEPCIÓN · CD38 AG01</p>
-          <h1>{plan ? "Plan de envase" : "Recepción y rotulado"}</h1>
+          <h1>{rotulos ? "Rótulos del plan" : plan ? "Plan de envase" : "Recepción y rotulado"}</h1>
           <p className="sub">
-            {plan
+            {rotulos
+              ? "Los rótulos de cada turno salen del plan, sin llenar nada: se escoge el día, el turno y la línea, se imprime y queda anotado cuántos van, cuántos faltan y cuáles se reimprimieron."
+              : plan
               ? "Lo que se va a envasar en la semana convertido en estibas: cuántas llegan, qué día, en qué turno y de qué línea."
               : "Lo que entra al CD. Cada estiba sale con su rótulo: código y cantidad en letra grande para leerlos desde el pasillo, dónde queda, y un QR que la abre en el celular."}
           </p>
@@ -105,7 +109,8 @@ export default async function RecibirPage({ searchParams }: { searchParams: Prom
 
       <nav className="pe-pestanas" aria-label="Recepción">
         <Link href="/inventario/recibir" aria-current={plan ? undefined : "page"}>Recibir y rotular</Link>
-        <Link href="/inventario/recibir?vista=plan" aria-current={plan ? "page" : undefined}>Plan de envase</Link>
+        <Link href="/inventario/recibir?vista=plan" aria-current={plan && !rotulos ? "page" : undefined}>Plan de envase</Link>
+        <Link href="/inventario/recibir?vista=rotulos" aria-current={rotulos ? "page" : undefined}>Rótulos del plan</Link>
       </nav>
 
       {plan ? (
@@ -114,6 +119,16 @@ export default async function RecibirPage({ searchParams }: { searchParams: Prom
             <h2>Falta preparar el plan de envase en Supabase</h2>
             <p>Abre el SQL Editor y ejecuta <code>supabase/migraciones/2026-10-plan-envase.sql</code>. Después recarga esta pantalla.</p>
           </section>
+        ) : rotulos ? (
+          <RotulosPlan
+            guardadas={guardadas}
+            factores={m.materiales.map((x) => [x.sku, { cajas_por_estiba: x.cajas_por_estiba, nombre: x.nombre }] as [string, { cajas_por_estiba: number | null; nombre: string | null }])}
+            materiales={m.materiales.filter((x) => x.tipo_material === "PRODUCTO").map((x) => ({
+              sku: x.sku, nombre: x.nombre, unidades_por_caja: x.unidades_por_caja, cajas_por_estiba: x.cajas_por_estiba, unidades_por_estiba: x.unidades_por_estiba,
+              vida_util: x.vida_util, dias_minimo: x.dias_minimo, pat_largo: x.pat_largo, pat_ancho: x.pat_ancho, pat_nivel: x.pat_nivel,
+            }))}
+            puedeImprimir={puedeRecibir}
+          />
         ) : (
           <PlanEnvase
             guardadas={guardadas}

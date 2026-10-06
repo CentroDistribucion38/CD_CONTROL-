@@ -20,6 +20,8 @@ const col = (n: number) => { let s = ""; while (n > 0) { const m = (n - 1) % 26;
 export async function armarPlanEnvase(o: {
   semana: Pick<SemanaPlan, "anio" | "semana" | "fecha_ini" | "fecha_fin" | "escenario" | "generado" | "pendientes" | "bloques">;
   vista: Vista; borrador: boolean; archivo: string | null;
+  /** `/marca/logo-bavaria.png` (540 × 160): va arriba a la derecha de cada hoja. */
+  logo?: ArrayBuffer | Uint8Array | null;
   /** La misma tabla «por día» en las otras medidas (cajas, unidades, HL): una hoja cada una. */
   otras?: { nombre: string; unidad: string; vista: Vista }[];
 }): Promise<ArrayBuffer> {
@@ -28,6 +30,12 @@ export async function armarPlanEnvase(o: {
   const wb = new ExcelJS.Workbook();
   wb.creator = "CONTROL · Plan de envase"; wb.created = new Date();
   wb.calcProperties = { fullCalcOnLoad: true };
+  const logoId = o.logo ? wb.addImage({ buffer: o.logo as unknown as ExcelJS.Buffer, extension: "png" }) : null;
+  /* El logo de Bavaria, a la derecha del encabezado: termina en la última columna de la tabla. */
+  const ponerLogo = (h: ExcelJS.Worksheet, ultima: number) => {
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+    if (logoId != null) h.addImage(logoId, { tl: { col: Math.max(2, ultima - 2.3), row: 1.25 }, ext: { width: 150, height: 44 } });
+  };
   const sub = `Semana ${s.semana} · ${corto(s.fecha_ini)} – ${corto(s.fecha_fin)} ${s.anio}${s.escenario ? " · " + s.escenario : ""}${o.archivo ? " · " + o.archivo : ""}${o.borrador ? " · SIN GUARDAR" : ""}`;
 
   const enc = (h: ExcelJS.Worksheet, fila: number, cols: string[], desde = 2) => {
@@ -40,6 +48,7 @@ export async function armarPlanEnvase(o: {
   const hojaDia = (nombreHoja: string, unidad: string, v: Vista) => {
   const H = wb.addWorksheet(nombreHoja, { properties: { tabColor: { argb: P.BANDA } } });
   cabecera(H, P, null, `Plan de envase · ${unidad} por día`, sub, 12);
+  ponerLogo(H, 13);
   H.getColumn(1).width = 2; H.getColumn(2).width = 9; H.getColumn(3).width = 38; H.getColumn(4).width = 9; H.getColumn(5).width = 11;
   for (let i = 0; i < 7; i++) H.getColumn(6 + i).width = 10;
   H.getColumn(13).width = 12;
@@ -58,7 +67,7 @@ export async function armarPlanEnvase(o: {
   });
   const fin = r - 1;
   tx(H.getCell(r, 2), true); H.getCell(r, 2).value = `Total de ${unidad}`;
-  for (let k = 0; k < 7; k++) { const c = H.getCell(r, 6 + k); num(c, "#,##0", true); c.value = { formula: `SUM(${col(6 + k)}${ini}:${col(6 + k)}${fin})`, result: v.porDia[v.dias[k]] ?? 0 }; c.border = { top: { style: "medium", color: { argb: P.TINTA } } } }
+  for (let k = 0; k < 7; k++) { const c = H.getCell(r, 6 + k); num(c, "#,##0;-#,##0;\"·\"", true); c.value = { formula: `SUM(${col(6 + k)}${ini}:${col(6 + k)}${fin})`, result: v.porDia[v.dias[k]] ?? 0 }; c.border = { top: { style: "medium", color: { argb: P.TINTA } } } }
   const tt = H.getCell(r, 13); num(tt, "#,##0", true); tt.value = { formula: `SUM(M${ini}:M${fin})`, result: v.total }; tt.border = { top: { style: "medium", color: { argb: P.TINTA } } };
   H.getRow(r + 2).getCell(2).value = "Estibas = unidades ÷ referencia ÷ cajas por estiba del Maestro. El día cuenta cuando se envasa (T1 0–8 h · T2 8–16 h · T3 16–24 h).";
   H.getRow(r + 2).getCell(2).font = letra(9, P.GRIS);
@@ -71,6 +80,7 @@ export async function armarPlanEnvase(o: {
   /* ───── Por línea ───── */
   const L = wb.addWorksheet("Por línea", { properties: { tabColor: { argb: P.BANDA } } });
   cabecera(L, P, null, "Plan de envase · estibas por línea", sub, 10);
+  ponerLogo(L, 10);
   L.getColumn(1).width = 2; L.getColumn(2).width = 12; for (let i = 0; i < 7; i++) L.getColumn(3 + i).width = 10; L.getColumn(10).width = 12;
   enc(L, 7, ["Línea", ...v.dias.map((d, i) => `${DIAS[i]} ${corto(d)}`), "Total"]);
   r = 8; const li = r;
@@ -81,12 +91,13 @@ export async function armarPlanEnvase(o: {
     r++;
   }
   tx(L.getCell(r, 2), true); L.getCell(r, 2).value = "Total";
-  for (let k = 0; k < 8; k++) { const c = L.getCell(r, 3 + k); num(c, "#,##0", true); c.value = { formula: `SUM(${col(3 + k)}${li}:${col(3 + k)}${r - 1})`, result: k < 7 ? v.porDia[v.dias[k]] ?? 0 : v.total }; c.border = { top: { style: "medium", color: { argb: P.TINTA } } } }
+  for (let k = 0; k < 8; k++) { const c = L.getCell(r, 3 + k); num(c, "#,##0;-#,##0;\"·\"", true); c.value = { formula: `SUM(${col(3 + k)}${li}:${col(3 + k)}${r - 1})`, result: k < 7 ? v.porDia[v.dias[k]] ?? 0 : v.total }; c.border = { top: { style: "medium", color: { argb: P.TINTA } } } }
   L.views = [{ showGridLines: false, state: "frozen", xSplit: 2, ySplit: 7 }];
 
   /* ───── Bloques ───── */
   const B = wb.addWorksheet("Bloques", { properties: { tabColor: { argb: P.BANDA } } });
   cabecera(B, P, null, "Plan de envase · bloques de la grilla", sub, 12);
+  ponerLogo(B, 12);
   [2, 12, 10, 10, 38, 7, 7, 8, 12, 12, 12, 11].forEach((w, i) => { B.getColumn(i + 1).width = w });
   enc(B, 7, ["Fecha", "Línea", "SAP", "SKU", "Turno", "Desde (h)", "Horas", "HL", "Unidades", "Cajas", "Estibas"]);
   r = 8;
@@ -113,6 +124,7 @@ export async function armarPlanEnvase(o: {
   /* ───── Cuadre ───── */
   const C = wb.addWorksheet("Cuadre", { properties: { tabColor: { argb: P.BANDA } } });
   cabecera(C, P, null, "Plan de envase · cuadre por SKU", sub, 10);
+  ponerLogo(C, 9);
   [2, 10, 38, 9, 14, 11, 12, 10, 12].forEach((w, i) => { C.getColumn(i + 1).width = w });
   enc(C, 7, ["Línea", "SKU", "SAP", "Unidades", "Referencia", "Cajas", "Caj/est", "Estibas"]);
   r = 8;

@@ -118,7 +118,8 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
     if (!actual || !v) return;
     const { armarPlanEnvase } = await import("@/modulos/inventario/libro-plan-envase");
     const otras = (["cajas", "unidades", "hl"] as const).map((m) => ({ nombre: `${MEDIDAS.find((x) => x.id === m)!.txt} por día`, unidad: MEDIDAS.find((x) => x.id === m)!.unidad, vista: vistaSemana(actual.s, factores, m) }));
-    const buf = await armarPlanEnvase({ semana: actual.s, vista: v, borrador: actual.borrador, archivo: actual.archivo, otras });
+    const logo = await fetch("/marca/logo-bavaria.png").then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+    const buf = await armarPlanEnvase({ logo, semana: actual.s, vista: v, borrador: actual.borrador, archivo: actual.archivo, otras });
     const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
     const a = document.createElement("a"); a.href = url; a.download = `Plan de envase · semana ${actual.s.semana} ${actual.s.anio}.xlsx`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
