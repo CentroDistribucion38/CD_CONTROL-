@@ -128,6 +128,26 @@ ok(await pg.isVisible("text=¿Borrar la semana"), "no pide confirmar el borrado"
 await pg.keyboard.press("Escape").catch(() => {});
 console.log("confirmar visible tras Esc:", await pg.isVisible("text=¿Borrar la semana"));
 
+/* 3b · BORRAR VARIAS SEMANAS: «Seleccionar semanas» enciende casillas; se marcan dos y se borran juntas. */
+await pg.evaluate(() => { window.__rpc = [] });
+await pg.click("text=Seleccionar semanas");
+const nCas = await pg.locator(".pe-sem-elige input").count();
+ok(nCas >= 2, "en modo seleccionar debía haber una casilla por semana guardada: " + nCas);
+ok(await pg.locator(".pe-elegir .peligro").isDisabled(), "con nada marcado «Borrar» debía ir apagado");
+await pg.locator(".pe-sem-elige").nth(0).click();
+await pg.locator(".pe-sem-elige").nth(1).click();
+ok(/2 semanas marcadas/.test(await pg.textContent(".pe-elegir")), "no cuenta las semanas marcadas: " + await pg.textContent(".pe-elegir"));
+await pg.click(".pe-elegir .peligro");
+ok(await pg.isVisible("text=¿Borrar 2 semanas?"), "no pidió confirmar el borrado de varias");
+await pg.keyboard.press("Escape").catch(() => {});
+ok(((await pg.evaluate(() => window.__rpc)) ?? []).filter((x) => x.n === "plan_envase_borrar").length === 0, "borró sin confirmar");
+await pg.click(".pe-elegir .peligro");
+await pg.locator("[role=dialog] button:has-text('Borrar'), [role=alertdialog] button:has-text('Borrar')").last().click();
+await pg.waitForFunction(() => (window.__rpc || []).filter((x) => x.n === "plan_envase_borrar").length >= 2, null, { timeout: 4000 }).catch(() => {});
+const bor = (await pg.evaluate(() => window.__rpc)).filter((x) => x.n === "plan_envase_borrar");
+ok(bor.length === 2 && bor[0].a.p_id !== bor[1].a.p_id, "debía llamar plan_envase_borrar una vez por semana marcada: " + JSON.stringify(bor));
+ok(!(await pg.$(".pe-elegir .peligro")), "después de borrar debía salir del modo seleccionar");
+
 /* 4 · SUBIR UN EXCEL → BORRADOR → GUARDAR */
 await monta(1440, "", "vacio=1");
 ok(/Todavía no hay ningún plan/.test(await pg.textContent(".pe")), "vacío sin mensaje");
@@ -152,6 +172,7 @@ await pg.waitForSelector("text=No encontré hojas");
 await monta(1440, "", "solover=1");
 ok(await pg.getAttribute("label.btn[for=pe-archivo]", "aria-disabled") === "true", "sin permiso el botón de subir debería ir apagado");
 ok(!(await pg.$("text=Borrar semana")), "sin permiso se ve «Borrar semana»");
+ok(!(await pg.$("text=Seleccionar semanas")), "sin permiso se ve «Seleccionar semanas»");
 
 /* 5 · NADA SE SALE */
 for (const w of [1440, 1024, 768, 390, 360]) {

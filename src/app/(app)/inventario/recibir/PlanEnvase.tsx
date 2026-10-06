@@ -54,6 +54,10 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
   const [medida, setMedida] = useState<Medida>("estibas");
   const [leyendo, setLeyendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  /* BORRAR VARIAS SEMANAS: «Seleccionar» enciende casillas en las semanas guardadas; se marcan y se borran juntas. */
+  const [eligiendo, setEligiendo] = useState(false);
+  const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
+  const [borrando, setBorrando] = useState(false);
   const entrada = useRef<HTMLInputElement>(null);
 
   /* Lo que hay para mirar: lo subido (borrador) manda sobre lo guardado de la misma semana. */
@@ -114,6 +118,32 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
     setLlave(null); router.refresh();
   }
 
+  const guardadasLista = lista.filter((x) => !x.borrador && x.id);
+  function salirDeElegir() { setEligiendo(false); setMarcadas(new Set()) }
+  function marcar(llaveX: string) {
+    setMarcadas((a) => { const n = new Set(a); if (n.has(llaveX)) n.delete(llaveX); else n.add(llaveX); return n });
+  }
+  async function borrarMarcadas() {
+    const quitar = guardadasLista.filter((x) => marcadas.has(x.llave));
+    if (quitar.length === 0) return;
+    const nombres = quitar.map((x) => x.s.semana).sort((a, b) => a - b).join(", ");
+    if (!(await pedir({
+      titulo: quitar.length === 1 ? `¿Borrar la semana ${nombres}?` : `¿Borrar ${quitar.length} semanas?`,
+      dice: `Semanas: ${nombres}. Se quitan de Supabase. Se pueden volver a subir desde el Excel.`, confirmar: "Borrar", peligro: true,
+    }))) return;
+    setBorrando(true);
+    const sb = createClient();
+    let hechas = 0;
+    for (const x of quitar) {
+      const { error } = await sb.rpc("plan_envase_borrar", { p_id: x.id });
+      if (error) { avisar.mal(`Semana ${x.s.semana}: ${error.message}`); break }
+      hechas++;
+    }
+    setBorrando(false);
+    if (hechas > 0) avisar.bien(hechas === 1 ? "Semana borrada." : `${hechas} semanas borradas.`);
+    setLlave(null); salirDeElegir(); router.refresh();
+  }
+
   async function bajar() {
     if (!actual || !v) return;
     const { armarPlanEnvase } = await import("@/modulos/inventario/libro-plan-envase");
@@ -160,14 +190,42 @@ export function PlanEnvase({ guardadas, factores: fac, puedeSubir }: {
         <p className="fe-vacio">Todavía no hay ningún plan. Sube el Instructivo de Envase y aquí aparece, semana por semana, cuántas estibas van a llegar cada día.</p>
       ) : (
         <>
+          {puedeSubir && guardadasLista.length > 0 && (
+            <div className="pe-elegir">
+              {!eligiendo ? (
+                <button type="button" className="btn plano" onClick={() => setEligiendo(true)}>Seleccionar semanas</button>
+              ) : (
+                <>
+                  <b>{marcadas.size === 0 ? "Marca las semanas que quieres borrar" : `${marcadas.size} ${marcadas.size === 1 ? "semana marcada" : "semanas marcadas"}`}</b>
+                  <button type="button" className="btn plano" onClick={() => setMarcadas(marcadas.size === guardadasLista.length ? new Set() : new Set(guardadasLista.map((x) => x.llave)))}>
+                    {marcadas.size === guardadasLista.length ? "Quitar marcas" : "Marcar todas"}
+                  </button>
+                  <button type="button" className="btn plano peligro" disabled={marcadas.size === 0 || borrando} onClick={() => void borrarMarcadas()}>
+                    {borrando ? "Borrando…" : marcadas.size > 1 ? `Borrar ${marcadas.size} semanas` : "Borrar semana"}
+                  </button>
+                  <button type="button" className="btn plano" disabled={borrando} onClick={salirDeElegir}>Cancelar</button>
+                </>
+              )}
+            </div>
+          )}
           <div className="pe-semanas" role="tablist" aria-label="Semanas del plan">
-            {lista.map((x) => (
+            {lista.map((x) => {
+              const guardada = !x.borrador && !!x.id;
+              return eligiendo ? (
+                <label key={x.llave} className={`pe-sem pe-sem-elige${marcadas.has(x.llave) ? " on" : ""}${guardada ? "" : " apagada"}`}>
+                  <input type="checkbox" checked={marcadas.has(x.llave)} disabled={!guardada || borrando} onChange={() => marcar(x.llave)} />
+                  <span className="pe-sem-txt"><b>Semana {x.s.semana}</b>
+                  <span>{rango(x.s.fecha_ini, x.s.fecha_fin)}</span>
+                  {x.borrador && <i>sin guardar</i>}</span>
+                </label>
+              ) : (
               <button key={x.llave} type="button" role="tab" aria-selected={x.llave === actual?.llave} className={`pe-sem${x.llave === actual?.llave ? " on" : ""}`} onClick={() => setLlave(x.llave)}>
                 <b>Semana {x.s.semana}</b>
                 <span>{rango(x.s.fecha_ini, x.s.fecha_fin)}</span>
                 {x.borrador && <i>sin guardar</i>}
               </button>
-            ))}
+              );
+            })}
           </div>
 
           {actual && v && vm && (
