@@ -569,6 +569,27 @@ export function Contar({
     [materiales, b.codigo]);
   const esEnvase = material?.tipo_material === "ENVASE";
 
+  /* ---------- LA LISTA DEL CÓDIGO, FILTRADA MIENTRAS SE TECLEA ---------- */
+  const [sugAbierta, setSugAbierta] = useState(false);
+  const [sugActiva, setSugActiva] = useState(0);
+  const sugerencias = useMemo(() => {
+    const q = b.codigo.trim().toLowerCase();
+    if (!q) return [];
+    const act = materiales.filter((m) => m.activo);
+    const empieza = act.filter((m) => m.sku.toLowerCase().startsWith(q));
+    const resto = act.filter((m) => !m.sku.toLowerCase().startsWith(q)
+      && (m.sku.toLowerCase().includes(q) || m.nombre.toLowerCase().includes(q)));
+    return [...empieza, ...resto].slice(0, 8);
+  }, [materiales, b.codigo]);
+  /* Ya es el código entero y no hay otro que empiece igual: no hay nada que escoger. */
+  const codigoCerrado = sugerencias.length === 1 && sugerencias[0].sku.toLowerCase() === b.codigo.trim().toLowerCase();
+  const verSug = sugAbierta && sugerencias.length > 0 && !codigoCerrado;
+  function escogerCodigo(sku: string) {
+    pon("codigo", sku);
+    setSugAbierta(false);
+    setTimeout(() => campoDia.current?.focus(), 0);
+  }
+
   /* ---------- LAS DOS CIFRAS DEL FEFO, MIENTRAS SE TECLEA ----------
 
      Son las columnas T y U de la hoja, con sus mismas fórmulas:
@@ -1640,11 +1661,6 @@ export function Contar({
           <div className="fe-bloque fe-estmod">
             <p className="fe-bloque-cab">Estado del módulo</p>
             <div className="fe-estmod-fila">
-              <label className={"fe-mezclado" + (mod.mezclado ? " on" : "")}>
-                <input type="checkbox" checked={mod.mezclado}
-                       onChange={(e) => setMod((x) => ({ ...x, mezclado: e.target.checked }))} />
-                <span><b>Módulo mezclado</b></span>
-              </label>
               <div className="fe-acceso">
                 <span id="fe-rot-acceso">¿Tienes acceso al módulo?</span>
                 <div className="fe-si-no" role="group" aria-labelledby="fe-rot-acceso">
@@ -1654,6 +1670,11 @@ export function Contar({
                           onClick={() => setMod((x) => ({ ...x, sinAcceso: true }))}>No</button>
                 </div>
               </div>
+              <label className={"fe-mezclado" + (mod.mezclado ? " on" : "")}>
+                <input type="checkbox" checked={mod.mezclado}
+                       onChange={(e) => setMod((x) => ({ ...x, mezclado: e.target.checked }))} />
+                <span><b>Módulo mezclado</b></span>
+              </label>
             </div>
             {(mod.mezclado || mod.sinAcceso) && (
               <div className="fe-foto fe-foto-mod">
@@ -1800,10 +1821,37 @@ export function Contar({
               entera y en verde cuando el código existe. */}
           <div className="fe-cod-dos fe-que3">
             <label><span>Código</span>
-              <input ref={campoCodigo} inputMode="numeric" value={b.codigo}
-                     placeholder="Teclea el código"
-                     onChange={(e) => { pon("codigo", e.target.value); saltarSiCompleto(e.target.value) }}
-                     onKeyDown={(e) => saltaCon(e, campoDia)} /></label>
+              {/* LA LISTA SE FILTRA MIENTRAS SE TECLEA: por el principio del
+                  código primero, y después por cualquier parte del código o
+                  del nombre. Se escoge con un toque, con las flechas + Enter,
+                  o se sigue tecleando el código entero (que salta solo a la
+                  fecha cuando ya no hay otro que empiece igual). */}
+              <div className="bs">
+                <input ref={campoCodigo} inputMode="numeric" value={b.codigo}
+                       placeholder="Teclea el código" autoComplete="off"
+                       role="combobox" aria-expanded={verSug} aria-controls="fe-sug-codigo" aria-autocomplete="list"
+                       onFocus={() => setSugAbierta(true)}
+                       onBlur={() => setSugAbierta(false)}
+                       onChange={(e) => { pon("codigo", e.target.value); setSugAbierta(true); setSugActiva(0); saltarSiCompleto(e.target.value) }}
+                       onKeyDown={(e) => {
+                         if (verSug && e.key === "ArrowDown") { e.preventDefault(); setSugActiva((i) => Math.min(i + 1, sugerencias.length - 1)); return }
+                         if (verSug && e.key === "ArrowUp") { e.preventDefault(); setSugActiva((i) => Math.max(i - 1, 0)); return }
+                         if (e.key === "Escape") { setSugAbierta(false); return }
+                         if (verSug && e.key === "Enter" && sugerencias[sugActiva]) { e.preventDefault(); escogerCodigo(sugerencias[sugActiva].sku); return }
+                         saltaCon(e, campoDia);
+                       }} />
+                {verSug && (
+                  <ul className="bs-lista fe-sug" id="fe-sug-codigo" role="listbox" aria-label="Materiales que coinciden">
+                    {sugerencias.map((m, i) => (
+                      <li key={m.sku} role="option" aria-selected={i === sugActiva} className={i === sugActiva ? "on" : ""}
+                          onMouseDown={(e) => { e.preventDefault(); escogerCodigo(m.sku) }}
+                          onMouseEnter={() => setSugActiva(i)}>
+                        <b>{m.sku}</b><em>{m.nombre}</em>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div></label>
             <label className="fe-que-desc"><span>Descripción</span>
               <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : material ? " leido" : "")}>
                 {!b.codigo ? <i>Teclea el código y te digo qué es.</i>

@@ -1710,7 +1710,7 @@
 
 /* ESTADO DEL MÓDULO · mezclado, acceso, estado del envase. Todo rectangular y de más de 44 px para tocarlo con guante. */
 .fe .fe-estmod { display: flex; flex-direction: column; gap: 10px }
-.fe .fe-estmod-fila { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 10px; align-items: end }
+.fe .fe-estmod-fila { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; align-items: end }
 .fe .fe-mezclado { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 10px; cursor: pointer; border: 1.5px solid var(--fe-linea); border-radius: 2px; background: var(--fe-fondo) }
 .fe .fe-mezclado input { width: 24px; height: 24px; flex: none; accent-color: var(--fe-acento) }
 .fe .fe-mezclado span { display: flex; flex-direction: column; line-height: 1.25 }
@@ -1734,3 +1734,22 @@
 .fe .fe-marcados li { display: flex; align-items: center; justify-content: space-between; gap: 10px }
 .fe .fe-marcados em { font-style: normal; font-weight: 800; font-size: 12px; letter-spacing: .04em }
 .fe .fe-marcados em.mal { color: var(--fe-mal) }
+
+
+/* LA LISTA DEL CÓDIGO: más ancha que el campo, porque trae el nombre. */
+.fe .fe-que3 .bs { position: relative }
+.fe .fe-sug { right: auto; min-width: min(420px, calc(100vw - 52px)); max-height: 340px }
+.fe .fe-sug li em { white-space: normal; overflow: visible }
+
+/* DATOS ADICIONALES EN DOS COLUMNAS (pantalla ancha): ¿rota? y marca arriba,
+   observación y evidencia debajo; en el celular, una debajo de la otra. */
+@media (min-width: 760px) {
+  .fe .fe-mas-dentro { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); column-gap: 18px; row-gap: 14px; align-items: start }
+  .fe .fe-mas-dentro > .fe-mas-dos { grid-column: 1 }
+  .fe .fe-mas-dentro > .fe-marca-campo { grid-column: 2 }
+  .fe .fe-mas-dentro > .fe-nota { grid-column: 1 }
+  .fe .fe-mas-dentro > .fe-foto { grid-column: 2 }
+  .fe .fe-mas-dentro > .fe-combinada { grid-column: 1 / -1 }
+}
+.fe .fe-mas-dos { grid-template-columns: minmax(0, 1fr) }
+.fe .fe-mas .fe-foto-fila { flex-wrap: wrap }

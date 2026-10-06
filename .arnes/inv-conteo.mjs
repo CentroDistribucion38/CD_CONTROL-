@@ -93,9 +93,9 @@ const ARMAZON = `
     <div class="fe-bloque fe-estmod">
       <p class="fe-bloque-cab">Estado del módulo</p>
       <div class="fe-estmod-fila">
-        <label class="fe-mezclado"><input type="checkbox"><span><b>Módulo mezclado</b></span></label>
         <div class="fe-acceso"><span>¿Tienes acceso al módulo?</span>
           <div class="fe-si-no"><button type="button" class="on">Sí</button><button type="button">No</button></div></div>
+        <label class="fe-mezclado"><input type="checkbox"><span><b>Módulo mezclado</b></span></label>
       </div>
       <div class="fe-estados-envase"><span>Estado del envase <em>(si lo que hay es envase)</em></span>
         <div class="fe-estados"><button type="button">RETORNO</button><button type="button">LAVADO</button><button type="button">NUEVO</button><button type="button">BAJA</button><button type="button" class="on">EXTRASUCIO</button></div></div>
@@ -794,8 +794,8 @@ if (!/p_ubicacion:\s*idUbicacion/.test(limpio))
    rótulos en el componente. */
 const orden = [
   ["Calle", ">Calle<"], ["Módulo", ">Módulo<"], ["Lado", ">Lado<"],
-  /* LAS TRES PREGUNTAS VAN ENTRE EL LUGAR Y EL CÓDIGO: mezclado, acceso y estado del envase. */
-  ["Mezclado", ">Módulo mezclado<"], ["Acceso", "¿Tienes acceso al módulo?"], ["Estado del envase", "Estado del envase <em>"],
+  /* LAS TRES PREGUNTAS VAN ENTRE EL LUGAR Y EL CÓDIGO: 1) acceso, 2) mezclado y 3) estado del envase. */
+  ["Acceso", "¿Tienes acceso al módulo?"], ["Mezclado", ">Módulo mezclado<"], ["Estado del envase", "Estado del envase <em>"],
   ["Código", ">Código<"], ["Descripción", ">Descripción<"],
   /* LA FECHA YA NO SE BUSCA POR SU RÓTULO, porque el rótulo es dinámico
      —«Se fabricó» casi siempre, «Vence» al corregir uno de antes— y un
@@ -1682,10 +1682,24 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     /* Mezclado SIN foto: no deja anotar. */
     await pgm.check(".fe-estmod .fe-mezclado input");
     await pgm.click('.fe-estados button:has-text("RETORNO")');
+    /* EL CÓDIGO SE FILTRA MIENTRAS SE TECLEA: «31» ya ofrece el 3128, «aguila» también (por nombre), y escoger lo pone en el campo. */
+    await pgm.fill('input[placeholder="Teclea el código"]', "31");
+    await pgm.waitForSelector(".fe-sug li", { timeout: 3000 });
+    ok2((await pgm.$$eval(".fe-sug li", (es) => es.map((e) => e.textContent))).some((t) => t.includes("3128")), "al teclear «31» la lista no ofrece el 3128");
+    await pgm.fill('input[placeholder="Teclea el código"]', "aguila");
+    ok2((await pgm.$$eval(".fe-sug li", (es) => es.length)) >= 1, "al teclear parte del nombre la lista no filtra por nombre");
+    await pgm.fill('input[placeholder="Teclea el código"]', "zzz");
+    ok2(await pgm.locator(".fe-sug li").count() === 0, "con un texto que no coincide con nada la lista sigue mostrando materiales");
+    await pgm.fill('input[placeholder="Teclea el código"]', "31");
+    if (process.env.FOTO_SUG) await pgm.locator(".fe-anotar").screenshot({ path: process.env.FOTO_SUG });
+    await pgm.locator(".fe-sug li").first().dispatchEvent("mousedown");
+    ok2((await pgm.inputValue('input[placeholder="Teclea el código"]')) === "3128", "escoger de la lista no puso el código");
+    ok2(await pgm.locator(".fe-sug").count() === 0, "la lista no se cerró al escoger");
     await pgm.fill('input[placeholder="Teclea el código"]', "3128");
     await pgm.fill('input[placeholder="DD"]', "11"); await pgm.fill('input[placeholder="MM"]', "03"); await pgm.fill('input[placeholder="AA"]', "27");
     await pgm.locator(".fe-cuanto-campo input").first().fill("7");
     await pgm.evaluate(() => { window.__llamadas = []; window.__upserts = [] });
+    if (process.env.FOTO_ADIC) { await pgm.setViewportSize({ width: 1100, height: 900 }); await pgm.evaluate(() => document.querySelector(".fe-mas").open = true); await pgm.waitForTimeout(100); await pgm.locator(".fe-mas").screenshot({ path: process.env.FOTO_ADIC }); await pgm.setViewportSize({ width: 390, height: 900 }) }
     await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(300);
     if (await pgm.evaluate(() => (window.__llamadas ?? []).some((c) => c.fn === "conteo_fefo_agregar")))
       fallas.push("montada, con el módulo mezclado y SIN foto igual se anotó el renglón: la foto es obligatoria");
