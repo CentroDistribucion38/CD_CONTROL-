@@ -56,12 +56,13 @@ console.log("paso 1");
 /* 1 · LO QUE SE PLANEA ES LO QUE MUESTRA LA TABLA DEL PLAN */
 await monta();
 ok(rotos.length === 0, "error de página: " + rotos[0]);
-ok(/Semana 35/.test(await pg.textContent(".pe-semanas")) && /Semana 34/.test(await pg.textContent(".pe-semanas")), "faltan las semanas");
-await pg.click(".pe-sem:has-text(\"Semana 34\")");
+ok(/Semana 35/.test(await pg.textContent(".rp-sem")), "falta la semana 35 en el selector");
+ok(await pg.locator(".rp-panel").count() === 1 && await pg.locator(".pe-semanas, .rp-filtros").count() === 0, "los filtros no están en UN solo panel");
+await pg.click(".rp-sem button[aria-label='Semana anterior']");
 const vie = "2026-08-21";
 const filas0 = await pg.locator(".pe-tabla").first().locator("tbody tr").count();
 const planVie = v34.skus.reduce((a, f) => a + (f.porDia[vie]?.total ?? 0), 0);
-ok(await pg.getAttribute(".pe-medida[aria-checked=true] >> nth=0", "aria-checked") === "true", "");
+ok(await pg.getAttribute(".rp-panel [aria-checked=true] >> nth=0", "aria-checked") === "true", "");
 ok(await kpi("Estibas planeadas") === planVie, `plan del viernes en pantalla ${await kpi("Estibas planeadas")}, en el plan ${planVie}`);
 ok(filas0 === v34.skus.reduce((a, f) => a + [0, 1, 2].filter((k) => (f.porDia[vie]?.t[k] ?? 0) > 0).length, 0), "filas del viernes: " + filas0);
 const c1 = await celdas(fila("Costeñita").nth(0));
@@ -167,24 +168,24 @@ await pg.waitForSelector("text=final no puede ser menor");
 
 console.log("paso 6");
 /* 6 · FILTROS */
-await pg.click(".pe-medida:has-text('T2')");
+await pg.click(".rp-seg >> nth=0 >> button:has-text('T2')");
 const rowsT2 = await pg.locator(".pe-tabla").first().locator("tbody tr").allTextContents();
 ok(rowsT2.length > 0 && rowsT2.every((t) => /T2/.test(t)), "el filtro de turno deja pasar otros turnos");
-await pg.click(".pe-medida:has-text('Todos')");
-await pg.click(".pe-medida:has-text('Tren 2')");
+await pg.click(".rp-seg >> nth=0 >> button:has-text('Todos')");
+await pg.click(".rp-seg >> nth=1 >> button:text-is('2')");
 const rowsL = await pg.locator(".pe-tabla").first().locator("tbody th[scope=row]").allTextContents();
 ok(rowsL.filter(Boolean).every((t) => t === "TREN-2"), "el filtro de línea deja pasar otras líneas: " + rowsL);
-await pg.click(".pe-medida:has-text('Todas')");
+await pg.click(".rp-seg >> nth=1 >> button:has-text('Todos')");
 /* día sin envase está apagado */
-ok(await pg.isDisabled(".pe-medida:has-text('Lun 17')"), "un día sin envase se puede escoger");
+ok(await pg.isDisabled(".rp-d:has-text('Lun17')"), "un día sin envase se puede escoger");
 
 console.log("paso 7");
 /* 7 · «IMPRIMIR LO QUE FALTA» saca lo pendiente del filtro, con tope */
 await monta(1440, "", "");
-await pg.click(".pe-sem:has-text('Semana 34')");
+await pg.click(".rp-sem button[aria-label='Semana anterior']");
 const btn = await pg.textContent(".pe-fila .btn");
 ok(/Imprimir lo que falta \(400\)/.test(btn), "con 3.194 pendientes el tope es 400: " + btn);
-await pg.click(".pe-medida:has-text('T1')"); await pg.click(".pe-medida:has-text('Tren 2')");
+await pg.click(".rp-seg >> nth=0 >> button:has-text('T1')"); await pg.click(".rp-seg >> nth=1 >> button:text-is('2')");
 const btn2 = await pg.textContent(".pe-fila .btn");
 const pend2 = v34.skus.filter((f) => f.tren === "TREN-2").reduce((a, f) => a + (f.porDia[vie]?.t[0] ?? 0), 0);
 ok(new RegExp(`\\(${pend2}\\)`).test(btn2.replace(/\./g, "")), `el botón dice «${btn2}» y faltan ${pend2}`);
@@ -198,7 +199,7 @@ console.log("paso 8");
 /* EL PDF SE VE DENTRO DE LA PANTALLA: sin pestañas nuevas (la app instalada y el celular las bloquean), con vista previa, imprimir y descargar. */
 ok(await pg.evaluate(() => window.__abiertas) === 0, "abrió una pestaña nueva en vez de mostrar el PDF dentro de la pantalla");
 await monta(1440, "", "");
-await pg.click(".pe-sem:has-text('Semana 34')");
+await pg.click(".rp-sem button[aria-label='Semana anterior']");
 await pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "Poker" }).first().locator("button:has-text('Imprimir')").click();
 await pg.waitForSelector(".vp iframe[src^='blob:']", { timeout: 90000 });
 ok(await pg.isVisible(".vp button:has-text('Imprimir')") && await pg.isVisible(".vp a:has-text('Descargar PDF')") && await pg.isVisible(".vp button:has-text('Cerrar')"), "el visor no trae Imprimir, Descargar y Cerrar");

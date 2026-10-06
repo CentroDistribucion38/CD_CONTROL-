@@ -42,6 +42,8 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
   const [llave, setLlave] = useState<string | null>(null);
   const actual = guardadas.find((g) => `${g.anio}-${g.semana}` === llave) ?? guardadas[0] ?? null;
   const [dia, setDia] = useState<string | null>(null);
+  const idxSem = Math.max(0, guardadas.findIndex((g) => g.id === actual?.id));
+  const irSemana = (i: number) => { const g = guardadas[i]; if (g) { setLlave(`${g.anio}-${g.semana}`); setDia(null); } };
   const [turno, setTurno] = useState(0);
   const [tren, setTren] = useState("");
   const [resumen, setResumen] = useState<Map<string, ResumenBloque>>(new Map());
@@ -181,31 +183,44 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
   return (
     <section className="pe rp">
       {avisos}
-      <div className="pe-semanas" role="tablist" aria-label="Semanas del plan">
-        {guardadas.map((g) => (
-          <button key={g.id} type="button" role="tab" aria-selected={g.id === actual?.id} className={`pe-sem${g.id === actual?.id ? " on" : ""}`} onClick={() => { setLlave(`${g.anio}-${g.semana}`); setDia(null); }}>
-            <b>Semana {g.semana}</b><span>{corto(g.fecha_ini)} – {corto(g.fecha_fin)}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="rp-filtros">
-        <div className="pe-medidas" role="radiogroup" aria-label="Día">
-          {dias.map((d, i) => {
-            const hay = bloques.some((b) => b.fecha === d);
-            return <button key={d} type="button" role="radio" aria-checked={d === diaOn} disabled={!hay} className={`pe-medida${d === diaOn ? " on" : ""}`} onClick={() => setDia(d)}>{DIAS[i]} {corto(d)}</button>;
-          })}
+      <section className="rp-panel" aria-label="Filtros de rótulos">
+        <div className="rp-fila">
+          <div className="rp-sem">
+            <button type="button" aria-label="Semana anterior" disabled={idxSem >= guardadas.length - 1} onClick={() => irSemana(idxSem + 1)}>‹</button>
+            <div><b>Semana {actual?.semana}</b><small>{actual ? `${corto(actual.fecha_ini)} – ${corto(actual.fecha_fin)}` : ""}</small></div>
+            <button type="button" aria-label="Semana siguiente" disabled={idxSem <= 0} onClick={() => irSemana(idxSem - 1)}>›</button>
+          </div>
+          <div className="rp-dias" role="radiogroup" aria-label="Día">
+            {dias.map((d, i) => {
+              const hay = bloques.some((b) => b.fecha === d);
+              return (
+                <button key={d} type="button" role="radio" aria-checked={d === diaOn} disabled={!hay} className={`rp-d${d === diaOn ? " on" : ""}${i === 6 ? " fin" : ""}`} onClick={() => setDia(d)}>
+                  <small>{DIAS[i]}</small><b>{Number(d.slice(8))}</b>
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" className="rp-hoy" disabled={!dias.includes(hoyIso()) || !bloques.some((b) => b.fecha === hoyIso())} onClick={() => setDia(hoyIso())}>Hoy</button>
         </div>
-        <div className="pe-medidas" role="radiogroup" aria-label="Turno">
-          {[[0, "Todos"], [1, "T1 · 0–8 h"], [2, "T2 · 8–16 h"], [3, "T3 · 16–24 h"]].map(([k, t]) => (
-            <button key={k} type="button" role="radio" aria-checked={turno === k} className={`pe-medida${turno === k ? " on" : ""}`} onClick={() => setTurno(Number(k))}>{t}</button>
-          ))}
+        <div className="rp-fila">
+          <span className="rp-lb">Turno</span>
+          <div className="rp-seg" role="radiogroup" aria-label="Turno">
+            {[[0, "Todos", ""], [1, "T1", "0–8 h"], [2, "T2", "8–16 h"], [3, "T3", "16–24 h"]].map(([k, t, h]) => (
+              <button key={k} type="button" role="radio" aria-checked={turno === k} className={turno === k ? "on" : ""} onClick={() => setTurno(Number(k))}>{t}{h ? <small>{h}</small> : null}</button>
+            ))}
+          </div>
+          <span className="rp-sep" aria-hidden="true" />
+          <span className="rp-lb">Tren</span>
+          <div className="rp-seg" role="radiogroup" aria-label="Tren">
+            <button type="button" role="radio" aria-checked={!tren} className={!tren ? "on" : ""} onClick={() => setTren("")}>Todos</button>
+            {trenes.map((t) => <button key={t} type="button" role="radio" aria-checked={tren === t} className={tren === t ? "on" : ""} onClick={() => setTren(t)}>{t.replace("TREN-", "")}</button>)}
+          </div>
+          <div className="rp-res">
+            Viendo <b>{diaOn ? `${DIAS[Math.max(0, dias.indexOf(diaOn))]} ${corto(diaOn)}` : "—"} · {turno ? `turno ${turno}` : "todos los turnos"} · {tren ? tren.replace("TREN-", "tren ") : "todos los trenes"}</b>
+            {(turno !== 0 || tren !== "") && <button type="button" className="rp-limpiar" onClick={() => { setTurno(0); setTren(""); }}>Limpiar</button>}
+          </div>
         </div>
-        <div className="pe-medidas" role="radiogroup" aria-label="Línea">
-          <button type="button" role="radio" aria-checked={!tren} className={`pe-medida${!tren ? " on" : ""}`} onClick={() => setTren("")}>Todas</button>
-          {trenes.map((t) => <button key={t} type="button" role="radio" aria-checked={tren === t} className={`pe-medida${tren === t ? " on" : ""}`} onClick={() => setTren(t)}>{t.replace("TREN-", "Tren ")}</button>)}
-        </div>
-      </div>
+      </section>
 
       {pdfListo && <VisorPdf url={pdfListo.url} titulo={pdfListo.nombre} cantidad={pdfListo.n} onCerrar={() => { URL.revokeObjectURL(pdfListo.url); setPdfListo(null) }} />}
 

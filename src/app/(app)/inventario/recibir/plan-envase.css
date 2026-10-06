@@ -110,8 +110,46 @@
 }
 
 /* ---------- Rótulos del plan ---------- */
-.fe .rp-filtros { display: flex; flex-direction: column; gap: 8px; align-items: flex-start }
-.fe .rp-filtros .pe-medidas { max-width: 100%; overflow-x: auto }
+/* UN SOLO PANEL de filtros: semana + día arriba, turno + tren abajo, y lo que se está viendo. */
+.fe .rp-panel { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 0 }
+.fe .rp-fila { display: flex; align-items: center; gap: 14px; padding: 12px 16px; flex-wrap: wrap }
+.fe .rp-fila + .rp-fila { border-top: 1px solid var(--fe-linea) }
+.fe .rp-lb { font: 700 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris); min-width: 40px }
+.fe .rp-sem { display: flex; align-items: center; border: 1px solid var(--fe-linea); height: 44px; overflow: hidden }
+.fe .rp-sem button { width: 38px; height: 100%; border: 0; background: transparent; color: var(--fe-tinta); font-size: 16px; cursor: pointer }
+.fe .rp-sem button:disabled { opacity: .3; cursor: default }
+.fe .rp-sem div { padding: 0 14px; border-left: 1px solid var(--fe-linea); border-right: 1px solid var(--fe-linea); height: 100%; display: flex; flex-direction: column; justify-content: center; min-width: 150px }
+.fe .rp-sem b { font: 800 14px var(--fe-titulo) }
+.fe .rp-sem small { font-size: 12px; color: var(--fe-gris) }
+.fe .rp-dias { display: grid; grid-template-columns: repeat(7, minmax(60px, 1fr)); gap: 4px; flex: 1; min-width: 440px }
+.fe .rp-d { height: 44px; border: 1px solid var(--fe-linea); border-radius: 0; background: transparent; color: var(--fe-tinta); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1 }
+.fe .rp-d small { font: 700 10.5px var(--fe-texto); text-transform: uppercase; letter-spacing: .04em; color: var(--fe-gris) }
+.fe .rp-d b { font: 700 16px var(--fe-texto) }
+.fe .rp-d:disabled { opacity: .4; cursor: default }
+.fe .rp-d.fin small, .fe .rp-d.fin b { color: var(--fe-gris) }
+.fe .rp-d.on { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel); box-shadow: inset 0 -4px 0 var(--fe-acento) }
+.fe .rp-d.on small, .fe .rp-d.on b { color: var(--fe-papel) }
+.fe .rp-hoy { margin-left: auto; height: 44px; padding: 0 14px; border: 1px solid var(--fe-linea); border-radius: 0; background: transparent; color: var(--fe-tinta); font: 700 13px var(--fe-texto); cursor: pointer }
+.fe .rp-hoy:disabled { opacity: .4; cursor: default }
+.fe .rp-seg { display: inline-flex; border: 1px solid var(--fe-linea); border-radius: 0; overflow: hidden; height: 40px }
+.fe .rp-seg button { border: 0; border-right: 1px solid var(--fe-linea); background: transparent; color: var(--fe-tinta); padding: 0 14px; font: 600 13.5px var(--fe-texto); cursor: pointer; white-space: nowrap }
+.fe .rp-seg button:last-child { border-right: 0 }
+.fe .rp-seg button small { font-size: 11.5px; color: var(--fe-gris); margin-left: 5px; font-weight: 500 }
+.fe .rp-seg button.on { box-shadow: inset 0 -3px 0 var(--fe-acento); font-weight: 800 }
+.fe .rp-sep { width: 1px; height: 28px; background: var(--fe-linea) }
+.fe .rp-res { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--fe-gris) }
+.fe .rp-res b { color: var(--fe-tinta) }
+.fe .rp-limpiar { border: 0; background: transparent; font: 700 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer; padding: 6px }
+@media (max-width: 760px) {
+  .fe .rp-dias { min-width: 0; grid-template-columns: repeat(7, 1fr); order: 3; flex-basis: 100% }
+  .fe .rp-d { height: 50px }
+  .fe .rp-fila { gap: 10px; padding: 10px }
+  .fe .rp-seg { overflow-x: auto; max-width: 100% }
+  .fe .rp-res { margin-left: 0; flex-basis: 100% }
+  .fe .rp-sep, .fe .rp-lb { display: none }
+  .fe .rp-sem div { min-width: 0; flex: 1 }
+  .fe .rp-sem { flex: 1 }
+}
 .fe .rp-kpis { grid-template-columns: 1.4fr repeat(4, 1fr) }
 .fe .rp-cant { width: 68px; min-height: 40px; padding: 0 8px; text-align: right; font: 700 14px var(--fe-texto); font-variant-numeric: tabular-nums; background: var(--fe-papel); color: var(--fe-tinta); border: 1px solid var(--fe-linea); border-radius: 2px }
 .fe .rp-cant:disabled { opacity: .5 }

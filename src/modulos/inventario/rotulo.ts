@@ -17,12 +17,12 @@
  * y sin tocar ninguna casilla.
  *
  * ---------------------------------------------------------------------
- * EL QR LLEVA EL ENLACE **Y** LOS DATOS
- * La tarjeta promete «con señal abre la estiba en CONTROL; sin señal se
- * lee igual como texto», y eso obliga a un solo contenido que sirva
- * para las dos cosas: la primera línea es la dirección —que es lo que
- * el lector ofrece abrir— y debajo van los datos en texto plano, que es
- * lo que queda cuando no hay señal.
+ * EL QR LLEVA LOS DATOS DEL RÓTULO, EN TEXTO, Y NINGÚN ENLACE
+ * Pedido textual: «el QR debe traer toda la información, así sea en
+ * texto, de lo que está en el rótulo, no el link del aplicativo». Al
+ * escanearlo el teléfono muestra el texto tal cual —folio, producto,
+ * cajas, unidades, factor de estiba, vida útil, arrume, patrón, fechas,
+ * línea y hora— y funciona sin señal, sin sesión y sin la app.
  *
  * VA EN NIVEL «H» DE CORRECCIÓN, y esto lo medí en vez de suponerlo.
  * Con el logo al 19 % del ancho, el nivel medio TAMBIÉN se lee: probé
@@ -158,22 +158,31 @@ export function limiteDespacho(vence: string | null, diasMinimo: number | null):
 }
 
 /**
- * LO QUE VA DENTRO DEL QR. La dirección primero —es lo que el lector
- * ofrece abrir— y los datos debajo, que es lo que queda sin señal.
+ * LO QUE VA DENTRO DEL QR: TODO lo que está impreso en el rótulo, una
+ * línea por dato en «ETIQUETA: valor». Sin enlace.
  *
  * TODO EN ASCII a propósito: los acentos y el «·» obligan al código a
  * cambiar de modo de codificación y a crecer, y en el archivo que sirvió
  * de modelo el «·» ya había salido convertido en basura. Un dato que se
  * lee mal en el único sitio donde no hay señal no sirve de nada.
  */
-export function textoQr(r: Rotulo, base: string | null): string {
+export function textoQr(r: Rotulo): string {
   const L: string[] = [];
-  if (base) L.push(`${base.replace(/\/$/, "")}/a/${r.folio}`);
   L.push("BAVARIA CD38 - ARRUME");
+  L.push(`FOLIO: ${r.folio}`);
   L.push(`PROD: ${sinTildes(r.nombre)}`);
   L.push(`COD: ${r.sku}`);
   L.push(`ESTIBA: ${r.numero} de ${r.total}`);
-  L.push(`${r.unidad.toUpperCase()} ESTIBA: ${r.cantidad}`);
+  L.push(`${r.unidad.toUpperCase()} ESTIBA: ${nf.format(r.cantidad)}`);
+  if (r.unidad === "cajas" && r.unidadesCaja) {
+    L.push(`UNIDADES ESTIBA: ${nf.format(r.cantidad * r.unidadesCaja)}`);
+  }
+  if (r.unidadesCaja) L.push(`UNID POR CAJA: ${nf.format(r.unidadesCaja)}`);
+  if (r.factorEstiba) L.push(`FACTOR ESTIBA: ${nf.format(r.factorEstiba)} cajas`);
+  if (r.vidaUtil) L.push(`VIDA UTIL: ${nf.format(r.vidaUtil)} dias`);
+  if (r.unidad === "cajas" && r.factorEstiba != null && r.cantidad !== r.factorEstiba) {
+    L.push(`ESTIBA INCOMPLETA: AQUI HAY ${nf.format(r.cantidad)} CAJAS, NO ${nf.format(r.factorEstiba)}`);
+  }
   L.push(`ARRUME: ${nf.format(r.arrume)}`);
   if (r.ancho && r.alto && r.largo) L.push(`ARRUME ARMADO: ${r.ancho}x${r.alto}x${r.largo} estibas`);
   if (r.patron) {
@@ -181,19 +190,19 @@ export function textoQr(r: Rotulo, base: string | null): string {
     L.push(`PATRON ESTIBA: ${r.patron.largo}x${r.patron.ancho}x${r.patron.nivel} = ${c} cajas`);
   }
   if (r.unidadesEstiba) L.push(`UNID POR ESTIBA: ${nf.format(r.unidadesEstiba)}`);
-  if (r.ubicacion) L.push(`UBICACION: ${r.ubicacion}`);
+  if (r.ubicacion) L.push(`UBICACION: ${sinTildes(r.ubicacion)}`);
   if (r.tipo === "producto") {
     if (r.producido) L.push(`PRODUCCION: ${fechaCorta(r.producido)}`);
     if (r.recibido) L.push(`RECIBO: ${fechaCorta(r.recibido)}`);
     if (r.limite) L.push(`LIM DESPACHO: ${fechaCorta(r.limite)}`);
     L.push(`VENCE: ${fechaCorta(r.vence) ?? "SIN FECHA"}`);
-    if (r.linea) L.push(`LINEA: ${r.linea}${r.hora ? `  HORA: ${r.hora}` : ""}`);
+    if (r.linea) L.push(`LINEA: ${sinTildes(String(r.linea))}${r.hora ? `  HORA: ${sinTildes(r.hora)}` : ""}`);
   } else {
     if (r.color) L.push(`COLOR: ${sinTildes(r.color)}`);
     if (r.origen) L.push(`VIENE DE: ${sinTildes(r.origen)}`);
     if (r.recibido) L.push(`RECIBO: ${fechaCorta(r.recibido)}`);
   }
-  if (r.placa) L.push(`PLACA: ${r.placa}`);
+  if (r.placa) L.push(`PLACA: ${sinTildes(r.placa)}`);
   return L.join("\n");
 }
 
@@ -264,7 +273,7 @@ const MAL: [number, number, number] = [176, 0, 32];
  */
 export async function rotulosPdf(
   rotulos: Rotulo[],
-  o: { base?: string | null } = {},
+  o: { /** Ya no se usa: el QR lleva los datos, no un enlace. */ base?: string | null } = {},
 ) {
   if (rotulos.length === 0) throw new Error("No hay ninguna tarjeta que imprimir.");
   const { jsPDF } = await import("jspdf");
@@ -469,18 +478,25 @@ export async function rotulosPdf(
         });
         /* EL RESULTADO, EN ÁMBAR: es la cifra que se usa. Los tres
            números son el cómo; éste es el cuánto. */
-        const anR = 54, xr = W - M - anR - 3;
-        pdf.setFillColor(...AMBAR); pdf.rect(xr, y + 7.4, anR, alP - 9.4, "F");
+        const anR = 60, xr = W - M - anR - 3;
+        /* TODO LO DEL RECUADRO DENTRO DEL RECUADRO. Antes la segunda línea
+           caía en y+18 y el recuadro terminaba en y+17: las unidades salían
+           pegadas al borde de abajo, medio fuera del ámbar. */
+        const yr = y + 6.4, hr = alP - 7.8;
+        pdf.setFillColor(...AMBAR); pdf.rect(xr, yr, anR, hr, "F");
         pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.setTextColor(...TINTA);
-        pdf.text(`= ${nf.format(cajas)} cajas`, xr + anR / 2, y + 14.4, { align: "center" });
+        pdf.text(`= ${nf.format(cajas)} cajas`, xr + anR / 2, yr + 5.9, { align: "center" });
         /* LAS UNIDADES VAN DENTRO DEL RECUADRO Y NO SUELTAS AL LADO.
            Sueltas, entre el «5» de los niveles y el recuadro, se leían
            como si fueran del 5; aquí se leen como lo que son: la misma
            estiba completa, contada en unidades. */
-        pdf.setFontSize(6.5);
-        pdf.text(r.unidadesEstiba
+        const txU = r.unidadesEstiba
           ? `POR ESTIBA COMPLETA · ${nf.format(r.unidadesEstiba)} UNIDADES`
-          : "POR ESTIBA COMPLETA", xr + anR / 2, y + 18, { align: "center" });
+          : "POR ESTIBA COMPLETA";
+        let fu = 6.5;
+        pdf.setFontSize(fu);
+        while (fu > 5 && pdf.getTextWidth(txU) > anR - 6) { fu -= 0.25; pdf.setFontSize(fu); }
+        pdf.text(txU, xr + anR / 2, yr + hr - 2.6, { align: "center" });
       } else {
         pdf.setFont("helvetica", "bold"); pdf.setFontSize(9); pdf.setTextColor(...MAL);
         /* SIN LA FLECHA «→». La fuente estándar del PDF no la tiene y
@@ -603,7 +619,7 @@ export async function rotulosPdf(
       pdf.rect(qx - 3, qy - 3, lado + 6, lado + 6, "F");
       pdf.setDrawColor(...TINTA); pdf.setLineWidth(1);
       pdf.rect(qx - 3, qy - 3, lado + 6, lado + 6, "S");
-      dibujarQr(pdf, textoQr(r, o.base ?? null), qx, qy, lado);
+      dibujarQr(pdf, textoQr(r), qx, qy, lado);
 
       /* EL LOGO AL CENTRO, sobre su parche blanco. El parche NO es
          adorno: pegar el logo directo sobre los módulos deja pedazos de
@@ -636,7 +652,7 @@ export async function rotulosPdf(
       ? "Producto, cajas, arrume, patrón de estiba, las cuatro fechas, línea y hora."
       : "Envase, unidades, arrume, color y de dónde vino.", W / 2, yz, { align: "center" });
     yz += 4.2;
-    pdf.text("Con señal abre la estiba en CONTROL; sin señal se lee igual como texto.",
+    pdf.text("Al escanearlo se lee toda la información del rótulo como texto, sin señal.",
              W / 2, yz, { align: "center" });
 
     /* EL FOLIO, EN LA CINTA NEGRA. Es lo que se dicta por radio cuando

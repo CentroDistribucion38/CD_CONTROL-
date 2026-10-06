@@ -140,7 +140,7 @@ const rotulos = [
   limiteSinVence: limiteDespacho(null, 30),
   limiteSinDias: limiteDespacho("2027-09-23", null),
 };
-(window as any).__QR__ = textoQr(rotulos[0] as any, "https://cd38.example");
+(window as any).__QR__ = textoQr(rotulos[0] as any);
 `);
 
 const js = buildSync({
@@ -517,18 +517,20 @@ for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
      no habría ningún error: simplemente el teléfono no leería nada, y
      nadie se enteraría hasta intentarlo en el muelle. */
 
-  /* Y LLEVA EL ENLACE **Y** LOS DATOS, que es lo que promete la
-     tarjeta: «con señal abre la estiba en CONTROL; sin señal se lee
-     igual como texto». */
-  ok(leidos[0].startsWith("https://cd38.example/a/"),
-     `el QR no arranca con la dirección que abre la estiba: «${leidos[0].slice(0, 60)}»`);
+  /* SIN ENLACE: el QR lleva los datos del rótulo en texto, no la
+     dirección del aplicativo (pedido del usuario). */
+  ok(!/https?:|www\.|cd38\.example/i.test(leidos[0]),
+     `el QR todavía lleva un enlace: «${leidos[0].slice(0, 80)}»`);
   for (const t of ["PROD:", "COD: 16210", "ESTIBA: 1 de 12", "ARRUME: 540",
                    "VENCE: 23/09/2027", "LIM DESPACHO: 24/08/2027", "LINEA: 42",
                    /* EL PATRÓN TAMBIÉN VA EN EL CÓDIGO. Sin señal el papel
                       tiene que poder leerse entero, y cómo se arma la
                       estiba es de lo poco que hace falta ahí mismo. */
                    "PATRON ESTIBA: 3x3x5 = 45 cajas", "UNID POR ESTIBA: 1.350",
-                   "ARRUME ARMADO: 1x1x1 estibas"]) {
+                   "ARRUME ARMADO: 1x1x1 estibas",
+                   /* TODO LO DEL ROTULO: folio, unidades de la estiba,
+                      factor de estiba y vida util. */
+                   "FOLIO: 16210-20260923-L42-001", "UNIDADES ESTIBA:", "FACTOR ESTIBA:", "VIDA UTIL:"]) {
     ok(leidos[0].includes(t),
      `al QR le falta «${t}»: sin señal el papel tiene que poder leerse entero`);
   }
